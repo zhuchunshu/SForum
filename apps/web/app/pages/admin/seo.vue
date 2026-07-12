@@ -387,6 +387,8 @@ function absoluteUrl(path: string) {
       <UButton
         v-for="tab in tabs"
         :key="tab.id"
+        size="md"
+        class="min-h-10 px-4"
         :color="activeTab === tab.id ? 'primary' : 'neutral'"
         :variant="activeTab === tab.id ? 'solid' : 'ghost'"
         :leading-icon="tab.icon"
@@ -491,18 +493,18 @@ function absoluteUrl(path: string) {
 
         <SFSEOContentTypes v-else-if="activeTab === 'content'" v-model="contentPolicies" @restore="restoreContentDefaults" />
 
-        <div v-else-if="activeTab === 'meta'" class="grid max-w-3xl gap-4">
+        <div v-else-if="activeTab === 'meta'" class="grid max-w-5xl gap-5">
           <UFormField :label="t('admin.seo.metaTitleTemplate')" name="seo-meta-title-template">
-            <UInput v-model="form.metaTitleTemplate" icon="i-lucide-file-text" :placeholder="t('admin.seo.metaTitleTemplatePlaceholder')" maxlength="120" class="w-full" />
+            <UInput size="lg" v-model="form.metaTitleTemplate" icon="i-lucide-file-text" :placeholder="t('admin.seo.metaTitleTemplatePlaceholder')" maxlength="120" class="w-full" />
           </UFormField>
           <UFormField :label="t('admin.seo.metaDescription')" name="seo-meta-description">
-            <UTextarea v-model="form.metaDescription" :placeholder="t('admin.seo.metaDescriptionPlaceholder')" :rows="3" maxlength="320" class="w-full" />
+            <UTextarea size="lg" v-model="form.metaDescription" :placeholder="t('admin.seo.metaDescriptionPlaceholder')" :rows="3" maxlength="320" class="w-full" />
           </UFormField>
           <UFormField :label="t('admin.seo.metaKeywords')" name="seo-meta-keywords">
-            <UInput v-model="form.metaKeywords" icon="i-lucide-tags" :placeholder="t('admin.seo.metaKeywordsPlaceholder')" maxlength="200" class="w-full" />
+            <UInput size="lg" v-model="form.metaKeywords" icon="i-lucide-tags" :placeholder="t('admin.seo.metaKeywordsPlaceholder')" maxlength="200" class="w-full" />
           </UFormField>
           <UFormField :label="t('admin.seo.ogImageUrl')" name="seo-og-image-url">
-            <UInput v-model="form.ogImageUrl" icon="i-lucide-image" type="url" :placeholder="t('admin.seo.ogImageUrlPlaceholder')" maxlength="500" class="w-full" />
+            <UInput size="lg" v-model="form.ogImageUrl" icon="i-lucide-image" type="url" :placeholder="t('admin.seo.ogImageUrlPlaceholder')" maxlength="500" class="w-full" />
           </UFormField>
           <div class="grid gap-4 md:grid-cols-2">
             <UFormField :label="t('admin.seo.twitterCard')" name="seo-twitter-card">
@@ -511,12 +513,12 @@ function absoluteUrl(path: string) {
               </select>
             </UFormField>
             <UFormField :label="t('admin.seo.twitterSite')" name="seo-twitter-site">
-              <UInput v-model="form.twitterSite" icon="i-lucide-at-sign" placeholder="@sforum" maxlength="80" class="w-full" />
+              <UInput size="lg" v-model="form.twitterSite" icon="i-lucide-at-sign" placeholder="@sforum" maxlength="80" class="w-full" />
             </UFormField>
           </div>
         </div>
 
-        <div v-else-if="activeTab === 'robots'" class="grid max-w-3xl gap-4">
+        <div v-else-if="activeTab === 'robots'" class="grid max-w-5xl gap-5">
           <label class="flex items-start gap-3 rounded-lg border border-slate-200 p-4 dark:border-zinc-800">
             <input v-model="form.allowIndexing" type="checkbox" class="mt-1 size-4 rounded border-slate-300 text-[var(--sf-accent)] focus:ring-[var(--sf-accent)]" />
             <span>
@@ -526,10 +528,10 @@ function absoluteUrl(path: string) {
           </label>
           <div class="grid gap-4 md:grid-cols-2">
             <UFormField :label="t('admin.seo.extraAllow')" name="seo-robots-extra-allow">
-              <UTextarea v-model="form.robotsExtraAllow" :rows="6" placeholder="/public-preview" class="w-full font-mono text-xs" />
+              <UTextarea size="lg" v-model="form.robotsExtraAllow" :rows="6" placeholder="/public-preview" class="w-full font-mono text-xs" />
             </UFormField>
             <UFormField :label="t('admin.seo.extraDisallow')" name="seo-robots-extra-disallow">
-              <UTextarea v-model="form.robotsExtraDisallow" :rows="6" placeholder="/drafts" class="w-full font-mono text-xs" />
+              <UTextarea size="lg" v-model="form.robotsExtraDisallow" :rows="6" placeholder="/drafts" class="w-full font-mono text-xs" />
             </UFormField>
           </div>
           <div class="grid gap-3 md:grid-cols-2">
@@ -544,7 +546,7 @@ function absoluteUrl(path: string) {
           </div>
         </div>
 
-        <div v-else-if="activeTab === 'sitemap'" class="grid max-w-3xl gap-4">
+        <div v-else-if="activeTab === 'sitemap'" class="grid max-w-5xl gap-5">
           <label class="flex items-start gap-3 rounded-lg border border-slate-200 p-4 dark:border-zinc-800">
             <input v-model="form.sitemapEnabled" type="checkbox" class="mt-1 size-4 rounded border-slate-300 text-[var(--sf-accent)] focus:ring-[var(--sf-accent)]" />
             <span>
@@ -572,7 +574,7 @@ function absoluteUrl(path: string) {
           </div>
         </div>
 
-        <div v-else-if="activeTab === 'schema'" class="grid max-w-3xl gap-4">
+        <div v-else-if="activeTab === 'schema'" class="grid max-w-5xl gap-5">
           <label class="flex items-start gap-3 rounded-lg border border-slate-200 p-4 dark:border-zinc-800">
             <input v-model="form.schemaOrgEnabled" type="checkbox" class="mt-1 size-4 rounded border-slate-300 text-[var(--sf-accent)] focus:ring-[var(--sf-accent)]" />
             <span>
@@ -595,12 +597,12 @@ function absoluteUrl(path: string) {
             </span>
           </label>
           <UFormField :label="t('admin.seo.organizationLogoUrl')" name="seo-schema-logo-url">
-            <UInput v-model="form.schemaOrgOrganizationLogoUrl" icon="i-lucide-image-up" type="url" placeholder="https://example.com/logo.png" maxlength="500" class="w-full" />
+            <UInput size="lg" v-model="form.schemaOrgOrganizationLogoUrl" icon="i-lucide-image-up" type="url" placeholder="https://example.com/logo.png" maxlength="500" class="w-full" />
           </UFormField>
         </div>
 
         <!-- 链接结构：帖子详情页 URL 形态 -->
-        <div v-else-if="activeTab === 'permalinks'" class="grid max-w-3xl gap-4">
+        <div v-else-if="activeTab === 'permalinks'" class="grid max-w-5xl gap-5">
           <p class="text-sm text-slate-500 dark:text-zinc-400">{{ t('admin.seo.topicUrlModeHelp') }}</p>
           <div class="grid gap-3">
             <button
@@ -628,18 +630,18 @@ function absoluteUrl(path: string) {
           </p>
         </div>
 
-        <div v-else class="grid max-w-3xl gap-4">
+        <div v-else class="grid max-w-5xl gap-5">
           <UFormField :label="t('admin.seo.googleVerification')" name="seo-google-verification">
-            <UInput v-model="form.googleVerification" icon="i-lucide-badge-check" :placeholder="t('admin.seo.googleVerificationPlaceholder')" maxlength="120" class="w-full" />
+            <UInput size="lg" v-model="form.googleVerification" icon="i-lucide-badge-check" :placeholder="t('admin.seo.googleVerificationPlaceholder')" maxlength="120" class="w-full" />
           </UFormField>
           <UFormField :label="t('admin.seo.bingVerification')" name="seo-bing-verification">
-            <UInput v-model="form.bingVerification" icon="i-lucide-badge-check" placeholder="msvalidate.01" maxlength="120" class="w-full" />
+            <UInput size="lg" v-model="form.bingVerification" icon="i-lucide-badge-check" placeholder="msvalidate.01" maxlength="120" class="w-full" />
           </UFormField>
           <UFormField :label="t('admin.seo.baiduVerification')" name="seo-baidu-verification">
-            <UInput v-model="form.baiduVerification" icon="i-lucide-badge-check" placeholder="baidu-site-verification" maxlength="120" class="w-full" />
+            <UInput size="lg" v-model="form.baiduVerification" icon="i-lucide-badge-check" placeholder="baidu-site-verification" maxlength="120" class="w-full" />
           </UFormField>
           <UFormField :label="t('admin.seo.yandexVerification')" name="seo-yandex-verification">
-            <UInput v-model="form.yandexVerification" icon="i-lucide-badge-check" placeholder="yandex-verification" maxlength="120" class="w-full" />
+            <UInput size="lg" v-model="form.yandexVerification" icon="i-lucide-badge-check" placeholder="yandex-verification" maxlength="120" class="w-full" />
           </UFormField>
         </div>
 
