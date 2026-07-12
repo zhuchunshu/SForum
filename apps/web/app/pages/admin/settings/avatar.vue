@@ -259,17 +259,17 @@ function boundedNumber(value: number, fallback: number, min: number, max: number
 
           <div class="grid gap-4 md:grid-cols-2">
             <UFormField :label="t('admin.avatar.gravatarBaseUrl')" name="avatar-gravatar-base-url">
-              <UInput v-model="form.gravatarBaseUrl" type="url" icon="i-lucide-link" class="w-full" />
+              <UInput size="lg" v-model="form.gravatarBaseUrl" type="url" icon="i-lucide-link" class="w-full" />
             </UFormField>
             <UFormField :label="t('admin.avatar.gravatarHashAlgorithm')" name="avatar-gravatar-hash">
-              <select v-model="form.gravatarHashAlgorithm" class="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm dark:border-zinc-700 dark:bg-zinc-950">
+              <select v-model="form.gravatarHashAlgorithm" class="h-11 w-full rounded-md border border-slate-200 bg-white px-3 text-base dark:border-zinc-700 dark:bg-zinc-950">
                 <option v-for="option in hashOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
               </select>
             </UFormField>
           </div>
 
           <UFormField :label="t('admin.avatar.defaultStaticUrl')" name="avatar-static-url">
-            <UInput v-model="form.defaultStaticUrl" type="url" icon="i-lucide-image" class="w-full" />
+            <UInput size="lg" v-model="form.defaultStaticUrl" type="url" icon="i-lucide-image" class="w-full" />
           </UFormField>
 
           <div class="grid gap-3 md:grid-cols-3">
@@ -298,16 +298,16 @@ function boundedNumber(value: number, fallback: number, min: number, max: number
 
           <div class="grid gap-4 md:grid-cols-2">
             <UFormField :label="t('admin.avatar.maxSizeKb')" name="avatar-max-size">
-              <UInput v-model.number="form.maxSizeKb" type="number" min="1" max="10240" icon="i-lucide-hard-drive-upload" class="w-full" />
+              <UInput size="lg" v-model.number="form.maxSizeKb" type="number" min="1" max="10240" icon="i-lucide-hard-drive-upload" class="w-full" />
             </UFormField>
             <UFormField :label="t('admin.avatar.maxDimension')" name="avatar-max-dimension">
-              <UInput v-model.number="form.maxDimension" type="number" min="32" max="4096" icon="i-lucide-scan" class="w-full" />
+              <UInput size="lg" v-model.number="form.maxDimension" type="number" min="32" max="4096" icon="i-lucide-scan" class="w-full" />
             </UFormField>
             <UFormField :label="t('admin.avatar.targetDimension')" name="avatar-target-dimension">
-              <UInput v-model.number="form.targetDimension" type="number" min="32" max="4096" icon="i-lucide-crop" class="w-full" />
+              <UInput size="lg" v-model.number="form.targetDimension" type="number" min="32" max="4096" icon="i-lucide-crop" class="w-full" />
             </UFormField>
             <UFormField :label="t('admin.avatar.compressQuality')" name="avatar-quality">
-              <UInput v-model.number="form.compressQuality" type="number" min="1" max="100" icon="i-lucide-gauge" class="w-full" />
+              <UInput size="lg" v-model.number="form.compressQuality" type="number" min="1" max="100" icon="i-lucide-gauge" class="w-full" />
             </UFormField>
           </div>
         </div>
