@@ -48,11 +48,16 @@ func (h *Controller) RegisterRoutes(api fiber.Router) {
 }
 
 type resolveResponse struct {
-	Page        pages.PageDefinition `json:"page"`
-	Provider    string               `json:"provider"`
-	ExtensionID string               `json:"extensionId,omitempty"`
-	Action      string               `json:"action"`
-	Fallback    bool                 `json:"fallback"`
+	Page           pages.PageDefinition `json:"page"`
+	Provider       string               `json:"provider"`
+	ExtensionID    string               `json:"extensionId,omitempty"`
+	ContributionID string               `json:"contributionId,omitempty"`
+	Action         string               `json:"action"`
+	Fallback       bool                 `json:"fallback"`
+	TemplatePath   string               `json:"templatePath,omitempty"`
+	TemplateHTML   string               `json:"templateHtml,omitempty"`
+	DataSource     string               `json:"dataSource,omitempty"`
+	DataRoute      string               `json:"dataRoute,omitempty"`
 }
 
 func (h *Controller) resolve(c fiber.Ctx) error {
@@ -74,12 +79,39 @@ func (h *Controller) resolve(c fiber.Ctx) error {
 	if err != nil {
 		return fiber.NewError(fiber.StatusNotFound, "pages.not_found")
 	}
+	// L1：非 core 时尽力加载模板 HTML；失败则标记 fallback，前台仍渲染 core slot。
+	if resolved.Provider != pages.ProviderCore && resolved.TemplatePath != "" && h.themes != nil {
+		extID := resolved.ExtensionID
+		if extID == "" {
+			extID = resolved.Provider
+		}
+		if theme, terr := h.themes.Get(c.Context(), extID); terr == nil && strings.TrimSpace(theme.PackagePath) != "" {
+			if html, lerr := pages.LoadTemplate(theme.PackagePath, resolved.TemplatePath); lerr == nil {
+				// 无 ViewModel 时用空 vars 渲染（仅宿主岛 + 静态 HTML）。
+				if rendered, rerr := pages.RenderTemplate(html, map[string]string{}); rerr == nil {
+					resolved.TemplateHTML = rendered
+				} else {
+					resolved.Fallback = true
+					resolved.Provider = pages.ProviderCore
+					resolved.TemplateHTML = ""
+				}
+			} else {
+				resolved.Fallback = true
+				resolved.Provider = pages.ProviderCore
+			}
+		}
+	}
 	return apphttp.OK(c, resolveResponse{
-		Page:        resolved.Page,
-		Provider:    resolved.Provider,
-		ExtensionID: resolved.ExtensionID,
-		Action:      resolved.Action,
-		Fallback:    resolved.Fallback,
+		Page:           resolved.Page,
+		Provider:       resolved.Provider,
+		ExtensionID:    resolved.ExtensionID,
+		ContributionID: resolved.ContributionID,
+		Action:         resolved.Action,
+		Fallback:       resolved.Fallback,
+		TemplatePath:   resolved.TemplatePath,
+		TemplateHTML:   resolved.TemplateHTML,
+		DataSource:     resolved.DataSource,
+		DataRoute:      resolved.DataRoute,
 	})
 }
 

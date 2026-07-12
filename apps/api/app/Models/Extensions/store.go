@@ -2,8 +2,6 @@ package extensions
 
 import (
 	"context"
-
-	themeruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/ThemeRuntime"
 )
 
 type Store interface {
@@ -52,13 +50,21 @@ type ThemeBuilder interface {
 	Build(ctx context.Context, extension Extension) error
 }
 
+// ThemeActivationDispatcher 历史接口：P5 后公开主题不再排队构建，可传 nil。
 type ThemeActivationDispatcher interface {
 	EnqueueThemeActivation(ctx context.Context, release ThemeRelease) error
 }
 
-// ThemeCurrentWriter 负责写 theme-releases/current.json。
-// 生产 runtime.mjs 与本地 dev supervisor 都依赖这个文件来切换主题，
-// 因此恢复默认主题（同步路径）也需要更新它，而不只是改 DB 状态。
+// ThemeCurrentWriter 历史接口：P5 后不再写 theme-releases/current.json 作为公开主题选择。
+// 保留空实现注入点仅兼容旧测试。
 type ThemeCurrentWriter interface {
-	WriteCurrent(ctx context.Context, current themeruntime.CurrentRelease) error
+	WriteCurrent(ctx context.Context, current ThemeCurrentPointer) error
+}
+
+// ThemeCurrentPointer 是已退役的主题指针载荷（兼容测试假实现）。
+type ThemeCurrentPointer struct {
+	ExtensionID string
+	Mode        string
+	Server      string
+	LayerPath   string
 }

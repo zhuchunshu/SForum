@@ -18,8 +18,13 @@ PageResolve:
     page: { "$ref": "#/PageDefinition" }
     provider: { type: string }
     extensionId: { type: string }
+    contributionId: { type: string }
     action: { type: string }
     fallback: { type: boolean }
+    templatePath: { type: string }
+    templateHtml: { type: string, description: "Sandboxed L1 HTML with host islands preserved" }
+    dataSource: { type: string, description: "core | plugin" }
+    dataRoute: { type: string, description: "Optional plugin data loader route path" }
 
 AdminPageListItem:
   type: object

@@ -201,7 +201,6 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		return nil, fmt.Errorf("job dispatcher setup failed: %w", err)
 	}
 	jobDispatcher := supportjobs.NewDispatcher(jobClient)
-	themeDispatcher := extensionjobs.ActivationDispatcherAdapter{Dispatcher: jobDispatcher}
 	hostComposition, err := webreleaseruntime.CompositionHost(cfg.WebReleaseWebRoot)
 	if err != nil {
 		if stopErr := supportjobs.Stop(ctx, jobClient); stopErr != nil {
@@ -224,10 +223,10 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 	pageRegistry := pages.NewRegistry(pageRegistryStore)
 	pageRegistryAdapter := extensions.NewPageRegistryAdapter(pageRegistry)
 	// 先构造带 Cipher 的 Service，插件启动与 Host API 才能共享同一个解密设置源。
-	// themeDispatcher 保留构造签名兼容；ActivateTheme 同步路径不再 enqueue theme_activate。
+	// 主题激活走 Page Registry 同步路径；不再注入 theme_activate dispatcher。
 	extensionService := extensions.NewServiceWithThemeActivationWithOptions(
 		extensionStore, cfg.ExtensionRoot, cfg.BuiltinExtensionRoot,
-		nil, nil, themeDispatcher,
+		nil, nil, nil,
 		extensions.WithWebReleaseLifecycle(frontendService, webReleaseService),
 		extensions.WithWebReleaseProgress(webReleaseStore),
 		extensions.WithAuditor(auditWriter),

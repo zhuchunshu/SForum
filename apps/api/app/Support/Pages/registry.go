@@ -172,16 +172,29 @@ func (r *Registry) Resolve(ctx context.Context, pageID string) (ResolvedPage, er
 				return core, nil
 			}
 			return ResolvedPage{
-				Page:        core.Page,
-				Provider:    binding.ExtensionID,
-				ExtensionID: binding.ExtensionID,
-				Action:      string(ActionReplace),
-				Fallback:    false,
+				Page:           core.Page,
+				Provider:       binding.ExtensionID,
+				ExtensionID:    binding.ExtensionID,
+				ContributionID: binding.ContributionID,
+				Action:         string(ActionReplace),
+				Fallback:       false,
+				TemplatePath:   firstNonEmpty(binding.TemplatePath, c.Template),
+				DataSource:     c.DataSource,
+				DataRoute:      c.DataRoute,
 			}, nil
 		}
 	}
 	// 绑定存在但贡献已卸载 → core
 	return core, nil
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, v := range values {
+		if strings.TrimSpace(v) != "" {
+			return v
+		}
+	}
+	return ""
 }
 
 // ListProviders 管理端只读列表：每个核心页 + 当前 provider + 候选贡献。

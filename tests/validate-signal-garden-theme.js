@@ -2,7 +2,13 @@ const fs = require('fs')
 const path = require('path')
 
 const root = path.resolve(__dirname, '..')
-const themeRoot = path.join(root, 'extensions/dev/themes/sforum-signal-garden')
+// extensions/dev is gitignored; CI uses the tracked runtime fixture mirror.
+const themeRootCandidates = [
+  path.join(root, 'extensions/dev/themes/sforum-signal-garden'),
+  path.join(root, 'tests/fixtures/themes/sforum-signal-garden'),
+]
+const themeRoot = themeRootCandidates.find((candidate) => fs.existsSync(candidate))
+  || themeRootCandidates[0]
 const manifestPath = path.join(themeRoot, 'sforum.extension.json')
 const themeJsonPath = path.join(themeRoot, 'theme.json')
 

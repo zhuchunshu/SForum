@@ -35,11 +35,18 @@ type PageDefinition struct {
 
 // ResolvedPage 是解析结果：目录条目 + 当前生效的提供者。
 type ResolvedPage struct {
-	Page       PageDefinition `json:"page"`
-	Provider   string         `json:"provider"`
-	ExtensionID string        `json:"extensionId,omitempty"`
-	Action     string         `json:"action,omitempty"` // core | replace | add
-	Fallback   bool           `json:"fallback"`
+	Page           PageDefinition `json:"page"`
+	Provider       string         `json:"provider"`
+	ExtensionID    string         `json:"extensionId,omitempty"`
+	ContributionID string         `json:"contributionId,omitempty"`
+	Action         string         `json:"action,omitempty"` // core | replace | add
+	Fallback       bool           `json:"fallback"`
+	// L1 渲染载荷（provider 非 core 时由 HTTP 层填充 HTML）。
+	TemplatePath string `json:"templatePath,omitempty"`
+	TemplateHTML string `json:"templateHtml,omitempty"`
+	DataSource   string `json:"dataSource,omitempty"`
+	DataRoute    string `json:"dataRoute,omitempty"`
+	PackageRoot  string `json:"-"` // 仅服务端内部使用，不序列化
 }
 
 var coreCatalog = []PageDefinition{

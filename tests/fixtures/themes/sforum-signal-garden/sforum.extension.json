@@ -1,0 +1,14 @@
+{
+  "id": "sforum.signal-garden",
+  "name": "Signal Garden",
+  "description": "A bright, friendly SForum public theme with natural green surfaces and warm activity signals. Runtime L0/L1 package (no Nuxt layer rebuild).",
+  "url": "https://sforum.local/themes/signal-garden",
+  "author": {
+    "name": "SForum Team",
+    "url": "https://sforum.local"
+  },
+  "version": "2.0.0",
+  "type": "theme",
+  "sforumVersion": "^1.0.0",
+  "frontend": {}
+}

@@ -15,7 +15,7 @@ import (
 	"time"
 
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
-	themeruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/ThemeRuntime"
+
 )
 
 func TestReadZipFileLimitedCapsInflation(t *testing.T) {
@@ -1807,12 +1807,12 @@ func (d *fakeThemeActivationDispatcher) EnqueueThemeActivation(_ context.Context
 }
 
 type fakeThemeCurrentWriter struct {
-	current themeruntime.CurrentRelease
+	current ThemeCurrentPointer
 	calls   int
 	err     error
 }
 
-func (w *fakeThemeCurrentWriter) WriteCurrent(_ context.Context, current themeruntime.CurrentRelease) error {
+func (w *fakeThemeCurrentWriter) WriteCurrent(_ context.Context, current ThemeCurrentPointer) error {
 	w.calls++
 	w.current = current
 	return w.err
