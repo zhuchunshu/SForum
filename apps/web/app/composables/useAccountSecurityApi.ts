@@ -25,6 +25,23 @@ export type RevokeOthersResult = {
   revoked: number
 }
 
+// 个人访问令牌（PAT）公开视图；明文仅在 create/rotate 响应的 token 字段出现一次。
+export type APIToken = {
+  id: number
+  publicId: string
+  name: string
+  scopes: string[]
+  prefix: string
+  lastUsedAt?: string | null
+  expiresAt?: string | null
+  revokedAt?: string | null
+  createdAt: string
+}
+
+export type CreatedAPIToken = APIToken & {
+  token: string
+}
+
 export function useAccountSecurityApi() {
   const { request } = useApiClient()
 
@@ -48,5 +65,29 @@ export function useAccountSecurityApi() {
     return request<RevokeOthersResult>('/auth/sessions/revoke-others', { method: 'POST' })
   }
 
-  return { listSessions, revokeSession, revokeOtherSessions }
+  function listAPITokens() {
+    return request<{ items: APIToken[] }>('/auth/tokens')
+  }
+
+  function createAPIToken(input: { name: string, scopes: string[], expiresAt?: string }) {
+    return request<CreatedAPIToken>('/auth/tokens', { method: 'POST', body: input })
+  }
+
+  function revokeAPIToken(tokenId: number) {
+    return request<null>(`/auth/tokens/${tokenId}`, { method: 'DELETE' })
+  }
+
+  function rotateAPIToken(tokenId: number) {
+    return request<CreatedAPIToken>(`/auth/tokens/${tokenId}/rotate`, { method: 'POST', body: {} })
+  }
+
+  return {
+    listSessions,
+    revokeSession,
+    revokeOtherSessions,
+    listAPITokens,
+    createAPIToken,
+    revokeAPIToken,
+    rotateAPIToken
+  }
 }

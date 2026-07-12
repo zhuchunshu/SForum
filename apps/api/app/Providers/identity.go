@@ -7,6 +7,7 @@ import (
 	"github.com/gofiber/fiber/v3/middleware/session"
 
 	identitycontroller "github.com/zhuchunshu/sforum/apps/api/app/Http/Controllers/Identity"
+	apitokens "github.com/zhuchunshu/sforum/apps/api/app/Models/APITokens"
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
 	notifications "github.com/zhuchunshu/sforum/apps/api/app/Models/Notifications"
 	authsession "github.com/zhuchunshu/sforum/apps/api/app/Support/AuthSession"
@@ -72,6 +73,14 @@ type optionsResolver interface {
 	RegistrationEnabled(ctx context.Context) (bool, error)
 	UsernamePolicy(ctx context.Context) (identity.UsernamePolicy, error)
 	LoginLockoutPolicy(ctx context.Context) (identity.LoginLockoutPolicy, error)
+}
+
+// WithAPITokens 启用 PAT 管理路由（F3.4）。
+func (p *IdentityProvider) WithAPITokens(tokens *apitokens.Service) *IdentityProvider {
+	if p != nil && p.controller != nil {
+		p.controller.WithAPITokens(tokens)
+	}
+	return p
 }
 
 func (p *IdentityProvider) RegisterRoutes(api fiber.Router) {

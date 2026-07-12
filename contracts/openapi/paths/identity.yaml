@@ -567,3 +567,93 @@ authSessionByID:
             schema:
               "$ref": "../components/responses.yaml#/NotFound"
               description: Not used directly; see referenced NotFound response.
+authAPITokens:
+  get:
+    summary: List personal access tokens
+    description: Cookie session only. Bearer PAT cannot list tokens.
+    operationId: listAuthAPITokens
+    responses:
+      '200':
+        description: Active tokens (no plaintext secrets).
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/identity.yaml#/ApiResponseAPITokenList"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+  post:
+    summary: Create a personal access token
+    description: |
+      Returns the plaintext secret once (`token` field). Scopes must be permission
+      keys the user already holds. Cookie session required.
+    operationId: createAuthAPIToken
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            "$ref": "../schemas/identity.yaml#/CreateAPITokenRequest"
+    responses:
+      '201':
+        description: Token created with one-time plaintext.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/identity.yaml#/ApiResponseCreatedAPIToken"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '422':
+        "$ref": "../components/responses.yaml#/UnprocessableEntity"
+authAPITokenByID:
+  delete:
+    summary: Revoke a personal access token
+    operationId: revokeAuthAPIToken
+    parameters:
+    - name: tokenID
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+    responses:
+      '200':
+        description: Token revoked.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/common.yaml#/ApiResponseNull"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '404':
+        "$ref": "../components/responses.yaml#/NotFound"
+authAPITokenRotate:
+  post:
+    summary: Rotate a personal access token
+    description: Revokes the old token and issues a new secret with the same name and scopes.
+    operationId: rotateAuthAPIToken
+    parameters:
+    - name: tokenID
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+    responses:
+      '200':
+        description: New token with one-time plaintext.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/identity.yaml#/ApiResponseCreatedAPIToken"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '404':
+        "$ref": "../components/responses.yaml#/NotFound"

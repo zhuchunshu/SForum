@@ -26,6 +26,7 @@ import (
 	options "github.com/zhuchunshu/sforum/apps/api/app/Models/Options"
 	profile "github.com/zhuchunshu/sforum/apps/api/app/Models/Profile"
 	sitechrome "github.com/zhuchunshu/sforum/apps/api/app/Models/SiteChrome"
+	apitokens "github.com/zhuchunshu/sforum/apps/api/app/Models/APITokens"
 	webhooks "github.com/zhuchunshu/sforum/apps/api/app/Models/Webhooks"
 	"github.com/zhuchunshu/sforum/apps/api/app/Providers"
 	authsupport "github.com/zhuchunshu/sforum/apps/api/app/Support/Auth"
@@ -290,7 +291,12 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 	webhookService := webhooks.NewService(webhookStore, pool, jobDispatcher)
 	eventPublisher := webhooks.BridgePublisher{Inner: extensionRuntime, Fanout: webhookService}
 
-	identityProvider := providers.NewIdentityProviderWithPasswordResetAndLockout(identityStore, authSessions, humanVerifier, eventPublisher, passwordResetService, mailOutbox, optionsService, loginLockout)
+	// F3.4：个人访问令牌；管理走 cookie，调用走 Bearer。
+	apiTokenStore := apitokens.NewPostgresStore(pool)
+	apiTokenService := apitokens.NewService(apiTokenStore, identityStore).WithAuditor(auditWriter)
+
+	identityProvider := providers.NewIdentityProviderWithPasswordResetAndLockout(identityStore, authSessions, humanVerifier, eventPublisher, passwordResetService, mailOutbox, optionsService, loginLockout).
+		WithAPITokens(apiTokenService)
 	notificationsProvider := providers.NewNotificationsProvider(notificationStore, identityStore, authSessions)
 	mailProvider := providers.NewMailProvider(extensionStore, notificationStore, extensionsruntime.NewMailProviderRegistry(extensionStore), identityStore, authSessions, optionsService)
 	// Worker 心跳 store 尽早创建，供 overview 与嵌入 worker 共用。
@@ -354,6 +360,8 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		Options:        optionsService,
 		Storage:        redisStorage,
 		Ready:          readyEvaluate,
+		BearerTokens:   httpserver.TokenServiceAdapter{Service: apiTokenService},
+		Auditor:        auditWriter,
 	})
 
 	// Worker 心跳：嵌入 worker 时由 API 进程发布；独立 worker 在 NewWorker 内发布。

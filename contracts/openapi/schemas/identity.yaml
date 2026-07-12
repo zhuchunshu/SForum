@@ -615,3 +615,50 @@ ApiResponseRevokeOthers:
         revoked:
           type: integer
           description: Number of other sessions that were revoked.
+APIToken:
+  type: object
+  required: [id, publicId, name, scopes, prefix, createdAt]
+  properties:
+    id: { type: integer, format: int64 }
+    publicId: { type: string }
+    name: { type: string }
+    scopes: { type: array, items: { type: string } }
+    prefix: { type: string }
+    lastUsedAt: { type: string, format: date-time }
+    expiresAt: { type: string, format: date-time }
+    revokedAt: { type: string, format: date-time }
+    createdAt: { type: string, format: date-time }
+CreatedAPIToken:
+  allOf:
+  - "$ref": "#/APIToken"
+  - type: object
+    required: [token]
+    properties:
+      token:
+        type: string
+        description: One-time plaintext secret (sft_<publicId>.<secret>).
+CreateAPITokenRequest:
+  type: object
+  required: [name, scopes]
+  properties:
+    name: { type: string, maxLength: 80 }
+    scopes: { type: array, items: { type: string }, minItems: 1 }
+    expiresAt: { type: string, format: date-time }
+ApiResponseAPITokenList:
+  type: object
+  required: [code, message, data]
+  properties:
+    code: { type: integer }
+    message: { type: string }
+    data:
+      type: object
+      required: [items]
+      properties:
+        items: { type: array, items: { "$ref": "#/APIToken" } }
+ApiResponseCreatedAPIToken:
+  type: object
+  required: [code, message, data]
+  properties:
+    code: { type: integer }
+    message: { type: string }
+    data: { "$ref": "#/CreatedAPIToken" }

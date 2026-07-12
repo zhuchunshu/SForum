@@ -3,6 +3,7 @@ package forumcontroller
 import (
 	"github.com/gofiber/fiber/v3"
 
+	apphttp "github.com/zhuchunshu/sforum/apps/api/app/Http"
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Idempotency"
 )
 
@@ -65,7 +66,7 @@ func (h *Controller) idempotencyHandler() fiber.Handler {
 		return nil
 	}
 	return idempotency.Middleware(h.idempotency, func(c fiber.Ctx) (int64, error) {
-		userID, ok, err := h.sessions.CurrentUserID(c)
+		userID, ok, err := apphttp.ResolveUserID(c, h.sessions)
 		if err != nil {
 			return 0, err
 		}

@@ -14,9 +14,11 @@ import (
 	"github.com/gofiber/fiber/v3/middleware/session"
 
 	apphttp "github.com/zhuchunshu/sforum/apps/api/app/Http"
+	apitokens "github.com/zhuchunshu/sforum/apps/api/app/Models/APITokens"
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
 	notifications "github.com/zhuchunshu/sforum/apps/api/app/Models/Notifications"
 	options "github.com/zhuchunshu/sforum/apps/api/app/Models/Options"
+	"github.com/zhuchunshu/sforum/apps/api/app/Support/Audit"
 	authsession "github.com/zhuchunshu/sforum/apps/api/app/Support/AuthSession"
 	humanverify "github.com/zhuchunshu/sforum/apps/api/app/Support/HumanVerify"
 	useragent "github.com/zhuchunshu/sforum/apps/api/app/Support/UserAgent"
@@ -32,6 +34,9 @@ type Controller struct {
 	passwordReset *identity.PasswordResetService
 	mailQueue     adminMailQueue
 	options       optionsResolver
+	// apiTokens 可选：个人访问令牌（F3.4）。
+	apiTokens *apitokens.Service
+	auditor   audit.Writer
 }
 
 // optionsResolver 只暴露密码策略、mail-test 需要的站点名/管理员邮箱，避免全量依赖 options.Service。
@@ -71,6 +76,21 @@ func NewControllerWithPasswordReset(service *identity.Service, sessions *authses
 		mailQueue:     mailQueue,
 		options:       options,
 	}
+}
+
+// WithAPITokens 注入 PAT 服务（账号安全页创建/轮换/撤销）。
+func (h *Controller) WithAPITokens(tokens *apitokens.Service) *Controller {
+	if h != nil {
+		h.apiTokens = tokens
+	}
+	return h
+}
+
+func (h *Controller) WithAuditor(w audit.Writer) *Controller {
+	if h != nil {
+		h.auditor = w
+	}
+	return h
 }
 
 type registerRequest struct {
@@ -547,6 +567,10 @@ func (h *Controller) replaceUserPermissionOverrides(c fiber.Ctx) error {
 }
 
 func (h *Controller) sessionUserID(c fiber.Ctx) (int64, bool, error) {
+	// Bearer PAT 优先于 cookie session（机器调用场景）。
+	if userID, ok := apitokens.UserIDFromContext(c.Context()); ok {
+		return userID, true, nil
+	}
 	return h.authSessions.CurrentUserID(c)
 }
 
@@ -562,6 +586,10 @@ func (h *Controller) actor(c fiber.Ctx) (identity.Actor, error) {
 	actor, err := h.service.Actor(c.Context(), userID)
 	if err != nil {
 		return identity.Actor{}, mapIdentityError(err)
+	}
+	// PAT：权限收窄到 scopes，避免令牌等价于完整 cookie 会话。
+	if scopes := apitokens.ScopesFromContext(c.Context()); len(scopes) > 0 {
+		actor = apitokens.RestrictActor(actor, scopes)
 	}
 	return actor, nil
 }

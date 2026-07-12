@@ -21,6 +21,13 @@ func (h *Controller) RegisterRoutes(api fiber.Router) {
 	sessions.Post("/revoke-others", h.revokeOtherSessions)
 	sessions.Delete("/:sessionId", h.revokeSession)
 
+	// 个人访问令牌（F3.4）：仅 cookie 会话可管理；Bearer 不可创建/列出。
+	tokens := auth.Group("/tokens")
+	tokens.Get("", h.listAPITokens)
+	tokens.Post("", h.createAPIToken)
+	tokens.Delete("/:tokenID", h.revokeAPIToken)
+	tokens.Post("/:tokenID/rotate", h.rotateAPIToken)
+
 	// 邮件测试：管理员验证 SMTP 配置是否生效。
 	api.Post("/admin/mail/test", h.adminMailTest)
 

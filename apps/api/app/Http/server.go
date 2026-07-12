@@ -15,6 +15,7 @@ import (
 	"github.com/gofiber/fiber/v3/middleware/requestid"
 
 	options "github.com/zhuchunshu/sforum/apps/api/app/Models/Options"
+	"github.com/zhuchunshu/sforum/apps/api/app/Support/Audit"
 	health "github.com/zhuchunshu/sforum/apps/api/app/Support/Health"
 	"github.com/zhuchunshu/sforum/apps/api/config"
 )
@@ -43,6 +44,10 @@ type Dependencies struct {
 	Storage fiber.Storage
 	// Ready 为 /api/v1/ready 探测函数（PG required；Redis/Meili degraded）。
 	Ready ReadyEvaluator
+	// BearerTokens 可选：启用 Authorization: Bearer PAT（F3.4）。
+	BearerTokens BearerAuthenticator
+	// Auditor 可选：PAT 写请求轻量审计。
+	Auditor audit.Writer
 }
 
 func NewApp(cfg config.Config, logger *slog.Logger, deps Dependencies) *fiber.App {
@@ -109,13 +114,23 @@ func registerRoutes(app *fiber.App, cfg config.Config, deps Dependencies) {
 			CookiePath:      "/",
 			TrustedOrigins:  cfg.CSRFTrustedOrigins,
 			ErrorHandler:    csrfErrorHandler,
-			// 入站 webhook 由第三方服务器调用，无浏览器 CSRF cookie（F3.3）。
+			// 入站 webhook / Bearer PAT 由非浏览器客户端调用，无 CSRF cookie。
 			Next: func(c fiber.Ctx) bool {
 				path := c.Path()
-				return strings.HasPrefix(path, "/api/v1/webhooks/inbound/") ||
-					strings.HasPrefix(path, "/webhooks/inbound/")
+				if strings.HasPrefix(path, "/api/v1/webhooks/inbound/") ||
+					strings.HasPrefix(path, "/webhooks/inbound/") {
+					return true
+				}
+				// PAT：Authorization Bearer sft_... 跳过 CSRF（F3.4）。
+				authz := c.Get("Authorization")
+				return strings.HasPrefix(authz, "Bearer sft_")
 			},
 		}))
+	}
+
+	// F3.4：Bearer PAT 鉴权（在路由前解析，供各 controller 读取 context）。
+	if deps.BearerTokens != nil {
+		api.Use(bearerMiddleware(deps.BearerTokens, deps.Auditor))
 	}
 
 	for _, provider := range deps.RouteProviders {

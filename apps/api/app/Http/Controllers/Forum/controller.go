@@ -439,14 +439,7 @@ func (h *Controller) deleteComment(c fiber.Ctx) error {
 }
 
 func (h *Controller) actor(c fiber.Ctx) (identity.Actor, error) {
-	userID, ok, err := h.sessions.CurrentUserID(c)
-	if err != nil {
-		return identity.Actor{}, err
-	}
-	if !ok {
-		return identity.Actor{}, fiber.NewError(fiber.StatusUnauthorized, "auth.required")
-	}
-	return h.users.LoadActor(c.Context(), userID)
+	return apphttp.LoadActor(c, h.sessions, h.users)
 }
 
 // requireGuestRead：forum.guest.read=login_required 时，匿名读请求返回 401。
@@ -459,10 +452,7 @@ func (h *Controller) requireGuestRead(c fiber.Ctx) error {
 	if settings.GuestRead != "login_required" {
 		return nil
 	}
-	if h.sessions == nil {
-		return fiber.NewError(fiber.StatusUnauthorized, forum.CodeGuestLoginRequired)
-	}
-	_, ok, err := h.sessions.CurrentUserID(c)
+	_, ok, err := apphttp.ResolveUserID(c, h.sessions)
 	if err != nil {
 		return err
 	}

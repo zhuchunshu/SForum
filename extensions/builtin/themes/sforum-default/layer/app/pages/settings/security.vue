@@ -91,6 +91,81 @@ const { format: formatSiteDateTime } = useSiteDateTime()
 function formatTime(iso: string): string {
   return formatSiteDateTime(iso)
 }
+
+// —— 个人访问令牌（F3.4）——
+const tokens = ref<APIToken[]>([])
+const tokensLoading = ref(false)
+const tokenForm = reactive({
+  name: '',
+  scopesText: 'topic.create,post.create'
+})
+const createdPlaintext = ref('')
+const tokenBusy = ref(false)
+
+async function loadTokens() {
+  tokensLoading.value = true
+  try {
+    const result = await sessionsApi.listAPITokens()
+    tokens.value = result.items || []
+  } catch (error) {
+    toast.add({ color: 'error', icon: 'i-lucide-alert-triangle', title: apiErrorMessage(error) || t('accountSecurity.tokensLoadFailed') })
+  } finally {
+    tokensLoading.value = false
+  }
+}
+
+async function createToken() {
+  if (tokenBusy.value) return
+  tokenBusy.value = true
+  createdPlaintext.value = ''
+  try {
+    const scopes = tokenForm.scopesText.split(/[,\s]+/).map(s => s.trim()).filter(Boolean)
+    const created = await sessionsApi.createAPIToken({ name: tokenForm.name, scopes })
+    createdPlaintext.value = created.token
+    tokenForm.name = ''
+    toast.add({ color: 'success', icon: 'i-lucide-check', title: t('accountSecurity.tokenCreated') })
+    await loadTokens()
+  } catch (error) {
+    toast.add({ color: 'error', icon: 'i-lucide-alert-triangle', title: apiErrorMessage(error) || t('accountSecurity.tokenSaveFailed') })
+  } finally {
+    tokenBusy.value = false
+  }
+}
+
+async function revokeToken(token: APIToken) {
+  try {
+    await sessionsApi.revokeAPIToken(token.id)
+    toast.add({ color: 'success', icon: 'i-lucide-check', title: t('accountSecurity.tokenRevoked') })
+    await loadTokens()
+  } catch (error) {
+    toast.add({ color: 'error', icon: 'i-lucide-alert-triangle', title: apiErrorMessage(error) || t('accountSecurity.tokenSaveFailed') })
+  }
+}
+
+async function rotateToken(token: APIToken) {
+  try {
+    const created = await sessionsApi.rotateAPIToken(token.id)
+    createdPlaintext.value = created.token
+    toast.add({ color: 'success', icon: 'i-lucide-check', title: t('accountSecurity.tokenRotated') })
+    await loadTokens()
+  } catch (error) {
+    toast.add({ color: 'error', icon: 'i-lucide-alert-triangle', title: apiErrorMessage(error) || t('accountSecurity.tokenSaveFailed') })
+  }
+}
+
+async function copyPlaintext() {
+  if (!createdPlaintext.value) return
+  try {
+    await navigator.clipboard.writeText(createdPlaintext.value)
+    toast.add({ color: 'success', icon: 'i-lucide-check', title: t('accountSecurity.tokenCopied') })
+  } catch {
+    toast.add({ color: 'error', icon: 'i-lucide-alert-triangle', title: t('accountSecurity.tokenCopyFailed') })
+  }
+}
+
+onMounted(() => {
+  loadTokens()
+})
 </script>
 
 <template>
@@ -231,6 +306,102 @@ function formatTime(iso: string): string {
           </p>
         </SFCard>
       </div>
+
+      <!-- 个人访问令牌 -->
+      <section class="mt-10">
+        <h2 class="text-lg font-semibold text-slate-900 dark:text-zinc-50">
+          {{ t('accountSecurity.tokensTitle') }}
+        </h2>
+        <p class="mt-1 text-sm text-slate-500 dark:text-zinc-400">
+          {{ t('accountSecurity.tokensIntro') }}
+        </p>
+
+        <SFCard class="mt-4 p-4">
+          <div class="grid gap-3 sm:grid-cols-2">
+            <label class="block text-sm">
+              <span class="mb-1 block text-slate-600 dark:text-zinc-300">{{ t('accountSecurity.tokenName') }}</span>
+              <input
+                v-model="tokenForm.name"
+                class="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-950"
+                type="text"
+              >
+            </label>
+            <label class="block text-sm">
+              <span class="mb-1 block text-slate-600 dark:text-zinc-300">{{ t('accountSecurity.tokenScopes') }}</span>
+              <input
+                v-model="tokenForm.scopesText"
+                class="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-mono dark:border-zinc-700 dark:bg-zinc-950"
+                type="text"
+              >
+            </label>
+          </div>
+          <p class="mt-2 text-xs text-slate-500">
+            {{ t('accountSecurity.tokenScopesHint') }}
+          </p>
+          <div class="mt-3">
+            <SFButton
+              variant="primary"
+              size="sm"
+              :disabled="tokenBusy || !tokenForm.name"
+              @click="createToken"
+            >
+              <UIcon name="i-lucide-key-round" class="mr-1" />
+              {{ t('accountSecurity.tokenCreate') }}
+            </SFButton>
+          </div>
+
+          <div
+            v-if="createdPlaintext"
+            class="mt-4 rounded-md border border-amber-200 bg-amber-50 p-3 dark:border-amber-900/50 dark:bg-amber-950/30"
+          >
+            <p class="text-xs font-medium text-amber-800 dark:text-amber-200">
+              {{ t('accountSecurity.tokenOnceHint') }}
+            </p>
+            <p class="mt-2 break-all font-mono text-sm text-slate-900 dark:text-zinc-100">
+              {{ createdPlaintext }}
+            </p>
+            <SFButton class="mt-2" variant="secondary" size="sm" @click="copyPlaintext">
+              <UIcon name="i-lucide-copy" class="mr-1" />
+              {{ t('accountSecurity.tokenCopy') }}
+            </SFButton>
+          </div>
+        </SFCard>
+
+        <SFCard class="mt-4 p-0 overflow-hidden">
+          <div v-if="tokensLoading" class="p-4 text-sm text-slate-500">
+            {{ t('accountSecurity.tokensLoading') }}
+          </div>
+          <ul v-else-if="tokens.length" class="divide-y divide-slate-100 dark:divide-zinc-800">
+            <li
+              v-for="token in tokens"
+              :key="token.id"
+              class="flex flex-col gap-2 p-4 sm:flex-row sm:items-center sm:justify-between"
+            >
+              <div class="min-w-0">
+                <p class="font-medium text-slate-900 dark:text-zinc-100">
+                  {{ token.name }}
+                  <span class="ml-2 font-mono text-xs text-slate-400">{{ token.prefix }}…</span>
+                </p>
+                <p class="mt-1 text-xs text-slate-500">
+                  {{ token.scopes.join(', ') }}
+                  · {{ t('accountSecurity.loggedIn') }}: {{ formatTime(token.createdAt) }}
+                </p>
+              </div>
+              <div class="flex shrink-0 gap-2">
+                <SFButton variant="ghost" size="sm" @click="rotateToken(token)">
+                  {{ t('accountSecurity.tokenRotate') }}
+                </SFButton>
+                <SFButton variant="ghost" size="sm" @click="revokeToken(token)">
+                  {{ t('accountSecurity.tokenRevoke') }}
+                </SFButton>
+              </div>
+            </li>
+          </ul>
+          <p v-else class="p-4 text-sm text-slate-500">
+            {{ t('accountSecurity.tokensEmpty') }}
+          </p>
+        </SFCard>
+      </section>
     </div>
   </main>
 </template>

@@ -27,6 +27,14 @@ info:
     `idempotency.key_invalid`. Storage failures fail open (request proceeds).
     Plugin authors and webhook receivers should follow the same actor+route+key
     scoping when integrating.
+
+    ## Personal Access Tokens (PAT)
+
+    Users can create tokens under `POST /auth/tokens` (cookie session only).
+    Call APIs with `Authorization: Bearer sft_<publicId>.<secret>`. Scopes are
+    permission keys the user already holds; super_admin bypass is stripped so a
+    PAT cannot act as an unlimited session. Token management routes reject Bearer
+    auth (`api_token.cookie_required`). Unsafe methods with a valid PAT skip CSRF.
 servers:
 - url: "/api/v1"
 paths:
@@ -114,6 +122,12 @@ paths:
     "$ref": "./openapi/paths/identity.yaml#/authSessionRevokeOthers"
   "/auth/sessions/{sessionId}":
     "$ref": "./openapi/paths/identity.yaml#/authSessionByID"
+  "/auth/tokens":
+    "$ref": "./openapi/paths/identity.yaml#/authAPITokens"
+  "/auth/tokens/{tokenID}":
+    "$ref": "./openapi/paths/identity.yaml#/authAPITokenByID"
+  "/auth/tokens/{tokenID}/rotate":
+    "$ref": "./openapi/paths/identity.yaml#/authAPITokenRotate"
   "/auth/password-reset/request":
     "$ref": "./openapi/paths/identity.yaml#/passwordResetRequest"
   "/auth/password-reset/confirm":
