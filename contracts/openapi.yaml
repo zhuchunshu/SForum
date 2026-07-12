@@ -14,6 +14,19 @@ info:
     are rejected with `403` and reason `csrf.invalid`; untrusted `Origin`/
     `Referer` are rejected with reason `csrf.origin_invalid`. Trusted origins
     are configured via `CSRF_TRUSTED_ORIGINS` (defaults to the `APP_URL` origin).
+
+    ## Idempotency-Key
+
+    Selected mutating routes (currently `POST /topics` and
+    `POST /topics/{topicID}/comments`) accept an optional `Idempotency-Key`
+    request header. Within a 24-hour TTL, the same actor + method + path + key
+    replays the first successful (2xx) response body and status, and sets
+    `Idempotency-Replayed: true`. Failed responses are not stored so clients may
+    retry with the same key. Concurrent in-flight duplicates return `409` with
+    reason `idempotency.in_progress`. Invalid keys return `400` with
+    `idempotency.key_invalid`. Storage failures fail open (request proceeds).
+    Plugin authors and webhook receivers should follow the same actor+route+key
+    scoping when integrating.
 servers:
 - url: "/api/v1"
 paths:

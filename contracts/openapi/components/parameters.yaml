@@ -1,3 +1,13 @@
+IdempotencyKey:
+  name: Idempotency-Key
+  in: header
+  required: false
+  schema:
+    type: string
+    maxLength: 128
+  description: |
+    Optional client-supplied key for safe retries on selected write routes.
+    Scoped to actor + method + path; TTL 24h. See openapi.yaml Idempotency-Key.
 RoleKey:
   name: roleKey
   in: path

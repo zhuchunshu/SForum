@@ -16,6 +16,7 @@ import (
 	options "github.com/zhuchunshu/sforum/apps/api/app/Models/Options"
 	authsession "github.com/zhuchunshu/sforum/apps/api/app/Support/AuthSession"
 	appevents "github.com/zhuchunshu/sforum/apps/api/app/Support/Events"
+	"github.com/zhuchunshu/sforum/apps/api/app/Support/Idempotency"
 )
 
 type ForumProvider struct {
@@ -55,6 +56,14 @@ func NewForumProviderWithSearchTopicActionsAndPublicationPolicy(store forum.Stor
 	return &ForumProvider{
 		controller: forumcontroller.NewControllerWithSearch(service, searchService, reindexer, users, sessions),
 	}
+}
+
+// WithIdempotency 为发帖/评论写路径启用 Idempotency-Key（F3.2）。
+func (p *ForumProvider) WithIdempotency(store *idempotency.Store) *ForumProvider {
+	if p != nil && p.controller != nil {
+		p.controller.WithIdempotency(store)
+	}
+	return p
 }
 
 // TrustPolicyAdapter 把 options.TrustPolicy 适配为 forum.TrustPolicyResolver。

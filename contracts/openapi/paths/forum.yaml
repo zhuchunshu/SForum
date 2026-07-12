@@ -111,6 +111,8 @@ topics:
   post:
     summary: Create a topic
     operationId: createTopic
+    parameters:
+    - "$ref": "../components/parameters.yaml#/IdempotencyKey"
     requestBody:
       required: true
       content:
@@ -124,10 +126,14 @@ topics:
           application/json:
             schema:
               "$ref": "../schemas/forum.yaml#/ApiResponseTopicDetail"
+      '400':
+        "$ref": "../components/responses.yaml#/BadRequest"
       '401':
         "$ref": "../components/responses.yaml#/Unauthorized"
       '403':
         "$ref": "../components/responses.yaml#/Forbidden"
+      '409':
+        "$ref": "../components/responses.yaml#/Conflict"
       '422':
         "$ref": "../components/responses.yaml#/UnprocessableEntity"
 adminForumCategoryGroups:
@@ -677,6 +683,7 @@ topicComments:
     operationId: createTopicComment
     parameters:
     - "$ref": "../components/parameters.yaml#/TopicID"
+    - "$ref": "../components/parameters.yaml#/IdempotencyKey"
     requestBody:
       required: true
       content:
@@ -690,6 +697,8 @@ topicComments:
           application/json:
             schema:
               "$ref": "../schemas/forum.yaml#/ApiResponseComment"
+      '400':
+        "$ref": "../components/responses.yaml#/BadRequest"
       '401':
         "$ref": "../components/responses.yaml#/Unauthorized"
       '403':

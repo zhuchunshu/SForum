@@ -1,15 +1,26 @@
 package forumcontroller
 
-import "github.com/gofiber/fiber/v3"
+import (
+	"github.com/gofiber/fiber/v3"
+
+	"github.com/zhuchunshu/sforum/apps/api/app/Support/Idempotency"
+)
 
 func (h *Controller) RegisterRoutes(api fiber.Router) {
+	// 发帖/评论写路径可选携带 Idempotency-Key（F3.2）；未携带时行为不变。
+	idem := h.idempotencyHandler()
+
 	api.Get("/category-groups", h.categoryGroups)
 	api.Get("/categories", h.categories)
 	api.Get("/tags", h.tags)
 	api.Get("/search", h.search)
 	api.Get("/me/content-review", h.authorReviewItems)
 	api.Get("/topics", h.topics)
-	api.Post("/topics", h.createTopic)
+	if idem != nil {
+		api.Post("/topics", idem, h.createTopic)
+	} else {
+		api.Post("/topics", h.createTopic)
+	}
 	// 注意：by-slug 必须先于 :topicID 注册，否则 "by-slug" 会被当作 topicID 捕获。
 	api.Get("/topics/by-slug/:slug", h.topicBySlug)
 	api.Get("/topics/:topicID", h.topic)
@@ -22,7 +33,11 @@ func (h *Controller) RegisterRoutes(api fiber.Router) {
 	api.Post("/topics/:topicID/pin", h.pinTopic)
 	api.Post("/topics/:topicID/unpin", h.unpinTopic)
 	api.Get("/topics/:topicID/comments", h.comments)
-	api.Post("/topics/:topicID/comments", h.createComment)
+	if idem != nil {
+		api.Post("/topics/:topicID/comments", idem, h.createComment)
+	} else {
+		api.Post("/topics/:topicID/comments", h.createComment)
+	}
 	api.Get("/comments/:commentID/replies", h.replies)
 	api.Patch("/comments/:commentID", h.updateComment)
 	api.Delete("/comments/:commentID", h.deleteComment)
@@ -43,4 +58,20 @@ func (h *Controller) RegisterRoutes(api fiber.Router) {
 	admin.Post("/search/reindex", h.adminReindexSearch)
 	admin.Get("/search/reindex", h.adminReindexStatus)
 	admin.Get("/search/reindex/runs", h.adminReindexRuns)
+}
+
+func (h *Controller) idempotencyHandler() fiber.Handler {
+	if h == nil || h.idempotency == nil || h.sessions == nil {
+		return nil
+	}
+	return idempotency.Middleware(h.idempotency, func(c fiber.Ctx) (int64, error) {
+		userID, ok, err := h.sessions.CurrentUserID(c)
+		if err != nil {
+			return 0, err
+		}
+		if !ok {
+			return 0, nil
+		}
+		return userID, nil
+	})
 }

@@ -1,3 +1,9 @@
+BadRequest:
+  description: The request is malformed or a header value is invalid.
+  content:
+    application/json:
+      schema:
+        "$ref": "../schemas/common.yaml#/ApiErrorResponse"
 Unauthorized:
   description: Authentication is required or credentials are invalid.
   content:

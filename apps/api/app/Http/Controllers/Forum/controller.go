@@ -14,6 +14,7 @@ import (
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
 	authsession "github.com/zhuchunshu/sforum/apps/api/app/Support/AuthSession"
 	appevents "github.com/zhuchunshu/sforum/apps/api/app/Support/Events"
+	"github.com/zhuchunshu/sforum/apps/api/app/Support/Idempotency"
 )
 
 type Controller struct {
@@ -22,6 +23,8 @@ type Controller struct {
 	reindexer     ReindexService
 	users         identity.ActorStore
 	sessions      *authsession.Manager
+	// idempotency 可选：注入后对发帖/评论写路径启用 Idempotency-Key（F3.2）。
+	idempotency *idempotency.Store
 }
 
 // SearchService 抽象搜索查询，避免 controller 直接依赖 search 包。
@@ -97,6 +100,14 @@ func NewController(service *forum.Service, users identity.ActorStore, sessions *
 // NewControllerWithSearch 注入搜索服务与索引重建服务。
 func NewControllerWithSearch(service *forum.Service, searchSvc SearchService, reindexer ReindexService, users identity.ActorStore, sessions *authsession.Manager) *Controller {
 	return &Controller{service: service, searchService: searchSvc, reindexer: reindexer, users: users, sessions: sessions}
+}
+
+// WithIdempotency 启用选定写路由的 Idempotency-Key 去重。
+func (h *Controller) WithIdempotency(store *idempotency.Store) *Controller {
+	if h != nil {
+		h.idempotency = store
+	}
+	return h
 }
 
 type createTopicRequest struct {

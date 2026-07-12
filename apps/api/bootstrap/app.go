@@ -37,6 +37,7 @@ import (
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Audit"
 	health "github.com/zhuchunshu/sforum/apps/api/app/Support/Health"
 	hostapi "github.com/zhuchunshu/sforum/apps/api/app/Support/HostAPI"
+	"github.com/zhuchunshu/sforum/apps/api/app/Support/Idempotency"
 	humanverify "github.com/zhuchunshu/sforum/apps/api/app/Support/HumanVerify"
 	supportjobs "github.com/zhuchunshu/sforum/apps/api/app/Support/Jobs"
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Postgres"
@@ -305,6 +306,8 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 	// 搜索索引重建：forumStore 提供 ListAllTopicIDs（TopicIDSource），
 	// reindexStore 记录运行状态，dispatcher 批量入队 IndexTopicArgs。
 	reindexManager := search.NewReindexManager(forumStore, search.NewPostgresReindexStore(pool), jobDispatcher)
+	// F3.2：发帖/评论写路径可选 Idempotency-Key；存储复用 shared Redis。
+	idempotencyStore := idempotency.NewStore(idempotency.NewRedisBackend(sharedRedisClient), idempotency.DefaultTTL)
 	forumProvider := providers.NewForumProviderWithSearchTopicActionsAndPublicationPolicy(
 		forumCachedStore,
 		optionsService,
@@ -316,7 +319,7 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		reindexServiceAdapter{inner: reindexManager},
 		providers.NewExtensionTopicActionProvider(extensionService),
 		providers.NewModerationPublicationPolicy(moderationStore, optionsService),
-	)
+	).WithIdempotency(idempotencyStore)
 	avatarAttachmentService := attachments.NewServiceWithEvents(attachmentStore, optionsService, extensionRuntime)
 	profileProvider := providers.NewProfileProviderWithAvatar(profileStore, identityStore, authSessions, avatarAttachmentService, optionsService)
 	moderationProvider := providers.NewModerationWorkbenchProviderWithIndexer(moderationStore, forumStore, identityStore, authSessions, searchIndexer)
