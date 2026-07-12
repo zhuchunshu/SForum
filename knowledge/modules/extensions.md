@@ -26,7 +26,9 @@ mail. Implementation checklist:
 
 - Plan: `plans/2026-07-12-extension-surface-density.md` (waves **E1–E8**)
 - **E1.1 done:** `comment.before_create` filter (patch `content` only; reject
-  → `RejectedError` / 422). Next default: **E1.2** `topic.before_update`
+  → `RejectedError` / 422)
+- **E1.2 done:** `topic.before_update` filter (patch title/tags/category/content;
+  force tags allowed). Next default: **E1.3** `user.before_register`
 - F4.4 entity meta → **E3**; F4.5 feature flags → **E4**
 - **North star:** storage (**E6**) and search (**E7**) reach mail-like L4–L6
   (plugin RPC + admin select/settings/test/restore + reference plugin); other
@@ -255,9 +257,10 @@ and plugin runtime v1.
   may declare first-class `events`; legacy `hooks` remain a compatibility alias.
   Core route overriding and arbitrary monkey-patching are not allowed.
   Replacement behavior must go through core-owned filter events or Provider
-  Slots. Sync filters today: `topic.before_create`, `comment.before_create`
-  (E1.1). Lifecycle, user registration, topic/comment creation, and attachment
-  upload remain observe events with delivery tracking.
+  Slots. Sync filters today: `topic.before_create`, `topic.before_update`
+  (E1.2), `comment.before_create` (E1.1). Lifecycle, user registration,
+  topic/comment creation, and attachment upload remain observe events with
+  delivery tracking.
 - Declarative contributions are separate from events, filters, provider slots,
   and routes. Contributions are ordered descriptors that a host-owned consumer
   interprets; they do not execute code, override routes, render raw HTML, or

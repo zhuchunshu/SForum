@@ -21,6 +21,7 @@ cd apps/api && go run ./cmd/sforum extension docs generate --check
 | `extension.disabled` | observe | 5000 | fail_open | `extensionId` | — |
 | `user.registered` | observe | 5000 | fail_open | `userId`, `username`, `email`, `locale` | — |
 | `topic.before_create` | filter | 2000 | fail_closed | `actorUserId`, `categorySlug`, `tagSlugs`, `title`, `content` | `categorySlug`, `tagSlugs`, `title`, `content` |
+| `topic.before_update` | filter | 2000 | fail_closed | `actorUserId`, `topicId`, `categorySlug`, `tagSlugs`, `title`, `content` | `categorySlug`, `tagSlugs`, `title`, `content` |
 | `topic.created` | observe | 5000 | fail_open | `topicId`, `authorUserId`, `categorySlug`, `tagSlugs`, `title` | — |
 | `topic.updated` | observe | 5000 | fail_open | `topicId`, `actorUserId`, `title`, `categorySlug`, `tagSlugs` | — |
 | `topic.deleted` | observe | 5000 | fail_open | `topicId`, `actorUserId` | — |
@@ -56,6 +57,10 @@ Emitted after a new user is committed.
 #### `topic.before_create`
 
 Runs before a topic is committed and may reject or patch allowlisted input. Heavy work must enqueue jobs, never block this filter.
+
+#### `topic.before_update`
+
+Runs before a topic update is committed and may reject or patch allowlisted input. Heavy work must enqueue jobs, never block this filter.
 
 #### `topic.created`
 

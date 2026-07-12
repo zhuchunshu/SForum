@@ -176,8 +176,9 @@ SDK helpers: `pluginsdk.Ping`, `GetSettings`, `CheckPermission`, `EnqueueOwnJob`
 | Scenario | Event | Kind | Can patch | Notes |
 | --- | --- | --- | --- | --- |
 | Block or rewrite a new topic (title/tags/category/body) | `topic.before_create` | filter | `categorySlug`, `tagSlugs`, `title`, `content` | Runs after permission check; host re-validates after patch |
+| Block or rewrite a topic edit (title/tags/category/body) | `topic.before_update` | filter | `categorySlug`, `tagSlugs`, `title`, `content` | After edit permission + author edit window; payload only includes fields present in the request; plugins may still patch missing fields (e.g. force tags). Host re-validates after patch |
 | Block or rewrite a new reply body | `comment.before_create` | filter | `content` only | After auth + topic active check; before content limits / render / commit. `parentId` is payload-only (not patchable in v1) |
-| Side effects after commit | `topic.created`, `comment.created`, … | observe | — | Async; do not use for rejection |
+| Side effects after commit | `topic.created`, `topic.updated`, `comment.created`, … | observe | — | Async; do not use for rejection |
 
 Reject with a stable `reason` code (mapped to the API error envelope as 422). Do not put passwords, raw file bytes, or stack traces in filter payloads or messages.
 

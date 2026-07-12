@@ -207,15 +207,17 @@ only observe after the fact.
 
 ### E1.2 Topic before update
 
-- [ ] Add `topic.before_update` (`filter`)
+- [x] Add `topic.before_update` (`filter`)
   - Payload: `actorUserId`, `topicId`, `categorySlug`, `tagSlugs`, `title`,
     `content` (only fields present in the request may be non-empty)
   - Patch allowlist: same as create (`categorySlug`, `tagSlugs`, `title`,
     `content`)
-- [ ] Wire on topic edit path (content and/or taxonomy update)
-- [ ] Tests + docs
+- [x] Wire on topic edit path (content and/or taxonomy update)
+- [x] Tests + docs
 
-**Acceptance:** plugin can force a tag or reject title change on edit.
+**Acceptance:** plugin can force a tag or reject title change on edit. **Done**
+(service-level tests: patch title/tags, force tags without request tags,
+reject, unauthorized skips filter).
 
 ### E1.3 User before register (+ optional validate)
 
