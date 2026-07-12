@@ -185,6 +185,15 @@ ExtensionManifest:
       description: Plugin-only permission keys. Theme manifests must omit permissions in v1.
       items:
         type: string
+    capabilities:
+      type: array
+      description: >-
+        Plugin-only host capability keys (F2.1). Must be entries from the host
+        capability catalog (e.g. net.outbound, jobs.enqueue, host.api). Themes
+        must omit capabilities. When omitted, the host may still imply a
+        minimal set from backend/jobs/settings/providers.
+      items:
+        type: string
     settings:
       type: array
       description: Settings declarations for plugin or theme core container pages.
@@ -634,6 +643,13 @@ Extension:
       type: boolean
     manifest:
       "$ref": "#/ExtensionManifest"
+    capabilityGrants:
+      type: array
+      description: >-
+        Effective host capabilities for plugins (explicit manifest.capabilities
+        plus host-implied grants). Used by the enable-time review UI (F2.1).
+      items:
+        "$ref": "#/ExtensionCapabilityGrant"
     runtime:
       "$ref": "#/ExtensionRuntimeStatus"
     themeRelease:
@@ -1272,6 +1288,29 @@ WebReleaseSummary:
       type: string
     reloadMode:
       type: string
+ExtensionCapabilityGrant:
+  type: object
+  required:
+  - key
+  - risk
+  - labelZh
+  - labelEn
+  - description
+  properties:
+    key:
+      type: string
+    risk:
+      type: string
+      enum: [low, medium, high]
+    labelZh:
+      type: string
+    labelEn:
+      type: string
+    description:
+      type: string
+    implied:
+      type: boolean
+      description: True when the host inferred this grant (not explicitly listed in manifest.capabilities).
 ExtensionOperation:
   type: object
   required:

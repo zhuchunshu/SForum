@@ -601,6 +601,17 @@
         "sforum": "Compatible version"
       },
       "capabilities": "Capability declarations",
+      "hostCapabilities": "Host capability grants",
+      "capabilityImplied": "(host-implied)",
+      "capabilityRisk": {
+        "low": "Low risk",
+        "medium": "Medium risk",
+        "high": "High risk"
+      },
+      "confirmEnableTitle": "Confirm plugin enable",
+      "confirmEnableBody": "Before enabling “{name}”, review the host capabilities it will receive. After you confirm, the plugin may call the matching Host API surfaces.",
+      "confirmEnableCancel": "Cancel",
+      "confirmEnableAction": "Confirm and enable",
       "capability": {
         "backend": "Backend RPC",
         "frontend": "Nuxt Layer",

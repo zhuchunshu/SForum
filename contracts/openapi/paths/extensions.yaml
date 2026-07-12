@@ -172,9 +172,24 @@ adminExtensionSettingsReset:
 adminExtensionEnable:
   post:
     summary: Enable an installed plugin
+    description: >-
+      Enables a plugin after preflight. When the plugin resolves to any host
+      capabilities, the first enable requires confirmCapabilities=true so
+      operators acknowledge the grant list (F2.1). Restarting an already-enabled
+      plugin does not require re-confirmation.
     operationId: enableAdminExtension
     parameters:
     - "$ref": "../components/parameters.yaml#/ExtensionID"
+    requestBody:
+      required: false
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              confirmCapabilities:
+                type: boolean
+                description: Operator confirmed the capability grant list for this plugin.
     responses:
       '200':
         description: Plugin enabled after preflight checks.
@@ -195,7 +210,9 @@ adminExtensionEnable:
       '404':
         "$ref": "../components/responses.yaml#/NotFound"
       '409':
-        description: Themes must use the activation endpoint instead of plugin enable.
+        description: >-
+          Themes must use activation, or capability confirmation is required
+          (reason extension.capability_confirmation_required).
         content:
           application/json:
             schema:

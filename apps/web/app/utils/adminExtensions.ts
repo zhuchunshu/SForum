@@ -62,6 +62,8 @@ export type AdminExtensionManifest = {
   // 可选；未声明时直接使用顶层英文文案，无需实现翻译。
   langs?: Record<string, AdminExtensionLocale>
   permissions?: string[]
+  /** Host capability keys declared by the plugin (F2.1). */
+  capabilities?: string[]
   settings?: AdminExtensionSetting[]
   migrations?: Array<{ path: string }>
   backend?: { entry?: string, rpc?: string, protocolVersion?: number }
@@ -169,6 +171,18 @@ export type AdminWebReleaseSummary = {
   buildLog?: string
 }
 
+export type AdminCapabilityRisk = 'low' | 'medium' | 'high'
+
+/** 启用审查用的有效 Host 能力（显式 + 宿主推断）。 */
+export type AdminCapabilityGrant = {
+  key: string
+  risk: AdminCapabilityRisk
+  labelZh: string
+  labelEn: string
+  description: string
+  implied?: boolean
+}
+
 export type AdminExtension = {
   id: string
   name: string
@@ -179,6 +193,8 @@ export type AdminExtension = {
   isSystem?: boolean
   isDeletable?: boolean
   manifest: AdminExtensionManifest
+  /** F2.1 有效能力列表，启用前需运营确认。 */
+  capabilityGrants?: AdminCapabilityGrant[]
   runtime?: AdminExtensionRuntime
   themeRelease?: AdminThemeRelease
   /** 插件启停/信任变更排队的 Web 发布进度（主题用 themeRelease）。 */

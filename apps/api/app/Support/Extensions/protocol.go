@@ -48,13 +48,24 @@ type PluginSettings interface {
 	ListSettings(context.Context, string) (map[string]string, error)
 }
 
-type ProtocolStarterConfig struct{ Settings PluginSettings }
+// HostAPIRegistrar 在插件启动时签发 Host API 凭证（F2.2）。
+type HostAPIRegistrar interface {
+	RegisterExtension(extensionID string) (token string, env []string, err error)
+	UnregisterExtension(extensionID string)
+}
+
+type ProtocolStarterConfig struct {
+	Settings PluginSettings
+	// HostAPI 可选；注入后向子进程写入 SFORUM_HOST_API_* 环境变量。
+	HostAPI HostAPIRegistrar
+}
 
 type ProtocolStarter struct {
 	mu        sync.Mutex
 	clients   map[string]*plugin.Client
 	protocols map[string]PluginProtocol
 	settings  PluginSettings
+	hostAPI   HostAPIRegistrar
 }
 
 type PluginProtocol interface {
@@ -110,7 +121,12 @@ type MailProviderResponse struct {
 type PluginEmptyRequest struct{}
 
 func NewProtocolStarter(config ProtocolStarterConfig) *ProtocolStarter {
-	return &ProtocolStarter{clients: map[string]*plugin.Client{}, protocols: map[string]PluginProtocol{}, settings: config.Settings}
+	return &ProtocolStarter{
+		clients:   map[string]*plugin.Client{},
+		protocols: map[string]PluginProtocol{},
+		settings:  config.Settings,
+		hostAPI:   config.HostAPI,
+	}
 }
 
 func (s *ProtocolStarter) Start(ctx context.Context, extension extensions.Extension) (RouteTarget, error) {
@@ -145,6 +161,14 @@ func (s *ProtocolStarter) Start(ctx context.Context, extension extensions.Extens
 		sort.Strings(keys)
 		for _, key := range keys {
 			cmd.Env = append(cmd.Env, pluginSettingEnvName(key)+"="+values[key])
+		}
+	}
+	// F2.2：为子进程签发 Host API loopback 凭证。
+	if s.hostAPI != nil {
+		if _, hostEnv, err := s.hostAPI.RegisterExtension(extension.ID); err != nil {
+			return RouteTarget{}, fmt.Errorf("register host api: %w", err)
+		} else {
+			cmd.Env = append(cmd.Env, hostEnv...)
 		}
 	}
 	client := plugin.NewClient(&plugin.ClientConfig{
@@ -298,6 +322,9 @@ func (s *ProtocolStarter) Stop(_ context.Context, extension extensions.Extension
 	s.mu.Unlock()
 	if client != nil {
 		client.Kill()
+	}
+	if s.hostAPI != nil {
+		s.hostAPI.UnregisterExtension(extension.ID)
 	}
 	return nil
 }

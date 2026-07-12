@@ -4,6 +4,13 @@ This is the entry point for project memory.
 
 ## Latest Handoff
 
+- **2026-07-12 F2.1 + F2.2 capabilities and Host API v1**
+  - Handoff: `knowledge/sessions/2026-07-12-f2-capabilities-host-api.md`
+  - Decision: `knowledge/decisions/2026-07-12-host-api-v1-capabilities.md`
+  - Capability catalog + manifest field + enable confirm UI + grants on list
+  - Host API loopback gateway, Client stubs, `extension.plugin_job`
+  - Next framework: F2.3 resilience or F2.4 lifecycle
+
 - **2026-07-12 App store split to top-level menu (themes / plugins)**
   - Handoff: `knowledge/sessions/2026-07-12-admin-extension-store-menu-split.md`
   - Sidebar: 应用商城 as independent folder under 扩展管理
@@ -38,7 +45,7 @@ This is the entry point for project memory.
     sync deliveries + slow/failed reasons in event log
   - F1.4: settings + extension lifecycle → `audit_events`; daily
     `audit.cleanup_events` (90d); permission audits already in identity
-  - Next framework wave: **F2** (capabilities / Host API), or product tracks
+  - F2.1/F2.2 landed; remaining F2.3/F2.4 or product tracks
 
 - **2026-07-12 Wave F1.2 Ready + worker heartbeat implemented on main**
   - Handoff: `knowledge/sessions/2026-07-12-f1-2-ready-heartbeat.md`

@@ -83,8 +83,33 @@ export const useAdminExtensionsManager = async () => {
     }
   }
 
+  // 启用确认对话框状态（F2.1 capability review）。
+  const enableConfirmOpen = ref(false)
+  const enableConfirmItem = ref<AdminExtension | null>(null)
+
   async function enableExtension(item: AdminExtension) {
-    await lifecycle(item, 'enable')
+    // 首次启用且有能力列表时，弹出审查确认；已启用重启走 restart。
+    if (item.status !== 'enabled' && (item.capabilityGrants?.length ?? 0) > 0) {
+      enableConfirmItem.value = item
+      enableConfirmOpen.value = true
+      return
+    }
+    await lifecycle(item, 'enable', { confirmCapabilities: true })
+  }
+
+  async function confirmEnableExtension() {
+    const item = enableConfirmItem.value
+    if (!item) {
+      return
+    }
+    enableConfirmOpen.value = false
+    enableConfirmItem.value = null
+    await lifecycle(item, 'enable', { confirmCapabilities: true })
+  }
+
+  function cancelEnableExtension() {
+    enableConfirmOpen.value = false
+    enableConfirmItem.value = null
   }
 
   async function disableExtension(item: AdminExtension) {
@@ -94,7 +119,11 @@ export const useAdminExtensionsManager = async () => {
   async function restartExtension(item: AdminExtension) {
     busyId.value = item.id
     try {
-      const operation = await request<AdminExtensionOperation>(`/admin/extensions/${item.id}/enable`, { method: 'POST', body: {} })
+      // 已启用插件重启不要求再次确认 capabilities。
+      const operation = await request<AdminExtensionOperation>(`/admin/extensions/${item.id}/enable`, {
+        method: 'POST',
+        body: { confirmCapabilities: true }
+      })
       replaceExtension(operation.extension)
       await loadEvents(operation.extension.id)
       toast.add({ color: 'success', icon: 'i-lucide-refresh-cw', title: t('admin.extensions.restarted') })
@@ -165,10 +194,17 @@ export const useAdminExtensionsManager = async () => {
     }
   }
 
-  async function lifecycle(item: AdminExtension, action: 'enable' | 'disable') {
+  async function lifecycle(
+    item: AdminExtension,
+    action: 'enable' | 'disable',
+    body: Record<string, unknown> = {}
+  ) {
     busyId.value = item.id
     try {
-      const operation = await request<AdminExtensionOperation>(`/admin/extensions/${item.id}/${action}`, { method: 'POST', body: {} })
+      const operation = await request<AdminExtensionOperation>(`/admin/extensions/${item.id}/${action}`, {
+        method: 'POST',
+        body
+      })
       const updated = operation.extension
       // 排队响应可能只在 operation.webRelease 上带摘要；合并到列表项以便立刻显示进度条。
       if (operation.queued && operation.webRelease && !updated.webRelease) {
@@ -344,6 +380,10 @@ export const useAdminExtensionsManager = async () => {
     openUpload,
     uploadArchive,
     enableExtension,
+    confirmEnableExtension,
+    cancelEnableExtension,
+    enableConfirmOpen,
+    enableConfirmItem,
     disableExtension,
     restartExtension,
     verifyExtension,

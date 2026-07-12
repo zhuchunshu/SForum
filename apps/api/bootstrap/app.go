@@ -36,6 +36,7 @@ import (
 	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Audit"
 	health "github.com/zhuchunshu/sforum/apps/api/app/Support/Health"
+	hostapi "github.com/zhuchunshu/sforum/apps/api/app/Support/HostAPI"
 	humanverify "github.com/zhuchunshu/sforum/apps/api/app/Support/HumanVerify"
 	supportjobs "github.com/zhuchunshu/sforum/apps/api/app/Support/Jobs"
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Postgres"
@@ -63,9 +64,12 @@ type extensionRuntime interface {
 	Close(ctx context.Context)
 }
 
-var newExtensionRuntimeManager = func(store extensions.Store) extensionRuntime {
+var newExtensionRuntimeManager = func(store extensions.Store, hostAPI extensionsruntime.HostAPIRegistrar) extensionRuntime {
 	return extensionsruntime.NewManager(extensionsruntime.ManagerConfig{
-		Starter:       extensionsruntime.NewProtocolStarter(extensionsruntime.ProtocolStarterConfig{Settings: store}),
+		Starter: extensionsruntime.NewProtocolStarter(extensionsruntime.ProtocolStarterConfig{
+			Settings: store,
+			HostAPI:  hostAPI,
+		}),
 		DeliveryStore: store,
 	})
 }
@@ -165,10 +169,10 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 	extensionStore := extensions.NewPostgresStore(pool)
 	frontendTrustStore := extensions.NewPostgresFrontendTrustStore(pool)
 	webReleaseStore := extensions.NewPostgresWebReleaseStore(pool)
-	extensionRuntime := newExtensionRuntimeManager(extensionStore)
+	// Host API 需要 extensionService 的能力解析；先建 service 再绑 gateway。
+	// 运行时 manager 在 service 创建后注入 HostAPI registrar。
 	jobClient, err := supportjobs.NewInsertOnlyClient(pool, supportjobs.FromAppConfig(cfg))
 	if err != nil {
-		extensionRuntime.Close(ctx)
 		sharedRedisClient.Close()
 		if closeErr := redisStorage.Close(); closeErr != nil {
 			logger.Warn("redis session storage close failed", "error", closeErr)
@@ -177,6 +181,14 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		return nil, fmt.Errorf("job dispatcher setup failed: %w", err)
 	}
 	jobDispatcher := supportjobs.NewDispatcher(jobClient)
+	// F2.2 Host API：能力源稍后绑定 extensionService。
+	hostAPIService := hostapi.New(hostapi.Config{
+		Settings: extensionStore,
+		Jobs:     &hostapi.RiverJobEnqueuer{Dispatcher: jobDispatcher},
+		Auditor:  auditWriter,
+	})
+	hostAPIGateway := hostapi.NewGateway(hostAPIService)
+	extensionRuntime := newExtensionRuntimeManager(extensionStore, hostAPIGateway)
 	themeDispatcher := extensionjobs.ActivationDispatcherAdapter{Dispatcher: jobDispatcher}
 	hostComposition, err := webreleaseruntime.CompositionHost(cfg.WebReleaseWebRoot)
 	if err != nil {
@@ -204,6 +216,10 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		extensions.WithWebReleaseProgress(webReleaseStore),
 		extensions.WithAuditor(auditWriter),
 	)
+	// 把已构造的 extensionService 接到 Host API 能力/权限解析（避免循环构造）。
+	hostAPIService.BindCapabilitySource(extensionService)
+	hostAPIService.BindPermissions(identityPermissionAdapter{store: identityStore})
+	hostAPIService.BindUsers(identityUserAdapter{store: identityStore})
 	if _, err := extensionService.SyncBuiltins(ctx); err != nil {
 		if stopErr := supportjobs.Stop(ctx, jobClient); stopErr != nil {
 			logger.Warn("job dispatcher stop failed", "error", stopErr)
@@ -389,6 +405,7 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 				logger.Warn("job dispatcher stop failed", "error", err)
 			}
 			extensionRuntime.Close(context.Background())
+			_ = hostAPIGateway.Close()
 			if err := redisStorage.Close(); err != nil {
 				logger.Warn("redis session storage close failed", "error", err)
 			}
@@ -423,6 +440,43 @@ func (api *API) Close() {
 			api.close()
 		}
 	})
+}
+
+// identityPermissionAdapter 将 identity store 接到 Host API 权限检查。
+type identityPermissionAdapter struct {
+	store *identity.PostgresStore
+}
+
+func (a identityPermissionAdapter) HasPermission(ctx context.Context, userID int64, permission string) (bool, error) {
+	if a.store == nil {
+		return false, fmt.Errorf("identity store unavailable")
+	}
+	actor, err := a.store.LoadActor(ctx, userID)
+	if err != nil {
+		return false, err
+	}
+	return actor.Can(permission), nil
+}
+
+// identityUserAdapter 提供安全用户字段给 Host API。
+type identityUserAdapter struct {
+	store *identity.PostgresStore
+}
+
+func (a identityUserAdapter) GetUserSafe(ctx context.Context, userID int64) (map[string]any, error) {
+	if a.store == nil {
+		return nil, fmt.Errorf("identity store unavailable")
+	}
+	user, err := a.store.GetCurrentUser(ctx, userID)
+	if err != nil {
+		return nil, hostapi.ErrNotFound
+	}
+	return map[string]any{
+		"id":          user.ID,
+		"username":    user.Username,
+		"displayName": user.DisplayName,
+		"status":      user.Status,
+	}, nil
 }
 
 func apiAddress(cfg config.Config) string {

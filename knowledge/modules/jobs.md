@@ -144,14 +144,14 @@ Plugins may render digest-approved client components there, but cannot bypass
 
 ## Next Steps
 
-- **Wave F1 complete** for F1.1–F1.4. Next framework work is Wave F2 (capability
-  grants / Host API). See
+- **Wave F1 complete**; **F2.1 / F2.2** landed (capabilities + Host API job
+  enqueue as `extension.plugin_job`). Remaining framework: F2.3 / F2.4. See
   `knowledge/plans/2026-07-12-framework-hardening-waves.md`.
 - Wire additional domain job **handlers** into the worker `Registry`; add new
   maintenance **schedules** only through `CoreScheduleDefinitions` (or later
-  plugin schedule grants in F2).
+  plugin schedule grants under F2.4 lifecycle).
 - Keep transactional enqueue integration coverage alongside domain writes.
 - Add operational metrics/export only after stable self-hosted semantics are
   established.
-- Later waves (not F1): job kind `schemaVersion`, plugin-declared schedules,
-  outbox alignment, deeper metrics/export.
+- Later waves: job kind `schemaVersion`, plugin-declared schedules, outbox
+  alignment, deeper metrics/export.

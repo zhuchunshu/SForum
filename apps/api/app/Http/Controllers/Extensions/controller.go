@@ -125,7 +125,14 @@ func (h *Controller) enable(c fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
-	item, err := h.service.EnableOperation(c.Context(), actor, c.Params("id"))
+	var input extensions.EnableInput
+	// body 可选；空 body 表示未确认 capabilities。
+	if len(c.Body()) > 0 {
+		if err := c.Bind().Body(&input); err != nil {
+			return fiber.NewError(fiber.StatusUnprocessableEntity, "validation.invalid")
+		}
+	}
+	item, err := h.service.EnableOperation(c.Context(), actor, c.Params("id"), input)
 	if err != nil {
 		return mapExtensionError(err)
 	}
@@ -389,6 +396,10 @@ func mapExtensionError(err error) error {
 		return fiber.NewError(fiber.StatusServiceUnavailable, extensions.CodeRuntimeUnavailable)
 	case errors.Is(err, extensions.ErrRuntimeFailed):
 		return fiber.NewError(fiber.StatusServiceUnavailable, extensions.CodeRuntimeFailed)
+	case errors.Is(err, extensions.ErrCapabilityConfirmationRequired):
+		return fiber.NewError(fiber.StatusConflict, extensions.CodeCapabilityConfirmationRequired)
+	case errors.Is(err, extensions.ErrCapabilityDenied):
+		return fiber.NewError(fiber.StatusForbidden, extensions.CodeCapabilityDenied)
 	default:
 		return err
 	}

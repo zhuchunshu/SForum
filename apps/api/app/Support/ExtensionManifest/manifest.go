@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/zhuchunshu/sforum/apps/api/app/Support/Capabilities"
 	appevents "github.com/zhuchunshu/sforum/apps/api/app/Support/Events"
 )
 
@@ -46,6 +47,9 @@ type Manifest struct {
 	// 未声明 langs 时无需翻译，直接使用顶层字段。
 	Langs         map[string]ManifestLocale `json:"langs,omitempty"`
 	Permissions   []string                  `json:"permissions"`
+	// Capabilities 为插件声明的 Host 能力（F2.1）。主题必须为空。
+	// 未声明时宿主仍会按 jobs/settings/providers/backend 推断最小集。
+	Capabilities  []string                  `json:"capabilities,omitempty"`
 	Settings      []ManifestSetting         `json:"settings"`
 	Migrations    []ManifestMigration       `json:"migrations"`
 	Backend       ManifestBackend           `json:"backend"`
@@ -333,6 +337,15 @@ func validateManifest(manifest Manifest, points []ContributionPointDefinition) e
 			return ErrInvalidManifest
 		}
 	}
+	// F2.1：capabilities 必须落在宿主目录内；主题禁止声明。
+	if len(manifest.Capabilities) > 0 {
+		if manifest.Type == TypeTheme {
+			return ErrInvalidManifest
+		}
+		if err := capabilities.ValidateKeys(manifest.Capabilities); err != nil {
+			return ErrInvalidManifest
+		}
+	}
 	if err := validateContributions(manifest, points); err != nil {
 		return err
 	}
@@ -351,6 +364,7 @@ func Normalize(manifest Manifest) Manifest {
 	manifest.Type = strings.ToLower(strings.TrimSpace(manifest.Type))
 	manifest.SForumVersion = strings.TrimSpace(manifest.SForumVersion)
 	manifest.Langs = normalizeManifestLangs(manifest.Langs)
+	manifest.Capabilities = capabilities.NormalizeKeys(manifest.Capabilities)
 	for index := range manifest.Settings {
 		manifest.Settings[index].Key = strings.TrimSpace(manifest.Settings[index].Key)
 		manifest.Settings[index].Label = manifest.Settings[index].Label.normalized()
@@ -708,6 +722,7 @@ func isThemeManifestSupported(manifest Manifest) bool {
 	}
 	return manifest.Backend == (ManifestBackend{}) &&
 		len(manifest.Permissions) == 0 &&
+		len(manifest.Capabilities) == 0 &&
 		len(manifest.Migrations) == 0 &&
 		len(manifest.Routes) == 0 &&
 		len(manifest.Hooks) == 0 &&
@@ -715,6 +730,31 @@ func isThemeManifestSupported(manifest Manifest) bool {
 		len(manifest.Jobs) == 0 &&
 		len(manifest.Providers) == 0 &&
 		len(manifest.Contributions) == 0
+}
+
+// CapabilityResolveInput 将 manifest 转为 capabilities 解析输入（F2.1）。
+func CapabilityResolveInput(manifest Manifest) capabilities.ResolveInput {
+	slots := make([]string, 0, len(manifest.Providers))
+	for _, provider := range manifest.Providers {
+		slots = append(slots, provider.Slot)
+	}
+	return capabilities.ResolveInput{
+		Explicit:      manifest.Capabilities,
+		HasJobs:       len(manifest.Jobs) > 0,
+		HasSettings:   len(manifest.Settings) > 0,
+		ProviderSlots: slots,
+		HasBackend:    strings.TrimSpace(manifest.Backend.Entry) != "",
+	}
+}
+
+// ResolvedCapabilities 返回有效能力 key 与 implied 标记。
+func ResolvedCapabilities(manifest Manifest) (keys []string, implied map[string]bool) {
+	return capabilities.Resolve(CapabilityResolveInput(manifest))
+}
+
+// CapabilityGrants 返回启用审查用的能力列表。
+func CapabilityGrants(manifest Manifest) []capabilities.Grant {
+	return capabilities.GrantsFor(CapabilityResolveInput(manifest))
 }
 
 func normalizeContribution(contribution ManifestContribution) ManifestContribution {

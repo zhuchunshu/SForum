@@ -25,6 +25,7 @@ import (
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Audit"
 	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
 	health "github.com/zhuchunshu/sforum/apps/api/app/Support/Health"
+	hostapi "github.com/zhuchunshu/sforum/apps/api/app/Support/HostAPI"
 	humanverify "github.com/zhuchunshu/sforum/apps/api/app/Support/HumanVerify"
 	supportjobs "github.com/zhuchunshu/sforum/apps/api/app/Support/Jobs"
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Postgres"
@@ -96,11 +97,18 @@ func NewWorker(ctx context.Context, cfg config.Config, logger *slog.Logger) (*Wo
 func newWorkerWithPool(cfg config.Config, pool *pgxpool.Pool, logger *slog.Logger) (*Worker, error) {
 	registry := supportjobs.NewRegistry()
 	extensionStore := extensions.NewPostgresStore(pool)
+	// Worker 侧 Host API：能力源绑定后供插件子进程调用（与 API 进程对称）。
+	workerHostAPI := hostapi.New(hostapi.Config{Settings: extensionStore})
+	workerHostGateway := hostapi.NewGateway(workerHostAPI)
 	extensionRuntime := extensionsruntime.NewManager(extensionsruntime.ManagerConfig{
-		Starter:       extensionsruntime.NewProtocolStarter(extensionsruntime.ProtocolStarterConfig{Settings: extensionStore}),
+		Starter: extensionsruntime.NewProtocolStarter(extensionsruntime.ProtocolStarterConfig{
+			Settings: extensionStore,
+			HostAPI:  workerHostGateway,
+		}),
 		DeliveryStore: extensionStore,
 	})
 	extensionService := extensions.NewServiceWithBuiltins(extensionStore, cfg.ExtensionRoot, cfg.BuiltinExtensionRoot)
+	workerHostAPI.BindCapabilitySource(extensionService)
 	if _, err := extensionService.SyncBuiltins(context.Background()); err != nil {
 		return nil, fmt.Errorf("sync worker builtin extensions: %w", err)
 	}
@@ -158,6 +166,11 @@ func newWorkerWithPool(cfg config.Config, pool *pgxpool.Pool, logger *slog.Logge
 	})
 	registerSearchWorkers(registry, cfg, pool)
 	registerIdentityCleanupWorker(registry, cfg, pool, logger)
+	// F2.2：插件经 Host API 入队的 extension.plugin_job。
+	registry.Add(func(workers *river.Workers) error {
+		river.AddWorker(workers, &hostapi.PluginJobWorker{})
+		return nil
+	})
 
 	// 周期任务统一经 Schedule Registry 注册，禁止在 bootstrap 散落 NewPeriodicJob。
 	// 启用状态读 web_options；constructor 返回 nil 时 River 跳过本次插入（无需重启 worker）。
@@ -223,7 +236,10 @@ func newWorkerWithPool(cfg config.Config, pool *pgxpool.Pool, logger *slog.Logge
 	return &Worker{
 		Client:    client,
 		Schedules: scheduleRegistry,
-		close:     func() { extensionRuntime.Close(context.Background()) },
+		close: func() {
+			extensionRuntime.Close(context.Background())
+			_ = workerHostGateway.Close()
+		},
 	}, nil
 }
 

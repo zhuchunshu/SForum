@@ -1,0 +1,258 @@
+// Package capabilities 定义插件 Host 能力目录与运行时授权检查（F2.1）。
+//
+// 能力与 RBAC permission 不同：permission 约束用户/管理员；capability 约束
+// 插件子进程可调用的宿主能力（出站网络、入队、读用户等）。
+package capabilities
+
+import (
+	"errors"
+	"fmt"
+	"sort"
+	"strings"
+)
+
+// 稳定 capability key。新增时同步 Catalog、OpenAPI 与知识库。
+const (
+	NetOutbound       = "net.outbound"
+	JobsEnqueue       = "jobs.enqueue"
+	SettingsOwn       = "settings.own"
+	PermissionsCheck  = "permissions.check"
+	UsersRead         = "users.read"
+	AuditAppend       = "audit.append"
+	HostAPI           = "host.api"
+)
+
+// Risk 等级：admin 启用审查 UI 按此排序与着色。
+const (
+	RiskLow    = "low"
+	RiskMedium = "medium"
+	RiskHigh   = "high"
+)
+
+// ErrUnknown 声明了目录外的 capability。
+var ErrUnknown = errors.New("capabilities: unknown capability")
+
+// ErrDenied 运行时缺少授权。
+var ErrDenied = errors.New("capabilities: denied")
+
+// Definition 是目录中的一条能力。
+type Definition struct {
+	Key         string `json:"key"`
+	Risk        string `json:"risk"`
+	LabelZH     string `json:"labelZh"`
+	LabelEN     string `json:"labelEn"`
+	Description string `json:"description"`
+}
+
+// Grant 是解析后的能力（含是否由宿主推断）。
+type Grant struct {
+	Key         string `json:"key"`
+	Risk        string `json:"risk"`
+	LabelZH     string `json:"labelZh"`
+	LabelEN     string `json:"labelEn"`
+	Description string `json:"description"`
+	Implied     bool   `json:"implied,omitempty"`
+}
+
+var catalog = []Definition{
+	{
+		Key:         HostAPI,
+		Risk:        RiskLow,
+		LabelZH:     "调用宿主 API",
+		LabelEN:     "Call Host API",
+		Description: "Use the versioned host surface (sforum.host/v1) for permission checks, settings, jobs, and audit.",
+	},
+	{
+		Key:         SettingsOwn,
+		Risk:        RiskLow,
+		LabelZH:     "读写自身设置",
+		LabelEN:     "Own extension settings",
+		Description: "Read and write settings belonging only to this extension.",
+	},
+	{
+		Key:         PermissionsCheck,
+		Risk:        RiskLow,
+		LabelZH:     "校验用户权限",
+		LabelEN:     "Check user permissions",
+		Description: "Ask the host whether an actor holds a permission key; cannot grant permissions.",
+	},
+	{
+		Key:         JobsEnqueue,
+		Risk:        RiskMedium,
+		LabelZH:     "入队后台任务",
+		LabelEN:     "Enqueue background jobs",
+		Description: "Enqueue River jobs for job kinds declared in the plugin manifest only.",
+	},
+	{
+		Key:         AuditAppend,
+		Risk:        RiskMedium,
+		LabelZH:     "追加审计记录",
+		LabelEN:     "Append audit events",
+		Description: "Append structured audit events under this extension's namespace.",
+	},
+	{
+		Key:         NetOutbound,
+		Risk:        RiskHigh,
+		LabelZH:     "出站网络",
+		LabelEN:     "Outbound network",
+		Description: "Open outbound network connections (HTTP, SMTP, etc.) from the plugin process or via Host helpers.",
+	},
+	{
+		Key:         UsersRead,
+		Risk:        RiskHigh,
+		LabelZH:     "读取用户信息",
+		LabelEN:     "Read user profiles",
+		Description: "Read safe, non-secret user fields through the Host API.",
+	},
+}
+
+var catalogByKey map[string]Definition
+
+func init() {
+	catalogByKey = make(map[string]Definition, len(catalog))
+	for _, def := range catalog {
+		catalogByKey[def.Key] = def
+	}
+}
+
+// Catalog 返回完整能力目录（稳定顺序）。
+func Catalog() []Definition {
+	out := make([]Definition, len(catalog))
+	copy(out, catalog)
+	return out
+}
+
+// Known 判断 key 是否在目录中。
+func Known(key string) bool {
+	_, ok := catalogByKey[strings.TrimSpace(key)]
+	return ok
+}
+
+// Find 查找单条定义。
+func Find(key string) (Definition, bool) {
+	def, ok := catalogByKey[strings.TrimSpace(key)]
+	return def, ok
+}
+
+// ValidateKeys 校验声明列表：去重、必须已知。
+func ValidateKeys(keys []string) error {
+	seen := make(map[string]struct{}, len(keys))
+	for _, raw := range keys {
+		key := strings.TrimSpace(raw)
+		if key == "" {
+			return fmt.Errorf("%w: empty key", ErrUnknown)
+		}
+		if !Known(key) {
+			return fmt.Errorf("%w: %s", ErrUnknown, key)
+		}
+		if _, ok := seen[key]; ok {
+			return fmt.Errorf("%w: duplicate %s", ErrUnknown, key)
+		}
+		seen[key] = struct{}{}
+	}
+	return nil
+}
+
+// NormalizeKeys 去空白、去重、稳定排序。
+func NormalizeKeys(keys []string) []string {
+	seen := make(map[string]struct{}, len(keys))
+	out := make([]string, 0, len(keys))
+	for _, raw := range keys {
+		key := strings.TrimSpace(raw)
+		if key == "" {
+			continue
+		}
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		out = append(out, key)
+	}
+	sort.Strings(out)
+	return out
+}
+
+// Set 是启用后授予的能力集合，供运行时 O(1) 检查。
+type Set map[string]struct{}
+
+// NewSet 从 key 列表构建集合。
+func NewSet(keys []string) Set {
+	set := make(Set, len(keys))
+	for _, key := range NormalizeKeys(keys) {
+		set[key] = struct{}{}
+	}
+	return set
+}
+
+// Has 是否包含能力。
+func (s Set) Has(key string) bool {
+	if s == nil {
+		return false
+	}
+	_, ok := s[strings.TrimSpace(key)]
+	return ok
+}
+
+// Require 缺少能力时返回 ErrDenied。
+func (s Set) Require(key string) error {
+	if s.Has(key) {
+		return nil
+	}
+	return fmt.Errorf("%w: %s", ErrDenied, key)
+}
+
+// Keys 返回排序后的 key 列表。
+func (s Set) Keys() []string {
+	if len(s) == 0 {
+		return nil
+	}
+	out := make([]string, 0, len(s))
+	for key := range s {
+		out = append(out, key)
+	}
+	sort.Strings(out)
+	return out
+}
+
+// GrantsFromKeys 将 key 列表展开为带文案的 Grant（未知 key 跳过）。
+func GrantsFromKeys(keys []string, implied map[string]bool) []Grant {
+	keys = NormalizeKeys(keys)
+	out := make([]Grant, 0, len(keys))
+	for _, key := range keys {
+		def, ok := Find(key)
+		if !ok {
+			continue
+		}
+		out = append(out, Grant{
+			Key:         def.Key,
+			Risk:        def.Risk,
+			LabelZH:     def.LabelZH,
+			LabelEN:     def.LabelEN,
+			Description: def.Description,
+			Implied:     implied[key],
+		})
+	}
+	// 高风险优先展示，便于启用审查。
+	sort.SliceStable(out, func(i, j int) bool {
+		return riskRank(out[i].Risk) > riskRank(out[j].Risk)
+	})
+	return out
+}
+
+func riskRank(risk string) int {
+	switch risk {
+	case RiskHigh:
+		return 3
+	case RiskMedium:
+		return 2
+	case RiskLow:
+		return 1
+	default:
+		return 0
+	}
+}
+
+// RequiresConfirmation 是否需要运营在启用时显式确认（有任意能力即确认）。
+func RequiresConfirmation(keys []string) bool {
+	return len(NormalizeKeys(keys)) > 0
+}

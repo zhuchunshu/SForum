@@ -7,6 +7,7 @@
   "version": "1.0.0",
   "type": "plugin",
   "sforumVersion": ">=0.1.0",
+  "capabilities": ["host.api", "settings.own", "net.outbound"],
   "backend": { "entry": "backend/plugin", "rpc": "hashicorp-go-plugin", "protocolVersion": 1 },
   "providers": [{ "slot": "mail.provider", "label": "SMTP", "timeoutMs": 15000 }],
   "includes": {

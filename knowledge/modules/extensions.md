@@ -44,6 +44,24 @@ and plugin runtime v1.
 - Daily schedule `audit.cleanup_events` deletes rows older than 90 days
   (recommended retention; runtime option can follow later).
 
+### Capability grants + Host API (F2.1 / F2.2)
+
+- Catalog: `app/Support/Capabilities` (`host.api`, `settings.own`,
+  `permissions.check`, `jobs.enqueue`, `audit.append`, `net.outbound`,
+  `users.read`) with risk tiers and admin copy.
+- Manifest field `capabilities: string[]` (plugins only; validated against
+  catalog). Host implies minimal grants from backend/jobs/settings/
+  `mail.provider` when omitted.
+- List/detail returns `capabilityGrants` for enable-time review. First enable
+  requires `POST .../enable` body `{ "confirmCapabilities": true }`.
+- Host API v1 (`sforum.host/v1`): `app/Support/HostAPI` loopback gateway with
+  per-extension bearer token injected as `SFORUM_HOST_API_*` env. Methods:
+  Ping, CheckPermission, GetSettings, EnqueueOwnJob, AppendAudit, GetUserSafe.
+- Plugin jobs enqueue as River kind `extension.plugin_job`. Client stub:
+  `hostapi.Client` / `ClientFromEnv`. Decision:
+  `decisions/2026-07-12-host-api-v1-capabilities.md`.
+- Still open: F2.3 RPC circuit/concurrency UI, F2.4 upgrade/uninstall.
+
 - `extension.manage` is the permission for uploading, verifying, enabling
   plugins, activating the protected default theme, and inspecting extensions.
   It is seeded for `super_admin`.

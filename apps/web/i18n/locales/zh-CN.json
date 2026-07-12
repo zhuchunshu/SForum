@@ -601,6 +601,17 @@
         "sforum": "兼容版本"
       },
       "capabilities": "能力声明",
+      "hostCapabilities": "宿主能力授权",
+      "capabilityImplied": "（宿主推断）",
+      "capabilityRisk": {
+        "low": "低风险",
+        "medium": "中风险",
+        "high": "高风险"
+      },
+      "confirmEnableTitle": "确认启用插件",
+      "confirmEnableBody": "启用「{name}」前，请审阅它将获得的宿主能力。确认后插件才能调用对应 Host API 与敏感操作。",
+      "confirmEnableCancel": "取消",
+      "confirmEnableAction": "确认并启用",
       "capability": {
         "backend": "后端 RPC",
         "frontend": "Nuxt Layer",

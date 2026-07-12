@@ -4,6 +4,8 @@ import (
 	"context"
 
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
+	"github.com/zhuchunshu/sforum/apps/api/app/Support/Capabilities"
+	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
 )
 
 type ExtensionFrontendLifecycle interface {
@@ -19,7 +21,7 @@ func frontendRequiresWebRelease(status FrontendStatus) bool {
 	}
 }
 
-func (s *Service) EnableOperation(ctx context.Context, actor identity.Actor, id string) (ExtensionOperation, error) {
+func (s *Service) EnableOperation(ctx context.Context, actor identity.Actor, id string, input EnableInput) (ExtensionOperation, error) {
 	extension, err := s.store.Get(ctx, normalizeID(id))
 	if err != nil {
 		return ExtensionOperation{}, err
@@ -37,6 +39,13 @@ func (s *Service) EnableOperation(ctx context.Context, actor identity.Actor, id 
 			if !canManageReleases(actor) {
 				return ExtensionOperation{}, identity.ErrPermissionDenied
 			}
+			// Web Release 排队前同样要求 capability 确认（首次启用）。
+			if extension.Status != StatusEnabled {
+				capKeys, _ := extensionmanifest.ResolvedCapabilities(extension.Manifest)
+				if capabilities.RequiresConfirmation(capKeys) && !input.ConfirmCapabilities {
+					return ExtensionOperation{}, ErrCapabilityConfirmationRequired
+				}
+			}
 			queued, err := s.webReleaseLifecycle.PlanAndQueue(ctx, QueueWebReleaseInput{
 				Plan:    PlanWebReleaseInput{TriggerKind: WebReleaseTriggerPluginEnable, TriggerExtensionID: extension.ID, RequestedBy: actor.ID, ReloadMode: WebReleaseReloadPrompt},
 				Effects: []WebReleaseEffectInput{{ExtensionID: extension.ID, PreviousStatus: extension.Status, TargetStatus: StatusEnabled}},
@@ -51,7 +60,7 @@ func (s *Service) EnableOperation(ctx context.Context, actor identity.Actor, id 
 			return ExtensionOperation{Extension: decorated, Frontend: &status, WebRelease: summary, Queued: true}, nil
 		}
 	}
-	enabled, err := s.Enable(ctx, actor, extension.ID)
+	enabled, err := s.Enable(ctx, actor, extension.ID, input)
 	return ExtensionOperation{Extension: enabled}, err
 }
 

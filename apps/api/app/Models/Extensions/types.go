@@ -5,6 +5,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/zhuchunshu/sforum/apps/api/app/Support/Capabilities"
 	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
 	extensionpackage "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionPackage"
 )
@@ -70,6 +71,10 @@ const (
 	CodeWebReleaseConflict         = "extension.web_release_conflict"
 	// 插件已禁用：设置读写、自定义管理页等功能性能力不可用。
 	CodeExtensionDisabled = "extension.disabled"
+	// 启用前需运营确认 capability 授权（F2.1）。
+	CodeCapabilityConfirmationRequired = "extension.capability_confirmation_required"
+	// 运行时缺少已授权 capability。
+	CodeCapabilityDenied = "extension.capability_denied"
 
 	SourceBuiltin  = "builtin"
 	SourceUploaded = "uploaded"
@@ -88,6 +93,9 @@ var (
 	ErrRouteNotFound           = errors.New("extensions: route not found")
 	ErrRouteMethodNotAllowed   = errors.New("extensions: route method not allowed")
 	ErrRuntimeUnavailable      = errors.New("extensions: runtime unavailable")
+	// ErrCapabilityConfirmationRequired 启用插件前需 confirmCapabilities=true。
+	ErrCapabilityConfirmationRequired = errors.New("extensions: capability confirmation required")
+	ErrCapabilityDenied               = errors.New("extensions: capability denied")
 )
 
 type Manifest = extensionmanifest.Manifest
@@ -129,6 +137,9 @@ type MatchedRoute struct {
 	Path      string
 }
 
+// CapabilityGrant 是启用审查用的能力条目（与 capabilities.Grant 对齐）。
+type CapabilityGrant = capabilities.Grant
+
 type Extension struct {
 	ID            string         `json:"id"`
 	Name          string         `json:"name"`
@@ -139,6 +150,8 @@ type Extension struct {
 	IsSystem      bool           `json:"isSystem"`
 	IsDeletable   bool           `json:"isDeletable"`
 	Manifest      Manifest       `json:"manifest"`
+	// CapabilityGrants 有效 Host 能力（显式 + 推断），供启用审查 UI（F2.1）。
+	CapabilityGrants []CapabilityGrant `json:"capabilityGrants,omitempty"`
 	Runtime       *RuntimeStatus    `json:"runtime,omitempty"`
 	ThemeRelease  *ThemeRelease     `json:"themeRelease,omitempty"`
 	// WebRelease 为插件启停/信任变更排队的 live 或失败发布进度（主题仍用 themeRelease）。
@@ -147,6 +160,12 @@ type Extension struct {
 	PackagePath   string            `json:"packagePath"`
 	InstalledAt   time.Time         `json:"installedAt"`
 	UpdatedAt     time.Time         `json:"updatedAt"`
+}
+
+// EnableInput 启用插件的可选请求体。
+type EnableInput struct {
+	// ConfirmCapabilities 为 true 时表示运营已审阅并确认 capability 授权。
+	ConfirmCapabilities bool `json:"confirmCapabilities"`
 }
 
 type ThemeRelease struct {

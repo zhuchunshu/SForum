@@ -15,6 +15,7 @@ import (
 
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Audit"
+	"github.com/zhuchunshu/sforum/apps/api/app/Support/Capabilities"
 	appevents "github.com/zhuchunshu/sforum/apps/api/app/Support/Events"
 	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
 	extensionpackage "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionPackage"
@@ -650,7 +651,7 @@ func (s *Service) InstallArchive(ctx context.Context, actor identity.Actor, inpu
 	return s.decorateRuntime(ctx, installed), nil
 }
 
-func (s *Service) Enable(ctx context.Context, actor identity.Actor, id string) (Extension, error) {
+func (s *Service) Enable(ctx context.Context, actor identity.Actor, id string, input EnableInput) (Extension, error) {
 	if !canManagePlugins(actor) {
 		return Extension{}, identity.ErrPermissionDenied
 	}
@@ -660,6 +661,14 @@ func (s *Service) Enable(ctx context.Context, actor identity.Actor, id string) (
 	}
 	if extension.Type == TypeTheme {
 		return Extension{}, ErrThemeActivationRequired
+	}
+
+	// 首次启用（非 restart）且存在 Host 能力时，要求运营显式确认（F2.1）。
+	if extension.Status != StatusEnabled {
+		capKeys, _ := extensionmanifest.ResolvedCapabilities(extension.Manifest)
+		if capabilities.RequiresConfirmation(capKeys) && !input.ConfirmCapabilities {
+			return Extension{}, ErrCapabilityConfirmationRequired
+		}
 	}
 
 	if err := s.verifyExtension(ctx, extension); err != nil {
@@ -677,6 +686,7 @@ func (s *Service) Enable(ctx context.Context, actor identity.Actor, id string) (
 			return Extension{}, fmt.Errorf("%w: %v", ErrRuntimeFailed, err)
 		}
 	}
+	capKeys, _ := extensionmanifest.ResolvedCapabilities(enabled.Manifest)
 	_, _ = s.store.CreateEvent(ctx, EventInput{
 		ExtensionID: enabled.ID,
 		ActorUserID: actor.ID,
@@ -684,8 +694,9 @@ func (s *Service) Enable(ctx context.Context, actor identity.Actor, id string) (
 		Message:     "Extension enabled.",
 	})
 	s.appendAudit(ctx, actor, audit.ActionExtensionEnable, map[string]any{
-		"extensionId": enabled.ID,
-		"type":        enabled.Type,
+		"extensionId":  enabled.ID,
+		"type":         enabled.Type,
+		"capabilities": capKeys,
 	})
 	if enabled.Type == TypePlugin && s.runtime != nil {
 		s.runtime.EmitHook(ctx, appevents.ExtensionEnabled, map[string]any{"extensionId": enabled.ID})
@@ -972,9 +983,12 @@ func (s *Service) recordEnableFailure(ctx context.Context, actor identity.Actor,
 }
 
 func (s *Service) decorateRuntime(ctx context.Context, item Extension) Extension {
-	if item.Type == TypePlugin && s.runtime != nil {
-		status := s.runtime.Status(ctx, item)
-		item.Runtime = &status
+	if item.Type == TypePlugin {
+		item.CapabilityGrants = extensionmanifest.CapabilityGrants(item.Manifest)
+		if s.runtime != nil {
+			status := s.runtime.Status(ctx, item)
+			item.Runtime = &status
+		}
 	}
 	if item.Type == TypeTheme {
 		if release, err := s.store.LatestThemeRelease(ctx, item.ID); err == nil {
@@ -988,6 +1002,45 @@ func (s *Service) decorateRuntime(ctx context.Context, item Extension) Extension
 		}
 	}
 	return item
+}
+
+// CapabilitiesFor 返回已启用插件的有效能力集合（Host API CapabilitySource）。
+func (s *Service) CapabilitiesFor(ctx context.Context, extensionID string) (capabilities.Set, error) {
+	extension, err := s.store.Get(ctx, normalizeID(extensionID))
+	if err != nil {
+		return nil, err
+	}
+	if extension.Type != TypePlugin {
+		return nil, ErrExtensionNotFound
+	}
+	if extension.Status != StatusEnabled {
+		return nil, ErrExtensionDisabled
+	}
+	keys, _ := extensionmanifest.ResolvedCapabilities(extension.Manifest)
+	return capabilities.NewSet(keys), nil
+}
+
+// DeclaredJobKinds 返回插件 manifest 声明的 job names。
+func (s *Service) DeclaredJobKinds(ctx context.Context, extensionID string) ([]string, error) {
+	extension, err := s.store.Get(ctx, normalizeID(extensionID))
+	if err != nil {
+		return nil, err
+	}
+	out := make([]string, 0, len(extension.Manifest.Jobs))
+	for _, job := range extension.Manifest.Jobs {
+		if name := strings.TrimSpace(job.Name); name != "" {
+			out = append(out, name)
+		}
+	}
+	return out, nil
+}
+
+// CapabilityCatalog 返回宿主能力目录（管理端审查文案）。
+func (s *Service) CapabilityCatalog(_ context.Context, actor identity.Actor) ([]capabilities.Definition, error) {
+	if !canViewExtensions(actor) && !canManagePlugins(actor) {
+		return nil, identity.ErrPermissionDenied
+	}
+	return capabilities.Catalog(), nil
 }
 
 type archiveFile struct {

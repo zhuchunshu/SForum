@@ -89,19 +89,21 @@ risk and a real lifecycle.
 
 ### F2.1 Capability grants
 
-- [ ] Capability catalog (stable keys + risk tier + copy for admin)
-- [ ] Manifest declares requested capabilities
-- [ ] Enable-time review UI lists grants
-- [ ] Runtime enforcement hooks (start with outbound HTTP + job enqueue)
+- [x] Capability catalog (stable keys + risk tier + copy for admin)
+- [x] Manifest declares requested capabilities
+- [x] Enable-time review UI lists grants
+- [x] Runtime enforcement hooks (start with Host API methods + job enqueue;
+      net.outbound is declared/implied for mail; host HTTP proxy still later)
 
 ### F2.2 Host API v1
 
-- [ ] Versioned surface design doc (types, errors, timeouts)
-- [ ] Core implementation behind plugin RPC
-- [ ] Methods: permission check, extension settings, safe entity reads,
-      enqueue own job kinds, audit append
-- [ ] Forbid relying on internal Go imports as plugin API
-- [ ] SDK stubs + example usage in second plugin or fixture
+- [x] Versioned surface design doc (types, errors, timeouts)
+- [x] Core implementation via loopback Host gateway + plugin env credentials
+- [x] Methods: permission check, extension settings, safe entity reads,
+      enqueue own job kinds, audit append (+ Ping)
+- [x] Forbid relying on internal Go imports as plugin API (documented)
+- [x] SDK stubs (`hostapi.Client` / `ClientFromEnv`) + gateway tests
+      (second vertical plugin still optional)
 
 ### F2.3 Plugin RPC resilience
 
@@ -119,6 +121,8 @@ risk and a real lifecycle.
 
 **F2 exit criteria:** a non-mail reference plugin can call Host API under
 grants; upgrade/uninstall documented and test-covered for the happy path.
+
+**Progress (2026-07-12):** F2.1 + F2.2 landed. F2.3 / F2.4 open.
 
 **Depends on:** F1 schedule registry if plugin schedules are included; otherwise
 F2 can start after F1.1–F1.2.
@@ -248,6 +252,8 @@ per plugin.
 | 2026-07-12 | F1.2 | `/ready`, Redis worker heartbeat, overview stale + queue lag |
 | 2026-07-12 | F1.3 | catalog failurePolicy + sync timeout + delivery log |
 | 2026-07-12 | F1.4 | settings/extension audit_events + cleanup schedule |
+| 2026-07-12 | F2.1 | capability catalog, manifest field, enable confirm UI |
+| 2026-07-12 | F2.2 | Host API v1 loopback gateway + Client SDK stubs |
 | | F2+ | pending |
 | | F2 | pending |
 | | F3 | pending |
@@ -258,6 +264,6 @@ per plugin.
 ## Next session one-liner
 
 ```text
-Wave F1 complete. For framework work: start F2.1 capability grants or product
-Iteration A / settings Wave 3 per development-directions effort mix.
+F2.1+F2.2 done. Next framework: F2.3 RPC resilience or F2.4 lifecycle;
+or product Iteration A / settings Wave 3 per development-directions mix.
 ```

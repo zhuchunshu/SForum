@@ -766,7 +766,7 @@ func TestServiceEnableRunsPluginPreflightBeforeStatusChange(t *testing.T) {
 	}}
 	service := NewServiceWithHooks(store, t.TempDir(), fakeRuntime{err: expected}, nil)
 
-	_, err := service.Enable(context.Background(), extensionManager(), "demo.plugin")
+	_, err := service.Enable(context.Background(), extensionManager(), "demo.plugin", EnableInput{ConfirmCapabilities: true})
 	if !errors.Is(err, ErrPreflightFailed) {
 		t.Fatalf("expected preflight failure, got %v", err)
 	}
@@ -778,7 +778,7 @@ func TestServiceEnableRunsPluginPreflightBeforeStatusChange(t *testing.T) {
 	}
 
 	service = NewServiceWithHooks(store, t.TempDir(), fakeRuntime{}, nil)
-	enabled, err := service.Enable(context.Background(), extensionManager(), "demo.plugin")
+	enabled, err := service.Enable(context.Background(), extensionManager(), "demo.plugin", EnableInput{ConfirmCapabilities: true})
 	if err != nil {
 		t.Fatalf("Enable returned error: %v", err)
 	}
@@ -796,7 +796,7 @@ func TestServiceEnableRejectsMissingInstalledPackage(t *testing.T) {
 	}}
 	service := NewServiceWithRuntime(store, t.TempDir(), &fakeRuntimeManager{}, nil)
 
-	_, err := service.Enable(context.Background(), extensionManager(), missing.ID)
+	_, err := service.Enable(context.Background(), extensionManager(), missing.ID, EnableInput{ConfirmCapabilities: true})
 	if !errors.Is(err, ErrPreflightFailed) {
 		t.Fatalf("expected missing package preflight failure, got %v", err)
 	}
@@ -852,7 +852,7 @@ func TestServiceEnableRejectsTamperedDigestBackedPackage(t *testing.T) {
 			}
 			test.tamper(t, installed.PackagePath)
 
-			_, err = service.Enable(context.Background(), extensionManager(), installed.ID)
+			_, err = service.Enable(context.Background(), extensionManager(), installed.ID, EnableInput{ConfirmCapabilities: true})
 			if !errors.Is(err, ErrPreflightFailed) {
 				t.Fatalf("expected tampered package preflight failure, got %v", err)
 			}
@@ -871,7 +871,7 @@ func TestServiceEnableStartsRuntimeAndRollsBackOnStartFailure(t *testing.T) {
 	runtime := &fakeRuntimeManager{startErr: expected}
 	service := NewServiceWithRuntime(store, t.TempDir(), runtime, nil)
 
-	_, err := service.Enable(context.Background(), extensionManager(), "demo.plugin")
+	_, err := service.Enable(context.Background(), extensionManager(), "demo.plugin", EnableInput{ConfirmCapabilities: true})
 	if !errors.Is(err, ErrRuntimeFailed) {
 		t.Fatalf("expected runtime failure, got %v", err)
 	}
@@ -920,7 +920,7 @@ func TestServiceEmitsPluginLifecycleHooks(t *testing.T) {
 	runtime := &fakeRuntimeManager{}
 	service := NewServiceWithRuntime(store, t.TempDir(), runtime, nil)
 
-	if _, err := service.Enable(context.Background(), extensionManager(), "demo.plugin"); err != nil {
+	if _, err := service.Enable(context.Background(), extensionManager(), "demo.plugin", EnableInput{ConfirmCapabilities: true}); err != nil {
 		t.Fatalf("Enable returned error: %v", err)
 	}
 	if _, err := service.Disable(context.Background(), extensionManager(), "demo.plugin"); err != nil {
@@ -938,7 +938,7 @@ func TestServiceEnableRejectsThemesBecauseThemesUseActivation(t *testing.T) {
 	}}
 	service := NewServiceWithHooks(store, t.TempDir(), nil, fakeThemeBuilder{})
 
-	_, err := service.Enable(context.Background(), extensionManager(), "starter.theme")
+	_, err := service.Enable(context.Background(), extensionManager(), "starter.theme", EnableInput{ConfirmCapabilities: true})
 	if !errors.Is(err, ErrThemeActivationRequired) {
 		t.Fatalf("expected theme activation requirement, got %v", err)
 	}

@@ -50,6 +50,10 @@ const {
   openUpload,
   uploadArchive,
   enableExtension,
+  confirmEnableExtension,
+  cancelEnableExtension,
+  enableConfirmOpen,
+  enableConfirmItem,
   disableExtension,
   activateTheme,
   loadEvents,
@@ -524,6 +528,37 @@ onBeforeUnmount(stopActivationPolling)
               {{ t('admin.extensions.capability.jobs', { count: selected.manifest.jobs.length }) }}
             </UBadge>
           </div>
+          <!-- F2.1 Host 能力授权列表 -->
+          <div v-if="selected.capabilityGrants?.length" class="mt-4 space-y-2 border-t border-slate-100 pt-4 dark:border-zinc-800">
+            <p class="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-zinc-400">
+              {{ t('admin.extensions.hostCapabilities') }}
+            </p>
+            <div
+              v-for="grant in selected.capabilityGrants"
+              :key="grant.key"
+              class="rounded-md bg-slate-50 px-3 py-2 text-sm dark:bg-zinc-950"
+            >
+              <div class="flex items-center justify-between gap-2">
+                <span class="font-medium text-slate-900 dark:text-zinc-100">
+                  {{ locale.startsWith('zh') ? grant.labelZh : grant.labelEn }}
+                </span>
+                <UBadge
+                  size="xs"
+                  variant="subtle"
+                  :color="grant.risk === 'high' ? 'error' : grant.risk === 'medium' ? 'warning' : 'success'"
+                >
+                  {{ t(`admin.extensions.capabilityRisk.${grant.risk}`) }}
+                </UBadge>
+              </div>
+              <p class="mt-1 text-xs text-slate-500 dark:text-zinc-400">
+                <code class="text-[11px]">{{ grant.key }}</code>
+                <span v-if="grant.implied" class="ml-2">{{ t('admin.extensions.capabilityImplied') }}</span>
+              </p>
+              <p class="mt-1 text-xs leading-5 text-slate-600 dark:text-zinc-300">
+                {{ grant.description }}
+              </p>
+            </div>
+          </div>
         </div>
 
         <div v-if="selected" class="rounded-lg border border-slate-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
@@ -559,5 +594,46 @@ onBeforeUnmount(stopActivationPolling)
         </div>
       </aside>
     </div>
+
+    <!-- F2.1 启用前能力审查确认 -->
+    <UModal v-model:open="enableConfirmOpen">
+      <template #content>
+        <div class="p-5 sm:p-6">
+          <h2 class="text-base font-semibold text-slate-900 dark:text-zinc-100">
+            {{ t('admin.extensions.confirmEnableTitle') }}
+          </h2>
+          <p class="mt-2 text-sm leading-6 text-slate-600 dark:text-zinc-300">
+            {{ t('admin.extensions.confirmEnableBody', { name: enableConfirmItem?.name || '' }) }}
+          </p>
+          <ul v-if="enableConfirmItem?.capabilityGrants?.length" class="mt-4 max-h-64 space-y-2 overflow-y-auto">
+            <li
+              v-for="grant in enableConfirmItem.capabilityGrants"
+              :key="grant.key"
+              class="rounded-md border border-slate-200 px-3 py-2 text-sm dark:border-zinc-700"
+            >
+              <div class="flex items-center justify-between gap-2">
+                <span class="font-medium">{{ locale.startsWith('zh') ? grant.labelZh : grant.labelEn }}</span>
+                <UBadge
+                  size="xs"
+                  variant="subtle"
+                  :color="grant.risk === 'high' ? 'error' : grant.risk === 'medium' ? 'warning' : 'success'"
+                >
+                  {{ t(`admin.extensions.capabilityRisk.${grant.risk}`) }}
+                </UBadge>
+              </div>
+              <p class="mt-1 text-xs text-slate-500 dark:text-zinc-400">{{ grant.key }}</p>
+            </li>
+          </ul>
+          <div class="mt-6 flex justify-end gap-2">
+            <UButton color="neutral" variant="ghost" @click="cancelEnableExtension">
+              {{ t('admin.extensions.confirmEnableCancel') }}
+            </UButton>
+            <UButton color="primary" icon="i-lucide-shield-check" @click="confirmEnableExtension">
+              {{ t('admin.extensions.confirmEnableAction') }}
+            </UButton>
+          </div>
+        </div>
+      </template>
+    </UModal>
   </div>
 </template>
