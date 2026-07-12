@@ -8,7 +8,10 @@ RUN go mod download
 
 COPY apps/api/ ./
 COPY extensions/builtin /app/extensions/builtin
+# 内置插件后端二进制（与 scripts/build-builtin-plugins.sh 对齐）
 RUN cd /app/extensions/builtin/plugins/sforum-smtp/backend && \
+	CGO_ENABLED=0 go build -o plugin . && \
+	cd /app/extensions/builtin/plugins/sforum-content-policy/backend && \
 	CGO_ENABLED=0 go build -o plugin .
 
 FROM base AS dev

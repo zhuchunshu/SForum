@@ -55,3 +55,31 @@ func TestExtensionTestCommandSMTPWithSkipBinary(t *testing.T) {
 		t.Fatalf("expected smtp id:\n%s", out.String())
 	}
 }
+
+func TestExtensionTestCommandContentPolicyWithSkipBinary(t *testing.T) {
+	// E5 工作流参考插件：契约检查不依赖本地构建产物。
+	_, file, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("runtime.Caller failed")
+	}
+	repoRoot := filepath.Clean(filepath.Join(filepath.Dir(file), "../../../.."))
+	pkgRoot := filepath.Join(repoRoot, "extensions/builtin/plugins/sforum-content-policy")
+
+	cmd := newRootCommand()
+	cmd.SetArgs([]string{"extension", "test", "--skip-backend-binary", pkgRoot})
+	var out strings.Builder
+	cmd.SetOut(&out)
+	cmd.SetErr(&out)
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("extension test content-policy: %v\n%s", err, out.String())
+	}
+	if !strings.Contains(out.String(), "sforum.content-policy") {
+		t.Fatalf("expected content-policy id:\n%s", out.String())
+	}
+	if !strings.Contains(out.String(), "event.known") {
+		t.Fatalf("expected event.known checks:\n%s", out.String())
+	}
+	if !strings.Contains(out.String(), "contribution.point_ok") {
+		t.Fatalf("expected contribution checks:\n%s", out.String())
+	}
+}
