@@ -464,6 +464,54 @@ func (s *PostgresStore) TopicSlugExists(ctx context.Context, slug string, exclud
 	return exists, nil
 }
 
+func (s *PostgresStore) ActiveTopicTitleExists(ctx context.Context, title string, excludeTopicID int64) (bool, error) {
+	title = strings.TrimSpace(title)
+	if title == "" {
+		return false, nil
+	}
+	var exists bool
+	// 仅 active/locked 参与重复判定；pending/hidden/deleted 不挡新帖。
+	err := s.pool.QueryRow(ctx, `
+		SELECT EXISTS(
+			SELECT 1 FROM topics
+			WHERE lower(title) = lower($1)
+			  AND status IN ('active', 'locked')
+			  AND ($2 = 0 OR id <> $2)
+		)
+	`, title, excludeTopicID).Scan(&exists)
+	if err != nil {
+		return false, fmt.Errorf("topic title exists: %w", err)
+	}
+	return exists, nil
+}
+
+// AutoLockIdleTopics 批量锁定闲置 active 主题；返回实际更新行数。
+func (s *PostgresStore) AutoLockIdleTopics(ctx context.Context, idleDays int, limit int) (int, error) {
+	if idleDays <= 0 {
+		return 0, nil
+	}
+	if limit <= 0 {
+		limit = 100
+	}
+	tag, err := s.pool.Exec(ctx, `
+		UPDATE topics
+		SET status = 'locked',
+		    locked_at = COALESCE(locked_at, now()),
+		    updated_at = now()
+		WHERE id IN (
+			SELECT id FROM topics
+			WHERE status = 'active'
+			  AND last_activity_at < now() - ($1::int * interval '1 day')
+			ORDER BY last_activity_at ASC
+			LIMIT $2
+		)
+	`, idleDays, limit)
+	if err != nil {
+		return 0, fmt.Errorf("auto lock idle topics: %w", err)
+	}
+	return int(tag.RowsAffected()), nil
+}
+
 func (s *PostgresStore) attachActiveTagsToTopicSummaries(ctx context.Context, items []TopicSummary) error {
 	if len(items) == 0 {
 		return nil

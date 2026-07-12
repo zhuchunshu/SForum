@@ -650,6 +650,9 @@ TopicSummary:
     lastActivityAt:
       type: string
       format: date-time
+    edited:
+      type: boolean
+      description: True when showTopicEditMark is enabled and the topic body was edited after creation.
 TopicDetail:
   allOf:
   - "$ref": "#/TopicSummary"
@@ -1052,6 +1055,9 @@ Comment:
     updatedAt:
       type: string
       format: date-time
+    edited:
+      type: boolean
+      description: True when showCommentEditMark is enabled and the comment was edited after creation.
 ReplyReference:
   type: object
   required:

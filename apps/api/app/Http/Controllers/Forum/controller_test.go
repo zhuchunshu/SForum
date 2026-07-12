@@ -571,6 +571,14 @@ func (s *controllerForumStore) TopicSlugExists(context.Context, string, int64) (
 	return false, nil
 }
 
+func (s *controllerForumStore) ActiveTopicTitleExists(context.Context, string, int64) (bool, error) {
+	return false, nil
+}
+
+func (s *controllerForumStore) AutoLockIdleTopics(context.Context, int, int) (int, error) {
+	return 0, nil
+}
+
 func (s *controllerForumStore) CreateTopic(_ context.Context, input forum.CreateTopicRecord) (forum.TopicDetail, error) {
 	s.createdTopic = input
 	input.Content.ID = 100

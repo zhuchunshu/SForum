@@ -2227,6 +2227,7 @@
         "duplicateOff": "不检查",
         "duplicateWarn": "警告（仍可发布）",
         "duplicateBlock": "阻止发布",
+        "duplicateTitlePolicyHelp": "选择「阻止发布」时，服务端会拒绝与现有公开主题相同的标题。",
         "softDeleteVisibility": "软删除内容可见性",
         "softDeleteAuthorStaff": "作者与工作人员可见",
         "softDeleteStaffOnly": "仅工作人员可见",

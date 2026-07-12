@@ -75,7 +75,7 @@ func defaultForumSettings() ForumSettings {
 		AllowAuthorDelete:            true,
 		AutoLockIdleDays:             0,
 		ShowTopicEditMark:            true,
-		DuplicateTitlePolicy:         "warn",
+		DuplicateTitlePolicy:         "off",
 		ShowCommentEditMark:          true,
 		SoftDeleteVisibility:         "author_and_staff",
 		MentionsEnabled:              true,
@@ -246,7 +246,7 @@ func validForumContentLimits(settings ForumSettings) bool {
 		return false
 	}
 	switch settings.DuplicateTitlePolicy {
-	case "off", "warn", "block", "":
+	case "off", "block", "warn", "": // warn 兼容旧配置，按 off 语义
 	default:
 		return false
 	}

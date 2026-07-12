@@ -3,6 +3,7 @@ package forum
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -1527,6 +1528,12 @@ type serviceFakeStore struct {
 	listCommentRepliesCalled bool
 	// existingSlugs 模拟已占用的 slug 集合，供 TopicSlugExists 判重。
 	existingSlugs      map[string]bool
+	// existingTitles 模拟重复标题（小写 key），供 ActiveTopicTitleExists。
+	existingTitles     map[string]bool
+	autoLockIdleDays   int
+	autoLockLimit      int
+	autoLockResult     int
+	autoLockErr        error
 	authorReviewUserID int64
 }
 
@@ -1626,6 +1633,19 @@ func (s *serviceFakeStore) TopicSlugExists(_ context.Context, slug string, exclu
 		return false, nil
 	}
 	return s.existingSlugs[slug], nil
+}
+
+func (s *serviceFakeStore) ActiveTopicTitleExists(_ context.Context, title string, excludeTopicID int64) (bool, error) {
+	if s.existingTitles == nil {
+		return false, nil
+	}
+	return s.existingTitles[strings.ToLower(strings.TrimSpace(title))], nil
+}
+
+func (s *serviceFakeStore) AutoLockIdleTopics(_ context.Context, idleDays int, limit int) (int, error) {
+	s.autoLockIdleDays = idleDays
+	s.autoLockLimit = limit
+	return s.autoLockResult, s.autoLockErr
 }
 
 func (s *serviceFakeStore) CreateTopic(_ context.Context, input CreateTopicRecord) (TopicDetail, error) {
@@ -1889,6 +1909,193 @@ func TestServiceListCommentsAllowsVisibleTopic(t *testing.T) {
 	}
 	if result.Total != 1 {
 		t.Fatalf("unexpected result: %+v", result)
+	}
+}
+
+func TestServiceCreateTopicBlocksDuplicateTitleWhenPolicyBlock(t *testing.T) {
+	store := newServiceFakeStore()
+	store.existingTitles = map[string]bool{"hello": true}
+	settings := testForumSettings()
+	settings.DuplicateTitlePolicy = "block"
+	service := NewServiceWithSettingsAndEvents(store, fakeSettingsResolver{settings: settings}, nil)
+	actor := identity.Actor{
+		ID: 1, Status: identity.UserStatusActive,
+		Permissions: map[string]bool{identity.PermissionTopicCreate: true},
+	}
+	_, err := service.CreateTopic(context.Background(), actor, CreateTopicInput{
+		Title: "Hello", Content: ContentInput{SourceFormat: SourceFormatMarkdown, RawContent: "body"},
+	})
+	if !errors.Is(err, ErrDuplicateTitle) {
+		t.Fatalf("expected ErrDuplicateTitle, got %v", err)
+	}
+}
+
+func TestServiceCreateTopicAllowsDuplicateTitleWhenPolicyOff(t *testing.T) {
+	store := newServiceFakeStore()
+	store.existingTitles = map[string]bool{"hello": true}
+	settings := testForumSettings()
+	settings.DuplicateTitlePolicy = "off"
+	service := NewServiceWithSettingsAndEvents(store, fakeSettingsResolver{settings: settings}, nil)
+	actor := identity.Actor{
+		ID: 1, Status: identity.UserStatusActive,
+		Permissions: map[string]bool{identity.PermissionTopicCreate: true},
+	}
+	if _, err := service.CreateTopic(context.Background(), actor, CreateTopicInput{
+		Title: "Hello", Content: ContentInput{SourceFormat: SourceFormatMarkdown, RawContent: "body"},
+	}); err != nil {
+		t.Fatalf("expected allow, got %v", err)
+	}
+}
+
+func TestServiceAuthorCanLockWhenAllowAuthorCloseReplies(t *testing.T) {
+	store := newServiceFakeStore()
+	store.actionTopic = TopicSummary{ID: 7, AuthorUserID: 12, Status: TopicStatusActive}
+	settings := testForumSettings()
+	settings.AllowAuthorCloseReplies = true
+	service := NewServiceWithSettingsAndEvents(store, fakeSettingsResolver{settings: settings}, nil)
+	author := identity.Actor{ID: 12, Status: identity.UserStatusActive}
+	if _, err := service.ApplyTopicAction(context.Background(), author, TopicLifecycleInput{
+		TopicID: 7, Action: TopicActionLock,
+	}); err != nil {
+		t.Fatalf("author lock should succeed: %v", err)
+	}
+}
+
+func TestServiceAuthorCannotLockWhenAllowAuthorCloseRepliesDisabled(t *testing.T) {
+	store := newServiceFakeStore()
+	store.actionTopic = TopicSummary{ID: 7, AuthorUserID: 12, Status: TopicStatusActive}
+	settings := testForumSettings()
+	settings.AllowAuthorCloseReplies = false
+	service := NewServiceWithSettingsAndEvents(store, fakeSettingsResolver{settings: settings}, nil)
+	author := identity.Actor{ID: 12, Status: identity.UserStatusActive}
+	if _, err := service.ApplyTopicAction(context.Background(), author, TopicLifecycleInput{
+		TopicID: 7, Action: TopicActionLock,
+	}); !errors.Is(err, identity.ErrPermissionDenied) {
+		t.Fatalf("expected permission denied, got %v", err)
+	}
+}
+
+func TestServiceModeratorCanLockRegardlessOfAuthorSetting(t *testing.T) {
+	store := newServiceFakeStore()
+	store.actionTopic = TopicSummary{ID: 7, AuthorUserID: 12, Status: TopicStatusActive}
+	settings := testForumSettings()
+	settings.AllowAuthorCloseReplies = false
+	service := NewServiceWithSettingsAndEvents(store, fakeSettingsResolver{settings: settings}, nil)
+	mod := identity.Actor{
+		ID: 99, Status: identity.UserStatusActive,
+		Permissions: map[string]bool{identity.PermissionTopicLock: true},
+	}
+	if _, err := service.ApplyTopicAction(context.Background(), mod, TopicLifecycleInput{
+		TopicID: 7, Action: TopicActionLock,
+	}); err != nil {
+		t.Fatalf("moderator lock should succeed: %v", err)
+	}
+}
+
+func TestServiceCreateCommentSkipsMentionsWhenDisabled(t *testing.T) {
+	store := newServiceFakeStore()
+	store.topicForComment = TopicSummary{ID: 1, Status: TopicStatusActive}
+	settings := testForumSettings()
+	settings.MentionsEnabled = false
+	service := NewServiceWithSettingsAndEvents(store, fakeSettingsResolver{settings: settings}, nil)
+	actor := identity.Actor{
+		ID: 3, Status: identity.UserStatusActive,
+		Permissions: map[string]bool{identity.PermissionPostCreate: true},
+	}
+	if _, err := service.CreateComment(context.Background(), actor, CreateCommentInput{
+		TopicID: 1,
+		Content: ContentInput{SourceFormat: SourceFormatMarkdown, RawContent: "hi @alice"},
+	}); err != nil {
+		t.Fatalf("create comment: %v", err)
+	}
+	if len(store.createdComment.MentionedUsernames) != 0 {
+		t.Fatalf("expected no mentions when disabled, got %#v", store.createdComment.MentionedUsernames)
+	}
+}
+
+func TestServiceCreateCommentParsesMentionsWhenEnabled(t *testing.T) {
+	store := newServiceFakeStore()
+	store.topicForComment = TopicSummary{ID: 1, Status: TopicStatusActive}
+	settings := testForumSettings()
+	settings.MentionsEnabled = true
+	service := NewServiceWithSettingsAndEvents(store, fakeSettingsResolver{settings: settings}, nil)
+	actor := identity.Actor{
+		ID: 3, Status: identity.UserStatusActive,
+		Permissions: map[string]bool{identity.PermissionPostCreate: true},
+	}
+	if _, err := service.CreateComment(context.Background(), actor, CreateCommentInput{
+		TopicID: 1,
+		Content: ContentInput{SourceFormat: SourceFormatMarkdown, RawContent: "hi @alice"},
+	}); err != nil {
+		t.Fatalf("create comment: %v", err)
+	}
+	if len(store.createdComment.MentionedUsernames) == 0 {
+		t.Fatal("expected mentions when enabled")
+	}
+}
+
+func TestFilterSoftDeletedCommentsAuthorAndStaff(t *testing.T) {
+	deleted := Comment{
+		ID: 2, AuthorUserID: 5, Status: CommentStatusDeleted,
+		Content: RenderedContent{PlainText: "secret", HTMLContent: "<p>secret</p>", RawContent: "secret"},
+	}
+	items := []Comment{{ID: 1, Status: CommentStatusActive}, deleted}
+	author := identity.Actor{ID: 5, Status: identity.UserStatusActive}
+	got := filterSoftDeletedComments(items, "author_and_staff", author)
+	if len(got) != 2 {
+		t.Fatalf("author should see tombstone, got %d", len(got))
+	}
+	if got[1].Content.PlainText != "" || got[1].Content.HTMLContent != "" || got[1].Content.RawContent != "" {
+		t.Fatalf("tombstone must not leak content: %+v", got[1].Content)
+	}
+	stranger := identity.Actor{ID: 9, Status: identity.UserStatusActive}
+	got = filterSoftDeletedComments(items, "author_and_staff", stranger)
+	if len(got) != 1 {
+		t.Fatalf("stranger should not see deleted, got %d", len(got))
+	}
+	staff := identity.Actor{
+		ID: 1, Status: identity.UserStatusActive,
+		Permissions: map[string]bool{identity.PermissionPostDeleteAny: true},
+	}
+	got = filterSoftDeletedComments(items, "staff_only", staff)
+	if len(got) != 2 {
+		t.Fatalf("staff should see under staff_only, got %d", len(got))
+	}
+	got = filterSoftDeletedComments(items, "hidden", staff)
+	if len(got) != 1 {
+		t.Fatalf("hidden hides from everyone including staff, got %d", len(got))
+	}
+}
+
+func TestApplyCommentEditMarks(t *testing.T) {
+	created := time.Now().UTC().Add(-time.Hour)
+	items := []Comment{{
+		ID: 1, CreatedAt: created, UpdatedAt: created.Add(time.Minute),
+	}}
+	marked := applyCommentEditMarks(items, true)
+	if !marked[0].Edited {
+		t.Fatal("expected edited mark")
+	}
+	unmarked := applyCommentEditMarks(items, false)
+	if unmarked[0].Edited {
+		t.Fatal("expected no edited mark when disabled")
+	}
+}
+
+func TestServiceAutoLockIdleTopicsDelegates(t *testing.T) {
+	store := newServiceFakeStore()
+	store.autoLockResult = 4
+	service := NewService(store)
+	n, err := service.AutoLockIdleTopics(context.Background(), 14, 50)
+	if err != nil || n != 4 {
+		t.Fatalf("n=%d err=%v", n, err)
+	}
+	if store.autoLockIdleDays != 14 || store.autoLockLimit != 50 {
+		t.Fatalf("unexpected store call: idle=%d limit=%d", store.autoLockIdleDays, store.autoLockLimit)
+	}
+	n, err = service.AutoLockIdleTopics(context.Background(), 0, 50)
+	if err != nil || n != 0 {
+		t.Fatalf("disabled should no-op: n=%d err=%v", n, err)
 	}
 }
 

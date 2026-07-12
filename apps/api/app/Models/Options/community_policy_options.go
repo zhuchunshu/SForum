@@ -37,7 +37,8 @@ var (
 	usernameCharsets          = []string{"unicode_letters_numbers", "ascii"}
 	guestReadModes            = []string{"public", "login_required"}
 	listDefaultSorts          = []string{"latest", "active", "hot"}
-	duplicateTitlePolicies    = []string{"off", "warn", "block"}
+	// warn 保留为历史兼容值，运行时按 off 处理（无独立 warn 合同）。
+	duplicateTitlePolicies = []string{"off", "warn", "block"}
 	softDeleteVisibilities    = []string{"author_and_staff", "staff_only", "hidden"}
 	recommendedReservedNames  = "admin,administrator,system,sforum,root,support,moderator,mod,official,null,undefined"
 )
@@ -115,7 +116,7 @@ func communityPolicyRecommendedDefaults() map[string]string {
 		NameForumTopicsAllowAuthorDelete:                  enabledOptionValue(true),
 		NameForumTopicsAutoLockIdleDays:                   "0",
 		NameForumTopicsShowEditMark:                       enabledOptionValue(true),
-		NameForumTopicsDuplicateTitlePolicy:               "warn",
+		NameForumTopicsDuplicateTitlePolicy:               "off",
 		NameForumCommentsShowEditMark:                     enabledOptionValue(true),
 		NameForumCommentsSoftDeleteVisibility:             "author_and_staff",
 		NameForumMentionsEnabled:                          enabledOptionValue(true),

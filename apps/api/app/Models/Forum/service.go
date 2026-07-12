@@ -393,6 +393,9 @@ func (s *Service) ListTopics(ctx context.Context, input TopicListInput) (TopicLi
 	// store 用推荐默认截断；此处按运营 excerpt_rune_limit 再派生，改配置即生效。
 	for i := range list.Items {
 		list.Items[i] = applyTopicSummaryExcerpt(list.Items[i], settings.ExcerptRuneLimit)
+		if settings.ShowTopicEditMark {
+			list.Items[i].Edited = contentWasEdited(list.Items[i].CreatedAt, list.Items[i].UpdatedAt)
+		}
 	}
 	return s.decorateTopicListExtensionBadges(ctx, list), nil
 }
@@ -437,13 +440,19 @@ func (s *Service) GetTopicBySlug(ctx context.Context, slug string) (TopicDetail,
 	return s.decorateTopicExtensionActions(ctx, topic), nil
 }
 
-// applyTopicDetailExcerpt 按运营配置从 plain_text 派生详情摘要字段。
+// applyTopicDetailExcerpt 按运营配置从 plain_text 派生详情摘要字段，并填充编辑标记。
 func (s *Service) applyTopicDetailExcerpt(ctx context.Context, topic TopicDetail) TopicDetail {
 	limit := RecommendedExcerptRuneLimit
+	showEdit := false
 	if settings, err := s.resolvedSettings(ctx); err == nil {
 		limit = settings.ExcerptRuneLimit
+		showEdit = settings.ShowTopicEditMark
 	}
-	return applyTopicDetailExcerpt(topic, limit)
+	topic = applyTopicDetailExcerpt(topic, limit)
+	if showEdit {
+		topic.Edited = contentWasEdited(topic.CreatedAt, topic.UpdatedAt)
+	}
+	return topic
 }
 
 func applyTopicDetailExcerpt(topic TopicDetail, limit int) TopicDetail {
@@ -524,6 +533,9 @@ func (s *Service) CreateTopic(ctx context.Context, actor identity.Actor, input C
 		return TopicDetail{}, ErrInvalidTopic
 	}
 	if err := validateTopicTitle(title, settings); err != nil {
+		return TopicDetail{}, err
+	}
+	if err := s.enforceDuplicateTitlePolicy(ctx, title, 0, settings); err != nil {
 		return TopicDetail{}, err
 	}
 	if err := validateTopicContent(input.Content.RawContent, settings); err != nil {
@@ -639,6 +651,10 @@ func (s *Service) UpdateTopic(ctx context.Context, actor identity.Actor, input U
 			return TopicDetail{}, ErrInvalidTopic
 		}
 		if err := validateTopicTitle(title, settings); err != nil {
+			return TopicDetail{}, err
+		}
+		// 改标题同样受 duplicateTitlePolicy=block 约束（排除自身）。
+		if err := s.enforceDuplicateTitlePolicy(ctx, title, input.TopicID, settings); err != nil {
 			return TopicDetail{}, err
 		}
 		record.Title = title
@@ -758,7 +774,8 @@ func (s *Service) ApplyTopicAction(ctx context.Context, actor identity.Actor, in
 			return TopicLifecycleRecord{}, identity.ErrPermissionDenied
 		}
 	case TopicActionLock, TopicActionUnlock:
-		if !actor.Can(identity.PermissionTopicLock) {
+		// 版主：topic.lock；作者：站点 allowAuthorCloseReplies + 主题归属。
+		if !s.canLockTopic(ctx, actor, topic) {
 			return TopicLifecycleRecord{}, identity.ErrPermissionDenied
 		}
 	case TopicActionPin, TopicActionUnpin:
@@ -856,9 +873,12 @@ func (s *Service) CreateComment(ctx context.Context, actor identity.Actor, input
 	if trust := s.trustForActor(ctx, actor); trust.active && trust.forbidLinks && containsOutboundLink(input.Content.RawContent) {
 		return Comment{}, ErrOutboundLinkForbidden
 	}
-	// 提及上限：MentionsEnabled=false 时仍允许解析但不做通知侧限制；max=0 表示不限制。
-	if settings.MentionsEnabled && settings.MentionsMaxPerPost > 0 {
-		if names := mentionedUsernames(input.Content.RawContent); len(names) > settings.MentionsMaxPerPost {
+	// MentionsEnabled=false：不解析提及、不发通知；@text 仅作正文。
+	// max=0 表示不限制条数。
+	var mentionNames []string
+	if settings.MentionsEnabled {
+		mentionNames = mentionedUsernames(input.Content.RawContent)
+		if settings.MentionsMaxPerPost > 0 && len(mentionNames) > settings.MentionsMaxPerPost {
 			return Comment{}, ErrMentionsLimit
 		}
 	}
@@ -900,7 +920,7 @@ func (s *Service) CreateComment(ctx context.Context, actor identity.Actor, input
 		Content:            content,
 		Status:             status,
 		ModerationTriggers: publication.Triggers,
-		MentionedUsernames: mentionedUsernames(input.Content.RawContent),
+		MentionedUsernames: mentionNames,
 		IPAddress:          strings.TrimSpace(input.IPAddress),
 	})
 	if err != nil {
@@ -1111,7 +1131,73 @@ func (s *Service) ListComments(ctx context.Context, input CommentListInput) (Com
 		return CommentList{}, err
 	}
 	list.Items = applyCommentTreeExcerpts(list.Items, settings.ExcerptRuneLimit)
+	list.Items = applyCommentEditMarks(list.Items, settings.ShowCommentEditMark)
+	// softDeleteVisibility：列表默认只含 active；若有墓碑行再按策略过滤。
+	list.Items = filterSoftDeletedComments(list.Items, settings.SoftDeleteVisibility, input.Viewer)
 	return s.decorateCommentExtensionActions(ctx, list), nil
+}
+
+// applyCommentEditMarks 在 showCommentEditMark 时根据 updatedAt 相对 createdAt 标记编辑。
+// show=false 时清除 Edited，避免缓存/复用结构体泄漏标记。
+func applyCommentEditMarks(items []Comment, show bool) []Comment {
+	for i := range items {
+		if show {
+			items[i].Edited = contentWasEdited(items[i].CreatedAt, items[i].UpdatedAt)
+		} else {
+			items[i].Edited = false
+		}
+		if len(items[i].Children) > 0 {
+			items[i].Children = applyCommentEditMarks(items[i].Children, show)
+		}
+	}
+	return items
+}
+
+func contentWasEdited(created, updated time.Time) bool {
+	if created.IsZero() || updated.IsZero() {
+		return false
+	}
+	// 创建瞬间可能有亚秒差；超过 2s 视为真实编辑。
+	return updated.Sub(created) > 2*time.Second
+}
+
+// filterSoftDeletedComments 按 softDeleteVisibility 保留/剥离软删墓碑。
+// 公开列表 SQL 仅 active；本函数覆盖含 deleted 行的扩展查询与单条回复场景。
+func filterSoftDeletedComments(items []Comment, visibility string, viewer identity.Actor) []Comment {
+	if len(items) == 0 {
+		return items
+	}
+	out := make([]Comment, 0, len(items))
+	for _, item := range items {
+		if item.Status == CommentStatusDeleted {
+			if !canViewSoftDeletedComment(item, visibility, viewer) {
+				continue
+			}
+			// 墓碑：不泄漏正文。
+			item.Content = RenderedContent{SourceFormat: item.Content.SourceFormat}
+		}
+		if len(item.Children) > 0 {
+			item.Children = filterSoftDeletedComments(item.Children, visibility, viewer)
+		}
+		out = append(out, item)
+	}
+	return out
+}
+
+func canViewSoftDeletedComment(comment Comment, visibility string, viewer identity.Actor) bool {
+	switch visibility {
+	case "hidden", "":
+		return false
+	case "staff_only":
+		return viewer.Can(identity.PermissionPostDeleteAny) || viewer.Can(identity.PermissionModerationReview)
+	case "author_and_staff":
+		if viewer.Can(identity.PermissionPostDeleteAny) || viewer.Can(identity.PermissionModerationReview) {
+			return true
+		}
+		return viewer.IsActive() && viewer.ID == comment.AuthorUserID
+	default:
+		return false
+	}
 }
 
 func (s *Service) decorateCommentExtensionActions(ctx context.Context, list CommentList) CommentList {
@@ -1138,6 +1224,11 @@ func applyCommentTreeExcerpts(items []Comment, limit int) []Comment {
 }
 
 func (s *Service) ListCommentReplies(ctx context.Context, commentID int64) ([]Comment, error) {
+	return s.ListCommentRepliesForViewer(ctx, commentID, identity.Actor{})
+}
+
+// ListCommentRepliesForViewer 与 ListCommentReplies 相同，但按 viewer 应用 softDeleteVisibility。
+func (s *Service) ListCommentRepliesForViewer(ctx context.Context, commentID int64, viewer identity.Actor) ([]Comment, error) {
 	if commentID <= 0 {
 		return nil, ErrCommentNotFound
 	}
@@ -1156,10 +1247,16 @@ func (s *Service) ListCommentReplies(ctx context.Context, commentID int64) ([]Co
 		return nil, err
 	}
 	limit := RecommendedExcerptRuneLimit
+	showEdit := false
+	visibility := "author_and_staff"
 	if settings, settingsErr := s.resolvedSettings(ctx); settingsErr == nil {
 		limit = settings.ExcerptRuneLimit
+		showEdit = settings.ShowCommentEditMark
+		visibility = settings.SoftDeleteVisibility
 	}
-	return applyCommentTreeExcerpts(items, limit), nil
+	items = applyCommentTreeExcerpts(items, limit)
+	items = applyCommentEditMarks(items, showEdit)
+	return filterSoftDeletedComments(items, visibility, viewer), nil
 }
 
 func (s *Service) UpdateComment(ctx context.Context, actor identity.Actor, input UpdateCommentInput) (Comment, error) {
@@ -1832,6 +1929,51 @@ func (s *Service) canDeleteTopicWithPolicy(ctx context.Context, actor identity.A
 		return false
 	}
 	return settings.AllowAuthorDelete
+}
+
+// canLockTopic：版主凭 topic.lock；作者在 allowAuthorCloseReplies 开启时可锁/解锁自己的主题。
+func (s *Service) canLockTopic(ctx context.Context, actor identity.Actor, topic TopicSummary) bool {
+	if actor.Can(identity.PermissionTopicLock) {
+		return true
+	}
+	if topic.AuthorUserID != actor.ID || !actor.IsActive() {
+		return false
+	}
+	settings, err := s.resolvedSettings(ctx)
+	if err != nil {
+		return false
+	}
+	return settings.AllowAuthorCloseReplies
+}
+
+// enforceDuplicateTitlePolicy：仅 block 服务端拒绝；off 与历史 warn 均不阻断。
+func (s *Service) enforceDuplicateTitlePolicy(ctx context.Context, title string, excludeTopicID int64, settings ForumSettings) error {
+	if settings.DuplicateTitlePolicy != "block" {
+		return nil
+	}
+	exists, err := s.store.ActiveTopicTitleExists(ctx, title, excludeTopicID)
+	if err != nil {
+		return err
+	}
+	if exists {
+		return ErrDuplicateTitle
+	}
+	return nil
+}
+
+// AutoLockIdleTopics 将超过 idleDays 无活动的 active 主题锁帖。
+// idleDays<=0 时 no-op（站点关闭自动锁）。由周期任务调用。
+func (s *Service) AutoLockIdleTopics(ctx context.Context, idleDays int, limit int) (int, error) {
+	if idleDays <= 0 {
+		return 0, nil
+	}
+	if limit <= 0 {
+		limit = 100
+	}
+	if s.store == nil {
+		return 0, nil
+	}
+	return s.store.AutoLockIdleTopics(ctx, idleDays, limit)
 }
 
 // canManageTopicVisibility: hide/restore 需要 topic.delete_any。

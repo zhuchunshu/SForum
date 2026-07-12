@@ -578,7 +578,7 @@ func recommendedForumSettings() forum.ForumSettings {
 		AllowAuthorDelete:        true,
 		AutoLockIdleDays:         0,
 		ShowTopicEditMark:        true,
-		DuplicateTitlePolicy:     "warn",
+		DuplicateTitlePolicy:     "off",
 		ShowCommentEditMark:      true,
 		SoftDeleteVisibility:     "author_and_staff",
 		MentionsEnabled:          true,

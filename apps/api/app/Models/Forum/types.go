@@ -5,6 +5,7 @@ import (
 	"errors"
 	"time"
 
+	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
 	avatar "github.com/zhuchunshu/sforum/apps/api/app/Support/Avatar"
 )
 
@@ -79,6 +80,8 @@ const (
 	CodeTagMinRequired        = "forum.tag_min_required"
 	// 游客阅读策略为 login_required 时，未登录访问公开阅读接口。
 	CodeGuestLoginRequired = "forum.guest_login_required"
+	// 重复标题策略 block。
+	CodeDuplicateTitle = "forum.duplicate_title"
 )
 
 var (
@@ -110,6 +113,8 @@ var (
 	ErrUseSearchEndpoint = errors.New("forum: use search endpoint")
 	// ErrGuestLoginRequired 游客阅读关闭时，匿名读请求被拒绝。
 	ErrGuestLoginRequired = errors.New("forum: guest login required")
+	// ErrDuplicateTitle 站点 duplicateTitlePolicy=block 时拒绝重复标题。
+	ErrDuplicateTitle = errors.New("forum: duplicate title")
 )
 
 // TopicSearchIndexer 是 forum 包对搜索索引调度的抽象。
@@ -249,6 +254,8 @@ type TopicSummary struct {
 	CreatedAt      time.Time         `json:"createdAt"`
 	UpdatedAt      time.Time         `json:"updatedAt"`
 	LastActivityAt time.Time         `json:"lastActivityAt"`
+	// Edited 主题正文是否曾被编辑（showTopicEditMark 开启时填充）。
+	Edited bool `json:"edited,omitempty"`
 }
 
 type TopicDetail struct {
@@ -434,12 +441,16 @@ type ForumSettings struct {
 	ListHotWindowDays       int    `json:"listHotWindowDays"`
 	AllowAuthorCloseReplies bool   `json:"allowAuthorCloseReplies"`
 	AllowAuthorDelete       bool   `json:"allowAuthorDelete"`
-	AutoLockIdleDays        int    `json:"autoLockIdleDays"` // 0=关闭
+	AutoLockIdleDays        int    `json:"autoLockIdleDays"` // 0=关闭；>0 由周期任务执行
 	ShowTopicEditMark       bool   `json:"showTopicEditMark"`
-	DuplicateTitlePolicy    string `json:"duplicateTitlePolicy"` // off | warn | block
-	ShowCommentEditMark     bool   `json:"showCommentEditMark"`
-	SoftDeleteVisibility    string `json:"softDeleteVisibility"` // author_and_staff | staff_only | hidden
-	MentionsEnabled         bool   `json:"mentionsEnabled"`
+	// DuplicateTitlePolicy：off 不校验；block 服务端拒绝重复标题。
+	// 历史值 warn 按 off 处理（无独立 warn 合同，避免假开关）。
+	DuplicateTitlePolicy string `json:"duplicateTitlePolicy"` // off | block
+	ShowCommentEditMark  bool   `json:"showCommentEditMark"`
+	// SoftDeleteVisibility：软删评论谁能在列表中看到墓碑（正文已清空）。
+	// author_and_staff | staff_only | hidden
+	SoftDeleteVisibility string `json:"softDeleteVisibility"`
+	MentionsEnabled      bool   `json:"mentionsEnabled"`
 	MentionsMaxPerPost      int    `json:"mentionsMaxPerPost"`
 }
 
@@ -549,6 +560,9 @@ type CommentListInput struct {
 	View    string
 	Page    int
 	PerPage int
+	// Viewer 可选：用于 softDeleteVisibility 判定是否展示软删墓碑。
+	// 匿名时为零值 Actor，仅能看到 active。
+	Viewer identity.Actor
 }
 
 type CommentList struct {
@@ -577,6 +591,8 @@ type Comment struct {
 	Children      []Comment       `json:"children,omitempty"`
 	CreatedAt     time.Time       `json:"createdAt"`
 	UpdatedAt     time.Time       `json:"updatedAt"`
+	// Edited 评论是否曾被编辑（showCommentEditMark 开启时填充）。
+	Edited bool `json:"edited,omitempty"`
 }
 
 type ReplyReference struct {

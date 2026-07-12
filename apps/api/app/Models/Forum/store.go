@@ -29,6 +29,8 @@ type Store interface {
 	// TopicSlugExists 检查 slug 是否已被其它主题占用（排除 excludeTopicID 自身），
 	// 用于创建/更新时确保 slug 全局唯一。
 	TopicSlugExists(ctx context.Context, slug string, excludeTopicID int64) (bool, error)
+	// ActiveTopicTitleExists 是否存在同标题的公开主题（active/locked），用于 duplicateTitlePolicy=block。
+	ActiveTopicTitleExists(ctx context.Context, title string, excludeTopicID int64) (bool, error)
 	ResolveTopicTags(ctx context.Context, input ResolveTopicTagsInput) ([]TopicTagSummary, error)
 	CreateTopic(ctx context.Context, input CreateTopicRecord) (TopicDetail, error)
 	UpdateTopic(ctx context.Context, input UpdateTopicRecord) (TopicDetail, error)
@@ -49,6 +51,8 @@ type Store interface {
 	CountAuthorTopicsSince(ctx context.Context, authorUserID int64, since time.Time) (int64, error)
 	LatestAuthorCommentCreatedAt(ctx context.Context, authorUserID int64) (time.Time, bool, error)
 	CountAuthorCommentsSince(ctx context.Context, authorUserID int64, since time.Time) (int64, error)
+	// AutoLockIdleTopics 将 last_activity_at 早于 idleDays 的 active 主题批量锁定。
+	AutoLockIdleTopics(ctx context.Context, idleDays int, limit int) (int, error)
 }
 
 type SettingsResolver interface {

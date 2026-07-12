@@ -2227,6 +2227,7 @@
         "duplicateOff": "Off",
         "duplicateWarn": "Warn (still allow publish)",
         "duplicateBlock": "Block publish",
+        "duplicateTitlePolicyHelp": "When set to block, the server rejects titles that already exist on public topics.",
         "softDeleteVisibility": "Soft-deleted content visibility",
         "softDeleteAuthorStaff": "Author and staff",
         "softDeleteStaffOnly": "Staff only",

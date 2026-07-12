@@ -382,11 +382,14 @@ func (h *Controller) comments(c fiber.Ctx) error {
 	if err := h.requireGuestRead(c); err != nil {
 		return err
 	}
+	// 可选 viewer：登录用户用于 softDeleteVisibility 墓碑判定；匿名为零值。
+	viewer, _ := apphttp.LoadActor(c, h.sessions, h.users)
 	list, err := h.service.ListComments(c.Context(), forum.CommentListInput{
 		TopicID: int64(paramInt(c, "topicID")),
 		View:    c.Query("view", "tree"),
 		Page:    queryInt(c, "page"),
 		PerPage: queryInt(c, "perPage"),
+		Viewer:  viewer,
 	})
 	if err != nil {
 		return mapForumError(err)
@@ -419,7 +422,8 @@ func (h *Controller) replies(c fiber.Ctx) error {
 	if err := h.requireGuestRead(c); err != nil {
 		return err
 	}
-	items, err := h.service.ListCommentReplies(c.Context(), int64(paramInt(c, "commentID")))
+	viewer, _ := apphttp.LoadActor(c, h.sessions, h.users)
+	items, err := h.service.ListCommentRepliesForViewer(c.Context(), int64(paramInt(c, "commentID")), viewer)
 	if err != nil {
 		return mapForumError(err)
 	}
@@ -537,6 +541,8 @@ func mapForumError(err error) error {
 		return fiber.NewError(fiber.StatusUnprocessableEntity, forum.CodeOutboundLinkForbidden)
 	case errors.Is(err, forum.ErrMentionsLimit):
 		return fiber.NewError(fiber.StatusUnprocessableEntity, forum.CodeMentionsLimit)
+	case errors.Is(err, forum.ErrDuplicateTitle):
+		return fiber.NewError(fiber.StatusUnprocessableEntity, forum.CodeDuplicateTitle)
 	case errors.Is(err, forum.ErrGuestLoginRequired):
 		return fiber.NewError(fiber.StatusUnauthorized, forum.CodeGuestLoginRequired)
 	case errors.Is(err, forum.ErrUseSearchEndpoint):

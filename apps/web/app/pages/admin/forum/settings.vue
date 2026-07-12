@@ -604,9 +604,9 @@ function errorToast(error: unknown, fallback: string) {
             <UFormField :label="t('admin.forum.settings.duplicateTitlePolicy')" name="dup-title">
               <select v-model="form.duplicateTitlePolicy" :disabled="!canManageSettings" class="h-11 w-full rounded-md border border-slate-200 bg-white px-3 text-base dark:border-zinc-700 dark:bg-zinc-950">
                 <option value="off">{{ t('admin.forum.settings.duplicateOff') }}</option>
-                <option value="warn">{{ t('admin.forum.settings.duplicateWarn') }}</option>
                 <option value="block">{{ t('admin.forum.settings.duplicateBlock') }}</option>
               </select>
+              <p class="mt-2 text-xs text-slate-500 dark:text-zinc-400">{{ t('admin.forum.settings.duplicateTitlePolicyHelp') }}</p>
             </UFormField>
             <UFormField :label="t('admin.forum.settings.softDeleteVisibility')" name="soft-delete">
               <select v-model="form.softDeleteVisibility" :disabled="!canManageSettings" class="h-11 w-full rounded-md border border-slate-200 bg-white px-3 text-base dark:border-zinc-700 dark:bg-zinc-950">

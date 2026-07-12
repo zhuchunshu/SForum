@@ -8,6 +8,7 @@ export type ForumTopicStatus = 'active' | 'locked' | 'hidden' | 'deleted' | 'pen
 
 export type ForumGuestRead = 'public' | 'login_required'
 export type ForumListSort = 'latest' | 'active' | 'hot'
+// warn 为历史兼容值，服务端按 off 处理（无独立 warn 合同）。
 export type ForumDuplicateTitlePolicy = 'off' | 'warn' | 'block'
 export type ForumSoftDeleteVisibility = 'author_and_staff' | 'staff_only' | 'hidden'
 
@@ -354,7 +355,7 @@ export const recommendedForumSettings: ForumSettings = {
   allowAuthorDelete: true,
   autoLockIdleDays: 0,
   showTopicEditMark: true,
-  duplicateTitlePolicy: 'warn',
+  duplicateTitlePolicy: 'off',
   showCommentEditMark: true,
   softDeleteVisibility: 'author_and_staff',
   mentionsEnabled: true,

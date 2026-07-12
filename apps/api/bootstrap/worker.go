@@ -15,11 +15,13 @@ import (
 	attachmentjobs "github.com/zhuchunshu/sforum/apps/api/app/Jobs/Attachments"
 	auditjobs "github.com/zhuchunshu/sforum/apps/api/app/Jobs/Audit"
 	extensionjobs "github.com/zhuchunshu/sforum/apps/api/app/Jobs/Extensions"
+	forumjobs "github.com/zhuchunshu/sforum/apps/api/app/Jobs/Forum"
 	identityjobs "github.com/zhuchunshu/sforum/apps/api/app/Jobs/Identity"
 	notificationjobs "github.com/zhuchunshu/sforum/apps/api/app/Jobs/Notifications"
 	webhookjobs "github.com/zhuchunshu/sforum/apps/api/app/Jobs/Webhooks"
 	attachments "github.com/zhuchunshu/sforum/apps/api/app/Models/Attachments"
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
+	forum "github.com/zhuchunshu/sforum/apps/api/app/Models/Forum"
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
 	jobsmodel "github.com/zhuchunshu/sforum/apps/api/app/Models/Jobs"
 	notifications "github.com/zhuchunshu/sforum/apps/api/app/Models/Notifications"
@@ -236,6 +238,7 @@ func newWorkerWithPool(cfg config.Config, pool *pgxpool.Pool, logger *slog.Logge
 	})
 	registerSearchWorkers(registry, cfg, pool)
 	registerIdentityCleanupWorker(registry, cfg, pool, logger)
+	registerForumAutoLockWorker(registry, cfg, pool, logger)
 	// F2.2：插件经 Host API 入队的 extension.plugin_job。
 	registry.Add(func(workers *river.Workers) error {
 		river.AddWorker(workers, &hostapi.PluginJobWorker{})
@@ -278,6 +281,12 @@ func newWorkerWithPool(cfg config.Config, pool *pgxpool.Pool, logger *slog.Logge
 			supportjobs.ScheduleAuditCleanupEvents,
 			func() (river.JobArgs, *river.InsertOpts) {
 				return auditjobs.CleanupEventsArgs{}, nil
+			},
+		),
+		supportjobs.ScheduleForumAutoLockIdle: wrapEnabled(
+			supportjobs.ScheduleForumAutoLockIdle,
+			func() (river.JobArgs, *river.InsertOpts) {
+				return forumjobs.AutoLockIdleArgs{}, nil
 			},
 		),
 	})
@@ -347,6 +356,31 @@ func registerIdentityCleanupWorker(registry *supportjobs.Registry, cfg config.Co
 			Logger: logger,
 		})
 		return nil
+	})
+}
+
+// registerForumAutoLockWorker 注册闲置主题自动锁帖 worker。
+// idle days 每次执行时从 web_options 读取；0 或缺失时 job 空跑。
+func registerForumAutoLockWorker(registry *supportjobs.Registry, cfg config.Config, pool *pgxpool.Pool, logger *slog.Logger) {
+	optionStore := options.NewPostgresStore(pool)
+	optionsService := options.NewServiceWithDefaults(optionStore, optionsDefaultsFromConfig(cfg))
+	forumStore := forum.NewPostgresStore(pool)
+
+	registry.Add(func(workers *river.Workers) error {
+		return river.AddWorkerSafely[forumjobs.AutoLockIdleArgs](workers, &forumjobs.AutoLockIdleWorker{
+			Locker: forumStore,
+			IdleDays: func(ctx context.Context) (int, error) {
+				raw, err := optionsService.WebOption(ctx, options.NameForumTopicsAutoLockIdleDays)
+				if err != nil {
+					return 0, err
+				}
+				if days, err := strconv.Atoi(strings.TrimSpace(raw)); err == nil && days > 0 {
+					return days, nil
+				}
+				return 0, nil
+			},
+			Logger: logger,
+		})
 	})
 }
 
