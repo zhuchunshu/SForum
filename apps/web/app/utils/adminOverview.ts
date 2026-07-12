@@ -152,6 +152,24 @@ export function formatOverviewCount(value: number) {
   return formatInteger(count)
 }
 
+/**
+ * 趋势图日粒度数字：尽量短、不出现「128.2k」再被 CSS 截成 128…
+ * 1_000–9_999 → 1.2k；≥10_000 → 12k / 128k
+ */
+export function formatOverviewTrendDayCount(value: number) {
+  const count = Math.max(0, Math.round(Number(value) || 0))
+  if (count < 1_000) {
+    return String(count)
+  }
+  if (count < 10_000) {
+    return `${trimOneDecimal(count / 1_000)}k`
+  }
+  if (count < 1_000_000) {
+    return `${Math.round(count / 1_000)}k`
+  }
+  return `${trimOneDecimal(count / 1_000_000)}m`
+}
+
 export function overviewPercent(value: number, total: number) {
   const normalizedTotal = Number(total) || 0
   if (normalizedTotal <= 0) {
@@ -187,6 +205,33 @@ export function overviewTrendDeltaPercent(today: number, previous: number) {
     return current > 0 ? 100 : 0
   }
   return Math.round(((current - prev) / prev) * 100)
+}
+
+export type OverviewTrendDeltaKind = 'flat' | 'up' | 'down' | 'none'
+
+/**
+ * 环比展示语义：两端都为 0 时不展示百分比（避免「▲ 0%」误导）。
+ */
+export function overviewTrendDeltaKind(today: number, previous: number): OverviewTrendDeltaKind {
+  const current = Math.max(0, Number(today) || 0)
+  const prev = Math.max(0, Number(previous) || 0)
+  if (current === 0 && prev === 0) {
+    return 'none'
+  }
+  if (current === prev) {
+    return 'flat'
+  }
+  return current > prev ? 'up' : 'down'
+}
+
+/** 单日柱高（px），用于迷你柱图；0 也给 2px 基线，避免完全消失 */
+export function overviewTrendBarHeightPx(value: number, max: number, chartHeight = 72) {
+  const safeMax = Math.max(1, Number(max) || 1)
+  const safeValue = Math.max(0, Number(value) || 0)
+  if (safeValue <= 0) {
+    return 2
+  }
+  return Math.max(4, Math.round((safeValue / safeMax) * chartHeight))
 }
 
 export function overviewTrendPeakDate(days: AdminOverviewTrendDay[], field: AdminOverviewTrendField) {

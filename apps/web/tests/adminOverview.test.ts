@@ -4,9 +4,12 @@ import {
   formatOverviewBytes,
   formatOverviewCount,
   formatOverviewDate,
+  formatOverviewTrendDayCount,
   overviewActionTone,
   overviewPercent,
+  overviewTrendBarHeightPx,
   overviewTrendDateLabel,
+  overviewTrendDeltaKind,
   overviewTrendDeltaPercent,
   overviewTrendFieldMax,
   overviewTrendMax,
@@ -27,6 +30,14 @@ describe('admin overview helpers', () => {
     expect(formatOverviewCount(999)).toBe('999')
     expect(formatOverviewCount(1200)).toBe('1.2k')
     expect(formatOverviewCount(1_250_000)).toBe('1.3m')
+  })
+
+  test('formats trend day chips without long decimals', () => {
+    expect(formatOverviewTrendDayCount(0)).toBe('0')
+    expect(formatOverviewTrendDayCount(128)).toBe('128')
+    expect(formatOverviewTrendDayCount(1200)).toBe('1.2k')
+    expect(formatOverviewTrendDayCount(128_200)).toBe('128k')
+    expect(formatOverviewTrendDayCount(6_000)).toBe('6k')
   })
 
   test('formats generated timestamps without locale-dependent output', () => {
@@ -52,7 +63,7 @@ describe('admin overview helpers', () => {
     expect(overviewTrendMax([])).toBe(1)
   })
 
-  test('builds independent sparkline series helpers for 01D trend cards', () => {
+  test('builds independent sparkline / bar helpers for 01D trend cards', () => {
     const days: AdminOverviewTrendDay[] = [
       { date: '2026-07-02', topicCount: 0, commentCount: 0, userCount: 0 },
       { date: '2026-07-03', topicCount: 3, commentCount: 8, userCount: 1 },
@@ -65,6 +76,12 @@ describe('admin overview helpers', () => {
     expect(overviewTrendDeltaPercent(4, 1)).toBe(300)
     expect(overviewTrendDeltaPercent(0, 0)).toBe(0)
     expect(overviewTrendDeltaPercent(5, 0)).toBe(100)
+    expect(overviewTrendDeltaKind(0, 0)).toBe('none')
+    expect(overviewTrendDeltaKind(1, 1)).toBe('flat')
+    expect(overviewTrendDeltaKind(0, 4)).toBe('down')
+    expect(overviewTrendDeltaKind(4, 0)).toBe('up')
+    expect(overviewTrendBarHeightPx(0, 8, 72)).toBe(2)
+    expect(overviewTrendBarHeightPx(8, 8, 72)).toBe(72)
     expect(overviewTrendPeakDate(days, 'commentCount')).toBe('2026-07-03')
     expect(overviewTrendDateLabel('2026-07-03')).toBe('07-03')
 

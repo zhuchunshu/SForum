@@ -1,17 +1,21 @@
 <script setup lang="ts">
 /**
- * 仪表盘「最近 N 天社区趋势」01D：三列独立迷你图。
- * 主题 / 回复 / 新用户各自刻度，避免数量级差导致读数失真。
+ * 仪表盘「最近 N 天社区趋势」。
+ * 稀疏尖峰数据（多数天为 0）下，柱/折线都会很难看；
+ * 改为：大数字汇总 + 等宽 7 日活动格（强度着色），零日安静、峰值日突出。
  */
 import {
   formatOverviewCount,
+  formatOverviewTrendDayCount,
   overviewTrendDateLabel,
+  overviewTrendDeltaKind,
   overviewTrendDeltaPercent,
+  overviewTrendFieldMax,
   overviewTrendPeakDate,
-  overviewTrendSparkPath,
   overviewTrendSum,
   type AdminOverviewTrendDay,
-  type AdminOverviewTrendField
+  type AdminOverviewTrendField,
+  type OverviewTrendDeltaKind
 } from '~/utils/adminOverview'
 
 const props = defineProps<{
@@ -21,8 +25,13 @@ const props = defineProps<{
 
 const { t } = useI18n()
 
-const SPARK_WIDTH = 280
-const SPARK_HEIGHT = 72
+type DayCell = {
+  value: number
+  label: string
+  intensity: number
+  isPeak: boolean
+  isZero: boolean
+}
 
 type TrendSeriesCard = {
   field: AdminOverviewTrendField
@@ -30,15 +39,13 @@ type TrendSeriesCard = {
   unit: string
   toneClass: string
   stroke: string
-  fillSoft: string
   total: number
   today: number
   deltaPercent: number
-  deltaUp: boolean
-  spark: ReturnType<typeof overviewTrendSparkPath>
-  dayValues: number[]
-  dateLabels: string[]
+  deltaKind: OverviewTrendDeltaKind
+  cells: DayCell[]
   peakLabel: string
+  peakValue: number
 }
 
 const seriesCards = computed<TrendSeriesCard[]>(() => {
@@ -49,31 +56,27 @@ const seriesCards = computed<TrendSeriesCard[]>(() => {
     unitKey: string
     toneClass: string
     stroke: string
-    fillSoft: string
   }> = [
     {
       field: 'topicCount',
       labelKey: 'admin.home.trend.topics',
       unitKey: 'admin.home.trend.unitTopics',
       toneClass: 'trend-topics',
-      stroke: 'var(--sf-accent)',
-      fillSoft: 'color-mix(in srgb, var(--sf-accent) 16%, transparent)'
+      stroke: 'var(--sf-accent)'
     },
     {
       field: 'commentCount',
       labelKey: 'admin.home.trend.comments',
       unitKey: 'admin.home.trend.unitComments',
       toneClass: 'trend-comments',
-      stroke: '#3b82f6',
-      fillSoft: 'rgba(59, 130, 246, 0.14)'
+      stroke: '#3b82f6'
     },
     {
       field: 'userCount',
       labelKey: 'admin.home.trend.users',
       unitKey: 'admin.home.trend.unitUsers',
       toneClass: 'trend-users',
-      stroke: '#16a34a',
-      fillSoft: 'rgba(22, 163, 74, 0.14)'
+      stroke: '#16a34a'
     }
   ]
 
@@ -81,7 +84,24 @@ const seriesCards = computed<TrendSeriesCard[]>(() => {
     const values = days.map(day => Math.max(0, Number(day[def.field]) || 0))
     const today = values[values.length - 1] || 0
     const previous = values.length > 1 ? values[values.length - 2] || 0 : 0
-    const deltaPercent = overviewTrendDeltaPercent(today, previous)
+    const fieldMax = overviewTrendFieldMax(days, def.field)
+    const peakDate = overviewTrendPeakDate(days, def.field)
+    const peakIndex = Math.max(0, days.findIndex(day => day.date === peakDate))
+    const peakValue = values[peakIndex] || 0
+
+    // 今日无新增时不展示「较昨日 -100%」——对运营几乎无信息量，还显刺眼
+    let deltaKind = overviewTrendDeltaKind(today, previous)
+    if (today === 0 && previous > 0) {
+      deltaKind = 'none'
+    }
+
+    const cells: DayCell[] = values.map((value, index) => ({
+      value,
+      label: overviewTrendDateLabel(days[index]?.date || ''),
+      intensity: fieldMax > 0 ? value / fieldMax : 0,
+      isPeak: index === peakIndex && value > 0,
+      isZero: value <= 0
+    }))
 
     return {
       field: def.field,
@@ -89,132 +109,136 @@ const seriesCards = computed<TrendSeriesCard[]>(() => {
       unit: t(def.unitKey),
       toneClass: def.toneClass,
       stroke: def.stroke,
-      fillSoft: def.fillSoft,
       total: overviewTrendSum(days, def.field),
       today,
-      deltaPercent,
-      deltaUp: deltaPercent >= 0,
-      spark: overviewTrendSparkPath(values, SPARK_WIDTH, SPARK_HEIGHT),
-      dayValues: values,
-      dateLabels: days.map(day => overviewTrendDateLabel(day.date)),
-      peakLabel: overviewTrendDateLabel(overviewTrendPeakDate(days, def.field))
+      deltaPercent: overviewTrendDeltaPercent(today, previous),
+      deltaKind,
+      cells,
+      peakLabel: overviewTrendDateLabel(peakDate),
+      peakValue
     }
   })
 })
 
-const peakFootnotes = computed(() => seriesCards.value.map(card => ({
-  field: card.field,
-  label: card.label,
-  peakLabel: card.peakLabel
-})))
+function deltaBadgeClass(kind: OverviewTrendDeltaKind) {
+  if (kind === 'down') {
+    return 'bg-red-500/10 text-red-600 dark:text-red-400'
+  }
+  if (kind === 'up') {
+    return 'bg-[color-mix(in_srgb,var(--series)_14%,transparent)] text-[var(--series)]'
+  }
+  return 'bg-slate-100 text-slate-500 dark:bg-zinc-800 dark:text-zinc-400'
+}
+
+function deltaBadgeText(kind: OverviewTrendDeltaKind, deltaPercent: number) {
+  if (kind === 'none') {
+    return ''
+  }
+  if (kind === 'flat') {
+    return t('admin.home.trend.vsYesterdayFlat')
+  }
+  const arrow = kind === 'up' ? '▲' : '▼'
+  return `${arrow} ${t('admin.home.trend.vsYesterday', { delta: Math.abs(deltaPercent) })}`
+}
+
+/** 活动格背景：零日极淡，峰值日实色，中间按强度插值 */
+function cellStyle(card: TrendSeriesCard, cell: DayCell) {
+  if (cell.isZero) {
+    return {
+      background: 'transparent',
+      color: undefined as string | undefined,
+      borderColor: undefined as string | undefined
+    }
+  }
+  const alpha = cell.isPeak ? 0.22 : 0.08 + cell.intensity * 0.16
+  return {
+    background: `color-mix(in srgb, ${card.stroke} ${Math.round(alpha * 100)}%, transparent)`,
+    color: card.stroke,
+    borderColor: cell.isPeak ? card.stroke : undefined
+  }
+}
 </script>
 
 <template>
   <div data-testid="admin-overview-trend-trio" class="min-w-0">
-    <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+    <div class="grid gap-4 md:grid-cols-3">
       <article
         v-for="card in seriesCards"
         :key="card.field"
-        class="min-w-0 rounded-xl border border-slate-200 bg-white p-3.5 dark:border-zinc-800 dark:bg-zinc-950/40"
+        class="min-w-0 rounded-xl border border-slate-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950/50"
         :class="card.toneClass"
       >
-        <div class="mb-1.5 flex items-start justify-between gap-2">
-          <p class="text-xs font-semibold text-slate-500 dark:text-zinc-400">
-            {{ card.label }}
-          </p>
+        <div class="flex items-start justify-between gap-2">
+          <div class="min-w-0">
+            <p class="text-sm font-semibold text-slate-600 dark:text-zinc-300">
+              {{ card.label }}
+            </p>
+            <p class="mt-1.5 text-3xl font-black tracking-tight text-slate-900 tabular-nums dark:text-white">
+              {{ formatOverviewCount(card.total) }}
+            </p>
+            <p class="mt-1 text-xs font-medium text-slate-500 dark:text-zinc-400">
+              {{ t('admin.home.trend.totalMeta', {
+                days: windowDays,
+                today: formatOverviewCount(card.today),
+                unit: card.unit
+              }) }}
+            </p>
+          </div>
           <span
+            v-if="card.deltaKind !== 'none'"
             class="shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold tabular-nums"
-            :class="card.deltaUp
-              ? 'bg-[color-mix(in_srgb,var(--series)_14%,transparent)] text-[var(--series)]'
-              : 'bg-red-500/10 text-red-600 dark:text-red-400'"
+            :class="deltaBadgeClass(card.deltaKind)"
           >
-            {{ card.deltaUp ? '▲' : '▼' }}
-            {{ t('admin.home.trend.vsYesterday', { delta: Math.abs(card.deltaPercent) }) }}
+            {{ deltaBadgeText(card.deltaKind, card.deltaPercent) }}
           </span>
         </div>
 
-        <p class="text-2xl font-black tracking-tight text-slate-900 tabular-nums dark:text-white">
-          {{ formatOverviewCount(card.total) }}
-        </p>
-        <p class="mt-0.5 text-[11px] font-medium text-slate-500 dark:text-zinc-400">
-          {{ t('admin.home.trend.totalMeta', {
-            days: windowDays,
-            today: formatOverviewCount(card.today),
-            unit: card.unit
-          }) }}
-        </p>
-
-        <div
-          class="mt-3 h-[88px] rounded-lg px-1.5 pb-1 pt-2"
-          :style="{ background: card.fillSoft }"
-        >
-          <svg
-            class="block h-full w-full overflow-visible"
-            :viewBox="`0 0 ${SPARK_WIDTH} ${SPARK_HEIGHT}`"
-            preserveAspectRatio="none"
-            role="img"
-            :aria-label="card.label"
-          >
-            <path
-              v-if="card.spark.area"
-              :d="card.spark.area"
-              :fill="card.stroke"
-              fill-opacity="0.18"
-            />
-            <path
-              v-if="card.spark.line"
-              :d="card.spark.line"
-              fill="none"
-              :stroke="card.stroke"
-              stroke-width="2.5"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            />
-            <circle
-              v-for="(point, index) in card.spark.points"
-              :key="`${card.field}-${index}`"
-              :cx="point.x"
-              :cy="point.y"
-              r="3.5"
-              fill="#fff"
-              :stroke="card.stroke"
-              stroke-width="2"
-              class="dark:fill-zinc-900"
-            />
-          </svg>
-        </div>
-
-        <div class="mt-2 grid grid-cols-7 gap-0.5">
+        <!-- 7 日活动格：等宽、强度着色，稀疏数据也不会「一根柱竖在空旷里」 -->
+        <div class="mt-4 grid grid-cols-7 gap-1.5">
           <div
-            v-for="(value, index) in card.dayValues"
-            :key="`${card.field}-day-${index}`"
-            class="min-w-0 text-center"
+            v-for="(cell, index) in card.cells"
+            :key="`${card.field}-cell-${index}`"
+            class="flex min-w-0 flex-col items-center gap-1"
+            :title="`${cell.label}: ${cell.value}`"
           >
-            <span
-              class="block truncate text-[11px] font-bold tabular-nums"
-              :style="{ color: card.stroke }"
+            <div
+              class="flex h-11 w-full flex-col items-center justify-center rounded-lg border tabular-nums"
+              :class="cell.isZero
+                ? 'border-slate-100 bg-slate-50 text-slate-300 dark:border-zinc-800 dark:bg-zinc-900/60 dark:text-zinc-600'
+                : cell.isPeak
+                  ? 'border-current font-bold shadow-sm'
+                  : 'border-transparent font-semibold'"
+              :style="cell.isZero ? undefined : cellStyle(card, cell)"
             >
-              {{ formatOverviewCount(value) }}
-            </span>
-            <span class="mt-0.5 block truncate text-[9.5px] font-semibold text-slate-400 dark:text-zinc-500">
-              {{ card.dateLabels[index] }}
+              <span class="text-[11px] leading-none">
+                {{ formatOverviewTrendDayCount(cell.value) }}
+              </span>
+            </div>
+            <span
+              class="text-[10px] font-semibold tabular-nums leading-none"
+              :class="cell.isPeak
+                ? 'text-slate-700 dark:text-zinc-200'
+                : 'text-slate-400 dark:text-zinc-500'"
+            >
+              {{ cell.label }}
             </span>
           </div>
         </div>
-      </article>
-    </div>
 
-    <div
-      v-if="peakFootnotes.some(item => item.peakLabel)"
-      class="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500 dark:text-zinc-400"
-    >
-      <span
-        v-for="item in peakFootnotes"
-        :key="`peak-${item.field}`"
-      >
-        {{ t('admin.home.trend.peakDay', { label: item.label }) }}
-        <strong class="font-semibold tabular-nums text-slate-800 dark:text-zinc-200">{{ item.peakLabel }}</strong>
-      </span>
+        <p
+          v-if="card.peakValue > 0"
+          class="mt-3 flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-zinc-400"
+        >
+          <span
+            class="inline-block size-1.5 shrink-0 rounded-full"
+            :style="{ background: card.stroke }"
+          />
+          {{ t('admin.home.trend.peakDayInline', {
+            date: card.peakLabel,
+            count: formatOverviewTrendDayCount(card.peakValue)
+          }) }}
+        </p>
+      </article>
     </div>
   </div>
 </template>

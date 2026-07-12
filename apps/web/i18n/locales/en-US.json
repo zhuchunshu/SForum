@@ -377,7 +377,7 @@
       },
       "trend": {
         "title": "7-day community trends",
-        "description": "Topics, replies, and new users over the last {days} days (independent scales).",
+        "description": "Topics, replies, and new users over the last {days} days.",
         "topics": "Topics",
         "comments": "Replies",
         "users": "New users",
@@ -386,7 +386,9 @@
         "unitUsers": "",
         "totalMeta": "{days}-day total · today {today}{unit}",
         "vsYesterday": "{delta}% vs yesterday",
-        "peakDay": "Peak · {label}"
+        "vsYesterdayFlat": "Same as yesterday",
+        "peakDay": "Peak · {label}",
+        "peakDayInline": "Peak {date} · {count}"
       },
       "runtime": {
         "title": "System runtime status",

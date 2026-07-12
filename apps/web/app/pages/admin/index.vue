@@ -317,28 +317,30 @@ function extensionWidgetColor(widget: AdminOverviewExtensionWidget) {
       </UCard>
     </div>
 
-    <div class="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
-      <UCard class="elegant-card border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-slate-900 dark:text-zinc-100">
-        <template #header>
-          <div class="flex items-center justify-between gap-3">
-            <div>
-              <h3 class="text-base font-bold text-slate-900 dark:text-white">
-                {{ t('admin.home.trend.title') }}
-              </h3>
-              <p class="mt-1 text-xs text-slate-500 dark:text-zinc-400">
-                {{ t('admin.home.trend.description', { days: overview.windowDays }) }}
-              </p>
-            </div>
-            <UIcon name="i-lucide-chart-no-axes-combined" class="size-5 text-slate-400 dark:text-zinc-500" />
+    <!-- 社区趋势整行：横向三系列，不与旁侧卡抢高度 -->
+    <UCard class="elegant-card border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-slate-900 dark:text-zinc-100">
+      <template #header>
+        <div class="flex items-center justify-between gap-3">
+          <div>
+            <h3 class="text-base font-bold text-slate-900 dark:text-white">
+              {{ t('admin.home.trend.title') }}
+            </h3>
+            <p class="mt-1 text-xs text-slate-500 dark:text-zinc-400">
+              {{ t('admin.home.trend.description', { days: overview.windowDays }) }}
+            </p>
           </div>
-        </template>
+          <UIcon name="i-lucide-chart-no-axes-combined" class="size-5 text-slate-400 dark:text-zinc-500" />
+        </div>
+      </template>
 
-        <SFAdminOverviewTrendTrio
-          :days="overview.trends.days"
-          :window-days="overview.windowDays"
-        />
-      </UCard>
+      <SFAdminOverviewTrendTrio
+        :days="overview.trends.days"
+        :window-days="overview.windowDays"
+      />
+    </UCard>
 
+    <!-- 运行状态与健康度等同排，避免再占一整行空壳 -->
+    <div class="grid gap-6 xl:grid-cols-2 2xl:grid-cols-4">
       <UCard class="elegant-card border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-slate-900 dark:text-zinc-100">
         <template #header>
           <div class="flex items-center justify-between gap-3">
@@ -350,13 +352,13 @@ function extensionWidgetColor(widget: AdminOverviewExtensionWidget) {
                 {{ t('admin.home.runtime.description') }}
               </p>
             </div>
-            <UIcon name="i-lucide-server" class="size-5 text-slate-400 dark:text-zinc-500" />
+            <UIcon name="i-lucide-server" class="size-5 shrink-0 text-slate-400 dark:text-zinc-500" />
           </div>
         </template>
 
-        <div class="space-y-3">
-          <div v-for="row in runtimeRows" :key="row.label" class="flex items-center gap-3 rounded-md border border-slate-100 px-3 py-3 dark:border-zinc-800">
-            <span class="grid size-9 shrink-0 place-items-center rounded-md bg-slate-100 text-slate-600 dark:bg-zinc-800 dark:text-zinc-300">
+        <div class="space-y-2.5">
+          <div v-for="row in runtimeRows" :key="row.label" class="flex items-center gap-3 rounded-md border border-slate-100 px-3 py-2.5 dark:border-zinc-800">
+            <span class="grid size-8 shrink-0 place-items-center rounded-md bg-slate-100 text-slate-600 dark:bg-zinc-800 dark:text-zinc-300">
               <UIcon :name="row.icon" class="size-4" />
             </span>
             <span class="min-w-0 flex-1">
@@ -369,9 +371,7 @@ function extensionWidgetColor(widget: AdminOverviewExtensionWidget) {
           </div>
         </div>
       </UCard>
-    </div>
 
-    <div class="grid gap-6 xl:grid-cols-3">
       <UCard class="elegant-card border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-slate-900 dark:text-zinc-100">
         <template #header>
           <h3 class="text-base font-bold text-slate-900 dark:text-white">

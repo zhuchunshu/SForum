@@ -377,7 +377,7 @@
       },
       "trend": {
         "title": "最近 7 天社区趋势",
-        "description": "最近 {days} 天的主题、回复和新用户（各自独立刻度）。",
+        "description": "最近 {days} 天的主题、回复和新用户。",
         "topics": "主题",
         "comments": "回复",
         "users": "新用户",
@@ -386,7 +386,9 @@
         "unitUsers": "人",
         "totalMeta": "{days} 日合计 · 今日 {today}{unit}",
         "vsYesterday": "{delta}% 较昨日",
-        "peakDay": "峰值日 · {label}"
+        "vsYesterdayFlat": "较昨日持平",
+        "peakDay": "峰值日 · {label}",
+        "peakDayInline": "峰值 {date} · {count}"
       },
       "runtime": {
         "title": "系统运行状态",
