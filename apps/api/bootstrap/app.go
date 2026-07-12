@@ -193,6 +193,8 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 	profileStore := profile.NewPostgresStore(pool)
 	moderationStore := moderation.NewPostgresStore(pool)
 	attachmentStore := attachments.NewPostgresStore(pool)
+	// E6.1：附件服务先创建，稍后注入扩展目录与禁用回落。
+	attachmentService := attachments.NewServiceWithEvents(attachmentStore, optionsService, nil)
 	databaseStore := database.NewPostgresStore(pool)
 	extensionStore := extensions.NewPostgresStore(pool)
 	frontendTrustStore := extensions.NewPostgresFrontendTrustStore(pool)
@@ -250,6 +252,8 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		extensions.WithFeatureFlags(optionsService),
 		// 扩展 secret 设置与 web_options 共用 AES-GCM 密钥。
 		extensions.WithCipher(optionCipher),
+		// E6.1：禁用声明存储槽位的插件时，attachment.provider 从 plugin:<id> 回落 local。
+		extensions.WithStorageSelectionClearer(attachmentService),
 	)
 	// 插件启动注入解密后的 settings（避免把 enc:: 密文交给子进程）。
 	runtimeSettings.loader = extensionService
@@ -325,6 +329,8 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		WithAllowHTTP(!strings.EqualFold(cfg.AppEnv, "production")).
 		WithCipher(optionCipher)
 	eventPublisher := webhooks.BridgePublisher{Inner: extensionRuntime, Fanout: webhookService}
+	// 与 extensionService 共享同一 attachmentService 实例（禁用回落 + 候选目录 + 事件）。
+	_ = attachmentService.WithEvents(eventPublisher).WithStorageProviderCatalog(extensionService)
 
 	// F3.4：个人访问令牌；管理走 cookie，调用走 Bearer。
 	apiTokenStore := apitokens.NewPostgresStore(pool)
@@ -372,7 +378,8 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		providers.NewExtensionComposerToolbarProvider(extensionService),
 		providers.NewModerationPublicationPolicy(moderationStore, optionsService),
 	).WithIdempotency(idempotencyStore)
-	avatarAttachmentService := attachments.NewServiceWithEvents(attachmentStore, optionsService, eventPublisher)
+	// 头像与附件管理共用带存储候选目录的服务实例。
+	avatarAttachmentService := attachmentService
 	profileProvider := providers.NewProfileProviderWithAvatarAndTabs(
 		profileStore,
 		identityStore,
@@ -391,7 +398,7 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		authSessions,
 		providers.NewExtensionNavItemProvider(extensionService),
 	)
-	attachmentsProvider := providers.NewAttachmentsProviderWithEvents(attachmentStore, optionsService, identityStore, authSessions, eventPublisher)
+	attachmentsProvider := providers.NewAttachmentsProviderWithService(attachmentService, attachmentStore, identityStore, authSessions)
 	seoProvider := providers.NewSEOProvider(pool, optionsService)
 	databaseProvider := providers.NewDatabaseProvider(databaseStore, identityStore, authSessions)
 	jobsProvider := providers.NewJobsProvider(pool, jobClient, identityStore, authSessions)

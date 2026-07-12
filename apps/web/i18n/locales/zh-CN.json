@@ -1005,7 +1005,9 @@
       "delete": "删除",
       "referencesTitle": "引用记录",
       "noReferences": "暂无业务引用。",
-      "noReferenceContext": "无引用上下文"
+      "noReferenceContext": "无引用上下文",
+      "pluginProviderHint": "当前选择的是扩展存储插件；凭证与连接参数在该插件的设置页配置。选中插件后上传需等待存储 RPC（E6.2）落地。",
+      "openPluginSettings": "打开插件设置"
     },
     "roles": {
       "metaTitle": "用户组",

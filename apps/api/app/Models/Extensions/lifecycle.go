@@ -250,7 +250,12 @@ func (s *Service) ListMigrations(ctx context.Context, actor identity.Actor, id s
 	return s.store.ListMigrationLedger(ctx, normalizeID(id))
 }
 
-// drainPluginRuntime 禁用/升级/卸载共用的 drain：停子进程、清 mail provider、发 disabled hook。
+// StorageSelectionClearer 在禁用存储插件时把 attachment.provider 从 plugin:<id> 回落 local（E6.1）。
+type StorageSelectionClearer interface {
+	ClearStorageProviderSelectionIfMatch(ctx context.Context, extensionID string) error
+}
+
+// drainPluginRuntime 禁用/升级/卸载共用的 drain：停子进程、清 mail/storage 选择、发 disabled hook。
 func (s *Service) drainPluginRuntime(ctx context.Context, extension Extension) error {
 	if extension.Type != TypePlugin {
 		return nil
@@ -263,6 +268,12 @@ func (s *Service) drainPluginRuntime(ctx context.Context, extension Extension) e
 			if err := selectionStore.RestoreMailProvider(ctx); err != nil {
 				return err
 			}
+		}
+	}
+	// E6.1：若附件存储选中了本插件，回落 local，避免孤儿 plugin: 选择。
+	if s.storageSelection != nil {
+		if err := s.storageSelection.ClearStorageProviderSelectionIfMatch(ctx, extension.ID); err != nil {
+			return err
 		}
 	}
 	if s.runtime != nil {

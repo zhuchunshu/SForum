@@ -1,6 +1,19 @@
-export type AttachmentProvider = 'local' | 'aliyun_oss' | 'tencent_cos' | 'ftp' | 'sftp'
+// Core 驱动 id 或 plugin:<extensionId>（E6.1）。
+export type AttachmentProvider = string
+
+export type AttachmentStorageCandidate = {
+  value: string
+  kind: 'core' | 'plugin'
+  label: string
+  extensionId?: string
+  settingsPath?: string
+  available: boolean
+}
 
 export type AttachmentSettings = {
+  providerSlot?: string
+  drivers?: string[]
+  candidates?: AttachmentStorageCandidate[]
   provider: AttachmentProvider
   uploadEnabled: boolean
   pathTemplate: string
@@ -17,8 +30,19 @@ export type AttachmentSettings = {
   sftp: { host: string, port: number, username: string, password?: string, passwordSet: boolean, privateKey?: string, privateKeySet: boolean, passphrase?: string, passphraseSet: boolean, rootPath: string, hostKeyFingerprint: string, publicBaseUrl: string }
 }
 
+const defaultCoreCandidates: AttachmentStorageCandidate[] = [
+  { value: 'local', kind: 'core', label: 'Local filesystem', available: true },
+  { value: 'aliyun_oss', kind: 'core', label: 'Aliyun OSS', available: true },
+  { value: 'tencent_cos', kind: 'core', label: 'Tencent COS', available: true },
+  { value: 'ftp', kind: 'core', label: 'FTP', available: true },
+  { value: 'sftp', kind: 'core', label: 'SFTP', available: true }
+]
+
 export function createDefaultAttachmentSettings(): AttachmentSettings {
   return {
+    providerSlot: 'attachment.storage.provider',
+    drivers: ['local', 'aliyun_oss', 'tencent_cos', 'ftp', 'sftp'],
+    candidates: defaultCoreCandidates.map(item => ({ ...item })),
     provider: 'local',
     uploadEnabled: true,
     pathTemplate: '{yyyy}/{mm}/{dd}/{public_id}{ext}',
@@ -34,6 +58,10 @@ export function createDefaultAttachmentSettings(): AttachmentSettings {
     ftp: { host: '', port: 21, username: '', password: '', passwordSet: false, rootPath: '/', passive: true, explicitTls: false, publicBaseUrl: '' },
     sftp: { host: '', port: 22, username: '', password: '', passwordSet: false, privateKey: '', privateKeySet: false, passphrase: '', passphraseSet: false, rootPath: '/', hostKeyFingerprint: '', publicBaseUrl: '' }
   }
+}
+
+export function isPluginAttachmentProvider(provider: string) {
+  return provider.trim().startsWith('plugin:')
 }
 
 export function resetAttachmentSettingsToRecommended(current?: AttachmentSettings): AttachmentSettings {

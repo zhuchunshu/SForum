@@ -102,6 +102,11 @@ func isValidAttachmentOptions(values map[string]string) bool {
 	if !ok {
 		return false
 	}
+	// E6.1：插件选择的凭证在 extension_settings，不要求 core 云字段齐全。
+	// 启用/槽位合法性在 Attachments 服务写路径与 Probe 中 fail-closed 校验。
+	if storage.IsPluginSelection(provider) {
+		return true
+	}
 	switch provider {
 	case storage.ProviderLocal:
 		return true
@@ -125,6 +130,28 @@ func normalizeAttachmentProvider(value string) (string, bool) {
 	value = strings.TrimSpace(value)
 	if value == "" {
 		return storage.ProviderLocal, true
+	}
+	// E6.1：plugin:<extensionId> 作为 attachment.provider 合法值（语法级）。
+	if storage.IsPluginSelection(value) {
+		sel := storage.ParseSelection(value)
+		if !sel.IsValidPluginSelection() {
+			return "", false
+		}
+		// 扩展 id 字符集与 manifest id 对齐（小写字母数字与 ._-）。
+		id := sel.ExtensionID
+		if len(id) == 0 || len(id) > 80 {
+			return "", false
+		}
+		for i, r := range id {
+			ok := (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '.' || r == '_' || r == '-'
+			if i == 0 && (r < 'a' || r > 'z') && (r < '0' || r > '9') {
+				return "", false
+			}
+			if !ok {
+				return "", false
+			}
+		}
+		return sel.Raw, true
 	}
 	return normalizeStringChoice(value, attachmentProviders)
 }

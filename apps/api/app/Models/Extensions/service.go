@@ -45,6 +45,8 @@ type Service struct {
 	featureFlags FeatureFlagSource
 	// cipher 加密 manifest type=secret 的设置；nil/透明时开发环境可存明文。
 	cipher *crypto.OptionCipher
+	// storageSelection 禁用存储插件时回落 attachment.provider（E6.1）。
+	storageSelection StorageSelectionClearer
 }
 
 // FeatureFlagSource 返回 requiresFeatures 中当前关闭的 key。
@@ -95,6 +97,13 @@ func WithAuditor(w audit.Writer) ServiceOption {
 func WithFeatureFlags(source FeatureFlagSource) ServiceOption {
 	return func(s *Service) {
 		s.featureFlags = source
+	}
+}
+
+// WithStorageSelectionClearer 注入附件存储选择回落（E6.1 禁用插件时）。
+func WithStorageSelectionClearer(clearer StorageSelectionClearer) ServiceOption {
+	return func(s *Service) {
+		s.storageSelection = clearer
 	}
 }
 

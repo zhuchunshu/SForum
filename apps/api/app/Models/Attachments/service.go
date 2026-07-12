@@ -30,11 +30,21 @@ import (
 
 const defaultSignedURLTTL = 5 * time.Minute
 
+// StorageProviderCatalog 列出已启用且声明 attachment.storage.provider 的插件（E6.1）。
+// 由 Extensions 服务实现；未注入时候选列表仅含 core 驱动。
+type StorageProviderCatalog interface {
+	ListStorageProviderCandidates(ctx context.Context) ([]storage.Candidate, error)
+	// IsStorageProviderAvailable 校验 plugin 选择是否仍可用（启用 + 声明槽位）。
+	IsStorageProviderAvailable(ctx context.Context, extensionID string) (bool, error)
+}
+
 type Service struct {
 	store          Store
 	options        *options.Service
 	events         appevents.Publisher
 	adapterFactory func(storage.Config) (storage.Adapter, error)
+	// providers 可选：插件存储候选与可用性（E6.1；RPC 仍在 E6.2）。
+	providers StorageProviderCatalog
 }
 
 func NewService(store Store, optionsService *options.Service) *Service {
@@ -56,6 +66,22 @@ func NewServiceWithAdapterFactory(store Store, optionsService *options.Service, 
 		service.adapterFactory = factory
 	}
 	return service
+}
+
+// WithStorageProviderCatalog 注入扩展目录，用于候选列表与 plugin 选择校验。
+func (s *Service) WithStorageProviderCatalog(catalog StorageProviderCatalog) *Service {
+	if s != nil {
+		s.providers = catalog
+	}
+	return s
+}
+
+// WithEvents 补绑事件发布器（bootstrap 中 BridgePublisher 晚于附件服务创建）。
+func (s *Service) WithEvents(publisher appevents.Publisher) *Service {
+	if s != nil {
+		s.events = appevents.EnsurePublisher(publisher)
+	}
+	return s
 }
 
 func (s *Service) Upload(ctx context.Context, actor identity.Actor, input UploadInput) (Attachment, error) {
@@ -157,7 +183,7 @@ func (s *Service) storePreparedUpload(ctx context.Context, actor identity.Actor,
 	if err != nil {
 		return Attachment{}, err
 	}
-	adapter, err := s.adapterForSettings(settings, settings.Provider)
+	adapter, err := s.adapterForSettings(ctx, settings, settings.Provider)
 	if err != nil {
 		return Attachment{}, ErrStorageUnavailable
 	}
@@ -248,7 +274,7 @@ func (s *Service) OpenContent(ctx context.Context, actor identity.Actor, publicI
 	if err != nil {
 		return Attachment{}, nil, err
 	}
-	adapter, err := s.adapterForSettings(settings, attachment.Provider)
+	adapter, err := s.adapterForSettings(ctx, settings, attachment.Provider)
 	if err != nil {
 		return Attachment{}, nil, ErrStorageUnavailable
 	}
@@ -350,7 +376,7 @@ func (s *Service) cleanupOrphans(ctx context.Context, limit int) (CleanupResult,
 	}
 	result := CleanupResult{}
 	for _, item := range items {
-		adapter, err := s.adapterForSettings(settings, item.Provider)
+		adapter, err := s.adapterForSettings(ctx, settings, item.Provider)
 		if err != nil {
 			result.Failed++
 			continue
@@ -384,12 +410,16 @@ func (s *Service) Settings(ctx context.Context, actor identity.Actor) (Attachmen
 			secrets[item.Name] = item.SecretSet
 		}
 	}
-	return settingsFromValues(values, secrets), nil
+	return s.decorateSettings(ctx, settingsFromValues(values, secrets)), nil
 }
 
 func (s *Service) UpdateSettings(ctx context.Context, actor identity.Actor, input AttachmentSettings) (AttachmentSettings, error) {
 	if !actor.Can(identity.PermissionAttachmentSettings) {
 		return AttachmentSettings{}, identity.ErrPermissionDenied
+	}
+	// 保存前校验 plugin 选择仍可用，避免写入孤儿 provider。
+	if err := s.ensureProviderSelectable(ctx, input.Provider); err != nil {
+		return AttachmentSettings{}, err
 	}
 	updated, err := s.options.UpdateMany(ctx, actor, settingsUpdateInputs(input))
 	if err != nil {
@@ -403,7 +433,7 @@ func (s *Service) UpdateSettings(ctx context.Context, actor identity.Actor, inpu
 			secrets[item.Name] = item.SecretSet
 		}
 	}
-	return settingsFromValues(values, secrets), nil
+	return s.decorateSettings(ctx, settingsFromValues(values, secrets)), nil
 }
 
 func (s *Service) Probe(ctx context.Context, actor identity.Actor) (ProbeResult, error) {
@@ -414,7 +444,7 @@ func (s *Service) Probe(ctx context.Context, actor identity.Actor) (ProbeResult,
 	if err != nil {
 		return ProbeResult{}, err
 	}
-	adapter, err := s.adapterForSettings(settings, settings.Provider)
+	adapter, err := s.adapterForSettings(ctx, settings, settings.Provider)
 	if err != nil {
 		return ProbeResult{Provider: settings.Provider, OK: false, Message: err.Error()}, nil
 	}
@@ -432,15 +462,107 @@ func (s *Service) runtimeSettings(ctx context.Context) (AttachmentSettings, erro
 	return settingsFromValues(values, nil), nil
 }
 
-func (s *Service) adapterForSettings(settings AttachmentSettings, provider string) (storage.Adapter, error) {
-	config := storageConfig(settings)
-	// 统一经 slot 语义解析驱动 id；未知驱动拒绝，避免静默落到 local。
-	provider = storage.NormalizeProvider(provider)
-	if !storage.IsKnownDriver(provider) {
+// decorateSettings 填充 Candidates（core + 启用插件）。
+func (s *Service) decorateSettings(ctx context.Context, settings AttachmentSettings) AttachmentSettings {
+	settings.Candidates = s.listCandidates(ctx)
+	return settings
+}
+
+func (s *Service) listCandidates(ctx context.Context) []storage.Candidate {
+	core := storage.CoreCandidates()
+	if s.providers == nil {
+		return core
+	}
+	plugins, err := s.providers.ListStorageProviderCandidates(ctx)
+	if err != nil || len(plugins) == 0 {
+		return core
+	}
+	return storage.MergeCandidates(core, plugins)
+}
+
+// ensureProviderSelectable 校验要写入的 provider：core 已知驱动，或可用插件。
+func (s *Service) ensureProviderSelectable(ctx context.Context, provider string) error {
+	sel := storage.ParseSelection(provider)
+	if sel.IsCoreDriverSelection() {
+		if !storage.IsKnownDriver(sel.Driver) {
+			return storage.ErrInvalidConfig
+		}
+		return nil
+	}
+	if !sel.IsValidPluginSelection() {
+		return storage.ErrInvalidConfig
+	}
+	if s.providers == nil {
+		// 无扩展目录时不允许选择插件（避免静默成功）。
+		return ErrStorageUnavailable
+	}
+	ok, err := s.providers.IsStorageProviderAvailable(ctx, sel.ExtensionID)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return ErrStorageUnavailable
+	}
+	return nil
+}
+
+func (s *Service) adapterForSettings(ctx context.Context, settings AttachmentSettings, provider string) (storage.Adapter, error) {
+	sel := storage.ParseSelection(provider)
+	if sel.IsCoreDriverSelection() {
+		config := storageConfig(settings)
+		// 统一经 slot 语义解析驱动 id；未知驱动拒绝，避免静默落到 local。
+		driver := storage.NormalizeProvider(sel.Driver)
+		if !storage.IsKnownDriver(driver) {
+			return nil, storage.ErrInvalidConfig
+		}
+		config.Provider = driver
+		return s.adapterFactory(config)
+	}
+	// 插件路径：E6.1 仅校验可用性；真实 RPC 在 E6.2。此时 fail-closed。
+	if !sel.IsValidPluginSelection() {
 		return nil, storage.ErrInvalidConfig
 	}
-	config.Provider = provider
-	return s.adapterFactory(config)
+	if s.providers != nil {
+		ok, err := s.providers.IsStorageProviderAvailable(ctx, sel.ExtensionID)
+		if err != nil {
+			return nil, err
+		}
+		if !ok {
+			return nil, ErrStorageUnavailable
+		}
+	}
+	// 尚未实现 PluginStorageAdapter RPC：明确不可用，勿静默改用 local。
+	return nil, ErrStorageUnavailable
+}
+
+// ClearStorageProviderSelectionIfMatch 在禁用/卸载插件时，若当前选择指向该插件则恢复 local。
+// 供 Extensions lifecycle 调用；失败时返回 error 以便调用方中止 drain。
+func (s *Service) ClearStorageProviderSelectionIfMatch(ctx context.Context, extensionID string) error {
+	if s == nil || s.options == nil {
+		return nil
+	}
+	extensionID = strings.TrimSpace(extensionID)
+	if extensionID == "" {
+		return nil
+	}
+	values, err := s.options.InternalValues(ctx)
+	if err != nil {
+		return err
+	}
+	current := storage.ParseSelection(values[options.NameAttachmentProvider])
+	if !current.IsValidPluginSelection() || current.ExtensionID != extensionID {
+		return nil
+	}
+	// 系统回落：写 local 并校验整组 attachment 选项仍合法。
+	actor := identity.Actor{
+		ID:          0,
+		Status:      identity.UserStatusActive,
+		Permissions: map[string]bool{identity.PermissionAttachmentSettings: true},
+	}
+	_, err = s.options.UpdateMany(ctx, actor, []options.UpdateInput{
+		{Name: options.NameAttachmentProvider, Value: storage.ProviderLocal},
+	})
+	return err
 }
 
 func (s *Service) decorateURL(ctx context.Context, attachment Attachment) Attachment {
@@ -454,7 +576,7 @@ func (s *Service) decorateURL(ctx context.Context, attachment Attachment) Attach
 		attachment.URL = contentURLPath(attachment.PublicID)
 		return attachment
 	}
-	adapter, err := s.adapterForSettings(settings, attachment.Provider)
+	adapter, err := s.adapterForSettings(ctx, settings, attachment.Provider)
 	if err == nil {
 		// 远程 provider 若仅有永久公网 URL，在需授权时仍回退代理（上面已处理）。
 		// 此处 public 模式可直接用 PublicURL；有 SignedURL 能力时优先短时签名。
@@ -699,11 +821,18 @@ func canViewAttachment(actor identity.Actor, attachment Attachment) bool {
 }
 
 func settingsFromValues(values map[string]string, secrets map[string]bool) AttachmentSettings {
-	provider := storage.NormalizeProvider(read(values, options.NameAttachmentProvider, storage.ProviderLocal))
+	// provider 保留原始选择（含 plugin:）；Normalize 仅用于 core 空白→local。
+	rawProvider := strings.TrimSpace(read(values, options.NameAttachmentProvider, storage.ProviderLocal))
+	sel := storage.ParseSelection(rawProvider)
+	provider := sel.Raw
+	if provider == "" {
+		provider = storage.ProviderLocal
+	}
 	return AttachmentSettings{
-		// F3.5：显式暴露 host slot 与内置驱动目录，便于 Admin/插件作者对齐契约。
+		// F3.5 / E6.1：host slot、core 驱动目录与 candidates（decorateSettings 填充插件）。
 		ProviderSlot:           storage.ProviderSlot,
 		Drivers:                storage.DriverCatalog(),
+		Candidates:             storage.CoreCandidates(),
 		Provider:               provider,
 		UploadEnabled:          enabled(values, options.NameAttachmentUploadEnabled, true),
 		PathTemplate:           read(values, options.NameAttachmentPathTemplate, "{yyyy}/{mm}/{dd}/{public_id}{ext}"),

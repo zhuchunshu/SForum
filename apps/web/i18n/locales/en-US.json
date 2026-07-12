@@ -1005,7 +1005,9 @@
       "delete": "Delete",
       "referencesTitle": "References",
       "noReferences": "No business references yet.",
-      "noReferenceContext": "No reference context"
+      "noReferenceContext": "No reference context",
+      "pluginProviderHint": "A plugin storage provider is selected. Configure credentials on the extension settings page. Uploads through plugins require storage RPC (E6.2).",
+      "openPluginSettings": "Open plugin settings"
     },
     "roles": {
       "metaTitle": "User Groups",

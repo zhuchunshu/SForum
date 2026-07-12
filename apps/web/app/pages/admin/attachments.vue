@@ -92,13 +92,41 @@ const selected = ref<AttachmentDetail | null>(null)
 const canManageSettings = computed(() => can('attachment.settings.manage'))
 const canManageAttachments = computed(() => can('attachment.manage'))
 
-const providerChoices = computed(() => [
-  { label: t('admin.attachments.providers.local'), value: 'local' },
-  { label: t('admin.attachments.providers.aliyunOss'), value: 'aliyun_oss' },
-  { label: t('admin.attachments.providers.tencentCos'), value: 'tencent_cos' },
-  { label: t('admin.attachments.providers.ftp'), value: 'ftp' },
-  { label: t('admin.attachments.providers.sftp'), value: 'sftp' }
-])
+// E6.1：优先用 API candidates（core + 启用插件）；回退静态 core 列表。
+const coreProviderLabels: Record<string, string> = {
+  local: t('admin.attachments.providers.local'),
+  aliyun_oss: t('admin.attachments.providers.aliyunOss'),
+  tencent_cos: t('admin.attachments.providers.tencentCos'),
+  ftp: t('admin.attachments.providers.ftp'),
+  sftp: t('admin.attachments.providers.sftp')
+}
+
+const providerChoices = computed(() => {
+  const fromApi = form.candidates?.filter(item => item.available !== false) ?? []
+  if (fromApi.length > 0) {
+    return fromApi.map(item => ({
+      label: item.kind === 'core' && coreProviderLabels[item.value]
+        ? coreProviderLabels[item.value]
+        : item.label || item.value,
+      value: item.value,
+      kind: item.kind,
+      settingsPath: item.settingsPath
+    }))
+  }
+  return [
+    { label: coreProviderLabels.local, value: 'local', kind: 'core' as const, settingsPath: undefined },
+    { label: coreProviderLabels.aliyun_oss, value: 'aliyun_oss', kind: 'core' as const, settingsPath: undefined },
+    { label: coreProviderLabels.tencent_cos, value: 'tencent_cos', kind: 'core' as const, settingsPath: undefined },
+    { label: coreProviderLabels.ftp, value: 'ftp', kind: 'core' as const, settingsPath: undefined },
+    { label: coreProviderLabels.sftp, value: 'sftp', kind: 'core' as const, settingsPath: undefined }
+  ]
+})
+
+const selectedProviderIsPlugin = computed(() => form.provider.startsWith('plugin:'))
+const selectedPluginSettingsPath = computed(() => {
+  const hit = providerChoices.value.find(item => item.value === form.provider)
+  return hit?.settingsPath || ''
+})
 
 const tabs = computed<Array<{ id: AttachmentTab, label: string, icon: string, enabled: boolean }>>(() => [
   { id: 'settings', label: t('admin.attachments.tabs.settings'), icon: 'i-lucide-sliders-horizontal', enabled: canManageSettings.value },
@@ -489,6 +517,16 @@ function isPreviewableImage(item: Attachment) {
                   {{ choice.label }}
                 </option>
               </select>
+              <p v-if="selectedProviderIsPlugin" class="mt-1.5 text-xs text-slate-500 dark:text-zinc-400">
+                {{ t('admin.attachments.pluginProviderHint') }}
+                <NuxtLink
+                  v-if="selectedPluginSettingsPath"
+                  :to="`/admin${selectedPluginSettingsPath}`"
+                  class="ml-1 font-medium text-[var(--sf-accent)] underline-offset-2 hover:underline dark:text-[var(--sf-accent-dark)]"
+                >
+                  {{ t('admin.attachments.openPluginSettings') }}
+                </NuxtLink>
+              </p>
             </UFormField>
             <UFormField :label="t('admin.attachments.maxFileSize')" name="attachment-max-size">
               <UInput size="lg" v-model.number="form.maxFileSizeMb" type="number" min="1" max="1024" icon="i-lucide-hard-drive-upload" class="w-full" />

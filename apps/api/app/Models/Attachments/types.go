@@ -3,6 +3,8 @@ package attachments
 import (
 	"errors"
 	"time"
+
+	storage "github.com/zhuchunshu/sforum/apps/api/app/Support/Storage"
 )
 
 const (
@@ -118,10 +120,13 @@ type ReadSeekCloser interface {
 }
 
 type AttachmentSettings struct {
-	// ProviderSlot 是宿主契约名 attachment.storage.provider（F3.5）。
+	// ProviderSlot 是宿主契约名 attachment.storage.provider（F3.5 / E6）。
 	ProviderSlot string `json:"providerSlot"`
-	// Drivers 列出 core 内置驱动；当前实现均在 Support/Storage 内。
-	Drivers                []string           `json:"drivers"`
+	// Drivers 列出 core 内置驱动 id（兼容字段；完整列表见 Candidates）。
+	Drivers []string `json:"drivers"`
+	// Candidates 为 core 驱动 + 已启用且声明槽位的插件（E6.1）。
+	Candidates []storage.Candidate `json:"candidates"`
+	// Provider 为 attachment.provider：core 驱动 id 或 plugin:<extensionId>。
 	Provider               string             `json:"provider"`
 	UploadEnabled          bool               `json:"uploadEnabled"`
 	PathTemplate           string             `json:"pathTemplate"`

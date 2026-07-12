@@ -618,6 +618,8 @@ components:
       "$ref": "./openapi/schemas/options.yaml#/AdminWebOptionInput"
     AttachmentProvider:
       "$ref": "./openapi/schemas/attachments.yaml#/AttachmentProvider"
+    AttachmentStorageCandidate:
+      "$ref": "./openapi/schemas/attachments.yaml#/AttachmentStorageCandidate"
     AttachmentStatus:
       "$ref": "./openapi/schemas/attachments.yaml#/AttachmentStatus"
     AttachmentVisibility:

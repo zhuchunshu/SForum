@@ -91,12 +91,37 @@ ApiResponseAttachmentCleanup:
       "$ref": "#/AttachmentCleanupResult"
 AttachmentProvider:
   type: string
-  enum:
+  description: >
+    Core driver id (local, aliyun_oss, tencent_cos, ftp, sftp) or plugin
+    selection plugin:<extensionId> (E6.1).
+  examples:
   - local
-  - aliyun_oss
-  - tencent_cos
-  - ftp
-  - sftp
+  - plugin:sforum.s3
+AttachmentStorageCandidate:
+  type: object
+  required:
+  - value
+  - kind
+  - label
+  - available
+  properties:
+    value:
+      type: string
+      description: Value written to attachment.provider
+    kind:
+      type: string
+      enum:
+      - core
+      - plugin
+    label:
+      type: string
+    extensionId:
+      type: string
+    settingsPath:
+      type: string
+      description: Optional admin path for plugin settings
+    available:
+      type: boolean
 AttachmentStatus:
   type: string
   enum:
@@ -270,6 +295,21 @@ AttachmentSettings:
   - ftp
   - sftp
   properties:
+    providerSlot:
+      type: string
+      description: Host slot id attachment.storage.provider
+      examples:
+      - attachment.storage.provider
+    drivers:
+      type: array
+      description: Core built-in driver ids (compat; prefer candidates)
+      items:
+        type: string
+    candidates:
+      type: array
+      description: Core drivers plus enabled plugin storage providers (E6.1)
+      items:
+        "$ref": "#/AttachmentStorageCandidate"
     provider:
       "$ref": "#/AttachmentProvider"
     uploadEnabled:

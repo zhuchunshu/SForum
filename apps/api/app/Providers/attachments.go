@@ -24,6 +24,11 @@ func NewAttachmentsProvider(store attachments.Store, optionsService *options.Ser
 
 func NewAttachmentsProviderWithEvents(store attachments.Store, optionsService *options.Service, users identity.ActorStore, sessions *authsession.Manager, publisher appevents.Publisher) *AttachmentsProvider {
 	attachmentService := attachments.NewServiceWithEvents(store, optionsService, publisher)
+	return NewAttachmentsProviderWithService(attachmentService, store, users, sessions)
+}
+
+// NewAttachmentsProviderWithService 使用已装配的附件服务（可含 E6 存储候选目录）。
+func NewAttachmentsProviderWithService(attachmentService *attachments.Service, store attachments.Store, users identity.ActorStore, sessions *authsession.Manager) *AttachmentsProvider {
 	provider := &AttachmentsProvider{controller: attachmentscontroller.NewController(attachmentService, users, sessions)}
 	if referenceStore, ok := store.(seo.AssetReferenceStore); ok {
 		provider.seoController = seocontroller.NewController(seo.NewAssetService(attachmentService, referenceStore), users, sessions)
