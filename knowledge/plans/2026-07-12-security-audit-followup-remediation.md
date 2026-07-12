@@ -1,6 +1,6 @@
 # 2026-07-12 Security Audit Follow-up Remediation
 
-Status: **In progress**
+Status: **Completed**
 Date: 2026-07-12  
 Source: second full-program static audit after the first P0-P2 security batch  
 Previous batch: `knowledge/plans/2026-07-12-security-audit-fix-batch.md`
@@ -397,6 +397,8 @@ cd apps/api && go test ./...
 ruby scripts/validate-openapi-refs.rb
 cd apps/web && bun run typecheck
 ./scripts/test.sh
+cd apps/api && govulncheck ./...
+cd apps/web && bun audit
 ```
 
 Run focused packages after each commit. Run the full gate after the known
@@ -417,6 +419,30 @@ Run focused packages after each commit. Run the full gate after the known
 | P3.1 webhook PATCH | Done | 49606bce1 | |
 | P3.2 localization baseline | Done | acb0d5c56 | user.not_found |
 | P3.3 release security scans | Done | (docs) | knowledge/reports/2026-07-12-release-security-scan.md |
+
+## 2026-07-13 re-review residual completion
+
+The first completion declaration was reopened by `02dd98a9d` because frontend
+typecheck and several residual trust-boundary paths were still failing. The
+following table records the corrective re-review work. The previously verified
+uploaded-plugin execution restriction and Webhook SSRF main path were not
+reimplemented.
+
+| Re-review task | Status | Commit | Notes |
+|----------------|--------|--------|-------|
+| P0.1 worker / Host API extension secret decryption | Done | 8a714f902 | Shared cipher-aware settings source; wrong keys fail closed |
+| P0.2 PAT current actor status | Done | 2266419f8 | Missing/inactive/banned actors return 401; scopes still intersect current permissions |
+| P0.3 reachable dependency vulnerabilities | Done | 2d8c7e9f2, f72c1ad5a | Go 1.26.5, x/image 0.43.0, Fiber utils rc.4, esbuild 0.28.1 override |
+| P1.1 attachment reference authorization | Done | 049c292ee | Resource lifecycle/visibility checks and reference maintenance |
+| P1.2 login targeted-DoS recovery | Done | 78a5be432 | Account signal triggers step-up, not global hard lock |
+| P1.3 extension settings rollback / CAS | Done | 0b43608a3 | Reset rollback, diagnostic rollback failure, per-key plaintext migration CAS |
+| P1.4 forum policy completion | Done | 19d9ca72d | Author lock policy, viewer-scoped tombstones, revision-backed edit facts |
+| P2 strict frontend typecheck | Done | 67ecf238c | All then-current strict errors fixed without suppressions |
+| Release gate integration | Done | c0c66fd9c | Validators and entity-meta permission catalog synchronized |
+
+Final verification on 2026-07-13 passed all six required commands. See
+`knowledge/reports/2026-07-12-release-security-scan.md` and
+`knowledge/sessions/2026-07-13-security-audit-followup-remediation-final.md`.
 
 ## Paste-ready implementation prompt
 

@@ -5,6 +5,9 @@
 - P0.1–P3.3 from `knowledge/plans/2026-07-12-security-audit-followup-remediation.md` implemented on `main`.
 - New decisions: forum policy enforcement, PAT permission intersection.
 - Release security scan report: `knowledge/reports/2026-07-12-release-security-scan.md`.
+- The premature completion status was reopened and the 2026-07-13 re-review
+  residuals were completed. Final handoff:
+  `knowledge/sessions/2026-07-13-security-audit-followup-remediation-final.md`.
 
 ## Commits
 
@@ -24,8 +27,9 @@
 
 ## Next
 
-- Dependency upgrade PR for Go ≥1.26.5, golang.org/x/image ≥0.43, Fiber utils ≥rc.4.
 - Optional live SSRF/attachment provider matrix exercises before production.
+- Run container-image CVE scanning against published image digests before the
+  first production release.
 - Historical `duplicateTitlePolicy=warn` remains non-blocking by design.
 
 ## Open Questions

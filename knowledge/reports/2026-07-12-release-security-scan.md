@@ -1,6 +1,6 @@
 # 2026-07-12 Release Security Scan Report
 
-Status: **Dependency vulnerability gate passed; full remediation still in progress**
+Status: **Dependency vulnerability gate passed; follow-up remediation completed**
 Date (UTC): 2026-07-13
 Scope: dependency advisory scan + container runtime user review after
 security follow-up remediation. Active penetration testing was not run.
@@ -48,9 +48,9 @@ cd apps/web && bun audit
 
 Result:
 
-| Severity | Package | Advisory | Notes |
-|----------|---------|----------|-------|
-| low | esbuild ≥0.27.3 <0.28.1 (transitive) | GHSA-g7r4-m6w7-qqqr | Dev-server arbitrary file read on **Windows** only; production SSR images are not Windows-targeted. Accepted risk for this wave. |
+- **No vulnerabilities found.**
+- `esbuild` is pinned through a Bun override at `^0.28.1`, clearing
+  `GHSA-g7r4-m6w7-qqqr` including the transitive `fontless` path.
 
 ## Container runtime user
 
@@ -78,15 +78,18 @@ Plan items deferred to a controlled environment:
 
 ## False positives / notes
 
-- esbuild Windows-only low advisory: not relevant to Linux production images.
-- Several `x/image` findings cluster on avatar/upload decode; risk is
-  untrusted image DoS/panic — mitigated partially by size limits, not fully
-  eliminated until dependency upgrade.
+- `govulncheck` still reports 2 imported-package and 2 required-module findings
+  that are not reachable from the SForum call graph. They are tracked as
+  residual dependency inventory, not accepted reachable risk.
+- No reachable untrusted-image decoding vulnerability remains after upgrading
+  `golang.org/x/image` to `v0.43.0`; avatar and attachment image parsing tests
+  pass.
 
 ## Decision
 
 The dependency upgrade is now a release gate result, not deferred work. Do not
-reintroduce an older Go toolchain, `x/image`, or Fiber utils version. The
-Windows-only esbuild development-server advisory remains a documented low-risk
-item; it does not affect the Linux production image, but should be cleared by a
-compatible frontend dependency update when available.
+reintroduce an older Go toolchain, `x/image`, Fiber utils, or vulnerable
+`esbuild` version. There are no accepted reachable dependency vulnerabilities
+in this report. Container base-image CVE scanning and the live remote-provider
+matrix remain release exercises because they were not executed in this local
+session.
