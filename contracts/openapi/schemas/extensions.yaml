@@ -845,12 +845,15 @@ ExtensionEvent:
       type: string
       format: date-time
 ExtensionEventDefinition:
+  # Host event catalog entry. F1.3 documents timeoutMs + failurePolicy.
+  # Sync filters enforce timeout via host context; heavy work must enqueue jobs.
   type: object
   required:
   - name
   - kind
   - description
   - timeoutMs
+  - failurePolicy
   properties:
     name:
       type: string
@@ -872,6 +875,16 @@ ExtensionEventDefinition:
         type: string
     timeoutMs:
       type: integer
+      description: Per-listener invoke limit in milliseconds.
+    failurePolicy:
+      type: string
+      enum:
+      - fail_closed
+      - fail_open
+      description: |
+        For filter/validate: fail_closed rejects the host operation when a
+        listener fails or times out (default). fail_open records the failure
+        and continues. Observe events are non-blocking (fail_open semantics).
 ExtensionEventDelivery:
   type: object
   required:

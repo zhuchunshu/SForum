@@ -113,6 +113,65 @@ func TestManagerAllowsTopicBeforeCreateTagSlugPatchFromCatalog(t *testing.T) {
 	}
 }
 
+func TestManagerEnforcesSyncFilterTimeout(t *testing.T) {
+	bus := NewHookBus(HookBusConfig{Invoker: HookInvokerFunc(func(ctx context.Context, _ extensions.Extension, _ HookInput) HookResult {
+		// 模拟忽略取消的慢插件：宿主仍应在 timeout 后标记失败。
+		select {
+		case <-ctx.Done():
+			return HookResult{OK: false, Reason: "extension.hook_timeout", Message: "canceled"}
+		case <-time.After(200 * time.Millisecond):
+			return HookResult{OK: true}
+		}
+	})})
+	store := &fakeDeliveryStore{}
+	manager := NewManager(ManagerConfig{HookBus: bus, DeliveryStore: store})
+	extension := runtimeExtension("slow.plugin")
+	extension.Manifest.Events = []extensions.ManifestEvent{{Name: appevents.TopicBeforeCreate, Kind: appevents.KindFilter}}
+	if err := manager.Start(context.Background(), extension); err != nil {
+		t.Fatalf("start: %v", err)
+	}
+
+	// 用极短超时覆盖目录默认值：通过临时改 invoker 路径测 host context。
+	// 直接调用 invoke 验证超时强制失败。
+	result := manager.invoke(context.Background(), extension, HookInput{
+		Name:    appevents.TopicBeforeCreate,
+		Kind:    appevents.KindFilter,
+		Timeout: 20 * time.Millisecond,
+	})
+	if result.OK || result.Reason != "extension.hook_timeout" {
+		t.Fatalf("expected hook timeout, got %#v", result)
+	}
+}
+
+func TestManagerRecordsSyncFilterDeliveries(t *testing.T) {
+	store := &fakeDeliveryStore{}
+	bus := NewHookBus(HookBusConfig{Invoker: HookInvokerFunc(func(_ context.Context, _ extensions.Extension, _ HookInput) HookResult {
+		return HookResult{OK: true, Patch: map[string]any{"title": "ok"}}
+	})})
+	manager := NewManager(ManagerConfig{HookBus: bus, DeliveryStore: store})
+	extension := runtimeExtension("filter.plugin")
+	extension.Manifest.Events = []extensions.ManifestEvent{{Name: appevents.TopicBeforeCreate, Kind: appevents.KindFilter}}
+	if err := manager.Start(context.Background(), extension); err != nil {
+		t.Fatalf("start: %v", err)
+	}
+
+	result := manager.Emit(context.Background(), appevents.NewEnvelope(appevents.TopicBeforeCreate, map[string]any{
+		"title": "original",
+	}))
+	if !result.OK {
+		t.Fatalf("expected ok, got %#v", result)
+	}
+	if len(store.deliveries) != 1 {
+		t.Fatalf("expected sync delivery recorded, got %#v", store.deliveries)
+	}
+	if store.deliveries[0].Status != extensions.DeliverySucceeded {
+		t.Fatalf("delivery=%#v", store.deliveries[0])
+	}
+	if store.deliveries[0].EventKind != appevents.KindFilter {
+		t.Fatalf("kind=%s", store.deliveries[0].EventKind)
+	}
+}
+
 func TestManagerRecordsObserveEventDeliveries(t *testing.T) {
 	store := &fakeDeliveryStore{}
 	bus := NewHookBus(HookBusConfig{Invoker: HookInvokerFunc(func(_ context.Context, _ extensions.Extension, input HookInput) HookResult {

@@ -22,149 +22,65 @@ const (
 	AttachmentUploaded = "attachment.uploaded"
 )
 
+// 目录约定（F1.3）：
+//   - observe：异步投递，TimeoutMS 为 worker 内单次 invoke 上限；失败不阻断业务写路径。
+//   - filter/validate：同步调用，TimeoutMS 由 host context 强制；FailurePolicy 默认 fail_closed。
+//   - 禁止在 filter 内做重 I/O、批量索引、发信；应 enqueue job。
 var definitions = []Definition{
-	{
-		Name:          ExtensionEnabled,
+	observe(ExtensionEnabled, "Emitted after a plugin is enabled and its runtime starts.", []string{"extensionId"}),
+	observe(ExtensionDisabled, "Emitted after a plugin is disabled and its runtime stops.", []string{"extensionId"}),
+	observe(UserRegistered, "Emitted after a new user is committed.", []string{"userId", "username", "email", "locale"}),
+	filter(TopicBeforeCreate,
+		"Runs before a topic is committed and may reject or patch allowlisted input. Heavy work must enqueue jobs, never block this filter.",
+		[]string{"actorUserId", "categorySlug", "tagSlugs", "title", "content"},
+		[]string{"categorySlug", "tagSlugs", "title", "content"},
+	),
+	observe(TopicCreated, "Emitted after a topic is committed.", []string{"topicId", "authorUserId", "categorySlug", "tagSlugs", "title"}),
+	observe(TopicUpdated, "Emitted after a topic's content or taxonomy is updated.", []string{"topicId", "actorUserId", "title", "categorySlug", "tagSlugs"}),
+	observe(TopicDeleted, "Emitted after a topic is soft-deleted.", []string{"topicId", "actorUserId"}),
+	observe(TopicHidden, "Emitted after a topic is hidden by a moderator.", []string{"topicId", "actorUserId"}),
+	observe(TopicRestored, "Emitted after a hidden or deleted topic is restored to active.", []string{"topicId", "actorUserId"}),
+	observe(TopicLocked, "Emitted after a topic is locked.", []string{"topicId", "actorUserId"}),
+	observe(TopicUnlocked, "Emitted after a topic is unlocked.", []string{"topicId", "actorUserId"}),
+	observe(TopicPinned, "Emitted after a topic is pinned.", []string{"topicId", "actorUserId"}),
+	observe(TopicUnpinned, "Emitted after a topic is unpinned.", []string{"topicId", "actorUserId"}),
+	observe(CategoryCreated, "Emitted after a category is created.", []string{"categoryId", "categorySlug", "groupId"}),
+	observe(CategoryUpdated, "Emitted after a category is updated.", []string{"categoryId", "categorySlug", "groupId"}),
+	observe(TagCreated, "Emitted after a tag is created.", []string{"tagId", "tagSlug", "status"}),
+	observe(TagUpdated, "Emitted after a tag is updated.", []string{"tagId", "tagSlug", "status"}),
+	observe(CommentCreated, "Emitted after a comment is committed.", []string{"commentId", "topicId", "authorUserId", "parentId"}),
+	observe(AttachmentUploaded, "Emitted after attachment metadata is committed.", []string{"attachmentId", "publicId", "ownerUserId", "provider", "contentType", "sizeBytes"}),
+}
+
+func observe(name, description string, payload []string) Definition {
+	return Definition{
+		Name:          name,
 		Kind:          KindObserve,
-		Description:   "Emitted after a plugin is enabled and its runtime starts.",
-		PayloadFields: []string{"extensionId"},
+		Description:   description,
+		PayloadFields: payload,
 		TimeoutMS:     DefaultAsyncTimeoutMS,
-	},
-	{
-		Name:          ExtensionDisabled,
-		Kind:          KindObserve,
-		Description:   "Emitted after a plugin is disabled and its runtime stops.",
-		PayloadFields: []string{"extensionId"},
-		TimeoutMS:     DefaultAsyncTimeoutMS,
-	},
-	{
-		Name:          UserRegistered,
-		Kind:          KindObserve,
-		Description:   "Emitted after a new user is committed.",
-		PayloadFields: []string{"userId", "username", "email", "locale"},
-		TimeoutMS:     DefaultAsyncTimeoutMS,
-	},
-	{
-		Name:          TopicBeforeCreate,
+		// observe 不阻塞写路径；字段保留便于目录 UI 统一展示。
+		FailurePolicy: FailurePolicyFailOpen,
+	}
+}
+
+func filter(name, description string, payload, patch []string) Definition {
+	return Definition{
+		Name:          name,
 		Kind:          KindFilter,
-		Description:   "Runs before a topic is committed and may reject or patch allowlisted input.",
-		PayloadFields: []string{"actorUserId", "categorySlug", "tagSlugs", "title", "content"},
-		PatchFields:   []string{"categorySlug", "tagSlugs", "title", "content"},
+		Description:   description,
+		PayloadFields: payload,
+		PatchFields:   patch,
 		TimeoutMS:     DefaultSyncTimeoutMS,
-	},
-	{
-		Name:          TopicCreated,
-		Kind:          KindObserve,
-		Description:   "Emitted after a topic is committed.",
-		PayloadFields: []string{"topicId", "authorUserId", "categorySlug", "tagSlugs", "title"},
-		TimeoutMS:     DefaultAsyncTimeoutMS,
-	},
-	{
-		Name:          TopicUpdated,
-		Kind:          KindObserve,
-		Description:   "Emitted after a topic's content or taxonomy is updated.",
-		PayloadFields: []string{"topicId", "actorUserId", "title", "categorySlug", "tagSlugs"},
-		TimeoutMS:     DefaultAsyncTimeoutMS,
-	},
-	{
-		Name:          TopicDeleted,
-		Kind:          KindObserve,
-		Description:   "Emitted after a topic is soft-deleted.",
-		PayloadFields: []string{"topicId", "actorUserId"},
-		TimeoutMS:     DefaultAsyncTimeoutMS,
-	},
-	{
-		Name:          TopicHidden,
-		Kind:          KindObserve,
-		Description:   "Emitted after a topic is hidden by a moderator.",
-		PayloadFields: []string{"topicId", "actorUserId"},
-		TimeoutMS:     DefaultAsyncTimeoutMS,
-	},
-	{
-		Name:          TopicRestored,
-		Kind:          KindObserve,
-		Description:   "Emitted after a hidden or deleted topic is restored to active.",
-		PayloadFields: []string{"topicId", "actorUserId"},
-		TimeoutMS:     DefaultAsyncTimeoutMS,
-	},
-	{
-		Name:          TopicLocked,
-		Kind:          KindObserve,
-		Description:   "Emitted after a topic is locked.",
-		PayloadFields: []string{"topicId", "actorUserId"},
-		TimeoutMS:     DefaultAsyncTimeoutMS,
-	},
-	{
-		Name:          TopicUnlocked,
-		Kind:          KindObserve,
-		Description:   "Emitted after a topic is unlocked.",
-		PayloadFields: []string{"topicId", "actorUserId"},
-		TimeoutMS:     DefaultAsyncTimeoutMS,
-	},
-	{
-		Name:          TopicPinned,
-		Kind:          KindObserve,
-		Description:   "Emitted after a topic is pinned.",
-		PayloadFields: []string{"topicId", "actorUserId"},
-		TimeoutMS:     DefaultAsyncTimeoutMS,
-	},
-	{
-		Name:          TopicUnpinned,
-		Kind:          KindObserve,
-		Description:   "Emitted after a topic is unpinned.",
-		PayloadFields: []string{"topicId", "actorUserId"},
-		TimeoutMS:     DefaultAsyncTimeoutMS,
-	},
-	{
-		Name:          CategoryCreated,
-		Kind:          KindObserve,
-		Description:   "Emitted after a category is created.",
-		PayloadFields: []string{"categoryId", "categorySlug", "groupId"},
-		TimeoutMS:     DefaultAsyncTimeoutMS,
-	},
-	{
-		Name:          CategoryUpdated,
-		Kind:          KindObserve,
-		Description:   "Emitted after a category is updated.",
-		PayloadFields: []string{"categoryId", "categorySlug", "groupId"},
-		TimeoutMS:     DefaultAsyncTimeoutMS,
-	},
-	{
-		Name:          TagCreated,
-		Kind:          KindObserve,
-		Description:   "Emitted after a tag is created.",
-		PayloadFields: []string{"tagId", "tagSlug", "status"},
-		TimeoutMS:     DefaultAsyncTimeoutMS,
-	},
-	{
-		Name:          TagUpdated,
-		Kind:          KindObserve,
-		Description:   "Emitted after a tag is updated.",
-		PayloadFields: []string{"tagId", "tagSlug", "status"},
-		TimeoutMS:     DefaultAsyncTimeoutMS,
-	},
-	{
-		Name:          CommentCreated,
-		Kind:          KindObserve,
-		Description:   "Emitted after a comment is committed.",
-		PayloadFields: []string{"commentId", "topicId", "authorUserId", "parentId"},
-		TimeoutMS:     DefaultAsyncTimeoutMS,
-	},
-	{
-		Name:          AttachmentUploaded,
-		Kind:          KindObserve,
-		Description:   "Emitted after attachment metadata is committed.",
-		PayloadFields: []string{"attachmentId", "publicId", "ownerUserId", "provider", "contentType", "sizeBytes"},
-		TimeoutMS:     DefaultAsyncTimeoutMS,
-	},
+		FailurePolicy: FailurePolicyFailClosed,
+	}
 }
 
 func Definitions() []Definition {
 	items := make([]Definition, len(definitions))
 	copy(items, definitions)
 	for index := range items {
-		items[index].PayloadFields = append([]string{}, items[index].PayloadFields...)
-		items[index].PatchFields = append([]string{}, items[index].PatchFields...)
+		items[index] = normalizeDefinition(items[index])
 	}
 	return items
 }
@@ -172,13 +88,30 @@ func Definitions() []Definition {
 func FindDefinition(name string) (Definition, bool) {
 	for _, definition := range definitions {
 		if definition.Name == name {
-			copy := definition
-			copy.PayloadFields = append([]string{}, definition.PayloadFields...)
-			copy.PatchFields = append([]string{}, definition.PatchFields...)
-			return copy, true
+			return normalizeDefinition(definition), true
 		}
 	}
 	return Definition{}, false
+}
+
+func normalizeDefinition(definition Definition) Definition {
+	definition.PayloadFields = append([]string{}, definition.PayloadFields...)
+	definition.PatchFields = append([]string{}, definition.PatchFields...)
+	if definition.TimeoutMS <= 0 {
+		if definition.Kind == KindFilter || definition.Kind == KindValidate {
+			definition.TimeoutMS = DefaultSyncTimeoutMS
+		} else {
+			definition.TimeoutMS = DefaultAsyncTimeoutMS
+		}
+	}
+	if definition.FailurePolicy == "" {
+		if definition.Kind == KindFilter || definition.Kind == KindValidate {
+			definition.FailurePolicy = FailurePolicyFailClosed
+		} else {
+			definition.FailurePolicy = FailurePolicyFailOpen
+		}
+	}
+	return definition
 }
 
 func Known(name string) bool {

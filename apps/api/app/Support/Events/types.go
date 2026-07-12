@@ -18,8 +18,17 @@ const (
 	StatusFailed    = "failed"
 	StatusSkipped   = "skipped"
 
+	// FailurePolicy 控制 sync filter/validate 失败时宿主行为。
+	// fail_closed：任一 listener 失败/超时 → 拒绝业务操作（默认，内容安全相关）。
+	// fail_open：listener 失败记 delivery，继续后续 listener 与业务（仅观察型可选；F1 目录默认仍 closed）。
+	FailurePolicyFailClosed = "fail_closed"
+	FailurePolicyFailOpen   = "fail_open"
+
 	DefaultSyncTimeoutMS  = 2000
 	DefaultAsyncTimeoutMS = 5000
+	// SlowDeliveryMS：超过该耗时的 sync delivery 在 reason 中标注 slow（仍可能 succeeded）。
+	// 用于扩展事件日志识别「阻塞写路径」的 filter，引导作者把重活改成 job。
+	SlowDeliveryMS = 500
 )
 
 type Definition struct {
@@ -28,7 +37,11 @@ type Definition struct {
 	Description   string   `json:"description"`
 	PayloadFields []string `json:"payloadFields,omitempty"`
 	PatchFields   []string `json:"patchFields,omitempty"`
-	TimeoutMS     int      `json:"timeoutMs"`
+	// TimeoutMS 是单 listener 调用上限；sync filter 由 host context 强制取消。
+	// 重活不得依赖拉长此值，应 enqueue River job。
+	TimeoutMS int `json:"timeoutMs"`
+	// FailurePolicy 仅对 kind=filter|validate 有意义；observe 异步投递不阻塞写路径。
+	FailurePolicy string `json:"failurePolicy"`
 }
 
 type Envelope struct {

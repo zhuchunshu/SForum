@@ -2,6 +2,7 @@ package extensionsruntime
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"sync"
@@ -309,16 +310,39 @@ func (m *Manager) emitObserve(ctx context.Context, envelope appevents.Envelope) 
 }
 
 func (m *Manager) emitSync(ctx context.Context, envelope appevents.Envelope) appevents.Result {
+	definition, _ := appevents.FindDefinition(envelope.Name)
+	failOpen := definition.FailurePolicy == appevents.FailurePolicyFailOpen
 	result := appevents.Result{OK: true}
+
 	for _, listener := range m.hooks.Listeners(envelope.Name) {
-		current := hookResultToEventResult(m.invoke(ctx, listener, hookInputFromEnvelope(envelope, 0)))
+		// F1.3：sync filter/validate 也写 delivery，便于事件日志查看慢/失败投递。
+		deliveryID := m.beginSyncDelivery(ctx, listener.ID, envelope)
+		input := hookInputFromEnvelope(envelope, deliveryID)
+		started := time.Now()
+		current := hookResultToEventResult(m.invoke(ctx, listener, input))
+		elapsed := time.Since(started)
+		current = annotateSlowOrTimeout(current, elapsed, ctx.Err())
+
+		if current.OK && envelope.Kind == appevents.KindFilter && len(current.Patch) > 0 {
+			if !patchAllowed(current.Patch, envelope.PatchFields) {
+				current = appevents.Result{OK: false, Reason: "extension.patch_forbidden", Message: "Plugin returned a patch field that is not allowed for this event."}
+			}
+		}
+
+		status := extensions.DeliverySucceeded
 		if !current.OK {
+			status = extensions.DeliveryFailed
+		}
+		m.finishDelivery(ctx, deliveryID, status, current, 1)
+
+		if !current.OK {
+			if failOpen {
+				// fail_open：记录失败后继续后续 listener，不阻断业务。
+				continue
+			}
 			return current
 		}
 		if envelope.Kind == appevents.KindFilter && len(current.Patch) > 0 {
-			if !patchAllowed(current.Patch, envelope.PatchFields) {
-				return appevents.Result{OK: false, Reason: "extension.patch_forbidden", Message: "Plugin returned a patch field that is not allowed for this event."}
-			}
 			if result.Patch == nil {
 				result.Patch = map[string]any{}
 			}
@@ -330,16 +354,78 @@ func (m *Manager) emitSync(ctx context.Context, envelope appevents.Envelope) app
 	return result
 }
 
+func (m *Manager) beginSyncDelivery(ctx context.Context, extensionID string, envelope appevents.Envelope) int64 {
+	if m.deliveryStore == nil {
+		return 0
+	}
+	delivery, err := m.deliveryStore.CreateEventDelivery(ctx, extensions.EventDeliveryInput{
+		ExtensionID:   extensionID,
+		EventName:     envelope.Name,
+		EventKind:     envelope.Kind,
+		Status:        extensions.DeliveryRunning,
+		CorrelationID: envelope.CorrelationID,
+	})
+	if err != nil {
+		return 0
+	}
+	return delivery.ID
+}
+
+// annotateSlowOrTimeout 把超时与慢调用映射到稳定 reason，方便事件日志筛选。
+func annotateSlowOrTimeout(result appevents.Result, elapsed time.Duration, ctxErr error) appevents.Result {
+	if ctxErr != nil && (errors.Is(ctxErr, context.DeadlineExceeded) || errors.Is(ctxErr, context.Canceled)) {
+		if result.OK {
+			result.OK = false
+		}
+		if result.Reason == "" {
+			result.Reason = "extension.hook_timeout"
+		}
+		if result.Message == "" {
+			result.Message = "Plugin hook exceeded the host timeout. Heavy work must enqueue a job."
+		}
+		return result
+	}
+	// 成功但过慢：保留 OK，reason 标记 slow 供运维可见（不阻断）。
+	if result.OK && elapsed >= time.Duration(appevents.SlowDeliveryMS)*time.Millisecond {
+		if result.Reason == "" {
+			result.Reason = "extension.hook_slow"
+		}
+		if result.Message == "" {
+			result.Message = "Plugin hook was slow; move heavy work to a background job."
+		}
+	}
+	return result
+}
+
 func (m *Manager) invoke(ctx context.Context, extension extensions.Extension, input HookInput) HookResult {
 	if m.hooks == nil || m.hooks.invoker == nil {
 		return HookResult{OK: true}
 	}
-	if input.Timeout > 0 {
-		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(ctx, input.Timeout)
-		defer cancel()
+	// 始终为 sync 调用施加超时：目录未配置时用 DefaultSyncTimeoutMS。
+	timeout := input.Timeout
+	if timeout <= 0 {
+		timeout = time.Duration(appevents.DefaultSyncTimeoutMS) * time.Millisecond
 	}
-	return m.hooks.invoker.InvokeHook(ctx, extension, input)
+	var cancel context.CancelFunc
+	ctx, cancel = context.WithTimeout(ctx, timeout)
+	defer cancel()
+
+	result := m.hooks.invoker.InvokeHook(ctx, extension, input)
+	// invoker 可能忽略 ctx；若已超时仍返回 OK，宿主强制失败（fail_closed 路径）。
+	if err := ctx.Err(); err != nil && result.OK {
+		return HookResult{
+			OK:      false,
+			Reason:  "extension.hook_timeout",
+			Message: "Plugin hook exceeded the host timeout. Heavy work must enqueue a job.",
+		}
+	}
+	if err := ctx.Err(); err != nil && !result.OK && result.Reason == "" {
+		result.Reason = "extension.hook_timeout"
+		if result.Message == "" {
+			result.Message = "Plugin hook exceeded the host timeout. Heavy work must enqueue a job."
+		}
+	}
+	return result
 }
 
 func (m *Manager) runningExtension(extensionID string) (extensions.Extension, bool) {
