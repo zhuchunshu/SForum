@@ -21,16 +21,35 @@ while provider-specific behavior remains in plugins.
 ### Runtime Page Registry & simple themes (accepted direction)
 
 Public themes use **runtime Page Registry + L0/L1** (activate without Nuxt rebuild).
-L2 widgets are **disabled** until integrity/trust. See remediation handoff 2026-07-13.
+L2 widgets are **disabled** until integrity/trust. See remediation handoffs
+2026-07-13 (security) and **round-2 lifecycle** (routes, access, loader SSR,
+Web Release sync, contract_version).
 
 - **ADR:** `decisions/2026-07-13-runtime-page-registry-themes.md`
 - **Plan (P0–P5, commit/rollback rules):**
   `plans/2026-07-13-runtime-page-registry-themes.md`
+- **Round-2 handoff:**
+  `sessions/2026-07-13-runtime-page-registry-round2-remediation.md`
 - **P0 inventory (page ids, reserved paths, Layer touchpoints, flags):**
   `docs/extensions/page-catalog.md` (Go catalog SOT lands in P1)
 - Target: L0 skin + L1 runtime templates + L2 author-prebuilt widgets;
   themes and plugins **add/replace view pages** via Page Registry; operators
   do not rebuild SForum for normal theme activation.
+- **Lifecycle closed (round-2):**
+  - Deterministic route signatures + match order (static > param > catch-all)
+  - Access enum fail-closed (`public|login|guest|moderation|permission`)
+  - Host SSR `LoaderGateway` (loopback only; no Cookie/Auth forward)
+  - Web Release effects via `ApplyApprovedLifecycleEffect` (registers/clears pages immediately)
+  - `page_provider_bindings.contract_version` + approve/resolve re-check
+  - Atomic theme contribution replace for same add paths
+- **Built-in themes:**
+  - `sforum.default-theme` — protected default (warm public shell; still has
+    legacy `layer/` tree for host inheritance / dual-stack leftovers)
+  - `sforum.nocturne-theme` — second builtin **runtime-only** package
+    (`extensions/builtin/themes/sforum-nocturne/`); navy + cyan L0 skin and
+    home L1 hero around `<sf-home-page>`
+  - Dev reference: `sforum.signal-garden` under `extensions/dev/themes/`
+    (and fixtures), not builtin
 - **Freeze:** do not invest in new Layer-only theme capabilities except
   critical bugs; implement runtime path first (P1+). Layer activation remains
   the live dual-stack path until P5.

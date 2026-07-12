@@ -16,16 +16,20 @@ metadata, and browser-side interactions.
 
 ## Runtime themes / Page Registry (live)
 
-Public theming is runtime Page Registry + L0/L1 (security-remediated 2026-07-13; L2 disabled):
+Public theming is runtime Page Registry + L0/L1 (security-remediated 2026-07-13; L2 disabled;
+round-2 lifecycle closed same day):
 
 - **Page Registry** + stable page ids (`forum.home`, …)
 - **L0** CSS/assets without rebuild
 - **L1** sandboxed templates composing host SF islands
-- **L2** author-prebuilt widgets for heavy UI
+- **L2** author-prebuilt widgets for heavy UI (**disabled**)
 - Host stays Nuxt; public themes are not full Nuxt apps and do not rebuild Nitro
+- Dynamic add routes: `pages/[...sfRegistryPage].vue` → `GET /pages/resolve-path`
+- Plugin page data: **SSR-only** via API `loaderData` (no client plugin route fetch)
 
 **ADR:** `../decisions/2026-07-13-runtime-page-registry-themes.md`  
 **Plan:** `../plans/2026-07-13-runtime-page-registry-themes.md`  
+**Round-2:** `../sessions/2026-07-13-runtime-page-registry-round2-remediation.md`  
 **Page catalog:** `../../docs/extensions/page-catalog.md`
 
 ## Current Status

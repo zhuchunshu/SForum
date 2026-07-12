@@ -2,8 +2,23 @@
 
 ## Status
 
-Accepted — design direction. Implementation follows
-`knowledge/plans/2026-07-13-runtime-page-registry-themes.md`.
+Accepted — implemented through P5 with security remediation and **round-2 lifecycle
+close** (2026-07-13). See:
+- Plan: `knowledge/plans/2026-07-13-runtime-page-registry-themes.md`
+- Security remediation: `knowledge/sessions/2026-07-13-runtime-page-registry-codex-remediation.md`
+- Round-2: `knowledge/sessions/2026-07-13-runtime-page-registry-round2-remediation.md`
+
+### Round-2 addenda (normative)
+
+1. **Route matching** uses canonical signatures (param names do not distinguish routes)
+   and a specificity-ordered table (static > param > catch-all); never Go map iteration.
+2. **Access** is an enum fail-closed: empty→public; unknown fails install/enable/activate.
+3. **Loader data** is host SSR only via loopback gateway; clients must not call plugin
+   data routes; redirects and Cookie/Authorization forwarding are forbidden.
+4. **Web Release** applies extension enable/disable only through full lifecycle
+   (`RegisterPluginPackage` / `ClearExtension`), not raw store Enable/Disable.
+5. **Provider bindings** persist and re-check `contract_version` on approve and resolve.
+6. **Theme switch** uses atomic replace-extension so shared add paths do not block activation.
 
 ## Context
 

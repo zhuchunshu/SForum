@@ -4,6 +4,26 @@ This is the entry point for project memory.
 
 ## Latest Handoff
 
+- **2026-07-13 Runtime Page Registry round-2 Codex remediation**
+  - Handoff: `knowledge/sessions/2026-07-13-runtime-page-registry-round2-remediation.md`
+  - Deterministic routes, access fail-closed, loader SSR gateway, Web Release lifecycle
+  - `contract_version` migration; Fiber string-clone binding fix; HTTP + optional live tests
+
+- **2026-07-13 Theme activate package-root fix**
+  - Handoff: `knowledge/sessions/2026-07-13-theme-activate-package-root-fix.md`
+  - Legacy zip themes: preflight used `package.zip` as dir → false preflight fail
+  - `PackageContentRoot` + theme errors as `build_failed` (not backend-entry copy)
+
+- **2026-07-13 Fix `bun run dev:compose` without theme Layer**
+  - Handoff: `knowledge/sessions/2026-07-13-dev-compose-layer-optional.md`
+  - Admin compose no longer falls back to plugin as theme; empty layer is OK
+  - Runtime injects admin registry only; public pages stay host Page Registry
+
+- **2026-07-13 Builtin second theme: Nocturne Harbor**
+  - Handoff: `knowledge/sessions/2026-07-13-builtin-nocturne-theme.md`
+  - Package: `extensions/builtin/themes/sforum-nocturne/` (`sforum.nocturne-theme`)
+  - Runtime L0/L1 only (navy/cyan skin + home template); no Nuxt Layer
+
 - **2026-07-13 Runtime Page Registry Codex remediation**
   - Handoff: `knowledge/sessions/2026-07-13-runtime-page-registry-codex-remediation.md`
   - L2 disabled; L1 bluemonday; theme assets locked; atomic activate; bootstrap restore
