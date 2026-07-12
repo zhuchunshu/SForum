@@ -3,23 +3,25 @@
 // 组件与 layer 用软链指向源码，Vue 改动能走 Vite HMR，无需完整 Web Release。
 //
 // 完整 Web Release（隔离 workspace、production build、digest）仍是生产路径；
-// 本脚本只服务 `bun run dev`。
+// 本脚本只服务 `bun run dev:compose`（plain `bun run dev` 不经过此处）。
+//
+// 宿主 peer（vue/nuxt/…）由 Nuxt alias 解析，禁止写入扩展源码树的 node_modules。
 
 import crypto from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
 
+import {
+  ADMIN_HOST_PEER_NAMES,
+  DEV_HOST_PEERS,
+  pruneHostPeerNodeModules,
+  resolveHostPeerDirectory,
+} from '../build/admin-host-peers.mjs'
+
+export { ADMIN_HOST_PEER_NAMES, DEV_HOST_PEERS, pruneHostPeerNodeModules, resolveHostPeerDirectory }
+
 export const DEV_COMPOSE_RELEASE_ID = 'dev-local'
 export const DEV_COMPOSE_DIRNAME = 'dev-compose'
-
-/** 与 apps/api WebReleaseRuntime.HostPeers 对齐的宿主 peer 包名。 */
-export const DEV_HOST_PEERS = [
-  '@nuxt/ui',
-  '@sforum/admin-sdk',
-  'nuxt',
-  'vue',
-  'vue-router',
-]
 
 /**
  * @param {object} options
@@ -39,7 +41,8 @@ export function composeDevAdmin({
   }
   const absoluteOut = path.resolve(outDir)
   const absoluteBuiltin = path.resolve(builtinRoot)
-  const absoluteWeb = path.resolve(webRoot)
+  // webRoot 保留在参数中供调用方与历史 API 兼容；peer 解析改由 Nuxt alias 负责。
+  void webRoot
 
   const packages = discoverBuiltinAdminPackages(absoluteBuiltin)
   if (!packages.length) {
@@ -63,9 +66,8 @@ export function composeDevAdmin({
     const adminTarget = path.join(packageTarget, 'frontend', 'admin')
     fs.mkdirSync(path.dirname(adminTarget), { recursive: true })
     ensureSymlink(pkg.adminRoot, adminTarget)
-    // Vue SFC 从扩展目录解析 import；软链 admin 时 peer 落在真实源码 root 的 node_modules。
-    // 与完整 Web Release 的 linkPluginHostPeers 同思路，否则 @sforum/admin-sdk 解析失败。
-    linkHostPeersIntoAdmin(pkg.adminRoot, absoluteWeb)
+    // 清理旧 compose 写进源码树的 peer node_modules；解析改由宿主 Vite alias 负责。
+    pruneHostPeerNodeModules(pkg.adminRoot)
 
     localeMessages[pkg.id] = loadLocales(pkg.adminRoot, pkg.locales)
     for (const contribution of pkg.contributions) {
@@ -122,7 +124,7 @@ export function composeDevAdmin({
   writeRegistry(path.join(registryRoot, 'registry.client.ts'), registryRoot, contributions)
   writeJSON(path.join(absoluteOut, 'guard-policy.json'), {
     roots: guardRoots,
-    hostPeers: [...DEV_HOST_PEERS].sort(),
+    hostPeers: [...ADMIN_HOST_PEER_NAMES].sort(),
   })
 
   // hash 含 locales / contributions，改文案或插槽映射会变；不含 .vue 文件内容
@@ -139,7 +141,7 @@ export function composeDevAdmin({
         contributions: item.contributions,
         locales: localeMessages[item.id],
       })),
-      peers: DEV_HOST_PEERS,
+      peers: ADMIN_HOST_PEER_NAMES,
     }))
     .digest('hex')
 
@@ -383,92 +385,6 @@ function writeRegistry(target, registryRoot, contributions) {
   }
   lines.push('}', '')
   fs.writeFileSync(target, lines.join('\n'), 'utf8')
-}
-
-/**
- * 在扩展 admin 根下建立 host peer 软链，供 Vite 从该目录解析 bare import。
- * @param {string} adminRoot 扩展 frontend/admin 绝对路径（真实目录，非 compose 软链）
- * @param {string} webRoot apps/web 绝对路径
- */
-export function linkHostPeersIntoAdmin(adminRoot, webRoot) {
-  const absoluteAdmin = path.resolve(adminRoot)
-  const absoluteWeb = path.resolve(webRoot)
-  for (const name of DEV_HOST_PEERS) {
-    const target = resolveHostPeerDirectory(absoluteWeb, name)
-    if (!target) {
-      throw new Error(`host peer unavailable for ${name} under ${absoluteWeb}`)
-    }
-    const destination = path.join(absoluteAdmin, 'node_modules', ...name.split('/'))
-    ensureSymlink(target, destination)
-  }
-}
-
-/**
- * 解析宿主上 peer 包的目录（兼容 bun 的 node_modules/.bun 布局）。
- * @returns {string | null}
- */
-export function resolveHostPeerDirectory(webRoot, packageName) {
-  const absoluteWeb = path.resolve(webRoot)
-  if (packageName === '@sforum/admin-sdk') {
-    const sdk = path.join(absoluteWeb, 'packages/admin-sdk')
-    return fs.existsSync(sdk) ? sdk : null
-  }
-
-  const direct = path.join(absoluteWeb, 'node_modules', ...packageName.split('/'))
-  if (isPackageDirectory(direct, packageName)) {
-    return direct
-  }
-
-  // Bun.resolveSync：能解析到文件时再上溯 package root。
-  try {
-    if (typeof Bun !== 'undefined' && typeof Bun.resolveSync === 'function') {
-      const resolvedFile = Bun.resolveSync(packageName, absoluteWeb)
-      const fromFile = packageRootFromResolvedFile(resolvedFile, packageName)
-      if (fromFile) return fromFile
-    }
-  } catch {
-    // continue
-  }
-
-  // 扫 node_modules/.bun/<pkg>@*/node_modules/<pkg>
-  const bunStore = path.join(absoluteWeb, 'node_modules/.bun')
-  if (fs.existsSync(bunStore)) {
-    const encoded = packageName.startsWith('@')
-      ? packageName.replace('/', '+')
-      : packageName
-    let best = ''
-    for (const entry of fs.readdirSync(bunStore)) {
-      if (!entry.startsWith(`${encoded}@`)) continue
-      const candidate = path.join(bunStore, entry, 'node_modules', ...packageName.split('/'))
-      if (isPackageDirectory(candidate, packageName) && candidate.length > best.length) {
-        best = candidate
-      }
-    }
-    if (best) return best
-  }
-
-  return null
-}
-
-function isPackageDirectory(dir, packageName) {
-  if (!fs.existsSync(dir)) return false
-  try {
-    const pkg = JSON.parse(fs.readFileSync(path.join(dir, 'package.json'), 'utf8'))
-    return pkg?.name === packageName
-  } catch {
-    return false
-  }
-}
-
-function packageRootFromResolvedFile(filePath, packageName) {
-  let current = path.dirname(path.resolve(filePath))
-  for (let i = 0; i < 12; i += 1) {
-    if (isPackageDirectory(current, packageName)) return current
-    const parent = path.dirname(current)
-    if (parent === current) break
-    current = parent
-  }
-  return null
 }
 
 function ensureSymlink(target, linkPath) {

@@ -76,12 +76,13 @@ describe('dev admin compose (P1)', () => {
     const realAdmin = fs.realpathSync(adminLink)
     expect(realAdmin).toContain(`${path.sep}extensions${path.sep}builtin${path.sep}themes${path.sep}sforum-default${path.sep}frontend${path.sep}admin`)
 
-    // host peer 必须可从 admin 根解析，否则 Vue SFC 报 Failed to resolve @sforum/admin-sdk
-    const adminSdk = path.join(realAdmin, 'node_modules/@sforum/admin-sdk')
-    expect(fs.existsSync(adminSdk)).toBe(true)
-    expect(fs.lstatSync(adminSdk).isSymbolicLink()).toBe(true)
-    expect(fs.realpathSync(adminSdk)).toContain(`${path.sep}packages${path.sep}admin-sdk`)
-    expect(fs.existsSync(path.join(realAdmin, 'node_modules/vue'))).toBe(true)
+    // 宿主 peer 由 Nuxt alias 解析；源码 admin 根不得再有 node_modules。
+    expect(fs.existsSync(path.join(realAdmin, 'node_modules'))).toBe(false)
+    const smtpAdmin = path.join(
+      repoRoot,
+      'extensions/builtin/plugins/sforum-smtp/frontend/admin',
+    )
+    expect(fs.existsSync(path.join(smtpAdmin, 'node_modules'))).toBe(false)
   })
 
   test('locale edits change compositionHash; pure recompose with same inputs is stable', () => {
@@ -138,5 +139,53 @@ describe('dev admin compose (P1)', () => {
     expect(shouldIgnoreWatchPath('plugins/x/backend/plugin')).toBe(true)
     expect(shouldIgnoreWatchPath('themes/x/frontend/admin/locales/zh-CN.json')).toBe(false)
     expect(shouldIgnoreWatchPath('themes/x/frontend/admin/components/Page.vue')).toBe(false)
+  })
+
+  test('prunes legacy host-peer node_modules under source admin roots', () => {
+    const realRepo = path.resolve(import.meta.dir, '../../..')
+    const fixture = tempRoot()
+    const builtin = path.join(fixture, 'extensions/builtin')
+    const themeRoot = path.join(builtin, 'themes/demo')
+    const adminRoot = path.join(themeRoot, 'frontend/admin')
+    fs.mkdirSync(path.join(adminRoot, 'components'), { recursive: true })
+    fs.mkdirSync(path.join(adminRoot, 'locales'), { recursive: true })
+    fs.writeFileSync(path.join(themeRoot, 'sforum.extension.json'), JSON.stringify({
+      id: 'demo.theme',
+      version: '1.0.0',
+      type: 'theme',
+      includes: {
+        frontend: 'manifest/frontend.json',
+        contributions: 'manifest/contributions.json',
+      },
+    }))
+    fs.mkdirSync(path.join(themeRoot, 'manifest'), { recursive: true })
+    fs.writeFileSync(path.join(themeRoot, 'manifest/frontend.json'), JSON.stringify({
+      admin: {
+        root: 'frontend/admin',
+        components: { page: 'components/Page.vue' },
+        locales: { 'zh-CN': 'locales/zh-CN.json' },
+      },
+    }))
+    fs.writeFileSync(path.join(themeRoot, 'manifest/contributions.json'), JSON.stringify([{
+      point: 'admin.extension.settings.page',
+      id: 'page',
+      order: 1,
+      payload: { component: 'page' },
+    }]))
+    fs.writeFileSync(path.join(adminRoot, 'components/Page.vue'), '<template><div/></template>\n')
+    fs.writeFileSync(path.join(adminRoot, 'locales/zh-CN.json'), JSON.stringify({ title: '一' }))
+
+    // 模拟旧 compose 写进源码的 peer 软链
+    const peerDir = path.join(adminRoot, 'node_modules/vue')
+    fs.mkdirSync(path.dirname(peerDir), { recursive: true })
+    fs.symlinkSync(path.join(realRepo, 'apps/web/node_modules/vue'), peerDir)
+
+    composeDevAdmin({
+      repoRoot: fixture,
+      outDir: path.join(fixture, 'out'),
+      builtinRoot: builtin,
+      webRoot: path.join(realRepo, 'apps/web'),
+    })
+    expect(fs.existsSync(path.join(adminRoot, 'node_modules'))).toBe(false)
   })
 })
