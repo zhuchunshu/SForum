@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"sync"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -180,9 +181,12 @@ func newWorkerWithPool(cfg config.Config, pool *pgxpool.Pool, logger *slog.Logge
 	// mail.deliver 必须命中共享/本进程同一 runtime，避免 embed 时打到第二套插件进程。
 	mailProviders := extensionsruntime.NewMailProviderRegistry(extensionStore)
 	notificationjobs.Register(registry, &notificationjobs.DeliverMailWorker{Store: notificationStore, Providers: mailProviders, Sender: extensionRuntime})
-	// F3.3：出站 webhook 投递。
+	// F3.3：出站 webhook 投递（SSRF 安全客户端；生产禁 http）。
 	webhookStore := webhooks.NewPostgresStore(pool)
-	webhookjobs.Register(registry, &webhookjobs.DeliverWorker{Store: webhookStore})
+	webhookjobs.Register(registry, &webhookjobs.DeliverWorker{
+		Store:     webhookStore,
+		AllowHTTP: !strings.EqualFold(cfg.AppEnv, "production"),
+	})
 	webReleaseStore := extensions.NewPostgresWebReleaseStore(pool)
 	themeBuilder := themeruntime.NewBuilder(themeruntime.Config{
 		ReleaseRoot:    cfg.ThemeReleaseRoot,

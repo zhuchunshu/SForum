@@ -36,12 +36,21 @@ func TestDeliverWorkerSignsAndSucceeds(t *testing.T) {
 			Payload: []byte(`{"name":"topic.created"}`),
 		},
 		endpoint: webhooks.EndpointRecord{
-			Endpoint: webhooks.Endpoint{ID: 1, TargetURL: server.URL, Enabled: true},
+			// 测试注入 Client 绕过 Dial SSRF；TargetURL 仍须通过字面量公网 IP 校验。
+			Endpoint: webhooks.Endpoint{ID: 1, TargetURL: "https://8.8.8.8/hook", Enabled: true},
 			Secret:   "whsec_test",
 		},
 	}
+	// 用自定义 Transport 把请求转到本地 server，模拟公网可达。
+	client := &http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			req.URL.Scheme = "http"
+			req.URL.Host = server.Listener.Addr().String()
+			return server.Client().Transport.RoundTrip(req)
+		}),
+	}
 	fixed := time.Unix(1_700_000_000, 0).UTC()
-	worker := &DeliverWorker{Store: store, Client: server.Client(), Now: func() time.Time { return fixed }}
+	worker := &DeliverWorker{Store: store, Client: client, AllowHTTP: false, Now: func() time.Time { return fixed }}
 	if err := worker.Work(context.Background(), &river.Job[DeliverArgs]{Args: DeliverArgs{DeliveryID: 9}}); err != nil {
 		t.Fatal(err)
 	}
@@ -64,9 +73,16 @@ func TestDeliverWorkerRetriesOn5xx(t *testing.T) {
 	defer server.Close()
 	store := &fakeStore{
 		delivery: webhooks.Delivery{ID: 2, EndpointID: 1, Status: webhooks.StatusQueued, Payload: []byte(`{}`)},
-		endpoint: webhooks.EndpointRecord{Endpoint: webhooks.Endpoint{ID: 1, TargetURL: server.URL, Enabled: true}},
+		endpoint: webhooks.EndpointRecord{Endpoint: webhooks.Endpoint{ID: 1, TargetURL: "https://8.8.8.8/hook", Enabled: true}},
 	}
-	worker := &DeliverWorker{Store: store, Client: server.Client()}
+	client := &http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			req.URL.Scheme = "http"
+			req.URL.Host = server.Listener.Addr().String()
+			return server.Client().Transport.RoundTrip(req)
+		}),
+	}
+	worker := &DeliverWorker{Store: store, Client: client}
 	err := worker.Work(context.Background(), &river.Job[DeliverArgs]{Args: DeliverArgs{DeliveryID: 2}})
 	if err == nil {
 		t.Fatal("expected retryable error")
@@ -75,6 +91,27 @@ func TestDeliverWorkerRetriesOn5xx(t *testing.T) {
 		t.Fatalf("status=%s", store.update.Status)
 	}
 }
+
+func TestDeliverWorkerBlocksPrivateTarget(t *testing.T) {
+	store := &fakeStore{
+		delivery: webhooks.Delivery{ID: 3, EndpointID: 1, Status: webhooks.StatusQueued, Payload: []byte(`{}`)},
+		endpoint: webhooks.EndpointRecord{
+			Endpoint: webhooks.Endpoint{ID: 1, TargetURL: "http://127.0.0.1/steal", Enabled: true},
+			Secret:   "whsec",
+		},
+	}
+	worker := &DeliverWorker{Store: store, AllowHTTP: true}
+	if err := worker.Work(context.Background(), &river.Job[DeliverArgs]{Args: DeliverArgs{DeliveryID: 3}}); err != nil {
+		t.Fatalf("ssrf should fail permanently without river retry: %v", err)
+	}
+	if store.update.Status != webhooks.StatusFailed || store.update.Reason != "ssrf_blocked" {
+		t.Fatalf("update=%#v", store.update)
+	}
+}
+
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripFunc) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
 
 func TestSignPayloadFormat(t *testing.T) {
 	ts := int64(100)

@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"log/slog"
+	"strings"
 	"sync"
 	"time"
 
@@ -293,7 +294,9 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 	loginLockout := authsupport.NewLoginLockout(sharedRedisClient)
 	// F3.3：出站 webhook 扇出包装在事件发布路径上（observe 成功后异步入队）。
 	webhookStore := webhooks.NewPostgresStore(pool)
-	webhookService := webhooks.NewService(webhookStore, pool, jobDispatcher)
+	// 生产默认仅 https；非生产允许 http 便于本地联调（连接时仍禁止私网 SSRF）。
+	webhookService := webhooks.NewService(webhookStore, pool, jobDispatcher).
+		WithAllowHTTP(!strings.EqualFold(cfg.AppEnv, "production"))
 	eventPublisher := webhooks.BridgePublisher{Inner: extensionRuntime, Fanout: webhookService}
 
 	// F3.4：个人访问令牌；管理走 cookie，调用走 Bearer。

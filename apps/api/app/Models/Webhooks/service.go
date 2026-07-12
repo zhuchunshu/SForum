@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"net/url"
 	"strings"
 
 	"github.com/jackc/pgx/v5"
@@ -14,6 +13,7 @@ import (
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
 	appevents "github.com/zhuchunshu/sforum/apps/api/app/Support/Events"
 	supportjobs "github.com/zhuchunshu/sforum/apps/api/app/Support/Jobs"
+	outboundhttp "github.com/zhuchunshu/sforum/apps/api/app/Support/OutboundHTTP"
 )
 
 type TxEnqueuer interface {
@@ -25,10 +25,20 @@ type Service struct {
 	store Store
 	pool  *pgxpool.Pool
 	jobs  TxEnqueuer
+	// allowHTTP 非生产环境可允许 http:// 目标；生产默认仅 https。
+	allowHTTP bool
 }
 
 func NewService(store Store, pool *pgxpool.Pool, jobs TxEnqueuer) *Service {
 	return &Service{store: store, pool: pool, jobs: jobs}
+}
+
+// WithAllowHTTP 开发/测试可显式允许 http webhook 目标（生产勿开）。
+func (s *Service) WithAllowHTTP(allow bool) *Service {
+	if s != nil {
+		s.allowHTTP = allow
+	}
+	return s
 }
 
 func (s *Service) ListEndpoints(ctx context.Context, actor identity.Actor) ([]Endpoint, error) {
@@ -50,7 +60,7 @@ func (s *Service) CreateEndpoint(ctx context.Context, actor identity.Actor, inpu
 	if err := requireManage(actor); err != nil {
 		return Endpoint{}, err
 	}
-	if err := validateEndpointInput(input.Name, input.TargetURL); err != nil {
+	if err := s.validateEndpointInput(input.Name, input.TargetURL); err != nil {
 		return Endpoint{}, err
 	}
 	record, err := s.store.CreateEndpoint(ctx, input)
@@ -78,7 +88,7 @@ func (s *Service) UpdateEndpoint(ctx context.Context, actor identity.Actor, id i
 			return Endpoint{}, ErrInvalidEndpoint
 		}
 		if input.TargetURL != nil {
-			if err := validateURL(target); err != nil {
+			if err := validateURL(target, s != nil && s.allowHTTP); err != nil {
 				return Endpoint{}, err
 			}
 		}
@@ -191,24 +201,26 @@ func validateEndpointInput(name, targetURL string) error {
 	if strings.TrimSpace(name) == "" {
 		return ErrInvalidEndpoint
 	}
-	return validateURL(targetURL)
+	return validateURL(targetURL, false)
 }
 
-func validateURL(raw string) error {
-	raw = strings.TrimSpace(raw)
-	if raw == "" {
+func (s *Service) validateEndpointInput(name, targetURL string) error {
+	if strings.TrimSpace(name) == "" {
+		return ErrInvalidEndpoint
+	}
+	allowHTTP := false
+	if s != nil {
+		allowHTTP = s.allowHTTP
+	}
+	return validateURL(targetURL, allowHTTP)
+}
+
+func validateURL(raw string, allowHTTP bool) error {
+	if err := outboundhttp.ValidatePublicURL(raw, outboundhttp.Options{AllowHTTP: allowHTTP}); err != nil {
+		// 对客户端统一返回通用校验错误，细节仅留在服务端日志/投递状态。
 		return ErrInvalidURL
 	}
-	parsed, err := url.Parse(raw)
-	if err != nil || parsed.Host == "" {
-		return ErrInvalidURL
-	}
-	switch strings.ToLower(parsed.Scheme) {
-	case "https", "http":
-		return nil
-	default:
-		return ErrInvalidURL
-	}
+	return nil
 }
 
 func FormatError(err error) string {

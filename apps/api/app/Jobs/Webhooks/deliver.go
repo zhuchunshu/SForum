@@ -6,6 +6,7 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -16,6 +17,7 @@ import (
 	"github.com/riverqueue/river"
 	webhooks "github.com/zhuchunshu/sforum/apps/api/app/Models/Webhooks"
 	supportjobs "github.com/zhuchunshu/sforum/apps/api/app/Support/Jobs"
+	outboundhttp "github.com/zhuchunshu/sforum/apps/api/app/Support/OutboundHTTP"
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Outbox"
 )
 
@@ -42,7 +44,9 @@ type DeliverWorker struct {
 	river.WorkerDefaults[DeliverArgs]
 	Store  DeliveryStore
 	Client *http.Client
-	Now    func() time.Time
+	// AllowHTTP 与配置时校验一致；生产应 false。
+	AllowHTTP bool
+	Now       func() time.Time
 }
 
 func (w *DeliverWorker) Work(ctx context.Context, job *river.Job[DeliverArgs]) error {
@@ -87,9 +91,18 @@ func (w *DeliverWorker) Work(ctx context.Context, job *river.Job[DeliverArgs]) e
 		return err
 	}
 
+	// 投递前再校验目标（配置后 DNS 变化 / 历史脏数据）。
+	if err := outboundhttp.ValidatePublicURL(endpoint.TargetURL, outboundhttp.Options{AllowHTTP: w.AllowHTTP}); err != nil {
+		return w.failPermanent(ctx, delivery.ID, attempt, "ssrf_blocked", "target url is not allowed", 0, "")
+	}
+
 	client := w.Client
 	if client == nil {
-		client = &http.Client{Timeout: 15 * time.Second}
+		// 默认使用 SSRF 安全客户端：连接时重解析 IP + 重定向校验。
+		client = outboundhttp.NewSafeClient(outboundhttp.Options{
+			AllowHTTP: w.AllowHTTP,
+			Timeout:   15 * time.Second,
+		})
 	}
 	body := delivery.Payload
 	if len(body) == 0 {
@@ -117,6 +130,10 @@ func (w *DeliverWorker) Work(ctx context.Context, job *river.Job[DeliverArgs]) e
 
 	resp, err := client.Do(req)
 	if err != nil {
+		// SSRF / 不安全重定向：永久失败，不重试到内网。
+		if errors.Is(err, outboundhttp.ErrUnsafeURL) || isUnsafeURLError(err) {
+			return w.failPermanent(ctx, delivery.ID, attempt, "ssrf_blocked", "target url is not allowed", 0, "")
+		}
 		// 网络临时失败：保持 sending，返回 error 让 River 重试。
 		_ = w.Store.UpdateDelivery(ctx, webhooks.DeliveryUpdate{
 			ID: delivery.ID, Status: webhooks.StatusSending, AttemptCount: attempt,
@@ -173,6 +190,15 @@ func truncate(s string, n int) string {
 		return s
 	}
 	return s[:n]
+}
+
+func isUnsafeURLError(err error) bool {
+	if err == nil {
+		return false
+	}
+	// net/http 常包装 CheckRedirect / Dial 错误。
+	msg := err.Error()
+	return strings.Contains(msg, "outboundhttp: unsafe url") || strings.Contains(msg, "ssrf")
 }
 
 func Register(registry *supportjobs.Registry, worker *DeliverWorker) {
