@@ -246,7 +246,7 @@ func TestBeginGeneratesSIDAndRegistersInDirectory(t *testing.T) {
 		// 调用方在 Save 前设置解析好的设备信息。
 		pending.SetDeviceInfo(SessionRecordInput{
 			UserID: 42, DeviceName: "Chrome on macOS", Browser: "Chrome", OS: "macOS",
-			IPPrefix: "1.2.3.*", UserAgentRaw: "Mozilla/5.0",
+			IPAddress: "1.2.3.4", IPPrefix: "1.2.3.*", UserAgentRaw: "Mozilla/5.0",
 		})
 		return pending.Save()
 	})

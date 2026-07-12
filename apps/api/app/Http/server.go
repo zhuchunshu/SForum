@@ -16,6 +16,7 @@ import (
 
 	options "github.com/zhuchunshu/sforum/apps/api/app/Models/Options"
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Audit"
+	clientip "github.com/zhuchunshu/sforum/apps/api/app/Support/ClientIP"
 	health "github.com/zhuchunshu/sforum/apps/api/app/Support/Health"
 	"github.com/zhuchunshu/sforum/apps/api/config"
 )
@@ -51,6 +52,21 @@ type Dependencies struct {
 }
 
 func NewApp(cfg config.Config, logger *slog.Logger, deps Dependencies) *fiber.App {
+	// 进程级真实 IP 解析器：业务统一走 clientip.FromCtx。
+	clientip.Configure(clientip.Config{
+		Proxies:       cfg.TrustedProxies,
+		TrustPrivate:  cfg.TrustProxyPrivate,
+		TrustLoopback: cfg.TrustProxyLoopback,
+	})
+	if logger != nil && strings.EqualFold(cfg.AppEnv, "production") && cfg.TrustProxy && len(cfg.TrustedProxies) == 0 && !cfg.TrustProxyPrivate && !cfg.TrustProxyLoopback {
+		// 生产开了 TrustProxy 却没有任何信任集合：c.IP()/转发头不会被采信，限流与审计可能只看到边缘 IP。
+		logger.Warn("trust_proxy enabled but TRUSTED_PROXIES is empty; client IPs may fall back to TCP remote")
+	}
+
+	proxyHeader := strings.TrimSpace(cfg.ProxyHeader)
+	if proxyHeader == "" {
+		proxyHeader = fiber.HeaderXForwardedFor
+	}
 	app := fiber.New(fiber.Config{
 		AppName:      cfg.AppName,
 		ErrorHandler: errorHandler(logger),
@@ -58,6 +74,16 @@ func NewApp(cfg config.Config, logger *slog.Logger, deps Dependencies) *fiber.Ap
 		WriteTimeout: cfg.HTTPWriteTimeout,
 		IdleTimeout:  cfg.HTTPIdleTimeout,
 		BodyLimit:    cfg.HTTPBodyLimit,
+		// Fiber 内置 c.IP() / 限流也走同一套信任代理策略。
+		ProxyHeader: proxyHeader,
+		TrustProxy:  cfg.TrustProxy,
+		TrustProxyConfig: fiber.TrustProxyConfig{
+			Proxies:   cfg.TrustedProxies,
+			Private:   cfg.TrustProxyPrivate,
+			Loopback:  cfg.TrustProxyLoopback,
+			LinkLocal: false,
+		},
+		EnableIPValidation: true,
 	})
 	app.Hooks().OnPreStartupMessage(func(sm *fiber.PreStartupMessageData) error {
 		sm.BannerHeader = sforumStartupBanner

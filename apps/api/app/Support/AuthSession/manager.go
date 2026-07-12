@@ -12,6 +12,8 @@ import (
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/session"
+
+	clientip "github.com/zhuchunshu/sforum/apps/api/app/Support/ClientIP"
 )
 
 const (
@@ -58,7 +60,10 @@ type SessionRecordInput struct {
 	Browser      string
 	OS           string
 	UserAgentRaw string
-	IPPrefix     string
+	// IPAddress 是规范化后的真实客户端 IP（全文，管理/风控用）。
+	IPAddress string
+	// IPPrefix 是脱敏展示前缀（用户「我的设备」列表）。
+	IPPrefix string
 }
 
 type Config struct {
@@ -139,7 +144,8 @@ func (m *Manager) Begin(c fiber.Ctx, userID int64) (*Pending, error) {
 	sess.Set(sessionUserIDKey, userID)
 	sess.Set(sessionCreatedAtKey, now)
 	sess.Set(sessionRenewedAtKey, now)
-	sess.Set(sessionLoginIPKey, truncate(c.IP(), 128))
+	// 登录 IP 写入 session payload（全文），供审计/风控；解析走 clientip 防代理伪造。
+	sess.Set(sessionLoginIPKey, truncate(clientip.FromCtx(c), 128))
 	sess.Set(sessionLoginAgentKey, truncate(c.Get(fiber.HeaderUserAgent), 512))
 	sess.Set(sessionSIDKey, sid)
 	// 记录创建会话时的令牌版本号，供后续 CurrentUserID 比对以实现会话失效（M8）。

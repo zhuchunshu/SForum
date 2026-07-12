@@ -84,7 +84,21 @@ type Config struct {
 	CSRFTrustedOrigins []string
 	// CSRFEnabled 控制 CSRF 中间件是否启用，默认 true（生产启用）。
 	// 测试场景显式置 false 以避免每个测试请求都需携带 token。
-	CSRFEnabled                  bool
+	CSRFEnabled bool
+	// TrustProxy 为 true 时，Fiber 与 clientip 在 TCP 对端属于 TrustedProxies 时
+	// 才采信 X-Forwarded-For / X-Real-IP 等转发头（防伪造）。
+	// 开发默认 true；生产若 TRUST_PROXY 未设则为 false，须显式开启并配置 TRUSTED_PROXIES。
+	TrustProxy bool
+	// TrustedProxies 是信任的代理 IP 或 CIDR 列表。
+	// 开发默认信任 loopback + 私网（Docker 网桥）；生产默认空，必须显式配置边缘代理。
+	TrustedProxies []string
+	// TrustProxyPrivate / TrustProxyLoopback 控制是否把整类私网/环回视为信任代理。
+	// 开发默认 true；生产仅当 TRUSTED_PROXIES 为空且未显式关闭时仍为 false（安全默认）。
+	TrustProxyPrivate  bool
+	TrustProxyLoopback bool
+	// ProxyHeader 是 Fiber c.IP() 读取的转发头名，默认 X-Forwarded-For。
+	// 业务代码应优先用 clientip.FromCtx，本字段主要服务 Fiber 内置限流等。
+	ProxyHeader                  string
 	JobQueueCriticalWorkers      int
 	JobQueueDefaultWorkers       int
 	JobQueueSearchWorkers        int
@@ -115,6 +129,16 @@ func Load() Config {
 	webReleaseBuildTimeout := envDuration("WEB_RELEASE_BUILD_TIMEOUT", envDuration("THEME_BUILD_TIMEOUT", 5*time.Minute))
 	webReleasePreviewTimeout := envDuration("WEB_RELEASE_PREVIEW_TIMEOUT", envDuration("THEME_PREVIEW_TIMEOUT", 30*time.Second))
 	webReleasePreviewPath := env("WEB_RELEASE_PREVIEW_PATH", env("THEME_PREVIEW_PATH", "/"))
+
+	// 真实客户端 IP：开发默认信任私网/loopback（Docker+Nuxt 反代）；生产须显式 TRUST_PROXY + TRUSTED_PROXIES。
+	isProd := strings.EqualFold(appEnv, "production")
+	trustProxy := envBool("TRUST_PROXY", !isProd)
+	trustedProxies := envStringSlice("TRUSTED_PROXIES")
+	// 开发/非生产：未配置 TRUSTED_PROXIES 时默认信任私网与 loopback。
+	// 生产：不默认信任任何网段，避免 API 直接暴露公网时被伪造 XFF 绕过限流。
+	trustPrivate := envBool("TRUST_PROXY_PRIVATE", !isProd)
+	trustLoopback := envBool("TRUST_PROXY_LOOPBACK", !isProd)
+	proxyHeader := env("PROXY_HEADER", "X-Forwarded-For")
 
 	cfg := Config{
 		AppEnv:           appEnv,
@@ -183,6 +207,11 @@ func Load() Config {
 		LimiterWindow:                 envDuration("LIMITER_WINDOW", time.Minute),
 		CSRFTrustedOrigins:            csrfOrigins,
 		CSRFEnabled:                   envBool("CSRF_ENABLED", true),
+		TrustProxy:                    trustProxy,
+		TrustedProxies:                trustedProxies,
+		TrustProxyPrivate:             trustPrivate,
+		TrustProxyLoopback:            trustLoopback,
+		ProxyHeader:                   proxyHeader,
 		JobQueueCriticalWorkers:       envPositiveInt("JOB_QUEUE_CRITICAL_WORKERS", 4),
 		JobQueueDefaultWorkers:        envPositiveInt("JOB_QUEUE_DEFAULT_WORKERS", 8),
 		JobQueueSearchWorkers:         envPositiveInt("JOB_QUEUE_SEARCH_WORKERS", 6),

@@ -20,6 +20,7 @@ import (
 	options "github.com/zhuchunshu/sforum/apps/api/app/Models/Options"
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Audit"
 	authsession "github.com/zhuchunshu/sforum/apps/api/app/Support/AuthSession"
+	clientip "github.com/zhuchunshu/sforum/apps/api/app/Support/ClientIP"
 	appevents "github.com/zhuchunshu/sforum/apps/api/app/Support/Events"
 	humanverify "github.com/zhuchunshu/sforum/apps/api/app/Support/HumanVerify"
 	useragent "github.com/zhuchunshu/sforum/apps/api/app/Support/UserAgent"
@@ -153,7 +154,7 @@ func (h *Controller) register(c fiber.Ctx) error {
 		Provider: req.HumanVerification.Provider,
 		Purpose:  humanverify.PurposeRegister,
 		Token:    req.HumanVerification.Token,
-		IP:       c.IP(),
+		IP:       clientip.FromCtx(c),
 	}); err != nil {
 		return mapHumanVerificationError(err)
 	}
@@ -224,7 +225,7 @@ func (h *Controller) humanVerificationChallenge(c fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusUnprocessableEntity, "validation.invalid")
 	}
 
-	challenge, err := h.verifier.Challenge(c.Context(), purpose, humanverify.Subject{IP: c.IP()})
+	challenge, err := h.verifier.Challenge(c.Context(), purpose, humanverify.Subject{IP: clientip.FromCtx(c)})
 	if err != nil {
 		return mapHumanVerificationError(err)
 	}
@@ -269,11 +270,11 @@ func (h *Controller) passwordResetRequest(c fiber.Ctx) error {
 		Provider: req.HumanVerification.Provider,
 		Token:    req.HumanVerification.Token,
 		Purpose:  humanverify.PurposePasswordReset,
-		IP:       c.IP(),
+		IP:       clientip.FromCtx(c),
 	}); err != nil {
 		return mapHumanVerificationError(err)
 	}
-	ip := c.IP()
+	ip := clientip.FromCtx(c)
 	_ = h.passwordReset.RequestPasswordReset(c.Context(), identity.RequestPasswordResetInput{
 		// 规范化邮箱：trim 后传给 service，与 register/login 路径的输入处理保持一致。
 		Email: strings.TrimSpace(req.Email),
@@ -599,24 +600,26 @@ func (h *Controller) auditLogin(c fiber.Ctx, userID int64, action string, sessio
 	return h.service.RecordLoginAudit(c.Context(), identity.LoginAudit{
 		UserID:      userID,
 		Action:      action,
-		IPAddress:   c.IP(),
+		IPAddress:   clientip.FromCtx(c),
 		UserAgent:   c.Get(fiber.HeaderUserAgent),
 		SessionHash: sessionHash,
 	})
 }
 
 // applySessionDeviceInfo 解析请求 UA/IP 并设置到 pending 会话，Save 时写入会话目录。
+// 真实 IP 全文进 ip_address，脱敏前缀进 ip_prefix（用户端设备列表）。
 func (h *Controller) applySessionDeviceInfo(c fiber.Ctx, userID int64, pending *authsession.Pending) {
 	if pending == nil {
 		return
 	}
-	info := useragent.Parse(c.Get(fiber.HeaderUserAgent), c.IP())
+	info := useragent.Parse(c.Get(fiber.HeaderUserAgent), clientip.FromCtx(c))
 	pending.SetDeviceInfo(authsession.SessionRecordInput{
 		UserID:       userID,
 		DeviceName:   info.DeviceName,
 		Browser:      info.Browser,
 		OS:           info.OS,
 		UserAgentRaw: info.UserAgentRaw,
+		IPAddress:    info.IPAddress,
 		IPPrefix:     info.IPPrefix,
 	})
 }

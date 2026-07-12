@@ -22,10 +22,10 @@ import (
 // 返回错误让调用方感知异常，而非静默污染数据。
 func (s *PostgresStore) CreateSession(ctx context.Context, input authsession.SessionRecordInput) error {
 	tag, err := s.pool.Exec(ctx, `
-		INSERT INTO user_sessions (user_id, sid, session_hash, device_name, browser, os, user_agent_raw, ip_prefix)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+		INSERT INTO user_sessions (user_id, sid, session_hash, device_name, browser, os, user_agent_raw, ip_prefix, ip_address)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 		ON CONFLICT (sid) DO NOTHING
-	`, input.UserID, input.SID, input.SessionHash, input.DeviceName, input.Browser, input.OS, input.UserAgentRaw, input.IPPrefix)
+	`, input.UserID, input.SID, input.SessionHash, input.DeviceName, input.Browser, input.OS, input.UserAgentRaw, input.IPPrefix, input.IPAddress)
 	if err != nil {
 		return fmt.Errorf("create user session: %w", err)
 	}

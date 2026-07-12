@@ -337,6 +337,18 @@ Important production variables:
   Nuxt reverse proxy the API sees an internal Host while the browser sends the
   public site as `Origin` — the public origin **must** be listed here or every
   unsafe request is rejected. Defaults to the origin derived from `APP_URL`.)
+- `TRUST_PROXY` (whether to trust `X-Forwarded-For` / CDN client-IP headers when
+  the TCP peer is a trusted proxy. Default: `true` outside production, `false`
+  in production — production must set this explicitly.)
+- `TRUSTED_PROXIES` (comma-separated proxy IPs or CIDRs that may forward client
+  IPs, e.g. `10.0.0.0/8,172.16.0.0/12`. Required in production when
+  `TRUST_PROXY=true`. Never set `0.0.0.0/0`.)
+- `TRUST_PROXY_PRIVATE` / `TRUST_PROXY_LOOPBACK` (trust RFC1918 private ranges
+  and loopback as proxies. Default `true` outside production for Docker/Nuxt;
+  default `false` in production.)
+- `PROXY_HEADER` (header Fiber uses for `c.IP()`, default `X-Forwarded-For`.
+  Business code uses `clientip.FromCtx`, which also reads `CF-Connecting-IP`,
+  `True-Client-IP`, and `X-Real-IP`.)
 - Mail provider variables or extension settings only when a mail plugin is
   installed. Avoid adding core `SMTP_*` settings for vendor-specific delivery.
 - `S3_*` once uploads exist.
@@ -345,7 +357,9 @@ Important production variables:
 > `X-Csrf-Token` header, backed by the shared Redis storage. The frontend reads
 > the cookie and echoes it on unsafe requests via `useApiClient`. The reverse
 > proxy should forward `X-Forwarded-Proto` so HTTPS Origin/Referer fallback
-> works correctly.
+> works correctly. It must also preserve or append `X-Forwarded-For` (and, for
+> Cloudflare, pass through `CF-Connecting-IP`) so login/session and
+> post/comment IP audit fields record the real client address.
 
 ## Health Checks
 

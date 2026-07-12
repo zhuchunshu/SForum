@@ -548,6 +548,7 @@ func (s *Service) CreateTopic(ctx context.Context, actor identity.Actor, input C
 		Content:            content,
 		Status:             status,
 		ModerationTriggers: publication.Triggers,
+		IPAddress:          strings.TrimSpace(input.IPAddress),
 	})
 	if err != nil {
 		return TopicDetail{}, err
@@ -876,6 +877,7 @@ func (s *Service) CreateComment(ctx context.Context, actor identity.Actor, input
 		Status:             status,
 		ModerationTriggers: publication.Triggers,
 		MentionedUsernames: mentionedUsernames(input.Content.RawContent),
+		IPAddress:          strings.TrimSpace(input.IPAddress),
 	})
 	if err != nil {
 		return Comment{}, err

@@ -13,5 +13,11 @@
 		Referrer-Policy "strict-origin-when-cross-origin"
 	}
 
-	reverse_proxy 127.0.0.1:{$WEB_PORT:3000}
+	# 反代到 Nuxt：Caddy 默认会维护 X-Forwarded-For / X-Forwarded-Proto。
+	# 若前面还有 Cloudflare 等 CDN，请在 API 的 TRUSTED_PROXIES 中列入 Caddy
+	# 所在网段（以及 CDN 出口），以便 clientip 剥掉代理链拿到真实客户端 IP。
+	reverse_proxy 127.0.0.1:{$WEB_PORT:3000} {
+		header_up X-Real-IP {remote_host}
+		header_up X-Forwarded-Proto {scheme}
+	}
 }

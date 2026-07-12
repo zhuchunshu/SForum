@@ -30,21 +30,21 @@ func TestParseEmptyUAAndIP(t *testing.T) {
 	}
 }
 
-func TestMaskIPv4(t *testing.T) {
-	cases := map[string]string{
-		"1.2.3.4":      "1.2.3.*",
-		"192.168.1.1":  "192.168.1.*",
-		"10.0.0.255":   "10.0.0.*",
-		"":             "",
-		"not-an-ip":    "",
-		"::1":          "", // IPv6 统一空串
-		"2001:db8::1":  "",
+func TestParseStoresFullIPAndMaskedPrefix(t *testing.T) {
+	info := Parse("Mozilla/5.0", "1.2.3.4")
+	if info.IPAddress != "1.2.3.4" {
+		t.Fatalf("expected full IP, got %q", info.IPAddress)
 	}
-	for input, want := range cases {
-		got := maskIP(input)
-		if got != want {
-			t.Errorf("maskIP(%q) = %q, want %q", input, got, want)
-		}
+	if info.IPPrefix != "1.2.3.*" {
+		t.Fatalf("expected masked prefix, got %q", info.IPPrefix)
+	}
+	// IPv6 也应有脱敏前缀（不再返回空串）。
+	info6 := Parse("", "2001:db8:1:2::3")
+	if info6.IPAddress != "2001:db8:1:2::3" {
+		t.Fatalf("expected normalized IPv6, got %q", info6.IPAddress)
+	}
+	if info6.IPPrefix != "2001:db8:1:*" {
+		t.Fatalf("expected IPv6 mask, got %q", info6.IPPrefix)
 	}
 }
 

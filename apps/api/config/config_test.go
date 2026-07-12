@@ -157,6 +157,64 @@ func TestConfigDoesNotExposeAttachmentLocalRootEnv(t *testing.T) {
 	}
 }
 
+func TestLoadTrustProxyDefaultsByEnvironment(t *testing.T) {
+	// 开发：默认开启 TrustProxy，并信任私网/loopback（Docker + Nuxt 反代）。
+	t.Setenv("APP_ENV", "development")
+	t.Setenv("TRUST_PROXY", "")
+	t.Setenv("TRUSTED_PROXIES", "")
+	t.Setenv("TRUST_PROXY_PRIVATE", "")
+	t.Setenv("TRUST_PROXY_LOOPBACK", "")
+	dev := Load()
+	if !dev.TrustProxy {
+		t.Fatal("expected development TrustProxy=true by default")
+	}
+	if !dev.TrustProxyPrivate || !dev.TrustProxyLoopback {
+		t.Fatal("expected development to trust private/loopback by default")
+	}
+	if dev.ProxyHeader != "X-Forwarded-For" {
+		t.Fatalf("expected default ProxyHeader X-Forwarded-For, got %q", dev.ProxyHeader)
+	}
+
+	// 生产：默认关闭 TrustProxy，且不信任私网（须显式配置）。
+	t.Setenv("APP_ENV", "production")
+	setValidProductionSecrets(t)
+	t.Setenv("TRUST_PROXY", "")
+	t.Setenv("TRUSTED_PROXIES", "")
+	t.Setenv("TRUST_PROXY_PRIVATE", "")
+	t.Setenv("TRUST_PROXY_LOOPBACK", "")
+	prod := Load()
+	if prod.TrustProxy {
+		t.Fatal("expected production TrustProxy=false by default")
+	}
+	if prod.TrustProxyPrivate || prod.TrustProxyLoopback {
+		t.Fatal("expected production not to trust private/loopback by default")
+	}
+
+	// 生产显式开启 + CIDR。
+	t.Setenv("TRUST_PROXY", "true")
+	t.Setenv("TRUSTED_PROXIES", "10.0.0.0/8,203.0.113.10")
+	t.Setenv("PROXY_HEADER", "X-Real-IP")
+	prodOn := Load()
+	if !prodOn.TrustProxy {
+		t.Fatal("expected explicit TRUST_PROXY=true")
+	}
+	if len(prodOn.TrustedProxies) != 2 {
+		t.Fatalf("expected 2 trusted proxies, got %#v", prodOn.TrustedProxies)
+	}
+	if prodOn.ProxyHeader != "X-Real-IP" {
+		t.Fatalf("expected ProxyHeader override, got %q", prodOn.ProxyHeader)
+	}
+}
+
+func TestLoadIncludesDefaultWorkerConfigTrustProxyInTestEnv(t *testing.T) {
+	// APP_ENV=test 与 development 一样：非 production → 默认信任私网。
+	t.Setenv("APP_ENV", "test")
+	cfg := Load()
+	if !cfg.TrustProxy || !cfg.TrustProxyPrivate {
+		t.Fatal("expected test env to trust proxy/private by default")
+	}
+}
+
 // TestConfigDoesNotExposePhantomSessionOrCSRFFields 防止文档/示例中残留的
 // SESSION_SECRET、CSRF_SECRET 被误当成真实配置字段。
 // 实际生效的是 SESSION_HASH_SECRET；CSRF 功能落地前不应出现对应字段。

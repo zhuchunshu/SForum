@@ -13,6 +13,7 @@ import (
 	forum "github.com/zhuchunshu/sforum/apps/api/app/Models/Forum"
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
 	authsession "github.com/zhuchunshu/sforum/apps/api/app/Support/AuthSession"
+	clientip "github.com/zhuchunshu/sforum/apps/api/app/Support/ClientIP"
 	appevents "github.com/zhuchunshu/sforum/apps/api/app/Support/Events"
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Idempotency"
 )
@@ -236,6 +237,7 @@ func (h *Controller) createTopic(c fiber.Ctx) error {
 		Title:        req.Title,
 		TagSlugs:     req.TagSlugs,
 		Content:      req.Content,
+		IPAddress:    clientip.FromCtx(c),
 	})
 	if err != nil {
 		return mapForumError(err)
@@ -401,9 +403,10 @@ func (h *Controller) createComment(c fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusUnprocessableEntity, forum.CodeInvalidContent)
 	}
 	comment, err := h.service.CreateComment(c.Context(), actor, forum.CreateCommentInput{
-		TopicID:  int64(paramInt(c, "topicID")),
-		ParentID: req.ParentID,
-		Content:  req.Content,
+		TopicID:   int64(paramInt(c, "topicID")),
+		ParentID:  req.ParentID,
+		Content:   req.Content,
+		IPAddress: clientip.FromCtx(c),
 	})
 	if err != nil {
 		return mapForumError(err)

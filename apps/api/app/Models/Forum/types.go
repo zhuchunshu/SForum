@@ -243,10 +243,10 @@ type TopicSummary struct {
 
 type TopicDetail struct {
 	TopicSummary
-	Content          RenderedContent             `json:"content"`
-	ExtensionActions []TopicExtensionAction      `json:"extensionActions,omitempty"`
-	ExtensionSidebar []TopicExtensionSidebarItem `json:"extensionSidebar,omitempty"`
-	ExtensionBadges  []TopicExtensionBadge       `json:"extensionBadges,omitempty"`
+	Content          RenderedContent              `json:"content"`
+	ExtensionActions []TopicExtensionAction       `json:"extensionActions,omitempty"`
+	ExtensionSidebar []TopicExtensionSidebarItem  `json:"extensionSidebar,omitempty"`
+	ExtensionBadges  []TopicExtensionBadge        `json:"extensionBadges,omitempty"`
 }
 
 type TopicExtensionAction struct {
@@ -305,6 +305,8 @@ type CreateTopicInput struct {
 	Title        string       `json:"title"`
 	TagSlugs     []string     `json:"tagSlugs,omitempty"`
 	Content      ContentInput `json:"content"`
+	// IPAddress 创建时客户端真实 IP（由 HTTP 层 clientip.FromCtx 注入；不进公开 JSON）。
+	IPAddress string `json:"-"`
 }
 
 type CreateTopicRecord struct {
@@ -320,6 +322,8 @@ type CreateTopicRecord struct {
 	Content            RenderedContent
 	Status             string
 	ModerationTriggers []string
+	// IPAddress 创建时真实客户端 IP（全文，管理/风控用，不进公开 API）。
+	IPAddress string
 }
 
 // UpdateTopicInput 是作者或版主更新主题时提交的输入。content 为可选：
@@ -569,6 +573,8 @@ type CreateCommentInput struct {
 	TopicID  int64        `json:"topicId"`
 	ParentID *int64       `json:"parentId,omitempty"`
 	Content  ContentInput `json:"content"`
+	// IPAddress 创建时客户端真实 IP（由 HTTP 层 clientip.FromCtx 注入；不进公开 JSON）。
+	IPAddress string `json:"-"`
 }
 
 type CreateCommentRecord struct {
@@ -581,6 +587,8 @@ type CreateCommentRecord struct {
 	Status             string
 	ModerationTriggers []string
 	MentionedUsernames []string
+	// IPAddress 创建时真实客户端 IP（全文，管理/风控用，不进公开 API）。
+	IPAddress string
 }
 
 type PublicationInput struct {

@@ -243,7 +243,7 @@ func TestSessionRecordInputShape(t *testing.T) {
 	_ = authsession.SessionRecordInput{
 		UserID: 1, SID: "x", SessionHash: "h",
 		DeviceName: "Chrome", Browser: "Chrome", OS: "macOS",
-		UserAgentRaw: "ua", IPPrefix: "1.2.3.*",
+		UserAgentRaw: "ua", IPAddress: "1.2.3.4", IPPrefix: "1.2.3.*",
 	}
 	_ = context.Background()
 }

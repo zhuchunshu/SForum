@@ -563,10 +563,10 @@ func (s *PostgresStore) CreateTopic(ctx context.Context, input CreateTopicRecord
 	}
 	var topicID int64
 	if err := tx.QueryRow(ctx, `
-		INSERT INTO topics (category_id, author_user_id, content_id, title, slug, status, moderation_triggers)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		INSERT INTO topics (category_id, author_user_id, content_id, title, slug, status, moderation_triggers, ip_address)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 		RETURNING id
-	`, categoryID, input.AuthorUserID, content.ID, input.Title, input.Slug, input.Status, triggerSnapshot).Scan(&topicID); err != nil {
+	`, categoryID, input.AuthorUserID, content.ID, input.Title, input.Slug, input.Status, triggerSnapshot, input.IPAddress).Scan(&topicID); err != nil {
 		return TopicDetail{}, fmt.Errorf("insert topic: %w", err)
 	}
 	if input.Status == TopicStatusActive {
@@ -1105,10 +1105,10 @@ func (s *PostgresStore) CreateComment(ctx context.Context, input CreateCommentRe
 	}
 	var commentID int64
 	if err := tx.QueryRow(ctx, `
-		INSERT INTO comments (topic_id, content_id, author_user_id, parent_comment_id, status, moderation_triggers)
-		VALUES ($1, $2, $3, $4, $5, $6)
+		INSERT INTO comments (topic_id, content_id, author_user_id, parent_comment_id, status, moderation_triggers, ip_address)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
 		RETURNING id
-	`, input.TopicID, content.ID, input.AuthorUserID, input.ParentID, input.Status, triggerSnapshot).Scan(&commentID); err != nil {
+	`, input.TopicID, content.ID, input.AuthorUserID, input.ParentID, input.Status, triggerSnapshot, input.IPAddress).Scan(&commentID); err != nil {
 		return Comment{}, fmt.Errorf("insert comment: %w", err)
 	}
 	position := CommentPositionForInsert(commentID, input.Parent)
