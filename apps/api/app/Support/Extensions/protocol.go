@@ -180,14 +180,15 @@ func (s *ProtocolStarter) Start(ctx context.Context, extension extensions.Extens
 		return RouteTarget{}, fmt.Errorf("plugin health check failed")
 	}
 	target, err := protocol.RouteTarget()
-	if err != nil || target.BaseURL == "" {
+	if err != nil {
 		client.Kill()
-		if err != nil {
-			return RouteTarget{}, err
-		}
-		return RouteTarget{}, fmt.Errorf("plugin route target is empty")
+		return RouteTarget{}, err
 	}
-	if err := validatePluginRouteTarget(target.BaseURL); err != nil {
+	// 纯 provider/RPC 插件（如 SMTP）不暴露 HTTP 路由：允许空或历史哨兵值。
+	baseURL := strings.TrimSpace(target.BaseURL)
+	if isPluginRouteTargetNone(baseURL) {
+		baseURL = ""
+	} else if err := validatePluginRouteTarget(baseURL); err != nil {
 		client.Kill()
 		return RouteTarget{}, err
 	}
@@ -205,10 +206,22 @@ func (s *ProtocolStarter) Start(ctx context.Context, extension extensions.Extens
 	s.clients[extension.ID] = client
 	s.protocols[extension.ID] = protocol
 	s.mu.Unlock()
-	return RouteTarget{BaseURL: target.BaseURL}, nil
+	return RouteTarget{BaseURL: baseURL}, nil
+}
+
+// isPluginRouteTargetNone 表示插件不提供可代理的 HTTP BaseURL。
+// 兼容旧哨兵 "disabled"（SSRF 加固前 SMTP 等插件使用）。
+func isPluginRouteTargetNone(raw string) bool {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "", "disabled", "none":
+		return true
+	default:
+		return false
+	}
 }
 
 // validatePluginRouteTarget 限制插件 RouteTarget 仅允许 loopback http(s)，阻断 SSRF。
+// 调用方应先用 isPluginRouteTargetNone 处理无路由插件。
 func validatePluginRouteTarget(raw string) error {
 	parsed, err := url.Parse(raw)
 	if err != nil {

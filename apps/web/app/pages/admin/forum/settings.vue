@@ -229,12 +229,14 @@ function errorToast(error: unknown, fallback: string) {
     </template>
   </UDashboardToolbar>
 
-  <form class="grid gap-4" @submit.prevent="saveSettings">
+  <!-- flex-col + shrink-0：避免 UAlert 在 grid/flex 中因 overflow 被压扁，看起来像 tab 压住提示 -->
+  <form class="flex w-full min-w-0 flex-col gap-4" @submit.prevent="saveSettings">
     <UAlert
       v-if="error"
       color="error"
       variant="soft"
       icon="i-lucide-triangle-alert"
+      class="w-full shrink-0"
       :title="t('admin.forum.settings.loadFailed')"
     />
 
@@ -242,6 +244,7 @@ function errorToast(error: unknown, fallback: string) {
       color="primary"
       variant="soft"
       icon="i-lucide-sparkles"
+      class="w-full shrink-0"
       :title="t('admin.forum.settings.recommendedTitle')"
       :description="t('admin.forum.settings.recommendedDescription')"
     />
@@ -249,7 +252,7 @@ function errorToast(error: unknown, fallback: string) {
     <div
       role="tablist"
       :aria-label="t('admin.forum.settings.tabs.label')"
-      class="flex flex-wrap gap-2 border-b border-slate-200 pb-3 dark:border-zinc-800"
+      class="relative z-0 flex flex-wrap gap-2 border-b border-slate-200 pb-3 dark:border-zinc-800"
     >
       <UButton
         v-for="tab in tabs"

@@ -477,9 +477,15 @@ async function signOut() {
         </div>
       </div>
 
-      <!-- 3. 内容区滚动面板：footer 在区内随内容滚动，短页用 mt-auto 沉底 -->
-      <div class="flex-1 min-h-0 overflow-y-auto flex flex-col p-4 sm:p-6 bg-[var(--bg-admin-app)]">
-        <slot />
+      <!--
+        3. 内容区滚动面板：footer 在区内随内容滚动，短页用 mt-auto 沉底。
+        页面 slot 包一层 full-width 容器：多根页面（Fragment）的 UAlert/UCard 等
+        不再与 footer 同为 flex 子项，避免宽度 shrink / 背景“没撑开”。
+      -->
+      <div class="flex min-h-0 flex-1 flex-col overflow-y-auto bg-[var(--bg-admin-app)] p-4 sm:p-6">
+        <div class="sforum-admin-page min-w-0 w-full">
+          <slot />
+        </div>
         <SFAdminFooter />
       </div>
     </UDashboardPanel>

@@ -375,13 +375,14 @@ function absoluteUrl(path: string) {
       color="error"
       variant="soft"
       icon="i-lucide-triangle-alert"
+      class="w-full shrink-0"
       :title="t('admin.seo.loadFailed')"
     />
 
     <div
       role="tablist"
       :aria-label="t('admin.seo.tabs.label')"
-      class="flex flex-wrap gap-2 border-b border-slate-200 pb-3 dark:border-zinc-800"
+      class="relative z-0 flex flex-wrap gap-2 border-b border-slate-200 pb-3 dark:border-zinc-800"
     >
       <UButton
         v-for="tab in tabs"

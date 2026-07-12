@@ -42,6 +42,10 @@ process through `SFORUM_SETTING_*` environment variables.
 worker dev startup. The API Dockerfile builds the Linux executable into the
 built-in package.
 
+SMTP is RPC/provider-only: `RouteTarget` is empty (no HTTP proxy base). The
+host treats empty/`disabled`/`none` as “no route target” so SSRF loopback
+validation does not mark the runtime failed.
+
 The plugin owns all SMTP product copy and optional custom settings UI:
 
 - Manifest `settings` labels/descriptions/placeholders/groups/options use

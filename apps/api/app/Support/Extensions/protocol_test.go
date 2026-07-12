@@ -22,6 +22,19 @@ func TestValidatePluginRouteTargetAllowsLoopback(t *testing.T) {
 	}
 }
 
+func TestIsPluginRouteTargetNone(t *testing.T) {
+	for _, raw := range []string{"", "  ", "disabled", "DISABLED", "none", "None"} {
+		if !isPluginRouteTargetNone(raw) {
+			t.Fatalf("expected %q treated as no-route target", raw)
+		}
+	}
+	for _, raw := range []string{"http://127.0.0.1:1", "disabled-http", "not-none"} {
+		if isPluginRouteTargetNone(raw) {
+			t.Fatalf("expected %q not treated as no-route target", raw)
+		}
+	}
+}
+
 func TestValidatePluginRouteTargetRejectsSSRF(t *testing.T) {
 	for _, raw := range []string{
 		"file:///etc/passwd",
@@ -30,7 +43,7 @@ func TestValidatePluginRouteTargetRejectsSSRF(t *testing.T) {
 		"http://192.168.1.1/",
 		"http://user:pass@127.0.0.1:1/",
 		"ftp://127.0.0.1/",
-		"",
+		"disabled", // 无路由哨兵不走 validate；若误传入必须拒绝
 	} {
 		if err := validatePluginRouteTarget(raw); err == nil {
 			t.Fatalf("expected %q rejected", raw)

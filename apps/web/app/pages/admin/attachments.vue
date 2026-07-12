@@ -392,10 +392,10 @@ function isPreviewableImage(item: Attachment) {
     variant="soft"
     icon="i-lucide-triangle-alert"
     :title="t('admin.attachments.settingsLoadFailed')"
-    class="mb-4"
+    class="mb-4 w-full shrink-0"
   />
 
-  <div role="tablist" :aria-label="t('admin.attachments.tabs.label')" class="mb-4 flex flex-wrap gap-2 border-b border-slate-200 pb-3 dark:border-zinc-800">
+  <div role="tablist" :aria-label="t('admin.attachments.tabs.label')" class="relative z-0 mb-4 flex flex-wrap gap-2 border-b border-slate-200 pb-3 dark:border-zinc-800">
     <UButton
       v-for="tab in tabs.filter(item => item.enabled)"
       :key="tab.id"

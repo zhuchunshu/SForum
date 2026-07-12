@@ -13,7 +13,8 @@ func (smtpPlugin) Health() (extensionsruntime.PluginHealth, error) {
 	return extensionsruntime.PluginHealth{OK: true}, nil
 }
 func (smtpPlugin) RouteTarget() (extensionsruntime.PluginRouteTarget, error) {
-	return extensionsruntime.PluginRouteTarget{BaseURL: "disabled"}, nil
+	// SMTP 仅通过 RPC 提供 mail.provider，不暴露 HTTP 路由。
+	return extensionsruntime.PluginRouteTarget{}, nil
 }
 func (smtpPlugin) InvokeHook(extensionsruntime.PluginHookRequest) (extensionsruntime.PluginHookResponse, error) {
 	return extensionsruntime.PluginHookResponse{OK: true}, nil

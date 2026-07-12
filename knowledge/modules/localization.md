@@ -11,6 +11,17 @@ Foundation scaffold exists:
 
 - Frontend locale catalogs under `apps/web/i18n/locales`.
 - Backend locale normalization under `apps/api/app/Support/Localization`.
+- Built-in API envelope catalog lives in
+  `apps/api/app/Support/Localization/messages.go` (`zh-CN` / `en-US`).
+  `Message(locale, key)` falls back to the raw key when missing — so every
+  HTTP error reason must be listed in the catalog or the admin UI shows the
+  machine key (e.g. `site_chrome.invalid`).
+- 2026-07-12: filled missing admin/API codes for site chrome, profile,
+  database inspector, moderation, jobs/schedules, mail, notifications, CSRF,
+  password-reset, forum search/reindex, extension runtime routes, SEO sitemap,
+  and related identity guards. Regression:
+  `TestAPIErrorCodesHaveLocalizedMessages` walks `Code*` constants and
+  `fiber.NewError` string reasons so new codes fail CI if untranslated.
 - Nuxt i18n SEO links use `APP_URL` as the base URL.
 - Runtime options now store the operator-selected default locale and enabled
   locale list. Environment values are first-run fallbacks for missing option

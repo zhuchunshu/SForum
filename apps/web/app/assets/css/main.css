@@ -467,6 +467,21 @@ h1:not([data-slot="title"]) {
   flex: 0 0 auto;
 }
 
+/*
+ * 后台页面主体：多根页面在 fragment 下也保持块级纵向流，
+ * 避免子项在外层 flex 中 shrink 后互相叠盖（如 UAlert 被下方 tab 压住）。
+ * Alert 本体的 overflow/height 由 app.config.ts 的 ui.alert 覆盖。
+ */
+.sforum-admin-page {
+  display: block;
+  width: 100%;
+  min-width: 0;
+}
+
+.sforum-admin-page > * {
+  max-width: 100%;
+}
+
 /* ========================================================================= */
 /* SForum 后台管理现代雅致主题 (SaaS Elegant Theme) */
 /* ========================================================================= */

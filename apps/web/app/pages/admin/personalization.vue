@@ -357,75 +357,77 @@ function formSnapshot() {
 </script>
 
 <template>
-  <div class="mb-4 flex flex-col gap-1">
-    <h2 class="flex items-center gap-2 text-xl font-bold text-slate-900 dark:text-zinc-100">
-      <UIcon :name="adminPage.icon" class="size-5 text-[var(--sf-accent)] dark:text-[var(--sf-accent-dark)]" />
-      {{ t('admin.personalization.title') }}
-    </h2>
-    <p class="text-sm text-slate-500 dark:text-zinc-400">
-      {{ t('admin.personalization.intro') }}
-    </p>
-  </div>
+  <!-- 单根 + 纵向 gap：避免多根 fragment 与外层 flex 叠层，tab 压住上方 Alert -->
+  <div class="flex w-full min-w-0 flex-col gap-4">
+    <div class="flex flex-col gap-1">
+      <h2 class="flex items-center gap-2 text-xl font-bold text-slate-900 dark:text-zinc-100">
+        <UIcon :name="adminPage.icon" class="size-5 text-[var(--sf-accent)] dark:text-[var(--sf-accent-dark)]" />
+        {{ t('admin.personalization.title') }}
+      </h2>
+      <p class="text-sm text-slate-500 dark:text-zinc-400">
+        {{ t('admin.personalization.intro') }}
+      </p>
+    </div>
 
-  <UDashboardToolbar class="mb-6 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-slate-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
-    <template #left>
-      <div class="flex min-w-0 items-center gap-2 text-sm">
-        <UIcon name="i-lucide-swatch-book" class="size-4" />
-        <span class="truncate">{{ t('admin.personalization.toolbar') }}</span>
-      </div>
-    </template>
-    <template #right>
-      <UButton
-        color="neutral"
-        variant="outline"
-        leading-icon="i-lucide-refresh-cw"
-        :loading="toolbarPending"
-        class="border-slate-200 dark:border-zinc-700"
-        @click="refreshActive()"
-      >
-        {{ t('admin.personalization.refresh') }}
-      </UButton>
-    </template>
-  </UDashboardToolbar>
+    <UDashboardToolbar class="rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-slate-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
+      <template #left>
+        <div class="flex min-w-0 items-center gap-2 text-sm">
+          <UIcon name="i-lucide-swatch-book" class="size-4" />
+          <span class="truncate">{{ t('admin.personalization.toolbar') }}</span>
+        </div>
+      </template>
+      <template #right>
+        <UButton
+          color="neutral"
+          variant="outline"
+          leading-icon="i-lucide-refresh-cw"
+          :loading="toolbarPending"
+          class="border-slate-200 dark:border-zinc-700"
+          @click="refreshActive()"
+        >
+          {{ t('admin.personalization.refresh') }}
+        </UButton>
+      </template>
+    </UDashboardToolbar>
 
-  <UAlert
-    v-if="canManageSiteChrome"
-    color="primary"
-    variant="soft"
-    icon="i-lucide-sparkles"
-    class="mb-4"
-    :title="t('admin.siteChrome.recommendedTitle')"
-    :description="t('admin.siteChrome.recommendedBody')"
-  />
+    <UAlert
+      v-if="canManageSiteChrome"
+      color="primary"
+      variant="soft"
+      icon="i-lucide-sparkles"
+      class="w-full shrink-0"
+      :title="t('admin.siteChrome.recommendedTitle')"
+      :description="t('admin.siteChrome.recommendedBody')"
+    />
 
-  <!-- 使用 md 尺寸 + 底部分割，避免原先 size=sm 的小按钮观感 -->
-  <div
-    role="tablist"
-    :aria-label="t('admin.personalization.tabs.label')"
-    class="mb-5 flex flex-wrap gap-2 border-b border-slate-200 pb-3 dark:border-zinc-800"
-  >
-    <UButton
-      v-for="tab in tabs"
-      :key="tab.id"
-      size="md"
-      class="min-h-10 px-4"
-      :color="activeTab === tab.id ? 'primary' : 'neutral'"
-      :variant="activeTab === tab.id ? 'solid' : 'ghost'"
-      :leading-icon="tab.icon"
-      role="tab"
-      :aria-selected="activeTab === tab.id"
-      @click="setActiveTab(tab.id)"
+    <!-- 使用 md 尺寸 + 底部分割，避免原先 size=sm 的小按钮观感 -->
+    <div
+      role="tablist"
+      :aria-label="t('admin.personalization.tabs.label')"
+      class="relative z-0 flex flex-wrap gap-2 border-b border-slate-200 pb-3 dark:border-zinc-800"
     >
-      {{ tab.label }}
-    </UButton>
-  </div>
+      <UButton
+        v-for="tab in tabs"
+        :key="tab.id"
+        size="md"
+        class="min-h-10 px-4"
+        :color="activeTab === tab.id ? 'primary' : 'neutral'"
+        :variant="activeTab === tab.id ? 'solid' : 'ghost'"
+        :leading-icon="tab.icon"
+        role="tab"
+        :aria-selected="activeTab === tab.id"
+        @click="setActiveTab(tab.id)"
+      >
+        {{ tab.label }}
+      </UButton>
+    </div>
 
-  <!-- 外观：配色 + 页脚 -->
-  <form
-    v-if="activeTab === 'appearance' && canManageAppearance"
-    class="flex flex-col gap-5"
-    @submit.prevent="savePersonalizationSettings"
-  >
+    <!-- 外观：配色 + 页脚 -->
+    <form
+      v-if="activeTab === 'appearance' && canManageAppearance"
+      class="flex flex-col gap-5"
+      @submit.prevent="savePersonalizationSettings"
+    >
     <UAlert
       v-if="appearanceError"
       color="error"
@@ -623,19 +625,21 @@ function formSnapshot() {
     </UCard>
   </form>
 
-  <!-- 前台壳：品牌 / 导航 / 公告 / 法律 / 友情链接 -->
-  <SFAdminSiteChromePanel
-    v-else-if="isChromeTab && canManageSiteChrome"
-    ref="chromePanel"
-    :section="activeTab as SiteChromeSection"
-  />
+    <!-- 前台壳：品牌 / 导航 / 公告 / 法律 / 友情链接 -->
+    <SFAdminSiteChromePanel
+      v-else-if="isChromeTab && canManageSiteChrome"
+      ref="chromePanel"
+      :section="activeTab as SiteChromeSection"
+    />
 
-  <UAlert
-    v-else
-    color="warning"
-    variant="soft"
-    icon="i-lucide-lock"
-    :title="t('admin.personalization.noAccessTitle')"
-    :description="t('admin.personalization.noAccessBody')"
-  />
+    <UAlert
+      v-else
+      color="warning"
+      variant="soft"
+      icon="i-lucide-lock"
+      class="w-full shrink-0"
+      :title="t('admin.personalization.noAccessTitle')"
+      :description="t('admin.personalization.noAccessBody')"
+    />
+  </div>
 </template>

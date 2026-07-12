@@ -1,6 +1,16 @@
 package localization
 
-import "testing"
+import (
+	"go/ast"
+	"go/parser"
+	"go/token"
+	"os"
+	"path/filepath"
+	"regexp"
+	"runtime"
+	"strings"
+	"testing"
+)
 
 func TestParseSupportedLocalesDefaults(t *testing.T) {
 	locales := ParseSupportedLocales("")
@@ -54,6 +64,143 @@ func TestMessageFallsBackToDefaultLocaleAndKey(t *testing.T) {
 	if got := Message("en-US", "unknown.reason"); got != "unknown.reason" {
 		t.Fatalf("expected unknown key fallback, got %q", got)
 	}
+}
+
+func TestMessageLocalizesSiteChromeAndRecentAdminCodes(t *testing.T) {
+	cases := map[string][2]string{
+		"site_chrome.invalid":  {"站点导航/公告/友链配置不正确，请检查后重试。", "The site navigation, announcement, or friend-link data is invalid. Check it and try again."},
+		"site_chrome.not_found": {"站点导航/公告/友链不存在，请刷新后重试。", "The site navigation, announcement, or friend link does not exist. Refresh and try again."},
+		"jobs.schedule_disabled": {"该定时任务已禁用，请先启用后再触发。", "This scheduled job is disabled. Enable it before triggering."},
+		"profile.invalid":        {"用户资料不正确，请检查后重试。", "The user profile is invalid. Check it and try again."},
+		"database.table_not_found": {"数据表不存在或不可访问。", "The data table does not exist or is not accessible."},
+		"moderation.report_duplicate": {"你已经举报过该内容。", "You have already reported this content."},
+		"mail.test_recipient_required": {"请填写测试邮件收件人。", "Enter a recipient for the test email."},
+		"csrf.invalid": {"请求校验失败，请刷新页面后重试。", "Request validation failed. Refresh the page and try again."},
+	}
+	for key, want := range cases {
+		if got := Message("zh-CN", key); got != want[0] {
+			t.Fatalf("%s zh-CN: got %q want %q", key, got, want[0])
+		}
+		if got := Message("en-US", key); got != want[1] {
+			t.Fatalf("%s en-US: got %q want %q", key, got, want[1])
+		}
+	}
+}
+
+// 防止新增 Code* 错误码后忘记写入 messages 目录，导致 API message 原样返回 key。
+func TestAPIErrorCodesHaveLocalizedMessages(t *testing.T) {
+	_, thisFile, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("runtime.Caller failed")
+	}
+	apiRoot := filepath.Clean(filepath.Join(filepath.Dir(thisFile), "../../.."))
+
+	codes := collectAPIErrorCodes(t, apiRoot)
+	if len(codes) == 0 {
+		t.Fatal("expected to discover API error codes")
+	}
+
+	var missing []string
+	for _, code := range codes {
+		zh := Message("zh-CN", code)
+		en := Message("en-US", code)
+		if zh == code || en == code {
+			missing = append(missing, code)
+		}
+	}
+	if len(missing) > 0 {
+		t.Fatalf("API error codes missing localization (message falls back to key): %s", strings.Join(missing, ", "))
+	}
+}
+
+var apiErrorCodeLiteral = regexp.MustCompile(`^[a-z][a-z0-9]*(?:\.[a-z0-9_]+)+$`)
+
+func collectAPIErrorCodes(t *testing.T, apiRoot string) []string {
+	t.Helper()
+	seen := map[string]struct{}{}
+
+	err := filepath.WalkDir(apiRoot, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			name := d.Name()
+			if name == "vendor" || name == "node_modules" || name == ".git" {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
+			return nil
+		}
+		// 跳过本包 messages 定义文件，只扫业务错误码来源。
+		if strings.Contains(path, filepath.Join("Support", "Localization")) {
+			return nil
+		}
+
+		src, readErr := os.ReadFile(path)
+		if readErr != nil {
+			return readErr
+		}
+		fset := token.NewFileSet()
+		file, parseErr := parser.ParseFile(fset, path, src, 0)
+		if parseErr != nil {
+			return parseErr
+		}
+
+		ast.Inspect(file, func(n ast.Node) bool {
+			// const CodeFoo = "domain.key"
+			vs, ok := n.(*ast.ValueSpec)
+			if !ok {
+				return true
+			}
+			for i, name := range vs.Names {
+				if !strings.HasPrefix(name.Name, "Code") || i >= len(vs.Values) {
+					continue
+				}
+				lit, ok := vs.Values[i].(*ast.BasicLit)
+				if !ok || lit.Kind != token.STRING {
+					continue
+				}
+				value := strings.Trim(lit.Value, `"`)
+				if value == "ok" || !apiErrorCodeLiteral.MatchString(value) {
+					continue
+				}
+				seen[value] = struct{}{}
+			}
+			return true
+		})
+
+		// 控制器里直接写的 fiber.NewError / NewError 字符串 reason。
+		text := string(src)
+		for _, re := range []*regexp.Regexp{
+			regexp.MustCompile(`fiber\.NewError\([^,]+,\s*"([a-z][a-z0-9_.]+)"`),
+			regexp.MustCompile(`(?:apphttp\.)?NewError(?:WithFields)?\([^,]+,\s*"([a-z][a-z0-9_.]+)"`),
+			regexp.MustCompile(`(?:apphttp\.)?Abort\([^,]+,\s*"([a-z][a-z0-9_.]+)"`),
+		} {
+			for _, match := range re.FindAllStringSubmatch(text, -1) {
+				value := match[1]
+				if value == "ok" || !apiErrorCodeLiteral.MatchString(value) {
+					continue
+				}
+				// 排除 jobs.schedule.<id>.enabled 这类 options key 拼接片段。
+				if strings.HasPrefix(value, "jobs.schedule.") && !strings.Contains(value, "schedule_not_found") && !strings.Contains(value, "schedule_disabled") {
+					continue
+				}
+				seen[value] = struct{}{}
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("walk api root: %v", err)
+	}
+
+	out := make([]string, 0, len(seen))
+	for code := range seen {
+		out = append(out, code)
+	}
+	return out
 }
 
 func TestNegotiateAcceptLanguage(t *testing.T) {

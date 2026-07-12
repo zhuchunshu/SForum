@@ -4,6 +4,17 @@ This is the entry point for project memory.
 
 ## Latest Handoff
 
+- **2026-07-12 API error message i18n gap filled**
+  - Handoff: `knowledge/sessions/2026-07-12-api-error-message-i18n-gap.md`
+  - Missing catalog keys (e.g. `site_chrome.invalid`) no longer returned raw
+  - Regression test walks `Code*` + `fiber.NewError` reasons vs messages.go
+
+- **2026-07-12 fix sforum.smtp runtime failed after RouteTarget SSRF check**
+  - Host accepts empty/`disabled`/`none` BaseURL for provider-only plugins
+  - SMTP `RouteTarget` returns empty; rebuild via `build-builtin-plugins.sh`
+  - Code: `apps/api/app/Support/Extensions/protocol.go`,
+    `extensions/builtin/plugins/sforum-smtp/backend/plugin.go`
+
 - **2026-07-12 Schedule ops workbench (enable / last-next / trigger / menu)**
   - Handoff: `knowledge/sessions/2026-07-12-schedule-ops-workbench.md`
   - Admin `/schedules`: enable/disable, last/next run, manual trigger
