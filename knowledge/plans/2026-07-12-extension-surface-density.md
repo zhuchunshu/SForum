@@ -221,15 +221,17 @@ reject, unauthorized skips filter).
 
 ### E1.3 User before register (+ optional validate)
 
-- [ ] Add `user.before_register` (`filter` or `validate`)
+- [x] Add `user.before_register` (`filter` or `validate`)
   - Payload: `username`, `email`, `locale` (no password in payload)
   - Patch allowlist: `username`, `locale` only if host re-runs uniqueness /
     policy after patch; prefer **validate-only reject** in v1 if patch is risky
-- [ ] Wire on registration after basic field parse, before user row commit
-- [ ] Tests: reject disposable domain pattern; ensure password never leaves host
-- [ ] Docs: security note (PII in logs minimized)
+- [x] Wire on registration after basic field parse, before user row commit
+- [x] Tests: reject disposable domain pattern; ensure password never leaves host
+- [x] Docs: security note (PII in logs minimized)
 
 **Acceptance:** plugin can reject registration with a stable error code path.
+**Done** (kind=`validate`, reject-only; wired on `ValidateRegister` + `Register`
+before password hash / user row; identity controller maps `RejectedError` → 422).
 
 ### E1.4 Attachment before upload (metadata stage)
 

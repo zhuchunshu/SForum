@@ -19,6 +19,7 @@ cd apps/api && go run ./cmd/sforum extension docs generate --check
 | --- | --- | ---: | --- | --- | --- |
 | `extension.enabled` | observe | 5000 | fail_open | `extensionId` | — |
 | `extension.disabled` | observe | 5000 | fail_open | `extensionId` | — |
+| `user.before_register` | validate | 2000 | fail_closed | `username`, `email`, `locale` | — |
 | `user.registered` | observe | 5000 | fail_open | `userId`, `username`, `email`, `locale` | — |
 | `topic.before_create` | filter | 2000 | fail_closed | `actorUserId`, `categorySlug`, `tagSlugs`, `title`, `content` | `categorySlug`, `tagSlugs`, `title`, `content` |
 | `topic.before_update` | filter | 2000 | fail_closed | `actorUserId`, `topicId`, `categorySlug`, `tagSlugs`, `title`, `content` | `categorySlug`, `tagSlugs`, `title`, `content` |
@@ -49,6 +50,10 @@ Emitted after a plugin is enabled and its runtime starts.
 #### `extension.disabled`
 
 Emitted after a plugin is disabled and its runtime stops.
+
+#### `user.before_register`
+
+Runs before a user row is committed and may reject registration. Payload never includes password. v1 is reject-only (no patch) so uniqueness/policy stay host-owned.
 
 #### `user.registered`
 
