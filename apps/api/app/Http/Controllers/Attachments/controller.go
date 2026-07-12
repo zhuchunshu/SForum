@@ -283,6 +283,8 @@ func mapAttachmentError(err error) error {
 	switch {
 	case errors.Is(err, identity.ErrPermissionDenied):
 		return fiber.NewError(fiber.StatusForbidden, "permission.denied")
+	case errors.Is(err, attachments.ErrGuestLoginRequired):
+		return fiber.NewError(fiber.StatusUnauthorized, attachments.CodeGuestLoginRequired)
 	// 插件 attachment.before_upload 等同步拒绝：422 + 稳定 reason。
 	case errors.As(err, &rejected):
 		return fiber.NewError(fiber.StatusUnprocessableEntity, rejected.Reason)

@@ -37,11 +37,17 @@ attachmentByPublicID:
     - "$ref": "../components/parameters.yaml#/AttachmentPublicID"
     responses:
       '200':
-        description: Public attachment metadata allowed for the current actor.
+        description: >
+          Attachment metadata allowed for the current actor. When
+          forum.guest.read is login_required, anonymous callers may only read
+          site-public assets (avatars, SEO/brand images); forum post media
+          requires authentication.
         content:
           application/json:
             schema:
               "$ref": "../schemas/attachments.yaml#/ApiResponseAttachment"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
       '403':
         "$ref": "../components/responses.yaml#/Forbidden"
       '404':
@@ -54,12 +60,18 @@ attachmentContent:
     - "$ref": "../components/parameters.yaml#/AttachmentPublicID"
     responses:
       '200':
-        description: Attachment bytes streamed from the configured provider.
+        description: >
+          Attachment bytes streamed from the configured provider. Same access
+          policy as getAttachment; under login_required, forum media is not
+          served via permanent public CDN URLs and uses this authenticated
+          content route instead.
         content:
           application/octet-stream:
             schema:
               type: string
               format: binary
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
       '403':
         "$ref": "../components/responses.yaml#/Forbidden"
       '404':

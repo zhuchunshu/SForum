@@ -233,8 +233,8 @@ func (s *Service) Get(ctx context.Context, actor identity.Actor, publicID string
 	if err != nil {
 		return Attachment{}, err
 	}
-	if !canViewAttachment(actor, attachment) {
-		return Attachment{}, identity.ErrPermissionDenied
+	if err := s.authorizeAttachmentView(ctx, actor, attachment); err != nil {
+		return Attachment{}, err
 	}
 	return s.decorateURL(ctx, attachment), nil
 }
@@ -444,17 +444,30 @@ func (s *Service) adapterForSettings(settings AttachmentSettings, provider strin
 }
 
 func (s *Service) decorateURL(ctx context.Context, attachment Attachment) Attachment {
+	// login_required 下的帖子媒体走 API 代理，避免永久 CDN URL 绕过会话策略。
+	if s.shouldProxyAuthorizedURL(ctx, attachment) {
+		attachment.URL = contentURLPath(attachment.PublicID)
+		return attachment
+	}
 	settings, err := s.runtimeSettings(ctx)
 	if err != nil {
-		attachment.URL = "/api/v1/attachments/" + attachment.PublicID + "/content"
+		attachment.URL = contentURLPath(attachment.PublicID)
 		return attachment
 	}
 	adapter, err := s.adapterForSettings(settings, attachment.Provider)
 	if err == nil {
-		attachment.URL = adapter.PublicURL(attachment.ObjectKey)
+		// 远程 provider 若仅有永久公网 URL，在需授权时仍回退代理（上面已处理）。
+		// 此处 public 模式可直接用 PublicURL；有 SignedURL 能力时优先短时签名。
+		if attachment.Visibility == VisibilityPrivate {
+			if signed, signErr := adapter.SignedURL(ctx, attachment.ObjectKey, defaultSignedURLTTL); signErr == nil && signed != "" {
+				attachment.URL = signed
+			}
+		} else {
+			attachment.URL = adapter.PublicURL(attachment.ObjectKey)
+		}
 	}
 	if attachment.URL == "" {
-		attachment.URL = "/api/v1/attachments/" + attachment.PublicID + "/content"
+		attachment.URL = contentURLPath(attachment.PublicID)
 	}
 	return attachment
 }
