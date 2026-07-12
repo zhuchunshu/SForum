@@ -26,6 +26,7 @@ import (
 	options "github.com/zhuchunshu/sforum/apps/api/app/Models/Options"
 	profile "github.com/zhuchunshu/sforum/apps/api/app/Models/Profile"
 	sitechrome "github.com/zhuchunshu/sforum/apps/api/app/Models/SiteChrome"
+	webhooks "github.com/zhuchunshu/sforum/apps/api/app/Models/Webhooks"
 	"github.com/zhuchunshu/sforum/apps/api/app/Providers"
 	authsupport "github.com/zhuchunshu/sforum/apps/api/app/Support/Auth"
 	authsession "github.com/zhuchunshu/sforum/apps/api/app/Support/AuthSession"
@@ -284,7 +285,12 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		SiteURL:  siteURL,
 	}, optionsService).WithRateLimiter(authsupport.NewPasswordResetLimiter(sharedRedisClient))
 	loginLockout := authsupport.NewLoginLockout(sharedRedisClient)
-	identityProvider := providers.NewIdentityProviderWithPasswordResetAndLockout(identityStore, authSessions, humanVerifier, extensionRuntime, passwordResetService, mailOutbox, optionsService, loginLockout)
+	// F3.3：出站 webhook 扇出包装在事件发布路径上（observe 成功后异步入队）。
+	webhookStore := webhooks.NewPostgresStore(pool)
+	webhookService := webhooks.NewService(webhookStore, pool, jobDispatcher)
+	eventPublisher := webhooks.BridgePublisher{Inner: extensionRuntime, Fanout: webhookService}
+
+	identityProvider := providers.NewIdentityProviderWithPasswordResetAndLockout(identityStore, authSessions, humanVerifier, eventPublisher, passwordResetService, mailOutbox, optionsService, loginLockout)
 	notificationsProvider := providers.NewNotificationsProvider(notificationStore, identityStore, authSessions)
 	mailProvider := providers.NewMailProvider(extensionStore, notificationStore, extensionsruntime.NewMailProviderRegistry(extensionStore), identityStore, authSessions, optionsService)
 	// Worker 心跳 store 尽早创建，供 overview 与嵌入 worker 共用。
@@ -306,6 +312,7 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 	// 搜索索引重建：forumStore 提供 ListAllTopicIDs（TopicIDSource），
 	// reindexStore 记录运行状态，dispatcher 批量入队 IndexTopicArgs。
 	reindexManager := search.NewReindexManager(forumStore, search.NewPostgresReindexStore(pool), jobDispatcher)
+
 	// F3.2：发帖/评论写路径可选 Idempotency-Key；存储复用 shared Redis。
 	idempotencyStore := idempotency.NewStore(idempotency.NewRedisBackend(sharedRedisClient), idempotency.DefaultTTL)
 	forumProvider := providers.NewForumProviderWithSearchTopicActionsAndPublicationPolicy(
@@ -313,24 +320,25 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		optionsService,
 		identityStore,
 		authSessions,
-		extensionRuntime,
+		eventPublisher,
 		searchIndexer,
 		searchServiceAdapter{inner: searchService},
 		reindexServiceAdapter{inner: reindexManager},
 		providers.NewExtensionTopicActionProvider(extensionService),
 		providers.NewModerationPublicationPolicy(moderationStore, optionsService),
 	).WithIdempotency(idempotencyStore)
-	avatarAttachmentService := attachments.NewServiceWithEvents(attachmentStore, optionsService, extensionRuntime)
+	avatarAttachmentService := attachments.NewServiceWithEvents(attachmentStore, optionsService, eventPublisher)
 	profileProvider := providers.NewProfileProviderWithAvatar(profileStore, identityStore, authSessions, avatarAttachmentService, optionsService)
 	moderationProvider := providers.NewModerationWorkbenchProviderWithIndexer(moderationStore, forumStore, identityStore, authSessions, searchIndexer)
 	optionsProvider := providers.NewOptionsProviderWithService(optionsService, identityStore, authSessions)
 	siteChromeStore := sitechrome.NewPostgresStore(pool)
 	siteChromeProvider := providers.NewSiteChromeProvider(siteChromeStore, identityStore, authSessions)
-	attachmentsProvider := providers.NewAttachmentsProviderWithEvents(attachmentStore, optionsService, identityStore, authSessions, extensionRuntime)
+	attachmentsProvider := providers.NewAttachmentsProviderWithEvents(attachmentStore, optionsService, identityStore, authSessions, eventPublisher)
 	seoProvider := providers.NewSEOProvider(pool, optionsService)
 	databaseProvider := providers.NewDatabaseProvider(databaseStore, identityStore, authSessions)
 	jobsProvider := providers.NewJobsProvider(pool, jobClient, identityStore, authSessions)
 	extensionsProvider := providers.NewExtensionsProviderWithService(extensionService, identityStore, authSessions, extensionRuntime, frontendService, webReleaseAdminService)
+	webhooksProvider := providers.NewWebhooksProvider(webhookService, identityStore, authSessions)
 
 	// Readiness：PG 必检；Redis/Meili 失败记 degraded 仍 ready（见 Support/Health）。
 	readyEvaluate := func(ctx context.Context) health.ReadyReport {
@@ -342,7 +350,7 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 	}
 
 	app := httpserver.NewApp(cfg, logger, httpserver.Dependencies{
-		RouteProviders: []httpserver.RouteProvider{identityProvider, notificationsProvider, mailProvider, adminOverviewProvider, forumProvider, profileProvider, moderationProvider, optionsProvider, siteChromeProvider, attachmentsProvider, seoProvider, databaseProvider, jobsProvider, extensionsProvider},
+		RouteProviders: []httpserver.RouteProvider{identityProvider, notificationsProvider, mailProvider, adminOverviewProvider, forumProvider, profileProvider, moderationProvider, optionsProvider, siteChromeProvider, attachmentsProvider, seoProvider, databaseProvider, jobsProvider, extensionsProvider, webhooksProvider},
 		Options:        optionsService,
 		Storage:        redisStorage,
 		Ready:          readyEvaluate,

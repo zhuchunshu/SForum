@@ -296,7 +296,8 @@
       "userPermission": "用户/权限",
       "userManagement": "用户管理",
       "userGroups": "用户组",
-      "permissionManagement": "权限管理"
+      "permissionManagement": "权限管理",
+      "webhooks": "Webhooks"
     },
     "avatar": {
       "metaTitle": "头像设置",
@@ -2483,6 +2484,47 @@
         "failed": "搜索服务不可用，请检查 Meilisearch 配置",
         "completed": "搜索索引重建已完成"
       }
+    },
+    "webhooks": {
+      "title": "Webhooks",
+      "intro": "把论坛核心事件以签名 HTTP 回调推送到外部系统；支持一键禁用与投递日志。",
+      "hintTitle": "推荐用法",
+      "hintBody": "新建端点时填写 HTTPS 目标地址与签名密钥。事件留空表示订阅全部观察类事件。外部系统用 X-SForum-Signature 校验。",
+      "createTitle": "新建出站端点",
+      "createIntro": "默认启用。密钥仅用于签名，列表中只显示掩码。",
+      "fieldName": "名称",
+      "fieldUrl": "目标 URL",
+      "fieldSecret": "签名密钥（可选）",
+      "fieldDescription": "说明",
+      "fieldEvents": "订阅事件",
+      "eventsHint": "不选则订阅全部 observe 事件。",
+      "create": "创建端点",
+      "endpointsTitle": "已配置端点",
+      "deliveriesTitle": "最近投递",
+      "loading": "加载中…",
+      "emptyEndpoints": "尚未配置 Webhook。创建后即可接收 topic.created 等事件。",
+      "emptyDeliveries": "暂无投递记录。",
+      "colName": "名称",
+      "colUrl": "URL",
+      "colEvents": "事件",
+      "colStatus": "状态",
+      "colActions": "操作",
+      "colEvent": "事件",
+      "colAttempts": "尝试",
+      "colReason": "原因",
+      "colCreated": "时间",
+      "allEvents": "全部 observe 事件",
+      "statusOn": "已启用",
+      "statusOff": "已禁用",
+      "enable": "启用",
+      "disable": "禁用",
+      "delete": "删除",
+      "created": "Webhook 端点已创建",
+      "enabled": "Webhook 已启用",
+      "disabled": "Webhook 已禁用",
+      "deleted": "Webhook 已删除",
+      "loadFailed": "加载 Webhook 失败",
+      "saveFailed": "保存 Webhook 失败"
     }
   },
   "errors": {

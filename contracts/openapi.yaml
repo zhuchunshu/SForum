@@ -132,6 +132,16 @@ paths:
     "$ref": "./openapi/paths/mail.yaml#/adminNotificationPolicy"
   "/admin/mail/policy/restore":
     "$ref": "./openapi/paths/mail.yaml#/adminNotificationPolicyRestore"
+  "/admin/webhooks/endpoints":
+    "$ref": "./openapi/paths/webhooks.yaml#/adminWebhookEndpoints"
+  "/admin/webhooks/endpoints/{endpointID}":
+    "$ref": "./openapi/paths/webhooks.yaml#/adminWebhookEndpointByID"
+  "/admin/webhooks/deliveries":
+    "$ref": "./openapi/paths/webhooks.yaml#/adminWebhookDeliveries"
+  "/admin/webhooks/events":
+    "$ref": "./openapi/paths/webhooks.yaml#/adminWebhookEvents"
+  "/webhooks/inbound/{source}":
+    "$ref": "./openapi/paths/webhooks.yaml#/webhookInbound"
   "/admin/notifications/test":
     "$ref": "./openapi/paths/notifications.yaml#/adminNotificationTest"
   "/notifications":

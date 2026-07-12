@@ -296,7 +296,8 @@
       "search": "Search Index",
       "jobs": "Background jobs",
       "schedules": "Scheduled jobs",
-      "moderation": "Moderation management"
+      "moderation": "Moderation management",
+      "webhooks": "Webhooks"
     },
     "avatar": {
       "metaTitle": "Avatar settings",
@@ -2483,6 +2484,47 @@
         "failed": "Search service unavailable, please check Meilisearch configuration",
         "completed": "Search index rebuild completed"
       }
+    },
+    "webhooks": {
+      "title": "Webhooks",
+      "intro": "Push signed HTTP callbacks for core forum events. Disable anytime and inspect delivery history.",
+      "hintTitle": "Recommended setup",
+      "hintBody": "Create an HTTPS endpoint and optional signing secret. Leave events empty to subscribe to all observe events. Receivers verify X-SForum-Signature.",
+      "createTitle": "New outbound endpoint",
+      "createIntro": "Enabled by default. Secrets are masked in the list.",
+      "fieldName": "Name",
+      "fieldUrl": "Target URL",
+      "fieldSecret": "Signing secret (optional)",
+      "fieldDescription": "Description",
+      "fieldEvents": "Subscribed events",
+      "eventsHint": "Leave empty to subscribe to all observe events.",
+      "create": "Create endpoint",
+      "endpointsTitle": "Configured endpoints",
+      "deliveriesTitle": "Recent deliveries",
+      "loading": "Loading…",
+      "emptyEndpoints": "No webhooks yet. Create one to receive topic.created and similar events.",
+      "emptyDeliveries": "No deliveries yet.",
+      "colName": "Name",
+      "colUrl": "URL",
+      "colEvents": "Events",
+      "colStatus": "Status",
+      "colActions": "Actions",
+      "colEvent": "Event",
+      "colAttempts": "Attempts",
+      "colReason": "Reason",
+      "colCreated": "Created",
+      "allEvents": "All observe events",
+      "statusOn": "Enabled",
+      "statusOff": "Disabled",
+      "enable": "Enable",
+      "disable": "Disable",
+      "delete": "Delete",
+      "created": "Webhook endpoint created",
+      "enabled": "Webhook enabled",
+      "disabled": "Webhook disabled",
+      "deleted": "Webhook deleted",
+      "loadFailed": "Failed to load webhooks",
+      "saveFailed": "Failed to save webhook"
     }
   },
   "errors": {

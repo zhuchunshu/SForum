@@ -1,0 +1,191 @@
+WebhookEndpoint:
+  type: object
+  required: [id, name, targetUrl, hasSecret, events, enabled, createdAt, updatedAt]
+  properties:
+    id:
+      type: integer
+      format: int64
+    name:
+      type: string
+    targetUrl:
+      type: string
+      format: uri
+    secretMasked:
+      type: string
+    hasSecret:
+      type: boolean
+    events:
+      type: array
+      items:
+        type: string
+      description: Empty means all observe events.
+    enabled:
+      type: boolean
+    description:
+      type: string
+    createdAt:
+      type: string
+      format: date-time
+    updatedAt:
+      type: string
+      format: date-time
+
+CreateWebhookEndpointRequest:
+  type: object
+  required: [name, targetUrl]
+  properties:
+    name:
+      type: string
+    targetUrl:
+      type: string
+    secret:
+      type: string
+    events:
+      type: array
+      items:
+        type: string
+    enabled:
+      type: boolean
+    description:
+      type: string
+
+UpdateWebhookEndpointRequest:
+  type: object
+  properties:
+    name:
+      type: string
+    targetUrl:
+      type: string
+    secret:
+      type: string
+    clearSecret:
+      type: boolean
+    events:
+      type: array
+      items:
+        type: string
+    enabled:
+      type: boolean
+    description:
+      type: string
+
+WebhookDelivery:
+  type: object
+  required: [id, endpointId, eventName, status, attemptCount, createdAt, updatedAt]
+  properties:
+    id:
+      type: integer
+      format: int64
+    endpointId:
+      type: integer
+      format: int64
+    eventName:
+      type: string
+    eventId:
+      type: string
+    correlationId:
+      type: string
+    status:
+      type: string
+      enum: [queued, sending, sent, failed, skipped, dead]
+    attemptCount:
+      type: integer
+    httpStatus:
+      type: integer
+    responseSnippet:
+      type: string
+    reason:
+      type: string
+    errorSummary:
+      type: string
+    createdAt:
+      type: string
+      format: date-time
+    updatedAt:
+      type: string
+      format: date-time
+    completedAt:
+      type: string
+      format: date-time
+
+WebhookEventCatalogItem:
+  type: object
+  required: [name, kind]
+  properties:
+    name:
+      type: string
+    description:
+      type: string
+    kind:
+      type: string
+
+WebhookInboundReceipt:
+  type: object
+  required: [accepted, source, bytes]
+  properties:
+    accepted:
+      type: boolean
+    source:
+      type: string
+    bytes:
+      type: integer
+    note:
+      type: string
+
+ApiResponseWebhookEndpoint:
+  type: object
+  required: [code, message, data]
+  properties:
+    code: { type: integer }
+    message: { type: string }
+    data: { "$ref": "#/WebhookEndpoint" }
+
+ApiResponseWebhookEndpointList:
+  type: object
+  required: [code, message, data]
+  properties:
+    code: { type: integer }
+    message: { type: string }
+    data:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { "$ref": "#/WebhookEndpoint" }
+
+ApiResponseWebhookDeliveryList:
+  type: object
+  required: [code, message, data]
+  properties:
+    code: { type: integer }
+    message: { type: string }
+    data:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { "$ref": "#/WebhookDelivery" }
+
+ApiResponseWebhookEventCatalog:
+  type: object
+  required: [code, message, data]
+  properties:
+    code: { type: integer }
+    message: { type: string }
+    data:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { "$ref": "#/WebhookEventCatalogItem" }
+
+ApiResponseWebhookInbound:
+  type: object
+  required: [code, message, data]
+  properties:
+    code: { type: integer }
+    message: { type: string }
+    data: { "$ref": "#/WebhookInboundReceipt" }

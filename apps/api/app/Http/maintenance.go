@@ -28,6 +28,10 @@ func maintenanceMiddleware(optionsService *options.Service) fiber.Handler {
 		if strings.HasPrefix(path, "/api/v1/auth/") || strings.HasPrefix(path, "/api/v1/admin/") {
 			return c.Next()
 		}
+		// 入站 webhook 由外部系统回调，维护模式不阻断（F3.3）。
+		if strings.HasPrefix(path, "/api/v1/webhooks/inbound/") {
+			return c.Next()
+		}
 		if strings.HasPrefix(path, "/api/v1/web-options") {
 			return c.Next()
 		}

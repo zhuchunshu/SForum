@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v3"
@@ -108,6 +109,12 @@ func registerRoutes(app *fiber.App, cfg config.Config, deps Dependencies) {
 			CookiePath:      "/",
 			TrustedOrigins:  cfg.CSRFTrustedOrigins,
 			ErrorHandler:    csrfErrorHandler,
+			// 入站 webhook 由第三方服务器调用，无浏览器 CSRF cookie（F3.3）。
+			Next: func(c fiber.Ctx) bool {
+				path := c.Path()
+				return strings.HasPrefix(path, "/api/v1/webhooks/inbound/") ||
+					strings.HasPrefix(path, "/webhooks/inbound/")
+			},
 		}))
 	}
 

@@ -1,0 +1,167 @@
+adminWebhookEndpoints:
+  get:
+    summary: List outbound webhook endpoints
+    operationId: adminListWebhookEndpoints
+    responses:
+      '200':
+        description: Webhook endpoints with masked secrets.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/webhooks.yaml#/ApiResponseWebhookEndpointList"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+  post:
+    summary: Create an outbound webhook endpoint
+    operationId: adminCreateWebhookEndpoint
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            "$ref": "../schemas/webhooks.yaml#/CreateWebhookEndpointRequest"
+    responses:
+      '201':
+        description: Endpoint created (enabled by default).
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/webhooks.yaml#/ApiResponseWebhookEndpoint"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '422':
+        "$ref": "../components/responses.yaml#/UnprocessableEntity"
+adminWebhookEndpointByID:
+  patch:
+    summary: Update a webhook endpoint
+    operationId: adminUpdateWebhookEndpoint
+    parameters:
+    - name: endpointID
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            "$ref": "../schemas/webhooks.yaml#/UpdateWebhookEndpointRequest"
+    responses:
+      '200':
+        description: Endpoint updated.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/webhooks.yaml#/ApiResponseWebhookEndpoint"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '404':
+        "$ref": "../components/responses.yaml#/NotFound"
+      '422':
+        "$ref": "../components/responses.yaml#/UnprocessableEntity"
+  delete:
+    summary: Delete a webhook endpoint
+    operationId: adminDeleteWebhookEndpoint
+    parameters:
+    - name: endpointID
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+    responses:
+      '200':
+        description: Endpoint deleted.
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '404':
+        "$ref": "../components/responses.yaml#/NotFound"
+adminWebhookDeliveries:
+  get:
+    summary: List recent webhook deliveries
+    operationId: adminListWebhookDeliveries
+    parameters:
+    - name: endpointId
+      in: query
+      schema:
+        type: integer
+        format: int64
+    - name: limit
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+    responses:
+      '200':
+        description: Recent delivery attempts.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/webhooks.yaml#/ApiResponseWebhookDeliveryList"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+adminWebhookEvents:
+  get:
+    summary: List observeevents available for webhook subscription
+    operationId: adminListWebhookCatalogEvents
+    responses:
+      '200':
+        description: Observe event catalog subset.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/webhooks.yaml#/ApiResponseWebhookEventCatalog"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+webhookInbound:
+  post:
+    summary: Inbound webhook gateway skeleton
+    description: |
+      External systems POST to `/webhooks/inbound/{source}`. CSRF is skipped for
+      this path. v1 only acknowledges non-empty bodies; plugin verify/parse hooks
+      are not wired yet.
+    operationId: inboundWebhook
+    parameters:
+    - name: source
+      in: path
+      required: true
+      schema:
+        type: string
+        maxLength: 64
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: true
+        application/octet-stream:
+          schema:
+            type: string
+            format: binary
+    responses:
+      '200':
+        description: Accepted skeleton receipt.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/webhooks.yaml#/ApiResponseWebhookInbound"
+      '400':
+        "$ref": "../components/responses.yaml#/BadRequest"
+      '422':
+        "$ref": "../components/responses.yaml#/UnprocessableEntity"

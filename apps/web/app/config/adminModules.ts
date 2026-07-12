@@ -259,6 +259,14 @@ export const adminPageDefinitions = [
     icon: 'i-lucide-calendar-clock',
     componentName: 'AdminSchedules',
     requiredPermissions: ['jobs.view']
+  },
+  {
+    id: '/webhooks',
+    labelKey: 'admin.nav.webhooks',
+    icon: 'i-lucide-webhook',
+    componentName: 'AdminWebhooks',
+    requiredPermissions: ['settings.manage', 'settings.site.manage'],
+    permissionMode: 'any'
   }
 ] as const satisfies readonly AdminPageDefinition[]
 
@@ -331,7 +339,8 @@ export const adminSidebarNavigation = [
       children: [
         { type: 'page', pageId: '/database' },
         { type: 'page', pageId: '/jobs' },
-        { type: 'page', pageId: '/schedules' }
+        { type: 'page', pageId: '/schedules' },
+        { type: 'page', pageId: '/webhooks' }
       ]
     },
     { type: 'page', pageId: '/attachments' }

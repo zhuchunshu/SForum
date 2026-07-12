@@ -16,12 +16,14 @@ import (
 	extensionjobs "github.com/zhuchunshu/sforum/apps/api/app/Jobs/Extensions"
 	identityjobs "github.com/zhuchunshu/sforum/apps/api/app/Jobs/Identity"
 	notificationjobs "github.com/zhuchunshu/sforum/apps/api/app/Jobs/Notifications"
+	webhookjobs "github.com/zhuchunshu/sforum/apps/api/app/Jobs/Webhooks"
 	attachments "github.com/zhuchunshu/sforum/apps/api/app/Models/Attachments"
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
 	jobsmodel "github.com/zhuchunshu/sforum/apps/api/app/Models/Jobs"
 	notifications "github.com/zhuchunshu/sforum/apps/api/app/Models/Notifications"
 	options "github.com/zhuchunshu/sforum/apps/api/app/Models/Options"
+	webhooks "github.com/zhuchunshu/sforum/apps/api/app/Models/Webhooks"
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Audit"
 	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
 	health "github.com/zhuchunshu/sforum/apps/api/app/Support/Health"
@@ -128,6 +130,9 @@ func newWorkerWithPool(cfg config.Config, pool *pgxpool.Pool, logger *slog.Logge
 	extensionRuntime.Reconcile(context.Background(), items)
 	mailProviders := extensionsruntime.NewMailProviderRegistry(extensionStore)
 	notificationjobs.Register(registry, &notificationjobs.DeliverMailWorker{Store: notificationStore, Providers: mailProviders, Sender: extensionRuntime})
+	// F3.3：出站 webhook 投递。
+	webhookStore := webhooks.NewPostgresStore(pool)
+	webhookjobs.Register(registry, &webhookjobs.DeliverWorker{Store: webhookStore})
 	webReleaseStore := extensions.NewPostgresWebReleaseStore(pool)
 	themeBuilder := themeruntime.NewBuilder(themeruntime.Config{
 		ReleaseRoot:    cfg.ThemeReleaseRoot,
