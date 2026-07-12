@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
+	"github.com/zhuchunshu/sforum/apps/api/app/Support/Audit"
 	appevents "github.com/zhuchunshu/sforum/apps/api/app/Support/Events"
 	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
 	extensionpackage "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionPackage"
@@ -34,6 +35,8 @@ type Service struct {
 	webReleaseLifecycle       FrontendReleaseManager
 	// webReleaseProgress 可选：把插件相关的 live/failed Web Release 挂到列表项上。
 	webReleaseProgress WebReleaseProgressReader
+	// auditor 写入宿主 audit_events（F1.4）；与 extension_events 互补。
+	auditor audit.Writer
 }
 
 // WebReleaseProgressReader 读取扩展相关的进行中/失败 Web 发布，用于管理端进度条。
@@ -66,6 +69,24 @@ func WithWebReleaseProgress(reader WebReleaseProgressReader) ServiceOption {
 	return func(s *Service) {
 		s.webReleaseProgress = reader
 	}
+}
+
+// WithAuditor 注入宿主 audit_events 写入（F1.4 扩展生命周期审计）。
+func WithAuditor(w audit.Writer) ServiceOption {
+	return func(s *Service) {
+		s.auditor = w
+	}
+}
+
+func (s *Service) appendAudit(ctx context.Context, actor identity.Actor, action string, metadata map[string]any) {
+	if s == nil || s.auditor == nil || action == "" {
+		return
+	}
+	_ = s.auditor.Append(ctx, audit.Event{
+		ActorUserID: actor.ID,
+		Action:      action,
+		Metadata:    metadata,
+	})
 }
 
 func NewService(store Store, extensionRoot string) *Service {
@@ -622,6 +643,10 @@ func (s *Service) InstallArchive(ctx context.Context, actor identity.Actor, inpu
 		Action:      EventInstalled,
 		Message:     "Extension archive installed.",
 	})
+	s.appendAudit(ctx, actor, audit.ActionExtensionInstalled, map[string]any{
+		"extensionId": installed.ID,
+		"type":        installed.Type,
+	})
 	return s.decorateRuntime(ctx, installed), nil
 }
 
@@ -657,6 +682,10 @@ func (s *Service) Enable(ctx context.Context, actor identity.Actor, id string) (
 		ActorUserID: actor.ID,
 		Action:      EventEnabled,
 		Message:     "Extension enabled.",
+	})
+	s.appendAudit(ctx, actor, audit.ActionExtensionEnable, map[string]any{
+		"extensionId": enabled.ID,
+		"type":        enabled.Type,
 	})
 	if enabled.Type == TypePlugin && s.runtime != nil {
 		s.runtime.EmitHook(ctx, appevents.ExtensionEnabled, map[string]any{"extensionId": enabled.ID})
@@ -697,6 +726,10 @@ func (s *Service) Disable(ctx context.Context, actor identity.Actor, id string) 
 		ActorUserID: actor.ID,
 		Action:      EventDisabled,
 		Message:     "Extension disabled.",
+	})
+	s.appendAudit(ctx, actor, audit.ActionExtensionDisable, map[string]any{
+		"extensionId": disabled.ID,
+		"type":        disabled.Type,
 	})
 	if disabled.Type == TypePlugin && s.runtime != nil {
 		s.runtime.EmitHook(ctx, appevents.ExtensionDisabled, map[string]any{"extensionId": disabled.ID})
@@ -774,6 +807,11 @@ func (s *Service) ActivateTheme(ctx context.Context, actor identity.Actor, id st
 			Action:      EventThemeActivationQueued,
 			Message:     "Theme activation queued.",
 		})
+		s.appendAudit(ctx, actor, audit.ActionExtensionActivate, map[string]any{
+			"extensionId": extension.ID,
+			"queued":      true,
+			"releaseId":   release.ID,
+		})
 		extension.ThemeRelease = &release
 		return extension, nil
 	}
@@ -806,6 +844,10 @@ func (s *Service) ActivateTheme(ctx context.Context, actor identity.Actor, id st
 		ActorUserID: actor.ID,
 		Action:      EventThemeActivated,
 		Message:     "Theme activated.",
+	})
+	s.appendAudit(ctx, actor, audit.ActionExtensionActivate, map[string]any{
+		"extensionId": active.ID,
+		"queued":      false,
 	})
 	return active, nil
 }

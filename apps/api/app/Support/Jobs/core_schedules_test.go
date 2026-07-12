@@ -7,7 +7,7 @@ import (
 	"github.com/riverqueue/river"
 )
 
-func TestCoreScheduleRegistryBuildsThreePeriodics(t *testing.T) {
+func TestCoreScheduleRegistryBuildsCorePeriodics(t *testing.T) {
 	reg, err := NewCoreScheduleRegistry(map[string]river.PeriodicJobConstructor{
 		ScheduleIdentityCleanupSessions: func() (river.JobArgs, *river.InsertOpts) {
 			return stubArgs{kind: ScheduleIdentityCleanupSessions}, nil
@@ -18,22 +18,25 @@ func TestCoreScheduleRegistryBuildsThreePeriodics(t *testing.T) {
 		ScheduleAttachmentsCleanupOrphans: func() (river.JobArgs, *river.InsertOpts) {
 			return stubArgs{kind: ScheduleAttachmentsCleanupOrphans}, nil
 		},
+		ScheduleAuditCleanupEvents: func() (river.JobArgs, *river.InsertOpts) {
+			return stubArgs{kind: ScheduleAuditCleanupEvents}, nil
+		},
 	})
 	if err != nil {
 		t.Fatalf("registry: %v", err)
 	}
-	if reg.Len() != 3 {
-		t.Fatalf("expected 3 core schedules, got %d", reg.Len())
+	if reg.Len() != 4 {
+		t.Fatalf("expected 4 core schedules, got %d", reg.Len())
 	}
 	jobs, err := reg.BuildPeriodicJobs()
 	if err != nil {
 		t.Fatalf("build: %v", err)
 	}
-	if len(jobs) != 3 {
-		t.Fatalf("expected 3 river periodics, got %d", len(jobs))
+	if len(jobs) != 4 {
+		t.Fatalf("expected 4 river periodics, got %d", len(jobs))
 	}
 
-	// 元数据完整性：三条 daily、owner 明确
+	// 元数据完整性：daily、owner 明确
 	views := reg.Views()
 	byID := map[string]ScheduleView{}
 	for _, v := range views {
@@ -43,6 +46,7 @@ func TestCoreScheduleRegistryBuildsThreePeriodics(t *testing.T) {
 		ScheduleIdentityCleanupSessions,
 		ScheduleExtensionWebReleaseCleanup,
 		ScheduleAttachmentsCleanupOrphans,
+		ScheduleAuditCleanupEvents,
 	} {
 		v, ok := byID[id]
 		if !ok {
@@ -78,7 +82,7 @@ func TestCoreScheduleRegistryWithoutConstructorsIsCatalogOnly(t *testing.T) {
 	if len(jobs) != 0 {
 		t.Fatalf("catalog-only should not build periodics, got %d", len(jobs))
 	}
-	if len(reg.Views()) != 3 {
+	if len(reg.Views()) != 4 {
 		t.Fatalf("views=%d", len(reg.Views()))
 	}
 }

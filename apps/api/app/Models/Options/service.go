@@ -11,6 +11,7 @@ import (
 	"time"
 
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
+	"github.com/zhuchunshu/sforum/apps/api/app/Support/Audit"
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Crypto"
 	humanverify "github.com/zhuchunshu/sforum/apps/api/app/Support/HumanVerify"
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Localization"
@@ -277,6 +278,8 @@ type Service struct {
 	defaults map[string]string
 	// cipher 加密敏感 option 值（云存储/SSH/FTP 凭证），nil/透明时为明文（开发环境）。
 	cipher *crypto.OptionCipher
+	// auditor 写入 audit_events（F1.4）；nil 时跳过，不阻断设置保存。
+	auditor audit.Writer
 
 	mu        sync.RWMutex
 	cached    map[string]string
@@ -310,6 +313,12 @@ func NewServiceWithDefaultsAndCacheTTL(store Store, defaults Defaults, cacheTTL 
 // 未调用时 cipher 为 nil，敏感值以明文存储（开发环境兼容）。
 func (s *Service) WithCipher(c *crypto.OptionCipher) *Service {
 	s.cipher = c
+	return s
+}
+
+// WithAuditor 注入审计写入器（F1.4 设置变更审计）。
+func (s *Service) WithAuditor(w audit.Writer) *Service {
+	s.auditor = w
 	return s
 }
 
@@ -517,6 +526,7 @@ func (s *Service) UpdateMany(ctx context.Context, actor identity.Actor, inputs [
 		return nil, ErrInvalidOption
 	}
 
+	changedNames := make([]string, 0, len(pending))
 	for _, name := range allOptionNames() {
 		value, ok := pending[name]
 		if !ok {
@@ -533,6 +543,18 @@ func (s *Service) UpdateMany(ctx context.Context, actor identity.Actor, inputs [
 		if _, err := s.store.Upsert(ctx, UpdateInput{Name: name, Value: value}); err != nil {
 			return nil, err
 		}
+		changedNames = append(changedNames, name)
+	}
+	// F1.4：敏感设置变更写审计（不记录密钥明文，仅名称列表）。
+	if s.auditor != nil && len(changedNames) > 0 {
+		_ = s.auditor.Append(ctx, audit.Event{
+			ActorUserID: actor.ID,
+			Action:      audit.ActionSettingsUpdate,
+			Metadata: map[string]any{
+				"names": changedNames,
+				"count": len(changedNames),
+			},
+		})
 	}
 	// 写入后让缓存失效，下次读取重新从 DB 解密加载。
 	s.mu.Lock()

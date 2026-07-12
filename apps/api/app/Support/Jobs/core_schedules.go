@@ -8,9 +8,11 @@ import (
 
 // 核心 schedule 稳定 ID。新增维护任务时先加常量与 CoreScheduleDefinitions，再在 bootstrap 注入 Constructor。
 const (
-	ScheduleIdentityCleanupSessions      = "identity.cleanup_sessions"
-	ScheduleExtensionWebReleaseCleanup   = "extension.web_release_cleanup"
-	ScheduleAttachmentsCleanupOrphans    = "attachments.cleanup_orphans"
+	ScheduleIdentityCleanupSessions    = "identity.cleanup_sessions"
+	ScheduleExtensionWebReleaseCleanup = "extension.web_release_cleanup"
+	ScheduleAttachmentsCleanupOrphans  = "attachments.cleanup_orphans"
+	// ScheduleAuditCleanupEvents 清理过期 audit_events（F1.4 保留期 job）。
+	ScheduleAuditCleanupEvents = "audit.cleanup_events"
 )
 
 // CoreScheduleDefinitions 返回宿主内置 schedule 目录模板（无 Constructor）。
@@ -45,6 +47,16 @@ func CoreScheduleDefinitions() []ScheduleDefinition {
 			Owner:       "attachments",
 			Enabled:     true,
 			Description: "清理超过保留期且无引用的孤儿附件",
+			RunOnStart:  false,
+		},
+		{
+			ID:          ScheduleAuditCleanupEvents,
+			JobKind:     ScheduleAuditCleanupEvents,
+			Queue:       QueueMaintenance,
+			Interval:    24 * time.Hour,
+			Owner:       "audit",
+			Enabled:     true,
+			Description: "清理超过保留期的审计日志（默认 90 天）",
 			RunOnStart:  false,
 		},
 	}

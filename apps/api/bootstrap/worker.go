@@ -12,6 +12,7 @@ import (
 	"github.com/riverqueue/river"
 
 	attachmentjobs "github.com/zhuchunshu/sforum/apps/api/app/Jobs/Attachments"
+	auditjobs "github.com/zhuchunshu/sforum/apps/api/app/Jobs/Audit"
 	extensionjobs "github.com/zhuchunshu/sforum/apps/api/app/Jobs/Extensions"
 	identityjobs "github.com/zhuchunshu/sforum/apps/api/app/Jobs/Identity"
 	notificationjobs "github.com/zhuchunshu/sforum/apps/api/app/Jobs/Notifications"
@@ -20,6 +21,7 @@ import (
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
 	notifications "github.com/zhuchunshu/sforum/apps/api/app/Models/Notifications"
 	options "github.com/zhuchunshu/sforum/apps/api/app/Models/Options"
+	"github.com/zhuchunshu/sforum/apps/api/app/Support/Audit"
 	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
 	health "github.com/zhuchunshu/sforum/apps/api/app/Support/Health"
 	humanverify "github.com/zhuchunshu/sforum/apps/api/app/Support/HumanVerify"
@@ -144,6 +146,15 @@ func newWorkerWithPool(cfg config.Config, pool *pgxpool.Pool, logger *slog.Logge
 	attachmentStore := attachments.NewPostgresStore(pool)
 	attachmentService := attachments.NewService(attachmentStore, workerOptions)
 	attachmentjobs.Register(registry, attachmentService)
+	// 审计日志保留期清理（F1.4）：默认 90 天，handler 可后续接 runtime option。
+	auditWriter := audit.NewPostgresWriter(pool)
+	auditjobs.Register(registry, &auditjobs.CleanupEventsWorker{
+		Cleaner: auditWriter,
+		KeepDays: func(context.Context) (int, error) {
+			return audit.RecommendedRetentionDays, nil
+		},
+		Logger: logger,
+	})
 	registerSearchWorkers(registry, cfg, pool)
 	registerIdentityCleanupWorker(registry, cfg, pool, logger)
 
@@ -158,6 +169,9 @@ func newWorkerWithPool(cfg config.Config, pool *pgxpool.Pool, logger *slog.Logge
 		supportjobs.ScheduleAttachmentsCleanupOrphans: func() (river.JobArgs, *river.InsertOpts) {
 			// Limit=0 时 worker 使用默认批大小 100。
 			return attachmentjobs.CleanupOrphansArgs{}, nil
+		},
+		supportjobs.ScheduleAuditCleanupEvents: func() (river.JobArgs, *river.InsertOpts) {
+			return auditjobs.CleanupEventsArgs{}, nil
 		},
 	})
 	if err != nil {

@@ -47,8 +47,8 @@ func TestServiceSchedulesReturnsCoreCatalog(t *testing.T) {
 	if err != nil {
 		t.Fatalf("schedules: %v", err)
 	}
-	if len(items) != 3 {
-		t.Fatalf("expected 3 core schedules, got %d", len(items))
+	if len(items) != 4 {
+		t.Fatalf("expected 4 core schedules, got %d", len(items))
 	}
 	ids := map[string]bool{}
 	for _, item := range items {
@@ -61,6 +61,7 @@ func TestServiceSchedulesReturnsCoreCatalog(t *testing.T) {
 		"identity.cleanup_sessions",
 		"extension.web_release_cleanup",
 		"attachments.cleanup_orphans",
+		"audit.cleanup_events",
 	} {
 		if !ids[id] {
 			t.Fatalf("missing schedule %s", id)

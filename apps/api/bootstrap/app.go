@@ -34,6 +34,7 @@ import (
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Crypto"
 	appevents "github.com/zhuchunshu/sforum/apps/api/app/Support/Events"
 	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
+	"github.com/zhuchunshu/sforum/apps/api/app/Support/Audit"
 	health "github.com/zhuchunshu/sforum/apps/api/app/Support/Health"
 	humanverify "github.com/zhuchunshu/sforum/apps/api/app/Support/HumanVerify"
 	supportjobs "github.com/zhuchunshu/sforum/apps/api/app/Support/Jobs"
@@ -112,7 +113,10 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 	if err != nil {
 		return nil, fmt.Errorf("create option cipher: %w", err)
 	}
-	optionsService := options.NewServiceWithDefaults(optionStore, optionsDefaultsFromConfig(cfg)).WithCipher(optionCipher)
+	auditWriter := audit.NewPostgresWriter(pool)
+	optionsService := options.NewServiceWithDefaults(optionStore, optionsDefaultsFromConfig(cfg)).
+		WithCipher(optionCipher).
+		WithAuditor(auditWriter)
 	if err := optionsService.EnsureDefaults(ctx); err != nil {
 		sharedRedisClient.Close()
 		if closeErr := redisStorage.Close(); closeErr != nil {
@@ -198,6 +202,7 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		extensions.WithThemeCurrentWriter(themeCurrentWriter),
 		extensions.WithWebReleaseLifecycle(frontendService, webReleaseService),
 		extensions.WithWebReleaseProgress(webReleaseStore),
+		extensions.WithAuditor(auditWriter),
 	)
 	if _, err := extensionService.SyncBuiltins(ctx); err != nil {
 		if stopErr := supportjobs.Stop(ctx, jobClient); stopErr != nil {
