@@ -30,7 +30,10 @@ mail. Implementation checklist:
 - **E1.2 done:** `topic.before_update` filter (patch title/tags/category/content;
   force tags allowed)
 - **E1.3 done:** `user.before_register` validate (reject-only; no password in
-  payload). Next default: **E1.4** `attachment.before_upload`
+  payload)
+- **E1.4 done:** `attachment.before_upload` validate (metadata only; no raw
+  bytes). E1 core exit met (≥4 sync hooks). Optional **E1.5** observe gaps;
+  next density default **E2** or product fork **E6**
 - F4.4 entity meta → **E3**; F4.5 feature flags → **E4**
 - **North star:** storage (**E6**) and search (**E7**) reach mail-like L4–L6
   (plugin RPC + admin select/settings/test/restore + reference plugin); other
@@ -261,9 +264,9 @@ and plugin runtime v1.
   Replacement behavior must go through core-owned filter events or Provider
   Slots. Sync write-path hooks today: `topic.before_create`,
   `topic.before_update` (E1.2), `comment.before_create` (E1.1),
-  `user.before_register` validate (E1.3, reject-only). Lifecycle, committed
-  user/topic/comment creation, and attachment upload remain observe events with
-  delivery tracking.
+  `user.before_register` validate (E1.3), `attachment.before_upload` validate
+  (E1.4). Lifecycle and post-commit observes remain:
+  `user.registered` / `topic.*` / `comment.created` / `attachment.uploaded`.
 - Declarative contributions are separate from events, filters, provider slots,
   and routes. Contributions are ordered descriptors that a host-owned consumer
   interprets; they do not execute code, override routes, render raw HTML, or

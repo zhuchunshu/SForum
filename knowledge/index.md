@@ -4,12 +4,18 @@ This is the entry point for project memory.
 
 ## Latest Handoff
 
+- **2026-07-12 E1.4 complete** (`attachment.before_upload` validate)
+  - Handoff: `knowledge/sessions/2026-07-12-e1-4-attachment-before-upload.md`
+  - Plan: `knowledge/plans/2026-07-12-extension-surface-density.md`
+  - kind=`validate` reject-only; metadata payload only (no raw bytes); gate
+    in `storePreparedUpload` (Upload / Avatar / SEO image); 422 mapping
+  - **E1 core done** (≥4 sync hooks); next **E2** or **E6** service plugins
+
 - **2026-07-12 E1.3 complete** (`user.before_register` validate)
   - Handoff: `knowledge/sessions/2026-07-12-e1-3-user-before-register.md`
   - Plan: `knowledge/plans/2026-07-12-extension-surface-density.md`
   - kind=`validate` reject-only; payload username/email/locale only (no
     password); wired on ValidateRegister + Register; identity 422 mapping
-  - Next default: **E1.4** `attachment.before_upload` (or E6 if services)
 
 - **2026-07-12 E1.2 complete** (`topic.before_update` filter)
   - Handoff: `knowledge/sessions/2026-07-12-e1-2-topic-before-update.md`
@@ -35,7 +41,8 @@ This is the entry point for project memory.
     workflow reference plugin
   - **North star E6–E8:** storage / search / other services fully
     plugin-selectable and configurable (mail-like L4–L6); not slot names only
-  - E3/E4 overlap F4.4/F4.5 (now implemented); **E1.1–E1.3 done**; next **E1.4**
+  - E3/E4 overlap F4.4/F4.5 (now implemented); **E1.1–E1.4 done** (E1 core);
+    next **E2** or **E6**
 
 - **2026-07-12 posts content storage slim**
   - Handoff: `knowledge/sessions/2026-07-12-posts-excerpt-revision-slim.md`
@@ -640,7 +647,7 @@ This is the entry point for project memory.
 - `plans/2026-07-12-extension-surface-density.md` - post-hardening extensibility:
   E1 filters, E2 contributions, E3 meta, E4 flags, E5 workflow plugin;
   **E6 storage / E7 search / E8 other provider slots** (plugin configure north
-  star); E1.1–E1.3 done — next E1.4 or E6 if services are priority.
+  star); E1.1–E1.4 done — next E2 or E6 if services are priority.
 - `plans/2026-07-12-iteration-a-engagement-loop.md` - Iteration A implementation
   checklist: view counts, likes/reactions, bookmarks; topic lifecycle already
   mostly shipped.

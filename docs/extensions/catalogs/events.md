@@ -38,6 +38,7 @@ cd apps/api && go run ./cmd/sforum extension docs generate --check
 | `tag.updated` | observe | 5000 | fail_open | `tagId`, `tagSlug`, `status` | — |
 | `comment.before_create` | filter | 2000 | fail_closed | `actorUserId`, `topicId`, `parentId`, `content` | `content` |
 | `comment.created` | observe | 5000 | fail_open | `commentId`, `topicId`, `authorUserId`, `parentId` | — |
+| `attachment.before_upload` | validate | 2000 | fail_closed | `actorUserId`, `contentType`, `sizeBytes`, `filename` | — |
 | `attachment.uploaded` | observe | 5000 | fail_open | `attachmentId`, `publicId`, `ownerUserId`, `provider`, `contentType`, `sizeBytes` | — |
 | `entity_meta.updated` | observe | 5000 | fail_open | `entityType`, `entityId`, `fieldKeys`, `actorUserId` | — |
 
@@ -126,6 +127,10 @@ Runs before a comment is committed and may reject or patch allowlisted input. He
 #### `comment.created`
 
 Emitted after a comment is committed.
+
+#### `attachment.before_upload`
+
+Runs after host MIME/size policy and before storage write. Reject-only in v1; payload is metadata only (no raw file bytes).
 
 #### `attachment.uploaded`
 

@@ -235,14 +235,16 @@ before password hash / user row; identity controller maps `RejectedError` → 42
 
 ### E1.4 Attachment before upload (metadata stage)
 
-- [ ] Add `attachment.before_upload` (`filter` or `validate`)
+- [x] Add `attachment.before_upload` (`filter` or `validate`)
   - Payload: `actorUserId`, `contentType`, `sizeBytes`, `filename` (no raw
     bytes in RPC)
   - Patch allowlist: none in v1 (reject-only is enough)
-- [ ] Wire after MIME sniff / size policy, before storage write when practical
-- [ ] Tests + docs
+- [x] Wire after MIME sniff / size policy, before storage write when practical
+- [x] Tests + docs
 
 **Acceptance:** plugin can deny a content type the core wildcards would allow.
+**Done** (kind=`validate` reject-only; wired in `storePreparedUpload` so
+Upload/UploadAvatar/UploadSEOImage share the gate; no raw bytes in payload).
 
 ### E1.5 Comment / topic delete-or-hide observe gaps (optional if missing)
 
@@ -252,9 +254,11 @@ before password hash / user row; identity controller maps `RejectedError` → 42
 
 **E1 exit criteria:**
 
-- Catalog has ≥ 4 sync filter/validate points on real write paths
-- `go test ./...` green; event docs regenerated
-- Authoring guide lists “which filter for which scenario”
+- [x] Catalog has ≥ 4 sync filter/validate points on real write paths
+  (`topic.before_create`, `topic.before_update`, `comment.before_create`,
+  `user.before_register`, `attachment.before_upload`)
+- [x] Event docs regenerated; authoring guide lists “which filter for which scenario”
+- E1.5 optional observe gaps remain open if product needs them
 
 ---
 
