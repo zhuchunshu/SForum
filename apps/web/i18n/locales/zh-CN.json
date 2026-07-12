@@ -297,7 +297,9 @@
       "userManagement": "用户管理",
       "userGroups": "用户组",
       "permissionManagement": "权限管理",
-      "webhooks": "Webhooks"
+      "webhooks": "Webhooks",
+      "featureFlags": "产品开关",
+      "entityMeta": "自定义字段"
     },
     "avatar": {
       "metaTitle": "头像设置",
@@ -2025,7 +2027,8 @@
       "refresh": "刷新",
       "reset": "重置",
       "save": "保存",
-      "edit": "编辑"
+      "edit": "编辑",
+      "loading": "加载中…"
     },
     "forum": {
       "visibility": {
@@ -2534,6 +2537,61 @@
       "deleted": "Webhook 已删除",
       "loadFailed": "加载 Webhook 失败",
       "saveFailed": "保存 Webhook 失败"
+    },
+    "features": {
+      "title": "产品开关",
+      "description": "站点级产品面开关，与角色权限无关。关闭后对应产品入口与依赖该开关的插件启用会被拒绝。",
+      "panelTitle": "功能开关",
+      "panelHelp": "推荐默认全部开启，适合首次部署。可随时一键恢复。",
+      "save": "保存",
+      "restoreRecommended": "恢复推荐默认值",
+      "saved": "产品开关已保存。",
+      "restored": "已恢复推荐产品开关。",
+      "loadFailed": "产品开关加载失败。",
+      "saveFailed": "产品开关保存失败。",
+      "adminOnly": "仅后台",
+      "flags": {
+        "features.search": "搜索",
+        "features.registration": "开放注册",
+        "features.attachments": "附件上传",
+        "features.mentions": "提及",
+        "features.public_profiles": "公开资料页",
+        "features.webhooks": "出站 Webhooks"
+      },
+      "flagsHelp": {
+        "features.search": "控制公开搜索入口与搜索产品面。",
+        "features.registration": "控制开放注册产品面（仍受注册策略约束）。",
+        "features.attachments": "控制附件上传产品面。",
+        "features.mentions": "控制 @ 提及产品面。",
+        "features.public_profiles": "控制公开用户资料页。",
+        "features.webhooks": "控制出站 Webhooks 产品面（不出现在公开 web-options）。"
+      }
+    },
+    "entityMeta": {
+      "title": "自定义字段",
+      "description": "为用户与主题定义宿主拥有的自定义字段，无需为每个插件修改核心表结构。",
+      "createTitle": "新建字段定义",
+      "listTitle": "字段目录",
+      "fieldKey": "字段键",
+      "entityType": "实体类型",
+      "valueType": "值类型",
+      "visibility": "可见性",
+      "labelZh": "中文标签",
+      "labelEn": "英文标签",
+      "required": "必填",
+      "enabled": "启用",
+      "create": "创建字段",
+      "empty": "暂无字段定义。",
+      "disabled": "已停用",
+      "enable": "启用",
+      "disable": "停用",
+      "delete": "删除",
+      "deleteConfirm": "确定删除字段 {key}？已有值会一并删除。",
+      "created": "字段已创建。",
+      "updated": "字段已更新。",
+      "deleted": "字段已删除。",
+      "loadFailed": "自定义字段加载失败。",
+      "saveFailed": "自定义字段保存失败。"
     }
   },
   "errors": {

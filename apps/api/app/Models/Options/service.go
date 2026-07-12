@@ -826,6 +826,7 @@ func (s *Service) coerceValueSet(values map[string]string) map[string]string {
 	}
 	coerceAttachmentOptions(coerced, defaults)
 	coerceAvatarOptions(coerced, defaults)
+	coerceFeatureFlagOptions(coerced, defaults)
 
 	return coerced
 }
@@ -1002,6 +1003,7 @@ func normalizedDefaults(defaults Defaults) map[string]string {
 	}
 	mergeCommunityPolicyDefaults(values)
 	mergeSiteBrandDefaults(values)
+	mergeFeatureFlagDefaults(values)
 	for name, value := range seoRecommendedDefaults() {
 		values[name] = value
 	}
@@ -1187,6 +1189,9 @@ func normalizeOptionValue(name string, value string) (string, bool) {
 	case NameForumTagCreationMode:
 		return normalizeForumTagCreationMode(value)
 	case NameForumTagPublicPages:
+		return normalizeEnabledOption(value)
+	case NameFeatureSearch, NameFeatureRegistration, NameFeatureAttachments, NameFeatureMentions, NameFeaturePublicProfiles, NameFeatureWebhooks:
+		// F4.5：产品开关仅接受 enabled/disabled。
 		return normalizeEnabledOption(value)
 	case NameForumTagMinPerTopic, NameForumTagMaxPerTopic:
 		return normalizeBoundedInt(value, forumTagMaxPerTopicMin, forumTagMaxPerTopicMax)

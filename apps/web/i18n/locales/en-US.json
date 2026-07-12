@@ -297,7 +297,9 @@
       "jobs": "Background jobs",
       "schedules": "Scheduled jobs",
       "moderation": "Moderation management",
-      "webhooks": "Webhooks"
+      "webhooks": "Webhooks",
+      "featureFlags": "Feature flags",
+      "entityMeta": "Custom fields"
     },
     "avatar": {
       "metaTitle": "Avatar settings",
@@ -2025,7 +2027,8 @@
       "refresh": "Refresh",
       "reset": "Reset",
       "save": "Save",
-      "edit": "Edit"
+      "edit": "Edit",
+      "loading": "Loading…"
     },
     "forum": {
       "visibility": {
@@ -2534,6 +2537,61 @@
       "deleted": "Webhook deleted",
       "loadFailed": "Failed to load webhooks",
       "saveFailed": "Failed to save webhook"
+    },
+    "features": {
+      "title": "Feature flags",
+      "description": "Site-level product switches, separate from RBAC. When off, product surfaces and plugins that require the flag cannot enable.",
+      "panelTitle": "Product switches",
+      "panelHelp": "Recommended defaults are all on for first-time operators. Restore anytime.",
+      "save": "Save",
+      "restoreRecommended": "Restore recommended defaults",
+      "saved": "Feature flags saved.",
+      "restored": "Recommended feature flags restored.",
+      "loadFailed": "Failed to load feature flags.",
+      "saveFailed": "Failed to save feature flags.",
+      "adminOnly": "Admin only",
+      "flags": {
+        "features.search": "Search",
+        "features.registration": "Open registration",
+        "features.attachments": "Attachments",
+        "features.mentions": "Mentions",
+        "features.public_profiles": "Public profiles",
+        "features.webhooks": "Outbound webhooks"
+      },
+      "flagsHelp": {
+        "features.search": "Controls the public search product surface.",
+        "features.registration": "Controls open registration product surface (still subject to registration policy).",
+        "features.attachments": "Controls attachment upload product surface.",
+        "features.mentions": "Controls @mention product surface.",
+        "features.public_profiles": "Controls public user profile pages.",
+        "features.webhooks": "Controls outbound webhooks product surface (not public on web-options)."
+      }
+    },
+    "entityMeta": {
+      "title": "Custom fields",
+      "description": "Define host-owned custom fields on users and topics without ALTER on core tables per plugin.",
+      "createTitle": "Create field definition",
+      "listTitle": "Field catalog",
+      "fieldKey": "Field key",
+      "entityType": "Entity type",
+      "valueType": "Value type",
+      "visibility": "Visibility",
+      "labelZh": "Chinese label",
+      "labelEn": "English label",
+      "required": "Required",
+      "enabled": "Enabled",
+      "create": "Create field",
+      "empty": "No field definitions yet.",
+      "disabled": "Disabled",
+      "enable": "Enable",
+      "disable": "Disable",
+      "delete": "Delete",
+      "deleteConfirm": "Delete field {key}? Existing values will be removed.",
+      "created": "Field created.",
+      "updated": "Field updated.",
+      "deleted": "Field deleted.",
+      "loadFailed": "Failed to load custom fields.",
+      "saveFailed": "Failed to save custom fields."
     }
   },
   "errors": {

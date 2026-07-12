@@ -36,6 +36,7 @@ cd apps/api && go run ./cmd/sforum extension docs generate --check
 | `tag.updated` | observe | 5000 | fail_open | `tagId`, `tagSlug`, `status` | — |
 | `comment.created` | observe | 5000 | fail_open | `commentId`, `topicId`, `authorUserId`, `parentId` | — |
 | `attachment.uploaded` | observe | 5000 | fail_open | `attachmentId`, `publicId`, `ownerUserId`, `provider`, `contentType`, `sizeBytes` | — |
+| `entity_meta.updated` | observe | 5000 | fail_open | `entityType`, `entityId`, `fieldKeys`, `actorUserId` | — |
 
 ### Descriptions
 
@@ -114,4 +115,8 @@ Emitted after a comment is committed.
 #### `attachment.uploaded`
 
 Emitted after attachment metadata is committed.
+
+#### `entity_meta.updated`
+
+Emitted after entity custom field values are written or cleared.
 

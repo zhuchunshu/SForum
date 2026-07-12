@@ -211,6 +211,35 @@ Payloads are JSON descriptors — **never executable code**.
 | `admin.dashboard.widgets` | `dashboardLink` (`adminLink` + admin route) | Admin overview `extensionWidgets` |
 | `system.health.checks` | `healthDescriptor` (`static` \| `extensionRuntime`) | Merged into `GET /ready` without plugin RPC |
 
+## Entity meta / custom fields (F4.4)
+
+Host-owned EAV fields on `user` and `topic` — **no** per-plugin `ALTER` on core
+tables.
+
+- Admin defines fields (`entity_meta.manage`): key, type
+  (`string|text|number|boolean`), visibility (`public|owner|admin`).
+- Values: `GET/PUT /api/v1/entity-meta/{entityType}/{entityId}` (visibility
+  filtered).
+- Observe event: `entity_meta.updated` after successful value writes.
+
+## Feature flags vs permissions (F4.5)
+
+| Concern | Mechanism |
+| --- | --- |
+| Who may act | RBAC permission keys |
+| Whether a product surface is on | `features.*` runtime options |
+
+Declare product prerequisites on plugins only:
+
+```json
+"requiresFeatures": ["features.search"]
+```
+
+Enable fails with `extension.features_required` if any listed flag is disabled.
+Themes must not declare `requiresFeatures`. Public `GET /web-options` exposes
+only safe public flags; restore defaults via
+`POST /admin/features/restore-defaults`.
+
 ## Related docs
 
 - [Host catalogs (generated)](./catalogs/README.md)

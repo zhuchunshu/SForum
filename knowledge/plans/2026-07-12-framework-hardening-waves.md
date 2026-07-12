@@ -204,21 +204,33 @@ POSTs with Idempotency-Key are safe; storage selection is a real slot.
 
 ### F4.4 Entity meta / custom fields
 
-- [ ] Design decision for storage + indexing + permissions
-- [ ] Core APIs for defined fields on user/topic (start narrow)
-- [ ] Admin field definitions with safe defaults
-- [ ] Events for meta changes
+- [x] Design decision for storage + indexing + permissions
+  (**decision accepted:** `decisions/2026-07-12-entity-meta-and-feature-flags.md`)
+- [x] Core APIs for defined fields on user/topic (start narrow)
+- [x] Admin field definitions with safe defaults
+- [x] Events for meta changes
+
+Also tracked as Wave **E3** in
+`plans/2026-07-12-extension-surface-density.md` (mark E3 done when that plan
+is updated).
 
 ### F4.5 Feature flags vs permissions
 
-- [ ] Site-level feature switches distinct from RBAC
-- [ ] Plugins declare `requiresFeatures`
-- [ ] Public web-options expose only safe flags
-- [ ] Restore recommended defaults
+- [x] Site-level feature switches distinct from RBAC
+- [x] Plugins declare `requiresFeatures`
+- [x] Public web-options expose only safe flags
+- [x] Restore recommended defaults
+
+Also tracked as Wave **E4** in
+`plans/2026-07-12-extension-surface-density.md`.
 
 **F4 exit criteria:** a new contributor can scaffold, test, and document a
 plugin using published catalogs; custom fields do not require core migrations
-per plugin.
+per plugin. **Met** with F4.1–F4.5.
+
+**After F4:** density + **service pluginization** (storage/search/etc. to
+mail-like L4–L6) is tracked as waves **E1–E8** in
+`plans/2026-07-12-extension-surface-density.md`, not as new F-waves.
 
 ---
 
@@ -271,13 +283,17 @@ per plugin.
 | 2026-07-12 | F4.1 | public `sdk/plugin`, `extension test`, fixtures + CI contract tests |
 | 2026-07-12 | F4.2 | catalog docs generator + authoring guide; `extension docs generate` |
 | 2026-07-12 | F4.3 | composer/profile/dashboard/health contribution points + consumers |
-| | F4 | F4.1–F4.3 done; F4.4–F4.5 pending |
+| 2026-07-12 | F4.4 | entity meta EAV (user/topic) + admin + entity_meta.updated |
+| 2026-07-12 | F4.5 | features.* flags, requiresFeatures, restore defaults |
+| | F4 | complete (current scope) |
 
 ---
 
 ## Next session one-liner
 
 ```text
-Wave F4.3 complete. Next: F4.4 entity meta, F4.5 feature flags;
-or product Iteration A / settings Wave 3.
+F1–F4 complete (incl. F4.4 entity meta + F4.5 feature flags).
+Framework next: Extension Surface Density E1–E8 (default E1.1
+comment.before_create; north star E6/E7 service pluginization).
+Product alt: Iteration A / settings Wave 3.
 ```

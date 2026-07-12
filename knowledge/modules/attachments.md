@@ -47,16 +47,22 @@ permissions for navigation and tab usability.
 - `reference_count > 0` blocks physical deletion. Referenced attachments can be
   disabled/hidden, but not physically removed by cleanup.
 
-## Provider Slot (F3.5)
+## Provider Slot (F3.5 → E6 target)
 
 Host contract slot: `attachment.storage.provider` (`Support/Storage.ProviderSlot`).
 
-**Decision:** concrete drivers remain **in core** under `Support/Storage`
+**Current (F3.5):** concrete drivers remain **in core** under `Support/Storage`
 (local, aliyun_oss, tencent_cos, ftp, sftp). Operators select the active driver
 via `attachment.provider` web option / admin settings; admin responses include
-`providerSlot` and `drivers[]` for UI and future plugin authors. A future
-plugin may implement the same slot only after a separate decision; v1 does not
-route Put/Open through plugin RPC.
+`providerSlot` and `drivers[]`. v1 does **not** route Put/Open through plugin
+RPC (maturity ~L1–partial L2 on the ladder in
+`plans/2026-07-12-extension-surface-density.md`).
+
+**Target (Wave E6, product north star):** same slot reaches mail-like L4–L6 —
+plugins register as candidates, host routes storage ops through plugin RPC when
+selected, plugin owns settings/secrets/test-connection, core keeps at least
+`local` as zero-config fallback + restore defaults. New vendor backends (S3,
+MinIO, R2, …) should not require a core PR.
 
 ## Runtime Configuration
 

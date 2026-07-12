@@ -1,0 +1,176 @@
+entityMetaDefinitions:
+  get:
+    summary: List public enabled field definitions for an entity type
+    operationId: listEntityMetaDefinitions
+    parameters:
+    - name: entityType
+      in: query
+      required: true
+      schema:
+        type: string
+        enum: [user, topic]
+    responses:
+      '200':
+        description: Public field definitions (excludes admin-only fields).
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/entity_meta.yaml#/ApiResponseEntityFieldDefinitionList"
+      '422':
+        "$ref": "../components/responses.yaml#/UnprocessableEntity"
+entityMetaValues:
+  get:
+    summary: List entity meta values filtered by visibility
+    operationId: listEntityMetaValues
+    parameters:
+    - name: entityType
+      in: path
+      required: true
+      schema:
+        type: string
+        enum: [user, topic]
+    - name: entityID
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+    responses:
+      '200':
+        description: Meta values visible to the current viewer.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/entity_meta.yaml#/ApiResponseEntityMetaValueList"
+      '404':
+        "$ref": "../components/responses.yaml#/NotFound"
+  put:
+    summary: Upsert entity meta values
+    operationId: upsertEntityMetaValues
+    parameters:
+    - name: entityType
+      in: path
+      required: true
+      schema:
+        type: string
+        enum: [user, topic]
+    - name: entityID
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            "$ref": "../schemas/entity_meta.yaml#/UpsertEntityMetaValuesRequest"
+    responses:
+      '200':
+        description: Updated visible values.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/entity_meta.yaml#/ApiResponseEntityMetaValueList"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '404':
+        "$ref": "../components/responses.yaml#/NotFound"
+      '422':
+        "$ref": "../components/responses.yaml#/UnprocessableEntity"
+adminEntityMetaDefinitions:
+  get:
+    summary: List all field definitions (admin)
+    operationId: adminListEntityMetaDefinitions
+    parameters:
+    - name: entityType
+      in: query
+      required: false
+      schema:
+        type: string
+        enum: [user, topic]
+    responses:
+      '200':
+        description: Field definitions.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/entity_meta.yaml#/ApiResponseEntityFieldDefinitionList"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+  post:
+    summary: Create a field definition
+    operationId: adminCreateEntityMetaDefinition
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            "$ref": "../schemas/entity_meta.yaml#/CreateEntityFieldDefinitionRequest"
+    responses:
+      '201':
+        description: Definition created.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/entity_meta.yaml#/ApiResponseEntityFieldDefinition"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '422':
+        "$ref": "../components/responses.yaml#/UnprocessableEntity"
+adminEntityMetaDefinitionByKey:
+  patch:
+    summary: Update a field definition
+    operationId: adminUpdateEntityMetaDefinition
+    parameters:
+    - name: fieldKey
+      in: path
+      required: true
+      schema:
+        type: string
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            "$ref": "../schemas/entity_meta.yaml#/UpdateEntityFieldDefinitionRequest"
+    responses:
+      '200':
+        description: Definition updated.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/entity_meta.yaml#/ApiResponseEntityFieldDefinition"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '404':
+        "$ref": "../components/responses.yaml#/NotFound"
+      '422':
+        "$ref": "../components/responses.yaml#/UnprocessableEntity"
+  delete:
+    summary: Delete a field definition and its values
+    operationId: adminDeleteEntityMetaDefinition
+    parameters:
+    - name: fieldKey
+      in: path
+      required: true
+      schema:
+        type: string
+    responses:
+      '200':
+        description: Definition deleted.
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '404':
+        "$ref": "../components/responses.yaml#/NotFound"

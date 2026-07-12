@@ -92,6 +92,16 @@ Initial runtime option support is implemented.
     `202607120003_site_chrome.sql` and admin personalization tabs (panel
     `apps/web/app/components/admin/SFAdminSiteChromePanel.vue`).
 
+## Feature flags (F4.5)
+
+- Host catalog under `features.*` (search, registration, attachments, mentions,
+  public_profiles, webhooks). Distinct from RBAC: flags kill product surfaces;
+  permissions answer who may act when the surface is on.
+- Admin: `GET/PUT /admin/features`, `POST /admin/features/restore-defaults`.
+- Public `GET /web-options` includes only `public: true` flags (webhooks is
+  admin-only).
+- Plugins may declare `requiresFeatures`; enable fails if any flag is off.
+
 ## Boundaries
 
 - Runtime options are for self-hosted operator-managed settings such as site

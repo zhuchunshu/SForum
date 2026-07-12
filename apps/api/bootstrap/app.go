@@ -27,6 +27,7 @@ import (
 	options "github.com/zhuchunshu/sforum/apps/api/app/Models/Options"
 	profile "github.com/zhuchunshu/sforum/apps/api/app/Models/Profile"
 	sitechrome "github.com/zhuchunshu/sforum/apps/api/app/Models/SiteChrome"
+	entitymeta "github.com/zhuchunshu/sforum/apps/api/app/Models/EntityMeta"
 	webhooks "github.com/zhuchunshu/sforum/apps/api/app/Models/Webhooks"
 	"github.com/zhuchunshu/sforum/apps/api/app/Providers"
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Audit"
@@ -220,6 +221,8 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		extensions.WithAuditor(auditWriter),
 		// F2.4：同 id 升级且 digest 变化时吊销该扩展前端信任，要求重新授权。
 		extensions.WithTrustRevoker(frontendService),
+		// F4.5：启用时校验 manifest requiresFeatures。
+		extensions.WithFeatureFlags(optionsService),
 	)
 	// 把已构造的 extensionService 接到 Host API 能力/权限解析（避免循环构造）。
 	hostAPIService.BindCapabilitySource(extensionService)
@@ -355,6 +358,10 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 	extensionsProvider := providers.NewExtensionsProviderWithService(extensionService, identityStore, authSessions, extensionRuntime, frontendService, webReleaseAdminService)
 	webhooksProvider := providers.NewWebhooksProvider(webhookService, identityStore, authSessions)
 
+	// F4.4：实体自定义字段（EAV，无 per-plugin core ALTER）。
+	entityMetaService := entitymeta.NewService(entitymeta.NewPostgresStore(pool)).WithPublisher(eventPublisher)
+	entityMetaProvider := providers.NewEntityMetaProvider(entityMetaService, identityStore, authSessions)
+
 	// Readiness：PG 必检；Redis/Meili 失败记 degraded 仍 ready（见 Support/Health）。
 	// F4.3：合并 system.health.checks 贡献（不调用插件 RPC）。
 	readyEvaluate := func(ctx context.Context) health.ReadyReport {
@@ -366,7 +373,7 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 	}
 
 	app := httpserver.NewApp(cfg, logger, httpserver.Dependencies{
-		RouteProviders: []httpserver.RouteProvider{identityProvider, notificationsProvider, mailProvider, adminOverviewProvider, forumProvider, profileProvider, moderationProvider, optionsProvider, siteChromeProvider, attachmentsProvider, seoProvider, databaseProvider, jobsProvider, extensionsProvider, webhooksProvider},
+		RouteProviders: []httpserver.RouteProvider{identityProvider, notificationsProvider, mailProvider, adminOverviewProvider, forumProvider, profileProvider, moderationProvider, optionsProvider, siteChromeProvider, attachmentsProvider, seoProvider, databaseProvider, jobsProvider, extensionsProvider, webhooksProvider, entityMetaProvider},
 		Options:        optionsService,
 		Storage:        redisStorage,
 		Ready:          readyEvaluate,

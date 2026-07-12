@@ -1,0 +1,190 @@
+EntityFieldDefinition:
+  type: object
+  required: [id, fieldKey, entityType, valueType, visibility, label, required, enabled, sortOrder, createdAt, updatedAt]
+  properties:
+    id:
+      type: integer
+      format: int64
+    fieldKey:
+      type: string
+    entityType:
+      type: string
+      enum: [user, topic]
+    valueType:
+      type: string
+      enum: [string, text, number, boolean]
+    visibility:
+      type: string
+      enum: [public, owner, admin]
+    label:
+      type: object
+      additionalProperties:
+        type: string
+    description:
+      type: object
+      additionalProperties:
+        type: string
+    ownerExtensionId:
+      type: string
+    required:
+      type: boolean
+    enabled:
+      type: boolean
+    sortOrder:
+      type: integer
+    constraints:
+      type: object
+      additionalProperties: true
+    createdAt:
+      type: string
+      format: date-time
+    updatedAt:
+      type: string
+      format: date-time
+
+EntityMetaValue:
+  type: object
+  required: [fieldKey, entityType, entityId, valueType, value, visibility]
+  properties:
+    fieldKey:
+      type: string
+    entityType:
+      type: string
+    entityId:
+      type: integer
+      format: int64
+    valueType:
+      type: string
+    value: {}
+    visibility:
+      type: string
+    label:
+      type: object
+      additionalProperties:
+        type: string
+    updatedAt:
+      type: string
+      format: date-time
+
+CreateEntityFieldDefinitionRequest:
+  type: object
+  required: [fieldKey, entityType, valueType, label]
+  properties:
+    fieldKey:
+      type: string
+    entityType:
+      type: string
+      enum: [user, topic]
+    valueType:
+      type: string
+      enum: [string, text, number, boolean]
+    visibility:
+      type: string
+      enum: [public, owner, admin]
+    label:
+      type: object
+      additionalProperties:
+        type: string
+    description:
+      type: object
+      additionalProperties:
+        type: string
+    ownerExtensionId:
+      type: string
+    required:
+      type: boolean
+    enabled:
+      type: boolean
+    sortOrder:
+      type: integer
+    constraints:
+      type: object
+      additionalProperties: true
+
+UpdateEntityFieldDefinitionRequest:
+  type: object
+  properties:
+    visibility:
+      type: string
+      enum: [public, owner, admin]
+    label:
+      type: object
+      additionalProperties:
+        type: string
+    description:
+      type: object
+      additionalProperties:
+        type: string
+    ownerExtensionId:
+      type: string
+    required:
+      type: boolean
+    enabled:
+      type: boolean
+    sortOrder:
+      type: integer
+    constraints:
+      type: object
+      additionalProperties: true
+
+UpsertEntityMetaValuesRequest:
+  type: object
+  required: [values]
+  properties:
+    values:
+      type: array
+      items:
+        type: object
+        required: [fieldKey]
+        properties:
+          fieldKey:
+            type: string
+          value: {}
+          clear:
+            type: boolean
+            description: When true, clears the field value.
+
+EntityFieldDefinitionList:
+  type: object
+  required: [items]
+  properties:
+    items:
+      type: array
+      items:
+        "$ref": "#/EntityFieldDefinition"
+
+EntityMetaValueList:
+  type: object
+  required: [items]
+  properties:
+    items:
+      type: array
+      items:
+        "$ref": "#/EntityMetaValue"
+
+ApiResponseEntityFieldDefinition:
+  type: object
+  required: [code, message, data]
+  properties:
+    code: { type: integer }
+    message: { type: string }
+    data:
+      "$ref": "#/EntityFieldDefinition"
+
+ApiResponseEntityFieldDefinitionList:
+  type: object
+  required: [code, message, data]
+  properties:
+    code: { type: integer }
+    message: { type: string }
+    data:
+      "$ref": "#/EntityFieldDefinitionList"
+
+ApiResponseEntityMetaValueList:
+  type: object
+  required: [code, message, data]
+  properties:
+    code: { type: integer }
+    message: { type: string }
+    data:
+      "$ref": "#/EntityMetaValueList"

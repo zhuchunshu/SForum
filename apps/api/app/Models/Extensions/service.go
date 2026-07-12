@@ -40,6 +40,13 @@ type Service struct {
 	auditor audit.Writer
 	// trustRevoker 升级时吊销前端信任（F2.4）。
 	trustRevoker TrustRevoker
+	// featureFlags 检查 requiresFeatures（F4.5）；未注入时跳过门禁（测试兼容）。
+	featureFlags FeatureFlagSource
+}
+
+// FeatureFlagSource 返回 requiresFeatures 中当前关闭的 key。
+type FeatureFlagSource interface {
+	MissingRequiredFeatures(ctx context.Context, required []string) ([]string, error)
 }
 
 // WebReleaseProgressReader 读取扩展相关的进行中/失败 Web 发布，用于管理端进度条。
@@ -81,6 +88,13 @@ func WithAuditor(w audit.Writer) ServiceOption {
 	}
 }
 
+// WithFeatureFlags 注入站点产品开关检查（F4.5 requiresFeatures）。
+func WithFeatureFlags(source FeatureFlagSource) ServiceOption {
+	return func(s *Service) {
+		s.featureFlags = source
+	}
+}
+
 func (s *Service) appendAudit(ctx context.Context, actor identity.Actor, action string, metadata map[string]any) {
 	if s == nil || s.auditor == nil || action == "" {
 		return
@@ -90,6 +104,20 @@ func (s *Service) appendAudit(ctx context.Context, actor identity.Actor, action 
 		Action:      action,
 		Metadata:    metadata,
 	})
+}
+
+func (s *Service) ensureRequiredFeatures(ctx context.Context, required []string) error {
+	if s == nil || s.featureFlags == nil || len(required) == 0 {
+		return nil
+	}
+	missing, err := s.featureFlags.MissingRequiredFeatures(ctx, required)
+	if err != nil {
+		return err
+	}
+	if len(missing) > 0 {
+		return fmt.Errorf("%w: %s", ErrFeaturesRequired, strings.Join(missing, ","))
+	}
+	return nil
 }
 
 func NewService(store Store, extensionRoot string) *Service {
@@ -606,6 +634,11 @@ func (s *Service) Enable(ctx context.Context, actor identity.Actor, id string, i
 		if capabilities.RequiresConfirmation(capKeys) && !input.ConfirmCapabilities {
 			return Extension{}, ErrCapabilityConfirmationRequired
 		}
+	}
+
+	// F4.5：manifest requiresFeatures 必须全部开启。
+	if err := s.ensureRequiredFeatures(ctx, extension.Manifest.RequiresFeatures); err != nil {
+		return Extension{}, err
 	}
 
 	if err := s.verifyExtension(ctx, extension); err != nil {

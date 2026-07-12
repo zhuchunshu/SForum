@@ -20,6 +20,8 @@ const (
 	TagCreated         = "tag.created"
 	TagUpdated         = "tag.updated"
 	AttachmentUploaded = "attachment.uploaded"
+	// EntityMetaUpdated F4.4：实体自定义字段值变更后发出（observe，不阻断写路径）。
+	EntityMetaUpdated = "entity_meta.updated"
 )
 
 // 目录约定（F1.3）：
@@ -50,6 +52,7 @@ var definitions = []Definition{
 	observe(TagUpdated, "Emitted after a tag is updated.", []string{"tagId", "tagSlug", "status"}),
 	observe(CommentCreated, "Emitted after a comment is committed.", []string{"commentId", "topicId", "authorUserId", "parentId"}),
 	observe(AttachmentUploaded, "Emitted after attachment metadata is committed.", []string{"attachmentId", "publicId", "ownerUserId", "provider", "contentType", "sizeBytes"}),
+	observe(EntityMetaUpdated, "Emitted after entity custom field values are written or cleared.", []string{"entityType", "entityId", "fieldKeys", "actorUserId"}),
 }
 
 func observe(name, description string, payload []string) Definition {

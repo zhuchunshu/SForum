@@ -5,9 +5,25 @@
 Owns full-text forum search and synchronization between PostgreSQL and
 Meilisearch.
 
+## Provider Slot (target E7)
+
+Host catalog slot: `search.provider`.
+
+**Current:** Meilisearch is the intended core/default engine; the slot name is
+reserved for docs and future plugins (maturity ~L0–L1). Operators cannot yet
+install a third-party search plugin and select it like `mail.provider`.
+
+**Target:** Wave **E7** in
+`plans/2026-07-12-extension-surface-density.md` — host owns document schema,
+ACL, and index jobs; plugins implement engine transport; admin select /
+configure / test / restore defaults. Core may keep Meili as zero-config
+fallback or move it to a builtin plugin (decision at E7.0).
+
 ## Current Status
 
-Planned. No Meilisearch indexing code has been added.
+Search implementation has progressed in the product (Meilisearch integration
+exists in the broader codebase); this note may lag. Treat provider
+**pluginization** as E7, not “slot name only.”
 
 Forum taxonomy fields are now available from the core forum read models:
 category ID/slug/name, category group context, and active topic tag summaries.

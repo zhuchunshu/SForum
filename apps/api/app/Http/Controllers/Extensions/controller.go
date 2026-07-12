@@ -442,6 +442,8 @@ func mapExtensionError(err error) error {
 		return fiber.NewError(fiber.StatusConflict, extensions.CodeCapabilityConfirmationRequired)
 	case errors.Is(err, extensions.ErrCapabilityDenied):
 		return fiber.NewError(fiber.StatusForbidden, extensions.CodeCapabilityDenied)
+	case errors.Is(err, extensions.ErrFeaturesRequired):
+		return fiber.NewError(fiber.StatusConflict, extensions.CodeFeaturesRequired)
 	case errors.Is(err, extensions.ErrNotDeletable):
 		return fiber.NewError(fiber.StatusConflict, extensions.CodeNotDeletable)
 	case errors.Is(err, extensions.ErrMustDisableFirst):

@@ -49,8 +49,11 @@ type Manifest struct {
 	Permissions []string                  `json:"permissions"`
 	// Capabilities 为插件声明的 Host 能力（F2.1）。主题必须为空。
 	// 未声明时宿主仍会按 jobs/settings/providers/backend 推断最小集。
-	Capabilities  []string               `json:"capabilities,omitempty"`
-	Settings      []ManifestSetting      `json:"settings"`
+	Capabilities []string `json:"capabilities,omitempty"`
+	// RequiresFeatures 为站点产品开关依赖（F4.5）。须为宿主 features.* 目录 key；
+	// 启用时若任一开关关闭则拒绝。主题必须为空。
+	RequiresFeatures []string            `json:"requiresFeatures,omitempty"`
+	Settings         []ManifestSetting   `json:"settings"`
 	Migrations    []ManifestMigration    `json:"migrations"`
 	Backend       ManifestBackend        `json:"backend"`
 	Frontend      ManifestFrontend       `json:"frontend"`
@@ -400,6 +403,23 @@ func validateManifest(manifest Manifest, points []ContributionPointDefinition) e
 			return ErrInvalidManifest
 		}
 	}
+	// F4.5：requiresFeatures 必须是 features.* 形式且主题禁止声明。
+	if len(manifest.RequiresFeatures) > 0 {
+		if manifest.Type == TypeTheme {
+			return ErrInvalidManifest
+		}
+		seen := map[string]bool{}
+		for _, name := range manifest.RequiresFeatures {
+			name = strings.TrimSpace(name)
+			if name == "" || !strings.HasPrefix(name, "features.") || strings.Contains(name, " ") {
+				return ErrInvalidManifest
+			}
+			if seen[name] {
+				return ErrInvalidManifest
+			}
+			seen[name] = true
+		}
+	}
 	if err := validateContributions(manifest, points); err != nil {
 		return err
 	}
@@ -419,6 +439,19 @@ func Normalize(manifest Manifest) Manifest {
 	manifest.SForumVersion = strings.TrimSpace(manifest.SForumVersion)
 	manifest.Langs = normalizeManifestLangs(manifest.Langs)
 	manifest.Capabilities = capabilities.NormalizeKeys(manifest.Capabilities)
+	if len(manifest.RequiresFeatures) > 0 {
+		normalized := make([]string, 0, len(manifest.RequiresFeatures))
+		seen := map[string]bool{}
+		for _, name := range manifest.RequiresFeatures {
+			name = strings.TrimSpace(name)
+			if name == "" || seen[name] {
+				continue
+			}
+			seen[name] = true
+			normalized = append(normalized, name)
+		}
+		manifest.RequiresFeatures = normalized
+	}
 	for index := range manifest.Settings {
 		manifest.Settings[index].Key = strings.TrimSpace(manifest.Settings[index].Key)
 		manifest.Settings[index].Label = manifest.Settings[index].Label.normalized()

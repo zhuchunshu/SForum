@@ -2,6 +2,7 @@ package optionscontroller
 
 import (
 	"errors"
+	"strings"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/session"
@@ -102,6 +103,60 @@ func (h *Controller) updateAdmin(c fiber.Ctx) error {
 	}
 
 	updated, err := h.service.UpdateMany(c.Context(), actor, inputs)
+	if err != nil {
+		return mapOptionsError(err)
+	}
+	return apphttp.OK(c, updated)
+}
+
+func (h *Controller) listFeatures(c fiber.Ctx) error {
+	actor, err := h.actor(c)
+	if err != nil {
+		return err
+	}
+	items, err := h.service.ListFeatureFlagsAdmin(c.Context(), actor)
+	if err != nil {
+		return mapOptionsError(err)
+	}
+	return apphttp.OK(c, map[string]any{
+		"items":   items,
+		"catalog": options.FeatureFlagCatalog(),
+	})
+}
+
+func (h *Controller) updateFeatures(c fiber.Ctx) error {
+	actor, err := h.actor(c)
+	if err != nil {
+		return err
+	}
+	var req updateOptionsRequest
+	if err := c.Bind().Body(&req); err != nil {
+		return fiber.NewError(fiber.StatusUnprocessableEntity, "validation.invalid")
+	}
+	inputs := make([]options.UpdateInput, 0, len(req.Options))
+	for _, item := range req.Options {
+		// 仅允许目录内 features.* 键，避免误改其它选项。
+		if !strings.HasPrefix(item.Name, "features.") {
+			return fiber.NewError(fiber.StatusUnprocessableEntity, options.CodeInvalid)
+		}
+		inputs = append(inputs, options.UpdateInput{Name: item.Name, Value: item.Value})
+	}
+	if len(inputs) == 0 {
+		return fiber.NewError(fiber.StatusUnprocessableEntity, "validation.invalid")
+	}
+	updated, err := h.service.UpdateMany(c.Context(), actor, inputs)
+	if err != nil {
+		return mapOptionsError(err)
+	}
+	return apphttp.OK(c, updated)
+}
+
+func (h *Controller) restoreFeatureDefaults(c fiber.Ctx) error {
+	actor, err := h.actor(c)
+	if err != nil {
+		return err
+	}
+	updated, err := h.service.RestoreFeatureFlagDefaults(c.Context(), actor)
 	if err != nil {
 		return mapOptionsError(err)
 	}

@@ -57,6 +57,8 @@ const (
 	PermissionSearchManage           = "search.manage"
 	PermissionJobsView               = "jobs.view"
 	PermissionJobsManage             = "jobs.manage"
+	// PermissionEntityMetaManage 管理实体自定义字段定义与 admin 可见元数据（F4.4）。
+	PermissionEntityMetaManage = "entity_meta.manage"
 )
 
 type SeedPermission struct {
@@ -107,6 +109,7 @@ var SeedPermissions = []SeedPermission{
 	{Key: PermissionSearchManage, Module: "search", Description: "Rebuild and manage the search index."},
 	{Key: PermissionJobsView, Module: "jobs", Description: "View background jobs, queues, failures, and worker activity."},
 	{Key: PermissionJobsManage, Module: "jobs", Description: "Retry, cancel, pause, and resume background job processing."},
+	{Key: PermissionEntityMetaManage, Module: "admin", Description: "Manage entity custom field definitions and admin-visible meta values."},
 }
 
 // SeedRoleTemplate 是内置角色模板的源码权威定义。
@@ -166,6 +169,7 @@ var SeedRoleTemplates = []SeedRoleTemplate{
 			PermissionTagManage,
 			PermissionAttachmentManage,
 			PermissionAttachmentSettings,
+			PermissionEntityMetaManage,
 		},
 	},
 	{

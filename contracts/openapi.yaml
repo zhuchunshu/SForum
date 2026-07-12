@@ -220,6 +220,18 @@ paths:
     "$ref": "./openapi/paths/options.yaml#/webOptionByName"
   "/admin/web-options":
     "$ref": "./openapi/paths/options.yaml#/adminWebOptions"
+  "/admin/features":
+    "$ref": "./openapi/paths/options.yaml#/adminFeatures"
+  "/admin/features/restore-defaults":
+    "$ref": "./openapi/paths/options.yaml#/adminFeaturesRestoreDefaults"
+  "/entity-meta/definitions":
+    "$ref": "./openapi/paths/entity_meta.yaml#/entityMetaDefinitions"
+  "/entity-meta/{entityType}/{entityID}":
+    "$ref": "./openapi/paths/entity_meta.yaml#/entityMetaValues"
+  "/admin/entity-meta/definitions":
+    "$ref": "./openapi/paths/entity_meta.yaml#/adminEntityMetaDefinitions"
+  "/admin/entity-meta/definitions/{fieldKey}":
+    "$ref": "./openapi/paths/entity_meta.yaml#/adminEntityMetaDefinitionByKey"
   "/site/nav-items":
     "$ref": "./openapi/paths/site_chrome.yaml#/siteNavItems"
   "/site/friend-links":

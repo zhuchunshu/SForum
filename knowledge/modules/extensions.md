@@ -18,6 +18,21 @@ while provider-specific behavior remains in plugins.
 
 ## Current Status
 
+### Extension surface density (next framework track)
+
+After F1–F4.3 platform hardening, gaps are (1) sparse filters / public UI /
+entity meta and (2) **service providers not fully plugin-configurable** beyond
+mail. Implementation checklist:
+
+- Plan: `plans/2026-07-12-extension-surface-density.md` (waves **E1–E8**)
+- Start at **E1.1** `comment.before_create` filter
+- F4.4 entity meta → **E3**; F4.5 feature flags → **E4**
+- **North star:** storage (**E6**) and search (**E7**) reach mail-like L4–L6
+  (plugin RPC + admin select/settings/test/restore + reference plugin); other
+  slots in **E8**. Today only `mail.provider` is end-to-end; storage/search
+  are mostly core drivers with reserved slot names.
+- Non-goals remain: arbitrary hooks, core route override, public raw HTML
+
 The extension foundation is implemented with plugin/theme lifecycle separation
 and plugin runtime v1.
 
@@ -81,6 +96,13 @@ and plugin runtime v1.
   `GET /composer/toolbar`, public profile `extensionTabs`, admin overview
   `extensionWidgets`, `/ready` merges health descriptors without plugin RPC.
   Handoff: `sessions/2026-07-12-f4-3-contribution-points.md`.
+- **F4.4 entity meta:** `entity_field_definitions` + `entity_meta_values` (user/
+  topic, host-owned EAV). Permission `entity_meta.manage`. Event
+  `entity_meta.updated`. Admin `/entity-meta`. Decision:
+  `decisions/2026-07-12-entity-meta-and-feature-flags.md`.
+- **F4.5 feature flags:** `features.*` options (≠ RBAC). Manifest
+  `requiresFeatures` gates enable. Admin `/settings/features` + restore
+  defaults. Public web-options only safe flags.
 - **F2.3 resilience:** per-extension concurrency semaphore (default 4),
   consecutive-failure circuit (default 5 / 30s open), hook + mail deadlines
   (protocol uses goroutine+select because net/rpc lacks context). Observe /

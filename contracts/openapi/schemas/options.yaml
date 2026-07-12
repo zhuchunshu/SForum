@@ -553,3 +553,42 @@ AdminWebOptionInput:
     value:
       type: string
       description: For secret options, an empty value keeps the existing secret.
+
+FeatureFlagCatalogItem:
+  type: object
+  required: [name, public, recommendedDefault, description]
+  properties:
+    name:
+      type: string
+      example: features.search
+    public:
+      type: boolean
+    recommendedDefault:
+      type: string
+      enum: [enabled, disabled]
+    description:
+      type: string
+
+FeatureFlagsAdminData:
+  type: object
+  required: [items, catalog]
+  properties:
+    items:
+      type: array
+      items:
+        "$ref": "#/AdminWebOption"
+    catalog:
+      type: array
+      items:
+        "$ref": "#/FeatureFlagCatalogItem"
+
+ApiResponseFeatureFlagsAdmin:
+  type: object
+  required: [code, message, data]
+  properties:
+    code:
+      type: integer
+    message:
+      type: string
+    data:
+      "$ref": "#/FeatureFlagsAdminData"

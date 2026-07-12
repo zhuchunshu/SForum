@@ -78,6 +78,8 @@ const (
 	CodeExtensionDisabled = "extension.disabled"
 	// 启用前需运营确认 capability 授权（F2.1）。
 	CodeCapabilityConfirmationRequired = "extension.capability_confirmation_required"
+	// CodeFeaturesRequired F4.5：站点产品开关未满足 requiresFeatures。
+	CodeFeaturesRequired = "extension.features_required"
 	// 运行时缺少已授权 capability。
 	CodeCapabilityDenied = "extension.capability_denied"
 	// 系统/内置扩展不可卸载。
@@ -107,6 +109,8 @@ var (
 	// ErrCapabilityConfirmationRequired 启用插件前需 confirmCapabilities=true。
 	ErrCapabilityConfirmationRequired = errors.New("extensions: capability confirmation required")
 	ErrCapabilityDenied               = errors.New("extensions: capability denied")
+	// ErrFeaturesRequired 站点产品开关未满足 manifest requiresFeatures（F4.5）。
+	ErrFeaturesRequired = errors.New("extensions: required features disabled")
 	ErrNotDeletable                   = errors.New("extensions: not deletable")
 	ErrMustDisableFirst               = errors.New("extensions: must disable before uninstall")
 	ErrMigrationFailed                = errors.New("extensions: migration failed")

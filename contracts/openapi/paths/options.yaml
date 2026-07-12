@@ -88,3 +88,58 @@ adminWebOptions:
         "$ref": "../components/responses.yaml#/Forbidden"
       '422':
         "$ref": "../components/responses.yaml#/UnprocessableEntity"
+
+adminFeatures:
+  get:
+    summary: List site feature flags and catalog
+    operationId: adminListFeatures
+    description: |
+      F4.5 site-level product switches (features.*), distinct from RBAC permissions.
+    responses:
+      '200':
+        description: Feature flag values and host catalog.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/options.yaml#/ApiResponseFeatureFlagsAdmin"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+  put:
+    summary: Update site feature flags
+    operationId: adminUpdateFeatures
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            "$ref": "../schemas/options.yaml#/WebOptionBatchInput"
+    responses:
+      '200':
+        description: Updated feature flags.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/options.yaml#/ApiResponseAdminWebOptionList"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '422':
+        "$ref": "../components/responses.yaml#/UnprocessableEntity"
+adminFeaturesRestoreDefaults:
+  post:
+    summary: Restore recommended feature flag defaults
+    operationId: adminRestoreFeatureDefaults
+    responses:
+      '200':
+        description: All features.* keys restored to recommended defaults.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/options.yaml#/ApiResponseAdminWebOptionList"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"

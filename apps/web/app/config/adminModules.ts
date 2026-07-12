@@ -112,6 +112,21 @@ export const adminPageDefinitions = [
     requiredPermissions: ['settings.avatar.manage']
   },
   {
+    id: '/settings/features',
+    labelKey: 'admin.nav.featureFlags',
+    icon: 'i-lucide-toggle-left',
+    componentName: 'AdminFeatureFlags',
+    requiredPermissions: ['settings.site.manage']
+  },
+  {
+    id: '/entity-meta',
+    labelKey: 'admin.nav.entityMeta',
+    icon: 'i-lucide-tags',
+    componentName: 'AdminEntityMeta',
+    requiredPermissions: ['entity_meta.manage', 'settings.manage'],
+    permissionMode: 'any'
+  },
+  {
     id: '/moderation',
     labelKey: 'admin.nav.moderation',
     icon: 'i-lucide-shield-alert',
@@ -302,6 +317,8 @@ export const adminSidebarNavigation = [
         { type: 'page', pageId: '/settings' },
         { type: 'page', pageId: '/settings/mail' },
         { type: 'page', pageId: '/settings/avatar' },
+        { type: 'page', pageId: '/settings/features' },
+        { type: 'page', pageId: '/entity-meta' },
         { type: 'page', pageId: '/personalization' },
         { type: 'page', pageId: '/seo' },
         { type: 'page', pageId: '/search' }

@@ -4,6 +4,20 @@ This is the entry point for project memory.
 
 ## Latest Handoff
 
+- **2026-07-12 Wave F4 complete** (entity meta + feature flags)
+  - Handoff: `knowledge/sessions/2026-07-12-f4-4-f4-5-meta-and-flags.md`
+  - Decision: `knowledge/decisions/2026-07-12-entity-meta-and-feature-flags.md`
+  - F4.4: EAV custom fields on user/topic; F4.5: `features.*` + requiresFeatures
+  - Framework hardening F1–F4 done; density plan E1–E8 still open
+
+- **2026-07-12 extension surface density plan**
+  - Plan: `knowledge/plans/2026-07-12-extension-surface-density.md`
+  - Waves E1–E5: filters → public contributions → entity meta → flags →
+    workflow reference plugin
+  - **North star E6–E8:** storage / search / other services fully
+    plugin-selectable and configurable (mail-like L4–L6); not slot names only
+  - E3/E4 overlap F4.4/F4.5 (now implemented); next default **E1.1**
+
 - **2026-07-12 posts content storage slim**
   - Handoff: `knowledge/sessions/2026-07-12-posts-excerpt-revision-slim.md`
   - Drop `posts.excerpt`; derive API excerpt from `plain_text` at read time
@@ -13,7 +27,6 @@ This is the entry point for project memory.
   - Handoff: `knowledge/sessions/2026-07-12-f4-3-contribution-points.md`
   - Plan: `knowledge/plans/2026-07-12-framework-hardening-waves.md`
   - New points: composer toolbar, profile tabs, dashboard widgets, health checks
-  - Next framework: **F4.4–F4.5**, or product Iteration A / settings Wave 3
 
 - **2026-07-12 Wave F4.2 complete** (catalog → documentation)
   - Handoff: `knowledge/sessions/2026-07-12-f4-2-catalog-docs.md`
@@ -604,7 +617,11 @@ This is the entry point for project memory.
   non-goals; implementation is phased.
 - `plans/2026-07-12-framework-hardening-waves.md` - framework hardening
   checklist waves F1–F4 (schedule/health → third-party safety → integration →
-  ecosystem); start at F1.1.
+  ecosystem); F1–F4.3 done; F4.4–F4.5 continue under surface-density plan.
+- `plans/2026-07-12-extension-surface-density.md` - post-hardening extensibility:
+  E1 filters, E2 contributions, E3 meta, E4 flags, E5 workflow plugin;
+  **E6 storage / E7 search / E8 other provider slots** (plugin configure north
+  star); start at E1.1 or E6 after E1.1 if services are priority.
 - `plans/2026-07-12-iteration-a-engagement-loop.md` - Iteration A implementation
   checklist: view counts, likes/reactions, bookmarks; topic lifecycle already
   mostly shipped.

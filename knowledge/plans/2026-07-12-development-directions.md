@@ -13,6 +13,11 @@ Related:
 - Iteration A checklist: `knowledge/plans/2026-07-12-iteration-a-engagement-loop.md`
 - Admin settings richness catalog:
   `knowledge/plans/2026-07-12-admin-settings-richness.md`
+- Framework hardening F1–F4:
+  `knowledge/plans/2026-07-12-framework-hardening-waves.md`
+- Extension surface density E1–E8 (filters, contributions, meta, workflow
+  plugin, **storage/search/other service provider pluginization**):
+  `knowledge/plans/2026-07-12-extension-surface-density.md`
 - Roadmap: `docs/roadmap.md`
 - Extension platform: `docs/extension-platform-v2.md`
 - Legacy gap inventory (partially stale): `knowledge/legacy-sforum-feature-gap.md`
