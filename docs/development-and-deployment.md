@@ -387,6 +387,11 @@ Other surfaces:
   `EMBED_WORKER_IN_API=true`) publishes a Redis heartbeat key
   `sforum:worker:heartbeat` (TTL 45s). Admin overview shows stale/unknown when
   the key is missing or older than 45s.
+- When `EMBED_WORKER_IN_API=true`, the embedded River worker **reuses** the
+  API process’s extension runtime (and its Host API gateway). Enabled backend
+  plugins such as `sforum.smtp` start **once** in the process tree—not a second
+  copy for the worker. Standalone `cmd/worker` still owns its own runtime and
+  reconciles plugins independently.
 
 Compose health checks should gate dependent services where practical. Example
 API probes:

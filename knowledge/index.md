@@ -4,6 +4,13 @@ This is the entry point for project memory.
 
 ## Latest Handoff
 
+- **2026-07-12 P0 complete** (embed worker shares extension runtime)
+  - Handoff: `knowledge/sessions/2026-07-12-p0-embed-shared-extension-runtime.md`
+  - Plan: `knowledge/plans/2026-07-12-api-memory-runtime-hygiene.md`
+  - Embed injects API runtime (`OwnsRuntime=false`); no second plugin process
+  - Remaining on plan: **P1** queue tier defaults, **P2** loopback pprof;
+    optional manual T0.7 `pgrep` on dev
+
 - **2026-07-12 E2.2 complete** (forum.comment.actions)
   - Handoff: `knowledge/sessions/2026-07-12-e2-2-comment-actions.md`
   - Plan: `knowledge/plans/2026-07-12-extension-surface-density.md`
@@ -12,9 +19,8 @@ This is the entry point for project memory.
 
 - **2026-07-12 plan: API memory / runtime hygiene (P0–P2)**
   - Plan: `knowledge/plans/2026-07-12-api-memory-runtime-hygiene.md`
-  - P0: embed worker 复用 extension runtime（避免插件双起）
-  - P1: `APP_ENV` 分档 River worker 默认并发；P2: 默认关 loopback pprof
-  - 建议 PR 顺序 P1 → P0 → P2；非产品波次，与 E*/F* 并行安全
+  - P0 done (see handoff above); P1/P2 still open
+  - 建议剩余顺序 P1 → P2；非产品波次，与 E*/F* 并行安全
 
 - **2026-07-12 E2.1 complete** (topic sidebar + badges contribution points)
   - Handoff: `knowledge/sessions/2026-07-12-e2-1-topic-sidebar-badges.md`

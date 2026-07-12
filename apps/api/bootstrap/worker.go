@@ -45,6 +45,30 @@ type Worker struct {
 	close     func()
 }
 
+// workerExtensionRuntime 是 worker 对 extension runtime 的最小依赖面：
+// mail.deliver 需要 SendMail；独立进程路径还需 Reconcile/Close。
+// API embed 注入的 *extensionsruntime.Manager 满足此接口。
+type workerExtensionRuntime interface {
+	notificationjobs.ProviderSender
+	Reconcile(ctx context.Context, items []extensions.Extension)
+	Close(ctx context.Context)
+}
+
+// workerRuntimeDeps 控制 extension runtime / Host API 的所有权。
+// ExtensionRuntime 非 nil 时复用注入实例（embed 模式），不再二次 Reconcile，也不在 Worker.Close 中关闭。
+// ExtensionRuntime 为 nil 时由 worker 自建 Manager + Host API gateway（独立 worker 路径）。
+type workerRuntimeDeps struct {
+	ExtensionRuntime workerExtensionRuntime
+	// OwnsRuntime 为 true 时 Worker.Close 关闭 runtime（及自建的 Host API gateway）。
+	// 注入共享 runtime 时必须为 false，由 API shutdown 负责 Close。
+	OwnsRuntime bool
+}
+
+// hostAPIGatewayCloser 仅用于 worker 自建 Host API 时的关闭钩子。
+type hostAPIGatewayCloser interface {
+	Close() error
+}
+
 func NewWorker(ctx context.Context, cfg config.Config, logger *slog.Logger) (*Worker, error) {
 	if err := runStartupMigrations(ctx, cfg, logger); err != nil {
 		return nil, err
@@ -61,7 +85,8 @@ func NewWorker(ctx context.Context, cfg config.Config, logger *slog.Logger) (*Wo
 		return nil, fmt.Errorf("postgres setup failed: %w", err)
 	}
 
-	worker, err := newWorkerWithPool(cfg, pool, logger)
+	// 独立 worker：自建 runtime，OwnsRuntime 由 newWorkerWithPool 在 nil inject 时设为 true。
+	worker, err := newWorkerWithPool(cfg, pool, logger, workerRuntimeDeps{})
 	if err != nil {
 		pool.Close()
 		return nil, err
@@ -96,24 +121,53 @@ func NewWorker(ctx context.Context, cfg config.Config, logger *slog.Logger) (*Wo
 	return worker, nil
 }
 
-func newWorkerWithPool(cfg config.Config, pool *pgxpool.Pool, logger *slog.Logger) (*Worker, error) {
+// resolveWorkerExtensionRuntime 决定 embed 注入 vs 独立自建。
+// 注入时 ownsRuntime=false 且不调用 buildStandalone（因此不会二次 Reconcile/Start）。
+func resolveWorkerExtensionRuntime(
+	deps workerRuntimeDeps,
+	buildStandalone func() (workerExtensionRuntime, hostAPIGatewayCloser, error),
+) (workerExtensionRuntime, hostAPIGatewayCloser, bool, error) {
+	if deps.ExtensionRuntime != nil {
+		return deps.ExtensionRuntime, nil, false, nil
+	}
+	runtime, gateway, err := buildStandalone()
+	if err != nil {
+		return nil, nil, false, err
+	}
+	return runtime, gateway, true, nil
+}
+
+func newWorkerWithPool(cfg config.Config, pool *pgxpool.Pool, logger *slog.Logger, deps workerRuntimeDeps) (*Worker, error) {
 	registry := supportjobs.NewRegistry()
 	extensionStore := extensions.NewPostgresStore(pool)
-	// Worker 侧 Host API：能力源绑定后供插件子进程调用（与 API 进程对称）。
-	workerHostAPI := hostapi.New(hostapi.Config{Settings: extensionStore})
-	workerHostGateway := hostapi.NewGateway(workerHostAPI)
-	extensionRuntime := extensionsruntime.NewManager(extensionsruntime.ManagerConfig{
-		Starter: extensionsruntime.NewProtocolStarter(extensionsruntime.ProtocolStarterConfig{
-			Settings: extensionStore,
-			HostAPI:  workerHostGateway,
-		}),
-		DeliveryStore: extensionStore,
+
+	extensionRuntime, hostGateway, ownsRuntime, err := resolveWorkerExtensionRuntime(deps, func() (workerExtensionRuntime, hostAPIGatewayCloser, error) {
+		// 独立 worker：自建 Host API + Manager，并 Reconcile 启用中的后端插件。
+		workerHostAPI := hostapi.New(hostapi.Config{Settings: extensionStore})
+		workerHostGateway := hostapi.NewGateway(workerHostAPI)
+		managedRuntime := extensionsruntime.NewManager(extensionsruntime.ManagerConfig{
+			Starter: extensionsruntime.NewProtocolStarter(extensionsruntime.ProtocolStarterConfig{
+				Settings: extensionStore,
+				HostAPI:  workerHostGateway,
+			}),
+			DeliveryStore: extensionStore,
+		})
+		extensionService := extensions.NewServiceWithBuiltins(extensionStore, cfg.ExtensionRoot, cfg.BuiltinExtensionRoot)
+		workerHostAPI.BindCapabilitySource(extensionService)
+		if _, err := extensionService.SyncBuiltins(context.Background()); err != nil {
+			return nil, nil, fmt.Errorf("sync worker builtin extensions: %w", err)
+		}
+		items, err := extensionStore.List(context.Background())
+		if err != nil {
+			return nil, nil, fmt.Errorf("list worker extensions: %w", err)
+		}
+		managedRuntime.Reconcile(context.Background(), items)
+		return managedRuntime, workerHostGateway, nil
 	})
-	extensionService := extensions.NewServiceWithBuiltins(extensionStore, cfg.ExtensionRoot, cfg.BuiltinExtensionRoot)
-	workerHostAPI.BindCapabilitySource(extensionService)
-	if _, err := extensionService.SyncBuiltins(context.Background()); err != nil {
-		return nil, fmt.Errorf("sync worker builtin extensions: %w", err)
+	if err != nil {
+		return nil, err
 	}
+
 	workerOptions := options.NewServiceWithDefaults(options.NewPostgresStore(pool), optionsDefaultsFromConfig(cfg))
 	legacyMailValues, err := workerOptions.InternalValues(context.Background())
 	if err != nil {
@@ -123,11 +177,7 @@ func newWorkerWithPool(cfg config.Config, pool *pgxpool.Pool, logger *slog.Logge
 	if err := notificationStore.AdoptLegacyMail(context.Background(), legacyMailValues); err != nil {
 		return nil, fmt.Errorf("adopt worker legacy mail settings: %w", err)
 	}
-	items, err := extensionStore.List(context.Background())
-	if err != nil {
-		return nil, fmt.Errorf("list worker extensions: %w", err)
-	}
-	extensionRuntime.Reconcile(context.Background(), items)
+	// mail.deliver 必须命中共享/本进程同一 runtime，避免 embed 时打到第二套插件进程。
 	mailProviders := extensionsruntime.NewMailProviderRegistry(extensionStore)
 	notificationjobs.Register(registry, &notificationjobs.DeliverMailWorker{Store: notificationStore, Providers: mailProviders, Sender: extensionRuntime})
 	// F3.3：出站 webhook 投递。
@@ -238,13 +288,23 @@ func newWorkerWithPool(cfg config.Config, pool *pgxpool.Pool, logger *slog.Logge
 		return nil, fmt.Errorf("job client setup failed: %w", err)
 	}
 
+	// 仅 worker 拥有 runtime 时关闭；embed 注入路径由 API 在 River stop 之后关闭。
+	var closeFn func()
+	if ownsRuntime {
+		closeFn = func() {
+			if extensionRuntime != nil {
+				extensionRuntime.Close(context.Background())
+			}
+			if hostGateway != nil {
+				_ = hostGateway.Close()
+			}
+		}
+	}
+
 	return &Worker{
 		Client:    client,
 		Schedules: scheduleRegistry,
-		close: func() {
-			extensionRuntime.Close(context.Background())
-			_ = workerHostGateway.Close()
-		},
+		close:     closeFn,
 	}, nil
 }
 

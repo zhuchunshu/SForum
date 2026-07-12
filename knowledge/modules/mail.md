@@ -9,8 +9,9 @@ SMTP, log delivery, no-op delivery, authentication, or TLS.
 - `mail_deliveries` records `queued/sending/sent/failed/skipped` state without
   storing provider credentials.
 - River job `mail.deliver` carries only a delivery ID and runs on the `mail`
-  queue. API and standalone/embedded workers each reconcile enabled plugin
-  runtimes.
+  queue. Standalone workers reconcile enabled plugin runtimes themselves;
+  when the worker is embedded in the API it reuses the API extension runtime
+  (single plugin process per enabled backend extension).
 - No selected provider produces `skipped/provider_unavailable`; in-app
   notifications and forum writes remain successful.
 - Password-reset token, delivery, and River job are inserted in one PostgreSQL

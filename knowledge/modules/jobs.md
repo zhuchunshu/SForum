@@ -25,6 +25,9 @@ Implemented platform foundation:
 - API processes create an insert-only River client. Development embeds workers
   by default through `EMBED_WORKER_IN_API=true`; production uses the standalone
   worker process by default.
+- Embed mode injects the API’s extension runtime into `newWorkerWithPool`
+  (`OwnsRuntime=false`), so backend plugins are not started twice. Standalone
+  `NewWorker` still builds and reconciles its own runtime.
 - `apps/api/bootstrap.NewWorker` opens the worker PostgreSQL pool, builds the
   worker registry, and creates the River client when handlers are registered.
 - `apps/api/cmd/worker` starts and gracefully stops the River runtime. An empty

@@ -136,13 +136,13 @@ embeddedWorker, err = newWorkerWithPool(cfg, pool, logger, workerRuntimeDeps{
 
 ### Acceptance criteria
 
-- [ ] With `EMBED_WORKER_IN_API=true` and one enabled backend plugin (e.g.
+- [x] With `EMBED_WORKER_IN_API=true` and one enabled backend plugin (e.g.
       `sforum.smtp`), process tree shows **one** plugin child, not two.
-- [ ] With embed **false**, standalone worker still starts plugins and can
+- [x] With embed **false**, standalone worker still starts plugins and can
       deliver mail / run extension-related jobs.
-- [ ] Shutdown: embed mode does not double-close / panic; API close still
+- [x] Shutdown: embed mode does not double-close / panic; API close still
       stops plugins after worker stop (order: stop River → then close runtime).
-- [ ] Unit/integration test: inject fake starter or count `Start` calls;
+- [x] Unit/integration test: inject fake starter or count `Start` calls;
       embed path asserts single start per extension id.
 - [ ] Manual: `ps` / `pgrep -fl backend/plugin` before/after on dev API.
 
@@ -290,19 +290,19 @@ Use this as the session todo list. Check off in this file when done.
 
 ### PR-B / Task group P0 — Shared runtime under embed
 
-- [ ] **T0.1** Map current Close / Reconcile / Host API ownership on paper
+- [x] **T0.1** Map current Close / Reconcile / Host API ownership on paper
       (API vs `newWorkerWithPool` vs standalone `NewWorker`).
-- [ ] **T0.2** Add inject path for extension runtime (+ Host API as needed)
+- [x] **T0.2** Add inject path for extension runtime (+ Host API as needed)
       into worker construction; standalone path unchanged.
-- [ ] **T0.3** Wire `NewAPI` embed branch to inject API runtime; set
+- [x] **T0.3** Wire `NewAPI` embed branch to inject API runtime; set
       `OwnsRuntime=false`.
-- [ ] **T0.4** Ensure mail/plugin job handlers use shared runtime.
-- [ ] **T0.5** Fix shutdown order: stop embedded River → API closes runtime.
-- [ ] **T0.6** Tests: single Start per extension when embedded; standalone
+- [x] **T0.4** Ensure mail/plugin job handlers use shared runtime.
+- [x] **T0.5** Fix shutdown order: stop embedded River → API closes runtime.
+- [x] **T0.6** Tests: single Start per extension when embedded; standalone
       still owns runtime.
 - [ ] **T0.7** Manual verify on dev: one `backend/plugin` process for SMTP.
-- [ ] **T0.8** Short doc note under embed worker section.
-- [ ] **T0.9** `go test ./bootstrap/...` (+ any extension runtime tests).
+- [x] **T0.8** Short doc note under embed worker section.
+- [x] **T0.9** `go test ./bootstrap/...` (+ any extension runtime tests).
 
 ### PR-C / Task group P2 — Restricted pprof
 
@@ -314,8 +314,8 @@ Use this as the session todo list. Check off in this file when done.
 
 ### Close-out (any PR)
 
-- [ ] **T9.1** Session handoff under `knowledge/sessions/`.
-- [ ] **T9.2** Pointer in `knowledge/index.md` Latest Handoff (when landed).
+- [x] **T9.1** Session handoff under `knowledge/sessions/`.
+- [x] **T9.2** Pointer in `knowledge/index.md` Latest Handoff (when landed).
 - [ ] **T9.3** Optional decision note only if Host API sharing choice is
       non-obvious (`knowledge/decisions/`).
 

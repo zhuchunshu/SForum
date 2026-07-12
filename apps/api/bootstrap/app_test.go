@@ -150,6 +150,10 @@ func (fakeBootstrapExtensionRuntime) Reconcile(context.Context, []extensions.Ext
 
 func (fakeBootstrapExtensionRuntime) Close(context.Context) {}
 
+func (fakeBootstrapExtensionRuntime) SendMail(context.Context, string, extensionsruntime.MailProviderRequest) (extensionsruntime.MailProviderResponse, error) {
+	return extensionsruntime.MailProviderResponse{}, nil
+}
+
 func TestNewHumanVerifyServiceEnablesAltchaProvider(t *testing.T) {
 	service, err := newHumanVerifyService(config.Config{
 		HumanVerificationProvider: "altcha",

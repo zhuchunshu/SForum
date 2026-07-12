@@ -66,6 +66,8 @@ type extensionRuntime interface {
 	RouteTarget(extensionID string) (extensionsruntime.RouteTarget, bool)
 	Reconcile(ctx context.Context, items []extensions.Extension)
 	Close(ctx context.Context)
+	// SendMail 供 embed worker 的 mail.deliver 复用同一 runtime（P0 共享插件进程）。
+	SendMail(ctx context.Context, extensionID string, request extensionsruntime.MailProviderRequest) (extensionsruntime.MailProviderResponse, error)
 }
 
 var newExtensionRuntimeManager = func(store extensions.Store, hostAPI extensionsruntime.HostAPIRegistrar) extensionRuntime {
@@ -389,7 +391,12 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 
 	var embeddedWorker *Worker
 	if shouldEmbedWorkerInAPI(cfg) {
-		embeddedWorker, err = newWorkerWithPool(cfg, pool, logger)
+		// Embed 时复用 API 已 Reconcile 的 extensionRuntime，避免每个后端插件双起子进程。
+		// OwnsRuntime=false：Worker.Close 不关 runtime；API close 在 River stop 之后再关。
+		embeddedWorker, err = newWorkerWithPool(cfg, pool, logger, workerRuntimeDeps{
+			ExtensionRuntime: extensionRuntime,
+			OwnsRuntime:      false,
+		})
 		if err != nil {
 			heartbeatCancel()
 			_ = webReleaseCoordinator.Stop(context.Background())
