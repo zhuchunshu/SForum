@@ -62,6 +62,7 @@ func TestSeedRoleTemplatesPermissionPacks(t *testing.T) {
 	}
 	for _, key := range []string{
 		PermissionModerationReview,
+		PermissionModerationViewIP,
 		PermissionTopicLock,
 		PermissionTopicPin,
 		PermissionTopicEditAny,
@@ -225,6 +226,9 @@ func TestModerationPermissionsRemainIndependent(t *testing.T) {
 	if !found[PermissionModerationReview] {
 		t.Fatal("expected moderation.review seed permission")
 	}
+	if !found[PermissionModerationViewIP] {
+		t.Fatal("expected moderation.view_ip seed permission")
+	}
 	if PermissionModerationManage == PermissionModerationReview {
 		t.Fatal("moderation permissions must remain independent")
 	}
@@ -254,6 +258,7 @@ func TestSeedPermissionsCoverCurrentAdminAndForumSurfaces(t *testing.T) {
 		PermissionPostDeleteAny,
 		PermissionModerationManage,
 		PermissionModerationReview,
+		PermissionModerationViewIP,
 		PermissionSettingsManage,
 		PermissionSettingsSiteManage,
 		PermissionSettingsMailManage,

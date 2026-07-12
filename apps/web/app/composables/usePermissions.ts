@@ -21,7 +21,8 @@ export const FORUM_PERMISSIONS = {
   settingsAppearanceManage: 'settings.appearance.manage',
   forumSettingsManage: 'forum.settings.manage',
   moderationManage: 'moderation.manage',
-  moderationReview: 'moderation.review'
+  moderationReview: 'moderation.review',
+  moderationViewIp: 'moderation.view_ip'
 } as const
 
 // 旧父权限 → 子权限（与后端 permission_compat.go 对齐，供未刷新会话时的前端兜底）。

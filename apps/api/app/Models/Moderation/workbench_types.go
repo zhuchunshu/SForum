@@ -47,6 +47,9 @@ type PendingItem struct {
 	Category   string    `json:"category"`
 	Triggers   []string  `json:"triggers"`
 	CreatedAt  time.Time `json:"createdAt"`
+	// IPAddress / LastEditIP 仅当调用方持有 moderation.view_ip 时由 service 填充。
+	IPAddress  string `json:"ipAddress,omitempty"`
+	LastEditIP string `json:"lastEditIp,omitempty"`
 }
 
 type PendingList struct {
@@ -65,6 +68,9 @@ type ReportItem struct {
 	Category         string `json:"category"`
 	TargetStatus     string `json:"targetStatus"`
 	TargetTopicID    int64  `json:"targetTopicId,omitempty"`
+	// IPAddress / LastEditIP 仅当调用方持有 moderation.view_ip 时由 service 填充。
+	IPAddress  string `json:"ipAddress,omitempty"`
+	LastEditIP string `json:"lastEditIp,omitempty"`
 }
 
 type ReportItemList struct {
@@ -103,6 +109,10 @@ type ReviewContext struct {
 	ParentTopic string           `json:"parentTopic,omitempty"`
 	Nearby      []ContextComment `json:"nearby,omitempty"`
 	CreatedAt   time.Time        `json:"createdAt"`
+	// IPAddress 创建时真实客户端 IP；LastEditIP 最近一次编辑 IP。
+	// 仅当调用方持有 moderation.view_ip 时由 service 保留，否则清空。
+	IPAddress  string `json:"ipAddress,omitempty"`
+	LastEditIP string `json:"lastEditIp,omitempty"`
 }
 
 type DecisionInput struct {

@@ -43,6 +43,9 @@ export type ModerationPendingItem = {
   category: string
   triggers: string[]
   createdAt: string
+  /** 仅当当前用户持有 moderation.view_ip 时由 API 返回全文 IP。 */
+  ipAddress?: string
+  lastEditIp?: string
 }
 export type ModerationReportItem = ModerationReport & {
   title: string
@@ -52,6 +55,8 @@ export type ModerationReportItem = ModerationReport & {
   category: string
   targetStatus: string
   targetTopicId?: number
+  ipAddress?: string
+  lastEditIp?: string
 }
 export type ModerationDecision = {
   id: number
@@ -81,6 +86,9 @@ export type ModerationReviewContext = {
   triggers: string[]
   parentTopic?: string
   createdAt: string
+  /** 仅当当前用户持有 moderation.view_ip 时由 API 返回全文 IP。 */
+  ipAddress?: string
+  lastEditIp?: string
 }
 export type PagedModerationList<T> = { items: T[]; total: number; page: number; perPage: number }
 export type ModerationReportList = PagedModerationList<ModerationReport>

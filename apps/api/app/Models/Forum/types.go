@@ -353,6 +353,8 @@ type UpdateTopicInput struct {
 	Title        *string
 	TagSlugs     []string
 	Content      *ContentInput
+	// IPAddress 本次编辑客户端 IP（写入 last_edit_ip；创建 ip_address 不变）。
+	IPAddress string `json:"-"`
 }
 
 // UpdateTopicRecord 是 store 层更新主题的内部记录。content 为 nil 时表示不改正文。
@@ -369,6 +371,8 @@ type UpdateTopicRecord struct {
 	// RequeuePending 为 true 时把主题标为 pending 并写入 ModerationTriggers（编辑触发预审）。
 	RequeuePending     bool
 	ModerationTriggers []string
+	// LastEditIP 本次编辑客户端真实 IP（全文）。
+	LastEditIP string
 }
 
 // TopicLifecycleInput 描述一次主题生命周期动作（hide/restore/lock/unlock/pin/unpin）。
@@ -640,6 +644,8 @@ type AuthorReviewList struct {
 type UpdateCommentInput struct {
 	CommentID int64        `json:"commentId"`
 	Content   ContentInput `json:"content"`
+	// IPAddress 本次编辑客户端 IP（写入 last_edit_ip）。
+	IPAddress string `json:"-"`
 }
 
 type UpdateCommentRecord struct {
@@ -649,6 +655,8 @@ type UpdateCommentRecord struct {
 	// RequeuePending 为 true 时把评论标为 pending 并写入 ModerationTriggers。
 	RequeuePending     bool
 	ModerationTriggers []string
+	// LastEditIP 本次编辑客户端真实 IP（全文）。
+	LastEditIP string
 }
 
 type CommentPosition struct {

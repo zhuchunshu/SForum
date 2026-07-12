@@ -181,6 +181,9 @@ PendingItem:
     category: {type: string}
     triggers: {type: array, items: {type: string}}
     createdAt: {type: string, format: date-time}
+    # 仅当调用方持有 moderation.view_ip 时返回全文 IP。
+    ipAddress: {type: string, description: Full client IP when actor has moderation.view_ip.}
+    lastEditIp: {type: string, description: Last edit client IP when actor has moderation.view_ip.}
 ReportItem:
   allOf:
   - {$ref: "#/Report"}
@@ -194,6 +197,8 @@ ReportItem:
       category: {type: string}
       targetStatus: {type: string}
       targetTopicId: {type: integer, format: int64}
+      ipAddress: {type: string, description: Full client IP when actor has moderation.view_ip.}
+      lastEditIp: {type: string, description: Last edit client IP when actor has moderation.view_ip.}
 DecisionSource:
   type: string
   enum: [pre_publish, report]
@@ -239,6 +244,9 @@ ReviewContext:
     triggers: {type: array, items: {type: string}}
     parentTopic: {type: string}
     createdAt: {type: string, format: date-time}
+    # 仅当调用方持有 moderation.view_ip 时返回。
+    ipAddress: {type: string, description: Create-time full client IP when actor has moderation.view_ip.}
+    lastEditIp: {type: string, description: Last edit full client IP when actor has moderation.view_ip.}
 PendingList:
   type: object
   required: [items, total, page, perPage]

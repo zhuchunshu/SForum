@@ -19,6 +19,7 @@ export const ROLE_TEMPLATE_DEFINITIONS = [
     permissionKeys: [
       'admin.access',
       'moderation.review',
+      'moderation.view_ip',
       'topic.lock',
       'topic.pin',
       'topic.edit_any',

@@ -50,6 +50,9 @@ type Store interface {
 	HasSessionFingerprint(ctx context.Context, userID int64, fingerprint string) (bool, error)
 	// DeleteOldRevokedSessions 清理已下线超过保留期的历史会话行（periodic job 调用）。
 	DeleteOldRevokedSessions(ctx context.Context, keepDays int) (int, error)
+	// ClearUserClientIPs 清空该用户相关的真实客户端 IP（隐私/删号/封禁后调用）。
+	// 含：会话目录 ip_address/ip_prefix、其作者主题/评论的 ip_address 与 last_edit_ip。
+	ClearUserClientIPs(ctx context.Context, userID int64) (ClearUserClientIPsResult, error)
 }
 
 type ActorStore interface {

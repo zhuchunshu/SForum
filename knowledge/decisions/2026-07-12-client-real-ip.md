@@ -41,8 +41,14 @@ CDN → Caddy/Nginx → Nuxt → API（Docker）链路上，API 的 TCP 对端�
 - 历史会话/主题在迁移后 `ip_address` 为空串，仅新写入有值。
 - 管理端「查看发帖 IP」UI/权限可后续加（数据已落库）。
 
+## Follow-ups (2026-07-12)
+
+- 权限键定为 **`moderation.view_ip`**（与 review 分离；版主模板默认有；
+  持有 review 的角色迁移时补权）。
+- 编辑路径写 **`last_edit_ip`**；创建 `ip_address` 不变。
+- 隐私清理：`ClearUserClientIPs` + admin API；审计 metadata 中的历史 IP
+  暂保留。账号删除/封禁产品流落地后应在状态变更中自动调用。
+
 ## Open Questions
 
-- 管理端展示全文 IP 的权限键（复用 `user.manage` / 版主权限，或新增
-  `moderation.view_ip`）。
-- 账号删除时是否清空历史 `ip_address`（GDPR）；当前随行保留。
+- 审计流水中的 `ipAddress` 是否随隐私清理一并脱敏/删除。

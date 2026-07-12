@@ -46,4 +46,6 @@ func (h *Controller) RegisterRoutes(api fiber.Router) {
 	api.Put("/users/:userID/permission-overrides", h.replaceUserPermissionOverrides)
 	// 管理员强制下线目标用户的全部设备（user.manage）。
 	api.Post("/users/:userID/sessions/revoke", h.adminRevokeUserSessions)
+	// 管理员清空目标用户相关真实 IP（user.manage；隐私合规）。
+	api.Post("/users/:userID/client-ips/clear", h.adminClearUserClientIPs)
 }

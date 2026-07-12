@@ -1763,6 +1763,10 @@ func (s *httpFakeStore) RevokeOtherSessions(_ context.Context, _ int64, _ string
 func (s *httpFakeStore) RevokeUserSessions(_ context.Context, _ int64, _ string) (int, error) {
 	return 0, nil
 }
+func (s *httpFakeStore) ClearUserClientIPs(_ context.Context, _ int64) (identity.ClearUserClientIPsResult, error) {
+	return identity.ClearUserClientIPsResult{}, nil
+}
+
 func (s *httpFakeStore) DeleteOldRevokedSessions(_ context.Context, _ int) (int, error) {
 	return 0, nil
 }

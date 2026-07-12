@@ -51,7 +51,19 @@ async function decide(action: ModerationAction) {
     </div>
     <div class="mt-4 grid min-w-0 gap-5 lg:grid-cols-[minmax(0,1fr)_15rem]">
       <div class="min-w-0">
-        <div class="mb-3 flex flex-wrap gap-2 text-xs text-slate-500"><span>{{ context.authorName }}</span><span>{{ context.category }}</span><span v-if="context.parentTopic">{{ context.parentTopic }}</span></div>
+        <div class="mb-3 flex flex-wrap gap-2 text-xs text-slate-500">
+          <span>{{ context.authorName }}</span>
+          <span>{{ context.category }}</span>
+          <span v-if="context.parentTopic">{{ context.parentTopic }}</span>
+          <span v-if="context.ipAddress" class="inline-flex items-center gap-1 font-mono text-slate-600 dark:text-zinc-300" :title="t('moderation.workbench.createIp')">
+            <UIcon name="i-lucide-network" class="size-3.5 shrink-0" />
+            {{ context.ipAddress }}
+          </span>
+          <span v-if="context.lastEditIp && context.lastEditIp !== context.ipAddress" class="inline-flex items-center gap-1 font-mono text-slate-500 dark:text-zinc-400" :title="t('moderation.workbench.lastEditIp')">
+            <UIcon name="i-lucide-pencil" class="size-3.5 shrink-0" />
+            {{ context.lastEditIp }}
+          </span>
+        </div>
         <div class="sf-prose max-w-none overflow-wrap-anywhere" v-highlight v-html="sanitizeHtml(context.html)" />
       </div>
       <aside class="border-t border-slate-200 pt-4 dark:border-zinc-800 lg:border-l lg:border-t-0 lg:pl-4 lg:pt-0">

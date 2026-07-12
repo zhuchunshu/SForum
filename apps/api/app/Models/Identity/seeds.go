@@ -34,6 +34,8 @@ const (
 	PermissionPostDeleteAny  = "post.delete_any"
 	PermissionModerationManage = "moderation.manage"
 	PermissionModerationReview = "moderation.review"
+	// PermissionModerationViewIP 查看内容/会话的真实客户端 IP（全文）；不含审核动作。
+	PermissionModerationViewIP = "moderation.view_ip"
 	// PermissionModerationReportReview 保留为源码兼容别名；数据库权限已迁移为 moderation.review。
 	PermissionModerationReportReview = PermissionModerationReview
 	// PermissionSettingsManage 为兼容父权限；细粒度见 settings.* / forum.settings.manage。
@@ -90,6 +92,7 @@ var SeedPermissions = []SeedPermission{
 	{Key: PermissionPostDeleteAny, Module: "forum", Description: "Delete any post."},
 	{Key: PermissionModerationManage, Module: "moderation", Description: "Manage moderation settings and audit history."},
 	{Key: PermissionModerationReview, Module: "moderation", Description: "Review pending content and moderation reports."},
+	{Key: PermissionModerationViewIP, Module: "moderation", Description: "View full client IP addresses on content and sessions for moderation."},
 	{Key: PermissionSettingsManage, Module: "admin", Description: "Legacy parent: manage all non-SEO site settings groups."},
 	{Key: PermissionSettingsSiteManage, Module: "admin", Description: "Manage core site identity, locale, verification, and security settings."},
 	{Key: PermissionSettingsMailManage, Module: "admin", Description: "Manage mail providers, notification policy, and delivery tests."},
@@ -141,6 +144,7 @@ var SeedRoleTemplates = []SeedRoleTemplate{
 		PermissionKeys: []string{
 			PermissionAdminAccess,
 			PermissionModerationReview,
+			PermissionModerationViewIP,
 			PermissionTopicLock,
 			PermissionTopicPin,
 			PermissionTopicEditAny,

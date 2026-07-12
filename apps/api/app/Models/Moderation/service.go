@@ -67,7 +67,18 @@ func (s *Service) ListPending(ctx context.Context, actor identity.Actor, input W
 		return PendingList{}, identity.ErrPermissionDenied
 	}
 	input.Page, input.PerPage = normalizePage(input.Page, input.PerPage)
-	return s.workbenchStore.ListPending(ctx, input)
+	list, err := s.workbenchStore.ListPending(ctx, input)
+	if err != nil {
+		return PendingList{}, err
+	}
+	// 无 view_ip 时剥离全文 IP，避免审核员默认看到敏感个人数据。
+	if !actor.Can(identity.PermissionModerationViewIP) {
+		for i := range list.Items {
+			list.Items[i].IPAddress = ""
+			list.Items[i].LastEditIP = ""
+		}
+	}
+	return list, nil
 }
 
 func (s *Service) ListReportItems(ctx context.Context, actor identity.Actor, input WorkbenchListInput) (ReportItemList, error) {
@@ -75,7 +86,17 @@ func (s *Service) ListReportItems(ctx context.Context, actor identity.Actor, inp
 		return ReportItemList{}, identity.ErrPermissionDenied
 	}
 	input.Page, input.PerPage = normalizePage(input.Page, input.PerPage)
-	return s.workbenchStore.ListReportItems(ctx, input)
+	list, err := s.workbenchStore.ListReportItems(ctx, input)
+	if err != nil {
+		return ReportItemList{}, err
+	}
+	if !actor.Can(identity.PermissionModerationViewIP) {
+		for i := range list.Items {
+			list.Items[i].IPAddress = ""
+			list.Items[i].LastEditIP = ""
+		}
+	}
+	return list, nil
 }
 
 func (s *Service) ListDecisions(ctx context.Context, actor identity.Actor, input DecisionListInput, admin bool) (DecisionList, error) {
@@ -94,7 +115,15 @@ func (s *Service) GetReviewContext(ctx context.Context, actor identity.Actor, in
 	if !actor.Can(identity.PermissionModerationReview) {
 		return ReviewContext{}, identity.ErrPermissionDenied
 	}
-	return s.workbenchStore.GetReviewContext(ctx, input)
+	item, err := s.workbenchStore.GetReviewContext(ctx, input)
+	if err != nil {
+		return ReviewContext{}, err
+	}
+	if !actor.Can(identity.PermissionModerationViewIP) {
+		item.IPAddress = ""
+		item.LastEditIP = ""
+	}
+	return item, nil
 }
 
 func (s *Service) SubmitDecision(ctx context.Context, actor identity.Actor, input DecisionInput) (Decision, error) {

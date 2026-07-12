@@ -22,6 +22,7 @@ const isReport = (item: ModerationPendingItem | ModerationReportItem): item is M
         <p v-if="isReport(item) && item.body" class="mt-2 border-l-2 border-slate-200 pl-3 text-xs text-slate-500 dark:border-zinc-700 dark:text-zinc-400">{{ item.body }}</p>
         <p class="mt-3 text-xs text-slate-500 dark:text-zinc-400">
           {{ isReport(item) ? item.targetAuthorName : item.authorName }} · {{ item.category }} · {{ formatDate(item.createdAt) }}
+          <span v-if="item.ipAddress" class="ml-1 font-mono text-slate-600 dark:text-zinc-300" :title="t('moderation.workbench.createIp')">· {{ item.ipAddress }}</span>
         </p>
       </div>
       <UButton class="shrink-0 self-start" color="neutral" variant="subtle" icon="i-lucide-panel-right-open" @click="$emit('open')">

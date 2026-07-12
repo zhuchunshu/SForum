@@ -242,6 +242,52 @@ func (s *PostgresStore) HasSessionFingerprint(ctx context.Context, userID int64,
 	return exists, nil
 }
 
+// ClearUserClientIPs 清空该用户名下的真实客户端 IP（隐私：删号/封禁/应监管请求）。
+// 不删会话行与内容行，只把 IP 字段置空；审计流水 metadata 中的历史 IP 保留供安全调查。
+func (s *PostgresStore) ClearUserClientIPs(ctx context.Context, userID int64) (ClearUserClientIPsResult, error) {
+	var result ClearUserClientIPsResult
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return ClearUserClientIPsResult{}, fmt.Errorf("begin clear user client ips: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	tag, err := tx.Exec(ctx, `
+		UPDATE user_sessions
+		SET ip_address = '', ip_prefix = ''
+		WHERE user_id = $1 AND (ip_address <> '' OR ip_prefix <> '')
+	`, userID)
+	if err != nil {
+		return ClearUserClientIPsResult{}, fmt.Errorf("clear session ips: %w", err)
+	}
+	result.SessionsCleared = int(tag.RowsAffected())
+
+	tag, err = tx.Exec(ctx, `
+		UPDATE topics
+		SET ip_address = '', last_edit_ip = ''
+		WHERE author_user_id = $1 AND (ip_address <> '' OR last_edit_ip <> '')
+	`, userID)
+	if err != nil {
+		return ClearUserClientIPsResult{}, fmt.Errorf("clear topic ips: %w", err)
+	}
+	result.TopicsCleared = int(tag.RowsAffected())
+
+	tag, err = tx.Exec(ctx, `
+		UPDATE comments
+		SET ip_address = '', last_edit_ip = ''
+		WHERE author_user_id = $1 AND (ip_address <> '' OR last_edit_ip <> '')
+	`, userID)
+	if err != nil {
+		return ClearUserClientIPsResult{}, fmt.Errorf("clear comment ips: %w", err)
+	}
+	result.CommentsCleared = int(tag.RowsAffected())
+
+	if err := tx.Commit(ctx); err != nil {
+		return ClearUserClientIPsResult{}, fmt.Errorf("commit clear user client ips: %w", err)
+	}
+	return result, nil
+}
+
 // normalizeSessionPage 规范化设备列表的分页参数。
 // 与 normalizePage 一致但最大 perPage 更小（设备列表不需要大量）。
 func normalizeSessionPage(page int, perPage int) (int, int) {

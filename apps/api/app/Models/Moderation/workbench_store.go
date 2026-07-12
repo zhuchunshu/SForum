@@ -34,7 +34,8 @@ func (s *PostgresStore) ListPending(ctx context.Context, input WorkbenchListInpu
 		  SELECT 'topic'::text AS target_type, topics.id AS target_id, topics.id AS topic_id,
 		    topics.title, left(posts.plain_text, 2000) AS plain_prefix, topics.author_user_id AS author_id,
 		    COALESCE(NULLIF(users.display_name, ''), users.username, '') AS author_name,
-		    categories.name AS category, topics.moderation_triggers AS triggers, topics.created_at
+		    categories.name AS category, topics.moderation_triggers AS triggers, topics.created_at,
+		    COALESCE(topics.ip_address, '') AS ip_address, COALESCE(topics.last_edit_ip, '') AS last_edit_ip
 		  FROM topics
 		  JOIN posts ON posts.id = topics.content_id
 		  JOIN categories ON categories.id = topics.category_id
@@ -44,7 +45,8 @@ func (s *PostgresStore) ListPending(ctx context.Context, input WorkbenchListInpu
 		  SELECT 'comment'::text, comments.id, comments.topic_id, topics.title,
 		    left(posts.plain_text, 2000), comments.author_user_id,
 		    COALESCE(NULLIF(users.display_name, ''), users.username, ''),
-		    categories.name, comments.moderation_triggers, comments.created_at
+		    categories.name, comments.moderation_triggers, comments.created_at,
+		    COALESCE(comments.ip_address, ''), COALESCE(comments.last_edit_ip, '')
 		  FROM comments
 		  JOIN posts ON posts.id = comments.content_id
 		  JOIN topics ON topics.id = comments.topic_id
@@ -61,7 +63,7 @@ func (s *PostgresStore) ListPending(ctx context.Context, input WorkbenchListInpu
 	}
 	rows, err := s.pool.Query(ctx, pendingCTE+`
 		SELECT target_type, target_id, topic_id, title, plain_prefix, author_id, author_name,
-		  category, triggers, created_at
+		  category, triggers, created_at, ip_address, last_edit_ip
 		FROM pending
 		WHERE $1 = '' OR target_type = $1
 		ORDER BY created_at DESC, target_id DESC
@@ -77,7 +79,8 @@ func (s *PostgresStore) ListPending(ctx context.Context, input WorkbenchListInpu
 		var triggers []byte
 		var plainPrefix string
 		if err := rows.Scan(&item.TargetType, &item.TargetID, &item.TopicID, &item.Title,
-			&plainPrefix, &item.AuthorID, &item.AuthorName, &item.Category, &triggers, &item.CreatedAt); err != nil {
+			&plainPrefix, &item.AuthorID, &item.AuthorName, &item.Category, &triggers, &item.CreatedAt,
+			&item.IPAddress, &item.LastEditIP); err != nil {
 			return PendingList{}, fmt.Errorf("scan pending moderation item: %w", err)
 		}
 		item.Excerpt = forum.ExcerptFromPlain(plainPrefix, forum.RecommendedExcerptRuneLimit)
@@ -129,7 +132,9 @@ func reportItemSelectSQL() string {
 		  COALESCE(topic.author_user_id, comment.author_user_id, 0),
 		  COALESCE(NULLIF(target_user.display_name, ''), target_user.username, ''),
 		  COALESCE(category.name, ''), COALESCE(topic.status, comment.status, 'deleted'),
-		  COALESCE(comment.topic_id, topic.id, 0)
+		  COALESCE(comment.topic_id, topic.id, 0),
+		  COALESCE(topic.ip_address, comment.ip_address, ''),
+		  COALESCE(topic.last_edit_ip, comment.last_edit_ip, '')
 		FROM moderation_reports reports
 		LEFT JOIN users reporter ON reporter.id = reports.reporter_user_id
 		LEFT JOIN users reviewer ON reviewer.id = reports.reviewer_user_id
@@ -154,6 +159,7 @@ func scanReportItem(row reportScanner) (ReportItem, error) {
 		&item.ReviewNote, &item.CreatedAt, &item.UpdatedAt, &resolvedAt,
 		&item.Title, &plainPrefix, &item.TargetAuthorID, &item.TargetAuthorName,
 		&item.Category, &item.TargetStatus, &item.TargetTopicID,
+		&item.IPAddress, &item.LastEditIP,
 	); err != nil {
 		return ReportItem{}, fmt.Errorf("scan moderation report item: %w", err)
 	}
@@ -238,7 +244,8 @@ func (s *PostgresStore) GetReviewContext(ctx context.Context, input ReviewContex
 		row = s.pool.QueryRow(ctx, `
 			SELECT topics.id, topics.title, posts.html_content, topics.author_user_id,
 			  COALESCE(NULLIF(users.display_name, ''), users.username, ''), categories.name,
-			  topics.status, topics.moderation_triggers, ''::text, topics.created_at
+			  topics.status, topics.moderation_triggers, ''::text, topics.created_at,
+			  COALESCE(topics.ip_address, ''), COALESCE(topics.last_edit_ip, '')
 			FROM topics
 			JOIN posts ON posts.id = topics.content_id
 			JOIN categories ON categories.id = topics.category_id
@@ -249,7 +256,8 @@ func (s *PostgresStore) GetReviewContext(ctx context.Context, input ReviewContex
 		row = s.pool.QueryRow(ctx, `
 			SELECT comments.topic_id, topics.title, posts.html_content, comments.author_user_id,
 			  COALESCE(NULLIF(users.display_name, ''), users.username, ''), categories.name,
-			  comments.status, comments.moderation_triggers, topics.title, comments.created_at
+			  comments.status, comments.moderation_triggers, topics.title, comments.created_at,
+			  COALESCE(comments.ip_address, ''), COALESCE(comments.last_edit_ip, '')
 			FROM comments
 			JOIN posts ON posts.id = comments.content_id
 			JOIN topics ON topics.id = comments.topic_id
@@ -264,7 +272,7 @@ func (s *PostgresStore) GetReviewContext(ctx context.Context, input ReviewContex
 	var triggers []byte
 	if err := row.Scan(&contextItem.TopicID, &contextItem.Title, &contextItem.HTML, &contextItem.AuthorID,
 		&contextItem.AuthorName, &contextItem.Category, &contextItem.Status, &triggers,
-		&contextItem.ParentTopic, &contextItem.CreatedAt); err != nil {
+		&contextItem.ParentTopic, &contextItem.CreatedAt, &contextItem.IPAddress, &contextItem.LastEditIP); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return ReviewContext{}, ErrTaskNotFound
 		}

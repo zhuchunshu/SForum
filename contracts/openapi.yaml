@@ -214,6 +214,8 @@ paths:
     "$ref": "./openapi/paths/identity.yaml#/userPermissionOverrides"
   "/users/{userID}/sessions/revoke":
     "$ref": "./openapi/paths/identity.yaml#/adminUserRevokeSessions"
+  "/users/{userID}/client-ips/clear":
+    "$ref": "./openapi/paths/identity.yaml#/adminUserClearClientIPs"
   "/web-options":
     "$ref": "./openapi/paths/options.yaml#/webOptions"
   "/web-options/{name}":

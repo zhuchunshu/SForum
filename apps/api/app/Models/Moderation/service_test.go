@@ -165,7 +165,10 @@ func TestSubmitDecisionPropagatesTaskConflict(t *testing.T) {
 }
 
 func TestSubmitDecisionRefreshesSearchDerivatives(t *testing.T) {
-	store := &fakeWorkbenchStore{reviewContext: ReviewContext{TargetType: TargetTypeComment, TargetID: 10, TopicID: 77}}
+	store := &fakeWorkbenchStore{reviewContext: ReviewContext{
+		TargetType: TargetTypeComment, TargetID: 10, TopicID: 77,
+		IPAddress: "203.0.113.1", LastEditIP: "203.0.113.2",
+	}}
 	indexer := &fakeDecisionIndexer{}
 	service := NewServiceWithWorkbenchIndexer(&fakeStore{}, nil, store, store, indexer)
 	reviewer := identity.Actor{ID: 8, Status: identity.UserStatusActive, Permissions: map[string]bool{identity.PermissionModerationReview: true}}
@@ -178,6 +181,62 @@ func TestSubmitDecisionRefreshesSearchDerivatives(t *testing.T) {
 	}
 	if len(indexer.indexed) != 1 || indexer.indexed[0] != 77 {
 		t.Fatalf("approved comment should reindex topic 77, got %v", indexer.indexed)
+	}
+}
+
+func TestGetReviewContextStripsIPWithoutViewIPPermission(t *testing.T) {
+	store := &fakeWorkbenchStore{reviewContext: ReviewContext{
+		TargetType: TargetTypeTopic, TargetID: 3, TopicID: 3,
+		IPAddress: "203.0.113.1", LastEditIP: "203.0.113.2",
+	}}
+	service := NewServiceWithWorkbench(&fakeStore{}, nil, store, store)
+	reviewOnly := identity.Actor{
+		ID: 1, Status: identity.UserStatusActive,
+		Permissions: map[string]bool{identity.PermissionModerationReview: true},
+	}
+	item, err := service.GetReviewContext(context.Background(), reviewOnly, ReviewContextInput{
+		Source: SourcePrePublish, TargetType: TargetTypeTopic, TargetID: 3,
+	})
+	if err != nil {
+		t.Fatalf("GetReviewContext: %v", err)
+	}
+	if item.IPAddress != "" || item.LastEditIP != "" {
+		t.Fatalf("expected IPs stripped without view_ip, got %+v", item)
+	}
+
+	withIP := identity.Actor{
+		ID: 1, Status: identity.UserStatusActive,
+		Permissions: map[string]bool{
+			identity.PermissionModerationReview: true,
+			identity.PermissionModerationViewIP: true,
+		},
+	}
+	item, err = service.GetReviewContext(context.Background(), withIP, ReviewContextInput{
+		Source: SourcePrePublish, TargetType: TargetTypeTopic, TargetID: 3,
+	})
+	if err != nil {
+		t.Fatalf("GetReviewContext with view_ip: %v", err)
+	}
+	if item.IPAddress != "203.0.113.1" || item.LastEditIP != "203.0.113.2" {
+		t.Fatalf("expected full IPs with view_ip, got %+v", item)
+	}
+}
+
+func TestListPendingStripsIPWithoutViewIPPermission(t *testing.T) {
+	service := NewServiceWithWorkbench(&fakeStore{}, nil, &fakeWorkbenchStore{}, &fakeWorkbenchStore{})
+	reviewOnly := identity.Actor{
+		ID: 1, Status: identity.UserStatusActive,
+		Permissions: map[string]bool{identity.PermissionModerationReview: true},
+	}
+	list, err := service.ListPending(context.Background(), reviewOnly, WorkbenchListInput{Page: 1, PerPage: 20})
+	if err != nil {
+		t.Fatalf("ListPending: %v", err)
+	}
+	if len(list.Items) != 1 {
+		t.Fatalf("expected 1 item, got %d", len(list.Items))
+	}
+	if list.Items[0].IPAddress != "" || list.Items[0].LastEditIP != "" {
+		t.Fatalf("expected stripped IPs, got %+v", list.Items[0])
 	}
 }
 
@@ -234,7 +293,10 @@ func (s *fakeWorkbenchStore) QueueCounts(context.Context) (QueueCounts, error) {
 }
 
 func (s *fakeWorkbenchStore) ListPending(context.Context, WorkbenchListInput) (PendingList, error) {
-	return PendingList{}, nil
+	return PendingList{Items: []PendingItem{{
+		TargetType: TargetTypeTopic, TargetID: 1, Title: "t", AuthorID: 2,
+		IPAddress: "203.0.113.9", LastEditIP: "203.0.113.10",
+	}}}, nil
 }
 
 func (s *fakeWorkbenchStore) ListReportItems(context.Context, WorkbenchListInput) (ReportItemList, error) {

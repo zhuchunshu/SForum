@@ -192,6 +192,10 @@ func (s *sessionTestStore) RevokeUserSessions(_ context.Context, userID int64, r
 	}
 	return count, nil
 }
+func (s *sessionTestStore) ClearUserClientIPs(_ context.Context, _ int64) (identity.ClearUserClientIPsResult, error) {
+	return identity.ClearUserClientIPsResult{}, nil
+}
+
 func (s *sessionTestStore) DeleteOldRevokedSessions(_ context.Context, keepDays int) (int, error) {
 	return 0, nil
 }

@@ -662,3 +662,21 @@ ApiResponseCreatedAPIToken:
     code: { type: integer }
     message: { type: string }
     data: { "$ref": "#/CreatedAPIToken" }
+
+ClearUserClientIPsResult:
+  type: object
+  required: [sessionsCleared, topicsCleared, commentsCleared]
+  properties:
+    sessionsCleared:
+      type: integer
+    topicsCleared:
+      type: integer
+    commentsCleared:
+      type: integer
+ApiResponseClearUserClientIPs:
+  type: object
+  required: [code, message, data]
+  properties:
+    code: {type: integer}
+    message: {type: string}
+    data: {$ref: "#/ClearUserClientIPsResult"}

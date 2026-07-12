@@ -72,6 +72,21 @@ func TestFilesIncludesClientIPAddressMigration(t *testing.T) {
 	t.Fatalf("expected embedded migration %s", expected)
 }
 
+func TestFilesIncludesClientIPFollowupsMigration(t *testing.T) {
+	entries, err := fs.ReadDir(Files(), ".")
+	if err != nil {
+		t.Fatalf("read embedded migrations: %v", err)
+	}
+
+	const expected = "202607120011_client_ip_followups.sql"
+	for _, entry := range entries {
+		if entry.Name() == expected {
+			return
+		}
+	}
+	t.Fatalf("expected embedded migration %s", expected)
+}
+
 func TestFilesIncludesImmutableExtensionVersionsMigration(t *testing.T) {
 	entries, err := fs.ReadDir(Files(), ".")
 	if err != nil {

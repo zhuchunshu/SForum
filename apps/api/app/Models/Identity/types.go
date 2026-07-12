@@ -74,6 +74,8 @@ var (
 	ErrSelfSessionRevoke = errors.New("identity: cannot revoke own sessions via admin path")
 	// 非超管管理员试图强制下线超管用户的设备，超管账户受保护（与 ReplaceUserRoles 的保护对称）。
 	ErrSuperAdminSessionLocked = errors.New("identity: super admin sessions cannot be revoked by non-super-admin")
+	// 目标用户不存在（管理路径）。
+	ErrUserNotFound = errors.New("identity: user not found")
 )
 
 // 会话下线原因（写入 user_sessions.revoke_reason）。
@@ -107,6 +109,13 @@ type SessionListResult struct {
 	Total   int64           `json:"total"`
 	Page    int             `json:"page"`
 	PerPage int             `json:"perPage"`
+}
+
+// ClearUserClientIPsResult 是清空用户相关真实 IP 后的影响行数（隐私合规）。
+type ClearUserClientIPsResult struct {
+	SessionsCleared int `json:"sessionsCleared"`
+	TopicsCleared   int `json:"topicsCleared"`
+	CommentsCleared int `json:"commentsCleared"`
 }
 
 type FieldMessages map[string][]string

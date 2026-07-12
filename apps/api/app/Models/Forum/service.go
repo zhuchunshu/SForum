@@ -616,6 +616,7 @@ func (s *Service) UpdateTopic(ctx context.Context, actor identity.Actor, input U
 		TopicID:         input.TopicID,
 		EditorUserID:    actor.ID,
 		TagCreationMode: settings.TagCreationMode,
+		LastEditIP:      strings.TrimSpace(input.IPAddress),
 	}
 
 	if input.Title != nil {
@@ -1177,6 +1178,7 @@ func (s *Service) UpdateComment(ctx context.Context, actor identity.Actor, input
 		CommentID:    input.CommentID,
 		EditorUserID: actor.ID,
 		Content:      content,
+		LastEditIP:   strings.TrimSpace(input.IPAddress),
 	}
 	// 内容编辑与创建共用发布策略，防止改文绕过预审。
 	publication, err := s.publicationDecision(ctx, actor.ID, input.Content.RawContent)

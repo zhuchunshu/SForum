@@ -709,6 +709,7 @@ type fakeSessionRow struct {
 	os           string
 	userAgentRaw string
 	ipPrefix     string
+	ipAddress    string
 	createdAt    time.Time
 	lastSeenAt   time.Time
 	revokedAt    *time.Time
@@ -1016,7 +1017,7 @@ func (s *fakeStore) CreateSession(_ context.Context, input authsession.SessionRe
 	s.sessions = append(s.sessions, fakeSessionRow{
 		userID: input.UserID, sid: input.SID, sessionHash: input.SessionHash,
 		deviceName: input.DeviceName, browser: input.Browser, os: input.OS,
-		userAgentRaw: input.UserAgentRaw, ipPrefix: input.IPPrefix,
+		userAgentRaw: input.UserAgentRaw, ipPrefix: input.IPPrefix, ipAddress: input.IPAddress,
 		createdAt: now, lastSeenAt: now,
 	})
 	return nil
@@ -1097,6 +1098,22 @@ func (s *fakeStore) RevokeUserSessions(_ context.Context, userID int64, reason s
 		}
 	}
 	return count, nil
+}
+
+func (s *fakeStore) ClearUserClientIPs(_ context.Context, userID int64) (ClearUserClientIPsResult, error) {
+	// 测试桩：统计并清空会话行上的 IP 字段。
+	var result ClearUserClientIPsResult
+	for i := range s.sessions {
+		if s.sessions[i].userID != userID {
+			continue
+		}
+		if s.sessions[i].ipPrefix != "" || s.sessions[i].ipAddress != "" {
+			s.sessions[i].ipPrefix = ""
+			s.sessions[i].ipAddress = ""
+			result.SessionsCleared++
+		}
+	}
+	return result, nil
 }
 
 func (s *fakeStore) DeleteOldRevokedSessions(_ context.Context, keepDays int) (int, error) {

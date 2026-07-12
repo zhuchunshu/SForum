@@ -709,6 +709,15 @@ func (s *PostgresStore) UpdateTopic(ctx context.Context, input UpdateTopicRecord
 		return TopicDetail{}, fmt.Errorf("touch topic: %w", err)
 	}
 
+	// 记录最近一次编辑 IP（创建 ip_address 保持不变；空串表示调用方未注入）。
+	if input.LastEditIP != "" {
+		if _, err := tx.Exec(ctx, `
+			UPDATE topics SET last_edit_ip = $2 WHERE id = $1
+		`, input.TopicID, input.LastEditIP); err != nil {
+			return TopicDetail{}, fmt.Errorf("update topic last_edit_ip: %w", err)
+		}
+	}
+
 	// 更新分类外键（若分类变更）。
 	if input.CategorySlug != "" {
 		if _, err := tx.Exec(ctx, `
@@ -1315,6 +1324,15 @@ func (s *PostgresStore) UpdateComment(ctx context.Context, input UpdateCommentRe
 		WHERE id = $1
 	`, input.CommentID); err != nil {
 		return Comment{}, fmt.Errorf("touch comment: %w", err)
+	}
+
+	// 记录最近一次编辑 IP（创建 ip_address 保持不变）。
+	if input.LastEditIP != "" {
+		if _, err := tx.Exec(ctx, `
+			UPDATE comments SET last_edit_ip = $2 WHERE id = $1
+		`, input.CommentID, input.LastEditIP); err != nil {
+			return Comment{}, fmt.Errorf("update comment last_edit_ip: %w", err)
+		}
 	}
 
 	comment, err := getCommentByID(ctx, tx, input.CommentID, s.avatarBuilder)

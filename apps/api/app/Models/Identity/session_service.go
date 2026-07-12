@@ -91,6 +91,26 @@ func (s *Service) CleanupRevokedSessions(ctx context.Context, keepDays int) (int
 	return s.store.DeleteOldRevokedSessions(ctx, keepDays)
 }
 
+// ClearUserClientIPs 管理员清空目标用户相关的真实客户端 IP（隐私合规）。
+// 需要 user.manage；禁止对 super_admin 操作（除非操作者自己是 super_admin）。
+// 账号删除/封禁流程实现后应在状态变更事务中复用本方法。
+func (s *Service) ClearUserClientIPs(ctx context.Context, actor Actor, targetUserID int64) (ClearUserClientIPsResult, error) {
+	if !actor.Can(PermissionUserManage) {
+		return ClearUserClientIPsResult{}, ErrPermissionDenied
+	}
+	if targetUserID <= 0 {
+		return ClearUserClientIPsResult{}, ErrUserNotFound
+	}
+	target, err := s.store.GetAdminUser(ctx, targetUserID)
+	if err != nil {
+		return ClearUserClientIPsResult{}, err
+	}
+	if containsString(target.RoleKeys, RoleSuperAdmin) && !actor.IsSuperAdmin() {
+		return ClearUserClientIPsResult{}, ErrSuperAdminSessionLocked
+	}
+	return s.store.ClearUserClientIPs(ctx, targetUserID)
+}
+
 // HasKnownDevice 判断该用户是否已有记录的活跃设备（指纹命中）。
 //
 // 设计用途：风险登录判断——若设备指纹是新出现的，可触发 login_risk 人机验证。

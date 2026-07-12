@@ -23,6 +23,10 @@ This is the entry point for project memory.
     `extensionSidebar` / `extensionBadges`; default theme empty-safe UI
   - Next: **E2.2** comment actions, **E2.3** nav, or product fork **E6**
 
+- **2026-07-12 client IP follow-ups**
+  - Handoff: `knowledge/sessions/2026-07-12-client-ip-followups.md`
+  - `moderation.view_ip`, `last_edit_ip`, ClearUserClientIPs API, workbench IP UI
+
 - **2026-07-12 client real IP**
   - Handoff: `knowledge/sessions/2026-07-12-client-real-ip.md`
   - Decision: `knowledge/decisions/2026-07-12-client-real-ip.md`

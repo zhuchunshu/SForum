@@ -268,6 +268,35 @@ func TestAdminRevokeUserSessionsRequiresPermission(t *testing.T) {
 	}
 }
 
+func TestClearUserClientIPsRequiresUserManage(t *testing.T) {
+	service, store := newTestService(t)
+	ctx := testContext(t)
+	store.users[2] = CurrentUser{ID: 2, Username: "target", Status: UserStatusActive}
+	// 登记带 IP 的会话。
+	_ = store.CreateSession(ctx, authsession.SessionRecordInput{
+		UserID: 2, SID: "sid-clear-1", IPAddress: "203.0.113.9", IPPrefix: "203.0.113.*",
+	})
+
+	// 无 user.manage → 拒绝。
+	_, err := service.ClearUserClientIPs(ctx, Actor{ID: 1, Status: UserStatusActive}, 2)
+	if !errors.Is(err, ErrPermissionDenied) {
+		t.Fatalf("expected permission denied, got %v", err)
+	}
+
+	result, err := service.ClearUserClientIPs(ctx, userManageActor(1), 2)
+	if err != nil {
+		t.Fatalf("ClearUserClientIPs: %v", err)
+	}
+	if result.SessionsCleared != 1 {
+		t.Fatalf("expected 1 session cleared, got %+v", result)
+	}
+	for _, row := range store.sessions {
+		if row.userID == 2 && (row.ipAddress != "" || row.ipPrefix != "") {
+			t.Fatalf("expected session IPs cleared, got %+v", row)
+		}
+	}
+}
+
 func TestAdminRevokeUserSessionsDeniesSelf(t *testing.T) {
 	service, store := newTestService(t)
 	ctx := testContext(t)

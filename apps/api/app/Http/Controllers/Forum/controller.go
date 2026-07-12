@@ -300,6 +300,7 @@ func (h *Controller) updateTopic(c fiber.Ctx) error {
 		CategorySlug: req.CategorySlug,
 		Title:        req.Title,
 		Content:      req.Content,
+		IPAddress:    clientip.FromCtx(c),
 	}
 	if hasTagSlugs {
 		input.TagSlugs = req.TagSlugs
@@ -437,6 +438,7 @@ func (h *Controller) updateComment(c fiber.Ctx) error {
 	comment, err := h.service.UpdateComment(c.Context(), actor, forum.UpdateCommentInput{
 		CommentID: int64(paramInt(c, "commentID")),
 		Content:   req.Content,
+		IPAddress: clientip.FromCtx(c),
 	})
 	if err != nil {
 		return mapForumError(err)

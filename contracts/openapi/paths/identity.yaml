@@ -478,6 +478,31 @@ adminUserRevokeSessions:
         "$ref": "../components/responses.yaml#/Unauthorized"
       '403':
         "$ref": "../components/responses.yaml#/Forbidden"
+adminUserClearClientIPs:
+  post:
+    summary: Clear stored client IP addresses for a user
+    description: |
+      Requires `user.manage`. Clears full client IP fields on the target user's
+      session directory rows and on topics/comments they authored (create + last
+      edit). Used for privacy compliance; account ban/delete product flows should
+      call the same service method. Super-admin targets are protected the same
+      way as session revoke.
+    operationId: adminClearUserClientIPs
+    parameters:
+    - "$ref": "../components/parameters.yaml#/UserID"
+    responses:
+      '200':
+        description: Client IP fields cleared.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/identity.yaml#/ApiResponseClearUserClientIPs"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '404':
+        "$ref": "../components/responses.yaml#/NotFound"
       '422':
         "$ref": "../components/responses.yaml#/UnprocessableEntity"
 authSessions:

@@ -1264,6 +1264,10 @@
         "review": {
           "label": "处理审核队列",
           "description": "审核待处理内容、处理举报并记录审核决定。"
+        },
+        "view_ip": {
+          "label": "查看真实 IP",
+          "description": "在审核与管理场景查看内容创建/编辑 IP 与会话真实 IP（全文）。"
         }
       },
       "settings": {
@@ -2908,7 +2912,9 @@
       "decisionFailed": "审核操作失败，请刷新后重试。",
       "contextFailed": "加载审核上下文失败。",
       "emptyTitle": "当前队列为空",
-      "emptyDescription": "没有符合当前条件的待处理内容。"
+      "emptyDescription": "没有符合当前条件的待处理内容。",
+      "createIp": "创建时 IP",
+      "lastEditIp": "最近编辑 IP"
     },
     "authorStatus": {
       "title": "我的内容审核",

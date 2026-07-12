@@ -1264,6 +1264,10 @@
         "review": {
           "label": "Review moderation queue",
           "description": "Review pending content, handle reports, and record decisions."
+        },
+        "view_ip": {
+          "label": "View full IP addresses",
+          "description": "View full client IP addresses on content and sessions during moderation."
         }
       },
       "settings": {
@@ -2908,7 +2912,9 @@
       "decisionFailed": "Moderation failed. Refresh and try again.",
       "contextFailed": "Could not load moderation context.",
       "emptyTitle": "This queue is clear",
-      "emptyDescription": "No content matches the current filters."
+      "emptyDescription": "No content matches the current filters.",
+      "createIp": "Create IP",
+      "lastEditIp": "Last edit IP"
     },
     "authorStatus": {
       "title": "My content review",

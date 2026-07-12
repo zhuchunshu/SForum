@@ -10,8 +10,12 @@ frontend moderator workbench.
   and read the complete audit history, but it does not grant review actions.
 - `moderation.review` controls the frontend `/moderation` workbench and all
   review actions. It does not grant policy management.
-- The two permissions are intentionally independent. `super_admin` still
-  passes both through the existing super-admin policy.
+- `moderation.view_ip` reveals full client IP fields (`ipAddress`,
+  `lastEditIp`) on workbench pending items, report items, and review context.
+  Without it, the API strips those fields even for reviewers. The moderator
+  role template includes it by default.
+- The review and policy permissions are intentionally independent.
+  `super_admin` still passes them through the existing super-admin policy.
 
 ## Backend
 

@@ -105,6 +105,10 @@ func (passwordResetFakeStore) RevokeOtherSessions(context.Context, int64, string
 func (passwordResetFakeStore) RevokeUserSessions(context.Context, int64, string) (int, error) {
 	return 0, nil
 }
+func (passwordResetFakeStore) ClearUserClientIPs(context.Context, int64) (identity.ClearUserClientIPsResult, error) {
+	return identity.ClearUserClientIPsResult{}, nil
+}
+
 func (passwordResetFakeStore) DeleteOldRevokedSessions(context.Context, int) (int, error) {
 	return 0, nil
 }

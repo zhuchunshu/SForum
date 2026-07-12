@@ -716,6 +716,24 @@ func (h *Controller) adminRevokeUserSessions(c fiber.Ctx) error {
 	return apphttp.OK(c, map[string]any{"revoked": count})
 }
 
+// adminClearUserClientIPs 管理员清空目标用户相关真实客户端 IP（隐私合规）。
+// 权限：user.manage。删号/封禁产品化后应在状态变更路径内自动调用。
+func (h *Controller) adminClearUserClientIPs(c fiber.Ctx) error {
+	actor, err := h.actor(c)
+	if err != nil {
+		return err
+	}
+	targetUserID, err := paramInt64(c, "userID")
+	if err != nil {
+		return fiber.NewError(fiber.StatusUnprocessableEntity, "validation.invalid")
+	}
+	result, err := h.service.ClearUserClientIPs(c.Context(), actor, targetUserID)
+	if err != nil {
+		return mapIdentityError(err)
+	}
+	return apphttp.OK(c, result)
+}
+
 func queryInt(c fiber.Ctx, name string) int {
 	value, err := strconv.Atoi(c.Query(name))
 	if err != nil {
@@ -779,6 +797,8 @@ func mapIdentityError(err error) error {
 		return fiber.NewError(fiber.StatusBadRequest, "auth.cannot_revoke_own_sessions")
 	case errors.Is(err, identity.ErrSuperAdminSessionLocked):
 		return fiber.NewError(fiber.StatusForbidden, "auth.super_admin_session_locked")
+	case errors.Is(err, identity.ErrUserNotFound):
+		return fiber.NewError(fiber.StatusNotFound, "user.not_found")
 	default:
 		return err
 	}
