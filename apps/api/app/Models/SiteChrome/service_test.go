@@ -9,6 +9,44 @@ import (
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
 )
 
+func TestServiceListPublicExtensionNavItems(t *testing.T) {
+	service := NewService(newFakeStore())
+	if items := service.ListPublicExtensionNavItems(context.Background()); items != nil {
+		t.Fatalf("nil provider should return nil, got %#v", items)
+	}
+	service.WithExtensionNavItems(fakeExtensionNavProvider{
+		items: []ExtensionNavItem{{
+			ExtensionID: "demo.plugin",
+			ID:          "docs",
+			Order:       10,
+			Label:       map[string]string{"zh-CN": "文档"},
+			Kind:        "hostLink",
+			URL:         "/docs",
+		}},
+	})
+	items := service.ListPublicExtensionNavItems(context.Background())
+	if len(items) != 1 || items[0].ID != "docs" {
+		t.Fatalf("unexpected extension nav items: %#v", items)
+	}
+	// 解析失败应降级为空，不 panic。
+	service.WithExtensionNavItems(fakeExtensionNavProvider{err: errors.New("boom")})
+	if items := service.ListPublicExtensionNavItems(context.Background()); items != nil {
+		t.Fatalf("error should degrade to nil, got %#v", items)
+	}
+}
+
+type fakeExtensionNavProvider struct {
+	items []ExtensionNavItem
+	err   error
+}
+
+func (p fakeExtensionNavProvider) ExtensionNavItems(context.Context) ([]ExtensionNavItem, error) {
+	if p.err != nil {
+		return nil, p.err
+	}
+	return p.items, nil
+}
+
 func TestServiceNavCRUDAndPermissions(t *testing.T) {
 	store := newFakeStore()
 	service := NewService(store)

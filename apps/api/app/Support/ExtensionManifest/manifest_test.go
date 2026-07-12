@@ -13,6 +13,8 @@ func TestContributionPointDefinitionsContainJobsProductionSlots(t *testing.T) {
 		PointForumTopicSidebar:       true,
 		PointForumTopicBadges:        true,
 		PointForumCommentActions:     true,
+		PointForumNavItems:           true,
+		PointForumTopicListBadges:    true,
 		PointForumComposerToolbar:    true,
 		PointForumProfileTabs:        true,
 		PointAdminDashboardWidgets:   true,
@@ -74,6 +76,16 @@ func TestF43ContributionPayloadValidation(t *testing.T) {
 			Payload: json.RawMessage(`{"type":"extensionRoute","method":"POST","path":"/actions/x","requiresAuth":true}`),
 		}},
 		{{
+			Point: PointForumNavItems, ID: "demo.nav", Order: 10,
+			Label: map[string]string{"en-US": "Docs"}, Icon: "i-lucide-book",
+			Payload: json.RawMessage(`{"type":"hostLink","href":"/docs"}`),
+		}},
+		{{
+			Point: PointForumTopicListBadges, ID: "demo.list-badge", Order: 10,
+			Label:   map[string]string{"en-US": "Hot"},
+			Payload: json.RawMessage(`{"tone":"warning"}`),
+		}},
+		{{
 			Point: PointAdminDashboardWidgets, ID: "demo.widget", Order: 10,
 			Label: map[string]string{"en-US": "Queue"}, Icon: "i-lucide-gauge",
 			Payload: json.RawMessage(`{"type":"adminLink","route":"/jobs","severity":"info"}`),
@@ -124,6 +136,22 @@ func TestF43ContributionPayloadValidation(t *testing.T) {
 	}}
 	if err := Validate(bad); err == nil {
 		t.Fatal("external sidebar hostLink must be rejected")
+	}
+	bad.Contributions = []ManifestContribution{{
+		Point: PointForumNavItems, ID: "evil-nav", Order: 1,
+		Label:   map[string]string{"en-US": "Admin"},
+		Payload: json.RawMessage(`{"type":"hostLink","href":"/admin/extensions"}`),
+	}}
+	if err := Validate(bad); err == nil {
+		t.Fatal("admin hostLink on public nav must be rejected")
+	}
+	bad.Contributions = []ManifestContribution{{
+		Point: PointForumNavItems, ID: "evil-nav-post", Order: 1,
+		Label:   map[string]string{"en-US": "Post"},
+		Payload: json.RawMessage(`{"type":"extensionRoute","method":"POST","path":"/actions/x"}`),
+	}}
+	if err := Validate(bad); err == nil {
+		t.Fatal("non-GET extensionRoute on public nav must be rejected")
 	}
 }
 

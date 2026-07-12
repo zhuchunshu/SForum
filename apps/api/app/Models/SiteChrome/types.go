@@ -1,6 +1,7 @@
 package sitechrome
 
 import (
+	"context"
 	"errors"
 	"time"
 )
@@ -31,6 +32,25 @@ type NavItem struct {
 	Enabled      bool      `json:"enabled"`
 	CreatedAt    time.Time `json:"createdAt"`
 	UpdatedAt    time.Time `json:"updatedAt"`
+}
+
+// ExtensionNavItem 是 forum.nav.items 宿主安全描述符（E2.3）。
+// Kind: hostLink | extensionRoute；URL 对 extensionRoute 为 /extensions/{id}{path}。
+// 公开顶栏专用：禁止 /admin 与 /api。
+type ExtensionNavItem struct {
+	ExtensionID string            `json:"extensionId"`
+	ID          string            `json:"id"`
+	Order       int               `json:"order"`
+	Label       map[string]string `json:"label,omitempty"`
+	Icon        string            `json:"icon,omitempty"`
+	Kind        string            `json:"kind"`
+	Method      string            `json:"method,omitempty"`
+	URL         string            `json:"url"`
+}
+
+// ExtensionNavItemProvider 解析 forum.nav.items；nil 时公开导航不含扩展项。
+type ExtensionNavItemProvider interface {
+	ExtensionNavItems(ctx context.Context) ([]ExtensionNavItem, error)
 }
 
 type CreateNavItemInput struct {

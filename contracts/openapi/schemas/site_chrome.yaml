@@ -5,9 +5,42 @@ ApiResponseSiteNavItemList:
     code: { type: integer }
     message: { type: string }
     data:
+      "$ref": "#/SitePublicNav"
+SitePublicNav:
+  type: object
+  required: [items]
+  description: Public top nav. Operator-configured items first; extensionItems from forum.nav.items second (E2.3). Theme merges core then contributions.
+  properties:
+    items:
       type: array
       items:
         "$ref": "#/SiteNavItem"
+    extensionItems:
+      type: array
+      description: Host-rendered public nav contributions from forum.nav.items. No admin paths, no raw HTML.
+      items:
+        "$ref": "#/SiteExtensionNavItem"
+SiteExtensionNavItem:
+  type: object
+  required: [extensionId, id, order, kind, url]
+  description: Host-rendered public navbar entry from forum.nav.items (E2.3).
+  properties:
+    extensionId: { type: string }
+    id: { type: string }
+    order: { type: integer }
+    label:
+      type: object
+      additionalProperties: { type: string }
+    icon: { type: string }
+    kind:
+      type: string
+      enum: [hostLink, extensionRoute]
+    method:
+      type: string
+      description: Present for extensionRoute (GET only for public nav).
+    url:
+      type: string
+      description: Site-relative path or /extensions/{id}{path} proxy URL.
 ApiResponseSiteNavItem:
   type: object
   required: [code, message, data]

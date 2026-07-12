@@ -132,11 +132,13 @@ type CommentExtensionActionProvider interface {
 	CommentExtensionActions(ctx context.Context) ([]CommentExtensionAction, error)
 }
 
-// TopicExtensionSurfaceProvider 解析主题详情次级贡献点（E2.1 sidebar / badges）。
+// TopicExtensionSurfaceProvider 解析主题次级贡献点（E2.1 sidebar/badges + E2.4 list badges）。
 // 与 TopicExtensionActionProvider 分离，避免破坏现有注入点；nil 时不装饰。
 type TopicExtensionSurfaceProvider interface {
 	TopicExtensionSidebar(ctx context.Context) ([]TopicExtensionSidebarItem, error)
 	TopicExtensionBadges(ctx context.Context) ([]TopicExtensionBadge, error)
+	// TopicExtensionListBadges 列表级一次解析；挂在 TopicList 上，非 per-row RPC。
+	TopicExtensionListBadges(ctx context.Context) ([]TopicExtensionBadge, error)
 }
 
 type ContentInput struct {
@@ -225,6 +227,8 @@ type TopicList struct {
 	Total   int64          `json:"total"`
 	Page    int            `json:"page"`
 	PerPage int            `json:"perPage"`
+	// ExtensionListBadges 来自 forum.topic.list.badges（E2.4）；列表级一次返回。
+	ExtensionListBadges []TopicExtensionBadge `json:"extensionListBadges,omitempty"`
 }
 
 type TopicSummary struct {

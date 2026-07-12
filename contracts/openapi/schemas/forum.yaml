@@ -841,6 +841,11 @@ TopicList:
       type: integer
     perPage:
       type: integer
+    extensionListBadges:
+      type: array
+      description: Host-rendered list-row badges from forum.topic.list.badges (E2.4). Returned once per list; clients attach to each row. No per-row plugin RPC.
+      items:
+        "$ref": "#/TopicExtensionBadge"
 SearchOutput:
   type: object
   required:

@@ -452,6 +452,7 @@ onBeforeUnmount(() => {
               :topic="topic"
               :to="localePath(forumTopicPath(topic, topicUrlMode))"
               :activity-label="topicActivity(topic)"
+              :extension-list-badges="topicList.extensionListBadges || []"
             />
           </template>
 

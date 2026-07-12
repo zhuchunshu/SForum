@@ -14,8 +14,17 @@ type SiteChromeProvider struct {
 }
 
 func NewSiteChromeProvider(store sitechrome.Store, users identity.ActorStore, sessions *authsession.Manager) *SiteChromeProvider {
+	return NewSiteChromeProviderWithExtensionNav(store, users, sessions, nil)
+}
+
+// NewSiteChromeProviderWithExtensionNav 注入 forum.nav.items 解析（E2.3）。
+func NewSiteChromeProviderWithExtensionNav(store sitechrome.Store, users identity.ActorStore, sessions *authsession.Manager, nav sitechrome.ExtensionNavItemProvider) *SiteChromeProvider {
+	service := sitechrome.NewService(store)
+	if nav != nil {
+		service.WithExtensionNavItems(nav)
+	}
 	return &SiteChromeProvider{
-		controller: sitechromecontroller.NewController(sitechrome.NewService(store), users, sessions),
+		controller: sitechromecontroller.NewController(service, users, sessions),
 	}
 }
 

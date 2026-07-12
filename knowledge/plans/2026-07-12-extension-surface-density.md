@@ -294,24 +294,25 @@ Upload/UploadAvatar/UploadSEOImage share the gate; no raw bytes in payload).
 
 ### E2.3 Navigation / discovery
 
-- [ ] `forum.nav.items` — extra public nav entries (label, href host path or
+- [x] `forum.nav.items` — extra public nav entries (label, href host path or
   extension admin-only **not** allowed on public nav)
-- [ ] Payload restricted to relative paths under site origin or extension
+- [x] Payload restricted to relative paths under site origin or extension
   public routes the host already proxies
-- [ ] Site chrome / default theme navbar merge order documented (core items
+- [x] Site chrome / default theme navbar merge order documented (core items
   first; contribution order secondary)
 
 ### E2.4 Search / list row decorations (narrow)
 
-- [ ] `forum.topic.list.badges` — list-row badge descriptors only (no custom
+- [x] `forum.topic.list.badges` — list-row badge descriptors only (no custom
   components)
-- [ ] Keep payload tiny; no per-row plugin RPC
+- [x] Keep payload tiny; no per-row plugin RPC
 
 **E2 exit criteria:**
 
-- ≥ 4 new public contribution points with theme consumers
-- Docs + `extension docs generate --check` green
-- No public trusted Vue injection in this wave (admin components stay admin)
+- [x] ≥ 4 new public contribution points with theme consumers
+  (sidebar, badges, comment.actions, nav.items, list.badges)
+- [x] Docs + `extension docs generate --check` green
+- [x] No public trusted Vue injection in this wave (admin components stay admin)
 
 ---
 
@@ -686,12 +687,13 @@ edit comment/topic controllers.
 | 2026-07-12 | E1 | E1.1–E1.4 done; E1 core exit met; E1.5 optional skipped |
 | 2026-07-12 | E2.1 | `forum.topic.sidebar` + `forum.topic.badges` + theme consumers |
 | 2026-07-12 | E2.2 | `forum.comment.actions` on CommentList + theme row menus |
+| 2026-07-12 | E2.3–E2.4 | `forum.nav.items` + `forum.topic.list.badges`; **E2 wave complete** |
 
 ---
 
 ## Next session one-liner
 
 ```text
-Next density: E2.3 forum.nav.items, E2.4 list badges, or product fork E6.0
-storage provider decision + host interface (north star).
+Next: E5 workflow reference plugin, or product fork E6.0 storage provider
+decision + host interface (north star). E2 public contribution density done.
 ```

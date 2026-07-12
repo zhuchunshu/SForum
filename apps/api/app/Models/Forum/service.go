@@ -394,7 +394,21 @@ func (s *Service) ListTopics(ctx context.Context, input TopicListInput) (TopicLi
 	for i := range list.Items {
 		list.Items[i] = applyTopicSummaryExcerpt(list.Items[i], settings.ExcerptRuneLimit)
 	}
-	return list, nil
+	return s.decorateTopicListExtensionBadges(ctx, list), nil
+}
+
+// decorateTopicListExtensionBadges 挂载 forum.topic.list.badges；失败只记日志。
+func (s *Service) decorateTopicListExtensionBadges(ctx context.Context, list TopicList) TopicList {
+	if s.topicSurfaces == nil {
+		return list
+	}
+	badges, err := s.topicSurfaces.TopicExtensionListBadges(ctx)
+	if err != nil {
+		slog.ErrorContext(ctx, "forum: resolve topic list extension badges failed", "err", err)
+		return list
+	}
+	list.ExtensionListBadges = badges
+	return list
 }
 
 func (s *Service) GetTopic(ctx context.Context, topicID int64) (TopicDetail, error) {

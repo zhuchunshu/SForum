@@ -10,7 +10,7 @@ import (
 	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
 )
 
-// ExtensionTopicSurfaceProvider 解析 forum.topic.sidebar 与 forum.topic.badges（E2.1）。
+// ExtensionTopicSurfaceProvider 解析 forum.topic.sidebar / badges / list.badges（E2.1 + E2.4）。
 type ExtensionTopicSurfaceProvider struct {
 	source EffectiveContributionSource
 }
@@ -42,6 +42,15 @@ func (p ExtensionTopicSurfaceProvider) TopicExtensionSidebar(ctx context.Context
 }
 
 func (p ExtensionTopicSurfaceProvider) TopicExtensionBadges(ctx context.Context) ([]forum.TopicExtensionBadge, error) {
+	return p.topicBadgesForPoint(ctx, extensionmanifest.PointForumTopicBadges)
+}
+
+// TopicExtensionListBadges 解析 forum.topic.list.badges（E2.4）；列表级一次返回。
+func (p ExtensionTopicSurfaceProvider) TopicExtensionListBadges(ctx context.Context) ([]forum.TopicExtensionBadge, error) {
+	return p.topicBadgesForPoint(ctx, extensionmanifest.PointForumTopicListBadges)
+}
+
+func (p ExtensionTopicSurfaceProvider) topicBadgesForPoint(ctx context.Context, point string) ([]forum.TopicExtensionBadge, error) {
 	if p.source == nil {
 		return nil, nil
 	}
@@ -51,7 +60,7 @@ func (p ExtensionTopicSurfaceProvider) TopicExtensionBadges(ctx context.Context)
 	}
 	items := make([]forum.TopicExtensionBadge, 0, len(contributions))
 	for _, contribution := range contributions {
-		if contribution.Point != extensionmanifest.PointForumTopicBadges {
+		if contribution.Point != point {
 			continue
 		}
 		item, ok := topicBadgeFromContribution(contribution)

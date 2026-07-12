@@ -436,6 +436,10 @@ components:
       "$ref": "./openapi/schemas/options.yaml#/ApiResponseAdminWebOptionList"
     ApiResponseSiteNavItemList:
       "$ref": "./openapi/schemas/site_chrome.yaml#/ApiResponseSiteNavItemList"
+    SitePublicNav:
+      "$ref": "./openapi/schemas/site_chrome.yaml#/SitePublicNav"
+    SiteExtensionNavItem:
+      "$ref": "./openapi/schemas/site_chrome.yaml#/SiteExtensionNavItem"
     ApiResponseSiteNavItem:
       "$ref": "./openapi/schemas/site_chrome.yaml#/ApiResponseSiteNavItem"
     ApiResponseSiteFriendLinkList:

@@ -21,6 +21,8 @@ cd apps/api && go run ./cmd/sforum extension docs generate --check
 | `forum.topic.sidebar` | forum | descriptor | `topicSidebarCard` | Topic detail sidebar cards/links rendered by the host UI (extensionRoute or hostLink). |
 | `forum.topic.badges` | forum | descriptor | `topicBadge` | Small status badges under the topic title (tone enum + optional hostLink). |
 | `forum.comment.actions` | forum | descriptor | `extensionRoute` | Comment row action descriptors rendered by the host UI (same extensionRoute spirit as topic actions). |
+| `forum.nav.items` | forum | descriptor | `navItem` | Extra public navbar entries (hostLink or public extensionRoute). Core/operator nav first; contributions secondary. No admin-only paths. |
+| `forum.topic.list.badges` | forum | descriptor | `topicBadge` | List-row badge descriptors for topic lists (same topicBadge shape as detail badges). List-level once; no per-row plugin RPC. |
 | `forum.composer.toolbar` | forum | descriptor | `extensionRoute` | Composer/editor toolbar actions rendered by the host UI; payload is an extensionRoute only. |
 | `forum.profile.tabs` | forum | descriptor | `profileSection` | Public profile tabs/sections rendered by the host UI (extensionRoute or hostLink). |
 | `admin.dashboard.widgets` | admin | descriptor | `dashboardLink` | Admin dashboard link widgets; host-owned routes only, no executable payloads. |

@@ -351,9 +351,14 @@ func TestControllerListsContributionPointsAndContributions(t *testing.T) {
 	for _, point := range points.Data {
 		pointIDs[point.ID] = true
 	}
-	// F4.3 起目录含 topic/composer/profile/dashboard/health + jobs + extension settings。
+	// F4.3 + E2 公开贡献点 + jobs + extension settings。
 	requiredPoints := []string{
 		"forum.topic.actions",
+		"forum.topic.sidebar",
+		"forum.topic.badges",
+		"forum.comment.actions",
+		"forum.nav.items",
+		"forum.topic.list.badges",
 		"forum.composer.toolbar",
 		"forum.profile.tabs",
 		"admin.dashboard.widgets",

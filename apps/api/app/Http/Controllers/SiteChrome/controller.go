@@ -73,12 +73,25 @@ type announcementRequest struct {
 	EndsAt      *string `json:"endsAt"`
 }
 
+// publicNavResponse 公开顶栏（E2.3）：items 为运营配置；extensionItems 为插件贡献。
+// 合并顺序由主题负责：核心/运营 items 在前，extensionItems 按 order 次之。
+type publicNavResponse struct {
+	Items          []sitechrome.NavItem          `json:"items"`
+	ExtensionItems []sitechrome.ExtensionNavItem `json:"extensionItems,omitempty"`
+}
+
 func (h *Controller) publicNavItems(c fiber.Ctx) error {
 	items, err := h.service.ListPublicNavItems(c.Context())
 	if err != nil {
 		return mapError(err)
 	}
-	return apphttp.OK(c, items)
+	if items == nil {
+		items = []sitechrome.NavItem{}
+	}
+	return apphttp.OK(c, publicNavResponse{
+		Items:          items,
+		ExtensionItems: h.service.ListPublicExtensionNavItems(c.Context()),
+	})
 }
 
 func (h *Controller) adminNavItems(c fiber.Ctx) error {

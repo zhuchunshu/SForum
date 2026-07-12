@@ -5,7 +5,7 @@ siteNavItems:
     tags: [Site chrome]
     responses:
       '200':
-        description: Enabled nav items ordered by position.
+        description: Operator-configured nav items plus optional forum.nav.items contributions (E2.3). Core/operator items first; theme appends extensionItems by order.
         content:
           application/json:
             schema:

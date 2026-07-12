@@ -173,6 +173,8 @@ const (
 	PointForumTopicSidebar     = "forum.topic.sidebar"
 	PointForumTopicBadges      = "forum.topic.badges"
 	PointForumCommentActions   = "forum.comment.actions"
+	PointForumNavItems         = "forum.nav.items"
+	PointForumTopicListBadges  = "forum.topic.list.badges"
 	PointForumComposerToolbar  = "forum.composer.toolbar"
 	PointForumProfileTabs      = "forum.profile.tabs"
 	PointAdminDashboardWidgets = "admin.dashboard.widgets"
@@ -186,6 +188,7 @@ const (
 	PayloadTypeProfileSection   = "profileSection"
 	PayloadTypeTopicSidebarCard = "topicSidebarCard"
 	PayloadTypeTopicBadge       = "topicBadge"
+	PayloadTypeNavItem          = "navItem"
 	PayloadTypeDashboardLink    = "dashboardLink"
 	PayloadTypeHealthDescriptor = "healthDescriptor"
 )
@@ -226,11 +229,21 @@ type TopicSidebarContributionPayload struct {
 	Href   string `json:"href,omitempty"`
 }
 
-// TopicBadgeContributionPayload 用于 forum.topic.badges（topicBadge）。
+// TopicBadgeContributionPayload 用于 forum.topic.badges / forum.topic.list.badges（topicBadge）。
 // 文案来自 contribution.label；tone 为宿主枚举；可选 host 相对链接（无外链）。
 type TopicBadgeContributionPayload struct {
 	Tone string `json:"tone"`
 	Href string `json:"href,omitempty"`
+}
+
+// NavItemContributionPayload 用于 forum.nav.items（navItem）。
+// 标签/图标来自 contribution.label / icon；payload 只描述公开跳转目标。
+// type=hostLink：站内相对路径（非 /api、非 /admin）；type=extensionRoute：公开扩展路由（导航以 GET 为主）。
+type NavItemContributionPayload struct {
+	Type   string `json:"type"`
+	Method string `json:"method,omitempty"`
+	Path   string `json:"path,omitempty"`
+	Href   string `json:"href,omitempty"`
 }
 
 // DashboardWidgetContributionPayload 用于 admin.dashboard.widgets（dashboardLink）。
@@ -265,6 +278,8 @@ func ContributionPointDefinitions() []ContributionPointDefinition {
 		{ID: PointForumTopicSidebar, Owner: "forum", Kind: ContributionPointKindDescriptor, Description: "Topic detail sidebar cards/links rendered by the host UI (extensionRoute or hostLink).", PayloadType: PayloadTypeTopicSidebarCard},
 		{ID: PointForumTopicBadges, Owner: "forum", Kind: ContributionPointKindDescriptor, Description: "Small status badges under the topic title (tone enum + optional hostLink).", PayloadType: PayloadTypeTopicBadge},
 		{ID: PointForumCommentActions, Owner: "forum", Kind: ContributionPointKindDescriptor, Description: "Comment row action descriptors rendered by the host UI (same extensionRoute spirit as topic actions).", PayloadType: PayloadTypeExtensionRoute},
+		{ID: PointForumNavItems, Owner: "forum", Kind: ContributionPointKindDescriptor, Description: "Extra public navbar entries (hostLink or public extensionRoute). Core/operator nav first; contributions secondary. No admin-only paths.", PayloadType: PayloadTypeNavItem},
+		{ID: PointForumTopicListBadges, Owner: "forum", Kind: ContributionPointKindDescriptor, Description: "List-row badge descriptors for topic lists (same topicBadge shape as detail badges). List-level once; no per-row plugin RPC.", PayloadType: PayloadTypeTopicBadge},
 		{ID: PointForumComposerToolbar, Owner: "forum", Kind: ContributionPointKindDescriptor, Description: "Composer/editor toolbar actions rendered by the host UI; payload is an extensionRoute only.", PayloadType: PayloadTypeExtensionRoute},
 		{ID: PointForumProfileTabs, Owner: "forum", Kind: ContributionPointKindDescriptor, Description: "Public profile tabs/sections rendered by the host UI (extensionRoute or hostLink).", PayloadType: PayloadTypeProfileSection},
 		{ID: PointAdminDashboardWidgets, Owner: "admin", Kind: ContributionPointKindDescriptor, Description: "Admin dashboard link widgets; host-owned routes only, no executable payloads.", PayloadType: PayloadTypeDashboardLink},
@@ -979,7 +994,7 @@ func allowedContributionIcon(icon string) bool {
 	return strings.HasPrefix(icon, "i-lucide-") || strings.HasPrefix(icon, "i-tabler-")
 }
 
-// validateDescriptorContributionPayload 按 payloadType 校验宿主拥有的描述符（F4.3 / E2.1）。
+// validateDescriptorContributionPayload 按 payloadType 校验宿主拥有的描述符（F4.3 / E2）。
 func validateDescriptorContributionPayload(payloadType string, raw json.RawMessage) error {
 	switch payloadType {
 	case PayloadTypeExtensionRoute:
@@ -990,6 +1005,8 @@ func validateDescriptorContributionPayload(payloadType string, raw json.RawMessa
 		return validateTopicSidebarContributionPayload(raw)
 	case PayloadTypeTopicBadge:
 		return validateTopicBadgeContributionPayload(raw)
+	case PayloadTypeNavItem:
+		return validateNavItemContributionPayload(raw)
 	case PayloadTypeDashboardLink:
 		return validateDashboardWidgetContributionPayload(raw)
 	case PayloadTypeHealthDescriptor:
@@ -1104,6 +1121,34 @@ func validateTopicBadgeContributionPayload(raw json.RawMessage) error {
 	return nil
 }
 
+func validateNavItemContributionPayload(raw json.RawMessage) error {
+	if len(raw) == 0 {
+		return ErrInvalidManifest
+	}
+	var payload NavItemContributionPayload
+	if err := json.Unmarshal(raw, &payload); err != nil {
+		return ErrInvalidManifest
+	}
+	switch strings.TrimSpace(payload.Type) {
+	case PayloadTypeExtensionRoute:
+		// 公开导航以 GET 打开扩展页；禁止写方法误作「导航」。
+		if strings.ToUpper(strings.TrimSpace(payload.Method)) != "GET" {
+			return ErrInvalidManifest
+		}
+		if !safeContributionRoutePath(payload.Path) {
+			return ErrInvalidManifest
+		}
+		return nil
+	case "hostLink":
+		if !safePublicNavHostLink(payload.Href) {
+			return ErrInvalidManifest
+		}
+		return nil
+	default:
+		return ErrInvalidManifest
+	}
+}
+
 func validateDashboardWidgetContributionPayload(raw json.RawMessage) error {
 	if len(raw) == 0 {
 		return ErrInvalidManifest
@@ -1174,6 +1219,15 @@ func safeHostLinkPath(value string) bool {
 		return false
 	}
 	return value != "/api" && !strings.HasPrefix(value, "/api/")
+}
+
+// safePublicNavHostLink 公开顶栏导航：在 safeHostLinkPath 上再禁止 /admin。
+func safePublicNavHostLink(value string) bool {
+	if !safeHostLinkPath(value) {
+		return false
+	}
+	value = strings.TrimSpace(strings.ReplaceAll(value, "\\", "/"))
+	return value != "/admin" && !strings.HasPrefix(value, "/admin/")
 }
 
 // safeAdminDashboardRoute 管理端相对路由（admin shell 内 path）。

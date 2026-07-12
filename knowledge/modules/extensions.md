@@ -26,13 +26,16 @@ mail. Implementation checklist:
 
 - Plan: `plans/2026-07-12-extension-surface-density.md` (waves **E1–E8**)
 - **E1.1–E1.4 done** (core exit met; optional E1.5 skipped)
-- **E2.1 done:** `forum.topic.sidebar` (`topicSidebarCard`) +
-  `forum.topic.badges` (`topicBadge`); topic detail returns
-  `extensionSidebar` / `extensionBadges`; default theme empty-safe consumers
-- **E2.2 done:** `forum.comment.actions` (`extensionRoute` + optional
-  `requiresAuth`); `CommentList.extensionActions` list-level; default theme
-  row menus; body `{ topicId, commentId }`
-- **E2 remaining:** nav items, list-row badges
+- **E2 complete** (public contribution density exit met):
+  - E2.1: `forum.topic.sidebar` / `forum.topic.badges` → topic detail
+    `extensionSidebar` / `extensionBadges`
+  - E2.2: `forum.comment.actions` → `CommentList.extensionActions` (list-level;
+    `requiresAuth` UX only; body `{ topicId, commentId }`)
+  - E2.3: `forum.nav.items` (`navItem`) → `GET /site/nav-items`
+    `{ items, extensionItems }`; core/operator first, contributions second;
+    no `/admin` / `/api`
+  - E2.4: `forum.topic.list.badges` (`topicBadge`) →
+    `TopicList.extensionListBadges` list-level; default theme row pills
 - F4.4 entity meta → **E3**; F4.5 feature flags → **E4** (already implemented)
 - **North star:** storage (**E6**) and search (**E7**) reach mail-like L4–L6
   (plugin RPC + admin select/settings/test/restore + reference plugin); other

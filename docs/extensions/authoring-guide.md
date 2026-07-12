@@ -211,7 +211,7 @@ go run ./cmd/sforum extension test --json <package-root>
 go run ./cmd/sforum extension docs generate --check
 ```
 
-## Contribution points (F4.3 / E2.1)
+## Contribution points (F4.3 / E2)
 
 Declare only host-owned points (see [contribution-points.md](./catalogs/contribution-points.md)).
 Payloads are JSON descriptors — **never executable code**.
@@ -222,6 +222,8 @@ Payloads are JSON descriptors — **never executable code**.
 | `forum.topic.sidebar` | `topicSidebarCard` (`extensionRoute` \| `hostLink`) | Topic detail `extensionSidebar` (default theme side cards) |
 | `forum.topic.badges` | `topicBadge` (`tone` + optional host `href`) | Topic detail `extensionBadges` (under title) |
 | `forum.comment.actions` | `extensionRoute` (+ optional `requiresAuth`) | Comment list `extensionActions` (row menus) |
+| `forum.nav.items` | `navItem` (`hostLink` \| public `extensionRoute` GET) | `GET /site/nav-items` → `extensionItems` (default theme navbar) |
+| `forum.topic.list.badges` | `topicBadge` | Topic list `extensionListBadges` (list-row pills) |
 | `forum.composer.toolbar` | `extensionRoute` | `GET /composer/toolbar` + composer UI |
 | `forum.profile.tabs` | `profileSection` (`extensionRoute` \| `hostLink`) | Public profile `extensionTabs` |
 | `admin.dashboard.widgets` | `dashboardLink` (`adminLink` + admin route) | Admin overview `extensionWidgets` |
@@ -246,6 +248,23 @@ Payloads are JSON descriptors — **never executable code**.
 - Host returns descriptors once on `CommentList.extensionActions` (not per
   comment row). Clients attach them to each row menu and POST
   `{ topicId, commentId }` to the proxy path.
+
+### Public navigation (E2.3)
+
+- Point: `forum.nav.items`, payload type `navItem`.
+- **Merge order (documented):** core / operator-configured `items` first;
+  contribution `extensionItems` second (by contribution `order`).
+- `hostLink`: site-relative path only — **not** `/api`, **not** `/admin`.
+- `extensionRoute`: **GET only** (public page open via extension route proxy).
+- Response: `GET /site/nav-items` returns
+  `{ items: SiteNavItem[], extensionItems?: SiteExtensionNavItem[] }`.
+
+### Topic list badges (E2.4)
+
+- Same `topicBadge` payload as detail badges (`tone` + optional host `href`).
+- Host returns descriptors once on `TopicList.extensionListBadges` (not per
+  topic row). Themes attach the same set to each list row; no per-row plugin
+  RPC and no custom components.
 
 ## Entity meta / custom fields (F4.4)
 

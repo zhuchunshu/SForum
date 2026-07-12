@@ -354,7 +354,13 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 	moderationProvider := providers.NewModerationWorkbenchProviderWithIndexer(moderationStore, forumStore, identityStore, authSessions, searchIndexer)
 	optionsProvider := providers.NewOptionsProviderWithService(optionsService, identityStore, authSessions)
 	siteChromeStore := sitechrome.NewPostgresStore(pool)
-	siteChromeProvider := providers.NewSiteChromeProvider(siteChromeStore, identityStore, authSessions)
+	// E2.3：公开顶栏合并 forum.nav.items（核心/运营项之后）。
+	siteChromeProvider := providers.NewSiteChromeProviderWithExtensionNav(
+		siteChromeStore,
+		identityStore,
+		authSessions,
+		providers.NewExtensionNavItemProvider(extensionService),
+	)
 	attachmentsProvider := providers.NewAttachmentsProviderWithEvents(attachmentStore, optionsService, identityStore, authSessions, eventPublisher)
 	seoProvider := providers.NewSEOProvider(pool, optionsService)
 	databaseProvider := providers.NewDatabaseProvider(databaseStore, identityStore, authSessions)

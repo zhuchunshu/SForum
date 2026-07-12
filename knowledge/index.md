@@ -11,18 +11,17 @@ This is the entry point for project memory.
   - **P1 / P2 cancelled** (not needed for now); plan closed except optional
     manual T0.7 `pgrep` on dev
 
+- **2026-07-12 E2 complete** (nav items + list badges; public contribution exit)
+  - Handoff: `knowledge/sessions/2026-07-12-e2-3-e2-4-nav-list-badges.md`
+  - Plan: `knowledge/plans/2026-07-12-extension-surface-density.md`
+  - Points: `forum.nav.items`, `forum.topic.list.badges` (+ earlier E2.1–2)
+  - Next: **E5** workflow plugin or product fork **E6** storage L4–L6
+
 - **2026-07-12 E2.2 complete** (forum.comment.actions)
   - Handoff: `knowledge/sessions/2026-07-12-e2-2-comment-actions.md`
-  - Plan: `knowledge/plans/2026-07-12-extension-surface-density.md`
-  - CommentList.extensionActions; requiresAuth UX; default theme row menus
-  - Next: **E2.3** nav items, **E2.4** list badges, or product fork **E6**
 
 - **2026-07-12 E2.1 complete** (topic sidebar + badges contribution points)
   - Handoff: `knowledge/sessions/2026-07-12-e2-1-topic-sidebar-badges.md`
-  - Plan: `knowledge/plans/2026-07-12-extension-surface-density.md`
-  - Points: `forum.topic.sidebar` / `forum.topic.badges`; API fields
-    `extensionSidebar` / `extensionBadges`; default theme empty-safe UI
-  - Next: **E2.2** comment actions, **E2.3** nav, or product fork **E6**
 
 - **2026-07-12 client IP follow-ups**
   - Handoff: `knowledge/sessions/2026-07-12-client-ip-followups.md`

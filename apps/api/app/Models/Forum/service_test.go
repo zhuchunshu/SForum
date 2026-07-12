@@ -675,6 +675,34 @@ func TestServiceListCommentsDecoratesExtensionActions(t *testing.T) {
 	}
 }
 
+func TestServiceListTopicsDecoratesExtensionListBadges(t *testing.T) {
+	store := newServiceFakeStore()
+	store.listTopicsResult = TopicList{
+		Items:   []TopicSummary{{ID: 1, Title: "A", Slug: "a", Status: TopicStatusActive}},
+		Total:   1,
+		Page:    1,
+		PerPage: 20,
+	}
+	service := NewServiceWithTopicExtensionActions(store, staticSettingsResolver{}, nil, nil, nil)
+	service.WithTopicExtensionSurfaces(fakeTopicSurfaceProvider{
+		listBadges: []TopicExtensionBadge{{
+			ExtensionID: "demo.plugin",
+			ID:          "hot",
+			Order:       1,
+			Label:       map[string]string{"zh-CN": "热"},
+			Tone:        "warning",
+		}},
+	})
+
+	list, err := service.ListTopics(context.Background(), TopicListInput{})
+	if err != nil {
+		t.Fatalf("ListTopics returned error: %v", err)
+	}
+	if len(list.ExtensionListBadges) != 1 || list.ExtensionListBadges[0].ID != "hot" {
+		t.Fatalf("expected list extension badges, got %#v", list.ExtensionListBadges)
+	}
+}
+
 func TestCommentPositionForInsertSupportsArbitraryDepth(t *testing.T) {
 	parent := CommentSummary{
 		ID:            7,
@@ -1428,9 +1456,10 @@ func (p fakeTopicActionProvider) TopicExtensionActions(context.Context) ([]Topic
 }
 
 type fakeTopicSurfaceProvider struct {
-	sidebar []TopicExtensionSidebarItem
-	badges  []TopicExtensionBadge
-	err     error
+	sidebar    []TopicExtensionSidebarItem
+	badges     []TopicExtensionBadge
+	listBadges []TopicExtensionBadge
+	err        error
 }
 
 func (p fakeTopicSurfaceProvider) TopicExtensionSidebar(context.Context) ([]TopicExtensionSidebarItem, error) {
@@ -1445,6 +1474,13 @@ func (p fakeTopicSurfaceProvider) TopicExtensionBadges(context.Context) ([]Topic
 		return nil, p.err
 	}
 	return p.badges, nil
+}
+
+func (p fakeTopicSurfaceProvider) TopicExtensionListBadges(context.Context) ([]TopicExtensionBadge, error) {
+	if p.err != nil {
+		return nil, p.err
+	}
+	return p.listBadges, nil
 }
 
 type fakeCommentActionProvider struct {
@@ -1485,6 +1521,7 @@ type serviceFakeStore struct {
 	listCommentsInput  CommentListInput
 	listCommentsCalled bool
 	listTopicsInput    TopicListInput
+	listTopicsResult   TopicList
 	// ListCommentReplies 可配置返回值与调用记录，供回复可见性兜底测试断言。
 	listCommentRepliesResult []Comment
 	listCommentRepliesCalled bool
@@ -1557,6 +1594,9 @@ func (s *serviceFakeStore) UpdateTag(_ context.Context, input UpdateTagInput) (T
 
 func (s *serviceFakeStore) ListTopics(_ context.Context, input TopicListInput) (TopicList, error) {
 	s.listTopicsInput = input
+	if s.listTopicsResult.Items != nil || s.listTopicsResult.Total > 0 {
+		return s.listTopicsResult, nil
+	}
 	return TopicList{}, nil
 }
 

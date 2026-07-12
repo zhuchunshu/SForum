@@ -304,6 +304,8 @@ export type ForumTopicList = {
   total: number
   page: number
   perPage: number
+  /** forum.topic.list.badges（E2.4）；列表级一次返回，前端挂到每行标题旁 */
+  extensionListBadges?: ForumTopicExtensionBadge[]
 }
 
 export type ForumTopicFilters = {

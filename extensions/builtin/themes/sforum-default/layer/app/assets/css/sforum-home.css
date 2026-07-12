@@ -416,6 +416,57 @@
   color: #cbd5e1;
 }
 
+/* E2.4：列表行扩展徽章（tone 与详情 badge 对齐） */
+.sf-home-topic-row__pill--ext-neutral {
+  background: #e2e8f0;
+  color: #475569;
+}
+
+.sf-home-topic-row__pill--ext-info {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.sf-home-topic-row__pill--ext-success {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.sf-home-topic-row__pill--ext-warning {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+.sf-home-topic-row__pill--ext-danger {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.dark .sf-home-topic-row__pill--ext-neutral {
+  background: rgb(148 163 184 / 0.18);
+  color: #cbd5e1;
+}
+
+.dark .sf-home-topic-row__pill--ext-info {
+  background: rgb(29 78 216 / 0.22);
+  color: #93c5fd;
+}
+
+.dark .sf-home-topic-row__pill--ext-success {
+  background: rgb(21 128 61 / 0.22);
+  color: #86efac;
+}
+
+.dark .sf-home-topic-row__pill--ext-warning {
+  background: rgb(180 83 9 / 0.22);
+  color: #fbbf24;
+}
+
+.dark .sf-home-topic-row__pill--ext-danger {
+  background: rgb(185 28 28 / 0.22);
+  color: #fca5a5;
+}
+
 .sf-home-topic-row__meta {
   display: flex;
   flex-wrap: wrap;

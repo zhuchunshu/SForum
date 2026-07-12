@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { buildForumHomeQuery } from '~/utils/forumHome'
+import type { SiteExtensionNavItem, SiteNavItem, SitePublicNav } from '~/composables/useSiteChromeApi'
 import {
   forumCategoriesIndexPath,
   forumTagsIndexPath,
+  forumTopicExtensionLabel,
   parseForumTagPublicPagesOption
 } from '~/utils/forumTaxonomy'
 
@@ -28,51 +30,92 @@ const publicTagPagesEnabled = computed(() => parseForumTagPublicPagesOption(
   webOption('forum.tags.public_pages', 'enabled')
 ))
 
-// Wave 2：运营配置的顶栏导航；失败时回退内置 Home/Categories/Tags。
-type PublicNavItem = {
-  id: number
-  labelZhCN: string
-  labelEnUS: string
+// Wave 2 + E2.3：运营配置 items 在前；forum.nav.items 贡献次之。失败时回退内置 Home/Categories/Tags。
+type DesktopNavItem = {
+  key: string
+  label: string
   href: string
   openInNewTab: boolean
+  icon?: string
 }
-const { data: configuredNavItems } = await useAsyncData('site-public-nav-items', async () => {
+
+const { data: publicNav } = await useAsyncData('site-public-nav-items', async () => {
   try {
-    return await chromeApi.listPublicNavItems()
+    return await chromeApi.listPublicNav()
   } catch {
-    return [] as PublicNavItem[]
+    return { items: [], extensionItems: [] } as SitePublicNav
   }
-}, { default: () => [] as PublicNavItem[] })
+}, { default: () => ({ items: [], extensionItems: [] }) as SitePublicNav })
 
 const isEnglishLocale = computed(() => String(locale.value).toLowerCase().startsWith('en'))
 
-const desktopNavItems = computed(() => {
-  const fromApi = (configuredNavItems.value || []).map((item) => ({
-    id: item.id,
-    label: isEnglishLocale.value ? item.labelEnUS : item.labelZhCN,
-    href: item.href,
-    openInNewTab: item.openInNewTab
-  })).filter((item) => item.label && item.href)
+function operatorNavLabel(item: SiteNavItem) {
+  return isEnglishLocale.value ? item.labelEnUS : item.labelZhCN
+}
 
-  if (fromApi.length > 0) {
-    // 标签页关闭时过滤掉指向标签列表的配置项。
-    return fromApi.filter((item) => {
-      if (publicTagPagesEnabled.value) {
-        return true
-      }
-      return !item.href.replace(/\/$/, '').endsWith('/tags')
-    })
+function extensionNavLabel(item: SiteExtensionNavItem) {
+  return forumTopicExtensionLabel(item, String(locale.value || 'zh-CN')) || item.id
+}
+
+// 仅消费宿主已校验的站内相对路径或扩展代理 URL；拒绝外链与 admin。
+function isSafePublicNavHref(href: string) {
+  const value = `${href || ''}`.trim()
+  if (!value.startsWith('/') || value.startsWith('//') || value.includes('://')) {
+    return false
   }
+  if (value === '/api' || value.startsWith('/api/')) {
+    return false
+  }
+  if (value === '/admin' || value.startsWith('/admin/')) {
+    return false
+  }
+  return true
+}
 
-  // 回退：与历史硬编码一致。
-  const fallback = [
-    { id: -1, label: t('home.filter.latest'), href: '/', openInNewTab: false },
-    { id: -2, label: t('home.filter.categories'), href: forumCategoriesIndexPath(), openInNewTab: false }
-  ]
+function filterTagNav(href: string) {
   if (publicTagPagesEnabled.value) {
-    fallback.push({ id: -3, label: t('home.filter.tags'), href: forumTagsIndexPath(), openInNewTab: false })
+    return true
   }
-  return fallback
+  return !href.replace(/\/$/, '').endsWith('/tags')
+}
+
+const desktopNavItems = computed((): DesktopNavItem[] => {
+  const configured = (publicNav.value?.items || [])
+    .map((item) => ({
+      key: `core-${item.id}`,
+      label: operatorNavLabel(item),
+      href: item.href,
+      openInNewTab: item.openInNewTab
+    }))
+    .filter((item) => item.label && item.href)
+    .filter((item) => filterTagNav(item.href))
+
+  // 核心/运营项在前；无运营配置时回退内置三项。
+  const core: DesktopNavItem[] = configured.length > 0
+    ? configured
+    : [
+        { key: 'fallback-home', label: t('home.filter.latest'), href: '/', openInNewTab: false },
+        { key: 'fallback-categories', label: t('home.filter.categories'), href: forumCategoriesIndexPath(), openInNewTab: false },
+        ...(publicTagPagesEnabled.value
+          ? [{ key: 'fallback-tags', label: t('home.filter.tags'), href: forumTagsIndexPath(), openInNewTab: false }]
+          : [])
+      ]
+
+  // E2.3：扩展贡献次之，按 order 追加。
+  const extensions = [...(publicNav.value?.extensionItems || [])]
+    .slice()
+    .sort((a, b) => (a.order || 0) - (b.order || 0))
+    .map((item) => ({
+      key: `ext-${item.extensionId}:${item.id}`,
+      label: extensionNavLabel(item),
+      href: item.url,
+      openInNewTab: false,
+      icon: item.icon
+    }))
+    .filter((item) => item.label && isSafePublicNavHref(item.href))
+    .filter((item) => filterTagNav(item.href))
+
+  return [...core, ...extensions]
 })
 
 function resolveNavTo(href: string) {
@@ -83,6 +126,7 @@ function resolveNavTo(href: string) {
   if (value.startsWith('http://') || value.startsWith('https://')) {
     return value
   }
+  // 扩展代理路径走 API 前缀以外的站内路由；/extensions/* 由宿主代理。
   return localePath(value.startsWith('/') ? value : `/${value}`)
 }
 
@@ -370,7 +414,7 @@ async function logout() {
       </NuxtLink>
 
       <nav class="navbar__desktop-nav" :aria-label="t('nav.mainNav')">
-        <template v-for="item in desktopNavItems" :key="item.id">
+        <template v-for="item in desktopNavItems" :key="item.key">
           <a
             v-if="item.openInNewTab || isExternalHref(item.href)"
             :href="resolveNavTo(item.href)"
@@ -378,6 +422,7 @@ async function logout() {
             :target="item.openInNewTab || isExternalHref(item.href) ? '_blank' : undefined"
             :rel="item.openInNewTab || isExternalHref(item.href) ? 'noopener noreferrer' : undefined"
           >
+            <UIcon v-if="item.icon" :name="item.icon" class="size-3.5" aria-hidden="true" />
             {{ item.label }}
           </a>
           <NuxtLink
@@ -385,6 +430,7 @@ async function logout() {
             :to="resolveNavTo(item.href)"
             class="navbar__nav-link"
           >
+            <UIcon v-if="item.icon" :name="item.icon" class="size-3.5" aria-hidden="true" />
             {{ item.label }}
           </NuxtLink>
         </template>

@@ -12,6 +12,23 @@ export type SiteNavItem = {
   updatedAt: string
 }
 
+/** forum.nav.items 宿主描述符（E2.3）；公开顶栏在运营项之后合并 */
+export type SiteExtensionNavItem = {
+  extensionId: string
+  id: string
+  order: number
+  label?: Record<string, string>
+  icon?: string
+  kind: 'hostLink' | 'extensionRoute'
+  method?: string
+  url: string
+}
+
+export type SitePublicNav = {
+  items: SiteNavItem[]
+  extensionItems?: SiteExtensionNavItem[]
+}
+
 export type SiteFriendLink = {
   id: number
   name: string
@@ -79,7 +96,12 @@ export function useSiteChromeApi() {
   const { request } = useApiClient()
 
   return {
-    listPublicNavItems: () => request<SiteNavItem[]>('/site/nav-items'),
+    listPublicNav: () => request<SitePublicNav>('/site/nav-items'),
+    /** @deprecated 使用 listPublicNav；保留别名避免旧调用方立刻断裂 */
+    listPublicNavItems: async () => {
+      const nav = await request<SitePublicNav>('/site/nav-items')
+      return nav?.items || []
+    },
     listAdminNavItems: () => request<SiteNavItem[]>('/admin/site/nav-items'),
     createNavItem: (body: SiteNavItemInput) =>
       request<SiteNavItem>('/admin/site/nav-items', { method: 'POST', body }),

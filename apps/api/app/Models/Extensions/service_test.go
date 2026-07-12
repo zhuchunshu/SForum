@@ -415,7 +415,7 @@ func TestServiceListsContributionPointsAndEffectiveContributions(t *testing.T) {
 		t.Fatalf("ContributionPoints returned error: %v", err)
 	}
 	// 与 ExtensionManifest.ContributionPointDefinitions 生产目录对齐（含 F4.3 + E2）。
-	if len(points) != 14 || points[0].ID != "forum.topic.actions" {
+	if len(points) != 16 || points[0].ID != "forum.topic.actions" {
 		t.Fatalf("unexpected contribution points: %#v", points)
 	}
 	pointIDs := make(map[string]bool, len(points))
@@ -426,13 +426,15 @@ func TestServiceListsContributionPointsAndEffectiveContributions(t *testing.T) {
 		"forum.topic.sidebar",
 		"forum.topic.badges",
 		"forum.comment.actions",
+		"forum.nav.items",
+		"forum.topic.list.badges",
 		"forum.composer.toolbar",
 		"forum.profile.tabs",
 		"admin.dashboard.widgets",
 		"system.health.checks",
 	} {
 		if !pointIDs[id] {
-			t.Fatalf("missing F4.3 contribution point %q in %#v", id, points)
+			t.Fatalf("missing F4.3/E2 contribution point %q in %#v", id, points)
 		}
 	}
 

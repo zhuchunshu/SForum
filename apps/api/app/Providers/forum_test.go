@@ -132,12 +132,15 @@ func TestExtensionTopicSurfaceProvider(t *testing.T) {
 	sidebarHost, _ := json.Marshal(map[string]any{"type": "hostLink", "href": "/help/policy"})
 	sidebarRoute, _ := json.Marshal(map[string]any{"type": "extensionRoute", "method": "GET", "path": "/topic/related"})
 	badgePayload, _ := json.Marshal(map[string]any{"tone": "warning", "href": "/moderation"})
+	listBadgePayload, _ := json.Marshal(map[string]any{"tone": "info"})
 	source := fakeContributionSource{items: []extensions.EffectiveContribution{
 		{ExtensionID: "demo.plugin", Point: "forum.topic.sidebar", ID: "policy", Order: 20, Label: map[string]string{"zh-CN": "发帖规范"}, Icon: "i-lucide-book-open", Payload: sidebarHost},
 		{ExtensionID: "demo.plugin", Point: "forum.topic.sidebar", ID: "related", Order: 10, Label: map[string]string{"en-US": "Related"}, Icon: "i-tabler-link", Payload: sidebarRoute},
 		{ExtensionID: "demo.plugin", Point: "forum.topic.sidebar", ID: "evil", Payload: json.RawMessage(`{"type":"hostLink","href":"https://evil/"}`)},
 		{ExtensionID: "demo.plugin", Point: "forum.topic.badges", ID: "review", Order: 5, Label: map[string]string{"zh-CN": "待审"}, Payload: badgePayload},
 		{ExtensionID: "demo.plugin", Point: "forum.topic.badges", ID: "bad-tone", Payload: json.RawMessage(`{"tone":"rainbow"}`)},
+		{ExtensionID: "demo.plugin", Point: "forum.topic.list.badges", ID: "hot", Order: 1, Label: map[string]string{"zh-CN": "热"}, Payload: listBadgePayload},
+		{ExtensionID: "demo.plugin", Point: "forum.topic.list.badges", ID: "evil-list", Payload: json.RawMessage(`{"tone":"warning","href":"https://evil/"}`)},
 		{ExtensionID: "demo.plugin", Point: "forum.topic.actions", ID: "ignored", Payload: json.RawMessage(`{"type":"extensionRoute","method":"POST","path":"/x"}`)},
 	}}
 	provider := NewExtensionTopicSurfaceProvider(source)
@@ -167,6 +170,14 @@ func TestExtensionTopicSurfaceProvider(t *testing.T) {
 	if badges[0].ID != "review" || badges[0].Tone != "warning" || badges[0].Href != "/moderation" {
 		t.Fatalf("unexpected badge: %#v", badges[0])
 	}
+
+	listBadges, err := provider.TopicExtensionListBadges(context.Background())
+	if err != nil || len(listBadges) != 1 {
+		t.Fatalf("list badges=%#v err=%v", listBadges, err)
+	}
+	if listBadges[0].ID != "hot" || listBadges[0].Tone != "info" {
+		t.Fatalf("unexpected list badge: %#v", listBadges[0])
+	}
 }
 
 func TestExtensionTopicSurfaceProviderPropagatesSourceErrors(t *testing.T) {
@@ -177,6 +188,32 @@ func TestExtensionTopicSurfaceProviderPropagatesSourceErrors(t *testing.T) {
 	}
 	if _, err := provider.TopicExtensionBadges(context.Background()); !errors.Is(err, expected) {
 		t.Fatalf("badges want source error, got %v", err)
+	}
+	if _, err := provider.TopicExtensionListBadges(context.Background()); !errors.Is(err, expected) {
+		t.Fatalf("list badges want source error, got %v", err)
+	}
+}
+
+func TestExtensionNavItemProviderBuildsSafeDescriptors(t *testing.T) {
+	hostPayload, _ := json.Marshal(map[string]any{"type": "hostLink", "href": "/docs"})
+	routePayload, _ := json.Marshal(map[string]any{"type": "extensionRoute", "method": "GET", "path": "/public/page"})
+	source := fakeContributionSource{items: []extensions.EffectiveContribution{
+		{ExtensionID: "demo.plugin", Point: "forum.nav.items", ID: "docs", Order: 20, Label: map[string]string{"zh-CN": "文档"}, Icon: "i-lucide-book", Payload: hostPayload},
+		{ExtensionID: "demo.plugin", Point: "forum.nav.items", ID: "page", Order: 10, Label: map[string]string{"en-US": "Page"}, Icon: "i-tabler-link", Payload: routePayload},
+		{ExtensionID: "demo.plugin", Point: "forum.nav.items", ID: "admin", Payload: json.RawMessage(`{"type":"hostLink","href":"/admin/extensions"}`)},
+		{ExtensionID: "demo.plugin", Point: "forum.nav.items", ID: "post", Payload: json.RawMessage(`{"type":"extensionRoute","method":"POST","path":"/x"}`)},
+		{ExtensionID: "demo.plugin", Point: "forum.nav.items", ID: "external", Payload: json.RawMessage(`{"type":"hostLink","href":"https://evil/"}`)},
+		{ExtensionID: "demo.plugin", Point: "forum.topic.actions", ID: "ignored", Payload: json.RawMessage(`{"type":"extensionRoute","method":"POST","path":"/x"}`)},
+	}}
+	items, err := NewExtensionNavItemProvider(source).ExtensionNavItems(context.Background())
+	if err != nil || len(items) != 2 {
+		t.Fatalf("items=%#v err=%v", items, err)
+	}
+	if items[0].ID != "docs" || items[0].Kind != "hostLink" || items[0].URL != "/docs" {
+		t.Fatalf("unexpected first nav item: %#v", items[0])
+	}
+	if items[1].ID != "page" || items[1].Kind != "extensionRoute" || items[1].URL != "/extensions/demo.plugin/public/page" {
+		t.Fatalf("unexpected second nav item: %#v", items[1])
 	}
 }
 

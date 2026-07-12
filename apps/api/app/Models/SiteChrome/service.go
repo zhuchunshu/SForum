@@ -2,6 +2,7 @@ package sitechrome
 
 import (
 	"context"
+	"log/slog"
 	"net/url"
 	"strings"
 	"unicode/utf8"
@@ -23,11 +24,20 @@ const (
 var announcementStyles = []string{StyleInfo, StyleSuccess, StyleWarning, StyleDanger}
 
 type Service struct {
-	store Store
+	store           Store
+	extensionNav    ExtensionNavItemProvider
 }
 
 func NewService(store Store) *Service {
 	return &Service{store: store}
+}
+
+// WithExtensionNavItems 注入 forum.nav.items 解析（E2.3）。
+func (s *Service) WithExtensionNavItems(provider ExtensionNavItemProvider) *Service {
+	if s != nil {
+		s.extensionNav = provider
+	}
+	return s
 }
 
 func (s *Service) canManage(actor identity.Actor) bool {
@@ -39,6 +49,20 @@ func (s *Service) canManage(actor identity.Actor) bool {
 
 func (s *Service) ListPublicNavItems(ctx context.Context) ([]NavItem, error) {
 	return s.store.ListNavItems(ctx, true)
+}
+
+// ListPublicExtensionNavItems 返回已启用插件的公开导航贡献（核心/运营项之后由主题合并）。
+// 解析失败只记日志并返回空切片，避免顶栏整体失败。
+func (s *Service) ListPublicExtensionNavItems(ctx context.Context) []ExtensionNavItem {
+	if s == nil || s.extensionNav == nil {
+		return nil
+	}
+	items, err := s.extensionNav.ExtensionNavItems(ctx)
+	if err != nil {
+		slog.ErrorContext(ctx, "site_chrome: resolve extension nav items failed", "err", err)
+		return nil
+	}
+	return items
 }
 
 func (s *Service) ListAdminNavItems(ctx context.Context, actor identity.Actor) ([]NavItem, error) {
