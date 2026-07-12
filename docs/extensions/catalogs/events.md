@@ -34,6 +34,7 @@ cd apps/api && go run ./cmd/sforum extension docs generate --check
 | `category.updated` | observe | 5000 | fail_open | `categoryId`, `categorySlug`, `groupId` | — |
 | `tag.created` | observe | 5000 | fail_open | `tagId`, `tagSlug`, `status` | — |
 | `tag.updated` | observe | 5000 | fail_open | `tagId`, `tagSlug`, `status` | — |
+| `comment.before_create` | filter | 2000 | fail_closed | `actorUserId`, `topicId`, `parentId`, `content` | `content` |
 | `comment.created` | observe | 5000 | fail_open | `commentId`, `topicId`, `authorUserId`, `parentId` | — |
 | `attachment.uploaded` | observe | 5000 | fail_open | `attachmentId`, `publicId`, `ownerUserId`, `provider`, `contentType`, `sizeBytes` | — |
 | `entity_meta.updated` | observe | 5000 | fail_open | `entityType`, `entityId`, `fieldKeys`, `actorUserId` | — |
@@ -107,6 +108,10 @@ Emitted after a tag is created.
 #### `tag.updated`
 
 Emitted after a tag is updated.
+
+#### `comment.before_create`
+
+Runs before a comment is committed and may reject or patch allowlisted input. Heavy work must enqueue jobs, never block this filter.
 
 #### `comment.created`
 

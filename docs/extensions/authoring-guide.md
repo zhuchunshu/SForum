@@ -171,6 +171,16 @@ SDK helpers: `pluginsdk.Ping`, `GetSettings`, `CheckPermission`, `EnqueueOwnJob`
 - **observe** — async; failures should not break the write path.
 - Prefer Host API or River jobs for anything that can take more than a few hundred milliseconds.
 
+### Which filter for which scenario
+
+| Scenario | Event | Kind | Can patch | Notes |
+| --- | --- | --- | --- | --- |
+| Block or rewrite a new topic (title/tags/category/body) | `topic.before_create` | filter | `categorySlug`, `tagSlugs`, `title`, `content` | Runs after permission check; host re-validates after patch |
+| Block or rewrite a new reply body | `comment.before_create` | filter | `content` only | After auth + topic active check; before content limits / render / commit. `parentId` is payload-only (not patchable in v1) |
+| Side effects after commit | `topic.created`, `comment.created`, … | observe | — | Async; do not use for rejection |
+
+Reject with a stable `reason` code (mapped to the API error envelope as 422). Do not put passwords, raw file bytes, or stack traces in filter payloads or messages.
+
 ## Schedules
 
 Do not start `time.Ticker` / cron loops in the plugin process. Core schedules

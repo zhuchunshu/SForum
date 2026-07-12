@@ -4,11 +4,18 @@ This is the entry point for project memory.
 
 ## Latest Handoff
 
+- **2026-07-12 E1.1 complete** (`comment.before_create` filter)
+  - Handoff: `knowledge/sessions/2026-07-12-e1-1-comment-before-create.md`
+  - Plan: `knowledge/plans/2026-07-12-extension-surface-density.md`
+  - Sync filter after auth/topic-active; patch allowlist `content` only;
+    reject → `RejectedError` / 422; catalog docs + authoring guide updated
+  - Next default: **E1.2** `topic.before_update` (or E6 after E1 if services)
+
 - **2026-07-12 Wave F4 complete** (entity meta + feature flags)
   - Handoff: `knowledge/sessions/2026-07-12-f4-4-f4-5-meta-and-flags.md`
   - Decision: `knowledge/decisions/2026-07-12-entity-meta-and-feature-flags.md`
   - F4.4: EAV custom fields on user/topic; F4.5: `features.*` + requiresFeatures
-  - Framework hardening F1–F4 done; density plan E1–E8 still open
+  - Framework hardening F1–F4 done; density plan E1–E8 still open (E1.1 done)
 
 - **2026-07-12 extension surface density plan**
   - Plan: `knowledge/plans/2026-07-12-extension-surface-density.md`
@@ -16,7 +23,7 @@ This is the entry point for project memory.
     workflow reference plugin
   - **North star E6–E8:** storage / search / other services fully
     plugin-selectable and configurable (mail-like L4–L6); not slot names only
-  - E3/E4 overlap F4.4/F4.5 (now implemented); next default **E1.1**
+  - E3/E4 overlap F4.4/F4.5 (now implemented); **E1.1 done**; next **E1.2**
 
 - **2026-07-12 posts content storage slim**
   - Handoff: `knowledge/sessions/2026-07-12-posts-excerpt-revision-slim.md`
@@ -621,7 +628,7 @@ This is the entry point for project memory.
 - `plans/2026-07-12-extension-surface-density.md` - post-hardening extensibility:
   E1 filters, E2 contributions, E3 meta, E4 flags, E5 workflow plugin;
   **E6 storage / E7 search / E8 other provider slots** (plugin configure north
-  star); start at E1.1 or E6 after E1.1 if services are priority.
+  star); E1.1 done — next E1.2 or E6 if services are priority.
 - `plans/2026-07-12-iteration-a-engagement-loop.md` - Iteration A implementation
   checklist: view counts, likes/reactions, bookmarks; topic lifecycle already
   mostly shipped.

@@ -189,19 +189,21 @@ only observe after the fact.
 
 ### E1.1 Comment before create (highest ROI)
 
-- [ ] Add catalog event `comment.before_create` (`filter`)
+- [x] Add catalog event `comment.before_create` (`filter`)
   - Payload: `actorUserId`, `topicId`, `parentId`, `content` (and any fields
     already validated by the host before the filter)
   - Patch allowlist: `content` only in v1 (optional later: `parentId` only if
     host re-validates tree rules after patch)
-- [ ] Wire host invoke on comment create **after** auth/permission/lock checks,
+- [x] Wire host invoke on comment create **after** auth/permission/lock checks,
   **before** commit
-- [ ] Map plugin reject → existing API error envelope (localized reason where
+- [x] Map plugin reject → existing API error envelope (localized reason where
   possible; no raw plugin stack traces)
-- [ ] Unit/integration tests: allow, reject, patch content, timeout/circuit
-- [ ] Regenerate event catalog docs; update authoring guide “filter rules”
+- [x] Unit/integration tests: allow, reject, patch content, timeout/circuit
+- [x] Regenerate event catalog docs; update authoring guide “filter rules”
 
-**Acceptance:** a fixture plugin can block or rewrite a reply body.
+**Acceptance:** a fixture plugin can block or rewrite a reply body. **Done**
+(service-level tests with fake publisher; reject maps via existing
+`RejectedError` → 422).
 
 ### E1.2 Topic before update
 
