@@ -27,6 +27,12 @@ paths:
     "$ref": "./openapi/paths/jobs.yaml#/adminJobsOverview"
   "/admin/jobs/schedules":
     "$ref": "./openapi/paths/jobs.yaml#/adminJobSchedules"
+  "/admin/jobs/schedules/{scheduleId}/enable":
+    "$ref": "./openapi/paths/jobs.yaml#/adminJobScheduleEnable"
+  "/admin/jobs/schedules/{scheduleId}/disable":
+    "$ref": "./openapi/paths/jobs.yaml#/adminJobScheduleDisable"
+  "/admin/jobs/schedules/{scheduleId}/trigger":
+    "$ref": "./openapi/paths/jobs.yaml#/adminJobScheduleTrigger"
   "/admin/jobs":
     "$ref": "./openapi/paths/jobs.yaml#/adminJobs"
   "/admin/jobs/{id}":

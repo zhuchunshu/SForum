@@ -223,6 +223,15 @@ assert(
   systemFolder.children?.map(entry => entry.pageId).join(',') === '/settings,/settings/mail,/settings/avatar,/personalization,/seo,/search',
   'System folder should keep settings-only submenu order without ops tools'
 )
+assert(!systemFolder.children?.some(entry => entry.pageId === '/site-chrome'), 'Site chrome should be merged into personalization, not a separate sidebar page')
+assert(
+  adminPageDefinitions.find(page => page.id === '/personalization')?.permissionMode === 'any',
+  'Personalization page should allow appearance or site chrome permissions'
+)
+assert(
+  adminPageDefinitions.find(page => page.id === '/personalization')?.requiredPermissions?.includes('settings.site.manage'),
+  'Personalization page should accept settings.site.manage after site-chrome merge'
+)
 assert(!systemFolder.children?.some(entry => entry.pageId === '/database'), 'System folder should not contain database ops page')
 assert(!systemFolder.children?.some(entry => entry.pageId === '/jobs'), 'System folder should not contain background jobs page')
 assert(!systemFolder.children?.some(entry => entry.pageId === '/extensions'), 'System folder should not contain the extension overview page')

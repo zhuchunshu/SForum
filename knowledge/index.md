@@ -4,6 +4,17 @@ This is the entry point for project memory.
 
 ## Latest Handoff
 
+- **2026-07-12 Schedule ops workbench (enable / last-next / trigger / menu)**
+  - Handoff: `knowledge/sessions/2026-07-12-schedule-ops-workbench.md`
+  - Admin `/schedules`: enable/disable, last/next run, manual trigger
+  - Options key `jobs.schedule.<id>.enabled`; worker skips when disabled
+  - Jobs page links to dedicated schedules menu under 运维管理
+
+- **2026-07-12 site-chrome merged into personalization**
+  - Handoff: `knowledge/sessions/2026-07-12-personalization-site-chrome-merge.md`
+  - Admin `/site-chrome` redirects to `/personalization?tab=…`; sidebar entry removed
+  - Larger md tabs for appearance + brand/nav/announcements/legal/friend links
+
 - **2026-07-12 Wave F1.3 + F1.4 complete (F1 done)**
   - Handoff: `knowledge/sessions/2026-07-12-f1-3-f1-4-events-audit.md`
   - F1.3: event catalog `failurePolicy`/`timeoutMs`; sync filter host timeout;
@@ -74,8 +85,9 @@ This is the entry point for project memory.
   restore. Blueprint: `knowledge/plans/2026-07-12-admin-settings-richness.md`.
 - Wave 2 brand & public chrome (2026-07-12): logo/favicon/legal body options;
   `site_nav_items` / `site_friend_links` / `site_announcements` tables + public
-  and admin CRUD; admin **品牌与前台壳** page; default theme navbar/footer/
-  announcement banner + `/terms|/privacy|/guidelines` pages.
+  and admin CRUD; admin UI lives under **个性化设置** tabs (legacy
+  `/site-chrome` redirects); default theme navbar/footer/announcement banner +
+  `/terms|/privacy|/guidelines` pages.
 
 
 - Mail and in-app notifications are implemented as a plugin-first vertical:

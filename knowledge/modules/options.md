@@ -34,9 +34,12 @@ Initial runtime option support is implemented.
   for basic site settings, account security (password + sessions + login
   lockout), registration/username policy, newcomer trust limits, maintenance
   mode, and CAPTCHA/human-verification settings.
-- Admin page `apps/web/app/pages/admin/personalization.vue` manages
-  personalization settings for appearance presets and footer content from the
-  System configuration sidebar folder.
+- Admin page `apps/web/app/pages/admin/personalization.vue` is the unified
+  personalization hub under the System folder: appearance preset + footer
+  (requires `settings.appearance.manage`), plus brand/nav/announcements/legal/
+  friend-links tabs (requires `settings.site.manage`). Page access is `any` of
+  those two permissions; tabs filter client-side. Legacy `/site-chrome` redirects
+  to `/personalization?tab=…`.
 - Admin page `apps/web/app/pages/admin/seo.vue` manages runtime SEO settings
   across meta/social, indexing/robots, sitemap, structured data, verification,
   and diagnostics tabs.
@@ -86,7 +89,8 @@ Initial runtime option support is implemented.
     with recommended short stubs and 50k-rune cap.
   - Structured public chrome (nav, friend links, announcements) is **not** in
     `web_options`; see SiteChrome module / migration
-    `202607120003_site_chrome.sql` and admin page `/site-chrome`.
+    `202607120003_site_chrome.sql` and admin personalization tabs (panel
+    `apps/web/app/components/admin/SFAdminSiteChromePanel.vue`).
 
 ## Boundaries
 

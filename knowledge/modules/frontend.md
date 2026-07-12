@@ -215,9 +215,11 @@ Admin sidebar parent folders derive active/open state from the current admin
 route: only the matching parent opens initially, inactive folders stay
 collapsed by default, and the sidebar body scrolls independently when the menu
 list grows.
-The admin personalization page remains a registered `/personalization` page,
-but its sidebar entry now lives under the System configuration folder instead
-of the top-level admin group.
+The admin personalization page remains a registered `/personalization` page
+under the System configuration folder. It now hosts multi-section tabs for
+appearance/footer and the former site-chrome areas (brand, nav, announcements,
+legal, friend links) with larger `md` tab buttons. Legacy `/site-chrome`
+redirects into personalization with a `tab` query.
 The admin shell now includes a `database.manage`-gated database table manager
 under the System folder. It uses the existing admin registry, Nuxt UI controls,
 native dense tables, masked sensitive cells with per-cell reveal, and CSV

@@ -9,12 +9,44 @@ adminJobSchedules:
   get:
     summary: List host schedule catalog entries
     description: |
-      Requires `jobs.view`. Returns the read-only Schedule Registry catalog
-      (job kind, interval, owner, enabled). F1 does not expose last/next run
-      or allow enable/disable mutations.
+      Requires `jobs.view`. Returns the Schedule Registry catalog with runtime
+      enable flags, last run (from River job history), and estimated next run.
     responses:
       '200': { description: Schedule definitions, content: { application/json: { schema: { "$ref": "../schemas/jobs.yaml#/ApiResponseJobSchedules" } } } }
       '403': { "$ref": "../components/responses.yaml#/Forbidden" }
+adminJobScheduleEnable:
+  post:
+    summary: Enable a scheduled job
+    description: Requires `jobs.manage`. Persists enable flag; worker skips inserts while disabled.
+    parameters:
+    - { name: scheduleId, in: path, required: true, schema: { type: string } }
+    responses:
+      '200': { description: Updated schedule, content: { application/json: { schema: { "$ref": "../schemas/jobs.yaml#/ApiResponseJobSchedule" } } } }
+      '403': { "$ref": "../components/responses.yaml#/Forbidden" }
+      '404': { "$ref": "../components/responses.yaml#/NotFound" }
+adminJobScheduleDisable:
+  post:
+    summary: Disable a scheduled job
+    description: Requires `jobs.manage`. Persists disable flag without restarting the worker.
+    parameters:
+    - { name: scheduleId, in: path, required: true, schema: { type: string } }
+    responses:
+      '200': { description: Updated schedule, content: { application/json: { schema: { "$ref": "../schemas/jobs.yaml#/ApiResponseJobSchedule" } } } }
+      '403': { "$ref": "../components/responses.yaml#/Forbidden" }
+      '404': { "$ref": "../components/responses.yaml#/NotFound" }
+adminJobScheduleTrigger:
+  post:
+    summary: Manually enqueue a scheduled job once
+    description: |
+      Requires `jobs.manage`. Inserts one job immediately using the schedule
+      constructor. Fails with conflict when the schedule is disabled.
+    parameters:
+    - { name: scheduleId, in: path, required: true, schema: { type: string } }
+    responses:
+      '200': { description: Enqueued job summary, content: { application/json: { schema: { "$ref": "../schemas/jobs.yaml#/ApiResponseJobScheduleTrigger" } } } }
+      '403': { "$ref": "../components/responses.yaml#/Forbidden" }
+      '404': { "$ref": "../components/responses.yaml#/NotFound" }
+      '409': { description: Schedule is disabled }
 adminJobs:
   get:
     summary: List background jobs

@@ -35,12 +35,16 @@ Implemented platform foundation:
 
 ## Operator Workbench
 
-- Admin route: `/control-panel/jobs`, respecting the configurable admin prefix.
-- API routes under `/api/v1/admin/jobs` expose overview, a bounded newest-job
-  list, detail, retry, cancel, queue pause, and queue resume.
+- Admin routes (respecting the configurable admin prefix):
+  - `/control-panel/jobs` — queue health, job list, retry/cancel, pause/resume
+  - `/control-panel/schedules` — periodic catalog, enable/disable, last/next
+    run estimates, manual trigger
+- API routes under `/api/v1/admin/jobs` expose overview, schedules, a bounded
+  newest-job list, detail, retry, cancel, queue pause/resume, and schedule
+  enable/disable/trigger.
 - `jobs.view` protects read operations; `jobs.manage` protects mutations. Both
   are granted to `super_admin` by default. API policy checks are authoritative.
-- The UI shows state counts, queue backlog/running/failure counts, filters,
+- The Jobs UI shows state counts, queue backlog/running/failure counts, filters,
   attempts, arguments, errors, and permission-aware controls.
 - River's official client performs mutations; SForum does not implement a
   competing queue state machine.
@@ -105,9 +109,17 @@ Plugins may render digest-approved client components there, but cannot bypass
   and the five newest successful artifacts. Failed and superseded artifacts are
   eligible after seven days; build logs after thirty days. Release rows, events,
   and immutable extension snapshots remain as durable history.
-- Admin read-only list: `GET /api/v1/admin/jobs/schedules` (`jobs.view`) and
-  Jobs workbench “Scheduled jobs” section. F1 does not expose enable/disable
-  mutations or last/next run times.
+- Admin schedule APIs (`jobs.view` / `jobs.manage`):
+  - `GET /api/v1/admin/jobs/schedules` — catalog + runtime `enabled`,
+    `lastRunAt` (max `river_job.created_at` per kind), estimated `nextRunAt`
+  - `POST .../schedules/{id}/enable|disable` — persist flag in
+    `web_options` key `jobs.schedule.<id>.enabled` (missing = enabled)
+  - `POST .../schedules/{id}/trigger` — enqueue one run now (blocked when
+    disabled; clears Unique opts so operators get a fresh job)
+- Worker constructors wrap each periodic with an option check: disabled
+  schedules return `(nil, nil)` so River skips insert without restart.
+- Dedicated admin page: `/control-panel/schedules` (nav: 运维管理 → 定时任务).
+  Jobs workbench keeps a short link to that page.
 
 ## Worker Heartbeat And Queue Lag (F1.2)
 

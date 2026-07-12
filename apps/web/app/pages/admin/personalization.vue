@@ -20,6 +20,8 @@ import {
   type WebOption
 } from '~/composables/useWebOptions'
 import { useAdminPage } from '~/composables/useAdminPage'
+import { apiErrorMessage } from '~/composables/useApiClient'
+import SFAdminSiteChromePanel from '~/components/admin/SFAdminSiteChromePanel.vue'
 
 definePageMeta({
   middleware: 'admin',
@@ -36,10 +38,21 @@ type ThemePreview = {
   soft: string
 }
 
+// 个性化页合并外观与前台壳；tab 与权限一一对应。
+type SiteChromeSection = 'brand' | 'nav' | 'announcements' | 'legal' | 'friendLinks'
+type PersonalizationTab = 'appearance' | SiteChromeSection
+
 const { t } = useI18n()
 const toast = useToast()
+const route = useRoute()
+const router = useRouter()
 const { options, fetchAdminEnvelope, saveMany } = useWebOptions()
 const adminPage = useAdminPage('/personalization')
+const { can } = usePermissions()
+const chromePanel = ref<{ refresh: () => Promise<void>, loading: boolean } | null>(null)
+
+const canManageAppearance = computed(() => can('settings.appearance.manage'))
+const canManageSiteChrome = computed(() => can('settings.site.manage'))
 
 const themePreviews: Record<AppearanceThemePreset, ThemePreview> = {
   pine_teal: { accent: '#0f766e', hover: '#0b5f59', soft: '#e6f4f1' },
@@ -59,6 +72,61 @@ const form = reactive({
 
 const saving = ref(false)
 const savedSnapshot = ref('')
+
+const allTabs: Array<{
+  id: PersonalizationTab
+  labelKey: string
+  icon: string
+  requires: 'appearance' | 'site'
+}> = [
+  { id: 'appearance', labelKey: 'admin.personalization.tabs.appearance', icon: 'i-lucide-palette', requires: 'appearance' },
+  { id: 'brand', labelKey: 'admin.personalization.tabs.brand', icon: 'i-lucide-image', requires: 'site' },
+  { id: 'nav', labelKey: 'admin.personalization.tabs.nav', icon: 'i-lucide-menu', requires: 'site' },
+  { id: 'announcements', labelKey: 'admin.personalization.tabs.announcements', icon: 'i-lucide-megaphone', requires: 'site' },
+  { id: 'legal', labelKey: 'admin.personalization.tabs.legal', icon: 'i-lucide-scale', requires: 'site' },
+  { id: 'friendLinks', labelKey: 'admin.personalization.tabs.friendLinks', icon: 'i-lucide-external-link', requires: 'site' }
+]
+
+const tabs = computed(() =>
+  allTabs
+    .filter((tab) => (tab.requires === 'appearance' ? canManageAppearance.value : canManageSiteChrome.value))
+    .map((tab) => ({
+      id: tab.id,
+      label: t(tab.labelKey),
+      icon: tab.icon
+    }))
+)
+
+function normalizeTab(value: unknown): PersonalizationTab {
+  const raw = Array.isArray(value) ? value[0] : value
+  const candidate = typeof raw === 'string' ? raw : ''
+  // 兼容旧 /site-chrome 深链与独立页习惯的 tab 名。
+  const aliases: Record<string, PersonalizationTab> = {
+    theme: 'appearance',
+    footer: 'appearance',
+    chrome: 'brand',
+    'friend-links': 'friendLinks',
+    friends: 'friendLinks'
+  }
+  const resolved = (aliases[candidate] || candidate) as PersonalizationTab
+  const allowed = tabs.value.map((tab) => tab.id)
+  if (allowed.includes(resolved)) {
+    return resolved
+  }
+  return allowed[0] || 'appearance'
+}
+
+const activeTab = ref<PersonalizationTab>(normalizeTab(route.query.tab))
+
+watch(tabs, (available) => {
+  if (!available.some((tab) => tab.id === activeTab.value) && available[0]) {
+    setActiveTab(available[0].id)
+  }
+}, { immediate: true })
+
+watch(() => route.query.tab, (value) => {
+  activeTab.value = normalizeTab(value)
+})
 
 const themeChoices = computed(() => {
   return appearanceThemes.map((theme) => ({
@@ -86,9 +154,19 @@ const customThemePreview = computed<ThemePreview>(() => {
 
 const hasChanges = computed(() => formSnapshot() !== savedSnapshot.value)
 
+const isChromeTab = computed(() => activeTab.value !== 'appearance')
+
 // useAsyncData 在 SSR 水合时不会重跑 handler；表单副作用必须用 watch 同步，
 // 否则主题/页脚等控件会卡在 reactive 初始默认值。
-const { data: adminPersonalizationOptions, pending, error, refresh } = await useAsyncData('admin-personalization-options', async () => {
+const {
+  data: adminPersonalizationOptions,
+  pending: appearancePending,
+  error: appearanceError,
+  refresh: refreshAppearance
+} = await useAsyncData('admin-personalization-options', async () => {
+  if (!canManageAppearance.value) {
+    return null
+  }
   const envelope = await fetchAdminEnvelope()
   return envelope.data
 })
@@ -102,6 +180,32 @@ watch(adminPersonalizationOptions, (items) => {
 useSeoMeta({
   title: t('admin.personalization.metaTitle')
 })
+
+const toolbarPending = computed(() => {
+  if (activeTab.value === 'appearance') {
+    return appearancePending.value
+  }
+  return Boolean(chromePanel.value?.loading)
+})
+
+async function refreshActive() {
+  if (activeTab.value === 'appearance') {
+    await refreshAppearance()
+    return
+  }
+  await chromePanel.value?.refresh()
+}
+
+function setActiveTab(tab: PersonalizationTab) {
+  activeTab.value = tab
+  const nextQuery = { ...route.query, tab }
+  if (tab === tabs.value[0]?.id) {
+    const { tab: _tab, ...rest } = nextQuery
+    void router.replace({ query: rest })
+    return
+  }
+  void router.replace({ query: nextQuery })
+}
 
 function applyAdminOptions(items: AdminWebOption[]) {
   const publicOptions = items.filter((item) => item.public && !item.secret)
@@ -275,18 +379,55 @@ function formSnapshot() {
         color="neutral"
         variant="outline"
         leading-icon="i-lucide-refresh-cw"
-        :loading="pending"
+        :loading="toolbarPending"
         class="border-slate-200 dark:border-zinc-700"
-        @click="refresh()"
+        @click="refreshActive()"
       >
         {{ t('admin.personalization.refresh') }}
       </UButton>
     </template>
   </UDashboardToolbar>
 
-  <form class="flex flex-col gap-5" @submit.prevent="savePersonalizationSettings">
+  <UAlert
+    v-if="canManageSiteChrome"
+    color="primary"
+    variant="soft"
+    icon="i-lucide-sparkles"
+    class="mb-4"
+    :title="t('admin.siteChrome.recommendedTitle')"
+    :description="t('admin.siteChrome.recommendedBody')"
+  />
+
+  <!-- 使用 md 尺寸 + 底部分割，避免原先 size=sm 的小按钮观感 -->
+  <div
+    role="tablist"
+    :aria-label="t('admin.personalization.tabs.label')"
+    class="mb-5 flex flex-wrap gap-2 border-b border-slate-200 pb-3 dark:border-zinc-800"
+  >
+    <UButton
+      v-for="tab in tabs"
+      :key="tab.id"
+      size="md"
+      class="min-h-10 px-4"
+      :color="activeTab === tab.id ? 'primary' : 'neutral'"
+      :variant="activeTab === tab.id ? 'solid' : 'ghost'"
+      :leading-icon="tab.icon"
+      role="tab"
+      :aria-selected="activeTab === tab.id"
+      @click="setActiveTab(tab.id)"
+    >
+      {{ tab.label }}
+    </UButton>
+  </div>
+
+  <!-- 外观：配色 + 页脚 -->
+  <form
+    v-if="activeTab === 'appearance' && canManageAppearance"
+    class="flex flex-col gap-5"
+    @submit.prevent="savePersonalizationSettings"
+  >
     <UAlert
-      v-if="error"
+      v-if="appearanceError"
       color="error"
       variant="soft"
       icon="i-lucide-triangle-alert"
@@ -481,4 +622,20 @@ function formSnapshot() {
       </template>
     </UCard>
   </form>
+
+  <!-- 前台壳：品牌 / 导航 / 公告 / 法律 / 友情链接 -->
+  <SFAdminSiteChromePanel
+    v-else-if="isChromeTab && canManageSiteChrome"
+    ref="chromePanel"
+    :section="activeTab as SiteChromeSection"
+  />
+
+  <UAlert
+    v-else
+    color="warning"
+    variant="soft"
+    icon="i-lucide-lock"
+    :title="t('admin.personalization.noAccessTitle')"
+    :description="t('admin.personalization.noAccessBody')"
+  />
 </template>

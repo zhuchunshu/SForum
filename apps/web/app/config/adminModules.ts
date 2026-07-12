@@ -61,14 +61,18 @@ export const adminPageDefinitions = [
     labelKey: 'admin.nav.personalization',
     icon: 'i-lucide-palette',
     componentName: 'AdminPersonalization',
-    requiredPermissions: ['settings.appearance.manage']
+    // 外观与前台壳合并到同一页；任一权限即可进入，页内再按 tab 过滤。
+    requiredPermissions: ['settings.appearance.manage', 'settings.site.manage'],
+    permissionMode: 'any'
   },
   {
+    // 保留页面定义供旧链接 / 重定向；不挂侧栏。
     id: '/site-chrome',
     labelKey: 'admin.nav.siteChrome',
     icon: 'i-lucide-panel-top',
-    componentName: 'AdminSiteChrome',
-    requiredPermissions: ['settings.site.manage']
+    componentName: 'AdminSiteChromeRedirect',
+    requiredPermissions: ['settings.site.manage', 'settings.appearance.manage'],
+    permissionMode: 'any'
   },
   {
     id: '/roles',
@@ -231,6 +235,13 @@ export const adminPageDefinitions = [
     icon: 'i-lucide-list-checks',
     componentName: 'AdminJobs',
     requiredPermissions: ['jobs.view']
+  },
+  {
+    id: '/schedules',
+    labelKey: 'admin.nav.schedules',
+    icon: 'i-lucide-calendar-clock',
+    componentName: 'AdminSchedules',
+    requiredPermissions: ['jobs.view']
   }
 ] as const satisfies readonly AdminPageDefinition[]
 
@@ -267,7 +278,6 @@ export const adminSidebarNavigation = [
         { type: 'page', pageId: '/settings/mail' },
         { type: 'page', pageId: '/settings/avatar' },
         { type: 'page', pageId: '/personalization' },
-        { type: 'page', pageId: '/site-chrome' },
         { type: 'page', pageId: '/seo' },
         { type: 'page', pageId: '/search' }
       ]
@@ -294,7 +304,8 @@ export const adminSidebarNavigation = [
       icon: 'i-lucide-server-cog',
       children: [
         { type: 'page', pageId: '/database' },
-        { type: 'page', pageId: '/jobs' }
+        { type: 'page', pageId: '/jobs' },
+        { type: 'page', pageId: '/schedules' }
       ]
     },
     { type: 'page', pageId: '/attachments' }

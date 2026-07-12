@@ -54,11 +54,22 @@ JobSchedule:
     jobKind: { type: string, description: River job kind inserted by this schedule }
     queue: { type: string }
     intervalSeconds: { type: integer, format: int64, minimum: 1 }
-    cron: { type: string, description: Reserved; not used by F1 core schedules }
+    cron: { type: string, description: Reserved; not used by core interval schedules }
     owner: { type: string, description: Owning module or extension id }
-    enabled: { type: boolean }
+    enabled: { type: boolean, description: Runtime enable flag from web_options (missing = catalog default true) }
     description: { type: string }
     runOnStart: { type: boolean }
+    lastRunAt: { type: string, format: date-time, description: Latest river_job.created_at for this kind }
+    nextRunAt: { type: string, format: date-time, description: Estimated next periodic fire (last+interval or now+interval) }
+JobScheduleTriggerResult:
+  type: object
+  required: [scheduleId, jobId, kind, queue]
+  properties:
+    scheduleId: { type: string }
+    jobId: { type: integer, format: int64 }
+    kind: { type: string }
+    queue: { type: string }
+    uniqueSkipped: { type: boolean }
 ApiResponseJobSchedules:
   type: object
   required: [code, message, data]
@@ -66,3 +77,17 @@ ApiResponseJobSchedules:
     code: { type: integer }
     message: { type: string }
     data: { type: array, items: { "$ref": "#/JobSchedule" } }
+ApiResponseJobSchedule:
+  type: object
+  required: [code, message, data]
+  properties:
+    code: { type: integer }
+    message: { type: string }
+    data: { "$ref": "#/JobSchedule" }
+ApiResponseJobScheduleTrigger:
+  type: object
+  required: [code, message, data]
+  properties:
+    code: { type: integer }
+    message: { type: string }
+    data: { "$ref": "#/JobScheduleTriggerResult" }

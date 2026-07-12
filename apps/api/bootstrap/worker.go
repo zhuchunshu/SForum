@@ -19,6 +19,7 @@ import (
 	attachments "github.com/zhuchunshu/sforum/apps/api/app/Models/Attachments"
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
+	jobsmodel "github.com/zhuchunshu/sforum/apps/api/app/Models/Jobs"
 	notifications "github.com/zhuchunshu/sforum/apps/api/app/Models/Notifications"
 	options "github.com/zhuchunshu/sforum/apps/api/app/Models/Options"
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Audit"
@@ -159,20 +160,43 @@ func newWorkerWithPool(cfg config.Config, pool *pgxpool.Pool, logger *slog.Logge
 	registerIdentityCleanupWorker(registry, cfg, pool, logger)
 
 	// 周期任务统一经 Schedule Registry 注册，禁止在 bootstrap 散落 NewPeriodicJob。
+	// 启用状态读 web_options；constructor 返回 nil 时 River 跳过本次插入（无需重启 worker）。
+	scheduleOptions := jobsmodel.NewPostgresOptionStore(pool)
+	wrapEnabled := func(scheduleID string, ctor river.PeriodicJobConstructor) river.PeriodicJobConstructor {
+		return func() (river.JobArgs, *river.InsertOpts) {
+			value, ok, err := scheduleOptions.Get(context.Background(), supportjobs.ScheduleEnabledOptionName(scheduleID))
+			if err == nil && !supportjobs.ParseScheduleEnabled(value, ok) {
+				return nil, nil
+			}
+			return ctor()
+		}
+	}
 	scheduleRegistry, err := supportjobs.NewCoreScheduleRegistry(map[string]river.PeriodicJobConstructor{
-		supportjobs.ScheduleIdentityCleanupSessions: func() (river.JobArgs, *river.InsertOpts) {
-			return identityjobs.CleanupSessionsArgs{}, nil
-		},
-		supportjobs.ScheduleExtensionWebReleaseCleanup: func() (river.JobArgs, *river.InsertOpts) {
-			return extensionjobs.WebReleaseCleanupArgs{}, nil
-		},
-		supportjobs.ScheduleAttachmentsCleanupOrphans: func() (river.JobArgs, *river.InsertOpts) {
-			// Limit=0 时 worker 使用默认批大小 100。
-			return attachmentjobs.CleanupOrphansArgs{}, nil
-		},
-		supportjobs.ScheduleAuditCleanupEvents: func() (river.JobArgs, *river.InsertOpts) {
-			return auditjobs.CleanupEventsArgs{}, nil
-		},
+		supportjobs.ScheduleIdentityCleanupSessions: wrapEnabled(
+			supportjobs.ScheduleIdentityCleanupSessions,
+			func() (river.JobArgs, *river.InsertOpts) {
+				return identityjobs.CleanupSessionsArgs{}, nil
+			},
+		),
+		supportjobs.ScheduleExtensionWebReleaseCleanup: wrapEnabled(
+			supportjobs.ScheduleExtensionWebReleaseCleanup,
+			func() (river.JobArgs, *river.InsertOpts) {
+				return extensionjobs.WebReleaseCleanupArgs{}, nil
+			},
+		),
+		supportjobs.ScheduleAttachmentsCleanupOrphans: wrapEnabled(
+			supportjobs.ScheduleAttachmentsCleanupOrphans,
+			func() (river.JobArgs, *river.InsertOpts) {
+				// Limit=0 时 worker 使用默认批大小 100。
+				return attachmentjobs.CleanupOrphansArgs{}, nil
+			},
+		),
+		supportjobs.ScheduleAuditCleanupEvents: wrapEnabled(
+			supportjobs.ScheduleAuditCleanupEvents,
+			func() (river.JobArgs, *river.InsertOpts) {
+				return auditjobs.CleanupEventsArgs{}, nil
+			},
+		),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("schedule registry: %w", err)

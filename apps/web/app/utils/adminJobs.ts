@@ -2,7 +2,8 @@ export type AdminJobState = 'available' | 'cancelled' | 'completed' | 'discarded
 export type AdminJob = { id: number, kind: string, queue: string, state: AdminJobState, attempt: number, maxAttempts: number, priority: number, args: unknown, metadata: unknown, tags: string[], errors: unknown[], attemptedBy: string[], createdAt: string, scheduledAt: string, attemptedAt?: string, finalizedAt?: string }
 export type AdminJobQueue = { name: string, pausedAt?: string, updatedAt: string, available: number, running: number, failed: number }
 export type AdminJobsOverview = { counts: Record<string, number>, queues: AdminJobQueue[] }
-/** Host Schedule Registry catalog entry (F1 read-only). */
+
+/** Host Schedule Registry catalog entry with runtime enable + last/next run. */
 export type AdminJobSchedule = {
   id: string
   jobKind: string
@@ -13,7 +14,18 @@ export type AdminJobSchedule = {
   enabled: boolean
   description: string
   runOnStart: boolean
+  lastRunAt?: string
+  nextRunAt?: string
 }
+
+export type AdminJobScheduleTriggerResult = {
+  scheduleId: string
+  jobId: number
+  kind: string
+  queue: string
+  uniqueSkipped?: boolean
+}
+
 export const ALL_ADMIN_JOBS_FILTER = '__all__'
 export const adminJobFilterValue = (value: string) => value === ALL_ADMIN_JOBS_FILTER ? '' : value
 export const jobStateColor = (state: AdminJobState) => state === 'completed' ? 'success' : state === 'running' ? 'info' : state === 'discarded' ? 'error' : state === 'retryable' ? 'warning' : state === 'cancelled' ? 'neutral' : 'primary'
@@ -26,4 +38,20 @@ export function formatScheduleInterval(seconds?: number): string {
   if (seconds % 3600 === 0) return `${seconds / 3600}h`
   if (seconds % 60 === 0) return `${seconds / 60}m`
   return `${seconds}s`
+}
+
+/** Format ISO datetime for schedule table; empty when missing. */
+export function formatScheduleDateTime(value?: string, locale = 'zh-CN'): string {
+  if (!value) return '—'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  return new Intl.DateTimeFormat(locale, {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false
+  }).format(date)
 }

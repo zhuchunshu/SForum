@@ -45,15 +45,29 @@ type ListInput struct {
 	Limit int
 }
 
-// Schedule 是 admin 只读 schedule catalog 投影（F1 不含 last/next run）。
+// Schedule 是 admin 周期任务目录投影。
+// Enabled 来自 web_options 覆盖（缺失=目录默认 true）。
+// LastRunAt / NextRunAt 由 River 历史 + interval 估算。
 type Schedule struct {
-	ID              string `json:"id"`
-	JobKind         string `json:"jobKind"`
-	Queue           string `json:"queue"`
-	IntervalSeconds int64  `json:"intervalSeconds,omitempty"`
-	Cron            string `json:"cron,omitempty"`
-	Owner           string `json:"owner"`
-	Enabled         bool   `json:"enabled"`
-	Description     string `json:"description"`
-	RunOnStart      bool   `json:"runOnStart"`
+	ID              string     `json:"id"`
+	JobKind         string     `json:"jobKind"`
+	Queue           string     `json:"queue"`
+	IntervalSeconds int64      `json:"intervalSeconds,omitempty"`
+	Cron            string     `json:"cron,omitempty"`
+	Owner           string     `json:"owner"`
+	Enabled         bool       `json:"enabled"`
+	Description     string     `json:"description"`
+	RunOnStart      bool       `json:"runOnStart"`
+	LastRunAt       *time.Time `json:"lastRunAt,omitempty"`
+	NextRunAt       *time.Time `json:"nextRunAt,omitempty"`
+}
+
+// TriggerResult 是手动触发一次 schedule 的结果。
+type TriggerResult struct {
+	ScheduleID string `json:"scheduleId"`
+	JobID      int64  `json:"jobId"`
+	Kind       string `json:"kind"`
+	Queue      string `json:"queue"`
+	// UniqueSkipped 为 true 表示 River 因唯一约束跳过插入，返回的是已有 job。
+	UniqueSkipped bool `json:"uniqueSkipped,omitempty"`
 }

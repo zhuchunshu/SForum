@@ -9,7 +9,8 @@ import (
 )
 
 // ScheduleDefinition 描述一条平台拥有的周期任务目录项。
-// River 负责实际触发；本结构是 SForum 的 schedule catalog，供 bootstrap 注册与 admin 只读展示。
+// River 负责实际触发；本结构是 SForum 的 schedule catalog，供 bootstrap 注册与 admin 展示/运维。
+// 运行时启用状态以 web_options（ScheduleEnabledOptionName）为准；Enabled 字段是目录默认值。
 // 插件不得自行启动 goroutine cron；后续插件 schedule 也须经本 registry 声明。
 type ScheduleDefinition struct {
 	// ID 稳定唯一键，例如 "identity.cleanup_sessions"。
@@ -24,13 +25,14 @@ type ScheduleDefinition struct {
 	Cron string
 	// Owner 归属模块或扩展 id，例如 "identity" / "attachments" / "extensions"。
 	Owner string
-	// Enabled 为 false 时不进入 River PeriodicJobs，但仍出现在 catalog 列表中。
+	// Enabled 目录默认是否启用；worker 仍会注册 PeriodicJob，真正跳过依赖 constructor 读 option。
 	Enabled bool
 	// Description 运维可读说明（中文优先，与产品文案一致即可）。
 	Description string
 	// RunOnStart 是否在 worker 启动时立即插入一次（透传 River PeriodicJobOpts）。
 	RunOnStart bool
 	// Constructor 触发时构造 job args；不得阻塞。仅 worker 进程需要非 nil。
+	// 返回 (nil, nil) 时 River 跳过本次插入（用于运行时停用）。
 	Constructor river.PeriodicJobConstructor
 }
 
@@ -152,17 +154,22 @@ func (def ScheduleDefinition) wrapConstructor() river.PeriodicJobConstructor {
 	}
 }
 
-// ScheduleView 是 admin / API 使用的只读投影（不含 Constructor）。
+// ScheduleView 是 admin / API 使用的投影（不含 Constructor）。
+// LastRunAt / NextRunAt 由 Models/Jobs 在列表时按 River 历史与 interval 估算填充。
 type ScheduleView struct {
-	ID               string `json:"id"`
-	JobKind          string `json:"jobKind"`
-	Queue            string `json:"queue"`
-	IntervalSeconds  int64  `json:"intervalSeconds,omitempty"`
-	Cron             string `json:"cron,omitempty"`
-	Owner            string `json:"owner"`
-	Enabled          bool   `json:"enabled"`
-	Description      string `json:"description"`
-	RunOnStart       bool   `json:"runOnStart"`
+	ID              string `json:"id"`
+	JobKind         string `json:"jobKind"`
+	Queue           string `json:"queue"`
+	IntervalSeconds int64  `json:"intervalSeconds,omitempty"`
+	Cron            string `json:"cron,omitempty"`
+	Owner           string `json:"owner"`
+	Enabled         bool   `json:"enabled"`
+	Description     string `json:"description"`
+	RunOnStart      bool   `json:"runOnStart"`
+	// LastRunAt 最近一次该 job kind 入队/执行时间（RFC3339）；尚无历史时省略。
+	LastRunAt *string `json:"lastRunAt,omitempty"`
+	// NextRunAt 粗估下次周期触发时间；停用或无法估算时省略。
+	NextRunAt *string `json:"nextRunAt,omitempty"`
 }
 
 // Views 将 registry 投影为稳定 JSON 视图（按登记顺序）。
