@@ -1,0 +1,15 @@
+{
+  "pages": [
+    {
+      "id": "sforum.nocturne-theme.home",
+      "action": "replace",
+      "target": "forum.home",
+      "template": "templates/home.html",
+      "contract": "sforum.page.home@1"
+    }
+  ],
+  "skin": {
+    "css": ["assets/theme.css"],
+    "tokens": "assets/tokens.css"
+  }
+}

@@ -50,6 +50,9 @@ describe('dev admin compose (P1)', () => {
     expect(result.extensions).not.toContain('sforum.default-theme')
     expect(result.extensions).toContain('sforum.smtp')
     expect(fs.existsSync(result.registryRoot)).toBe(true)
+    // 普通主题不进 admin packages → 无 themeLayer；公开页走 host Page Registry。
+    expect(result.themeLayer).toBe('')
+    expect(result.themeId).toBe('')
 
     const metadata = fs.readFileSync(path.join(result.registryRoot, 'metadata.ts'), 'utf8')
     expect(metadata).toContain(`export const releaseId = "${DEV_COMPOSE_RELEASE_ID}"`)

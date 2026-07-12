@@ -79,4 +79,21 @@ describe('dev runtime startup', () => {
     // 完整 release 确认仍保留，但 dev-local 不得写 active.json
     expect(runtime).toContain('writeActiveAcknowledgement')
   })
+
+  test('allows admin-registry-only compose without theme Nuxt Layer', () => {
+    const runtime = readFileSync(new URL('../scripts/dev-theme-runtime.mjs', import.meta.url), 'utf8')
+    const compose = readFileSync(new URL('../scripts/dev-admin-compose.mjs', import.meta.url), 'utf8')
+
+    // runtime：layer 为空时不 fatal，仍注入 registry
+    expect(runtime).toContain('(none; host pages + admin registry)')
+    expect(runtime).toContain('delete env.SFORUM_THEME_LAYER')
+    expect(runtime).toContain('env.SFORUM_ADMIN_REGISTRY_ROOT = selection.registryRoot')
+    // 仅当声明了 layer 路径却找不到文件时才 fatal
+    expect(runtime).toContain('if (hasLayer)')
+    expect(runtime).toContain('theme layer does not exist')
+
+    // compose：不要把插件包误选为 theme
+    expect(compose).toContain("packages.find(item => item.type === 'theme')")
+    expect(compose).not.toContain("packages.find(item => item.type === 'theme') || packages[0]")
+  })
 })

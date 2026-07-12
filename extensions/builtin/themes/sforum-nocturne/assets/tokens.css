@@ -1,0 +1,7 @@
+/* Nocturne Harbor design tokens (L0) */
+:root {
+  --sf-theme-radius: 0.875rem;
+  --nh-radius: 0.875rem;
+  --nh-radius-sm: 0.5rem;
+  --nh-radius-lg: 1.125rem;
+}

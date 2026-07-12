@@ -1,0 +1,226 @@
+/* Nocturne Harbor — cool indigo public skin (L0).
+ * 深蓝港湾：海军底 + 青色强调，与默认暖橙 / Signal Garden 绿区分。
+ */
+
+:root {
+  /* Brand palette */
+  --nh-navy: #0b1220;
+  --nh-navy-soft: #121a2b;
+  --nh-ink: #0f172a;
+  --nh-ink-muted: #475569;
+  --nh-ink-faint: #64748b;
+  --nh-paper: #eef2ff;
+  --nh-card: #ffffff;
+  --nh-line: #c7d2fe;
+  --nh-line-strong: #a5b4fc;
+  --nh-cyan: #0891b2;
+  --nh-cyan-strong: #0e7490;
+  --nh-cyan-soft: #cffafe;
+  --nh-cyan-rgb: 8 145 178;
+  --nh-violet: #6366f1;
+  --nh-amber: #f59e0b;
+  --nh-shadow: 0 1px 2px rgb(15 23 42 / 0.04), 0 12px 32px rgb(15 23 42 / 0.08);
+
+  /* Global SF tokens used by host islands / pages */
+  --sf-theme-radius: 0.875rem;
+  --sf-surface: var(--nh-paper);
+  --sf-card: var(--nh-card);
+  --sf-muted: #e0e7ff;
+  --sf-fg: var(--nh-ink);
+  --sf-fg-secondary: var(--nh-ink-muted);
+  --sf-fg-tertiary: var(--nh-ink-faint);
+  --sf-border: var(--nh-line);
+  --sf-border-light: #e0e7ff;
+  --sf-accent: var(--nh-cyan);
+  --sf-accent-hover: var(--nh-cyan-strong);
+  --sf-accent-soft: var(--nh-cyan-soft);
+  --sf-accent-soft-border: #67e8f9;
+  --sf-accent-dark: #22d3ee;
+  --sf-accent-rgb: var(--nh-cyan-rgb);
+  --sf-accent-focus: rgb(var(--nh-cyan-rgb) / 0.2);
+  --sf-accent-contrast: #ffffff;
+
+  /* Public chrome tokens (default theme shell / host pages) */
+  --sf-public-container: 1180px;
+  --sf-public-bg: var(--nh-paper);
+  --sf-public-surface: var(--nh-card);
+  --sf-public-surface-muted: #f5f7ff;
+  --sf-public-border: var(--nh-line);
+  --sf-public-border-strong: var(--nh-line-strong);
+  --sf-public-text: var(--nh-ink);
+  --sf-public-text-secondary: var(--nh-ink-muted);
+  --sf-public-text-muted: var(--nh-ink-faint);
+  --sf-public-text-faint: #94a3b8;
+  --sf-public-shadow: var(--nh-shadow);
+  --sf-public-shadow-hover: 0 10px 28px rgb(15 23 42 / 0.12), 0 2px 6px rgb(15 23 42 / 0.05);
+  --sf-public-glass: rgb(255 255 255 / 0.92);
+  --sf-public-row-hover: color-mix(in srgb, var(--nh-cyan) 7%, #ffffff);
+  --sf-public-notice-bg: linear-gradient(90deg, #ecfeff, #eef2ff);
+  --sf-public-notice-border: #a5f3fc;
+  --sf-public-notice-text: #155e75;
+  --sf-public-sidebar-width: 232px;
+  --sf-public-right-rail-width: 268px;
+  --sf-public-topbar-height: 54px;
+}
+
+.dark {
+  color-scheme: dark;
+  --nh-navy: #070b14;
+  --nh-navy-soft: #0d1424;
+  --nh-ink: #e8eefc;
+  --nh-ink-muted: #a8b4d0;
+  --nh-ink-faint: #7c8aab;
+  --nh-paper: #070b14;
+  --nh-card: #10182a;
+  --nh-line: #24304a;
+  --nh-line-strong: #3b4a6b;
+  --nh-cyan: #22d3ee;
+  --nh-cyan-strong: #67e8f9;
+  --nh-cyan-soft: rgb(34 211 238 / 0.14);
+  --nh-cyan-rgb: 34 211 238;
+  --nh-violet: #818cf8;
+  --nh-amber: #fbbf24;
+  --nh-shadow: 0 1px 3px rgb(0 0 0 / 0.28), 0 14px 36px rgb(0 0 0 / 0.35);
+
+  --sf-surface: var(--nh-paper);
+  --sf-card: var(--nh-card);
+  --sf-muted: #152038;
+  --sf-fg: var(--nh-ink);
+  --sf-fg-secondary: var(--nh-ink-muted);
+  --sf-fg-tertiary: var(--nh-ink-faint);
+  --sf-border: var(--nh-line);
+  --sf-border-light: #1a243a;
+  --sf-accent: var(--nh-cyan);
+  --sf-accent-hover: var(--nh-cyan-strong);
+  --sf-accent-soft: var(--nh-cyan-soft);
+  --sf-accent-soft-border: rgb(34 211 238 / 0.35);
+  --sf-accent-dark: #a5f3fc;
+  --sf-accent-rgb: var(--nh-cyan-rgb);
+  --sf-accent-focus: rgb(34 211 238 / 0.22);
+  --sf-accent-contrast: #042f2e;
+
+  --sf-public-bg: var(--nh-paper);
+  --sf-public-surface: var(--nh-card);
+  --sf-public-surface-muted: #152038;
+  --sf-public-border: var(--nh-line);
+  --sf-public-border-strong: var(--nh-line-strong);
+  --sf-public-text: var(--nh-ink);
+  --sf-public-text-secondary: var(--nh-ink-muted);
+  --sf-public-text-muted: var(--nh-ink-faint);
+  --sf-public-text-faint: #5b6a8a;
+  --sf-public-shadow: var(--nh-shadow);
+  --sf-public-shadow-hover: 0 12px 32px rgb(0 0 0 / 0.4);
+  --sf-public-glass: rgb(16 24 42 / 0.94);
+  --sf-public-row-hover: color-mix(in srgb, var(--nh-cyan) 12%, #10182a);
+  --sf-public-notice-bg: linear-gradient(90deg, rgb(34 211 238 / 0.16), rgb(99 102 241 / 0.1));
+  --sf-public-notice-border: rgb(34 211 238 / 0.35);
+  --sf-public-notice-text: #a5f3fc;
+}
+
+/* Page shell atmosphere */
+body,
+.sf-public-page,
+.sf-page--nocturne {
+  background:
+    radial-gradient(1200px 480px at 12% -10%, rgb(8 145 178 / 0.12), transparent 55%),
+    radial-gradient(900px 420px at 88% 0%, rgb(99 102 241 / 0.1), transparent 50%),
+    var(--sf-public-bg);
+  color: var(--sf-public-text);
+}
+
+.dark body,
+.dark .sf-public-page,
+.dark .sf-page--nocturne {
+  background:
+    radial-gradient(1000px 420px at 10% -8%, rgb(34 211 238 / 0.1), transparent 55%),
+    radial-gradient(800px 380px at 90% 0%, rgb(99 102 241 / 0.12), transparent 48%),
+    var(--sf-public-bg);
+}
+
+.navbar,
+.sf-footer,
+.auth-shell {
+  color: var(--sf-fg);
+}
+
+/* Home L1 hero (template chrome around <sf-home-page>) */
+.sf-page--nocturne {
+  min-height: 40vh;
+}
+
+.nh-hero {
+  max-width: var(--sf-public-container, 1180px);
+  margin: 0 auto;
+  padding: 28px 20px 8px;
+}
+
+.nh-hero__panel {
+  position: relative;
+  overflow: hidden;
+  padding: 28px 30px;
+  border: 1px solid var(--sf-public-border);
+  border-radius: var(--sf-theme-radius, 0.875rem);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--nh-cyan) 8%, var(--nh-card)) 0%, var(--nh-card) 48%, color-mix(in srgb, var(--nh-violet) 7%, var(--nh-card)) 100%);
+  box-shadow: var(--sf-public-shadow);
+}
+
+.nh-hero__panel::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4px;
+  background: linear-gradient(180deg, var(--nh-cyan), var(--nh-violet));
+}
+
+.nh-hero__eyebrow {
+  margin: 0;
+  color: var(--nh-cyan);
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.nh-hero__title {
+  margin: 10px 0 0;
+  max-width: 18ch;
+  color: var(--sf-public-text);
+  font-size: clamp(1.75rem, 3.4vw, 2.65rem);
+  font-weight: 900;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+}
+
+.nh-hero__copy {
+  margin: 12px 0 0;
+  max-width: 52ch;
+  color: var(--sf-public-text-secondary);
+  font-size: 0.95rem;
+  line-height: 1.7;
+}
+
+/* Soft polish on common public surfaces when this skin is active */
+.sf-public-page__container {
+  width: 100%;
+  max-width: var(--sf-public-container);
+}
+
+.sf-home-page-island {
+  color: var(--sf-public-text);
+}
+
+/* Slightly cooler cards / rows when host uses public tokens */
+.sf-public-page a:hover {
+  color: var(--sf-accent);
+}
+
+@media (max-width: 720px) {
+  .nh-hero {
+    padding: 18px 12px 4px;
+  }
+
+  .nh-hero__panel {
+    padding: 22px 18px;
+  }
+}

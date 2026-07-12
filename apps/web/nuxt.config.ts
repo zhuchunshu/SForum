@@ -188,15 +188,40 @@ export default defineNuxtConfig({
       dedupe: ['vue', 'vue-router', 'nuxt', '@nuxt/ui', '@sforum/admin-sdk']
     },
     // 预声明会被运行时 import 的依赖，让 Vite 冷启动就预打包好。
-    // 否则浏览器首次打开页面时才扫描发现这些 CJS 依赖（altcha）或 devtools 子依赖，
-    // 触发 full page reload，叠加成肉眼可见的“网页卡住”。
+    // 否则浏览器首次打开页面时才扫描发现这些 CJS 依赖（altcha、highlight、tiptap）
+    // 或 devtools 子依赖，触发 full page reload，叠加成肉眼可见的“网页卡住”。
     optimizeDeps: {
       include: [
+        '@vue/devtools-core',
+        '@vue/devtools-kit',
         'altcha',
         'altcha/i18n/en',
         'altcha/i18n/zh-cn',
-        '@vue/devtools-core',
-        '@vue/devtools-kit'
+        'dompurify',
+        'highlight.js/lib/core',
+        'highlight.js/lib/languages/bash',
+        'highlight.js/lib/languages/css',
+        'highlight.js/lib/languages/go',
+        'highlight.js/lib/languages/ini',
+        'highlight.js/lib/languages/javascript',
+        'highlight.js/lib/languages/json',
+        'highlight.js/lib/languages/markdown',
+        'highlight.js/lib/languages/python',
+        'highlight.js/lib/languages/ruby',
+        'highlight.js/lib/languages/rust',
+        'highlight.js/lib/languages/shell',
+        'highlight.js/lib/languages/sql',
+        'highlight.js/lib/languages/typescript',
+        'highlight.js/lib/languages/xml',
+        'highlight.js/lib/languages/yaml',
+        '@tiptap/vue-3',
+        '@tiptap/extension-character-count',
+        '@tiptap/extension-image',
+        '@tiptap/extension-link',
+        '@tiptap/extension-placeholder',
+        '@tiptap/extension-underline',
+        '@tiptap/markdown',
+        '@tiptap/starter-kit'
       ]
     },
     server: {
@@ -226,9 +251,10 @@ export default defineNuxtConfig({
       `${adminRoutePrefix}/`
     ]
   },
+  // multi-sitemaps 下顶层 includeAppSources 会被忽略；子 sitemap 默认不启用
+  // app sources（opt-in），我们只用自定义 API sources，故不在此设置。
   sitemap: {
     credits: false,
-    includeAppSources: false,
     sitemaps: {
       static: { sources: ['/api/_sitemap-urls'] },
       categories: { sources: ['/api/_sitemap-categories'] },

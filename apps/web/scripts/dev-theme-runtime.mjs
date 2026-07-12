@@ -75,17 +75,21 @@ function currentSelection() {
 }
 
 function selectionFromCompose(composed) {
+  // 有 admin registry 即视为 compose 选择，不强制 theme Nuxt Layer。
+  // 公开主题走 host Page Registry；layerPath 可为空。
+  const hasRegistry = Boolean(composed.registryRoot)
+  const hasLayer = Boolean(composed.themeLayer)
   return {
-    mode: 'uploaded',
-    layerPath: composed.themeLayer,
-    registryRoot: composed.registryRoot,
+    mode: hasRegistry || hasLayer ? 'uploaded' : 'default',
+    layerPath: composed.themeLayer || '',
+    registryRoot: composed.registryRoot || '',
     devInput: composed.outDir,
     releaseId: composed.releaseId,
     compositionHash: composed.compositionHash,
     artifactDigest: '',
     serverEntry: '',
-    themeId: composed.themeId,
-    themeVersion: composed.themeVersion,
+    themeId: composed.themeId || '',
+    themeVersion: composed.themeVersion || '',
     reloadMode: 'prompt',
   }
 }
@@ -103,16 +107,29 @@ function launchDevChild(selection, reason) {
     PORT: useProxy ? '0' : String(externalPort),
     HOST: externalHost,
   }
-  if (selection.mode === 'uploaded') {
-    if (!selection.layerPath || !fs.existsSync(selection.layerPath)) {
-      throw new Error(`theme layer does not exist: ${selection.layerPath}`)
+  const hasRegistry = Boolean(selection.registryRoot)
+  const hasLayer = Boolean(selection.layerPath)
+  // uploaded / compose：可只注入 admin registry（无公开主题 Layer 是预期路径）。
+  if (selection.mode === 'uploaded' || hasRegistry) {
+    if (hasLayer) {
+      if (!fs.existsSync(selection.layerPath)) {
+        throw new Error(`theme layer does not exist: ${selection.layerPath}`)
+      }
+      env.SFORUM_THEME_LAYER = selection.layerPath
+    } else {
+      // 宿主公开页 + Page Registry；不再要求 Nuxt Layer。
+      delete env.SFORUM_THEME_LAYER
     }
-    env.SFORUM_THEME_LAYER = selection.layerPath
-    if (selection.registryRoot) env.SFORUM_ADMIN_REGISTRY_ROOT = selection.registryRoot
+    if (hasRegistry) {
+      env.SFORUM_ADMIN_REGISTRY_ROOT = selection.registryRoot
+    } else {
+      delete env.SFORUM_ADMIN_REGISTRY_ROOT
+    }
     if (selection.releaseId) env.SFORUM_WEB_RELEASE_ID = String(selection.releaseId)
     env.SFORUM_WEB_RELEASE_RELOAD_MODE = selection.reloadMode === 'force' ? 'force' : 'prompt'
     const source = selection.releaseId === DEV_COMPOSE_RELEASE_ID ? 'dev-compose' : 'web-release'
-    console.log(`[sforum-dev-runtime] (${reason}) starting nuxt dev [${source}] layer=${selection.layerPath}`)
+    const layerNote = hasLayer ? selection.layerPath : '(none; host pages + admin registry)'
+    console.log(`[sforum-dev-runtime] (${reason}) starting nuxt dev [${source}] layer=${layerNote}`)
   } else {
     delete env.SFORUM_THEME_LAYER
     delete env.SFORUM_ADMIN_REGISTRY_ROOT

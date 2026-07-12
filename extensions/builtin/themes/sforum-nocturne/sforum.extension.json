@@ -1,0 +1,23 @@
+{
+  "id": "sforum.nocturne-theme",
+  "name": "Nocturne Harbor",
+  "description": "A cool indigo-harbor public theme: deep navy surfaces, cyan accent, and soft card chrome. Runtime L0/L1 package (no Nuxt rebuild).",
+  "url": "https://sforum.local/themes/sforum-nocturne",
+  "author": {
+    "name": "SForum Team",
+    "url": "https://sforum.local"
+  },
+  "version": "1.0.0",
+  "type": "theme",
+  "sforumVersion": "^1.0.0",
+  "langs": {
+    "zh": {
+      "name": "夜港主题",
+      "description": "深蓝港湾风格的公开主题：海军蓝表面、青色强调、柔和卡片壳层。运行时 L0/L1 包（无需重建 Nuxt）。",
+      "author": {
+        "name": "SForum 团队"
+      }
+    }
+  },
+  "frontend": {}
+}

@@ -1,6 +1,11 @@
 // 本地轻量 Web 开发 compose（P1）：
-// 从 extensions/builtin 源码生成 registry / guard-policy / 主题 layer 入口，
-// 组件与 layer 用软链指向源码，Vue 改动能走 Vite HMR，无需完整 Web Release。
+// 从 extensions/builtin 源码生成 admin registry / guard-policy，
+// 组件用软链指向源码，Vue 改动能走 Vite HMR，无需完整 Web Release。
+//
+// 公开主题已迁出 Nuxt Layer（Runtime Page Registry + L0/L1），普通主题不再
+// 声明 frontend.admin，因此 compose 结果通常只有可信插件 admin（如 SMTP）。
+// 若某包仍声明 frontend.layer，则可选地软链 theme layer；否则 themeLayer 为空，
+// 由 dev-theme-runtime 仅注入 SFORUM_ADMIN_REGISTRY_ROOT。
 //
 // 完整 Web Release（隔离 workspace、production build、digest）仍是生产路径；
 // 本脚本只服务 `bun run dev:compose`（plain `bun run dev` 不经过此处）。
@@ -109,13 +114,22 @@ export function composeDevAdmin({
     || left.contributionId.localeCompare(right.contributionId)
   ))
 
-  const theme = packages.find(item => item.type === 'theme') || packages[0]
+  // 仅当 admin 包本身是 theme 且声明了 layer 时才软链；不要把插件包误当成主题。
+  // 默认主题无 frontend.admin，不会进入 packages，themeLayer 为空是正常状态。
+  const theme = packages.find(item => item.type === 'theme')
   const themeDir = path.join(absoluteOut, 'theme')
   fs.mkdirSync(themeDir, { recursive: true })
   let themeLayer = ''
   if (theme?.layerRoot && fs.existsSync(theme.layerRoot)) {
     themeLayer = path.join(themeDir, 'layer')
     ensureSymlink(theme.layerRoot, themeLayer)
+  } else if (fs.existsSync(path.join(themeDir, 'layer'))) {
+    // 清理历史 compose 留下的 layer 软链，避免误导 runtime。
+    try {
+      fs.rmSync(path.join(themeDir, 'layer'), { recursive: true, force: true })
+    } catch {
+      // ignore
+    }
   }
 
   const registryRoot = path.join(absoluteOut, 'registry')
