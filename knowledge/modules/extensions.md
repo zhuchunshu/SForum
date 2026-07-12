@@ -323,8 +323,12 @@ and plugin runtime v1.
   super_admin approval; theme activate auto-binds that theme's replaces.
 - Web Release remains only for trusted **admin** plugin frontends (digest grant
   + composition). Do not use Web Release for public theme switching.
+- Trusted admin packages declare host peers only (`package.json` peers + lock);
+  never ship or commit `frontend/admin/node_modules`. Dev resolve uses host
+  aliases; Web Release links peers in the build workspace only.
 - Local `bun run dev` is plain Nuxt. Optional `dev:compose` still assembles
-  builtin admin frontends for HMR without a full production Web Release.
+  builtin admin frontends for HMR without a full production Web Release, and
+  prunes leftover peer-only `node_modules` under source admin roots.
 - Keep plugin `Enable/Disable` separate from theme `Activate`. Do not call
   plugin runtime hooks when activating a theme.
 - Backend plugin packages can declare a backend entry and RPC protocol. The

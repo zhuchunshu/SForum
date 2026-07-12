@@ -54,9 +54,21 @@ activates a safe release before finalizing removal.
 
 Dependencies must be pinned by Bun. Lifecycle scripts are disabled. Private
 copies of Vue, Nuxt, Nuxt UI, Vue Router, and `@sforum/admin-sdk` are forbidden;
-declare compatible host peer ranges instead. The builder supplies those peers
-from the host through deduplicated links after package inspection. Imports may
-not escape the admin frontend root or its isolated dependencies.
+declare compatible host peer ranges instead.
+
+**Author packages must not contain `node_modules` under `frontend/admin`.**
+Host peers are injected only by the host:
+
+- **Dev / Nuxt**: absolute Vite/Nuxt aliases (`apps/web/build/admin-host-peers.mjs`)
+  so SFCs under `extensions/**` resolve bare imports without a local install.
+- **Production Web Release**: the builder copies the admin frontend into an
+  isolated workspace, then links host peers there after package inspection.
+  Source trees and uploaded ZIPs stay free of host `node_modules`.
+
+Optional local `bun run dev:compose` may prune leftover peer-only
+`node_modules` under builtin admin roots; it must never write peers back into
+extension source. Imports may not escape the admin frontend root or its
+workspace-isolated dependencies.
 
 Build failures keep the currently active site. Inspect diagnostics under Admin
 > Extensions > Web releases. A component failure is isolated by the host; the

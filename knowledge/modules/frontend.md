@@ -126,6 +126,10 @@ without rebuilding Nuxt or restarting Nitro.
   `GET /api/v1/site/active-theme/skin` + theme-assets routes.
 - Trusted **admin** plugin frontends may still use Web Release / dev-compose
   (`bun run dev:compose`, `SFORUM_ADMIN_REGISTRY_ROOT`).
+- Host peers for admin SFCs are resolved via Nuxt/Vite aliases
+  (`build/admin-host-peers.mjs`); extension **source** trees must not contain
+  `frontend/admin/node_modules`. Production Web Release still links peers only
+  inside the isolated build workspace.
 - Optional legacy scripts (`dev-theme-runtime.mjs`, `runtime.mjs`) remain for
   admin composition experiments and historical Web Release contracts; they are
   not the public theme activation path.

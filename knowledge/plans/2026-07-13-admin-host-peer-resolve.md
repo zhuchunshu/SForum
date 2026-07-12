@@ -2,7 +2,7 @@
 
 ## Status
 
-**In progress** — implement on `main` with small revert-friendly commits.
+**Implemented** on `main` (see session handoff).
 
 ## Goal
 
@@ -67,34 +67,28 @@ must not ship private Vue copies (existing package inspection).
 
 ### T1 — Host peer resolve
 
-- [ ] Centralize host peer package list (reuse `DEV_HOST_PEERS` or shared module)
-- [ ] Nuxt/Vite: absolute aliases (or pre-enforce resolve plugin) for host peers
-  so importers outside `apps/web` still resolve to host packages
-- [ ] Ensure `@sforum/admin-sdk` continues to point at workspace source
-- [ ] Keep `admin-extension-guard` whitelist behavior intact
+- [x] Centralize host peer package list (`build/admin-host-peers.mjs`)
+- [x] Nuxt/Vite absolute aliases for host peers
+- [x] `@sforum/admin-sdk` points at workspace source entry files
+- [x] `admin-extension-guard` whitelist unchanged
 
 ### T2 — Compose: stop polluting source
 
-- [ ] Remove `linkHostPeersIntoAdmin(pkg.adminRoot, …)` from `composeDevAdmin`
-- [ ] Add `pruneHostPeerNodeModules(adminRoot)` (safe: only remove known peer
-  symlinks / empty parent dirs; refuse if unexpected real installs present)
-- [ ] Call prune for each discovered admin root during compose
-- [ ] Keep `resolveHostPeerDirectory` for tests / diagnostics if still useful
-- [ ] Deprecate or narrow export of `linkHostPeersIntoAdmin` (unused in compose)
+- [x] Remove `linkHostPeersIntoAdmin` from compose
+- [x] `pruneHostPeerNodeModules` on each admin root during compose
+- [x] `resolveHostPeerDirectory` kept in shared module for tests
 
 ### T3 — Tests
 
-- [ ] `devAdminCompose.test.ts`: assert **source** admin root has **no**
-  `node_modules` after compose; compose still succeeds
-- [ ] Optional: assert host can resolve peers via shared helper
-- [ ] Keep watch-path ignore for `node_modules` (defense in depth)
+- [x] `devAdminCompose.test.ts` asserts no source `node_modules`
+- [x] `adminHostPeers.test.ts` for aliases + prune safety
+- [x] Watch-path ignore retained
 
 ### T4 — Docs + knowledge
 
-- [ ] `docs/extensions/trusted-admin-components.md`: author packages must not
-  contain `node_modules`; host injects peers at build/dev resolve time
-- [ ] `knowledge/modules/frontend.md` + `extensions.md` short notes
-- [ ] Session handoff + `knowledge/index.md` Latest Handoff
+- [x] `docs/extensions/trusted-admin-components.md`
+- [x] `knowledge/modules/frontend.md` + `extensions.md`
+- [x] Session handoff + `knowledge/index.md` Latest Handoff
 
 ## Commit plan (main, revert-friendly)
 
