@@ -329,7 +329,7 @@ useSeoMeta({
             :color="category === item.id ? 'primary' : 'neutral'"
             :variant="category === item.id ? 'soft' : 'outline'"
             class="rounded-full"
-            @click="category = item.id"
+            @click="() => { category = item.id }"
           >
             {{ t(item.labelKey) }}
             <span class="ms-1 opacity-70 tabular-nums">{{ item.count }}</span>

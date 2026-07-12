@@ -78,7 +78,7 @@ async function load() {
       form[item.name] = isEnabled(item.value)
     }
   } catch (error) {
-    loadError.value = apiErrorMessage(error, t('admin.features.loadFailed'))
+    loadError.value = apiErrorMessage(error) || t('admin.features.loadFailed')
   } finally {
     pending.value = false
   }
@@ -100,7 +100,7 @@ async function save() {
     toast.add({ title: t('admin.features.saved'), color: 'primary' })
     await load()
   } catch (error) {
-    loadError.value = apiErrorMessage(error, t('admin.features.saveFailed'))
+    loadError.value = apiErrorMessage(error) || t('admin.features.saveFailed')
   } finally {
     saving.value = false
   }
@@ -115,7 +115,7 @@ async function restoreRecommended() {
     toast.add({ title: t('admin.features.restored'), color: 'primary' })
     await load()
   } catch (error) {
-    loadError.value = apiErrorMessage(error, t('admin.features.saveFailed'))
+    loadError.value = apiErrorMessage(error) || t('admin.features.saveFailed')
   } finally {
     restoring.value = false
   }

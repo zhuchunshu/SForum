@@ -237,7 +237,7 @@ async function runAction(action: () => Promise<unknown>, titleKey: string, descr
         :leading-icon="tab.icon"
         role="tab"
         :aria-selected="activeView === tab.value"
-        @click="activeView = tab.value"
+        @click="() => { activeView = tab.value }"
       >
         {{ tab.label }}
       </UButton>

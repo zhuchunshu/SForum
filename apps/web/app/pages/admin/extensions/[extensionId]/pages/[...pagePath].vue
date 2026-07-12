@@ -94,6 +94,12 @@ const registryUnavailable = computed(() => missingCustomSettingsUI.value && !adm
 // 完整 supervisor 已注入 registry，但本会话仍是旧包：刷新页面即可。
 const needsFrontendReload = computed(() => missingCustomSettingsUI.value && adminFrontendInjected)
 
+function reloadFrontend() {
+  if (import.meta.client) {
+    globalThis.location.reload()
+  }
+}
+
 // 进入本页时若列表可能陈旧（从其它标签切来），主动拉一次最新 status / webRelease。
 onMounted(() => {
   void refresh()
@@ -358,7 +364,7 @@ function secretPlaceholder(item: { type: string, secretSet?: boolean, placeholde
       icon="i-lucide-refresh-cw"
       :title="t('admin.extensions.dynamic.reloadRequiredTitle')"
       :description="t('admin.extensions.dynamic.reloadRequiredDescription')"
-      :actions="[{ label: t('admin.extensions.releaseNotice.reload'), onClick: () => window.location.reload() }]"
+      :actions="[{ label: t('admin.extensions.releaseNotice.reload'), onClick: reloadFrontend }]"
       class="mb-2"
     />
 

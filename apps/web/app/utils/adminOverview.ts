@@ -273,19 +273,21 @@ export function overviewTrendSparkPath(
     const y = pad + (1 - value / max) * (height - pad * 2)
     return { x, y }
   })
+  const first = points[0]!
 
-  let line = `M ${points[0].x} ${points[0].y}`
+  let line = `M ${first.x} ${first.y}`
   for (let index = 1; index < points.length; index += 1) {
-    const prev = points[index - 1]
-    const curr = points[index]
+    const prev = points[index - 1]!
+    const curr = points[index]!
     const midX = (prev.x + curr.x) / 2
     line += ` C ${midX} ${prev.y}, ${midX} ${curr.y}, ${curr.x} ${curr.y}`
   }
 
   const bottom = height - 2
+  const last = points[points.length - 1]!
   const area = safe.length === 1
-    ? `${line} L ${points[0].x} ${bottom} Z`
-    : `${line} L ${points[points.length - 1].x} ${bottom} L ${points[0].x} ${bottom} Z`
+    ? `${line} L ${first.x} ${bottom} Z`
+    : `${line} L ${last.x} ${bottom} L ${first.x} ${bottom} Z`
 
   return { line, area, points }
 }

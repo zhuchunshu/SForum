@@ -88,7 +88,7 @@ async function load() {
     const data = await request<{ items: FieldDefinition[] }>(`/admin/entity-meta/definitions${qs}`)
     items.value = data.items || []
   } catch (error) {
-    loadError.value = apiErrorMessage(error, t('admin.entityMeta.loadFailed'))
+    loadError.value = apiErrorMessage(error) || t('admin.entityMeta.loadFailed')
   } finally {
     pending.value = false
   }
@@ -121,7 +121,7 @@ async function createField() {
     form.labelEn = ''
     await load()
   } catch (error) {
-    loadError.value = apiErrorMessage(error, t('admin.entityMeta.saveFailed'))
+    loadError.value = apiErrorMessage(error) || t('admin.entityMeta.saveFailed')
   } finally {
     saving.value = false
   }
@@ -137,7 +137,7 @@ async function toggleEnabled(item: FieldDefinition) {
     toast.add({ title: t('admin.entityMeta.updated'), color: 'primary' })
     await load()
   } catch (error) {
-    loadError.value = apiErrorMessage(error, t('admin.entityMeta.saveFailed'))
+    loadError.value = apiErrorMessage(error) || t('admin.entityMeta.saveFailed')
   }
 }
 
@@ -151,7 +151,7 @@ async function removeField(item: FieldDefinition) {
     toast.add({ title: t('admin.entityMeta.deleted'), color: 'primary' })
     await load()
   } catch (error) {
-    loadError.value = apiErrorMessage(error, t('admin.entityMeta.saveFailed'))
+    loadError.value = apiErrorMessage(error) || t('admin.entityMeta.saveFailed')
   }
 }
 
@@ -220,9 +220,9 @@ onMounted(load)
             {{ t('admin.entityMeta.listTitle') }}
           </h2>
           <div class="flex gap-2">
-            <UButton size="sm" :variant="filterEntity === 'all' ? 'solid' : 'soft'" color="neutral" @click="filterEntity = 'all'">all</UButton>
-            <UButton size="sm" :variant="filterEntity === 'user' ? 'solid' : 'soft'" color="neutral" @click="filterEntity = 'user'">user</UButton>
-            <UButton size="sm" :variant="filterEntity === 'topic' ? 'solid' : 'soft'" color="neutral" @click="filterEntity = 'topic'">topic</UButton>
+            <UButton size="sm" :variant="filterEntity === 'all' ? 'solid' : 'soft'" color="neutral" @click="() => { filterEntity = 'all' }">all</UButton>
+            <UButton size="sm" :variant="filterEntity === 'user' ? 'solid' : 'soft'" color="neutral" @click="() => { filterEntity = 'user' }">user</UButton>
+            <UButton size="sm" :variant="filterEntity === 'topic' ? 'solid' : 'soft'" color="neutral" @click="() => { filterEntity = 'topic' }">topic</UButton>
           </div>
         </div>
       </template>

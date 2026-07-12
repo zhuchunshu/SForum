@@ -65,7 +65,7 @@ async function load() {
     deliveries.value = del.items || []
     catalogEvents.value = events.items || []
   } catch (error) {
-    errorMessage.value = apiErrorMessage(error, t('admin.webhooks.loadFailed'))
+    errorMessage.value = apiErrorMessage(error) || t('admin.webhooks.loadFailed')
   } finally {
     pending.value = false
   }
@@ -97,7 +97,7 @@ async function createEndpoint() {
     toast.add({ title: t('admin.webhooks.created'), color: 'primary' })
     await load()
   } catch (error) {
-    errorMessage.value = apiErrorMessage(error, t('admin.webhooks.saveFailed'))
+    errorMessage.value = apiErrorMessage(error) || t('admin.webhooks.saveFailed')
   } finally {
     saving.value = false
   }
@@ -118,7 +118,7 @@ async function setEnabled(item: Endpoint, enabled: boolean) {
     })
     await load()
   } catch (error) {
-    errorMessage.value = apiErrorMessage(error, t('admin.webhooks.saveFailed'))
+    errorMessage.value = apiErrorMessage(error) || t('admin.webhooks.saveFailed')
   }
 }
 
@@ -131,7 +131,7 @@ async function removeEndpoint(item: Endpoint) {
     toast.add({ title: t('admin.webhooks.deleted'), color: 'primary' })
     await load()
   } catch (error) {
-    errorMessage.value = apiErrorMessage(error, t('admin.webhooks.saveFailed'))
+    errorMessage.value = apiErrorMessage(error) || t('admin.webhooks.saveFailed')
   }
 }
 
@@ -141,6 +141,12 @@ function statusColor(status: string): 'success' | 'error' | 'warning' | 'neutral
   if (status === 'queued' || status === 'sending') return 'warning'
   if (status === 'skipped') return 'neutral'
   return 'info'
+}
+
+function toggleEvent(eventName: string) {
+  form.events = form.events.includes(eventName)
+    ? form.events.filter(name => name !== eventName)
+    : [...form.events, eventName]
 }
 
 onMounted(load)
@@ -224,9 +230,7 @@ onMounted(load)
           size="xs"
           :color="form.events.includes(event.name) ? 'primary' : 'neutral'"
           :variant="form.events.includes(event.name) ? 'solid' : 'subtle'"
-          @click="form.events.includes(event.name)
-            ? form.events = form.events.filter(e => e !== event.name)
-            : form.events.push(event.name)"
+          @click="toggleEvent(event.name)"
         >
           {{ event.name }}
         </UButton>

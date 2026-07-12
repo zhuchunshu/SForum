@@ -108,7 +108,7 @@ function isBusy(id: string, action: string) {
                   icon="i-lucide-zap"
                   :disabled="!schedule.enabled"
                   :loading="isBusy(schedule.id, 'trigger')"
-                  @click="manager.triggerSchedule(schedule.id)"
+                  @click="() => { void manager.triggerSchedule(schedule.id) }"
                 >
                   {{ t('admin.schedules.trigger') }}
                 </UButton>
