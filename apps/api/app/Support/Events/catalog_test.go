@@ -55,4 +55,24 @@ func TestCatalogDocumentsTimeoutAndFailurePolicy(t *testing.T) {
 	if len(commentBefore.PatchFields) != 1 || commentBefore.PatchFields[0] != "content" {
 		t.Fatalf("comment.before_create patch allowlist: %#v", commentBefore.PatchFields)
 	}
+
+	topicBeforeUpdate, ok := FindDefinition(TopicBeforeUpdate)
+	if !ok {
+		t.Fatal("topic.before_update missing")
+	}
+	if topicBeforeUpdate.Kind != KindFilter {
+		t.Fatalf("topic.before_update kind=%s", topicBeforeUpdate.Kind)
+	}
+	if topicBeforeUpdate.TimeoutMS != DefaultSyncTimeoutMS || topicBeforeUpdate.FailurePolicy != FailurePolicyFailClosed {
+		t.Fatalf("topic.before_update: %#v", topicBeforeUpdate)
+	}
+	wantPatch := []string{"categorySlug", "tagSlugs", "title", "content"}
+	if len(topicBeforeUpdate.PatchFields) != len(wantPatch) {
+		t.Fatalf("topic.before_update patch allowlist: %#v", topicBeforeUpdate.PatchFields)
+	}
+	for i, field := range wantPatch {
+		if topicBeforeUpdate.PatchFields[i] != field {
+			t.Fatalf("topic.before_update patch[%d]=%q want %q", i, topicBeforeUpdate.PatchFields[i], field)
+		}
+	}
 }

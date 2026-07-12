@@ -568,15 +568,21 @@ func (s *Service) UpdateTopic(ctx context.Context, actor identity.Actor, input U
 		return TopicDetail{}, err
 	}
 
+	// 作者编辑窗口：版主/任意编辑权限不受窗口限制。窗口过期时不调用 filter。
+	if isAuthorOnlyTopicEdit(actor, topic) && !withinEditWindow(topic.CreatedAt, settings.TopicEditWindowMinutes, time.Now().UTC()) {
+		return TopicDetail{}, ErrEditWindowExpired
+	}
+
+	// E1.2：权限与编辑窗口通过后、字段校验与落库前同步 filter。
+	input, err = s.applyTopicBeforeUpdate(ctx, actor, input)
+	if err != nil {
+		return TopicDetail{}, err
+	}
+
 	record := UpdateTopicRecord{
 		TopicID:         input.TopicID,
 		EditorUserID:    actor.ID,
 		TagCreationMode: settings.TagCreationMode,
-	}
-
-	// 作者编辑窗口：版主/任意编辑权限不受窗口限制。
-	if isAuthorOnlyTopicEdit(actor, topic) && !withinEditWindow(topic.CreatedAt, settings.TopicEditWindowMinutes, time.Now().UTC()) {
-		return TopicDetail{}, ErrEditWindowExpired
 	}
 
 	if input.Title != nil {
@@ -930,6 +936,53 @@ func (s *Service) applyTopicBeforeCreate(ctx context.Context, actor identity.Act
 	}
 	if value, ok := contentInputFromPatch(result.Patch["content"]); ok {
 		input.Content = value
+	}
+	if value, ok := stringSliceFromPatch(result.Patch["tagSlugs"]); ok {
+		input.TagSlugs = value
+	}
+	return input, nil
+}
+
+// applyTopicBeforeUpdate 调用 topic.before_update 同步 filter。
+// Payload 仅携带本次请求出现的字段；补丁 allowlist 与 create 相同。
+// 插件可补丁未出现在请求中的字段（例如强制加标签），host 随后统一重验。
+func (s *Service) applyTopicBeforeUpdate(ctx context.Context, actor identity.Actor, input UpdateTopicInput) (UpdateTopicInput, error) {
+	payload := map[string]any{
+		"actorUserId": actor.ID,
+		"topicId":     input.TopicID,
+	}
+	if input.CategorySlug != nil {
+		payload["categorySlug"] = *input.CategorySlug
+	}
+	if input.Title != nil {
+		payload["title"] = *input.Title
+	}
+	// TagSlugs 用 nil 表示未改标签；非 nil（含空切片）表示请求显式更新。
+	if input.TagSlugs != nil {
+		payload["tagSlugs"] = input.TagSlugs
+	}
+	if input.Content != nil {
+		payload["content"] = *input.Content
+	}
+	envelope := appevents.NewEnvelope(appevents.TopicBeforeUpdate, payload)
+	envelope.ActorUserID = actor.ID
+	envelope.ResourceType = "topic"
+	envelope.ResourceID = strconv.FormatInt(input.TopicID, 10)
+	result := s.events.Emit(ctx, envelope)
+	if !result.OK {
+		return UpdateTopicInput{}, appevents.Reject(result)
+	}
+	if len(result.Patch) == 0 {
+		return input, nil
+	}
+	if value, ok := result.Patch["categorySlug"].(string); ok {
+		input.CategorySlug = &value
+	}
+	if value, ok := result.Patch["title"].(string); ok {
+		input.Title = &value
+	}
+	if value, ok := contentInputFromPatch(result.Patch["content"]); ok {
+		input.Content = &value
 	}
 	if value, ok := stringSliceFromPatch(result.Patch["tagSlugs"]); ok {
 		input.TagSlugs = value

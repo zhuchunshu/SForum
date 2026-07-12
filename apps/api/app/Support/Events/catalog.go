@@ -4,9 +4,11 @@ const (
 	ExtensionEnabled   = "extension.enabled"
 	ExtensionDisabled  = "extension.disabled"
 	UserRegistered     = "user.registered"
-	TopicBeforeCreate  = "topic.before_create"
-	TopicCreated       = "topic.created"
-	TopicUpdated       = "topic.updated"
+	TopicBeforeCreate = "topic.before_create"
+	// TopicBeforeUpdate E1.2：主题编辑提交前同步 filter，可拒绝或补丁 allowlist 字段。
+	TopicBeforeUpdate = "topic.before_update"
+	TopicCreated      = "topic.created"
+	TopicUpdated      = "topic.updated"
 	TopicDeleted       = "topic.deleted"
 	TopicHidden        = "topic.hidden"
 	TopicRestored      = "topic.restored"
@@ -37,6 +39,11 @@ var definitions = []Definition{
 	filter(TopicBeforeCreate,
 		"Runs before a topic is committed and may reject or patch allowlisted input. Heavy work must enqueue jobs, never block this filter.",
 		[]string{"actorUserId", "categorySlug", "tagSlugs", "title", "content"},
+		[]string{"categorySlug", "tagSlugs", "title", "content"},
+	),
+	filter(TopicBeforeUpdate,
+		"Runs before a topic update is committed and may reject or patch allowlisted input. Heavy work must enqueue jobs, never block this filter.",
+		[]string{"actorUserId", "topicId", "categorySlug", "tagSlugs", "title", "content"},
 		[]string{"categorySlug", "tagSlugs", "title", "content"},
 	),
 	observe(TopicCreated, "Emitted after a topic is committed.", []string{"topicId", "authorUserId", "categorySlug", "tagSlugs", "title"}),

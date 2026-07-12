@@ -907,6 +907,149 @@ func TestServiceUpdateTopicRejectsEmptyTitle(t *testing.T) {
 	}
 }
 
+func topicEditor() identity.Actor {
+	return identity.Actor{
+		ID:          12,
+		Status:      identity.UserStatusActive,
+		Permissions: map[string]bool{identity.PermissionTopicEditOwn: true},
+	}
+}
+
+// TestServiceUpdateTopicAppliesBeforeUpdateFilterAndEmitsUpdatedEvent
+// E1.2：filter 可补丁标题/标签，成功后仍发出 topic.updated。
+func TestServiceUpdateTopicAppliesBeforeUpdateFilterAndEmitsUpdatedEvent(t *testing.T) {
+	store := newServiceFakeStore()
+	store.actionTopic = TopicSummary{ID: 7, AuthorUserID: 12, Status: TopicStatusActive, Title: "原标题"}
+	publisher := &fakeEventPublisher{results: map[string]appevents.Result{
+		appevents.TopicBeforeUpdate: {
+			OK: true,
+			Patch: map[string]any{
+				"title":    "插件改写标题",
+				"tagSlugs": []string{"forced-tag"},
+			},
+		},
+	}}
+	service := NewServiceWithSettingsAndEvents(store, fakeSettingsResolver{settings: testForumSettings()}, publisher)
+
+	title := "用户标题"
+	_, err := service.UpdateTopic(context.Background(), topicEditor(), UpdateTopicInput{
+		TopicID:  7,
+		Title:    &title,
+		TagSlugs: []string{"original"},
+	})
+	if err != nil {
+		t.Fatalf("UpdateTopic returned error: %v", err)
+	}
+	if store.updatedTopic.Title != "插件改写标题" {
+		t.Fatalf("expected patched title, got %#v", store.updatedTopic)
+	}
+	if !stringSlicesEqual(store.updatedTopic.TagSlugs, []string{"forced-tag"}) {
+		t.Fatalf("expected patched tag slugs, got %#v", store.updatedTopic.TagSlugs)
+	}
+	if !publisher.seen(appevents.TopicBeforeUpdate) || !publisher.seen(appevents.TopicUpdated) {
+		t.Fatalf("expected before_update/updated events, got %#v", publisher.names)
+	}
+	beforeEnv, ok := publisher.envelope(appevents.TopicBeforeUpdate)
+	if !ok {
+		t.Fatal("missing topic.before_update envelope")
+	}
+	if beforeEnv.Payload["topicId"] != int64(7) {
+		t.Fatalf("expected topicId in filter payload, got %#v", beforeEnv.Payload)
+	}
+	if beforeEnv.Payload["title"] != "用户标题" {
+		t.Fatalf("expected original title in payload before patch, got %#v", beforeEnv.Payload["title"])
+	}
+	if beforeEnv.ResourceID != "7" {
+		t.Fatalf("expected ResourceID=7, got %q", beforeEnv.ResourceID)
+	}
+}
+
+// TestServiceUpdateTopicBeforeUpdateCanReject 插件拒绝时不得落库。
+func TestServiceUpdateTopicBeforeUpdateCanReject(t *testing.T) {
+	store := newServiceFakeStore()
+	store.actionTopic = TopicSummary{ID: 7, AuthorUserID: 12, Status: TopicStatusActive}
+	publisher := &fakeEventPublisher{results: map[string]appevents.Result{
+		appevents.TopicBeforeUpdate: {
+			OK:      false,
+			Reason:  "moderation.title_blocked",
+			Message: "标题不允许修改",
+		},
+	}}
+	service := NewServiceWithSettingsAndEvents(store, fakeSettingsResolver{settings: testForumSettings()}, publisher)
+
+	title := "违禁标题"
+	_, err := service.UpdateTopic(context.Background(), topicEditor(), UpdateTopicInput{
+		TopicID: 7,
+		Title:   &title,
+	})
+	var rejected *appevents.RejectedError
+	if !errors.As(err, &rejected) {
+		t.Fatalf("expected RejectedError, got %v", err)
+	}
+	if rejected.Reason != "moderation.title_blocked" {
+		t.Fatalf("unexpected reason %q", rejected.Reason)
+	}
+	if store.updatedTopic.TopicID != 0 {
+		t.Fatalf("rejected update must not be stored, got %#v", store.updatedTopic)
+	}
+	if publisher.seen(appevents.TopicUpdated) {
+		t.Fatal("topic.updated must not fire after reject")
+	}
+}
+
+// TestServiceUpdateTopicBeforeUpdateCanForceTagsWithoutRequestTags
+// 插件可在请求未带标签时强制写入 tagSlugs。
+func TestServiceUpdateTopicBeforeUpdateCanForceTagsWithoutRequestTags(t *testing.T) {
+	store := newServiceFakeStore()
+	store.actionTopic = TopicSummary{ID: 7, AuthorUserID: 12, Status: TopicStatusActive}
+	publisher := &fakeEventPublisher{results: map[string]appevents.Result{
+		appevents.TopicBeforeUpdate: {
+			OK:    true,
+			Patch: map[string]any{"tagSlugs": []string{"ops-required"}},
+		},
+	}}
+	service := NewServiceWithSettingsAndEvents(store, fakeSettingsResolver{settings: testForumSettings()}, publisher)
+
+	title := "只改标题"
+	_, err := service.UpdateTopic(context.Background(), topicEditor(), UpdateTopicInput{
+		TopicID: 7,
+		Title:   &title,
+	})
+	if err != nil {
+		t.Fatalf("UpdateTopic returned error: %v", err)
+	}
+	if !stringSlicesEqual(store.updatedTopic.TagSlugs, []string{"ops-required"}) {
+		t.Fatalf("expected forced tags, got %#v", store.updatedTopic.TagSlugs)
+	}
+	beforeEnv, ok := publisher.envelope(appevents.TopicBeforeUpdate)
+	if !ok {
+		t.Fatal("missing topic.before_update")
+	}
+	if _, hasTags := beforeEnv.Payload["tagSlugs"]; hasTags {
+		t.Fatalf("request without tags should omit tagSlugs in payload, got %#v", beforeEnv.Payload)
+	}
+}
+
+// TestServiceUpdateTopicBeforeUpdateNotInvokedWhenUnauthorized 无权限时不触发 filter。
+func TestServiceUpdateTopicBeforeUpdateNotInvokedWhenUnauthorized(t *testing.T) {
+	store := newServiceFakeStore()
+	store.actionTopic = TopicSummary{ID: 7, AuthorUserID: 12, Status: TopicStatusActive}
+	publisher := &fakeEventPublisher{}
+	service := NewServiceWithEvents(store, publisher)
+	actor := identity.Actor{ID: 13, Status: identity.UserStatusActive, Permissions: map[string]bool{}}
+
+	_, err := service.UpdateTopic(context.Background(), actor, UpdateTopicInput{
+		TopicID: 7,
+		Title:   strPtr("x"),
+	})
+	if !errors.Is(err, identity.ErrPermissionDenied) {
+		t.Fatalf("expected permission denied, got %v", err)
+	}
+	if publisher.seen(appevents.TopicBeforeUpdate) {
+		t.Fatal("filter must not run without edit permission")
+	}
+}
+
 // TestServiceUpdateTopicRequeuesPendingOnPublicationPolicy 编辑正文触发预审时应 pending。
 func TestServiceUpdateTopicRequeuesPendingOnPublicationPolicy(t *testing.T) {
 	store := newServiceFakeStore()
