@@ -57,24 +57,23 @@ Host contract slot: `attachment.storage.provider` (`Support/Storage.ProviderSlot
 | Stage | Status |
 | --- | --- |
 | E6.0 contract + selection encoding | **Done** — `plugin:<extensionId>` helpers in `Support/Storage` |
-| E6.1 resolver / candidates / restore | **Done** — settings `candidates[]`, options accept `plugin:`, disable fallback to `local`, plugin Put/Open fail-closed until E6.2 |
-| E6.2 chunked storage RPC | Pending |
-| E6.3 admin select/test/settings polish | Partial (admin select uses candidates + plugin settings link) |
+| E6.1 resolver / candidates / restore | **Done** — settings `candidates[]`, options accept `plugin:`, disable fallback to `local` |
+| E6.2 chunked storage RPC | **Done** — PluginProtocol Storage* + `PluginStorageAdapter` + Manager gate/timeout |
+| E6.3 admin select/test/settings polish | Partial (admin select uses candidates + plugin settings link; Probe wired via Adapter) |
 | E6.4 S3-compatible reference plugin | Pending |
 
-**Runtime today (L2+ toward L3):** concrete drivers remain **in core** under
+**Runtime today (L4 toward L5–L6):** concrete drivers remain **in core** under
 `Support/Storage`. Operators select via `attachment.provider` (core id or
 `plugin:<extensionId>`). Admin settings return `providerSlot`, `drivers[]`, and
-`candidates[]` (core + enabled plugins declaring the slot). Plugin selection is
-validated on save; upload/open through a plugin **fails closed** until E6.2 RPC.
-Disabling a selected storage plugin clears selection to `local`.
+`candidates[]` (core + enabled plugins declaring the slot). When a plugin is
+selected and runtime is injected, host routes Put/Open/Delete/Stat/Probe through
+chunked go-plugin RPC (`Extensions.PluginStorageAdapter`). No runtime or
+degraded plugin → **fail closed** (`attachment.storage_unavailable`). Disabling
+a selected storage plugin clears selection to `local`.
 
-**Target (E6.1–E6.4):** mail-like L4–L6 — plugins register as candidates;
-selection value is core driver id or `plugin:<extensionId>`; host routes ops
-through plugin RPC when selected; secrets in `extension_settings`; core keeps
-`local` as zero-config + restore default. New vendor backends (S3, MinIO, R2)
-must not require a core PR. Multi-backend migration and browser presigned upload
-remain out of scope for E6.
+**Still open (E6.3–E6.4):** test-connection polish for plugins, secrets UX,
+reference S3/MinIO plugin + authoring guide. Multi-backend migration and browser
+presigned upload remain out of scope for E6.
 
 ## Runtime Configuration
 

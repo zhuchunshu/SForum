@@ -4,6 +4,14 @@ This is the entry point for project memory.
 
 ## Latest Handoff
 
+- **2026-07-13 E6.2 complete** (chunked storage plugin RPC + PluginStorageAdapter)
+  - Handoff: `knowledge/sessions/2026-07-13-e6-2-storage-rpc-adapter.md`
+  - Plan: `knowledge/plans/2026-07-12-extension-surface-density.md`
+  - PluginProtocol Storage* methods; Manager F2.3 gate + 120s storage timeout
+  - Host `PluginStorageAdapter`; Attachments/bootstrap wire `plugin:` → RPC
+  - SDK Noop/ProtocolNoop; SMTP embeds ProtocolNoop
+  - Next: **E6.3** polish / **E6.4** S3 reference plugin
+
 - **2026-07-13 Web Release typecheck non-blocking (admin toggle)**
   - Decision: `knowledge/decisions/2026-07-13-web-release-typecheck-nonblocking.md`
   - Option: `web_release.typecheck_fail` on 扩展 → Web 发布
@@ -47,9 +55,8 @@ This is the entry point for project memory.
 - **2026-07-13 E6.1 complete** (storage selection + candidates + fallback)
   - Handoff: `knowledge/sessions/2026-07-13-e6-1-storage-resolver-candidates.md`
   - Decision: `knowledge/decisions/2026-07-12-attachment-storage-plugin-provider.md`
-  - Settings `candidates[]`; options accept `plugin:`; disable → `local`;
-    plugin Put/Open fail-closed until E6.2
-  - Next: **E6.2** chunked storage RPC + PluginStorageAdapter
+  - Settings `candidates[]`; options accept `plugin:`; disable → `local`
+  - Superseded for RPC path by E6.2
 
 - **2026-07-12 E6.0 complete** (attachment storage plugin-provider decision)
   - Handoff: `knowledge/sessions/2026-07-12-e6-0-storage-provider-decision.md`

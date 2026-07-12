@@ -497,22 +497,22 @@ as built-in L1 fallbacks; new vendor drivers prefer plugins.
   (`candidates[]` with label, extensionId, settingsPath)
 - [x] Restore recommended defaults → local core driver + safe upload knobs
   (existing restore; disable plugin also falls back to local)
-- [ ] Circuit breaker / timeout reuse from plugin RPC resilience (F2.3)
-  (applies when E6.2 RPC lands)
+- [x] Circuit breaker / timeout reuse from plugin RPC resilience (F2.3)
+  (E6.2: Manager `storageCall` + DefaultStorageTimeout 120s)
 
 **Status:** E6.1 done 2026-07-13 (selection + candidates + fallback; no RPC yet).
 
 ### E6.2 Plugin RPC protocol
 
-- [ ] Extend go-plugin protocol (or Host-mediated object path) for storage ops
-  - Prefer: host streams bytes to plugin with size cap; avoid loading entire
-    large files twice without need
-  - Document max body, timeout, and `net.outbound` capability for remote APIs
-- [ ] SDK helpers for storage provider plugins (mirror mail `SendMail` pattern)
-- [ ] Health / TestConnection RPC for admin “test provider”
-- [ ] Fail closed on upload when selected plugin is degraded (clear operator
-  error); reads may fall back only if object still on previous backend
-  (**document multi-backend migration as out of scope v1**)
+- [x] Extend go-plugin protocol for storage ops (chunked Put/Open, default 1 MiB)
+  - Host streams chunks; plugin sessions via PutBegin/PutChunk/Open/GetChunk/Close
+  - Timeout via resilience DefaultStorageTimeout; net.outbound still authoring concern
+- [x] SDK helpers: `sdk/plugin` aliases + `Noop`/`ProtocolNoop` defaults
+- [x] Health / TestConnection: `StorageProbe` RPC + Adapter.Probe
+- [x] Fail closed on upload/open when plugin missing, degraded, circuit-open, or RPC !OK
+  (**multi-backend migration out of scope v1**)
+
+**Status:** E6.2 done 2026-07-13.
 
 ### E6.3 Admin + settings
 
@@ -705,12 +705,13 @@ edit comment/topic controllers.
 | 2026-07-12 | E5 | `sforum.content-policy` workflow reference; scenario-map; **E5 done** |
 | 2026-07-12 | E6.0 | Storage plugin-provider decision + selection helpers; **E6.0 done** |
 | 2026-07-13 | E6.1 | Candidates + plugin: options + disable→local; fail-closed until RPC |
+| 2026-07-13 | E6.2 | Chunked Storage* RPC + PluginStorageAdapter + Manager gate; **E6.2 done** |
 
 ---
 
 ## Next session one-liner
 
 ```text
-Next: E6.2 chunked storage PluginProtocol RPC + SDK Noop/helpers + host
-PluginStorageAdapter. E6.1 selection/candidates/fallback done.
+Next: E6.3 admin test-connection polish (if needed) then E6.4 S3/MinIO
+reference storage plugin + authoring guide. E6.2 RPC path done.
 ```
