@@ -34,7 +34,7 @@ assert(pluginsPage.includes('locale.value'), 'plugins list must recompute when t
 
 const overviewPage = fs.readFileSync(overviewPagePath, 'utf8')
 assert(overviewPage.includes('themeActivationProgress'), 'extensions overview page must use theme activation progress helper')
-assert(overviewPage.includes('hasThemeActivationInProgress'), 'extensions overview page must detect in-progress activations')
+assert(overviewPage.includes('hasExtensionReleaseInProgress'), 'extensions overview page must detect in-progress theme and plugin releases')
 assert(overviewPage.includes('setInterval'), 'extensions overview page must poll while activation is in progress')
 assert(overviewPage.includes('clearInterval'), 'extensions overview page must stop polling when no activation is in progress')
 assert(overviewPage.includes('UProgress'), 'extensions overview page must render a progress bar for theme activation')

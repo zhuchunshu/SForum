@@ -264,8 +264,8 @@ assert(
 )
 assert(systemFolder.children?.some(entry => entry.pageId === '/personalization'), 'System folder should contain the personalization page')
 assert(
-  systemFolder.children?.map(entry => entry.pageId).join(',') === '/settings,/settings/mail,/settings/avatar,/personalization,/seo,/search',
-  'System folder should keep settings-only submenu order without ops tools'
+  systemFolder.children?.map(entry => entry.pageId).join(',') === '/settings,/settings/mail,/settings/avatar,/settings/features,/entity-meta,/personalization,/seo,/search',
+  'System folder should keep the approved settings submenu order without ops tools'
 )
 assert(!systemFolder.children?.some(entry => entry.pageId === '/site-chrome'), 'Site chrome should be merged into personalization, not a separate sidebar page')
 assert(
@@ -292,7 +292,7 @@ assert(
 const operationsFolder = firstSidebarGroup.find(entry => entry.type === 'folder' && entry.labelKey === 'admin.nav.operations')
 assert(operationsFolder, 'Admin sidebar should expose operations as an independent folder')
 assert(
-  operationsFolder.children?.map(entry => entry.pageId).join(',') === '/database,/jobs,/schedules',
+  operationsFolder.children?.map(entry => entry.pageId).join(',') === '/database,/jobs,/schedules,/webhooks',
   'Operations folder should keep the approved ops submenu order'
 )
 assert(

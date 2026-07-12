@@ -1400,6 +1400,12 @@
             "description": "Configure pagination, content limits, cooldowns, daily caps, reading, and posting behavior."
           }
         }
+      },
+      "entity_meta": {
+        "manage": {
+          "label": "Manage entity custom fields",
+          "description": "Create, edit, enable, disable, and delete custom field definitions for users or topics."
+        }
       }
     },
     "database": {
