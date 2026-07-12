@@ -2,10 +2,12 @@ package bootstrap
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
+	"github.com/zhuchunshu/sforum/apps/api/app/Support/Crypto"
 	appevents "github.com/zhuchunshu/sforum/apps/api/app/Support/Events"
 	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
 	humanverify "github.com/zhuchunshu/sforum/apps/api/app/Support/HumanVerify"
@@ -107,6 +109,35 @@ func TestExtensionRuntimeFactoryCanBeReplacedForBootstrapTests(t *testing.T) {
 
 	if !called {
 		t.Fatal("expected runtime factory replacement to be called")
+	}
+}
+
+func TestAPIExtensionRuntimeUsesCipherServiceSettings(t *testing.T) {
+	original := newExtensionRuntimeManager
+	defer func() { newExtensionRuntimeManager = original }()
+
+	cipher, _ := crypto.NewOptionCipher(strings.Repeat("a", 64))
+	enc, _ := cipher.Encrypt("api-secret")
+	item := runtimeSettingsExtension("api.plugin")
+	store := &bootstrapExtensionSettingsStore{
+		item:     item,
+		settings: map[string]string{"token": enc},
+	}
+	service := extensions.NewService(store, t.TempDir())
+	extensions.WithCipher(cipher)(service)
+
+	var got map[string]string
+	newExtensionRuntimeManager = func(_ extensions.Store, _ extensionsruntime.HostAPIRegistrar, settings extensionsruntime.PluginSettings) extensionRuntime {
+		var err error
+		got, err = settings.ListSettings(context.Background(), item.ID)
+		if err != nil {
+			t.Fatalf("load API runtime settings: %v", err)
+		}
+		return fakeBootstrapExtensionRuntime{}
+	}
+	_ = bindAPIExtensionRuntime(store, nil, service)
+	if got["token"] != "api-secret" {
+		t.Fatalf("API runtime received %#v", got)
 	}
 }
 

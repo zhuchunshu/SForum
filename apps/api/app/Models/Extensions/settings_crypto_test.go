@@ -5,7 +5,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/zhuchunshu/sforum/apps/api/app/Support/Capabilities"
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Crypto"
+	hostapi "github.com/zhuchunshu/sforum/apps/api/app/Support/HostAPI"
 )
 
 func TestEncryptSecretSettingsAtRest(t *testing.T) {
@@ -107,6 +109,68 @@ func TestWrongKeyDoesNotClearSecret(t *testing.T) {
 	// 存储不得被清空
 	if store.settings[item.ID]["token"] != enc {
 		t.Fatalf("store mutated: %#v", store.settings[item.ID])
+	}
+}
+
+func TestRuntimeAndHostAPISettingsUseDecryptedService(t *testing.T) {
+	cipher, _ := crypto.NewOptionCipher(strings.Repeat("f", 64))
+	item := installedExtension("runtime.plugin", TypePlugin, ManifestBackend{})
+	item.Status = StatusEnabled
+	item.Manifest.Capabilities = []string{capabilities.HostAPI, capabilities.SettingsOwn}
+	item.Manifest.Settings = []ManifestSetting{
+		{Key: "token", Label: LocalizedText{Default: "T"}, Type: "secret"},
+	}
+	enc, _ := cipher.Encrypt("runtime-secret")
+	store := &fakeExtensionStore{
+		items:    map[string]Extension{item.ID: item},
+		settings: map[string]map[string]string{item.ID: {"token": enc}},
+	}
+	service := NewService(store, t.TempDir())
+	WithCipher(cipher)(service)
+
+	values, err := service.ListSettings(context.Background(), item.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if values["token"] != "runtime-secret" {
+		t.Fatalf("runtime settings must be decrypted, got %#v", values)
+	}
+
+	host := hostapi.New(hostapi.Config{Capabilities: service, Settings: service})
+	resp := host.Call(context.Background(), hostapi.Request{Method: hostapi.MethodGetSettings, ExtensionID: item.ID})
+	if !resp.OK {
+		t.Fatalf("host settings failed: %#v", resp)
+	}
+	settings, ok := resp.Data["settings"].(map[string]any)
+	if !ok || settings["token"] != "runtime-secret" {
+		t.Fatalf("host settings must be decrypted, got %#v", resp.Data)
+	}
+}
+
+func TestHostAPISettingsWrongKeyFailsClosed(t *testing.T) {
+	cipherA, _ := crypto.NewOptionCipher(strings.Repeat("1", 64))
+	cipherB, _ := crypto.NewOptionCipher(strings.Repeat("2", 64))
+	item := installedExtension("wrong-key.plugin", TypePlugin, ManifestBackend{})
+	item.Status = StatusEnabled
+	item.Manifest.Capabilities = []string{capabilities.HostAPI, capabilities.SettingsOwn}
+	item.Manifest.Settings = []ManifestSetting{
+		{Key: "token", Label: LocalizedText{Default: "T"}, Type: "secret"},
+	}
+	enc, _ := cipherA.Encrypt("must-not-leak")
+	store := &fakeExtensionStore{
+		items:    map[string]Extension{item.ID: item},
+		settings: map[string]map[string]string{item.ID: {"token": enc}},
+	}
+	service := NewService(store, t.TempDir())
+	WithCipher(cipherB)(service)
+
+	host := hostapi.New(hostapi.Config{Capabilities: service, Settings: service})
+	resp := host.Call(context.Background(), hostapi.Request{Method: hostapi.MethodGetSettings, ExtensionID: item.ID})
+	if resp.OK || resp.Reason != "host.settings_failed" {
+		t.Fatalf("wrong key must fail closed, got %#v", resp)
+	}
+	if resp.Data != nil || strings.Contains(resp.Message, enc) || strings.Contains(resp.Message, "must-not-leak") {
+		t.Fatalf("wrong key response leaked settings: %#v", resp)
 	}
 }
 

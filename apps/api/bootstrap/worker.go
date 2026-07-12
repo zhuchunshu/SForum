@@ -73,6 +73,43 @@ type hostAPIGatewayCloser interface {
 	Close() error
 }
 
+var newStandaloneWorkerRuntimeManager = func(store extensions.Store, hostAPI extensionsruntime.HostAPIRegistrar, settings extensionsruntime.PluginSettings) workerExtensionRuntime {
+	return extensionsruntime.NewManager(extensionsruntime.ManagerConfig{
+		Starter: extensionsruntime.NewProtocolStarter(extensionsruntime.ProtocolStarterConfig{
+			Settings: settings,
+			HostAPI:  hostAPI,
+		}),
+		DeliveryStore: store,
+	})
+}
+
+func buildStandaloneWorkerExtensionRuntime(
+	ctx context.Context,
+	cfg config.Config,
+	store extensions.Store,
+	cipher *crypto.OptionCipher,
+) (workerExtensionRuntime, hostAPIGatewayCloser, error) {
+	service := extensions.NewServiceWithBuiltins(store, cfg.ExtensionRoot, cfg.BuiltinExtensionRoot)
+	extensions.WithCipher(cipher)(service)
+	workerHostAPI := hostapi.New(hostapi.Config{Settings: service})
+	workerHostGateway := hostapi.NewGateway(workerHostAPI)
+	managedRuntime := newStandaloneWorkerRuntimeManager(store, workerHostGateway, service)
+	workerHostAPI.BindCapabilitySource(service)
+	if _, err := service.SyncBuiltins(ctx); err != nil {
+		managedRuntime.Close(ctx)
+		_ = workerHostGateway.Close()
+		return nil, nil, fmt.Errorf("sync worker builtin extensions: %w", err)
+	}
+	items, err := store.List(ctx)
+	if err != nil {
+		managedRuntime.Close(ctx)
+		_ = workerHostGateway.Close()
+		return nil, nil, fmt.Errorf("list worker extensions: %w", err)
+	}
+	managedRuntime.Reconcile(ctx, items)
+	return managedRuntime, workerHostGateway, nil
+}
+
 func NewWorker(ctx context.Context, cfg config.Config, logger *slog.Logger) (*Worker, error) {
 	if err := runStartupMigrations(ctx, cfg, logger); err != nil {
 		return nil, err
@@ -144,40 +181,18 @@ func resolveWorkerExtensionRuntime(
 func newWorkerWithPool(cfg config.Config, pool *pgxpool.Pool, logger *slog.Logger, deps workerRuntimeDeps) (*Worker, error) {
 	registry := supportjobs.NewRegistry()
 	extensionStore := extensions.NewPostgresStore(pool)
+	optionCipher, err := crypto.NewOptionCipher(cfg.OptionEncryptionKey)
+	if err != nil {
+		return nil, fmt.Errorf("create worker option cipher: %w", err)
+	}
 
 	extensionRuntime, hostGateway, ownsRuntime, err := resolveWorkerExtensionRuntime(deps, func() (workerExtensionRuntime, hostAPIGatewayCloser, error) {
-		// 独立 worker：自建 Host API + Manager，并 Reconcile 启用中的后端插件。
-		workerHostAPI := hostapi.New(hostapi.Config{Settings: extensionStore})
-		workerHostGateway := hostapi.NewGateway(workerHostAPI)
-		// 独立 worker：设置解密与 API 一致（cipher 稍后在 newWorkerWithPool 构造后无法注入此处；
-		// 插件启动走 extensionService 前的 store 明文/密文由 API 主路径负责；此处用 store 兼容开发）。
-		managedRuntime := extensionsruntime.NewManager(extensionsruntime.ManagerConfig{
-			Starter: extensionsruntime.NewProtocolStarter(extensionsruntime.ProtocolStarterConfig{
-				Settings: extensionStore,
-				HostAPI:  workerHostGateway,
-			}),
-			DeliveryStore: extensionStore,
-		})
-		extensionService := extensions.NewServiceWithBuiltins(extensionStore, cfg.ExtensionRoot, cfg.BuiltinExtensionRoot)
-		workerHostAPI.BindCapabilitySource(extensionService)
-		if _, err := extensionService.SyncBuiltins(context.Background()); err != nil {
-			return nil, nil, fmt.Errorf("sync worker builtin extensions: %w", err)
-		}
-		items, err := extensionStore.List(context.Background())
-		if err != nil {
-			return nil, nil, fmt.Errorf("list worker extensions: %w", err)
-		}
-		managedRuntime.Reconcile(context.Background(), items)
-		return managedRuntime, workerHostGateway, nil
+		return buildStandaloneWorkerExtensionRuntime(context.Background(), cfg, extensionStore, optionCipher)
 	})
 	if err != nil {
 		return nil, err
 	}
 
-	optionCipher, err := crypto.NewOptionCipher(cfg.OptionEncryptionKey)
-	if err != nil {
-		return nil, fmt.Errorf("create worker option cipher: %w", err)
-	}
 	workerOptions := options.NewServiceWithDefaults(options.NewPostgresStore(pool), optionsDefaultsFromConfig(cfg)).
 		WithCipher(optionCipher)
 	legacyMailValues, err := workerOptions.InternalValues(context.Background())

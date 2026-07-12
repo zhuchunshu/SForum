@@ -2,10 +2,13 @@ package bootstrap
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
+	"github.com/zhuchunshu/sforum/apps/api/app/Support/Crypto"
 	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
+	"github.com/zhuchunshu/sforum/apps/api/config"
 )
 
 func TestWorkerStartStopAllowNilClient(t *testing.T) {
@@ -94,6 +97,37 @@ func TestResolveWorkerExtensionRuntimeStandaloneOwns(t *testing.T) {
 	}
 }
 
+func TestStandaloneWorkerRuntimeUsesCipherServiceSettings(t *testing.T) {
+	original := newStandaloneWorkerRuntimeManager
+	defer func() { newStandaloneWorkerRuntimeManager = original }()
+
+	cipher, _ := crypto.NewOptionCipher(strings.Repeat("b", 64))
+	enc, _ := cipher.Encrypt("worker-secret")
+	item := runtimeSettingsExtension("worker.plugin")
+	store := &bootstrapExtensionSettingsStore{
+		item:     item,
+		settings: map[string]string{"token": enc},
+	}
+	var got map[string]string
+	newStandaloneWorkerRuntimeManager = func(_ extensions.Store, _ extensionsruntime.HostAPIRegistrar, settings extensionsruntime.PluginSettings) workerExtensionRuntime {
+		var err error
+		got, err = settings.ListSettings(context.Background(), item.ID)
+		if err != nil {
+			t.Fatalf("load standalone worker settings: %v", err)
+		}
+		return &countingWorkerRuntime{}
+	}
+	runtime, gateway, err := buildStandaloneWorkerExtensionRuntime(context.Background(), config.Config{ExtensionRoot: t.TempDir()}, store, cipher)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer gateway.Close()
+	runtime.Close(context.Background())
+	if got["token"] != "worker-secret" {
+		t.Fatalf("standalone worker runtime received %#v", got)
+	}
+}
+
 // TestEmbedSharedRuntimeSingleStart 模拟 API Reconcile + embed 注入后不再 Start。
 // 真实双起根因是 newWorkerWithPool 自建 Manager 再 Reconcile；注入后 Start 计数应保持 1。
 func TestEmbedSharedRuntimeSingleStart(t *testing.T) {
@@ -164,6 +198,35 @@ func (noopHostGateway) Close() error { return nil }
 type countingStarter struct {
 	starts map[string]int
 	stops  map[string]int
+}
+
+type bootstrapExtensionSettingsStore struct {
+	extensions.Store
+	item     extensions.Extension
+	settings map[string]string
+}
+
+func (s *bootstrapExtensionSettingsStore) List(context.Context) ([]extensions.Extension, error) {
+	return []extensions.Extension{s.item}, nil
+}
+
+func (s *bootstrapExtensionSettingsStore) Get(context.Context, string) (extensions.Extension, error) {
+	return s.item, nil
+}
+
+func (s *bootstrapExtensionSettingsStore) ListSettings(context.Context, string) (map[string]string, error) {
+	return s.settings, nil
+}
+
+func runtimeSettingsExtension(id string) extensions.Extension {
+	return extensions.Extension{
+		ID:     id,
+		Type:   extensions.TypePlugin,
+		Status: extensions.StatusEnabled,
+		Manifest: extensions.Manifest{
+			Settings: []extensions.ManifestSetting{{Key: "token", Type: "secret"}},
+		},
+	}
 }
 
 func (s *countingStarter) Start(_ context.Context, extension extensions.Extension) (extensionsruntime.RouteTarget, error) {

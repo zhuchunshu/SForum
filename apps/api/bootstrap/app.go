@@ -20,6 +20,7 @@ import (
 	adminoverview "github.com/zhuchunshu/sforum/apps/api/app/Models/AdminOverview"
 	attachments "github.com/zhuchunshu/sforum/apps/api/app/Models/Attachments"
 	database "github.com/zhuchunshu/sforum/apps/api/app/Models/Database"
+	entitymeta "github.com/zhuchunshu/sforum/apps/api/app/Models/EntityMeta"
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
 	forum "github.com/zhuchunshu/sforum/apps/api/app/Models/Forum"
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
@@ -28,7 +29,6 @@ import (
 	options "github.com/zhuchunshu/sforum/apps/api/app/Models/Options"
 	profile "github.com/zhuchunshu/sforum/apps/api/app/Models/Profile"
 	sitechrome "github.com/zhuchunshu/sforum/apps/api/app/Models/SiteChrome"
-	entitymeta "github.com/zhuchunshu/sforum/apps/api/app/Models/EntityMeta"
 	webhooks "github.com/zhuchunshu/sforum/apps/api/app/Models/Webhooks"
 	"github.com/zhuchunshu/sforum/apps/api/app/Providers"
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Audit"
@@ -71,24 +71,6 @@ type extensionRuntime interface {
 	SendMail(ctx context.Context, extensionID string, request extensionsruntime.MailProviderRequest) (extensionsruntime.MailProviderResponse, error)
 }
 
-// extensionSettingsLoader 向插件进程提供解密后的 settings（secret 明文仅在启动注入时短暂存在）。
-type extensionSettingsLoader interface {
-	ListSettingsForRuntime(ctx context.Context, extensionID string) (map[string]string, error)
-}
-
-// runtimeSettingsAdapter 在 extensionService 构造前先用 store；绑好 cipher service 后切换。
-type runtimeSettingsAdapter struct {
-	store   extensions.Store
-	loader  extensionSettingsLoader
-}
-
-func (a *runtimeSettingsAdapter) ListSettings(ctx context.Context, extensionID string) (map[string]string, error) {
-	if a.loader != nil {
-		return a.loader.ListSettingsForRuntime(ctx, extensionID)
-	}
-	return a.store.ListSettings(ctx, extensionID)
-}
-
 var newExtensionRuntimeManager = func(store extensions.Store, hostAPI extensionsruntime.HostAPIRegistrar, settings extensionsruntime.PluginSettings) extensionRuntime {
 	if settings == nil {
 		settings = store
@@ -100,6 +82,12 @@ var newExtensionRuntimeManager = func(store extensions.Store, hostAPI extensions
 		}),
 		DeliveryStore: store,
 	})
+}
+
+func bindAPIExtensionRuntime(store extensions.Store, hostAPI extensionsruntime.HostAPIRegistrar, service *extensions.Service) extensionRuntime {
+	runtime := newExtensionRuntimeManager(store, hostAPI, service)
+	extensions.WithRuntimeManager(runtime)(service)
+	return runtime
 }
 
 func shouldEmbedWorkerInAPI(cfg config.Config) bool {
@@ -211,19 +199,12 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		return nil, fmt.Errorf("job dispatcher setup failed: %w", err)
 	}
 	jobDispatcher := supportjobs.NewDispatcher(jobClient)
-	// F2.2 Host API：能力源稍后绑定 extensionService。
-	hostAPIService := hostapi.New(hostapi.Config{
-		Settings: extensionStore,
-		Jobs:     &hostapi.RiverJobEnqueuer{Dispatcher: jobDispatcher},
-		Auditor:  auditWriter,
-	})
-	hostAPIGateway := hostapi.NewGateway(hostAPIService)
-	runtimeSettings := &runtimeSettingsAdapter{store: extensionStore}
-	extensionRuntime := newExtensionRuntimeManager(extensionStore, hostAPIGateway, runtimeSettings)
 	themeDispatcher := extensionjobs.ActivationDispatcherAdapter{Dispatcher: jobDispatcher}
 	hostComposition, err := webreleaseruntime.CompositionHost(cfg.WebReleaseWebRoot)
 	if err != nil {
-		extensionRuntime.Close(ctx)
+		if stopErr := supportjobs.Stop(ctx, jobClient); stopErr != nil {
+			logger.Warn("job dispatcher stop failed", "error", stopErr)
+		}
 		sharedRedisClient.Close()
 		_ = redisStorage.Close()
 		pool.Close()
@@ -239,9 +220,10 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 	// API 进程同步路径（恢复默认主题）也需要写 current.json。
 	// 这里构造一个仅用于 WriteCurrent 的 builder，不参与主题构建（构建仍由 worker 完成）。
 	themeCurrentWriter := themeruntime.NewBuilder(themeruntime.Config{ReleaseRoot: cfg.ThemeReleaseRoot})
+	// 先构造带 Cipher 的 Service，插件启动与 Host API 才能共享同一个解密设置源。
 	extensionService := extensions.NewServiceWithThemeActivationWithOptions(
 		extensionStore, cfg.ExtensionRoot, cfg.BuiltinExtensionRoot,
-		extensionRuntime, nil, themeDispatcher,
+		nil, nil, themeDispatcher,
 		extensions.WithThemeCurrentWriter(themeCurrentWriter),
 		extensions.WithWebReleaseLifecycle(frontendService, webReleaseService),
 		extensions.WithWebReleaseProgress(webReleaseStore),
@@ -255,8 +237,14 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		// E6.1：禁用声明存储槽位的插件时，attachment.provider 从 plugin:<id> 回落 local。
 		extensions.WithStorageSelectionClearer(attachmentService),
 	)
-	// 插件启动注入解密后的 settings（避免把 enc:: 密文交给子进程）。
-	runtimeSettings.loader = extensionService
+	// F2.2 Host API 与 ProtocolStarter 共用 extensionService；错误密钥不得降级读取 store。
+	hostAPIService := hostapi.New(hostapi.Config{
+		Settings: extensionService,
+		Jobs:     &hostapi.RiverJobEnqueuer{Dispatcher: jobDispatcher},
+		Auditor:  auditWriter,
+	})
+	hostAPIGateway := hostapi.NewGateway(hostAPIService)
+	extensionRuntime := bindAPIExtensionRuntime(extensionStore, hostAPIGateway, extensionService)
 	// 把已构造的 extensionService 接到 Host API 能力/权限解析（避免循环构造）。
 	hostAPIService.BindCapabilitySource(extensionService)
 	hostAPIService.BindPermissions(identityPermissionAdapter{store: identityStore})

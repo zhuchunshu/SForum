@@ -114,6 +114,16 @@ func WithCipher(c *crypto.OptionCipher) ServiceOption {
 	}
 }
 
+// WithRuntimeManager 用于 bootstrap 的两阶段装配：先构造带 Cipher 的 Service，
+// 再把使用该 Service 读取解密设置的插件 runtime 绑定回来。
+func WithRuntimeManager(runtime RuntimeManager) ServiceOption {
+	return func(s *Service) {
+		if runtime != nil {
+			s.runtime = runtime
+		}
+	}
+}
+
 func (s *Service) appendAudit(ctx context.Context, actor identity.Actor, action string, metadata map[string]any) {
 	if s == nil || s.auditor == nil || action == "" {
 		return
@@ -1442,6 +1452,12 @@ func (s *Service) ListSettingsForRuntime(ctx context.Context, extensionID string
 		return nil, err
 	}
 	return s.listDecryptedSettings(ctx, extension)
+}
+
+// ListSettings 实现插件 ProtocolStarter 与 Host API 共用的只读设置接口。
+// 所有运行时读取必须经过这里，禁止直接把 Store 注入插件边界。
+func (s *Service) ListSettings(ctx context.Context, extensionID string) (map[string]string, error) {
+	return s.ListSettingsForRuntime(ctx, extensionID)
 }
 
 func manifestEvents(manifest Manifest) []ManifestEvent {
