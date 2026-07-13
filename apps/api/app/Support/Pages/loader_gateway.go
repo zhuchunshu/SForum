@@ -69,10 +69,16 @@ func (g *LoaderGateway) LoadForContribution(ctx context.Context, contrib PageCon
 		return LoaderResult{Error: "pages: plugin runtime unavailable", Fallback: true, Status: 503}
 	}
 	target, ok := g.Targets.AcquireRouteTarget(ctx, contrib.ExtensionID)
-	if !ok || strings.TrimSpace(target.BaseURL) == "" || target.Release == nil {
+	if !ok {
 		return LoaderResult{Error: "pages: plugin not enabled or runtime unavailable", Fallback: true, Status: 503}
 	}
+	if target.Release == nil {
+		return LoaderResult{Error: "pages: plugin runtime lease unavailable", Fallback: true, Status: 503}
+	}
 	defer target.Release()
+	if strings.TrimSpace(target.BaseURL) == "" {
+		return LoaderResult{Error: "pages: plugin not enabled or runtime unavailable", Fallback: true, Status: 503}
+	}
 	if target.Context != nil {
 		ctx = target.Context
 	}

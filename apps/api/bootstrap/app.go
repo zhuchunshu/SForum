@@ -633,7 +633,11 @@ func (a pageRouteTargetAdapter) AcquireRouteTarget(ctx context.Context, extensio
 		return pages.LoaderRouteTarget{}, false
 	}
 	target, admission, err := a.runtime.AcquireActiveRuntimeCall(ctx, extensionID, extensionsruntime.RuntimeCallPage)
-	if err != nil || strings.TrimSpace(target.Target.BaseURL) == "" {
+	if err != nil {
+		return pages.LoaderRouteTarget{}, false
+	}
+	if strings.TrimSpace(target.Target.BaseURL) == "" {
+		admission.Release()
 		return pages.LoaderRouteTarget{}, false
 	}
 	return pages.LoaderRouteTarget{

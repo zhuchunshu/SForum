@@ -42,7 +42,7 @@ func TestLoaderGatewayUsesAndReleasesRuntimeAdmission(t *testing.T) {
 		return nil, request.Context().Err()
 	}))
 	gateway := NewLoaderGateway(loader, admissionTargets{
-		ctx: targetCtx,
+		ctx: targetCtx, baseURL: "http://127.0.0.1:19999",
 		release: func() {
 			released.Add(1)
 		},
@@ -69,6 +69,22 @@ func TestLoaderGatewayUsesAndReleasesRuntimeAdmission(t *testing.T) {
 	}
 	if released.Load() != 1 {
 		t.Fatalf("runtime admission releases = %d", released.Load())
+	}
+}
+
+func TestLoaderGatewayReleasesAdmissionWhenTargetIsEmpty(t *testing.T) {
+	var released atomic.Int32
+	gateway := NewLoaderGateway(NewPageDataLoader(nil), admissionTargets{
+		ctx: context.Background(),
+		release: func() {
+			released.Add(1)
+		},
+	})
+	result := gateway.LoadForContribution(context.Background(), PageContribution{
+		ExtensionID: "empty.page", DataSource: "plugin", DataRoute: "/data",
+	}, nil, "zh-CN", 0)
+	if !result.Fallback || result.Status != 503 || released.Load() != 1 {
+		t.Fatalf("empty target result=%#v releases=%d", result, released.Load())
 	}
 }
 
@@ -222,12 +238,13 @@ type fakeTargets struct {
 
 type admissionTargets struct {
 	ctx     context.Context
+	baseURL string
 	release func()
 }
 
 func (f admissionTargets) AcquireRouteTarget(context.Context, string) (LoaderRouteTarget, bool) {
 	return LoaderRouteTarget{
-		BaseURL: "http://127.0.0.1:19999",
+		BaseURL: f.baseURL,
 		Context: f.ctx,
 		Release: f.release,
 	}, true
