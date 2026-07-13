@@ -20,12 +20,13 @@ import (
 // Gateway 在 loopback 上暴露 Host API，供插件子进程调用（F2.2）。
 // 每个已启动插件持有独立 token；请求必须带 X-SForum-Extension-Id 与 Bearer token。
 type Gateway struct {
-	mu      sync.RWMutex
-	service *Service
-	server  *http.Server
-	ln      net.Listener
-	baseURL string
-	tokens  map[string]string // extensionID → token
+	mu       sync.RWMutex
+	service  *Service
+	services *ServiceRegistry
+	server   *http.Server
+	ln       net.Listener
+	baseURL  string
+	tokens   map[string]string // extensionID → token
 }
 
 // RegisterProtocolV2 exposes typed Host services only on the caller's
@@ -36,16 +37,47 @@ func (g *Gateway) RegisterProtocolV2(server grpc.ServiceRegistrar) {
 	}
 	g.mu.RLock()
 	service := g.service
+	services := g.services
 	g.mu.RUnlock()
-	registerProtocolV2(server, service)
+	registerProtocolV2(server, service, services)
 }
 
 // NewGateway 创建未启动的网关；Start 后才监听。
 func NewGateway(service *Service) *Gateway {
 	return &Gateway{
-		service: service,
-		tokens:  map[string]string{},
+		service:  service,
+		services: NewServiceRegistry(),
+		tokens:   map[string]string{},
 	}
+}
+
+// ReplaceProtocolV2Services atomically publishes one runtime's complete
+// handshake service declaration set.
+func (g *Gateway) ReplaceProtocolV2Services(extensionID string, registrations []ServiceRegistration) error {
+	registry := g.ProtocolV2ServiceRegistry()
+	if registry == nil {
+		return fmt.Errorf("hostapi gateway is nil")
+	}
+	return registry.ReplaceExtension(extensionID, registrations)
+}
+
+// UnregisterProtocolV2Services removes all services owned by one runtime.
+func (g *Gateway) UnregisterProtocolV2Services(extensionID string) {
+	if registry := g.ProtocolV2ServiceRegistry(); registry != nil {
+		registry.UnregisterExtension(extensionID)
+	}
+}
+
+// ProtocolV2ServiceRegistry exposes the shared immutable-snapshot registry to
+// runtime assembly and host-owned inspectors.
+func (g *Gateway) ProtocolV2ServiceRegistry() *ServiceRegistry {
+	if g == nil {
+		return nil
+	}
+	g.mu.RLock()
+	registry := g.services
+	g.mu.RUnlock()
+	return registry
 }
 
 // Start 绑定 127.0.0.1:0 并开始服务。
@@ -122,9 +154,14 @@ func (g *Gateway) UnregisterExtension(extensionID string) {
 	if g == nil {
 		return
 	}
+	extensionID = strings.TrimSpace(extensionID)
 	g.mu.Lock()
-	delete(g.tokens, strings.TrimSpace(extensionID))
+	delete(g.tokens, extensionID)
+	services := g.services
 	g.mu.Unlock()
+	if services != nil {
+		services.UnregisterExtension(extensionID)
+	}
 }
 
 // Close 停止监听。

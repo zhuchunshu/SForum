@@ -27,16 +27,18 @@ const (
 )
 
 type protocolV2Core struct {
-	service *Service
+	service  *Service
+	services *ServiceRegistry
 }
 
-func registerProtocolV2(server grpc.ServiceRegistrar, service *Service) {
-	core := &protocolV2Core{service: service}
+func registerProtocolV2(server grpc.ServiceRegistrar, service *Service, services *ServiceRegistry) {
+	core := &protocolV2Core{service: service, services: services}
 	hostv2.RegisterHostQueryServiceServer(server, &protocolV2QueryServer{core: core})
 	hostv2.RegisterPermissionServiceServer(server, &protocolV2PermissionServer{core: core})
 	hostv2.RegisterIdentityServiceServer(server, &protocolV2IdentityServer{core: core})
 	hostv2.RegisterJobServiceServer(server, &protocolV2JobServer{core: core})
 	hostv2.RegisterAuditServiceServer(server, &protocolV2AuditServer{core: core})
+	hostv2.RegisterServiceDiscoveryServiceServer(server, &protocolV2ServiceDiscoveryServer{core: core})
 }
 
 func (c *protocolV2Core) call(ctx context.Context, requestContext *protocolv2.RequestContext, method string, payload map[string]any) Response {
