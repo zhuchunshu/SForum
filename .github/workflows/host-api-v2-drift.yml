@@ -1,0 +1,58 @@
+name: Host API v2 drift
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/host-api-v2-drift.yml
+      - apps/api/app/Support/Extensions/protocol_v2_*.go
+      - apps/api/sdk/plugin/v2/gen/**
+      - contracts/proto/**
+      - docs/extensions/authoring-guide.md
+      - docs/extensions/host-api-v2.md
+      - scripts/proto.sh
+      - scripts/test.sh
+      - tests/validate-host-api-v2-docs.mjs
+      - tools/proto/go.mod
+      - tools/proto/go.sum
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/host-api-v2-drift.yml
+      - apps/api/app/Support/Extensions/protocol_v2_*.go
+      - apps/api/sdk/plugin/v2/gen/**
+      - contracts/proto/**
+      - docs/extensions/authoring-guide.md
+      - docs/extensions/host-api-v2.md
+      - scripts/proto.sh
+      - scripts/test.sh
+      - tests/validate-host-api-v2-docs.mjs
+      - tools/proto/go.mod
+      - tools/proto/go.sum
+
+permissions:
+  contents: read
+
+concurrency:
+  group: host-api-v2-drift-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  drift:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: tools/proto/go.mod
+          cache-dependency-path: tools/proto/go.sum
+
+      - name: Check generated Protobuf SDK
+        run: ./scripts/proto.sh check
+
+      - name: Check Host API v2 documentation
+        run: node tests/validate-host-api-v2-docs.mjs
