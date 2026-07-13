@@ -1,0 +1,1796 @@
+{
+  "schemaVersion": 1,
+  "routes": [
+    {
+      "id": "core.route.attachments.settings",
+      "contractVersion": "sforum.route.attachments.settings@1",
+      "method": "GET",
+      "path": "/api/v1/admin/attachment-settings"
+    },
+    {
+      "id": "core.route.attachments.update_settings",
+      "contractVersion": "sforum.route.attachments.update_settings@1",
+      "method": "PUT",
+      "path": "/api/v1/admin/attachment-settings"
+    },
+    {
+      "id": "core.route.attachments.test_settings",
+      "contractVersion": "sforum.route.attachments.test_settings@1",
+      "method": "POST",
+      "path": "/api/v1/admin/attachment-settings/test"
+    },
+    {
+      "id": "core.route.attachments.list_admin",
+      "contractVersion": "sforum.route.attachments.list_admin@1",
+      "method": "GET",
+      "path": "/api/v1/admin/attachments"
+    },
+    {
+      "id": "core.route.attachments.delete_admin",
+      "contractVersion": "sforum.route.attachments.delete_admin@1",
+      "method": "DELETE",
+      "path": "/api/v1/admin/attachments/:id"
+    },
+    {
+      "id": "core.route.attachments.detail_admin",
+      "contractVersion": "sforum.route.attachments.detail_admin@1",
+      "method": "GET",
+      "path": "/api/v1/admin/attachments/:id"
+    },
+    {
+      "id": "core.route.attachments.update_admin",
+      "contractVersion": "sforum.route.attachments.update_admin@1",
+      "method": "PATCH",
+      "path": "/api/v1/admin/attachments/:id"
+    },
+    {
+      "id": "core.route.attachments.cleanup_admin",
+      "contractVersion": "sforum.route.attachments.cleanup_admin@1",
+      "method": "POST",
+      "path": "/api/v1/admin/attachments/cleanup"
+    },
+    {
+      "id": "core.route.database.list_tables",
+      "contractVersion": "sforum.route.database.list_tables@1",
+      "method": "GET",
+      "path": "/api/v1/admin/database/tables"
+    },
+    {
+      "id": "core.route.database.detail",
+      "contractVersion": "sforum.route.database.detail@1",
+      "method": "GET",
+      "path": "/api/v1/admin/database/tables/:schema/:table"
+    },
+    {
+      "id": "core.route.database.export_csv",
+      "contractVersion": "sforum.route.database.export_csv@1",
+      "method": "GET",
+      "path": "/api/v1/admin/database/tables/:schema/:table/export.csv"
+    },
+    {
+      "id": "core.route.database.rows",
+      "contractVersion": "sforum.route.database.rows@1",
+      "method": "GET",
+      "path": "/api/v1/admin/database/tables/:schema/:table/rows"
+    },
+    {
+      "id": "core.route.database.reveal",
+      "contractVersion": "sforum.route.database.reveal@1",
+      "method": "GET",
+      "path": "/api/v1/admin/database/tables/:schema/:table/rows/reveal"
+    },
+    {
+      "id": "core.route.entity_meta.list_admin_definitions",
+      "contractVersion": "sforum.route.entity_meta.list_admin_definitions@1",
+      "method": "GET",
+      "path": "/api/v1/admin/entity-meta/definitions"
+    },
+    {
+      "id": "core.route.entity_meta.create_definition",
+      "contractVersion": "sforum.route.entity_meta.create_definition@1",
+      "method": "POST",
+      "path": "/api/v1/admin/entity-meta/definitions"
+    },
+    {
+      "id": "core.route.entity_meta.delete_definition",
+      "contractVersion": "sforum.route.entity_meta.delete_definition@1",
+      "method": "DELETE",
+      "path": "/api/v1/admin/entity-meta/definitions/:fieldKey"
+    },
+    {
+      "id": "core.route.entity_meta.update_definition",
+      "contractVersion": "sforum.route.entity_meta.update_definition@1",
+      "method": "PATCH",
+      "path": "/api/v1/admin/entity-meta/definitions/:fieldKey"
+    },
+    {
+      "id": "core.route.extensions.list",
+      "contractVersion": "sforum.route.extensions.list@1",
+      "method": "GET",
+      "path": "/api/v1/admin/extensions"
+    },
+    {
+      "id": "core.route.extensions.install",
+      "contractVersion": "sforum.route.extensions.install@1",
+      "method": "POST",
+      "path": "/api/v1/admin/extensions"
+    },
+    {
+      "id": "core.route.extensions.uninstall",
+      "contractVersion": "sforum.route.extensions.uninstall@1",
+      "method": "DELETE",
+      "path": "/api/v1/admin/extensions/:id"
+    },
+    {
+      "id": "core.route.extensions.activate",
+      "contractVersion": "sforum.route.extensions.activate@1",
+      "method": "POST",
+      "path": "/api/v1/admin/extensions/:id/activate"
+    },
+    {
+      "id": "core.route.extensions.disable",
+      "contractVersion": "sforum.route.extensions.disable@1",
+      "method": "POST",
+      "path": "/api/v1/admin/extensions/:id/disable"
+    },
+    {
+      "id": "core.route.extensions.enable",
+      "contractVersion": "sforum.route.extensions.enable@1",
+      "method": "POST",
+      "path": "/api/v1/admin/extensions/:id/enable"
+    },
+    {
+      "id": "core.route.extensions.events",
+      "contractVersion": "sforum.route.extensions.events@1",
+      "method": "GET",
+      "path": "/api/v1/admin/extensions/:id/events"
+    },
+    {
+      "id": "core.route.extensions.frontend_status",
+      "contractVersion": "sforum.route.extensions.frontend_status@1",
+      "method": "GET",
+      "path": "/api/v1/admin/extensions/:id/frontend"
+    },
+    {
+      "id": "core.route.extensions.frontend_asset",
+      "contractVersion": "sforum.route.extensions.frontend_asset@1",
+      "method": "GET",
+      "path": "/api/v1/admin/extensions/:id/frontend/assets/:digest/:asset"
+    },
+    {
+      "id": "core.route.extensions.frontend_confirmation",
+      "contractVersion": "sforum.route.extensions.frontend_confirmation@1",
+      "method": "POST",
+      "path": "/api/v1/admin/extensions/:id/frontend/confirmation"
+    },
+    {
+      "id": "core.route.extensions.revoke_frontend_trust",
+      "contractVersion": "sforum.route.extensions.revoke_frontend_trust@1",
+      "method": "DELETE",
+      "path": "/api/v1/admin/extensions/:id/frontend/trust"
+    },
+    {
+      "id": "core.route.extensions.grant_frontend_trust",
+      "contractVersion": "sforum.route.extensions.grant_frontend_trust@1",
+      "method": "POST",
+      "path": "/api/v1/admin/extensions/:id/frontend/trust"
+    },
+    {
+      "id": "core.route.extensions.list_migrations",
+      "contractVersion": "sforum.route.extensions.list_migrations@1",
+      "method": "GET",
+      "path": "/api/v1/admin/extensions/:id/migrations"
+    },
+    {
+      "id": "core.route.extensions.apply_migrations",
+      "contractVersion": "sforum.route.extensions.apply_migrations@1",
+      "method": "POST",
+      "path": "/api/v1/admin/extensions/:id/migrations/apply"
+    },
+    {
+      "id": "core.route.extensions.settings",
+      "contractVersion": "sforum.route.extensions.settings@1",
+      "method": "GET",
+      "path": "/api/v1/admin/extensions/:id/settings"
+    },
+    {
+      "id": "core.route.extensions.update_settings",
+      "contractVersion": "sforum.route.extensions.update_settings@1",
+      "method": "PUT",
+      "path": "/api/v1/admin/extensions/:id/settings"
+    },
+    {
+      "id": "core.route.extensions.execute_settings_action",
+      "contractVersion": "sforum.route.extensions.execute_settings_action@1",
+      "method": "POST",
+      "path": "/api/v1/admin/extensions/:id/settings/actions/:actionId"
+    },
+    {
+      "id": "core.route.extensions.reset_settings",
+      "contractVersion": "sforum.route.extensions.reset_settings@1",
+      "method": "POST",
+      "path": "/api/v1/admin/extensions/:id/settings/reset"
+    },
+    {
+      "id": "core.route.extensions.verify",
+      "contractVersion": "sforum.route.extensions.verify@1",
+      "method": "POST",
+      "path": "/api/v1/admin/extensions/:id/verify"
+    },
+    {
+      "id": "core.route.extensions.contribution_points",
+      "contractVersion": "sforum.route.extensions.contribution_points@1",
+      "method": "GET",
+      "path": "/api/v1/admin/extensions/contribution-points"
+    },
+    {
+      "id": "core.route.extensions.contributions",
+      "contractVersion": "sforum.route.extensions.contributions@1",
+      "method": "GET",
+      "path": "/api/v1/admin/extensions/contributions"
+    },
+    {
+      "id": "core.route.extensions.event_definitions",
+      "contractVersion": "sforum.route.extensions.event_definitions@1",
+      "method": "GET",
+      "path": "/api/v1/admin/extensions/event-definitions"
+    },
+    {
+      "id": "core.route.extensions.event_deliveries",
+      "contractVersion": "sforum.route.extensions.event_deliveries@1",
+      "method": "GET",
+      "path": "/api/v1/admin/extensions/event-deliveries"
+    },
+    {
+      "id": "core.route.extensions.navigation",
+      "contractVersion": "sforum.route.extensions.navigation@1",
+      "method": "GET",
+      "path": "/api/v1/admin/extensions/navigation"
+    },
+    {
+      "id": "core.route.options.list_features",
+      "contractVersion": "sforum.route.options.list_features@1",
+      "method": "GET",
+      "path": "/api/v1/admin/features"
+    },
+    {
+      "id": "core.route.options.update_features",
+      "contractVersion": "sforum.route.options.update_features@1",
+      "method": "PUT",
+      "path": "/api/v1/admin/features"
+    },
+    {
+      "id": "core.route.options.restore_feature_defaults",
+      "contractVersion": "sforum.route.options.restore_feature_defaults@1",
+      "method": "POST",
+      "path": "/api/v1/admin/features/restore-defaults"
+    },
+    {
+      "id": "core.route.forum.admin_categories",
+      "contractVersion": "sforum.route.forum.admin_categories@1",
+      "method": "GET",
+      "path": "/api/v1/admin/forum/categories"
+    },
+    {
+      "id": "core.route.forum.admin_create_category",
+      "contractVersion": "sforum.route.forum.admin_create_category@1",
+      "method": "POST",
+      "path": "/api/v1/admin/forum/categories"
+    },
+    {
+      "id": "core.route.forum.admin_update_category",
+      "contractVersion": "sforum.route.forum.admin_update_category@1",
+      "method": "PATCH",
+      "path": "/api/v1/admin/forum/categories/:categoryID"
+    },
+    {
+      "id": "core.route.forum.admin_category_groups",
+      "contractVersion": "sforum.route.forum.admin_category_groups@1",
+      "method": "GET",
+      "path": "/api/v1/admin/forum/category-groups"
+    },
+    {
+      "id": "core.route.forum.admin_create_category_group",
+      "contractVersion": "sforum.route.forum.admin_create_category_group@1",
+      "method": "POST",
+      "path": "/api/v1/admin/forum/category-groups"
+    },
+    {
+      "id": "core.route.forum.admin_update_category_group",
+      "contractVersion": "sforum.route.forum.admin_update_category_group@1",
+      "method": "PATCH",
+      "path": "/api/v1/admin/forum/category-groups/:groupID"
+    },
+    {
+      "id": "core.route.forum.admin_reindex_status",
+      "contractVersion": "sforum.route.forum.admin_reindex_status@1",
+      "method": "GET",
+      "path": "/api/v1/admin/forum/search/reindex"
+    },
+    {
+      "id": "core.route.forum.admin_reindex_search",
+      "contractVersion": "sforum.route.forum.admin_reindex_search@1",
+      "method": "POST",
+      "path": "/api/v1/admin/forum/search/reindex"
+    },
+    {
+      "id": "core.route.forum.admin_reindex_runs",
+      "contractVersion": "sforum.route.forum.admin_reindex_runs@1",
+      "method": "GET",
+      "path": "/api/v1/admin/forum/search/reindex/runs"
+    },
+    {
+      "id": "core.route.forum.admin_settings",
+      "contractVersion": "sforum.route.forum.admin_settings@1",
+      "method": "GET",
+      "path": "/api/v1/admin/forum/settings"
+    },
+    {
+      "id": "core.route.forum.admin_update_settings",
+      "contractVersion": "sforum.route.forum.admin_update_settings@1",
+      "method": "PUT",
+      "path": "/api/v1/admin/forum/settings"
+    },
+    {
+      "id": "core.route.forum.admin_reset_settings",
+      "contractVersion": "sforum.route.forum.admin_reset_settings@1",
+      "method": "POST",
+      "path": "/api/v1/admin/forum/settings/reset"
+    },
+    {
+      "id": "core.route.forum.admin_tags",
+      "contractVersion": "sforum.route.forum.admin_tags@1",
+      "method": "GET",
+      "path": "/api/v1/admin/forum/tags"
+    },
+    {
+      "id": "core.route.forum.admin_create_tag",
+      "contractVersion": "sforum.route.forum.admin_create_tag@1",
+      "method": "POST",
+      "path": "/api/v1/admin/forum/tags"
+    },
+    {
+      "id": "core.route.forum.admin_update_tag",
+      "contractVersion": "sforum.route.forum.admin_update_tag@1",
+      "method": "PATCH",
+      "path": "/api/v1/admin/forum/tags/:tagID"
+    },
+    {
+      "id": "core.route.jobs.list",
+      "contractVersion": "sforum.route.jobs.list@1",
+      "method": "GET",
+      "path": "/api/v1/admin/jobs"
+    },
+    {
+      "id": "core.route.jobs.detail",
+      "contractVersion": "sforum.route.jobs.detail@1",
+      "method": "GET",
+      "path": "/api/v1/admin/jobs/:id"
+    },
+    {
+      "id": "core.route.jobs.cancel",
+      "contractVersion": "sforum.route.jobs.cancel@1",
+      "method": "POST",
+      "path": "/api/v1/admin/jobs/:id/cancel"
+    },
+    {
+      "id": "core.route.jobs.retry",
+      "contractVersion": "sforum.route.jobs.retry@1",
+      "method": "POST",
+      "path": "/api/v1/admin/jobs/:id/retry"
+    },
+    {
+      "id": "core.route.jobs.overview",
+      "contractVersion": "sforum.route.jobs.overview@1",
+      "method": "GET",
+      "path": "/api/v1/admin/jobs/overview"
+    },
+    {
+      "id": "core.route.jobs.pause",
+      "contractVersion": "sforum.route.jobs.pause@1",
+      "method": "POST",
+      "path": "/api/v1/admin/jobs/queues/:name/pause"
+    },
+    {
+      "id": "core.route.jobs.resume",
+      "contractVersion": "sforum.route.jobs.resume@1",
+      "method": "POST",
+      "path": "/api/v1/admin/jobs/queues/:name/resume"
+    },
+    {
+      "id": "core.route.jobs.schedules",
+      "contractVersion": "sforum.route.jobs.schedules@1",
+      "method": "GET",
+      "path": "/api/v1/admin/jobs/schedules"
+    },
+    {
+      "id": "core.route.jobs.disable_schedule",
+      "contractVersion": "sforum.route.jobs.disable_schedule@1",
+      "method": "POST",
+      "path": "/api/v1/admin/jobs/schedules/:scheduleId/disable"
+    },
+    {
+      "id": "core.route.jobs.enable_schedule",
+      "contractVersion": "sforum.route.jobs.enable_schedule@1",
+      "method": "POST",
+      "path": "/api/v1/admin/jobs/schedules/:scheduleId/enable"
+    },
+    {
+      "id": "core.route.jobs.trigger_schedule",
+      "contractVersion": "sforum.route.jobs.trigger_schedule@1",
+      "method": "POST",
+      "path": "/api/v1/admin/jobs/schedules/:scheduleId/trigger"
+    },
+    {
+      "id": "core.route.mail.list_deliveries",
+      "contractVersion": "sforum.route.mail.list_deliveries@1",
+      "method": "GET",
+      "path": "/api/v1/admin/mail/deliveries"
+    },
+    {
+      "id": "core.route.mail.get_policy",
+      "contractVersion": "sforum.route.mail.get_policy@1",
+      "method": "GET",
+      "path": "/api/v1/admin/mail/policy"
+    },
+    {
+      "id": "core.route.mail.update_policy",
+      "contractVersion": "sforum.route.mail.update_policy@1",
+      "method": "PUT",
+      "path": "/api/v1/admin/mail/policy"
+    },
+    {
+      "id": "core.route.mail.restore_policy",
+      "contractVersion": "sforum.route.mail.restore_policy@1",
+      "method": "POST",
+      "path": "/api/v1/admin/mail/policy/restore"
+    },
+    {
+      "id": "core.route.mail.select_provider",
+      "contractVersion": "sforum.route.mail.select_provider@1",
+      "method": "PUT",
+      "path": "/api/v1/admin/mail/provider"
+    },
+    {
+      "id": "core.route.mail.reset_provider",
+      "contractVersion": "sforum.route.mail.reset_provider@1",
+      "method": "POST",
+      "path": "/api/v1/admin/mail/provider/reset"
+    },
+    {
+      "id": "core.route.mail.list_providers",
+      "contractVersion": "sforum.route.mail.list_providers@1",
+      "method": "GET",
+      "path": "/api/v1/admin/mail/providers"
+    },
+    {
+      "id": "core.route.identity.admin_mail_test",
+      "contractVersion": "sforum.route.identity.admin_mail_test@1",
+      "method": "POST",
+      "path": "/api/v1/admin/mail/test"
+    },
+    {
+      "id": "core.route.moderation.list_admin_decisions",
+      "contractVersion": "sforum.route.moderation.list_admin_decisions@1",
+      "method": "GET",
+      "path": "/api/v1/admin/moderation/decisions"
+    },
+    {
+      "id": "core.route.moderation.list_reports",
+      "contractVersion": "sforum.route.moderation.list_reports@1",
+      "method": "GET",
+      "path": "/api/v1/admin/moderation/reports"
+    },
+    {
+      "id": "core.route.moderation.update_report",
+      "contractVersion": "sforum.route.moderation.update_report@1",
+      "method": "PATCH",
+      "path": "/api/v1/admin/moderation/reports/:reportID"
+    },
+    {
+      "id": "core.route.moderation.get_settings",
+      "contractVersion": "sforum.route.moderation.get_settings@1",
+      "method": "GET",
+      "path": "/api/v1/admin/moderation/settings"
+    },
+    {
+      "id": "core.route.moderation.update_settings",
+      "contractVersion": "sforum.route.moderation.update_settings@1",
+      "method": "PUT",
+      "path": "/api/v1/admin/moderation/settings"
+    },
+    {
+      "id": "core.route.moderation.reset_settings",
+      "contractVersion": "sforum.route.moderation.reset_settings@1",
+      "method": "POST",
+      "path": "/api/v1/admin/moderation/settings/reset"
+    },
+    {
+      "id": "core.route.notifications.admin_test",
+      "contractVersion": "sforum.route.notifications.admin_test@1",
+      "method": "POST",
+      "path": "/api/v1/admin/notifications/test"
+    },
+    {
+      "id": "core.route.admin_overview.overview",
+      "contractVersion": "sforum.route.admin_overview.overview@1",
+      "method": "GET",
+      "path": "/api/v1/admin/overview"
+    },
+    {
+      "id": "core.route.pages.admin_list",
+      "contractVersion": "sforum.route.pages.admin_list@1",
+      "method": "GET",
+      "path": "/api/v1/admin/pages"
+    },
+    {
+      "id": "core.route.pages.admin_get",
+      "contractVersion": "sforum.route.pages.admin_get@1",
+      "method": "GET",
+      "path": "/api/v1/admin/pages/:pageId"
+    },
+    {
+      "id": "core.route.pages.admin_approve",
+      "contractVersion": "sforum.route.pages.admin_approve@1",
+      "method": "POST",
+      "path": "/api/v1/admin/pages/:pageId/approve"
+    },
+    {
+      "id": "core.route.pages.admin_restore",
+      "contractVersion": "sforum.route.pages.admin_restore@1",
+      "method": "POST",
+      "path": "/api/v1/admin/pages/:pageId/restore-core"
+    },
+    {
+      "id": "core.route.pages.activate_preview",
+      "contractVersion": "sforum.route.pages.activate_preview@1",
+      "method": "GET",
+      "path": "/api/v1/admin/pages/activate-preview/:extensionId"
+    },
+    {
+      "id": "core.route.pages.admin_added",
+      "contractVersion": "sforum.route.pages.admin_added@1",
+      "method": "GET",
+      "path": "/api/v1/admin/pages/added"
+    },
+    {
+      "id": "core.route.seo.upload_asset",
+      "contractVersion": "sforum.route.seo.upload_asset@1",
+      "method": "POST",
+      "path": "/api/v1/admin/seo/assets"
+    },
+    {
+      "id": "core.route.site_chrome.admin_announcements",
+      "contractVersion": "sforum.route.site_chrome.admin_announcements@1",
+      "method": "GET",
+      "path": "/api/v1/admin/site/announcements"
+    },
+    {
+      "id": "core.route.site_chrome.admin_create_announcement",
+      "contractVersion": "sforum.route.site_chrome.admin_create_announcement@1",
+      "method": "POST",
+      "path": "/api/v1/admin/site/announcements"
+    },
+    {
+      "id": "core.route.site_chrome.admin_delete_announcement",
+      "contractVersion": "sforum.route.site_chrome.admin_delete_announcement@1",
+      "method": "DELETE",
+      "path": "/api/v1/admin/site/announcements/:announcementID"
+    },
+    {
+      "id": "core.route.site_chrome.admin_update_announcement",
+      "contractVersion": "sforum.route.site_chrome.admin_update_announcement@1",
+      "method": "PATCH",
+      "path": "/api/v1/admin/site/announcements/:announcementID"
+    },
+    {
+      "id": "core.route.site_chrome.admin_friend_links",
+      "contractVersion": "sforum.route.site_chrome.admin_friend_links@1",
+      "method": "GET",
+      "path": "/api/v1/admin/site/friend-links"
+    },
+    {
+      "id": "core.route.site_chrome.admin_create_friend_link",
+      "contractVersion": "sforum.route.site_chrome.admin_create_friend_link@1",
+      "method": "POST",
+      "path": "/api/v1/admin/site/friend-links"
+    },
+    {
+      "id": "core.route.site_chrome.admin_delete_friend_link",
+      "contractVersion": "sforum.route.site_chrome.admin_delete_friend_link@1",
+      "method": "DELETE",
+      "path": "/api/v1/admin/site/friend-links/:linkID"
+    },
+    {
+      "id": "core.route.site_chrome.admin_update_friend_link",
+      "contractVersion": "sforum.route.site_chrome.admin_update_friend_link@1",
+      "method": "PATCH",
+      "path": "/api/v1/admin/site/friend-links/:linkID"
+    },
+    {
+      "id": "core.route.site_chrome.admin_nav_items",
+      "contractVersion": "sforum.route.site_chrome.admin_nav_items@1",
+      "method": "GET",
+      "path": "/api/v1/admin/site/nav-items"
+    },
+    {
+      "id": "core.route.site_chrome.admin_create_nav_item",
+      "contractVersion": "sforum.route.site_chrome.admin_create_nav_item@1",
+      "method": "POST",
+      "path": "/api/v1/admin/site/nav-items"
+    },
+    {
+      "id": "core.route.site_chrome.admin_delete_nav_item",
+      "contractVersion": "sforum.route.site_chrome.admin_delete_nav_item@1",
+      "method": "DELETE",
+      "path": "/api/v1/admin/site/nav-items/:itemID"
+    },
+    {
+      "id": "core.route.site_chrome.admin_update_nav_item",
+      "contractVersion": "sforum.route.site_chrome.admin_update_nav_item@1",
+      "method": "PATCH",
+      "path": "/api/v1/admin/site/nav-items/:itemID"
+    },
+    {
+      "id": "core.route.options.list_admin",
+      "contractVersion": "sforum.route.options.list_admin@1",
+      "method": "GET",
+      "path": "/api/v1/admin/web-options"
+    },
+    {
+      "id": "core.route.options.update_admin",
+      "contractVersion": "sforum.route.options.update_admin@1",
+      "method": "PUT",
+      "path": "/api/v1/admin/web-options"
+    },
+    {
+      "id": "core.route.webhooks.list_deliveries",
+      "contractVersion": "sforum.route.webhooks.list_deliveries@1",
+      "method": "GET",
+      "path": "/api/v1/admin/webhooks/deliveries"
+    },
+    {
+      "id": "core.route.webhooks.list_endpoints",
+      "contractVersion": "sforum.route.webhooks.list_endpoints@1",
+      "method": "GET",
+      "path": "/api/v1/admin/webhooks/endpoints"
+    },
+    {
+      "id": "core.route.webhooks.create_endpoint",
+      "contractVersion": "sforum.route.webhooks.create_endpoint@1",
+      "method": "POST",
+      "path": "/api/v1/admin/webhooks/endpoints"
+    },
+    {
+      "id": "core.route.webhooks.delete_endpoint",
+      "contractVersion": "sforum.route.webhooks.delete_endpoint@1",
+      "method": "DELETE",
+      "path": "/api/v1/admin/webhooks/endpoints/:endpointID"
+    },
+    {
+      "id": "core.route.webhooks.update_endpoint",
+      "contractVersion": "sforum.route.webhooks.update_endpoint@1",
+      "method": "PATCH",
+      "path": "/api/v1/admin/webhooks/endpoints/:endpointID"
+    },
+    {
+      "id": "core.route.webhooks.list_catalog_events",
+      "contractVersion": "sforum.route.webhooks.list_catalog_events@1",
+      "method": "GET",
+      "path": "/api/v1/admin/webhooks/events"
+    },
+    {
+      "id": "core.route.attachments.upload",
+      "contractVersion": "sforum.route.attachments.upload@1",
+      "method": "POST",
+      "path": "/api/v1/attachments"
+    },
+    {
+      "id": "core.route.attachments.get",
+      "contractVersion": "sforum.route.attachments.get@1",
+      "method": "GET",
+      "path": "/api/v1/attachments/:publicId"
+    },
+    {
+      "id": "core.route.attachments.content",
+      "contractVersion": "sforum.route.attachments.content@1",
+      "method": "GET",
+      "path": "/api/v1/attachments/:publicId/content"
+    },
+    {
+      "id": "core.route.identity.login",
+      "contractVersion": "sforum.route.identity.login@1",
+      "method": "POST",
+      "path": "/api/v1/auth/login"
+    },
+    {
+      "id": "core.route.identity.logout",
+      "contractVersion": "sforum.route.identity.logout@1",
+      "method": "POST",
+      "path": "/api/v1/auth/logout"
+    },
+    {
+      "id": "core.route.identity.password_reset_confirm",
+      "contractVersion": "sforum.route.identity.password_reset_confirm@1",
+      "method": "POST",
+      "path": "/api/v1/auth/password-reset/confirm"
+    },
+    {
+      "id": "core.route.identity.password_reset_request",
+      "contractVersion": "sforum.route.identity.password_reset_request@1",
+      "method": "POST",
+      "path": "/api/v1/auth/password-reset/request"
+    },
+    {
+      "id": "core.route.identity.register",
+      "contractVersion": "sforum.route.identity.register@1",
+      "method": "POST",
+      "path": "/api/v1/auth/register"
+    },
+    {
+      "id": "core.route.identity.registration_status",
+      "contractVersion": "sforum.route.identity.registration_status@1",
+      "method": "GET",
+      "path": "/api/v1/auth/registration-status"
+    },
+    {
+      "id": "core.route.identity.session",
+      "contractVersion": "sforum.route.identity.session@1",
+      "method": "GET",
+      "path": "/api/v1/auth/session"
+    },
+    {
+      "id": "core.route.identity.list_sessions",
+      "contractVersion": "sforum.route.identity.list_sessions@1",
+      "method": "GET",
+      "path": "/api/v1/auth/sessions"
+    },
+    {
+      "id": "core.route.identity.revoke_session",
+      "contractVersion": "sforum.route.identity.revoke_session@1",
+      "method": "DELETE",
+      "path": "/api/v1/auth/sessions/:sessionId"
+    },
+    {
+      "id": "core.route.identity.revoke_other_sessions",
+      "contractVersion": "sforum.route.identity.revoke_other_sessions@1",
+      "method": "POST",
+      "path": "/api/v1/auth/sessions/revoke-others"
+    },
+    {
+      "id": "core.route.identity.list_apitokens",
+      "contractVersion": "sforum.route.identity.list_apitokens@1",
+      "method": "GET",
+      "path": "/api/v1/auth/tokens"
+    },
+    {
+      "id": "core.route.identity.create_apitoken",
+      "contractVersion": "sforum.route.identity.create_apitoken@1",
+      "method": "POST",
+      "path": "/api/v1/auth/tokens"
+    },
+    {
+      "id": "core.route.identity.revoke_apitoken",
+      "contractVersion": "sforum.route.identity.revoke_apitoken@1",
+      "method": "DELETE",
+      "path": "/api/v1/auth/tokens/:tokenID"
+    },
+    {
+      "id": "core.route.identity.rotate_apitoken",
+      "contractVersion": "sforum.route.identity.rotate_apitoken@1",
+      "method": "POST",
+      "path": "/api/v1/auth/tokens/:tokenID/rotate"
+    },
+    {
+      "id": "core.route.forum.categories",
+      "contractVersion": "sforum.route.forum.categories@1",
+      "method": "GET",
+      "path": "/api/v1/categories"
+    },
+    {
+      "id": "core.route.forum.category_groups",
+      "contractVersion": "sforum.route.forum.category_groups@1",
+      "method": "GET",
+      "path": "/api/v1/category-groups"
+    },
+    {
+      "id": "core.route.forum.delete_comment",
+      "contractVersion": "sforum.route.forum.delete_comment@1",
+      "method": "DELETE",
+      "path": "/api/v1/comments/:commentID"
+    },
+    {
+      "id": "core.route.forum.update_comment",
+      "contractVersion": "sforum.route.forum.update_comment@1",
+      "method": "PATCH",
+      "path": "/api/v1/comments/:commentID"
+    },
+    {
+      "id": "core.route.forum.replies",
+      "contractVersion": "sforum.route.forum.replies@1",
+      "method": "GET",
+      "path": "/api/v1/comments/:commentID/replies"
+    },
+    {
+      "id": "core.route.forum.composer_toolbar",
+      "contractVersion": "sforum.route.forum.composer_toolbar@1",
+      "method": "GET",
+      "path": "/api/v1/composer/toolbar"
+    },
+    {
+      "id": "core.route.entity_meta.list_values",
+      "contractVersion": "sforum.route.entity_meta.list_values@1",
+      "method": "GET",
+      "path": "/api/v1/entity-meta/:entityType/:entityID"
+    },
+    {
+      "id": "core.route.entity_meta.upsert_values",
+      "contractVersion": "sforum.route.entity_meta.upsert_values@1",
+      "method": "PUT",
+      "path": "/api/v1/entity-meta/:entityType/:entityID"
+    },
+    {
+      "id": "core.route.entity_meta.list_public_definitions",
+      "contractVersion": "sforum.route.entity_meta.list_public_definitions@1",
+      "method": "GET",
+      "path": "/api/v1/entity-meta/definitions"
+    },
+    {
+      "id": "core.route.extensions.proxy_extension_route",
+      "contractVersion": "sforum.route.extensions.proxy_extension_route@1",
+      "method": "*",
+      "path": "/api/v1/extensions/:extensionId/*"
+    },
+    {
+      "id": "core.route.system.health",
+      "contractVersion": "sforum.route.system.health@1",
+      "method": "GET",
+      "path": "/api/v1/health"
+    },
+    {
+      "id": "core.route.identity.human_verification_challenge",
+      "contractVersion": "sforum.route.identity.human_verification_challenge@1",
+      "method": "GET",
+      "path": "/api/v1/human-verification/challenge"
+    },
+    {
+      "id": "core.route.forum.author_review_items",
+      "contractVersion": "sforum.route.forum.author_review_items@1",
+      "method": "GET",
+      "path": "/api/v1/me/content-review"
+    },
+    {
+      "id": "core.route.moderation.create_report",
+      "contractVersion": "sforum.route.moderation.create_report@1",
+      "method": "POST",
+      "path": "/api/v1/moderation/reports"
+    },
+    {
+      "id": "core.route.moderation.get_review_context",
+      "contractVersion": "sforum.route.moderation.get_review_context@1",
+      "method": "GET",
+      "path": "/api/v1/moderation/workbench/context/:targetType/:targetID"
+    },
+    {
+      "id": "core.route.moderation.queue_counts",
+      "contractVersion": "sforum.route.moderation.queue_counts@1",
+      "method": "GET",
+      "path": "/api/v1/moderation/workbench/counts"
+    },
+    {
+      "id": "core.route.moderation.submit_decision",
+      "contractVersion": "sforum.route.moderation.submit_decision@1",
+      "method": "POST",
+      "path": "/api/v1/moderation/workbench/decisions"
+    },
+    {
+      "id": "core.route.moderation.list_workbench_history",
+      "contractVersion": "sforum.route.moderation.list_workbench_history@1",
+      "method": "GET",
+      "path": "/api/v1/moderation/workbench/history"
+    },
+    {
+      "id": "core.route.moderation.list_pending",
+      "contractVersion": "sforum.route.moderation.list_pending@1",
+      "method": "GET",
+      "path": "/api/v1/moderation/workbench/pending"
+    },
+    {
+      "id": "core.route.moderation.list_report_items",
+      "contractVersion": "sforum.route.moderation.list_report_items@1",
+      "method": "GET",
+      "path": "/api/v1/moderation/workbench/reports"
+    },
+    {
+      "id": "core.route.notifications.list",
+      "contractVersion": "sforum.route.notifications.list@1",
+      "method": "GET",
+      "path": "/api/v1/notifications"
+    },
+    {
+      "id": "core.route.notifications.mark_read",
+      "contractVersion": "sforum.route.notifications.mark_read@1",
+      "method": "PATCH",
+      "path": "/api/v1/notifications/:id/read"
+    },
+    {
+      "id": "core.route.notifications.mark_all_read",
+      "contractVersion": "sforum.route.notifications.mark_all_read@1",
+      "method": "POST",
+      "path": "/api/v1/notifications/read-all"
+    },
+    {
+      "id": "core.route.notifications.unread_count",
+      "contractVersion": "sforum.route.notifications.unread_count@1",
+      "method": "GET",
+      "path": "/api/v1/notifications/unread-count"
+    },
+    {
+      "id": "core.route.pages.public_catalog",
+      "contractVersion": "sforum.route.pages.public_catalog@1",
+      "method": "GET",
+      "path": "/api/v1/pages/catalog"
+    },
+    {
+      "id": "core.route.pages.resolve",
+      "contractVersion": "sforum.route.pages.resolve@1",
+      "method": "GET",
+      "path": "/api/v1/pages/resolve"
+    },
+    {
+      "id": "core.route.pages.resolve_path",
+      "contractVersion": "sforum.route.pages.resolve_path@1",
+      "method": "GET",
+      "path": "/api/v1/pages/resolve-path"
+    },
+    {
+      "id": "core.route.identity.list_permissions",
+      "contractVersion": "sforum.route.identity.list_permissions@1",
+      "method": "GET",
+      "path": "/api/v1/permissions"
+    },
+    {
+      "id": "core.route.identity.permission_matrix",
+      "contractVersion": "sforum.route.identity.permission_matrix@1",
+      "method": "GET",
+      "path": "/api/v1/permissions/matrix"
+    },
+    {
+      "id": "core.route.profile.my_profile",
+      "contractVersion": "sforum.route.profile.my_profile@1",
+      "method": "GET",
+      "path": "/api/v1/profile"
+    },
+    {
+      "id": "core.route.profile.update_my_profile",
+      "contractVersion": "sforum.route.profile.update_my_profile@1",
+      "method": "PUT",
+      "path": "/api/v1/profile"
+    },
+    {
+      "id": "core.route.profile.delete_avatar",
+      "contractVersion": "sforum.route.profile.delete_avatar@1",
+      "method": "DELETE",
+      "path": "/api/v1/profile/avatar"
+    },
+    {
+      "id": "core.route.profile.upload_avatar",
+      "contractVersion": "sforum.route.profile.upload_avatar@1",
+      "method": "POST",
+      "path": "/api/v1/profile/avatar"
+    },
+    {
+      "id": "core.route.profile.public_profile",
+      "contractVersion": "sforum.route.profile.public_profile@1",
+      "method": "GET",
+      "path": "/api/v1/profiles/:username"
+    },
+    {
+      "id": "core.route.system.ready",
+      "contractVersion": "sforum.route.system.ready@1",
+      "method": "GET",
+      "path": "/api/v1/ready"
+    },
+    {
+      "id": "core.route.identity.list_roles",
+      "contractVersion": "sforum.route.identity.list_roles@1",
+      "method": "GET",
+      "path": "/api/v1/roles"
+    },
+    {
+      "id": "core.route.identity.create_role",
+      "contractVersion": "sforum.route.identity.create_role@1",
+      "method": "POST",
+      "path": "/api/v1/roles"
+    },
+    {
+      "id": "core.route.identity.delete_role",
+      "contractVersion": "sforum.route.identity.delete_role@1",
+      "method": "DELETE",
+      "path": "/api/v1/roles/:roleKey"
+    },
+    {
+      "id": "core.route.identity.update_role",
+      "contractVersion": "sforum.route.identity.update_role@1",
+      "method": "PATCH",
+      "path": "/api/v1/roles/:roleKey"
+    },
+    {
+      "id": "core.route.identity.replace_role_permissions",
+      "contractVersion": "sforum.route.identity.replace_role_permissions@1",
+      "method": "PUT",
+      "path": "/api/v1/roles/:roleKey/permissions"
+    },
+    {
+      "id": "core.route.forum.search",
+      "contractVersion": "sforum.route.forum.search@1",
+      "method": "GET",
+      "path": "/api/v1/search"
+    },
+    {
+      "id": "core.route.seo.list",
+      "contractVersion": "sforum.route.seo.list@1",
+      "method": "GET",
+      "path": "/api/v1/seo/sitemap-entries"
+    },
+    {
+      "id": "core.route.extensions.public_active_theme_settings",
+      "contractVersion": "sforum.route.extensions.public_active_theme_settings@1",
+      "method": "GET",
+      "path": "/api/v1/site/active-theme/settings"
+    },
+    {
+      "id": "core.route.pages.active_skin",
+      "contractVersion": "sforum.route.pages.active_skin@1",
+      "method": "GET",
+      "path": "/api/v1/site/active-theme/skin"
+    },
+    {
+      "id": "core.route.site_chrome.public_announcements",
+      "contractVersion": "sforum.route.site_chrome.public_announcements@1",
+      "method": "GET",
+      "path": "/api/v1/site/announcements"
+    },
+    {
+      "id": "core.route.site_chrome.public_friend_links",
+      "contractVersion": "sforum.route.site_chrome.public_friend_links@1",
+      "method": "GET",
+      "path": "/api/v1/site/friend-links"
+    },
+    {
+      "id": "core.route.site_chrome.public_nav_items",
+      "contractVersion": "sforum.route.site_chrome.public_nav_items@1",
+      "method": "GET",
+      "path": "/api/v1/site/nav-items"
+    },
+    {
+      "id": "core.route.pages.theme_asset",
+      "contractVersion": "sforum.route.pages.theme_asset@1",
+      "method": "GET",
+      "path": "/api/v1/site/theme-assets/:extensionId/*"
+    },
+    {
+      "id": "core.route.forum.tags",
+      "contractVersion": "sforum.route.forum.tags@1",
+      "method": "GET",
+      "path": "/api/v1/tags"
+    },
+    {
+      "id": "core.route.forum.topics",
+      "contractVersion": "sforum.route.forum.topics@1",
+      "method": "GET",
+      "path": "/api/v1/topics"
+    },
+    {
+      "id": "core.route.forum.create_topic",
+      "contractVersion": "sforum.route.forum.create_topic@1",
+      "method": "POST",
+      "path": "/api/v1/topics"
+    },
+    {
+      "id": "core.route.forum.delete_topic",
+      "contractVersion": "sforum.route.forum.delete_topic@1",
+      "method": "DELETE",
+      "path": "/api/v1/topics/:topicID"
+    },
+    {
+      "id": "core.route.forum.topic",
+      "contractVersion": "sforum.route.forum.topic@1",
+      "method": "GET",
+      "path": "/api/v1/topics/:topicID"
+    },
+    {
+      "id": "core.route.forum.update_topic",
+      "contractVersion": "sforum.route.forum.update_topic@1",
+      "method": "PATCH",
+      "path": "/api/v1/topics/:topicID"
+    },
+    {
+      "id": "core.route.forum.comments",
+      "contractVersion": "sforum.route.forum.comments@1",
+      "method": "GET",
+      "path": "/api/v1/topics/:topicID/comments"
+    },
+    {
+      "id": "core.route.forum.create_comment",
+      "contractVersion": "sforum.route.forum.create_comment@1",
+      "method": "POST",
+      "path": "/api/v1/topics/:topicID/comments"
+    },
+    {
+      "id": "core.route.forum.hide_topic",
+      "contractVersion": "sforum.route.forum.hide_topic@1",
+      "method": "POST",
+      "path": "/api/v1/topics/:topicID/hide"
+    },
+    {
+      "id": "core.route.forum.lock_topic",
+      "contractVersion": "sforum.route.forum.lock_topic@1",
+      "method": "POST",
+      "path": "/api/v1/topics/:topicID/lock"
+    },
+    {
+      "id": "core.route.forum.pin_topic",
+      "contractVersion": "sforum.route.forum.pin_topic@1",
+      "method": "POST",
+      "path": "/api/v1/topics/:topicID/pin"
+    },
+    {
+      "id": "core.route.forum.restore_topic",
+      "contractVersion": "sforum.route.forum.restore_topic@1",
+      "method": "POST",
+      "path": "/api/v1/topics/:topicID/restore"
+    },
+    {
+      "id": "core.route.forum.unlock_topic",
+      "contractVersion": "sforum.route.forum.unlock_topic@1",
+      "method": "POST",
+      "path": "/api/v1/topics/:topicID/unlock"
+    },
+    {
+      "id": "core.route.forum.unpin_topic",
+      "contractVersion": "sforum.route.forum.unpin_topic@1",
+      "method": "POST",
+      "path": "/api/v1/topics/:topicID/unpin"
+    },
+    {
+      "id": "core.route.forum.topic_by_slug",
+      "contractVersion": "sforum.route.forum.topic_by_slug@1",
+      "method": "GET",
+      "path": "/api/v1/topics/by-slug/:slug"
+    },
+    {
+      "id": "core.route.identity.list_users",
+      "contractVersion": "sforum.route.identity.list_users@1",
+      "method": "GET",
+      "path": "/api/v1/users"
+    },
+    {
+      "id": "core.route.identity.get_user",
+      "contractVersion": "sforum.route.identity.get_user@1",
+      "method": "GET",
+      "path": "/api/v1/users/:userID"
+    },
+    {
+      "id": "core.route.identity.update_user",
+      "contractVersion": "sforum.route.identity.update_user@1",
+      "method": "PATCH",
+      "path": "/api/v1/users/:userID"
+    },
+    {
+      "id": "core.route.identity.admin_clear_user_client_ips",
+      "contractVersion": "sforum.route.identity.admin_clear_user_client_ips@1",
+      "method": "POST",
+      "path": "/api/v1/users/:userID/client-ips/clear"
+    },
+    {
+      "id": "core.route.identity.replace_user_permission_overrides",
+      "contractVersion": "sforum.route.identity.replace_user_permission_overrides@1",
+      "method": "PUT",
+      "path": "/api/v1/users/:userID/permission-overrides"
+    },
+    {
+      "id": "core.route.identity.replace_user_roles",
+      "contractVersion": "sforum.route.identity.replace_user_roles@1",
+      "method": "PUT",
+      "path": "/api/v1/users/:userID/roles"
+    },
+    {
+      "id": "core.route.identity.admin_revoke_user_sessions",
+      "contractVersion": "sforum.route.identity.admin_revoke_user_sessions@1",
+      "method": "POST",
+      "path": "/api/v1/users/:userID/sessions/revoke"
+    },
+    {
+      "id": "core.route.options.list_public",
+      "contractVersion": "sforum.route.options.list_public@1",
+      "method": "GET",
+      "path": "/api/v1/web-options"
+    },
+    {
+      "id": "core.route.options.update",
+      "contractVersion": "sforum.route.options.update@1",
+      "method": "PUT",
+      "path": "/api/v1/web-options"
+    },
+    {
+      "id": "core.route.options.get_public",
+      "contractVersion": "sforum.route.options.get_public@1",
+      "method": "GET",
+      "path": "/api/v1/web-options/:name"
+    },
+    {
+      "id": "core.route.webhooks.inbound",
+      "contractVersion": "sforum.route.webhooks.inbound@1",
+      "method": "POST",
+      "path": "/api/v1/webhooks/inbound/:source"
+    }
+  ],
+  "ui": [
+    {
+      "id": "core.component.admin.sfadmin_extension_store_shelf",
+      "contractVersion": "sforum.component.admin.sfadmin_extension_store_shelf@1",
+      "source": "apps/web/app/components/admin/SFAdminExtensionStoreShelf.vue"
+    },
+    {
+      "id": "core.component.admin.sfadmin_footer",
+      "contractVersion": "sforum.component.admin.sfadmin_footer@1",
+      "source": "apps/web/app/components/SFAdminFooter.vue"
+    },
+    {
+      "id": "core.component.admin.sfadmin_form_footer",
+      "contractVersion": "sforum.component.admin.sfadmin_form_footer@1",
+      "source": "apps/web/app/components/SFAdminFormFooter.vue"
+    },
+    {
+      "id": "core.component.admin.sfadmin_frontend_trust_panel",
+      "contractVersion": "sforum.component.admin.sfadmin_frontend_trust_panel@1",
+      "source": "apps/web/app/components/SFAdminFrontendTrustPanel.vue"
+    },
+    {
+      "id": "core.component.admin.sfadmin_overview_trend_trio",
+      "contractVersion": "sforum.component.admin.sfadmin_overview_trend_trio@1",
+      "source": "apps/web/app/components/admin/SFAdminOverviewTrendTrio.vue"
+    },
+    {
+      "id": "core.component.admin.sfadmin_site_chrome_panel",
+      "contractVersion": "sforum.component.admin.sfadmin_site_chrome_panel@1",
+      "source": "apps/web/app/components/admin/SFAdminSiteChromePanel.vue"
+    },
+    {
+      "id": "core.component.admin.sfextension_settings_actions",
+      "contractVersion": "sforum.component.admin.sfextension_settings_actions@1",
+      "source": "apps/web/app/components/extensions/settings/SFExtensionSettingsActions.vue"
+    },
+    {
+      "id": "core.component.admin.sfextension_settings_callout",
+      "contractVersion": "sforum.component.admin.sfextension_settings_callout@1",
+      "source": "apps/web/app/components/extensions/settings/SFExtensionSettingsCallout.vue"
+    },
+    {
+      "id": "core.component.admin.sfextension_settings_field",
+      "contractVersion": "sforum.component.admin.sfextension_settings_field@1",
+      "source": "apps/web/app/components/extensions/settings/SFExtensionSettingsField.vue"
+    },
+    {
+      "id": "core.component.admin.sfextension_settings_group",
+      "contractVersion": "sforum.component.admin.sfextension_settings_group@1",
+      "source": "apps/web/app/components/extensions/settings/SFExtensionSettingsGroup.vue"
+    },
+    {
+      "id": "core.component.admin.sfextension_settings_renderer",
+      "contractVersion": "sforum.component.admin.sfextension_settings_renderer@1",
+      "source": "apps/web/app/components/extensions/settings/SFExtensionSettingsRenderer.vue"
+    },
+    {
+      "id": "core.component.admin.sfseocontent_types",
+      "contractVersion": "sforum.component.admin.sfseocontent_types@1",
+      "source": "apps/web/app/components/admin/seo/SFSEOContentTypes.vue"
+    },
+    {
+      "id": "core.component.admin.sfseoimage_picker",
+      "contractVersion": "sforum.component.admin.sfseoimage_picker@1",
+      "source": "apps/web/app/components/admin/seo/SFSEOImagePicker.vue"
+    },
+    {
+      "id": "core.component.admin.sfseosearch_appearance",
+      "contractVersion": "sforum.component.admin.sfseosearch_appearance@1",
+      "source": "apps/web/app/components/admin/seo/SFSEOSearchAppearance.vue"
+    },
+    {
+      "id": "core.component.admin.sftrusted_settings_component",
+      "contractVersion": "sforum.component.admin.sftrusted_settings_component@1",
+      "source": "apps/web/app/components/extensions/settings/SFTrustedSettingsComponent.vue"
+    },
+    {
+      "id": "core.component.page.admin",
+      "contractVersion": "sforum.component.page.admin@1",
+      "source": "apps/web/app/pages/admin/index.vue"
+    },
+    {
+      "id": "core.component.page.admin.attachments",
+      "contractVersion": "sforum.component.page.admin.attachments@1",
+      "source": "apps/web/app/pages/admin/attachments.vue"
+    },
+    {
+      "id": "core.component.page.admin.database",
+      "contractVersion": "sforum.component.page.admin.database@1",
+      "source": "apps/web/app/pages/admin/database.vue"
+    },
+    {
+      "id": "core.component.page.admin.entity.meta",
+      "contractVersion": "sforum.component.page.admin.entity.meta@1",
+      "source": "apps/web/app/pages/admin/entity-meta.vue"
+    },
+    {
+      "id": "core.component.page.admin.extensions",
+      "contractVersion": "sforum.component.page.admin.extensions@1",
+      "source": "apps/web/app/pages/admin/extensions/index.vue"
+    },
+    {
+      "id": "core.component.page.admin.extensions.contributions",
+      "contractVersion": "sforum.component.page.admin.extensions.contributions@1",
+      "source": "apps/web/app/pages/admin/extensions/contributions.vue"
+    },
+    {
+      "id": "core.component.page.admin.extensions.events",
+      "contractVersion": "sforum.component.page.admin.extensions.events@1",
+      "source": "apps/web/app/pages/admin/extensions/events.vue"
+    },
+    {
+      "id": "core.component.page.admin.extensions.extension.id.pages.page.path",
+      "contractVersion": "sforum.component.page.admin.extensions.extension.id.pages.page.path@1",
+      "source": "apps/web/app/pages/admin/extensions/[extensionId]/pages/[...pagePath].vue"
+    },
+    {
+      "id": "core.component.page.admin.extensions.pages",
+      "contractVersion": "sforum.component.page.admin.extensions.pages@1",
+      "source": "apps/web/app/pages/admin/extensions/pages.vue"
+    },
+    {
+      "id": "core.component.page.admin.extensions.plugins",
+      "contractVersion": "sforum.component.page.admin.extensions.plugins@1",
+      "source": "apps/web/app/pages/admin/extensions/plugins.vue"
+    },
+    {
+      "id": "core.component.page.admin.extensions.settings",
+      "contractVersion": "sforum.component.page.admin.extensions.settings@1",
+      "source": "apps/web/app/pages/admin/extensions/settings.vue"
+    },
+    {
+      "id": "core.component.page.admin.extensions.store",
+      "contractVersion": "sforum.component.page.admin.extensions.store@1",
+      "source": "apps/web/app/pages/admin/extensions/store/index.vue"
+    },
+    {
+      "id": "core.component.page.admin.extensions.store.plugins",
+      "contractVersion": "sforum.component.page.admin.extensions.store.plugins@1",
+      "source": "apps/web/app/pages/admin/extensions/store/plugins.vue"
+    },
+    {
+      "id": "core.component.page.admin.extensions.store.themes",
+      "contractVersion": "sforum.component.page.admin.extensions.store.themes@1",
+      "source": "apps/web/app/pages/admin/extensions/store/themes.vue"
+    },
+    {
+      "id": "core.component.page.admin.extensions.themes",
+      "contractVersion": "sforum.component.page.admin.extensions.themes@1",
+      "source": "apps/web/app/pages/admin/extensions/themes.vue"
+    },
+    {
+      "id": "core.component.page.admin.forum.categories",
+      "contractVersion": "sforum.component.page.admin.forum.categories@1",
+      "source": "apps/web/app/pages/admin/forum/categories.vue"
+    },
+    {
+      "id": "core.component.page.admin.forum.settings",
+      "contractVersion": "sforum.component.page.admin.forum.settings@1",
+      "source": "apps/web/app/pages/admin/forum/settings.vue"
+    },
+    {
+      "id": "core.component.page.admin.forum.tags",
+      "contractVersion": "sforum.component.page.admin.forum.tags@1",
+      "source": "apps/web/app/pages/admin/forum/tags.vue"
+    },
+    {
+      "id": "core.component.page.admin.jobs",
+      "contractVersion": "sforum.component.page.admin.jobs@1",
+      "source": "apps/web/app/pages/admin/jobs.vue"
+    },
+    {
+      "id": "core.component.page.admin.moderation",
+      "contractVersion": "sforum.component.page.admin.moderation@1",
+      "source": "apps/web/app/pages/admin/moderation.vue"
+    },
+    {
+      "id": "core.component.page.admin.permissions",
+      "contractVersion": "sforum.component.page.admin.permissions@1",
+      "source": "apps/web/app/pages/admin/permissions.vue"
+    },
+    {
+      "id": "core.component.page.admin.personalization",
+      "contractVersion": "sforum.component.page.admin.personalization@1",
+      "source": "apps/web/app/pages/admin/personalization.vue"
+    },
+    {
+      "id": "core.component.page.admin.roles",
+      "contractVersion": "sforum.component.page.admin.roles@1",
+      "source": "apps/web/app/pages/admin/roles.vue"
+    },
+    {
+      "id": "core.component.page.admin.schedules",
+      "contractVersion": "sforum.component.page.admin.schedules@1",
+      "source": "apps/web/app/pages/admin/schedules.vue"
+    },
+    {
+      "id": "core.component.page.admin.search",
+      "contractVersion": "sforum.component.page.admin.search@1",
+      "source": "apps/web/app/pages/admin/search.vue"
+    },
+    {
+      "id": "core.component.page.admin.seo",
+      "contractVersion": "sforum.component.page.admin.seo@1",
+      "source": "apps/web/app/pages/admin/seo.vue"
+    },
+    {
+      "id": "core.component.page.admin.settings",
+      "contractVersion": "sforum.component.page.admin.settings@1",
+      "source": "apps/web/app/pages/admin/settings/index.vue"
+    },
+    {
+      "id": "core.component.page.admin.settings.avatar",
+      "contractVersion": "sforum.component.page.admin.settings.avatar@1",
+      "source": "apps/web/app/pages/admin/settings/avatar.vue"
+    },
+    {
+      "id": "core.component.page.admin.settings.features",
+      "contractVersion": "sforum.component.page.admin.settings.features@1",
+      "source": "apps/web/app/pages/admin/settings/features.vue"
+    },
+    {
+      "id": "core.component.page.admin.settings.mail",
+      "contractVersion": "sforum.component.page.admin.settings.mail@1",
+      "source": "apps/web/app/pages/admin/settings/mail.vue"
+    },
+    {
+      "id": "core.component.page.admin.site.chrome",
+      "contractVersion": "sforum.component.page.admin.site.chrome@1",
+      "source": "apps/web/app/pages/admin/site-chrome.vue"
+    },
+    {
+      "id": "core.component.page.admin.users",
+      "contractVersion": "sforum.component.page.admin.users@1",
+      "source": "apps/web/app/pages/admin/users.vue"
+    },
+    {
+      "id": "core.component.page.admin.webhooks",
+      "contractVersion": "sforum.component.page.admin.webhooks@1",
+      "source": "apps/web/app/pages/admin/webhooks.vue"
+    },
+    {
+      "id": "core.component.page.auth.forgot_password",
+      "contractVersion": "sforum.component.page.auth.forgot_password@1",
+      "source": "apps/web/app/pages/forgot-password.vue"
+    },
+    {
+      "id": "core.component.page.auth.login",
+      "contractVersion": "sforum.component.page.auth.login@1",
+      "source": "apps/web/app/pages/login.vue"
+    },
+    {
+      "id": "core.component.page.auth.register",
+      "contractVersion": "sforum.component.page.auth.register@1",
+      "source": "apps/web/app/pages/register.vue"
+    },
+    {
+      "id": "core.component.page.auth.reset_password",
+      "contractVersion": "sforum.component.page.auth.reset_password@1",
+      "source": "apps/web/app/pages/reset-password.vue"
+    },
+    {
+      "id": "core.component.page.dev.components",
+      "contractVersion": "sforum.component.page.dev.components@1",
+      "source": "apps/web/app/pages/components.vue"
+    },
+    {
+      "id": "core.component.page.forum.category.index",
+      "contractVersion": "sforum.component.page.forum.category.index@1",
+      "source": "apps/web/app/pages/categories/index.vue"
+    },
+    {
+      "id": "core.component.page.forum.category.show",
+      "contractVersion": "sforum.component.page.forum.category.show@1",
+      "source": "apps/web/app/pages/c/[categorySlug].vue"
+    },
+    {
+      "id": "core.component.page.forum.home",
+      "contractVersion": "sforum.component.page.forum.home@1",
+      "source": "apps/web/app/pages/index.vue"
+    },
+    {
+      "id": "core.component.page.forum.my.content_review",
+      "contractVersion": "sforum.component.page.forum.my.content_review@1",
+      "source": "apps/web/app/pages/my/content-review.vue"
+    },
+    {
+      "id": "core.component.page.forum.my.home",
+      "contractVersion": "sforum.component.page.forum.my.home@1",
+      "source": "apps/web/app/pages/my/index.vue"
+    },
+    {
+      "id": "core.component.page.forum.notifications",
+      "contractVersion": "sforum.component.page.forum.notifications@1",
+      "source": "apps/web/app/pages/notifications.vue"
+    },
+    {
+      "id": "core.component.page.forum.profile.show",
+      "contractVersion": "sforum.component.page.forum.profile.show@1",
+      "source": "apps/web/app/pages/u/[username].vue"
+    },
+    {
+      "id": "core.component.page.forum.settings.profile",
+      "contractVersion": "sforum.component.page.forum.settings.profile@1",
+      "source": "apps/web/app/pages/settings/profile.vue"
+    },
+    {
+      "id": "core.component.page.forum.settings.security",
+      "contractVersion": "sforum.component.page.forum.settings.security@1",
+      "source": "apps/web/app/pages/settings/security.vue"
+    },
+    {
+      "id": "core.component.page.forum.tag.index",
+      "contractVersion": "sforum.component.page.forum.tag.index@1",
+      "source": "apps/web/app/pages/tags/index.vue"
+    },
+    {
+      "id": "core.component.page.forum.tag.show",
+      "contractVersion": "sforum.component.page.forum.tag.show@1",
+      "source": "apps/web/app/pages/tags/[tagSlug].vue"
+    },
+    {
+      "id": "core.component.page.forum.topic.create",
+      "contractVersion": "sforum.component.page.forum.topic.create@1",
+      "source": "apps/web/app/pages/topics/new.vue"
+    },
+    {
+      "id": "core.component.page.forum.topic.show",
+      "contractVersion": "sforum.component.page.forum.topic.show@1",
+      "source": "apps/web/app/pages/t/[...path].vue"
+    },
+    {
+      "id": "core.component.page.moderation.review",
+      "contractVersion": "sforum.component.page.moderation.review@1",
+      "source": "apps/web/app/pages/moderation/index.vue"
+    },
+    {
+      "id": "core.component.page.sf.registry.page",
+      "contractVersion": "sforum.component.page.sf.registry.page@1",
+      "source": "apps/web/app/pages/[...sfRegistryPage].vue"
+    },
+    {
+      "id": "core.component.page.site.guidelines",
+      "contractVersion": "sforum.component.page.site.guidelines@1",
+      "source": "apps/web/app/pages/guidelines.vue"
+    },
+    {
+      "id": "core.component.page.site.privacy",
+      "contractVersion": "sforum.component.page.site.privacy@1",
+      "source": "apps/web/app/pages/privacy.vue"
+    },
+    {
+      "id": "core.component.page.site.terms",
+      "contractVersion": "sforum.component.page.site.terms@1",
+      "source": "apps/web/app/pages/terms.vue"
+    },
+    {
+      "id": "core.component.page.x.path",
+      "contractVersion": "sforum.component.page.x.path@1",
+      "source": "apps/web/app/pages/x/[...path].vue"
+    },
+    {
+      "id": "core.component.shared.author_content_review_status",
+      "contractVersion": "sforum.component.shared.author_content_review_status@1",
+      "source": "apps/web/app/components/moderation/AuthorContentReviewStatus.vue"
+    },
+    {
+      "id": "core.component.shared.moderation_context_panel",
+      "contractVersion": "sforum.component.shared.moderation_context_panel@1",
+      "source": "apps/web/app/components/moderation/ModerationContextPanel.vue"
+    },
+    {
+      "id": "core.component.shared.moderation_decision_table",
+      "contractVersion": "sforum.component.shared.moderation_decision_table@1",
+      "source": "apps/web/app/components/moderation/ModerationDecisionTable.vue"
+    },
+    {
+      "id": "core.component.shared.moderation_queue_item",
+      "contractVersion": "sforum.component.shared.moderation_queue_item@1",
+      "source": "apps/web/app/components/moderation/ModerationQueueItem.vue"
+    },
+    {
+      "id": "core.component.shared.moderation_settings_form",
+      "contractVersion": "sforum.component.shared.moderation_settings_form@1",
+      "source": "apps/web/app/components/moderation/ModerationSettingsForm.vue"
+    },
+    {
+      "id": "core.component.shared.sfalert",
+      "contractVersion": "sforum.component.shared.sfalert@1",
+      "source": "apps/web/app/components/SFAlert.vue"
+    },
+    {
+      "id": "core.component.shared.sfannouncement_banner",
+      "contractVersion": "sforum.component.shared.sfannouncement_banner@1",
+      "source": "apps/web/app/components/SFAnnouncementBanner.vue"
+    },
+    {
+      "id": "core.component.shared.sfapi_connection_modal",
+      "contractVersion": "sforum.component.shared.sfapi_connection_modal@1",
+      "source": "apps/web/app/components/SFApiConnectionModal.vue"
+    },
+    {
+      "id": "core.component.shared.sfavatar",
+      "contractVersion": "sforum.component.shared.sfavatar@1",
+      "source": "apps/web/app/components/SFAvatar.vue"
+    },
+    {
+      "id": "core.component.shared.sfbadge",
+      "contractVersion": "sforum.component.shared.sfbadge@1",
+      "source": "apps/web/app/components/SFBadge.vue"
+    },
+    {
+      "id": "core.component.shared.sfbutton",
+      "contractVersion": "sforum.component.shared.sfbutton@1",
+      "source": "apps/web/app/components/SFButton.vue"
+    },
+    {
+      "id": "core.component.shared.sfcard",
+      "contractVersion": "sforum.component.shared.sfcard@1",
+      "source": "apps/web/app/components/SFCard.vue"
+    },
+    {
+      "id": "core.component.shared.sfcomment",
+      "contractVersion": "sforum.component.shared.sfcomment@1",
+      "source": "apps/web/app/components/SFComment.vue"
+    },
+    {
+      "id": "core.component.shared.sfcomment_stream_controls",
+      "contractVersion": "sforum.component.shared.sfcomment_stream_controls@1",
+      "source": "apps/web/app/components/SFCommentStreamControls.vue"
+    },
+    {
+      "id": "core.component.shared.sfeditor",
+      "contractVersion": "sforum.component.shared.sfeditor@1",
+      "source": "apps/web/app/components/SFEditor.vue"
+    },
+    {
+      "id": "core.component.shared.sfempty_state",
+      "contractVersion": "sforum.component.shared.sfempty_state@1",
+      "source": "apps/web/app/components/SFEmptyState.vue"
+    },
+    {
+      "id": "core.component.shared.sfextension_widget",
+      "contractVersion": "sforum.component.shared.sfextension_widget@1",
+      "source": "apps/web/app/components/SFExtensionWidget.vue"
+    },
+    {
+      "id": "core.component.shared.sffeed_row",
+      "contractVersion": "sforum.component.shared.sffeed_row@1",
+      "source": "apps/web/app/components/SFFeedRow.vue"
+    },
+    {
+      "id": "core.component.shared.sffooter",
+      "contractVersion": "sforum.component.shared.sffooter@1",
+      "source": "apps/web/app/components/SFFooter.vue"
+    },
+    {
+      "id": "core.component.shared.sfhome_navigation",
+      "contractVersion": "sforum.component.shared.sfhome_navigation@1",
+      "source": "apps/web/app/components/SFHomeNavigation.vue"
+    },
+    {
+      "id": "core.component.shared.sfhome_page",
+      "contractVersion": "sforum.component.shared.sfhome_page@1",
+      "source": "apps/web/app/components/SFHomePage.vue"
+    },
+    {
+      "id": "core.component.shared.sfhome_right_rail",
+      "contractVersion": "sforum.component.shared.sfhome_right_rail@1",
+      "source": "apps/web/app/components/SFHomeRightRail.vue"
+    },
+    {
+      "id": "core.component.shared.sfhome_topic_row",
+      "contractVersion": "sforum.component.shared.sfhome_topic_row@1",
+      "source": "apps/web/app/components/SFHomeTopicRow.vue"
+    },
+    {
+      "id": "core.component.shared.sficon_picker",
+      "contractVersion": "sforum.component.shared.sficon_picker@1",
+      "source": "apps/web/app/components/SFIconPicker.vue"
+    },
+    {
+      "id": "core.component.shared.sfinput",
+      "contractVersion": "sforum.component.shared.sfinput@1",
+      "source": "apps/web/app/components/SFInput.vue"
+    },
+    {
+      "id": "core.component.shared.sfnavbar",
+      "contractVersion": "sforum.component.shared.sfnavbar@1",
+      "source": "apps/web/app/components/SFNavbar.vue"
+    },
+    {
+      "id": "core.component.shared.sfpage_outlet",
+      "contractVersion": "sforum.component.shared.sfpage_outlet@1",
+      "source": "apps/web/app/components/SFPageOutlet.vue"
+    },
+    {
+      "id": "core.component.shared.sfpagination",
+      "contractVersion": "sforum.component.shared.sfpagination@1",
+      "source": "apps/web/app/components/SFPagination.vue"
+    },
+    {
+      "id": "core.component.shared.sfprogress",
+      "contractVersion": "sforum.component.shared.sfprogress@1",
+      "source": "apps/web/app/components/SFProgress.vue"
+    },
+    {
+      "id": "core.component.shared.sfreport_dialog",
+      "contractVersion": "sforum.component.shared.sfreport_dialog@1",
+      "source": "apps/web/app/components/SFReportDialog.vue"
+    },
+    {
+      "id": "core.component.shared.sfsearch",
+      "contractVersion": "sforum.component.shared.sfsearch@1",
+      "source": "apps/web/app/components/SFSearch.vue"
+    },
+    {
+      "id": "core.component.shared.sfskeleton",
+      "contractVersion": "sforum.component.shared.sfskeleton@1",
+      "source": "apps/web/app/components/SFSkeleton.vue"
+    },
+    {
+      "id": "core.component.shared.sftabs",
+      "contractVersion": "sforum.component.shared.sftabs@1",
+      "source": "apps/web/app/components/SFTabs.vue"
+    },
+    {
+      "id": "core.component.shared.sftheme_template",
+      "contractVersion": "sforum.component.shared.sftheme_template@1",
+      "source": "apps/web/app/components/SFThemeTemplate.vue"
+    },
+    {
+      "id": "core.component.shared.sftoast",
+      "contractVersion": "sforum.component.shared.sftoast@1",
+      "source": "apps/web/app/components/SFToast.vue"
+    },
+    {
+      "id": "core.component.shared.sftoggle",
+      "contractVersion": "sforum.component.shared.sftoggle@1",
+      "source": "apps/web/app/components/SFToggle.vue"
+    },
+    {
+      "id": "core.component.shared.sftopic_action_menu",
+      "contractVersion": "sforum.component.shared.sftopic_action_menu@1",
+      "source": "apps/web/app/components/SFTopicActionMenu.vue"
+    },
+    {
+      "id": "core.component.shared.sftopic_editor",
+      "contractVersion": "sforum.component.shared.sftopic_editor@1",
+      "source": "apps/web/app/components/SFTopicEditor.vue"
+    },
+    {
+      "id": "core.component.shared.sftopic_heading",
+      "contractVersion": "sforum.component.shared.sftopic_heading@1",
+      "source": "apps/web/app/components/SFTopicHeading.vue"
+    },
+    {
+      "id": "core.component.shared.sftopic_progress_rail",
+      "contractVersion": "sforum.component.shared.sftopic_progress_rail@1",
+      "source": "apps/web/app/components/SFTopicProgressRail.vue"
+    },
+    {
+      "id": "core.component.shared.sftopic_side_card",
+      "contractVersion": "sforum.component.shared.sftopic_side_card@1",
+      "source": "apps/web/app/components/SFTopicSideCard.vue"
+    }
+  ]
+}

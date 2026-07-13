@@ -1,0 +1,967 @@
+{
+  "system": {
+    "routes": {
+      "state": "open",
+      "contract": "health/ready and future Route Registry defaults",
+      "phase": "P6"
+    },
+    "hooks": {
+      "state": "planned",
+      "phase": "P7"
+    },
+    "queries": {
+      "state": "planned",
+      "phase": "P7"
+    },
+    "adminComponents": {
+      "state": "open",
+      "contract": "admin.overview.* descriptor surfaces",
+      "phase": "P7"
+    },
+    "publicComponents": {
+      "state": "closed",
+      "reason": "Pre-plugin health and recovery output is Host-owned and non-overridable."
+    },
+    "identityPermissions": {
+      "state": "closed",
+      "reason": "Safe mode and CLI recovery use host-operator authority outside web RBAC."
+    },
+    "media": {
+      "state": "closed",
+      "reason": "System health owns no media objects."
+    },
+    "navigationRegions": {
+      "state": "planned",
+      "phase": "P9"
+    },
+    "cacheInvalidation": {
+      "state": "planned",
+      "phase": "P11"
+    },
+    "jobs": {
+      "state": "open",
+      "contract": "worker heartbeat and audit cleanup schedules",
+      "phase": "P7"
+    },
+    "lifecycle": {
+      "state": "closed",
+      "reason": "Pre-plugin boot, safe mode, and CLI recovery cannot be replaced by extensions."
+    }
+  },
+  "adminOverview": {
+    "routes": {
+      "state": "open",
+      "contract": "admin overview aggregate route",
+      "phase": "P6"
+    },
+    "hooks": {
+      "state": "planned",
+      "phase": "P7"
+    },
+    "queries": {
+      "state": "planned",
+      "phase": "P7"
+    },
+    "adminComponents": {
+      "state": "open",
+      "contract": "admin.dashboard.widgets descriptors",
+      "phase": "P7"
+    },
+    "publicComponents": {
+      "state": "closed",
+      "reason": "Administrative runtime telemetry is not public presentation."
+    },
+    "identityPermissions": {
+      "state": "open",
+      "contract": "admin.access",
+      "phase": "P7"
+    },
+    "media": {
+      "state": "closed",
+      "reason": "The overview aggregates metadata and owns no media lifecycle."
+    },
+    "navigationRegions": {
+      "state": "open",
+      "contract": "admin dashboard navigation",
+      "phase": "P9"
+    },
+    "cacheInvalidation": {
+      "state": "planned",
+      "phase": "P11"
+    },
+    "jobs": {
+      "state": "open",
+      "contract": "worker heartbeat and queue-lag aggregates",
+      "phase": "P7"
+    },
+    "lifecycle": {
+      "state": "planned",
+      "phase": "P4"
+    }
+  },
+  "extensions": {
+    "routes": {
+      "state": "open",
+      "contract": "namespaced proxy and Page Registry administration",
+      "phase": "P6"
+    },
+    "hooks": {
+      "state": "open",
+      "contract": "extension.enabled/disabled and lifecycle audit",
+      "phase": "P7"
+    },
+    "queries": {
+      "state": "planned",
+      "phase": "P7"
+    },
+    "adminComponents": {
+      "state": "open",
+      "contract": "settings schema and trusted admin component fallback",
+      "phase": "P7"
+    },
+    "publicComponents": {
+      "state": "open",
+      "contract": "Page Registry L0/L1",
+      "phase": "P9"
+    },
+    "identityPermissions": {
+      "state": "open",
+      "contract": "extension.view/plugin.manage/theme.manage",
+      "phase": "P7"
+    },
+    "media": {
+      "state": "planned",
+      "phase": "P10"
+    },
+    "navigationRegions": {
+      "state": "open",
+      "contract": "manifest admin navigation",
+      "phase": "P9"
+    },
+    "cacheInvalidation": {
+      "state": "planned",
+      "phase": "P11"
+    },
+    "jobs": {
+      "state": "open",
+      "contract": "extension.plugin_job and event delivery",
+      "phase": "P7"
+    },
+    "lifecycle": {
+      "state": "open",
+      "contract": "v1 enable/disable/upgrade/uninstall compatibility",
+      "phase": "P4"
+    }
+  },
+  "identity": {
+    "routes": {
+      "state": "open",
+      "contract": "auth, users, roles, tokens, sessions",
+      "phase": "P6"
+    },
+    "hooks": {
+      "state": "open",
+      "contract": "user.before_register and user.registered",
+      "phase": "P7"
+    },
+    "queries": {
+      "state": "planned",
+      "phase": "P7"
+    },
+    "adminComponents": {
+      "state": "planned",
+      "phase": "P7"
+    },
+    "publicComponents": {
+      "state": "planned",
+      "phase": "P9"
+    },
+    "identityPermissions": {
+      "state": "open",
+      "contract": "RBAC, overrides, sessions, risk policy",
+      "phase": "P7"
+    },
+    "media": {
+      "state": "open",
+      "contract": "avatar attachment integration",
+      "phase": "P10"
+    },
+    "navigationRegions": {
+      "state": "planned",
+      "phase": "P9"
+    },
+    "cacheInvalidation": {
+      "state": "planned",
+      "phase": "P11"
+    },
+    "jobs": {
+      "state": "open",
+      "contract": "identity.cleanup_sessions",
+      "phase": "P7"
+    },
+    "lifecycle": {
+      "state": "planned",
+      "phase": "P4"
+    }
+  },
+  "forum": {
+    "routes": {
+      "state": "open",
+      "contract": "forum read/write and taxonomy routes",
+      "phase": "P6"
+    },
+    "hooks": {
+      "state": "open",
+      "contract": "topic/comment/category/tag action and filter catalog",
+      "phase": "P7"
+    },
+    "queries": {
+      "state": "planned",
+      "phase": "P7"
+    },
+    "adminComponents": {
+      "state": "planned",
+      "phase": "P7"
+    },
+    "publicComponents": {
+      "state": "open",
+      "contract": "descriptor contributions and Page Registry pages",
+      "phase": "P9"
+    },
+    "identityPermissions": {
+      "state": "open",
+      "contract": "topic/post/category/tag permission policies",
+      "phase": "P7"
+    },
+    "media": {
+      "state": "open",
+      "contract": "content attachment references",
+      "phase": "P10"
+    },
+    "navigationRegions": {
+      "state": "open",
+      "contract": "forum.nav.items descriptors",
+      "phase": "P9"
+    },
+    "cacheInvalidation": {
+      "state": "open",
+      "contract": "forum generation cache",
+      "phase": "P11"
+    },
+    "jobs": {
+      "state": "open",
+      "contract": "search indexing and idle-topic schedule",
+      "phase": "P7"
+    },
+    "lifecycle": {
+      "state": "planned",
+      "phase": "P4"
+    }
+  },
+  "profile": {
+    "routes": {
+      "state": "open",
+      "contract": "public and self profile/avatar routes",
+      "phase": "P6"
+    },
+    "hooks": {
+      "state": "planned",
+      "phase": "P7"
+    },
+    "queries": {
+      "state": "planned",
+      "phase": "P7"
+    },
+    "adminComponents": {
+      "state": "planned",
+      "phase": "P7"
+    },
+    "publicComponents": {
+      "state": "open",
+      "contract": "profile tabs descriptor and page contract",
+      "phase": "P9"
+    },
+    "identityPermissions": {
+      "state": "open",
+      "contract": "self ownership plus attachment.upload",
+      "phase": "P7"
+    },
+    "media": {
+      "state": "open",
+      "contract": "avatar source and attachment references",
+      "phase": "P10"
+    },
+    "navigationRegions": {
+      "state": "planned",
+      "phase": "P9"
+    },
+    "cacheInvalidation": {
+      "state": "planned",
+      "phase": "P11"
+    },
+    "jobs": {
+      "state": "closed",
+      "reason": "Current profile writes have no independent durable work."
+    },
+    "lifecycle": {
+      "state": "planned",
+      "phase": "P4"
+    }
+  },
+  "attachments": {
+    "routes": {
+      "state": "open",
+      "contract": "upload/read/admin/settings routes",
+      "phase": "P6"
+    },
+    "hooks": {
+      "state": "open",
+      "contract": "attachment.before_upload/uploaded",
+      "phase": "P7"
+    },
+    "queries": {
+      "state": "planned",
+      "phase": "P7"
+    },
+    "adminComponents": {
+      "state": "planned",
+      "phase": "P7"
+    },
+    "publicComponents": {
+      "state": "planned",
+      "phase": "P9"
+    },
+    "identityPermissions": {
+      "state": "open",
+      "contract": "attachment.upload/manage/settings.manage",
+      "phase": "P7"
+    },
+    "media": {
+      "state": "open",
+      "contract": "storage provider slot and authoritative read policy",
+      "phase": "P10"
+    },
+    "navigationRegions": {
+      "state": "planned",
+      "phase": "P9"
+    },
+    "cacheInvalidation": {
+      "state": "planned",
+      "phase": "P11"
+    },
+    "jobs": {
+      "state": "open",
+      "contract": "attachments.cleanup_orphans",
+      "phase": "P7"
+    },
+    "lifecycle": {
+      "state": "planned",
+      "phase": "P4"
+    }
+  },
+  "database": {
+    "routes": {
+      "state": "open",
+      "contract": "read-only database inspector and CSV export",
+      "phase": "P6"
+    },
+    "hooks": {
+      "state": "planned",
+      "phase": "P7"
+    },
+    "queries": {
+      "state": "open",
+      "contract": "catalog metadata and bounded table reads",
+      "phase": "P7"
+    },
+    "adminComponents": {
+      "state": "planned",
+      "phase": "P7"
+    },
+    "publicComponents": {
+      "state": "closed",
+      "reason": "Database inspection is an admin-only security boundary."
+    },
+    "identityPermissions": {
+      "state": "open",
+      "contract": "database.manage",
+      "phase": "P7"
+    },
+    "media": {
+      "state": "closed",
+      "reason": "Database inspection owns no media transformation or delivery."
+    },
+    "navigationRegions": {
+      "state": "open",
+      "contract": "admin database navigation",
+      "phase": "P9"
+    },
+    "cacheInvalidation": {
+      "state": "closed",
+      "reason": "Inspector reads authoritative PostgreSQL state and does not cache rows."
+    },
+    "jobs": {
+      "state": "closed",
+      "reason": "Current read-only inspection and streaming CSV require no durable job."
+    },
+    "lifecycle": {
+      "state": "planned",
+      "phase": "P4"
+    }
+  },
+  "entityMeta": {
+    "routes": {
+      "state": "open",
+      "contract": "definition and entity-value routes",
+      "phase": "P6"
+    },
+    "hooks": {
+      "state": "open",
+      "contract": "entity_meta.updated",
+      "phase": "P7"
+    },
+    "queries": {
+      "state": "planned",
+      "phase": "P7"
+    },
+    "adminComponents": {
+      "state": "planned",
+      "phase": "P7"
+    },
+    "publicComponents": {
+      "state": "planned",
+      "phase": "P9"
+    },
+    "identityPermissions": {
+      "state": "open",
+      "contract": "entity_meta.manage plus entity ownership policy",
+      "phase": "P7"
+    },
+    "media": {
+      "state": "closed",
+      "reason": "Current EAV values do not own attachment/media references."
+    },
+    "navigationRegions": {
+      "state": "open",
+      "contract": "admin entity-meta navigation",
+      "phase": "P9"
+    },
+    "cacheInvalidation": {
+      "state": "planned",
+      "phase": "P11"
+    },
+    "jobs": {
+      "state": "closed",
+      "reason": "Current metadata writes are synchronous and have no durable projection."
+    },
+    "lifecycle": {
+      "state": "planned",
+      "phase": "P4"
+    }
+  },
+  "options": {
+    "routes": {
+      "state": "open",
+      "contract": "public/admin options and feature flags",
+      "phase": "P6"
+    },
+    "hooks": {
+      "state": "planned",
+      "phase": "P7"
+    },
+    "queries": {
+      "state": "planned",
+      "phase": "P7"
+    },
+    "adminComponents": {
+      "state": "open",
+      "contract": "host settings forms and reset flows",
+      "phase": "P7"
+    },
+    "publicComponents": {
+      "state": "closed",
+      "reason": "Options provide data; presentation belongs to pages/themes."
+    },
+    "identityPermissions": {
+      "state": "open",
+      "contract": "option-owner permission dispatch",
+      "phase": "P7"
+    },
+    "media": {
+      "state": "open",
+      "contract": "brand/SEO attachment references",
+      "phase": "P10"
+    },
+    "navigationRegions": {
+      "state": "open",
+      "contract": "site chrome structured records",
+      "phase": "P9"
+    },
+    "cacheInvalidation": {
+      "state": "open",
+      "contract": "short-TTL cache with write invalidation",
+      "phase": "P11"
+    },
+    "jobs": {
+      "state": "closed",
+      "reason": "Option writes are synchronous and currently require no durable work."
+    },
+    "lifecycle": {
+      "state": "planned",
+      "phase": "P4"
+    }
+  },
+  "siteChrome": {
+    "routes": {
+      "state": "open",
+      "contract": "public/admin navigation, announcements, and friend links",
+      "phase": "P6"
+    },
+    "hooks": {
+      "state": "planned",
+      "phase": "P7"
+    },
+    "queries": {
+      "state": "planned",
+      "phase": "P7"
+    },
+    "adminComponents": {
+      "state": "open",
+      "contract": "personalization site-chrome forms and lists",
+      "phase": "P7"
+    },
+    "publicComponents": {
+      "state": "open",
+      "contract": "navbar, announcement, footer/link consumers",
+      "phase": "P9"
+    },
+    "identityPermissions": {
+      "state": "open",
+      "contract": "settings.site.manage",
+      "phase": "P7"
+    },
+    "media": {
+      "state": "open",
+      "contract": "brand attachment references are coordinated through Options/Attachments",
+      "phase": "P10"
+    },
+    "navigationRegions": {
+      "state": "open",
+      "contract": "current structured navigation; target Navigation/Region Registry",
+      "phase": "P9"
+    },
+    "cacheInvalidation": {
+      "state": "planned",
+      "phase": "P11"
+    },
+    "jobs": {
+      "state": "closed",
+      "reason": "Current chrome updates are synchronous and need no durable job."
+    },
+    "lifecycle": {
+      "state": "planned",
+      "phase": "P4"
+    }
+  },
+  "jobs": {
+    "routes": {
+      "state": "open",
+      "contract": "queue and schedule workbench",
+      "phase": "P6"
+    },
+    "hooks": {
+      "state": "planned",
+      "phase": "P7"
+    },
+    "queries": {
+      "state": "planned",
+      "phase": "P7"
+    },
+    "adminComponents": {
+      "state": "open",
+      "contract": "jobs table/action/detail surfaces",
+      "phase": "P7"
+    },
+    "publicComponents": {
+      "state": "closed",
+      "reason": "Queue operations are not a public presentation surface."
+    },
+    "identityPermissions": {
+      "state": "open",
+      "contract": "jobs.view/jobs.manage",
+      "phase": "P7"
+    },
+    "media": {
+      "state": "closed",
+      "reason": "Queue runtime owns no media policy."
+    },
+    "navigationRegions": {
+      "state": "planned",
+      "phase": "P9"
+    },
+    "cacheInvalidation": {
+      "state": "planned",
+      "phase": "P11"
+    },
+    "jobs": {
+      "state": "open",
+      "contract": "River kinds, queues, retries, schedules",
+      "phase": "P7"
+    },
+    "lifecycle": {
+      "state": "open",
+      "contract": "worker/runtime drain ownership",
+      "phase": "P4"
+    }
+  },
+  "moderation": {
+    "routes": {
+      "state": "open",
+      "contract": "reports, policy, workbench, decisions",
+      "phase": "P6"
+    },
+    "hooks": {
+      "state": "planned",
+      "phase": "P7"
+    },
+    "queries": {
+      "state": "planned",
+      "phase": "P7"
+    },
+    "adminComponents": {
+      "state": "planned",
+      "phase": "P7"
+    },
+    "publicComponents": {
+      "state": "planned",
+      "phase": "P9"
+    },
+    "identityPermissions": {
+      "state": "open",
+      "contract": "moderation.manage/review/view_ip",
+      "phase": "P7"
+    },
+    "media": {
+      "state": "open",
+      "contract": "publication-aware attachment reads",
+      "phase": "P10"
+    },
+    "navigationRegions": {
+      "state": "planned",
+      "phase": "P9"
+    },
+    "cacheInvalidation": {
+      "state": "open",
+      "contract": "publication decisions invalidate forum/search reads",
+      "phase": "P11"
+    },
+    "jobs": {
+      "state": "open",
+      "contract": "notification and search projections",
+      "phase": "P7"
+    },
+    "lifecycle": {
+      "state": "planned",
+      "phase": "P4"
+    }
+  },
+  "mail": {
+    "routes": {
+      "state": "open",
+      "contract": "mail provider/policy/delivery/test routes",
+      "phase": "P6"
+    },
+    "hooks": {
+      "state": "planned",
+      "phase": "P7"
+    },
+    "queries": {
+      "state": "planned",
+      "phase": "P7"
+    },
+    "adminComponents": {
+      "state": "planned",
+      "phase": "P7"
+    },
+    "publicComponents": {
+      "state": "closed",
+      "reason": "Mail transport has no public presentation; user notices belong to Notifications."
+    },
+    "identityPermissions": {
+      "state": "open",
+      "contract": "settings.mail.manage and compatibility parent",
+      "phase": "P7"
+    },
+    "media": {
+      "state": "closed",
+      "reason": "Mail transport owns no upload/media processing."
+    },
+    "navigationRegions": {
+      "state": "planned",
+      "phase": "P9"
+    },
+    "cacheInvalidation": {
+      "state": "planned",
+      "phase": "P11"
+    },
+    "jobs": {
+      "state": "open",
+      "contract": "mail.deliver",
+      "phase": "P7"
+    },
+    "lifecycle": {
+      "state": "open",
+      "contract": "provider disable fallback",
+      "phase": "P4"
+    }
+  },
+  "notifications": {
+    "routes": {
+      "state": "open",
+      "contract": "recipient inbox/read/test routes",
+      "phase": "P6"
+    },
+    "hooks": {
+      "state": "planned",
+      "phase": "P7"
+    },
+    "queries": {
+      "state": "planned",
+      "phase": "P7"
+    },
+    "adminComponents": {
+      "state": "planned",
+      "phase": "P7"
+    },
+    "publicComponents": {
+      "state": "open",
+      "contract": "notification inbox and unread navigation",
+      "phase": "P9"
+    },
+    "identityPermissions": {
+      "state": "open",
+      "contract": "current recipient ownership and settings policy",
+      "phase": "P7"
+    },
+    "media": {
+      "state": "closed",
+      "reason": "Inbox payloads do not own upload/media processing."
+    },
+    "navigationRegions": {
+      "state": "open",
+      "contract": "navbar unread entry",
+      "phase": "P9"
+    },
+    "cacheInvalidation": {
+      "state": "planned",
+      "phase": "P11"
+    },
+    "jobs": {
+      "state": "open",
+      "contract": "notification fanout and mail projection",
+      "phase": "P7"
+    },
+    "lifecycle": {
+      "state": "planned",
+      "phase": "P4"
+    }
+  },
+  "search": {
+    "routes": {
+      "state": "open",
+      "contract": "public search and admin reindex routes",
+      "phase": "P6"
+    },
+    "hooks": {
+      "state": "planned",
+      "phase": "P7"
+    },
+    "queries": {
+      "state": "planned",
+      "phase": "P7"
+    },
+    "adminComponents": {
+      "state": "planned",
+      "phase": "P7"
+    },
+    "publicComponents": {
+      "state": "planned",
+      "phase": "P9"
+    },
+    "identityPermissions": {
+      "state": "open",
+      "contract": "search.manage and publication visibility policy",
+      "phase": "P7"
+    },
+    "media": {
+      "state": "closed",
+      "reason": "Search indexes media metadata only through reviewed document schemas."
+    },
+    "navigationRegions": {
+      "state": "planned",
+      "phase": "P9"
+    },
+    "cacheInvalidation": {
+      "state": "open",
+      "contract": "index enqueue/delete and rebuild invalidation",
+      "phase": "P11"
+    },
+    "jobs": {
+      "state": "open",
+      "contract": "search.index_topic/search.delete_topic/reindex",
+      "phase": "P7"
+    },
+    "lifecycle": {
+      "state": "planned",
+      "phase": "P4"
+    }
+  },
+  "seo": {
+    "routes": {
+      "state": "open",
+      "contract": "sitemap entries and admin SEO asset routes",
+      "phase": "P6"
+    },
+    "hooks": {
+      "state": "planned",
+      "phase": "P7"
+    },
+    "queries": {
+      "state": "planned",
+      "phase": "P7"
+    },
+    "adminComponents": {
+      "state": "planned",
+      "phase": "P7"
+    },
+    "publicComponents": {
+      "state": "open",
+      "contract": "metadata and structured-data consumers",
+      "phase": "P9"
+    },
+    "identityPermissions": {
+      "state": "open",
+      "contract": "seo.manage plus public visibility policy",
+      "phase": "P7"
+    },
+    "media": {
+      "state": "open",
+      "contract": "SEO image attachment integration",
+      "phase": "P10"
+    },
+    "navigationRegions": {
+      "state": "planned",
+      "phase": "P9"
+    },
+    "cacheInvalidation": {
+      "state": "open",
+      "contract": "SEO/theme/content revision invalidation",
+      "phase": "P11"
+    },
+    "jobs": {
+      "state": "closed",
+      "reason": "Current sitemap/metadata resolution is synchronous; search projection is owned by Search."
+    },
+    "lifecycle": {
+      "state": "planned",
+      "phase": "P4"
+    }
+  },
+  "webhooks": {
+    "routes": {
+      "state": "open",
+      "contract": "admin endpoint/delivery catalog and inbound source route",
+      "phase": "P6"
+    },
+    "hooks": {
+      "state": "open",
+      "contract": "observe-event bridge to outbound deliveries",
+      "phase": "P7"
+    },
+    "queries": {
+      "state": "planned",
+      "phase": "P7"
+    },
+    "adminComponents": {
+      "state": "planned",
+      "phase": "P7"
+    },
+    "publicComponents": {
+      "state": "closed",
+      "reason": "Webhook configuration and deliveries are operator-only."
+    },
+    "identityPermissions": {
+      "state": "open",
+      "contract": "settings.manage/settings.site.manage",
+      "phase": "P7"
+    },
+    "media": {
+      "state": "closed",
+      "reason": "Webhook payloads cannot act as an upload/media pipeline."
+    },
+    "navigationRegions": {
+      "state": "open",
+      "contract": "admin webhook navigation",
+      "phase": "P9"
+    },
+    "cacheInvalidation": {
+      "state": "closed",
+      "reason": "Endpoint/delivery state is read from authoritative PostgreSQL."
+    },
+    "jobs": {
+      "state": "open",
+      "contract": "webhook.deliver",
+      "phase": "P7"
+    },
+    "lifecycle": {
+      "state": "planned",
+      "phase": "P4"
+    }
+  },
+  "localization": {
+    "routes": {
+      "state": "closed",
+      "reason": "Locale negotiation is middleware; language-pack routes are not implemented yet."
+    },
+    "hooks": {
+      "state": "planned",
+      "phase": "P7"
+    },
+    "queries": {
+      "state": "planned",
+      "phase": "P7"
+    },
+    "adminComponents": {
+      "state": "planned",
+      "phase": "P7"
+    },
+    "publicComponents": {
+      "state": "planned",
+      "phase": "P9"
+    },
+    "identityPermissions": {
+      "state": "planned",
+      "phase": "P7"
+    },
+    "media": {
+      "state": "closed",
+      "reason": "Localization owns package catalogs, not user media."
+    },
+    "navigationRegions": {
+      "state": "planned",
+      "phase": "P9"
+    },
+    "cacheInvalidation": {
+      "state": "planned",
+      "phase": "P11"
+    },
+    "jobs": {
+      "state": "planned",
+      "phase": "P7"
+    },
+    "lifecycle": {
+      "state": "planned",
+      "phase": "P4"
+    }
+  }
+}

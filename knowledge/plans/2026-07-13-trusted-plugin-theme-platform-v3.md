@@ -1,6 +1,6 @@
 # Trusted Plugin And Theme Platform V3 - Implementation Task Book
 
-Status: **accepted architecture; implementation not started**  
+Status: **active implementation; P0 in progress**
 Date: 2026-07-13  
 Decision: `knowledge/decisions/2026-07-13-trusted-plugin-theme-platform-v3.md`
 
@@ -45,6 +45,15 @@ or trusted L2 to a later product version.
 6. Do not claim platform completion from unit tests alone. Final gates include
    live subprocess, database, restart, browser, JavaScript-disabled, and
    multi-node/revision scenarios.
+7. Monitor context usage throughout this long-running goal. Before an expected
+   context compaction, update the V3 progress ledger and current session
+   handoff with completed commits, dirty files, verification, decisions, next
+   command, and blockers; then commit every coherent buildable slice. Never
+   rely on unrecorded conversation memory to resume the program.
+8. Report an overall integer progress percentage in working updates and phase
+   handoffs. Use the fixed weighted phase model in the progress ledger and only
+   count verified exit criteria; file count, scaffolding, and partial demos do
+   not increase completion by themselves.
 
 ## Accepted Product Invariants
 
@@ -88,6 +97,9 @@ checklist. This task book must implement every row; phase summaries are not
 allowed to narrow or silently omit that contract:
 
 `knowledge/decisions/2026-07-13-trusted-plugin-theme-platform-v3.md`
+
+P0 traceability source:
+`knowledge/plans/2026-07-13-trusted-plugin-theme-platform-v3-traceability.md`.
 
 P0 must re-audit the live implementation before work begins. Existing process
 health, lifecycle separation, v1 compatibility, events/jobs, Page Registry,

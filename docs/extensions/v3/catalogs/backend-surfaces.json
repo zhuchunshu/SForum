@@ -1,0 +1,187 @@
+{
+  "generatedAt": "source-controlled",
+  "events": [
+    "extension.enabled",
+    "extension.disabled",
+    "user.before_register",
+    "user.registered",
+    "topic.before_create",
+    "topic.before_update",
+    "topic.created",
+    "topic.updated",
+    "topic.deleted",
+    "topic.hidden",
+    "topic.restored",
+    "topic.locked",
+    "topic.unlocked",
+    "topic.pinned",
+    "topic.unpinned",
+    "category.created",
+    "category.updated",
+    "tag.created",
+    "tag.updated",
+    "comment.before_create",
+    "comment.created",
+    "attachment.before_upload",
+    "attachment.uploaded",
+    "entity_meta.updated"
+  ],
+  "contributionPoints": [
+    "forum.topic.actions",
+    "forum.topic.sidebar",
+    "forum.topic.badges",
+    "forum.comment.actions",
+    "forum.nav.items",
+    "forum.topic.list.badges",
+    "forum.composer.toolbar",
+    "forum.profile.tabs",
+    "admin.dashboard.widgets",
+    "system.health.checks"
+  ],
+  "providerSlots": [
+    "mail.provider",
+    "search.provider",
+    "attachment.storage.provider",
+    "human_verification.provider",
+    "auth.risk.provider",
+    "editor.sanitizer.provider"
+  ],
+  "schedules": [
+    "identity.cleanup_sessions",
+    "attachments.cleanup_orphans",
+    "audit.cleanup_events",
+    "forum.auto_lock_idle"
+  ],
+  "jobKinds": [
+    {
+      "id": "audit.cleanup_events",
+      "source": "apps/api/app/Jobs/Audit/cleanup_events.go"
+    },
+    {
+      "id": "forum.auto_lock_idle",
+      "source": "apps/api/app/Jobs/Forum/auto_lock_idle.go"
+    },
+    {
+      "id": "identity.cleanup_sessions",
+      "source": "apps/api/app/Jobs/Identity/cleanup_sessions.go"
+    },
+    {
+      "id": "mail.deliver",
+      "source": "apps/api/app/Models/Notifications/outbox.go"
+    },
+    {
+      "id": "webhook.deliver",
+      "source": "apps/api/app/Models/Webhooks/service.go"
+    }
+  ],
+  "cache": [
+    [
+      "forum.category_groups",
+      "generation + 60s"
+    ],
+    [
+      "forum.categories",
+      "generation + 60s"
+    ],
+    [
+      "forum.tags",
+      "generation + 60s"
+    ],
+    [
+      "forum.topic",
+      "topic id + 30s"
+    ],
+    [
+      "forum.topic_list",
+      "generation + 15s"
+    ],
+    [
+      "options.runtime",
+      "short TTL + write invalidation"
+    ]
+  ],
+  "content": [
+    [
+      "forum.topic",
+      "topic metadata + shared post content"
+    ],
+    [
+      "forum.comment",
+      "tree reply + shared post content"
+    ],
+    [
+      "forum.post",
+      "raw, sanitized HTML, plain text, editor/render versions"
+    ],
+    [
+      "forum.post_revision",
+      "source snapshot"
+    ],
+    [
+      "forum.category",
+      "two-level taxonomy category"
+    ],
+    [
+      "forum.tag",
+      "moderated topic taxonomy"
+    ],
+    [
+      "entity_meta.user",
+      "host-owned EAV fields"
+    ],
+    [
+      "entity_meta.topic",
+      "host-owned EAV fields"
+    ]
+  ],
+  "data": [
+    [
+      "identity.user",
+      "users, credentials, roles, permissions, sessions"
+    ],
+    [
+      "profile.user",
+      "public profile and avatar reference"
+    ],
+    [
+      "attachments.attachment",
+      "metadata, references, provider object"
+    ],
+    [
+      "moderation.case",
+      "reports, settings, immutable decisions"
+    ],
+    [
+      "notifications.notification",
+      "recipient-owned inbox"
+    ],
+    [
+      "mail.delivery",
+      "durable delivery state"
+    ],
+    [
+      "extensions.extension",
+      "package, version, settings, trust, events"
+    ],
+    [
+      "jobs.river_job",
+      "River-owned durable work"
+    ],
+    [
+      "options.web_option",
+      "typed runtime key/value"
+    ],
+    [
+      "site.chrome",
+      "navigation, announcements, friend links"
+    ],
+    [
+      "webhooks.endpoint",
+      "endpoint and delivery state"
+    ],
+    [
+      "search.document",
+      "rebuildable Meilisearch projection"
+    ]
+  ]
+}
