@@ -3,6 +3,7 @@ package hostapi
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
@@ -15,14 +16,34 @@ const PluginJobKind = "extension.plugin_job"
 
 // PluginJobArgs 入队载荷：仅允许插件 manifest 声明过的 JobName。
 type PluginJobArgs struct {
-	ExtensionID string         `json:"extensionId"`
-	JobName     string         `json:"kind"`
-	Payload     map[string]any `json:"payload,omitempty"`
-	EnqueuedAt  time.Time      `json:"enqueuedAt"`
+	EnvelopeVersion      int            `json:"envelopeVersion,omitempty"`
+	ExtensionID          string         `json:"extensionId"`
+	ExtensionVersion     string         `json:"extensionVersion,omitempty"`
+	ArtifactDigest       string         `json:"artifactDigest,omitempty"`
+	TrustGrantID         string         `json:"trustGrantId,omitempty"`
+	JobName              string         `json:"kind"`
+	JobContractVersion   string         `json:"jobContractVersion,omitempty"`
+	PayloadSchemaID      string         `json:"payloadSchemaId,omitempty"`
+	PayloadSchemaVersion string         `json:"payloadSchemaVersion,omitempty"`
+	Payload              map[string]any `json:"payload,omitempty"`
+	EnqueuedAt           time.Time      `json:"enqueuedAt"`
 }
 
 // Kind 返回 River 注册用的固定 kind（非插件声明的 JobName）。
 func (PluginJobArgs) Kind() string { return PluginJobKind }
+
+func (a PluginJobArgs) Contract() supportjobs.PluginJobContract {
+	return supportjobs.PluginJobContract{
+		ExtensionID: a.ExtensionID, ExtensionVersion: a.ExtensionVersion, ArtifactDigest: a.ArtifactDigest,
+		JobName: a.JobName, JobContract: a.JobContractVersion,
+		PayloadSchemaID: a.PayloadSchemaID, PayloadSchemaVersion: a.PayloadSchemaVersion,
+	}
+}
+
+func (a PluginJobArgs) validEnvelope() bool {
+	return a.EnvelopeVersion == supportjobs.PluginJobEnvelopeVersion &&
+		a.Contract().Valid() && a.TrustGrantID != "" && !a.EnqueuedAt.IsZero()
+}
 
 // RiverJobEnqueuer 把插件 job 写入 River default 队列。
 type RiverJobEnqueuer struct {
@@ -45,21 +66,109 @@ func (e *RiverJobEnqueuer) EnqueuePluginJob(ctx context.Context, extensionID, ki
 	return err
 }
 
-// PluginJobWorker 是 F2 最小 worker：校验载荷后成功结束。
-// 后续波次可转发到插件 RPC InvokeJob。
-type PluginJobWorker struct {
-	river.WorkerDefaults[PluginJobArgs]
+// EnqueueVersionedPluginJob persists the exact runtime and manifest contract
+// that authorized a protocol-v2 enqueue request.
+func (e *RiverJobEnqueuer) EnqueueVersionedPluginJob(
+	ctx context.Context,
+	contract supportjobs.PluginJobContract,
+	trustGrantID string,
+	payload map[string]any,
+) error {
+	if e == nil || e.Dispatcher == nil {
+		return fmt.Errorf("%w: job dispatcher missing", ErrUnavailable)
+	}
+	if !contract.Valid() || trustGrantID == "" {
+		return fmt.Errorf("%w: exact plugin job contract is required", ErrInvalidRequest)
+	}
+	args := PluginJobArgs{
+		EnvelopeVersion: supportjobs.PluginJobEnvelopeVersion,
+		ExtensionID:     contract.ExtensionID, ExtensionVersion: contract.ExtensionVersion,
+		ArtifactDigest: contract.ArtifactDigest, TrustGrantID: trustGrantID,
+		JobName: contract.JobName, JobContractVersion: contract.JobContract,
+		PayloadSchemaID: contract.PayloadSchemaID, PayloadSchemaVersion: contract.PayloadSchemaVersion,
+		Payload: payload, EnqueuedAt: time.Now().UTC(),
+	}
+	_, err := e.Dispatcher.Enqueue(ctx, args, supportjobs.EnqueueOptions{Queue: supportjobs.QueueDefault})
+	return err
 }
 
-func (w *PluginJobWorker) Work(_ context.Context, job *river.Job[PluginJobArgs]) error {
-	if job.Args.ExtensionID == "" || job.Args.JobName == "" {
-		return fmt.Errorf("plugin job missing extensionId or kind")
+type VersionedPluginJobEnqueuer interface {
+	EnqueueVersionedPluginJob(context.Context, supportjobs.PluginJobContract, string, map[string]any) error
+}
+
+type PluginJobRuntimeContract struct {
+	Contract     supportjobs.PluginJobContract
+	TrustGrantID string
+}
+
+type PluginJobRuntimeResolver interface {
+	ResolvePluginJobRuntime(context.Context, string, string) (PluginJobRuntimeContract, error)
+}
+
+type PluginJobExecutor interface {
+	ExecutePluginJob(context.Context, supportjobs.PluginJobInvocation) error
+}
+
+type PluginJobCompatibilityError struct {
+	Decision supportjobs.PluginJobDecision
+}
+
+func (e *PluginJobCompatibilityError) Error() string {
+	if e == nil {
+		return "plugin job contract is incompatible"
 	}
-	// 保留 payload 编码校验，避免坏 JSON 静默入队。
+	return fmt.Sprintf("plugin job %s: %s", e.Decision.Action, e.Decision.Reason)
+}
+
+// PluginJobWorker resolves the live exact contract before any plugin code is
+// invoked. Legacy or incompatible rows are permanently cancelled.
+type PluginJobWorker struct {
+	river.WorkerDefaults[PluginJobArgs]
+	Resolver PluginJobRuntimeResolver
+	Executor PluginJobExecutor
+}
+
+func (w *PluginJobWorker) Work(ctx context.Context, job *river.Job[PluginJobArgs]) error {
+	if job == nil || !job.Args.validEnvelope() {
+		return cancelPluginJob(supportjobs.PluginJobDecision{
+			Action: supportjobs.PluginJobCancel, Reason: "plugin_job.envelope_invalid",
+		})
+	}
 	if job.Args.Payload != nil {
 		if _, err := json.Marshal(job.Args.Payload); err != nil {
 			return err
 		}
 	}
-	return nil
+	if w == nil || w.Resolver == nil {
+		return errors.New("plugin job runtime resolver is not configured")
+	}
+	target, err := w.Resolver.ResolvePluginJobRuntime(ctx, job.Args.ExtensionID, job.Args.JobName)
+	if err != nil {
+		return fmt.Errorf("resolve plugin job runtime: %w", err)
+	}
+	decision := supportjobs.DecidePluginJobExecution(job.Args.Contract(), target.Contract, nil)
+	if decision.Action != supportjobs.PluginJobExecute {
+		return cancelPluginJob(decision)
+	}
+	if target.TrustGrantID == "" || target.TrustGrantID != job.Args.TrustGrantID {
+		return cancelPluginJob(supportjobs.PluginJobDecision{
+			Action: supportjobs.PluginJobCancel, Reason: "plugin_job.trust_grant_stale",
+		})
+	}
+	if w.Executor == nil {
+		return errors.New("plugin job runtime executor is not configured")
+	}
+	invocation := supportjobs.PluginJobInvocation{
+		Contract: job.Args.Contract(), TrustGrant: job.Args.TrustGrantID,
+		Payload: job.Args.Payload, EnqueuedAt: job.Args.EnqueuedAt,
+	}
+	if job.JobRow != nil {
+		invocation.JobID = job.ID
+		invocation.Attempt = job.Attempt
+	}
+	return w.Executor.ExecutePluginJob(ctx, invocation)
+}
+
+func cancelPluginJob(decision supportjobs.PluginJobDecision) error {
+	return river.JobCancel(&PluginJobCompatibilityError{Decision: decision})
 }

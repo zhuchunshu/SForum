@@ -11,13 +11,13 @@ const PluginJobEnvelopeVersion = 1
 // consume one queued plugin job. Runtime epochs and process instances are
 // intentionally excluded because a durable job may outlive either value.
 type PluginJobContract struct {
-	ExtensionID       string `json:"extensionId"`
-	ExtensionVersion  string `json:"extensionVersion"`
-	ArtifactDigest    string `json:"artifactDigest"`
-	JobName           string `json:"jobName"`
-	JobContract       string `json:"jobContractVersion"`
-	PayloadSchemaID   string `json:"payloadSchemaId"`
-	PayloadSchemaVers string `json:"payloadSchemaVersion"`
+	ExtensionID          string `json:"extensionId"`
+	ExtensionVersion     string `json:"extensionVersion"`
+	ArtifactDigest       string `json:"artifactDigest"`
+	JobName              string `json:"jobName"`
+	JobContract          string `json:"jobContractVersion"`
+	PayloadSchemaID      string `json:"payloadSchemaId"`
+	PayloadSchemaVersion string `json:"payloadSchemaVersion"`
 }
 
 func (c PluginJobContract) Valid() bool {
@@ -27,7 +27,7 @@ func (c PluginJobContract) Valid() bool {
 		strings.TrimSpace(c.JobName) != "" &&
 		strings.TrimSpace(c.JobContract) != "" &&
 		strings.TrimSpace(c.PayloadSchemaID) != "" &&
-		strings.TrimSpace(c.PayloadSchemaVers) != ""
+		strings.TrimSpace(c.PayloadSchemaVersion) != ""
 }
 
 func (c PluginJobContract) Equal(other PluginJobContract) bool {

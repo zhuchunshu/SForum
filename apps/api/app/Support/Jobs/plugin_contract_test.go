@@ -77,6 +77,6 @@ func pluginJobContractFixture(version, digest, schema, schemaVersion string) Plu
 	return PluginJobContract{
 		ExtensionID: "demo.plugin", ExtensionVersion: version, ArtifactDigest: digest,
 		JobName: "demo.sync", JobContract: "demo.job.sync@1",
-		PayloadSchemaID: schema, PayloadSchemaVers: schemaVersion,
+		PayloadSchemaID: schema, PayloadSchemaVersion: schemaVersion,
 	}
 }
