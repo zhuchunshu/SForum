@@ -92,6 +92,62 @@ func TestExecutableTrustRuntimeIdentityUsesExactLiveGrant(t *testing.T) {
 	}
 }
 
+func TestExecutableTrustReviewTargetsStagedArtifactWithoutInvalidatingActiveGrant(t *testing.T) {
+	active := exactTrustExtension(t, "demo.staged-trust")
+	store := &fakeExtensionStore{items: map[string]Extension{active.ID: active}}
+	trustStore := &memoryExecutableTrustStore{}
+	service := NewExecutableTrustService(store, trustStore)
+	actor := extensionManager()
+
+	challenge, err := service.Challenge(context.Background(), actor, active.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := service.ConfirmEnable(context.Background(), actor, active, challenge.Token); err != nil {
+		t.Fatal(err)
+	}
+	trusted, err := service.TrustedArtifact(context.Background(), active)
+	if err != nil || !trusted {
+		t.Fatalf("active artifact grant trusted=%t err=%v", trusted, err)
+	}
+
+	candidate := exactTrustExtension(t, active.ID)
+	candidate.Version = "2.0.0"
+	candidate.Manifest.Version = candidate.Version
+	if err := writeManifest(candidate.PackagePath, candidate.Manifest); err != nil {
+		t.Fatal(err)
+	}
+	candidate.PackageDigest, err = extensionpackage.DigestTree(candidate.PackagePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	active.StagedVersion = &ExtensionVersion{
+		ID: 2, Version: candidate.Version, Manifest: candidate.Manifest,
+		PackageDigest: candidate.PackageDigest, AdminFrontendDigest: candidate.AdminFrontendDigest,
+		PackagePath: candidate.PackagePath, InstalledAt: candidate.InstalledAt,
+	}
+	store.items[active.ID] = active
+
+	status, err := service.Status(context.Background(), actor, active.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if status.Impact.ExtensionVersion != candidate.Version || status.Impact.PackageDigest != candidate.PackageDigest || status.Trusted {
+		t.Fatalf("staged trust status did not bind candidate: %#v", status)
+	}
+	stagedChallenge, err := service.Challenge(context.Background(), actor, active.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stagedChallenge.Impact.ExtensionVersion != candidate.Version || stagedChallenge.Impact.PackageDigest != candidate.PackageDigest {
+		t.Fatalf("staged challenge did not bind candidate: %#v", stagedChallenge.Impact)
+	}
+	trusted, err = service.TrustedArtifact(context.Background(), active)
+	if err != nil || !trusted {
+		t.Fatalf("staging candidate invalidated active grant: trusted=%t err=%v", trusted, err)
+	}
+}
+
 func TestExecutableTrustAuditsChallengeDeniedGrantAndRevoke(t *testing.T) {
 	extension := exactTrustExtension(t, "demo.audit")
 	store := &fakeExtensionStore{items: map[string]Extension{extension.ID: extension}}

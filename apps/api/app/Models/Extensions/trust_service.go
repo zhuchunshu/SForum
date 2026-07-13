@@ -62,7 +62,7 @@ func (s *ExecutableTrustService) Impact(ctx context.Context, actor identity.Acto
 	if !canViewExtensions(actor) && !canManagePlugins(actor) && !canManageThemes(actor) {
 		return TrustImpact{}, identity.ErrPermissionDenied
 	}
-	return buildTrustImpact(extension, TrustActionEnable)
+	return buildTrustImpact(trustReviewArtifact(extension), TrustActionEnable)
 }
 
 func (s *ExecutableTrustService) Status(ctx context.Context, actor identity.Actor, extensionID string) (ExecutableTrustStatus, error) {
@@ -129,6 +129,7 @@ func (s *ExecutableTrustService) Challenge(ctx context.Context, actor identity.A
 	if err != nil {
 		return TrustChallenge{}, err
 	}
+	extension = trustReviewArtifact(extension)
 	if !RequiresExecutableTrust(extension) {
 		return TrustChallenge{}, ErrTrustNotRequired
 	}
@@ -206,6 +207,7 @@ func (s *ExecutableTrustService) Revoke(ctx context.Context, actor identity.Acto
 	if err := s.store.RevokeAll(ctx, extension.ID, actor.ID, "operator_revoked"); err != nil {
 		return ExecutableTrustStatus{}, err
 	}
+	extension = trustReviewArtifact(extension)
 	impact, err := buildTrustImpact(extension, TrustActionEnable)
 	if err != nil {
 		impact = TrustImpact{
