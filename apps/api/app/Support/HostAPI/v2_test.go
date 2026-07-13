@@ -47,11 +47,12 @@ func TestProtocolV2CompatibilityAdapters(t *testing.T) {
 			}),
 			jobs: []string{"demo.sync"},
 		},
-		Settings:    fakeSettings{values: map[string]string{"host": "smtp.example", "password": "secret"}},
-		Permissions: fakePerms{allowed: true},
-		Users:       fakeUsers{value: map[string]any{"id": int64(42), "username": "alice", "email": "alice@example.com"}},
-		Jobs:        jobs,
-		Auditor:     auditor,
+		Settings:     fakeSettings{values: map[string]string{"host": "smtp.example", "password": "secret"}},
+		Permissions:  fakePerms{allowed: true},
+		Users:        fakeUsers{value: map[string]any{"id": int64(42), "username": "alice", "email": "alice@example.com"}},
+		Jobs:         jobs,
+		JobAdmission: &testPluginJobAdmission{},
+		Auditor:      auditor,
 	})
 	core := &protocolV2Core{service: service}
 	requestContext := testProtocolV2RequestContext()

@@ -2,6 +2,7 @@ package hostapi
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Capabilities"
@@ -65,13 +66,40 @@ func (s *protocolV2JobServer) enqueueVersioned(ctx context.Context, request *hos
 	if contract.PayloadSchemaID != request.GetPayload().GetSchemaId() || contract.PayloadSchemaVersion != request.GetPayloadVersion() {
 		return fail("host.job_payload_contract_mismatch", "The payload schema does not match the declared plugin job contract.")
 	}
+	if s.core.service.jobAdmission == nil {
+		return fail("host.job_admission_unavailable", "Plugin job runtime admission is not configured.")
+	}
+	admissionIdentity := PluginJobEnqueueIdentity{
+		ExtensionID: extensionID, ExtensionVersion: identity.GetExtensionVersion(),
+		ArtifactDigest: identity.GetArtifactDigest(), InstanceID: identity.GetInstanceId(),
+	}
+	if !admissionIdentity.valid() {
+		return fail("host.job_runtime_stale", "The authenticated exact runtime identity is incomplete.")
+	}
+	lease, err := s.core.service.jobAdmission.AcquirePluginJobEnqueue(ctx, admissionIdentity)
+	if err != nil {
+		return pluginJobAdmissionFailure(err)
+	}
+	if lease == nil || lease.Context() == nil {
+		if lease != nil {
+			lease.Release()
+		}
+		return fail("host.job_admission_unavailable", "Plugin job runtime admission returned no lease.")
+	}
+	defer lease.Release()
+	if err := lease.Context().Err(); err != nil {
+		return pluginJobAdmissionFailure(pluginJobLeaseFailure(lease))
+	}
 	enqueuer, ok := s.core.service.jobs.(VersionedPluginJobEnqueuer)
 	if !ok {
 		return fail("host.job_versioned_queue_unavailable", "The versioned plugin job queue is not configured.")
 	}
 	if err := enqueuer.EnqueueVersionedPluginJob(
-		ctx, contract, identity.GetTrustGrantId(), protocolV2DocumentValues(request.GetPayload()),
+		lease.Context(), contract, identity.GetTrustGrantId(), protocolV2DocumentValues(request.GetPayload()),
 	); err != nil {
+		if lease.Context().Err() != nil {
+			return pluginJobAdmissionFailure(pluginJobLeaseFailure(lease))
+		}
 		return fail("host.enqueue_failed", fmt.Sprintf("enqueue versioned plugin job: %v", err))
 	}
 	return success(map[string]any{
@@ -79,6 +107,31 @@ func (s *protocolV2JobServer) enqueueVersioned(ctx context.Context, request *hos
 		"payloadSchemaId": contract.PayloadSchemaID, "payloadVersion": contract.PayloadSchemaVersion,
 		"enqueued": true,
 	})
+}
+
+func pluginJobAdmissionFailure(err error) Response {
+	switch {
+	case errors.Is(err, ErrPluginJobEnqueueStale):
+		return fail("host.job_runtime_stale", "The runtime is no longer the active exact plugin instance.")
+	case errors.Is(err, ErrPluginJobEnqueueDraining), errors.Is(err, context.Canceled):
+		if errors.Is(err, ErrPluginJobEnqueueDraining) {
+			return fail("host.job_runtime_draining", "The runtime is draining and no longer accepts new plugin jobs.")
+		}
+		return fail("host.job_enqueue_cancelled", "The plugin job enqueue request was cancelled.")
+	case errors.Is(err, context.DeadlineExceeded):
+		return fail("host.job_enqueue_timeout", "The plugin job enqueue request exceeded its deadline.")
+	default:
+		return fail("host.job_admission_unavailable", fmt.Sprintf("Plugin job runtime admission failed: %v", err))
+	}
+}
+
+func pluginJobLeaseFailure(lease PluginJobEnqueueLease) error {
+	if source, ok := lease.(PluginJobEnqueueLeaseFailure); ok {
+		if err := source.PluginJobEnqueueFailure(); err != nil {
+			return err
+		}
+	}
+	return context.Cause(lease.Context())
 }
 
 func (s *protocolV2JobServer) Cancel(_ context.Context, request *hostv2.JobCancelRequest) (*hostv2.JobCancelResponse, error) {

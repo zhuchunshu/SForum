@@ -94,6 +94,24 @@ func (protocolV2HostUsers) GetUserSafe(context.Context, int64) (map[string]any, 
 	return map[string]any{"id": int64(42), "username": "broker-user", "email": "private@example.com"}, nil
 }
 
+// 本夹具只验证已认证 broker 的 Host API 回调；production 的 exact-runtime
+// admission 由 bootstrap adapter + Manager gate 覆盖。
+type protocolV2HostJobAdmission struct{}
+
+func (protocolV2HostJobAdmission) AcquirePluginJobEnqueue(
+	ctx context.Context,
+	_ hostapi.PluginJobEnqueueIdentity,
+) (hostapi.PluginJobEnqueueLease, error) {
+	return protocolV2HostJobLease{ctx: ctx}, nil
+}
+
+type protocolV2HostJobLease struct {
+	ctx context.Context
+}
+
+func (l protocolV2HostJobLease) Context() context.Context { return l.ctx }
+func (protocolV2HostJobLease) Release()                   {}
+
 func newProtocolV2HostGateway() (*hostapi.Gateway, *protocolV2HostState) {
 	state := &protocolV2HostState{}
 	set := capabilities.NewSet([]string{
@@ -102,7 +120,8 @@ func newProtocolV2HostGateway() (*hostapi.Gateway, *protocolV2HostState) {
 	})
 	service := hostapi.New(hostapi.Config{
 		Capabilities: protocolV2HostCapabilities{set: set}, Settings: protocolV2HostSettings{},
-		Permissions: protocolV2HostPermissions{}, Users: protocolV2HostUsers{}, Jobs: state, Auditor: state,
+		Permissions: protocolV2HostPermissions{}, Users: protocolV2HostUsers{}, Jobs: state,
+		JobAdmission: protocolV2HostJobAdmission{}, Auditor: state,
 	})
 	return hostapi.NewGateway(service), state
 }

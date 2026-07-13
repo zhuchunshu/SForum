@@ -96,6 +96,7 @@ type Service struct {
 	permissions  PermissionChecker
 	settings     SettingsStore
 	jobs         JobEnqueuer
+	jobAdmission PluginJobEnqueueAdmission
 	users        UserReader
 	auditor      audit.Writer
 }
@@ -106,6 +107,7 @@ type Config struct {
 	Permissions  PermissionChecker
 	Settings     SettingsStore
 	Jobs         JobEnqueuer
+	JobAdmission PluginJobEnqueueAdmission
 	Users        UserReader
 	Auditor      audit.Writer
 }
@@ -116,8 +118,16 @@ func New(config Config) *Service {
 		permissions:  config.Permissions,
 		settings:     config.Settings,
 		jobs:         config.Jobs,
+		jobAdmission: config.JobAdmission,
 		users:        config.Users,
 		auditor:      config.Auditor,
+	}
+}
+
+// BindPluginJobAdmission 在 runtime 构造完成后接入 exact-instance admission。
+func (s *Service) BindPluginJobAdmission(admission PluginJobEnqueueAdmission) {
+	if s != nil {
+		s.jobAdmission = admission
 	}
 }
 

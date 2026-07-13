@@ -59,14 +59,16 @@ type fakeJobs struct {
 	lastExt  string
 	contract supportjobs.PluginJobContract
 	grant    string
+	ctx      context.Context
 	err      error
 }
 
-func (f *fakeJobs) EnqueueVersionedPluginJob(_ context.Context, contract supportjobs.PluginJobContract, grant string, _ map[string]any) error {
+func (f *fakeJobs) EnqueueVersionedPluginJob(ctx context.Context, contract supportjobs.PluginJobContract, grant string, _ map[string]any) error {
 	f.lastExt = contract.ExtensionID
 	f.lastKind = contract.JobName
 	f.contract = contract
 	f.grant = grant
+	f.ctx = ctx
 	return f.err
 }
 

@@ -248,6 +248,7 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 	})
 	hostAPIGateway := hostapi.NewGateway(hostAPIService)
 	extensionRuntime := bindAPIExtensionRuntime(extensionStore, hostAPIGateway, extensionService, executableTrustService)
+	hostAPIService.BindPluginJobAdmission(newPluginJobEnqueueAdmission(extensionRuntime))
 	if runtime, ok := extensionRuntime.(interface {
 		WithActivation(*extensions.ActivationCoordinator, string) *extensionsruntime.Manager
 	}); ok {

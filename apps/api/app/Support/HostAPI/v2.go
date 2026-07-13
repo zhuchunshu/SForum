@@ -85,6 +85,10 @@ func protocolV2Failure(reason, message string) *protocolv2.ErrorDetail {
 		code = protocolv2.ErrorCode_ERROR_CODE_NOT_FOUND
 	case strings.Contains(reason, "timeout"):
 		code = protocolv2.ErrorCode_ERROR_CODE_DEADLINE_EXCEEDED
+	case strings.Contains(reason, "cancelled"):
+		code = protocolv2.ErrorCode_ERROR_CODE_CANCELLED
+	case strings.Contains(reason, "stale") || strings.Contains(reason, "draining"):
+		code = protocolv2.ErrorCode_ERROR_CODE_FAILED_PRECONDITION
 	case strings.Contains(reason, "unavailable"):
 		code = protocolv2.ErrorCode_ERROR_CODE_UNAVAILABLE
 		retryable = true
