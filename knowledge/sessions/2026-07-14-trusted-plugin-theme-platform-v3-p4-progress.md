@@ -5,7 +5,7 @@
 - Overall V3: **27%**.
 - P0-P3: **100%**.
 - P4: **47%**, active (7 of 15 task/test rows complete).
-- Branch: `main`; last implementation commit: `04c8b5d75`.
+- Branch: `main`; last implementation commit: `3be41740a`.
 
 ## Changed
 
@@ -86,6 +86,17 @@
   resources expose `stagedVersion` without database identity, upload results
   expose `activationPending`, and list/details/Toast copy accurately state that
   the current artifact continues running.
+- Protocol V2 now owns real staged, published, and retained physical processes.
+  Exact lifecycle calls work on candidates and retained rollback instances;
+  readiness is deferred until after lifecycle preparation, stale stop cannot
+  unregister a replacement, and V1 retains hard-replacement semantics.
+- Plugin job enqueue now acquires the active exact Manager instance and holds a
+  `RuntimeCallJob` lease through the River insert. Stale/draining callers fail
+  closed, force-drain cancellation stays distinct from caller cancellation,
+  and bootstrap binds the production adapter.
+- Added exact-runtime schedule publish/acquire/drain/wait admission with atomic
+  failed-activation compensation and retained rollback. No production schedule
+  trigger owner exists yet, so this prerequisite does not close the drain row.
 
 ## Verification
 
@@ -125,27 +136,35 @@
   tests and race detection.
 - OpenAPI references, staged management contract validation, bilingual JSON,
   Nuxt typecheck, and Nuxt production build passed.
+- Protocol V2 exact-instance focused/repeated/race tests and vet passed,
+  including staged readiness, retained lifecycle, rollback, stale stop, and
+  V1/V2 transition protection.
+- HostAPI, Jobs, Extensions, and bootstrap focused tests passed after job and
+  schedule admission; HostAPI/Jobs/bootstrap race and all four package vet
+  gates passed.
 
 ## Active Ownership
 
-- V2-only retained physical runtime handles and exact stop/discard are in
-  flight under `Support/Extensions`.
-- Initial/final Host-gate topology, exact source/target request binding, and
-  durable Host result/checkpoint propagation are in flight under
-  `Models/Extensions` lifecycle coordinator files.
-- Historical exact-version lookup and rollback/upgrade CAS strengthening are in
-  flight under `Models/Extensions` version repository files.
+- Models lifecycle coordinator corrections are in flight after self-audit found
+  final-gate recovery ordering, lease TOCTOU, multi-role revalidation,
+  canonical marker, and skipped-terminal defects. These files remain
+  uncommitted until their normal/race/vet gates pass again.
+- The exact-instance `LifecycleCoordinatorRuntime` adapter is in flight under
+  new `Support/Extensions` files.
+- Exact service-provider invocation admission is in flight under HostAPI and
+  bootstrap files.
 
 ## Next
 
-1. Land retained ProtocolStarter instances, corrected Host-gate paths, and exact
-   historical-version transaction primitives as independent commits.
-2. Wire the lifecycle state machine and first-trusted-enable transaction to the
+1. Land the corrected Models coordinator, exact lifecycle runtime adapter, and
+   service-provider admission as independent commits.
+2. Add the production Host gate and Manager stage/health/publish/drain API, then
+   construct the coordinator in bootstrap.
+3. Wire the lifecycle state machine and first-trusted-enable transaction to the
    durable ledger, exact-artifact trust, frozen runtime, drain, audit, and
    recovery contracts.
-3. Wire route/job/provider/schedule admission barriers, then implement upgrade,
-   rollback, uninstall removal modes, recovery HTTP/UI, and the complete P3/P4
-   repository gate.
+4. Implement upgrade, rollback, uninstall removal modes, recovery HTTP/UI, and
+   the complete P3/P4 repository gate.
 
 ## Open Questions
 

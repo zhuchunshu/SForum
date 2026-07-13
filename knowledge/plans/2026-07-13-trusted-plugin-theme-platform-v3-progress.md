@@ -112,6 +112,44 @@ phase percentage.
 
 ## Last Durable Checkpoint
 
+### 2026-07-14 P4 Exact Runtime Publication And Call Barriers Checkpoint
+
+- Last implementation commit: `3be41740a feat(jobs): gate plugin enqueue by
+  runtime instance`.
+- P4 remains 7 of 15 rows complete. These commits close prerequisite runtime
+  publication and call-admission contracts, but the lifecycle Service/HTTP path
+  does not invoke them yet, so no authoritative task row or percentage was
+  advanced.
+- `ba0107459` gives Protocol V2 real staged, published, and retained physical
+  processes. Unpublished start defers readiness until lifecycle work completes;
+  exact health/publish/stop/discard and lifecycle calls never fall back to the
+  active extension. Retained instances can be republished for rollback, stale
+  stop cannot unregister a replacement, and V1 remains a hard replacement.
+- `5d2cb6574` adds a Host-owned exact-runtime schedule admission registry.
+  Publish, trigger acquire, drain, wait, failed-activation compensation, and
+  retained rollback share one linearization boundary. The repository still has
+  no manifest schedule trigger owner, so this is not claimed as production
+  schedule integration.
+- `3be41740a` binds protocol-v2 job enqueue to the active exact Manager
+  instance. The lease spans the River insert, stale/draining identities fail
+  closed, forced drain and caller cancellation remain distinguishable, and
+  bootstrap installs the production adapter without creating an import cycle.
+- Focused normal/race tests and vet passed for ProtocolStarter, HostAPI, Jobs,
+  and bootstrap. The exact Protocol V2 instance suite also passed repeated real
+  subprocess tests and the full `Support/Extensions` race gate.
+- The uncommitted Models coordinator slice passed its first normal/race/vet
+  gate, then a mandatory self-audit found five recovery defects: final-gate
+  success ordering, local-clock lease TOCTOU, incomplete source/target
+  revalidation coverage, non-canonical marker ids, and side-effectful skipped
+  terminal semantics. It is being corrected before commit.
+- Active parallel work is limited to those Models corrections, the
+  exact-instance coordinator runtime adapter, and service-provider admission.
+  Unrelated `.reasonix`, `.zcode`, and `CLAUDE.md` deletions remain untouched.
+- Next: land the corrected coordinator and runtime adapter; implement the
+  production Host gate plus Manager stage/health/publish/drain API; construct
+  the coordinator in bootstrap; then move first trusted enable from the legacy
+  `store.Enable -> runtime.Start` path into the durable transaction.
+
 ### 2026-07-14 P4 Exact Version And Runtime Instance Foundations Checkpoint
 
 - Last implementation commit: `04c8b5d75 test(extensions): validate staged
