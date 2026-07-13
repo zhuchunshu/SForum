@@ -29,11 +29,13 @@ const (
 type protocolV2Core struct {
 	service  *Service
 	services *ServiceRegistry
+	commands *protocolV2CommandEngine
 }
 
-func registerProtocolV2(server grpc.ServiceRegistrar, service *Service, services *ServiceRegistry) {
-	core := &protocolV2Core{service: service, services: services}
+func registerProtocolV2(server grpc.ServiceRegistrar, service *Service, services *ServiceRegistry, commands *protocolV2CommandEngine) {
+	core := &protocolV2Core{service: service, services: services, commands: commands}
 	hostv2.RegisterHostQueryServiceServer(server, &protocolV2QueryServer{core: core})
+	hostv2.RegisterHostCommandServiceServer(server, &protocolV2CommandServer{core: core})
 	hostv2.RegisterPermissionServiceServer(server, &protocolV2PermissionServer{core: core})
 	hostv2.RegisterIdentityServiceServer(server, &protocolV2IdentityServer{core: core})
 	hostv2.RegisterJobServiceServer(server, &protocolV2JobServer{core: core})

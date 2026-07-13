@@ -20,13 +20,15 @@ import (
 // Gateway 在 loopback 上暴露 Host API，供插件子进程调用（F2.2）。
 // 每个已启动插件持有独立 token；请求必须带 X-SForum-Extension-Id 与 Bearer token。
 type Gateway struct {
-	mu       sync.RWMutex
-	service  *Service
-	services *ServiceRegistry
-	server   *http.Server
-	ln       net.Listener
-	baseURL  string
-	tokens   map[string]string // extensionID → token
+	mu                       sync.RWMutex
+	service                  *Service
+	services                 *ServiceRegistry
+	commands                 *protocolV2CommandEngine
+	protocolV2CommandsFrozen bool
+	server                   *http.Server
+	ln                       net.Listener
+	baseURL                  string
+	tokens                   map[string]string // extensionID → token
 }
 
 // RegisterProtocolV2 exposes typed Host services only on the caller's
@@ -35,11 +37,36 @@ func (g *Gateway) RegisterProtocolV2(server grpc.ServiceRegistrar) {
 	if g == nil || server == nil {
 		return
 	}
-	g.mu.RLock()
+	g.mu.Lock()
 	service := g.service
 	services := g.services
-	g.mu.RUnlock()
-	registerProtocolV2(server, service, services)
+	commands := g.commands
+	g.protocolV2CommandsFrozen = true
+	g.mu.Unlock()
+	registerProtocolV2(server, service, services, commands)
+}
+
+// BindProtocolV2CommandRuntime installs one immutable Host-owned command
+// catalog. RegisterProtocolV2 freezes the catalog; replacement then requires a
+// new Gateway/server boot so running brokers never observe contract drift.
+func (g *Gateway) BindProtocolV2CommandRuntime(runtime ProtocolV2CommandRuntime) error {
+	if g == nil {
+		return fmt.Errorf("hostapi gateway is nil")
+	}
+	if runtime == nil {
+		return fmt.Errorf("hostapi: protocol v2 command runtime is required")
+	}
+	engine := runtime.commandEngine()
+	if engine == nil {
+		return fmt.Errorf("hostapi: protocol v2 command runtime is required")
+	}
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	if g.protocolV2CommandsFrozen {
+		return fmt.Errorf("hostapi: protocol v2 command runtime is frozen until the next Gateway boot")
+	}
+	g.commands = engine
+	return nil
 }
 
 // NewGateway 创建未启动的网关；Start 后才监听。

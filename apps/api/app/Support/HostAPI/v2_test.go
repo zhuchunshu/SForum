@@ -27,7 +27,7 @@ func TestRegisterProtocolV2RegistersCompatibilityServices(t *testing.T) {
 	NewGateway(New(Config{})).RegisterProtocolV2(server)
 	services := server.GetServiceInfo()
 	for _, name := range []string{
-		"sforum.host.v2.HostQueryService", "sforum.host.v2.PermissionService",
+		"sforum.host.v2.HostQueryService", "sforum.host.v2.HostCommandService", "sforum.host.v2.PermissionService",
 		"sforum.host.v2.IdentityService", "sforum.host.v2.JobService", "sforum.host.v2.AuditService",
 	} {
 		if _, ok := services[name]; !ok {
