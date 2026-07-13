@@ -601,6 +601,7 @@ func exactTrustExtension(t *testing.T, id string) Extension {
 	item := installedExtension(id, TypePlugin, ManifestBackend{Entry: "backend/plugin", RPC: "hashicorp-go-plugin", ProtocolVersion: 1})
 	item.Source = SourceUploaded
 	item.IsDeletable = true
+	item.Manifest.Permissions = []string{"topic.create"}
 	item.Manifest.Routes = []ManifestRoute{{Path: "/run", Methods: []string{"POST"}, Access: RouteAccessPermission, Permission: "topic.create"}}
 	item.Manifest.Migrations = []ManifestMigration{{Path: "migrations/001.sql"}}
 	item.Manifest.Capabilities = []string{"net.outbound"}

@@ -757,6 +757,11 @@ func (s *Service) Enable(ctx context.Context, actor identity.Actor, id string, i
 		return Extension{}, err
 	}
 
+	if _, err := s.preflightActivationDependencies(ctx, extension); err != nil {
+		s.recordEnableFailure(ctx, actor, extension.ID, err)
+		return Extension{}, err
+	}
+
 	if err := s.verifyExtension(ctx, extension); err != nil {
 		s.recordEnableFailure(ctx, actor, extension.ID, err)
 		return Extension{}, err
