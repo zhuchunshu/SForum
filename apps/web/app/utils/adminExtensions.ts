@@ -253,6 +253,15 @@ export type AdminCapabilityGrant = {
   implied?: boolean
 }
 
+export type AdminExtensionVersion = {
+  version: string
+  manifest: AdminExtensionManifest
+  packageDigest: string
+  adminFrontendDigest: string
+  packagePath: string
+  installedAt: string
+}
+
 export type AdminExtension = {
   id: string
   name: string
@@ -269,6 +278,7 @@ export type AdminExtension = {
   packageDigest: string
   adminFrontendDigest?: string
   packagePath: string
+  stagedVersion?: AdminExtensionVersion
   installedAt: string
   updatedAt: string
 }

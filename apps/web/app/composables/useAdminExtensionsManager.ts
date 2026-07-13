@@ -69,6 +69,7 @@ export const useAdminExtensionsManager = async () => {
     previousDigest?: string
     trustRevoked?: boolean
     requiredReEnable?: boolean
+    activationPending?: boolean
   }
 
   async function uploadArchive(event: Event) {
@@ -98,12 +99,16 @@ export const useAdminExtensionsManager = async () => {
         toast.add({
           color: 'success',
           icon: 'i-lucide-package-plus',
-          title: t('admin.extensions.upgraded'),
-          description: result.trustRevoked
-            ? t('admin.extensions.upgradedTrustRevokedHint')
-            : result.requiredReEnable
-              ? t('admin.extensions.upgradedReEnableHint')
-              : undefined,
+          title: result.activationPending
+            ? t('admin.extensions.upgradeStaged')
+            : t('admin.extensions.upgraded'),
+          description: result.activationPending
+            ? t('admin.extensions.upgradeStagedHint')
+            : result.trustRevoked
+              ? t('admin.extensions.upgradedTrustRevokedHint')
+              : result.requiredReEnable
+                ? t('admin.extensions.upgradedReEnableHint')
+                : undefined,
           duration: 10000
         })
       } else {

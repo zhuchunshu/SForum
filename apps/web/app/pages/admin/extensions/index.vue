@@ -222,6 +222,9 @@ function extensionStatusLabel(item: (typeof extensions.value)[number]) {
                   <UBadge color="neutral" variant="outline">
                     {{ typeLabel(item.type) }}
                   </UBadge>
+                  <UBadge v-if="item.stagedVersion" color="warning" variant="outline" icon="i-lucide-package-plus">
+                    {{ t('admin.extensions.stagedVersionBadge', { version: item.stagedVersion.version }) }}
+                  </UBadge>
                 </div>
                 <p
                   v-if="display.description"
@@ -355,6 +358,14 @@ function extensionStatusLabel(item: (typeof extensions.value)[number]) {
             <div class="flex justify-between gap-3">
               <dt class="text-slate-500 dark:text-zinc-400">{{ t('admin.extensions.manifest.version') }}</dt>
               <dd class="text-slate-900 dark:text-zinc-100">{{ selected.version }}</dd>
+            </div>
+            <div v-if="selected.stagedVersion" class="flex justify-between gap-3">
+              <dt class="text-slate-500 dark:text-zinc-400">{{ t('admin.extensions.stagedVersion') }}</dt>
+              <dd>
+                <UBadge color="warning" variant="outline" icon="i-lucide-package-plus">
+                  v{{ selected.stagedVersion.version }}
+                </UBadge>
+              </dd>
             </div>
             <div class="flex justify-between gap-3">
               <dt class="text-slate-500 dark:text-zinc-400">{{ t('admin.extensions.manifest.sforum') }}</dt>
