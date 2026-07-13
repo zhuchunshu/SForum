@@ -21,6 +21,12 @@ type v3Validator struct {
 }
 
 func validateV3Manifest(manifest Manifest) error {
+	if _, err := semver.StrictNewVersion(manifest.Version); err != nil {
+		return ErrInvalidManifest
+	}
+	if _, err := semver.NewConstraint(manifest.SForumVersion); err != nil {
+		return ErrInvalidManifest
+	}
 	validator := v3Validator{manifest: manifest, ids: map[string]string{}}
 	for _, validate := range []func() error{
 		validator.validateBackendAndMigrations,
@@ -415,5 +421,10 @@ func validCron(value string) bool {
 
 func validSemverConstraint(value string) bool {
 	_, err := semver.NewConstraint(value)
+	return err == nil
+}
+
+func validSemverVersion(value string) bool {
+	_, err := semver.StrictNewVersion(value)
 	return err == nil
 }

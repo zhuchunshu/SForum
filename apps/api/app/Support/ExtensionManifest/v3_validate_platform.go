@@ -241,16 +241,13 @@ func (v *v3Validator) validateMediaNavigationAndRegions() error {
 func (v *v3Validator) validateDependenciesAndLifecycle() error {
 	seen := map[string]bool{}
 	for _, dependency := range v.manifest.Dependencies {
-		if !validSemverConstraint(dependency.Version) {
-			return ErrInvalidManifest
-		}
 		switch dependency.Kind {
 		case "required", "optional", "conflict":
-			if (dependency.ID == "") == (dependency.Capability == "") || dependency.ID == v.manifest.ID {
+			if !validSemverConstraint(dependency.Version) || (dependency.ID == "") == (dependency.Capability == "") || dependency.ID == v.manifest.ID {
 				return ErrInvalidManifest
 			}
 		case "provides":
-			if dependency.ID != "" || dependency.Capability == "" || !strings.HasPrefix(dependency.Capability, v.manifest.ID+".") {
+			if !validSemverVersion(dependency.Version) || dependency.ID != "" || !manifestIDPattern.MatchString(dependency.Capability) {
 				return ErrInvalidManifest
 			}
 		default:
