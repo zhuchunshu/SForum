@@ -79,8 +79,18 @@ stores exact artifact and authority snapshots, idempotency fingerprints, stable
 step attempts, checkpoints, monotonic progress, typed errors, actor/audit
 snapshots, and preserve/export/remove intent. Its repository serializes each
 extension, uses revision/state CAS, and resumes the same logical operation
-after a process restart. Runtime coordinator, first-trusted-enable wiring,
-drain/uninstall cleanup, and operator recovery UI remain active P4 work.
+after a process restart. Coordinator execution claims and heartbeats every
+plugin action, Host gate, and forced skip with exact revision fencing and
+bounded detached terminal persistence.
+
+Static package upgrades are now inert candidates: `staged_version_id` is
+separate from `active_version_id`; upload does not stop the active process,
+change enabled state, clear providers, revoke the active grant, execute hooks,
+or write migration execution history. Trust preview/challenge binds the staged
+artifact while runtime trust still binds the active artifact. An instance-bound
+admission gate provides the foundation for atomic drain closure and inflight
+wait. First-trusted-enable wiring, staged promotion, retained process drain,
+uninstall cleanup, and operator recovery UI remain active P4 work.
 
 Versioned River plugin jobs now execute only against the live exact artifact,
 trust grant, job contract, and payload schema that authorized their enqueue.

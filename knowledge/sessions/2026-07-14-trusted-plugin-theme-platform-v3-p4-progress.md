@@ -5,7 +5,7 @@
 - Overall V3: **27%**.
 - P0-P3: **100%**.
 - P4: **47%**, active (7 of 15 task/test rows complete).
-- Branch: `main`; last implementation commit: `71135e942`.
+- Branch: `main`; last implementation commit: `71340249f`.
 
 ## Changed
 
@@ -58,6 +58,20 @@
   extension-scoped River snapshot, exact migration ledger claim/link, public
   transactional replacement insert, and old-row cancellation share one
   database transaction; no River payload column is rewritten in place.
+- Added lease ownership to coordinator execution for plugin actions, Host
+  gates, and forced skips. Heartbeats, progress, success/failure/cancellation,
+  takeover, Host terminal replay, detached writes, and lease-loss cancellation
+  are fenced by exact revision.
+- Added additive staged-version persistence and store-level active/candidate
+  separation. Static upgrade replay reuses the immutable candidate row and
+  cannot change type, active identity, or enabled status.
+- Removed legacy static-upload side effects: no runtime stop, provider reset,
+  trust revocation, status reset, executable hook, or migration-ledger write.
+  Staged trust preview/challenge binds the candidate without invalidating the
+  active artifact grant.
+- Added the instance-bound runtime admission primitive with atomic drain
+  closure, explicit lifecycle cleanup exemption, inflight wait, force cancel,
+  and per-class residual counts.
 
 ## Verification
 
@@ -83,16 +97,22 @@
   rollback/forward tests.
 - PostgreSQL/River reconciliation passed atomic rollback, retry, migration
   identity, extension scoping, and real River-row integration coverage.
+- Coordinator lease execution passed focused repetition, full Models tests,
+  race, vet, real PostgreSQL fencing, and full API tests.
+- Staged version migration passed full migration/migrator tests against real
+  PostgreSQL; store staging, trust targeting, and inert Service behavior passed
+  focused repetition and race coverage plus the full Models package.
+- Runtime admission passed focused repetition/race, full Support/Extensions,
+  and vet.
 
 ## Active Ownership
 
-- Coordinator step-lease execution/heartbeat wiring is in flight. Host gates
-  now have the independent additive constraint needed to use that path
-  honestly.
+- Manager instance fencing, exact staged promotion/discard, and OpenAPI/Nuxt
+  staged-state display are in flight in separate file groups.
 
 ## Next
 
-1. Finish and land coordinator lease wiring.
+1. Finish and land Manager fencing, staged promotion, and contract/UI slices.
 2. Wire the lifecycle state machine and first-trusted-enable transaction to the
    durable ledger, exact-artifact trust, frozen runtime, drain, audit, and
    recovery contracts.

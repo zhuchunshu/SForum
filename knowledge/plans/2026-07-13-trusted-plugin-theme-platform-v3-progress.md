@@ -112,10 +112,10 @@ phase percentage.
 
 ## Last Durable Checkpoint
 
-### 2026-07-14 P4 Coordinator, Lease, And Job Migration Checkpoint
+### 2026-07-14 P4 Coordinator, Staging, And Drain Foundations Checkpoint
 
-- Last implementation commit: `71135e942 feat(jobs): reconcile plugin jobs in
-  PostgreSQL`.
+- Last implementation commit: `71340249f fix(extensions): keep static upgrades
+  inert`.
 - P4 is 7 of 15 rows complete. The 34-scenario real PostgreSQL matrix closes
   crash/retry at every lifecycle boundary; the broader idempotency/resume task
   remains open until Service and HTTP invoke the coordinator.
@@ -125,7 +125,10 @@ phase percentage.
   `0cb14b9f4` job migration ledger, `16dd33fbe` queued-job planner,
   `0a38bddb8` lease repository CAS, `b3adee77b` protocol-v2 runtime adapter,
   `3a6ccbb8f` leased Host-gate compatibility migration, and `71135e942`
-  PostgreSQL/River job reconciliation.
+  PostgreSQL/River job reconciliation. Later coherent slices are `dbb8f6a88`
+  staged-version schema, `a2966f50c` inert store staging, `e5be7695b` runtime
+  admission gate, `870fb4e34` coordinator lease execution, `e62a4c99c` staged
+  trust review, and `71340249f` inert Service upload semantics.
 - The coordinator preserves stable steps/attempts/checkpoints/progress and
   detached terminal writes. Protocol-v2 now carries all eleven actions, exact
   forced authority, live progress, result JSON, and typed remote failures.
@@ -140,11 +143,27 @@ phase percentage.
   identity required to share the step-lease path without impersonating plugin
   actions. The reversible Down constraint retains historical Host-gate rows
   while preventing old binaries from writing new ones.
-- Current V3-owned dirty work: Models coordinator lease wiring. Unrelated
-  `.reasonix`, `.zcode`, and `CLAUDE.md` deletions remain untouched.
-- Next: land coordinator lease execution, then wire first trusted enable,
-  retained-runtime drain, uninstall modes, recovery API/UI, and run the full P4
-  gate.
+- Coordinator execution now claims and heartbeats every plugin action, Host
+  gate, and forced skip. Exact lease revision fences progress and terminal
+  writes; blocked heartbeats are cancellable; all terminal writes use a bounded
+  detached context; Host failure recovery retains the original typed failure.
+- Static uploads now persist immutable staged candidates without stopping the
+  active process, changing enabled state, selecting providers, revoking the
+  active exact-artifact grant, or writing migration execution history. Trust
+  review and challenges bind the staged artifact while the active grant remains
+  valid. The first-trusted-enable transaction is not yet wired, so the related
+  P4 task remains open.
+- An instance-bound admission gate now provides atomic ordinary-call closure,
+  lifecycle-cleanup exemption, inflight wait, forced cancellation, and exact
+  residual counters. Manager/route/job integration is in progress and the
+  drain task remains open.
+- Current V3-owned dirty work: staged-version promotion CAS, Manager instance
+  fencing, OpenAPI/Nuxt staged-state contract, and lifecycle Service/HTTP
+  wiring. Unrelated `.reasonix`, `.zcode`, and `CLAUDE.md` deletions remain
+  untouched.
+- Next: land those independent slices, then execute first trusted install and
+  ordinary enable through the coordinator, retain old runtimes during upgrade,
+  add uninstall modes/recovery API/UI, and run the full P4 gate.
 
 ### 2026-07-14 P4 Exact-Artifact Plugin Job Checkpoint
 
