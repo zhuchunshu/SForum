@@ -4,7 +4,7 @@ This is the entry point for project memory.
 
 ## Latest Handoff
 
-- **2026-07-14 Trusted Plugin And Theme Platform V3 P4 active (overall 26%, P4 40%)**
+- **2026-07-14 Trusted Plugin And Theme Platform V3 P4 active (overall 27%, P4 47%)**
   - Decision: `knowledge/decisions/2026-07-13-trusted-plugin-theme-platform-v3.md`
   - Task book: `knowledge/plans/2026-07-13-trusted-plugin-theme-platform-v3.md`
   - P4 handoff: `knowledge/sessions/2026-07-14-trusted-plugin-theme-platform-v3-p4-progress.md`
@@ -45,11 +45,17 @@ This is the entry point for project memory.
   - P4 now has the authoritative ten-state Host state machine plus additive
     PostgreSQL operation/step ledgers and a concurrent, CAS-based resumable
     repository with exact-artifact authority and audit snapshots
+  - The crash-resumable coordinator and all 34 durable boundary-recovery cases
+    are committed. Step leases provide owner/revision/expiry fencing and exact
+    takeover; the coordinator now runs all eleven actions over frozen protocol
+    v2 with live progress, forced authority, and typed remote failures
   - Exact-artifact River plugin jobs resolve live trust/runtime state, recheck
     frozen declarations before V2 dispatch, and cancel old incompatible rows;
-    deterministic upgrade policy covers execute/drain/migrate/cancel
-  - Active parallel P4 work owns the crash-resumable coordinator and exhaustive
-    boundary recovery tests
+    deterministic upgrade policy covers execute/drain/migrate/cancel, with a
+    Host-owned exact replacement ledger and transactional planner
+  - Active parallel P4 work owns the real PostgreSQL/River lifecycle adapter
+    and coordinator lease heartbeat wiring; Service/HTTP, drain, uninstall
+    modes, and recovery UI remain open
 
 - **2026-07-13 Legacy Web Release/runtime frontend builds removed**
   - Decision: `knowledge/decisions/2026-07-13-remove-legacy-web-release.md`

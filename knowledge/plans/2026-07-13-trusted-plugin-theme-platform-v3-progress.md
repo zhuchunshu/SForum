@@ -1,8 +1,8 @@
 # Trusted Plugin And Theme Platform V3 Progress Ledger
 
 Date: 2026-07-14
-Overall progress: **26%**
-Active phase: **P4 - Lifecycle V2, Dependency Graph, And Authoritative Hooks (40%, 6 of 15 rows)**
+Overall progress: **27%**
+Active phase: **P4 - Lifecycle V2, Dependency Graph, And Authoritative Hooks (47%, 7 of 15 rows)**
 
 This ledger is the durable percentage and context-compaction checkpoint for the
 V3 program. Update it before context compression, at every phase boundary, and
@@ -20,7 +20,7 @@ scaffolding, or demo-only code cannot satisfy a runtime exit criterion.
 | P1 Trust/recovery | 6% | 100% | 6% |
 | P2 Manifest/contracts | 7% | 100% | 7% |
 | P3 Host API v2 | 8% | 100% | 8% |
-| P4 Lifecycle/dependencies | 7% | 40% | 2% |
+| P4 Lifecycle/dependencies | 7% | 47% | 3% |
 | P5 Database/commands | 8% | 0% | 0% |
 | P6 Routes/middleware | 10% | 0% | 0% |
 | P7 Workflow/admin/query/identity | 10% | 0% | 0% |
@@ -111,6 +111,36 @@ phase percentage.
   failing plugin exactly once (`failed`, then `skipped`).
 
 ## Last Durable Checkpoint
+
+### 2026-07-14 P4 Coordinator, Lease, And Job Migration Checkpoint
+
+- Last implementation commit: `b3adee77b feat(extensions): run coordinator over
+  protocol v2`.
+- P4 is 7 of 15 rows complete. The 34-scenario real PostgreSQL matrix closes
+  crash/retry at every lifecycle boundary; the broader idempotency/resume task
+  remains open until Service and HTTP invoke the coordinator.
+- Commits since the prior checkpoint: `f2d0ba93f` boundary recovery,
+  `e01b10e8c` retry checkpoint inheritance, `075145fa7` coordinator,
+  `a19ff67bb` lease migration, `397a0667c` forced wire authority,
+  `0cb14b9f4` job migration ledger, `16dd33fbe` queued-job planner,
+  `0a38bddb8` lease repository CAS, and `b3adee77b` protocol-v2 runtime adapter.
+- The coordinator preserves stable steps/attempts/checkpoints/progress and
+  detached terminal writes. Protocol-v2 now carries all eleven actions, exact
+  forced authority, live progress, result JSON, and typed remote failures.
+- Step lease ownership uses owner/revision/expiry CAS and PostgreSQL statement
+  time, so lock waits cannot create already-expired grants. Real concurrent
+  claims produce one winner; stale owners cannot heartbeat, persist, or close.
+- Queued-job migration has an exact source/target/trust ledger and a pure
+  transactional replacement planner. The real pgx/River adapter is still dirty
+  and must use public `InsertTx`/`JobCancelTx`; no raw River args update is
+  permitted.
+- Current V3-owned dirty work: HostAPI PostgreSQL/River job adapter and Models
+  coordinator lease wiring. Unrelated `.reasonix`, `.zcode`, and `CLAUDE.md`
+  deletions remain untouched.
+- Host gates need an independent additive `lifecycle_action = 'host.gate'`
+  compatibility migration before sharing the step lease path. Then wire first
+  trusted enable, retained-runtime drain, uninstall modes, recovery API/UI, and
+  run the full P4 gate.
 
 ### 2026-07-14 P4 Exact-Artifact Plugin Job Checkpoint
 

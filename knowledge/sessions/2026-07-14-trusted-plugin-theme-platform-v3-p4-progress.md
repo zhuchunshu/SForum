@@ -2,10 +2,10 @@
 
 ## Status
 
-- Overall V3: **26%**.
+- Overall V3: **27%**.
 - P0-P3: **100%**.
-- P4: **40%**, active (6 of 15 task/test rows complete).
-- Branch: `main`; last implementation commit: `d38e81d42`.
+- P4: **47%**, active (7 of 15 task/test rows complete).
+- Branch: `main`; last implementation commit: `b3adee77b`.
 
 ## Changed
 
@@ -33,8 +33,24 @@
   worker resolves live package/trust state, cancels stale or incompatible rows,
   and rechecks both the running and startup-frozen Manifest before dispatch.
 - Added deterministic execute/drain/migrate/cancel upgrade decisions and closed
-  the old-version fail-closed execution matrix. Actual River row migration is
-  deliberately left to lifecycle drain orchestration.
+  the old-version fail-closed execution matrix. A Host-owned exact-identity
+  replacement ledger and transactional planner now preserve attempts, queue,
+  priority, schedule, and tags without updating River's private args column.
+- Added the crash-resumable coordinator for all six operations and eleven
+  actions. Stable attempts inherit opaque checkpoints, persist every validated
+  progress update, use a detached five-second terminal write window, and
+  reconcile every terminal/recovery crash window without repeating a completed
+  action.
+- Added 34 real PostgreSQL crash/retry boundary scenarios and formally closed
+  the P4 boundary-recovery test row.
+- Added multi-node step lease persistence and repository CAS. Exact owner,
+  monotonically increasing revision, database statement time, expiry takeover,
+  heartbeat fencing, progress writes, and terminal lease clearing are covered
+  against real PostgreSQL.
+- Added an additive `LifecycleRequest.forced` field and connected the durable
+  coordinator to protocol-v2. Forced authority stays distinct from `dry_run`
+  and plugin-owned input; all eleven actions, live progress, result JSON, and
+  typed remote failures cross the frozen subprocess transport.
 
 ## Verification
 
@@ -49,20 +65,30 @@
   race detection.
 - Plugin-job focused repetition, relevant package tests, race, vet, full Go
   tests, and full Go build passed.
+- Coordinator focused tests passed with `-count=100`; all 34 real PostgreSQL
+  crash windows passed repeatedly and under race detection.
+- Step lease concurrent-claim/takeover/heartbeat/progress/completion tests
+  passed repeatedly, under race detection, and in the full Extensions package.
+- Protocol generation was reproducible; Buf lint/breaking checks, SDK tests,
+  runtime-adapter repeated/subprocess/race tests, and full API tests passed.
+- The plugin-job ledger passed an isolated PostgreSQL `Up -> Down -> Up` cycle.
 
 ## Active Ownership
 
-- A crash-resumable coordinator is in flight in independent new files.
-- Exhaustive durable crash/retry boundary coverage is in flight in an
-  independent integration test file.
+- The PostgreSQL/River plugin-job lifecycle adapter is in flight in isolated
+  HostAPI files.
+- Coordinator step-lease execution/heartbeat wiring is in flight. Host gates
+  require one independent additive constraint migration before they can use the
+  same durable lease path honestly.
 
 ## Next
 
-1. Review, test, and commit the coordinator and boundary-recovery slices.
+1. Finish the real River adapter and coordinator lease wiring.
 2. Wire the lifecycle state machine and first-trusted-enable transaction to the
    durable ledger, exact-artifact trust, frozen runtime, drain, audit, and
    recovery contracts.
-3. Run the complete P3/P4 repository gate and record the result.
+3. Implement retained-runtime drain, uninstall removal modes, recovery HTTP/UI,
+   and then run the complete P3/P4 repository gate.
 
 ## Open Questions
 

@@ -403,7 +403,7 @@ flowchart LR
 
 ### Tests
 
-- [ ] Crash/retry at every lifecycle boundary.
+- [x] Crash/retry at every lifecycle boundary.
 - [x] Dependency cycle, missing version, optional dependency, conflict, and
       provides resolution.
 - [ ] Idempotent repeated uninstall, external cleanup failure, forced removal,
