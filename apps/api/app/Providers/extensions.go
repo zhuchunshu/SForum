@@ -1,6 +1,8 @@
 package providers
 
 import (
+	"context"
+	"errors"
 	"strconv"
 	"time"
 
@@ -20,6 +22,7 @@ type ExtensionsProvider struct {
 type extensionRuntime interface {
 	extensions.RuntimeManager
 	RouteTarget(extensionID string) (extensionsruntime.RouteTarget, bool)
+	AcquireActiveRuntimeCall(context.Context, string, extensionsruntime.RuntimeCallClass) (extensionsruntime.RuntimeInstanceSnapshot, *extensionsruntime.RuntimeAdmissionLease, error)
 }
 
 func NewExtensionsProvider(store extensions.Store, users identity.ActorStore, sessions *authsession.Manager, extensionRoot string, builtinRoot string) *ExtensionsProvider {
@@ -65,8 +68,12 @@ type extensionRouteGateway struct {
 }
 
 func (g extensionRouteGateway) Proxy(c fiber.Ctx, input extensionscontroller.ProxyInput) error {
-	target, ok := g.runtime.RouteTarget(input.Matched.Extension.ID)
-	if !ok || target.BaseURL == "" {
+	target, admission, err := g.runtime.AcquireActiveRuntimeCall(c.Context(), input.Matched.Extension.ID, extensionsruntime.RuntimeCallRoute)
+	if err != nil {
+		return errors.Join(extensions.ErrRuntimeUnavailable, err)
+	}
+	defer admission.Release()
+	if target.Target.BaseURL == "" {
 		return extensions.ErrRuntimeUnavailable
 	}
 	timeout := 3 * time.Second
@@ -82,12 +89,13 @@ func (g extensionRouteGateway) Proxy(c fiber.Ctx, input extensionscontroller.Pro
 		actorID = strconv.FormatInt(input.Actor.ID, 10)
 	}
 	return g.gateway.Proxy(&extensionsruntime.ProxyInput{
+		Context:     admission.Context,
 		Request:     c.Request(),
 		Response:    c.Response(),
 		ExtensionID: input.Matched.Extension.ID,
 		ActorID:     actorID,
 		Locale:      c.Get("Accept-Language"),
-		TargetBase:  target.BaseURL,
+		TargetBase:  target.Target.BaseURL,
 		TargetPath:  targetPath,
 		Timeout:     timeout,
 	})

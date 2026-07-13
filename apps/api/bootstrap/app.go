@@ -62,6 +62,7 @@ type extensionRuntime interface {
 	extensions.RuntimeManager
 	appevents.Publisher
 	RouteTarget(extensionID string) (extensionsruntime.RouteTarget, bool)
+	AcquireActiveRuntimeCall(context.Context, string, extensionsruntime.RuntimeCallClass) (extensionsruntime.RuntimeInstanceSnapshot, *extensionsruntime.RuntimeAdmissionLease, error)
 	Reconcile(ctx context.Context, items []extensions.Extension)
 	Close(ctx context.Context)
 	// SendMail 供 embed worker 的 mail.deliver 复用同一 runtime（P0 共享插件进程）。

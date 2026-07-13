@@ -135,6 +135,10 @@ func (fakeBootstrapExtensionRuntime) RouteTarget(string) (extensionsruntime.Rout
 	return extensionsruntime.RouteTarget{}, false
 }
 
+func (fakeBootstrapExtensionRuntime) AcquireActiveRuntimeCall(context.Context, string, extensionsruntime.RuntimeCallClass) (extensionsruntime.RuntimeInstanceSnapshot, *extensionsruntime.RuntimeAdmissionLease, error) {
+	return extensionsruntime.RuntimeInstanceSnapshot{}, nil, extensions.ErrRuntimeUnavailable
+}
+
 func (fakeBootstrapExtensionRuntime) Reconcile(context.Context, []extensions.Extension) {}
 
 func (fakeBootstrapExtensionRuntime) Close(context.Context) {}
