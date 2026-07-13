@@ -43,6 +43,17 @@ go run ./cmd/sforum extension docs generate
 go run ./cmd/sforum extension docs generate --check
 ```
 
+Scaffolds use versioned Schema UI by default. Optional buildless variants:
+
+```bash
+# Provider + host-rendered Probe action (known provider slot; backend required)
+go run ./cmd/sforum make:plugin ... --backend --provider-slot mail.provider
+
+# Framework-neutral author-prebuilt component with Schema fallback
+go run ./cmd/sforum make:plugin ... --prebuilt-settings
+go run ./cmd/sforum make:theme ... --prebuilt-settings
+```
+
 Minimal backend using the public SDK:
 
 ```go
@@ -63,6 +74,158 @@ func main() { pluginsdk.Serve(myPlugin{}) }
 Build the executable to the path declared in `backend.entry` (usually
 `backend/plugin`) before enabling the plugin in admin.
 
+## Buildless settings UI: choose the smallest capable mode
+
+Plugins and themes share one versioned Settings Document. Existing array-form
+`settings` remains compatible, but new packages should emit `schemaVersion: 1`.
+
+| Need | Manifest mode | Author JS | Host/Web Release build |
+| --- | --- | --- | --- |
+| Fields, tabs, groups, columns, callouts | Schema | None | None |
+| Provider connection test or other catalogued operation | Schema + Actions | None | None |
+| Truly complex interaction | Prebuilt component + Schema fallback | Fully trusted `.mjs` | None |
+| Existing Vue admin contribution | Legacy compatibility | Fully trusted SFC | Web Release |
+
+### Reference A — theme tabs/groups, no JavaScript
+
+This is the default for new themes. Upload, configure, activate through Page
+Registry, and save values without building Nuxt:
+
+```json
+{
+  "id": "acme.reading-theme",
+  "name": "Acme Reading Theme",
+  "description": "Readable runtime theme.",
+  "url": "https://example.com/theme",
+  "author": { "name": "Acme" },
+  "version": "1.0.0",
+  "type": "theme",
+  "sforumVersion": ">=0.1.0",
+  "admin": {
+    "entry": "/settings",
+    "pages": [{ "path": "/settings", "label": "Theme settings", "view": "settings" }]
+  },
+  "settings": {
+    "schemaVersion": 1,
+    "ui": {
+      "mode": "schema",
+      "layout": "tabs",
+      "tabs": [
+        { "id": "home", "label": { "zh-CN": "首页", "en-US": "Home" }, "groups": ["hero", "layout"] }
+      ],
+      "groups": [
+        { "id": "hero", "label": { "zh-CN": "主视觉", "en-US": "Hero" }, "columns": 2 },
+        { "id": "layout", "label": { "zh-CN": "布局", "en-US": "Layout" } }
+      ],
+      "callouts": [{
+        "id": "instant",
+        "tone": "info",
+        "title": { "zh-CN": "保存后立即生效", "en-US": "Applies immediately after save" },
+        "tab": "home"
+      }]
+    },
+    "fields": [
+      { "key": "hero.title", "label": { "zh-CN": "标题", "en-US": "Title" }, "type": "text", "default": "Welcome", "groupId": "hero", "column": 1 },
+      { "key": "hero.compact", "label": { "zh-CN": "紧凑模式", "en-US": "Compact" }, "type": "boolean", "default": "false", "groupId": "hero", "column": 2 }
+    ]
+  }
+}
+```
+
+See `extensions/builtin/themes/sforum-default/manifest/settings.json` and
+`extensions/fixtures/themes/sforum-schema-theme/`.
+
+### Reference B — provider Schema + Probe action
+
+SMTP is the production reference. Operators can install → configure while
+disabled → test with the restricted probe runtime → enable. The probe cannot
+register normal routes, events, jobs, schedules, or providers and never sends
+test mail:
+
+```json
+{
+  "backend": { "entry": "backend/plugin", "rpc": "hashicorp-go-plugin", "protocolVersion": 1 },
+  "providers": [{ "slot": "mail.provider", "label": "SMTP", "timeoutMs": 15000 }],
+  "settings": {
+    "schemaVersion": 1,
+    "ui": {
+      "mode": "schema",
+      "layout": "tabs",
+      "tabs": [{ "id": "connection", "label": "Connection", "groups": ["server", "credentials"] }],
+      "groups": [
+        { "id": "server", "label": "Server", "columns": 2 },
+        { "id": "credentials", "label": "Credentials", "columns": 2 }
+      ]
+    },
+    "fields": [
+      { "key": "host", "label": "Host", "type": "text", "default": "127.0.0.1", "groupId": "server" },
+      { "key": "port", "label": "Port", "type": "number", "default": "1025", "groupId": "server" },
+      { "key": "username", "label": "Username", "type": "text", "default": "", "groupId": "credentials" },
+      { "key": "password", "label": "Password", "type": "secret", "default": "", "groupId": "credentials" }
+    ],
+    "actions": [{
+      "id": "probe",
+      "kind": "provider_probe",
+      "label": { "zh-CN": "测试连接", "en-US": "Test connection" },
+      "placement": "footer",
+      "useDraftValues": true,
+      "fields": ["host", "port", "username", "password"]
+    }]
+  }
+}
+```
+
+Implement SDK `ProviderProbe`. The host owns permission checks, declared-field
+and secret preserve/replace semantics, 15-second timeout, response bounds, and
+credential-free audit. Storage providers reuse `StorageProbe` through the same
+Action catalog.
+
+### Reference C — trusted prebuilt complex component
+
+Use this only when Schema + Actions cannot express the interaction. The author
+ships final `.mjs`/`.css` bytes; SForum never compiles uploaded Vue SFCs and
+never accepts remote script URLs. Schema fields remain mandatory fallback:
+
+```json
+{
+  "settings": {
+    "schemaVersion": 1,
+    "ui": {
+      "mode": "component",
+      "layout": "form",
+      "component": {
+        "id": "settings",
+        "apiVersion": 1,
+        "entry": "frontend/admin/dist/settings.mjs",
+        "css": "frontend/admin/dist/settings.css"
+      }
+    },
+    "fields": [{ "key": "message", "label": "Message", "type": "text", "default": "Hello" }]
+  }
+}
+```
+
+```js
+export const apiVersion = 1
+export function mount(target, bridge) {
+  const input = document.createElement('input')
+  input.value = bridge.settings.values().message || ''
+  const onInput = () => bridge.settings.updateValue('message', input.value)
+  input.addEventListener('input', onInput)
+  target.append(input)
+  return () => {
+    input.removeEventListener('input', onInput)
+    input.remove()
+  }
+}
+```
+
+An active super administrator confirms a one-use actor/version/API/component/
+digest-bound challenge. Import, contract, mount, CSS, cleanup, or quarantine
+failure automatically returns to Schema UI. See
+`extensions/fixtures/plugins/sforum-prebuilt-settings/` and
+[trusted-admin-components.md](./trusted-admin-components.md).
+
 ## Reference 1 — built-in SMTP (`sforum.smtp`)
 
 Path: `extensions/builtin/plugins/sforum-smtp/`
@@ -73,10 +236,10 @@ outbound network:
 | Area | What SMTP does |
 | --- | --- |
 | Manifest | `providers: [{ slot: "mail.provider", ... }]`, explicit `capabilities` |
-| Multi-file layout | Thin root + `includes` for langs, settings, admin, frontend, contributions |
+| Multi-file layout | Thin root + `includes` for langs, versioned settings, and admin |
 | Backend | Implements `SendMail` over go-plugin; no public HTTP `RouteTarget` |
 | Settings | Host injects `SFORUM_SETTING_*` env vars into the child process |
-| Admin UI | Trusted admin components under `frontend/admin` for settings chrome |
+| Admin UI | Host-rendered tabs/groups/callouts + `provider_probe`; no frontend package |
 
 Key manifest ideas (simplified):
 
@@ -102,8 +265,8 @@ go run ./cmd/sforum extension test --skip-backend-binary \
   ../../extensions/builtin/plugins/sforum-smtp
 ```
 
-Read the full package README and `manifest/` shards for settings grouping and
-Chinese/English identity langs.
+Read the full package README and `manifest/` files for settings groups/actions
+and Chinese/English identity langs.
 
 ## Reference 2 — content policy workflow (`sforum.content-policy`)
 
@@ -323,10 +486,11 @@ will go through the host registry in a later wave.
 
 ## Admin / trusted components
 
-If you ship Vue into admin slots, read
-[trusted-admin-components.md](./trusted-admin-components.md). That path is
-**full trust** on the admin origin; backend permissions remain authoritative
-but do not sandbox the browser code.
+Prefer Schema or Settings Actions. For complex settings, ship the prebuilt
+Admin Micro-frontend API v1 contract. Existing Vue admin slots remain a
+deprecated-for-new-settings Web Release compatibility path. Both code paths are
+**full trust** on the admin origin; read
+[trusted-admin-components.md](./trusted-admin-components.md).
 
 ## Validation commands
 

@@ -48,6 +48,7 @@ type WebReleaseExtension struct {
 	ExtensionID                      string                 `json:"extensionId"`
 	ExtensionVersion                 string                 `json:"extensionVersion"`
 	PackageDigest                    string                 `json:"packageDigest"`
+	AdminFrontendDigest              string                 `json:"adminFrontendDigest"`
 	FrontendRoot                     string                 `json:"frontendRoot"`
 	ComponentMap                     map[string]string      `json:"componentMap"`
 	APIVersion                       int                    `json:"apiVersion"`
@@ -131,17 +132,18 @@ type WebReleaseCreateInput struct {
 }
 
 type WebReleaseExtensionInput struct {
-	ExtensionID       string
-	ExtensionVersion  string
-	PackageDigest     string
-	FrontendRoot      string
-	ComponentMap      map[string]string
-	APIVersion        int
-	TrustedComponents []ManifestContribution
-	LocaleMap         map[string]string
-	LocaleMapDigest   string
-	LockfileDigest    string
-	SortOrder         int
+	ExtensionID         string
+	ExtensionVersion    string
+	PackageDigest       string
+	AdminFrontendDigest string
+	FrontendRoot        string
+	ComponentMap        map[string]string
+	APIVersion          int
+	TrustedComponents   []ManifestContribution
+	LocaleMap           map[string]string
+	LocaleMapDigest     string
+	LockfileDigest      string
+	SortOrder           int
 }
 
 type WebReleaseEffectInput struct {

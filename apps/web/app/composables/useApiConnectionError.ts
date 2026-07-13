@@ -69,11 +69,12 @@ export function notifyApiConnectionError(error: unknown, path = '') {
 
 export function isApiConnectionError(error: unknown) {
   const statusCode = apiConnectionErrorStatusCode(error)
+  const reason = apiConnectionErrorReason(error)
   if (statusCode && API_CONNECTION_STATUS_CODES.has(statusCode)) {
-    return true
+    // 结构化 5xx 业务错误（例如插件 Probe 暂不可用）应留在当前操作旁，不应误报为整个 API 断线。
+    return !reason || API_CONNECTION_REASONS.has(reason)
   }
 
-  const reason = apiConnectionErrorReason(error)
   if (reason && API_CONNECTION_REASONS.has(reason)) {
     return true
   }

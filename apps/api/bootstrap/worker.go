@@ -217,9 +217,9 @@ func newWorkerWithPool(cfg config.Config, pool *pgxpool.Pool, logger *slog.Logge
 	webReleaseStore := extensions.NewPostgresWebReleaseStore(pool)
 	// P5：不再注册 extension.theme_activate worker；主题激活走 Page Registry 同步路径。
 	webReleaseBuilder := webreleaseruntime.NewBuilder(webreleaseruntime.Config{
-		ReleaseRoot:       cfg.WebReleaseRoot,
-		WebRoot:           cfg.WebReleaseWebRoot,
-		ExtensionRoot:     cfg.ExtensionRoot,
+		ReleaseRoot:   cfg.WebReleaseRoot,
+		WebRoot:       cfg.WebReleaseWebRoot,
+		ExtensionRoot: cfg.ExtensionRoot,
 		// 公开主题 Layer 已退役；Web Release 仅打包可信管理端插件前端。
 		DefaultThemeLayer: "",
 		BunPath:           cfg.WebReleaseBunPath,
@@ -418,18 +418,17 @@ func (w *Worker) Close() {
 // webReleaseTypecheckPolicy 从 web_options 解析 typecheck 是否硬失败。
 type webReleaseTypecheckPolicy struct {
 	options interface {
-		WebReleaseTypecheckFail(context.Context) (bool, error)
+		WebReleaseTypecheckMode(context.Context) (string, error)
 	}
 }
 
-func (p webReleaseTypecheckPolicy) TypecheckFail(ctx context.Context) bool {
+func (p webReleaseTypecheckPolicy) TypecheckMode(ctx context.Context) string {
 	if p.options == nil {
-		return false
+		return "report"
 	}
-	fail, err := p.options.WebReleaseTypecheckFail(ctx)
+	mode, err := p.options.WebReleaseTypecheckMode(ctx)
 	if err != nil {
-		// options 读失败时不阻断发布，避免 DB 抖动拖垮重建。
-		return false
+		return "report"
 	}
-	return fail
+	return mode
 }

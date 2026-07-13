@@ -77,11 +77,11 @@ func TestInstallOrUpgradeArchiveMarksUpgradeAndRevokesTrust(t *testing.T) {
 	if second.PreviousDigest == "" || second.PreviousDigest == second.Extension.PackageDigest {
 		t.Fatalf("expected digest change on upgrade: %#v", second)
 	}
-	if !second.TrustRevoked {
-		t.Fatalf("digest change should revoke trust")
+	if second.TrustRevoked {
+		t.Fatalf("backend/settings-only package change must not revoke frontend trust")
 	}
-	if len(revoker.calls) != 1 || revoker.calls[0] != "upgrade.plugin" {
-		t.Fatalf("expected trust revoker call, got %#v", revoker.calls)
+	if len(revoker.calls) != 0 {
+		t.Fatalf("unexpected trust revoker call: %#v", revoker.calls)
 	}
 	if len(runtime.stopped) == 0 || runtime.stopped[len(runtime.stopped)-1] != "upgrade.plugin" {
 		t.Fatalf("upgrade should drain runtime, stopped=%#v", runtime.stopped)

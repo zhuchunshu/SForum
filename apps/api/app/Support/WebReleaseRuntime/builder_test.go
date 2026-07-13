@@ -177,7 +177,7 @@ func TestBuilderTypecheckPolicyOverridesStaticConfig(t *testing.T) {
 	// 静态 TypecheckFail=false，但 policy 要求硬失败。
 	builder := NewBuilder(Config{
 		ReleaseRoot: root, BunPath: "bun", Runner: runner, TypecheckFail: false,
-		TypecheckPolicy: staticTypecheckPolicy{fail: true},
+		TypecheckPolicy: staticTypecheckPolicy{mode: "block"},
 	})
 	prepared := PreparedRelease{
 		Detail:     extensions.WebReleaseDetail{WebRelease: extensions.WebRelease{ID: 15}},
@@ -194,9 +194,28 @@ func TestBuilderTypecheckPolicyOverridesStaticConfig(t *testing.T) {
 	}
 }
 
-type staticTypecheckPolicy struct{ fail bool }
+type staticTypecheckPolicy struct{ mode string }
 
-func (p staticTypecheckPolicy) TypecheckFail(context.Context) bool { return p.fail }
+func (p staticTypecheckPolicy) TypecheckMode(context.Context) string { return p.mode }
+
+func TestBuilderTypecheckOffSkipsCommand(t *testing.T) {
+	root := t.TempDir()
+	runner := &recordingBuildRunner{}
+	builder := NewBuilder(Config{ReleaseRoot: root, BunPath: "bun", Runner: runner, TypecheckPolicy: staticTypecheckPolicy{mode: "off"}})
+	prepared := PreparedRelease{
+		Detail:     extensions.WebReleaseDetail{WebRelease: extensions.WebRelease{ID: 16}},
+		ReleaseDir: filepath.Join(root, "releases", "16"), Workspace: filepath.Join(root, "workspace"),
+	}
+	if err := os.MkdirAll(prepared.Workspace, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := builder.Build(context.Background(), prepared, ""); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(strings.Join(runner.commands, ","), "typecheck") {
+		t.Fatalf("off mode must skip typecheck: %v", runner.commands)
+	}
+}
 
 func TestWriteJSONAtomicPublishesCompleteDocument(t *testing.T) {
 	target := filepath.Join(t.TempDir(), "release.json")

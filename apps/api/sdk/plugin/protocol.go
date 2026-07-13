@@ -18,32 +18,34 @@ type (
 	RouteTarget = extensionsruntime.PluginRouteTarget
 
 	// HookRequest / HookResponse 是事件/filter 钩子载荷。
-	HookRequest  = extensionsruntime.PluginHookRequest
-	HookResponse = extensionsruntime.PluginHookResponse
+	HookRequest           = extensionsruntime.PluginHookRequest
+	HookResponse          = extensionsruntime.PluginHookResponse
+	ProviderProbeRequest  = extensionsruntime.ProviderProbeRequest
+	ProviderProbeResponse = extensionsruntime.ProviderProbeResponse
 
 	// MailRequest / MailResponse 是 mail.provider 投递载荷。
 	MailRequest  = extensionsruntime.MailProviderRequest
 	MailResponse = extensionsruntime.MailProviderResponse
 
 	// 附件存储槽 attachment.storage.provider（E6.2 分块 RPC）。
-	StoragePutBeginRequest   = extensionsruntime.StoragePutBeginRequest
-	StoragePutChunkRequest   = extensionsruntime.StoragePutChunkRequest
-	StorageOpenRequest       = extensionsruntime.StorageOpenRequest
-	StorageGetChunkRequest   = extensionsruntime.StorageGetChunkRequest
-	StorageGetChunkResponse  = extensionsruntime.StorageGetChunkResponse
-	StorageCloseRequest      = extensionsruntime.StorageCloseRequest
-	StorageObjectRequest     = extensionsruntime.StorageObjectRequest
-	StorageStatRequest       = extensionsruntime.StorageStatRequest
-	StorageStatResponse      = extensionsruntime.StorageStatResponse
-	StorageExistsRequest     = extensionsruntime.StorageExistsRequest
-	StorageExistsResponse    = extensionsruntime.StorageExistsResponse
-	StoragePublicURLRequest  = extensionsruntime.StoragePublicURLRequest
-	StorageSignedURLRequest  = extensionsruntime.StorageSignedURLRequest
-	StorageURLResponse       = extensionsruntime.StorageURLResponse
-	StorageProbeRequest      = extensionsruntime.StorageProbeRequest
-	StorageProbeResponse     = extensionsruntime.StorageProbeResponse
-	StorageSessionResponse   = extensionsruntime.StorageSessionResponse
-	StorageResult            = extensionsruntime.StorageResult
+	StoragePutBeginRequest  = extensionsruntime.StoragePutBeginRequest
+	StoragePutChunkRequest  = extensionsruntime.StoragePutChunkRequest
+	StorageOpenRequest      = extensionsruntime.StorageOpenRequest
+	StorageGetChunkRequest  = extensionsruntime.StorageGetChunkRequest
+	StorageGetChunkResponse = extensionsruntime.StorageGetChunkResponse
+	StorageCloseRequest     = extensionsruntime.StorageCloseRequest
+	StorageObjectRequest    = extensionsruntime.StorageObjectRequest
+	StorageStatRequest      = extensionsruntime.StorageStatRequest
+	StorageStatResponse     = extensionsruntime.StorageStatResponse
+	StorageExistsRequest    = extensionsruntime.StorageExistsRequest
+	StorageExistsResponse   = extensionsruntime.StorageExistsResponse
+	StoragePublicURLRequest = extensionsruntime.StoragePublicURLRequest
+	StorageSignedURLRequest = extensionsruntime.StorageSignedURLRequest
+	StorageURLResponse      = extensionsruntime.StorageURLResponse
+	StorageProbeRequest     = extensionsruntime.StorageProbeRequest
+	StorageProbeResponse    = extensionsruntime.StorageProbeResponse
+	StorageSessionResponse  = extensionsruntime.StorageSessionResponse
+	StorageResult           = extensionsruntime.StorageResult
 )
 
 // Serve 以 HashiCorp go-plugin 协议运行插件进程（阻塞）。

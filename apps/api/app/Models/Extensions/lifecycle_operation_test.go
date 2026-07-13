@@ -10,18 +10,21 @@ import (
 
 func TestFrontendRequiresWebRelease(t *testing.T) {
 	tests := []struct {
-		state string
-		want  bool
+		state         string
+		buildRequired bool
+		want          bool
 	}{
-		{FrontendTrustNone, false},
-		{FrontendTrustRequired, false},
-		{FrontendTrustInvalidated, false},
-		{FrontendTrustTrusted, true},
-		{FrontendTrustSourceTrusted, true},
-		{FrontendTrustRevocationPending, true},
+		{FrontendTrustNone, true, false},
+		{FrontendTrustRequired, true, false},
+		{FrontendTrustInvalidated, true, false},
+		{FrontendTrustTrusted, true, true},
+		{FrontendTrustSourceTrusted, true, true},
+		{FrontendTrustRevocationPending, true, true},
+		// 预构建组件即使已信任也按 digest 直载，不创建 Web Release。
+		{FrontendTrustTrusted, false, false},
 	}
 	for _, test := range tests {
-		if got := frontendRequiresWebRelease(FrontendStatus{TrustState: test.state}); got != test.want {
+		if got := frontendRequiresWebRelease(FrontendStatus{TrustState: test.state, BuildRequired: test.buildRequired}); got != test.want {
 			t.Fatalf("state %s: expected %v, got %v", test.state, test.want, got)
 		}
 	}
@@ -34,7 +37,7 @@ func TestDisableOperationRequiresPluginManageWithWebRelease(t *testing.T) {
 	store := newFakeExtensionStore(map[string]Extension{extension.ID: extension})
 	service := NewService(store, t.TempDir())
 	WithWebReleaseLifecycle(
-		staticFrontendLifecycle{status: FrontendStatus{TrustState: FrontendTrustTrusted}},
+		staticFrontendLifecycle{status: FrontendStatus{TrustState: FrontendTrustTrusted, BuildRequired: true}},
 		&fakeFrontendReleaseManager{},
 	)(service)
 

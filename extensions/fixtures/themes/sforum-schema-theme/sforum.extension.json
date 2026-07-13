@@ -1,0 +1,36 @@
+{
+  "id": "sforum.fixture-schema-theme",
+  "name": "Schema Theme Fixture",
+  "description": "Runtime theme fixture with buildless tabbed settings.",
+  "url": "https://example.com/sforum-schema-theme",
+  "author": { "name": "SForum" },
+  "version": "1.0.0",
+  "type": "theme",
+  "sforumVersion": ">=0.1.0",
+  "admin": {
+    "entry": "/settings",
+    "pages": [
+      { "path": "/settings", "label": "Theme settings", "view": "settings" }
+    ]
+  },
+  "settings": {
+    "schemaVersion": 1,
+    "ui": {
+      "mode": "schema",
+      "layout": "tabs",
+      "tabs": [
+        { "id": "appearance", "label": "Appearance", "groups": ["appearance"] }
+      ],
+      "groups": [
+        { "id": "appearance", "label": "Appearance", "columns": 2 }
+      ],
+      "callouts": [
+        { "id": "buildless", "tone": "info", "title": "No host build", "body": "This uploaded theme uses the same host renderer as builtin themes.", "tab": "appearance" }
+      ]
+    },
+    "fields": [
+      { "key": "hero.title", "label": "Hero title", "type": "text", "default": "Hello", "groupId": "appearance" },
+      { "key": "hero.compact", "label": "Compact hero", "type": "boolean", "default": "false", "groupId": "appearance" }
+    ]
+  }
+}

@@ -26,6 +26,47 @@ func (h *Controller) frontendStatus(c fiber.Ctx) error {
 	return apphttp.OK(c, status)
 }
 
+func (h *Controller) frontendAsset(c fiber.Ctx) error {
+	assets, ok := h.frontend.(TrustedFrontendAssetService)
+	if h.frontend == nil || !ok {
+		return fiber.NewError(fiber.StatusServiceUnavailable, extensions.CodeFrontendRuntimeUnavailable)
+	}
+	actor, err := h.actor(c)
+	if err != nil {
+		return err
+	}
+	digest := c.Params("digest")
+	if !frontendDigestPattern.MatchString(digest) {
+		return fiber.NewError(fiber.StatusNotFound, extensions.CodeFrontendTrustNotFound)
+	}
+	asset, err := assets.Asset(c.Context(), actor, c.Params("id"), digest, c.Params("asset"))
+	if err != nil {
+		return mapExtensionError(err)
+	}
+	c.Set(fiber.HeaderContentType, asset.ContentType)
+	c.Set(fiber.HeaderCacheControl, "private, max-age=31536000, immutable")
+	c.Set(fiber.HeaderETag, asset.ETag)
+	c.Set("X-Content-Type-Options", "nosniff")
+	c.Set("Cross-Origin-Resource-Policy", "same-origin")
+	return c.Send(asset.Body)
+}
+
+func (h *Controller) frontendConfirmation(c fiber.Ctx) error {
+	challenges, ok := h.frontend.(TrustedFrontendChallengeService)
+	if h.frontend == nil || !ok {
+		return fiber.NewError(fiber.StatusServiceUnavailable, extensions.CodeFrontendRuntimeUnavailable)
+	}
+	actor, err := h.actor(c)
+	if err != nil {
+		return err
+	}
+	challenge, err := challenges.Challenge(c.Context(), actor, c.Params("id"))
+	if err != nil {
+		return mapExtensionError(err)
+	}
+	return apphttp.OK(c, challenge)
+}
+
 func (h *Controller) grantFrontendTrust(c fiber.Ctx) error {
 	if h.frontend == nil {
 		return fiber.NewError(fiber.StatusServiceUnavailable, extensions.CodeFrontendRuntimeUnavailable)

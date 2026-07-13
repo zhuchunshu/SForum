@@ -32,8 +32,8 @@ func newPostgresFrontendTrustStore(db frontendTrustDB) *PostgresFrontendTrustSto
 	return &PostgresFrontendTrustStore{db: db}
 }
 
-func (s *PostgresFrontendTrustStore) FrontendGrant(ctx context.Context, extensionID string, version string, digest string) (FrontendTrustGrant, error) {
-	return s.liveFrontendGrant(ctx, extensionID, version, digest)
+func (s *PostgresFrontendTrustStore) FrontendGrant(ctx context.Context, extensionID string, version string, adminFrontendDigest string) (FrontendTrustGrant, error) {
+	return s.liveFrontendGrant(ctx, extensionID, version, adminFrontendDigest)
 }
 
 func (s *PostgresFrontendTrustStore) LiveFrontendGrants(ctx context.Context, extensionID string) ([]FrontendTrustGrant, error) {
@@ -42,7 +42,7 @@ func (s *PostgresFrontendTrustStore) LiveFrontendGrants(ctx context.Context, ext
 		FROM extension_frontend_trust_grants
 		WHERE revoked_at IS NULL
 		  AND ($1 = '' OR extension_id = $1)
-		ORDER BY extension_id, extension_version, package_digest, id
+		ORDER BY extension_id, extension_version, admin_frontend_digest, id
 	`, strings.TrimSpace(extensionID))
 	if err != nil {
 		return nil, fmt.Errorf("list live frontend trust grants: %w", err)
@@ -76,17 +76,18 @@ func (s *PostgresFrontendTrustStore) CreateFrontendGrant(ctx context.Context, in
 
 	grant, err := scanFrontendTrustGrant(s.db.QueryRow(ctx, `
 		INSERT INTO extension_frontend_trust_grants (
-			extension_id, extension_version, package_digest, api_version,
+			extension_id, extension_version, package_digest, admin_frontend_digest, api_version,
 			contribution_points, component_ids, granted_by_user_id
 		)
-		VALUES ($1, $2, $3, $4, $5::jsonb, $6::jsonb, $7)
-		ON CONFLICT (extension_id, extension_version, package_digest)
+		VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7::jsonb, $8)
+		ON CONFLICT (extension_id, extension_version, api_version, admin_frontend_digest)
 		  WHERE revoked_at IS NULL
 		DO NOTHING
 		RETURNING `+frontendTrustGrantColumns(),
 		input.ExtensionID,
 		input.ExtensionVersion,
 		input.PackageDigest,
+		input.AdminFrontendDigest,
 		input.APIVersion,
 		pointsJSON,
 		componentsJSON,
@@ -99,7 +100,7 @@ func (s *PostgresFrontendTrustStore) CreateFrontendGrant(ctx context.Context, in
 		return FrontendTrustGrant{}, fmt.Errorf("create frontend trust grant: %w", err)
 	}
 
-	existing, err := s.liveFrontendGrant(ctx, input.ExtensionID, input.ExtensionVersion, input.PackageDigest)
+	existing, err := s.liveFrontendGrant(ctx, input.ExtensionID, input.ExtensionVersion, input.AdminFrontendDigest)
 	if err != nil {
 		if errors.Is(err, ErrFrontendGrantNotFound) {
 			return FrontendTrustGrant{}, ErrFrontendGrantStateConflict
@@ -124,13 +125,13 @@ func (s *PostgresFrontendTrustStore) RequestFrontendRevocation(ctx context.Conte
 		    revocation_requested_by_user_id = $4
 		WHERE extension_id = $1
 		  AND extension_version = $2
-		  AND package_digest = $3
+		  AND admin_frontend_digest = $3
 		  AND revocation_requested_at IS NULL
 		  AND revoked_at IS NULL
 		RETURNING `+frontendTrustGrantColumns(),
 		input.ExtensionID,
 		input.ExtensionVersion,
-		input.PackageDigest,
+		input.AdminFrontendDigest,
 		nullableActorID(input.RequestedByUserID),
 	))
 	if err == nil {
@@ -139,7 +140,7 @@ func (s *PostgresFrontendTrustStore) RequestFrontendRevocation(ctx context.Conte
 	if !errors.Is(err, pgx.ErrNoRows) {
 		return FrontendTrustGrant{}, fmt.Errorf("request frontend trust revocation: %w", err)
 	}
-	if _, loadErr := s.liveFrontendGrant(ctx, input.ExtensionID, input.ExtensionVersion, input.PackageDigest); loadErr != nil {
+	if _, loadErr := s.liveFrontendGrant(ctx, input.ExtensionID, input.ExtensionVersion, input.AdminFrontendDigest); loadErr != nil {
 		return FrontendTrustGrant{}, loadErr
 	}
 	return FrontendTrustGrant{}, ErrFrontendGrantStateConflict
@@ -179,8 +180,8 @@ func (s *PostgresFrontendTrustStore) RequestAllFrontendRevocations(ctx context.C
 		if items[i].ExtensionVersion != items[j].ExtensionVersion {
 			return items[i].ExtensionVersion < items[j].ExtensionVersion
 		}
-		if items[i].PackageDigest != items[j].PackageDigest {
-			return items[i].PackageDigest < items[j].PackageDigest
+		if items[i].AdminFrontendDigest != items[j].AdminFrontendDigest {
+			return items[i].AdminFrontendDigest < items[j].AdminFrontendDigest
 		}
 		return items[i].ID < items[j].ID
 	})
@@ -194,16 +195,16 @@ func (s *PostgresFrontendTrustStore) FinalizeFrontendRevocation(ctx context.Cont
 		    revoked_by_user_id = revocation_requested_by_user_id
 		WHERE extension_id = $1
 		  AND extension_version = $2
-		  AND package_digest = $3
+		  AND admin_frontend_digest = $3
 		  AND revocation_requested_at IS NOT NULL
 		  AND revoked_at IS NULL
 		RETURNING `+frontendTrustGrantColumns(),
 		input.ExtensionID,
 		input.ExtensionVersion,
-		input.PackageDigest,
+		input.AdminFrontendDigest,
 	))
 	if errors.Is(err, pgx.ErrNoRows) {
-		existing, loadErr := s.exactFrontendGrant(ctx, input.ExtensionID, input.ExtensionVersion, input.PackageDigest, false)
+		existing, loadErr := s.exactFrontendGrant(ctx, input.ExtensionID, input.ExtensionVersion, input.AdminFrontendDigest, false)
 		if loadErr == nil && existing.RevokedAt != nil {
 			return existing, nil
 		}
@@ -238,7 +239,7 @@ func (s *PostgresFrontendTrustStore) FinalizeFrontendRevocations(ctx context.Con
 			WHERE release_extensions.web_release_id = target_release.id
 			  AND release_extensions.extension_id = grants.extension_id
 			  AND release_extensions.extension_version = grants.extension_version
-			  AND release_extensions.package_digest = grants.package_digest
+			  AND release_extensions.admin_frontend_digest = grants.admin_frontend_digest
 		  )
 	`, releaseID)
 	if err != nil {
@@ -247,15 +248,15 @@ func (s *PostgresFrontendTrustStore) FinalizeFrontendRevocations(ctx context.Con
 	return nil
 }
 
-func (s *PostgresFrontendTrustStore) liveFrontendGrant(ctx context.Context, extensionID string, version string, digest string) (FrontendTrustGrant, error) {
-	return s.exactFrontendGrant(ctx, extensionID, version, digest, true)
+func (s *PostgresFrontendTrustStore) liveFrontendGrant(ctx context.Context, extensionID string, version string, adminFrontendDigest string) (FrontendTrustGrant, error) {
+	return s.exactFrontendGrant(ctx, extensionID, version, adminFrontendDigest, true)
 }
 
 func (s *PostgresFrontendTrustStore) exactFrontendGrant(
 	ctx context.Context,
 	extensionID string,
 	version string,
-	digest string,
+	adminFrontendDigest string,
 	liveOnly bool,
 ) (FrontendTrustGrant, error) {
 	grant, err := scanFrontendTrustGrant(s.db.QueryRow(ctx, `
@@ -263,11 +264,11 @@ func (s *PostgresFrontendTrustStore) exactFrontendGrant(
 		FROM extension_frontend_trust_grants
 		WHERE extension_id = $1
 		  AND extension_version = $2
-		  AND package_digest = $3
+		  AND admin_frontend_digest = $3
 		  AND ($4 = false OR revoked_at IS NULL)
 		ORDER BY granted_at DESC, id DESC
 		LIMIT 1
-	`, extensionID, version, digest, liveOnly))
+	`, extensionID, version, adminFrontendDigest, liveOnly))
 	if errors.Is(err, pgx.ErrNoRows) {
 		return FrontendTrustGrant{}, ErrFrontendGrantNotFound
 	}
@@ -278,7 +279,7 @@ func (s *PostgresFrontendTrustStore) exactFrontendGrant(
 }
 
 func frontendTrustGrantColumns() string {
-	return `id, extension_id, extension_version, package_digest, api_version,
+	return `id, extension_id, extension_version, package_digest, admin_frontend_digest, api_version,
 	  contribution_points, component_ids, COALESCE(granted_by_user_id, 0), granted_at,
 	  revocation_requested_at, COALESCE(revocation_requested_by_user_id, 0),
 	  revoked_at, COALESCE(revoked_by_user_id, 0)`
@@ -297,6 +298,7 @@ func scanFrontendTrustGrant(row frontendTrustGrantScanner) (FrontendTrustGrant, 
 		&grant.ExtensionID,
 		&grant.ExtensionVersion,
 		&grant.PackageDigest,
+		&grant.AdminFrontendDigest,
 		&grant.APIVersion,
 		&pointsJSON,
 		&componentsJSON,

@@ -1,4 +1,28 @@
-[
+{
+  "schemaVersion": 1,
+  "ui": {
+    "mode": "schema",
+    "layout": "tabs",
+    "tabs": [
+      { "id": "connection", "label": { "zh-CN": "连接与认证", "en-US": "Connection" }, "groups": ["server", "authentication"] },
+      { "id": "sender", "label": { "zh-CN": "发件人", "en-US": "Sender" }, "groups": ["sender"] }
+    ],
+    "groups": [
+      { "id": "server", "label": { "zh-CN": "服务器连接", "en-US": "Server" }, "columns": 2 },
+      { "id": "authentication", "label": { "zh-CN": "登录账号", "en-US": "Authentication" }, "columns": 2 },
+      { "id": "sender", "label": { "zh-CN": "发件人", "en-US": "Sender" }, "columns": 2 }
+    ],
+    "callouts": [
+      {
+        "id": "starttls-recommended",
+        "tone": "info",
+        "title": { "zh-CN": "推荐 STARTTLS + 587", "en-US": "STARTTLS + 587 recommended" },
+        "body": { "zh-CN": "先保存或直接使用下方测试连接；测试只启动受限的短生命周期 Probe，不会启用插件。", "en-US": "Save first or test the draft below. The probe uses a restricted short-lived runtime and does not enable the plugin." },
+        "tab": "connection"
+      }
+    ]
+  },
+  "fields": [
   {
     "key": "host",
     "label": { "zh-CN": "SMTP 服务器地址", "en-US": "SMTP host" },
@@ -98,4 +122,15 @@
     "placeholder": { "zh-CN": "SForum", "en-US": "SForum" },
     "group": { "zh-CN": "发件人", "en-US": "Sender" }
   }
-]
+  ],
+  "actions": [
+    {
+      "id": "probe",
+      "kind": "provider_probe",
+      "label": { "zh-CN": "测试 SMTP 连接", "en-US": "Test SMTP connection" },
+      "description": { "zh-CN": "验证网络、TLS 与登录认证，不发送邮件。", "en-US": "Checks network, TLS, and authentication without sending mail." },
+      "placement": "footer",
+      "useDraftValues": true
+    }
+  ]
+}

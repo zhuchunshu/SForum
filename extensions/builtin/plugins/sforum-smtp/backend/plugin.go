@@ -22,6 +22,17 @@ func (smtpPlugin) RouteTarget() (extensionsruntime.PluginRouteTarget, error) {
 func (smtpPlugin) InvokeHook(extensionsruntime.PluginHookRequest) (extensionsruntime.PluginHookResponse, error) {
 	return extensionsruntime.PluginHookResponse{OK: true}, nil
 }
+func (smtpPlugin) ProviderProbe(request extensionsruntime.ProviderProbeRequest) (extensionsruntime.ProviderProbeResponse, error) {
+	if request.Slot != "mail.provider" {
+		return extensionsruntime.ProviderProbeResponse{Reason: "provider.slot_unsupported", Message: "unsupported provider slot"}, nil
+	}
+	port, _ := strconv.Atoi(os.Getenv("SFORUM_SETTING_PORT"))
+	config := smtpConfig{Host: os.Getenv("SFORUM_SETTING_HOST"), Port: port, Encryption: os.Getenv("SFORUM_SETTING_ENCRYPTION"), Username: os.Getenv("SFORUM_SETTING_USERNAME"), Password: os.Getenv("SFORUM_SETTING_PASSWORD"), FromAddress: os.Getenv("SFORUM_SETTING_FROM_ADDRESS"), FromName: os.Getenv("SFORUM_SETTING_FROM_NAME")}
+	if err := probeSMTP(config); err != nil {
+		return extensionsruntime.ProviderProbeResponse{Reason: err.reason, Message: err.message}, nil
+	}
+	return extensionsruntime.ProviderProbeResponse{OK: true, Reason: "smtp.connection_ok", Message: "SMTP connection and authentication succeeded."}, nil
+}
 func (smtpPlugin) SendMail(request extensionsruntime.MailProviderRequest) (extensionsruntime.MailProviderResponse, error) {
 	port, _ := strconv.Atoi(os.Getenv("SFORUM_SETTING_PORT"))
 	config := smtpConfig{Host: os.Getenv("SFORUM_SETTING_HOST"), Port: port, Encryption: os.Getenv("SFORUM_SETTING_ENCRYPTION"), Username: os.Getenv("SFORUM_SETTING_USERNAME"), Password: os.Getenv("SFORUM_SETTING_PASSWORD"), FromAddress: os.Getenv("SFORUM_SETTING_FROM_ADDRESS"), FromName: os.Getenv("SFORUM_SETTING_FROM_NAME")}

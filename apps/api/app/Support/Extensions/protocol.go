@@ -73,6 +73,7 @@ type PluginProtocol interface {
 	Health() (PluginHealth, error)
 	RouteTarget() (PluginRouteTarget, error)
 	InvokeHook(PluginHookRequest) (PluginHookResponse, error)
+	ProviderProbe(ProviderProbeRequest) (ProviderProbeResponse, error)
 	SendMail(MailProviderRequest) (MailProviderResponse, error)
 	// 附件存储槽 attachment.storage.provider（E6.2，分块 Put/Open）。
 	StoragePutBegin(StoragePutBeginRequest) (StorageSessionResponse, error)
@@ -111,6 +112,18 @@ type PluginHookResponse struct {
 	Reason  string
 	Message string
 	Patch   map[string]any
+}
+
+type ProviderProbeRequest struct {
+	Slot string
+}
+
+type ProviderProbeResponse struct {
+	OK          bool
+	Reason      string
+	Message     string
+	Details     map[string]string
+	Suggestions []string
 }
 
 type MailProviderRequest struct {
@@ -416,6 +429,12 @@ func (s *ProtocolStarter) SendMail(ctx context.Context, extensionID string, requ
 	}
 }
 
+func (s *ProtocolStarter) ProviderProbe(ctx context.Context, extensionID string, request ProviderProbeRequest) (ProviderProbeResponse, error) {
+	return callStorage(ctx, s.protocolFor(extensionID), func(protocol PluginProtocol) (ProviderProbeResponse, error) {
+		return protocol.ProviderProbe(request)
+	}, ProviderProbeResponse{Reason: "extension.action_timeout", Message: "Provider probe exceeded the host timeout."})
+}
+
 // protocolFor 返回已启动扩展的协议面；未运行时返回 nil。
 func (s *ProtocolStarter) protocolFor(extensionID string) PluginProtocol {
 	s.mu.Lock()
@@ -559,6 +578,12 @@ func (c *netRPCClient) InvokeHook(input PluginHookRequest) (PluginHookResponse, 
 	return response, err
 }
 
+func (c *netRPCClient) ProviderProbe(input ProviderProbeRequest) (ProviderProbeResponse, error) {
+	var response ProviderProbeResponse
+	err := c.client.Call("Plugin.ProviderProbe", input, &response)
+	return response, err
+}
+
 func (c *netRPCClient) SendMail(input MailProviderRequest) (MailProviderResponse, error) {
 	var response MailProviderResponse
 	err := c.client.Call("Plugin.SendMail", input, &response)
@@ -649,6 +674,12 @@ func (s *netRPCServer) RouteTarget(_ PluginEmptyRequest, response *PluginRouteTa
 
 func (s *netRPCServer) InvokeHook(input PluginHookRequest, response *PluginHookResponse) error {
 	result, err := s.Impl.InvokeHook(input)
+	*response = result
+	return err
+}
+
+func (s *netRPCServer) ProviderProbe(input ProviderProbeRequest, response *ProviderProbeResponse) error {
+	result, err := s.Impl.ProviderProbe(input)
 	*response = result
 	return err
 }

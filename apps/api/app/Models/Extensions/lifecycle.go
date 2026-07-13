@@ -103,10 +103,15 @@ func (s *Service) InstallOrUpgradeArchive(ctx context.Context, actor identity.Ac
 		return InstallResult{}, err
 	}
 
+	adminFrontendDigest, err := ComputeAdminFrontendDigest(manifest, snapshot.Root)
+	if err != nil {
+		return InstallResult{}, ErrInvalidManifest
+	}
 	installed, err := s.store.SaveInstalled(ctx, SaveInstalledInput{
-		Manifest:      manifest,
-		PackagePath:   snapshot.Root,
-		PackageDigest: snapshot.Digest,
+		Manifest:            manifest,
+		PackagePath:         snapshot.Root,
+		PackageDigest:       snapshot.Digest,
+		AdminFrontendDigest: adminFrontendDigest,
 	})
 	if err != nil {
 		return InstallResult{}, err
@@ -122,7 +127,7 @@ func (s *Service) InstallOrUpgradeArchive(ctx context.Context, actor identity.Ac
 	if isUpgrade {
 		result.PreviousVersion = previous.Version
 		result.PreviousDigest = previous.PackageDigest
-		if previous.PackageDigest != "" && previous.PackageDigest != installed.PackageDigest {
+		if previous.AdminFrontendDigest != installed.AdminFrontendDigest {
 			result.TrustRevoked = true
 			if s.trustRevoker != nil {
 				_ = s.trustRevoker.RevokeAllForExtension(ctx, installed.ID, actor.ID)

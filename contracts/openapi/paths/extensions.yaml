@@ -228,6 +228,12 @@ adminExtensionContributions:
 adminExtensionSettings:
   get:
     summary: Read extension settings
+    description: >-
+      Returns the localized host-renderer page model for either a plugin or a
+      theme. Installed/disabled plugins and inactive themes remain readable and
+      configurable without starting extension runtime code. Legacy array-shaped
+      settings normalize to schema/form while legacy trusted settings-page
+      contributions remain exposed as the compatibility component source.
     operationId: getAdminExtensionSettings
     parameters:
     - "$ref": "../components/parameters.yaml#/ExtensionID"
@@ -246,6 +252,11 @@ adminExtensionSettings:
         "$ref": "../components/responses.yaml#/NotFound"
   put:
     summary: Update extension settings
+    description: >-
+      Persists only manifest-declared keys. Stored secrets remain encrypted and
+      blank/omitted secret values preserve the current secret. Disabled plugins
+      and inactive themes can be configured; only an already-enabled backend
+      plugin is restarted after persistence.
     operationId: updateAdminExtensionSettings
     parameters:
     - "$ref": "../components/parameters.yaml#/ExtensionID"
@@ -301,6 +312,56 @@ adminExtensionSettingsReset:
         "$ref": "../components/responses.yaml#/NotFound"
       '503':
         description: Plugin restart failed; reason extension.settings_rollback_failed means restoring the previous settings also failed and requires operator intervention.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/common.yaml#/ApiErrorResponse"
+adminExtensionSettingsAction:
+  post:
+    summary: Execute a declared extension settings action
+    operationId: executeAdminExtensionSettingsAction
+    description: >-
+      Executes only an action declared by the installed settings document. The
+      host validates permission, field allowlists, explicit secret
+      preserve/replace semantics, lifecycle, timeout, audit, and response
+      bounds. Provider probes use a restricted short-lived runtime that does
+      not register normal routes, events, jobs, schedules, or providers, so a
+      disabled plugin can be tested before enablement. Results are structured
+      host data and never plugin-provided HTML.
+    parameters:
+    - "$ref": "../components/parameters.yaml#/ExtensionID"
+    - name: actionID
+      in: path
+      required: true
+      schema:
+        type: string
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            "$ref": "../schemas/extensions.yaml#/ExtensionSettingsActionInput"
+    responses:
+      '200':
+        description: Structured action result; success may be false for provider-level failures.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/extensions.yaml#/ApiResponseExtensionSettingsActionResult"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '404':
+        "$ref": "../components/responses.yaml#/NotFound"
+      '422':
+        description: Unknown action/field, implicit secret handling, or oversized input.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/common.yaml#/ApiErrorResponse"
+      '503':
+        description: Action runtime unavailable or timed out.
         content:
           application/json:
             schema:
@@ -539,10 +600,90 @@ adminExtensionFrontend:
         "$ref": "../components/responses.yaml#/NotFound"
       '503':
         "$ref": "../components/responses.yaml#/ServiceUnavailable"
+adminExtensionFrontendAsset:
+  get:
+    summary: Load a trusted immutable prebuilt admin asset
+    description: >-
+      Authenticated same-origin endpoint. It serves only the current settings
+      component entry or CSS declared by the installed package, after exact
+      digest grant/source-trust verification. Arbitrary package paths are never
+      accepted. Responses use immutable private caching and nosniff.
+    operationId: getAdminExtensionFrontendAsset
+    parameters:
+    - "$ref": "../components/parameters.yaml#/ExtensionID"
+    - name: digest
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: '^[0-9a-f]{64}$'
+    - name: asset
+      in: path
+      required: true
+      schema:
+        type: string
+        enum: [entry, style]
+    responses:
+      '200':
+        description: Immutable JavaScript module or CSS bytes from the extension package.
+        headers:
+          Cache-Control:
+            schema: { type: string }
+          ETag:
+            schema: { type: string }
+          X-Content-Type-Options:
+            schema: { type: string, enum: [nosniff] }
+          Cross-Origin-Resource-Policy:
+            schema: { type: string, enum: [same-origin] }
+        content:
+          application/javascript:
+            schema: { type: string, format: binary }
+          text/css:
+            schema: { type: string, format: binary }
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '404':
+        "$ref": "../components/responses.yaml#/NotFound"
+      '409':
+        "$ref": "../components/responses.yaml#/Conflict"
+adminExtensionFrontendConfirmation:
+  post:
+    summary: Create a one-use prebuilt component trust confirmation
+    description: >-
+      Active super_admin only. The five-minute challenge is bound to actor,
+      extension id, version, API version, component id, and
+      adminFrontendDigest, and is consumed by the first grant attempt. It
+      confirms intentional authorization; the durable technical boundary is
+      still the exact digest grant.
+    operationId: createAdminExtensionFrontendConfirmation
+    parameters:
+    - "$ref": "../components/parameters.yaml#/ExtensionID"
+    responses:
+      '200':
+        description: One-use confirmation challenge.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/extensions.yaml#/ApiResponseFrontendTrustChallenge"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '404':
+        "$ref": "../components/responses.yaml#/NotFound"
+      '409':
+        "$ref": "../components/responses.yaml#/Conflict"
 adminExtensionFrontendTrust:
   post:
     summary: Grant exact trusted admin frontend access
-    description: Requires an active super administrator. Trust is bound to the submitted exact immutable package digest. A disabled plugin returns 200; an enabled plugin queues a web release and returns 202.
+    description: >-
+      Requires an active super administrator. Trust is bound to extension id,
+      version, API version, component identity, and exact adminFrontendDigest.
+      Prebuilt components additionally require an explicit confirmation object
+      and never queue a Web Release. Legacy Vue frontends retain the compatible
+      Web Release behavior.
     operationId: grantAdminExtensionFrontendTrust
     parameters:
     - "$ref": "../components/parameters.yaml#/ExtensionID"

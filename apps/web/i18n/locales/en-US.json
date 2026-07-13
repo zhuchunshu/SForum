@@ -517,6 +517,13 @@
       },
       "viewWebRelease": "View release log",
       "actionFailed": "Extension action failed.",
+      "settingsProfiles": {
+        "none": "No settings UI",
+        "schema": "No author JS (Schema)",
+        "actions": "Schema + host Actions",
+        "prebuilt": "Includes fully trusted component",
+        "legacyVue": "Legacy Vue / Web Release required"
+      },
       "frontend": {
         "title": "Trusted admin components",
         "loading": "Loading trust status",
@@ -525,21 +532,42 @@
         "grantSuccess": "Frontend trust granted.",
         "revokeSuccess": "Frontend trust revocation submitted.",
         "grantQueued": "Frontend trust granted and a Web release was queued.",
-        "revokeQueued": "Frontend trust revocation submitted and a Web release was queued."
+        "revokeQueued": "Frontend trust revocation submitted and a Web release was queued.",
+        "prebuiltTitle": "Author-prebuilt component (no operator build)",
+        "prebuiltDescription": "The component comes from the installed extension package and loads through an immutable digest URL. It is fully trusted code, not a sandbox; declining trust keeps the declarative settings available.",
+        "noWebRelease": "Loaded directly by digest; no Web Release is created",
+        "confirmTitle": "Confirm extension admin code",
+        "fullTrustTitle": "This code has administrator browser authority",
+        "fullTrustDescription": "The {name} v{version} component can call its namespaced API, change settings, and navigate the admin on your behalf. The host does not pass Cookie or Authorization values to it, but the code must still be treated as fully trusted.",
+        "confirmPhrase": "Type extension ID “{id}” to confirm",
+        "confirmCode": "Re-enter the one-time confirmation code below (valid for 5 minutes)",
+        "confirmAcknowledge": "I understand this is not a sandbox and trust this exact version, API, component ID, and digest.",
+        "confirmGrant": "Confirm and load component"
       },
       "releases": {
         "title": "Web releases",
-        "intro": "Inspect immutable theme and trusted-plugin compositions, builds, and switch history. After builtin theme or trusted plugin admin UI updates, use Rebuild now to queue a new release.",
+        "intro": "Only compatibility releases for legacy trusted Vue admin frontends appear here. Schema, Actions, prebuilt components, and public theme activation never create a Web Release.",
         "rebuildTitle": "Rebuild the current Web release",
-        "rebuildDescription": "Re-package the admin app from the active theme and enabled trusted plugins. Use this after default-theme settings pages or SMTP settings UI changes. Does not change plugin enablement. Refresh the admin UI when the release becomes active.",
+        "rebuildDescription": "Re-package the currently enabled and trusted legacy Vue admin composition. An unchanged composition reuses an active/ready artifact; no legacy component means the build is skipped. Settings, secrets, plugin backends, and public themes are not changed.",
         "rebuild": "Rebuild now",
         "rebuildQueued": "Web release rebuild queued.",
-        "typecheckFailTitle": "Hard-fail on typecheck",
-        "typecheckFailDescription": "When enabled, a Web Release stops if vue-tsc typecheck fails. Default is off: typecheck still runs and is written to the build log, but packaging continues. Full-repo typecheck stays a CI / test-script gate and is not controlled by this switch.",
-        "typecheckFailOn": "Fail the release",
-        "typecheckFailOff": "Log only (recommended)",
-        "typecheckFailEnabled": "Typecheck hard-fail enabled.",
-        "typecheckFailDisabled": "Typecheck hard-fail disabled (recommended default).",
+        "typecheckModeTitle": "Web Release typecheck policy",
+        "typecheckModeDescription": "This affects only Web Releases for legacy trusted Vue admin frontends. Schema, Actions, and prebuilt components do not trigger a Nuxt build; full-repo typecheck remains mandatory in CI and test scripts.",
+        "typecheckModeSaved": "Typecheck policy saved.",
+        "typecheckModes": {
+          "off": {
+            "label": "Off",
+            "description": "Skip typecheck in release builds; useful when CI is the single type gate."
+          },
+          "report": {
+            "label": "Report, do not block (recommended)",
+            "description": "Run typecheck and record its result; failures do not block a compatibility Web Release."
+          },
+          "block": {
+            "label": "Block on failure",
+            "description": "Run typecheck and stop the compatibility Web Release on any type error."
+          }
+        },
         "historyHint": "History of releases below. In-progress builds refresh automatically.",
         "trigger": "Trigger",
         "theme": "Theme",
@@ -741,10 +769,10 @@
       "themes": {
         "metaTitle": "Theme management",
         "title": "Theme management",
-        "intro": "Manage packages declared as themes. Uploaded themes are queued for build, health-check, and activation before becoming current.",
+        "intro": "Manage runtime theme packages. Schema settings and Page Registry activation do not build Nuxt; only an optional trusted prebuilt admin component needs separate digest confirmation.",
         "count": "{count} theme(s) installed",
         "emptyTitle": "No themes installed",
-        "emptyDescription": "Upload an extension ZIP with type theme to activate a Nuxt Layer theme here.",
+        "emptyDescription": "Upload an extension ZIP with type theme, configure it here, and activate it directly through the Page Registry.",
         "runtimeUnavailable": "Theme runtime is temporarily unavailable."
       },
       "settings": {
@@ -775,6 +803,8 @@
         "notFoundDescription": "This extension does not exist, or its manifest does not declare the current admin page.",
         "disabledTitle": "Extension disabled",
         "disabledDescription": "This extension is currently disabled. Its settings and registered admin features are offline. Enable it from the plugins list first.",
+        "configureBeforeEnableTitle": "Safe configuration before enablement",
+        "configureBeforeEnableDescription": "Only host-stored declarative settings are edited here. The plugin process, routes, events, jobs, and providers stay stopped. Actions that require code remain unavailable.",
         "enablingTitle": "Extension is enabling",
         "enablingDescription": "Trusted plugins with admin frontend need a Web Release (build and activate) before status becomes enabled. This page refreshes progress automatically.",
         "plainDevTitle": "Running in plain dev mode",
@@ -787,6 +817,17 @@
         "settingsLoadFailed": "Extension settings could not be loaded.",
         "settingsSaved": "Extension settings saved.",
         "settingsSaveFailed": "Extension settings could not be saved.",
+        "actionFailed": "Extension settings action failed.",
+        "componentLoading": "Loading trusted component…",
+        "componentTrustRequired": "Custom component trust is required",
+        "componentChanged": "Component digest changed; confirmation is required again",
+        "componentLoadFailed": "Custom component failed to load",
+        "componentQuarantined": "Repeated failures paused this component for the browser session",
+        "componentFallback": "The page automatically fell back to Schema UI. Settings, secrets, the package, and backend were not removed.",
+        "componentRetry": "Retry component",
+        "useSchemaFallback": "Restore declarative Schema UI",
+        "schemaFallbackActive": "Using declarative Schema UI",
+        "resumeComponent": "Check component trust again",
         "settingsReset": "Recommended defaults restored.",
         "enabled": "Enabled",
         "defaultValue": "Default: {value}",
@@ -809,6 +850,12 @@
         "recommendedDescription": "Most extensions ship with working recommended defaults. Restore them first, then fine-tune. Field labels and help text come from the extension itself.",
         "currentRecommended": "Using recommended defaults",
         "customPageBadge": "Plugin custom UI",
+        "schemaBadge": "Declarative",
+        "compatBadge": "Generic compatibility",
+        "legacyRendererDeprecatedTitle": "Legacy Vue settings compatibility mode",
+        "legacyRendererDeprecatedDescription": "This extension still injects its settings page through a full Web Release. New packages should use Schema, Settings Actions, or an author-prebuilt Admin Micro-frontend API v1 component. The compatibility path remains available for now.",
+        "presentationFallbackTitle": "Using the generic form fallback",
+        "presentationFallbackDescription": "Optional extension layout metadata is unavailable. The settings fields remain editable through the safe linear form.",
         "secretsPreserved": "Restoring recommended defaults does not clear saved passwords or secrets. Leaving a password field blank also keeps the current value.",
         "secretSetPlaceholder": "Already set (leave blank to keep)",
         "secretConfigured": "Secret saved",

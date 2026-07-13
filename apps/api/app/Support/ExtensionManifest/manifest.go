@@ -52,19 +52,20 @@ type Manifest struct {
 	Capabilities []string `json:"capabilities,omitempty"`
 	// RequiresFeatures 为站点产品开关依赖（F4.5）。须为宿主 features.* 目录 key；
 	// 启用时若任一开关关闭则拒绝。主题必须为空。
-	RequiresFeatures []string            `json:"requiresFeatures,omitempty"`
-	Settings         []ManifestSetting   `json:"settings"`
-	Migrations    []ManifestMigration    `json:"migrations"`
-	Backend       ManifestBackend        `json:"backend"`
-	Frontend      ManifestFrontend       `json:"frontend"`
-	Admin         ManifestAdmin          `json:"admin"`
-	AdminPages    []ManifestAdminPage    `json:"adminPages"`
-	Routes        []ManifestRoute        `json:"routes"`
-	Hooks         []ManifestHook         `json:"hooks"`
-	Events        []ManifestEvent        `json:"events"`
-	Jobs          []ManifestJob          `json:"jobs"`
-	Providers     []ManifestProvider     `json:"providers"`
-	Contributions []ManifestContribution `json:"contributions"`
+	RequiresFeatures []string               `json:"requiresFeatures,omitempty"`
+	Settings         []ManifestSetting      `json:"-"`
+	SettingsDocument SettingsDocument       `json:"-"`
+	Migrations       []ManifestMigration    `json:"migrations"`
+	Backend          ManifestBackend        `json:"backend"`
+	Frontend         ManifestFrontend       `json:"frontend"`
+	Admin            ManifestAdmin          `json:"admin"`
+	AdminPages       []ManifestAdminPage    `json:"adminPages"`
+	Routes           []ManifestRoute        `json:"routes"`
+	Hooks            []ManifestHook         `json:"hooks"`
+	Events           []ManifestEvent        `json:"events"`
+	Jobs             []ManifestJob          `json:"jobs"`
+	Providers        []ManifestProvider     `json:"providers"`
+	Contributions    []ManifestContribution `json:"contributions"`
 }
 
 type ManifestAuthor struct {
@@ -90,6 +91,8 @@ type ManifestSetting struct {
 	Placeholder      LocalizedText           `json:"placeholder,omitempty"`
 	RecommendedValue string                  `json:"recommendedValue,omitempty"`
 	Group            LocalizedText           `json:"group,omitempty"`
+	GroupID          string                  `json:"groupId,omitempty"`
+	Column           int                     `json:"column,omitempty"`
 	Options          []ManifestSettingOption `json:"options,omitempty"`
 }
 
@@ -327,7 +330,7 @@ func validateManifest(manifest Manifest, points []ContributionPointDefinition) e
 	}
 	for _, setting := range manifest.Settings {
 		// label 支持纯字符串或多语言 map，校验时只要求解析后非空。
-		if setting.Key == "" || setting.Label.IsEmpty() || setting.Type == "" || strings.Contains(setting.Key, " ") {
+		if setting.Key == "" || setting.Label.IsEmpty() || !supportedSettingType(setting.Type) || strings.Contains(setting.Key, " ") {
 			return ErrInvalidManifest
 		}
 		optionValues := make(map[string]struct{}, len(setting.Options))
@@ -345,6 +348,9 @@ func validateManifest(manifest Manifest, points []ContributionPointDefinition) e
 				return ErrInvalidManifest
 			}
 		}
+	}
+	if err := validateSettingsDocument(manifest); err != nil {
+		return err
 	}
 	if err := validateAdminDeclaration(manifest); err != nil {
 		return err
@@ -506,6 +512,7 @@ func Normalize(manifest Manifest) Manifest {
 		manifest.Settings[index].Placeholder = manifest.Settings[index].Placeholder.normalized()
 		manifest.Settings[index].RecommendedValue = strings.TrimSpace(manifest.Settings[index].RecommendedValue)
 		manifest.Settings[index].Group = manifest.Settings[index].Group.normalized()
+		manifest.Settings[index].GroupID = NormalizeID(manifest.Settings[index].GroupID)
 		for optionIndex := range manifest.Settings[index].Options {
 			option := &manifest.Settings[index].Options[optionIndex]
 			option.Value = strings.TrimSpace(option.Value)
@@ -513,6 +520,7 @@ func Normalize(manifest Manifest) Manifest {
 			option.Description = option.Description.normalized()
 		}
 	}
+	normalizeSettingsDocument(&manifest)
 	manifest.Backend.Entry = strings.TrimSpace(manifest.Backend.Entry)
 	manifest.Backend.RPC = strings.TrimSpace(manifest.Backend.RPC)
 	if manifest.Backend.ProtocolVersion == 0 && manifest.Backend.RPC != "" {
@@ -551,6 +559,15 @@ func Normalize(manifest Manifest) Manifest {
 		manifest.Contributions[index] = normalizeContribution(manifest.Contributions[index])
 	}
 	return manifest
+}
+
+func supportedSettingType(value string) bool {
+	switch value {
+	case "text", "string", "number", "boolean", "select", "secret":
+		return true
+	default:
+		return false
+	}
 }
 
 func normalizeAdminPageSlice(pages []ManifestAdminPage) {

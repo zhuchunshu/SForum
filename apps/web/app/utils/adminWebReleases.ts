@@ -28,7 +28,7 @@ export type AdminWebReleaseEvent = {
 
 export type AdminWebReleaseDetail = AdminWebRelease & {
   buildLog?: string
-  extensions: Array<{ extensionId: string, extensionVersion: string, packageDigest: string }>
+  extensions: Array<{ extensionId: string, extensionVersion: string, packageDigest: string, adminFrontendDigest: string }>
   effects: Array<{ extensionId: string, previousStatus: string, targetStatus: string }>
   events: AdminWebReleaseEvent[]
 }

@@ -4,6 +4,17 @@ This is the entry point for project memory.
 
 ## Latest Handoff
 
+- **2026-07-13 Buildless extension settings UI P0–P6 complete**
+  - Decision: `knowledge/decisions/2026-07-13-buildless-extension-settings-ui.md`
+  - Task book: `knowledge/plans/2026-07-13-buildless-extension-settings-ui.md`
+  - Handoff: `knowledge/sessions/2026-07-13-buildless-extension-settings-ui-plan.md`
+  - Schema/Actions are host-rendered with no build; complex admin UI is
+    author-prebuilt and dynamically loaded after digest-bound trust
+  - Legacy arrays and trusted Vue Web Release remain compatible; dedicated
+    `adminFrontendDigest` avoids unrelated host builds
+  - SMTP/default theme migrated; Admin Micro-frontend API v1, SDK, CLI,
+    OpenAPI, fixtures, docs, and fallback are implemented
+
 - **2026-07-13 Runtime Page Registry round-2 Codex remediation**
   - Handoff: `knowledge/sessions/2026-07-13-runtime-page-registry-round2-remediation.md`
   - Deterministic routes, access fail-closed, loader SSR gateway, Web Release lifecycle
@@ -87,18 +98,18 @@ This is the entry point for project memory.
   - SDK Noop/ProtocolNoop; SMTP embeds ProtocolNoop
   - Next: **E6.3** polish / **E6.4** S3 reference plugin
 
-- **2026-07-13 Web Release typecheck non-blocking (admin toggle)**
+- **2026-07-13 Web Release typecheck non-blocking (superseded by explicit mode)**
   - Decision: `knowledge/decisions/2026-07-13-web-release-typecheck-nonblocking.md`
-  - Option: `web_release.typecheck_fail` on 扩展 → Web 发布
-  - Default: typecheck logs only; CI/`test.sh` still forces typecheck
-  - Manual rebuild + hard-fail switch on same admin page
+  - Compatibility option `web_release.typecheck_fail` remains synchronized
+  - Current option: `web_release.typecheck_mode` = off/report/block
+  - CI/`test.sh` still forces typecheck
 
-- **2026-07-13 theme custom settings page (tabs)**
+- **2026-07-13 theme custom settings page (superseded by Schema renderer)**
   - Decision: `knowledge/decisions/2026-07-13-theme-admin-settings-page.md`
   - Handoff: `knowledge/sessions/2026-07-13-theme-custom-settings-tabs.md`
-  - Themes may declare `frontend.admin` + settings page slots only
-  - Default theme multi-tab `ThemeSettingsPage` + expanded settings keys
-  - Web Release includes active theme admin frontend
+  - Compatibility decision retained for history
+  - Default theme now uses buildless Settings Document tabs/groups/callouts;
+    its admin SFC was removed and themes stay outside Web Release
 
 - **2026-07-12 security audit follow-up remediation completed**
   - Plan: `knowledge/plans/2026-07-12-security-audit-followup-remediation.md` (Status: Completed)

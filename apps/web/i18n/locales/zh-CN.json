@@ -517,6 +517,13 @@
       },
       "viewWebRelease": "查看发布日志",
       "actionFailed": "扩展操作失败。",
+      "settingsProfiles": {
+        "none": "无设置 UI",
+        "schema": "无作者 JS（Schema）",
+        "actions": "Schema + 宿主 Actions",
+        "prebuilt": "包含完全信任组件",
+        "legacyVue": "旧 Vue / 需要 Web Release"
+      },
       "frontend": {
         "title": "可信管理端组件",
         "loading": "正在读取信任状态",
@@ -525,21 +532,42 @@
         "grantSuccess": "前端信任已授权。",
         "revokeSuccess": "前端信任撤销已提交。",
         "grantQueued": "前端信任已授权，Web 发布已排队。",
-        "revokeQueued": "前端信任撤销已提交，Web 发布已排队。"
+        "revokeQueued": "前端信任撤销已提交，Web 发布已排队。",
+        "prebuiltTitle": "作者预构建组件（运营免构建）",
+        "prebuiltDescription": "组件来自已安装扩展包，并通过不可变 digest URL 加载。它是完全信任代码，不是沙箱；拒绝授权时仍可使用声明式设置。",
+        "noWebRelease": "直接按 digest 加载，不创建 Web Release",
+        "confirmTitle": "确认运行扩展管理端代码",
+        "fullTrustTitle": "此代码拥有管理员浏览器权限",
+        "fullTrustDescription": "{name} v{version} 的组件可代表你调用其命名空间 API、修改设置和导航后台。宿主不会把 Cookie 或 Authorization 值交给组件，但此代码仍应视为完全信任。",
+        "confirmPhrase": "输入扩展 ID“{id}”以确认",
+        "confirmCode": "再次输入下面的一次性确认码（5 分钟有效）",
+        "confirmAcknowledge": "我理解这不是沙箱，并确认信任当前版本、API、组件 ID 与 digest。",
+        "confirmGrant": "确认并加载组件"
       },
       "releases": {
         "title": "Web 发布",
-        "intro": "查看主题与可信插件组成的不可变发布、构建状态和切换历史。内置主题/插件管理端 UI 更新后，请点「立即重建」排队新的发布。",
+        "intro": "这里只记录兼容旧可信 Vue 管理端的不可变发布。Schema、Actions、预构建组件和公开主题激活都不会创建 Web Release。",
         "rebuildTitle": "重建当前 Web 发布",
-        "rebuildDescription": "按当前激活主题与已启用的可信插件重新打包管理端。适用于默认主题自定义设置页、SMTP 设置页等 admin 前端更新。不会改动插件启停状态。构建完成后按提示刷新后台即可。",
+        "rebuildDescription": "按当前已启用且受信任的旧 Vue 管理端组成重新打包。composition 未变化时会复用 active/ready 产物；没有旧管理端组件时会跳过。不会改动设置、密钥、插件后端或公开主题。",
         "rebuild": "立即重建",
         "rebuildQueued": "Web 发布重建已排队。",
-        "typecheckFailTitle": "Typecheck 硬失败",
-        "typecheckFailDescription": "开启后，Web Release 在 vue-tsc typecheck 失败时会中止构建。默认关闭：typecheck 仍会执行并写入构建日志，但不阻断打包。全仓强制 typecheck 由 CI / 测试脚本负责，不依赖此开关。",
-        "typecheckFailOn": "失败即中止",
-        "typecheckFailOff": "仅记录不阻断",
-        "typecheckFailEnabled": "已开启 typecheck 硬失败。",
-        "typecheckFailDisabled": "已关闭 typecheck 硬失败（推荐默认）。",
+        "typecheckModeTitle": "Web Release 类型检查策略",
+        "typecheckModeDescription": "仅影响兼容旧可信 Vue 管理端的 Web Release。Schema、Actions 和预构建组件不触发 Nuxt 构建；全仓 typecheck 始终由 CI / 测试脚本强制执行。",
+        "typecheckModeSaved": "类型检查策略已保存。",
+        "typecheckModes": {
+          "off": {
+            "label": "关闭",
+            "description": "发布构建跳过 typecheck；适合希望最快构建、并由 CI 统一把关的站点。"
+          },
+          "report": {
+            "label": "报告但不阻断（推荐）",
+            "description": "运行 typecheck 并记录结果；失败不会阻断兼容 Web Release。"
+          },
+          "block": {
+            "label": "失败时阻断",
+            "description": "运行 typecheck；任何类型错误都会中止兼容 Web Release。"
+          }
+        },
         "historyHint": "下方为历史发布记录；进行中的构建会自动刷新。",
         "trigger": "触发来源",
         "theme": "主题",
@@ -741,10 +769,10 @@
       "themes": {
         "metaTitle": "主题管理",
         "title": "主题管理",
-        "intro": "管理声明为 theme 的主题包。上传主题会先排队构建、健康检查，再切换为当前主题。",
+        "intro": "管理声明为 theme 的运行时主题包。Schema 设置和 Page Registry 激活均不构建 Nuxt；只有可选的受信任预构建管理端组件需要单独确认 digest。",
         "count": "已安装 {count} 个主题",
         "emptyTitle": "还没有安装主题",
-        "emptyDescription": "上传 type 为 theme 的扩展 ZIP 后，可以在这里激活 Nuxt Layer 主题。",
+        "emptyDescription": "上传 type 为 theme 的扩展 ZIP 后，可以在这里配置并通过 Page Registry 直接激活。",
         "runtimeUnavailable": "主题运行时暂不可用。"
       },
       "settings": {
@@ -775,6 +803,8 @@
         "notFoundDescription": "这个扩展不存在，或 manifest 没有声明当前后台页面。",
         "disabledTitle": "扩展已禁用",
         "disabledDescription": "该扩展当前未启用，其设置页与注册的管理端功能已下线。请先在插件列表中启用后再使用。",
+        "configureBeforeEnableTitle": "可在启用前安全配置",
+        "configureBeforeEnableDescription": "当前只编辑宿主保存的声明式设置，不会启动插件进程、注册路由、事件、任务或 Provider。需要运行代码的操作会保持禁用。",
         "enablingTitle": "扩展正在启用",
         "enablingDescription": "带管理端前端的受信任插件需要完成 Web Release（构建并激活）后，状态才会变为已启用。请稍候，本页会自动刷新进度。",
         "plainDevTitle": "当前为 plain 开发模式",
@@ -787,6 +817,17 @@
         "settingsLoadFailed": "扩展设置加载失败。",
         "settingsSaved": "扩展设置已保存。",
         "settingsSaveFailed": "扩展设置保存失败。",
+        "actionFailed": "扩展设置操作失败。",
+        "componentLoading": "正在加载受信任组件…",
+        "componentTrustRequired": "自定义组件尚未获得信任",
+        "componentChanged": "组件 digest 已变化，需要重新确认",
+        "componentLoadFailed": "自定义组件加载失败",
+        "componentQuarantined": "组件连续失败，已在本次浏览器会话中暂停",
+        "componentFallback": "已自动回退到声明式 Schema UI；设置、密钥、扩展包和后端均未删除。",
+        "componentRetry": "重试组件",
+        "useSchemaFallback": "恢复声明式 Schema UI",
+        "schemaFallbackActive": "正在使用声明式 Schema UI",
+        "resumeComponent": "重新检查组件信任",
         "settingsReset": "已恢复推荐默认值。",
         "enabled": "启用",
         "defaultValue": "默认值：{value}",
@@ -809,6 +850,12 @@
         "recommendedDescription": "大多数扩展提供了可用的推荐默认值。你可以先恢复推荐配置，再按需要微调。字段标签与说明由扩展自己提供。",
         "currentRecommended": "当前为推荐默认值",
         "customPageBadge": "插件自定义界面",
+        "schemaBadge": "声明式",
+        "compatBadge": "通用兼容",
+        "legacyRendererDeprecatedTitle": "旧 Vue 设置页兼容模式",
+        "legacyRendererDeprecatedDescription": "该扩展仍通过完整 Web Release 注入设置页。新包应迁移到 Schema、Settings Actions 或作者预构建的 Admin Micro-frontend API v1；兼容路径目前不会删除。",
+        "presentationFallbackTitle": "已回退到通用表单",
+        "presentationFallbackDescription": "扩展的可选布局信息不可用，设置字段仍可通过安全的线性表单编辑。",
         "secretsPreserved": "恢复推荐默认值不会清空已保存的密码或密钥；密码字段留空也会保留原值。",
         "secretSetPlaceholder": "已设置（留空保留原值）",
         "secretConfigured": "已保存密钥",

@@ -202,12 +202,15 @@ function buildExtensionNavigationItems(currentAdminPageId: string): SidebarNavig
 }
 
 function openExtensionRoutePlaceholderTab(tabId: string) {
-  // 动态扩展页的正式标题需要等待扩展清单接口返回，路由层先创建临时 tab 保持 active 状态正确。
+  // 导航数据在 SSR 阶段已经可用时直接复用正式标题，避免服务端占位标题与客户端扩展详情数据产生水合差异。
+  const navigationItem = (extensionNavigation.value || []).find((item) => {
+    return `/extensions/${item.extensionId}/pages${item.path}` === tabId
+  })
   adminTabs.openCustomTab({
     id: tabId,
-    label: extensionRouteFallbackLabel(tabId),
+    label: navigationItem?.label || extensionRouteFallbackLabel(tabId),
     to: adminRoutes.path(tabId),
-    icon: 'i-lucide-blocks',
+    icon: navigationItem?.icon || (navigationItem?.extensionType === 'theme' ? 'i-lucide-palette' : 'i-lucide-blocks'),
     closable: true,
     componentName: 'AdminExtensionDynamicPage'
   })

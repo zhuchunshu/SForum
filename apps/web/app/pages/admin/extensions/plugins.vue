@@ -6,6 +6,7 @@ import {
   capabilityCount,
   extensionLocalizedDisplay,
   extensionManageRoute,
+  extensionSettingsPresentation,
   filterExtensionsByType,
   hasPluginWebReleaseInProgress,
   pluginWebReleaseProgress,
@@ -207,6 +208,13 @@ useSeoMeta({
             </UBadge>
             <UBadge :color="runtimeColor(item.runtime?.state)" variant="subtle">
               {{ t(runtimeStatusLabelKey(item)) }}
+            </UBadge>
+            <UBadge
+              :color="extensionSettingsPresentation(item).color"
+              variant="subtle"
+              :icon="extensionSettingsPresentation(item).icon"
+            >
+              {{ t(extensionSettingsPresentation(item).labelKey) }}
             </UBadge>
             <UBadge
               v-if="item.runtime?.circuitOpen"

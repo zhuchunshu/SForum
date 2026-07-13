@@ -47,7 +47,8 @@ type Service struct {
 	// storageSelection 禁用存储插件时回落 attachment.provider（E6.1）。
 	storageSelection StorageSelectionClearer
 	// pageRegistry 运行时主题页面贡献（L0/L1）；nil 时跳过注册。
-	pageRegistry PageRegistry
+	pageRegistry    PageRegistry
+	settingsActions SettingsActionRuntime
 }
 
 // PageRegistry 主题/插件页面贡献注册（避免 extensions 直接依赖 pages 包实现细节）。
@@ -143,8 +144,15 @@ func WithRuntimeManager(runtime RuntimeManager) ServiceOption {
 	return func(s *Service) {
 		if runtime != nil {
 			s.runtime = runtime
+			if actions, ok := runtime.(SettingsActionRuntime); ok {
+				s.settingsActions = actions
+			}
 		}
 	}
+}
+
+func WithSettingsActionRuntime(runtime SettingsActionRuntime) ServiceOption {
+	return func(s *Service) { s.settingsActions = runtime }
 }
 
 func (s *Service) appendAudit(ctx context.Context, actor identity.Actor, action string, metadata map[string]any) {
@@ -393,10 +401,15 @@ func (s *Service) SyncBuiltins(ctx context.Context) ([]Extension, error) {
 			if err != nil {
 				return nil, err
 			}
+			adminFrontendDigest, err := ComputeAdminFrontendDigest(manifest, snapshot.Root)
+			if err != nil {
+				return nil, fmt.Errorf("builtin %s admin frontend: %w", entry.Name(), err)
+			}
 			item, err := s.store.SaveBuiltin(ctx, SaveBuiltinInput{
-				Manifest:      manifest,
-				PackagePath:   snapshot.Root,
-				PackageDigest: snapshot.Digest,
+				Manifest:            manifest,
+				PackagePath:         snapshot.Root,
+				PackageDigest:       snapshot.Digest,
+				AdminFrontendDigest: adminFrontendDigest,
 			})
 			if err != nil {
 				return nil, err
@@ -546,10 +559,6 @@ func (s *Service) Settings(ctx context.Context, actor identity.Actor, extensionI
 	if !canManageExtensionSettings(actor, extension) {
 		return ExtensionSettings{}, identity.ErrPermissionDenied
 	}
-	// 禁用插件不得再暴露/改写运行时配置（页面与 provider 能力一并下线）。
-	if err := requireExtensionEnabledForSettings(extension); err != nil {
-		return ExtensionSettings{}, err
-	}
 	values, err := s.listDecryptedSettings(ctx, extension)
 	if err != nil {
 		return ExtensionSettings{}, err
@@ -564,9 +573,6 @@ func (s *Service) UpdateSettings(ctx context.Context, actor identity.Actor, exte
 	}
 	if !canManageExtensionSettings(actor, extension) {
 		return ExtensionSettings{}, identity.ErrPermissionDenied
-	}
-	if err := requireExtensionEnabledForSettings(extension); err != nil {
-		return ExtensionSettings{}, err
 	}
 	current, err := s.listDecryptedSettings(ctx, extension)
 	if err != nil {
@@ -603,9 +609,6 @@ func (s *Service) ResetSettings(ctx context.Context, actor identity.Actor, exten
 	if !canManageExtensionSettings(actor, extension) {
 		return ExtensionSettings{}, identity.ErrPermissionDenied
 	}
-	if err := requireExtensionEnabledForSettings(extension); err != nil {
-		return ExtensionSettings{}, err
-	}
 	previousRaw, err := s.store.ListSettings(ctx, extension.ID)
 	if err != nil {
 		return ExtensionSettings{}, err
@@ -628,15 +631,6 @@ func (s *Service) restoreSettingsAfterRestartFailure(ctx context.Context, extens
 		)
 	}
 	return fmt.Errorf("restart extension after settings change: %w", restartErr)
-}
-
-// requireExtensionEnabledForSettings 限制仅启用中的扩展可读写 settings。
-// 主题未激活 / 插件已禁用时配置页应不可用，避免“禁了但功能还在”。
-func requireExtensionEnabledForSettings(extension Extension) error {
-	if extension.Status == StatusEnabled {
-		return nil
-	}
-	return ErrExtensionDisabled
 }
 
 func canManageExtensionSettings(actor identity.Actor, extension Extension) bool {
@@ -1620,11 +1614,67 @@ func resolveExtensionSettings(extension Extension, values map[string]string, loc
 			Placeholder:      presentation.Placeholder,
 			RecommendedValue: setting.RecommendedValue,
 			Group:            presentation.Group,
+			GroupID:          setting.GroupID,
+			Column:           setting.Column,
 			Options:          options,
 			SecretSet:        secretSet,
 		})
 	}
-	return ExtensionSettings{ExtensionID: extension.ID, Items: items}
+	document := extension.Manifest.SettingsDocument
+	renderer := ExtensionSettingsRenderer{Mode: document.UI.Mode, Layout: document.UI.Layout, Source: "document", Fallback: "schema"}
+	if !document.Explicit {
+		renderer.Source = "legacy_array"
+	}
+	if component, ok := legacySettingsComponent(extension.Manifest); ok {
+		renderer.Mode = extensionmanifest.SettingsUIModeComponent
+		renderer.Source = "legacy_web_release"
+		renderer.Component = &ExtensionSettingsComponent{ID: component, Kind: "legacy_web_release", APIVersion: extensionmanifest.AdminFrontendAPIVersion}
+	} else if document.UI.Component != nil {
+		component := document.UI.Component
+		renderer.Component = &ExtensionSettingsComponent{ID: component.ID, Kind: "prebuilt", APIVersion: component.APIVersion, Entry: component.Entry, CSS: component.CSS}
+	}
+	tabs := make([]ExtensionSettingsTab, 0, len(document.UI.Tabs))
+	for _, tab := range document.UI.Tabs {
+		tabs = append(tabs, ExtensionSettingsTab{ID: tab.ID, Label: tab.Label.Resolve(locale), Description: tab.Description.Resolve(locale), Groups: append([]string(nil), tab.Groups...)})
+	}
+	groups := make([]ExtensionSettingsGroup, 0, len(document.UI.Groups))
+	for _, group := range document.UI.Groups {
+		groups = append(groups, ExtensionSettingsGroup{ID: group.ID, Label: group.Label.Resolve(locale), Description: group.Description.Resolve(locale), Columns: group.Columns})
+	}
+	callouts := make([]ExtensionSettingsCallout, 0, len(document.UI.Callouts))
+	for _, callout := range document.UI.Callouts {
+		callouts = append(callouts, ExtensionSettingsCallout{ID: callout.ID, Tone: callout.Tone, Title: callout.Title.Resolve(locale), Body: callout.Body.Resolve(locale), Tab: callout.Tab, Group: callout.Group})
+	}
+	actions := make([]ExtensionSettingsAction, 0, len(document.Actions))
+	for _, action := range document.Actions {
+		available := extension.Type == TypePlugin && extension.Manifest.Backend.Entry != "" && len(extension.Manifest.Providers) > 0
+		reason := ""
+		if !available {
+			reason = "extension.settings_action_unavailable"
+		}
+		actions = append(actions, ExtensionSettingsAction{
+			ID: action.ID, Kind: action.Kind, Label: action.Label.Resolve(locale), Description: action.Description.Resolve(locale),
+			Placement: action.Placement, UseDraftValues: action.UseDraftValues, Fields: append([]string(nil), action.Fields...),
+			Available: available, UnavailableReason: reason,
+		})
+	}
+	return ExtensionSettings{
+		ExtensionID: extension.ID, ExtensionType: extension.Type, ExtensionVersion: extension.Version, ExtensionStatus: extension.Status,
+		Renderer: renderer, Tabs: tabs, Groups: groups, Callouts: callouts, Items: items, Actions: actions,
+	}
+}
+
+func legacySettingsComponent(manifest Manifest) (string, bool) {
+	for _, contribution := range manifest.Contributions {
+		if contribution.Point != "admin.extension.settings.page" {
+			continue
+		}
+		var payload AdminComponentContributionPayload
+		if json.Unmarshal(contribution.Payload, &payload) == nil && strings.TrimSpace(payload.Component) != "" {
+			return strings.TrimSpace(payload.Component), true
+		}
+	}
+	return "", false
 }
 
 // sanitizeSettingValues 将 PUT 解析为完整候选集：提交值 → 已存值 → 默认。

@@ -346,8 +346,14 @@ paths:
     "$ref": "./openapi/paths/extensions.yaml#/adminExtensionSettings"
   "/admin/extensions/{extensionID}/settings/reset":
     "$ref": "./openapi/paths/extensions.yaml#/adminExtensionSettingsReset"
+  "/admin/extensions/{extensionID}/settings/actions/{actionID}":
+    "$ref": "./openapi/paths/extensions.yaml#/adminExtensionSettingsAction"
   "/admin/extensions/{extensionID}/frontend":
     "$ref": "./openapi/paths/extensions.yaml#/adminExtensionFrontend"
+  "/admin/extensions/{extensionID}/frontend/assets/{digest}/{asset}":
+    "$ref": "./openapi/paths/extensions.yaml#/adminExtensionFrontendAsset"
+  "/admin/extensions/{extensionID}/frontend/confirmation":
+    "$ref": "./openapi/paths/extensions.yaml#/adminExtensionFrontendConfirmation"
   "/admin/extensions/{extensionID}/frontend/trust":
     "$ref": "./openapi/paths/extensions.yaml#/adminExtensionFrontendTrust"
   "/admin/extensions/event-definitions":

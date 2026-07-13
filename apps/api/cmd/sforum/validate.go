@@ -83,6 +83,15 @@ func printValidateSummary(cmd *cobra.Command, root string, manifest extensionman
 	}
 
 	cmd.Printf("  settings:       %d\n", len(manifest.Settings))
+	cmd.Printf("  settings.ui:    mode=%s layout=%s tabs=%d actions=%d\n",
+		manifest.SettingsDocument.UI.Mode,
+		manifest.SettingsDocument.UI.Layout,
+		len(manifest.SettingsDocument.UI.Tabs),
+		len(manifest.SettingsDocument.Actions),
+	)
+	if component := manifest.SettingsDocument.UI.Component; component != nil {
+		cmd.Printf("  settings.ui.component: id=%s apiVersion=%d entry=%s\n", component.ID, component.APIVersion, component.Entry)
+	}
 	cmd.Printf("  contributions:  %d\n", len(manifest.Contributions))
 	cmd.Printf("  routes:         %d\n", len(manifest.Routes))
 	cmd.Printf("  events:         %d\n", len(manifest.Events))

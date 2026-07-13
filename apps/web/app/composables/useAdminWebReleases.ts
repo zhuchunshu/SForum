@@ -1,7 +1,8 @@
 import type { AdminWebReleaseDetail, AdminWebReleasePage } from '~/utils/adminWebReleases'
 import { webReleaseIsFinal } from '~/utils/adminWebReleases'
 
-const TYPECHECK_FAIL_OPTION = 'web_release.typecheck_fail'
+const TYPECHECK_MODE_OPTION = 'web_release.typecheck_mode'
+export type WebReleaseTypecheckMode = 'off' | 'report' | 'block'
 
 type AdminWebOption = {
   name: string
@@ -9,9 +10,8 @@ type AdminWebOption = {
   public?: boolean
 }
 
-function isEnabledOption(value: string | undefined) {
-  const raw = `${value ?? ''}`.trim().toLowerCase()
-  return raw === 'enabled' || raw === 'true' || raw === '1' || raw === 'yes' || raw === 'on'
+function normalizeTypecheckMode(value: string | undefined): WebReleaseTypecheckMode {
+  return value === 'off' || value === 'block' ? value : 'report'
 }
 
 export function useAdminWebReleases() {
@@ -23,7 +23,7 @@ export function useAdminWebReleases() {
   const selected = ref<AdminWebReleaseDetail | null>(null)
   const commandId = ref(0)
   const rebuilding = ref(false)
-  const typecheckFail = ref(false)
+  const typecheckMode = ref<WebReleaseTypecheckMode>('report')
   const typecheckSaving = ref(false)
   const typecheckLoading = ref(false)
   let timer: ReturnType<typeof setTimeout> | null = null
@@ -48,41 +48,40 @@ export function useAdminWebReleases() {
     typecheckLoading.value = true
     try {
       const items = await request<AdminWebOption[]>('/admin/web-options')
-      const hit = (items || []).find(item => item.name === TYPECHECK_FAIL_OPTION)
-      typecheckFail.value = isEnabledOption(hit?.value)
+      const hit = (items || []).find(item => item.name === TYPECHECK_MODE_OPTION)
+      typecheckMode.value = normalizeTypecheckMode(hit?.value)
     } catch {
       // 无权限或失败时保持默认非阻断，不打断发布列表。
-      typecheckFail.value = false
+      typecheckMode.value = 'report'
     } finally {
       typecheckLoading.value = false
     }
   }
 
-  async function setTypecheckFail(enabled: boolean) {
+  async function setTypecheckMode(mode: WebReleaseTypecheckMode) {
     if (typecheckSaving.value) return
     typecheckSaving.value = true
-    const previous = typecheckFail.value
-    typecheckFail.value = enabled
+    const previous = typecheckMode.value
+    typecheckMode.value = mode
     try {
       await request('/admin/web-options', {
         method: 'PUT',
         body: {
           options: [{
-            name: TYPECHECK_FAIL_OPTION,
-            value: enabled ? 'enabled' : 'disabled'
+            name: TYPECHECK_MODE_OPTION,
+            value: mode
           }]
         }
       })
       toast.add({
         color: 'success',
         icon: 'i-lucide-shield-check',
-        title: enabled
-          ? t('admin.extensions.releases.typecheckFailEnabled')
-          : t('admin.extensions.releases.typecheckFailDisabled'),
+        title: t('admin.extensions.releases.typecheckModeSaved'),
+        description: t(`admin.extensions.releases.typecheckModes.${mode}.description`),
         duration: 10000
       })
     } catch (error) {
-      typecheckFail.value = previous
+      typecheckMode.value = previous
       toast.add({ color: 'error', icon: 'i-lucide-triangle-alert', title: `${error}`, duration: 0 })
     } finally {
       typecheckSaving.value = false
@@ -150,14 +149,14 @@ export function useAdminWebReleases() {
     selected,
     commandId,
     rebuilding,
-    typecheckFail,
+    typecheckMode,
     typecheckSaving,
     typecheckLoading,
     load,
     select,
     rebuild,
     command,
-    setTypecheckFail,
+    setTypecheckMode,
     loadTypecheckPolicy
   }
 }

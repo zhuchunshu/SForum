@@ -178,6 +178,27 @@ ApiResponseExtensionSettings:
       type: string
     data:
       "$ref": "#/ExtensionSettings"
+ApiResponseExtensionSettingsActionResult:
+  type: object
+  required:
+  - code
+  - message
+  - data
+  properties:
+    code:
+      type: integer
+    message:
+      type: string
+    data:
+      "$ref": "#/ExtensionSettingsActionResult"
+ApiResponseFrontendTrustChallenge:
+  type: object
+  required: [code, message, data]
+  properties:
+    code: { type: integer }
+    message: { type: string }
+    data:
+      "$ref": "#/FrontendTrustChallenge"
 ExtensionType:
   type: string
   enum:
@@ -726,6 +747,7 @@ Extension:
   - isDeletable
   - manifest
   - packageDigest
+  - adminFrontendDigest
   - packagePath
   - installedAt
   - updatedAt
@@ -762,6 +784,11 @@ Extension:
     packageDigest:
       type: string
       description: Canonical immutable package tree SHA-256 digest.
+    adminFrontendDigest:
+      type: string
+      description: >-
+        SHA-256 identity of only the executable admin frontend contract and
+        bytes. Empty when the extension has no legacy or prebuilt admin UI.
     packagePath:
       type: string
       description: Server-local package path, visible only to extension managers.
@@ -788,7 +815,7 @@ ExtensionInstallResult:
       type: string
     trustRevoked:
       type: boolean
-      description: Frontend trust revoked because packageDigest changed.
+      description: Frontend trust revoked because adminFrontendDigest changed.
     requiredReEnable:
       type: boolean
       description: Plugin must be enabled again after upgrade (status reset to installed).
@@ -937,14 +964,116 @@ ExtensionSettings:
   type: object
   required:
   - extensionId
+  - extensionType
+  - extensionVersion
+  - extensionStatus
+  - renderer
   - items
   properties:
     extensionId:
       type: string
+    extensionType:
+      "$ref": "#/ExtensionType"
+    extensionVersion:
+      type: string
+    extensionStatus:
+      "$ref": "#/ExtensionStatus"
+    renderer:
+      "$ref": "#/ExtensionSettingsRenderer"
+    tabs:
+      type: array
+      items:
+        "$ref": "#/ExtensionSettingsTab"
+    groups:
+      type: array
+      items:
+        "$ref": "#/ExtensionSettingsGroup"
+    callouts:
+      type: array
+      items:
+        "$ref": "#/ExtensionSettingsCallout"
     items:
       type: array
       items:
         "$ref": "#/ExtensionSettingValue"
+    actions:
+      type: array
+      items:
+        "$ref": "#/ExtensionSettingsAction"
+ExtensionSettingsRenderer:
+  type: object
+  required: [mode, layout, source, fallback]
+  properties:
+    mode:
+      type: string
+      enum: [schema, component]
+    layout:
+      type: string
+      enum: [form, tabs]
+    source:
+      type: string
+      enum: [document, legacy_array, legacy_web_release]
+    fallback:
+      type: string
+      enum: [schema]
+    component:
+      "$ref": "#/ExtensionSettingsComponent"
+ExtensionSettingsComponent:
+  type: object
+  required: [id, kind, apiVersion]
+  properties:
+    id: { type: string }
+    kind:
+      type: string
+      enum: [legacy_web_release, prebuilt]
+    apiVersion: { type: integer, minimum: 1 }
+    entry: { type: string }
+    css: { type: string }
+ExtensionSettingsTab:
+  type: object
+  required: [id, label]
+  properties:
+    id: { type: string }
+    label: { type: string }
+    description: { type: string }
+    groups:
+      type: array
+      items: { type: string }
+ExtensionSettingsGroup:
+  type: object
+  required: [id, label]
+  properties:
+    id: { type: string }
+    label: { type: string }
+    description: { type: string }
+    columns: { type: integer, minimum: 1, maximum: 2 }
+ExtensionSettingsCallout:
+  type: object
+  required: [id, tone, title]
+  properties:
+    id: { type: string }
+    tone: { type: string }
+    title: { type: string }
+    body: { type: string }
+    tab: { type: string }
+    group: { type: string }
+ExtensionSettingsAction:
+  type: object
+  required: [id, kind, label, placement, useDraftValues, available]
+  properties:
+    id: { type: string }
+    kind:
+      type: string
+      enum: [provider_probe]
+    label: { type: string }
+    description: { type: string }
+    placement: { type: string, enum: [header, footer] }
+    useDraftValues: { type: boolean }
+    fields:
+      type: array
+      items: { type: string }
+    available: { type: boolean }
+    unavailableReason: { type: string }
 ExtensionSettingOption:
   type: object
   required:
@@ -986,6 +1115,12 @@ ExtensionSettingValue:
       type: string
     group:
       type: string
+    groupId:
+      type: string
+    column:
+      type: integer
+      minimum: 1
+      maximum: 2
     options:
       type: array
       items:
@@ -1001,6 +1136,56 @@ ExtensionSettingsInput:
       type: object
       additionalProperties:
         type: string
+ExtensionSettingsActionInput:
+  type: object
+  properties:
+    values:
+      type: object
+      additionalProperties:
+        type: string
+      description: Draft values for non-secret declared fields only.
+    secrets:
+      type: object
+      additionalProperties:
+        "$ref": "#/ExtensionSettingsActionSecretInput"
+ExtensionSettingsActionSecretInput:
+  type: object
+  required:
+  - mode
+  properties:
+    mode:
+      type: string
+      enum:
+      - preserve
+      - replace
+    value:
+      type: string
+      description: Required by host policy when mode=replace; never echoed or audited.
+ExtensionSettingsActionResult:
+  type: object
+  required:
+  - success
+  - reason
+  - message
+  - durationMs
+  properties:
+    success:
+      type: boolean
+    reason:
+      type: string
+    message:
+      type: string
+    details:
+      type: object
+      additionalProperties:
+        type: string
+    suggestions:
+      type: array
+      items:
+        type: string
+    durationMs:
+      type: integer
+      format: int64
 ExtensionEvent:
   type: object
   required:
@@ -1137,6 +1322,41 @@ GrantFrontendTrustInput:
     packageDigest:
       type: string
       pattern: '^[0-9a-f]{64}$'
+      description: >-
+        Compatibility field name carrying the current adminFrontendDigest.
+        The host also binds the grant to extension id, version, API version,
+        and immutable package identity.
+    confirmation:
+      "$ref": "#/FrontendTrustConfirmation"
+FrontendTrustConfirmation:
+  type: object
+  required: [challengeId, code, extensionId, version, digest, apiVersion, componentId, phrase, acknowledged]
+  properties:
+    challengeId: { type: string, pattern: '^[0-9a-f]{32}$' }
+    code: { type: string, pattern: '^[0-9]{6}$' }
+    extensionId: { type: string }
+    version: { type: string }
+    digest: { type: string, pattern: '^[0-9a-f]{64}$' }
+    apiVersion: { type: integer, minimum: 1 }
+    componentId: { type: string }
+    phrase:
+      type: string
+      description: Must exactly equal extensionId to prove intentional approval.
+    acknowledged:
+      type: boolean
+      description: Administrator acknowledges that component code is fully trusted, not sandboxed.
+FrontendTrustChallenge:
+  type: object
+  required: [challengeId, code, extensionId, version, digest, apiVersion, componentId, expiresAt]
+  properties:
+    challengeId: { type: string, pattern: '^[0-9a-f]{32}$' }
+    code: { type: string, pattern: '^[0-9]{6}$' }
+    extensionId: { type: string }
+    version: { type: string }
+    digest: { type: string, pattern: '^[0-9a-f]{64}$' }
+    apiVersion: { type: integer, minimum: 1 }
+    componentId: { type: string }
+    expiresAt: { type: string, format: date-time }
 Dependency:
   type: object
   required:
@@ -1180,19 +1400,40 @@ FrontendStatus:
   type: object
   required:
   - extensionId
+  - kind
   - trustState
   - dependencies
   properties:
     extensionId:
       type: string
+    kind:
+      type: string
+      enum: [none, legacy_web_release, prebuilt_component]
     declaration:
       "$ref": "#/ExtensionManifestAdminFrontend"
+    component:
+      "$ref": "#/PrebuiltSettingsComponent"
     trustState:
       "$ref": "#/FrontendTrustState"
     digest:
       type: string
+      description: Current adminFrontendDigest presented for explicit trust.
+    artifactActive:
+      type: boolean
+      description: Exact admin frontend bytes are already present in the active Web Release.
+    buildRequired:
+      type: boolean
+      description: True only for the legacy trusted Vue Web Release compatibility path.
     dependencies:
       "$ref": "#/DependencySummary"
+PrebuiltSettingsComponent:
+  type: object
+  required: [id, apiVersion, entry]
+  properties:
+    id: { type: string }
+    apiVersion: { type: integer, minimum: 1 }
+    entry: { type: string, pattern: '^frontend/admin/dist/.+\.mjs$' }
+    css: { type: string, pattern: '^frontend/admin/dist/.+\.css$' }
 WebReleaseStatus:
   type: string
   enum:
@@ -1305,6 +1546,7 @@ WebReleaseExtension:
   - extensionId
   - extensionVersion
   - packageDigest
+  - adminFrontendDigest
   - frontendRoot
   - componentMap
   - apiVersion
@@ -1324,6 +1566,9 @@ WebReleaseExtension:
       type: string
     packageDigest:
       type: string
+    adminFrontendDigest:
+      type: string
+      description: Dedicated admin frontend digest used for trust and composition reuse.
     frontendRoot:
       type: string
     componentMap:

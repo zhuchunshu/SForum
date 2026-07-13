@@ -107,11 +107,12 @@ func (s *PostgresStore) SaveInstalled(ctx context.Context, input SaveInstalledIn
 	}
 
 	versionID, err := ensureExtensionVersion(ctx, tx, extensionVersionInput{
-		ExtensionID:   input.Manifest.ID,
-		Version:       input.Manifest.Version,
-		ManifestJSON:  manifestJSON,
-		PackagePath:   input.PackagePath,
-		PackageDigest: input.PackageDigest,
+		ExtensionID:         input.Manifest.ID,
+		Version:             input.Manifest.Version,
+		ManifestJSON:        manifestJSON,
+		PackagePath:         input.PackagePath,
+		PackageDigest:       input.PackageDigest,
+		AdminFrontendDigest: input.AdminFrontendDigest,
 	})
 	if err != nil {
 		return Extension{}, fmt.Errorf("upsert extension version: %w", err)
@@ -158,11 +159,12 @@ func (s *PostgresStore) SaveBuiltin(ctx context.Context, input SaveBuiltinInput)
 	}
 
 	versionID, err := ensureExtensionVersion(ctx, tx, extensionVersionInput{
-		ExtensionID:   input.Manifest.ID,
-		Version:       input.Manifest.Version,
-		ManifestJSON:  manifestJSON,
-		PackagePath:   input.PackagePath,
-		PackageDigest: input.PackageDigest,
+		ExtensionID:         input.Manifest.ID,
+		Version:             input.Manifest.Version,
+		ManifestJSON:        manifestJSON,
+		PackagePath:         input.PackagePath,
+		PackageDigest:       input.PackageDigest,
+		AdminFrontendDigest: input.AdminFrontendDigest,
 	})
 	if err != nil {
 		return Extension{}, fmt.Errorf("upsert builtin extension version: %w", err)
@@ -653,6 +655,7 @@ func extensionSelectSQL() string {
 		SELECT extensions.id, extensions.name, extensions.type, extensions.status,
 		  extensions.source, extensions.is_system, extensions.is_deletable,
 		  extension_versions.version, extension_versions.manifest, extension_versions.package_digest,
+		  extension_versions.admin_frontend_digest,
 		  extension_versions.package_path,
 		  extension_versions.installed_at, extensions.updated_at
 		FROM extensions
@@ -678,6 +681,7 @@ func scanExtension(row extensionRow) (Extension, error) {
 		&item.Version,
 		&manifestJSON,
 		&item.PackageDigest,
+		&item.AdminFrontendDigest,
 		&item.PackagePath,
 		&item.InstalledAt,
 		&item.UpdatedAt,
@@ -691,11 +695,12 @@ func scanExtension(row extensionRow) (Extension, error) {
 }
 
 type extensionVersionInput struct {
-	ExtensionID   string
-	Version       string
-	ManifestJSON  []byte
-	PackagePath   string
-	PackageDigest string
+	ExtensionID         string
+	Version             string
+	ManifestJSON        []byte
+	PackagePath         string
+	PackageDigest       string
+	AdminFrontendDigest string
 }
 
 // ensureExtensionVersion 以完整包摘要区分同版本的不可变安装内容。
@@ -705,9 +710,9 @@ func ensureExtensionVersion(ctx context.Context, tx pgx.Tx, input extensionVersi
 	err := tx.QueryRow(ctx, `
 		WITH inserted AS (
 			INSERT INTO extension_versions (
-				extension_id, version, manifest, package_path, package_digest
+				 extension_id, version, manifest, package_path, package_digest, admin_frontend_digest
 			)
-			VALUES ($1, $2, $3, $4, $5)
+			VALUES ($1, $2, $3, $4, $5, $6)
 			ON CONFLICT (extension_id, version, package_digest) DO NOTHING
 			RETURNING id
 		)
@@ -719,7 +724,7 @@ func ensureExtensionVersion(ctx context.Context, tx pgx.Tx, input extensionVersi
 		  AND version = $2
 		  AND package_digest = $5
 		LIMIT 1
-	`, input.ExtensionID, input.Version, input.ManifestJSON, input.PackagePath, input.PackageDigest).Scan(&versionID)
+	`, input.ExtensionID, input.Version, input.ManifestJSON, input.PackagePath, input.PackageDigest, input.AdminFrontendDigest).Scan(&versionID)
 	return versionID, err
 }
 

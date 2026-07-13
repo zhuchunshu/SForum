@@ -23,17 +23,16 @@ type Config struct {
 	// TypecheckFail 是解析器不可用时的回退：true 则 typecheck 失败阻断构建。
 	// 默认 false。运行时优先读 TypecheckPolicy（通常来自 web_options）。
 	TypecheckFail bool
-	// TypecheckPolicy 在每次 Build 时解析是否硬失败；nil 时用 TypecheckFail。
-	TypecheckPolicy TypecheckPolicy
+	// TypecheckPolicy 在每次 Build 时解析 off/report/block；nil 时由 TypecheckFail 回退。
+	TypecheckPolicy   TypecheckPolicy
 	HostPeers         extensionpackage.HostPeers
 	SourceEnvironment []string
 	Runner            CommandRunner
 }
 
-// TypecheckPolicy 决定 Web Release typecheck 失败是否阻断（后台可配置）。
+// TypecheckPolicy 决定 Web Release 是否执行 typecheck 以及失败是否阻断。
 type TypecheckPolicy interface {
-	// TypecheckFail 返回 true 表示 typecheck 失败应中止 release。
-	TypecheckFail(ctx context.Context) bool
+	TypecheckMode(ctx context.Context) string
 }
 
 type Command struct {

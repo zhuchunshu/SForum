@@ -9,18 +9,20 @@ import (
 )
 
 type makeOptions struct {
-	Kind          string
-	ID            string
-	Name          string
-	Description   string
-	URL           string
-	AuthorName    string
-	AuthorURL     string
-	AuthorEmail   string
-	Out           string
-	Builtin       bool
-	NoInteraction bool
-	Backend       bool
+	Kind             string
+	ID               string
+	Name             string
+	Description      string
+	URL              string
+	AuthorName       string
+	AuthorURL        string
+	AuthorEmail      string
+	Out              string
+	Builtin          bool
+	NoInteraction    bool
+	Backend          bool
+	PrebuiltSettings bool
+	ProviderSlot     string
 	// Complex 生成 multi-file manifest（includes + langs 目录 + settings 分片示例）。
 	Complex bool
 }
@@ -67,6 +69,10 @@ func newMakeCommand(kind string) *cobra.Command {
 	if kind == "plugin" {
 		cmd.Flags().BoolVar(&opts.Backend, "backend", false, "Include a backend plugin stub")
 		cmd.Flags().BoolVar(&opts.Complex, "complex", false, "Scaffold multi-file manifest (includes + langs + settings shards)")
+		cmd.Flags().BoolVar(&opts.PrebuiltSettings, "prebuilt-settings", false, "Include an author-prebuilt Admin Micro-frontend API v1 settings component with Schema fallback")
+		cmd.Flags().StringVar(&opts.ProviderSlot, "provider-slot", "", "Declare a provider slot and host-rendered provider_probe settings action (requires --backend)")
+	} else {
+		cmd.Flags().BoolVar(&opts.PrebuiltSettings, "prebuilt-settings", false, "Include an author-prebuilt Admin Micro-frontend API v1 settings component with Schema fallback")
 	}
 	return cmd
 }
@@ -98,6 +104,8 @@ func promptMakeOptions(opts *makeOptions) error {
 				huh.NewInput().Title("Author email").Value(&opts.AuthorEmail),
 				huh.NewConfirm().Title("Include backend stub?").Value(&opts.Backend),
 				huh.NewConfirm().Title("Multi-file complex scaffold?").Description("Uses includes, per-locale langs, and settings shards.").Value(&opts.Complex),
+				huh.NewConfirm().Title("Prebuilt settings component?").Description("Author-built .mjs with Schema fallback; operators do not rebuild SForum.").Value(&opts.PrebuiltSettings),
+				huh.NewInput().Title("Provider slot (optional)").Description("Adds a provider_probe action; requires backend stub.").Value(&opts.ProviderSlot),
 			),
 		)
 	}

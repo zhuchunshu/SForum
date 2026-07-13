@@ -98,6 +98,17 @@ describe('api connection error helpers', () => {
         }
       }
     })).toBe(false)
+
+    expect(isApiConnectionError({
+      response: {
+        status: 503,
+        _data: {
+          code: 503,
+          message: 'The extension settings action is temporarily unavailable.',
+          data: { reason: 'extension.settings_action_unavailable' }
+        }
+      }
+    })).toBe(false)
   })
 })
 

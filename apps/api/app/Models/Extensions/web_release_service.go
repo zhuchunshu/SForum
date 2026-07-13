@@ -241,17 +241,18 @@ func webReleaseCreateInput(
 	extensions := make([]WebReleaseExtensionInput, len(planned.Composition.Extensions))
 	for index, item := range planned.Composition.Extensions {
 		extensions[index] = WebReleaseExtensionInput{
-			ExtensionID:       item.ExtensionID,
-			ExtensionVersion:  item.Version,
-			PackageDigest:     item.PackageDigest,
-			FrontendRoot:      item.FrontendRoot,
-			ComponentMap:      cloneStringMap(item.ComponentMap),
-			APIVersion:        item.APIVersion,
-			TrustedComponents: append([]ManifestContribution(nil), item.Contributions...),
-			LocaleMap:         cloneStringMap(item.LocaleMap),
-			LocaleMapDigest:   item.LocaleMapDigest,
-			LockfileDigest:    item.Dependencies.LockDigest,
-			SortOrder:         item.SortOrder,
+			ExtensionID:         item.ExtensionID,
+			ExtensionVersion:    item.Version,
+			PackageDigest:       item.PackageDigest,
+			AdminFrontendDigest: item.AdminFrontendDigest,
+			FrontendRoot:        item.FrontendRoot,
+			ComponentMap:        cloneStringMap(item.ComponentMap),
+			APIVersion:          item.APIVersion,
+			TrustedComponents:   append([]ManifestContribution(nil), item.Contributions...),
+			LocaleMap:           cloneStringMap(item.LocaleMap),
+			LocaleMapDigest:     item.LocaleMapDigest,
+			LockfileDigest:      item.Dependencies.LockDigest,
+			SortOrder:           item.SortOrder,
 		}
 	}
 	var requestedByUserID *int64
@@ -284,6 +285,11 @@ func compatibleWebReleaseIntent(
 	previousReleaseID *int64,
 	effects []WebReleaseEffectInput,
 ) bool {
+	// 完全相同的活动/就绪管理端组合可直接复用；无 lifecycle effect 时
+	// trigger 文案差异不应制造一次新的 Nuxt 构建。
+	if (candidate.Status == WebReleaseActive || candidate.Status == WebReleaseReady) && len(effects) == 0 {
+		return true
+	}
 	if candidate.TriggerKind != plan.TriggerKind ||
 		candidate.TriggerExtensionID != plan.TriggerExtensionID ||
 		!sameOptionalInt64(candidate.PreviousReleaseID, previousReleaseID) ||

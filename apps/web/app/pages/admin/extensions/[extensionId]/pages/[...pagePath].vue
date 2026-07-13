@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import type { AdminExtensionSettingsContext } from '@sforum/admin-sdk'
+import SFExtensionSettingsRenderer from '~/components/extensions/settings/SFExtensionSettingsRenderer.vue'
+import SFTrustedSettingsComponent from '~/components/extensions/settings/SFTrustedSettingsComponent.vue'
 import { apiErrorMessage } from '~/composables/useApiClient'
 import {
   extensionAdminPageRoute,
@@ -9,7 +11,9 @@ import {
   pluginWebReleaseProgress,
   recommendedExtensionSettingValues,
   type AdminExtension,
-  type AdminExtensionSettings
+  type AdminExtensionSettings,
+  type AdminExtensionSettingsAction,
+  type AdminExtensionSettingsActionResult
 } from '~/utils/adminExtensions'
 
 definePageMeta({
@@ -52,6 +56,8 @@ const settings = ref<AdminExtensionSettings | null>(null)
 const formValues = reactive<Record<string, string>>({})
 const loadingSettings = ref(false)
 const savingSettings = ref(false)
+const actionLoading = reactive<Record<string, boolean>>({})
+const actionResults = reactive<Record<string, AdminExtensionSettingsActionResult | undefined>>({})
 
 const pageTitle = computed(() => adminPage.value?.label || extensionDisplay.value?.name || t('admin.extensions.dynamic.notFoundTitle'))
 const pageDescription = computed(() => adminPage.value?.description || extensionDisplay.value?.description || '')
@@ -100,8 +106,12 @@ function reloadFrontend() {
   }
 }
 
+const dynamicTabHydrated = ref(false)
+
 // 进入本页时若列表可能陈旧（从其它标签切来），主动拉一次最新 status / webRelease。
 onMounted(() => {
+  dynamicTabHydrated.value = true
+  syncDynamicExtensionTab()
   void refresh()
 })
 
@@ -145,9 +155,11 @@ const recommendedApplied = computed(() => {
 })
 
 const hasSecretFields = computed(() => (settings.value?.items || []).some(item => item.type === 'secret'))
+const hasPrebuiltSettingsComponent = computed(() => settings.value?.renderer.component?.kind === 'prebuilt')
 
 const settingsSlotContext = computed<AdminExtensionSettingsContext>(() => ({
   extensionId: extensionId.value,
+  extensionVersion: extension.value?.version,
   items: settings.value?.items || [],
   values: formValues,
   loading: loadingSettings.value,
@@ -167,7 +179,9 @@ useSeoMeta({
   title: pageTitle
 })
 
-watch([extension, adminPage], ([item, page]) => {
+function syncDynamicExtensionTab() {
+  const item = extension.value
+  const page = adminPage.value
   if (!item || !page) {
     return
   }
@@ -180,14 +194,20 @@ watch([extension, adminPage], ([item, page]) => {
     closable: true,
     componentName: 'AdminExtensionDynamicPage'
   })
-}, { immediate: true })
+}
 
-watch([extensionId, isSettingsView, isExtensionActive], async () => {
-  if (isSettingsView.value && isExtensionActive.value) {
+watch([extension, adminPage], () => {
+  // SSR 与首次客户端水合都保留路由占位 tab；正式扩展标题在 mounted 后同步，避免标题和图标不一致。
+  if (dynamicTabHydrated.value) {
+    syncDynamicExtensionTab()
+  }
+})
+
+watch([extensionId, isSettingsView], async () => {
+  if (isSettingsView.value) {
     await loadSettings()
     return
   }
-  // 禁用后清空已加载的设置，避免界面仍显示可编辑表单。
   settings.value = null
   Object.keys(formValues).forEach((key) => {
     delete formValues[key]
@@ -195,7 +215,7 @@ watch([extensionId, isSettingsView, isExtensionActive], async () => {
 }, { immediate: true })
 
 async function loadSettings() {
-  if (!extensionId.value || !isExtensionActive.value) {
+  if (!extensionId.value) {
     return
   }
   loadingSettings.value = true
@@ -253,20 +273,47 @@ async function resetSettings() {
   }
 }
 
-function updateBooleanSetting(key: string, checked: boolean) {
-  formValues[key] = checked ? 'true' : 'false'
+function updateSettingValue(key: string, value: string) {
+  formValues[key] = value
 }
 
-function onBooleanSettingChange(key: string, event: Event) {
-  updateBooleanSetting(key, (event.target as HTMLInputElement | null)?.checked === true)
-}
-
-function secretPlaceholder(item: { type: string, secretSet?: boolean, placeholder?: string }) {
-  if (item.type === 'secret' && item.secretSet) {
-    return t('admin.extensions.dynamic.secretSetPlaceholder')
+async function executeSettingsAction(action: AdminExtensionSettingsAction) {
+  if (!settings.value || !action.available) return
+  actionLoading[action.id] = true
+  actionResults[action.id] = undefined
+  const values: Record<string, string> = {}
+  const secrets: Record<string, { mode: 'preserve' | 'replace', value?: string }> = {}
+  const allowed = new Set(action.fields?.length ? action.fields : settings.value.items.map(item => item.key))
+  for (const item of settings.value.items) {
+    if (!allowed.has(item.key)) continue
+    if (item.type === 'secret') {
+      const draft = formValues[item.key] || ''
+      secrets[item.key] = draft ? { mode: 'replace', value: draft } : { mode: 'preserve' }
+    } else {
+      values[item.key] = formValues[item.key] ?? ''
+    }
   }
-  return item.placeholder
+  try {
+    const result = await request<AdminExtensionSettingsActionResult>(`/admin/extensions/${extensionId.value}/settings/actions/${action.id}`, {
+      method: 'POST',
+      body: { values, secrets }
+    })
+    actionResults[action.id] = result
+    if (result.success) {
+      toast.add({ color: 'success', icon: 'i-lucide-activity', title: result.message || action.label, duration: 10000 })
+      setTimeout(() => {
+        if (actionResults[action.id] === result) actionResults[action.id] = undefined
+      }, 10000)
+    }
+  } catch (error) {
+    const message = apiErrorMessage(error) || t('admin.extensions.dynamic.actionFailed')
+    actionResults[action.id] = { success: false, reason: 'request_failed', message, durationMs: 0 }
+    toast.add({ color: 'error', icon: 'i-lucide-triangle-alert', title: message })
+  } finally {
+    actionLoading[action.id] = false
+  }
 }
+
 </script>
 
 <template>
@@ -328,24 +375,15 @@ function secretPlaceholder(item: { type: string, secretSet?: boolean, placeholde
     </div>
   </div>
 
-  <!-- 未启用：功能性页面（含 settings / 自定义贡献页）全部停用，引导回插件列表启用 -->
-  <div v-else-if="!isExtensionActive && isSettingsView" class="rounded-lg border border-amber-200 bg-amber-50/80 p-8 dark:border-amber-900/60 dark:bg-amber-950/30">
-    <SFEmptyState
-      icon-label="OFF"
-      :title="t('admin.extensions.dynamic.disabledTitle')"
-      :description="t('admin.extensions.dynamic.disabledDescription')"
-    />
-    <div class="mt-5 flex flex-wrap justify-center gap-2">
-      <UButton icon="i-lucide-plug" color="primary" :to="adminRoutes.path('/extensions/plugins')">
-        {{ t('admin.extensions.dynamic.openPlugins') }}
-      </UButton>
-      <UButton icon="i-lucide-rotate-cw" color="neutral" variant="subtle" :loading="pending" @click="refresh()">
-        {{ t('admin.extensions.refresh') }}
-      </UButton>
-    </div>
-  </div>
-
   <div v-else-if="isSettingsView" class="space-y-4">
+    <UAlert
+      v-if="!isExtensionActive"
+      color="warning"
+      variant="subtle"
+      icon="i-lucide-shield-check"
+      :title="t('admin.extensions.dynamic.configureBeforeEnableTitle')"
+      :description="t('admin.extensions.dynamic.configureBeforeEnableDescription')"
+    />
     <!-- plain 开发：后端可用，下方是宿主通用表单；插件自定义组件不会被注入 -->
     <UAlert
       v-if="registryUnavailable"
@@ -374,8 +412,14 @@ function secretPlaceholder(item: { type: string, secretSet?: boolean, placeholde
           <h3 class="text-sm font-semibold text-slate-900 dark:text-zinc-100">
             {{ t('admin.extensions.dynamic.settingsTitle') }}
           </h3>
-          <UBadge v-if="hasCustomSettingsPage" color="neutral" variant="subtle" size="sm">
+          <UBadge v-if="hasCustomSettingsPage || hasPrebuiltSettingsComponent" color="neutral" variant="subtle" size="sm">
             {{ t('admin.extensions.dynamic.customPageBadge') }}
+          </UBadge>
+          <UBadge v-else-if="settings?.renderer.source === 'legacy_array'" color="neutral" variant="subtle" size="sm">
+            {{ t('admin.extensions.dynamic.compatBadge') }}
+          </UBadge>
+          <UBadge v-else color="primary" variant="subtle" size="sm">
+            {{ t('admin.extensions.dynamic.schemaBadge') }}
           </UBadge>
         </div>
         <p class="mt-1 text-xs text-slate-500 dark:text-zinc-400">
@@ -386,6 +430,15 @@ function secretPlaceholder(item: { type: string, secretSet?: boolean, placeholde
         {{ t('admin.extensions.refresh') }}
       </UButton>
     </div>
+
+    <UAlert
+      v-if="settings?.renderer.source === 'legacy_web_release'"
+      color="warning"
+      variant="subtle"
+      icon="i-lucide-hammer"
+      :title="t('admin.extensions.dynamic.legacyRendererDeprecatedTitle')"
+      :description="t('admin.extensions.dynamic.legacyRendererDeprecatedDescription')"
+    />
 
     <!-- 插件自定义整页：宿主只提供 chrome + 上下文，文案与布局由插件负责 -->
     <template v-if="hasCustomSettingsPage">
@@ -402,109 +455,48 @@ function secretPlaceholder(item: { type: string, secretSet?: boolean, placeholde
 
     <!-- 宿主通用表单：字段标签/说明来自 API 已按 locale 解析的 settings -->
     <template v-else>
-      <section class="rounded-lg border border-emerald-200 bg-emerald-50/80 p-4 text-sm text-emerald-950 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-100">
-        <h3 class="text-base font-bold">{{ t('admin.extensions.dynamic.recommendedTitle') }}</h3>
-        <p class="mt-1 max-w-3xl text-sm text-emerald-800 dark:text-emerald-200">
-          {{ t('admin.extensions.dynamic.recommendedDescription') }}
-        </p>
-        <p v-if="hasSecretFields" class="mt-2 text-xs text-emerald-700 dark:text-emerald-300">
-          {{ t('admin.extensions.dynamic.secretsPreserved') }}
-        </p>
-      </section>
-
       <SFAdminExtensionSlot
         point="admin.extension.settings.header"
         :extension-id="extensionId"
         :context="settingsSlotContext"
       />
 
-      <div class="overflow-hidden rounded-lg border border-slate-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
-        <form v-if="settings?.items.length" class="divide-y divide-slate-200 dark:divide-zinc-800" @submit.prevent="saveSettings">
-          <template v-for="(item, index) in settings.items" :key="item.key">
-            <div
-              v-if="item.group && item.group !== settings.items[index - 1]?.group"
-              class="bg-slate-50 px-4 py-2 text-xs font-semibold text-slate-600 dark:bg-zinc-950 dark:text-zinc-300"
-            >
-              {{ item.group }}
-            </div>
-            <div class="grid gap-3 px-4 py-4 md:grid-cols-[220px_1fr]">
-              <div class="min-w-0">
-                <label :for="`extension-setting-${item.key}`" class="text-sm font-semibold text-slate-900 dark:text-zinc-100">
-                  {{ item.label }}
-                </label>
-                <p class="mt-1 text-xs leading-5 text-slate-500 dark:text-zinc-400">
-                  {{ item.description || item.key }}
-                </p>
-              </div>
-              <div class="min-w-0">
-                <label
-                  v-if="item.type === 'boolean'"
-                  class="inline-flex min-h-10 items-center gap-2 rounded-md border border-slate-200 px-3 text-sm text-slate-700 dark:border-zinc-800 dark:text-zinc-200"
-                >
-                  <input
-                    :id="`extension-setting-${item.key}`"
-                    type="checkbox"
-                    class="size-4 accent-[var(--sf-accent)]"
-                    :checked="formValues[item.key] === 'true'"
-                    @change="onBooleanSettingChange(item.key, $event)"
-                  >
-                  <span>{{ t('admin.extensions.dynamic.enabled') }}</span>
-                </label>
-                <USelect
-                  v-else-if="item.options?.length"
-                  :id="`extension-setting-${item.key}`"
-                  v-model="formValues[item.key]"
-                  class="max-w-xl"
-                  value-key="value"
-                  label-key="label"
-                  :items="item.options"
-                  :placeholder="item.placeholder"
-                />
-                <UInput
-                  v-else
-                  :id="`extension-setting-${item.key}`"
-                  v-model="formValues[item.key]"
-                  class="max-w-xl"
-                  :type="item.type === 'secret' ? 'password' : item.type === 'number' ? 'number' : 'text'"
-                  :placeholder="secretPlaceholder(item)"
-                />
-                <div class="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-zinc-400">
-                  <span>{{ t('admin.extensions.dynamic.defaultValue', { value: item.recommendedValue || item.default || t('admin.extensions.dynamic.emptyValue') }) }}</span>
-                  <UBadge v-if="item.type === 'secret' && item.secretSet" color="success" variant="soft" size="sm">
-                    {{ t('admin.extensions.dynamic.secretConfigured') }}
-                  </UBadge>
-                </div>
-              </div>
-            </div>
-          </template>
-
-          <div class="border-t border-slate-200 px-4 py-4 dark:border-zinc-800">
-            <SFAdminFormFooter
-              :saving="savingSettings"
-              :disabled="loadingSettings"
-              :submit-text="t('admin.extensions.dynamic.saveSettings')"
-              :reset-text="t('admin.extensions.dynamic.resetDefaults')"
-              @submit="saveSettings"
-              @reset="resetSettings"
-            >
-              <template #left>
-                <span>{{ hasSecretFields ? t('admin.extensions.dynamic.footerSecretHint') : t('admin.extensions.dynamic.footerHint') }}</span>
-              </template>
-            </SFAdminFormFooter>
-          </div>
-        </form>
-
-        <div v-else-if="!loadingSettings" class="p-10">
-          <SFEmptyState
-            icon-label="CFG"
-            :title="t('admin.extensions.dynamic.emptySettingsTitle')"
-            :description="t('admin.extensions.dynamic.emptySettingsDescription')"
+      <SFTrustedSettingsComponent
+        v-if="extension && settings && hasPrebuiltSettingsComponent"
+        :extension="extension"
+        :settings="settings"
+        :context="settingsSlotContext"
+      >
+        <template #fallback>
+          <SFExtensionSettingsRenderer
+            :settings="settings"
+            :values="formValues"
+            :loading="loadingSettings"
+            :saving="savingSettings"
+            :recommended-applied="recommendedApplied"
+            :action-loading="actionLoading"
+            :action-results="actionResults"
+            @update="updateSettingValue"
+            @save="saveSettings"
+            @reset="resetSettings"
+            @action="executeSettingsAction"
           />
-        </div>
-        <div v-else class="p-8 text-sm text-slate-500 dark:text-zinc-400">
-          {{ t('admin.extensions.dynamic.loading') }}
-        </div>
-      </div>
+        </template>
+      </SFTrustedSettingsComponent>
+      <SFExtensionSettingsRenderer
+        v-else
+        :settings="settings"
+        :values="formValues"
+        :loading="loadingSettings"
+        :saving="savingSettings"
+        :recommended-applied="recommendedApplied"
+        :action-loading="actionLoading"
+        :action-results="actionResults"
+        @update="updateSettingValue"
+        @save="saveSettings"
+        @reset="resetSettings"
+        @action="executeSettingsAction"
+      />
 
       <SFAdminExtensionSlot
         point="admin.extension.settings.footer"

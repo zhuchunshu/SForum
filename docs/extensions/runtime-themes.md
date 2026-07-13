@@ -117,7 +117,9 @@ Access `login` / moderation returns 401/403 from the API.
 
 ## Web Release
 
-Only for **trusted admin plugin frontends**.
+Only for legacy **trusted Vue admin plugin frontends**. Author-prebuilt Admin
+Micro-frontend API v1 settings components load by exact digest and do not enter
+Web Release composition.
 
 Ordinary themes must **not** declare `frontend.admin` / `ThemeSettingsPage.vue`.
 Theme settings use the host **schema-driven** extension settings page from

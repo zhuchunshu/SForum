@@ -2,10 +2,30 @@ import type { AdminExtension, AdminExtensionOperation } from '~/utils/adminExten
 
 export type AdminFrontendStatus = {
   extensionId: string
+  kind: 'none' | 'legacy_web_release' | 'prebuilt_component'
   trustState: string
   digest?: string
+  artifactActive?: boolean
+  buildRequired?: boolean
   declaration?: { root: string, apiVersion: number, components: Record<string, string>, locales: Record<string, string> }
+  component?: { id: string, apiVersion: number, entry: string, css?: string }
   dependencies?: { direct?: Array<{ name: string, version: string }>, resolved?: Array<{ name: string, version: string }> }
+}
+
+export type AdminFrontendTrustConfirmation = {
+  challengeId: string
+  code: string
+  extensionId: string
+  version: string
+  digest: string
+  apiVersion: number
+  componentId: string
+  phrase: string
+  acknowledged: boolean
+}
+
+export type AdminFrontendTrustChallenge = Omit<AdminFrontendTrustConfirmation, 'phrase' | 'acknowledged'> & {
+  expiresAt: string
 }
 
 export function useAdminFrontendTrust(extension: Ref<AdminExtension>) {
@@ -25,13 +45,16 @@ export function useAdminFrontendTrust(extension: Ref<AdminExtension>) {
     }
   }
 
-  async function mutate(action: 'grant' | 'revoke') {
+  async function mutate(action: 'grant' | 'revoke', confirmation?: AdminFrontendTrustConfirmation) {
     if (!status.value) return
     busy.value = true
     error.value = ''
     try {
       const operation = action === 'grant'
-        ? await request<AdminExtensionOperation>(`/admin/extensions/${extension.value.id}/frontend/trust`, { method: 'POST', body: { packageDigest: status.value.digest } })
+        ? await request<AdminExtensionOperation>(`/admin/extensions/${extension.value.id}/frontend/trust`, {
+            method: 'POST',
+            body: { packageDigest: status.value.digest, confirmation }
+          })
         : await request<AdminExtensionOperation>(`/admin/extensions/${extension.value.id}/frontend/trust`, { method: 'DELETE' })
       if (operation.queued) {
         // 信任变更后会排队 Web Release，构建日志在「Web 发布」页查看。
@@ -57,6 +80,19 @@ export function useAdminFrontendTrust(extension: Ref<AdminExtension>) {
     }
   }
 
+  async function challenge() {
+    error.value = ''
+    try {
+      return await request<AdminFrontendTrustChallenge>(`/admin/extensions/${extension.value.id}/frontend/confirmation`, {
+        method: 'POST',
+        body: {}
+      })
+    } catch (cause) {
+      error.value = `${cause}`
+      throw cause
+    }
+  }
+
   watch(() => extension.value.id, load, { immediate: true })
-  return { status, error, busy, load, mutate }
+  return { status, error, busy, load, mutate, challenge }
 }

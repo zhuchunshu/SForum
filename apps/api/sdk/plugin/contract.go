@@ -94,6 +94,15 @@ func TestManifest(root string, manifest extensionmanifest.Manifest, opts Options
 	}
 
 	add("ok", "manifest.ok", fmt.Sprintf("manifest valid: %s@%s (%s)", manifest.ID, manifest.Version, manifest.Type), extensionmanifest.ManifestFileName)
+	settings := manifest.SettingsDocument
+	add("ok", "settings.renderer",
+		fmt.Sprintf("settings renderer: mode=%s layout=%s fields=%d tabs=%d actions=%d", settings.UI.Mode, settings.UI.Layout, len(settings.Fields), len(settings.UI.Tabs), len(settings.Actions)),
+		"settings")
+	if component := settings.UI.Component; component != nil {
+		add("ok", "settings.component",
+			fmt.Sprintf("settings component: %s (apiVersion=%d, entry=%s)", component.ID, component.APIVersion, component.Entry),
+			"settings.ui.component")
+	}
 
 	// 能力：Validate 已校验 key；此处报告解析后的有效集（含推断）。
 	keys, implied := extensionmanifest.ResolvedCapabilities(manifest)

@@ -1,0 +1,47 @@
+{
+  "id": "sforum.fixture-prebuilt-settings",
+  "name": "Prebuilt Settings Fixture",
+  "description": "Framework-neutral Admin Micro-frontend API v1 fixture with Schema fallback.",
+  "url": "https://github.com/zhuchunshu/sforum",
+  "author": { "name": "SForum" },
+  "version": "1.0.0",
+  "type": "plugin",
+  "sforumVersion": ">=0.1.0",
+  "admin": {
+    "entry": "/settings",
+    "pages": [
+      { "path": "/settings", "label": "Prebuilt settings", "view": "settings" }
+    ]
+  },
+  "settings": {
+    "schemaVersion": 1,
+    "ui": {
+      "mode": "component",
+      "layout": "form",
+      "component": {
+        "id": "settings",
+        "apiVersion": 1,
+        "entry": "frontend/admin/dist/settings.mjs",
+        "css": "frontend/admin/dist/settings.css"
+      },
+      "callouts": [
+        {
+          "id": "fallback",
+          "tone": "info",
+          "title": "Schema fallback remains available",
+          "body": "Declining trust or any load failure keeps this host-rendered form usable."
+        }
+      ]
+    },
+    "fields": [
+      {
+        "key": "message",
+        "label": "Message",
+        "description": "Edited by either the prebuilt component or Schema fallback.",
+        "type": "text",
+        "default": "Hello from Schema UI",
+        "recommendedValue": "Hello from Schema UI"
+      }
+    ]
+  }
+}

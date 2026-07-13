@@ -21,6 +21,9 @@ content policy workflow references + scenario table).
 | Store per-topic structured data | entity meta (F4.4 / E3) |
 | Own HTTP API under the host proxy | manifest `routes` + backend `RouteTarget` |
 | Call host from the plugin process | Host API + declared `capabilities` |
+| Add polished settings without author JS | versioned Settings Document: tabs/groups/columns/callouts |
+| Test draft provider credentials | host-rendered `provider_probe` Settings Action |
+| Add genuinely complex settings UI without a host build | author-prebuilt Admin Micro-frontend API v1 + Schema fallback |
 | End-to-end **workflow** sample | enable `sforum.content-policy` |
 | End-to-end **mail provider** sample | enable `sforum.smtp` + select in Mail settings |
 | End-to-end **storage provider** sample | enable `sforum.storage-fs` + select in Attachment settings |

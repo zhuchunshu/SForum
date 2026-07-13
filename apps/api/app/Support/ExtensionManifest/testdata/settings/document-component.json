@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "ui": {
+    "mode": "component",
+    "layout": "form",
+    "component": {
+      "id": "settings-workbench",
+      "apiVersion": 1,
+      "entry": "frontend/admin/dist/settings.mjs",
+      "css": "frontend/admin/dist/settings.css"
+    }
+  },
+  "fields": [
+    {"key":"endpoint","label":"Endpoint","type":"text","default":""}
+  ],
+  "actions": []
+}

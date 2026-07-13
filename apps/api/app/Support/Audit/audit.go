@@ -16,13 +16,16 @@ import (
 
 // 稳定 action 常量。新增敏感操作时优先复用或扩展此列表。
 const (
-	ActionSettingsUpdate     = "settings.update"
-	ActionExtensionEnable    = "extension.enable"
-	ActionExtensionDisable   = "extension.disable"
-	ActionExtensionActivate  = "extension.theme_activate"
-	ActionExtensionInstalled = "extension.install"
-	ActionExtensionUpgraded  = "extension.upgrade"
-	ActionExtensionUninstalled = "extension.uninstall"
+	ActionSettingsUpdate          = "settings.update"
+	ActionExtensionSettingsAction = "extension.settings.action"
+	ActionExtensionEnable         = "extension.enable"
+	ActionExtensionDisable        = "extension.disable"
+	ActionExtensionActivate       = "extension.theme_activate"
+	ActionExtensionInstalled      = "extension.install"
+	ActionExtensionUpgraded       = "extension.upgrade"
+	ActionExtensionUninstalled    = "extension.uninstall"
+	ActionExtensionFrontendGrant  = "extension.frontend_trust_grant"
+	ActionExtensionFrontendRevoke = "extension.frontend_trust_revoke"
 	// ActionExtensionBackendDenied 非 super_admin 试图引入/执行非内置后端插件。
 	ActionExtensionBackendDenied = "extension.backend_execution_denied"
 

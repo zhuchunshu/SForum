@@ -1,4 +1,7 @@
+import type { SForumAdminToastInput } from './host'
+
 export const ADMIN_SDK_API_VERSION = 1 as const
+export const ADMIN_MICRO_FRONTEND_API_VERSION = 1 as const
 
 export { useSForumAdminHost } from './host'
 export type { SForumAdminHost, SForumAdminToastInput } from './host'
@@ -22,6 +25,7 @@ export type AdminExtensionSettingItem = Readonly<{
 /** 扩展设置页插槽上下文：宿主提供读写与保存，插件只负责 UI 与文案。 */
 export type AdminExtensionSettingsContext = Readonly<{
   extensionId: string
+  extensionVersion?: string
   items: readonly AdminExtensionSettingItem[]
   values: Readonly<Record<string, string>>
   loading: boolean
@@ -31,6 +35,41 @@ export type AdminExtensionSettingsContext = Readonly<{
   save: () => Promise<void>
   reset: () => Promise<void>
   openMailCenter?: () => Promise<void>
+}>
+
+export type AdminMicroFrontendAppearance = Readonly<{
+  colorMode: 'light' | 'dark'
+  accent: string
+  accentContrast: string
+}>
+
+export type AdminMicroFrontendBridgeV1 = Readonly<{
+  apiVersion: typeof ADMIN_MICRO_FRONTEND_API_VERSION
+  extensionId: string
+  extensionVersion: string
+  locale: string
+  appearance: AdminMicroFrontendAppearance
+  settings: Readonly<{
+    items: readonly AdminExtensionSettingItem[]
+    values: () => Readonly<Record<string, string>>
+    updateValue: (key: string, value: string) => void
+    save: () => Promise<void>
+    reset: () => Promise<void>
+  }>
+  request: <T>(path: string, options?: Record<string, unknown>) => Promise<T>
+  toast: (input: SForumAdminToastInput) => void
+  t: (key: string, params?: Record<string, unknown>) => string
+  navigate: (adminPath: string) => Promise<void>
+}>
+
+export type AdminMicroFrontendCleanup = () => void | Promise<void>
+
+export type AdminMicroFrontendModuleV1 = Readonly<{
+  apiVersion: typeof ADMIN_MICRO_FRONTEND_API_VERSION
+  mount: (
+    target: HTMLElement,
+    bridge: AdminMicroFrontendBridgeV1
+  ) => void | AdminMicroFrontendCleanup | Promise<void | AdminMicroFrontendCleanup>
 }>
 
 export interface AdminSlotContextMap {

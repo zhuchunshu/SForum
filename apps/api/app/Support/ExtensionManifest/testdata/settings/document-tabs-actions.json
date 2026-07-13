@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "ui": {
+    "mode": "schema",
+    "layout": "tabs",
+    "tabs": [
+      {"id":"general","label":{"zh-CN":"常规","en-US":"General"},"groups":["general"]}
+    ],
+    "groups": [
+      {"id":"general","label":{"zh-CN":"基础设置","en-US":"Basics"},"columns":2}
+    ],
+    "callouts": [
+      {"id":"recommended","tone":"info","title":{"zh-CN":"推荐配置","en-US":"Recommended"},"body":{"zh-CN":"先使用安全默认值。","en-US":"Start with safe defaults."},"tab":"general"}
+    ]
+  },
+  "fields": [
+    {"key":"title","label":{"zh-CN":"标题","en-US":"Title"},"type":"text","default":"SForum","groupId":"general"}
+  ],
+  "actions": [
+    {"id":"probe","kind":"provider_probe","label":{"zh-CN":"测试连接","en-US":"Test connection"},"placement":"footer","useDraftValues":true}
+  ]
+}

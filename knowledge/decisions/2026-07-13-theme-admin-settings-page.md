@@ -1,6 +1,14 @@
 # Theme admin custom settings page
 
 Date: 2026-07-13
+Status: Superseded by
+`2026-07-13-buildless-extension-settings-ui.md`
+
+> Historical compatibility decision. The default theme's Vue settings page was
+> removed after the shared Settings Document renderer reached parity. Legacy
+> trusted Vue theme settings contributions remain readable during migration,
+> but new theme settings use Schema UI or author-prebuilt digest-loaded
+> Component UI and do not enter Web Release.
 
 ## Context
 

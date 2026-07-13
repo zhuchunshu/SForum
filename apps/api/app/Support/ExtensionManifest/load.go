@@ -13,24 +13,23 @@ import (
 
 // ManifestIncludes 声明可选的分文件 partial 路径（仅存在于入口 JSON，不进入运行时 Manifest）。
 type ManifestIncludes struct {
-	Langs          json.RawMessage `json:"langs,omitempty"`
-	Settings       json.RawMessage `json:"settings,omitempty"`
-	Contributions  json.RawMessage `json:"contributions,omitempty"`
-	Admin          json.RawMessage `json:"admin,omitempty"`
-	Frontend       json.RawMessage `json:"frontend,omitempty"`
-	Events         json.RawMessage `json:"events,omitempty"`
-	Routes         json.RawMessage `json:"routes,omitempty"`
-	Jobs           json.RawMessage `json:"jobs,omitempty"`
-	Migrations     json.RawMessage `json:"migrations,omitempty"`
-	Permissions    json.RawMessage `json:"permissions,omitempty"`
-	Hooks          json.RawMessage `json:"hooks,omitempty"`
-	Providers      json.RawMessage `json:"providers,omitempty"`
-	AdminPages     json.RawMessage `json:"adminPages,omitempty"`
+	Langs         json.RawMessage `json:"langs,omitempty"`
+	Settings      json.RawMessage `json:"settings,omitempty"`
+	Contributions json.RawMessage `json:"contributions,omitempty"`
+	Admin         json.RawMessage `json:"admin,omitempty"`
+	Frontend      json.RawMessage `json:"frontend,omitempty"`
+	Events        json.RawMessage `json:"events,omitempty"`
+	Routes        json.RawMessage `json:"routes,omitempty"`
+	Jobs          json.RawMessage `json:"jobs,omitempty"`
+	Migrations    json.RawMessage `json:"migrations,omitempty"`
+	Permissions   json.RawMessage `json:"permissions,omitempty"`
+	Hooks         json.RawMessage `json:"hooks,omitempty"`
+	Providers     json.RawMessage `json:"providers,omitempty"`
+	AdminPages    json.RawMessage `json:"adminPages,omitempty"`
 }
 
 // rootManifestFile 解析入口文件：Manifest 字段 + includes 索引。
 type rootManifestFile struct {
-	Manifest
 	Includes *ManifestIncludes `json:"includes,omitempty"`
 }
 
@@ -64,7 +63,10 @@ func LoadRootBytes(rootBody []byte, pkg PackageFS) (Manifest, error) {
 	if err := json.Unmarshal(rootBody, &root); err != nil {
 		return Manifest{}, fmt.Errorf("%w: %v", ErrInvalidManifest, err)
 	}
-	manifest := root.Manifest
+	var manifest Manifest
+	if err := json.Unmarshal(rootBody, &manifest); err != nil {
+		return Manifest{}, fmt.Errorf("%w: %v", ErrInvalidManifest, err)
+	}
 	if root.Includes != nil {
 		if err := applyIncludes(&manifest, *root.Includes, pkg); err != nil {
 			return Manifest{}, err
@@ -235,8 +237,8 @@ func applyIncludes(manifest *Manifest, includes ManifestIncludes, pkg PackageFS)
 	}
 	slots := []includeSlot{
 		{
-			name: "langs",
-			raw:  includes.Langs,
+			name:   "langs",
+			raw:    includes.Langs,
 			filled: func() bool { return len(manifest.Langs) > 0 },
 			apply: func(raw json.RawMessage) error {
 				langs, err := loadLangsInclude(raw, pkg)
@@ -248,24 +250,25 @@ func applyIncludes(manifest *Manifest, includes ManifestIncludes, pkg PackageFS)
 			},
 		},
 		{
-			name: "settings",
-			raw:  includes.Settings,
-			filled: func() bool { return len(manifest.Settings) > 0 },
+			name:   "settings",
+			raw:    includes.Settings,
+			filled: func() bool { return len(manifest.Settings) > 0 || manifest.SettingsDocument.Explicit },
 			apply: func(raw json.RawMessage) error {
-				items, err := loadJSONShardList[ManifestSetting](raw, pkg, "settings")
+				document, err := loadSettingsInclude(raw, pkg)
 				if err != nil {
 					return err
 				}
-				if err := ensureUniqueSettingKeys(items); err != nil {
+				if err := ensureUniqueSettingKeys(document.Fields); err != nil {
 					return err
 				}
-				manifest.Settings = items
+				manifest.Settings = document.Fields
+				manifest.SettingsDocument = document
 				return nil
 			},
 		},
 		{
-			name: "contributions",
-			raw:  includes.Contributions,
+			name:   "contributions",
+			raw:    includes.Contributions,
 			filled: func() bool { return len(manifest.Contributions) > 0 },
 			apply: func(raw json.RawMessage) error {
 				items, err := loadJSONShardList[ManifestContribution](raw, pkg, "contributions")
@@ -310,8 +313,8 @@ func applyIncludes(manifest *Manifest, includes ManifestIncludes, pkg PackageFS)
 			},
 		},
 		{
-			name: "events",
-			raw:  includes.Events,
+			name:   "events",
+			raw:    includes.Events,
 			filled: func() bool { return len(manifest.Events) > 0 },
 			apply: func(raw json.RawMessage) error {
 				items, err := loadJSONShardList[ManifestEvent](raw, pkg, "events")
@@ -323,8 +326,8 @@ func applyIncludes(manifest *Manifest, includes ManifestIncludes, pkg PackageFS)
 			},
 		},
 		{
-			name: "routes",
-			raw:  includes.Routes,
+			name:   "routes",
+			raw:    includes.Routes,
 			filled: func() bool { return len(manifest.Routes) > 0 },
 			apply: func(raw json.RawMessage) error {
 				items, err := loadJSONShardList[ManifestRoute](raw, pkg, "routes")
@@ -336,8 +339,8 @@ func applyIncludes(manifest *Manifest, includes ManifestIncludes, pkg PackageFS)
 			},
 		},
 		{
-			name: "jobs",
-			raw:  includes.Jobs,
+			name:   "jobs",
+			raw:    includes.Jobs,
 			filled: func() bool { return len(manifest.Jobs) > 0 },
 			apply: func(raw json.RawMessage) error {
 				items, err := loadJSONShardList[ManifestJob](raw, pkg, "jobs")
@@ -349,8 +352,8 @@ func applyIncludes(manifest *Manifest, includes ManifestIncludes, pkg PackageFS)
 			},
 		},
 		{
-			name: "migrations",
-			raw:  includes.Migrations,
+			name:   "migrations",
+			raw:    includes.Migrations,
 			filled: func() bool { return len(manifest.Migrations) > 0 },
 			apply: func(raw json.RawMessage) error {
 				items, err := loadJSONShardList[ManifestMigration](raw, pkg, "migrations")
@@ -362,8 +365,8 @@ func applyIncludes(manifest *Manifest, includes ManifestIncludes, pkg PackageFS)
 			},
 		},
 		{
-			name: "permissions",
-			raw:  includes.Permissions,
+			name:   "permissions",
+			raw:    includes.Permissions,
 			filled: func() bool { return len(manifest.Permissions) > 0 },
 			apply: func(raw json.RawMessage) error {
 				items, err := loadJSONShardList[string](raw, pkg, "permissions")
@@ -375,8 +378,8 @@ func applyIncludes(manifest *Manifest, includes ManifestIncludes, pkg PackageFS)
 			},
 		},
 		{
-			name: "hooks",
-			raw:  includes.Hooks,
+			name:   "hooks",
+			raw:    includes.Hooks,
 			filled: func() bool { return len(manifest.Hooks) > 0 },
 			apply: func(raw json.RawMessage) error {
 				items, err := loadJSONShardList[ManifestHook](raw, pkg, "hooks")
@@ -388,8 +391,8 @@ func applyIncludes(manifest *Manifest, includes ManifestIncludes, pkg PackageFS)
 			},
 		},
 		{
-			name: "providers",
-			raw:  includes.Providers,
+			name:   "providers",
+			raw:    includes.Providers,
 			filled: func() bool { return len(manifest.Providers) > 0 },
 			apply: func(raw json.RawMessage) error {
 				items, err := loadJSONShardList[ManifestProvider](raw, pkg, "providers")
@@ -401,8 +404,8 @@ func applyIncludes(manifest *Manifest, includes ManifestIncludes, pkg PackageFS)
 			},
 		},
 		{
-			name: "adminPages",
-			raw:  includes.AdminPages,
+			name:   "adminPages",
+			raw:    includes.AdminPages,
 			filled: func() bool { return len(manifest.AdminPages) > 0 },
 			apply: func(raw json.RawMessage) error {
 				items, err := loadJSONShardList[ManifestAdminPage](raw, pkg, "adminPages")
@@ -426,6 +429,78 @@ func applyIncludes(manifest *Manifest, includes ManifestIncludes, pkg PackageFS)
 		}
 	}
 	return nil
+}
+
+func loadSettingsInclude(raw json.RawMessage, pkg PackageFS) (SettingsDocument, error) {
+	paths, err := includePaths(raw, pkg, "settings")
+	if err != nil {
+		return SettingsDocument{}, err
+	}
+	documents := make([]SettingsDocument, 0, len(paths))
+	for _, includePath := range paths {
+		body, err := pkg.ReadFile(includePath)
+		if err != nil {
+			return SettingsDocument{}, fmt.Errorf("%w: read settings include %s: %v", ErrInvalidManifest, includePath, err)
+		}
+		document, err := decodeSettingsDocument(body)
+		if err != nil {
+			return SettingsDocument{}, fmt.Errorf("%w: decode settings include %s: %v", ErrInvalidManifest, includePath, err)
+		}
+		documents = append(documents, document)
+	}
+	return mergeSettingsDocuments(documents)
+}
+
+func includePaths(raw json.RawMessage, pkg PackageFS, label string) ([]string, error) {
+	var list []string
+	if err := json.Unmarshal(raw, &list); err == nil {
+		if len(list) == 0 {
+			return nil, fmt.Errorf("%s file list is empty", label)
+		}
+		paths := make([]string, 0, len(list))
+		for _, item := range list {
+			safe, err := safePackageRel(item)
+			if err != nil {
+				return nil, err
+			}
+			paths = append(paths, safe)
+		}
+		return paths, nil
+	}
+	var ref string
+	if err := json.Unmarshal(raw, &ref); err != nil {
+		return nil, fmt.Errorf("%s include must be a path string or path array", label)
+	}
+	safe, err := safePackageRel(ref)
+	if err != nil {
+		return nil, err
+	}
+	isDir, err := pkg.Stat(safe)
+	if err != nil {
+		return nil, fmt.Errorf("%s path %q: %w", label, safe, err)
+	}
+	if !isDir {
+		return []string{safe}, nil
+	}
+	names, err := pkg.ReadDir(safe)
+	if err != nil {
+		return nil, err
+	}
+	files := make([]string, 0, len(names))
+	for _, name := range names {
+		if strings.HasPrefix(name, ".") {
+			continue
+		}
+		if !strings.HasSuffix(strings.ToLower(name), ".json") {
+			return nil, fmt.Errorf("%s directory %q contains non-json file %q", label, safe, name)
+		}
+		files = append(files, path.Join(safe, name))
+	}
+	if len(files) == 0 {
+		return nil, fmt.Errorf("%s directory %q is empty", label, safe)
+	}
+	sort.Strings(files)
+	return files, nil
 }
 
 func isJSONNull(raw json.RawMessage) bool {

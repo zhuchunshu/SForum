@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-func TestBuiltinSMTPManifestValidatesWithLocalizedSettingsAndSettingsPageSlot(t *testing.T) {
+func TestBuiltinSMTPManifestValidatesWithSchemaActions(t *testing.T) {
 	_, file, _, ok := runtime.Caller(0)
 	if !ok {
 		t.Fatal("runtime.Caller failed")
@@ -32,17 +32,14 @@ func TestBuiltinSMTPManifestValidatesWithLocalizedSettingsAndSettingsPageSlot(t 
 	if ResolveSettingPresentation(host, "en-US").Label == "" {
 		t.Fatal("en label empty")
 	}
-	if normalized.Frontend.Admin == nil || normalized.Frontend.Admin.Components["smtp-settings-page"] == "" {
-		t.Fatal("expected frontend.admin smtp-settings-page component")
+	if normalized.Frontend.Admin != nil {
+		t.Fatal("smtp schema settings must not require frontend.admin")
 	}
-	found := false
-	for _, contribution := range normalized.Contributions {
-		if contribution.Point == "admin.extension.settings.page" {
-			found = true
-		}
+	if normalized.SettingsDocument.UI.Layout != SettingsLayoutTabs || len(normalized.SettingsDocument.Actions) != 1 {
+		t.Fatalf("expected tabbed schema + probe action: %#v", normalized.SettingsDocument)
 	}
-	if !found {
-		t.Fatal("expected admin.extension.settings.page contribution")
+	if normalized.SettingsDocument.Actions[0].Kind != SettingsActionProviderProbe {
+		t.Fatalf("unexpected smtp action: %#v", normalized.SettingsDocument.Actions[0])
 	}
 	// 身份文案来自 manifest/langs/zh-CN.json（按语言分文件）。
 	if LocalizedDisplay(normalized, "zh-CN").Description == "" {

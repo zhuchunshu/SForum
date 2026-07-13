@@ -36,6 +36,21 @@ func TestWebReleaseTypecheckFailDefaultAndUpdate(t *testing.T) {
 	if err != nil || !fail {
 		t.Fatalf("expected enabled hard-fail, got fail=%v err=%v", fail, err)
 	}
+	if mode, err := service.WebReleaseTypecheckMode(ctx); err != nil || mode != "block" {
+		t.Fatalf("legacy option must synchronize block mode, got mode=%q err=%v", mode, err)
+	}
+
+	if _, err := service.UpdateMany(ctx, manager, []UpdateInput{{
+		Name: NameWebReleaseTypecheckMode, Value: "off",
+	}}); err != nil {
+		t.Fatalf("update mode: %v", err)
+	}
+	if mode, err := service.WebReleaseTypecheckMode(ctx); err != nil || mode != "off" {
+		t.Fatalf("expected off mode, got mode=%q err=%v", mode, err)
+	}
+	if fail, err := service.WebReleaseTypecheckFail(ctx); err != nil || fail {
+		t.Fatalf("mode update must synchronize legacy option, got fail=%v err=%v", fail, err)
+	}
 
 	// 无 release 权限不可改。
 	denied := identity.Actor{

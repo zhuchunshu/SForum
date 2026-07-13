@@ -3,8 +3,8 @@
 ## Purpose
 
 Owns installable plugins and themes for SForum. Plugins are multi-enable
-runtime extensions. Themes are Nuxt Layer packages with exactly one active
-applied theme.
+runtime extensions. Themes are Page Registry + L0/L1 runtime packages with
+exactly one active theme; public activation does not rebuild Nuxt.
 
 SForum core should stay framework-focused. Product verticals that vary by
 deployment or vendor, including payment gateways, outbound mail delivery,
@@ -17,6 +17,38 @@ intents, transactions, refunds, webhook idempotency, and entitlement interfaces
 while provider-specific behavior remains in plugins.
 
 ## Current Status
+
+### Buildless extension settings UI (P0–P6 implemented 2026-07-13)
+
+Plugins and themes use one versioned settings document and one
+host renderer. Schema UI (fields/tabs/groups/callouts) and Schema + Actions are
+host-rendered and require no Web Release. Complex settings UI remains available
+through an author-prebuilt admin micro-frontend that the host dynamically loads
+after explicit digest-bound administrator trust; operators do not rebuild
+SForum. The existing trusted Vue `frontend.admin` + Web Release path remains a
+deprecated-for-new-settings compatibility path.
+
+- Decision: `decisions/2026-07-13-buildless-extension-settings-ui.md`
+- Task book: `plans/2026-07-13-buildless-extension-settings-ui.md`
+- Handoff: `sessions/2026-07-13-buildless-extension-settings-ui-plan.md`
+- Settings arrays normalize to schema/form; canonical JSON keeps old arrays as
+  arrays and new documents as objects.
+- `SFExtensionSettingsRenderer` owns form/tabs/groups/columns/callouts and
+  linear presentation fallback for plugins and themes.
+- Settings Actions are host-rendered allowlisted descriptors. `provider_probe`
+  uses a restricted short-lived plugin process with no Host API token and no
+  route/event/job/schedule/provider registration; SMTP and filesystem storage
+  are reference migrations.
+- `adminFrontendDigest` covers only legacy admin frontend inputs or prebuilt
+  entry/CSS bytes. Trust and Web Release composition use it independently from
+  package/backend/public-theme/settings changes.
+- Admin Micro-frontend API v1 loads package-local `.mjs`/`.css` through an
+  authenticated immutable digest endpoint after one-use actor-bound
+  confirmation. Import/API/mount/CSS/cleanup/quarantine failure falls back to
+  Schema UI.
+- Important: do not restore a dev-only theme settings SFC that differs from
+  production. The default theme should gain tabs/groups through the same Schema
+  UI renderer used by uploaded themes.
 
 ### Runtime Page Registry & simple themes (accepted direction)
 
@@ -327,8 +359,9 @@ and plugin runtime v1.
 - The accepted trusted-component direction does not turn all contributions
   into executable UI. Descriptor points remain host-rendered. A core module
   must explicitly declare a trusted admin component point with typed manifest
-  metadata and context; only a digest-approved Web Release may attach its
-  client component mapping. Plugins still cannot create points, override core
+  metadata and context. Legacy Vue mappings require a digest-approved Web
+  Release; prebuilt settings components use Admin Micro-frontend API v1 and an
+  exact digest grant without a host build. Plugins still cannot create points, override core
   routes, execute components during SSR, or inject into public theme UI.
 - Event delivery attempts are recorded separately from lifecycle audit logs in
   `extension_event_deliveries`. The runtime has River job args and worker
@@ -340,8 +373,9 @@ and plugin runtime v1.
   on the host; themes may replace/add views via registry (core API / security
   routes remain non-overridable). Plugin `replace` of core pages requires
   super_admin approval; theme activate auto-binds that theme's replaces.
-- Web Release remains only for trusted **admin** plugin frontends (digest grant
-  + composition). Do not use Web Release for public theme switching.
+- Web Release remains only for legacy trusted Vue **admin** frontends. Schema,
+  Settings Actions, prebuilt settings components, and public theme switching do
+  not use it. Active/ready identical compositions are reused.
 - Trusted admin packages declare host peers only (`package.json` peers + lock);
   never ship or commit `frontend/admin/node_modules`. Dev resolve uses host
   aliases; Web Release links peers in the build workspace only.
@@ -508,41 +542,39 @@ flag-driven generation. Default output is `extensions/dev/{plugins,themes}/{id}`
 
 - thin `sforum.extension.json` with `includes`
 - `manifest/langs/{zh-CN,en-US}.json`
-- `manifest/settings/*.json` shards (merged by filename)
+- `manifest/settings.json` versioned Settings Document
 - `manifest/admin.json`
 
-## Next Steps
+All new scaffolds default to Schema/tabs. `--provider-slot <known.slot>` adds a
+host-rendered `provider_probe` action and requires `--backend`.
+`--prebuilt-settings` adds an Admin Micro-frontend API v1 `.mjs`/`.css`
+template while retaining Schema fallback fields.
+
+## Current settings/admin behavior
 
 - Generic manifest settings support `placeholder`, `recommendedValue`,
   ordered `options`, and `group`. Presentation fields (`label`, `description`,
   `placeholder`, `group`, option labels) accept either a plain string or a
   locale map (`LocalizedText`). Settings GET/PUT/reset resolve copy from the
   request `Accept-Language` and return plain strings only.
-- Host dynamic settings page (`view: settings`) is generic chrome: recommended
-  defaults banner, form controls, and `SFAdminFormFooter`. Plugins **and themes**
-  may replace the whole form via trusted contribution
-  `admin.extension.settings.page`, or inject `header` / `footer`. Slot
-  components are filtered to the current extension id. Themes may only use
-  these three contribution points (no jobs/forum points). See
-  `decisions/2026-07-13-theme-admin-settings-page.md`.
-- Default theme ships a multi-tab custom settings page under
-  `extensions/builtin/themes/sforum-default/frontend/admin/` and public
-  settings via `GET /site/active-theme/settings`.
+- Host dynamic settings page uses `SFExtensionSettingsRenderer`; installed or
+  disabled plugins and inactive themes can be configured without starting
+  extension code. Enabled backend plugins still restart with rollback after
+  persistence. Secrets stay encrypted/masked and blank drafts preserve them.
+- Legacy `admin.extension.settings.page`/header/footer contributions remain
+  compatible but the full settings-page path is deprecated for new packages.
+- Default theme is Schema-only (multi-tab groups/columns/callouts); its stale
+  admin SFC/package/locale files were removed. Public values still resolve via
+  `GET /site/active-theme/settings`.
 - `mail.provider` is now implemented end-to-end. The protected `sforum.smtp`
   plugin is the first real provider vertical; core contains no SMTP provider
-  code. Extension secret settings are masked/preserved and enabled plugins
-  restart after settings changes. SMTP owns multi-locale settings and a custom
-  settings page component under `frontend/admin`.
+  code. SMTP now owns multi-locale Schema settings plus a structured Probe
+  action and no custom settings SFC.
 
 - Multi-file extension manifests are implemented: `LoadPackage`, SMTP reference
   package, `make:plugin --complex`, `extension validate`, and settings/
   contributions directory shards. See
   `decisions/2026-07-12-extension-manifest-split.md`.
-- Implement the trusted admin plugin runtime specification before starting the
-  River job monitoring module that consumes its first production slots.
-- Generalize the current theme artifact builder and supervisor contract into a
-  unified Web Release Runtime without regressing existing theme activation.
-
 - Promote Provider Slots into first-class contracts, starting with
   `mail.provider`, `notification.channel`, `payment.provider`,
   `search.provider`, `attachment.storage.provider`,

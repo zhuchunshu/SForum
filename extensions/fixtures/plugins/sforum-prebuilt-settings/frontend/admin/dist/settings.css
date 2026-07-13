@@ -1,0 +1,21 @@
+.sforum-prebuilt-fixture {
+  display: grid;
+  gap: 0.75rem;
+  padding: 1rem;
+  border: 1px solid color-mix(in srgb, var(--sf-accent) 24%, transparent);
+  background: color-mix(in srgb, var(--sf-accent) 6%, transparent);
+}
+
+.sforum-prebuilt-fixture input {
+  min-height: 2.5rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid currentColor;
+  background: transparent;
+}
+
+.sforum-prebuilt-fixture button {
+  width: fit-content;
+  padding: 0.5rem 0.9rem;
+  color: var(--sf-accent-contrast);
+  background: var(--sf-accent);
+}

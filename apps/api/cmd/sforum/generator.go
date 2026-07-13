@@ -12,20 +12,21 @@ import (
 )
 
 type scaffoldManifest struct {
-	ID            string                              `json:"id"`
-	Name          string                              `json:"name"`
-	Description   string                              `json:"description"`
-	URL           string                              `json:"url"`
-	Author        extensionmanifest.ManifestAuthor    `json:"author"`
-	Version       string                              `json:"version"`
-	Type          string                              `json:"type"`
-	SForumVersion string                              `json:"sforumVersion"`
-	Permissions   []string                            `json:"permissions,omitempty"`
-	Settings      []extensionmanifest.ManifestSetting `json:"settings,omitempty"`
-	Backend       *extensionmanifest.ManifestBackend  `json:"backend,omitempty"`
-	Frontend      *extensionmanifest.ManifestFrontend `json:"frontend,omitempty"`
-	Admin         extensionmanifest.ManifestAdmin     `json:"admin,omitempty"`
-	Includes      map[string]string                   `json:"includes,omitempty"`
+	ID            string                               `json:"id"`
+	Name          string                               `json:"name"`
+	Description   string                               `json:"description"`
+	URL           string                               `json:"url"`
+	Author        extensionmanifest.ManifestAuthor     `json:"author"`
+	Version       string                               `json:"version"`
+	Type          string                               `json:"type"`
+	SForumVersion string                               `json:"sforumVersion"`
+	Permissions   []string                             `json:"permissions,omitempty"`
+	Settings      *extensionmanifest.SettingsDocument  `json:"settings,omitempty"`
+	Providers     []extensionmanifest.ManifestProvider `json:"providers,omitempty"`
+	Backend       *extensionmanifest.ManifestBackend   `json:"backend,omitempty"`
+	Frontend      *extensionmanifest.ManifestFrontend  `json:"frontend,omitempty"`
+	Admin         extensionmanifest.ManifestAdmin      `json:"admin,omitempty"`
+	Includes      map[string]string                    `json:"includes,omitempty"`
 }
 
 func GenerateExtensionScaffold(opts makeOptions) (string, error) {
@@ -60,6 +61,11 @@ func GenerateExtensionScaffold(opts makeOptions) (string, error) {
 	if err := writeFile(filepath.Join(target, "README.md"), readmeBody(opts), 0o644); err != nil {
 		return "", err
 	}
+	if opts.PrebuiltSettings {
+		if err := writePrebuiltSettingsFiles(target, opts); err != nil {
+			return "", err
+		}
+	}
 	if opts.Kind == extensionmanifest.TypePlugin {
 		return target, writePluginFiles(target, opts)
 	}
@@ -76,6 +82,7 @@ func normalizeMakeOptions(opts makeOptions) makeOptions {
 	opts.AuthorURL = strings.TrimSpace(opts.AuthorURL)
 	opts.AuthorEmail = strings.TrimSpace(opts.AuthorEmail)
 	opts.Out = strings.TrimSpace(opts.Out)
+	opts.ProviderSlot = strings.TrimSpace(opts.ProviderSlot)
 	return opts
 }
 
@@ -85,6 +92,9 @@ func validateMakeOptions(opts makeOptions) error {
 	}
 	if opts.ID == "" || opts.Name == "" || opts.Description == "" || opts.URL == "" || opts.AuthorName == "" {
 		return errors.New("id, name, description, url, and author-name are required")
+	}
+	if opts.ProviderSlot != "" && (opts.Kind != extensionmanifest.TypePlugin || !opts.Backend) {
+		return errors.New("provider-slot requires a plugin scaffold with --backend")
 	}
 	return nil
 }
@@ -99,13 +109,14 @@ func buildManifest(opts makeOptions) scaffoldManifest {
 		Version:       "0.1.0",
 		Type:          opts.Kind,
 		SForumVersion: "^1.0.0",
-		Settings: []extensionmanifest.ManifestSetting{{
+		Settings: scaffoldSettingsDocument(opts, []extensionmanifest.ManifestSetting{{
 			Key:         opts.ID + ".enabled",
 			Label:       extensionmanifest.LocalizedText{Default: "Enabled"},
 			Description: extensionmanifest.LocalizedText{Default: "Enable this extension's recommended behavior."},
 			Type:        "boolean",
 			Default:     "true",
-		}},
+			GroupID:     "general",
+		}}),
 		Admin: extensionmanifest.ManifestAdmin{
 			Entry: "/settings",
 			Pages: []extensionmanifest.ManifestAdminPage{{
@@ -123,6 +134,9 @@ func buildManifest(opts makeOptions) scaffoldManifest {
 		if opts.Backend {
 			manifest.Backend = &extensionmanifest.ManifestBackend{Entry: "backend/plugin", RPC: "hashicorp-go-plugin", ProtocolVersion: 1}
 		}
+		if opts.ProviderSlot != "" {
+			manifest.Providers = []extensionmanifest.ManifestProvider{{Slot: opts.ProviderSlot, Label: opts.Name, TimeoutMS: 15000}}
+		}
 		return manifest
 	}
 	// Runtime themes: empty frontend (L0/L1 via theme.json). Plugins may still set frontend later.
@@ -130,6 +144,48 @@ func buildManifest(opts makeOptions) scaffoldManifest {
 		manifest.Frontend = &extensionmanifest.ManifestFrontend{}
 	}
 	return manifest
+}
+
+func scaffoldSettingsDocument(opts makeOptions, fields []extensionmanifest.ManifestSetting) *extensionmanifest.SettingsDocument {
+	document := &extensionmanifest.SettingsDocument{
+		SchemaVersion: extensionmanifest.SettingsSchemaVersion,
+		Explicit:      true,
+		UI: extensionmanifest.SettingsUI{
+			Mode:   extensionmanifest.SettingsUIModeSchema,
+			Layout: extensionmanifest.SettingsLayoutTabs,
+			Tabs: []extensionmanifest.SettingsTab{{
+				ID: "general", Label: extensionmanifest.LocalizedText{Default: "General", ByLocale: map[string]string{"zh-CN": "常规", "en-US": "General"}}, Groups: []string{"general"},
+			}},
+			Groups: []extensionmanifest.SettingsGroup{{
+				ID: "general", Label: extensionmanifest.LocalizedText{Default: "General", ByLocale: map[string]string{"zh-CN": "常规", "en-US": "General"}}, Columns: 1,
+			}},
+			Callouts: []extensionmanifest.SettingsCallout{{
+				ID: "recommended", Tone: "info",
+				Title: extensionmanifest.LocalizedText{Default: "Start with the recommended defaults", ByLocale: map[string]string{"zh-CN": "建议先使用推荐默认值", "en-US": "Start with the recommended defaults"}},
+				Tab:   "general",
+			}},
+		},
+		Fields: fields,
+	}
+	if opts.ProviderSlot != "" {
+		keys := make([]string, 0, len(fields))
+		for _, field := range fields {
+			keys = append(keys, field.Key)
+		}
+		document.Actions = []extensionmanifest.SettingsAction{{
+			ID: "probe", Kind: extensionmanifest.SettingsActionProviderProbe,
+			Label:     extensionmanifest.LocalizedText{Default: "Test connection", ByLocale: map[string]string{"zh-CN": "测试连接", "en-US": "Test connection"}},
+			Placement: "footer", UseDraftValues: true, Fields: keys,
+		}}
+	}
+	if opts.PrebuiltSettings {
+		document.UI.Mode = extensionmanifest.SettingsUIModeComponent
+		document.UI.Component = &extensionmanifest.SettingsComponent{
+			ID: "settings", APIVersion: extensionmanifest.AdminFrontendAPIVersion,
+			Entry: "frontend/admin/dist/settings.mjs", CSS: "frontend/admin/dist/settings.css",
+		}
+	}
+	return document
 }
 
 func validateGeneratedManifest(manifest scaffoldManifest) error {
@@ -158,12 +214,15 @@ func writeComplexPluginScaffold(target string, opts makeOptions) error {
 		Permissions:   []string{opts.ID + ".manage"},
 		Includes: map[string]string{
 			"langs":    "manifest/langs",
-			"settings": "manifest/settings",
+			"settings": "manifest/settings.json",
 			"admin":    "manifest/admin.json",
 		},
 	}
 	if opts.Backend {
 		root.Backend = &extensionmanifest.ManifestBackend{Entry: "backend/plugin", RPC: "hashicorp-go-plugin", ProtocolVersion: 1}
+	}
+	if opts.ProviderSlot != "" {
+		root.Providers = []extensionmanifest.ManifestProvider{{Slot: opts.ProviderSlot, Label: opts.Name, TimeoutMS: 15000}}
 	}
 	if err := writeJSON(filepath.Join(target, extensionmanifest.ManifestFileName), root); err != nil {
 		return err
@@ -182,23 +241,22 @@ func writeComplexPluginScaffold(target string, opts makeOptions) error {
 	}); err != nil {
 		return err
 	}
-	// settings 目录分片：按文件名排序合并（Phase 4 能力）。
-	if err := writeJSON(filepath.Join(target, "manifest", "settings", "10-general.json"), []extensionmanifest.ManifestSetting{{
+	settings := []extensionmanifest.ManifestSetting{{
 		Key:         opts.ID + ".enabled",
 		Label:       extensionmanifest.LocalizedText{Default: "Enabled", ByLocale: map[string]string{"zh-CN": "启用", "en-US": "Enabled"}},
 		Description: extensionmanifest.LocalizedText{Default: "Enable this extension's recommended behavior.", ByLocale: map[string]string{"zh-CN": "启用此扩展的推荐行为。", "en-US": "Enable this extension's recommended behavior."}},
 		Type:        "boolean",
 		Default:     "true",
-	}}); err != nil {
-		return err
-	}
-	if err := writeJSON(filepath.Join(target, "manifest", "settings", "20-advanced.json"), []extensionmanifest.ManifestSetting{{
+		GroupID:     "general",
+	}, {
 		Key:         opts.ID + ".debug",
 		Label:       extensionmanifest.LocalizedText{Default: "Debug logging", ByLocale: map[string]string{"zh-CN": "调试日志", "en-US": "Debug logging"}},
 		Description: extensionmanifest.LocalizedText{Default: "Write extra diagnostic logs.", ByLocale: map[string]string{"zh-CN": "输出额外诊断日志。", "en-US": "Write extra diagnostic logs."}},
 		Type:        "boolean",
 		Default:     "false",
-	}}); err != nil {
+		GroupID:     "general",
+	}}
+	if err := writeJSON(filepath.Join(target, "manifest", "settings.json"), scaffoldSettingsDocument(opts, settings)); err != nil {
 		return err
 	}
 	if err := writeJSON(filepath.Join(target, "manifest", "admin.json"), extensionmanifest.ManifestAdmin{
@@ -285,6 +343,46 @@ func writePluginFiles(target string, opts makeOptions) error {
 	return writeFile(filepath.Join(target, "backend", "plugin"), "#!/usr/bin/env sh\nprintf 'Build the HashiCorp go-plugin server for "+opts.ID+" into this file.\\n'\n", 0o755)
 }
 
+func writePrebuiltSettingsFiles(target string, opts makeOptions) error {
+	module := `export const apiVersion = 1
+
+export function mount(target, bridge) {
+  const root = document.createElement('section')
+  root.className = 'sforum-extension-settings'
+  const title = document.createElement('h3')
+  title.textContent = bridge.locale.startsWith('zh') ? '自定义设置' : 'Custom settings'
+  const input = document.createElement('input')
+  input.type = 'checkbox'
+  input.checked = bridge.settings.values()['` + opts.ID + `.enabled'] === 'true'
+  const save = document.createElement('button')
+  save.type = 'button'
+  save.textContent = bridge.locale.startsWith('zh') ? '保存' : 'Save'
+  const onChange = () => bridge.settings.updateValue('` + opts.ID + `.enabled', input.checked ? 'true' : 'false')
+  const onSave = () => bridge.settings.save()
+  input.addEventListener('change', onChange)
+  save.addEventListener('click', onSave)
+  root.append(title, input, save)
+  target.append(root)
+  return () => {
+    input.removeEventListener('change', onChange)
+    save.removeEventListener('click', onSave)
+    root.remove()
+  }
+}
+`
+	css := `.sforum-extension-settings {
+  display: grid;
+  gap: 0.75rem;
+  padding: 1rem;
+  border: 1px solid color-mix(in srgb, var(--sf-accent) 24%, transparent);
+}
+`
+	if err := writeFile(filepath.Join(target, "frontend", "admin", "dist", "settings.mjs"), module, 0o644); err != nil {
+		return err
+	}
+	return writeFile(filepath.Join(target, "frontend", "admin", "dist", "settings.css"), css, 0o644)
+}
+
 func writeThemeFiles(target string, opts makeOptions) error {
 	// Runtime L0/L1 主题包：不再生成 Nuxt Layer。
 	files := map[string]string{
@@ -333,10 +431,17 @@ func readmeBody(opts makeOptions) string {
 		body += "\n## Multi-file manifest\n\n"
 		body += "This package uses a thin `sforum.extension.json` plus `includes`:\n\n"
 		body += "- `manifest/langs/{zh-CN,en-US}.json` — identity translations (filename = locale)\n"
-		body += "- `manifest/settings/*.json` — settings shards merged by filename order\n"
+		body += "- `manifest/settings.json` — versioned Settings Document (Schema UI by default)\n"
 		body += "- `manifest/admin.json` — admin entry/pages\n\n"
 		body += "Validate with:\n\n```bash\ncd apps/api && go run ./cmd/sforum extension validate " + filepath.ToSlash(opts.Out) + "\n```\n\n"
-		body += "Three i18n layers stay separate: identity langs, settings `LocalizedText`, and `frontend/admin/locales` for Vue UI.\n"
+		body += "Identity langs and settings `LocalizedText` stay separate. Legacy Vue locales only apply to the deprecated Web Release path.\n"
+	}
+	if opts.PrebuiltSettings {
+		body += "\n## Prebuilt settings component\n\n"
+		body += "`frontend/admin/dist/settings.mjs` implements Admin Micro-frontend API v1 and is loaded only after exact digest trust. SForum never compiles source SFCs. Keep the Schema fields as the required fallback and build all component bytes before packaging.\n"
+	}
+	if opts.ProviderSlot != "" {
+		body += "\n## Settings action\n\nThe manifest declares a host-rendered `provider_probe` for `" + opts.ProviderSlot + "`. Implement the SDK `ProviderProbe` method in the backend; the host enforces field/secret allowlists, timeout, audit, and disabled-plugin restricted execution.\n"
 	}
 	if opts.Kind == extensionmanifest.TypePlugin {
 		body += "\n## Optional Contribution Example\n\n"

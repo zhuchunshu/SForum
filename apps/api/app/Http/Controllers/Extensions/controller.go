@@ -32,6 +32,14 @@ type TrustedFrontendService interface {
 	RestoreDefaults(context.Context, identity.Actor) (extensions.ExtensionOperation, error)
 }
 
+type TrustedFrontendAssetService interface {
+	Asset(context.Context, identity.Actor, string, string, string) (extensions.FrontendAsset, error)
+}
+
+type TrustedFrontendChallengeService interface {
+	Challenge(context.Context, identity.Actor, string) (extensions.FrontendTrustChallenge, error)
+}
+
 type WebReleaseAdminService interface {
 	List(context.Context, identity.Actor, extensions.WebReleaseListInput) (extensions.WebReleasePage, error)
 	Detail(context.Context, identity.Actor, int64) (extensions.WebReleaseDetail, error)
@@ -52,6 +60,11 @@ type RouteGateway interface {
 
 type updateSettingsRequest struct {
 	Values map[string]string `json:"values"`
+}
+
+type executeSettingsActionRequest struct {
+	Values  map[string]string                               `json:"values"`
+	Secrets map[string]extensions.SettingsActionSecretInput `json:"secrets"`
 }
 
 func NewController(service *extensions.Service, users identity.ActorStore, sessions *authsession.Manager) *Controller {
@@ -338,6 +351,22 @@ func (h *Controller) resetSettings(c fiber.Ctx) error {
 	return apphttp.OK(c, settings)
 }
 
+func (h *Controller) executeSettingsAction(c fiber.Ctx) error {
+	actor, err := h.actor(c)
+	if err != nil {
+		return err
+	}
+	var req executeSettingsActionRequest
+	if err := c.Bind().Body(&req); err != nil {
+		return fiber.NewError(fiber.StatusUnprocessableEntity, "validation.invalid")
+	}
+	result, err := h.service.ExecuteSettingsAction(c.Context(), actor, c.Params("id"), c.Params("actionId"), extensions.ExecuteSettingsActionInput{Values: req.Values, Secrets: req.Secrets})
+	if err != nil {
+		return mapExtensionError(err)
+	}
+	return apphttp.OK(c, result)
+}
+
 func queryInt(c fiber.Ctx, name string, fallback int) int {
 	value, err := strconv.Atoi(c.Query(name))
 	if err != nil || value <= 0 {
@@ -413,6 +442,10 @@ func mapExtensionError(err error) error {
 		return fiber.NewError(fiber.StatusConflict, extensions.CodeExtensionDisabled)
 	case errors.Is(err, extensions.ErrSettingsRollbackFailed):
 		return fiber.NewError(fiber.StatusServiceUnavailable, extensions.CodeSettingsRollbackFailed)
+	case errors.Is(err, extensions.ErrSettingsActionInvalid):
+		return fiber.NewError(fiber.StatusUnprocessableEntity, extensions.CodeSettingsActionInvalid)
+	case errors.Is(err, extensions.ErrSettingsActionUnavailable):
+		return fiber.NewError(fiber.StatusServiceUnavailable, extensions.CodeSettingsActionUnavailable)
 	case errors.Is(err, extensions.ErrWebReleaseNotFound):
 		return fiber.NewError(fiber.StatusNotFound, extensions.CodeWebReleaseNotFound)
 	case errors.Is(err, extensions.ErrFrontendGrantNotFound):

@@ -44,6 +44,9 @@ func TestGeneratePluginScaffoldNonInteractive(t *testing.T) {
 	if len(manifest.Contributions) != 0 {
 		t.Fatalf("new plugin scaffolds should not enable demo contributions by default: %#v", manifest.Contributions)
 	}
+	if manifest.SettingsDocument.SchemaVersion != 1 || manifest.SettingsDocument.UI.Mode != extensionmanifest.SettingsUIModeSchema || manifest.SettingsDocument.UI.Layout != extensionmanifest.SettingsLayoutTabs {
+		t.Fatalf("new scaffolds must default to versioned Schema UI: %#v", manifest.SettingsDocument)
+	}
 	readme, err := os.ReadFile(filepath.Join(target, "README.md"))
 	if err != nil {
 		t.Fatalf("read generated README: %v", err)
@@ -95,6 +98,9 @@ func TestGenerateComplexPluginScaffold(t *testing.T) {
 	if manifest.Admin.Entry != "/settings" {
 		t.Fatalf("admin: %#v", manifest.Admin)
 	}
+	if !manifest.SettingsDocument.Explicit || manifest.SettingsDocument.UI.Layout != extensionmanifest.SettingsLayoutTabs {
+		t.Fatalf("complex scaffold must use one versioned Settings Document: %#v", manifest.SettingsDocument)
+	}
 	rootBody, err := os.ReadFile(filepath.Join(target, extensionmanifest.ManifestFileName))
 	if err != nil {
 		t.Fatal(err)
@@ -105,6 +111,34 @@ func TestGenerateComplexPluginScaffold(t *testing.T) {
 	// includes 值会包含 "settings" 路径；禁止的是根级 settings 数组字段。
 	if strings.Contains(string(rootBody), `"settings": [`) {
 		t.Fatalf("root should not inline settings array when complex: %s", rootBody)
+	}
+}
+
+func TestGeneratePrebuiltProviderSettingsScaffold(t *testing.T) {
+	target := filepath.Join(t.TempDir(), "prebuilt-plugin")
+	_, err := GenerateExtensionScaffold(makeOptions{
+		Kind: "plugin", ID: "acme.prebuilt", Name: "Acme Prebuilt", Description: "Prebuilt settings.",
+		URL: "https://example.com/prebuilt", AuthorName: "Acme", Out: target, NoInteraction: true,
+		Backend: true, PrebuiltSettings: true, ProviderSlot: "mail.provider",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	manifest := readGeneratedManifest(t, target)
+	component := manifest.SettingsDocument.UI.Component
+	if component == nil || manifest.SettingsDocument.UI.Mode != extensionmanifest.SettingsUIModeComponent || component.Entry != "frontend/admin/dist/settings.mjs" {
+		t.Fatalf("missing prebuilt component contract: %#v", manifest.SettingsDocument)
+	}
+	if len(manifest.SettingsDocument.Actions) != 1 || manifest.SettingsDocument.Actions[0].Kind != extensionmanifest.SettingsActionProviderProbe || len(manifest.Providers) != 1 {
+		t.Fatalf("missing provider probe scaffold: actions=%#v providers=%#v", manifest.SettingsDocument.Actions, manifest.Providers)
+	}
+	for _, relative := range []string{"frontend/admin/dist/settings.mjs", "frontend/admin/dist/settings.css"} {
+		if _, err := os.Stat(filepath.Join(target, relative)); err != nil {
+			t.Fatalf("missing prebuilt file %s: %v", relative, err)
+		}
+	}
+	if _, err := extensionmanifest.LoadPackage(target); err != nil {
+		t.Fatalf("generated prebuilt package must validate: %v", err)
 	}
 }
 

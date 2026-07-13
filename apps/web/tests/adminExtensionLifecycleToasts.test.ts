@@ -34,11 +34,11 @@ describe('plugin enable/disable lifecycle feedback', () => {
     expect(releases).toContain('i-lucide-hammer')
   })
 
-  test('web releases page exposes typecheck hard-fail toggle', () => {
-    expect(releases).toContain('typecheckFail')
-    expect(releases).toContain('setTypecheckFail')
-    expect(releases).toContain("t('admin.extensions.releases.typecheckFailTitle')")
-    expect(releases).toContain('USwitch')
+  test('web releases page exposes explicit typecheck policy modes', () => {
+    expect(releases).toContain('typecheckMode')
+    expect(releases).toContain('setTypecheckMode')
+    expect(releases).toContain("t('admin.extensions.releases.typecheckModeTitle')")
+    expect(releases).toContain('USelect')
   })
 
   test('plugin list shows web release progress bars and polls while active', async () => {

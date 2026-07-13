@@ -37,17 +37,18 @@ type WebThemeSnapshot struct {
 }
 
 type WebExtensionSnapshot struct {
-	ExtensionID     string                 `json:"extensionId"`
-	Version         string                 `json:"version"`
-	PackageDigest   string                 `json:"packageDigest"`
-	FrontendRoot    string                 `json:"frontendRoot"`
-	ComponentMap    map[string]string      `json:"componentMap"`
-	APIVersion      int                    `json:"apiVersion"`
-	Contributions   []ManifestContribution `json:"contributions"`
-	LocaleMap       map[string]string      `json:"localeMap"`
-	LocaleMapDigest string                 `json:"localeMapDigest"`
-	Dependencies    DependencySummary      `json:"dependencies"`
-	SortOrder       int                    `json:"sortOrder"`
+	ExtensionID         string                 `json:"extensionId"`
+	Version             string                 `json:"version"`
+	PackageDigest       string                 `json:"packageDigest"`
+	AdminFrontendDigest string                 `json:"adminFrontendDigest"`
+	FrontendRoot        string                 `json:"frontendRoot"`
+	ComponentMap        map[string]string      `json:"componentMap"`
+	APIVersion          int                    `json:"apiVersion"`
+	Contributions       []ManifestContribution `json:"contributions"`
+	LocaleMap           map[string]string      `json:"localeMap"`
+	LocaleMapDigest     string                 `json:"localeMapDigest"`
+	Dependencies        DependencySummary      `json:"dependencies"`
+	SortOrder           int                    `json:"sortOrder"`
 }
 
 type WebComposition struct {
@@ -213,7 +214,7 @@ func (p *WebReleasePlanner) isTrusted(ctx context.Context, extension Extension) 
 	if extension.Source != SourceUploaded {
 		return false, nil
 	}
-	grant, err := p.grants.FrontendGrant(ctx, extension.ID, extension.Version, extension.PackageDigest)
+	grant, err := p.grants.FrontendGrant(ctx, extension.ID, extension.Version, extension.AdminFrontendDigest)
 	if errors.Is(err, ErrFrontendGrantNotFound) {
 		return false, nil
 	}
@@ -224,7 +225,7 @@ func (p *WebReleasePlanner) isTrusted(ctx context.Context, extension Extension) 
 		return false, nil
 	}
 	admin := extension.Manifest.Frontend.Admin
-	return grant.APIVersion == admin.APIVersion, nil
+	return grant.APIVersion == admin.APIVersion && grant.AdminFrontendDigest == extension.AdminFrontendDigest, nil
 }
 
 func (p *WebReleasePlanner) extensionSnapshot(extension Extension) (WebExtensionSnapshot, error) {
@@ -254,16 +255,17 @@ func (p *WebReleasePlanner) extensionSnapshot(extension Extension) (WebExtension
 	}
 	localeDigest := sha256.Sum256(localeBody)
 	return WebExtensionSnapshot{
-		ExtensionID:     extension.ID,
-		Version:         extension.Version,
-		PackageDigest:   extension.PackageDigest,
-		FrontendRoot:    admin.Root,
-		ComponentMap:    componentMap,
-		APIVersion:      admin.APIVersion,
-		Contributions:   contributions,
-		LocaleMap:       localeMap,
-		LocaleMapDigest: hex.EncodeToString(localeDigest[:]),
-		Dependencies:    dependencies,
+		ExtensionID:         extension.ID,
+		Version:             extension.Version,
+		PackageDigest:       extension.PackageDigest,
+		AdminFrontendDigest: extension.AdminFrontendDigest,
+		FrontendRoot:        admin.Root,
+		ComponentMap:        componentMap,
+		APIVersion:          admin.APIVersion,
+		Contributions:       contributions,
+		LocaleMap:           localeMap,
+		LocaleMapDigest:     hex.EncodeToString(localeDigest[:]),
+		Dependencies:        dependencies,
 	}, nil
 }
 

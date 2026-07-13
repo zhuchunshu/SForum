@@ -3,10 +3,14 @@ package extensions
 import (
 	"context"
 	"errors"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
+	audit "github.com/zhuchunshu/sforum/apps/api/app/Support/Audit"
+	extensionpackage "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionPackage"
 )
 
 func TestFrontendServiceRequiresActiveSuperAdminForTrustMutations(t *testing.T) {
@@ -23,7 +27,7 @@ func TestFrontendServiceRequiresActiveSuperAdminForTrustMutations(t *testing.T) 
 		{ID: 3, Status: identity.UserStatusDisabled, RoleKeys: []string{identity.RoleSuperAdmin}},
 	}
 	for _, actor := range actors {
-		if _, err := service.Grant(context.Background(), actor, extension.ID, GrantFrontendInput{PackageDigest: extension.PackageDigest}); !errors.Is(err, identity.ErrPermissionDenied) {
+		if _, err := service.Grant(context.Background(), actor, extension.ID, GrantFrontendInput{PackageDigest: extension.AdminFrontendDigest}); !errors.Is(err, identity.ErrPermissionDenied) {
 			t.Fatalf("actor %#v unexpectedly granted trust: %v", actor, err)
 		}
 		if _, err := service.Revoke(context.Background(), actor, extension.ID); !errors.Is(err, identity.ErrPermissionDenied) {
@@ -50,12 +54,12 @@ func TestFrontendServiceGrantRechecksDigestAndQueuesOnlyEnabledPlugin(t *testing
 			)
 
 			operation, err := service.Grant(context.Background(), frontendSuperAdmin(), extension.ID, GrantFrontendInput{
-				PackageDigest: extension.PackageDigest,
+				PackageDigest: extension.AdminFrontendDigest,
 			})
 			if err != nil {
 				t.Fatalf("grant frontend trust: %v", err)
 			}
-			if trust.created.PackageDigest != extension.PackageDigest || operation.Frontend == nil || operation.Frontend.TrustState != FrontendTrustTrusted {
+			if trust.created.PackageDigest != extension.PackageDigest || trust.created.AdminFrontendDigest != extension.AdminFrontendDigest || operation.Frontend == nil || operation.Frontend.TrustState != FrontendTrustTrusted {
 				t.Fatalf("grant was not persisted exactly: operation=%#v input=%#v", operation, trust.created)
 			}
 			wantQueue := status == StatusEnabled
@@ -85,6 +89,138 @@ func TestFrontendServiceGrantRejectsStaleDigest(t *testing.T) {
 	}
 }
 
+func TestFrontendServicePrebuiltComponentRequiresExactConfirmationAndNeverQueuesRelease(t *testing.T) {
+	extension := prebuiltFrontendFixture(t, SourceUploaded)
+	trust := &fakeFrontendLifecycleStore{}
+	releases := &fakeFrontendReleaseManager{}
+	auditor := &recordingAuditor{}
+	service := NewFrontendService(
+		&fakeFrontendExtensionReader{item: extension}, trust, releases,
+		&fakeFrontendActiveReader{activeErr: ErrWebReleaseNotFound}, plannerHostFixture(),
+	).WithAuditor(auditor)
+	input := GrantFrontendInput{PackageDigest: extension.AdminFrontendDigest}
+	if _, err := service.Grant(context.Background(), frontendSuperAdmin(), extension.ID, input); !errors.Is(err, ErrFrontendTrustUnavailable) {
+		t.Fatalf("missing confirmation must be rejected, got %v", err)
+	}
+	component := *prebuiltSettingsComponent(extension)
+	challenge, err := service.Challenge(context.Background(), frontendSuperAdmin(), extension.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	input.Confirmation = &FrontendTrustConfirmation{
+		ChallengeID: challenge.ChallengeID, Code: challenge.Code,
+		ExtensionID: extension.ID, Version: extension.Version, Digest: extension.AdminFrontendDigest,
+		APIVersion: component.APIVersion, ComponentID: component.ID, Phrase: extension.ID, Acknowledged: true,
+	}
+	otherAdmin := frontendSuperAdmin()
+	otherAdmin.ID = 2
+	if _, err := service.Grant(context.Background(), otherAdmin, extension.ID, input); !errors.Is(err, ErrFrontendTrustUnavailable) {
+		t.Fatalf("challenge must be actor-bound, got %v", err)
+	}
+	challenge, err = service.Challenge(context.Background(), frontendSuperAdmin(), extension.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	input.Confirmation.ChallengeID = challenge.ChallengeID
+	input.Confirmation.Code = challenge.Code
+	operation, err := service.Grant(context.Background(), frontendSuperAdmin(), extension.ID, input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if operation.Queued || releases.calls != 0 || operation.Frontend == nil || operation.Frontend.Kind != AdminFrontendKindPrebuiltComponent || operation.Frontend.BuildRequired {
+		t.Fatalf("prebuilt grant must not queue/build: operation=%#v releases=%d", operation, releases.calls)
+	}
+	if trust.created.AdminFrontendDigest != extension.AdminFrontendDigest || trust.created.APIVersion != component.APIVersion || len(trust.created.ComponentIDs) != 1 || trust.created.ComponentIDs[0] != component.ID {
+		t.Fatalf("grant was not bound to exact component identity: %#v", trust.created)
+	}
+	if !auditor.hasAction(audit.ActionExtensionFrontendGrant) {
+		t.Fatal("prebuilt trust grant must be audited")
+	}
+	if _, err := service.Grant(context.Background(), frontendSuperAdmin(), extension.ID, input); !errors.Is(err, ErrFrontendTrustUnavailable) {
+		t.Fatalf("confirmation challenge must be one-use, got %v", err)
+	}
+}
+
+func TestFrontendServicePrebuiltAssetIsAllowlistedImmutableAndTrustBound(t *testing.T) {
+	extension := prebuiltFrontendFixture(t, SourceUploaded)
+	component := *prebuiltSettingsComponent(extension)
+	grant := FrontendTrustGrant{
+		ID: 1, ExtensionID: extension.ID, ExtensionVersion: extension.Version,
+		PackageDigest: extension.PackageDigest, AdminFrontendDigest: extension.AdminFrontendDigest,
+		APIVersion: component.APIVersion, ComponentIDs: []string{component.ID}, GrantedAt: time.Now(),
+	}
+	service := NewFrontendService(
+		&fakeFrontendExtensionReader{item: extension}, &fakeFrontendLifecycleStore{grant: grant},
+		&fakeFrontendReleaseManager{}, &fakeFrontendActiveReader{activeErr: ErrWebReleaseNotFound}, plannerHostFixture(),
+	)
+	asset, err := service.Asset(context.Background(), frontendSuperAdmin(), extension.ID, extension.AdminFrontendDigest, "entry")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(asset.Body) != "export const apiVersion = 1\nexport function mount() {}\n" || asset.ContentType != "application/javascript; charset=utf-8" || asset.ETag == "" {
+		t.Fatalf("unexpected asset: %#v", asset)
+	}
+	if _, err := service.Asset(context.Background(), frontendSuperAdmin(), extension.ID, extension.AdminFrontendDigest, "../../backend"); !errors.Is(err, ErrFrontendTrustUnavailable) {
+		t.Fatalf("non-allowlisted asset must be rejected, got %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(extension.PackagePath, "frontend/admin/dist/settings.mjs"), []byte("changed"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.Asset(context.Background(), frontendSuperAdmin(), extension.ID, extension.AdminFrontendDigest, "entry"); !errors.Is(err, ErrWebReleasePackageChanged) {
+		t.Fatalf("mutated bytes must invalidate immutable URL, got %v", err)
+	}
+}
+
+func TestFrontendServiceBuiltinThemePrebuiltComponentUsesSourceTrust(t *testing.T) {
+	extension := prebuiltFrontendFixture(t, SourceBuiltin)
+	extension.Type = TypeTheme
+	extension.Manifest.Type = TypeTheme
+	extension.IsSystem = true
+	extension.IsDeletable = false
+	service := NewFrontendService(
+		&fakeFrontendExtensionReader{item: extension}, &fakeFrontendLifecycleStore{},
+		&fakeFrontendReleaseManager{}, &fakeFrontendActiveReader{activeErr: ErrWebReleaseNotFound}, plannerHostFixture(),
+	)
+	status, err := service.Frontend(context.Background(), frontendSuperAdmin(), extension.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if status.TrustState != FrontendTrustSourceTrusted || status.Kind != AdminFrontendKindPrebuiltComponent {
+		t.Fatalf("builtin theme component should be source trusted: %#v", status)
+	}
+}
+
+func TestFrontendServicePrebuiltUpgradeInvalidatesOldGrantWithoutBlockingSchemaFallback(t *testing.T) {
+	extension := prebuiltFrontendFixture(t, SourceUploaded)
+	component := *prebuiltSettingsComponent(extension)
+	oldGrant := FrontendTrustGrant{
+		ID: 1, ExtensionID: extension.ID, ExtensionVersion: extension.Version,
+		PackageDigest: extension.PackageDigest, AdminFrontendDigest: extension.AdminFrontendDigest,
+		APIVersion: component.APIVersion, ComponentIDs: []string{component.ID}, GrantedAt: time.Now(),
+	}
+	if err := os.WriteFile(filepath.Join(extension.PackagePath, component.Entry), []byte("export const apiVersion = 1\nexport function mount() { return () => {} }\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	changed, err := ComputeAdminFrontendDigest(extension.Manifest, extension.PackagePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	extension.Version = "1.0.1"
+	extension.Manifest.Version = extension.Version
+	extension.AdminFrontendDigest = changed
+	service := NewFrontendService(
+		&fakeFrontendExtensionReader{item: extension}, &fakeFrontendLifecycleStore{all: []FrontendTrustGrant{oldGrant}},
+		&fakeFrontendReleaseManager{}, &fakeFrontendActiveReader{activeErr: ErrWebReleaseNotFound}, plannerHostFixture(),
+	)
+	status, err := service.Frontend(context.Background(), frontendSuperAdmin(), extension.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if status.TrustState != FrontendTrustInvalidated || status.Kind != AdminFrontendKindPrebuiltComponent || status.BuildRequired {
+		t.Fatalf("changed component must fall back pending reconfirmation without a build: %#v", status)
+	}
+}
+
 func TestFrontendServiceRevokeFinalizesAbsentFrontendAndQueuesActiveFrontend(t *testing.T) {
 	for _, active := range []bool{false, true} {
 		t.Run(map[bool]string{false: "absent", true: "active"}[active], func(t *testing.T) {
@@ -98,9 +234,10 @@ func TestFrontendServiceRevokeFinalizesAbsentFrontendAndQueuesActiveFrontend(t *
 				activeReader.detail = WebReleaseDetail{
 					WebRelease: activeReader.active,
 					Extensions: []WebReleaseExtension{{
-						ExtensionID:      extension.ID,
-						ExtensionVersion: extension.Version,
-						PackageDigest:    extension.PackageDigest,
+						ExtensionID:         extension.ID,
+						ExtensionVersion:    extension.Version,
+						PackageDigest:       extension.PackageDigest,
+						AdminFrontendDigest: extension.AdminFrontendDigest,
 					}},
 				}
 				activeReader.activeErr = nil
@@ -136,9 +273,10 @@ func TestFrontendServiceRestoreDefaultsKeepsLifecycleEffectsEmpty(t *testing.T) 
 	activeReader := &fakeFrontendActiveReader{
 		active: active,
 		detail: WebReleaseDetail{WebRelease: active, Extensions: []WebReleaseExtension{{
-			ExtensionID:      extension.ID,
-			ExtensionVersion: extension.Version,
-			PackageDigest:    extension.PackageDigest,
+			ExtensionID:         extension.ID,
+			ExtensionVersion:    extension.Version,
+			PackageDigest:       extension.PackageDigest,
+			AdminFrontendDigest: extension.AdminFrontendDigest,
 		}}},
 	}
 	releases := &fakeFrontendReleaseManager{result: WebReleaseQueueResult{Release: WebRelease{ID: 8}, Created: true}}
@@ -166,15 +304,49 @@ func frontendSuperAdmin() identity.Actor {
 	return identity.Actor{ID: 1, Status: identity.UserStatusActive, RoleKeys: []string{identity.RoleSuperAdmin}}
 }
 
+func prebuiltFrontendFixture(t *testing.T, source string) Extension {
+	t.Helper()
+	root := t.TempDir()
+	entry := "frontend/admin/dist/settings.mjs"
+	if err := os.MkdirAll(filepath.Dir(filepath.Join(root, entry)), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, entry), []byte("export const apiVersion = 1\nexport function mount() {}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	manifest := Manifest{
+		ID: "prebuilt.plugin", Name: "Prebuilt", Version: "1.0.0", Type: TypePlugin,
+		Settings: []ManifestSetting{{Key: "title", Type: "text", Label: LocalizedText{Default: "Title"}}},
+		SettingsDocument: SettingsDocument{SchemaVersion: 1, Explicit: true, UI: SettingsUI{
+			Mode: "component", Layout: "form", Component: &SettingsComponent{ID: "settings", APIVersion: 1, Entry: entry},
+		}},
+	}
+	manifest.SettingsDocument.Fields = manifest.Settings
+	adminDigest, err := ComputeAdminFrontendDigest(manifest, root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	packageDigest, err := extensionpackage.DigestTree(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return Extension{
+		ID: manifest.ID, Name: manifest.Name, Version: manifest.Version, Type: TypePlugin,
+		Status: StatusEnabled, Source: source, IsDeletable: true, Manifest: manifest,
+		PackagePath: root, PackageDigest: packageDigest, AdminFrontendDigest: adminDigest,
+	}
+}
+
 func frontendGrantForExtension(extension Extension) FrontendTrustGrant {
 	return FrontendTrustGrant{
-		ID:               1,
-		ExtensionID:      extension.ID,
-		ExtensionVersion: extension.Version,
-		PackageDigest:    extension.PackageDigest,
-		APIVersion:       extension.Manifest.Frontend.Admin.APIVersion,
-		GrantedByUserID:  1,
-		GrantedAt:        time.Now(),
+		ID:                  1,
+		ExtensionID:         extension.ID,
+		ExtensionVersion:    extension.Version,
+		PackageDigest:       extension.PackageDigest,
+		AdminFrontendDigest: extension.AdminFrontendDigest,
+		APIVersion:          extension.Manifest.Frontend.Admin.APIVersion,
+		GrantedByUserID:     1,
+		GrantedAt:           time.Now(),
 	}
 }
 
@@ -221,15 +393,16 @@ func (s *fakeFrontendLifecycleStore) LiveFrontendGrants(context.Context, string)
 func (s *fakeFrontendLifecycleStore) CreateFrontendGrant(_ context.Context, input FrontendTrustGrantInput) (FrontendTrustGrant, error) {
 	s.created = input
 	s.grant = FrontendTrustGrant{
-		ID:                 1,
-		ExtensionID:        input.ExtensionID,
-		ExtensionVersion:   input.ExtensionVersion,
-		PackageDigest:      input.PackageDigest,
-		APIVersion:         input.APIVersion,
-		ContributionPoints: input.ContributionPoints,
-		ComponentIDs:       input.ComponentIDs,
-		GrantedByUserID:    input.GrantedByUserID,
-		GrantedAt:          time.Now(),
+		ID:                  1,
+		ExtensionID:         input.ExtensionID,
+		ExtensionVersion:    input.ExtensionVersion,
+		PackageDigest:       input.PackageDigest,
+		AdminFrontendDigest: input.AdminFrontendDigest,
+		APIVersion:          input.APIVersion,
+		ContributionPoints:  input.ContributionPoints,
+		ComponentIDs:        input.ComponentIDs,
+		GrantedByUserID:     input.GrantedByUserID,
+		GrantedAt:           time.Now(),
 	}
 	return s.grant, nil
 }

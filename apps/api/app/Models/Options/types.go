@@ -11,9 +11,10 @@ const (
 	// 默认 disabled（仅写 build log）；enabled 时 typecheck 失败会 fail release。
 	// 管理权限 extension.release.manage；CI 全仓 typecheck 不受此开关影响。
 	NameWebReleaseTypecheckFail = "web_release.typecheck_fail"
+	NameWebReleaseTypecheckMode = "web_release.typecheck_mode"
 
-	NameSiteName                         = "site.name"
-	NameSiteURL                          = "site.url"
+	NameSiteName = "site.name"
+	NameSiteURL  = "site.url"
 	// 站点副标题/标语（短文本，可空）。用于导航副标、登录页等，不等于 SEO 描述。
 	NameSiteTagline = "site.tagline"
 	// 站点管理员联系邮箱（可空）。系统通知/运营联系人；不是 SMTP From，也不当 secret。
@@ -21,28 +22,28 @@ const (
 	NameSiteAdminEmail = "site.admin_email"
 	// Wave 2 品牌资源：附件 ID（正整数字符串，可空）+ 公开 URL 回退（可空）。
 	// 前台优先解析 attachment；无法解析时用 URL；皆空则主题默认。
-	NameSiteLogoURL                      = "site.logo_url"
-	NameSiteLogoAttachmentID             = "site.logo_attachment_id"
-	NameSiteFaviconURL                   = "site.favicon_url"
-	NameSiteFaviconAttachmentID          = "site.favicon_attachment_id"
-	NameSiteAppleTouchIconURL            = "site.apple_touch_icon_url"
-	NameSiteAppleTouchIconAttachmentID   = "site.apple_touch_icon_attachment_id"
+	NameSiteLogoURL                    = "site.logo_url"
+	NameSiteLogoAttachmentID           = "site.logo_attachment_id"
+	NameSiteFaviconURL                 = "site.favicon_url"
+	NameSiteFaviconAttachmentID        = "site.favicon_attachment_id"
+	NameSiteAppleTouchIconURL          = "site.apple_touch_icon_url"
+	NameSiteAppleTouchIconAttachmentID = "site.apple_touch_icon_attachment_id"
 	// 法律页正文 stubs（Markdown，可空）；页脚链接仍由 footer.links 指向路由。
-	NameLegalTermsBodyZHCN               = "legal.terms.body.zh-CN"
-	NameLegalTermsBodyENUS               = "legal.terms.body.en-US"
-	NameLegalPrivacyBodyZHCN             = "legal.privacy.body.zh-CN"
-	NameLegalPrivacyBodyENUS             = "legal.privacy.body.en-US"
-	NameLegalGuidelinesBodyZHCN          = "legal.guidelines.body.zh-CN"
-	NameLegalGuidelinesBodyENUS          = "legal.guidelines.body.en-US"
-	NameSiteDefaultLocale                = "site.default_locale"
-	NameSiteSupportedLocales             = "site.supported_locales"
+	NameLegalTermsBodyZHCN      = "legal.terms.body.zh-CN"
+	NameLegalTermsBodyENUS      = "legal.terms.body.en-US"
+	NameLegalPrivacyBodyZHCN    = "legal.privacy.body.zh-CN"
+	NameLegalPrivacyBodyENUS    = "legal.privacy.body.en-US"
+	NameLegalGuidelinesBodyZHCN = "legal.guidelines.body.zh-CN"
+	NameLegalGuidelinesBodyENUS = "legal.guidelines.body.en-US"
+	NameSiteDefaultLocale       = "site.default_locale"
+	NameSiteSupportedLocales    = "site.supported_locales"
 	// 站点展示时区（IANA，如 Asia/Shanghai）。仅影响展示与按站点日切分，库内仍存 UTC。
 	NameSiteTimezone = "site.timezone"
 	// 日期/时间展示预设（白名单 key，非任意 pattern）。
 	NameSiteDateFormat = "site.date_format"
 	NameSiteTimeFormat = "site.time_format"
 	// 一周起始日：0=周日 … 6=周六。默认 1（周一）。
-	NameSiteStartOfWeek = "site.start_of_week"
+	NameSiteStartOfWeek                  = "site.start_of_week"
 	NameHumanVerificationProvider        = "human_verification.provider"
 	NameHumanVerificationRegister        = "human_verification.scenarios.register"
 	NameHumanVerificationPasswordReset   = "human_verification.scenarios.password_reset"
@@ -85,7 +86,7 @@ const (
 	// 逗号分隔保留用户名（小写比较）。
 	NameIdentityUsernameReserved = "identity.username.reserved"
 	// 登录失败锁定：连续失败次数 / 锁定分钟数（0 表示关闭）。
-	NameIdentityLoginMaxFailures  = "identity.login.max_failures"
+	NameIdentityLoginMaxFailures    = "identity.login.max_failures"
 	NameIdentityLoginLockoutMinutes = "identity.login.lockout_minutes"
 	// 最大活跃浏览器会话数（设备数上限）。非 public（仅后端登录时读取），admin 可调。
 	// 引用 identity 包的权威定义，避免同值两处定义导致漂移（Fix #11）。
@@ -94,39 +95,39 @@ const (
 	NameIdentitySessionsKeepDays = identity.NameSessionsKeepDays
 
 	// 新人信任阶梯：注册后 N 天内适用更严的发帖节奏与外链策略。
-	NameTrustNewUserDays                 = "trust.new_user_days"
-	NameTrustNewUserTopicCooldownSeconds  = "trust.new_user.topic_cooldown_seconds"
+	NameTrustNewUserDays                   = "trust.new_user_days"
+	NameTrustNewUserTopicCooldownSeconds   = "trust.new_user.topic_cooldown_seconds"
 	NameTrustNewUserCommentCooldownSeconds = "trust.new_user.comment_cooldown_seconds"
-	NameTrustNewUserDailyTopicLimit      = "trust.new_user.daily_topic_limit"
-	NameTrustNewUserDailyCommentLimit    = "trust.new_user.daily_comment_limit"
-	NameTrustNewUserForbidOutboundLinks  = "trust.new_user.forbid_outbound_links"
-	NameTrustNewUserForbidAttachments    = "trust.new_user.forbid_attachments"
+	NameTrustNewUserDailyTopicLimit        = "trust.new_user.daily_topic_limit"
+	NameTrustNewUserDailyCommentLimit      = "trust.new_user.daily_comment_limit"
+	NameTrustNewUserForbidOutboundLinks    = "trust.new_user.forbid_outbound_links"
+	NameTrustNewUserForbidAttachments      = "trust.new_user.forbid_attachments"
 
 	// 维护模式：开启后非管理员写操作与前台写入口被拦；管理员可绕过。
 	NameSiteMaintenanceEnabled = "site.maintenance.enabled"
 	NameSiteMaintenanceMessage = "site.maintenance.message"
 
-	NameForumDefaultCategorySlug            = "forum.default_category_slug"
-	NameForumTagCreationMode                = "forum.tags.creation_mode"
-	NameForumTagPublicPages                 = "forum.tags.public_pages"
-	NameForumTagMinPerTopic                 = "forum.tags.min_per_topic"
-	NameForumTagMaxPerTopic                 = "forum.tags.max_per_topic"
-	NameForumTopicsPerPage                  = "forum.pagination.topics_per_page"
-	NameForumCommentsPerPage                = "forum.pagination.comments_per_page"
-	NameForumTopicTitleMinRunes             = "forum.topics.title_min_runes"
-	NameForumTopicTitleMaxRunes             = "forum.topics.title_max_runes"
-	NameForumTopicContentMinRunes           = "forum.topics.content_min_runes"
-	NameForumTopicContentMaxRunes           = "forum.topics.content_max_runes"
-	NameForumTopicEditWindowMinutes         = "forum.topics.edit_window_minutes"
-	NameForumTopicCooldownSeconds            = "forum.topics.cooldown_seconds"
-	NameForumDailyTopicLimit                = "forum.topics.daily_limit"
-	NameForumCommentMinRunes                = "forum.comments.min_runes"
-	NameForumCommentMaxRunes                = "forum.comments.max_runes"
-	NameForumCommentMaxNestingDepth         = "forum.comments.max_nesting_depth"
-	NameForumCommentEditWindowMinutes       = "forum.comments.edit_window_minutes"
-	NameForumCommentCooldownSeconds          = "forum.comments.cooldown_seconds"
-	NameForumDailyCommentLimit              = "forum.comments.daily_limit"
-	NameForumExcerptRuneLimit               = "forum.reading.excerpt_rune_limit"
+	NameForumDefaultCategorySlug      = "forum.default_category_slug"
+	NameForumTagCreationMode          = "forum.tags.creation_mode"
+	NameForumTagPublicPages           = "forum.tags.public_pages"
+	NameForumTagMinPerTopic           = "forum.tags.min_per_topic"
+	NameForumTagMaxPerTopic           = "forum.tags.max_per_topic"
+	NameForumTopicsPerPage            = "forum.pagination.topics_per_page"
+	NameForumCommentsPerPage          = "forum.pagination.comments_per_page"
+	NameForumTopicTitleMinRunes       = "forum.topics.title_min_runes"
+	NameForumTopicTitleMaxRunes       = "forum.topics.title_max_runes"
+	NameForumTopicContentMinRunes     = "forum.topics.content_min_runes"
+	NameForumTopicContentMaxRunes     = "forum.topics.content_max_runes"
+	NameForumTopicEditWindowMinutes   = "forum.topics.edit_window_minutes"
+	NameForumTopicCooldownSeconds     = "forum.topics.cooldown_seconds"
+	NameForumDailyTopicLimit          = "forum.topics.daily_limit"
+	NameForumCommentMinRunes          = "forum.comments.min_runes"
+	NameForumCommentMaxRunes          = "forum.comments.max_runes"
+	NameForumCommentMaxNestingDepth   = "forum.comments.max_nesting_depth"
+	NameForumCommentEditWindowMinutes = "forum.comments.edit_window_minutes"
+	NameForumCommentCooldownSeconds   = "forum.comments.cooldown_seconds"
+	NameForumDailyCommentLimit        = "forum.comments.daily_limit"
+	NameForumExcerptRuneLimit         = "forum.reading.excerpt_rune_limit"
 	// 游客阅读：public | login_required
 	NameForumGuestRead = "forum.guest.read"
 	// 列表默认排序：latest | active | hot
@@ -140,11 +141,11 @@ const (
 	NameForumTopicsShowEditMark            = "forum.topics.show_edit_mark"
 	NameForumTopicsDuplicateTitlePolicy    = "forum.topics.duplicate_title_policy"
 	// 评论行为
-	NameForumCommentsShowEditMark          = "forum.comments.show_edit_mark"
-	NameForumCommentsSoftDeleteVisibility  = "forum.comments.soft_delete_visibility"
+	NameForumCommentsShowEditMark         = "forum.comments.show_edit_mark"
+	NameForumCommentsSoftDeleteVisibility = "forum.comments.soft_delete_visibility"
 	// 提及
-	NameForumMentionsEnabled    = "forum.mentions.enabled"
-	NameForumMentionsMaxPerPost = "forum.mentions.max_per_post"
+	NameForumMentionsEnabled                = "forum.mentions.enabled"
+	NameForumMentionsMaxPerPost             = "forum.mentions.max_per_post"
 	NameSEOMetaTitleTemplate                = "seo.meta_title_template"
 	NameSEOMetaDescription                  = "seo.meta_description"
 	NameSEOMetaKeywords                     = "seo.meta_keywords"

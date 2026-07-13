@@ -16,6 +16,13 @@ func (ProtocolNoop) InvokeHook(PluginHookRequest) (PluginHookResponse, error) {
 	return PluginHookResponse{OK: true}, nil
 }
 
+func (ProtocolNoop) ProviderProbe(ProviderProbeRequest) (ProviderProbeResponse, error) {
+	return ProviderProbeResponse{
+		Reason:  "plugin.provider_probe_not_implemented",
+		Message: "this plugin does not implement provider probe",
+	}, nil
+}
+
 func (ProtocolNoop) SendMail(MailProviderRequest) (MailProviderResponse, error) {
 	return MailProviderResponse{
 		OK:      false,

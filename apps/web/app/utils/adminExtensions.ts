@@ -17,6 +17,8 @@ export type AdminExtensionSetting = {
   placeholder?: string
   recommendedValue?: string
   group?: string
+  groupId?: string
+  column?: number
   options?: Array<{ value: string, label: string, description?: string }>
 }
 
@@ -50,6 +52,17 @@ export type AdminExtensionAdmin = {
   pages?: AdminExtensionAdminPage[]
 }
 
+export type AdminManifestSettingsDocument = {
+  schemaVersion: number
+  ui: {
+    mode: 'schema' | 'component'
+    layout: 'form' | 'tabs'
+    component?: { id: string, apiVersion: number, entry?: string, css?: string }
+  }
+  fields: AdminExtensionSetting[]
+  actions?: Array<{ id: string, kind: string }>
+}
+
 export type AdminExtensionManifest = {
   id: string
   name: string
@@ -64,7 +77,7 @@ export type AdminExtensionManifest = {
   permissions?: string[]
   /** Host capability keys declared by the plugin (F2.1). */
   capabilities?: string[]
-  settings?: AdminExtensionSetting[]
+  settings?: AdminExtensionSetting[] | AdminManifestSettingsDocument
   migrations?: Array<{ path: string }>
   backend?: { entry?: string, rpc?: string, protocolVersion?: number }
   frontend?: {
@@ -122,12 +135,80 @@ export type AdminExtensionSettingValue = {
   placeholder?: string
   recommendedValue?: string
   group?: string
+  groupId?: string
+  column?: number
   options?: Array<{ value: string, label: string, description?: string }>
+}
+
+export type AdminExtensionSettingsRenderer = {
+  mode: 'schema' | 'component'
+  layout: 'form' | 'tabs'
+  source: 'document' | 'legacy_array' | 'legacy_web_release'
+  fallback: 'schema'
+  component?: {
+    id: string
+    kind: 'legacy_web_release' | 'prebuilt'
+    apiVersion: number
+    entry?: string
+    css?: string
+  }
+}
+
+export type AdminExtensionSettingsTab = {
+  id: string
+  label: string
+  description?: string
+  groups?: string[]
+}
+
+export type AdminExtensionSettingsGroup = {
+  id: string
+  label: string
+  description?: string
+  columns?: number
+}
+
+export type AdminExtensionSettingsCallout = {
+  id: string
+  tone: string
+  title: string
+  body?: string
+  tab?: string
+  group?: string
+}
+
+export type AdminExtensionSettingsAction = {
+  id: string
+  kind: 'provider_probe'
+  label: string
+  description?: string
+  placement: 'header' | 'footer'
+  useDraftValues: boolean
+  fields?: string[]
+  available: boolean
+  unavailableReason?: string
+}
+
+export type AdminExtensionSettingsActionResult = {
+  success: boolean
+  reason: string
+  message: string
+  details?: Record<string, string>
+  suggestions?: string[]
+  durationMs: number
 }
 
 export type AdminExtensionSettings = {
   extensionId: string
+  extensionType: AdminExtensionType
+  extensionVersion: string
+  extensionStatus: AdminExtensionStatus
+  renderer: AdminExtensionSettingsRenderer
+  tabs?: AdminExtensionSettingsTab[]
+  groups?: AdminExtensionSettingsGroup[]
+  callouts?: AdminExtensionSettingsCallout[]
   items: AdminExtensionSettingValue[]
+  actions?: AdminExtensionSettingsAction[]
 }
 
 export function recommendedExtensionSettingValues(items: AdminExtensionSettingValue[]) {
@@ -207,9 +288,43 @@ export type AdminExtension = {
   themeRelease?: AdminThemeRelease
   /** 插件启停/信任变更排队的 Web 发布进度（主题用 themeRelease）。 */
   webRelease?: AdminWebReleaseSummary
+  packageDigest: string
+  adminFrontendDigest?: string
   packagePath: string
   installedAt: string
   updatedAt: string
+}
+
+export type AdminExtensionSettingsProfile = 'none' | 'schema' | 'actions' | 'prebuilt' | 'legacy_vue'
+
+export function extensionSettingsProfile(extension: AdminExtension): AdminExtensionSettingsProfile {
+  const settings = extension.manifest.settings
+  if (settings && !Array.isArray(settings)) {
+    if (settings.ui?.mode === 'component' && settings.ui.component?.entry) return 'prebuilt'
+    if ((settings.actions?.length ?? 0) > 0) return 'actions'
+    return 'schema'
+  }
+  if (extension.manifest.contributions?.some(item => item.point === 'admin.extension.settings.page')) return 'legacy_vue'
+  if (Array.isArray(settings) && settings.length > 0) return 'schema'
+  return 'none'
+}
+
+const extensionSettingsProfileMeta = {
+  none: { color: 'neutral', icon: 'i-lucide-minus', labelKey: 'admin.extensions.settingsProfiles.none' },
+  schema: { color: 'primary', icon: 'i-lucide-layout-template', labelKey: 'admin.extensions.settingsProfiles.schema' },
+  actions: { color: 'info', icon: 'i-lucide-activity', labelKey: 'admin.extensions.settingsProfiles.actions' },
+  prebuilt: { color: 'warning', icon: 'i-lucide-shield-alert', labelKey: 'admin.extensions.settingsProfiles.prebuilt' },
+  legacy_vue: { color: 'neutral', icon: 'i-lucide-hammer', labelKey: 'admin.extensions.settingsProfiles.legacyVue' }
+} as const
+
+export function extensionSettingsPresentation(extension: AdminExtension) {
+  const profile = extensionSettingsProfile(extension)
+  return { profile, ...extensionSettingsProfileMeta[profile] }
+}
+
+function manifestSettingFields(manifest: AdminExtensionManifest) {
+  const settings = manifest.settings
+  return Array.isArray(settings) ? settings : settings?.fields || []
 }
 
 export type AdminExtensionOperation = {
@@ -438,7 +553,7 @@ export function capabilityCount(item: AdminExtension) {
   const manifest = item.manifest
   return [
     manifest.permissions?.length || 0,
-    manifest.settings?.length || 0,
+    manifestSettingFields(manifest).length,
     manifest.migrations?.length || 0,
     effectiveManifestAdminPages(manifest).length,
     manifest.routes?.length || 0,
@@ -671,7 +786,7 @@ function extensionItemsPage<T>(items: T[], page: number, pageSize = EXTENSION_EV
 }
 
 export function extensionSettingDeclarations(items: AdminExtension[], locale?: string | null) {
-  return items.flatMap((item): AdminExtensionSettingDeclaration[] => (item.manifest.settings || []).map(setting => ({
+  return items.flatMap((item): AdminExtensionSettingDeclaration[] => manifestSettingFields(item.manifest).map(setting => ({
     extensionId: item.id,
     extensionName: extensionDisplayName(item, locale),
     extensionType: item.type,

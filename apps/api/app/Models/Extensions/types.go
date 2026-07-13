@@ -77,7 +77,9 @@ const (
 	// 插件已禁用：设置读写、自定义管理页等功能性能力不可用。
 	CodeExtensionDisabled = "extension.disabled"
 	// 设置已写入但插件重启失败，且旧设置恢复也失败，需要运营介入。
-	CodeSettingsRollbackFailed = "extension.settings_rollback_failed"
+	CodeSettingsRollbackFailed    = "extension.settings_rollback_failed"
+	CodeSettingsActionInvalid     = "extension.settings_action_invalid"
+	CodeSettingsActionUnavailable = "extension.settings_action_unavailable"
 	// 启用前需运营确认 capability 授权（F2.1）。
 	CodeCapabilityConfirmationRequired = "extension.capability_confirmation_required"
 	// CodeFeaturesRequired F4.5：站点产品开关未满足 requiresFeatures。
@@ -97,19 +99,21 @@ const (
 )
 
 var (
-	ErrInvalidArchive          = errors.New("extensions: invalid archive")
-	ErrInvalidManifest         = extensionmanifest.ErrInvalidManifest
-	ErrExtensionNotFound       = errors.New("extensions: not found")
-	ErrExtensionDisabled       = errors.New("extensions: disabled")
-	ErrSettingsRollbackFailed  = errors.New("extensions: settings rollback failed")
-	ErrPreflightFailed         = errors.New("extensions: preflight failed")
-	ErrBuildFailed             = errors.New("extensions: build failed")
-	ErrThemeActivationRequired = errors.New("extensions: themes must be activated")
-	ErrThemeRuntimeUnavailable = errors.New("extensions: theme activation runtime unavailable")
-	ErrRuntimeFailed           = errors.New("extensions: runtime failed")
-	ErrRouteNotFound           = errors.New("extensions: route not found")
-	ErrRouteMethodNotAllowed   = errors.New("extensions: route method not allowed")
-	ErrRuntimeUnavailable      = errors.New("extensions: runtime unavailable")
+	ErrInvalidArchive            = errors.New("extensions: invalid archive")
+	ErrInvalidManifest           = extensionmanifest.ErrInvalidManifest
+	ErrExtensionNotFound         = errors.New("extensions: not found")
+	ErrExtensionDisabled         = errors.New("extensions: disabled")
+	ErrSettingsRollbackFailed    = errors.New("extensions: settings rollback failed")
+	ErrSettingsActionInvalid     = errors.New("extensions: settings action invalid")
+	ErrSettingsActionUnavailable = errors.New("extensions: settings action unavailable")
+	ErrPreflightFailed           = errors.New("extensions: preflight failed")
+	ErrBuildFailed               = errors.New("extensions: build failed")
+	ErrThemeActivationRequired   = errors.New("extensions: themes must be activated")
+	ErrThemeRuntimeUnavailable   = errors.New("extensions: theme activation runtime unavailable")
+	ErrRuntimeFailed             = errors.New("extensions: runtime failed")
+	ErrRouteNotFound             = errors.New("extensions: route not found")
+	ErrRouteMethodNotAllowed     = errors.New("extensions: route method not allowed")
+	ErrRuntimeUnavailable        = errors.New("extensions: runtime unavailable")
 	// ErrCapabilityConfirmationRequired 启用插件前需 confirmCapabilities=true。
 	ErrCapabilityConfirmationRequired = errors.New("extensions: capability confirmation required")
 	ErrCapabilityDenied               = errors.New("extensions: capability denied")
@@ -124,6 +128,13 @@ type Manifest = extensionmanifest.Manifest
 type ManifestAuthor = extensionmanifest.ManifestAuthor
 type ManifestSetting = extensionmanifest.ManifestSetting
 type ManifestSettingOption = extensionmanifest.ManifestSettingOption
+type SettingsDocument = extensionmanifest.SettingsDocument
+type SettingsUI = extensionmanifest.SettingsUI
+type SettingsTab = extensionmanifest.SettingsTab
+type SettingsGroup = extensionmanifest.SettingsGroup
+type SettingsCallout = extensionmanifest.SettingsCallout
+type SettingsComponent = extensionmanifest.SettingsComponent
+type SettingsAction = extensionmanifest.SettingsAction
 type LocalizedText = extensionmanifest.LocalizedText
 type ManifestMigration = extensionmanifest.ManifestMigration
 type ManifestBackend = extensionmanifest.ManifestBackend
@@ -185,11 +196,12 @@ type Extension struct {
 	Runtime          *RuntimeStatus    `json:"runtime,omitempty"`
 	ThemeRelease     *ThemeRelease     `json:"themeRelease,omitempty"`
 	// WebRelease 为插件启停/信任变更排队的 live 或失败发布进度（主题仍用 themeRelease）。
-	WebRelease    *WebReleaseSummary `json:"webRelease,omitempty"`
-	PackageDigest string             `json:"packageDigest"`
-	PackagePath   string             `json:"packagePath"`
-	InstalledAt   time.Time          `json:"installedAt"`
-	UpdatedAt     time.Time          `json:"updatedAt"`
+	WebRelease          *WebReleaseSummary `json:"webRelease,omitempty"`
+	PackageDigest       string             `json:"packageDigest"`
+	AdminFrontendDigest string             `json:"adminFrontendDigest,omitempty"`
+	PackagePath         string             `json:"packagePath"`
+	InstalledAt         time.Time          `json:"installedAt"`
+	UpdatedAt           time.Time          `json:"updatedAt"`
 }
 
 // EnableInput 启用插件的可选请求体。
@@ -312,13 +324,74 @@ type ExtensionSettingValue struct {
 	Placeholder      string                   `json:"placeholder,omitempty"`
 	RecommendedValue string                   `json:"recommendedValue,omitempty"`
 	Group            string                   `json:"group,omitempty"`
+	GroupID          string                   `json:"groupId,omitempty"`
+	Column           int                      `json:"column,omitempty"`
 	Options          []ExtensionSettingOption `json:"options,omitempty"`
 	SecretSet        bool                     `json:"secretSet,omitempty"`
 }
 
+type ExtensionSettingsRenderer struct {
+	Mode      string                      `json:"mode"`
+	Layout    string                      `json:"layout"`
+	Source    string                      `json:"source"`
+	Fallback  string                      `json:"fallback"`
+	Component *ExtensionSettingsComponent `json:"component,omitempty"`
+}
+
+type ExtensionSettingsComponent struct {
+	ID         string `json:"id"`
+	Kind       string `json:"kind"`
+	APIVersion int    `json:"apiVersion"`
+	Entry      string `json:"entry,omitempty"`
+	CSS        string `json:"css,omitempty"`
+}
+
+type ExtensionSettingsTab struct {
+	ID          string   `json:"id"`
+	Label       string   `json:"label"`
+	Description string   `json:"description,omitempty"`
+	Groups      []string `json:"groups,omitempty"`
+}
+
+type ExtensionSettingsGroup struct {
+	ID          string `json:"id"`
+	Label       string `json:"label"`
+	Description string `json:"description,omitempty"`
+	Columns     int    `json:"columns,omitempty"`
+}
+
+type ExtensionSettingsCallout struct {
+	ID    string `json:"id"`
+	Tone  string `json:"tone"`
+	Title string `json:"title"`
+	Body  string `json:"body,omitempty"`
+	Tab   string `json:"tab,omitempty"`
+	Group string `json:"group,omitempty"`
+}
+
+type ExtensionSettingsAction struct {
+	ID                string   `json:"id"`
+	Kind              string   `json:"kind"`
+	Label             string   `json:"label"`
+	Description       string   `json:"description,omitempty"`
+	Placement         string   `json:"placement"`
+	UseDraftValues    bool     `json:"useDraftValues"`
+	Fields            []string `json:"fields,omitempty"`
+	Available         bool     `json:"available"`
+	UnavailableReason string   `json:"unavailableReason,omitempty"`
+}
+
 type ExtensionSettings struct {
-	ExtensionID string                  `json:"extensionId"`
-	Items       []ExtensionSettingValue `json:"items"`
+	ExtensionID      string                     `json:"extensionId"`
+	ExtensionType    string                     `json:"extensionType"`
+	ExtensionVersion string                     `json:"extensionVersion"`
+	ExtensionStatus  string                     `json:"extensionStatus"`
+	Renderer         ExtensionSettingsRenderer  `json:"renderer"`
+	Tabs             []ExtensionSettingsTab     `json:"tabs,omitempty"`
+	Groups           []ExtensionSettingsGroup   `json:"groups,omitempty"`
+	Callouts         []ExtensionSettingsCallout `json:"callouts,omitempty"`
+	Items            []ExtensionSettingValue    `json:"items"`
+	Actions          []ExtensionSettingsAction  `json:"actions,omitempty"`
 }
 
 // PublicActiveThemeSettings 当前激活主题的非 secret 运行时设置（前台可读）。
@@ -329,6 +402,33 @@ type PublicActiveThemeSettings struct {
 
 type UpdateSettingsInput struct {
 	Values map[string]string `json:"values"`
+}
+
+type SettingsActionSecretInput struct {
+	Mode  string `json:"mode"`
+	Value string `json:"value,omitempty"`
+}
+
+type ExecuteSettingsActionInput struct {
+	Values  map[string]string                    `json:"values,omitempty"`
+	Secrets map[string]SettingsActionSecretInput `json:"secrets,omitempty"`
+}
+
+type SettingsActionResult struct {
+	Success     bool              `json:"success"`
+	Reason      string            `json:"reason"`
+	Message     string            `json:"message"`
+	Details     map[string]string `json:"details,omitempty"`
+	Suggestions []string          `json:"suggestions,omitempty"`
+	DurationMS  int64             `json:"durationMs"`
+}
+
+type SettingsActionProbeResult struct {
+	OK          bool
+	Reason      string
+	Message     string
+	Details     map[string]string
+	Suggestions []string
 }
 
 type ExtensionEventDelivery struct {
@@ -352,15 +452,17 @@ type ArchiveInput struct {
 }
 
 type SaveInstalledInput struct {
-	Manifest      Manifest
-	PackagePath   string
-	PackageDigest string
+	Manifest            Manifest
+	PackagePath         string
+	PackageDigest       string
+	AdminFrontendDigest string
 }
 
 type SaveBuiltinInput struct {
-	Manifest      Manifest
-	PackagePath   string
-	PackageDigest string
+	Manifest            Manifest
+	PackagePath         string
+	PackageDigest       string
+	AdminFrontendDigest string
 }
 
 type EventInput struct {

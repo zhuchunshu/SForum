@@ -46,6 +46,10 @@ type RuntimeManager interface {
 	EmitHook(ctx context.Context, name string, payload map[string]any)
 }
 
+type SettingsActionRuntime interface {
+	ProbeSettingsAction(ctx context.Context, extension Extension, providerSlot string, values map[string]string) (SettingsActionProbeResult, error)
+}
+
 type ThemeBuilder interface {
 	Build(ctx context.Context, extension Extension) error
 }

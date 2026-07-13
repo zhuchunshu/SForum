@@ -1,0 +1,8 @@
+[
+  {"key":"title","label":"Title","type":"text","default":"Forum"},
+  {"key":"path","label":"Path","type":"string","default":""},
+  {"key":"port","label":"Port","type":"number","default":"587"},
+  {"key":"enabled","label":"Enabled","type":"boolean","default":"true"},
+  {"key":"mode","label":"Mode","type":"select","default":"safe","options":[{"value":"safe","label":"Safe"}]},
+  {"key":"password","label":"Password","type":"secret","default":""}
+]

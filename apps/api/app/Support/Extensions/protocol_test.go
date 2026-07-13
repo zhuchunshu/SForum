@@ -126,6 +126,13 @@ func TestProtocolStarterPerformsHashicorpHandshake(t *testing.T) {
 	if !response.OK || response.Reason != "smtp.accepted" {
 		t.Fatalf("unexpected mail response: %#v", response)
 	}
+	providerProbe, err := starter.ProviderProbe(context.Background(), extension.ID, ProviderProbeRequest{Slot: "mail.provider"})
+	if err != nil {
+		t.Fatalf("provider probe rpc: %v", err)
+	}
+	if providerProbe.OK || providerProbe.Reason != "plugin.provider_probe_not_implemented" {
+		t.Fatalf("expected provider probe not implemented, got %#v", providerProbe)
+	}
 	// E6.2：未实现存储的插件经 ProtocolNoop 返回明确 reason。
 	probe, err := starter.StorageProbe(context.Background(), extension.ID, StorageProbeRequest{})
 	if err != nil {

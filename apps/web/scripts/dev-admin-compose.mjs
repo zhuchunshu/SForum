@@ -3,7 +3,7 @@
 // 组件用软链指向源码，Vue 改动能走 Vite HMR，无需完整 Web Release。
 //
 // 公开主题已迁出 Nuxt Layer（Runtime Page Registry + L0/L1），普通主题不再
-// 声明 frontend.admin，因此 compose 结果通常只有可信插件 admin（如 SMTP）。
+// 声明 frontend.admin，因此 compose 结果可以为空；只有遗留可信组件才进入 registry。
 // 若某包仍声明 frontend.layer，则可选地软链 theme layer；否则 themeLayer 为空，
 // 由 dev-theme-runtime 仅注入 SFORUM_ADMIN_REGISTRY_ROOT。
 //
@@ -50,9 +50,6 @@ export function composeDevAdmin({
   void webRoot
 
   const packages = discoverBuiltinAdminPackages(absoluteBuiltin)
-  if (!packages.length) {
-    throw new Error(`no builtin packages with frontend.admin under ${absoluteBuiltin}`)
-  }
 
   // 增量更新：不要每次 rm 整个 outDir，否则会打断 Vite 对软链目标的 HMR 监听。
   fs.mkdirSync(absoluteOut, { recursive: true })

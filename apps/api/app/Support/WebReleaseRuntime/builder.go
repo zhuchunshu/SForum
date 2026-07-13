@@ -257,21 +257,19 @@ func (b *Builder) Build(ctx context.Context, prepared PreparedRelease, previousL
 	})
 	buildCtx, cancel := context.WithTimeout(ctx, b.config.BuildTimeout)
 	defer cancel()
-	// typecheck：始终执行并写入 build log；是否阻断由后台选项 / 回退配置决定。
-	typecheckHardFail := b.resolveTypecheckFail(ctx)
-	typecheckLog, typecheckErr := b.runner.Run(buildCtx, Command{Path: b.config.BunPath, Args: []string{"run", "typecheck"}, Dir: prepared.Workspace, Env: environment})
-	if typecheckErr != nil {
-		if typecheckHardFail {
-			return BuildResult{BuildLog: boundedLog(previousLog, typecheckLog)}, fmt.Errorf("web release typecheck failed: %w", typecheckErr)
+	typecheckMode := b.resolveTypecheckMode(ctx)
+	typecheckLog := "=== web release typecheck skipped (mode=off; CI remains mandatory) ==="
+	if typecheckMode != "off" {
+		var typecheckErr error
+		typecheckLog, typecheckErr = b.runner.Run(buildCtx, Command{Path: b.config.BunPath, Args: []string{"run", "typecheck"}, Dir: prepared.Workspace, Env: environment})
+		if typecheckErr != nil {
+			if typecheckMode == "block" {
+				return BuildResult{BuildLog: boundedLog(previousLog, typecheckLog)}, fmt.Errorf("web release typecheck failed: %w", typecheckErr)
+			}
+			typecheckLog = boundedLog("=== web release typecheck FAILED (mode=report; non-blocking) ===", typecheckLog, fmt.Sprintf("=== typecheck error: %v ===", typecheckErr))
+		} else {
+			typecheckLog = boundedLog("=== web release typecheck OK ===", typecheckLog)
 		}
-		// 非阻断：标注后继续 build；运维可在「扩展 → Web 发布」打开硬失败开关。
-		typecheckLog = boundedLog(
-			"=== web release typecheck FAILED (non-blocking; enable web_release.typecheck_fail in admin to hard-fail) ===",
-			typecheckLog,
-			fmt.Sprintf("=== typecheck error: %v ===", typecheckErr),
-		)
-	} else {
-		typecheckLog = boundedLog("=== web release typecheck OK ===", typecheckLog)
 	}
 	buildLog, err := b.runner.Run(buildCtx, Command{Path: b.config.BunPath, Args: []string{"run", "build"}, Dir: prepared.Workspace, Env: environment})
 	result := BuildResult{ArtifactPath: artifact, BuildLog: boundedLog(previousLog, typecheckLog, buildLog)}
@@ -285,14 +283,17 @@ func (b *Builder) Build(ctx context.Context, prepared PreparedRelease, previousL
 	return result, nil
 }
 
-func (b *Builder) resolveTypecheckFail(ctx context.Context) bool {
+func (b *Builder) resolveTypecheckMode(ctx context.Context) string {
 	if b != nil && b.config.TypecheckPolicy != nil {
-		return b.config.TypecheckPolicy.TypecheckFail(ctx)
+		switch mode := b.config.TypecheckPolicy.TypecheckMode(ctx); mode {
+		case "off", "report", "block":
+			return mode
+		}
 	}
-	if b == nil {
-		return false
+	if b != nil && b.config.TypecheckFail {
+		return "block"
 	}
-	return b.config.TypecheckFail
+	return "report"
 }
 
 func (b *Builder) Verify(ctx context.Context, prepared PreparedRelease, result BuildResult) (BuildResult, error) {
@@ -406,7 +407,7 @@ func validateExtensionSnapshots(composition []extensions.WebExtensionSnapshot, s
 	}
 	for _, item := range composition {
 		persisted, ok := storedByID[item.ExtensionID]
-		if !ok || persisted.ExtensionVersion != item.Version || persisted.PackageDigest != item.PackageDigest || persisted.FrontendRoot != item.FrontendRoot || persisted.LockfileDigest != item.Dependencies.LockDigest {
+		if !ok || persisted.ExtensionVersion != item.Version || persisted.PackageDigest != item.PackageDigest || persisted.AdminFrontendDigest != item.AdminFrontendDigest || persisted.FrontendRoot != item.FrontendRoot || persisted.LockfileDigest != item.Dependencies.LockDigest {
 			return fmt.Errorf("web release extension %s snapshot does not match composition", item.ExtensionID)
 		}
 	}

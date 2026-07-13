@@ -13,6 +13,9 @@ type ExtensionFrontendLifecycle interface {
 }
 
 func frontendRequiresWebRelease(status FrontendStatus) bool {
+	if !status.BuildRequired {
+		return false
+	}
 	switch status.TrustState {
 	case FrontendTrustTrusted, FrontendTrustSourceTrusted, FrontendTrustRevocationPending:
 		return true
@@ -21,17 +24,21 @@ func frontendRequiresWebRelease(status FrontendStatus) bool {
 	}
 }
 
+func frontendEnableRequiresWebRelease(status FrontendStatus) bool {
+	return frontendRequiresWebRelease(status) && !status.ArtifactActive
+}
+
 func (s *Service) EnableOperation(ctx context.Context, actor identity.Actor, id string, input EnableInput) (ExtensionOperation, error) {
 	extension, err := s.store.Get(ctx, normalizeID(id))
 	if err != nil {
 		return ExtensionOperation{}, err
 	}
-	if extension.Type == TypePlugin && extension.Manifest.Frontend.Admin != nil && s.frontendLifecycle != nil && s.webReleaseLifecycle != nil {
+	if extension.Type == TypePlugin && extension.AdminFrontendDigest != "" && s.frontendLifecycle != nil && s.webReleaseLifecycle != nil {
 		status, err := s.frontendLifecycle.Frontend(ctx, actor, extension.ID)
 		if err != nil {
 			return ExtensionOperation{}, err
 		}
-		if frontendRequiresWebRelease(status) {
+		if frontendEnableRequiresWebRelease(status) {
 			// 需要 Web Release 时同时要求 plugin + release，避免仅有插件权即可触发发布。
 			if err := s.verifyLifecyclePermissionAndPackage(ctx, actor, extension); err != nil {
 				return ExtensionOperation{}, err
@@ -69,7 +76,7 @@ func (s *Service) DisableOperation(ctx context.Context, actor identity.Actor, id
 	if err != nil {
 		return ExtensionOperation{}, err
 	}
-	if extension.Type == TypePlugin && extension.Manifest.Frontend.Admin != nil && s.frontendLifecycle != nil && s.webReleaseLifecycle != nil {
+	if extension.Type == TypePlugin && extension.AdminFrontendDigest != "" && s.frontendLifecycle != nil && s.webReleaseLifecycle != nil {
 		status, err := s.frontendLifecycle.Frontend(ctx, actor, extension.ID)
 		if err != nil {
 			return ExtensionOperation{}, err

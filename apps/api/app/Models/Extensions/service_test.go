@@ -15,7 +15,6 @@ import (
 	"time"
 
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
-
 )
 
 func TestReadZipFileLimitedCapsInflation(t *testing.T) {
@@ -892,7 +891,7 @@ func TestUpdateSettingsInvalidKeyChangesNothing(t *testing.T) {
 	}
 }
 
-func TestServiceSettingsRejectWhenExtensionDisabled(t *testing.T) {
+func TestServiceSettingsAllowConfigurationWhenExtensionDisabled(t *testing.T) {
 	item := installedExtension("settings.plugin", TypePlugin, ManifestBackend{})
 	item.Status = StatusDisabled
 	item.Manifest.Settings = []ManifestSetting{
@@ -902,14 +901,14 @@ func TestServiceSettingsRejectWhenExtensionDisabled(t *testing.T) {
 	service := NewService(store, t.TempDir())
 	actor := extensionManager()
 
-	if _, err := service.Settings(context.Background(), actor, item.ID, "zh-CN"); !errors.Is(err, ErrExtensionDisabled) {
-		t.Fatalf("expected disabled settings read rejection, got %v", err)
+	if _, err := service.Settings(context.Background(), actor, item.ID, "zh-CN"); err != nil {
+		t.Fatalf("expected disabled settings read, got %v", err)
 	}
-	if _, err := service.UpdateSettings(context.Background(), actor, item.ID, UpdateSettingsInput{Values: map[string]string{"demo.title": "x"}}, "zh-CN"); !errors.Is(err, ErrExtensionDisabled) {
-		t.Fatalf("expected disabled settings update rejection, got %v", err)
+	if _, err := service.UpdateSettings(context.Background(), actor, item.ID, UpdateSettingsInput{Values: map[string]string{"demo.title": "x"}}, "zh-CN"); err != nil {
+		t.Fatalf("expected disabled settings update, got %v", err)
 	}
-	if _, err := service.ResetSettings(context.Background(), actor, item.ID, "zh-CN"); !errors.Is(err, ErrExtensionDisabled) {
-		t.Fatalf("expected disabled settings reset rejection, got %v", err)
+	if _, err := service.ResetSettings(context.Background(), actor, item.ID, "zh-CN"); err != nil {
+		t.Fatalf("expected disabled settings reset, got %v", err)
 	}
 }
 
@@ -1925,18 +1924,19 @@ func (s *fakeExtensionStore) ActiveThemeRelease(context.Context) (ThemeRelease, 
 
 func (s *fakeExtensionStore) SaveInstalled(_ context.Context, input SaveInstalledInput) (Extension, error) {
 	item := Extension{
-		ID:            input.Manifest.ID,
-		Name:          input.Manifest.Name,
-		Version:       input.Manifest.Version,
-		Type:          input.Manifest.Type,
-		Status:        StatusInstalled,
-		Source:        SourceUploaded,
-		IsDeletable:   true,
-		Manifest:      input.Manifest,
-		PackageDigest: input.PackageDigest,
-		PackagePath:   input.PackagePath,
-		InstalledAt:   time.Now(),
-		UpdatedAt:     time.Now(),
+		ID:                  input.Manifest.ID,
+		Name:                input.Manifest.Name,
+		Version:             input.Manifest.Version,
+		Type:                input.Manifest.Type,
+		Status:              StatusInstalled,
+		Source:              SourceUploaded,
+		IsDeletable:         true,
+		Manifest:            input.Manifest,
+		PackageDigest:       input.PackageDigest,
+		AdminFrontendDigest: input.AdminFrontendDigest,
+		PackagePath:         input.PackagePath,
+		InstalledAt:         time.Now(),
+		UpdatedAt:           time.Now(),
 	}
 	s.saved = item
 	if s.items == nil {
@@ -1948,19 +1948,20 @@ func (s *fakeExtensionStore) SaveInstalled(_ context.Context, input SaveInstalle
 
 func (s *fakeExtensionStore) SaveBuiltin(_ context.Context, input SaveBuiltinInput) (Extension, error) {
 	item := Extension{
-		ID:            input.Manifest.ID,
-		Name:          input.Manifest.Name,
-		Version:       input.Manifest.Version,
-		Type:          input.Manifest.Type,
-		Status:        StatusEnabled,
-		Source:        SourceBuiltin,
-		IsSystem:      true,
-		IsDeletable:   false,
-		Manifest:      input.Manifest,
-		PackageDigest: input.PackageDigest,
-		PackagePath:   input.PackagePath,
-		InstalledAt:   time.Now(),
-		UpdatedAt:     time.Now(),
+		ID:                  input.Manifest.ID,
+		Name:                input.Manifest.Name,
+		Version:             input.Manifest.Version,
+		Type:                input.Manifest.Type,
+		Status:              StatusEnabled,
+		Source:              SourceBuiltin,
+		IsSystem:            true,
+		IsDeletable:         false,
+		Manifest:            input.Manifest,
+		PackageDigest:       input.PackageDigest,
+		AdminFrontendDigest: input.AdminFrontendDigest,
+		PackagePath:         input.PackagePath,
+		InstalledAt:         time.Now(),
+		UpdatedAt:           time.Now(),
 	}
 	if s.items == nil {
 		s.items = map[string]Extension{}

@@ -24,9 +24,11 @@ const fixtureProps = {
 describe('@sforum/admin-sdk', () => {
   test('exposes only the supported runtime API', () => {
     expect(Object.keys(publicSdk).sort()).toEqual([
+      'ADMIN_MICRO_FRONTEND_API_VERSION',
       'ADMIN_SDK_API_VERSION',
       'useSForumAdminHost'
     ])
+    expect(publicSdk.ADMIN_MICRO_FRONTEND_API_VERSION).toBe(1)
     expect(publicSdk.ADMIN_SDK_API_VERSION).toBe(1)
     expect('ADMIN_HOST_INJECTION_KEY' in publicSdk).toBe(false)
     expect(fixtureProps.context.jobId).toBe(42)

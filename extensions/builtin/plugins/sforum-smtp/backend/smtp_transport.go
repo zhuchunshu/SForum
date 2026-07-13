@@ -120,6 +120,42 @@ func sendSMTP(config smtpConfig, request extensionsruntime.MailProviderRequest) 
 	return deliver(client, config, request.To, raw)
 }
 
+func probeSMTP(config smtpConfig) *providerError {
+	if err := config.validate(); err != nil {
+		return err
+	}
+	address := net.JoinHostPort(config.Host, strconv.Itoa(config.Port))
+	var client *smtp.Client
+	var err error
+	if config.Encryption == "tls" {
+		var conn net.Conn
+		conn, err = tls.DialWithDialer(&net.Dialer{Timeout: 10 * time.Second}, "tcp", address, &tls.Config{ServerName: config.Host, MinVersion: tls.VersionTLS12})
+		if err == nil {
+			client, err = smtp.NewClient(conn, config.Host)
+		}
+	} else {
+		client, err = smtp.Dial(address)
+	}
+	if err != nil {
+		return classifySendError(err)
+	}
+	defer client.Close()
+	if config.Encryption == "starttls" {
+		if err := client.StartTLS(&tls.Config{ServerName: config.Host, MinVersion: tls.VersionTLS12}); err != nil {
+			return classifySendError(err)
+		}
+	}
+	if config.Username != "" {
+		if err := client.Auth(smtp.PlainAuth("", config.Username, config.Password, config.Host)); err != nil {
+			return &providerError{classificationPermanent, "smtp.authentication_failed", err.Error()}
+		}
+	}
+	if err := client.Quit(); err != nil {
+		return classifySendError(err)
+	}
+	return nil
+}
+
 func deliver(client *smtp.Client, config smtpConfig, recipients []string, raw []byte) *providerError {
 	if config.Username != "" {
 		if err := client.Auth(smtp.PlainAuth("", config.Username, config.Password, config.Host)); err != nil {

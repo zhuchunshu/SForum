@@ -44,10 +44,10 @@ import (
 	humanverify "github.com/zhuchunshu/sforum/apps/api/app/Support/HumanVerify"
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Idempotency"
 	supportjobs "github.com/zhuchunshu/sforum/apps/api/app/Support/Jobs"
+	"github.com/zhuchunshu/sforum/apps/api/app/Support/Pages"
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Postgres"
 	redisplatform "github.com/zhuchunshu/sforum/apps/api/app/Support/Redis"
 	search "github.com/zhuchunshu/sforum/apps/api/app/Support/Search"
-	"github.com/zhuchunshu/sforum/apps/api/app/Support/Pages"
 	webreleasecoordinator "github.com/zhuchunshu/sforum/apps/api/app/Support/WebReleaseCoordinator"
 	webreleaseruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/WebReleaseRuntime"
 	"github.com/zhuchunshu/sforum/apps/api/config"
@@ -216,7 +216,7 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		webReleasePlanner, pool, webReleaseStore,
 		extensionjobs.WebReleaseBuildDispatcherAdapter{Dispatcher: jobDispatcher},
 	)
-	frontendService := extensions.NewFrontendService(extensionStore, frontendTrustStore, webReleaseService, webReleaseStore, hostComposition)
+	frontendService := extensions.NewFrontendService(extensionStore, frontendTrustStore, webReleaseService, webReleaseStore, hostComposition).WithAuditor(auditWriter)
 	webReleaseAdminService := extensions.NewWebReleaseAdminService(webReleaseStore, webReleaseService)
 	// Page Registry：运行时主题 L0/L1，主题激活不重建 Nuxt、不写 current.json。
 	pageRegistryStore := pages.NewPostgresStore(pool)

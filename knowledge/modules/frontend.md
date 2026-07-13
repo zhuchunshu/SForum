@@ -2,12 +2,21 @@
 
 ## Trusted Admin Runtime
 
-Admin extension components are client-only static imports generated into an
-immutable Web Release. SSR renders validated metadata/placeholders only. The
-host provides independent error boundaries, third-failure session quarantine,
-extension-scoped localization/API/navigation/Toast capabilities, and a stale
-admin-tab release monitor. Jobs is the first production consumer through its
-column, row-action, and detail-section slots.
+There are now two full-trust client-only paths:
+
+- Admin Micro-frontend API v1 (preferred for complex settings): author-prebuilt
+  package-local `.mjs`/`.css`, authenticated immutable digest URL, explicit
+  actor-bound confirmation, version/API/component/digest grant, framework-
+  neutral `mount(target, bridge)`, cleanup, and Schema fallback. No Nuxt build.
+- Legacy trusted Vue contributions: static imports generated into an immutable
+  Web Release. Jobs remains the first production consumer through its column,
+  row-action, and detail-section slots.
+
+`SFExtensionSettingsRenderer` is the normal plugin/theme path and handles
+Schema form/tabs/groups/columns/callouts plus Settings Actions without author
+JavaScript. Both trusted code paths are client-only; SSR renders host metadata
+and fallback. Error boundaries and third-failure session quarantine prevent one
+component from breaking navigation or other admin pages.
 
 ## Purpose
 
@@ -128,8 +137,9 @@ without rebuilding Nuxt or restarting Nitro.
   plain Nuxt/Nitro.
 - Active theme skin CSS is injected client-side from
   `GET /api/v1/site/active-theme/skin` + theme-assets routes.
-- Trusted **admin** plugin frontends may still use Web Release / dev-compose
-  (`bun run dev:compose`, `SFORUM_ADMIN_REGISTRY_ROOT`).
+- Legacy trusted Vue **admin** plugin frontends may still use Web Release /
+  dev-compose (`bun run dev:compose`, `SFORUM_ADMIN_REGISTRY_ROOT`). Prebuilt
+  settings components bypass both and load through the API digest endpoint.
 - Host peers for admin SFCs are resolved via Nuxt/Vite aliases
   (`build/admin-host-peers.mjs`); extension **source** trees must not contain
   `frontend/admin/node_modules`. Production Web Release still links peers only

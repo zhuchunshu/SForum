@@ -1,4 +1,16 @@
-[
+{
+  "schemaVersion": 1,
+  "ui": {
+    "mode": "schema",
+    "layout": "form",
+    "groups": [
+      { "id": "basics", "label": { "zh-CN": "基础", "en-US": "Basics" }, "columns": 2 }
+    ],
+    "callouts": [
+      { "id": "dedicated-root", "tone": "warning", "title": { "zh-CN": "使用独立可写目录", "en-US": "Use a dedicated writable directory" }, "body": { "zh-CN": "不要与 Core local 驱动共用根目录。", "en-US": "Do not share the core local driver root." } }
+    ]
+  },
+  "fields": [
   {
     "key": "root_path",
     "label": { "zh-CN": "存储根目录", "en-US": "Storage root path" },
@@ -31,4 +43,8 @@
     },
     "group": { "zh-CN": "基础", "en-US": "Basics" }
   }
-]
+  ],
+  "actions": [
+    { "id": "probe", "kind": "provider_probe", "label": { "zh-CN": "测试目录", "en-US": "Test directory" }, "placement": "footer", "useDraftValues": true }
+  ]
+}

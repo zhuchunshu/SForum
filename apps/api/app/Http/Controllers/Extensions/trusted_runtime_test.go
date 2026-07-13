@@ -1,6 +1,7 @@
 package extensionscontroller
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"log/slog"
@@ -29,6 +30,18 @@ func TestTrustedRuntimeControllerUsesExplicitSyncAndQueuedStatuses(t *testing.T)
 	resp := performExtensionRequest(t, app, http.MethodGet, "/api/v1/admin/extensions/demo.plugin/frontend", managerCookie)
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("expected manager frontend read 200, got %d", resp.StatusCode)
+	}
+	resp.Body.Close()
+
+	frontend.challenge = extensions.FrontendTrustChallenge{ChallengeID: "challenge", Code: "123456", ExtensionID: "demo.plugin"}
+	resp = performExtensionRequest(t, app, http.MethodPost, "/api/v1/admin/extensions/demo.plugin/frontend/confirmation", managerCookie)
+	if resp.StatusCode != http.StatusForbidden {
+		t.Fatalf("expected non-super-admin confirmation 403, got %d", resp.StatusCode)
+	}
+	resp.Body.Close()
+	resp = performExtensionRequest(t, app, http.MethodPost, "/api/v1/admin/extensions/demo.plugin/frontend/confirmation", superCookie)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected confirmation challenge 200, got %d", resp.StatusCode)
 	}
 	resp.Body.Close()
 
@@ -63,6 +76,30 @@ func TestTrustedRuntimeControllerUsesExplicitSyncAndQueuedStatuses(t *testing.T)
 	resp = performExtensionRequest(t, app, http.MethodDelete, "/api/v1/admin/extensions/demo.plugin/frontend/trust", superCookie)
 	if resp.StatusCode != http.StatusAccepted {
 		t.Fatalf("expected active revoke 202, got %d", resp.StatusCode)
+	}
+	resp.Body.Close()
+}
+
+func TestTrustedRuntimeControllerServesOnlyImmutableAdminAssets(t *testing.T) {
+	frontend := &fakeTrustedFrontendHTTPService{asset: extensions.FrontendAsset{
+		Body: []byte("export const apiVersion = 1\n"), ContentType: "application/javascript; charset=utf-8", ETag: `"abc"`,
+	}}
+	app, manager := newTrustedRuntimeTestApp(t, frontend, &fakeWebReleaseHTTPService{})
+	cookie := loginExtensionUser(t, app, manager, 2)
+	digest := "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	resp := performExtensionRequest(t, app, http.MethodGet, "/api/v1/admin/extensions/demo.plugin/frontend/assets/"+digest+"/entry", cookie)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected asset 200, got %d", resp.StatusCode)
+	}
+	defer resp.Body.Close()
+	var body bytes.Buffer
+	_, _ = body.ReadFrom(resp.Body)
+	if body.String() != "export const apiVersion = 1\n" || resp.Header.Get("Cache-Control") != "private, max-age=31536000, immutable" || resp.Header.Get("X-Content-Type-Options") != "nosniff" || resp.Header.Get("Cross-Origin-Resource-Policy") != "same-origin" {
+		t.Fatalf("unexpected immutable response: headers=%v body=%q", resp.Header, body.String())
+	}
+	resp = performExtensionRequest(t, app, http.MethodGet, "/api/v1/admin/extensions/demo.plugin/frontend/assets/not-a-digest/entry", cookie)
+	if resp.StatusCode != http.StatusNotFound {
+		t.Fatalf("invalid digest must be hidden as 404, got %d", resp.StatusCode)
 	}
 	resp.Body.Close()
 }
@@ -165,10 +202,23 @@ func newTrustedRuntimeTestApp(
 }
 
 type fakeTrustedFrontendHTTPService struct {
-	status  extensions.FrontendStatus
-	grant   extensions.ExtensionOperation
-	revoke  extensions.ExtensionOperation
-	restore extensions.ExtensionOperation
+	status    extensions.FrontendStatus
+	grant     extensions.ExtensionOperation
+	revoke    extensions.ExtensionOperation
+	restore   extensions.ExtensionOperation
+	asset     extensions.FrontendAsset
+	challenge extensions.FrontendTrustChallenge
+}
+
+func (s *fakeTrustedFrontendHTTPService) Asset(context.Context, identity.Actor, string, string, string) (extensions.FrontendAsset, error) {
+	return s.asset, nil
+}
+
+func (s *fakeTrustedFrontendHTTPService) Challenge(_ context.Context, actor identity.Actor, _ string) (extensions.FrontendTrustChallenge, error) {
+	if !actor.IsSuperAdmin() {
+		return extensions.FrontendTrustChallenge{}, identity.ErrPermissionDenied
+	}
+	return s.challenge, nil
 }
 
 func (s *fakeTrustedFrontendHTTPService) Frontend(context.Context, identity.Actor, string) (extensions.FrontendStatus, error) {

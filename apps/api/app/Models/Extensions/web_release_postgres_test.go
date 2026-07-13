@@ -39,17 +39,18 @@ func TestPostgresWebReleaseStoreCreatePersistsChildrenAndInitialEventInOneTransa
 		PreviousReleaseID:   &previousID,
 		RequestedByUserID:   &actorID,
 		Extensions: []WebReleaseExtensionInput{{
-			ExtensionID:       "demo.plugin",
-			ExtensionVersion:  "1.2.3",
-			PackageDigest:     strings.Repeat("c", 64),
-			FrontendRoot:      "frontend/admin",
-			ComponentMap:      map[string]string{"job-cell": "components/JobCell.vue"},
-			APIVersion:        1,
-			TrustedComponents: []ManifestContribution{{Point: "admin.test.fixture", ID: "job-cell"}},
-			LocaleMap:         map[string]string{"en-US": "locales/en-US.json", "zh-CN": "locales/zh-CN.json"},
-			LocaleMapDigest:   strings.Repeat("d", 64),
-			LockfileDigest:    strings.Repeat("e", 64),
-			SortOrder:         10,
+			ExtensionID:         "demo.plugin",
+			ExtensionVersion:    "1.2.3",
+			PackageDigest:       strings.Repeat("c", 64),
+			AdminFrontendDigest: strings.Repeat("f", 64),
+			FrontendRoot:        "frontend/admin",
+			ComponentMap:        map[string]string{"job-cell": "components/JobCell.vue"},
+			APIVersion:          1,
+			TrustedComponents:   []ManifestContribution{{Point: "admin.test.fixture", ID: "job-cell"}},
+			LocaleMap:           map[string]string{"en-US": "locales/en-US.json", "zh-CN": "locales/zh-CN.json"},
+			LocaleMapDigest:     strings.Repeat("d", 64),
+			LockfileDigest:      strings.Repeat("e", 64),
+			SortOrder:           10,
 		}},
 		Effects: []WebReleaseEffectInput{{
 			ExtensionID:    "demo.plugin",
@@ -72,11 +73,11 @@ func TestPostgresWebReleaseStoreCreatePersistsChildrenAndInitialEventInOneTransa
 		"exec:insert into web_release_events",
 	)
 	extensionCall := findSQLCall(t, tx.calls, "insert into web_release_extensions")
-	if string(extensionCall.args[5].([]byte)) != `{"job-cell":"components/JobCell.vue"}` {
-		t.Fatalf("component map was not stored as deterministic JSON: %s", extensionCall.args[5])
+	if string(extensionCall.args[6].([]byte)) != `{"job-cell":"components/JobCell.vue"}` {
+		t.Fatalf("component map was not stored as deterministic JSON: %s", extensionCall.args[6])
 	}
-	if string(extensionCall.args[8].([]byte)) != `{"en-US":"locales/en-US.json","zh-CN":"locales/zh-CN.json"}` {
-		t.Fatalf("locale map was not stored as deterministic JSON: %s", extensionCall.args[8])
+	if string(extensionCall.args[9].([]byte)) != `{"en-US":"locales/en-US.json","zh-CN":"locales/zh-CN.json"}` {
+		t.Fatalf("locale map was not stored as deterministic JSON: %s", extensionCall.args[9])
 	}
 	releaseCall := findSQLCall(t, tx.calls, "insert into web_releases")
 	if got := string(releaseCall.args[3].([]byte)); got != `{"sdkVersion":1,"webSource":"test-sha"}` {

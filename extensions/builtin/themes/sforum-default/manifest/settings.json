@@ -1,4 +1,53 @@
-[
+{
+  "schemaVersion": 1,
+  "ui": {
+    "mode": "schema",
+    "layout": "tabs",
+    "tabs": [
+      {
+        "id": "home",
+        "label": { "zh-CN": "首页内容", "en-US": "Homepage" },
+        "description": { "zh-CN": "首页提示、空状态和访客文案。", "en-US": "Homepage notice, empty states, and guest copy." },
+        "groups": ["home-copy", "right-rail-copy"]
+      },
+      {
+        "id": "navigation",
+        "label": { "zh-CN": "导航与侧栏", "en-US": "Navigation & rails" },
+        "description": { "zh-CN": "控制左侧导航和首页右侧辅助栏。", "en-US": "Control the left navigation and homepage right rail." },
+        "groups": ["left-navigation", "right-rail-toggles", "right-rail-limits"]
+      },
+      {
+        "id": "layout",
+        "label": { "zh-CN": "全局布局", "en-US": "Global layout" },
+        "groups": ["global-layout"]
+      }
+    ],
+    "groups": [
+      { "id": "home-copy", "label": { "zh-CN": "首页文案", "en-US": "Home copy" }, "columns": 1 },
+      { "id": "right-rail-copy", "label": { "zh-CN": "右侧栏文案", "en-US": "Right rail copy" }, "columns": 2 },
+      { "id": "left-navigation", "label": { "zh-CN": "左侧导航", "en-US": "Left navigation" }, "columns": 2 },
+      { "id": "right-rail-toggles", "label": { "zh-CN": "右侧栏开关", "en-US": "Right rail toggles" }, "columns": 2 },
+      { "id": "right-rail-limits", "label": { "zh-CN": "右侧栏数量", "en-US": "Right rail limits" }, "columns": 2 },
+      { "id": "global-layout", "label": { "zh-CN": "全局布局", "en-US": "Global layout" }, "columns": 2 }
+    ],
+    "callouts": [
+      {
+        "id": "instant-preview",
+        "tone": "info",
+        "title": { "zh-CN": "保存后立即应用", "en-US": "Applies immediately after save" },
+        "body": { "zh-CN": "这些值通过活动主题设置接口读取，不需要 Web Release 或 Nuxt 构建。", "en-US": "These values are read through the active-theme settings API and require no Web Release or Nuxt build." },
+        "tab": "home"
+      },
+      {
+        "id": "layout-safe-defaults",
+        "tone": "info",
+        "title": { "zh-CN": "推荐保留基础站点结构", "en-US": "Keep the basic site structure" },
+        "body": { "zh-CN": "关闭页脚或公告只影响展示，不会删除后台保存的内容。", "en-US": "Hiding the footer or announcements changes presentation only and never deletes stored admin content." },
+        "tab": "layout"
+      }
+    ]
+  },
+  "fields": [
   {
     "key": "home.notice.zh-CN",
     "label": { "zh-CN": "首页提示条（中文）", "en-US": "Homepage notice (Chinese)" },
@@ -237,4 +286,6 @@
     "recommendedValue": "true",
     "group": { "zh-CN": "全局布局", "en-US": "Global layout" }
   }
-]
+  ],
+  "actions": []
+}

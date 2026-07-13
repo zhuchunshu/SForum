@@ -169,17 +169,18 @@ func (r *plannerGrantReader) add(extension Extension, pending bool) {
 		r.items = map[string]FrontendTrustGrant{}
 	}
 	grant := FrontendTrustGrant{
-		ID:               int64(len(r.items) + 1),
-		ExtensionID:      extension.ID,
-		ExtensionVersion: extension.Version,
-		PackageDigest:    extension.PackageDigest,
-		APIVersion:       extension.Manifest.Frontend.Admin.APIVersion,
+		ID:                  int64(len(r.items) + 1),
+		ExtensionID:         extension.ID,
+		ExtensionVersion:    extension.Version,
+		PackageDigest:       extension.PackageDigest,
+		AdminFrontendDigest: extension.AdminFrontendDigest,
+		APIVersion:          extension.Manifest.Frontend.Admin.APIVersion,
 	}
 	if pending {
 		now := time.Now()
 		grant.RevocationRequestedAt = &now
 	}
-	r.items[plannerGrantKey(extension.ID, extension.Version, extension.PackageDigest)] = grant
+	r.items[plannerGrantKey(extension.ID, extension.Version, extension.AdminFrontendDigest)] = grant
 }
 
 func plannerGrantKey(extensionID string, version string, digest string) string {
@@ -212,7 +213,7 @@ func plannerThemeFixture(t *testing.T) Extension {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return Extension{
+	extension := Extension{
 		ID:            DefaultThemeID,
 		Name:          "Default",
 		Version:       "1.0.0",
@@ -230,6 +231,11 @@ func plannerThemeFixture(t *testing.T) Extension {
 			Frontend: ManifestFrontend{Layer: "layer"},
 		},
 	}
+	extension.AdminFrontendDigest, err = ComputeAdminFrontendDigest(extension.Manifest, root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return extension
 }
 
 func plannerThemeWithAdminFixture(t *testing.T) Extension {
@@ -306,7 +312,7 @@ func plannerPluginFixture(t *testing.T, id string, source string, status string)
 	if err != nil {
 		t.Fatal(err)
 	}
-	return Extension{
+	extension := Extension{
 		ID:            id,
 		Name:          id,
 		Version:       "1.0.0",
@@ -335,6 +341,11 @@ func plannerPluginFixture(t *testing.T, id string, source string, status string)
 			}},
 		},
 	}
+	extension.AdminFrontendDigest, err = ComputeAdminFrontendDigest(extension.Manifest, root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return extension
 }
 
 func plannerExtensionIDs(items []WebExtensionSnapshot) []string {

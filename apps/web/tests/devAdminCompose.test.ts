@@ -26,18 +26,18 @@ afterEach(() => {
 })
 
 describe('dev admin compose (P1)', () => {
-  test('discovers smtp admin packages and excludes ordinary runtime themes', () => {
+  test('schema-only builtins do not enter dev-compose', () => {
     const repoRoot = path.resolve(import.meta.dir, '../../..')
     const packages = discoverBuiltinAdminPackages(path.join(repoRoot, 'extensions/builtin'))
     const ids = packages.map(item => item.id).sort()
     // 普通主题无 frontend.admin，不得进入 dev-compose / Web Release
     expect(ids).not.toContain('sforum.default-theme')
-    expect(ids).toContain('sforum.smtp')
+    expect(ids).not.toContain('sforum.smtp')
     // content-policy 无 frontend.admin，不应进入 compose
     expect(ids).not.toContain('sforum.content-policy')
   })
 
-  test('composes registry metadata for trusted plugin admin only', () => {
+  test('composes an empty registry when all builtin settings are schema-only', () => {
     const repoRoot = path.resolve(import.meta.dir, '../../..')
     const outDir = path.join(tempRoot(), 'dev-compose')
     const result = composeDevAdmin({
@@ -48,7 +48,7 @@ describe('dev admin compose (P1)', () => {
 
     expect(result.releaseId).toBe(DEV_COMPOSE_RELEASE_ID)
     expect(result.extensions).not.toContain('sforum.default-theme')
-    expect(result.extensions).toContain('sforum.smtp')
+    expect(result.extensions).not.toContain('sforum.smtp')
     expect(fs.existsSync(result.registryRoot)).toBe(true)
     // 普通主题不进 admin packages → 无 themeLayer；公开页走 host Page Registry。
     expect(result.themeLayer).toBe('')
@@ -57,22 +57,16 @@ describe('dev admin compose (P1)', () => {
     const metadata = fs.readFileSync(path.join(result.registryRoot, 'metadata.ts'), 'utf8')
     expect(metadata).toContain(`export const releaseId = "${DEV_COMPOSE_RELEASE_ID}"`)
     expect(metadata).not.toContain('theme-settings-page')
-    expect(metadata).toContain('smtp-settings-page')
+    expect(metadata).not.toContain('smtp-settings-page')
 
     const registry = fs.readFileSync(path.join(result.registryRoot, 'registry.client.ts'), 'utf8')
     expect(registry).not.toContain('sforum.default-theme:theme-settings-page')
-    expect(registry).toContain('smtp-settings-page')
+    expect(registry).not.toContain('smtp-settings-page')
 
     const guard = JSON.parse(fs.readFileSync(path.join(outDir, 'guard-policy.json'), 'utf8'))
     expect(guard.hostPeers).toEqual([...DEV_HOST_PEERS].sort())
     expect(guard.roots.some((item: { root: string }) => item.root.includes('sforum.default-theme'))).toBe(false)
-    expect(guard.roots.some((item: { root: string }) => item.root.includes('sforum.smtp') || item.root.includes('sforum-smtp'))).toBe(true)
-
-    const smtpAdmin = path.join(
-      repoRoot,
-      'extensions/builtin/plugins/sforum-smtp/frontend/admin',
-    )
-    expect(fs.existsSync(path.join(smtpAdmin, 'node_modules'))).toBe(false)
+    expect(guard.roots.some((item: { root: string }) => item.root.includes('sforum.smtp') || item.root.includes('sforum-smtp'))).toBe(false)
   })
 
   test('locale edits change compositionHash; pure recompose with same inputs is stable', () => {

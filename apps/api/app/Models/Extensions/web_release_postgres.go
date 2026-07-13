@@ -200,18 +200,19 @@ func createWebRelease(ctx context.Context, tx webReleaseSQL, input WebReleaseCre
 		}
 		if _, err := tx.Exec(ctx, `
 			INSERT INTO web_release_extensions (
-				web_release_id, extension_id, extension_version, package_digest,
+				web_release_id, extension_id, extension_version, package_digest, admin_frontend_digest,
 				frontend_root, component_map, api_version, trusted_components,
 				locale_map, locale_map_digest, lockfile_digest,
 				resolved_dependencies, resolved_dependency_snapshot_digest, sort_order
 			)
-			VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7, $8::jsonb,
-			        $9::jsonb, $10, $11, '[]'::jsonb, '', $12)
+			VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8, $9::jsonb,
+			        $10::jsonb, $11, $12, '[]'::jsonb, '', $13)
 		`,
 			release.ID,
 			extension.ExtensionID,
 			extension.ExtensionVersion,
 			extension.PackageDigest,
+			extension.AdminFrontendDigest,
 			extension.FrontendRoot,
 			componentMap,
 			extension.APIVersion,
@@ -484,7 +485,7 @@ func (s *PostgresWebReleaseStore) WebRelease(ctx context.Context, id int64) (Web
 
 func (s *PostgresWebReleaseStore) listWebReleaseExtensions(ctx context.Context, db webReleaseSQL, releaseID int64) ([]WebReleaseExtension, error) {
 	rows, err := db.Query(ctx, `
-		SELECT web_release_id, extension_id, extension_version, package_digest,
+		SELECT web_release_id, extension_id, extension_version, package_digest, admin_frontend_digest,
 		       frontend_root, component_map, api_version, trusted_components,
 		       locale_map, locale_map_digest, lockfile_digest,
 		       resolved_dependencies, resolved_dependency_snapshot_digest,
@@ -746,6 +747,7 @@ func scanWebReleaseExtension(row webReleaseRow) (WebReleaseExtension, error) {
 		&item.ExtensionID,
 		&item.ExtensionVersion,
 		&item.PackageDigest,
+		&item.AdminFrontendDigest,
 		&item.FrontendRoot,
 		&componentMap,
 		&item.APIVersion,

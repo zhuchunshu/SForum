@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { apiErrorMessage } from '~/composables/useApiClient'
 import { useAdminPage } from '~/composables/useAdminPage'
-import { capabilityCount, extensionLocalizedDisplay, extensionManageRoute, filterExtensionsByType, hasThemeActivationInProgress, themeActionState, themeActivationProgress, themeStatusLabelKey, type AdminExtension } from '~/utils/adminExtensions'
+import { capabilityCount, extensionLocalizedDisplay, extensionManageRoute, extensionSettingsPresentation, filterExtensionsByType, hasThemeActivationInProgress, themeActionState, themeActivationProgress, themeStatusLabelKey, type AdminExtension } from '~/utils/adminExtensions'
 
 definePageMeta({
   middleware: 'admin',
@@ -174,6 +174,13 @@ useSeoMeta({
             </UBadge>
             <UBadge v-if="item.source === 'builtin'" color="primary" variant="subtle" icon="i-lucide-shield-check">
               {{ t('admin.extensions.source.builtin') }}
+            </UBadge>
+            <UBadge
+              :color="extensionSettingsPresentation(item).color"
+              variant="subtle"
+              :icon="extensionSettingsPresentation(item).icon"
+            >
+              {{ t(extensionSettingsPresentation(item).labelKey) }}
             </UBadge>
           </div>
           <p

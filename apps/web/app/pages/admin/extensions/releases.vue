@@ -6,6 +6,7 @@ import {
   webReleaseProgress,
   type AdminWebReleaseStatus
 } from '~/utils/adminWebReleases'
+import type { WebReleaseTypecheckMode } from '~/composables/useAdminWebReleases'
 
 definePageMeta({ middleware: 'admin', layout: 'admin' })
 defineOptions({ name: 'AdminExtensionReleases' })
@@ -22,15 +23,19 @@ const {
   selected,
   commandId,
   rebuilding,
-  typecheckFail,
+  typecheckMode,
   typecheckSaving,
   typecheckLoading,
   load,
   select,
   rebuild,
   command,
-  setTypecheckFail
+  setTypecheckMode
 } = useAdminWebReleases()
+const typecheckModes = computed(() => (['off', 'report', 'block'] as const).map(value => ({
+  value,
+  label: t(`admin.extensions.releases.typecheckModes.${value}.label`)
+})))
 const pages = computed(() => Math.max(1, Math.ceil(data.value.total / perPage)))
 
 function closeDetail() {
@@ -80,24 +85,25 @@ function statusLabel(status: AdminWebReleaseStatus | string) {
     <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
       <div class="min-w-0">
         <h3 class="text-sm font-semibold text-slate-900 dark:text-zinc-100">
-          {{ t('admin.extensions.releases.typecheckFailTitle') }}
+          {{ t('admin.extensions.releases.typecheckModeTitle') }}
         </h3>
         <p class="mt-1 max-w-3xl text-xs leading-5 text-slate-500 dark:text-zinc-400">
-          {{ t('admin.extensions.releases.typecheckFailDescription') }}
+          {{ t('admin.extensions.releases.typecheckModeDescription') }}
         </p>
       </div>
-      <div class="flex shrink-0 items-center gap-3">
-        <span class="text-xs text-slate-500 dark:text-zinc-400">
-          {{ typecheckFail
-            ? t('admin.extensions.releases.typecheckFailOn')
-            : t('admin.extensions.releases.typecheckFailOff') }}
-        </span>
-        <USwitch
-          :model-value="typecheckFail"
+      <div class="w-full shrink-0 lg:w-64">
+        <USelect
+          :model-value="typecheckMode"
+          :items="typecheckModes"
+          value-key="value"
+          label-key="label"
           :loading="typecheckSaving || typecheckLoading"
           :disabled="typecheckSaving || typecheckLoading"
-          @update:model-value="(value: boolean) => { void setTypecheckFail(value) }"
+          @update:model-value="(value: WebReleaseTypecheckMode) => { void setTypecheckMode(value) }"
         />
+        <p class="mt-2 text-xs leading-5 text-slate-500 dark:text-zinc-400">
+          {{ t(`admin.extensions.releases.typecheckModes.${typecheckMode}.description`) }}
+        </p>
       </div>
     </div>
   </section>
