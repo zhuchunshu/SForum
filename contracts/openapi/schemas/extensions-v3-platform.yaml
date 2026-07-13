@@ -1,0 +1,139 @@
+ExtensionManifestAdminSurface:
+  type: object
+  required: [id, contractVersion, kind, action, label]
+  properties:
+    id: { type: string }
+    contractVersion: { type: string }
+    kind:
+      type: string
+      enum: [navigation, dashboard, list_column, list_filter, row_action, bulk_action, form, notice, editor_panel, detail_region, importer, exporter]
+    action: { type: string, enum: [add, before, after, wrap, replace, hide, filter] }
+    targetId: { type: string }
+    label: { type: string }
+    handler: { type: string }
+    schema: { type: string }
+    permission: { type: string }
+    priority: { type: integer }
+ExtensionManifestQuery:
+  type: object
+  required: [id, contractVersion, entity, planVersion, fields, pagination, resultSchema, permissionPolicy]
+  properties:
+    id: { type: string }
+    contractVersion: { type: string }
+    entity: { type: string }
+    planVersion: { type: string }
+    fields:
+      type: array
+      items: { type: string }
+    relations:
+      type: array
+      items: { type: string }
+    filters:
+      type: array
+      items: { type: string }
+    sort:
+      type: array
+      items: { type: string }
+    pagination: { type: string, enum: [none, offset, cursor] }
+    resultSchema: { type: string }
+    permissionPolicy: { type: string }
+    cacheTags:
+      type: array
+      items: { type: string }
+ExtensionManifestIdentity:
+  type: object
+  required: [contractVersion]
+  properties:
+    contractVersion: { type: string }
+    userFields:
+      type: array
+      items: { "$ref": "#/ExtensionManifestIdentityUserField" }
+    providers:
+      type: array
+      items: { "$ref": "#/ExtensionManifestIdentityProvider" }
+    sessionPolicy: { type: string }
+    riskHooks:
+      type: array
+      items: { type: string }
+ExtensionManifestIdentityUserField:
+  type: object
+  required: [id, contractVersion, type, schema]
+  properties:
+    id: { type: string }
+    contractVersion: { type: string }
+    type: { type: string, enum: [string, number, boolean, object, array] }
+    schema: { type: string }
+    readPermission: { type: string }
+    writePermission: { type: string }
+ExtensionManifestIdentityProvider:
+  type: object
+  required: [id, contractVersion, kind, handler]
+  properties:
+    id: { type: string }
+    contractVersion: { type: string }
+    kind: { type: string, enum: [auth, profile, recovery, session, risk] }
+    handler: { type: string }
+    priority: { type: integer }
+ExtensionManifestPermissionDefinition:
+  type: object
+  description: Recommended role mappings are advisory. assignmentPolicy=host prevents install or enable code from granting permissions.
+  required: [key, contractVersion, label, description, assignmentPolicy]
+  properties:
+    key: { type: string }
+    contractVersion: { type: string }
+    label: { type: string }
+    description: { type: string }
+    recommendedRoles:
+      type: array
+      items: { type: string }
+    assignmentPolicy: { type: string, const: host }
+ExtensionManifestMediaPipeline:
+  type: object
+  required: [id, contractVersion, action, mimes, handler]
+  properties:
+    id: { type: string }
+    contractVersion: { type: string }
+    action: { type: string, enum: [add, before, after, wrap, replace] }
+    targetId: { type: string }
+    mimes:
+      type: array
+      items: { type: string }
+    transforms:
+      type: array
+      items: { "$ref": "#/ExtensionManifestMediaTransform" }
+    handler: { type: string }
+    permission: { type: string }
+    priority: { type: integer }
+ExtensionManifestMediaTransform:
+  type: object
+  required: [id, variant]
+  properties:
+    id: { type: string }
+    variant: { type: string }
+    format: { type: string }
+    width: { type: integer, minimum: 0 }
+    height: { type: integer, minimum: 0 }
+ExtensionManifestNavigation:
+  type: object
+  required: [id, contractVersion, kind, action, label]
+  properties:
+    id: { type: string }
+    contractVersion: { type: string }
+    kind: { type: string, enum: [menu, item, breadcrumb, header, footer, sidebar] }
+    action: { type: string, enum: [add, before, after, wrap, replace, hide, filter] }
+    targetId: { type: string }
+    label: { type: string }
+    href: { type: string }
+    permission: { type: string }
+    order: { type: integer, minimum: 0 }
+ExtensionManifestRegion:
+  type: object
+  required: [id, contractVersion, action, kind, label]
+  properties:
+    id: { type: string }
+    contractVersion: { type: string }
+    action: { type: string, enum: [add, before, after, wrap, replace, hide, filter] }
+    targetId: { type: string }
+    kind: { type: string, enum: [menu, widget, header, footer, sidebar, content] }
+    label: { type: string }
+    multiple: { type: boolean }

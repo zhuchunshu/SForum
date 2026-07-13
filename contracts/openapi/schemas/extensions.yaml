@@ -244,6 +244,10 @@ ExtensionManifest:
   - type
   - sforumVersion
   properties:
+    manifestVersion:
+      type: integer
+      enum: [1, 2, 3]
+      description: Omitted manifests use the V1 compatibility contract. V3 packages must set 3 explicitly.
     id:
       type: string
     name:
@@ -289,9 +293,9 @@ ExtensionManifest:
       - "$ref": "#/ExtensionManifestSettingsDocument"
     migrations:
       type: array
-      description: Plugin-only SQL migration declarations. Theme manifests must omit migrations in v1.
+      description: Plugin-only SQL migration declarations. V3 binds stable ids, contract versions, transaction policy, and exact file digests.
       items:
-        type: object
+        "$ref": "#/ExtensionManifestMigration"
     backend:
       type: object
       description: Plugin-only backend runtime declaration. Theme manifests must omit backend runtime fields in v1.
@@ -302,6 +306,13 @@ ExtensionManifest:
           type: string
         protocolVersion:
           type: integer
+          minimum: 0
+          maximum: 2
+        digest:
+          type: string
+          pattern: '^[0-9a-f]{64}$'
+        hostApiVersion:
+          type: string
     admin:
       "$ref": "#/ExtensionManifestAdmin"
     adminPages:
@@ -328,7 +339,7 @@ ExtensionManifest:
       type: array
       description: Plugin-only background job declarations. Theme manifests must omit jobs in v1.
       items:
-        type: object
+        "$ref": "#/ExtensionManifestJob"
     providers:
       type: array
       description: Plugin-only provider slot declarations. Theme manifests must omit providers in v1.
@@ -339,6 +350,86 @@ ExtensionManifest:
       description: Plugin-only declarative contributions to host-owned typed points. Theme manifests must omit contributions in v1.
       items:
         "$ref": "#/ExtensionManifestContribution"
+    guards:
+      type: array
+      items:
+        "$ref": "./extensions-v3-registry.yaml#/ExtensionManifestGuard"
+    schedules:
+      type: array
+      items:
+        "$ref": "./extensions-v3-registry.yaml#/ExtensionManifestSchedule"
+    components:
+      type: array
+      items:
+        "$ref": "./extensions-v3-registry.yaml#/ExtensionManifestComponent"
+    templates:
+      type: array
+      items:
+        "$ref": "./extensions-v3-registry.yaml#/ExtensionManifestTemplate"
+    assets:
+      type: array
+      items:
+        "$ref": "./extensions-v3-registry.yaml#/ExtensionManifestAsset"
+    content:
+      type: array
+      items:
+        "$ref": "./extensions-v3-registry.yaml#/ExtensionManifestContent"
+    database:
+      "$ref": "./extensions-v3-registry.yaml#/ExtensionManifestDatabase"
+    cache:
+      type: array
+      items:
+        "$ref": "./extensions-v3-registry.yaml#/ExtensionManifestCache"
+    services:
+      type: array
+      items:
+        "$ref": "./extensions-v3-registry.yaml#/ExtensionManifestService"
+    commands:
+      type: array
+      items:
+        "$ref": "./extensions-v3-registry.yaml#/ExtensionManifestCommand"
+    adminSurfaces:
+      type: array
+      items:
+        "$ref": "./extensions-v3-platform.yaml#/ExtensionManifestAdminSurface"
+    queries:
+      type: array
+      items:
+        "$ref": "./extensions-v3-platform.yaml#/ExtensionManifestQuery"
+    identity:
+      "$ref": "./extensions-v3-platform.yaml#/ExtensionManifestIdentity"
+    permissionDefinitions:
+      type: array
+      items:
+        "$ref": "./extensions-v3-platform.yaml#/ExtensionManifestPermissionDefinition"
+    media:
+      type: array
+      items:
+        "$ref": "./extensions-v3-platform.yaml#/ExtensionManifestMediaPipeline"
+    navigation:
+      type: array
+      items:
+        "$ref": "./extensions-v3-platform.yaml#/ExtensionManifestNavigation"
+    regions:
+      type: array
+      items:
+        "$ref": "./extensions-v3-platform.yaml#/ExtensionManifestRegion"
+    dependencies:
+      type: array
+      items:
+        "$ref": "./extensions-v3-registry.yaml#/ExtensionManifestDependency"
+    lifecycle:
+      "$ref": "./extensions-v3-registry.yaml#/ExtensionManifestLifecycle"
+    openapi:
+      type: array
+      items:
+        "$ref": "./extensions-v3-registry.yaml#/ExtensionManifestOpenAPIFragment"
+    packageFiles:
+      type: array
+      items:
+        "$ref": "./extensions-v3-registry.yaml#/ExtensionManifestPackageFile"
+    includes:
+      "$ref": "./extensions-v3-registry.yaml#/ExtensionManifestIncludes"
 ExtensionManifestAuthor:
   type: object
   required:
@@ -566,26 +657,47 @@ ExtensionManifestAdminPage:
       minimum: 0
     permission:
       type: string
+ExtensionManifestMigration:
+  type: object
+  required: [path]
+  properties:
+    id: { type: string }
+    contractVersion: { type: string }
+    path: { type: string }
+    digest: { type: string, pattern: '^[0-9a-f]{64}$' }
+    transaction: { type: string, enum: [required, forbidden, auto] }
+ExtensionManifestJob:
+  type: object
+  required: [name]
+  properties:
+    id: { type: string }
+    contractVersion: { type: string }
+    name: { type: string }
+    handler: { type: string }
+    payloadSchema: { type: string }
+    retryPolicy: { type: string, enum: [none, bounded, exponential] }
 ExtensionManifestRoute:
   type: object
   required:
   - path
   - methods
   properties:
+    id:
+      type: string
+    contractVersion:
+      type: string
+    action:
+      type: string
+      enum: [add, alias, redirect, rewrite, before, after, filter, wrap, replace, global_middleware]
+    targetId:
+      type: string
     path:
       type: string
     methods:
       type: array
       items:
         type: string
-        enum:
-        - GET
-        - HEAD
-        - OPTIONS
-        - POST
-        - PUT
-        - PATCH
-        - DELETE
+      description: V3 accepts any normalized RFC HTTP method token. V1 compatibility remains limited by the Host validator.
     access:
       type: string
       enum:
@@ -593,6 +705,24 @@ ExtensionManifestRoute:
       - login
       - permission
     permission:
+      type: string
+    guard:
+      type: string
+    priority:
+      type: integer
+    fallback:
+      type: string
+      enum: [closed, not_found, readonly_core]
+    mode:
+      type: string
+      enum: [http, sse, websocket, stream, multipart]
+    destination:
+      type: string
+    handler:
+      type: string
+    requestSchema:
+      type: string
+    responseSchema:
       type: string
     timeoutMs:
       type: integer
@@ -602,13 +732,23 @@ ExtensionManifestHook:
   required:
   - name
   properties:
+    id: { type: string }
+    contractVersion: { type: string }
     name:
       type: string
+    kind: { type: string, enum: [action, filter, observe] }
+    targetId: { type: string }
+    handler: { type: string }
+    inputSchema: { type: string }
+    resultSchema: { type: string }
+    priority: { type: integer }
 ExtensionManifestEvent:
   type: object
   required:
   - name
   properties:
+    id: { type: string }
+    contractVersion: { type: string }
     name:
       type: string
     kind:
@@ -617,6 +757,10 @@ ExtensionManifestEvent:
       - observe
       - validate
       - filter
+    handler: { type: string }
+    inputSchema: { type: string }
+    resultSchema: { type: string }
+    priority: { type: integer }
     timeoutMs:
       type: integer
       minimum: 0
@@ -626,10 +770,14 @@ ExtensionManifestProvider:
   - slot
   - label
   properties:
+    id: { type: string }
+    contractVersion: { type: string }
     slot:
       type: string
     label:
       type: string
+    handler: { type: string }
+    priority: { type: integer }
     timeoutMs:
       type: integer
       minimum: 0

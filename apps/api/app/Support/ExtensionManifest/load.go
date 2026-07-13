@@ -83,6 +83,17 @@ func LoadRootBytes(rootBody []byte, pkg PackageFS) (Manifest, error) {
 	if err := json.Unmarshal(rootBody, &root); err != nil {
 		return Manifest{}, fmt.Errorf("%w: %v", ErrInvalidManifest, err)
 	}
+	var version struct {
+		ManifestVersion int `json:"manifestVersion"`
+	}
+	if err := json.Unmarshal(rootBody, &version); err != nil {
+		return Manifest{}, fmt.Errorf("%w: %v", ErrInvalidManifest, err)
+	}
+	if version.ManifestVersion == ManifestVersionV3 {
+		if err := ValidateV3JSONSchema(rootBody); err != nil {
+			return Manifest{}, err
+		}
+	}
 	var manifest Manifest
 	if err := json.Unmarshal(rootBody, &manifest); err != nil {
 		return Manifest{}, fmt.Errorf("%w: %v", ErrInvalidManifest, err)
@@ -93,6 +104,15 @@ func LoadRootBytes(rootBody []byte, pkg PackageFS) (Manifest, error) {
 		}
 	}
 	manifest = Normalize(manifest)
+	if EffectiveManifestVersion(manifest) == ManifestVersionV3 {
+		canonical, err := json.Marshal(manifest)
+		if err != nil {
+			return Manifest{}, fmt.Errorf("%w: marshal V3 manifest: %v", ErrInvalidManifest, err)
+		}
+		if err := ValidateV3JSONSchema(canonical); err != nil {
+			return Manifest{}, err
+		}
+	}
 	if err := Validate(manifest); err != nil {
 		return Manifest{}, err
 	}

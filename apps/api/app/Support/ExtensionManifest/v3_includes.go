@@ -76,6 +76,9 @@ func applyListInclude[T any](raw json.RawMessage, pkg PackageFS, label string, d
 	if len(*destination) > 0 {
 		return fmt.Errorf("%w: dual source for %s (root and includes)", ErrInvalidManifest, label)
 	}
+	if err := validateV3IncludeFiles(raw, pkg, label, false); err != nil {
+		return err
+	}
 	items, err := loadJSONShardList[T](raw, pkg, label)
 	if err != nil {
 		return fmt.Errorf("%w: includes.%s: %v", ErrInvalidManifest, label, err)
@@ -91,10 +94,33 @@ func applyObjectInclude[T any](raw json.RawMessage, pkg PackageFS, label string,
 	if filled {
 		return fmt.Errorf("%w: dual source for %s (root and includes)", ErrInvalidManifest, label)
 	}
+	if err := validateV3IncludeFiles(raw, pkg, label, true); err != nil {
+		return err
+	}
 	var value T
 	if err := decodeIncludeObject(raw, pkg, &value); err != nil {
 		return fmt.Errorf("%w: includes.%s: %v", ErrInvalidManifest, label, err)
 	}
 	*destination = &value
+	return nil
+}
+
+func validateV3IncludeFiles(raw json.RawMessage, pkg PackageFS, label string, object bool) error {
+	paths, err := includePaths(raw, pkg, label)
+	if err != nil {
+		return fmt.Errorf("%w: includes.%s: %v", ErrInvalidManifest, label, err)
+	}
+	if object && len(paths) != 1 {
+		return fmt.Errorf("%w: includes.%s must reference one object", ErrInvalidManifest, label)
+	}
+	for _, includePath := range paths {
+		body, err := pkg.ReadFile(includePath)
+		if err != nil {
+			return fmt.Errorf("%w: read includes.%s %s: %v", ErrInvalidManifest, label, includePath, err)
+		}
+		if err := validateV3JSONSchemaFragment(body, label); err != nil {
+			return fmt.Errorf("%w: includes.%s %s: %v", ErrInvalidManifest, label, includePath, err)
+		}
+	}
 	return nil
 }

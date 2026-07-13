@@ -123,6 +123,7 @@ Use existing or mature components before inventing infrastructure:
 | HTML sanitization | bluemonday for user/plugin HTML boundaries | Do not sanitize full trusted template repeatedly |
 | Frontend runtime | Vue/Nuxt SSR + prebuilt ESM mount API | No runtime SFC compilation |
 | Contracts | JSON Schema + modular OpenAPI | Manifest, fragments, settings, render data |
+| Manifest schema validation | `github.com/santhosh-tekuri/jsonschema/v6` | Draft 2020-12; Apache-2.0; embedded and executed during static preflight |
 
 Before dependency changes, perform a short current-maintenance/license/security
 check and use the repository proxy for package commands.

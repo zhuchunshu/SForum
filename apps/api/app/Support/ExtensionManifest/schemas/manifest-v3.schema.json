@@ -1,0 +1,747 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sforum.dev/schemas/extensions/manifest-v3.schema.json",
+  "title": "SForum Extension Manifest V3",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["manifestVersion", "id", "name", "description", "url", "author", "version", "type", "sforumVersion"],
+  "properties": {
+    "manifestVersion": { "const": 3 },
+    "id": { "$ref": "#/$defs/id" },
+    "name": { "$ref": "#/$defs/nonEmpty" },
+    "description": { "$ref": "#/$defs/nonEmpty" },
+    "url": { "type": "string", "format": "uri" },
+    "author": { "$ref": "#/$defs/author" },
+    "version": { "type": "string", "format": "semver" },
+    "type": { "enum": ["plugin", "theme"] },
+    "sforumVersion": { "$ref": "#/$defs/nonEmpty" },
+    "langs": {
+      "type": ["object", "null"],
+      "additionalProperties": { "$ref": "#/$defs/locale" }
+    },
+    "permissions": { "$ref": "#/$defs/stringArray" },
+    "capabilities": { "$ref": "#/$defs/stringArray" },
+    "requiresFeatures": { "$ref": "#/$defs/stringArray" },
+    "settings": {},
+    "migrations": { "$ref": "#/$defs/migrations" },
+    "backend": { "$ref": "#/$defs/backend" },
+    "admin": { "$ref": "#/$defs/admin" },
+    "adminPages": { "$ref": "#/$defs/adminPages" },
+    "routes": { "$ref": "#/$defs/routes" },
+    "hooks": { "$ref": "#/$defs/hooks" },
+    "events": { "$ref": "#/$defs/events" },
+    "jobs": { "$ref": "#/$defs/jobs" },
+    "providers": { "$ref": "#/$defs/providers" },
+    "contributions": { "$ref": "#/$defs/contributions" },
+    "guards": { "$ref": "#/$defs/guards" },
+    "schedules": { "$ref": "#/$defs/schedules" },
+    "components": { "$ref": "#/$defs/components" },
+    "templates": { "$ref": "#/$defs/templates" },
+    "assets": { "$ref": "#/$defs/assets" },
+    "content": { "$ref": "#/$defs/content" },
+    "database": { "$ref": "#/$defs/database" },
+    "cache": { "$ref": "#/$defs/cache" },
+    "services": { "$ref": "#/$defs/services" },
+    "commands": { "$ref": "#/$defs/commands" },
+    "adminSurfaces": { "$ref": "#/$defs/adminSurfaces" },
+    "queries": { "$ref": "#/$defs/queries" },
+    "identity": { "$ref": "#/$defs/identity" },
+    "permissionDefinitions": { "$ref": "#/$defs/permissionDefinitions" },
+    "media": { "$ref": "#/$defs/media" },
+    "navigation": { "$ref": "#/$defs/navigation" },
+    "regions": { "$ref": "#/$defs/regions" },
+    "dependencies": { "$ref": "#/$defs/dependencies" },
+    "lifecycle": { "$ref": "#/$defs/lifecycle" },
+    "openapi": { "$ref": "#/$defs/openapi" },
+    "packageFiles": { "$ref": "#/$defs/packageFiles" },
+    "includes": { "$ref": "#/$defs/includes" }
+  },
+  "$defs": {
+    "nonEmpty": { "type": "string", "minLength": 1 },
+    "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]{1,80}$" },
+    "contract": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]*@[1-9][0-9]*$" },
+    "digest": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "path": { "type": "string", "minLength": 1, "pattern": "^[^/].*$" },
+    "schemaRef": {
+      "type": "string",
+      "minLength": 1,
+      "anyOf": [
+        { "pattern": "^[a-z0-9][a-z0-9._-]*@[1-9][0-9]*$" },
+        { "pattern": "^[^/].*\\.json$" }
+      ]
+    },
+    "stringArray": {
+      "type": ["array", "null"],
+      "items": { "type": "string" },
+      "uniqueItems": true
+    },
+    "author": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name"],
+      "properties": {
+        "name": { "$ref": "#/$defs/nonEmpty" },
+        "url": { "type": "string", "format": "uri" },
+        "email": { "type": "string", "format": "email" }
+      }
+    },
+    "locale": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "url": { "type": "string", "format": "uri" },
+        "author": { "$ref": "#/$defs/author" }
+      }
+    },
+    "versioned": {
+      "type": "object",
+      "required": ["id", "contractVersion"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "contractVersion": { "$ref": "#/$defs/contract" }
+      }
+    },
+    "backend": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "properties": {
+        "entry": { "type": "string" },
+        "rpc": { "type": "string" },
+        "protocolVersion": { "type": "integer", "minimum": 0, "maximum": 2 },
+        "digest": { "type": "string" },
+        "hostApiVersion": { "type": "string" }
+      }
+    },
+    "admin": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "properties": {
+        "entry": { "type": "string" },
+        "pages": { "$ref": "#/$defs/adminPages" }
+      }
+    },
+    "adminPages": {
+      "type": ["array", "null"],
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "label"],
+        "properties": {
+          "path": { "type": "string" },
+          "label": { "$ref": "#/$defs/nonEmpty" },
+          "description": { "type": "string" },
+          "icon": { "type": "string" },
+          "view": { "type": "string" },
+          "menu": { "type": "boolean" },
+          "order": { "type": "integer" },
+          "permission": { "type": "string" }
+        }
+      }
+    },
+    "migrations": {
+      "type": ["array", "null"],
+      "items": {
+        "allOf": [
+          { "$ref": "#/$defs/versioned" },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "contractVersion", "path", "digest", "transaction"],
+            "properties": {
+              "id": { "$ref": "#/$defs/id" },
+              "contractVersion": { "$ref": "#/$defs/contract" },
+              "path": { "$ref": "#/$defs/path" },
+              "digest": { "$ref": "#/$defs/digest" },
+              "transaction": { "enum": ["required", "forbidden", "auto"] }
+            }
+          }
+        ]
+      }
+    },
+    "routes": {
+      "type": ["array", "null"],
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "contractVersion", "action", "path", "methods", "guard", "fallback", "mode"],
+        "properties": {
+          "id": { "$ref": "#/$defs/id" },
+          "contractVersion": { "$ref": "#/$defs/contract" },
+          "action": { "enum": ["add", "alias", "redirect", "rewrite", "before", "after", "filter", "wrap", "replace", "global_middleware"] },
+          "targetId": { "$ref": "#/$defs/id" },
+          "path": { "type": "string" },
+          "methods": { "$ref": "#/$defs/stringArray" },
+          "access": { "type": "string" },
+          "permission": { "type": "string" },
+          "guard": { "$ref": "#/$defs/id" },
+          "priority": { "type": "integer" },
+          "fallback": { "enum": ["closed", "not_found", "readonly_core"] },
+          "mode": { "enum": ["http", "sse", "websocket", "stream", "multipart"] },
+          "destination": { "type": "string" },
+          "handler": { "type": "string" },
+          "requestSchema": { "type": "string" },
+          "responseSchema": { "type": "string" },
+          "timeoutMs": { "type": "integer", "minimum": 0 }
+        }
+      }
+    },
+    "guards": {
+      "type": ["array", "null"],
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "contractVersion", "kind", "entry", "digest"],
+        "properties": {
+          "id": { "$ref": "#/$defs/id" },
+          "contractVersion": { "$ref": "#/$defs/contract" },
+          "kind": { "enum": ["custom", "raw_request"] },
+          "entry": { "$ref": "#/$defs/path" },
+          "digest": { "$ref": "#/$defs/digest" },
+          "permissions": { "$ref": "#/$defs/stringArray" }
+        }
+      }
+    },
+    "hooks": {
+      "type": ["array", "null"],
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "contractVersion", "name", "kind", "handler", "inputSchema"],
+        "properties": {
+          "id": { "$ref": "#/$defs/id" },
+          "contractVersion": { "$ref": "#/$defs/contract" },
+          "name": { "$ref": "#/$defs/id" },
+          "kind": { "enum": ["action", "filter", "observe"] },
+          "targetId": { "$ref": "#/$defs/id" },
+          "handler": { "$ref": "#/$defs/nonEmpty" },
+          "inputSchema": { "$ref": "#/$defs/schemaRef" },
+          "resultSchema": { "type": "string" },
+          "priority": { "type": "integer" }
+        }
+      }
+    },
+    "events": {
+      "type": ["array", "null"],
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "contractVersion", "name", "kind", "handler", "inputSchema"],
+        "properties": {
+          "id": { "$ref": "#/$defs/id" },
+          "contractVersion": { "$ref": "#/$defs/contract" },
+          "name": { "$ref": "#/$defs/id" },
+          "kind": { "enum": ["observe", "filter"] },
+          "handler": { "$ref": "#/$defs/nonEmpty" },
+          "inputSchema": { "$ref": "#/$defs/schemaRef" },
+          "resultSchema": { "type": "string" },
+          "priority": { "type": "integer" },
+          "timeoutMs": { "type": "integer", "minimum": 0 }
+        }
+      }
+    },
+    "jobs": {
+      "type": ["array", "null"],
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "contractVersion", "name", "handler", "payloadSchema", "retryPolicy"],
+        "properties": {
+          "id": { "$ref": "#/$defs/id" },
+          "contractVersion": { "$ref": "#/$defs/contract" },
+          "name": { "$ref": "#/$defs/id" },
+          "handler": { "$ref": "#/$defs/nonEmpty" },
+          "payloadSchema": { "$ref": "#/$defs/schemaRef" },
+          "retryPolicy": { "enum": ["none", "bounded", "exponential"] }
+        }
+      }
+    },
+    "schedules": {
+      "type": ["array", "null"],
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "contractVersion", "jobId", "cron"],
+        "properties": {
+          "id": { "$ref": "#/$defs/id" },
+          "contractVersion": { "$ref": "#/$defs/contract" },
+          "jobId": { "$ref": "#/$defs/id" },
+          "cron": { "$ref": "#/$defs/nonEmpty" },
+          "timezone": { "type": "string" }
+        }
+      }
+    },
+    "providers": {
+      "type": ["array", "null"],
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "contractVersion", "slot", "label", "handler"],
+        "properties": {
+          "id": { "$ref": "#/$defs/id" },
+          "contractVersion": { "$ref": "#/$defs/contract" },
+          "slot": { "$ref": "#/$defs/id" },
+          "label": { "$ref": "#/$defs/nonEmpty" },
+          "handler": { "$ref": "#/$defs/nonEmpty" },
+          "priority": { "type": "integer" },
+          "timeoutMs": { "type": "integer", "minimum": 0 }
+        }
+      }
+    },
+    "contributions": {
+      "type": ["array", "null"],
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["point", "id"],
+        "properties": {
+          "point": { "$ref": "#/$defs/id" },
+          "id": { "$ref": "#/$defs/id" },
+          "order": { "type": "integer" },
+          "label": { "type": "object", "additionalProperties": { "type": "string" } },
+          "icon": { "type": "string" },
+          "payload": {}
+        }
+      }
+    },
+    "components": {
+      "type": ["array", "null"],
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "contractVersion", "action"],
+        "properties": {
+          "id": { "$ref": "#/$defs/id" },
+          "contractVersion": { "$ref": "#/$defs/contract" },
+          "action": { "enum": ["add", "before", "after", "wrap", "replace", "hide", "filter_props", "filter_result"] },
+          "targetId": { "$ref": "#/$defs/id" },
+          "priority": { "type": "integer" },
+          "ssrTemplate": { "type": "string" },
+          "l2Component": { "type": "string" },
+          "propsSchema": { "type": "string" },
+          "resultSchema": { "type": "string" },
+          "themeOverrideKey": { "type": "string" }
+        }
+      }
+    },
+    "templates": {
+      "type": ["array", "null"],
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "contractVersion", "action", "path", "digest", "viewModelSchema"],
+        "properties": {
+          "id": { "$ref": "#/$defs/id" },
+          "contractVersion": { "$ref": "#/$defs/contract" },
+          "action": { "enum": ["add", "replace"] },
+          "targetId": { "$ref": "#/$defs/id" },
+          "path": { "$ref": "#/$defs/path" },
+          "digest": { "$ref": "#/$defs/digest" },
+          "viewModelSchema": { "$ref": "#/$defs/schemaRef" },
+          "themeOverrideKey": { "type": "string" }
+        }
+      }
+    },
+    "assets": {
+      "type": ["array", "null"],
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["handle", "contractVersion", "type", "path", "digest"],
+        "properties": {
+          "handle": { "$ref": "#/$defs/id" },
+          "contractVersion": { "$ref": "#/$defs/contract" },
+          "type": { "enum": ["script", "style"] },
+          "path": { "$ref": "#/$defs/path" },
+          "digest": { "$ref": "#/$defs/digest" },
+          "dependencies": { "$ref": "#/$defs/stringArray" },
+          "scope": { "$ref": "#/$defs/stringArray" },
+          "module": { "type": "boolean" },
+          "loading": { "enum": ["", "blocking", "defer", "async", "preload"] },
+          "integrity": { "type": "string" },
+          "csp": { "$ref": "#/$defs/stringArray" }
+        }
+      }
+    },
+    "content": {
+      "type": ["array", "null"],
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "contractVersion", "kind", "schema"],
+        "properties": {
+          "id": { "$ref": "#/$defs/id" },
+          "contractVersion": { "$ref": "#/$defs/contract" },
+          "kind": { "enum": ["block", "shortcode", "embed", "node", "mark", "render_filter", "sanitizer"] },
+          "handler": { "type": "string" },
+          "schema": { "$ref": "#/$defs/schemaRef" },
+          "renderer": { "type": "string" },
+          "migration": { "type": "string" }
+        }
+      }
+    },
+    "database": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["contractVersion", "authority", "backup", "retention"],
+      "properties": {
+        "contractVersion": { "$ref": "#/$defs/contract" },
+        "authority": { "enum": ["own_schema", "core_views", "host_commands", "raw_core", "kernel"] },
+        "schema": { "type": "string" },
+        "role": { "type": "string" },
+        "coreCompatibility": { "type": "string" },
+        "backup": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["required"],
+          "properties": { "required": { "type": "boolean" }, "strategy": { "type": "string" } }
+        },
+        "retention": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["onDisable", "onUninstall"],
+          "properties": {
+            "onDisable": { "enum": ["retain"] },
+            "onUninstall": { "enum": ["retain", "delete", "export"] },
+            "days": { "type": "integer", "minimum": 0 }
+          }
+        }
+      }
+    },
+    "cache": {
+      "type": ["array", "null"],
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "contractVersion", "namespace", "policy"],
+        "properties": {
+          "id": { "$ref": "#/$defs/id" },
+          "contractVersion": { "$ref": "#/$defs/contract" },
+          "namespace": { "$ref": "#/$defs/id" },
+          "policy": { "enum": ["private", "actor", "permission", "public"] },
+          "tags": { "$ref": "#/$defs/stringArray" },
+          "provider": { "type": "string" },
+          "invalidators": { "$ref": "#/$defs/stringArray" }
+        }
+      }
+    },
+    "services": {
+      "type": ["array", "null"],
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "contractVersion", "action", "handler", "requestSchema", "responseSchema"],
+        "properties": {
+          "id": { "$ref": "#/$defs/id" },
+          "contractVersion": { "$ref": "#/$defs/contract" },
+          "action": { "enum": ["add", "before", "after", "wrap", "replace"] },
+          "targetId": { "$ref": "#/$defs/id" },
+          "handler": { "$ref": "#/$defs/nonEmpty" },
+          "requestSchema": { "$ref": "#/$defs/schemaRef" },
+          "responseSchema": { "$ref": "#/$defs/schemaRef" },
+          "priority": { "type": "integer" }
+        }
+      }
+    },
+    "commands": {
+      "type": ["array", "null"],
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "contractVersion", "handler", "inputSchema", "resultSchema"],
+        "properties": {
+          "id": { "$ref": "#/$defs/id" },
+          "contractVersion": { "$ref": "#/$defs/contract" },
+          "handler": { "$ref": "#/$defs/nonEmpty" },
+          "permission": { "type": "string" },
+          "inputSchema": { "$ref": "#/$defs/schemaRef" },
+          "resultSchema": { "$ref": "#/$defs/schemaRef" }
+        }
+      }
+    },
+    "adminSurfaces": {
+      "type": ["array", "null"],
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "contractVersion", "kind", "action", "label"],
+        "properties": {
+          "id": { "$ref": "#/$defs/id" },
+          "contractVersion": { "$ref": "#/$defs/contract" },
+          "kind": { "enum": ["navigation", "dashboard", "list_column", "list_filter", "row_action", "bulk_action", "form", "notice", "editor_panel", "detail_region", "importer", "exporter"] },
+          "action": { "enum": ["add", "before", "after", "wrap", "replace", "hide", "filter"] },
+          "targetId": { "$ref": "#/$defs/id" },
+          "label": { "$ref": "#/$defs/nonEmpty" },
+          "handler": { "type": "string" },
+          "schema": { "type": "string" },
+          "permission": { "type": "string" },
+          "priority": { "type": "integer" }
+        }
+      }
+    },
+    "queries": {
+      "type": ["array", "null"],
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "contractVersion", "entity", "planVersion", "fields", "pagination", "resultSchema", "permissionPolicy"],
+        "properties": {
+          "id": { "$ref": "#/$defs/id" },
+          "contractVersion": { "$ref": "#/$defs/contract" },
+          "entity": { "$ref": "#/$defs/id" },
+          "planVersion": { "$ref": "#/$defs/contract" },
+          "fields": { "$ref": "#/$defs/stringArray" },
+          "relations": { "$ref": "#/$defs/stringArray" },
+          "filters": { "$ref": "#/$defs/stringArray" },
+          "sort": { "$ref": "#/$defs/stringArray" },
+          "pagination": { "enum": ["none", "offset", "cursor"] },
+          "resultSchema": { "$ref": "#/$defs/schemaRef" },
+          "permissionPolicy": { "$ref": "#/$defs/nonEmpty" },
+          "cacheTags": { "$ref": "#/$defs/stringArray" }
+        }
+      }
+    },
+    "permissionDefinitions": {
+      "type": ["array", "null"],
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["key", "contractVersion", "label", "description", "assignmentPolicy"],
+        "properties": {
+          "key": { "$ref": "#/$defs/id" },
+          "contractVersion": { "$ref": "#/$defs/contract" },
+          "label": { "$ref": "#/$defs/nonEmpty" },
+          "description": { "$ref": "#/$defs/nonEmpty" },
+          "recommendedRoles": { "$ref": "#/$defs/stringArray" },
+          "assignmentPolicy": { "const": "host" }
+        }
+      }
+    },
+    "media": {
+      "type": ["array", "null"],
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "contractVersion", "action", "mimes", "handler"],
+        "properties": {
+          "id": { "$ref": "#/$defs/id" },
+          "contractVersion": { "$ref": "#/$defs/contract" },
+          "action": { "enum": ["add", "before", "after", "wrap", "replace"] },
+          "targetId": { "$ref": "#/$defs/id" },
+          "mimes": { "$ref": "#/$defs/stringArray" },
+          "transforms": {
+            "type": ["array", "null"],
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["id", "variant"],
+              "properties": {
+                "id": { "$ref": "#/$defs/id" },
+                "variant": { "$ref": "#/$defs/nonEmpty" },
+                "format": { "type": "string" },
+                "width": { "type": "integer", "minimum": 0 },
+                "height": { "type": "integer", "minimum": 0 }
+              }
+            }
+          },
+          "handler": { "$ref": "#/$defs/nonEmpty" },
+          "permission": { "type": "string" },
+          "priority": { "type": "integer" }
+        }
+      }
+    },
+    "navigation": {
+      "type": ["array", "null"],
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "contractVersion", "kind", "action", "label"],
+        "properties": {
+          "id": { "$ref": "#/$defs/id" },
+          "contractVersion": { "$ref": "#/$defs/contract" },
+          "kind": { "enum": ["menu", "item", "breadcrumb", "header", "footer", "sidebar"] },
+          "action": { "enum": ["add", "before", "after", "wrap", "replace", "hide", "filter"] },
+          "targetId": { "$ref": "#/$defs/id" },
+          "label": { "$ref": "#/$defs/nonEmpty" },
+          "href": { "type": "string" },
+          "permission": { "type": "string" },
+          "order": { "type": "integer", "minimum": 0 }
+        }
+      }
+    },
+    "regions": {
+      "type": ["array", "null"],
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "contractVersion", "action", "kind", "label"],
+        "properties": {
+          "id": { "$ref": "#/$defs/id" },
+          "contractVersion": { "$ref": "#/$defs/contract" },
+          "action": { "enum": ["add", "before", "after", "wrap", "replace", "hide", "filter"] },
+          "targetId": { "$ref": "#/$defs/id" },
+          "kind": { "enum": ["menu", "widget", "header", "footer", "sidebar", "content"] },
+          "label": { "$ref": "#/$defs/nonEmpty" },
+          "multiple": { "type": "boolean" }
+        }
+      }
+    },
+    "identity": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["contractVersion"],
+      "properties": {
+        "contractVersion": { "$ref": "#/$defs/contract" },
+        "userFields": {
+          "type": ["array", "null"],
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "contractVersion", "type", "schema"],
+            "properties": {
+              "id": { "$ref": "#/$defs/id" },
+              "contractVersion": { "$ref": "#/$defs/contract" },
+              "type": { "enum": ["string", "number", "boolean", "object", "array"] },
+              "schema": { "$ref": "#/$defs/schemaRef" },
+              "readPermission": { "type": "string" },
+              "writePermission": { "type": "string" }
+            }
+          }
+        },
+        "providers": {
+          "type": ["array", "null"],
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "contractVersion", "kind", "handler"],
+            "properties": {
+              "id": { "$ref": "#/$defs/id" },
+              "contractVersion": { "$ref": "#/$defs/contract" },
+              "kind": { "enum": ["auth", "profile", "recovery", "session", "risk"] },
+              "handler": { "$ref": "#/$defs/nonEmpty" },
+              "priority": { "type": "integer" }
+            }
+          }
+        },
+        "sessionPolicy": { "type": "string" },
+        "riskHooks": { "$ref": "#/$defs/stringArray" }
+      }
+    },
+    "dependencies": {
+      "type": ["array", "null"],
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["version", "kind"],
+        "properties": {
+          "id": { "$ref": "#/$defs/id" },
+          "capability": { "$ref": "#/$defs/id" },
+          "version": { "$ref": "#/$defs/nonEmpty" },
+          "kind": { "enum": ["required", "optional", "conflict", "provides"] }
+        }
+      }
+    },
+    "lifecycle": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["contractVersion"],
+      "properties": {
+        "contractVersion": { "$ref": "#/$defs/contract" },
+        "install": { "$ref": "#/$defs/lifecycleOperation" },
+        "enable": { "$ref": "#/$defs/lifecycleOperation" },
+        "disable": { "$ref": "#/$defs/lifecycleOperation" },
+        "upgrade": { "$ref": "#/$defs/lifecycleOperation" },
+        "rollback": { "$ref": "#/$defs/lifecycleOperation" },
+        "uninstall": { "$ref": "#/$defs/lifecycleOperation" }
+      }
+    },
+    "lifecycleOperation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["plan", "execute", "progressSchema", "checkpointSchema"],
+      "properties": {
+        "plan": { "$ref": "#/$defs/nonEmpty" },
+        "execute": { "$ref": "#/$defs/nonEmpty" },
+        "progressSchema": { "$ref": "#/$defs/schemaRef" },
+        "checkpointSchema": { "$ref": "#/$defs/schemaRef" }
+      }
+    },
+    "openapi": {
+      "type": ["array", "null"],
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "contractVersion", "path", "digest", "namespace"],
+        "properties": {
+          "id": { "$ref": "#/$defs/id" },
+          "contractVersion": { "$ref": "#/$defs/contract" },
+          "path": { "$ref": "#/$defs/path" },
+          "digest": { "$ref": "#/$defs/digest" },
+          "namespace": { "$ref": "#/$defs/id" }
+        }
+      }
+    },
+    "packageFiles": {
+      "type": ["array", "null"],
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "kind", "path", "digest"],
+        "properties": {
+          "id": { "$ref": "#/$defs/id" },
+          "kind": { "enum": ["executable", "frontend", "locale", "schema", "migration", "template", "asset", "openapi"] },
+          "path": { "$ref": "#/$defs/path" },
+          "digest": { "$ref": "#/$defs/digest" },
+          "locale": { "type": "string" },
+          "version": { "type": "string" }
+        }
+      }
+    },
+    "include": {
+      "oneOf": [
+        { "$ref": "#/$defs/path" },
+        { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/path" } }
+      ]
+    },
+    "includes": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "langs": { "$ref": "#/$defs/include" },
+        "settings": { "$ref": "#/$defs/include" },
+        "contributions": { "$ref": "#/$defs/include" },
+        "admin": { "$ref": "#/$defs/include" },
+        "events": { "$ref": "#/$defs/include" },
+        "routes": { "$ref": "#/$defs/include" },
+        "jobs": { "$ref": "#/$defs/include" },
+        "migrations": { "$ref": "#/$defs/include" },
+        "permissions": { "$ref": "#/$defs/include" },
+        "hooks": { "$ref": "#/$defs/include" },
+        "providers": { "$ref": "#/$defs/include" },
+        "adminPages": { "$ref": "#/$defs/include" },
+        "guards": { "$ref": "#/$defs/include" },
+        "schedules": { "$ref": "#/$defs/include" },
+        "components": { "$ref": "#/$defs/include" },
+        "templates": { "$ref": "#/$defs/include" },
+        "assets": { "$ref": "#/$defs/include" },
+        "content": { "$ref": "#/$defs/include" },
+        "database": { "$ref": "#/$defs/include" },
+        "cache": { "$ref": "#/$defs/include" },
+        "services": { "$ref": "#/$defs/include" },
+        "commands": { "$ref": "#/$defs/include" },
+        "adminSurfaces": { "$ref": "#/$defs/include" },
+        "queries": { "$ref": "#/$defs/include" },
+        "identity": { "$ref": "#/$defs/include" },
+        "permissionDefinitions": { "$ref": "#/$defs/include" },
+        "media": { "$ref": "#/$defs/include" },
+        "navigation": { "$ref": "#/$defs/include" },
+        "regions": { "$ref": "#/$defs/include" },
+        "dependencies": { "$ref": "#/$defs/include" },
+        "lifecycle": { "$ref": "#/$defs/include" },
+        "openapi": { "$ref": "#/$defs/include" },
+        "packageFiles": { "$ref": "#/$defs/include" }
+      }
+    }
+  }
+}
