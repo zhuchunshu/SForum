@@ -50,11 +50,11 @@ func (r *PostgresLifecycleRepository) BeginStepAttempt(ctx context.Context, inpu
 	err = tx.QueryRow(ctx, `
 		INSERT INTO extension_lifecycle_steps (
 			operation_id, step_id, lifecycle_action, plan_version, attempt,
-			input_document, actor_user_id, audit_event_id
-		) VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7, $8)
+			input_document, checkpoint, actor_user_id, audit_event_id
+		) VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7, $8, $9)
 		RETURNING id
 	`, input.OperationID, input.StepID, input.LifecycleAction, input.PlanVersion,
-		nextAttempt, lifecycleNullableJSON(input.InputDocument),
+		nextAttempt, lifecycleNullableJSON(input.InputDocument), input.Checkpoint,
 		nullableLifecycleID(input.ActorUserID), nullableLifecycleID(input.AuditEventID)).Scan(&attemptID)
 	if err != nil {
 		return BeginLifecycleStepAttemptResult{}, mapLifecycleStepWriteError("insert lifecycle step attempt", err)

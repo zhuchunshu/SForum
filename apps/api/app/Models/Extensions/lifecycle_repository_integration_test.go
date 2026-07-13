@@ -114,6 +114,7 @@ func TestPostgresLifecycleRepositoryConcurrentAcquireAndRecovery(t *testing.T) {
 	stepInput := BeginLifecycleStepAttemptInput{
 		OperationID: operation.ID, StepID: "enable.execute", LifecycleAction: "enable",
 		PlanVersion: input.PlanVersion, InputDocument: json.RawMessage(`{"schema":"enable.input@1"}`),
+		Checkpoint: "resume-1",
 	}
 	stepStart := make(chan struct{})
 	stepResults := make(chan BeginLifecycleStepAttemptResult, 2)
@@ -150,7 +151,7 @@ func TestPostgresLifecycleRepositoryConcurrentAcquireAndRecovery(t *testing.T) {
 			t.Fatalf("same stable step returned attempts %d and %d", step.Attempt.ID, result.Attempt.ID)
 		}
 	}
-	if stepCreated != 1 || step.Attempt.Attempt != 1 {
+	if stepCreated != 1 || step.Attempt.Attempt != 1 || step.Attempt.Checkpoint != stepInput.Checkpoint {
 		t.Fatalf("step created=%d attempt=%#v", stepCreated, step.Attempt)
 	}
 	createdAt := step.Attempt.UpdatedAt
@@ -224,7 +225,8 @@ func TestPostgresLifecycleRepositoryConcurrentAcquireAndRecovery(t *testing.T) {
 	}
 
 	retry, err := restarted.BeginStepAttempt(ctx, stepInput)
-	if err != nil || !retry.Created || retry.Attempt.Attempt != 2 {
+	if err != nil || !retry.Created || retry.Attempt.Attempt != 2 ||
+		retry.Attempt.Checkpoint != stepInput.Checkpoint || retry.Attempt.CompletedUnits != 0 || retry.Attempt.TotalUnits != 0 {
 		t.Fatalf("begin retry = %#v, err=%v", retry, err)
 	}
 	if _, err := restarted.UpdateStepProgress(ctx, UpdateLifecycleStepProgressInput{

@@ -186,6 +186,7 @@ type BeginLifecycleStepAttemptInput struct {
 	LifecycleAction string
 	PlanVersion     string
 	InputDocument   json.RawMessage
+	Checkpoint      string
 	ActorUserID     int64
 	AuditEventID    int64
 }
