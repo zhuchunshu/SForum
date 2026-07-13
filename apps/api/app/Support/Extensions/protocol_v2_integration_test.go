@@ -129,6 +129,43 @@ func TestProtocolV2HookContractFailsClosed(t *testing.T) {
 	}
 }
 
+func TestProtocolV2HookPropagatesCallerCancellation(t *testing.T) {
+	extension := protocolV2TestExtension(t, "v2")
+	gateway, _ := newProtocolV2HostGateway()
+	t.Cleanup(func() { _ = gateway.Close() })
+	starter := extensionsruntime.NewProtocolStarter(extensionsruntime.ProtocolStarterConfig{
+		Trust:   staticRuntimeTrust{identity: extensions.RuntimeTrustIdentity{TrustGrantID: "41", ImpactDigest: "impact-41"}},
+		HostAPI: gateway,
+	})
+	if _, err := starter.Start(context.Background(), extension); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = starter.Stop(context.Background(), extension) })
+
+	readyMarker := filepath.Join(t.TempDir(), "ready")
+	cancelledMarker := filepath.Join(filepath.Dir(readyMarker), "cancelled")
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	resultCh := make(chan extensionsruntime.HookResult, 1)
+	go func() {
+		resultCh <- starter.InvokeHook(ctx, extension, extensionsruntime.HookInput{
+			Name: "topic.before_create", Kind: "filter", Timeout: 5 * time.Second,
+			Payload: map[string]any{"mode": "wait_for_cancel", "ready_marker": readyMarker, "cancelled_marker": cancelledMarker},
+		})
+	}()
+	awaitProtocolV2Marker(t, readyMarker, 2*time.Second)
+	cancel()
+	select {
+	case result := <-resultCh:
+		if result.OK || result.Reason != "extension.hook_timeout" {
+			t.Fatalf("cancelled hook result = %#v", result)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("cancelled hook did not return promptly")
+	}
+	awaitProtocolV2Marker(t, cancelledMarker, time.Second)
+}
+
 func TestProtocolV2HostBrokerRebindsAfterRestart(t *testing.T) {
 	extension := protocolV2TestExtension(t, "v2")
 	gateway, _ := newProtocolV2HostGateway()
@@ -318,6 +355,19 @@ func (s *protocolV2Helper) InvokeHook(ctx context.Context, request *pluginwire.H
 	if mode == "crash" {
 		os.Exit(23)
 	}
+	if mode == "wait_for_cancel" {
+		values := request.GetPayload().GetValue().AsMap()
+		readyMarker, _ := values["ready_marker"].(string)
+		cancelledMarker, _ := values["cancelled_marker"].(string)
+		if err := os.WriteFile(readyMarker, []byte("ready"), 0o600); err != nil {
+			return nil, err
+		}
+		<-ctx.Done()
+		if err := os.WriteFile(cancelledMarker, []byte(ctx.Err().Error()), 0o600); err != nil {
+			return nil, err
+		}
+		return nil, ctx.Err()
+	}
 	if mode == "invalid_result_schema" {
 		return &pluginwire.HookResponse{
 			Context:  &protocolwire.ResponseContext{RequestId: requestContext.GetRequestId(), Extension: identity},
@@ -356,6 +406,20 @@ func (s *protocolV2Helper) InvokeHook(ctx context.Context, request *pluginwire.H
 		Result:   &protocolwire.TypedDocument{SchemaId: "runtime.v2.hook-result", SchemaVersion: "1", Value: result},
 		Patch:    &protocolwire.TypedDocument{SchemaId: "runtime.v2.hook-result.patch", SchemaVersion: "1", Value: patch},
 	}, nil
+}
+
+func awaitProtocolV2Marker(t *testing.T, path string, timeout time.Duration) {
+	t.Helper()
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		if _, err := os.Stat(path); err == nil {
+			return
+		} else if !errors.Is(err, os.ErrNotExist) {
+			t.Fatalf("stat protocol v2 marker: %v", err)
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Fatalf("protocol v2 marker %s was not written", filepath.Base(path))
 }
 
 func protocolV2EchoService(_ context.Context, _ *pluginv2sdk.ServiceCall) (*protocolwire.TypedDocument, error) {

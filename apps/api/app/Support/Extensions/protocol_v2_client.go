@@ -270,6 +270,10 @@ func (*protocolV2Client) RouteTarget() (PluginRouteTarget, error) {
 }
 
 func (c *protocolV2Client) InvokeHook(input PluginHookRequest) (PluginHookResponse, error) {
+	return c.InvokeHookContext(context.Background(), input)
+}
+
+func (c *protocolV2Client) InvokeHookContext(parent context.Context, input PluginHookRequest) (PluginHookResponse, error) {
 	declaration, err := c.eventDeclaration(input.Name, input.Kind)
 	if err != nil {
 		return PluginHookResponse{}, err
@@ -278,7 +282,7 @@ func (c *protocolV2Client) InvokeHook(input PluginHookRequest) (PluginHookRespon
 	if input.TimeoutMS > 0 {
 		timeout = time.Duration(input.TimeoutMS) * time.Millisecond
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	ctx, cancel := protocolV2Deadline(parent, timeout)
 	defer cancel()
 	payloadSchemaID, payloadSchemaVersion, err := protocolV2SchemaRef(declaration.InputSchema)
 	if err != nil {
@@ -295,6 +299,9 @@ func (c *protocolV2Client) InvokeHook(input PluginHookRequest) (PluginHookRespon
 		MutableFields: append([]string(nil), input.PatchFields...),
 	})
 	if err != nil {
+		if ctx.Err() != nil {
+			return PluginHookResponse{}, ctx.Err()
+		}
 		return PluginHookResponse{}, err
 	}
 	if err := protocolV2Error(response.GetError()); err != nil {
@@ -493,9 +500,6 @@ func protocolV2Error(detail *protocolv2.ErrorDetail) error {
 }
 
 func protocolV2Deadline(ctx context.Context, timeout time.Duration) (context.Context, context.CancelFunc) {
-	if _, ok := ctx.Deadline(); ok {
-		return context.WithCancel(ctx)
-	}
 	return context.WithTimeout(ctx, timeout)
 }
 
@@ -546,4 +550,5 @@ func stringMapValue(values map[string]any, key string) map[string]string {
 }
 
 var _ PluginProtocol = (*protocolV2Client)(nil)
+var _ pluginHookContextInvoker = (*protocolV2Client)(nil)
 var _ error = (*ProtocolV2Error)(nil)

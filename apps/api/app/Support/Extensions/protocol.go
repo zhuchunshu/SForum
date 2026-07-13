@@ -94,6 +94,12 @@ type PluginProtocol interface {
 	StorageProbe(StorageProbeRequest) (StorageProbeResponse, error)
 }
 
+// pluginHookContextInvoker lets typed transports propagate Host cancellation
+// without changing the protocol-v1 net/rpc compatibility interface.
+type pluginHookContextInvoker interface {
+	InvokeHookContext(context.Context, PluginHookRequest) (PluginHookResponse, error)
+}
+
 type PluginHealth struct {
 	OK bool
 }
@@ -493,6 +499,10 @@ func (s *ProtocolStarter) InvokeHook(ctx context.Context, extension extensions.E
 		Payload:       input.Payload,
 		PatchFields:   input.PatchFields,
 	}
+	if contextual, ok := protocol.(pluginHookContextInvoker); ok {
+		resp, err := contextual.InvokeHookContext(ctx, req)
+		return protocolHookResult(ctx, resp, err)
+	}
 	// net/rpc 无原生 context；用 goroutine + select 保证宿主 deadline 生效（F2.3）。
 	type outcome struct {
 		resp PluginHookResponse
@@ -511,11 +521,22 @@ func (s *ProtocolStarter) InvokeHook(ctx context.Context, extension extensions.E
 			Message: "Plugin hook exceeded the host timeout. Heavy work must enqueue a job.",
 		}
 	case out := <-done:
-		if out.err != nil {
-			return HookResult{OK: false, Reason: "extension.hook_failed", Message: out.err.Error()}
-		}
-		return HookResult{OK: out.resp.OK, Reason: out.resp.Reason, Message: out.resp.Message, Patch: out.resp.Patch}
+		return protocolHookResult(ctx, out.resp, out.err)
 	}
+}
+
+func protocolHookResult(ctx context.Context, response PluginHookResponse, err error) HookResult {
+	if err != nil {
+		if ctx.Err() != nil || errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+			return HookResult{
+				OK:      false,
+				Reason:  "extension.hook_timeout",
+				Message: "Plugin hook exceeded the host timeout. Heavy work must enqueue a job.",
+			}
+		}
+		return HookResult{OK: false, Reason: "extension.hook_failed", Message: err.Error()}
+	}
+	return HookResult{OK: response.OK, Reason: response.Reason, Message: response.Message, Patch: response.Patch}
 }
 
 func (s *ProtocolStarter) SendMail(ctx context.Context, extensionID string, request MailProviderRequest) (MailProviderResponse, error) {
