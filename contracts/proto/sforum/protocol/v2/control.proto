@@ -118,6 +118,9 @@ message LifecycleRequest {
   string checkpoint = 5;
   TypedDocument input = 6;
   bool dry_run = 7;
+  // Forced is an explicit Host decision for recovery cleanup. It is never a
+  // dry-run alias and must not be inferred from plugin-owned input.
+  bool forced = 8;
 }
 
 // ProgressState describes a streaming lifecycle or job update.

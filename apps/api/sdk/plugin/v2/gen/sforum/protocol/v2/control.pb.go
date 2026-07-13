@@ -894,14 +894,17 @@ func (x *ReadinessResponse) GetError() *ErrorDetail {
 
 // LifecycleRequest invokes one declared stable lifecycle step.
 type LifecycleRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Context       *RequestContext        `protobuf:"bytes,1,opt,name=context,proto3" json:"context,omitempty"`
-	Action        LifecycleAction        `protobuf:"varint,2,opt,name=action,proto3,enum=sforum.protocol.v2.LifecycleAction" json:"action,omitempty"`
-	PlanVersion   string                 `protobuf:"bytes,3,opt,name=plan_version,json=planVersion,proto3" json:"plan_version,omitempty"`
-	StepId        string                 `protobuf:"bytes,4,opt,name=step_id,json=stepId,proto3" json:"step_id,omitempty"`
-	Checkpoint    string                 `protobuf:"bytes,5,opt,name=checkpoint,proto3" json:"checkpoint,omitempty"`
-	Input         *TypedDocument         `protobuf:"bytes,6,opt,name=input,proto3" json:"input,omitempty"`
-	DryRun        bool                   `protobuf:"varint,7,opt,name=dry_run,json=dryRun,proto3" json:"dry_run,omitempty"`
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	Context     *RequestContext        `protobuf:"bytes,1,opt,name=context,proto3" json:"context,omitempty"`
+	Action      LifecycleAction        `protobuf:"varint,2,opt,name=action,proto3,enum=sforum.protocol.v2.LifecycleAction" json:"action,omitempty"`
+	PlanVersion string                 `protobuf:"bytes,3,opt,name=plan_version,json=planVersion,proto3" json:"plan_version,omitempty"`
+	StepId      string                 `protobuf:"bytes,4,opt,name=step_id,json=stepId,proto3" json:"step_id,omitempty"`
+	Checkpoint  string                 `protobuf:"bytes,5,opt,name=checkpoint,proto3" json:"checkpoint,omitempty"`
+	Input       *TypedDocument         `protobuf:"bytes,6,opt,name=input,proto3" json:"input,omitempty"`
+	DryRun      bool                   `protobuf:"varint,7,opt,name=dry_run,json=dryRun,proto3" json:"dry_run,omitempty"`
+	// Forced is an explicit Host decision for recovery cleanup. It is never a
+	// dry-run alias and must not be inferred from plugin-owned input.
+	Forced        bool `protobuf:"varint,8,opt,name=forced,proto3" json:"forced,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -981,6 +984,13 @@ func (x *LifecycleRequest) GetInput() *TypedDocument {
 func (x *LifecycleRequest) GetDryRun() bool {
 	if x != nil {
 		return x.DryRun
+	}
+	return false
+}
+
+func (x *LifecycleRequest) GetForced() bool {
+	if x != nil {
+		return x.Forced
 	}
 	return false
 }
@@ -1157,7 +1167,7 @@ const file_sforum_protocol_v2_control_proto_rawDesc = "" +
 	"\acontext\x18\x01 \x01(\v2#.sforum.protocol.v2.ResponseContextR\acontext\x12\x14\n" +
 	"\x05ready\x18\x02 \x01(\bR\x05ready\x121\n" +
 	"\x14unavailable_services\x18\x03 \x03(\tR\x13unavailableServices\x125\n" +
-	"\x05error\x18\x04 \x01(\v2\x1f.sforum.protocol.v2.ErrorDetailR\x05error\"\xbb\x02\n" +
+	"\x05error\x18\x04 \x01(\v2\x1f.sforum.protocol.v2.ErrorDetailR\x05error\"\xd3\x02\n" +
 	"\x10LifecycleRequest\x12<\n" +
 	"\acontext\x18\x01 \x01(\v2\".sforum.protocol.v2.RequestContextR\acontext\x12;\n" +
 	"\x06action\x18\x02 \x01(\x0e2#.sforum.protocol.v2.LifecycleActionR\x06action\x12!\n" +
@@ -1167,7 +1177,8 @@ const file_sforum_protocol_v2_control_proto_rawDesc = "" +
 	"checkpoint\x18\x05 \x01(\tR\n" +
 	"checkpoint\x127\n" +
 	"\x05input\x18\x06 \x01(\v2!.sforum.protocol.v2.TypedDocumentR\x05input\x12\x17\n" +
-	"\adry_run\x18\a \x01(\bR\x06dryRun\"\x97\x03\n" +
+	"\adry_run\x18\a \x01(\bR\x06dryRun\x12\x16\n" +
+	"\x06forced\x18\b \x01(\bR\x06forced\"\x97\x03\n" +
 	"\x0eProgressUpdate\x12=\n" +
 	"\acontext\x18\x01 \x01(\v2#.sforum.protocol.v2.ResponseContextR\acontext\x12\x17\n" +
 	"\astep_id\x18\x02 \x01(\tR\x06stepId\x127\n" +

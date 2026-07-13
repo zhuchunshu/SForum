@@ -60,6 +60,8 @@ func TestRequiredEnvelopeAndCommandFields(t *testing.T) {
 	assertFields(t, "sforum.protocol.v2.TypedDocument", "schema_id", "schema_version", "value")
 	assertFields(t, "sforum.protocol.v2.HandshakeRequest",
 		"context", "host_protocols", "host_features", "limits", "host_broker_id", "host_api_version", "runtime_token")
+	assertFields(t, "sforum.protocol.v2.LifecycleRequest",
+		"context", "action", "plan_version", "step_id", "checkpoint", "input", "dry_run", "forced")
 	assertFields(t, "sforum.host.v2.CommandRequest",
 		"context", "command_id", "command_version", "idempotency_key", "dry_run", "expected_revision", "input")
 	assertFields(t, "sforum.host.v2.CommandResult",

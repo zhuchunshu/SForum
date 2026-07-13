@@ -24,6 +24,9 @@ func TestRuntimeStreamingHelpersRoundTripGeneratedClient(t *testing.T) {
 	handshake := validHandshakeRequest()
 	server := NewServer().WithRuntimeStreams(RuntimeStreams{
 		Lifecycle: func(_ context.Context, request *protocolwire.LifecycleRequest, progress *ProgressStream) error {
+			if !request.GetForced() || request.GetDryRun() {
+				return fmt.Errorf("lifecycle forced=%t dry_run=%t", request.GetForced(), request.GetDryRun())
+			}
 			for _, update := range []*protocolwire.ProgressUpdate{
 				{StepId: request.GetStepId(), State: protocolwire.ProgressState_PROGRESS_STATE_RUNNING, CompletedUnits: 1, TotalUnits: 2, Checkpoint: "half"},
 				{StepId: request.GetStepId(), State: protocolwire.ProgressState_PROGRESS_STATE_SUCCEEDED, CompletedUnits: 2, TotalUnits: 2, Checkpoint: "done"},
@@ -71,7 +74,7 @@ func TestRuntimeStreamingHelpersRoundTripGeneratedClient(t *testing.T) {
 
 	lifecycleContext := runtimeStreamTestContext(handshake, "lifecycle-1")
 	progress, err := RunLifecycleStream(context.Background(), client, &protocolwire.LifecycleRequest{
-		Context: lifecycleContext, Action: protocolwire.LifecycleAction_LIFECYCLE_ACTION_ENABLE, StepId: "enable",
+		Context: lifecycleContext, Action: protocolwire.LifecycleAction_LIFECYCLE_ACTION_ENABLE, StepId: "enable", Forced: true,
 	})
 	if err != nil {
 		t.Fatal(err)
