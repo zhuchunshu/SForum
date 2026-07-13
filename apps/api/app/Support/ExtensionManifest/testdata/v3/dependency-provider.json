@@ -1,0 +1,14 @@
+{
+  "manifestVersion": 3,
+  "id": "fixture.dependency-provider",
+  "name": "Dependency Provider",
+  "description": "Virtual capability graph provider.",
+  "url": "https://example.com/dependency-provider",
+  "author": {"name": "SForum"},
+  "version": "2.0.0",
+  "type": "plugin",
+  "sforumVersion": "^1.0.0",
+  "dependencies": [
+    {"capability": "fixture.capability.search", "version": "2.0.0", "kind": "provides"}
+  ]
+}

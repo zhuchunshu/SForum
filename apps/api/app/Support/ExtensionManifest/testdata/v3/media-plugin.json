@@ -1,0 +1,17 @@
+{
+  "manifestVersion": 3,
+  "id": "fixture.media",
+  "name": "Media Plugin",
+  "description": "MIME and transform pipeline fixture.",
+  "url": "https://example.com/media",
+  "author": {"name": "SForum"},
+  "version": "1.0.0",
+  "type": "plugin",
+  "sforumVersion": "^1.0.0",
+  "permissionDefinitions": [
+    {"key": "fixture.media.transform", "contractVersion": "fixture.media.transform@1", "label": "Transform media", "description": "Run fixture media transforms.", "assignmentPolicy": "host"}
+  ],
+  "media": [
+    {"id": "fixture.media.pipeline.image", "contractVersion": "fixture.media.pipeline.image@1", "action": "add", "mimes": ["image/png", "image/jpeg"], "handler": "media.transform", "permission": "fixture.media.transform", "transforms": [{"id": "thumbnail", "variant": "thumb", "format": "webp", "width": 320, "height": 240}]}
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "manifestVersion": 3,
+  "id": "fixture.identity",
+  "name": "Identity Plugin",
+  "description": "User fields and auth/profile/recovery provider fixture.",
+  "url": "https://example.com/identity",
+  "author": {"name": "SForum"},
+  "version": "1.0.0",
+  "type": "plugin",
+  "sforumVersion": "^1.0.0",
+  "permissionDefinitions": [
+    {"key": "fixture.identity.profile", "contractVersion": "fixture.identity.profile@1", "label": "Manage identity field", "description": "Read and write the fixture profile field.", "assignmentPolicy": "host"}
+  ],
+  "identity": {
+    "contractVersion": "fixture.identity.contract@1",
+    "sessionPolicy": "core.session.default",
+    "riskHooks": ["fixture.identity.risk.login"],
+    "userFields": [
+      {"id": "fixture.identity.field.code", "contractVersion": "fixture.identity.field.code@1", "type": "string", "schema": "fixture.identity.field.code.schema@1", "readPermission": "fixture.identity.profile", "writePermission": "fixture.identity.profile"}
+    ],
+    "providers": [
+      {"id": "fixture.identity.provider.risk", "contractVersion": "fixture.identity.provider.risk@1", "kind": "risk", "handler": "identity.risk"}
+    ]
+  }
+}

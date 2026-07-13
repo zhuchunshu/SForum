@@ -1,0 +1,17 @@
+{
+  "manifestVersion": 3,
+  "id": "fixture.l2",
+  "name": "L2 Plugin",
+  "description": "Author-prebuilt L2 component fixture.",
+  "url": "https://example.com/l2",
+  "author": {"name": "SForum"},
+  "version": "1.0.0",
+  "type": "plugin",
+  "sforumVersion": "^1.0.0",
+  "packageFiles": [
+    {"id": "fixture.l2.file.component", "kind": "frontend", "path": "frontend/card.mjs", "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
+  ],
+  "components": [
+    {"id": "fixture.l2.component.card", "contractVersion": "fixture.l2.component.card@1", "action": "add", "l2Component": "fixture.l2.file.component", "propsSchema": "fixture.l2.component.card.props@1", "resultSchema": "fixture.l2.component.card.result@1", "themeOverrideKey": "fixture.l2.card"}
+  ]
+}

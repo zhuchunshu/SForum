@@ -1,0 +1,17 @@
+{
+  "manifestVersion": 3,
+  "id": "fixture.navigation",
+  "name": "Navigation Plugin",
+  "description": "Menu, breadcrumb, and theme region fixture.",
+  "url": "https://example.com/navigation",
+  "author": {"name": "SForum"},
+  "version": "1.0.0",
+  "type": "plugin",
+  "sforumVersion": "^1.0.0",
+  "navigation": [
+    {"id": "fixture.navigation.item.docs", "contractVersion": "fixture.navigation.item.docs@1", "kind": "item", "action": "add", "label": "Docs", "href": "/docs", "order": 100}
+  ],
+  "regions": [
+    {"id": "fixture.navigation.region.sidebar", "contractVersion": "fixture.navigation.region.sidebar@1", "action": "add", "kind": "sidebar", "label": "Documentation sidebar", "multiple": true}
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "manifestVersion": 3,
+  "id": "fixture.dependency-consumer",
+  "name": "Dependency Consumer",
+  "description": "Direct and virtual dependency graph consumer.",
+  "url": "https://example.com/dependency-consumer",
+  "author": {"name": "SForum"},
+  "version": "1.0.0",
+  "type": "plugin",
+  "sforumVersion": "^1.0.0",
+  "dependencies": [
+    {"id": "fixture.dependency-base", "version": "^1.0.0", "kind": "required"},
+    {"capability": "fixture.capability.search", "version": "^2.0.0", "kind": "required"},
+    {"id": "fixture.optional", "version": "^1.0.0", "kind": "optional"}
+  ]
+}

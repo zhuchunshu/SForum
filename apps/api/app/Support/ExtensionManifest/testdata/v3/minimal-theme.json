@@ -1,0 +1,20 @@
+{
+  "manifestVersion": 3,
+  "id": "fixture.theme-minimal",
+  "name": "Minimal Theme",
+  "description": "Minimal Manifest V3 presentation theme.",
+  "url": "https://example.com/theme-minimal",
+  "author": {"name": "SForum"},
+  "version": "1.0.0",
+  "type": "theme",
+  "sforumVersion": "^1.0.0",
+  "packageFiles": [
+    {"id": "fixture.theme-minimal.file.home", "kind": "template", "path": "templates/home.html", "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
+  ],
+  "templates": [
+    {"id": "fixture.theme-minimal.template.home", "contractVersion": "fixture.theme-minimal.template.home@1", "action": "add", "path": "templates/home.html", "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "viewModelSchema": "sforum.page.home@1", "themeOverrideKey": "fixture.theme-minimal.home"}
+  ],
+  "components": [
+    {"id": "fixture.theme-minimal.component.home", "contractVersion": "fixture.theme-minimal.component.home@1", "action": "add", "ssrTemplate": "fixture.theme-minimal.template.home", "propsSchema": "sforum.page.home@1"}
+  ]
+}

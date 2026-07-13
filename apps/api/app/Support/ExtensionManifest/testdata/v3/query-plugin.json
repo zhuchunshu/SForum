@@ -1,0 +1,17 @@
+{
+  "manifestVersion": 3,
+  "id": "fixture.query",
+  "name": "Query Plugin",
+  "description": "Versioned permission-aware query fixture.",
+  "url": "https://example.com/query",
+  "author": {"name": "SForum"},
+  "version": "1.0.0",
+  "type": "plugin",
+  "sforumVersion": "^1.0.0",
+  "permissionDefinitions": [
+    {"key": "fixture.query.read", "contractVersion": "fixture.query.read@1", "label": "Read fixture query", "description": "Run the fixture query.", "assignmentPolicy": "host"}
+  ],
+  "queries": [
+    {"id": "fixture.query.items", "contractVersion": "fixture.query.items@1", "entity": "fixture.query.item", "planVersion": "fixture.query.items.plan@1", "fields": ["id", "title"], "relations": ["owner"], "filters": ["status"], "sort": ["created_at"], "pagination": "cursor", "resultSchema": "fixture.query.items.result@1", "permissionPolicy": "fixture.query.read", "cacheTags": ["fixture.query.items"]}
+  ]
+}

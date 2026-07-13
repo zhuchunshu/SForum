@@ -1,0 +1,26 @@
+{
+  "manifestVersion": 3,
+  "id": "fixture.application",
+  "name": "Trusted Application",
+  "description": "Executable application plugin with services, commands, database, and lifecycle.",
+  "url": "https://example.com/application",
+  "author": {"name": "SForum"},
+  "version": "1.0.0",
+  "type": "plugin",
+  "sforumVersion": "^1.0.0",
+  "backend": {"entry": "backend/plugin", "rpc": "hashicorp-go-plugin", "protocolVersion": 2, "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "hostApiVersion": "sforum.host-api@2"},
+  "packageFiles": [
+    {"id": "fixture.application.file.backend", "kind": "executable", "path": "backend/plugin", "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
+  ],
+  "permissionDefinitions": [
+    {"key": "fixture.application.manage", "contractVersion": "fixture.application.manage@1", "label": "Manage application", "description": "Manage the application plugin.", "assignmentPolicy": "host"}
+  ],
+  "database": {"contractVersion": "fixture.application.database@1", "authority": "own_schema", "schema": "fixture_application", "role": "fixture_application", "backup": {"required": true, "strategy": "pg_dump"}, "retention": {"onDisable": "retain", "onUninstall": "export", "days": 30}},
+  "services": [
+    {"id": "fixture.application.service.lookup", "contractVersion": "fixture.application.service.lookup@1", "action": "add", "handler": "service.lookup", "requestSchema": "fixture.application.service.lookup.request@1", "responseSchema": "fixture.application.service.lookup.response@1"}
+  ],
+  "commands": [
+    {"id": "fixture.application.command.write", "contractVersion": "fixture.application.command.write@1", "handler": "command.write", "permission": "fixture.application.manage", "inputSchema": "fixture.application.command.write.input@1", "resultSchema": "fixture.application.command.write.result@1"}
+  ],
+  "lifecycle": {"contractVersion": "fixture.application.lifecycle@1", "install": {"plan": "install.plan", "execute": "install.execute", "progressSchema": "fixture.application.lifecycle.progress@1", "checkpointSchema": "fixture.application.lifecycle.checkpoint@1"}}
+}

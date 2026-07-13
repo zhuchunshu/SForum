@@ -1,0 +1,16 @@
+{
+  "manifestVersion": 3,
+  "id": "fixture.raw-db",
+  "name": "Raw Database Plugin",
+  "description": "High-risk raw core database compatibility fixture.",
+  "url": "https://example.com/raw-db",
+  "author": {"name": "SForum"},
+  "version": "1.0.0",
+  "type": "plugin",
+  "sforumVersion": "^1.0.0",
+  "backend": {"entry": "backend/plugin", "rpc": "hashicorp-go-plugin", "protocolVersion": 1, "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+  "packageFiles": [
+    {"id": "fixture.raw-db.file.backend", "kind": "executable", "path": "backend/plugin", "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
+  ],
+  "database": {"contractVersion": "fixture.raw-db.database@1", "authority": "raw_core", "coreCompatibility": ">=1.0.0 <2.0.0", "backup": {"required": true, "strategy": "operator_snapshot"}, "retention": {"onDisable": "retain", "onUninstall": "retain"}}
+}

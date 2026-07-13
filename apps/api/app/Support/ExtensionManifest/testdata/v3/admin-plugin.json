@@ -1,0 +1,20 @@
+{
+  "manifestVersion": 3,
+  "id": "fixture.admin",
+  "name": "Admin Surface Plugin",
+  "description": "Admin list, action, form, notice, importer, and exporter fixture.",
+  "url": "https://example.com/admin",
+  "author": {"name": "SForum"},
+  "version": "1.0.0",
+  "type": "plugin",
+  "sforumVersion": "^1.0.0",
+  "permissionDefinitions": [
+    {"key": "fixture.admin.manage", "contractVersion": "fixture.admin.manage@1", "label": "Manage admin fixture", "description": "Use the fixture admin surfaces.", "assignmentPolicy": "host"}
+  ],
+  "adminSurfaces": [
+    {"id": "fixture.admin.surface.navigation", "contractVersion": "fixture.admin.surface.navigation@1", "kind": "navigation", "action": "add", "label": "Fixture", "schema": "fixture.admin.surface.navigation.schema@1", "permission": "fixture.admin.manage"},
+    {"id": "fixture.admin.surface.column", "contractVersion": "fixture.admin.surface.column@1", "kind": "list_column", "action": "add", "label": "Score", "handler": "admin.column", "permission": "fixture.admin.manage"},
+    {"id": "fixture.admin.surface.import", "contractVersion": "fixture.admin.surface.import@1", "kind": "importer", "action": "add", "label": "Import", "handler": "admin.import", "permission": "fixture.admin.manage"},
+    {"id": "fixture.admin.surface.export", "contractVersion": "fixture.admin.surface.export@1", "kind": "exporter", "action": "add", "label": "Export", "handler": "admin.export", "permission": "fixture.admin.manage"}
+  ]
+}

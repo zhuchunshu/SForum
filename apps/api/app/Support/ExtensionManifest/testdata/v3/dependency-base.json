@@ -1,0 +1,11 @@
+{
+  "manifestVersion": 3,
+  "id": "fixture.dependency-base",
+  "name": "Dependency Base",
+  "description": "Direct dependency graph base.",
+  "url": "https://example.com/dependency-base",
+  "author": {"name": "SForum"},
+  "version": "1.2.0",
+  "type": "plugin",
+  "sforumVersion": "^1.0.0"
+}

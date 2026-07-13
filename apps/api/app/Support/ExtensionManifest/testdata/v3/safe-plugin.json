@@ -1,0 +1,14 @@
+{
+  "manifestVersion": 3,
+  "id": "fixture.plugin-safe",
+  "name": "Safe Plugin",
+  "description": "Declarative plugin with no executable authority.",
+  "url": "https://example.com/plugin-safe",
+  "author": {"name": "SForum"},
+  "version": "1.0.0",
+  "type": "plugin",
+  "sforumVersion": "^1.0.0",
+  "permissionDefinitions": [
+    {"key": "fixture.plugin-safe.manage", "contractVersion": "fixture.plugin-safe.manage@1", "label": "Manage safe plugin", "description": "Configure the safe plugin.", "recommendedRoles": ["administrator"], "assignmentPolicy": "host"}
+  ]
+}
