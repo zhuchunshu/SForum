@@ -109,6 +109,24 @@ func (m *Manager) BeginDrain(identity RuntimeInstanceIdentity) (RuntimeAdmission
 	return instance.gate.BeginDrain(), nil
 }
 
+// ResumeRuntimeInstance 只重开仍为活动指针的 exact instance，候选发布失败时可恢复旧版本。
+func (m *Manager) ResumeRuntimeInstance(identity RuntimeInstanceIdentity) (RuntimeAdmissionSnapshot, error) {
+	identity, err := normalizeRuntimeInstanceIdentity(identity)
+	if err != nil {
+		return RuntimeAdmissionSnapshot{}, err
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	instance, err := m.runtimeInstanceLocked(identity)
+	if err != nil {
+		return RuntimeAdmissionSnapshot{}, err
+	}
+	if m.activeInstances[identity.ExtensionID] != identity.InstanceID {
+		return instance.gate.Snapshot(), fmt.Errorf("%w: %s/%s", ErrRuntimeInstanceNotActive, identity.ExtensionID, identity.InstanceID)
+	}
+	return instance.gate.Resume()
+}
+
 func (m *Manager) WaitDrain(ctx context.Context, identity RuntimeInstanceIdentity) error {
 	if ctx == nil {
 		return ErrRuntimeAdmissionInvalid

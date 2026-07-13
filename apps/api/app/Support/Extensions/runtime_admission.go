@@ -12,6 +12,7 @@ var (
 	ErrRuntimeAdmissionInvalid  = errors.New("extension runtime admission is invalid")
 	ErrRuntimeAdmissionDraining = errors.New("extension runtime is draining")
 	ErrRuntimeAdmissionForced   = errors.New("extension runtime admission was force-cancelled")
+	ErrRuntimeAdmissionBusy     = errors.New("extension runtime lifecycle cleanup is still active")
 )
 
 // RuntimeCallClass 区分 drain 时需要独立观测的调用来源。
@@ -143,6 +144,25 @@ func (g *RuntimeAdmissionGate) BeginDrain() RuntimeAdmissionSnapshot {
 	snapshot := g.snapshotLocked()
 	g.mu.Unlock()
 	return snapshot
+}
+
+// Resume 仅用于原子发布前的失败补偿；forced gate 和仍在执行 cleanup 的 gate 不可重开。
+func (g *RuntimeAdmissionGate) Resume() (RuntimeAdmissionSnapshot, error) {
+	if g == nil {
+		return RuntimeAdmissionSnapshot{}, ErrRuntimeAdmissionInvalid
+	}
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	if g.forced {
+		return g.snapshotLocked(), runtimeAdmissionForcedError(g.forceCause)
+	}
+	for _, call := range g.active {
+		if call.class == RuntimeCallLifecycleCleanup {
+			return g.snapshotLocked(), ErrRuntimeAdmissionBusy
+		}
+	}
+	g.draining = false
+	return g.snapshotLocked(), nil
 }
 
 // Wait 等待所有已获准调用真实 Release；ctx 超时不会修改 gate 状态。
