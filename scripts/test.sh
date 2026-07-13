@@ -7,6 +7,9 @@ cd "$ROOT_DIR"
 echo "Running Go tests..."
 (cd apps/api && go test ./...)
 
+echo "Running Protobuf lint and generated SDK drift validation..."
+./scripts/proto.sh check
+
 echo "Running OpenAPI reference validation..."
 ruby scripts/validate-openapi-refs.rb
 
