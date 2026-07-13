@@ -13,18 +13,39 @@ import (
 
 // ManifestIncludes 声明可选的分文件 partial 路径（仅存在于入口 JSON，不进入运行时 Manifest）。
 type ManifestIncludes struct {
-	Langs         json.RawMessage `json:"langs,omitempty"`
-	Settings      json.RawMessage `json:"settings,omitempty"`
-	Contributions json.RawMessage `json:"contributions,omitempty"`
-	Admin         json.RawMessage `json:"admin,omitempty"`
-	Events        json.RawMessage `json:"events,omitempty"`
-	Routes        json.RawMessage `json:"routes,omitempty"`
-	Jobs          json.RawMessage `json:"jobs,omitempty"`
-	Migrations    json.RawMessage `json:"migrations,omitempty"`
-	Permissions   json.RawMessage `json:"permissions,omitempty"`
-	Hooks         json.RawMessage `json:"hooks,omitempty"`
-	Providers     json.RawMessage `json:"providers,omitempty"`
-	AdminPages    json.RawMessage `json:"adminPages,omitempty"`
+	Langs                 json.RawMessage `json:"langs,omitempty"`
+	Settings              json.RawMessage `json:"settings,omitempty"`
+	Contributions         json.RawMessage `json:"contributions,omitempty"`
+	Admin                 json.RawMessage `json:"admin,omitempty"`
+	Events                json.RawMessage `json:"events,omitempty"`
+	Routes                json.RawMessage `json:"routes,omitempty"`
+	Jobs                  json.RawMessage `json:"jobs,omitempty"`
+	Migrations            json.RawMessage `json:"migrations,omitempty"`
+	Permissions           json.RawMessage `json:"permissions,omitempty"`
+	Hooks                 json.RawMessage `json:"hooks,omitempty"`
+	Providers             json.RawMessage `json:"providers,omitempty"`
+	AdminPages            json.RawMessage `json:"adminPages,omitempty"`
+	Guards                json.RawMessage `json:"guards,omitempty"`
+	Schedules             json.RawMessage `json:"schedules,omitempty"`
+	Components            json.RawMessage `json:"components,omitempty"`
+	Templates             json.RawMessage `json:"templates,omitempty"`
+	Assets                json.RawMessage `json:"assets,omitempty"`
+	Content               json.RawMessage `json:"content,omitempty"`
+	Database              json.RawMessage `json:"database,omitempty"`
+	Cache                 json.RawMessage `json:"cache,omitempty"`
+	Services              json.RawMessage `json:"services,omitempty"`
+	Commands              json.RawMessage `json:"commands,omitempty"`
+	AdminSurfaces         json.RawMessage `json:"adminSurfaces,omitempty"`
+	Queries               json.RawMessage `json:"queries,omitempty"`
+	Identity              json.RawMessage `json:"identity,omitempty"`
+	PermissionDefinitions json.RawMessage `json:"permissionDefinitions,omitempty"`
+	Media                 json.RawMessage `json:"media,omitempty"`
+	Navigation            json.RawMessage `json:"navigation,omitempty"`
+	Regions               json.RawMessage `json:"regions,omitempty"`
+	Dependencies          json.RawMessage `json:"dependencies,omitempty"`
+	Lifecycle             json.RawMessage `json:"lifecycle,omitempty"`
+	OpenAPI               json.RawMessage `json:"openapi,omitempty"`
+	PackageFiles          json.RawMessage `json:"packageFiles,omitempty"`
 }
 
 // rootManifestFile 解析入口文件：Manifest 字段 + includes 索引。
@@ -74,6 +95,11 @@ func LoadRootBytes(rootBody []byte, pkg PackageFS) (Manifest, error) {
 	manifest = Normalize(manifest)
 	if err := Validate(manifest); err != nil {
 		return Manifest{}, err
+	}
+	if EffectiveManifestVersion(manifest) == ManifestVersionV3 {
+		if err := ValidatePackageFiles(manifest, pkg); err != nil {
+			return Manifest{}, err
+		}
 	}
 	return manifest, nil
 }
@@ -412,7 +438,7 @@ func applyIncludes(manifest *Manifest, includes ManifestIncludes, pkg PackageFS)
 			return fmt.Errorf("%w: includes.%s: %v", ErrInvalidManifest, slot.name, err)
 		}
 	}
-	return nil
+	return applyV3Includes(manifest, includes, pkg)
 }
 
 func loadSettingsInclude(raw json.RawMessage, pkg PackageFS) (SettingsDocument, error) {

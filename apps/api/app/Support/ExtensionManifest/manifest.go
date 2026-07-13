@@ -54,19 +54,40 @@ type Manifest struct {
 	Capabilities []string `json:"capabilities,omitempty"`
 	// RequiresFeatures 为站点产品开关依赖（F4.5）。须为宿主 features.* 目录 key；
 	// 启用时若任一开关关闭则拒绝。主题必须为空。
-	RequiresFeatures []string               `json:"requiresFeatures,omitempty"`
-	Settings         []ManifestSetting      `json:"-"`
-	SettingsDocument SettingsDocument       `json:"-"`
-	Migrations       []ManifestMigration    `json:"migrations"`
-	Backend          ManifestBackend        `json:"backend"`
-	Admin            ManifestAdmin          `json:"admin"`
-	AdminPages       []ManifestAdminPage    `json:"adminPages"`
-	Routes           []ManifestRoute        `json:"routes"`
-	Hooks            []ManifestHook         `json:"hooks"`
-	Events           []ManifestEvent        `json:"events"`
-	Jobs             []ManifestJob          `json:"jobs"`
-	Providers        []ManifestProvider     `json:"providers"`
-	Contributions    []ManifestContribution `json:"contributions"`
+	RequiresFeatures      []string                       `json:"requiresFeatures,omitempty"`
+	Settings              []ManifestSetting              `json:"-"`
+	SettingsDocument      SettingsDocument               `json:"-"`
+	Migrations            []ManifestMigration            `json:"migrations"`
+	Backend               ManifestBackend                `json:"backend"`
+	Admin                 ManifestAdmin                  `json:"admin"`
+	AdminPages            []ManifestAdminPage            `json:"adminPages"`
+	Routes                []ManifestRoute                `json:"routes"`
+	Hooks                 []ManifestHook                 `json:"hooks"`
+	Events                []ManifestEvent                `json:"events"`
+	Jobs                  []ManifestJob                  `json:"jobs"`
+	Providers             []ManifestProvider             `json:"providers"`
+	Contributions         []ManifestContribution         `json:"contributions"`
+	Guards                []ManifestGuard                `json:"guards,omitempty"`
+	Schedules             []ManifestSchedule             `json:"schedules,omitempty"`
+	Components            []ManifestComponent            `json:"components,omitempty"`
+	Templates             []ManifestTemplate             `json:"templates,omitempty"`
+	Assets                []ManifestAsset                `json:"assets,omitempty"`
+	Content               []ManifestContent              `json:"content,omitempty"`
+	Database              *ManifestDatabase              `json:"database,omitempty"`
+	Cache                 []ManifestCache                `json:"cache,omitempty"`
+	Services              []ManifestService              `json:"services,omitempty"`
+	Commands              []ManifestCommand              `json:"commands,omitempty"`
+	AdminSurfaces         []ManifestAdminSurface         `json:"adminSurfaces,omitempty"`
+	Queries               []ManifestQuery                `json:"queries,omitempty"`
+	Identity              *ManifestIdentity              `json:"identity,omitempty"`
+	PermissionDefinitions []ManifestPermissionDefinition `json:"permissionDefinitions,omitempty"`
+	Media                 []ManifestMediaPipeline        `json:"media,omitempty"`
+	Navigation            []ManifestNavigation           `json:"navigation,omitempty"`
+	Regions               []ManifestRegion               `json:"regions,omitempty"`
+	Dependencies          []ManifestDependency           `json:"dependencies,omitempty"`
+	Lifecycle             *ManifestLifecycle             `json:"lifecycle,omitempty"`
+	OpenAPI               []ManifestOpenAPIFragment      `json:"openapi,omitempty"`
+	PackageFiles          []ManifestPackageFile          `json:"packageFiles,omitempty"`
 }
 
 type ManifestAuthor struct {
@@ -107,13 +128,19 @@ type ManifestSettingOption struct {
 }
 
 type ManifestMigration struct {
-	Path string `json:"path"`
+	ID              string `json:"id,omitempty"`
+	ContractVersion string `json:"contractVersion,omitempty"`
+	Path            string `json:"path"`
+	Digest          string `json:"digest,omitempty"`
+	Transaction     string `json:"transaction,omitempty"`
 }
 
 type ManifestBackend struct {
 	Entry           string `json:"entry"`
 	RPC             string `json:"rpc"`
 	ProtocolVersion int    `json:"protocolVersion,omitempty"`
+	Digest          string `json:"digest,omitempty"`
+	HostAPIVersion  string `json:"hostApiVersion,omitempty"`
 }
 
 type ManifestAdmin struct {
@@ -133,31 +160,66 @@ type ManifestAdminPage struct {
 }
 
 type ManifestRoute struct {
-	Path       string   `json:"path"`
-	Methods    []string `json:"methods"`
-	Access     string   `json:"access,omitempty"`
-	Permission string   `json:"permission,omitempty"`
-	TimeoutMS  int      `json:"timeoutMs,omitempty"`
+	ID              string   `json:"id,omitempty"`
+	ContractVersion string   `json:"contractVersion,omitempty"`
+	Action          string   `json:"action,omitempty"`
+	TargetID        string   `json:"targetId,omitempty"`
+	Path            string   `json:"path"`
+	Methods         []string `json:"methods"`
+	Access          string   `json:"access,omitempty"`
+	Permission      string   `json:"permission,omitempty"`
+	Guard           string   `json:"guard,omitempty"`
+	Priority        int      `json:"priority,omitempty"`
+	Fallback        string   `json:"fallback,omitempty"`
+	Mode            string   `json:"mode,omitempty"`
+	Destination     string   `json:"destination,omitempty"`
+	Handler         string   `json:"handler,omitempty"`
+	RequestSchema   string   `json:"requestSchema,omitempty"`
+	ResponseSchema  string   `json:"responseSchema,omitempty"`
+	TimeoutMS       int      `json:"timeoutMs,omitempty"`
 }
 
 type ManifestHook struct {
-	Name string `json:"name"`
+	ID              string `json:"id,omitempty"`
+	ContractVersion string `json:"contractVersion,omitempty"`
+	Name            string `json:"name"`
+	Kind            string `json:"kind,omitempty"`
+	TargetID        string `json:"targetId,omitempty"`
+	Handler         string `json:"handler,omitempty"`
+	InputSchema     string `json:"inputSchema,omitempty"`
+	ResultSchema    string `json:"resultSchema,omitempty"`
+	Priority        int    `json:"priority,omitempty"`
 }
 
 type ManifestEvent struct {
-	Name      string `json:"name"`
-	Kind      string `json:"kind,omitempty"`
-	TimeoutMS int    `json:"timeoutMs,omitempty"`
+	ID              string `json:"id,omitempty"`
+	ContractVersion string `json:"contractVersion,omitempty"`
+	Name            string `json:"name"`
+	Kind            string `json:"kind,omitempty"`
+	Handler         string `json:"handler,omitempty"`
+	InputSchema     string `json:"inputSchema,omitempty"`
+	ResultSchema    string `json:"resultSchema,omitempty"`
+	Priority        int    `json:"priority,omitempty"`
+	TimeoutMS       int    `json:"timeoutMs,omitempty"`
 }
 
 type ManifestJob struct {
-	Name string `json:"name"`
+	ID              string `json:"id,omitempty"`
+	ContractVersion string `json:"contractVersion,omitempty"`
+	Name            string `json:"name"`
+	Handler         string `json:"handler,omitempty"`
+	PayloadSchema   string `json:"payloadSchema,omitempty"`
+	RetryPolicy     string `json:"retryPolicy,omitempty"`
 }
 
 type ManifestProvider struct {
-	Slot      string `json:"slot"`
-	Label     string `json:"label"`
-	TimeoutMS int    `json:"timeoutMs,omitempty"`
+	ID              string `json:"id,omitempty"`
+	ContractVersion string `json:"contractVersion,omitempty"`
+	Slot            string `json:"slot"`
+	Label           string `json:"label"`
+	Handler         string `json:"handler,omitempty"`
+	Priority        int    `json:"priority,omitempty"`
+	TimeoutMS       int    `json:"timeoutMs,omitempty"`
 }
 
 type ManifestContribution struct {
@@ -355,84 +417,12 @@ func validateManifest(manifest Manifest, points []ContributionPointDefinition) e
 	if manifest.Type == TypeTheme && !isThemeManifestSupported(manifest) {
 		return ErrInvalidManifest
 	}
-	if manifest.Backend.Entry != "" {
-		if _, ok := SafeArchivePath(manifest.Backend.Entry); !ok {
-			return ErrInvalidManifest
+	if EffectiveManifestVersion(manifest) == ManifestVersionV3 {
+		if err := validateV3Manifest(manifest); err != nil {
+			return err
 		}
-	}
-	if manifest.Backend.RPC != "" && manifest.Backend.RPC != "hashicorp-go-plugin" {
-		return ErrInvalidManifest
-	}
-	if manifest.Backend.ProtocolVersion < 0 || manifest.Backend.ProtocolVersion > 1 {
-		return ErrInvalidManifest
-	}
-	for _, migration := range manifest.Migrations {
-		if _, ok := SafeArchivePath(migration.Path); !ok || !strings.HasSuffix(migration.Path, ".sql") {
-			return ErrInvalidManifest
-		}
-	}
-	for _, route := range manifest.Routes {
-		if route.Path == "" || !strings.HasPrefix(route.Path, "/") || strings.Contains(route.Path, "..") {
-			return ErrInvalidManifest
-		}
-		access := route.Access
-		if access == "" {
-			access = RouteAccessLogin
-		}
-		if access != RouteAccessPublic && access != RouteAccessLogin && access != RouteAccessPermission {
-			return ErrInvalidManifest
-		}
-		if len(route.Methods) == 0 {
-			return ErrInvalidManifest
-		}
-		for _, method := range route.Methods {
-			switch method {
-			case "GET", "HEAD", "OPTIONS", "POST", "PUT", "PATCH", "DELETE":
-			default:
-				return ErrInvalidManifest
-			}
-			if access == RouteAccessPublic && method != "GET" && method != "HEAD" && method != "OPTIONS" {
-				return ErrInvalidManifest
-			}
-		}
-		if access == RouteAccessPermission && (route.Permission == "" || !manifestHasPermission(manifest, route.Permission)) {
-			return ErrInvalidManifest
-		}
-		if route.TimeoutMS < 0 {
-			return ErrInvalidManifest
-		}
-	}
-	for _, hook := range manifest.Hooks {
-		if !appevents.Known(hook.Name) {
-			return ErrInvalidManifest
-		}
-	}
-	seenEvents := map[string]bool{}
-	for _, event := range DeclaredEvents(manifest) {
-		definition, ok := appevents.FindDefinition(event.Name)
-		if !ok {
-			return ErrInvalidManifest
-		}
-		kind := event.Kind
-		if kind == "" {
-			kind = definition.Kind
-		}
-		if kind != definition.Kind {
-			return ErrInvalidManifest
-		}
-		if event.TimeoutMS < 0 {
-			return ErrInvalidManifest
-		}
-		key := event.Name + ":" + kind
-		if seenEvents[key] {
-			return ErrInvalidManifest
-		}
-		seenEvents[key] = true
-	}
-	for _, provider := range manifest.Providers {
-		if provider.Label == "" || !knownProviderSlot(provider.Slot) || provider.TimeoutMS < 0 {
-			return ErrInvalidManifest
-		}
+	} else if err := validateLegacyRuntimeDeclarations(manifest); err != nil {
+		return err
 	}
 	// F2.1：capabilities 必须落在宿主目录内；主题禁止声明。
 	if len(manifest.Capabilities) > 0 {
@@ -531,8 +521,13 @@ func Normalize(manifest Manifest) Manifest {
 		manifest.Hooks[index].Name = strings.TrimSpace(manifest.Hooks[index].Name)
 	}
 	for index := range manifest.Events {
+		manifest.Events[index].ID = NormalizeID(manifest.Events[index].ID)
+		manifest.Events[index].ContractVersion = strings.TrimSpace(manifest.Events[index].ContractVersion)
 		manifest.Events[index].Name = strings.TrimSpace(manifest.Events[index].Name)
 		manifest.Events[index].Kind = strings.ToLower(strings.TrimSpace(manifest.Events[index].Kind))
+		manifest.Events[index].Handler = strings.TrimSpace(manifest.Events[index].Handler)
+		manifest.Events[index].InputSchema = strings.TrimSpace(manifest.Events[index].InputSchema)
+		manifest.Events[index].ResultSchema = strings.TrimSpace(manifest.Events[index].ResultSchema)
 		if manifest.Events[index].Kind == "" {
 			if definition, ok := appevents.FindDefinition(manifest.Events[index].Name); ok {
 				manifest.Events[index].Kind = definition.Kind
@@ -545,6 +540,9 @@ func Normalize(manifest Manifest) Manifest {
 	}
 	for index := range manifest.Contributions {
 		manifest.Contributions[index] = normalizeContribution(manifest.Contributions[index])
+	}
+	if EffectiveManifestVersion(manifest) == ManifestVersionV3 {
+		normalizeV3Manifest(&manifest)
 	}
 	return manifest
 }
@@ -854,7 +852,9 @@ func DeclaredEvents(manifest Manifest) []ManifestEvent {
 			continue
 		}
 		seen[key] = true
-		items = append(items, ManifestEvent{Name: name, Kind: kind, TimeoutMS: event.TimeoutMS})
+		event.Name = name
+		event.Kind = kind
+		items = append(items, event)
 	}
 	// 旧 hooks 字段作为 events 的兼容别名保留，统一转换给运行时消费。
 	for _, hook := range manifest.Hooks {
@@ -889,6 +889,16 @@ func isThemeManifestSupported(manifest Manifest) bool {
 		len(manifest.Providers) != 0 ||
 		len(manifest.Contributions) != 0 {
 		return false
+	}
+	if EffectiveManifestVersion(manifest) == ManifestVersionV3 {
+		if len(manifest.Guards) != 0 || len(manifest.Schedules) != 0 ||
+			len(manifest.Content) != 0 || manifest.Database != nil || len(manifest.Cache) != 0 ||
+			len(manifest.Services) != 0 || len(manifest.Commands) != 0 ||
+			len(manifest.AdminSurfaces) != 0 || len(manifest.Queries) != 0 ||
+			manifest.Identity != nil || len(manifest.PermissionDefinitions) != 0 ||
+			len(manifest.Media) != 0 || manifest.Lifecycle != nil || len(manifest.OpenAPI) != 0 {
+			return false
+		}
 	}
 	return true
 }
@@ -1263,6 +1273,11 @@ func knownProviderSlot(slot string) bool {
 func manifestHasPermission(manifest Manifest, permission string) bool {
 	for _, item := range manifest.Permissions {
 		if strings.TrimSpace(item) == permission {
+			return true
+		}
+	}
+	for _, item := range manifest.PermissionDefinitions {
+		if strings.TrimSpace(item.Key) == permission {
 			return true
 		}
 	}

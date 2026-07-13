@@ -1,0 +1,419 @@
+package extensionmanifest
+
+import (
+	"regexp"
+	"strings"
+	"time"
+
+	semver "github.com/Masterminds/semver/v3"
+	appevents "github.com/zhuchunshu/sforum/apps/api/app/Support/Events"
+)
+
+var (
+	contractVersionPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9._-]*@[1-9][0-9]*$`)
+	sha256Pattern          = regexp.MustCompile(`^[0-9a-f]{64}$`)
+	databaseNamePattern    = regexp.MustCompile(`^[a-z_][a-z0-9_]{0,62}$`)
+)
+
+type v3Validator struct {
+	manifest Manifest
+	ids      map[string]string
+}
+
+func validateV3Manifest(manifest Manifest) error {
+	validator := v3Validator{manifest: manifest, ids: map[string]string{}}
+	for _, validate := range []func() error{
+		validator.validateBackendAndMigrations,
+		validator.validateGuardsAndRoutes,
+		validator.validateHooksEventsJobsAndProviders,
+		validator.validateUIAndPackage,
+		validator.validatePlatform,
+	} {
+		if err := validate(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (v *v3Validator) versionedID(id string, contractVersion string, family string) error {
+	if !manifestIDPattern.MatchString(id) || !strings.HasPrefix(id, v.manifest.ID+".") || !contractVersionPattern.MatchString(contractVersion) {
+		return ErrInvalidManifest
+	}
+	if _, duplicate := v.ids[id]; duplicate {
+		return ErrInvalidManifest
+	}
+	v.ids[id] = family
+	return nil
+}
+
+func (v *v3Validator) validateBackendAndMigrations() error {
+	backend := v.manifest.Backend
+	if backend.Entry == "" {
+		if backend.RPC != "" || backend.ProtocolVersion != 0 || backend.Digest != "" || backend.HostAPIVersion != "" {
+			return ErrInvalidManifest
+		}
+	} else {
+		if !validPackagePath(backend.Entry) || backend.RPC != "hashicorp-go-plugin" || !validDigest(backend.Digest) {
+			return ErrInvalidManifest
+		}
+		if backend.ProtocolVersion < 1 || backend.ProtocolVersion > 2 {
+			return ErrInvalidManifest
+		}
+		if backend.ProtocolVersion == 2 && !contractVersionPattern.MatchString(backend.HostAPIVersion) {
+			return ErrInvalidManifest
+		}
+	}
+	for _, migration := range v.manifest.Migrations {
+		if err := v.versionedID(migration.ID, migration.ContractVersion, "migration"); err != nil {
+			return err
+		}
+		if !validPackagePath(migration.Path) || !strings.HasSuffix(migration.Path, ".sql") || !validDigest(migration.Digest) {
+			return ErrInvalidManifest
+		}
+		switch migration.Transaction {
+		case "required", "forbidden", "auto":
+		default:
+			return ErrInvalidManifest
+		}
+	}
+	return nil
+}
+
+func (v *v3Validator) validateGuardsAndRoutes() error {
+	guards := map[string]bool{
+		GuardCorePublic: true, GuardCoreLogin: true, GuardCorePermission: true,
+		GuardCoreGuest: true, GuardCoreRaw: true,
+	}
+	for _, guard := range v.manifest.Guards {
+		if err := v.versionedID(guard.ID, guard.ContractVersion, "guard"); err != nil {
+			return err
+		}
+		if guards[guard.ID] || !validPackagePath(guard.Entry) || !validDigest(guard.Digest) {
+			return ErrInvalidManifest
+		}
+		switch guard.Kind {
+		case "custom", "raw_request":
+		default:
+			return ErrInvalidManifest
+		}
+		for _, permission := range guard.Permissions {
+			if !manifestHasPermission(v.manifest, permission) {
+				return ErrInvalidManifest
+			}
+		}
+		guards[guard.ID] = true
+	}
+
+	claims := map[string]bool{}
+	for _, route := range v.manifest.Routes {
+		if err := v.versionedID(route.ID, route.ContractVersion, "route"); err != nil {
+			return err
+		}
+		if !validRouteAction(route.Action) || !validRouteMode(route.Mode) || !guards[route.Guard] || route.TimeoutMS < 0 {
+			return ErrInvalidManifest
+		}
+		if route.Guard == GuardCorePermission && (route.Permission == "" || !manifestHasPermission(v.manifest, route.Permission)) {
+			return ErrInvalidManifest
+		}
+		if route.Action == RouteActionGlobalMiddleware {
+			if route.Path != "" || route.TargetID != "" || len(route.Methods) != 0 || !validHandler(route.Handler) || !validSchemaRef(route.RequestSchema) || !validSchemaRef(route.ResponseSchema) || !validFallback(route.Fallback) {
+				return ErrInvalidManifest
+			}
+			continue
+		}
+		if !validRoutePath(route.Path) || len(route.Methods) == 0 {
+			return ErrInvalidManifest
+		}
+		for _, method := range route.Methods {
+			if !validHTTPMethod(method) || !validRouteModeMethod(route.Mode, method) {
+				return ErrInvalidManifest
+			}
+			claim := ""
+			switch route.Action {
+			case RouteActionAdd, RouteActionAlias, RouteActionRedirect, RouteActionRewrite:
+				claim = route.Action + "\x00" + method + "\x00" + route.Path
+			case RouteActionReplace:
+				claim = route.Action + "\x00" + method + "\x00" + route.TargetID
+			}
+			if claim != "" {
+				if claims[claim] {
+					return ErrInvalidManifest
+				}
+				claims[claim] = true
+			}
+		}
+		if route.TargetID != "" && !manifestIDPattern.MatchString(route.TargetID) {
+			return ErrInvalidManifest
+		}
+		if routeTargetsExisting(route.Action) && route.TargetID == "" {
+			return ErrInvalidManifest
+		}
+		if route.TargetID == "core.route.system.health" || route.TargetID == "core.route.system.ready" {
+			return ErrInvalidManifest
+		}
+		if route.Action == RouteActionRedirect {
+			if !validRouteDestination(route.Destination) {
+				return ErrInvalidManifest
+			}
+		} else if route.Destination != "" {
+			return ErrInvalidManifest
+		}
+		if routeNeedsHandler(route.Action) && !validHandler(route.Handler) {
+			return ErrInvalidManifest
+		}
+		if !validFallback(route.Fallback) {
+			return ErrInvalidManifest
+		}
+		if routeNeedsSchemas(route.Action) {
+			if !validSchemaRef(route.ResponseSchema) || (hasUnsafeMethod(route.Methods) && !validSchemaRef(route.RequestSchema)) {
+				return ErrInvalidManifest
+			}
+		}
+	}
+	return nil
+}
+
+func (v *v3Validator) validateHooksEventsJobsAndProviders() error {
+	for _, hook := range v.manifest.Hooks {
+		if err := v.versionedID(hook.ID, hook.ContractVersion, "hook"); err != nil {
+			return err
+		}
+		if !knownOrNamespacedContract(v.manifest.ID, hook.Name, appevents.Known(hook.Name)) || !validHandler(hook.Handler) || !validSchemaRef(hook.InputSchema) {
+			return ErrInvalidManifest
+		}
+		switch hook.Kind {
+		case "action", "filter", "observe":
+		default:
+			return ErrInvalidManifest
+		}
+		if hook.Kind == "filter" && !validSchemaRef(hook.ResultSchema) {
+			return ErrInvalidManifest
+		}
+	}
+	for _, event := range v.manifest.Events {
+		if err := v.versionedID(event.ID, event.ContractVersion, "event"); err != nil {
+			return err
+		}
+		definition, known := appevents.FindDefinition(event.Name)
+		if !knownOrNamespacedContract(v.manifest.ID, event.Name, known) || !validHandler(event.Handler) || !validSchemaRef(event.InputSchema) || event.TimeoutMS < 0 {
+			return ErrInvalidManifest
+		}
+		if known && event.Kind != definition.Kind {
+			return ErrInvalidManifest
+		}
+		if !known && event.Kind != "observe" && event.Kind != "filter" {
+			return ErrInvalidManifest
+		}
+		if event.Kind == "filter" && !validSchemaRef(event.ResultSchema) {
+			return ErrInvalidManifest
+		}
+	}
+	jobIDs := map[string]bool{}
+	for _, job := range v.manifest.Jobs {
+		if err := v.versionedID(job.ID, job.ContractVersion, "job"); err != nil {
+			return err
+		}
+		if job.Name == "" || !validHandler(job.Handler) || !validSchemaRef(job.PayloadSchema) {
+			return ErrInvalidManifest
+		}
+		switch job.RetryPolicy {
+		case "none", "bounded", "exponential":
+		default:
+			return ErrInvalidManifest
+		}
+		jobIDs[job.ID] = true
+	}
+	for _, schedule := range v.manifest.Schedules {
+		if err := v.versionedID(schedule.ID, schedule.ContractVersion, "schedule"); err != nil {
+			return err
+		}
+		if !jobIDs[schedule.JobID] || !validCron(schedule.Cron) {
+			return ErrInvalidManifest
+		}
+		if schedule.Timezone != "" {
+			if _, err := time.LoadLocation(schedule.Timezone); err != nil {
+				return ErrInvalidManifest
+			}
+		}
+	}
+	for _, provider := range v.manifest.Providers {
+		if err := v.versionedID(provider.ID, provider.ContractVersion, "provider"); err != nil {
+			return err
+		}
+		if provider.Label == "" || provider.TimeoutMS < 0 || !validHandler(provider.Handler) || !knownOrNamespacedContract(v.manifest.ID, provider.Slot, knownProviderSlot(provider.Slot)) {
+			return ErrInvalidManifest
+		}
+	}
+	return nil
+}
+
+func hasV3Declarations(manifest Manifest) bool {
+	if len(manifest.Guards)+len(manifest.Schedules)+len(manifest.Components)+len(manifest.Templates)+len(manifest.Assets)+len(manifest.Content)+len(manifest.Cache)+len(manifest.Services)+len(manifest.Commands)+len(manifest.AdminSurfaces)+len(manifest.Queries)+len(manifest.PermissionDefinitions)+len(manifest.Media)+len(manifest.Navigation)+len(manifest.Regions)+len(manifest.Dependencies)+len(manifest.OpenAPI)+len(manifest.PackageFiles) > 0 || manifest.Database != nil || manifest.Identity != nil || manifest.Lifecycle != nil {
+		return true
+	}
+	if manifest.Backend.Digest != "" || manifest.Backend.HostAPIVersion != "" {
+		return true
+	}
+	for _, item := range manifest.Migrations {
+		if item.ID != "" || item.ContractVersion != "" || item.Digest != "" || item.Transaction != "" {
+			return true
+		}
+	}
+	for _, item := range manifest.Routes {
+		if item.ID != "" || item.ContractVersion != "" || item.Action != "" || item.TargetID != "" || item.Guard != "" || item.Mode != "" || item.Handler != "" || item.RequestSchema != "" || item.ResponseSchema != "" {
+			return true
+		}
+	}
+	for _, item := range manifest.Hooks {
+		if item.ID != "" || item.ContractVersion != "" || item.Kind != "" || item.Handler != "" || item.InputSchema != "" || item.ResultSchema != "" {
+			return true
+		}
+	}
+	for _, item := range manifest.Events {
+		if item.ID != "" || item.ContractVersion != "" || item.Handler != "" || item.InputSchema != "" || item.ResultSchema != "" {
+			return true
+		}
+	}
+	for _, item := range manifest.Jobs {
+		if item.ID != "" || item.ContractVersion != "" || item.Handler != "" || item.PayloadSchema != "" || item.RetryPolicy != "" {
+			return true
+		}
+	}
+	for _, item := range manifest.Providers {
+		if item.ID != "" || item.ContractVersion != "" || item.Handler != "" || item.Priority != 0 {
+			return true
+		}
+	}
+	return false
+}
+
+func validDigest(value string) bool { return sha256Pattern.MatchString(value) }
+
+func validPackagePath(value string) bool {
+	clean, ok := SafeArchivePath(value)
+	return ok && clean == value && !strings.ContainsRune(value, '\x00')
+}
+
+func validSchemaRef(value string) bool {
+	value = strings.TrimSpace(value)
+	if contractVersionPattern.MatchString(value) {
+		return true
+	}
+	return validPackagePath(value) && strings.HasSuffix(value, ".json")
+}
+
+func validHandler(value string) bool {
+	value = strings.TrimSpace(value)
+	return value != "" && !strings.Contains(value, "://") && !strings.Contains(value, "..")
+}
+
+func knownOrNamespacedContract(extensionID string, value string, known bool) bool {
+	return known || (manifestIDPattern.MatchString(value) && strings.HasPrefix(value, extensionID+"."))
+}
+
+func validRoutePath(value string) bool {
+	if value == "/health" || value == "/ready" {
+		return false
+	}
+	return value != "" && strings.HasPrefix(value, "/") && !strings.HasPrefix(value, "//") && !strings.Contains(value, "://") && !strings.Contains(value, "..") && !strings.ContainsRune(value, '\x00')
+}
+
+func validRouteDestination(value string) bool {
+	return value == "/" || validRoutePath(value)
+}
+
+func validHTTPMethod(value string) bool {
+	if value == "" {
+		return false
+	}
+	for _, char := range value {
+		if char >= 'A' && char <= 'Z' || char >= '0' && char <= '9' || strings.ContainsRune("!#$%&'*+-.^_`|~", char) {
+			continue
+		}
+		return false
+	}
+	return true
+}
+
+func validRouteAction(value string) bool {
+	switch value {
+	case RouteActionAdd, RouteActionAlias, RouteActionRedirect, RouteActionRewrite, RouteActionBefore, RouteActionAfter, RouteActionFilter, RouteActionWrap, RouteActionReplace, RouteActionGlobalMiddleware:
+		return true
+	default:
+		return false
+	}
+}
+
+func validRouteMode(value string) bool {
+	switch value {
+	case RouteModeHTTP, RouteModeSSE, RouteModeWebSocket, RouteModeStream, RouteModeMultipart:
+		return true
+	default:
+		return false
+	}
+}
+
+func validRouteModeMethod(mode string, method string) bool {
+	if mode == RouteModeSSE || mode == RouteModeWebSocket {
+		return method == "GET"
+	}
+	if mode == RouteModeMultipart {
+		return method != "GET" && method != "HEAD" && method != "OPTIONS"
+	}
+	return true
+}
+
+func routeTargetsExisting(action string) bool {
+	switch action {
+	case RouteActionAlias, RouteActionRewrite, RouteActionBefore, RouteActionAfter, RouteActionFilter, RouteActionWrap, RouteActionReplace:
+		return true
+	default:
+		return false
+	}
+}
+
+func routeNeedsHandler(action string) bool {
+	switch action {
+	case RouteActionAdd, RouteActionBefore, RouteActionAfter, RouteActionFilter, RouteActionWrap, RouteActionReplace, RouteActionGlobalMiddleware:
+		return true
+	default:
+		return false
+	}
+}
+
+func routeNeedsSchemas(action string) bool {
+	switch action {
+	case RouteActionAdd, RouteActionFilter, RouteActionWrap, RouteActionReplace, RouteActionGlobalMiddleware:
+		return true
+	default:
+		return false
+	}
+}
+
+func validFallback(value string) bool {
+	return value == "closed" || value == "not_found" || value == "readonly_core"
+}
+
+func hasUnsafeMethod(methods []string) bool {
+	for _, method := range methods {
+		if method != "GET" && method != "HEAD" && method != "OPTIONS" {
+			return true
+		}
+	}
+	return false
+}
+
+func validCron(value string) bool {
+	if strings.HasPrefix(value, "@every ") {
+		_, err := time.ParseDuration(strings.TrimSpace(strings.TrimPrefix(value, "@every ")))
+		return err == nil
+	}
+	fields := strings.Fields(value)
+	return len(fields) == 5 || len(fields) == 6
+}
+
+func validSemverConstraint(value string) bool {
+	_, err := semver.NewConstraint(value)
+	return err == nil
+}
