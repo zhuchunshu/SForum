@@ -31,6 +31,7 @@ const (
 	ActionExtensionTrustRevoke    = "extension.trust_revoke"
 	ActionExtensionTrustDenied    = "extension.trust_denied"
 	ActionExtensionSafeModeBoot   = "extension.safe_mode_boot"
+	ActionExtensionCLIRecovery    = "extension.cli_recovery"
 	// ActionExtensionBackendDenied 非 super_admin 试图引入/执行非内置后端插件。
 	ActionExtensionBackendDenied = "extension.backend_execution_denied"
 
