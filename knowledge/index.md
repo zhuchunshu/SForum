@@ -4,7 +4,7 @@ This is the entry point for project memory.
 
 ## Latest Handoff
 
-- **2026-07-13 Trusted Plugin And Theme Platform V3 P3 active (overall 19%, P3 46%)**
+- **2026-07-14 Trusted Plugin And Theme Platform V3 P3 active (overall 21%, P3 69%)**
   - Decision: `knowledge/decisions/2026-07-13-trusted-plugin-theme-platform-v3.md`
   - Task book: `knowledge/plans/2026-07-13-trusted-plugin-theme-platform-v3.md`
   - P3 handoff: `knowledge/sessions/2026-07-13-trusted-plugin-theme-platform-v3-p3-progress.md`
@@ -28,13 +28,17 @@ This is the entry point for project memory.
   - P2 final gates: Go build/tests, full repo gate, 1,607 OpenAPI refs, Nuxt
     typecheck/build, 277 Web tests, and 207/115/99 catalog counts
   - P3 now has a pinned Buf/Protobuf toolchain, 3 versioned packages, 18 gRPC
-    services, 147 declarations, generated Go SDK, descriptor tests, and repo
-    drift enforcement
+    services, 147 declarations, generated Go SDK, descriptor tests, and a
+    dedicated CI drift workflow
   - Exact Manifest-selected gRPC/AutoMTLS negotiation, v1 deprecation telemetry,
     runtime-bound Host broker authentication, generated Host clients, typed
     settings/query/permission/identity/job/audit adapters, streaming, message
-    limits, cancellation, concurrency, and restart tests are operational;
-    versioned plugin service discovery is next
+    limits, cancellation, concurrency, and restart tests are operational
+  - Versioned Service Registry snapshots, Host List/Resolve/Invoke/Stream,
+    exact SemVer selection, instance-bound crash/restart cleanup, SDK dispatch,
+    Manifest-bound typed hooks, and the content-policy V2 + V1 rollback
+    reference are committed; real two-plugin E2E and the remaining streaming/
+    v1 compatibility matrix are active
 
 - **2026-07-13 Legacy Web Release/runtime frontend builds removed**
   - Decision: `knowledge/decisions/2026-07-13-remove-legacy-web-release.md`

@@ -360,7 +360,7 @@ flowchart LR
       health, readiness, and protocol mismatch errors.
 - [ ] Add service discovery so plugins expose versioned services to other
       plugins through the host broker.
-- [ ] Migrate one built-in reference plugin without removing v1 support.
+- [x] Migrate one built-in reference plugin without removing v1 support.
 
 ### Tests
 
@@ -368,7 +368,7 @@ flowchart LR
       crash, restart, stale token, service discovery, streaming, and
       transactional Host Command rollback tests.
 - [ ] Existing v1 SMTP/storage/content-policy fixtures remain green.
-- [ ] Generated SDK and documentation drift checks run in CI.
+- [x] Generated SDK and documentation drift checks run in CI.
 
 ### Rollback
 

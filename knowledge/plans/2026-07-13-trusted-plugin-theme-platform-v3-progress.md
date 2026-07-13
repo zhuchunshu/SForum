@@ -1,8 +1,8 @@
 # Trusted Plugin And Theme Platform V3 Progress Ledger
 
-Date: 2026-07-13
-Overall progress: **19%**
-Active phase: **P3 - Host API V2 And Generated SDKs (46%)**
+Date: 2026-07-14
+Overall progress: **21%**
+Active phase: **P3 - Host API V2 And Generated SDKs (69%, 9 of 13 rows)**
 
 This ledger is the durable percentage and context-compaction checkpoint for the
 V3 program. Update it before context compression, at every phase boundary, and
@@ -19,7 +19,7 @@ scaffolding, or demo-only code cannot satisfy a runtime exit criterion.
 | P0 Governance | 3% | 100% | 3% |
 | P1 Trust/recovery | 6% | 100% | 6% |
 | P2 Manifest/contracts | 7% | 100% | 7% |
-| P3 Host API v2 | 8% | 46% | 3% |
+| P3 Host API v2 | 8% | 69% | 5% |
 | P4 Lifecycle/dependencies | 7% | 0% | 0% |
 | P5 Database/commands | 8% | 0% | 0% |
 | P6 Routes/middleware | 10% | 0% | 0% |
@@ -112,6 +112,40 @@ phase percentage.
 
 ## Last Durable Checkpoint
 
+### 2026-07-14 Service Broker And Reference Checkpoint
+
+- Last implementation commit: `876836f7a fix(deploy): bind built-in plugin
+  digest in image`.
+- P3 is 9 of 13 rows complete. The dedicated CI drift row and built-in V2
+  migration with real V1 rollback are now closed.
+- Committed immutable Service Registry snapshots, exact SemVer/build selection,
+  conflict inspection, Host List/Resolve/Invoke/Stream, schema enforcement,
+  SDK service dispatch, idle timeout, and handshake freeze.
+- ProtocolStarter now publishes Manifest-matched handshake services, serializes
+  each extension lifecycle, removes exact instances on Stop, replaces instances
+  on restart, and reaps registrations after unexpected process exit.
+- Host authorization is the only caller-authority decision. Provider runtime
+  grants are no longer confused with caller grants. Plugin-supplied Actor is
+  rejected/cleared pending a Host-attested delegation contract.
+- V2 hooks now bind full Manifest event id/name/kind/contract/input/result and
+  derived patch schemas. Contract drift fails closed.
+- `sforum.content-policy` defaults to Protocol V2, publishes a typed reusable
+  service, enforces typed hook contracts, and retains a buildable/runnable V1
+  source and Manifest. Linux image builds refresh and validate the exact binary
+  digest after reproducible compilation.
+- New focused gates passed: HostAPI and Extensions race/vet, content-policy
+  race/vet, real crash/restart/concurrent-start subprocess tests, CLI Linux
+  double-build reproducibility, built-in build script, proto drift, and Host API
+  V2 documentation drift.
+- Full Docker image build remains externally unverified because Docker Hub's
+  anonymous-token request timed out over IPv6 before build steps began.
+- Current uncommitted ownership: transactional Host Command implementation in
+  `apps/api/app/Support/HostAPI/v2{,_command}*.go`; two-plugin E2E and v1 package
+  compatibility agents are running in separate test files.
+- Next: finish transactional rollback integration, real two-plugin service
+  discovery matrix, SMTP/storage V1 package gates, then implement remaining
+  route/file/progress/job streaming before the P3 full repository exit gate.
+
 - Last implementation commit: `756c33738 test(extensions): cover protocol v2
   concurrency gate`.
 - P3 commits so far: `b4d50005f`, `bda361626`, `1b9923372`, `ff4661103`,
@@ -153,8 +187,8 @@ phase percentage.
   artifact/grant/epoch/instance identity, disclosed authority, request id, and
   deadline; v2 no longer starts or receives the v1 loopback HTTP gateway.
 - The Go SDK exposes all generated Host clients and builds bounded Host request
-  contexts that preserve actor, locale, and trace while replacing any
-  plugin-supplied runtime identity or authority.
+  contexts that preserve locale and trace while replacing runtime identity and
+  authority. Actor is cleared until a Host-attested delegation exists.
 - Host Query own-settings (unary and server stream), Permission, safe Identity,
   declared Job enqueue, and namespaced Audit append adapt the existing
   authoritative v1 services. Unsupported resource policy, job options,
@@ -171,7 +205,5 @@ phase percentage.
   browser sessions were unauthenticated; the attempted route rendered the
   theme 404/dev overlay rather than the protected admin page.
 - Working tree was clean at `756c33738` before this documentation checkpoint.
-- Next command after committing this checkpoint: retain the declared services
-  returned by plugin handshake and implement the versioned Service Discovery
-  registry over the Host broker, including conflict ordering, stale-provider
-  removal, unary invocation, streaming, and restart tests.
+- This older checkpoint's Service Discovery next step is superseded by the
+  2026-07-14 checkpoint above.

@@ -57,10 +57,20 @@ an unimplemented Registry family.
 P3 now runs exact Manifest-selected protocol v2 over go-plugin gRPC/AutoMTLS
 without silent v1 downgrade. Each process receives a runtime-scoped Host broker
 whose calls bind token, exact artifact/grant/epoch/instance identity, authority,
-deadline, actor, locale, and trace. The Go SDK exposes generated Host clients;
+deadline, locale, and trace. Plugin-supplied Actor values are rejected and
+cleared until Host-attested delegation exists. The Go SDK exposes generated Host clients;
 typed own-settings Query/stream, Permission, safe Identity, declared Job
 enqueue, and namespaced Audit adapters are operational. Protocol v1 remains
 available, explicitly deprecated, and isolated on its legacy loopback gateway.
+
+Service discovery now uses immutable, revisioned snapshots with deterministic
+priority ordering, strict/exact SemVer resolution (including build metadata),
+Host-authoritative caller grants, typed schema validation, unary and bounded
+stream relay, instance-bound removal, and crash/restart reaping. Unsupported
+`before`/`after`/`wrap` service composition fails closed until the P7 chain is
+implemented. The Go SDK publishes immutable service descriptors and dispatches
+typed handlers. `sforum.content-policy` is the first V2 built-in reference and
+retains a real `protocol_v1` build-tag entry plus rollback Manifest.
 
 ## Purpose
 

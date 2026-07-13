@@ -2,11 +2,30 @@
 
 ## Status
 
-- Overall V3: **19%**.
+- Overall V3: **21%**.
 - P0-P2: **100%**.
-- P3: **46%**, active (6 of 13 task/test rows complete).
-- Branch: `main`; last implementation commit: `756c33738`.
-- Working tree was clean before this documentation checkpoint.
+- P3: **69%**, active (9 of 13 task/test rows complete).
+- Branch: `main`; last implementation commit: `876836f7a`.
+- Dirty files are limited to the in-flight transactional Host Command slice;
+  two-plugin and V1 package agents are writing isolated test files.
+
+## 2026-07-14 Checkpoint
+
+- Added immutable Service Registry snapshots and Host broker discovery,
+  resolution, exact invocation, typed streaming, conflict inspection, and
+  instance-bound unregister.
+- Added SDK service definitions/dispatch, handshake freeze, idle timeout, and
+  Host-authoritative caller permission semantics.
+- Added per-extension lifecycle serialization plus real crash/restart/current-
+  generation cleanup tests.
+- Rejected and cleared unattested plugin Actor values; locale and trace remain
+  preserved while runtime identity and authority are rebound.
+- Bound V2 hooks to complete Manifest event contracts and fail-closed result/
+  patch schemas.
+- Migrated `sforum.content-policy` to V2 with strict typed hooks and service,
+  while retaining a real V1 build-tag rollback package.
+- Added reproducible Linux package/digest gates and a dedicated generated SDK/
+  documentation CI drift workflow.
 
 ## Changed
 
@@ -29,8 +48,8 @@
   deprecation, starts, calls, and last call.
 - Added a runtime-scoped, AutoMTLS `GRPCBroker` Host channel with exact token,
   artifact, trust grant, epoch, instance, authority, and deadline validation.
-- Added generated Host clients to the Go SDK; request contexts preserve actor,
-  locale, and trace but overwrite runtime-owned identity and authority.
+- Added generated Host clients to the Go SDK; request contexts preserve locale
+  and trace but clear unattested Actor and overwrite runtime identity/authority.
 - Added typed own-settings Query/stream, Permission, safe Identity, declared
   Job enqueue, and namespaced Audit compatibility services without exposing
   the legacy loopback endpoint to protocol v2.
@@ -74,11 +93,12 @@
 
 ## Next
 
-1. Retain validated service descriptors returned by the plugin handshake.
-2. Implement the versioned Service Discovery registry over the Host broker,
-   including deterministic conflict ordering and stale-provider removal.
-3. Add unary invocation, bidirectional streaming, crash/restart, stale token,
-   and provider disappearance tests before moving to the reference plugin.
+1. Complete real consumer-to-provider List/Resolve/Invoke/Stream subprocess
+   coverage, including authority, conflicts, stale channels, and disappearance.
+2. Close SMTP/storage/content-policy V1 package compatibility and transactional
+   Host Command rollback gates.
+3. Implement remaining route/file/progress/job streaming and run the full P3
+   repository exit gate before starting P4.
 
 ## Compression Rule
 
