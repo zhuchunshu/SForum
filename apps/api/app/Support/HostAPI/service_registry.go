@@ -315,6 +315,12 @@ func prepareServiceRegistration(extensionID string, registration ServiceRegistra
 	if descriptor.ServiceId == "" || descriptor.RequestSchemaId == "" || descriptor.ResponseSchemaId == "" {
 		return preparedServiceRegistration{}, fmt.Errorf("%w: service id and request/response schema ids are required", ErrInvalidServiceRegistration)
 	}
+	if _, _, ok := splitServiceSchemaRef(descriptor.RequestSchemaId); !ok {
+		return preparedServiceRegistration{}, fmt.Errorf("%w: service %q request schema must be a versioned reference", ErrInvalidServiceRegistration, descriptor.ServiceId)
+	}
+	if _, _, ok := splitServiceSchemaRef(descriptor.ResponseSchemaId); !ok {
+		return preparedServiceRegistration{}, fmt.Errorf("%w: service %q response schema must be a versioned reference", ErrInvalidServiceRegistration, descriptor.ServiceId)
+	}
 	version, err := semver.StrictNewVersion(descriptor.Version)
 	if err != nil {
 		return preparedServiceRegistration{}, fmt.Errorf("%w: service %q version %q is not strict SemVer: %v", ErrInvalidServiceRegistration, descriptor.ServiceId, descriptor.Version, err)
@@ -423,6 +429,23 @@ func normalizedStringSet(values []string) []string {
 	}
 	sort.Strings(result)
 	return result
+}
+
+func splitServiceSchemaRef(schemaID string) (string, string, bool) {
+	index := strings.LastIndex(schemaID, "@")
+	if index <= 0 || index == len(schemaID)-1 {
+		return "", "", false
+	}
+	version := schemaID[index+1:]
+	if version[0] == '0' {
+		return "", "", false
+	}
+	for _, value := range version {
+		if value < '0' || value > '9' {
+			return "", "", false
+		}
+	}
+	return schemaID[:index], version, true
 }
 
 func sortPreparedServices(values []preparedServiceRegistration) {

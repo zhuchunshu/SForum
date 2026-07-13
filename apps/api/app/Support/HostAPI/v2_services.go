@@ -339,6 +339,11 @@ func (e *serviceStreamValidationError) Error() string {
 }
 
 func validateServiceDocument(document *protocolv2.TypedDocument, expectedSchemaID, direction string) *protocolv2.ErrorDetail {
+	expectedID, expectedVersion, contractOK := splitServiceSchemaRef(expectedSchemaID)
+	if !contractOK {
+		return serviceDiscoveryError(protocolv2.ErrorCode_ERROR_CODE_FAILED_PRECONDITION,
+			"host.service_contract_schema_invalid", "The resolved service declares an invalid schema contract.", false)
+	}
 	if document == nil || strings.TrimSpace(document.GetSchemaId()) == "" || strings.TrimSpace(document.GetSchemaVersion()) == "" {
 		code := protocolv2.ErrorCode_ERROR_CODE_INVALID_ARGUMENT
 		if direction == "output" {
@@ -346,14 +351,14 @@ func validateServiceDocument(document *protocolv2.TypedDocument, expectedSchemaI
 		}
 		return serviceDiscoveryError(code, "host.service_"+direction+"_schema_required", "Service "+direction+" must declare its schema id and version.", false)
 	}
-	if document.GetSchemaId() != expectedSchemaID {
+	if document.GetSchemaId() != expectedID {
 		code := protocolv2.ErrorCode_ERROR_CODE_INVALID_ARGUMENT
 		if direction == "output" {
 			code = protocolv2.ErrorCode_ERROR_CODE_FAILED_PRECONDITION
 		}
 		return serviceDiscoveryError(code, "host.service_"+direction+"_schema_mismatch", "Service "+direction+" schema does not match the resolved contract.", false)
 	}
-	if expectedVersion := serviceSchemaVersion(expectedSchemaID); expectedVersion != "" && document.GetSchemaVersion() != expectedVersion {
+	if document.GetSchemaVersion() != expectedVersion {
 		code := protocolv2.ErrorCode_ERROR_CODE_INVALID_ARGUMENT
 		if direction == "output" {
 			code = protocolv2.ErrorCode_ERROR_CODE_FAILED_PRECONDITION
@@ -361,14 +366,6 @@ func validateServiceDocument(document *protocolv2.TypedDocument, expectedSchemaI
 		return serviceDiscoveryError(code, "host.service_"+direction+"_schema_version_mismatch", "Service "+direction+" schema version does not match the resolved contract.", false)
 	}
 	return nil
-}
-
-func serviceSchemaVersion(schemaID string) string {
-	index := strings.LastIndex(schemaID, "@")
-	if index <= 0 || index == len(schemaID)-1 {
-		return ""
-	}
-	return schemaID[index+1:]
 }
 
 func serviceCallerFromContext(requestContext *protocolv2.RequestContext) ServiceCaller {

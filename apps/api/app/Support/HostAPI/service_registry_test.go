@@ -84,6 +84,11 @@ func TestServiceRegistryRejectsLooseSemverAndConstraints(t *testing.T) {
 	if err := registry.ReplaceExtension("demo.plugin", []ServiceRegistration{loose}); !errors.Is(err, ErrInvalidServiceRegistration) {
 		t.Fatalf("loose version error = %v", err)
 	}
+	invalidSchema := serviceRegistration("demo.plugin", "runtime-1", "demo.lookup", "1.2.3", 0, provider)
+	invalidSchema.Descriptor.RequestSchemaId = "demo.lookup.request"
+	if err := registry.ReplaceExtension("demo.plugin", []ServiceRegistration{invalidSchema}); !errors.Is(err, ErrInvalidServiceRegistration) {
+		t.Fatalf("unversioned schema error = %v", err)
+	}
 
 	valid := serviceRegistration("demo.plugin", "runtime-1", "demo.lookup", "1.2.3", 0, provider)
 	if err := registry.ReplaceExtension("demo.plugin", []ServiceRegistration{valid}); err != nil {

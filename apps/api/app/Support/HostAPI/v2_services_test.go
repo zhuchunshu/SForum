@@ -68,7 +68,7 @@ func (p *v2ServiceProvider) Stream(_ context.Context, requestContext *protocolv2
 			return nil, err
 		}
 		p.streamMessages = append(p.streamMessages, message)
-		if err := stream.Send(v2ServiceDocument(serviceID+".response@1", "1")); err != nil {
+		if err := stream.Send(v2ServiceDocument(serviceID+".response", "1")); err != nil {
 			return nil, err
 		}
 	}
@@ -171,7 +171,7 @@ func TestProtocolV2ServiceListResolvePaginationAndAuthority(t *testing.T) {
 
 func TestProtocolV2ServiceInvokeValidatesContractAndPropagatesContext(t *testing.T) {
 	registry := NewServiceRegistry()
-	provider := &v2ServiceProvider{output: v2ServiceDocument("demo.lookup.response@1", "1")}
+	provider := &v2ServiceProvider{output: v2ServiceDocument("demo.lookup.response", "1")}
 	registration := v2ServiceRegistration("provider.plugin", "instance-provider", "demo.lookup", "1.2.3", provider)
 	registration.Descriptor.RequiredAuthority = []string{"service.call"}
 	if err := registry.ReplaceExtension("provider.plugin", []ServiceRegistration{registration}); err != nil {
@@ -183,10 +183,10 @@ func TestProtocolV2ServiceInvokeValidatesContractAndPropagatesContext(t *testing
 	requestContext.Trace = &protocolv2.TraceContext{TraceId: "trace-1", SpanId: "span-1"}
 	request := &hostv2.ServiceInvokeRequest{
 		Context: requestContext, ServiceId: "demo.lookup", Version: "1.2.3", Operation: "find",
-		Input: v2ServiceDocument("demo.lookup.request@1", "1"),
+		Input: v2ServiceDocument("demo.lookup.request", "1"),
 	}
 	response, err := server.Invoke(context.Background(), request)
-	if err != nil || response.GetError() != nil || response.GetOutput().GetSchemaId() != "demo.lookup.response@1" {
+	if err != nil || response.GetError() != nil || response.GetOutput().GetSchemaId() != "demo.lookup.response" {
 		t.Fatalf("invoke response=%#v err=%v", response, err)
 	}
 	if provider.invokeCalls != 1 || provider.serviceID != "demo.lookup" || provider.version != "1.2.3" || provider.operation != "find" || !proto.Equal(provider.context, requestContext) {
@@ -194,7 +194,7 @@ func TestProtocolV2ServiceInvokeValidatesContractAndPropagatesContext(t *testing
 	}
 	provider.context.Locale = "mutated"
 	provider.input.SchemaId = "mutated.input"
-	if requestContext.GetLocale() != "zh-CN" || request.GetInput().GetSchemaId() != "demo.lookup.request@1" {
+	if requestContext.GetLocale() != "zh-CN" || request.GetInput().GetSchemaId() != "demo.lookup.request" {
 		t.Fatal("provider mutated caller-owned request data")
 	}
 
@@ -224,7 +224,7 @@ func TestProtocolV2ServiceInvokePreservesTypedErrorsAndMapsProviderFailures(t *t
 	request := &hostv2.ServiceInvokeRequest{
 		Context:   v2ServiceRequestContext("consumer.plugin", "instance-consumer"),
 		ServiceId: "demo.lookup", Version: "1.0.0", Operation: "find",
-		Input: v2ServiceDocument("demo.lookup.request@1", "1"),
+		Input: v2ServiceDocument("demo.lookup.request", "1"),
 	}
 
 	typed := &protocolv2.ErrorDetail{
@@ -249,7 +249,7 @@ func TestProtocolV2ServiceInvokePreservesTypedErrorsAndMapsProviderFailures(t *t
 	}
 
 	provider.transport = nil
-	provider.output = v2ServiceDocument("wrong.response@1", "1")
+	provider.output = v2ServiceDocument("wrong.response", "1")
 	contractResponse, _ := server.Invoke(context.Background(), request)
 	if contractResponse.GetError().GetCode() != protocolv2.ErrorCode_ERROR_CODE_FAILED_PRECONDITION || contractResponse.GetError().GetReason() != "host.service_output_schema_mismatch" {
 		t.Fatalf("output contract error = %#v", contractResponse.GetError())
@@ -258,7 +258,7 @@ func TestProtocolV2ServiceInvokePreservesTypedErrorsAndMapsProviderFailures(t *t
 
 func TestProtocolV2ServiceReplacementPublishesTargetButInvokesContribution(t *testing.T) {
 	registry := NewServiceRegistry()
-	provider := &v2ServiceProvider{output: v2ServiceDocument("provider.lookup.response@1", "1")}
+	provider := &v2ServiceProvider{output: v2ServiceDocument("provider.lookup.response", "1")}
 	replacement := v2ServiceRegistration("provider.plugin", "instance-provider", "provider.lookup", "1.0.0", provider)
 	replacement.Action = ServiceActionReplace
 	replacement.TargetID = "shared.lookup"
@@ -275,7 +275,7 @@ func TestProtocolV2ServiceReplacementPublishesTargetButInvokesContribution(t *te
 	}
 	invoked, _ := server.Invoke(context.Background(), &hostv2.ServiceInvokeRequest{
 		Context: requestContext, ServiceId: "shared.lookup", Version: "1.0.0", Operation: "find",
-		Input: v2ServiceDocument("provider.lookup.request@1", "1"),
+		Input: v2ServiceDocument("provider.lookup.request", "1"),
 	})
 	if invoked.GetError() != nil || provider.serviceID != "provider.lookup" {
 		t.Fatalf("replacement invocation response=%#v providerService=%q", invoked, provider.serviceID)
@@ -284,7 +284,7 @@ func TestProtocolV2ServiceReplacementPublishesTargetButInvokesContribution(t *te
 
 func TestProtocolV2ServiceStreamForwardsMessagesAndPreservesHalfClose(t *testing.T) {
 	registry := NewServiceRegistry()
-	provider := &v2ServiceProvider{streamFinal: v2ServiceDocument("demo.stream.response@1", "1")}
+	provider := &v2ServiceProvider{streamFinal: v2ServiceDocument("demo.stream.response", "1")}
 	registration := v2ServiceRegistration("provider.plugin", "instance-provider", "demo.stream", "1.0.0", provider)
 	registration.Descriptor.ClientStreaming = true
 	registration.Descriptor.ServerStreaming = true
@@ -297,8 +297,8 @@ func TestProtocolV2ServiceStreamForwardsMessagesAndPreservesHalfClose(t *testing
 		ctx: context.Background(),
 		recv: []*hostv2.ServiceStreamFrame{
 			v2ServiceOpenFrame(requestContext, "demo.stream", "1.0.0", "chat"),
-			v2ServiceMessageFrame(v2ServiceDocument("demo.stream.request@1", "1")),
-			v2ServiceMessageFrame(v2ServiceDocument("demo.stream.request@1", "1")),
+			v2ServiceMessageFrame(v2ServiceDocument("demo.stream.request", "1")),
+			v2ServiceMessageFrame(v2ServiceDocument("demo.stream.request", "1")),
 		},
 	}
 	if err := server.Stream(stream); err != nil {
@@ -308,7 +308,7 @@ func TestProtocolV2ServiceStreamForwardsMessagesAndPreservesHalfClose(t *testing
 		t.Fatalf("half-close forwarding provider=%#v sent=%#v", provider, stream.sent)
 	}
 	for _, frame := range stream.sent {
-		if frame.GetMessage().GetSchemaId() != "demo.stream.response@1" {
+		if frame.GetMessage().GetSchemaId() != "demo.stream.response" {
 			t.Fatalf("unexpected output frame: %#v", frame)
 		}
 	}
@@ -336,7 +336,7 @@ func TestProtocolV2ServiceStreamRejectsFrameAndSchemaViolations(t *testing.T) {
 	}{
 		{
 			name:   "missing open",
-			frames: []*hostv2.ServiceStreamFrame{v2ServiceMessageFrame(v2ServiceDocument("demo.stream.request@1", "1"))},
+			frames: []*hostv2.ServiceStreamFrame{v2ServiceMessageFrame(v2ServiceDocument("demo.stream.request", "1"))},
 			reason: "host.service_stream_open_required",
 		},
 		{
@@ -351,7 +351,7 @@ func TestProtocolV2ServiceStreamRejectsFrameAndSchemaViolations(t *testing.T) {
 			name: "wrong schema",
 			frames: []*hostv2.ServiceStreamFrame{
 				v2ServiceOpenFrame(requestContext, "demo.stream", "1.0.0", "chat"),
-				v2ServiceMessageFrame(v2ServiceDocument("wrong.request@1", "1")),
+				v2ServiceMessageFrame(v2ServiceDocument("wrong.request", "1")),
 			},
 			reason: "host.service_input_schema_mismatch",
 		},
