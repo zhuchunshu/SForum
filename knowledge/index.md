@@ -4,7 +4,7 @@ This is the entry point for project memory.
 
 ## Latest Handoff
 
-- **2026-07-13 Trusted Plugin And Theme Platform V3 P1 active (overall 7%, P1 75%)**
+- **2026-07-13 Trusted Plugin And Theme Platform V3 P0-P1 complete (overall 9%, P2 next)**
   - Decision: `knowledge/decisions/2026-07-13-trusted-plugin-theme-platform-v3.md`
   - Task book: `knowledge/plans/2026-07-13-trusted-plugin-theme-platform-v3.md`
   - P1 handoff: `knowledge/sessions/2026-07-13-trusted-plugin-theme-platform-v3-p1-progress.md`
@@ -16,11 +16,12 @@ This is the entry point for project memory.
   - P0 froze 99-row traceability, 204 routes, 113 UI surfaces, 33 admin
     surfaces, 19-module Extension Surface Matrix, stable identities, governance,
     migration gates, and performance baseline; CI rejects catalog drift
-  - P1 now has additive recovery persistence, digest-bound one-use trust,
-    super-admin HTTP contracts, pre-plugin Safe Mode, PostgreSQL-only recovery
-    CLI, and same-digest boot-loop containment; current route catalog is 207
-  - P1 admin exact-impact UI, invalidation matrix, browser/build/full gates
-    remain; P2-P13 runtime work is not yet implemented
+  - P1 completed exact-artifact one-use trust, delegated inert preview,
+    super-admin HTTP/UI flow, pre-plugin Safe Mode, PostgreSQL-only recovery,
+    boot-loop containment, audit, and full digest/declaration invalidation
+  - P1 final gates passed: 207 routes, 115 UI surfaces, 99 traceability rows,
+    1,519 OpenAPI refs, 277 Web tests, Nuxt typecheck/build, full repo gate, and
+    real desktop/mobile browser flows; P2-P13 runtime work remains
 
 - **2026-07-13 Legacy Web Release/runtime frontend builds removed**
   - Decision: `knowledge/decisions/2026-07-13-remove-legacy-web-release.md`

@@ -1,12 +1,12 @@
-# 2026-07-13 Trusted Plugin And Theme Platform V3 P1 Progress
+# 2026-07-13 Trusted Plugin And Theme Platform V3 P1 Completion
 
 ## Progress
 
-- Overall V3: **7%**.
+- Overall V3: **9%**.
 - P0: **100%**, closed.
-- P1: **75%**, active; do not mark P1 complete until its admin flow, digest
-  invalidation matrix, browser/build checks, and full repository gate pass.
-- Active branch: `main`; latest implementation commit `aecfa18fc`.
+- P1: **100%**, closed.
+- P2: **0%**, next.
+- Active branch: `main`; latest implementation commit `aee696e68`.
 
 ## Changed
 
@@ -21,6 +21,12 @@
   commands that tolerate missing or malformed packages.
 - Added same-digest startup failure containment so a failed or interrupted
   plugin cannot loop on every restart.
+- Unified backend and prebuilt admin frontend execution under one exact-artifact
+  grant; legacy frontend-only trust cannot bypass V3 checks.
+- Added the shared admin exact-impact preview/challenge/enable dialog, persistent
+  errors, delegated preview-only behavior, and 10-second success feedback.
+- Added the complete digest and declaration invalidation matrix plus HTTP trust
+  boundary and audit coverage.
 
 ## Commits
 
@@ -30,6 +36,12 @@
 - `f36996645 feat(extensions): enforce pre-plugin safe mode`
 - `41016c41f feat(cli): add out-of-band extension recovery`
 - `aecfa18fc feat(extensions): contain startup boot loops`
+- `9a2570f89 docs(extensions): checkpoint V3 P1 progress`
+- `1b9202608 feat(extensions): unify exact artifact frontend trust`
+- `e2b9dc8c8 feat(admin): add exact artifact trust review`
+- `a75c28366 test(extensions): cover exact trust invalidation`
+- `651d3e9f4 test(extensions): cover trust audit and static preview`
+- `aee696e68 fix(admin): classify trust review surfaces`
 
 ## Verification
 
@@ -46,6 +58,13 @@
 - Two isolated API boots against a failing executable plugin produced
   `failed / runs=1`, then `skipped / runs=1`.
 - Current OpenAPI reference validation passes with 1,519 references.
+- The full `./scripts/test.sh` gate passed, including all 277 Web tests and Nuxt
+  typecheck; the Nuxt production build also passed.
+- Real isolated desktop and `390x844` browser flows passed exact-impact preview,
+  challenge issuance, token-bearing enable, 10-second Toast, dialog cleanup,
+  trusted frontend refresh, responsive scrolling, and cancel behavior. The
+  relevant console stayed clean.
+- Final catalogs contain 207 routes, 115 UI surfaces, and 99 traceability rows.
 - All temporary databases, ports, binaries, and package directories used by
   the integration checks were removed.
 
@@ -61,22 +80,20 @@
 
 ## Next
 
-1. Inspect the current admin extension enable/confirmation UI and API
-   composables.
-2. Implement the complete exact-impact preview, persistent blocking errors,
-   challenge issuance, and token-bearing enable flow.
-3. Preserve delegated-manager package storage while making execution trust
-   visibly super-admin-only; use a 10-second success Toast.
-4. Add changed package, migration, admin frontend/L2, authority, contract, and
-   dependency digest invalidation coverage plus expired/stale HTTP cases.
-5. Run Nuxt typecheck/build, browser flows, `./scripts/test.sh`, and close P1
-   only after every P1 checkbox passes.
+1. Read the P2 task slice and inventory current Manifest, package graph,
+   OpenAPI schema, fixtures, and validators.
+2. Preserve v1 normalization and land compatibility contracts before new
+   runtime behavior.
+3. Keep Manifest/schema, generated contracts, fixtures, and runtime changes in
+   separate buildable commits.
 
 ## Exact Resume Point
 
-- Working tree immediately before this documentation commit contains only this
-  handoff, the progress ledger, and `knowledge/index.md`.
-- Resume with `rg -n "enable|confirm|trust|challenge|impact" apps/web/app/pages/admin apps/web/app/components apps/web/app/composables`.
+- Working tree was clean at `aee696e68` before the P1 completion documentation
+  update.
+- Resume with `sed -n '280,340p' knowledge/plans/2026-07-13-trusted-plugin-theme-platform-v3.md`,
+  then inventory `ExtensionManifest`, `ExtensionPackage`, `Models/Extensions`,
+  the extensions OpenAPI schema, fixtures, and schema validators.
 
 ## Open Questions
 

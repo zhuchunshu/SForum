@@ -1,6 +1,6 @@
 # Frontend Module
 
-## Accepted V3 Target (P0 Complete, P1 Next)
+## Accepted V3 Target (P0-P1 Complete, P2 Next)
 
 The accepted target, including the canonical template comparison and detailed
 architecture mind map, is documented in
@@ -30,6 +30,14 @@ explicitly labeled as target behavior.
   failing component without breaking navigation or indexable content.
 - With JavaScript disabled, body content, lists, comments, links, and pagination
   remain complete and usable; only interactive L2 enhancement is absent.
+
+P1 uses one shared Host-owned impact dialog for plugin and theme enable flows.
+It presents every canonical impact category, keeps blocking errors visible,
+allows delegated managers to preview without executing, and requires an active
+`super_admin` to issue and consume the exact-artifact challenge. Success Toasts
+follow the active appearance tokens and dismiss after 10 seconds. Prebuilt admin
+frontend loading now requires the whole-artifact grant; legacy frontend-only
+grants do not satisfy V3 trust.
 
 ## Trusted Admin Runtime
 

@@ -1,8 +1,8 @@
 # Trusted Plugin And Theme Platform V3 Progress Ledger
 
 Date: 2026-07-13
-Overall progress: **7%**
-Active phase: **P1 - Trust Confirmation And Out-Of-Band Recovery (75%)**
+Overall progress: **9%**
+Active phase: **P2 - Manifest V3, Package Graph, And Contract Schemas (0%)**
 
 This ledger is the durable percentage and context-compaction checkpoint for the
 V3 program. Update it before context compression, at every phase boundary, and
@@ -17,7 +17,7 @@ scaffolding, or demo-only code cannot satisfy a runtime exit criterion.
 | Phase | Weight | Current completion | Earned |
 | --- | ---: | ---: | ---: |
 | P0 Governance | 3% | 100% | 3% |
-| P1 Trust/recovery | 6% | 75% | 4.5% |
+| P1 Trust/recovery | 6% | 100% | 6% |
 | P2 Manifest/contracts | 7% | 0% | 0% |
 | P3 Host API v2 | 8% | 0% | 0% |
 | P4 Lifecycle/dependencies | 7% | 0% | 0% |
@@ -73,7 +73,7 @@ handoff, run the focused gate, and commit the checkpoint first. Every progress
 update to the user must include the displayed overall percentage and active
 phase percentage.
 
-## P1 Evidence To Date
+## Completed P1 Evidence
 
 - Added additive trust-recovery persistence, including one-use challenge
   digests, durable exact-artifact grants, revocation, and startup-attempt state.
@@ -95,6 +95,16 @@ phase percentage.
 - Added startup-attempt containment: a failed, incomplete `starting`, or
   `skipped` attempt for the same digest is skipped on the next boot; a manual
   enable or changed digest may retry.
+- Unified backend and admin-frontend execution under the whole-artifact grant;
+  legacy frontend-only grants cannot bypass V3 exact-artifact checks.
+- Added a shared admin impact dialog with every canonical impact category,
+  persistent blocking errors, delegated preview-only behavior, a two-step
+  challenge/enable flow, and a theme-aware 10-second success Toast.
+- Covered package/backend bytes, migration bytes/declarations, admin frontend
+  bytes/contracts, routes, permissions, features, authority, Host/Frontend
+  contracts, and dependencies in the trust invalidation matrix.
+- Covered wrong actor, missing, expired, replayed, and stale challenges through
+  the HTTP boundary, plus trust audit and delegated static-preview behavior.
 - Verified PostgreSQL challenge concurrency produces one grant and one replay;
   isolated Safe Mode boot left the executable-plugin sentinel absent; malformed
   package recovery disabled the extension; two isolated boots executed a
@@ -102,15 +112,20 @@ phase percentage.
 
 ## Last Durable Checkpoint
 
-- Last implementation commit: `aecfa18fc feat(extensions): contain startup boot loops`.
-- P1 commits before it: `9c80dc31e`, `35d34ff2f`, `c40cdb5e7`,
-  `f36996645`, and `41016c41f`.
-- Current catalogs: 207 routes, 113 UI surfaces, and 99 traceability rows.
-- Last full P0 gate passed. Current OpenAPI validation passed with 1,519
-  references; all focused P1 Go, PostgreSQL, isolated boot, Safe Mode, and CLI
-  recovery tests described above passed.
-- Dirty files at checkpoint creation: this ledger, `knowledge/index.md`, and
-  the new P1 session handoff only; no production changes remain uncommitted.
-- Next command after committing this checkpoint: inspect the current admin
-  extension enable/confirmation components and their API composables, then
-  implement the exact-impact challenge/enable flow as one frontend slice.
+- Last implementation commit: `aee696e68 fix(admin): classify trust review surfaces`.
+- Final P1 commits after the prior checkpoint: `1b9202608`, `e2b9dc8c8`,
+  `a75c28366`, `651d3e9f4`, and `aee696e68`.
+- Current catalogs: 207 routes, 115 UI surfaces, and 99 traceability rows.
+- `./scripts/test.sh` passed: Go tests, 1,519 OpenAPI references, Nuxt
+  typecheck, and all 277 Web tests. Nuxt production build also passed.
+- An isolated real-browser flow passed on desktop and `390x844`: exact impact
+  preview, challenge issuance, token-bearing enable, dialog cleanup, trusted
+  frontend refresh, responsive scrolling/cancel, and 10-second Toast behavior.
+  The relevant browser console remained clean.
+- Temporary database, API/Nuxt ports, binaries, ZIP, cookies, and extension
+  package directory were removed. User-owned ports 3000 and 8081 were untouched.
+- Working tree was clean before this documentation checkpoint; no production
+  changes remain uncommitted.
+- Next command after committing this checkpoint: read the P2 task slice at
+  lines 280-340, then inventory manifest, package graph, OpenAPI schema, and
+  fixture validators before the first compatibility commit.

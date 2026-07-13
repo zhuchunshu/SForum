@@ -1,6 +1,6 @@
 # Extensions Module
 
-## Accepted V3 Target (P0 Complete, P1 Next)
+## Accepted V3 Target (P0-P1 Complete, P2 Next)
 
 The accepted target, including the canonical 99-row comparison and detailed
 architecture mind map, is documented in
@@ -36,6 +36,14 @@ explicitly labeled as target behavior.
   reference plugins are release gates rather than ecosystem follow-ups.
 - Safe mode, CLI disable, immutable snapshot rollback, audit/tracing, and
   multi-node convergence ship before the platform is considered complete.
+
+P1 now enforces one actor-bound, one-use, maximum-five-minute challenge over
+the complete exact artifact and canonical impact document. Durable grants cover
+package, backend, admin frontend, migrations, declarations, authority,
+Host/Frontend contracts, and dependencies. Delegated managers retain inert
+upload and static preview, while only an active `super_admin` may authorize
+first execution. Host-owned Safe Mode, PostgreSQL-only recovery commands,
+startup-attempt containment, and trust audit events are operational.
 
 ## Purpose
 
@@ -78,9 +86,10 @@ SForum. The trusted Vue/static-registry release path has been removed.
   uses a restricted short-lived plugin process with no Host API token and no
   route/event/job/schedule/provider registration; SMTP and filesystem storage
   are reference migrations.
-- `adminFrontendDigest` covers only the prebuilt component contract and
-  entry/CSS bytes. Trust uses it independently from package/backend/public-theme/
-  settings changes.
+- `adminFrontendDigest` covers the prebuilt component contract and entry/CSS
+  bytes, but V3 authorizes it only through the complete exact-artifact grant.
+  A legacy frontend-only grant cannot bypass package/backend/migration or
+  declaration trust changes.
 - Admin Micro-frontend API v1 loads package-local `.mjs`/`.css` through an
   authenticated immutable digest endpoint after one-use actor-bound
   confirmation. Import/API/mount/CSS/cleanup/quarantine failure falls back to

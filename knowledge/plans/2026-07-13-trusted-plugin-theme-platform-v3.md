@@ -1,6 +1,6 @@
 # Trusted Plugin And Theme Platform V3 - Implementation Task Book
 
-Status: **active implementation; P0 complete, P1 next**
+Status: **active implementation; P0-P1 complete, P2 next**
 Date: 2026-07-13  
 Decision: `knowledge/decisions/2026-07-13-trusted-plugin-theme-platform-v3.md`
 
@@ -245,37 +245,37 @@ flowchart LR
 
 ### Tasks
 
-- [ ] Replace boolean capability confirmation with a server-issued confirmation
+- [x] Replace boolean capability confirmation with a server-issued confirmation
       challenge and one-use token.
-- [ ] Keep upload/static install inert and available to the existing delegated
+- [x] Keep upload/static install inert and available to the existing delegated
       plugin/theme manager; do not start a process, run a lifecycle hook or
       migration, import frontend code, or contact an external system.
-- [ ] Canonicalize the exact impact document: binaries, routes, guards, hooks,
+- [x] Canonicalize the exact impact document: binaries, routes, guards, hooks,
       migrations, DB authority, components, L2, providers, jobs, schedules,
       network, files, secrets, and dependencies.
-- [ ] Bind confirmation and durable trust to every relevant digest/version.
-- [ ] Add admin impact preview with persistent errors and 10-second success
+- [x] Bind confirmation and durable trust to every relevant digest/version.
+- [x] Add admin impact preview with persistent errors and 10-second success
       feedback following project toast rules.
-- [ ] Preserve L0/L1 or Schema fallback when executable frontend trust is absent.
-- [ ] Invalidate trust on artifact, contract, authority, or dependency change.
-- [ ] Implement `SFORUM_SAFE_MODE=1` before third-party sync/start.
-- [ ] Add CLI commands to list, disable one, and disable all third-party
+- [x] Preserve L0/L1 or Schema fallback when executable frontend trust is absent.
+- [x] Invalidate trust on artifact, contract, authority, or dependency change.
+- [x] Implement `SFORUM_SAFE_MODE=1` before third-party sync/start.
+- [x] Add CLI commands to list, disable one, and disable all third-party
       extensions without starting plugin code or the HTTP server.
-- [ ] Persist last activation attempt and automatically skip a newly crashing
+- [x] Persist last activation attempt and automatically skip a newly crashing
       extension according to a reviewed boot-loop policy.
-- [ ] Add audit events for challenge, grant, revoke, deny, safe-mode boot, and
+- [x] Add audit events for challenge, grant, revoke, deny, safe-mode boot, and
       CLI recovery.
 
 ### Tests
 
-- [ ] Wrong actor, expired, replayed, stale digest, changed route/migration/L2,
+- [x] Wrong actor, expired, replayed, stale digest, changed route/migration/L2,
       and missing challenge are denied.
-- [ ] Same digest restart does not require confirmation.
-- [ ] Upload/static install by a delegated manager produces the complete impact
+- [x] Same digest restart does not require confirmation.
+- [x] Upload/static install by a delegated manager produces the complete impact
       preview while proving that no package code or migration executed.
-- [ ] Safe mode starts with broken routes/components/plugins installed.
-- [ ] CLI disable works with API/Nuxt stopped and plugin packages malformed.
-- [ ] Denied and allowed paths cover `super_admin` policy at service and HTTP
+- [x] Safe mode starts with broken routes/components/plugins installed.
+- [x] CLI disable works with API/Nuxt stopped and plugin packages malformed.
+- [x] Denied and allowed paths cover `super_admin` policy at service and HTTP
       levels.
 
 ### Rollback
