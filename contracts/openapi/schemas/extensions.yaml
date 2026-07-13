@@ -199,6 +199,22 @@ ApiResponseFrontendTrustChallenge:
     message: { type: string }
     data:
       "$ref": "#/FrontendTrustChallenge"
+ApiResponseExecutableTrustStatus:
+  type: object
+  required: [code, message, data]
+  properties:
+    code: { type: integer }
+    message: { type: string }
+    data:
+      "$ref": "#/ExecutableTrustStatus"
+ApiResponseExecutableTrustChallenge:
+  type: object
+  required: [code, message, data]
+  properties:
+    code: { type: integer }
+    message: { type: string }
+    data:
+      "$ref": "#/ExecutableTrustChallenge"
 ExtensionType:
   type: string
   enum:
@@ -1383,6 +1399,203 @@ FrontendTrustChallenge:
     apiVersion: { type: integer, minimum: 1 }
     componentId: { type: string }
     expiresAt: { type: string, format: date-time }
+ExecutableTrustStatus:
+  type: object
+  required: [impact, trustRequired, trusted]
+  properties:
+    impact:
+      "$ref": "#/ExecutableTrustImpact"
+    trustRequired:
+      type: boolean
+    trusted:
+      type: boolean
+ExecutableTrustChallenge:
+  type: object
+  required: [token, impact, expiresAt]
+  properties:
+    token:
+      type: string
+      pattern: '^[0-9a-f]{64}$'
+      description: Returned once. The server persists only its SHA-256 digest.
+    impact:
+      "$ref": "#/ExecutableTrustImpact"
+    expiresAt:
+      type: string
+      format: date-time
+ExecutableTrustImpact:
+  type: object
+  required:
+  - schemaVersion
+  - action
+  - extensionId
+  - extensionVersion
+  - extensionType
+  - source
+  - packageDigest
+  - artifactDigests
+  - binaries
+  - routes
+  - guards
+  - hooks
+  - events
+  - migrations
+  - providers
+  - jobs
+  - schedules
+  - components
+  - contributions
+  - capabilities
+  - permissions
+  - requiredFeatures
+  - dependencies
+  - requestedAuthority
+  - contracts
+  - digest
+  properties:
+    schemaVersion:
+      type: string
+      const: sforum.trust-impact@1
+    action:
+      type: string
+      enum: [enable]
+    extensionId: { type: string }
+    extensionVersion: { type: string }
+    extensionType:
+      "$ref": "#/ExtensionType"
+    source:
+      "$ref": "#/ExtensionSource"
+    packageDigest: { type: string, pattern: '^[0-9a-f]{64}$' }
+    artifactDigests:
+      type: object
+      additionalProperties:
+        type: string
+        pattern: '^[0-9a-f]{64}$'
+    binaries:
+      type: array
+      items:
+        "$ref": "#/ExecutableTrustArtifact"
+    routes:
+      type: array
+      items:
+        "$ref": "#/ExtensionManifestRoute"
+    guards:
+      type: array
+      items:
+        "$ref": "#/ExecutableTrustGuard"
+    hooks:
+      type: array
+      items:
+        "$ref": "#/ExtensionManifestHook"
+    events:
+      type: array
+      items:
+        "$ref": "#/ExtensionManifestEvent"
+    migrations:
+      type: array
+      items:
+        "$ref": "#/ExecutableTrustMigration"
+    providers:
+      type: array
+      items:
+        "$ref": "#/ExtensionManifestProvider"
+    jobs:
+      type: array
+      items:
+        "$ref": "#/ExecutableTrustJob"
+    schedules:
+      type: array
+      items: { type: string }
+    components:
+      type: array
+      items:
+        "$ref": "#/PrebuiltSettingsComponent"
+    contributions:
+      type: array
+      items:
+        type: object
+        additionalProperties: true
+    capabilities:
+      type: array
+      items:
+        "$ref": "#/ExtensionCapabilityGrant"
+    permissions:
+      type: array
+      items: { type: string }
+    requiredFeatures:
+      type: array
+      items: { type: string }
+    dependencies:
+      type: array
+      items:
+        "$ref": "#/ExecutableTrustDependency"
+    requestedAuthority:
+      "$ref": "#/ExecutableTrustAuthority"
+    contracts:
+      "$ref": "#/ExecutableTrustContracts"
+    digest: { type: string, pattern: '^[0-9a-f]{64}$' }
+ExecutableTrustArtifact:
+  type: object
+  required: [kind, path, digest]
+  properties:
+    kind: { type: string }
+    path: { type: string }
+    digest: { type: string, pattern: '^[0-9a-f]{64}$' }
+ExecutableTrustMigration:
+  type: object
+  required: [path, digest]
+  properties:
+    path: { type: string }
+    digest: { type: string, pattern: '^[0-9a-f]{64}$' }
+ExecutableTrustGuard:
+  type: object
+  required: [path, methods, access]
+  properties:
+    path: { type: string }
+    methods:
+      type: array
+      items: { type: string }
+    access: { type: string, enum: [public, login, permission] }
+    permission: { type: string }
+ExecutableTrustJob:
+  type: object
+  required: [name]
+  properties:
+    name: { type: string }
+ExecutableTrustDependency:
+  type: object
+  required: [name, version]
+  properties:
+    name: { type: string }
+    version: { type: string }
+    integrity: { type: string }
+ExecutableTrustAuthority:
+  type: object
+  required:
+  - backendExecution
+  - adminFrontendExecution
+  - rawRequest
+  - rawCoreDatabase
+  - outboundNetwork
+  - packageFiles
+  - secrets
+  properties:
+    backendExecution: { type: boolean }
+    adminFrontendExecution: { type: boolean }
+    rawRequest: { type: boolean }
+    rawCoreDatabase: { type: boolean }
+    outboundNetwork: { type: boolean }
+    packageFiles:
+      type: array
+      items: { type: string }
+    secrets:
+      type: array
+      items: { type: string }
+ExecutableTrustContracts:
+  type: object
+  required: [hostApi]
+  properties:
+    hostApi: { type: string }
+    frontendApi: { type: string }
 FrontendTrustState:
   type: string
   enum:

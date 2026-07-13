@@ -140,6 +140,24 @@
       "path": "/api/v1/admin/extensions/:id/enable"
     },
     {
+      "id": "core.route.extensions.executable_trust_status",
+      "contractVersion": "sforum.route.extensions.executable_trust_status@1",
+      "method": "GET",
+      "path": "/api/v1/admin/extensions/:id/trust"
+    },
+    {
+      "id": "core.route.extensions.issue_executable_trust_challenge",
+      "contractVersion": "sforum.route.extensions.issue_executable_trust_challenge@1",
+      "method": "POST",
+      "path": "/api/v1/admin/extensions/:id/trust/challenge"
+    },
+    {
+      "id": "core.route.extensions.revoke_executable_trust",
+      "contractVersion": "sforum.route.extensions.revoke_executable_trust@1",
+      "method": "DELETE",
+      "path": "/api/v1/admin/extensions/:id/trust"
+    },
+    {
       "id": "core.route.extensions.events",
       "contractVersion": "sforum.route.extensions.events@1",
       "method": "GET",

@@ -183,6 +183,42 @@ func (h *Controller) enable(c fiber.Ctx) error {
 	return apphttp.OK(c, item)
 }
 
+func (h *Controller) executableTrustStatus(c fiber.Ctx) error {
+	actor, err := h.actor(c)
+	if err != nil {
+		return err
+	}
+	status, err := h.service.ExecutableTrustStatus(c.Context(), actor, c.Params("id"))
+	if err != nil {
+		return mapExtensionError(err)
+	}
+	return apphttp.OK(c, status)
+}
+
+func (h *Controller) issueExecutableTrustChallenge(c fiber.Ctx) error {
+	actor, err := h.actor(c)
+	if err != nil {
+		return err
+	}
+	challenge, err := h.service.IssueExecutableTrustChallenge(c.Context(), actor, c.Params("id"))
+	if err != nil {
+		return mapExtensionError(err)
+	}
+	return apphttp.OK(c, challenge)
+}
+
+func (h *Controller) revokeExecutableTrust(c fiber.Ctx) error {
+	actor, err := h.actor(c)
+	if err != nil {
+		return err
+	}
+	status, err := h.service.RevokeExecutableTrust(c.Context(), actor, c.Params("id"))
+	if err != nil {
+		return mapExtensionError(err)
+	}
+	return apphttp.OK(c, status)
+}
+
 func (h *Controller) disable(c fiber.Ctx) error {
 	actor, err := h.actor(c)
 	if err != nil {
@@ -453,6 +489,18 @@ func mapExtensionError(err error) error {
 		return fiber.NewError(fiber.StatusServiceUnavailable, extensions.CodeRuntimeFailed)
 	case errors.Is(err, extensions.ErrCapabilityConfirmationRequired):
 		return fiber.NewError(fiber.StatusConflict, extensions.CodeCapabilityConfirmationRequired)
+	case errors.Is(err, extensions.ErrTrustChallengeRequired):
+		return fiber.NewError(fiber.StatusConflict, extensions.CodeTrustChallengeRequired)
+	case errors.Is(err, extensions.ErrTrustChallengeInvalid):
+		return fiber.NewError(fiber.StatusForbidden, extensions.CodeTrustChallengeInvalid)
+	case errors.Is(err, extensions.ErrTrustChallengeExpired):
+		return fiber.NewError(fiber.StatusConflict, extensions.CodeTrustChallengeExpired)
+	case errors.Is(err, extensions.ErrTrustChallengeReplayed):
+		return fiber.NewError(fiber.StatusConflict, extensions.CodeTrustChallengeReplayed)
+	case errors.Is(err, extensions.ErrTrustChallengeStale):
+		return fiber.NewError(fiber.StatusConflict, extensions.CodeTrustChallengeStale)
+	case errors.Is(err, extensions.ErrTrustNotRequired):
+		return fiber.NewError(fiber.StatusConflict, extensions.CodeTrustNotRequired)
 	case errors.Is(err, extensions.ErrCapabilityDenied):
 		return fiber.NewError(fiber.StatusForbidden, extensions.CodeCapabilityDenied)
 	case errors.Is(err, extensions.ErrFeaturesRequired):

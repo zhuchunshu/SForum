@@ -369,10 +369,11 @@ adminExtensionEnable:
   post:
     summary: Enable an installed plugin
     description: >-
-      Enables a plugin after preflight. When the plugin resolves to any host
-      capabilities, the first enable requires confirmCapabilities=true so
-      operators acknowledge the grant list (F2.1). Restarting an already-enabled
-      plugin does not require re-confirmation.
+      Enables a plugin after preflight. With SFORUM_V3_TRUST_CHALLENGES enabled,
+      a newly executable uploaded artifact requires the actor-bound one-use
+      confirmationToken returned by the challenge endpoint. An already trusted
+      exact digest may restart without another token. With the migration gate
+      disabled, confirmCapabilities remains the v1 compatibility field.
     operationId: enableAdminExtension
     parameters:
     - "$ref": "../components/parameters.yaml#/ExtensionID"
@@ -385,7 +386,12 @@ adminExtensionEnable:
             properties:
               confirmCapabilities:
                 type: boolean
-                description: Operator confirmed the capability grant list for this plugin.
+                deprecated: true
+                description: V1 compatibility confirmation used only while the V3 trust challenge gate is disabled.
+              confirmationToken:
+                type: string
+                pattern: '^[0-9a-f]{64}$'
+                description: Actor-bound, one-use, maximum-five-minute token for the exact canonical impact document.
     responses:
       '200':
         description: Plugin enabled after preflight checks.
@@ -409,6 +415,90 @@ adminExtensionEnable:
               "$ref": "../schemas/common.yaml#/ApiErrorResponse"
       '503':
         "$ref": "../components/responses.yaml#/ServiceUnavailable"
+adminExtensionTrust:
+  get:
+    summary: Preview exact executable extension impact and trust state
+    description: >-
+      Returns the canonical impact document without executing package code.
+      Delegated extension managers may inspect this preview. The document binds
+      package/binary/frontend/migration digests, routes, guards, hooks, providers,
+      components, capabilities, permissions, requested authority, and contracts.
+    operationId: getAdminExtensionTrust
+    parameters:
+    - "$ref": "../components/parameters.yaml#/ExtensionID"
+    responses:
+      '200':
+        description: Current exact-artifact trust status and impact preview.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/extensions.yaml#/ApiResponseExecutableTrustStatus"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '404':
+        "$ref": "../components/responses.yaml#/NotFound"
+      '409':
+        description: V3 trust challenge migration gate is disabled.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/common.yaml#/ApiErrorResponse"
+  delete:
+    summary: Revoke executable trust for an extension
+    description: Super-admin only. Revokes every live exact-artifact grant and outstanding challenge for the extension.
+    operationId: revokeAdminExtensionTrust
+    parameters:
+    - "$ref": "../components/parameters.yaml#/ExtensionID"
+    responses:
+      '200':
+        description: Executable trust revoked immediately.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/extensions.yaml#/ApiResponseExecutableTrustStatus"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '404':
+        "$ref": "../components/responses.yaml#/NotFound"
+      '409':
+        description: V3 trust challenge migration gate is disabled.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/common.yaml#/ApiErrorResponse"
+adminExtensionTrustChallenge:
+  post:
+    summary: Issue an exact-artifact executable trust challenge
+    description: >-
+      Super-admin only. Returns a one-use token bound to the current actor,
+      extension version, package and executable digests, canonical impact digest,
+      requested authority, and Host/Frontend contracts. Expires within five minutes.
+    operationId: createAdminExtensionTrustChallenge
+    parameters:
+    - "$ref": "../components/parameters.yaml#/ExtensionID"
+    responses:
+      '200':
+        description: Short-lived one-use challenge issued.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/extensions.yaml#/ApiResponseExecutableTrustChallenge"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '404':
+        "$ref": "../components/responses.yaml#/NotFound"
+      '409':
+        description: Trust is not required for this artifact or the migration gate is disabled.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/common.yaml#/ApiErrorResponse"
 adminExtensionDisable:
   post:
     summary: Disable an installed plugin

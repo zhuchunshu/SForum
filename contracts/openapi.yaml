@@ -330,6 +330,10 @@ paths:
     "$ref": "./openapi/paths/extensions.yaml#/adminExtensionUninstall"
   "/admin/extensions/{extensionID}/enable":
     "$ref": "./openapi/paths/extensions.yaml#/adminExtensionEnable"
+  "/admin/extensions/{extensionID}/trust":
+    "$ref": "./openapi/paths/extensions.yaml#/adminExtensionTrust"
+  "/admin/extensions/{extensionID}/trust/challenge":
+    "$ref": "./openapi/paths/extensions.yaml#/adminExtensionTrustChallenge"
   "/admin/extensions/{extensionID}/disable":
     "$ref": "./openapi/paths/extensions.yaml#/adminExtensionDisable"
   "/admin/extensions/{extensionID}/verify":
