@@ -1,12 +1,15 @@
 package plugin
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
 	"time"
+
+	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
 )
 
 // GeneratedDocs 是一次目录文档生成的结果（内存）。
@@ -23,6 +26,7 @@ const (
 	DocContributionPoints = "contribution-points.md"
 	DocProviderSlots      = "provider-slots.md"
 	DocSchedules          = "schedules.md"
+	DocManifestV3         = "manifest-v3.md"
 )
 
 // genMarker 出现在每个生成文件顶部；人工编辑应改代码目录，再 re-generate。
@@ -43,6 +47,7 @@ func GenerateCatalogDocs() GeneratedDocs {
 		DocContributionPoints: ensureNL(renderContributionPoints()),
 		DocProviderSlots:      ensureNL(renderProviderSlots()),
 		DocSchedules:          ensureNL(renderSchedules()),
+		DocManifestV3:         ensureNL(renderManifestV3()),
 	}
 	return GeneratedDocs{Files: files}
 }
@@ -134,6 +139,7 @@ func renderIndex() string {
 	b.WriteString("| [contribution-points.md](./contribution-points.md) | UI/admin contribution points |\n")
 	b.WriteString("| [provider-slots.md](./provider-slots.md) | Provider slots plugins may fill |\n")
 	b.WriteString("| [schedules.md](./schedules.md) | Core host schedules (plugins must not private-cron) |\n")
+	b.WriteString("| [manifest-v3.md](./manifest-v3.md) | Manifest V3 root fields, include shards, and exact-artifact workflow |\n")
 	b.WriteString("\n## Authoring\n\n")
 	b.WriteString("- Hand-written guide: [../authoring-guide.md](../authoring-guide.md)\n")
 	b.WriteString("- Go SDK: `github.com/zhuchunshu/sforum/apps/api/sdk/plugin`\n")
@@ -239,6 +245,175 @@ func renderSchedules() string {
 	return b.String()
 }
 
+type manifestV3SchemaDocument struct {
+	Required   []string                   `json:"required"`
+	Properties map[string]json.RawMessage `json:"properties"`
+	Defs       map[string]json.RawMessage `json:"$defs"`
+}
+
+type manifestV3SchemaDef struct {
+	Properties map[string]json.RawMessage `json:"properties"`
+}
+
+func manifestV3SchemaFields() ([]string, map[string]bool, map[string]bool, map[string]string) {
+	var schema manifestV3SchemaDocument
+	if err := json.Unmarshal(extensionmanifest.ManifestV3JSONSchema(), &schema); err != nil {
+		return nil, nil, nil, nil
+	}
+	required := make(map[string]bool, len(schema.Required))
+	for _, name := range schema.Required {
+		required[name] = true
+	}
+	includeShards := map[string]bool{}
+	if raw, ok := schema.Defs["includes"]; ok {
+		var includes manifestV3SchemaDef
+		_ = json.Unmarshal(raw, &includes)
+		for name := range includes.Properties {
+			includeShards[name] = true
+		}
+	}
+	fields := make([]string, 0, len(schema.Properties))
+	shapes := make(map[string]string, len(schema.Properties))
+	for name, raw := range schema.Properties {
+		fields = append(fields, name)
+		shapes[name] = manifestV3SchemaShape(raw, schema.Defs, 0)
+	}
+	// Settings accepts the legacy array and the versioned Settings Document;
+	// its precise union is validated by the custom manifest decoder.
+	shapes["settings"] = "array | object"
+	sort.Strings(fields)
+	return fields, required, includeShards, shapes
+}
+
+func manifestV3SchemaShape(raw json.RawMessage, defs map[string]json.RawMessage, depth int) string {
+	if depth > 12 {
+		return "recursive"
+	}
+	var property struct {
+		Type                 json.RawMessage            `json:"type"`
+		Ref                  string                     `json:"$ref"`
+		OneOf                []json.RawMessage          `json:"oneOf"`
+		Items                json.RawMessage            `json:"items"`
+		Properties           map[string]json.RawMessage `json:"properties"`
+		AdditionalProperties json.RawMessage            `json:"additionalProperties"`
+		Const                json.RawMessage            `json:"const"`
+		Enum                 []json.RawMessage          `json:"enum"`
+	}
+	if err := json.Unmarshal(raw, &property); err != nil {
+		return "unknown"
+	}
+	if len(property.Type) > 0 {
+		var scalar string
+		if json.Unmarshal(property.Type, &scalar) == nil {
+			return scalar
+		}
+		var union []string
+		if json.Unmarshal(property.Type, &union) == nil {
+			return strings.Join(union, " | ")
+		}
+	}
+	if property.Ref != "" {
+		const prefix = "#/$defs/"
+		if strings.HasPrefix(property.Ref, prefix) {
+			if definition, ok := defs[strings.TrimPrefix(property.Ref, prefix)]; ok {
+				return manifestV3SchemaShape(definition, defs, depth+1)
+			}
+		}
+		return "reference"
+	}
+	if len(property.OneOf) > 0 {
+		parts := make([]string, 0, len(property.OneOf))
+		seen := map[string]bool{}
+		for _, option := range property.OneOf {
+			shape := manifestV3SchemaShape(option, defs, depth+1)
+			if shape != "" && !seen[shape] {
+				seen[shape] = true
+				parts = append(parts, shape)
+			}
+		}
+		return strings.Join(parts, " | ")
+	}
+	if len(property.Items) > 0 {
+		return "array"
+	}
+	if len(property.Properties) > 0 || len(property.AdditionalProperties) > 0 {
+		return "object"
+	}
+	if len(property.Const) > 0 {
+		return jsonValueShape(property.Const)
+	}
+	if len(property.Enum) > 0 {
+		return jsonValueShape(property.Enum[0])
+	}
+	return "any"
+}
+
+func jsonValueShape(raw json.RawMessage) string {
+	var value any
+	if json.Unmarshal(raw, &value) != nil {
+		return "unknown"
+	}
+	switch value.(type) {
+	case string:
+		return "string"
+	case float64:
+		return "integer"
+	case bool:
+		return "boolean"
+	case []any:
+		return "array"
+	case map[string]any:
+		return "object"
+	case nil:
+		return "null"
+	default:
+		return "value"
+	}
+}
+
+func renderManifestV3() string {
+	var b strings.Builder
+	b.WriteString(renderHeader(
+		"Manifest V3 schema catalog",
+		"Manifest V3 is the explicit exact-artifact contract. This page is generated from the embedded Draft 2020-12 JSON Schema used by package preflight.",
+	))
+	fields, required, includeShards, shapes := manifestV3SchemaFields()
+	b.WriteString("## Root fields\n\n")
+	b.WriteString("| Field | Shape | Required at root | Include shard |\n")
+	b.WriteString("| --- | --- | --- | --- |\n")
+	for _, field := range fields {
+		b.WriteString(fmt.Sprintf("| `%s` | %s | %s | %s |\n", field, escapePipes(shapes[field]), yesNo(required[field]), yesNo(includeShards[field])))
+	}
+	b.WriteString("\n## Declaration families\n\n")
+	b.WriteString("- Runtime and registries: `backend`, `routes`, `guards`, `hooks`, `events`, `jobs`, `schedules`, `providers`, `services`, and `commands`.\n")
+	b.WriteString("- Presentation and content: `components`, `templates`, `assets`, `content`, `adminSurfaces`, `navigation`, and `regions`.\n")
+	b.WriteString("- Data and identity: `migrations`, `database`, `cache`, `queries`, `identity`, `permissionDefinitions`, and `media`.\n")
+	b.WriteString("- Package composition: `dependencies`, `lifecycle`, `openapi`, `packageFiles`, and `includes`.\n")
+	b.WriteString("\nThemes remain presentation-only. Plugin permission definitions use `assignmentPolicy: host`; install or enable code never grants roles. Raw request guards, raw/kernel database authority, lifecycle execution, backend binaries, migrations, and L2 files enter exact-artifact trust review before first execution.\n")
+	b.WriteString("\n## Exact-artifact workflow\n\n")
+	b.WriteString("```bash\n")
+	b.WriteString("cd apps/api\n")
+	b.WriteString("go run ./cmd/sforum extension digest --write <package-root>\n")
+	b.WriteString("go run ./cmd/sforum extension validate <package-root>\n")
+	b.WriteString("go run ./cmd/sforum extension test <package-root>\n")
+	b.WriteString("```\n\n")
+	b.WriteString("`digest --write` refreshes inline `packageFiles` SHA-256 values after local file changes and revalidates the package. Validation resolves all include shards without executing package code.\n")
+	b.WriteString("\n## Compatibility\n\n")
+	b.WriteString("- Omitted `manifestVersion` remains the V1 compatibility contract.\n")
+	b.WriteString("- Explicit V2 remains accepted.\n")
+	b.WriteString("- V3 packages must set `manifestVersion: 3`; V3-only declarations in V1/V2 packages fail instead of upgrading implicitly.\n")
+	b.WriteString("- Future manifest versions fail closed until the host implements them.\n")
+	b.WriteString("\nAuthoritative schemas: `apps/api/app/Support/ExtensionManifest/schemas/manifest-v3.schema.json` and `contracts/openapi/schemas/extensions-v3-*.yaml`. Reference fixtures: `apps/api/app/Support/ExtensionManifest/testdata/v3/`.\n")
+	return b.String()
+}
+
+func yesNo(value bool) string {
+	if value {
+		return "yes"
+	}
+	return "no"
+}
+
 // ProviderSlotInfo 是文档/SDK 用的槽位说明。
 type ProviderSlotInfo struct {
 	Slot        string `json:"slot"`
@@ -323,6 +498,7 @@ func DocFileNames() []string {
 		DocContributionPoints,
 		DocProviderSlots,
 		DocSchedules,
+		DocManifestV3,
 	}
 	sort.Strings(names)
 	return names

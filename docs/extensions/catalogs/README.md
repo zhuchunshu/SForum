@@ -24,6 +24,7 @@ cd apps/api && go run ./cmd/sforum extension docs generate --check
 | [contribution-points.md](./contribution-points.md) | UI/admin contribution points |
 | [provider-slots.md](./provider-slots.md) | Provider slots plugins may fill |
 | [schedules.md](./schedules.md) | Core host schedules (plugins must not private-cron) |
+| [manifest-v3.md](./manifest-v3.md) | Manifest V3 root fields, include shards, and exact-artifact workflow |
 
 ## Authoring
 

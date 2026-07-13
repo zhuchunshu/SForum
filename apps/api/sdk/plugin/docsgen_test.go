@@ -37,6 +37,20 @@ func TestGenerateCatalogDocsNonEmpty(t *testing.T) {
 	if !strings.Contains(docs.Files[DocSchedules], "identity.cleanup_sessions") {
 		t.Fatal("schedules.md should list identity.cleanup_sessions")
 	}
+	fields, _, _, _ := manifestV3SchemaFields()
+	if len(fields) < 40 {
+		t.Fatalf("Manifest V3 root field catalog is incomplete: %d", len(fields))
+	}
+	for _, field := range fields {
+		if !strings.Contains(docs.Files[DocManifestV3], "`"+field+"`") {
+			t.Fatalf("manifest-v3.md should list schema field %s", field)
+		}
+	}
+	for _, phrase := range []string{"extension digest --write", "manifestVersion: 3", "exact-artifact trust review"} {
+		if !strings.Contains(docs.Files[DocManifestV3], phrase) {
+			t.Fatalf("manifest-v3.md missing authoring contract %q", phrase)
+		}
+	}
 }
 
 func TestWriteAndCheckCatalogDocs(t *testing.T) {
