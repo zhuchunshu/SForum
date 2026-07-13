@@ -24,8 +24,8 @@ const (
 var announcementStyles = []string{StyleInfo, StyleSuccess, StyleWarning, StyleDanger}
 
 type Service struct {
-	store           Store
-	extensionNav    ExtensionNavItemProvider
+	store        Store
+	extensionNav ExtensionNavItemProvider
 }
 
 func NewService(store Store) *Service {

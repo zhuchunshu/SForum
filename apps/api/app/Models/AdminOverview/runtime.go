@@ -11,12 +11,12 @@ import (
 )
 
 type RuntimeCollector struct {
-	startedAt      time.Time
-	pool           *pgxpool.Pool
-	heartbeat      health.HeartbeatStore
-	queueLagPool   *pgxpool.Pool
-	staleAfter     time.Duration
-	now            func() time.Time
+	startedAt    time.Time
+	pool         *pgxpool.Pool
+	heartbeat    health.HeartbeatStore
+	queueLagPool *pgxpool.Pool
+	staleAfter   time.Duration
+	now          func() time.Time
 }
 
 func NewRuntimeCollector(startedAt time.Time, pool *pgxpool.Pool) RuntimeCollector {

@@ -65,12 +65,12 @@ func FeatureFlagCatalog() []FeatureFlagDefinition {
 
 func featureFlagRecommendedDefaults() map[string]string {
 	return map[string]string{
-		NameFeatureSearch:          enabledOptionValue(true),
-		NameFeatureRegistration:    enabledOptionValue(true),
-		NameFeatureAttachments:     enabledOptionValue(true),
-		NameFeatureMentions:        enabledOptionValue(true),
-		NameFeaturePublicProfiles:  enabledOptionValue(true),
-		NameFeatureWebhooks:        enabledOptionValue(true),
+		NameFeatureSearch:         enabledOptionValue(true),
+		NameFeatureRegistration:   enabledOptionValue(true),
+		NameFeatureAttachments:    enabledOptionValue(true),
+		NameFeatureMentions:       enabledOptionValue(true),
+		NameFeaturePublicProfiles: enabledOptionValue(true),
+		NameFeatureWebhooks:       enabledOptionValue(true),
 	}
 }
 
@@ -94,12 +94,12 @@ func coerceFeatureFlagOptions(coerced, defaults map[string]string) {
 
 // FeatureFlags 是运行时开关快照。
 type FeatureFlags struct {
-	Search          bool `json:"search"`
-	Registration    bool `json:"registration"`
-	Attachments     bool `json:"attachments"`
-	Mentions        bool `json:"mentions"`
-	PublicProfiles  bool `json:"publicProfiles"`
-	Webhooks        bool `json:"webhooks"`
+	Search         bool `json:"search"`
+	Registration   bool `json:"registration"`
+	Attachments    bool `json:"attachments"`
+	Mentions       bool `json:"mentions"`
+	PublicProfiles bool `json:"publicProfiles"`
+	Webhooks       bool `json:"webhooks"`
 }
 
 // FeatureFlags 读取全部 features.*（含非 public）。

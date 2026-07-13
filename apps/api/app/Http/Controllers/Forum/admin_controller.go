@@ -80,13 +80,13 @@ type updateForumSettingsRequest struct {
 	TopicContentMinRunes     *int `json:"topicContentMinRunes"`
 	TopicContentMaxRunes     *int `json:"topicContentMaxRunes"`
 	TopicEditWindowMinutes   *int `json:"topicEditWindowMinutes"`
-	TopicCooldownSeconds      *int `json:"topicCooldownSeconds"`
+	TopicCooldownSeconds     *int `json:"topicCooldownSeconds"`
 	DailyTopicLimit          *int `json:"dailyTopicLimit"`
 	CommentMinRunes          *int `json:"commentMinRunes"`
 	CommentMaxRunes          *int `json:"commentMaxRunes"`
 	CommentMaxNestingDepth   *int `json:"commentMaxNestingDepth"`
 	CommentEditWindowMinutes *int `json:"commentEditWindowMinutes"`
-	CommentCooldownSeconds     *int `json:"commentCooldownSeconds"`
+	CommentCooldownSeconds   *int `json:"commentCooldownSeconds"`
 	DailyCommentLimit        *int `json:"dailyCommentLimit"`
 	ExcerptRuneLimit         *int `json:"excerptRuneLimit"`
 
@@ -328,13 +328,13 @@ func (h *Controller) adminUpdateSettings(c fiber.Ctx) error {
 		TopicContentMinRunes:     req.TopicContentMinRunes,
 		TopicContentMaxRunes:     req.TopicContentMaxRunes,
 		TopicEditWindowMinutes:   req.TopicEditWindowMinutes,
-		TopicCooldownSeconds:      req.TopicCooldownSeconds,
+		TopicCooldownSeconds:     req.TopicCooldownSeconds,
 		DailyTopicLimit:          req.DailyTopicLimit,
 		CommentMinRunes:          req.CommentMinRunes,
 		CommentMaxRunes:          req.CommentMaxRunes,
 		CommentMaxNestingDepth:   req.CommentMaxNestingDepth,
 		CommentEditWindowMinutes: req.CommentEditWindowMinutes,
-		CommentCooldownSeconds:     req.CommentCooldownSeconds,
+		CommentCooldownSeconds:   req.CommentCooldownSeconds,
 		DailyCommentLimit:        req.DailyCommentLimit,
 		ExcerptRuneLimit:         req.ExcerptRuneLimit,
 		GuestRead:                req.GuestRead,

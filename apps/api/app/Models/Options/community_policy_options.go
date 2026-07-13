@@ -12,35 +12,35 @@ import (
 // 与 site_identity 一样用 init 追加定义，避免继续膨胀 service.go。
 
 const (
-	usernameMinLengthMin = 2
-	usernameMinLengthMax = 32
-	usernameMaxLengthMin = 2
-	usernameMaxLengthMax = 64
-	loginMaxFailuresMin  = 0
-	loginMaxFailuresMax  = 50
-	loginLockoutMin      = 0
-	loginLockoutMax      = 1440
-	trustNewUserDaysMin  = 0
-	trustNewUserDaysMax  = 365
-	hotWindowDaysMin     = 1
-	hotWindowDaysMax     = 90
-	autoLockIdleDaysMin  = 0
-	autoLockIdleDaysMax  = 3650
-	mentionsMaxMin       = 0
-	mentionsMaxMax       = 50
-	maintenanceMsgMax    = 500
+	usernameMinLengthMin  = 2
+	usernameMinLengthMax  = 32
+	usernameMaxLengthMin  = 2
+	usernameMaxLengthMax  = 64
+	loginMaxFailuresMin   = 0
+	loginMaxFailuresMax   = 50
+	loginLockoutMin       = 0
+	loginLockoutMax       = 1440
+	trustNewUserDaysMin   = 0
+	trustNewUserDaysMax   = 365
+	hotWindowDaysMin      = 1
+	hotWindowDaysMax      = 90
+	autoLockIdleDaysMin   = 0
+	autoLockIdleDaysMax   = 3650
+	mentionsMaxMin        = 0
+	mentionsMaxMax        = 50
+	maintenanceMsgMax     = 500
 	reservedNamesMaxRunes = 2000
 )
 
 var (
-	registrationModes         = []string{"open", "invite", "approval", "closed"}
-	usernameCharsets          = []string{"unicode_letters_numbers", "ascii"}
-	guestReadModes            = []string{"public", "login_required"}
-	listDefaultSorts          = []string{"latest", "active", "hot"}
+	registrationModes = []string{"open", "invite", "approval", "closed"}
+	usernameCharsets  = []string{"unicode_letters_numbers", "ascii"}
+	guestReadModes    = []string{"public", "login_required"}
+	listDefaultSorts  = []string{"latest", "active", "hot"}
 	// warn 保留为历史兼容值，运行时按 off 处理（无独立 warn 合同）。
-	duplicateTitlePolicies = []string{"off", "warn", "block"}
-	softDeleteVisibilities    = []string{"author_and_staff", "staff_only", "hidden"}
-	recommendedReservedNames  = "admin,administrator,system,sforum,root,support,moderator,mod,official,null,undefined"
+	duplicateTitlePolicies   = []string{"off", "warn", "block"}
+	softDeleteVisibilities   = []string{"author_and_staff", "staff_only", "hidden"}
+	recommendedReservedNames = "admin,administrator,system,sforum,root,support,moderator,mod,official,null,undefined"
 )
 
 func init() {
@@ -101,8 +101,8 @@ func communityPolicyRecommendedDefaults() map[string]string {
 		NameIdentityLoginMaxFailures:                      "10",
 		NameIdentityLoginLockoutMinutes:                   "15",
 		NameTrustNewUserDays:                              "7",
-		NameTrustNewUserTopicCooldownSeconds:               "300",
-		NameTrustNewUserCommentCooldownSeconds:              "60",
+		NameTrustNewUserTopicCooldownSeconds:              "300",
+		NameTrustNewUserCommentCooldownSeconds:            "60",
 		NameTrustNewUserDailyTopicLimit:                   "3",
 		NameTrustNewUserDailyCommentLimit:                 "30",
 		NameTrustNewUserForbidOutboundLinks:               enabledOptionValue(true),
@@ -199,14 +199,14 @@ func coerceCommunityPolicyOptions(coerced, defaults map[string]string) {
 		coerced[NameIdentityLoginLockoutMinutes] = defaults[NameIdentityLoginLockoutMinutes]
 	}
 	for name, bounds := range map[string][2]int{
-		NameTrustNewUserDays:                 {trustNewUserDaysMin, trustNewUserDaysMax},
-		NameTrustNewUserTopicCooldownSeconds:  {forumCooldownMin, forumCooldownMax},
+		NameTrustNewUserDays:                   {trustNewUserDaysMin, trustNewUserDaysMax},
+		NameTrustNewUserTopicCooldownSeconds:   {forumCooldownMin, forumCooldownMax},
 		NameTrustNewUserCommentCooldownSeconds: {forumCooldownMin, forumCooldownMax},
-		NameTrustNewUserDailyTopicLimit:      {forumDailyLimitMin, forumDailyLimitMax},
-		NameTrustNewUserDailyCommentLimit:    {forumDailyLimitMin, forumDailyLimitMax},
-		NameForumListHotWindowDays:           {hotWindowDaysMin, hotWindowDaysMax},
-		NameForumTopicsAutoLockIdleDays:      {autoLockIdleDaysMin, autoLockIdleDaysMax},
-		NameForumMentionsMaxPerPost:          {mentionsMaxMin, mentionsMaxMax},
+		NameTrustNewUserDailyTopicLimit:        {forumDailyLimitMin, forumDailyLimitMax},
+		NameTrustNewUserDailyCommentLimit:      {forumDailyLimitMin, forumDailyLimitMax},
+		NameForumListHotWindowDays:             {hotWindowDaysMin, hotWindowDaysMax},
+		NameForumTopicsAutoLockIdleDays:        {autoLockIdleDaysMin, autoLockIdleDaysMax},
+		NameForumMentionsMaxPerPost:            {mentionsMaxMin, mentionsMaxMax},
 	} {
 		if value, ok := normalizeBoundedInt(coerced[name], bounds[0], bounds[1]); ok {
 			coerced[name] = value
@@ -279,14 +279,14 @@ func isValidCommunityPolicyOptions(values map[string]string) bool {
 		return false
 	}
 	for name, bounds := range map[string][2]int{
-		NameTrustNewUserDays:                 {trustNewUserDaysMin, trustNewUserDaysMax},
-		NameTrustNewUserTopicCooldownSeconds:  {forumCooldownMin, forumCooldownMax},
+		NameTrustNewUserDays:                   {trustNewUserDaysMin, trustNewUserDaysMax},
+		NameTrustNewUserTopicCooldownSeconds:   {forumCooldownMin, forumCooldownMax},
 		NameTrustNewUserCommentCooldownSeconds: {forumCooldownMin, forumCooldownMax},
-		NameTrustNewUserDailyTopicLimit:      {forumDailyLimitMin, forumDailyLimitMax},
-		NameTrustNewUserDailyCommentLimit:    {forumDailyLimitMin, forumDailyLimitMax},
-		NameForumListHotWindowDays:           {hotWindowDaysMin, hotWindowDaysMax},
-		NameForumTopicsAutoLockIdleDays:      {autoLockIdleDaysMin, autoLockIdleDaysMax},
-		NameForumMentionsMaxPerPost:          {mentionsMaxMin, mentionsMaxMax},
+		NameTrustNewUserDailyTopicLimit:        {forumDailyLimitMin, forumDailyLimitMax},
+		NameTrustNewUserDailyCommentLimit:      {forumDailyLimitMin, forumDailyLimitMax},
+		NameForumListHotWindowDays:             {hotWindowDaysMin, hotWindowDaysMax},
+		NameForumTopicsAutoLockIdleDays:        {autoLockIdleDaysMin, autoLockIdleDaysMax},
+		NameForumMentionsMaxPerPost:            {mentionsMaxMin, mentionsMaxMax},
 	} {
 		if _, ok := parseBoundedInt(values[name], bounds[0], bounds[1]); !ok {
 			return false
@@ -433,13 +433,13 @@ func (s *Service) LoginLockoutPolicy(ctx context.Context) (identity.LoginLockout
 
 // TrustPolicy 新人信任阶梯。
 type TrustPolicy struct {
-	NewUserDays             int
-	TopicCooldownSeconds      int
-	CommentCooldownSeconds     int
-	DailyTopicLimit         int
-	DailyCommentLimit       int
-	ForbidOutboundLinks     bool
-	ForbidAttachments       bool
+	NewUserDays            int
+	TopicCooldownSeconds   int
+	CommentCooldownSeconds int
+	DailyTopicLimit        int
+	DailyCommentLimit      int
+	ForbidOutboundLinks    bool
+	ForbidAttachments      bool
 }
 
 func (s *Service) TrustPolicy(ctx context.Context) (TrustPolicy, error) {
@@ -453,13 +453,13 @@ func (s *Service) TrustPolicy(ctx context.Context) (TrustPolicy, error) {
 	dailyTopic, _ := strictAtoi(values[NameTrustNewUserDailyTopicLimit])
 	dailyComment, _ := strictAtoi(values[NameTrustNewUserDailyCommentLimit])
 	return TrustPolicy{
-		NewUserDays:         days,
-		TopicCooldownSeconds:  topicCooldown,
+		NewUserDays:            days,
+		TopicCooldownSeconds:   topicCooldown,
 		CommentCooldownSeconds: commentCooldown,
-		DailyTopicLimit:     dailyTopic,
-		DailyCommentLimit:   dailyComment,
-		ForbidOutboundLinks: isEnabledOption(values[NameTrustNewUserForbidOutboundLinks]),
-		ForbidAttachments:   isEnabledOption(values[NameTrustNewUserForbidAttachments]),
+		DailyTopicLimit:        dailyTopic,
+		DailyCommentLimit:      dailyComment,
+		ForbidOutboundLinks:    isEnabledOption(values[NameTrustNewUserForbidOutboundLinks]),
+		ForbidAttachments:      isEnabledOption(values[NameTrustNewUserForbidAttachments]),
 	}, nil
 }
 
@@ -491,5 +491,3 @@ func (s *Service) RegistrationMode(ctx context.Context) (string, error) {
 	}
 	return "open", nil
 }
-
-

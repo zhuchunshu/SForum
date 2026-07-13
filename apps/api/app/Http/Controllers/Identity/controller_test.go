@@ -52,6 +52,9 @@ func (passwordResetFakeStore) ListUsers(context.Context, identity.UserListInput)
 func (passwordResetFakeStore) GetAdminUser(context.Context, int64) (identity.AdminUserDetail, error) {
 	return identity.AdminUserDetail{}, nil
 }
+func (passwordResetFakeStore) UpdateAdminUser(context.Context, int64, int64, identity.AdminUpdateUserInput) (identity.AdminUserDetail, error) {
+	return identity.AdminUserDetail{}, nil
+}
 func (passwordResetFakeStore) ListRoles(context.Context) ([]identity.Role, error) { return nil, nil }
 func (passwordResetFakeStore) CreateRole(context.Context, identity.RoleInput) (identity.Role, error) {
 	return identity.Role{}, nil
@@ -69,7 +72,9 @@ func (passwordResetFakeStore) ReplaceUserRoles(context.Context, int64, int64, []
 func (passwordResetFakeStore) ReplaceUserPermissionOverrides(context.Context, int64, int64, identity.PermissionOverrides) (identity.AdminUserDetail, error) {
 	return identity.AdminUserDetail{}, nil
 }
-func (passwordResetFakeStore) RecordLoginAudit(context.Context, identity.LoginAudit) error { return nil }
+func (passwordResetFakeStore) RecordLoginAudit(context.Context, identity.LoginAudit) error {
+	return nil
+}
 func (passwordResetFakeStore) CreatePasswordResetToken(context.Context, identity.CreatePasswordResetTokenInput) (identity.PasswordResetToken, error) {
 	return identity.PasswordResetToken{}, nil
 }
@@ -132,10 +137,14 @@ func (passwordResetTxStore) FindRegistrationConflicts(context.Context, string, s
 func (passwordResetTxStore) CreateUser(context.Context, identity.CreateUserInput) (identity.CurrentUser, error) {
 	return identity.CurrentUser{}, nil
 }
-func (passwordResetTxStore) CreateCredential(context.Context, int64, string) error  { return nil }
-func (passwordResetTxStore) GetDefaultRole(context.Context) (identity.Role, error)  { return identity.Role{}, nil }
-func (passwordResetTxStore) GetRole(context.Context, string) (identity.Role, error) { return identity.Role{}, nil }
-func (passwordResetTxStore) AssignRole(context.Context, int64, int64) error         { return nil }
+func (passwordResetTxStore) CreateCredential(context.Context, int64, string) error { return nil }
+func (passwordResetTxStore) GetDefaultRole(context.Context) (identity.Role, error) {
+	return identity.Role{}, nil
+}
+func (passwordResetTxStore) GetRole(context.Context, string) (identity.Role, error) {
+	return identity.Role{}, nil
+}
+func (passwordResetTxStore) AssignRole(context.Context, int64, int64) error { return nil }
 func (passwordResetTxStore) LoadCurrentUserAccess(context.Context, *identity.CurrentUser) error {
 	return nil
 }

@@ -35,20 +35,20 @@ var (
 
 // Report 是 moderation_reports 行的领域结构。
 type Report struct {
-	ID              int64      `json:"id"`
-	ReporterUserID  int64      `json:"reporterUserId"`
-	ReporterName    string     `json:"reporterName,omitempty"`
-	TargetType      string     `json:"targetType"`
-	TargetID        int64      `json:"targetId"`
-	ReasonCode      string     `json:"reasonCode"`
-	Body            string     `json:"body"`
-	Status          string     `json:"status"`
-	ReviewerUserID  *int64     `json:"reviewerUserId,omitempty"`
-	ReviewerName    string     `json:"reviewerName,omitempty"`
-	ReviewNote      string     `json:"reviewNote"`
-	CreatedAt       time.Time  `json:"createdAt"`
-	UpdatedAt       time.Time  `json:"updatedAt"`
-	ResolvedAt      *time.Time `json:"resolvedAt,omitempty"`
+	ID             int64      `json:"id"`
+	ReporterUserID int64      `json:"reporterUserId"`
+	ReporterName   string     `json:"reporterName,omitempty"`
+	TargetType     string     `json:"targetType"`
+	TargetID       int64      `json:"targetId"`
+	ReasonCode     string     `json:"reasonCode"`
+	Body           string     `json:"body"`
+	Status         string     `json:"status"`
+	ReviewerUserID *int64     `json:"reviewerUserId,omitempty"`
+	ReviewerName   string     `json:"reviewerName,omitempty"`
+	ReviewNote     string     `json:"reviewNote"`
+	CreatedAt      time.Time  `json:"createdAt"`
+	UpdatedAt      time.Time  `json:"updatedAt"`
+	ResolvedAt     *time.Time `json:"resolvedAt,omitempty"`
 }
 
 // CreateReportInput 是举报创建入参。
@@ -79,8 +79,8 @@ type ReportList struct {
 
 // UpdateReportInput 是审核更新入参。
 type UpdateReportInput struct {
-	ReportID      int64
+	ReportID       int64
 	ReviewerUserID int64
-	Status        string
-	ReviewNote    string
+	Status         string
+	ReviewNote     string
 }

@@ -30,20 +30,20 @@ var (
 
 // FieldDefinition 是宿主拥有的字段目录项。
 type FieldDefinition struct {
-	ID                 int64           `json:"id"`
-	FieldKey           string          `json:"fieldKey"`
-	EntityType         string          `json:"entityType"`
-	ValueType          string          `json:"valueType"`
-	Visibility         string          `json:"visibility"`
-	Label              map[string]string `json:"label"`
-	Description        map[string]string `json:"description,omitempty"`
-	OwnerExtensionID   string          `json:"ownerExtensionId,omitempty"`
-	Required           bool            `json:"required"`
-	Enabled            bool            `json:"enabled"`
-	SortOrder          int             `json:"sortOrder"`
-	Constraints        json.RawMessage `json:"constraints,omitempty"`
-	CreatedAt          time.Time       `json:"createdAt"`
-	UpdatedAt          time.Time       `json:"updatedAt"`
+	ID               int64             `json:"id"`
+	FieldKey         string            `json:"fieldKey"`
+	EntityType       string            `json:"entityType"`
+	ValueType        string            `json:"valueType"`
+	Visibility       string            `json:"visibility"`
+	Label            map[string]string `json:"label"`
+	Description      map[string]string `json:"description,omitempty"`
+	OwnerExtensionID string            `json:"ownerExtensionId,omitempty"`
+	Required         bool              `json:"required"`
+	Enabled          bool              `json:"enabled"`
+	SortOrder        int               `json:"sortOrder"`
+	Constraints      json.RawMessage   `json:"constraints,omitempty"`
+	CreatedAt        time.Time         `json:"createdAt"`
+	UpdatedAt        time.Time         `json:"updatedAt"`
 }
 
 // MetaValue 是对某实体某字段的当前值（已按可见性过滤后返回）。
@@ -96,29 +96,29 @@ type UpsertValueInput struct {
 
 // fieldRow 是 store 层原始行。
 type fieldRow struct {
-	ID                 int64
-	FieldKey           string
-	EntityType         string
-	ValueType          string
-	Visibility         string
-	LabelZHCN          string
-	LabelENUS          string
-	DescriptionZHCN    string
-	DescriptionENUS    string
-	OwnerExtensionID   string
-	Required           bool
-	Enabled            bool
-	SortOrder          int
-	Constraints        []byte
-	CreatedAt          time.Time
-	UpdatedAt          time.Time
+	ID               int64
+	FieldKey         string
+	EntityType       string
+	ValueType        string
+	Visibility       string
+	LabelZHCN        string
+	LabelENUS        string
+	DescriptionZHCN  string
+	DescriptionENUS  string
+	OwnerExtensionID string
+	Required         bool
+	Enabled          bool
+	SortOrder        int
+	Constraints      []byte
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
 }
 
 type valueRow struct {
-	EntityType       string
-	EntityID         int64
-	FieldKey         string
-	ValueText        string
-	UpdatedAt        time.Time
-	UpdatedByUserID  *int64
+	EntityType      string
+	EntityID        int64
+	FieldKey        string
+	ValueText       string
+	UpdatedAt       time.Time
+	UpdatedByUserID *int64
 }

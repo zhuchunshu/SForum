@@ -35,5 +35,5 @@ func (NoopCache) Get(_ context.Context, _ string) ([]byte, bool, error) { return
 func (NoopCache) Set(_ context.Context, _ string, _ []byte, _ time.Duration) error {
 	return nil
 }
-func (NoopCache) Delete(_ context.Context, _ ...string) error        { return nil }
+func (NoopCache) Delete(_ context.Context, _ ...string) error          { return nil }
 func (NoopCache) Increment(_ context.Context, _ string) (int64, error) { return 0, nil }

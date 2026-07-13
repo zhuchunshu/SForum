@@ -1644,7 +1644,32 @@ func (s *httpFakeStore) GetAdminUser(_ context.Context, userID int64) (identity.
 		AdminUserSummary:    s.adminSummary(user),
 		Permissions:         slices.Clone(user.Permissions),
 		PermissionOverrides: s.cloneOverrides(userID),
+		Profile:             identity.AdminUserProfile{},
 	}, nil
+}
+
+func (s *httpFakeStore) UpdateAdminUser(_ context.Context, _ int64, targetUserID int64, input identity.AdminUpdateUserInput) (identity.AdminUserDetail, error) {
+	user, ok := s.users[targetUserID]
+	if !ok {
+		return identity.AdminUserDetail{}, identity.ErrUserNotFound
+	}
+	if input.Username != nil {
+		user.Username = *input.Username
+	}
+	if input.Email != nil {
+		s.userEmails[targetUserID] = *input.Email
+	}
+	if input.DisplayName != nil {
+		user.DisplayName = *input.DisplayName
+	}
+	if input.Locale != nil {
+		user.Locale = *input.Locale
+	}
+	if input.Status != nil {
+		user.Status = *input.Status
+	}
+	s.users[targetUserID] = user
+	return s.GetAdminUser(context.Background(), targetUserID)
 }
 
 func (s *httpFakeStore) ListRoles(context.Context) ([]identity.Role, error) {

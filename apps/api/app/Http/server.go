@@ -132,14 +132,14 @@ func registerRoutes(app *fiber.App, cfg config.Config, deps Dependencies) {
 	// 避免每个测试请求都要携带 token。生产默认启用。
 	if cfg.CSRFEnabled {
 		api.Use(csrf.New(csrf.Config{
-			Storage:         deps.Storage,
-			CookieSameSite:  fiber.CookieSameSiteLaxMode,
+			Storage:        deps.Storage,
+			CookieSameSite: fiber.CookieSameSiteLaxMode,
 			// 与 session cookie 共用 Secure 判定，避免 staging HTTPS 下 csrf_ 仍可明文读取。
-			CookieSecure:    config.ShouldUseSecureCookie(cfg),
-			CookieHTTPOnly:  false, // SPA 必须能读取 csrf_ cookie 以回传 token
-			CookiePath:      "/",
-			TrustedOrigins:  cfg.CSRFTrustedOrigins,
-			ErrorHandler:    csrfErrorHandler,
+			CookieSecure:   config.ShouldUseSecureCookie(cfg),
+			CookieHTTPOnly: false, // SPA 必须能读取 csrf_ cookie 以回传 token
+			CookiePath:     "/",
+			TrustedOrigins: cfg.CSRFTrustedOrigins,
+			ErrorHandler:   csrfErrorHandler,
 			// 入站 webhook / Bearer PAT 由非浏览器客户端调用，无 CSRF cookie。
 			Next: func(c fiber.Ctx) bool {
 				path := c.Path()

@@ -31,6 +31,13 @@ type Permission = {
   description: string
 }
 
+type AdminUserProfile = {
+  bio: string
+  signature: string
+  location: string
+  websiteUrl: string
+}
+
 type AdminUserSummary = {
   id: number
   username: string
@@ -40,6 +47,8 @@ type AdminUserSummary = {
   status: UserStatus
   isInitialSuperAdmin: boolean
   roleKeys: string[]
+  createdAt?: string
+  updatedAt?: string
 }
 
 type PermissionOverrides = {
@@ -50,6 +59,7 @@ type PermissionOverrides = {
 type AdminUserDetail = AdminUserSummary & {
   permissions: string[]
   permissionOverrides: PermissionOverrides
+  profile: AdminUserProfile
 }
 
 type AdminUserList = {
@@ -59,9 +69,12 @@ type AdminUserList = {
   perPage: number
 }
 
+const DEFAULT_PER_PAGE = 20
+
 const { t } = useI18n()
 const { request } = useApiClient()
 const { permissionLabel, permissionDescription, permissionModuleLabel } = usePermissionText()
+const toast = useToast()
 const adminPage = useAdminPage('/users')
 
 const search = ref('')
@@ -70,18 +83,33 @@ const roleKey = ref('')
 const users = ref<AdminUserSummary[]>([])
 const total = ref(0)
 const page = ref(1)
-const perPage = ref(20)
+const perPage = ref(DEFAULT_PER_PAGE)
 const roles = ref<Role[]>([])
 const permissions = ref<Permission[]>([])
 const selectedUser = ref<AdminUserDetail | null>(null)
 const selectedRoleKeys = ref<string[]>([])
 const allowOverrides = ref<string[]>([])
 const denyOverrides = ref<string[]>([])
+
+// 账户/资料编辑草稿
+const editUsername = ref('')
+const editEmail = ref('')
+const editDisplayName = ref('')
+const editLocale = ref('zh-CN')
+const editStatus = ref<UserStatus>('active')
+const editBio = ref('')
+const editSignature = ref('')
+const editLocation = ref('')
+const editWebsiteUrl = ref('')
+
 const pending = ref(false)
 const detailPending = ref(false)
+const savingAccount = ref(false)
+const savingProfile = ref(false)
 const savingRoles = ref(false)
 const savingOverrides = ref(false)
 const revokingSessions = ref(false)
+const clearingClientIPs = ref(false)
 const errorMessage = ref('')
 const successMessage = ref('')
 const overrideModes = ['inherit', 'allow', 'deny'] as const
@@ -89,6 +117,8 @@ const overrideModes = ['inherit', 'allow', 'deny'] as const
 onMounted(() => {
   void loadInitialData()
 })
+
+const totalPages = computed(() => Math.max(1, Math.ceil(total.value / Math.max(perPage.value, 1))))
 
 const columns = computed(() => [
   {
@@ -134,9 +164,44 @@ const roleOptions = computed(() => {
   }))
 })
 
+const localeOptions = computed(() => [
+  { value: 'zh-CN', label: t('admin.users.localeZh') },
+  { value: 'en-US', label: t('admin.users.localeEn') }
+])
+
 useSeoMeta({
   title: t('admin.users.metaTitle')
 })
+
+function formatDateTime(value?: string) {
+  if (!value) {
+    return '—'
+  }
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) {
+    return value
+  }
+  return date.toLocaleString()
+}
+
+function showSuccess(message: string) {
+  successMessage.value = message
+  toast.add({
+    title: message,
+    color: 'success',
+    icon: 'i-lucide-check-circle',
+    duration: 10000
+  })
+}
+
+function showError(message: string) {
+  errorMessage.value = message
+  toast.add({
+    title: message,
+    color: 'error',
+    icon: 'i-lucide-triangle-alert'
+  })
+}
 
 async function loadInitialData() {
   pending.value = true
@@ -150,7 +215,7 @@ async function loadInitialData() {
     permissions.value = permissionItems
     await loadUsers()
   } catch (error) {
-    errorMessage.value = apiErrorMessage(error) || t('admin.users.loadFailed')
+    showError(apiErrorMessage(error) || t('admin.users.loadFailed'))
   } finally {
     pending.value = false
   }
@@ -159,7 +224,7 @@ async function loadInitialData() {
 async function loadUsers() {
   const params = new URLSearchParams({
     page: String(page.value),
-    perPage: String(perPage.value)
+    perPage: String(DEFAULT_PER_PAGE)
   })
   if (search.value.trim()) {
     params.set('query', search.value.trim())
@@ -174,8 +239,8 @@ async function loadUsers() {
   const result = await request<AdminUserList>(`/users?${params.toString()}`)
   users.value = result.items
   total.value = result.total
-  page.value = result.page
-  perPage.value = result.perPage
+  page.value = result.page || page.value
+  perPage.value = result.perPage || DEFAULT_PER_PAGE
 }
 
 async function refreshUsers() {
@@ -184,10 +249,39 @@ async function refreshUsers() {
   try {
     await loadUsers()
   } catch (error) {
-    errorMessage.value = apiErrorMessage(error) || t('admin.users.loadFailed')
+    showError(apiErrorMessage(error) || t('admin.users.loadFailed'))
   } finally {
     pending.value = false
   }
+}
+
+async function goToPage(nextPage: number) {
+  if (nextPage < 1 || nextPage > totalPages.value || nextPage === page.value) {
+    return
+  }
+  page.value = nextPage
+  await refreshUsers()
+}
+
+async function applyFilters() {
+  page.value = 1
+  await refreshUsers()
+}
+
+function applyDetailToForm(detail: AdminUserDetail) {
+  selectedUser.value = detail
+  selectedRoleKeys.value = [...detail.roleKeys]
+  allowOverrides.value = [...detail.permissionOverrides.allow]
+  denyOverrides.value = [...detail.permissionOverrides.deny]
+  editUsername.value = detail.username
+  editEmail.value = detail.email
+  editDisplayName.value = detail.displayName
+  editLocale.value = detail.locale || 'zh-CN'
+  editStatus.value = detail.status
+  editBio.value = detail.profile?.bio ?? ''
+  editSignature.value = detail.profile?.signature ?? ''
+  editLocation.value = detail.profile?.location ?? ''
+  editWebsiteUrl.value = detail.profile?.websiteUrl ?? ''
 }
 
 async function openUser(user: AdminUserSummary) {
@@ -196,12 +290,9 @@ async function openUser(user: AdminUserSummary) {
   successMessage.value = ''
   try {
     const detail = await request<AdminUserDetail>(`/users/${user.id}`)
-    selectedUser.value = detail
-    selectedRoleKeys.value = [...detail.roleKeys]
-    allowOverrides.value = [...detail.permissionOverrides.allow]
-    denyOverrides.value = [...detail.permissionOverrides.deny]
+    applyDetailToForm(detail)
   } catch (error) {
-    errorMessage.value = apiErrorMessage(error) || t('admin.users.detailLoadFailed')
+    showError(apiErrorMessage(error) || t('admin.users.detailLoadFailed'))
   } finally {
     detailPending.value = false
   }
@@ -243,6 +334,60 @@ function setPermissionMode(key: string, mode: 'inherit' | 'allow' | 'deny') {
   }
 }
 
+async function saveAccount() {
+  if (!selectedUser.value) {
+    return
+  }
+  savingAccount.value = true
+  errorMessage.value = ''
+  successMessage.value = ''
+  try {
+    const detail = await request<AdminUserDetail>(`/users/${selectedUser.value.id}`, {
+      method: 'PATCH',
+      body: {
+        username: editUsername.value.trim(),
+        email: editEmail.value.trim(),
+        displayName: editDisplayName.value.trim(),
+        locale: editLocale.value,
+        status: editStatus.value
+      }
+    })
+    applyDetailToForm(detail)
+    await loadUsers()
+    showSuccess(t('admin.users.accountSaved'))
+  } catch (error) {
+    showError(apiErrorMessage(error) || t('admin.users.saveFailed'))
+  } finally {
+    savingAccount.value = false
+  }
+}
+
+async function saveProfile() {
+  if (!selectedUser.value) {
+    return
+  }
+  savingProfile.value = true
+  errorMessage.value = ''
+  successMessage.value = ''
+  try {
+    const detail = await request<AdminUserDetail>(`/users/${selectedUser.value.id}`, {
+      method: 'PATCH',
+      body: {
+        bio: editBio.value,
+        signature: editSignature.value,
+        location: editLocation.value,
+        websiteUrl: editWebsiteUrl.value.trim()
+      }
+    })
+    applyDetailToForm(detail)
+    showSuccess(t('admin.users.profileSaved'))
+  } catch (error) {
+    showError(apiErrorMessage(error) || t('admin.users.saveFailed'))
+  } finally {
+    savingProfile.value = false
+  }
+}
+
 async function saveRoles() {
   if (!selectedUser.value) {
     return
@@ -251,19 +396,17 @@ async function saveRoles() {
   errorMessage.value = ''
   successMessage.value = ''
   try {
-    selectedUser.value = await request<AdminUserDetail>(`/users/${selectedUser.value.id}/roles`, {
+    const detail = await request<AdminUserDetail>(`/users/${selectedUser.value.id}/roles`, {
       method: 'PUT',
       body: {
         roleKeys: selectedRoleKeys.value
       }
     })
-    selectedRoleKeys.value = [...selectedUser.value.roleKeys]
-    allowOverrides.value = [...selectedUser.value.permissionOverrides.allow]
-    denyOverrides.value = [...selectedUser.value.permissionOverrides.deny]
+    applyDetailToForm(detail)
     await loadUsers()
-    successMessage.value = t('admin.users.rolesSaved')
+    showSuccess(t('admin.users.rolesSaved'))
   } catch (error) {
-    errorMessage.value = apiErrorMessage(error) || t('admin.users.saveFailed')
+    showError(apiErrorMessage(error) || t('admin.users.saveFailed'))
   } finally {
     savingRoles.value = false
   }
@@ -277,19 +420,18 @@ async function savePermissionOverrides() {
   errorMessage.value = ''
   successMessage.value = ''
   try {
-    selectedUser.value = await request<AdminUserDetail>(`/users/${selectedUser.value.id}/permission-overrides`, {
+    const detail = await request<AdminUserDetail>(`/users/${selectedUser.value.id}/permission-overrides`, {
       method: 'PUT',
       body: {
         allow: allowOverrides.value,
         deny: denyOverrides.value
       }
     })
-    allowOverrides.value = [...selectedUser.value.permissionOverrides.allow]
-    denyOverrides.value = [...selectedUser.value.permissionOverrides.deny]
+    applyDetailToForm(detail)
     await loadUsers()
-    successMessage.value = t('admin.users.permissionsSaved')
+    showSuccess(t('admin.users.permissionsSaved'))
   } catch (error) {
-    errorMessage.value = apiErrorMessage(error) || t('admin.users.saveFailed')
+    showError(apiErrorMessage(error) || t('admin.users.saveFailed'))
   } finally {
     savingOverrides.value = false
   }
@@ -307,13 +449,37 @@ async function revokeUserSessions() {
     const result = await request<{ revoked: number }>(`/users/${selectedUser.value.id}/sessions/revoke`, {
       method: 'POST'
     })
-    successMessage.value = t('admin.users.sessionsRevoked', { count: result.revoked })
+    showSuccess(t('admin.users.sessionsRevoked', { count: result.revoked }))
   } catch (error) {
-    errorMessage.value = apiErrorMessage(error) || t('admin.users.revokeSessionsFailed')
+    showError(apiErrorMessage(error) || t('admin.users.revokeSessionsFailed'))
   } finally {
     revokingSessions.value = false
   }
 }
+
+// 隐私合规：清空该用户相关真实客户端 IP。
+async function clearUserClientIPs() {
+  if (!selectedUser.value || clearingClientIPs.value) {
+    return
+  }
+  clearingClientIPs.value = true
+  errorMessage.value = ''
+  successMessage.value = ''
+  try {
+    await request(`/users/${selectedUser.value.id}/client-ips/clear`, {
+      method: 'POST'
+    })
+    showSuccess(t('admin.users.clientIPsCleared'))
+  } catch (error) {
+    showError(apiErrorMessage(error) || t('admin.users.clearClientIPsFailed'))
+  } finally {
+    clearingClientIPs.value = false
+  }
+}
+
+watch([status, roleKey], () => {
+  void applyFilters()
+})
 </script>
 
 <template>
@@ -335,7 +501,7 @@ async function revokeUserSessions() {
           icon="i-lucide-search"
           :placeholder="t('admin.users.searchPlaceholder')"
           class="w-72 max-w-full"
-          @keyup.enter="refreshUsers"
+          @keyup.enter="applyFilters"
         />
         <select
           v-model="status"
@@ -372,6 +538,9 @@ async function revokeUserSessions() {
         <UBadge color="neutral" variant="soft" class="border border-slate-200 dark:border-zinc-800 font-medium">
           {{ t('admin.users.count', { count: total }) }}
         </UBadge>
+        <UBadge color="neutral" variant="outline" class="font-medium">
+          {{ t('admin.users.perPageHint', { count: perPage }) }}
+        </UBadge>
       </div>
     </template>
   </UDashboardToolbar>
@@ -400,7 +569,7 @@ async function revokeUserSessions() {
         :empty="t('admin.users.empty')"
         :caption="t('admin.users.caption')"
         sticky
-        class="max-h-[calc(100vh-17rem)]"
+        class="max-h-[calc(100vh-20rem)]"
       >
         <template #username-cell="{ row }">
           <div class="min-w-0">
@@ -450,6 +619,24 @@ async function revokeUserSessions() {
           </UButton>
         </template>
       </UTable>
+
+      <div
+        v-if="total > 0"
+        class="mt-4 flex flex-col gap-3 border-t border-slate-200 pt-4 sm:flex-row sm:items-center sm:justify-between dark:border-zinc-800"
+      >
+        <p class="text-xs text-slate-500 dark:text-zinc-400">
+          {{ t('admin.users.pagination', { page, pages: totalPages }) }}
+          · {{ t('admin.users.count', { count: total }) }}
+        </p>
+        <UPagination
+          v-if="totalPages > 1"
+          :page="page"
+          :total="total"
+          :items-per-page="perPage"
+          class="justify-end"
+          @update:page="goToPage"
+        />
+      </div>
     </UCard>
   </div>
 
@@ -467,31 +654,165 @@ async function revokeUserSessions() {
           <p class="text-xs text-slate-500 dark:text-zinc-400">
             {{ selectedUser.username }} · {{ selectedUser.email }}
           </p>
+          <p class="mt-1 text-xs text-slate-400 dark:text-zinc-500">
+            {{ t('admin.users.userId') }}: {{ selectedUser.id }}
+            · {{ t('admin.users.createdAt') }}: {{ formatDateTime(selectedUser.createdAt) }}
+            · {{ t('admin.users.updatedAt') }}: {{ formatDateTime(selectedUser.updatedAt) }}
+          </p>
         </div>
         <UButton color="neutral" variant="ghost" icon="i-lucide-x" :aria-label="t('admin.users.close')" @click="closeUser" />
       </header>
 
       <div class="space-y-5 px-5 py-5">
-        <!-- 账号安全：强制下线该用户全部设备 -->
+        <!-- 账户信息 -->
         <section class="rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-zinc-800 dark:bg-zinc-900/60">
-          <div class="flex items-center justify-between gap-3">
+          <div class="mb-4 flex items-center justify-between gap-3">
             <div>
               <h4 class="text-sm font-semibold text-slate-900 dark:text-zinc-100">
-                {{ t('admin.users.sessionSection') }}
+                {{ t('admin.users.accountSection') }}
               </h4>
               <p class="text-xs text-slate-500 dark:text-zinc-400">
-                {{ t('admin.users.sessionSectionHelp') }}
+                {{ t('admin.users.accountSectionHelp') }}
               </p>
             </div>
             <UButton
-              color="error"
-              variant="soft"
-              leading-icon="i-lucide-log-out"
-              :loading="revokingSessions"
-              @click="revokeUserSessions"
+              color="primary"
+              leading-icon="i-lucide-save"
+              :loading="savingAccount"
+              @click="saveAccount"
             >
-              {{ t('admin.users.revokeSessions') }}
+              {{ t('admin.users.saveAccount') }}
             </UButton>
+          </div>
+
+          <div class="grid gap-3 sm:grid-cols-2">
+            <label class="block space-y-1.5 text-sm">
+              <span class="font-medium text-slate-700 dark:text-zinc-300">{{ t('admin.users.username') }}</span>
+              <UInput v-model="editUsername" class="w-full" />
+            </label>
+            <label class="block space-y-1.5 text-sm">
+              <span class="font-medium text-slate-700 dark:text-zinc-300">{{ t('admin.users.email') }}</span>
+              <UInput v-model="editEmail" type="email" class="w-full" />
+            </label>
+            <label class="block space-y-1.5 text-sm">
+              <span class="font-medium text-slate-700 dark:text-zinc-300">{{ t('admin.users.displayName') }}</span>
+              <UInput v-model="editDisplayName" class="w-full" />
+            </label>
+            <label class="block space-y-1.5 text-sm">
+              <span class="font-medium text-slate-700 dark:text-zinc-300">{{ t('admin.users.locale') }}</span>
+              <select
+                v-model="editLocale"
+                class="h-9 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-200"
+              >
+                <option v-for="opt in localeOptions" :key="opt.value" :value="opt.value">
+                  {{ opt.label }}
+                </option>
+              </select>
+            </label>
+            <label class="block space-y-1.5 text-sm sm:col-span-2">
+              <span class="font-medium text-slate-700 dark:text-zinc-300">{{ t('admin.users.status') }}</span>
+              <select
+                v-model="editStatus"
+                class="h-9 w-full max-w-xs rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-200"
+              >
+                <option value="active">{{ t('admin.users.statusActive') }}</option>
+                <option value="disabled">{{ t('admin.users.statusDisabled') }}</option>
+                <option value="banned">{{ t('admin.users.statusBanned') }}</option>
+              </select>
+              <span
+                v-if="selectedUser.isInitialSuperAdmin"
+                class="mt-1 block text-xs text-amber-600 dark:text-amber-400"
+              >
+                {{ t('admin.users.initialSuperAdmin') }}
+              </span>
+            </label>
+          </div>
+        </section>
+
+        <!-- 公开资料 -->
+        <section class="rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-zinc-800 dark:bg-zinc-900/60">
+          <div class="mb-4 flex items-center justify-between gap-3">
+            <div>
+              <h4 class="text-sm font-semibold text-slate-900 dark:text-zinc-100">
+                {{ t('admin.users.profileSection') }}
+              </h4>
+              <p class="text-xs text-slate-500 dark:text-zinc-400">
+                {{ t('admin.users.profileSectionHelp') }}
+              </p>
+            </div>
+            <UButton
+              color="primary"
+              leading-icon="i-lucide-save"
+              :loading="savingProfile"
+              @click="saveProfile"
+            >
+              {{ t('admin.users.saveProfile') }}
+            </UButton>
+          </div>
+
+          <div class="grid gap-3">
+            <label class="block space-y-1.5 text-sm">
+              <span class="font-medium text-slate-700 dark:text-zinc-300">{{ t('admin.users.bio') }}</span>
+              <UTextarea v-model="editBio" :rows="3" class="w-full" />
+            </label>
+            <label class="block space-y-1.5 text-sm">
+              <span class="font-medium text-slate-700 dark:text-zinc-300">{{ t('admin.users.signature') }}</span>
+              <UTextarea v-model="editSignature" :rows="2" class="w-full" />
+            </label>
+            <div class="grid gap-3 sm:grid-cols-2">
+              <label class="block space-y-1.5 text-sm">
+                <span class="font-medium text-slate-700 dark:text-zinc-300">{{ t('admin.users.location') }}</span>
+                <UInput v-model="editLocation" class="w-full" />
+              </label>
+              <label class="block space-y-1.5 text-sm">
+                <span class="font-medium text-slate-700 dark:text-zinc-300">{{ t('admin.users.websiteUrl') }}</span>
+                <UInput v-model="editWebsiteUrl" type="url" placeholder="https://" class="w-full" />
+              </label>
+            </div>
+          </div>
+        </section>
+
+        <!-- 账号安全 -->
+        <section class="rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-zinc-800 dark:bg-zinc-900/60">
+          <div class="space-y-4">
+            <div class="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h4 class="text-sm font-semibold text-slate-900 dark:text-zinc-100">
+                  {{ t('admin.users.sessionSection') }}
+                </h4>
+                <p class="text-xs text-slate-500 dark:text-zinc-400">
+                  {{ t('admin.users.sessionSectionHelp') }}
+                </p>
+              </div>
+              <UButton
+                color="error"
+                variant="soft"
+                leading-icon="i-lucide-log-out"
+                :loading="revokingSessions"
+                @click="revokeUserSessions"
+              >
+                {{ t('admin.users.revokeSessions') }}
+              </UButton>
+            </div>
+            <div class="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 pt-4 dark:border-zinc-800">
+              <div>
+                <h4 class="text-sm font-semibold text-slate-900 dark:text-zinc-100">
+                  {{ t('admin.users.clearClientIPs') }}
+                </h4>
+                <p class="text-xs text-slate-500 dark:text-zinc-400">
+                  {{ t('admin.users.clearClientIPsHelp') }}
+                </p>
+              </div>
+              <UButton
+                color="neutral"
+                variant="soft"
+                leading-icon="i-lucide-shield-off"
+                :loading="clearingClientIPs"
+                @click="clearUserClientIPs"
+              >
+                {{ t('admin.users.clearClientIPs') }}
+              </UButton>
+            </div>
           </div>
         </section>
 

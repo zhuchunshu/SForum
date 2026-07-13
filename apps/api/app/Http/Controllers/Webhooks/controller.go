@@ -38,11 +38,11 @@ func (h *Controller) RegisterRoutes(api fiber.Router) {
 }
 
 type endpointBody struct {
-	Name        string   `json:"name"`
-	TargetURL   string   `json:"targetUrl"`
-	Secret      string   `json:"secret"`
-	Events      []string `json:"events"`
-	Enabled     *bool    `json:"enabled"`
+	Name      string   `json:"name"`
+	TargetURL string   `json:"targetUrl"`
+	Secret    string   `json:"secret"`
+	Events    []string `json:"events"`
+	Enabled   *bool    `json:"enabled"`
 	// Description 用指针区分「省略」与「显式清空」；PATCH 省略时保留原值。
 	Description *string `json:"description"`
 	ClearSecret bool    `json:"clearSecret"`

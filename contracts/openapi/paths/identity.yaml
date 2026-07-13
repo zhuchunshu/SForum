@@ -389,7 +389,7 @@ userByID:
     - "$ref": "../components/parameters.yaml#/UserID"
     responses:
       '200':
-        description: User detail with effective permissions and direct overrides.
+        description: User detail with effective permissions, profile, and direct overrides.
         content:
           application/json:
             schema:
@@ -398,6 +398,41 @@ userByID:
         "$ref": "../components/responses.yaml#/Unauthorized"
       '403':
         "$ref": "../components/responses.yaml#/Forbidden"
+      '422':
+        "$ref": "../components/responses.yaml#/UnprocessableEntity"
+  patch:
+    summary: Update an admin user account and profile
+    description: |
+      Requires `user.manage`. Partial update for account fields (username, email,
+      displayName, locale, status) and public profile (bio, signature, location,
+      websiteUrl). Setting `status` to `banned` also requires `user.ban`.
+      Operators cannot change their own status via this endpoint. Non-super-admin
+      operators cannot edit super_admin accounts. Initial super admin status
+      cannot be set to disabled/banned.
+    operationId: updateAdminUser
+    parameters:
+    - "$ref": "../components/parameters.yaml#/UserID"
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            "$ref": "../schemas/identity.yaml#/AdminUpdateUserInput"
+    responses:
+      '200':
+        description: User account/profile updated.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/identity.yaml#/ApiResponseAdminUserDetail"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '404':
+        "$ref": "../components/responses.yaml#/NotFound"
+      '409':
+        "$ref": "../components/responses.yaml#/Conflict"
       '422':
         "$ref": "../components/responses.yaml#/UnprocessableEntity"
 userRoles:

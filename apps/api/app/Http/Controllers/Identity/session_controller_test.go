@@ -238,6 +238,9 @@ func (s *sessionTestStore) ListUsers(context.Context, identity.UserListInput) (i
 func (s *sessionTestStore) GetAdminUser(context.Context, int64) (identity.AdminUserDetail, error) {
 	return identity.AdminUserDetail{}, nil
 }
+func (s *sessionTestStore) UpdateAdminUser(context.Context, int64, int64, identity.AdminUpdateUserInput) (identity.AdminUserDetail, error) {
+	return identity.AdminUserDetail{}, nil
+}
 func (s *sessionTestStore) ListRoles(context.Context) ([]identity.Role, error) { return nil, nil }
 func (s *sessionTestStore) CreateRole(context.Context, identity.RoleInput) (identity.Role, error) {
 	return identity.Role{}, nil

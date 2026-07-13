@@ -4,6 +4,42 @@ This is the entry point for project memory.
 
 ## Latest Handoff
 
+- **2026-07-13 Trusted Plugin And Theme Platform V3 accepted; implementation not started**
+  - Decision: `knowledge/decisions/2026-07-13-trusted-plugin-theme-platform-v3.md`
+  - Task book: `knowledge/plans/2026-07-13-trusted-plugin-theme-platform-v3.md`
+  - Handoff: `knowledge/sessions/2026-07-13-trusted-plugin-theme-platform-v3-plan.md`
+  - Decision contains the authoritative 27-row template comparison, 72-row
+    plugin comparison, detailed architecture mind map, and boundary checklist
+  - Target: exact-artifact full trust, complete Route Registry v1, real plugin
+    migrations/database authority, Host API v2, complete buildless themes,
+    trusted L2, component/content/cache/job registries, Admin/Query/Identity/
+    Media/Navigation surfaces, LTS marketplace, lifecycle-owned cleanup
+  - P0-P13 include recovery, rollback, permissions, tests, multi-node rollout,
+    reference packages, and final legacy removal; no production phase has begun
+
+- **2026-07-13 Legacy Web Release/runtime frontend builds removed**
+  - Decision: `knowledge/decisions/2026-07-13-remove-legacy-web-release.md`
+  - Task book: `knowledge/plans/2026-07-13-buildless-extension-settings-ui.md`
+  - Handoff: `knowledge/sessions/2026-07-13-buildless-extension-settings-ui-plan.md`
+  - Only Schema/Actions, digest-trusted prebuilt settings components, and the
+    independent public Page Registry remain; lifecycle is synchronous
+  - API/worker images and Compose no longer carry Bun, Web source, release
+    storage, supervisors, permissions, queues, routes, or admin release UI
+
+- **2026-07-13 Theme switch runtime closure plan (superseded)**
+  - Task book: `knowledge/plans/2026-07-13-theme-switch-runtime-closure.md`
+  - Handoff: `knowledge/sessions/2026-07-13-theme-switch-runtime-closure-plan.md`
+  - Scope: preserve active theme across restart, clear stale page bindings,
+    guided explicit L1 approval, SSR/reactive L0 refresh, full restart/browser gates
+  - Status: superseded by synchronous Page Registry activation and removal of
+    runtime theme release/supervisor paths
+
+- **2026-07-13 Admin users: pagination + full manage drawer**
+  - Handoff: `knowledge/sessions/2026-07-13-admin-users-pagination-and-detail.md`
+  - List: 20/page with `UPagination`
+  - Detail: account + profile editable via `PATCH /users/{id}`; sessions/IP tools
+  - OpenAPI + identity module note updated
+
 - **2026-07-13 Schema UI: textarea + field width**
   - Handoff: `knowledge/sessions/2026-07-13-schema-ui-textarea-width.md`
   - New field type `textarea`; optional `width: default|full` on settings fields

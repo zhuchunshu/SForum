@@ -34,19 +34,19 @@ var (
 
 // Method 名常量，与 RPC 路径对齐。
 const (
-	MethodPing             = "Ping"
-	MethodCheckPermission  = "CheckPermission"
-	MethodGetSettings      = "GetSettings"
-	MethodEnqueueOwnJob    = "EnqueueOwnJob"
-	MethodAppendAudit      = "AppendAudit"
-	MethodGetUserSafe      = "GetUserSafe"
+	MethodPing            = "Ping"
+	MethodCheckPermission = "CheckPermission"
+	MethodGetSettings     = "GetSettings"
+	MethodEnqueueOwnJob   = "EnqueueOwnJob"
+	MethodAppendAudit     = "AppendAudit"
+	MethodGetUserSafe     = "GetUserSafe"
 )
 
 // Request 是插件 → 宿主的统一信封。
 type Request struct {
-	Method      string         `json:"method"`
-	ExtensionID string         `json:"extensionId"`
-	TimeoutMS   int            `json:"timeoutMs,omitempty"`
+	Method      string `json:"method"`
+	ExtensionID string `json:"extensionId"`
+	TimeoutMS   int    `json:"timeoutMs,omitempty"`
 	// Payload 为方法特定字段（扁平 map，避免反射复杂化）。
 	Payload map[string]any `json:"payload,omitempty"`
 }

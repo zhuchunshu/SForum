@@ -18,10 +18,10 @@ const (
 
 // ResilienceConfig 控制每扩展 RPC 闸门与熔断。
 type ResilienceConfig struct {
-	MaxConcurrent        int
-	FailureThreshold     int
-	CircuitOpenFor       time.Duration
-	DefaultMailTimeout   time.Duration
+	MaxConcurrent         int
+	FailureThreshold      int
+	CircuitOpenFor        time.Duration
+	DefaultMailTimeout    time.Duration
 	DefaultStorageTimeout time.Duration
 }
 

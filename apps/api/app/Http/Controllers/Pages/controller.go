@@ -60,7 +60,7 @@ func (h *Controller) WithLoader(g *pages.LoaderGateway) *Controller {
 
 func (h *Controller) RegisterRoutes(api fiber.Router) {
 	// 公开：解析单个页面（前台 outlet / SSR 使用）
-	api.Get("/pages/resolve", h.resolve) // ?id=forum.home
+	api.Get("/pages/resolve", h.resolve)          // ?id=forum.home
 	api.Get("/pages/resolve-path", h.resolvePath) // ?path=/docs/x
 	api.Get("/pages/catalog", h.publicCatalog)
 	api.Get("/site/active-theme/skin", h.activeSkin)

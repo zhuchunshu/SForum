@@ -548,6 +548,190 @@ func (s *Service) GetAdminUser(ctx context.Context, actor Actor, userID int64) (
 	return s.store.GetAdminUser(ctx, userID)
 }
 
+// UpdateAdminUser 管理员更新目标用户的账户字段与公开资料。
+// 需要 user.manage；将状态改为 banned 时还需要 user.ban。
+// 不允许通过此路径修改自己的 status（避免自锁），其余字段允许自助运营修正。
+func (s *Service) UpdateAdminUser(ctx context.Context, actor Actor, targetUserID int64, input AdminUpdateUserInput) (AdminUserDetail, error) {
+	if !actor.Can(PermissionUserManage) {
+		return AdminUserDetail{}, ErrPermissionDenied
+	}
+	if targetUserID <= 0 {
+		return AdminUserDetail{}, ErrUserNotFound
+	}
+
+	target, err := s.store.GetAdminUser(ctx, targetUserID)
+	if err != nil {
+		return AdminUserDetail{}, err
+	}
+
+	// 非超管不得修改超管账户的核心字段（与会话下线保护对称）。
+	if containsString(target.RoleKeys, RoleSuperAdmin) && !actor.IsSuperAdmin() {
+		return AdminUserDetail{}, ErrSuperAdminSessionLocked
+	}
+	// 初始超管用户名/邮箱/状态不可被降权式破坏：至少保持可登录身份（状态须 active）。
+	if target.IsInitialSuperAdmin && input.Status != nil && *input.Status != UserStatusActive {
+		return AdminUserDetail{}, ErrInitialSuperAdminLocked
+	}
+
+	normalized, err := s.normalizeAdminUpdateUserInput(ctx, input)
+	if err != nil {
+		return AdminUserDetail{}, err
+	}
+
+	if normalized.Status != nil {
+		if actor.ID == targetUserID {
+			return AdminUserDetail{}, ErrSelfStatusChange
+		}
+		if *normalized.Status == UserStatusBanned && !actor.Can(PermissionUserBan) {
+			return AdminUserDetail{}, ErrPermissionDenied
+		}
+	}
+
+	// 用户名/邮箱冲突（store 也会再查一次；此处提前给字段级错误）。
+	if normalized.Username != nil || normalized.Email != nil {
+		checkUsername := target.Username
+		checkEmail := target.Email
+		if normalized.Username != nil {
+			checkUsername = *normalized.Username
+		}
+		if normalized.Email != nil {
+			checkEmail = *normalized.Email
+		}
+		if checkUsername != target.Username || checkEmail != target.Email {
+			conflicts, cErr := s.store.FindRegistrationConflicts(ctx, checkUsername, checkEmail)
+			if cErr != nil {
+				return AdminUserDetail{}, cErr
+			}
+			// 冲突结果包含自身时需排除：FindRegistrationConflicts 不支持 exclude id，
+			// 因此仅当「新值」与当前不同且被占用时才报错。
+			fields := FieldMessages{}
+			if normalized.Username != nil && *normalized.Username != target.Username && conflicts.UsernameTaken {
+				addFieldMessage(fields, FieldUsername, MessageUsernameTaken)
+			}
+			if normalized.Email != nil && *normalized.Email != target.Email && conflicts.EmailTaken {
+				addFieldMessage(fields, FieldEmail, MessageEmailTaken)
+			}
+			if len(fields) > 0 {
+				return AdminUserDetail{}, NewRegisterInvalid(fields)
+			}
+		}
+	}
+
+	return s.store.UpdateAdminUser(ctx, actor.ID, targetUserID, normalized)
+}
+
+const (
+	maxAdminDisplayNameLength = 80
+	maxAdminBioLength         = 500
+	maxAdminSignatureLength   = 200
+	maxAdminLocationLength    = 100
+	maxAdminWebsiteLength     = 200
+)
+
+func (s *Service) normalizeAdminUpdateUserInput(ctx context.Context, input AdminUpdateUserInput) (AdminUpdateUserInput, error) {
+	out := AdminUpdateUserInput{}
+	fields := FieldMessages{}
+
+	if input.Username != nil {
+		username := strings.TrimSpace(*input.Username)
+		usernamePolicy, err := s.resolveUsernamePolicy(ctx)
+		if err != nil {
+			return AdminUpdateUserInput{}, err
+		}
+		if username == "" {
+			addFieldMessage(fields, FieldUsername, MessageUsernameRequired)
+		} else if usernamePolicy.MinLength > 0 || usernamePolicy.MaxLength > 0 || usernamePolicy.Charset != "" || len(usernamePolicy.Reserved) > 0 {
+			if ok, reason := usernamePolicy.Validate(username); !ok {
+				addFieldMessage(fields, FieldUsername, reason)
+			}
+		}
+		out.Username = &username
+	}
+	if input.Email != nil {
+		email := strings.TrimSpace(*input.Email)
+		if email == "" {
+			addFieldMessage(fields, FieldEmail, MessageEmailRequired)
+		} else if !isValidEmail(email) {
+			addFieldMessage(fields, FieldEmail, MessageEmailInvalid)
+		}
+		out.Email = &email
+	}
+	if input.DisplayName != nil {
+		displayName := strings.TrimSpace(*input.DisplayName)
+		if displayName == "" {
+			return AdminUpdateUserInput{}, ErrInvalidUserUpdate
+		}
+		if len([]rune(displayName)) > maxAdminDisplayNameLength {
+			return AdminUpdateUserInput{}, ErrInvalidUserUpdate
+		}
+		out.DisplayName = &displayName
+	}
+	if input.Locale != nil {
+		locale := strings.TrimSpace(*input.Locale)
+		if locale == "" {
+			locale = "zh-CN"
+		}
+		// 仅接受当前产品支持的语言码，避免写入任意字符串。
+		if locale != "zh-CN" && locale != "en-US" {
+			return AdminUpdateUserInput{}, ErrInvalidUserUpdate
+		}
+		out.Locale = &locale
+	}
+	if input.Status != nil {
+		status := *input.Status
+		switch status {
+		case UserStatusActive, UserStatusDisabled, UserStatusBanned:
+			out.Status = &status
+		default:
+			return AdminUpdateUserInput{}, ErrInvalidUserUpdate
+		}
+	}
+	if input.Bio != nil {
+		bio := strings.TrimSpace(*input.Bio)
+		if len([]rune(bio)) > maxAdminBioLength {
+			return AdminUpdateUserInput{}, ErrInvalidUserUpdate
+		}
+		out.Bio = &bio
+	}
+	if input.Signature != nil {
+		signature := strings.TrimSpace(*input.Signature)
+		if len([]rune(signature)) > maxAdminSignatureLength {
+			return AdminUpdateUserInput{}, ErrInvalidUserUpdate
+		}
+		out.Signature = &signature
+	}
+	if input.Location != nil {
+		location := strings.TrimSpace(*input.Location)
+		if len([]rune(location)) > maxAdminLocationLength {
+			return AdminUpdateUserInput{}, ErrInvalidUserUpdate
+		}
+		out.Location = &location
+	}
+	if input.WebsiteURL != nil {
+		url := strings.TrimSpace(*input.WebsiteURL)
+		if len(url) > maxAdminWebsiteLength {
+			return AdminUpdateUserInput{}, ErrInvalidUserUpdate
+		}
+		if url != "" {
+			lower := strings.ToLower(url)
+			if !strings.HasPrefix(lower, "http://") && !strings.HasPrefix(lower, "https://") {
+				return AdminUpdateUserInput{}, ErrInvalidUserUpdate
+			}
+		}
+		out.WebsiteURL = &url
+	}
+
+	if len(fields) > 0 {
+		return AdminUpdateUserInput{}, NewRegisterInvalid(fields)
+	}
+	// 至少要改一个字段。
+	if out.Username == nil && out.Email == nil && out.DisplayName == nil && out.Locale == nil &&
+		out.Status == nil && out.Bio == nil && out.Signature == nil && out.Location == nil && out.WebsiteURL == nil {
+		return AdminUpdateUserInput{}, ErrInvalidUserUpdate
+	}
+	return out, nil
+}
+
 func (s *Service) CreateRole(ctx context.Context, actor Actor, input RoleInput) (Role, error) {
 	if !actor.Can(PermissionRoleManage) {
 		return Role{}, ErrPermissionDenied

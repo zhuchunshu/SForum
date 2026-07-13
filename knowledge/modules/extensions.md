@@ -1,5 +1,42 @@
 # Extensions Module
 
+## Accepted V3 Target (Implementation Not Started)
+
+The accepted target, including the canonical 99-row comparison and detailed
+architecture mind map, is documented in
+`../decisions/2026-07-13-trusted-plugin-theme-platform-v3.md`; its phased task
+book is `../plans/2026-07-13-trusted-plugin-theme-platform-v3.md`. The remainder
+of this module note describes the current implementation unless a section is
+explicitly labeled as target behavior.
+
+- Delegated extension managers may upload, statically inspect, and store inert
+  packages. Static install never executes code; executable `install.plan` and
+  `install` hooks are deferred to first enable after exact-digest, actor-bound
+  `super_admin` confirmation.
+- Route Registry v1 includes add, alias, redirect, rewrite, before, after,
+  filter, wrap, replace, global middleware, uploads, streams, SSE, and
+  WebSocket on any declared public/admin/API path and HTTP method. Trusted
+  custom guards and raw request authority are allowed after separate high-risk
+  confirmation.
+- Plugins may own PostgreSQL schemas/roles, execute real migrations and
+  transactions, use stable core views/commands, or explicitly request raw core
+  database access.
+- Host API v2 targets HashiCorp go-plugin gRPC plus Protobuf while v1 remains a
+  temporary compatibility adapter.
+- Hooks, components, templates, content, services, providers, jobs, commands,
+  cache, assets, packages, and plugin-defined extension points become versioned
+  registries. Lifecycle `uninstall.plan` and `uninstall` hooks lead business and
+  external cleanup; Host cleanup remains fallback.
+- Admin Surface, Query, Identity/Permission/Auth/Profile, Media Pipeline, and
+  Navigation/Region registries close the high-frequency WordPress-class gaps.
+  Transactional Host Commands cover normal cross-module atomic writes without
+  making raw core database access the default.
+- Every core module publishes an Extension Surface Matrix; Host/Frontend API LTS,
+  compatibility test farm, signed marketplace index, and five independent
+  reference plugins are release gates rather than ecosystem follow-ups.
+- Safe mode, CLI disable, immutable snapshot rollback, audit/tracing, and
+  multi-node convergence ship before the platform is considered complete.
+
 ## Purpose
 
 Owns installable plugins and themes for SForum. Plugins are multi-enable

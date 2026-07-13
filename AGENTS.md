@@ -123,10 +123,30 @@ contracts first.
   plugins.
 - Real provider or vendor logic should live in an extension package, including
   protected built-in plugins when SForum needs a bundled default.
-- Do not let plugins override arbitrary core routes, monkey-patch core services,
-  read raw session cookies as authority, or bypass API policy checks. Core-owned
-  routes, events, filters, and provider slots are the only supported extension
-  points.
+- Upload/static installation only validates, previews, and stores an inert
+  package; it must not execute package code. Existing delegated extension
+  managers may perform that operation. Executable install hooks are deferred to
+  the first enable and require exact-artifact, actor-bound `super_admin`
+  confirmation before any process start, migration, frontend import, or
+  external side effect.
+- Executable plugins may compose or replace core routes, guards, services, and
+  other declared behavior only through versioned registries after an exact-
+  artifact, actor-bound `super_admin` trust confirmation. Raw request/session
+  authority and raw core database access are separately declared high-risk
+  powers. Do not add undocumented monkey-patching or implicit override paths.
+- Trusted Route Registry contributions may claim any declared public, admin, or
+  API path and HTTP method. Theme overrides are presentation-only and must not
+  alter a plugin's versioned business data contract.
+- Every core module must maintain its Extension Surface Matrix across routes,
+  hooks, queries, admin/public components, identity/permissions, media,
+  navigation/regions, cache invalidation, jobs, and lifecycle. A deliberately
+  closed surface needs a documented security, integrity, or ownership reason.
+- Prefer dedicated Admin Surface, Query, Identity/Permission, Media Pipeline,
+  and Navigation/Region contracts over forcing plugins to replace whole routes
+  or use raw database access for ordinary integrations.
+- Safe mode, pre-plugin boot health, and out-of-band CLI recovery are host-owned
+  and non-overridable. Registry conflicts, selected providers, trust grants,
+  and replacement handlers must remain inspectable and auditable.
 - Before adding a core module for a new product area, write down why a plugin,
   provider slot, or event is insufficient. Record architectural choices in
   `knowledge/decisions/`.
@@ -174,9 +194,14 @@ adding it after the UI or endpoint is already complete.
 - Reuse existing permission keys and policy helpers before adding new
   permissions. Add a new permission only when it represents a distinct product
   capability that admins should be able to grant or deny.
-- Keep API policy checks authoritative. Frontend route guards, hidden buttons,
-  disabled controls, and permission-aware navigation are only user-experience
-  helpers.
+- Keep API policy checks authoritative for core-owned handlers. An explicitly
+  trusted replacement handler or custom guard owns the authorization contract
+  it declares, and must be covered by trust disclosure, audit, and allowed plus
+  denied tests. Frontend route guards, hidden buttons, disabled controls, and
+  permission-aware navigation are only user-experience helpers.
+- Plugins may declare permission keys and recommended role mappings, but plugin
+  install/enable code must never assign those permissions. Existing Host role/
+  permission management policy remains authoritative for grants.
 - For unsafe requests and admin operations, add or update tests that cover both
   allowed and denied access paths.
 - When a feature adds new permission keys, update seed data, permission catalog

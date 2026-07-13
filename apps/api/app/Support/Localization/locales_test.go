@@ -68,14 +68,14 @@ func TestMessageFallsBackToDefaultLocaleAndKey(t *testing.T) {
 
 func TestMessageLocalizesSiteChromeAndRecentAdminCodes(t *testing.T) {
 	cases := map[string][2]string{
-		"site_chrome.invalid":  {"站点导航/公告/友链配置不正确，请检查后重试。", "The site navigation, announcement, or friend-link data is invalid. Check it and try again."},
-		"site_chrome.not_found": {"站点导航/公告/友链不存在，请刷新后重试。", "The site navigation, announcement, or friend link does not exist. Refresh and try again."},
-		"jobs.schedule_disabled": {"该定时任务已禁用，请先启用后再触发。", "This scheduled job is disabled. Enable it before triggering."},
-		"profile.invalid":        {"用户资料不正确，请检查后重试。", "The user profile is invalid. Check it and try again."},
-		"database.table_not_found": {"数据表不存在或不可访问。", "The data table does not exist or is not accessible."},
-		"moderation.report_duplicate": {"你已经举报过该内容。", "You have already reported this content."},
+		"site_chrome.invalid":          {"站点导航/公告/友链配置不正确，请检查后重试。", "The site navigation, announcement, or friend-link data is invalid. Check it and try again."},
+		"site_chrome.not_found":        {"站点导航/公告/友链不存在，请刷新后重试。", "The site navigation, announcement, or friend link does not exist. Refresh and try again."},
+		"jobs.schedule_disabled":       {"该定时任务已禁用，请先启用后再触发。", "This scheduled job is disabled. Enable it before triggering."},
+		"profile.invalid":              {"用户资料不正确，请检查后重试。", "The user profile is invalid. Check it and try again."},
+		"database.table_not_found":     {"数据表不存在或不可访问。", "The data table does not exist or is not accessible."},
+		"moderation.report_duplicate":  {"你已经举报过该内容。", "You have already reported this content."},
 		"mail.test_recipient_required": {"请填写测试邮件收件人。", "Enter a recipient for the test email."},
-		"csrf.invalid": {"请求校验失败，请刷新页面后重试。", "Request validation failed. Refresh the page and try again."},
+		"csrf.invalid":                 {"请求校验失败，请刷新页面后重试。", "Request validation failed. Refresh the page and try again."},
 	}
 	for key, want := range cases {
 		if got := Message("zh-CN", key); got != want[0] {

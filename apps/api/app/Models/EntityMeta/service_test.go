@@ -13,12 +13,12 @@ import (
 )
 
 type memoryStore struct {
-	mu          sync.Mutex
-	defs        map[string]fieldRow
-	values      map[string]valueRow
-	users       map[int64]bool
-	topics      map[int64]int64 // topicID -> author
-	nextDefID   int64
+	mu        sync.Mutex
+	defs      map[string]fieldRow
+	values    map[string]valueRow
+	users     map[int64]bool
+	topics    map[int64]int64 // topicID -> author
+	nextDefID int64
 }
 
 func newMemoryStore() *memoryStore {

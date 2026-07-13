@@ -518,8 +518,6 @@ func TestLoaderRejectsNonLoopbackAndRedirect(t *testing.T) {
 	}
 }
 
-
-
 func TestThemeAssetRejectsSVGAndJS(t *testing.T) {
 	app, _, themes, _ := newPagesTestApp(t)
 	root := themes.active.PackagePath

@@ -97,6 +97,21 @@ for (const [name, content] of [
 if (!adminUsersPage.includes('/permission-overrides')) {
   throw new Error('Admin users page should manage per-user permission overrides');
 }
+if (!adminUsersPage.includes('DEFAULT_PER_PAGE = 20')) {
+  throw new Error('Admin users page should page users 20 per page');
+}
+if (!adminUsersPage.includes('UPagination')) {
+  throw new Error('Admin users page should render pagination controls');
+}
+if (!adminUsersPage.includes("method: 'PATCH'")) {
+  throw new Error('Admin users page should PATCH account/profile fields');
+}
+if (!adminUsersPage.includes('saveAccount') || !adminUsersPage.includes('saveProfile')) {
+  throw new Error('Admin users page should expose account and profile save actions');
+}
+if (!adminUsersPage.includes('client-ips/clear')) {
+  throw new Error('Admin users page should support clearing stored client IPs');
+}
 if (!adminRolesPage.includes('/permissions')) {
   throw new Error('Admin roles page should manage role permissions');
 }

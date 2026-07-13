@@ -30,10 +30,10 @@ var (
 
 // Endpoint 是管理员配置的出站订阅。
 type Endpoint struct {
-	ID          int64     `json:"id"`
-	Name        string    `json:"name"`
-	TargetURL   string    `json:"targetUrl"`
-	SecretMasked string   `json:"secretMasked"`
+	ID           int64  `json:"id"`
+	Name         string `json:"name"`
+	TargetURL    string `json:"targetUrl"`
+	SecretMasked string `json:"secretMasked"`
 	// HasSecret 表示是否已配置签名密钥（不回传明文）。
 	HasSecret   bool      `json:"hasSecret"`
 	Events      []string  `json:"events"`

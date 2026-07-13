@@ -14,19 +14,19 @@ func TestCommunityPolicyDefaultsPresent(t *testing.T) {
 		t.Fatalf("ListAdmin: %v", err)
 	}
 	want := map[string]string{
-		NameIdentityRegistrationMode:     "open",
-		NameIdentityUsernameMinLength:    "3",
-		NameIdentityUsernameMaxLength:    "20",
-		NameIdentityUsernameCharset:      "unicode_letters_numbers",
-		NameIdentityLoginMaxFailures:     "10",
-		NameIdentityLoginLockoutMinutes:  "15",
-		NameTrustNewUserDays:             "7",
+		NameIdentityRegistrationMode:        "open",
+		NameIdentityUsernameMinLength:       "3",
+		NameIdentityUsernameMaxLength:       "20",
+		NameIdentityUsernameCharset:         "unicode_letters_numbers",
+		NameIdentityLoginMaxFailures:        "10",
+		NameIdentityLoginLockoutMinutes:     "15",
+		NameTrustNewUserDays:                "7",
 		NameTrustNewUserForbidOutboundLinks: enabledOptionValue(true),
-		NameSiteMaintenanceEnabled:       enabledOptionValue(false),
-		NameForumGuestRead:               "public",
-		NameForumListDefaultSort:         "latest",
-		NameForumMentionsEnabled:         enabledOptionValue(true),
-		NameForumMentionsMaxPerPost:      "10",
+		NameSiteMaintenanceEnabled:          enabledOptionValue(false),
+		NameForumGuestRead:                  "public",
+		NameForumListDefaultSort:            "latest",
+		NameForumMentionsEnabled:            enabledOptionValue(true),
+		NameForumMentionsMaxPerPost:         "10",
 	}
 	for name, expected := range want {
 		if got := adminValue(items, name); got != expected {
@@ -126,22 +126,22 @@ func TestCommunityPolicyAcceptsAndRejectsValues(t *testing.T) {
 
 func TestCommunityPolicyHelpers(t *testing.T) {
 	store := &fakeStore{items: map[string]string{
-		NameSiteMaintenanceEnabled:              "enabled",
-		NameSiteMaintenanceMessage:              "维护中",
-		NameIdentityRegistrationMode:            "closed",
-		NameTrustNewUserDays:                    "7",
-		NameTrustNewUserTopicCooldownSeconds:     "300",
-		NameTrustNewUserCommentCooldownSeconds:    "60",
-		NameTrustNewUserDailyTopicLimit:         "3",
-		NameTrustNewUserDailyCommentLimit:       "30",
-		NameTrustNewUserForbidOutboundLinks:     "enabled",
-		NameTrustNewUserForbidAttachments:       "disabled",
-		NameIdentityUsernameMinLength:           "3",
-		NameIdentityUsernameMaxLength:           "20",
-		NameIdentityUsernameCharset:             "unicode_letters_numbers",
-		NameIdentityUsernameReserved:            "admin,system",
-		NameIdentityLoginMaxFailures:            "10",
-		NameIdentityLoginLockoutMinutes:         "15",
+		NameSiteMaintenanceEnabled:             "enabled",
+		NameSiteMaintenanceMessage:             "维护中",
+		NameIdentityRegistrationMode:           "closed",
+		NameTrustNewUserDays:                   "7",
+		NameTrustNewUserTopicCooldownSeconds:   "300",
+		NameTrustNewUserCommentCooldownSeconds: "60",
+		NameTrustNewUserDailyTopicLimit:        "3",
+		NameTrustNewUserDailyCommentLimit:      "30",
+		NameTrustNewUserForbidOutboundLinks:    "enabled",
+		NameTrustNewUserForbidAttachments:      "disabled",
+		NameIdentityUsernameMinLength:          "3",
+		NameIdentityUsernameMaxLength:          "20",
+		NameIdentityUsernameCharset:            "unicode_letters_numbers",
+		NameIdentityUsernameReserved:           "admin,system",
+		NameIdentityLoginMaxFailures:           "10",
+		NameIdentityLoginLockoutMinutes:        "15",
 	}}
 	service := NewServiceWithCacheTTL(store, time.Minute)
 

@@ -17,6 +17,8 @@ type Store interface {
 	ListPermissionMatrix(ctx context.Context) (PermissionMatrix, error)
 	ListUsers(ctx context.Context, input UserListInput) (AdminUserList, error)
 	GetAdminUser(ctx context.Context, userID int64) (AdminUserDetail, error)
+	// UpdateAdminUser 更新用户账户字段与资料；input 中非空指针字段才会写入。
+	UpdateAdminUser(ctx context.Context, actorUserID int64, targetUserID int64, input AdminUpdateUserInput) (AdminUserDetail, error)
 	ListRoles(ctx context.Context) ([]Role, error)
 	CreateRole(ctx context.Context, input RoleInput) (Role, error)
 	UpdateRole(ctx context.Context, roleKey string, input RoleInput) (Role, error)

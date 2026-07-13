@@ -712,10 +712,14 @@ components:
       "$ref": "./openapi/schemas/identity.yaml#/PermissionOverrides"
     AdminUserSummary:
       "$ref": "./openapi/schemas/identity.yaml#/AdminUserSummary"
+    AdminUserProfile:
+      "$ref": "./openapi/schemas/identity.yaml#/AdminUserProfile"
     AdminUserDetail:
       "$ref": "./openapi/schemas/identity.yaml#/AdminUserDetail"
     AdminUserList:
       "$ref": "./openapi/schemas/identity.yaml#/AdminUserList"
+    AdminUpdateUserInput:
+      "$ref": "./openapi/schemas/identity.yaml#/AdminUpdateUserInput"
     UserRolesInput:
       "$ref": "./openapi/schemas/identity.yaml#/UserRolesInput"
     UserPermissionOverridesInput:

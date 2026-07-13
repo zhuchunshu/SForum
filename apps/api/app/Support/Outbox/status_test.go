@@ -4,12 +4,12 @@ import "testing"
 
 func TestNormalizeAliases(t *testing.T) {
 	cases := map[string]string{
-		"queued":    StatusQueued,
-		"RUNNING":   StatusSending,
-		"succeeded": StatusSent,
-		"failed":    StatusFailed,
+		"queued":     StatusQueued,
+		"RUNNING":    StatusSending,
+		"succeeded":  StatusSent,
+		"failed":     StatusFailed,
 		"  Skipped ": StatusSkipped,
-		"dead":      StatusDead,
+		"dead":       StatusDead,
 	}
 	for in, want := range cases {
 		if got := Normalize(in); got != want {

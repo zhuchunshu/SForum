@@ -23,8 +23,15 @@ Initial identity foundation is implemented.
 - Browser sessions are backed by Redis through Fiber sessions.
 - API endpoints exist for registration, login, logout, current session, role
   listing, role creation/update/delete, role permission replacement, permission
-  catalog/matrix reads, admin user listing/detail, user role replacement, and
-  user direct permission override replacement.
+  catalog/matrix reads, admin user listing/detail, admin user account/profile
+  update (`PATCH /users/{userID}`), user role replacement, and user direct
+  permission override replacement.
+- Admin user list is paged (default 20 per page, max 100). Admin user detail
+  includes `createdAt`/`updatedAt`, public `profile` (bio/signature/location/
+  websiteUrl), effective permissions, and permission overrides. `PATCH` accepts
+  partial account + profile fields; `user.manage` required, `banned` also needs
+  `user.ban`; operators cannot change their own status; non-super-admin cannot
+  edit super_admin accounts; initial super admin cannot be disabled/banned.
 - The permission catalog includes `database.manage` for the read-only admin
   database table manager. `super_admin` receives it by migration and policy as
   part of the protected all-permissions role.

@@ -11,13 +11,13 @@ import (
 
 // PasswordResetToken 是 password_reset_tokens 行的领域结构。
 type PasswordResetToken struct {
-	ID             int64
-	UserID         int64
-	TokenHash      string
-	ExpiresAt      time.Time
-	ConsumedAt     *time.Time
-	CreatedAt      time.Time
-	RequestIPHash  string
+	ID            int64
+	UserID        int64
+	TokenHash     string
+	ExpiresAt     time.Time
+	ConsumedAt    *time.Time
+	CreatedAt     time.Time
+	RequestIPHash string
 }
 
 // CreatePasswordResetToken 插入一条密码重置令牌。

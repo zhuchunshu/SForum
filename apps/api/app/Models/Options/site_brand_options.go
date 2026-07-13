@@ -51,10 +51,10 @@ func siteBrandRecommendedDefaults() map[string]string {
 		NameSiteAppleTouchIconURL:          "",
 		NameSiteAppleTouchIconAttachmentID: "",
 		// 推荐 stub：短、可运营、不依赖外部律师文案；空站也能打开法律页。
-		NameLegalTermsBodyZHCN: recommendedLegalTermsZHCN,
-		NameLegalTermsBodyENUS: recommendedLegalTermsENUS,
-		NameLegalPrivacyBodyZHCN: recommendedLegalPrivacyZHCN,
-		NameLegalPrivacyBodyENUS: recommendedLegalPrivacyENUS,
+		NameLegalTermsBodyZHCN:      recommendedLegalTermsZHCN,
+		NameLegalTermsBodyENUS:      recommendedLegalTermsENUS,
+		NameLegalPrivacyBodyZHCN:    recommendedLegalPrivacyZHCN,
+		NameLegalPrivacyBodyENUS:    recommendedLegalPrivacyENUS,
 		NameLegalGuidelinesBodyZHCN: recommendedLegalGuidelinesZHCN,
 		NameLegalGuidelinesBodyENUS: recommendedLegalGuidelinesENUS,
 	}

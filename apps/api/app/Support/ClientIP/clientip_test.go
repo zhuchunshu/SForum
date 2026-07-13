@@ -118,11 +118,11 @@ func TestResolveIPv6(t *testing.T) {
 
 func TestMaskIPv4AndIPv6(t *testing.T) {
 	cases := map[string]string{
-		"1.2.3.4":     "1.2.3.*",
-		"192.168.1.1": "192.168.1.*",
+		"1.2.3.4":         "1.2.3.*",
+		"192.168.1.1":     "192.168.1.*",
 		"2001:db8:1:2::3": "2001:db8:1:*",
-		"":            "",
-		"not-an-ip":   "",
+		"":                "",
+		"not-an-ip":       "",
 	}
 	for in, want := range cases {
 		if got := Mask(in); got != want {

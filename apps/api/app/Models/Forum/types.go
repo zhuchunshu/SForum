@@ -264,10 +264,10 @@ type TopicSummary struct {
 
 type TopicDetail struct {
 	TopicSummary
-	Content          RenderedContent              `json:"content"`
-	ExtensionActions []TopicExtensionAction       `json:"extensionActions,omitempty"`
-	ExtensionSidebar []TopicExtensionSidebarItem  `json:"extensionSidebar,omitempty"`
-	ExtensionBadges  []TopicExtensionBadge        `json:"extensionBadges,omitempty"`
+	Content          RenderedContent             `json:"content"`
+	ExtensionActions []TopicExtensionAction      `json:"extensionActions,omitempty"`
+	ExtensionSidebar []TopicExtensionSidebarItem `json:"extensionSidebar,omitempty"`
+	ExtensionBadges  []TopicExtensionBadge       `json:"extensionBadges,omitempty"`
 }
 
 type TopicExtensionAction struct {
@@ -458,7 +458,7 @@ type ForumSettings struct {
 	// author_and_staff | staff_only | hidden
 	SoftDeleteVisibility string `json:"softDeleteVisibility"`
 	MentionsEnabled      bool   `json:"mentionsEnabled"`
-	MentionsMaxPerPost      int    `json:"mentionsMaxPerPost"`
+	MentionsMaxPerPost   int    `json:"mentionsMaxPerPost"`
 }
 
 type CreateCategoryGroupInput struct {

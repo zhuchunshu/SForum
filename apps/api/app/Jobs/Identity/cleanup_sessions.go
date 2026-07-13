@@ -27,9 +27,9 @@ type KeepDaysResolver func(ctx context.Context) (int, error)
 
 type CleanupSessionsWorker struct {
 	river.WorkerDefaults[CleanupSessionsArgs]
-	Store      CleanupSessionsStore
-	KeepDays   KeepDaysResolver
-	Logger     *slog.Logger
+	Store    CleanupSessionsStore
+	KeepDays KeepDaysResolver
+	Logger   *slog.Logger
 }
 
 func (w *CleanupSessionsWorker) Work(ctx context.Context, _ *river.Job[CleanupSessionsArgs]) error {

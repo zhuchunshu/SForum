@@ -13,13 +13,13 @@ import (
 
 // 稳定 capability key。新增时同步 Catalog、OpenAPI 与知识库。
 const (
-	NetOutbound       = "net.outbound"
-	JobsEnqueue       = "jobs.enqueue"
-	SettingsOwn       = "settings.own"
-	PermissionsCheck  = "permissions.check"
-	UsersRead         = "users.read"
-	AuditAppend       = "audit.append"
-	HostAPI           = "host.api"
+	NetOutbound      = "net.outbound"
+	JobsEnqueue      = "jobs.enqueue"
+	SettingsOwn      = "settings.own"
+	PermissionsCheck = "permissions.check"
+	UsersRead        = "users.read"
+	AuditAppend      = "audit.append"
+	HostAPI          = "host.api"
 )
 
 // Risk 等级：admin 启用审查 UI 按此排序与着色。

@@ -398,6 +398,8 @@ AdminUserSummary:
   - status
   - isInitialSuperAdmin
   - roleKeys
+  - createdAt
+  - updatedAt
   properties:
     id:
       type: integer
@@ -423,6 +425,28 @@ AdminUserSummary:
       type: array
       items:
         type: string
+    createdAt:
+      type: string
+      format: date-time
+    updatedAt:
+      type: string
+      format: date-time
+AdminUserProfile:
+  type: object
+  required:
+  - bio
+  - signature
+  - location
+  - websiteUrl
+  properties:
+    bio:
+      type: string
+    signature:
+      type: string
+    location:
+      type: string
+    websiteUrl:
+      type: string
 AdminUserDetail:
   allOf:
   - "$ref": "#/AdminUserSummary"
@@ -430,6 +454,7 @@ AdminUserDetail:
     required:
     - permissions
     - permissionOverrides
+    - profile
     properties:
       permissions:
         type: array
@@ -437,6 +462,8 @@ AdminUserDetail:
           type: string
       permissionOverrides:
         "$ref": "#/PermissionOverrides"
+      profile:
+        "$ref": "#/AdminUserProfile"
 AdminUserList:
   type: object
   required:
@@ -456,6 +483,43 @@ AdminUserList:
       type: integer
     perPage:
       type: integer
+AdminUpdateUserInput:
+  type: object
+  description: |
+    Partial admin update for a user account and public profile.
+    Omitted fields are left unchanged. Requires `user.manage`;
+    setting status to `banned` also requires `user.ban`.
+  properties:
+    username:
+      type: string
+    email:
+      type: string
+      format: email
+    displayName:
+      type: string
+    locale:
+      type: string
+      enum:
+      - zh-CN
+      - en-US
+    status:
+      type: string
+      enum:
+      - active
+      - disabled
+      - banned
+    bio:
+      type: string
+      maxLength: 500
+    signature:
+      type: string
+      maxLength: 200
+    location:
+      type: string
+      maxLength: 100
+    websiteUrl:
+      type: string
+      maxLength: 200
 UserRolesInput:
   type: object
   required:

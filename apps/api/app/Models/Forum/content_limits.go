@@ -8,21 +8,21 @@ import (
 
 // 论坛内容限制硬边界：管理员可配范围，防止极端配置拖垮存储或列表。
 const (
-	HardTitleMinRunes     = 1
-	HardTitleMaxRunes     = 200
-	HardContentMinRunes   = 0
-	HardContentMaxRunes   = 200000
-	HardCommentMinRunes   = 0
-	HardCommentMaxRunes   = 50000
-	HardNestingMin        = 0
-	HardNestingMax        = 20
-	HardEditWindowMaxMin  = 10080 // 7 天
-	HardCooldownMaxSec     = 86400 // 24 小时
-	HardDailyLimitMax     = 10000
-	HardExcerptMinRunes   = 40
-	HardExcerptMaxRunes   = 500
-	HardTagMinPerTopic    = 0
-	HardTagMaxPerTopic    = 10
+	HardTitleMinRunes    = 1
+	HardTitleMaxRunes    = 200
+	HardContentMinRunes  = 0
+	HardContentMaxRunes  = 200000
+	HardCommentMinRunes  = 0
+	HardCommentMaxRunes  = 50000
+	HardNestingMin       = 0
+	HardNestingMax       = 20
+	HardEditWindowMaxMin = 10080 // 7 天
+	HardCooldownMaxSec   = 86400 // 24 小时
+	HardDailyLimitMax    = 10000
+	HardExcerptMinRunes  = 40
+	HardExcerptMaxRunes  = 500
+	HardTagMinPerTopic   = 0
+	HardTagMaxPerTopic   = 10
 )
 
 // Recommended* 与 defaultForumSettings / web_options 推荐值保持一致。
@@ -32,13 +32,13 @@ const (
 	RecommendedTopicContentMinRunes     = 0
 	RecommendedTopicContentMaxRunes     = 50000
 	RecommendedTopicEditWindowMinutes   = 0
-	RecommendedTopicCooldownSeconds      = 0
+	RecommendedTopicCooldownSeconds     = 0
 	RecommendedDailyTopicLimit          = 0
 	RecommendedCommentMinRunes          = 1
 	RecommendedCommentMaxRunes          = 10000
 	RecommendedCommentMaxNestingDepth   = 5
 	RecommendedCommentEditWindowMinutes = 0
-	RecommendedCommentCooldownSeconds     = 0
+	RecommendedCommentCooldownSeconds   = 0
 	RecommendedDailyCommentLimit        = 0
 	RecommendedExcerptRuneLimit         = 180
 	RecommendedTagMinPerTopic           = 0
@@ -47,39 +47,39 @@ const (
 
 func defaultForumSettings() ForumSettings {
 	return ForumSettings{
-		DefaultCategorySlug:          "general",
-		TagCreationMode:              TagCreationModeControlled,
-		TagPublicPages:               true,
-		TagMinPerTopic:               RecommendedTagMinPerTopic,
-		TagMaxPerTopic:               RecommendedTagMaxPerTopic,
-		TopicsPerPage:                20,
-		CommentsPerPage:              20,
-		TopicTitleMinRunes:           RecommendedTopicTitleMinRunes,
-		TopicTitleMaxRunes:           RecommendedTopicTitleMaxRunes,
-		TopicContentMinRunes:         RecommendedTopicContentMinRunes,
-		TopicContentMaxRunes:         RecommendedTopicContentMaxRunes,
-		TopicEditWindowMinutes:       RecommendedTopicEditWindowMinutes,
-		TopicCooldownSeconds:          RecommendedTopicCooldownSeconds,
-		DailyTopicLimit:              RecommendedDailyTopicLimit,
-		CommentMinRunes:              RecommendedCommentMinRunes,
-		CommentMaxRunes:              RecommendedCommentMaxRunes,
-		CommentMaxNestingDepth:       RecommendedCommentMaxNestingDepth,
-		CommentEditWindowMinutes:     RecommendedCommentEditWindowMinutes,
-		CommentCooldownSeconds:         RecommendedCommentCooldownSeconds,
-		DailyCommentLimit:            RecommendedDailyCommentLimit,
-		ExcerptRuneLimit:             RecommendedExcerptRuneLimit,
-		GuestRead:                    "public",
-		ListDefaultSort:              "latest",
-		ListHotWindowDays:            7,
-		AllowAuthorCloseReplies:      true,
-		AllowAuthorDelete:            true,
-		AutoLockIdleDays:             0,
-		ShowTopicEditMark:            true,
-		DuplicateTitlePolicy:         "off",
-		ShowCommentEditMark:          true,
-		SoftDeleteVisibility:         "author_and_staff",
-		MentionsEnabled:              true,
-		MentionsMaxPerPost:           10,
+		DefaultCategorySlug:      "general",
+		TagCreationMode:          TagCreationModeControlled,
+		TagPublicPages:           true,
+		TagMinPerTopic:           RecommendedTagMinPerTopic,
+		TagMaxPerTopic:           RecommendedTagMaxPerTopic,
+		TopicsPerPage:            20,
+		CommentsPerPage:          20,
+		TopicTitleMinRunes:       RecommendedTopicTitleMinRunes,
+		TopicTitleMaxRunes:       RecommendedTopicTitleMaxRunes,
+		TopicContentMinRunes:     RecommendedTopicContentMinRunes,
+		TopicContentMaxRunes:     RecommendedTopicContentMaxRunes,
+		TopicEditWindowMinutes:   RecommendedTopicEditWindowMinutes,
+		TopicCooldownSeconds:     RecommendedTopicCooldownSeconds,
+		DailyTopicLimit:          RecommendedDailyTopicLimit,
+		CommentMinRunes:          RecommendedCommentMinRunes,
+		CommentMaxRunes:          RecommendedCommentMaxRunes,
+		CommentMaxNestingDepth:   RecommendedCommentMaxNestingDepth,
+		CommentEditWindowMinutes: RecommendedCommentEditWindowMinutes,
+		CommentCooldownSeconds:   RecommendedCommentCooldownSeconds,
+		DailyCommentLimit:        RecommendedDailyCommentLimit,
+		ExcerptRuneLimit:         RecommendedExcerptRuneLimit,
+		GuestRead:                "public",
+		ListDefaultSort:          "latest",
+		ListHotWindowDays:        7,
+		AllowAuthorCloseReplies:  true,
+		AllowAuthorDelete:        true,
+		AutoLockIdleDays:         0,
+		ShowTopicEditMark:        true,
+		DuplicateTitlePolicy:     "off",
+		ShowCommentEditMark:      true,
+		SoftDeleteVisibility:     "author_and_staff",
+		MentionsEnabled:          true,
+		MentionsMaxPerPost:       10,
 	}
 }
 

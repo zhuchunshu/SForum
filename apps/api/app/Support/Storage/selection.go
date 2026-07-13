@@ -23,7 +23,7 @@ const (
 
 // Selection 是解析后的 attachment.provider 选择（E6.0 草图；E6.1 接线）。
 type Selection struct {
-	Kind        SelectionKind
+	Kind SelectionKind
 	// Driver 在 Kind=core 时为 NormalizeProvider 后的驱动 id。
 	Driver string
 	// ExtensionID 在 Kind=plugin 时为扩展 id（不含 plugin: 前缀）。

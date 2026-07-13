@@ -311,7 +311,7 @@ func (s *PostgresStore) ListUsers(ctx context.Context, input UserListInput) (Adm
 		  ))
 	`
 	const listSQL = `
-		SELECT id, username, email, display_name, locale, status, is_initial_super_admin
+		SELECT id, username, email, display_name, locale, status, is_initial_super_admin, created_at, updated_at
 		FROM users
 		WHERE ($1 = '' OR username_lower LIKE '%' || lower($1) || '%' ESCAPE '\' OR email_lower LIKE '%' || lower($1) || '%' ESCAPE '\' OR lower(display_name) LIKE '%' || lower($1) || '%' ESCAPE '\')
 		  AND ($2 = '' OR status = $2)
@@ -340,7 +340,17 @@ func (s *PostgresStore) ListUsers(ctx context.Context, input UserListInput) (Adm
 	items := []AdminUserSummary{}
 	for rows.Next() {
 		var user AdminUserSummary
-		if err := rows.Scan(&user.ID, &user.Username, &user.Email, &user.DisplayName, &user.Locale, &user.Status, &user.IsInitialSuperAdmin); err != nil {
+		if err := rows.Scan(
+			&user.ID,
+			&user.Username,
+			&user.Email,
+			&user.DisplayName,
+			&user.Locale,
+			&user.Status,
+			&user.IsInitialSuperAdmin,
+			&user.CreatedAt,
+			&user.UpdatedAt,
+		); err != nil {
 			return AdminUserList{}, fmt.Errorf("scan admin user: %w", err)
 		}
 		roleKeys, err := s.listAssignedUserRoleKeys(ctx, user.ID)
@@ -360,7 +370,7 @@ func (s *PostgresStore) ListUsers(ctx context.Context, input UserListInput) (Adm
 func (s *PostgresStore) GetAdminUser(ctx context.Context, userID int64) (AdminUserDetail, error) {
 	var detail AdminUserDetail
 	err := s.pool.QueryRow(ctx, `
-		SELECT id, username, email, display_name, locale, status, is_initial_super_admin
+		SELECT id, username, email, display_name, locale, status, is_initial_super_admin, created_at, updated_at
 		FROM users
 		WHERE id = $1
 	`, userID).Scan(
@@ -371,6 +381,8 @@ func (s *PostgresStore) GetAdminUser(ctx context.Context, userID int64) (AdminUs
 		&detail.Locale,
 		&detail.Status,
 		&detail.IsInitialSuperAdmin,
+		&detail.CreatedAt,
+		&detail.UpdatedAt,
 	)
 	if err != nil {
 		return AdminUserDetail{}, fmt.Errorf("get admin user: %w", err)
@@ -379,7 +391,170 @@ func (s *PostgresStore) GetAdminUser(ctx context.Context, userID int64) (AdminUs
 	if err := s.loadAdminUserAccess(ctx, &detail); err != nil {
 		return AdminUserDetail{}, err
 	}
+	if err := s.loadAdminUserProfile(ctx, &detail); err != nil {
+		return AdminUserDetail{}, err
+	}
 	return detail, nil
+}
+
+// loadAdminUserProfile 读取 user_profiles；无行时返回空资料（注册后可能尚未 upsert）。
+func (s *PostgresStore) loadAdminUserProfile(ctx context.Context, detail *AdminUserDetail) error {
+	err := s.pool.QueryRow(ctx, `
+		SELECT bio, signature, location, website_url
+		FROM user_profiles
+		WHERE user_id = $1
+	`, detail.ID).Scan(
+		&detail.Profile.Bio,
+		&detail.Profile.Signature,
+		&detail.Profile.Location,
+		&detail.Profile.WebsiteURL,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			detail.Profile = AdminUserProfile{}
+			return nil
+		}
+		return fmt.Errorf("load admin user profile: %w", err)
+	}
+	return nil
+}
+
+// UpdateAdminUser 在事务中更新 users 账户字段与 user_profiles 资料字段。
+func (s *PostgresStore) UpdateAdminUser(ctx context.Context, actorUserID int64, targetUserID int64, input AdminUpdateUserInput) (AdminUserDetail, error) {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return AdminUserDetail{}, fmt.Errorf("begin admin user update tx: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	// 读取当前行作为合并基准，并做唯一性冲突检查。
+	var current AdminUserDetail
+	err = tx.QueryRow(ctx, `
+		SELECT id, username, email, display_name, locale, status, is_initial_super_admin, created_at, updated_at
+		FROM users
+		WHERE id = $1
+		FOR UPDATE
+	`, targetUserID).Scan(
+		&current.ID,
+		&current.Username,
+		&current.Email,
+		&current.DisplayName,
+		&current.Locale,
+		&current.Status,
+		&current.IsInitialSuperAdmin,
+		&current.CreatedAt,
+		&current.UpdatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return AdminUserDetail{}, ErrUserNotFound
+		}
+		return AdminUserDetail{}, fmt.Errorf("lock admin user: %w", err)
+	}
+
+	next := current
+	if input.Username != nil {
+		next.Username = *input.Username
+	}
+	if input.Email != nil {
+		next.Email = *input.Email
+	}
+	if input.DisplayName != nil {
+		next.DisplayName = *input.DisplayName
+	}
+	if input.Locale != nil {
+		next.Locale = *input.Locale
+	}
+	if input.Status != nil {
+		next.Status = *input.Status
+	}
+
+	// 用户名/邮箱变更时检查唯一性（排除自身）。
+	if next.Username != current.Username || next.Email != current.Email {
+		var takenUsername, takenEmail bool
+		if err := tx.QueryRow(ctx, `
+			SELECT
+			  EXISTS(SELECT 1 FROM users WHERE username_lower = lower($1) AND id <> $3),
+			  EXISTS(SELECT 1 FROM users WHERE email_lower = lower($2) AND id <> $3)
+		`, next.Username, next.Email, targetUserID).Scan(&takenUsername, &takenEmail); err != nil {
+			return AdminUserDetail{}, fmt.Errorf("check user uniqueness: %w", err)
+		}
+		if takenUsername || takenEmail {
+			return AdminUserDetail{}, ErrUsernameOrEmailNotUnique
+		}
+	}
+
+	_, err = tx.Exec(ctx, `
+		UPDATE users
+		SET username = $2,
+		    username_lower = lower($2),
+		    email = $3,
+		    email_lower = lower($3),
+		    display_name = $4,
+		    locale = $5,
+		    status = $6,
+		    updated_at = now()
+		WHERE id = $1
+	`, targetUserID, next.Username, next.Email, next.DisplayName, next.Locale, string(next.Status))
+	if err != nil {
+		return AdminUserDetail{}, fmt.Errorf("update admin user account: %w", err)
+	}
+
+	// 资料：先读再合并，无行时 upsert 空行再写。
+	profile := AdminUserProfile{}
+	err = tx.QueryRow(ctx, `
+		SELECT bio, signature, location, website_url
+		FROM user_profiles
+		WHERE user_id = $1
+		FOR UPDATE
+	`, targetUserID).Scan(&profile.Bio, &profile.Signature, &profile.Location, &profile.WebsiteURL)
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		return AdminUserDetail{}, fmt.Errorf("lock admin user profile: %w", err)
+	}
+	if input.Bio != nil {
+		profile.Bio = *input.Bio
+	}
+	if input.Signature != nil {
+		profile.Signature = *input.Signature
+	}
+	if input.Location != nil {
+		profile.Location = *input.Location
+	}
+	if input.WebsiteURL != nil {
+		profile.WebsiteURL = *input.WebsiteURL
+	}
+	_, err = tx.Exec(ctx, `
+		INSERT INTO user_profiles (user_id, bio, signature, location, website_url)
+		VALUES ($1, $2, $3, $4, $5)
+		ON CONFLICT (user_id) DO UPDATE
+		SET bio = EXCLUDED.bio,
+		    signature = EXCLUDED.signature,
+		    location = EXCLUDED.location,
+		    website_url = EXCLUDED.website_url,
+		    updated_at = now()
+	`, targetUserID, profile.Bio, profile.Signature, profile.Location, profile.WebsiteURL)
+	if err != nil {
+		return AdminUserDetail{}, fmt.Errorf("upsert admin user profile: %w", err)
+	}
+
+	metadata, _ := json.Marshal(map[string]any{
+		"username":    next.Username,
+		"email":       next.Email,
+		"displayName": next.DisplayName,
+		"locale":      next.Locale,
+		"status":      string(next.Status),
+	})
+	if _, err := tx.Exec(ctx, `
+		INSERT INTO audit_events (actor_user_id, target_user_id, action, metadata)
+		VALUES ($1, $2, 'user.admin_update', $3::jsonb)
+	`, actorUserID, targetUserID, string(metadata)); err != nil {
+		return AdminUserDetail{}, fmt.Errorf("audit admin user update: %w", err)
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return AdminUserDetail{}, fmt.Errorf("commit admin user update: %w", err)
+	}
+	return s.GetAdminUser(ctx, targetUserID)
 }
 
 func (s *PostgresStore) ListRoles(ctx context.Context) ([]Role, error) {

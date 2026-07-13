@@ -170,5 +170,3 @@ type staticResolver struct {
 func (s staticResolver) LookupIPAddr(context.Context, string) ([]net.IPAddr, error) {
 	return s.ips, nil
 }
-
-

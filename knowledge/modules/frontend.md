@@ -22,6 +22,10 @@ explicitly labeled as target behavior.
   prop/result filters. Themes may override plugin templates through versioned
   template ids and deterministic conflict rules, but cannot alter plugin
   business data contracts.
+- Admin Surface Registry covers navigation, dashboards, lists, filters,
+  row/bulk actions, forms, notices, editor/detail regions, import, and export.
+  Navigation/Region Registry covers public menus, breadcrumbs, headers, footers,
+  sidebars, and theme-defined widget regions.
 - L2/component failure preserves the SSR/L1 fallback and can quarantine the
   failing component without breaking navigation or indexable content.
 - With JavaScript disabled, body content, lists, comments, links, and pagination

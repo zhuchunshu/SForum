@@ -378,6 +378,103 @@ func TestSuperAdminCanGrantSuperAdminRole(t *testing.T) {
 	}
 }
 
+// TestUpdateAdminUserRequiresManage 无 user.manage 不得更新账户。
+func TestUpdateAdminUserRequiresManage(t *testing.T) {
+	service, _ := newTestService(t)
+	ctx := testContext(t)
+	member := registerMemberForPermissionTest(t, service, ctx)
+	displayName := "New Name"
+	_, err := service.UpdateAdminUser(ctx, Actor{ID: 1, Status: UserStatusActive}, member.ID, AdminUpdateUserInput{
+		DisplayName: &displayName,
+	})
+	if err != ErrPermissionDenied {
+		t.Fatalf("expected ErrPermissionDenied, got %v", err)
+	}
+}
+
+// TestUpdateAdminUserUpdatesAccountAndProfile 可更新展示名、资料与状态。
+func TestUpdateAdminUserUpdatesAccountAndProfile(t *testing.T) {
+	service, _ := newTestService(t)
+	ctx := testContext(t)
+	member := registerMemberForPermissionTest(t, service, ctx)
+	manager := Actor{
+		ID:     50,
+		Status: UserStatusActive,
+		Permissions: map[string]bool{
+			PermissionUserManage: true,
+			PermissionUserBan:    true,
+		},
+	}
+	displayName := "  Renamed Member  "
+	bio := "  hello bio  "
+	status := UserStatusDisabled
+	detail, err := service.UpdateAdminUser(ctx, manager, member.ID, AdminUpdateUserInput{
+		DisplayName: &displayName,
+		Bio:         &bio,
+		Status:      &status,
+	})
+	if err != nil {
+		t.Fatalf("UpdateAdminUser: %v", err)
+	}
+	if detail.DisplayName != "Renamed Member" {
+		t.Fatalf("displayName = %q", detail.DisplayName)
+	}
+	if detail.Profile.Bio != "hello bio" {
+		t.Fatalf("bio = %q", detail.Profile.Bio)
+	}
+	if detail.Status != UserStatusDisabled {
+		t.Fatalf("status = %s", detail.Status)
+	}
+}
+
+// TestUpdateAdminUserBanRequiresUserBan 仅 user.manage 不能封禁。
+func TestUpdateAdminUserBanRequiresUserBan(t *testing.T) {
+	service, _ := newTestService(t)
+	ctx := testContext(t)
+	member := registerMemberForPermissionTest(t, service, ctx)
+	manager := Actor{ID: 50, Status: UserStatusActive, Permissions: map[string]bool{PermissionUserManage: true}}
+	status := UserStatusBanned
+	_, err := service.UpdateAdminUser(ctx, manager, member.ID, AdminUpdateUserInput{Status: &status})
+	if err != ErrPermissionDenied {
+		t.Fatalf("expected ErrPermissionDenied for ban without user.ban, got %v", err)
+	}
+}
+
+// TestUpdateAdminUserCannotChangeOwnStatus 禁止改自己的状态，避免自锁。
+func TestUpdateAdminUserCannotChangeOwnStatus(t *testing.T) {
+	service, _ := newTestService(t)
+	ctx := testContext(t)
+	// 先 bootstrap 首用户，再注册普通会员作为「自己」。
+	_, err := service.Register(ctx, RegisterInput{
+		Username: "firstadmin",
+		Email:    "firstadmin@example.com",
+		Password: "correct horse battery staple",
+	})
+	if err != nil {
+		t.Fatalf("bootstrap Register: %v", err)
+	}
+	self, err := service.Register(ctx, RegisterInput{
+		Username: "selfmanager",
+		Email:    "selfmanager@example.com",
+		Password: "correct horse battery staple",
+	})
+	if err != nil {
+		t.Fatalf("Register: %v", err)
+	}
+	// 显式标记为 super_admin，避免非超管改超管账户的保护抢先拦截。
+	manager := Actor{
+		ID:          self.ID,
+		Status:      UserStatusActive,
+		RoleKeys:    []string{RoleSuperAdmin},
+		Permissions: map[string]bool{PermissionUserManage: true},
+	}
+	status := UserStatusDisabled
+	_, err = service.UpdateAdminUser(ctx, manager, self.ID, AdminUpdateUserInput{Status: &status})
+	if err != ErrSelfStatusChange {
+		t.Fatalf("expected ErrSelfStatusChange, got %v", err)
+	}
+}
+
 // TestNonSuperAdminCannotDemoteNonInitialSuperAdmin 回归：非超管不得摘掉非初始 super_admin。
 func TestNonSuperAdminCannotDemoteNonInitialSuperAdmin(t *testing.T) {
 	service, store := newTestService(t)

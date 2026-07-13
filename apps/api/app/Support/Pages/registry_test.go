@@ -71,7 +71,7 @@ func TestDigestMismatchFallsBack(t *testing.T) {
 	ctx := context.Background()
 	_ = reg.RegisterContributions("demo.theme", []PageContribution{{
 		ID: "demo.home", Action: ActionReplace, Target: "forum.home",
-		Contract: "sforum.page.home@1",
+		Contract:    "sforum.page.home@1",
 		ExtensionID: "demo.theme", Version: "1.0.0", PackageDigest: "new",
 	}})
 	_ = store.UpsertBinding(ctx, ProviderBinding{
@@ -90,7 +90,7 @@ func TestApproveReplaceRequiresActorAndExactDigest(t *testing.T) {
 	ctx := context.Background()
 	_ = reg.RegisterContributions("demo.theme", []PageContribution{{
 		ID: "demo.home", Action: ActionReplace, Target: "forum.home",
-		Contract: "sforum.page.home@1",
+		Contract:    "sforum.page.home@1",
 		ExtensionID: "demo.theme", Version: "1.0.0", PackageDigest: "abc",
 	}})
 	// 无 actor
@@ -134,7 +134,7 @@ func TestRegisterContributionsAtomicOnError(t *testing.T) {
 	reg := NewRegistry(NewMemoryStore())
 	_ = reg.RegisterContributions("demo.theme", []PageContribution{{
 		ID: "demo.home", Action: ActionReplace, Target: "forum.home",
-		Contract: "sforum.page.home@1",
+		Contract:    "sforum.page.home@1",
 		ExtensionID: "demo.theme", Version: "1", PackageDigest: "d",
 	}})
 	// 第二条非法：整批失败，旧贡献应仍在

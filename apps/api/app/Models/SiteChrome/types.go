@@ -12,7 +12,7 @@ const (
 	StyleWarning = "warning"
 	StyleDanger  = "danger"
 
-	CodeInvalid = "site_chrome.invalid"
+	CodeInvalid  = "site_chrome.invalid"
 	CodeNotFound = "site_chrome.not_found"
 )
 

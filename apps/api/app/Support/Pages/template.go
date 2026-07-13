@@ -408,7 +408,7 @@ func RenderTemplate(src string, vars map[string]string) (string, error) {
 
 // TemplateSegment 是净化后模板的结构段。
 type TemplateSegment struct {
-	Type  string            // html | island
+	Type  string // html | island
 	Value string
 	Tag   string
 	Attrs map[string]string

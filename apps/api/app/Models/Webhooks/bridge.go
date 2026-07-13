@@ -8,8 +8,8 @@ import (
 
 // BridgePublisher 在 extension runtime 发事件后扇出 webhook（不改动插件投递语义）。
 type BridgePublisher struct {
-	Inner   appevents.Publisher
-	Fanout  *Service
+	Inner  appevents.Publisher
+	Fanout *Service
 }
 
 func (b BridgePublisher) Emit(ctx context.Context, envelope appevents.Envelope) appevents.Result {

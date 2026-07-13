@@ -45,14 +45,14 @@ const ProviderCore = "core"
 
 // PageDefinition 是目录中的一条核心页面定义。
 type PageDefinition struct {
-	ID               string `json:"id"`
-	PathPattern      string `json:"pathPattern"`
-	Access           Access `json:"access"`
-	ContractVersion  string `json:"contractVersion"`
-	CoreComponent    string `json:"coreComponent"`
-	Replaceable      bool   `json:"replaceable"`
+	ID               string   `json:"id"`
+	PathPattern      string   `json:"pathPattern"`
+	Access           Access   `json:"access"`
+	ContractVersion  string   `json:"contractVersion"`
+	CoreComponent    string   `json:"coreComponent"`
+	Replaceable      bool     `json:"replaceable"`
 	RequiresFeatures []string `json:"requiresFeatures,omitempty"`
-	Notes            string `json:"notes,omitempty"`
+	Notes            string   `json:"notes,omitempty"`
 }
 
 // ResolvedPage 是解析结果：目录条目 + 当前生效的提供者。

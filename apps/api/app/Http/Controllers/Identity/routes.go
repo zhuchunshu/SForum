@@ -42,6 +42,8 @@ func (h *Controller) RegisterRoutes(api fiber.Router) {
 
 	api.Get("/users", h.listUsers)
 	api.Get("/users/:userID", h.getUser)
+	// 管理员更新账户/资料字段（user.manage；封禁另需 user.ban）。
+	api.Patch("/users/:userID", h.updateUser)
 	api.Put("/users/:userID/roles", h.replaceUserRoles)
 	api.Put("/users/:userID/permission-overrides", h.replaceUserPermissionOverrides)
 	// 管理员强制下线目标用户的全部设备（user.manage）。

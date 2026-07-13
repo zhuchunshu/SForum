@@ -738,6 +738,7 @@ type fakeStore struct {
 	nextCustomID  int64
 	users         map[int64]CurrentUser
 	userEmails    map[int64]string
+	userProfiles  map[int64]AdminUserProfile
 	credentials   map[int64]string
 	loginIndex    map[string]int64
 	roles         map[string]Role
@@ -951,7 +952,60 @@ func (s *fakeStore) GetAdminUser(_ context.Context, userID int64) (AdminUserDeta
 		AdminUserSummary:    s.adminSummary(user),
 		Permissions:         slices.Clone(user.Permissions),
 		PermissionOverrides: s.cloneOverrides(userID),
+		Profile:             s.cloneProfile(userID),
 	}, nil
+}
+
+func (s *fakeStore) UpdateAdminUser(_ context.Context, _ int64, targetUserID int64, input AdminUpdateUserInput) (AdminUserDetail, error) {
+	user, ok := s.users[targetUserID]
+	if !ok {
+		return AdminUserDetail{}, ErrUserNotFound
+	}
+	if input.Username != nil {
+		user.Username = *input.Username
+		// 重建 login index 中的用户名键。
+		for key, id := range s.loginIndex {
+			if id == targetUserID && key != strings.ToLower(s.userEmails[targetUserID]) {
+				delete(s.loginIndex, key)
+			}
+		}
+		s.loginIndex[strings.ToLower(*input.Username)] = targetUserID
+	}
+	if input.Email != nil {
+		oldEmail := s.userEmails[targetUserID]
+		delete(s.loginIndex, strings.ToLower(oldEmail))
+		s.userEmails[targetUserID] = *input.Email
+		s.loginIndex[strings.ToLower(*input.Email)] = targetUserID
+	}
+	if input.DisplayName != nil {
+		user.DisplayName = *input.DisplayName
+	}
+	if input.Locale != nil {
+		user.Locale = *input.Locale
+	}
+	if input.Status != nil {
+		user.Status = *input.Status
+	}
+	s.users[targetUserID] = user
+
+	profile := s.userProfiles[targetUserID]
+	if input.Bio != nil {
+		profile.Bio = *input.Bio
+	}
+	if input.Signature != nil {
+		profile.Signature = *input.Signature
+	}
+	if input.Location != nil {
+		profile.Location = *input.Location
+	}
+	if input.WebsiteURL != nil {
+		profile.WebsiteURL = *input.WebsiteURL
+	}
+	if s.userProfiles == nil {
+		s.userProfiles = map[int64]AdminUserProfile{}
+	}
+	s.userProfiles[targetUserID] = profile
+	return s.GetAdminUser(context.Background(), targetUserID)
 }
 
 func (s *fakeStore) ListRoles(context.Context) ([]Role, error) {
@@ -1309,6 +1363,13 @@ func (s *fakeStore) cloneOverrides(userID int64) PermissionOverrides {
 		Allow: slices.Clone(overrides.Allow),
 		Deny:  slices.Clone(overrides.Deny),
 	}
+}
+
+func (s *fakeStore) cloneProfile(userID int64) AdminUserProfile {
+	if s.userProfiles == nil {
+		return AdminUserProfile{}
+	}
+	return s.userProfiles[userID]
 }
 
 type fakeStoreSnapshot struct {

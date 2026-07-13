@@ -134,6 +134,19 @@ type replaceUserPermissionOverridesRequest struct {
 	Deny  []string `json:"deny"`
 }
 
+// updateUserRequest 管理员 PATCH 用户；字段可选，未传则不改。
+type updateUserRequest struct {
+	Username    *string `json:"username"`
+	Email       *string `json:"email"`
+	DisplayName *string `json:"displayName"`
+	Locale      *string `json:"locale"`
+	Status      *string `json:"status"`
+	Bio         *string `json:"bio"`
+	Signature   *string `json:"signature"`
+	Location    *string `json:"location"`
+	WebsiteURL  *string `json:"websiteUrl"`
+}
+
 func (h *Controller) register(c fiber.Ctx) error {
 	var req registerRequest
 	if err := c.Bind().Body(&req); err != nil {
@@ -459,6 +472,44 @@ func (h *Controller) getUser(c fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusUnprocessableEntity, "validation.invalid")
 	}
 	user, err := h.service.GetAdminUser(c.Context(), actor, userID)
+	if err != nil {
+		return mapIdentityError(err)
+	}
+	return apphttp.OK(c, user)
+}
+
+func (h *Controller) updateUser(c fiber.Ctx) error {
+	actor, err := h.actor(c)
+	if err != nil {
+		return err
+	}
+
+	userID, err := paramInt64(c, "userID")
+	if err != nil {
+		return fiber.NewError(fiber.StatusUnprocessableEntity, "validation.invalid")
+	}
+
+	var req updateUserRequest
+	if err := c.Bind().Body(&req); err != nil {
+		return fiber.NewError(fiber.StatusUnprocessableEntity, "validation.invalid")
+	}
+
+	input := identity.AdminUpdateUserInput{
+		Username:    req.Username,
+		Email:       req.Email,
+		DisplayName: req.DisplayName,
+		Locale:      req.Locale,
+		Bio:         req.Bio,
+		Signature:   req.Signature,
+		Location:    req.Location,
+		WebsiteURL:  req.WebsiteURL,
+	}
+	if req.Status != nil {
+		status := identity.UserStatus(strings.TrimSpace(*req.Status))
+		input.Status = &status
+	}
+
+	user, err := h.service.UpdateAdminUser(c.Context(), actor, userID, input)
 	if err != nil {
 		return mapIdentityError(err)
 	}
@@ -819,6 +870,12 @@ func mapIdentityError(err error) error {
 		return fiber.NewError(fiber.StatusForbidden, "auth.super_admin_session_locked")
 	case errors.Is(err, identity.ErrUserNotFound):
 		return fiber.NewError(fiber.StatusNotFound, "user.not_found")
+	case errors.Is(err, identity.ErrInvalidUserUpdate):
+		return fiber.NewError(fiber.StatusUnprocessableEntity, "user.invalid_update")
+	case errors.Is(err, identity.ErrSelfStatusChange):
+		return fiber.NewError(fiber.StatusForbidden, "user.cannot_change_own_status")
+	case errors.Is(err, identity.ErrUsernameOrEmailNotUnique):
+		return fiber.NewError(fiber.StatusConflict, "user.username_or_email_taken")
 	default:
 		return err
 	}

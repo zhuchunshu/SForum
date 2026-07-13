@@ -78,6 +78,10 @@ var (
 	ErrSuperAdminSessionLocked = errors.New("identity: super admin sessions cannot be revoked by non-super-admin")
 	// 目标用户不存在（管理路径）。
 	ErrUserNotFound = errors.New("identity: user not found")
+	// 管理员更新账户/资料时字段不合法。
+	ErrInvalidUserUpdate = errors.New("identity: invalid user update")
+	// 禁止通过管理路径修改自己的账号状态（避免自锁）。
+	ErrSelfStatusChange = errors.New("identity: cannot change own status via admin path")
 )
 
 // 会话下线原因（写入 user_sessions.revoke_reason）。
@@ -207,12 +211,37 @@ type AdminUserSummary struct {
 	Status              UserStatus `json:"status"`
 	IsInitialSuperAdmin bool       `json:"isInitialSuperAdmin"`
 	RoleKeys            []string   `json:"roleKeys"`
+	// CreatedAt / UpdatedAt 列表可选展示；旧客户端忽略未知字段。
+	CreatedAt time.Time `json:"createdAt"`
+	UpdatedAt time.Time `json:"updatedAt"`
+}
+
+// AdminUserProfile 是后台可查看/编辑的公开资料字段（来自 user_profiles）。
+type AdminUserProfile struct {
+	Bio        string `json:"bio"`
+	Signature  string `json:"signature"`
+	Location   string `json:"location"`
+	WebsiteURL string `json:"websiteUrl"`
 }
 
 type AdminUserDetail struct {
 	AdminUserSummary
 	Permissions         []string            `json:"permissions"`
 	PermissionOverrides PermissionOverrides `json:"permissionOverrides"`
+	Profile             AdminUserProfile    `json:"profile"`
+}
+
+// AdminUpdateUserInput 管理员更新账户/资料。指针字段为 nil 表示不改。
+type AdminUpdateUserInput struct {
+	Username    *string
+	Email       *string
+	DisplayName *string
+	Locale      *string
+	Status      *UserStatus
+	Bio         *string
+	Signature   *string
+	Location    *string
+	WebsiteURL  *string
 }
 
 type UserListInput struct {

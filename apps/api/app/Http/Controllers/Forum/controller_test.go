@@ -409,8 +409,8 @@ func newForumTestApp() (*fiber.App, *authsession.Manager, *controllerForumStore)
 			identity.PermissionCategoryManage: true,
 		}},
 		4: {ID: 4, Status: identity.UserStatusActive, Permissions: map[string]bool{
-			identity.PermissionCategoryManage:     true,
-			identity.PermissionTagManage:          true,
+			identity.PermissionCategoryManage:      true,
+			identity.PermissionTagManage:           true,
 			identity.PermissionForumSettingsManage: true,
 		}},
 		5: {ID: 5, Status: identity.UserStatusActive, Permissions: map[string]bool{
@@ -697,7 +697,6 @@ func (s *controllerForumStore) ListCommentReplies(context.Context, forum.Comment
 	return []forum.Comment{{ID: 21, TopicID: 10, Status: forum.CommentStatusActive}}, nil
 }
 
-
 func (s *controllerForumStore) LatestAuthorTopicCreatedAt(context.Context, int64) (time.Time, bool, error) {
 	return time.Time{}, false, nil
 }
@@ -713,22 +712,22 @@ func (s *controllerForumStore) CountAuthorCommentsSince(context.Context, int64, 
 
 func (s *controllerForumStore) ForumSettings(context.Context) (forum.ForumSettings, error) {
 	return forum.ForumSettings{
-		DefaultCategorySlug: "general",
-		TagCreationMode:     forum.TagCreationModeControlled,
-		TagPublicPages:      true,
-		TagMinPerTopic:      0,
-		TagMaxPerTopic:      5,
-		TopicsPerPage:       20,
-		CommentsPerPage:     20,
-		TopicTitleMinRunes:  2,
-		TopicTitleMaxRunes:  100,
-		TopicContentMinRunes: 0,
-		TopicContentMaxRunes: 50000,
-		CommentMinRunes:     1,
-		CommentMaxRunes:     10000,
+		DefaultCategorySlug:    "general",
+		TagCreationMode:        forum.TagCreationModeControlled,
+		TagPublicPages:         true,
+		TagMinPerTopic:         0,
+		TagMaxPerTopic:         5,
+		TopicsPerPage:          20,
+		CommentsPerPage:        20,
+		TopicTitleMinRunes:     2,
+		TopicTitleMaxRunes:     100,
+		TopicContentMinRunes:   0,
+		TopicContentMaxRunes:   50000,
+		CommentMinRunes:        1,
+		CommentMaxRunes:        10000,
 		CommentMaxNestingDepth: 5,
-		ExcerptRuneLimit:    180,
-		GuestRead:           s.guestRead,
+		ExcerptRuneLimit:       180,
+		GuestRead:              s.guestRead,
 	}, nil
 }
 

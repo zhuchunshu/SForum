@@ -868,11 +868,11 @@ func TestServiceCreateCommentBeforeCreateIncludesParentID(t *testing.T) {
 	parentID := int64(7)
 	store.topicForComment = TopicSummary{ID: 3, Status: TopicStatusActive}
 	store.commentSummary = CommentSummary{
-		ID:       parentID,
-		TopicID:  3,
-		Status:   CommentStatusActive,
-		Depth:    0,
-		PathKey:  "000000000007",
+		ID:            parentID,
+		TopicID:       3,
+		Status:        CommentStatusActive,
+		Depth:         0,
+		PathKey:       "000000000007",
 		RootCommentID: parentID,
 	}
 	publisher := &fakeEventPublisher{}
@@ -1620,7 +1620,7 @@ type serviceFakeStore struct {
 	listCommentRepliesCalled bool
 	lastReplyListInput       CommentReplyListInput
 	// existingSlugs 模拟已占用的 slug 集合，供 TopicSlugExists 判重。
-	existingSlugs      map[string]bool
+	existingSlugs map[string]bool
 	// existingTitles 模拟重复标题（小写 key），供 ActiveTopicTitleExists。
 	existingTitles     map[string]bool
 	autoLockIdleDays   int
@@ -1862,7 +1862,6 @@ func (s *serviceFakeStore) CreateComment(_ context.Context, input CreateCommentR
 		Content:       input.Content,
 	}, nil
 }
-
 
 func (s *serviceFakeStore) LatestAuthorTopicCreatedAt(context.Context, int64) (time.Time, bool, error) {
 	return time.Time{}, false, nil

@@ -52,7 +52,6 @@ func TestMemberCannotEditOtherPostWithoutAnyPermission(t *testing.T) {
 	}
 }
 
-
 func TestLegacySettingsManageImpliesMailManage(t *testing.T) {
 	actor := Actor{
 		ID:          4,

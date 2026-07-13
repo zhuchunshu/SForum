@@ -14,7 +14,7 @@ type PostgresChecker struct {
 	Pool *pgxpool.Pool
 }
 
-func (c PostgresChecker) Name() string  { return "postgres" }
+func (c PostgresChecker) Name() string   { return "postgres" }
 func (c PostgresChecker) Required() bool { return true }
 
 func (c PostgresChecker) Check(ctx context.Context) error {
@@ -29,7 +29,7 @@ type RedisChecker struct {
 	Client *redis.Client
 }
 
-func (c RedisChecker) Name() string  { return "redis" }
+func (c RedisChecker) Name() string   { return "redis" }
 func (c RedisChecker) Required() bool { return false }
 
 func (c RedisChecker) Check(ctx context.Context) error {
@@ -44,7 +44,7 @@ type MeiliChecker struct {
 	Client meilisearch.ServiceManager
 }
 
-func (c MeiliChecker) Name() string  { return "meilisearch" }
+func (c MeiliChecker) Name() string   { return "meilisearch" }
 func (c MeiliChecker) Required() bool { return false }
 
 func (c MeiliChecker) Check(ctx context.Context) error {
@@ -63,7 +63,7 @@ type FuncChecker struct {
 	Fn            func(ctx context.Context) error
 }
 
-func (c FuncChecker) Name() string  { return c.ComponentName }
+func (c FuncChecker) Name() string   { return c.ComponentName }
 func (c FuncChecker) Required() bool { return c.IsRequired }
 func (c FuncChecker) Check(ctx context.Context) error {
 	if c.Fn == nil {
