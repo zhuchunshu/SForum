@@ -17,7 +17,6 @@ type ManifestIncludes struct {
 	Settings      json.RawMessage `json:"settings,omitempty"`
 	Contributions json.RawMessage `json:"contributions,omitempty"`
 	Admin         json.RawMessage `json:"admin,omitempty"`
-	Frontend      json.RawMessage `json:"frontend,omitempty"`
 	Events        json.RawMessage `json:"events,omitempty"`
 	Routes        json.RawMessage `json:"routes,omitempty"`
 	Jobs          json.RawMessage `json:"jobs,omitempty"`
@@ -294,21 +293,6 @@ func applyIncludes(manifest *Manifest, includes ManifestIncludes, pkg PackageFS)
 					return err
 				}
 				manifest.Admin = admin
-				return nil
-			},
-		},
-		{
-			name: "frontend",
-			raw:  includes.Frontend,
-			filled: func() bool {
-				return strings.TrimSpace(manifest.Frontend.Layer) != "" || manifest.Frontend.Admin != nil
-			},
-			apply: func(raw json.RawMessage) error {
-				var frontend ManifestFrontend
-				if err := decodeIncludeObject(raw, pkg, &frontend); err != nil {
-					return err
-				}
-				manifest.Frontend = frontend
 				return nil
 			},
 		},

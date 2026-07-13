@@ -24,7 +24,6 @@ type scaffoldManifest struct {
 	Settings      *extensionmanifest.SettingsDocument  `json:"settings,omitempty"`
 	Providers     []extensionmanifest.ManifestProvider `json:"providers,omitempty"`
 	Backend       *extensionmanifest.ManifestBackend   `json:"backend,omitempty"`
-	Frontend      *extensionmanifest.ManifestFrontend  `json:"frontend,omitempty"`
 	Admin         extensionmanifest.ManifestAdmin      `json:"admin,omitempty"`
 	Includes      map[string]string                    `json:"includes,omitempty"`
 }
@@ -139,10 +138,6 @@ func buildManifest(opts makeOptions) scaffoldManifest {
 		}
 		return manifest
 	}
-	// Runtime themes: empty frontend (L0/L1 via theme.json). Plugins may still set frontend later.
-	if opts.Kind == extensionmanifest.TypeTheme {
-		manifest.Frontend = &extensionmanifest.ManifestFrontend{}
-	}
 	return manifest
 }
 
@@ -181,7 +176,7 @@ func scaffoldSettingsDocument(opts makeOptions, fields []extensionmanifest.Manif
 	if opts.PrebuiltSettings {
 		document.UI.Mode = extensionmanifest.SettingsUIModeComponent
 		document.UI.Component = &extensionmanifest.SettingsComponent{
-			ID: "settings", APIVersion: extensionmanifest.AdminFrontendAPIVersion,
+			ID: "settings", APIVersion: extensionmanifest.AdminMicroFrontendAPIVersion,
 			Entry: "frontend/admin/dist/settings.mjs", CSS: "frontend/admin/dist/settings.css",
 		}
 	}
@@ -434,7 +429,7 @@ func readmeBody(opts makeOptions) string {
 		body += "- `manifest/settings.json` — versioned Settings Document (Schema UI by default)\n"
 		body += "- `manifest/admin.json` — admin entry/pages\n\n"
 		body += "Validate with:\n\n```bash\ncd apps/api && go run ./cmd/sforum extension validate " + filepath.ToSlash(opts.Out) + "\n```\n\n"
-		body += "Identity langs and settings `LocalizedText` stay separate. Legacy Vue locales only apply to the deprecated Web Release path.\n"
+		body += "Identity langs and settings `LocalizedText` stay separate. Prebuilt components receive locale through the host bridge.\n"
 	}
 	if opts.PrebuiltSettings {
 		body += "\n## Prebuilt settings component\n\n"

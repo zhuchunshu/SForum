@@ -97,9 +97,6 @@ export type AdminOverviewExtensions = {
   themeCount: number
   installedPluginRuntimeCount: number
   failedEventCount: number
-  pendingThemeReleaseCount: number
-  failedThemeReleaseCount: number
-  activeThemeReleaseCount: number
 }
 
 export type AdminOverviewTrendDay = {

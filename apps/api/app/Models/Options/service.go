@@ -132,9 +132,6 @@ type optionDefinition struct {
 }
 
 var optionDefinitions = []optionDefinition{
-	// 运维：Web Release typecheck 是否硬失败（非 public，仅 release 管理员可改）。
-	{name: NameWebReleaseTypecheckFail, public: false, managePermission: identity.PermissionExtensionReleaseManage},
-	{name: NameWebReleaseTypecheckMode, public: false, managePermission: identity.PermissionExtensionReleaseManage},
 	{name: NameSiteName, public: true, managePermission: identity.PermissionSettingsSiteManage},
 	{name: NameSiteURL, public: true, managePermission: identity.PermissionSettingsSiteManage},
 	{name: NameSiteDefaultLocale, public: true, managePermission: identity.PermissionSettingsSiteManage},
@@ -454,28 +451,6 @@ func (s *Service) InternalValues(ctx context.Context) (map[string]string, error)
 	return s.loadMap(ctx)
 }
 
-// WebReleaseTypecheckFail 返回是否在 Web Release 中因 typecheck 失败而中止构建。
-// 默认 false（非阻断）；DB 未就绪时返回 false, err。
-func (s *Service) WebReleaseTypecheckFail(ctx context.Context) (bool, error) {
-	mode, err := s.WebReleaseTypecheckMode(ctx)
-	return mode == "block", err
-}
-
-func (s *Service) WebReleaseTypecheckMode(ctx context.Context) (string, error) {
-	values, err := s.loadMap(ctx)
-	if err != nil {
-		return "report", err
-	}
-	// 旧 enabled 配置必须继续阻断；正常写入会把新旧两个键保持同步。
-	if isEnabledOption(values[NameWebReleaseTypecheckFail]) {
-		return "block", nil
-	}
-	if mode, ok := normalizeChoice(values[NameWebReleaseTypecheckMode], []string{"off", "report", "block"}); ok {
-		return mode, nil
-	}
-	return "report", nil
-}
-
 func (s *Service) HumanVerificationConfig(ctx context.Context) (humanverify.RuntimeConfig, error) {
 	values, err := s.loadMap(ctx)
 	if err != nil {
@@ -545,20 +520,6 @@ func (s *Service) UpdateMany(ctx context.Context, actor identity.Actor, inputs [
 		}
 		merged[name] = value
 		pending[name] = value
-		// 旧布尔开关仍是兼容契约；双向同步避免升级后两个键表达相反策略。
-		switch name {
-		case NameWebReleaseTypecheckFail:
-			mode := "report"
-			if isEnabledOption(value) {
-				mode = "block"
-			}
-			merged[NameWebReleaseTypecheckMode] = mode
-			pending[NameWebReleaseTypecheckMode] = mode
-		case NameWebReleaseTypecheckMode:
-			legacy := enabledOptionValue(value == "block")
-			merged[NameWebReleaseTypecheckFail] = legacy
-			pending[NameWebReleaseTypecheckFail] = legacy
-		}
 	}
 
 	if !isValidValueSet(merged) {
@@ -867,17 +828,6 @@ func (s *Service) coerceValueSet(values map[string]string) map[string]string {
 	coerceAvatarOptions(coerced, defaults)
 	coerceFeatureFlagOptions(coerced, defaults)
 	coercePagesRegistryOptions(coerced, defaults)
-	if value, ok := normalizeEnabledOption(coerced[NameWebReleaseTypecheckFail]); ok {
-		coerced[NameWebReleaseTypecheckFail] = value
-	} else {
-		coerced[NameWebReleaseTypecheckFail] = defaults[NameWebReleaseTypecheckFail]
-	}
-	if value, ok := normalizeChoice(coerced[NameWebReleaseTypecheckMode], []string{"off", "report", "block"}); ok {
-		coerced[NameWebReleaseTypecheckMode] = value
-	} else {
-		coerced[NameWebReleaseTypecheckMode] = defaults[NameWebReleaseTypecheckMode]
-	}
-
 	return coerced
 }
 
@@ -1050,9 +1000,6 @@ func normalizedDefaults(defaults Defaults) map[string]string {
 		NameNotificationMentionEmail:    enabledOptionValue(true),
 		NameNotificationModerationInApp: enabledOptionValue(true),
 		NameNotificationModerationEmail: enabledOptionValue(true),
-		// Web Release：默认 typecheck 不阻断构建；CI 仍强制 typecheck。
-		NameWebReleaseTypecheckFail: enabledOptionValue(false),
-		NameWebReleaseTypecheckMode: "report",
 	}
 	mergeCommunityPolicyDefaults(values)
 	mergeSiteBrandDefaults(values)
@@ -1247,12 +1194,7 @@ func normalizeOptionValue(name string, value string) (string, bool) {
 	case NameFeatureSearch, NameFeatureRegistration, NameFeatureAttachments, NameFeatureMentions, NameFeaturePublicProfiles, NameFeatureWebhooks:
 		// F4.5：产品开关仅接受 enabled/disabled。
 		return normalizeEnabledOption(value)
-	case NameWebReleaseTypecheckFail:
-		// Web Release typecheck 硬失败开关。
-		return normalizeEnabledOption(value)
-	case NameWebReleaseTypecheckMode:
-		return normalizeChoice(value, []string{"off", "report", "block"})
-	case NamePagesRegistryEnabled, NameThemesRuntimeL0Enabled, NameThemesRuntimeL1Enabled, NameThemesLayerActivationEnabled:
+	case NamePagesRegistryEnabled, NameThemesRuntimeL0Enabled, NameThemesRuntimeL1Enabled:
 		// Page Registry / runtime theme dual-stack 开关。
 		return normalizeEnabledOption(value)
 	case NameForumTagMinPerTopic, NameForumTagMaxPerTopic:

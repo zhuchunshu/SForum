@@ -8,9 +8,8 @@ import (
 
 // 核心 schedule 稳定 ID。新增维护任务时先加常量与 CoreScheduleDefinitions，再在 bootstrap 注入 Constructor。
 const (
-	ScheduleIdentityCleanupSessions    = "identity.cleanup_sessions"
-	ScheduleExtensionWebReleaseCleanup = "extension.web_release_cleanup"
-	ScheduleAttachmentsCleanupOrphans  = "attachments.cleanup_orphans"
+	ScheduleIdentityCleanupSessions   = "identity.cleanup_sessions"
+	ScheduleAttachmentsCleanupOrphans = "attachments.cleanup_orphans"
 	// ScheduleAuditCleanupEvents 清理过期 audit_events（F1.4 保留期 job）。
 	ScheduleAuditCleanupEvents = "audit.cleanup_events"
 	// ScheduleForumAutoLockIdle 按站点 autoLockIdleDays 锁定闲置主题。
@@ -29,16 +28,6 @@ func CoreScheduleDefinitions() []ScheduleDefinition {
 			Owner:       "identity",
 			Enabled:     true,
 			Description: "清理已下线超过保留期的历史会话行",
-			RunOnStart:  false,
-		},
-		{
-			ID:          ScheduleExtensionWebReleaseCleanup,
-			JobKind:     ScheduleExtensionWebReleaseCleanup,
-			Queue:       QueueMaintenance,
-			Interval:    24 * time.Hour,
-			Owner:       "extensions",
-			Enabled:     true,
-			Description: "清理过期 Web Release 构建产物与日志",
 			RunOnStart:  false,
 		},
 		{

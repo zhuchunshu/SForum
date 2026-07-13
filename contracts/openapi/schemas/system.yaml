@@ -414,15 +414,6 @@ AdminOverviewExtensions:
     failedEventCount:
       type: integer
       format: int64
-    pendingThemeReleaseCount:
-      type: integer
-      format: int64
-    failedThemeReleaseCount:
-      type: integer
-      format: int64
-    activeThemeReleaseCount:
-      type: integer
-      format: int64
 AdminOverviewTrends:
   type: object
   required:
@@ -489,7 +480,6 @@ AdminOverviewAction:
       - pending_tags
       - orphan_attachments
       - failed_extension_events
-      - theme_release_progress
     count:
       type: integer
       format: int64

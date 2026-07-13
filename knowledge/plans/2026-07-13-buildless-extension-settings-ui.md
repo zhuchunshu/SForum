@@ -38,6 +38,10 @@ evidence-based adjustments to the original proposal:
   only its own same-origin digest URL, and the asset endpoint enforces auth,
   allowlisted asset names, exact digest bytes, MIME, `nosniff`, and
   `Cross-Origin-Resource-Policy: same-origin`.
+- Because SForum has not shipped, the final P4/P6 implementation deletes the
+  trusted Vue/Web Release/Nuxt Layer compatibility path instead of carrying a
+  second runtime. See
+  `knowledge/decisions/2026-07-13-remove-legacy-web-release.md`.
 
 ## How to use this task book in a new conversation
 
@@ -45,7 +49,7 @@ evidence-based adjustments to the original proposal:
    book, and the current `knowledge/modules/extensions.md` and
    `knowledge/modules/frontend.md` notes.
 2. Inspect the current working tree before editing. Preserve unrelated and
-   user-authored changes, especially the active runtime-theme/dev-compose work.
+   user-authored changes.
 3. Implement phases in order. Do not jump to micro-frontends before Schema UI
    is complete and tested.
 4. Use small, reversible commits only when the user explicitly authorizes
@@ -56,7 +60,7 @@ evidence-based adjustments to the original proposal:
    remains. The requested endpoint is the complete plan, including tests and
    documentation, unless a concrete blocker is found.
 
-## Current baseline to preserve
+## Historical baseline at plan start
 
 - Extension settings live in `extension_settings`; defaults come from the
   merged package manifest.
@@ -74,7 +78,9 @@ evidence-based adjustments to the original proposal:
 - `bun run dev` is plain Nuxt. `bun run dev:compose` composes builtin trusted
   admin frontends from source with Vite HMR.
 
-Do not regress these behaviors while introducing the new path.
+This inventory explains the migration source. The trusted Vue, Web Release,
+runtime theme Layer, and dev-compose items were removed by the completed P4/P6
+amendment; they are not current compatibility requirements.
 
 ## Architecture target
 
@@ -444,61 +450,52 @@ and adapters over a single arbitrary RPC method name.
 
 ---
 
-## P4 — Stop unnecessary Web Releases
+## P4 — Remove runtime frontend releases and builds
 
-Goal: current trusted Vue compatibility releases occur only when their actual
-admin frontend changes.
+Goal: keep one buildless extension frontend architecture.
 
 ### Tasks
 
 - [x] Introduce deterministic `adminFrontendDigest` computed only from the
-      frontend admin contract and files that affect the built admin component:
-      component sources, styles, locales, component map, relevant
-      contributions, lockfile/dependency metadata, and API version.
+      prebuilt component contract, entry/CSS bytes, and API version.
 - [x] Do not include backend binaries, public theme assets/templates, ordinary
       setting values, or unrelated manifest fields in that digest.
-- [x] Bind frontend trust and Web Release composition to the dedicated digest
-      while retaining package identity/version checks where required.
-- [x] Migrate existing grants safely. Do not silently broaden an uploaded
-      package’s trust during migration.
-- [x] Reuse an active/ready artifact when the full admin composition hash is
-      unchanged.
-- [x] Ensure plugin enable/disable without an admin component does not queue a
-      Web Release.
-- [x] Ensure a backend/settings-only upgrade with unchanged trusted admin
-      frontend does not rebuild Nuxt.
-- [x] Change Web Release typecheck policy from the current always-run behavior
-      to an explicit mode:
-      - `off`
-      - `report` (non-blocking/background where practical)
-      - `block`
+- [x] Bind frontend trust to extension id, version, API version, component id,
+      package identity, and the dedicated digest.
+- [x] Delete trusted Vue `frontend.admin`, static registries, Web Release
+      planner/coordinator/storage/build workers, runtime theme releases, and
+      asynchronous extension operations.
+- [x] Make plugin enable/disable and theme activation synchronous.
+- [x] Remove release tables from fresh migration history; retain only an
+      idempotent forward cleanup for existing development databases.
+- [x] Remove release endpoints, permissions, options, queues, admin UI,
+      polling, OpenAPI schemas, SDK slots, tests, and fixtures.
+- [x] Remove Bun/Web source/node_modules from API and worker images and remove
+      release volumes/environment variables/supervisors from deployment.
 - [x] Keep CI and `./scripts/test.sh` typecheck mandatory.
-- [x] Preserve immutable artifact verification, activation, rollback, and
-      coordinator lifecycle semantics.
-- [x] Update admin copy so operators can see why a release was reused, skipped,
-      or required.
+- [x] Keep immutable digest asset verification, explicit trust, and Schema
+      fallback semantics.
 
 ### Tests
 
-- [x] Digest changes for component/locale/lock changes.
+- [x] Digest changes for component contract/entry/CSS changes.
 - [x] Digest unchanged for backend/settings/public-theme-only changes.
-- [x] Composition reuse and concurrent request tests.
-- [x] Enable/disable lifecycle tests with and without admin frontend.
+- [x] Synchronous enable/disable/activate lifecycle tests.
 - [x] Grant invalidation tests.
-- [x] Typecheck policy tests for off/report/block.
+- [x] Migration, OpenAPI, Compose, Dockerfile, and no-legacy-runtime guards.
 
 ### Exit criteria
 
 - Unrelated extension changes no longer cause a host build.
-- Existing trusted Vue extensions continue to work through Web Release.
-- Release reuse is deterministic and auditable.
+- No extension lifecycle operation can invoke a host frontend build.
+- Prebuilt component trust is deterministic and auditable.
 
 ### Suggested commits
 
 1. `feat(extensions): fingerprint admin frontends independently`
-2. `feat(web-release): reuse unchanged admin compositions`
-3. `feat(web-release): separate release and ci typecheck policy`
-4. `test(web-release): cover digest and reuse behavior`
+2. `refactor(extensions): remove runtime frontend releases`
+3. `build: remove extension frontend build dependencies`
+4. `test(extensions): guard the buildless runtime`
 
 ---
 
@@ -625,8 +622,8 @@ Goal: make the buildless path the normal documented product behavior.
       1. theme tabs/groups, no JS
       2. provider plugin Schema + Probe action
       3. trusted prebuilt complex component
-- [x] Update trusted-admin documentation to distinguish legacy Vue Web Release
-      from Admin Micro-frontend API v1.
+- [x] Update trusted-admin documentation to describe only Schema/Actions and
+      Admin Micro-frontend API v1.
 - [x] Update extension list/detail/settings UI with renderer/trust/build status.
 - [x] Add one-click restore of Schema fallback without deleting settings,
       secrets, backend state, or extension package.
@@ -634,15 +631,12 @@ Goal: make the buildless path the normal documented product behavior.
       - no author JS
       - actions only
       - trusted component included
-- [x] Mark legacy settings-page contribution + full Web Release path deprecated
-      for new packages after parity; do not remove until a documented window
-      and builtin/reference migration are complete.
+- [x] Delete the legacy settings-page contribution and full Web Release path.
 - [x] Remove stale default-theme custom settings SFC/contribution if still
       present and unused.
 - [x] Reconcile all knowledge notes and decisions that describe themes entering
       Web Release.
-- [x] Add final session handoff with migration compatibility and remaining
-      optional cleanup.
+- [x] Add final session handoff with migration cleanup and verification status.
 
 ### Exit criteria
 
@@ -650,14 +644,13 @@ Goal: make the buildless path the normal documented product behavior.
 - New provider plugin: install → configure → probe → enable, with no host build.
 - New complex plugin: install → confirm → dynamically load, with no host build.
 - Declining component trust leaves a functional Schema fallback.
-- Host build remains for SForum releases and the temporary legacy compatibility
-  path only.
+- Host build remains only for building SForum itself.
 
 ### Suggested commits
 
 1. `feat(cli): scaffold buildless extension settings`
 2. `docs(extensions): document all settings renderer modes`
-3. `chore(web-release): deprecate settings-only host rebuilds`
+3. `chore(extensions): remove legacy frontend builds`
 4. `test(extensions): validate complete buildless operator loops`
 
 ---
@@ -711,7 +704,7 @@ Use the exact available Bun test script/target after inspecting
 4. SMTP/provider probe success and failure.
 5. Component trust accepted, declined, revoked, and invalidated on update.
 6. Component import/mount failure falls back without breaking admin.
-7. Confirm no Web Release for schema/actions/prebuilt component paths.
+7. Confirm no release/build endpoint, worker, storage, or menu exists.
 
 Network-dependent dependency commands must use the repository proxy from
 `AGENTS.md`. Prefer no new dependency unless the implementation cannot remain
@@ -727,10 +720,10 @@ The track is complete only when all are true:
 - [x] Default theme no longer needs custom admin frontend code for rich settings.
 - [x] Provider-style actions work through host policy and structured results.
 - [x] Settings can be safely configured before enablement.
-- [x] Unchanged admin frontend changes do not rebuild the host.
+- [x] No extension frontend path rebuilds the host.
 - [x] Prebuilt component UI dynamically loads after explicit digest trust.
 - [x] Declined/failed component UI safely falls back to Schema UI.
-- [x] Theme activation remains independent of Web Release.
+- [x] Theme activation is synchronous and independent of admin component trust.
 - [x] OpenAPI, SDK, scaffolding, authoring docs, catalogs/fixtures, module notes,
       decisions, and handoff are updated.
 - [x] Relevant unit, integration, browser, build, typecheck, OpenAPI, and full
@@ -741,8 +734,8 @@ The track is complete only when all are true:
 
 - P1/P2: legacy settings arrays and linear renderer remain the fallback.
 - P3: disable action exposure; settings storage remains usable.
-- P4: restore package-digest Web Release planning if dedicated digest reuse has
-  a correctness issue.
-- P5: disable runtime component loading and use Schema UI or legacy Web Release.
+- P4: if digest trust has a correctness issue, disable component loading and
+  keep Schema UI; do not restore runtime builds.
+- P5: disable runtime component loading and use Schema UI.
 - Never delete stored settings or secrets when rolling back presentation code.
 - Never couple rollback of admin UI to public theme activation.

@@ -6,10 +6,7 @@ import {
   extensionEventPage,
   extensionLocalizedDisplay,
   extensionManageRoute,
-  hasExtensionReleaseInProgress,
-  pluginWebReleaseProgress,
   themeActionState,
-  themeActivationProgress,
   themeStatusLabelKey
 } from '~/utils/adminExtensions'
 
@@ -67,9 +64,6 @@ const {
   statusLabel
 } = await useAdminExtensionsManager()
 const selectedEventPageInfo = computed(() => extensionEventPage(selectedEvents.value, selectedEventPage.value))
-// 主题 themeRelease 与插件 webRelease 任一进行中即轮询列表。
-const activationPolling = computed(() => hasExtensionReleaseInProgress(extensions.value))
-let activationPollTimer: ReturnType<typeof setInterval> | null = null
 
 useSeoMeta({
   title: t('admin.extensions.metaTitle')
@@ -98,52 +92,6 @@ function extensionStatusLabel(item: (typeof extensions.value)[number]) {
   return item.type === 'theme' ? t(themeStatusLabelKey(item)) : statusLabel(item.status)
 }
 
-function releaseProgress(item: (typeof extensions.value)[number]) {
-  if (item.type === 'theme') {
-    return themeActivationProgress(item.themeRelease)
-  }
-  return pluginWebReleaseProgress(item.webRelease)
-}
-
-function pluginActionBusy(item: (typeof extensions.value)[number]) {
-  return item.type === 'plugin' && Boolean(pluginWebReleaseProgress(item.webRelease)?.active)
-}
-
-function startActivationPolling() {
-  if (activationPollTimer || !import.meta.client) {
-    return
-  }
-  activationPollTimer = setInterval(async () => {
-    if (pending.value) {
-      return
-    }
-    await refresh()
-  }, 2000)
-}
-
-function stopActivationPolling() {
-  if (!activationPollTimer) {
-    return
-  }
-  clearInterval(activationPollTimer)
-  activationPollTimer = null
-}
-
-watch(activationPolling, (active) => {
-  if (active) {
-    startActivationPolling()
-  } else {
-    stopActivationPolling()
-  }
-})
-
-onMounted(() => {
-  if (activationPolling.value) {
-    startActivationPolling()
-  }
-})
-
-onBeforeUnmount(stopActivationPolling)
 </script>
 
 <template>
@@ -307,17 +255,7 @@ onBeforeUnmount(stopActivationPolling)
                 {{ t('admin.extensions.manage') }}
               </UButton>
               <UButton
-                v-if="pluginActionBusy(item)"
-                size="sm"
-                color="neutral"
-                variant="subtle"
-                icon="i-lucide-hourglass"
-                disabled
-              >
-                {{ t(releaseProgress(item)?.labelKey || 'admin.extensions.releases.statusLabels.queued') }}
-              </UButton>
-              <UButton
-                v-else-if="item.type === 'plugin' && item.status !== 'enabled'"
+                v-if="item.type === 'plugin' && item.status !== 'enabled'"
                 size="sm"
                 icon="i-lucide-play"
                 :loading="busyId === item.id"
@@ -364,27 +302,6 @@ onBeforeUnmount(stopActivationPolling)
                 @click="activateTheme(item)"
               >
                 {{ t('admin.extensions.activateTheme') }}
-              </UButton>
-              <UButton
-                v-else-if="themeActionState(item) === 'failed'"
-                size="sm"
-                color="error"
-                variant="subtle"
-                icon="i-lucide-refresh-cw"
-                :loading="busyId === item.id"
-                @click="activateTheme(item)"
-              >
-                {{ t('admin.extensions.retryActivation') }}
-              </UButton>
-              <UButton
-                v-else-if="['queued', 'building', 'activating'].includes(themeActionState(item))"
-                size="sm"
-                color="neutral"
-                variant="subtle"
-                icon="i-lucide-hourglass"
-                disabled
-              >
-                {{ t(`admin.extensions.themeRelease.${item.themeRelease?.status || 'queued'}`) }}
               </UButton>
               <UButton
                 v-else
@@ -446,9 +363,6 @@ onBeforeUnmount(stopActivationPolling)
           <div class="mt-4 flex flex-wrap gap-2">
             <UBadge v-if="selected.manifest.backend?.entry" color="warning" variant="subtle" icon="i-lucide-terminal">
               {{ t('admin.extensions.capability.backend') }}
-            </UBadge>
-            <UBadge v-if="selected.manifest.frontend?.layer" color="primary" variant="subtle" icon="i-lucide-layers">
-              {{ t('admin.extensions.capability.frontend') }}
             </UBadge>
             <UBadge v-if="selected.manifest.routes?.length" color="neutral" variant="subtle" icon="i-lucide-route">
               {{ t('admin.extensions.capability.routes', { count: selected.manifest.routes.length }) }}

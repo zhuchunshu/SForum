@@ -365,16 +365,14 @@ var trustedRuntimeMessages = map[string]map[string]string{
 	"zh-CN": {
 		"extension.frontend_runtime_unavailable": "可信前端运行时暂不可用，请稍后重试。",
 		"extension.frontend_digest_invalid":      "扩展前端摘要无效，请刷新扩展信息后重试。",
+		"extension.frontend_package_changed":     "扩展组件文件已变化，旧授权已失效，请重新确认。",
 		"extension.frontend_trust_not_found":     "该扩展没有可撤销的可信前端授权。",
-		"extension.web_release_not_found":        "Web Release 不存在，请刷新后重试。",
-		"extension.web_release_conflict":         "当前 Web Release 状态已变化，或该操作不再安全，请刷新后重试。",
 	},
 	"en-US": {
 		"extension.frontend_runtime_unavailable": "The trusted frontend runtime is temporarily unavailable. Try again later.",
 		"extension.frontend_digest_invalid":      "The extension frontend digest is invalid. Refresh the extension details and try again.",
+		"extension.frontend_package_changed":     "The extension component changed, so its previous grant is no longer valid. Confirm it again.",
 		"extension.frontend_trust_not_found":     "This extension has no trusted frontend grant to revoke.",
-		"extension.web_release_not_found":        "The web release does not exist. Refresh and try again.",
-		"extension.web_release_conflict":         "The web release state changed or this operation is no longer safe. Refresh and try again.",
 	},
 }
 

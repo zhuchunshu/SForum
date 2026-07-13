@@ -44,9 +44,6 @@ func TestServiceBuildsOverviewFromStoreAndRuntime(t *testing.T) {
 			TotalCount:                  5,
 			EnabledCount:                3,
 			FailedEventCount:            2,
-			PendingThemeReleaseCount:    1,
-			FailedThemeReleaseCount:     1,
-			ActiveThemeReleaseCount:     1,
 			InstalledPluginRuntimeCount: 2,
 		},
 		Trends: []TrendDay{
@@ -82,8 +79,8 @@ func TestServiceBuildsOverviewFromStoreAndRuntime(t *testing.T) {
 	if overview.Community.TopicCount != 31 || overview.Community.UserCount != 12 {
 		t.Fatalf("unexpected community stats: %#v", overview.Community)
 	}
-	if len(overview.Actions) != 5 {
-		t.Fatalf("expected five actionable summaries, got %#v", overview.Actions)
+	if len(overview.Actions) != 4 {
+		t.Fatalf("expected four actionable summaries, got %#v", overview.Actions)
 	}
 	if overview.Actions[0].Key != ActionModerationQueue || overview.Actions[0].Count != 5 || overview.Actions[0].Route != "/moderation" {
 		t.Fatalf("expected moderation action first, got %#v", overview.Actions)

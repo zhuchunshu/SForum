@@ -21,17 +21,17 @@ const (
 	PermissionTagManage              = "tag.manage"
 	PermissionTopicCreate            = "topic.create"
 	// PermissionTopicEditOwn 作者编辑自己的主题（与回复的 post.edit_own 分离）。
-	PermissionTopicEditOwn   = "topic.edit_own"
-	PermissionTopicEditAny   = "topic.edit_any"
-	PermissionTopicDeleteOwn = "topic.delete_own"
-	PermissionTopicDeleteAny = "topic.delete_any"
-	PermissionTopicLock      = "topic.lock"
-	PermissionTopicPin       = "topic.pin"
-	PermissionPostCreate     = "post.create"
-	PermissionPostEditOwn    = "post.edit_own"
-	PermissionPostEditAny    = "post.edit_any"
-	PermissionPostDeleteOwn  = "post.delete_own"
-	PermissionPostDeleteAny  = "post.delete_any"
+	PermissionTopicEditOwn     = "topic.edit_own"
+	PermissionTopicEditAny     = "topic.edit_any"
+	PermissionTopicDeleteOwn   = "topic.delete_own"
+	PermissionTopicDeleteAny   = "topic.delete_any"
+	PermissionTopicLock        = "topic.lock"
+	PermissionTopicPin         = "topic.pin"
+	PermissionPostCreate       = "post.create"
+	PermissionPostEditOwn      = "post.edit_own"
+	PermissionPostEditAny      = "post.edit_any"
+	PermissionPostDeleteOwn    = "post.delete_own"
+	PermissionPostDeleteAny    = "post.delete_any"
 	PermissionModerationManage = "moderation.manage"
 	PermissionModerationReview = "moderation.review"
 	// PermissionModerationViewIP 查看内容/会话的真实客户端 IP（全文）；不含审核动作。
@@ -49,16 +49,15 @@ const (
 	PermissionAttachmentUpload         = "attachment.upload"
 	PermissionAttachmentManage         = "attachment.manage"
 	PermissionAttachmentSettings       = "attachment.settings.manage"
-	// PermissionExtensionManage 为兼容父权限；细粒度见 extension.view/plugin/theme/release。
-	PermissionExtensionManage        = "extension.manage"
-	PermissionExtensionView          = "extension.view"
-	PermissionExtensionPluginManage  = "extension.plugin.manage"
-	PermissionExtensionThemeManage   = "extension.theme.manage"
-	PermissionExtensionReleaseManage = "extension.release.manage"
-	PermissionDatabaseManage         = "database.manage"
-	PermissionSearchManage           = "search.manage"
-	PermissionJobsView               = "jobs.view"
-	PermissionJobsManage             = "jobs.manage"
+	// PermissionExtensionManage 为兼容父权限；细粒度见 extension.view/plugin/theme。
+	PermissionExtensionManage       = "extension.manage"
+	PermissionExtensionView         = "extension.view"
+	PermissionExtensionPluginManage = "extension.plugin.manage"
+	PermissionExtensionThemeManage  = "extension.theme.manage"
+	PermissionDatabaseManage        = "database.manage"
+	PermissionSearchManage          = "search.manage"
+	PermissionJobsView              = "jobs.view"
+	PermissionJobsManage            = "jobs.manage"
 	// PermissionEntityMetaManage 管理实体自定义字段定义与 admin 可见元数据（F4.4）。
 	PermissionEntityMetaManage = "entity_meta.manage"
 )
@@ -107,7 +106,6 @@ var SeedPermissions = []SeedPermission{
 	{Key: PermissionExtensionView, Module: "extension", Description: "View installed extensions, events, and contributions."},
 	{Key: PermissionExtensionPluginManage, Module: "extension", Description: "Enable, disable, and configure plugins. Installing or enabling non-builtin plugins with a backend entry requires super_admin."},
 	{Key: PermissionExtensionThemeManage, Module: "extension", Description: "Activate and manage themes."},
-	{Key: PermissionExtensionReleaseManage, Module: "extension", Description: "Build and activate trusted admin web releases."},
 	{Key: PermissionDatabaseManage, Module: "admin", Description: "Browse database tables and rows."},
 	{Key: PermissionSearchManage, Module: "search", Description: "Rebuild and manage the search index."},
 	{Key: PermissionJobsView, Module: "jobs", Description: "View background jobs, queues, failures, and worker activity."},
@@ -179,13 +177,12 @@ var SeedRoleTemplates = []SeedRoleTemplate{
 	{
 		Key:         RoleTechAdmin,
 		Alias:       "技术管理",
-		Description: "技术运维：扩展与发布、搜索索引、后台任务、数据库浏览与附件存储设置。",
+		Description: "技术运维：扩展、搜索索引、后台任务、数据库浏览与附件存储设置。",
 		PermissionKeys: []string{
 			PermissionAdminAccess,
 			PermissionExtensionView,
 			PermissionExtensionPluginManage,
 			PermissionExtensionThemeManage,
-			PermissionExtensionReleaseManage,
 			PermissionJobsView,
 			PermissionJobsManage,
 			PermissionSearchManage,

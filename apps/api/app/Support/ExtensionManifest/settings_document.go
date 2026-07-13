@@ -281,13 +281,9 @@ func validateSettingsDocument(manifest Manifest) error {
 	if len(document.Actions) > 0 && (manifest.Type != TypePlugin || manifest.Backend.Entry == "" || len(manifest.Providers) == 0) {
 		return ErrInvalidManifest
 	}
-	legacySettingsPage := hasLegacySettingsPageContribution(manifest)
-	if document.Explicit && legacySettingsPage {
-		return ErrInvalidManifest
-	}
 	if document.UI.Mode == SettingsUIModeComponent {
 		component := document.UI.Component
-		if component == nil || !adminComponentIDPattern.MatchString(component.ID) || component.APIVersion != AdminFrontendAPIVersion || len(document.Fields) == 0 {
+		if component == nil || !adminComponentIDPattern.MatchString(component.ID) || component.APIVersion != AdminMicroFrontendAPIVersion || len(document.Fields) == 0 {
 			return ErrInvalidManifest
 		}
 		if component.Entry != "" {
@@ -302,15 +298,6 @@ func validateSettingsDocument(manifest Manifest) error {
 		return ErrInvalidManifest
 	}
 	return nil
-}
-
-func hasLegacySettingsPageContribution(manifest Manifest) bool {
-	for _, contribution := range manifest.Contributions {
-		if contribution.Point == "admin.extension.settings.page" {
-			return true
-		}
-	}
-	return false
 }
 
 func (document SettingsDocument) canonicalValue(fields []ManifestSetting) any {

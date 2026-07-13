@@ -6,25 +6,25 @@ import (
 	"testing"
 )
 
-func TestContributionPointDefinitionsContainJobsProductionSlots(t *testing.T) {
+func TestContributionPointDefinitionsContainOnlyHostRenderedDescriptors(t *testing.T) {
 	points := ContributionPointDefinitions()
 	want := map[string]bool{
-		PointForumTopicActions:       true,
-		PointForumTopicSidebar:       true,
-		PointForumTopicBadges:        true,
-		PointForumCommentActions:     true,
-		PointForumNavItems:           true,
-		PointForumTopicListBadges:    true,
-		PointForumComposerToolbar:    true,
-		PointForumProfileTabs:        true,
-		PointAdminDashboardWidgets:   true,
-		PointSystemHealthChecks:      true,
-		"admin.jobs.table.columns":   true,
-		"admin.jobs.row.actions":     true,
-		"admin.jobs.detail.sections": true,
+		PointForumTopicActions:     true,
+		PointForumTopicSidebar:     true,
+		PointForumTopicBadges:      true,
+		PointForumCommentActions:   true,
+		PointForumNavItems:         true,
+		PointForumTopicListBadges:  true,
+		PointForumComposerToolbar:  true,
+		PointForumProfileTabs:      true,
+		PointAdminDashboardWidgets: true,
+		PointSystemHealthChecks:    true,
 	}
 	for _, point := range points {
 		delete(want, point.ID)
+		if point.Kind != ContributionPointKindDescriptor {
+			t.Fatalf("executable contribution point survived: %#v", point)
+		}
 		if point.ID == "admin.test.fixture" {
 			t.Fatal("test point leaked into production catalog")
 		}

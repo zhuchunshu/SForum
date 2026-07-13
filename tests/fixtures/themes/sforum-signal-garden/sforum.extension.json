@@ -9,6 +9,5 @@
   },
   "version": "2.0.0",
   "type": "theme",
-  "sforumVersion": "^1.0.0",
-  "frontend": {}
+  "sforumVersion": "^1.0.0"
 }

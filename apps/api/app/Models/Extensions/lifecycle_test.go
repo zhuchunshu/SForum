@@ -20,7 +20,7 @@ func (f *fakeTrustRevoker) RevokeAllForExtension(_ context.Context, extensionID 
 }
 
 func newLifecycleService(store Store, root string, runtime RuntimeManager, opts ...ServiceOption) *Service {
-	return NewServiceWithThemeActivationWithOptions(store, root, "", runtime, nil, nil, opts...)
+	return NewServiceWithOptions(store, root, "", runtime, opts...)
 }
 
 func TestInstallOrUpgradeArchiveMarksUpgradeAndRevokesTrust(t *testing.T) {
@@ -189,7 +189,7 @@ func TestDisableDrainsRuntimeBeforeStatusChange(t *testing.T) {
 	runtime := &fakeRuntimeManager{
 		statuses: map[string]RuntimeStatus{"drain.plugin": {State: RuntimeRunning}},
 	}
-	service := NewServiceWithRuntime(store, t.TempDir(), runtime, nil)
+	service := NewServiceWithRuntime(store, t.TempDir(), runtime)
 	disabled, err := service.Disable(context.Background(), extensionManager(), "drain.plugin")
 	if err != nil {
 		t.Fatal(err)

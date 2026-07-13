@@ -61,21 +61,16 @@ func TestSettingsDocumentRejectsInvalidPresentation(t *testing.T) {
 	}
 }
 
-func TestSettingsDocumentRejectsLegacyComponentDualSource(t *testing.T) {
+func TestSettingsDocumentRejectsExecutableManifestContribution(t *testing.T) {
 	manifest := validBaseManifest()
 	manifest.Settings = []ManifestSetting{{Key: "x", Label: LocalizedText{Default: "X"}, Type: "text"}}
 	manifest.SettingsDocument = defaultSettingsDocument(manifest.Settings)
 	manifest.SettingsDocument.Explicit = true
-	manifest.Frontend.Admin = &ManifestAdminFrontend{
-		Root: "frontend/admin", APIVersion: 1,
-		Components: map[string]string{"settings": "components/Settings.vue"},
-		Locales:    map[string]string{"zh-CN": "locales/zh-CN.json", "en-US": "locales/en-US.json"},
-	}
 	manifest.Contributions = []ManifestContribution{{
 		Point: "admin.extension.settings.page", ID: "settings", Payload: json.RawMessage(`{"component":"settings"}`),
 	}}
 	if err := Validate(Normalize(manifest)); !errors.Is(err, ErrInvalidManifest) {
-		t.Fatalf("expected dual source rejection, got %v", err)
+		t.Fatalf("expected executable contribution rejection, got %v", err)
 	}
 }
 

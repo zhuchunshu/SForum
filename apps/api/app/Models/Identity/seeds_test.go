@@ -78,7 +78,6 @@ func TestSeedRoleTemplatesPermissionPacks(t *testing.T) {
 	// 版主不应拿到站点设置 / 技术根能力。
 	for _, key := range []string{
 		PermissionSettingsSiteManage,
-		PermissionExtensionReleaseManage,
 		PermissionDatabaseManage,
 		PermissionUserPermissionOverride,
 		PermissionRoleManage,
@@ -113,7 +112,6 @@ func TestSeedRoleTemplatesPermissionPacks(t *testing.T) {
 	// 运营默认不持有个人权限例外与技术发布类能力。
 	for _, key := range []string{
 		PermissionUserPermissionOverride,
-		PermissionExtensionReleaseManage,
 		PermissionDatabaseManage,
 		PermissionJobsManage,
 		PermissionRoleManage,
@@ -131,7 +129,6 @@ func TestSeedRoleTemplatesPermissionPacks(t *testing.T) {
 		PermissionExtensionView,
 		PermissionExtensionPluginManage,
 		PermissionExtensionThemeManage,
-		PermissionExtensionReleaseManage,
 		PermissionJobsView,
 		PermissionJobsManage,
 		PermissionSearchManage,
@@ -273,7 +270,6 @@ func TestSeedPermissionsCoverCurrentAdminAndForumSurfaces(t *testing.T) {
 		PermissionExtensionView,
 		PermissionExtensionPluginManage,
 		PermissionExtensionThemeManage,
-		PermissionExtensionReleaseManage,
 		PermissionDatabaseManage,
 		PermissionSearchManage,
 		PermissionJobsView,

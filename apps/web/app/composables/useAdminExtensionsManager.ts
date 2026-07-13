@@ -8,7 +8,6 @@ import {
   type AdminContributionPointDefinition,
   type AdminEffectiveContribution,
   type AdminExtension,
-  type AdminExtensionOperation,
   type AdminExtensionEventDefinition,
   type AdminExtensionEventDelivery,
   type AdminExtensionEvent,
@@ -200,12 +199,12 @@ export const useAdminExtensionsManager = async () => {
     busyId.value = item.id
     try {
       // 已启用插件重启不要求再次确认 capabilities。
-      const operation = await request<AdminExtensionOperation>(`/admin/extensions/${item.id}/enable`, {
-        method: 'POST',
-        body: { confirmCapabilities: true }
-      })
-      replaceExtension(operation.extension)
-      await loadEvents(operation.extension.id)
+		const updated = await request<AdminExtension>(`/admin/extensions/${item.id}/enable`, {
+			method: 'POST',
+			body: { confirmCapabilities: true }
+		})
+		replaceExtension(updated)
+		await loadEvents(updated.id)
       toast.add({ color: 'success', icon: 'i-lucide-refresh-cw', title: t('admin.extensions.restarted') })
     } catch (error) {
       toast.add({ color: 'error', icon: 'i-lucide-triangle-alert', title: apiErrorMessage(error) || t('admin.extensions.actionFailed') })
@@ -228,45 +227,19 @@ export const useAdminExtensionsManager = async () => {
     }
   }
 
-  // 排队类操作的 Toast：区分主题激活与带管理端前端的插件 Web Release。
-  function queuedLifecycleToast(
-    kind: 'theme' | 'pluginEnable' | 'pluginDisable',
-    releaseId?: number
-  ) {
-    const titleKey = kind === 'theme'
-      ? 'admin.extensions.themeActivationQueued'
-      : kind === 'pluginEnable'
-        ? 'admin.extensions.pluginEnableQueued'
-        : 'admin.extensions.pluginDisableQueued'
-    toast.add({
-      color: 'info',
-      icon: 'i-lucide-hourglass',
-      title: t(titleKey),
-      description: releaseId
-        ? t('admin.extensions.webReleaseQueuedHint', { id: releaseId })
-        : t('admin.extensions.webReleaseQueuedHintNoId'),
-      duration: 10000
-    })
-  }
-
-  async function activateTheme(item: AdminExtension) {
+	async function activateTheme(item: AdminExtension) {
     busyId.value = item.id
     try {
-      const operation = await request<AdminExtensionOperation>(`/admin/extensions/${item.id}/activate`, { method: 'POST', body: {} })
-      const activated = operation.extension
-      replaceExtension(activated)
-      await refresh()
-      await loadEvents(activated.id)
-      if (operation.queued) {
-        queuedLifecycleToast('theme', operation.webRelease?.id)
-      } else {
-        toast.add({
-          color: 'success',
-          icon: 'i-lucide-palette',
-          title: t('admin.extensions.themeActivated'),
-          duration: 10000
-        })
-      }
+		const activated = await request<AdminExtension>(`/admin/extensions/${item.id}/activate`, { method: 'POST', body: {} })
+		replaceExtension(activated)
+		await refresh()
+		await loadEvents(activated.id)
+		toast.add({
+			color: 'success',
+			icon: 'i-lucide-palette',
+			title: t('admin.extensions.themeActivated'),
+			duration: 10000
+		})
     } catch (error) {
       toast.add({ color: 'error', icon: 'i-lucide-triangle-alert', title: apiErrorMessage(error) || t('admin.extensions.themeActivationUnavailable') })
     } finally {
@@ -281,31 +254,18 @@ export const useAdminExtensionsManager = async () => {
   ) {
     busyId.value = item.id
     try {
-      const operation = await request<AdminExtensionOperation>(`/admin/extensions/${item.id}/${action}`, {
-        method: 'POST',
-        body
-      })
-      const updated = operation.extension
-      // 排队响应可能只在 operation.webRelease 上带摘要；合并到列表项以便立刻显示进度条。
-      if (operation.queued && operation.webRelease && !updated.webRelease) {
-        updated.webRelease = operation.webRelease
-      }
-      replaceExtension(updated)
-      await loadEvents(updated.id)
-      if (operation.queued) {
-        // 仅「带 frontend.admin 且已信任」的插件会排队 Web Release，不是主题构建。
-        queuedLifecycleToast(
-          action === 'enable' ? 'pluginEnable' : 'pluginDisable',
-          operation.webRelease?.id
-        )
-      } else {
-        toast.add({
-          color: 'success',
-          icon: action === 'enable' ? 'i-lucide-play' : 'i-lucide-pause',
-          title: action === 'enable' ? t('admin.extensions.enabled') : t('admin.extensions.disabled'),
-          duration: 10000
-        })
-      }
+		const updated = await request<AdminExtension>(`/admin/extensions/${item.id}/${action}`, {
+			method: 'POST',
+			body
+		})
+		replaceExtension(updated)
+		await loadEvents(updated.id)
+		toast.add({
+			color: 'success',
+			icon: action === 'enable' ? 'i-lucide-play' : 'i-lucide-pause',
+			title: action === 'enable' ? t('admin.extensions.enabled') : t('admin.extensions.disabled'),
+			duration: 10000
+		})
     } catch (error) {
       toast.add({ color: 'error', icon: 'i-lucide-triangle-alert', title: apiErrorMessage(error) || t('admin.extensions.actionFailed') })
     } finally {

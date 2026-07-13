@@ -50,14 +50,13 @@ func TestInsertOnlyClientAllowsUnregisteredJobKinds(t *testing.T) {
 		MailWorkers:          1,
 		NotificationsWorkers: 1,
 		MaintenanceWorkers:   1,
-		ThemeWorkers:         1,
 	}
 	args := unregisteredIntegrationArgs{ID: time.Now().UnixNano()}
 	checkedClient, err := NewClient(pool, cfg, river.NewWorkers())
 	if err != nil {
 		t.Fatalf("create checked client: %v", err)
 	}
-	_, err = NewDispatcher(checkedClient).Enqueue(ctx, args, EnqueueOptions{Queue: QueueTheme})
+	_, err = NewDispatcher(checkedClient).Enqueue(ctx, args, EnqueueOptions{Queue: QueueMaintenance})
 	if err == nil || !strings.Contains(err.Error(), "not registered") {
 		t.Fatalf("expected empty workers bundle to reject unknown job kind, got %v", err)
 	}
@@ -66,7 +65,7 @@ func TestInsertOnlyClientAllowsUnregisteredJobKinds(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create insert-only client: %v", err)
 	}
-	if _, err := NewDispatcher(insertOnlyClient).Enqueue(ctx, args, EnqueueOptions{Queue: QueueTheme}); err != nil {
+	if _, err := NewDispatcher(insertOnlyClient).Enqueue(ctx, args, EnqueueOptions{Queue: QueueMaintenance}); err != nil {
 		t.Fatalf("expected insert-only client to enqueue unregistered kind: %v", err)
 	}
 }

@@ -37,10 +37,9 @@ adminExtensions:
       Uploads a ZIP archive containing sforum.extension.json. Same extension id
       replaces the package (F2.4 upgrade): drains plugin runtime, resets status
       to installed, records declared migrations, and revokes frontend trust when
-      packageDigest changes. Theme ZIPs are installable Nuxt Layer packages:
-      type theme requires a safe non-empty frontend.layer and cannot declare
-      plugin/runtime/admin capabilities in v1. Not automatically enabled or
-      activated after install/upgrade.
+      adminFrontendDigest changes. Theme ZIPs contain theme.json plus static
+      assets and never trigger a Nuxt build. Themes cannot declare plugin runtime
+      capabilities. Not automatically enabled or activated after install/upgrade.
     operationId: installAdminExtension
     requestBody:
       required: true
@@ -232,8 +231,8 @@ adminExtensionSettings:
       Returns the localized host-renderer page model for either a plugin or a
       theme. Installed/disabled plugins and inactive themes remain readable and
       configurable without starting extension runtime code. Legacy array-shaped
-      settings normalize to schema/form while legacy trusted settings-page
-      contributions remain exposed as the compatibility component source.
+      settings normalize to schema/form. Versioned Settings Documents may opt
+      into an explicitly trusted prebuilt component while retaining Schema fallback.
     operationId: getAdminExtensionSettings
     parameters:
     - "$ref": "../components/parameters.yaml#/ExtensionID"
@@ -393,13 +392,7 @@ adminExtensionEnable:
         content:
           application/json:
             schema:
-              "$ref": "../schemas/extensions.yaml#/ApiResponseExtensionOperation"
-      '202':
-        description: Trusted plugin frontend Web Release queued.
-        content:
-          application/json:
-            schema:
-              "$ref": "../schemas/extensions.yaml#/ApiResponseExtensionOperation"
+              "$ref": "../schemas/extensions.yaml#/ApiResponseExtension"
       '401':
         "$ref": "../components/responses.yaml#/Unauthorized"
       '403':
@@ -428,13 +421,7 @@ adminExtensionDisable:
         content:
           application/json:
             schema:
-              "$ref": "../schemas/extensions.yaml#/ApiResponseExtensionOperation"
-      '202':
-        description: Safe Web Release without the plugin frontend queued.
-        content:
-          application/json:
-            schema:
-              "$ref": "../schemas/extensions.yaml#/ApiResponseExtensionOperation"
+              "$ref": "../schemas/extensions.yaml#/ApiResponseExtension"
       '401':
         "$ref": "../components/responses.yaml#/Unauthorized"
       '403':
@@ -451,20 +438,18 @@ adminExtensionVerify:
   post:
     summary: Verify an installed plugin or theme package without applying it
     description: >-
-      Plugins run preflight checks. Themes run Nuxt Layer package verification
-      without applying the uploaded layer. Missing theme package files, missing
-      installed manifests, and missing layer paths return reason
-      extension.build_failed.
+      Plugins run preflight checks. Themes validate their buildless theme.json,
+      page templates, and static asset paths without applying the package.
     operationId: verifyAdminExtension
     parameters:
     - "$ref": "../components/parameters.yaml#/ExtensionID"
     responses:
       '200':
-        description: Extension preflight or Nuxt Layer verification completed.
+        description: Extension preflight or theme package verification completed.
         content:
           application/json:
             schema:
-              "$ref": "../schemas/extensions.yaml#/ApiResponseExtensionOperation"
+              "$ref": "../schemas/extensions.yaml#/ApiResponseExtension"
       '401':
         "$ref": "../components/responses.yaml#/Unauthorized"
       '403':
@@ -481,13 +466,7 @@ adminExtensionActivate:
     - "$ref": "../components/parameters.yaml#/ExtensionID"
     responses:
       '200':
-        description: Built-in default theme restored as the active applied theme.
-        content:
-          application/json:
-            schema:
-              "$ref": "../schemas/extensions.yaml#/ApiResponseExtensionOperation"
-      '202':
-        description: Uploaded theme activation accepted and queued for build.
+        description: Theme synchronously activated through the public Page Registry.
         content:
           application/json:
             schema:
@@ -580,8 +559,8 @@ adminExtensionEventDeliveries:
         "$ref": "../components/responses.yaml#/Forbidden"
 adminExtensionFrontend:
   get:
-    summary: Inspect an extension trusted admin frontend
-    description: Requires extension.manage. Returns the exact package digest, declaration, dependency summary, and trust state without executing plugin code.
+    summary: Inspect an extension prebuilt settings component
+    description: Requires extension management permission. Returns the exact admin frontend digest, component declaration, and trust state without executing extension code.
     operationId: getAdminExtensionFrontend
     parameters:
     - "$ref": "../components/parameters.yaml#/ExtensionID"
@@ -682,8 +661,7 @@ adminExtensionFrontendTrust:
       Requires an active super administrator. Trust is bound to extension id,
       version, API version, component identity, and exact adminFrontendDigest.
       Prebuilt components additionally require an explicit confirmation object
-      and never queue a Web Release. Legacy Vue frontends retain the compatible
-      Web Release behavior.
+      and load directly from the immutable digest endpoint after authorization.
     operationId: grantAdminExtensionFrontendTrust
     parameters:
     - "$ref": "../components/parameters.yaml#/ExtensionID"
@@ -695,17 +673,11 @@ adminExtensionFrontendTrust:
             "$ref": "../schemas/extensions.yaml#/GrantFrontendTrustInput"
     responses:
       '200':
-        description: Trust granted without a web rebuild.
+        description: Trust granted immediately.
         content:
           application/json:
             schema:
-              "$ref": "../schemas/extensions.yaml#/ApiResponseExtensionOperation"
-      '202':
-        description: Trust granted and a web release queued.
-        content:
-          application/json:
-            schema:
-              "$ref": "../schemas/extensions.yaml#/ApiResponseExtensionOperation"
+              "$ref": "../schemas/extensions.yaml#/ApiResponseFrontendStatus"
       '401':
         "$ref": "../components/responses.yaml#/Unauthorized"
       '403':
@@ -713,14 +685,14 @@ adminExtensionFrontendTrust:
       '409':
         "$ref": "../components/responses.yaml#/Conflict"
       '422':
-        description: The package digest is not 64 lowercase hexadecimal characters.
+        description: The admin frontend digest is not 64 lowercase hexadecimal characters.
         content:
           application/json:
             schema:
               "$ref": "../schemas/common.yaml#/ApiErrorResponse"
   delete:
     summary: Revoke exact trusted admin frontend access
-    description: Requires an active super administrator. Revocation finalizes immediately when the active artifact does not contain the grant; otherwise it remains pending and queues a force-reload safe release.
+    description: Requires an active super administrator. Revocation finalizes immediately and prevents further asset loads for the digest grant.
     operationId: revokeAdminExtensionFrontendTrust
     parameters:
     - "$ref": "../components/parameters.yaml#/ExtensionID"
@@ -730,165 +702,13 @@ adminExtensionFrontendTrust:
         content:
           application/json:
             schema:
-              "$ref": "../schemas/extensions.yaml#/ApiResponseExtensionOperation"
-      '202':
-        description: Revocation is pending a safe web release.
-        content:
-          application/json:
-            schema:
-              "$ref": "../schemas/extensions.yaml#/ApiResponseExtensionOperation"
+              "$ref": "../schemas/extensions.yaml#/ApiResponseFrontendStatus"
       '401':
         "$ref": "../components/responses.yaml#/Unauthorized"
       '403':
         "$ref": "../components/responses.yaml#/Forbidden"
       '404':
         "$ref": "../components/responses.yaml#/NotFound"
-      '409':
-        "$ref": "../components/responses.yaml#/Conflict"
-adminWebReleases:
-  get:
-    summary: List web releases
-    description: Requires extension.manage. Returns immutable release history ordered by desired generation descending.
-    operationId: listAdminWebReleases
-    parameters:
-    - name: status
-      in: query
-      schema:
-        "$ref": "../schemas/extensions.yaml#/WebReleaseStatus"
-    - name: page
-      in: query
-      schema:
-        type: integer
-        minimum: 1
-        default: 1
-    - name: perPage
-      in: query
-      schema:
-        type: integer
-        minimum: 1
-        maximum: 100
-        default: 20
-    responses:
-      '200':
-        description: Paged web release history.
-        content:
-          application/json:
-            schema:
-              "$ref": "../schemas/extensions.yaml#/ApiResponseWebReleasePage"
-      '401':
-        "$ref": "../components/responses.yaml#/Unauthorized"
-      '403':
-        "$ref": "../components/responses.yaml#/Forbidden"
-adminWebRelease:
-  get:
-    summary: Get a web release timeline
-    operationId: getAdminWebRelease
-    parameters:
-    - "$ref": "../components/parameters.yaml#/WebReleaseID"
-    responses:
-      '200':
-        description: Release composition, effects, and transition events.
-        content:
-          application/json:
-            schema:
-              "$ref": "../schemas/extensions.yaml#/ApiResponseWebReleaseDetail"
-      '401':
-        "$ref": "../components/responses.yaml#/Unauthorized"
-      '403':
-        "$ref": "../components/responses.yaml#/Forbidden"
-      '404':
-        "$ref": "../components/responses.yaml#/NotFound"
-adminWebReleaseRetry:
-  post:
-    summary: Retry a failed or superseded web release
-    description: Creates a new queued release and generation; it never mutates the terminal source release.
-    operationId: retryAdminWebRelease
-    parameters:
-    - "$ref": "../components/parameters.yaml#/WebReleaseID"
-    responses:
-      '202':
-        description: New retry release queued.
-        content:
-          application/json:
-            schema:
-              "$ref": "../schemas/extensions.yaml#/ApiResponseWebReleaseOperation"
-      '401':
-        "$ref": "../components/responses.yaml#/Unauthorized"
-      '403':
-        "$ref": "../components/responses.yaml#/Forbidden"
-      '404':
-        "$ref": "../components/responses.yaml#/NotFound"
-      '409':
-        "$ref": "../components/responses.yaml#/Conflict"
-adminWebReleaseRollback:
-  post:
-    summary: Rebuild an eligible historical web release composition
-    description: Rechecks exact frontend trust and creates a new force-reload release. Historical rows and artifacts are not directly reactivated.
-    operationId: rollbackAdminWebRelease
-    parameters:
-    - "$ref": "../components/parameters.yaml#/WebReleaseID"
-    responses:
-      '202':
-        description: New checked rollback release queued.
-        content:
-          application/json:
-            schema:
-              "$ref": "../schemas/extensions.yaml#/ApiResponseWebReleaseOperation"
-      '401':
-        "$ref": "../components/responses.yaml#/Unauthorized"
-      '403':
-        "$ref": "../components/responses.yaml#/Forbidden"
-      '404':
-        "$ref": "../components/responses.yaml#/NotFound"
-      '409':
-        "$ref": "../components/responses.yaml#/Conflict"
-adminWebReleaseRebuild:
-  post:
-    summary: Queue a manual web release rebuild
-    description: >
-      Requires extension.release.manage (or extension.manage). Plans the current
-      active theme plus enabled trusted plugin admin frontends and queues a new
-      immutable Web Release with triggerKind=rebuild. Used after builtin theme
-      or trusted plugin admin UI packages change. Does not alter enable/disable
-      state. Returns 202 when queued (may reuse a compatible in-flight release).
-    operationId: rebuildAdminWebRelease
-    responses:
-      '202':
-        description: Rebuild web release queued.
-        content:
-          application/json:
-            schema:
-              "$ref": "../schemas/extensions.yaml#/ApiResponseWebReleaseOperation"
-      '401':
-        "$ref": "../components/responses.yaml#/Unauthorized"
-      '403':
-        "$ref": "../components/responses.yaml#/Forbidden"
-      '409':
-        "$ref": "../components/responses.yaml#/Conflict"
-      '503':
-        "$ref": "../components/responses.yaml#/ServiceUnavailable"
-adminWebReleaseRestoreDefaults:
-  post:
-    summary: Restore recommended trusted frontend defaults
-    description: Requires an active super administrator. Marks all uploaded frontend grants for revocation while preserving plugin status, settings, credentials, and backend runtimes. Returns 200 when no active uploaded frontend is present, otherwise 202.
-    operationId: restoreAdminWebReleaseDefaults
-    responses:
-      '200':
-        description: Recommended defaults already effective or finalized immediately.
-        content:
-          application/json:
-            schema:
-              "$ref": "../schemas/extensions.yaml#/ApiResponseExtensionOperation"
-      '202':
-        description: Safe default web release queued.
-        content:
-          application/json:
-            schema:
-              "$ref": "../schemas/extensions.yaml#/ApiResponseExtensionOperation"
-      '401':
-        "$ref": "../components/responses.yaml#/Unauthorized"
-      '403':
-        "$ref": "../components/responses.yaml#/Forbidden"
       '409':
         "$ref": "../components/responses.yaml#/Conflict"
 extensionPluginRoute:

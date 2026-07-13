@@ -1,11 +1,4 @@
 import type { NuxtPage } from 'nuxt/schema'
-import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
-import { adminExtensionGuard, type AdminExtensionGuardPolicy } from './build/admin-extension-guard'
-import {
-  createAdminHostPeerResolvePlugin,
-  resolveAdminHostPeerAliases
-} from './build/admin-host-peers.mjs'
 import {
   LEGACY_ADMIN_ROUTE_PREFIX,
   normalizeAdminRoutePrefix
@@ -20,19 +13,8 @@ const adminRoutePrefix = normalizeAdminRoutePrefix(
   process.env.NUXT_PUBLIC_ADMIN_ROUTE_PREFIX ||
   process.env.ADMIN_ROUTE_PREFIX
 )
-// 公开主题已迁出 Nuxt Layer：页面在 host app，L0/L1 经 Page Registry 运行时注入。
-// 仍可通过 SFORUM_ADMIN_REGISTRY_ROOT 注入可信管理端插件前端（Web Release）。
+// 公开主题经 Page Registry 运行时注入；管理端预构建组件按 digest 动态加载。
 const nitroOutputDir = process.env.SFORUM_NITRO_OUTPUT_DIR?.trim()
-const adminRegistryRoot = process.env.SFORUM_ADMIN_REGISTRY_ROOT?.trim()
-const adminMetadataPath = adminRegistryRoot
-  ? resolve(adminRegistryRoot, 'metadata.ts')
-  : resolve('app/runtime/admin-extensions/empty-metadata.ts')
-const adminRegistryPath = adminRegistryRoot
-  ? resolve(adminRegistryRoot, 'registry.client.ts')
-  : resolve('app/runtime/admin-extensions/empty-registry.client.ts')
-const adminGuardPolicy = adminRegistryRoot
-  ? JSON.parse(readFileSync(resolve(adminRegistryRoot, '..', 'guard-policy.json'), 'utf8')) as AdminExtensionGuardPolicy
-  : undefined
 const publicHomepageRouteRule = {
   cache: false,
   headers: {
@@ -84,18 +66,7 @@ function rewriteAdminPageRoutes(pages: NuxtPage[]) {
   }
 }
 
-// 扩展 admin SFC 可能位于 extensions/** 或 compose 软链外，bare import 不能依赖
-// 扩展目录下的 node_modules。admin-sdk 用文件 alias；npm peers 用 Vite 插件解析
-// （禁止把 vue/nuxt/@nuxt/ui 指到包目录，会破坏 modules 加载与 exports subpath）。
-const adminHostPeerAliases = resolveAdminHostPeerAliases(resolve('.'))
-const adminHostPeerResolvePlugin = createAdminHostPeerResolvePlugin(resolve('.'))
-
 export default defineNuxtConfig({
-  alias: {
-    ...adminHostPeerAliases,
-    '#sforum/admin-extension-metadata': adminMetadataPath,
-    '#sforum/admin-extension-registry': adminRegistryPath
-  },
   modules: ['@nuxt/ui', '@nuxtjs/i18n', '@nuxtjs/seo', '@nuxt/image'],
   ssr: true,
   buildDir: process.env.NUXT_BUILD_DIR || '.nuxt',
@@ -176,16 +147,8 @@ export default defineNuxtConfig({
     }
   },
   vite: {
-    plugins: [
-      adminHostPeerResolvePlugin,
-      ...(adminGuardPolicy ? [adminExtensionGuard(adminGuardPolicy)] : [])
-    ],
     resolve: {
-      // admin-sdk 文件 alias；vue/nuxt/@nuxt/ui 由 adminHostPeerResolvePlugin 处理。
-      alias: {
-        ...adminHostPeerAliases
-      },
-      dedupe: ['vue', 'vue-router', 'nuxt', '@nuxt/ui', '@sforum/admin-sdk']
+      dedupe: ['vue', 'vue-router', 'nuxt', '@nuxt/ui']
     },
     // 预声明会被运行时 import 的依赖，让 Vite 冷启动就预打包好。
     // 否则浏览器首次打开页面时才扫描发现这些 CJS 依赖（altcha、highlight、tiptap）

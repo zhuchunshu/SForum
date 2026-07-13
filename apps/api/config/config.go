@@ -58,30 +58,14 @@ type Config struct {
 	AltchaCost                    int
 	// OptionEncryptionKey 是 web_options 中敏感值（云存储凭证/SFTP 私钥等）AES-GCM 加密的密钥（hex 编码）。
 	// 生产环境必须显式配置；缺失或为占位词时启动会被拒绝。
-	OptionEncryptionKey      string
-	ExtensionRoot            string
-	BuiltinExtensionRoot     string
-	WebReleaseRoot           string
-	WebReleaseWebRoot        string
-	WebReleaseBunPath        string
-	WebReleaseBuildTimeout   time.Duration
-	WebReleasePreviewTimeout time.Duration
-	WebReleasePreviewPath    string
-	// WebReleaseTypecheckFail 为 true 时 Web Release 在 typecheck 失败时中止。
-	// 默认 false：typecheck 仍会跑并写入 build log，但只以 bun run build 成败为准。
-	// 全仓强制 typecheck 由 CI / scripts/test.sh 负责。
-	WebReleaseTypecheckFail bool
-	ThemeReleaseRoot        string
-	ThemeWebRoot             string
-	ThemeBunPath             string
-	ThemeBuildTimeout        time.Duration
-	ThemePreviewTimeout      time.Duration
-	ThemePreviewPath         string
-	MeiliHost                string
-	MeiliMasterKey           string
-	MeiliTimeout             time.Duration
-	LimiterWriteMax          int
-	LimiterWindow            time.Duration
+	OptionEncryptionKey  string
+	ExtensionRoot        string
+	BuiltinExtensionRoot string
+	MeiliHost            string
+	MeiliMasterKey       string
+	MeiliTimeout         time.Duration
+	LimiterWriteMax      int
+	LimiterWindow        time.Duration
 	// CSRFTrustedOrigins 是 CSRF 中间件信任的来源站点 origin 列表（如 https://forum.example.com）。
 	// API 在反向代理后看到的 Host 是内部地址，而 Origin 是公开站点，二者不匹配会被拒绝，
 	// 因此必须显式列出公开站点。支持 https://*.example.com 通配符子域。
@@ -109,7 +93,6 @@ type Config struct {
 	JobQueueMailWorkers          int
 	JobQueueNotificationsWorkers int
 	JobQueueMaintenanceWorkers   int
-	JobQueueThemeWorkers         int
 	LogLevel                     slog.Level
 }
 
@@ -127,15 +110,6 @@ func Load() Config {
 	if len(csrfOrigins) == 0 {
 		csrfOrigins = originsFromAppURL(env("APP_URL", ""))
 	}
-	webReleaseRoot := env("WEB_RELEASE_ROOT", env("THEME_RELEASE_ROOT", "../../storage/theme-releases"))
-	webReleaseWebRoot := env("WEB_RELEASE_WEB_ROOT", env("THEME_WEB_ROOT", "../web"))
-	webReleaseBunPath := env("WEB_RELEASE_BUN_PATH", env("THEME_BUN_PATH", "bun"))
-	webReleaseBuildTimeout := envDuration("WEB_RELEASE_BUILD_TIMEOUT", envDuration("THEME_BUILD_TIMEOUT", 5*time.Minute))
-	webReleasePreviewTimeout := envDuration("WEB_RELEASE_PREVIEW_TIMEOUT", envDuration("THEME_PREVIEW_TIMEOUT", 30*time.Second))
-	webReleasePreviewPath := env("WEB_RELEASE_PREVIEW_PATH", env("THEME_PREVIEW_PATH", "/"))
-	// 默认不阻断：避免主题/插件发布被 core 类型债绑架；需要严闸时显式打开。
-	webReleaseTypecheckFail := envBool("WEB_RELEASE_TYPECHECK_FAIL", false)
-
 	// 真实客户端 IP：开发默认信任私网/loopback（Docker+Nuxt 反代）；生产须显式 TRUST_PROXY + TRUSTED_PROXIES。
 	isProd := strings.EqualFold(appEnv, "production")
 	trustProxy := envBool("TRUST_PROXY", !isProd)
@@ -194,19 +168,6 @@ func Load() Config {
 		OptionEncryptionKey:           env("APP_OPTION_ENC_KEY", ""),
 		ExtensionRoot:                 env("EXTENSION_ROOT", "../../storage/extensions"),
 		BuiltinExtensionRoot:          env("BUILTIN_EXTENSION_ROOT", "../../extensions/builtin"),
-		WebReleaseRoot:                webReleaseRoot,
-		WebReleaseWebRoot:             webReleaseWebRoot,
-		WebReleaseBunPath:             webReleaseBunPath,
-		WebReleaseBuildTimeout:        webReleaseBuildTimeout,
-		WebReleasePreviewTimeout:      webReleasePreviewTimeout,
-		WebReleasePreviewPath:         webReleasePreviewPath,
-		WebReleaseTypecheckFail:       webReleaseTypecheckFail,
-		ThemeReleaseRoot:              webReleaseRoot,
-		ThemeWebRoot:                  webReleaseWebRoot,
-		ThemeBunPath:                  webReleaseBunPath,
-		ThemeBuildTimeout:             webReleaseBuildTimeout,
-		ThemePreviewTimeout:           webReleasePreviewTimeout,
-		ThemePreviewPath:              webReleasePreviewPath,
 		MeiliHost:                     env("MEILI_HOST", "http://meilisearch:7700"),
 		MeiliMasterKey:                env("MEILI_MASTER_KEY", "sforum-dev-meili-key"),
 		MeiliTimeout:                  envDuration("MEILI_TIMEOUT", 5*time.Second),
@@ -225,7 +186,6 @@ func Load() Config {
 		JobQueueMailWorkers:           envPositiveInt("JOB_QUEUE_MAIL_WORKERS", 4),
 		JobQueueNotificationsWorkers:  envPositiveInt("JOB_QUEUE_NOTIFICATIONS_WORKERS", 6),
 		JobQueueMaintenanceWorkers:    envPositiveInt("JOB_QUEUE_MAINTENANCE_WORKERS", 2),
-		JobQueueThemeWorkers:          envPositiveInt("JOB_QUEUE_THEME_WORKERS", 1),
 		LogLevel:                      parseLogLevel(env("LOG_LEVEL", "info")),
 	}
 	validateProductionSecrets(cfg)

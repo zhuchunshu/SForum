@@ -77,7 +77,6 @@ CROSS JOIN (VALUES
   ('extension.view'),
   ('extension.plugin.manage'),
   ('extension.theme.manage'),
-  ('extension.release.manage'),
   ('jobs.view'),
   ('jobs.manage'),
   ('search.manage'),

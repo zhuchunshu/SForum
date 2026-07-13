@@ -28,14 +28,6 @@ const (
 	RuntimeDegraded = "degraded"
 	RuntimeFailed   = "failed"
 
-	ThemeReleaseQueued     = "queued"
-	ThemeReleaseBuilding   = "building"
-	ThemeReleaseBuilt      = "built"
-	ThemeReleaseActivating = "activating"
-	ThemeReleaseActive     = "active"
-	ThemeReleaseFailed     = "failed"
-	ThemeReleaseRolledBack = "rolled_back"
-
 	RouteAccessPublic     = extensionmanifest.RouteAccessPublic
 	RouteAccessLogin      = extensionmanifest.RouteAccessLogin
 	RouteAccessPermission = extensionmanifest.RouteAccessPermission
@@ -71,9 +63,8 @@ const (
 	CodeRuntimeFailed              = "extension.runtime_failed"
 	CodeFrontendRuntimeUnavailable = "extension.frontend_runtime_unavailable"
 	CodeFrontendDigestInvalid      = "extension.frontend_digest_invalid"
+	CodeFrontendPackageChanged     = "extension.frontend_package_changed"
 	CodeFrontendTrustNotFound      = "extension.frontend_trust_not_found"
-	CodeWebReleaseNotFound         = "extension.web_release_not_found"
-	CodeWebReleaseConflict         = "extension.web_release_conflict"
 	// 插件已禁用：设置读写、自定义管理页等功能性能力不可用。
 	CodeExtensionDisabled = "extension.disabled"
 	// 设置已写入但插件重启失败，且旧设置恢复也失败，需要运营介入。
@@ -138,8 +129,6 @@ type SettingsAction = extensionmanifest.SettingsAction
 type LocalizedText = extensionmanifest.LocalizedText
 type ManifestMigration = extensionmanifest.ManifestMigration
 type ManifestBackend = extensionmanifest.ManifestBackend
-type ManifestFrontend = extensionmanifest.ManifestFrontend
-type ManifestAdminFrontend = extensionmanifest.ManifestAdminFrontend
 type ManifestAdmin = extensionmanifest.ManifestAdmin
 type ManifestAdminPage = extensionmanifest.ManifestAdminPage
 type ManifestRoute = extensionmanifest.ManifestRoute
@@ -149,7 +138,6 @@ type ManifestJob = extensionmanifest.ManifestJob
 type ManifestProvider = extensionmanifest.ManifestProvider
 type ManifestContribution = extensionmanifest.ManifestContribution
 type TopicActionContributionPayload = extensionmanifest.TopicActionContributionPayload
-type AdminComponentContributionPayload = extensionmanifest.AdminComponentContributionPayload
 type ContributionPointDefinition = extensionmanifest.ContributionPointDefinition
 type Dependency = extensionpackage.Dependency
 type DependencySummary = extensionpackage.DependencySummary
@@ -192,16 +180,13 @@ type Extension struct {
 	IsDeletable bool     `json:"isDeletable"`
 	Manifest    Manifest `json:"manifest"`
 	// CapabilityGrants 有效 Host 能力（显式 + 推断），供启用审查 UI（F2.1）。
-	CapabilityGrants []CapabilityGrant `json:"capabilityGrants,omitempty"`
-	Runtime          *RuntimeStatus    `json:"runtime,omitempty"`
-	ThemeRelease     *ThemeRelease     `json:"themeRelease,omitempty"`
-	// WebRelease 为插件启停/信任变更排队的 live 或失败发布进度（主题仍用 themeRelease）。
-	WebRelease          *WebReleaseSummary `json:"webRelease,omitempty"`
-	PackageDigest       string             `json:"packageDigest"`
-	AdminFrontendDigest string             `json:"adminFrontendDigest,omitempty"`
-	PackagePath         string             `json:"packagePath"`
-	InstalledAt         time.Time          `json:"installedAt"`
-	UpdatedAt           time.Time          `json:"updatedAt"`
+	CapabilityGrants    []CapabilityGrant `json:"capabilityGrants,omitempty"`
+	Runtime             *RuntimeStatus    `json:"runtime,omitempty"`
+	PackageDigest       string            `json:"packageDigest"`
+	AdminFrontendDigest string            `json:"adminFrontendDigest,omitempty"`
+	PackagePath         string            `json:"packagePath"`
+	InstalledAt         time.Time         `json:"installedAt"`
+	UpdatedAt           time.Time         `json:"updatedAt"`
 }
 
 // EnableInput 启用插件的可选请求体。
@@ -241,36 +226,6 @@ type MigrationRecord struct {
 	Status    string    `json:"status"`
 	AppliedAt time.Time `json:"appliedAt"`
 	Message   string    `json:"message,omitempty"`
-}
-
-type ThemeRelease struct {
-	ID               int64      `json:"id"`
-	ExtensionID      string     `json:"extensionId"`
-	ExtensionVersion string     `json:"extensionVersion"`
-	Status           string     `json:"status"`
-	LayerPath        string     `json:"layerPath"`
-	ArtifactPath     string     `json:"artifactPath"`
-	ServerEntry      string     `json:"serverEntry"`
-	Message          string     `json:"message"`
-	BuildLog         string     `json:"buildLog,omitempty"`
-	CreatedAt        time.Time  `json:"createdAt"`
-	UpdatedAt        time.Time  `json:"updatedAt"`
-	ActivatedAt      *time.Time `json:"activatedAt,omitempty"`
-}
-
-type ThemeReleaseInput struct {
-	ExtensionID string
-	Version     string
-	LayerPath   string
-}
-
-type ThemeReleaseUpdate struct {
-	ID           int64
-	Status       string
-	ArtifactPath string
-	ServerEntry  string
-	Message      string
-	BuildLog     string
 }
 
 type ExtensionEvent struct {
@@ -315,21 +270,21 @@ type ExtensionSettingOption struct {
 }
 
 type ExtensionSettingValue struct {
-	Key              string                   `json:"key"`
-	Label            string                   `json:"label"`
-	Description      string                   `json:"description"`
-	Type             string                   `json:"type"`
-	Default          string                   `json:"default"`
-	Value            string                   `json:"value"`
-	Placeholder      string                   `json:"placeholder,omitempty"`
-	RecommendedValue string                   `json:"recommendedValue,omitempty"`
+	Key              string `json:"key"`
+	Label            string `json:"label"`
+	Description      string `json:"description"`
+	Type             string `json:"type"`
+	Default          string `json:"default"`
+	Value            string `json:"value"`
+	Placeholder      string `json:"placeholder,omitempty"`
+	RecommendedValue string `json:"recommendedValue,omitempty"`
 	// Width 为 Schema UI 控件宽度：default 或 full；省略时前端按 default。
-	Width            string                   `json:"width,omitempty"`
-	Group            string                   `json:"group,omitempty"`
-	GroupID          string                   `json:"groupId,omitempty"`
-	Column           int                      `json:"column,omitempty"`
-	Options          []ExtensionSettingOption `json:"options,omitempty"`
-	SecretSet        bool                     `json:"secretSet,omitempty"`
+	Width     string                   `json:"width,omitempty"`
+	Group     string                   `json:"group,omitempty"`
+	GroupID   string                   `json:"groupId,omitempty"`
+	Column    int                      `json:"column,omitempty"`
+	Options   []ExtensionSettingOption `json:"options,omitempty"`
+	SecretSet bool                     `json:"secretSet,omitempty"`
 }
 
 type ExtensionSettingsRenderer struct {

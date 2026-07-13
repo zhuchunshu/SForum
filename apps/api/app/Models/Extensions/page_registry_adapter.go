@@ -53,8 +53,8 @@ func (a *PageRegistryAdapter) ClearExtension(extensionID string) {
 
 func toThemeExt(extension Extension) pages.ThemeExtension {
 	return pages.ThemeExtension{
-		ID:            extension.ID,
-		Version:       extension.Version,
+		ID:      extension.ID,
+		Version: extension.Version,
 		// 旧上传包 PackagePath 可能是 package.zip；L0/L1 必须读 files/ 内容根。
 		PackagePath:   PackageContentRoot(extension),
 		PackageDigest: extension.PackageDigest,

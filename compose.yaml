@@ -68,12 +68,9 @@ services:
       MEILI_MASTER_KEY: ${MEILI_MASTER_KEY:-sforum-dev-meili-key}
       EXTENSION_ROOT: ${EXTENSION_ROOT:-/var/lib/sforum/extensions}
       BUILTIN_EXTENSION_ROOT: /app/extensions/builtin
-      THEME_RELEASE_ROOT: ${THEME_RELEASE_ROOT:-/var/lib/sforum/theme-releases}
-      WEB_RELEASE_ROOT: ${WEB_RELEASE_ROOT:-${THEME_RELEASE_ROOT:-/var/lib/sforum/theme-releases}}
     volumes:
       - attachment_uploads:/app/storage/app/attachments
       - extension_packages:/var/lib/sforum/extensions
-      - theme_releases:/var/lib/sforum/theme-releases
     depends_on:
       postgres:
         condition: service_healthy
@@ -108,16 +105,9 @@ services:
       MEILI_MASTER_KEY: ${MEILI_MASTER_KEY:-sforum-dev-meili-key}
       EXTENSION_ROOT: ${EXTENSION_ROOT:-/var/lib/sforum/extensions}
       BUILTIN_EXTENSION_ROOT: /app/extensions/builtin
-      THEME_RELEASE_ROOT: ${THEME_RELEASE_ROOT:-/var/lib/sforum/theme-releases}
-      WEB_RELEASE_ROOT: ${WEB_RELEASE_ROOT:-${THEME_RELEASE_ROOT:-/var/lib/sforum/theme-releases}}
-      WEB_RELEASE_WEB_ROOT: ${WEB_RELEASE_WEB_ROOT:-/app/apps/web}
-      WEB_RELEASE_BUN_PATH: ${WEB_RELEASE_BUN_PATH:-bun}
-      THEME_WEB_ROOT: ${THEME_WEB_ROOT:-/app/apps/web}
-      THEME_BUN_PATH: ${THEME_BUN_PATH:-bun}
     volumes:
       - attachment_uploads:/app/storage/app/attachments
       - extension_packages:/var/lib/sforum/extensions
-      - theme_releases:/var/lib/sforum/theme-releases
     depends_on:
       postgres:
         condition: service_healthy
@@ -140,10 +130,6 @@ services:
       NUXT_PUBLIC_I18N_BASE_URL: ${APP_URL:-http://127.0.0.1:3000}
       NUXT_PUBLIC_API_BASE_URL: ${NUXT_PUBLIC_API_BASE_URL:-/api/v1}
       NUXT_API_INTERNAL_BASE_URL: ${NUXT_API_INTERNAL_BASE_URL:-http://api:8080/api/v1}
-      SFORUM_THEME_RELEASE_ROOT: ${THEME_RELEASE_ROOT:-/var/lib/sforum/theme-releases}
-      SFORUM_WEB_RELEASE_ROOT: ${WEB_RELEASE_ROOT:-${THEME_RELEASE_ROOT:-/var/lib/sforum/theme-releases}}
-    volumes:
-      - theme_releases:/var/lib/sforum/theme-releases
 
 volumes:
   postgres_data:
@@ -151,4 +137,3 @@ volumes:
   meili_data:
   attachment_uploads:
   extension_packages:
-  theme_releases:

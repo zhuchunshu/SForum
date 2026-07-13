@@ -78,7 +78,7 @@ for (const requiredPageId of [
 }
 assert(adminPageDefinitions.every(page => page.icon.startsWith('i-lucide-')), 'Admin page registry should use lucide icons')
 assert(adminPageDefinitions.find(page => page.id === '/permissions')?.permissionMode === 'any', 'Permission matrix should allow role.manage or user.manage')
-// 扩展相关页使用细粒度权限（view / plugin.manage / theme.manage / release.manage），不再统一 extension.manage
+// 扩展相关页使用细粒度权限（view / plugin.manage / theme.manage），不再统一 extension.manage
 for (const extensionPageId of ['/extensions', '/extensions/plugins', '/extensions/themes', '/extensions/settings', '/extensions/events', '/extensions/store/themes', '/extensions/store/plugins']) {
   const perms = adminPageDefinitions.find(page => page.id === extensionPageId)?.requiredPermissions || []
   assert(
@@ -106,11 +106,10 @@ assert(nuxtConfig.includes('pages:extend'), 'Nuxt config should rewrite admin pa
 assert(nuxtConfig.includes('rewriteAdminPageRoutes'), 'Nuxt config should use a focused admin route rewrite helper')
 
 const adminExtensionsHelper = read('apps/web/app/utils/adminExtensions.ts')
-for (const requiredThemeState of ["'activate'", "'queued'", "'building'", "'activating'", "'failed'"]) {
+for (const requiredThemeState of ["'active'", "'activateDefault'", "'activate'"]) {
   assert(adminExtensionsHelper.includes(requiredThemeState), `Theme action state should include ${requiredThemeState}`)
 }
-assert(adminExtensionsHelper.includes('themeRelease?.status'), 'Theme action state should inspect latest theme release status')
-assert(!adminExtensionsHelper.includes("'verifyOnly'"), 'Theme action state should not keep the old verify-only runtime placeholder')
+assert(!adminExtensionsHelper.includes('themeRelease'), 'Theme action state must not depend on a release pipeline')
 
 const envExample = read('.env.example')
 const productionEnvExample = read('.env.production.example')
@@ -283,7 +282,7 @@ assert(!systemFolder.children?.some(entry => entry.pageId === '/jobs'), 'System 
 assert(!systemFolder.children?.some(entry => entry.pageId === '/extensions'), 'System folder should not contain the extension overview page')
 const extensionFolder = firstSidebarGroup.find(entry => entry.type === 'folder' && entry.labelKey === 'admin.nav.extensions')
 assert(extensionFolder, 'Admin sidebar should expose extensions as an independent folder')
-assert(extensionFolder.children?.map(entry => entry.pageId).join(',') === '/extensions,/extensions/plugins,/extensions/themes,/extensions/pages,/extensions/settings,/extensions/events,/extensions/contributions,/extensions/releases', 'Extension folder should keep the approved submenu order without the app store')
+assert(extensionFolder.children?.map(entry => entry.pageId).join(',') === '/extensions,/extensions/plugins,/extensions/themes,/extensions/pages,/extensions/settings,/extensions/events,/extensions/contributions', 'Extension folder should keep the approved submenu order without the app store')
 assert(!extensionFolder.children?.some(entry => entry.pageId === '/extensions/store'), 'App store should not live under the extensions folder')
 const extensionStoreFolder = firstSidebarGroup.find(entry => entry.type === 'folder' && entry.labelKey === 'admin.nav.extensionStore')
 assert(extensionStoreFolder, 'Admin sidebar should expose app store as an independent top-level folder')

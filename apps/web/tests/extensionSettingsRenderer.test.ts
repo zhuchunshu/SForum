@@ -42,7 +42,10 @@ describe('SFExtensionSettingsRenderer buildless contract', () => {
   test('uses SSR extension navigation metadata for dynamic tab title and icon', () => {
     expect(adminLayout).toContain('navigationItem?.label || extensionRouteFallbackLabel(tabId)')
     expect(adminLayout).toContain("navigationItem?.extensionType === 'theme' ? 'i-lucide-palette'")
+    expect(adminLayout).not.toContain('SFAdminReleaseNotice')
     expect(dynamicPage).toContain('dynamicTabHydrated.value = true')
     expect(dynamicPage).toContain('if (dynamicTabHydrated.value)')
+    expect(dynamicPage).toContain('settingsDataKey')
+    expect(dynamicPage).toContain('await useAsyncData<AdminExtensionSettings | null>')
   })
 })

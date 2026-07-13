@@ -32,9 +32,6 @@ func TestBuiltinSMTPManifestValidatesWithSchemaActions(t *testing.T) {
 	if ResolveSettingPresentation(host, "en-US").Label == "" {
 		t.Fatal("en label empty")
 	}
-	if normalized.Frontend.Admin != nil {
-		t.Fatal("smtp schema settings must not require frontend.admin")
-	}
 	if normalized.SettingsDocument.UI.Layout != SettingsLayoutTabs || len(normalized.SettingsDocument.Actions) != 1 {
 		t.Fatalf("expected tabbed schema + probe action: %#v", normalized.SettingsDocument)
 	}

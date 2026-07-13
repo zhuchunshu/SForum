@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type {
-  AdminExtensionSettingsContext,
+  AdminExtensionSettingItem,
   AdminMicroFrontendBridgeV1,
   AdminMicroFrontendCleanup,
   AdminMicroFrontendModuleV1
@@ -19,7 +19,13 @@ import {
 const props = defineProps<{
   extension: AdminExtension
   settings: AdminExtensionSettings
-  context: AdminExtensionSettingsContext
+  context: Readonly<{
+    items: readonly AdminExtensionSettingItem[]
+    values: Readonly<Record<string, string>>
+    updateValue: (key: string, value: string) => void
+    save: () => Promise<void>
+    reset: () => Promise<void>
+  }>
 }>()
 
 const extension = computed(() => props.extension)

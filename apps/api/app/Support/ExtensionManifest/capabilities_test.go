@@ -33,7 +33,6 @@ func TestThemeRejectsCapabilities(t *testing.T) {
 		Version:       "1.0.0",
 		Type:          TypeTheme,
 		SForumVersion: "^1.0.0",
-		Frontend:      ManifestFrontend{Layer: "frontend/layer"},
 		Capabilities:  []string{capabilities.HostAPI},
 	}
 	if err := Validate(manifest); !errors.Is(err, ErrInvalidManifest) {

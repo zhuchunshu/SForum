@@ -12,9 +12,6 @@ func TestCoreScheduleRegistryBuildsCorePeriodics(t *testing.T) {
 		ScheduleIdentityCleanupSessions: func() (river.JobArgs, *river.InsertOpts) {
 			return stubArgs{kind: ScheduleIdentityCleanupSessions}, nil
 		},
-		ScheduleExtensionWebReleaseCleanup: func() (river.JobArgs, *river.InsertOpts) {
-			return stubArgs{kind: ScheduleExtensionWebReleaseCleanup}, nil
-		},
 		ScheduleAttachmentsCleanupOrphans: func() (river.JobArgs, *river.InsertOpts) {
 			return stubArgs{kind: ScheduleAttachmentsCleanupOrphans}, nil
 		},
@@ -28,15 +25,15 @@ func TestCoreScheduleRegistryBuildsCorePeriodics(t *testing.T) {
 	if err != nil {
 		t.Fatalf("registry: %v", err)
 	}
-	if reg.Len() != 5 {
-		t.Fatalf("expected 5 core schedules, got %d", reg.Len())
+	if reg.Len() != 4 {
+		t.Fatalf("expected 4 core schedules, got %d", reg.Len())
 	}
 	jobs, err := reg.BuildPeriodicJobs()
 	if err != nil {
 		t.Fatalf("build: %v", err)
 	}
-	if len(jobs) != 5 {
-		t.Fatalf("expected 5 river periodics, got %d", len(jobs))
+	if len(jobs) != 4 {
+		t.Fatalf("expected 4 river periodics, got %d", len(jobs))
 	}
 
 	// 元数据完整性：daily、owner 明确
@@ -47,7 +44,6 @@ func TestCoreScheduleRegistryBuildsCorePeriodics(t *testing.T) {
 	}
 	for _, id := range []string{
 		ScheduleIdentityCleanupSessions,
-		ScheduleExtensionWebReleaseCleanup,
 		ScheduleAttachmentsCleanupOrphans,
 		ScheduleAuditCleanupEvents,
 		ScheduleForumAutoLockIdle,
@@ -59,7 +55,7 @@ func TestCoreScheduleRegistryBuildsCorePeriodics(t *testing.T) {
 		if !v.Enabled {
 			t.Fatalf("%s should be enabled", id)
 		}
-		if v.IntervalSeconds != int64((24 * time.Hour) / time.Second) {
+		if v.IntervalSeconds != int64((24*time.Hour)/time.Second) {
 			t.Fatalf("%s interval=%d", id, v.IntervalSeconds)
 		}
 		if v.JobKind == "" || v.Owner == "" {
@@ -86,7 +82,7 @@ func TestCoreScheduleRegistryWithoutConstructorsIsCatalogOnly(t *testing.T) {
 	if len(jobs) != 0 {
 		t.Fatalf("catalog-only should not build periodics, got %d", len(jobs))
 	}
-	if len(reg.Views()) != 5 {
+	if len(reg.Views()) != 4 {
 		t.Fatalf("views=%d", len(reg.Views()))
 	}
 }

@@ -12,7 +12,6 @@ const (
 	ActionPendingTags           = "pending_tags"
 	ActionOrphanAttachments     = "orphan_attachments"
 	ActionFailedExtensionEvents = "failed_extension_events"
-	ActionThemeReleaseProgress  = "theme_release_progress"
 )
 
 type AdminOverview struct {
@@ -134,9 +133,6 @@ type ExtensionStats struct {
 	ThemeCount                  int64 `json:"themeCount"`
 	InstalledPluginRuntimeCount int64 `json:"installedPluginRuntimeCount"`
 	FailedEventCount            int64 `json:"failedEventCount"`
-	PendingThemeReleaseCount    int64 `json:"pendingThemeReleaseCount"`
-	FailedThemeReleaseCount     int64 `json:"failedThemeReleaseCount"`
-	ActiveThemeReleaseCount     int64 `json:"activeThemeReleaseCount"`
 }
 
 type TrendStats struct {

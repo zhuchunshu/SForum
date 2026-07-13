@@ -340,67 +340,6 @@ func (s *PostgresStore) ActiveTheme(ctx context.Context) (Extension, error) {
 	return item, nil
 }
 
-func (s *PostgresStore) CreateThemeRelease(ctx context.Context, input ThemeReleaseInput) (ThemeRelease, error) {
-	row := s.pool.QueryRow(ctx, `
-		INSERT INTO extension_theme_releases (extension_id, extension_version, status, layer_path)
-		VALUES ($1, $2, 'queued', $3)
-		RETURNING id, extension_id, extension_version, status, layer_path, artifact_path,
-		  server_entry, message, build_log, created_at, updated_at, activated_at
-	`, input.ExtensionID, input.Version, input.LayerPath)
-	return scanThemeRelease(row)
-}
-
-func (s *PostgresStore) UpdateThemeRelease(ctx context.Context, input ThemeReleaseUpdate) (ThemeRelease, error) {
-	if input.Status == ThemeReleaseActive {
-		tx, err := s.pool.Begin(ctx)
-		if err != nil {
-			return ThemeRelease{}, fmt.Errorf("begin theme release activation: %w", err)
-		}
-		defer tx.Rollback(ctx)
-
-		if _, err := tx.Exec(ctx, `
-			UPDATE extension_theme_releases
-			SET status = 'rolled_back', updated_at = now()
-			WHERE status = 'active' AND id <> $1
-		`, input.ID); err != nil {
-			return ThemeRelease{}, fmt.Errorf("roll back previous theme release: %w", err)
-		}
-		release, err := updateThemeReleaseRow(ctx, tx, input, "now()")
-		if err != nil {
-			return ThemeRelease{}, err
-		}
-		if err := tx.Commit(ctx); err != nil {
-			return ThemeRelease{}, fmt.Errorf("commit theme release activation: %w", err)
-		}
-		return release, nil
-	}
-	return updateThemeReleaseRow(ctx, s.pool, input, "activated_at")
-}
-
-func (s *PostgresStore) LatestThemeRelease(ctx context.Context, extensionID string) (ThemeRelease, error) {
-	row := s.pool.QueryRow(ctx, `
-		SELECT id, extension_id, extension_version, status, layer_path, artifact_path,
-		  server_entry, message, build_log, created_at, updated_at, activated_at
-		FROM extension_theme_releases
-		WHERE extension_id = $1
-		ORDER BY created_at DESC, id DESC
-		LIMIT 1
-	`, extensionID)
-	return scanThemeRelease(row)
-}
-
-func (s *PostgresStore) ActiveThemeRelease(ctx context.Context) (ThemeRelease, error) {
-	row := s.pool.QueryRow(ctx, `
-		SELECT id, extension_id, extension_version, status, layer_path, artifact_path,
-		  server_entry, message, build_log, created_at, updated_at, activated_at
-		FROM extension_theme_releases
-		WHERE status = 'active'
-		ORDER BY activated_at DESC NULLS LAST, id DESC
-		LIMIT 1
-	`)
-	return scanThemeRelease(row)
-}
-
 func (s *PostgresStore) Disable(ctx context.Context, id string) (Extension, error) {
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
@@ -726,53 +665,6 @@ func ensureExtensionVersion(ctx context.Context, tx pgx.Tx, input extensionVersi
 		LIMIT 1
 	`, input.ExtensionID, input.Version, input.ManifestJSON, input.PackagePath, input.PackageDigest, input.AdminFrontendDigest).Scan(&versionID)
 	return versionID, err
-}
-
-type themeReleaseScanner interface {
-	Scan(dest ...any) error
-}
-
-type themeReleaseQueryer interface {
-	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
-}
-
-func updateThemeReleaseRow(ctx context.Context, queryer themeReleaseQueryer, input ThemeReleaseUpdate, activatedSQL string) (ThemeRelease, error) {
-	row := queryer.QueryRow(ctx, fmt.Sprintf(`
-		UPDATE extension_theme_releases
-		SET status = $2,
-		    artifact_path = COALESCE(NULLIF($3, ''), artifact_path),
-		    server_entry = COALESCE(NULLIF($4, ''), server_entry),
-		    message = $5,
-		    build_log = $6,
-		    updated_at = now(),
-		    activated_at = %s
-		WHERE id = $1
-		RETURNING id, extension_id, extension_version, status, layer_path, artifact_path,
-		  server_entry, message, build_log, created_at, updated_at, activated_at
-	`, activatedSQL), input.ID, input.Status, input.ArtifactPath, input.ServerEntry, input.Message, input.BuildLog)
-	return scanThemeRelease(row)
-}
-
-func scanThemeRelease(row themeReleaseScanner) (ThemeRelease, error) {
-	var item ThemeRelease
-	err := row.Scan(
-		&item.ID,
-		&item.ExtensionID,
-		&item.ExtensionVersion,
-		&item.Status,
-		&item.LayerPath,
-		&item.ArtifactPath,
-		&item.ServerEntry,
-		&item.Message,
-		&item.BuildLog,
-		&item.CreatedAt,
-		&item.UpdatedAt,
-		&item.ActivatedAt,
-	)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return ThemeRelease{}, ErrExtensionNotFound
-	}
-	return item, err
 }
 
 func nullableActorID(userID int64) any {

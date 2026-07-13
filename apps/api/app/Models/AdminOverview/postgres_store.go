@@ -144,16 +144,7 @@ func (s *PostgresStore) extensionStats(ctx context.Context) (ExtensionStats, err
 			(SELECT count(*) FROM extensions WHERE type = 'plugin'),
 			(SELECT count(*) FROM extensions WHERE type = 'theme'),
 			(SELECT count(*) FROM extensions WHERE type = 'plugin' AND active_version_id IS NOT NULL),
-			(SELECT count(*) FROM extension_event_deliveries WHERE status = 'failed'),
-			CASE WHEN EXISTS (SELECT 1 FROM web_releases WHERE status = 'active')
-				THEN (SELECT count(*) FROM web_releases WHERE status IN ('queued', 'building', 'verifying', 'ready', 'activating'))
-				ELSE (SELECT count(*) FROM extension_theme_releases WHERE status IN ('queued', 'building', 'activating')) END,
-			CASE WHEN EXISTS (SELECT 1 FROM web_releases WHERE status = 'active')
-				THEN (SELECT count(*) FROM web_releases WHERE status = 'failed')
-				ELSE (SELECT count(*) FROM extension_theme_releases WHERE status = 'failed') END,
-			CASE WHEN EXISTS (SELECT 1 FROM web_releases WHERE status = 'active')
-				THEN (SELECT count(*) FROM web_releases WHERE status = 'active')
-				ELSE (SELECT count(*) FROM extension_theme_releases WHERE status = 'active') END
+			(SELECT count(*) FROM extension_event_deliveries WHERE status = 'failed')
 	`).Scan(
 		&stats.TotalCount,
 		&stats.EnabledCount,
@@ -161,9 +152,6 @@ func (s *PostgresStore) extensionStats(ctx context.Context) (ExtensionStats, err
 		&stats.ThemeCount,
 		&stats.InstalledPluginRuntimeCount,
 		&stats.FailedEventCount,
-		&stats.PendingThemeReleaseCount,
-		&stats.FailedThemeReleaseCount,
-		&stats.ActiveThemeReleaseCount,
 	)
 	if err != nil {
 		return ExtensionStats{}, fmt.Errorf("admin overview extension stats: %w", err)

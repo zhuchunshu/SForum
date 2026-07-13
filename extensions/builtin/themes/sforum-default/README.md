@@ -1,12 +1,12 @@
 # SForum Default Theme
 
-SForum Default Theme is the protected built-in public UI layer for v1.
+SForum Default Theme is the protected built-in runtime theme for v1.
 
-It owns the non-admin pages, layouts, public navigation, footer, and auth page
-presentation. Core still owns admin UI, authentication/session logic, API
-clients, i18n catalogs, SEO helpers, permissions, and reusable `SF*`
+It supplies Page Registry templates, public skin assets, and a rich Schema
+Settings Document. Core owns Vue pages, admin UI, authentication/session logic,
+API clients, i18n catalogs, SEO helpers, permissions, and reusable `SF*`
 components.
 
-Uploaded themes can be activated through SForum's single-node theme release
-runtime. Activation builds a Nuxt/Nitro artifact, health-checks it, and switches
-the web runtime after the release succeeds.
+Uploaded themes use the same `theme.json` + assets/templates contract.
+Activation synchronously switches Page Registry bindings and skin assets; it
+does not build or restart Nuxt.

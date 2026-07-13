@@ -13,8 +13,7 @@ INSERT INTO permissions (key, module, description) VALUES
   ('user.permission_override', 'identity', 'Edit per-user permission allow and deny overrides.'),
   ('extension.view', 'extension', 'View installed extensions, events, and contributions.'),
   ('extension.plugin.manage', 'extension', 'Enable, disable, and configure plugins.'),
-  ('extension.theme.manage', 'extension', 'Activate and manage themes.'),
-  ('extension.release.manage', 'extension', 'Build and activate trusted admin web releases.')
+  ('extension.theme.manage', 'extension', 'Activate and manage themes.')
 ON CONFLICT (key) DO UPDATE SET module = EXCLUDED.module, description = EXCLUDED.description;
 
 -- 刷新既有父权限描述，标明其为兼容父权限。
@@ -40,7 +39,7 @@ WHERE roles.key = 'super_admin'
     'settings.site.manage', 'settings.mail.manage', 'settings.avatar.manage', 'settings.appearance.manage',
     'forum.settings.manage',
     'user.view', 'user.permission_override',
-    'extension.view', 'extension.plugin.manage', 'extension.theme.manage', 'extension.release.manage'
+    'extension.view', 'extension.plugin.manage', 'extension.theme.manage'
   )
 ON CONFLICT DO NOTHING;
 
@@ -95,8 +94,7 @@ FROM role_permissions rp
 CROSS JOIN (VALUES
   ('extension.view'),
   ('extension.plugin.manage'),
-  ('extension.theme.manage'),
-  ('extension.release.manage')
+  ('extension.theme.manage')
 ) AS child(key)
 WHERE rp.permission_key = 'extension.manage'
 ON CONFLICT DO NOTHING;
@@ -131,8 +129,7 @@ FROM user_permission_overrides o
 CROSS JOIN (VALUES
   ('extension.view'),
   ('extension.plugin.manage'),
-  ('extension.theme.manage'),
-  ('extension.release.manage')
+  ('extension.theme.manage')
 ) AS child(key)
 WHERE o.permission_key = 'extension.manage' AND o.effect = 'allow'
 ON CONFLICT DO NOTHING;
@@ -156,7 +153,7 @@ WHERE permission_key IN (
   'settings.site.manage', 'settings.mail.manage', 'settings.avatar.manage', 'settings.appearance.manage',
   'forum.settings.manage',
   'user.view', 'user.permission_override',
-  'extension.view', 'extension.plugin.manage', 'extension.theme.manage', 'extension.release.manage'
+  'extension.view', 'extension.plugin.manage', 'extension.theme.manage'
 );
 
 DELETE FROM role_permissions
@@ -165,7 +162,7 @@ WHERE permission_key IN (
   'settings.site.manage', 'settings.mail.manage', 'settings.avatar.manage', 'settings.appearance.manage',
   'forum.settings.manage',
   'user.view', 'user.permission_override',
-  'extension.view', 'extension.plugin.manage', 'extension.theme.manage', 'extension.release.manage'
+  'extension.view', 'extension.plugin.manage', 'extension.theme.manage'
 );
 
 DELETE FROM permissions
@@ -174,7 +171,7 @@ WHERE key IN (
   'settings.site.manage', 'settings.mail.manage', 'settings.avatar.manage', 'settings.appearance.manage',
   'forum.settings.manage',
   'user.view', 'user.permission_override',
-  'extension.view', 'extension.plugin.manage', 'extension.theme.manage', 'extension.release.manage'
+  'extension.view', 'extension.plugin.manage', 'extension.theme.manage'
 );
 
 UPDATE permissions SET description = 'Manage system settings.' WHERE key = 'settings.manage';

@@ -162,9 +162,6 @@ func TestGenerateThemeScaffoldNonInteractive(t *testing.T) {
 	if manifest.Type != extensionmanifest.TypeTheme {
 		t.Fatalf("unexpected theme manifest: %#v", manifest)
 	}
-	if strings.TrimSpace(manifest.Frontend.Layer) != "" {
-		t.Fatalf("runtime theme scaffold must not require frontend.layer, got %q", manifest.Frontend.Layer)
-	}
 	if manifest.Admin.Entry != "/settings" || len(manifest.Admin.Pages) != 1 || len(manifest.Settings) == 0 {
 		t.Fatalf("expected theme v2 admin page and settings declarations: %#v", manifest)
 	}

@@ -31,8 +31,8 @@ node tests/validate-theme-runtime.js
 echo "Running trusted admin runtime validation..."
 node tests/validate-trusted-admin-runtime.js
 
-echo "Running theme activation progress validation..."
-node tests/validate-theme-activation-progress.js
+echo "Running synchronous theme activation validation..."
+node tests/validate-theme-activation.js
 
 echo "Running development worker script validation..."
 node tests/validate-dev-worker-script.js

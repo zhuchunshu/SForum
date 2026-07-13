@@ -13,7 +13,6 @@ type Config struct {
 	MailWorkers          int
 	NotificationsWorkers int
 	MaintenanceWorkers   int
-	ThemeWorkers         int
 }
 
 func FromAppConfig(cfg config.Config) Config {
@@ -24,7 +23,6 @@ func FromAppConfig(cfg config.Config) Config {
 		MailWorkers:          positiveOrDefault(cfg.JobQueueMailWorkers, 4),
 		NotificationsWorkers: positiveOrDefault(cfg.JobQueueNotificationsWorkers, 6),
 		MaintenanceWorkers:   positiveOrDefault(cfg.JobQueueMaintenanceWorkers, 2),
-		ThemeWorkers:         positiveOrDefault(cfg.JobQueueThemeWorkers, 1),
 	}
 }
 
@@ -36,7 +34,6 @@ func (cfg Config) RiverQueues() map[string]river.QueueConfig {
 		QueueMail:          {MaxWorkers: cfg.MailWorkers},
 		QueueNotifications: {MaxWorkers: cfg.NotificationsWorkers},
 		QueueMaintenance:   {MaxWorkers: cfg.MaintenanceWorkers},
-		QueueTheme:         {MaxWorkers: cfg.ThemeWorkers},
 	}
 }
 

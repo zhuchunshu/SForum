@@ -25,17 +25,10 @@ import (
 const maxArchiveBytes = 50 * 1024 * 1024
 
 type Service struct {
-	store                     Store
-	extensionRoot             string
-	builtinRoot               string
-	runtime                   RuntimeManager
-	themeBuilder              ThemeBuilder
-	themeActivationDispatcher ThemeActivationDispatcher
-	themeCurrentWriter        ThemeCurrentWriter
-	frontendLifecycle         ExtensionFrontendLifecycle
-	webReleaseLifecycle       FrontendReleaseManager
-	// webReleaseProgress 可选：把插件相关的 live/failed Web Release 挂到列表项上。
-	webReleaseProgress WebReleaseProgressReader
+	store         Store
+	extensionRoot string
+	builtinRoot   string
+	runtime       RuntimeManager
 	// auditor 写入宿主 audit_events（F1.4）；与 extension_events 互补。
 	auditor audit.Writer
 	// trustRevoker 升级时吊销前端信任（F2.4）。
@@ -71,37 +64,8 @@ type FeatureFlagSource interface {
 	MissingRequiredFeatures(ctx context.Context, required []string) ([]string, error)
 }
 
-// WebReleaseProgressReader 读取扩展相关的进行中/失败 Web 发布，用于管理端进度条。
-type WebReleaseProgressReader interface {
-	LatestProgressWebReleaseForExtension(context.Context, string) (WebRelease, error)
-}
-
-// ServiceOption 用于在保留现有构造函数签名的同时注入可选依赖。
-// 目前仅用于给 API 进程（同步恢复默认主题路径）注入 ThemeCurrentWriter。
+// ServiceOption 注入扩展服务的可选宿主能力。
 type ServiceOption func(*Service)
-
-// WithThemeCurrentWriter 让 ActivateTheme 在恢复内置默认主题（同步路径）
-// 时写入 current.json 的 default 状态，供前端运行时感知"切回默认"。
-func WithThemeCurrentWriter(writer ThemeCurrentWriter) ServiceOption {
-	return func(s *Service) {
-		s.themeCurrentWriter = writer
-	}
-}
-
-// WithWebReleaseLifecycle 将会改变完整 Web composition 的扩展操作交给统一发布流水线。
-func WithWebReleaseLifecycle(frontend ExtensionFrontendLifecycle, releases FrontendReleaseManager) ServiceOption {
-	return func(s *Service) {
-		s.frontendLifecycle = frontend
-		s.webReleaseLifecycle = releases
-	}
-}
-
-// WithWebReleaseProgress 注入插件列表用的 Web Release 进度读取器。
-func WithWebReleaseProgress(reader WebReleaseProgressReader) ServiceOption {
-	return func(s *Service) {
-		s.webReleaseProgress = reader
-	}
-}
 
 // WithAuditor 注入宿主 audit_events 写入（F1.4 扩展生命周期审计）。
 func WithAuditor(w audit.Writer) ServiceOption {
@@ -181,18 +145,18 @@ func (s *Service) ensureRequiredFeatures(ctx context.Context, required []string)
 }
 
 func NewService(store Store, extensionRoot string) *Service {
-	return NewServiceWithHooks(store, extensionRoot, nil, nil)
+	return NewServiceWithHooks(store, extensionRoot, nil)
 }
 
-func NewServiceWithHooks(store Store, extensionRoot string, runtime RuntimePreflight, themeBuilder ThemeBuilder) *Service {
-	return NewServiceWithBuiltinsAndHooks(store, extensionRoot, "", runtime, themeBuilder)
+func NewServiceWithHooks(store Store, extensionRoot string, runtime RuntimePreflight) *Service {
+	return NewServiceWithBuiltinsAndHooks(store, extensionRoot, "", runtime)
 }
 
 func NewServiceWithBuiltins(store Store, extensionRoot string, builtinRoot string) *Service {
-	return NewServiceWithBuiltinsAndRuntime(store, extensionRoot, builtinRoot, nil, nil)
+	return NewServiceWithBuiltinsAndRuntime(store, extensionRoot, builtinRoot, nil)
 }
 
-func NewServiceWithBuiltinsAndHooks(store Store, extensionRoot string, builtinRoot string, runtime RuntimePreflight, themeBuilder ThemeBuilder) *Service {
+func NewServiceWithBuiltinsAndHooks(store Store, extensionRoot string, builtinRoot string, runtime RuntimePreflight) *Service {
 	var manager RuntimeManager
 	if runtime != nil {
 		if full, ok := runtime.(RuntimeManager); ok {
@@ -201,42 +165,30 @@ func NewServiceWithBuiltinsAndHooks(store Store, extensionRoot string, builtinRo
 			manager = preflightRuntimeManager{RuntimePreflight: runtime}
 		}
 	}
-	return NewServiceWithBuiltinsAndRuntime(store, extensionRoot, builtinRoot, manager, themeBuilder)
+	return NewServiceWithBuiltinsAndRuntime(store, extensionRoot, builtinRoot, manager)
 }
 
-func NewServiceWithRuntime(store Store, extensionRoot string, runtime RuntimeManager, themeBuilder ThemeBuilder) *Service {
-	return NewServiceWithBuiltinsAndRuntime(store, extensionRoot, "", runtime, themeBuilder)
+func NewServiceWithRuntime(store Store, extensionRoot string, runtime RuntimeManager) *Service {
+	return NewServiceWithBuiltinsAndRuntime(store, extensionRoot, "", runtime)
 }
 
-func NewServiceWithBuiltinsAndRuntime(store Store, extensionRoot string, builtinRoot string, runtime RuntimeManager, themeBuilder ThemeBuilder) *Service {
+func NewServiceWithBuiltinsAndRuntime(store Store, extensionRoot string, builtinRoot string, runtime RuntimeManager) *Service {
 	if strings.TrimSpace(extensionRoot) == "" {
 		extensionRoot = "storage/extensions"
 	}
 	if runtime == nil {
 		runtime = LocalRuntimeManager{}
 	}
-	if themeBuilder == nil {
-		themeBuilder = LocalThemeBuilder{}
-	}
 	return &Service{
 		store:         store,
 		extensionRoot: extensionRoot,
 		builtinRoot:   strings.TrimSpace(builtinRoot),
 		runtime:       runtime,
-		themeBuilder:  themeBuilder,
 	}
 }
 
-func NewServiceWithThemeActivation(store Store, extensionRoot string, builtinRoot string, runtime RuntimeManager, themeBuilder ThemeBuilder, dispatcher ThemeActivationDispatcher) *Service {
-	service := NewServiceWithBuiltinsAndRuntime(store, extensionRoot, builtinRoot, runtime, themeBuilder)
-	service.themeActivationDispatcher = dispatcher
-	return service
-}
-
-// NewServiceWithThemeActivationWithOptions 在 NewServiceWithThemeActivation 基础上
-// 注入可选依赖（如 ThemeCurrentWriter），保持原有调用方签名不变。
-func NewServiceWithThemeActivationWithOptions(store Store, extensionRoot string, builtinRoot string, runtime RuntimeManager, themeBuilder ThemeBuilder, dispatcher ThemeActivationDispatcher, options ...ServiceOption) *Service {
-	service := NewServiceWithThemeActivation(store, extensionRoot, builtinRoot, runtime, themeBuilder, dispatcher)
+func NewServiceWithOptions(store Store, extensionRoot string, builtinRoot string, runtime RuntimeManager, options ...ServiceOption) *Service {
+	service := NewServiceWithBuiltinsAndRuntime(store, extensionRoot, builtinRoot, runtime)
 	for _, option := range options {
 		if option != nil {
 			option(service)
@@ -310,23 +262,6 @@ func (preflightRuntimeManager) Status(_ context.Context, extension Extension) Ru
 
 func (preflightRuntimeManager) EmitHook(context.Context, string, map[string]any) {}
 
-type LocalThemeBuilder struct{}
-
-func (LocalThemeBuilder) Build(_ context.Context, extension Extension) error {
-	if extension.Manifest.Frontend.Layer == "" {
-		return nil
-	}
-	layer, ok := installedFilePath(extension, extension.Manifest.Frontend.Layer)
-	if !ok {
-		return ErrInvalidManifest
-	}
-	info, err := os.Stat(layer)
-	if err != nil || !info.IsDir() {
-		return fmt.Errorf("nuxt layer %s is not available", extension.Manifest.Frontend.Layer)
-	}
-	return nil
-}
-
 // canViewExtensions 扩展目录只读（列表/事件/贡献/导航）。
 func canViewExtensions(actor identity.Actor) bool {
 	return actor.Can(identity.PermissionExtensionView) || actor.Can(identity.PermissionExtensionManage)
@@ -340,11 +275,6 @@ func canManagePlugins(actor identity.Actor) bool {
 // canManageThemes 主题激活。
 func canManageThemes(actor identity.Actor) bool {
 	return actor.Can(identity.PermissionExtensionThemeManage) || actor.Can(identity.PermissionExtensionManage)
-}
-
-// canManageReleases Web Release 队列与发布。
-func canManageReleases(actor identity.Actor) bool {
-	return actor.Can(identity.PermissionExtensionReleaseManage) || actor.Can(identity.PermissionExtensionManage)
 }
 
 func (s *Service) List(ctx context.Context, actor identity.Actor) ([]Extension, error) {
@@ -911,14 +841,6 @@ func (s *Service) ActivateTheme(ctx context.Context, actor identity.Actor, id st
 	if err != nil {
 		return Extension{}, err
 	}
-	// 清理遗留的 theme_releases 进度行（兼容旧数据）。
-	if err := s.rollBackActiveThemeRelease(ctx); err != nil {
-		// DB 已切主题；尽力回滚活动主题（仅当实际发生了切换）
-		if previous != nil && previous.ID != active.ID {
-			s.rollbackThemeActivation(ctx, previous, active.ID)
-		}
-		return Extension{}, err
-	}
 
 	// 3) 事务成功后原子替换 Registry（ReplaceThemeContributions：新旧同路径允许）。
 	//    失败则回滚 DB 活动主题并恢复旧 Registry。
@@ -932,7 +854,6 @@ func (s *Service) ActivateTheme(ctx context.Context, actor identity.Actor, id st
 		}
 	}
 
-	// P5：不再写 theme-releases/current.json；公开主题不切换 Nitro / Layer。
 	_, _ = s.store.CreateEvent(ctx, EventInput{
 		ExtensionID: active.ID,
 		ActorUserID: actor.ID,
@@ -1032,112 +953,6 @@ func (s *Service) RestoreActiveThemeRegistry(ctx context.Context) error {
 	return nil
 }
 
-// ApplyApprovedLifecycleEffect 执行「已批准 Web Release 效果」的内部生命周期。
-// 不需要伪造管理员 actor：调用方（WebReleaseCoordinator）已通过发布审批。
-// forward=true 应用 TargetStatus；forward=false 回滚到 PreviousStatus。
-// 顺序：enable → 改状态 → 启 runtime → 注册页面；disable → 停 runtime → 清页面 → 改状态。
-func (s *Service) ApplyApprovedLifecycleEffect(ctx context.Context, extensionID string, targetStatus string) error {
-	if s == nil {
-		return fmt.Errorf("extensions: service nil")
-	}
-	item, err := s.store.Get(ctx, normalizeID(extensionID))
-	if err != nil {
-		return err
-	}
-	switch targetStatus {
-	case StatusEnabled:
-		return s.applyApprovedEnable(ctx, item)
-	case StatusDisabled, StatusInstalled:
-		return s.applyApprovedDisable(ctx, item)
-	default:
-		return fmt.Errorf("unsupported extension target status %q", targetStatus)
-	}
-}
-
-func (s *Service) applyApprovedEnable(ctx context.Context, extension Extension) error {
-	if extension.Type == TypeTheme {
-		// 主题仍走 ActivateTheme（需要 actor 的路径不应到这里；Web Release 主题 effect 少见）
-		_, err := s.store.ActivateTheme(ctx, extension.ID)
-		if err != nil {
-			return err
-		}
-		active, err := s.store.Get(ctx, extension.ID)
-		if err != nil {
-			return err
-		}
-		if s.pageRegistry != nil {
-			if err := s.pageRegistry.RegisterThemePackage(ctx, active); err != nil {
-				s.pageRegistry.ClearExtension(active.ID)
-				return fmt.Errorf("%w: page contributions: %v", ErrPreflightFailed, err)
-			}
-		}
-		return nil
-	}
-	// 已启用则仅刷新页面贡献
-	if extension.Status != StatusEnabled {
-		if err := s.verifyExtension(ctx, extension); err != nil {
-			return err
-		}
-		enabled, err := s.store.Enable(ctx, extension.ID, extension.Type)
-		if err != nil {
-			return err
-		}
-		extension = enabled
-	}
-	if extension.Type == TypePlugin && extension.Manifest.Backend.Entry != "" && s.runtime != nil {
-		// Start 前先 Stop 幂等刷新（避免重复子进程）
-		_ = s.runtime.Stop(ctx, extension)
-		if err := s.runtime.Start(ctx, extension); err != nil {
-			_, _ = s.store.Disable(ctx, extension.ID)
-			if s.pageRegistry != nil {
-				s.pageRegistry.ClearExtension(extension.ID)
-			}
-			return fmt.Errorf("%w: %v", ErrRuntimeFailed, err)
-		}
-	}
-	if extension.Type == TypePlugin && s.pageRegistry != nil {
-		if err := s.pageRegistry.RegisterPluginPackage(ctx, extension); err != nil {
-			if s.runtime != nil {
-				_ = s.runtime.Stop(ctx, extension)
-			}
-			_, _ = s.store.Disable(ctx, extension.ID)
-			s.pageRegistry.ClearExtension(extension.ID)
-			return fmt.Errorf("%w: page contributions: %v", ErrPreflightFailed, err)
-		}
-	}
-	_, _ = s.store.CreateEvent(ctx, EventInput{
-		ExtensionID: extension.ID,
-		Action:      EventEnabled,
-		Message:     "Extension enabled via approved web release effect.",
-	})
-	return nil
-}
-
-func (s *Service) applyApprovedDisable(ctx context.Context, extension Extension) error {
-	if extension.Type == TypeTheme {
-		// 主题禁用不在此路径处理
-		return nil
-	}
-	// 先停 runtime、清页面，再改状态
-	if err := s.drainPluginRuntime(ctx, extension); err != nil {
-		return err
-	}
-	if s.pageRegistry != nil {
-		s.pageRegistry.ClearExtension(extension.ID)
-	}
-	if extension.Status == StatusEnabled {
-		if _, err := s.store.Disable(ctx, extension.ID); err != nil {
-			return err
-		}
-	}
-	_, _ = s.store.CreateEvent(ctx, EventInput{
-		ExtensionID: extension.ID,
-		Action:      EventDisabled,
-		Message:     "Extension disabled via approved web release effect.",
-	})
-	return nil
-}
-
 func (s *Service) EnsureDefaultThemeActive(ctx context.Context) (Extension, error) {
 	active, err := s.store.ActiveTheme(ctx)
 	if err == nil && active.ID == DefaultThemeID && active.Source == SourceBuiltin {
@@ -1156,26 +971,6 @@ func (s *Service) EnsureDefaultThemeActive(ctx context.Context) (Extension, erro
 	return s.store.ActivateTheme(ctx, DefaultThemeID)
 }
 
-// rollBackActiveThemeRelease 把当前 active 的上传主题 release 置为 rolled_back。
-// 调用方是"切回默认主题"的同步路径：worker 不会再走一次 release 状态机，
-// 所以这里要主动清理遗留的 active release，避免前端继续显示旧的"当前主题"。
-// 没有 active release（比如首次激活默认主题）时静默返回 nil。
-func (s *Service) rollBackActiveThemeRelease(ctx context.Context) error {
-	current, err := s.store.ActiveThemeRelease(ctx)
-	if err != nil {
-		if errors.Is(err, ErrExtensionNotFound) {
-			return nil
-		}
-		return err
-	}
-	_, err = s.store.UpdateThemeRelease(ctx, ThemeReleaseUpdate{
-		ID:      current.ID,
-		Status:  ThemeReleaseRolledBack,
-		Message: "Rolled back because the default theme was activated.",
-	})
-	return err
-}
-
 func (s *Service) verifyExtension(ctx context.Context, extension Extension) error {
 	if err := validateInstalledPackage(extension); err != nil {
 		if extension.Type == TypeTheme {
@@ -1189,17 +984,8 @@ func (s *Service) verifyExtension(ctx context.Context, extension Extension) erro
 		}
 	}
 	if extension.Type == TypeTheme {
-		// Runtime 主题：theme.json 或 assets/ 即可；兼容旧 layer 主题。
-		hasLayer := strings.TrimSpace(extension.Manifest.Frontend.Layer) != ""
-		hasRuntime := themeRuntimePackagePresent(extension.PackagePath)
-		if !hasLayer && !hasRuntime {
-			return fmt.Errorf("%w: theme requires theme.json/assets (L0/L1) or frontend.layer", ErrBuildFailed)
-		}
-		if hasLayer && s.themeBuilder != nil {
-			err := s.themeBuilder.Build(ctx, extension)
-			if err != nil {
-				return fmt.Errorf("%w: %v", ErrBuildFailed, err)
-			}
+		if !themeRuntimePackagePresent(extension.PackagePath) {
+			return fmt.Errorf("%w: theme requires theme.json/assets (L0/L1)", ErrBuildFailed)
 		}
 	}
 	return nil
@@ -1293,17 +1079,6 @@ func (s *Service) decorateRuntime(ctx context.Context, item Extension) Extension
 		if s.runtime != nil {
 			status := s.runtime.Status(ctx, item)
 			item.Runtime = &status
-		}
-	}
-	if item.Type == TypeTheme {
-		if release, err := s.store.LatestThemeRelease(ctx, item.ID); err == nil {
-			item.ThemeRelease = &release
-		}
-	}
-	// 带管理端前端的插件启停会排队 Web Release；挂到列表供进度条轮询。
-	if item.Type == TypePlugin && s.webReleaseProgress != nil {
-		if release, err := s.webReleaseProgress.LatestProgressWebReleaseForExtension(ctx, item.ID); err == nil {
-			item.WebRelease = webReleaseSummary(release)
 		}
 	}
 	return item
@@ -1626,11 +1401,7 @@ func resolveExtensionSettings(extension Extension, values map[string]string, loc
 	if !document.Explicit {
 		renderer.Source = "legacy_array"
 	}
-	if component, ok := legacySettingsComponent(extension.Manifest); ok {
-		renderer.Mode = extensionmanifest.SettingsUIModeComponent
-		renderer.Source = "legacy_web_release"
-		renderer.Component = &ExtensionSettingsComponent{ID: component, Kind: "legacy_web_release", APIVersion: extensionmanifest.AdminFrontendAPIVersion}
-	} else if document.UI.Component != nil {
+	if document.UI.Component != nil {
 		component := document.UI.Component
 		renderer.Component = &ExtensionSettingsComponent{ID: component.ID, Kind: "prebuilt", APIVersion: component.APIVersion, Entry: component.Entry, CSS: component.CSS}
 	}
@@ -1663,19 +1434,6 @@ func resolveExtensionSettings(extension Extension, values map[string]string, loc
 		ExtensionID: extension.ID, ExtensionType: extension.Type, ExtensionVersion: extension.Version, ExtensionStatus: extension.Status,
 		Renderer: renderer, Tabs: tabs, Groups: groups, Callouts: callouts, Items: items, Actions: actions,
 	}
-}
-
-func legacySettingsComponent(manifest Manifest) (string, bool) {
-	for _, contribution := range manifest.Contributions {
-		if contribution.Point != "admin.extension.settings.page" {
-			continue
-		}
-		var payload AdminComponentContributionPayload
-		if json.Unmarshal(contribution.Payload, &payload) == nil && strings.TrimSpace(payload.Component) != "" {
-			return strings.TrimSpace(payload.Component), true
-		}
-	}
-	return "", false
 }
 
 // sanitizeSettingValues 将 PUT 解析为完整候选集：提交值 → 已存值 → 默认。

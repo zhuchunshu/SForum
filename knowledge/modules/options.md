@@ -113,7 +113,6 @@ skin behavior without admin session.
 | `pages.registry_enabled` | `true` | Page catalog resolve + admin Pages UI |
 | `themes.runtime_l0_enabled` | `true` | L0 CSS/assets without Nuxt rebuild |
 | `themes.runtime_l1_enabled` | `true` | L1 template replace/add path |
-| `themes.layer_activation_enabled` | `false` | Legacy Nuxt Layer path (retired; keep key for rollback docs only) |
 
 ## Boundaries
 

@@ -261,13 +261,13 @@ func TestServiceInstallArchiveAllowsThemeSettingsAndAdminPages(t *testing.T) {
 	installed, err := service.InstallArchive(context.Background(), actor, ArchiveInput{
 		FileName: "starter-theme.zip",
 		Data: extensionArchive(t, validThemeManifest("starter.theme"),
-			zipFile{name: "frontend/layer/nuxt.config.ts", body: "export default defineNuxtConfig({})\n"},
+			zipFile{name: "theme.json", body: `{"schemaVersion":1,"styles":{"tokens":{}}}`},
 		),
 	})
 	if err != nil {
 		t.Fatalf("expected minimal theme manifest to install, got %v", err)
 	}
-	if installed.Type != TypeTheme || installed.Manifest.Frontend.Layer != "frontend/layer" {
+	if installed.Type != TypeTheme {
 		t.Fatalf("unexpected installed theme: %#v", installed)
 	}
 
@@ -405,7 +405,6 @@ func TestServiceListsContributionPointsAndEffectiveContributions(t *testing.T) {
 			Version:       "1.0.0",
 			Type:          TypeTheme,
 			SForumVersion: "^1.0.0",
-			Frontend:      ManifestFrontend{Layer: "layer"},
 		},
 	}
 
@@ -414,7 +413,7 @@ func TestServiceListsContributionPointsAndEffectiveContributions(t *testing.T) {
 		t.Fatalf("ContributionPoints returned error: %v", err)
 	}
 	// 与 ExtensionManifest.ContributionPointDefinitions 生产目录对齐（含 F4.3 + E2）。
-	if len(points) != 16 || points[0].ID != "forum.topic.actions" {
+	if len(points) != 10 || points[0].ID != "forum.topic.actions" {
 		t.Fatalf("unexpected contribution points: %#v", points)
 	}
 	pointIDs := make(map[string]bool, len(points))
@@ -490,10 +489,12 @@ func TestServiceSyncBuiltinsPrunesRemovedBuiltinExtensions(t *testing.T) {
 		t.Fatalf("create builtin theme root: %v", err)
 	}
 	defaultTheme := protectedBuiltinExtension(DefaultThemeID, TypeTheme)
-	defaultTheme.Manifest.Frontend = ManifestFrontend{Layer: "layer"}
 	defaultTheme.PackagePath = themeRoot
 	if err := writeManifest(themeRoot, defaultTheme.Manifest); err != nil {
 		t.Fatalf("write builtin theme manifest: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(themeRoot, "theme.json"), []byte(`{"schemaVersion":1,"styles":{"tokens":{}}}`), 0o644); err != nil {
+		t.Fatalf("write builtin theme contract: %v", err)
 	}
 
 	stalePlugin := protectedBuiltinExtension("sforum.default", TypePlugin)
@@ -522,17 +523,16 @@ func TestServiceSyncBuiltinsStoresImmutableSnapshotIdentity(t *testing.T) {
 	extensionRoot := t.TempDir()
 	themeRoot := filepath.Join(builtinRoot, "themes", "sforum-default")
 	defaultTheme := protectedBuiltinExtension(DefaultThemeID, TypeTheme)
-	defaultTheme.Manifest.Frontend = ManifestFrontend{Layer: "layer"}
-	if err := os.MkdirAll(filepath.Join(themeRoot, "layer"), 0o755); err != nil {
-		t.Fatalf("create builtin theme layer: %v", err)
+	if err := os.MkdirAll(themeRoot, 0o755); err != nil {
+		t.Fatalf("create builtin theme root: %v", err)
 	}
 	if err := writeManifest(themeRoot, defaultTheme.Manifest); err != nil {
 		t.Fatalf("write builtin theme manifest: %v", err)
 	}
-	const sourceBody = "export default defineNuxtConfig({})\n"
-	sourceLayer := filepath.Join(themeRoot, "layer", "nuxt.config.ts")
-	if err := os.WriteFile(sourceLayer, []byte(sourceBody), 0o644); err != nil {
-		t.Fatalf("write builtin theme layer: %v", err)
+	const sourceBody = `{"schemaVersion":1,"styles":{"tokens":{}}}`
+	sourceTheme := filepath.Join(themeRoot, "theme.json")
+	if err := os.WriteFile(sourceTheme, []byte(sourceBody), 0o644); err != nil {
+		t.Fatalf("write builtin theme contract: %v", err)
 	}
 	store := &fakeExtensionStore{items: map[string]Extension{}}
 	service := NewServiceWithBuiltins(store, extensionRoot, builtinRoot)
@@ -547,11 +547,11 @@ func TestServiceSyncBuiltinsStoresImmutableSnapshotIdentity(t *testing.T) {
 	if saved.PackagePath == themeRoot || !strings.HasPrefix(saved.PackagePath, filepath.Clean(extensionRoot)+string(os.PathSeparator)) {
 		t.Fatalf("builtin package was not copied below extension root: source=%q saved=%q", themeRoot, saved.PackagePath)
 	}
-	snapshotLayer := filepath.Join(saved.PackagePath, "layer", "nuxt.config.ts")
-	if err := os.WriteFile(sourceLayer, []byte("changed after sync"), 0o644); err != nil {
+	snapshotTheme := filepath.Join(saved.PackagePath, "theme.json")
+	if err := os.WriteFile(sourceTheme, []byte("changed after sync"), 0o644); err != nil {
 		t.Fatalf("change builtin source after sync: %v", err)
 	}
-	body, err := os.ReadFile(snapshotLayer)
+	body, err := os.ReadFile(snapshotTheme)
 	if err != nil {
 		t.Fatalf("read builtin snapshot layer: %v", err)
 	}
@@ -921,7 +921,7 @@ func TestUpdateSettingsRestoresSnapshotWhenPluginRestartFails(t *testing.T) {
 		settings: map[string]map[string]string{item.ID: {"name": "before"}},
 	}
 	runtime := &fakeRuntimeManager{startErr: errors.New("start failed")}
-	service := NewServiceWithRuntime(store, t.TempDir(), runtime, nil)
+	service := NewServiceWithRuntime(store, t.TempDir(), runtime)
 
 	_, err := service.UpdateSettings(context.Background(), extensionManager(), item.ID, UpdateSettingsInput{
 		Values: map[string]string{"name": "after"},
@@ -942,7 +942,7 @@ func TestResetSettingsRestoresSnapshotWhenPluginRestartFails(t *testing.T) {
 		items:    map[string]Extension{item.ID: item},
 		settings: map[string]map[string]string{item.ID: {"name": "keep"}},
 	}
-	service := NewServiceWithRuntime(store, t.TempDir(), &fakeRuntimeManager{startErr: errors.New("start failed")}, nil)
+	service := NewServiceWithRuntime(store, t.TempDir(), &fakeRuntimeManager{startErr: errors.New("start failed")})
 
 	_, err := service.ResetSettings(context.Background(), extensionManager(), item.ID, "zh-CN")
 	if err == nil {
@@ -963,7 +963,7 @@ func TestSettingsRollbackFailureReturnsDiagnosticError(t *testing.T) {
 		replaceErrAt: 2,
 		replaceErr:   errors.New("database unavailable"),
 	}
-	service := NewServiceWithRuntime(store, t.TempDir(), &fakeRuntimeManager{startErr: errors.New("start failed")}, nil)
+	service := NewServiceWithRuntime(store, t.TempDir(), &fakeRuntimeManager{startErr: errors.New("start failed")})
 
 	_, err := service.UpdateSettings(context.Background(), extensionManager(), item.ID, UpdateSettingsInput{
 		Values: map[string]string{"name": "after"},
@@ -978,7 +978,7 @@ func TestServiceEnableRunsPluginPreflightBeforeStatusChange(t *testing.T) {
 	store := &fakeExtensionStore{items: map[string]Extension{
 		"demo.plugin": withInstalledPackage(t, installedExtension("demo.plugin", TypePlugin, ManifestBackend{Entry: "backend/plugin"})),
 	}}
-	service := NewServiceWithHooks(store, t.TempDir(), fakeRuntime{err: expected}, nil)
+	service := NewServiceWithHooks(store, t.TempDir(), fakeRuntime{err: expected})
 
 	_, err := service.Enable(context.Background(), extensionManager(), "demo.plugin", EnableInput{ConfirmCapabilities: true})
 	if !errors.Is(err, ErrPreflightFailed) {
@@ -991,7 +991,7 @@ func TestServiceEnableRunsPluginPreflightBeforeStatusChange(t *testing.T) {
 		t.Fatalf("expected enable failure event, got %#v", store.events)
 	}
 
-	service = NewServiceWithHooks(store, t.TempDir(), fakeRuntime{}, nil)
+	service = NewServiceWithHooks(store, t.TempDir(), fakeRuntime{})
 	enabled, err := service.Enable(context.Background(), extensionManager(), "demo.plugin", EnableInput{ConfirmCapabilities: true})
 	if err != nil {
 		t.Fatalf("Enable returned error: %v", err)
@@ -1008,7 +1008,7 @@ func TestServiceEnableRejectsMissingInstalledPackage(t *testing.T) {
 	store := &fakeExtensionStore{items: map[string]Extension{
 		missing.ID: missing,
 	}}
-	service := NewServiceWithRuntime(store, t.TempDir(), &fakeRuntimeManager{}, nil)
+	service := NewServiceWithRuntime(store, t.TempDir(), &fakeRuntimeManager{})
 
 	_, err := service.Enable(context.Background(), extensionManager(), missing.ID, EnableInput{ConfirmCapabilities: true})
 	if !errors.Is(err, ErrPreflightFailed) {
@@ -1054,7 +1054,7 @@ func TestServiceEnableRejectsTamperedDigestBackedPackage(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			store := &fakeExtensionStore{}
 			runtime := &fakeRuntimeManager{}
-			service := NewServiceWithRuntime(store, t.TempDir(), runtime, nil)
+			service := NewServiceWithRuntime(store, t.TempDir(), runtime)
 			installed, err := service.InstallArchive(context.Background(), extensionManager(), ArchiveInput{
 				FileName: "digest.zip",
 				Data: extensionArchive(t, validManifest("digest.plugin", TypePlugin),
@@ -1083,7 +1083,7 @@ func TestServiceEnableStartsRuntimeAndRollsBackOnStartFailure(t *testing.T) {
 		"demo.plugin": withInstalledPackage(t, installedExtension("demo.plugin", TypePlugin, ManifestBackend{Entry: "backend/plugin"})),
 	}}
 	runtime := &fakeRuntimeManager{startErr: expected}
-	service := NewServiceWithRuntime(store, t.TempDir(), runtime, nil)
+	service := NewServiceWithRuntime(store, t.TempDir(), runtime)
 
 	_, err := service.Enable(context.Background(), extensionManager(), "demo.plugin", EnableInput{ConfirmCapabilities: true})
 	if !errors.Is(err, ErrRuntimeFailed) {
@@ -1108,7 +1108,7 @@ func TestServiceDisableStopsRuntimeAndListDecoratesRuntimeStatus(t *testing.T) {
 	runtime := &fakeRuntimeManager{statuses: map[string]RuntimeStatus{
 		"demo.plugin": {State: RuntimeRunning, RouteCount: 1, HookCount: 1, ProviderCount: 1},
 	}}
-	service := NewServiceWithRuntime(store, t.TempDir(), runtime, nil)
+	service := NewServiceWithRuntime(store, t.TempDir(), runtime)
 
 	items, err := service.List(context.Background(), extensionManager())
 	if err != nil {
@@ -1132,7 +1132,7 @@ func TestServiceEmitsPluginLifecycleHooks(t *testing.T) {
 		"demo.plugin": withInstalledPackage(t, installedExtension("demo.plugin", TypePlugin, ManifestBackend{Entry: "backend/plugin"})),
 	}}
 	runtime := &fakeRuntimeManager{}
-	service := NewServiceWithRuntime(store, t.TempDir(), runtime, nil)
+	service := NewServiceWithRuntime(store, t.TempDir(), runtime)
 
 	if _, err := service.Enable(context.Background(), extensionManager(), "demo.plugin", EnableInput{ConfirmCapabilities: true}); err != nil {
 		t.Fatalf("Enable returned error: %v", err)
@@ -1150,7 +1150,7 @@ func TestServiceEnableRejectsThemesBecauseThemesUseActivation(t *testing.T) {
 	store := &fakeExtensionStore{items: map[string]Extension{
 		"starter.theme": installedExtension("starter.theme", TypeTheme, ManifestBackend{}),
 	}}
-	service := NewServiceWithHooks(store, t.TempDir(), nil, fakeThemeBuilder{})
+	service := NewServiceWithHooks(store, t.TempDir(), nil)
 
 	_, err := service.Enable(context.Background(), extensionManager(), "starter.theme", EnableInput{ConfirmCapabilities: true})
 	if !errors.Is(err, ErrThemeActivationRequired) {
@@ -1161,76 +1161,13 @@ func TestServiceEnableRejectsThemesBecauseThemesUseActivation(t *testing.T) {
 	}
 }
 
-func TestServiceVerifyExtensionChecksThemeLayerWithoutActivating(t *testing.T) {
-	expected := errors.New("nuxt layer missing")
-	store := &fakeExtensionStore{items: map[string]Extension{
-		"starter.theme": withInstalledPackage(t, installedExtension("starter.theme", TypeTheme, ManifestBackend{})),
-	}}
-	service := NewServiceWithHooks(store, t.TempDir(), nil, fakeThemeBuilder{err: expected})
-
-	_, err := service.VerifyExtension(context.Background(), extensionManager(), "starter.theme")
-	if !errors.Is(err, ErrBuildFailed) {
-		t.Fatalf("expected build failure, got %v", err)
-	}
-	if store.enabledID != "" || store.activeThemeID != "" {
-		t.Fatalf("verify should not activate theme, enabled=%q active=%q", store.enabledID, store.activeThemeID)
-	}
-
-	service = NewServiceWithHooks(store, t.TempDir(), nil, fakeThemeBuilder{})
-	verified, err := service.VerifyExtension(context.Background(), extensionManager(), "starter.theme")
-	if err != nil {
-		t.Fatalf("VerifyExtension returned error: %v", err)
-	}
-	if verified.Status != StatusInstalled || store.enabledID != "" || store.activeThemeID != "" {
-		t.Fatalf("verify should keep installed theme inactive, got verified=%#v enabled=%q active=%q", verified, store.enabledID, store.activeThemeID)
-	}
-	if last := store.events[len(store.events)-1]; last.Action != EventVerified {
-		t.Fatalf("expected verify event, got %#v", store.events)
-	}
-}
-
-func TestServiceVerifyThemeAllowsIncrementalLayerWithoutPublicPages(t *testing.T) {
-	root := t.TempDir()
-	theme := uploadedExtension("incremental.theme", TypeTheme)
-	packageRoot := filepath.Join(root, theme.ID, theme.Version)
-	layerRoot := filepath.Join(packageRoot, "files", "frontend", "layer")
-	if err := os.MkdirAll(layerRoot, 0o755); err != nil {
-		t.Fatalf("create theme layer: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(layerRoot, "nuxt.config.ts"), []byte("export default defineNuxtConfig({})\n"), 0o644); err != nil {
-		t.Fatalf("write theme layer config: %v", err)
-	}
-	theme.PackagePath = filepath.Join(packageRoot, "package.zip")
-	if err := os.WriteFile(theme.PackagePath, []byte("zip"), 0o600); err != nil {
-		t.Fatalf("write uploaded package archive: %v", err)
-	}
-	if err := writeManifest(packageRoot, theme.Manifest); err != nil {
-		t.Fatalf("write uploaded manifest: %v", err)
-	}
-	store := &fakeExtensionStore{items: map[string]Extension{
-		theme.ID: theme,
-	}}
-	service := NewServiceWithHooks(store, t.TempDir(), nil, LocalThemeBuilder{})
-
-	verified, err := service.VerifyExtension(context.Background(), extensionManager(), theme.ID)
-	if err != nil {
-		t.Fatalf("incremental theme layer should verify through the default theme fallback: %v", err)
-	}
-	if verified.Status != StatusInstalled || store.activeThemeID != "" {
-		t.Fatalf("verify should keep incremental theme inactive, got verified=%#v active=%q", verified, store.activeThemeID)
-	}
-	if last := store.events[len(store.events)-1]; last.Action != EventVerified {
-		t.Fatalf("expected verify event, got %#v", store.events)
-	}
-}
-
 func TestServiceVerifyThemeMissingPackageReturnsBuildFailed(t *testing.T) {
 	missing := uploadedExtension("ghost.theme", TypeTheme)
 	missing.PackagePath = filepath.Join(t.TempDir(), "ghost.theme", "1.0.0", "package.zip")
 	store := &fakeExtensionStore{items: map[string]Extension{
 		missing.ID: missing,
 	}}
-	service := NewServiceWithHooks(store, t.TempDir(), nil, nil)
+	service := NewServiceWithHooks(store, t.TempDir(), nil)
 
 	_, err := service.VerifyExtension(context.Background(), extensionManager(), missing.ID)
 	if !errors.Is(err, ErrBuildFailed) {
@@ -1254,7 +1191,7 @@ func TestServiceVerifyThemeMissingManifestReturnsBuildFailed(t *testing.T) {
 	store := &fakeExtensionStore{items: map[string]Extension{
 		missing.ID: missing,
 	}}
-	service := NewServiceWithHooks(store, t.TempDir(), nil, nil)
+	service := NewServiceWithHooks(store, t.TempDir(), nil)
 
 	_, err := service.VerifyExtension(context.Background(), extensionManager(), missing.ID)
 	if !errors.Is(err, ErrBuildFailed) {
@@ -1268,7 +1205,6 @@ func TestServiceVerifyThemeMissingManifestReturnsBuildFailed(t *testing.T) {
 func TestServiceVerifyThemeMissingManifestLayerReturnsBuildFailed(t *testing.T) {
 	// 无 layer 且无 theme.json/assets 时仍应失败。
 	theme := withInstalledPackage(t, installedExtension("layerless.theme", TypeTheme, ManifestBackend{}))
-	theme.Manifest.Frontend.Layer = ""
 	// 上传包：PackagePath 是 package.zip；manifest 在同级目录。
 	root := filepath.Dir(theme.PackagePath)
 	if err := writeManifest(root, theme.Manifest); err != nil {
@@ -1280,7 +1216,7 @@ func TestServiceVerifyThemeMissingManifestLayerReturnsBuildFailed(t *testing.T) 
 	store := &fakeExtensionStore{items: map[string]Extension{
 		theme.ID: theme,
 	}}
-	service := NewServiceWithHooks(store, t.TempDir(), nil, nil)
+	service := NewServiceWithHooks(store, t.TempDir(), nil)
 
 	_, err := service.VerifyExtension(context.Background(), extensionManager(), theme.ID)
 	if !errors.Is(err, ErrBuildFailed) {
@@ -1291,64 +1227,12 @@ func TestServiceVerifyThemeMissingManifestLayerReturnsBuildFailed(t *testing.T) 
 	}
 }
 
-func TestServiceVerifyThemeMissingLayerReturnsBuildFailed(t *testing.T) {
-	store := &fakeExtensionStore{items: map[string]Extension{
-		"ghost.theme": withInstalledPackage(t, installedExtension("ghost.theme", TypeTheme, ManifestBackend{})),
-	}}
-	service := NewServiceWithHooks(store, t.TempDir(), nil, nil)
-
-	_, err := service.VerifyExtension(context.Background(), extensionManager(), "ghost.theme")
-	if !errors.Is(err, ErrBuildFailed) {
-		t.Fatalf("expected missing theme layer build failure, got %v", err)
-	}
-	if last := store.events[len(store.events)-1]; last.Action != EventEnableFailed || last.Message == "" {
-		t.Fatalf("expected verify failure event, got %#v", store.events)
-	}
-}
-
-func TestThemeReleaseLifecycleStoresBuildState(t *testing.T) {
-	store := newFakeExtensionStore(map[string]Extension{
-		"starter.theme": withInstalledPackage(t, installedExtension("starter.theme", TypeTheme, ManifestBackend{})),
-	})
-	release, err := store.CreateThemeRelease(context.Background(), ThemeReleaseInput{
-		ExtensionID: "starter.theme",
-		Version:     "1.0.0",
-		LayerPath:   "/themes/starter/layer",
-	})
-	if err != nil {
-		t.Fatalf("create theme release: %v", err)
-	}
-	if release.Status != ThemeReleaseQueued {
-		t.Fatalf("expected queued release, got %q", release.Status)
-	}
-	updated, err := store.UpdateThemeRelease(context.Background(), ThemeReleaseUpdate{
-		ID:           release.ID,
-		Status:       ThemeReleaseBuilt,
-		ArtifactPath: "/var/lib/sforum/theme-releases/releases/1/.output",
-		Message:      "build passed",
-	})
-	if err != nil {
-		t.Fatalf("update theme release: %v", err)
-	}
-	if updated.Status != ThemeReleaseBuilt || updated.ArtifactPath == "" {
-		t.Fatalf("expected built artifact, got %#v", updated)
-	}
-	latest, err := store.LatestThemeRelease(context.Background(), "starter.theme")
-	if err != nil {
-		t.Fatalf("latest theme release: %v", err)
-	}
-	if latest.ID != release.ID {
-		t.Fatalf("expected latest release %d, got %d", release.ID, latest.ID)
-	}
-}
-
 func TestServiceActivateThemeActivatesUploadedThemeImmediately(t *testing.T) {
-	// Runtime Page Registry：上传主题同步激活，不再排队 Nuxt/Web Release 构建。
+	// Runtime Page Registry：上传主题同步激活，不触发 Nuxt 构建。
 	store := newFakeExtensionStore(map[string]Extension{
 		"starter.theme": withInstalledPackage(t, installedExtension("starter.theme", TypeTheme, ManifestBackend{})),
 	})
-	dispatcher := &fakeThemeActivationDispatcher{}
-	service := NewServiceWithThemeActivation(store, t.TempDir(), "", LocalRuntimeManager{}, fakeThemeBuilder{}, dispatcher)
+	service := NewServiceWithOptions(store, t.TempDir(), "", LocalRuntimeManager{})
 
 	active, err := service.ActivateTheme(context.Background(), extensionManager(), "starter.theme")
 	if err != nil {
@@ -1357,19 +1241,13 @@ func TestServiceActivateThemeActivatesUploadedThemeImmediately(t *testing.T) {
 	if active.Status != StatusEnabled || store.activeThemeID != "starter.theme" {
 		t.Fatalf("expected uploaded theme active immediately, got active=%#v activeID=%q", active, store.activeThemeID)
 	}
-	if dispatcher.releaseID != 0 {
-		t.Fatalf("runtime activate must not enqueue theme build, got release=%d", dispatcher.releaseID)
-	}
-	if active.ThemeRelease != nil {
-		t.Fatalf("runtime activate must not attach theme release progress, got %#v", active.ThemeRelease)
-	}
 }
 
 func TestServiceActivateThemeRestoresBuiltinDefaultThemeImmediately(t *testing.T) {
 	store := &fakeExtensionStore{items: map[string]Extension{
 		DefaultThemeID: withInstalledPackage(t, protectedBuiltinExtension(DefaultThemeID, TypeTheme)),
 	}}
-	service := NewServiceWithHooks(store, t.TempDir(), nil, fakeThemeBuilder{})
+	service := NewServiceWithHooks(store, t.TempDir(), nil)
 
 	active, err := service.ActivateTheme(context.Background(), extensionManager(), DefaultThemeID)
 	if err != nil {
@@ -1380,55 +1258,6 @@ func TestServiceActivateThemeRestoresBuiltinDefaultThemeImmediately(t *testing.T
 	}
 	if last := store.events[len(store.events)-1]; last.Action != EventThemeActivated {
 		t.Fatalf("expected theme activated event, got %#v", store.events)
-	}
-}
-
-func TestServiceActivateThemeDoesNotWriteThemeCurrentPointer(t *testing.T) {
-	// P5：公开主题激活不得写 theme-releases/current.json（不再蓝绿切换 Nitro）。
-	store := &fakeExtensionStore{items: map[string]Extension{
-		DefaultThemeID: withInstalledPackage(t, protectedBuiltinExtension(DefaultThemeID, TypeTheme)),
-	}}
-	writer := &fakeThemeCurrentWriter{}
-	service := NewServiceWithThemeActivationWithOptions(store, t.TempDir(), "", LocalRuntimeManager{}, fakeThemeBuilder{}, nil, WithThemeCurrentWriter(writer))
-
-	active, err := service.ActivateTheme(context.Background(), extensionManager(), DefaultThemeID)
-	if err != nil {
-		t.Fatalf("ActivateTheme returned error: %v", err)
-	}
-	if active.ID != DefaultThemeID {
-		t.Fatalf("expected default theme active, got %#v", active)
-	}
-	if writer.calls != 0 {
-		t.Fatalf("runtime theme activate must not WriteCurrent, got calls=%d current=%#v", writer.calls, writer.current)
-	}
-}
-
-// 切回默认主题（同步路径）必须把之前 active 的上传主题 release 置为 rolled_back，
-// 否则前端会继续把它当作"当前主题"显示 100% 进度。
-func TestServiceActivateThemeRestoresBuiltinRollsBackUploadedRelease(t *testing.T) {
-	store := &fakeExtensionStore{items: map[string]Extension{
-		DefaultThemeID: withInstalledPackage(t, protectedBuiltinExtension(DefaultThemeID, TypeTheme)),
-	}}
-	// 预置一条 signal-garden 的 active release，模拟"切回默认"之前的状态。
-	store.releases = append(store.releases, ThemeRelease{
-		ID:          42,
-		ExtensionID: "sforum.signal-garden",
-		Status:      ThemeReleaseActive,
-	})
-	service := NewServiceWithThemeActivationWithOptions(store, t.TempDir(), "", LocalRuntimeManager{}, fakeThemeBuilder{}, nil)
-
-	_, err := service.ActivateTheme(context.Background(), extensionManager(), DefaultThemeID)
-	if err != nil {
-		t.Fatalf("ActivateTheme returned error: %v", err)
-	}
-	var rolledBack *ThemeRelease
-	for i := range store.releases {
-		if store.releases[i].ID == 42 {
-			rolledBack = &store.releases[i]
-		}
-	}
-	if rolledBack == nil || rolledBack.Status != ThemeReleaseRolledBack {
-		t.Fatalf("expected uploaded release #42 rolled back, got %#v", store.releases)
 	}
 }
 
@@ -1454,7 +1283,7 @@ func TestServiceEnsureDefaultThemeActiveRepairsUnsafeThemeState(t *testing.T) {
 		},
 	}}
 	store.activeThemeID = "starter.theme"
-	service := NewServiceWithHooks(store, t.TempDir(), nil, fakeThemeBuilder{})
+	service := NewServiceWithHooks(store, t.TempDir(), nil)
 
 	active, err := service.EnsureDefaultThemeActive(context.Background())
 	if err != nil {
@@ -1530,7 +1359,6 @@ func validManifest(id string, extensionType string) string {
 		"settings": [{"key": "demo.enabled", "label": "Enabled", "type": "boolean"}],
 		"migrations": [{"path": "migrations/001_init.sql"}],
 		"backend": {"entry": "backend/plugin", "rpc": "hashicorp-go-plugin"},
-		"frontend": {"layer": "frontend/layer"},
 		"adminPages": [{"path": "/demo", "label": "Demo", "permission": "extension.demo.manage"}],
 		"routes": [{"path": "/hello", "methods": ["GET"]}],
 		"hooks": [{"name": "topic.created"}],
@@ -1547,8 +1375,7 @@ func validThemeManifest(id string) string {
 		"author": {"name": "SForum Team", "url": "https://example.com", "email": "dev@example.com"},
 		"version": "1.0.0",
 		"type": "theme",
-		"sforumVersion": "^1.0.0",
-		"frontend": {"layer": "frontend/layer"}
+		"sforumVersion": "^1.0.0"
 	}`
 }
 
@@ -1601,6 +1428,7 @@ func withInstalledPackage(t *testing.T, item Extension) Extension {
 		if err := writeManifest(root, item.Manifest); err != nil {
 			t.Fatalf("write builtin manifest: %v", err)
 		}
+		writeTestThemeContract(t, root, item)
 		return item
 	}
 
@@ -1615,7 +1443,18 @@ func withInstalledPackage(t *testing.T, item Extension) Extension {
 	if err := writeManifest(root, item.Manifest); err != nil {
 		t.Fatalf("write uploaded manifest: %v", err)
 	}
+	writeTestThemeContract(t, root, item)
 	return item
+}
+
+func writeTestThemeContract(t *testing.T, root string, item Extension) {
+	t.Helper()
+	if item.Type != TypeTheme {
+		return
+	}
+	if err := os.WriteFile(filepath.Join(root, "theme.json"), []byte(`{"schemaVersion":1,"styles":{"tokens":{}}}`), 0o644); err != nil {
+		t.Fatalf("write theme contract: %v", err)
+	}
 }
 
 func installedExtension(id string, extensionType string, backend ManifestBackend) Extension {
@@ -1635,7 +1474,6 @@ func installedExtension(id string, extensionType string, backend ManifestBackend
 			Type:          extensionType,
 			SForumVersion: "^1.0.0",
 			Backend:       backend,
-			Frontend:      ManifestFrontend{Layer: "frontend/layer"},
 		},
 		PackagePath: "/tmp/demo.zip",
 		InstalledAt: time.Now(),
@@ -1785,38 +1623,6 @@ func (r *fakeRuntimeManager) EmitHook(_ context.Context, name string, _ map[stri
 	r.hooks = append(r.hooks, name)
 }
 
-type fakeThemeBuilder struct {
-	err error
-}
-
-func (b fakeThemeBuilder) Build(context.Context, Extension) error {
-	return b.err
-}
-
-type fakeThemeActivationDispatcher struct {
-	releaseID   int64
-	extensionID string
-	err         error
-}
-
-func (d *fakeThemeActivationDispatcher) EnqueueThemeActivation(_ context.Context, release ThemeRelease) error {
-	d.releaseID = release.ID
-	d.extensionID = release.ExtensionID
-	return d.err
-}
-
-type fakeThemeCurrentWriter struct {
-	current ThemeCurrentPointer
-	calls   int
-	err     error
-}
-
-func (w *fakeThemeCurrentWriter) WriteCurrent(_ context.Context, current ThemeCurrentPointer) error {
-	w.calls++
-	w.current = current
-	return w.err
-}
-
 type fakeExtensionStore struct {
 	items         map[string]Extension
 	saved         Extension
@@ -1830,8 +1636,6 @@ type fakeExtensionStore struct {
 	beforeCAS     func()
 	events        []ExtensionEvent
 	deliveries    []ExtensionEventDelivery
-	releases      []ThemeRelease
-	nextReleaseID int64
 	// migrations 按 extension_id 存账本（F2.4）。
 	migrations map[string][]MigrationRecord
 }
@@ -1853,73 +1657,6 @@ func (s *fakeExtensionStore) Get(_ context.Context, id string) (Extension, error
 		return item, nil
 	}
 	return Extension{}, ErrExtensionNotFound
-}
-
-func (s *fakeExtensionStore) CreateThemeRelease(_ context.Context, input ThemeReleaseInput) (ThemeRelease, error) {
-	if _, ok := s.items[input.ExtensionID]; !ok {
-		return ThemeRelease{}, ErrExtensionNotFound
-	}
-	s.nextReleaseID++
-	now := time.Now()
-	release := ThemeRelease{
-		ID:               s.nextReleaseID,
-		ExtensionID:      input.ExtensionID,
-		ExtensionVersion: input.Version,
-		Status:           ThemeReleaseQueued,
-		LayerPath:        input.LayerPath,
-		CreatedAt:        now,
-		UpdatedAt:        now,
-	}
-	s.releases = append(s.releases, release)
-	return release, nil
-}
-
-func (s *fakeExtensionStore) UpdateThemeRelease(_ context.Context, input ThemeReleaseUpdate) (ThemeRelease, error) {
-	for index := range s.releases {
-		if s.releases[index].ID != input.ID {
-			continue
-		}
-		if input.Status == ThemeReleaseActive {
-			for current := range s.releases {
-				if s.releases[current].Status == ThemeReleaseActive && s.releases[current].ID != input.ID {
-					s.releases[current].Status = ThemeReleaseRolledBack
-					s.releases[current].UpdatedAt = time.Now()
-				}
-			}
-			activatedAt := time.Now()
-			s.releases[index].ActivatedAt = &activatedAt
-		}
-		s.releases[index].Status = input.Status
-		if input.ArtifactPath != "" {
-			s.releases[index].ArtifactPath = input.ArtifactPath
-		}
-		if input.ServerEntry != "" {
-			s.releases[index].ServerEntry = input.ServerEntry
-		}
-		s.releases[index].Message = input.Message
-		s.releases[index].BuildLog = input.BuildLog
-		s.releases[index].UpdatedAt = time.Now()
-		return s.releases[index], nil
-	}
-	return ThemeRelease{}, ErrExtensionNotFound
-}
-
-func (s *fakeExtensionStore) LatestThemeRelease(_ context.Context, extensionID string) (ThemeRelease, error) {
-	for index := len(s.releases) - 1; index >= 0; index-- {
-		if s.releases[index].ExtensionID == extensionID {
-			return s.releases[index], nil
-		}
-	}
-	return ThemeRelease{}, ErrExtensionNotFound
-}
-
-func (s *fakeExtensionStore) ActiveThemeRelease(context.Context) (ThemeRelease, error) {
-	for index := len(s.releases) - 1; index >= 0; index-- {
-		if s.releases[index].Status == ThemeReleaseActive {
-			return s.releases[index], nil
-		}
-	}
-	return ThemeRelease{}, ErrExtensionNotFound
 }
 
 func (s *fakeExtensionStore) SaveInstalled(_ context.Context, input SaveInstalledInput) (Extension, error) {
@@ -2209,37 +1946,4 @@ func (s *fakeExtensionStore) ListEventDeliveries(_ context.Context, input EventD
 		items = append(items, delivery)
 	}
 	return items, nil
-}
-
-type fakeWebReleaseProgressReader struct {
-	byID map[string]WebRelease
-}
-
-func (f *fakeWebReleaseProgressReader) LatestProgressWebReleaseForExtension(_ context.Context, extensionID string) (WebRelease, error) {
-	if release, ok := f.byID[extensionID]; ok {
-		return release, nil
-	}
-	return WebRelease{}, ErrWebReleaseNotFound
-}
-
-func TestServiceListAttachesPluginWebReleaseProgress(t *testing.T) {
-	store := &fakeExtensionStore{items: map[string]Extension{
-		"demo.plugin": {
-			ID: "demo.plugin", Name: "Demo", Version: "1.0.0", Type: TypePlugin, Status: StatusDisabled,
-		},
-	}}
-	service := NewServiceWithThemeActivationWithOptions(
-		store, t.TempDir(), "", LocalRuntimeManager{}, fakeThemeBuilder{}, nil,
-		WithWebReleaseProgress(&fakeWebReleaseProgressReader{byID: map[string]WebRelease{
-			"demo.plugin": {ID: 9, Status: WebReleaseBuilding, TriggerKind: WebReleaseTriggerPluginEnable, TriggerExtensionID: "demo.plugin", CompositionHash: "hash", ReloadMode: WebReleaseReloadPrompt},
-		}}),
-	)
-
-	items, err := service.List(context.Background(), extensionManager())
-	if err != nil {
-		t.Fatalf("List returned error: %v", err)
-	}
-	if len(items) != 1 || items[0].WebRelease == nil || items[0].WebRelease.ID != 9 || items[0].WebRelease.Status != WebReleaseBuilding {
-		t.Fatalf("expected plugin web release progress on list item, got %#v", items)
-	}
 }

@@ -6,7 +6,7 @@ surfaces, cyan accent, and soft card chrome.
 - ID: `sforum.nocturne-theme`
 - Type: `theme`
 - Format: **runtime L0/L1** (`theme.json` + CSS + HTML templates)
-- No Nuxt Layer, no Web Release, no site rebuild on activate
+- Activation does not build or restart the host
 
 ## Package layout
 

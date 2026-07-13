@@ -5,11 +5,10 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/riverqueue/river"
 
+	jobscontroller "github.com/zhuchunshu/sforum/apps/api/app/Http/Controllers/Jobs"
 	attachmentjobs "github.com/zhuchunshu/sforum/apps/api/app/Jobs/Attachments"
 	auditjobs "github.com/zhuchunshu/sforum/apps/api/app/Jobs/Audit"
-	extensionjobs "github.com/zhuchunshu/sforum/apps/api/app/Jobs/Extensions"
 	identityjobs "github.com/zhuchunshu/sforum/apps/api/app/Jobs/Identity"
-	jobscontroller "github.com/zhuchunshu/sforum/apps/api/app/Http/Controllers/Jobs"
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
 	jobs "github.com/zhuchunshu/sforum/apps/api/app/Models/Jobs"
 	authsession "github.com/zhuchunshu/sforum/apps/api/app/Support/AuthSession"
@@ -33,9 +32,6 @@ func coreScheduleConstructors() map[string]jobs.ScheduleConstructor {
 	return map[string]jobs.ScheduleConstructor{
 		supportjobs.ScheduleIdentityCleanupSessions: func() (river.JobArgs, *river.InsertOpts) {
 			return identityjobs.CleanupSessionsArgs{}, nil
-		},
-		supportjobs.ScheduleExtensionWebReleaseCleanup: func() (river.JobArgs, *river.InsertOpts) {
-			return extensionjobs.WebReleaseCleanupArgs{}, nil
 		},
 		supportjobs.ScheduleAttachmentsCleanupOrphans: func() (river.JobArgs, *river.InsertOpts) {
 			return attachmentjobs.CleanupOrphansArgs{}, nil

@@ -102,13 +102,13 @@ func TestFilesIncludesImmutableExtensionVersionsMigration(t *testing.T) {
 	t.Fatalf("expected embedded migration %s", expected)
 }
 
-func TestFilesIncludesTrustedAdminWebReleasesMigration(t *testing.T) {
+func TestFilesIncludesAdminFrontendTrustGrantsMigration(t *testing.T) {
 	entries, err := fs.ReadDir(Files(), ".")
 	if err != nil {
 		t.Fatalf("read embedded migrations: %v", err)
 	}
 
-	const expected = "202607100005_trusted_admin_web_releases.sql"
+	const expected = "202607100005_admin_frontend_trust_grants.sql"
 	for _, entry := range entries {
 		if entry.Name() == expected {
 			return
@@ -117,24 +117,25 @@ func TestFilesIncludesTrustedAdminWebReleasesMigration(t *testing.T) {
 	t.Fatalf("expected embedded migration %s", expected)
 }
 
-func TestTrustedAdminWebReleasesMigrationKeepsImmutableHistory(t *testing.T) {
-	body, err := fs.ReadFile(Files(), "202607100005_trusted_admin_web_releases.sql")
+func TestAdminFrontendTrustMigrationBindsImmutableDigest(t *testing.T) {
+	body, err := fs.ReadFile(Files(), "202607100005_admin_frontend_trust_grants.sql")
 	if err != nil {
-		t.Fatalf("read trusted admin web release migration: %v", err)
+		t.Fatalf("read admin frontend trust migration: %v", err)
 	}
 	sql := strings.Join(strings.Fields(string(body)), " ")
 	for _, clause := range []string{
-		"composition_snapshot JSONB NOT NULL",
-		"CREATE INDEX web_releases_live_composition_idx",
-		"web_release_id BIGINT NOT NULL REFERENCES web_releases(id) ON DELETE RESTRICT",
+		"admin_frontend_digest TEXT NOT NULL",
+		"api_version INTEGER NOT NULL",
+		"component_ids JSONB NOT NULL",
 		"granted_by_user_id BIGINT REFERENCES users(id) ON DELETE SET NULL",
+		"extension_id, extension_version, api_version, admin_frontend_digest",
 	} {
 		if !strings.Contains(sql, clause) {
-			t.Fatalf("trusted admin migration missing %q", clause)
+			t.Fatalf("admin frontend trust migration missing %q", clause)
 		}
 	}
-	if strings.Contains(sql, "web_release_id BIGINT NOT NULL REFERENCES web_releases(id) ON DELETE CASCADE") {
-		t.Fatal("web release snapshots and events must not cascade-delete immutable history")
+	if strings.Contains(sql, "web_releases") {
+		t.Fatal("admin frontend trust migration must not recreate Web Release tables")
 	}
 }
 

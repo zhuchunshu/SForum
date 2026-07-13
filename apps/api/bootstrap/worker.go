@@ -13,7 +13,6 @@ import (
 
 	attachmentjobs "github.com/zhuchunshu/sforum/apps/api/app/Jobs/Attachments"
 	auditjobs "github.com/zhuchunshu/sforum/apps/api/app/Jobs/Audit"
-	extensionjobs "github.com/zhuchunshu/sforum/apps/api/app/Jobs/Extensions"
 	forumjobs "github.com/zhuchunshu/sforum/apps/api/app/Jobs/Forum"
 	identityjobs "github.com/zhuchunshu/sforum/apps/api/app/Jobs/Identity"
 	notificationjobs "github.com/zhuchunshu/sforum/apps/api/app/Jobs/Notifications"
@@ -34,7 +33,6 @@ import (
 	humanverify "github.com/zhuchunshu/sforum/apps/api/app/Support/HumanVerify"
 	supportjobs "github.com/zhuchunshu/sforum/apps/api/app/Support/Jobs"
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Postgres"
-	webreleaseruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/WebReleaseRuntime"
 	"github.com/zhuchunshu/sforum/apps/api/config"
 )
 
@@ -214,25 +212,6 @@ func newWorkerWithPool(cfg config.Config, pool *pgxpool.Pool, logger *slog.Logge
 		Migrator:  webhookStore,
 		AllowHTTP: !strings.EqualFold(cfg.AppEnv, "production"),
 	})
-	webReleaseStore := extensions.NewPostgresWebReleaseStore(pool)
-	// P5：不再注册 extension.theme_activate worker；主题激活走 Page Registry 同步路径。
-	webReleaseBuilder := webreleaseruntime.NewBuilder(webreleaseruntime.Config{
-		ReleaseRoot:   cfg.WebReleaseRoot,
-		WebRoot:       cfg.WebReleaseWebRoot,
-		ExtensionRoot: cfg.ExtensionRoot,
-		// 公开主题 Layer 已退役；Web Release 仅打包可信管理端插件前端。
-		DefaultThemeLayer: "",
-		BunPath:           cfg.WebReleaseBunPath,
-		BuildTimeout:      cfg.WebReleaseBuildTimeout,
-		PreviewTimeout:    cfg.WebReleasePreviewTimeout,
-		PreviewPath:       cfg.WebReleasePreviewPath,
-		// 回退：options 不可读时用 env；正常路径读 web_options.web_release.typecheck_fail。
-		TypecheckFail:   cfg.WebReleaseTypecheckFail,
-		TypecheckPolicy: webReleaseTypecheckPolicy{options: workerOptions},
-		HostPeers:       webreleaseruntime.HostPeers(),
-	})
-	extensionjobs.RegisterWebReleaseBuildWorker(registry, webReleaseStore, webReleaseBuilder, postgres.NewAdvisoryLocker(pool))
-	extensionjobs.RegisterWebReleaseCleanupWorker(registry, webReleaseStore, cfg.WebReleaseRoot)
 	// 孤儿附件清理：handler 已存在，F1 通过 schedule registry 挂上 daily maintenance。
 	// 与 API 相同：插件存储路径需注入 runtime（E6.2）。
 	attachmentStore := attachments.NewPostgresStore(pool)
@@ -274,12 +253,6 @@ func newWorkerWithPool(cfg config.Config, pool *pgxpool.Pool, logger *slog.Logge
 			supportjobs.ScheduleIdentityCleanupSessions,
 			func() (river.JobArgs, *river.InsertOpts) {
 				return identityjobs.CleanupSessionsArgs{}, nil
-			},
-		),
-		supportjobs.ScheduleExtensionWebReleaseCleanup: wrapEnabled(
-			supportjobs.ScheduleExtensionWebReleaseCleanup,
-			func() (river.JobArgs, *river.InsertOpts) {
-				return extensionjobs.WebReleaseCleanupArgs{}, nil
 			},
 		),
 		supportjobs.ScheduleAttachmentsCleanupOrphans: wrapEnabled(
@@ -413,22 +386,4 @@ func (w *Worker) Close() {
 			w.close()
 		}
 	})
-}
-
-// webReleaseTypecheckPolicy 从 web_options 解析 typecheck 是否硬失败。
-type webReleaseTypecheckPolicy struct {
-	options interface {
-		WebReleaseTypecheckMode(context.Context) (string, error)
-	}
-}
-
-func (p webReleaseTypecheckPolicy) TypecheckMode(ctx context.Context) string {
-	if p.options == nil {
-		return "report"
-	}
-	mode, err := p.options.WebReleaseTypecheckMode(ctx)
-	if err != nil {
-		return "report"
-	}
-	return mode
 }

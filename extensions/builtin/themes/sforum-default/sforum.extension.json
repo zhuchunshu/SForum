@@ -1,7 +1,7 @@
 {
   "id": "sforum.default-theme",
   "name": "SForum Default Theme",
-  "description": "The protected default SForum public theme (runtime L0/L1 + host pages; optional admin frontend).",
+  "description": "The protected default SForum public theme (runtime L0/L1 + host pages).",
   "url": "https://sforum.local/themes/sforum-default",
   "author": {
     "name": "SForum Team",
@@ -21,8 +21,6 @@
   },
   "includes": {
     "settings": "manifest/settings.json",
-    "admin": "manifest/admin.json",
-    "frontend": "manifest/frontend.json",
-    "contributions": "manifest/contributions.json"
+    "admin": "manifest/admin.json"
   }
 }

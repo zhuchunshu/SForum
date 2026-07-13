@@ -15,8 +15,8 @@ This is the entry point for project memory.
   - Handoff: `knowledge/sessions/2026-07-13-buildless-extension-settings-ui-plan.md`
   - Schema/Actions are host-rendered with no build; complex admin UI is
     author-prebuilt and dynamically loaded after digest-bound trust
-  - Legacy arrays and trusted Vue Web Release remain compatible; dedicated
-    `adminFrontendDigest` avoids unrelated host builds
+  - Legacy settings arrays remain compatible; trusted Vue Web Release and
+    runtime Nuxt Layer paths are intentionally removed before first release
   - SMTP/default theme migrated; Admin Micro-frontend API v1, SDK, CLI,
     OpenAPI, fixtures, docs, and fallback are implemented
 
@@ -672,29 +672,15 @@ This is the entry point for project memory.
   reference package, `make:plugin --complex`, and `extension validate`. See
   `decisions/2026-07-12-extension-manifest-split.md`. Plugins use
   enable/disable semantics; themes use activation semantics with exactly one
-  active theme. Uploaded Nuxt Layer themes can now be activated through a
-  single-node self-hosted runtime: the API creates an `extension_theme_releases`
-  row and queues a River `extension.theme_activate` job, the worker builds an
-  isolated Nuxt/Nitro artifact and health-checks it, and the web supervisor
-  follows `theme-releases/current.json` to switch Nitro servers while keeping
-  the previous release available. The Themes page and Extensions overview both
-  show queued/building/switching progress and poll while a theme activation is
-  active. Uploaded themes are incremental Nuxt Layer overlays: their files
-  override the protected default theme, and missing pages, layouts, components,
-  or assets inherit from `sforum.default-theme`.
-  Theme runtime now converges on `theme-releases/current.json` as the single
-  selection signal for both production and local dev. `current.json` carries
-  `mode` (`uploaded`/`default`), an absolute `server` (Nitro entry for
-  production runtime.mjs), and an absolute `layerPath` (Nuxt Layer source for
-  local dev). Restoring the built-in default theme now writes a `default`
-  current.json synchronously from the API service, and local `bun run dev` is a
-  theme-aware supervisor (`dev-theme-runtime.mjs`). Production `runtime.mjs`
-  keeps blue-green Nitro switching and preserves the old server when a
-  candidate fails. Local development intentionally owns one `nuxt dev`
-  process: a `current.json` change clears the proxy target, stops and waits for
-  the old process group, then starts the latest layer. Local switching has a
-  brief development-only outage because parallel Nuxt dev instances would
-  share the build lock, generated output, cache, and HMR resources.
+  active theme. Themes are buildless `theme.json` + assets/templates packages.
+  Activation synchronously replaces Page Registry bindings and active skin
+  assets without a worker, Nuxt build, supervisor, or Nitro restart. Plugin
+  enable/disable is also synchronous.
+  Settings use the shared versioned Settings Document and host renderer;
+  complex settings may load package-local prebuilt components after explicit
+  digest-bound trust. Trusted Vue registries, Web Release, runtime theme Layer,
+  extension frontend builds, release tables/queues/storage, and their admin UI
+  were removed before first release.
   Plugin runtime v1 now starts enabled plugin subprocesses through HashiCorp
   go-plugin, proxies declared plugin routes, emits lifecycle hooks, and exposes
   provider slot defaults. Built-in sync prunes stale built-in extension rows,
@@ -722,18 +708,11 @@ This is the entry point for project memory.
   resolves to an in-admin route, `mail.provider` is the first recommended full
   vertical slice, and theme activation still needs future preview approval,
   richer build logs, rollback UI, and multi-node rollout support.
-- Trusted admin plugin runtime architecture is accepted but not implemented.
-  Uploaded plugin Vue components will be treated as fully trusted, client-only
-  admin code: a `super_admin` grant is bound to the exact package digest,
-  validated manifest contributions provide SSR-safe slot metadata, a generated
-  static registry maps component IDs, and one unified Web Release Runtime owns
-  the active theme plus trusted plugin set. Workers build artifacts, the API
-  coordinates plugin runtime and activation, and the web supervisor publishes
-  the actual active acknowledgement. The River job monitoring module is a
-  separate follow-up project and will register the first production component
-  slots. Decision:
-  `decisions/2026-07-10-trusted-admin-plugin-runtime.md`; specification:
-  `../docs/superpowers/specs/2026-07-10-trusted-admin-plugin-runtime-design.md`.
+- Trusted admin settings components use Admin Micro-frontend API v1 only:
+  author-prebuilt package-local modules, explicit `super_admin` confirmation,
+  immutable digest grants, authenticated asset aliases, cleanup/quarantine,
+  and mandatory Schema fallback. There are no executable admin contribution
+  slots or runtime frontend builds.
 - Architecture guidance now treats SForum core as the host framework rather
   than a monolith of optional product verticals. Core should expose the stable
   interfaces that make plugins easy to build: events, provider slots, typed
@@ -894,9 +873,14 @@ This is the entry point for project memory.
   optional `includes`, directory-per-locale identity `langs`, settings shards,
   `LoadPackage`, `make:plugin --complex`, `extension validate` (plan under
   `docs/superpowers/plans/2026-07-12-extension-manifest-split.md`).
-- `decisions/2026-07-10-trusted-admin-plugin-runtime.md` - accepted build-time
-  trusted admin component runtime, digest grants, manifest contribution
-  metadata, and unified Web Release ownership; implementation is pending.
+- `decisions/2026-07-13-buildless-extension-settings-ui.md` - implemented
+  Settings Document, Schema/Actions, and Admin Micro-frontend API v1.
+- `decisions/2026-07-13-remove-legacy-web-release.md` - implemented removal of
+  runtime frontend builds, trusted Vue slots, Web Release, and Nuxt Layer
+  activation before first release.
+- `decisions/2026-07-10-trusted-admin-plugin-runtime.md` - superseded historical
+  build-time design; execution path removed by
+  `decisions/2026-07-13-remove-legacy-web-release.md`.
 - `decisions/2026-07-06-plugin-enable-theme-activate-default-theme.md` -
   accepted plugin enable vs theme activate semantics and default-theme public
   UI ownership.

@@ -171,14 +171,13 @@ func TestLoadPackageDualSourceFails(t *testing.T) {
 	}
 }
 
-func TestLoadPackageSettingsAndContributions(t *testing.T) {
+func TestLoadPackageSettingsContributionsAndAdmin(t *testing.T) {
 	root := t.TempDir()
 	identity := baseIdentity()
 	identity["includes"] = map[string]any{
 		"settings":      "manifest/settings.json",
 		"contributions": "manifest/contributions.json",
 		"admin":         "manifest/admin.json",
-		"frontend":      "manifest/frontend.json",
 	}
 	writePackage(t, root, map[string]string{
 		ManifestFileName: mustJSON(t, identity),
@@ -188,11 +187,11 @@ func TestLoadPackageSettingsAndContributions(t *testing.T) {
 			"type":  "text",
 		}}),
 		"manifest/contributions.json": mustJSON(t, []map[string]any{{
-			"point": "admin.extension.settings.page",
-			"id":    "custom-page",
-			"order": 10,
-			"label": map[string]string{"zh-CN": "自定义页", "en-US": "Custom page"},
-			"payload": map[string]string{"component": "custom-page"},
+			"point":   PointAdminDashboardWidgets,
+			"id":      "custom-link",
+			"order":   10,
+			"label":   map[string]string{"zh-CN": "自定义链接", "en-US": "Custom link"},
+			"payload": map[string]string{"type": "adminLink", "route": "/extensions"},
 		}}),
 		"manifest/admin.json": mustJSON(t, map[string]any{
 			"entry": "/settings",
@@ -201,18 +200,6 @@ func TestLoadPackageSettingsAndContributions(t *testing.T) {
 				"label": "Settings",
 				"view":  "settings",
 			}},
-		}),
-		"manifest/frontend.json": mustJSON(t, map[string]any{
-			"admin": map[string]any{
-				"root":       "frontend/admin",
-				"apiVersion": 1,
-				"components": map[string]string{"custom-page": "components/CustomPage.vue"},
-				// frontend.admin 要求至少 zh-CN / en-US 两份 locale 映射。
-				"locales": map[string]string{
-					"zh-CN": "locales/zh-CN.json",
-					"en-US": "locales/en-US.json",
-				},
-			},
 		}),
 	})
 
@@ -228,9 +215,6 @@ func TestLoadPackageSettingsAndContributions(t *testing.T) {
 	}
 	if loaded.Admin.Entry != "/settings" {
 		t.Fatalf("admin: %#v", loaded.Admin)
-	}
-	if loaded.Frontend.Admin == nil || loaded.Frontend.Admin.Components["custom-page"] == "" {
-		t.Fatalf("frontend admin: %#v", loaded.Frontend.Admin)
 	}
 }
 

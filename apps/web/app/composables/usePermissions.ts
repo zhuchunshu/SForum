@@ -37,8 +37,7 @@ const LEGACY_PERMISSION_CHILDREN: Record<string, string[]> = {
   'extension.manage': [
     'extension.view',
     'extension.plugin.manage',
-    'extension.theme.manage',
-    'extension.release.manage'
+    'extension.theme.manage'
   ],
   'user.manage': [
     'user.view',

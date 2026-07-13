@@ -1,12 +1,13 @@
 # Signal Garden
 
-Signal Garden is an installable SForum Nuxt Layer theme. It keeps core
+Signal Garden is an installable buildless runtime theme. It keeps core
 authentication, permissions, SEO, i18n, and admin behavior in the host app while
-replacing the public forum chrome with a brighter community-oriented surface.
+replacing public forum presentation through Page Registry templates and skin
+assets.
 
 - ID: `sforum.signal-garden`
 - Type: `theme`
-- Layer: `layer`
+- Runtime contract: `theme.json`
 
 The package is intended for upload-and-activate testing through the extension
 admin UI. It does not declare backend runtime, routes, hooks, events, jobs,

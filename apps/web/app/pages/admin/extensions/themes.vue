@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { apiErrorMessage } from '~/composables/useApiClient'
 import { useAdminPage } from '~/composables/useAdminPage'
-import { capabilityCount, extensionLocalizedDisplay, extensionManageRoute, extensionSettingsPresentation, filterExtensionsByType, hasThemeActivationInProgress, themeActionState, themeActivationProgress, themeStatusLabelKey, type AdminExtension } from '~/utils/adminExtensions'
+import { capabilityCount, extensionLocalizedDisplay, extensionManageRoute, extensionSettingsPresentation, filterExtensionsByType, themeActionState, themeStatusLabelKey } from '~/utils/adminExtensions'
 
 definePageMeta({
   middleware: 'admin',
@@ -36,52 +36,10 @@ const themeRows = computed(() => themes.value.map((item) => ({
   item,
   display: extensionLocalizedDisplay(item, locale.value)
 })))
-const activationPolling = computed(() => hasThemeActivationInProgress(themes.value))
-let activationPollTimer: ReturnType<typeof setInterval> | null = null
 
 function themeLabel(item: (typeof themes.value)[number]) {
   return t(themeStatusLabelKey(item))
 }
-
-function releaseProgress(item: AdminExtension) {
-  return themeActivationProgress(item.themeRelease)
-}
-
-function startActivationPolling() {
-  if (activationPollTimer || !import.meta.client) {
-    return
-  }
-  activationPollTimer = setInterval(async () => {
-    if (pending.value) {
-      return
-    }
-    await refresh()
-  }, 2000)
-}
-
-function stopActivationPolling() {
-  if (!activationPollTimer) {
-    return
-  }
-  clearInterval(activationPollTimer)
-  activationPollTimer = null
-}
-
-watch(activationPolling, (active) => {
-  if (active) {
-    startActivationPolling()
-  } else {
-    stopActivationPolling()
-  }
-})
-
-onMounted(() => {
-  if (activationPolling.value) {
-    startActivationPolling()
-  }
-})
-
-onBeforeUnmount(stopActivationPolling)
 
 useSeoMeta({
   title: t('admin.extensions.themes.metaTitle')
@@ -206,27 +164,6 @@ useSeoMeta({
             @click="activateTheme(item)"
           >
             {{ t('admin.extensions.activateTheme') }}
-          </UButton>
-          <UButton
-            v-else-if="themeActionState(item) === 'failed'"
-            size="sm"
-            color="error"
-            variant="subtle"
-            icon="i-lucide-refresh-cw"
-            :loading="busyId === item.id"
-            @click="activateTheme(item)"
-          >
-            {{ t('admin.extensions.retryActivation') }}
-          </UButton>
-          <UButton
-            v-else-if="['queued', 'building', 'activating'].includes(themeActionState(item))"
-            size="sm"
-            color="neutral"
-            variant="subtle"
-            icon="i-lucide-hourglass"
-            disabled
-          >
-            {{ t(`admin.extensions.themeRelease.${item.themeRelease?.status || 'queued'}`) }}
           </UButton>
           <UButton
             v-else

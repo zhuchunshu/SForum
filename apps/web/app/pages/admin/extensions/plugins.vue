@@ -8,11 +8,8 @@ import {
   extensionManageRoute,
   extensionSettingsPresentation,
   filterExtensionsByType,
-  hasPluginWebReleaseInProgress,
-  pluginWebReleaseProgress,
   runtimeCapabilitySummary,
   runtimeStatusLabelKey,
-  type AdminExtension,
   type AdminRuntimeState
 } from '~/utils/adminExtensions'
 
@@ -56,8 +53,6 @@ const pluginRows = computed(() => plugins.value.map((item) => ({
   item,
   display: extensionLocalizedDisplay(item, locale.value)
 })))
-const releasePolling = computed(() => hasPluginWebReleaseInProgress(plugins.value))
-let releasePollTimer: ReturnType<typeof setInterval> | null = null
 
 function runtimeColor(state?: AdminRuntimeState) {
   if (state === 'running') {
@@ -71,50 +66,6 @@ function runtimeColor(state?: AdminRuntimeState) {
   }
   return 'neutral'
 }
-
-function releaseProgress(item: AdminExtension) {
-  return pluginWebReleaseProgress(item.webRelease)
-}
-
-function pluginActionBusy(item: AdminExtension) {
-  return Boolean(releaseProgress(item)?.active)
-}
-
-function startReleasePolling() {
-  if (releasePollTimer || !import.meta.client) {
-    return
-  }
-  releasePollTimer = setInterval(async () => {
-    if (pending.value) {
-      return
-    }
-    await refresh()
-  }, 2000)
-}
-
-function stopReleasePolling() {
-  if (!releasePollTimer) {
-    return
-  }
-  clearInterval(releasePollTimer)
-  releasePollTimer = null
-}
-
-watch(releasePolling, (active) => {
-  if (active) {
-    startReleasePolling()
-  } else {
-    stopReleasePolling()
-  }
-})
-
-onMounted(() => {
-  if (releasePolling.value) {
-    startReleasePolling()
-  }
-})
-
-onBeforeUnmount(stopReleasePolling)
 
 useSeoMeta({
   title: t('admin.extensions.plugins.metaTitle')
@@ -252,17 +203,7 @@ useSeoMeta({
             {{ t('admin.extensions.manage') }}
           </UButton>
           <UButton
-            v-if="pluginActionBusy(item)"
-            size="sm"
-            color="neutral"
-            variant="subtle"
-            icon="i-lucide-hourglass"
-            disabled
-          >
-            {{ t(releaseProgress(item)?.labelKey || 'admin.extensions.releases.statusLabels.queued') }}
-          </UButton>
-          <UButton
-            v-else-if="item.status !== 'enabled'"
+            v-if="item.status !== 'enabled'"
             size="sm"
             icon="i-lucide-play"
             :loading="busyId === item.id"
@@ -286,7 +227,7 @@ useSeoMeta({
             color="neutral"
             variant="ghost"
             icon="i-lucide-refresh-cw"
-            :disabled="!canRestartPlugin(item) || pluginActionBusy(item)"
+			:disabled="!canRestartPlugin(item)"
             :loading="busyId === item.id && canRestartPlugin(item)"
             :title="canRestartPlugin(item) ? t('admin.extensions.restart') : t('admin.extensions.restartUnavailable')"
             @click="restartExtension(item)"
@@ -299,7 +240,7 @@ useSeoMeta({
             color="error"
             variant="ghost"
             icon="i-lucide-trash-2"
-            :disabled="item.status === 'enabled' || pluginActionBusy(item)"
+			:disabled="item.status === 'enabled'"
             :loading="busyId === item.id"
             :title="item.status === 'enabled' ? t('admin.extensions.confirmUninstallBody', { name: item.name }) : t('admin.extensions.uninstall')"
             @click="openUninstallExtension(item)"

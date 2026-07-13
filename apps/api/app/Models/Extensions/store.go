@@ -16,10 +16,6 @@ type Store interface {
 	Disable(ctx context.Context, id string) (Extension, error)
 	ActivateTheme(ctx context.Context, id string) (Extension, error)
 	ActiveTheme(ctx context.Context) (Extension, error)
-	CreateThemeRelease(ctx context.Context, input ThemeReleaseInput) (ThemeRelease, error)
-	UpdateThemeRelease(ctx context.Context, input ThemeReleaseUpdate) (ThemeRelease, error)
-	LatestThemeRelease(ctx context.Context, extensionID string) (ThemeRelease, error)
-	ActiveThemeRelease(ctx context.Context) (ThemeRelease, error)
 	CreateEvent(ctx context.Context, input EventInput) (ExtensionEvent, error)
 	ListEvents(ctx context.Context, extensionID string, limit int) ([]ExtensionEvent, error)
 	ListSettings(ctx context.Context, extensionID string) (map[string]string, error)
@@ -48,27 +44,4 @@ type RuntimeManager interface {
 
 type SettingsActionRuntime interface {
 	ProbeSettingsAction(ctx context.Context, extension Extension, providerSlot string, values map[string]string) (SettingsActionProbeResult, error)
-}
-
-type ThemeBuilder interface {
-	Build(ctx context.Context, extension Extension) error
-}
-
-// ThemeActivationDispatcher 历史接口：P5 后公开主题不再排队构建，可传 nil。
-type ThemeActivationDispatcher interface {
-	EnqueueThemeActivation(ctx context.Context, release ThemeRelease) error
-}
-
-// ThemeCurrentWriter 历史接口：P5 后不再写 theme-releases/current.json 作为公开主题选择。
-// 保留空实现注入点仅兼容旧测试。
-type ThemeCurrentWriter interface {
-	WriteCurrent(ctx context.Context, current ThemeCurrentPointer) error
-}
-
-// ThemeCurrentPointer 是已退役的主题指针载荷（兼容测试假实现）。
-type ThemeCurrentPointer struct {
-	ExtensionID string
-	Mode        string
-	Server      string
-	LayerPath   string
 }

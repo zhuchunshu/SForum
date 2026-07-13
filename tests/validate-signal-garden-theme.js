@@ -28,8 +28,8 @@ assert(fs.existsSync(themeJsonPath), 'Signal Garden theme.json must exist')
 const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'))
 assert(manifest.id === 'sforum.signal-garden', 'manifest id must be sforum.signal-garden')
 assert(manifest.type === 'theme', 'manifest type must be theme')
-// Runtime L0/L1：不再要求 Nuxt Layer；frontend.layer 可缺省。
-assert(!manifest.frontend?.layer, 'runtime Signal Garden must not require frontend.layer')
+// Runtime L0/L1：manifest 不再保留 Nuxt Layer 前端字段。
+assert(!Object.hasOwn(manifest, 'frontend'), 'runtime Signal Garden must not declare frontend')
 assert(!manifest.backend, 'theme manifest must not declare backend runtime')
 assert(!manifest.routes, 'theme manifest must not declare routes')
 assert(!manifest.hooks, 'theme manifest must not declare hooks')

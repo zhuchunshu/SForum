@@ -13,8 +13,6 @@
   "includes": {
     "langs": "manifest/langs",
     "admin": "manifest/admin.json",
-    "frontend": "manifest/frontend.json",
-    "contributions": "manifest/contributions.json",
     "settings": "manifest/settings.json"
   }
 }

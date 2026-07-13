@@ -8,8 +8,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-
-	extensionpackage "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionPackage"
 )
 
 const (
@@ -18,37 +16,14 @@ const (
 )
 
 type adminFrontendDigestContract struct {
-	LegacyRoot    string                 `json:"legacyRoot,omitempty"`
-	APIVersion    int                    `json:"apiVersion,omitempty"`
-	Components    map[string]string      `json:"components,omitempty"`
-	Locales       map[string]string      `json:"locales,omitempty"`
-	Contributions []ManifestContribution `json:"contributions,omitempty"`
-	LegacyTree    string                 `json:"legacyTree,omitempty"`
-	Settings      *SettingsComponent     `json:"settings,omitempty"`
-	EntryDigest   string                 `json:"entryDigest,omitempty"`
-	CSSDigest     string                 `json:"cssDigest,omitempty"`
+	Settings    *SettingsComponent `json:"settings"`
+	EntryDigest string             `json:"entryDigest"`
+	CSSDigest   string             `json:"cssDigest,omitempty"`
 }
 
-// ComputeAdminFrontendDigest 只覆盖会改变管理端可执行代码或其公开契约的输入。
-// 后端二进制、普通 settings 字段、公开主题 assets/templates 均不参与。
+// ComputeAdminFrontendDigest 只覆盖作者预构建的设置组件及其公开契约。
 func ComputeAdminFrontendDigest(manifest Manifest, packageRoot string) (string, error) {
 	contract := adminFrontendDigestContract{}
-	if admin := manifest.Frontend.Admin; admin != nil {
-		tree, err := extensionpackage.DigestTree(filepath.Join(packageRoot, filepath.FromSlash(admin.Root)))
-		if err != nil {
-			return "", fmt.Errorf("digest legacy admin frontend: %w", err)
-		}
-		contributions, err := trustedComponentContributions(manifest, admin.Components)
-		if err != nil {
-			return "", err
-		}
-		contract.LegacyRoot = admin.Root
-		contract.APIVersion = admin.APIVersion
-		contract.Components = cloneStringMap(admin.Components)
-		contract.Locales = cloneStringMap(admin.Locales)
-		contract.Contributions = contributions
-		contract.LegacyTree = tree
-	}
 	if component := manifest.SettingsDocument.UI.Component; component != nil && component.Entry != "" {
 		entryDigest, err := digestAdminAsset(packageRoot, component.Entry)
 		if err != nil {
@@ -64,7 +39,7 @@ func ComputeAdminFrontendDigest(manifest Manifest, packageRoot string) (string, 
 			}
 		}
 	}
-	if contract.LegacyTree == "" && contract.EntryDigest == "" {
+	if contract.EntryDigest == "" {
 		return "", nil
 	}
 	body, err := json.Marshal(contract)

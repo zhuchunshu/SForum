@@ -30,13 +30,6 @@ func (h *Controller) RegisterRoutes(api fiber.Router) {
 	api.Delete("/admin/extensions/:id/frontend/trust", h.revokeFrontendTrust)
 	api.Get("/admin/extensions/event-definitions", h.eventDefinitions)
 	api.Get("/admin/extensions/event-deliveries", h.eventDeliveries)
-	api.Get("/admin/web-releases", h.listWebReleases)
-	// 静态路径须先于 :releaseID，避免被当成 ID。
-	api.Post("/admin/web-releases/rebuild", h.rebuildWebRelease)
-	api.Post("/admin/web-releases/restore-defaults", h.restoreFrontendDefaults)
-	api.Get("/admin/web-releases/:releaseID", h.webReleaseDetail)
-	api.Post("/admin/web-releases/:releaseID/retry", h.retryWebRelease)
-	api.Post("/admin/web-releases/:releaseID/rollback", h.rollbackWebRelease)
 
 	api.All("/extensions/:extensionId/*", h.proxyExtensionRoute)
 }

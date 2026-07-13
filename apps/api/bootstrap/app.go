@@ -15,7 +15,6 @@ import (
 	"github.com/gofiber/fiber/v3/middleware/session"
 
 	httpserver "github.com/zhuchunshu/sforum/apps/api/app/Http"
-	extensionjobs "github.com/zhuchunshu/sforum/apps/api/app/Jobs/Extensions"
 	apitokens "github.com/zhuchunshu/sforum/apps/api/app/Models/APITokens"
 	adminoverview "github.com/zhuchunshu/sforum/apps/api/app/Models/AdminOverview"
 	attachments "github.com/zhuchunshu/sforum/apps/api/app/Models/Attachments"
@@ -48,8 +47,6 @@ import (
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Postgres"
 	redisplatform "github.com/zhuchunshu/sforum/apps/api/app/Support/Redis"
 	search "github.com/zhuchunshu/sforum/apps/api/app/Support/Search"
-	webreleasecoordinator "github.com/zhuchunshu/sforum/apps/api/app/Support/WebReleaseCoordinator"
-	webreleaseruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/WebReleaseRuntime"
 	"github.com/zhuchunshu/sforum/apps/api/config"
 )
 
@@ -188,7 +185,6 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 	databaseStore := database.NewPostgresStore(pool)
 	extensionStore := extensions.NewPostgresStore(pool)
 	frontendTrustStore := extensions.NewPostgresFrontendTrustStore(pool)
-	webReleaseStore := extensions.NewPostgresWebReleaseStore(pool)
 	// Host API 需要 extensionService 的能力解析；先建 service 再绑 gateway。
 	// 运行时 manager 在 service 创建后注入 HostAPI registrar。
 	jobClient, err := supportjobs.NewInsertOnlyClient(pool, supportjobs.FromAppConfig(cfg))
@@ -201,34 +197,16 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		return nil, fmt.Errorf("job dispatcher setup failed: %w", err)
 	}
 	jobDispatcher := supportjobs.NewDispatcher(jobClient)
-	hostComposition, err := webreleaseruntime.CompositionHost(cfg.WebReleaseWebRoot)
-	if err != nil {
-		if stopErr := supportjobs.Stop(ctx, jobClient); stopErr != nil {
-			logger.Warn("job dispatcher stop failed", "error", stopErr)
-		}
-		sharedRedisClient.Close()
-		_ = redisStorage.Close()
-		pool.Close()
-		return nil, fmt.Errorf("resolve web release host identity: %w", err)
-	}
-	webReleasePlanner := extensions.NewWebReleasePlanner(extensionStore, frontendTrustStore, hostComposition)
-	webReleaseService := extensions.NewWebReleaseService(
-		webReleasePlanner, pool, webReleaseStore,
-		extensionjobs.WebReleaseBuildDispatcherAdapter{Dispatcher: jobDispatcher},
-	)
-	frontendService := extensions.NewFrontendService(extensionStore, frontendTrustStore, webReleaseService, webReleaseStore, hostComposition).WithAuditor(auditWriter)
-	webReleaseAdminService := extensions.NewWebReleaseAdminService(webReleaseStore, webReleaseService)
+	frontendService := extensions.NewFrontendService(extensionStore, frontendTrustStore).WithAuditor(auditWriter)
 	// Page Registry：运行时主题 L0/L1，主题激活不重建 Nuxt、不写 current.json。
 	pageRegistryStore := pages.NewPostgresStore(pool)
 	pageRegistry := pages.NewRegistry(pageRegistryStore)
 	pageRegistryAdapter := extensions.NewPageRegistryAdapter(pageRegistry)
 	// 先构造带 Cipher 的 Service，插件启动与 Host API 才能共享同一个解密设置源。
 	// 主题激活走 Page Registry 同步路径；不再注入 theme_activate dispatcher。
-	extensionService := extensions.NewServiceWithThemeActivationWithOptions(
+	extensionService := extensions.NewServiceWithOptions(
 		extensionStore, cfg.ExtensionRoot, cfg.BuiltinExtensionRoot,
-		nil, nil, nil,
-		extensions.WithWebReleaseLifecycle(frontendService, webReleaseService),
-		extensions.WithWebReleaseProgress(webReleaseStore),
+		nil,
 		extensions.WithAuditor(auditWriter),
 		// F2.4：同 id 升级且 digest 变化时吊销该扩展前端信任，要求重新授权。
 		extensions.WithTrustRevoker(frontendService),
@@ -277,10 +255,6 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 	if err := notifications.NewPostgresStore(pool).AdoptLegacyMail(ctx, legacyMailValues); err != nil {
 		return nil, fmt.Errorf("adopt legacy mail settings: %w", err)
 	}
-	// 首次启用统一 runtime 时只排队 canonical release；构建失败不能阻断旧站点启动。
-	if err := ensureInitialWebRelease(ctx, webReleaseStore, webReleaseService); err != nil {
-		logger.Warn("queue initial web release failed", "error", err)
-	}
 	if items, err := extensionStore.List(ctx); err == nil {
 		extensionRuntime.Reconcile(ctx, items)
 	} else {
@@ -294,25 +268,6 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		}
 		pool.Close()
 		return nil, fmt.Errorf("list extensions for runtime reconciliation failed: %w", err)
-	}
-	// Web Release 效果必须走完整扩展生命周期（含 Page Registry 注册/清除），
-	// 禁止直接 Enable/Disable 绕过 Service。
-	webReleaseEffectStore := webreleasecoordinator.NewPostgresStore(pool, webReleaseStore, extensionStore).
-		WithLifecycle(extensionService)
-	webReleaseRuntimeAdapter := webreleasecoordinator.NewRuntimeAdapter(extensionStore, extensionRuntime).
-		WithLifecycleOwnsStart(true)
-	webReleaseCoordinator := webreleasecoordinator.New(
-		webReleaseEffectStore,
-		webReleaseRuntimeAdapter,
-		webreleaseruntime.NewPointerStore(cfg.WebReleaseRoot, webReleaseStore),
-		postgres.NewAdvisoryLocker(pool),
-	)
-	if err := webReleaseCoordinator.Start(ctx); err != nil {
-		extensionRuntime.Close(ctx)
-		sharedRedisClient.Close()
-		_ = redisStorage.Close()
-		pool.Close()
-		return nil, fmt.Errorf("start web release coordinator: %w", err)
 	}
 	notificationStore := notifications.NewPostgresStore(pool)
 	mailOutbox := notifications.NewOutbox(pool, notificationStore, jobDispatcher).WithPolicyReader(optionsService)
@@ -407,7 +362,7 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 	seoProvider := providers.NewSEOProvider(pool, optionsService)
 	databaseProvider := providers.NewDatabaseProvider(databaseStore, identityStore, authSessions)
 	jobsProvider := providers.NewJobsProvider(pool, jobClient, identityStore, authSessions)
-	extensionsProvider := providers.NewExtensionsProviderWithService(extensionService, identityStore, authSessions, extensionRuntime, frontendService, webReleaseAdminService)
+	extensionsProvider := providers.NewExtensionsProviderWithService(extensionService, identityStore, authSessions, extensionRuntime, frontendService)
 	webhooksProvider := providers.NewWebhooksProvider(webhookService, identityStore, authSessions)
 	// PageDataLoader 网关：仅从运行中插件 RouteTarget 拉数据（严格 loopback）。
 	pageLoaderGateway := pages.NewLoaderGateway(
@@ -455,7 +410,6 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		})
 		if err != nil {
 			heartbeatCancel()
-			_ = webReleaseCoordinator.Stop(context.Background())
 			if stopErr := supportjobs.Stop(ctx, jobClient); stopErr != nil {
 				logger.Warn("job dispatcher stop failed", "error", stopErr)
 			}
@@ -469,7 +423,6 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		}
 		if err := embeddedWorker.Start(ctx); err != nil {
 			heartbeatCancel()
-			_ = webReleaseCoordinator.Stop(context.Background())
 			embeddedWorker.Close()
 			if stopErr := supportjobs.Stop(ctx, jobClient); stopErr != nil {
 				logger.Warn("job dispatcher stop failed", "error", stopErr)
@@ -491,11 +444,6 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		Addr: apiAddress(cfg),
 		close: func() {
 			heartbeatCancel()
-			coordinatorCtx, coordinatorCancel := context.WithTimeout(context.Background(), cfg.WorkerShutdownTimeout)
-			if err := webReleaseCoordinator.Stop(coordinatorCtx); err != nil {
-				logger.Warn("web release coordinator stop failed", "error", err)
-			}
-			coordinatorCancel()
 			if embeddedWorker != nil {
 				shutdownCtx, cancel := context.WithTimeout(context.Background(), cfg.WorkerShutdownTimeout)
 				defer cancel()

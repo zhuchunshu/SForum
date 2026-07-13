@@ -1,15 +1,11 @@
-import type { AdminExtension, AdminExtensionOperation } from '~/utils/adminExtensions'
+import type { AdminExtension } from '~/utils/adminExtensions'
 
 export type AdminFrontendStatus = {
   extensionId: string
-  kind: 'none' | 'legacy_web_release' | 'prebuilt_component'
-  trustState: string
-  digest?: string
-  artifactActive?: boolean
-  buildRequired?: boolean
-  declaration?: { root: string, apiVersion: number, components: Record<string, string>, locales: Record<string, string> }
-  component?: { id: string, apiVersion: number, entry: string, css?: string }
-  dependencies?: { direct?: Array<{ name: string, version: string }>, resolved?: Array<{ name: string, version: string }> }
+  kind: 'none' | 'prebuilt_component'
+	trustState: string
+	digest?: string
+	component?: { id: string, apiVersion: number, entry: string, css?: string }
 }
 
 export type AdminFrontendTrustConfirmation = {
@@ -50,28 +46,14 @@ export function useAdminFrontendTrust(extension: Ref<AdminExtension>) {
     busy.value = true
     error.value = ''
     try {
-      const operation = action === 'grant'
-        ? await request<AdminExtensionOperation>(`/admin/extensions/${extension.value.id}/frontend/trust`, {
-            method: 'POST',
-            body: { packageDigest: status.value.digest, confirmation }
-          })
-        : await request<AdminExtensionOperation>(`/admin/extensions/${extension.value.id}/frontend/trust`, { method: 'DELETE' })
-      if (operation.queued) {
-        // 信任变更后会排队 Web Release，进度在「Web 发布」页查看。
-        toast.add({
-          color: 'info',
-          icon: 'i-lucide-hourglass',
-          title: t(action === 'grant' ? 'admin.extensions.frontend.grantQueued' : 'admin.extensions.frontend.revokeQueued'),
-          description: operation.webRelease?.id
-            ? t('admin.extensions.webReleaseQueuedHint', { id: operation.webRelease.id })
-            : t('admin.extensions.webReleaseQueuedHintNoId'),
-          duration: 10000
-        })
-      } else {
-        toast.add({ color: 'success', icon: 'i-lucide-shield-check', title: t(`admin.extensions.frontend.${action}Success`), duration: 10000 })
-      }
-      if (operation.frontend) status.value = operation.frontend as AdminFrontendStatus
-      else await load()
+		const nextStatus = action === 'grant'
+			? await request<AdminFrontendStatus>(`/admin/extensions/${extension.value.id}/frontend/trust`, {
+					method: 'POST',
+					body: { digest: status.value.digest, confirmation }
+				})
+			: await request<AdminFrontendStatus>(`/admin/extensions/${extension.value.id}/frontend/trust`, { method: 'DELETE' })
+		status.value = nextStatus
+		toast.add({ color: 'success', icon: 'i-lucide-shield-check', title: t(`admin.extensions.frontend.${action}Success`), duration: 10000 })
     } catch (cause) {
       error.value = `${cause}`
       toast.add({ color: 'error', icon: 'i-lucide-triangle-alert', title: error.value, duration: 0 })

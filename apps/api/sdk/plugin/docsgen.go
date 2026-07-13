@@ -194,8 +194,7 @@ func renderContributionPoints() string {
 	b.WriteString(renderHeader(
 		"Contribution points",
 		"Plugins may declare `contributions[]` only against host-owned points. "+
-			"Payloads are validated JSON descriptors or trusted admin component refs — "+
-			"**never executable JSON**. See also [trusted-admin-components.md](../trusted-admin-components.md).",
+			"Payloads are validated JSON descriptors and **never executable JSON**.",
 	))
 	b.WriteString("| Point ID | Owner | Kind | Payload type | Description |\n")
 	b.WriteString("| --- | --- | --- | --- | --- |\n")
@@ -205,7 +204,6 @@ func renderContributionPoints() string {
 	}
 	b.WriteString("\n### Kind meanings\n\n")
 	b.WriteString("- **descriptor** — host renders UI from a typed payload (e.g. extension route action)\n")
-	b.WriteString("- **component** — trusted client Vue component in a host slot (requires `frontend.admin`)\n")
 	return b.String()
 }
 

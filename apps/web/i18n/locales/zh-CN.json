@@ -293,7 +293,6 @@
       "extensionSettings": "扩展设置",
       "extensionEvents": "事件日志",
       "extensionContributions": "扩展点",
-      "extensionReleases": "Web 发布",
       "forumHome": "论坛首页",
       "forum": "论坛管理",
       "forumCategories": "版块分类",
@@ -442,11 +441,7 @@
         },
         "failed_extension_events": {
           "title": "扩展失败事件",
-          "description": "{count} 条扩展事件或主题发布失败。"
-        },
-        "theme_release_progress": {
-          "title": "主题发布中",
-          "description": "{count} 个主题发布任务仍在进行。"
+          "description": "{count} 条扩展事件执行失败。"
         }
       },
       "topCategories": {
@@ -498,31 +493,14 @@
       "disabled": "扩展已禁用。",
       "restarted": "插件运行时已重启。",
       "verified": "扩展预检已通过。",
-      "themeActivated": "主题已激活。前台运行时正在使用该主题；本地 dev 会自动重启后生效。",
-      "themeActivationQueued": "主题构建已排队。构建完成后前台运行时会自动切换；本地 dev 会自动重启后生效。",
+      "themeActivated": "主题已激活，公开 Page Registry 与静态资源已切换。",
       "themeActivationUnavailable": "主题激活失败。",
-      "pluginEnableQueued": "插件启用已排队。该插件含可信管理端前端，需先完成 Web 发布构建后才会真正启用。",
-      "pluginDisableQueued": "插件禁用已排队。该插件含可信管理端前端，需先完成 Web 发布构建后才会真正禁用。",
-      "webReleaseQueuedHint": "可在「扩展 → Web 发布」查看发布 #{id} 的进度。",
-      "webReleaseQueuedHintNoId": "可在「扩展 → Web 发布」查看进度。",
-      "webReleaseProgress": {
-        "queued": "Web 发布已排队，等待 worker 领取。若长时间不动，请确认 API 已嵌入 worker 或独立 worker 在运行。",
-        "resolving": "正在解析主题与可信插件组成。",
-        "installing": "正在安装发布依赖与扩展快照。",
-        "building": "正在构建管理端/前台发布包。",
-        "verifying": "正在校验发布产物。",
-        "ready": "构建完成，准备切换运行时。",
-        "activating": "正在切换运行时，完成后插件状态才会最终生效。",
-        "failed": "Web 发布失败。可在「扩展 → Web 发布」打开详情后重试。"
-      },
-      "viewWebRelease": "查看发布详情",
       "actionFailed": "扩展操作失败。",
       "settingsProfiles": {
         "none": "无设置 UI",
         "schema": "无作者 JS（Schema）",
         "actions": "Schema + 宿主 Actions",
-        "prebuilt": "包含完全信任组件",
-        "legacyVue": "旧 Vue / 需要 Web Release"
+        "prebuilt": "包含完全信任组件"
       },
       "frontend": {
         "title": "可信管理端组件",
@@ -531,11 +509,8 @@
         "revoke": "撤销",
         "grantSuccess": "前端信任已授权。",
         "revokeSuccess": "前端信任撤销已提交。",
-        "grantQueued": "前端信任已授权，Web 发布已排队。",
-        "revokeQueued": "前端信任撤销已提交，Web 发布已排队。",
         "prebuiltTitle": "作者预构建组件（运营免构建）",
         "prebuiltDescription": "组件来自已安装扩展包，并通过不可变 digest URL 加载。它是完全信任代码，不是沙箱；拒绝授权时仍可使用声明式设置。",
-        "noWebRelease": "直接按 digest 加载，不创建 Web Release",
         "confirmTitle": "确认运行扩展管理端代码",
         "fullTrustTitle": "此代码拥有管理员浏览器权限",
         "fullTrustDescription": "{name} v{version} 的组件可代表你调用其命名空间 API、修改设置和导航后台。宿主不会把 Cookie 或 Authorization 值交给组件，但此代码仍应视为完全信任。",
@@ -543,60 +518,6 @@
         "confirmCode": "再次输入下面的一次性确认码（5 分钟有效）",
         "confirmAcknowledge": "我理解这不是沙箱，并确认信任当前版本、API、组件 ID 与 digest。",
         "confirmGrant": "确认并加载组件"
-      },
-      "releases": {
-        "title": "Web 发布",
-        "intro": "这里只记录兼容旧可信 Vue 管理端的不可变发布。Schema、Actions、预构建组件和公开主题激活都不会创建 Web Release。",
-        "rebuildTitle": "重建当前 Web 发布",
-        "rebuildDescription": "按当前已启用且受信任的旧 Vue 管理端组成重新打包。composition 未变化时会复用 active/ready 产物；没有旧管理端组件时会跳过。不会改动设置、密钥、插件后端或公开主题。",
-        "rebuild": "立即重建",
-        "rebuildQueued": "Web 发布重建已排队。",
-        "typecheckModeTitle": "Web Release 类型检查策略",
-        "typecheckModeDescription": "仅影响兼容旧可信 Vue 管理端的 Web Release。Schema、Actions 和预构建组件不触发 Nuxt 构建；全仓 typecheck 始终由 CI / 测试脚本强制执行。",
-        "typecheckModeSaved": "类型检查策略已保存。",
-        "typecheckModes": {
-          "off": {
-            "label": "关闭",
-            "description": "发布构建跳过 typecheck；适合希望最快构建、并由 CI 统一把关的站点。"
-          },
-          "report": {
-            "label": "报告但不阻断（推荐）",
-            "description": "运行 typecheck 并记录结果；失败不会阻断兼容 Web Release。"
-          },
-          "block": {
-            "label": "失败时阻断",
-            "description": "运行 typecheck；任何类型错误都会中止兼容 Web Release。"
-          }
-        },
-        "historyHint": "下方为历史发布记录；进行中的构建会自动刷新。",
-        "trigger": "触发来源",
-        "theme": "主题",
-        "status": "状态",
-        "actions": "操作",
-        "empty": "暂无 Web 发布记录。",
-        "retryQueued": "重试发布已排队。",
-        "rollbackQueued": "回滚发布已排队。",
-        "viewDetail": "查看详情",
-        "events": "状态事件",
-        "statusLabels": {
-          "queued": "排队中",
-          "resolving": "解析中",
-          "installing": "安装中",
-          "building": "构建中",
-          "verifying": "校验中",
-          "ready": "待切换",
-          "activating": "切换中",
-          "active": "已生效",
-          "inactive": "已停用",
-          "failed": "失败",
-          "superseded": "已替代",
-          "rolled_back": "已回滚"
-        }
-      },
-      "releaseNotice": {
-        "title": "管理端已有新版本",
-        "description": "刷新后将使用最新的主题和可信插件组件。",
-        "reload": "立即刷新"
       },
       "stats": {
         "plugins": "插件",
@@ -618,27 +539,8 @@
       "manage": "管理",
       "verify": "验证",
       "activateTheme": "激活主题",
-      "retryActivation": "重试激活",
       "restoreDefaultTheme": "恢复默认主题",
       "activeTheme": "当前主题",
-      "themeRelease": {
-        "queued": "排队中",
-        "building": "构建中",
-        "built": "已构建",
-        "activating": "切换中",
-        "active": "当前主题",
-        "failed": "激活失败",
-        "rolled_back": "已回滚"
-      },
-      "themeProgress": {
-        "queued": "正在等待后台 worker 领取任务。若长时间停留在这里，请确认本地 worker 正在运行。",
-        "building": "正在构建 Nuxt 主题发布包，期间当前主题会继续服务。",
-        "built": "构建已完成，正在准备切换。",
-        "activating": "正在写入当前发布并等待 Web 运行时切换。",
-        "active": "前台运行时正在使用该主题；本地 dev 会自动重启后生效。",
-        "failed": "主题激活失败，可重试。",
-        "rolled_back": "此发布已被后续主题替换。"
-      },
       "source": {
         "builtin": "内置"
       },
@@ -682,7 +584,6 @@
       "confirmEnableAction": "确认并启用",
       "capability": {
         "backend": "后端 RPC",
-        "frontend": "Nuxt Layer",
         "routes": "{count} 条路由",
         "hooks": "{count} 个钩子",
         "events": "{count} 个事件",
@@ -800,12 +701,6 @@
         "disabledDescription": "该扩展当前未启用，其设置页与注册的管理端功能已下线。请先在插件列表中启用后再使用。",
         "configureBeforeEnableTitle": "可在启用前安全配置",
         "configureBeforeEnableDescription": "当前只编辑宿主保存的声明式设置，不会启动插件进程、注册路由、事件、任务或 Provider。需要运行代码的操作会保持禁用。",
-        "enablingTitle": "扩展正在启用",
-        "enablingDescription": "带管理端前端的受信任插件需要完成 Web Release（构建并激活）后，状态才会变为已启用。请稍候，本页会自动刷新进度。",
-        "plainDevTitle": "当前为 plain 开发模式",
-        "plainDevDescription": "页面可以打开是因为宿主提供了通用设置表单。插件自定义管理端界面（如 SMTP 专用设置页）需要 bun run dev 注入 Web Release 组件包；dev:plain 只确认发布、不会加载插件前端，刷新也无效。",
-        "reloadRequiredTitle": "需要刷新页面以加载插件界面",
-        "reloadRequiredDescription": "扩展后端已启用，但当前浏览器会话仍使用旧的管理端前端包。刷新后即可加载该插件注册的自定义页面与组件。",
         "openPlugins": "前往插件列表",
         "settingsTitle": "扩展设置",
         "settingsIntro": "以下字段由扩展声明。保存后写入该扩展自己的运行时配置；不影响其它扩展。",
@@ -847,8 +742,6 @@
         "customPageBadge": "插件自定义界面",
         "schemaBadge": "声明式",
         "compatBadge": "通用兼容",
-        "legacyRendererDeprecatedTitle": "旧 Vue 设置页兼容模式",
-        "legacyRendererDeprecatedDescription": "该扩展仍通过完整 Web Release 注入设置页。新包应迁移到 Schema、Settings Actions 或作者预构建的 Admin Micro-frontend API v1；兼容路径目前不会删除。",
         "presentationFallbackTitle": "已回退到通用表单",
         "presentationFallbackDescription": "扩展的可选布局信息不可用，设置字段仍可通过安全的线性表单编辑。",
         "secretsPreserved": "恢复推荐默认值不会清空已保存的密码或密钥；密码字段留空也会保留原值。",
@@ -945,7 +838,7 @@
       "title": "定时任务",
       "intro": "管理宿主 Schedule Registry 中的周期维护任务：启停、查看上次/下次执行，或立即手动跑一次。",
       "hintTitle": "推荐默认：全部启用",
-      "hintBody": "默认每天自动清理会话、孤儿附件、过期 Web Release 与审计日志。停用后 worker 会在下一次周期跳过入队，无需重启；手动触发仅在启用状态下可用。",
+      "hintBody": "默认每天自动清理会话、孤儿附件与审计日志。停用后 worker 会在下一次周期跳过入队，无需重启；手动触发仅在启用状态下可用。",
       "listTitle": "周期任务目录",
       "listIntro": "启用状态写入 web_options，下次周期立即生效；上次执行来自 River 任务历史，下次执行为按间隔的粗估。",
       "empty": "当前没有已登记的周期任务。",
@@ -1159,11 +1052,11 @@
       },
       "operator": {
         "alias": "站点运营",
-        "description": "站点日常运营：用户与内容结构、站点/邮件/外观等设置；不含技术发布与权限例外。"
+        "description": "站点日常运营：用户与内容结构、站点/邮件/外观等设置；不含技术运维与权限例外。"
       },
       "tech_admin": {
         "alias": "技术管理",
-        "description": "技术运维：扩展与发布、搜索索引、后台任务、数据库浏览与附件存储设置。"
+        "description": "技术运维：扩展、搜索索引、后台任务、数据库浏览与附件存储设置。"
       },
       "member": {
         "alias": "普通会员",
@@ -1418,7 +1311,7 @@
       "extension": {
         "manage": {
           "label": "管理全部扩展（兼容）",
-          "description": "旧版父权限：等同于查看、插件、主题与发布管理的全部能力。"
+          "description": "父权限：等同于查看、插件与主题管理的全部能力。"
         },
         "view": {
           "label": "查看扩展",
@@ -1434,12 +1327,6 @@
           "manage": {
             "label": "管理主题",
             "description": "激活与管理前台主题。"
-          }
-        },
-        "release": {
-          "manage": {
-            "label": "管理 Web 发布",
-            "description": "构建并激活受信任的后台 Web 发布（高危）。"
           }
         }
       },

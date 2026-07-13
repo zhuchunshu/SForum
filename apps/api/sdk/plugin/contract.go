@@ -225,18 +225,14 @@ func TestManifest(root string, manifest extensionmanifest.Manifest, opts Options
 		}
 	}
 
-	// 主题 layer 存在性。
+	// 公开主题必须提供免构建运行时契约；不再接受 Nuxt Layer。
 	if manifest.Type == extensionmanifest.TypeTheme {
-		layer := strings.TrimSpace(manifest.Frontend.Layer)
-		if layer == "" {
-			add("error", "theme.layer_missing", "theme requires frontend.layer", "frontend.layer")
+		hasContract := regularFile(filepath.Join(root, "theme.json")) || regularFile(filepath.Join(root, "files", "theme.json"))
+		hasAssets := directoryExists(filepath.Join(root, "assets")) || directoryExists(filepath.Join(root, "files", "assets"))
+		if !hasContract && !hasAssets {
+			add("error", "theme.runtime_missing", "theme requires theme.json or assets/", "theme.json")
 		} else {
-			layerPath := filepath.Join(root, layer)
-			if info, err := os.Stat(layerPath); err != nil || !info.IsDir() {
-				add("error", "theme.layer_not_found", "frontend.layer directory not found: "+layer, "frontend.layer")
-			} else {
-				add("ok", "theme.layer_ok", "frontend.layer directory present: "+layer, "frontend.layer")
-			}
+			add("ok", "theme.runtime_present", "runtime theme contract found", "theme.json")
 		}
 	}
 
@@ -259,6 +255,16 @@ func TestManifest(root string, manifest extensionmanifest.Manifest, opts Options
 	})
 
 	return report
+}
+
+func regularFile(path string) bool {
+	info, err := os.Stat(path)
+	return err == nil && info.Mode().IsRegular()
+}
+
+func directoryExists(path string) bool {
+	info, err := os.Stat(path)
+	return err == nil && info.IsDir()
 }
 
 func relPath(root, abs string) string {

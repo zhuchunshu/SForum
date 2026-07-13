@@ -74,9 +74,9 @@ not kill it):
   Meilisearch, Mailpit) via Compose and run migrations. `--build` rebuilds,
   `--no-migrate` skips migrations. Stops old Compose-managed frontend/backend
   containers first.
-- `cd apps/web && bun run dev` — plain Nuxt dev (public themes use Page
-  Registry + L0 CSS; no theme Layer supervisor). Optional
-  `bun run dev:compose` still composes trusted admin plugin frontends.
+- `cd apps/web && bun run dev` — plain Nuxt dev. Public themes use Page
+  Registry + L0/L1; prebuilt admin settings components load by immutable digest.
+  There is no theme/admin frontend build supervisor.
 - `./scripts/api-dev.sh` — run the API with `air` (hot reload). On start it
   reclaims only leftover `sforum-api` processes on `HTTP_PORT` via
   `scripts/free-api-dev-port.sh`; if the port is held by docker or another
@@ -91,9 +91,6 @@ Build, typecheck, lint, test:
 - `cd apps/web && bun run build` — Nuxt build (uses `NUXT_BUILD_DIR=.nuxt-build`).
 - `cd apps/web && bun run typecheck` — Nuxt typecheck (uses
   `NUXT_BUILD_DIR=.nuxt-typecheck`).
-- `cd apps/web && bun run dev:plain` — plain `nuxt dev` without theme-layer
-  supervisor; still acknowledges Web Releases via `active.json` so plugin
-  enable/disable can finish. `dev:nuxt` is the absolute bare Nuxt process.
 - `cd apps/api && go build ./...` / `go test ./...` — Go build and tests.
 - `./scripts/test.sh` — full repo test gate: `go test ./...`, OpenAPI ref
   validation, Nuxt typecheck, and all `tests/validate-*.js|.ts` scripts.

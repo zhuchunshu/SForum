@@ -258,20 +258,17 @@ func TestControllerVerifiesAndActivatesThemesForManager(t *testing.T) {
 	}
 
 	resp = performExtensionRequest(t, app, http.MethodPost, "/api/v1/admin/extensions/demo.theme/activate", cookie)
-	// Runtime Page Registry：主题激活同步完成，不排队 Nuxt/Web Release。
+	// Runtime Page Registry：主题激活同步完成，不触发 Nuxt 构建。
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("expected 200 runtime theme activation, got %d", resp.StatusCode)
 	}
 	defer resp.Body.Close()
-	var body testEnvelope[extensions.ExtensionOperation]
+	var body testEnvelope[extensions.Extension]
 	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
 		t.Fatalf("decode activation response envelope: %v", err)
 	}
-	if body.Data.Queued {
-		t.Fatalf("runtime theme activate must not queue builds, got %#v", body.Data)
-	}
-	if body.Data.Extension.ID != "demo.theme" {
-		t.Fatalf("expected demo.theme activated, got %#v", body.Data.Extension)
+	if body.Data.ID != "demo.theme" {
+		t.Fatalf("expected demo.theme activated, got %#v", body.Data)
 	}
 }
 
@@ -382,12 +379,6 @@ func TestControllerListsContributionPointsAndContributions(t *testing.T) {
 		"forum.profile.tabs",
 		"admin.dashboard.widgets",
 		"system.health.checks",
-		"admin.jobs.table.columns",
-		"admin.jobs.row.actions",
-		"admin.jobs.detail.sections",
-		"admin.extension.settings.page",
-		"admin.extension.settings.header",
-		"admin.extension.settings.footer",
 	}
 	if len(points.Data) != len(requiredPoints) {
 		t.Fatalf("unexpected contribution points count %d: %#v", len(points.Data), points.Data)
@@ -460,7 +451,6 @@ func newExtensionTestApp(t *testing.T) (*fiber.App, *authsession.Manager, *contr
 			Version:       "1.0.0",
 			Type:          extensions.TypeTheme,
 			SForumVersion: "^1.0.0",
-			Frontend:      extensions.ManifestFrontend{Layer: "layer"},
 		},
 		InstalledAt: time.Now(),
 		UpdatedAt:   time.Now(),
@@ -470,7 +460,7 @@ func newExtensionTestApp(t *testing.T) (*fiber.App, *authsession.Manager, *contr
 		plugin.ID: plugin,
 		theme.ID:  theme,
 	}}
-	controller := NewControllerWithGateway(extensions.NewServiceWithHooks(store, "storage/extensions", nil, controllerThemeBuilder{}), users, manager, controllerFakeGateway{})
+	controller := NewControllerWithGateway(extensions.NewServiceWithHooks(store, "storage/extensions", nil), users, manager, controllerFakeGateway{})
 	loginProvider := extensionRouteProviderFunc(func(api fiber.Router) {
 		api.Post("/test-login/:id", func(c fiber.Ctx) error {
 			var id int64 = 1
@@ -503,6 +493,11 @@ func controllerInstalledPackage(t *testing.T, manifest extensions.Manifest) stri
 	}
 	if err := os.WriteFile(filepath.Join(root, extensions.ManifestFileName), body, 0o600); err != nil {
 		t.Fatalf("write extension manifest: %v", err)
+	}
+	if manifest.Type == extensions.TypeTheme {
+		if err := os.WriteFile(filepath.Join(root, "theme.json"), []byte(`{"schemaVersion":1,"styles":{"tokens":{}}}`), 0o600); err != nil {
+			t.Fatalf("write theme contract: %v", err)
+		}
 	}
 	return packagePath
 }
@@ -621,12 +616,6 @@ func (controllerFakeGateway) Proxy(c fiber.Ctx, input ProxyInput) error {
 	return c.SendString("plugin-ok")
 }
 
-type controllerThemeBuilder struct{}
-
-func (controllerThemeBuilder) Build(context.Context, extensions.Extension) error {
-	return nil
-}
-
 type controllerFakeStore struct {
 	items      map[string]extensions.Extension
 	enabledID  string
@@ -635,7 +624,6 @@ type controllerFakeStore struct {
 	settings   map[string]map[string]string
 	events     []extensions.ExtensionEvent
 	deliveries []extensions.ExtensionEventDelivery
-	releases   []extensions.ThemeRelease
 }
 
 func (s *controllerFakeStore) List(context.Context) ([]extensions.Extension, error) {
@@ -734,62 +722,6 @@ func (s *controllerFakeStore) ActiveTheme(context.Context) (extensions.Extension
 		}
 	}
 	return extensions.Extension{}, extensions.ErrExtensionNotFound
-}
-
-func (s *controllerFakeStore) CreateThemeRelease(_ context.Context, input extensions.ThemeReleaseInput) (extensions.ThemeRelease, error) {
-	if _, ok := s.items[input.ExtensionID]; !ok {
-		return extensions.ThemeRelease{}, extensions.ErrExtensionNotFound
-	}
-	now := time.Now()
-	release := extensions.ThemeRelease{
-		ID:               int64(len(s.releases) + 1),
-		ExtensionID:      input.ExtensionID,
-		ExtensionVersion: input.Version,
-		Status:           extensions.ThemeReleaseQueued,
-		LayerPath:        input.LayerPath,
-		CreatedAt:        now,
-		UpdatedAt:        now,
-	}
-	s.releases = append(s.releases, release)
-	return release, nil
-}
-
-func (s *controllerFakeStore) UpdateThemeRelease(_ context.Context, input extensions.ThemeReleaseUpdate) (extensions.ThemeRelease, error) {
-	for index := range s.releases {
-		if s.releases[index].ID != input.ID {
-			continue
-		}
-		s.releases[index].Status = input.Status
-		if input.ArtifactPath != "" {
-			s.releases[index].ArtifactPath = input.ArtifactPath
-		}
-		if input.ServerEntry != "" {
-			s.releases[index].ServerEntry = input.ServerEntry
-		}
-		s.releases[index].Message = input.Message
-		s.releases[index].BuildLog = input.BuildLog
-		s.releases[index].UpdatedAt = time.Now()
-		return s.releases[index], nil
-	}
-	return extensions.ThemeRelease{}, extensions.ErrExtensionNotFound
-}
-
-func (s *controllerFakeStore) LatestThemeRelease(_ context.Context, extensionID string) (extensions.ThemeRelease, error) {
-	for index := len(s.releases) - 1; index >= 0; index-- {
-		if s.releases[index].ExtensionID == extensionID {
-			return s.releases[index], nil
-		}
-	}
-	return extensions.ThemeRelease{}, extensions.ErrExtensionNotFound
-}
-
-func (s *controllerFakeStore) ActiveThemeRelease(context.Context) (extensions.ThemeRelease, error) {
-	for index := len(s.releases) - 1; index >= 0; index-- {
-		if s.releases[index].Status == extensions.ThemeReleaseActive {
-			return s.releases[index], nil
-		}
-	}
-	return extensions.ThemeRelease{}, extensions.ErrExtensionNotFound
 }
 
 func (s *controllerFakeStore) CreateEvent(_ context.Context, input extensions.EventInput) (extensions.ExtensionEvent, error) {

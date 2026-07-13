@@ -95,14 +95,13 @@ func TestServiceActivateThemeLegacyZipResolvesThemeJSON(t *testing.T) {
 
 	item := uploadedExtension("legacy.theme", TypeTheme)
 	item.PackagePath = zipPath
-	item.Manifest.Frontend.Layer = ""
 	item.Version = "1.0.0"
 
 	store := &fakeExtensionStore{items: map[string]Extension{item.ID: item}}
 	reg := pages.NewRegistry(nil)
 	adapter := NewPageRegistryAdapter(reg)
-	service := NewServiceWithThemeActivationWithOptions(
-		store, t.TempDir(), "", LocalRuntimeManager{}, LocalThemeBuilder{}, nil,
+	service := NewServiceWithOptions(
+		store, t.TempDir(), "", LocalRuntimeManager{},
 		WithPageRegistry(adapter),
 	)
 

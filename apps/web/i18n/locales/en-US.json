@@ -289,7 +289,6 @@
       "extensionSettings": "Extension settings",
       "extensionEvents": "Event log",
       "extensionContributions": "Extension points",
-      "extensionReleases": "Web releases",
       "forumHome": "Forum home",
       "forum": "Forum",
       "forumCategories": "Categories",
@@ -442,11 +441,7 @@
         },
         "failed_extension_events": {
           "title": "Extension failures",
-          "description": "{count} extension events or theme releases failed."
-        },
-        "theme_release_progress": {
-          "title": "Theme release in progress",
-          "description": "{count} theme release tasks are still running."
+          "description": "{count} extension events failed."
         }
       },
       "topCategories": {
@@ -498,31 +493,14 @@
       "disabled": "Extension disabled.",
       "restarted": "Plugin runtime restarted.",
       "verified": "Extension preflight verified.",
-      "themeActivated": "Theme activated. The frontend runtime is using this theme; local dev will apply it after the automatic restart.",
-      "themeActivationQueued": "Theme build queued. The frontend runtime will switch automatically after the build finishes; local dev will apply it after the automatic restart.",
+      "themeActivated": "Theme activated. The public Page Registry and static assets have switched.",
       "themeActivationUnavailable": "Theme activation failed.",
-      "pluginEnableQueued": "Plugin enable queued. This plugin has trusted admin frontend components, so a Web release must finish building before it is fully enabled.",
-      "pluginDisableQueued": "Plugin disable queued. This plugin has trusted admin frontend components, so a Web release must finish building before it is fully disabled.",
-      "webReleaseQueuedHint": "Open Extensions → Web releases to follow release #{id} progress.",
-      "webReleaseQueuedHintNoId": "Open Extensions → Web releases to follow progress.",
-      "webReleaseProgress": {
-        "queued": "Web release queued and waiting for a worker. If it stays here, confirm the API embeds the worker or a standalone worker is running.",
-        "resolving": "Resolving the theme and trusted-plugin composition.",
-        "installing": "Installing release dependencies and extension snapshots.",
-        "building": "Building the admin/frontend release package.",
-        "verifying": "Verifying the release artifact.",
-        "ready": "Build finished; preparing to switch the runtime.",
-        "activating": "Switching the runtime. The plugin status becomes final after this step.",
-        "failed": "Web release failed. Open Extensions → Web releases for details, then retry."
-      },
-      "viewWebRelease": "View release details",
       "actionFailed": "Extension action failed.",
       "settingsProfiles": {
         "none": "No settings UI",
         "schema": "No author JS (Schema)",
         "actions": "Schema + host Actions",
-        "prebuilt": "Includes fully trusted component",
-        "legacyVue": "Legacy Vue / Web Release required"
+        "prebuilt": "Includes fully trusted component"
       },
       "frontend": {
         "title": "Trusted admin components",
@@ -531,11 +509,8 @@
         "revoke": "Revoke",
         "grantSuccess": "Frontend trust granted.",
         "revokeSuccess": "Frontend trust revocation submitted.",
-        "grantQueued": "Frontend trust granted and a Web release was queued.",
-        "revokeQueued": "Frontend trust revocation submitted and a Web release was queued.",
         "prebuiltTitle": "Author-prebuilt component (no operator build)",
         "prebuiltDescription": "The component comes from the installed extension package and loads through an immutable digest URL. It is fully trusted code, not a sandbox; declining trust keeps the declarative settings available.",
-        "noWebRelease": "Loaded directly by digest; no Web Release is created",
         "confirmTitle": "Confirm extension admin code",
         "fullTrustTitle": "This code has administrator browser authority",
         "fullTrustDescription": "The {name} v{version} component can call its namespaced API, change settings, and navigate the admin on your behalf. The host does not pass Cookie or Authorization values to it, but the code must still be treated as fully trusted.",
@@ -543,60 +518,6 @@
         "confirmCode": "Re-enter the one-time confirmation code below (valid for 5 minutes)",
         "confirmAcknowledge": "I understand this is not a sandbox and trust this exact version, API, component ID, and digest.",
         "confirmGrant": "Confirm and load component"
-      },
-      "releases": {
-        "title": "Web releases",
-        "intro": "Only compatibility releases for legacy trusted Vue admin frontends appear here. Schema, Actions, prebuilt components, and public theme activation never create a Web Release.",
-        "rebuildTitle": "Rebuild the current Web release",
-        "rebuildDescription": "Re-package the currently enabled and trusted legacy Vue admin composition. An unchanged composition reuses an active/ready artifact; no legacy component means the build is skipped. Settings, secrets, plugin backends, and public themes are not changed.",
-        "rebuild": "Rebuild now",
-        "rebuildQueued": "Web release rebuild queued.",
-        "typecheckModeTitle": "Web Release typecheck policy",
-        "typecheckModeDescription": "This affects only Web Releases for legacy trusted Vue admin frontends. Schema, Actions, and prebuilt components do not trigger a Nuxt build; full-repo typecheck remains mandatory in CI and test scripts.",
-        "typecheckModeSaved": "Typecheck policy saved.",
-        "typecheckModes": {
-          "off": {
-            "label": "Off",
-            "description": "Skip typecheck in release builds; useful when CI is the single type gate."
-          },
-          "report": {
-            "label": "Report, do not block (recommended)",
-            "description": "Run typecheck and record its result; failures do not block a compatibility Web Release."
-          },
-          "block": {
-            "label": "Block on failure",
-            "description": "Run typecheck and stop the compatibility Web Release on any type error."
-          }
-        },
-        "historyHint": "History of releases below. In-progress builds refresh automatically.",
-        "trigger": "Trigger",
-        "theme": "Theme",
-        "status": "Status",
-        "actions": "Actions",
-        "empty": "No Web releases yet.",
-        "retryQueued": "Release retry queued.",
-        "rollbackQueued": "Release rollback queued.",
-        "viewDetail": "View details",
-        "events": "Status events",
-        "statusLabels": {
-          "queued": "Queued",
-          "resolving": "Resolving",
-          "installing": "Installing",
-          "building": "Building",
-          "verifying": "Verifying",
-          "ready": "Ready",
-          "activating": "Activating",
-          "active": "Active",
-          "inactive": "Inactive",
-          "failed": "Failed",
-          "superseded": "Superseded",
-          "rolled_back": "Rolled back"
-        }
-      },
-      "releaseNotice": {
-        "title": "A new admin release is active",
-        "description": "Reload to use the latest theme and trusted plugin components.",
-        "reload": "Reload now"
       },
       "stats": {
         "plugins": "Plugins",
@@ -618,27 +539,8 @@
       "manage": "Manage",
       "verify": "Verify",
       "activateTheme": "Activate theme",
-      "retryActivation": "Retry activation",
       "restoreDefaultTheme": "Restore default theme",
       "activeTheme": "Active theme",
-      "themeRelease": {
-        "queued": "Queued",
-        "building": "Building",
-        "built": "Built",
-        "activating": "Switching",
-        "active": "Active theme",
-        "failed": "Activation failed",
-        "rolled_back": "Rolled back"
-      },
-      "themeProgress": {
-        "queued": "Waiting for the background worker to pick up this task. If it stays here, confirm the local worker is running.",
-        "building": "Building the Nuxt theme release while the current theme keeps serving traffic.",
-        "built": "Build completed and the release is preparing to switch.",
-        "activating": "Writing the current release and waiting for the web runtime to switch.",
-        "active": "The frontend runtime is using this theme; local dev will apply it after the automatic restart.",
-        "failed": "Theme activation failed. You can retry.",
-        "rolled_back": "This release has been replaced by a newer theme release."
-      },
       "source": {
         "builtin": "Built-in"
       },
@@ -682,7 +584,6 @@
       "confirmEnableAction": "Confirm and enable",
       "capability": {
         "backend": "Backend RPC",
-        "frontend": "Nuxt Layer",
         "routes": "{count} routes",
         "hooks": "{count} hooks",
         "events": "{count} events",
@@ -800,12 +701,6 @@
         "disabledDescription": "This extension is currently disabled. Its settings and registered admin features are offline. Enable it from the plugins list first.",
         "configureBeforeEnableTitle": "Safe configuration before enablement",
         "configureBeforeEnableDescription": "Only host-stored declarative settings are edited here. The plugin process, routes, events, jobs, and providers stay stopped. Actions that require code remain unavailable.",
-        "enablingTitle": "Extension is enabling",
-        "enablingDescription": "Trusted plugins with admin frontend need a Web Release (build and activate) before status becomes enabled. This page refreshes progress automatically.",
-        "plainDevTitle": "Running in plain dev mode",
-        "plainDevDescription": "This page opens because the host provides a generic settings form. Plugin custom admin UI (for example the SMTP settings page) requires bun run dev to inject the Web Release component package. dev:plain only acknowledges releases and never loads plugin frontends — reloading will not help.",
-        "reloadRequiredTitle": "Reload required for plugin UI",
-        "reloadRequiredDescription": "The extension backend is enabled, but this browser session still uses the previous admin frontend package. Reload to load the custom pages and components registered by this plugin.",
         "openPlugins": "Open plugins list",
         "settingsTitle": "Extension settings",
         "settingsIntro": "These fields are declared by the extension. Values are stored in that extension's own runtime settings and do not affect other extensions.",
@@ -847,8 +742,6 @@
         "customPageBadge": "Plugin custom UI",
         "schemaBadge": "Declarative",
         "compatBadge": "Generic compatibility",
-        "legacyRendererDeprecatedTitle": "Legacy Vue settings compatibility mode",
-        "legacyRendererDeprecatedDescription": "This extension still injects its settings page through a full Web Release. New packages should use Schema, Settings Actions, or an author-prebuilt Admin Micro-frontend API v1 component. The compatibility path remains available for now.",
         "presentationFallbackTitle": "Using the generic form fallback",
         "presentationFallbackDescription": "Optional extension layout metadata is unavailable. The settings fields remain editable through the safe linear form.",
         "secretsPreserved": "Restoring recommended defaults does not clear saved passwords or secrets. Leaving a password field blank also keeps the current value.",
@@ -945,7 +838,7 @@
       "title": "Scheduled jobs",
       "intro": "Manage host Schedule Registry periodics: enable or disable, inspect last/next run, or enqueue a run now.",
       "hintTitle": "Recommended default: all enabled",
-      "hintBody": "By default, daily jobs clean sessions, orphan attachments, stale Web Releases, and audit events. Disabling skips the next periodic insert without restarting the worker. Manual trigger requires the schedule to be enabled.",
+      "hintBody": "By default, daily jobs clean sessions, orphan attachments, and audit events. Disabling skips the next periodic insert without restarting the worker. Manual trigger requires the schedule to be enabled.",
       "listTitle": "Schedule catalog",
       "listIntro": "Enable flags are stored in web_options and apply on the next tick. Last run comes from River job history; next run is an interval estimate.",
       "empty": "No scheduled jobs are registered.",
@@ -1159,11 +1052,11 @@
       },
       "operator": {
         "alias": "Site operator",
-        "description": "Day-to-day site ops: users, taxonomy, site/mail/appearance settings. No tech releases or permission overrides."
+        "description": "Day-to-day site ops: users, taxonomy, site/mail/appearance settings. No technical operations or permission overrides."
       },
       "tech_admin": {
         "alias": "Technical admin",
-        "description": "Technical operations: extensions and releases, search index, jobs, database browse, and attachment storage settings."
+        "description": "Technical operations: extensions, search index, jobs, database browse, and attachment storage settings."
       },
       "member": {
         "alias": "Member",
@@ -1418,7 +1311,7 @@
       "extension": {
         "manage": {
           "label": "Manage all extensions (legacy)",
-          "description": "Legacy parent permission covering view, plugin, theme, and release management."
+          "description": "Parent permission covering view, plugin, and theme management."
         },
         "view": {
           "label": "View extensions",
@@ -1434,12 +1327,6 @@
           "manage": {
             "label": "Manage themes",
             "description": "Activate and manage frontend themes."
-          }
-        },
-        "release": {
-          "manage": {
-            "label": "Manage web releases",
-            "description": "Build and activate trusted admin web releases (high risk)."
           }
         }
       },

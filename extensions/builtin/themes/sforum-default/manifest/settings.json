@@ -35,7 +35,7 @@
         "id": "instant-preview",
         "tone": "info",
         "title": { "zh-CN": "保存后立即应用", "en-US": "Applies immediately after save" },
-        "body": { "zh-CN": "这些值通过活动主题设置接口读取，不需要 Web Release 或 Nuxt 构建。", "en-US": "These values are read through the active-theme settings API and require no Web Release or Nuxt build." },
+        "body": { "zh-CN": "这些值通过活动主题设置接口读取，不需要宿主前端构建。", "en-US": "These values are read through the active-theme settings API and require no host frontend build." },
         "tab": "home"
       },
       {

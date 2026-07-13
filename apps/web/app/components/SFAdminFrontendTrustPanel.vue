@@ -19,11 +19,6 @@ const canConfirm = computed(() => confirmationPhrase.value === extension.value.i
   && acknowledged.value)
 
 async function requestGrant() {
-  if (!isPrebuilt.value) {
-    await mutate('grant')
-    emit('changed')
-    return
-  }
   confirmationPhrase.value = ''
   confirmationCode.value = ''
   acknowledged.value = false
@@ -68,7 +63,7 @@ function closeConfirmation() {
       </div>
       <div v-if="isSuperAdmin" class="flex gap-2">
         <UButton v-if="['required', 'invalidated', 'revoked'].includes(status?.trustState || '')" size="xs" icon="i-lucide-shield-check" :loading="busy" @click="requestGrant">{{ t('admin.extensions.frontend.grant') }}</UButton>
-        <UButton v-if="['trusted', 'revocation_pending'].includes(status?.trustState || '')" size="xs" color="error" variant="subtle" icon="i-lucide-shield-x" :loading="busy" @click="mutate('revoke')">{{ t('admin.extensions.frontend.revoke') }}</UButton>
+        <UButton v-if="status?.trustState === 'trusted'" size="xs" color="error" variant="subtle" icon="i-lucide-shield-x" :loading="busy" @click="mutate('revoke')">{{ t('admin.extensions.frontend.revoke') }}</UButton>
       </div>
     </div>
     <UAlert v-if="error" class="mt-3" color="error" icon="i-lucide-triangle-alert" :description="error" />
@@ -81,16 +76,10 @@ function closeConfirmation() {
       :title="t('admin.extensions.frontend.prebuiltTitle')"
       :description="t('admin.extensions.frontend.prebuiltDescription')"
     />
-    <dl v-if="status?.declaration" class="mt-3 grid gap-2 text-xs sm:grid-cols-2">
-      <div><dt class="text-slate-500">Digest</dt><dd class="break-all font-mono">{{ status.digest }}</dd></div>
-      <div><dt class="text-slate-500">API / Root</dt><dd>{{ status.declaration.apiVersion }} / {{ status.declaration.root }}</dd></div>
-      <div class="sm:col-span-2"><dt class="text-slate-500">Components</dt><dd class="break-all font-mono">{{ Object.keys(status.declaration.components).join(', ') }}</dd></div>
-    </dl>
-    <dl v-else-if="status?.component" class="mt-3 grid gap-2 text-xs sm:grid-cols-2">
+    <dl v-if="status?.component" class="mt-3 grid gap-2 text-xs sm:grid-cols-2">
       <div><dt class="text-slate-500">Digest</dt><dd class="break-all font-mono">{{ status.digest }}</dd></div>
       <div><dt class="text-slate-500">API / Component</dt><dd>{{ status.component.apiVersion }} / {{ status.component.id }}</dd></div>
       <div class="sm:col-span-2"><dt class="text-slate-500">Entry</dt><dd class="break-all font-mono">{{ status.component.entry }}</dd></div>
-      <div class="sm:col-span-2"><dt class="text-slate-500">Build</dt><dd>{{ t('admin.extensions.frontend.noWebRelease') }}</dd></div>
     </dl>
   </section>
 

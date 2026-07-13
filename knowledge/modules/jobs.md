@@ -104,14 +104,9 @@ Plugins may render digest-approved client components there, but cannot bypass
   bootstrap).
 - Core schedules (daily unless noted):
   - `identity.cleanup_sessions` → queue `default`
-  - `extension.web_release_cleanup` → queue `maintenance`
   - `attachments.cleanup_orphans` → queue `maintenance` (handler pre-existed;
     F1.1 registered the periodic)
   - `audit.cleanup_events` → queue `maintenance` (F1.4; default retain 90 days)
-- Web Release cleanup always retains the active artifact, its rollback target,
-  and the five newest successful artifacts. Failed and superseded artifacts are
-  eligible after seven days; build logs after thirty days. Release rows, events,
-  and immutable extension snapshots remain as durable history.
 - Admin schedule APIs (`jobs.view` / `jobs.manage`):
   - `GET /api/v1/admin/jobs/schedules` — catalog + runtime `enabled`,
     `lastRunAt` (max `river_job.created_at` per kind), estimated `nextRunAt`

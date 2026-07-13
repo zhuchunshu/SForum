@@ -57,8 +57,8 @@ Document and Provider Probe contract:
   `ProviderProbe` RPC through host permission/lifecycle/input/timeout/audit
   policy. A disabled plugin uses the restricted short-lived Probe runtime and
   does not register normal routes, jobs, hooks, events, or provider slots.
-- SMTP no longer ships `frontend.admin`, locale bundles, or a custom settings
-  SFC. Core chrome has no SMTP-specific field or port branching; secrets stay
+- SMTP ships no executable admin frontend or custom settings SFC. Core chrome
+  has no SMTP-specific field or port branching; secrets stay
   encrypted/masked, blank updates preserve them, and recommended restore is
   still host-owned.
 

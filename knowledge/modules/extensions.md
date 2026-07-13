@@ -22,11 +22,10 @@ while provider-specific behavior remains in plugins.
 
 Plugins and themes use one versioned settings document and one
 host renderer. Schema UI (fields/tabs/groups/callouts) and Schema + Actions are
-host-rendered and require no Web Release. Complex settings UI remains available
+host-rendered and require no extension frontend build. Complex settings UI remains available
 through an author-prebuilt admin micro-frontend that the host dynamically loads
 after explicit digest-bound administrator trust; operators do not rebuild
-SForum. The existing trusted Vue `frontend.admin` + Web Release path remains a
-deprecated-for-new-settings compatibility path.
+SForum. The trusted Vue/static-registry release path has been removed.
 
 - Decision: `decisions/2026-07-13-buildless-extension-settings-ui.md`
 - Task book: `plans/2026-07-13-buildless-extension-settings-ui.md`
@@ -42,9 +41,9 @@ deprecated-for-new-settings compatibility path.
   uses a restricted short-lived plugin process with no Host API token and no
   route/event/job/schedule/provider registration; SMTP and filesystem storage
   are reference migrations.
-- `adminFrontendDigest` covers only legacy admin frontend inputs or prebuilt
-  entry/CSS bytes. Trust and Web Release composition use it independently from
-  package/backend/public-theme/settings changes.
+- `adminFrontendDigest` covers only the prebuilt component contract and
+  entry/CSS bytes. Trust uses it independently from package/backend/public-theme/
+  settings changes.
 - Admin Micro-frontend API v1 loads package-local `.mjs`/`.css` through an
   authenticated immutable digest endpoint after one-use actor-bound
   confirmation. Import/API/mount/CSS/cleanup/quarantine failure falls back to
@@ -58,7 +57,7 @@ deprecated-for-new-settings compatibility path.
 Public themes use **runtime Page Registry + L0/L1** (activate without Nuxt rebuild).
 L2 widgets are **disabled** until integrity/trust. See remediation handoffs
 2026-07-13 (security) and **round-2 lifecycle** (routes, access, loader SSR,
-Web Release sync, contract_version).
+synchronous lifecycle, contract_version).
 
 - **ADR:** `decisions/2026-07-13-runtime-page-registry-themes.md`
 - **Plan (P0–P5, commit/rollback rules):**
@@ -74,20 +73,18 @@ Web Release sync, contract_version).
   - Deterministic route signatures + match order (static > param > catch-all)
   - Access enum fail-closed (`public|login|guest|moderation|permission`)
   - Host SSR `LoaderGateway` (loopback only; no Cookie/Auth forward)
-  - Web Release effects via `ApplyApprovedLifecycleEffect` (registers/clears pages immediately)
+  - Extension enable/disable registers/clears Page Registry entries immediately
   - `page_provider_bindings.contract_version` + approve/resolve re-check
   - Atomic theme contribution replace for same add paths
 - **Built-in themes:**
-  - `sforum.default-theme` — protected default (warm public shell; still has
-    legacy `layer/` tree for host inheritance / dual-stack leftovers)
+  - `sforum.default-theme` — protected default warm public shell
   - `sforum.nocturne-theme` — second builtin **runtime-only** package
     (`extensions/builtin/themes/sforum-nocturne/`); navy + cyan L0 skin and
     home L1 hero around `<sf-home-page>`
   - Dev reference: `sforum.signal-garden` under `extensions/dev/themes/`
     (and fixtures), not builtin
-- **Freeze:** do not invest in new Layer-only theme capabilities except
-  critical bugs; implement runtime path first (P1+). Layer activation remains
-  the live dual-stack path until P5.
+- Nuxt Layer activation is removed; themes ship `theme.json`, templates, and
+  static assets only.
 - Narrows “no core route override” to **no core API / security route override**;
   view-page replace is an intentional new capability.
 
@@ -211,20 +208,20 @@ and plugin runtime v1.
   without executing SQL (v1). Disable drains subprocess before status change.
   See `sessions/2026-07-12-f2-4-extension-lifecycle.md`.
 
-- `extension.manage` is the permission for uploading, verifying, enabling
-  plugins, activating the protected default theme, and inspecting extensions.
-  It is seeded for `super_admin`.
+- `extension.view`, `extension.plugin.manage`, and `extension.theme.manage`
+  separate inspection, plugin lifecycle/configuration, and theme activation.
+  They are seeded for `super_admin`; `extension.manage` is only a parent alias.
 - Extension packages are uploaded as ZIP archives through the admin API and
   must include a root `sforum.extension.json` manifest.
 - Backend model code validates manifest identity, required description, URL,
   author metadata, type, version, compatibility field, backend entry paths,
-  frontend layer paths, admin page declarations, migrations, and unsafe ZIP
+  theme/component asset paths, admin page declarations, migrations, and unsafe ZIP
   paths before writing files.
 - Installed packages are stored under `EXTENSION_ROOT`, not in the public
   attachment system.
-- Database tables: `extensions`, `extension_versions`, `extension_settings`,
-  `extension_events`, `extension_event_deliveries`, and
-  `extension_theme_releases`.
+- Database tables include `extensions`, `extension_versions`,
+  `extension_settings`, `extension_events`, `extension_event_deliveries`, and
+  `extension_frontend_trust_grants`.
 - Extension rows include source metadata: `source` (`builtin` or `uploaded`),
   `is_system`, and `is_deletable`.
 - Startup sync reads `BUILTIN_EXTENSION_ROOT`, registers the protected built-in
@@ -237,22 +234,17 @@ and plugin runtime v1.
   containers set `BUILTIN_EXTENSION_ROOT=/app/extensions/builtin`, store uploaded
   archives under the persistent `extension_packages` volume mounted at
   `/var/lib/sforum/extensions`, and keep attachment uploads separate.
-- Extension verify, plugin enable, and uploaded theme activation operations
-  require the active package path and installed `sforum.extension.json` to still
-  exist before changing runtime state. Theme verify and queued activation report
-  missing packages, missing installed manifests, and missing Nuxt Layer
-  directories as `extension.build_failed`; plugins keep using
-  `extension.preflight_failed` for preflight failures.
+- Extension verify, plugin enable, and theme activation require the active
+  package path and installed manifest to exist. Theme verify checks `theme.json`,
+  templates, and assets; plugins use backend preflight.
 - Admin API routes:
   - `GET /api/v1/admin/extensions`
   - `POST /api/v1/admin/extensions`
   - `POST /api/v1/admin/extensions/:id/enable` for plugins
   - `POST /api/v1/admin/extensions/:id/disable` for plugins
-  - `POST /api/v1/admin/extensions/:id/verify` for plugin preflight or theme
-    Nuxt Layer verification
-  - `POST /api/v1/admin/extensions/:id/activate` for themes. Uploaded themes
-    return `202 Accepted` with a queued `themeRelease`; restoring the built-in
-    default theme remains immediate.
+  - `POST /api/v1/admin/extensions/:id/verify` for plugin preflight or buildless
+    theme package verification
+  - `POST /api/v1/admin/extensions/:id/activate` synchronously activates themes
   - `GET /api/v1/admin/extensions/:id/events`
   - `GET /api/v1/admin/extensions/navigation`
   - `GET /api/v1/admin/extensions/:id/settings`
@@ -267,7 +259,7 @@ and plugin runtime v1.
 - The admin UI has an independent "Extensions" sidebar folder registered
   through the low-code admin module registry and protected by
   `extension.manage`. Submenus: Overview, Plugins, Themes, Settings, Event
-  Log, Extension Points, and Web Releases. Enabled plugins and the active
+  Log, Extension Points, and Page Registry. Enabled plugins and the active
   theme can inject manifest-declared core-container admin pages under the
   fixed `/extensions/{id}/pages/*` admin namespace; installed extensions also
   have a "Manage" entry from plugin/theme list rows.
@@ -278,12 +270,9 @@ and plugin runtime v1.
   search/sort/category chips + card grid + coming-soon banner). They do not
   call a remote catalog or install APIs yet; operators still manage packages
   via Plugins/Themes ZIP upload.
-- Theme rows show `enabled` as "current theme" rather than "enabled".
-  Uploaded Nuxt Layer themes can now be activated through the self-hosted theme
-  runtime. Activation queues a River job, builds an isolated Nuxt/Nitro artifact,
-  health-checks a preview server, writes the active release file, and lets the
-  web runtime restart onto the selected artifact. Failed builds keep the
-  previous active theme running.
+- Theme rows show `enabled` as "current theme" rather than "enabled". Activation
+  synchronously replaces Page Registry bindings and active skin assets without
+  a worker, Nuxt build, or Web restart.
 - Overview, Plugins, and Themes list rows show the extension manifest
   `description` under the name (up to two lines) so operators can scan purpose
   without opening the detail panel. The overview detail panel also shows the
@@ -298,9 +287,8 @@ and plugin runtime v1.
   names and descriptions immediately. Built-in package changes require an API
   restart (`SyncBuiltins` on boot) before the stored active version reflects a
   new `langs` block.
-- The admin extension overview now mirrors the Themes page for uploaded theme
-  activation progress: queued/building/switching rows show status text,
-  percent progress, helper copy, and short polling while a release is active.
+- Extension pages do not poll build progress; lifecycle mutations return their
+  final extension state synchronously.
 - The admin Event Log page uses a non-shrinking page wrapper inside the admin
   scroll panel, so long event-definition and audit sections expand normally
   instead of being clipped by the dashboard flex layout. Event definitions,
@@ -321,16 +309,10 @@ and plugin runtime v1.
   core validates payloads, resolves effective enabled-plugin contributions,
   exposes read-only admin inspection, and the first runtime consumer is
   `forum.topic.actions`.
-- Trusted admin plugin components are implemented. The runtime treats arbitrary Vue components as fully trusted,
-  client-only code; keeps SSR-safe slot metadata in manifest contributions;
-  binds `super_admin` approval to the package digest; generates a static Nuxt
-  registry; and unifies theme and plugin inputs under WebReleaseRuntime. The
-  worker builds immutable artifacts, the API owns activation and plugin
-  runtime state, and the web supervisor acknowledges the actual proxy target.
-  The job monitoring module is the first production component-slot consumer,
-  owning table-column, row-action, and detail-section slots. See
-  `decisions/2026-07-10-trusted-admin-plugin-runtime.md` and
-  `docs/superpowers/specs/2026-07-10-trusted-admin-plugin-runtime-design.md`.
+- Trusted admin settings components use Admin Micro-frontend API v1 only.
+  Authors ship package-local prebuilt `.mjs`/`.css`; the host loads them from an
+  immutable digest endpoint after exact `super_admin` approval. Jobs and other
+  admin modules do not expose executable extension slots.
 
 ## Boundaries
 
@@ -359,13 +341,11 @@ and plugin runtime v1.
   bypass API policy checks. The first point, `forum.topic.actions`, maps
   enabled plugin descriptors to topic-page buttons that call declared extension
   routes through the normal route proxy.
-- The accepted trusted-component direction does not turn all contributions
-  into executable UI. Descriptor points remain host-rendered. A core module
-  must explicitly declare a trusted admin component point with typed manifest
-  metadata and context. Legacy Vue mappings require a digest-approved Web
-  Release; prebuilt settings components use Admin Micro-frontend API v1 and an
-  exact digest grant without a host build. Plugins still cannot create points, override core
-  routes, execute components during SSR, or inject into public theme UI.
+- The trusted-component direction does not turn contributions into executable
+  UI. Descriptor points remain host-rendered. Prebuilt executable code is
+  confined to Settings Document component mode and exact digest trust. Plugins
+  still cannot create points, override core routes, execute components during
+  SSR, or inject code into public theme UI.
 - Event delivery attempts are recorded separately from lifecycle audit logs in
   `extension_event_deliveries`. The runtime has River job args and worker
   plumbing for durable async delivery, and falls back to inline delivery when no
@@ -376,15 +356,9 @@ and plugin runtime v1.
   on the host; themes may replace/add views via registry (core API / security
   routes remain non-overridable). Plugin `replace` of core pages requires
   super_admin approval; theme activate auto-binds that theme's replaces.
-- Web Release remains only for legacy trusted Vue **admin** frontends. Schema,
-  Settings Actions, prebuilt settings components, and public theme switching do
-  not use it. Active/ready identical compositions are reused.
-- Trusted admin packages declare host peers only (`package.json` peers + lock);
-  never ship or commit `frontend/admin/node_modules`. Dev resolve uses host
-  aliases; Web Release links peers in the build workspace only.
-- Local `bun run dev` is plain Nuxt. Optional `dev:compose` still assembles
-  builtin admin frontends for HMR without a full production Web Release, and
-  prunes leftover peer-only `node_modules` under source admin roots.
+- There is no runtime extension frontend build, dependency installation, host
+  peer resolution, release coordinator, or admin registry. `bun run dev` is
+  plain Nuxt; production starts the Nuxt output directly.
 - Keep plugin `Enable/Disable` separate from theme `Activate`. Do not call
   plugin runtime hooks when activating a theme.
 - Backend plugin packages can declare a backend entry and RPC protocol. The
@@ -396,9 +370,9 @@ and plugin runtime v1.
 
 ## Permissions
 
-- `extension.manage`: install and manage plugins and themes. Granted to
-  `super_admin` by migration and seed catalog. No separate `theme.manage`
-  permission exists yet.
+- Fine-grained keys are `extension.view`, `extension.plugin.manage`, and
+  `extension.theme.manage`; the legacy parent `extension.manage` expands only
+  to those three. API policy remains authoritative.
 
 Frontend visibility mirrors this permission for navigation only. API policy
 checks remain authoritative.
@@ -442,8 +416,8 @@ Plan: `docs/superpowers/plans/2026-07-12-extension-manifest-split.md`
 (`backend`, `providers`, `permissions`, `migrations` paths), and optional
 `includes`.
 
-**First include keys:** `langs`, `settings`, `contributions`, `admin`,
-`frontend`, `events`, `routes`, `jobs`.
+**Include keys:** `langs`, `settings`, `contributions`, `admin`, `events`,
+`routes`, `jobs`, migrations, permissions, hooks, providers, and admin pages.
 
 **No dual source:** the same block must not appear both in the root file and
 under `includes` (fail with `extension.manifest_invalid`).
@@ -452,11 +426,11 @@ Simple plugins/themes may omit `includes` and keep today's single-file layout.
 
 #### Identity `langs` (directory-per-locale preferred)
 
-Three i18n layers stay separate:
+Two declarative i18n layers stay separate; prebuilt components receive the
+active locale through the bridge:
 
 1. Identity — root defaults + `langs` / `includes.langs` → list and install review
 2. Settings / contribution labels — `LocalizedText` in settings/contributions
-3. Frontend admin UI — `frontend.admin.locales` / Vue locale JSON
 
 `includes.langs` supports:
 
@@ -517,11 +491,9 @@ not contribute runtime menu entries. Inactive themes may keep management pages
 available but must not take over public UI or inject sidebar entries by
 default.
 
-For `type: theme`, v1 accepts only Nuxt Layer packages. The manifest must
-declare a safe, non-empty `frontend.layer` path. The layer directory must exist,
-but it may contain only the files the theme wants to override; missing files
-fall back to the protected default theme during Nuxt layer resolution. Themes
-may declare `settings` and `adminPages` for core-container admin pages, but must
+For `type: theme`, v1 accepts only buildless runtime packages with `theme.json`
+and optional `assets/`/`templates/`. Themes may declare `settings` and admin
+pages, but must
 not declare backend runtime or plugin execution capabilities: `backend`,
 `routes`, `hooks`, `events`, `jobs`, `providers`, `contributions`,
 `migrations`, or `permissions`. Invalid theme manifests use the existing 422
@@ -564,8 +536,7 @@ template while retaining Schema fallback fields.
   disabled plugins and inactive themes can be configured without starting
   extension code. Enabled backend plugins still restart with rollback after
   persistence. Secrets stay encrypted/masked and blank drafts preserve them.
-- Legacy `admin.extension.settings.page`/header/footer contributions remain
-  compatible but the full settings-page path is deprecated for new packages.
+- Executable settings-page/header/footer contributions are not supported.
 - Default theme is Schema-only (multi-tab groups/columns/callouts); its stale
   admin SFC/package/locale files were removed. Public values still resolve via
   `GET /site/active-theme/settings`.
@@ -582,8 +553,8 @@ template while retaining Schema fallback fields.
   `mail.provider`, `notification.channel`, `payment.provider`,
   `search.provider`, `attachment.storage.provider`,
   `editor.sanitizer.provider`, and `auth.risk.provider`.
-- Add preview/approval UI, richer build logs, uninstall cleanup, and explicit
-  rollback controls for theme releases.
+- Add preview/approval UI and stronger uninstall/rollback controls for runtime
+  theme packages without introducing host builds.
 - Add plugin author documentation for provider-slot based systems such as mail,
   notifications, and payments before building those verticals.
 - Add upgrade, rollback, and uninstall operations.

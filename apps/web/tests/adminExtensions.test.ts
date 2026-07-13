@@ -26,11 +26,7 @@ import {
   recommendedExtensionSettingValues,
   runtimeCapabilitySummary,
   runtimeStatusLabelKey,
-  hasThemeActivationInProgress,
-  hasPluginWebReleaseInProgress,
-  pluginWebReleaseProgress,
   themeActionState,
-  themeActivationProgress,
   themeStatusLabelKey,
   type AdminEffectiveContribution,
   type AdminExtension,
@@ -101,65 +97,6 @@ describe('admin extension helpers', () => {
     expect(themeActionState(items[0])).toBe('active')
     expect(themeActionState(inactiveDefaultTheme)).toBe('activateDefault')
     expect(themeActionState(items[1])).toBe('activate')
-    expect(themeActionState(extension({
-      id: 'queued.theme',
-      name: 'Queued Theme',
-      type: 'theme',
-      themeRelease: themeRelease('queued')
-    }))).toBe('queued')
-    expect(themeActionState(extension({
-      id: 'building.theme',
-      name: 'Building Theme',
-      type: 'theme',
-      themeRelease: themeRelease('building')
-    }))).toBe('building')
-    expect(themeActionState(extension({
-      id: 'activating.theme',
-      name: 'Activating Theme',
-      type: 'theme',
-      themeRelease: themeRelease('activating')
-    }))).toBe('activating')
-    expect(themeActionState(extension({
-      id: 'failed.theme',
-      name: 'Failed Theme',
-      type: 'theme',
-      themeRelease: themeRelease('failed')
-    }))).toBe('failed')
-  })
-
-  test('maps theme activation releases to progress display state', () => {
-    expect(themeActivationProgress(themeRelease('queued'))).toEqual({
-      percent: 10,
-      status: 'queued',
-      labelKey: 'admin.extensions.themeRelease.queued',
-      detailKey: 'admin.extensions.themeProgress.queued',
-      icon: 'i-lucide-hourglass',
-      color: 'info',
-      active: true
-    })
-    expect(themeActivationProgress(themeRelease('building')).percent).toBe(45)
-    expect(themeActivationProgress(themeRelease('activating')).percent).toBe(85)
-    expect(themeActivationProgress(themeRelease('active')).percent).toBe(100)
-    expect(themeActivationProgress(themeRelease('failed'))).toMatchObject({
-      percent: 100,
-      color: 'error',
-      active: false
-    })
-    expect(themeActivationProgress(undefined)).toBeNull()
-  })
-
-  test('detects whether any theme activation needs polling', () => {
-    const items = [
-      extension({ id: 'queued.theme', name: 'Queued Theme', type: 'theme', themeRelease: themeRelease('queued') }),
-      extension({ id: 'active.theme', name: 'Active Theme', type: 'theme', status: 'enabled', themeRelease: themeRelease('active') })
-    ]
-    const inactive = [
-      extension({ id: 'failed.theme', name: 'Failed Theme', type: 'theme', themeRelease: themeRelease('failed') }),
-      extension({ id: 'plain.theme', name: 'Plain Theme', type: 'theme' })
-    ]
-
-    expect(hasThemeActivationInProgress(items)).toBe(true)
-    expect(hasThemeActivationInProgress(inactive)).toBe(false)
   })
 
   test('counts manifest capability declarations', () => {
@@ -439,8 +376,6 @@ function extension(input: {
   source?: AdminExtension['source']
   manifest?: Partial<AdminExtension['manifest']>
   runtime?: Partial<NonNullable<AdminExtension['runtime']>>
-  themeRelease?: AdminExtension['themeRelease']
-  webRelease?: AdminExtension['webRelease']
 }): AdminExtension {
   return {
     ...baseExtension,
@@ -457,22 +392,8 @@ function extension(input: {
       sforumVersion: '^1.0.0',
       ...input.manifest
     },
-    runtime: input.runtime as AdminExtension['runtime'],
-    themeRelease: input.themeRelease,
-    webRelease: input.webRelease
+    runtime: input.runtime as AdminExtension['runtime']
   } as AdminExtension
-}
-
-function themeRelease(status: NonNullable<AdminExtension['themeRelease']>['status']): NonNullable<AdminExtension['themeRelease']> {
-  return {
-    id: 1,
-    extensionId: 'demo.theme',
-    extensionVersion: '1.0.0',
-    status,
-    message: '',
-    createdAt: '2026-07-05T10:00:00Z',
-    updatedAt: '2026-07-05T10:00:00Z'
-  }
 }
 
 function contribution(overrides: Partial<AdminEffectiveContribution>): AdminEffectiveContribution {
@@ -535,28 +456,3 @@ function definition(name: string): AdminExtensionEventDefinition {
     timeoutMs: 5000
   }
 }
-
-describe('plugin web release progress', () => {
-  test('maps live web release statuses to progress bars', () => {
-    expect(pluginWebReleaseProgress({ id: 1, status: 'queued', compositionHash: 'h', reloadMode: 'prompt' })).toMatchObject({
-      percent: 8,
-      active: true,
-      labelKey: 'admin.extensions.releases.statusLabels.queued'
-    })
-    expect(pluginWebReleaseProgress({ id: 2, status: 'building', compositionHash: 'h', reloadMode: 'prompt' })?.active).toBe(true)
-    expect(pluginWebReleaseProgress({ id: 3, status: 'failed', compositionHash: 'h', reloadMode: 'prompt' })).toMatchObject({
-      percent: 100,
-      active: false
-    })
-    expect(pluginWebReleaseProgress({ id: 4, status: 'active', compositionHash: 'h', reloadMode: 'prompt' })).toBeNull()
-  })
-
-  test('detects in-progress plugin releases for polling', () => {
-    expect(hasPluginWebReleaseInProgress([
-      extension({ id: 'a.plugin', name: 'A', type: 'plugin', webRelease: { id: 1, status: 'building', compositionHash: 'h', reloadMode: 'prompt' } })
-    ])).toBe(true)
-    expect(hasPluginWebReleaseInProgress([
-      extension({ id: 'a.plugin', name: 'A', type: 'plugin' })
-    ])).toBe(false)
-  })
-})

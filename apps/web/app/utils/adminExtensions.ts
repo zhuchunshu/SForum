@@ -1,8 +1,7 @@
 export type AdminExtensionType = 'plugin' | 'theme'
 export type AdminExtensionStatus = 'installed' | 'enabled' | 'disabled'
 export type AdminExtensionSource = 'builtin' | 'uploaded'
-export type AdminThemeReleaseStatus = 'queued' | 'building' | 'built' | 'activating' | 'active' | 'failed' | 'rolled_back'
-export type AdminThemeActionState = 'active' | 'activateDefault' | 'activate' | 'queued' | 'building' | 'activating' | 'failed'
+export type AdminThemeActionState = 'active' | 'activateDefault' | 'activate'
 export type AdminRuntimeState = 'stopped' | 'starting' | 'running' | 'degraded' | 'failed'
 export type AdminExtensionEventKind = 'observe' | 'validate' | 'filter'
 export type AdminExtensionDeliveryStatus = 'queued' | 'running' | 'succeeded' | 'failed' | 'skipped'
@@ -82,10 +81,6 @@ export type AdminExtensionManifest = {
   settings?: AdminExtensionSetting[] | AdminManifestSettingsDocument
   migrations?: Array<{ path: string }>
   backend?: { entry?: string, rpc?: string, protocolVersion?: number }
-  frontend?: {
-    layer?: string
-    admin?: { root: string, apiVersion: number, components: Record<string, string>, locales: Record<string, string> }
-  }
   admin?: AdminExtensionAdmin
   adminPages?: AdminExtensionAdminPage[]
   routes?: Array<{ path: string, methods?: string[], access?: 'public' | 'login' | 'permission', permission?: string, timeoutMs?: number }>
@@ -147,11 +142,11 @@ export type AdminExtensionSettingValue = {
 export type AdminExtensionSettingsRenderer = {
   mode: 'schema' | 'component'
   layout: 'form' | 'tabs'
-  source: 'document' | 'legacy_array' | 'legacy_web_release'
+	source: 'document' | 'legacy_array'
   fallback: 'schema'
   component?: {
     id: string
-    kind: 'legacy_web_release' | 'prebuilt'
+		kind: 'prebuilt'
     apiVersion: number
     entry?: string
     css?: string
@@ -239,31 +234,6 @@ export type AdminExtensionRuntime = {
   maxConcurrentRpc?: number
 }
 
-export type AdminThemeRelease = {
-  id: number
-  extensionId: string
-  extensionVersion: string
-  status: AdminThemeReleaseStatus
-  message: string
-  buildLog?: string
-  createdAt: string
-  updatedAt: string
-  activatedAt?: string
-}
-
-export type AdminWebReleaseSummary = {
-  id: number
-  status: string
-  compositionHash: string
-  reloadMode: string
-  triggerKind?: string
-  triggerExtensionId?: string
-  publicReason?: string
-  publicMessage?: string
-  /** 后端可能仍返回；管理端 UI 不再展示。 */
-  buildLog?: string
-}
-
 export type AdminCapabilityRisk = 'low' | 'medium' | 'high'
 
 /** 启用审查用的有效 Host 能力（显式 + 宿主推断）。 */
@@ -289,9 +259,6 @@ export type AdminExtension = {
   /** F2.1 有效能力列表，启用前需运营确认。 */
   capabilityGrants?: AdminCapabilityGrant[]
   runtime?: AdminExtensionRuntime
-  themeRelease?: AdminThemeRelease
-  /** 插件启停/信任变更排队的 Web 发布进度（主题用 themeRelease）。 */
-  webRelease?: AdminWebReleaseSummary
   packageDigest: string
   adminFrontendDigest?: string
   packagePath: string
@@ -299,7 +266,7 @@ export type AdminExtension = {
   updatedAt: string
 }
 
-export type AdminExtensionSettingsProfile = 'none' | 'schema' | 'actions' | 'prebuilt' | 'legacy_vue'
+export type AdminExtensionSettingsProfile = 'none' | 'schema' | 'actions' | 'prebuilt'
 
 export function extensionSettingsProfile(extension: AdminExtension): AdminExtensionSettingsProfile {
   const settings = extension.manifest.settings
@@ -308,7 +275,6 @@ export function extensionSettingsProfile(extension: AdminExtension): AdminExtens
     if ((settings.actions?.length ?? 0) > 0) return 'actions'
     return 'schema'
   }
-  if (extension.manifest.contributions?.some(item => item.point === 'admin.extension.settings.page')) return 'legacy_vue'
   if (Array.isArray(settings) && settings.length > 0) return 'schema'
   return 'none'
 }
@@ -317,8 +283,7 @@ const extensionSettingsProfileMeta = {
   none: { color: 'neutral', icon: 'i-lucide-minus', labelKey: 'admin.extensions.settingsProfiles.none' },
   schema: { color: 'primary', icon: 'i-lucide-layout-template', labelKey: 'admin.extensions.settingsProfiles.schema' },
   actions: { color: 'info', icon: 'i-lucide-activity', labelKey: 'admin.extensions.settingsProfiles.actions' },
-  prebuilt: { color: 'warning', icon: 'i-lucide-shield-alert', labelKey: 'admin.extensions.settingsProfiles.prebuilt' },
-  legacy_vue: { color: 'neutral', icon: 'i-lucide-hammer', labelKey: 'admin.extensions.settingsProfiles.legacyVue' }
+	prebuilt: { color: 'warning', icon: 'i-lucide-shield-alert', labelKey: 'admin.extensions.settingsProfiles.prebuilt' }
 } as const
 
 export function extensionSettingsPresentation(extension: AdminExtension) {
@@ -329,13 +294,6 @@ export function extensionSettingsPresentation(extension: AdminExtension) {
 function manifestSettingFields(manifest: AdminExtensionManifest) {
   const settings = manifest.settings
   return Array.isArray(settings) ? settings : settings?.fields || []
-}
-
-export type AdminExtensionOperation = {
-  extension: AdminExtension
-  frontend?: unknown
-  webRelease?: AdminWebReleaseSummary
-  queued: boolean
 }
 
 export type AdminExtensionEvent = {
@@ -439,118 +397,7 @@ export function themeActionState(item: AdminExtension): AdminThemeActionState {
   if (item.id === 'sforum.default-theme' && item.source === 'builtin') {
     return 'activateDefault'
   }
-  if (item.themeRelease?.status === 'queued') {
-    return 'queued'
-  }
-  if (item.themeRelease?.status === 'building') {
-    return 'building'
-  }
-  if (item.themeRelease?.status === 'activating') {
-    return 'activating'
-  }
-  if (item.themeRelease?.status === 'failed') {
-    return 'failed'
-  }
-  return 'activate'
-}
-
-export function themeActivationProgress(release?: AdminThemeRelease | null) {
-  if (!release) {
-    return null
-  }
-
-  switch (release.status) {
-    case 'queued':
-      return themeProgressState(release.status, 10, 'info', 'i-lucide-hourglass', true)
-    case 'building':
-      return themeProgressState(release.status, 45, 'warning', 'i-lucide-hammer', true)
-    case 'built':
-      return themeProgressState(release.status, 70, 'warning', 'i-lucide-package-check', true)
-    case 'activating':
-      return themeProgressState(release.status, 85, 'warning', 'i-lucide-refresh-cw', true)
-    case 'active':
-      return themeProgressState(release.status, 100, 'success', 'i-lucide-check-circle-2', false)
-    case 'failed':
-      return themeProgressState(release.status, 100, 'error', 'i-lucide-triangle-alert', false)
-    case 'rolled_back':
-      return themeProgressState(release.status, 100, 'neutral', 'i-lucide-undo-2', false)
-  }
-}
-
-export function hasThemeActivationInProgress(items: AdminExtension[]) {
-  return items.some(item => themeActivationProgress(item.themeRelease)?.active)
-}
-
-/** 插件 Web Release 进度（与主题 progress 同形，便于共用进度条 UI）。 */
-export function pluginWebReleaseProgress(release?: AdminWebReleaseSummary | null) {
-  if (!release?.status) {
-    return null
-  }
-  switch (release.status) {
-    case 'queued':
-      return webReleaseProgressState(release.status, 8, 'info', 'i-lucide-hourglass', true)
-    case 'resolving':
-      return webReleaseProgressState(release.status, 18, 'info', 'i-lucide-search', true)
-    case 'installing':
-      return webReleaseProgressState(release.status, 28, 'warning', 'i-lucide-download', true)
-    case 'building':
-      return webReleaseProgressState(release.status, 48, 'warning', 'i-lucide-hammer', true)
-    case 'verifying':
-      return webReleaseProgressState(release.status, 62, 'warning', 'i-lucide-shield-check', true)
-    case 'ready':
-      return webReleaseProgressState(release.status, 75, 'warning', 'i-lucide-package-check', true)
-    case 'activating':
-      return webReleaseProgressState(release.status, 88, 'warning', 'i-lucide-refresh-cw', true)
-    case 'failed':
-      return webReleaseProgressState(release.status, 100, 'error', 'i-lucide-triangle-alert', false)
-    default:
-      // active / inactive 等终态不在插件行上常驻展示。
-      return null
-  }
-}
-
-export function hasPluginWebReleaseInProgress(items: AdminExtension[]) {
-  return items.some(item => pluginWebReleaseProgress(item.webRelease)?.active)
-}
-
-export function hasExtensionReleaseInProgress(items: AdminExtension[]) {
-  return hasThemeActivationInProgress(items) || hasPluginWebReleaseInProgress(items)
-}
-
-function themeProgressState(
-  status: AdminThemeReleaseStatus,
-  percent: number,
-  color: 'info' | 'success' | 'warning' | 'error' | 'neutral',
-  icon: string,
-  active: boolean
-) {
-  return {
-    percent,
-    status,
-    labelKey: `admin.extensions.themeRelease.${status}`,
-    detailKey: `admin.extensions.themeProgress.${status}`,
-    icon,
-    color,
-    active
-  }
-}
-
-function webReleaseProgressState(
-  status: string,
-  percent: number,
-  color: 'info' | 'success' | 'warning' | 'error' | 'neutral',
-  icon: string,
-  active: boolean
-) {
-  return {
-    percent,
-    status,
-    labelKey: `admin.extensions.releases.statusLabels.${status}`,
-    detailKey: `admin.extensions.webReleaseProgress.${status}`,
-    icon,
-    color,
-    active
-  }
+	return 'activate'
 }
 
 export function capabilityCount(item: AdminExtension) {

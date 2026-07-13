@@ -3,8 +3,8 @@ const path = require('path')
 
 const root = path.resolve(__dirname, '..')
 const nuxtConfig = fs.readFileSync(path.join(root, 'apps/web/nuxt.config.ts'), 'utf8')
-const runtimePlain = fs.readFileSync(path.join(root, 'apps/web/scripts/runtime-plain.mjs'), 'utf8')
 const webPackage = JSON.parse(fs.readFileSync(path.join(root, 'apps/web/package.json'), 'utf8'))
+const webDockerfile = fs.readFileSync(path.join(root, 'apps/web/Dockerfile'), 'utf8')
 const pageCatalog = fs.readFileSync(path.join(root, 'docs/extensions/page-catalog.md'), 'utf8')
 const defaultThemeJson = fs.readFileSync(path.join(root, 'extensions/builtin/themes/sforum-default/theme.json'), 'utf8')
 const outlet = fs.readFileSync(path.join(root, 'apps/web/app/components/SFPageOutlet.vue'), 'utf8')
@@ -28,10 +28,10 @@ assertNotIncludes(nuxtConfig, 'SFORUM_THEME_LAYER', 'nuxt.config must not select
 assertIncludes(nuxtConfig, 'sforum-home.css', 'host must register migrated public CSS')
 assertIncludes(nuxtConfig, 'sforum-theme.css', 'host must register migrated public theme CSS')
 
-// Production runtime is plain Nitro (no current.json theme switch).
-assertIncludes(runtimePlain, 'Nitro', 'runtime-plain must start Nitro directly')
-assertNotIncludes(runtimePlain, 'current.json', 'runtime-plain must not watch theme current.json')
-assertIncludes(webPackage.scripts['theme:runtime'], 'runtime-plain.mjs', 'theme:runtime must use plain Nitro runtime')
+// Production and development both run Nuxt directly; no release supervisor remains.
+assertIncludes(webPackage.scripts.start, '.output/server/index.mjs', 'web start must run the Nuxt output directly')
+assertIncludes(webDockerfile, 'CMD ["node", ".output/server/index.mjs"]', 'web image must run the Nuxt output directly')
+assertNotIncludes(webDockerfile, 'theme-releases', 'web image must not contain a theme release volume')
 assertIncludes(webPackage.scripts.dev, 'nuxt dev', 'web dev must run Nuxt directly without theme layer supervisor')
 assertIncludes(webPackage.scripts.build, 'nuxt build', 'web build script must run Nuxt build')
 
@@ -42,7 +42,6 @@ assertIncludes(outlet, 'page:', 'SFPageOutlet must declare page prop')
 assertIncludes(home, 'SFPageOutlet', 'home page must use SFPageOutlet')
 assertIncludes(home, 'forum.home', 'home page must declare page id forum.home')
 
-// Admin Web Release path remains available via optional compose script.
-assertIncludes(webPackage.scripts['dev:compose'] || '', 'dev-theme-runtime.mjs', 'dev:compose may still compose admin registry for trusted plugins')
+assertNotIncludes(JSON.stringify(webPackage.scripts), 'dev:compose', 'legacy dev compose script must stay removed')
 
 console.log('Theme runtime validation passed (Page Registry / no layer activation).')

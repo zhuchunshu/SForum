@@ -18,22 +18,17 @@ COPY apps/web/ ./
 COPY extensions/builtin /app/extensions/builtin
 RUN ln -sfn .nuxt-build .nuxt && bun run build
 
-FROM oven/bun:1.3-alpine AS prod
+FROM alpine:3.22 AS prod
 
 # H6：容器以非 root 用户运行。
 RUN apk add --no-cache nodejs && \
 	addgroup -S sforum && adduser -S -G sforum sforum && \
-	mkdir -p /var/lib/sforum/theme-releases && \
-	chown -R sforum:sforum /app /var/lib/sforum
+	mkdir -p /app/apps/web && \
+	chown -R sforum:sforum /app
 WORKDIR /app/apps/web
 ENV HOST=0.0.0.0
 ENV PORT=3000
-ENV SFORUM_THEME_RELEASE_ROOT=/var/lib/sforum/theme-releases
-ENV SFORUM_WEB_RELEASE_ROOT=/var/lib/sforum/theme-releases
-COPY --from=deps --chown=sforum:sforum /app/apps/web/node_modules ./node_modules
 COPY --from=build --chown=sforum:sforum /app/apps/web/.output ./.output
-COPY --chown=sforum:sforum apps/web/scripts ./scripts
 USER sforum
 EXPOSE 3000
-# 公开主题不再蓝绿切换 Nitro；直接启动构建产物。Web Release 仅服务可信管理端插件。
-CMD ["node", "scripts/runtime-plain.mjs"]
+CMD ["node", ".output/server/index.mjs"]

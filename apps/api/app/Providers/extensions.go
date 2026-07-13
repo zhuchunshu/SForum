@@ -26,21 +26,12 @@ func NewExtensionsProvider(store extensions.Store, users identity.ActorStore, se
 	return NewExtensionsProviderWithRuntime(store, users, sessions, extensionRoot, builtinRoot, nil)
 }
 
-func NewExtensionsProviderWithRuntime(store extensions.Store, users identity.ActorStore, sessions *authsession.Manager, extensionRoot string, builtinRoot string, runtime extensionRuntime) *ExtensionsProvider {
-	return NewExtensionsProviderWithRuntimeAndThemeActivation(store, users, sessions, extensionRoot, builtinRoot, runtime, nil)
-}
-
-// NewExtensionsProviderWithRuntimeAndThemeActivation 构造处理扩展 API 路由的 provider。
-// 可选的 ServiceOption（如 WithThemeCurrentWriter）让 provider 构造出的 service
-// 也具备写 current.json 的能力，与 bootstrap 里 SyncBuiltins 用的 service 行为一致。
-func NewExtensionsProviderWithRuntimeAndThemeActivation(store extensions.Store, users identity.ActorStore, sessions *authsession.Manager, extensionRoot string, builtinRoot string, runtime extensionRuntime, dispatcher extensions.ThemeActivationDispatcher, options ...extensions.ServiceOption) *ExtensionsProvider {
+// NewExtensionsProviderWithRuntime 构造扩展 API；公开主题始终使用运行时 Page Registry。
+func NewExtensionsProviderWithRuntime(store extensions.Store, users identity.ActorStore, sessions *authsession.Manager, extensionRoot string, builtinRoot string, runtime extensionRuntime, options ...extensions.ServiceOption) *ExtensionsProvider {
 	service := extensions.NewServiceWithBuiltins(store, extensionRoot, builtinRoot)
-	if dispatcher != nil {
-		service = extensions.NewServiceWithThemeActivationWithOptions(store, extensionRoot, builtinRoot, nil, nil, dispatcher, options...)
-	}
 	var gateway extensionscontroller.RouteGateway
 	if runtime != nil {
-		service = extensions.NewServiceWithThemeActivationWithOptions(store, extensionRoot, builtinRoot, runtime, nil, dispatcher, options...)
+		service = extensions.NewServiceWithOptions(store, extensionRoot, builtinRoot, runtime, options...)
 		gateway = extensionRouteGateway{runtime: runtime, gateway: extensionsruntime.NewRouteGateway()}
 	}
 	return &ExtensionsProvider{
@@ -54,14 +45,13 @@ func NewExtensionsProviderWithService(
 	sessions *authsession.Manager,
 	runtime extensionRuntime,
 	frontend extensionscontroller.TrustedFrontendService,
-	webReleases extensionscontroller.WebReleaseAdminService,
 ) *ExtensionsProvider {
 	var gateway extensionscontroller.RouteGateway
 	if runtime != nil {
 		gateway = extensionRouteGateway{runtime: runtime, gateway: extensionsruntime.NewRouteGateway()}
 	}
 	controller := extensionscontroller.NewControllerWithGateway(service, users, sessions, gateway)
-	controller.WithTrustedRuntime(frontend, webReleases)
+	controller.WithTrustedRuntime(frontend)
 	return &ExtensionsProvider{controller: controller}
 }
 

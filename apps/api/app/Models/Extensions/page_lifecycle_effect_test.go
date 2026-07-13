@@ -20,9 +20,8 @@ func fixturePageRegistryDemo(t *testing.T) string {
 	return filepath.Join(root, "extensions/fixtures/plugins/page-registry-demo")
 }
 
-// TestWebReleaseEnableDisableSyncsPageRegistry 证明 Web Release enable/disable
-// 生命周期路径（RegisterPluginPackage / ClearExtension）立即更新页面，无需 API 重启。
-func TestWebReleaseEnableDisableSyncsPageRegistry(t *testing.T) {
+// TestEnableDisableSyncsPageRegistry 证明同步生命周期会立即更新页面，无需 API 重启。
+func TestEnableDisableSyncsPageRegistry(t *testing.T) {
 	root := fixturePageRegistryDemo(t)
 	if _, err := os.Stat(filepath.Join(root, "theme.json")); err != nil {
 		t.Fatalf("fixture missing: %v", err)
@@ -38,12 +37,12 @@ func TestWebReleaseEnableDisableSyncsPageRegistry(t *testing.T) {
 		t.Fatalf("register: %v", err)
 	}
 	if _, ok := reg.ResolveAddedPath("/demo-docs/hello"); !ok {
-		t.Fatal("page should appear immediately after web-release enable path")
+		t.Fatal("page should appear immediately after enable")
 	}
 	// disable effect → ClearExtension
 	adapter.ClearExtension(ext.ID)
 	if _, ok := reg.ResolveAddedPath("/demo-docs/hello"); ok {
-		t.Fatal("page should disappear immediately after web-release disable path")
+		t.Fatal("page should disappear immediately after disable")
 	}
 	// re-enable without restart
 	if err := adapter.RegisterPluginPackage(context.Background(), ext); err != nil {

@@ -44,8 +44,6 @@ services:
       MEILI_HOST: http://meilisearch:7700
       EXTENSION_ROOT: /var/lib/sforum/extensions
       BUILTIN_EXTENSION_ROOT: /app/extensions/builtin
-      THEME_RELEASE_ROOT: /var/lib/sforum/theme-releases
-      WEB_RELEASE_ROOT: /var/lib/sforum/theme-releases
       GOMODCACHE: /go/pkg/mod
     depends_on:
       migrate:
@@ -58,7 +56,6 @@ services:
       - api_air_tmp:/app/apps/api/tmp
       - attachment_uploads:/app/apps/api/storage/app/attachments
       - extension_packages:/var/lib/sforum/extensions
-      - theme_releases:/var/lib/sforum/theme-releases
     develop:
       watch:
         - action: sync
@@ -90,12 +87,6 @@ services:
       MEILI_HOST: http://meilisearch:7700
       EXTENSION_ROOT: /var/lib/sforum/extensions
       BUILTIN_EXTENSION_ROOT: /app/extensions/builtin
-      THEME_RELEASE_ROOT: /var/lib/sforum/theme-releases
-      WEB_RELEASE_ROOT: /var/lib/sforum/theme-releases
-      WEB_RELEASE_WEB_ROOT: /app/apps/web
-      WEB_RELEASE_BUN_PATH: bun
-      THEME_WEB_ROOT: /app/apps/web
-      THEME_BUN_PATH: bun
       GOMODCACHE: /go/pkg/mod
     depends_on:
       migrate:
@@ -108,7 +99,6 @@ services:
       - worker_air_tmp:/app/apps/api/tmp
       - attachment_uploads:/app/apps/api/storage/app/attachments
       - extension_packages:/var/lib/sforum/extensions
-      - theme_releases:/var/lib/sforum/theme-releases
     develop:
       watch:
         - action: sync
@@ -134,15 +124,12 @@ services:
     command: ["bun", "run", "dev"]
     environment:
       NUXT_API_INTERNAL_BASE_URL: http://api:8080/api/v1
-      SFORUM_THEME_RELEASE_ROOT: /var/lib/sforum/theme-releases
-      SFORUM_WEB_RELEASE_ROOT: /var/lib/sforum/theme-releases
     ports:
       - "127.0.0.1:${WEB_PORT:-3000}:3000"
     volumes:
       - ./apps/web:/app/apps/web
       - ./extensions/builtin:/app/extensions/builtin:ro
       - web_node_modules:/app/apps/web/node_modules
-      - theme_releases:/var/lib/sforum/theme-releases
     develop:
       watch:
         - action: sync
@@ -180,4 +167,3 @@ volumes:
   web_node_modules:
   attachment_uploads:
   extension_packages:
-  theme_releases:

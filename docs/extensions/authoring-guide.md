@@ -79,12 +79,11 @@ Build the executable to the path declared in `backend.entry` (usually
 Plugins and themes share one versioned Settings Document. Existing array-form
 `settings` remains compatible, but new packages should emit `schemaVersion: 1`.
 
-| Need | Manifest mode | Author JS | Host/Web Release build |
+| Need | Manifest mode | Author JS | Operator host build |
 | --- | --- | --- | --- |
 | Fields, tabs, groups, columns, callouts | Schema | None | None |
 | Provider connection test or other catalogued operation | Schema + Actions | None | None |
 | Truly complex interaction | Prebuilt component + Schema fallback | Fully trusted `.mjs` | None |
-| Existing Vue admin contribution | Legacy compatibility | Fully trusted SFC | Web Release |
 
 ### Schema field types and width
 
@@ -521,9 +520,9 @@ will go through the host registry in a later wave.
 ## Admin / trusted components
 
 Prefer Schema or Settings Actions. For complex settings, ship the prebuilt
-Admin Micro-frontend API v1 contract. Existing Vue admin slots remain a
-deprecated-for-new-settings Web Release compatibility path. Both code paths are
-**full trust** on the admin origin; read
+Admin Micro-frontend API v1 contract. It is **full trust** on the admin origin
+after exact digest approval. Runtime Vue SFC compilation, executable admin
+slots, remote scripts, and extension-triggered host builds are unsupported. Read
 [trusted-admin-components.md](./trusted-admin-components.md).
 
 ## Validation commands
@@ -565,7 +564,7 @@ Payloads are JSON descriptors — **never executable code**.
 - **Badges** use host `tone` enum: `neutral|info|success|warning|danger`.
   Optional `href` is a site-relative path (not `/api`, not external).
 - Themes must render empty-safe: omit UI blocks when arrays are empty.
-- No public trusted Vue injection; actions still go through the extension route
+- No public executable extension injection; actions still go through the extension route
   proxy and host policy.
 
 ### Comment row actions (E2.2)

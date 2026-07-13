@@ -12,7 +12,7 @@
  * 2) Optional live HTTP smoke (only when PAGE_REGISTRY_API is set):
  *    - Node fetch against a running API (and optional WEB base)
  *    - NOT a full browser E2E: no Nuxt hydration, no login UI navigation,
- *      no Web Release disable→instant 404 in a real browser.
+ *      disable→instant 404 in a real browser.
  *
  * Usage (live layer):
  *   PAGE_REGISTRY_API=http://127.0.0.1:18080 PAGE_REGISTRY_WEB=http://127.0.0.1:13000 \
@@ -102,14 +102,10 @@ function validateOfflineContracts() {
   assertIncludes(controller, 'LoadForResolved', 'controller must call loader gateway on resolve')
   assertIncludes(controller, 'LoadForContribution', 'controller must call loader on resolve-path')
 
-  // Web Release must not bypass lifecycle
-  const effects = read('apps/api/app/Support/WebReleaseCoordinator/effects.go')
-  assertIncludes(effects, 'ApplyApprovedLifecycleEffect', 'effects use lifecycle applier')
-  assertIncludes(effects, 'ApprovedLifecycleApplier', 'effects require lifecycle applier interface')
-  // Reject actual store Enable/Disable method calls (comments may mention the words)
-  if (/\.Enable\s*\(/.test(effects) || /\.Disable\s*\(/.test(effects)) {
-    throw new Error('WebRelease effects still call .Enable/.Disable on a store')
-  }
+  // Extension lifecycle owns Page Registry updates directly.
+  const lifecycle = read('apps/api/app/Models/Extensions/service.go')
+  assertIncludes(lifecycle, 'RegisterPluginPackage', 'plugin enable must register its Page Registry package')
+  assertIncludes(lifecycle, 'ClearExtension', 'plugin disable must clear its Page Registry entries')
 
   // Fixture plugin still proves add + replace + login surfaces
   const fixtureTheme = JSON.parse(read('extensions/fixtures/plugins/page-registry-demo/theme.json'))
@@ -214,7 +210,7 @@ async function main() {
 
   if (!API) {
     console.log('[page-registry] live HTTP smoke SKIPPED (set PAGE_REGISTRY_API for isolated-port smoke)')
-    console.log('  Full browser E2E (Nuxt render, login navigation, Web Release disable→404) is not covered by this script.')
+    console.log('  Full browser E2E (Nuxt render, login navigation, disable→404) is not covered by this script.')
     return
   }
   await validateLiveSmoke()

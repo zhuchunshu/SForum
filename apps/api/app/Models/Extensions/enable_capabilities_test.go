@@ -16,7 +16,7 @@ func TestEnableRequiresCapabilityConfirmation(t *testing.T) {
 	item.Manifest.Settings = []ManifestSetting{{Key: "x", Label: LocalizedText{Default: "X"}, Type: "text"}}
 	store.items["demo.plugin"] = item
 
-	service := NewServiceWithRuntime(store, t.TempDir(), &fakeRuntimeManager{}, nil)
+	service := NewServiceWithRuntime(store, t.TempDir(), &fakeRuntimeManager{})
 
 	_, err := service.Enable(context.Background(), extensionManager(), "demo.plugin", EnableInput{})
 	if !errors.Is(err, ErrCapabilityConfirmationRequired) {
@@ -40,7 +40,7 @@ func TestEnableRestartSkipsConfirmation(t *testing.T) {
 	item.Status = StatusEnabled
 	item.Manifest.Settings = []ManifestSetting{{Key: "x", Label: LocalizedText{Default: "X"}, Type: "text"}}
 	store := &fakeExtensionStore{items: map[string]Extension{item.ID: item}}
-	service := NewServiceWithRuntime(store, t.TempDir(), &fakeRuntimeManager{}, nil)
+	service := NewServiceWithRuntime(store, t.TempDir(), &fakeRuntimeManager{})
 
 	// 已启用：不传 confirm 也应成功（重启路径）。
 	_, err := service.Enable(context.Background(), extensionManager(), "demo.plugin", EnableInput{})

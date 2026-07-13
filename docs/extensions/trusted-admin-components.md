@@ -1,136 +1,100 @@
-# Trusted Admin Components
+# Trusted Admin Settings Components
 
-SForum has two full-trust admin component paths. Both run on the admin origin
-with the current administrator's browser authority; neither is a sandbox.
-Backend permissions, extension route namespaces, settings allowlists, and
-secret handling remain authoritative.
+SForum settings have three presentation levels:
 
-| Path | New packages | Operator build | Runtime contract |
+| Need | Contract | Author JavaScript | Operator build |
 | --- | --- | --- | --- |
-| Admin Micro-frontend API v1 | Recommended for complex settings | None | Author-prebuilt `.mjs`, digest URL, `mount(target, bridge)` |
-| Legacy trusted Vue Web Release | Compatibility only | Host Nuxt/Nitro Web Release | `frontend.admin` SFC registry + trusted contribution |
+| Ordinary fields and layout | Schema UI | No | No |
+| Provider probes and host operations | Schema + Settings Actions | No UI code | No |
+| Complex interactive workflow | Prebuilt Admin Micro-frontend API v1 | Fully trusted prebuilt module | No |
 
-Use Schema UI or Schema + Settings Actions whenever possible. They need no
-author JavaScript and are the mandatory fallback for a prebuilt settings
-component.
+Use Schema UI unless a workflow genuinely needs custom client behavior. There
+is no runtime Vue SFC compilation, static admin registry, remote script URL, or
+extension-triggered Nuxt build.
 
-## Admin Micro-frontend API v1 (recommended)
+## Package contract
 
-Declare a versioned settings document with `ui.mode=component`, a package-local
-entry under `frontend/admin/dist/`, optional CSS, and ordinary Schema fields:
+Declare component mode in the versioned Settings Document and keep `fields` as
+the required Schema fallback:
 
 ```json
 {
-  "settings": {
-    "schemaVersion": 1,
-    "ui": {
-      "mode": "component",
-      "layout": "form",
-      "component": {
-        "id": "settings",
-        "apiVersion": 1,
-        "entry": "frontend/admin/dist/settings.mjs",
-        "css": "frontend/admin/dist/settings.css"
-      }
-    },
-    "fields": [
-      { "key": "message", "label": "Message", "type": "text", "default": "Hello" }
-    ]
-  }
+  "schemaVersion": 1,
+  "ui": {
+    "mode": "component",
+    "layout": "form",
+    "component": {
+      "id": "settings",
+      "apiVersion": 1,
+      "entry": "frontend/admin/dist/settings.mjs",
+      "css": "frontend/admin/dist/settings.css"
+    }
+  },
+  "fields": [
+    { "key": "message", "label": "Message", "type": "text", "default": "Hello" }
+  ]
 }
 ```
 
-The entry is framework-neutral:
+The files must already be built when the package is created. Bundle framework
+dependencies into the module; operators never install extension frontend
+dependencies. Entry/CSS paths are package-relative, path-contained, size
+bounded, and restricted to `frontend/admin/dist/*.mjs|*.css`.
+
+## Module API
 
 ```js
 export const apiVersion = 1
 
-export function mount(target, bridge) {
+export async function mount(target, bridge) {
   const button = document.createElement('button')
-  button.textContent = 'Save'
-  const onClick = () => bridge.settings.save()
-  button.addEventListener('click', onClick)
+  button.textContent = bridge.t('save')
+  button.onclick = () => bridge.settings.save()
   target.append(button)
-  return () => {
-    button.removeEventListener('click', onClick)
-    button.remove()
-  }
+
+  return () => button.remove()
 }
 ```
 
-`AdminMicroFrontendBridgeV1` from `@sforum/admin-sdk` provides:
+The v1 bridge supplies:
 
-- extension id/version, locale, appearance tokens;
-- declared setting items, current draft reads, draft updates, save, and reset;
-- namespaced extension API requests (backend authorization still applies);
-- theme-aware Toasts, host translation, and admin navigation;
-- cleanup through the function returned by `mount`.
+- extension id/version, locale, and appearance tokens;
+- declared settings metadata, current draft values, update/save/reset;
+- namespaced extension API requests;
+- host Toasts, translation, and admin navigation.
 
-The host never passes Cookie or Authorization values as bridge data. Stored
-secrets remain masked; only a secret draft actively typed by the administrator
-can be present in settings values.
+It does not expose Cookie or Authorization values. The extension API remains
+permission checked by the backend; bridge access is not an authorization grant.
 
-### Trust and asset rules
+## Trust and loading
 
-- Assets must come from the installed extension package. Remote URLs and
-  runtime Vue SFC compilation are rejected.
-- Entry must be `.mjs`; optional style must be `.css`; both stay under
-  `frontend/admin/dist/`, are regular files, size-bounded, and path-contained.
-- The authenticated asset endpoint accepts only `entry` or `style`, uses the
-  immutable `adminFrontendDigest` URL, `nosniff`, private immutable caching,
-  ETag, and `Cross-Origin-Resource-Policy: same-origin`.
-- Uploaded components require a one-use, five-minute confirmation bound to
-  actor, extension id, version, API version, component id, and digest. The
-  durable technical boundary is the stored digest grant.
-- Protected builtin components use source trust but the same API, loader,
-  cleanup, failure boundary, and Schema fallback.
-- Changed bytes or version invalidate the usable grant. Missing trust, failed
-  import, API mismatch, mount/cleanup failure, or three failures in one browser
-  session falls back to Schema UI.
-- “Restore declarative Schema UI” never removes settings, secrets, the package,
-  backend state, or public theme activation. Uploaded component trust can be
-  revoked without creating a Web Release.
+An uploaded component is not loaded until an active `super_admin` completes the
+one-use confirmation. The challenge is bound to actor, extension id, version,
+API version, component id, and digest and expires after five minutes.
 
-Reference fixture:
-`extensions/fixtures/plugins/sforum-prebuilt-settings/`.
+The durable technical boundary is the stored digest grant, not the confirmation
+code. It binds extension id, version, API version, component id,
+`adminFrontendDigest`, and package identity. Changed entry/CSS bytes invalidate
+old trust. Assets are served only from the installed package through:
 
-## Legacy trusted Vue Web Release (deprecated for new settings pages)
-
-Legacy slots such as Jobs components still use `frontend.admin` and a static
-registry. Declare API version `1`, a safe root, exact component/locale maps,
-`package.json`, and a frozen `bun.lock`. Each component is referenced by one
-trusted contribution.
-
-```json
-{
-  "frontend": {
-    "admin": {
-      "root": "frontend/admin",
-      "apiVersion": 1,
-      "components": { "latency": "components/LatencyCell.vue" },
-      "locales": { "zh-CN": "locales/zh-CN.json", "en-US": "locales/en-US.json" }
-    }
-  },
-  "contributions": [{
-    "point": "admin.jobs.table.columns",
-    "id": "latency",
-    "label": { "zh-CN": "延迟", "en-US": "Latency" },
-    "payload": { "component": "latency", "width": 120 }
-  }]
-}
+```text
+GET /api/v1/admin/extensions/{id}/frontend/assets/{digest}/entry
+GET /api/v1/admin/extensions/{id}/frontend/assets/{digest}/style
 ```
 
-Trust and Web Release composition use the dedicated `adminFrontendDigest`, so
-backend/settings/public-theme changes do not rebuild the host. An unchanged
-active/ready composition is reused. The release typecheck policy is explicitly
-`off`, `report` (recommended), or `block`; CI and `./scripts/test.sh` always
-retain mandatory typecheck.
+The authenticated same-origin responses use immutable private caching, exact
+digest verification, MIME checks, `nosniff`, and
+`Cross-Origin-Resource-Policy: same-origin`.
 
-Author packages must not contain `node_modules` under `frontend/admin`.
-Compatible Vue/Nuxt/Nuxt UI/Vue Router/admin-sdk peers are supplied by the host
-in dev and linked only inside the isolated Web Release workspace. Lifecycle
-scripts and imports escaping the admin root are rejected.
+## Failure behavior
 
-Legacy build failures keep the active release. Inspect Admin → Extensions →
-Web releases. The old `admin.extension.settings.page` path remains compatible,
-but new settings pages should use Schema, Actions, or Micro-frontend API v1.
+Missing, revoked, or invalidated trust never blocks settings. Import failure,
+API mismatch, CSS failure, invalid cleanup, mount failure, or repeated
+browser-session failures disposes the component and renders Schema UI. The
+administrator may explicitly return to Schema UI; doing so does not delete
+settings, secrets, backend state, or the package.
+
+Component code is fully trusted after approval and is not sandboxed. Package
+provenance, explicit approval, immutable digest identity, backend permissions,
+namespaced APIs, error isolation, quarantine, and Schema fallback are the
+controls.

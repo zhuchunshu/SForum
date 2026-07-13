@@ -679,15 +679,15 @@ func TestServiceForumOptionsDefaultsAndValidation(t *testing.T) {
 		t.Fatalf("EnsureDefaults returned error: %v", err)
 	}
 	expected := map[string]string{
-		NameForumDefaultCategorySlug: "general",
-		NameForumTagCreationMode:     "controlled",
-		NameForumTagPublicPages:      "enabled",
-		NameForumTagMinPerTopic:      "0",
-		NameForumTagMaxPerTopic:      "5",
-		NameForumTopicTitleMinRunes:  "2",
-		NameForumTopicTitleMaxRunes:  "100",
+		NameForumDefaultCategorySlug:    "general",
+		NameForumTagCreationMode:        "controlled",
+		NameForumTagPublicPages:         "enabled",
+		NameForumTagMinPerTopic:         "0",
+		NameForumTagMaxPerTopic:         "5",
+		NameForumTopicTitleMinRunes:     "2",
+		NameForumTopicTitleMaxRunes:     "100",
 		NameForumCommentMaxNestingDepth: "5",
-		NameForumExcerptRuneLimit:    "180",
+		NameForumExcerptRuneLimit:       "180",
 	}
 	for name, want := range expected {
 		if got := store.items[name]; got != want {

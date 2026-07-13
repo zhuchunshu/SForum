@@ -100,12 +100,6 @@ func printValidateSummary(cmd *cobra.Command, root string, manifest extensionman
 	if strings.TrimSpace(manifest.Backend.Entry) != "" {
 		cmd.Printf("  backend:        %s (%s)\n", manifest.Backend.Entry, manifest.Backend.RPC)
 	}
-	if strings.TrimSpace(manifest.Frontend.Layer) != "" {
-		cmd.Printf("  frontend.layer: %s\n", manifest.Frontend.Layer)
-	}
-	if manifest.Frontend.Admin != nil {
-		cmd.Printf("  frontend.admin: root=%s components=%d\n", manifest.Frontend.Admin.Root, len(manifest.Frontend.Admin.Components))
-	}
 	if strings.TrimSpace(manifest.Admin.Entry) != "" || len(manifest.Admin.Pages) > 0 {
 		cmd.Printf("  admin:          entry=%s pages=%d\n", manifest.Admin.Entry, len(manifest.Admin.Pages))
 	}

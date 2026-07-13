@@ -17,19 +17,17 @@ import (
 const maxUploadedArchiveBytes = 60 * 1024 * 1024
 
 type Controller struct {
-	service     *extensions.Service
-	frontend    TrustedFrontendService
-	webReleases WebReleaseAdminService
-	users       identity.ActorStore
-	sessions    *authsession.Manager
-	gateway     RouteGateway
+	service  *extensions.Service
+	frontend TrustedFrontendService
+	users    identity.ActorStore
+	sessions *authsession.Manager
+	gateway  RouteGateway
 }
 
 type TrustedFrontendService interface {
 	Frontend(context.Context, identity.Actor, string) (extensions.FrontendStatus, error)
-	Grant(context.Context, identity.Actor, string, extensions.GrantFrontendInput) (extensions.ExtensionOperation, error)
-	Revoke(context.Context, identity.Actor, string) (extensions.ExtensionOperation, error)
-	RestoreDefaults(context.Context, identity.Actor) (extensions.ExtensionOperation, error)
+	Grant(context.Context, identity.Actor, string, extensions.GrantFrontendInput) (extensions.FrontendStatus, error)
+	Revoke(context.Context, identity.Actor, string) (extensions.FrontendStatus, error)
 }
 
 type TrustedFrontendAssetService interface {
@@ -38,14 +36,6 @@ type TrustedFrontendAssetService interface {
 
 type TrustedFrontendChallengeService interface {
 	Challenge(context.Context, identity.Actor, string) (extensions.FrontendTrustChallenge, error)
-}
-
-type WebReleaseAdminService interface {
-	List(context.Context, identity.Actor, extensions.WebReleaseListInput) (extensions.WebReleasePage, error)
-	Detail(context.Context, identity.Actor, int64) (extensions.WebReleaseDetail, error)
-	Rebuild(context.Context, identity.Actor) (extensions.WebReleaseOperation, error)
-	Retry(context.Context, identity.Actor, int64) (extensions.WebReleaseOperation, error)
-	Rollback(context.Context, identity.Actor, int64) (extensions.WebReleaseOperation, error)
 }
 
 type ProxyInput struct {
@@ -75,9 +65,8 @@ func NewControllerWithGateway(service *extensions.Service, users identity.ActorS
 	return &Controller{service: service, users: users, sessions: sessions, gateway: gateway}
 }
 
-func (h *Controller) WithTrustedRuntime(frontend TrustedFrontendService, webReleases WebReleaseAdminService) *Controller {
+func (h *Controller) WithTrustedRuntime(frontend TrustedFrontendService) *Controller {
 	h.frontend = frontend
-	h.webReleases = webReleases
 	return h
 }
 
@@ -131,7 +120,6 @@ func (h *Controller) install(c fiber.Ctx) error {
 	if err != nil {
 		return mapExtensionError(err)
 	}
-	// 兼容旧客户端：顶层仍是 Extension；升级元数据挂在 data 外层的 InstallResult。
 	return apphttp.Created(c, result)
 }
 
@@ -188,11 +176,11 @@ func (h *Controller) enable(c fiber.Ctx) error {
 			return fiber.NewError(fiber.StatusUnprocessableEntity, "validation.invalid")
 		}
 	}
-	item, err := h.service.EnableOperation(c.Context(), actor, c.Params("id"), input)
+	item, err := h.service.Enable(c.Context(), actor, c.Params("id"), input)
 	if err != nil {
 		return mapExtensionError(err)
 	}
-	return extensionOperationResponse(c, item)
+	return apphttp.OK(c, item)
 }
 
 func (h *Controller) disable(c fiber.Ctx) error {
@@ -200,11 +188,11 @@ func (h *Controller) disable(c fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
-	item, err := h.service.DisableOperation(c.Context(), actor, c.Params("id"))
+	item, err := h.service.Disable(c.Context(), actor, c.Params("id"))
 	if err != nil {
 		return mapExtensionError(err)
 	}
-	return extensionOperationResponse(c, item)
+	return apphttp.OK(c, item)
 }
 
 func (h *Controller) verify(c fiber.Ctx) error {
@@ -224,18 +212,11 @@ func (h *Controller) activate(c fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
-	item, err := h.service.ActivateThemeOperation(c.Context(), actor, c.Params("id"))
+	item, err := h.service.ActivateTheme(c.Context(), actor, c.Params("id"))
 	if err != nil {
 		return mapExtensionError(err)
 	}
-	return extensionOperationResponse(c, item)
-}
-
-func extensionOperationResponse(c fiber.Ctx, operation extensions.ExtensionOperation) error {
-	if operation.Queued {
-		return apphttp.JSON(c, fiber.StatusAccepted, apphttp.MessageOK, operation)
-	}
-	return apphttp.OK(c, operation)
+	return apphttp.OK(c, item)
 }
 
 func (h *Controller) events(c fiber.Ctx) error {
@@ -446,20 +427,14 @@ func mapExtensionError(err error) error {
 		return fiber.NewError(fiber.StatusUnprocessableEntity, extensions.CodeSettingsActionInvalid)
 	case errors.Is(err, extensions.ErrSettingsActionUnavailable):
 		return fiber.NewError(fiber.StatusServiceUnavailable, extensions.CodeSettingsActionUnavailable)
-	case errors.Is(err, extensions.ErrWebReleaseNotFound):
-		return fiber.NewError(fiber.StatusNotFound, extensions.CodeWebReleaseNotFound)
 	case errors.Is(err, extensions.ErrFrontendGrantNotFound):
 		return fiber.NewError(fiber.StatusNotFound, extensions.CodeFrontendTrustNotFound)
 	case errors.Is(err, extensions.ErrFrontendTrustUnavailable),
 		errors.Is(err, extensions.ErrFrontendGrantConflict),
-		errors.Is(err, extensions.ErrFrontendGrantStateConflict),
-		errors.Is(err, extensions.ErrWebReleaseRetryIneligible),
-		errors.Is(err, extensions.ErrWebReleaseRollbackIneligible),
-		errors.Is(err, extensions.ErrWebReleaseStale),
-		errors.Is(err, extensions.ErrWebReleaseCompositionMismatch):
-		return fiber.NewError(fiber.StatusConflict, extensions.CodeWebReleaseConflict)
-	case errors.Is(err, extensions.ErrWebReleasePackageChanged):
-		return fiber.NewError(fiber.StatusConflict, extensions.CodeWebReleaseConflict)
+		errors.Is(err, extensions.ErrFrontendGrantStateConflict):
+		return fiber.NewError(fiber.StatusConflict, extensions.CodeFrontendTrustNotFound)
+	case errors.Is(err, extensions.ErrFrontendPackageChanged):
+		return fiber.NewError(fiber.StatusConflict, extensions.CodeFrontendPackageChanged)
 	case errors.Is(err, extensions.ErrPreflightFailed):
 		return fiber.NewError(fiber.StatusServiceUnavailable, extensions.CodePreflightFailed)
 	case errors.Is(err, extensions.ErrBuildFailed):

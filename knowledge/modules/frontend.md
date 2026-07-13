@@ -1,20 +1,44 @@
 # Frontend Module
 
+## Accepted V3 Target (Implementation Not Started)
+
+The accepted target, including the canonical template comparison and detailed
+architecture mind map, is documented in
+`../decisions/2026-07-13-trusted-plugin-theme-platform-v3.md`; its phased task
+book is `../plans/2026-07-13-trusted-plugin-theme-platform-v3.md`. The remainder
+of this module note describes the current frontend unless a section is
+explicitly labeled as target behavior.
+
+- Themes become complete buildless public view packages compiled with Go
+  `html/template` at activation into immutable, digest-keyed runtime snapshots.
+  The contract includes `if`, `range`, `with`, `template`, and `block` with a
+  restricted FuncMap.
+- Nuxt remains the SSR shell and typed host-island runtime. Primary page content,
+  metadata, canonical links, and structured data are present in the initial
+  HTML response and never depend on L2 or client hydration.
+- Trusted public L2 uses author-prebuilt package-local ESM after exact-artifact
+  confirmation; operators do not install dependencies or build extension code.
+- Component Registry supports add, before, after, wrap, replace, hide, and
+  prop/result filters. Themes may override plugin templates through versioned
+  template ids and deterministic conflict rules, but cannot alter plugin
+  business data contracts.
+- L2/component failure preserves the SSR/L1 fallback and can quarantine the
+  failing component without breaking navigation or indexable content.
+- With JavaScript disabled, body content, lists, comments, links, and pagination
+  remain complete and usable; only interactive L2 enhancement is absent.
+
 ## Trusted Admin Runtime
 
-There are now two full-trust client-only paths:
+There is one full-trust client-only extension path:
 
 - Admin Micro-frontend API v1 (preferred for complex settings): author-prebuilt
   package-local `.mjs`/`.css`, authenticated immutable digest URL, explicit
   actor-bound confirmation, version/API/component/digest grant, framework-
   neutral `mount(target, bridge)`, cleanup, and Schema fallback. No Nuxt build.
-- Legacy trusted Vue contributions: static imports generated into an immutable
-  Web Release. Jobs remains the first production consumer through its column,
-  row-action, and detail-section slots.
 
 `SFExtensionSettingsRenderer` is the normal plugin/theme path and handles
 Schema form/tabs/groups/columns/callouts plus Settings Actions without author
-JavaScript. Both trusted code paths are client-only; SSR renders host metadata
+JavaScript. Trusted component code is client-only; SSR renders host metadata
 and fallback. Error boundaries and third-failure session quarantine prevent one
 component from breaking navigation or other admin pages.
 
@@ -89,13 +113,11 @@ The topic composer sends `SFEditor` Markdown through `useForumApi.createTopic`,
 which wraps editor fields under the backend `content` contract. Composer tag
 input accepts Unicode letters/numbers plus hyphens, matching backend tag slug
 validation for Chinese tag names.
-Public, non-admin UI is now owned by the protected built-in default theme layer
-at `extensions/builtin/themes/sforum-default/layer`. The root Nuxt app extends
-that fallback layer and can prepend an uploaded Nuxt Layer during release builds
-through `SFORUM_THEME_LAYER`. The layer owns the homepage, default layout, auth
-layout/pages, public navbar/footer, and public/auth chrome CSS. Core keeps admin
-pages/layout, auth/session logic, API clients, i18n catalogs, SEO helpers,
-permissions, and reusable component/composable infrastructure.
+Public and admin Vue pages are owned by `apps/web`. Installable themes provide
+runtime `theme.json`, templates, and assets through Page Registry/L0/L1; they do
+not extend Nuxt or replace the host deployment artifact. Core keeps auth/session
+logic, API clients, i18n catalogs, SEO helpers, permissions, and reusable
+component/composable infrastructure.
 The default-theme public forum follows V32 暖橙左栏 (demo
 `tmp/demo/grok/1/v32-right-sidebar/`, content is left-nav despite the folder
 name). Layout:
@@ -133,20 +155,14 @@ Public themes no longer ship as Nuxt Layers selected at runtime. Host
 (`theme.json` + `assets/` + `templates/`) activated through the Page Registry
 without rebuilding Nuxt or restarting Nitro.
 
-- `bun run dev` / production `theme:runtime` (`scripts/runtime-plain.mjs`) start
-  plain Nuxt/Nitro.
+- `bun run dev` starts Nuxt directly; production starts
+  `.output/server/index.mjs` directly.
 - Active theme skin CSS is injected client-side from
   `GET /api/v1/site/active-theme/skin` + theme-assets routes.
-- Legacy trusted Vue **admin** plugin frontends may still use Web Release /
-  dev-compose (`bun run dev:compose`, `SFORUM_ADMIN_REGISTRY_ROOT`). Prebuilt
-  settings components bypass both and load through the API digest endpoint.
-- Host peers for admin SFCs are resolved via Nuxt/Vite aliases
-  (`build/admin-host-peers.mjs`); extension **source** trees must not contain
-  `frontend/admin/node_modules`. Production Web Release still links peers only
-  inside the isolated build workspace.
-- Optional legacy scripts (`dev-theme-runtime.mjs`, `runtime.mjs`) remain for
-  admin composition experiments and historical Web Release contracts; they are
-  not the public theme activation path.
+- Prebuilt settings components load only through the authenticated immutable API
+  digest endpoint after trust. There is no runtime SFC compilation, admin
+  registry, host-peer resolver, dev compose, release supervisor, or extension
+  frontend dependency install.
 
 ## Regression Notes
 

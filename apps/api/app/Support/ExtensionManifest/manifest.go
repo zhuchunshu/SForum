@@ -57,7 +57,6 @@ type Manifest struct {
 	SettingsDocument SettingsDocument       `json:"-"`
 	Migrations       []ManifestMigration    `json:"migrations"`
 	Backend          ManifestBackend        `json:"backend"`
-	Frontend         ManifestFrontend       `json:"frontend"`
 	Admin            ManifestAdmin          `json:"admin"`
 	AdminPages       []ManifestAdminPage    `json:"adminPages"`
 	Routes           []ManifestRoute        `json:"routes"`
@@ -83,20 +82,20 @@ type ManifestLocale struct {
 }
 
 type ManifestSetting struct {
-	Key              string                  `json:"key"`
-	Label            LocalizedText           `json:"label"`
-	Description      LocalizedText           `json:"description,omitempty"`
-	Type             string                  `json:"type"`
-	Default          string                  `json:"default,omitempty"`
-	Placeholder      LocalizedText           `json:"placeholder,omitempty"`
-	RecommendedValue string                  `json:"recommendedValue,omitempty"`
+	Key              string        `json:"key"`
+	Label            LocalizedText `json:"label"`
+	Description      LocalizedText `json:"description,omitempty"`
+	Type             string        `json:"type"`
+	Default          string        `json:"default,omitempty"`
+	Placeholder      LocalizedText `json:"placeholder,omitempty"`
+	RecommendedValue string        `json:"recommendedValue,omitempty"`
 	// Width 控制 Schema UI 控件横向占位：default（受限宽度）或 full（占满可用列宽）。
 	// 省略时等价于 default。
-	Width            string                  `json:"width,omitempty"`
-	Group            LocalizedText           `json:"group,omitempty"`
-	GroupID          string                  `json:"groupId,omitempty"`
-	Column           int                     `json:"column,omitempty"`
-	Options          []ManifestSettingOption `json:"options,omitempty"`
+	Width   string                  `json:"width,omitempty"`
+	Group   LocalizedText           `json:"group,omitempty"`
+	GroupID string                  `json:"groupId,omitempty"`
+	Column  int                     `json:"column,omitempty"`
+	Options []ManifestSettingOption `json:"options,omitempty"`
 }
 
 type ManifestSettingOption struct {
@@ -113,11 +112,6 @@ type ManifestBackend struct {
 	Entry           string `json:"entry"`
 	RPC             string `json:"rpc"`
 	ProtocolVersion int    `json:"protocolVersion,omitempty"`
-}
-
-type ManifestFrontend struct {
-	Layer string                 `json:"layer"`
-	Admin *ManifestAdminFrontend `json:"admin,omitempty"`
 }
 
 type ManifestAdmin struct {
@@ -190,7 +184,6 @@ const (
 // 宿主拥有的 payloadType；禁止可执行 JSON。
 const (
 	PayloadTypeExtensionRoute   = "extensionRoute"
-	PayloadTypeAdminComponent   = "adminComponent"
 	PayloadTypeProfileSection   = "profileSection"
 	PayloadTypeTopicSidebarCard = "topicSidebarCard"
 	PayloadTypeTopicBadge       = "topicBadge"
@@ -290,13 +283,6 @@ func ContributionPointDefinitions() []ContributionPointDefinition {
 		{ID: PointForumProfileTabs, Owner: "forum", Kind: ContributionPointKindDescriptor, Description: "Public profile tabs/sections rendered by the host UI (extensionRoute or hostLink).", PayloadType: PayloadTypeProfileSection},
 		{ID: PointAdminDashboardWidgets, Owner: "admin", Kind: ContributionPointKindDescriptor, Description: "Admin dashboard link widgets; host-owned routes only, no executable payloads.", PayloadType: PayloadTypeDashboardLink},
 		{ID: PointSystemHealthChecks, Owner: "system", Kind: ContributionPointKindDescriptor, Description: "Plugin readiness components merged into GET /ready without invoking plugin RPC.", PayloadType: PayloadTypeHealthDescriptor},
-		{ID: "admin.jobs.table.columns", Owner: "jobs", Kind: ContributionPointKindComponent, Description: "Trusted client components rendered as job table columns.", PayloadType: PayloadTypeAdminComponent},
-		{ID: "admin.jobs.row.actions", Owner: "jobs", Kind: ContributionPointKindComponent, Description: "Trusted client components rendered beside core job actions.", PayloadType: PayloadTypeAdminComponent},
-		{ID: "admin.jobs.detail.sections", Owner: "jobs", Kind: ContributionPointKindComponent, Description: "Trusted client components rendered in job detail.", PayloadType: PayloadTypeAdminComponent},
-		// 扩展设置页：默认由宿主渲染 manifest settings；插件可替换整页或注入页眉/页脚。
-		{ID: "admin.extension.settings.page", Owner: "extensions", Kind: ContributionPointKindComponent, Description: "Trusted client component that replaces the host-rendered extension settings form for the owning extension.", PayloadType: PayloadTypeAdminComponent},
-		{ID: "admin.extension.settings.header", Owner: "extensions", Kind: ContributionPointKindComponent, Description: "Trusted client components rendered above the host-rendered extension settings form.", PayloadType: PayloadTypeAdminComponent},
-		{ID: "admin.extension.settings.footer", Owner: "extensions", Kind: ContributionPointKindComponent, Description: "Trusted client components rendered below the host-rendered extension settings form.", PayloadType: PayloadTypeAdminComponent},
 	}
 }
 
@@ -374,14 +360,6 @@ func validateManifest(manifest Manifest, points []ContributionPointDefinition) e
 	}
 	if manifest.Backend.ProtocolVersion < 0 || manifest.Backend.ProtocolVersion > 1 {
 		return ErrInvalidManifest
-	}
-	if manifest.Frontend.Layer != "" {
-		if _, ok := SafeArchivePath(manifest.Frontend.Layer); !ok {
-			return ErrInvalidManifest
-		}
-	}
-	if err := validateAdminFrontend(manifest); err != nil {
-		return err
 	}
 	for _, migration := range manifest.Migrations {
 		if _, ok := SafeArchivePath(migration.Path); !ok || !strings.HasSuffix(migration.Path, ".sql") {
@@ -533,8 +511,6 @@ func Normalize(manifest Manifest) Manifest {
 	if manifest.Backend.ProtocolVersion == 0 && manifest.Backend.RPC != "" {
 		manifest.Backend.ProtocolVersion = 1
 	}
-	manifest.Frontend.Layer = strings.TrimSpace(manifest.Frontend.Layer)
-	manifest.Frontend.Admin = normalizeAdminFrontend(manifest.Frontend.Admin)
 	manifest.Admin.Entry = NormalizeRoutePath(manifest.Admin.Entry)
 	normalizeAdminPageSlice(manifest.Admin.Pages)
 	normalizeAdminPageSlice(manifest.AdminPages)
@@ -896,8 +872,7 @@ func DeclaredEvents(manifest Manifest) []ManifestEvent {
 }
 
 func isThemeManifestSupported(manifest Manifest) bool {
-	// 运行时主题：frontend.layer 可选（L0/L1 使用 theme.json）；仍允许兼容层声明 layer。
-	// 主题仍禁止后端/路由/hooks 等插件能力；仅允许设置与 admin 设置页相关贡献。
+	// 主题的公开页面贡献只来自 theme.json；管理端设置使用 Settings Document。
 	if manifest.Backend != (ManifestBackend{}) ||
 		len(manifest.Permissions) != 0 ||
 		len(manifest.Capabilities) != 0 ||
@@ -906,27 +881,11 @@ func isThemeManifestSupported(manifest Manifest) bool {
 		len(manifest.Hooks) != 0 ||
 		len(manifest.Events) != 0 ||
 		len(manifest.Jobs) != 0 ||
-		len(manifest.Providers) != 0 {
+		len(manifest.Providers) != 0 ||
+		len(manifest.Contributions) != 0 {
 		return false
-	}
-	for _, contribution := range manifest.Contributions {
-		if !isThemeAllowedContributionPoint(contribution.Point) {
-			return false
-		}
 	}
 	return true
-}
-
-// 主题可贡献的点：仅扩展设置页替换/页眉/页脚（自定义主题设置 UI）。
-func isThemeAllowedContributionPoint(point string) bool {
-	switch strings.TrimSpace(point) {
-	case "admin.extension.settings.page",
-		"admin.extension.settings.header",
-		"admin.extension.settings.footer":
-		return true
-	default:
-		return false
-	}
 }
 
 // CapabilityResolveInput 将 manifest 转为 capabilities 解析输入（F2.1）。
@@ -984,16 +943,13 @@ func normalizeContribution(contribution ManifestContribution) ManifestContributi
 			}
 		}
 	}
-	if normalized, ok := normalizeAdminComponentPayload(contribution.Payload); ok {
-		contribution.Payload = normalized
-	}
 	return contribution
 }
 
 func validateContributions(manifest Manifest, definitions []ContributionPointDefinition) error {
 	points := make(map[string]ContributionPointDefinition, len(definitions))
 	for _, definition := range definitions {
-		if definition.ID == "" || (definition.Kind != ContributionPointKindDescriptor && definition.Kind != ContributionPointKindComponent) {
+		if definition.ID == "" || definition.Kind != ContributionPointKindDescriptor {
 			return ErrInvalidManifest
 		}
 		if _, duplicate := points[definition.ID]; duplicate {
@@ -1003,7 +959,6 @@ func validateContributions(manifest Manifest, definitions []ContributionPointDef
 	}
 
 	seen := map[string]bool{}
-	componentReferences := map[string]int{}
 	for _, contribution := range manifest.Contributions {
 		definition, known := points[contribution.Point]
 		if contribution.Point == "" || contribution.ID == "" || !known {
@@ -1028,31 +983,11 @@ func validateContributions(manifest Manifest, definitions []ContributionPointDef
 				return ErrInvalidManifest
 			}
 		}
-		switch definition.Kind {
-		case ContributionPointKindDescriptor:
-			if err := validateDescriptorContributionPayload(definition.PayloadType, contribution.Payload); err != nil {
-				return err
-			}
-		case ContributionPointKindComponent:
-			if definition.PayloadType != PayloadTypeAdminComponent {
-				return ErrInvalidManifest
-			}
-			component, err := adminComponentBinding(contribution.Payload)
-			if err != nil || manifest.Frontend.Admin == nil {
-				return ErrInvalidManifest
-			}
-			if _, exists := manifest.Frontend.Admin.Components[component]; !exists {
-				return ErrInvalidManifest
-			}
-			componentReferences[component]++
-			if componentReferences[component] > 1 {
-				return ErrInvalidManifest
-			}
-		default:
-			return ErrInvalidManifest
+		if err := validateDescriptorContributionPayload(definition.PayloadType, contribution.Payload); err != nil {
+			return err
 		}
 	}
-	return validateAdminComponentReferences(manifest, componentReferences)
+	return nil
 }
 
 func allowedContributionIcon(icon string) bool {

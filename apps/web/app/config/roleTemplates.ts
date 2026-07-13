@@ -58,7 +58,6 @@ export const ROLE_TEMPLATE_DEFINITIONS = [
       'extension.view',
       'extension.plugin.manage',
       'extension.theme.manage',
-      'extension.release.manage',
       'jobs.view',
       'jobs.manage',
       'search.manage',

@@ -182,7 +182,7 @@ export const adminPageDefinitions = [
     labelKey: 'admin.nav.extensionOverview',
     icon: 'i-lucide-layout-dashboard',
     componentName: 'AdminExtensions',
-    requiredPermissions: ['extension.view', 'extension.plugin.manage', 'extension.theme.manage', 'extension.release.manage'],
+    requiredPermissions: ['extension.view', 'extension.plugin.manage', 'extension.theme.manage'],
     permissionMode: 'any'
   },
   {
@@ -254,13 +254,6 @@ export const adminPageDefinitions = [
     componentName: 'AdminExtensionPages',
     requiredPermissions: ['extension.view', 'extension.theme.manage'],
     permissionMode: 'any'
-  },
-  {
-    id: '/extensions/releases',
-    labelKey: 'admin.nav.extensionReleases',
-    icon: 'i-lucide-rocket',
-    componentName: 'AdminExtensionReleases',
-    requiredPermissions: ['extension.release.manage']
   },
   {
     id: '/search',
@@ -343,8 +336,7 @@ export const adminSidebarNavigation = [
         { type: 'page', pageId: '/extensions/pages' },
         { type: 'page', pageId: '/extensions/settings' },
         { type: 'page', pageId: '/extensions/events' },
-        { type: 'page', pageId: '/extensions/contributions' },
-        { type: 'page', pageId: '/extensions/releases' }
+        { type: 'page', pageId: '/extensions/contributions' }
       ]
     },
     {

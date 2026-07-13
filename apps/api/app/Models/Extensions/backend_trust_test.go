@@ -95,7 +95,7 @@ func TestTechAdminCannotEnableUploadedBackendPlugin(t *testing.T) {
 	item.Source = SourceUploaded
 	store := &fakeExtensionStore{items: map[string]Extension{item.ID: item}}
 	auditor := &recordingAuditor{}
-	service := NewServiceWithRuntime(store, t.TempDir(), &fakeRuntimeManager{}, nil)
+	service := NewServiceWithRuntime(store, t.TempDir(), &fakeRuntimeManager{})
 	WithAuditor(auditor)(service)
 
 	_, err := service.Enable(context.Background(), techAdminPluginManager(), item.ID, EnableInput{ConfirmCapabilities: true})
@@ -117,7 +117,7 @@ func TestTechAdminCanEnableBuiltinBackendPlugin(t *testing.T) {
 	// withInstalledPackage 后写入口文件。
 	item = withInstalledPackage(t, item)
 	store := &fakeExtensionStore{items: map[string]Extension{item.ID: item}}
-	service := NewServiceWithRuntime(store, t.TempDir(), &fakeRuntimeManager{}, nil)
+	service := NewServiceWithRuntime(store, t.TempDir(), &fakeRuntimeManager{})
 
 	enabled, err := service.Enable(context.Background(), techAdminPluginManager(), item.ID, EnableInput{ConfirmCapabilities: true})
 	if err != nil {
@@ -151,7 +151,7 @@ func TestTechAdminCannotVerifyOrUninstallUploadedBackend(t *testing.T) {
 	item.IsDeletable = true
 	item.Status = StatusDisabled
 	store := &fakeExtensionStore{items: map[string]Extension{item.ID: item}}
-	service := NewServiceWithRuntime(store, t.TempDir(), &fakeRuntimeManager{}, nil)
+	service := NewServiceWithRuntime(store, t.TempDir(), &fakeRuntimeManager{})
 
 	if _, err := service.VerifyExtension(context.Background(), techAdminPluginManager(), item.ID); !errors.Is(err, ErrUntrustedBackendRestricted) {
 		t.Fatalf("verify: want restricted, got %v", err)
@@ -165,7 +165,7 @@ func TestSuperAdminCanEnableUploadedBackendPlugin(t *testing.T) {
 	item := withInstalledPackage(t, installedExtension("ok.plugin", TypePlugin, ManifestBackend{Entry: "backend/plugin"}))
 	item.Source = SourceUploaded
 	store := &fakeExtensionStore{items: map[string]Extension{item.ID: item}}
-	service := NewServiceWithRuntime(store, t.TempDir(), &fakeRuntimeManager{}, nil)
+	service := NewServiceWithRuntime(store, t.TempDir(), &fakeRuntimeManager{})
 
 	enabled, err := service.Enable(context.Background(), extensionManager(), item.ID, EnableInput{ConfirmCapabilities: true})
 	if err != nil {

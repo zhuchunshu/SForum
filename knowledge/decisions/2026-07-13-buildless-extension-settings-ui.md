@@ -146,22 +146,19 @@ the installed package; arbitrary remote component URLs are not supported.
 Component UI runs with the administrator browser’s authority. SForum does not
 claim that a CAPTCHA or confirmation dialog sandboxes malicious code.
 
-### 7. Host releases are decoupled from extension settings UI
+### 7. Runtime frontend releases are removed
 
-The current trusted Vue `frontend.admin` + Web Release path remains as a
-compatibility path during migration. New work must shrink its scope:
+SForum has not shipped, so there is no installed-version compatibility burden.
+The trusted Vue `frontend.admin`, static registry, Web Release, runtime Nuxt
+Layer, release supervisor, and extension frontend build paths are removed
+rather than retained as a migration track.
 
-- settings values and Schema UI changes never cause a Web Release
-- backend-only or public-theme-only changes never cause an admin Web Release
-- release composition uses a dedicated admin frontend digest, not the whole
-  extension package digest
-- unchanged admin frontend composition reuses an existing artifact
-- typecheck belongs in CI or an explicit release policy, not every ordinary
-  extension settings change
-- prebuilt Component UI eventually bypasses the full Nuxt/Nitro build
-
-Public theme activation remains Page Registry + L0/L1 and never becomes
-coupled back to Web Release.
+- Schema and Settings Actions are always host-rendered.
+- Component UI is always author-prebuilt and loaded by immutable digest.
+- Plugin enable/disable and theme activation complete synchronously.
+- Public theme activation remains independent Page Registry + L0/L1.
+- The API/worker images contain no Bun, Web source tree, or frontend dependencies.
+- Host typecheck/build happens only when building SForum itself.
 
 ## Security boundaries
 
@@ -194,7 +191,8 @@ coupled back to Web Release.
 - A versioned settings presentation contract and renderer must be maintained.
 - Settings action execution needs a catalog, lifecycle rules, and tests.
 - The micro-frontend bridge becomes a public SDK contract.
-- The trusted Vue Web Release path must coexist during migration.
+- Authors of complex Component UI must produce portable browser bundles before
+  packaging the extension.
 
 ## Implemented contract notes
 
@@ -204,11 +202,9 @@ coupled back to Web Release.
   probes use a short-lived protocol starter without Host API token or normal
   runtime registration. SMTP performs connect/TLS/auth only and sends no mail;
   storage reuses `StorageProbe`.
-- `adminFrontendDigest` fingerprints legacy admin source/contract inputs or
-  prebuilt component entry/CSS bytes. Package identity remains stored and
-  verified separately.
-- Web Release typecheck mode is `off | report | block`; the old boolean option
-  remains synchronized for compatibility. CI/full test typecheck is unchanged.
+- `adminFrontendDigest` fingerprints only the prebuilt component contract and
+  entry/CSS bytes. Package identity remains stored and verified separately.
+- CI/full test typecheck remains mandatory for the SForum host.
 - Admin Micro-frontend API v1 requires package-local
   `frontend/admin/dist/*.mjs` and optional `.css`. Assets are regular,
   path-contained, size-bounded, authenticated, same-origin, immutable, and

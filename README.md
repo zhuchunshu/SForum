@@ -35,23 +35,14 @@ cd apps/web && bun run dev
 ./scripts/api-dev.sh
 ```
 
-`bun run dev` starts plain Nuxt. Public themes activate via the Page Registry
-(L0 CSS + L1 templates) without rebuilding Nuxt or restarting Nitro. Optional
-admin frontend composition remains available through Web Release tooling.
+`bun run dev` starts Nuxt directly. Public themes activate synchronously through
+the Page Registry (L0 CSS + L1 templates), without rebuilding Nuxt or restarting
+Nitro. Extension settings use the host Schema renderer by default; explicitly
+trusted prebuilt components load from immutable digest URLs without a host build.
+`bun run preview` serves the fixed `.output` build for local production checks.
 
-Legacy note (retired for public themes):
-`nuxt dev` with the active theme's Nuxt Layer whenever the operator activates a
-theme in the admin panel, so the frontend reflects the switch after a restart.
-Use `bun run dev:plain` to run raw `nuxt dev` for troubleshooting without the
-theme supervisor. It still watches Web Release `current.json` and writes
-`active.json` so plugin enable/disable can finish activation without restarting
-Nuxt or switching theme layers. Use `bun run dev:nuxt` only if you need the
-absolute bare Nuxt process (Web Release activation will then stay pending).
-`bun run preview` only serves the fixed `.output` build and does **not** follow
-admin theme switching.
-
-In development, the API process embeds the background worker, so uploaded theme
-activation and other queued jobs run when `air` starts the API. To mimic the
+In development, the API process embeds the background worker, so queued jobs run
+when `air` starts the API. To mimic the
 production split, disable `EMBED_WORKER_IN_API` and run the worker manually:
 
 ```sh
@@ -81,10 +72,11 @@ Development dependency services publish loopback-only host ports so locally
 started `air` and Nuxt can connect to them. Production Compose keeps internal
 services private and publishes only the web entry point.
 
-Production web starts Nitro via `apps/web/scripts/runtime-plain.mjs` (no
-theme Layer blue/green switch). Public theme activate/switch is runtime-only
-(Page Registry + skin CSS). Web Release `current.json` remains only for trusted
-admin plugin frontends. Do not use `bun run preview` as the production web server.
+Production web starts the Nuxt output directly. Public theme activate/switch is
+runtime-only (Page Registry + skin CSS). Extension settings use host-rendered
+Schema/Actions or explicitly trusted prebuilt components loaded by immutable
+digest; operators never build extension frontend code. Do not use
+`bun run preview` as the production web server.
 
 ## Start Here
 

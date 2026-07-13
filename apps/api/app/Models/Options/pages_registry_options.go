@@ -6,13 +6,11 @@ import (
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
 )
 
-// Page Registry / runtime theme dual-stack 开关。
-// 与 features.* 产品面开关正交；默认关闭 runtime、开启 legacy layer，直至 P5 切流。
+// Page Registry / runtime theme 开关，与 features.* 产品面开关正交。
 const (
-	NamePagesRegistryEnabled       = "pages.registry_enabled"
-	NameThemesRuntimeL0Enabled     = "themes.runtime_l0_enabled"
-	NameThemesRuntimeL1Enabled     = "themes.runtime_l1_enabled"
-	NameThemesLayerActivationEnabled = "themes.layer_activation_enabled"
+	NamePagesRegistryEnabled   = "pages.registry_enabled"
+	NameThemesRuntimeL0Enabled = "themes.runtime_l0_enabled"
+	NameThemesRuntimeL1Enabled = "themes.runtime_l1_enabled"
 )
 
 func init() {
@@ -26,8 +24,6 @@ func pagesRegistryOptionDefinitions() []optionDefinition {
 		{name: NamePagesRegistryEnabled, public: true, managePermission: theme},
 		{name: NameThemesRuntimeL0Enabled, public: true, managePermission: theme},
 		{name: NameThemesRuntimeL1Enabled, public: true, managePermission: theme},
-		// layer 开关对前台也公开，便于 supervisor/文档对齐；生产默认 true 直至 P5 删除。
-		{name: NameThemesLayerActivationEnabled, public: true, managePermission: theme},
 	}
 }
 
@@ -41,11 +37,9 @@ func mergePagesRegistryDefaults(values map[string]string) {
 
 func pagesRegistryRecommendedDefaults() map[string]string {
 	return map[string]string{
-		// 完整实施后默认开启 registry + L0/L1，关闭 layer 重建路径。
-		NamePagesRegistryEnabled:         enabledOptionValue(true),
-		NameThemesRuntimeL0Enabled:       enabledOptionValue(true),
-		NameThemesRuntimeL1Enabled:       enabledOptionValue(true),
-		NameThemesLayerActivationEnabled: enabledOptionValue(false),
+		NamePagesRegistryEnabled:   enabledOptionValue(true),
+		NameThemesRuntimeL0Enabled: enabledOptionValue(true),
+		NameThemesRuntimeL1Enabled: enabledOptionValue(true),
 	}
 }
 
@@ -54,7 +48,6 @@ func coercePagesRegistryOptions(coerced, defaults map[string]string) {
 		NamePagesRegistryEnabled,
 		NameThemesRuntimeL0Enabled,
 		NameThemesRuntimeL1Enabled,
-		NameThemesLayerActivationEnabled,
 	} {
 		if value, ok := normalizeEnabledOption(coerced[name]); ok {
 			coerced[name] = value
@@ -89,13 +82,4 @@ func (s *Service) ThemesRuntimeL1Enabled(ctx context.Context) (bool, error) {
 		return false, err
 	}
 	return isEnabledOption(values[NameThemesRuntimeL1Enabled]), nil
-}
-
-// ThemesLayerActivationEnabled 是否仍允许 legacy Nuxt Layer 主题激活（P5 后应为 false）。
-func (s *Service) ThemesLayerActivationEnabled(ctx context.Context) (bool, error) {
-	values, err := s.loadMap(ctx)
-	if err != nil {
-		return false, err
-	}
-	return isEnabledOption(values[NameThemesLayerActivationEnabled]), nil
 }

@@ -335,7 +335,6 @@ async function signOut() {
 </script>
 
 <template>
-  <SFAdminReleaseNotice />
   <UDashboardGroup storage-key="sforum-admin">
     <UDashboardSidebar
       id="sforum-admin-sidebar"

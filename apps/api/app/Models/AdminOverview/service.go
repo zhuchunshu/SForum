@@ -121,15 +121,9 @@ func overviewActions(snapshot StoreSnapshot) []OverviewAction {
 		},
 		{
 			Key:      ActionFailedExtensionEvents,
-			Count:    snapshot.Extensions.FailedEventCount + snapshot.Extensions.FailedThemeReleaseCount,
-			Severity: severityForCount(snapshot.Extensions.FailedEventCount+snapshot.Extensions.FailedThemeReleaseCount, "danger"),
+			Count:    snapshot.Extensions.FailedEventCount,
+			Severity: severityForCount(snapshot.Extensions.FailedEventCount, "danger"),
 			Route:    "/extensions/events",
-		},
-		{
-			Key:      ActionThemeReleaseProgress,
-			Count:    snapshot.Extensions.PendingThemeReleaseCount,
-			Severity: severityForCount(snapshot.Extensions.PendingThemeReleaseCount, "info"),
-			Route:    "/extensions/themes",
 		},
 	}
 }
