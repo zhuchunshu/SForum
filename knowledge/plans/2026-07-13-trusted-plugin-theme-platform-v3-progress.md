@@ -1,8 +1,8 @@
 # Trusted Plugin And Theme Platform V3 Progress Ledger
 
 Date: 2026-07-13
-Overall progress: **17%**
-Active phase: **P3 - Host API V2 And Generated SDKs (15%)**
+Overall progress: **18%**
+Active phase: **P3 - Host API V2 And Generated SDKs (31%)**
 
 This ledger is the durable percentage and context-compaction checkpoint for the
 V3 program. Update it before context compression, at every phase boundary, and
@@ -19,7 +19,7 @@ scaffolding, or demo-only code cannot satisfy a runtime exit criterion.
 | P0 Governance | 3% | 100% | 3% |
 | P1 Trust/recovery | 6% | 100% | 6% |
 | P2 Manifest/contracts | 7% | 100% | 7% |
-| P3 Host API v2 | 8% | 15% | 1% |
+| P3 Host API v2 | 8% | 31% | 2% |
 | P4 Lifecycle/dependencies | 7% | 0% | 0% |
 | P5 Database/commands | 8% | 0% | 0% |
 | P6 Routes/middleware | 10% | 0% | 0% |
@@ -112,10 +112,11 @@ phase percentage.
 
 ## Last Durable Checkpoint
 
-- Last implementation commit: `7afa0c174 test(proto): enforce Host API V2
-  contract drift`.
-- P3 commits so far: `b4d50005f`, `bda361626`, `1b9923372`, `ff4661103`, and
-  `7afa0c174`.
+- Last implementation commit: `01156b709 feat(admin): show protocol
+  deprecation telemetry`.
+- P3 commits so far: `b4d50005f`, `bda361626`, `1b9923372`, `ff4661103`,
+  `7afa0c174`, `063f9897a`, `7320324e6`, `ef3ac6288`, `1bd1988c2`, and
+  `01156b709`.
 - The library survey selected latest HashiCorp go-plugin `v1.8.0`, latest
   protobuf-go `v1.36.11`, pinned Buf `v1.71.0`, and protoc-gen-go-grpc `v1.6.2`;
   the isolated `tools/proto` module keeps tool dependencies out of the API
@@ -134,11 +135,27 @@ phase percentage.
   tests lock the complete service catalog, envelope fields, command result, and
   twelve required streaming modes. `scripts/test.sh` now runs Buf lint,
   generation, and drift detection.
-- Verification passed: Buf lint/check, `go test ./sdk/plugin/v2/...`, and
-  `go build ./...`. The existing v1 implementation and fixtures were not
-  changed by this contract slice.
-- Working tree was clean at `7afa0c174` before this documentation checkpoint.
-- Next command after committing this checkpoint: implement the gRPC v2
-  `plugin.GRPCPlugin` adapter beside `netRPCPlugin`, add exact per-Manifest
-  `VersionedPlugins` selection and handshake tests, and preserve `Serve` as the
-  unchanged v1 SDK entry point.
+- Runtime identity now exposes the exact grant, artifact digest, runtime token,
+  epoch, and disclosed authority required by the v2 request envelope.
+- The generated SDK provides a protocol-v2 plugin server with exact token,
+  artifact, and epoch binding; health/readiness; 4 MiB message limits;
+  deadlines; and a concurrency gate.
+- Runtime startup selects transport exactly from the trusted Manifest:
+  protocol v1 uses net/rpc, protocol v2 uses gRPC with AutoMTLS, and neither
+  mismatch direction silently downgrades. Real subprocess tests exercise the
+  v2 handshake, health, readiness, and hook path.
+- Runtime status and the admin plugin list expose protocol version, transport,
+  deprecation, start count, RPC call count, and last call. Protocol v1 remains
+  operational and visibly deprecated until its P13 removal gate.
+- Verification passed: `go test ./...`, `go build ./...`,
+  `./scripts/proto.sh check`, 1,607 OpenAPI refs across 40 files, Nuxt
+  typecheck, and all 277 web validation tests.
+- Rendered admin-page browser QA remains pending because both available local
+  browser sessions were unauthenticated; the attempted route rendered the
+  theme 404/dev overlay rather than the protected admin page.
+- Working tree was clean at `01156b709` before this documentation checkpoint.
+- Next command after committing this checkpoint: implement Host API v2 over
+  `go-plugin.GRPCBroker`, register host-owned generated services with exact
+  runtime-token/identity validation, and start with typed query, permission,
+  settings, jobs, and audit compatibility adapters while retaining the v1
+  loopback Host API until P13.
