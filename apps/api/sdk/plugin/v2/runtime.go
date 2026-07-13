@@ -65,7 +65,9 @@ func NewServer() *Server {
 // WithFeatures declares optional wire features selected during handshake.
 func (s *Server) WithFeatures(features ...*protocolwire.ProtocolFeature) *Server {
 	s.mu.Lock()
-	s.features = cloneFeatures(features)
+	if !s.started {
+		s.features = cloneFeatures(features)
+	}
 	s.mu.Unlock()
 	return s
 }
@@ -73,7 +75,9 @@ func (s *Server) WithFeatures(features ...*protocolwire.ProtocolFeature) *Server
 // WithServices declares versioned plugin-to-plugin services for host discovery.
 func (s *Server) WithServices(services ...*protocolwire.ServiceDescriptor) *Server {
 	s.mu.Lock()
-	s.services = cloneServices(services)
+	if !s.started {
+		s.services = cloneServices(services)
+	}
 	s.mu.Unlock()
 	return s
 }
@@ -83,7 +87,9 @@ func (s *Server) WithServices(services ...*protocolwire.ServiceDescriptor) *Serv
 // A plugin server may still override either generated RPC explicitly.
 func (s *Server) WithServiceRegistry(registry *ServiceRegistry) *Server {
 	s.mu.Lock()
-	s.serviceRegistry = registry
+	if !s.started {
+		s.serviceRegistry = registry
+	}
 	s.mu.Unlock()
 	return s
 }

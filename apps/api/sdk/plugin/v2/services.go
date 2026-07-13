@@ -212,6 +212,7 @@ func (r *ServiceRegistry) streamService(
 		open:           proto.Clone(open).(*pluginwire.ServiceStreamOpen),
 		requestSchema:  service.descriptor.GetRequestSchemaId(),
 		responseSchema: service.descriptor.GetResponseSchemaId(),
+		idleTimeout:    open.GetIdleTimeout().AsDuration(),
 	}
 	err = operation.Stream(serviceStream)
 	if err == nil || errors.Is(err, io.EOF) {
@@ -235,6 +236,7 @@ type ServiceStream struct {
 	open           *pluginwire.ServiceStreamOpen
 	requestSchema  string
 	responseSchema string
+	idleTimeout    time.Duration
 }
 
 func (s *ServiceStream) Context() context.Context { return s.stream.Context() }
@@ -250,7 +252,32 @@ func (s *ServiceStream) Recv() (*protocolwire.TypedDocument, error) {
 	if s == nil || s.stream == nil {
 		return nil, errors.New("plugin service stream is nil")
 	}
-	frame, err := s.stream.Recv()
+	var frame *pluginwire.ServiceStreamFrame
+	var err error
+	if s.idleTimeout <= 0 {
+		frame, err = s.stream.Recv()
+	} else {
+		type receiveResult struct {
+			frame *pluginwire.ServiceStreamFrame
+			err   error
+		}
+		result := make(chan receiveResult, 1)
+		go func() {
+			frame, err := s.stream.Recv()
+			result <- receiveResult{frame: frame, err: err}
+		}()
+		timer := time.NewTimer(s.idleTimeout)
+		defer timer.Stop()
+		select {
+		case received := <-result:
+			frame, err = received.frame, received.err
+		case <-timer.C:
+			return nil, newServiceError(protocolwire.ErrorCode_ERROR_CODE_DEADLINE_EXCEEDED,
+				"service.idle_timeout_exceeded", "Plugin service stream exceeded its idle timeout.")
+		case <-s.Context().Done():
+			return nil, s.Context().Err()
+		}
+	}
 	if err != nil {
 		return nil, err
 	}

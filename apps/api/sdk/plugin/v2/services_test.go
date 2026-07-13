@@ -109,6 +109,32 @@ func TestServiceRegistryDispatchesUnaryCallsAndPublishesHandshake(t *testing.T) 
 	}
 }
 
+func TestServiceRegistryFreezesDeclarationsAfterHandshake(t *testing.T) {
+	registry, err := NewServiceRegistry(serviceTestDefinition())
+	if err != nil {
+		t.Fatal(err)
+	}
+	server := NewServer().WithServiceRegistry(registry)
+	request := validHandshakeRequest()
+	first, err := server.Handshake(context.Background(), request)
+	if err != nil || first.GetError() != nil {
+		t.Fatalf("handshake response=%#v err=%v", first, err)
+	}
+	server.WithServiceRegistry(nil).WithServices(&protocolwire.ServiceDescriptor{
+		ServiceId: "mutated.service", Version: "1.0.0",
+		RequestSchemaId: "mutated.request@1", ResponseSchemaId: "mutated.response@1",
+	})
+	repeated, err := server.Handshake(context.Background(), request)
+	if err != nil || repeated.GetError() != nil || len(repeated.GetServices()) != 1 ||
+		!proto.Equal(first.GetServices()[0], repeated.GetServices()[0]) {
+		t.Fatalf("post-handshake mutation changed snapshot: first=%#v repeated=%#v err=%v", first, repeated, err)
+	}
+	response, err := server.InvokeService(context.Background(), serviceTestRequest(request.GetContext().GetExtension()))
+	if err != nil || response.GetError() != nil {
+		t.Fatalf("frozen dispatcher response=%#v err=%v", response, err)
+	}
+}
+
 func TestServiceRegistryUnaryFailuresAreTypedAndSanitized(t *testing.T) {
 	definition := serviceTestDefinition()
 	registry, err := NewServiceRegistry(definition)
@@ -245,6 +271,31 @@ func TestServiceRegistryStreamPropagatesCancellation(t *testing.T) {
 	}
 	if len(stream.sent) != 0 {
 		t.Fatalf("cancellation emitted frames: %#v", stream.sent)
+	}
+}
+
+func TestServiceRegistryStreamEnforcesIdleTimeout(t *testing.T) {
+	definition := serviceTestDefinition()
+	definition.Operations[0].Stream = serviceEchoStream
+	registry, err := NewServiceRegistry(definition)
+	if err != nil {
+		t.Fatal(err)
+	}
+	release := make(chan struct{})
+	stream := &serviceTestBidiStream{
+		ctx: context.Background(), recv: []*pluginwire.ServiceStreamFrame{
+			changeServiceOpenFrame(serviceOpenFrame(serviceTestContext(serviceTestIdentity())), func(open *pluginwire.ServiceStreamOpen) {
+				open.IdleTimeout = durationpb.New(10 * time.Millisecond)
+			}),
+		},
+		recvBlock: release,
+	}
+	if err := registry.StreamService(stream); err != nil {
+		t.Fatal(err)
+	}
+	close(release)
+	if len(stream.sent) != 1 || stream.sent[0].GetError().GetReason() != "service.idle_timeout_exceeded" {
+		t.Fatalf("idle timeout output = %#v", stream.sent)
 	}
 }
 
@@ -393,8 +444,9 @@ func cloneServiceFrames(values []*pluginwire.ServiceStreamFrame) []*pluginwire.S
 }
 
 type serviceTestBidiStream struct {
-	ctx  context.Context
-	recv []*pluginwire.ServiceStreamFrame
+	ctx       context.Context
+	recv      []*pluginwire.ServiceStreamFrame
+	recvBlock <-chan struct{}
 
 	mu   sync.Mutex
 	sent []*pluginwire.ServiceStreamFrame
@@ -417,6 +469,13 @@ func (s *serviceTestBidiStream) Recv() (*pluginwire.ServiceStreamFrame, error) {
 		return nil, err
 	}
 	if len(s.recv) == 0 {
+		if s.recvBlock != nil {
+			select {
+			case <-s.recvBlock:
+			case <-s.ctx.Done():
+				return nil, s.ctx.Err()
+			}
+		}
 		return nil, io.EOF
 	}
 	result := s.recv[0]
