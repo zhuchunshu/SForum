@@ -33,6 +33,7 @@ type Server struct {
 	features        []*protocolwire.ProtocolFeature
 	services        []*protocolwire.ServiceDescriptor
 	serviceRegistry *ServiceRegistry
+	streams         RuntimeStreams
 	broker          *plugin.GRPCBroker
 	host            *Host
 	brokerID        uint32
@@ -89,6 +90,17 @@ func (s *Server) WithServiceRegistry(registry *ServiceRegistry) *Server {
 	s.mu.Lock()
 	if !s.started {
 		s.serviceRegistry = registry
+	}
+	s.mu.Unlock()
+	return s
+}
+
+// WithRuntimeStreams installs route, file, lifecycle, and job stream handlers.
+// The complete handler snapshot freezes at the first successful handshake.
+func (s *Server) WithRuntimeStreams(streams RuntimeStreams) *Server {
+	s.mu.Lock()
+	if !s.started {
+		s.streams = streams
 	}
 	s.mu.Unlock()
 	return s
