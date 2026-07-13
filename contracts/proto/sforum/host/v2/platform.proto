@@ -1,0 +1,248 @@
+syntax = "proto3";
+
+package sforum.host.v2;
+
+import "sforum/protocol/v2/common.proto";
+
+option go_package = "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/host/v2;hostv2";
+
+// AdminSurfaceService reads registered admin surface input and submits actions.
+service AdminSurfaceService {
+  rpc Get(AdminSurfaceRequest) returns (AdminSurfaceResponse);
+  rpc Invoke(AdminActionRequest) returns (AdminActionResponse);
+}
+
+// IdentityService exposes declared identity providers and safe user fields.
+service IdentityService {
+  rpc GetUser(IdentityUserRequest) returns (IdentityUserResponse);
+  rpc InvokeProvider(IdentityProviderRequest) returns (IdentityProviderResponse);
+}
+
+// PermissionService performs authoritative checks and catalog discovery.
+service PermissionService {
+  rpc Check(PermissionCheckRequest) returns (PermissionCheckResponse);
+  rpc List(PermissionListRequest) returns (PermissionListResponse);
+}
+
+// MediaService executes declared transforms and resolves managed variants.
+service MediaService {
+  rpc Transform(MediaTransformRequest) returns (MediaTransformResponse);
+  rpc ResolveVariant(MediaVariantRequest) returns (MediaVariantResponse);
+}
+
+// NavigationService resolves host and theme-defined regions.
+service NavigationService {
+  rpc Resolve(NavigationResolveRequest) returns (NavigationResolveResponse);
+}
+
+// AuditService appends namespace-bound events and reads permitted records.
+service AuditService {
+  rpc Append(AuditAppendRequest) returns (AuditAppendResponse);
+  rpc List(AuditListRequest) returns (AuditListResponse);
+}
+
+// TracingService accepts bounded plugin spans linked to the host trace.
+service TracingService {
+  rpc Emit(TraceEmitRequest) returns (TraceEmitResponse);
+}
+
+message AdminSurfaceRequest {
+  sforum.protocol.v2.RequestContext context = 1;
+  string surface_id = 2;
+  string contract_version = 3;
+  string resource_id = 4;
+  sforum.protocol.v2.TypedDocument input = 5;
+}
+
+message AdminSurfaceResponse {
+  sforum.protocol.v2.ResponseContext context = 1;
+  sforum.protocol.v2.TypedDocument view_model = 2;
+  sforum.protocol.v2.ErrorDetail error = 3;
+}
+
+message AdminActionRequest {
+  sforum.protocol.v2.RequestContext context = 1;
+  string surface_id = 2;
+  string action_id = 3;
+  string contract_version = 4;
+  repeated string resource_ids = 5;
+  sforum.protocol.v2.TypedDocument input = 6;
+}
+
+message AdminActionResponse {
+  sforum.protocol.v2.ResponseContext context = 1;
+  sforum.protocol.v2.TypedDocument result = 2;
+  sforum.protocol.v2.ErrorDetail error = 3;
+}
+
+message IdentityUserRequest {
+  sforum.protocol.v2.RequestContext context = 1;
+  int64 user_id = 2;
+  repeated string declared_fields = 3;
+}
+
+message IdentityUserResponse {
+  sforum.protocol.v2.ResponseContext context = 1;
+  sforum.protocol.v2.TypedDocument user = 2;
+  sforum.protocol.v2.ErrorDetail error = 3;
+}
+
+message IdentityProviderRequest {
+  sforum.protocol.v2.RequestContext context = 1;
+  string provider_id = 2;
+  string operation = 3;
+  string contract_version = 4;
+  sforum.protocol.v2.TypedDocument input = 5;
+}
+
+message IdentityProviderResponse {
+  sforum.protocol.v2.ResponseContext context = 1;
+  sforum.protocol.v2.TypedDocument output = 2;
+  sforum.protocol.v2.ErrorDetail error = 3;
+}
+
+message PermissionCheckRequest {
+  sforum.protocol.v2.RequestContext context = 1;
+  int64 user_id = 2;
+  string permission_key = 3;
+  string resource_type = 4;
+  string resource_id = 5;
+}
+
+message PermissionCheckResponse {
+  sforum.protocol.v2.ResponseContext context = 1;
+  bool allowed = 2;
+  string policy_id = 3;
+  string reason = 4;
+  sforum.protocol.v2.ErrorDetail error = 5;
+}
+
+message PermissionListRequest {
+  sforum.protocol.v2.RequestContext context = 1;
+  string namespace = 2;
+  sforum.protocol.v2.PageRequest page = 3;
+}
+
+message PermissionDescriptor {
+  string permission_key = 1;
+  string contract_version = 2;
+  string title = 3;
+  string description = 4;
+}
+
+message PermissionListResponse {
+  sforum.protocol.v2.ResponseContext context = 1;
+  repeated PermissionDescriptor permissions = 2;
+  sforum.protocol.v2.PageInfo page = 3;
+  sforum.protocol.v2.ErrorDetail error = 4;
+}
+
+message MediaTransformRequest {
+  sforum.protocol.v2.RequestContext context = 1;
+  string pipeline_id = 2;
+  string input_file_id = 3;
+  string variant = 4;
+  string contract_version = 5;
+  sforum.protocol.v2.TypedDocument options = 6;
+}
+
+message MediaTransformResponse {
+  sforum.protocol.v2.ResponseContext context = 1;
+  string output_file_id = 2;
+  string media_type = 3;
+  uint64 size = 4;
+  sforum.protocol.v2.ErrorDetail error = 5;
+}
+
+message MediaVariantRequest {
+  sforum.protocol.v2.RequestContext context = 1;
+  string file_id = 2;
+  string variant = 3;
+}
+
+message MediaVariantResponse {
+  sforum.protocol.v2.ResponseContext context = 1;
+  string file_id = 2;
+  string url = 3;
+  string media_type = 4;
+  sforum.protocol.v2.ErrorDetail error = 5;
+}
+
+message NavigationResolveRequest {
+  sforum.protocol.v2.RequestContext context = 1;
+  string region_id = 2;
+  string contract_version = 3;
+  sforum.protocol.v2.TypedDocument page_context = 4;
+}
+
+message NavigationItem {
+  string item_id = 1;
+  string parent_id = 2;
+  string label = 3;
+  string href = 4;
+  string icon = 5;
+  uint32 position = 6;
+  sforum.protocol.v2.TypedDocument metadata = 7;
+}
+
+message NavigationResolveResponse {
+  sforum.protocol.v2.ResponseContext context = 1;
+  repeated NavigationItem items = 2;
+  uint64 registry_revision = 3;
+  sforum.protocol.v2.ErrorDetail error = 4;
+}
+
+message AuditAppendRequest {
+  sforum.protocol.v2.RequestContext context = 1;
+  string action = 2;
+  string target_type = 3;
+  string target_id = 4;
+  sforum.protocol.v2.TypedDocument metadata = 5;
+}
+
+message AuditAppendResponse {
+  sforum.protocol.v2.ResponseContext context = 1;
+  string event_id = 2;
+  sforum.protocol.v2.ErrorDetail error = 3;
+}
+
+message AuditListRequest {
+  sforum.protocol.v2.RequestContext context = 1;
+  string action_prefix = 2;
+  string target_type = 3;
+  string target_id = 4;
+  sforum.protocol.v2.PageRequest page = 5;
+}
+
+message AuditEvent {
+  string event_id = 1;
+  string action = 2;
+  string target_type = 3;
+  string target_id = 4;
+  sforum.protocol.v2.Actor actor = 5;
+  sforum.protocol.v2.TypedDocument metadata = 6;
+}
+
+message AuditListResponse {
+  sforum.protocol.v2.ResponseContext context = 1;
+  repeated AuditEvent events = 2;
+  sforum.protocol.v2.PageInfo page = 3;
+  sforum.protocol.v2.ErrorDetail error = 4;
+}
+
+message TraceEmitRequest {
+  sforum.protocol.v2.RequestContext context = 1;
+  string name = 2;
+  string span_id = 3;
+  string parent_span_id = 4;
+  uint64 started_unix_nano = 5;
+  uint64 ended_unix_nano = 6;
+  map<string, string> attributes = 7;
+  sforum.protocol.v2.ErrorDetail error = 8;
+}
+
+message TraceEmitResponse {
+  sforum.protocol.v2.ResponseContext context = 1;
+  bool accepted = 2;
+  sforum.protocol.v2.ErrorDetail error = 3;
+}

@@ -1,0 +1,195 @@
+syntax = "proto3";
+
+package sforum.host.v2;
+
+import "google/protobuf/duration.proto";
+import "sforum/protocol/v2/common.proto";
+import "sforum/protocol/v2/control.proto";
+
+option go_package = "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/host/v2;hostv2";
+
+// DatabaseService mediates declared own-schema and stable-view operations.
+service DatabaseService {
+  rpc Query(DatabaseQueryRequest) returns (DatabaseQueryResponse);
+  rpc Execute(DatabaseExecuteRequest) returns (DatabaseExecuteResponse);
+  rpc StreamQuery(DatabaseQueryRequest) returns (stream DatabaseRow);
+}
+
+// CacheService owns extension namespaces, tags, and provider policy.
+service CacheService {
+  rpc Get(CacheGetRequest) returns (CacheGetResponse);
+  rpc Set(CacheSetRequest) returns (CacheSetResponse);
+  rpc Delete(CacheDeleteRequest) returns (CacheDeleteResponse);
+  rpc InvalidateTags(CacheInvalidateRequest) returns (CacheInvalidateResponse);
+}
+
+// JobService enqueues and observes declared durable jobs.
+service JobService {
+  rpc Enqueue(JobEnqueueRequest) returns (JobEnqueueResponse);
+  rpc Cancel(JobCancelRequest) returns (JobCancelResponse);
+  rpc Watch(JobWatchRequest) returns (stream sforum.protocol.v2.ProgressUpdate);
+}
+
+// ScheduleService inspects and triggers declared schedules through host policy.
+service ScheduleService {
+  rpc List(ScheduleListRequest) returns (ScheduleListResponse);
+  rpc Trigger(ScheduleTriggerRequest) returns (ScheduleTriggerResponse);
+}
+
+message DatabaseQueryRequest {
+  sforum.protocol.v2.RequestContext context = 1;
+  string operation_id = 2;
+  string statement_version = 3;
+  repeated sforum.protocol.v2.TypedDocument parameters = 4;
+  sforum.protocol.v2.PageRequest page = 5;
+  bool stable_core_view = 6;
+}
+
+message DatabaseRow {
+  sforum.protocol.v2.ResponseContext context = 1;
+  uint64 sequence = 2;
+  sforum.protocol.v2.TypedDocument value = 3;
+  sforum.protocol.v2.ErrorDetail error = 4;
+}
+
+message DatabaseQueryResponse {
+  sforum.protocol.v2.ResponseContext context = 1;
+  repeated sforum.protocol.v2.TypedDocument rows = 2;
+  sforum.protocol.v2.PageInfo page = 3;
+  sforum.protocol.v2.ErrorDetail error = 4;
+}
+
+message DatabaseExecuteRequest {
+  sforum.protocol.v2.RequestContext context = 1;
+  string operation_id = 2;
+  string statement_version = 3;
+  string idempotency_key = 4;
+  repeated sforum.protocol.v2.TypedDocument parameters = 5;
+}
+
+message DatabaseExecuteResponse {
+  sforum.protocol.v2.ResponseContext context = 1;
+  uint64 affected_rows = 2;
+  sforum.protocol.v2.TypedDocument result = 3;
+  sforum.protocol.v2.ErrorDetail error = 4;
+}
+
+message CacheGetRequest {
+  sforum.protocol.v2.RequestContext context = 1;
+  string namespace = 2;
+  string key = 3;
+  string value_schema_id = 4;
+  string value_schema_version = 5;
+}
+
+message CacheGetResponse {
+  sforum.protocol.v2.ResponseContext context = 1;
+  bool found = 2;
+  sforum.protocol.v2.TypedDocument value = 3;
+  sforum.protocol.v2.ErrorDetail error = 4;
+}
+
+message CacheSetRequest {
+  sforum.protocol.v2.RequestContext context = 1;
+  string namespace = 2;
+  string key = 3;
+  sforum.protocol.v2.TypedDocument value = 4;
+  google.protobuf.Duration ttl = 5;
+  repeated string tags = 6;
+  string expected_revision = 7;
+}
+
+message CacheSetResponse {
+  sforum.protocol.v2.ResponseContext context = 1;
+  string revision = 2;
+  sforum.protocol.v2.ErrorDetail error = 3;
+}
+
+message CacheDeleteRequest {
+  sforum.protocol.v2.RequestContext context = 1;
+  string namespace = 2;
+  string key = 3;
+}
+
+message CacheDeleteResponse {
+  sforum.protocol.v2.ResponseContext context = 1;
+  bool deleted = 2;
+  sforum.protocol.v2.ErrorDetail error = 3;
+}
+
+message CacheInvalidateRequest {
+  sforum.protocol.v2.RequestContext context = 1;
+  string namespace = 2;
+  repeated string tags = 3;
+}
+
+message CacheInvalidateResponse {
+  sforum.protocol.v2.ResponseContext context = 1;
+  uint64 invalidated_entries = 2;
+  sforum.protocol.v2.ErrorDetail error = 3;
+}
+
+message JobEnqueueRequest {
+  sforum.protocol.v2.RequestContext context = 1;
+  string job_kind = 2;
+  string payload_version = 3;
+  string idempotency_key = 4;
+  sforum.protocol.v2.TypedDocument payload = 5;
+  google.protobuf.Duration delay = 6;
+}
+
+message JobEnqueueResponse {
+  sforum.protocol.v2.ResponseContext context = 1;
+  string job_id = 2;
+  bool replayed = 3;
+  sforum.protocol.v2.ErrorDetail error = 4;
+}
+
+message JobCancelRequest {
+  sforum.protocol.v2.RequestContext context = 1;
+  string job_id = 2;
+  string reason = 3;
+}
+
+message JobCancelResponse {
+  sforum.protocol.v2.ResponseContext context = 1;
+  bool cancelled = 2;
+  sforum.protocol.v2.ErrorDetail error = 3;
+}
+
+message JobWatchRequest {
+  sforum.protocol.v2.RequestContext context = 1;
+  string job_id = 2;
+  string after_checkpoint = 3;
+}
+
+message ScheduleListRequest {
+  sforum.protocol.v2.RequestContext context = 1;
+  sforum.protocol.v2.PageRequest page = 2;
+}
+
+message ScheduleDescriptor {
+  string schedule_id = 1;
+  string version = 2;
+  string expression = 3;
+  bool enabled = 4;
+}
+
+message ScheduleListResponse {
+  sforum.protocol.v2.ResponseContext context = 1;
+  repeated ScheduleDescriptor schedules = 2;
+  sforum.protocol.v2.PageInfo page = 3;
+  sforum.protocol.v2.ErrorDetail error = 4;
+}
+
+message ScheduleTriggerRequest {
+  sforum.protocol.v2.RequestContext context = 1;
+  string schedule_id = 2;
+  string idempotency_key = 3;
+}
+
+message ScheduleTriggerResponse {
+  sforum.protocol.v2.ResponseContext context = 1;
+  string job_id = 2;
+  sforum.protocol.v2.ErrorDetail error = 3;
+}

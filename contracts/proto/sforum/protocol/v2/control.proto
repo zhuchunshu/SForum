@@ -1,0 +1,145 @@
+syntax = "proto3";
+
+package sforum.protocol.v2;
+
+import "google/protobuf/duration.proto";
+import "google/protobuf/timestamp.proto";
+import "sforum/protocol/v2/common.proto";
+
+option go_package = "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/protocol/v2;protocolv2";
+
+// ProtocolRange declares one compatible major and inclusive minor range.
+message ProtocolRange {
+  string protocol = 1;
+  uint32 major = 2;
+  uint32 min_minor = 3;
+  uint32 max_minor = 4;
+}
+
+// ProtocolFeature declares an independently negotiable wire feature.
+message ProtocolFeature {
+  string name = 1;
+  string version = 2;
+  bool required = 3;
+}
+
+// RuntimeLimits are host-owned safety limits negotiated before readiness.
+message RuntimeLimits {
+  uint64 max_receive_bytes = 1;
+  uint64 max_send_bytes = 2;
+  uint32 max_concurrent_unary_calls = 3;
+  uint32 max_concurrent_streams = 4;
+  google.protobuf.Duration default_deadline = 5;
+  google.protobuf.Duration health_deadline = 6;
+  google.protobuf.Duration graceful_stop_deadline = 7;
+}
+
+// HandshakeRequest starts a protocol-v2 runtime and identifies the host broker.
+message HandshakeRequest {
+  RequestContext context = 1;
+  repeated ProtocolRange host_protocols = 2;
+  repeated ProtocolFeature host_features = 3;
+  RuntimeLimits limits = 4;
+  uint32 host_broker_id = 5;
+  string host_api_version = 6;
+  bytes runtime_token = 7;
+}
+
+// HandshakeResponse selects one compatible version and declares plugin services.
+message HandshakeResponse {
+  ResponseContext context = 1;
+  ProtocolRange selected_protocol = 2;
+  repeated ProtocolFeature selected_features = 3;
+  repeated ServiceDescriptor services = 4;
+  google.protobuf.Timestamp token_expires_at = 5;
+  ErrorDetail error = 6;
+}
+
+// ServiceDescriptor is the language-neutral service discovery declaration.
+message ServiceDescriptor {
+  string service_id = 1;
+  string version = 2;
+  string request_schema_id = 3;
+  string response_schema_id = 4;
+  bool client_streaming = 5;
+  bool server_streaming = 6;
+  repeated string required_authority = 7;
+}
+
+// HealthRequest probes liveness without implying readiness.
+message HealthRequest {
+  RequestContext context = 1;
+}
+
+// HealthResponse reports subprocess liveness and protocol diagnostics.
+message HealthResponse {
+  ResponseContext context = 1;
+  bool healthy = 2;
+  string status = 3;
+  map<string, string> details = 4;
+  ErrorDetail error = 5;
+}
+
+// ReadinessRequest probes whether declared services may receive work.
+message ReadinessRequest {
+  RequestContext context = 1;
+}
+
+// ReadinessResponse reports service-level readiness.
+message ReadinessResponse {
+  ResponseContext context = 1;
+  bool ready = 2;
+  repeated string unavailable_services = 3;
+  ErrorDetail error = 4;
+}
+
+// LifecycleAction is stable across lifecycle plan and execution streams.
+enum LifecycleAction {
+  LIFECYCLE_ACTION_UNSPECIFIED = 0;
+  LIFECYCLE_ACTION_INSTALL_PLAN = 1;
+  LIFECYCLE_ACTION_INSTALL = 2;
+  LIFECYCLE_ACTION_ENABLE = 3;
+  LIFECYCLE_ACTION_DISABLE = 4;
+  LIFECYCLE_ACTION_UPGRADE_PLAN = 5;
+  LIFECYCLE_ACTION_UPGRADE_BEFORE = 6;
+  LIFECYCLE_ACTION_UPGRADE_AFTER = 7;
+  LIFECYCLE_ACTION_ROLLBACK = 8;
+  LIFECYCLE_ACTION_UNINSTALL_PLAN = 9;
+  LIFECYCLE_ACTION_UNINSTALL = 10;
+  LIFECYCLE_ACTION_UNINSTALL_AFTER = 11;
+}
+
+// LifecycleRequest invokes one declared stable lifecycle step.
+message LifecycleRequest {
+  RequestContext context = 1;
+  LifecycleAction action = 2;
+  string plan_version = 3;
+  string step_id = 4;
+  string checkpoint = 5;
+  TypedDocument input = 6;
+  bool dry_run = 7;
+}
+
+// ProgressState describes a streaming lifecycle or job update.
+enum ProgressState {
+  PROGRESS_STATE_UNSPECIFIED = 0;
+  PROGRESS_STATE_PLANNED = 1;
+  PROGRESS_STATE_RUNNING = 2;
+  PROGRESS_STATE_WAITING = 3;
+  PROGRESS_STATE_SUCCEEDED = 4;
+  PROGRESS_STATE_FAILED = 5;
+  PROGRESS_STATE_CANCELLED = 6;
+}
+
+// ProgressUpdate is checkpointable and safe to replay after restart.
+message ProgressUpdate {
+  ResponseContext context = 1;
+  string step_id = 2;
+  ProgressState state = 3;
+  uint32 completed_units = 4;
+  uint32 total_units = 5;
+  string checkpoint = 6;
+  string message = 7;
+  TypedDocument result = 8;
+  ErrorDetail error = 9;
+}

@@ -1,0 +1,122 @@
+syntax = "proto3";
+
+package sforum.host.v2;
+
+import "sforum/protocol/v2/common.proto";
+
+option go_package = "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/host/v2;hostv2";
+
+// HostQueryService executes declared, policy-checked query plans.
+service HostQueryService {
+  rpc Execute(QueryRequest) returns (QueryResponse);
+  rpc Stream(QueryRequest) returns (stream QueryRow);
+}
+
+// HostCommandService owns policy, idempotency, transaction, and audit.
+service HostCommandService {
+  rpc Plan(CommandRequest) returns (CommandPlan);
+  rpc Execute(CommandRequest) returns (CommandResult);
+}
+
+// QueryRequest binds a query to a registered plan and result schema.
+message QueryRequest {
+  sforum.protocol.v2.RequestContext context = 1;
+  string query_id = 2;
+  string plan_version = 3;
+  repeated string fields = 4;
+  repeated QueryFilter filters = 5;
+  repeated QuerySort sorts = 6;
+  sforum.protocol.v2.PageRequest page = 7;
+  string result_schema_id = 8;
+  string result_schema_version = 9;
+}
+
+// QueryFilter contains one operator validated by the registered query plan.
+message QueryFilter {
+  string field = 1;
+  string operator = 2;
+  sforum.protocol.v2.TypedDocument value = 3;
+}
+
+// QuerySort contains one allowlisted sort expression.
+message QuerySort {
+  string field = 1;
+  bool descending = 2;
+}
+
+// QueryRow is one schema-bound result row.
+message QueryRow {
+  sforum.protocol.v2.ResponseContext context = 1;
+  uint64 sequence = 2;
+  sforum.protocol.v2.TypedDocument value = 3;
+  sforum.protocol.v2.ErrorDetail error = 4;
+}
+
+// QueryResponse returns bounded rows and cursor state.
+message QueryResponse {
+  sforum.protocol.v2.ResponseContext context = 1;
+  repeated sforum.protocol.v2.TypedDocument rows = 2;
+  sforum.protocol.v2.PageInfo page = 3;
+  sforum.protocol.v2.ErrorDetail error = 4;
+}
+
+// CommandRequest identifies one transactional, versioned Host Command.
+message CommandRequest {
+  sforum.protocol.v2.RequestContext context = 1;
+  string command_id = 2;
+  string command_version = 3;
+  string idempotency_key = 4;
+  bool dry_run = 5;
+  string expected_revision = 6;
+  sforum.protocol.v2.TypedDocument input = 7;
+}
+
+// PolicyDecision records one authoritative policy result in an impact plan.
+message PolicyDecision {
+  string policy_id = 1;
+  string resource_id = 2;
+  bool allowed = 3;
+  string reason = 4;
+}
+
+// ImpactItem describes one planned write or external effect.
+message ImpactItem {
+  string module = 1;
+  string action = 2;
+  string resource_type = 3;
+  string resource_id = 4;
+  string summary = 5;
+  bool reversible = 6;
+}
+
+// CommandPlan is a dry-run result and never commits writes.
+message CommandPlan {
+  sforum.protocol.v2.ResponseContext context = 1;
+  string plan_id = 2;
+  string command_id = 3;
+  string command_version = 4;
+  repeated PolicyDecision policy = 5;
+  repeated ImpactItem impact = 6;
+  sforum.protocol.v2.TypedDocument projected_result = 7;
+  sforum.protocol.v2.ErrorDetail error = 8;
+}
+
+// CommandState is the durable idempotency state of a command execution.
+enum CommandState {
+  COMMAND_STATE_UNSPECIFIED = 0;
+  COMMAND_STATE_COMMITTED = 1;
+  COMMAND_STATE_REPLAYED = 2;
+  COMMAND_STATE_ROLLED_BACK = 3;
+  COMMAND_STATE_REJECTED = 4;
+}
+
+// CommandResult is emitted only after atomic commit or complete rollback.
+message CommandResult {
+  sforum.protocol.v2.ResponseContext context = 1;
+  CommandState state = 2;
+  string transaction_id = 3;
+  string audit_event_id = 4;
+  string committed_revision = 5;
+  sforum.protocol.v2.TypedDocument output = 6;
+  sforum.protocol.v2.ErrorDetail error = 7;
+}

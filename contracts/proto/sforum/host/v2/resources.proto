@@ -1,0 +1,204 @@
+syntax = "proto3";
+
+package sforum.host.v2;
+
+import "google/protobuf/duration.proto";
+import "sforum/protocol/v2/common.proto";
+import "sforum/protocol/v2/control.proto";
+
+option go_package = "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/host/v2;hostv2";
+
+// ServiceDiscoveryService resolves versioned plugin services through the host.
+service ServiceDiscoveryService {
+  rpc List(ServiceListRequest) returns (ServiceListResponse);
+  rpc Resolve(ServiceResolveRequest) returns (ServiceResolveResponse);
+  rpc Invoke(ServiceInvokeRequest) returns (ServiceInvokeResponse);
+  rpc Stream(stream ServiceStreamFrame) returns (stream ServiceStreamFrame);
+}
+
+// SecretService mediates declared secret use without exposing storage internals.
+service SecretService {
+  rpc Resolve(SecretResolveRequest) returns (SecretResolveResponse);
+}
+
+// FileService provides bounded access to declared host-managed files.
+service FileService {
+  rpc Read(FileReadRequest) returns (stream sforum.protocol.v2.DataChunk);
+  rpc Write(stream FileWriteFrame) returns (FileWriteResponse);
+  rpc Delete(FileDeleteRequest) returns (FileDeleteResponse);
+  rpc Stat(FileStatRequest) returns (FileStatResponse);
+}
+
+// HttpService performs policy-checked outbound HTTP on behalf of a plugin.
+service HttpService {
+  rpc Do(HttpRequest) returns (HttpResponse);
+  rpc Stream(stream HttpStreamFrame) returns (stream HttpStreamFrame);
+}
+
+message ServiceListRequest {
+  sforum.protocol.v2.RequestContext context = 1;
+  string service_id = 2;
+  string version_constraint = 3;
+  sforum.protocol.v2.PageRequest page = 4;
+}
+
+message ServiceListResponse {
+  sforum.protocol.v2.ResponseContext context = 1;
+  repeated sforum.protocol.v2.ServiceDescriptor services = 2;
+  sforum.protocol.v2.PageInfo page = 3;
+  sforum.protocol.v2.ErrorDetail error = 4;
+}
+
+message ServiceResolveRequest {
+  sforum.protocol.v2.RequestContext context = 1;
+  string service_id = 2;
+  string version_constraint = 3;
+}
+
+message ServiceResolveResponse {
+  sforum.protocol.v2.ResponseContext context = 1;
+  sforum.protocol.v2.ServiceDescriptor service = 2;
+  string provider_extension_id = 3;
+  uint64 registry_revision = 4;
+  sforum.protocol.v2.ErrorDetail error = 5;
+}
+
+message ServiceInvokeRequest {
+  sforum.protocol.v2.RequestContext context = 1;
+  string service_id = 2;
+  string version = 3;
+  string operation = 4;
+  sforum.protocol.v2.TypedDocument input = 5;
+}
+
+message ServiceInvokeResponse {
+  sforum.protocol.v2.ResponseContext context = 1;
+  sforum.protocol.v2.TypedDocument output = 2;
+  sforum.protocol.v2.ErrorDetail error = 3;
+}
+
+message ServiceStreamOpen {
+  sforum.protocol.v2.RequestContext context = 1;
+  string service_id = 2;
+  string version = 3;
+  string operation = 4;
+}
+
+message ServiceStreamFrame {
+  oneof frame {
+    ServiceStreamOpen open = 1;
+    sforum.protocol.v2.TypedDocument message = 2;
+    sforum.protocol.v2.ErrorDetail error = 3;
+  }
+}
+
+message SecretResolveRequest {
+  sforum.protocol.v2.RequestContext context = 1;
+  string secret_id = 2;
+  string purpose = 3;
+  google.protobuf.Duration requested_ttl = 4;
+}
+
+message SecretResolveResponse {
+  sforum.protocol.v2.ResponseContext context = 1;
+  string lease_id = 2;
+  bytes value = 3;
+  string media_type = 4;
+  sforum.protocol.v2.ErrorDetail error = 5;
+}
+
+message FileReadRequest {
+  sforum.protocol.v2.RequestContext context = 1;
+  string file_id = 2;
+  uint64 offset = 3;
+  uint64 limit = 4;
+}
+
+message FileWriteOpen {
+  sforum.protocol.v2.RequestContext context = 1;
+  string file_id = 2;
+  string media_type = 3;
+  uint64 expected_size = 4;
+  bytes expected_digest = 5;
+  bool replace = 6;
+}
+
+message FileWriteFrame {
+  oneof frame {
+    FileWriteOpen open = 1;
+    sforum.protocol.v2.DataChunk chunk = 2;
+  }
+}
+
+message FileWriteResponse {
+  sforum.protocol.v2.ResponseContext context = 1;
+  uint64 size = 2;
+  bytes digest = 3;
+  sforum.protocol.v2.ErrorDetail error = 4;
+}
+
+message FileDeleteRequest {
+  sforum.protocol.v2.RequestContext context = 1;
+  string file_id = 2;
+}
+
+message FileDeleteResponse {
+  sforum.protocol.v2.ResponseContext context = 1;
+  bool deleted = 2;
+  sforum.protocol.v2.ErrorDetail error = 3;
+}
+
+message FileStatRequest {
+  sforum.protocol.v2.RequestContext context = 1;
+  string file_id = 2;
+}
+
+message FileStatResponse {
+  sforum.protocol.v2.ResponseContext context = 1;
+  bool exists = 2;
+  uint64 size = 3;
+  bytes digest = 4;
+  string media_type = 5;
+  sforum.protocol.v2.ErrorDetail error = 6;
+}
+
+message HttpRequest {
+  sforum.protocol.v2.RequestContext context = 1;
+  string policy_id = 2;
+  string method = 3;
+  string url = 4;
+  repeated sforum.protocol.v2.Header headers = 5;
+  bytes body = 6;
+  google.protobuf.Duration timeout = 7;
+}
+
+message HttpResponse {
+  sforum.protocol.v2.ResponseContext context = 1;
+  uint32 status_code = 2;
+  repeated sforum.protocol.v2.Header headers = 3;
+  bytes body = 4;
+  sforum.protocol.v2.ErrorDetail error = 5;
+}
+
+message HttpStreamOpen {
+  sforum.protocol.v2.RequestContext context = 1;
+  string policy_id = 2;
+  string method = 3;
+  string url = 4;
+  repeated sforum.protocol.v2.Header headers = 5;
+  google.protobuf.Duration timeout = 6;
+}
+
+message HttpStreamClose {
+  uint32 status_code = 1;
+  repeated sforum.protocol.v2.Header headers = 2;
+  sforum.protocol.v2.ErrorDetail error = 3;
+}
+
+message HttpStreamFrame {
+  oneof frame {
+    HttpStreamOpen open = 1;
+    sforum.protocol.v2.DataChunk chunk = 2;
+    HttpStreamClose close = 3;
+  }
+}

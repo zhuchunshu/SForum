@@ -1,0 +1,184 @@
+syntax = "proto3";
+
+package sforum.plugin.v2;
+
+import "google/protobuf/duration.proto";
+import "sforum/protocol/v2/common.proto";
+import "sforum/protocol/v2/control.proto";
+
+option go_package = "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/plugin/v2;pluginv2";
+
+// PluginRuntimeService is the host-to-plugin protocol-v2 surface.
+service PluginRuntimeService {
+  rpc Handshake(sforum.protocol.v2.HandshakeRequest) returns (sforum.protocol.v2.HandshakeResponse);
+  rpc Health(sforum.protocol.v2.HealthRequest) returns (sforum.protocol.v2.HealthResponse);
+  rpc Readiness(sforum.protocol.v2.ReadinessRequest) returns (sforum.protocol.v2.ReadinessResponse);
+  rpc RunLifecycle(sforum.protocol.v2.LifecycleRequest) returns (stream sforum.protocol.v2.ProgressUpdate);
+  rpc InvokeRoute(RouteRequest) returns (RouteResponse);
+  rpc StreamRoute(stream RouteStreamFrame) returns (stream RouteStreamFrame);
+  rpc InvokeHook(HookRequest) returns (HookResponse);
+  rpc ExecuteJob(JobRequest) returns (stream sforum.protocol.v2.ProgressUpdate);
+  rpc ProviderCall(ProviderCallRequest) returns (ProviderCallResponse);
+  rpc TransferFile(stream FileFrame) returns (stream FileFrame);
+  rpc InvokeService(ServiceRequest) returns (ServiceResponse);
+  rpc StreamService(stream ServiceStreamFrame) returns (stream ServiceStreamFrame);
+}
+
+// RouteRequest invokes one immutable Route Registry binding.
+message RouteRequest {
+  sforum.protocol.v2.RequestContext context = 1;
+  string route_id = 2;
+  string contract_version = 3;
+  string method = 4;
+  string path = 5;
+  repeated sforum.protocol.v2.Header headers = 6;
+  map<string, string> path_parameters = 7;
+  map<string, string> query_parameters = 8;
+  sforum.protocol.v2.TypedDocument body = 9;
+}
+
+// RouteResponse is contract-bound and may opt into a separate stream.
+message RouteResponse {
+  sforum.protocol.v2.ResponseContext context = 1;
+  uint32 status_code = 2;
+  repeated sforum.protocol.v2.Header headers = 3;
+  sforum.protocol.v2.TypedDocument body = 4;
+  bool stream_follows = 5;
+  sforum.protocol.v2.ErrorDetail error = 6;
+}
+
+// RouteStreamOpen must be the first frame in a route stream.
+message RouteStreamOpen {
+  sforum.protocol.v2.RequestContext context = 1;
+  string route_id = 2;
+  string contract_version = 3;
+  string method = 4;
+  string path = 5;
+  repeated sforum.protocol.v2.Header headers = 6;
+}
+
+// RouteStreamClose terminates one direction of a route stream.
+message RouteStreamClose {
+  uint32 status_code = 1;
+  repeated sforum.protocol.v2.Header headers = 2;
+  sforum.protocol.v2.ErrorDetail error = 3;
+}
+
+// RouteStreamFrame supports HTTP bodies, SSE, WebSocket, and multipart flows.
+message RouteStreamFrame {
+  oneof frame {
+    RouteStreamOpen open = 1;
+    sforum.protocol.v2.DataChunk chunk = 2;
+    RouteStreamClose close = 3;
+  }
+}
+
+// HookRequest invokes one versioned hook declaration.
+message HookRequest {
+  sforum.protocol.v2.RequestContext context = 1;
+  string hook_id = 2;
+  string hook_name = 3;
+  string hook_kind = 4;
+  string contract_version = 5;
+  string delivery_id = 6;
+  sforum.protocol.v2.TypedDocument payload = 7;
+  repeated string mutable_fields = 8;
+}
+
+// HookResponse returns a contract-bound result or validated patch.
+message HookResponse {
+  sforum.protocol.v2.ResponseContext context = 1;
+  bool accepted = 2;
+  sforum.protocol.v2.TypedDocument result = 3;
+  sforum.protocol.v2.TypedDocument patch = 4;
+  sforum.protocol.v2.ErrorDetail error = 5;
+}
+
+// JobRequest runs one declared job payload version.
+message JobRequest {
+  sforum.protocol.v2.RequestContext context = 1;
+  string job_id = 2;
+  string job_kind = 3;
+  string payload_version = 4;
+  uint32 attempt = 5;
+  string checkpoint = 6;
+  sforum.protocol.v2.TypedDocument payload = 7;
+}
+
+// ProviderCallRequest invokes an implementation selected by a provider slot.
+message ProviderCallRequest {
+  sforum.protocol.v2.RequestContext context = 1;
+  string slot_id = 2;
+  string operation = 3;
+  string contract_version = 4;
+  sforum.protocol.v2.TypedDocument input = 5;
+}
+
+// ProviderCallResponse contains the declared provider result.
+message ProviderCallResponse {
+  sforum.protocol.v2.ResponseContext context = 1;
+  sforum.protocol.v2.TypedDocument output = 2;
+  repeated string suggestions = 3;
+  sforum.protocol.v2.ErrorDetail error = 4;
+}
+
+// FileOpen identifies one declared package or mediated host file operation.
+message FileOpen {
+  sforum.protocol.v2.RequestContext context = 1;
+  string operation = 2;
+  string file_id = 3;
+  string path = 4;
+  uint64 offset = 5;
+  uint64 expected_size = 6;
+  string media_type = 7;
+}
+
+// FileClose provides final integrity data for a transfer.
+message FileClose {
+  uint64 size = 1;
+  bytes digest = 2;
+  sforum.protocol.v2.ErrorDetail error = 3;
+}
+
+// FileFrame is a bounded bidirectional file transfer frame.
+message FileFrame {
+  oneof frame {
+    FileOpen open = 1;
+    sforum.protocol.v2.DataChunk chunk = 2;
+    FileClose close = 3;
+  }
+}
+
+// ServiceRequest invokes another versioned plugin service through the host.
+message ServiceRequest {
+  sforum.protocol.v2.RequestContext context = 1;
+  string service_id = 2;
+  string service_version = 3;
+  string operation = 4;
+  sforum.protocol.v2.TypedDocument input = 5;
+}
+
+// ServiceResponse contains one plugin service result.
+message ServiceResponse {
+  sforum.protocol.v2.ResponseContext context = 1;
+  sforum.protocol.v2.TypedDocument output = 2;
+  sforum.protocol.v2.ErrorDetail error = 3;
+}
+
+// ServiceStreamOpen must be the first plugin service stream frame.
+message ServiceStreamOpen {
+  sforum.protocol.v2.RequestContext context = 1;
+  string service_id = 2;
+  string service_version = 3;
+  string operation = 4;
+  google.protobuf.Duration idle_timeout = 5;
+}
+
+// ServiceStreamFrame carries typed documents over a bounded stream.
+message ServiceStreamFrame {
+  oneof frame {
+    ServiceStreamOpen open = 1;
+    sforum.protocol.v2.TypedDocument message = 2;
+    sforum.protocol.v2.ErrorDetail error = 3;
+  }
+}
