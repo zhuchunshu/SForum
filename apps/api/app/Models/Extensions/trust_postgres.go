@@ -75,6 +75,33 @@ func (s *PostgresExecutableTrustStore) HasLiveGrant(ctx context.Context, identit
 	return exists, nil
 }
 
+func (s *PostgresExecutableTrustStore) LiveGrant(ctx context.Context, identity TrustIdentity) (TrustGrant, error) {
+	var grant TrustGrant
+	err := s.pool.QueryRow(ctx, `
+		SELECT id, extension_id, extension_version, package_digest, action,
+		       impact_digest, granted_by_user_id, granted_at, revoked_at,
+		       revoked_by_user_id, revocation_reason
+		FROM extension_trust_grants
+		WHERE extension_id = $1 AND extension_version = $2
+		  AND package_digest = $3 AND action = $4 AND impact_digest = $5
+		  AND revoked_at IS NULL
+		ORDER BY granted_at DESC, id DESC
+		LIMIT 1
+	`, identity.ExtensionID, identity.ExtensionVersion, identity.PackageDigest,
+		identity.Action, identity.ImpactDigest).Scan(
+		&grant.ID, &grant.ExtensionID, &grant.ExtensionVersion, &grant.PackageDigest,
+		&grant.Action, &grant.ImpactDigest, &grant.GrantedByUserID, &grant.GrantedAt,
+		&grant.RevokedAt, &grant.RevokedByUserID, &grant.RevocationReason,
+	)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return TrustGrant{}, ErrTrustGrantNotFound
+	}
+	if err != nil {
+		return TrustGrant{}, fmt.Errorf("load executable trust grant: %w", err)
+	}
+	return grant, nil
+}
+
 func (s *PostgresExecutableTrustStore) ConsumeChallenge(ctx context.Context, input TrustConsumeInput) (TrustGrant, error) {
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {

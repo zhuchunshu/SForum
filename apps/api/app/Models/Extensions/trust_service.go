@@ -11,6 +11,7 @@ import (
 	"io"
 	"os"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -90,6 +91,27 @@ func (s *ExecutableTrustService) TrustedArtifact(ctx context.Context, extension 
 		return false, err
 	}
 	return s.hasLiveGrant(ctx, impact)
+}
+
+// RuntimeIdentity returns the exact live trust row used by a v2 subprocess.
+// The handshake may disclose this identity, but only the host-side grant lookup
+// is authoritative for execution.
+func (s *ExecutableTrustService) RuntimeIdentity(ctx context.Context, extension Extension) (RuntimeTrustIdentity, error) {
+	impact, err := buildTrustImpact(extension, TrustActionEnable)
+	if err != nil {
+		return RuntimeTrustIdentity{}, err
+	}
+	if !RequiresExecutableTrust(extension) {
+		return RuntimeTrustIdentity{TrustGrantID: "builtin", ImpactDigest: impact.Digest}, nil
+	}
+	if s == nil || s.store == nil {
+		return RuntimeTrustIdentity{}, ErrTrustGrantNotFound
+	}
+	grant, err := s.store.LiveGrant(ctx, trustIdentity(impact))
+	if err != nil {
+		return RuntimeTrustIdentity{}, err
+	}
+	return RuntimeTrustIdentity{TrustGrantID: strconv.FormatInt(grant.ID, 10), ImpactDigest: grant.ImpactDigest}, nil
 }
 
 func (s *ExecutableTrustService) hasLiveGrant(ctx context.Context, impact TrustImpact) (bool, error) {

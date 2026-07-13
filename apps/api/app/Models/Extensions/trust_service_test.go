@@ -57,6 +57,41 @@ func TestExecutableTrustChallengeBindsExactImpactAndIsOneUse(t *testing.T) {
 	}
 }
 
+func TestExecutableTrustRuntimeIdentityUsesExactLiveGrant(t *testing.T) {
+	extension := exactTrustExtension(t, "demo.runtime-identity")
+	store := &fakeExtensionStore{items: map[string]Extension{extension.ID: extension}}
+	trustStore := &memoryExecutableTrustStore{}
+	service := NewExecutableTrustService(store, trustStore)
+
+	if _, err := service.RuntimeIdentity(context.Background(), extension); !errors.Is(err, ErrTrustGrantNotFound) {
+		t.Fatalf("untrusted runtime identity: %v", err)
+	}
+	challenge, err := service.Challenge(context.Background(), extensionManager(), extension.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := service.ConfirmEnable(context.Background(), extensionManager(), extension, challenge.Token); err != nil {
+		t.Fatal(err)
+	}
+	identity, err := service.RuntimeIdentity(context.Background(), extension)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if identity.TrustGrantID != "1" || identity.ImpactDigest == "" {
+		t.Fatalf("unexpected runtime identity: %#v", identity)
+	}
+
+	builtin := extension
+	builtin.Source = SourceBuiltin
+	builtinIdentity, err := service.RuntimeIdentity(context.Background(), builtin)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if builtinIdentity.TrustGrantID != "builtin" || builtinIdentity.ImpactDigest == "" {
+		t.Fatalf("unexpected builtin identity: %#v", builtinIdentity)
+	}
+}
+
 func TestExecutableTrustAuditsChallengeDeniedGrantAndRevoke(t *testing.T) {
 	extension := exactTrustExtension(t, "demo.audit")
 	store := &fakeExtensionStore{items: map[string]Extension{extension.ID: extension}}
@@ -660,6 +695,18 @@ func (s *memoryExecutableTrustStore) HasLiveGrant(_ context.Context, identity Tr
 	return s.grants[identity], nil
 }
 
+func (s *memoryExecutableTrustStore) LiveGrant(_ context.Context, identity TrustIdentity) (TrustGrant, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if !s.grants[identity] {
+		return TrustGrant{}, ErrTrustGrantNotFound
+	}
+	return TrustGrant{
+		ID: 1, ExtensionID: identity.ExtensionID, ExtensionVersion: identity.ExtensionVersion,
+		PackageDigest: identity.PackageDigest, Action: identity.Action, ImpactDigest: identity.ImpactDigest,
+	}, nil
+}
+
 func (s *memoryExecutableTrustStore) ConsumeChallenge(_ context.Context, input TrustConsumeInput) (TrustGrant, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -684,7 +731,7 @@ func (s *memoryExecutableTrustStore) ConsumeChallenge(_ context.Context, input T
 		s.grants = map[TrustIdentity]bool{}
 	}
 	s.grants[input.Identity] = true
-	return TrustGrant{ExtensionID: input.Identity.ExtensionID, ImpactDigest: input.Identity.ImpactDigest}, nil
+	return TrustGrant{ID: 1, ExtensionID: input.Identity.ExtensionID, ImpactDigest: input.Identity.ImpactDigest}, nil
 }
 
 func (s *memoryExecutableTrustStore) RevokeAll(_ context.Context, extensionID string, _ int64, _ string) error {

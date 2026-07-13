@@ -26,6 +26,7 @@ var (
 	ErrTrustChallengeReplayed = errors.New("extensions: trust challenge replayed")
 	ErrTrustChallengeStale    = errors.New("extensions: trust challenge stale")
 	ErrTrustNotRequired       = errors.New("extensions: executable trust not required")
+	ErrTrustGrantNotFound     = errors.New("extensions: executable trust grant not found")
 )
 
 type TrustArtifact struct {
@@ -140,6 +141,13 @@ type TrustGrant struct {
 	RevocationReason string     `json:"revocationReason,omitempty"`
 }
 
+// RuntimeTrustIdentity binds a subprocess handshake to the live P1 grant.
+// Built-in artifacts use the explicit "builtin" provenance instead of a row.
+type RuntimeTrustIdentity struct {
+	TrustGrantID string
+	ImpactDigest string
+}
+
 type TrustIdentity struct {
 	ExtensionID      string
 	ExtensionVersion string
@@ -166,6 +174,7 @@ type TrustConsumeInput struct {
 type ExecutableTrustStore interface {
 	CreateChallenge(context.Context, TrustChallengeRecord) error
 	HasLiveGrant(context.Context, TrustIdentity) (bool, error)
+	LiveGrant(context.Context, TrustIdentity) (TrustGrant, error)
 	ConsumeChallenge(context.Context, TrustConsumeInput) (TrustGrant, error)
 	RevokeAll(context.Context, string, int64, string) error
 }
