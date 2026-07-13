@@ -1,12 +1,55 @@
 package extensionsruntime
 
 import (
+	"context"
+	"errors"
 	"net"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
 	"github.com/valyala/fasthttp"
 )
+
+func TestRouteGatewayCancelsInflightRequestWithAdmissionContext(t *testing.T) {
+	started := make(chan struct{})
+	server := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, request *http.Request) {
+		close(started)
+		<-request.Context().Done()
+	}))
+	defer server.Close()
+
+	request := fasthttp.AcquireRequest()
+	response := fasthttp.AcquireResponse()
+	defer fasthttp.ReleaseRequest(request)
+	defer fasthttp.ReleaseResponse(response)
+	request.Header.SetMethod(fasthttp.MethodGet)
+	request.SetRequestURI("/slow")
+	ctx, cancel := context.WithCancel(context.Background())
+	result := make(chan error, 1)
+	go func() {
+		result <- NewRouteGateway().Proxy(&ProxyInput{
+			Context: ctx, Request: request, Response: response,
+			ExtensionID: "demo.plugin", TargetBase: server.URL, TargetPath: "/slow", Timeout: time.Second,
+		})
+	}()
+
+	select {
+	case <-started:
+	case <-time.After(time.Second):
+		t.Fatal("route proxy did not reach the runtime")
+	}
+	cancel()
+	select {
+	case err := <-result:
+		if !errors.Is(err, context.Canceled) {
+			t.Fatalf("cancelled route error = %v", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("route proxy ignored admission cancellation")
+	}
+}
 
 func TestRouteGatewayProxiesRequestAndTrustedHeaders(t *testing.T) {
 	var receivedExtensionID string
