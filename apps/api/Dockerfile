@@ -10,9 +10,13 @@ COPY apps/api/ ./
 COPY extensions/builtin /app/extensions/builtin
 # 内置插件后端二进制（与 scripts/build-builtin-plugins.sh 对齐）
 RUN cd /app/extensions/builtin/plugins/sforum-smtp/backend && \
-	CGO_ENABLED=0 go build -o plugin . && \
+	CGO_ENABLED=0 GOOS=linux go build -trimpath -buildvcs=false -o plugin . && \
 	cd /app/extensions/builtin/plugins/sforum-content-policy/backend && \
-	CGO_ENABLED=0 go build -o plugin .
+	CGO_ENABLED=0 GOOS=linux go build -trimpath -buildvcs=false -o plugin . && \
+	cd /app/apps/api && \
+	CGO_ENABLED=0 go run ./cmd/sforum extension digest --write /app/extensions/builtin/plugins/sforum-content-policy && \
+	CGO_ENABLED=0 go run ./cmd/sforum extension validate /app/extensions/builtin/plugins/sforum-content-policy && \
+	CGO_ENABLED=0 go run ./cmd/sforum extension test /app/extensions/builtin/plugins/sforum-content-policy
 
 FROM base AS dev
 

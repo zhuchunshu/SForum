@@ -122,3 +122,26 @@ func TestExtensionTestCommandContentPolicyV2Package(t *testing.T) {
 		t.Fatalf("expected contribution checks:\n%s", out.String())
 	}
 }
+
+func TestContentPolicyDockerBuildRefreshesAndValidatesLinuxDigest(t *testing.T) {
+	_, file, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("runtime.Caller failed")
+	}
+	dockerfile := filepath.Join(filepath.Dir(file), "../../Dockerfile")
+	body, err := os.ReadFile(dockerfile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(body)
+	for _, required := range []string{
+		"CGO_ENABLED=0 GOOS=linux go build -trimpath -buildvcs=false -o plugin .",
+		"extension digest --write /app/extensions/builtin/plugins/sforum-content-policy",
+		"extension validate /app/extensions/builtin/plugins/sforum-content-policy",
+		"extension test /app/extensions/builtin/plugins/sforum-content-policy",
+	} {
+		if !strings.Contains(text, required) {
+			t.Errorf("Dockerfile is missing content-policy Linux package gate %q", required)
+		}
+	}
+}
