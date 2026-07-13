@@ -112,10 +112,10 @@ phase percentage.
 
 ## Last Durable Checkpoint
 
-### 2026-07-14 P4 Coordinator, Staging, And Drain Foundations Checkpoint
+### 2026-07-14 P4 Exact Version And Runtime Instance Foundations Checkpoint
 
-- Last implementation commit: `71340249f fix(extensions): keep static upgrades
-  inert`.
+- Last implementation commit: `04c8b5d75 test(extensions): validate staged
+  management contracts`.
 - P4 is 7 of 15 rows complete. The 34-scenario real PostgreSQL matrix closes
   crash/retry at every lifecycle boundary; the broader idempotency/resume task
   remains open until Service and HTTP invoke the coordinator.
@@ -128,7 +128,11 @@ phase percentage.
   PostgreSQL/River job reconciliation. Later coherent slices are `dbb8f6a88`
   staged-version schema, `a2966f50c` inert store staging, `e5be7695b` runtime
   admission gate, `870fb4e34` coordinator lease execution, `e62a4c99c` staged
-  trust review, and `71340249f` inert Service upload semantics.
+  trust review, `71340249f` inert Service upload semantics, `022fc843e`
+  lifecycle authority snapshots, `468a67af1` exact staged promotion/discard,
+  `fc0419b48` Manager exact-instance accounting, `125b0bbdd` inert staging
+  OpenAPI, `e6fe6b3ef` staged-candidate admin display, and `04c8b5d75` the
+  cross-layer management contract validator.
 - The coordinator preserves stable steps/attempts/checkpoints/progress and
   detached terminal writes. Protocol-v2 now carries all eleven actions, exact
   forced authority, live progress, result JSON, and typed remote failures.
@@ -155,15 +159,25 @@ phase percentage.
   P4 task remains open.
 - An instance-bound admission gate now provides atomic ordinary-call closure,
   lifecycle-cleanup exemption, inflight wait, forced cancellation, and exact
-  residual counters. Manager/route/job integration is in progress and the
-  drain task remains open.
-- Current V3-owned dirty work: staged-version promotion CAS, Manager instance
-  fencing, OpenAPI/Nuxt staged-state contract, and lifecycle Service/HTTP
-  wiring. Unrelated `.reasonix`, `.zcode`, and `CLAUDE.md` deletions remain
-  untouched.
-- Next: land those independent slices, then execute first trusted install and
-  ordinary enable through the coordinator, retain old runtimes during upgrade,
-  add uninstall modes/recovery API/UI, and run the full P4 gate.
+  residual counters. Manager now retains exact instance snapshots and fences
+  stale admission/stop bookkeeping, but ProtocolStarter still has one physical
+  process slot per extension. Therefore dual-runtime execution, production
+  route/job/provider admission, and the drain task remain open.
+- Static upload responses and extension resources now expose an immutable
+  staged candidate without leaking its database id. The admin list/details and
+  bilingual success Toast distinguish staging from activation; OpenAPI refs,
+  Nuxt typecheck/build, and the dedicated cross-layer validator pass.
+- A P4 audit confirmed that the initial `planned` Host gate is currently
+  skipped and disable/upgrade/uninstall lack required final Host gates. The
+  accepted boundary requires exact source/target runtime binding, durable Host
+  checkpoints, an upgrade activation gate, and final cleanup gates before the
+  coordinator can own production lifecycle operations.
+- Active parallel work: V2-only physical retained runtimes, lifecycle Host-gate
+  path/request corrections, and exact historical-version rollback CAS. Unrelated
+  `.reasonix`, `.zcode`, and `CLAUDE.md` deletions remain untouched.
+- Next: land those three independent prerequisites, wire real admission and job
+  barriers, execute first trusted install/enable through the coordinator, then
+  implement upgrade/rollback/uninstall recovery API/UI and run the full P4 gate.
 
 ### 2026-07-14 P4 Exact-Artifact Plugin Job Checkpoint
 

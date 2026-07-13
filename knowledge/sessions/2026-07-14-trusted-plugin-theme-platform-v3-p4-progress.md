@@ -5,7 +5,7 @@
 - Overall V3: **27%**.
 - P0-P3: **100%**.
 - P4: **47%**, active (7 of 15 task/test rows complete).
-- Branch: `main`; last implementation commit: `71340249f`.
+- Branch: `main`; last implementation commit: `04c8b5d75`.
 
 ## Changed
 
@@ -72,6 +72,20 @@
 - Added the instance-bound runtime admission primitive with atomic drain
   closure, explicit lifecycle cleanup exemption, inflight wait, force cancel,
   and per-class residual counts.
+- Added exact staged promotion/discard CAS and immutable active/candidate
+  retention. Candidate id, digest, extension ownership, row locks, and one-winner
+  concurrency fence stale or foreign writes while preserving the old version.
+- Bound lifecycle authority snapshots to actor, exact live grant, TrustImpact,
+  artifact digests, canonical action inputs, and a semantic SHA-256 request
+  fingerprint.
+- Added Manager exact-instance accounting and admission lookup. Active pointer
+  switches, stale stop/drain/remove fencing, lifecycle cleanup admission, and
+  residual counters are instance-bound; physical ProtocolStarter retention is
+  still in progress and V1 remains a hard replacement.
+- Updated OpenAPI and Nuxt management surfaces for inert candidates. Extension
+  resources expose `stagedVersion` without database identity, upload results
+  expose `activationPending`, and list/details/Toast copy accurately state that
+  the current artifact continues running.
 
 ## Verification
 
@@ -104,20 +118,34 @@
   focused repetition and race coverage plus the full Models package.
 - Runtime admission passed focused repetition/race, full Support/Extensions,
   and vet.
+- Exact staged promotion/discard passed real PostgreSQL concurrent CAS,
+  rollback-on-write-failure, migration/migrator, Models race, vet, and full API
+  tests.
+- Manager exact-instance tests and real protocol-v2 handshake passed focused
+  tests and race detection.
+- OpenAPI references, staged management contract validation, bilingual JSON,
+  Nuxt typecheck, and Nuxt production build passed.
 
 ## Active Ownership
 
-- Manager instance fencing, exact staged promotion/discard, and OpenAPI/Nuxt
-  staged-state display are in flight in separate file groups.
+- V2-only retained physical runtime handles and exact stop/discard are in
+  flight under `Support/Extensions`.
+- Initial/final Host-gate topology, exact source/target request binding, and
+  durable Host result/checkpoint propagation are in flight under
+  `Models/Extensions` lifecycle coordinator files.
+- Historical exact-version lookup and rollback/upgrade CAS strengthening are in
+  flight under `Models/Extensions` version repository files.
 
 ## Next
 
-1. Finish and land Manager fencing, staged promotion, and contract/UI slices.
+1. Land retained ProtocolStarter instances, corrected Host-gate paths, and exact
+   historical-version transaction primitives as independent commits.
 2. Wire the lifecycle state machine and first-trusted-enable transaction to the
    durable ledger, exact-artifact trust, frozen runtime, drain, audit, and
    recovery contracts.
-3. Implement retained-runtime drain, uninstall removal modes, recovery HTTP/UI,
-   and then run the complete P3/P4 repository gate.
+3. Wire route/job/provider/schedule admission barriers, then implement upgrade,
+   rollback, uninstall removal modes, recovery HTTP/UI, and the complete P3/P4
+   repository gate.
 
 ## Open Questions
 
