@@ -33,9 +33,16 @@ const {
   busyId,
   enableExtension,
   confirmEnableExtension,
+  issueEnableTrustChallenge,
   cancelEnableExtension,
   enableConfirmOpen,
   enableConfirmItem,
+  enableTrustMode,
+  enableTrustStatus,
+  enableTrustChallenge,
+  enableTrustError,
+  enableTrustBusy,
+  isSuperAdmin,
   openUninstallExtension,
   confirmUninstallExtension,
   cancelUninstallExtension,
@@ -251,45 +258,19 @@ useSeoMeta({
       </div>
     </div>
 
-    <UModal v-model:open="enableConfirmOpen">
-      <template #content>
-        <div class="p-5 sm:p-6">
-          <h2 class="text-base font-semibold text-slate-900 dark:text-zinc-100">
-            {{ t('admin.extensions.confirmEnableTitle') }}
-          </h2>
-          <p class="mt-2 text-sm leading-6 text-slate-600 dark:text-zinc-300">
-            {{ t('admin.extensions.confirmEnableBody', { name: enableConfirmItem?.name || '' }) }}
-          </p>
-          <ul v-if="enableConfirmItem?.capabilityGrants?.length" class="mt-4 max-h-64 space-y-2 overflow-y-auto">
-            <li
-              v-for="grant in enableConfirmItem.capabilityGrants"
-              :key="grant.key"
-              class="rounded-md border border-slate-200 px-3 py-2 text-sm dark:border-zinc-700"
-            >
-              <div class="flex items-center justify-between gap-2">
-                <span class="font-medium">{{ locale.startsWith('zh') ? grant.labelZh : grant.labelEn }}</span>
-                <UBadge
-                  size="xs"
-                  variant="subtle"
-                  :color="grant.risk === 'high' ? 'error' : grant.risk === 'medium' ? 'warning' : 'success'"
-                >
-                  {{ t(`admin.extensions.capabilityRisk.${grant.risk}`) }}
-                </UBadge>
-              </div>
-              <p class="mt-1 text-xs text-slate-500 dark:text-zinc-400">{{ grant.key }}</p>
-            </li>
-          </ul>
-          <div class="mt-6 flex justify-end gap-2">
-            <UButton color="neutral" variant="ghost" @click="cancelEnableExtension">
-              {{ t('admin.extensions.confirmEnableCancel') }}
-            </UButton>
-            <UButton color="primary" icon="i-lucide-shield-check" @click="confirmEnableExtension">
-              {{ t('admin.extensions.confirmEnableAction') }}
-            </UButton>
-          </div>
-        </div>
-      </template>
-    </UModal>
+    <SFExtensionEnableDialog
+      v-model:open="enableConfirmOpen"
+      :extension="enableConfirmItem"
+      :mode="enableTrustMode"
+      :trust-status="enableTrustStatus"
+      :challenge="enableTrustChallenge"
+      :error="enableTrustError"
+      :busy="enableTrustBusy || Boolean(enableConfirmItem && busyId === enableConfirmItem.id)"
+      :is-super-admin="isSuperAdmin"
+      @cancel="cancelEnableExtension"
+      @issue-challenge="issueEnableTrustChallenge"
+      @confirm="confirmEnableExtension"
+    />
 
     <UModal v-model:open="uninstallConfirmOpen">
       <template #content>

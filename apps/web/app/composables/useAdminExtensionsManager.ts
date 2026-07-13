@@ -13,12 +13,18 @@ import {
   type AdminExtensionEvent,
   type AdminExtensionStatus
 } from '~/utils/adminExtensions'
-import { apiErrorMessage } from '~/composables/useApiClient'
+import type {
+  ExecutableTrustChallenge,
+  ExecutableTrustStatus,
+  ExtensionEnableTrustMode
+} from '~/utils/extensionTrust'
+import { apiErrorMessage, apiErrorReason } from '~/composables/useApiClient'
 
 export const useAdminExtensionsManager = async () => {
   const { t } = useI18n()
   const toast = useToast()
   const { request } = useApiClient()
+  const { user } = useAuthSession()
 
   const fileInput = ref<HTMLInputElement | null>(null)
   const selectedId = ref('')
@@ -162,18 +168,59 @@ export const useAdminExtensionsManager = async () => {
     }
   }
 
-  // 启用确认对话框状态（F2.1 capability review）。
+  // V3 优先读取服务端 canonical impact；开关关闭时才回落 F2.1 capability review。
   const enableConfirmOpen = ref(false)
   const enableConfirmItem = ref<AdminExtension | null>(null)
+  const enableTrustMode = ref<ExtensionEnableTrustMode>('legacy')
+  const enableTrustStatus = ref<ExecutableTrustStatus | null>(null)
+  const enableTrustChallenge = ref<ExecutableTrustChallenge | null>(null)
+  const enableTrustError = ref('')
+  const enableTrustBusy = ref(false)
+  const isSuperAdmin = computed(() => user.value?.roleKeys?.includes('super_admin') === true)
+
+  function resetEnableTrust() {
+    enableTrustStatus.value = null
+    enableTrustChallenge.value = null
+    enableTrustError.value = ''
+    enableTrustBusy.value = false
+  }
+
+  function openLegacyEnable(item: AdminExtension) {
+    enableTrustMode.value = 'legacy'
+    enableConfirmItem.value = item
+    enableConfirmOpen.value = true
+  }
 
   async function enableExtension(item: AdminExtension) {
-    // 首次启用且有能力列表时，弹出审查确认；已启用重启走 restart。
-    if (item.status !== 'enabled' && (item.capabilityGrants?.length ?? 0) > 0) {
+    resetEnableTrust()
+    enableTrustBusy.value = true
+    try {
+      const status = await request<ExecutableTrustStatus>(`/admin/extensions/${item.id}/trust`)
+      enableTrustMode.value = 'exact'
+      enableTrustStatus.value = status
+      if (!status.trustRequired) {
+        await lifecycle(item, 'enable')
+        return
+      }
       enableConfirmItem.value = item
       enableConfirmOpen.value = true
-      return
+    } catch (error) {
+      if (apiErrorReason(error) === 'extension.trust_not_required') {
+        // V3 migration gate is off; preserve the existing boolean confirmation flow.
+        if (item.status !== 'enabled' && (item.capabilityGrants?.length ?? 0) > 0) {
+          openLegacyEnable(item)
+        } else {
+          await lifecycle(item, 'enable', { confirmCapabilities: true })
+        }
+        return
+      }
+      enableTrustMode.value = 'exact'
+      enableTrustError.value = apiErrorMessage(error) || t('admin.extensions.trust.previewFailed')
+      enableConfirmItem.value = item
+      enableConfirmOpen.value = true
+    } finally {
+      enableTrustBusy.value = false
     }
-    await lifecycle(item, 'enable', { confirmCapabilities: true })
   }
 
   async function confirmEnableExtension() {
@@ -181,14 +228,64 @@ export const useAdminExtensionsManager = async () => {
     if (!item) {
       return
     }
-    enableConfirmOpen.value = false
-    enableConfirmItem.value = null
-    await lifecycle(item, 'enable', { confirmCapabilities: true })
+    const body: Record<string, unknown> = enableTrustMode.value === 'exact'
+      ? { confirmationToken: enableTrustChallenge.value?.token || undefined }
+      : { confirmCapabilities: true }
+    enableTrustError.value = ''
+    const result = await lifecycle(item, 'enable', body)
+    if (result.ok) {
+      enableConfirmOpen.value = false
+      // 保留 impact 到关闭过渡结束，避免弹窗在离场动画中闪成空内容；一次性 token 立即丢弃。
+      enableTrustChallenge.value = null
+      enableTrustError.value = ''
+      enableTrustBusy.value = false
+      return
+    }
+    enableTrustError.value = apiErrorMessage(result.error) || t('admin.extensions.actionFailed')
+    enableTrustChallenge.value = null
+    if (enableTrustMode.value === 'exact') {
+      try {
+        enableTrustStatus.value = await request<ExecutableTrustStatus>(`/admin/extensions/${item.id}/trust`)
+      } catch {
+        // Keep the actionable enable failure visible; the next challenge request rechecks impact.
+      }
+    }
+  }
+
+  async function issueEnableTrustChallenge() {
+    const item = enableConfirmItem.value
+    if (!item || !isSuperAdmin.value) return
+    enableTrustBusy.value = true
+    enableTrustError.value = ''
+    try {
+      const challenge = await request<ExecutableTrustChallenge>(`/admin/extensions/${item.id}/trust/challenge`, {
+        method: 'POST',
+        body: {}
+      })
+      enableTrustChallenge.value = challenge
+      enableTrustStatus.value = {
+        impact: challenge.impact,
+        trustRequired: true,
+        trusted: false
+      }
+    } catch (error) {
+      enableTrustError.value = apiErrorMessage(error) || t('admin.extensions.trust.challengeFailed')
+      toast.add({
+        color: 'error',
+        icon: 'i-lucide-triangle-alert',
+        title: enableTrustError.value,
+        duration: 0
+      })
+    } finally {
+      enableTrustBusy.value = false
+    }
   }
 
   function cancelEnableExtension() {
     enableConfirmOpen.value = false
-    enableConfirmItem.value = null
+    enableTrustChallenge.value = null
+    enableTrustError.value = ''
+    enableTrustBusy.value = false
   }
 
   async function disableExtension(item: AdminExtension) {
@@ -266,8 +363,15 @@ export const useAdminExtensionsManager = async () => {
 			title: action === 'enable' ? t('admin.extensions.enabled') : t('admin.extensions.disabled'),
 			duration: 10000
 		})
+		return { ok: true as const, updated }
     } catch (error) {
-      toast.add({ color: 'error', icon: 'i-lucide-triangle-alert', title: apiErrorMessage(error) || t('admin.extensions.actionFailed') })
+		toast.add({
+			color: 'error',
+			icon: 'i-lucide-triangle-alert',
+			title: apiErrorMessage(error) || t('admin.extensions.actionFailed'),
+			duration: 0
+		})
+		return { ok: false as const, error }
     } finally {
       busyId.value = ''
     }
@@ -421,9 +525,16 @@ export const useAdminExtensionsManager = async () => {
     uploadArchive,
     enableExtension,
     confirmEnableExtension,
+    issueEnableTrustChallenge,
     cancelEnableExtension,
     enableConfirmOpen,
     enableConfirmItem,
+    enableTrustMode,
+    enableTrustStatus,
+    enableTrustChallenge,
+    enableTrustError,
+    enableTrustBusy,
+    isSuperAdmin,
     openUninstallExtension,
     confirmUninstallExtension,
     cancelUninstallExtension,

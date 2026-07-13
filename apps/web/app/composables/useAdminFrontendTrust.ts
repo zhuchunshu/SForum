@@ -1,4 +1,6 @@
 import type { AdminExtension } from '~/utils/adminExtensions'
+import type { ExecutableTrustStatus } from '~/utils/extensionTrust'
+import { apiErrorReason } from '~/composables/useApiClient'
 
 export type AdminFrontendStatus = {
   extensionId: string
@@ -29,15 +31,30 @@ export function useAdminFrontendTrust(extension: Ref<AdminExtension>) {
   const { t } = useI18n()
   const toast = useToast()
   const status = ref<AdminFrontendStatus | null>(null)
+  const exactTrustManaged = ref(false)
+  const exactTrustStatus = ref<ExecutableTrustStatus | null>(null)
   const error = ref('')
   const busy = ref(false)
 
   async function load() {
     error.value = ''
+    exactTrustManaged.value = false
+    exactTrustStatus.value = null
     try {
       status.value = await request(`/admin/extensions/${extension.value.id}/frontend`)
     } catch (cause) {
       error.value = `${cause}`
+      return
+    }
+    try {
+      exactTrustStatus.value = await request<ExecutableTrustStatus>(`/admin/extensions/${extension.value.id}/trust`)
+      exactTrustManaged.value = true
+    } catch (cause) {
+      if (apiErrorReason(cause) !== 'extension.trust_not_required') {
+        // 只把 V3 开关关闭视为旧模式；其他错误保留 frontend 状态与 Schema fallback。
+        exactTrustManaged.value = true
+        exactTrustStatus.value = null
+      }
     }
   }
 
@@ -75,6 +92,10 @@ export function useAdminFrontendTrust(extension: Ref<AdminExtension>) {
     }
   }
 
-  watch(() => extension.value.id, load, { immediate: true })
-  return { status, error, busy, load, mutate, challenge }
+  watch(
+    () => [extension.value.id, extension.value.status, extension.value.packageDigest, extension.value.adminFrontendDigest],
+    load,
+    { immediate: true }
+  )
+  return { status, exactTrustManaged, exactTrustStatus, error, busy, load, mutate, challenge }
 }

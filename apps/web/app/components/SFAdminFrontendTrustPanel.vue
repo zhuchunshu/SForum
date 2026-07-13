@@ -6,7 +6,7 @@ const emit = defineEmits<{ changed: [] }>()
 const extension = computed(() => props.extension)
 const { user } = useAuthSession()
 const { t } = useI18n()
-const { status, error, busy, mutate, challenge } = useAdminFrontendTrust(extension)
+const { status, exactTrustManaged, error, busy, mutate, challenge } = useAdminFrontendTrust(extension)
 const isSuperAdmin = computed(() => user.value?.roleKeys?.includes('super_admin') === true)
 const confirmOpen = ref(false)
 const confirmationPhrase = ref('')
@@ -61,12 +61,21 @@ function closeConfirmation() {
         <h4 class="text-sm font-semibold">{{ t('admin.extensions.frontend.title') }}</h4>
         <p class="mt-1 text-xs text-slate-500 dark:text-zinc-400">{{ status?.trustState || t('admin.extensions.frontend.loading') }}</p>
       </div>
-      <div v-if="isSuperAdmin" class="flex gap-2">
+      <div v-if="isSuperAdmin && !exactTrustManaged" class="flex gap-2">
         <UButton v-if="['required', 'invalidated', 'revoked'].includes(status?.trustState || '')" size="xs" icon="i-lucide-shield-check" :loading="busy" @click="requestGrant">{{ t('admin.extensions.frontend.grant') }}</UButton>
         <UButton v-if="status?.trustState === 'trusted'" size="xs" color="error" variant="subtle" icon="i-lucide-shield-x" :loading="busy" @click="mutate('revoke')">{{ t('admin.extensions.frontend.revoke') }}</UButton>
       </div>
     </div>
     <UAlert v-if="error" class="mt-3" color="error" icon="i-lucide-triangle-alert" :description="error" />
+    <UAlert
+      v-if="exactTrustManaged && status?.trustState !== 'trusted'"
+      class="mt-3"
+      color="warning"
+      variant="subtle"
+      icon="i-lucide-shield-alert"
+      :title="t('admin.extensions.frontend.exactTrustTitle')"
+      :description="t('admin.extensions.frontend.exactTrustDescription')"
+    />
     <UAlert
       v-if="isPrebuilt"
       class="mt-3"
