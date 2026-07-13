@@ -1,0 +1,229 @@
+package extensions
+
+import (
+	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
+	"fmt"
+	"strings"
+
+	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
+)
+
+const LifecycleAuthoritySnapshotSchemaV1 = "sforum.lifecycle.authority@1"
+
+// LifecycleAuthoritySnapshot 是写入 Host lifecycle ledger 的不可变执行授权。
+type LifecycleAuthoritySnapshot struct {
+	SchemaVersion string      `json:"schemaVersion"`
+	AuthorityType string      `json:"authorityType"`
+	ActorUserID   int64       `json:"actorUserId"`
+	Impact        TrustImpact `json:"impact"`
+	Grant         *TrustGrant `json:"grant,omitempty"`
+}
+
+type LifecycleOperationIntent struct {
+	Operation      LifecycleMachineOperation
+	IdempotencyKey string
+	ActionInputs   map[LifecycleMachineAction]json.RawMessage
+	RemovalMode    string
+	Forced         bool
+	Retry          bool
+	SkipFailedStep bool
+	SkipReason     string
+	AuditEventID   int64
+}
+
+// ConfirmLifecycleAuthority 消费或复用 exact-artifact grant，并返回可持久化的授权快照。
+func (s *ExecutableTrustService) ConfirmLifecycleAuthority(
+	ctx context.Context,
+	actor identity.Actor,
+	extension Extension,
+	confirmationToken string,
+) (LifecycleAuthoritySnapshot, error) {
+	if s == nil || s.store == nil {
+		return LifecycleAuthoritySnapshot{}, ErrTrustChallengeInvalid
+	}
+	impact, err := buildTrustImpact(extension, TrustActionEnable)
+	if err != nil {
+		return LifecycleAuthoritySnapshot{}, err
+	}
+	authority := LifecycleAuthoritySnapshot{
+		SchemaVersion: LifecycleAuthoritySnapshotSchemaV1,
+		ActorUserID:   actor.ID,
+		Impact:        impact,
+	}
+	if extension.Source == SourceBuiltin && !RequiresExecutableTrust(extension) {
+		authority.AuthorityType = LifecycleAuthorityBuiltin
+		return authority, nil
+	}
+	if !RequiresExecutableTrust(extension) {
+		return LifecycleAuthoritySnapshot{}, fmt.Errorf("%w: uploaded lifecycle code requires an exact grant", ErrLifecycleCoordinatorInvalid)
+	}
+	if err := s.ConfirmEnable(ctx, actor, extension, confirmationToken); err != nil {
+		return LifecycleAuthoritySnapshot{}, err
+	}
+	grant, err := s.store.LiveGrant(ctx, trustIdentity(impact))
+	if err != nil {
+		return LifecycleAuthoritySnapshot{}, err
+	}
+	if grant.ID <= 0 || grant.ExtensionID != extension.ID || grant.ExtensionVersion != extension.Version ||
+		grant.PackageDigest != extension.PackageDigest || grant.ImpactDigest != impact.Digest {
+		return LifecycleAuthoritySnapshot{}, ErrTrustChallengeStale
+	}
+	authority.AuthorityType = LifecycleAuthorityTrustGrant
+	authority.Grant = &grant
+	return authority, nil
+}
+
+// BuildLifecycleCoordinatorRunInput 将授权、制品和操作意图绑定为可重放的 ledger 输入。
+func BuildLifecycleCoordinatorRunInput(
+	extension Extension,
+	actor identity.Actor,
+	authority LifecycleAuthoritySnapshot,
+	intent LifecycleOperationIntent,
+) (LifecycleCoordinatorRunInput, error) {
+	if extension.Manifest.Lifecycle == nil || strings.TrimSpace(extension.Manifest.Lifecycle.ContractVersion) == "" {
+		return LifecycleCoordinatorRunInput{}, fmt.Errorf("%w: lifecycle v2 contract is required", ErrLifecycleCoordinatorInvalid)
+	}
+	if _, err := RecommendedLifecyclePath(intent.Operation); err != nil {
+		return LifecycleCoordinatorRunInput{}, fmt.Errorf("%w: %v", ErrLifecycleCoordinatorInvalid, err)
+	}
+	idempotencyKey := strings.TrimSpace(intent.IdempotencyKey)
+	if idempotencyKey == "" || idempotencyKey != intent.IdempotencyKey || len(idempotencyKey) > 512 {
+		return LifecycleCoordinatorRunInput{}, fmt.Errorf("%w: stable idempotency key is required", ErrLifecycleCoordinatorInvalid)
+	}
+	if err := validateLifecycleAuthority(extension, actor, authority); err != nil {
+		return LifecycleCoordinatorRunInput{}, err
+	}
+	if err := validateLifecycleRemovalIntent(intent); err != nil {
+		return LifecycleCoordinatorRunInput{}, err
+	}
+	actionInputs, fingerprintInputs, err := canonicalLifecycleActionInputs(intent.Operation, intent.ActionInputs)
+	if err != nil {
+		return LifecycleCoordinatorRunInput{}, err
+	}
+	authorityJSON, err := json.Marshal(authority)
+	if err != nil {
+		return LifecycleCoordinatorRunInput{}, fmt.Errorf("%w: encode lifecycle authority: %v", ErrLifecycleCoordinatorInvalid, err)
+	}
+	artifactJSON, err := json.Marshal(authority.Impact.ArtifactDigests)
+	if err != nil {
+		return LifecycleCoordinatorRunInput{}, fmt.Errorf("%w: encode lifecycle artifacts: %v", ErrLifecycleCoordinatorInvalid, err)
+	}
+	fingerprintDocument := struct {
+		ExtensionID   string                     `json:"extensionId"`
+		Version       string                     `json:"version"`
+		PackageDigest string                     `json:"packageDigest"`
+		Operation     LifecycleMachineOperation  `json:"operation"`
+		PlanVersion   string                     `json:"planVersion"`
+		Authority     json.RawMessage            `json:"authority"`
+		ActionInputs  map[string]json.RawMessage `json:"actionInputs"`
+		RemovalMode   string                     `json:"removalMode,omitempty"`
+		Forced        bool                       `json:"forced"`
+	}{
+		ExtensionID: extension.ID, Version: extension.Version, PackageDigest: extension.PackageDigest,
+		Operation: intent.Operation, PlanVersion: extension.Manifest.Lifecycle.ContractVersion,
+		Authority: authorityJSON, ActionInputs: fingerprintInputs,
+		RemovalMode: intent.RemovalMode, Forced: intent.Forced,
+	}
+	fingerprintJSON, err := json.Marshal(fingerprintDocument)
+	if err != nil {
+		return LifecycleCoordinatorRunInput{}, fmt.Errorf("%w: encode lifecycle fingerprint: %v", ErrLifecycleCoordinatorInvalid, err)
+	}
+	fingerprint := sha256.Sum256(fingerprintJSON)
+	trustGrantID := int64(0)
+	if authority.Grant != nil {
+		trustGrantID = authority.Grant.ID
+	}
+	return LifecycleCoordinatorRunInput{
+		Extension: extension,
+		Acquire: AcquireLifecycleOperationInput{
+			ExtensionID: extension.ID, ExtensionVersion: extension.Version,
+			PackageDigest: extension.PackageDigest, ArtifactDigests: artifactJSON,
+			Operation: string(intent.Operation), PlanVersion: extension.Manifest.Lifecycle.ContractVersion,
+			IdempotencyKey: idempotencyKey, RequestFingerprint: hex.EncodeToString(fingerprint[:]),
+			AuthorityType: authority.AuthorityType, TrustGrantID: trustGrantID,
+			AuthoritySnapshot: authorityJSON, RequestedByUserID: actor.ID,
+			AuditEventID: intent.AuditEventID, RemovalMode: intent.RemovalMode, Forced: intent.Forced,
+		},
+		ActionInputs: actionInputs, Retry: intent.Retry,
+		SkipFailedStep: intent.SkipFailedStep, SkipReason: intent.SkipReason,
+	}, nil
+}
+
+func validateLifecycleAuthority(extension Extension, actor identity.Actor, authority LifecycleAuthoritySnapshot) error {
+	if authority.SchemaVersion != LifecycleAuthoritySnapshotSchemaV1 || authority.ActorUserID != actor.ID ||
+		authority.Impact.ExtensionID != extension.ID || authority.Impact.ExtensionVersion != extension.Version ||
+		authority.Impact.PackageDigest != extension.PackageDigest || authority.Impact.Action != TrustActionEnable ||
+		authority.Impact.Digest == "" ||
+		authority.Impact.ArtifactDigests["package"] != extension.PackageDigest {
+		return fmt.Errorf("%w: lifecycle authority does not match exact actor and artifact", ErrLifecycleCoordinatorInvalid)
+	}
+	switch authority.AuthorityType {
+	case LifecycleAuthorityBuiltin:
+		if extension.Source != SourceBuiltin || authority.Grant != nil {
+			return fmt.Errorf("%w: invalid builtin lifecycle authority", ErrLifecycleCoordinatorInvalid)
+		}
+	case LifecycleAuthorityTrustGrant:
+		if authority.Grant == nil || authority.Grant.ID <= 0 || authority.Grant.ExtensionID != extension.ID ||
+			authority.Grant.ExtensionVersion != extension.Version || authority.Grant.PackageDigest != extension.PackageDigest ||
+			authority.Grant.Action != TrustActionEnable || authority.Grant.ImpactDigest != authority.Impact.Digest ||
+			authority.Grant.RevokedAt != nil {
+			return fmt.Errorf("%w: invalid lifecycle trust grant", ErrLifecycleCoordinatorInvalid)
+		}
+	default:
+		return fmt.Errorf("%w: unsupported lifecycle authority", ErrLifecycleCoordinatorInvalid)
+	}
+	return nil
+}
+
+func validateLifecycleRemovalIntent(intent LifecycleOperationIntent) error {
+	if intent.Operation == LifecycleMachineUninstall {
+		switch intent.RemovalMode {
+		case LifecycleRemovalPreserve, LifecycleRemovalExportThenRemove, LifecycleRemovalComplete:
+		default:
+			return fmt.Errorf("%w: uninstall removal mode is required", ErrLifecycleCoordinatorInvalid)
+		}
+	} else if intent.RemovalMode != "" || intent.Forced {
+		return fmt.Errorf("%w: removal mode and force are uninstall-only", ErrLifecycleCoordinatorInvalid)
+	}
+	return nil
+}
+
+func canonicalLifecycleActionInputs(
+	operation LifecycleMachineOperation,
+	inputs map[LifecycleMachineAction]json.RawMessage,
+) (map[LifecycleMachineAction]json.RawMessage, map[string]json.RawMessage, error) {
+	path, err := RecommendedLifecyclePath(operation)
+	if err != nil {
+		return nil, nil, err
+	}
+	allowed := make(map[LifecycleMachineAction]bool)
+	for _, step := range path {
+		if step.Action != "" {
+			allowed[step.Action] = true
+		}
+	}
+	result := make(map[LifecycleMachineAction]json.RawMessage, len(inputs))
+	fingerprint := make(map[string]json.RawMessage, len(inputs))
+	for action, raw := range inputs {
+		if !allowed[action] {
+			return nil, nil, fmt.Errorf("%w: action input %q is outside operation %q", ErrLifecycleCoordinatorInvalid, action, operation)
+		}
+		if len(strings.TrimSpace(string(raw))) == 0 {
+			continue
+		}
+		var document map[string]any
+		if err := json.Unmarshal(raw, &document); err != nil || document == nil {
+			return nil, nil, fmt.Errorf("%w: action input %q must be a JSON object", ErrLifecycleCoordinatorInvalid, action)
+		}
+		canonical, err := json.Marshal(document)
+		if err != nil {
+			return nil, nil, fmt.Errorf("%w: canonicalize action input %q: %v", ErrLifecycleCoordinatorInvalid, action, err)
+		}
+		result[action] = canonical
+		fingerprint[string(action)] = canonical
+	}
+	return result, fingerprint, nil
+}
