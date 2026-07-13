@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	audit "github.com/zhuchunshu/sforum/apps/api/app/Support/Audit"
 	extensionpackage "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionPackage"
 )
 
@@ -52,6 +53,40 @@ func TestExecutableTrustChallengeBindsExactImpactAndIsOneUse(t *testing.T) {
 	}
 	if err := service.ConfirmEnable(context.Background(), extensionManager(), extension, challenge.Token); !errors.Is(err, ErrTrustChallengeReplayed) {
 		t.Fatalf("replayed token: %v", err)
+	}
+}
+
+func TestExecutableTrustAuditsChallengeDeniedGrantAndRevoke(t *testing.T) {
+	extension := exactTrustExtension(t, "demo.audit")
+	store := &fakeExtensionStore{items: map[string]Extension{extension.ID: extension}}
+	auditor := &recordingAuditor{}
+	service := NewExecutableTrustService(store, &memoryExecutableTrustStore{}).WithAuditor(auditor)
+	actor := extensionManager()
+
+	challenge, err := service.Challenge(context.Background(), actor, extension.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	other := actor
+	other.ID++
+	if err := service.ConfirmEnable(context.Background(), other, extension, challenge.Token); !errors.Is(err, ErrTrustChallengeInvalid) {
+		t.Fatalf("wrong actor must be denied, got %v", err)
+	}
+	if err := service.ConfirmEnable(context.Background(), actor, extension, challenge.Token); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.Revoke(context.Background(), actor, extension.ID); err != nil {
+		t.Fatal(err)
+	}
+	for _, action := range []string{
+		audit.ActionExtensionTrustChallenge,
+		audit.ActionExtensionTrustDenied,
+		audit.ActionExtensionTrustGrant,
+		audit.ActionExtensionTrustRevoke,
+	} {
+		if !auditor.hasAction(action) {
+			t.Fatalf("missing audit action %s", action)
+		}
 	}
 }
 
@@ -238,7 +273,8 @@ func TestServiceV3TrustAllowsAlreadyGrantedDelegatedEnable(t *testing.T) {
 func TestV3StaticInstallByDelegatedManagerDoesNotExecutePackage(t *testing.T) {
 	store := &fakeExtensionStore{items: map[string]Extension{}}
 	runtime := &countingRuntimeManager{}
-	service := NewServiceWithOptions(store, t.TempDir(), "", runtime, WithExecutableTrust(NewExecutableTrustService(store, &memoryExecutableTrustStore{}), true))
+	trust := NewExecutableTrustService(store, &memoryExecutableTrustStore{})
+	service := NewServiceWithOptions(store, t.TempDir(), "", runtime, WithExecutableTrust(trust, true))
 	archive := extensionArchive(t, validManifest("delegated.backend", TypePlugin),
 		zipFile{name: "backend/plugin", body: "binary", mode: 0o755},
 		zipFile{name: "migrations/001_init.sql", body: "SELECT 1", mode: 0o644},
@@ -250,6 +286,18 @@ func TestV3StaticInstallByDelegatedManagerDoesNotExecutePackage(t *testing.T) {
 	}
 	if result.Extension.Status != StatusInstalled || runtime.checks != 0 || runtime.starts != 0 {
 		t.Fatalf("static install executed package code: result=%#v checks=%d starts=%d", result, runtime.checks, runtime.starts)
+	}
+	status, err := service.ExecutableTrustStatus(context.Background(), techAdminPluginManager(), result.Extension.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !status.TrustRequired || status.Trusted || len(status.Impact.Binaries) != 1 || len(status.Impact.Migrations) != 1 ||
+		len(status.Impact.Routes) != 1 || len(status.Impact.Jobs) != 1 || status.Impact.ArtifactDigests["backend"] == "" ||
+		status.Impact.ArtifactDigests["migration:migrations/001_init.sql"] == "" {
+		t.Fatalf("delegated manager received incomplete static impact preview: %#v", status)
+	}
+	if runtime.checks != 0 || runtime.starts != 0 {
+		t.Fatalf("impact preview executed package code: checks=%d starts=%d", runtime.checks, runtime.starts)
 	}
 }
 
