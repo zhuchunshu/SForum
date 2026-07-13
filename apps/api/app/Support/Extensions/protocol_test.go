@@ -157,7 +157,7 @@ func TestProtocolStarterHelperProcess(t *testing.T) {
 	os.Exit(0)
 }
 
-func helperPluginLauncher(t *testing.T) string {
+func helperPluginLauncher(t testing.TB) string {
 	t.Helper()
 	testBinary, err := filepath.Abs(os.Args[0])
 	if err != nil {

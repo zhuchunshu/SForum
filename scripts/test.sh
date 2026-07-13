@@ -45,3 +45,6 @@ node tests/validate-sf-components.js
 
 echo "Running Runtime Page Registry offline contracts (+ optional live HTTP smoke)..."
 node tests/validate-page-registry-runtime.js
+
+echo "Running V3 platform catalog and traceability validation..."
+node tests/validate-v3-p0-catalogs.mjs
