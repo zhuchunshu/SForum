@@ -18,7 +18,8 @@
       "zh-CN": "每行一个关键词；也可用英文逗号分隔。以 # 开头的行视为注释。留空则不拦截。",
       "en-US": "One keyword per line, or comma-separated. Lines starting with # are comments. Empty list means no matches."
     },
-    "type": "text",
+    "type": "textarea",
+    "width": "full",
     "default": "",
     "recommendedValue": "",
     "placeholder": {

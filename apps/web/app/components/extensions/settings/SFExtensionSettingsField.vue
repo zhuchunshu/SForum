@@ -15,6 +15,11 @@ function secretPlaceholder() {
   }
   return props.item.placeholder
 }
+
+// full 占满可用列宽；其余（含省略）保持原先 max-w-xl 的默认控件宽度。
+const controlClass = computed(() => (
+  props.item.width === 'full' ? 'w-full' : 'w-full max-w-xl'
+))
 </script>
 
 <template>
@@ -45,10 +50,20 @@ function secretPlaceholder() {
         v-else-if="item.options?.length"
         :id="`extension-setting-${item.key}`"
         :model-value="modelValue"
-        class="max-w-xl"
+        :class="controlClass"
         value-key="value"
         label-key="label"
         :items="item.options"
+        :placeholder="item.placeholder"
+        @update:model-value="emit('update:modelValue', String($event ?? ''))"
+      />
+      <UTextarea
+        v-else-if="item.type === 'textarea'"
+        :id="`extension-setting-${item.key}`"
+        :model-value="modelValue"
+        :class="controlClass"
+        :rows="4"
+        autoresize
         :placeholder="item.placeholder"
         @update:model-value="emit('update:modelValue', String($event ?? ''))"
       />
@@ -56,7 +71,7 @@ function secretPlaceholder() {
         v-else
         :id="`extension-setting-${item.key}`"
         :model-value="modelValue"
-        class="max-w-xl"
+        :class="controlClass"
         :type="item.type === 'secret' ? 'password' : item.type === 'number' ? 'number' : 'text'"
         :placeholder="secretPlaceholder()"
         @update:model-value="emit('update:modelValue', String($event ?? ''))"

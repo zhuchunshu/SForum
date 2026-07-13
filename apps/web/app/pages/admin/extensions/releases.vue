@@ -255,19 +255,6 @@ function statusLabel(status: AdminWebReleaseStatus | string) {
             —
           </p>
         </div>
-
-        <div class="mt-5">
-          <h4 class="text-sm font-semibold text-slate-700 dark:text-zinc-200">
-            {{ t('admin.extensions.releases.buildLog') }}
-          </h4>
-          <pre
-            v-if="selected.buildLog?.trim()"
-            class="mt-2 max-h-72 overflow-auto rounded-md bg-zinc-950 p-3 text-xs text-zinc-200"
-          >{{ selected.buildLog }}</pre>
-          <p v-else class="mt-2 text-xs leading-5 text-slate-500 dark:text-zinc-400">
-            {{ t('admin.extensions.releases.emptyBuildLog') }}
-          </p>
-        </div>
       </div>
     </template>
   </UModal>

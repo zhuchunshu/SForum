@@ -35,6 +35,9 @@ deprecated-for-new-settings compatibility path.
   arrays and new documents as objects.
 - `SFExtensionSettingsRenderer` owns form/tabs/groups/columns/callouts and
   linear presentation fallback for plugins and themes.
+- Schema field types: `text`/`string`, `number`, `boolean`, `select` (via
+  `options`), `secret`, `textarea`. Optional `width: default|full` controls
+  whether inputs stay capped (`max-w-xl`) or fill the column.
 - Settings Actions are host-rendered allowlisted descriptors. `provider_probe`
   uses a restricted short-lived plugin process with no Host API token and no
   route/event/job/schedule/provider registration; SMTP and filesystem storage

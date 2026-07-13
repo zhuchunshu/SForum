@@ -86,6 +86,39 @@ Plugins and themes share one versioned Settings Document. Existing array-form
 | Truly complex interaction | Prebuilt component + Schema fallback | Fully trusted `.mjs` | None |
 | Existing Vue admin contribution | Legacy compatibility | Fully trusted SFC | Web Release |
 
+### Schema field types and width
+
+Host Schema UI supports these `fields[].type` values:
+
+| Type | Control |
+| --- | --- |
+| `text` / `string` | Single-line input |
+| `number` | Numeric input |
+| `boolean` | Checkbox |
+| `select` | Select when `options` is present (options also force select for other free-text types) |
+| `secret` | Password input; empty save preserves the stored secret |
+| `textarea` | Multi-line autoresizing textarea |
+
+Optional `fields[].width`:
+
+| Value | Behavior |
+| --- | --- |
+| `default` (or omitted) | Control is capped (`max-w-xl`) — good for short values |
+| `full` | Control fills the available column width — prefer for long copy and `textarea` |
+
+Example:
+
+```json
+{
+  "key": "home.notice.zh-CN",
+  "label": { "zh-CN": "首页提示条", "en-US": "Homepage notice" },
+  "type": "textarea",
+  "width": "full",
+  "default": "",
+  "groupId": "home-copy"
+}
+```
+
 ### Reference A — theme tabs/groups, no JavaScript
 
 This is the default for new themes. Upload, configure, activate through Page
@@ -126,7 +159,8 @@ Registry, and save values without building Nuxt:
     },
     "fields": [
       { "key": "hero.title", "label": { "zh-CN": "标题", "en-US": "Title" }, "type": "text", "default": "Welcome", "groupId": "hero", "column": 1 },
-      { "key": "hero.compact", "label": { "zh-CN": "紧凑模式", "en-US": "Compact" }, "type": "boolean", "default": "false", "groupId": "hero", "column": 2 }
+      { "key": "hero.compact", "label": { "zh-CN": "紧凑模式", "en-US": "Compact" }, "type": "boolean", "default": "false", "groupId": "hero", "column": 2 },
+      { "key": "hero.blurb", "label": { "zh-CN": "简介", "en-US": "Blurb" }, "type": "textarea", "width": "full", "default": "", "groupId": "hero" }
     ]
   }
 }

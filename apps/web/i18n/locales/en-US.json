@@ -503,8 +503,8 @@
       "themeActivationUnavailable": "Theme activation failed.",
       "pluginEnableQueued": "Plugin enable queued. This plugin has trusted admin frontend components, so a Web release must finish building before it is fully enabled.",
       "pluginDisableQueued": "Plugin disable queued. This plugin has trusted admin frontend components, so a Web release must finish building before it is fully disabled.",
-      "webReleaseQueuedHint": "Open Extensions → Web releases to follow release #{id} progress and the build log.",
-      "webReleaseQueuedHintNoId": "Open Extensions → Web releases to follow progress and the build log.",
+      "webReleaseQueuedHint": "Open Extensions → Web releases to follow release #{id} progress.",
+      "webReleaseQueuedHintNoId": "Open Extensions → Web releases to follow progress.",
       "webReleaseProgress": {
         "queued": "Web release queued and waiting for a worker. If it stays here, confirm the API embeds the worker or a standalone worker is running.",
         "resolving": "Resolving the theme and trusted-plugin composition.",
@@ -513,9 +513,9 @@
         "verifying": "Verifying the release artifact.",
         "ready": "Build finished; preparing to switch the runtime.",
         "activating": "Switching the runtime. The plugin status becomes final after this step.",
-        "failed": "Web release failed. Open Extensions → Web releases for the build log, then retry."
+        "failed": "Web release failed. Open Extensions → Web releases for details, then retry."
       },
-      "viewWebRelease": "View release log",
+      "viewWebRelease": "View release details",
       "actionFailed": "Extension action failed.",
       "settingsProfiles": {
         "none": "No settings UI",
@@ -576,9 +576,7 @@
         "empty": "No Web releases yet.",
         "retryQueued": "Release retry queued.",
         "rollbackQueued": "Release rollback queued.",
-        "viewDetail": "View log",
-        "buildLog": "Build log",
-        "emptyBuildLog": "No build log yet. If a release stays queued or building for a long time, confirm the API embeds the worker or a standalone worker is running.",
+        "viewDetail": "View details",
         "events": "Status events",
         "statusLabels": {
           "queued": "Queued",
@@ -623,9 +621,6 @@
       "retryActivation": "Retry activation",
       "restoreDefaultTheme": "Restore default theme",
       "activeTheme": "Active theme",
-      "viewBuildLog": "View build log",
-      "hideBuildLog": "Hide build log",
-      "emptyBuildLog": "No build log yet.",
       "themeRelease": {
         "queued": "Queued",
         "building": "Building",
@@ -641,7 +636,7 @@
         "built": "Build completed and the release is preparing to switch.",
         "activating": "Writing the current release and waiting for the web runtime to switch.",
         "active": "The frontend runtime is using this theme; local dev will apply it after the automatic restart.",
-        "failed": "Theme activation failed. Review the build log, then retry.",
+        "failed": "Theme activation failed. You can retry.",
         "rolled_back": "This release has been replaced by a newer theme release."
       },
       "source": {
@@ -898,21 +893,33 @@
       "pages": {
         "metaTitle": "Page registry",
         "title": "Page registry",
-        "intro": "Inspect stable page ids, paths, and active providers. Replacing a core page requires super_admin approval; restore core anytime.",
+        "intro": "Inspect stable page ids, paths, and active providers. Replacing a core page requires super_admin approval; restore the core page anytime.",
         "loadFailed": "Failed to load page catalog",
         "restored": "Restored core page",
         "restoreFailed": "Restore failed",
         "approved": "Page replace approved",
         "approveFailed": "Approve failed",
+        "count": "{count} pages",
         "colId": "Page ID",
         "colPath": "Path",
         "colAccess": "Access",
         "colProvider": "Provider",
+        "colContract": "Contract",
         "colActions": "Actions",
         "candidates": "candidates",
+        "candidatesCount": "({count} candidates)",
+        "providerCore": "Core",
         "restoreCore": "Restore core",
         "approve": "Approve",
-        "empty": "No page catalog data"
+        "approveExtension": "Approve: {extensionId}",
+        "empty": "No page catalog data",
+        "access": {
+          "public": "Public",
+          "login": "Signed in",
+          "guest": "Guests only",
+          "moderation": "Moderation",
+          "permission": "Permission"
+        }
       }
     },
     "jobs": {

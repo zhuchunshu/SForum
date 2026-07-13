@@ -17,10 +17,19 @@ func TestSettingsContractInventoryFixtures(t *testing.T) {
 	for _, field := range fields {
 		types[field.Type] = true
 	}
-	for _, fieldType := range []string{"text", "string", "number", "boolean", "select", "secret"} {
+	for _, fieldType := range []string{"text", "string", "number", "boolean", "select", "secret", "textarea"} {
 		if !types[fieldType] {
 			t.Fatalf("legacy fixture must inventory field type %q", fieldType)
 		}
+	}
+	hasFullWidth := false
+	for _, field := range fields {
+		if field.Type == "textarea" && field.Width == "full" {
+			hasFullWidth = true
+		}
+	}
+	if !hasFullWidth {
+		t.Fatal("legacy fixture must inventory textarea with width=full")
 	}
 
 	for _, name := range []string{"document-tabs-actions.json", "document-component.json"} {

@@ -4,6 +4,11 @@ This is the entry point for project memory.
 
 ## Latest Handoff
 
+- **2026-07-13 Schema UI: textarea + field width**
+  - Handoff: `knowledge/sessions/2026-07-13-schema-ui-textarea-width.md`
+  - New field type `textarea`; optional `width: default|full` on settings fields
+  - Host renderer: `UTextarea` + `w-full` / `max-w-xl`; default theme long-copy fields updated
+
 - **2026-07-13 Buildless extension settings UI P0–P6 complete**
   - Decision: `knowledge/decisions/2026-07-13-buildless-extension-settings-ui.md`
   - Task book: `knowledge/plans/2026-07-13-buildless-extension-settings-ui.md`

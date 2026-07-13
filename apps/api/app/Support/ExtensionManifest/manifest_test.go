@@ -597,6 +597,31 @@ func TestManifestSettingPresentationMetadata(t *testing.T) {
 	if len(normalized.Options) != 2 || normalized.Options[0].Value != "starttls" {
 		t.Fatalf("expected ordered options, got %#v", normalized.Options)
 	}
+	if normalized.Width != SettingWidthDefault {
+		t.Fatalf("expected default width, got %q", normalized.Width)
+	}
+}
+
+func TestManifestSettingTextareaAndWidth(t *testing.T) {
+	manifest := validBaseManifest()
+	manifest.Settings = []ManifestSetting{{
+		Key:   "notes",
+		Label: LocalizedText{Default: "Notes"},
+		Type:  "textarea",
+		Width: "full",
+	}}
+	if err := Validate(manifest); err != nil {
+		t.Fatalf("expected textarea+full to validate: %v", err)
+	}
+	normalized := Normalize(manifest).Settings[0]
+	if normalized.Type != "textarea" || normalized.Width != SettingWidthFull {
+		t.Fatalf("unexpected normalized textarea setting: %#v", normalized)
+	}
+
+	manifest.Settings[0].Width = "wide"
+	if err := Validate(manifest); !errors.Is(err, ErrInvalidManifest) {
+		t.Fatalf("expected invalid width to fail, got %v", err)
+	}
 }
 
 func TestManifestSettingPresentationMetadataRejectsInvalidOptions(t *testing.T) {

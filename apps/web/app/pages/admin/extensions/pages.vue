@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { apiErrorMessage } from '~/composables/useApiClient'
 import { useAdminPage } from '~/composables/useAdminPage'
+import { paginateItems } from '~/utils/adminExtensions'
 
 definePageMeta({
   middleware: 'admin',
@@ -11,7 +12,7 @@ defineOptions({
   name: 'AdminExtensionPages'
 })
 
-const { t } = useI18n()
+const { t, te } = useI18n()
 const toast = useToast()
 const adminPage = useAdminPage('/extensions/pages')
 const { request } = useApiClient()
@@ -44,12 +45,35 @@ type PageRow = {
 const pending = ref(true)
 const error = ref('')
 const rows = ref<PageRow[]>([])
+const currentPage = ref(1)
+
+// 页面注册表目录通常几十条，每页 20 比事件列表默认 8 更合适。
+const PAGE_SIZE = 20
+const pageInfo = computed(() => paginateItems(rows.value, currentPage.value, PAGE_SIZE))
+
+watch(() => pageInfo.value.page, (page) => {
+  currentPage.value = page
+})
+
+function accessLabel(access: string) {
+  const key = `admin.extensions.pages.access.${access}`
+  return te(key) ? t(key) : access
+}
+
+function providerLabel(provider: string) {
+  if (provider === 'core') {
+    return t('admin.extensions.pages.providerCore')
+  }
+  return provider
+}
 
 async function load() {
   pending.value = true
   error.value = ''
   try {
     rows.value = await request<PageRow[]>('/admin/pages')
+    // 数据刷新后夹紧页码，避免删减后落在空页。
+    currentPage.value = pageInfo.value.page
   } catch (e) {
     error.value = apiErrorMessage(e) || t('admin.extensions.pages.loadFailed')
     rows.value = []
@@ -135,17 +159,25 @@ void load()
       </p>
     </div>
 
-    <div class="mb-4 flex justify-end">
-      <UButton
-        color="neutral"
-        variant="soft"
-        icon="i-lucide-refresh-cw"
-        :loading="pending"
-        @click="load"
-      >
-        {{ t('admin.common.refresh') }}
-      </UButton>
-    </div>
+    <UDashboardToolbar class="mb-6 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-slate-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
+      <template #left>
+        <div class="flex min-w-0 items-center gap-2 text-sm">
+          <UIcon name="i-lucide-layout-template" class="size-4" />
+          <span class="truncate">{{ t('admin.extensions.pages.count', { count: rows.length }) }}</span>
+        </div>
+      </template>
+      <template #right>
+        <UButton
+          icon="i-lucide-rotate-cw"
+          color="neutral"
+          variant="subtle"
+          :loading="pending"
+          @click="load"
+        >
+          {{ t('admin.extensions.refresh') }}
+        </UButton>
+      </template>
+    </UDashboardToolbar>
 
     <SFAlert
       v-if="error"
@@ -162,26 +194,26 @@ void load()
             <th class="px-3 py-2 font-medium">{{ t('admin.extensions.pages.colPath') }}</th>
             <th class="px-3 py-2 font-medium">{{ t('admin.extensions.pages.colAccess') }}</th>
             <th class="px-3 py-2 font-medium">{{ t('admin.extensions.pages.colProvider') }}</th>
-            <th class="px-3 py-2 font-medium">Contract</th>
+            <th class="px-3 py-2 font-medium">{{ t('admin.extensions.pages.colContract') }}</th>
             <th class="px-3 py-2 font-medium">{{ t('admin.extensions.pages.colActions') }}</th>
           </tr>
         </thead>
         <tbody>
           <tr
-            v-for="row in rows"
+            v-for="row in pageInfo.items"
             :key="row.page.id"
             class="border-t border-slate-100 dark:border-zinc-800"
           >
             <td class="px-3 py-2 font-mono text-xs">{{ row.page.id }}</td>
             <td class="px-3 py-2 font-mono text-xs">{{ row.page.pathPattern || '—' }}</td>
-            <td class="px-3 py-2">{{ row.page.access }}</td>
+            <td class="px-3 py-2">{{ accessLabel(row.page.access) }}</td>
             <td class="px-3 py-2">
-              <span class="font-medium">{{ row.provider }}</span>
+              <span class="font-medium">{{ providerLabel(row.provider) }}</span>
               <span
                 v-if="row.candidates?.length"
                 class="ml-2 text-xs text-slate-500"
               >
-                ({{ row.candidates.length }} {{ t('admin.extensions.pages.candidates') }})
+                {{ t('admin.extensions.pages.candidatesCount', { count: row.candidates.length }) }}
               </span>
             </td>
             <td class="px-3 py-2 font-mono text-xs text-slate-600 dark:text-zinc-400">
@@ -209,7 +241,7 @@ void load()
                     icon="i-lucide-check"
                     @click="approve(row.page.id, c, row.page.contractVersion)"
                   >
-                    {{ t('admin.extensions.pages.approve') }}: {{ c.extensionId }}
+                    {{ t('admin.extensions.pages.approveExtension', { extensionId: c.extensionId }) }}
                   </UButton>
                 </template>
               </div>
@@ -225,6 +257,15 @@ void load()
           </tr>
         </tbody>
       </table>
+      <div
+        v-if="pageInfo.totalPages > 1"
+        class="flex flex-col gap-3 border-t border-slate-100 px-4 py-4 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between dark:border-zinc-800 dark:text-zinc-400"
+      >
+        <span>
+          {{ t('admin.extensions.eventPageSummary', { start: pageInfo.start, end: pageInfo.end, count: pageInfo.total }) }}
+        </span>
+        <SFPagination v-model:page="currentPage" :total-pages="pageInfo.totalPages" />
+      </div>
     </div>
   </div>
 </template>

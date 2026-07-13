@@ -64,8 +64,10 @@ The first UI contract supports:
 - ordered tabs referencing field groups
 - groups and optional columns
 - localized callouts/help text
-- existing field types, defaults, recommended values, options, placeholders,
-  localization, and secret semantics
+- existing field types (`text`, `string`, `number`, `boolean`, `select`,
+  `secret`, `textarea`), defaults, recommended values, options, placeholders,
+  localization, secret semantics, and optional control `width`
+  (`default` | `full`)
 - safe fallback to the ordinary linear form when optional UI presentation is
   absent or cannot be rendered
 

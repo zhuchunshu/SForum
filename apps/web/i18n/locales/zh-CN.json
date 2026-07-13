@@ -503,8 +503,8 @@
       "themeActivationUnavailable": "主题激活失败。",
       "pluginEnableQueued": "插件启用已排队。该插件含可信管理端前端，需先完成 Web 发布构建后才会真正启用。",
       "pluginDisableQueued": "插件禁用已排队。该插件含可信管理端前端，需先完成 Web 发布构建后才会真正禁用。",
-      "webReleaseQueuedHint": "可在「扩展 → Web 发布」查看发布 #{id} 的进度与构建日志。",
-      "webReleaseQueuedHintNoId": "可在「扩展 → Web 发布」查看进度与构建日志。",
+      "webReleaseQueuedHint": "可在「扩展 → Web 发布」查看发布 #{id} 的进度。",
+      "webReleaseQueuedHintNoId": "可在「扩展 → Web 发布」查看进度。",
       "webReleaseProgress": {
         "queued": "Web 发布已排队，等待 worker 领取。若长时间不动，请确认 API 已嵌入 worker 或独立 worker 在运行。",
         "resolving": "正在解析主题与可信插件组成。",
@@ -513,9 +513,9 @@
         "verifying": "正在校验发布产物。",
         "ready": "构建完成，准备切换运行时。",
         "activating": "正在切换运行时，完成后插件状态才会最终生效。",
-        "failed": "Web 发布失败。可在「扩展 → Web 发布」打开详情查看构建日志后重试。"
+        "failed": "Web 发布失败。可在「扩展 → Web 发布」打开详情后重试。"
       },
-      "viewWebRelease": "查看发布日志",
+      "viewWebRelease": "查看发布详情",
       "actionFailed": "扩展操作失败。",
       "settingsProfiles": {
         "none": "无设置 UI",
@@ -576,9 +576,7 @@
         "empty": "暂无 Web 发布记录。",
         "retryQueued": "重试发布已排队。",
         "rollbackQueued": "回滚发布已排队。",
-        "viewDetail": "查看日志",
-        "buildLog": "构建日志",
-        "emptyBuildLog": "暂时没有构建日志。若长时间停留在排队/构建中，请确认 API 已嵌入 worker 或独立 worker 正在运行。",
+        "viewDetail": "查看详情",
         "events": "状态事件",
         "statusLabels": {
           "queued": "排队中",
@@ -623,9 +621,6 @@
       "retryActivation": "重试激活",
       "restoreDefaultTheme": "恢复默认主题",
       "activeTheme": "当前主题",
-      "viewBuildLog": "查看构建日志",
-      "hideBuildLog": "收起构建日志",
-      "emptyBuildLog": "暂时没有构建日志。",
       "themeRelease": {
         "queued": "排队中",
         "building": "构建中",
@@ -641,7 +636,7 @@
         "built": "构建已完成，正在准备切换。",
         "activating": "正在写入当前发布并等待 Web 运行时切换。",
         "active": "前台运行时正在使用该主题；本地 dev 会自动重启后生效。",
-        "failed": "主题激活失败，查看构建日志后可重试。",
+        "failed": "主题激活失败，可重试。",
         "rolled_back": "此发布已被后续主题替换。"
       },
       "source": {
@@ -898,21 +893,33 @@
       "pages": {
         "metaTitle": "页面注册表",
         "title": "页面注册表",
-        "intro": "查看核心公开页的稳定 ID、路径与当前提供者。替换核心页需超级管理员审批；可一键恢复 core。",
+        "intro": "查看核心公开页的稳定 ID、路径与当前提供者。替换核心页需超级管理员审批；可一键恢复核心页面。",
         "loadFailed": "加载页面目录失败",
         "restored": "已恢复核心页面",
         "restoreFailed": "恢复失败",
         "approved": "已批准页面替换",
         "approveFailed": "批准失败",
+        "count": "共 {count} 个页面",
         "colId": "页面 ID",
         "colPath": "路径",
         "colAccess": "访问",
         "colProvider": "提供者",
+        "colContract": "契约版本",
         "colActions": "操作",
         "candidates": "候选",
-        "restoreCore": "恢复 core",
+        "candidatesCount": "（{count} 个候选）",
+        "providerCore": "核心",
+        "restoreCore": "恢复核心",
         "approve": "批准",
-        "empty": "暂无页面目录数据"
+        "approveExtension": "批准：{extensionId}",
+        "empty": "暂无页面目录数据",
+        "access": {
+          "public": "公开",
+          "login": "登录后",
+          "guest": "仅访客",
+          "moderation": "版主",
+          "permission": "按权限"
+        }
       }
     },
     "jobs": {

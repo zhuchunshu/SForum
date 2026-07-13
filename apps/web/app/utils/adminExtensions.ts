@@ -16,6 +16,8 @@ export type AdminExtensionSetting = {
   default?: string
   placeholder?: string
   recommendedValue?: string
+  /** Schema UI control width: default (capped) or full (fill column). */
+  width?: 'default' | 'full' | string
   group?: string
   groupId?: string
   column?: number
@@ -134,6 +136,8 @@ export type AdminExtensionSettingValue = {
   secretSet?: boolean
   placeholder?: string
   recommendedValue?: string
+  /** Schema UI control width: default (capped) or full (fill column). */
+  width?: 'default' | 'full' | string
   group?: string
   groupId?: string
   column?: number
@@ -256,7 +260,7 @@ export type AdminWebReleaseSummary = {
   triggerExtensionId?: string
   publicReason?: string
   publicMessage?: string
-  /** 与主题 themeRelease.buildLog 同用途，供行内展开。 */
+  /** 后端可能仍返回；管理端 UI 不再展示。 */
   buildLog?: string
 }
 
@@ -751,6 +755,11 @@ export function extensionDefinitionPage(items: AdminExtensionEventDefinition[], 
 }
 
 export function extensionContributionPage(items: AdminEffectiveContribution[], page: number, pageSize = EXTENSION_EVENT_PAGE_SIZE) {
+  return extensionItemsPage(items, page, pageSize)
+}
+
+/** 通用列表分页（页面注册表等管理列表复用）。 */
+export function paginateItems<T>(items: T[], page: number, pageSize = EXTENSION_EVENT_PAGE_SIZE) {
   return extensionItemsPage(items, page, pageSize)
 }
 

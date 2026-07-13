@@ -21,10 +21,11 @@ describe('plugin enable/disable lifecycle feedback', () => {
     expect(trust).toContain('webReleaseQueuedHint')
   })
 
-  test('web releases detail always exposes a build log section', () => {
-    expect(releases).toContain("t('admin.extensions.releases.buildLog')")
-    expect(releases).toContain("t('admin.extensions.releases.emptyBuildLog')")
+  test('web releases detail shows status events without a build log section', () => {
     expect(releases).toContain("t('admin.extensions.releases.viewDetail')")
+    expect(releases).toContain("t('admin.extensions.releases.events')")
+    expect(releases).not.toContain("t('admin.extensions.releases.buildLog')")
+    expect(releases).not.toContain('selected.buildLog')
   })
 
   test('web releases page exposes manual rebuild action', () => {
@@ -41,25 +42,27 @@ describe('plugin enable/disable lifecycle feedback', () => {
     expect(releases).toContain('USelect')
   })
 
-  test('plugin list shows web release progress bars and polls while active', async () => {
+  test('plugin list polls web release lifecycle without card progress UI', async () => {
     const plugins = await Bun.file(new URL('../app/pages/admin/extensions/plugins.vue', import.meta.url)).text()
+    // 仍用 progress 判断按钮忙碌/轮询，但不在扩展卡片上展示进度条或 publicMessage。
     expect(plugins).toContain('pluginWebReleaseProgress')
     expect(plugins).toContain('hasPluginWebReleaseInProgress')
-    expect(plugins).toContain('<UProgress')
     expect(plugins).toContain('startReleasePolling')
-    // 与主题一致：进度条下方行内展开日志，而不是跳转到 Web 发布页。
-    expect(plugins).toContain('toggleBuildLog')
-    expect(plugins).toContain("t('admin.extensions.viewBuildLog')")
-    expect(plugins).not.toContain("adminRoutes.path('/extensions/releases')")
+    expect(plugins).toContain('pluginActionBusy')
+    expect(plugins).not.toContain('<UProgress')
+    expect(plugins).not.toContain('publicMessage')
+    expect(plugins).not.toContain('toggleBuildLog')
+    expect(plugins).not.toContain("t('admin.extensions.viewBuildLog')")
   })
 
-  test('locale catalogs include plugin queue and release log copy', () => {
+  test('locale catalogs include plugin queue copy without build-log UI strings', () => {
     for (const catalog of [zh, en]) {
       expect(catalog.admin.extensions.pluginEnableQueued).toBeTruthy()
       expect(catalog.admin.extensions.pluginDisableQueued).toBeTruthy()
       expect(catalog.admin.extensions.webReleaseQueuedHint).toContain('{id}')
-      expect(catalog.admin.extensions.releases.buildLog).toBeTruthy()
-      expect(catalog.admin.extensions.releases.emptyBuildLog).toBeTruthy()
+      expect(catalog.admin.extensions.releases.buildLog).toBeUndefined()
+      expect(catalog.admin.extensions.releases.emptyBuildLog).toBeUndefined()
+      expect(catalog.admin.extensions.viewBuildLog).toBeUndefined()
       expect(catalog.admin.extensions.frontend.grantQueued).toBeTruthy()
       // 动态页区分「启用中」与「已禁用」，避免 Web Release 期间误导。
       expect(catalog.admin.extensions.dynamic.enablingTitle).toBeTruthy()

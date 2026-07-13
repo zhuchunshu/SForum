@@ -55,7 +55,8 @@
       "zh-CN": "显示在首页话题列表上方。留空则隐藏中文提示条。",
       "en-US": "Shown above the homepage topic list. Leave empty to hide the Chinese notice."
     },
-    "type": "text",
+    "type": "textarea",
+    "width": "full",
     "default": "真诚、友善、团结、专业，共建你我引以为荣的社区。",
     "recommendedValue": "真诚、友善、团结、专业，共建你我引以为荣的社区。",
     "placeholder": { "zh-CN": "留空则不显示", "en-US": "Leave empty to hide" },
@@ -68,7 +69,8 @@
       "zh-CN": "英文界面下的提示条文案。留空则隐藏。",
       "en-US": "Notice copy for English UI. Leave empty to hide."
     },
-    "type": "text",
+    "type": "textarea",
+    "width": "full",
     "default": "Be sincere, friendly, united, and professional as we build a community we are proud of.",
     "recommendedValue": "Be sincere, friendly, united, and professional as we build a community we are proud of.",
     "placeholder": { "zh-CN": "留空则不显示", "en-US": "Leave empty to hide" },
@@ -82,6 +84,7 @@
       "en-US": "Main title when the homepage has no topics. Leave empty to use built-in copy."
     },
     "type": "text",
+    "width": "full",
     "default": "",
     "recommendedValue": "",
     "placeholder": { "zh-CN": "留空使用默认", "en-US": "Leave empty for default" },
@@ -95,6 +98,7 @@
       "en-US": "Empty-list title for English UI. Leave empty for built-in copy."
     },
     "type": "text",
+    "width": "full",
     "default": "",
     "recommendedValue": "",
     "placeholder": { "zh-CN": "留空使用默认", "en-US": "Leave empty for default" },
@@ -107,7 +111,8 @@
       "zh-CN": "首页无话题时的说明文字。留空则使用主题内置文案。",
       "en-US": "Description when the homepage has no topics. Leave empty for built-in copy."
     },
-    "type": "text",
+    "type": "textarea",
+    "width": "full",
     "default": "",
     "recommendedValue": "",
     "placeholder": { "zh-CN": "留空使用默认", "en-US": "Leave empty for default" },
@@ -120,7 +125,8 @@
       "zh-CN": "英文界面下空列表说明。留空则使用内置文案。",
       "en-US": "Empty-list description for English UI. Leave empty for built-in copy."
     },
-    "type": "text",
+    "type": "textarea",
+    "width": "full",
     "default": "",
     "recommendedValue": "",
     "placeholder": { "zh-CN": "留空使用默认", "en-US": "Leave empty for default" },
@@ -219,7 +225,8 @@
       "zh-CN": "右侧栏访客登录卡下的说明。留空使用主题内置文案。",
       "en-US": "Copy under the guest login card. Leave empty for built-in copy."
     },
-    "type": "text",
+    "type": "textarea",
+    "width": "full",
     "default": "",
     "recommendedValue": "",
     "placeholder": { "zh-CN": "留空使用默认", "en-US": "Leave empty for default" },
@@ -232,7 +239,8 @@
       "zh-CN": "英文界面下访客登录卡说明。留空使用内置文案。",
       "en-US": "Guest login card copy for English UI. Leave empty for built-in copy."
     },
-    "type": "text",
+    "type": "textarea",
+    "width": "full",
     "default": "",
     "recommendedValue": "",
     "placeholder": { "zh-CN": "留空使用默认", "en-US": "Leave empty for default" },

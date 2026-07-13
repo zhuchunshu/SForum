@@ -90,6 +90,9 @@ type ManifestSetting struct {
 	Default          string                  `json:"default,omitempty"`
 	Placeholder      LocalizedText           `json:"placeholder,omitempty"`
 	RecommendedValue string                  `json:"recommendedValue,omitempty"`
+	// Width 控制 Schema UI 控件横向占位：default（受限宽度）或 full（占满可用列宽）。
+	// 省略时等价于 default。
+	Width            string                  `json:"width,omitempty"`
 	Group            LocalizedText           `json:"group,omitempty"`
 	GroupID          string                  `json:"groupId,omitempty"`
 	Column           int                     `json:"column,omitempty"`
@@ -333,6 +336,9 @@ func validateManifest(manifest Manifest, points []ContributionPointDefinition) e
 		if setting.Key == "" || setting.Label.IsEmpty() || !supportedSettingType(setting.Type) || strings.Contains(setting.Key, " ") {
 			return ErrInvalidManifest
 		}
+		if !supportedSettingWidth(setting.Width) {
+			return ErrInvalidManifest
+		}
 		optionValues := make(map[string]struct{}, len(setting.Options))
 		for _, option := range setting.Options {
 			if option.Value == "" || option.Label.IsEmpty() {
@@ -511,6 +517,7 @@ func Normalize(manifest Manifest) Manifest {
 		manifest.Settings[index].Default = strings.TrimSpace(manifest.Settings[index].Default)
 		manifest.Settings[index].Placeholder = manifest.Settings[index].Placeholder.normalized()
 		manifest.Settings[index].RecommendedValue = strings.TrimSpace(manifest.Settings[index].RecommendedValue)
+		manifest.Settings[index].Width = normalizeSettingWidth(manifest.Settings[index].Width)
 		manifest.Settings[index].Group = manifest.Settings[index].Group.normalized()
 		manifest.Settings[index].GroupID = NormalizeID(manifest.Settings[index].GroupID)
 		for optionIndex := range manifest.Settings[index].Options {
@@ -563,7 +570,30 @@ func Normalize(manifest Manifest) Manifest {
 
 func supportedSettingType(value string) bool {
 	switch value {
-	case "text", "string", "number", "boolean", "select", "secret":
+	case "text", "string", "number", "boolean", "select", "secret", "textarea":
+		return true
+	default:
+		return false
+	}
+}
+
+// SettingWidthDefault / SettingWidthFull 是 Schema UI 控件宽度。
+const (
+	SettingWidthDefault = "default"
+	SettingWidthFull    = "full"
+)
+
+func normalizeSettingWidth(value string) string {
+	value = strings.ToLower(strings.TrimSpace(value))
+	if value == "" {
+		return SettingWidthDefault
+	}
+	return value
+}
+
+func supportedSettingWidth(value string) bool {
+	switch normalizeSettingWidth(value) {
+	case SettingWidthDefault, SettingWidthFull:
 		return true
 	default:
 		return false

@@ -390,6 +390,8 @@ ExtensionManifestSetting:
       "$ref": "#/LocalizedText"
     type:
       type: string
+      description: Host-rendered control type. Supported values are text, string, number, boolean, select, secret, and textarea.
+      enum: [text, string, number, boolean, select, secret, textarea]
     default:
       type: string
     placeholder:
@@ -398,9 +400,21 @@ ExtensionManifestSetting:
     recommendedValue:
       type: string
       description: Provider-declared value used by the generic restore-recommended action. Secrets are never restored or cleared through this field.
+    width:
+      type: string
+      description: Schema UI control width. default caps the control (max-w-xl); full fills the available column width. Omitted values are treated as default.
+      enum: [default, full]
     group:
       "$ref": "#/LocalizedText"
       description: Optional section title used to group related controls in declaration order.
+    groupId:
+      type: string
+      description: Optional Settings Document group id. When omitted, the host may match group label text to a declared group.
+    column:
+      type: integer
+      minimum: 1
+      maximum: 2
+      description: Optional column hint inside a two-column group.
     options:
       type: array
       description: Ordered choices. Settings with options render as a select instead of free text.
@@ -1105,6 +1119,8 @@ ExtensionSettingValue:
       type: string
     type:
       type: string
+      description: Host-rendered control type. Supported values are text, string, number, boolean, select, secret, and textarea.
+      enum: [text, string, number, boolean, select, secret, textarea]
     default:
       type: string
     value:
@@ -1113,6 +1129,10 @@ ExtensionSettingValue:
       type: string
     recommendedValue:
       type: string
+    width:
+      type: string
+      description: Schema UI control width resolved from the manifest. default caps the control; full fills the available column width.
+      enum: [default, full]
     group:
       type: string
     groupId:

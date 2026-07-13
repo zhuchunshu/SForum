@@ -323,6 +323,8 @@ type ExtensionSettingValue struct {
 	Value            string                   `json:"value"`
 	Placeholder      string                   `json:"placeholder,omitempty"`
 	RecommendedValue string                   `json:"recommendedValue,omitempty"`
+	// Width 为 Schema UI 控件宽度：default 或 full；省略时前端按 default。
+	Width            string                   `json:"width,omitempty"`
 	Group            string                   `json:"group,omitempty"`
 	GroupID          string                   `json:"groupId,omitempty"`
 	Column           int                      `json:"column,omitempty"`

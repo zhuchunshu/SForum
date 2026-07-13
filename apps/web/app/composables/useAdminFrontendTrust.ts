@@ -57,7 +57,7 @@ export function useAdminFrontendTrust(extension: Ref<AdminExtension>) {
           })
         : await request<AdminExtensionOperation>(`/admin/extensions/${extension.value.id}/frontend/trust`, { method: 'DELETE' })
       if (operation.queued) {
-        // 信任变更后会排队 Web Release，构建日志在「Web 发布」页查看。
+        // 信任变更后会排队 Web Release，进度在「Web 发布」页查看。
         toast.add({
           color: 'info',
           icon: 'i-lucide-hourglass',

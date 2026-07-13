@@ -391,6 +391,16 @@ describe('admin extension helpers', () => {
     expect(emptyPage.end).toBe(0)
   })
 
+  test('paginateItems is reusable for page registry lists', async () => {
+    const { paginateItems } = await import('../app/utils/adminExtensions')
+    const items = Array.from({ length: 10 }, (_, index) => ({ id: index + 1 }))
+    const page = paginateItems(items, 2)
+    expect(page.items.map(item => item.id)).toEqual([9, 10])
+    expect(page.totalPages).toBe(2)
+    expect(page.start).toBe(9)
+    expect(page.end).toBe(10)
+  })
+
   test('merges and paginates extension event deliveries', () => {
     const items = [
       delivery({ id: 1, extensionId: 'demo.plugin', eventName: 'topic.created', createdAt: '2026-07-05T10:00:00Z' }),

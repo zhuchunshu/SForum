@@ -4,5 +4,6 @@
   {"key":"port","label":"Port","type":"number","default":"587"},
   {"key":"enabled","label":"Enabled","type":"boolean","default":"true"},
   {"key":"mode","label":"Mode","type":"select","default":"safe","options":[{"value":"safe","label":"Safe"}]},
-  {"key":"password","label":"Password","type":"secret","default":""}
+  {"key":"password","label":"Password","type":"secret","default":""},
+  {"key":"notes","label":"Notes","type":"textarea","default":"","width":"full"}
 ]

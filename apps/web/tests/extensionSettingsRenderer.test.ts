@@ -22,7 +22,11 @@ describe('SFExtensionSettingsRenderer buildless contract', () => {
   test('keeps existing field, secret, save, and reset behavior', () => {
     expect(field).toContain("item.type === 'secret'")
     expect(field).toContain("item.type === 'boolean'")
+    expect(field).toContain("item.type === 'textarea'")
     expect(field).toContain('item.options?.length')
+    expect(field).toContain("item.width === 'full'")
+    expect(field).toContain('UTextarea')
+    expect(field).toContain('max-w-xl')
     expect(renderer).toContain('SFAdminFormFooter')
     expect(renderer).toContain("emit('save')")
     expect(renderer).toContain("emit('reset')")
