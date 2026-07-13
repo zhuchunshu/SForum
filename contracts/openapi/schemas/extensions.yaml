@@ -942,6 +942,37 @@ ExtensionRuntimeStatus:
     protocolLastCallAt:
       type: string
       format: date-time
+ExtensionVersion:
+  type: object
+  description: >-
+    Immutable package snapshot staged for a future trusted activation. Internal
+    database identity is never exposed through the management API.
+  required:
+  - version
+  - manifest
+  - packageDigest
+  - adminFrontendDigest
+  - packagePath
+  - installedAt
+  properties:
+    version:
+      type: string
+    manifest:
+      "$ref": "#/ExtensionManifest"
+    packageDigest:
+      type: string
+      description: Canonical immutable package tree SHA-256 digest.
+    adminFrontendDigest:
+      type: string
+      description: >-
+        SHA-256 identity of the prebuilt admin component contract and bytes.
+        Empty when the package has no prebuilt admin UI.
+    packagePath:
+      type: string
+      description: Server-local immutable package path, visible only to extension managers.
+    installedAt:
+      type: string
+      format: date-time
 Extension:
   type: object
   required:
@@ -998,6 +1029,8 @@ Extension:
     packagePath:
       type: string
       description: Server-local package path, visible only to extension managers.
+    stagedVersion:
+      "$ref": "#/ExtensionVersion"
     installedAt:
       type: string
       format: date-time
@@ -1021,10 +1054,20 @@ ExtensionInstallResult:
       type: string
     trustRevoked:
       type: boolean
-      description: Frontend trust revoked because adminFrontendDigest changed.
+      description: >-
+        True only when an active artifact grant was revoked. Static package
+        upload and staging preserve grants for the currently active artifact.
     requiredReEnable:
       type: boolean
-      description: Plugin must be enabled again after upgrade (status reset to installed).
+      description: >-
+        True only when the active extension status was reset and the plugin must
+        be enabled again. Static package upload and staging preserve active status.
+    activationPending:
+      type: boolean
+      description: >-
+        True when an immutable candidate is saved while the current version,
+        status, runtime, and trust grants remain active until a trusted upgrade
+        transaction confirms and activates the candidate.
 ExtensionMigrationRecord:
   type: object
   required:

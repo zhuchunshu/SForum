@@ -32,14 +32,16 @@ adminExtensions:
       '403':
         "$ref": "../components/responses.yaml#/Forbidden"
   post:
-    summary: Upload and install or upgrade an extension ZIP archive
+    summary: Upload and install or stage an extension ZIP archive
     description: >-
       Uploads a ZIP archive containing sforum.extension.json. Same extension id
-      replaces the package (F2.4 upgrade): drains plugin runtime, resets status
-      to installed, records declared migrations, and revokes frontend trust when
-      adminFrontendDigest changes. Theme ZIPs contain theme.json plus static
-      assets and never trigger a Nuxt build. Themes cannot declare plugin runtime
-      capabilities. Not automatically enabled or activated after install/upgrade.
+      stores an immutable upgrade candidate without changing the active package,
+      runtime, status, provider selection, or active trust grants. Candidate code,
+      migrations, and admin components remain inert until a separate trusted
+      upgrade transaction activates that exact artifact. Theme ZIPs contain
+      theme.json plus static assets and never trigger a Nuxt build. Themes cannot
+      declare plugin runtime capabilities. New installs are not automatically
+      enabled or activated.
     operationId: installAdminExtension
     requestBody:
       required: true
@@ -56,8 +58,8 @@ adminExtensions:
     responses:
       '201':
         description: >-
-          Extension archive installed or upgraded. data is InstallResult
-          (extension plus upgraded/trustRevoked metadata).
+          Extension archive installed or saved as an upgrade candidate. data is
+          InstallResult (extension plus activationPending metadata).
         content:
           application/json:
             schema:
