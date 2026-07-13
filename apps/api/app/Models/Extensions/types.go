@@ -199,6 +199,18 @@ type MatchedRoute struct {
 // CapabilityGrant 是启用审查用的能力条目（与 capabilities.Grant 对齐）。
 type CapabilityGrant = capabilities.Grant
 
+// ExtensionVersion 是不可变包快照。活动版本和待执行升级版本必须分开表示，
+// 静态上传不得把候选制品伪装成已经生效的运行版本。
+type ExtensionVersion struct {
+	ID                  int64     `json:"-"`
+	Version             string    `json:"version"`
+	Manifest            Manifest  `json:"manifest"`
+	PackageDigest       string    `json:"packageDigest"`
+	AdminFrontendDigest string    `json:"adminFrontendDigest"`
+	PackagePath         string    `json:"packagePath"`
+	InstalledAt         time.Time `json:"installedAt"`
+}
+
 type Extension struct {
 	ID          string   `json:"id"`
 	Name        string   `json:"name"`
@@ -215,6 +227,8 @@ type Extension struct {
 	PackageDigest       string            `json:"packageDigest"`
 	AdminFrontendDigest string            `json:"adminFrontendDigest,omitempty"`
 	PackagePath         string            `json:"packagePath"`
+	ActiveVersionID     int64             `json:"-"`
+	StagedVersion       *ExtensionVersion `json:"stagedVersion,omitempty"`
 	InstalledAt         time.Time         `json:"installedAt"`
 	UpdatedAt           time.Time         `json:"updatedAt"`
 }

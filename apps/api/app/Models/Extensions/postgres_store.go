@@ -91,19 +91,40 @@ func (s *PostgresStore) SaveInstalled(ctx context.Context, input SaveInstalledIn
 	}
 	defer tx.Rollback(ctx)
 
-	if _, err := tx.Exec(ctx, `
-		INSERT INTO extensions (id, type, name, status)
-		VALUES ($1, $2, $3, 'installed')
-		ON CONFLICT (id) DO UPDATE
-		SET type = EXCLUDED.type,
-		    name = EXCLUDED.name,
-		    status = 'installed',
-		    source = 'uploaded',
-		    is_system = false,
-		    is_deletable = true,
-		    updated_at = now()
-	`, input.Manifest.ID, input.Manifest.Type, input.Manifest.Name); err != nil {
+	inserted, err := tx.Exec(ctx, `
+		INSERT INTO extensions (id, type, name, status, source, is_system, is_deletable)
+		VALUES ($1, $2, $3, 'installed', 'uploaded', false, true)
+		ON CONFLICT (id) DO NOTHING
+	`, input.Manifest.ID, input.Manifest.Type, input.Manifest.Name)
+	if err != nil {
 		return Extension{}, fmt.Errorf("upsert extension: %w", err)
+	}
+	created := inserted.RowsAffected() == 1
+	var activeVersionID int64
+	var existingType, source string
+	var isSystem bool
+	if err := tx.QueryRow(ctx, `
+		SELECT COALESCE(active_version_id, 0), type, source, is_system
+		FROM extensions
+		WHERE id = $1
+		FOR UPDATE
+	`, input.Manifest.ID).Scan(&activeVersionID, &existingType, &source, &isSystem); err != nil {
+		return Extension{}, fmt.Errorf("lock extension install: %w", err)
+	}
+	if existingType != input.Manifest.Type {
+		return Extension{}, ErrInvalidManifest
+	}
+	if !created && (source == SourceBuiltin || isSystem) {
+		return Extension{}, ErrNotDeletable
+	}
+	if !created {
+		if _, err := tx.Exec(ctx, `
+			UPDATE extensions
+			SET name = $2, updated_at = now()
+			WHERE id = $1
+		`, input.Manifest.ID, input.Manifest.Name); err != nil {
+			return Extension{}, fmt.Errorf("update extension metadata: %w", err)
+		}
 	}
 
 	versionID, err := ensureExtensionVersion(ctx, tx, extensionVersionInput{
@@ -118,13 +139,25 @@ func (s *PostgresStore) SaveInstalled(ctx context.Context, input SaveInstalledIn
 		return Extension{}, fmt.Errorf("upsert extension version: %w", err)
 	}
 
-	if _, err := tx.Exec(ctx, `
-		UPDATE extensions
-		SET active_version_id = $2,
-		    updated_at = now()
-		WHERE id = $1
-	`, input.Manifest.ID, versionID); err != nil {
-		return Extension{}, fmt.Errorf("activate installed extension version: %w", err)
+	if created || activeVersionID == 0 {
+		if _, err := tx.Exec(ctx, `
+			UPDATE extensions
+			SET active_version_id = $2,
+			    staged_version_id = NULL,
+			    updated_at = now()
+			WHERE id = $1
+		`, input.Manifest.ID, versionID); err != nil {
+			return Extension{}, fmt.Errorf("activate initial extension version: %w", err)
+		}
+	} else if activeVersionID != versionID {
+		if _, err := tx.Exec(ctx, `
+			UPDATE extensions
+			SET staged_version_id = $2,
+			    updated_at = now()
+			WHERE id = $1
+		`, input.Manifest.ID, versionID); err != nil {
+			return Extension{}, fmt.Errorf("stage extension version: %w", err)
+		}
 	}
 	if err := tx.Commit(ctx); err != nil {
 		return Extension{}, fmt.Errorf("commit extension install: %w", err)
@@ -593,12 +626,23 @@ func extensionSelectSQL() string {
 	return `
 		SELECT extensions.id, extensions.name, extensions.type, extensions.status,
 		  extensions.source, extensions.is_system, extensions.is_deletable,
+		  extensions.active_version_id,
 		  extension_versions.version, extension_versions.manifest, extension_versions.package_digest,
 		  extension_versions.admin_frontend_digest,
 		  extension_versions.package_path,
-		  extension_versions.installed_at, extensions.updated_at
+		  extension_versions.installed_at, extensions.updated_at,
+		  CASE WHEN staged_versions.id IS NULL THEN NULL ELSE jsonb_build_object(
+		    'id', staged_versions.id,
+		    'version', staged_versions.version,
+		    'manifest', staged_versions.manifest,
+		    'packageDigest', staged_versions.package_digest,
+		    'adminFrontendDigest', staged_versions.admin_frontend_digest,
+		    'packagePath', staged_versions.package_path,
+		    'installedAt', staged_versions.installed_at
+		  ) END
 		FROM extensions
 		JOIN extension_versions ON extension_versions.id = extensions.active_version_id
+		LEFT JOIN extension_versions AS staged_versions ON staged_versions.id = extensions.staged_version_id
 	`
 }
 
@@ -609,6 +653,7 @@ type extensionRow interface {
 func scanExtension(row extensionRow) (Extension, error) {
 	var item Extension
 	var manifestJSON []byte
+	var stagedVersionJSON []byte
 	if err := row.Scan(
 		&item.ID,
 		&item.Name,
@@ -617,6 +662,7 @@ func scanExtension(row extensionRow) (Extension, error) {
 		&item.Source,
 		&item.IsSystem,
 		&item.IsDeletable,
+		&item.ActiveVersionID,
 		&item.Version,
 		&manifestJSON,
 		&item.PackageDigest,
@@ -624,11 +670,19 @@ func scanExtension(row extensionRow) (Extension, error) {
 		&item.PackagePath,
 		&item.InstalledAt,
 		&item.UpdatedAt,
+		&stagedVersionJSON,
 	); err != nil {
 		return Extension{}, err
 	}
 	if err := json.Unmarshal(manifestJSON, &item.Manifest); err != nil {
 		return Extension{}, fmt.Errorf("decode extension manifest: %w", err)
+	}
+	if len(stagedVersionJSON) > 0 {
+		var staged ExtensionVersion
+		if err := json.Unmarshal(stagedVersionJSON, &staged); err != nil {
+			return Extension{}, fmt.Errorf("decode staged extension version: %w", err)
+		}
+		item.StagedVersion = &staged
 	}
 	return item, nil
 }
