@@ -12,6 +12,7 @@ import (
 	capabilities "github.com/zhuchunshu/sforum/apps/api/app/Support/Capabilities"
 	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
 	hostapi "github.com/zhuchunshu/sforum/apps/api/app/Support/HostAPI"
+	supportjobs "github.com/zhuchunshu/sforum/apps/api/app/Support/Jobs"
 	pluginv2sdk "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2"
 	hostwire "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/host/v2"
 	pluginwire "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/plugin/v2"
@@ -31,6 +32,13 @@ type protocolV2HostState struct {
 func (s *protocolV2HostState) EnqueuePluginJob(_ context.Context, extensionID, kind string, _ map[string]any) error {
 	s.mu.Lock()
 	s.jobs = append(s.jobs, extensionID+":"+kind)
+	s.mu.Unlock()
+	return nil
+}
+
+func (s *protocolV2HostState) EnqueueVersionedPluginJob(_ context.Context, contract supportjobs.PluginJobContract, _ string, _ map[string]any) error {
+	s.mu.Lock()
+	s.jobs = append(s.jobs, contract.ExtensionID+":"+contract.JobName)
 	s.mu.Unlock()
 	return nil
 }
@@ -58,6 +66,14 @@ func (s protocolV2HostCapabilities) CapabilitiesFor(context.Context, string) (ca
 
 func (protocolV2HostCapabilities) DeclaredJobKinds(context.Context, string) ([]string, error) {
 	return []string{"demo.sync"}, nil
+}
+
+func (protocolV2HostCapabilities) PluginJobContract(_ context.Context, extensionID, jobName string) (supportjobs.PluginJobContract, error) {
+	return supportjobs.PluginJobContract{
+		ExtensionID: extensionID, ExtensionVersion: "1.0.0", ArtifactDigest: strings.Repeat("a", 64),
+		JobName: jobName, JobContract: "runtime.v2.job.demo-sync@1",
+		PayloadSchemaID: "demo.sync.payload", PayloadSchemaVersion: "1",
+	}, nil
 }
 
 type protocolV2HostSettings struct{}

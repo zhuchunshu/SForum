@@ -236,6 +236,30 @@ func (m *Manager) SendMail(ctx context.Context, extensionID string, request Mail
 	return response, err
 }
 
+// ExecutePluginJob rechecks the running manifest immediately before transport
+// dispatch so an upgrade cannot race a worker's earlier database resolution.
+func (m *Manager) ExecutePluginJob(ctx context.Context, invocation supportjobs.PluginJobInvocation) error {
+	extension, ok := m.runningExtension(invocation.Contract.ExtensionID)
+	if !ok {
+		return extensions.ErrRuntimeUnavailable
+	}
+	contract, err := extensions.PluginJobContractForExtension(extension, invocation.Contract.JobName)
+	if err != nil || !contract.Equal(invocation.Contract) {
+		return supportjobs.ErrPluginJobRuntimeStale
+	}
+	invoker, ok := m.starter.(pluginJobContextInvoker)
+	if !ok {
+		return extensions.ErrRuntimeUnavailable
+	}
+	release, rejected := m.resilience.tryEnter(ctx, extension.ID)
+	if rejected != "" {
+		return fmt.Errorf("%s: %s", rejected, circuitMessage(rejected))
+	}
+	err = invoker.ExecutePluginJob(ctx, invocation)
+	release(err == nil, "extension.plugin_job_failed")
+	return err
+}
+
 func (m *Manager) RefreshMailProvider(ctx context.Context, extensionID string) error {
 	m.mu.RLock()
 	extension, ok := m.running[extensionID]

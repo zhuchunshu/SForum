@@ -17,6 +17,7 @@ import (
 	"github.com/hashicorp/go-plugin"
 
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
+	supportjobs "github.com/zhuchunshu/sforum/apps/api/app/Support/Jobs"
 )
 
 const (
@@ -25,7 +26,8 @@ const (
 )
 
 var (
-	ErrUnsupportedProtocol = errors.New("unsupported plugin protocol")
+	ErrUnsupportedProtocol    = errors.New("unsupported plugin protocol")
+	ErrInvalidPluginJobStream = errors.New("invalid protocol v2 plugin job progress stream")
 	// ErrUnsafePluginRouteTarget 插件回报的 BaseURL 不允许被 API 代理（SSRF 防护）。
 	ErrUnsafePluginRouteTarget = errors.New("plugin route target is not allowed")
 
@@ -98,6 +100,10 @@ type PluginProtocol interface {
 // without changing the protocol-v1 net/rpc compatibility interface.
 type pluginHookContextInvoker interface {
 	InvokeHookContext(context.Context, PluginHookRequest) (PluginHookResponse, error)
+}
+
+type pluginJobContextInvoker interface {
+	ExecutePluginJob(context.Context, supportjobs.PluginJobInvocation) error
 }
 
 type PluginHealth struct {
@@ -421,6 +427,20 @@ func (s *ProtocolStarter) Stop(_ context.Context, extension extensions.Extension
 		s.hostAPI.UnregisterExtension(extension.ID)
 	}
 	return nil
+}
+
+func (s *ProtocolStarter) ExecutePluginJob(ctx context.Context, invocation supportjobs.PluginJobInvocation) error {
+	if s == nil {
+		return extensions.ErrRuntimeUnavailable
+	}
+	s.mu.Lock()
+	protocol := s.protocols[invocation.Contract.ExtensionID]
+	s.mu.Unlock()
+	invoker, ok := protocol.(pluginJobContextInvoker)
+	if !ok {
+		return extensions.ErrRuntimeUnavailable
+	}
+	return invoker.ExecutePluginJob(ctx, invocation)
 }
 
 func (s *ProtocolStarter) lockExtensionLifecycle(extensionID string) func() {

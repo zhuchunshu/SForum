@@ -4,7 +4,9 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"errors"
 	"fmt"
+	"io"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -16,6 +18,7 @@ import (
 	"github.com/hashicorp/go-plugin"
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Capabilities"
+	supportjobs "github.com/zhuchunshu/sforum/apps/api/app/Support/Jobs"
 	pluginv2 "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/plugin/v2"
 	protocolv2 "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/protocol/v2"
 	"google.golang.org/grpc"
@@ -43,6 +46,7 @@ type protocolV2ClientConfig struct {
 	identity     *protocolv2.ExtensionIdentity
 	authority    []*protocolv2.AuthorityGrant
 	events       []extensions.ManifestEvent
+	jobs         []extensions.ManifestJob
 	lifecycle    *extensions.ManifestLifecycle
 	token        []byte
 	instance     string
@@ -56,6 +60,7 @@ type protocolV2Client struct {
 	identity     *protocolv2.ExtensionIdentity
 	authority    []*protocolv2.AuthorityGrant
 	events       []extensions.ManifestEvent
+	jobs         []extensions.ManifestJob
 	lifecycle    *extensions.ManifestLifecycle
 	token        []byte
 	instance     string
@@ -86,8 +91,9 @@ func (e *ProtocolV2Error) Error() string {
 func newProtocolV2Client(client pluginv2.PluginRuntimeServiceClient, config protocolV2ClientConfig) *protocolV2Client {
 	return &protocolV2Client{
 		client: client, identity: cloneV2Identity(config.identity), authority: cloneV2Authority(config.authority),
-		events: append([]extensions.ManifestEvent(nil), config.events...), lifecycle: cloneManifestLifecycle(config.lifecycle),
-		token: append([]byte(nil), config.token...), instance: config.instance, hostBrokerID: config.hostBrokerID,
+		events: append([]extensions.ManifestEvent(nil), config.events...), jobs: append([]extensions.ManifestJob(nil), config.jobs...),
+		lifecycle: cloneManifestLifecycle(config.lifecycle),
+		token:     append([]byte(nil), config.token...), instance: config.instance, hostBrokerID: config.hostBrokerID,
 	}
 }
 
@@ -180,6 +186,7 @@ func (s *ProtocolStarter) protocolV2ClientConfig(ctx context.Context, extension 
 		},
 		authority: protocolV2Authority(extension.CapabilityGrants),
 		events:    append([]extensions.ManifestEvent(nil), extension.Manifest.Events...),
+		jobs:      append([]extensions.ManifestJob(nil), extension.Manifest.Jobs...),
 		lifecycle: cloneManifestLifecycle(extension.Manifest.Lifecycle),
 		token:     token,
 		instance:  hex.EncodeToString(instanceBytes),
@@ -331,6 +338,148 @@ func (c *protocolV2Client) InvokeHookContext(parent context.Context, input Plugi
 		result.Patch = patch.AsMap()
 	}
 	return result, nil
+}
+
+func (c *protocolV2Client) ExecutePluginJob(parent context.Context, invocation supportjobs.PluginJobInvocation) error {
+	if c == nil || c.client == nil || c.identity == nil {
+		return extensions.ErrRuntimeUnavailable
+	}
+	if parent == nil {
+		return fmt.Errorf("%w: caller context is required", supportjobs.ErrPluginJobRuntimeStale)
+	}
+	contract := invocation.Contract
+	if contract.ExtensionID != c.identity.GetExtensionId() || contract.ExtensionVersion != c.identity.GetExtensionVersion() ||
+		contract.ArtifactDigest != c.identity.GetArtifactDigest() || invocation.TrustGrantID != c.identity.GetTrustGrantId() {
+		return supportjobs.ErrPluginJobRuntimeStale
+	}
+	frozenContract, err := extensions.PluginJobContractForExtension(extensions.Extension{
+		ID: c.identity.GetExtensionId(), Version: c.identity.GetExtensionVersion(), PackageDigest: c.identity.GetArtifactDigest(),
+		Manifest: extensions.Manifest{Jobs: append([]extensions.ManifestJob(nil), c.jobs...)},
+	}, contract.JobName)
+	if err != nil || !frozenContract.Equal(contract) {
+		return supportjobs.ErrPluginJobRuntimeStale
+	}
+	payload, err := protocolV2Document(contract.PayloadSchemaID, contract.PayloadSchemaVersion, invocation.Payload)
+	if err != nil {
+		return err
+	}
+	ctx, cancel := protocolV2Deadline(parent, DefaultProtocolV2RequestTimeout)
+	defer cancel()
+	attempt := uint32(0)
+	if invocation.Attempt > 0 {
+		attempt = uint32(invocation.Attempt)
+	}
+	requestContext := c.requestContext(ctx, strconv.FormatInt(invocation.JobID, 10))
+	stream, err := c.client.ExecuteJob(ctx, &pluginv2.JobRequest{
+		Context: requestContext,
+		JobId:   strconv.FormatInt(invocation.JobID, 10), JobKind: contract.JobName,
+		PayloadVersion: contract.PayloadSchemaVersion, Attempt: attempt, Payload: payload,
+	})
+	if err != nil {
+		return err
+	}
+	validator := pluginJobProgressValidator{jobID: strconv.FormatInt(invocation.JobID, 10), requestContext: requestContext}
+	var terminalError error
+	for {
+		update, recvErr := stream.Recv()
+		if recvErr != nil {
+			if errors.Is(recvErr, io.EOF) {
+				if validator.terminal {
+					return terminalError
+				}
+				return &ProtocolV2Error{
+					Code: protocolv2.ErrorCode_ERROR_CODE_INTERNAL, Reason: "runtime.job_terminal_missing",
+					Message: "Plugin job stream ended without a terminal progress state.", Retryable: true,
+				}
+			}
+			if ctx.Err() != nil {
+				return ctx.Err()
+			}
+			return recvErr
+		}
+		remoteError, err := validator.accept(update)
+		if err != nil {
+			return err
+		}
+		if remoteError != nil {
+			terminalError = remoteError
+		}
+	}
+}
+
+type pluginJobProgressValidator struct {
+	jobID          string
+	requestContext *protocolv2.RequestContext
+	lastState      protocolv2.ProgressState
+	completed      uint32
+	total          uint32
+	seen           bool
+	terminal       bool
+}
+
+func (v *pluginJobProgressValidator) accept(update *protocolv2.ProgressUpdate) (error, error) {
+	invalid := func(format string, args ...any) (error, error) {
+		return nil, fmt.Errorf("%w: %s", ErrInvalidPluginJobStream, fmt.Sprintf(format, args...))
+	}
+	if update == nil {
+		return invalid("job %q returned a nil update", v.jobID)
+	}
+	if v.terminal {
+		return invalid("job %q emitted progress after its terminal update", v.jobID)
+	}
+	if update.GetStepId() != v.jobID {
+		return invalid("expected job %q, got %q", v.jobID, update.GetStepId())
+	}
+	response := update.GetContext()
+	if response == nil || response.GetRequestId() != v.requestContext.GetRequestId() ||
+		!proto.Equal(response.GetExtension(), v.requestContext.GetExtension()) ||
+		!proto.Equal(response.GetTrace(), v.requestContext.GetTrace()) ||
+		response.GetServerTime() == nil || !response.GetServerTime().IsValid() {
+		return invalid("progress response context does not match the exact runtime request")
+	}
+	state := update.GetState()
+	if !validLifecycleProgressState(state) {
+		return invalid("job %q returned state %s", v.jobID, state)
+	}
+	if state == protocolv2.ProgressState_PROGRESS_STATE_PLANNED && v.seen && v.lastState != protocolv2.ProgressState_PROGRESS_STATE_PLANNED {
+		return invalid("job %q regressed to planned", v.jobID)
+	}
+	if update.GetCompletedUnits() < v.completed || update.GetTotalUnits() < v.total ||
+		(update.GetTotalUnits() > 0 && update.GetCompletedUnits() > update.GetTotalUnits()) {
+		return invalid("job %q progress counters are invalid", v.jobID)
+	}
+	terminal := isLifecycleTerminal(state)
+	if state == protocolv2.ProgressState_PROGRESS_STATE_SUCCEEDED && update.GetTotalUnits() > 0 && update.GetCompletedUnits() != update.GetTotalUnits() {
+		return invalid("successful job %q did not complete every unit", v.jobID)
+	}
+	detail := update.GetError()
+	hasError := detail != nil && detail.GetCode() != protocolv2.ErrorCode_ERROR_CODE_UNSPECIFIED
+	if state == protocolv2.ProgressState_PROGRESS_STATE_FAILED || state == protocolv2.ProgressState_PROGRESS_STATE_CANCELLED {
+		if !hasError || strings.TrimSpace(detail.GetReason()) == "" {
+			return invalid("terminal job %q has no typed error", v.jobID)
+		}
+		if (state == protocolv2.ProgressState_PROGRESS_STATE_CANCELLED && detail.GetCode() != protocolv2.ErrorCode_ERROR_CODE_CANCELLED) ||
+			(state == protocolv2.ProgressState_PROGRESS_STATE_FAILED && detail.GetCode() == protocolv2.ErrorCode_ERROR_CODE_CANCELLED) {
+			return invalid("terminal job %q state and error code disagree", v.jobID)
+		}
+		if retry := detail.GetRetryAfter(); retry != nil && !retry.IsValid() {
+			return invalid("terminal job %q has an invalid retry time", v.jobID)
+		}
+	} else if hasError {
+		return invalid("non-failed job %q returned an error", v.jobID)
+	}
+	if update.GetResult() != nil {
+		return invalid("job %q returned a result without a declared result schema", v.jobID)
+	}
+	v.seen = true
+	v.lastState = state
+	v.completed = update.GetCompletedUnits()
+	v.total = update.GetTotalUnits()
+	v.terminal = terminal
+	if state == protocolv2.ProgressState_PROGRESS_STATE_FAILED || state == protocolv2.ProgressState_PROGRESS_STATE_CANCELLED {
+		return protocolV2Error(detail), nil
+	}
+	return nil, nil
 }
 
 func (c *protocolV2Client) eventDeclaration(name, kind string) (extensions.ManifestEvent, error) {

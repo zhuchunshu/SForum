@@ -135,7 +135,7 @@ type PluginJobWorker struct {
 func (w *PluginJobWorker) Work(ctx context.Context, job *river.Job[PluginJobArgs]) error {
 	if job == nil || !job.Args.validEnvelope() {
 		return cancelPluginJob(supportjobs.PluginJobDecision{
-			Action: supportjobs.PluginJobCancel, Reason: "plugin_job.envelope_invalid",
+			Action: supportjobs.PluginJobCancel, Reason: supportjobs.PluginJobReasonEnvelopeInvalid,
 		})
 	}
 	if job.Args.Payload != nil {
@@ -148,6 +148,11 @@ func (w *PluginJobWorker) Work(ctx context.Context, job *river.Job[PluginJobArgs
 	}
 	target, err := w.Resolver.ResolvePluginJobRuntime(ctx, job.Args.ExtensionID, job.Args.JobName)
 	if err != nil {
+		if errors.Is(err, supportjobs.ErrPluginJobRuntimeStale) {
+			return cancelPluginJob(supportjobs.PluginJobDecision{
+				Action: supportjobs.PluginJobCancel, Reason: supportjobs.PluginJobReasonRuntimeChanged,
+			})
+		}
 		return fmt.Errorf("resolve plugin job runtime: %w", err)
 	}
 	decision := supportjobs.DecidePluginJobExecution(job.Args.Contract(), target.Contract, nil)
@@ -156,21 +161,27 @@ func (w *PluginJobWorker) Work(ctx context.Context, job *river.Job[PluginJobArgs
 	}
 	if target.TrustGrantID == "" || target.TrustGrantID != job.Args.TrustGrantID {
 		return cancelPluginJob(supportjobs.PluginJobDecision{
-			Action: supportjobs.PluginJobCancel, Reason: "plugin_job.trust_grant_stale",
+			Action: supportjobs.PluginJobCancel, Reason: supportjobs.PluginJobReasonTrustGrantStale,
 		})
 	}
 	if w.Executor == nil {
 		return errors.New("plugin job runtime executor is not configured")
 	}
 	invocation := supportjobs.PluginJobInvocation{
-		Contract: job.Args.Contract(), TrustGrant: job.Args.TrustGrantID,
+		Contract: job.Args.Contract(), TrustGrantID: job.Args.TrustGrantID,
 		Payload: job.Args.Payload, EnqueuedAt: job.Args.EnqueuedAt,
 	}
 	if job.JobRow != nil {
 		invocation.JobID = job.ID
 		invocation.Attempt = job.Attempt
 	}
-	return w.Executor.ExecutePluginJob(ctx, invocation)
+	err = w.Executor.ExecutePluginJob(ctx, invocation)
+	if errors.Is(err, supportjobs.ErrPluginJobRuntimeStale) {
+		return cancelPluginJob(supportjobs.PluginJobDecision{
+			Action: supportjobs.PluginJobCancel, Reason: supportjobs.PluginJobReasonRuntimeChanged,
+		})
+	}
+	return err
 }
 
 func cancelPluginJob(decision supportjobs.PluginJobDecision) error {

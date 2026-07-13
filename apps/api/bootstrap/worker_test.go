@@ -2,12 +2,14 @@ package bootstrap
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Crypto"
 	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
+	supportjobs "github.com/zhuchunshu/sforum/apps/api/app/Support/Jobs"
 	"github.com/zhuchunshu/sforum/apps/api/config"
 )
 
@@ -35,6 +37,56 @@ func TestWorkerCloseRunsCleanupOnce(t *testing.T) {
 	if calls != 1 {
 		t.Fatalf("expected cleanup once, got %d", calls)
 	}
+}
+
+func TestPluginJobRuntimeResolverBindsLiveArtifactAndTrust(t *testing.T) {
+	item := runtimeSettingsExtension("demo.plugin")
+	item.Version = "1.0.0"
+	item.PackageDigest = "digest-v1"
+	item.Manifest.Jobs = []extensions.ManifestJob{{
+		ID: "demo.plugin.job.sync", ContractVersion: "demo.plugin.job.sync@1",
+		Name: "demo.sync", Handler: "job.sync", PayloadSchema: "demo.sync.payload@1", RetryPolicy: "bounded",
+	}}
+	store := &bootstrapExtensionSettingsStore{item: item}
+	resolver := &pluginJobRuntimeResolver{store: store, trust: pluginJobTrustStub{grant: "grant-1"}}
+	target, err := resolver.ResolvePluginJobRuntime(context.Background(), item.ID, "demo.sync")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if target.Contract.ArtifactDigest != item.PackageDigest || target.Contract.JobContract != "demo.plugin.job.sync@1" ||
+		target.TrustGrantID != "grant-1" {
+		t.Fatalf("target = %#v", target)
+	}
+
+	item.Status = extensions.StatusDisabled
+	store.item = item
+	if _, err := resolver.ResolvePluginJobRuntime(context.Background(), item.ID, "demo.sync"); !errors.Is(err, supportjobs.ErrPluginJobRuntimeStale) {
+		t.Fatalf("disabled error = %v", err)
+	}
+	item.Status = extensions.StatusEnabled
+	item.Manifest.Jobs = nil
+	store.item = item
+	if _, err := resolver.ResolvePluginJobRuntime(context.Background(), item.ID, "demo.sync"); !errors.Is(err, supportjobs.ErrPluginJobRuntimeStale) {
+		t.Fatalf("removed declaration error = %v", err)
+	}
+	item.Manifest.Jobs = []extensions.ManifestJob{{
+		ID: "demo.plugin.job.sync", ContractVersion: "demo.plugin.job.sync@1",
+		Name: "demo.sync", Handler: "job.sync", PayloadSchema: "demo.sync.payload@1", RetryPolicy: "bounded",
+	}}
+	store.item = item
+	resolver.trust = pluginJobTrustStub{err: extensions.ErrTrustGrantNotFound}
+	if _, err := resolver.ResolvePluginJobRuntime(context.Background(), item.ID, "demo.sync"); !errors.Is(err, supportjobs.ErrPluginJobRuntimeStale) {
+		t.Fatalf("revoked trust error = %v", err)
+	}
+}
+
+type pluginJobTrustStub struct {
+	grant string
+	err   error
+}
+
+func (s pluginJobTrustStub) RuntimeIdentity(context.Context, extensions.Extension) (extensions.RuntimeTrustIdentity, error) {
+	return extensions.RuntimeTrustIdentity{TrustGrantID: s.grant}, s.err
 }
 
 // TestResolveWorkerExtensionRuntimeInjectedSkipsStandalone 覆盖 embed 路径：

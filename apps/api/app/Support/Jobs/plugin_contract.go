@@ -1,11 +1,14 @@
 package jobs
 
 import (
+	"errors"
 	"strings"
 	"time"
 )
 
 const PluginJobEnvelopeVersion = 1
+
+var ErrPluginJobRuntimeStale = errors.New("plugin job runtime contract is stale")
 
 // PluginJobContract identifies the immutable code and data contract that may
 // consume one queued plugin job. Runtime epochs and process instances are
@@ -58,6 +61,9 @@ const (
 	PluginJobReasonSourceCompatible  = "plugin_job.source_runtime_compatible"
 	PluginJobReasonMigrationDeclared = "plugin_job.migration_declared"
 	PluginJobReasonIncompatible      = "plugin_job.contract_incompatible"
+	PluginJobReasonEnvelopeInvalid   = "plugin_job.envelope_invalid"
+	PluginJobReasonTrustGrantStale   = "plugin_job.trust_grant_stale"
+	PluginJobReasonRuntimeChanged    = "plugin_job.runtime_changed"
 )
 
 type PluginJobMigration struct {
@@ -128,10 +134,10 @@ func exactPluginJobMigration(from, to PluginJobContract, migrations []PluginJobM
 // PluginJobInvocation is the runtime-facing value after River compatibility
 // checks have succeeded.
 type PluginJobInvocation struct {
-	JobID      int64
-	Attempt    int
-	Contract   PluginJobContract
-	TrustGrant string
-	Payload    map[string]any
-	EnqueuedAt time.Time
+	JobID        int64
+	Attempt      int
+	Contract     PluginJobContract
+	TrustGrantID string
+	Payload      map[string]any
+	EnqueuedAt   time.Time
 }

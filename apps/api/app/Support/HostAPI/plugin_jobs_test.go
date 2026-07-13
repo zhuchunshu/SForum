@@ -46,7 +46,8 @@ func TestPluginJobWorkerExecutesExactContract(t *testing.T) {
 	if err != nil || executor.calls != 1 {
 		t.Fatalf("work = %v, calls = %d", err, executor.calls)
 	}
-	if executor.invocation.JobID != 41 || executor.invocation.Attempt != 2 || executor.invocation.Contract != args.Contract() {
+	if executor.invocation.JobID != 41 || executor.invocation.Attempt != 2 || executor.invocation.Contract != args.Contract() ||
+		executor.invocation.TrustGrantID != args.TrustGrantID || executor.invocation.Payload["page"] != 1 {
 		t.Fatalf("invocation = %#v", executor.invocation)
 	}
 }
@@ -74,12 +75,28 @@ func TestPluginJobWorkerCancelsLegacyAndStaleTrustRows(t *testing.T) {
 		t.Fatal(err)
 	}
 	worker := &PluginJobWorker{}
-	assertPluginJobCancelled(t, worker.Work(context.Background(), &river.Job[PluginJobArgs]{Args: legacy}), "plugin_job.envelope_invalid")
+	assertPluginJobCancelled(t, worker.Work(context.Background(), &river.Job[PluginJobArgs]{Args: legacy}), supportjobs.PluginJobReasonEnvelopeInvalid)
 
 	args := pluginJobArgsFixture()
 	worker.Resolver = pluginJobResolverStub{target: PluginJobRuntimeContract{Contract: args.Contract(), TrustGrantID: "new-grant"}}
 	worker.Executor = &pluginJobExecutorStub{}
-	assertPluginJobCancelled(t, worker.Work(context.Background(), &river.Job[PluginJobArgs]{Args: args}), "plugin_job.trust_grant_stale")
+	assertPluginJobCancelled(t, worker.Work(context.Background(), &river.Job[PluginJobArgs]{Args: args}), supportjobs.PluginJobReasonTrustGrantStale)
+}
+
+func TestPluginJobWorkerCancelsRuntimeChangedDuringResolutionOrDispatch(t *testing.T) {
+	args := pluginJobArgsFixture()
+	worker := &PluginJobWorker{Resolver: pluginJobResolverStub{err: supportjobs.ErrPluginJobRuntimeStale}}
+	assertPluginJobCancelled(t, worker.Work(context.Background(), &river.Job[PluginJobArgs]{Args: args}), supportjobs.PluginJobReasonRuntimeChanged)
+
+	executor := &pluginJobExecutorStub{err: supportjobs.ErrPluginJobRuntimeStale}
+	worker = &PluginJobWorker{
+		Resolver: pluginJobResolverStub{target: PluginJobRuntimeContract{Contract: args.Contract(), TrustGrantID: args.TrustGrantID}},
+		Executor: executor,
+	}
+	assertPluginJobCancelled(t, worker.Work(context.Background(), &river.Job[PluginJobArgs]{Args: args}), supportjobs.PluginJobReasonRuntimeChanged)
+	if executor.calls != 1 {
+		t.Fatalf("dispatch race calls = %d", executor.calls)
+	}
 }
 
 func TestPluginJobWorkerRetriesResolverAndExecutorFailures(t *testing.T) {

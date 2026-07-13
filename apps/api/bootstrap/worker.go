@@ -2,6 +2,7 @@ package bootstrap
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"strconv"
@@ -68,6 +69,42 @@ type workerRuntimeDeps struct {
 // hostAPIGatewayCloser 仅用于 worker 自建 Host API 时的关闭钩子。
 type hostAPIGatewayCloser interface {
 	Close() error
+}
+
+type pluginJobRuntimeResolver struct {
+	store extensions.Store
+	trust extensionsruntime.RuntimeTrustSource
+}
+
+func (r *pluginJobRuntimeResolver) ResolvePluginJobRuntime(ctx context.Context, extensionID, jobName string) (hostapi.PluginJobRuntimeContract, error) {
+	if r == nil || r.store == nil || r.trust == nil {
+		return hostapi.PluginJobRuntimeContract{}, fmt.Errorf("plugin job resolver is not configured")
+	}
+	extension, err := r.store.Get(ctx, extensionID)
+	if err != nil {
+		if errors.Is(err, extensions.ErrExtensionNotFound) {
+			return hostapi.PluginJobRuntimeContract{}, supportjobs.ErrPluginJobRuntimeStale
+		}
+		return hostapi.PluginJobRuntimeContract{}, err
+	}
+	if extension.Type != extensions.TypePlugin || extension.Status != extensions.StatusEnabled {
+		return hostapi.PluginJobRuntimeContract{}, supportjobs.ErrPluginJobRuntimeStale
+	}
+	contract, err := extensions.PluginJobContractForExtension(extension, jobName)
+	if err != nil {
+		if errors.Is(err, extensions.ErrExtensionNotFound) || errors.Is(err, extensions.ErrInvalidManifest) {
+			return hostapi.PluginJobRuntimeContract{}, supportjobs.ErrPluginJobRuntimeStale
+		}
+		return hostapi.PluginJobRuntimeContract{}, err
+	}
+	identity, err := r.trust.RuntimeIdentity(ctx, extension)
+	if err != nil {
+		if errors.Is(err, extensions.ErrTrustGrantNotFound) {
+			return hostapi.PluginJobRuntimeContract{}, supportjobs.ErrPluginJobRuntimeStale
+		}
+		return hostapi.PluginJobRuntimeContract{}, err
+	}
+	return hostapi.PluginJobRuntimeContract{Contract: contract, TrustGrantID: identity.TrustGrantID}, nil
 }
 
 var newStandaloneWorkerRuntimeManager = func(store extensions.Store, hostAPI extensionsruntime.HostAPIRegistrar, settings extensionsruntime.PluginSettings, trust extensionsruntime.RuntimeTrustSource) workerExtensionRuntime {
@@ -206,6 +243,7 @@ func resolveWorkerExtensionRuntime(
 func newWorkerWithPool(cfg config.Config, pool *pgxpool.Pool, logger *slog.Logger, deps workerRuntimeDeps) (*Worker, error) {
 	registry := supportjobs.NewRegistry()
 	extensionStore := extensions.NewPostgresStore(pool)
+	runtimeTrust := extensions.NewExecutableTrustService(extensionStore, extensions.NewPostgresExecutableTrustStore(pool))
 	optionCipher, err := crypto.NewOptionCipher(cfg.OptionEncryptionKey)
 	if err != nil {
 		return nil, fmt.Errorf("create worker option cipher: %w", err)
@@ -213,7 +251,6 @@ func newWorkerWithPool(cfg config.Config, pool *pgxpool.Pool, logger *slog.Logge
 
 	extensionRuntime, hostGateway, ownsRuntime, err := resolveWorkerExtensionRuntime(deps, func() (workerExtensionRuntime, hostAPIGatewayCloser, error) {
 		activation := extensions.NewActivationCoordinator(extensionStore).WithAuditor(audit.NewPostgresWriter(pool))
-		runtimeTrust := extensions.NewExecutableTrustService(extensionStore, extensions.NewPostgresExecutableTrustStore(pool))
 		return buildStandaloneWorkerExtensionRuntime(context.Background(), cfg, extensionStore, optionCipher, runtimeTrust, activation)
 	})
 	if err != nil {
@@ -262,7 +299,14 @@ func newWorkerWithPool(cfg config.Config, pool *pgxpool.Pool, logger *slog.Logge
 	registerForumAutoLockWorker(registry, cfg, pool, logger)
 	// F2.2：插件经 Host API 入队的 extension.plugin_job。
 	registry.Add(func(workers *river.Workers) error {
-		river.AddWorker(workers, &hostapi.PluginJobWorker{})
+		var executor hostapi.PluginJobExecutor
+		if candidate, ok := extensionRuntime.(hostapi.PluginJobExecutor); ok {
+			executor = candidate
+		}
+		river.AddWorker(workers, &hostapi.PluginJobWorker{
+			Resolver: &pluginJobRuntimeResolver{store: extensionStore, trust: runtimeTrust},
+			Executor: executor,
+		})
 		return nil
 	})
 
