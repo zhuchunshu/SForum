@@ -187,10 +187,11 @@ func (s *ExecutableTrustService) Revoke(ctx context.Context, actor identity.Acto
 	impact, err := buildTrustImpact(extension, TrustActionEnable)
 	if err != nil {
 		impact = TrustImpact{
-			SchemaVersion: TrustImpactSchemaV1, Action: TrustActionEnable,
+			SchemaVersion: TrustImpactSchemaV2, Action: TrustActionEnable,
 			ExtensionID: extension.ID, ExtensionVersion: extension.Version,
 			ExtensionType: extension.Type, Source: extension.Source,
-			PackageDigest: extension.PackageDigest,
+			PackageDigest:    extension.PackageDigest,
+			ManifestContract: extensionmanifest.ManifestContract(extension.Manifest),
 		}
 	}
 	s.appendAudit(ctx, actor, audit.ActionExtensionTrustRevoke, impact, nil)
@@ -225,7 +226,10 @@ func RequiresExecutableTrust(extension Extension) bool {
 	if extension.Source != SourceUploaded {
 		return false
 	}
-	return hasExecutableBackend(extension.Manifest) || strings.TrimSpace(extension.AdminFrontendDigest) != "" || len(extension.Manifest.Migrations) > 0
+	manifest := extension.Manifest
+	return hasExecutableBackend(manifest) || strings.TrimSpace(extension.AdminFrontendDigest) != "" ||
+		len(manifest.Migrations) > 0 || len(manifest.Guards) > 0 || hasL2Components(manifest) ||
+		requestsRawRequest(manifest) || requestsRawCoreDatabase(manifest) || hasExecutableLifecycle(manifest)
 }
 
 func buildTrustImpact(extension Extension, action string) (TrustImpact, error) {
@@ -235,15 +239,30 @@ func buildTrustImpact(extension Extension, action string) (TrustImpact, error) {
 	manifest := extension.Manifest
 	artifacts := map[string]string{"package": extension.PackageDigest}
 	binaries := []TrustArtifact{}
-	packageFiles := []string{}
-	if entry := strings.TrimSpace(manifest.Backend.Entry); entry != "" {
-		digest, err := digestInstalledFile(extension, entry)
+	packageFileSet := map[string]struct{}{}
+	addPackageFile := func(path string) {
+		if path = strings.TrimSpace(path); path != "" {
+			packageFileSet[path] = struct{}{}
+		}
+	}
+	addExecutableArtifact := func(key, kind, path, declaredDigest string) error {
+		digest, err := digestInstalledFile(extension, path)
 		if err != nil {
+			return err
+		}
+		declaredDigest = strings.TrimPrefix(strings.ToLower(strings.TrimSpace(declaredDigest)), "sha256:")
+		if declaredDigest != "" && declaredDigest != digest {
+			return fmt.Errorf("%w: executable digest changed for %s", ErrFrontendPackageChanged, path)
+		}
+		artifacts[key] = digest
+		binaries = append(binaries, TrustArtifact{Kind: kind, Path: path, Digest: digest})
+		addPackageFile(path)
+		return nil
+	}
+	if entry := strings.TrimSpace(manifest.Backend.Entry); entry != "" {
+		if err := addExecutableArtifact("backend", "backend", entry, manifest.Backend.Digest); err != nil {
 			return TrustImpact{}, err
 		}
-		artifacts["backend"] = digest
-		binaries = append(binaries, TrustArtifact{Kind: "backend", Path: entry, Digest: digest})
-		packageFiles = append(packageFiles, entry)
 	}
 	if digest := strings.TrimSpace(extension.AdminFrontendDigest); digest != "" {
 		artifacts["adminFrontend"] = digest
@@ -254,9 +273,34 @@ func buildTrustImpact(extension Extension, action string) (TrustImpact, error) {
 		if err != nil {
 			return TrustImpact{}, err
 		}
+		declaredDigest := strings.TrimPrefix(strings.ToLower(strings.TrimSpace(migration.Digest)), "sha256:")
+		if declaredDigest != "" && declaredDigest != digest {
+			return TrustImpact{}, fmt.Errorf("%w: migration digest changed for %s", ErrFrontendPackageChanged, migration.Path)
+		}
 		artifacts["migration:"+migration.Path] = digest
 		migrations = append(migrations, TrustMigration{Path: migration.Path, Digest: digest})
-		packageFiles = append(packageFiles, migration.Path)
+		addPackageFile(migration.Path)
+	}
+	for _, guard := range manifest.Guards {
+		if err := addExecutableArtifact("guard:"+guard.ID, "guard", guard.Entry, guard.Digest); err != nil {
+			return TrustImpact{}, err
+		}
+	}
+	packageFilesByID := make(map[string]ManifestPackageFile, len(manifest.PackageFiles))
+	for _, file := range manifest.PackageFiles {
+		packageFilesByID[file.ID] = file
+	}
+	for _, component := range manifest.Components {
+		if component.L2Component == "" {
+			continue
+		}
+		file, ok := packageFilesByID[component.L2Component]
+		if !ok {
+			return TrustImpact{}, fmt.Errorf("%w: L2 package file %s is unavailable", ErrFrontendPackageChanged, component.L2Component)
+		}
+		if err := addExecutableArtifact("l2:"+file.ID, "l2", file.Path, file.Digest); err != nil {
+			return TrustImpact{}, err
+		}
 	}
 	guards := make([]TrustGuard, 0, len(manifest.Routes))
 	for _, route := range manifest.Routes {
@@ -269,9 +313,9 @@ func buildTrustImpact(extension Extension, action string) (TrustImpact, error) {
 	frontendAPI := ""
 	if component := manifest.SettingsDocument.UI.Component; component != nil && component.Entry != "" {
 		components = append(components, *component)
-		packageFiles = append(packageFiles, component.Entry)
+		addPackageFile(component.Entry)
 		if component.CSS != "" {
-			packageFiles = append(packageFiles, component.CSS)
+			addPackageFile(component.CSS)
 		}
 		frontendAPI = fmt.Sprintf("sforum.admin-component@%d", component.APIVersion)
 	}
@@ -287,26 +331,50 @@ func buildTrustImpact(extension Extension, action string) (TrustImpact, error) {
 	sort.Strings(permissions)
 	sort.Strings(requiredFeatures)
 	sort.Strings(secrets)
+	packageFiles := make([]string, 0, len(packageFileSet))
+	for path := range packageFileSet {
+		packageFiles = append(packageFiles, path)
+	}
 	sort.Strings(packageFiles)
+	hostAPI := strings.TrimSpace(manifest.Backend.HostAPIVersion)
+	if hostAPI == "" {
+		hostAPI = "sforum.host/v1"
+	}
 	impact := TrustImpact{
-		SchemaVersion: TrustImpactSchemaV1, Action: action,
+		SchemaVersion: TrustImpactSchemaV2, Action: action,
 		ExtensionID: extension.ID, ExtensionVersion: extension.Version,
 		ExtensionType: extension.Type, Source: extension.Source, PackageDigest: extension.PackageDigest,
-		ArtifactDigests: artifacts, Binaries: binaries,
+		ManifestContract: extensionmanifest.ManifestContract(manifest),
+		ArtifactDigests:  artifacts, Binaries: binaries, Backend: manifest.Backend,
 		Routes: append([]ManifestRoute{}, manifest.Routes...), Guards: guards,
-		Hooks: append([]ManifestHook{}, manifest.Hooks...), Events: append([]ManifestEvent{}, manifest.Events...),
-		Migrations: migrations, Providers: append([]ManifestProvider{}, manifest.Providers...),
-		Jobs: append([]ManifestJob{}, manifest.Jobs...), Schedules: []string{}, Components: components,
+		GuardDeclarations: append([]ManifestGuard{}, manifest.Guards...),
+		Hooks:             append([]ManifestHook{}, manifest.Hooks...), Events: append([]ManifestEvent{}, manifest.Events...),
+		Migrations: migrations, MigrationDeclarations: append([]ManifestMigration{}, manifest.Migrations...),
+		Providers: append([]ManifestProvider{}, manifest.Providers...),
+		Jobs:      append([]ManifestJob{}, manifest.Jobs...), Schedules: append([]ManifestSchedule{}, manifest.Schedules...),
+		Components: components, RegistryComponents: append([]ManifestComponent{}, manifest.Components...),
+		Templates: append([]ManifestTemplate{}, manifest.Templates...), Assets: append([]ManifestAsset{}, manifest.Assets...),
+		Content: append([]ManifestContent{}, manifest.Content...), Database: manifest.Database,
+		Cache: append([]ManifestCache{}, manifest.Cache...), Services: append([]ManifestService{}, manifest.Services...),
+		Commands: append([]ManifestCommand{}, manifest.Commands...), AdminSurfaces: append([]ManifestAdminSurface{}, manifest.AdminSurfaces...),
+		Queries: append([]ManifestQuery{}, manifest.Queries...), Identity: manifest.Identity,
+		PermissionDefinitions: append([]ManifestPermissionDefinition{}, manifest.PermissionDefinitions...),
+		Media:                 append([]ManifestMediaPipeline{}, manifest.Media...), Navigation: append([]ManifestNavigation{}, manifest.Navigation...),
+		Regions:       append([]ManifestRegion{}, manifest.Regions...),
 		Contributions: append([]ManifestContribution{}, manifest.Contributions...),
 		Capabilities:  capabilities.GrantsFromKeys(capKeys, implied), Permissions: permissions,
-		RequiredFeatures: requiredFeatures, Dependencies: []Dependency{},
+		RequiredFeatures: requiredFeatures, Dependencies: append([]ManifestDependency{}, manifest.Dependencies...),
+		Lifecycle: manifest.Lifecycle, OpenAPI: append([]ManifestOpenAPIFragment{}, manifest.OpenAPI...),
+		PackageFiles: append([]ManifestPackageFile{}, manifest.PackageFiles...),
 		RequestedAuthority: TrustAuthority{
 			BackendExecution:       hasExecutableBackend(manifest),
 			AdminFrontendExecution: strings.TrimSpace(extension.AdminFrontendDigest) != "",
+			RawRequest:             requestsRawRequest(manifest),
+			RawCoreDatabase:        requestsRawCoreDatabase(manifest),
 			OutboundNetwork:        capabilities.NewSet(capKeys).Has(capabilities.NetOutbound),
 			PackageFiles:           packageFiles, Secrets: secrets,
 		},
-		Contracts: TrustContracts{HostAPI: "sforum.host/v1", FrontendAPI: frontendAPI},
+		Contracts: TrustContracts{HostAPI: hostAPI, FrontendAPI: frontendAPI},
 	}
 	digest, err := canonicalTrustImpactDigest(impact)
 	if err != nil {
@@ -314,6 +382,51 @@ func buildTrustImpact(extension Extension, action string) (TrustImpact, error) {
 	}
 	impact.Digest = digest
 	return impact, nil
+}
+
+func hasL2Components(manifest Manifest) bool {
+	for _, component := range manifest.Components {
+		if strings.TrimSpace(component.L2Component) != "" {
+			return true
+		}
+	}
+	return false
+}
+
+func requestsRawRequest(manifest Manifest) bool {
+	for _, guard := range manifest.Guards {
+		if guard.Kind == "raw_request" {
+			return true
+		}
+	}
+	for _, route := range manifest.Routes {
+		if route.Guard == extensionmanifest.GuardCoreRaw {
+			return true
+		}
+	}
+	return false
+}
+
+func requestsRawCoreDatabase(manifest Manifest) bool {
+	if manifest.Database == nil {
+		return false
+	}
+	return manifest.Database.Authority == "raw_core" || manifest.Database.Authority == "kernel"
+}
+
+func hasExecutableLifecycle(manifest Manifest) bool {
+	if manifest.Lifecycle == nil {
+		return false
+	}
+	for _, operation := range []*extensionmanifest.ManifestLifecycleOperation{
+		manifest.Lifecycle.Install, manifest.Lifecycle.Enable, manifest.Lifecycle.Disable,
+		manifest.Lifecycle.Upgrade, manifest.Lifecycle.Rollback, manifest.Lifecycle.Uninstall,
+	} {
+		if operation != nil && strings.TrimSpace(operation.Execute) != "" {
+			return true
+		}
+	}
+	return false
 }
 
 // canonicalTrustImpactDigest 必须覆盖 TrustImpact 的每个字段；P2 新增声明时由测试防止遗漏。

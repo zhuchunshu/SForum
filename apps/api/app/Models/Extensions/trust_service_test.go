@@ -11,6 +11,7 @@ import (
 	"time"
 
 	audit "github.com/zhuchunshu/sforum/apps/api/app/Support/Audit"
+	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
 	extensionpackage "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionPackage"
 )
 
@@ -226,7 +227,7 @@ func TestCanonicalTrustImpactDigestBindsAuthorityContractsAndDependencies(t *tes
 		{name: "host contract", change: func(impact *TrustImpact) { impact.Contracts.HostAPI = "sforum.host/v2" }},
 		{name: "frontend contract", change: func(impact *TrustImpact) { impact.Contracts.FrontendAPI = "sforum.component/v2" }},
 		{name: "dependency", change: func(impact *TrustImpact) {
-			impact.Dependencies = []Dependency{{Name: "demo.parent", Version: "^2.0.0", Integrity: "sha256:demo"}}
+			impact.Dependencies = []ManifestDependency{{ID: "demo.parent", Version: "^2.0.0", Kind: "required"}}
 		}},
 	}
 
@@ -242,6 +243,114 @@ func TestCanonicalTrustImpactDigestBindsAuthorityContractsAndDependencies(t *tes
 				t.Fatalf("%s change did not invalidate impact digest", test.name)
 			}
 		})
+	}
+}
+
+func TestManifestV3TrustImpactIncludesEveryDeclarationAndExecutableDigest(t *testing.T) {
+	extension := completeV3TrustExtension(t, "demo.v3-trust")
+	impact, err := buildTrustImpact(extension, TrustActionEnable)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if impact.SchemaVersion != TrustImpactSchemaV2 || impact.ManifestContract != "sforum.manifest@3" || impact.Contracts.HostAPI != "sforum.host-api@2" {
+		t.Fatalf("incorrect V3 contracts: %#v", impact)
+	}
+	if impact.ArtifactDigests["guard:demo.v3-trust.guard.raw"] == "" || impact.ArtifactDigests["l2:demo.v3-trust.file.l2"] == "" {
+		t.Fatalf("custom guard or L2 digest missing: %#v", impact.ArtifactDigests)
+	}
+	if !impact.RequestedAuthority.RawRequest || !impact.RequestedAuthority.RawCoreDatabase || !RequiresExecutableTrust(extension) {
+		t.Fatalf("high-risk authority was not derived from V3 declarations: %#v", impact.RequestedAuthority)
+	}
+	if len(impact.GuardDeclarations) != 1 || len(impact.MigrationDeclarations) != 1 || len(impact.Schedules) != 1 ||
+		len(impact.RegistryComponents) != 1 || len(impact.Templates) != 1 || len(impact.Assets) != 1 || len(impact.Content) != 1 ||
+		impact.Database == nil || len(impact.Cache) != 1 || len(impact.Services) != 1 || len(impact.Commands) != 1 ||
+		len(impact.AdminSurfaces) != 1 || len(impact.Queries) != 1 || impact.Identity == nil || len(impact.PermissionDefinitions) != 1 ||
+		len(impact.Media) != 1 || len(impact.Navigation) != 1 || len(impact.Regions) != 1 || len(impact.Dependencies) != 1 ||
+		impact.Lifecycle == nil || len(impact.OpenAPI) != 1 || len(impact.PackageFiles) != 7 {
+		t.Fatalf("incomplete V3 trust impact: %#v", impact)
+	}
+}
+
+func TestManifestV3EveryDeclarationInvalidatesCanonicalTrustImpact(t *testing.T) {
+	base, err := buildTrustImpact(completeV3TrustExtension(t, "demo.v3-digest"), TrustActionEnable)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tests := []struct {
+		name   string
+		change func(*TrustImpact)
+	}{
+		{name: "manifest contract", change: func(impact *TrustImpact) { impact.ManifestContract = "sforum.manifest@4" }},
+		{name: "backend", change: func(impact *TrustImpact) { impact.Backend.HostAPIVersion = "sforum.host-api@3" }},
+		{name: "guard declaration", change: func(impact *TrustImpact) { impact.GuardDeclarations = nil }},
+		{name: "migration declaration", change: func(impact *TrustImpact) { impact.MigrationDeclarations = nil }},
+		{name: "schedule", change: func(impact *TrustImpact) { impact.Schedules = nil }},
+		{name: "registry component", change: func(impact *TrustImpact) { impact.RegistryComponents = nil }},
+		{name: "template", change: func(impact *TrustImpact) { impact.Templates = nil }},
+		{name: "asset", change: func(impact *TrustImpact) { impact.Assets = nil }},
+		{name: "content", change: func(impact *TrustImpact) { impact.Content = nil }},
+		{name: "database", change: func(impact *TrustImpact) { impact.Database = nil }},
+		{name: "cache", change: func(impact *TrustImpact) { impact.Cache = nil }},
+		{name: "service", change: func(impact *TrustImpact) { impact.Services = nil }},
+		{name: "command", change: func(impact *TrustImpact) { impact.Commands = nil }},
+		{name: "admin surface", change: func(impact *TrustImpact) { impact.AdminSurfaces = nil }},
+		{name: "query", change: func(impact *TrustImpact) { impact.Queries = nil }},
+		{name: "identity", change: func(impact *TrustImpact) { impact.Identity = nil }},
+		{name: "permission definition", change: func(impact *TrustImpact) { impact.PermissionDefinitions = nil }},
+		{name: "media", change: func(impact *TrustImpact) { impact.Media = nil }},
+		{name: "navigation", change: func(impact *TrustImpact) { impact.Navigation = nil }},
+		{name: "region", change: func(impact *TrustImpact) { impact.Regions = nil }},
+		{name: "dependency", change: func(impact *TrustImpact) { impact.Dependencies = nil }},
+		{name: "lifecycle", change: func(impact *TrustImpact) { impact.Lifecycle = nil }},
+		{name: "openapi", change: func(impact *TrustImpact) { impact.OpenAPI = nil }},
+		{name: "package file", change: func(impact *TrustImpact) { impact.PackageFiles = nil }},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			changed := base
+			test.change(&changed)
+			digest, err := canonicalTrustImpactDigest(changed)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if digest == base.Digest {
+				t.Fatalf("%s change did not invalidate impact digest", test.name)
+			}
+		})
+	}
+}
+
+func TestManifestV3HighRiskDeclarationsRequireExactArtifactTrust(t *testing.T) {
+	tests := []struct {
+		name   string
+		change func(*Manifest)
+	}{
+		{name: "custom guard", change: func(manifest *Manifest) { manifest.Guards = []ManifestGuard{{Kind: "custom"}} }},
+		{name: "raw route", change: func(manifest *Manifest) { manifest.Routes = []ManifestRoute{{Guard: extensionmanifest.GuardCoreRaw}} }},
+		{name: "raw database", change: func(manifest *Manifest) { manifest.Database = &ManifestDatabase{Authority: "raw_core"} }},
+		{name: "kernel database", change: func(manifest *Manifest) { manifest.Database = &ManifestDatabase{Authority: "kernel"} }},
+		{name: "L2 component", change: func(manifest *Manifest) { manifest.Components = []ManifestComponent{{L2Component: "demo.file"}} }},
+		{name: "lifecycle execute", change: func(manifest *Manifest) {
+			manifest.Lifecycle = &ManifestLifecycle{Enable: &extensionmanifest.ManifestLifecycleOperation{Execute: "lifecycle.enable"}}
+		}},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			extension := Extension{Source: SourceUploaded}
+			test.change(&extension.Manifest)
+			if !RequiresExecutableTrust(extension) {
+				t.Fatal("high-risk V3 declaration did not require exact-artifact trust")
+			}
+		})
+	}
+}
+
+func TestManifestV3TrustRejectsChangedL2BytesAgainstDeclaration(t *testing.T) {
+	extension := completeV3TrustExtension(t, "demo.v3-l2-change")
+	writeTrustFile(t, &extension, "frontend/card.mjs", "export function mount() { throw new Error('changed') }\n", 0o600)
+	refreshTrustPackageIdentity(t, &extension)
+	if _, err := buildTrustImpact(extension, TrustActionEnable); !errors.Is(err, ErrFrontendPackageChanged) {
+		t.Fatalf("changed L2 bytes must fail exact-artifact impact generation, got %v", err)
 	}
 }
 
@@ -299,6 +408,157 @@ func TestV3StaticInstallByDelegatedManagerDoesNotExecutePackage(t *testing.T) {
 	if runtime.checks != 0 || runtime.starts != 0 {
 		t.Fatalf("impact preview executed package code: checks=%d starts=%d", runtime.checks, runtime.starts)
 	}
+}
+
+func completeV3TrustExtension(t *testing.T, id string) Extension {
+	t.Helper()
+	item := exactTrustExtension(t, id)
+	for relative, body := range map[string]string{
+		"backend/guard":       "guard-binary",
+		"frontend/card.mjs":   "export function mount() {}\n",
+		"frontend/card.css":   ".card {}\n",
+		"templates/card.html": "<article></article>\n",
+		"openapi/routes.yaml": "openapi: 3.1.0\n",
+	} {
+		writeTrustFile(t, &item, relative, body, 0o600)
+	}
+	mustDigest := func(relative string) string {
+		digest, err := digestInstalledFile(item, relative)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return digest
+	}
+	backendDigest := mustDigest("backend/plugin")
+	guardDigest := mustDigest("backend/guard")
+	migrationDigest := mustDigest("migrations/001.sql")
+	l2Digest := mustDigest("frontend/card.mjs")
+	assetDigest := mustDigest("frontend/card.css")
+	templateDigest := mustDigest("templates/card.html")
+	openAPIDigest := mustDigest("openapi/routes.yaml")
+
+	item.Manifest.ManifestVersion = extensionmanifest.ManifestVersionV3
+	item.Manifest.Backend = ManifestBackend{
+		Entry: "backend/plugin", RPC: "hashicorp-go-plugin", ProtocolVersion: 2,
+		Digest: backendDigest, HostAPIVersion: "sforum.host-api@2",
+	}
+	item.Manifest.Permissions = []string{id + ".manage"}
+	item.Manifest.Migrations = []ManifestMigration{{
+		ID: id + ".migration.initial", ContractVersion: id + ".migration.initial@1",
+		Path: "migrations/001.sql", Digest: migrationDigest, Transaction: "required",
+	}}
+	item.Manifest.Guards = []ManifestGuard{{
+		ID: id + ".guard.raw", ContractVersion: id + ".guard.raw@1", Kind: "raw_request",
+		Entry: "backend/guard", Digest: guardDigest, Permissions: []string{id + ".manage"},
+	}}
+	item.Manifest.Routes = []ManifestRoute{{
+		ID: id + ".route.run", ContractVersion: id + ".route.run@1", Action: "add",
+		Path: "/api/demo/run", Methods: []string{"POST"}, Guard: extensionmanifest.GuardCoreRaw,
+		Fallback: "closed", Mode: "http", Handler: "route.run", RequestSchema: id + ".route.run.request@1",
+		ResponseSchema: id + ".route.run.response@1",
+	}}
+	item.Manifest.Hooks = []ManifestHook{{
+		ID: id + ".hook.before", ContractVersion: id + ".hook.before@1", Name: "topic.before_create",
+		Kind: "filter", Handler: "hook.before", InputSchema: id + ".hook.before.input@1", ResultSchema: id + ".hook.before.result@1",
+	}}
+	item.Manifest.Events = []ManifestEvent{{
+		ID: id + ".event.created", ContractVersion: id + ".event.created@1", Name: "topic.created",
+		Kind: "observe", Handler: "event.created", InputSchema: id + ".event.created.input@1",
+	}}
+	item.Manifest.Jobs = []ManifestJob{{
+		ID: id + ".job.refresh", ContractVersion: id + ".job.refresh@1", Name: id + ".refresh",
+		Handler: "job.refresh", PayloadSchema: id + ".job.refresh.payload@1", RetryPolicy: "bounded",
+	}}
+	item.Manifest.Schedules = []ManifestSchedule{{
+		ID: id + ".schedule.refresh", ContractVersion: id + ".schedule.refresh@1",
+		JobID: id + ".job.refresh", Cron: "0 * * * *", Timezone: "UTC",
+	}}
+	item.Manifest.Providers = []ManifestProvider{{
+		ID: id + ".provider.search", ContractVersion: id + ".provider.search@1", Slot: id + ".search",
+		Label: "Search", Handler: "provider.search",
+	}}
+	item.Manifest.Templates = []ManifestTemplate{{
+		ID: id + ".template.card", ContractVersion: id + ".template.card@1", Action: "add",
+		Path: "templates/card.html", Digest: templateDigest, ViewModelSchema: id + ".template.card.model@1",
+	}}
+	item.Manifest.Assets = []ManifestAsset{{
+		Handle: id + ".asset.card", ContractVersion: id + ".asset.card@1", Type: "style",
+		Path: "frontend/card.css", Digest: assetDigest, Loading: "defer",
+	}}
+	item.Manifest.Components = []ManifestComponent{{
+		ID: id + ".component.card", ContractVersion: id + ".component.card@1", Action: "add",
+		L2Component: id + ".file.l2", PropsSchema: id + ".component.card.props@1",
+		ResultSchema: id + ".component.card.result@1",
+	}}
+	item.Manifest.Content = []ManifestContent{{
+		ID: id + ".content.card", ContractVersion: id + ".content.card@1", Kind: "block",
+		Handler: "content.card", Schema: id + ".content.card.schema@1",
+	}}
+	item.Manifest.Database = &ManifestDatabase{
+		ContractVersion: id + ".database@1", Authority: "raw_core", CoreCompatibility: ">=1.0.0 <2.0.0",
+		Backup:    extensionmanifest.ManifestBackupPolicy{Required: true, Strategy: "operator_snapshot"},
+		Retention: extensionmanifest.ManifestRetention{OnDisable: "retain", OnUninstall: "retain"},
+	}
+	item.Manifest.Cache = []ManifestCache{{
+		ID: id + ".cache.results", ContractVersion: id + ".cache.results@1", Namespace: id + ".results", Policy: "actor",
+	}}
+	item.Manifest.Services = []ManifestService{{
+		ID: id + ".service.lookup", ContractVersion: id + ".service.lookup@1", Action: "add", Handler: "service.lookup",
+		RequestSchema: id + ".service.lookup.request@1", ResponseSchema: id + ".service.lookup.response@1",
+	}}
+	item.Manifest.Commands = []ManifestCommand{{
+		ID: id + ".command.write", ContractVersion: id + ".command.write@1", Handler: "command.write",
+		Permission: id + ".manage", InputSchema: id + ".command.write.input@1", ResultSchema: id + ".command.write.result@1",
+	}}
+	item.Manifest.AdminSurfaces = []ManifestAdminSurface{{
+		ID: id + ".admin.notice", ContractVersion: id + ".admin.notice@1", Kind: "notice", Action: "add",
+		Label: "Demo", Handler: "admin.notice", Permission: id + ".manage",
+	}}
+	item.Manifest.Queries = []ManifestQuery{{
+		ID: id + ".query.items", ContractVersion: id + ".query.items@1", Entity: id + ".item",
+		PlanVersion: id + ".query.items.plan@1", Fields: []string{"id"}, Pagination: "cursor",
+		ResultSchema: id + ".query.items.result@1", PermissionPolicy: id + ".manage",
+	}}
+	item.Manifest.Identity = &ManifestIdentity{ContractVersion: id + ".identity@1", SessionPolicy: "core.session.default"}
+	item.Manifest.PermissionDefinitions = []ManifestPermissionDefinition{{
+		Key: id + ".manage", ContractVersion: id + ".permission.manage@1", Label: "Manage demo",
+		Description: "Manage demo.", AssignmentPolicy: "host",
+	}}
+	item.Manifest.Media = []ManifestMediaPipeline{{
+		ID: id + ".media.image", ContractVersion: id + ".media.image@1", Action: "add",
+		MIMEs: []string{"image/png"}, Handler: "media.image",
+	}}
+	item.Manifest.Navigation = []ManifestNavigation{{
+		ID: id + ".navigation.link", ContractVersion: id + ".navigation.link@1", Kind: "item",
+		Action: "add", Label: "Demo", Href: "/demo",
+	}}
+	item.Manifest.Regions = []ManifestRegion{{
+		ID: id + ".region.sidebar", ContractVersion: id + ".region.sidebar@1", Action: "add",
+		Kind: "widget", Label: "Sidebar",
+	}}
+	item.Manifest.Dependencies = []ManifestDependency{{ID: "demo.base", Version: "^1.0.0", Kind: "required"}}
+	item.Manifest.Lifecycle = &ManifestLifecycle{
+		ContractVersion: id + ".lifecycle@1",
+		Enable: &extensionmanifest.ManifestLifecycleOperation{
+			Plan: "lifecycle.enable.plan", Execute: "lifecycle.enable", ProgressSchema: id + ".lifecycle.progress@1",
+			CheckpointSchema: id + ".lifecycle.checkpoint@1",
+		},
+	}
+	item.Manifest.OpenAPI = []ManifestOpenAPIFragment{{
+		ID: id + ".openapi.routes", ContractVersion: id + ".openapi.routes@1", Path: "openapi/routes.yaml",
+		Digest: openAPIDigest, Namespace: id + ".api",
+	}}
+	item.Manifest.PackageFiles = []ManifestPackageFile{
+		{ID: id + ".file.backend", Kind: "executable", Path: "backend/plugin", Digest: backendDigest},
+		{ID: id + ".file.guard", Kind: "executable", Path: "backend/guard", Digest: guardDigest},
+		{ID: id + ".file.migration", Kind: "migration", Path: "migrations/001.sql", Digest: migrationDigest},
+		{ID: id + ".file.l2", Kind: "frontend", Path: "frontend/card.mjs", Digest: l2Digest},
+		{ID: id + ".file.asset", Kind: "asset", Path: "frontend/card.css", Digest: assetDigest},
+		{ID: id + ".file.template", Kind: "template", Path: "templates/card.html", Digest: templateDigest},
+		{ID: id + ".file.openapi", Kind: "openapi", Path: "openapi/routes.yaml", Digest: openAPIDigest},
+	}
+	refreshTrustPackageIdentity(t, &item)
+	return item
 }
 
 func exactTrustExtension(t *testing.T, id string) Extension {

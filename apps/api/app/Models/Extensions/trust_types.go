@@ -8,6 +8,7 @@ import (
 
 const (
 	TrustImpactSchemaV1 = "sforum.trust-impact@1"
+	TrustImpactSchemaV2 = "sforum.trust-impact@2"
 	TrustActionEnable   = "enable"
 
 	CodeTrustChallengeRequired = "extension.trust_challenge_required"
@@ -63,32 +64,54 @@ type TrustAuthority struct {
 // TrustImpact 是服务端 canonicalize 后参与摘要的完整当前能力文档。
 // P2 扩展 Manifest 时必须追加字段，不能从摘要中静默移除既有声明。
 type TrustImpact struct {
-	SchemaVersion      string                 `json:"schemaVersion"`
-	Action             string                 `json:"action"`
-	ExtensionID        string                 `json:"extensionId"`
-	ExtensionVersion   string                 `json:"extensionVersion"`
-	ExtensionType      string                 `json:"extensionType"`
-	Source             string                 `json:"source"`
-	PackageDigest      string                 `json:"packageDigest"`
-	ArtifactDigests    map[string]string      `json:"artifactDigests"`
-	Binaries           []TrustArtifact        `json:"binaries"`
-	Routes             []ManifestRoute        `json:"routes"`
-	Guards             []TrustGuard           `json:"guards"`
-	Hooks              []ManifestHook         `json:"hooks"`
-	Events             []ManifestEvent        `json:"events"`
-	Migrations         []TrustMigration       `json:"migrations"`
-	Providers          []ManifestProvider     `json:"providers"`
-	Jobs               []ManifestJob          `json:"jobs"`
-	Schedules          []string               `json:"schedules"`
-	Components         []SettingsComponent    `json:"components"`
-	Contributions      []ManifestContribution `json:"contributions"`
-	Capabilities       []CapabilityGrant      `json:"capabilities"`
-	Permissions        []string               `json:"permissions"`
-	RequiredFeatures   []string               `json:"requiredFeatures"`
-	Dependencies       []Dependency           `json:"dependencies"`
-	RequestedAuthority TrustAuthority         `json:"requestedAuthority"`
-	Contracts          TrustContracts         `json:"contracts"`
-	Digest             string                 `json:"digest"`
+	SchemaVersion         string                         `json:"schemaVersion"`
+	Action                string                         `json:"action"`
+	ExtensionID           string                         `json:"extensionId"`
+	ExtensionVersion      string                         `json:"extensionVersion"`
+	ExtensionType         string                         `json:"extensionType"`
+	Source                string                         `json:"source"`
+	PackageDigest         string                         `json:"packageDigest"`
+	ManifestContract      string                         `json:"manifestContract"`
+	ArtifactDigests       map[string]string              `json:"artifactDigests"`
+	Binaries              []TrustArtifact                `json:"binaries"`
+	Backend               ManifestBackend                `json:"backend"`
+	Routes                []ManifestRoute                `json:"routes"`
+	Guards                []TrustGuard                   `json:"guards"`
+	GuardDeclarations     []ManifestGuard                `json:"guardDeclarations"`
+	Hooks                 []ManifestHook                 `json:"hooks"`
+	Events                []ManifestEvent                `json:"events"`
+	Migrations            []TrustMigration               `json:"migrations"`
+	MigrationDeclarations []ManifestMigration            `json:"migrationDeclarations"`
+	Providers             []ManifestProvider             `json:"providers"`
+	Jobs                  []ManifestJob                  `json:"jobs"`
+	Schedules             []ManifestSchedule             `json:"schedules"`
+	Components            []SettingsComponent            `json:"components"`
+	RegistryComponents    []ManifestComponent            `json:"registryComponents"`
+	Templates             []ManifestTemplate             `json:"templates"`
+	Assets                []ManifestAsset                `json:"assets"`
+	Content               []ManifestContent              `json:"content"`
+	Database              *ManifestDatabase              `json:"database"`
+	Cache                 []ManifestCache                `json:"cache"`
+	Services              []ManifestService              `json:"services"`
+	Commands              []ManifestCommand              `json:"commands"`
+	AdminSurfaces         []ManifestAdminSurface         `json:"adminSurfaces"`
+	Queries               []ManifestQuery                `json:"queries"`
+	Identity              *ManifestIdentity              `json:"identity"`
+	PermissionDefinitions []ManifestPermissionDefinition `json:"permissionDefinitions"`
+	Media                 []ManifestMediaPipeline        `json:"media"`
+	Navigation            []ManifestNavigation           `json:"navigation"`
+	Regions               []ManifestRegion               `json:"regions"`
+	Contributions         []ManifestContribution         `json:"contributions"`
+	Capabilities          []CapabilityGrant              `json:"capabilities"`
+	Permissions           []string                       `json:"permissions"`
+	RequiredFeatures      []string                       `json:"requiredFeatures"`
+	Dependencies          []ManifestDependency           `json:"dependencies"`
+	Lifecycle             *ManifestLifecycle             `json:"lifecycle"`
+	OpenAPI               []ManifestOpenAPIFragment      `json:"openapi"`
+	PackageFiles          []ManifestPackageFile          `json:"packageFiles"`
+	RequestedAuthority    TrustAuthority                 `json:"requestedAuthority"`
+	Contracts             TrustContracts                 `json:"contracts"`
+	Digest                string                         `json:"digest"`
 }
 
 type TrustChallenge struct {
