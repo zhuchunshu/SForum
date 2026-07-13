@@ -76,9 +76,9 @@ type fakeRouteTargets struct {
 	bases map[string]string
 }
 
-func (f fakeRouteTargets) RouteTargetBase(id string) (string, bool) {
+func (f fakeRouteTargets) AcquireRouteTarget(ctx context.Context, id string) (pages.LoaderRouteTarget, bool) {
 	b, ok := f.bases[id]
-	return b, ok
+	return pages.LoaderRouteTarget{BaseURL: b, Context: ctx, Release: func() {}}, ok
 }
 
 func fixtureDemoRoot(t *testing.T) string {

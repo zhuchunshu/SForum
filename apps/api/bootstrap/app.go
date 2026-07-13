@@ -623,20 +623,24 @@ func humanVerifyConfigFromConfig(cfg config.Config) humanverify.RuntimeConfig {
 	}
 }
 
-// pageRouteTargetAdapter 从运行中插件 runtime 取得 loopback BaseURL 供 PageDataLoader 使用。
+// pageRouteTargetAdapter 为 PageDataLoader 绑定 exact runtime admission lease。
 type pageRouteTargetAdapter struct {
 	runtime extensionRuntime
 }
 
-func (a pageRouteTargetAdapter) RouteTargetBase(extensionID string) (string, bool) {
+func (a pageRouteTargetAdapter) AcquireRouteTarget(ctx context.Context, extensionID string) (pages.LoaderRouteTarget, bool) {
 	if a.runtime == nil {
-		return "", false
+		return pages.LoaderRouteTarget{}, false
 	}
-	target, ok := a.runtime.RouteTarget(extensionID)
-	if !ok || strings.TrimSpace(target.BaseURL) == "" {
-		return "", false
+	target, admission, err := a.runtime.AcquireActiveRuntimeCall(ctx, extensionID, extensionsruntime.RuntimeCallPage)
+	if err != nil || strings.TrimSpace(target.Target.BaseURL) == "" {
+		return pages.LoaderRouteTarget{}, false
 	}
-	return target.BaseURL, true
+	return pages.LoaderRouteTarget{
+		BaseURL: target.Target.BaseURL,
+		Context: admission.Context,
+		Release: admission.Release,
+	}, true
 }
 
 // pagePackageRootAdapter 解析扩展包内容根（loader schema 文件）。

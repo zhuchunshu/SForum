@@ -8,11 +8,16 @@ import (
 	"strings"
 )
 
-// RouteTargetSource 从运行中的插件 runtime 取得 loopback BaseURL。
-// 实现方必须只返回已启用且正在运行的目标。
+// LoaderRouteTarget 将 loopback 地址与同一 runtime instance 的 admission lease 绑定。
+type LoaderRouteTarget struct {
+	BaseURL string
+	Context context.Context
+	Release func()
+}
+
+// RouteTargetSource 从运行中的插件 runtime 原子取得目标和调用 lease。
 type RouteTargetSource interface {
-	// RouteTargetBase 返回 extension 的 loopback base；不可用时 ok=false。
-	RouteTargetBase(extensionID string) (baseURL string, ok bool)
+	AcquireRouteTarget(context.Context, string) (LoaderRouteTarget, bool)
 }
 
 // ExtensionPackageRoot 解析扩展包内容根（用于读取 schema 文件）。
@@ -63,9 +68,13 @@ func (g *LoaderGateway) LoadForContribution(ctx context.Context, contrib PageCon
 	if g.Targets == nil {
 		return LoaderResult{Error: "pages: plugin runtime unavailable", Fallback: true, Status: 503}
 	}
-	base, ok := g.Targets.RouteTargetBase(contrib.ExtensionID)
-	if !ok || strings.TrimSpace(base) == "" {
+	target, ok := g.Targets.AcquireRouteTarget(ctx, contrib.ExtensionID)
+	if !ok || strings.TrimSpace(target.BaseURL) == "" || target.Release == nil {
 		return LoaderResult{Error: "pages: plugin not enabled or runtime unavailable", Fallback: true, Status: 503}
+	}
+	defer target.Release()
+	if target.Context != nil {
+		ctx = target.Context
 	}
 	schemaJSON := ""
 	if schemaRel := strings.TrimSpace(contrib.DataSchema); schemaRel != "" && g.Packages != nil {
@@ -85,7 +94,7 @@ func (g *LoaderGateway) LoadForContribution(ctx context.Context, contrib PageCon
 		Params:      params,
 		Locale:      locale,
 		ActorID:     actorID,
-		TargetBase:  base,
+		TargetBase:  target.BaseURL,
 		SchemaJSON:  schemaJSON,
 	})
 }

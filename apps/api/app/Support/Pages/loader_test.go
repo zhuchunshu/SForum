@@ -6,7 +6,9 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"sync/atomic"
 	"testing"
+	"time"
 )
 
 type roundTripFunc func(*http.Request) (*http.Response, error)
@@ -27,6 +29,46 @@ func TestValidateDataRoute(t *testing.T) {
 	}
 	if err := ValidateDataRoute("/docs/data"); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestLoaderGatewayUsesAndReleasesRuntimeAdmission(t *testing.T) {
+	targetCtx, cancel := context.WithCancel(context.Background())
+	var released atomic.Int32
+	started := make(chan struct{})
+	loader := NewPageDataLoader(roundTripFunc(func(request *http.Request) (*http.Response, error) {
+		close(started)
+		<-request.Context().Done()
+		return nil, request.Context().Err()
+	}))
+	gateway := NewLoaderGateway(loader, admissionTargets{
+		ctx: targetCtx,
+		release: func() {
+			released.Add(1)
+		},
+	})
+	result := make(chan LoaderResult, 1)
+	go func() {
+		result <- gateway.LoadForContribution(context.Background(), PageContribution{
+			ExtensionID: "admission.page", DataSource: "plugin", DataRoute: "/data",
+		}, nil, "zh-CN", 0)
+	}()
+	select {
+	case <-started:
+	case <-time.After(time.Second):
+		t.Fatal("page loader did not use the admitted runtime")
+	}
+	cancel()
+	select {
+	case loaded := <-result:
+		if !loaded.Fallback || loaded.Status != 504 {
+			t.Fatalf("cancelled loader result = %#v", loaded)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("page loader ignored runtime drain cancellation")
+	}
+	if released.Load() != 1 {
+		t.Fatalf("runtime admission releases = %d", released.Load())
 	}
 }
 
@@ -178,9 +220,22 @@ type fakeTargets struct {
 	bases map[string]string
 }
 
-func (f fakeTargets) RouteTargetBase(id string) (string, bool) {
+type admissionTargets struct {
+	ctx     context.Context
+	release func()
+}
+
+func (f admissionTargets) AcquireRouteTarget(context.Context, string) (LoaderRouteTarget, bool) {
+	return LoaderRouteTarget{
+		BaseURL: "http://127.0.0.1:19999",
+		Context: f.ctx,
+		Release: f.release,
+	}, true
+}
+
+func (f fakeTargets) AcquireRouteTarget(ctx context.Context, id string) (LoaderRouteTarget, bool) {
 	b, ok := f.bases[id]
-	return b, ok
+	return LoaderRouteTarget{BaseURL: b, Context: ctx, Release: func() {}}, ok
 }
 
 type fakePackages struct {
