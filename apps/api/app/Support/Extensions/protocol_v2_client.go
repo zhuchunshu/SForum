@@ -27,6 +27,8 @@ import (
 const (
 	protocolV2Name       = "sforum.plugin"
 	hostAPIV2Version     = "sforum.host/v2"
+	hostAPIV2Contract    = "sforum.host@2"
+	hostAPIV2Legacy      = "sforum.host-api@2"
 	protocolV2LocaleNone = "und"
 )
 
@@ -103,7 +105,7 @@ func (s *ProtocolStarter) newPluginClientConfig(
 		base.AllowedProtocols = []plugin.Protocol{plugin.ProtocolNetRPC}
 		return base, pluginProtocolName, nil
 	case 2:
-		if strings.TrimSpace(extension.Manifest.Backend.HostAPIVersion) != hostAPIV2Version {
+		if !supportsProtocolV2HostAPI(extension.Manifest.Backend.HostAPIVersion) {
 			return nil, "", fmt.Errorf("%w: host API %q", ErrUnsupportedProtocol, extension.Manifest.Backend.HostAPIVersion)
 		}
 		clientConfig, err := s.protocolV2ClientConfig(ctx, extension)
@@ -122,6 +124,15 @@ func (s *ProtocolStarter) newPluginClientConfig(
 		return base, pluginProtocolV2Name, nil
 	default:
 		return nil, "", ErrUnsupportedProtocol
+	}
+}
+
+func supportsProtocolV2HostAPI(value string) bool {
+	switch strings.TrimSpace(value) {
+	case hostAPIV2Contract, hostAPIV2Legacy, hostAPIV2Version:
+		return true
+	default:
+		return false
 	}
 }
 
@@ -272,6 +283,10 @@ func (c *protocolV2Client) InvokeHook(input PluginHookRequest) (PluginHookRespon
 		return PluginHookResponse{}, err
 	}
 	result := PluginHookResponse{OK: response.GetAccepted()}
+	if values := protocolV2Values(response.GetResult()); len(values) > 0 {
+		result.Reason = stringValue(values, "reason")
+		result.Message = stringValue(values, "message")
+	}
 	if patch := response.GetPatch().GetValue(); patch != nil {
 		result.Patch = patch.AsMap()
 	}

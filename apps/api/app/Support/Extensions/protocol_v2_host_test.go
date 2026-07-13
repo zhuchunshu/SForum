@@ -92,3 +92,16 @@ func TestProtocolV2ConcurrencyGateRejectsBeforeDeadline(t *testing.T) {
 		t.Fatalf("called = %t, error = %v", called, err)
 	}
 }
+
+func TestProtocolV2HostAPIContractCompatibility(t *testing.T) {
+	for _, value := range []string{hostAPIV2Contract, hostAPIV2Legacy, hostAPIV2Version} {
+		if !supportsProtocolV2HostAPI(value) {
+			t.Fatalf("expected %q accepted", value)
+		}
+	}
+	for _, value := range []string{"", "sforum.host@1", "sforum.host/v3", "sforum.host-api@3"} {
+		if supportsProtocolV2HostAPI(value) {
+			t.Fatalf("expected %q rejected", value)
+		}
+	}
+}

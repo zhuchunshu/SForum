@@ -86,6 +86,14 @@ func TestProtocolV2HostBrokerRejectsInvalidCalls(t *testing.T) {
 			}
 		})
 	}
+	result := starter.InvokeHook(context.Background(), extension, extensionsruntime.HookInput{
+		Name: "topic.before_create", Kind: "filter", DeliveryID: 41,
+		CorrelationID: "trace-business-reject", Timeout: 2 * time.Second,
+		Payload: map[string]any{"title": "before", "mode": "business_reject"}, PatchFields: []string{"title"},
+	})
+	if result.OK || result.Reason != "content.rejected" || result.Message != "Rejected by policy." {
+		t.Fatalf("typed business rejection was not preserved: %#v", result)
+	}
 }
 
 func TestProtocolV2HostBrokerRebindsAfterRestart(t *testing.T) {
@@ -123,7 +131,7 @@ func TestProtocolSelectionNeverSilentlyDowngrades(t *testing.T) {
 		helperMode      string
 		hostAPIVersion  string
 	}{
-		{"v2 manifest with v1 binary", 2, "v1", "sforum.host/v2"},
+		{"v2 manifest with v1 binary", 2, "v1", "sforum.host@2"},
 		{"v1 manifest with v2 binary", 1, "v2", ""},
 	}
 	for _, test := range tests {
@@ -180,6 +188,16 @@ func (s *protocolV2Helper) InvokeHook(ctx context.Context, request *pluginwire.H
 		}}, nil
 	}
 	mode, _ := request.GetPayload().GetValue().AsMap()["mode"].(string)
+	if mode == "business_reject" {
+		value, err := structpb.NewStruct(map[string]any{"reason": "content.rejected", "message": "Rejected by policy."})
+		if err != nil {
+			return nil, err
+		}
+		return &pluginwire.HookResponse{
+			Context: &protocolwire.ResponseContext{RequestId: requestContext.GetRequestId(), Extension: identity},
+			Result:  &protocolwire.TypedDocument{SchemaId: "sforum.hook.topic.before_create.result", SchemaVersion: "1", Value: value},
+		}, nil
+	}
 	if mode == "" {
 		if err := s.invokeHostCallbacks(ctx, request); err != nil {
 			return nil, err
@@ -243,7 +261,7 @@ func protocolV2TestExtension(t *testing.T, helperMode string) extensions.Extensi
 		Manifest: extensions.Manifest{
 			ManifestVersion: 3, ID: "runtime.v2", Version: "1.0.0", Type: extensions.TypePlugin,
 			Backend: extensions.ManifestBackend{
-				Entry: "backend/plugin", RPC: "hashicorp-go-plugin", ProtocolVersion: 2, HostAPIVersion: "sforum.host/v2",
+				Entry: "backend/plugin", RPC: "hashicorp-go-plugin", ProtocolVersion: 2, HostAPIVersion: "sforum.host@2",
 			},
 		},
 	}
