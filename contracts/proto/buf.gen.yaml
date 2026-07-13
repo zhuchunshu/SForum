@@ -3,20 +3,12 @@ clean: true
 
 plugins:
   - local:
-      - go
-      - -C
-      - ../../../tools/proto
-      - tool
-      - protoc-gen-go
-    out: ../../../apps/api/sdk/plugin/v2/gen
+      - ../../tools/proto/.bin/protoc-gen-go
+    out: ../../apps/api/sdk/plugin/v2/gen
     opt:
       - paths=source_relative
   - local:
-      - go
-      - -C
-      - ../../../tools/proto
-      - tool
-      - protoc-gen-go-grpc
-    out: ../../../apps/api/sdk/plugin/v2/gen
+      - ../../tools/proto/.bin/protoc-gen-go-grpc
+    out: ../../apps/api/sdk/plugin/v2/gen
     opt:
       - paths=source_relative

@@ -6,9 +6,25 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PROTO_ROOT="$ROOT/contracts/proto"
 TOOLS_ROOT="$ROOT/tools/proto"
 MODE="${1:-check}"
+BIN_ROOT="$TOOLS_ROOT/.bin"
+BUF_BIN="$BIN_ROOT/buf"
+
+ensure_tools() {
+  if [[ -x "$BUF_BIN" && -x "$BIN_ROOT/protoc-gen-go" && -x "$BIN_ROOT/protoc-gen-go-grpc" ]]; then
+    return
+  fi
+  mkdir -p "$BIN_ROOT"
+  go -C "$TOOLS_ROOT" build -o "$BUF_BIN" github.com/bufbuild/buf/cmd/buf
+  go -C "$TOOLS_ROOT" build -o "$BIN_ROOT/protoc-gen-go" google.golang.org/protobuf/cmd/protoc-gen-go
+  go -C "$TOOLS_ROOT" build -o "$BIN_ROOT/protoc-gen-go-grpc" google.golang.org/grpc/cmd/protoc-gen-go-grpc
+}
 
 run_buf() {
-  go -C "$TOOLS_ROOT" tool buf --cwd "$PROTO_ROOT" "$@"
+  ensure_tools
+  (
+    cd "$PROTO_ROOT"
+    "$BUF_BIN" "$@"
+  )
 }
 
 lint() {
@@ -16,6 +32,7 @@ lint() {
 }
 
 generate() {
+  ensure_tools
   run_buf generate
 }
 
@@ -34,7 +51,7 @@ check() {
 }
 
 breaking() {
-  local against="${2:-.git#branch=main,subdir=contracts/proto}"
+  local against="${1:-.git#branch=main,subdir=contracts/proto}"
   run_buf breaking --against "$against"
 }
 
@@ -49,7 +66,8 @@ case "$MODE" in
     check
     ;;
   breaking)
-    breaking "$@"
+    shift
+    breaking "${1:-}"
     ;;
   *)
     printf 'usage: %s {lint|generate|check|breaking} [against]\n' "$0" >&2
