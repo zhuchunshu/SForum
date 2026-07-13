@@ -136,6 +136,14 @@ useSeoMeta({
               {{ t(runtimeStatusLabelKey(item)) }}
             </UBadge>
             <UBadge
+              v-if="item.runtime?.protocolDeprecated"
+              color="warning"
+              variant="subtle"
+              icon="i-lucide-history"
+            >
+              {{ t('admin.extensions.runtime.protocolDeprecated', { version: item.runtime.protocolVersion }) }}
+            </UBadge>
+            <UBadge
               :color="extensionSettingsPresentation(item).color"
               variant="subtle"
               :icon="extensionSettingsPresentation(item).icon"
@@ -159,6 +167,14 @@ useSeoMeta({
           </p>
           <p class="mt-1 truncate text-xs text-slate-500 dark:text-zinc-400">
             {{ item.id }} · v{{ item.version }} · {{ t('admin.extensions.capabilityCount', { count: capabilityCount(item) }) }}
+          </p>
+          <p
+            v-if="item.runtime?.protocolVersion"
+            class="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-500 dark:text-zinc-400"
+          >
+            <span>{{ t('admin.extensions.runtime.protocol', { transport: item.runtime.protocolTransport, version: item.runtime.protocolVersion }) }}</span>
+            <span>{{ t('admin.extensions.runtime.protocolStarts', { count: item.runtime.protocolStartCount || 0 }) }}</span>
+            <span>{{ t('admin.extensions.runtime.protocolCalls', { count: item.runtime.protocolCallCount || 0 }) }}</span>
           </p>
           <p
             v-if="item.runtime?.state === 'degraded' || item.runtime?.consecutiveFailures"

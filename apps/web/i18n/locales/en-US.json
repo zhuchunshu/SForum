@@ -629,7 +629,11 @@
         "failed": "Runtime failed",
         "circuitOpen": "Circuit open",
         "failures": "{count} consecutive failures",
-        "lastFailure": "Last failure: {reason}"
+        "lastFailure": "Last failure: {reason}",
+        "protocolDeprecated": "Legacy protocol v{version}",
+        "protocol": "{transport} · v{version}",
+        "protocolStarts": "{count} starts",
+        "protocolCalls": "{count} RPC calls"
       },
       "detailTitle": "Extension details",
       "manifest": {
