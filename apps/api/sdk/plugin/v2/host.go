@@ -19,6 +19,13 @@ import (
 
 var ErrHostUnavailable = errors.New("protocol v2 host broker is unavailable")
 
+const (
+	HostQueryOwnSettingsID       = "sforum.extensions.settings.own"
+	HostQueryOwnSettingsVersion  = "1"
+	HostQueryOwnSettingsSchemaID = "sforum.extensions.settings.own.result"
+	HostQueryOwnSettingsSchemaV1 = "1"
+)
+
 // Host exposes the generated Host API v2 clients on the runtime-scoped broker.
 // Plugins should build every request context with RequestContext so the exact
 // artifact identity and granted authority cannot drift from the handshake.
@@ -139,8 +146,14 @@ type hostClientStream struct {
 }
 
 func (s *hostClientStream) CloseSend() error {
-	err := s.ClientStream.CloseSend()
-	s.cancel()
+	return s.ClientStream.CloseSend()
+}
+
+func (s *hostClientStream) RecvMsg(message any) error {
+	err := s.ClientStream.RecvMsg(message)
+	if err != nil {
+		s.cancel()
+	}
 	return err
 }
 
