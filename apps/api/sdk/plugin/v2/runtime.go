@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/hashicorp/go-plugin"
 	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
 	pluginwire "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/plugin/v2"
 	protocolwire "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/protocol/v2"
@@ -30,7 +31,28 @@ type Server struct {
 	tokenHash [sha256.Size]byte
 	features  []*protocolwire.ProtocolFeature
 	services  []*protocolwire.ServiceDescriptor
+	broker    *plugin.GRPCBroker
+	host      *Host
+	brokerID  uint32
 	now       func() time.Time
+}
+
+// BindProtocolV2Broker is called by the transport before the runtime service is
+// registered. Plugin implementations normally receive it through embedding.
+func (s *Server) BindProtocolV2Broker(broker *plugin.GRPCBroker) {
+	s.mu.Lock()
+	s.broker = broker
+	s.mu.Unlock()
+}
+
+// Host returns the runtime-scoped generated Host API clients after handshake.
+func (s *Server) Host() (*Host, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	if s.host == nil {
+		return nil, ErrHostUnavailable
+	}
+	return s.host, nil
 }
 
 // NewServer constructs a protocol-v2 default server.
@@ -77,15 +99,26 @@ func (s *Server) Handshake(_ context.Context, request *protocolwire.HandshakeReq
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.started {
-		if subtle.ConstantTimeCompare(s.tokenHash[:], tokenHash[:]) != 1 || !proto.Equal(s.identity, identity) {
+		if subtle.ConstantTimeCompare(s.tokenHash[:], tokenHash[:]) != 1 || !proto.Equal(s.identity, identity) ||
+			s.brokerID != request.GetHostBrokerId() {
 			response.Error = protocolError(protocolwire.ErrorCode_ERROR_CODE_STALE_RUNTIME,
-				"protocol.stale_runtime", "Runtime token or exact artifact identity changed.")
+				"protocol.stale_runtime", "Runtime token, exact artifact identity, or Host broker changed.")
 			return response, nil
 		}
 	} else {
+		if request.GetHostBrokerId() != 0 {
+			host, err := newHost(s.broker, request.GetHostBrokerId(), request.GetRuntimeToken(), identity, request.GetContext().GetGrantedAuthority())
+			if err != nil {
+				response.Error = protocolError(protocolwire.ErrorCode_ERROR_CODE_UNAVAILABLE,
+					"protocol.host_broker_unavailable", "Host API broker connection failed.")
+				return response, nil
+			}
+			s.host = host
+		}
 		s.started = true
 		s.tokenHash = tokenHash
 		s.identity = proto.Clone(identity).(*protocolwire.ExtensionIdentity)
+		s.brokerID = request.GetHostBrokerId()
 	}
 	response.SelectedProtocol = &protocolwire.ProtocolRange{Protocol: protocolName, Major: ProtocolMajor, MinMinor: 0, MaxMinor: 0}
 	response.SelectedFeatures = selectFeatures(request.GetHostFeatures(), s.features)

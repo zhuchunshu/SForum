@@ -180,6 +180,10 @@ func (s *ProtocolStarter) Start(ctx context.Context, extension extensions.Extens
 
 	cmd := exec.CommandContext(ctx, path)
 	cmd.Env = buildPluginProcessEnv(os.Environ())
+	protocolVersion := extension.Manifest.Backend.ProtocolVersion
+	if protocolVersion == 0 {
+		protocolVersion = 1
+	}
 	if s.settings != nil {
 		values, err := s.settings.ListSettings(ctx, extension.ID)
 		if err != nil {
@@ -194,10 +198,10 @@ func (s *ProtocolStarter) Start(ctx context.Context, extension extensions.Extens
 			cmd.Env = append(cmd.Env, pluginSettingEnvName(key)+"="+values[key])
 		}
 	}
-	// F2.2：为子进程签发 Host API loopback 凭证。
+	// v1 保留 loopback 兼容凭证；v2 只使用当前 go-plugin broker 会话。
 	hostAPIRegistered := false
 	keepHostAPI := false
-	if s.hostAPI != nil {
+	if protocolVersion == 1 && s.hostAPI != nil {
 		if _, hostEnv, err := s.hostAPI.RegisterExtension(extension.ID); err != nil {
 			return RouteTarget{}, fmt.Errorf("register host api: %w", err)
 		} else {
@@ -279,10 +283,6 @@ func (s *ProtocolStarter) Start(ctx context.Context, extension extensions.Extens
 	}
 	s.clients[extension.ID] = client
 	s.protocols[extension.ID] = protocol
-	protocolVersion := extension.Manifest.Backend.ProtocolVersion
-	if protocolVersion == 0 {
-		protocolVersion = 1
-	}
 	s.recordProtocolStartLocked(extension.ID, protocolVersion)
 	s.mu.Unlock()
 	keepHostAPI = true

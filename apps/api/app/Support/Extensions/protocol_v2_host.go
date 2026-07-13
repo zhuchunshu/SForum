@@ -1,0 +1,149 @@
+package extensionsruntime
+
+import (
+	"context"
+	"crypto/sha256"
+	"crypto/subtle"
+	"time"
+
+	protocolv2 "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/protocol/v2"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/proto"
+)
+
+const ProtocolV2RuntimeTokenMetadataKey = "x-sforum-runtime-token-bin"
+
+// ProtocolV2HostRegistrar registers host-owned generated services on one
+// runtime-scoped broker server. Authentication remains owned by the runtime.
+type ProtocolV2HostRegistrar interface {
+	RegisterProtocolV2(grpc.ServiceRegistrar)
+}
+
+type protocolV2HostBinding struct {
+	identity  *protocolv2.ExtensionIdentity
+	authority []*protocolv2.AuthorityGrant
+	tokenHash [sha256.Size]byte
+}
+
+func newProtocolV2HostBinding(config protocolV2ClientConfig) protocolV2HostBinding {
+	return protocolV2HostBinding{
+		identity:  cloneV2Identity(config.identity),
+		authority: cloneV2Authority(config.authority),
+		tokenHash: sha256.Sum256(config.token),
+	}
+}
+
+func protocolV2HostGRPCServer(
+	options []grpc.ServerOption,
+	registrar ProtocolV2HostRegistrar,
+	binding protocolV2HostBinding,
+) *grpc.Server {
+	semaphore := make(chan struct{}, DefaultProtocolV2ConcurrentCalls)
+	options = append(options,
+		grpc.MaxRecvMsgSize(DefaultProtocolV2MaxMessageBytes),
+		grpc.MaxSendMsgSize(DefaultProtocolV2MaxMessageBytes),
+		grpc.ChainUnaryInterceptor(
+			protocolV2HostUnaryAuthInterceptor(binding),
+			protocolV2UnaryInterceptor(DefaultProtocolV2RequestTimeout, semaphore),
+		),
+		grpc.ChainStreamInterceptor(
+			protocolV2HostStreamAuthInterceptor(binding),
+			protocolV2StreamInterceptor(DefaultProtocolV2RequestTimeout, semaphore),
+		),
+	)
+	server := grpc.NewServer(options...)
+	registrar.RegisterProtocolV2(server)
+	return server
+}
+
+func protocolV2HostUnaryAuthInterceptor(binding protocolV2HostBinding) grpc.UnaryServerInterceptor {
+	return func(ctx context.Context, request any, _ *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
+		if err := validateProtocolV2HostToken(ctx, binding); err != nil {
+			return nil, err
+		}
+		carrier, ok := request.(interface {
+			GetContext() *protocolv2.RequestContext
+		})
+		if !ok {
+			return nil, status.Error(codes.InvalidArgument, "protocol v2 request context is required")
+		}
+		if err := validateProtocolV2HostContext(carrier.GetContext(), binding); err != nil {
+			return nil, err
+		}
+		return handler(ctx, request)
+	}
+}
+
+func protocolV2HostStreamAuthInterceptor(binding protocolV2HostBinding) grpc.StreamServerInterceptor {
+	return func(server any, stream grpc.ServerStream, _ *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
+		if err := validateProtocolV2HostToken(stream.Context(), binding); err != nil {
+			return err
+		}
+		return handler(server, &protocolV2AuthenticatedHostStream{ServerStream: stream, binding: binding})
+	}
+}
+
+type protocolV2AuthenticatedHostStream struct {
+	grpc.ServerStream
+	binding protocolV2HostBinding
+}
+
+func (s *protocolV2AuthenticatedHostStream) RecvMsg(message any) error {
+	if err := s.ServerStream.RecvMsg(message); err != nil {
+		return err
+	}
+	carrier, ok := message.(interface {
+		GetContext() *protocolv2.RequestContext
+	})
+	if !ok {
+		return status.Error(codes.InvalidArgument, "protocol v2 stream open context is required")
+	}
+	return validateProtocolV2HostContext(carrier.GetContext(), s.binding)
+}
+
+func validateProtocolV2HostToken(ctx context.Context, binding protocolV2HostBinding) error {
+	values := metadata.ValueFromIncomingContext(ctx, ProtocolV2RuntimeTokenMetadataKey)
+	if len(values) != 1 {
+		return status.Error(codes.Unauthenticated, "protocol v2 runtime token is required")
+	}
+	received := sha256.Sum256([]byte(values[0]))
+	if subtle.ConstantTimeCompare(received[:], binding.tokenHash[:]) != 1 {
+		return status.Error(codes.Unauthenticated, "protocol v2 runtime token is stale")
+	}
+	return nil
+}
+
+func validateProtocolV2HostContext(ctx *protocolv2.RequestContext, binding protocolV2HostBinding) error {
+	if ctx == nil || ctx.GetRequestId() == "" || ctx.GetExtension() == nil {
+		return status.Error(codes.InvalidArgument, "protocol v2 request id and exact extension identity are required")
+	}
+	if !proto.Equal(ctx.GetExtension(), binding.identity) {
+		return status.Error(codes.FailedPrecondition, "protocol v2 runtime identity is stale")
+	}
+	if !equalProtocolV2Authority(ctx.GetGrantedAuthority(), binding.authority) {
+		return status.Error(codes.PermissionDenied, "protocol v2 authority disclosure does not match the runtime grant")
+	}
+	deadline := ctx.GetDeadline()
+	if deadline == nil || !deadline.IsValid() {
+		return status.Error(codes.InvalidArgument, "protocol v2 request deadline is required")
+	}
+	if !deadline.AsTime().After(time.Now()) {
+		return status.Error(codes.DeadlineExceeded, "protocol v2 request deadline has expired")
+	}
+	return nil
+}
+
+func equalProtocolV2Authority(left, right []*protocolv2.AuthorityGrant) bool {
+	if len(left) != len(right) {
+		return false
+	}
+	for index := range left {
+		if !proto.Equal(left[index], right[index]) {
+			return false
+		}
+	}
+	return true
+}

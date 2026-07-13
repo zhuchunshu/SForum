@@ -49,20 +49,34 @@ type protocolV2Plugin struct {
 	clientConfig *protocolV2ClientConfig
 }
 
-func (p *protocolV2Plugin) GRPCServer(_ *plugin.GRPCBroker, server *grpc.Server) error {
+func (p *protocolV2Plugin) GRPCServer(broker *plugin.GRPCBroker, server *grpc.Server) error {
 	if p.server == nil {
 		return fmt.Errorf("protocol v2 plugin server is required")
+	}
+	if binder, ok := p.server.(interface{ BindProtocolV2Broker(*plugin.GRPCBroker) }); ok {
+		binder.BindProtocolV2Broker(broker)
 	}
 	pluginv2.RegisterPluginRuntimeServiceServer(server, p.server)
 	return nil
 }
 
-func (p *protocolV2Plugin) GRPCClient(_ context.Context, _ *plugin.GRPCBroker, conn *grpc.ClientConn) (any, error) {
+func (p *protocolV2Plugin) GRPCClient(_ context.Context, broker *plugin.GRPCBroker, conn *grpc.ClientConn) (any, error) {
 	client := pluginv2.NewPluginRuntimeServiceClient(conn)
 	if p.clientConfig == nil {
 		return client, nil
 	}
-	return newProtocolV2Client(client, *p.clientConfig), nil
+	config := *p.clientConfig
+	if config.hostAPI != nil {
+		if broker == nil {
+			return nil, fmt.Errorf("protocol v2 host broker is required")
+		}
+		config.hostBrokerID = broker.NextId()
+		binding := newProtocolV2HostBinding(config)
+		go broker.AcceptAndServe(config.hostBrokerID, func(options []grpc.ServerOption) *grpc.Server {
+			return protocolV2HostGRPCServer(options, config.hostAPI, binding)
+		})
+	}
+	return newProtocolV2Client(client, config), nil
 }
 
 func normalizeProtocolV2ServerConfig(config ProtocolV2ServerConfig) ProtocolV2ServerConfig {

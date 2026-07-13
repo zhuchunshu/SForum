@@ -37,20 +37,23 @@ type RuntimeTrustSource interface {
 }
 
 type protocolV2ClientConfig struct {
-	identity  *protocolv2.ExtensionIdentity
-	authority []*protocolv2.AuthorityGrant
-	token     []byte
-	instance  string
+	identity     *protocolv2.ExtensionIdentity
+	authority    []*protocolv2.AuthorityGrant
+	token        []byte
+	instance     string
+	hostAPI      ProtocolV2HostRegistrar
+	hostBrokerID uint32
 }
 
 type protocolV2Client struct {
 	ProtocolNoop
-	client    pluginv2.PluginRuntimeServiceClient
-	identity  *protocolv2.ExtensionIdentity
-	authority []*protocolv2.AuthorityGrant
-	token     []byte
-	instance  string
-	sequence  atomic.Uint64
+	client       pluginv2.PluginRuntimeServiceClient
+	identity     *protocolv2.ExtensionIdentity
+	authority    []*protocolv2.AuthorityGrant
+	token        []byte
+	instance     string
+	hostBrokerID uint32
+	sequence     atomic.Uint64
 }
 
 // ProtocolV2Error preserves the stable typed error returned by a plugin.
@@ -74,7 +77,7 @@ func (e *ProtocolV2Error) Error() string {
 func newProtocolV2Client(client pluginv2.PluginRuntimeServiceClient, config protocolV2ClientConfig) *protocolV2Client {
 	return &protocolV2Client{
 		client: client, identity: cloneV2Identity(config.identity), authority: cloneV2Authority(config.authority),
-		token: append([]byte(nil), config.token...), instance: config.instance,
+		token: append([]byte(nil), config.token...), instance: config.instance, hostBrokerID: config.hostBrokerID,
 	}
 }
 
@@ -159,6 +162,7 @@ func (s *ProtocolStarter) protocolV2ClientConfig(ctx context.Context, extension 
 		authority: protocolV2Authority(extension.CapabilityGrants),
 		token:     token,
 		instance:  hex.EncodeToString(instanceBytes),
+		hostAPI:   protocolV2HostRegistrarFor(s.hostAPI),
 	}, nil
 }
 
@@ -186,6 +190,7 @@ func (c *protocolV2Client) Handshake(ctx context.Context) error {
 			GracefulStopDeadline:    durationpb.New(5 * time.Second),
 		},
 		HostApiVersion: hostAPIV2Version,
+		HostBrokerId:   c.hostBrokerID,
 		RuntimeToken:   append([]byte(nil), c.token...),
 	})
 	if err != nil {
@@ -199,6 +204,14 @@ func (c *protocolV2Client) Handshake(ctx context.Context) error {
 		return &ProtocolV2Error{Code: protocolv2.ErrorCode_ERROR_CODE_PROTOCOL_MISMATCH, Reason: "protocol.version_mismatch", Message: "Plugin selected an incompatible protocol version."}
 	}
 	return nil
+}
+
+func protocolV2HostRegistrarFor(registrar HostAPIRegistrar) ProtocolV2HostRegistrar {
+	if registrar == nil {
+		return nil
+	}
+	result, _ := registrar.(ProtocolV2HostRegistrar)
+	return result
 }
 
 func (c *protocolV2Client) Readiness(ctx context.Context) error {

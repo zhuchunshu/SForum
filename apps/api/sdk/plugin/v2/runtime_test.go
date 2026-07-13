@@ -40,6 +40,12 @@ func TestServerHandshakeBindsTokenAndExactIdentity(t *testing.T) {
 	if stale.GetError().GetCode() != protocolwire.ErrorCode_ERROR_CODE_STALE_RUNTIME {
 		t.Fatalf("changed token must be stale: %#v", stale)
 	}
+	changed = validHandshakeRequest()
+	changed.HostBrokerId = 9
+	stale, err = server.Handshake(context.Background(), changed)
+	if err != nil || stale.GetError().GetCode() != protocolwire.ErrorCode_ERROR_CODE_STALE_RUNTIME {
+		t.Fatalf("changed broker must be stale: %#v, %v", stale, err)
+	}
 }
 
 func TestServerRejectsIncompleteAndMismatchedHandshake(t *testing.T) {
