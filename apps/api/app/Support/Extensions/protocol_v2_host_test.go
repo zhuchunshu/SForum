@@ -77,3 +77,18 @@ func TestProtocolV2HostBindingOwnsClonedIdentity(t *testing.T) {
 		t.Fatalf("binding identity changed with caller: %#v", binding.identity)
 	}
 }
+
+func TestProtocolV2ConcurrencyGateRejectsBeforeDeadline(t *testing.T) {
+	semaphore := make(chan struct{}, 1)
+	semaphore <- struct{}{}
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
+	defer cancel()
+	called := false
+	_, err := protocolV2UnaryInterceptor(time.Second, semaphore)(ctx, &protocolv2.HealthRequest{}, &grpc.UnaryServerInfo{}, func(context.Context, any) (any, error) {
+		called = true
+		return nil, nil
+	})
+	if called || status.Code(err) != codes.ResourceExhausted {
+		t.Fatalf("called = %t, error = %v", called, err)
+	}
+}
