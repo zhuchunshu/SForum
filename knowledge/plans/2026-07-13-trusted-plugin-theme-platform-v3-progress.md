@@ -1,8 +1,8 @@
 # Trusted Plugin And Theme Platform V3 Progress Ledger
 
 Date: 2026-07-14
-Overall progress: **21%**
-Active phase: **P3 - Host API V2 And Generated SDKs (69%, 9 of 13 rows)**
+Overall progress: **25%**
+Active phase: **P4 - Lifecycle V2, Dependency Graph, And Authoritative Hooks (20%, 3 of 15 rows)**
 
 This ledger is the durable percentage and context-compaction checkpoint for the
 V3 program. Update it before context compression, at every phase boundary, and
@@ -19,8 +19,8 @@ scaffolding, or demo-only code cannot satisfy a runtime exit criterion.
 | P0 Governance | 3% | 100% | 3% |
 | P1 Trust/recovery | 6% | 100% | 6% |
 | P2 Manifest/contracts | 7% | 100% | 7% |
-| P3 Host API v2 | 8% | 69% | 5% |
-| P4 Lifecycle/dependencies | 7% | 0% | 0% |
+| P3 Host API v2 | 8% | 100% | 8% |
+| P4 Lifecycle/dependencies | 7% | 20% | 1% |
 | P5 Database/commands | 8% | 0% | 0% |
 | P6 Routes/middleware | 10% | 0% | 0% |
 | P7 Workflow/admin/query/identity | 10% | 0% | 0% |
@@ -111,6 +111,33 @@ phase percentage.
   failing plugin exactly once (`failed`, then `skipped`).
 
 ## Last Durable Checkpoint
+
+### 2026-07-14 P3 Completion And P4 Lifecycle Transport Checkpoint
+
+- Last implementation commit: `e70dd677e feat(extensions): add typed lifecycle
+  runtime transport`.
+- P3 is 13 of 13 rows complete. Runtime streaming helpers cover route, file,
+  lifecycle progress, and job streams; immutable service discovery is exercised
+  across two real plugin subprocesses; the complete compatibility matrix and
+  SMTP/storage/content-policy v1 package gates pass; transactional Host Commands
+  retain rollback coverage.
+- P4 is 3 of 15 rows complete. Activation now resolves required/optional/
+  conflict/provides relationships before runtime start, with cycle, version,
+  ambiguity, stale-candidate, and no-start failure coverage.
+- All eleven lifecycle v2 actions cross the real gRPC subprocess transport.
+  The Host freezes the lifecycle declaration at Start, rejects a stale or forged
+  caller manifest, validates exact request/response runtime identity and result
+  schema, preserves typed cancellation/retry metadata, and exposes the declared
+  checkpoint schema while treating the current string checkpoint as opaque.
+- Lifecycle transport verification passed the complete Extensions package,
+  ten repeated real-subprocess runs, race detection, vet, and diff checks.
+- Current uncommitted files belong to three active parallel slices: versioned
+  plugin-job execution/drain compatibility, the additive lifecycle ledger
+  migration, and the PostgreSQL lifecycle operation/step repository. Do not
+  stage those groups together.
+- Next: review and commit each parallel slice independently, run the P3/P4
+  repository gates, then wire the lifecycle state machine and first-trusted-
+  enable transaction to the durable ledger and frozen runtime contract.
 
 ### 2026-07-14 Service Broker And Reference Checkpoint
 

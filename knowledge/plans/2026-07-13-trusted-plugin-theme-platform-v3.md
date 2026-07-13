@@ -1,6 +1,6 @@
 # Trusted Plugin And Theme Platform V3 - Implementation Task Book
 
-Status: **active implementation; P0-P1 complete, P2 next**
+Status: **active implementation; P0-P3 complete, P4 active**
 Date: 2026-07-13  
 Decision: `knowledge/decisions/2026-07-13-trusted-plugin-theme-platform-v3.md`
 
@@ -354,20 +354,20 @@ flowchart LR
       trust requirements.
 - [x] Carry actor, locale, trace id, request id, deadline, extension identity,
       and granted authority in typed envelopes.
-- [ ] Support server/client streaming where routes, files, progress, or jobs
+- [x] Support server/client streaming where routes, files, progress, or jobs
       require it.
 - [x] Add bounded message sizes, timeouts, cancellation, concurrency limits,
       health, readiness, and protocol mismatch errors.
-- [ ] Add service discovery so plugins expose versioned services to other
+- [x] Add service discovery so plugins expose versioned services to other
       plugins through the host broker.
 - [x] Migrate one built-in reference plugin without removing v1 support.
 
 ### Tests
 
-- [ ] Protocol compatibility matrix, cancellation, deadline, oversized message,
+- [x] Protocol compatibility matrix, cancellation, deadline, oversized message,
       crash, restart, stale token, service discovery, streaming, and
       transactional Host Command rollback tests.
-- [ ] Existing v1 SMTP/storage/content-policy fixtures remain green.
+- [x] Existing v1 SMTP/storage/content-policy fixtures remain green.
 - [x] Generated SDK and documentation drift checks run in CI.
 
 ### Rollback
@@ -381,12 +381,12 @@ flowchart LR
 
 ### Tasks
 
-- [ ] Implement `install.plan`, `install`, `enable`, `disable`, `upgrade.plan`,
+- [x] Implement `install.plan`, `install`, `enable`, `disable`, `upgrade.plan`,
       `upgrade.before`, `upgrade.after`, `rollback`, `uninstall.plan`,
       `uninstall`, and `uninstall.after` contracts.
 - [ ] Defer executable `install.plan` and `install` to the first trusted enable
       transaction; static package installation must never invoke them.
-- [ ] Resolve dependency graph and conflicts before code/migrations execute.
+- [x] Resolve dependency graph and conflicts before code/migrations execute.
 - [ ] Add lifecycle state machine with planned, migrating, starting, healthy,
       registering, enabled, draining, uninstalling, failed, and recovery states.
 - [ ] Require idempotency keys, stable step ids, checkpoints, progress, and
@@ -404,7 +404,7 @@ flowchart LR
 ### Tests
 
 - [ ] Crash/retry at every lifecycle boundary.
-- [ ] Dependency cycle, missing version, optional dependency, conflict, and
+- [x] Dependency cycle, missing version, optional dependency, conflict, and
       provides resolution.
 - [ ] Idempotent repeated uninstall, external cleanup failure, forced removal,
       data preserve/export/delete, and audit coverage.

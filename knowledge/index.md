@@ -4,10 +4,10 @@ This is the entry point for project memory.
 
 ## Latest Handoff
 
-- **2026-07-14 Trusted Plugin And Theme Platform V3 P3 active (overall 21%, P3 69%)**
+- **2026-07-14 Trusted Plugin And Theme Platform V3 P4 active (overall 25%, P4 20%)**
   - Decision: `knowledge/decisions/2026-07-13-trusted-plugin-theme-platform-v3.md`
   - Task book: `knowledge/plans/2026-07-13-trusted-plugin-theme-platform-v3.md`
-  - P3 handoff: `knowledge/sessions/2026-07-13-trusted-plugin-theme-platform-v3-p3-progress.md`
+  - P4 handoff: `knowledge/sessions/2026-07-14-trusted-plugin-theme-platform-v3-p4-progress.md`
   - Durable progress/compaction ledger:
     `knowledge/plans/2026-07-13-trusted-plugin-theme-platform-v3-progress.md`
   - P0 catalogs and governance: `docs/extensions/v3/`
@@ -37,8 +37,13 @@ This is the entry point for project memory.
   - Versioned Service Registry snapshots, Host List/Resolve/Invoke/Stream,
     exact SemVer selection, instance-bound crash/restart cleanup, SDK dispatch,
     Manifest-bound typed hooks, and the content-policy V2 + V1 rollback
-    reference are committed; real two-plugin E2E and the remaining streaming/
-    v1 compatibility matrix are active
+    reference are committed; P3's two-plugin, streaming, compatibility, v1
+    package, and transactional rollback rows are complete
+  - P4 has activation dependency preflight plus all eleven lifecycle actions
+    over the real v2 subprocess transport. Lifecycle declarations are frozen at
+    process start; caller manifest drift and result-schema drift fail closed
+  - Active parallel P4 work owns the additive lifecycle ledger, PostgreSQL
+    operation/step repository, and versioned plugin-job execution contracts
 
 - **2026-07-13 Legacy Web Release/runtime frontend builds removed**
   - Decision: `knowledge/decisions/2026-07-13-remove-legacy-web-release.md`
