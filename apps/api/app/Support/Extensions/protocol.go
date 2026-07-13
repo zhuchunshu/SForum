@@ -17,6 +17,7 @@ import (
 	"github.com/hashicorp/go-plugin"
 
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
+	hostapi "github.com/zhuchunshu/sforum/apps/api/app/Support/HostAPI"
 	supportjobs "github.com/zhuchunshu/sforum/apps/api/app/Support/Jobs"
 )
 
@@ -65,15 +66,17 @@ type ProtocolStarterConfig struct {
 }
 
 type ProtocolStarter struct {
-	mu          sync.Mutex
-	clients     map[string]*plugin.Client
-	protocols   map[string]PluginProtocol
-	telemetry   map[string]*protocolTelemetry
-	lifecycleMu sync.Mutex
-	lifecycle   map[string]*sync.Mutex
-	settings    PluginSettings
-	hostAPI     HostAPIRegistrar
-	trust       RuntimeTrustSource
+	mu                     sync.Mutex
+	clients                map[string]*plugin.Client
+	protocols              map[string]PluginProtocol
+	runtimeInstances       map[string]map[string]*protocolRuntimeInstance
+	activeRuntimeInstances map[string]string
+	telemetry              map[string]*protocolTelemetry
+	lifecycleMu            sync.Mutex
+	lifecycle              map[string]*sync.Mutex
+	settings               PluginSettings
+	hostAPI                HostAPIRegistrar
+	trust                  RuntimeTrustSource
 }
 
 type PluginProtocol interface {
@@ -165,19 +168,25 @@ type PluginEmptyRequest struct{}
 
 func NewProtocolStarter(config ProtocolStarterConfig) *ProtocolStarter {
 	return &ProtocolStarter{
-		clients:   map[string]*plugin.Client{},
-		protocols: map[string]PluginProtocol{},
-		telemetry: map[string]*protocolTelemetry{},
-		lifecycle: map[string]*sync.Mutex{},
-		settings:  config.Settings,
-		hostAPI:   config.HostAPI,
-		trust:     config.Trust,
+		clients:                map[string]*plugin.Client{},
+		protocols:              map[string]PluginProtocol{},
+		runtimeInstances:       map[string]map[string]*protocolRuntimeInstance{},
+		activeRuntimeInstances: map[string]string{},
+		telemetry:              map[string]*protocolTelemetry{},
+		lifecycle:              map[string]*sync.Mutex{},
+		settings:               config.Settings,
+		hostAPI:                config.HostAPI,
+		trust:                  config.Trust,
 	}
 }
 
-func (s *ProtocolStarter) Start(ctx context.Context, extension extensions.Extension) (RouteTarget, error) {
-	unlock := s.lockExtensionLifecycle(extension.ID)
-	defer unlock()
+func (s *ProtocolStarter) startProtocolInstanceLocked(ctx context.Context, extension extensions.Extension, publish bool) (RouteTarget, error) {
+	if ctx == nil {
+		return RouteTarget{}, ErrRuntimeAdmissionInvalid
+	}
+	if err := ctx.Err(); err != nil {
+		return RouteTarget{}, err
+	}
 	if extension.Manifest.Backend.RPC != "" && extension.Manifest.Backend.RPC != hashicorpGoPluginRPC {
 		return RouteTarget{}, ErrUnsupportedProtocol
 	}
@@ -187,6 +196,10 @@ func (s *ProtocolStarter) Start(ctx context.Context, extension extensions.Extens
 	if extension.Manifest.Backend.ProtocolVersion < 0 || extension.Manifest.Backend.ProtocolVersion > 2 {
 		return RouteTarget{}, ErrUnsupportedProtocol
 	}
+	manifestDigest, err := protocolRuntimeManifestDigest(extension.Manifest)
+	if err != nil {
+		return RouteTarget{}, fmt.Errorf("freeze runtime manifest: %w", err)
+	}
 	path, ok := extensions.InstalledFilePathForRuntime(extension, extension.Manifest.Backend.Entry)
 	if !ok {
 		return RouteTarget{}, extensions.ErrInvalidManifest
@@ -195,7 +208,8 @@ func (s *ProtocolStarter) Start(ctx context.Context, extension extensions.Extens
 		return RouteTarget{}, fmt.Errorf("backend entry %s is not available", extension.Manifest.Backend.Entry)
 	}
 
-	cmd := exec.CommandContext(ctx, path)
+	// 子进程生命周期由 exact Stop/Discard 管理；调用 Start 的请求 context 只约束启动握手。
+	cmd := exec.Command(path)
 	cmd.Env = buildPluginProcessEnv(os.Environ())
 	protocolVersion := extension.Manifest.Backend.ProtocolVersion
 	if protocolVersion == 0 {
@@ -268,11 +282,20 @@ func (s *ProtocolStarter) Start(ctx context.Context, extension extensions.Extens
 		}
 		return RouteTarget{}, fmt.Errorf("plugin health check failed")
 	}
-	if v2, ok := protocol.(interface{ Readiness(context.Context) error }); ok {
+	readinessChecked := false
+	ready := protocolVersion == 1
+	if publish && protocolVersion == 2 {
+		v2, ok := protocol.(interface{ Readiness(context.Context) error })
+		if !ok {
+			client.Kill()
+			return RouteTarget{}, ErrProtocolInstanceUnsupported
+		}
+		readinessChecked = true
 		if err := v2.Readiness(ctx); err != nil {
 			client.Kill()
 			return RouteTarget{}, err
 		}
+		ready = true
 	}
 	target, err := protocol.RouteTarget()
 	if err != nil {
@@ -289,11 +312,12 @@ func (s *ProtocolStarter) Start(ctx context.Context, extension extensions.Extens
 	}
 	serviceRegistry := protocolV2ServiceRegistryFor(s.hostAPI)
 	instanceID := ""
+	var registrations []hostapi.ServiceRegistration
 	if v2, ok := protocol.(*protocolV2Client); ok {
 		if v2.identity != nil {
 			instanceID = v2.identity.GetInstanceId()
 		}
-		registrations, err := v2.serviceRegistrations(extension)
+		registrations, err = v2.serviceRegistrations(extension)
 		if err != nil {
 			client.Kill()
 			return RouteTarget{}, err
@@ -302,35 +326,39 @@ func (s *ProtocolStarter) Start(ctx context.Context, extension extensions.Extens
 			client.Kill()
 			return RouteTarget{}, fmt.Errorf("protocol v2 service registry is not configured")
 		}
-		if len(registrations) > 0 {
-			if err := serviceRegistry.ReplaceProtocolV2Services(extension.ID, registrations); err != nil {
-				client.Kill()
-				return RouteTarget{}, fmt.Errorf("register protocol v2 services: %w", err)
-			}
-		} else if serviceRegistry != nil {
-			serviceRegistry.UnregisterProtocolV2Services(extension.ID)
+	}
+	if instanceID == "" {
+		instanceID = newProtocolRuntimeInstanceID()
+	}
+	targetResult := RouteTarget{BaseURL: baseURL, InstanceID: instanceID}
+	extensionVersion := extension.Version
+	if extensionVersion == "" {
+		extensionVersion = extension.Manifest.Version
+	}
+	instance := &protocolRuntimeInstance{
+		identity:         RuntimeInstanceIdentity{ExtensionID: extension.ID, InstanceID: instanceID},
+		extensionVersion: extensionVersion, artifactDigest: extension.PackageDigest, manifestDigest: manifestDigest,
+		protocolVersion: protocolVersion, target: targetResult,
+		client: client, protocol: protocol, registrations: registrations,
+		healthy: true, ready: ready, readinessChecked: readinessChecked, startedAt: time.Now().UTC(),
+	}
+	if err := s.retainProtocolInstanceLocked(instance); err != nil {
+		client.Kill()
+		return RouteTarget{}, err
+	}
+	go s.watchClientExit(instance.identity, protocolVersion, protocol, client)
+	if publish {
+		if _, err := s.publishProtocolInstanceLocked(ctx, instance.identity, false); err != nil {
+			s.removeProtocolInstanceLocked(instance.identity)
+			client.Kill()
+			return RouteTarget{}, err
 		}
-	} else if serviceRegistry != nil {
-		serviceRegistry.UnregisterProtocolV2Services(extension.ID)
 	}
-
 	s.mu.Lock()
-	if s.clients == nil {
-		s.clients = map[string]*plugin.Client{}
-	}
-	if s.protocols == nil {
-		s.protocols = map[string]PluginProtocol{}
-	}
-	if previous := s.clients[extension.ID]; previous != nil {
-		previous.Kill()
-	}
-	s.clients[extension.ID] = client
-	s.protocols[extension.ID] = protocol
 	s.recordProtocolStartLocked(extension.ID, protocolVersion)
 	s.mu.Unlock()
-	go s.watchClientExit(extension.ID, protocolVersion, protocol, client)
 	keepHostAPI = true
-	return RouteTarget{BaseURL: baseURL, InstanceID: instanceID}, nil
+	return targetResult, nil
 }
 
 // isPluginRouteTargetNone 表示插件不提供可代理的 HTTP BaseURL。
@@ -415,20 +443,21 @@ func pluginSettingEnvName(key string) string {
 }
 
 func (s *ProtocolStarter) Stop(_ context.Context, extension extensions.Extension) error {
+	if s == nil {
+		return nil
+	}
 	unlock := s.lockExtensionLifecycle(extension.ID)
 	defer unlock()
 	s.mu.Lock()
-	client := s.clients[extension.ID]
-	protocol := s.protocols[extension.ID]
-	delete(s.clients, extension.ID)
-	delete(s.protocols, extension.ID)
-	s.mu.Unlock()
-	s.unregisterProtocolV2Services(extension.ID, protocol)
-	if client != nil {
-		client.Kill()
+	instances := make([]RuntimeInstanceIdentity, 0, len(s.runtimeInstances[extension.ID]))
+	for instanceID := range s.runtimeInstances[extension.ID] {
+		instances = append(instances, RuntimeInstanceIdentity{ExtensionID: extension.ID, InstanceID: instanceID})
 	}
-	if s.hostAPI != nil {
-		s.hostAPI.UnregisterExtension(extension.ID)
+	s.mu.Unlock()
+	for _, identity := range instances {
+		if err := s.stopProtocolInstanceLocked(identity, true); err != nil && !errors.Is(err, ErrRuntimeInstanceNotFound) {
+			return err
+		}
 	}
 	return nil
 }
@@ -462,28 +491,37 @@ func (s *ProtocolStarter) lockExtensionLifecycle(extensionID string) func() {
 	return lock.Unlock
 }
 
-func (s *ProtocolStarter) watchClientExit(extensionID string, protocolVersion int, protocol PluginProtocol, client *plugin.Client) {
+func (s *ProtocolStarter) watchClientExit(identity RuntimeInstanceIdentity, protocolVersion int, protocol PluginProtocol, client *plugin.Client) {
 	ticker := time.NewTicker(50 * time.Millisecond)
 	defer ticker.Stop()
 	for !client.Exited() {
 		<-ticker.C
 	}
 
-	unlock := s.lockExtensionLifecycle(extensionID)
+	unlock := s.lockExtensionLifecycle(identity.ExtensionID)
 	defer unlock()
 	s.mu.Lock()
-	if s.clients[extensionID] != client {
+	instance := s.runtimeInstanceLocked(identity)
+	if instance == nil || instance.client != client {
 		s.mu.Unlock()
 		return
 	}
-	delete(s.clients, extensionID)
-	delete(s.protocols, extensionID)
+	active := s.activeRuntimeInstances[identity.ExtensionID] == identity.InstanceID
+	delete(s.runtimeInstances[identity.ExtensionID], identity.InstanceID)
+	if len(s.runtimeInstances[identity.ExtensionID]) == 0 {
+		delete(s.runtimeInstances, identity.ExtensionID)
+	}
+	if active {
+		delete(s.activeRuntimeInstances, identity.ExtensionID)
+		delete(s.clients, identity.ExtensionID)
+		delete(s.protocols, identity.ExtensionID)
+	}
 	s.mu.Unlock()
 	if protocolVersion == 2 {
-		s.unregisterProtocolV2Services(extensionID, protocol)
+		s.unregisterProtocolV2Services(identity.ExtensionID, protocol)
 	}
-	if s.hostAPI != nil {
-		s.hostAPI.UnregisterExtension(extensionID)
+	if protocolVersion == 1 && active && s.hostAPI != nil {
+		s.hostAPI.UnregisterExtension(identity.ExtensionID)
 	}
 }
 
@@ -493,9 +531,8 @@ func (s *ProtocolStarter) unregisterProtocolV2Services(extensionID string, proto
 		return
 	}
 	if v2, ok := protocol.(*protocolV2Client); ok && v2.identity != nil {
-		if registry.UnregisterProtocolV2ServiceInstance(extensionID, v2.identity.GetInstanceId()) {
-			return
-		}
+		registry.UnregisterProtocolV2ServiceInstance(extensionID, v2.identity.GetInstanceId())
+		return
 	}
 	registry.UnregisterProtocolV2Services(extensionID)
 }

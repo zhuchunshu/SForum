@@ -2,6 +2,7 @@ package extensionsruntime
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -94,6 +95,14 @@ func TestProtocolStarterRequiresBackendEntry(t *testing.T) {
 	}
 }
 
+func TestProtocolV1DoesNotExposeStagedInstanceLifecycle(t *testing.T) {
+	starter := NewProtocolStarter(ProtocolStarterConfig{})
+	extension := runtimeExtension("legacy.protocol")
+	if _, err := starter.StartInstance(context.Background(), extension); !errors.Is(err, ErrProtocolInstanceUnsupported) {
+		t.Fatalf("protocol v1 staged start error = %v", err)
+	}
+}
+
 func TestProtocolStarterPerformsHashicorpHandshake(t *testing.T) {
 	packageRoot := filepath.Join(t.TempDir(), "runtime.plugin", "1.0.0")
 	filesRoot := filepath.Join(packageRoot, "files", "backend")
@@ -116,6 +125,16 @@ func TestProtocolStarterPerformsHashicorpHandshake(t *testing.T) {
 	defer starter.Stop(context.Background(), extension)
 	if target.BaseURL != "http://127.0.0.1:43123" {
 		t.Fatalf("unexpected route target: %#v", target)
+	}
+	if target.InstanceID == "" {
+		t.Fatalf("legacy runtime must still have a host-local exact identity: %#v", target)
+	}
+	legacySnapshot, err := starter.InspectInstance(RuntimeInstanceIdentity{ExtensionID: extension.ID, InstanceID: target.InstanceID})
+	if err != nil || legacySnapshot.ProtocolVersion != 1 || legacySnapshot.State != ProtocolRuntimePublished {
+		t.Fatalf("legacy runtime snapshot = %#v, %v", legacySnapshot, err)
+	}
+	if err := starter.StopInstance(context.Background(), legacySnapshot.Identity); !errors.Is(err, ErrProtocolInstanceUnsupported) {
+		t.Fatalf("protocol v1 exact stop error = %v", err)
 	}
 	response, err := starter.SendMail(context.Background(), extension.ID, MailProviderRequest{
 		DeliveryID: "41", To: []string{"member@example.com"}, Subject: "Mention",
@@ -145,6 +164,21 @@ func TestProtocolStarterPerformsHashicorpHandshake(t *testing.T) {
 	if telemetry.ProtocolVersion != 1 || telemetry.Transport != "net/rpc" || !telemetry.Deprecated ||
 		telemetry.StartCount != 1 || telemetry.CallCount != 3 || telemetry.LastCallAt == nil {
 		t.Fatalf("unexpected v1 telemetry: %#v", telemetry)
+	}
+
+	replacement, err := starter.Start(context.Background(), extension)
+	if err != nil {
+		t.Fatalf("replace protocol v1 runtime: %v", err)
+	}
+	if replacement.InstanceID == target.InstanceID {
+		t.Fatalf("protocol v1 replacement reused identity %q", replacement.InstanceID)
+	}
+	if _, err := starter.InspectInstance(legacySnapshot.Identity); !errors.Is(err, ErrRuntimeInstanceNotFound) {
+		t.Fatalf("protocol v1 hard replacement retained old process: %v", err)
+	}
+	replacementSnapshot, err := starter.InspectInstance(RuntimeInstanceIdentity{ExtensionID: extension.ID, InstanceID: replacement.InstanceID})
+	if err != nil || replacementSnapshot.State != ProtocolRuntimePublished || replacementSnapshot.ProtocolVersion != 1 {
+		t.Fatalf("protocol v1 replacement snapshot = %#v, %v", replacementSnapshot, err)
 	}
 }
 

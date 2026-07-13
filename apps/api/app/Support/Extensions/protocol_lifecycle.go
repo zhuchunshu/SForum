@@ -156,6 +156,62 @@ func (s *ProtocolStarter) RunLifecycle(ctx context.Context, extension extensions
 	return runner.RunLifecycleContext(ctx, cloneLifecycleInvocation(invocation))
 }
 
+// RunLifecycleInstance invokes lifecycle code on one staged/published/retained
+// V2 process. It never falls back to the extension's current active instance.
+func (s *ProtocolStarter) RunLifecycleInstance(
+	ctx context.Context,
+	identity RuntimeInstanceIdentity,
+	extension extensions.Extension,
+	invocation LifecycleInvocation,
+) (LifecycleRunResult, error) {
+	if s == nil {
+		return LifecycleRunResult{}, extensions.ErrRuntimeUnavailable
+	}
+	if ctx == nil {
+		return LifecycleRunResult{}, fmt.Errorf("%w: caller context is required", ErrInvalidLifecycleRun)
+	}
+	if err := ctx.Err(); err != nil {
+		return LifecycleRunResult{}, err
+	}
+	identity, err := normalizeRuntimeInstanceIdentity(identity)
+	if err != nil {
+		return LifecycleRunResult{}, err
+	}
+	unlock := s.lockExtensionLifecycle(identity.ExtensionID)
+	defer unlock()
+	instance := s.protocolInstance(identity)
+	if instance == nil {
+		return LifecycleRunResult{}, protocolInstanceNotFound(identity)
+	}
+	if instance.protocolVersion != 2 {
+		return LifecycleRunResult{}, ErrLifecycleV2Unsupported
+	}
+	version := extension.Version
+	if version == "" {
+		version = extension.Manifest.Version
+	}
+	manifestDigest, err := protocolRuntimeManifestDigest(extension.Manifest)
+	if err != nil {
+		return LifecycleRunResult{}, fmt.Errorf("%w: encode caller manifest: %v", ErrInvalidLifecycleRun, err)
+	}
+	v2, ok := instance.protocol.(*protocolV2Client)
+	if !ok || v2.identity == nil ||
+		identity.ExtensionID != extension.ID || instance.extensionVersion != version ||
+		instance.artifactDigest != extension.PackageDigest || instance.manifestDigest != manifestDigest ||
+		v2.identity.GetExtensionId() != identity.ExtensionID || v2.identity.GetInstanceId() != identity.InstanceID ||
+		v2.identity.GetExtensionVersion() != version || v2.identity.GetArtifactDigest() != extension.PackageDigest {
+		return LifecycleRunResult{}, fmt.Errorf("%w: lifecycle caller does not match the frozen exact runtime", ErrInvalidLifecycleRun)
+	}
+	runner, ok := instance.protocol.(pluginLifecycleContextInvoker)
+	if !ok {
+		return LifecycleRunResult{}, ErrLifecycleV2Unsupported
+	}
+	s.mu.Lock()
+	s.recordProtocolCallLocked(identity.ExtensionID)
+	s.mu.Unlock()
+	return runner.RunLifecycleContext(ctx, cloneLifecycleInvocation(invocation))
+}
+
 func lifecycleOperationContract(lifecycle *extensions.ManifestLifecycle, action LifecycleAction) (string, string, string, error) {
 	if lifecycle == nil {
 		return "", "", "", fmt.Errorf("%w: the frozen manifest declares no lifecycle contract", ErrInvalidLifecycleRun)

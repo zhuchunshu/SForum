@@ -316,7 +316,7 @@ func TestProtocolV2RejectsUploadedArtifactWithoutLiveGrant(t *testing.T) {
 
 func TestProtocolV2HelperProcess(t *testing.T) {
 	switch os.Getenv("SFORUM_PLUGIN_HELPER") {
-	case "protocol-v2":
+	case "protocol-v2", "protocol-v2-readiness-fail":
 		registry, err := pluginv2sdk.NewServiceRegistry(pluginv2sdk.ServiceDefinition{
 			ServiceID: "runtime.v2.service.echo", Version: "1.0.0",
 			RequestSchemaID: "runtime.v2.service.echo.request@1", ResponseSchemaID: "runtime.v2.service.echo.response@1",
@@ -325,7 +325,10 @@ func TestProtocolV2HelperProcess(t *testing.T) {
 		if err != nil {
 			panic(err)
 		}
-		pluginv2sdk.Serve(&protocolV2Helper{Server: pluginv2sdk.NewServer().WithServiceRegistry(registry)})
+		pluginv2sdk.Serve(&protocolV2Helper{
+			Server:        pluginv2sdk.NewServer().WithServiceRegistry(registry),
+			readinessFail: os.Getenv("SFORUM_PLUGIN_HELPER") == "protocol-v2-readiness-fail",
+		})
 		os.Exit(0)
 	case "protocol-v1":
 		pluginsdk.Serve(protocolV1Helper{})
@@ -335,6 +338,17 @@ func TestProtocolV2HelperProcess(t *testing.T) {
 
 type protocolV2Helper struct {
 	*pluginv2sdk.Server
+	readinessFail bool
+}
+
+func (s *protocolV2Helper) Readiness(ctx context.Context, request *protocolwire.ReadinessRequest) (*protocolwire.ReadinessResponse, error) {
+	if !s.readinessFail {
+		return s.Server.Readiness(ctx, request)
+	}
+	return &protocolwire.ReadinessResponse{
+		Context: &protocolwire.ResponseContext{RequestId: request.GetContext().GetRequestId(), Extension: request.GetContext().GetExtension()},
+		Ready:   false,
+	}, nil
 }
 
 func (s *protocolV2Helper) InvokeHook(ctx context.Context, request *pluginwire.HookRequest) (*pluginwire.HookResponse, error) {
