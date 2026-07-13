@@ -49,6 +49,30 @@ func TestManagerRecordsStartFailure(t *testing.T) {
 	}
 }
 
+func TestManagerReconcileSkipsPreviouslyFailedExactDigest(t *testing.T) {
+	store := &managerActivationStore{}
+	coordinator := extensions.NewActivationCoordinator(store)
+	extension := runtimeExtension("boot-loop.plugin")
+	extension.PackageDigest = "same-digest"
+	firstStarter := &countingManagerStarter{err: errors.New("startup crash")}
+	first := NewManager(ManagerConfig{Starter: firstStarter, Activation: coordinator, BootID: "boot-1"})
+	first.Reconcile(context.Background(), []extensions.Extension{extension})
+	if firstStarter.starts != 1 || store.latest.Status != extensions.ActivationStatusFailed {
+		t.Fatalf("first start=%d attempt=%#v", firstStarter.starts, store.latest)
+	}
+
+	secondStarter := &countingManagerStarter{}
+	second := NewManager(ManagerConfig{Starter: secondStarter, Activation: coordinator, BootID: "boot-2"})
+	second.Reconcile(context.Background(), []extensions.Extension{extension})
+	if secondStarter.starts != 0 || store.latest.Status != extensions.ActivationStatusSkipped {
+		t.Fatalf("second start=%d attempt=%#v", secondStarter.starts, store.latest)
+	}
+	status := second.Status(context.Background(), extension)
+	if status.State != extensions.RuntimeStopped || status.LastError != "extension.boot_loop_skipped" {
+		t.Fatalf("skipped status=%#v", status)
+	}
+}
+
 func TestManagerEmitsFilterEventsInStableOrderAndMergesPatches(t *testing.T) {
 	calls := []string{}
 	bus := NewHookBus(HookBusConfig{Invoker: HookInvokerFunc(func(_ context.Context, extension extensions.Extension, input HookInput) HookResult {
@@ -223,6 +247,63 @@ func runtimeExtension(id string) extensions.Extension {
 
 type fakeStarter struct {
 	err error
+}
+
+type countingManagerStarter struct {
+	starts int
+	err    error
+}
+
+func (s *countingManagerStarter) Start(context.Context, extensions.Extension) (RouteTarget, error) {
+	s.starts++
+	return RouteTarget{}, s.err
+}
+
+func (*countingManagerStarter) Stop(context.Context, extensions.Extension) error { return nil }
+
+type managerActivationStore struct {
+	latest extensions.ActivationAttempt
+	nextID int64
+}
+
+func (s *managerActivationStore) LatestActivationAttempt(_ context.Context, extensionID, packageDigest string) (extensions.ActivationAttempt, error) {
+	if s.latest.ID == 0 || s.latest.ExtensionID != extensionID || s.latest.PackageDigest != packageDigest {
+		return extensions.ActivationAttempt{}, extensions.ErrActivationAttemptNotFound
+	}
+	return s.latest, nil
+}
+
+func (s *managerActivationStore) BeginActivationAttempt(_ context.Context, extension extensions.Extension, trigger, bootID string, actorUserID int64) (extensions.ActivationAttempt, error) {
+	s.nextID++
+	s.latest = extensions.ActivationAttempt{
+		ID: s.nextID, ExtensionID: extension.ID, ExtensionVersion: extension.Version,
+		PackageDigest: extension.PackageDigest, BootID: bootID, Trigger: trigger,
+		Status: extensions.ActivationStatusStarting, ActorUserID: actorUserID,
+	}
+	return s.latest, nil
+}
+
+func (s *managerActivationStore) CompleteActivationAttempt(_ context.Context, attemptID int64, status, reason string) error {
+	if s.latest.ID != attemptID {
+		return extensions.ErrActivationAttemptNotFound
+	}
+	now := time.Now()
+	s.latest.Status = status
+	s.latest.FailureReason = reason
+	s.latest.CompletedAt = &now
+	return nil
+}
+
+func (s *managerActivationStore) RecordSkippedActivation(_ context.Context, extension extensions.Extension, bootID, reason string) error {
+	s.nextID++
+	now := time.Now()
+	s.latest = extensions.ActivationAttempt{
+		ID: s.nextID, ExtensionID: extension.ID, ExtensionVersion: extension.Version,
+		PackageDigest: extension.PackageDigest, BootID: bootID,
+		Trigger: extensions.ActivationTriggerStartup, Status: extensions.ActivationStatusSkipped,
+		FailureReason: reason, CompletedAt: &now,
+	}
+	return nil
 }
 
 func (s fakeStarter) Start(context.Context, extensions.Extension) (RouteTarget, error) {

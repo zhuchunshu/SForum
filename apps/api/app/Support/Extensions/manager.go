@@ -31,6 +31,8 @@ type ManagerConfig struct {
 	Dispatcher    EventDispatcher
 	// Resilience 可选；nil 使用默认 F2.3 参数。
 	Resilience ResilienceConfig
+	Activation *extensions.ActivationCoordinator
+	BootID     string
 }
 
 type Manager struct {
@@ -43,6 +45,8 @@ type Manager struct {
 	deliveryStore DeliveryStore
 	dispatcher    EventDispatcher
 	resilience    *resilienceHub
+	activation    *extensions.ActivationCoordinator
+	bootID        string
 }
 
 type DeliveryStore interface {
@@ -67,6 +71,10 @@ func NewManager(config ManagerConfig) *Manager {
 		}
 		hooks = NewHookBus(HookBusConfig{Invoker: invoker})
 	}
+	bootID := config.BootID
+	if config.Activation != nil && bootID == "" {
+		bootID = extensions.NewActivationBootID()
+	}
 	return &Manager{
 		starter:       starter,
 		statuses:      map[string]extensions.RuntimeStatus{},
@@ -76,7 +84,18 @@ func NewManager(config ManagerConfig) *Manager {
 		deliveryStore: config.DeliveryStore,
 		dispatcher:    config.Dispatcher,
 		resilience:    newResilienceHub(config.Resilience),
+		activation:    config.Activation,
+		bootID:        bootID,
 	}
+}
+
+func (m *Manager) WithActivation(coordinator *extensions.ActivationCoordinator, bootID string) *Manager {
+	m.activation = coordinator
+	m.bootID = bootID
+	if coordinator != nil && m.bootID == "" {
+		m.bootID = extensions.NewActivationBootID()
+	}
+	return m
 }
 
 func (m *Manager) Check(_ context.Context, extension extensions.Extension) error {
@@ -235,8 +254,23 @@ func (m *Manager) Reconcile(ctx context.Context, items []extensions.Extension) {
 	enabled := map[string]extensions.Extension{}
 	for _, item := range items {
 		if item.Type == extensions.TypePlugin && item.Status == extensions.StatusEnabled && item.Manifest.Backend.Entry != "" {
+			if m.activation != nil {
+				skip, err := m.activation.ShouldSkipStartup(ctx, item, m.bootID)
+				if err != nil {
+					m.setStatus(item, extensions.RuntimeStatus{State: extensions.RuntimeFailed, LastError: err.Error()})
+					continue
+				}
+				if skip {
+					m.setStatus(item, extensions.RuntimeStatus{State: extensions.RuntimeStopped, LastError: "extension.boot_loop_skipped"})
+					continue
+				}
+			}
 			enabled[item.ID] = item
-			_ = m.Start(ctx, item)
+			if m.activation != nil {
+				_ = m.activation.Start(ctx, m, item, extensions.ActivationTriggerStartup, 0, m.bootID)
+			} else {
+				_ = m.Start(ctx, item)
+			}
 		}
 	}
 	m.mu.RLock()

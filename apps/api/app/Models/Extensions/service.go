@@ -46,6 +46,7 @@ type Service struct {
 	executableTrust        *ExecutableTrustService
 	trustChallengesEnabled bool
 	safeMode               bool
+	activation             *ActivationCoordinator
 }
 
 // PageRegistry 主题/插件页面贡献注册（避免 extensions 直接依赖 pages 包实现细节）。
@@ -133,6 +134,10 @@ func WithExecutableTrust(service *ExecutableTrustService, enabled bool) ServiceO
 
 func WithSafeMode(enabled bool) ServiceOption {
 	return func(s *Service) { s.safeMode = enabled }
+}
+
+func WithActivationCoordinator(coordinator *ActivationCoordinator) ServiceOption {
+	return func(s *Service) { s.activation = coordinator }
 }
 
 func (s *Service) ExecutableTrustStatus(ctx context.Context, actor identity.Actor, extensionID string) (ExecutableTrustStatus, error) {
@@ -761,10 +766,16 @@ func (s *Service) Enable(ctx context.Context, actor identity.Actor, id string, i
 		return Extension{}, err
 	}
 	if enabled.Type == TypePlugin && enabled.Manifest.Backend.Entry != "" && s.runtime != nil {
-		if err := s.runtime.Start(ctx, enabled); err != nil {
+		var startErr error
+		if s.activation != nil {
+			startErr = s.activation.Start(ctx, s.runtime, enabled, ActivationTriggerEnable, actor.ID, NewActivationBootID())
+		} else {
+			startErr = s.runtime.Start(ctx, enabled)
+		}
+		if startErr != nil {
 			_, _ = s.store.Disable(ctx, enabled.ID)
-			s.recordEnableFailure(ctx, actor, enabled.ID, err)
-			return Extension{}, fmt.Errorf("%w: %v", ErrRuntimeFailed, err)
+			s.recordEnableFailure(ctx, actor, enabled.ID, startErr)
+			return Extension{}, fmt.Errorf("%w: %v", ErrRuntimeFailed, startErr)
 		}
 	}
 	// 插件 enable：注册页面贡献（add/replace 候选）；replace 仍需 super_admin 批准。

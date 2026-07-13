@@ -85,13 +85,26 @@ func buildStandaloneWorkerExtensionRuntime(
 	cfg config.Config,
 	store extensions.Store,
 	cipher *crypto.OptionCipher,
+	coordinators ...*extensions.ActivationCoordinator,
 ) (workerExtensionRuntime, hostAPIGatewayCloser, error) {
 	service := extensions.NewServiceWithBuiltins(store, cfg.ExtensionRoot, cfg.BuiltinExtensionRoot)
 	extensions.WithCipher(cipher)(service)
 	extensions.WithSafeMode(cfg.SafeMode)(service)
+	var activation *extensions.ActivationCoordinator
+	if len(coordinators) > 0 {
+		activation = coordinators[0]
+	} else if activationStore, ok := store.(extensions.ActivationAttemptStore); ok {
+		activation = extensions.NewActivationCoordinator(activationStore)
+	}
+	extensions.WithActivationCoordinator(activation)(service)
 	workerHostAPI := hostapi.New(hostapi.Config{Settings: service})
 	workerHostGateway := hostapi.NewGateway(workerHostAPI)
 	managedRuntime := newStandaloneWorkerRuntimeManager(store, workerHostGateway, service)
+	if runtime, ok := managedRuntime.(interface {
+		WithActivation(*extensions.ActivationCoordinator, string) *extensionsruntime.Manager
+	}); ok {
+		runtime.WithActivation(activation, extensions.NewActivationBootID())
+	}
 	workerHostAPI.BindCapabilitySource(service)
 	if _, err := service.SyncBuiltins(ctx); err != nil {
 		managedRuntime.Close(ctx)
@@ -197,7 +210,8 @@ func newWorkerWithPool(cfg config.Config, pool *pgxpool.Pool, logger *slog.Logge
 	}
 
 	extensionRuntime, hostGateway, ownsRuntime, err := resolveWorkerExtensionRuntime(deps, func() (workerExtensionRuntime, hostAPIGatewayCloser, error) {
-		return buildStandaloneWorkerExtensionRuntime(context.Background(), cfg, extensionStore, optionCipher)
+		activation := extensions.NewActivationCoordinator(extensionStore).WithAuditor(audit.NewPostgresWriter(pool))
+		return buildStandaloneWorkerExtensionRuntime(context.Background(), cfg, extensionStore, optionCipher, activation)
 	})
 	if err != nil {
 		return nil, err

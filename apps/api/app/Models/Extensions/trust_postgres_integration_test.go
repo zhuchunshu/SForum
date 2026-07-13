@@ -100,3 +100,43 @@ func TestPostgresExecutableTrustStoreConsumesChallengeOnce(t *testing.T) {
 		t.Fatalf("revoked grant=%v err=%v", granted, err)
 	}
 }
+
+func TestPostgresActivationAttemptsDriveBootLoopSkip(t *testing.T) {
+	databaseURL := strings.TrimSpace(os.Getenv("SFORUM_TEST_DATABASE_URL"))
+	if databaseURL == "" {
+		t.Skip("SFORUM_TEST_DATABASE_URL is not set")
+	}
+	ctx := context.Background()
+	pool, err := pgxpool.New(ctx, databaseURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer pool.Close()
+	extension := Extension{
+		ID:   "activation.integration." + fmt.Sprintf("%d", time.Now().UnixNano()),
+		Name: "Activation Integration", Version: "1.0.0", Type: TypePlugin,
+		Status: StatusEnabled, Source: SourceUploaded, PackageDigest: strings.Repeat("d", 64),
+		Manifest: Manifest{Backend: ManifestBackend{Entry: "backend/plugin"}},
+	}
+	if _, err := pool.Exec(ctx, `INSERT INTO extensions (id, type, name, status) VALUES ($1, 'plugin', $2, 'enabled')`, extension.ID, extension.Name); err != nil {
+		t.Fatal(err)
+	}
+	defer pool.Exec(ctx, `DELETE FROM extensions WHERE id = $1`, extension.ID)
+	store := NewPostgresStore(pool)
+	attempt, err := store.BeginActivationAttempt(ctx, extension, ActivationTriggerStartup, "boot-1", 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.CompleteActivationAttempt(ctx, attempt.ID, ActivationStatusFailed, "startup_crash"); err != nil {
+		t.Fatal(err)
+	}
+	coordinator := NewActivationCoordinator(store)
+	skip, err := coordinator.ShouldSkipStartup(ctx, extension, "boot-2")
+	if err != nil || !skip {
+		t.Fatalf("skip=%v err=%v", skip, err)
+	}
+	latest, err := store.LatestActivationAttempt(ctx, extension.ID, extension.PackageDigest)
+	if err != nil || latest.Status != ActivationStatusSkipped || latest.FailureReason != "boot_loop_guard" {
+		t.Fatalf("latest=%#v err=%v", latest, err)
+	}
+}

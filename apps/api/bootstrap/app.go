@@ -194,6 +194,7 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 	extensionStore := extensions.NewPostgresStore(pool)
 	frontendTrustStore := extensions.NewPostgresFrontendTrustStore(pool)
 	executableTrustStore := extensions.NewPostgresExecutableTrustStore(pool)
+	activationCoordinator := extensions.NewActivationCoordinator(extensionStore).WithAuditor(auditWriter)
 	// Host API 需要 extensionService 的能力解析；先建 service 再绑 gateway。
 	// 运行时 manager 在 service 创建后注入 HostAPI registrar。
 	jobClient, err := supportjobs.NewInsertOnlyClient(pool, supportjobs.FromAppConfig(cfg))
@@ -224,6 +225,7 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		extensions.WithAuditor(auditWriter),
 		extensions.WithExecutableTrust(executableTrustService, cfg.V3TrustChallenges),
 		extensions.WithSafeMode(cfg.SafeMode),
+		extensions.WithActivationCoordinator(activationCoordinator),
 		// F2.4：同 id 升级且 digest 变化时吊销该扩展前端信任，要求重新授权。
 		extensions.WithTrustRevoker(frontendService),
 		// F4.5：启用时校验 manifest requiresFeatures。
@@ -243,6 +245,11 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 	})
 	hostAPIGateway := hostapi.NewGateway(hostAPIService)
 	extensionRuntime := bindAPIExtensionRuntime(extensionStore, hostAPIGateway, extensionService)
+	if runtime, ok := extensionRuntime.(interface {
+		WithActivation(*extensions.ActivationCoordinator, string) *extensionsruntime.Manager
+	}); ok {
+		runtime.WithActivation(activationCoordinator, extensions.NewActivationBootID())
+	}
 	// 把已构造的 extensionService 接到 Host API 能力/权限解析（避免循环构造）。
 	hostAPIService.BindCapabilitySource(extensionService)
 	hostAPIService.BindPermissions(identityPermissionAdapter{store: identityStore})
