@@ -8,6 +8,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
 	pluginsdk "github.com/zhuchunshu/sforum/apps/api/sdk/plugin"
 )
 
@@ -60,14 +61,15 @@ provider slots) do not fail by default.`,
 				enc.SetIndent("", "  ")
 				// 不序列化完整 Manifest 以免过大；只输出摘要字段。
 				out := map[string]any{
-					"root":     report.Root,
-					"ok":       report.OK,
-					"errors":   report.Errors,
-					"warnings": report.Warnings,
-					"id":       report.Manifest.ID,
-					"type":     report.Manifest.Type,
-					"version":  report.Manifest.Version,
-					"checks":   report.Checks,
+					"root":             report.Root,
+					"ok":               report.OK,
+					"errors":           report.Errors,
+					"warnings":         report.Warnings,
+					"id":               report.Manifest.ID,
+					"type":             report.Manifest.Type,
+					"version":          report.Manifest.Version,
+					"manifestContract": extensionmanifest.ManifestContract(report.Manifest),
+					"checks":           report.Checks,
 				}
 				if err := enc.Encode(out); err != nil {
 					return err
@@ -97,6 +99,7 @@ func printTestReport(cmd *cobra.Command, report pluginsdk.Report) {
 		cmd.Printf("  id:      %s\n", report.Manifest.ID)
 		cmd.Printf("  type:    %s\n", report.Manifest.Type)
 		cmd.Printf("  version: %s\n", report.Manifest.Version)
+		cmd.Printf("  contract: %s\n", extensionmanifest.ManifestContract(report.Manifest))
 	}
 	cmd.Printf("  errors:  %d  warnings: %d  checks: %d\n", report.Errors, report.Warnings, len(report.Checks))
 	for _, check := range report.Checks {

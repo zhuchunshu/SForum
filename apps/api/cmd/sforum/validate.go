@@ -19,6 +19,7 @@ func newExtensionCommand() *cobra.Command {
 		Short: "Extension package helpers",
 	}
 	cmd.AddCommand(newExtensionValidateCommand())
+	cmd.AddCommand(newExtensionDigestCommand())
 	cmd.AddCommand(newExtensionTestCommand())
 	cmd.AddCommand(newExtensionDocsCommand())
 	cmd.AddCommand(newExtensionRecoveryListCommand())
@@ -72,6 +73,7 @@ func printValidateSummary(cmd *cobra.Command, root string, manifest extensionman
 	cmd.Printf("  id:      %s\n", manifest.ID)
 	cmd.Printf("  type:    %s\n", manifest.Type)
 	cmd.Printf("  version: %s\n", manifest.Version)
+	cmd.Printf("  contract: %s\n", extensionmanifest.ManifestContract(manifest))
 	cmd.Printf("  name:    %s\n", manifest.Name)
 
 	locales := make([]string, 0, len(manifest.Langs))
@@ -100,6 +102,13 @@ func printValidateSummary(cmd *cobra.Command, root string, manifest extensionman
 	cmd.Printf("  events:         %d\n", len(manifest.Events))
 	cmd.Printf("  providers:      %d\n", len(manifest.Providers))
 	cmd.Printf("  permissions:    %d\n", len(manifest.Permissions))
+	if extensionmanifest.EffectiveManifestVersion(manifest) == extensionmanifest.ManifestVersionV3 {
+		cmd.Printf("  v3.packageFiles: %d\n", len(manifest.PackageFiles))
+		cmd.Printf("  v3.registries:   guards=%d schedules=%d components=%d templates=%d assets=%d services=%d commands=%d\n",
+			len(manifest.Guards), len(manifest.Schedules), len(manifest.Components), len(manifest.Templates), len(manifest.Assets), len(manifest.Services), len(manifest.Commands))
+		cmd.Printf("  v3.platform:     admin=%d queries=%d permissions=%d media=%d navigation=%d regions=%d dependencies=%d\n",
+			len(manifest.AdminSurfaces), len(manifest.Queries), len(manifest.PermissionDefinitions), len(manifest.Media), len(manifest.Navigation), len(manifest.Regions), len(manifest.Dependencies))
+	}
 	if strings.TrimSpace(manifest.Backend.Entry) != "" {
 		cmd.Printf("  backend:        %s (%s)\n", manifest.Backend.Entry, manifest.Backend.RPC)
 	}

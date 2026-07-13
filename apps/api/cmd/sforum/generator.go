@@ -1,6 +1,8 @@
 package main
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -66,9 +68,16 @@ func GenerateExtensionScaffold(opts makeOptions) (string, error) {
 		}
 	}
 	if opts.Kind == extensionmanifest.TypePlugin {
-		return target, writePluginFiles(target, opts)
+		if err := writePluginFiles(target, opts); err != nil {
+			return "", err
+		}
+	} else if err := writeThemeFiles(target, opts); err != nil {
+		return "", err
 	}
-	return target, writeThemeFiles(target, opts)
+	if err := finalizeGeneratedManifest(target, opts); err != nil {
+		return "", err
+	}
+	return target, nil
 }
 
 func normalizeMakeOptions(opts makeOptions) makeOptions {
@@ -396,6 +405,7 @@ func writeThemeFiles(target string, opts makeOptions) error {
     "tokens": "assets/tokens.css"
   }
 }
+
 `,
 		"assets/theme.css": `/* ` + opts.Name + ` L0 skin */
 :root {
@@ -420,8 +430,123 @@ func writeThemeFiles(target string, opts makeOptions) error {
 	return nil
 }
 
+func finalizeGeneratedManifest(target string, opts makeOptions) error {
+	manifestPath := filepath.Join(target, extensionmanifest.ManifestFileName)
+	body, err := os.ReadFile(manifestPath)
+	if err != nil {
+		return err
+	}
+	var root map[string]any
+	if err := json.Unmarshal(body, &root); err != nil {
+		return err
+	}
+	root["manifestVersion"] = extensionmanifest.ManifestVersionV3
+	packageFiles := make([]map[string]any, 0)
+	addPackageFile := func(id string, kind string, relative string) (string, error) {
+		digest, err := digestScaffoldFile(filepath.Join(target, filepath.FromSlash(relative)))
+		if err != nil {
+			return "", err
+		}
+		packageFiles = append(packageFiles, map[string]any{
+			"id": opts.ID + ".file." + id, "kind": kind, "path": relative, "digest": digest,
+		})
+		return digest, nil
+	}
+
+	if backend, ok := root["backend"].(map[string]any); ok {
+		if entry, _ := backend["entry"].(string); entry != "" {
+			digest, err := addPackageFile("backend", "executable", entry)
+			if err != nil {
+				return err
+			}
+			backend["digest"] = digest
+		}
+	}
+	if providers, ok := root["providers"].([]any); ok {
+		for index, raw := range providers {
+			provider, ok := raw.(map[string]any)
+			if !ok {
+				continue
+			}
+			id := opts.ID + ".provider." + fmt.Sprintf("%d", index+1)
+			provider["id"] = id
+			provider["contractVersion"] = id + "@1"
+			provider["handler"] = "provider.handle"
+		}
+	}
+	if permissions, ok := root["permissions"].([]any); ok {
+		definitions := make([]map[string]any, 0, len(permissions))
+		for _, raw := range permissions {
+			permission, _ := raw.(string)
+			if permission == "" {
+				continue
+			}
+			definitions = append(definitions, map[string]any{
+				"key": permission, "contractVersion": permission + "@1",
+				"label": "Manage " + opts.Name, "description": "Manage this extension.",
+				"recommendedRoles": []string{"administrator"}, "assignmentPolicy": "host",
+			})
+		}
+		root["permissionDefinitions"] = definitions
+	}
+	if opts.PrebuiltSettings {
+		if _, err := addPackageFile("admin-settings-entry", "frontend", "frontend/admin/dist/settings.mjs"); err != nil {
+			return err
+		}
+		if _, err := addPackageFile("admin-settings-style", "asset", "frontend/admin/dist/settings.css"); err != nil {
+			return err
+		}
+	}
+	if opts.Kind == extensionmanifest.TypeTheme {
+		templateDigest, err := addPackageFile("template-home", "template", "templates/home.html")
+		if err != nil {
+			return err
+		}
+		themeDigest, err := addPackageFile("asset-theme", "asset", "assets/theme.css")
+		if err != nil {
+			return err
+		}
+		tokensDigest, err := addPackageFile("asset-tokens", "asset", "assets/tokens.css")
+		if err != nil {
+			return err
+		}
+		templateID := opts.ID + ".template.home"
+		root["templates"] = []map[string]any{{
+			"id": templateID, "contractVersion": templateID + "@1", "action": "add",
+			"path": "templates/home.html", "digest": templateDigest,
+			"viewModelSchema": "sforum.page.home@1", "themeOverrideKey": opts.ID + ".home",
+		}}
+		root["assets"] = []map[string]any{
+			{"handle": opts.ID + ".asset.theme", "contractVersion": opts.ID + ".asset.theme@1", "type": "style", "path": "assets/theme.css", "digest": themeDigest},
+			{"handle": opts.ID + ".asset.tokens", "contractVersion": opts.ID + ".asset.tokens@1", "type": "style", "path": "assets/tokens.css", "digest": tokensDigest},
+		}
+		componentID := opts.ID + ".component.home"
+		root["components"] = []map[string]any{{
+			"id": componentID, "contractVersion": componentID + "@1", "action": "add",
+			"ssrTemplate": templateID, "propsSchema": "sforum.page.home@1", "themeOverrideKey": opts.ID + ".home",
+		}}
+	}
+	root["packageFiles"] = packageFiles
+	if err := writeJSON(manifestPath, root); err != nil {
+		return err
+	}
+	if _, err := extensionmanifest.LoadPackage(target); err != nil {
+		return fmt.Errorf("generated V3 package failed validation: %w", err)
+	}
+	return nil
+}
+
+func digestScaffoldFile(path string) (string, error) {
+	body, err := os.ReadFile(path)
+	if err != nil {
+		return "", err
+	}
+	digest := sha256.Sum256(body)
+	return hex.EncodeToString(digest[:]), nil
+}
+
 func readmeBody(opts makeOptions) string {
-	body := "# " + opts.Name + "\n\n" + opts.Description + "\n\n- ID: `" + opts.ID + "`\n- Type: `" + opts.Kind + "`\n- Website: " + opts.URL + "\n"
+	body := "# " + opts.Name + "\n\n" + opts.Description + "\n\n- ID: `" + opts.ID + "`\n- Type: `" + opts.Kind + "`\n- Manifest contract: `sforum.manifest@3`\n- Website: " + opts.URL + "\n"
 	if opts.Complex && opts.Kind == extensionmanifest.TypePlugin {
 		body += "\n## Multi-file manifest\n\n"
 		body += "This package uses a thin `sforum.extension.json` plus `includes`:\n\n"
@@ -443,7 +568,7 @@ func readmeBody(opts makeOptions) string {
 		body += "The generated manifest does not enable demo contributions by default. After you implement and declare the matching extension route, you can add a host-rendered topic action like this:\n\n"
 		body += "```json\n"
 		body += "{\n"
-		body += "  \"routes\": [{\"path\": \"/topic-actions/bookmark\", \"methods\": [\"POST\"], \"access\": \"login\"}],\n"
+		body += "  \"routes\": [{\"id\": \"" + opts.ID + ".route.bookmark\", \"contractVersion\": \"" + opts.ID + ".route.bookmark@1\", \"action\": \"add\", \"path\": \"/topic-actions/bookmark\", \"methods\": [\"POST\"], \"guard\": \"core.guard.login\", \"fallback\": \"closed\", \"mode\": \"http\", \"handler\": \"route.bookmark\", \"requestSchema\": \"" + opts.ID + ".route.bookmark.request@1\", \"responseSchema\": \"" + opts.ID + ".route.bookmark.response@1\"}],\n"
 		body += "  \"contributions\": [\n"
 		body += "    {\n"
 		body += "      \"point\": \"forum.topic.actions\",\n"
@@ -463,5 +588,6 @@ func readmeBody(opts makeOptions) string {
 func pluginBackendReadme(opts makeOptions) string {
 	return "# Backend Stub\n\nBuild a HashiCorp go-plugin compatible executable named `plugin` in this directory before enabling `" + opts.ID + "`.\n\n" +
 		"Prefer the public Go SDK:\n\n```go\npackage main\n\nimport pluginsdk \"github.com/zhuchunshu/sforum/apps/api/sdk/plugin\"\n\ntype myPlugin struct{ pluginsdk.Noop }\n\nfunc main() { pluginsdk.Serve(myPlugin{}) }\n```\n\n" +
+		"After replacing the generated stub, refresh the exact file digests:\n\n```bash\ncd apps/api && go run ./cmd/sforum extension digest --write <package-root>\n```\n\n" +
 		"Contract test (no binary required while scaffolding):\n\n```bash\ncd apps/api && go run ./cmd/sforum extension test --allow-scaffold <package-root>\n```\n"
 }
