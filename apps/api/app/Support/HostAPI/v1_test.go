@@ -7,6 +7,7 @@ import (
 
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Audit"
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Capabilities"
+	supportjobs "github.com/zhuchunshu/sforum/apps/api/app/Support/Jobs"
 )
 
 type fakeCaps struct {
@@ -24,6 +25,17 @@ func (f fakeCaps) CapabilitiesFor(context.Context, string) (capabilities.Set, er
 
 func (f fakeCaps) DeclaredJobKinds(context.Context, string) ([]string, error) {
 	return f.jobs, f.err
+}
+
+func (f fakeCaps) PluginJobContract(_ context.Context, extensionID, jobName string) (supportjobs.PluginJobContract, error) {
+	if f.err != nil {
+		return supportjobs.PluginJobContract{}, f.err
+	}
+	return supportjobs.PluginJobContract{
+		ExtensionID: extensionID, ExtensionVersion: "1.0.0", ArtifactDigest: "artifact",
+		JobName: jobName, JobContract: "demo.plugin.job.sync@1",
+		PayloadSchemaID: "demo.sync.payload", PayloadSchemaVersion: "1",
+	}, nil
 }
 
 type fakeSettings struct {
@@ -45,7 +57,17 @@ func (f fakePerms) HasPermission(context.Context, int64, string) (bool, error) {
 type fakeJobs struct {
 	lastKind string
 	lastExt  string
+	contract supportjobs.PluginJobContract
+	grant    string
 	err      error
+}
+
+func (f *fakeJobs) EnqueueVersionedPluginJob(_ context.Context, contract supportjobs.PluginJobContract, grant string, _ map[string]any) error {
+	f.lastExt = contract.ExtensionID
+	f.lastKind = contract.JobName
+	f.contract = contract
+	f.grant = grant
+	return f.err
 }
 
 func (f *fakeJobs) EnqueuePluginJob(_ context.Context, extensionID, kind string, _ map[string]any) error {

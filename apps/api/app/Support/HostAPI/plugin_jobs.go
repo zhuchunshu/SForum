@@ -96,6 +96,10 @@ type VersionedPluginJobEnqueuer interface {
 	EnqueueVersionedPluginJob(context.Context, supportjobs.PluginJobContract, string, map[string]any) error
 }
 
+type PluginJobContractSource interface {
+	PluginJobContract(context.Context, string, string) (supportjobs.PluginJobContract, error)
+}
+
 type PluginJobRuntimeContract struct {
 	Contract     supportjobs.PluginJobContract
 	TrustGrantID string

@@ -95,7 +95,8 @@ func TestProtocolV2CompatibilityAdapters(t *testing.T) {
 		Context: requestContext, JobKind: "demo.sync", PayloadVersion: JobPayloadSchemaVersionV1,
 		Payload: &protocolv2.TypedDocument{SchemaId: "demo.sync.payload", SchemaVersion: "1", Value: payload},
 	})
-	if err != nil || job.GetError() != nil || jobs.lastExt != "demo.plugin" || jobs.lastKind != "demo.sync" {
+	if err != nil || job.GetError() != nil || jobs.lastExt != "demo.plugin" || jobs.lastKind != "demo.sync" ||
+		jobs.contract.JobContract != "demo.plugin.job.sync@1" || jobs.grant != "grant" {
 		t.Fatalf("job = %#v, jobs = %#v, %v", job, jobs, err)
 	}
 
@@ -141,6 +142,24 @@ func TestProtocolV2CompatibilityAdaptersFailClosed(t *testing.T) {
 	})
 	if err != nil || job.GetError().GetCode() != protocolv2.ErrorCode_ERROR_CODE_FAILED_PRECONDITION || jobs.lastKind != "" {
 		t.Fatalf("job denial = %#v, jobs = %#v, %v", job, jobs, err)
+	}
+
+	job, err = (&protocolV2JobServer{core: core}).Enqueue(context.Background(), &hostv2.JobEnqueueRequest{
+		Context: requestContext, JobKind: "demo.sync", PayloadVersion: "1",
+		Payload: &protocolv2.TypedDocument{SchemaId: "undeclared.payload", SchemaVersion: "1"},
+	})
+	if err != nil || job.GetError().GetReason() != "host.job_payload_contract_mismatch" || jobs.lastKind != "" {
+		t.Fatalf("payload contract denial = %#v, jobs = %#v, %v", job, jobs, err)
+	}
+
+	staleContext := testProtocolV2RequestContext()
+	staleContext.Extension.ArtifactDigest = "stale-artifact"
+	job, err = (&protocolV2JobServer{core: core}).Enqueue(context.Background(), &hostv2.JobEnqueueRequest{
+		Context: staleContext, JobKind: "demo.sync", PayloadVersion: "1",
+		Payload: &protocolv2.TypedDocument{SchemaId: "demo.sync.payload", SchemaVersion: "1"},
+	})
+	if err != nil || job.GetError().GetReason() != "host.job_runtime_stale" || jobs.lastKind != "" {
+		t.Fatalf("stale runtime denial = %#v, jobs = %#v, %v", job, jobs, err)
 	}
 }
 
