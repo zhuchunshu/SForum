@@ -308,13 +308,23 @@ func buildTrustImpact(extension Extension, action string) (TrustImpact, error) {
 		},
 		Contracts: TrustContracts{HostAPI: "sforum.host/v1", FrontendAPI: frontendAPI},
 	}
+	digest, err := canonicalTrustImpactDigest(impact)
+	if err != nil {
+		return TrustImpact{}, err
+	}
+	impact.Digest = digest
+	return impact, nil
+}
+
+// canonicalTrustImpactDigest 必须覆盖 TrustImpact 的每个字段；P2 新增声明时由测试防止遗漏。
+func canonicalTrustImpactDigest(impact TrustImpact) (string, error) {
+	impact.Digest = ""
 	body, err := json.Marshal(impact)
 	if err != nil {
-		return TrustImpact{}, fmt.Errorf("marshal extension trust impact: %w", err)
+		return "", fmt.Errorf("marshal extension trust impact: %w", err)
 	}
 	digest := sha256.Sum256(body)
-	impact.Digest = hex.EncodeToString(digest[:])
-	return impact, nil
+	return hex.EncodeToString(digest[:]), nil
 }
 
 func digestInstalledFile(extension Extension, relative string) (string, error) {

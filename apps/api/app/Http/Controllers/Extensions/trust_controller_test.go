@@ -22,7 +22,7 @@ import (
 )
 
 func TestExecutableTrustHTTPRequiresExactActorBoundChallenge(t *testing.T) {
-	app, sessions, store := newExecutableTrustTestApp(t)
+	app, sessions, store, _ := newExecutableTrustTestApp(t)
 	superCookie := loginExecutableTrustUser(t, app, sessions, 1)
 	managerCookie := loginExecutableTrustUser(t, app, sessions, 2)
 	otherSuperCookie := loginExecutableTrustUser(t, app, sessions, 3)
@@ -84,7 +84,45 @@ func TestExecutableTrustHTTPRequiresExactActorBoundChallenge(t *testing.T) {
 	assertExtensionReason(t, response, http.StatusConflict, extensions.CodeTrustChallengeReplayed)
 }
 
-func newExecutableTrustTestApp(t *testing.T) (*fiber.App, *authsession.Manager, *controllerFakeStore) {
+func TestExecutableTrustHTTPRejectsExpiredAndStaleChallenges(t *testing.T) {
+	app, sessions, store, trustStore := newExecutableTrustTestApp(t)
+	superCookie := loginExecutableTrustUser(t, app, sessions, 1)
+
+	response := performExtensionRequest(t, app, http.MethodPost, "/api/v1/admin/extensions/demo.trust/trust/challenge", superCookie)
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("issue expiring challenge status=%d", response.StatusCode)
+	}
+	var expired testEnvelope[extensions.TrustChallenge]
+	if err := json.NewDecoder(response.Body).Decode(&expired); err != nil {
+		t.Fatal(err)
+	}
+	response.Body.Close()
+	trustStore.now = func() time.Time { return expired.Data.ExpiresAt.Add(time.Second) }
+	response = performExtensionJSONRequest(t, app, http.MethodPost, "/api/v1/admin/extensions/demo.trust/enable", superCookie,
+		`{"confirmationToken":"`+expired.Data.Token+`"}`)
+	assertExtensionReason(t, response, http.StatusConflict, extensions.CodeTrustChallengeExpired)
+
+	trustStore.now = nil
+	response = performExtensionRequest(t, app, http.MethodPost, "/api/v1/admin/extensions/demo.trust/trust/challenge", superCookie)
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("issue stale challenge status=%d", response.StatusCode)
+	}
+	var stale testEnvelope[extensions.TrustChallenge]
+	if err := json.NewDecoder(response.Body).Decode(&stale); err != nil {
+		t.Fatal(err)
+	}
+	response.Body.Close()
+	changed := store.items["demo.trust"]
+	changed.Manifest.Routes = append(changed.Manifest.Routes, extensions.ManifestRoute{
+		Path: "/changed", Methods: []string{http.MethodPost}, Access: extensions.RouteAccessLogin,
+	})
+	store.items[changed.ID] = changed
+	response = performExtensionJSONRequest(t, app, http.MethodPost, "/api/v1/admin/extensions/demo.trust/enable", superCookie,
+		`{"confirmationToken":"`+stale.Data.Token+`"}`)
+	assertExtensionReason(t, response, http.StatusConflict, extensions.CodeTrustChallengeStale)
+}
+
+func newExecutableTrustTestApp(t *testing.T) (*fiber.App, *authsession.Manager, *controllerFakeStore, *controllerExecutableTrustStore) {
 	t.Helper()
 	sessions := authsession.NewManager(session.NewStore(), authsession.Config{HashSecret: "test-secret"})
 	actors := controllerActors{actors: map[int64]identity.Actor{
@@ -109,7 +147,7 @@ func newExecutableTrustTestApp(t *testing.T) (*fiber.App, *authsession.Manager, 
 		AppName: "SForum", AppEnv: "test", CSRFEnabled: false,
 		AppLocale: "zh-CN", SupportedLocales: []string{"zh-CN", "en-US"},
 	}, slog.Default(), apphttp.Dependencies{RouteProviders: []apphttp.RouteProvider{controller, login}})
-	return app, sessions, store
+	return app, sessions, store, trustStore
 }
 
 func executableTrustHTTPFixture(t *testing.T) extensions.Extension {
@@ -175,6 +213,7 @@ type controllerExecutableTrustStore struct {
 	challenge extensions.TrustChallengeRecord
 	consumed  bool
 	granted   map[extensions.TrustIdentity]bool
+	now       func() time.Time
 }
 
 func (s *controllerExecutableTrustStore) CreateChallenge(_ context.Context, input extensions.TrustChallengeRecord) error {
@@ -193,6 +232,13 @@ func (s *controllerExecutableTrustStore) ConsumeChallenge(_ context.Context, inp
 	}
 	if s.consumed {
 		return extensions.TrustGrant{}, extensions.ErrTrustChallengeReplayed
+	}
+	now := time.Now().UTC()
+	if s.now != nil {
+		now = s.now()
+	}
+	if !now.Before(s.challenge.ExpiresAt) {
+		return extensions.TrustGrant{}, extensions.ErrTrustChallengeExpired
 	}
 	if input.Identity != s.challenge.Identity {
 		return extensions.TrustGrant{}, extensions.ErrTrustChallengeStale

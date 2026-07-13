@@ -84,6 +84,132 @@ func TestExecutableTrustChallengeRejectsExpiredAndChangedImpact(t *testing.T) {
 	}
 }
 
+func TestExecutableTrustChallengeRejectsEveryExecutableDigestChange(t *testing.T) {
+	tests := []struct {
+		name    string
+		prepare func(*testing.T, *Extension)
+		change  func(*testing.T, *Extension)
+	}{
+		{
+			name: "backend bytes and package digest",
+			change: func(t *testing.T, extension *Extension) {
+				writeTrustFile(t, extension, "backend/plugin", "changed-plugin-binary", 0o755)
+				refreshTrustPackageIdentity(t, extension)
+			},
+		},
+		{
+			name: "migration bytes",
+			change: func(t *testing.T, extension *Extension) {
+				writeTrustFile(t, extension, "migrations/001.sql", "SELECT 2;", 0o600)
+				refreshTrustPackageIdentity(t, extension)
+			},
+		},
+		{
+			name: "migration declaration",
+			change: func(t *testing.T, extension *Extension) {
+				writeTrustFile(t, extension, "migrations/002.sql", "SELECT 2;", 0o600)
+				extension.Manifest.Migrations = append(extension.Manifest.Migrations, ManifestMigration{Path: "migrations/002.sql"})
+				refreshTrustPackageIdentity(t, extension)
+			},
+		},
+		{
+			name: "admin frontend bytes",
+			prepare: func(t *testing.T, extension *Extension) {
+				addTrustAdminFrontend(t, extension)
+			},
+			change: func(t *testing.T, extension *Extension) {
+				writeTrustFile(t, extension, "frontend/admin/dist/settings.mjs", "export function mount() { return () => {} }\n", 0o600)
+				refreshTrustPackageIdentity(t, extension)
+			},
+		},
+		{
+			name: "admin frontend contract",
+			prepare: func(t *testing.T, extension *Extension) {
+				addTrustAdminFrontend(t, extension)
+			},
+			change: func(t *testing.T, extension *Extension) {
+				extension.Manifest.SettingsDocument.UI.Component.APIVersion = 2
+				refreshTrustPackageIdentity(t, extension)
+			},
+		},
+		{
+			name: "requested network authority",
+			change: func(t *testing.T, extension *Extension) {
+				extension.Manifest.Capabilities = nil
+				refreshTrustPackageIdentity(t, extension)
+			},
+		},
+		{
+			name: "permission declaration",
+			change: func(t *testing.T, extension *Extension) {
+				extension.Manifest.Permissions = append(extension.Manifest.Permissions, "demo.use")
+				refreshTrustPackageIdentity(t, extension)
+			},
+		},
+		{
+			name: "required feature declaration",
+			change: func(t *testing.T, extension *Extension) {
+				extension.Manifest.RequiresFeatures = append(extension.Manifest.RequiresFeatures, "features.demo")
+				refreshTrustPackageIdentity(t, extension)
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			extension := exactTrustExtension(t, "demo.changed")
+			if test.prepare != nil {
+				test.prepare(t, &extension)
+			}
+			store := &fakeExtensionStore{items: map[string]Extension{extension.ID: extension}}
+			trustStore := &memoryExecutableTrustStore{}
+			service := NewExecutableTrustService(store, trustStore)
+			challenge, err := service.Challenge(context.Background(), extensionManager(), extension.ID)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			test.change(t, &extension)
+			if err := service.ConfirmEnable(context.Background(), extensionManager(), extension, challenge.Token); !errors.Is(err, ErrTrustChallengeStale) {
+				t.Fatalf("changed exact artifact must be stale, got %v", err)
+			}
+		})
+	}
+}
+
+func TestCanonicalTrustImpactDigestBindsAuthorityContractsAndDependencies(t *testing.T) {
+	base, err := buildTrustImpact(exactTrustExtension(t, "demo.contracts"), TrustActionEnable)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tests := []struct {
+		name   string
+		change func(*TrustImpact)
+	}{
+		{name: "raw request authority", change: func(impact *TrustImpact) { impact.RequestedAuthority.RawRequest = true }},
+		{name: "raw core database authority", change: func(impact *TrustImpact) { impact.RequestedAuthority.RawCoreDatabase = true }},
+		{name: "host contract", change: func(impact *TrustImpact) { impact.Contracts.HostAPI = "sforum.host/v2" }},
+		{name: "frontend contract", change: func(impact *TrustImpact) { impact.Contracts.FrontendAPI = "sforum.component/v2" }},
+		{name: "dependency", change: func(impact *TrustImpact) {
+			impact.Dependencies = []Dependency{{Name: "demo.parent", Version: "^2.0.0", Integrity: "sha256:demo"}}
+		}},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			changed := base
+			test.change(&changed)
+			digest, err := canonicalTrustImpactDigest(changed)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if digest == base.Digest {
+				t.Fatalf("%s change did not invalidate impact digest", test.name)
+			}
+		})
+	}
+}
+
 func TestServiceV3TrustAllowsAlreadyGrantedDelegatedEnable(t *testing.T) {
 	extension := exactTrustExtension(t, "demo.enable")
 	store := &fakeExtensionStore{items: map[string]Extension{extension.ID: extension}}
@@ -158,6 +284,50 @@ func exactTrustExtension(t *testing.T, id string) Extension {
 	item.PackagePath = root
 	item.PackageDigest = digest
 	return item
+}
+
+func addTrustAdminFrontend(t *testing.T, extension *Extension) {
+	t.Helper()
+	component := &SettingsComponent{ID: "settings", APIVersion: 1, Entry: "frontend/admin/dist/settings.mjs"}
+	extension.Manifest.Settings = []ManifestSetting{{Key: "title", Type: "text", Label: LocalizedText{Default: "Title"}}}
+	extension.Manifest.SettingsDocument = SettingsDocument{
+		SchemaVersion: 1,
+		Explicit:      true,
+		UI:            SettingsUI{Mode: "component", Layout: "form", Component: component},
+		Fields:        extension.Manifest.Settings,
+	}
+	writeTrustFile(t, extension, component.Entry, "export function mount() {}\n", 0o600)
+	refreshTrustPackageIdentity(t, extension)
+}
+
+func writeTrustFile(t *testing.T, extension *Extension, relative, body string, mode os.FileMode) {
+	t.Helper()
+	target := filepath.Join(extension.PackagePath, filepath.FromSlash(relative))
+	if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(target, []byte(body), mode); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func refreshTrustPackageIdentity(t *testing.T, extension *Extension) {
+	t.Helper()
+	if err := writeManifest(extension.PackagePath, extension.Manifest); err != nil {
+		t.Fatal(err)
+	}
+	if component := extension.Manifest.SettingsDocument.UI.Component; component != nil && component.Entry != "" {
+		digest, err := ComputeAdminFrontendDigest(extension.Manifest, extension.PackagePath)
+		if err != nil {
+			t.Fatal(err)
+		}
+		extension.AdminFrontendDigest = digest
+	}
+	digest, err := extensionpackage.DigestTree(extension.PackagePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	extension.PackageDigest = digest
 }
 
 type memoryExecutableTrustStore struct {
