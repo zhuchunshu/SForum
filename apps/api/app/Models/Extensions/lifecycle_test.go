@@ -23,7 +23,7 @@ func newLifecycleService(store Store, root string, runtime RuntimeManager, opts 
 	return NewServiceWithOptions(store, root, "", runtime, opts...)
 }
 
-func TestInstallOrUpgradeArchiveMarksUpgradeAndRevokesTrust(t *testing.T) {
+func TestInstallOrUpgradeArchiveStagesUpgradeWithoutTouchingActiveRuntime(t *testing.T) {
 	store := &fakeExtensionStore{}
 	runtime := &fakeRuntimeManager{}
 	revoker := &fakeTrustRevoker{}
@@ -48,7 +48,7 @@ func TestInstallOrUpgradeArchiveMarksUpgradeAndRevokesTrust(t *testing.T) {
 		t.Fatalf("expected installed event, got %#v", store.events)
 	}
 
-	// 启用后再升级：应 drain runtime、状态回 installed、写 upgraded 事件。
+	// 启用后再上传升级包：只保存候选，活动制品继续服务直到受信任升级事务提交。
 	enabled := store.items[first.Extension.ID]
 	enabled.Status = StatusEnabled
 	store.items[enabled.ID] = enabled
@@ -68,14 +68,18 @@ func TestInstallOrUpgradeArchiveMarksUpgradeAndRevokesTrust(t *testing.T) {
 	if !second.Upgraded || second.PreviousVersion != "1.0.0" {
 		t.Fatalf("expected upgrade metadata: %#v", second)
 	}
-	if second.Extension.Status != StatusInstalled {
-		t.Fatalf("upgrade must reset status to installed, got %s", second.Extension.Status)
+	if second.Extension.Status != StatusEnabled {
+		t.Fatalf("static upgrade changed active status: %s", second.Extension.Status)
 	}
-	if !second.RequiredReEnable {
-		t.Fatalf("plugin upgrade should require re-enable")
+	if second.RequiredReEnable || !second.ActivationPending {
+		t.Fatalf("static upgrade activation metadata = %#v", second)
 	}
-	if second.PreviousDigest == "" || second.PreviousDigest == second.Extension.PackageDigest {
-		t.Fatalf("expected digest change on upgrade: %#v", second)
+	if second.PreviousDigest == "" || second.PreviousDigest != second.Extension.PackageDigest {
+		t.Fatalf("active digest changed during static upload: %#v", second)
+	}
+	if second.Extension.StagedVersion == nil || second.Extension.StagedVersion.Version != "1.1.0" ||
+		second.Extension.StagedVersion.PackageDigest == second.PreviousDigest {
+		t.Fatalf("upgrade candidate was not staged: %#v", second.Extension.StagedVersion)
 	}
 	if second.TrustRevoked {
 		t.Fatalf("backend/settings-only package change must not revoke frontend trust")
@@ -83,8 +87,8 @@ func TestInstallOrUpgradeArchiveMarksUpgradeAndRevokesTrust(t *testing.T) {
 	if len(revoker.calls) != 0 {
 		t.Fatalf("unexpected trust revoker call: %#v", revoker.calls)
 	}
-	if len(runtime.stopped) == 0 || runtime.stopped[len(runtime.stopped)-1] != "upgrade.plugin" {
-		t.Fatalf("upgrade should drain runtime, stopped=%#v", runtime.stopped)
+	if len(runtime.stopped) != 0 || len(runtime.hooks) != 0 {
+		t.Fatalf("static upgrade touched active runtime: stopped=%#v hooks=%#v", runtime.stopped, runtime.hooks)
 	}
 	foundUpgraded := false
 	for _, ev := range store.events {
@@ -100,8 +104,8 @@ func TestInstallOrUpgradeArchiveMarksUpgradeAndRevokesTrust(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(ledger) != 1 || ledger[0].Path != "migrations/001_init.sql" || ledger[0].Status != "recorded" {
-		t.Fatalf("expected recorded migration, got %#v", ledger)
+	if len(ledger) != 0 {
+		t.Fatalf("static upload wrote migration execution ledger: %#v", ledger)
 	}
 }
 

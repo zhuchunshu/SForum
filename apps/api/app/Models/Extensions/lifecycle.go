@@ -39,7 +39,7 @@ func (s *Service) InstallArchive(ctx context.Context, actor identity.Actor, inpu
 }
 
 // InstallOrUpgradeArchive 返回完整升级元数据（F2.4）。
-// 升级：同 id 时 drain runtime、状态回 installed、吊销前端信任、保留 settings。
+// V3 静态上传只保存不可变候选；活动 runtime、状态、信任和 provider 选择均保持不变。
 func (s *Service) InstallOrUpgradeArchive(ctx context.Context, actor identity.Actor, input ArchiveInput) (InstallResult, error) {
 	if !canManagePlugins(actor) {
 		return InstallResult{}, identity.ErrPermissionDenied
@@ -74,9 +74,6 @@ func (s *Service) InstallOrUpgradeArchive(ctx context.Context, actor identity.Ac
 		isUpgrade = true
 		if existing.Source == SourceBuiltin || existing.IsSystem {
 			return InstallResult{}, ErrNotDeletable
-		}
-		if err := s.drainPluginRuntime(ctx, existing); err != nil {
-			return InstallResult{}, err
 		}
 	}
 
@@ -119,40 +116,39 @@ func (s *Service) InstallOrUpgradeArchive(ctx context.Context, actor identity.Ac
 		return InstallResult{}, err
 	}
 
-	_, _ = s.recordDeclaredMigrations(ctx, installed)
-
 	result := InstallResult{
-		Extension:        s.decorateRuntime(ctx, installed),
-		Upgraded:         isUpgrade,
-		RequiredReEnable: isUpgrade && previous.Type == TypePlugin,
+		Extension:         s.decorateRuntime(ctx, installed),
+		Upgraded:          isUpgrade,
+		RequiredReEnable:  false,
+		ActivationPending: isUpgrade && installed.StagedVersion != nil,
 	}
 	if isUpgrade {
+		candidateVersion := installed.Version
+		candidateDigest := installed.PackageDigest
+		candidateAdminDigest := installed.AdminFrontendDigest
+		if installed.StagedVersion != nil {
+			candidateVersion = installed.StagedVersion.Version
+			candidateDigest = installed.StagedVersion.PackageDigest
+			candidateAdminDigest = installed.StagedVersion.AdminFrontendDigest
+		}
 		result.PreviousVersion = previous.Version
 		result.PreviousDigest = previous.PackageDigest
-		if previous.AdminFrontendDigest != installed.AdminFrontendDigest {
-			result.TrustRevoked = true
-			if s.trustRevoker != nil {
-				_ = s.trustRevoker.RevokeAllForExtension(ctx, installed.ID, actor.ID)
-			}
-		}
-		if previous.PackageDigest != installed.PackageDigest && s.executableTrust != nil {
-			result.TrustRevoked = true
-			_ = s.executableTrust.RevokeAllForExtension(ctx, installed.ID, actor.ID, "artifact_changed")
-		}
 		_, _ = s.store.CreateEvent(ctx, EventInput{
 			ExtensionID: installed.ID,
 			ActorUserID: actor.ID,
 			Action:      EventUpgraded,
-			Message:     fmt.Sprintf("Upgraded from %s to %s.", previous.Version, installed.Version),
+			Message:     fmt.Sprintf("Staged upgrade from %s to %s; activation is pending.", previous.Version, candidateVersion),
 		})
 		s.appendAudit(ctx, actor, audit.ActionExtensionUpgraded, map[string]any{
-			"extensionId":     installed.ID,
-			"type":            installed.Type,
-			"previousVersion": previous.Version,
-			"version":         installed.Version,
-			"previousDigest":  previous.PackageDigest,
-			"packageDigest":   installed.PackageDigest,
-			"trustRevoked":    result.TrustRevoked,
+			"extensionId":          installed.ID,
+			"type":                 installed.Type,
+			"previousVersion":      previous.Version,
+			"candidateVersion":     candidateVersion,
+			"previousDigest":       previous.PackageDigest,
+			"candidateDigest":      candidateDigest,
+			"candidateAdminDigest": candidateAdminDigest,
+			"activationPending":    installed.StagedVersion != nil,
+			"trustRevoked":         false,
 		})
 	} else {
 		_, _ = s.store.CreateEvent(ctx, EventInput{

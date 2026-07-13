@@ -263,6 +263,8 @@ type InstallResult struct {
 	TrustRevoked bool `json:"trustRevoked,omitempty"`
 	// RequiredReEnable 升级后状态回到 installed，需重新启用。
 	RequiredReEnable bool `json:"requiredReEnable,omitempty"`
+	// ActivationPending 表示候选已惰性保存，活动制品仍在服务，尚未执行受信任升级事务。
+	ActivationPending bool `json:"activationPending,omitempty"`
 }
 
 // MigrationRecord 账本中的一条迁移。

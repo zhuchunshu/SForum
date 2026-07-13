@@ -223,17 +223,20 @@ func TestServiceInstallArchiveKeepsDifferentContentForSameIDAndVersion(t *testin
 		t.Fatalf("install changed package: %v", err)
 	}
 
-	if first.PackageDigest == "" || second.PackageDigest == "" {
+	if first.PackageDigest == "" || second.StagedVersion == nil || second.StagedVersion.PackageDigest == "" {
 		t.Fatalf("expected both package digests: first=%#v second=%#v", first, second)
 	}
-	if first.PackageDigest == second.PackageDigest || first.PackagePath == second.PackagePath {
-		t.Fatalf("different package content reused one snapshot: first=%#v second=%#v", first, second)
+	if first.PackageDigest != second.PackageDigest || first.PackagePath != second.PackagePath {
+		t.Fatalf("static upload replaced active snapshot: first=%#v second=%#v", first, second)
+	}
+	if first.PackageDigest == second.StagedVersion.PackageDigest || first.PackagePath == second.StagedVersion.PackagePath {
+		t.Fatalf("different candidate content reused active snapshot: first=%#v staged=%#v", first, second.StagedVersion)
 	}
 	firstBody, err := os.ReadFile(filepath.Join(first.PackagePath, "README.md"))
 	if err != nil {
 		t.Fatalf("read first immutable package: %v", err)
 	}
-	secondBody, err := os.ReadFile(filepath.Join(second.PackagePath, "README.md"))
+	secondBody, err := os.ReadFile(filepath.Join(second.StagedVersion.PackagePath, "README.md"))
 	if err != nil {
 		t.Fatalf("read second immutable package: %v", err)
 	}
@@ -1626,6 +1629,7 @@ func (r *fakeRuntimeManager) EmitHook(_ context.Context, name string, _ map[stri
 type fakeExtensionStore struct {
 	items         map[string]Extension
 	saved         Extension
+	nextVersionID int64
 	enabledID     string
 	disabledID    string
 	activeThemeID string
@@ -1660,6 +1664,42 @@ func (s *fakeExtensionStore) Get(_ context.Context, id string) (Extension, error
 }
 
 func (s *fakeExtensionStore) SaveInstalled(_ context.Context, input SaveInstalledInput) (Extension, error) {
+	now := time.Now()
+	if existing, ok := s.items[input.Manifest.ID]; ok {
+		if existing.Type != input.Manifest.Type {
+			return Extension{}, ErrInvalidManifest
+		}
+		if existing.Source == SourceBuiltin || existing.IsSystem {
+			return Extension{}, ErrNotDeletable
+		}
+		if existing.Version == input.Manifest.Version && existing.PackageDigest == input.PackageDigest {
+			return existing, nil
+		}
+		var candidate *ExtensionVersion
+		if existing.StagedVersion != nil && existing.StagedVersion.Version == input.Manifest.Version &&
+			existing.StagedVersion.PackageDigest == input.PackageDigest {
+			candidate = existing.StagedVersion
+		} else {
+			s.nextVersionID++
+			candidate = &ExtensionVersion{
+				ID: s.nextVersionID, Version: input.Manifest.Version, Manifest: input.Manifest,
+				PackageDigest: input.PackageDigest, AdminFrontendDigest: input.AdminFrontendDigest,
+				PackagePath: input.PackagePath, InstalledAt: now,
+			}
+		}
+		existing.StagedVersion = candidate
+		existing.UpdatedAt = now
+		s.items[existing.ID] = existing
+		s.saved = Extension{
+			ID: input.Manifest.ID, Name: input.Manifest.Name, Version: input.Manifest.Version,
+			Type: input.Manifest.Type, Status: StatusInstalled, Source: SourceUploaded,
+			IsDeletable: true, Manifest: input.Manifest, PackageDigest: input.PackageDigest,
+			AdminFrontendDigest: input.AdminFrontendDigest, PackagePath: input.PackagePath,
+			InstalledAt: now, UpdatedAt: now,
+		}
+		return existing, nil
+	}
+	s.nextVersionID++
 	item := Extension{
 		ID:                  input.Manifest.ID,
 		Name:                input.Manifest.Name,
@@ -1672,8 +1712,9 @@ func (s *fakeExtensionStore) SaveInstalled(_ context.Context, input SaveInstalle
 		PackageDigest:       input.PackageDigest,
 		AdminFrontendDigest: input.AdminFrontendDigest,
 		PackagePath:         input.PackagePath,
-		InstalledAt:         time.Now(),
-		UpdatedAt:           time.Now(),
+		ActiveVersionID:     s.nextVersionID,
+		InstalledAt:         now,
+		UpdatedAt:           now,
 	}
 	s.saved = item
 	if s.items == nil {
