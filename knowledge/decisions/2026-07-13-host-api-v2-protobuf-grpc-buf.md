@@ -41,8 +41,9 @@ change tooling. It is not selected.
 
 Buf supplies deterministic module loading, lint, and breaking checks while the
 official Go generators continue to own generated code. Pinning all three tools
-in `apps/api/go.mod` avoids a hidden workstation dependency and avoids remote
-generation services in CI. This is selected.
+in the isolated `tools/proto/go.mod` module avoids a hidden workstation
+dependency, keeps tool dependencies out of the API runtime module graph, and
+avoids remote generation services in CI. This is selected.
 
 ### Connect or an HTTP/JSON-only protocol
 
