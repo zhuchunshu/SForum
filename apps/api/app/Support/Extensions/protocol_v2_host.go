@@ -151,6 +151,9 @@ func validateProtocolV2HostContext(ctx *protocolv2.RequestContext, binding proto
 	if !equalProtocolV2Authority(ctx.GetGrantedAuthority(), binding.authority) {
 		return status.Error(codes.PermissionDenied, "protocol v2 authority disclosure does not match the runtime grant")
 	}
+	if ctx.GetActor() != nil {
+		return status.Error(codes.PermissionDenied, "protocol v2 actor context is not host-attested")
+	}
 	deadline := ctx.GetDeadline()
 	if deadline == nil || !deadline.IsValid() {
 		return status.Error(codes.InvalidArgument, "protocol v2 request deadline is required")

@@ -54,6 +54,9 @@ func TestProtocolV2HostUnaryAuthBindsExactRuntime(t *testing.T) {
 		{name: "forged authority", token: token, mutate: func(request *protocolv2.HealthRequest) {
 			request.Context.GrantedAuthority[0].Key = "raw.database"
 		}, code: codes.PermissionDenied},
+		{name: "forged actor", token: token, mutate: func(request *protocolv2.HealthRequest) {
+			request.Context.Actor = &protocolv2.Actor{UserId: 42, PermissionKeys: []string{"admin"}}
+		}, code: codes.PermissionDenied},
 		{name: "expired deadline", token: token, mutate: func(request *protocolv2.HealthRequest) {
 			request.Context.Deadline = timestamppb.New(time.Now().Add(-time.Second))
 		}, code: codes.DeadlineExceeded},
