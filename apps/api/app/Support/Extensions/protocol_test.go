@@ -141,6 +141,11 @@ func TestProtocolStarterPerformsHashicorpHandshake(t *testing.T) {
 	if probe.OK || probe.Reason != "plugin.storage_not_implemented" {
 		t.Fatalf("expected storage not implemented, got %#v", probe)
 	}
+	telemetry := starter.ProtocolTelemetry(extension.ID)
+	if telemetry.ProtocolVersion != 1 || telemetry.Transport != "net/rpc" || !telemetry.Deprecated ||
+		telemetry.StartCount != 1 || telemetry.CallCount != 3 || telemetry.LastCallAt == nil {
+		t.Fatalf("unexpected v1 telemetry: %#v", telemetry)
+	}
 }
 
 type staticPluginSettings map[string]map[string]string

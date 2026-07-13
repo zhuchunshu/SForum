@@ -232,6 +232,13 @@ export type AdminExtensionRuntime = {
   lastFailureAt?: string
   activeRpcCalls?: number
   maxConcurrentRpc?: number
+  /** P3 protocol migration telemetry */
+  protocolVersion?: 1 | 2
+  protocolTransport?: 'net/rpc' | 'grpc'
+  protocolDeprecated?: boolean
+  protocolStartCount?: number
+  protocolCallCount?: number
+  protocolLastCallAt?: string
 }
 
 export type AdminCapabilityRisk = 'low' | 'medium' | 'high'

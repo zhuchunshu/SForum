@@ -181,6 +181,13 @@ type RuntimeStatus struct {
 	LastFailureAt       *time.Time `json:"lastFailureAt,omitempty"`
 	ActiveRPCCalls      int        `json:"activeRpcCalls,omitempty"`
 	MaxConcurrentRPC    int        `json:"maxConcurrentRpc,omitempty"`
+	// P3：协议迁移观测；v1 保持可用但必须明确标记 deprecated。
+	ProtocolVersion    int        `json:"protocolVersion,omitempty"`
+	ProtocolTransport  string     `json:"protocolTransport,omitempty"`
+	ProtocolDeprecated bool       `json:"protocolDeprecated,omitempty"`
+	ProtocolStartCount uint64     `json:"protocolStartCount,omitempty"`
+	ProtocolCallCount  uint64     `json:"protocolCallCount,omitempty"`
+	ProtocolLastCallAt *time.Time `json:"protocolLastCallAt,omitempty"`
 }
 
 type MatchedRoute struct {

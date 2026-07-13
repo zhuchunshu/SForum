@@ -36,6 +36,25 @@ func TestManagerTracksStartStopStatusAndRouteTargets(t *testing.T) {
 	}
 }
 
+func TestManagerExposesProtocolDeprecationTelemetry(t *testing.T) {
+	lastCall := time.Date(2026, 7, 13, 18, 0, 0, 0, time.UTC)
+	starter := telemetryStarter{snapshot: ProtocolTelemetrySnapshot{
+		ProtocolVersion: 1, Transport: "net/rpc", Deprecated: true,
+		StartCount: 2, CallCount: 9, LastCallAt: &lastCall,
+	}}
+	manager := NewManager(ManagerConfig{Starter: starter})
+	extension := runtimeExtension("telemetry.plugin")
+	if err := manager.Start(context.Background(), extension); err != nil {
+		t.Fatal(err)
+	}
+	status := manager.Status(context.Background(), extension)
+	if status.ProtocolVersion != 1 || status.ProtocolTransport != "net/rpc" || !status.ProtocolDeprecated ||
+		status.ProtocolStartCount != 2 || status.ProtocolCallCount != 9 || status.ProtocolLastCallAt == nil ||
+		!status.ProtocolLastCallAt.Equal(lastCall) {
+		t.Fatalf("unexpected protocol telemetry status: %#v", status)
+	}
+}
+
 func TestManagerRecordsStartFailure(t *testing.T) {
 	manager := NewManager(ManagerConfig{Starter: fakeStarter{err: errors.New("start failed")}})
 	extension := runtimeExtension("broken.plugin")
@@ -248,6 +267,13 @@ func runtimeExtension(id string) extensions.Extension {
 type fakeStarter struct {
 	err error
 }
+
+type telemetryStarter struct {
+	fakeStarter
+	snapshot ProtocolTelemetrySnapshot
+}
+
+func (s telemetryStarter) ProtocolTelemetry(string) ProtocolTelemetrySnapshot { return s.snapshot }
 
 type countingManagerStarter struct {
 	starts int

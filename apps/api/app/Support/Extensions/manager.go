@@ -529,6 +529,15 @@ func (m *Manager) invoke(ctx context.Context, extension extensions.Extension, in
 }
 
 func (m *Manager) decorateStatus(extensionID string, status extensions.RuntimeStatus) extensions.RuntimeStatus {
+	if source, ok := m.starter.(ProtocolTelemetrySource); ok {
+		telemetry := source.ProtocolTelemetry(extensionID)
+		status.ProtocolVersion = telemetry.ProtocolVersion
+		status.ProtocolTransport = telemetry.Transport
+		status.ProtocolDeprecated = telemetry.Deprecated
+		status.ProtocolStartCount = telemetry.StartCount
+		status.ProtocolCallCount = telemetry.CallCount
+		status.ProtocolLastCallAt = telemetry.LastCallAt
+	}
 	if m.resilience == nil {
 		return status
 	}

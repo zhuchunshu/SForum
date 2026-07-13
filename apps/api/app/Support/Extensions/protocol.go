@@ -66,6 +66,7 @@ type ProtocolStarter struct {
 	mu        sync.Mutex
 	clients   map[string]*plugin.Client
 	protocols map[string]PluginProtocol
+	telemetry map[string]*protocolTelemetry
 	settings  PluginSettings
 	hostAPI   HostAPIRegistrar
 	trust     RuntimeTrustSource
@@ -152,6 +153,7 @@ func NewProtocolStarter(config ProtocolStarterConfig) *ProtocolStarter {
 	return &ProtocolStarter{
 		clients:   map[string]*plugin.Client{},
 		protocols: map[string]PluginProtocol{},
+		telemetry: map[string]*protocolTelemetry{},
 		settings:  config.Settings,
 		hostAPI:   config.HostAPI,
 		trust:     config.Trust,
@@ -277,6 +279,11 @@ func (s *ProtocolStarter) Start(ctx context.Context, extension extensions.Extens
 	}
 	s.clients[extension.ID] = client
 	s.protocols[extension.ID] = protocol
+	protocolVersion := extension.Manifest.Backend.ProtocolVersion
+	if protocolVersion == 0 {
+		protocolVersion = 1
+	}
+	s.recordProtocolStartLocked(extension.ID, protocolVersion)
 	s.mu.Unlock()
 	keepHostAPI = true
 	return RouteTarget{BaseURL: baseURL}, nil
@@ -385,6 +392,9 @@ func (s *ProtocolStarter) InvokeHook(ctx context.Context, extension extensions.E
 	if protocol == nil {
 		return HookResult{OK: false, Reason: "extension.runtime_unavailable", Message: "Plugin runtime is not available."}
 	}
+	s.mu.Lock()
+	s.recordProtocolCallLocked(extension.ID)
+	s.mu.Unlock()
 	timeoutMS := int(input.Timeout / time.Millisecond)
 	if timeoutMS <= 0 && input.Timeout > 0 {
 		timeoutMS = 1
@@ -430,6 +440,9 @@ func (s *ProtocolStarter) SendMail(ctx context.Context, extensionID string, requ
 	if protocol == nil {
 		return MailProviderResponse{}, extensions.ErrRuntimeUnavailable
 	}
+	s.mu.Lock()
+	s.recordProtocolCallLocked(extensionID)
+	s.mu.Unlock()
 	type outcome struct {
 		resp MailProviderResponse
 		err  error
@@ -462,7 +475,11 @@ func (s *ProtocolStarter) ProviderProbe(ctx context.Context, extensionID string,
 func (s *ProtocolStarter) protocolFor(extensionID string) PluginProtocol {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return s.protocols[extensionID]
+	protocol := s.protocols[extensionID]
+	if protocol != nil {
+		s.recordProtocolCallLocked(extensionID)
+	}
+	return protocol
 }
 
 // callStorage 在 ctx 截止前执行一次存储 RPC（net/rpc 无原生 context）。

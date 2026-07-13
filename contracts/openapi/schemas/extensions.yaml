@@ -919,6 +919,29 @@ ExtensionRuntimeStatus:
       type: integer
     maxConcurrentRpc:
       type: integer
+    protocolVersion:
+      type: integer
+      enum:
+      - 1
+      - 2
+      description: Exact HashiCorp go-plugin protocol selected from the trusted Manifest.
+    protocolTransport:
+      type: string
+      enum:
+      - net/rpc
+      - grpc
+    protocolDeprecated:
+      type: boolean
+      description: True for the operational protocol-v1 compatibility adapter.
+    protocolStartCount:
+      type: integer
+      format: int64
+    protocolCallCount:
+      type: integer
+      format: int64
+    protocolLastCallAt:
+      type: string
+      format: date-time
 Extension:
   type: object
   required:

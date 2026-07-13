@@ -41,6 +41,11 @@ func TestProtocolV2NegotiatesGRPCAndInvokesTypedHook(t *testing.T) {
 	if !result.OK || result.Patch["title"] != "after-v2" {
 		t.Fatalf("unexpected v2 hook result: %#v", result)
 	}
+	telemetry := starter.ProtocolTelemetry(extension.ID)
+	if telemetry.ProtocolVersion != 2 || telemetry.Transport != "grpc" || telemetry.Deprecated ||
+		telemetry.StartCount != 1 || telemetry.CallCount != 1 || telemetry.LastCallAt == nil {
+		t.Fatalf("unexpected v2 telemetry: %#v", telemetry)
+	}
 }
 
 func TestProtocolSelectionNeverSilentlyDowngrades(t *testing.T) {
