@@ -36,17 +36,21 @@ type ManagerConfig struct {
 }
 
 type Manager struct {
-	mu            sync.RWMutex
-	starter       Starter
-	statuses      map[string]extensions.RuntimeStatus
-	targets       map[string]RouteTarget
-	running       map[string]extensions.Extension
-	hooks         *HookBus
-	deliveryStore DeliveryStore
-	dispatcher    EventDispatcher
-	resilience    *resilienceHub
-	activation    *extensions.ActivationCoordinator
-	bootID        string
+	mu                 sync.RWMutex
+	starter            Starter
+	statuses           map[string]extensions.RuntimeStatus
+	targets            map[string]RouteTarget
+	running            map[string]extensions.Extension
+	runtimeInstances   map[string]map[string]*managedRuntimeInstance
+	activeInstances    map[string]string
+	runtimeLifecycleMu sync.Mutex
+	runtimeLifecycle   map[string]*sync.Mutex
+	hooks              *HookBus
+	deliveryStore      DeliveryStore
+	dispatcher         EventDispatcher
+	resilience         *resilienceHub
+	activation         *extensions.ActivationCoordinator
+	bootID             string
 }
 
 type DeliveryStore interface {
@@ -76,16 +80,19 @@ func NewManager(config ManagerConfig) *Manager {
 		bootID = extensions.NewActivationBootID()
 	}
 	return &Manager{
-		starter:       starter,
-		statuses:      map[string]extensions.RuntimeStatus{},
-		targets:       map[string]RouteTarget{},
-		running:       map[string]extensions.Extension{},
-		hooks:         hooks,
-		deliveryStore: config.DeliveryStore,
-		dispatcher:    config.Dispatcher,
-		resilience:    newResilienceHub(config.Resilience),
-		activation:    config.Activation,
-		bootID:        bootID,
+		starter:          starter,
+		statuses:         map[string]extensions.RuntimeStatus{},
+		targets:          map[string]RouteTarget{},
+		running:          map[string]extensions.Extension{},
+		runtimeInstances: map[string]map[string]*managedRuntimeInstance{},
+		activeInstances:  map[string]string{},
+		runtimeLifecycle: map[string]*sync.Mutex{},
+		hooks:            hooks,
+		deliveryStore:    config.DeliveryStore,
+		dispatcher:       config.Dispatcher,
+		resilience:       newResilienceHub(config.Resilience),
+		activation:       config.Activation,
+		bootID:           bootID,
 	}
 }
 
@@ -114,27 +121,34 @@ func (m *Manager) Check(_ context.Context, extension extensions.Extension) error
 }
 
 func (m *Manager) Start(ctx context.Context, extension extensions.Extension) error {
-	m.setStatus(extension, extensions.RuntimeStatus{
+	unlock := m.lockRuntimeLifecycle(extension.ID)
+	defer unlock()
+
+	m.mu.Lock()
+	previousStatus, hadPreviousStatus := m.statuses[extension.ID]
+	previousInstanceID := m.activeInstances[extension.ID]
+	m.statuses[extension.ID] = extensions.RuntimeStatus{
 		State:         extensions.RuntimeStarting,
 		RouteCount:    len(extension.Manifest.Routes),
 		HookCount:     len(extensions.DeclaredManifestEvents(extension.Manifest)),
 		EventCount:    len(extensions.DeclaredManifestEvents(extension.Manifest)),
 		ProviderCount: len(extension.Manifest.Providers),
-	})
+	}
+	m.mu.Unlock()
 	target, err := m.starter.Start(ctx, extension)
 	if err != nil {
-		m.setStatus(extension, extensions.RuntimeStatus{
-			State:         extensions.RuntimeFailed,
-			LastError:     err.Error(),
-			RouteCount:    len(extension.Manifest.Routes),
-			HookCount:     len(extensions.DeclaredManifestEvents(extension.Manifest)),
-			EventCount:    len(extensions.DeclaredManifestEvents(extension.Manifest)),
-			ProviderCount: len(extension.Manifest.Providers),
-		})
+		m.recordRuntimeStartFailure(extension, previousInstanceID, previousStatus, hadPreviousStatus, err)
 		return err
 	}
 	now := time.Now().UTC()
 	m.mu.Lock()
+	target, err = m.activateRuntimeInstanceLocked(extension, target)
+	if err != nil {
+		m.mu.Unlock()
+		_ = m.starter.Stop(ctx, extension)
+		m.recordRuntimeStartFailure(extension, previousInstanceID, previousStatus, hadPreviousStatus, err)
+		return err
+	}
 	m.targets[extension.ID] = target
 	m.running[extension.ID] = extension
 	m.statuses[extension.ID] = extensions.RuntimeStatus{
@@ -151,16 +165,34 @@ func (m *Manager) Start(ctx context.Context, extension extensions.Extension) err
 }
 
 func (m *Manager) Stop(ctx context.Context, extension extensions.Extension) error {
+	unlock := m.lockRuntimeLifecycle(extension.ID)
+	defer unlock()
+
+	m.mu.RLock()
+	instanceID := m.activeInstances[extension.ID]
+	m.mu.RUnlock()
 	err := m.starter.Stop(ctx, extension)
 	m.mu.Lock()
-	delete(m.targets, extension.ID)
-	delete(m.running, extension.ID)
-	m.statuses[extension.ID] = extensions.RuntimeStatus{
-		State:         extensions.RuntimeStopped,
-		RouteCount:    len(extension.Manifest.Routes),
-		HookCount:     len(extensions.DeclaredManifestEvents(extension.Manifest)),
-		EventCount:    len(extensions.DeclaredManifestEvents(extension.Manifest)),
-		ProviderCount: len(extension.Manifest.Providers),
+	if m.deactivateRuntimeInstanceLocked(RuntimeInstanceIdentity{ExtensionID: extension.ID, InstanceID: instanceID}) {
+		delete(m.targets, extension.ID)
+		delete(m.running, extension.ID)
+		m.statuses[extension.ID] = extensions.RuntimeStatus{
+			State:         extensions.RuntimeStopped,
+			RouteCount:    len(extension.Manifest.Routes),
+			HookCount:     len(extensions.DeclaredManifestEvents(extension.Manifest)),
+			EventCount:    len(extensions.DeclaredManifestEvents(extension.Manifest)),
+			ProviderCount: len(extension.Manifest.Providers),
+		}
+	} else if instanceID == "" {
+		delete(m.targets, extension.ID)
+		delete(m.running, extension.ID)
+		m.statuses[extension.ID] = extensions.RuntimeStatus{
+			State:         extensions.RuntimeStopped,
+			RouteCount:    len(extension.Manifest.Routes),
+			HookCount:     len(extensions.DeclaredManifestEvents(extension.Manifest)),
+			EventCount:    len(extensions.DeclaredManifestEvents(extension.Manifest)),
+			ProviderCount: len(extension.Manifest.Providers),
+		}
 	}
 	m.mu.Unlock()
 	m.hooks.Unregister(extension.ID)

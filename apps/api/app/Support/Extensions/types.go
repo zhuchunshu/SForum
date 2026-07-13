@@ -18,5 +18,6 @@ type ProxyInput struct {
 }
 
 type RouteTarget struct {
-	BaseURL string
+	BaseURL    string
+	InstanceID string
 }

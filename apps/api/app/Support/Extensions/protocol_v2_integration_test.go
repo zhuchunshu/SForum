@@ -37,6 +37,9 @@ func TestProtocolV2NegotiatesGRPCAndInvokesTypedHook(t *testing.T) {
 	if target.BaseURL != "" {
 		t.Fatalf("v2 route target must use gRPC registry, got %#v", target)
 	}
+	if target.InstanceID == "" {
+		t.Fatalf("v2 route target must expose the exact runtime instance: %#v", target)
+	}
 	if gateway.BaseURL() != "" {
 		t.Fatalf("v2 must not start the legacy loopback gateway: %s", gateway.BaseURL())
 	}
@@ -62,7 +65,7 @@ func TestProtocolV2NegotiatesGRPCAndInvokesTypedHook(t *testing.T) {
 		t.Fatalf("unexpected v2 telemetry: %#v", telemetry)
 	}
 	resolved, err := gateway.ProtocolV2ServiceRegistry().ResolveExact("runtime.v2.service.echo", "1.0.0")
-	if err != nil || resolved.Winner.ExtensionID != extension.ID {
+	if err != nil || resolved.Winner.ExtensionID != extension.ID || resolved.Winner.InstanceID != target.InstanceID {
 		t.Fatalf("runtime service registration = %#v, %v", resolved, err)
 	}
 }

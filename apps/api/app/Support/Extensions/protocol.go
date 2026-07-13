@@ -288,7 +288,11 @@ func (s *ProtocolStarter) Start(ctx context.Context, extension extensions.Extens
 		return RouteTarget{}, err
 	}
 	serviceRegistry := protocolV2ServiceRegistryFor(s.hostAPI)
+	instanceID := ""
 	if v2, ok := protocol.(*protocolV2Client); ok {
+		if v2.identity != nil {
+			instanceID = v2.identity.GetInstanceId()
+		}
 		registrations, err := v2.serviceRegistrations(extension)
 		if err != nil {
 			client.Kill()
@@ -326,7 +330,7 @@ func (s *ProtocolStarter) Start(ctx context.Context, extension extensions.Extens
 	s.mu.Unlock()
 	go s.watchClientExit(extension.ID, protocolVersion, protocol, client)
 	keepHostAPI = true
-	return RouteTarget{BaseURL: baseURL}, nil
+	return RouteTarget{BaseURL: baseURL, InstanceID: instanceID}, nil
 }
 
 // isPluginRouteTargetNone 表示插件不提供可代理的 HTTP BaseURL。
