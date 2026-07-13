@@ -5,7 +5,7 @@
 - Overall V3: **27%**.
 - P0-P3: **100%**.
 - P4: **47%**, active (7 of 15 task/test rows complete).
-- Branch: `main`; last implementation commit: `b3adee77b`.
+- Branch: `main`; last implementation commit: `71135e942`.
 
 ## Changed
 
@@ -51,6 +51,13 @@
   coordinator to protocol-v2. Forced authority stays distinct from `dry_run`
   and plugin-owned input; all eleven actions, live progress, result JSON, and
   typed remote failures cross the frozen subprocess transport.
+- Added the independent `host.gate` lifecycle-step identity needed for Host
+  safety gates to use lease fencing without masquerading as plugin code. Its
+  additive migration preserves historical rows across rollback.
+- Added the real PostgreSQL/River queued-job reconciliation adapter. The full
+  extension-scoped River snapshot, exact migration ledger claim/link, public
+  transactional replacement insert, and old-row cancellation share one
+  database transaction; no River payload column is rewritten in place.
 
 ## Verification
 
@@ -72,18 +79,20 @@
 - Protocol generation was reproducible; Buf lint/breaking checks, SDK tests,
   runtime-adapter repeated/subprocess/race tests, and full API tests passed.
 - The plugin-job ledger passed an isolated PostgreSQL `Up -> Down -> Up` cycle.
+- The Host-gate migration passed focused migration and embedded migrator
+  rollback/forward tests.
+- PostgreSQL/River reconciliation passed atomic rollback, retry, migration
+  identity, extension scoping, and real River-row integration coverage.
 
 ## Active Ownership
 
-- The PostgreSQL/River plugin-job lifecycle adapter is in flight in isolated
-  HostAPI files.
 - Coordinator step-lease execution/heartbeat wiring is in flight. Host gates
-  require one independent additive constraint migration before they can use the
-  same durable lease path honestly.
+  now have the independent additive constraint needed to use that path
+  honestly.
 
 ## Next
 
-1. Finish the real River adapter and coordinator lease wiring.
+1. Finish and land coordinator lease wiring.
 2. Wire the lifecycle state machine and first-trusted-enable transaction to the
    durable ledger, exact-artifact trust, frozen runtime, drain, audit, and
    recovery contracts.
