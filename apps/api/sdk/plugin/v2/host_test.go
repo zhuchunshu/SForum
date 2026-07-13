@@ -31,13 +31,13 @@ func TestHostRequestContextRebindsRuntimeOwnedFields(t *testing.T) {
 		!equalAuthority(result.GetGrantedAuthority(), authority) {
 		t.Fatalf("runtime binding = %#v", result)
 	}
-	if result.GetActor().GetUserId() != 42 || result.GetLocale() != "zh-CN" || result.GetTrace().GetTraceId() != "trace-1" {
+	if result.GetActor() != nil || result.GetLocale() != "zh-CN" || result.GetTrace().GetTraceId() != "trace-1" {
 		t.Fatalf("request context was not propagated: %#v", result)
 	}
 	if remaining := time.Until(result.GetDeadline().AsTime()); remaining <= 0 || remaining > 6*time.Second {
 		t.Fatalf("deadline was not bounded: %s", remaining)
 	}
-	if parent.GetExtension().GetExtensionId() != "forged" || parent.GetGrantedAuthority()[0].GetKey() != "raw.database" {
+	if parent.GetActor().GetUserId() != 42 || parent.GetExtension().GetExtensionId() != "forged" || parent.GetGrantedAuthority()[0].GetKey() != "raw.database" {
 		t.Fatalf("parent context was mutated: %#v", parent)
 	}
 }

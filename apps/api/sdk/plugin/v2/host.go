@@ -100,14 +100,16 @@ func newHost(
 	return host, nil
 }
 
-// RequestContext carries actor/locale/trace data from an incoming plugin call
-// while replacing all runtime-owned identity and authority fields.
+// RequestContext carries locale/trace data from an incoming plugin call while
+// replacing runtime-owned fields. Actor is cleared until the Host provides an
+// attested delegation token; plugin-supplied principals are never trusted.
 func (h *Host) RequestContext(parent *protocolwire.RequestContext) *protocolwire.RequestContext {
 	result := &protocolwire.RequestContext{}
 	if parent != nil {
 		result = proto.Clone(parent).(*protocolwire.RequestContext)
 	}
 	result.RequestId = h.instance + "-host-" + strconv.FormatUint(h.sequence.Add(1), 10)
+	result.Actor = nil
 	result.Extension = cloneIdentity(h.identity)
 	result.GrantedAuthority = cloneAuthority(h.authority)
 	if result.Locale == "" {
