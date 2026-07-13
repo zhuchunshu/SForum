@@ -6,6 +6,7 @@ import (
 	"crypto/subtle"
 	"time"
 
+	hostv2 "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/host/v2"
 	protocolv2 "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/protocol/v2"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -88,20 +89,44 @@ func protocolV2HostStreamAuthInterceptor(binding protocolV2HostBinding) grpc.Str
 
 type protocolV2AuthenticatedHostStream struct {
 	grpc.ServerStream
-	binding protocolV2HostBinding
+	binding   protocolV2HostBinding
+	validated bool
 }
 
 func (s *protocolV2AuthenticatedHostStream) RecvMsg(message any) error {
 	if err := s.ServerStream.RecvMsg(message); err != nil {
 		return err
 	}
-	carrier, ok := message.(interface {
-		GetContext() *protocolv2.RequestContext
-	})
-	if !ok {
+	if s.validated {
+		return nil
+	}
+	requestContext := protocolV2HostStreamOpenContext(message)
+	if requestContext == nil {
 		return status.Error(codes.InvalidArgument, "protocol v2 stream open context is required")
 	}
-	return validateProtocolV2HostContext(carrier.GetContext(), s.binding)
+	if err := validateProtocolV2HostContext(requestContext, s.binding); err != nil {
+		return err
+	}
+	s.validated = true
+	return nil
+}
+
+func protocolV2HostStreamOpenContext(message any) *protocolv2.RequestContext {
+	if carrier, ok := message.(interface {
+		GetContext() *protocolv2.RequestContext
+	}); ok {
+		return carrier.GetContext()
+	}
+	switch value := message.(type) {
+	case *hostv2.ServiceStreamFrame:
+		return value.GetOpen().GetContext()
+	case *hostv2.FileWriteFrame:
+		return value.GetOpen().GetContext()
+	case *hostv2.HttpStreamFrame:
+		return value.GetOpen().GetContext()
+	default:
+		return nil
+	}
 }
 
 func validateProtocolV2HostToken(ctx context.Context, binding protocolV2HostBinding) error {

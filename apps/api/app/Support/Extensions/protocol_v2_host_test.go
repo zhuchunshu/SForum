@@ -2,9 +2,11 @@ package extensionsruntime
 
 import (
 	"context"
+	"io"
 	"testing"
 	"time"
 
+	hostv2 "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/host/v2"
 	protocolv2 "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/protocol/v2"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -67,6 +69,53 @@ func TestProtocolV2HostUnaryAuthBindsExactRuntime(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestProtocolV2HostStreamAuthenticatesOnlyOpenFrame(t *testing.T) {
+	identity := &protocolv2.ExtensionIdentity{
+		ExtensionId: "demo.v2", ExtensionVersion: "1.0.0", ArtifactDigest: "artifact",
+		TrustGrantId: "grant", RuntimeEpoch: 1, InstanceId: "instance",
+	}
+	authority := []*protocolv2.AuthorityGrant{{Key: "host.api", ContractVersion: hostAPIV2Version}}
+	binding := newProtocolV2HostBinding(protocolV2ClientConfig{identity: identity, authority: authority, token: []byte("01234567890123456789012345678901")})
+	requestContext := &protocolv2.RequestContext{
+		RequestId: "stream-1", Deadline: timestamppb.New(time.Now().Add(time.Minute)),
+		Extension: cloneV2Identity(identity), GrantedAuthority: cloneV2Authority(authority),
+	}
+	backend := &fakeProtocolV2ServerStream{messages: []proto.Message{
+		&hostv2.ServiceStreamFrame{Frame: &hostv2.ServiceStreamFrame_Open{Open: &hostv2.ServiceStreamOpen{Context: requestContext}}},
+		&hostv2.ServiceStreamFrame{Frame: &hostv2.ServiceStreamFrame_Message{Message: &protocolv2.TypedDocument{SchemaId: "demo.message", SchemaVersion: "1"}}},
+	}}
+	stream := &protocolV2AuthenticatedHostStream{ServerStream: backend, binding: binding}
+	if err := stream.RecvMsg(new(hostv2.ServiceStreamFrame)); err != nil {
+		t.Fatalf("open frame: %v", err)
+	}
+	if err := stream.RecvMsg(new(hostv2.ServiceStreamFrame)); err != nil {
+		t.Fatalf("data frame inherited authentication: %v", err)
+	}
+}
+
+type fakeProtocolV2ServerStream struct {
+	messages []proto.Message
+}
+
+func (s *fakeProtocolV2ServerStream) SetHeader(metadata.MD) error  { return nil }
+func (s *fakeProtocolV2ServerStream) SendHeader(metadata.MD) error { return nil }
+func (s *fakeProtocolV2ServerStream) SetTrailer(metadata.MD)       {}
+func (s *fakeProtocolV2ServerStream) Context() context.Context     { return context.Background() }
+func (s *fakeProtocolV2ServerStream) SendMsg(any) error            { return nil }
+func (s *fakeProtocolV2ServerStream) RecvMsg(message any) error {
+	if len(s.messages) == 0 {
+		return io.EOF
+	}
+	target, ok := message.(proto.Message)
+	if !ok {
+		return io.ErrUnexpectedEOF
+	}
+	proto.Reset(target)
+	proto.Merge(target, s.messages[0])
+	s.messages = s.messages[1:]
+	return nil
 }
 
 func TestProtocolV2HostBindingOwnsClonedIdentity(t *testing.T) {
