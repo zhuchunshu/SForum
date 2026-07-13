@@ -2,10 +2,10 @@
 
 ## Status
 
-- Overall V3: **25%**.
+- Overall V3: **26%**.
 - P0-P3: **100%**.
-- P4: **27%**, active (4 of 15 task/test rows complete).
-- Branch: `main`; last implementation commit: `a3c4f75dc`.
+- P4: **40%**, active (6 of 15 task/test rows complete).
+- Branch: `main`; last implementation commit: `d38e81d42`.
 
 ## Changed
 
@@ -29,6 +29,12 @@
   artifact and authority snapshots, idempotency fingerprints, stable step ids,
   checkpoints, progress, typed failure, retries, removal modes, actor/audit
   snapshots, and uninstall history survive process and extension deletion.
+- Added real protocol-v2 execution for exact-artifact River plugin jobs. The
+  worker resolves live package/trust state, cancels stale or incompatible rows,
+  and rechecks both the running and startup-frozen Manifest before dispatch.
+- Added deterministic execute/drain/migrate/cancel upgrade decisions and closed
+  the old-version fail-closed execution matrix. Actual River row migration is
+  deliberately left to lifecycle drain orchestration.
 
 ## Verification
 
@@ -41,18 +47,18 @@
 - Repository concurrent acquire/CAS/stable-step, restart, resume, retry, audit
   retention, and extension-deletion history tests passed repeatedly and with
   race detection.
+- Plugin-job focused repetition, relevant package tests, race, vet, full Go
+  tests, and full Go build passed.
 
 ## Active Ownership
 
-- Versioned plugin-job execution and drain compatibility are an independent
-  in-flight slice sharing selected runtime files.
 - A crash-resumable coordinator is in flight in independent new files.
 - Exhaustive durable crash/retry boundary coverage is in flight in an
   independent integration test file.
 
 ## Next
 
-1. Review, test, and commit the job, coordinator, and boundary-recovery slices.
+1. Review, test, and commit the coordinator and boundary-recovery slices.
 2. Wire the lifecycle state machine and first-trusted-enable transaction to the
    durable ledger, exact-artifact trust, frozen runtime, drain, audit, and
    recovery contracts.

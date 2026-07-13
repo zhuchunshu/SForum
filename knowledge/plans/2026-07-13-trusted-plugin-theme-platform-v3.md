@@ -399,7 +399,7 @@ flowchart LR
 - [ ] Add retry, skip-step, and forced uninstall UI with accurate residual-risk
       text.
 - [ ] Drain routes/jobs/schedules before disable/upgrade/uninstall.
-- [ ] Version queued job payloads and define drain/migrate/cancel behavior.
+- [x] Version queued job payloads and define drain/migrate/cancel behavior.
 
 ### Tests
 
@@ -408,7 +408,7 @@ flowchart LR
       provides resolution.
 - [ ] Idempotent repeated uninstall, external cleanup failure, forced removal,
       data preserve/export/delete, and audit coverage.
-- [ ] Old-version queued jobs cannot execute against incompatible new code.
+- [x] Old-version queued jobs cannot execute against incompatible new code.
 
 ### Rollback
 

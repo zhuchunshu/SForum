@@ -4,7 +4,7 @@ This is the entry point for project memory.
 
 ## Latest Handoff
 
-- **2026-07-14 Trusted Plugin And Theme Platform V3 P4 active (overall 25%, P4 27%)**
+- **2026-07-14 Trusted Plugin And Theme Platform V3 P4 active (overall 26%, P4 40%)**
   - Decision: `knowledge/decisions/2026-07-13-trusted-plugin-theme-platform-v3.md`
   - Task book: `knowledge/plans/2026-07-13-trusted-plugin-theme-platform-v3.md`
   - P4 handoff: `knowledge/sessions/2026-07-14-trusted-plugin-theme-platform-v3-p4-progress.md`
@@ -45,8 +45,11 @@ This is the entry point for project memory.
   - P4 now has the authoritative ten-state Host state machine plus additive
     PostgreSQL operation/step ledgers and a concurrent, CAS-based resumable
     repository with exact-artifact authority and audit snapshots
-  - Active parallel P4 work owns the crash-resumable coordinator, exhaustive
-    boundary recovery tests, and versioned plugin-job execution contracts
+  - Exact-artifact River plugin jobs resolve live trust/runtime state, recheck
+    frozen declarations before V2 dispatch, and cancel old incompatible rows;
+    deterministic upgrade policy covers execute/drain/migrate/cancel
+  - Active parallel P4 work owns the crash-resumable coordinator and exhaustive
+    boundary recovery tests
 
 - **2026-07-13 Legacy Web Release/runtime frontend builds removed**
   - Decision: `knowledge/decisions/2026-07-13-remove-legacy-web-release.md`

@@ -1,8 +1,8 @@
 # Trusted Plugin And Theme Platform V3 Progress Ledger
 
 Date: 2026-07-14
-Overall progress: **25%**
-Active phase: **P4 - Lifecycle V2, Dependency Graph, And Authoritative Hooks (27%, 4 of 15 rows)**
+Overall progress: **26%**
+Active phase: **P4 - Lifecycle V2, Dependency Graph, And Authoritative Hooks (40%, 6 of 15 rows)**
 
 This ledger is the durable percentage and context-compaction checkpoint for the
 V3 program. Update it before context compression, at every phase boundary, and
@@ -20,7 +20,7 @@ scaffolding, or demo-only code cannot satisfy a runtime exit criterion.
 | P1 Trust/recovery | 6% | 100% | 6% |
 | P2 Manifest/contracts | 7% | 100% | 7% |
 | P3 Host API v2 | 8% | 100% | 8% |
-| P4 Lifecycle/dependencies | 7% | 27% | 1% |
+| P4 Lifecycle/dependencies | 7% | 40% | 2% |
 | P5 Database/commands | 8% | 0% | 0% |
 | P6 Routes/middleware | 10% | 0% | 0% |
 | P7 Workflow/admin/query/identity | 10% | 0% | 0% |
@@ -111,6 +111,30 @@ phase percentage.
   failing plugin exactly once (`failed`, then `skipped`).
 
 ## Last Durable Checkpoint
+
+### 2026-07-14 P4 Exact-Artifact Plugin Job Checkpoint
+
+- Last implementation commit: `d38e81d42 feat(jobs): execute exact-artifact
+  plugin jobs`.
+- P4 is 6 of 15 rows complete. River rows already persist the exact envelope;
+  the worker now resolves the live extension and trust grant, rejects legacy or
+  incompatible rows permanently, and rechecks the running and startup-frozen
+  Manifest immediately before protocol-v2 dispatch.
+- Job progress validates response identity, job id, monotonic counters,
+  terminal state, typed failure/cancellation, and the absence of an undeclared
+  result. A runtime change between resolution and dispatch maps to a permanent
+  `runtime_changed` cancellation, so old code cannot receive the job.
+- The deterministic upgrade policy defines execute, drain, declared migration,
+  and cancel outcomes. Lifecycle-driven enumeration/migration of River rows is
+  still part of the broader coordinator/drain work and is not claimed here.
+- Verification passed focused repeated tests, relevant package tests, race,
+  vet, `go test ./...`, `go build ./...`, staged diff review, and a parent
+  targeted rerun.
+- Current uncommitted ownership: crash-resumable lifecycle coordinator and the
+  exhaustive PostgreSQL boundary recovery matrix. Unrelated `.reasonix`,
+  `.zcode`, and `CLAUDE.md` deletions remain untouched.
+- Next: review and land the boundary matrix and coordinator independently, then
+  wire first trusted enable and lifecycle-driven drain into Service/HTTP.
 
 ### 2026-07-14 P4 State Machine And Durable Ledger Checkpoint
 

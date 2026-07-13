@@ -82,6 +82,14 @@ extension, uses revision/state CAS, and resumes the same logical operation
 after a process restart. Runtime coordinator, first-trusted-enable wiring,
 drain/uninstall cleanup, and operator recovery UI remain active P4 work.
 
+Versioned River plugin jobs now execute only against the live exact artifact,
+trust grant, job contract, and payload schema that authorized their enqueue.
+The worker cancels legacy, revoked, removed, disabled, or incompatible rows;
+Manager and the V2 client repeat the check against the running and startup-
+frozen Manifest to close upgrade races. The deterministic upgrade policy
+selects execute, drain, declared payload migration, or cancel. Lifecycle-driven
+River row enumeration/migration remains part of the active drain coordinator.
+
 ## Purpose
 
 Owns installable plugins and themes for SForum. Plugins are multi-enable
