@@ -4,10 +4,10 @@ This is the entry point for project memory.
 
 ## Latest Handoff
 
-- **2026-07-13 Trusted Plugin And Theme Platform V3 P2 complete (overall 16%, P3 next)**
+- **2026-07-13 Trusted Plugin And Theme Platform V3 P3 active (overall 17%, P3 15%)**
   - Decision: `knowledge/decisions/2026-07-13-trusted-plugin-theme-platform-v3.md`
   - Task book: `knowledge/plans/2026-07-13-trusted-plugin-theme-platform-v3.md`
-  - P2 handoff: `knowledge/sessions/2026-07-13-trusted-plugin-theme-platform-v3-p2-progress.md`
+  - P3 handoff: `knowledge/sessions/2026-07-13-trusted-plugin-theme-platform-v3-p3-progress.md`
   - Durable progress/compaction ledger:
     `knowledge/plans/2026-07-13-trusted-plugin-theme-platform-v3-progress.md`
   - P0 catalogs and governance: `docs/extensions/v3/`
@@ -26,7 +26,10 @@ This is the entry point for project memory.
     disclosure, schema-derived author catalogs, CLI smoke, and the file-size
     boundary; all 19 P2 task/test checkboxes are closed
   - P2 final gates: Go build/tests, full repo gate, 1,607 OpenAPI refs, Nuxt
-    typecheck/build, 277 Web tests, and 207/115/99 catalog counts; P3 is next
+    typecheck/build, 277 Web tests, and 207/115/99 catalog counts
+  - P3 now has a pinned Buf/Protobuf toolchain, 3 versioned packages, 18 gRPC
+    services, 147 declarations, generated Go SDK, descriptor tests, and repo
+    drift enforcement; additive gRPC runtime negotiation is next
 
 - **2026-07-13 Legacy Web Release/runtime frontend builds removed**
   - Decision: `knowledge/decisions/2026-07-13-remove-legacy-web-release.md`

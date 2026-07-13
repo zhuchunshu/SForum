@@ -1,8 +1,8 @@
 # Trusted Plugin And Theme Platform V3 Progress Ledger
 
 Date: 2026-07-13
-Overall progress: **16%**
-Active phase: **P3 - Host API V2 And Generated SDKs (0%)**
+Overall progress: **17%**
+Active phase: **P3 - Host API V2 And Generated SDKs (15%)**
 
 This ledger is the durable percentage and context-compaction checkpoint for the
 V3 program. Update it before context compression, at every phase boundary, and
@@ -19,7 +19,7 @@ scaffolding, or demo-only code cannot satisfy a runtime exit criterion.
 | P0 Governance | 3% | 100% | 3% |
 | P1 Trust/recovery | 6% | 100% | 6% |
 | P2 Manifest/contracts | 7% | 100% | 7% |
-| P3 Host API v2 | 8% | 0% | 0% |
+| P3 Host API v2 | 8% | 15% | 1% |
 | P4 Lifecycle/dependencies | 7% | 0% | 0% |
 | P5 Database/commands | 8% | 0% | 0% |
 | P6 Routes/middleware | 10% | 0% | 0% |
@@ -112,42 +112,33 @@ phase percentage.
 
 ## Last Durable Checkpoint
 
-- Last implementation/documentation commit: `0ae175659 docs(extensions):
-  document Manifest V3 authoring`.
-- P2 commits: `5ffb4c435`, `3320a3626`, `919ccaef3`, `9f774f365`,
-  `27e31f575`, `8adc77641`, `b47d2f32d`, `4bbcfee66`, `a1fd10f20`,
-  `3c2629e11`, and `0ae175659`.
-- P2 is complete. Manifest loading preserves absent-version V1 compatibility,
-  accepts explicit V2/V3, rejects future versions, and fails unsafe implicit V3
-  upgrades.
-- All Registry/platform declaration families, exact package-file validation,
-  deterministic dependency graph resolution, embedded Draft 2020-12 JSON
-  Schema, modular OpenAPI, V3 scaffolds/digest refresh, and fourteen reference
-  fixtures are implemented.
-- `sforum.trust-impact@2` now binds the Manifest contract, every V3 declaration,
-  raw request/raw core authority, Manifest dependencies, and actual backend,
-  migration, custom-guard, and L2 bytes. The admin UI discloses every canonical
-  category in both locales.
-- `manifest.go` is 960 lines after moving contribution validation into its own
-  cohesive file. The moved function body differed only by its final blank line;
-  focused and full Go tests passed.
-- Generated `manifest-v3.md` enumerates all 46 root schema fields from the
-  embedded schema and is protected by CLI/SDK drift tests. The author guide and
-  module notes document compatibility, includes, digests, dependency semantics,
-  trust, themes, and the later-runtime boundary.
-- Final gates passed: `go build ./...`, `go test ./...`, `./scripts/test.sh`,
-  1,607 OpenAPI references across 40 files, Nuxt typecheck, all 277 Web tests,
-  Nuxt production build, generated docs drift, and V3 P0 catalog drift (207
-  routes, 115 UI surfaces, 99 traceability rows).
-- A real CLI smoke generated `smoke.v3-plugin`, refreshed its digest, validated
-  `sforum.manifest@3`, and passed contract test with only the expected scaffold
-  warning. Temporary package and QA artifacts were removed.
-- Isolated real-browser QA rendered every impact category, expanded the L2
-  declaration JSON, stayed console-clean, and had no horizontal overflow at
-  `390x844`. The temporary port 3001 server/page were removed; user port 3000
-  was untouched.
-- Working tree was clean at `0ae175659` before this completion checkpoint.
-- Next command after committing this checkpoint: read the P3 task slice,
-  inventory Host API v1, go-plugin/net-rpc, SDK generation and protocol tests,
-  then record the Protobuf/gRPC/buf library choice before the first additive P3
-  contract commit.
+- Last implementation commit: `7afa0c174 test(proto): enforce Host API V2
+  contract drift`.
+- P3 commits so far: `b4d50005f`, `bda361626`, `1b9923372`, `ff4661103`, and
+  `7afa0c174`.
+- The library survey selected latest HashiCorp go-plugin `v1.8.0`, latest
+  protobuf-go `v1.36.11`, pinned Buf `v1.71.0`, and protoc-gen-go-grpc `v1.6.2`;
+  the isolated `tools/proto` module keeps tool dependencies out of the API
+  runtime graph.
+- `sforum.protocol.v2`, `sforum.plugin.v2`, and `sforum.host.v2` define 18 gRPC
+  services and 147 message/enum declarations. They cover handshake, health,
+  readiness, lifecycle, routes, hooks, query/transactional commands, database,
+  cache, jobs, schedules, services, secrets, files, HTTP, admin, identity,
+  permissions, media, navigation, audit, and tracing.
+- Every dynamic document binds a schema id/version. Request context carries
+  actor, locale, trace/request ids, deadline, exact extension identity, runtime
+  epoch, trust grant, and disclosed authority. Transactional commands bind
+  version, idempotency, dry-run impact, policy decisions, atomic outcome, audit,
+  revision, and typed result.
+- Generated Go code is committed under `apps/api/sdk/plugin/v2/gen`. Descriptor
+  tests lock the complete service catalog, envelope fields, command result, and
+  twelve required streaming modes. `scripts/test.sh` now runs Buf lint,
+  generation, and drift detection.
+- Verification passed: Buf lint/check, `go test ./sdk/plugin/v2/...`, and
+  `go build ./...`. The existing v1 implementation and fixtures were not
+  changed by this contract slice.
+- Working tree was clean at `7afa0c174` before this documentation checkpoint.
+- Next command after committing this checkpoint: implement the gRPC v2
+  `plugin.GRPCPlugin` adapter beside `netRPCPlugin`, add exact per-Manifest
+  `VersionedPlugins` selection and handshake tests, and preserve `Serve` as the
+  unchanged v1 SDK entry point.

@@ -341,11 +341,11 @@ flowchart LR
 
 ### Tasks
 
-- [ ] Define Protobuf packages for handshake, health, lifecycle, Host queries/
+- [x] Define Protobuf packages for handshake, health, lifecycle, Host queries/
       commands, routes, hooks, DB, cache, jobs, schedules, services, secrets,
       files, HTTP, admin surfaces, identity, permissions, media, navigation,
       audit, and tracing.
-- [ ] Define versioned transactional Host Commands for common multi-module
+- [x] Define versioned transactional Host Commands for common multi-module
       writes with authoritative policy checks, idempotency, dry-run/impact data,
       atomic commit, audit, and typed results.
 - [ ] Add HashiCorp go-plugin gRPC protocol v2 negotiation.
