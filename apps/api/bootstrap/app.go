@@ -133,6 +133,14 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		return nil, fmt.Errorf("create option cipher: %w", err)
 	}
 	auditWriter := audit.NewPostgresWriter(pool)
+	if cfg.SafeMode {
+		if err := auditWriter.Append(ctx, audit.Event{
+			Action:   audit.ActionExtensionSafeModeBoot,
+			Metadata: map[string]any{"process": "api"},
+		}); err != nil {
+			logger.Warn("record safe mode boot audit failed", "error", err)
+		}
+	}
 	optionsService := options.NewServiceWithDefaults(optionStore, optionsDefaultsFromConfig(cfg)).
 		WithCipher(optionCipher).
 		WithAuditor(auditWriter)
@@ -198,7 +206,9 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		return nil, fmt.Errorf("job dispatcher setup failed: %w", err)
 	}
 	jobDispatcher := supportjobs.NewDispatcher(jobClient)
-	frontendService := extensions.NewFrontendService(extensionStore, frontendTrustStore).WithAuditor(auditWriter)
+	frontendService := extensions.NewFrontendService(extensionStore, frontendTrustStore).
+		WithAuditor(auditWriter).
+		WithSafeMode(cfg.SafeMode)
 	executableTrustService := extensions.NewExecutableTrustService(extensionStore, executableTrustStore).
 		WithAuditor(auditWriter).
 		WithTTL(cfg.TrustChallengeTTL)
@@ -213,6 +223,7 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		nil,
 		extensions.WithAuditor(auditWriter),
 		extensions.WithExecutableTrust(executableTrustService, cfg.V3TrustChallenges),
+		extensions.WithSafeMode(cfg.SafeMode),
 		// F2.4：同 id 升级且 digest 变化时吊销该扩展前端信任，要求重新授权。
 		extensions.WithTrustRevoker(frontendService),
 		// F4.5：启用时校验 manifest requiresFeatures。
@@ -250,7 +261,11 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 	}
 	// API 启动恢复：活动主题 L0/L1 + 已启用插件页面贡献。
 	// 无效主题安全回退默认；失败不得留下空 Registry 却 DB 指向主题的分裂状态。
-	if err := extensionService.RestoreActiveThemeRegistry(ctx); err != nil {
+	if cfg.SafeMode {
+		if err := extensionService.RestoreSafeModeThemeRegistry(ctx); err != nil {
+			logger.Warn("restore safe mode default theme registry failed", "error", err)
+		}
+	} else if err := extensionService.RestoreActiveThemeRegistry(ctx); err != nil {
 		logger.Warn("restore active theme page registry failed", "error", err)
 	}
 	legacyMailValues, err := optionsService.InternalValues(ctx)
@@ -261,7 +276,11 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		return nil, fmt.Errorf("adopt legacy mail settings: %w", err)
 	}
 	if items, err := extensionStore.List(ctx); err == nil {
-		extensionRuntime.Reconcile(ctx, items)
+		if cfg.SafeMode {
+			extensionRuntime.Reconcile(ctx, nil)
+		} else {
+			extensionRuntime.Reconcile(ctx, items)
+		}
 	} else {
 		if stopErr := supportjobs.Stop(ctx, jobClient); stopErr != nil {
 			logger.Warn("job dispatcher stop failed", "error", stopErr)

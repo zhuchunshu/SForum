@@ -128,6 +128,30 @@ func TestStandaloneWorkerRuntimeUsesCipherServiceSettings(t *testing.T) {
 	}
 }
 
+func TestStandaloneWorkerSafeModeReconcilesNoExtensions(t *testing.T) {
+	original := newStandaloneWorkerRuntimeManager
+	defer func() { newStandaloneWorkerRuntimeManager = original }()
+
+	plugin := runtimeSettingsExtension("broken.plugin")
+	plugin.Manifest.Backend = extensions.ManifestBackend{Entry: "missing/plugin"}
+	store := &bootstrapExtensionSettingsStore{item: plugin}
+	runtime := &countingWorkerRuntime{}
+	newStandaloneWorkerRuntimeManager = func(_ extensions.Store, _ extensionsruntime.HostAPIRegistrar, _ extensionsruntime.PluginSettings) workerExtensionRuntime {
+		return runtime
+	}
+	built, gateway, err := buildStandaloneWorkerExtensionRuntime(context.Background(), config.Config{
+		SafeMode: true, ExtensionRoot: t.TempDir(),
+	}, store, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer gateway.Close()
+	built.Close(context.Background())
+	if len(runtime.reconciledItems) != 0 {
+		t.Fatalf("safe worker reconciled extensions: %#v", runtime.reconciledItems)
+	}
+}
+
 // TestEmbedSharedRuntimeSingleStart 模拟 API Reconcile + embed 注入后不再 Start。
 // 真实双起根因是 newWorkerWithPool 自建 Manager 再 Reconcile；注入后 Start 计数应保持 1。
 func TestEmbedSharedRuntimeSingleStart(t *testing.T) {
@@ -180,7 +204,8 @@ func TestEmbedSharedRuntimeSingleStart(t *testing.T) {
 }
 
 type countingWorkerRuntime struct {
-	closeCalls int
+	closeCalls      int
+	reconciledItems []extensions.Extension
 }
 
 func (c *countingWorkerRuntime) SendMail(context.Context, string, extensionsruntime.MailProviderRequest) (extensionsruntime.MailProviderResponse, error) {
@@ -221,7 +246,9 @@ func (c *countingWorkerRuntime) StorageProbe(context.Context, string, extensions
 	return extensionsruntime.StorageProbeResponse{}, nil
 }
 
-func (c *countingWorkerRuntime) Reconcile(context.Context, []extensions.Extension) {}
+func (c *countingWorkerRuntime) Reconcile(_ context.Context, items []extensions.Extension) {
+	c.reconciledItems = append([]extensions.Extension(nil), items...)
+}
 
 func (c *countingWorkerRuntime) Close(context.Context) { c.closeCalls++ }
 

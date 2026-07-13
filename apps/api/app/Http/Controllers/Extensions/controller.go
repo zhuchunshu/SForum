@@ -511,6 +511,8 @@ func mapExtensionError(err error) error {
 		return fiber.NewError(fiber.StatusConflict, extensions.CodeMustDisableFirst)
 	case errors.Is(err, extensions.ErrMigrationFailed):
 		return fiber.NewError(fiber.StatusUnprocessableEntity, extensions.CodeMigrationFailed)
+	case errors.Is(err, extensions.ErrSafeModeActive):
+		return fiber.NewError(fiber.StatusConflict, extensions.CodeSafeModeActive)
 	default:
 		return err
 	}

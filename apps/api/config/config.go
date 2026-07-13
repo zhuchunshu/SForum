@@ -61,6 +61,7 @@ type Config struct {
 	OptionEncryptionKey  string
 	ExtensionRoot        string
 	BuiltinExtensionRoot string
+	SafeMode             bool
 	// V3TrustChallenges 默认关闭，P1 门禁通过后由部署显式开启迁移。
 	V3TrustChallenges bool
 	TrustChallengeTTL time.Duration
@@ -171,6 +172,7 @@ func Load() Config {
 		OptionEncryptionKey:           env("APP_OPTION_ENC_KEY", ""),
 		ExtensionRoot:                 env("EXTENSION_ROOT", "../../storage/extensions"),
 		BuiltinExtensionRoot:          env("BUILTIN_EXTENSION_ROOT", "../../extensions/builtin"),
+		SafeMode:                      envBool("SFORUM_SAFE_MODE", false),
 		V3TrustChallenges:             envBool("SFORUM_V3_TRUST_CHALLENGES", false),
 		TrustChallengeTTL:             envDuration("SFORUM_V3_TRUST_CHALLENGE_TTL", 5*time.Minute),
 		MeiliHost:                     env("MEILI_HOST", "http://meilisearch:7700"),

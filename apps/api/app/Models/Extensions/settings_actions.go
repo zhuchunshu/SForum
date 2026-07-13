@@ -21,6 +21,9 @@ func (s *Service) ExecuteSettingsAction(
 	actionID string,
 	input ExecuteSettingsActionInput,
 ) (result SettingsActionResult, err error) {
+	if s.safeMode {
+		return result, ErrSafeModeActive
+	}
 	extension, err := s.store.Get(ctx, normalizeID(extensionID))
 	if err != nil {
 		return result, err

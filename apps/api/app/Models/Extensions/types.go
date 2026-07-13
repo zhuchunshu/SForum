@@ -83,6 +83,7 @@ const (
 	CodeMustDisableFirst = "extension.must_disable_first"
 	// 插件迁移执行失败。
 	CodeMigrationFailed = "extension.migration_failed"
+	CodeSafeModeActive  = "extension.safe_mode_active"
 	// CodeUntrustedBackendRestricted 见 backend_trust.go（非 super_admin 执行非内置后端）。
 
 	SourceBuiltin  = "builtin"
@@ -113,6 +114,7 @@ var (
 	ErrNotDeletable     = errors.New("extensions: not deletable")
 	ErrMustDisableFirst = errors.New("extensions: must disable before uninstall")
 	ErrMigrationFailed  = errors.New("extensions: migration failed")
+	ErrSafeModeActive   = errors.New("extensions: safe mode active")
 )
 
 type Manifest = extensionmanifest.Manifest

@@ -231,6 +231,9 @@ func (s *Service) ApplyDeclaredMigrations(ctx context.Context, actor identity.Ac
 	if !canManagePlugins(actor) {
 		return nil, identity.ErrPermissionDenied
 	}
+	if s.safeMode {
+		return nil, ErrSafeModeActive
+	}
 	extension, err := s.store.Get(ctx, normalizeID(id))
 	if err != nil {
 		return nil, err

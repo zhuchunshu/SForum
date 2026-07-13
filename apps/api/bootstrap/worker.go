@@ -88,6 +88,7 @@ func buildStandaloneWorkerExtensionRuntime(
 ) (workerExtensionRuntime, hostAPIGatewayCloser, error) {
 	service := extensions.NewServiceWithBuiltins(store, cfg.ExtensionRoot, cfg.BuiltinExtensionRoot)
 	extensions.WithCipher(cipher)(service)
+	extensions.WithSafeMode(cfg.SafeMode)(service)
 	workerHostAPI := hostapi.New(hostapi.Config{Settings: service})
 	workerHostGateway := hostapi.NewGateway(workerHostAPI)
 	managedRuntime := newStandaloneWorkerRuntimeManager(store, workerHostGateway, service)
@@ -103,7 +104,11 @@ func buildStandaloneWorkerExtensionRuntime(
 		_ = workerHostGateway.Close()
 		return nil, nil, fmt.Errorf("list worker extensions: %w", err)
 	}
-	managedRuntime.Reconcile(ctx, items)
+	if cfg.SafeMode {
+		managedRuntime.Reconcile(ctx, nil)
+	} else {
+		managedRuntime.Reconcile(ctx, items)
+	}
 	return managedRuntime, workerHostGateway, nil
 }
 
@@ -128,6 +133,14 @@ func NewWorker(ctx context.Context, cfg config.Config, logger *slog.Logger) (*Wo
 	if err != nil {
 		pool.Close()
 		return nil, err
+	}
+	if cfg.SafeMode {
+		if err := audit.NewPostgresWriter(pool).Append(ctx, audit.Event{
+			Action:   audit.ActionExtensionSafeModeBoot,
+			Metadata: map[string]any{"process": "worker"},
+		}); err != nil && logger != nil {
+			logger.Warn("record worker safe mode boot audit failed", "error", err)
+		}
 	}
 
 	// 独立 worker 进程发布心跳，供 API overview / 运维判断 stale。

@@ -45,6 +45,7 @@ type Service struct {
 	// executableTrust 在 V3 P1 开关开启时取代 confirmCapabilities 布尔确认。
 	executableTrust        *ExecutableTrustService
 	trustChallengesEnabled bool
+	safeMode               bool
 }
 
 // PageRegistry 主题/插件页面贡献注册（避免 extensions 直接依赖 pages 包实现细节）。
@@ -128,6 +129,10 @@ func WithExecutableTrust(service *ExecutableTrustService, enabled bool) ServiceO
 		s.executableTrust = service
 		s.trustChallengesEnabled = enabled
 	}
+}
+
+func WithSafeMode(enabled bool) ServiceOption {
+	return func(s *Service) { s.safeMode = enabled }
 }
 
 func (s *Service) ExecutableTrustStatus(ctx context.Context, actor identity.Actor, extensionID string) (ExecutableTrustStatus, error) {
@@ -437,6 +442,9 @@ func (s *Service) Contributions(ctx context.Context, actor identity.Actor) ([]Ef
 }
 
 func (s *Service) EffectiveContributions(ctx context.Context) ([]EffectiveContribution, error) {
+	if s.safeMode {
+		return []EffectiveContribution{}, nil
+	}
 	items, err := s.store.List(ctx)
 	if err != nil {
 		return nil, err
@@ -476,6 +484,9 @@ func (s *Service) EffectiveContributions(ctx context.Context) ([]EffectiveContri
 func (s *Service) Navigation(ctx context.Context, actor identity.Actor) ([]ExtensionAdminNavigationItem, error) {
 	if !canViewExtensions(actor) {
 		return nil, identity.ErrPermissionDenied
+	}
+	if s.safeMode {
+		return []ExtensionAdminNavigationItem{}, nil
 	}
 	items, err := s.store.List(ctx)
 	if err != nil {
@@ -618,7 +629,13 @@ func canManageExtensionSettings(actor identity.Actor, extension Extension) bool 
 // PublicActiveThemeSettings 返回当前激活主题的非 secret 设置（含默认值）。
 // 供前台主题 layer 读取可运营配置；secret 永不出现在公开响应中。
 func (s *Service) PublicActiveThemeSettings(ctx context.Context) (PublicActiveThemeSettings, error) {
-	theme, err := s.store.ActiveTheme(ctx)
+	var theme Extension
+	var err error
+	if s.safeMode {
+		theme, err = s.store.Get(ctx, DefaultThemeID)
+	} else {
+		theme, err = s.store.ActiveTheme(ctx)
+	}
 	if err != nil {
 		return PublicActiveThemeSettings{Settings: map[string]string{}}, nil
 	}
@@ -651,6 +668,9 @@ func (s *Service) PublicActiveThemeSettings(ctx context.Context) (PublicActiveTh
 }
 
 func (s *Service) restartPluginForSettings(ctx context.Context, extension Extension) error {
+	if s.safeMode {
+		return nil
+	}
 	if extension.Type != TypePlugin || extension.Status != StatusEnabled || extension.Manifest.Backend.Entry == "" || s.runtime == nil {
 		return nil
 	}
@@ -661,6 +681,9 @@ func (s *Service) restartPluginForSettings(ctx context.Context, extension Extens
 }
 
 func (s *Service) MatchRoute(ctx context.Context, extensionID string, method string, routePath string) (MatchedRoute, error) {
+	if s.safeMode {
+		return MatchedRoute{}, ErrRouteNotFound
+	}
 	extension, err := s.store.Get(ctx, normalizeID(extensionID))
 	if err != nil {
 		return MatchedRoute{}, err
@@ -690,6 +713,9 @@ func (s *Service) MatchRoute(ctx context.Context, extensionID string, method str
 func (s *Service) Enable(ctx context.Context, actor identity.Actor, id string, input EnableInput) (Extension, error) {
 	if !canManagePlugins(actor) {
 		return Extension{}, identity.ErrPermissionDenied
+	}
+	if s.safeMode {
+		return Extension{}, ErrSafeModeActive
 	}
 	extension, err := s.store.Get(ctx, normalizeID(id))
 	if err != nil {
@@ -812,6 +838,9 @@ func (s *Service) VerifyExtension(ctx context.Context, actor identity.Actor, id 
 	if !canManagePlugins(actor) {
 		return Extension{}, identity.ErrPermissionDenied
 	}
+	if s.safeMode {
+		return Extension{}, ErrSafeModeActive
+	}
 	extension, err := s.store.Get(ctx, normalizeID(id))
 	if err != nil {
 		return Extension{}, err
@@ -842,6 +871,9 @@ func (s *Service) VerifyExtension(ctx context.Context, actor identity.Actor, id 
 func (s *Service) ActivateTheme(ctx context.Context, actor identity.Actor, id string) (Extension, error) {
 	if !canManageThemes(actor) {
 		return Extension{}, identity.ErrPermissionDenied
+	}
+	if s.safeMode {
+		return Extension{}, ErrSafeModeActive
 	}
 	extension, err := s.store.Get(ctx, normalizeID(id))
 	if err != nil {
@@ -994,6 +1026,31 @@ func (s *Service) RestoreActiveThemeRegistry(ctx context.Context) error {
 	return nil
 }
 
+// RestoreSafeModeThemeRegistry 忽略数据库 desired theme 与全部插件贡献，只加载受保护默认主题。
+func (s *Service) RestoreSafeModeThemeRegistry(ctx context.Context) error {
+	if s == nil || s.pageRegistry == nil {
+		return nil
+	}
+	items, err := s.store.List(ctx)
+	if err != nil {
+		return err
+	}
+	for _, item := range items {
+		s.pageRegistry.ClearExtension(item.ID)
+	}
+	defaultTheme, err := s.store.Get(ctx, DefaultThemeID)
+	if err != nil {
+		return err
+	}
+	if defaultTheme.Type != TypeTheme || defaultTheme.Source != SourceBuiltin || !defaultTheme.IsSystem {
+		return ErrInvalidManifest
+	}
+	if err := s.pageRegistry.PreflightThemePackage(ctx, defaultTheme, ""); err != nil {
+		return err
+	}
+	return s.pageRegistry.RegisterThemePackage(ctx, defaultTheme)
+}
+
 func (s *Service) EnsureDefaultThemeActive(ctx context.Context) (Extension, error) {
 	active, err := s.store.ActiveTheme(ctx)
 	if err == nil && active.ID == DefaultThemeID && active.Source == SourceBuiltin {
@@ -1127,6 +1184,9 @@ func (s *Service) decorateRuntime(ctx context.Context, item Extension) Extension
 
 // CapabilitiesFor 返回已启用插件的有效能力集合（Host API CapabilitySource）。
 func (s *Service) CapabilitiesFor(ctx context.Context, extensionID string) (capabilities.Set, error) {
+	if s.safeMode {
+		return nil, ErrExtensionDisabled
+	}
 	extension, err := s.store.Get(ctx, normalizeID(extensionID))
 	if err != nil {
 		return nil, err
@@ -1143,6 +1203,9 @@ func (s *Service) CapabilitiesFor(ctx context.Context, extensionID string) (capa
 
 // DeclaredJobKinds 返回插件 manifest 声明的 job names。
 func (s *Service) DeclaredJobKinds(ctx context.Context, extensionID string) ([]string, error) {
+	if s.safeMode {
+		return []string{}, nil
+	}
 	extension, err := s.store.Get(ctx, normalizeID(extensionID))
 	if err != nil {
 		return nil, err

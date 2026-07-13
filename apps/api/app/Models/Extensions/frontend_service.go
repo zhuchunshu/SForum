@@ -33,6 +33,7 @@ type FrontendService struct {
 	auditor    audit.Writer
 	challenges map[string]frontendTrustChallengeState
 	mu         sync.Mutex
+	safeMode   bool
 }
 
 type frontendTrustChallengeState struct {
@@ -50,6 +51,11 @@ func NewFrontendService(extensions FrontendExtensionReader, trust FrontendTrustS
 
 func (s *FrontendService) WithAuditor(writer audit.Writer) *FrontendService {
 	s.auditor = writer
+	return s
+}
+
+func (s *FrontendService) WithSafeMode(enabled bool) *FrontendService {
+	s.safeMode = enabled
 	return s
 }
 
@@ -173,6 +179,9 @@ func (s *FrontendService) Asset(ctx context.Context, actor identity.Actor, exten
 	if !canManageExtensionSettings(actor, extension) {
 		return FrontendAsset{}, identity.ErrPermissionDenied
 	}
+	if s.safeMode {
+		return FrontendAsset{}, ErrFrontendTrustUnavailable
+	}
 	component := prebuiltSettingsComponent(extension)
 	if component == nil || digest == "" || digest != extension.AdminFrontendDigest {
 		return FrontendAsset{}, ErrFrontendTrustUnavailable
@@ -228,6 +237,9 @@ func (s *FrontendService) frontendStatus(ctx context.Context, extension Extensio
 	component := prebuiltSettingsComponent(extension)
 	if component == nil {
 		return FrontendStatus{ExtensionID: extension.ID, Kind: AdminFrontendKindNone, TrustState: FrontendTrustNone}, nil
+	}
+	if s.safeMode {
+		return prebuiltFrontendStatus(extension, *component, FrontendTrustRequired), nil
 	}
 	if extension.Source == SourceBuiltin && extension.IsSystem && !extension.IsDeletable {
 		return prebuiltFrontendStatus(extension, *component, FrontendTrustSourceTrusted), nil

@@ -170,6 +170,12 @@ adminExtensionMigrationsApply:
         "$ref": "../components/responses.yaml#/Forbidden"
       '404':
         "$ref": "../components/responses.yaml#/NotFound"
+      '409':
+        description: Safe Mode blocks extension migration actions (extension.safe_mode_active).
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/common.yaml#/ApiErrorResponse"
       '422':
         description: Migration recording failed (extension.migration_failed).
         content:
@@ -408,7 +414,8 @@ adminExtensionEnable:
       '409':
         description: >-
           Themes must use activation, or capability confirmation is required
-          (reason extension.capability_confirmation_required).
+          (reason extension.capability_confirmation_required), or Safe Mode
+          blocks executable activation (extension.safe_mode_active).
         content:
           application/json:
             schema:
@@ -546,6 +553,12 @@ adminExtensionVerify:
         "$ref": "../components/responses.yaml#/Forbidden"
       '404':
         "$ref": "../components/responses.yaml#/NotFound"
+      '409':
+        description: Safe Mode blocks executable preflight (extension.safe_mode_active).
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/common.yaml#/ApiErrorResponse"
       '503':
         "$ref": "../components/responses.yaml#/ServiceUnavailable"
 adminExtensionActivate:
@@ -567,6 +580,12 @@ adminExtensionActivate:
         "$ref": "../components/responses.yaml#/Forbidden"
       '404':
         "$ref": "../components/responses.yaml#/NotFound"
+      '409':
+        description: Safe Mode blocks theme activation (extension.safe_mode_active).
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/common.yaml#/ApiErrorResponse"
       '503':
         "$ref": "../components/responses.yaml#/ServiceUnavailable"
 adminExtensionEvents:
