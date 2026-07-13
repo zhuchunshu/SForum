@@ -9,7 +9,7 @@ import (
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
-func TestUpCreatesRiverQueueSchema(t *testing.T) {
+func TestUpCreatesRequiredRuntimeSchemas(t *testing.T) {
 	databaseURL := os.Getenv("DATABASE_URL")
 	if databaseURL == "" {
 		t.Skip("DATABASE_URL is required for migrator integration test")
@@ -26,7 +26,12 @@ func TestUpCreatesRiverQueueSchema(t *testing.T) {
 	}
 	defer db.Close()
 
-	for _, table := range []string{"river_job", "river_migration"} {
+	for _, table := range []string{
+		"river_job",
+		"river_migration",
+		"extension_lifecycle_operations",
+		"extension_lifecycle_steps",
+	} {
 		var exists bool
 		err := db.QueryRowContext(ctx, `
 			SELECT EXISTS (
