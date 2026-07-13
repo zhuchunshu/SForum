@@ -59,10 +59,12 @@ func (s *Service) InstallOrUpgradeArchive(ctx context.Context, actor identity.Ac
 		return InstallResult{}, ErrInvalidManifest
 	}
 
-	// 上传路径 source 恒为 uploaded：含后端入口的包仅 super_admin 可安装/升级。
-	if err := requireSuperAdminForUntrustedBackend(actor, SourceUploaded, manifest); err != nil {
-		s.denyUntrustedBackend(ctx, actor, manifest.ID, "install")
-		return InstallResult{}, err
+	// V3 静态安装只校验并保存惰性包，不执行包代码；迁移开关关闭时保留 v1 边界。
+	if !s.trustChallengesEnabled {
+		if err := requireSuperAdminForUntrustedBackend(actor, SourceUploaded, manifest); err != nil {
+			s.denyUntrustedBackend(ctx, actor, manifest.ID, "install")
+			return InstallResult{}, err
+		}
 	}
 
 	var previous Extension
@@ -132,6 +134,10 @@ func (s *Service) InstallOrUpgradeArchive(ctx context.Context, actor identity.Ac
 			if s.trustRevoker != nil {
 				_ = s.trustRevoker.RevokeAllForExtension(ctx, installed.ID, actor.ID)
 			}
+		}
+		if previous.PackageDigest != installed.PackageDigest && s.executableTrust != nil {
+			result.TrustRevoked = true
+			_ = s.executableTrust.RevokeAllForExtension(ctx, installed.ID, actor.ID, "artifact_changed")
 		}
 		_, _ = s.store.CreateEvent(ctx, EventInput{
 			ExtensionID: installed.ID,

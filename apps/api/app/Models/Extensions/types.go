@@ -193,6 +193,8 @@ type Extension struct {
 type EnableInput struct {
 	// ConfirmCapabilities 为 true 时表示运营已审阅并确认 capability 授权。
 	ConfirmCapabilities bool `json:"confirmCapabilities"`
+	// ConfirmationToken 是 V3 P1 服务端签发的一次性 exact-artifact token。
+	ConfirmationToken string `json:"confirmationToken,omitempty"`
 }
 
 // UninstallInput 卸载扩展的请求体（F2.4）。

@@ -26,6 +26,10 @@ const (
 	ActionExtensionUninstalled    = "extension.uninstall"
 	ActionExtensionFrontendGrant  = "extension.frontend_trust_grant"
 	ActionExtensionFrontendRevoke = "extension.frontend_trust_revoke"
+	ActionExtensionTrustChallenge = "extension.trust_challenge"
+	ActionExtensionTrustGrant     = "extension.trust_grant"
+	ActionExtensionTrustRevoke    = "extension.trust_revoke"
+	ActionExtensionTrustDenied    = "extension.trust_denied"
 	// ActionExtensionBackendDenied 非 super_admin 试图引入/执行非内置后端插件。
 	ActionExtensionBackendDenied = "extension.backend_execution_denied"
 

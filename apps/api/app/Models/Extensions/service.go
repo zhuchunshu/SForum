@@ -42,6 +42,9 @@ type Service struct {
 	// pageRegistry 运行时主题页面贡献（L0/L1）；nil 时跳过注册。
 	pageRegistry    PageRegistry
 	settingsActions SettingsActionRuntime
+	// executableTrust 在 V3 P1 开关开启时取代 confirmCapabilities 布尔确认。
+	executableTrust        *ExecutableTrustService
+	trustChallengesEnabled bool
 }
 
 // PageRegistry 主题/插件页面贡献注册（避免 extensions 直接依赖 pages 包实现细节）。
@@ -117,6 +120,35 @@ func WithRuntimeManager(runtime RuntimeManager) ServiceOption {
 
 func WithSettingsActionRuntime(runtime SettingsActionRuntime) ServiceOption {
 	return func(s *Service) { s.settingsActions = runtime }
+}
+
+// WithExecutableTrust 先注入兼容层；enabled=false 时完整保留 v1 启用行为。
+func WithExecutableTrust(service *ExecutableTrustService, enabled bool) ServiceOption {
+	return func(s *Service) {
+		s.executableTrust = service
+		s.trustChallengesEnabled = enabled
+	}
+}
+
+func (s *Service) ExecutableTrustStatus(ctx context.Context, actor identity.Actor, extensionID string) (ExecutableTrustStatus, error) {
+	if !s.trustChallengesEnabled || s.executableTrust == nil {
+		return ExecutableTrustStatus{}, ErrTrustNotRequired
+	}
+	return s.executableTrust.Status(ctx, actor, extensionID)
+}
+
+func (s *Service) IssueExecutableTrustChallenge(ctx context.Context, actor identity.Actor, extensionID string) (TrustChallenge, error) {
+	if !s.trustChallengesEnabled || s.executableTrust == nil {
+		return TrustChallenge{}, ErrTrustNotRequired
+	}
+	return s.executableTrust.Challenge(ctx, actor, extensionID)
+}
+
+func (s *Service) RevokeExecutableTrust(ctx context.Context, actor identity.Actor, extensionID string) (ExecutableTrustStatus, error) {
+	if !s.trustChallengesEnabled || s.executableTrust == nil {
+		return ExecutableTrustStatus{}, ErrTrustNotRequired
+	}
+	return s.executableTrust.Revoke(ctx, actor, extensionID)
 }
 
 func (s *Service) appendAudit(ctx context.Context, actor identity.Actor, action string, metadata map[string]any) {
@@ -666,14 +698,23 @@ func (s *Service) Enable(ctx context.Context, actor identity.Actor, id string, i
 	if extension.Type == TypeTheme {
 		return Extension{}, ErrThemeActivationRequired
 	}
-	// 非内置后端插件：启动子进程 = 主机代码执行，仅 super_admin。
-	if err := requireSuperAdminForUntrustedBackend(actor, extension.Source, extension.Manifest); err != nil {
-		s.denyUntrustedBackend(ctx, actor, extension.ID, "enable")
-		return Extension{}, err
+	if s.trustChallengesEnabled {
+		if s.executableTrust == nil {
+			return Extension{}, ErrTrustChallengeRequired
+		}
+		if err := s.executableTrust.ConfirmEnable(ctx, actor, extension, input.ConfirmationToken); err != nil {
+			return Extension{}, err
+		}
+	} else {
+		// v1 兼容：非内置后端插件启动子进程仅允许 super_admin。
+		if err := requireSuperAdminForUntrustedBackend(actor, extension.Source, extension.Manifest); err != nil {
+			s.denyUntrustedBackend(ctx, actor, extension.ID, "enable")
+			return Extension{}, err
+		}
 	}
 
 	// 首次启用（非 restart）且存在 Host 能力时，要求运营显式确认（F2.1）。
-	if extension.Status != StatusEnabled {
+	if !s.trustChallengesEnabled && extension.Status != StatusEnabled {
 		capKeys, _ := extensionmanifest.ResolvedCapabilities(extension.Manifest)
 		if capabilities.RequiresConfirmation(capKeys) && !input.ConfirmCapabilities {
 			return Extension{}, ErrCapabilityConfirmationRequired

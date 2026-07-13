@@ -62,6 +62,12 @@ func TestLoadIncludesDefaultWorkerConfig(t *testing.T) {
 	if cfg.BuiltinExtensionRoot != "../../extensions/builtin" {
 		t.Fatalf("expected builtin extension root default, got %q", cfg.BuiltinExtensionRoot)
 	}
+	if cfg.V3TrustChallenges {
+		t.Fatal("expected V3 trust challenges to remain default-off during migration")
+	}
+	if cfg.TrustChallengeTTL != 5*time.Minute {
+		t.Fatalf("expected trust challenge TTL 5m, got %s", cfg.TrustChallengeTTL)
+	}
 	if cfg.JobQueueCriticalWorkers != 4 {
 		t.Fatalf("expected critical workers 4, got %d", cfg.JobQueueCriticalWorkers)
 	}
@@ -79,6 +85,16 @@ func TestLoadIncludesDefaultWorkerConfig(t *testing.T) {
 	}
 	if cfg.JobQueueMaintenanceWorkers != 2 {
 		t.Fatalf("expected maintenance workers 2, got %d", cfg.JobQueueMaintenanceWorkers)
+	}
+}
+
+func TestLoadParsesV3TrustChallengeGate(t *testing.T) {
+	t.Setenv("APP_ENV", "test")
+	t.Setenv("SFORUM_V3_TRUST_CHALLENGES", "true")
+	t.Setenv("SFORUM_V3_TRUST_CHALLENGE_TTL", "2m")
+	cfg := Load()
+	if !cfg.V3TrustChallenges || cfg.TrustChallengeTTL != 2*time.Minute {
+		t.Fatalf("unexpected V3 trust config: enabled=%v ttl=%s", cfg.V3TrustChallenges, cfg.TrustChallengeTTL)
 	}
 }
 

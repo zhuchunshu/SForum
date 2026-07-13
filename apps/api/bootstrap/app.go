@@ -185,6 +185,7 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 	databaseStore := database.NewPostgresStore(pool)
 	extensionStore := extensions.NewPostgresStore(pool)
 	frontendTrustStore := extensions.NewPostgresFrontendTrustStore(pool)
+	executableTrustStore := extensions.NewPostgresExecutableTrustStore(pool)
 	// Host API 需要 extensionService 的能力解析；先建 service 再绑 gateway。
 	// 运行时 manager 在 service 创建后注入 HostAPI registrar。
 	jobClient, err := supportjobs.NewInsertOnlyClient(pool, supportjobs.FromAppConfig(cfg))
@@ -198,6 +199,9 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 	}
 	jobDispatcher := supportjobs.NewDispatcher(jobClient)
 	frontendService := extensions.NewFrontendService(extensionStore, frontendTrustStore).WithAuditor(auditWriter)
+	executableTrustService := extensions.NewExecutableTrustService(extensionStore, executableTrustStore).
+		WithAuditor(auditWriter).
+		WithTTL(cfg.TrustChallengeTTL)
 	// Page Registry：运行时主题 L0/L1，主题激活不重建 Nuxt、不写 current.json。
 	pageRegistryStore := pages.NewPostgresStore(pool)
 	pageRegistry := pages.NewRegistry(pageRegistryStore)
@@ -208,6 +212,7 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		extensionStore, cfg.ExtensionRoot, cfg.BuiltinExtensionRoot,
 		nil,
 		extensions.WithAuditor(auditWriter),
+		extensions.WithExecutableTrust(executableTrustService, cfg.V3TrustChallenges),
 		// F2.4：同 id 升级且 digest 变化时吊销该扩展前端信任，要求重新授权。
 		extensions.WithTrustRevoker(frontendService),
 		// F4.5：启用时校验 manifest requiresFeatures。

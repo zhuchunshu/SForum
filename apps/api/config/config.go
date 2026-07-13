@@ -61,11 +61,14 @@ type Config struct {
 	OptionEncryptionKey  string
 	ExtensionRoot        string
 	BuiltinExtensionRoot string
-	MeiliHost            string
-	MeiliMasterKey       string
-	MeiliTimeout         time.Duration
-	LimiterWriteMax      int
-	LimiterWindow        time.Duration
+	// V3TrustChallenges 默认关闭，P1 门禁通过后由部署显式开启迁移。
+	V3TrustChallenges bool
+	TrustChallengeTTL time.Duration
+	MeiliHost         string
+	MeiliMasterKey    string
+	MeiliTimeout      time.Duration
+	LimiterWriteMax   int
+	LimiterWindow     time.Duration
 	// CSRFTrustedOrigins 是 CSRF 中间件信任的来源站点 origin 列表（如 https://forum.example.com）。
 	// API 在反向代理后看到的 Host 是内部地址，而 Origin 是公开站点，二者不匹配会被拒绝，
 	// 因此必须显式列出公开站点。支持 https://*.example.com 通配符子域。
@@ -168,6 +171,8 @@ func Load() Config {
 		OptionEncryptionKey:           env("APP_OPTION_ENC_KEY", ""),
 		ExtensionRoot:                 env("EXTENSION_ROOT", "../../storage/extensions"),
 		BuiltinExtensionRoot:          env("BUILTIN_EXTENSION_ROOT", "../../extensions/builtin"),
+		V3TrustChallenges:             envBool("SFORUM_V3_TRUST_CHALLENGES", false),
+		TrustChallengeTTL:             envDuration("SFORUM_V3_TRUST_CHALLENGE_TTL", 5*time.Minute),
 		MeiliHost:                     env("MEILI_HOST", "http://meilisearch:7700"),
 		MeiliMasterKey:                env("MEILI_MASTER_KEY", "sforum-dev-meili-key"),
 		MeiliTimeout:                  envDuration("MEILI_TIMEOUT", 5*time.Second),
