@@ -35,14 +35,16 @@ var (
 )
 
 type Manifest struct {
-	ID            string         `json:"id"`
-	Name          string         `json:"name"`
-	Description   string         `json:"description"`
-	URL           string         `json:"url"`
-	Author        ManifestAuthor `json:"author"`
-	Version       string         `json:"version"`
-	Type          string         `json:"type"`
-	SForumVersion string         `json:"sforumVersion"`
+	// ManifestVersion 省略时按历史 V1 解析；显式版本控制可用声明和严格校验规则。
+	ManifestVersion int            `json:"manifestVersion,omitempty"`
+	ID              string         `json:"id"`
+	Name            string         `json:"name"`
+	Description     string         `json:"description"`
+	URL             string         `json:"url"`
+	Author          ManifestAuthor `json:"author"`
+	Version         string         `json:"version"`
+	Type            string         `json:"type"`
+	SForumVersion   string         `json:"sforumVersion"`
 	// Langs 是可选的本地化覆盖。顶层 name/description/author 为默认英文；
 	// 未声明 langs 时无需翻译，直接使用顶层字段。
 	Langs       map[string]ManifestLocale `json:"langs,omitempty"`
@@ -291,6 +293,9 @@ func Validate(manifest Manifest) error {
 }
 
 func validateManifest(manifest Manifest, points []ContributionPointDefinition) error {
+	if err := validateManifestVersion(manifest); err != nil {
+		return err
+	}
 	// langs 在 Normalize 丢弃空项前先校验，避免无效语言码被静默忽略。
 	if err := validateManifestLangs(manifest.Langs); err != nil {
 		return err
