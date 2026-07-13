@@ -64,6 +64,11 @@ const (
 	PluginJobReasonEnvelopeInvalid   = "plugin_job.envelope_invalid"
 	PluginJobReasonTrustGrantStale   = "plugin_job.trust_grant_stale"
 	PluginJobReasonRuntimeChanged    = "plugin_job.runtime_changed"
+	PluginJobReasonRunningMigration  = "plugin_job.running_migration_unsafe"
+	PluginJobReasonMigratorMissing   = "plugin_job.payload_migrator_missing"
+	PluginJobReasonStateUnknown      = "plugin_job.state_unknown"
+	PluginJobReasonTargetRemoved     = "plugin_job.target_removed"
+	PluginJobReasonJobUnknown        = "plugin_job.unknown"
 )
 
 type PluginJobMigration struct {
