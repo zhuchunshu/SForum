@@ -350,7 +350,7 @@ flowchart LR
       atomic commit, audit, and typed results.
 - [x] Add HashiCorp go-plugin gRPC protocol v2 negotiation.
 - [x] Keep a v1 net/rpc compatibility adapter and explicit deprecation metrics.
-- [ ] Generate Go SDK first; document how non-Go SDKs preserve handshake and
+- [x] Generate Go SDK first; document how non-Go SDKs preserve handshake and
       trust requirements.
 - [x] Carry actor, locale, trace id, request id, deadline, extension identity,
       and granted authority in typed envelopes.

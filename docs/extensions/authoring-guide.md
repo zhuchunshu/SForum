@@ -11,9 +11,10 @@ schedules.
 | Surface | Use for |
 | --- | --- |
 | Manifest V3 `sforum.extension.json` (+ optional `includes`) | Versioned Registry/platform declarations and exact package-file identity |
-| Go SDK `github.com/zhuchunshu/sforum/apps/api/sdk/plugin` | Backend `Serve`, Host API client, read-only catalogs, contract test helpers |
-| Host API `sforum.host/v1` | Permission checks, own settings, enqueue declared jobs, audit, safe user reads |
-| go-plugin RPC (`Health`, `RouteTarget`, `InvokeHook`, `SendMail`, `Storage*`) | Process protocol the host starts and health-checks |
+| Go SDK `github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2` | New typed backend server, generated Host clients, exact runtime binding, health/readiness |
+| Host API v2 wire `sforum.host/v2` | Typed queries/commands and versioned platform services over the runtime-scoped Host broker |
+| Go SDK + Host API v1 | Compatibility for existing SMTP, storage, and content-policy plugins until P13 |
+| go-plugin v2 gRPC / v1 net-rpc | Exact Manifest-selected process protocol; no silent downgrade |
 | Published catalogs | Which events/points/slots/capabilities exist |
 
 **Do not** import `app/Models/*` or other host business packages from a
@@ -76,6 +77,11 @@ func main() { pluginsdk.Serve(myPlugin{}) }
 
 Build the executable to the path declared in `backend.entry` (usually
 `backend/plugin`) before enabling the plugin in admin.
+
+The scaffold and current built-in references still demonstrate protocol v1
+while their v2 migrations are completed. New typed runtime work should follow
+[Host API v2 and non-Go runtimes](./host-api-v2.md), including the generated Go
+SDK, AutoMTLS broker, exact trust binding, and non-Go interoperability rules.
 
 ## Manifest V3 package contract
 

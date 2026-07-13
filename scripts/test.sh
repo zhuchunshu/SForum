@@ -10,6 +10,9 @@ echo "Running Go tests..."
 echo "Running Protobuf lint and generated SDK drift validation..."
 ./scripts/proto.sh check
 
+echo "Running Host API v2 SDK documentation drift validation..."
+node tests/validate-host-api-v2-docs.mjs
+
 echo "Running OpenAPI reference validation..."
 ruby scripts/validate-openapi-refs.rb
 
