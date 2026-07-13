@@ -36,6 +36,39 @@ type RuntimeInstanceSnapshot struct {
 	Admission        RuntimeAdmissionSnapshot
 }
 
+// AcquireActiveRuntimeCall 在线性化边界内捕获活动实例并取得普通调用 lease。
+// 返回的 target 与 lease 始终属于同一个 exact instance，调用方必须 Release。
+func (m *Manager) AcquireActiveRuntimeCall(ctx context.Context, extensionID string, class RuntimeCallClass) (RuntimeInstanceSnapshot, *RuntimeAdmissionLease, error) {
+	if ctx == nil || strings.TrimSpace(string(class)) == "" {
+		return RuntimeInstanceSnapshot{}, nil, ErrRuntimeAdmissionInvalid
+	}
+	extensionID = strings.TrimSpace(extensionID)
+	if extensionID == "" {
+		return RuntimeInstanceSnapshot{}, nil, ErrRuntimeAdmissionInvalid
+	}
+
+	m.mu.RLock()
+	instanceID := m.activeInstances[extensionID]
+	if instanceID == "" {
+		m.mu.RUnlock()
+		return RuntimeInstanceSnapshot{}, nil, fmt.Errorf("%w: %s", ErrRuntimeInstanceNotFound, extensionID)
+	}
+	identity := RuntimeInstanceIdentity{ExtensionID: extensionID, InstanceID: instanceID}
+	instance, err := m.runtimeInstanceLocked(identity)
+	if err != nil {
+		m.mu.RUnlock()
+		return RuntimeInstanceSnapshot{}, nil, err
+	}
+	lease, err := instance.gate.Acquire(ctx, class)
+	if err != nil {
+		m.mu.RUnlock()
+		return RuntimeInstanceSnapshot{}, nil, err
+	}
+	snapshot := m.runtimeInstanceSnapshotLocked(identity, instance)
+	m.mu.RUnlock()
+	return snapshot, lease, nil
+}
+
 // AcquireRuntimeCall 只允许普通调用进入活动实例；cleanup 可显式进入保留的 draining 实例。
 func (m *Manager) AcquireRuntimeCall(ctx context.Context, identity RuntimeInstanceIdentity, class RuntimeCallClass) (*RuntimeAdmissionLease, error) {
 	if ctx == nil || strings.TrimSpace(string(class)) == "" {
@@ -299,4 +332,14 @@ func normalizeRuntimeInstanceIdentity(identity RuntimeInstanceIdentity) (Runtime
 		return RuntimeInstanceIdentity{}, ErrRuntimeAdmissionInvalid
 	}
 	return identity, nil
+}
+
+func runtimeInstanceMatchesExtension(instance RuntimeInstanceSnapshot, extension extensions.Extension) bool {
+	version := extension.Version
+	if version == "" {
+		version = extension.Manifest.Version
+	}
+	return instance.Identity.ExtensionID == extension.ID &&
+		instance.ExtensionVersion == version &&
+		instance.ArtifactDigest == extension.PackageDigest
 }

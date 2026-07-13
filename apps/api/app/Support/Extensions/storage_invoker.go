@@ -50,19 +50,18 @@ func (m *Manager) storageCall(
 	if !ok {
 		return extensions.ErrRuntimeUnavailable
 	}
-	m.mu.RLock()
-	_, running := m.running[extensionID]
-	m.mu.RUnlock()
-	if !running {
-		return extensions.ErrRuntimeUnavailable
-	}
-
 	timeout := m.resilience.cfg.DefaultStorageTimeout
 	var cancel context.CancelFunc
 	if _, hasDeadline := ctx.Deadline(); !hasDeadline && timeout > 0 {
 		ctx, cancel = context.WithTimeout(ctx, timeout)
 		defer cancel()
 	}
+	_, admission, err := m.AcquireActiveRuntimeCall(ctx, extensionID, RuntimeCallProvider)
+	if err != nil {
+		return errors.Join(extensions.ErrRuntimeUnavailable, err)
+	}
+	defer admission.Release()
+	ctx = admission.Context
 
 	release, rejected := m.resilience.tryEnter(ctx, extensionID)
 	if rejected != "" {
@@ -181,13 +180,12 @@ func (m *Manager) StorageClose(ctx context.Context, extensionID string, request 
 	if !ok {
 		return StorageResult{}, extensions.ErrRuntimeUnavailable
 	}
-	m.mu.RLock()
-	_, running := m.running[extensionID]
-	m.mu.RUnlock()
-	if !running {
-		return StorageResult{}, extensions.ErrRuntimeUnavailable
+	_, admission, err := m.AcquireActiveRuntimeCall(ctx, extensionID, RuntimeCallProvider)
+	if err != nil {
+		return StorageResult{}, errors.Join(extensions.ErrRuntimeUnavailable, err)
 	}
-	return invoker.StorageClose(ctx, extensionID, request)
+	defer admission.Release()
+	return invoker.StorageClose(admission.Context, extensionID, request)
 }
 
 func (m *Manager) StorageDelete(ctx context.Context, extensionID string, request StorageObjectRequest) (StorageResult, error) {

@@ -231,13 +231,6 @@ func (m *Manager) SendMail(ctx context.Context, extensionID string, request Mail
 	if !ok {
 		return MailProviderResponse{}, extensions.ErrRuntimeUnavailable
 	}
-	m.mu.RLock()
-	_, running := m.running[extensionID]
-	m.mu.RUnlock()
-	if !running {
-		return MailProviderResponse{}, extensions.ErrRuntimeUnavailable
-	}
-
 	// F2.3：出站邮件也走并发/熔断闸门，并施加默认超时。
 	timeout := m.resilience.cfg.DefaultMailTimeout
 	var cancel context.CancelFunc
@@ -245,6 +238,12 @@ func (m *Manager) SendMail(ctx context.Context, extensionID string, request Mail
 		ctx, cancel = context.WithTimeout(ctx, timeout)
 		defer cancel()
 	}
+	_, admission, err := m.AcquireActiveRuntimeCall(ctx, extensionID, RuntimeCallProvider)
+	if err != nil {
+		return MailProviderResponse{}, errors.Join(extensions.ErrRuntimeUnavailable, err)
+	}
+	defer admission.Release()
+	ctx = admission.Context
 
 	release, rejected := m.resilience.tryEnter(ctx, extensionID)
 	if rejected != "" {
@@ -283,6 +282,15 @@ func (m *Manager) ExecutePluginJob(ctx context.Context, invocation supportjobs.P
 	if !ok {
 		return extensions.ErrRuntimeUnavailable
 	}
+	instance, admission, err := m.AcquireActiveRuntimeCall(ctx, extension.ID, RuntimeCallJob)
+	if err != nil {
+		return errors.Join(extensions.ErrRuntimeUnavailable, err)
+	}
+	defer admission.Release()
+	if !runtimeInstanceMatchesExtension(instance, extension) {
+		return supportjobs.ErrPluginJobRuntimeStale
+	}
+	ctx = admission.Context
 	release, rejected := m.resilience.tryEnter(ctx, extension.ID)
 	if rejected != "" {
 		return fmt.Errorf("%s: %s", rejected, circuitMessage(rejected))
@@ -537,6 +545,16 @@ func (m *Manager) invoke(ctx context.Context, extension extensions.Extension, in
 	var cancel context.CancelFunc
 	ctx, cancel = context.WithTimeout(ctx, timeout)
 	defer cancel()
+	instance, admission, err := m.AcquireActiveRuntimeCall(ctx, extension.ID, RuntimeCallHook)
+	if err != nil || !runtimeInstanceMatchesExtension(instance, extension) {
+		return HookResult{
+			OK:      false,
+			Reason:  "extension.runtime_unavailable",
+			Message: "Plugin runtime is not available.",
+		}
+	}
+	defer admission.Release()
+	ctx = admission.Context
 
 	// F2.3：熔断/并发闸门。observe 类 fail_open 事件在熔断时跳过而非阻断。
 	definition, _ := appevents.FindDefinition(input.Name)
