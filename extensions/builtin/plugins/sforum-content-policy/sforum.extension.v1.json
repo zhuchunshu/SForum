@@ -1,0 +1,27 @@
+{
+  "id": "sforum.content-policy",
+  "name": "SForum Content Policy",
+  "description": "Protected built-in keyword gate for topics and comments (workflow reference plugin).",
+  "url": "https://github.com/zhuchunshu/sforum",
+  "author": { "name": "SForum", "url": "https://github.com/zhuchunshu/sforum" },
+  "version": "1.0.0",
+  "type": "plugin",
+  "sforumVersion": ">=0.1.0",
+  "capabilities": ["host.api", "settings.own", "audit.append"],
+  "backend": {
+    "entry": "backend/plugin",
+    "rpc": "hashicorp-go-plugin",
+    "protocolVersion": 1
+  },
+  "events": [
+    { "name": "topic.before_create", "kind": "filter" },
+    { "name": "topic.before_update", "kind": "filter" },
+    { "name": "comment.before_create", "kind": "filter" }
+  ],
+  "includes": {
+    "langs": "manifest/langs",
+    "admin": "manifest/admin.json",
+    "contributions": "manifest/contributions.json",
+    "settings": "manifest/settings.json"
+  }
+}

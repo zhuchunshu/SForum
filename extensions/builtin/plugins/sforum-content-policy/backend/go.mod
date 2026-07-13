@@ -2,7 +2,10 @@ module github.com/zhuchunshu/sforum/extensions/builtin/plugins/sforum-content-po
 
 go 1.26.5
 
-require github.com/zhuchunshu/sforum/apps/api v0.0.0
+require (
+	github.com/zhuchunshu/sforum/apps/api v0.0.0
+	google.golang.org/protobuf v1.36.11
+)
 
 require (
 	github.com/Masterminds/semver/v3 v3.5.0 // indirect
@@ -45,6 +48,7 @@ require (
 	github.com/riverqueue/river/riverdriver/riverpgxv5 v0.40.0 // indirect
 	github.com/riverqueue/river/rivershared v0.40.0 // indirect
 	github.com/riverqueue/river/rivertype v0.40.0 // indirect
+	github.com/santhosh-tekuri/jsonschema/v6 v6.0.2 // indirect
 	github.com/stretchr/testify v1.11.1 // indirect
 	github.com/tailscale/hujson v0.0.0-20260302212456-ecc657c15afd // indirect
 	github.com/tencentyun/cos-go-sdk-v5 v0.7.74 // indirect
@@ -64,7 +68,6 @@ require (
 	golang.org/x/time v0.15.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260420184626-e10c466a9529 // indirect
 	google.golang.org/grpc v1.80.0 // indirect
-	google.golang.org/protobuf v1.36.11 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 

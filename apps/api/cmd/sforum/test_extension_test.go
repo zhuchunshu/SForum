@@ -1,6 +1,10 @@
 package main
 
 import (
+	"bytes"
+	"crypto/sha256"
+	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -56,17 +60,52 @@ func TestExtensionTestCommandSMTPWithSkipBinary(t *testing.T) {
 	}
 }
 
-func TestExtensionTestCommandContentPolicyWithSkipBinary(t *testing.T) {
-	// E5 工作流参考插件：契约检查不依赖本地构建产物。
+func TestExtensionTestCommandContentPolicyV2Package(t *testing.T) {
+	// V3 packageFiles 必须校验真实字节；临时构建避免测试依赖 gitignored 本地产物。
 	_, file, _, ok := runtime.Caller(0)
 	if !ok {
 		t.Fatal("runtime.Caller failed")
 	}
 	repoRoot := filepath.Clean(filepath.Join(filepath.Dir(file), "../../../.."))
-	pkgRoot := filepath.Join(repoRoot, "extensions/builtin/plugins/sforum-content-policy")
+	sourceRoot := filepath.Join(repoRoot, "extensions/builtin/plugins/sforum-content-policy")
+	pkgRoot := filepath.Join(t.TempDir(), "sforum-content-policy")
+	if err := os.CopyFS(pkgRoot, os.DirFS(sourceRoot)); err != nil {
+		t.Fatalf("copy content-policy package: %v", err)
+	}
+	backendRoot := filepath.Join(sourceRoot, "backend")
+	binary := filepath.Join(pkgRoot, "backend", "plugin")
+	secondBinary := filepath.Join(t.TempDir(), "plugin")
+	for _, outputPath := range []string{binary, secondBinary} {
+		build := exec.Command("go", "build", "-trimpath", "-buildvcs=false", "-o", outputPath, ".")
+		build.Dir = backendRoot
+		build.Env = append(os.Environ(), "CGO_ENABLED=0", "GOOS=linux")
+		if output, err := build.CombinedOutput(); err != nil {
+			t.Fatalf("build reproducible Linux content-policy v2: %v\n%s", err, output)
+		}
+	}
+	firstBody, err := os.ReadFile(binary)
+	if err != nil {
+		t.Fatal(err)
+	}
+	secondBody, err := os.ReadFile(secondBinary)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(firstBody, secondBody) {
+		t.Fatalf("content-policy Linux build is not reproducible: %x != %x", sha256.Sum256(firstBody), sha256.Sum256(secondBody))
+	}
+
+	digestCmd := newRootCommand()
+	digestCmd.SetArgs([]string{"extension", "digest", "--write", pkgRoot})
+	var digestOut strings.Builder
+	digestCmd.SetOut(&digestOut)
+	digestCmd.SetErr(&digestOut)
+	if err := digestCmd.Execute(); err != nil {
+		t.Fatalf("refresh content-policy digest: %v\n%s", err, digestOut.String())
+	}
 
 	cmd := newRootCommand()
-	cmd.SetArgs([]string{"extension", "test", "--skip-backend-binary", pkgRoot})
+	cmd.SetArgs([]string{"extension", "test", pkgRoot})
 	var out strings.Builder
 	cmd.SetOut(&out)
 	cmd.SetErr(&out)

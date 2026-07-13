@@ -1,27 +1,79 @@
 {
-  "id": "sforum.content-policy",
-  "name": "SForum Content Policy",
-  "description": "Protected built-in keyword gate for topics and comments (workflow reference plugin).",
-  "url": "https://github.com/zhuchunshu/sforum",
-  "author": { "name": "SForum", "url": "https://github.com/zhuchunshu/sforum" },
-  "version": "1.0.0",
-  "type": "plugin",
-  "sforumVersion": ">=0.1.0",
-  "capabilities": ["host.api", "settings.own", "audit.append"],
-  "backend": {
-    "entry": "backend/plugin",
-    "rpc": "hashicorp-go-plugin",
-    "protocolVersion": 1
+  "author": {
+    "name": "SForum",
+    "url": "https://github.com/zhuchunshu/sforum"
   },
-  "events": [
-    { "name": "topic.before_create", "kind": "filter" },
-    { "name": "topic.before_update", "kind": "filter" },
-    { "name": "comment.before_create", "kind": "filter" }
+  "backend": {
+    "digest": "8c3ad21f0cd9a5c6b6c062f25834d3b09853bbb9c8683740003cbf1f6d2afbd7",
+    "entry": "backend/plugin",
+    "hostApiVersion": "sforum.host@2",
+    "protocolVersion": 2,
+    "rpc": "hashicorp-go-plugin"
+  },
+  "capabilities": [
+    "host.api",
+    "settings.own",
+    "audit.append"
   ],
+  "description": "Protected built-in keyword gate for topics and comments (workflow reference plugin).",
+  "events": [
+    {
+      "contractVersion": "sforum.content-policy.event.topic-before-create@1",
+      "handler": "content-policy.filter",
+      "id": "sforum.content-policy.event.topic-before-create",
+      "inputSchema": "sforum.content-policy.hook-input@1",
+      "kind": "filter",
+      "name": "topic.before_create",
+      "resultSchema": "sforum.content-policy.hook-result@1"
+    },
+    {
+      "contractVersion": "sforum.content-policy.event.topic-before-update@1",
+      "handler": "content-policy.filter",
+      "id": "sforum.content-policy.event.topic-before-update",
+      "inputSchema": "sforum.content-policy.hook-input@1",
+      "kind": "filter",
+      "name": "topic.before_update",
+      "resultSchema": "sforum.content-policy.hook-result@1"
+    },
+    {
+      "contractVersion": "sforum.content-policy.event.comment-before-create@1",
+      "handler": "content-policy.filter",
+      "id": "sforum.content-policy.event.comment-before-create",
+      "inputSchema": "sforum.content-policy.hook-input@1",
+      "kind": "filter",
+      "name": "comment.before_create",
+      "resultSchema": "sforum.content-policy.hook-result@1"
+    }
+  ],
+  "id": "sforum.content-policy",
   "includes": {
-    "langs": "manifest/langs",
     "admin": "manifest/admin.json",
     "contributions": "manifest/contributions.json",
+    "langs": "manifest/langs",
     "settings": "manifest/settings.json"
-  }
+  },
+  "manifestVersion": 3,
+  "name": "SForum Content Policy",
+  "packageFiles": [
+    {
+      "digest": "8c3ad21f0cd9a5c6b6c062f25834d3b09853bbb9c8683740003cbf1f6d2afbd7",
+      "id": "sforum.content-policy.file.backend",
+      "kind": "executable",
+      "path": "backend/plugin"
+    }
+  ],
+  "services": [
+    {
+      "action": "add",
+      "contractVersion": "sforum.content-policy.service.evaluate@1",
+      "handler": "content-policy.evaluate",
+      "id": "sforum.content-policy.service.evaluate",
+      "requestSchema": "sforum.content-policy.service.evaluate.request@1",
+      "responseSchema": "sforum.content-policy.service.evaluate.response@1"
+    }
+  ],
+  "sforumVersion": "\u003e=0.1.0",
+  "type": "plugin",
+  "url": "https://github.com/zhuchunshu/sforum",
+  "version": "1.1.0"
 }

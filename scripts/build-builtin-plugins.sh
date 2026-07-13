@@ -8,12 +8,22 @@ build_builtin_plugin() {
   local id="$1"
   local dir="$2"
   echo "Building protected built-in plugin: $id"
-  (cd "$dir" && go build -o plugin .)
+  (cd "$dir" && go build -trimpath -buildvcs=false -o plugin .)
+}
+
+refresh_v3_plugin_digest() {
+  local package_dir="$1"
+  # V3 将 manifest 绑定到平台相关二进制；同步 built-in 前必须刷新摘要并跑宿主契约门禁。
+  (cd "$ROOT_DIR/apps/api" && \
+    go run ./cmd/sforum extension digest --write "$package_dir" && \
+    go run ./cmd/sforum extension test "$package_dir")
 }
 
 build_builtin_plugin "sforum.smtp" \
   "$ROOT_DIR/extensions/builtin/plugins/sforum-smtp/backend"
 build_builtin_plugin "sforum.content-policy" \
   "$ROOT_DIR/extensions/builtin/plugins/sforum-content-policy/backend"
+refresh_v3_plugin_digest \
+  "$ROOT_DIR/extensions/builtin/plugins/sforum-content-policy"
 build_builtin_plugin "sforum.storage-fs" \
   "$ROOT_DIR/extensions/builtin/plugins/sforum-storage-fs/backend"
