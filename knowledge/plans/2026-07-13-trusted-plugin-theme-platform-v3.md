@@ -290,46 +290,46 @@ flowchart LR
 
 ### Tasks
 
-- [ ] Version the extension manifest and add sharded declarations for routes,
+- [x] Version the extension manifest and add sharded declarations for routes,
       guards, hooks, components, templates, assets, content, database, cache,
       services, commands, admin surfaces, queries, identity, permissions, media,
       navigation/regions, dependencies, lifecycle, and OpenAPI fragments.
-- [ ] Define required/optional/conflict/provides dependency semantics and
+- [x] Define required/optional/conflict/provides dependency semantics and
       deterministic activation order.
-- [ ] Define route actions, method/streaming modes, stable target ids, guards,
+- [x] Define route actions, method/streaming modes, stable target ids, guards,
       priority, fallback, request/response schemas, and contract versions.
-- [ ] Define arbitrary declared public/admin/API paths and HTTP methods; reserve
+- [x] Define arbitrary declared public/admin/API paths and HTTP methods; reserve
       only out-of-band safe-mode/CLI recovery outside the Route Registry.
-- [ ] Define component actions, target ids, SSR fragment, L2 component, prop/
+- [x] Define component actions, target ids, SSR fragment, L2 component, prop/
       result contracts, and theme override keys.
-- [ ] Define Admin Surface declarations for navigation, dashboards, list
+- [x] Define Admin Surface declarations for navigation, dashboards, list
       columns/filters, row/bulk actions, forms, notices, editor panels, detail
       regions, importers, and exporters.
-- [ ] Define Query declarations for entity, plan/version, fields, relations,
+- [x] Define Query declarations for entity, plan/version, fields, relations,
       filters, sort, pagination, result schema, permission policy, and cache tags.
-- [ ] Define Identity/Permission declarations for capabilities, recommended role
+- [x] Define Identity/Permission declarations for capabilities, recommended role
       mappings, user fields, auth/profile/recovery providers, sessions, risk
       hooks, and assignment policy; plugin declarations never self-grant.
-- [ ] Define Media Pipeline and Navigation/Region declarations including MIME,
+- [x] Define Media Pipeline and Navigation/Region declarations including MIME,
       transforms/variants and theme-defined menu/widget regions.
-- [ ] Define database authority, migration metadata, schema ownership, backup,
+- [x] Define database authority, migration metadata, schema ownership, backup,
       retention, and raw core compatibility ranges.
-- [ ] Define cache namespaces, policies, tags, providers, and invalidators.
-- [ ] Define lifecycle plan/execute hooks and progress/checkpoint schemas.
-- [ ] Define package-local asset, locale, template, and executable entry rules.
-- [ ] Add JSON Schema and modular OpenAPI definitions.
-- [ ] Update CLI scaffold/validate/test and generated catalog docs.
-- [ ] Preserve old manifest normalization where behavior is unambiguous; reject
+- [x] Define cache namespaces, policies, tags, providers, and invalidators.
+- [x] Define lifecycle plan/execute hooks and progress/checkpoint schemas.
+- [x] Define package-local asset, locale, template, and executable entry rules.
+- [x] Add JSON Schema and modular OpenAPI definitions.
+- [x] Update CLI scaffold/validate/test and generated catalog docs.
+- [x] Preserve old manifest normalization where behavior is unambiguous; reject
       unsafe implicit upgrades.
 
 ### Tests
 
-- [ ] Schema fixtures for minimal theme, safe plugin, trusted application plugin,
+- [x] Schema fixtures for minimal theme, safe plugin, trusted application plugin,
       raw DB plugin, full route plugin, L2 plugin, admin/query/identity/media/
       navigation plugins, and plugin dependency graph.
-- [ ] Invalid paths, duplicate ids, cycles, missing contracts, ambiguous replace
+- [x] Invalid paths, duplicate ids, cycles, missing contracts, ambiguous replace
       providers, unknown guards, and digest omissions fail preflight.
-- [ ] OpenAPI reference validation and catalog drift checks pass.
+- [x] OpenAPI reference validation and catalog drift checks pass.
 
 ### Rollback
 

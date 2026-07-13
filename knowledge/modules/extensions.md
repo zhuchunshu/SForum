@@ -1,6 +1,6 @@
 # Extensions Module
 
-## Accepted V3 Target (P0-P1 Complete, P2 Active)
+## Accepted V3 Target (P0-P2 Complete, P3 Next)
 
 The accepted target, including the canonical 99-row comparison and detailed
 architecture mind map, is documented in

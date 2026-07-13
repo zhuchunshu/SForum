@@ -1,8 +1,8 @@
 # Trusted Plugin And Theme Platform V3 Progress Ledger
 
 Date: 2026-07-13
-Overall progress: **12%**
-Active phase: **P2 - Manifest V3, Package Graph, And Contract Schemas (56%)**
+Overall progress: **16%**
+Active phase: **P3 - Host API V2 And Generated SDKs (0%)**
 
 This ledger is the durable percentage and context-compaction checkpoint for the
 V3 program. Update it before context compression, at every phase boundary, and
@@ -18,7 +18,7 @@ scaffolding, or demo-only code cannot satisfy a runtime exit criterion.
 | --- | ---: | ---: | ---: |
 | P0 Governance | 3% | 100% | 3% |
 | P1 Trust/recovery | 6% | 100% | 6% |
-| P2 Manifest/contracts | 7% | 56% | 3% |
+| P2 Manifest/contracts | 7% | 100% | 7% |
 | P3 Host API v2 | 8% | 0% | 0% |
 | P4 Lifecycle/dependencies | 7% | 0% | 0% |
 | P5 Database/commands | 8% | 0% | 0% |
@@ -112,33 +112,42 @@ phase percentage.
 
 ## Last Durable Checkpoint
 
-- Last implementation commit: `8adc77641 test(extensions): add Manifest V3
-  reference fixtures`.
-- P2 implementation commits so far: `5ffb4c435`, `3320a3626`, `919ccaef3`,
-  `9f774f365`, `27e31f575`, and `8adc77641`.
-- Manifest loading now preserves absent-version V1 byte compatibility, accepts
-  V1/V2/V3, rejects future versions, and rejects V3 declarations smuggled into
-  legacy packages.
-- V3 defines sharded Registry and platform declarations, exact `packageFiles`
-  SHA-256 verification, strict semantic validation, and deterministic required/
-  optional/conflict/provides package graph resolution.
-- Embedded Draft 2020-12 JSON Schema and modular OpenAPI schemas cover the V3
-  contract. CLI scaffolds produce exact-digest V3 packages and `extension
-  digest --write` refreshes changed package bytes before revalidation.
-- Fourteen authoritative fixtures cover minimal theme, safe/trusted/raw DB/full
-  route/L2/admin/query/identity/media/navigation packages and the dependency
-  graph. Invalid paths, cycles, missing contracts, unknown guards, digest
-  omissions, capability ambiguity, and ambiguous replacement providers fail.
-- `go test ./...` passed after the schema and CLI slices. The latest focused
-  fixture tests passed, all fixture JSON passed `jq`, and OpenAPI validation
-  passed with 1,585 references across 40 files.
-- Working tree was clean at `8adc77641` before this documentation checkpoint.
-- P2 remains incomplete: Manifest V3 declarations must enter the exact-artifact
-  trust impact/invalidation contract; `manifest.go` must be split below the
-  1,000-line warning; generated catalogs and authoring docs must be refreshed;
-  and the complete API/OpenAPI/CLI/frontend/catalog/repository gates must pass.
-- Next implementation command after this checkpoint: inspect
-  `app/Models/Extensions/trust_{types,service}.go`, change trust dependencies to
-  `ManifestDependency`, add every V3 declaration and `ManifestContract` to the
-  canonical impact document, and extend invalidation tests while preserving
-  legacy trust behavior.
+- Last implementation/documentation commit: `0ae175659 docs(extensions):
+  document Manifest V3 authoring`.
+- P2 commits: `5ffb4c435`, `3320a3626`, `919ccaef3`, `9f774f365`,
+  `27e31f575`, `8adc77641`, `b47d2f32d`, `4bbcfee66`, `a1fd10f20`,
+  `3c2629e11`, and `0ae175659`.
+- P2 is complete. Manifest loading preserves absent-version V1 compatibility,
+  accepts explicit V2/V3, rejects future versions, and fails unsafe implicit V3
+  upgrades.
+- All Registry/platform declaration families, exact package-file validation,
+  deterministic dependency graph resolution, embedded Draft 2020-12 JSON
+  Schema, modular OpenAPI, V3 scaffolds/digest refresh, and fourteen reference
+  fixtures are implemented.
+- `sforum.trust-impact@2` now binds the Manifest contract, every V3 declaration,
+  raw request/raw core authority, Manifest dependencies, and actual backend,
+  migration, custom-guard, and L2 bytes. The admin UI discloses every canonical
+  category in both locales.
+- `manifest.go` is 960 lines after moving contribution validation into its own
+  cohesive file. The moved function body differed only by its final blank line;
+  focused and full Go tests passed.
+- Generated `manifest-v3.md` enumerates all 46 root schema fields from the
+  embedded schema and is protected by CLI/SDK drift tests. The author guide and
+  module notes document compatibility, includes, digests, dependency semantics,
+  trust, themes, and the later-runtime boundary.
+- Final gates passed: `go build ./...`, `go test ./...`, `./scripts/test.sh`,
+  1,607 OpenAPI references across 40 files, Nuxt typecheck, all 277 Web tests,
+  Nuxt production build, generated docs drift, and V3 P0 catalog drift (207
+  routes, 115 UI surfaces, 99 traceability rows).
+- A real CLI smoke generated `smoke.v3-plugin`, refreshed its digest, validated
+  `sforum.manifest@3`, and passed contract test with only the expected scaffold
+  warning. Temporary package and QA artifacts were removed.
+- Isolated real-browser QA rendered every impact category, expanded the L2
+  declaration JSON, stayed console-clean, and had no horizontal overflow at
+  `390x844`. The temporary port 3001 server/page were removed; user port 3000
+  was untouched.
+- Working tree was clean at `0ae175659` before this completion checkpoint.
+- Next command after committing this checkpoint: read the P3 task slice,
+  inventory Host API v1, go-plugin/net-rpc, SDK generation and protocol tests,
+  then record the Protobuf/gRPC/buf library choice before the first additive P3
+  contract commit.

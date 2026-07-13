@@ -54,7 +54,7 @@ record compatibility impact.
 - P0: complete (catalogs, governance, performance baseline, and CI drift gate).
 - P1: complete (exact-artifact trust, Safe Mode, CLI recovery, and boot-loop
   containment).
-- P2: active. Manifest V3 versioning, sharded Registry/platform declarations,
+- P2: complete. Manifest V3 versioning, sharded Registry/platform declarations,
   package graph, embedded JSON Schema, modular OpenAPI, exact package-file
   digests, CLI scaffold/validation, reference fixtures, canonical trust impact,
   and generated schema catalog are implemented. Runtime registry execution

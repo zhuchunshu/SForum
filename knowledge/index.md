@@ -4,7 +4,7 @@ This is the entry point for project memory.
 
 ## Latest Handoff
 
-- **2026-07-13 Trusted Plugin And Theme Platform V3 P2 active (overall 12%, P2 56%)**
+- **2026-07-13 Trusted Plugin And Theme Platform V3 P2 complete (overall 16%, P3 next)**
   - Decision: `knowledge/decisions/2026-07-13-trusted-plugin-theme-platform-v3.md`
   - Task book: `knowledge/plans/2026-07-13-trusted-plugin-theme-platform-v3.md`
   - P2 handoff: `knowledge/sessions/2026-07-13-trusted-plugin-theme-platform-v3-p2-progress.md`
@@ -19,12 +19,14 @@ This is the entry point for project memory.
   - P1 completed exact-artifact one-use trust, delegated inert preview,
     super-admin HTTP/UI flow, pre-plugin Safe Mode, PostgreSQL-only recovery,
     boot-loop containment, audit, and full digest/declaration invalidation
-  - P2 has versioned/sharded Manifest V3 declarations, exact package digests,
+  - P2 completed versioned/sharded Manifest V3 declarations, exact package digests,
     deterministic package graph resolution, embedded JSON Schema, modular
     OpenAPI, CLI scaffold/digest refresh, and 14 authoritative fixtures
-  - P2 verification so far: Go and fixture tests green; 1,585 OpenAPI refs
-    across 40 files; trust-impact integration, file split, docs/catalogs, and
-    full P2 final gates remain before P3
+  - P2 also completed canonical trust impact/invalidation, bilingual admin
+    disclosure, schema-derived author catalogs, CLI smoke, and the file-size
+    boundary; all 19 P2 task/test checkboxes are closed
+  - P2 final gates: Go build/tests, full repo gate, 1,607 OpenAPI refs, Nuxt
+    typecheck/build, 277 Web tests, and 207/115/99 catalog counts; P3 is next
 
 - **2026-07-13 Legacy Web Release/runtime frontend builds removed**
   - Decision: `knowledge/decisions/2026-07-13-remove-legacy-web-release.md`

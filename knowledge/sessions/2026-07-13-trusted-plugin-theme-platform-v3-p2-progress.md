@@ -1,12 +1,13 @@
-# 2026-07-13 Trusted Plugin And Theme Platform V3 P2 Progress
+# 2026-07-13 Trusted Plugin And Theme Platform V3 P2 Completion
 
 ## Status
 
-- Overall V3: **12%**.
+- Overall V3: **16%**.
 - P0: **100%**.
 - P1: **100%**.
-- P2: **56%**, active.
-- Branch: `main`; implementation HEAD before this checkpoint: `8adc77641`.
+- P2: **100%**.
+- P3: **0%**, next.
+- Branch: `main`; last P2 implementation/documentation commit: `0ae175659`.
 - Working tree was clean before the documentation checkpoint.
 
 ## Changed
@@ -21,6 +22,13 @@
 - Updated CLI scaffolding and validation for V3 and added
   `extension digest --write` for exact artifact refresh.
 - Added fourteen authoritative fixtures for every P2 reference category.
+- Bound all V3 declarations, authority, dependencies, contracts, and actual
+  backend/migration/guard/L2 bytes into `sforum.trust-impact@2` and exposed the
+  complete bilingual admin review surface.
+- Split contribution validation out of `manifest.go`, reducing it from 1,293 to
+  960 lines without behavior changes.
+- Added a schema-derived generated Manifest V3 catalog and comprehensive
+  authoring/compatibility documentation.
 
 ## Commits
 
@@ -30,27 +38,33 @@
 - `9f774f365 feat(extensions): validate Manifest V3 schemas`
 - `27e31f575 feat(cli): scaffold and refresh Manifest V3 packages`
 - `8adc77641 test(extensions): add Manifest V3 reference fixtures`
+- `b47d2f32d feat(extensions): bind Manifest V3 trust impact`
+- `4bbcfee66 feat(admin): disclose Manifest V3 trust impact`
+- `a1fd10f20 refactor(extensions): split manifest contribution validation`
+- `3c2629e11 feat(cli): generate Manifest V3 schema catalog`
+- `0ae175659 docs(extensions): document Manifest V3 authoring`
 
 ## Verification
 
-- `go test ./...` passed after the schema and CLI slices.
+- `go build ./...`, `go test ./...`, and `./scripts/test.sh` passed.
 - Focused Manifest V3 fixture tests passed.
 - All fixture JSON files passed `jq` parsing.
-- OpenAPI validation passed: 1,585 references across 40 files.
+- OpenAPI validation passed: 1,607 references across 40 files.
 - Existing V1 tests and the reference-plugin subprocess build remain green.
+- Nuxt typecheck, production build, and all 277 Web tests passed.
+- Catalog drift passed: 207 routes, 115 UI surfaces, 99 traceability rows; the
+  generated Manifest catalog contains all 46 schema root fields.
+- Real CLI scaffold/digest/validate/test and isolated desktop/mobile Browser QA
+  passed; temporary artifacts were removed and user port 3000 was untouched.
 
 ## Next
 
-1. Integrate every Manifest V3 declaration into the canonical exact-artifact
-   trust impact and invalidation document.
-2. Change `TrustImpact.Dependencies` from frontend npm `Dependency` to
-   `ManifestDependency`; populate raw-request/raw-core authority and include L2
-   component files as executable inputs.
-3. Update OpenAPI, frontend trust types/presentation, i18n, and allowed/stale
-   invalidation tests without changing legacy trust behavior.
-4. Split the pre-existing 1,293-line `manifest.go` below the 1,000-line warning.
-5. Refresh generated catalogs/authoring docs, close P2 checkboxes only after
-   the full API/OpenAPI/CLI/frontend/catalog/repository gates pass.
+1. Read the P3 task slice and inventory Host API v1, the current HashiCorp
+   go-plugin net/rpc protocol, public SDK, contract tests, and code generation.
+2. Complete the required library survey for Protobuf/gRPC/buf and record the
+   architecture choice before introducing generated contracts.
+3. Land additive protocol v2 schemas/generation first; keep v1 compatibility
+   operational until P13 removal gates pass.
 
 ## Compression Rule
 
