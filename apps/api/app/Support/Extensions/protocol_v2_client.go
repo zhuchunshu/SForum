@@ -43,6 +43,7 @@ type protocolV2ClientConfig struct {
 	identity     *protocolv2.ExtensionIdentity
 	authority    []*protocolv2.AuthorityGrant
 	events       []extensions.ManifestEvent
+	lifecycle    *extensions.ManifestLifecycle
 	token        []byte
 	instance     string
 	hostAPI      ProtocolV2HostRegistrar
@@ -55,6 +56,7 @@ type protocolV2Client struct {
 	identity     *protocolv2.ExtensionIdentity
 	authority    []*protocolv2.AuthorityGrant
 	events       []extensions.ManifestEvent
+	lifecycle    *extensions.ManifestLifecycle
 	token        []byte
 	instance     string
 	hostBrokerID uint32
@@ -84,8 +86,8 @@ func (e *ProtocolV2Error) Error() string {
 func newProtocolV2Client(client pluginv2.PluginRuntimeServiceClient, config protocolV2ClientConfig) *protocolV2Client {
 	return &protocolV2Client{
 		client: client, identity: cloneV2Identity(config.identity), authority: cloneV2Authority(config.authority),
-		events: append([]extensions.ManifestEvent(nil), config.events...),
-		token:  append([]byte(nil), config.token...), instance: config.instance, hostBrokerID: config.hostBrokerID,
+		events: append([]extensions.ManifestEvent(nil), config.events...), lifecycle: cloneManifestLifecycle(config.lifecycle),
+		token: append([]byte(nil), config.token...), instance: config.instance, hostBrokerID: config.hostBrokerID,
 	}
 }
 
@@ -178,6 +180,7 @@ func (s *ProtocolStarter) protocolV2ClientConfig(ctx context.Context, extension 
 		},
 		authority: protocolV2Authority(extension.CapabilityGrants),
 		events:    append([]extensions.ManifestEvent(nil), extension.Manifest.Events...),
+		lifecycle: cloneManifestLifecycle(extension.Manifest.Lifecycle),
 		token:     token,
 		instance:  hex.EncodeToString(instanceBytes),
 		hostAPI:   protocolV2HostRegistrarFor(s.hostAPI),
