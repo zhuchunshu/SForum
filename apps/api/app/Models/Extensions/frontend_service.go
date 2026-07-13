@@ -28,12 +28,14 @@ type FrontendExtensionReader interface {
 }
 
 type FrontendService struct {
-	extensions FrontendExtensionReader
-	trust      FrontendTrustStore
-	auditor    audit.Writer
-	challenges map[string]frontendTrustChallengeState
-	mu         sync.Mutex
-	safeMode   bool
+	extensions        FrontendExtensionReader
+	trust             FrontendTrustStore
+	executableTrust   *ExecutableTrustService
+	v3TrustChallenges bool
+	auditor           audit.Writer
+	challenges        map[string]frontendTrustChallengeState
+	mu                sync.Mutex
+	safeMode          bool
 }
 
 type frontendTrustChallengeState struct {
@@ -56,6 +58,13 @@ func (s *FrontendService) WithAuditor(writer audit.Writer) *FrontendService {
 
 func (s *FrontendService) WithSafeMode(enabled bool) *FrontendService {
 	s.safeMode = enabled
+	return s
+}
+
+// WithExecutableTrust 让 V3 管理组件复用整包 exact-artifact grant；关闭开关时保留旧授权表。
+func (s *FrontendService) WithExecutableTrust(service *ExecutableTrustService, enabled bool) *FrontendService {
+	s.executableTrust = service
+	s.v3TrustChallenges = enabled
 	return s
 }
 
@@ -186,7 +195,12 @@ func (s *FrontendService) Asset(ctx context.Context, actor identity.Actor, exten
 	if component == nil || digest == "" || digest != extension.AdminFrontendDigest {
 		return FrontendAsset{}, ErrFrontendTrustUnavailable
 	}
-	if !(extension.Source == SourceBuiltin && extension.IsSystem && !extension.IsDeletable) {
+	if s.v3TrustChallenges {
+		trusted, err := s.exactArtifactTrusted(ctx, extension)
+		if err != nil || !trusted {
+			return FrontendAsset{}, ErrFrontendTrustUnavailable
+		}
+	} else if !(extension.Source == SourceBuiltin && extension.IsSystem && !extension.IsDeletable) {
 		grant, err := s.trust.FrontendGrant(ctx, extension.ID, extension.Version, extension.AdminFrontendDigest)
 		if err != nil || grant.APIVersion != component.APIVersion || !slices.Contains(grant.ComponentIDs, component.ID) {
 			return FrontendAsset{}, ErrFrontendTrustUnavailable
@@ -244,6 +258,16 @@ func (s *FrontendService) frontendStatus(ctx context.Context, extension Extensio
 	if extension.Source == SourceBuiltin && extension.IsSystem && !extension.IsDeletable {
 		return prebuiltFrontendStatus(extension, *component, FrontendTrustSourceTrusted), nil
 	}
+	if s.v3TrustChallenges {
+		trusted, err := s.exactArtifactTrusted(ctx, extension)
+		if err != nil {
+			return FrontendStatus{}, err
+		}
+		if trusted {
+			return prebuiltFrontendStatus(extension, *component, FrontendTrustTrusted), nil
+		}
+		return prebuiltFrontendStatus(extension, *component, FrontendTrustRequired), nil
+	}
 	grants, err := s.trust.LiveFrontendGrants(ctx, extension.ID)
 	if err != nil {
 		return FrontendStatus{}, err
@@ -259,6 +283,13 @@ func (s *FrontendService) frontendStatus(ctx context.Context, extension Extensio
 		state = FrontendTrustInvalidated
 	}
 	return prebuiltFrontendStatus(extension, *component, state), nil
+}
+
+func (s *FrontendService) exactArtifactTrusted(ctx context.Context, extension Extension) (bool, error) {
+	if s == nil || s.executableTrust == nil {
+		return false, ErrFrontendTrustUnavailable
+	}
+	return s.executableTrust.TrustedArtifact(ctx, extension)
 }
 
 func (s *FrontendService) consumePrebuiltConfirmation(actor identity.Actor, extension Extension, component SettingsComponent, confirmation *FrontendTrustConfirmation) error {

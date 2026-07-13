@@ -131,6 +131,63 @@ func TestFrontendServiceAssetRequiresExactGrantAndImmutableBytes(t *testing.T) {
 	}
 }
 
+func TestFrontendServiceV3UsesTheExactArtifactGrant(t *testing.T) {
+	extension := prebuiltFrontendFixture(t, SourceUploaded)
+	reader := &fakeFrontendExtensionReader{item: extension}
+	exactStore := &memoryExecutableTrustStore{now: func() time.Time { return time.Now().UTC() }}
+	exactTrust := NewExecutableTrustService(reader, exactStore)
+	service := NewFrontendService(reader, &fakeFrontendTrustStore{}).WithExecutableTrust(exactTrust, true)
+	actor := frontendSuperAdmin()
+
+	status, err := service.Frontend(context.Background(), actor, extension.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if status.TrustState != FrontendTrustRequired {
+		t.Fatalf("frontend must fall back before exact-artifact trust: %#v", status)
+	}
+	if _, err := service.Asset(context.Background(), actor, extension.ID, extension.AdminFrontendDigest, "entry"); !errors.Is(err, ErrFrontendTrustUnavailable) {
+		t.Fatalf("asset must be closed before exact-artifact trust, got %v", err)
+	}
+
+	challenge, err := exactTrust.Challenge(context.Background(), actor, extension.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := exactTrust.ConfirmEnable(context.Background(), actor, extension, challenge.Token); err != nil {
+		t.Fatal(err)
+	}
+	status, err = service.Frontend(context.Background(), actor, extension.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if status.TrustState != FrontendTrustTrusted {
+		t.Fatalf("exact-artifact trust must cover the declared admin component: %#v", status)
+	}
+	if _, err := service.Asset(context.Background(), actor, extension.ID, extension.AdminFrontendDigest, "entry"); err != nil {
+		t.Fatalf("exact-artifact trust should open immutable frontend asset: %v", err)
+	}
+}
+
+func TestFrontendServiceV3DoesNotAcceptALegacyFrontendOnlyGrant(t *testing.T) {
+	extension := prebuiltFrontendFixture(t, SourceUploaded)
+	reader := &fakeFrontendExtensionReader{item: extension}
+	exactTrust := NewExecutableTrustService(reader, &memoryExecutableTrustStore{})
+	legacyTrust := &fakeFrontendTrustStore{grant: frontendGrantForExtension(extension)}
+	service := NewFrontendService(reader, legacyTrust).WithExecutableTrust(exactTrust, true)
+
+	status, err := service.Frontend(context.Background(), frontendSuperAdmin(), extension.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if status.TrustState != FrontendTrustRequired {
+		t.Fatalf("legacy frontend-only grant must not bypass V3 exact trust: %#v", status)
+	}
+	if _, err := service.Asset(context.Background(), frontendSuperAdmin(), extension.ID, extension.AdminFrontendDigest, "entry"); !errors.Is(err, ErrFrontendTrustUnavailable) {
+		t.Fatalf("legacy frontend-only grant opened V3 asset: %v", err)
+	}
+}
+
 func TestFrontendServiceBuiltinComponentUsesSourceTrust(t *testing.T) {
 	extension := prebuiltFrontendFixture(t, SourceBuiltin)
 	extension.Type = TypeTheme

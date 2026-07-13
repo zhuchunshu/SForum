@@ -72,12 +72,31 @@ func (s *ExecutableTrustService) Status(ctx context.Context, actor identity.Acto
 	required := impact.Source == SourceUploaded && (len(impact.Binaries) > 0 || len(impact.Components) > 0 || len(impact.Migrations) > 0)
 	trusted := !required
 	if required {
-		trusted, err = s.store.HasLiveGrant(ctx, trustIdentity(impact))
+		trusted, err = s.hasLiveGrant(ctx, impact)
 		if err != nil {
 			return ExecutableTrustStatus{}, err
 		}
 	}
 	return ExecutableTrustStatus{Impact: impact, TrustRequired: required, Trusted: trusted}, nil
+}
+
+// TrustedArtifact 供同一进程内的执行入口复用整包信任结论，避免后端与前端各自授权。
+func (s *ExecutableTrustService) TrustedArtifact(ctx context.Context, extension Extension) (bool, error) {
+	if !RequiresExecutableTrust(extension) {
+		return true, nil
+	}
+	impact, err := buildTrustImpact(extension, TrustActionEnable)
+	if err != nil {
+		return false, err
+	}
+	return s.hasLiveGrant(ctx, impact)
+}
+
+func (s *ExecutableTrustService) hasLiveGrant(ctx context.Context, impact TrustImpact) (bool, error) {
+	if s == nil || s.store == nil {
+		return false, ErrTrustChallengeInvalid
+	}
+	return s.store.HasLiveGrant(ctx, trustIdentity(impact))
 }
 
 func (s *ExecutableTrustService) Challenge(ctx context.Context, actor identity.Actor, extensionID string) (TrustChallenge, error) {
