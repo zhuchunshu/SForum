@@ -1,8 +1,8 @@
 # Trusted Plugin And Theme Platform V3 Progress Ledger
 
 Date: 2026-07-13
-Overall progress: **9%**
-Active phase: **P2 - Manifest V3, Package Graph, And Contract Schemas (0%)**
+Overall progress: **12%**
+Active phase: **P2 - Manifest V3, Package Graph, And Contract Schemas (56%)**
 
 This ledger is the durable percentage and context-compaction checkpoint for the
 V3 program. Update it before context compression, at every phase boundary, and
@@ -18,7 +18,7 @@ scaffolding, or demo-only code cannot satisfy a runtime exit criterion.
 | --- | ---: | ---: | ---: |
 | P0 Governance | 3% | 100% | 3% |
 | P1 Trust/recovery | 6% | 100% | 6% |
-| P2 Manifest/contracts | 7% | 0% | 0% |
+| P2 Manifest/contracts | 7% | 56% | 3% |
 | P3 Host API v2 | 8% | 0% | 0% |
 | P4 Lifecycle/dependencies | 7% | 0% | 0% |
 | P5 Database/commands | 8% | 0% | 0% |
@@ -112,20 +112,33 @@ phase percentage.
 
 ## Last Durable Checkpoint
 
-- Last implementation commit: `aee696e68 fix(admin): classify trust review surfaces`.
-- Final P1 commits after the prior checkpoint: `1b9202608`, `e2b9dc8c8`,
-  `a75c28366`, `651d3e9f4`, and `aee696e68`.
-- Current catalogs: 207 routes, 115 UI surfaces, and 99 traceability rows.
-- `./scripts/test.sh` passed: Go tests, 1,519 OpenAPI references, Nuxt
-  typecheck, and all 277 Web tests. Nuxt production build also passed.
-- An isolated real-browser flow passed on desktop and `390x844`: exact impact
-  preview, challenge issuance, token-bearing enable, dialog cleanup, trusted
-  frontend refresh, responsive scrolling/cancel, and 10-second Toast behavior.
-  The relevant browser console remained clean.
-- Temporary database, API/Nuxt ports, binaries, ZIP, cookies, and extension
-  package directory were removed. User-owned ports 3000 and 8081 were untouched.
-- Working tree was clean before this documentation checkpoint; no production
-  changes remain uncommitted.
-- Next command after committing this checkpoint: read the P2 task slice at
-  lines 280-340, then inventory manifest, package graph, OpenAPI schema, and
-  fixture validators before the first compatibility commit.
+- Last implementation commit: `8adc77641 test(extensions): add Manifest V3
+  reference fixtures`.
+- P2 implementation commits so far: `5ffb4c435`, `3320a3626`, `919ccaef3`,
+  `9f774f365`, `27e31f575`, and `8adc77641`.
+- Manifest loading now preserves absent-version V1 byte compatibility, accepts
+  V1/V2/V3, rejects future versions, and rejects V3 declarations smuggled into
+  legacy packages.
+- V3 defines sharded Registry and platform declarations, exact `packageFiles`
+  SHA-256 verification, strict semantic validation, and deterministic required/
+  optional/conflict/provides package graph resolution.
+- Embedded Draft 2020-12 JSON Schema and modular OpenAPI schemas cover the V3
+  contract. CLI scaffolds produce exact-digest V3 packages and `extension
+  digest --write` refreshes changed package bytes before revalidation.
+- Fourteen authoritative fixtures cover minimal theme, safe/trusted/raw DB/full
+  route/L2/admin/query/identity/media/navigation packages and the dependency
+  graph. Invalid paths, cycles, missing contracts, unknown guards, digest
+  omissions, capability ambiguity, and ambiguous replacement providers fail.
+- `go test ./...` passed after the schema and CLI slices. The latest focused
+  fixture tests passed, all fixture JSON passed `jq`, and OpenAPI validation
+  passed with 1,585 references across 40 files.
+- Working tree was clean at `8adc77641` before this documentation checkpoint.
+- P2 remains incomplete: Manifest V3 declarations must enter the exact-artifact
+  trust impact/invalidation contract; `manifest.go` must be split below the
+  1,000-line warning; generated catalogs and authoring docs must be refreshed;
+  and the complete API/OpenAPI/CLI/frontend/catalog/repository gates must pass.
+- Next implementation command after this checkpoint: inspect
+  `app/Models/Extensions/trust_{types,service}.go`, change trust dependencies to
+  `ManifestDependency`, add every V3 declaration and `ManifestContract` to the
+  canonical impact document, and extend invalidation tests while preserving
+  legacy trust behavior.
