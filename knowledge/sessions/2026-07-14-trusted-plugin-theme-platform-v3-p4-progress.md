@@ -4,8 +4,8 @@
 
 - Overall V3: **25%**.
 - P0-P3: **100%**.
-- P4: **20%**, active (3 of 15 task/test rows complete).
-- Branch: `main`; last implementation commit: `e70dd677e`.
+- P4: **27%**, active (4 of 15 task/test rows complete).
+- Branch: `main`; last implementation commit: `a3c4f75dc`.
 
 ## Changed
 
@@ -22,6 +22,13 @@
   terminal state, typed failure/cancellation, and the declared result schema.
   The checkpoint schema association is returned, but the current wire
   checkpoint remains an opaque string and is not structurally validated.
+- Added the Host-owned lifecycle state machine with the exact ten authoritative
+  states, six operations, eleven actions, recommended safety gates, terminal
+  rules, uninstall-only force escalation, and failed/cancelled recovery.
+- Added an additive PostgreSQL operation/step ledger plus repository. Exact
+  artifact and authority snapshots, idempotency fingerprints, stable step ids,
+  checkpoints, progress, typed failure, retries, removal modes, actor/audit
+  snapshots, and uninstall history survive process and extension deletion.
 
 ## Verification
 
@@ -30,23 +37,26 @@
 - Focused lifecycle tests passed with `-race`.
 - `go vet ./app/Support/Extensions` passed.
 - `git diff --check` passed for the lifecycle slice.
+- Real PostgreSQL migration Down/Up and migration/migrator tests passed.
+- Repository concurrent acquire/CAS/stable-step, restart, resume, retry, audit
+  retention, and extension-deletion history tests passed repeatedly and with
+  race detection.
 
 ## Active Ownership
 
 - Versioned plugin-job execution and drain compatibility are an independent
   in-flight slice sharing selected runtime files.
-- The additive lifecycle ledger migration is independent and must commit before
-  repository/runtime consumers.
-- The PostgreSQL lifecycle operation/step repository is an independent
-  in-flight slice and does not own Service, protocol, jobs, or frontend files.
+- A crash-resumable coordinator is in flight in independent new files.
+- Exhaustive durable crash/retry boundary coverage is in flight in an
+  independent integration test file.
 
 ## Next
 
-1. Review, test, and commit the migration, job, and repository slices separately.
-2. Run the complete P3/P4 repository gate and record the result.
-3. Wire the lifecycle state machine and first-trusted-enable transaction to the
+1. Review, test, and commit the job, coordinator, and boundary-recovery slices.
+2. Wire the lifecycle state machine and first-trusted-enable transaction to the
    durable ledger, exact-artifact trust, frozen runtime, drain, audit, and
    recovery contracts.
+3. Run the complete P3/P4 repository gate and record the result.
 
 ## Open Questions
 

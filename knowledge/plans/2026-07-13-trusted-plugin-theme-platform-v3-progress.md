@@ -2,7 +2,7 @@
 
 Date: 2026-07-14
 Overall progress: **25%**
-Active phase: **P4 - Lifecycle V2, Dependency Graph, And Authoritative Hooks (20%, 3 of 15 rows)**
+Active phase: **P4 - Lifecycle V2, Dependency Graph, And Authoritative Hooks (27%, 4 of 15 rows)**
 
 This ledger is the durable percentage and context-compaction checkpoint for the
 V3 program. Update it before context compression, at every phase boundary, and
@@ -20,7 +20,7 @@ scaffolding, or demo-only code cannot satisfy a runtime exit criterion.
 | P1 Trust/recovery | 6% | 100% | 6% |
 | P2 Manifest/contracts | 7% | 100% | 7% |
 | P3 Host API v2 | 8% | 100% | 8% |
-| P4 Lifecycle/dependencies | 7% | 20% | 1% |
+| P4 Lifecycle/dependencies | 7% | 27% | 1% |
 | P5 Database/commands | 8% | 0% | 0% |
 | P6 Routes/middleware | 10% | 0% | 0% |
 | P7 Workflow/admin/query/identity | 10% | 0% | 0% |
@@ -111,6 +111,34 @@ phase percentage.
   failing plugin exactly once (`failed`, then `skipped`).
 
 ## Last Durable Checkpoint
+
+### 2026-07-14 P4 State Machine And Durable Ledger Checkpoint
+
+- Last implementation commit: `a3c4f75dc feat(extensions): persist lifecycle
+  operations`.
+- P4 is 4 of 15 rows complete. The Host-owned pure state machine fixes the
+  authoritative ten states, six operations, eleven actions, recommended safety
+  gates, terminal behavior, and the sole failed/cancelled retry path through
+  recovery. Forced execution is uninstall-only; skippable plugin cleanup never
+  bypasses Host safety gates.
+- Additive PostgreSQL operation and step-attempt ledgers persist the exact
+  artifact/authority snapshot, idempotency fingerprint, stable step ids,
+  checkpoints, monotonic progress, typed errors, retries, actor/audit snapshots,
+  and all three removal modes. Extension and audit retention cannot delete the
+  lifecycle history accidentally.
+- The repository serializes acquisition per extension, enforces one open
+  operation, uses revision/state CAS, reuses an existing idempotency key,
+  resumes failed/cancelled operations, and allocates monotonic step attempts.
+- Verification passed real PostgreSQL migration Down/Up, migration/migrator
+  tests, concurrent acquire/CAS/stable-step tests, restart/resume/retry tests,
+  full Models/Extensions race detection, focused repeated tests, and vet.
+- Current uncommitted ownership: versioned plugin-job runtime execution;
+  crash-resumable lifecycle coordinator; exhaustive repository/state-machine
+  boundary recovery tests. Existing `.reasonix`, `.zcode`, and `CLAUDE.md`
+  deletions are unrelated and must remain untouched.
+- Next: land the job and coordinator slices independently, wire the coordinator
+  into exact-artifact first trusted enable, then implement drain/uninstall
+  cleanup and operator retry/skip/forced-removal APIs and UI.
 
 ### 2026-07-14 P3 Completion And P4 Lifecycle Transport Checkpoint
 

@@ -1,6 +1,6 @@
 # Extensions Module
 
-## Accepted V3 Target (P0-P2 Complete, P3 Active)
+## Accepted V3 Target (P0-P3 Complete, P4 Active)
 
 The accepted target, including the canonical 99-row comparison and detailed
 architecture mind map, is documented in
@@ -71,6 +71,16 @@ stream relay, instance-bound removal, and crash/restart reaping. Unsupported
 implemented. The Go SDK publishes immutable service descriptors and dispatches
 typed handlers. `sforum.content-policy` is the first V2 built-in reference and
 retains a real `protocol_v1` build-tag entry plus rollback Manifest.
+
+P4 now has a Host-owned pure lifecycle state machine with the authoritative ten
+states, six operations, eleven actions, recommended safety gates, and a single
+failed/cancelled recovery path. An additive PostgreSQL operation/step ledger
+stores exact artifact and authority snapshots, idempotency fingerprints, stable
+step attempts, checkpoints, monotonic progress, typed errors, actor/audit
+snapshots, and preserve/export/remove intent. Its repository serializes each
+extension, uses revision/state CAS, and resumes the same logical operation
+after a process restart. Runtime coordinator, first-trusted-enable wiring,
+drain/uninstall cleanup, and operator recovery UI remain active P4 work.
 
 ## Purpose
 

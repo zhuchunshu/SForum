@@ -4,7 +4,7 @@ This is the entry point for project memory.
 
 ## Latest Handoff
 
-- **2026-07-14 Trusted Plugin And Theme Platform V3 P4 active (overall 25%, P4 20%)**
+- **2026-07-14 Trusted Plugin And Theme Platform V3 P4 active (overall 25%, P4 27%)**
   - Decision: `knowledge/decisions/2026-07-13-trusted-plugin-theme-platform-v3.md`
   - Task book: `knowledge/plans/2026-07-13-trusted-plugin-theme-platform-v3.md`
   - P4 handoff: `knowledge/sessions/2026-07-14-trusted-plugin-theme-platform-v3-p4-progress.md`
@@ -42,8 +42,11 @@ This is the entry point for project memory.
   - P4 has activation dependency preflight plus all eleven lifecycle actions
     over the real v2 subprocess transport. Lifecycle declarations are frozen at
     process start; caller manifest drift and result-schema drift fail closed
-  - Active parallel P4 work owns the additive lifecycle ledger, PostgreSQL
-    operation/step repository, and versioned plugin-job execution contracts
+  - P4 now has the authoritative ten-state Host state machine plus additive
+    PostgreSQL operation/step ledgers and a concurrent, CAS-based resumable
+    repository with exact-artifact authority and audit snapshots
+  - Active parallel P4 work owns the crash-resumable coordinator, exhaustive
+    boundary recovery tests, and versioned plugin-job execution contracts
 
 - **2026-07-13 Legacy Web Release/runtime frontend builds removed**
   - Decision: `knowledge/decisions/2026-07-13-remove-legacy-web-release.md`

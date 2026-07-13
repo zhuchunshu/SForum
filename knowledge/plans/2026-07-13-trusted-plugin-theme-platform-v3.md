@@ -387,7 +387,7 @@ flowchart LR
 - [ ] Defer executable `install.plan` and `install` to the first trusted enable
       transaction; static package installation must never invoke them.
 - [x] Resolve dependency graph and conflicts before code/migrations execute.
-- [ ] Add lifecycle state machine with planned, migrating, starting, healthy,
+- [x] Add lifecycle state machine with planned, migrating, starting, healthy,
       registering, enabled, draining, uninstalling, failed, and recovery states.
 - [ ] Require idempotency keys, stable step ids, checkpoints, progress, and
       resumable failure behavior.
