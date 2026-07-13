@@ -94,13 +94,15 @@ func TestLifecycleCoordinatorDistinguishesFirstTrustedEnableFromOrdinaryEnable(t
 
 func TestLifecycleCoordinatorResumesOpenAttemptWithStableIdentity(t *testing.T) {
 	repository := newLifecycleCoordinatorTestRepository()
-	repository.failCompleteStepOnce = true
-	runtime := &lifecycleCoordinatorTestRuntime{}
+	runtime := &lifecycleCoordinatorTestRuntime{behaviors: map[LifecycleMachineAction][]lifecycleCoordinatorTestBehavior{
+		LifecycleMachineEnableAction: {{after: repository.failNextCompleteStep}},
+	}}
 	coordinator := NewLifecycleCoordinator(repository, runtime, &lifecycleCoordinatorTestHost{})
 	input := lifecycleCoordinatorTestInput(LifecycleMachineEnable, false)
 	if _, err := coordinator.Run(context.Background(), input); !errors.Is(err, errLifecycleCoordinatorTestCrash) {
 		t.Fatalf("first run = %v", err)
 	}
+	repository.expireOpenLease("")
 	result, err := coordinator.Run(context.Background(), input)
 	if err != nil || result.Operation.TerminalResult != LifecycleTerminalSucceeded {
 		t.Fatalf("resumed run = %#v, %v", result, err)
@@ -202,6 +204,7 @@ func TestLifecycleCoordinatorReturnsProgressPersistenceErrorWithoutBusinessFailu
 	if latestErr != nil || latest.Status != LifecycleStepRunning || latest.Checkpoint != "half" {
 		t.Fatalf("open progress = %#v, %v", latest, latestErr)
 	}
+	repository.expireOpenLease("half")
 	resumed, err := coordinator.Run(context.Background(), input)
 	if err != nil || resumed.Operation.TerminalResult != LifecycleTerminalSucceeded {
 		t.Fatalf("resumed = %#v, %v", resumed, err)
@@ -338,7 +341,8 @@ func TestLifecycleCoordinatorPreservesActorAndAuditOnEveryActionAttempt(t *testi
 		t.Fatalf("operation actor/audit = %#v, %v", result.Operation, err)
 	}
 	attempts := repository.stepsSnapshot()
-	if len(attempts) != 3 {
+	path, _ := RecommendedLifecyclePath(LifecycleMachineInstall)
+	if len(attempts) != len(path)-1 {
 		t.Fatalf("attempts = %#v", attempts)
 	}
 	for _, attempt := range attempts {

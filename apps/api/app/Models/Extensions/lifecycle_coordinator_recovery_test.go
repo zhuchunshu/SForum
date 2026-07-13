@@ -92,6 +92,96 @@ func TestLifecycleCoordinatorDetachesActiveCallerDuringTerminalPersistence(t *te
 	}
 }
 
+func TestLifecycleCoordinatorUsesDetachedContextForSuccessfulAndSkippedStepTerminal(t *testing.T) {
+	tests := []struct {
+		name      string
+		operation LifecycleMachineOperation
+		forced    bool
+		action    string
+		status    string
+		prepare   func(*lifecycleCoordinatorTestRepository, *LifecycleCoordinator, *LifecycleCoordinatorRunInput)
+	}{
+		{
+			name: "Host success", operation: LifecycleMachineEnable,
+			action: lifecycleCoordinatorHostGateAction, status: LifecycleStepSucceeded,
+		},
+		{
+			name: "action success", operation: LifecycleMachineEnable,
+			action: string(LifecycleMachineEnableAction), status: LifecycleStepSucceeded,
+		},
+		{
+			name: "forced skip", operation: LifecycleMachineUninstall, forced: true,
+			action: string(LifecycleMachineUninstallAfter), status: LifecycleStepSkipped,
+			prepare: func(repository *lifecycleCoordinatorTestRepository, coordinator *LifecycleCoordinator, input *LifecycleCoordinatorRunInput) {
+				coordinator.runtime = &lifecycleCoordinatorTestRuntime{behaviors: map[LifecycleMachineAction][]lifecycleCoordinatorTestBehavior{
+					LifecycleMachineUninstallAfter: {{result: LifecycleCoordinatorActionResult{
+						Status: LifecycleStepFailed,
+						Error:  LifecycleExecutionError{Code: "cleanup.failed", Reason: "cleanup.failed", Message: "retry"},
+					}}},
+				}}
+				if result, err := coordinator.Run(context.Background(), *input); err == nil || result.Operation.TerminalResult != LifecycleTerminalFailed {
+					t.Fatalf("prepare forced skip = %#v, %v", result, err)
+				}
+				input.Retry = true
+				input.SkipFailedStep = true
+				input.SkipReason = "operator accepted residual cleanup risk"
+			},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			repository := newLifecycleCoordinatorTestRepository()
+			coordinator := NewLifecycleCoordinator(repository, &lifecycleCoordinatorTestRuntime{}, &lifecycleCoordinatorTestHost{})
+			input := lifecycleCoordinatorTestInput(test.operation, test.forced)
+			if test.prepare != nil {
+				test.prepare(repository, coordinator, &input)
+			}
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			previousRecords := len(repository.terminalContextsSnapshot())
+			repository.recordStepTerminalAction = test.action
+			repository.recordStepTerminalStatus = test.status
+			repository.cancelDuringTerminal = cancel
+			_, _ = coordinator.Run(ctx, input)
+			if !errors.Is(ctx.Err(), context.Canceled) {
+				t.Fatalf("caller context = %v", ctx.Err())
+			}
+			records := repository.terminalContextsSnapshot()
+			if len(records) <= previousRecords {
+				t.Fatal("step terminal context was not recorded")
+			}
+			record := records[previousRecords]
+			if record.method != "complete_step" || record.err != nil || !record.hasDeadline ||
+				record.remaining < 4*time.Second || record.remaining > lifecycleCoordinatorTerminalTimeout+time.Second {
+				t.Fatalf("step terminal context = %#v", record)
+			}
+		})
+	}
+}
+
+func TestLifecycleCoordinatorRecoversExactHostFailureAfterCompletionCrash(t *testing.T) {
+	repository := newLifecycleCoordinatorTestRepository()
+	repository.failCompleteOperationOnce = true
+	host := &lifecycleCoordinatorTestHost{failState: LifecycleMachineStarting}
+	coordinator := NewLifecycleCoordinator(repository, &lifecycleCoordinatorTestRuntime{}, host)
+	input := lifecycleCoordinatorTestInput(LifecycleMachineEnable, false)
+	if _, err := coordinator.Run(context.Background(), input); !errors.Is(err, errLifecycleCoordinatorTestCrash) {
+		t.Fatalf("Host completion crash = %v", err)
+	}
+	recovered, err := coordinator.Run(context.Background(), input)
+	if !errors.Is(err, ErrLifecycleCoordinatorRetryRequired) || recovered.Operation.TerminalResult != LifecycleTerminalFailed {
+		t.Fatalf("Host failure recovery = %#v, %v", recovered, err)
+	}
+	if recovered.Operation.Error.Code != "lifecycle.execution_failed" ||
+		recovered.Operation.Error.Reason != "lifecycle.execution_failed" ||
+		recovered.Operation.Error.Message != "host gate starting failed" || recovered.Operation.Error.Retryable {
+		t.Fatalf("Host failure changed during recovery: %#v", recovered.Operation.Error)
+	}
+	if len(host.gateIDs()) != 1 {
+		t.Fatalf("Host failure was re-executed: %#v", host.gateIDs())
+	}
+}
+
 func TestLifecycleCoordinatorPreservesProgressOnTransportTermination(t *testing.T) {
 	tests := []struct {
 		name       string

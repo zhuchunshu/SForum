@@ -30,9 +30,13 @@ type LifecycleCoordinatorRepository interface {
 	UpdateStepProgress(context.Context, UpdateLifecycleStepProgressInput) (LifecycleStepAttempt, error)
 	CompleteStepAttempt(context.Context, CompleteLifecycleStepAttemptInput) (LifecycleStepAttempt, error)
 	LatestStepAttempt(context.Context, int64, string) (LifecycleStepAttempt, error)
+	ClaimStepLease(context.Context, ClaimLifecycleStepLeaseInput) (LifecycleStepAttempt, error)
+	HeartbeatStepLease(context.Context, HeartbeatLifecycleStepLeaseInput) (LifecycleStepAttempt, error)
+	ReleaseStepLease(context.Context, ReleaseLifecycleStepLeaseInput) (LifecycleStepAttempt, error)
 }
 
 type LifecycleCoordinatorRuntime interface {
+	// RunLifecycleAction 必须同步、串行调用进度回调，并且不得在返回后继续调用。
 	RunLifecycleAction(context.Context, LifecycleCoordinatorActionRequest, func(LifecycleCoordinatorActionProgress) error) (LifecycleCoordinatorActionResult, error)
 }
 
@@ -97,13 +101,19 @@ type LifecycleCoordinatorRunResult struct {
 }
 
 type LifecycleCoordinator struct {
-	repository LifecycleCoordinatorRepository
-	runtime    LifecycleCoordinatorRuntime
-	host       LifecycleCoordinatorHost
+	repository             LifecycleCoordinatorRepository
+	runtime                LifecycleCoordinatorRuntime
+	host                   LifecycleCoordinatorHost
+	leaseDuration          time.Duration
+	leaseHeartbeatInterval time.Duration
 }
 
 func NewLifecycleCoordinator(repository LifecycleCoordinatorRepository, runtime LifecycleCoordinatorRuntime, host LifecycleCoordinatorHost) *LifecycleCoordinator {
-	return &LifecycleCoordinator{repository: repository, runtime: runtime, host: host}
+	return &LifecycleCoordinator{
+		repository: repository, runtime: runtime, host: host,
+		leaseDuration:          lifecycleCoordinatorLeaseDuration,
+		leaseHeartbeatInterval: lifecycleCoordinatorLeaseHeartbeatInterval,
+	}
 }
 
 func (c *LifecycleCoordinator) Run(ctx context.Context, input LifecycleCoordinatorRunInput) (LifecycleCoordinatorRunResult, error) {
@@ -158,7 +168,7 @@ func (c *LifecycleCoordinator) reconcilePendingStepTerminal(
 	operation LifecycleOperation,
 	machine LifecycleStateMachine,
 ) (LifecycleOperation, LifecycleStateMachine, error) {
-	if operation.CompletedAt != nil || machine.TerminalResult != "" || machine.Action == "" || machine.StepComplete {
+	if operation.CompletedAt != nil || machine.TerminalResult != "" || machine.StepComplete {
 		return operation, machine, nil
 	}
 	stepID := lifecycleCoordinatorStepID(machine.Operation, machine.Position, machine.State, machine.Action)
@@ -260,14 +270,15 @@ func (c *LifecycleCoordinator) reconcilePendingTerminal(ctx context.Context, ope
 	terminal := machineTerminalResult(machine.TerminalResult)
 	failure := LifecycleExecutionError{}
 	result := json.RawMessage(nil)
-	if machine.Action != "" {
-		stepID := lifecycleCoordinatorStepID(machine.Operation, machine.Position, machine.State, machine.Action)
-		if attempt, err := c.repository.LatestStepAttempt(ctx, operation.ID, stepID); err == nil {
-			failure = attempt.Error
-			result = cloneLifecycleJSON(attempt.ResultDocument)
-		} else if !errors.Is(err, ErrLifecycleStepNotFound) {
-			return operation, machine, err
-		}
+	stepID := operation.CurrentStepID
+	if stepID == "" {
+		stepID = lifecycleCoordinatorStepID(machine.Operation, machine.Position, machine.State, machine.Action)
+	}
+	if attempt, err := c.repository.LatestStepAttempt(ctx, operation.ID, stepID); err == nil {
+		failure = attempt.Error
+		result = cloneLifecycleJSON(attempt.ResultDocument)
+	} else if !errors.Is(err, ErrLifecycleStepNotFound) {
+		return operation, machine, err
 	}
 	if terminal == LifecycleTerminalFailed || terminal == LifecycleTerminalCancelled {
 		if failure.Code == "" || failure.Reason == "" {

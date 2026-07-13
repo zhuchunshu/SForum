@@ -7,19 +7,28 @@ import (
 )
 
 type lifecycleCoordinatorTestRepository struct {
-	mu                             sync.Mutex
-	operation                      LifecycleOperation
-	acquired                       bool
-	steps                          map[string][]LifecycleStepAttempt
-	nextStepID                     int64
-	states                         []string
-	failCompleteStepOnce           bool
-	failTransitionOnce             bool
-	failCompleteOperationOnce      bool
-	failLatestStepOnce             bool
-	failLatestAfterRecoveryReentry bool
-	cancelDuringTerminal           context.CancelFunc
-	terminalContexts               []lifecycleCoordinatorTestContextRecord
+	mu                              sync.Mutex
+	operation                       LifecycleOperation
+	acquired                        bool
+	steps                           map[string][]LifecycleStepAttempt
+	nextStepID                      int64
+	states                          []string
+	failCompleteStepOnce            bool
+	failTransitionOnce              bool
+	failCompleteOperationOnce       bool
+	failLatestStepOnce              bool
+	failLatestAfterRecoveryReentry  bool
+	cancelDuringTerminal            context.CancelFunc
+	failAfterLeaseClaimAction       string
+	failHeartbeatAction             string
+	failHeartbeatOnce               error
+	leaseHeartbeatCount             int
+	lastProgressLeaseRevision       int64
+	lastActionCompleteLeaseRevision int64
+	leaseHeartbeatNotify            chan struct{}
+	recordStepTerminalAction        string
+	recordStepTerminalStatus        string
+	terminalContexts                []lifecycleCoordinatorTestContextRecord
 }
 
 type lifecycleCoordinatorTestContextRecord struct {
@@ -161,6 +170,10 @@ func (r *lifecycleCoordinatorTestRepository) UpdateStepProgress(_ context.Contex
 	if err != nil {
 		return LifecycleStepAttempt{}, err
 	}
+	if err := r.authorizeLease(*attempt, input.LeaseOwnerToken, input.LeaseRevision); err != nil {
+		return LifecycleStepAttempt{}, err
+	}
+	r.lastProgressLeaseRevision = input.LeaseRevision
 	if lifecycleStepTerminal(attempt.Status) || input.CompletedUnits < attempt.CompletedUnits || input.TotalUnits < attempt.TotalUnits ||
 		(input.TotalUnits > 0 && input.CompletedUnits > input.TotalUnits) {
 		return LifecycleStepAttempt{}, ErrLifecycleProgressRegression
@@ -188,11 +201,18 @@ func (r *lifecycleCoordinatorTestRepository) CompleteStepAttempt(ctx context.Con
 	if err != nil {
 		return LifecycleStepAttempt{}, err
 	}
+	if err := r.authorizeLease(*attempt, input.LeaseOwnerToken, input.LeaseRevision); err != nil {
+		return LifecycleStepAttempt{}, err
+	}
+	if attempt.LifecycleAction != lifecycleCoordinatorHostGateAction {
+		r.lastActionCompleteLeaseRevision = input.LeaseRevision
+	}
 	if lifecycleStepTerminal(attempt.Status) || input.CompletedUnits < attempt.CompletedUnits || input.TotalUnits < attempt.TotalUnits ||
 		(input.TotalUnits > 0 && input.CompletedUnits > input.TotalUnits) {
 		return LifecycleStepAttempt{}, ErrLifecycleProgressRegression
 	}
-	if input.Status == LifecycleStepFailed || input.Status == LifecycleStepCancelled {
+	if input.Status == LifecycleStepFailed || input.Status == LifecycleStepCancelled ||
+		(attempt.LifecycleAction == r.recordStepTerminalAction && input.Status == r.recordStepTerminalStatus) {
 		r.recordTerminalContext(ctx, "complete_step")
 	}
 	now := time.Now()
@@ -215,6 +235,89 @@ func (r *lifecycleCoordinatorTestRepository) CompleteStepAttempt(ctx context.Con
 	}
 	attempt.CompletedAt = &now
 	attempt.UpdatedAt = now
+	if attempt.LeaseOwnerToken != "" {
+		attempt.LeaseRevision++
+	}
+	attempt.LeaseOwnerToken = ""
+	attempt.LeaseExpiresAt = nil
+	attempt.LeaseHeartbeatAt = nil
+	r.replaceStep(*attempt)
+	return *attempt, nil
+}
+
+func (r *lifecycleCoordinatorTestRepository) ClaimStepLease(_ context.Context, input ClaimLifecycleStepLeaseInput) (LifecycleStepAttempt, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	attempt, err := r.stepByID(input.AttemptID)
+	if err != nil {
+		return LifecycleStepAttempt{}, err
+	}
+	now := time.Now()
+	if lifecycleStepTerminal(attempt.Status) {
+		return LifecycleStepAttempt{}, ErrLifecycleStepClosed
+	}
+	if attempt.LeaseRevision != input.ExpectedRevision ||
+		(attempt.LeaseOwnerToken != "" && attempt.LeaseExpiresAt != nil && attempt.LeaseExpiresAt.After(now)) {
+		return LifecycleStepAttempt{}, ErrLifecycleStepLeaseConflict
+	}
+	expires := now.Add(time.Duration(input.DurationMS) * time.Millisecond)
+	attempt.LeaseOwnerToken = input.OwnerToken
+	attempt.LeaseHeartbeatAt = &now
+	attempt.LeaseExpiresAt = &expires
+	attempt.LeaseRevision++
+	r.replaceStep(*attempt)
+	if r.failAfterLeaseClaimAction == attempt.LifecycleAction {
+		r.failAfterLeaseClaimAction = ""
+		return LifecycleStepAttempt{}, errLifecycleCoordinatorTestCrash
+	}
+	return *attempt, nil
+}
+
+func (r *lifecycleCoordinatorTestRepository) HeartbeatStepLease(_ context.Context, input HeartbeatLifecycleStepLeaseInput) (LifecycleStepAttempt, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	attempt, err := r.stepByID(input.AttemptID)
+	if err != nil {
+		return LifecycleStepAttempt{}, err
+	}
+	if err := r.authorizeLease(*attempt, input.OwnerToken, input.Revision); err != nil {
+		return LifecycleStepAttempt{}, err
+	}
+	if r.failHeartbeatOnce != nil && (r.failHeartbeatAction == "" || r.failHeartbeatAction == attempt.LifecycleAction) {
+		err := r.failHeartbeatOnce
+		r.failHeartbeatOnce = nil
+		return LifecycleStepAttempt{}, err
+	}
+	now := time.Now()
+	expires := now.Add(time.Duration(input.DurationMS) * time.Millisecond)
+	attempt.LeaseHeartbeatAt = &now
+	attempt.LeaseExpiresAt = &expires
+	attempt.LeaseRevision++
+	r.leaseHeartbeatCount++
+	r.replaceStep(*attempt)
+	if r.leaseHeartbeatNotify != nil && attempt.LifecycleAction != lifecycleCoordinatorHostGateAction {
+		select {
+		case r.leaseHeartbeatNotify <- struct{}{}:
+		default:
+		}
+	}
+	return *attempt, nil
+}
+
+func (r *lifecycleCoordinatorTestRepository) ReleaseStepLease(_ context.Context, input ReleaseLifecycleStepLeaseInput) (LifecycleStepAttempt, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	attempt, err := r.stepByID(input.AttemptID)
+	if err != nil {
+		return LifecycleStepAttempt{}, err
+	}
+	if err := r.authorizeLease(*attempt, input.OwnerToken, input.Revision); err != nil {
+		return LifecycleStepAttempt{}, err
+	}
+	attempt.LeaseOwnerToken = ""
+	attempt.LeaseExpiresAt = nil
+	attempt.LeaseHeartbeatAt = nil
+	attempt.LeaseRevision++
 	r.replaceStep(*attempt)
 	return *attempt, nil
 }
@@ -273,6 +376,57 @@ func (r *lifecycleCoordinatorTestRepository) failNextTransition() {
 	r.mu.Lock()
 	r.failTransitionOnce = true
 	r.mu.Unlock()
+}
+
+func (r *lifecycleCoordinatorTestRepository) failNextCompleteStep() {
+	r.mu.Lock()
+	r.failCompleteStepOnce = true
+	r.mu.Unlock()
+}
+
+// Caller holds r.mu.
+func (r *lifecycleCoordinatorTestRepository) authorizeLease(attempt LifecycleStepAttempt, owner string, revision int64) error {
+	if attempt.LeaseOwnerToken == "" {
+		if owner == "" && revision == 0 {
+			return nil
+		}
+		return ErrLifecycleStepLeaseConflict
+	}
+	if attempt.LeaseOwnerToken != owner || attempt.LeaseRevision != revision {
+		return ErrLifecycleStepLeaseConflict
+	}
+	if attempt.LeaseExpiresAt == nil || !attempt.LeaseExpiresAt.After(time.Now()) {
+		return ErrLifecycleStepLeaseExpired
+	}
+	return nil
+}
+
+func (r *lifecycleCoordinatorTestRepository) expireOpenLease(checkpoint string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	for _, items := range r.steps {
+		for _, item := range items {
+			if item.LeaseOwnerToken != "" && !lifecycleStepTerminal(item.Status) {
+				item.Checkpoint = checkpoint
+				expires := time.Now().Add(-time.Second)
+				item.LeaseExpiresAt = &expires
+				r.replaceStep(item)
+				return
+			}
+		}
+	}
+}
+
+func (r *lifecycleCoordinatorTestRepository) heartbeatCount() int {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.leaseHeartbeatCount
+}
+
+func (r *lifecycleCoordinatorTestRepository) actionLeaseRevisions() (int64, int64) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.lastProgressLeaseRevision, r.lastActionCompleteLeaseRevision
 }
 
 func (r *lifecycleCoordinatorTestRepository) stepByID(id int64) (*LifecycleStepAttempt, error) {
