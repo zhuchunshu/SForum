@@ -4,18 +4,20 @@ This is the entry point for project memory.
 
 ## Latest Handoff
 
-- **2026-07-13 Trusted Plugin And Theme Platform V3 accepted; implementation not started**
+- **2026-07-13 Trusted Plugin And Theme Platform V3 P0 complete (overall 3%)**
   - Decision: `knowledge/decisions/2026-07-13-trusted-plugin-theme-platform-v3.md`
   - Task book: `knowledge/plans/2026-07-13-trusted-plugin-theme-platform-v3.md`
-  - Handoff: `knowledge/sessions/2026-07-13-trusted-plugin-theme-platform-v3-plan.md`
+  - P0 handoff: `knowledge/sessions/2026-07-13-trusted-plugin-theme-platform-v3-p0-progress.md`
+  - Durable progress/compaction ledger:
+    `knowledge/plans/2026-07-13-trusted-plugin-theme-platform-v3-progress.md`
+  - P0 catalogs and governance: `docs/extensions/v3/`
   - Decision contains the authoritative 27-row template comparison, 72-row
     plugin comparison, detailed architecture mind map, and boundary checklist
-  - Target: exact-artifact full trust, complete Route Registry v1, real plugin
-    migrations/database authority, Host API v2, complete buildless themes,
-    trusted L2, component/content/cache/job registries, Admin/Query/Identity/
-    Media/Navigation surfaces, LTS marketplace, lifecycle-owned cleanup
-  - P0-P13 include recovery, rollback, permissions, tests, multi-node rollout,
-    reference packages, and final legacy removal; no production phase has begun
+  - P0 froze 99-row traceability, 204 routes, 113 UI surfaces, 33 admin
+    surfaces, 19-module Extension Surface Matrix, stable identities, governance,
+    migration gates, and performance baseline; CI rejects catalog drift
+  - P1 exact-artifact confirmation, Safe Mode, boot-loop containment, and
+    out-of-band CLI recovery are next; P1-P13 runtime work is not yet implemented
 
 - **2026-07-13 Legacy Web Release/runtime frontend builds removed**
   - Decision: `knowledge/decisions/2026-07-13-remove-legacy-web-release.md`

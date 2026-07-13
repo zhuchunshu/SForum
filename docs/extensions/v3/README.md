@@ -51,7 +51,7 @@ record compatibility impact.
 
 ## Phase State
 
-- P0: active baseline and governance work.
+- P0: complete (catalogs, governance, performance baseline, and CI drift gate).
 - P1-P13: not implemented unless their task-book checkboxes and phase handoff
   explicitly say otherwise.
 - Existing v1 runtime, Page Registry, Settings Document, event, contribution,

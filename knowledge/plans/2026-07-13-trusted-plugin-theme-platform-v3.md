@@ -1,6 +1,6 @@
 # Trusted Plugin And Theme Platform V3 - Implementation Task Book
 
-Status: **active implementation; P0 in progress**
+Status: **active implementation; P0 complete, P1 next**
 Date: 2026-07-13  
 Decision: `knowledge/decisions/2026-07-13-trusted-plugin-theme-platform-v3.md`
 
@@ -202,38 +202,38 @@ flowchart LR
 
 ### Tasks
 
-- [ ] Re-audit the working tree after legacy Web Release removal and read its
+- [x] Re-audit the working tree after legacy Web Release removal and read its
       final handoff; reconcile response shapes, deleted services, and docs.
-- [ ] Mark the V3 decision and this task book as the active platform direction.
-- [ ] Create a 99-row traceability matrix mapping every authoritative
+- [x] Mark the V3 decision and this task book as the active platform direction.
+- [x] Create a 99-row traceability matrix mapping every authoritative
       current-to-target comparison row to its phase, contract, test, and rollback.
-- [ ] Update repository guidance that previously prohibited trusted route/API
+- [x] Update repository guidance that previously prohibited trusted route/API
       replacement and claimed API policy was always authoritative.
-- [ ] Inventory every existing route id/path/method/access/policy/handler and
+- [x] Inventory every existing route id/path/method/access/policy/handler and
       assign stable route ids and contract versions.
-- [ ] Inventory all public/admin UI surfaces and propose stable component ids.
-- [ ] Inventory hook/event/provider/job/schedule/cache/content/data surfaces.
-- [ ] Publish an Extension Surface Matrix per core module covering routes, hooks,
+- [x] Inventory all public/admin UI surfaces and propose stable component ids.
+- [x] Inventory hook/event/provider/job/schedule/cache/content/data surfaces.
+- [x] Publish an Extension Surface Matrix per core module covering routes, hooks,
       queries, admin/public components, permissions, media, navigation/regions,
       cache invalidation, jobs, and lifecycle; document why any surface is closed.
-- [ ] Inventory WordPress-equivalent admin surfaces: navigation, dashboards,
+- [x] Inventory WordPress-equivalent admin surfaces: navigation, dashboards,
       lists, columns, filters, row/bulk actions, forms, notices, editor panels,
       detail regions, importers, and exporters.
-- [ ] Freeze initial namespace and versioning rules.
-- [ ] Define feature flags/default-off gates for each new registry during
+- [x] Freeze initial namespace and versioning rules.
+- [x] Define feature flags/default-off gates for each new registry during
       migration; safe mode always wins over flags.
-- [ ] Write compatibility policy for raw core DB plugins and custom guards.
-- [ ] Record current performance and memory baseline for extension enable,
+- [x] Write compatibility policy for raw core DB plugins and custom guards.
+- [x] Record current performance and memory baseline for extension enable,
       route proxy, theme resolve, SSR home/topic, and plugin RPC.
 
 ### Verification
 
-- [ ] Catalog uniqueness and route/component id review.
-- [ ] CI fixture fails when a cataloged surface disappears, changes contract, or
+- [x] Catalog uniqueness and route/component id review.
+- [x] CI fixture fails when a cataloged surface disappears, changes contract, or
       becomes closed without a reviewed decision.
-- [ ] The 99-row traceability matrix has no unmapped target capability.
-- [ ] No product behavior changes in P0.
-- [ ] All superseded decisions link to V3 rather than silently disagreeing.
+- [x] The 99-row traceability matrix has no unmapped target capability.
+- [x] No product behavior changes in P0.
+- [x] All superseded decisions link to V3 rather than silently disagreeing.
 
 ### Rollback
 
