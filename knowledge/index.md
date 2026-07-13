@@ -4,7 +4,7 @@ This is the entry point for project memory.
 
 ## Latest Handoff
 
-- **2026-07-13 Trusted Plugin And Theme Platform V3 P3 active (overall 17%, P3 15%)**
+- **2026-07-13 Trusted Plugin And Theme Platform V3 P3 active (overall 19%, P3 46%)**
   - Decision: `knowledge/decisions/2026-07-13-trusted-plugin-theme-platform-v3.md`
   - Task book: `knowledge/plans/2026-07-13-trusted-plugin-theme-platform-v3.md`
   - P3 handoff: `knowledge/sessions/2026-07-13-trusted-plugin-theme-platform-v3-p3-progress.md`
@@ -29,7 +29,12 @@ This is the entry point for project memory.
     typecheck/build, 277 Web tests, and 207/115/99 catalog counts
   - P3 now has a pinned Buf/Protobuf toolchain, 3 versioned packages, 18 gRPC
     services, 147 declarations, generated Go SDK, descriptor tests, and repo
-    drift enforcement; additive gRPC runtime negotiation is next
+    drift enforcement
+  - Exact Manifest-selected gRPC/AutoMTLS negotiation, v1 deprecation telemetry,
+    runtime-bound Host broker authentication, generated Host clients, typed
+    settings/query/permission/identity/job/audit adapters, streaming, message
+    limits, cancellation, concurrency, and restart tests are operational;
+    versioned plugin service discovery is next
 
 - **2026-07-13 Legacy Web Release/runtime frontend builds removed**
   - Decision: `knowledge/decisions/2026-07-13-remove-legacy-web-release.md`

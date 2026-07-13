@@ -1,6 +1,6 @@
 # Extensions Module
 
-## Accepted V3 Target (P0-P2 Complete, P3 Next)
+## Accepted V3 Target (P0-P2 Complete, P3 Active)
 
 The accepted target, including the canonical 99-row comparison and detailed
 architecture mind map, is documented in
@@ -53,6 +53,14 @@ authoritative fixtures, and canonical `sforum.trust-impact@2` disclosure. The
 generated author catalog is `docs/extensions/catalogs/manifest-v3.md`. These
 contracts describe later runtime phases; V3 validation alone does not activate
 an unimplemented Registry family.
+
+P3 now runs exact Manifest-selected protocol v2 over go-plugin gRPC/AutoMTLS
+without silent v1 downgrade. Each process receives a runtime-scoped Host broker
+whose calls bind token, exact artifact/grant/epoch/instance identity, authority,
+deadline, actor, locale, and trace. The Go SDK exposes generated Host clients;
+typed own-settings Query/stream, Permission, safe Identity, declared Job
+enqueue, and namespaced Audit adapters are operational. Protocol v1 remains
+available, explicitly deprecated, and isolated on its legacy loopback gateway.
 
 ## Purpose
 

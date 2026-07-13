@@ -1,8 +1,8 @@
 # Trusted Plugin And Theme Platform V3 Progress Ledger
 
 Date: 2026-07-13
-Overall progress: **18%**
-Active phase: **P3 - Host API V2 And Generated SDKs (31%)**
+Overall progress: **19%**
+Active phase: **P3 - Host API V2 And Generated SDKs (46%)**
 
 This ledger is the durable percentage and context-compaction checkpoint for the
 V3 program. Update it before context compression, at every phase boundary, and
@@ -19,7 +19,7 @@ scaffolding, or demo-only code cannot satisfy a runtime exit criterion.
 | P0 Governance | 3% | 100% | 3% |
 | P1 Trust/recovery | 6% | 100% | 6% |
 | P2 Manifest/contracts | 7% | 100% | 7% |
-| P3 Host API v2 | 8% | 31% | 2% |
+| P3 Host API v2 | 8% | 46% | 3% |
 | P4 Lifecycle/dependencies | 7% | 0% | 0% |
 | P5 Database/commands | 8% | 0% | 0% |
 | P6 Routes/middleware | 10% | 0% | 0% |
@@ -112,11 +112,12 @@ phase percentage.
 
 ## Last Durable Checkpoint
 
-- Last implementation commit: `01156b709 feat(admin): show protocol
-  deprecation telemetry`.
+- Last implementation commit: `756c33738 test(extensions): cover protocol v2
+  concurrency gate`.
 - P3 commits so far: `b4d50005f`, `bda361626`, `1b9923372`, `ff4661103`,
   `7afa0c174`, `063f9897a`, `7320324e6`, `ef3ac6288`, `1bd1988c2`, and
-  `01156b709`.
+  `01156b709`, `d5eef0127`, `297f6b92f`, `7dcac6eab`, `fc1fef8f4`, and
+  `756c33738`.
 - The library survey selected latest HashiCorp go-plugin `v1.8.0`, latest
   protobuf-go `v1.36.11`, pinned Buf `v1.71.0`, and protoc-gen-go-grpc `v1.6.2`;
   the isolated `tools/proto` module keeps tool dependencies out of the API
@@ -147,15 +148,30 @@ phase percentage.
 - Runtime status and the admin plugin list expose protocol version, transport,
   deprecation, start count, RPC call count, and last call. Protocol v1 remains
   operational and visibly deprecated until its P13 removal gate.
+- Each v2 process now receives a unique `go-plugin.GRPCBroker` channel. Host
+  calls require the exact runtime token in gRPC metadata plus the current
+  artifact/grant/epoch/instance identity, disclosed authority, request id, and
+  deadline; v2 no longer starts or receives the v1 loopback HTTP gateway.
+- The Go SDK exposes all generated Host clients and builds bounded Host request
+  contexts that preserve actor, locale, and trace while replacing any
+  plugin-supplied runtime identity or authority.
+- Host Query own-settings (unary and server stream), Permission, safe Identity,
+  declared Job enqueue, and namespaced Audit append adapt the existing
+  authoritative v1 services. Unsupported resource policy, job options,
+  provider calls, cancellation, and list surfaces fail explicitly rather than
+  silently discarding fields.
+- Real subprocess tests cover Host callbacks, AutoMTLS broker streaming, stale
+  identity, forged authority, expired deadline, cancellation, 4 MiB message
+  rejection, concurrency saturation, and stop/start broker rebinding. Focused
+  race detection passed.
 - Verification passed: `go test ./...`, `go build ./...`,
   `./scripts/proto.sh check`, 1,607 OpenAPI refs across 40 files, Nuxt
   typecheck, and all 277 web validation tests.
 - Rendered admin-page browser QA remains pending because both available local
   browser sessions were unauthenticated; the attempted route rendered the
   theme 404/dev overlay rather than the protected admin page.
-- Working tree was clean at `01156b709` before this documentation checkpoint.
-- Next command after committing this checkpoint: implement Host API v2 over
-  `go-plugin.GRPCBroker`, register host-owned generated services with exact
-  runtime-token/identity validation, and start with typed query, permission,
-  settings, jobs, and audit compatibility adapters while retaining the v1
-  loopback Host API until P13.
+- Working tree was clean at `756c33738` before this documentation checkpoint.
+- Next command after committing this checkpoint: retain the declared services
+  returned by plugin handshake and implement the versioned Service Discovery
+  registry over the Host broker, including conflict ordering, stale-provider
+  removal, unary invocation, streaming, and restart tests.

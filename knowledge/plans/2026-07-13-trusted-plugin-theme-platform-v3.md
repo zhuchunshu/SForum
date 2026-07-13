@@ -348,15 +348,15 @@ flowchart LR
 - [x] Define versioned transactional Host Commands for common multi-module
       writes with authoritative policy checks, idempotency, dry-run/impact data,
       atomic commit, audit, and typed results.
-- [ ] Add HashiCorp go-plugin gRPC protocol v2 negotiation.
-- [ ] Keep a v1 net/rpc compatibility adapter and explicit deprecation metrics.
+- [x] Add HashiCorp go-plugin gRPC protocol v2 negotiation.
+- [x] Keep a v1 net/rpc compatibility adapter and explicit deprecation metrics.
 - [ ] Generate Go SDK first; document how non-Go SDKs preserve handshake and
       trust requirements.
-- [ ] Carry actor, locale, trace id, request id, deadline, extension identity,
+- [x] Carry actor, locale, trace id, request id, deadline, extension identity,
       and granted authority in typed envelopes.
 - [ ] Support server/client streaming where routes, files, progress, or jobs
       require it.
-- [ ] Add bounded message sizes, timeouts, cancellation, concurrency limits,
+- [x] Add bounded message sizes, timeouts, cancellation, concurrency limits,
       health, readiness, and protocol mismatch errors.
 - [ ] Add service discovery so plugins expose versioned services to other
       plugins through the host broker.
