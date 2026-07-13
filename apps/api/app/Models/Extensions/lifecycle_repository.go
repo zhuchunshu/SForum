@@ -61,6 +61,8 @@ var (
 	ErrLifecycleStepConflict        = errors.New("extensions: lifecycle step contract conflict")
 	ErrLifecycleStepClosed          = errors.New("extensions: lifecycle step attempt is closed")
 	ErrLifecycleProgressRegression  = errors.New("extensions: lifecycle progress regressed")
+	ErrLifecycleStepLeaseConflict   = errors.New("extensions: lifecycle step lease conflict")
+	ErrLifecycleStepLeaseExpired    = errors.New("extensions: lifecycle step lease expired")
 	ErrLifecycleInvalidInput        = errors.New("extensions: invalid lifecycle repository input")
 )
 
@@ -156,28 +158,32 @@ type ResumeLifecycleOperationInput struct {
 }
 
 type LifecycleStepAttempt struct {
-	ID              int64                   `json:"id"`
-	OperationID     int64                   `json:"operationId"`
-	StepID          string                  `json:"stepId"`
-	LifecycleAction string                  `json:"lifecycleAction"`
-	PlanVersion     string                  `json:"planVersion"`
-	Attempt         int                     `json:"attempt"`
-	Status          string                  `json:"status"`
-	Checkpoint      string                  `json:"checkpoint,omitempty"`
-	CompletedUnits  int64                   `json:"completedUnits"`
-	TotalUnits      int64                   `json:"totalUnits"`
-	ProgressMessage string                  `json:"progressMessage,omitempty"`
-	InputDocument   json.RawMessage         `json:"inputDocument,omitempty"`
-	ResultDocument  json.RawMessage         `json:"resultDocument,omitempty"`
-	Error           LifecycleExecutionError `json:"error,omitempty"`
-	SkipReason      string                  `json:"skipReason,omitempty"`
-	Forced          bool                    `json:"forced"`
-	ActorUserID     int64                   `json:"actorUserId,omitempty"`
-	AuditEventID    int64                   `json:"auditEventId,omitempty"`
-	CreatedAt       time.Time               `json:"createdAt"`
-	UpdatedAt       time.Time               `json:"updatedAt"`
-	StartedAt       *time.Time              `json:"startedAt,omitempty"`
-	CompletedAt     *time.Time              `json:"completedAt,omitempty"`
+	ID               int64                   `json:"id"`
+	OperationID      int64                   `json:"operationId"`
+	StepID           string                  `json:"stepId"`
+	LifecycleAction  string                  `json:"lifecycleAction"`
+	PlanVersion      string                  `json:"planVersion"`
+	Attempt          int                     `json:"attempt"`
+	Status           string                  `json:"status"`
+	Checkpoint       string                  `json:"checkpoint,omitempty"`
+	CompletedUnits   int64                   `json:"completedUnits"`
+	TotalUnits       int64                   `json:"totalUnits"`
+	ProgressMessage  string                  `json:"progressMessage,omitempty"`
+	InputDocument    json.RawMessage         `json:"inputDocument,omitempty"`
+	ResultDocument   json.RawMessage         `json:"resultDocument,omitempty"`
+	Error            LifecycleExecutionError `json:"error,omitempty"`
+	SkipReason       string                  `json:"skipReason,omitempty"`
+	Forced           bool                    `json:"forced"`
+	ActorUserID      int64                   `json:"actorUserId,omitempty"`
+	AuditEventID     int64                   `json:"auditEventId,omitempty"`
+	LeaseOwnerToken  string                  `json:"leaseOwnerToken,omitempty"`
+	LeaseExpiresAt   *time.Time              `json:"leaseExpiresAt,omitempty"`
+	LeaseRevision    int64                   `json:"leaseRevision"`
+	LeaseHeartbeatAt *time.Time              `json:"leaseHeartbeatAt,omitempty"`
+	CreatedAt        time.Time               `json:"createdAt"`
+	UpdatedAt        time.Time               `json:"updatedAt"`
+	StartedAt        *time.Time              `json:"startedAt,omitempty"`
+	CompletedAt      *time.Time              `json:"completedAt,omitempty"`
 }
 
 type BeginLifecycleStepAttemptInput struct {
@@ -197,27 +203,51 @@ type BeginLifecycleStepAttemptResult struct {
 }
 
 type UpdateLifecycleStepProgressInput struct {
-	AttemptID      int64
-	Status         string
-	Checkpoint     string
-	CompletedUnits int64
-	TotalUnits     int64
-	Message        string
+	AttemptID       int64
+	LeaseOwnerToken string
+	LeaseRevision   int64
+	Status          string
+	Checkpoint      string
+	CompletedUnits  int64
+	TotalUnits      int64
+	Message         string
 }
 
 type CompleteLifecycleStepAttemptInput struct {
-	AttemptID      int64
-	Status         string
-	Checkpoint     string
-	CompletedUnits int64
-	TotalUnits     int64
-	Message        string
-	ResultDocument json.RawMessage
-	Error          LifecycleExecutionError
-	SkipReason     string
-	Forced         bool
-	ActorUserID    int64
-	AuditEventID   int64
+	AttemptID       int64
+	LeaseOwnerToken string
+	LeaseRevision   int64
+	Status          string
+	Checkpoint      string
+	CompletedUnits  int64
+	TotalUnits      int64
+	Message         string
+	ResultDocument  json.RawMessage
+	Error           LifecycleExecutionError
+	SkipReason      string
+	Forced          bool
+	ActorUserID     int64
+	AuditEventID    int64
+}
+
+type ClaimLifecycleStepLeaseInput struct {
+	AttemptID        int64
+	ExpectedRevision int64
+	OwnerToken       string
+	DurationMS       int64
+}
+
+type HeartbeatLifecycleStepLeaseInput struct {
+	AttemptID  int64
+	OwnerToken string
+	Revision   int64
+	DurationMS int64
+}
+
+type ReleaseLifecycleStepLeaseInput struct {
+	AttemptID  int64
+	OwnerToken string
+	Revision   int64
 }
 
 type PostgresLifecycleRepository struct {
@@ -267,6 +297,7 @@ func scanLifecycleStepAttempt(scanner lifecycleScanner) (LifecycleStepAttempt, e
 		&input, &result, &item.Error.Code, &item.Error.Reason, &item.Error.Message,
 		&item.Error.Retryable, &item.Error.RetryAfter, &errorMetadata,
 		&item.SkipReason, &item.Forced, &item.ActorUserID, &item.AuditEventID,
+		&item.LeaseOwnerToken, &item.LeaseExpiresAt, &item.LeaseRevision, &item.LeaseHeartbeatAt,
 		&item.CreatedAt, &item.UpdatedAt, &item.StartedAt, &item.CompletedAt,
 	); err != nil {
 		return LifecycleStepAttempt{}, err
@@ -299,6 +330,7 @@ func lifecycleStepAttemptSelectSQL() string {
 		       input_document, result_document, error_code, error_reason,
 		       error_message, error_retryable, error_retry_after, error_metadata,
 		       skip_reason, forced, COALESCE(actor_user_id, 0), COALESCE(audit_event_id, 0),
+		       lease_owner_token, lease_expires_at, lease_revision, lease_heartbeat_at,
 		       created_at, updated_at, started_at, completed_at
 		FROM extension_lifecycle_steps
 	`

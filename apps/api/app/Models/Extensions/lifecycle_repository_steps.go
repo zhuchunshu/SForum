@@ -93,6 +93,9 @@ func (r *PostgresLifecycleRepository) UpdateStepProgress(ctx context.Context, in
 	if lifecycleStepTerminal(current.Status) {
 		return LifecycleStepAttempt{}, ErrLifecycleStepClosed
 	}
+	if err := authorizeLifecycleStepLease(ctx, tx, current, input.LeaseOwnerToken, input.LeaseRevision); err != nil {
+		return LifecycleStepAttempt{}, err
+	}
 	if input.CompletedUnits < current.CompletedUnits || input.TotalUnits < current.TotalUnits ||
 		(input.TotalUnits > 0 && input.CompletedUnits > input.TotalUnits) {
 		return LifecycleStepAttempt{}, ErrLifecycleProgressRegression
@@ -106,12 +109,16 @@ func (r *PostgresLifecycleRepository) UpdateStepProgress(ctx context.Context, in
 		      THEN COALESCE(started_at, now()) ELSE started_at END,
 		    updated_at = now()
 		WHERE id = $1 AND status IN ('planned', 'running', 'waiting')
-	`, input.AttemptID, input.Status, input.Checkpoint, input.CompletedUnits, input.TotalUnits, input.Message)
+		  AND ((lease_owner_token = '' AND $7 = '')
+		    OR (lease_owner_token = $7 AND lease_revision = $8
+		      AND lease_expires_at > statement_timestamp()))
+	`, input.AttemptID, input.Status, input.Checkpoint, input.CompletedUnits, input.TotalUnits,
+		input.Message, input.LeaseOwnerToken, input.LeaseRevision)
 	if err != nil {
 		return LifecycleStepAttempt{}, mapLifecycleStepWriteError("update lifecycle step progress", err)
 	}
 	if tag.RowsAffected() != 1 {
-		return LifecycleStepAttempt{}, ErrLifecycleStepClosed
+		return LifecycleStepAttempt{}, ErrLifecycleStepLeaseConflict
 	}
 	updated, err := loadLifecycleStepAttemptByID(ctx, tx, input.AttemptID, false)
 	if err != nil {
@@ -147,6 +154,9 @@ func (r *PostgresLifecycleRepository) CompleteStepAttempt(ctx context.Context, i
 	if lifecycleStepTerminal(current.Status) {
 		return LifecycleStepAttempt{}, ErrLifecycleStepClosed
 	}
+	if err := authorizeLifecycleStepLease(ctx, tx, current, input.LeaseOwnerToken, input.LeaseRevision); err != nil {
+		return LifecycleStepAttempt{}, err
+	}
 	if input.CompletedUnits < current.CompletedUnits || input.TotalUnits < current.TotalUnits ||
 		(input.TotalUnits > 0 && input.CompletedUnits > input.TotalUnits) {
 		return LifecycleStepAttempt{}, ErrLifecycleProgressRegression
@@ -163,20 +173,26 @@ func (r *PostgresLifecycleRepository) CompleteStepAttempt(ctx context.Context, i
 		    skip_reason = $14, forced = $15,
 		    actor_user_id = COALESCE($16, actor_user_id),
 		    audit_event_id = COALESCE($17, audit_event_id),
+		    lease_revision = lease_revision + CASE WHEN lease_owner_token <> '' THEN 1 ELSE 0 END,
+		    lease_owner_token = '', lease_expires_at = NULL, lease_heartbeat_at = NULL,
 		    started_at = CASE WHEN $2 = 'skipped' THEN started_at
 		      ELSE COALESCE(started_at, now()) END,
 		    completed_at = now(), updated_at = now()
 		WHERE id = $1 AND status IN ('planned', 'running', 'waiting')
+		  AND ((lease_owner_token = '' AND $18 = '')
+		    OR (lease_owner_token = $18 AND lease_revision = $19
+		      AND lease_expires_at > statement_timestamp()))
 	`, input.AttemptID, input.Status, input.Checkpoint, input.CompletedUnits,
 		input.TotalUnits, input.Message, lifecycleNullableJSON(input.ResultDocument),
 		input.Error.Code, input.Error.Reason, input.Error.Message, input.Error.Retryable,
 		input.Error.RetryAfter, lifecycleJSONObject(input.Error.Metadata), input.SkipReason,
-		input.Forced, nullableLifecycleID(input.ActorUserID), nullableLifecycleID(input.AuditEventID))
+		input.Forced, nullableLifecycleID(input.ActorUserID), nullableLifecycleID(input.AuditEventID),
+		input.LeaseOwnerToken, input.LeaseRevision)
 	if err != nil {
 		return LifecycleStepAttempt{}, mapLifecycleStepWriteError("complete lifecycle step attempt", err)
 	}
 	if tag.RowsAffected() != 1 {
-		return LifecycleStepAttempt{}, ErrLifecycleStepClosed
+		return LifecycleStepAttempt{}, ErrLifecycleStepLeaseConflict
 	}
 	completed, err := loadLifecycleStepAttemptByID(ctx, tx, input.AttemptID, false)
 	if err != nil {
