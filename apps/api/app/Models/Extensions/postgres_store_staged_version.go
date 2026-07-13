@@ -25,19 +25,30 @@ func (s *PostgresStore) PromoteStagedVersion(ctx context.Context, input StagedVe
 	}
 	command, err := tx.Exec(ctx, `
 		UPDATE extensions
-		SET active_version_id = staged_version_id,
+		SET active_version_id = $5,
 		    staged_version_id = NULL,
 		    updated_at = now()
 		WHERE id = $1
-		  AND staged_version_id = $2
+		  AND active_version_id = $2
+		  AND staged_version_id = $5
 		  AND EXISTS (
 		    SELECT 1
 		    FROM extension_versions
 		    WHERE extension_versions.id = $2
 		      AND extension_versions.extension_id = $1
-		      AND extension_versions.package_digest = $3
+		      AND extension_versions.version = $3
+		      AND extension_versions.package_digest = $4
 		  )
-	`, input.ExtensionID, input.ExpectedStagedVersionID, input.ExpectedPackageDigest)
+		  AND EXISTS (
+		    SELECT 1
+		    FROM extension_versions
+		    WHERE extension_versions.id = $5
+		      AND extension_versions.extension_id = $1
+		      AND extension_versions.version = $6
+		      AND extension_versions.package_digest = $7
+		  )
+	`, input.ExtensionID, input.ExpectedActiveVersionID, input.ExpectedActiveVersion, input.ExpectedActivePackageDigest,
+		input.ExpectedStagedVersionID, input.ExpectedStagedVersion, input.ExpectedPackageDigest)
 	if err != nil {
 		return Extension{}, fmt.Errorf("promote staged extension version: %w", err)
 	}
@@ -48,7 +59,8 @@ func (s *PostgresStore) PromoteStagedVersion(ctx context.Context, input StagedVe
 	if err != nil {
 		return Extension{}, err
 	}
-	if promoted.ActiveVersionID != input.ExpectedStagedVersionID || promoted.PackageDigest != input.ExpectedPackageDigest || promoted.StagedVersion != nil {
+	if promoted.ActiveVersionID != input.ExpectedStagedVersionID || promoted.Version != input.ExpectedStagedVersion ||
+		promoted.PackageDigest != input.ExpectedPackageDigest || promoted.StagedVersion != nil {
 		return Extension{}, ErrStagedVersionConflict
 	}
 	if err := tx.Commit(ctx); err != nil {
@@ -77,15 +89,26 @@ func (s *PostgresStore) DiscardStagedVersion(ctx context.Context, input StagedVe
 		SET staged_version_id = NULL,
 		    updated_at = now()
 		WHERE id = $1
-		  AND staged_version_id = $2
+		  AND active_version_id = $2
+		  AND staged_version_id = $5
 		  AND EXISTS (
 		    SELECT 1
 		    FROM extension_versions
 		    WHERE extension_versions.id = $2
 		      AND extension_versions.extension_id = $1
-		      AND extension_versions.package_digest = $3
+		      AND extension_versions.version = $3
+		      AND extension_versions.package_digest = $4
 		  )
-	`, input.ExtensionID, input.ExpectedStagedVersionID, input.ExpectedPackageDigest)
+		  AND EXISTS (
+		    SELECT 1
+		    FROM extension_versions
+		    WHERE extension_versions.id = $5
+		      AND extension_versions.extension_id = $1
+		      AND extension_versions.version = $6
+		      AND extension_versions.package_digest = $7
+		  )
+	`, input.ExtensionID, input.ExpectedActiveVersionID, input.ExpectedActiveVersion, input.ExpectedActivePackageDigest,
+		input.ExpectedStagedVersionID, input.ExpectedStagedVersion, input.ExpectedPackageDigest)
 	if err != nil {
 		return Extension{}, fmt.Errorf("discard staged extension version: %w", err)
 	}
@@ -106,28 +129,44 @@ func (s *PostgresStore) DiscardStagedVersion(ctx context.Context, input StagedVe
 }
 
 func lockExactStagedVersion(ctx context.Context, tx pgx.Tx, input StagedVersionCASInput) error {
-	var stagedVersionID int64
-	var stagedExtensionID, packageDigest string
+	var activeVersionID, stagedVersionID int64
+	var activeExtensionID, activeVersion, activeDigest string
+	var stagedExtensionID, stagedVersion, stagedDigest string
 	err := tx.QueryRow(ctx, `
-		SELECT COALESCE(extensions.staged_version_id, 0),
-		       COALESCE(extension_versions.extension_id, ''),
-		       COALESCE(extension_versions.package_digest, '')
+		SELECT COALESCE(extensions.active_version_id, 0),
+		       COALESCE(active_versions.extension_id, ''),
+		       COALESCE(active_versions.version, ''),
+		       COALESCE(active_versions.package_digest, ''),
+		       COALESCE(extensions.staged_version_id, 0),
+		       COALESCE(staged_versions.extension_id, ''),
+		       COALESCE(staged_versions.version, ''),
+		       COALESCE(staged_versions.package_digest, '')
 		FROM extensions
-		LEFT JOIN extension_versions
-		  ON extension_versions.id = extensions.staged_version_id
+		LEFT JOIN extension_versions AS active_versions
+		  ON active_versions.id = extensions.active_version_id
+		LEFT JOIN extension_versions AS staged_versions
+		  ON staged_versions.id = extensions.staged_version_id
 		WHERE extensions.id = $1
 		FOR UPDATE OF extensions
-	`, input.ExtensionID).Scan(&stagedVersionID, &stagedExtensionID, &packageDigest)
+	`, input.ExtensionID).Scan(
+		&activeVersionID, &activeExtensionID, &activeVersion, &activeDigest,
+		&stagedVersionID, &stagedExtensionID, &stagedVersion, &stagedDigest,
+	)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return ErrExtensionNotFound
 	}
 	if err != nil {
 		return fmt.Errorf("lock staged extension version: %w", err)
 	}
+	if activeVersionID != input.ExpectedActiveVersionID || activeExtensionID != input.ExtensionID ||
+		activeVersion != input.ExpectedActiveVersion || activeDigest != input.ExpectedActivePackageDigest {
+		return ErrStagedVersionConflict
+	}
 	if stagedVersionID == 0 {
 		return ErrStagedVersionNotFound
 	}
-	if stagedVersionID != input.ExpectedStagedVersionID || stagedExtensionID != input.ExtensionID || packageDigest != input.ExpectedPackageDigest {
+	if stagedVersionID != input.ExpectedStagedVersionID || stagedExtensionID != input.ExtensionID ||
+		stagedVersion != input.ExpectedStagedVersion || stagedDigest != input.ExpectedPackageDigest {
 		return ErrStagedVersionConflict
 	}
 	return nil

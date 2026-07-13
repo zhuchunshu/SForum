@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -21,6 +22,13 @@ func TestPostgresStorePromoteStagedVersionExactCAS(t *testing.T) {
 	wrongDigest.ExpectedPackageDigest = strings.Repeat("c", 64)
 	if _, err := fixture.store.PromoteStagedVersion(fixture.ctx, wrongDigest); !errors.Is(err, ErrStagedVersionConflict) {
 		t.Fatalf("wrong digest error=%v, want conflict", err)
+	}
+	assertStagedCASState(t, fixture, fixture.activeID, fixture.activeDigest, fixture.candidateID)
+
+	wrongActive := input
+	wrongActive.ExpectedActivePackageDigest = strings.Repeat("c", 64)
+	if _, err := fixture.store.PromoteStagedVersion(fixture.ctx, wrongActive); !errors.Is(err, ErrStagedVersionConflict) {
+		t.Fatalf("wrong active digest error=%v, want conflict", err)
 	}
 	assertStagedCASState(t, fixture, fixture.activeID, fixture.activeDigest, fixture.candidateID)
 
@@ -53,10 +61,11 @@ func TestPostgresStorePromoteStagedVersionExactCAS(t *testing.T) {
 	assertImmutableVersionRetained(t, fixture, fixture.activeID)
 	assertImmutableVersionRetained(t, fixture, fixture.candidateID)
 
-	if _, err := fixture.store.PromoteStagedVersion(fixture.ctx, input); !errors.Is(err, ErrStagedVersionNotFound) {
-		t.Fatalf("promotion replay error=%v, want staged version not found", err)
+	if _, err := fixture.store.PromoteStagedVersion(fixture.ctx, input); !errors.Is(err, ErrStagedVersionConflict) {
+		t.Fatalf("promotion replay error=%v, want identity conflict", err)
 	}
 	assertStagedCASState(t, fixture, fixture.candidateID, fixture.candidateDigest, 0)
+	assertStagedCASPackagesRetained(t, fixture)
 }
 
 func TestPostgresStoreStagedVersionCASConcurrentReplay(t *testing.T) {
@@ -79,20 +88,20 @@ func TestPostgresStoreStagedVersionCASConcurrentReplay(t *testing.T) {
 				}()
 			}
 			close(start)
-			var succeeded, replayed int
+			var succeeded, rejected int
 			for range 2 {
 				err := <-results
 				switch {
 				case err == nil:
 					succeeded++
-				case errors.Is(err, ErrStagedVersionNotFound):
-					replayed++
+				case errors.Is(err, ErrStagedVersionNotFound), errors.Is(err, ErrStagedVersionConflict):
+					rejected++
 				default:
 					t.Fatalf("concurrent %s error=%v", operation, err)
 				}
 			}
-			if succeeded != 1 || replayed != 1 {
-				t.Fatalf("concurrent %s succeeded=%d replayed=%d", operation, succeeded, replayed)
+			if succeeded != 1 || rejected != 1 {
+				t.Fatalf("concurrent %s succeeded=%d rejected=%d", operation, succeeded, rejected)
 			}
 			if operation == "promote" {
 				assertStagedCASState(t, fixture, fixture.candidateID, fixture.candidateDigest, 0)
@@ -100,6 +109,7 @@ func TestPostgresStoreStagedVersionCASConcurrentReplay(t *testing.T) {
 				assertStagedCASState(t, fixture, fixture.activeID, fixture.activeDigest, 0)
 			}
 			assertImmutableVersionRetained(t, fixture, fixture.candidateID)
+			assertStagedCASPackagesRetained(t, fixture)
 		})
 	}
 }
@@ -168,6 +178,8 @@ type stagedCASTestFixture struct {
 	activeDigest    string
 	candidateID     int64
 	candidateDigest string
+	activePath      string
+	candidatePath   string
 }
 
 func newStagedCASTestFixture(t *testing.T, label string) stagedCASTestFixture {
@@ -187,10 +199,21 @@ func newStagedCASTestFixture(t *testing.T, label string) stagedCASTestFixture {
 		_, _ = pool.Exec(context.Background(), `DELETE FROM extensions WHERE id = $1`, id)
 	})
 	store := NewPostgresStore(pool)
+	packageRoot := t.TempDir()
+	activePath := filepath.Join(packageRoot, "v1")
+	candidatePath := filepath.Join(packageRoot, "v2")
+	for _, path := range []string{activePath, candidatePath} {
+		if err := os.MkdirAll(path, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(path, "artifact.marker"), []byte(path), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
 	activeDigest := strings.Repeat("a", 64)
 	active, err := store.SaveInstalled(ctx, SaveInstalledInput{
 		Manifest:    stagedVersionTestManifest(id, "1.0.0"),
-		PackagePath: "/tmp/" + id + "/v1", PackageDigest: activeDigest,
+		PackagePath: activePath, PackageDigest: activeDigest,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -201,7 +224,7 @@ func newStagedCASTestFixture(t *testing.T, label string) stagedCASTestFixture {
 	candidateDigest := strings.Repeat("b", 64)
 	staged, err := store.SaveInstalled(ctx, SaveInstalledInput{
 		Manifest:    stagedVersionTestManifest(id, "2.0.0"),
-		PackagePath: "/tmp/" + id + "/v2", PackageDigest: candidateDigest,
+		PackagePath: candidatePath, PackageDigest: candidateDigest,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -213,12 +236,16 @@ func newStagedCASTestFixture(t *testing.T, label string) stagedCASTestFixture {
 		ctx: ctx, pool: pool, store: store, id: id,
 		activeID: active.ActiveVersionID, activeDigest: activeDigest,
 		candidateID: staged.StagedVersion.ID, candidateDigest: candidateDigest,
+		activePath: activePath, candidatePath: candidatePath,
 	}
 }
 
 func (f stagedCASTestFixture) input() StagedVersionCASInput {
 	return StagedVersionCASInput{
-		ExtensionID: f.id, ExpectedStagedVersionID: f.candidateID,
+		ExtensionID:             f.id,
+		ExpectedActiveVersionID: f.activeID, ExpectedActiveVersion: "1.0.0",
+		ExpectedActivePackageDigest: f.activeDigest,
+		ExpectedStagedVersionID:     f.candidateID, ExpectedStagedVersion: "2.0.0",
 		ExpectedPackageDigest: f.candidateDigest,
 	}
 }
@@ -261,5 +288,14 @@ func assertImmutableVersionRetained(t *testing.T, fixture stagedCASTestFixture, 
 	}
 	if count != 1 {
 		t.Fatalf("immutable version %d retained rows=%d", versionID, count)
+	}
+}
+
+func assertStagedCASPackagesRetained(t *testing.T, fixture stagedCASTestFixture) {
+	t.Helper()
+	for _, path := range []string{fixture.activePath, fixture.candidatePath} {
+		if _, err := os.Stat(filepath.Join(path, "artifact.marker")); err != nil {
+			t.Fatalf("artifact package %q was not retained: %v", path, err)
+		}
 	}
 }
