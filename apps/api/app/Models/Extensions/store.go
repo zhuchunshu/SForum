@@ -8,6 +8,8 @@ type Store interface {
 	List(ctx context.Context) ([]Extension, error)
 	Get(ctx context.Context, id string) (Extension, error)
 	SaveInstalled(ctx context.Context, input SaveInstalledInput) (Extension, error)
+	PromoteStagedVersion(ctx context.Context, input StagedVersionCASInput) (Extension, error)
+	DiscardStagedVersion(ctx context.Context, input StagedVersionCASInput) (Extension, error)
 	SaveBuiltin(ctx context.Context, input SaveBuiltinInput) (Extension, error)
 	PruneMissingBuiltins(ctx context.Context, activeIDs []string) error
 	// Delete 删除扩展行（CASCADE settings/events/versions）。F2.4 卸载。

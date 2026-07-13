@@ -631,8 +631,8 @@ func extensionSelectSQL() string {
 		  extension_versions.admin_frontend_digest,
 		  extension_versions.package_path,
 		  extension_versions.installed_at, extensions.updated_at,
+		  COALESCE(staged_versions.id, 0),
 		  CASE WHEN staged_versions.id IS NULL THEN NULL ELSE jsonb_build_object(
-		    'id', staged_versions.id,
 		    'version', staged_versions.version,
 		    'manifest', staged_versions.manifest,
 		    'packageDigest', staged_versions.package_digest,
@@ -654,6 +654,7 @@ func scanExtension(row extensionRow) (Extension, error) {
 	var item Extension
 	var manifestJSON []byte
 	var stagedVersionJSON []byte
+	var stagedVersionID int64
 	if err := row.Scan(
 		&item.ID,
 		&item.Name,
@@ -670,6 +671,7 @@ func scanExtension(row extensionRow) (Extension, error) {
 		&item.PackagePath,
 		&item.InstalledAt,
 		&item.UpdatedAt,
+		&stagedVersionID,
 		&stagedVersionJSON,
 	); err != nil {
 		return Extension{}, err
@@ -682,6 +684,7 @@ func scanExtension(row extensionRow) (Extension, error) {
 		if err := json.Unmarshal(stagedVersionJSON, &staged); err != nil {
 			return Extension{}, fmt.Errorf("decode staged extension version: %w", err)
 		}
+		staged.ID = stagedVersionID
 		item.StagedVersion = &staged
 	}
 	return item, nil

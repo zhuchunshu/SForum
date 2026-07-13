@@ -1724,6 +1724,54 @@ func (s *fakeExtensionStore) SaveInstalled(_ context.Context, input SaveInstalle
 	return item, nil
 }
 
+func (s *fakeExtensionStore) PromoteStagedVersion(_ context.Context, input StagedVersionCASInput) (Extension, error) {
+	if err := validateStagedVersionCASInput(input); err != nil {
+		return Extension{}, err
+	}
+	item, ok := s.items[input.ExtensionID]
+	if !ok {
+		return Extension{}, ErrExtensionNotFound
+	}
+	if item.StagedVersion == nil {
+		return Extension{}, ErrStagedVersionNotFound
+	}
+	staged := item.StagedVersion
+	if staged.ID != input.ExpectedStagedVersionID || staged.PackageDigest != input.ExpectedPackageDigest {
+		return Extension{}, ErrStagedVersionConflict
+	}
+	item.Version = staged.Version
+	item.Manifest = staged.Manifest
+	item.PackageDigest = staged.PackageDigest
+	item.AdminFrontendDigest = staged.AdminFrontendDigest
+	item.PackagePath = staged.PackagePath
+	item.ActiveVersionID = staged.ID
+	item.InstalledAt = staged.InstalledAt
+	item.StagedVersion = nil
+	item.UpdatedAt = time.Now()
+	s.items[item.ID] = item
+	return item, nil
+}
+
+func (s *fakeExtensionStore) DiscardStagedVersion(_ context.Context, input StagedVersionCASInput) (Extension, error) {
+	if err := validateStagedVersionCASInput(input); err != nil {
+		return Extension{}, err
+	}
+	item, ok := s.items[input.ExtensionID]
+	if !ok {
+		return Extension{}, ErrExtensionNotFound
+	}
+	if item.StagedVersion == nil {
+		return Extension{}, ErrStagedVersionNotFound
+	}
+	if item.StagedVersion.ID != input.ExpectedStagedVersionID || item.StagedVersion.PackageDigest != input.ExpectedPackageDigest {
+		return Extension{}, ErrStagedVersionConflict
+	}
+	item.StagedVersion = nil
+	item.UpdatedAt = time.Now()
+	s.items[item.ID] = item
+	return item, nil
+}
+
 func (s *fakeExtensionStore) SaveBuiltin(_ context.Context, input SaveBuiltinInput) (Extension, error) {
 	item := Extension{
 		ID:                  input.Manifest.ID,
