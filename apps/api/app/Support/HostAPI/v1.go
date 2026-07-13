@@ -144,6 +144,10 @@ func (s *Service) BindUsers(reader UserReader) {
 
 // Call 执行一次 Host API 调用。
 func (s *Service) Call(ctx context.Context, req Request) Response {
+	return s.call(ctx, req, Version)
+}
+
+func (s *Service) call(ctx context.Context, req Request, protocolVersion string) Response {
 	if s == nil {
 		return fail("host.unavailable", "Host API is not configured.")
 	}
@@ -175,7 +179,7 @@ func (s *Service) Call(ctx context.Context, req Request) Response {
 		if err := caps.Require(capabilities.HostAPI); err != nil {
 			return denied(capabilities.HostAPI)
 		}
-		return success(map[string]any{"version": Version, "extensionId": extensionID})
+		return success(map[string]any{"version": protocolVersion, "extensionId": extensionID})
 	case MethodCheckPermission:
 		if err := caps.Require(capabilities.PermissionsCheck); err != nil {
 			return denied(capabilities.PermissionsCheck)
@@ -195,7 +199,7 @@ func (s *Service) Call(ctx context.Context, req Request) Response {
 		if err := caps.Require(capabilities.AuditAppend); err != nil {
 			return denied(capabilities.AuditAppend)
 		}
-		return s.appendAudit(callCtx, extensionID, req.Payload)
+		return s.appendAudit(callCtx, extensionID, req.Payload, protocolVersion)
 	case MethodGetUserSafe:
 		if err := caps.Require(capabilities.UsersRead); err != nil {
 			return denied(capabilities.UsersRead)
@@ -273,7 +277,7 @@ func (s *Service) enqueueOwnJob(ctx context.Context, extensionID string, payload
 	return success(map[string]any{"kind": kind, "enqueued": true})
 }
 
-func (s *Service) appendAudit(ctx context.Context, extensionID string, payload map[string]any) Response {
+func (s *Service) appendAudit(ctx context.Context, extensionID string, payload map[string]any, protocolVersion string) Response {
 	if s.auditor == nil {
 		return fail("host.unavailable", "Audit writer is not configured.")
 	}
@@ -293,7 +297,7 @@ func (s *Service) appendAudit(ctx context.Context, extensionID string, payload m
 		meta = map[string]any{}
 	}
 	meta["extensionId"] = extensionID
-	meta["via"] = Version
+	meta["via"] = protocolVersion
 	if err := s.auditor.Append(ctx, audit.Event{
 		ActorUserID:  actorID,
 		TargetUserID: targetID,

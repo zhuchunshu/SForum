@@ -146,6 +146,9 @@ func TestAppendAuditNamespacesAction(t *testing.T) {
 	if writer.events[0].ActorUserID != 9 {
 		t.Fatalf("actor = %d", writer.events[0].ActorUserID)
 	}
+	if writer.events[0].Metadata["via"] != Version {
+		t.Fatalf("via = %#v", writer.events[0].Metadata["via"])
+	}
 }
 
 func TestCheckPermission(t *testing.T) {

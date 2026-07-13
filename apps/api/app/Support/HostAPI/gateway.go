@@ -13,6 +13,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"google.golang.org/grpc"
 )
 
 // Gateway 在 loopback 上暴露 Host API，供插件子进程调用（F2.2）。
@@ -24,6 +26,18 @@ type Gateway struct {
 	ln      net.Listener
 	baseURL string
 	tokens  map[string]string // extensionID → token
+}
+
+// RegisterProtocolV2 exposes typed Host services only on the caller's
+// runtime-bound go-plugin broker server.
+func (g *Gateway) RegisterProtocolV2(server grpc.ServiceRegistrar) {
+	if g == nil || server == nil {
+		return
+	}
+	g.mu.RLock()
+	service := g.service
+	g.mu.RUnlock()
+	registerProtocolV2(server, service)
 }
 
 // NewGateway 创建未启动的网关；Start 后才监听。
