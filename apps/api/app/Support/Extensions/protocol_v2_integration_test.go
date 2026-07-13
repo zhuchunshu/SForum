@@ -6,12 +6,14 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
 	capabilities "github.com/zhuchunshu/sforum/apps/api/app/Support/Capabilities"
 	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
+	hostapi "github.com/zhuchunshu/sforum/apps/api/app/Support/HostAPI"
 	pluginsdk "github.com/zhuchunshu/sforum/apps/api/sdk/plugin"
 	pluginv2sdk "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2"
 	pluginwire "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/plugin/v2"
@@ -58,6 +60,10 @@ func TestProtocolV2NegotiatesGRPCAndInvokesTypedHook(t *testing.T) {
 	if telemetry.ProtocolVersion != 2 || telemetry.Transport != "grpc" || telemetry.Deprecated ||
 		telemetry.StartCount != 1 || telemetry.CallCount != 1 || telemetry.LastCallAt == nil {
 		t.Fatalf("unexpected v2 telemetry: %#v", telemetry)
+	}
+	resolved, err := gateway.ProtocolV2ServiceRegistry().ResolveExact("runtime.v2.service.echo", "1.0.0")
+	if err != nil || resolved.Winner.ExtensionID != extension.ID {
+		t.Fatalf("runtime service registration = %#v, %v", resolved, err)
 	}
 }
 
@@ -107,11 +113,22 @@ func TestProtocolV2HostBrokerRebindsAfterRestart(t *testing.T) {
 	if _, err := starter.Start(context.Background(), extension); err != nil {
 		t.Fatal(err)
 	}
+	first, err := gateway.ProtocolV2ServiceRegistry().ResolveExact("runtime.v2.service.echo", "1.0.0")
+	if err != nil {
+		t.Fatal(err)
+	}
 	if err := starter.Stop(context.Background(), extension); err != nil {
 		t.Fatal(err)
 	}
+	if _, err := gateway.ProtocolV2ServiceRegistry().ResolveExact("runtime.v2.service.echo", "1.0.0"); !errors.Is(err, hostapi.ErrServiceNotFound) {
+		t.Fatalf("stopped runtime remained discoverable: %v", err)
+	}
 	if _, err := starter.Start(context.Background(), extension); err != nil {
 		t.Fatalf("restart protocol v2 plugin: %v", err)
+	}
+	second, err := gateway.ProtocolV2ServiceRegistry().ResolveExact("runtime.v2.service.echo", "1.0.0")
+	if err != nil || second.Winner.InstanceID == first.Winner.InstanceID {
+		t.Fatalf("restart did not replace instance: first=%#v second=%#v err=%v", first.Winner, second.Winner, err)
 	}
 	defer starter.Stop(context.Background(), extension)
 	result := starter.InvokeHook(context.Background(), extension, extensionsruntime.HookInput{
@@ -121,6 +138,78 @@ func TestProtocolV2HostBrokerRebindsAfterRestart(t *testing.T) {
 	})
 	if !result.OK || starter.ProtocolTelemetry(extension.ID).StartCount != 2 {
 		t.Fatalf("restart result = %#v, telemetry = %#v", result, starter.ProtocolTelemetry(extension.ID))
+	}
+}
+
+func TestProtocolV2CrashReapsServiceRegistration(t *testing.T) {
+	extension := protocolV2TestExtension(t, "v2")
+	gateway, _ := newProtocolV2HostGateway()
+	t.Cleanup(func() { _ = gateway.Close() })
+	starter := extensionsruntime.NewProtocolStarter(extensionsruntime.ProtocolStarterConfig{
+		Trust:   staticRuntimeTrust{identity: extensions.RuntimeTrustIdentity{TrustGrantID: "41", ImpactDigest: "impact-41"}},
+		HostAPI: gateway,
+	})
+	if _, err := starter.Start(context.Background(), extension); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = starter.Stop(context.Background(), extension) })
+	result := starter.InvokeHook(context.Background(), extension, extensionsruntime.HookInput{
+		Name: "topic.before_create", Kind: "filter", Timeout: time.Second,
+		Payload: map[string]any{"mode": "crash"},
+	})
+	if result.OK {
+		t.Fatalf("crashed runtime returned success: %#v", result)
+	}
+	deadline := time.Now().Add(3 * time.Second)
+	for time.Now().Before(deadline) {
+		_, err := gateway.ProtocolV2ServiceRegistry().ResolveExact("runtime.v2.service.echo", "1.0.0")
+		if errors.Is(err, hostapi.ErrServiceNotFound) {
+			return
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	t.Fatal("crashed runtime remained discoverable")
+}
+
+func TestProtocolV2ConcurrentStartsKeepCurrentServiceInstance(t *testing.T) {
+	extension := protocolV2TestExtension(t, "v2")
+	gateway, _ := newProtocolV2HostGateway()
+	t.Cleanup(func() { _ = gateway.Close() })
+	starter := extensionsruntime.NewProtocolStarter(extensionsruntime.ProtocolStarterConfig{
+		Trust:   staticRuntimeTrust{identity: extensions.RuntimeTrustIdentity{TrustGrantID: "41", ImpactDigest: "impact-41"}},
+		HostAPI: gateway,
+	})
+	t.Cleanup(func() { _ = starter.Stop(context.Background(), extension) })
+	start := make(chan struct{})
+	errorsCh := make(chan error, 2)
+	var group sync.WaitGroup
+	for range 2 {
+		group.Add(1)
+		go func() {
+			defer group.Done()
+			<-start
+			_, err := starter.Start(context.Background(), extension)
+			errorsCh <- err
+		}()
+	}
+	close(start)
+	group.Wait()
+	close(errorsCh)
+	for err := range errorsCh {
+		if err != nil {
+			t.Fatalf("concurrent start: %v", err)
+		}
+	}
+	resolved, err := gateway.ProtocolV2ServiceRegistry().ResolveExact("runtime.v2.service.echo", "1.0.0")
+	if err != nil || resolved.Winner.InstanceID == "" {
+		t.Fatalf("current service instance = %#v, %v", resolved.Winner, err)
+	}
+	result := starter.InvokeHook(context.Background(), extension, extensionsruntime.HookInput{
+		Name: "topic.before_create", Kind: "filter", Timeout: time.Second,
+		Payload: map[string]any{"title": "still-running"},
+	})
+	if !result.OK {
+		t.Fatalf("registry points at a stale runtime: %#v", result)
 	}
 }
 
@@ -161,7 +250,15 @@ func TestProtocolV2RejectsUploadedArtifactWithoutLiveGrant(t *testing.T) {
 func TestProtocolV2HelperProcess(t *testing.T) {
 	switch os.Getenv("SFORUM_PLUGIN_HELPER") {
 	case "protocol-v2":
-		pluginv2sdk.Serve(&protocolV2Helper{Server: pluginv2sdk.NewServer()})
+		registry, err := pluginv2sdk.NewServiceRegistry(pluginv2sdk.ServiceDefinition{
+			ServiceID: "runtime.v2.service.echo", Version: "1.0.0",
+			RequestSchemaID: "runtime.v2.service.echo.request@1", ResponseSchemaID: "runtime.v2.service.echo.response@1",
+			Operations: []pluginv2sdk.ServiceOperation{{Name: "echo", Unary: protocolV2EchoService}},
+		})
+		if err != nil {
+			panic(err)
+		}
+		pluginv2sdk.Serve(&protocolV2Helper{Server: pluginv2sdk.NewServer().WithServiceRegistry(registry)})
 		os.Exit(0)
 	case "protocol-v1":
 		pluginsdk.Serve(protocolV1Helper{})
@@ -188,6 +285,9 @@ func (s *protocolV2Helper) InvokeHook(ctx context.Context, request *pluginwire.H
 		}}, nil
 	}
 	mode, _ := request.GetPayload().GetValue().AsMap()["mode"].(string)
+	if mode == "crash" {
+		os.Exit(23)
+	}
 	if mode == "business_reject" {
 		value, err := structpb.NewStruct(map[string]any{"reason": "content.rejected", "message": "Rejected by policy."})
 		if err != nil {
@@ -214,6 +314,10 @@ func (s *protocolV2Helper) InvokeHook(ctx context.Context, request *pluginwire.H
 		Accepted: true,
 		Patch:    &protocolwire.TypedDocument{SchemaId: "sforum.hook.topic.before_create.patch", SchemaVersion: "1", Value: patch},
 	}, nil
+}
+
+func protocolV2EchoService(_ context.Context, _ *pluginv2sdk.ServiceCall) (*protocolwire.TypedDocument, error) {
+	return &protocolwire.TypedDocument{SchemaId: "runtime.v2.service.echo.response", SchemaVersion: "1"}, nil
 }
 
 func hasProtocolV2Authority(ctx *protocolwire.RequestContext, key string) bool {
@@ -263,6 +367,11 @@ func protocolV2TestExtension(t *testing.T, helperMode string) extensions.Extensi
 			Backend: extensions.ManifestBackend{
 				Entry: "backend/plugin", RPC: "hashicorp-go-plugin", ProtocolVersion: 2, HostAPIVersion: "sforum.host@2",
 			},
+			Services: []extensions.ManifestService{{
+				ID: "runtime.v2.service.echo", ContractVersion: "runtime.v2.service.echo@1", Action: "add",
+				Handler: "runtime.v2.service.echo", RequestSchema: "runtime.v2.service.echo.request@1",
+				ResponseSchema: "runtime.v2.service.echo.response@1",
+			}},
 		},
 	}
 }

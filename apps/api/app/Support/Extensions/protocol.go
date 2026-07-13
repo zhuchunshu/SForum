@@ -63,13 +63,15 @@ type ProtocolStarterConfig struct {
 }
 
 type ProtocolStarter struct {
-	mu        sync.Mutex
-	clients   map[string]*plugin.Client
-	protocols map[string]PluginProtocol
-	telemetry map[string]*protocolTelemetry
-	settings  PluginSettings
-	hostAPI   HostAPIRegistrar
-	trust     RuntimeTrustSource
+	mu          sync.Mutex
+	clients     map[string]*plugin.Client
+	protocols   map[string]PluginProtocol
+	telemetry   map[string]*protocolTelemetry
+	lifecycleMu sync.Mutex
+	lifecycle   map[string]*sync.Mutex
+	settings    PluginSettings
+	hostAPI     HostAPIRegistrar
+	trust       RuntimeTrustSource
 }
 
 type PluginProtocol interface {
@@ -154,6 +156,7 @@ func NewProtocolStarter(config ProtocolStarterConfig) *ProtocolStarter {
 		clients:   map[string]*plugin.Client{},
 		protocols: map[string]PluginProtocol{},
 		telemetry: map[string]*protocolTelemetry{},
+		lifecycle: map[string]*sync.Mutex{},
 		settings:  config.Settings,
 		hostAPI:   config.HostAPI,
 		trust:     config.Trust,
@@ -161,6 +164,8 @@ func NewProtocolStarter(config ProtocolStarterConfig) *ProtocolStarter {
 }
 
 func (s *ProtocolStarter) Start(ctx context.Context, extension extensions.Extension) (RouteTarget, error) {
+	unlock := s.lockExtensionLifecycle(extension.ID)
+	defer unlock()
 	if extension.Manifest.Backend.RPC != "" && extension.Manifest.Backend.RPC != hashicorpGoPluginRPC {
 		return RouteTarget{}, ErrUnsupportedProtocol
 	}
@@ -270,6 +275,28 @@ func (s *ProtocolStarter) Start(ctx context.Context, extension extensions.Extens
 		client.Kill()
 		return RouteTarget{}, err
 	}
+	serviceRegistry := protocolV2ServiceRegistryFor(s.hostAPI)
+	if v2, ok := protocol.(*protocolV2Client); ok {
+		registrations, err := v2.serviceRegistrations(extension)
+		if err != nil {
+			client.Kill()
+			return RouteTarget{}, err
+		}
+		if len(registrations) > 0 && serviceRegistry == nil {
+			client.Kill()
+			return RouteTarget{}, fmt.Errorf("protocol v2 service registry is not configured")
+		}
+		if len(registrations) > 0 {
+			if err := serviceRegistry.ReplaceProtocolV2Services(extension.ID, registrations); err != nil {
+				client.Kill()
+				return RouteTarget{}, fmt.Errorf("register protocol v2 services: %w", err)
+			}
+		} else if serviceRegistry != nil {
+			serviceRegistry.UnregisterProtocolV2Services(extension.ID)
+		}
+	} else if serviceRegistry != nil {
+		serviceRegistry.UnregisterProtocolV2Services(extension.ID)
+	}
 
 	s.mu.Lock()
 	if s.clients == nil {
@@ -285,6 +312,7 @@ func (s *ProtocolStarter) Start(ctx context.Context, extension extensions.Extens
 	s.protocols[extension.ID] = protocol
 	s.recordProtocolStartLocked(extension.ID, protocolVersion)
 	s.mu.Unlock()
+	go s.watchClientExit(extension.ID, protocolVersion, protocol, client)
 	keepHostAPI = true
 	return RouteTarget{BaseURL: baseURL}, nil
 }
@@ -371,11 +399,15 @@ func pluginSettingEnvName(key string) string {
 }
 
 func (s *ProtocolStarter) Stop(_ context.Context, extension extensions.Extension) error {
+	unlock := s.lockExtensionLifecycle(extension.ID)
+	defer unlock()
 	s.mu.Lock()
 	client := s.clients[extension.ID]
+	protocol := s.protocols[extension.ID]
 	delete(s.clients, extension.ID)
 	delete(s.protocols, extension.ID)
 	s.mu.Unlock()
+	s.unregisterProtocolV2Services(extension.ID, protocol)
 	if client != nil {
 		client.Kill()
 	}
@@ -383,6 +415,59 @@ func (s *ProtocolStarter) Stop(_ context.Context, extension extensions.Extension
 		s.hostAPI.UnregisterExtension(extension.ID)
 	}
 	return nil
+}
+
+func (s *ProtocolStarter) lockExtensionLifecycle(extensionID string) func() {
+	s.lifecycleMu.Lock()
+	if s.lifecycle == nil {
+		s.lifecycle = map[string]*sync.Mutex{}
+	}
+	lock := s.lifecycle[extensionID]
+	if lock == nil {
+		lock = &sync.Mutex{}
+		s.lifecycle[extensionID] = lock
+	}
+	s.lifecycleMu.Unlock()
+	lock.Lock()
+	return lock.Unlock
+}
+
+func (s *ProtocolStarter) watchClientExit(extensionID string, protocolVersion int, protocol PluginProtocol, client *plugin.Client) {
+	ticker := time.NewTicker(50 * time.Millisecond)
+	defer ticker.Stop()
+	for !client.Exited() {
+		<-ticker.C
+	}
+
+	unlock := s.lockExtensionLifecycle(extensionID)
+	defer unlock()
+	s.mu.Lock()
+	if s.clients[extensionID] != client {
+		s.mu.Unlock()
+		return
+	}
+	delete(s.clients, extensionID)
+	delete(s.protocols, extensionID)
+	s.mu.Unlock()
+	if protocolVersion == 2 {
+		s.unregisterProtocolV2Services(extensionID, protocol)
+	}
+	if s.hostAPI != nil {
+		s.hostAPI.UnregisterExtension(extensionID)
+	}
+}
+
+func (s *ProtocolStarter) unregisterProtocolV2Services(extensionID string, protocol PluginProtocol) {
+	registry := protocolV2ServiceRegistryFor(s.hostAPI)
+	if registry == nil {
+		return
+	}
+	if v2, ok := protocol.(*protocolV2Client); ok && v2.identity != nil {
+		if registry.UnregisterProtocolV2ServiceInstance(extensionID, v2.identity.GetInstanceId()) {
+			return
+		}
+	}
+	registry.UnregisterProtocolV2Services(extensionID)
 }
 
 func (s *ProtocolStarter) InvokeHook(ctx context.Context, extension extensions.Extension, input HookInput) HookResult {

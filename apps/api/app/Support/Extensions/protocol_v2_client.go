@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -55,6 +56,8 @@ type protocolV2Client struct {
 	token        []byte
 	instance     string
 	hostBrokerID uint32
+	serviceMu    sync.RWMutex
+	services     []*protocolv2.ServiceDescriptor
 	sequence     atomic.Uint64
 }
 
@@ -214,6 +217,9 @@ func (c *protocolV2Client) Handshake(ctx context.Context) error {
 	if selected.GetProtocol() != protocolV2Name || selected.GetMajor() != 2 || selected.GetMinMinor() > 0 {
 		return &ProtocolV2Error{Code: protocolv2.ErrorCode_ERROR_CODE_PROTOCOL_MISMATCH, Reason: "protocol.version_mismatch", Message: "Plugin selected an incompatible protocol version."}
 	}
+	c.serviceMu.Lock()
+	c.services = cloneV2Services(response.GetServices())
+	c.serviceMu.Unlock()
 	return nil
 }
 
