@@ -1,8 +1,8 @@
 import { describe, expect, test } from 'bun:test'
 
 const manager = await Bun.file(new URL('../app/composables/useAdminExtensionsManager.ts', import.meta.url)).text()
-const dialog = await Bun.file(new URL('../app/components/SFExtensionEnableDialog.vue', import.meta.url)).text()
-const impact = await Bun.file(new URL('../app/components/SFExecutableTrustImpact.vue', import.meta.url)).text()
+const dialog = await Bun.file(new URL('../app/components/SFAdminExtensionEnableDialog.vue', import.meta.url)).text()
+const impact = await Bun.file(new URL('../app/components/SFAdminExecutableTrustImpact.vue', import.meta.url)).text()
 const overview = await Bun.file(new URL('../app/pages/admin/extensions/index.vue', import.meta.url)).text()
 const plugins = await Bun.file(new URL('../app/pages/admin/extensions/plugins.vue', import.meta.url)).text()
 const frontendPanel = await Bun.file(new URL('../app/components/SFAdminFrontendTrustPanel.vue', import.meta.url)).text()
@@ -41,8 +41,8 @@ describe('V3 exact-artifact trust operator flow', () => {
   })
 
   test('reuses one dialog in both admin entry points and retires frontend-only grant in V3', () => {
-    expect(overview).toContain('<SFExtensionEnableDialog')
-    expect(plugins).toContain('<SFExtensionEnableDialog')
+    expect(overview).toContain('<SFAdminExtensionEnableDialog')
+    expect(plugins).toContain('<SFAdminExtensionEnableDialog')
     expect(frontendPanel).toContain('isSuperAdmin && !exactTrustManaged')
     expect(frontendPanel).toContain('exactTrustDescription')
     expect(frontendTrust).toContain('extension.value.status')

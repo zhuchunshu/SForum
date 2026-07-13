@@ -4,6 +4,8 @@
 
 | Stable ID | Contract | Kind | Scope | Route | Source | V3 registry |
 | --- | --- | --- | --- | --- | --- | --- |
+| `core.component.admin.sfadmin_executable_trust_impact` | `sforum.component.admin.sfadmin_executable_trust_impact@1` | component | admin | — | `apps/web/app/components/SFAdminExecutableTrustImpact.vue` | P7/P9 Admin and Component Registries |
+| `core.component.admin.sfadmin_extension_enable_dialog` | `sforum.component.admin.sfadmin_extension_enable_dialog@1` | component | admin | — | `apps/web/app/components/SFAdminExtensionEnableDialog.vue` | P7/P9 Admin and Component Registries |
 | `core.component.admin.sfadmin_extension_store_shelf` | `sforum.component.admin.sfadmin_extension_store_shelf@1` | component | admin | — | `apps/web/app/components/admin/SFAdminExtensionStoreShelf.vue` | P7/P9 Admin and Component Registries |
 | `core.component.admin.sfadmin_footer` | `sforum.component.admin.sfadmin_footer@1` | component | admin | — | `apps/web/app/components/SFAdminFooter.vue` | P7/P9 Admin and Component Registries |
 | `core.component.admin.sfadmin_form_footer` | `sforum.component.admin.sfadmin_form_footer@1` | component | admin | — | `apps/web/app/components/SFAdminFormFooter.vue` | P7/P9 Admin and Component Registries |

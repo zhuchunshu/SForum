@@ -1,5 +1,21 @@
 [
   {
+    "id": "core.component.admin.sfadmin_executable_trust_impact",
+    "contractVersion": "sforum.component.admin.sfadmin_executable_trust_impact@1",
+    "kind": "component",
+    "scope": "admin",
+    "source": "apps/web/app/components/SFAdminExecutableTrustImpact.vue",
+    "targetRegistry": "P7/P9 Admin and Component Registries"
+  },
+  {
+    "id": "core.component.admin.sfadmin_extension_enable_dialog",
+    "contractVersion": "sforum.component.admin.sfadmin_extension_enable_dialog@1",
+    "kind": "component",
+    "scope": "admin",
+    "source": "apps/web/app/components/SFAdminExtensionEnableDialog.vue",
+    "targetRegistry": "P7/P9 Admin and Component Registries"
+  },
+  {
     "id": "core.component.admin.sfadmin_extension_store_shelf",
     "contractVersion": "sforum.component.admin.sfadmin_extension_store_shelf@1",
     "kind": "component",

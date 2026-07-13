@@ -101,7 +101,7 @@ function cancel() {
               :title="t('admin.extensions.trust.challengeReady')"
               :description="t('admin.extensions.trust.challengeReadyDescription')"
             />
-            <SFExecutableTrustImpact v-if="trustStatus" :impact="trustStatus.impact" />
+            <SFAdminExecutableTrustImpact v-if="trustStatus" :impact="trustStatus.impact" />
           </template>
 
           <ul v-else-if="extension?.capabilityGrants?.length" class="space-y-2">

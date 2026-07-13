@@ -448,7 +448,7 @@ function extensionStatusLabel(item: (typeof extensions.value)[number]) {
       </aside>
     </div>
 
-    <SFExtensionEnableDialog
+    <SFAdminExtensionEnableDialog
       v-model:open="enableConfirmOpen"
       :extension="enableConfirmItem"
       :mode="enableTrustMode"

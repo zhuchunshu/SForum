@@ -258,7 +258,7 @@ useSeoMeta({
       </div>
     </div>
 
-    <SFExtensionEnableDialog
+    <SFAdminExtensionEnableDialog
       v-model:open="enableConfirmOpen"
       :extension="enableConfirmItem"
       :mode="enableTrustMode"
