@@ -383,6 +383,7 @@ func TestProtocolV2ServiceStreamMapsTransportFailureAndCancellation(t *testing.T
 			ctx: ctx,
 			recv: []*hostv2.ServiceStreamFrame{
 				v2ServiceOpenFrame(v2ServiceRequestContext("consumer.plugin", "instance-consumer"), "demo.stream", "1.0.0", "watch"),
+				v2ServiceMessageFrame(v2ServiceDocument("demo.stream.request", "1")),
 			},
 		}
 		return server, stream

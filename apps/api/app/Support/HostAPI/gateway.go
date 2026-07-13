@@ -68,6 +68,13 @@ func (g *Gateway) UnregisterProtocolV2Services(extensionID string) {
 	}
 }
 
+// UnregisterProtocolV2ServiceInstance removes services only when the current
+// registry snapshot still belongs to the stopping runtime instance.
+func (g *Gateway) UnregisterProtocolV2ServiceInstance(extensionID, instanceID string) bool {
+	registry := g.ProtocolV2ServiceRegistry()
+	return registry != nil && registry.UnregisterProtocolV2ServiceInstance(extensionID, instanceID)
+}
+
 // ProtocolV2ServiceRegistry exposes the shared immutable-snapshot registry to
 // runtime assembly and host-owned inspectors.
 func (g *Gateway) ProtocolV2ServiceRegistry() *ServiceRegistry {

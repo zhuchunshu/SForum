@@ -198,6 +198,45 @@ func (r *ServiceRegistry) UnregisterExtension(extensionID string) bool {
 	return true
 }
 
+// UnregisterProtocolV2ServiceInstance removes an extension's complete service
+// set only when it still belongs to instanceID. This prevents a stale runtime
+// shutdown from removing the replacement runtime's registrations.
+func (r *ServiceRegistry) UnregisterProtocolV2ServiceInstance(extensionID, instanceID string) bool {
+	if r == nil {
+		return false
+	}
+	extensionID = strings.TrimSpace(extensionID)
+	instanceID = strings.TrimSpace(instanceID)
+	if extensionID == "" || instanceID == "" {
+		return false
+	}
+
+	r.writeMu.Lock()
+	defer r.writeMu.Unlock()
+	current := r.loadSnapshot()
+	found := false
+	for _, item := range current.registrations {
+		if item.registration.ExtensionID != extensionID {
+			continue
+		}
+		found = true
+		if item.registration.InstanceID != instanceID {
+			return false
+		}
+	}
+	if !found {
+		return false
+	}
+	next := make([]preparedServiceRegistration, 0, len(current.registrations))
+	for _, item := range current.registrations {
+		if item.registration.ExtensionID != extensionID {
+			next = append(next, item)
+		}
+	}
+	r.snapshot.Store(&serviceRegistrySnapshot{revision: current.revision + 1, registrations: next})
+	return true
+}
+
 func (r *ServiceRegistry) Revision() uint64 {
 	return r.loadSnapshot().revision
 }
@@ -248,6 +287,40 @@ func (r *ServiceRegistry) Resolve(serviceID, versionConstraint string) (Resolved
 		return ResolvedService{}, fmt.Errorf("%w: %s %q", ErrServiceNotFound, serviceID, strings.TrimSpace(versionConstraint))
 	}
 	return services[0], nil
+}
+
+// ResolveExact matches the descriptor's original version string. SemVer
+// constraints deliberately ignore build metadata for precedence, but an
+// invocation is artifact-facing and must not cross build identities.
+func (r *ServiceRegistry) ResolveExact(serviceID, version string) (ResolvedService, error) {
+	serviceID = strings.TrimSpace(serviceID)
+	version = strings.TrimSpace(version)
+	if serviceID == "" {
+		return ResolvedService{}, fmt.Errorf("%w: service id is required", ErrInvalidServiceRegistration)
+	}
+	if _, err := semver.StrictNewVersion(version); err != nil {
+		return ResolvedService{}, fmt.Errorf("%w: exact version %q is not strict SemVer: %v", ErrInvalidServiceConstraint, version, err)
+	}
+	snapshot := r.loadSnapshot()
+	for index := 0; index < len(snapshot.registrations); {
+		first := snapshot.registrations[index]
+		end := index + 1
+		for end < len(snapshot.registrations) && samePublishedVersion(first, snapshot.registrations[end]) {
+			end++
+		}
+		if first.publishedID == serviceID && first.registration.Descriptor.GetVersion() == version {
+			candidates := make([]ServiceRegistration, 0, end-index)
+			for _, candidate := range snapshot.registrations[index:end] {
+				candidates = append(candidates, cloneServiceRegistration(candidate.registration))
+			}
+			return ResolvedService{
+				ServiceID: serviceID, Revision: snapshot.revision,
+				Winner: candidates[0], Candidates: candidates,
+			}, nil
+		}
+		index = end
+	}
+	return ResolvedService{}, fmt.Errorf("%w: %s %q", ErrServiceNotFound, serviceID, version)
 }
 
 func (r *ServiceRegistry) Conflicts() []ServiceConflict {
@@ -334,6 +407,9 @@ func prepareServiceRegistration(extensionID string, registration ServiceRegistra
 	registration.Action = strings.ToLower(strings.TrimSpace(registration.Action))
 	if !validServiceAction(registration.Action) {
 		return preparedServiceRegistration{}, fmt.Errorf("%w: unsupported action %q", ErrInvalidServiceRegistration, registration.Action)
+	}
+	if registration.Action == ServiceActionBefore || registration.Action == ServiceActionAfter || registration.Action == ServiceActionWrap {
+		return preparedServiceRegistration{}, fmt.Errorf("%w: action %q requires the composition chain", ErrInvalidServiceRegistration, registration.Action)
 	}
 	registration.TargetID = strings.TrimSpace(registration.TargetID)
 	publishedID := descriptor.ServiceId

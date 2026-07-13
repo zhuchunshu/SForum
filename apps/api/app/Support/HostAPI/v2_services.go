@@ -8,6 +8,7 @@ import (
 	"errors"
 	"io"
 	"strings"
+	"sync"
 
 	hostv2 "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/host/v2"
 	protocolv2 "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/protocol/v2"
@@ -106,6 +107,10 @@ func (s *protocolV2ServiceDiscoveryServer) Invoke(ctx context.Context, request *
 		response.Error = detail
 		return response, nil
 	}
+	if resolved.Winner.Descriptor.GetClientStreaming() || resolved.Winner.Descriptor.GetServerStreaming() {
+		response.Error = serviceDiscoveryError(protocolv2.ErrorCode_ERROR_CODE_FAILED_PRECONDITION, "host.service_stream_required", "The resolved service must be invoked through the streaming API.", false)
+		return response, nil
+	}
 	if detail := validateServiceDocument(request.GetInput(), resolved.Winner.Descriptor.GetRequestSchemaId(), "input"); detail != nil {
 		response.Error = detail
 		return response, nil
@@ -159,10 +164,24 @@ func (s *protocolV2ServiceDiscoveryServer) Stream(stream grpc.BidiStreamingServe
 	if !ok {
 		return sendServiceStreamError(stream, serviceDiscoveryError(protocolv2.ErrorCode_ERROR_CODE_UNAVAILABLE, "host.service_stream_provider_unavailable", "The resolved service provider cannot accept streams.", true))
 	}
+	var unaryInput *protocolv2.TypedDocument
+	if !resolved.Winner.Descriptor.GetClientStreaming() {
+		var inputError *protocolv2.ErrorDetail
+		unaryInput, inputError, err = receiveUnaryServiceInput(stream, resolved.Winner.Descriptor.GetRequestSchemaId())
+		if err != nil {
+			return err
+		}
+		if inputError != nil {
+			return sendServiceStreamError(stream, inputError)
+		}
+	}
 
 	adapter := &protocolV2ServiceBidiStream{
 		stream: stream, requestSchemaID: resolved.Winner.Descriptor.GetRequestSchemaId(),
 		responseSchemaID: resolved.Winner.Descriptor.GetResponseSchemaId(),
+		clientStreaming:  resolved.Winner.Descriptor.GetClientStreaming(),
+		serverStreaming:  resolved.Winner.Descriptor.GetServerStreaming(),
+		unaryInput:       unaryInput,
 	}
 	remoteError, err := provider.Stream(
 		stream.Context(), cloneServiceRequestContext(open.GetContext()),
@@ -183,6 +202,9 @@ func (s *protocolV2ServiceDiscoveryServer) Stream(stream grpc.BidiStreamingServe
 	}
 	if remoteError != nil {
 		return sendServiceStreamError(stream, cloneServiceError(remoteError))
+	}
+	if validation := adapter.completionError(); validation != nil {
+		return sendServiceStreamError(stream, validation.detail)
 	}
 	return nil
 }
@@ -207,11 +229,15 @@ func (s *protocolV2ServiceDiscoveryServer) resolve(requestContext *protocolv2.Re
 	if exact && version == "" {
 		return ResolvedService{}, serviceDiscoveryError(protocolv2.ErrorCode_ERROR_CODE_INVALID_ARGUMENT, "host.service_version_required", "Exact service version is required.", false)
 	}
-	constraint := version
+	var (
+		resolved ResolvedService
+		err      error
+	)
 	if exact {
-		constraint = "=" + version
+		resolved, err = registry.ResolveExact(serviceID, version)
+	} else {
+		resolved, err = registry.Resolve(serviceID, version)
 	}
-	resolved, err := registry.Resolve(serviceID, constraint)
 	if err != nil {
 		return ResolvedService{}, serviceRegistryError(err)
 	}
@@ -290,6 +316,14 @@ type protocolV2ServiceBidiStream struct {
 	stream           grpc.BidiStreamingServer[hostv2.ServiceStreamFrame, hostv2.ServiceStreamFrame]
 	requestSchemaID  string
 	responseSchemaID string
+	clientStreaming  bool
+	serverStreaming  bool
+	unaryInput       *protocolv2.TypedDocument
+
+	stateMu             sync.Mutex
+	unaryInputDelivered bool
+	outputCount         int
+	validation          *serviceStreamValidationError
 }
 
 func (s *protocolV2ServiceBidiStream) Context() context.Context {
@@ -298,24 +332,42 @@ func (s *protocolV2ServiceBidiStream) Context() context.Context {
 
 func (s *protocolV2ServiceBidiStream) Send(document *protocolv2.TypedDocument) error {
 	if detail := validateServiceDocument(document, s.responseSchemaID, "output"); detail != nil {
-		return &serviceStreamValidationError{detail: detail}
+		return s.fail(detail)
 	}
+	s.stateMu.Lock()
+	if !s.serverStreaming && s.outputCount >= 1 {
+		s.stateMu.Unlock()
+		return s.fail(serviceDiscoveryError(protocolv2.ErrorCode_ERROR_CODE_FAILED_PRECONDITION, "host.service_output_message_limit", "The resolved service permits exactly one output message.", false))
+	}
+	s.outputCount++
+	s.stateMu.Unlock()
 	return s.stream.Send(&hostv2.ServiceStreamFrame{
 		Frame: &hostv2.ServiceStreamFrame_Message{Message: cloneServiceDocument(document)},
 	})
 }
 
 func (s *protocolV2ServiceBidiStream) Recv() (*protocolv2.TypedDocument, error) {
+	if !s.clientStreaming {
+		s.stateMu.Lock()
+		if s.unaryInputDelivered {
+			s.stateMu.Unlock()
+			return nil, io.EOF
+		}
+		s.unaryInputDelivered = true
+		message := cloneServiceDocument(s.unaryInput)
+		s.stateMu.Unlock()
+		return message, nil
+	}
 	frame, err := s.stream.Recv()
 	if err != nil {
 		return nil, err
 	}
 	message := frame.GetMessage()
 	if message == nil {
-		return nil, &serviceStreamValidationError{detail: serviceDiscoveryError(protocolv2.ErrorCode_ERROR_CODE_INVALID_ARGUMENT, "host.service_stream_frame_invalid", "Service stream frames after open must contain a typed message.", false)}
+		return nil, s.fail(serviceDiscoveryError(protocolv2.ErrorCode_ERROR_CODE_INVALID_ARGUMENT, "host.service_stream_frame_invalid", "Service stream frames after open must contain a typed message.", false))
 	}
 	if detail := validateServiceDocument(message, s.requestSchemaID, "input"); detail != nil {
-		return nil, &serviceStreamValidationError{detail: detail}
+		return nil, s.fail(detail)
 	}
 	return cloneServiceDocument(message), nil
 }
@@ -325,6 +377,56 @@ func (s *protocolV2ServiceBidiStream) Recv() (*protocolv2.TypedDocument, error) 
 // to its plugin-side client stream before continuing to send responses.
 func (s *protocolV2ServiceBidiStream) CloseSend() error {
 	return nil
+}
+
+func (s *protocolV2ServiceBidiStream) fail(detail *protocolv2.ErrorDetail) *serviceStreamValidationError {
+	validation := &serviceStreamValidationError{detail: detail}
+	s.stateMu.Lock()
+	if s.validation == nil {
+		s.validation = validation
+	} else {
+		validation = s.validation
+	}
+	s.stateMu.Unlock()
+	return validation
+}
+
+func (s *protocolV2ServiceBidiStream) completionError() *serviceStreamValidationError {
+	s.stateMu.Lock()
+	defer s.stateMu.Unlock()
+	if s.validation != nil {
+		return s.validation
+	}
+	if !s.clientStreaming && !s.unaryInputDelivered {
+		return &serviceStreamValidationError{detail: serviceDiscoveryError(protocolv2.ErrorCode_ERROR_CODE_FAILED_PRECONDITION, "host.service_input_not_consumed", "The provider did not consume the service input message.", false)}
+	}
+	if !s.serverStreaming && s.outputCount != 1 {
+		return &serviceStreamValidationError{detail: serviceDiscoveryError(protocolv2.ErrorCode_ERROR_CODE_FAILED_PRECONDITION, "host.service_output_message_required", "The resolved service must produce exactly one output message.", false)}
+	}
+	return nil
+}
+
+func receiveUnaryServiceInput(stream grpc.BidiStreamingServer[hostv2.ServiceStreamFrame, hostv2.ServiceStreamFrame], expectedSchemaID string) (*protocolv2.TypedDocument, *protocolv2.ErrorDetail, error) {
+	frame, err := stream.Recv()
+	if err != nil {
+		if errors.Is(err, io.EOF) {
+			return nil, serviceDiscoveryError(protocolv2.ErrorCode_ERROR_CODE_INVALID_ARGUMENT, "host.service_input_message_required", "The resolved service requires exactly one input message.", false), nil
+		}
+		return nil, nil, err
+	}
+	message := frame.GetMessage()
+	if message == nil {
+		return nil, serviceDiscoveryError(protocolv2.ErrorCode_ERROR_CODE_INVALID_ARGUMENT, "host.service_stream_frame_invalid", "Service stream frames after open must contain a typed message.", false), nil
+	}
+	if detail := validateServiceDocument(message, expectedSchemaID, "input"); detail != nil {
+		return nil, detail, nil
+	}
+	if _, err := stream.Recv(); err == nil {
+		return nil, serviceDiscoveryError(protocolv2.ErrorCode_ERROR_CODE_INVALID_ARGUMENT, "host.service_input_message_limit", "The resolved service permits exactly one input message.", false), nil
+	} else if !errors.Is(err, io.EOF) {
+		return nil, nil, err
+	}
+	return cloneServiceDocument(message), nil, nil
 }
 
 type serviceStreamValidationError struct {
@@ -420,7 +522,11 @@ func cloneServiceRequestContext(value *protocolv2.RequestContext) *protocolv2.Re
 	if value == nil {
 		return nil
 	}
-	return proto.Clone(value).(*protocolv2.RequestContext)
+	cloned := proto.Clone(value).(*protocolv2.RequestContext)
+	// Plugin callers cannot attest a forum actor. Preserve tracing and runtime
+	// identity, but never propagate caller-supplied session authority.
+	cloned.Actor = nil
+	return cloned
 }
 
 func cloneServiceDocument(value *protocolv2.TypedDocument) *protocolv2.TypedDocument {
