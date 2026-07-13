@@ -56,6 +56,10 @@ func ResolvePackageGraph(input []Manifest) (PackageGraph, error) {
 		}
 		manifests[manifest.ID] = manifest
 		versions[manifest.ID] = version
+	}
+	manifestIDs := sortedManifestIDs(manifests)
+	for _, id := range manifestIDs {
+		manifest := manifests[id]
 		for _, dependency := range manifest.Dependencies {
 			if dependency.Kind != "provides" {
 				continue
@@ -73,11 +77,12 @@ func ResolvePackageGraph(input []Manifest) (PackageGraph, error) {
 
 	edges := make(map[string]map[string]bool, len(manifests))
 	dependencies := make(map[string]map[string]bool, len(manifests))
-	for id := range manifests {
+	for _, id := range manifestIDs {
 		edges[id] = map[string]bool{}
 		dependencies[id] = map[string]bool{}
 	}
-	for _, manifest := range manifests {
+	for _, id := range manifestIDs {
+		manifest := manifests[id]
 		for _, dependency := range manifest.Dependencies {
 			switch dependency.Kind {
 			case "required", "optional":
@@ -233,7 +238,8 @@ func validateManifestSetConflicts(manifests map[string]Manifest) error {
 		claims[key] = extensionID
 		return nil
 	}
-	for extensionID, manifest := range manifests {
+	for _, extensionID := range sortedManifestIDs(manifests) {
+		manifest := manifests[extensionID]
 		for _, route := range manifest.Routes {
 			if route.Action != RouteActionReplace {
 				continue
@@ -260,6 +266,15 @@ func validateManifestSetConflicts(manifests map[string]Manifest) error {
 		}
 	}
 	return nil
+}
+
+func sortedManifestIDs(manifests map[string]Manifest) []string {
+	result := make([]string, 0, len(manifests))
+	for id := range manifests {
+		result = append(result, id)
+	}
+	sort.Strings(result)
+	return result
 }
 
 func dependencyTarget(dependency ManifestDependency) string {

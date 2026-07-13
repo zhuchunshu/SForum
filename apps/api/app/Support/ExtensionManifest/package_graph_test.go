@@ -98,6 +98,69 @@ func TestResolvePackageGraphFailures(t *testing.T) {
 	}
 }
 
+func TestResolvePackageGraphFailureDiagnosticsArePermutationStable(t *testing.T) {
+	missingA := graphManifest("graph.a-consumer")
+	missingA.Dependencies = []ManifestDependency{{ID: "graph.a-missing", Version: "^1.0.0", Kind: "required"}}
+	missingZ := graphManifest("graph.z-consumer")
+	missingZ.Dependencies = []ManifestDependency{{ID: "graph.z-missing", Version: "^1.0.0", Kind: "required"}}
+
+	providerA := graphManifest("graph.a-provider")
+	providerA.Dependencies = []ManifestDependency{{Capability: "platform.alpha", Version: "1.0.0", Kind: "provides"}}
+	providerZ := graphManifest("graph.z-provider")
+	providerZ.Dependencies = []ManifestDependency{{Capability: "platform.zeta", Version: "1.0.0", Kind: "provides"}}
+	ambiguousA := graphManifest("graph.b-provider")
+	ambiguousA.Dependencies = []ManifestDependency{{Capability: "platform.alpha", Version: "1.1.0", Kind: "provides"}}
+	ambiguousZ := graphManifest("graph.y-provider")
+	ambiguousZ.Dependencies = []ManifestDependency{{Capability: "platform.zeta", Version: "1.1.0", Kind: "provides"}}
+	consumerA := graphManifest("graph.a-capability-consumer")
+	consumerA.Dependencies = []ManifestDependency{{Capability: "platform.alpha", Version: "^1.0.0", Kind: "required"}}
+	consumerZ := graphManifest("graph.z-capability-consumer")
+	consumerZ.Dependencies = []ManifestDependency{{Capability: "platform.zeta", Version: "^1.0.0", Kind: "required"}}
+
+	tests := []struct {
+		name      string
+		manifests []Manifest
+	}{
+		{name: "missing dependencies", manifests: []Manifest{missingZ, missingA}},
+		{name: "ambiguous providers", manifests: []Manifest{providerZ, ambiguousZ, consumerZ, providerA, ambiguousA, consumerA}},
+		{name: "registry replacement", manifests: []Manifest{graphReplaceManifest("graph.z-replace"), graphReplaceManifest("graph.a-replace")}},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			var want string
+			for iteration := 0; iteration < 100; iteration++ {
+				input := rotateManifests(test.manifests, iteration)
+				_, err := ResolvePackageGraph(input)
+				if err == nil {
+					t.Fatal("expected graph resolution failure")
+				}
+				if iteration == 0 {
+					want = err.Error()
+					continue
+				}
+				if err.Error() != want {
+					t.Fatalf("iteration %d error = %q, want %q", iteration, err, want)
+				}
+			}
+		})
+	}
+}
+
+func rotateManifests(input []Manifest, iteration int) []Manifest {
+	result := append([]Manifest(nil), input...)
+	if len(result) == 0 {
+		return result
+	}
+	offset := iteration % len(result)
+	result = append(result[offset:], result[:offset]...)
+	if iteration%2 == 1 {
+		for left, right := 0, len(result)-1; left < right; left, right = left+1, right-1 {
+			result[left], result[right] = result[right], result[left]
+		}
+	}
+	return result
+}
+
 func graphManifest(id string) Manifest {
 	manifest := versionedTestManifest(ManifestVersionV3)
 	manifest.ID = id
