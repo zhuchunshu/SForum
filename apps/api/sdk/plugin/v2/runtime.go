@@ -11,6 +11,7 @@ import (
 	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
 	pluginwire "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/plugin/v2"
 	protocolwire "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/protocol/v2"
+	"google.golang.org/grpc"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -25,16 +26,17 @@ type ServeOptions = extensionsruntime.ProtocolV2ServerConfig
 type Server struct {
 	pluginwire.UnimplementedPluginRuntimeServiceServer
 
-	mu        sync.RWMutex
-	started   bool
-	identity  *protocolwire.ExtensionIdentity
-	tokenHash [sha256.Size]byte
-	features  []*protocolwire.ProtocolFeature
-	services  []*protocolwire.ServiceDescriptor
-	broker    *plugin.GRPCBroker
-	host      *Host
-	brokerID  uint32
-	now       func() time.Time
+	mu              sync.RWMutex
+	started         bool
+	identity        *protocolwire.ExtensionIdentity
+	tokenHash       [sha256.Size]byte
+	features        []*protocolwire.ProtocolFeature
+	services        []*protocolwire.ServiceDescriptor
+	serviceRegistry *ServiceRegistry
+	broker          *plugin.GRPCBroker
+	host            *Host
+	brokerID        uint32
+	now             func() time.Time
 }
 
 // BindProtocolV2Broker is called by the transport before the runtime service is
@@ -72,6 +74,16 @@ func (s *Server) WithFeatures(features ...*protocolwire.ProtocolFeature) *Server
 func (s *Server) WithServices(services ...*protocolwire.ServiceDescriptor) *Server {
 	s.mu.Lock()
 	s.services = cloneServices(services)
+	s.mu.Unlock()
+	return s
+}
+
+// WithServiceRegistry publishes validated service declarations during
+// handshake and enables the default unary and bidirectional dispatchers.
+// A plugin server may still override either generated RPC explicitly.
+func (s *Server) WithServiceRegistry(registry *ServiceRegistry) *Server {
+	s.mu.Lock()
+	s.serviceRegistry = registry
 	s.mu.Unlock()
 	return s
 }
@@ -122,7 +134,7 @@ func (s *Server) Handshake(_ context.Context, request *protocolwire.HandshakeReq
 	}
 	response.SelectedProtocol = &protocolwire.ProtocolRange{Protocol: protocolName, Major: ProtocolMajor, MinMinor: 0, MaxMinor: 0}
 	response.SelectedFeatures = selectFeatures(request.GetHostFeatures(), s.features)
-	response.Services = cloneServices(s.services)
+	response.Services = serviceHandshakeDescriptors(s.services, s.serviceRegistry)
 	response.TokenExpiresAt = timestamppb.New(now.Add(10 * time.Minute))
 	return response, nil
 }
@@ -149,6 +161,31 @@ func (s *Server) Readiness(_ context.Context, request *protocolwire.ReadinessReq
 	}
 	response.Ready = true
 	return response, nil
+}
+
+func (s *Server) InvokeService(ctx context.Context, request *pluginwire.ServiceRequest) (*pluginwire.ServiceResponse, error) {
+	s.mu.RLock()
+	registry := s.serviceRegistry
+	s.mu.RUnlock()
+	if registry == nil {
+		return s.UnimplementedPluginRuntimeServiceServer.InvokeService(ctx, request)
+	}
+	if detail := s.validateRuntimeContext(request.GetContext()); detail != nil {
+		return &pluginwire.ServiceResponse{
+			Context: responseContext(request.GetContext(), s.nowTime()), Error: detail,
+		}, nil
+	}
+	return registry.InvokeService(ctx, request)
+}
+
+func (s *Server) StreamService(stream grpc.BidiStreamingServer[pluginwire.ServiceStreamFrame, pluginwire.ServiceStreamFrame]) error {
+	s.mu.RLock()
+	registry := s.serviceRegistry
+	s.mu.RUnlock()
+	if registry == nil {
+		return s.UnimplementedPluginRuntimeServiceServer.StreamService(stream)
+	}
+	return registry.streamService(stream, s.validateRuntimeContext)
 }
 
 func (s *Server) validateRuntimeContext(ctx *protocolwire.RequestContext) *protocolwire.ErrorDetail {
