@@ -21,8 +21,11 @@ import (
 
 func TestProtocolV2NegotiatesGRPCAndInvokesTypedHook(t *testing.T) {
 	extension := protocolV2TestExtension(t, "v2")
+	gateway, hostState := newProtocolV2HostGateway()
+	t.Cleanup(func() { _ = gateway.Close() })
 	starter := extensionsruntime.NewProtocolStarter(extensionsruntime.ProtocolStarterConfig{
-		Trust: staticRuntimeTrust{identity: extensions.RuntimeTrustIdentity{TrustGrantID: "41", ImpactDigest: "impact-41"}},
+		Trust:   staticRuntimeTrust{identity: extensions.RuntimeTrustIdentity{TrustGrantID: "41", ImpactDigest: "impact-41"}},
+		HostAPI: gateway,
 	})
 	target, err := starter.Start(context.Background(), extension)
 	if err != nil {
@@ -31,6 +34,9 @@ func TestProtocolV2NegotiatesGRPCAndInvokesTypedHook(t *testing.T) {
 	defer starter.Stop(context.Background(), extension)
 	if target.BaseURL != "" {
 		t.Fatalf("v2 route target must use gRPC registry, got %#v", target)
+	}
+	if gateway.BaseURL() != "" {
+		t.Fatalf("v2 must not start the legacy loopback gateway: %s", gateway.BaseURL())
 	}
 
 	result := starter.InvokeHook(context.Background(), extension, extensionsruntime.HookInput{
@@ -41,10 +47,72 @@ func TestProtocolV2NegotiatesGRPCAndInvokesTypedHook(t *testing.T) {
 	if !result.OK || result.Patch["title"] != "after-v2" {
 		t.Fatalf("unexpected v2 hook result: %#v", result)
 	}
+	jobs, events := hostState.snapshot()
+	if len(jobs) != 1 || jobs[0] != "runtime.v2:demo.sync" {
+		t.Fatalf("host jobs = %#v", jobs)
+	}
+	if len(events) != 1 || events[0].Metadata["via"] != "sforum.host/v2" || events[0].Action != "extension.runtime.v2.hook.completed" {
+		t.Fatalf("host audit events = %#v", events)
+	}
 	telemetry := starter.ProtocolTelemetry(extension.ID)
 	if telemetry.ProtocolVersion != 2 || telemetry.Transport != "grpc" || telemetry.Deprecated ||
 		telemetry.StartCount != 1 || telemetry.CallCount != 1 || telemetry.LastCallAt == nil {
 		t.Fatalf("unexpected v2 telemetry: %#v", telemetry)
+	}
+}
+
+func TestProtocolV2HostBrokerRejectsInvalidCalls(t *testing.T) {
+	extension := protocolV2TestExtension(t, "v2")
+	gateway, _ := newProtocolV2HostGateway()
+	t.Cleanup(func() { _ = gateway.Close() })
+	starter := extensionsruntime.NewProtocolStarter(extensionsruntime.ProtocolStarterConfig{
+		Trust:   staticRuntimeTrust{identity: extensions.RuntimeTrustIdentity{TrustGrantID: "41", ImpactDigest: "impact-41"}},
+		HostAPI: gateway,
+	})
+	if _, err := starter.Start(context.Background(), extension); err != nil {
+		t.Fatalf("start protocol v2 plugin: %v", err)
+	}
+	defer starter.Stop(context.Background(), extension)
+
+	for _, mode := range []string{"stale_identity", "forged_authority", "expired_deadline", "cancelled", "oversized"} {
+		t.Run(mode, func(t *testing.T) {
+			result := starter.InvokeHook(context.Background(), extension, extensionsruntime.HookInput{
+				Name: "topic.before_create", Kind: "filter", DeliveryID: 41,
+				CorrelationID: "trace-" + mode, Timeout: 2 * time.Second,
+				Payload: map[string]any{"title": "before", "mode": mode}, PatchFields: []string{"title"},
+			})
+			if !result.OK {
+				t.Fatalf("expected host rejection to be observed by plugin, got %#v", result)
+			}
+		})
+	}
+}
+
+func TestProtocolV2HostBrokerRebindsAfterRestart(t *testing.T) {
+	extension := protocolV2TestExtension(t, "v2")
+	gateway, _ := newProtocolV2HostGateway()
+	t.Cleanup(func() { _ = gateway.Close() })
+	starter := extensionsruntime.NewProtocolStarter(extensionsruntime.ProtocolStarterConfig{
+		Trust:   staticRuntimeTrust{identity: extensions.RuntimeTrustIdentity{TrustGrantID: "41", ImpactDigest: "impact-41"}},
+		HostAPI: gateway,
+	})
+	if _, err := starter.Start(context.Background(), extension); err != nil {
+		t.Fatal(err)
+	}
+	if err := starter.Stop(context.Background(), extension); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := starter.Start(context.Background(), extension); err != nil {
+		t.Fatalf("restart protocol v2 plugin: %v", err)
+	}
+	defer starter.Stop(context.Background(), extension)
+	result := starter.InvokeHook(context.Background(), extension, extensionsruntime.HookInput{
+		Name: "topic.before_create", Kind: "filter", DeliveryID: 42,
+		CorrelationID: "trace-restart", Timeout: 2 * time.Second,
+		Payload: map[string]any{"title": "before"}, PatchFields: []string{"title"},
+	})
+	if !result.OK || starter.ProtocolTelemetry(extension.ID).StartCount != 2 {
+		t.Fatalf("restart result = %#v, telemetry = %#v", result, starter.ProtocolTelemetry(extension.ID))
 	}
 }
 
@@ -97,30 +165,46 @@ type protocolV2Helper struct {
 	*pluginv2sdk.Server
 }
 
-func (s *protocolV2Helper) InvokeHook(_ context.Context, request *pluginwire.HookRequest) (*pluginwire.HookResponse, error) {
-	ctx := request.GetContext()
-	identity := ctx.GetExtension()
+func (s *protocolV2Helper) InvokeHook(ctx context.Context, request *pluginwire.HookRequest) (*pluginwire.HookResponse, error) {
+	requestContext := request.GetContext()
+	identity := requestContext.GetExtension()
 	if identity.GetExtensionId() != "runtime.v2" || identity.GetArtifactDigest() == "" ||
-		identity.GetTrustGrantId() != "41" || ctx.GetLocale() != "und" || ctx.GetDeadline() == nil {
+		identity.GetTrustGrantId() != "41" || requestContext.GetLocale() != "und" || requestContext.GetDeadline() == nil {
 		return &pluginwire.HookResponse{Error: &protocolwire.ErrorDetail{
 			Code: protocolwire.ErrorCode_ERROR_CODE_INVALID_ARGUMENT, Reason: "fixture.context_invalid", Message: "typed runtime context is incomplete",
 		}}, nil
 	}
-	if request.GetPayload().GetSchemaId() != "sforum.hook.topic.before_create" || len(ctx.GetGrantedAuthority()) != 1 ||
-		ctx.GetGrantedAuthority()[0].GetKey() != capabilities.HostAPI {
+	if request.GetPayload().GetSchemaId() != "sforum.hook.topic.before_create" || !hasProtocolV2Authority(requestContext, capabilities.HostAPI) {
 		return &pluginwire.HookResponse{Error: &protocolwire.ErrorDetail{
 			Code: protocolwire.ErrorCode_ERROR_CODE_PERMISSION_DENIED, Reason: "fixture.authority_invalid", Message: "authority or payload contract is incomplete",
 		}}, nil
+	}
+	mode, _ := request.GetPayload().GetValue().AsMap()["mode"].(string)
+	if mode == "" {
+		if err := s.invokeHostCallbacks(ctx, request); err != nil {
+			return nil, err
+		}
+	} else if err := s.observeHostRejection(ctx, request, mode); err != nil {
+		return nil, err
 	}
 	patch, err := structpb.NewStruct(map[string]any{"title": "after-v2"})
 	if err != nil {
 		return nil, err
 	}
 	return &pluginwire.HookResponse{
-		Context:  &protocolwire.ResponseContext{RequestId: ctx.GetRequestId(), Extension: identity},
+		Context:  &protocolwire.ResponseContext{RequestId: requestContext.GetRequestId(), Extension: identity},
 		Accepted: true,
 		Patch:    &protocolwire.TypedDocument{SchemaId: "sforum.hook.topic.before_create.patch", SchemaVersion: "1", Value: patch},
 	}, nil
+}
+
+func hasProtocolV2Authority(ctx *protocolwire.RequestContext, key string) bool {
+	for _, grant := range ctx.GetGrantedAuthority() {
+		if grant.GetKey() == key {
+			return true
+		}
+	}
+	return false
 }
 
 type protocolV1Helper struct{ pluginsdk.Noop }
@@ -148,7 +232,14 @@ func protocolV2TestExtension(t *testing.T, helperMode string) extensions.Extensi
 		ID: "runtime.v2", Name: "Runtime V2", Version: "1.0.0", Type: extensions.TypePlugin,
 		Status: extensions.StatusEnabled, Source: extensions.SourceUploaded,
 		PackageDigest: strings.Repeat("a", 64), PackagePath: packageRoot,
-		CapabilityGrants: []extensions.CapabilityGrant{{Key: capabilities.HostAPI, Risk: capabilities.RiskLow}},
+		CapabilityGrants: []extensions.CapabilityGrant{
+			{Key: capabilities.HostAPI, Risk: capabilities.RiskLow},
+			{Key: capabilities.SettingsOwn, Risk: capabilities.RiskLow},
+			{Key: capabilities.PermissionsCheck, Risk: capabilities.RiskLow},
+			{Key: capabilities.UsersRead, Risk: capabilities.RiskMedium},
+			{Key: capabilities.JobsEnqueue, Risk: capabilities.RiskMedium},
+			{Key: capabilities.AuditAppend, Risk: capabilities.RiskMedium},
+		},
 		Manifest: extensions.Manifest{
 			ManifestVersion: 3, ID: "runtime.v2", Version: "1.0.0", Type: extensions.TypePlugin,
 			Backend: extensions.ManifestBackend{
