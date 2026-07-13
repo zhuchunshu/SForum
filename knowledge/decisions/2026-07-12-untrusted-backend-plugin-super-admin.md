@@ -2,7 +2,15 @@
 
 ## Status
 
-Accepted
+Accepted v1 safety fix; install/confirmation flow revised by V3.
+
+The active target is
+`2026-07-13-trusted-plugin-theme-platform-v3.md`. The super-admin boundary for
+first execution, migrations, executable upgrades, and new high-risk authority
+remains. V3 changes static upload/install: delegated managers may validate and
+store an inert package because that operation executes no package code;
+executable `install.plan`/`install` are deferred to the exact-artifact confirmed
+first-enable transaction.
 
 ## Context
 

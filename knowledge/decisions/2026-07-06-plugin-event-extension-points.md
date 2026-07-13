@@ -2,7 +2,14 @@
 
 ## Status
 
-Accepted and implemented as v1.
+Accepted and implemented as v1; namespace and replacement limits revised by V3.
+
+The active target is
+`2026-07-13-trusted-plugin-theme-platform-v3.md`. The current host event catalog
+and v1 delivery behavior remain compatibility inputs. V3 additionally permits
+versioned plugin-defined hooks and full Route Registry composition after exact
+artifact trust; the statements below that forbid those behaviors are historical
+v1 boundaries, not the final platform target.
 
 ## Context
 

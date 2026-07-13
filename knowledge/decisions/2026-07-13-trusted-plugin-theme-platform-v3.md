@@ -1,7 +1,13 @@
 # Trusted Plugin And Theme Platform V3
 
 Date: 2026-07-13  
-Status: Accepted direction; implementation has not started
+Status: Accepted active direction; P0 implementation started 2026-07-13
+
+P0 governance, initial stable identities, Extension Surface Matrix, performance
+baseline, and the authoritative 99-row traceability matrix live under
+`docs/extensions/v3/` and
+`knowledge/plans/2026-07-13-trusted-plugin-theme-platform-v3-traceability.md`.
+Later runtime phases remain unimplemented until their phase handoffs say so.
 
 ## Context
 

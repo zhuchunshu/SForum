@@ -2,7 +2,14 @@
 
 ## Status
 
-Accepted and implemented (first slice). Full F2.3 / F2.4 remain open.
+Accepted and implemented compatibility surface; superseded target is Host API v2.
+
+The active target is
+`2026-07-13-trusted-plugin-theme-platform-v3.md`. Host API v1 and its capability
+catalog remain supported during migration, but boolean
+`confirmCapabilities: true` is replaced by the P1 exact-artifact challenge and
+Host API v2 gRPC/Protobuf becomes the long-term protocol in P3. Capability copy
+must not imply an OS sandbox for already trusted code.
 
 ## Context
 

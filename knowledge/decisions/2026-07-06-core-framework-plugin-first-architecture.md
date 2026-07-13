@@ -2,7 +2,14 @@
 
 ## Status
 
-Accepted.
+Accepted foundation; route/guard/database restrictions revised by V3.
+
+The active target is
+`2026-07-13-trusted-plugin-theme-platform-v3.md`. This decision's plugin-first
+product ownership remains authoritative. Its prohibition on trusted route,
+guard, service, and raw database replacement describes the v1 implementation
+only; V3 permits those behaviors through versioned registries after exact-
+artifact `super_admin` trust. Safe mode and out-of-band recovery remain closed.
 
 ## Context
 

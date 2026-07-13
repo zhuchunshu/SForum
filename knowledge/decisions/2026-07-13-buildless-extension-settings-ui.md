@@ -3,6 +3,12 @@
 Date: 2026-07-13
 Status: Implemented (P0–P6)
 
+V3 preservation note: the active
+`2026-07-13-trusted-plugin-theme-platform-v3.md` keeps Settings Document Schema/
+Actions, prebuilt admin micro-frontends, exact-digest trust, and mandatory
+Schema fallback. V3 adds separately trusted public L2 and Component/Admin
+Surface registries; it does not restore operator builds or runtime SFC compile.
+
 ## Context
 
 SForum already stores plugin and theme settings in `extension_settings` and

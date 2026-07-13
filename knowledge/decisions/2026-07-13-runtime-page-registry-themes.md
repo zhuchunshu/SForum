@@ -8,6 +8,13 @@ close** (2026-07-13). See:
 - Security remediation: `knowledge/sessions/2026-07-13-runtime-page-registry-codex-remediation.md`
 - Round-2: `knowledge/sessions/2026-07-13-runtime-page-registry-round2-remediation.md`
 
+The implemented Page Registry remains a V3 migration input, but its constrained
+target is superseded by
+`2026-07-13-trusted-plugin-theme-platform-v3.md`: V3 uses Go `html/template`,
+complete theme-owned public presentation, trusted digest-bound L2, plugin
+template overrides, and trusted Route Registry replacement of declared API/admin
+routes. Only safe-mode/pre-plugin health/CLI recovery stay non-overridable.
+
 ### Round-2 addenda (normative)
 
 1. **Route matching** uses canonical signatures (param names do not distinguish routes)

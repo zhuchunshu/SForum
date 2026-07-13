@@ -1,6 +1,6 @@
 # Extensions Module
 
-## Accepted V3 Target (Implementation Not Started)
+## Accepted V3 Target (P0 In Progress)
 
 The accepted target, including the canonical 99-row comparison and detailed
 architecture mind map, is documented in
@@ -372,6 +372,10 @@ and plugin runtime v1.
   `user.before_register` validate (E1.3), `attachment.before_upload` validate
   (E1.4). Lifecycle and post-commit observes remain:
   `user.registered` / `topic.*` / `comment.created` / `attachment.uploaded`.
+
+  This is the current v1 boundary only. V3 replaces it with exact-artifact
+  trusted Route/Hook/Service registries; see the accepted target at the top of
+  this note.
 - Declarative contributions are separate from events, filters, provider slots,
   and routes. Contributions are ordered descriptors that a host-owned consumer
   interprets; they do not execute code, override routes, render raw HTML, or

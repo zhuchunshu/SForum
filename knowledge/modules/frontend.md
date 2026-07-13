@@ -1,6 +1,6 @@
 # Frontend Module
 
-## Accepted V3 Target (Implementation Not Started)
+## Accepted V3 Target (P0 In Progress)
 
 The accepted target, including the canonical template comparison and detailed
 architecture mind map, is documented in

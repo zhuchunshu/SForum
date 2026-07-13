@@ -196,6 +196,12 @@ UNIQUE 索引（先去重），创建/改标题时 `Service.ensureUniqueTopicSlu
 
 ## Plugin Boundary
 
+The bullets below describe current v1 enforcement. The accepted V3 target in
+`../decisions/2026-07-13-trusted-plugin-theme-platform-v3.md` permits trusted
+route/guard/query/data replacement through versioned registries after exact-
+artifact confirmation. Core-owned handlers remain policy-authoritative; a
+trusted replacement or custom guard owns the policy contract it declares.
+
 - Core owns category groups, categories, tag semantics, topic-tag joins, public
   routes, admin routes, runtime settings, and permission checks.
 - Plugins may react through explicit forum events and future provider slots, but

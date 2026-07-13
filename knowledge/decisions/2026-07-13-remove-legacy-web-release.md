@@ -3,6 +3,12 @@
 Date: 2026-07-13
 Status: Implemented
 
+V3 preservation note: the active
+`2026-07-13-trusted-plugin-theme-platform-v3.md` keeps this decision's removal
+of operator builds, runtime dependency installation, Nuxt Layer switching, and
+Web Release. V3 public/admin L2 remains author-prebuilt, package-local,
+digest-authorized ESM loaded without rebuilding SForum.
+
 ## Context
 
 SForum has not shipped. The repository briefly carried two extension frontend

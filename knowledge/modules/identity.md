@@ -207,9 +207,11 @@ Initial identity foundation is implemented.
   when it maps to a distinct admin-grantable capability, then update seed data,
   permission catalog text, API contracts when relevant, and frontend permission
   labels.
-- Keep permission checks on the API side for every protected operation. Nuxt
+- Keep permission checks on the API side for every core-owned protected operation. Nuxt
   middleware, hidden menu items, disabled buttons, and localized denial messages
-  are helpful UI affordances, not security boundaries.
+  are helpful UI affordances, not security boundaries. Under V3, an explicitly
+  trusted replacement handler or custom guard owns its declared authorization
+  contract and must ship allowed/denied tests and trust disclosure.
 - Cover both allowed and denied paths in tests for unsafe endpoints and admin
   operations. Include direct user allow/deny behavior when a feature depends on
   effective permissions.

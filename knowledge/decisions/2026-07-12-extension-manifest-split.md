@@ -2,7 +2,12 @@
 
 ## Status
 
-Accepted and implemented (2026-07-12).
+Accepted and implemented authoring foundation; expanded by Manifest V3.
+
+The single entrypoint plus deterministic include merge remains authoritative.
+`2026-07-13-trusted-plugin-theme-platform-v3.md` expands the shard catalog and
+contract schemas in P2; removed Web Release/Nuxt Layer fields in historical
+examples are not restored.
 
 ## Context
 
