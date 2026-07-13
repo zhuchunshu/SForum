@@ -1580,29 +1580,51 @@ ExecutableTrustImpact:
   - extensionType
   - source
   - packageDigest
+  - manifestContract
   - artifactDigests
   - binaries
+  - backend
   - routes
   - guards
+  - guardDeclarations
   - hooks
   - events
   - migrations
+  - migrationDeclarations
   - providers
   - jobs
   - schedules
   - components
+  - registryComponents
+  - templates
+  - assets
+  - content
+  - database
+  - cache
+  - services
+  - commands
+  - adminSurfaces
+  - queries
+  - identity
+  - permissionDefinitions
+  - media
+  - navigation
+  - regions
   - contributions
   - capabilities
   - permissions
   - requiredFeatures
   - dependencies
+  - lifecycle
+  - openapi
+  - packageFiles
   - requestedAuthority
   - contracts
   - digest
   properties:
     schemaVersion:
       type: string
-      const: sforum.trust-impact@1
+      const: sforum.trust-impact@2
     action:
       type: string
       enum: [enable]
@@ -1613,6 +1635,9 @@ ExecutableTrustImpact:
     source:
       "$ref": "#/ExtensionSource"
     packageDigest: { type: string, pattern: '^[0-9a-f]{64}$' }
+    manifestContract:
+      type: string
+      pattern: '^sforum\.manifest@[1-3]$'
     artifactDigests:
       type: object
       additionalProperties:
@@ -1622,6 +1647,8 @@ ExecutableTrustImpact:
       type: array
       items:
         "$ref": "#/ExecutableTrustArtifact"
+    backend:
+      "$ref": "#/ExecutableTrustBackend"
     routes:
       type: array
       items:
@@ -1630,6 +1657,10 @@ ExecutableTrustImpact:
       type: array
       items:
         "$ref": "#/ExecutableTrustGuard"
+    guardDeclarations:
+      type: array
+      items:
+        "$ref": "./extensions-v3-registry.yaml#/ExtensionManifestGuard"
     hooks:
       type: array
       items:
@@ -1642,6 +1673,10 @@ ExecutableTrustImpact:
       type: array
       items:
         "$ref": "#/ExecutableTrustMigration"
+    migrationDeclarations:
+      type: array
+      items:
+        "$ref": "#/ExtensionManifestMigration"
     providers:
       type: array
       items:
@@ -1652,11 +1687,72 @@ ExecutableTrustImpact:
         "$ref": "#/ExecutableTrustJob"
     schedules:
       type: array
-      items: { type: string }
+      items:
+        "$ref": "./extensions-v3-registry.yaml#/ExtensionManifestSchedule"
     components:
       type: array
       items:
         "$ref": "#/PrebuiltSettingsComponent"
+    registryComponents:
+      type: array
+      items:
+        "$ref": "./extensions-v3-registry.yaml#/ExtensionManifestComponent"
+    templates:
+      type: array
+      items:
+        "$ref": "./extensions-v3-registry.yaml#/ExtensionManifestTemplate"
+    assets:
+      type: array
+      items:
+        "$ref": "./extensions-v3-registry.yaml#/ExtensionManifestAsset"
+    content:
+      type: array
+      items:
+        "$ref": "./extensions-v3-registry.yaml#/ExtensionManifestContent"
+    database:
+      oneOf:
+      - "$ref": "./extensions-v3-registry.yaml#/ExtensionManifestDatabase"
+      - type: 'null'
+    cache:
+      type: array
+      items:
+        "$ref": "./extensions-v3-registry.yaml#/ExtensionManifestCache"
+    services:
+      type: array
+      items:
+        "$ref": "./extensions-v3-registry.yaml#/ExtensionManifestService"
+    commands:
+      type: array
+      items:
+        "$ref": "./extensions-v3-registry.yaml#/ExtensionManifestCommand"
+    adminSurfaces:
+      type: array
+      items:
+        "$ref": "./extensions-v3-platform.yaml#/ExtensionManifestAdminSurface"
+    queries:
+      type: array
+      items:
+        "$ref": "./extensions-v3-platform.yaml#/ExtensionManifestQuery"
+    identity:
+      oneOf:
+      - "$ref": "./extensions-v3-platform.yaml#/ExtensionManifestIdentity"
+      - type: 'null'
+    permissionDefinitions:
+      type: array
+      items:
+        "$ref": "./extensions-v3-platform.yaml#/ExtensionManifestPermissionDefinition"
+    media:
+      type: array
+      items:
+        "$ref": "./extensions-v3-platform.yaml#/ExtensionManifestMediaPipeline"
+    navigation:
+      type: array
+      items:
+        "$ref": "./extensions-v3-platform.yaml#/ExtensionManifestNavigation"
+    regions:
+      type: array
+      items:
+        "$ref": "./extensions-v3-platform.yaml#/ExtensionManifestRegion"
     contributions:
       type: array
       items:
@@ -1675,7 +1771,19 @@ ExecutableTrustImpact:
     dependencies:
       type: array
       items:
-        "$ref": "#/ExecutableTrustDependency"
+        "$ref": "./extensions-v3-registry.yaml#/ExtensionManifestDependency"
+    lifecycle:
+      oneOf:
+      - "$ref": "./extensions-v3-registry.yaml#/ExtensionManifestLifecycle"
+      - type: 'null'
+    openapi:
+      type: array
+      items:
+        "$ref": "./extensions-v3-registry.yaml#/ExtensionManifestOpenAPIFragment"
+    packageFiles:
+      type: array
+      items:
+        "$ref": "./extensions-v3-registry.yaml#/ExtensionManifestPackageFile"
     requestedAuthority:
       "$ref": "#/ExecutableTrustAuthority"
     contracts:
@@ -1688,6 +1796,15 @@ ExecutableTrustArtifact:
     kind: { type: string }
     path: { type: string }
     digest: { type: string, pattern: '^[0-9a-f]{64}$' }
+ExecutableTrustBackend:
+  type: object
+  required: [entry, rpc]
+  properties:
+    entry: { type: string }
+    rpc: { type: string }
+    protocolVersion: { type: integer, minimum: 0, maximum: 2 }
+    digest: { type: string, pattern: '^[0-9a-f]{64}$' }
+    hostApiVersion: { type: string }
 ExecutableTrustMigration:
   type: object
   required: [path, digest]
@@ -1709,13 +1826,6 @@ ExecutableTrustJob:
   required: [name]
   properties:
     name: { type: string }
-ExecutableTrustDependency:
-  type: object
-  required: [name, version]
-  properties:
-    name: { type: string }
-    version: { type: string }
-    integrity: { type: string }
 ExecutableTrustAuthority:
   type: object
   required:

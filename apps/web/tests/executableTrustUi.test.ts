@@ -29,12 +29,16 @@ describe('V3 exact-artifact trust operator flow', () => {
 
   test('renders every canonical impact category and exact digests', () => {
     for (const field of [
-      'artifactDigests', 'requestedAuthority', 'contracts', 'binaries', 'routes', 'guards',
-      'hooks', 'events', 'migrations', 'providers', 'jobs', 'schedules', 'components',
-      'contributions', 'capabilities', 'permissions', 'requiredFeatures', 'dependencies'
+      'artifactDigests', 'requestedAuthority', 'contracts', 'binaries', 'backend', 'routes', 'guards',
+      'guardDeclarations', 'hooks', 'events', 'migrations', 'migrationDeclarations', 'providers', 'jobs',
+      'schedules', 'components', 'registryComponents', 'templates', 'assets', 'content', 'database', 'cache',
+      'services', 'commands', 'adminSurfaces', 'queries', 'identity', 'permissionDefinitions', 'media',
+      'navigation', 'regions', 'contributions', 'capabilities', 'permissions', 'requiredFeatures',
+      'dependencies', 'lifecycle', 'openapi', 'packageFiles'
     ]) {
       expect(impact).toContain(`key: '${field}'`)
     }
+    expect(impact).toContain('impact.manifestContract')
     expect(impact).toContain('impact.packageDigest')
     expect(impact).toContain('impact.digest')
     expect(impact).toContain('JSON.stringify(value, null, 2)')
