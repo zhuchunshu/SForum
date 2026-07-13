@@ -44,7 +44,7 @@ func (c *protocolV2Client) RunLifecycleContext(parent context.Context, invocatio
 	stream, err := c.client.RunLifecycle(ctx, &protocolv2.LifecycleRequest{
 		Context: requestContext, Action: invocation.Action, PlanVersion: invocation.PlanVersion,
 		StepId: invocation.StepID, Checkpoint: invocation.Checkpoint,
-		Input: cloneLifecycleDocument(invocation.Input), DryRun: invocation.DryRun,
+		Input: cloneLifecycleDocument(invocation.Input), DryRun: invocation.DryRun, Forced: invocation.Forced,
 	})
 	if err != nil {
 		if ctx.Err() != nil {
@@ -77,6 +77,11 @@ func (c *protocolV2Client) RunLifecycleContext(parent context.Context, invocatio
 		progress, terminalError, validateErr := validator.accept(update)
 		if validateErr != nil {
 			return result, validateErr
+		}
+		if invocation.OnProgress != nil {
+			if callbackErr := invocation.OnProgress(cloneLifecycleProgress(progress)); callbackErr != nil {
+				return result, callbackErr
+			}
 		}
 		result.Progress = append(result.Progress, progress)
 		result.State = progress.State

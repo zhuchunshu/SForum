@@ -2,6 +2,7 @@ package extensionsruntime
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
@@ -50,6 +51,8 @@ type LifecycleInvocation struct {
 	Checkpoint  string
 	Input       *protocolv2.TypedDocument
 	DryRun      bool
+	Forced      bool
+	OnProgress  func(LifecycleProgress) error
 }
 
 type LifecycleProgress struct {
@@ -107,6 +110,25 @@ func (e *LifecycleRemoteError) Unwrap() error {
 		return context.DeadlineExceeded
 	default:
 		return nil
+	}
+}
+
+func (e *LifecycleRemoteError) LifecycleCoordinatorFailure() extensions.LifecycleExecutionError {
+	if e == nil {
+		return extensions.LifecycleExecutionError{}
+	}
+	var retryAfter *time.Time
+	if !e.RetryAfter.IsZero() {
+		value := e.RetryAfter
+		retryAfter = &value
+	}
+	var metadata json.RawMessage
+	if len(e.Metadata) > 0 {
+		metadata, _ = json.Marshal(e.Metadata)
+	}
+	return extensions.LifecycleExecutionError{
+		Code: e.Code.String(), Reason: e.Reason, Message: e.Message,
+		Retryable: e.Retryable, RetryAfter: retryAfter, Metadata: metadata,
 	}
 }
 
@@ -207,4 +229,10 @@ func cloneLifecycleDocument(value *protocolv2.TypedDocument) *protocolv2.TypedDo
 	return proto.Clone(value).(*protocolv2.TypedDocument)
 }
 
+func cloneLifecycleProgress(value LifecycleProgress) LifecycleProgress {
+	value.Result = cloneLifecycleDocument(value.Result)
+	return value
+}
+
 var _ error = (*LifecycleRemoteError)(nil)
+var _ extensions.LifecycleCoordinatorFailureCarrier = (*LifecycleRemoteError)(nil)

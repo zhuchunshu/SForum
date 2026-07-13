@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -26,7 +27,13 @@ func TestProtocolV2LifecycleAdapterAcrossRealSubprocess(t *testing.T) {
 	starter, extension := p4LifecycleStart(t, "v2")
 
 	t.Run("exact invocation and successful progress", func(t *testing.T) {
-		result, err := starter.RunLifecycle(context.Background(), extension, p4LifecycleInvocation(t, "success"))
+		invocation := p4LifecycleInvocation(t, "success")
+		callbackStates := make([]extensionsruntime.LifecycleProgressState, 0, 3)
+		invocation.OnProgress = func(progress extensionsruntime.LifecycleProgress) error {
+			callbackStates = append(callbackStates, progress.State)
+			return nil
+		}
+		result, err := starter.RunLifecycle(context.Background(), extension, invocation)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -44,6 +51,9 @@ func TestProtocolV2LifecycleAdapterAcrossRealSubprocess(t *testing.T) {
 			if result.Progress[index].State != state {
 				t.Fatalf("progress %d state = %s, want %s", index, result.Progress[index].State, state)
 			}
+		}
+		if !slices.Equal(callbackStates, wantStates) {
+			t.Fatalf("callback states = %#v", callbackStates)
 		}
 	})
 
@@ -232,17 +242,22 @@ func (s *p4LifecycleServer) RunLifecycle(request *protocolwire.LifecycleRequest,
 func p4LifecycleHandler(ctx context.Context, request *protocolwire.LifecycleRequest, progress *pluginv2sdk.ProgressStream) error {
 	values := request.GetInput().GetValue().AsMap()
 	mode, _ := values["mode"].(string)
+	adapterMode := strings.HasPrefix(mode, "adapter-")
 	expectedAction := protocolwire.LifecycleAction_LIFECYCLE_ACTION_ENABLE
 	if raw, ok := values["expectedAction"].(float64); ok {
 		expectedAction = protocolwire.LifecycleAction(int32(raw))
+	}
+	expectedInputSchema := "p4.lifecycle.input"
+	if adapterMode {
+		expectedInputSchema = "p4.lifecycle"
 	}
 	if request.GetContext().GetExtension().GetExtensionId() != "p4.lifecycle.fixture" ||
 		request.GetContext().GetExtension().GetArtifactDigest() != strings.Repeat("d", 64) ||
 		request.GetContext().GetExtension().GetTrustGrantId() != "p4-grant" ||
 		request.GetAction() != expectedAction ||
 		request.GetPlanVersion() != "p4.lifecycle@1" || request.GetStepId() != "enable-primary" ||
-		request.GetCheckpoint() != "resume-7" || request.GetInput().GetSchemaId() != "p4.lifecycle.input" ||
-		request.GetInput().GetSchemaVersion() != "1" || !request.GetDryRun() {
+		request.GetCheckpoint() != "resume-7" || request.GetInput().GetSchemaId() != expectedInputSchema ||
+		request.GetInput().GetSchemaVersion() != "1" || request.GetDryRun() == adapterMode || request.GetForced() != adapterMode {
 		return &pluginv2sdk.RuntimeStreamError{
 			Code: protocolwire.ErrorCode_ERROR_CODE_INVALID_ARGUMENT, Reason: "p4.lifecycle.request_invalid",
 			Message: "Lifecycle request did not preserve the exact invocation contract.",
@@ -300,6 +315,16 @@ func p4LifecycleHandler(ctx context.Context, request *protocolwire.LifecycleRequ
 		if err := os.WriteFile(ready, []byte("ready"), 0o600); err != nil {
 			return err
 		}
+		<-ctx.Done()
+		if err := os.WriteFile(cancelled, []byte(ctx.Err().Error()), 0o600); err != nil {
+			return err
+		}
+		return ctx.Err()
+	case "adapter-callback-cancel":
+		if err := send(protocolwire.ProgressState_PROGRESS_STATE_PLANNED, 0, 2, request.GetCheckpoint()); err != nil {
+			return err
+		}
+		cancelled, _ := values["cancelledMarker"].(string)
 		<-ctx.Done()
 		if err := os.WriteFile(cancelled, []byte(ctx.Err().Error()), 0o600); err != nil {
 			return err
