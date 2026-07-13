@@ -1,6 +1,6 @@
 # Extensions Module
 
-## Accepted V3 Target (P0-P1 Complete, P2 Next)
+## Accepted V3 Target (P0-P1 Complete, P2 Active)
 
 The accepted target, including the canonical 99-row comparison and detailed
 architecture mind map, is documented in
@@ -44,6 +44,15 @@ Host/Frontend contracts, and dependencies. Delegated managers retain inert
 upload and static preview, while only an active `super_admin` may authorize
 first execution. Host-owned Safe Mode, PostgreSQL-only recovery commands,
 startup-attempt containment, and trust audit events are operational.
+
+P2 now implements explicit Manifest V3 versioning, all sharded Registry and
+platform declaration families, exact `packageFiles` SHA-256 validation,
+required/optional/conflict/provides graph resolution, embedded Draft 2020-12
+JSON Schema, modular OpenAPI, V3 CLI scaffolds/digest refresh, fourteen
+authoritative fixtures, and canonical `sforum.trust-impact@2` disclosure. The
+generated author catalog is `docs/extensions/catalogs/manifest-v3.md`. These
+contracts describe later runtime phases; V3 validation alone does not activate
+an unimplemented Registry family.
 
 ## Purpose
 
@@ -558,6 +567,12 @@ envelope with reason `extension.manifest_invalid`.
 - `cd apps/api && go run ./cmd/sforum extension validate <package-dir>`
   — loads via `LoadPackage` (resolves `includes`), prints summary; `--json`
   prints the merged manifest.
+- `cd apps/api && go run ./cmd/sforum extension digest --write <package-dir>`
+  — refreshes inline Manifest V3 `packageFiles` digests and revalidates.
+- `cd apps/api && go run ./cmd/sforum extension test <package-dir>`
+  — runs package/schema, host catalog, and backend contract checks.
+- `cd apps/api && go run ./cmd/sforum extension docs generate --check`
+  — verifies generated host and Manifest V3 author catalogs.
 
 Both make commands support interactive Huh forms and `--no-interaction`
 flag-driven generation. Default output is `extensions/dev/{plugins,themes}/{id}`;

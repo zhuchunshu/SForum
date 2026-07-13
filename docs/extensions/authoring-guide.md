@@ -10,7 +10,7 @@ schedules.
 
 | Surface | Use for |
 | --- | --- |
-| Manifest `sforum.extension.json` (+ optional `includes`) | Identity, settings, routes, events, jobs, providers, contributions, capabilities |
+| Manifest V3 `sforum.extension.json` (+ optional `includes`) | Versioned Registry/platform declarations and exact package-file identity |
 | Go SDK `github.com/zhuchunshu/sforum/apps/api/sdk/plugin` | Backend `Serve`, Host API client, read-only catalogs, contract test helpers |
 | Host API `sforum.host/v1` | Permission checks, own settings, enqueue declared jobs, audit, safe user reads |
 | go-plugin RPC (`Health`, `RouteTarget`, `InvokeHook`, `SendMail`, `Storage*`) | Process protocol the host starts and health-checks |
@@ -37,6 +37,9 @@ go run ./cmd/sforum make:plugin \
 
 # Contract checks (catalogs, capabilities, backend entry)
 go run ./cmd/sforum extension test --allow-scaffold /tmp/acme.demo
+
+# After changing packaged files, refresh exact digests and revalidate
+go run ./cmd/sforum extension digest --write /tmp/acme.demo
 
 # After you change host catalogs, refresh docs
 go run ./cmd/sforum extension docs generate
@@ -73,6 +76,75 @@ func main() { pluginsdk.Serve(myPlugin{}) }
 
 Build the executable to the path declared in `backend.entry` (usually
 `backend/plugin`) before enabling the plugin in admin.
+
+## Manifest V3 package contract
+
+All new CLI scaffolds emit explicit `manifestVersion: 3`. The complete generated
+root-field catalog is [manifest-v3.md](./catalogs/manifest-v3.md); the embedded
+Draft 2020-12 schema and Go semantic validator are both authoritative.
+
+Version handling is fail-closed:
+
+- omitted `manifestVersion` remains the legacy V1 contract;
+- explicit V2 remains accepted for compatibility;
+- V3-only declarations require explicit version 3 and never upgrade a V1/V2
+  package implicitly;
+- future versions are rejected until the host implements them.
+
+Large manifests may shard supported families through `includes`. A family must
+be declared either at the root or through its include, never both. Include paths
+are package-relative JSON files/directories and are resolved during inert
+preflight; loading them never executes package code.
+
+Every V3 package declares exact SHA-256 identities in `packageFiles`. Supported
+kinds are `executable`, `frontend`, `locale`, `schema`, `migration`, `template`,
+`asset`, and `openapi`. Backend, guard, migration, template, asset, OpenAPI, and
+L2 references must resolve to the matching declared file kind and digest.
+
+```bash
+cd apps/api
+go run ./cmd/sforum extension digest --write <package-root>
+go run ./cmd/sforum extension validate <package-root>
+go run ./cmd/sforum extension test <package-root>
+```
+
+`digest --write` updates inline `packageFiles` after local file changes and then
+revalidates the whole package. Keep `packageFiles` inline when using this helper;
+included package-file shards remain valid but must be refreshed by the package
+authoring pipeline.
+
+Dependency entries use exactly one of `id` or `capability`:
+
+| Kind | Meaning |
+| --- | --- |
+| `required` | A matching extension/capability and semantic version must exist before activation |
+| `optional` | Orders activation when present, but absence is allowed |
+| `conflict` | A matching installed version blocks the graph |
+| `provides` | Publishes one capability at an exact semantic version |
+
+The host rejects missing required versions, ambiguous capability providers,
+cycles, duplicate extension identities, and ambiguous replacement providers.
+Activation order is deterministic.
+
+Static install is always inert. Uploaded packages with backend code, migrations,
+custom/raw guards, raw/kernel database authority, executable lifecycle hooks,
+admin code, or public L2 files require an actor-bound `super_admin` confirmation
+for the exact artifact before first execution. The impact document binds the
+Manifest contract, declarations, real executable bytes, authorities,
+dependencies, and Host/Frontend contracts. Any relevant change invalidates the
+grant. Capability declarations describe and shape trusted code; they are not a
+sandbox.
+
+Themes remain presentation-only. They may declare templates, assets,
+components, navigation/regions, settings, package files, and other presentation
+contracts, but cannot own plugin business/runtime declarations. A plugin's
+versioned business data contract does not change when a theme overrides its
+presentation.
+
+Manifest V3 currently defines and validates the full target contract. Runtime
+implementations land phase by phase (Host API v2, lifecycle/database, Route
+Registry, platform registries, themes, and L2); a valid declaration is not proof
+that a later runtime family is active in the current host release.
 
 ## Buildless settings UI: choose the smallest capable mode
 
@@ -461,15 +533,26 @@ Related fixtures:
 
 ## Manifest checklist
 
-1. **Identity** — stable `id`, `version`, `sforumVersion`, URL, author, description.
-2. **Type** — `plugin` vs `theme` (themes must not declare capabilities, routes, events, backend jobs).
-3. **Capabilities** — only keys from [capabilities.md](./catalogs/capabilities.md); prefer explicit keys for operator review.
-4. **Events / hooks** — only names from [events.md](./catalogs/events.md); match host `kind`.
-5. **Contributions** — only points from [contribution-points.md](./catalogs/contribution-points.md); host-owned payloads.
-6. **Providers** — only published [slots](./catalogs/provider-slots.md).
-7. **Jobs** — declare every kind you will enqueue via Host API.
-8. **Backend** — `hashicorp-go-plugin`, entry path present after build.
-9. **Settings** — defaults and recommended values so first-time operators are not blocked.
+1. **Contract** — explicit `manifestVersion: 3` for new packages; stable `id`,
+   semantic `version`, `sforumVersion`, URL, author, and description.
+2. **Type** — `plugin` vs presentation-only `theme`; never place business or
+   runtime declarations in a theme.
+3. **Stable identities** — every V3 declaration uses a namespaced stable id and
+   explicit `contractVersion`; replacement targets are declared, not inferred.
+4. **Package files** — every referenced executable/frontend/migration/template/
+   asset/OpenAPI file has the correct kind and exact SHA-256 digest.
+5. **Routes and guards** — explicit action, methods, mode, fallback, schemas,
+   contract version, and core/custom guard. Raw request ownership is high-risk.
+6. **Database and lifecycle** — authority tier, compatibility range where raw,
+   backup/retention, plan/execute, progress, and checkpoint contracts.
+7. **Permissions** — definitions use `assignmentPolicy: host`; recommended role
+   mappings are advisory and extension code never self-grants.
+8. **Dependencies** — required/optional/conflict/provides semantics resolve to
+   one deterministic, acyclic graph.
+9. **Host catalogs** — capabilities, events, contributions, providers, and jobs
+   use the published generated catalogs.
+10. **Operator defaults** — settings include safe defaults and reset-friendly
+    recommended values so first-time operators are not blocked.
 
 ## Host API methods (v1)
 
@@ -530,6 +613,9 @@ slots, remote scripts, and extension-triggered host builds are unsupported. Read
 ```bash
 # Parse + merge includes, print summary
 go run ./cmd/sforum extension validate <package-root>
+
+# Refresh inline Manifest V3 packageFiles digests and revalidate
+go run ./cmd/sforum extension digest --write <package-root>
 
 # Host contract report (exit 1 on errors)
 go run ./cmd/sforum extension test <package-root>
@@ -626,6 +712,7 @@ only safe public flags; restore defaults via
 ## Related docs
 
 - [Host catalogs (generated)](./catalogs/README.md)
+- [Manifest V3 schema catalog (generated)](./catalogs/manifest-v3.md)
 - [Extension platform v2](../extension-platform-v2.md)
 - [Trusted admin components](./trusted-admin-components.md)
 - Fixtures README: `extensions/fixtures/README.md`

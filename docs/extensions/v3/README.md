@@ -52,7 +52,14 @@ record compatibility impact.
 ## Phase State
 
 - P0: complete (catalogs, governance, performance baseline, and CI drift gate).
-- P1-P13: not implemented unless their task-book checkboxes and phase handoff
+- P1: complete (exact-artifact trust, Safe Mode, CLI recovery, and boot-loop
+  containment).
+- P2: active. Manifest V3 versioning, sharded Registry/platform declarations,
+  package graph, embedded JSON Schema, modular OpenAPI, exact package-file
+  digests, CLI scaffold/validation, reference fixtures, canonical trust impact,
+  and generated schema catalog are implemented. Runtime registry execution
+  remains gated by later phases.
+- P3-P13: not implemented unless their task-book checkboxes and phase handoff
   explicitly say otherwise.
 - Existing v1 runtime, Page Registry, Settings Document, event, contribution,
   provider, job, permission, SSR, and localization behavior remains a
