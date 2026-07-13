@@ -226,6 +226,16 @@ func (s *controllerExecutableTrustStore) HasLiveGrant(_ context.Context, identit
 	return s.granted[identity], nil
 }
 
+func (s *controllerExecutableTrustStore) LiveGrant(_ context.Context, identity extensions.TrustIdentity) (extensions.TrustGrant, error) {
+	if !s.granted[identity] {
+		return extensions.TrustGrant{}, extensions.ErrTrustGrantNotFound
+	}
+	return extensions.TrustGrant{
+		ID: 1, ExtensionID: identity.ExtensionID, ExtensionVersion: identity.ExtensionVersion,
+		PackageDigest: identity.PackageDigest, Action: identity.Action, ImpactDigest: identity.ImpactDigest,
+	}, nil
+}
+
 func (s *controllerExecutableTrustStore) ConsumeChallenge(_ context.Context, input extensions.TrustConsumeInput) (extensions.TrustGrant, error) {
 	if input.TokenHash != s.challenge.TokenHash || input.ActorUserID != s.challenge.ActorUserID {
 		return extensions.TrustGrant{}, extensions.ErrTrustChallengeInvalid
@@ -248,7 +258,7 @@ func (s *controllerExecutableTrustStore) ConsumeChallenge(_ context.Context, inp
 		s.granted = map[extensions.TrustIdentity]bool{}
 	}
 	s.granted[input.Identity] = true
-	return extensions.TrustGrant{}, nil
+	return extensions.TrustGrant{ID: 1, ImpactDigest: input.Identity.ImpactDigest}, nil
 }
 
 func (s *controllerExecutableTrustStore) RevokeAll(_ context.Context, extensionID string, _ int64, _ string) error {

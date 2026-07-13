@@ -70,11 +70,12 @@ type hostAPIGatewayCloser interface {
 	Close() error
 }
 
-var newStandaloneWorkerRuntimeManager = func(store extensions.Store, hostAPI extensionsruntime.HostAPIRegistrar, settings extensionsruntime.PluginSettings) workerExtensionRuntime {
+var newStandaloneWorkerRuntimeManager = func(store extensions.Store, hostAPI extensionsruntime.HostAPIRegistrar, settings extensionsruntime.PluginSettings, trust extensionsruntime.RuntimeTrustSource) workerExtensionRuntime {
 	return extensionsruntime.NewManager(extensionsruntime.ManagerConfig{
 		Starter: extensionsruntime.NewProtocolStarter(extensionsruntime.ProtocolStarterConfig{
 			Settings: settings,
 			HostAPI:  hostAPI,
+			Trust:    trust,
 		}),
 		DeliveryStore: store,
 	})
@@ -85,6 +86,7 @@ func buildStandaloneWorkerExtensionRuntime(
 	cfg config.Config,
 	store extensions.Store,
 	cipher *crypto.OptionCipher,
+	trust extensionsruntime.RuntimeTrustSource,
 	coordinators ...*extensions.ActivationCoordinator,
 ) (workerExtensionRuntime, hostAPIGatewayCloser, error) {
 	service := extensions.NewServiceWithBuiltins(store, cfg.ExtensionRoot, cfg.BuiltinExtensionRoot)
@@ -99,7 +101,7 @@ func buildStandaloneWorkerExtensionRuntime(
 	extensions.WithActivationCoordinator(activation)(service)
 	workerHostAPI := hostapi.New(hostapi.Config{Settings: service})
 	workerHostGateway := hostapi.NewGateway(workerHostAPI)
-	managedRuntime := newStandaloneWorkerRuntimeManager(store, workerHostGateway, service)
+	managedRuntime := newStandaloneWorkerRuntimeManager(store, workerHostGateway, service, trust)
 	if runtime, ok := managedRuntime.(interface {
 		WithActivation(*extensions.ActivationCoordinator, string) *extensionsruntime.Manager
 	}); ok {
@@ -211,7 +213,8 @@ func newWorkerWithPool(cfg config.Config, pool *pgxpool.Pool, logger *slog.Logge
 
 	extensionRuntime, hostGateway, ownsRuntime, err := resolveWorkerExtensionRuntime(deps, func() (workerExtensionRuntime, hostAPIGatewayCloser, error) {
 		activation := extensions.NewActivationCoordinator(extensionStore).WithAuditor(audit.NewPostgresWriter(pool))
-		return buildStandaloneWorkerExtensionRuntime(context.Background(), cfg, extensionStore, optionCipher, activation)
+		runtimeTrust := extensions.NewExecutableTrustService(extensionStore, extensions.NewPostgresExecutableTrustStore(pool))
+		return buildStandaloneWorkerExtensionRuntime(context.Background(), cfg, extensionStore, optionCipher, runtimeTrust, activation)
 	})
 	if err != nil {
 		return nil, err

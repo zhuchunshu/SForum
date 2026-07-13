@@ -14,7 +14,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-plugin"
 
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
@@ -59,6 +58,8 @@ type ProtocolStarterConfig struct {
 	Settings PluginSettings
 	// HostAPI 可选；注入后向子进程写入 SFORUM_HOST_API_* 环境变量。
 	HostAPI HostAPIRegistrar
+	// Trust 为 v2 握手解析精确 artifact grant；上传包不可省略。
+	Trust RuntimeTrustSource
 }
 
 type ProtocolStarter struct {
@@ -67,6 +68,7 @@ type ProtocolStarter struct {
 	protocols map[string]PluginProtocol
 	settings  PluginSettings
 	hostAPI   HostAPIRegistrar
+	trust     RuntimeTrustSource
 }
 
 type PluginProtocol interface {
@@ -152,6 +154,7 @@ func NewProtocolStarter(config ProtocolStarterConfig) *ProtocolStarter {
 		protocols: map[string]PluginProtocol{},
 		settings:  config.Settings,
 		hostAPI:   config.HostAPI,
+		trust:     config.Trust,
 	}
 }
 
@@ -162,7 +165,7 @@ func (s *ProtocolStarter) Start(ctx context.Context, extension extensions.Extens
 	if extension.Manifest.Backend.Entry == "" {
 		return RouteTarget{}, fmt.Errorf("backend entry is required")
 	}
-	if extension.Manifest.Backend.ProtocolVersion > 0 && uint(extension.Manifest.Backend.ProtocolVersion) != handshakeConfig.ProtocolVersion {
+	if extension.Manifest.Backend.ProtocolVersion < 0 || extension.Manifest.Backend.ProtocolVersion > 2 {
 		return RouteTarget{}, ErrUnsupportedProtocol
 	}
 	path, ok := extensions.InstalledFilePathForRuntime(extension, extension.Manifest.Backend.Entry)
@@ -190,28 +193,32 @@ func (s *ProtocolStarter) Start(ctx context.Context, extension extensions.Extens
 		}
 	}
 	// F2.2：为子进程签发 Host API loopback 凭证。
+	hostAPIRegistered := false
+	keepHostAPI := false
 	if s.hostAPI != nil {
 		if _, hostEnv, err := s.hostAPI.RegisterExtension(extension.ID); err != nil {
 			return RouteTarget{}, fmt.Errorf("register host api: %w", err)
 		} else {
 			cmd.Env = append(cmd.Env, hostEnv...)
+			hostAPIRegistered = true
 		}
 	}
-	client := plugin.NewClient(&plugin.ClientConfig{
-		HandshakeConfig: handshakeConfig,
-		Logger:          hclog.NewNullLogger(),
-		Plugins: map[string]plugin.Plugin{
-			pluginProtocolName: &netRPCPlugin{},
-		},
-		Cmd:              cmd,
-		AllowedProtocols: []plugin.Protocol{plugin.ProtocolNetRPC},
-	})
+	defer func() {
+		if hostAPIRegistered && !keepHostAPI {
+			s.hostAPI.UnregisterExtension(extension.ID)
+		}
+	}()
+	clientConfig, protocolName, err := s.newPluginClientConfig(ctx, extension, cmd)
+	if err != nil {
+		return RouteTarget{}, err
+	}
+	client := plugin.NewClient(clientConfig)
 	rpcClient, err := client.Client()
 	if err != nil {
 		client.Kill()
 		return RouteTarget{}, err
 	}
-	raw, err := rpcClient.Dispense(pluginProtocolName)
+	raw, err := rpcClient.Dispense(protocolName)
 	if err != nil {
 		client.Kill()
 		return RouteTarget{}, err
@@ -221,6 +228,15 @@ func (s *ProtocolStarter) Start(ctx context.Context, extension extensions.Extens
 		client.Kill()
 		return RouteTarget{}, fmt.Errorf("plugin protocol implementation mismatch")
 	}
+	if v2, ok := protocol.(interface {
+		Handshake(context.Context) error
+		Readiness(context.Context) error
+	}); ok {
+		if err := v2.Handshake(ctx); err != nil {
+			client.Kill()
+			return RouteTarget{}, err
+		}
+	}
 	health, err := protocol.Health()
 	if err != nil || !health.OK {
 		client.Kill()
@@ -228,6 +244,12 @@ func (s *ProtocolStarter) Start(ctx context.Context, extension extensions.Extens
 			return RouteTarget{}, err
 		}
 		return RouteTarget{}, fmt.Errorf("plugin health check failed")
+	}
+	if v2, ok := protocol.(interface{ Readiness(context.Context) error }); ok {
+		if err := v2.Readiness(ctx); err != nil {
+			client.Kill()
+			return RouteTarget{}, err
+		}
 	}
 	target, err := protocol.RouteTarget()
 	if err != nil {
@@ -256,6 +278,7 @@ func (s *ProtocolStarter) Start(ctx context.Context, extension extensions.Extens
 	s.clients[extension.ID] = client
 	s.protocols[extension.ID] = protocol
 	s.mu.Unlock()
+	keepHostAPI = true
 	return RouteTarget{BaseURL: baseURL}, nil
 }
 

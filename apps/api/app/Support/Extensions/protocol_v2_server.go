@@ -45,7 +45,8 @@ func ServeProtocolV2Plugin(server pluginv2.PluginRuntimeServiceServer, config Pr
 
 type protocolV2Plugin struct {
 	plugin.NetRPCUnsupportedPlugin
-	server pluginv2.PluginRuntimeServiceServer
+	server       pluginv2.PluginRuntimeServiceServer
+	clientConfig *protocolV2ClientConfig
 }
 
 func (p *protocolV2Plugin) GRPCServer(_ *plugin.GRPCBroker, server *grpc.Server) error {
@@ -56,8 +57,12 @@ func (p *protocolV2Plugin) GRPCServer(_ *plugin.GRPCBroker, server *grpc.Server)
 	return nil
 }
 
-func (*protocolV2Plugin) GRPCClient(_ context.Context, _ *plugin.GRPCBroker, conn *grpc.ClientConn) (any, error) {
-	return pluginv2.NewPluginRuntimeServiceClient(conn), nil
+func (p *protocolV2Plugin) GRPCClient(_ context.Context, _ *plugin.GRPCBroker, conn *grpc.ClientConn) (any, error) {
+	client := pluginv2.NewPluginRuntimeServiceClient(conn)
+	if p.clientConfig == nil {
+		return client, nil
+	}
+	return newProtocolV2Client(client, *p.clientConfig), nil
 }
 
 func normalizeProtocolV2ServerConfig(config ProtocolV2ServerConfig) ProtocolV2ServerConfig {

@@ -70,7 +70,7 @@ type extensionRuntime interface {
 	extensionsruntime.StorageRuntime
 }
 
-var newExtensionRuntimeManager = func(store extensions.Store, hostAPI extensionsruntime.HostAPIRegistrar, settings extensionsruntime.PluginSettings) extensionRuntime {
+var newExtensionRuntimeManager = func(store extensions.Store, hostAPI extensionsruntime.HostAPIRegistrar, settings extensionsruntime.PluginSettings, trust extensionsruntime.RuntimeTrustSource) extensionRuntime {
 	if settings == nil {
 		settings = store
 	}
@@ -78,13 +78,14 @@ var newExtensionRuntimeManager = func(store extensions.Store, hostAPI extensions
 		Starter: extensionsruntime.NewProtocolStarter(extensionsruntime.ProtocolStarterConfig{
 			Settings: settings,
 			HostAPI:  hostAPI,
+			Trust:    trust,
 		}),
 		DeliveryStore: store,
 	})
 }
 
-func bindAPIExtensionRuntime(store extensions.Store, hostAPI extensionsruntime.HostAPIRegistrar, service *extensions.Service) extensionRuntime {
-	runtime := newExtensionRuntimeManager(store, hostAPI, service)
+func bindAPIExtensionRuntime(store extensions.Store, hostAPI extensionsruntime.HostAPIRegistrar, service *extensions.Service, trust extensionsruntime.RuntimeTrustSource) extensionRuntime {
+	runtime := newExtensionRuntimeManager(store, hostAPI, service, trust)
 	extensions.WithRuntimeManager(runtime)(service)
 	return runtime
 }
@@ -245,7 +246,7 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		Auditor:  auditWriter,
 	})
 	hostAPIGateway := hostapi.NewGateway(hostAPIService)
-	extensionRuntime := bindAPIExtensionRuntime(extensionStore, hostAPIGateway, extensionService)
+	extensionRuntime := bindAPIExtensionRuntime(extensionStore, hostAPIGateway, extensionService, executableTrustService)
 	if runtime, ok := extensionRuntime.(interface {
 		WithActivation(*extensions.ActivationCoordinator, string) *extensionsruntime.Manager
 	}); ok {

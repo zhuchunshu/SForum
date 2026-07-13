@@ -109,7 +109,7 @@ func TestStandaloneWorkerRuntimeUsesCipherServiceSettings(t *testing.T) {
 		settings: map[string]string{"token": enc},
 	}
 	var got map[string]string
-	newStandaloneWorkerRuntimeManager = func(_ extensions.Store, _ extensionsruntime.HostAPIRegistrar, settings extensionsruntime.PluginSettings) workerExtensionRuntime {
+	newStandaloneWorkerRuntimeManager = func(_ extensions.Store, _ extensionsruntime.HostAPIRegistrar, settings extensionsruntime.PluginSettings, _ extensionsruntime.RuntimeTrustSource) workerExtensionRuntime {
 		var err error
 		got, err = settings.ListSettings(context.Background(), item.ID)
 		if err != nil {
@@ -117,7 +117,7 @@ func TestStandaloneWorkerRuntimeUsesCipherServiceSettings(t *testing.T) {
 		}
 		return &countingWorkerRuntime{}
 	}
-	runtime, gateway, err := buildStandaloneWorkerExtensionRuntime(context.Background(), config.Config{ExtensionRoot: t.TempDir()}, store, cipher)
+	runtime, gateway, err := buildStandaloneWorkerExtensionRuntime(context.Background(), config.Config{ExtensionRoot: t.TempDir()}, store, cipher, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -136,12 +136,12 @@ func TestStandaloneWorkerSafeModeReconcilesNoExtensions(t *testing.T) {
 	plugin.Manifest.Backend = extensions.ManifestBackend{Entry: "missing/plugin"}
 	store := &bootstrapExtensionSettingsStore{item: plugin}
 	runtime := &countingWorkerRuntime{}
-	newStandaloneWorkerRuntimeManager = func(_ extensions.Store, _ extensionsruntime.HostAPIRegistrar, _ extensionsruntime.PluginSettings) workerExtensionRuntime {
+	newStandaloneWorkerRuntimeManager = func(_ extensions.Store, _ extensionsruntime.HostAPIRegistrar, _ extensionsruntime.PluginSettings, _ extensionsruntime.RuntimeTrustSource) workerExtensionRuntime {
 		return runtime
 	}
 	built, gateway, err := buildStandaloneWorkerExtensionRuntime(context.Background(), config.Config{
 		SafeMode: true, ExtensionRoot: t.TempDir(),
-	}, store, nil)
+	}, store, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
