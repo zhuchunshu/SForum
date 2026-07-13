@@ -42,6 +42,7 @@ type RuntimeTrustSource interface {
 type protocolV2ClientConfig struct {
 	identity     *protocolv2.ExtensionIdentity
 	authority    []*protocolv2.AuthorityGrant
+	events       []extensions.ManifestEvent
 	token        []byte
 	instance     string
 	hostAPI      ProtocolV2HostRegistrar
@@ -53,6 +54,7 @@ type protocolV2Client struct {
 	client       pluginv2.PluginRuntimeServiceClient
 	identity     *protocolv2.ExtensionIdentity
 	authority    []*protocolv2.AuthorityGrant
+	events       []extensions.ManifestEvent
 	token        []byte
 	instance     string
 	hostBrokerID uint32
@@ -82,7 +84,8 @@ func (e *ProtocolV2Error) Error() string {
 func newProtocolV2Client(client pluginv2.PluginRuntimeServiceClient, config protocolV2ClientConfig) *protocolV2Client {
 	return &protocolV2Client{
 		client: client, identity: cloneV2Identity(config.identity), authority: cloneV2Authority(config.authority),
-		token: append([]byte(nil), config.token...), instance: config.instance, hostBrokerID: config.hostBrokerID,
+		events: append([]extensions.ManifestEvent(nil), config.events...),
+		token:  append([]byte(nil), config.token...), instance: config.instance, hostBrokerID: config.hostBrokerID,
 	}
 }
 
@@ -174,6 +177,7 @@ func (s *ProtocolStarter) protocolV2ClientConfig(ctx context.Context, extension 
 			RuntimeEpoch: epoch, InstanceId: hex.EncodeToString(instanceBytes),
 		},
 		authority: protocolV2Authority(extension.CapabilityGrants),
+		events:    append([]extensions.ManifestEvent(nil), extension.Manifest.Events...),
 		token:     token,
 		instance:  hex.EncodeToString(instanceBytes),
 		hostAPI:   protocolV2HostRegistrarFor(s.hostAPI),
@@ -266,19 +270,27 @@ func (*protocolV2Client) RouteTarget() (PluginRouteTarget, error) {
 }
 
 func (c *protocolV2Client) InvokeHook(input PluginHookRequest) (PluginHookResponse, error) {
+	declaration, err := c.eventDeclaration(input.Name, input.Kind)
+	if err != nil {
+		return PluginHookResponse{}, err
+	}
 	timeout := DefaultProtocolV2RequestTimeout
 	if input.TimeoutMS > 0 {
 		timeout = time.Duration(input.TimeoutMS) * time.Millisecond
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
-	payload, err := protocolV2Document("sforum.hook."+input.Name, "1", input.Payload)
+	payloadSchemaID, payloadSchemaVersion, err := protocolV2SchemaRef(declaration.InputSchema)
+	if err != nil {
+		return PluginHookResponse{}, err
+	}
+	payload, err := protocolV2Document(payloadSchemaID, payloadSchemaVersion, input.Payload)
 	if err != nil {
 		return PluginHookResponse{}, err
 	}
 	response, err := c.client.InvokeHook(ctx, &pluginv2.HookRequest{
-		Context: c.requestContext(ctx, input.CorrelationID), HookId: input.Name,
-		HookName: input.Name, HookKind: input.Kind, ContractVersion: "1",
+		Context: c.requestContext(ctx, input.CorrelationID), HookId: declaration.ID,
+		HookName: declaration.Name, HookKind: declaration.Kind, ContractVersion: declaration.ContractVersion,
 		DeliveryId: strconv.FormatInt(input.DeliveryID, 10), Payload: payload,
 		MutableFields: append([]string(nil), input.PatchFields...),
 	})
@@ -287,6 +299,18 @@ func (c *protocolV2Client) InvokeHook(input PluginHookRequest) (PluginHookRespon
 	}
 	if err := protocolV2Error(response.GetError()); err != nil {
 		return PluginHookResponse{}, err
+	}
+	if err := validateProtocolV2DocumentRef(response.GetResult(), declaration.ResultSchema, "hook result"); err != nil {
+		return PluginHookResponse{}, err
+	}
+	if response.GetPatch() != nil {
+		patchSchema, err := protocolV2PatchSchemaRef(declaration.ResultSchema)
+		if err != nil {
+			return PluginHookResponse{}, err
+		}
+		if err := validateProtocolV2DocumentRef(response.GetPatch(), patchSchema, "hook patch"); err != nil {
+			return PluginHookResponse{}, err
+		}
 	}
 	result := PluginHookResponse{OK: response.GetAccepted()}
 	if values := protocolV2Values(response.GetResult()); len(values) > 0 {
@@ -297,6 +321,57 @@ func (c *protocolV2Client) InvokeHook(input PluginHookRequest) (PluginHookRespon
 		result.Patch = patch.AsMap()
 	}
 	return result, nil
+}
+
+func (c *protocolV2Client) eventDeclaration(name, kind string) (extensions.ManifestEvent, error) {
+	name = strings.TrimSpace(name)
+	kind = strings.TrimSpace(kind)
+	for _, event := range c.events {
+		if event.Name == name && event.Kind == kind {
+			if event.ID == "" || event.ContractVersion == "" || event.InputSchema == "" || event.ResultSchema == "" {
+				return extensions.ManifestEvent{}, fmt.Errorf("protocol v2 event %q has an incomplete contract", name)
+			}
+			return event, nil
+		}
+	}
+	return extensions.ManifestEvent{}, fmt.Errorf("protocol v2 event %q kind %q is not declared by the manifest", name, kind)
+}
+
+func protocolV2SchemaRef(reference string) (string, string, error) {
+	reference = strings.TrimSpace(reference)
+	index := strings.LastIndexByte(reference, '@')
+	if index <= 0 || index == len(reference)-1 {
+		return "", "", fmt.Errorf("protocol v2 schema reference %q is invalid", reference)
+	}
+	version := reference[index+1:]
+	if version[0] == '0' {
+		return "", "", fmt.Errorf("protocol v2 schema reference %q is invalid", reference)
+	}
+	for _, value := range version {
+		if value < '0' || value > '9' {
+			return "", "", fmt.Errorf("protocol v2 schema reference %q is invalid", reference)
+		}
+	}
+	return reference[:index], version, nil
+}
+
+func protocolV2PatchSchemaRef(resultSchema string) (string, error) {
+	schemaID, version, err := protocolV2SchemaRef(resultSchema)
+	if err != nil {
+		return "", err
+	}
+	return schemaID + ".patch@" + version, nil
+}
+
+func validateProtocolV2DocumentRef(document *protocolv2.TypedDocument, reference, label string) error {
+	schemaID, version, err := protocolV2SchemaRef(reference)
+	if err != nil {
+		return err
+	}
+	if document == nil || document.GetSchemaId() != schemaID || document.GetSchemaVersion() != version {
+		return fmt.Errorf("protocol v2 %s must match schema %q", label, reference)
+	}
+	return nil
 }
 
 func (c *protocolV2Client) ProviderProbe(input ProviderProbeRequest) (ProviderProbeResponse, error) {

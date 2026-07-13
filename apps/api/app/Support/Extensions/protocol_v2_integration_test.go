@@ -102,6 +102,33 @@ func TestProtocolV2HostBrokerRejectsInvalidCalls(t *testing.T) {
 	}
 }
 
+func TestProtocolV2HookContractFailsClosed(t *testing.T) {
+	extension := protocolV2TestExtension(t, "v2")
+	gateway, _ := newProtocolV2HostGateway()
+	t.Cleanup(func() { _ = gateway.Close() })
+	starter := extensionsruntime.NewProtocolStarter(extensionsruntime.ProtocolStarterConfig{
+		Trust:   staticRuntimeTrust{identity: extensions.RuntimeTrustIdentity{TrustGrantID: "41", ImpactDigest: "impact-41"}},
+		HostAPI: gateway,
+	})
+	if _, err := starter.Start(context.Background(), extension); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = starter.Stop(context.Background(), extension) })
+	undeclared := starter.InvokeHook(context.Background(), extension, extensionsruntime.HookInput{
+		Name: "topic.before_create", Kind: "action", Timeout: time.Second,
+	})
+	if undeclared.OK || undeclared.Reason != "extension.hook_failed" || !strings.Contains(undeclared.Message, "not declared") {
+		t.Fatalf("undeclared hook contract = %#v", undeclared)
+	}
+	invalidResult := starter.InvokeHook(context.Background(), extension, extensionsruntime.HookInput{
+		Name: "topic.before_create", Kind: "filter", Timeout: time.Second,
+		Payload: map[string]any{"mode": "invalid_result_schema"},
+	})
+	if invalidResult.OK || invalidResult.Reason != "extension.hook_failed" || !strings.Contains(invalidResult.Message, "hook result") {
+		t.Fatalf("invalid hook result contract = %#v", invalidResult)
+	}
+}
+
 func TestProtocolV2HostBrokerRebindsAfterRestart(t *testing.T) {
 	extension := protocolV2TestExtension(t, "v2")
 	gateway, _ := newProtocolV2HostGateway()
@@ -279,7 +306,10 @@ func (s *protocolV2Helper) InvokeHook(ctx context.Context, request *pluginwire.H
 			Code: protocolwire.ErrorCode_ERROR_CODE_INVALID_ARGUMENT, Reason: "fixture.context_invalid", Message: "typed runtime context is incomplete",
 		}}, nil
 	}
-	if request.GetPayload().GetSchemaId() != "sforum.hook.topic.before_create" || !hasProtocolV2Authority(requestContext, capabilities.HostAPI) {
+	if request.GetHookId() != "runtime.v2.event.topic-before-create" || request.GetHookName() != "topic.before_create" ||
+		request.GetHookKind() != "filter" || request.GetContractVersion() != "runtime.v2.event.topic-before-create@1" ||
+		request.GetPayload().GetSchemaId() != "runtime.v2.hook-input" || request.GetPayload().GetSchemaVersion() != "1" ||
+		!hasProtocolV2Authority(requestContext, capabilities.HostAPI) {
 		return &pluginwire.HookResponse{Error: &protocolwire.ErrorDetail{
 			Code: protocolwire.ErrorCode_ERROR_CODE_PERMISSION_DENIED, Reason: "fixture.authority_invalid", Message: "authority or payload contract is incomplete",
 		}}, nil
@@ -288,6 +318,13 @@ func (s *protocolV2Helper) InvokeHook(ctx context.Context, request *pluginwire.H
 	if mode == "crash" {
 		os.Exit(23)
 	}
+	if mode == "invalid_result_schema" {
+		return &pluginwire.HookResponse{
+			Context:  &protocolwire.ResponseContext{RequestId: requestContext.GetRequestId(), Extension: identity},
+			Accepted: true,
+			Result:   &protocolwire.TypedDocument{SchemaId: "wrong.result", SchemaVersion: "1"},
+		}, nil
+	}
 	if mode == "business_reject" {
 		value, err := structpb.NewStruct(map[string]any{"reason": "content.rejected", "message": "Rejected by policy."})
 		if err != nil {
@@ -295,7 +332,7 @@ func (s *protocolV2Helper) InvokeHook(ctx context.Context, request *pluginwire.H
 		}
 		return &pluginwire.HookResponse{
 			Context: &protocolwire.ResponseContext{RequestId: requestContext.GetRequestId(), Extension: identity},
-			Result:  &protocolwire.TypedDocument{SchemaId: "sforum.hook.topic.before_create.result", SchemaVersion: "1", Value: value},
+			Result:  &protocolwire.TypedDocument{SchemaId: "runtime.v2.hook-result", SchemaVersion: "1", Value: value},
 		}, nil
 	}
 	if mode == "" {
@@ -309,10 +346,15 @@ func (s *protocolV2Helper) InvokeHook(ctx context.Context, request *pluginwire.H
 	if err != nil {
 		return nil, err
 	}
+	result, err := structpb.NewStruct(map[string]any{"reason": "", "message": ""})
+	if err != nil {
+		return nil, err
+	}
 	return &pluginwire.HookResponse{
 		Context:  &protocolwire.ResponseContext{RequestId: requestContext.GetRequestId(), Extension: identity},
 		Accepted: true,
-		Patch:    &protocolwire.TypedDocument{SchemaId: "sforum.hook.topic.before_create.patch", SchemaVersion: "1", Value: patch},
+		Result:   &protocolwire.TypedDocument{SchemaId: "runtime.v2.hook-result", SchemaVersion: "1", Value: result},
+		Patch:    &protocolwire.TypedDocument{SchemaId: "runtime.v2.hook-result.patch", SchemaVersion: "1", Value: patch},
 	}, nil
 }
 
@@ -367,6 +409,11 @@ func protocolV2TestExtension(t *testing.T, helperMode string) extensions.Extensi
 			Backend: extensions.ManifestBackend{
 				Entry: "backend/plugin", RPC: "hashicorp-go-plugin", ProtocolVersion: 2, HostAPIVersion: "sforum.host@2",
 			},
+			Events: []extensions.ManifestEvent{{
+				ID: "runtime.v2.event.topic-before-create", ContractVersion: "runtime.v2.event.topic-before-create@1",
+				Name: "topic.before_create", Kind: "filter", Handler: "runtime.v2.filter",
+				InputSchema: "runtime.v2.hook-input@1", ResultSchema: "runtime.v2.hook-result@1",
+			}},
 			Services: []extensions.ManifestService{{
 				ID: "runtime.v2.service.echo", ContractVersion: "runtime.v2.service.echo@1", Action: "add",
 				Handler: "runtime.v2.service.echo", RequestSchema: "runtime.v2.service.echo.request@1",
