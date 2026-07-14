@@ -63,6 +63,7 @@ func productionCoreGuardEvaluatorRegistrations() []routes.CoreGuardEvaluatorRegi
 		productionCoreGuardEvaluator("core.guard.forum.topic_lock", requireDeclaredCoreGuardPermission),
 		productionCoreGuardEvaluator("core.guard.forum.topic_state", requireDeclaredCoreGuardPermission),
 		productionCoreGuardEvaluator("core.guard.identity.admin", requireIdentityAdminAuthority),
+		productionCoreGuardEvaluator("core.guard.identity.self_credentials", requireIdentitySelfCredentialsAuthority),
 		productionCoreGuardEvaluator("core.guard.moderation.report", requireAuthenticatedCoreGuardActor),
 		productionCoreGuardEvaluator("core.guard.moderation.review", requireDeclaredCoreGuardPermission),
 		productionCoreGuardEvaluator("core.guard.notifications.recipient", requireNotificationRecipientAuthority),
@@ -340,6 +341,17 @@ func requireIdentityAdminAuthority(_ context.Context, evaluation routes.CoreGuar
 	default:
 		// 删除/改角色权限和用户写操作都依赖目标资源或请求字段，
 		// 当前 Guard 输入不能完整复现 Service 的保护，继续保持关闭。
+		return routes.ErrCoreGuardEvaluatorUnavailable
+	}
+}
+
+func requireIdentitySelfCredentialsAuthority(ctx context.Context, evaluation routes.CoreGuardEvaluation) error {
+	switch evaluation.Descriptor.RouteID {
+	case "core.route.identity.list_sessions", "core.route.identity.revoke_other_sessions":
+		// 两条路径始终以 Host 认证的 ActorID 查询/更新，不接收目标 user_id。
+		return requireAuthenticatedCoreGuardActor(ctx, evaluation)
+	default:
+		// 单会话撤销依赖 sid 所有权；PAT 管理还要求真实 cookie 会话。
 		return routes.ErrCoreGuardEvaluatorUnavailable
 	}
 }
