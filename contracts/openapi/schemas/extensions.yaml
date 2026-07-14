@@ -1044,6 +1044,13 @@ ExtensionManifestJob:
     handler: { type: string }
     payloadSchema: { type: string }
     retryPolicy: { type: string, enum: [none, bounded, exponential] }
+    maxAttempts: { type: integer, minimum: 1, maximum: 25, default: 5 }
+    retryDelaySeconds:
+      type: integer
+      minimum: 0
+      maximum: 3600
+      description: Fixed retry delay for bounded policy; must be zero for none or exponential.
+    concurrencyLimit: { type: integer, minimum: 1, maximum: 16, default: 4 }
 ExtensionManifestRoute:
   type: object
   required:

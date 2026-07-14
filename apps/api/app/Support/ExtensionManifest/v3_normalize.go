@@ -91,6 +91,22 @@ func normalizeV3Manifest(manifest *Manifest) {
 		item.Handler = strings.TrimSpace(item.Handler)
 		item.PayloadSchema = strings.TrimSpace(item.PayloadSchema)
 		item.RetryPolicy = strings.ToLower(strings.TrimSpace(item.RetryPolicy))
+		if item.ConcurrencyLimit == 0 {
+			item.ConcurrencyLimit = PluginJobDefaultConcurrencyLimit
+		}
+		if item.MaxAttempts == 0 {
+			switch item.RetryPolicy {
+			case "none":
+				item.MaxAttempts = 1
+			case "bounded":
+				item.MaxAttempts = PluginJobDefaultBoundedAttempts
+			case "exponential":
+				item.MaxAttempts = PluginJobDefaultExponentialAttempts
+			}
+		}
+		if item.RetryPolicy == "bounded" && item.RetryDelaySeconds == 0 {
+			item.RetryDelaySeconds = PluginJobDefaultRetryDelaySeconds
+		}
 	}
 	for index := range manifest.Providers {
 		item := &manifest.Providers[index]

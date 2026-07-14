@@ -29,6 +29,16 @@ const (
 	// ProviderSlotMaximumTimeoutMS 仅约束带请求/响应 schema 的 V2 slot。
 	// 旧 Host provider 的超时由各 owner contract 管理，不能在 Manifest V3 中静默收紧。
 	ProviderSlotMaximumTimeoutMS = 5000
+
+	// 插件任务策略受 Host 容量约束。默认值延续既有的每扩展并发上限，
+	// 同时避免 River 全局默认值变化后静默改变 manifest 契约。
+	PluginJobDefaultConcurrencyLimit    = 4
+	PluginJobMaximumConcurrencyLimit    = 16
+	PluginJobMaximumAttempts            = 25
+	PluginJobDefaultBoundedAttempts     = 5
+	PluginJobDefaultExponentialAttempts = 10
+	PluginJobDefaultRetryDelaySeconds   = 30
+	PluginJobMaximumRetryDelaySeconds   = 3600
 )
 
 var (
@@ -215,12 +225,15 @@ type ManifestEvent struct {
 }
 
 type ManifestJob struct {
-	ID              string `json:"id,omitempty"`
-	ContractVersion string `json:"contractVersion,omitempty"`
-	Name            string `json:"name"`
-	Handler         string `json:"handler,omitempty"`
-	PayloadSchema   string `json:"payloadSchema,omitempty"`
-	RetryPolicy     string `json:"retryPolicy,omitempty"`
+	ID                string `json:"id,omitempty"`
+	ContractVersion   string `json:"contractVersion,omitempty"`
+	Name              string `json:"name"`
+	Handler           string `json:"handler,omitempty"`
+	PayloadSchema     string `json:"payloadSchema,omitempty"`
+	RetryPolicy       string `json:"retryPolicy,omitempty"`
+	MaxAttempts       int    `json:"maxAttempts,omitempty"`
+	RetryDelaySeconds int    `json:"retryDelaySeconds,omitempty"`
+	ConcurrencyLimit  int    `json:"concurrencyLimit,omitempty"`
 }
 
 type ManifestProvider struct {

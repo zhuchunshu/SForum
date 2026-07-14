@@ -257,7 +257,10 @@
           "name": { "$ref": "#/$defs/id" },
           "handler": { "$ref": "#/$defs/nonEmpty" },
           "payloadSchema": { "$ref": "#/$defs/schemaRef" },
-          "retryPolicy": { "enum": ["none", "bounded", "exponential"] }
+          "retryPolicy": { "enum": ["none", "bounded", "exponential"] },
+          "maxAttempts": { "type": "integer", "minimum": 1, "maximum": 25 },
+          "retryDelaySeconds": { "type": "integer", "minimum": 0, "maximum": 3600 },
+          "concurrencyLimit": { "type": "integer", "minimum": 1, "maximum": 16 }
         }
       }
     },

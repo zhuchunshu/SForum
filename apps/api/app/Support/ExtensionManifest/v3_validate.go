@@ -262,6 +262,20 @@ func (v *v3Validator) validateHooksEventsJobsAndProviders() error {
 		default:
 			return ErrInvalidManifest
 		}
+		if job.MaxAttempts < 1 || job.MaxAttempts > PluginJobMaximumAttempts ||
+			job.ConcurrencyLimit < 1 || job.ConcurrencyLimit > PluginJobMaximumConcurrencyLimit {
+			return ErrInvalidManifest
+		}
+		switch job.RetryPolicy {
+		case "none", "exponential":
+			if job.RetryDelaySeconds != 0 {
+				return ErrInvalidManifest
+			}
+		case "bounded":
+			if job.RetryDelaySeconds < 1 || job.RetryDelaySeconds > PluginJobMaximumRetryDelaySeconds {
+				return ErrInvalidManifest
+			}
+		}
 		jobIDs[job.ID] = true
 	}
 	for _, schedule := range v.manifest.Schedules {

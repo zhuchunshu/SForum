@@ -21,6 +21,24 @@ func TestManifestV3CompleteApplicationPlugin(t *testing.T) {
 	}
 }
 
+func TestManifestV3JobPolicyDefaultsAreDeterministic(t *testing.T) {
+	manifest := completeV3Manifest()
+	manifest.Jobs[0].MaxAttempts = 0
+	manifest.Jobs[0].RetryDelaySeconds = 0
+	manifest.Jobs[0].ConcurrencyLimit = 0
+
+	normalized := Normalize(manifest)
+	job := normalized.Jobs[0]
+	if job.MaxAttempts != PluginJobDefaultBoundedAttempts ||
+		job.RetryDelaySeconds != PluginJobDefaultRetryDelaySeconds ||
+		job.ConcurrencyLimit != PluginJobDefaultConcurrencyLimit {
+		t.Fatalf("normalized job policy = %#v", job)
+	}
+	if err := Validate(normalized); err != nil {
+		t.Fatalf("defaulted job policy should validate: %v", err)
+	}
+}
+
 func TestManifestV3ThemePresentationContract(t *testing.T) {
 	digest := strings.Repeat("b", 64)
 	manifest := versionedTestManifest(ManifestVersionV3)
@@ -64,6 +82,12 @@ func TestManifestV3RejectsUnsafeContracts(t *testing.T) {
 		{name: "unsafe package path", change: func(manifest *Manifest) { manifest.OpenAPI[0].Path = "../openapi.yaml" }},
 		{name: "plugin self grants permission", change: func(manifest *Manifest) {
 			manifest.PermissionDefinitions[0].AssignmentPolicy = "plugin"
+		}},
+		{name: "job attempts exceed host bound", change: func(manifest *Manifest) { manifest.Jobs[0].MaxAttempts = 26 }},
+		{name: "job concurrency exceeds host bound", change: func(manifest *Manifest) { manifest.Jobs[0].ConcurrencyLimit = 17 }},
+		{name: "fixed delay with exponential retry", change: func(manifest *Manifest) {
+			manifest.Jobs[0].RetryPolicy = "exponential"
+			manifest.Jobs[0].RetryDelaySeconds = 30
 		}},
 	}
 	for _, test := range tests {
@@ -185,6 +209,7 @@ func completeV3Manifest() Manifest {
 	manifest.Jobs = []ManifestJob{{
 		ID: "demo.v3.job.refresh", ContractVersion: "demo.v3.job.refresh@1",
 		Name: "demo.v3.refresh", Handler: "job.refresh", PayloadSchema: "demo.v3.job.refresh.payload@1", RetryPolicy: "bounded",
+		MaxAttempts: 5, RetryDelaySeconds: 30, ConcurrencyLimit: 2,
 	}}
 	manifest.Schedules = []ManifestSchedule{{
 		ID: "demo.v3.schedule.refresh", ContractVersion: "demo.v3.schedule.refresh@1",
