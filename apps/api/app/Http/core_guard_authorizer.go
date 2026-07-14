@@ -31,6 +31,10 @@ type ExtensionGuardPolicy interface {
 	Lookup(extensionID string) (extensions.GuardPolicyLookup, bool)
 }
 
+type DeclaredExtensionRoutePolicy interface {
+	LookupDeclaredRoute(extensionID, method, routePath string) (extensions.DeclaredRouteGuardLookup, bool)
+}
+
 type OptionsOwnerPolicy interface {
 	OptionGuardManagePermissions(names []string) ([]string, bool)
 }
@@ -42,10 +46,11 @@ type PageResolvePolicy interface {
 }
 
 type ProductionRouteGuardPolicies struct {
-	ForumRead  ForumReadPolicy
-	Extensions ExtensionGuardPolicy
-	Options    OptionsOwnerPolicy
-	Pages      PageResolvePolicy
+	ForumRead      ForumReadPolicy
+	Extensions     ExtensionGuardPolicy
+	DeclaredRoutes DeclaredExtensionRoutePolicy
+	Options        OptionsOwnerPolicy
+	Pages          PageResolvePolicy
 }
 
 func NewProductionRouteGuardAuthorizer() ProductionRouteGuardAuthorizer {
@@ -93,6 +98,7 @@ func productionCoreGuardEvaluatorRegistrationsWithPolicies(policies ProductionRo
 		productionCoreGuardEvaluator("core.guard.attachments.upload", requireDeclaredCoreGuardPermission),
 		productionCoreGuardEvaluator("core.guard.extensions.mutation", extensionsMutationGuardEvaluator(policies.Extensions)),
 		productionCoreGuardEvaluator("core.guard.extensions.read", extensionsReadGuardEvaluator(policies.Extensions)),
+		productionCoreGuardEvaluator("core.guard.extensions.declared_route", declaredExtensionRouteGuardEvaluator(policies.DeclaredRoutes)),
 		productionCoreGuardEvaluator("core.guard.entity_meta.read", requireEntityMetaReadAuthority),
 		productionCoreGuardEvaluator("core.guard.forum.author_review", requireAuthenticatedCoreGuardActor),
 		productionCoreGuardEvaluator("core.guard.forum.comment_write", requireForumCommentGlobalAuthority),
@@ -361,6 +367,40 @@ func requireExtensionFrontendStatusAuthority(evaluation routes.CoreGuardEvaluati
 		permissions = append(permissions, identity.PermissionSettingsMailManage)
 	}
 	return requireCoreGuardPermission(evaluation, permissions...)
+}
+
+func declaredExtensionRouteGuardEvaluator(policy DeclaredExtensionRoutePolicy) routes.CoreGuardEvaluatorFunc {
+	return func(_ context.Context, evaluation routes.CoreGuardEvaluation) error {
+		if evaluation.Descriptor.RouteID != "core.route.extensions.proxy_extension_route" || policy == nil {
+			return routes.ErrCoreGuardEvaluatorUnavailable
+		}
+		extensionID := evaluation.Request.Params["extensionId"]
+		routePath := evaluation.Request.Params["*"]
+		if routePath == "" {
+			routePath = evaluation.Request.Params["path"]
+		}
+		if extensionID == "" || routePath == "" {
+			return routes.ErrCoreGuardEvaluatorUnavailable
+		}
+		lookup, ok := policy.LookupDeclaredRoute(extensionID, evaluation.RequestMethod, "/"+strings.TrimPrefix(routePath, "/"))
+		if !ok || lookup.Revision == 0 || lookup.ExtensionID != extensionID ||
+			lookup.ExtensionVersion == "" || lookup.PackageDigest == "" {
+			return routes.ErrCoreGuardEvaluatorUnavailable
+		}
+		switch lookup.Access {
+		case extensions.RouteAccessPublic:
+			return nil
+		case extensions.RouteAccessLogin:
+			return requireAuthenticatedCoreGuardActor(context.Background(), evaluation)
+		case extensions.RouteAccessPermission:
+			if strings.TrimSpace(lookup.Permission) == "" {
+				return routes.ErrCoreGuardEvaluatorUnavailable
+			}
+			return requireCoreGuardPermission(evaluation, lookup.Permission)
+		default:
+			return routes.ErrCoreGuardEvaluatorUnavailable
+		}
+	}
 }
 
 func requireDeclaredCoreGuardPermission(_ context.Context, evaluation routes.CoreGuardEvaluation) error {
@@ -807,11 +847,30 @@ func requireIdentityAdminAuthority(_ context.Context, evaluation routes.CoreGuar
 			return routes.ErrCoreGuardEvaluatorUnavailable
 		}
 		return requireCoreGuardPermission(evaluation, identity.PermissionRoleManage)
+	case "core.route.identity.replace_role_permissions":
+		roleKey := strings.TrimSpace(evaluation.Request.Params["roleKey"])
+		if roleKey == "" || roleKey == identity.RoleSuperAdmin {
+			return routes.ErrCoreGuardEvaluatorUnavailable
+		}
+		var input replaceRolePermissionsGuardInput
+		if err := decodeGuardJSON(evaluation.Request.Body, &input); err != nil {
+			return routes.ErrCoreGuardEvaluatorUnavailable
+		}
+		for _, permission := range input.Permissions {
+			if strings.TrimSpace(permission) == "" {
+				return routes.ErrCoreGuardEvaluatorUnavailable
+			}
+		}
+		return requireCoreGuardPermission(evaluation, identity.PermissionRoleManage)
 	default:
 		// 删除/改角色权限和用户写操作都依赖目标资源或请求字段，
 		// 当前 Guard 输入不能完整复现 Service 的保护，继续保持关闭。
 		return routes.ErrCoreGuardEvaluatorUnavailable
 	}
+}
+
+type replaceRolePermissionsGuardInput struct {
+	Permissions []string `json:"permissions"`
 }
 
 func requireIdentitySelfCredentialsAuthority(ctx context.Context, evaluation routes.CoreGuardEvaluation) error {

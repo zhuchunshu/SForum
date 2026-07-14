@@ -7,6 +7,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
 )
 
 func TestGuardPolicyCatalogPublishesExactArtifactsWithoutLookupIO(t *testing.T) {
@@ -127,6 +129,65 @@ func TestGuardPolicyCatalogConcurrentRefreshAndLookup(t *testing.T) {
 		}
 	}
 	workers.Wait()
+}
+
+func TestGuardPolicyCatalogFreezesOnlySimpleDeclaredRouteGuards(t *testing.T) {
+	plugin := guardPolicyFixture("guard.plugin", TypePlugin, strings.Repeat("a", 64))
+	plugin.Manifest.Routes = []ManifestRoute{
+		{Path: "/public", Methods: []string{"GET"}, Access: RouteAccessPublic},
+		{Path: "/login", Methods: []string{"POST"}, Access: RouteAccessLogin},
+		{Path: "/manage", Methods: []string{"POST"}, Access: RouteAccessPermission, Permission: "topic.create"},
+		{Path: "/raw", Methods: []string{"POST"}, Guard: extensionmanifest.GuardCoreRaw},
+		{Path: "/inherit", Methods: []string{"GET"}, Guard: extensionmanifest.GuardCoreInherit},
+		{Path: "/guest", Methods: []string{"GET"}, Guard: extensionmanifest.GuardCoreGuest},
+	}
+	source := &guardPolicySourceStub{items: []Extension{plugin}}
+	catalog := NewGuardPolicyCatalog(source, &guardPolicyTrustStub{}, nil, GuardPolicyConfig{TTL: time.Minute})
+	if err := catalog.Refresh(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	for _, test := range []struct {
+		path, method, access, permission string
+	}{
+		{path: "/public", method: "GET", access: RouteAccessPublic},
+		{path: "/login", method: "post", access: RouteAccessLogin},
+		{path: "/manage", method: "POST", access: RouteAccessPermission, permission: "topic.create"},
+	} {
+		lookup, ok := catalog.LookupDeclaredRoute(plugin.ID, test.method, test.path)
+		if !ok || lookup.Revision == 0 || lookup.ExtensionID != plugin.ID ||
+			lookup.ExtensionVersion != plugin.Version || lookup.PackageDigest != plugin.PackageDigest ||
+			lookup.Access != test.access || lookup.Permission != test.permission {
+			t.Fatalf("%s lookup = %#v, ok=%v", test.path, lookup, ok)
+		}
+	}
+	for _, test := range []struct{ path, method string }{
+		{path: "/raw", method: "POST"},
+		{path: "/inherit", method: "GET"},
+		{path: "/guest", method: "GET"},
+		{path: "/missing", method: "GET"},
+	} {
+		if _, ok := catalog.LookupDeclaredRoute(plugin.ID, test.method, test.path); ok {
+			t.Fatalf("unsafe route %s was published", test.path)
+		}
+	}
+	for range 100 {
+		if _, ok := catalog.LookupDeclaredRoute(plugin.ID, "GET", "/public"); !ok {
+			t.Fatal("published route disappeared")
+		}
+	}
+	if source.calls != 1 {
+		t.Fatalf("declared route hot path reached Store: calls=%d", source.calls)
+	}
+	plugin.Source = SourceUploaded
+	plugin.IsSystem, plugin.IsDeletable = false, true
+	plugin.Manifest.Backend.Entry = "bin/plugin"
+	source.set([]Extension{plugin}, nil)
+	if err := catalog.Refresh(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := catalog.LookupDeclaredRoute(plugin.ID, "GET", "/public"); ok {
+		t.Fatal("untrusted executable route remained published")
+	}
 }
 
 func guardPolicyFixture(id, extensionType, digest string) Extension {

@@ -8,6 +8,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
 )
 
 const (
@@ -53,6 +55,22 @@ type GuardPolicyLookup struct {
 	Found                  bool
 }
 
+type DeclaredRouteGuardLookup struct {
+	Revision         uint64
+	ExtensionID      string
+	ExtensionVersion string
+	PackageDigest    string
+	Access           string
+	Permission       string
+}
+
+type declaredRouteGuardEntry struct {
+	path       string
+	methods    []string
+	access     string
+	permission string
+}
+
 type guardPolicyExtensionSource interface {
 	List(context.Context) ([]Extension, error)
 }
@@ -68,9 +86,10 @@ type GuardPolicyConfig struct {
 }
 
 type guardPolicySnapshot struct {
-	entries   map[string]GuardPolicyEntry
-	expiresAt time.Time
-	revision  uint64
+	entries        map[string]GuardPolicyEntry
+	declaredRoutes map[string][]declaredRouteGuardEntry
+	expiresAt      time.Time
+	revision       uint64
 }
 
 // GuardPolicyCatalog 在后台冻结扩展类型、制品和信任状态。Lookup 只读内存，
@@ -110,6 +129,7 @@ func (c *GuardPolicyCatalog) Refresh(ctx context.Context) error {
 		return err
 	}
 	entries := make(map[string]GuardPolicyEntry, len(items))
+	declaredRoutes := make(map[string][]declaredRouteGuardEntry, len(items))
 	for _, extension := range items {
 		entry, err := c.freezeEntry(ctx, extension)
 		if err != nil {
@@ -119,15 +139,58 @@ func (c *GuardPolicyCatalog) Refresh(ctx context.Context) error {
 			return fmt.Errorf("extensions: duplicate guard policy extension %q", entry.ExtensionID)
 		}
 		entries[entry.ExtensionID] = entry
+		declaredRoutes[entry.ExtensionID] = freezeDeclaredRouteGuards(extension.Manifest.Routes)
 	}
 
 	c.mu.Lock()
 	c.revision++
 	c.snapshot = &guardPolicySnapshot{
-		entries: entries, expiresAt: time.Now().Add(c.config.TTL), revision: c.revision,
+		entries: entries, declaredRoutes: declaredRoutes,
+		expiresAt: time.Now().Add(c.config.TTL), revision: c.revision,
 	}
 	c.mu.Unlock()
 	return nil
+}
+
+// LookupDeclaredRoute 在同一不可变目录内解析 legacy proxy route。V3 custom/raw/
+// inherited guards 不进入该视图，必须由独立可信 Route Registry 执行。
+func (c *GuardPolicyCatalog) LookupDeclaredRoute(extensionID, method, routePath string) (DeclaredRouteGuardLookup, bool) {
+	if c == nil {
+		return DeclaredRouteGuardLookup{}, false
+	}
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	if c.snapshot == nil || c.snapshot.revision == 0 || !time.Now().Before(c.snapshot.expiresAt) || c.config.SafeMode {
+		return DeclaredRouteGuardLookup{}, false
+	}
+	id := normalizeID(extensionID)
+	entry, found := c.snapshot.entries[id]
+	if !found || entry.ExtensionID != extensionID || entry.ExtensionType != TypePlugin || entry.Status != StatusEnabled ||
+		entry.Version == "" || entry.PackageDigest == "" ||
+		(entry.CurrentTrustRequired && !entry.CurrentArtifactTrusted) {
+		return DeclaredRouteGuardLookup{}, false
+	}
+	wantedPath := normalizeRoutePath(routePath)
+	wantedMethod := strings.ToUpper(strings.TrimSpace(method))
+	var matched *declaredRouteGuardEntry
+	for index := range c.snapshot.declaredRoutes[id] {
+		route := &c.snapshot.declaredRoutes[id][index]
+		if route.path != wantedPath || !slices.Contains(route.methods, wantedMethod) {
+			continue
+		}
+		if matched != nil {
+			return DeclaredRouteGuardLookup{}, false
+		}
+		matched = route
+	}
+	if matched == nil {
+		return DeclaredRouteGuardLookup{}, false
+	}
+	return DeclaredRouteGuardLookup{
+		Revision: c.snapshot.revision, ExtensionID: entry.ExtensionID,
+		ExtensionVersion: entry.Version, PackageDigest: entry.PackageDigest,
+		Access: matched.access, Permission: matched.permission,
+	}, true
 }
 
 func (c *GuardPolicyCatalog) Lookup(extensionID string) (GuardPolicyLookup, bool) {
@@ -242,6 +305,84 @@ func manifestHasProvider(manifest Manifest, slot string) bool {
 		}
 	}
 	return false
+}
+
+func freezeDeclaredRouteGuards(routes []ManifestRoute) []declaredRouteGuardEntry {
+	result := make([]declaredRouteGuardEntry, 0, len(routes))
+	for _, route := range routes {
+		access, permission, ok := declaredRouteGuardAccess(route)
+		if !ok || route.Path == "" || !strings.HasPrefix(route.Path, "/") || strings.Contains(route.Path, "..") {
+			continue
+		}
+		methods := make([]string, 0, len(route.Methods))
+		for _, method := range route.Methods {
+			method = strings.ToUpper(strings.TrimSpace(method))
+			if !validDeclaredRouteGuardMethod(method) ||
+				(access == RouteAccessPublic && method != "GET" && method != "HEAD" && method != "OPTIONS") {
+				methods = nil
+				break
+			}
+			if !slices.Contains(methods, method) {
+				methods = append(methods, method)
+			}
+		}
+		if len(methods) == 0 {
+			continue
+		}
+		result = append(result, declaredRouteGuardEntry{
+			path: normalizeRoutePath(route.Path), methods: methods,
+			access: access, permission: permission,
+		})
+	}
+	return result
+}
+
+func validDeclaredRouteGuardMethod(method string) bool {
+	switch method {
+	case "GET", "HEAD", "OPTIONS", "POST", "PUT", "PATCH", "DELETE":
+		return true
+	default:
+		return false
+	}
+}
+
+func declaredRouteGuardAccess(route ManifestRoute) (access string, permission string, ok bool) {
+	access = strings.TrimSpace(route.Access)
+	guard := strings.TrimSpace(route.Guard)
+	if guard == "" {
+		if access == "" {
+			access = RouteAccessLogin
+		}
+	} else {
+		switch guard {
+		case extensionmanifest.GuardCorePublic:
+			if access != RouteAccessPublic {
+				return "", "", false
+			}
+		case extensionmanifest.GuardCoreLogin:
+			if access == "" {
+				access = RouteAccessLogin
+			}
+			if access != RouteAccessLogin {
+				return "", "", false
+			}
+		case extensionmanifest.GuardCorePermission:
+			if access != RouteAccessPermission {
+				return "", "", false
+			}
+		default:
+			return "", "", false
+		}
+	}
+	switch access {
+	case RouteAccessPublic, RouteAccessLogin:
+		return access, "", true
+	case RouteAccessPermission:
+		permission = strings.TrimSpace(route.Permission)
+		return access, permission, permission != ""
+	default:
+		return "", "", false
+	}
 }
 
 func (c *GuardPolicyCatalog) legacyFrontendTrusted(ctx context.Context, extension Extension) (bool, error) {

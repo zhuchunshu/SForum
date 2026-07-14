@@ -117,7 +117,7 @@ func TestProductionCoreGuardEvaluatorRegistryIsExplicitAndVersioned(t *testing.T
 		t.Fatal(err)
 	}
 	bindings := registry.Bindings()
-	if len(bindings) != len(registrations) || len(bindings) != 27 {
+	if len(bindings) != len(registrations) || len(bindings) != 28 {
 		t.Fatalf("bindings = %#v", bindings)
 	}
 	for _, binding := range bindings {
@@ -581,6 +581,7 @@ func TestProductionExtensionsReadGuardPartitionsCatalogByProvablePolicy(t *testi
 	type expectedRoute struct {
 		method      string
 		permissions []string
+		body        string
 		supported   bool
 	}
 	viewer := []string{identity.PermissionExtensionView, identity.PermissionExtensionManage}
@@ -809,6 +810,116 @@ func TestProductionExtensionPolicyEnforcesTypeTrustSafeModeAndDrift(t *testing.T
 	if err := authorizer.Authorize(context.Background(), settingsPlan, settingsStep, themeManager); !errors.Is(err, ErrRouteGuardUnavailable) {
 		t.Fatalf("identity drift error = %v", err)
 	}
+}
+
+func TestProductionDeclaredExtensionRouteGuardEnforcesFrozenAccess(t *testing.T) {
+	var target routes.CoreRoute
+	for _, route := range routes.CoreRouteCatalog() {
+		if route.ID == "core.route.extensions.proxy_extension_route" {
+			target = route
+			break
+		}
+	}
+	plan, step := productionWildcardInheritedGuardPlan(
+		t, target, "POST", "/guard/extensions/:extensionId/*", "/guard/extensions/demo.plugin/reindex",
+	)
+	policy := &testDeclaredRoutePolicy{
+		extensionID: "demo.plugin", method: "POST", routePath: "/reindex", ok: true,
+		lookup: extensions.DeclaredRouteGuardLookup{
+			Revision: 3, ExtensionID: "demo.plugin", ExtensionVersion: "1.0.0",
+			PackageDigest: strings.Repeat("a", 64),
+		},
+	}
+	authorizer := NewProductionRouteGuardAuthorizerWithPolicies(ProductionRouteGuardPolicies{DeclaredRoutes: policy})
+	tests := []struct {
+		name       string
+		access     string
+		permission string
+		request    routes.DispatchRequest
+		want       error
+	}{
+		{name: "public", access: extensions.RouteAccessPublic},
+		{name: "login anonymous", access: extensions.RouteAccessLogin, want: ErrRouteLoginRequired},
+		{name: "login actor", access: extensions.RouteAccessLogin, request: productionGuardRequest()},
+		{name: "permission anonymous", access: extensions.RouteAccessPermission, permission: identity.PermissionExtensionView, want: ErrRouteLoginRequired},
+		{name: "permission denied", access: extensions.RouteAccessPermission, permission: identity.PermissionExtensionView, request: productionGuardRequest(), want: ErrRoutePermissionDenied},
+		{name: "permission allowed", access: extensions.RouteAccessPermission, permission: identity.PermissionExtensionView, request: productionGuardRequest(identity.PermissionExtensionView)},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			policy.lookup.Access, policy.lookup.Permission = test.access, test.permission
+			request := test.request
+			request.Method, request.Path, request.Params = plan.Method(), plan.Path(), plan.Params()
+			err := authorizer.Authorize(context.Background(), plan, step, request)
+			if !errors.Is(err, test.want) || test.want == nil && err != nil {
+				t.Fatalf("error = %v, want %v", err, test.want)
+			}
+		})
+	}
+	if policy.calls != len(tests) {
+		t.Fatalf("policy calls = %d", policy.calls)
+	}
+}
+
+func TestProductionDeclaredExtensionRouteGuardRejectsStaleRawAndIdentityDrift(t *testing.T) {
+	var target routes.CoreRoute
+	for _, route := range routes.CoreRouteCatalog() {
+		if route.ID == "core.route.extensions.proxy_extension_route" {
+			target = route
+			break
+		}
+	}
+	plan, step := productionWildcardInheritedGuardPlan(
+		t, target, "GET", "/guard/extensions/:extensionId/*", "/guard/extensions/demo.plugin/public",
+	)
+	request := productionGuardRequest("*")
+	request.Method, request.Path, request.Params = plan.Method(), plan.Path(), plan.Params()
+	policy := &testDeclaredRoutePolicy{
+		extensionID: "demo.plugin", method: "GET", routePath: "/public", ok: true,
+		lookup: extensions.DeclaredRouteGuardLookup{
+			Revision: 1, ExtensionID: "demo.plugin", ExtensionVersion: "1.0.0",
+			PackageDigest: strings.Repeat("a", 64), Access: extensions.RouteAccessPublic,
+		},
+	}
+	authorizer := NewProductionRouteGuardAuthorizerWithPolicies(ProductionRouteGuardPolicies{DeclaredRoutes: policy})
+	policy.ok = false // raw/custom/inherit and stale snapshots are deliberately absent.
+	if err := authorizer.Authorize(context.Background(), plan, step, request); !errors.Is(err, ErrRouteGuardUnavailable) {
+		t.Fatalf("unpublished policy error = %v", err)
+	}
+	policy.ok = true
+	policy.lookup.ExtensionID = "drifted.plugin"
+	if err := authorizer.Authorize(context.Background(), plan, step, request); !errors.Is(err, ErrRouteGuardUnavailable) {
+		t.Fatalf("identity drift error = %v", err)
+	}
+	policy.lookup.ExtensionID = "demo.plugin"
+	policy.lookup.Revision = 0
+	if err := authorizer.Authorize(context.Background(), plan, step, request); !errors.Is(err, ErrRouteGuardUnavailable) {
+		t.Fatalf("revision drift error = %v", err)
+	}
+	policy.lookup.Revision = 1
+	forged := request
+	forged.Params = plan.Params()
+	forged.Params["extensionId"] = "other.plugin"
+	if err := authorizer.Authorize(context.Background(), plan, step, forged); !errors.Is(err, ErrRouteGuardUnavailable) {
+		t.Fatalf("forged resource error = %v", err)
+	}
+}
+
+type testDeclaredRoutePolicy struct {
+	extensionID string
+	method      string
+	routePath   string
+	lookup      extensions.DeclaredRouteGuardLookup
+	ok          bool
+	calls       int
+}
+
+func (p *testDeclaredRoutePolicy) LookupDeclaredRoute(extensionID, method, routePath string) (extensions.DeclaredRouteGuardLookup, bool) {
+	p.calls++
+	if extensionID != p.extensionID || method != p.method || routePath != p.routePath {
+		return extensions.DeclaredRouteGuardLookup{}, false
+	}
+	return p.lookup, p.ok
 }
 
 func TestProductionOptionsOwnerGuardClosesStaticPolicyCatalog(t *testing.T) {
@@ -1154,11 +1265,13 @@ func TestProductionEntityMetaPublicDefinitionsGuardValidatesEntityType(t *testin
 }
 
 func TestProductionIdentityDeleteRoleGuardProtectsStaticRoles(t *testing.T) {
-	var target routes.CoreRoute
+	var target, replaceTarget routes.CoreRoute
 	for _, route := range routes.CoreRouteCatalog() {
 		if route.ID == "core.route.identity.delete_role" {
 			target = route
-			break
+		}
+		if route.ID == "core.route.identity.replace_role_permissions" {
+			replaceTarget = route
 		}
 	}
 	authorizer := NewProductionRouteGuardAuthorizer()
@@ -1173,6 +1286,24 @@ func TestProductionIdentityDeleteRoleGuardProtectsStaticRoles(t *testing.T) {
 		request.Method, request.Path, request.Params = plan.Method(), plan.Path(), plan.Params()
 		if err := authorizer.Authorize(context.Background(), plan, step, request); !errors.Is(err, ErrRouteGuardUnavailable) {
 			t.Fatalf("protected role %s error = %v", roleKey, err)
+		}
+	}
+	for _, test := range []struct {
+		roleKey string
+		body    string
+	}{
+		{roleKey: identity.RoleSuperAdmin, body: `{"permissions":["post.create"]}`},
+		{roleKey: "community_helper", body: `{"permissions":[""]}`},
+		{roleKey: "community_helper", body: `{"permissions":["post.create"],"future":true}`},
+		{roleKey: "community_helper", body: `{"permissions":`},
+	} {
+		plan, step := productionParameterizedInheritedGuardPlan(
+			t, replaceTarget, "/guard/roles/:roleKey/permissions", "/guard/roles/"+test.roleKey+"/permissions",
+		)
+		request := productionGuardRequest("*")
+		request.Method, request.Path, request.Params, request.Body = plan.Method(), plan.Path(), plan.Params(), []byte(test.body)
+		if err := authorizer.Authorize(context.Background(), plan, step, request); !errors.Is(err, ErrRouteGuardUnavailable) {
+			t.Fatalf("replace role %s body %s error = %v", test.roleKey, test.body, err)
 		}
 	}
 }
@@ -1284,6 +1415,7 @@ func TestProductionIdentityAdminGuardPartitionsCatalogByProvablePolicy(t *testin
 	type expectedRoute struct {
 		method      string
 		permissions []string
+		body        string
 		supported   bool
 	}
 	expected := map[string]expectedRoute{
@@ -1302,7 +1434,7 @@ func TestProductionIdentityAdminGuardPartitionsCatalogByProvablePolicy(t *testin
 		"core.route.identity.get_user":    {method: "GET", supported: true, permissions: []string{identity.PermissionUserView, identity.PermissionUserManage}},
 
 		"core.route.identity.delete_role":                       {method: "DELETE", supported: true, permissions: []string{identity.PermissionRoleManage}},
-		"core.route.identity.replace_role_permissions":          {method: "PUT"},
+		"core.route.identity.replace_role_permissions":          {method: "PUT", supported: true, permissions: []string{identity.PermissionRoleManage}, body: `{"permissions":["post.create"]}`},
 		"core.route.identity.update_user":                       {method: "PATCH"},
 		"core.route.identity.admin_clear_user_client_ips":       {method: "POST"},
 		"core.route.identity.replace_user_permission_overrides": {method: "PUT"},
@@ -1329,7 +1461,7 @@ func TestProductionIdentityAdminGuardPartitionsCatalogByProvablePolicy(t *testin
 		delete(expected, route.ID)
 
 		plan, step := productionCatalogInheritedGuardPlan(t, route)
-		if route.ID == "core.route.identity.delete_role" {
+		if route.ID == "core.route.identity.delete_role" || route.ID == "core.route.identity.replace_role_permissions" {
 			plan, step = productionParameterizedInheritedGuardPlan(
 				t, route, "/guard/production/roles/:roleKey", "/guard/production/roles/community_helper",
 			)
@@ -1345,25 +1477,25 @@ func TestProductionIdentityAdminGuardPartitionsCatalogByProvablePolicy(t *testin
 
 		for _, permission := range want.permissions {
 			allowed := productionGuardRequest(permission)
-			allowed.Method, allowed.Path, allowed.Params = plan.Method(), plan.Path(), plan.Params()
+			allowed.Method, allowed.Path, allowed.Params, allowed.Body = plan.Method(), plan.Path(), plan.Params(), []byte(want.body)
 			if err := authorizer.Authorize(context.Background(), plan, step, allowed); err != nil {
 				t.Fatalf("%s permission %s error = %v", route.ID, permission, err)
 			}
 		}
 
 		denied := productionGuardRequest(identity.PermissionPostCreate)
-		denied.Method, denied.Path, denied.Params = plan.Method(), plan.Path(), plan.Params()
+		denied.Method, denied.Path, denied.Params, denied.Body = plan.Method(), plan.Path(), plan.Params(), []byte(want.body)
 		if err := authorizer.Authorize(context.Background(), plan, step, denied); !errors.Is(err, ErrRoutePermissionDenied) {
 			t.Fatalf("%s permission denied error = %v", route.ID, err)
 		}
 
-		anonymous := routes.DispatchRequest{Method: plan.Method(), Path: plan.Path(), Params: plan.Params()}
+		anonymous := routes.DispatchRequest{Method: plan.Method(), Path: plan.Path(), Params: plan.Params(), Body: []byte(want.body)}
 		if err := authorizer.Authorize(context.Background(), plan, step, anonymous); !errors.Is(err, ErrRouteLoginRequired) {
 			t.Fatalf("%s anonymous error = %v", route.ID, err)
 		}
 
 		allowed := productionGuardRequest(want.permissions[0])
-		allowed.Method, allowed.Path, allowed.Params = plan.Method(), plan.Path(), plan.Params()
+		allowed.Method, allowed.Path, allowed.Params, allowed.Body = plan.Method(), plan.Path(), plan.Params(), []byte(want.body)
 		forgedStep := step
 		forgedStep.RouteID += ".forged"
 		if err := authorizer.Authorize(context.Background(), plan, forgedStep, allowed); !errors.Is(err, ErrRouteGuardUnavailable) {
@@ -1772,6 +1904,40 @@ func productionExtensionPolicyGuardPlan(
 		requestPath += "/probe"
 	}
 	return productionParameterizedInheritedGuardPlan(t, target, aliasPath, requestPath)
+}
+
+func productionWildcardInheritedGuardPlan(
+	t *testing.T,
+	target routes.CoreRoute,
+	method string,
+	aliasPath string,
+	requestPath string,
+) (routes.RouteExecutionPlan, routes.RouteExecutionStep) {
+	t.Helper()
+	registry := routes.NewRegistry()
+	alias := extensionmanifest.ManifestRoute{
+		ID: "guard.production.wildcard_alias", ContractVersion: "guard.production.wildcard_alias@1",
+		Action: extensionmanifest.RouteActionAlias, TargetID: target.ID,
+		Path: aliasPath, Methods: []string{method}, Guard: extensionmanifest.GuardCoreInherit,
+		Fallback: "closed", Mode: extensionmanifest.RouteModeHTTP,
+	}
+	if _, err := registry.Publish(routes.Publication{
+		Core: []routes.CoreRoute{target},
+		Plugins: []routes.PluginRouteSet{{
+			Artifact: routes.PluginArtifact{
+				ExtensionID: "guard.production", ExtensionVersion: "1.0.0",
+				PackageDigest: strings.Repeat("e", 64), RuntimeInstanceID: "runtime-e",
+			},
+			Routes: []extensionmanifest.ManifestRoute{alias},
+		}},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	plan, err := registry.BuildExecutionPlan(method, requestPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return plan, plan.Terminal()
 }
 
 func productionParameterizedInheritedGuardPlan(
