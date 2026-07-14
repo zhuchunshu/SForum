@@ -27,11 +27,13 @@ type PluginScheduleRuntimeIdentity struct {
 // PluginScheduleDeclaration 是已验证 manifest 发布给宿主调度器的不可变契约。
 // 本 registry 只管理 admission；它不自行创建 cron goroutine 或 River constructor。
 type PluginScheduleDeclaration struct {
-	ScheduleID  string
-	JobName     string
-	JobContract string
-	Cron        string
-	Timezone    string
+	ScheduleID   string
+	JobName      string
+	JobContract  string
+	Cron         string
+	Timezone     string
+	Contract     PluginJobContract
+	TrustGrantID string
 }
 
 type PluginScheduleRuntime struct {
@@ -61,6 +63,7 @@ type PluginScheduleAdmissionRegistry struct {
 	mu       sync.Mutex
 	active   map[string]PluginScheduleRuntimeIdentity
 	runtimes map[PluginScheduleRuntimeIdentity]*pluginScheduleRuntimeState
+	periodic *PluginSchedulePeriodicPublisher
 }
 
 type PluginScheduleTriggerLease struct {
@@ -92,14 +95,27 @@ func (r *PluginScheduleAdmissionRegistry) PublishActive(runtime PluginScheduleRu
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.ensureMapsLocked()
+	currentIdentity, hasCurrent := r.active[identity.ExtensionID]
+	var previousState *pluginScheduleRuntimeState
+	var previousRuntime *PluginScheduleRuntime
+	if hasCurrent && currentIdentity != identity {
+		previousState = r.runtimes[currentIdentity]
+		if previousState != nil {
+			value := r.runtimeLocked(previousState)
+			previousRuntime = &value
+		}
+	}
 	if existing := r.runtimes[identity]; existing != nil {
 		if !samePluginSchedules(existing.schedules, schedules) {
 			return r.snapshotLocked(existing), fmt.Errorf("%w: exact runtime declarations changed", ErrPluginScheduleInvalid)
 		}
-		if current, ok := r.active[identity.ExtensionID]; ok && current != identity {
-			if previous := r.runtimes[current]; previous != nil {
-				previous.draining = true
+		if r.periodic != nil && (!hasCurrent || currentIdentity != identity) {
+			if err := r.periodic.Replace(previousRuntime, PluginScheduleRuntime{Identity: identity, Schedules: mapPluginSchedules(schedules)}); err != nil {
+				return r.snapshotLocked(existing), err
 			}
+		}
+		if previousState != nil {
+			previousState.draining = true
 		}
 		// Failed activation compensation and exact rollback both republish the
 		// retained immutable declaration set through this same lock boundary.
@@ -107,10 +123,13 @@ func (r *PluginScheduleAdmissionRegistry) PublishActive(runtime PluginScheduleRu
 		r.active[identity.ExtensionID] = identity
 		return r.snapshotLocked(existing), nil
 	}
-	if current, ok := r.active[identity.ExtensionID]; ok && current != identity {
-		if previous := r.runtimes[current]; previous != nil {
-			previous.draining = true
+	if r.periodic != nil {
+		if err := r.periodic.Replace(previousRuntime, PluginScheduleRuntime{Identity: identity, Schedules: mapPluginSchedules(schedules)}); err != nil {
+			return PluginScheduleSnapshot{}, err
 		}
+	}
+	if previousState != nil {
+		previousState.draining = true
 	}
 
 	idle := make(chan struct{})
@@ -172,7 +191,41 @@ func (r *PluginScheduleAdmissionRegistry) BeginDrain(identity PluginScheduleRunt
 		return PluginScheduleSnapshot{}, ErrPluginScheduleRuntimeStale
 	}
 	state.draining = true
+	if r.periodic != nil {
+		r.periodic.Remove(r.runtimeLocked(state))
+	}
 	return r.snapshotLocked(state), nil
+}
+
+// BindPeriodicPublisher publishes already-active snapshots when a worker's
+// River client becomes available. Each worker process binds its own bundle so
+// leader changes keep the same dynamic catalog.
+func (r *PluginScheduleAdmissionRegistry) BindPeriodicPublisher(publisher *PluginSchedulePeriodicPublisher) error {
+	if r == nil || publisher == nil {
+		return ErrPluginScheduleInvalid
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.periodic != nil {
+		return fmt.Errorf("%w: periodic publisher already bound", ErrPluginScheduleInvalid)
+	}
+	published := make([]PluginScheduleRuntime, 0, len(r.active))
+	for _, identity := range r.active {
+		state := r.runtimes[identity]
+		if state == nil || state.draining {
+			continue
+		}
+		runtime := r.runtimeLocked(state)
+		if err := publisher.Replace(nil, runtime); err != nil {
+			for _, rollback := range published {
+				publisher.Remove(rollback)
+			}
+			return err
+		}
+		published = append(published, runtime)
+	}
+	r.periodic = publisher
+	return nil
 }
 
 func (r *PluginScheduleAdmissionRegistry) Snapshot(identity PluginScheduleRuntimeIdentity) (PluginScheduleSnapshot, error) {
@@ -253,6 +306,19 @@ func (r *PluginScheduleAdmissionRegistry) snapshotLocked(state *pluginScheduleRu
 	}
 }
 
+func (r *PluginScheduleAdmissionRegistry) runtimeLocked(state *pluginScheduleRuntimeState) PluginScheduleRuntime {
+	return PluginScheduleRuntime{Identity: state.identity, Schedules: mapPluginSchedules(state.schedules)}
+}
+
+func mapPluginSchedules(schedules map[string]PluginScheduleDeclaration) []PluginScheduleDeclaration {
+	result := make([]PluginScheduleDeclaration, 0, len(schedules))
+	for _, declaration := range schedules {
+		result = append(result, declaration)
+	}
+	sort.Slice(result, func(i, j int) bool { return result[i].ScheduleID < result[j].ScheduleID })
+	return result
+}
+
 func (r *PluginScheduleAdmissionRegistry) ensureMapsLocked() {
 	if r.active == nil {
 		r.active = make(map[string]PluginScheduleRuntimeIdentity)
@@ -274,6 +340,8 @@ func normalizePluginScheduleRuntime(runtime PluginScheduleRuntime) (PluginSchedu
 		declaration.JobContract = strings.TrimSpace(declaration.JobContract)
 		declaration.Cron = strings.TrimSpace(declaration.Cron)
 		declaration.Timezone = strings.TrimSpace(declaration.Timezone)
+		declaration.Contract = declaration.Contract.Normalized()
+		declaration.TrustGrantID = strings.TrimSpace(declaration.TrustGrantID)
 		if declaration.ScheduleID == "" || declaration.JobName == "" || declaration.JobContract == "" || declaration.Cron == "" || declaration.Timezone == "" {
 			return PluginScheduleRuntimeIdentity{}, nil, fmt.Errorf("%w: complete schedule contract is required", ErrPluginScheduleInvalid)
 		}
@@ -295,6 +363,10 @@ func normalizePluginScheduleIdentity(identity PluginScheduleRuntimeIdentity) Plu
 
 func (i PluginScheduleRuntimeIdentity) valid() bool {
 	return i.ExtensionID != "" && i.ExtensionVersion != "" && i.ArtifactDigest != "" && i.InstanceID != ""
+}
+
+func (i PluginScheduleRuntimeIdentity) Valid() bool {
+	return normalizePluginScheduleIdentity(i).valid()
 }
 
 func samePluginSchedules(left, right map[string]PluginScheduleDeclaration) bool {
