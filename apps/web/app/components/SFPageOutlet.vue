@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { ThemeRenderOutput } from '~/composables/useThemeRenderOutput'
+
 /**
  * SFPageOutlet — Page Registry 解析钩子。
  * core：渲染默认 slot（host Vue 页）。
@@ -46,6 +48,7 @@ type ResolvePayload = {
   fallback?: boolean
   templatePath?: string
   templateHtml?: string
+  renderOutput?: ThemeRenderOutput
   dataSource?: string
   dataRoute?: string
   loaderData?: unknown
@@ -85,10 +88,11 @@ const provider = computed(() => {
   return resolved.value?.provider || 'core'
 })
 const templateHtml = computed(() => (resolved.value?.templateHtml || '').trim())
+const renderOutput = computed(() => resolved.value?.renderOutput)
 const useTemplate = computed(() =>
   !isConstrained.value
   && provider.value !== 'core'
-  && Boolean(templateHtml.value)
+  && Boolean(renderOutput.value || templateHtml.value)
   && !resolved.value?.fallback
 )
 const showFallbackNotice = computed(() => Boolean(resolved.value?.fallback || resolveError.value))
@@ -105,6 +109,7 @@ const showFallbackNotice = computed(() => Boolean(resolved.value?.fallback || re
     <SFThemeTemplate
       v-if="useTemplate"
       :html="templateHtml"
+      :render-output="renderOutput"
       :extension-id="resolved?.extensionId || provider"
       :data-source="resolved?.dataSource"
       :data-route="resolved?.dataRoute"

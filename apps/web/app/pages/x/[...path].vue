@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { ThemeRenderOutput } from '~/composables/useThemeRenderOutput'
+
 /**
  * 兼容路径 /x/*：转发到统一 Registry 解析（与根 catch-all 相同逻辑）。
  * 正式 add 路径应使用 manifest 声明的真实 path（由 [...sfRegistryPage] 承接）。
@@ -20,6 +22,7 @@ type ResolvePayload = {
   extensionId?: string
   fallback?: boolean
   templateHtml?: string
+  renderOutput?: ThemeRenderOutput
   dataSource?: string
   dataRoute?: string
   loaderError?: string
@@ -51,7 +54,7 @@ if (error.value) {
 }
 
 const templateHtml = computed(() => (data.value?.templateHtml || '').trim())
-const useTemplate = computed(() => Boolean(templateHtml.value) && !data.value?.fallback)
+const useTemplate = computed(() => Boolean(data.value?.renderOutput || templateHtml.value) && !data.value?.fallback)
 
 useSForumSeo({
   title: () => data.value?.page?.id || requestPath.value,
@@ -65,6 +68,7 @@ useSForumSeo({
     <SFThemeTemplate
       v-if="useTemplate"
       :html="templateHtml"
+      :render-output="data?.renderOutput"
       :extension-id="data?.extensionId || data?.provider || ''"
       :data-source="data?.dataSource"
       :data-route="data?.dataRoute"

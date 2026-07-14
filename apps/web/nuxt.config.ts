@@ -161,6 +161,7 @@ export default defineNuxtConfig({
         'altcha/i18n/en',
         'altcha/i18n/zh-cn',
         'dompurify',
+        'parse5',
         'highlight.js/lib/core',
         'highlight.js/lib/languages/bash',
         'highlight.js/lib/languages/css',

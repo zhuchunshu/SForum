@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { ThemeRenderOutput } from '~/composables/useThemeRenderOutput'
+
 /**
  * 动态公开路由宿主：匹配 Page Registry 的 action=add 贡献。
  * 仅在无其它 Nuxt 文件路由命中时生效（catch-all）。
@@ -26,6 +28,7 @@ type ResolvePayload = {
   action?: string
   fallback?: boolean
   templateHtml?: string
+  renderOutput?: ThemeRenderOutput
   dataSource?: string
   dataRoute?: string
   loaderData?: unknown
@@ -59,7 +62,7 @@ if (error.value) {
 }
 
 const templateHtml = computed(() => (data.value?.templateHtml || '').trim())
-const useTemplate = computed(() => Boolean(templateHtml.value) && !data.value?.fallback)
+const useTemplate = computed(() => Boolean(data.value?.renderOutput || templateHtml.value) && !data.value?.fallback)
 
 useSForumSeo({
   title: () => data.value?.page?.id || requestPath.value,
@@ -78,6 +81,7 @@ useSForumSeo({
     <SFThemeTemplate
       v-else-if="useTemplate"
       :html="templateHtml"
+      :render-output="data?.renderOutput"
       :extension-id="data?.extensionId || data?.provider || ''"
       :data-source="data?.dataSource"
       :data-route="data?.dataRoute"
