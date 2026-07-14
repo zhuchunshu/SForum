@@ -251,6 +251,19 @@ func (s *ProtocolStarter) publishProtocolInstanceLocked(
 				return ProtocolRuntimeInstanceSnapshot{}, err
 			}
 		}
+		// Registry compensation can remove this exact service set while the
+		// retained process remains published. Idempotent publication must rebuild
+		// it from the startup-frozen handshake instead of trusting process state.
+		if instance.protocolVersion == 2 {
+			registry := protocolV2ServiceRegistryFor(s.hostAPI)
+			if registry == nil {
+				if len(instance.registrations) > 0 {
+					return ProtocolRuntimeInstanceSnapshot{}, fmt.Errorf("protocol v2 service registry is not configured")
+				}
+			} else if err := registry.ReplaceProtocolV2Services(identity.ExtensionID, instance.registrations); err != nil {
+				return ProtocolRuntimeInstanceSnapshot{}, fmt.Errorf("reconcile protocol v2 services: %w", err)
+			}
+		}
 		return s.InspectInstance(identity)
 	}
 	if instance.protocolVersion == 2 {
