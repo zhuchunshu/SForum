@@ -1,6 +1,7 @@
 package routes
 
 import (
+	"encoding/json"
 	"errors"
 	"reflect"
 	"strings"
@@ -10,6 +11,32 @@ import (
 
 	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
 )
+
+func TestInspectorNeverExposesMaterializedAliasTargetPath(t *testing.T) {
+	registry := NewRegistry()
+	target := coreRoute("core.route.inspect.private_target", "GET", "/topics/:topicID")
+	alias := pluginRoute("inspect.private.alias", "/private/:secret", 0, "GET")
+	alias.Action, alias.TargetID, alias.Handler, alias.ResponseSchema = extensionmanifest.RouteActionAlias, target.ID, "", ""
+	alias.Guard = extensionmanifest.GuardCoreInherit
+	if _, err := registry.Publish(Publication{
+		Core: []CoreRoute{target}, Plugins: []PluginRouteSet{{
+			Artifact: routeArtifact("inspect.private", "1.0.0", 'a'), Routes: []extensionmanifest.ManifestRoute{alias},
+		}},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	snapshot, err := NewInspector(registry, nil, nil).Inspect(t.Context(), "GET", "/private/secret-value")
+	if err != nil || len(snapshot.Chain) != 1 {
+		t.Fatalf("inspection = %#v, %v", snapshot, err)
+	}
+	body, err := json.Marshal(snapshot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(body), "secret-value") || strings.Contains(string(body), "/topics/secret-value") {
+		t.Fatalf("inspector leaked materialized target path: %s", body)
+	}
+}
 
 func TestInspectorCapturesExactSelectedChainConflictsAndDetachedValues(t *testing.T) {
 	registry, providers, artifact, key, request := inspectorSelectedFixture(t)

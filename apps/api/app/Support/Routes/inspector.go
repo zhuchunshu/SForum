@@ -39,7 +39,6 @@ type InspectorStep struct {
 	Permission      string              `json:"permission,omitempty"`
 	Handler         string              `json:"handler,omitempty"`
 	Destination     string              `json:"destination,omitempty"`
-	TargetPath      string              `json:"targetPath,omitempty"`
 	RequestSchema   string              `json:"requestSchema,omitempty"`
 	ResponseSchema  string              `json:"responseSchema,omitempty"`
 	Mode            string              `json:"mode"`
@@ -250,7 +249,7 @@ func inspectorExecutionStep(index int, step RouteExecutionStep, signature string
 		ContractVersion: step.ContractVersion, TargetRouteID: step.TargetID,
 		Method: step.Method, Path: step.Path, PathSignature: signature,
 		Provider: inspectorProvider(step.Provider), Guard: step.Guard, Access: step.Access,
-		Permission: step.Permission, Handler: step.Handler, Destination: step.Destination, TargetPath: step.TargetPath,
+		Permission: step.Permission, Handler: step.Handler, Destination: step.Destination,
 		RequestSchema: step.RequestSchema, ResponseSchema: step.ResponseSchema,
 		Mode: step.Mode, Fallback: step.Fallback, TimeoutMS: step.TimeoutMS, Priority: step.Priority,
 	}

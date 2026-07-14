@@ -40,6 +40,8 @@ RouteInspectorStep:
     provider: { "$ref": "#/RouteInspectorProvider" }
     guard: { type: string }
     access: { type: string }
+    pluginGuard:
+      "$ref": "./extensions-v3-registry.yaml#/ExtensionManifestGuard"
     permission: { type: string }
     handler: { type: string }
     destination: { type: string }
