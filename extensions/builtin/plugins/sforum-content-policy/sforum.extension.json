@@ -4,7 +4,7 @@
     "url": "https://github.com/zhuchunshu/sforum"
   },
   "backend": {
-    "digest": "151e16232b4ff155003759d02b4a86697972aca770d7ba8d58d51ce61b3f9379",
+    "digest": "2dc49adad8ac4757f5924a7a0c50ebe115a01324b26345f816ff1d21796e47e4",
     "entry": "backend/plugin",
     "hostApiVersion": "sforum.host@2",
     "protocolVersion": 2,
@@ -56,7 +56,7 @@
   "name": "SForum Content Policy",
   "packageFiles": [
     {
-      "digest": "151e16232b4ff155003759d02b4a86697972aca770d7ba8d58d51ce61b3f9379",
+      "digest": "2dc49adad8ac4757f5924a7a0c50ebe115a01324b26345f816ff1d21796e47e4",
       "id": "sforum.content-policy.file.backend",
       "kind": "executable",
       "path": "backend/plugin"
