@@ -83,12 +83,30 @@ ExtensionManifestContent:
     migration: { type: string }
 ExtensionManifestDatabase:
   type: object
-  required: [contractVersion, authority, backup, retention]
+  required: [contractVersion, backup, retention]
+  oneOf:
+  - required: [authority]
+    not:
+      required: [grants]
+  - required: [grants]
+    not:
+      required: [authority]
   properties:
     contractVersion: { type: string }
     authority:
       type: string
+      deprecated: true
+      description: Legacy cumulative compatibility input. New manifests use grants.
       enum: [own_schema, core_views, host_commands, raw_core, kernel]
+    grants:
+      type: array
+      minItems: 1
+      maxItems: 5
+      uniqueItems: true
+      description: Exact additive database grant set bound by exact-artifact trust.
+      items:
+        type: string
+        enum: [own_schema, core_views, host_commands, raw_core, kernel]
     schema: { type: string }
     role: { type: string }
     coreCompatibility: { type: string }
