@@ -24,6 +24,10 @@ func TestExactLifecycleCoordinatorRuntimeAdapterUsesManagedStagedProcess(t *test
 	extension := exactCoordinatorIntegrationExtension(t)
 	starter := extensionsruntime.NewProtocolStarter(extensionsruntime.ProtocolStarterConfig{Trust: p4LifecycleTrust{}})
 	manager := extensionsruntime.NewManager(extensionsruntime.ManagerConfig{Starter: starter})
+	adapter, err := manager.NewExactLifecycleCoordinatorRuntimeAdapter()
+	if err != nil {
+		t.Fatal(err)
+	}
 	staged, err := manager.StageRuntimeInstance(context.Background(), extension)
 	if err != nil {
 		t.Fatal(err)
@@ -42,14 +46,24 @@ func TestExactLifecycleCoordinatorRuntimeAdapterUsesManagedStagedProcess(t *test
 		extensions.LifecycleMachineEnableAction, extensions.LifecycleRuntimeTarget,
 		"lifecycle.enable.02.enable", false,
 	)
-	result, err := extensionsruntime.NewExactLifecycleCoordinatorRuntimeAdapter(manager, starter).
-		RunLifecycleAction(context.Background(), request, nil)
+	result, err := adapter.RunLifecycleAction(context.Background(), request, nil)
 	if err != nil || result.Status != extensions.LifecycleStepSucceeded {
 		t.Fatalf("staged result=%#v err=%v", result, err)
 	}
 	managed, err := manager.InspectRuntimeInstance(staged.Identity)
 	if err != nil || managed.Active || managed.Admission.ActiveTotal != 0 {
 		t.Fatalf("released staged runtime=%#v err=%v", managed, err)
+	}
+}
+
+func TestManagerExactLifecycleCoordinatorRuntimeAdapterFailsClosedWithoutProtocolV2Starter(t *testing.T) {
+	var nilManager *extensionsruntime.Manager
+	if _, err := nilManager.NewExactLifecycleCoordinatorRuntimeAdapter(); !errors.Is(err, extensionsruntime.ErrRuntimeAdmissionInvalid) {
+		t.Fatalf("nil Manager adapter error=%v", err)
+	}
+	manager := extensionsruntime.NewManager(extensionsruntime.ManagerConfig{})
+	if _, err := manager.NewExactLifecycleCoordinatorRuntimeAdapter(); !errors.Is(err, extensionsruntime.ErrProtocolInstanceUnsupported) {
+		t.Fatalf("local starter adapter error=%v", err)
 	}
 }
 

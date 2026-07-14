@@ -42,6 +42,21 @@ func NewExactLifecycleCoordinatorRuntimeAdapter(
 	return &ExactLifecycleCoordinatorRuntimeAdapter{admission: admission, runner: starter}
 }
 
+// NewExactLifecycleCoordinatorRuntimeAdapter returns the only production
+// coordinator adapter allowed to use this Manager's private process starter.
+// Bootstrap therefore cannot accidentally pair admission from one Manager
+// with process execution from another ProtocolStarter.
+func (m *Manager) NewExactLifecycleCoordinatorRuntimeAdapter() (*ExactLifecycleCoordinatorRuntimeAdapter, error) {
+	if m == nil {
+		return nil, ErrRuntimeAdmissionInvalid
+	}
+	runner, ok := m.starter.(exactLifecycleCoordinatorRunner)
+	if !ok || runner == nil {
+		return nil, ErrProtocolInstanceUnsupported
+	}
+	return &ExactLifecycleCoordinatorRuntimeAdapter{admission: m, runner: runner}, nil
+}
+
 func (a *ExactLifecycleCoordinatorRuntimeAdapter) RunLifecycleAction(
 	ctx context.Context,
 	request extensions.LifecycleCoordinatorActionRequest,
