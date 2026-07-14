@@ -103,12 +103,13 @@ func TestExecutionPlanSupportsEveryTerminalAction(t *testing.T) {
 		action      string
 		target      string
 		destination string
+		targetPath  string
 		access      string
 	}{
-		{"/custom", extensionmanifest.RouteActionAdd, "", "", "raw_request"},
-		{"/alias", extensionmanifest.RouteActionAlias, "core.route.plan.home", "", "inherit"},
-		{"/old", extensionmanifest.RouteActionRedirect, "", "/new", "public"},
-		{"/rewrite", extensionmanifest.RouteActionRewrite, "core.route.plan.home", "", "inherit"},
+		{"/custom", extensionmanifest.RouteActionAdd, "", "", "", "raw_request"},
+		{"/alias", extensionmanifest.RouteActionAlias, "core.route.plan.home", "", "/home", "inherit"},
+		{"/old", extensionmanifest.RouteActionRedirect, "", "/new", "", "public"},
+		{"/rewrite", extensionmanifest.RouteActionRewrite, "core.route.plan.home", "", "/home", "inherit"},
 	}
 	for _, test := range tests {
 		plan, err := registry.BuildExecutionPlan("GET", test.path)
@@ -117,8 +118,31 @@ func TestExecutionPlanSupportsEveryTerminalAction(t *testing.T) {
 		}
 		terminal := plan.Terminal()
 		if len(plan.Chain()) != 1 || terminal.Action != test.action || terminal.TargetID != test.target ||
-			terminal.Destination != test.destination || terminal.Provider.Artifact != artifact || terminal.Access != test.access {
+			terminal.Destination != test.destination || terminal.TargetPath != test.targetPath ||
+			terminal.Provider.Artifact != artifact || terminal.Access != test.access {
 			t.Fatalf("%s terminal=%#v chain=%#v", test.path, terminal, plan.Chain())
+		}
+	}
+}
+
+func TestExecutionPlanMaterializesAliasAndRewriteTargetParameters(t *testing.T) {
+	registry := NewRegistry()
+	artifact := routeArtifact("plan.mapping", "1.0.0", 'b')
+	target := coreRoute("core.route.plan.mapping", "GET", "/topics/:topicID/*rest")
+	alias := pluginRoute("plan.mapping.alias", "/legacy/:id/*path", 0, "GET")
+	alias.Action, alias.TargetID, alias.Handler, alias.ResponseSchema = extensionmanifest.RouteActionAlias, target.ID, "", ""
+	alias.Guard = extensionmanifest.GuardCoreInherit
+	rewrite := alias
+	rewrite.ID, rewrite.ContractVersion, rewrite.Action, rewrite.Path = "plan.mapping.rewrite", "plan.mapping.rewrite@1", extensionmanifest.RouteActionRewrite, "/internal/:id/*path"
+	if _, err := registry.Publish(Publication{
+		Core: []CoreRoute{target}, Plugins: []PluginRouteSet{{Artifact: artifact, Routes: []extensionmanifest.ManifestRoute{alias, rewrite}}},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	for _, path := range []string{"/legacy/42/comments/7", "/internal/42/comments/7"} {
+		plan, err := registry.BuildExecutionPlan("GET", path)
+		if err != nil || plan.Terminal().TargetPath != "/topics/42/comments/7" {
+			t.Fatalf("path %s target = %q, %v", path, plan.Terminal().TargetPath, err)
 		}
 	}
 }

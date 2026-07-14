@@ -686,6 +686,26 @@ func TestRegistryRejectsNonSemverArtifactVersion(t *testing.T) {
 	}
 }
 
+func TestRegistryRetainsIncompatibleAliasRewriteForFailClosedPlanning(t *testing.T) {
+	artifact := routeArtifact("mapping.invalid", "1.0.0", 'a')
+	target := coreRoute("core.route.mapping.invalid", "GET", "/target/:id")
+	for _, action := range []string{extensionmanifest.RouteActionAlias, extensionmanifest.RouteActionRewrite} {
+		route := pluginRoute("mapping.invalid."+action, "/legacy", 0, "GET")
+		route.Action, route.TargetID, route.Guard, route.Handler, route.ResponseSchema =
+			action, target.ID, extensionmanifest.GuardCoreInherit, "", ""
+		registry := NewRegistry()
+		if _, err := registry.Publish(Publication{
+			Core: []CoreRoute{target}, Plugins: []PluginRouteSet{{Artifact: artifact, Routes: []extensionmanifest.ManifestRoute{route}}},
+		}); err != nil || registry.Revision() != 1 {
+			t.Fatalf("action %s error = %v, revision = %d", action, err, registry.Revision())
+		}
+		plan, err := registry.BuildExecutionPlan("GET", route.Path)
+		if err != nil || plan.Terminal().TargetPath != "" {
+			t.Fatalf("action %s fail-closed target = %q, %v", action, plan.Terminal().TargetPath, err)
+		}
+	}
+}
+
 func TestRegistryRequiresCanonicalRuntimeInstanceIdentity(t *testing.T) {
 	registry := NewRegistry()
 	for _, instanceID := range []string{"", " runtime-1", "runtime-1 ", "runtime instance", strings.Repeat("a", 129)} {

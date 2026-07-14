@@ -49,6 +49,7 @@ type RouteExecutionStep struct {
 	Permission      string
 	Mode            string
 	Destination     string
+	TargetPath      string
 	Handler         string
 	RequestSchema   string
 	ResponseSchema  string
@@ -248,6 +249,23 @@ func buildRouteExecutionPlanView(
 	if err != nil {
 		return RouteExecutionPlan{}, err
 	}
+	if terminal.Action == extensionmanifest.RouteActionAlias || terminal.Action == extensionmanifest.RouteActionRewrite {
+		target, targetErr := resolveInheritedCoreRoute(snapshot, terminal, method)
+		if targetErr != nil {
+			return RouteExecutionPlan{}, targetErr
+		}
+		sourcePath, sourceErr := compileRoutePath(terminal.Path)
+		targetPath, targetCompileErr := compileRoutePath(target.Path)
+		if sourceErr != nil || targetCompileErr != nil {
+			return RouteExecutionPlan{}, fmt.Errorf("%w: alias/rewrite target path is invalid", ErrInvalidExecutionPlan)
+		}
+		if routePathParametersCompatible(sourcePath, targetPath) {
+			terminalStep.TargetPath, err = materializeTargetRoutePath(sourcePath, targetPath, params)
+			if err != nil {
+				return RouteExecutionPlan{}, err
+			}
+		}
+	}
 	chain = append(chain, terminalStep)
 	if err := appendPhase(RoutePhaseAfter); err != nil {
 		return RouteExecutionPlan{}, err
@@ -345,6 +363,21 @@ func resolveInheritedCoreGuard(snapshot planningSnapshot, route Route, requestMe
 	if route.Provider.Kind != ProviderPlugin || route.Guard != extensionmanifest.GuardCoreInherit || route.TargetID == "" {
 		return CoreGuardDescriptor{}, fmt.Errorf("%w: inherited guard declaration is invalid", ErrInvalidExecutionPlan)
 	}
+	target, err := resolveInheritedCoreRoute(snapshot, route, requestMethod)
+	if err != nil {
+		return CoreGuardDescriptor{}, err
+	}
+	descriptor := target.CoreGuard
+	if descriptor.RouteID != target.ID || descriptor.ContractVersion != target.ContractVersion || descriptor.Method != target.Method {
+		return CoreGuardDescriptor{}, fmt.Errorf("%w: inherited core guard target drifted", ErrInvalidExecutionPlan)
+	}
+	return cloneCoreGuardDescriptor(descriptor), nil
+}
+
+func resolveInheritedCoreRoute(snapshot planningSnapshot, route Route, requestMethod string) (Route, error) {
+	if route.Provider.Kind != ProviderPlugin || route.TargetID == "" {
+		return Route{}, fmt.Errorf("%w: inherited core route target is invalid", ErrInvalidExecutionPlan)
+	}
 	bestSpecificity := -1
 	var matched []Route
 	for _, target := range snapshot.routes {
@@ -362,14 +395,9 @@ func resolveInheritedCoreGuard(snapshot planningSnapshot, route Route, requestMe
 		}
 	}
 	if len(matched) != 1 {
-		return CoreGuardDescriptor{}, fmt.Errorf("%w: inherited core guard target is missing or ambiguous", ErrInvalidExecutionPlan)
+		return Route{}, fmt.Errorf("%w: inherited core route target is missing or ambiguous", ErrInvalidExecutionPlan)
 	}
-	target := matched[0]
-	descriptor := target.CoreGuard
-	if descriptor.RouteID != target.ID || descriptor.ContractVersion != target.ContractVersion || descriptor.Method != target.Method {
-		return CoreGuardDescriptor{}, fmt.Errorf("%w: inherited core guard target drifted", ErrInvalidExecutionPlan)
-	}
-	return cloneCoreGuardDescriptor(descriptor), nil
+	return cloneRoute(matched[0]), nil
 }
 
 func routeExecutionAccess(guard string, provider ProviderKind) string {

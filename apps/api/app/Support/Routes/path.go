@@ -178,6 +178,61 @@ func (path compiledPath) matchSegments(requestPath string, params map[string]str
 	return cursor == len(requestPath)
 }
 
+func routePathParametersCompatible(source, target compiledPath) bool {
+	sourceKinds := dynamicPathSegmentKinds(source)
+	targetKinds := dynamicPathSegmentKinds(target)
+	if len(sourceKinds) != len(targetKinds) {
+		return false
+	}
+	for index := range sourceKinds {
+		if sourceKinds[index] != targetKinds[index] {
+			return false
+		}
+	}
+	return true
+}
+
+func dynamicPathSegmentKinds(path compiledPath) []segmentKind {
+	result := make([]segmentKind, 0, path.parameterCount)
+	for _, segment := range path.segments {
+		if segment.kind != segmentStatic {
+			result = append(result, segment.kind)
+		}
+	}
+	return result
+}
+
+func materializeTargetRoutePath(source, target compiledPath, params map[string]string) (string, error) {
+	if !routePathParametersCompatible(source, target) {
+		return "", fmt.Errorf("%w: alias/rewrite path parameters are incompatible", ErrInvalidExecutionPlan)
+	}
+	values := make([]string, 0, source.parameterCount)
+	for _, segment := range source.segments {
+		if segment.kind == segmentStatic {
+			continue
+		}
+		value, ok := params[segment.value]
+		if !ok || value == "" || segment.kind == segmentParam && strings.Contains(value, "/") {
+			return "", fmt.Errorf("%w: alias/rewrite path parameter is unavailable", ErrInvalidExecutionPlan)
+		}
+		values = append(values, value)
+	}
+	parts := make([]string, 0, len(target.segments))
+	valueIndex := 0
+	for _, segment := range target.segments {
+		if segment.kind == segmentStatic {
+			parts = append(parts, segment.value)
+			continue
+		}
+		parts = append(parts, values[valueIndex])
+		valueIndex++
+	}
+	if len(parts) == 0 {
+		return "/", nil
+	}
+	return "/" + strings.Join(parts, "/"), nil
+}
+
 // comparePathSpecificity returns a positive value when left must match before right.
 func comparePathSpecificity(left, right compiledPath) int {
 	limit := min(len(left.segments), len(right.segments))

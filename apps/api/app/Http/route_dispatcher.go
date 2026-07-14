@@ -306,14 +306,27 @@ type fiberCoreRouteInvoker struct {
 	called bool
 }
 
-func (i *fiberCoreRouteInvoker) InvokeCore(_ context.Context, _ routes.RouteExecutionStep, request routes.DispatchRequest) (routes.DispatchResponse, error) {
+func (i *fiberCoreRouteInvoker) InvokeCore(_ context.Context, step routes.RouteExecutionStep, request routes.DispatchRequest) (routes.DispatchResponse, error) {
 	if i == nil || i.ctx == nil || i.called {
 		return routes.DispatchResponse{}, routes.ErrDispatchAlreadyCommitted
 	}
 	i.called = true
 	applyRouteDispatchRequest(i.ctx, request)
 	i.ctx.Response().Reset()
-	if err := i.ctx.Next(); err != nil {
+	var err error
+	if step.Action == extensionmanifest.RouteActionAlias || step.Action == extensionmanifest.RouteActionRewrite {
+		if step.TargetPath == "" {
+			return routes.DispatchResponse{}, ErrRouteRuntimeTarget
+		}
+		originalPath := i.ctx.Path()
+		i.ctx.Path(step.TargetPath)
+		// 从当前全局中间件后继续匹配，避免 RestartRouting 重放认证、限流和审计。
+		err = i.ctx.Next()
+		i.ctx.Path(originalPath)
+	} else {
+		err = i.ctx.Next()
+	}
+	if err != nil {
 		i.ctx.Response().Reset()
 		return routes.DispatchResponse{}, err
 	}
