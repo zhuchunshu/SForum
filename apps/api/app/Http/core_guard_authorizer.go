@@ -11,6 +11,7 @@ import (
 	"path"
 	"strings"
 
+	apitokens "github.com/zhuchunshu/sforum/apps/api/app/Models/APITokens"
 	entitymeta "github.com/zhuchunshu/sforum/apps/api/app/Models/EntityMeta"
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
@@ -49,13 +50,23 @@ type IdentityAdminGuardPolicy interface {
 	LoadAdminGuardSubject(context.Context, int64) (identity.AdminGuardSubject, error)
 }
 
+type IdentitySessionGuardPolicy interface {
+	LoadSessionGuardSubject(context.Context, string) (identity.SessionGuardSubject, error)
+}
+
+type IdentityAPITokenGuardPolicy interface {
+	LoadGuardSubject(context.Context, int64) (apitokens.GuardSubject, error)
+}
+
 type ProductionRouteGuardPolicies struct {
-	ForumRead      ForumReadPolicy
-	Extensions     ExtensionGuardPolicy
-	DeclaredRoutes DeclaredExtensionRoutePolicy
-	Options        OptionsOwnerPolicy
-	Pages          PageResolvePolicy
-	IdentityAdmins IdentityAdminGuardPolicy
+	ForumRead         ForumReadPolicy
+	Extensions        ExtensionGuardPolicy
+	DeclaredRoutes    DeclaredExtensionRoutePolicy
+	Options           OptionsOwnerPolicy
+	Pages             PageResolvePolicy
+	IdentityAdmins    IdentityAdminGuardPolicy
+	IdentitySessions  IdentitySessionGuardPolicy
+	IdentityAPITokens IdentityAPITokenGuardPolicy
 }
 
 func NewProductionRouteGuardAuthorizer() ProductionRouteGuardAuthorizer {
@@ -117,7 +128,9 @@ func productionCoreGuardEvaluatorRegistrationsWithPolicies(policies ProductionRo
 		productionCoreGuardEvaluator("core.guard.identity.admin", identityAdminGuardEvaluator(policies.IdentityAdmins)),
 		productionCoreGuardEvaluator("core.guard.identity.bootstrap", requireIdentityBootstrapAuthority),
 		productionCoreGuardEvaluator("core.guard.identity.human_verification", requireHumanVerificationChallengeAuthority),
-		productionCoreGuardEvaluator("core.guard.identity.self_credentials", requireIdentitySelfCredentialsAuthority),
+		productionCoreGuardEvaluator("core.guard.identity.self_credentials", identitySelfCredentialsGuardEvaluator(
+			policies.IdentitySessions, policies.IdentityAPITokens,
+		)),
 		productionCoreGuardEvaluator("core.guard.moderation.report", requireAuthenticatedCoreGuardActor),
 		productionCoreGuardEvaluator("core.guard.moderation.review", requireDeclaredCoreGuardPermission),
 		productionCoreGuardEvaluator("core.guard.notifications.recipient", requireNotificationRecipientAuthority),
