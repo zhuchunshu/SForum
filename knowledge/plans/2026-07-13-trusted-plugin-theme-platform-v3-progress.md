@@ -1,7 +1,7 @@
 # Trusted Plugin And Theme Platform V3 Progress Ledger
 
 Date: 2026-07-14
-Overall progress: **42%**
+Overall progress: **44%**
 Active phase: **P6 - Full Route And Middleware Registry V1 (61%, 11 of 18 rows)**
 
 This ledger is the durable percentage and context-compaction checkpoint for the
@@ -24,7 +24,7 @@ scaffolding, or demo-only code cannot satisfy a runtime exit criterion.
 | P5 Database/commands | 8% | 65% | 5.18% |
 | P6 Routes/middleware | 10% | 61% | 6.11% |
 | P7 Workflow/admin/query/identity | 10% | 0% | 0% |
-| P8 Theme compiler/runtime | 8% | 0% | 0% |
+| P8 Theme compiler/runtime | 8% | 33% | 2.67% |
 | P9 Components/assets/L2 | 8% | 0% | 0% |
 | P10 Content/media/data | 8% | 0% | 0% |
 | P11 Platform services | 6% | 0% | 0% |
@@ -938,3 +938,39 @@ phase percentage.
 - `b84920a03` separates schema-only aggregation from policy publication. Schema
   compilation strips policy fields; public OpenAPI aggregation still requires
   exact Host-owned security, rate-limit, and idempotency policies.
+
+## P6 V2 Transport And P8 Runtime Checkpoint
+
+- Weighted V3 progress is now **44%**. P6 remains **61% (11 of 18 rows)**;
+  Protocol V2 unary transport is a required production slice but does not by
+  itself close the complete route-action or streaming rows. P8 is accepted at
+  **33% (6 of 18 rows)** after production review.
+- `c64fa56f8` adds revision-fenced immutable Route Schema publication. A
+  prepared candidate is publishable only when its base revision, caller
+  expectation, and current revision all match; stale and foreign writers fail.
+- `0a1997578` and `2a180cb07` build and production-bind exact theme runtime
+  snapshots for 23 of 23 Core Page ViewModels. Snapshot-covered requests use
+  compiled templates without Store or filesystem access, stale artifact
+  identity fails closed, and PAT-scoped viewer authority cannot regain full
+  permissions from the user projection.
+- `d1d42a130` measures production `Snapshot.Render` and compile paths for small
+  and large fixtures and adds allocation ceilings. The report explicitly
+  defers full request-chain, RSS, and JavaScript-disabled comparison to P13.
+- `6a41bbcd9` routes Protocol V2 HTTP-mode steps through real gRPC
+  `InvokeRoute`, exact retained instances, one Manager admission lease,
+  Host-authored actor authority, frozen route/schema identity, bounded typed
+  responses, and fail-closed `stream_follows`. Review removed a lifecycle mutex
+  that serialized all same-plugin requests and made trace ids unique per call.
+- P8 rows accepted: all catalog Page ViewModel contracts, the bounded compiler,
+  standard template control actions, sealed SafeHTML, immutable exact runtime
+  snapshots, and the compile/render performance row. Install-time compilation,
+  all-catalog zero-I/O, typed frontend consumption, four-level fallback,
+  plugin business ViewModels, multi-node convergence, admin skin isolation, and
+  crawler/JavaScript-disabled evidence remain open.
+- Verification passed focused repetition, race detection, full Pages,
+  Extensions, Pages Controller, HTTP and bootstrap packages, vet, all API tests,
+  `go build ./...`, and staged diff checks.
+- Active parallel work is isolated: immutable Page provider resolution under
+  `Support/Pages`, and production Route Schema lifecycle/bootstrap publication.
+  Next integrate Route + Schema restore, then continue contextual/custom/raw
+  guards and freeze full action semantics before streaming transports.

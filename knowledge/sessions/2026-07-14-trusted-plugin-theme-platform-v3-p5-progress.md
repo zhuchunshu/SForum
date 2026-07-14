@@ -3,7 +3,7 @@
 ## Changed
 
 - P5 is 65% complete at 11 of 17 authoritative rows. P6 is the active phase at
-  56% (10 of 18 rows), and weighted V3 is 41%.
+  61% (11 of 18 rows), P8 is 33% (6 of 18 rows), and weighted V3 is 44%.
 - Added read-only exact migration preflight and independent-process migration-once proof.
 - Enforced per-plugin PostgreSQL connection and slow-query budgets.
 - Added stable read-only core views and production Host Query runtime.
@@ -57,6 +57,15 @@
   per-request full Registry copies. Selected HTTP remains materially slower and
   more allocation-heavy than the same-run v1 fixture, with P13 remeasurement
   required.
+- Added revision-fenced immutable Route Schema publication in `c64fa56f8`.
+- Production-bound exact compiled Theme Runtime snapshots in `0a1997578` and
+  `2a180cb07`, then added production compile/render allocation gates and the P8
+  report in `d1d42a130`. P8 is strictly 6/18; legacy/add pages still have hot
+  Store/file I/O and complete fallback remains open.
+- Added exact Protocol V2 unary Route transport in `6a41bbcd9`, including real
+  subprocess coverage, one admission lease, Host actor authority, frozen
+  schema identity, bounded response conversion, unique traces, and concurrent
+  same-plugin invocation without a lifecycle-lock bottleneck.
 
 ## Verification
 
@@ -109,13 +118,14 @@
 ## Resume Point
 
 - Branch: `main`.
-- Last implementation commit at this checkpoint: `e38d91f7a`.
+- Last implementation commit at this checkpoint: `6a41bbcd9`.
 - Frontend was started on port 3000 and API hot reload recovered on 8081, but
   process and login state are not durable; verify both before QA.
 - Exact route schemas are clean and committed. Production publication is
   blocked on the missing Host-owned route policy source and the need to restore
   Route + Schema snapshots together at boot; do not inject a standalone catalog.
-- Active dirty files are the isolated Dispatcher benchmark/report group. Parallel
-  agents own production Core Guard authorization and P8 ViewModel publication.
-  ThemeCompiler stays uncredited until production binding.
+- Active parallel work is isolated to immutable Page provider resolution and
+  production Route Schema lifecycle/bootstrap publication. Theme runtime is
+  credited only for 6 of 18 rows; do not claim all-catalog zero-I/O or complete
+  fallback until the remaining legacy/add paths and frontend contract close.
 - Preserve any unrelated worktree changes; stage only V3-owned files/hunks.
