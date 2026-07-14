@@ -117,7 +117,7 @@ func TestProductionCoreGuardEvaluatorRegistryIsExplicitAndVersioned(t *testing.T
 		t.Fatal(err)
 	}
 	bindings := registry.Bindings()
-	if len(bindings) != len(registrations) || len(bindings) != 28 {
+	if len(bindings) != len(registrations) || len(bindings) != 29 {
 		t.Fatalf("bindings = %#v", bindings)
 	}
 	for _, binding := range bindings {
@@ -1316,6 +1316,54 @@ func TestProductionEntityMetaPublicDefinitionsGuardValidatesEntityType(t *testin
 	closed.Method, closed.Path = closedPlan.Method(), closedPlan.Path()
 	if err := authorizer.Authorize(context.Background(), closedPlan, closedStep, closed); !errors.Is(err, ErrRouteGuardUnavailable) {
 		t.Fatalf("resource-dependent read error = %v", err)
+	}
+}
+
+func TestProductionInboundWebhookGuardMatchesHostSkeletonBoundary(t *testing.T) {
+	var target routes.CoreRoute
+	for _, route := range routes.CoreRouteCatalog() {
+		if route.ID == "core.route.webhooks.inbound" {
+			target = route
+			break
+		}
+	}
+	plan, step := productionParameterizedInheritedGuardPlan(
+		t, target, "/guard/webhooks/inbound/:source", "/guard/webhooks/inbound/github",
+	)
+	authorizer := NewProductionRouteGuardAuthorizer()
+	allowed := routes.DispatchRequest{
+		Method: plan.Method(), Path: plan.Path(), Body: []byte(`{"event":"ping"}`),
+		Params: map[string]string{"source": "github"},
+	}
+	if err := authorizer.Authorize(context.Background(), plan, step, allowed); err != nil {
+		t.Fatalf("anonymous inbound webhook error = %v", err)
+	}
+	for _, test := range []struct {
+		name   string
+		path   string
+		body   []byte
+		params map[string]string
+	}{
+		{name: "empty body", path: plan.Path(), params: map[string]string{"source": "github"}},
+		{name: "blank source", path: plan.Path(), body: []byte(`{}`), params: map[string]string{"source": "   "}},
+		{name: "oversized source", path: plan.Path(), body: []byte(`{}`), params: map[string]string{"source": strings.Repeat("x", 65)}},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			request := routes.DispatchRequest{Method: plan.Method(), Path: test.path, Body: test.body, Params: test.params}
+			if err := authorizer.Authorize(context.Background(), plan, step, request); !errors.Is(err, ErrRouteGuardUnavailable) {
+				t.Fatalf("error = %v", err)
+			}
+		})
+	}
+	forgedPlan, forgedStep := productionInheritedGuardPlan(t, "core.route.webhooks.forged", routes.CoreGuardDescriptor{
+		Kind: routes.CoreGuardContextual, EvaluatorID: "core.guard.webhooks.inbound",
+	})
+	forged := routes.DispatchRequest{
+		Method: forgedPlan.Method(), Path: forgedPlan.Path(), Body: []byte(`{}`),
+		Params: map[string]string{"source": "github"},
+	}
+	if err := authorizer.Authorize(context.Background(), forgedPlan, forgedStep, forged); !errors.Is(err, ErrRouteGuardUnavailable) {
+		t.Fatalf("forged route error = %v", err)
 	}
 }
 

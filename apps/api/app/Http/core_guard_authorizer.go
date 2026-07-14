@@ -120,6 +120,7 @@ func productionCoreGuardEvaluatorRegistrationsWithPolicies(policies ProductionRo
 		productionCoreGuardEvaluator("core.guard.pages.admin", requirePagesAdminAuthority),
 		productionCoreGuardEvaluator("core.guard.pages.catalog", requirePagesCatalogAuthority),
 		productionCoreGuardEvaluator("core.guard.pages.resolve", pagesResolveGuardEvaluator(policies.Pages)),
+		productionCoreGuardEvaluator("core.guard.webhooks.inbound", requireInboundWebhookAuthority),
 		productionCoreGuardEvaluator("core.guard.pages.theme_asset", themeAssetGuardEvaluator(policies.Extensions)),
 		productionCoreGuardEvaluator("core.guard.profile.self", requireProfileSelfAuthority),
 		productionCoreGuardEvaluator("core.guard.seo.read", requireSEOReadAuthority),
@@ -609,6 +610,17 @@ func requireSEOReadAuthority(_ context.Context, evaluation routes.CoreGuardEvalu
 		return nil
 	}
 	return routes.ErrCoreGuardEvaluatorUnavailable
+}
+
+func requireInboundWebhookAuthority(_ context.Context, evaluation routes.CoreGuardEvaluation) error {
+	if evaluation.Descriptor.RouteID != "core.route.webhooks.inbound" {
+		return routes.ErrCoreGuardEvaluatorUnavailable
+	}
+	source := strings.TrimSpace(evaluation.Request.Params["source"])
+	if source == "" || len(source) > 64 || len(evaluation.Request.Body) == 0 {
+		return routes.ErrCoreGuardEvaluatorUnavailable
+	}
+	return nil
 }
 
 func themeAssetGuardEvaluator(policy ExtensionGuardPolicy) routes.CoreGuardEvaluatorFunc {
