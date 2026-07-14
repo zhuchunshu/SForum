@@ -58,6 +58,10 @@ type IdentityAPITokenGuardPolicy interface {
 	LoadGuardSubject(context.Context, int64) (apitokens.GuardSubject, error)
 }
 
+type EntityMetaValueGuardPolicy interface {
+	LoadValueGuardSubject(context.Context, string, int64, []string) (entitymeta.ValueGuardSubject, error)
+}
+
 type ProductionRouteGuardPolicies struct {
 	ForumRead         ForumReadPolicy
 	Extensions        ExtensionGuardPolicy
@@ -67,6 +71,7 @@ type ProductionRouteGuardPolicies struct {
 	IdentityAdmins    IdentityAdminGuardPolicy
 	IdentitySessions  IdentitySessionGuardPolicy
 	IdentityAPITokens IdentityAPITokenGuardPolicy
+	EntityMetaValues  EntityMetaValueGuardPolicy
 }
 
 func NewProductionRouteGuardAuthorizer() ProductionRouteGuardAuthorizer {
@@ -115,7 +120,8 @@ func productionCoreGuardEvaluatorRegistrationsWithPolicies(policies ProductionRo
 		productionCoreGuardEvaluator("core.guard.extensions.mutation", extensionsMutationGuardEvaluator(policies.Extensions)),
 		productionCoreGuardEvaluator("core.guard.extensions.read", extensionsReadGuardEvaluator(policies.Extensions)),
 		productionCoreGuardEvaluator("core.guard.extensions.declared_route", declaredExtensionRouteGuardEvaluator(policies.DeclaredRoutes)),
-		productionCoreGuardEvaluator("core.guard.entity_meta.read", requireEntityMetaReadAuthority),
+		productionCoreGuardEvaluator("core.guard.entity_meta.read", entityMetaReadGuardEvaluator(policies.EntityMetaValues)),
+		productionCoreGuardEvaluator("core.guard.entity_meta.write", entityMetaWriteGuardEvaluator(policies.EntityMetaValues)),
 		productionCoreGuardEvaluator("core.guard.forum.author_review", requireAuthenticatedCoreGuardActor),
 		productionCoreGuardEvaluator("core.guard.forum.comment_write", requireForumCommentGlobalAuthority),
 		productionCoreGuardEvaluator("core.guard.forum.read", forumReadGuardEvaluator(policies.ForumRead)),

@@ -543,7 +543,8 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		WithThemeRuntime(themeRuntime)
 
 	// F4.4：实体自定义字段（EAV，无 per-plugin core ALTER）。
-	entityMetaService := entitymeta.NewService(entitymeta.NewPostgresStore(pool)).WithPublisher(eventPublisher)
+	entityMetaStore := entitymeta.NewPostgresStore(pool)
+	entityMetaService := entitymeta.NewService(entityMetaStore).WithPublisher(eventPublisher)
 	entityMetaProvider := providers.NewEntityMetaProvider(entityMetaService, identityStore, authSessions)
 
 	// Readiness：PG 必检；Redis/Meili 失败记 degraded 仍 ready（见 Support/Health）。
@@ -590,6 +591,7 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 			IdentityAdmins:    identityStore,
 			IdentitySessions:  identityStore,
 			IdentityAPITokens: apiTokenStore,
+			EntityMetaValues:  entityMetaStore,
 		}),
 		Schemas: httpserver.CatalogRouteSchemaValidator{Catalog: lifecycleStack.RouteSchemas},
 		Trace:   routeTraceRing,
