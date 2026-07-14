@@ -79,19 +79,21 @@ type ThemeRenderedPage struct {
 	Source       string                           `json:"source"`
 	Fallback     bool                             `json:"fallback"`
 	Attempts     []ThemeRenderAttempt             `json:"attempts,omitempty"`
+	NodeRevision uint64                           `json:"nodeRevision"`
 }
 
 type ThemeRuntimeSnapshot struct {
-	artifact   RuntimeArtifact
-	compiled   *themecompiler.Snapshot
-	providers  map[string]ThemeRuntimeProviderBinding
-	assets     ActiveSkinPublic
-	locales    []string
-	contracts  map[string]string
-	islandTags map[string]string
-	kind       RuntimeTemplatePackageKind
-	overrides  map[string]ThemeRuntimeProviderBinding
-	plan       *themeRenderPlan
+	artifact            RuntimeArtifact
+	compiled            *themecompiler.Snapshot
+	providers           map[string]ThemeRuntimeProviderBinding
+	assets              ActiveSkinPublic
+	locales             []string
+	contracts           map[string]string
+	islandTags          map[string]string
+	kind                RuntimeTemplatePackageKind
+	overrides           map[string]ThemeRuntimeProviderBinding
+	plan                *themeRenderPlan
+	publicationRevision uint64
 }
 
 func BuildThemeRuntimeSnapshot(input ThemeRuntimeBuildInput) (*ThemeRuntimeSnapshot, error) {
@@ -296,7 +298,7 @@ func (s *ThemeRuntimeSnapshot) Render(
 	segments := output.HTMLSegments()
 	result := ThemeRenderedPage{
 		HTMLSegments: make([]string, len(segments)), Islands: output.Islands(), SEO: output.SEO(),
-		Source: ThemeRenderSourceActiveTheme,
+		Source: ThemeRenderSourceActiveTheme, NodeRevision: s.publicationRevision,
 	}
 	for index := range segments {
 		result.HTMLSegments[index] = segments[index].String()
@@ -327,6 +329,16 @@ type ThemeRuntimeRegistry struct {
 	defaultArtifact RuntimeArtifact
 	snapshots       map[RuntimeArtifact]*ThemeRuntimeSnapshot
 	renderers       map[string]*ThemeRuntimeSnapshot
+	activationCheck func(RuntimeArtifact) error
+}
+
+func (r *ThemeRuntimeRegistry) WithActivationCheck(check func(RuntimeArtifact) error) *ThemeRuntimeRegistry {
+	if r != nil {
+		r.mu.Lock()
+		r.activationCheck = check
+		r.mu.Unlock()
+	}
+	return r
 }
 
 func NewThemeRuntimeRegistry() *ThemeRuntimeRegistry {
@@ -377,6 +389,11 @@ func (r *ThemeRuntimeRegistry) ActivateExact(artifact RuntimeArtifact) (uint64, 
 	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	if r.activationCheck != nil {
+		if err := r.activationCheck(artifact); err != nil {
+			return r.revision, err
+		}
+	}
 	snapshot, exists := r.snapshots[artifact]
 	if !exists || snapshot.kind != RuntimeTemplateTheme {
 		return r.revision, ErrThemeRuntimeMissing
@@ -503,6 +520,22 @@ func (r *ThemeRuntimeRegistry) Active() (*ThemeRuntimeSnapshot, uint64, bool) {
 	defer r.mu.RUnlock()
 	snapshot := r.snapshots[r.active]
 	return snapshot, r.revision, snapshot != nil
+}
+
+func (r *ThemeRuntimeRegistry) ActiveSkin() (ActiveSkinPublic, bool) {
+	if r == nil {
+		return ActiveSkinPublic{}, false
+	}
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	snapshot := r.snapshots[r.active]
+	if snapshot == nil {
+		return ActiveSkinPublic{}, false
+	}
+	assets := snapshot.assets
+	assets.CSS = append([]string(nil), assets.CSS...)
+	assets.NodeRevision = r.revision
+	return assets, true
 }
 
 func (r *ThemeRuntimeRegistry) ensureSnapshots() {

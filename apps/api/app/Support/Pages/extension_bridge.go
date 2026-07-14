@@ -175,6 +175,7 @@ type ActiveSkinPublic struct {
 	PackageDigest string   `json:"packageDigest,omitempty"`
 	CSS           []string `json:"css"`
 	Tokens        string   `json:"tokens,omitempty"`
+	NodeRevision  uint64   `json:"nodeRevision,omitempty"`
 }
 
 // SkinFromPackage 读取主题包皮肤清单；URL 携带 package digest 以支持 immutable cache。

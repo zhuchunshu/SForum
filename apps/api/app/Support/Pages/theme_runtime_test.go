@@ -108,11 +108,22 @@ func TestThemeRuntimeRegistryStagesSwitchWithoutDroppingSource(t *testing.T) {
 	target := buildThemeRuntimeFixture(t, "target.theme", strings.Repeat("f", 64), "target.home")
 	registry := NewThemeRuntimeRegistry()
 	registry.Publish(source)
+	firstSkin, ok := registry.ActiveSkin()
+	if !ok || firstSkin.ExtensionID != source.Artifact().ExtensionID || firstSkin.NodeRevision != 1 {
+		t.Fatalf("first skin=%#v ok=%v", firstSkin, ok)
+	}
 	if _, staged, err := registry.Stage(target); err != nil || !staged {
 		t.Fatalf("stage target: staged=%v err=%v", staged, err)
 	}
 	if _, ok := registry.Resolve(source.Artifact(), "forum.home", "source.home"); !ok {
 		t.Fatal("source disappeared while target was staged")
+	}
+	resolvedSource, _ := registry.Resolve(source.Artifact(), "forum.home", "source.home")
+	output, err := resolvedSource.Render(context.Background(), CorePageViewModelRequest{
+		PageID: "forum.home", Locale: "zh-CN", Path: "/",
+	}, "source.home")
+	if err != nil || output.NodeRevision != 2 {
+		t.Fatalf("staged cache revision output=%#v err=%v", output, err)
 	}
 	if _, ok := registry.Resolve(target.Artifact(), "forum.home", "target.home"); !ok {
 		t.Fatal("staged target is not exact-resolvable")

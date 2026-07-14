@@ -80,17 +80,17 @@ func (s *ThemeRuntimeSnapshot) renderPlan(
 		segments := output.HTMLSegments()
 		result := ThemeRenderedPage{
 			HTMLSegments: make([]string, len(segments)), Islands: output.Islands(), SEO: output.SEO(),
-			Source: candidate.source, Fallback: failed, Attempts: attempts,
+			Source: candidate.source, Fallback: failed, Attempts: attempts, NodeRevision: s.publicationRevision,
 		}
 		for index := range segments {
 			result.HTMLSegments[index] = segments[index].String()
 		}
 		return result, nil
 	}
-	return emergencyThemeOutput(request, attempts), nil
+	return emergencyThemeOutput(request, attempts, s.publicationRevision), nil
 }
 
-func emergencyThemeOutput(request CorePageViewModelRequest, attempts []ThemeRenderAttempt) ThemeRenderedPage {
+func emergencyThemeOutput(request CorePageViewModelRequest, attempts []ThemeRenderAttempt, revision uint64) ThemeRenderedPage {
 	title := strings.TrimSpace(request.SEO.Title)
 	if title == "" {
 		title = request.PageID
@@ -98,7 +98,7 @@ func emergencyThemeOutput(request CorePageViewModelRequest, attempts []ThemeRend
 	attempts = append(attempts, ThemeRenderAttempt{Source: ThemeRenderSourceEmergency, Outcome: "rendered"})
 	return ThemeRenderedPage{
 		HTMLSegments: []string{`<main data-sforum-emergency="true"><h1>` + html.EscapeString(title) + `</h1></main>`},
-		SEO:          request.SEO, Source: ThemeRenderSourceEmergency, Fallback: true, Attempts: attempts,
+		SEO:          request.SEO, Source: ThemeRenderSourceEmergency, Fallback: true, Attempts: attempts, NodeRevision: revision,
 	}
 }
 
@@ -182,7 +182,7 @@ func (r *ThemeRuntimeRegistry) rebuildRenderersLocked() {
 					plan.addCandidate(ThemeRenderSourceDefaultTheme, defaultTheme, defaultProvider)
 				}
 			}
-			next[runtimeRenderKey(artifact, pageID, provider.ContributionID)] = runtimeSnapshotWithPlan(owner, plan, active)
+			next[runtimeRenderKey(artifact, pageID, provider.ContributionID)] = runtimeSnapshotWithPlan(owner, plan, active, r.revision+1)
 		}
 	}
 	r.renderers = next
@@ -208,7 +208,7 @@ func providerForContract(snapshot *ThemeRuntimeSnapshot, pageID, contract string
 	return binding, ok && binding.ContractVersion == contract
 }
 
-func runtimeSnapshotWithPlan(owner *ThemeRuntimeSnapshot, plan *themeRenderPlan, active *ThemeRuntimeSnapshot) *ThemeRuntimeSnapshot {
+func runtimeSnapshotWithPlan(owner *ThemeRuntimeSnapshot, plan *themeRenderPlan, active *ThemeRuntimeSnapshot, revision uint64) *ThemeRuntimeSnapshot {
 	islandTags := owner.islandTags
 	if active != nil {
 		islandTags = active.islandTags
@@ -217,5 +217,6 @@ func runtimeSnapshotWithPlan(owner *ThemeRuntimeSnapshot, plan *themeRenderPlan,
 		artifact: owner.artifact, compiled: owner.compiled, providers: owner.providers,
 		assets: owner.assets, locales: owner.locales, contracts: owner.contracts,
 		islandTags: islandTags, kind: owner.kind, overrides: owner.overrides, plan: plan,
+		publicationRevision: revision,
 	}
 }
