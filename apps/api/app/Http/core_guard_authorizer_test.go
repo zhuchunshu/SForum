@@ -9,6 +9,7 @@ import (
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
 	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
+	pages "github.com/zhuchunshu/sforum/apps/api/app/Support/Pages"
 	routes "github.com/zhuchunshu/sforum/apps/api/app/Support/Routes"
 )
 
@@ -116,7 +117,7 @@ func TestProductionCoreGuardEvaluatorRegistryIsExplicitAndVersioned(t *testing.T
 		t.Fatal(err)
 	}
 	bindings := registry.Bindings()
-	if len(bindings) != len(registrations) || len(bindings) != 25 {
+	if len(bindings) != len(registrations) || len(bindings) != 27 {
 		t.Fatalf("bindings = %#v", bindings)
 	}
 	for _, binding := range bindings {
@@ -1005,6 +1006,236 @@ func TestProductionThemeAssetGuardRequiresExactActiveArtifact(t *testing.T) {
 	}
 }
 
+func TestProductionPagesResolveGuardEnforcesImmutableAccessSnapshot(t *testing.T) {
+	targets := map[string]routes.CoreRoute{}
+	for _, route := range routes.CoreRouteCatalog() {
+		if route.Guard.EvaluatorID == "core.guard.pages.resolve" {
+			targets[route.ID] = route
+		}
+	}
+	if len(targets) != 2 {
+		t.Fatalf("page resolve routes = %#v", targets)
+	}
+	policy := &testPageResolvePolicy{revision: 4, found: true}
+	authorizer := NewProductionRouteGuardAuthorizerWithPolicies(ProductionRouteGuardPolicies{Pages: policy})
+	resolvePlan, resolveStep := productionCatalogInheritedGuardPlan(t, targets["core.route.pages.resolve"])
+
+	tests := []struct {
+		name    string
+		access  pages.Access
+		request routes.DispatchRequest
+		want    error
+	}{
+		{name: "public", access: pages.AccessPublic},
+		{name: "login anonymous", access: pages.AccessLogin, want: ErrRouteLoginRequired},
+		{name: "login actor", access: pages.AccessLogin, request: productionGuardRequest()},
+		{name: "guest anonymous", access: pages.AccessGuest},
+		{name: "guest actor", access: pages.AccessGuest, request: productionGuardRequest(), want: ErrRouteGuestRequired},
+		{name: "moderation denied", access: pages.AccessModeration, request: productionGuardRequest(), want: ErrRoutePermissionDenied},
+		{name: "moderation allowed", access: pages.AccessModeration, request: productionGuardRequest(identity.PermissionModerationReview)},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			policy.resolved = pages.ResolvedPage{Page: pages.PageDefinition{ID: "forum.home", Access: test.access}}
+			request := test.request
+			request.Method, request.Path, request.Query = resolvePlan.Method(), resolvePlan.Path(), "id=forum.home"
+			err := authorizer.Authorize(context.Background(), resolvePlan, resolveStep, request)
+			if !errors.Is(err, test.want) || test.want == nil && err != nil {
+				t.Fatalf("error = %v, want %v", err, test.want)
+			}
+		})
+	}
+
+	pathPlan, pathStep := productionCatalogInheritedGuardPlan(t, targets["core.route.pages.resolve_path"])
+	policy.match = pages.RouteMatch{Contribution: pages.PageContribution{
+		ID: "members", Access: pages.AccessPermission, Permission: identity.PermissionExtensionView,
+	}}
+	request := productionGuardRequest(identity.PermissionExtensionView)
+	request.Method, request.Path, request.Query = pathPlan.Method(), pathPlan.Path(), "path=%2Fmembers"
+	if err := authorizer.Authorize(context.Background(), pathPlan, pathStep, request); err != nil {
+		t.Fatalf("resolve path error = %v", err)
+	}
+	request = productionGuardRequest(identity.PermissionPostCreate)
+	request.Method, request.Path, request.Query = pathPlan.Method(), pathPlan.Path(), "path=%2Fmembers"
+	if err := authorizer.Authorize(context.Background(), pathPlan, pathStep, request); !errors.Is(err, ErrRoutePermissionDenied) {
+		t.Fatalf("resolve path denied error = %v", err)
+	}
+}
+
+func TestProductionPagesResolveGuardRejectsQueryAndRevisionDrift(t *testing.T) {
+	var target routes.CoreRoute
+	for _, route := range routes.CoreRouteCatalog() {
+		if route.ID == "core.route.pages.resolve" {
+			target = route
+			break
+		}
+	}
+	plan, step := productionCatalogInheritedGuardPlan(t, target)
+	policy := &testPageResolvePolicy{
+		revision: 2,
+		resolved: pages.ResolvedPage{Page: pages.PageDefinition{ID: "forum.home", Access: pages.AccessPublic}},
+		found:    true,
+	}
+	authorizer := NewProductionRouteGuardAuthorizerWithPolicies(ProductionRouteGuardPolicies{Pages: policy})
+	for _, query := range []string{"", "id=", "id=forum.home&id=forum.topic.show", "id=forum.home&future=1", "%zz"} {
+		request := routes.DispatchRequest{Method: plan.Method(), Path: plan.Path(), Query: query}
+		if err := authorizer.Authorize(context.Background(), plan, step, request); !errors.Is(err, ErrRouteGuardUnavailable) {
+			t.Fatalf("query %q error = %v", query, err)
+		}
+	}
+	policy.drift = true
+	request := routes.DispatchRequest{Method: plan.Method(), Path: plan.Path(), Query: "id=forum.home"}
+	if err := authorizer.Authorize(context.Background(), plan, step, request); !errors.Is(err, ErrRouteGuardUnavailable) {
+		t.Fatalf("revision drift error = %v", err)
+	}
+	policy.drift = false
+	policy.revision = 0
+	if err := authorizer.Authorize(context.Background(), plan, step, request); !errors.Is(err, ErrRouteGuardUnavailable) {
+		t.Fatalf("unpublished policy error = %v", err)
+	}
+}
+
+func TestProductionPagesResolveGuardHotPathNeverReadsStore(t *testing.T) {
+	store := &testPageGuardStore{}
+	registry := pages.NewRegistry(store)
+	if err := registry.RestoreBindings(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	var target routes.CoreRoute
+	for _, route := range routes.CoreRouteCatalog() {
+		if route.ID == "core.route.pages.resolve" {
+			target = route
+			break
+		}
+	}
+	plan, step := productionCatalogInheritedGuardPlan(t, target)
+	authorizer := NewProductionRouteGuardAuthorizerWithPolicies(ProductionRouteGuardPolicies{Pages: registry})
+	request := routes.DispatchRequest{Method: plan.Method(), Path: plan.Path(), Query: "id=forum.home"}
+	for range 100 {
+		if err := authorizer.Authorize(context.Background(), plan, step, request); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if store.listCalls != 1 || store.otherCalls != 0 {
+		t.Fatalf("page guard reached Store: list=%d other=%d", store.listCalls, store.otherCalls)
+	}
+}
+
+func TestProductionEntityMetaPublicDefinitionsGuardValidatesEntityType(t *testing.T) {
+	targets := map[string]routes.CoreRoute{}
+	for _, route := range routes.CoreRouteCatalog() {
+		if route.Guard.EvaluatorID == "core.guard.entity_meta.read" {
+			targets[route.ID] = route
+		}
+	}
+	if len(targets) != 2 {
+		t.Fatalf("entity meta read routes = %#v", targets)
+	}
+	authorizer := NewProductionRouteGuardAuthorizer()
+	plan, step := productionCatalogInheritedGuardPlan(t, targets["core.route.entity_meta.list_public_definitions"])
+	for _, entityType := range []string{"user", "topic"} {
+		request := routes.DispatchRequest{Method: plan.Method(), Path: plan.Path(), Query: "entityType=" + entityType}
+		if err := authorizer.Authorize(context.Background(), plan, step, request); err != nil {
+			t.Fatalf("entity type %s error = %v", entityType, err)
+		}
+	}
+	for _, query := range []string{"", "entityType=comment", "entityType=user&future=1", "entityType=user&entityType=topic"} {
+		request := routes.DispatchRequest{Method: plan.Method(), Path: plan.Path(), Query: query}
+		if err := authorizer.Authorize(context.Background(), plan, step, request); !errors.Is(err, ErrRouteGuardUnavailable) {
+			t.Fatalf("query %q error = %v", query, err)
+		}
+	}
+	closedPlan, closedStep := productionCatalogInheritedGuardPlan(t, targets["core.route.entity_meta.list_values"])
+	closed := productionGuardRequest("*")
+	closed.Method, closed.Path = closedPlan.Method(), closedPlan.Path()
+	if err := authorizer.Authorize(context.Background(), closedPlan, closedStep, closed); !errors.Is(err, ErrRouteGuardUnavailable) {
+		t.Fatalf("resource-dependent read error = %v", err)
+	}
+}
+
+func TestProductionIdentityDeleteRoleGuardProtectsStaticRoles(t *testing.T) {
+	var target routes.CoreRoute
+	for _, route := range routes.CoreRouteCatalog() {
+		if route.ID == "core.route.identity.delete_role" {
+			target = route
+			break
+		}
+	}
+	authorizer := NewProductionRouteGuardAuthorizer()
+	for _, roleKey := range []string{
+		identity.RoleMember, identity.RoleSuperAdmin, identity.RoleModerator,
+		identity.RoleOperator, identity.RoleTechAdmin,
+	} {
+		plan, step := productionParameterizedInheritedGuardPlan(
+			t, target, "/guard/roles/:roleKey", "/guard/roles/"+roleKey,
+		)
+		request := productionGuardRequest("*")
+		request.Method, request.Path, request.Params = plan.Method(), plan.Path(), plan.Params()
+		if err := authorizer.Authorize(context.Background(), plan, step, request); !errors.Is(err, ErrRouteGuardUnavailable) {
+			t.Fatalf("protected role %s error = %v", roleKey, err)
+		}
+	}
+}
+
+type testPageResolvePolicy struct {
+	revision uint64
+	resolved pages.ResolvedPage
+	match    pages.RouteMatch
+	found    bool
+	drift    bool
+}
+
+type testPageGuardStore struct {
+	listCalls  int
+	otherCalls int
+}
+
+func (s *testPageGuardStore) ListBindings(context.Context) ([]pages.ProviderBinding, error) {
+	s.listCalls++
+	return nil, nil
+}
+
+func (s *testPageGuardStore) GetBinding(context.Context, string) (pages.ProviderBinding, bool, error) {
+	s.otherCalls++
+	return pages.ProviderBinding{}, false, nil
+}
+
+func (s *testPageGuardStore) UpsertBinding(context.Context, pages.ProviderBinding) error {
+	s.otherCalls++
+	return nil
+}
+
+func (s *testPageGuardStore) DeleteBinding(context.Context, string) error {
+	s.otherCalls++
+	return nil
+}
+
+func (s *testPageGuardStore) ReplaceExtensionBindings(context.Context, []string, []pages.ProviderBinding) error {
+	s.otherCalls++
+	return nil
+}
+
+func (s *testPageGuardStore) ReconcileExtensionBindings(context.Context, string, []string, []pages.ProviderBinding) error {
+	s.otherCalls++
+	return nil
+}
+
+func (p *testPageResolvePolicy) Revision() uint64 { return p.revision }
+
+func (p *testPageResolvePolicy) Resolve(context.Context, string) (pages.ResolvedPage, error) {
+	if p.drift {
+		p.revision++
+	}
+	return p.resolved, nil
+}
+
+func (p *testPageResolvePolicy) ResolveAddedPathMatch(string) (pages.RouteMatch, bool) {
+	if p.drift {
+		p.revision++
+	}
+	return p.match, p.found
+}
+
 type testOptionsOwnerPolicy struct {
 	permissions map[string]string
 	calls       int
@@ -1070,7 +1301,7 @@ func TestProductionIdentityAdminGuardPartitionsCatalogByProvablePolicy(t *testin
 		"core.route.identity.list_users":  {method: "GET", supported: true, permissions: []string{identity.PermissionUserView, identity.PermissionUserManage}},
 		"core.route.identity.get_user":    {method: "GET", supported: true, permissions: []string{identity.PermissionUserView, identity.PermissionUserManage}},
 
-		"core.route.identity.delete_role":                       {method: "DELETE"},
+		"core.route.identity.delete_role":                       {method: "DELETE", supported: true, permissions: []string{identity.PermissionRoleManage}},
 		"core.route.identity.replace_role_permissions":          {method: "PUT"},
 		"core.route.identity.update_user":                       {method: "PATCH"},
 		"core.route.identity.admin_clear_user_client_ips":       {method: "POST"},
@@ -1098,6 +1329,11 @@ func TestProductionIdentityAdminGuardPartitionsCatalogByProvablePolicy(t *testin
 		delete(expected, route.ID)
 
 		plan, step := productionCatalogInheritedGuardPlan(t, route)
+		if route.ID == "core.route.identity.delete_role" {
+			plan, step = productionParameterizedInheritedGuardPlan(
+				t, route, "/guard/production/roles/:roleKey", "/guard/production/roles/community_helper",
+			)
+		}
 		if !want.supported {
 			request := productionGuardRequest("*")
 			request.Method, request.Path = plan.Method(), plan.Path()
@@ -1109,25 +1345,25 @@ func TestProductionIdentityAdminGuardPartitionsCatalogByProvablePolicy(t *testin
 
 		for _, permission := range want.permissions {
 			allowed := productionGuardRequest(permission)
-			allowed.Method, allowed.Path = plan.Method(), plan.Path()
+			allowed.Method, allowed.Path, allowed.Params = plan.Method(), plan.Path(), plan.Params()
 			if err := authorizer.Authorize(context.Background(), plan, step, allowed); err != nil {
 				t.Fatalf("%s permission %s error = %v", route.ID, permission, err)
 			}
 		}
 
 		denied := productionGuardRequest(identity.PermissionPostCreate)
-		denied.Method, denied.Path = plan.Method(), plan.Path()
+		denied.Method, denied.Path, denied.Params = plan.Method(), plan.Path(), plan.Params()
 		if err := authorizer.Authorize(context.Background(), plan, step, denied); !errors.Is(err, ErrRoutePermissionDenied) {
 			t.Fatalf("%s permission denied error = %v", route.ID, err)
 		}
 
-		anonymous := routes.DispatchRequest{Method: plan.Method(), Path: plan.Path()}
+		anonymous := routes.DispatchRequest{Method: plan.Method(), Path: plan.Path(), Params: plan.Params()}
 		if err := authorizer.Authorize(context.Background(), plan, step, anonymous); !errors.Is(err, ErrRouteLoginRequired) {
 			t.Fatalf("%s anonymous error = %v", route.ID, err)
 		}
 
 		allowed := productionGuardRequest(want.permissions[0])
-		allowed.Method, allowed.Path = plan.Method(), plan.Path()
+		allowed.Method, allowed.Path, allowed.Params = plan.Method(), plan.Path(), plan.Params()
 		forgedStep := step
 		forgedStep.RouteID += ".forged"
 		if err := authorizer.Authorize(context.Background(), plan, forgedStep, allowed); !errors.Is(err, ErrRouteGuardUnavailable) {

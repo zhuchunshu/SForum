@@ -11,6 +11,7 @@ import (
 	"path"
 	"strings"
 
+	entitymeta "github.com/zhuchunshu/sforum/apps/api/app/Models/EntityMeta"
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
 	humanverify "github.com/zhuchunshu/sforum/apps/api/app/Support/HumanVerify"
@@ -34,10 +35,17 @@ type OptionsOwnerPolicy interface {
 	OptionGuardManagePermissions(names []string) ([]string, bool)
 }
 
+type PageResolvePolicy interface {
+	Revision() uint64
+	Resolve(context.Context, string) (pages.ResolvedPage, error)
+	ResolveAddedPathMatch(string) (pages.RouteMatch, bool)
+}
+
 type ProductionRouteGuardPolicies struct {
 	ForumRead  ForumReadPolicy
 	Extensions ExtensionGuardPolicy
 	Options    OptionsOwnerPolicy
+	Pages      PageResolvePolicy
 }
 
 func NewProductionRouteGuardAuthorizer() ProductionRouteGuardAuthorizer {
@@ -85,6 +93,7 @@ func productionCoreGuardEvaluatorRegistrationsWithPolicies(policies ProductionRo
 		productionCoreGuardEvaluator("core.guard.attachments.upload", requireDeclaredCoreGuardPermission),
 		productionCoreGuardEvaluator("core.guard.extensions.mutation", extensionsMutationGuardEvaluator(policies.Extensions)),
 		productionCoreGuardEvaluator("core.guard.extensions.read", extensionsReadGuardEvaluator(policies.Extensions)),
+		productionCoreGuardEvaluator("core.guard.entity_meta.read", requireEntityMetaReadAuthority),
 		productionCoreGuardEvaluator("core.guard.forum.author_review", requireAuthenticatedCoreGuardActor),
 		productionCoreGuardEvaluator("core.guard.forum.comment_write", requireForumCommentGlobalAuthority),
 		productionCoreGuardEvaluator("core.guard.forum.read", forumReadGuardEvaluator(policies.ForumRead)),
@@ -104,6 +113,7 @@ func productionCoreGuardEvaluatorRegistrationsWithPolicies(policies ProductionRo
 		productionCoreGuardEvaluator("core.guard.options.owner", optionsOwnerGuardEvaluator(policies.Options)),
 		productionCoreGuardEvaluator("core.guard.pages.admin", requirePagesAdminAuthority),
 		productionCoreGuardEvaluator("core.guard.pages.catalog", requirePagesCatalogAuthority),
+		productionCoreGuardEvaluator("core.guard.pages.resolve", pagesResolveGuardEvaluator(policies.Pages)),
 		productionCoreGuardEvaluator("core.guard.pages.theme_asset", themeAssetGuardEvaluator(policies.Extensions)),
 		productionCoreGuardEvaluator("core.guard.profile.self", requireProfileSelfAuthority),
 		productionCoreGuardEvaluator("core.guard.seo.read", requireSEOReadAuthority),
@@ -465,6 +475,95 @@ func requirePagesCatalogAuthority(_ context.Context, evaluation routes.CoreGuard
 	return routes.ErrCoreGuardEvaluatorUnavailable
 }
 
+func pagesResolveGuardEvaluator(policy PageResolvePolicy) routes.CoreGuardEvaluatorFunc {
+	return func(ctx context.Context, evaluation routes.CoreGuardEvaluation) error {
+		if policy == nil {
+			return routes.ErrCoreGuardEvaluatorUnavailable
+		}
+		query, err := url.ParseQuery(evaluation.Request.Query)
+		if err != nil {
+			return routes.ErrCoreGuardEvaluatorUnavailable
+		}
+		before := policy.Revision()
+		if before == 0 {
+			return routes.ErrCoreGuardEvaluatorUnavailable
+		}
+		var access pages.Access
+		var permission string
+		switch evaluation.Descriptor.RouteID {
+		case "core.route.pages.resolve":
+			if len(query) != 1 || len(query["id"]) != 1 || strings.TrimSpace(query.Get("id")) == "" {
+				return routes.ErrCoreGuardEvaluatorUnavailable
+			}
+			resolved, resolveErr := policy.Resolve(ctx, strings.TrimSpace(query.Get("id")))
+			if resolveErr != nil {
+				return routes.ErrCoreGuardEvaluatorUnavailable
+			}
+			access = resolved.Page.Access
+		case "core.route.pages.resolve_path":
+			if len(query) != 1 || len(query["path"]) != 1 || strings.TrimSpace(query.Get("path")) == "" ||
+				pages.IsReservedPath(query.Get("path")) {
+				return routes.ErrCoreGuardEvaluatorUnavailable
+			}
+			match, found := policy.ResolveAddedPathMatch(query.Get("path"))
+			if !found {
+				return routes.ErrCoreGuardEvaluatorUnavailable
+			}
+			access, permission = match.Contribution.Access, match.Contribution.Permission
+		default:
+			return routes.ErrCoreGuardEvaluatorUnavailable
+		}
+		if policy.Revision() != before {
+			return routes.ErrCoreGuardEvaluatorUnavailable
+		}
+		return requirePageAccessAuthority(evaluation, access, permission)
+	}
+}
+
+func requirePageAccessAuthority(evaluation routes.CoreGuardEvaluation, access pages.Access, permission string) error {
+	normalized, err := pages.NormalizeAccess(string(access))
+	if err != nil {
+		return routes.ErrCoreGuardEvaluatorUnavailable
+	}
+	switch normalized {
+	case pages.AccessPublic:
+		return nil
+	case pages.AccessLogin:
+		return requireAuthenticatedCoreGuardActor(context.Background(), evaluation)
+	case pages.AccessGuest:
+		if evaluation.Request.Authenticated || evaluation.Request.ActorID > 0 {
+			return routes.ErrCoreGuardGuestRequired
+		}
+		return nil
+	case pages.AccessModeration:
+		return requireCoreGuardPermission(evaluation, identity.PermissionModerationReview)
+	case pages.AccessPermission:
+		permission = strings.TrimSpace(permission)
+		if permission == "" {
+			return routes.ErrCoreGuardEvaluatorUnavailable
+		}
+		return requireCoreGuardPermission(evaluation, permission)
+	default:
+		return routes.ErrCoreGuardEvaluatorUnavailable
+	}
+}
+
+func requireEntityMetaReadAuthority(_ context.Context, evaluation routes.CoreGuardEvaluation) error {
+	if evaluation.Descriptor.RouteID != "core.route.entity_meta.list_public_definitions" {
+		return routes.ErrCoreGuardEvaluatorUnavailable
+	}
+	query, err := url.ParseQuery(evaluation.Request.Query)
+	if err != nil || len(query) != 1 || len(query["entityType"]) != 1 {
+		return routes.ErrCoreGuardEvaluatorUnavailable
+	}
+	switch strings.TrimSpace(query.Get("entityType")) {
+	case entitymeta.EntityUser, entitymeta.EntityTopic:
+		return nil
+	default:
+		return routes.ErrCoreGuardEvaluatorUnavailable
+	}
+}
+
 func requireSEOReadAuthority(_ context.Context, evaluation routes.CoreGuardEvaluation) error {
 	if evaluation.Descriptor.RouteID == "core.route.seo.list" {
 		return nil
@@ -702,6 +801,12 @@ func requireIdentityAdminAuthority(_ context.Context, evaluation routes.CoreGuar
 		// user.manage 是 user.view 的兼容父权限；生产会话通常已展开，
 		// 这里仍显式接受父权限，避免旧会话在 Guard 层被错误收窄。
 		return requireCoreGuardPermission(evaluation, identity.PermissionUserView, identity.PermissionUserManage)
+	case "core.route.identity.delete_role":
+		roleKey := strings.TrimSpace(evaluation.Request.Params["roleKey"])
+		if roleKey == "" || roleKey == identity.RoleMember || identity.IsBuiltInSystemRole(roleKey) {
+			return routes.ErrCoreGuardEvaluatorUnavailable
+		}
+		return requireCoreGuardPermission(evaluation, identity.PermissionRoleManage)
 	default:
 		// 删除/改角色权限和用户写操作都依赖目标资源或请求字段，
 		// 当前 Guard 输入不能完整复现 Service 的保护，继续保持关闭。
