@@ -4,9 +4,16 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/jackc/pgx/v5"
+)
+
+const (
+	extensionDatabaseRuntimeConnectionLimit        = 8
+	extensionDatabaseRuntimeStatementTimeout       = "5s"
+	extensionDatabaseRuntimeIdleTransactionTimeout = "15s"
 )
 
 func ensureExtensionDatabaseResources(
@@ -95,10 +102,15 @@ func ensureExtensionDatabaseRole(
 		return ErrExtensionDatabaseIdentifier
 	}
 	var canLogin, superuser, createDatabase, createRole, replication, bypassRLS bool
+	var connectionLimit int
 	err := tx.QueryRow(ctx, `
-		SELECT rolcanlogin, rolsuper, rolcreatedb, rolcreaterole, rolreplication, rolbypassrls
+		SELECT rolcanlogin, rolsuper, rolcreatedb, rolcreaterole, rolreplication,
+		       rolbypassrls, rolconnlimit
 		FROM pg_roles WHERE rolname = $1
-	`, roleName).Scan(&canLogin, &superuser, &createDatabase, &createRole, &replication, &bypassRLS)
+	`, roleName).Scan(
+		&canLogin, &superuser, &createDatabase, &createRole, &replication,
+		&bypassRLS, &connectionLimit,
+	)
 	if errors.Is(err, pgx.ErrNoRows) {
 		quoted := pgx.Identifier{roleName}.Sanitize()
 		if _, err := tx.Exec(ctx, `CREATE ROLE `+quoted+` NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS`); err != nil {
@@ -111,6 +123,12 @@ func ensureExtensionDatabaseRole(
 	}
 	if superuser || createDatabase || createRole || replication || bypassRLS || (!allowLogin && canLogin) {
 		return fmt.Errorf("%w: role %s has elevated attributes", ErrExtensionDatabaseResourceConflict, roleName)
+	}
+	if allowLogin && connectionLimit != -1 && connectionLimit != extensionDatabaseRuntimeConnectionLimit {
+		return fmt.Errorf(
+			"%w: role %s has unexpected connection limit %d",
+			ErrExtensionDatabaseResourceConflict, roleName, connectionLimit,
+		)
 	}
 	rows, err := tx.Query(ctx, `
 		SELECT granted.rolname
@@ -199,8 +217,8 @@ func validateExtensionDatabaseRoleIsolation(
 	if err != nil {
 		return fmt.Errorf("inspect extension database role settings: %w", err)
 	}
-	expectedSearchPath := "search_path=" + schemaName + ",pg_catalog"
-	seenSearchPath := false
+	expectedSettings := extensionDatabaseRuntimeSettings(schemaName)
+	seenSettings := make(map[string]struct{}, len(expectedSettings))
 	for rows.Next() {
 		var databaseOID uint32
 		var configuredDatabase, setting string
@@ -209,15 +227,17 @@ func validateExtensionDatabaseRoleIsolation(
 			return err
 		}
 		normalized := strings.ReplaceAll(setting, " ", "")
-		if !allowExactSearchPath || seenSearchPath || databaseOID == 0 ||
-			configuredDatabase != databaseName || normalized != expectedSearchPath {
+		_, expected := expectedSettings[normalized]
+		_, duplicate := seenSettings[normalized]
+		if !allowExactSearchPath || !expected || duplicate || databaseOID == 0 ||
+			configuredDatabase != databaseName {
 			rows.Close()
 			return fmt.Errorf(
 				"%w: role %s has unexpected setting %q for database %q",
 				ErrExtensionDatabaseResourceConflict, roleName, setting, configuredDatabase,
 			)
 		}
-		seenSearchPath = true
+		seenSettings[normalized] = struct{}{}
 	}
 	rows.Close()
 	if err := rows.Err(); err != nil {
@@ -342,16 +362,89 @@ func activateExtensionDatabaseRuntimeRole(
 	database := pgx.Identifier{databaseName}.Sanitize()
 	schema := pgx.Identifier{identifiers.Schema}.Sanitize()
 	queries := []string{
-		`ALTER ROLE ` + runtime + ` LOGIN PASSWORD '` + password + `'`,
+		`ALTER ROLE ` + runtime + ` LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS CONNECTION LIMIT ` + strconv.Itoa(extensionDatabaseRuntimeConnectionLimit) + ` PASSWORD '` + password + `'`,
 		`GRANT CONNECT ON DATABASE ` + database + ` TO ` + runtime,
 		`ALTER ROLE ` + runtime + ` IN DATABASE ` + database + ` SET search_path TO ` + schema + `, pg_catalog`,
+		`ALTER ROLE ` + runtime + ` IN DATABASE ` + database + ` SET statement_timeout TO '` + extensionDatabaseRuntimeStatementTimeout + `'`,
+		`ALTER ROLE ` + runtime + ` IN DATABASE ` + database + ` SET idle_in_transaction_session_timeout TO '` + extensionDatabaseRuntimeIdleTransactionTimeout + `'`,
 	}
 	for _, query := range queries {
 		if _, err := tx.Exec(ctx, query); err != nil {
 			return fmt.Errorf("%w: activate runtime role: %v", ErrExtensionDatabaseCredential, err)
 		}
 	}
+	if err := validateExtensionDatabaseRuntimeLimits(ctx, tx, identifiers, databaseName); err != nil {
+		return fmt.Errorf("%w: validate runtime limits: %v", ErrExtensionDatabaseCredential, err)
+	}
 	return nil
+}
+
+func validateExtensionDatabaseRuntimeLimits(
+	ctx context.Context,
+	tx pgx.Tx,
+	identifiers ExtensionDatabaseIdentifiers,
+	databaseName string,
+) error {
+	if !identifiers.valid() || !validPostgresCatalogName(databaseName) {
+		return ErrExtensionDatabaseRegistryInvalid
+	}
+	var canLogin, inherit, superuser, createDatabase, createRole, replication, bypassRLS bool
+	var connectionLimit int
+	if err := tx.QueryRow(ctx, `
+		SELECT rolcanlogin, rolinherit, rolsuper, rolcreatedb, rolcreaterole,
+		       rolreplication, rolbypassrls, rolconnlimit
+		FROM pg_roles WHERE rolname = $1
+	`, identifiers.RuntimeRole).Scan(
+		&canLogin, &inherit, &superuser, &createDatabase, &createRole,
+		&replication, &bypassRLS, &connectionLimit,
+	); err != nil {
+		return err
+	}
+	if !canLogin || !inherit || superuser || createDatabase || createRole || replication || bypassRLS ||
+		connectionLimit != extensionDatabaseRuntimeConnectionLimit {
+		return ErrExtensionDatabaseResourceConflict
+	}
+
+	expectedSettings := extensionDatabaseRuntimeSettings(identifiers.Schema)
+	seenSettings := make(map[string]struct{}, len(expectedSettings))
+	rows, err := tx.Query(ctx, `
+		SELECT setting
+		FROM pg_db_role_setting AS settings
+		JOIN pg_database AS databases ON databases.oid = settings.setdatabase
+		CROSS JOIN LATERAL unnest(settings.setconfig) AS setting
+		WHERE settings.setrole = (SELECT oid FROM pg_roles WHERE rolname = $1)
+		  AND databases.datname = $2
+	`, identifiers.RuntimeRole, databaseName)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var setting string
+		if err := rows.Scan(&setting); err != nil {
+			return err
+		}
+		normalized := strings.ReplaceAll(setting, " ", "")
+		if _, expected := expectedSettings[normalized]; !expected {
+			return ErrExtensionDatabaseResourceConflict
+		}
+		seenSettings[normalized] = struct{}{}
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	if len(seenSettings) != len(expectedSettings) {
+		return ErrExtensionDatabaseResourceConflict
+	}
+	return nil
+}
+
+func extensionDatabaseRuntimeSettings(schemaName string) map[string]struct{} {
+	return map[string]struct{}{
+		"search_path=" + schemaName + ",pg_catalog":                                             {},
+		"statement_timeout=" + extensionDatabaseRuntimeStatementTimeout:                         {},
+		"idle_in_transaction_session_timeout=" + extensionDatabaseRuntimeIdleTransactionTimeout: {},
+	}
 }
 
 func disableExtensionDatabaseRuntimeRole(

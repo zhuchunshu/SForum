@@ -387,9 +387,13 @@ func connectExtensionDatabaseCredential(
 	return pgx.ConnectConfig(ctx, config)
 }
 
-func isInsufficientPrivilege(err error) bool {
+func isPostgresErrorCode(err error, code string) bool {
 	var postgresError *pgconn.PgError
-	return errors.As(err, &postgresError) && postgresError.Code == "42501"
+	return errors.As(err, &postgresError) && postgresError.Code == code
+}
+
+func isInsufficientPrivilege(err error) bool {
+	return isPostgresErrorCode(err, "42501")
 }
 
 func cleanupExtensionDatabaseRegistryFixture(
