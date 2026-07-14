@@ -248,6 +248,22 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		Auditor:  auditWriter,
 	})
 	hostAPIGateway := hostapi.NewGateway(hostAPIService)
+	queryAuthority := hostapi.NewPostgresProtocolV2QueryAuthorityResolver(pool)
+	queryRuntime, err := hostapi.NewPostgresProtocolV2QueryRuntime(pool, queryAuthority)
+	if err == nil {
+		err = hostAPIGateway.BindProtocolV2QueryRuntime(queryRuntime)
+	}
+	if err != nil {
+		if stopErr := supportjobs.Stop(ctx, jobClient); stopErr != nil {
+			logger.Warn("job dispatcher stop failed", "error", stopErr)
+		}
+		sharedRedisClient.Close()
+		if closeErr := redisStorage.Close(); closeErr != nil {
+			logger.Warn("redis session storage close failed", "error", closeErr)
+		}
+		pool.Close()
+		return nil, fmt.Errorf("Host Query runtime setup failed: %w", err)
+	}
 	extensionRuntime := bindAPIExtensionRuntime(extensionStore, hostAPIGateway, extensionService, executableTrustService)
 	hostAPIService.BindPluginJobAdmission(newPluginJobEnqueueAdmission(extensionRuntime))
 	hostAPIService.BindServiceProviderAdmission(newPluginServiceProviderAdmission(extensionRuntime))

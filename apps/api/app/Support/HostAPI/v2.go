@@ -30,10 +30,11 @@ type protocolV2Core struct {
 	service  *Service
 	services *ServiceRegistry
 	commands *protocolV2CommandEngine
+	queries  *protocolV2QueryEngine
 }
 
-func registerProtocolV2(server grpc.ServiceRegistrar, service *Service, services *ServiceRegistry, commands *protocolV2CommandEngine) {
-	core := &protocolV2Core{service: service, services: services, commands: commands}
+func registerProtocolV2(server grpc.ServiceRegistrar, service *Service, services *ServiceRegistry, commands *protocolV2CommandEngine, queries *protocolV2QueryEngine) {
+	core := &protocolV2Core{service: service, services: services, commands: commands, queries: queries}
 	hostv2.RegisterHostQueryServiceServer(server, &protocolV2QueryServer{core: core})
 	hostv2.RegisterHostCommandServiceServer(server, &protocolV2CommandServer{core: core})
 	hostv2.RegisterPermissionServiceServer(server, &protocolV2PermissionServer{core: core})

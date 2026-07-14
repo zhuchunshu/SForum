@@ -14,8 +14,21 @@ type protocolV2QueryServer struct {
 }
 
 func (s *protocolV2QueryServer) Execute(ctx context.Context, request *hostv2.QueryRequest) (*hostv2.QueryResponse, error) {
+	if request.GetQueryId() != QueryOwnSettingsID {
+		if isStableProtocolV2QueryID(request.GetQueryId()) {
+			if s == nil || s.core == nil || s.core.queries == nil {
+				response := &hostv2.QueryResponse{Context: protocolV2ResponseContext(request.GetContext()), Page: &protocolv2.PageInfo{}}
+				response.Error = queryError(protocolv2.ErrorCode_ERROR_CODE_UNAVAILABLE, "host.query_backend_unavailable", "Stable Host Queries are not configured.", true)
+				return response, nil
+			}
+			return s.core.queries.execute(ctx, request), nil
+		}
+		response := &hostv2.QueryResponse{Context: protocolV2ResponseContext(request.GetContext())}
+		response.Error = protocolV2Unsupported("host.query_unsupported", "The query id or plan version is not supported.")
+		return response, nil
+	}
 	response := &hostv2.QueryResponse{Context: protocolV2ResponseContext(request.GetContext())}
-	if request.GetQueryId() != QueryOwnSettingsID || request.GetPlanVersion() != QueryOwnSettingsVersion {
+	if request.GetPlanVersion() != QueryOwnSettingsVersion {
 		response.Error = protocolV2Unsupported("host.query_unsupported", "The query id or plan version is not supported.")
 		return response, nil
 	}

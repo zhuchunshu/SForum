@@ -24,7 +24,9 @@ type Gateway struct {
 	service                  *Service
 	services                 *ServiceRegistry
 	commands                 *protocolV2CommandEngine
+	queries                  *protocolV2QueryEngine
 	protocolV2CommandsFrozen bool
+	protocolV2QueriesFrozen  bool
 	server                   *http.Server
 	ln                       net.Listener
 	baseURL                  string
@@ -41,9 +43,32 @@ func (g *Gateway) RegisterProtocolV2(server grpc.ServiceRegistrar) {
 	service := g.service
 	services := g.services
 	commands := g.commands
+	queries := g.queries
 	g.protocolV2CommandsFrozen = true
+	g.protocolV2QueriesFrozen = true
 	g.mu.Unlock()
-	registerProtocolV2(server, service, services, commands)
+	registerProtocolV2(server, service, services, commands, queries)
+}
+
+// BindProtocolV2QueryRuntime installs the immutable stable-query catalog once.
+// Broker registration freezes the snapshot for the lifetime of this Gateway.
+func (g *Gateway) BindProtocolV2QueryRuntime(runtime ProtocolV2QueryRuntime) error {
+	if g == nil {
+		return fmt.Errorf("hostapi gateway is nil")
+	}
+	if runtime == nil || runtime.queryEngine() == nil {
+		return fmt.Errorf("hostapi: protocol v2 query runtime is required")
+	}
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	if g.protocolV2QueriesFrozen {
+		return fmt.Errorf("hostapi: protocol v2 query runtime is frozen until the next Gateway boot")
+	}
+	if g.queries != nil {
+		return fmt.Errorf("hostapi: protocol v2 query runtime is already bound")
+	}
+	g.queries = runtime.queryEngine()
+	return nil
 }
 
 // BindProtocolV2CommandRuntime installs one immutable Host-owned command
