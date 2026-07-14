@@ -1,7 +1,7 @@
 # Trusted Plugin And Theme Platform V3 Progress Ledger
 
 Date: 2026-07-14
-Overall progress: **44%**
+Overall progress: **45%**
 Active phase: **P6 - Full Route And Middleware Registry V1 (61%, 11 of 18 rows)**
 
 This ledger is the durable percentage and context-compaction checkpoint for the
@@ -24,7 +24,7 @@ scaffolding, or demo-only code cannot satisfy a runtime exit criterion.
 | P5 Database/commands | 8% | 65% | 5.18% |
 | P6 Routes/middleware | 10% | 61% | 6.11% |
 | P7 Workflow/admin/query/identity | 10% | 0% | 0% |
-| P8 Theme compiler/runtime | 8% | 33% | 2.67% |
+| P8 Theme compiler/runtime | 8% | 39% | 3.11% |
 | P9 Components/assets/L2 | 8% | 0% | 0% |
 | P10 Content/media/data | 8% | 0% | 0% |
 | P11 Platform services | 6% | 0% | 0% |
@@ -965,8 +965,8 @@ phase percentage.
   standard template control actions, sealed SafeHTML, immutable exact runtime
   snapshots, and the compile/render performance row. Install-time compilation,
   all-catalog zero-I/O, typed frontend consumption, four-level fallback,
-  plugin business ViewModels, multi-node convergence, admin skin isolation, and
-  crawler/JavaScript-disabled evidence remain open.
+  plugin business ViewModels, multi-node convergence, and crawler/JavaScript-
+  disabled evidence remain open.
 - Verification passed focused repetition, race detection, full Pages,
   Extensions, Pages Controller, HTTP and bootstrap packages, vet, all API tests,
   `go build ./...`, and staged diff checks.
@@ -974,3 +974,30 @@ phase percentage.
   `Support/Pages`, and production Route Schema lifecycle/bootstrap publication.
   Next integrate Route + Schema restore, then continue contextual/custom/raw
   guards and freeze full action semantics before streaming transports.
+
+## P6 Schema Lifecycle And P8 Admin Isolation Checkpoint
+
+- Weighted V3 progress is now **45%**. P6 remains **61% (11 of 18 rows)**;
+  P8 advances to **39% (7 of 18 rows)** after accepting public-theme/admin
+  style isolation. P5 remains partially open at **65% (11 of 17 rows)** and
+  does not block independent P6/P8 delivery.
+- `69ac44074` fences exact Route Schema replacement artifacts, and `69266b051`
+  publishes schemas before Route Registry exposure, restores both immutable
+  publications after runtime reconciliation, keeps Safe Mode Core-only with an
+  empty plugin schema catalog, and injects the live publication into the
+  production dispatcher validator.
+- `ecf860984` adds notification-recipient contextual guard evaluation. Explicit
+  evaluators now cover 26 of 123 contextual routes; the remaining 97 routes,
+  custom guards, and raw request/session authority continue to fail closed.
+- `6dda8c9e0` resolves Page providers from immutable snapshots without a
+  PostgreSQL lookup on the production request path.
+- `9e369ffc8` keeps public theme skins out of admin desktop/mobile routes while
+  restoring them on SPA navigation back to public pages. Browser QA found two
+  exact public links, zero admin links, and no relevant console errors.
+- Verification passed focused/race package tests, vet, `go build ./...`, 290
+  web tests, Nuxt typecheck, production build, and desktop/mobile browser QA.
+- Next close the remaining contextual guard catalog and independently trusted
+  custom/raw guards, then implement the frozen route-action semantics and real
+  multipart/streaming/SSE/WebSocket transports. P8 next owns install-time
+  unsafe compilation checks, typed frontend render segments, four-level
+  fallback, and all-catalog zero-I/O evidence.

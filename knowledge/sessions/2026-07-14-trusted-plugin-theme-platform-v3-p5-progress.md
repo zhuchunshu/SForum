@@ -3,7 +3,7 @@
 ## Changed
 
 - P5 is 65% complete at 11 of 17 authoritative rows. P6 is the active phase at
-  61% (11 of 18 rows), P8 is 33% (6 of 18 rows), and weighted V3 is 44%.
+  61% (11 of 18 rows), P8 is 39% (7 of 18 rows), and weighted V3 is 45%.
 - Added read-only exact migration preflight and independent-process migration-once proof.
 - Enforced per-plugin PostgreSQL connection and slow-query budgets.
 - Added stable read-only core views and production Host Query runtime.
@@ -42,8 +42,8 @@
   available, while accepted requests, partial responses, crashes, timeouts,
   cancellation, and unsafe methods can never execute Core as a second writer.
 - Added the complete 23/23 Page ViewModel registry and sealed typed theme render
-  output in `d9268872a`. P8 remains uncredited pending production construction
-  and runtime publication.
+  output in `d9268872a`. At that checkpoint P8 remained uncredited pending
+  production construction and runtime publication.
 - Added reviewed typed Core guards and exact inherited guard snapshots in
   `1fcfdbf05`; every returned permission slice is detached and mutation-tested.
 - Added the exact-artifact Route Schema Catalog in `6667e630f`, including exact
@@ -60,12 +60,19 @@
 - Added revision-fenced immutable Route Schema publication in `c64fa56f8`.
 - Production-bound exact compiled Theme Runtime snapshots in `0a1997578` and
   `2a180cb07`, then added production compile/render allocation gates and the P8
-  report in `d1d42a130`. P8 is strictly 6/18; legacy/add pages still have hot
-  Store/file I/O and complete fallback remains open.
+  report in `d1d42a130`. At that checkpoint P8 was 6/18; legacy/add pages still
+  had hot Store/file I/O and complete fallback remained open.
 - Added exact Protocol V2 unary Route transport in `6a41bbcd9`, including real
   subprocess coverage, one admission lease, Host actor authority, frozen
   schema identity, bounded response conversion, unique traces, and concurrent
   same-plugin invocation without a lifecycle-lock bottleneck.
+- Bound exact Route Schema publication to lifecycle and startup restoration in
+  `69266b051`; schema publication precedes Route Registry exposure, Safe Mode
+  remains Core-only, and the production dispatcher consumes the live catalog.
+- Resolved Page providers from immutable production snapshots in `6dda8c9e0`,
+  expanded explicit contextual guards to 26 of 123 routes in `ecf860984`, and
+  accepted public-theme/admin style isolation in `9e369ffc8` after desktop,
+  mobile, and SPA-return browser verification.
 
 ## Verification
 
@@ -118,14 +125,13 @@
 ## Resume Point
 
 - Branch: `main`.
-- Last implementation commit at this checkpoint: `6a41bbcd9`.
+- Last implementation commit at this checkpoint: `69266b051`.
 - Frontend was started on port 3000 and API hot reload recovered on 8081, but
   process and login state are not durable; verify both before QA.
-- Exact route schemas are clean and committed. Production publication is
-  blocked on the missing Host-owned route policy source and the need to restore
-  Route + Schema snapshots together at boot; do not inject a standalone catalog.
-- Active parallel work is isolated to immutable Page provider resolution and
-  production Route Schema lifecycle/bootstrap publication. Theme runtime is
-  credited only for 6 of 18 rows; do not claim all-catalog zero-I/O or complete
-  fallback until the remaining legacy/add paths and frontend contract close.
+- Exact Route + Schema publication is production-bound and restored together at
+  boot. The remaining P6 work is contextual/custom/raw guards, full action
+  semantics, and non-buffered transports.
+- Theme runtime is credited only for 7 of 18 rows; do not claim all-catalog
+  zero-I/O or complete fallback until the remaining legacy/add paths and
+  frontend contract close.
 - Preserve any unrelated worktree changes; stage only V3-owned files/hunks.
