@@ -1,0 +1,421 @@
+package routes
+
+import (
+	"errors"
+	"fmt"
+	"sort"
+	"strings"
+	"sync"
+	"sync/atomic"
+
+	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
+)
+
+var (
+	ErrInvalidRoute     = errors.New("routes: invalid route registry input")
+	ErrRouteNotFound    = errors.New("routes: route not found")
+	ErrAmbiguousRoute   = errors.New("routes: route resolution is ambiguous")
+	ErrRevisionConflict = errors.New("routes: registry revision conflict")
+)
+
+type ProviderKind string
+
+const (
+	ProviderCore   ProviderKind = "core"
+	ProviderPlugin ProviderKind = "plugin"
+)
+
+type ConflictKind string
+
+const (
+	ConflictPathMethod        ConflictKind = "path_method"
+	ConflictRouteIdentity     ConflictKind = "route_identity"
+	ConflictProviderSelection ConflictKind = "provider_selection"
+)
+
+// PluginArtifact pins every contribution to its immutable package and exact runtime instance.
+type PluginArtifact struct {
+	ExtensionID       string
+	ExtensionVersion  string
+	PackageDigest     string
+	RuntimeInstanceID string
+}
+
+type Provider struct {
+	Kind     ProviderKind
+	Artifact PluginArtifact
+}
+
+// CoreRoute is the minimum executable identity supplied by the P0 Host catalog.
+type CoreRoute struct {
+	ID              string
+	ContractVersion string
+	Method          string
+	Path            string
+	Priority        int
+}
+
+type PluginRouteSet struct {
+	Artifact PluginArtifact
+	Routes   []extensionmanifest.ManifestRoute
+}
+
+// Publication always replaces the complete active snapshot.
+type Publication struct {
+	Core     []CoreRoute
+	Plugins  []PluginRouteSet
+	SafeMode bool
+}
+
+// Route is method-expanded so matching and conflict inspection share one identity.
+type Route struct {
+	ID              string
+	ContractVersion string
+	Action          string
+	TargetID        string
+	Path            string
+	Method          string
+	Guard           string
+	Permission      string
+	Priority        int
+	Fallback        string
+	Mode            string
+	Destination     string
+	Handler         string
+	RequestSchema   string
+	ResponseSchema  string
+	TimeoutMS       int
+	PathSignature   string
+	Provider        Provider
+}
+
+type Conflict struct {
+	Kind            ConflictKind
+	RouteID         string
+	ContractVersion string
+	Method          string
+	PathSignature   string
+	Candidates      []Route
+}
+
+type Snapshot struct {
+	Revision  uint64
+	SafeMode  bool
+	Routes    []Route
+	Conflicts []Conflict
+}
+
+type Match struct {
+	Revision      uint64
+	Route         Route
+	Params        map[string]string
+	Contributions []Route
+	Candidates    []Route
+}
+
+type preparedRoute struct {
+	route Route
+	path  compiledPath
+}
+
+type registrySnapshot struct {
+	revision  uint64
+	safeMode  bool
+	routes    []preparedRoute
+	conflicts []Conflict
+}
+
+// Registry keeps readers lock-free while complete candidate sets are validated off-snapshot.
+type Registry struct {
+	writeMu  sync.Mutex
+	snapshot atomic.Pointer[registrySnapshot]
+}
+
+func NewRegistry() *Registry {
+	registry := &Registry{}
+	registry.snapshot.Store(&registrySnapshot{})
+	return registry
+}
+
+func (r *Registry) Publish(input Publication) (Snapshot, error) {
+	return r.publish(input, nil)
+}
+
+// PublishIfRevision prevents independently prepared lifecycle publications from
+// overwriting a newer complete snapshot. A failed comparison never publishes.
+func (r *Registry) PublishIfRevision(input Publication, expectedRevision uint64) (Snapshot, error) {
+	return r.publish(input, &expectedRevision)
+}
+
+func (r *Registry) publish(input Publication, expectedRevision *uint64) (Snapshot, error) {
+	if r == nil {
+		return Snapshot{}, fmt.Errorf("%w: registry is nil", ErrInvalidRoute)
+	}
+	candidate, err := preparePublication(input)
+	if err != nil {
+		return Snapshot{}, err
+	}
+
+	r.writeMu.Lock()
+	defer r.writeMu.Unlock()
+	current := r.loadSnapshot()
+	if expectedRevision != nil && current.revision != *expectedRevision {
+		return snapshotView(current), fmt.Errorf(
+			"%w: expected %d, current %d", ErrRevisionConflict, *expectedRevision, current.revision,
+		)
+	}
+	candidate.revision = current.revision + 1
+	r.snapshot.Store(candidate)
+	return snapshotView(candidate), nil
+}
+
+func (r *Registry) Snapshot() Snapshot {
+	if r == nil {
+		return Snapshot{}
+	}
+	return snapshotView(r.loadSnapshot())
+}
+
+func (r *Registry) Revision() uint64 {
+	if r == nil {
+		return 0
+	}
+	return r.loadSnapshot().revision
+}
+
+func (r *Registry) Conflicts() []Conflict {
+	return r.Snapshot().Conflicts
+}
+
+// Resolve selects only an unambiguous endpoint. Ordered middleware/modifiers remain data;
+// execution semantics are intentionally owned by later P6 slices.
+func (r *Registry) Resolve(method, requestPath string) (Match, error) {
+	if r == nil {
+		return Match{}, fmt.Errorf("%w: registry is nil", ErrInvalidRoute)
+	}
+	method = strings.ToUpper(strings.TrimSpace(method))
+	if !validMethod(method) || method == "*" {
+		return Match{}, fmt.Errorf("%w: invalid request method", ErrInvalidRoute)
+	}
+	requestPath, err := normalizeRequestPath(requestPath)
+	if err != nil {
+		return Match{}, err
+	}
+	snapshot := r.loadSnapshot()
+
+	type candidate struct {
+		prepared preparedRoute
+		params   map[string]string
+	}
+	candidates := make([]candidate, 0)
+	for _, item := range snapshot.routes {
+		if !addressableAction(item.route.Action) || !routeMethodMatches(item.route, method) {
+			continue
+		}
+		if params, ok := item.path.match(requestPath); ok {
+			candidates = append(candidates, candidate{prepared: item, params: params})
+		}
+	}
+	if len(candidates) == 0 {
+		return Match{Revision: snapshot.revision}, ErrRouteNotFound
+	}
+	sort.SliceStable(candidates, func(i, j int) bool {
+		left, right := candidates[i].prepared, candidates[j].prepared
+		if order := comparePathSpecificity(left.path, right.path); order != 0 {
+			return order > 0
+		}
+		if requestMethodSpecificity(left.route, method) != requestMethodSpecificity(right.route, method) {
+			return requestMethodSpecificity(left.route, method) > requestMethodSpecificity(right.route, method)
+		}
+		return routeLess(left, right)
+	})
+	best := candidates[0]
+	top := make([]Route, 0, len(candidates))
+	for _, item := range candidates {
+		if comparePathSpecificity(item.prepared.path, best.prepared.path) != 0 ||
+			requestMethodSpecificity(item.prepared.route, method) != requestMethodSpecificity(best.prepared.route, method) {
+			break
+		}
+		top = append(top, item.prepared.route)
+	}
+	if len(top) > 1 {
+		sortRoutes(top)
+		return Match{Revision: snapshot.revision, Candidates: cloneRoutes(top)}, ErrAmbiguousRoute
+	}
+	for _, conflict := range snapshot.conflicts {
+		if conflict.Kind == ConflictRouteIdentity && conflict.RouteID == best.prepared.route.ID &&
+			methodsOverlap(conflict.Method, method) {
+			return Match{Revision: snapshot.revision, Candidates: cloneRoutes(conflict.Candidates)}, ErrAmbiguousRoute
+		}
+	}
+
+	replacements := make([]Route, 0)
+	for _, item := range snapshot.routes {
+		if item.route.Action != extensionmanifest.RouteActionReplace || item.route.TargetID != best.prepared.route.ID ||
+			!routeMethodMatches(item.route, method) {
+			continue
+		}
+		if _, ok := item.path.match(requestPath); ok {
+			replacements = append(replacements, item.route)
+		}
+	}
+	if len(replacements) > 0 {
+		top = append([]Route{best.prepared.route}, replacements...)
+		sortRoutes(top)
+		return Match{Revision: snapshot.revision, Candidates: cloneRoutes(top)}, ErrAmbiguousRoute
+	}
+
+	contributions := make([]Route, 0)
+	for _, item := range snapshot.routes {
+		if item.route.Provider.Kind != ProviderPlugin {
+			continue
+		}
+		if item.route.Action == extensionmanifest.RouteActionGlobalMiddleware {
+			contributions = append(contributions, item.route)
+			continue
+		}
+		if !compositionAction(item.route.Action) || item.route.TargetID != best.prepared.route.ID ||
+			!routeMethodMatches(item.route, method) {
+			continue
+		}
+		if _, ok := item.path.match(requestPath); ok {
+			contributions = append(contributions, item.route)
+		}
+	}
+	sortRoutes(contributions)
+	return Match{
+		Revision: snapshot.revision, Route: best.prepared.route, Params: best.params,
+		Contributions: cloneRoutes(contributions),
+	}, nil
+}
+
+func preparePublication(input Publication) (*registrySnapshot, error) {
+	prepared := make([]preparedRoute, 0, len(input.Core))
+	seen := make(map[string]struct{})
+	for _, core := range input.Core {
+		items, err := prepareCoreRoute(core)
+		if err != nil {
+			return nil, err
+		}
+		for _, item := range items {
+			if err := appendUniqueRoute(&prepared, seen, item); err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	// Safe Mode must boot from Host defaults even when an installed plugin snapshot is corrupt.
+	if !input.SafeMode {
+		seenExtensions := make(map[string]struct{}, len(input.Plugins))
+		for _, plugin := range input.Plugins {
+			if err := validatePluginArtifact(plugin.Artifact); err != nil {
+				return nil, err
+			}
+			if _, duplicate := seenExtensions[plugin.Artifact.ExtensionID]; duplicate {
+				return nil, fmt.Errorf("%w: extension %q appears more than once", ErrInvalidRoute, plugin.Artifact.ExtensionID)
+			}
+			seenExtensions[plugin.Artifact.ExtensionID] = struct{}{}
+			for _, declaration := range plugin.Routes {
+				items, err := preparePluginRoute(plugin.Artifact, declaration)
+				if err != nil {
+					return nil, err
+				}
+				for _, item := range items {
+					if err := appendUniqueRoute(&prepared, seen, item); err != nil {
+						return nil, err
+					}
+				}
+			}
+		}
+	}
+	if err := validateTargets(prepared); err != nil {
+		return nil, err
+	}
+	sort.SliceStable(prepared, func(i, j int) bool { return routeLess(prepared[i], prepared[j]) })
+	return &registrySnapshot{
+		safeMode: input.SafeMode, routes: prepared, conflicts: inspectConflicts(prepared),
+	}, nil
+}
+
+func routeLess(left, right preparedRoute) bool {
+	leftGlobal := left.route.Action == extensionmanifest.RouteActionGlobalMiddleware
+	rightGlobal := right.route.Action == extensionmanifest.RouteActionGlobalMiddleware
+	if leftGlobal != rightGlobal {
+		return !leftGlobal
+	}
+	if !leftGlobal {
+		if order := comparePathSpecificity(left.path, right.path); order != 0 {
+			return order > 0
+		}
+		if left.path.pattern != right.path.pattern {
+			return left.path.pattern < right.path.pattern
+		}
+		if methodSpecificity(left.route.Method) != methodSpecificity(right.route.Method) {
+			return methodSpecificity(left.route.Method) > methodSpecificity(right.route.Method)
+		}
+	}
+	if left.route.Priority != right.route.Priority {
+		return left.route.Priority > right.route.Priority
+	}
+	if left.route.Action != right.route.Action {
+		return left.route.Action < right.route.Action
+	}
+	if left.route.ID != right.route.ID {
+		return left.route.ID < right.route.ID
+	}
+	if left.route.ContractVersion != right.route.ContractVersion {
+		return left.route.ContractVersion < right.route.ContractVersion
+	}
+	if left.route.Provider.Kind != right.route.Provider.Kind {
+		return left.route.Provider.Kind < right.route.Provider.Kind
+	}
+	return left.route.Provider.Artifact.ExtensionID < right.route.Provider.Artifact.ExtensionID
+}
+
+func sortRoutes(routes []Route) {
+	sort.SliceStable(routes, func(i, j int) bool {
+		if routes[i].Priority != routes[j].Priority {
+			return routes[i].Priority > routes[j].Priority
+		}
+		if routes[i].Action != routes[j].Action {
+			return routes[i].Action < routes[j].Action
+		}
+		if routes[i].ID != routes[j].ID {
+			return routes[i].ID < routes[j].ID
+		}
+		if routes[i].Provider.Kind != routes[j].Provider.Kind {
+			return routes[i].Provider.Kind < routes[j].Provider.Kind
+		}
+		return routes[i].Provider.Artifact.ExtensionID < routes[j].Provider.Artifact.ExtensionID
+	})
+}
+
+func (r *Registry) loadSnapshot() *registrySnapshot {
+	if snapshot := r.snapshot.Load(); snapshot != nil {
+		return snapshot
+	}
+	return &registrySnapshot{}
+}
+
+func snapshotView(snapshot *registrySnapshot) Snapshot {
+	view := Snapshot{Revision: snapshot.revision, SafeMode: snapshot.safeMode}
+	view.Routes = make([]Route, 0, len(snapshot.routes))
+	for _, item := range snapshot.routes {
+		view.Routes = append(view.Routes, item.route)
+	}
+	view.Conflicts = cloneConflicts(snapshot.conflicts)
+	return view
+}
+
+func cloneRoutes(values []Route) []Route {
+	return append([]Route(nil), values...)
+}
+
+func cloneConflicts(values []Conflict) []Conflict {
+	result := make([]Conflict, len(values))
+	for index, value := range values {
+		result[index] = value
+		result[index].Candidates = cloneRoutes(value.Candidates)
+	}
+	return result
+}
