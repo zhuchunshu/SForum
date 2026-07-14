@@ -39,6 +39,8 @@ type Service struct {
 	cipher *crypto.OptionCipher
 	// storageSelection 禁用存储插件时回落 attachment.provider（E6.1）。
 	storageSelection StorageSelectionClearer
+	// routeProviderSelections 在进程/扩展身份清理前撤销精确 replace 选择。
+	routeProviderSelections RouteProviderSelectionInvalidator
 	// pageRegistry 运行时主题页面贡献（L0/L1）；nil 时跳过注册。
 	pageRegistry    PageRegistry
 	settingsActions SettingsActionRuntime
@@ -95,6 +97,12 @@ func WithFeatureFlags(source FeatureFlagSource) ServiceOption {
 func WithStorageSelectionClearer(clearer StorageSelectionClearer) ServiceOption {
 	return func(s *Service) {
 		s.storageSelection = clearer
+	}
+}
+
+func WithRouteProviderSelectionInvalidator(invalidator RouteProviderSelectionInvalidator) ServiceOption {
+	return func(s *Service) {
+		s.routeProviderSelections = invalidator
 	}
 }
 

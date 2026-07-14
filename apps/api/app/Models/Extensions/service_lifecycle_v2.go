@@ -292,7 +292,10 @@ func (s *Service) finishLifecycleV2(
 		return Extension{}, errors.Join(ErrLifecycleCoordinatorUnavailable, err)
 	}
 	if result.Operation.TerminalResult == LifecycleTerminalSucceeded && request.operation == LifecycleMachineDisable {
-		if err := s.clearPluginProviderSelections(ctx, request.target.ID); err != nil {
+		if err := s.clearPluginProviderSelectionsWithAudit(
+			ctx, request.target.ID, lifecycleOperationActorUserID(result.Operation),
+			lifecycleOperationAuditEventID(result.Operation), "extension_disabled",
+		); err != nil {
 			return Extension{}, errors.Join(ErrLifecycleCoordinatorUnavailable, fmt.Errorf("clear disabled provider selections: %w", err))
 		}
 	}
@@ -332,7 +335,10 @@ func (s *Service) replayLifecycleV2(
 		case LifecycleTerminalSucceeded, LifecycleTerminalSkipped:
 			if operation.TerminalResult == LifecycleTerminalSucceeded &&
 				LifecycleMachineOperation(operation.Operation) == LifecycleMachineDisable {
-				if cleanupErr := s.clearPluginProviderSelections(ctx, current.ID); cleanupErr != nil {
+				if cleanupErr := s.clearPluginProviderSelectionsWithAudit(
+					ctx, current.ID, lifecycleOperationActorUserID(operation),
+					lifecycleOperationAuditEventID(operation), "extension_disabled",
+				); cleanupErr != nil {
 					return Extension{}, true, errors.Join(
 						ErrLifecycleCoordinatorUnavailable,
 						fmt.Errorf("clear disabled provider selections: %w", cleanupErr),
@@ -606,7 +612,10 @@ func (s *Service) finalizeLifecycleUninstall(
 	// Provider selections are Host registrations, not plugin-owned data. Clear
 	// them before physical purge so a failed options write leaves the exact
 	// package/identity available for an idempotent retry.
-	if err := s.clearPluginProviderSelections(ctx, extensionID); err != nil {
+	if err := s.clearPluginProviderSelectionsWithAudit(
+		ctx, extensionID, lifecycleOperationActorUserID(operation),
+		lifecycleOperationAuditEventID(operation), "extension_uninstalled",
+	); err != nil {
 		return UninstallResult{}, errors.Join(
 			ErrLifecycleCleanupFinalization,
 			fmt.Errorf("clear uninstalled provider selections: %w", err),

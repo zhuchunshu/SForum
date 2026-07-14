@@ -429,6 +429,7 @@ func (r *lifecycleV2RecordingRunner) Run(_ context.Context, input LifecycleCoord
 			ID: r.operationID, ExtensionID: input.Acquire.ExtensionID,
 			ExtensionVersion: input.Acquire.ExtensionVersion, PackageDigest: input.Acquire.PackageDigest,
 			Operation: input.Acquire.Operation, RemovalMode: input.Acquire.RemovalMode,
+			RequestedByUserID: input.Acquire.RequestedByUserID, AuditEventID: input.Acquire.AuditEventID,
 			TerminalResult: LifecycleTerminalSucceeded, CompletedAt: &completedAt,
 		},
 		Replayed: r.replayed,

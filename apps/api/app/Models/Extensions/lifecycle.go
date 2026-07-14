@@ -338,9 +338,43 @@ type mailProviderSelectionStore interface {
 	RestoreMailProvider(context.Context) error
 }
 
+type RouteProviderSelectionInvalidator interface {
+	InvalidateRouteProviderSelections(
+		ctx context.Context,
+		extensionID string,
+		actorUserID int64,
+		auditEventID int64,
+		reasonCode string,
+	) error
+}
+
 // clearPluginProviderSelections 是 V1/V2 共用的 Host-owned 幂等清理边界。
 // 它不触碰 runtime；V2 的进程 drain 只能由 durable coordinator 管理。
 func (s *Service) clearPluginProviderSelections(ctx context.Context, extensionID string) error {
+	return s.clearPluginNonRouteProviderSelections(ctx, extensionID)
+}
+
+func (s *Service) clearPluginProviderSelectionsWithAudit(
+	ctx context.Context,
+	extensionID string,
+	actorUserID int64,
+	auditEventID int64,
+	reasonCode string,
+) error {
+	if s.routeProviderSelections != nil {
+		if actorUserID <= 0 || auditEventID <= 0 || reasonCode == "" {
+			return fmt.Errorf("route provider selection invalidation requires actor and audit evidence")
+		}
+		if err := s.routeProviderSelections.InvalidateRouteProviderSelections(
+			ctx, extensionID, actorUserID, auditEventID, reasonCode,
+		); err != nil {
+			return err
+		}
+	}
+	return s.clearPluginNonRouteProviderSelections(ctx, extensionID)
+}
+
+func (s *Service) clearPluginNonRouteProviderSelections(ctx context.Context, extensionID string) error {
 	if selectionStore, ok := s.store.(mailProviderSelectionStore); ok {
 		selected, err := selectionStore.SelectedMailProvider(ctx)
 		if err != nil {
