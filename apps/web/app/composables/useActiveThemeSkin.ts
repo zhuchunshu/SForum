@@ -4,11 +4,16 @@
  */
 export function useActiveThemeSkin() {
   const links = useState<string[]>('sforum-active-theme-css', () => [])
+  let revision = 0
 
   async function refresh() {
+    const requestedRevision = ++revision
     try {
       const { request } = useApiClient()
       const skin = await request<{ css?: string[], tokens?: string }>('/site/active-theme/skin')
+      if (requestedRevision !== revision) {
+        return
+      }
       const hrefs = [...(skin?.css || [])]
       if (skin?.tokens) {
         hrefs.unshift(skin.tokens)
@@ -18,7 +23,18 @@ export function useActiveThemeSkin() {
         applyStylesheets(hrefs)
       }
     } catch {
+      if (requestedRevision !== revision) {
+        return
+      }
       links.value = []
+    }
+  }
+
+  function clear() {
+    revision++
+    links.value = []
+    if (import.meta.client) {
+      applyStylesheets([])
     }
   }
 
@@ -34,5 +50,5 @@ export function useActiveThemeSkin() {
     }
   }
 
-  return { links, refresh }
+  return { links, refresh, clear }
 }

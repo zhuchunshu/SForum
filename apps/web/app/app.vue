@@ -15,6 +15,8 @@ const {
   refresh: refreshWebOptions
 } = useWebOptions()
 const { refresh: refreshAuthSession } = useAuthSession()
+const route = useRoute()
+const adminRoutes = useAdminRoutes()
 const startupOptionsTimeout = import.meta.dev ? 800 : 2000
 
 // 引入页签缓存控制列表
@@ -38,12 +40,21 @@ if (import.meta.server) {
   // 公共页可能被 Nitro SWR 缓存，SSR 阶段不能把当前用户写进可复用 payload。
   await useAsyncData('app-startup', () => refreshStartupState({ restoreAuth: false }))
 } else {
+  const themeSkin = useActiveThemeSkin()
+  const syncThemeSkin = () => {
+    if (adminRoutes.routeId(route.path) !== null) {
+      themeSkin.clear()
+      return
+    }
+    void themeSkin.refresh()
+  }
+
+  watch(() => route.path, syncThemeSkin, { flush: 'post' })
   // 浏览器挂载后再恢复会话，避免复用 SSR 的 app-startup payload 时跳过 auth 刷新。
   onMounted(() => {
     void refreshStartupState({ restoreAuth: true })
-    // L0 皮肤：运行时注入主题 CSS，不重建 Nuxt。
-    const { refresh: refreshThemeSkin } = useActiveThemeSkin()
-    void refreshThemeSkin()
+    // 公共主题 L0 皮肤不得进入独立的管理端样式边界。
+    syncThemeSkin()
   })
 }
 

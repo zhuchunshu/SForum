@@ -32,10 +32,22 @@ describe('app startup rendering', () => {
 
     expect(page.webOptionsRefreshStarted()).toBe(true)
     expect(page.authRefreshStarted()).toBe(true)
+    expect(page.themeSkinRefreshStarted()).toBe(true)
+    expect(page.themeSkinCleared()).toBe(false)
+  })
+
+  test('keeps public theme skin outside admin routes', async () => {
+    const page = loadAppComponentForStartupTest({ server: false, routePath: '/control-panel' })
+
+    await page.component.setup({}, { expose: () => {} })
+    await page.runMounted()
+
+    expect(page.themeSkinRefreshStarted()).toBe(false)
+    expect(page.themeSkinCleared()).toBe(true)
   })
 })
 
-function loadAppComponentForStartupTest(options: { server: boolean }) {
+function loadAppComponentForStartupTest(options: { server: boolean, routePath?: string }) {
   const source = readFileSync(new URL('../app/app.vue', import.meta.url), 'utf8')
   const { descriptor } = parse(source, { filename: 'app.vue' })
   const compiled = compileScript(descriptor, { id: 'app-startup-test' }).content
@@ -53,6 +65,8 @@ function loadAppComponentForStartupTest(options: { server: boolean }) {
   let loaderStarted = false
   let webOptionsRefreshStarted = false
   let authRefreshStarted = false
+  let themeSkinRefreshStarted = false
+  let themeSkinCleared = false
   const mountedCallbacks: Array<() => void | Promise<void>> = []
   const never = new Promise(() => {})
 
@@ -61,11 +75,14 @@ function loadAppComponentForStartupTest(options: { server: boolean }) {
     'useLocaleHead',
     'useWebOptions',
     'useAuthSession',
+    'useRoute',
+    'useAdminRoutes',
     'useAdminTabs',
     'useAsyncData',
     'useHead',
     'applySEOTitleTemplate',
     'onMounted',
+    'watch',
     'useActiveThemeSkin',
     executable
   )
@@ -93,6 +110,8 @@ function loadAppComponentForStartupTest(options: { server: boolean }) {
         return options.server ? Promise.resolve(true) : never
       }
     }),
+    () => ({ path: options.routePath || '/' }),
+    () => ({ routeId: (path: string) => path.startsWith('/control-panel') ? '/' : null }),
     () => ({ cachedTabNames: ref([]) }),
     (_key: string, loader: () => Promise<unknown>) => {
       loaderStarted = true
@@ -103,7 +122,15 @@ function loadAppComponentForStartupTest(options: { server: boolean }) {
     (callback: () => void | Promise<void>) => {
       mountedCallbacks.push(callback)
     },
-    () => ({ refresh: async () => {} })
+    () => {},
+    () => ({
+      refresh: async () => {
+        themeSkinRefreshStarted = true
+      },
+      clear: () => {
+        themeSkinCleared = true
+      }
+    })
   )
 
   return {
@@ -111,6 +138,8 @@ function loadAppComponentForStartupTest(options: { server: boolean }) {
     loaderStarted: () => loaderStarted,
     webOptionsRefreshStarted: () => webOptionsRefreshStarted,
     authRefreshStarted: () => authRefreshStarted,
+    themeSkinRefreshStarted: () => themeSkinRefreshStarted,
+    themeSkinCleared: () => themeSkinCleared,
     runMounted: async () => {
       for (const callback of mountedCallbacks) {
         void callback()
