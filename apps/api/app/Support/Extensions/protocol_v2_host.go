@@ -4,8 +4,10 @@ import (
 	"context"
 	"crypto/sha256"
 	"crypto/subtle"
+	"sync/atomic"
 	"time"
 
+	hostapi "github.com/zhuchunshu/sforum/apps/api/app/Support/HostAPI"
 	hostv2 "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/host/v2"
 	protocolv2 "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/protocol/v2"
 	"google.golang.org/grpc"
@@ -74,7 +76,8 @@ func protocolV2HostUnaryAuthInterceptor(binding protocolV2HostBinding) grpc.Unar
 		if err := validateProtocolV2HostContext(carrier.GetContext(), binding); err != nil {
 			return nil, err
 		}
-		return handler(ctx, request)
+		trusted := hostapi.ContextWithProtocolV2RuntimeIdentity(ctx, binding.identity)
+		return handler(trusted, request)
 	}
 }
 
@@ -90,14 +93,24 @@ func protocolV2HostStreamAuthInterceptor(binding protocolV2HostBinding) grpc.Str
 type protocolV2AuthenticatedHostStream struct {
 	grpc.ServerStream
 	binding   protocolV2HostBinding
-	validated bool
+	validated atomic.Bool
+}
+
+func (s *protocolV2AuthenticatedHostStream) Context() context.Context {
+	if s == nil || s.ServerStream == nil {
+		return context.Background()
+	}
+	if !s.validated.Load() {
+		return s.ServerStream.Context()
+	}
+	return hostapi.ContextWithProtocolV2RuntimeIdentity(s.ServerStream.Context(), s.binding.identity)
 }
 
 func (s *protocolV2AuthenticatedHostStream) RecvMsg(message any) error {
 	if err := s.ServerStream.RecvMsg(message); err != nil {
 		return err
 	}
-	if s.validated {
+	if s.validated.Load() {
 		return nil
 	}
 	requestContext := protocolV2HostStreamOpenContext(message)
@@ -107,7 +120,7 @@ func (s *protocolV2AuthenticatedHostStream) RecvMsg(message any) error {
 	if err := validateProtocolV2HostContext(requestContext, s.binding); err != nil {
 		return err
 	}
-	s.validated = true
+	s.validated.Store(true)
 	return nil
 }
 

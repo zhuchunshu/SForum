@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	hostapi "github.com/zhuchunshu/sforum/apps/api/app/Support/HostAPI"
 	hostv2 "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/host/v2"
 	protocolv2 "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/protocol/v2"
 	"google.golang.org/grpc"
@@ -32,7 +33,10 @@ func TestProtocolV2HostUnaryAuthBindsExactRuntime(t *testing.T) {
 	}
 	call := func(rawToken []byte, request *protocolv2.HealthRequest) error {
 		ctx := metadata.NewIncomingContext(context.Background(), metadata.Pairs(ProtocolV2RuntimeTokenMetadataKey, string(rawToken)))
-		_, err := protocolV2HostUnaryAuthInterceptor(binding)(ctx, request, &grpc.UnaryServerInfo{}, func(context.Context, any) (any, error) {
+		_, err := protocolV2HostUnaryAuthInterceptor(binding)(ctx, request, &grpc.UnaryServerInfo{}, func(ctx context.Context, _ any) (any, error) {
+			if trusted := hostapi.ProtocolV2RuntimeIdentityFromContext(ctx); !proto.Equal(trusted, identity) {
+				t.Fatalf("unary handler identity = %#v", trusted)
+			}
 			return &protocolv2.HealthResponse{Healthy: true}, nil
 		})
 		return err
@@ -90,8 +94,14 @@ func TestProtocolV2HostStreamAuthenticatesOnlyOpenFrame(t *testing.T) {
 		&hostv2.ServiceStreamFrame{Frame: &hostv2.ServiceStreamFrame_Message{Message: &protocolv2.TypedDocument{SchemaId: "demo.message", SchemaVersion: "1"}}},
 	}}
 	stream := &protocolV2AuthenticatedHostStream{ServerStream: backend, binding: binding}
+	if trusted := hostapi.ProtocolV2RuntimeIdentityFromContext(stream.Context()); trusted != nil {
+		t.Fatalf("stream exposed identity before validating its open frame: %#v", trusted)
+	}
 	if err := stream.RecvMsg(new(hostv2.ServiceStreamFrame)); err != nil {
 		t.Fatalf("open frame: %v", err)
+	}
+	if trusted := hostapi.ProtocolV2RuntimeIdentityFromContext(stream.Context()); !proto.Equal(trusted, identity) {
+		t.Fatalf("stream handler identity = %#v", trusted)
 	}
 	if err := stream.RecvMsg(new(hostv2.ServiceStreamFrame)); err != nil {
 		t.Fatalf("data frame inherited authentication: %v", err)
