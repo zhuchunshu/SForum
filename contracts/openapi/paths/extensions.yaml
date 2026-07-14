@@ -1151,6 +1151,20 @@ adminExtensionRouteProviderConflicts:
       '401': { "$ref": "../components/responses.yaml#/Unauthorized" }
       '403': { "$ref": "../components/responses.yaml#/Forbidden" }
       '503': { "$ref": "../components/responses.yaml#/ServiceUnavailable" }
+adminExtensionProviderSlots:
+  get:
+    summary: Inspect the immutable plugin-defined Provider Slot Registry
+    operationId: inspectAdminExtensionProviderSlots
+    description: Requires extension.view or the legacy extension.manage permission. Returns exact contract and candidate artifacts, deterministic priority conflicts, fallback policy, and current runtime admission availability. This read-only endpoint does not probe providers or change selection.
+    responses:
+      '200':
+        description: Provider slots from one immutable Registry revision.
+        content:
+          application/json:
+            schema: { "$ref": "../schemas/extension-provider-slots.yaml#/ApiResponseProviderSlotInspection" }
+      '401': { "$ref": "../components/responses.yaml#/Unauthorized" }
+      '403': { "$ref": "../components/responses.yaml#/Forbidden" }
+      '503': { "$ref": "../components/responses.yaml#/ServiceUnavailable" }
 adminExtensionRouteProviderSelection:
   get:
     summary: Inspect the durable desired route-provider selection

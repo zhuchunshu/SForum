@@ -1,0 +1,90 @@
+ProviderSlotArtifact:
+  type: object
+  additionalProperties: false
+  required: [extensionId, extensionVersion, packageDigest, runtimeInstanceId]
+  properties:
+    extensionId: { type: string }
+    extensionVersion: { type: string }
+    packageDigest: { type: string, pattern: '^[0-9a-f]{64}$' }
+    runtimeInstanceId: { type: string, minLength: 1 }
+ProviderSlotContract:
+  type: object
+  additionalProperties: false
+  required:
+  - id
+  - slot
+  - contractVersion
+  - requestSchema
+  - responseSchema
+  - fallback
+  - timeoutMs
+  - artifact
+  - contractRuntimeAvailable
+  properties:
+    id: { type: string }
+    slot: { type: string }
+    contractVersion: { type: string }
+    requestSchema: { type: string }
+    responseSchema: { type: string }
+    requestSchemaDigest: { type: string, pattern: '^[0-9a-f]{64}$' }
+    responseSchemaDigest: { type: string, pattern: '^[0-9a-f]{64}$' }
+    fallback: { type: string, enum: [next, closed] }
+    timeoutMs: { type: integer, minimum: 1, maximum: 5000 }
+    artifact: { "$ref": "#/ProviderSlotArtifact" }
+    contractRuntimeAvailable: { type: boolean }
+ProviderSlotCandidate:
+  type: object
+  additionalProperties: false
+  required: [id, targetId, label, handler, priority, rank, artifact, availability]
+  properties:
+    id: { type: string }
+    targetId: { type: string }
+    label: { type: string }
+    handler: { type: string }
+    priority: { type: integer }
+    rank: { type: integer, minimum: 1 }
+    artifact: { "$ref": "#/ProviderSlotArtifact" }
+    availability: { type: string, enum: [available, unavailable] }
+ProviderSlotConflict:
+  type: object
+  additionalProperties: false
+  required: [kind, priority, candidateIds]
+  properties:
+    kind: { type: string, enum: [priority_tie] }
+    priority: { type: integer }
+    candidateIds:
+      type: array
+      minItems: 2
+      uniqueItems: true
+      items: { type: string }
+ProviderSlotInspectionItem:
+  type: object
+  additionalProperties: false
+  required: [contract, candidates, conflicts, availability]
+  properties:
+    contract: { "$ref": "#/ProviderSlotContract" }
+    candidates:
+      type: array
+      items: { "$ref": "#/ProviderSlotCandidate" }
+    conflicts:
+      type: array
+      items: { "$ref": "#/ProviderSlotConflict" }
+    availability: { type: string, enum: [available, unavailable] }
+    unavailabilityReason: { type: string, enum: [no_candidates, runtime_unavailable] }
+ProviderSlotInspection:
+  type: object
+  additionalProperties: false
+  required: [revision, slots]
+  properties:
+    revision: { type: integer, format: int64, minimum: 0 }
+    slots:
+      type: array
+      items: { "$ref": "#/ProviderSlotInspectionItem" }
+ApiResponseProviderSlotInspection:
+  type: object
+  additionalProperties: false
+  required: [code, message, data]
+  properties:
+    code: { type: integer }
+    message: { type: string }
+    data: { "$ref": "#/ProviderSlotInspection" }

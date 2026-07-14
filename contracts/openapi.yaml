@@ -338,6 +338,8 @@ paths:
     "$ref": "./openapi/paths/extensions.yaml#/adminExtensionRouteProviderReset"
   "/admin/extensions/route-inspector":
     "$ref": "./openapi/paths/extension-route-inspector.yaml#/adminExtensionRouteInspector"
+  "/admin/extensions/provider-slots":
+    "$ref": "./openapi/paths/extensions.yaml#/adminExtensionProviderSlots"
   "/admin/extensions/{extensionID}":
     "$ref": "./openapi/paths/extensions.yaml#/adminExtensionUninstall"
   "/admin/extensions/{extensionID}/enable":

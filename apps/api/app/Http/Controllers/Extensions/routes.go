@@ -44,6 +44,7 @@ func (h *Controller) RegisterRoutes(api fiber.Router) {
 	api.Delete("/admin/extensions/:id/frontend/trust", h.revokeFrontendTrust)
 	api.Get("/admin/extensions/event-definitions", h.eventDefinitions)
 	api.Get("/admin/extensions/event-deliveries", h.eventDeliveries)
+	api.Get("/admin/extensions/provider-slots", h.inspectProviderSlots)
 
 	api.All("/extensions/:extensionId/*", h.proxyExtensionRoute)
 }

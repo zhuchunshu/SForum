@@ -314,6 +314,12 @@
       "path": "/api/v1/admin/extensions/route-inspector"
     },
     {
+      "id": "core.route.extensions.inspect_provider_slots",
+      "contractVersion": "sforum.route.extensions.inspect_provider_slots@1",
+      "method": "GET",
+      "path": "/api/v1/admin/extensions/provider-slots"
+    },
+    {
       "id": "core.route.extensions.event_definitions",
       "contractVersion": "sforum.route.extensions.event_definitions@1",
       "method": "GET",
