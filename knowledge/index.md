@@ -4,7 +4,7 @@ This is the entry point for project memory.
 
 ## Latest Handoff
 
-- **2026-07-14 Trusted Plugin And Theme Platform V3 P5 active at 8/17 (overall 34%)**
+- **2026-07-14 Trusted Plugin And Theme Platform V3 P5 active at 10/17 (overall 35%)**
   - Decision: `knowledge/decisions/2026-07-13-trusted-plugin-theme-platform-v3.md`
   - Task book: `knowledge/plans/2026-07-13-trusted-plugin-theme-platform-v3.md`
   - P5 handoff: `knowledge/sessions/2026-07-14-trusted-plugin-theme-platform-v3-p5-progress.md`
@@ -65,12 +65,16 @@ This is the entry point for project memory.
     proof, runtime connection/time budgets, stable `sforum_core_v1` views,
     durable Host Command receipts/PostgreSQL backend, and a production-bound
     stable Host Query catalog
+  - Manifest V3 now declares exact-artifact `own_schema` database operation
+    catalogs with non-inline SQL files, typed parameters/results, package digest
+    binding, and HostAPI-aligned row/size/timeout limits; production catalog
+    loading remains in progress
   - Exact trust UI now discloses database authority, compatibility, backup and
     retention, migration digest, and transaction risk; authenticated admin plus
     desktop/390px production-component QA passed without overflow or app errors
-  - Three P5 public product choices remain for composable database grants and
-    operation catalogs, Host-attested actor delegation, and the minimal
-    provider-neutral entitlement lifecycle; independent implementation continues
+  - P5 public product choices remain for composable database grants,
+    Host-attested actor delegation, and the minimal provider-neutral entitlement
+    lifecycle; independent implementation continues
 
 - **2026-07-13 Legacy Web Release/runtime frontend builds removed**
   - Decision: `knowledge/decisions/2026-07-13-remove-legacy-web-release.md`

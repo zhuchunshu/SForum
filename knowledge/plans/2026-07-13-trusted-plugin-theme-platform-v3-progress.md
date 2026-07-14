@@ -727,6 +727,12 @@ phase percentage.
   DatabaseService core, real own-schema transaction/isolation/replay/revocation
   proof, and frozen gRPC registration. This remains a partial row until the
   manifest operation catalog is loaded into production bootstrap.
+- `42a9d895d` adds the Manifest V3 source for that catalog: namespaced positive-
+  version operations bind exact `database_operation` package files and digests,
+  typed parameter/result schemas, column allowlists, and HostAPI-aligned limits.
+  Inline SQL, authority mismatch, query/execute field mixing, undeclared local
+  schemas, and JSON Schema drift fail closed. Production loading remains open,
+  so the P5 row and displayed percentage do not change yet.
 - `e5eea90ab`, `7dbe3e3c0`, and `43be1b5d5` begin P6 without inflating its
   completion count: exact runtime publication fencing, wildcard conflict
   inspection, the 212-row production core catalog, Safe Mode filtering, and an

@@ -14,7 +14,8 @@
   redacted Host Query tracing with slow classification.
 - Added exact-artifact own-schema DatabaseService transactions, durable replay,
   real PostgreSQL isolation/revocation proof, and frozen fail-closed gRPC
-  registration. Manifest catalog loading is not production-bound yet.
+  registration. Manifest V3 now provides the exact operation declarations and
+  package-file binding; catalog loading is not production-bound yet.
 - Hardened P6 foundations with exact runtime instance fencing, wildcard method
   conflict visibility, the production 212-route core snapshot, Safe Mode
   filtering, and immutable execution plans. P6 remains uncredited until the
@@ -58,6 +59,6 @@
 ## Resume Point
 
 - Branch: `main`.
-- Last implementation commit at this checkpoint: `43be1b5d5`.
+- Last implementation commit at this checkpoint: `42a9d895d`.
 - Frontend/API server state is not durable; start both explicitly before QA.
 - Preserve any unrelated worktree changes; stage only V3-owned files/hunks.
