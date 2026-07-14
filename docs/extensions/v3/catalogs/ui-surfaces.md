@@ -6,7 +6,9 @@
 | --- | --- | --- | --- | --- | --- | --- |
 | `core.component.admin.sfadmin_executable_trust_impact` | `sforum.component.admin.sfadmin_executable_trust_impact@1` | component | admin | — | `apps/web/app/components/SFAdminExecutableTrustImpact.vue` | P7/P9 Admin and Component Registries |
 | `core.component.admin.sfadmin_extension_enable_dialog` | `sforum.component.admin.sfadmin_extension_enable_dialog@1` | component | admin | — | `apps/web/app/components/SFAdminExtensionEnableDialog.vue` | P7/P9 Admin and Component Registries |
+| `core.component.admin.sfadmin_extension_lifecycle_dialog` | `sforum.component.admin.sfadmin_extension_lifecycle_dialog@1` | component | admin | — | `apps/web/app/components/SFAdminExtensionLifecycleDialog.vue` | P7/P9 Admin and Component Registries |
 | `core.component.admin.sfadmin_extension_store_shelf` | `sforum.component.admin.sfadmin_extension_store_shelf@1` | component | admin | — | `apps/web/app/components/admin/SFAdminExtensionStoreShelf.vue` | P7/P9 Admin and Component Registries |
+| `core.component.admin.sfadmin_extension_uninstall_dialog` | `sforum.component.admin.sfadmin_extension_uninstall_dialog@1` | component | admin | — | `apps/web/app/components/SFAdminExtensionUninstallDialog.vue` | P7/P9 Admin and Component Registries |
 | `core.component.admin.sfadmin_footer` | `sforum.component.admin.sfadmin_footer@1` | component | admin | — | `apps/web/app/components/SFAdminFooter.vue` | P7/P9 Admin and Component Registries |
 | `core.component.admin.sfadmin_form_footer` | `sforum.component.admin.sfadmin_form_footer@1` | component | admin | — | `apps/web/app/components/SFAdminFormFooter.vue` | P7/P9 Admin and Component Registries |
 | `core.component.admin.sfadmin_frontend_trust_panel` | `sforum.component.admin.sfadmin_frontend_trust_panel@1` | component | admin | — | `apps/web/app/components/SFAdminFrontendTrustPanel.vue` | P7/P9 Admin and Component Registries |

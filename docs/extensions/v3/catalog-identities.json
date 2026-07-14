@@ -140,6 +140,18 @@
       "path": "/api/v1/admin/extensions/:id/enable"
     },
     {
+      "id": "core.route.extensions.rollback",
+      "contractVersion": "sforum.route.extensions.rollback@1",
+      "method": "POST",
+      "path": "/api/v1/admin/extensions/:id/rollback"
+    },
+    {
+      "id": "core.route.extensions.upgrade",
+      "contractVersion": "sforum.route.extensions.upgrade@1",
+      "method": "POST",
+      "path": "/api/v1/admin/extensions/:id/upgrade"
+    },
+    {
       "id": "core.route.extensions.executable_trust_status",
       "contractVersion": "sforum.route.extensions.executable_trust_status@1",
       "method": "GET",
@@ -204,6 +216,12 @@
       "contractVersion": "sforum.route.extensions.lifecycle_operation@1",
       "method": "GET",
       "path": "/api/v1/admin/extensions/:id/lifecycle/:operationID"
+    },
+    {
+      "id": "core.route.extensions.recover_lifecycle_operation",
+      "contractVersion": "sforum.route.extensions.recover_lifecycle_operation@1",
+      "method": "POST",
+      "path": "/api/v1/admin/extensions/:id/lifecycle/:operationID/recovery"
     },
     {
       "id": "core.route.extensions.list_migrations",
@@ -1266,6 +1284,16 @@
       "id": "core.component.admin.sfadmin_extension_enable_dialog",
       "contractVersion": "sforum.component.admin.sfadmin_extension_enable_dialog@1",
       "source": "apps/web/app/components/SFAdminExtensionEnableDialog.vue"
+    },
+    {
+      "id": "core.component.admin.sfadmin_extension_lifecycle_dialog",
+      "contractVersion": "sforum.component.admin.sfadmin_extension_lifecycle_dialog@1",
+      "source": "apps/web/app/components/SFAdminExtensionLifecycleDialog.vue"
+    },
+    {
+      "id": "core.component.admin.sfadmin_extension_uninstall_dialog",
+      "contractVersion": "sforum.component.admin.sfadmin_extension_uninstall_dialog@1",
+      "source": "apps/web/app/components/SFAdminExtensionUninstallDialog.vue"
     },
     {
       "id": "core.component.admin.sfadmin_extension_store_shelf",

@@ -148,7 +148,7 @@
     "forms": true,
     "notices": true,
     "editorPanels": false,
-    "detailRegions": true,
+    "detailRegions": false,
     "importer": true,
     "exporter": false
   },
@@ -233,7 +233,7 @@
     "forms": true,
     "notices": true,
     "editorPanels": false,
-    "detailRegions": true,
+    "detailRegions": false,
     "importer": true,
     "exporter": false
   },

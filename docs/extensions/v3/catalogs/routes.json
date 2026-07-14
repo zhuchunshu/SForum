@@ -226,7 +226,7 @@
     "handler": "activate",
     "method": "POST",
     "path": "/api/v1/admin/extensions/:id/activate",
-    "source": "apps/api/app/Http/Controllers/Extensions/routes.go:21",
+    "source": "apps/api/app/Http/Controllers/Extensions/routes.go:23",
     "access": "permission",
     "policy": "extension.plugin.manage or extension.theme.manage; operation-specific service policy"
   },
@@ -259,7 +259,7 @@
     "handler": "events",
     "method": "GET",
     "path": "/api/v1/admin/extensions/:id/events",
-    "source": "apps/api/app/Http/Controllers/Extensions/routes.go:22",
+    "source": "apps/api/app/Http/Controllers/Extensions/routes.go:24",
     "access": "permission",
     "policy": "extension.view or matching manage permission"
   },
@@ -270,7 +270,7 @@
     "handler": "frontendStatus",
     "method": "GET",
     "path": "/api/v1/admin/extensions/:id/frontend",
-    "source": "apps/api/app/Http/Controllers/Extensions/routes.go:31",
+    "source": "apps/api/app/Http/Controllers/Extensions/routes.go:34",
     "access": "permission",
     "policy": "extension.view or matching manage permission"
   },
@@ -281,7 +281,7 @@
     "handler": "frontendAsset",
     "method": "GET",
     "path": "/api/v1/admin/extensions/:id/frontend/assets/:digest/:asset",
-    "source": "apps/api/app/Http/Controllers/Extensions/routes.go:32",
+    "source": "apps/api/app/Http/Controllers/Extensions/routes.go:35",
     "access": "permission",
     "policy": "extension.view or matching manage permission"
   },
@@ -292,7 +292,7 @@
     "handler": "frontendConfirmation",
     "method": "POST",
     "path": "/api/v1/admin/extensions/:id/frontend/confirmation",
-    "source": "apps/api/app/Http/Controllers/Extensions/routes.go:33",
+    "source": "apps/api/app/Http/Controllers/Extensions/routes.go:36",
     "access": "super_admin",
     "policy": "active super_admin plus exact frontend artifact confirmation"
   },
@@ -303,7 +303,7 @@
     "handler": "revokeFrontendTrust",
     "method": "DELETE",
     "path": "/api/v1/admin/extensions/:id/frontend/trust",
-    "source": "apps/api/app/Http/Controllers/Extensions/routes.go:35",
+    "source": "apps/api/app/Http/Controllers/Extensions/routes.go:38",
     "access": "super_admin",
     "policy": "active super_admin plus exact frontend artifact confirmation"
   },
@@ -314,7 +314,7 @@
     "handler": "grantFrontendTrust",
     "method": "POST",
     "path": "/api/v1/admin/extensions/:id/frontend/trust",
-    "source": "apps/api/app/Http/Controllers/Extensions/routes.go:34",
+    "source": "apps/api/app/Http/Controllers/Extensions/routes.go:37",
     "access": "super_admin",
     "policy": "active super_admin plus exact frontend artifact confirmation"
   },
@@ -325,7 +325,7 @@
     "handler": "lifecycleOperations",
     "method": "GET",
     "path": "/api/v1/admin/extensions/:id/lifecycle",
-    "source": "apps/api/app/Http/Controllers/Extensions/routes.go:23",
+    "source": "apps/api/app/Http/Controllers/Extensions/routes.go:25",
     "access": "permission",
     "policy": "extension.view or matching manage permission"
   },
@@ -336,9 +336,20 @@
     "handler": "lifecycleOperation",
     "method": "GET",
     "path": "/api/v1/admin/extensions/:id/lifecycle/:operationID",
-    "source": "apps/api/app/Http/Controllers/Extensions/routes.go:24",
+    "source": "apps/api/app/Http/Controllers/Extensions/routes.go:26",
     "access": "permission",
     "policy": "extension.view or matching manage permission"
+  },
+  {
+    "id": "core.route.extensions.recover_lifecycle_operation",
+    "contractVersion": "sforum.route.extensions.recover_lifecycle_operation@1",
+    "module": "extensions",
+    "handler": "recoverLifecycleOperation",
+    "method": "POST",
+    "path": "/api/v1/admin/extensions/:id/lifecycle/:operationID/recovery",
+    "source": "apps/api/app/Http/Controllers/Extensions/routes.go:27",
+    "access": "permission",
+    "policy": "extension.plugin.manage or extension.theme.manage; operation-specific service policy"
   },
   {
     "id": "core.route.extensions.list_migrations",
@@ -347,7 +358,7 @@
     "handler": "listMigrations",
     "method": "GET",
     "path": "/api/v1/admin/extensions/:id/migrations",
-    "source": "apps/api/app/Http/Controllers/Extensions/routes.go:25",
+    "source": "apps/api/app/Http/Controllers/Extensions/routes.go:28",
     "access": "permission",
     "policy": "extension.view or matching manage permission"
   },
@@ -358,7 +369,18 @@
     "handler": "applyMigrations",
     "method": "POST",
     "path": "/api/v1/admin/extensions/:id/migrations/apply",
-    "source": "apps/api/app/Http/Controllers/Extensions/routes.go:26",
+    "source": "apps/api/app/Http/Controllers/Extensions/routes.go:29",
+    "access": "permission",
+    "policy": "extension.plugin.manage or extension.theme.manage; operation-specific service policy"
+  },
+  {
+    "id": "core.route.extensions.rollback",
+    "contractVersion": "sforum.route.extensions.rollback@1",
+    "module": "extensions",
+    "handler": "rollback",
+    "method": "POST",
+    "path": "/api/v1/admin/extensions/:id/rollback",
+    "source": "apps/api/app/Http/Controllers/Extensions/routes.go:21",
     "access": "permission",
     "policy": "extension.plugin.manage or extension.theme.manage; operation-specific service policy"
   },
@@ -369,7 +391,7 @@
     "handler": "settings",
     "method": "GET",
     "path": "/api/v1/admin/extensions/:id/settings",
-    "source": "apps/api/app/Http/Controllers/Extensions/routes.go:27",
+    "source": "apps/api/app/Http/Controllers/Extensions/routes.go:30",
     "access": "permission",
     "policy": "extension.view or matching manage permission"
   },
@@ -380,7 +402,7 @@
     "handler": "updateSettings",
     "method": "PUT",
     "path": "/api/v1/admin/extensions/:id/settings",
-    "source": "apps/api/app/Http/Controllers/Extensions/routes.go:28",
+    "source": "apps/api/app/Http/Controllers/Extensions/routes.go:31",
     "access": "permission",
     "policy": "extension.plugin.manage or extension.theme.manage; operation-specific service policy"
   },
@@ -391,7 +413,7 @@
     "handler": "executeSettingsAction",
     "method": "POST",
     "path": "/api/v1/admin/extensions/:id/settings/actions/:actionId",
-    "source": "apps/api/app/Http/Controllers/Extensions/routes.go:30",
+    "source": "apps/api/app/Http/Controllers/Extensions/routes.go:33",
     "access": "permission",
     "policy": "extension.plugin.manage or extension.theme.manage; operation-specific service policy"
   },
@@ -402,7 +424,7 @@
     "handler": "resetSettings",
     "method": "POST",
     "path": "/api/v1/admin/extensions/:id/settings/reset",
-    "source": "apps/api/app/Http/Controllers/Extensions/routes.go:29",
+    "source": "apps/api/app/Http/Controllers/Extensions/routes.go:32",
     "access": "permission",
     "policy": "extension.plugin.manage or extension.theme.manage; operation-specific service policy"
   },
@@ -440,13 +462,24 @@
     "policy": "extension.plugin.manage or extension.theme.manage; operation-specific service policy"
   },
   {
+    "id": "core.route.extensions.upgrade",
+    "contractVersion": "sforum.route.extensions.upgrade@1",
+    "module": "extensions",
+    "handler": "upgrade",
+    "method": "POST",
+    "path": "/api/v1/admin/extensions/:id/upgrade",
+    "source": "apps/api/app/Http/Controllers/Extensions/routes.go:20",
+    "access": "permission",
+    "policy": "extension.plugin.manage or extension.theme.manage; operation-specific service policy"
+  },
+  {
     "id": "core.route.extensions.verify",
     "contractVersion": "sforum.route.extensions.verify@1",
     "module": "extensions",
     "handler": "verify",
     "method": "POST",
     "path": "/api/v1/admin/extensions/:id/verify",
-    "source": "apps/api/app/Http/Controllers/Extensions/routes.go:20",
+    "source": "apps/api/app/Http/Controllers/Extensions/routes.go:22",
     "access": "permission",
     "policy": "extension.plugin.manage or extension.theme.manage; operation-specific service policy"
   },
@@ -479,7 +512,7 @@
     "handler": "eventDefinitions",
     "method": "GET",
     "path": "/api/v1/admin/extensions/event-definitions",
-    "source": "apps/api/app/Http/Controllers/Extensions/routes.go:36",
+    "source": "apps/api/app/Http/Controllers/Extensions/routes.go:39",
     "access": "permission",
     "policy": "extension.view or matching manage permission"
   },
@@ -490,7 +523,7 @@
     "handler": "eventDeliveries",
     "method": "GET",
     "path": "/api/v1/admin/extensions/event-deliveries",
-    "source": "apps/api/app/Http/Controllers/Extensions/routes.go:37",
+    "source": "apps/api/app/Http/Controllers/Extensions/routes.go:40",
     "access": "permission",
     "policy": "extension.view or matching manage permission"
   },
@@ -1590,7 +1623,7 @@
     "handler": "proxyExtensionRoute",
     "method": "*",
     "path": "/api/v1/extensions/:extensionId/*",
-    "source": "apps/api/app/Http/Controllers/Extensions/routes.go:39",
+    "source": "apps/api/app/Http/Controllers/Extensions/routes.go:42",
     "access": "declared",
     "policy": "enabled plugin route declaration and manifest access policy"
   },

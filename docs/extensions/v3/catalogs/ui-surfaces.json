@@ -16,11 +16,27 @@
     "targetRegistry": "P7/P9 Admin and Component Registries"
   },
   {
+    "id": "core.component.admin.sfadmin_extension_lifecycle_dialog",
+    "contractVersion": "sforum.component.admin.sfadmin_extension_lifecycle_dialog@1",
+    "kind": "component",
+    "scope": "admin",
+    "source": "apps/web/app/components/SFAdminExtensionLifecycleDialog.vue",
+    "targetRegistry": "P7/P9 Admin and Component Registries"
+  },
+  {
     "id": "core.component.admin.sfadmin_extension_store_shelf",
     "contractVersion": "sforum.component.admin.sfadmin_extension_store_shelf@1",
     "kind": "component",
     "scope": "admin",
     "source": "apps/web/app/components/admin/SFAdminExtensionStoreShelf.vue",
+    "targetRegistry": "P7/P9 Admin and Component Registries"
+  },
+  {
+    "id": "core.component.admin.sfadmin_extension_uninstall_dialog",
+    "contractVersion": "sforum.component.admin.sfadmin_extension_uninstall_dialog@1",
+    "kind": "component",
+    "scope": "admin",
+    "source": "apps/web/app/components/SFAdminExtensionUninstallDialog.vue",
     "targetRegistry": "P7/P9 Admin and Component Registries"
   },
   {
