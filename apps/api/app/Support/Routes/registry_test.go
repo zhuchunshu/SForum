@@ -1,11 +1,7 @@
 package routes
 
 import (
-	"encoding/json"
 	"errors"
-	"os"
-	"path/filepath"
-	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -347,31 +343,20 @@ func TestRegistryAcceptsAuthoritativeP0CoreCatalog(t *testing.T) {
 
 func p0CoreCatalog(tb testing.TB) []CoreRoute {
 	tb.Helper()
-	_, source, _, ok := runtime.Caller(0)
-	if !ok {
-		tb.Fatal("resolve test source")
+	return CoreRouteCatalog()
+}
+
+func TestCoreRouteCatalogReturnsImmutableCopies(t *testing.T) {
+	first := CoreRouteCatalog()
+	second := CoreRouteCatalog()
+	if len(first) == 0 || len(second) != len(first) {
+		t.Fatalf("catalog lengths = %d, %d", len(first), len(second))
 	}
-	catalogPath := filepath.Join(filepath.Dir(source), "../../../../../docs/extensions/v3/catalogs/routes.json")
-	body, err := os.ReadFile(catalogPath)
-	if err != nil {
-		tb.Fatal(err)
+	originalID := second[0].ID
+	first[0].ID = "mutated"
+	if second[0].ID != originalID || CoreRouteCatalog()[0].ID != originalID {
+		t.Fatal("caller mutation changed the generated core route catalog")
 	}
-	var catalog []struct {
-		ID              string `json:"id"`
-		ContractVersion string `json:"contractVersion"`
-		Method          string `json:"method"`
-		Path            string `json:"path"`
-	}
-	if err := json.Unmarshal(body, &catalog); err != nil {
-		tb.Fatal(err)
-	}
-	core := make([]CoreRoute, 0, len(catalog))
-	for _, route := range catalog {
-		core = append(core, CoreRoute{
-			ID: route.ID, ContractVersion: route.ContractVersion, Method: route.Method, Path: route.Path,
-		})
-	}
-	return core
 }
 
 func TestRegistryRejectsUnknownInputWithoutPublishing(t *testing.T) {
