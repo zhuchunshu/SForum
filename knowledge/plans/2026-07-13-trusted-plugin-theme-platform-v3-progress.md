@@ -1278,3 +1278,27 @@ phase percentage.
   and crawler/JavaScript-disabled API plus Nitro browser evidence before its
   remaining rows may close. P7 provider selection/reset/probe/health UI remains
   separate from the now-complete provider discovery and cross-plugin call rows.
+
+## 2026-07-15 P5 Provider-Neutral Entitlement Persistence Checkpoint
+
+- Weighted V3 remains **50%** and P5 remains **71% (12 of 17 rows)**. The
+  persistence boundary is complete, but the transactional Host Command row is
+  not credited until the entitlement command is production-bound through the
+  exact-artifact Host API and passes its full atomicity exit tests.
+- `cff694d39` adds the provider-neutral entitlement schema and append-only event
+  evidence. It models generic subjects, resource or capability scopes,
+  `active`/`revoked`/`expired`, generic source references, half-open validity
+  windows, global idempotency keys, request fingerprints, actor/audit links,
+  and no billing, currency, checkout, gateway, or provider-transaction fields.
+- `cdda05554` implements transaction-aware grant, revoke, expire, get, and
+  effective checks. Advisory locks serialize identical idempotency keys;
+  identical payloads replay while changed action, actor, or payload conflicts.
+  `GrantTx`, `RevokeTx`, and `ExpireTx` let Host Commands compose the lifecycle
+  inside one caller-owned PostgreSQL transaction.
+- Real isolated PostgreSQL tests cover grant/revoke/expire, effective windows,
+  same-key replay, changed-payload conflict, eight-way concurrent replay,
+  audit-write failure rollback, and outer-transaction rollback. Focused tests,
+  vet, and the real PostgreSQL race run passed.
+- Next P5 work is the production entitlement Host Command binding, followed by
+  the remaining concrete commands, physical exact-artifact raw-core grants, and
+  their complete atomicity/compatibility evidence.

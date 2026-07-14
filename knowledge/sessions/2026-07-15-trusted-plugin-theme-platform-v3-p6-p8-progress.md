@@ -137,6 +137,16 @@
 5. Continue P7 with dynamic typed jobs, schedules, retries, concurrency policy,
    and payload-version drain behavior; rerun provider UI QA after Chrome login.
 
+## P5 Entitlement Persistence Continuation
+
+- `cff694d39` adds the additive provider-neutral entitlement migration with
+  retained lifecycle evidence and fail-closed rollback after facts exist.
+- `cdda05554` adds transaction-aware grant/revoke/expire/effective behavior,
+  exact idempotent replay, audit coupling, and isolated real PostgreSQL tests.
+- P5 stays **12/17 (71%)**: persistence is ready, but the entitlement Host
+  Command remains owned by the active HostAPI implementation and must be wired
+  before the corresponding authoritative row can close.
+
 ## Open Questions
 
 - Awaiting user freeze: RFC 6901 mutable-field paths, high-priority wrap order,

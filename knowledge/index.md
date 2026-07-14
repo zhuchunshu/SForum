@@ -76,6 +76,11 @@ This is the entry point for project memory.
     mapping, per-runtime lease roles, short-lived Host-signed actor delegation,
     and a provider-neutral entitlement minimum; the five open implementation
     rows may proceed without another product confirmation
+  - Provider-neutral entitlement persistence is implemented with additive
+    tables, append-only audit evidence, active/revoked/expired lifecycle,
+    resource/capability scopes, effective-window checks, transaction-aware
+    composition, and concurrent idempotent replay. P5 remains 12/17 until the
+    production entitlement Host Command and the other open row exits are wired
   - P6 is active at 11/18 (61%). All 218 core routes have stable generated
     identities; immutable exact route snapshots, arbitrary declared paths,
     explicit replace-provider selection/conflict UI, Safe Mode filtering, and

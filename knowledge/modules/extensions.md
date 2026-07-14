@@ -712,6 +712,12 @@ template while retaining Schema fallback fields.
   route/admin invocation. The provider-neutral entitlement minimum contains
   subject, resource/capability, lifecycle state, source, validity, idempotency,
   and audit without billing semantics.
+- Provider-neutral entitlement persistence now lives in the dedicated
+  `Models/Entitlements` package. Grant, revoke, expire, and effective checks
+  share exact request fingerprints, transaction-scoped advisory locking,
+  append-only lifecycle evidence, and same-transaction `audit_events` writes.
+  Every mutation also has a `pgx.Tx` entry point so a Host Command can compose
+  it with other domain writes without opening raw Core database authority.
 
 ## V3 P7 provider management checkpoint
 
