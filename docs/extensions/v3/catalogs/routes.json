@@ -8,7 +8,14 @@
     "path": "/api/v1/admin/attachment-settings",
     "source": "apps/api/app/Http/Controllers/Attachments/routes.go:10",
     "access": "permission",
-    "policy": "attachment.settings.manage"
+    "policy": "attachment.settings.manage",
+    "guard": {
+      "kind": "permission_any",
+      "permissions": [
+        "attachment.settings.manage"
+      ],
+      "evaluatorId": ""
+    }
   },
   {
     "id": "core.route.attachments.update_settings",
@@ -19,7 +26,14 @@
     "path": "/api/v1/admin/attachment-settings",
     "source": "apps/api/app/Http/Controllers/Attachments/routes.go:11",
     "access": "permission",
-    "policy": "attachment.settings.manage"
+    "policy": "attachment.settings.manage",
+    "guard": {
+      "kind": "permission_any",
+      "permissions": [
+        "attachment.settings.manage"
+      ],
+      "evaluatorId": ""
+    }
   },
   {
     "id": "core.route.attachments.test_settings",
@@ -30,7 +44,14 @@
     "path": "/api/v1/admin/attachment-settings/test",
     "source": "apps/api/app/Http/Controllers/Attachments/routes.go:12",
     "access": "permission",
-    "policy": "attachment.settings.manage"
+    "policy": "attachment.settings.manage",
+    "guard": {
+      "kind": "permission_any",
+      "permissions": [
+        "attachment.settings.manage"
+      ],
+      "evaluatorId": ""
+    }
   },
   {
     "id": "core.route.attachments.list_admin",
@@ -41,7 +62,14 @@
     "path": "/api/v1/admin/attachments",
     "source": "apps/api/app/Http/Controllers/Attachments/routes.go:13",
     "access": "permission",
-    "policy": "attachment.manage"
+    "policy": "attachment.manage",
+    "guard": {
+      "kind": "permission_any",
+      "permissions": [
+        "attachment.manage"
+      ],
+      "evaluatorId": ""
+    }
   },
   {
     "id": "core.route.attachments.delete_admin",
@@ -52,7 +80,14 @@
     "path": "/api/v1/admin/attachments/:id",
     "source": "apps/api/app/Http/Controllers/Attachments/routes.go:16",
     "access": "permission",
-    "policy": "attachment.manage"
+    "policy": "attachment.manage",
+    "guard": {
+      "kind": "permission_any",
+      "permissions": [
+        "attachment.manage"
+      ],
+      "evaluatorId": ""
+    }
   },
   {
     "id": "core.route.attachments.detail_admin",
@@ -63,7 +98,14 @@
     "path": "/api/v1/admin/attachments/:id",
     "source": "apps/api/app/Http/Controllers/Attachments/routes.go:14",
     "access": "permission",
-    "policy": "attachment.manage"
+    "policy": "attachment.manage",
+    "guard": {
+      "kind": "permission_any",
+      "permissions": [
+        "attachment.manage"
+      ],
+      "evaluatorId": ""
+    }
   },
   {
     "id": "core.route.attachments.update_admin",
@@ -74,7 +116,14 @@
     "path": "/api/v1/admin/attachments/:id",
     "source": "apps/api/app/Http/Controllers/Attachments/routes.go:15",
     "access": "permission",
-    "policy": "attachment.manage"
+    "policy": "attachment.manage",
+    "guard": {
+      "kind": "permission_any",
+      "permissions": [
+        "attachment.manage"
+      ],
+      "evaluatorId": ""
+    }
   },
   {
     "id": "core.route.attachments.cleanup_admin",
@@ -85,7 +134,14 @@
     "path": "/api/v1/admin/attachments/cleanup",
     "source": "apps/api/app/Http/Controllers/Attachments/routes.go:17",
     "access": "permission",
-    "policy": "attachment.manage"
+    "policy": "attachment.manage",
+    "guard": {
+      "kind": "permission_any",
+      "permissions": [
+        "attachment.manage"
+      ],
+      "evaluatorId": ""
+    }
   },
   {
     "id": "core.route.database.list_tables",
@@ -96,7 +152,14 @@
     "path": "/api/v1/admin/database/tables",
     "source": "apps/api/app/Http/Controllers/Database/routes.go:6",
     "access": "permission",
-    "policy": "database.manage"
+    "policy": "database.manage",
+    "guard": {
+      "kind": "permission_any",
+      "permissions": [
+        "database.manage"
+      ],
+      "evaluatorId": ""
+    }
   },
   {
     "id": "core.route.database.detail",
@@ -107,7 +170,14 @@
     "path": "/api/v1/admin/database/tables/:schema/:table",
     "source": "apps/api/app/Http/Controllers/Database/routes.go:7",
     "access": "permission",
-    "policy": "database.manage"
+    "policy": "database.manage",
+    "guard": {
+      "kind": "permission_any",
+      "permissions": [
+        "database.manage"
+      ],
+      "evaluatorId": ""
+    }
   },
   {
     "id": "core.route.database.export_csv",
@@ -118,7 +188,14 @@
     "path": "/api/v1/admin/database/tables/:schema/:table/export.csv",
     "source": "apps/api/app/Http/Controllers/Database/routes.go:10",
     "access": "permission",
-    "policy": "database.manage"
+    "policy": "database.manage",
+    "guard": {
+      "kind": "permission_any",
+      "permissions": [
+        "database.manage"
+      ],
+      "evaluatorId": ""
+    }
   },
   {
     "id": "core.route.database.rows",
@@ -129,7 +206,14 @@
     "path": "/api/v1/admin/database/tables/:schema/:table/rows",
     "source": "apps/api/app/Http/Controllers/Database/routes.go:8",
     "access": "permission",
-    "policy": "database.manage"
+    "policy": "database.manage",
+    "guard": {
+      "kind": "permission_any",
+      "permissions": [
+        "database.manage"
+      ],
+      "evaluatorId": ""
+    }
   },
   {
     "id": "core.route.database.reveal",
@@ -140,7 +224,14 @@
     "path": "/api/v1/admin/database/tables/:schema/:table/rows/reveal",
     "source": "apps/api/app/Http/Controllers/Database/routes.go:9",
     "access": "permission",
-    "policy": "database.manage"
+    "policy": "database.manage",
+    "guard": {
+      "kind": "permission_any",
+      "permissions": [
+        "database.manage"
+      ],
+      "evaluatorId": ""
+    }
   },
   {
     "id": "core.route.entity_meta.list_admin_definitions",
@@ -151,7 +242,15 @@
     "path": "/api/v1/admin/entity-meta/definitions",
     "source": "apps/api/app/Http/Controllers/EntityMeta/controller.go:36",
     "access": "permission",
-    "policy": "entity_meta.manage or settings.manage"
+    "policy": "entity_meta.manage or settings.manage",
+    "guard": {
+      "kind": "permission_any",
+      "permissions": [
+        "entity_meta.manage",
+        "settings.manage"
+      ],
+      "evaluatorId": ""
+    }
   },
   {
     "id": "core.route.entity_meta.create_definition",
@@ -162,7 +261,15 @@
     "path": "/api/v1/admin/entity-meta/definitions",
     "source": "apps/api/app/Http/Controllers/EntityMeta/controller.go:37",
     "access": "permission",
-    "policy": "entity_meta.manage or settings.manage"
+    "policy": "entity_meta.manage or settings.manage",
+    "guard": {
+      "kind": "permission_any",
+      "permissions": [
+        "entity_meta.manage",
+        "settings.manage"
+      ],
+      "evaluatorId": ""
+    }
   },
   {
     "id": "core.route.entity_meta.delete_definition",
@@ -173,7 +280,15 @@
     "path": "/api/v1/admin/entity-meta/definitions/:fieldKey",
     "source": "apps/api/app/Http/Controllers/EntityMeta/controller.go:39",
     "access": "permission",
-    "policy": "entity_meta.manage or settings.manage"
+    "policy": "entity_meta.manage or settings.manage",
+    "guard": {
+      "kind": "permission_any",
+      "permissions": [
+        "entity_meta.manage",
+        "settings.manage"
+      ],
+      "evaluatorId": ""
+    }
   },
   {
     "id": "core.route.entity_meta.update_definition",
@@ -184,7 +299,15 @@
     "path": "/api/v1/admin/entity-meta/definitions/:fieldKey",
     "source": "apps/api/app/Http/Controllers/EntityMeta/controller.go:38",
     "access": "permission",
-    "policy": "entity_meta.manage or settings.manage"
+    "policy": "entity_meta.manage or settings.manage",
+    "guard": {
+      "kind": "permission_any",
+      "permissions": [
+        "entity_meta.manage",
+        "settings.manage"
+      ],
+      "evaluatorId": ""
+    }
   },
   {
     "id": "core.route.extensions.list",
@@ -195,7 +318,12 @@
     "path": "/api/v1/admin/extensions",
     "source": "apps/api/app/Http/Controllers/Extensions/routes.go:9",
     "access": "permission",
-    "policy": "extension.view or matching manage permission"
+    "policy": "extension.view or matching manage permission",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.extensions.read"
+    }
   },
   {
     "id": "core.route.extensions.install",
@@ -206,7 +334,12 @@
     "path": "/api/v1/admin/extensions",
     "source": "apps/api/app/Http/Controllers/Extensions/routes.go:19",
     "access": "permission",
-    "policy": "extension.plugin.manage or extension.theme.manage; operation-specific service policy"
+    "policy": "extension.plugin.manage or extension.theme.manage; operation-specific service policy",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.extensions.mutation"
+    }
   },
   {
     "id": "core.route.extensions.uninstall",
@@ -217,7 +350,12 @@
     "path": "/api/v1/admin/extensions/:id",
     "source": "apps/api/app/Http/Controllers/Extensions/routes.go:20",
     "access": "permission",
-    "policy": "extension.plugin.manage or extension.theme.manage; operation-specific service policy"
+    "policy": "extension.plugin.manage or extension.theme.manage; operation-specific service policy",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.extensions.mutation"
+    }
   },
   {
     "id": "core.route.extensions.activate",
@@ -228,7 +366,12 @@
     "path": "/api/v1/admin/extensions/:id/activate",
     "source": "apps/api/app/Http/Controllers/Extensions/routes.go:29",
     "access": "permission",
-    "policy": "extension.plugin.manage or extension.theme.manage; operation-specific service policy"
+    "policy": "extension.plugin.manage or extension.theme.manage; operation-specific service policy",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.extensions.mutation"
+    }
   },
   {
     "id": "core.route.extensions.disable",
@@ -239,7 +382,12 @@
     "path": "/api/v1/admin/extensions/:id/disable",
     "source": "apps/api/app/Http/Controllers/Extensions/routes.go:25",
     "access": "permission",
-    "policy": "extension.plugin.manage or extension.theme.manage; operation-specific service policy"
+    "policy": "extension.plugin.manage or extension.theme.manage; operation-specific service policy",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.extensions.mutation"
+    }
   },
   {
     "id": "core.route.extensions.enable",
@@ -250,7 +398,12 @@
     "path": "/api/v1/admin/extensions/:id/enable",
     "source": "apps/api/app/Http/Controllers/Extensions/routes.go:21",
     "access": "permission",
-    "policy": "extension.plugin.manage or extension.theme.manage; operation-specific service policy"
+    "policy": "extension.plugin.manage or extension.theme.manage; operation-specific service policy",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.extensions.mutation"
+    }
   },
   {
     "id": "core.route.extensions.events",
@@ -261,7 +414,12 @@
     "path": "/api/v1/admin/extensions/:id/events",
     "source": "apps/api/app/Http/Controllers/Extensions/routes.go:30",
     "access": "permission",
-    "policy": "extension.view or matching manage permission"
+    "policy": "extension.view or matching manage permission",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.extensions.read"
+    }
   },
   {
     "id": "core.route.extensions.frontend_status",
@@ -272,7 +430,12 @@
     "path": "/api/v1/admin/extensions/:id/frontend",
     "source": "apps/api/app/Http/Controllers/Extensions/routes.go:40",
     "access": "permission",
-    "policy": "extension.view or matching manage permission"
+    "policy": "extension.view or matching manage permission",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.extensions.read"
+    }
   },
   {
     "id": "core.route.extensions.frontend_asset",
@@ -283,7 +446,12 @@
     "path": "/api/v1/admin/extensions/:id/frontend/assets/:digest/:asset",
     "source": "apps/api/app/Http/Controllers/Extensions/routes.go:41",
     "access": "permission",
-    "policy": "extension.view or matching manage permission"
+    "policy": "extension.view or matching manage permission",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.extensions.read"
+    }
   },
   {
     "id": "core.route.extensions.frontend_confirmation",
@@ -294,7 +462,12 @@
     "path": "/api/v1/admin/extensions/:id/frontend/confirmation",
     "source": "apps/api/app/Http/Controllers/Extensions/routes.go:42",
     "access": "super_admin",
-    "policy": "active super_admin plus exact frontend artifact confirmation"
+    "policy": "active super_admin challenge issuance",
+    "guard": {
+      "kind": "super_admin",
+      "permissions": [],
+      "evaluatorId": ""
+    }
   },
   {
     "id": "core.route.extensions.revoke_frontend_trust",
@@ -305,7 +478,12 @@
     "path": "/api/v1/admin/extensions/:id/frontend/trust",
     "source": "apps/api/app/Http/Controllers/Extensions/routes.go:44",
     "access": "super_admin",
-    "policy": "active super_admin plus exact frontend artifact confirmation"
+    "policy": "active super_admin trust revocation",
+    "guard": {
+      "kind": "super_admin",
+      "permissions": [],
+      "evaluatorId": ""
+    }
   },
   {
     "id": "core.route.extensions.grant_frontend_trust",
@@ -316,7 +494,12 @@
     "path": "/api/v1/admin/extensions/:id/frontend/trust",
     "source": "apps/api/app/Http/Controllers/Extensions/routes.go:43",
     "access": "super_admin",
-    "policy": "active super_admin plus exact frontend artifact confirmation"
+    "policy": "active super_admin plus actor-bound exact frontend artifact confirmation",
+    "guard": {
+      "kind": "super_admin",
+      "permissions": [],
+      "evaluatorId": ""
+    }
   },
   {
     "id": "core.route.extensions.lifecycle_operations",
@@ -327,7 +510,12 @@
     "path": "/api/v1/admin/extensions/:id/lifecycle",
     "source": "apps/api/app/Http/Controllers/Extensions/routes.go:31",
     "access": "permission",
-    "policy": "extension.view or matching manage permission"
+    "policy": "extension.view or matching manage permission",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.extensions.read"
+    }
   },
   {
     "id": "core.route.extensions.lifecycle_operation",
@@ -338,7 +526,12 @@
     "path": "/api/v1/admin/extensions/:id/lifecycle/:operationID",
     "source": "apps/api/app/Http/Controllers/Extensions/routes.go:32",
     "access": "permission",
-    "policy": "extension.view or matching manage permission"
+    "policy": "extension.view or matching manage permission",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.extensions.read"
+    }
   },
   {
     "id": "core.route.extensions.recover_lifecycle_operation",
@@ -349,7 +542,12 @@
     "path": "/api/v1/admin/extensions/:id/lifecycle/:operationID/recovery",
     "source": "apps/api/app/Http/Controllers/Extensions/routes.go:33",
     "access": "permission",
-    "policy": "extension.plugin.manage or extension.theme.manage; operation-specific service policy"
+    "policy": "extension.plugin.manage or extension.theme.manage; operation-specific service policy",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.extensions.mutation"
+    }
   },
   {
     "id": "core.route.extensions.list_migrations",
@@ -360,7 +558,12 @@
     "path": "/api/v1/admin/extensions/:id/migrations",
     "source": "apps/api/app/Http/Controllers/Extensions/routes.go:34",
     "access": "permission",
-    "policy": "extension.view or matching manage permission"
+    "policy": "extension.view or matching manage permission",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.extensions.read"
+    }
   },
   {
     "id": "core.route.extensions.apply_migrations",
@@ -371,7 +574,12 @@
     "path": "/api/v1/admin/extensions/:id/migrations/apply",
     "source": "apps/api/app/Http/Controllers/Extensions/routes.go:35",
     "access": "permission",
-    "policy": "extension.plugin.manage or extension.theme.manage; operation-specific service policy"
+    "policy": "extension.plugin.manage or extension.theme.manage; operation-specific service policy",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.extensions.mutation"
+    }
   },
   {
     "id": "core.route.extensions.rollback",
@@ -382,7 +590,12 @@
     "path": "/api/v1/admin/extensions/:id/rollback",
     "source": "apps/api/app/Http/Controllers/Extensions/routes.go:27",
     "access": "permission",
-    "policy": "extension.plugin.manage or extension.theme.manage; operation-specific service policy"
+    "policy": "extension.plugin.manage or extension.theme.manage; operation-specific service policy",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.extensions.mutation"
+    }
   },
   {
     "id": "core.route.extensions.settings",
@@ -393,7 +606,12 @@
     "path": "/api/v1/admin/extensions/:id/settings",
     "source": "apps/api/app/Http/Controllers/Extensions/routes.go:36",
     "access": "permission",
-    "policy": "extension.view or matching manage permission"
+    "policy": "extension.view or matching manage permission",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.extensions.read"
+    }
   },
   {
     "id": "core.route.extensions.update_settings",
@@ -404,7 +622,12 @@
     "path": "/api/v1/admin/extensions/:id/settings",
     "source": "apps/api/app/Http/Controllers/Extensions/routes.go:37",
     "access": "permission",
-    "policy": "extension.plugin.manage or extension.theme.manage; operation-specific service policy"
+    "policy": "extension.plugin.manage or extension.theme.manage; operation-specific service policy",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.extensions.mutation"
+    }
   },
   {
     "id": "core.route.extensions.execute_settings_action",
@@ -415,7 +638,12 @@
     "path": "/api/v1/admin/extensions/:id/settings/actions/:actionId",
     "source": "apps/api/app/Http/Controllers/Extensions/routes.go:39",
     "access": "permission",
-    "policy": "extension.plugin.manage or extension.theme.manage; operation-specific service policy"
+    "policy": "extension.plugin.manage or extension.theme.manage; operation-specific service policy",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.extensions.mutation"
+    }
   },
   {
     "id": "core.route.extensions.reset_settings",
@@ -426,7 +654,12 @@
     "path": "/api/v1/admin/extensions/:id/settings/reset",
     "source": "apps/api/app/Http/Controllers/Extensions/routes.go:38",
     "access": "permission",
-    "policy": "extension.plugin.manage or extension.theme.manage; operation-specific service policy"
+    "policy": "extension.plugin.manage or extension.theme.manage; operation-specific service policy",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.extensions.mutation"
+    }
   },
   {
     "id": "core.route.extensions.revoke_executable_trust",
@@ -437,7 +670,12 @@
     "path": "/api/v1/admin/extensions/:id/trust",
     "source": "apps/api/app/Http/Controllers/Extensions/routes.go:24",
     "access": "permission",
-    "policy": "extension.plugin.manage or extension.theme.manage; operation-specific service policy"
+    "policy": "extension.plugin.manage or extension.theme.manage; operation-specific service policy",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.extensions.mutation"
+    }
   },
   {
     "id": "core.route.extensions.executable_trust_status",
@@ -448,7 +686,12 @@
     "path": "/api/v1/admin/extensions/:id/trust",
     "source": "apps/api/app/Http/Controllers/Extensions/routes.go:22",
     "access": "permission",
-    "policy": "extension.view or matching manage permission"
+    "policy": "extension.view or matching manage permission",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.extensions.read"
+    }
   },
   {
     "id": "core.route.extensions.issue_executable_trust_challenge",
@@ -459,7 +702,12 @@
     "path": "/api/v1/admin/extensions/:id/trust/challenge",
     "source": "apps/api/app/Http/Controllers/Extensions/routes.go:23",
     "access": "permission",
-    "policy": "extension.plugin.manage or extension.theme.manage; operation-specific service policy"
+    "policy": "extension.plugin.manage or extension.theme.manage; operation-specific service policy",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.extensions.mutation"
+    }
   },
   {
     "id": "core.route.extensions.upgrade",
@@ -470,7 +718,12 @@
     "path": "/api/v1/admin/extensions/:id/upgrade",
     "source": "apps/api/app/Http/Controllers/Extensions/routes.go:26",
     "access": "permission",
-    "policy": "extension.plugin.manage or extension.theme.manage; operation-specific service policy"
+    "policy": "extension.plugin.manage or extension.theme.manage; operation-specific service policy",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.extensions.mutation"
+    }
   },
   {
     "id": "core.route.extensions.verify",
@@ -481,7 +734,12 @@
     "path": "/api/v1/admin/extensions/:id/verify",
     "source": "apps/api/app/Http/Controllers/Extensions/routes.go:28",
     "access": "permission",
-    "policy": "extension.plugin.manage or extension.theme.manage; operation-specific service policy"
+    "policy": "extension.plugin.manage or extension.theme.manage; operation-specific service policy",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.extensions.mutation"
+    }
   },
   {
     "id": "core.route.extensions.contribution_points",
@@ -492,7 +750,12 @@
     "path": "/api/v1/admin/extensions/contribution-points",
     "source": "apps/api/app/Http/Controllers/Extensions/routes.go:11",
     "access": "permission",
-    "policy": "extension.view or matching manage permission"
+    "policy": "extension.view or matching manage permission",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.extensions.read"
+    }
   },
   {
     "id": "core.route.extensions.contributions",
@@ -503,7 +766,12 @@
     "path": "/api/v1/admin/extensions/contributions",
     "source": "apps/api/app/Http/Controllers/Extensions/routes.go:12",
     "access": "permission",
-    "policy": "extension.view or matching manage permission"
+    "policy": "extension.view or matching manage permission",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.extensions.read"
+    }
   },
   {
     "id": "core.route.extensions.event_definitions",
@@ -514,7 +782,12 @@
     "path": "/api/v1/admin/extensions/event-definitions",
     "source": "apps/api/app/Http/Controllers/Extensions/routes.go:45",
     "access": "permission",
-    "policy": "extension.view or matching manage permission"
+    "policy": "extension.view or matching manage permission",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.extensions.read"
+    }
   },
   {
     "id": "core.route.extensions.event_deliveries",
@@ -525,7 +798,12 @@
     "path": "/api/v1/admin/extensions/event-deliveries",
     "source": "apps/api/app/Http/Controllers/Extensions/routes.go:46",
     "access": "permission",
-    "policy": "extension.view or matching manage permission"
+    "policy": "extension.view or matching manage permission",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.extensions.read"
+    }
   },
   {
     "id": "core.route.extensions.navigation",
@@ -536,7 +814,12 @@
     "path": "/api/v1/admin/extensions/navigation",
     "source": "apps/api/app/Http/Controllers/Extensions/routes.go:10",
     "access": "permission",
-    "policy": "extension.view or matching manage permission"
+    "policy": "extension.view or matching manage permission",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.extensions.read"
+    }
   },
   {
     "id": "core.route.extensions.inspect_route",
@@ -547,7 +830,12 @@
     "path": "/api/v1/admin/extensions/route-inspector",
     "source": "apps/api/app/Http/Controllers/Extensions/routes.go:16",
     "access": "permission",
-    "policy": "extension.view or matching manage permission"
+    "policy": "extension.view or matching manage permission",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.extensions.read"
+    }
   },
   {
     "id": "core.route.extensions.route_provider_conflicts",
@@ -558,7 +846,12 @@
     "path": "/api/v1/admin/extensions/route-providers/conflicts",
     "source": "apps/api/app/Http/Controllers/Extensions/routes.go:13",
     "access": "permission",
-    "policy": "extension.view or matching manage permission"
+    "policy": "extension.view or matching manage permission",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.extensions.read"
+    }
   },
   {
     "id": "core.route.extensions.route_provider_events",
@@ -569,7 +862,12 @@
     "path": "/api/v1/admin/extensions/route-providers/events",
     "source": "apps/api/app/Http/Controllers/Extensions/routes.go:15",
     "access": "permission",
-    "policy": "extension.view or matching manage permission"
+    "policy": "extension.view or matching manage permission",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.extensions.read"
+    }
   },
   {
     "id": "core.route.extensions.route_provider_selection",
@@ -580,7 +878,12 @@
     "path": "/api/v1/admin/extensions/route-providers/selection",
     "source": "apps/api/app/Http/Controllers/Extensions/routes.go:14",
     "access": "permission",
-    "policy": "extension.view or matching manage permission"
+    "policy": "extension.view or matching manage permission",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.extensions.read"
+    }
   },
   {
     "id": "core.route.extensions.select_route_provider",
@@ -591,7 +894,12 @@
     "path": "/api/v1/admin/extensions/route-providers/selection",
     "source": "apps/api/app/Http/Controllers/Extensions/routes.go:17",
     "access": "permission",
-    "policy": "extension.plugin.manage or extension.theme.manage; operation-specific service policy"
+    "policy": "extension.plugin.manage or extension.theme.manage; operation-specific service policy",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.extensions.mutation"
+    }
   },
   {
     "id": "core.route.extensions.reset_route_provider",
@@ -602,7 +910,12 @@
     "path": "/api/v1/admin/extensions/route-providers/selection/reset",
     "source": "apps/api/app/Http/Controllers/Extensions/routes.go:18",
     "access": "permission",
-    "policy": "extension.plugin.manage or extension.theme.manage; operation-specific service policy"
+    "policy": "extension.plugin.manage or extension.theme.manage; operation-specific service policy",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.extensions.mutation"
+    }
   },
   {
     "id": "core.route.options.list_features",
@@ -613,7 +926,14 @@
     "path": "/api/v1/admin/features",
     "source": "apps/api/app/Http/Controllers/Options/routes.go:12",
     "access": "permission",
-    "policy": "settings.site.manage"
+    "policy": "settings.site.manage",
+    "guard": {
+      "kind": "permission_any",
+      "permissions": [
+        "settings.site.manage"
+      ],
+      "evaluatorId": ""
+    }
   },
   {
     "id": "core.route.options.update_features",
@@ -624,7 +944,14 @@
     "path": "/api/v1/admin/features",
     "source": "apps/api/app/Http/Controllers/Options/routes.go:13",
     "access": "permission",
-    "policy": "settings.site.manage"
+    "policy": "settings.site.manage",
+    "guard": {
+      "kind": "permission_any",
+      "permissions": [
+        "settings.site.manage"
+      ],
+      "evaluatorId": ""
+    }
   },
   {
     "id": "core.route.options.restore_feature_defaults",
@@ -635,7 +962,14 @@
     "path": "/api/v1/admin/features/restore-defaults",
     "source": "apps/api/app/Http/Controllers/Options/routes.go:14",
     "access": "permission",
-    "policy": "settings.site.manage"
+    "policy": "settings.site.manage",
+    "guard": {
+      "kind": "permission_any",
+      "permissions": [
+        "settings.site.manage"
+      ],
+      "evaluatorId": ""
+    }
   },
   {
     "id": "core.route.forum.admin_categories",
@@ -646,7 +980,14 @@
     "path": "/api/v1/admin/forum/categories",
     "source": "apps/api/app/Http/Controllers/Forum/routes.go:52",
     "access": "permission",
-    "policy": "category.manage"
+    "policy": "category.manage",
+    "guard": {
+      "kind": "permission_any",
+      "permissions": [
+        "category.manage"
+      ],
+      "evaluatorId": ""
+    }
   },
   {
     "id": "core.route.forum.admin_create_category",
@@ -657,7 +998,14 @@
     "path": "/api/v1/admin/forum/categories",
     "source": "apps/api/app/Http/Controllers/Forum/routes.go:53",
     "access": "permission",
-    "policy": "category.manage"
+    "policy": "category.manage",
+    "guard": {
+      "kind": "permission_any",
+      "permissions": [
+        "category.manage"
+      ],
+      "evaluatorId": ""
+    }
   },
   {
     "id": "core.route.forum.admin_update_category",
@@ -668,7 +1016,14 @@
     "path": "/api/v1/admin/forum/categories/:categoryID",
     "source": "apps/api/app/Http/Controllers/Forum/routes.go:54",
     "access": "permission",
-    "policy": "category.manage"
+    "policy": "category.manage",
+    "guard": {
+      "kind": "permission_any",
+      "permissions": [
+        "category.manage"
+      ],
+      "evaluatorId": ""
+    }
   },
   {
     "id": "core.route.forum.admin_category_groups",
@@ -679,7 +1034,14 @@
     "path": "/api/v1/admin/forum/category-groups",
     "source": "apps/api/app/Http/Controllers/Forum/routes.go:49",
     "access": "permission",
-    "policy": "category.manage"
+    "policy": "category.manage",
+    "guard": {
+      "kind": "permission_any",
+      "permissions": [
+        "category.manage"
+      ],
+      "evaluatorId": ""
+    }
   },
   {
     "id": "core.route.forum.admin_create_category_group",
@@ -690,7 +1052,14 @@
     "path": "/api/v1/admin/forum/category-groups",
     "source": "apps/api/app/Http/Controllers/Forum/routes.go:50",
     "access": "permission",
-    "policy": "category.manage"
+    "policy": "category.manage",
+    "guard": {
+      "kind": "permission_any",
+      "permissions": [
+        "category.manage"
+      ],
+      "evaluatorId": ""
+    }
   },
   {
     "id": "core.route.forum.admin_update_category_group",
@@ -701,7 +1070,14 @@
     "path": "/api/v1/admin/forum/category-groups/:groupID",
     "source": "apps/api/app/Http/Controllers/Forum/routes.go:51",
     "access": "permission",
-    "policy": "category.manage"
+    "policy": "category.manage",
+    "guard": {
+      "kind": "permission_any",
+      "permissions": [
+        "category.manage"
+      ],
+      "evaluatorId": ""
+    }
   },
   {
     "id": "core.route.forum.admin_reindex_status",
@@ -712,7 +1088,14 @@
     "path": "/api/v1/admin/forum/search/reindex",
     "source": "apps/api/app/Http/Controllers/Forum/routes.go:62",
     "access": "permission",
-    "policy": "search.manage"
+    "policy": "search.manage",
+    "guard": {
+      "kind": "permission_any",
+      "permissions": [
+        "search.manage"
+      ],
+      "evaluatorId": ""
+    }
   },
   {
     "id": "core.route.forum.admin_reindex_search",
@@ -723,7 +1106,14 @@
     "path": "/api/v1/admin/forum/search/reindex",
     "source": "apps/api/app/Http/Controllers/Forum/routes.go:61",
     "access": "permission",
-    "policy": "search.manage"
+    "policy": "search.manage",
+    "guard": {
+      "kind": "permission_any",
+      "permissions": [
+        "search.manage"
+      ],
+      "evaluatorId": ""
+    }
   },
   {
     "id": "core.route.forum.admin_reindex_runs",
@@ -734,7 +1124,14 @@
     "path": "/api/v1/admin/forum/search/reindex/runs",
     "source": "apps/api/app/Http/Controllers/Forum/routes.go:63",
     "access": "permission",
-    "policy": "search.manage"
+    "policy": "search.manage",
+    "guard": {
+      "kind": "permission_any",
+      "permissions": [
+        "search.manage"
+      ],
+      "evaluatorId": ""
+    }
   },
   {
     "id": "core.route.forum.admin_settings",
@@ -745,7 +1142,16 @@
     "path": "/api/v1/admin/forum/settings",
     "source": "apps/api/app/Http/Controllers/Forum/routes.go:58",
     "access": "permission",
-    "policy": "category.manage, tag.manage, or forum.settings.manage; field owner recheck"
+    "policy": "category.manage, tag.manage, or forum.settings.manage; field owner recheck",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [
+        "category.manage",
+        "tag.manage",
+        "forum.settings.manage"
+      ],
+      "evaluatorId": "core.guard.forum.settings"
+    }
   },
   {
     "id": "core.route.forum.admin_update_settings",
@@ -756,7 +1162,16 @@
     "path": "/api/v1/admin/forum/settings",
     "source": "apps/api/app/Http/Controllers/Forum/routes.go:59",
     "access": "permission",
-    "policy": "category.manage, tag.manage, or forum.settings.manage; field owner recheck"
+    "policy": "category.manage, tag.manage, or forum.settings.manage; field owner recheck",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [
+        "category.manage",
+        "tag.manage",
+        "forum.settings.manage"
+      ],
+      "evaluatorId": "core.guard.forum.settings"
+    }
   },
   {
     "id": "core.route.forum.admin_reset_settings",
@@ -767,7 +1182,16 @@
     "path": "/api/v1/admin/forum/settings/reset",
     "source": "apps/api/app/Http/Controllers/Forum/routes.go:60",
     "access": "permission",
-    "policy": "category.manage, tag.manage, or forum.settings.manage; field owner recheck"
+    "policy": "category.manage, tag.manage, or forum.settings.manage; field owner recheck",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [
+        "category.manage",
+        "tag.manage",
+        "forum.settings.manage"
+      ],
+      "evaluatorId": "core.guard.forum.settings"
+    }
   },
   {
     "id": "core.route.forum.admin_tags",
@@ -778,7 +1202,14 @@
     "path": "/api/v1/admin/forum/tags",
     "source": "apps/api/app/Http/Controllers/Forum/routes.go:55",
     "access": "permission",
-    "policy": "tag.manage"
+    "policy": "tag.manage",
+    "guard": {
+      "kind": "permission_any",
+      "permissions": [
+        "tag.manage"
+      ],
+      "evaluatorId": ""
+    }
   },
   {
     "id": "core.route.forum.admin_create_tag",
@@ -789,7 +1220,14 @@
     "path": "/api/v1/admin/forum/tags",
     "source": "apps/api/app/Http/Controllers/Forum/routes.go:56",
     "access": "permission",
-    "policy": "tag.manage"
+    "policy": "tag.manage",
+    "guard": {
+      "kind": "permission_any",
+      "permissions": [
+        "tag.manage"
+      ],
+      "evaluatorId": ""
+    }
   },
   {
     "id": "core.route.forum.admin_update_tag",
@@ -800,7 +1238,14 @@
     "path": "/api/v1/admin/forum/tags/:tagID",
     "source": "apps/api/app/Http/Controllers/Forum/routes.go:57",
     "access": "permission",
-    "policy": "tag.manage"
+    "policy": "tag.manage",
+    "guard": {
+      "kind": "permission_any",
+      "permissions": [
+        "tag.manage"
+      ],
+      "evaluatorId": ""
+    }
   },
   {
     "id": "core.route.jobs.list",
@@ -811,7 +1256,14 @@
     "path": "/api/v1/admin/jobs",
     "source": "apps/api/app/Http/Controllers/Jobs/controller.go:33",
     "access": "permission",
-    "policy": "jobs.view"
+    "policy": "jobs.view",
+    "guard": {
+      "kind": "permission_any",
+      "permissions": [
+        "jobs.view"
+      ],
+      "evaluatorId": ""
+    }
   },
   {
     "id": "core.route.jobs.detail",
@@ -822,7 +1274,14 @@
     "path": "/api/v1/admin/jobs/:id",
     "source": "apps/api/app/Http/Controllers/Jobs/controller.go:34",
     "access": "permission",
-    "policy": "jobs.view"
+    "policy": "jobs.view",
+    "guard": {
+      "kind": "permission_any",
+      "permissions": [
+        "jobs.view"
+      ],
+      "evaluatorId": ""
+    }
   },
   {
     "id": "core.route.jobs.cancel",
@@ -833,7 +1292,14 @@
     "path": "/api/v1/admin/jobs/:id/cancel",
     "source": "apps/api/app/Http/Controllers/Jobs/controller.go:36",
     "access": "permission",
-    "policy": "jobs.manage"
+    "policy": "jobs.manage",
+    "guard": {
+      "kind": "permission_any",
+      "permissions": [
+        "jobs.manage"
+      ],
+      "evaluatorId": ""
+    }
   },
   {
     "id": "core.route.jobs.retry",
@@ -844,7 +1310,14 @@
     "path": "/api/v1/admin/jobs/:id/retry",
     "source": "apps/api/app/Http/Controllers/Jobs/controller.go:35",
     "access": "permission",
-    "policy": "jobs.manage"
+    "policy": "jobs.manage",
+    "guard": {
+      "kind": "permission_any",
+      "permissions": [
+        "jobs.manage"
+      ],
+      "evaluatorId": ""
+    }
   },
   {
     "id": "core.route.jobs.overview",
@@ -855,7 +1328,14 @@
     "path": "/api/v1/admin/jobs/overview",
     "source": "apps/api/app/Http/Controllers/Jobs/controller.go:27",
     "access": "permission",
-    "policy": "jobs.view"
+    "policy": "jobs.view",
+    "guard": {
+      "kind": "permission_any",
+      "permissions": [
+        "jobs.view"
+      ],
+      "evaluatorId": ""
+    }
   },
   {
     "id": "core.route.jobs.pause",
@@ -866,7 +1346,14 @@
     "path": "/api/v1/admin/jobs/queues/:name/pause",
     "source": "apps/api/app/Http/Controllers/Jobs/controller.go:37",
     "access": "permission",
-    "policy": "jobs.manage"
+    "policy": "jobs.manage",
+    "guard": {
+      "kind": "permission_any",
+      "permissions": [
+        "jobs.manage"
+      ],
+      "evaluatorId": ""
+    }
   },
   {
     "id": "core.route.jobs.resume",
@@ -877,7 +1364,14 @@
     "path": "/api/v1/admin/jobs/queues/:name/resume",
     "source": "apps/api/app/Http/Controllers/Jobs/controller.go:38",
     "access": "permission",
-    "policy": "jobs.manage"
+    "policy": "jobs.manage",
+    "guard": {
+      "kind": "permission_any",
+      "permissions": [
+        "jobs.manage"
+      ],
+      "evaluatorId": ""
+    }
   },
   {
     "id": "core.route.jobs.schedules",
@@ -888,7 +1382,14 @@
     "path": "/api/v1/admin/jobs/schedules",
     "source": "apps/api/app/Http/Controllers/Jobs/controller.go:29",
     "access": "permission",
-    "policy": "jobs.view"
+    "policy": "jobs.view",
+    "guard": {
+      "kind": "permission_any",
+      "permissions": [
+        "jobs.view"
+      ],
+      "evaluatorId": ""
+    }
   },
   {
     "id": "core.route.jobs.disable_schedule",
@@ -899,7 +1400,14 @@
     "path": "/api/v1/admin/jobs/schedules/:scheduleId/disable",
     "source": "apps/api/app/Http/Controllers/Jobs/controller.go:31",
     "access": "permission",
-    "policy": "jobs.manage"
+    "policy": "jobs.manage",
+    "guard": {
+      "kind": "permission_any",
+      "permissions": [
+        "jobs.manage"
+      ],
+      "evaluatorId": ""
+    }
   },
   {
     "id": "core.route.jobs.enable_schedule",
@@ -910,7 +1418,14 @@
     "path": "/api/v1/admin/jobs/schedules/:scheduleId/enable",
     "source": "apps/api/app/Http/Controllers/Jobs/controller.go:30",
     "access": "permission",
-    "policy": "jobs.manage"
+    "policy": "jobs.manage",
+    "guard": {
+      "kind": "permission_any",
+      "permissions": [
+        "jobs.manage"
+      ],
+      "evaluatorId": ""
+    }
   },
   {
     "id": "core.route.jobs.trigger_schedule",
@@ -921,7 +1436,14 @@
     "path": "/api/v1/admin/jobs/schedules/:scheduleId/trigger",
     "source": "apps/api/app/Http/Controllers/Jobs/controller.go:32",
     "access": "permission",
-    "policy": "jobs.manage"
+    "policy": "jobs.manage",
+    "guard": {
+      "kind": "permission_any",
+      "permissions": [
+        "jobs.manage"
+      ],
+      "evaluatorId": ""
+    }
   },
   {
     "id": "core.route.mail.list_deliveries",
@@ -932,7 +1454,15 @@
     "path": "/api/v1/admin/mail/deliveries",
     "source": "apps/api/app/Http/Controllers/Mail/controller.go:31",
     "access": "permission",
-    "policy": "settings.mail.manage or settings.manage compatibility policy"
+    "policy": "settings.mail.manage or settings.manage compatibility policy",
+    "guard": {
+      "kind": "permission_any",
+      "permissions": [
+        "settings.mail.manage",
+        "settings.manage"
+      ],
+      "evaluatorId": ""
+    }
   },
   {
     "id": "core.route.mail.get_policy",
@@ -943,7 +1473,15 @@
     "path": "/api/v1/admin/mail/policy",
     "source": "apps/api/app/Http/Controllers/Mail/controller.go:32",
     "access": "permission",
-    "policy": "settings.mail.manage or settings.manage compatibility policy"
+    "policy": "settings.mail.manage or settings.manage compatibility policy",
+    "guard": {
+      "kind": "permission_any",
+      "permissions": [
+        "settings.mail.manage",
+        "settings.manage"
+      ],
+      "evaluatorId": ""
+    }
   },
   {
     "id": "core.route.mail.update_policy",
@@ -954,7 +1492,15 @@
     "path": "/api/v1/admin/mail/policy",
     "source": "apps/api/app/Http/Controllers/Mail/controller.go:33",
     "access": "permission",
-    "policy": "settings.mail.manage or settings.manage compatibility policy"
+    "policy": "settings.mail.manage or settings.manage compatibility policy",
+    "guard": {
+      "kind": "permission_any",
+      "permissions": [
+        "settings.mail.manage",
+        "settings.manage"
+      ],
+      "evaluatorId": ""
+    }
   },
   {
     "id": "core.route.mail.restore_policy",
@@ -965,7 +1511,15 @@
     "path": "/api/v1/admin/mail/policy/restore",
     "source": "apps/api/app/Http/Controllers/Mail/controller.go:34",
     "access": "permission",
-    "policy": "settings.mail.manage or settings.manage compatibility policy"
+    "policy": "settings.mail.manage or settings.manage compatibility policy",
+    "guard": {
+      "kind": "permission_any",
+      "permissions": [
+        "settings.mail.manage",
+        "settings.manage"
+      ],
+      "evaluatorId": ""
+    }
   },
   {
     "id": "core.route.mail.select_provider",
@@ -976,7 +1530,15 @@
     "path": "/api/v1/admin/mail/provider",
     "source": "apps/api/app/Http/Controllers/Mail/controller.go:29",
     "access": "permission",
-    "policy": "settings.mail.manage or settings.manage compatibility policy"
+    "policy": "settings.mail.manage or settings.manage compatibility policy",
+    "guard": {
+      "kind": "permission_any",
+      "permissions": [
+        "settings.mail.manage",
+        "settings.manage"
+      ],
+      "evaluatorId": ""
+    }
   },
   {
     "id": "core.route.mail.reset_provider",
@@ -987,7 +1549,15 @@
     "path": "/api/v1/admin/mail/provider/reset",
     "source": "apps/api/app/Http/Controllers/Mail/controller.go:30",
     "access": "permission",
-    "policy": "settings.mail.manage or settings.manage compatibility policy"
+    "policy": "settings.mail.manage or settings.manage compatibility policy",
+    "guard": {
+      "kind": "permission_any",
+      "permissions": [
+        "settings.mail.manage",
+        "settings.manage"
+      ],
+      "evaluatorId": ""
+    }
   },
   {
     "id": "core.route.mail.list_providers",
@@ -998,7 +1568,15 @@
     "path": "/api/v1/admin/mail/providers",
     "source": "apps/api/app/Http/Controllers/Mail/controller.go:28",
     "access": "permission",
-    "policy": "settings.mail.manage or settings.manage compatibility policy"
+    "policy": "settings.mail.manage or settings.manage compatibility policy",
+    "guard": {
+      "kind": "permission_any",
+      "permissions": [
+        "settings.mail.manage",
+        "settings.manage"
+      ],
+      "evaluatorId": ""
+    }
   },
   {
     "id": "core.route.identity.admin_mail_test",
@@ -1009,7 +1587,15 @@
     "path": "/api/v1/admin/mail/test",
     "source": "apps/api/app/Http/Controllers/Identity/routes.go:32",
     "access": "permission",
-    "policy": "settings.mail.manage or settings.manage compatibility policy"
+    "policy": "settings.mail.manage or settings.manage compatibility policy",
+    "guard": {
+      "kind": "permission_any",
+      "permissions": [
+        "settings.mail.manage",
+        "settings.manage"
+      ],
+      "evaluatorId": ""
+    }
   },
   {
     "id": "core.route.moderation.list_admin_decisions",
@@ -1020,7 +1606,14 @@
     "path": "/api/v1/admin/moderation/decisions",
     "source": "apps/api/app/Http/Controllers/Moderation/routes.go:15",
     "access": "permission",
-    "policy": "moderation.manage"
+    "policy": "moderation.manage",
+    "guard": {
+      "kind": "permission_any",
+      "permissions": [
+        "moderation.manage"
+      ],
+      "evaluatorId": ""
+    }
   },
   {
     "id": "core.route.moderation.list_reports",
@@ -1031,7 +1624,14 @@
     "path": "/api/v1/admin/moderation/reports",
     "source": "apps/api/app/Http/Controllers/Moderation/routes.go:10",
     "access": "permission",
-    "policy": "moderation.manage"
+    "policy": "moderation.manage",
+    "guard": {
+      "kind": "permission_any",
+      "permissions": [
+        "moderation.manage"
+      ],
+      "evaluatorId": ""
+    }
   },
   {
     "id": "core.route.moderation.update_report",
@@ -1042,7 +1642,14 @@
     "path": "/api/v1/admin/moderation/reports/:reportID",
     "source": "apps/api/app/Http/Controllers/Moderation/routes.go:11",
     "access": "permission",
-    "policy": "moderation.manage"
+    "policy": "moderation.manage",
+    "guard": {
+      "kind": "permission_any",
+      "permissions": [
+        "moderation.manage"
+      ],
+      "evaluatorId": ""
+    }
   },
   {
     "id": "core.route.moderation.get_settings",
@@ -1053,7 +1660,14 @@
     "path": "/api/v1/admin/moderation/settings",
     "source": "apps/api/app/Http/Controllers/Moderation/routes.go:12",
     "access": "permission",
-    "policy": "moderation.manage"
+    "policy": "moderation.manage",
+    "guard": {
+      "kind": "permission_any",
+      "permissions": [
+        "moderation.manage"
+      ],
+      "evaluatorId": ""
+    }
   },
   {
     "id": "core.route.moderation.update_settings",
@@ -1064,7 +1678,14 @@
     "path": "/api/v1/admin/moderation/settings",
     "source": "apps/api/app/Http/Controllers/Moderation/routes.go:13",
     "access": "permission",
-    "policy": "moderation.manage"
+    "policy": "moderation.manage",
+    "guard": {
+      "kind": "permission_any",
+      "permissions": [
+        "moderation.manage"
+      ],
+      "evaluatorId": ""
+    }
   },
   {
     "id": "core.route.moderation.reset_settings",
@@ -1075,7 +1696,14 @@
     "path": "/api/v1/admin/moderation/settings/reset",
     "source": "apps/api/app/Http/Controllers/Moderation/routes.go:14",
     "access": "permission",
-    "policy": "moderation.manage"
+    "policy": "moderation.manage",
+    "guard": {
+      "kind": "permission_any",
+      "permissions": [
+        "moderation.manage"
+      ],
+      "evaluatorId": ""
+    }
   },
   {
     "id": "core.route.notifications.admin_test",
@@ -1086,7 +1714,14 @@
     "path": "/api/v1/admin/notifications/test",
     "source": "apps/api/app/Http/Controllers/Notifications/controller.go:37",
     "access": "permission",
-    "policy": "settings.manage"
+    "policy": "settings.manage",
+    "guard": {
+      "kind": "permission_any",
+      "permissions": [
+        "settings.manage"
+      ],
+      "evaluatorId": ""
+    }
   },
   {
     "id": "core.route.admin_overview.overview",
@@ -1097,7 +1732,14 @@
     "path": "/api/v1/admin/overview",
     "source": "apps/api/app/Http/Controllers/AdminOverview/routes.go:6",
     "access": "permission",
-    "policy": "admin.access"
+    "policy": "admin.access",
+    "guard": {
+      "kind": "permission_any",
+      "permissions": [
+        "admin.access"
+      ],
+      "evaluatorId": ""
+    }
   },
   {
     "id": "core.route.pages.admin_list",
@@ -1108,7 +1750,12 @@
     "path": "/api/v1/admin/pages",
     "source": "apps/api/app/Http/Controllers/Pages/controller.go:70",
     "access": "permission",
-    "policy": "extension.view for inspection; theme/plugin manage and super_admin approval where required"
+    "policy": "extension.view for inspection; theme/plugin manage and super_admin approval where required",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.pages.admin"
+    }
   },
   {
     "id": "core.route.pages.admin_get",
@@ -1119,7 +1766,12 @@
     "path": "/api/v1/admin/pages/:pageId",
     "source": "apps/api/app/Http/Controllers/Pages/controller.go:73",
     "access": "permission",
-    "policy": "extension.view for inspection; theme/plugin manage and super_admin approval where required"
+    "policy": "extension.view for inspection; theme/plugin manage and super_admin approval where required",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.pages.admin"
+    }
   },
   {
     "id": "core.route.pages.admin_approve",
@@ -1130,7 +1782,12 @@
     "path": "/api/v1/admin/pages/:pageId/approve",
     "source": "apps/api/app/Http/Controllers/Pages/controller.go:74",
     "access": "permission",
-    "policy": "extension.view for inspection; theme/plugin manage and super_admin approval where required"
+    "policy": "extension.view for inspection; theme/plugin manage and super_admin approval where required",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.pages.admin"
+    }
   },
   {
     "id": "core.route.pages.admin_restore",
@@ -1141,7 +1798,12 @@
     "path": "/api/v1/admin/pages/:pageId/restore-core",
     "source": "apps/api/app/Http/Controllers/Pages/controller.go:75",
     "access": "permission",
-    "policy": "extension.view for inspection; theme/plugin manage and super_admin approval where required"
+    "policy": "extension.view for inspection; theme/plugin manage and super_admin approval where required",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.pages.admin"
+    }
   },
   {
     "id": "core.route.pages.activate_preview",
@@ -1152,7 +1814,12 @@
     "path": "/api/v1/admin/pages/activate-preview/:extensionId",
     "source": "apps/api/app/Http/Controllers/Pages/controller.go:72",
     "access": "permission",
-    "policy": "extension.view for inspection; theme/plugin manage and super_admin approval where required"
+    "policy": "extension.view for inspection; theme/plugin manage and super_admin approval where required",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.pages.admin"
+    }
   },
   {
     "id": "core.route.pages.admin_added",
@@ -1163,7 +1830,12 @@
     "path": "/api/v1/admin/pages/added",
     "source": "apps/api/app/Http/Controllers/Pages/controller.go:71",
     "access": "permission",
-    "policy": "extension.view for inspection; theme/plugin manage and super_admin approval where required"
+    "policy": "extension.view for inspection; theme/plugin manage and super_admin approval where required",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.pages.admin"
+    }
   },
   {
     "id": "core.route.seo.upload_asset",
@@ -1174,7 +1846,14 @@
     "path": "/api/v1/admin/seo/assets",
     "source": "apps/api/app/Http/Controllers/SEO/controller.go:57",
     "access": "permission",
-    "policy": "seo.manage"
+    "policy": "seo.manage",
+    "guard": {
+      "kind": "permission_any",
+      "permissions": [
+        "seo.manage"
+      ],
+      "evaluatorId": ""
+    }
   },
   {
     "id": "core.route.site_chrome.admin_announcements",
@@ -1185,7 +1864,14 @@
     "path": "/api/v1/admin/site/announcements",
     "source": "apps/api/app/Http/Controllers/SiteChrome/routes.go:23",
     "access": "permission",
-    "policy": "settings.site.manage"
+    "policy": "settings.site.manage",
+    "guard": {
+      "kind": "permission_any",
+      "permissions": [
+        "settings.site.manage"
+      ],
+      "evaluatorId": ""
+    }
   },
   {
     "id": "core.route.site_chrome.admin_create_announcement",
@@ -1196,7 +1882,14 @@
     "path": "/api/v1/admin/site/announcements",
     "source": "apps/api/app/Http/Controllers/SiteChrome/routes.go:24",
     "access": "permission",
-    "policy": "settings.site.manage"
+    "policy": "settings.site.manage",
+    "guard": {
+      "kind": "permission_any",
+      "permissions": [
+        "settings.site.manage"
+      ],
+      "evaluatorId": ""
+    }
   },
   {
     "id": "core.route.site_chrome.admin_delete_announcement",
@@ -1207,7 +1900,14 @@
     "path": "/api/v1/admin/site/announcements/:announcementID",
     "source": "apps/api/app/Http/Controllers/SiteChrome/routes.go:26",
     "access": "permission",
-    "policy": "settings.site.manage"
+    "policy": "settings.site.manage",
+    "guard": {
+      "kind": "permission_any",
+      "permissions": [
+        "settings.site.manage"
+      ],
+      "evaluatorId": ""
+    }
   },
   {
     "id": "core.route.site_chrome.admin_update_announcement",
@@ -1218,7 +1918,14 @@
     "path": "/api/v1/admin/site/announcements/:announcementID",
     "source": "apps/api/app/Http/Controllers/SiteChrome/routes.go:25",
     "access": "permission",
-    "policy": "settings.site.manage"
+    "policy": "settings.site.manage",
+    "guard": {
+      "kind": "permission_any",
+      "permissions": [
+        "settings.site.manage"
+      ],
+      "evaluatorId": ""
+    }
   },
   {
     "id": "core.route.site_chrome.admin_friend_links",
@@ -1229,7 +1936,14 @@
     "path": "/api/v1/admin/site/friend-links",
     "source": "apps/api/app/Http/Controllers/SiteChrome/routes.go:18",
     "access": "permission",
-    "policy": "settings.site.manage"
+    "policy": "settings.site.manage",
+    "guard": {
+      "kind": "permission_any",
+      "permissions": [
+        "settings.site.manage"
+      ],
+      "evaluatorId": ""
+    }
   },
   {
     "id": "core.route.site_chrome.admin_create_friend_link",
@@ -1240,7 +1954,14 @@
     "path": "/api/v1/admin/site/friend-links",
     "source": "apps/api/app/Http/Controllers/SiteChrome/routes.go:19",
     "access": "permission",
-    "policy": "settings.site.manage"
+    "policy": "settings.site.manage",
+    "guard": {
+      "kind": "permission_any",
+      "permissions": [
+        "settings.site.manage"
+      ],
+      "evaluatorId": ""
+    }
   },
   {
     "id": "core.route.site_chrome.admin_delete_friend_link",
@@ -1251,7 +1972,14 @@
     "path": "/api/v1/admin/site/friend-links/:linkID",
     "source": "apps/api/app/Http/Controllers/SiteChrome/routes.go:21",
     "access": "permission",
-    "policy": "settings.site.manage"
+    "policy": "settings.site.manage",
+    "guard": {
+      "kind": "permission_any",
+      "permissions": [
+        "settings.site.manage"
+      ],
+      "evaluatorId": ""
+    }
   },
   {
     "id": "core.route.site_chrome.admin_update_friend_link",
@@ -1262,7 +1990,14 @@
     "path": "/api/v1/admin/site/friend-links/:linkID",
     "source": "apps/api/app/Http/Controllers/SiteChrome/routes.go:20",
     "access": "permission",
-    "policy": "settings.site.manage"
+    "policy": "settings.site.manage",
+    "guard": {
+      "kind": "permission_any",
+      "permissions": [
+        "settings.site.manage"
+      ],
+      "evaluatorId": ""
+    }
   },
   {
     "id": "core.route.site_chrome.admin_nav_items",
@@ -1273,7 +2008,14 @@
     "path": "/api/v1/admin/site/nav-items",
     "source": "apps/api/app/Http/Controllers/SiteChrome/routes.go:13",
     "access": "permission",
-    "policy": "settings.site.manage"
+    "policy": "settings.site.manage",
+    "guard": {
+      "kind": "permission_any",
+      "permissions": [
+        "settings.site.manage"
+      ],
+      "evaluatorId": ""
+    }
   },
   {
     "id": "core.route.site_chrome.admin_create_nav_item",
@@ -1284,7 +2026,14 @@
     "path": "/api/v1/admin/site/nav-items",
     "source": "apps/api/app/Http/Controllers/SiteChrome/routes.go:14",
     "access": "permission",
-    "policy": "settings.site.manage"
+    "policy": "settings.site.manage",
+    "guard": {
+      "kind": "permission_any",
+      "permissions": [
+        "settings.site.manage"
+      ],
+      "evaluatorId": ""
+    }
   },
   {
     "id": "core.route.site_chrome.admin_delete_nav_item",
@@ -1295,7 +2044,14 @@
     "path": "/api/v1/admin/site/nav-items/:itemID",
     "source": "apps/api/app/Http/Controllers/SiteChrome/routes.go:16",
     "access": "permission",
-    "policy": "settings.site.manage"
+    "policy": "settings.site.manage",
+    "guard": {
+      "kind": "permission_any",
+      "permissions": [
+        "settings.site.manage"
+      ],
+      "evaluatorId": ""
+    }
   },
   {
     "id": "core.route.site_chrome.admin_update_nav_item",
@@ -1306,7 +2062,14 @@
     "path": "/api/v1/admin/site/nav-items/:itemID",
     "source": "apps/api/app/Http/Controllers/SiteChrome/routes.go:15",
     "access": "permission",
-    "policy": "settings.site.manage"
+    "policy": "settings.site.manage",
+    "guard": {
+      "kind": "permission_any",
+      "permissions": [
+        "settings.site.manage"
+      ],
+      "evaluatorId": ""
+    }
   },
   {
     "id": "core.route.options.list_admin",
@@ -1317,7 +2080,12 @@
     "path": "/api/v1/admin/web-options",
     "source": "apps/api/app/Http/Controllers/Options/routes.go:9",
     "access": "permission",
-    "policy": "option-owner permission dispatch"
+    "policy": "option-owner permission dispatch",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.options.owner"
+    }
   },
   {
     "id": "core.route.options.update_admin",
@@ -1328,7 +2096,12 @@
     "path": "/api/v1/admin/web-options",
     "source": "apps/api/app/Http/Controllers/Options/routes.go:10",
     "access": "permission",
-    "policy": "option-owner permission dispatch"
+    "policy": "option-owner permission dispatch",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.options.owner"
+    }
   },
   {
     "id": "core.route.webhooks.list_deliveries",
@@ -1339,7 +2112,15 @@
     "path": "/api/v1/admin/webhooks/deliveries",
     "source": "apps/api/app/Http/Controllers/Webhooks/controller.go:33",
     "access": "permission",
-    "policy": "settings.manage or settings.site.manage"
+    "policy": "settings.manage or settings.site.manage",
+    "guard": {
+      "kind": "permission_any",
+      "permissions": [
+        "settings.manage",
+        "settings.site.manage"
+      ],
+      "evaluatorId": ""
+    }
   },
   {
     "id": "core.route.webhooks.list_endpoints",
@@ -1350,7 +2131,15 @@
     "path": "/api/v1/admin/webhooks/endpoints",
     "source": "apps/api/app/Http/Controllers/Webhooks/controller.go:29",
     "access": "permission",
-    "policy": "settings.manage or settings.site.manage"
+    "policy": "settings.manage or settings.site.manage",
+    "guard": {
+      "kind": "permission_any",
+      "permissions": [
+        "settings.manage",
+        "settings.site.manage"
+      ],
+      "evaluatorId": ""
+    }
   },
   {
     "id": "core.route.webhooks.create_endpoint",
@@ -1361,7 +2150,15 @@
     "path": "/api/v1/admin/webhooks/endpoints",
     "source": "apps/api/app/Http/Controllers/Webhooks/controller.go:30",
     "access": "permission",
-    "policy": "settings.manage or settings.site.manage"
+    "policy": "settings.manage or settings.site.manage",
+    "guard": {
+      "kind": "permission_any",
+      "permissions": [
+        "settings.manage",
+        "settings.site.manage"
+      ],
+      "evaluatorId": ""
+    }
   },
   {
     "id": "core.route.webhooks.delete_endpoint",
@@ -1372,7 +2169,15 @@
     "path": "/api/v1/admin/webhooks/endpoints/:endpointID",
     "source": "apps/api/app/Http/Controllers/Webhooks/controller.go:32",
     "access": "permission",
-    "policy": "settings.manage or settings.site.manage"
+    "policy": "settings.manage or settings.site.manage",
+    "guard": {
+      "kind": "permission_any",
+      "permissions": [
+        "settings.manage",
+        "settings.site.manage"
+      ],
+      "evaluatorId": ""
+    }
   },
   {
     "id": "core.route.webhooks.update_endpoint",
@@ -1383,7 +2188,15 @@
     "path": "/api/v1/admin/webhooks/endpoints/:endpointID",
     "source": "apps/api/app/Http/Controllers/Webhooks/controller.go:31",
     "access": "permission",
-    "policy": "settings.manage or settings.site.manage"
+    "policy": "settings.manage or settings.site.manage",
+    "guard": {
+      "kind": "permission_any",
+      "permissions": [
+        "settings.manage",
+        "settings.site.manage"
+      ],
+      "evaluatorId": ""
+    }
   },
   {
     "id": "core.route.webhooks.list_catalog_events",
@@ -1394,7 +2207,15 @@
     "path": "/api/v1/admin/webhooks/events",
     "source": "apps/api/app/Http/Controllers/Webhooks/controller.go:34",
     "access": "permission",
-    "policy": "settings.manage or settings.site.manage"
+    "policy": "settings.manage or settings.site.manage",
+    "guard": {
+      "kind": "permission_any",
+      "permissions": [
+        "settings.manage",
+        "settings.site.manage"
+      ],
+      "evaluatorId": ""
+    }
   },
   {
     "id": "core.route.attachments.upload",
@@ -1405,7 +2226,14 @@
     "path": "/api/v1/attachments",
     "source": "apps/api/app/Http/Controllers/Attachments/routes.go:6",
     "access": "permission",
-    "policy": "attachment.upload plus upload/media policy"
+    "policy": "attachment.upload plus upload/media policy",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [
+        "attachment.upload"
+      ],
+      "evaluatorId": "core.guard.attachments.upload"
+    }
   },
   {
     "id": "core.route.attachments.get",
@@ -1416,7 +2244,12 @@
     "path": "/api/v1/attachments/:publicId",
     "source": "apps/api/app/Http/Controllers/Attachments/routes.go:7",
     "access": "contextual",
-    "policy": "attachment visibility and referenced resource read policy"
+    "policy": "attachment visibility and referenced resource read policy",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.attachments.read"
+    }
   },
   {
     "id": "core.route.attachments.content",
@@ -1427,7 +2260,12 @@
     "path": "/api/v1/attachments/:publicId/content",
     "source": "apps/api/app/Http/Controllers/Attachments/routes.go:8",
     "access": "contextual",
-    "policy": "attachment visibility and referenced resource read policy"
+    "policy": "attachment visibility and referenced resource read policy",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.attachments.read"
+    }
   },
   {
     "id": "core.route.identity.login",
@@ -1438,7 +2276,12 @@
     "path": "/api/v1/auth/login",
     "source": "apps/api/app/Http/Controllers/Identity/routes.go:11",
     "access": "public",
-    "policy": "identity bootstrap, risk, rate-limit, and human-verification policy"
+    "policy": "identity bootstrap, risk, rate-limit, and human-verification policy",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.identity.bootstrap"
+    }
   },
   {
     "id": "core.route.identity.logout",
@@ -1449,7 +2292,12 @@
     "path": "/api/v1/auth/logout",
     "source": "apps/api/app/Http/Controllers/Identity/routes.go:12",
     "access": "login",
-    "policy": "current browser session"
+    "policy": "current browser session",
+    "guard": {
+      "kind": "login",
+      "permissions": [],
+      "evaluatorId": ""
+    }
   },
   {
     "id": "core.route.identity.password_reset_confirm",
@@ -1460,7 +2308,12 @@
     "path": "/api/v1/auth/password-reset/confirm",
     "source": "apps/api/app/Http/Controllers/Identity/routes.go:15",
     "access": "public",
-    "policy": "identity bootstrap, risk, rate-limit, and human-verification policy"
+    "policy": "identity bootstrap, risk, rate-limit, and human-verification policy",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.identity.bootstrap"
+    }
   },
   {
     "id": "core.route.identity.password_reset_request",
@@ -1471,7 +2324,12 @@
     "path": "/api/v1/auth/password-reset/request",
     "source": "apps/api/app/Http/Controllers/Identity/routes.go:14",
     "access": "public",
-    "policy": "identity bootstrap, risk, rate-limit, and human-verification policy"
+    "policy": "identity bootstrap, risk, rate-limit, and human-verification policy",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.identity.bootstrap"
+    }
   },
   {
     "id": "core.route.identity.register",
@@ -1482,7 +2340,12 @@
     "path": "/api/v1/auth/register",
     "source": "apps/api/app/Http/Controllers/Identity/routes.go:10",
     "access": "public",
-    "policy": "identity bootstrap, risk, rate-limit, and human-verification policy"
+    "policy": "identity bootstrap, risk, rate-limit, and human-verification policy",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.identity.bootstrap"
+    }
   },
   {
     "id": "core.route.identity.registration_status",
@@ -1493,7 +2356,12 @@
     "path": "/api/v1/auth/registration-status",
     "source": "apps/api/app/Http/Controllers/Identity/routes.go:9",
     "access": "public",
-    "policy": "identity bootstrap, risk, rate-limit, and human-verification policy"
+    "policy": "identity bootstrap, risk, rate-limit, and human-verification policy",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.identity.bootstrap"
+    }
   },
   {
     "id": "core.route.identity.session",
@@ -1504,7 +2372,12 @@
     "path": "/api/v1/auth/session",
     "source": "apps/api/app/Http/Controllers/Identity/routes.go:13",
     "access": "login",
-    "policy": "current browser session"
+    "policy": "current browser session",
+    "guard": {
+      "kind": "login",
+      "permissions": [],
+      "evaluatorId": ""
+    }
   },
   {
     "id": "core.route.identity.list_sessions",
@@ -1515,7 +2388,12 @@
     "path": "/api/v1/auth/sessions",
     "source": "apps/api/app/Http/Controllers/Identity/routes.go:20",
     "access": "login",
-    "policy": "current active actor; token/session ownership"
+    "policy": "current active actor; token/session ownership",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.identity.self_credentials"
+    }
   },
   {
     "id": "core.route.identity.revoke_session",
@@ -1526,7 +2404,12 @@
     "path": "/api/v1/auth/sessions/:sessionId",
     "source": "apps/api/app/Http/Controllers/Identity/routes.go:22",
     "access": "login",
-    "policy": "current active actor; token/session ownership"
+    "policy": "current active actor; token/session ownership",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.identity.self_credentials"
+    }
   },
   {
     "id": "core.route.identity.revoke_other_sessions",
@@ -1537,7 +2420,12 @@
     "path": "/api/v1/auth/sessions/revoke-others",
     "source": "apps/api/app/Http/Controllers/Identity/routes.go:21",
     "access": "login",
-    "policy": "current active actor; token/session ownership"
+    "policy": "current active actor; token/session ownership",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.identity.self_credentials"
+    }
   },
   {
     "id": "core.route.identity.list_apitokens",
@@ -1548,7 +2436,12 @@
     "path": "/api/v1/auth/tokens",
     "source": "apps/api/app/Http/Controllers/Identity/routes.go:26",
     "access": "login",
-    "policy": "current active actor; token/session ownership"
+    "policy": "current active actor; token/session ownership",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.identity.self_credentials"
+    }
   },
   {
     "id": "core.route.identity.create_apitoken",
@@ -1559,7 +2452,12 @@
     "path": "/api/v1/auth/tokens",
     "source": "apps/api/app/Http/Controllers/Identity/routes.go:27",
     "access": "login",
-    "policy": "current active actor; token/session ownership"
+    "policy": "current active actor; token/session ownership",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.identity.self_credentials"
+    }
   },
   {
     "id": "core.route.identity.revoke_apitoken",
@@ -1570,7 +2468,12 @@
     "path": "/api/v1/auth/tokens/:tokenID",
     "source": "apps/api/app/Http/Controllers/Identity/routes.go:28",
     "access": "login",
-    "policy": "current active actor; token/session ownership"
+    "policy": "current active actor; token/session ownership",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.identity.self_credentials"
+    }
   },
   {
     "id": "core.route.identity.rotate_apitoken",
@@ -1581,7 +2484,12 @@
     "path": "/api/v1/auth/tokens/:tokenID/rotate",
     "source": "apps/api/app/Http/Controllers/Identity/routes.go:29",
     "access": "login",
-    "policy": "current active actor; token/session ownership"
+    "policy": "current active actor; token/session ownership",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.identity.self_credentials"
+    }
   },
   {
     "id": "core.route.forum.categories",
@@ -1592,7 +2500,12 @@
     "path": "/api/v1/categories",
     "source": "apps/api/app/Http/Controllers/Forum/routes.go:15",
     "access": "public",
-    "policy": "forum public read policy; visibility rechecked by service"
+    "policy": "forum public read policy; visibility rechecked by service",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.forum.read"
+    }
   },
   {
     "id": "core.route.forum.category_groups",
@@ -1603,7 +2516,12 @@
     "path": "/api/v1/category-groups",
     "source": "apps/api/app/Http/Controllers/Forum/routes.go:14",
     "access": "public",
-    "policy": "forum public read policy; visibility rechecked by service"
+    "policy": "forum public read policy; visibility rechecked by service",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.forum.read"
+    }
   },
   {
     "id": "core.route.forum.delete_comment",
@@ -1614,7 +2532,17 @@
     "path": "/api/v1/comments/:commentID",
     "source": "apps/api/app/Http/Controllers/Forum/routes.go:46",
     "access": "permission",
-    "policy": "post edit/delete own or any policy"
+    "policy": "post edit/delete own or any policy",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [
+        "post.edit_own",
+        "post.edit_any",
+        "post.delete_own",
+        "post.delete_any"
+      ],
+      "evaluatorId": "core.guard.forum.comment_write"
+    }
   },
   {
     "id": "core.route.forum.update_comment",
@@ -1625,7 +2553,17 @@
     "path": "/api/v1/comments/:commentID",
     "source": "apps/api/app/Http/Controllers/Forum/routes.go:45",
     "access": "permission",
-    "policy": "post edit/delete own or any policy"
+    "policy": "post edit/delete own or any policy",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [
+        "post.edit_own",
+        "post.edit_any",
+        "post.delete_own",
+        "post.delete_any"
+      ],
+      "evaluatorId": "core.guard.forum.comment_write"
+    }
   },
   {
     "id": "core.route.forum.replies",
@@ -1636,7 +2574,12 @@
     "path": "/api/v1/comments/:commentID/replies",
     "source": "apps/api/app/Http/Controllers/Forum/routes.go:44",
     "access": "public",
-    "policy": "forum public read policy; visibility rechecked by service"
+    "policy": "forum public read policy; visibility rechecked by service",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.forum.read"
+    }
   },
   {
     "id": "core.route.forum.composer_toolbar",
@@ -1647,7 +2590,12 @@
     "path": "/api/v1/composer/toolbar",
     "source": "apps/api/app/Http/Controllers/Forum/routes.go:18",
     "access": "public",
-    "policy": "forum public read policy; visibility rechecked by service"
+    "policy": "forum public read policy; visibility rechecked by service",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.forum.read"
+    }
   },
   {
     "id": "core.route.entity_meta.list_values",
@@ -1658,7 +2606,12 @@
     "path": "/api/v1/entity-meta/:entityType/:entityID",
     "source": "apps/api/app/Http/Controllers/EntityMeta/controller.go:31",
     "access": "contextual",
-    "policy": "public definition visibility or actor/resource read policy"
+    "policy": "public definition visibility or actor/resource read policy",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.entity_meta.read"
+    }
   },
   {
     "id": "core.route.entity_meta.upsert_values",
@@ -1669,7 +2622,12 @@
     "path": "/api/v1/entity-meta/:entityType/:entityID",
     "source": "apps/api/app/Http/Controllers/EntityMeta/controller.go:33",
     "access": "permission",
-    "policy": "entity ownership plus field definition write policy"
+    "policy": "entity ownership plus field definition write policy",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.entity_meta.write"
+    }
   },
   {
     "id": "core.route.entity_meta.list_public_definitions",
@@ -1680,7 +2638,12 @@
     "path": "/api/v1/entity-meta/definitions",
     "source": "apps/api/app/Http/Controllers/EntityMeta/controller.go:29",
     "access": "contextual",
-    "policy": "public definition visibility or actor/resource read policy"
+    "policy": "public definition visibility or actor/resource read policy",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.entity_meta.read"
+    }
   },
   {
     "id": "core.route.extensions.proxy_extension_route",
@@ -1691,7 +2654,12 @@
     "path": "/api/v1/extensions/:extensionId/*",
     "source": "apps/api/app/Http/Controllers/Extensions/routes.go:48",
     "access": "declared",
-    "policy": "enabled plugin route declaration and manifest access policy"
+    "policy": "enabled plugin route declaration and manifest access policy",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.extensions.declared_route"
+    }
   },
   {
     "id": "core.route.system.health",
@@ -1700,9 +2668,14 @@
     "handler": "health",
     "method": "GET",
     "path": "/api/v1/health",
-    "source": "apps/api/app/Http/server.go:169",
+    "source": "apps/api/app/Http/server.go:177",
     "access": "public",
-    "policy": "host liveness/readiness; non-overridable recovery prerequisite"
+    "policy": "host liveness/readiness; non-overridable recovery prerequisite",
+    "guard": {
+      "kind": "public",
+      "permissions": [],
+      "evaluatorId": ""
+    }
   },
   {
     "id": "core.route.identity.human_verification_challenge",
@@ -1713,7 +2686,12 @@
     "path": "/api/v1/human-verification/challenge",
     "source": "apps/api/app/Http/Controllers/Identity/routes.go:6",
     "access": "public",
-    "policy": "purpose allowlist and Redis rate/replay policy"
+    "policy": "purpose allowlist and Redis rate/replay policy",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.identity.human_verification"
+    }
   },
   {
     "id": "core.route.forum.author_review_items",
@@ -1724,7 +2702,12 @@
     "path": "/api/v1/me/content-review",
     "source": "apps/api/app/Http/Controllers/Forum/routes.go:20",
     "access": "login",
-    "policy": "current active author ownership"
+    "policy": "current active author ownership",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.forum.author_review"
+    }
   },
   {
     "id": "core.route.moderation.create_report",
@@ -1735,7 +2718,12 @@
     "path": "/api/v1/moderation/reports",
     "source": "apps/api/app/Http/Controllers/Moderation/routes.go:7",
     "access": "login",
-    "policy": "active actor and report deduplication policy"
+    "policy": "active actor and report deduplication policy",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.moderation.report"
+    }
   },
   {
     "id": "core.route.moderation.get_review_context",
@@ -1746,7 +2734,14 @@
     "path": "/api/v1/moderation/workbench/context/:targetType/:targetID",
     "source": "apps/api/app/Http/Controllers/Moderation/routes.go:22",
     "access": "permission",
-    "policy": "moderation.review; moderation.view_ip controls sensitive fields"
+    "policy": "moderation.review; moderation.view_ip controls sensitive fields",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [
+        "moderation.review"
+      ],
+      "evaluatorId": "core.guard.moderation.review"
+    }
   },
   {
     "id": "core.route.moderation.queue_counts",
@@ -1757,7 +2752,14 @@
     "path": "/api/v1/moderation/workbench/counts",
     "source": "apps/api/app/Http/Controllers/Moderation/routes.go:18",
     "access": "permission",
-    "policy": "moderation.review; moderation.view_ip controls sensitive fields"
+    "policy": "moderation.review; moderation.view_ip controls sensitive fields",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [
+        "moderation.review"
+      ],
+      "evaluatorId": "core.guard.moderation.review"
+    }
   },
   {
     "id": "core.route.moderation.submit_decision",
@@ -1768,7 +2770,14 @@
     "path": "/api/v1/moderation/workbench/decisions",
     "source": "apps/api/app/Http/Controllers/Moderation/routes.go:23",
     "access": "permission",
-    "policy": "moderation.review; moderation.view_ip controls sensitive fields"
+    "policy": "moderation.review; moderation.view_ip controls sensitive fields",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [
+        "moderation.review"
+      ],
+      "evaluatorId": "core.guard.moderation.review"
+    }
   },
   {
     "id": "core.route.moderation.list_workbench_history",
@@ -1779,7 +2788,14 @@
     "path": "/api/v1/moderation/workbench/history",
     "source": "apps/api/app/Http/Controllers/Moderation/routes.go:21",
     "access": "permission",
-    "policy": "moderation.review; moderation.view_ip controls sensitive fields"
+    "policy": "moderation.review; moderation.view_ip controls sensitive fields",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [
+        "moderation.review"
+      ],
+      "evaluatorId": "core.guard.moderation.review"
+    }
   },
   {
     "id": "core.route.moderation.list_pending",
@@ -1790,7 +2806,14 @@
     "path": "/api/v1/moderation/workbench/pending",
     "source": "apps/api/app/Http/Controllers/Moderation/routes.go:19",
     "access": "permission",
-    "policy": "moderation.review; moderation.view_ip controls sensitive fields"
+    "policy": "moderation.review; moderation.view_ip controls sensitive fields",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [
+        "moderation.review"
+      ],
+      "evaluatorId": "core.guard.moderation.review"
+    }
   },
   {
     "id": "core.route.moderation.list_report_items",
@@ -1801,7 +2824,14 @@
     "path": "/api/v1/moderation/workbench/reports",
     "source": "apps/api/app/Http/Controllers/Moderation/routes.go:20",
     "access": "permission",
-    "policy": "moderation.review; moderation.view_ip controls sensitive fields"
+    "policy": "moderation.review; moderation.view_ip controls sensitive fields",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [
+        "moderation.review"
+      ],
+      "evaluatorId": "core.guard.moderation.review"
+    }
   },
   {
     "id": "core.route.notifications.list",
@@ -1812,7 +2842,12 @@
     "path": "/api/v1/notifications",
     "source": "apps/api/app/Http/Controllers/Notifications/controller.go:33",
     "access": "login",
-    "policy": "current recipient ownership"
+    "policy": "current recipient ownership",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.notifications.recipient"
+    }
   },
   {
     "id": "core.route.notifications.mark_read",
@@ -1823,7 +2858,12 @@
     "path": "/api/v1/notifications/:id/read",
     "source": "apps/api/app/Http/Controllers/Notifications/controller.go:35",
     "access": "login",
-    "policy": "current recipient ownership"
+    "policy": "current recipient ownership",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.notifications.recipient"
+    }
   },
   {
     "id": "core.route.notifications.mark_all_read",
@@ -1834,7 +2874,12 @@
     "path": "/api/v1/notifications/read-all",
     "source": "apps/api/app/Http/Controllers/Notifications/controller.go:36",
     "access": "login",
-    "policy": "current recipient ownership"
+    "policy": "current recipient ownership",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.notifications.recipient"
+    }
   },
   {
     "id": "core.route.notifications.unread_count",
@@ -1845,7 +2890,12 @@
     "path": "/api/v1/notifications/unread-count",
     "source": "apps/api/app/Http/Controllers/Notifications/controller.go:34",
     "access": "login",
-    "policy": "current recipient ownership"
+    "policy": "current recipient ownership",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.notifications.recipient"
+    }
   },
   {
     "id": "core.route.pages.public_catalog",
@@ -1856,7 +2906,12 @@
     "path": "/api/v1/pages/catalog",
     "source": "apps/api/app/Http/Controllers/Pages/controller.go:65",
     "access": "public",
-    "policy": "pages public read policy; visibility rechecked by service"
+    "policy": "pages public read policy; visibility rechecked by service",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.pages.catalog"
+    }
   },
   {
     "id": "core.route.pages.resolve",
@@ -1867,7 +2922,12 @@
     "path": "/api/v1/pages/resolve",
     "source": "apps/api/app/Http/Controllers/Pages/controller.go:63",
     "access": "contextual",
-    "policy": "resolved Page Registry access enum; loader receives no raw session authority"
+    "policy": "resolved Page Registry access enum; loader receives no raw session authority",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.pages.resolve"
+    }
   },
   {
     "id": "core.route.pages.resolve_path",
@@ -1878,7 +2938,12 @@
     "path": "/api/v1/pages/resolve-path",
     "source": "apps/api/app/Http/Controllers/Pages/controller.go:64",
     "access": "contextual",
-    "policy": "resolved Page Registry access enum; loader receives no raw session authority"
+    "policy": "resolved Page Registry access enum; loader receives no raw session authority",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.pages.resolve"
+    }
   },
   {
     "id": "core.route.identity.list_permissions",
@@ -1889,7 +2954,12 @@
     "path": "/api/v1/permissions",
     "source": "apps/api/app/Http/Controllers/Identity/routes.go:34",
     "access": "permission",
-    "policy": "identity service route-specific user.view/user.manage/role.manage/user.ban policy"
+    "policy": "identity service route-specific user.view/user.manage/role.manage/user.ban policy",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.identity.admin"
+    }
   },
   {
     "id": "core.route.identity.permission_matrix",
@@ -1900,7 +2970,12 @@
     "path": "/api/v1/permissions/matrix",
     "source": "apps/api/app/Http/Controllers/Identity/routes.go:35",
     "access": "permission",
-    "policy": "identity service route-specific user.view/user.manage/role.manage/user.ban policy"
+    "policy": "identity service route-specific user.view/user.manage/role.manage/user.ban policy",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.identity.admin"
+    }
   },
   {
     "id": "core.route.profile.my_profile",
@@ -1911,7 +2986,12 @@
     "path": "/api/v1/profile",
     "source": "apps/api/app/Http/Controllers/Profile/routes.go:9",
     "access": "login",
-    "policy": "current active actor; attachment.upload for avatar upload"
+    "policy": "current active actor; attachment.upload for avatar upload",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.profile.self"
+    }
   },
   {
     "id": "core.route.profile.update_my_profile",
@@ -1922,7 +3002,12 @@
     "path": "/api/v1/profile",
     "source": "apps/api/app/Http/Controllers/Profile/routes.go:10",
     "access": "login",
-    "policy": "current active actor; attachment.upload for avatar upload"
+    "policy": "current active actor; attachment.upload for avatar upload",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.profile.self"
+    }
   },
   {
     "id": "core.route.profile.delete_avatar",
@@ -1933,7 +3018,12 @@
     "path": "/api/v1/profile/avatar",
     "source": "apps/api/app/Http/Controllers/Profile/routes.go:12",
     "access": "login",
-    "policy": "current active actor; attachment.upload for avatar upload"
+    "policy": "current active actor; attachment.upload for avatar upload",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.profile.self"
+    }
   },
   {
     "id": "core.route.profile.upload_avatar",
@@ -1944,7 +3034,12 @@
     "path": "/api/v1/profile/avatar",
     "source": "apps/api/app/Http/Controllers/Profile/routes.go:11",
     "access": "login",
-    "policy": "current active actor; attachment.upload for avatar upload"
+    "policy": "current active actor; attachment.upload for avatar upload",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.profile.self"
+    }
   },
   {
     "id": "core.route.profile.public_profile",
@@ -1955,7 +3050,12 @@
     "path": "/api/v1/profiles/:username",
     "source": "apps/api/app/Http/Controllers/Profile/routes.go:7",
     "access": "public",
-    "policy": "public read contract"
+    "policy": "public read contract",
+    "guard": {
+      "kind": "public",
+      "permissions": [],
+      "evaluatorId": ""
+    }
   },
   {
     "id": "core.route.system.ready",
@@ -1964,9 +3064,14 @@
     "handler": "ready",
     "method": "GET",
     "path": "/api/v1/ready",
-    "source": "apps/api/app/Http/server.go:182",
+    "source": "apps/api/app/Http/server.go:190",
     "access": "public",
-    "policy": "host liveness/readiness; non-overridable recovery prerequisite"
+    "policy": "host liveness/readiness; non-overridable recovery prerequisite",
+    "guard": {
+      "kind": "public",
+      "permissions": [],
+      "evaluatorId": ""
+    }
   },
   {
     "id": "core.route.identity.list_roles",
@@ -1977,7 +3082,12 @@
     "path": "/api/v1/roles",
     "source": "apps/api/app/Http/Controllers/Identity/routes.go:37",
     "access": "permission",
-    "policy": "identity service route-specific user.view/user.manage/role.manage/user.ban policy"
+    "policy": "identity service route-specific user.view/user.manage/role.manage/user.ban policy",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.identity.admin"
+    }
   },
   {
     "id": "core.route.identity.create_role",
@@ -1988,7 +3098,12 @@
     "path": "/api/v1/roles",
     "source": "apps/api/app/Http/Controllers/Identity/routes.go:38",
     "access": "permission",
-    "policy": "identity service route-specific user.view/user.manage/role.manage/user.ban policy"
+    "policy": "identity service route-specific user.view/user.manage/role.manage/user.ban policy",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.identity.admin"
+    }
   },
   {
     "id": "core.route.identity.delete_role",
@@ -1999,7 +3114,12 @@
     "path": "/api/v1/roles/:roleKey",
     "source": "apps/api/app/Http/Controllers/Identity/routes.go:40",
     "access": "permission",
-    "policy": "identity service route-specific user.view/user.manage/role.manage/user.ban policy"
+    "policy": "identity service route-specific user.view/user.manage/role.manage/user.ban policy",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.identity.admin"
+    }
   },
   {
     "id": "core.route.identity.update_role",
@@ -2010,7 +3130,12 @@
     "path": "/api/v1/roles/:roleKey",
     "source": "apps/api/app/Http/Controllers/Identity/routes.go:39",
     "access": "permission",
-    "policy": "identity service route-specific user.view/user.manage/role.manage/user.ban policy"
+    "policy": "identity service route-specific user.view/user.manage/role.manage/user.ban policy",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.identity.admin"
+    }
   },
   {
     "id": "core.route.identity.replace_role_permissions",
@@ -2021,7 +3146,12 @@
     "path": "/api/v1/roles/:roleKey/permissions",
     "source": "apps/api/app/Http/Controllers/Identity/routes.go:41",
     "access": "permission",
-    "policy": "identity service route-specific user.view/user.manage/role.manage/user.ban policy"
+    "policy": "identity service route-specific user.view/user.manage/role.manage/user.ban policy",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.identity.admin"
+    }
   },
   {
     "id": "core.route.forum.search",
@@ -2032,7 +3162,12 @@
     "path": "/api/v1/search",
     "source": "apps/api/app/Http/Controllers/Forum/routes.go:19",
     "access": "public",
-    "policy": "forum public read policy; visibility rechecked by service"
+    "policy": "forum public read policy; visibility rechecked by service",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.forum.read"
+    }
   },
   {
     "id": "core.route.seo.list",
@@ -2043,7 +3178,12 @@
     "path": "/api/v1/seo/sitemap-entries",
     "source": "apps/api/app/Http/Controllers/SEO/controller.go:28",
     "access": "public",
-    "policy": "seo public read policy; visibility rechecked by service"
+    "policy": "seo public read policy; visibility rechecked by service",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.seo.read"
+    }
   },
   {
     "id": "core.route.extensions.public_active_theme_settings",
@@ -2054,7 +3194,12 @@
     "path": "/api/v1/site/active-theme/settings",
     "source": "apps/api/app/Http/Controllers/Extensions/routes.go:7",
     "access": "public",
-    "policy": "public read contract"
+    "policy": "public read contract",
+    "guard": {
+      "kind": "public",
+      "permissions": [],
+      "evaluatorId": ""
+    }
   },
   {
     "id": "core.route.pages.active_skin",
@@ -2065,7 +3210,12 @@
     "path": "/api/v1/site/active-theme/skin",
     "source": "apps/api/app/Http/Controllers/Pages/controller.go:66",
     "access": "public",
-    "policy": "public read contract"
+    "policy": "public read contract",
+    "guard": {
+      "kind": "public",
+      "permissions": [],
+      "evaluatorId": ""
+    }
   },
   {
     "id": "core.route.site_chrome.public_announcements",
@@ -2076,7 +3226,12 @@
     "path": "/api/v1/site/announcements",
     "source": "apps/api/app/Http/Controllers/SiteChrome/routes.go:9",
     "access": "public",
-    "policy": "public read contract"
+    "policy": "public read contract",
+    "guard": {
+      "kind": "public",
+      "permissions": [],
+      "evaluatorId": ""
+    }
   },
   {
     "id": "core.route.site_chrome.public_friend_links",
@@ -2087,7 +3242,12 @@
     "path": "/api/v1/site/friend-links",
     "source": "apps/api/app/Http/Controllers/SiteChrome/routes.go:8",
     "access": "public",
-    "policy": "public read contract"
+    "policy": "public read contract",
+    "guard": {
+      "kind": "public",
+      "permissions": [],
+      "evaluatorId": ""
+    }
   },
   {
     "id": "core.route.site_chrome.public_nav_items",
@@ -2098,7 +3258,12 @@
     "path": "/api/v1/site/nav-items",
     "source": "apps/api/app/Http/Controllers/SiteChrome/routes.go:7",
     "access": "public",
-    "policy": "public read contract"
+    "policy": "public read contract",
+    "guard": {
+      "kind": "public",
+      "permissions": [],
+      "evaluatorId": ""
+    }
   },
   {
     "id": "core.route.pages.theme_asset",
@@ -2109,7 +3274,12 @@
     "path": "/api/v1/site/theme-assets/:extensionId/*",
     "source": "apps/api/app/Http/Controllers/Pages/controller.go:67",
     "access": "public",
-    "policy": "active package containment, digest, MIME, and path policy"
+    "policy": "active package containment, digest, MIME, and path policy",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.pages.theme_asset"
+    }
   },
   {
     "id": "core.route.forum.tags",
@@ -2120,7 +3290,12 @@
     "path": "/api/v1/tags",
     "source": "apps/api/app/Http/Controllers/Forum/routes.go:16",
     "access": "public",
-    "policy": "forum public read policy; visibility rechecked by service"
+    "policy": "forum public read policy; visibility rechecked by service",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.forum.read"
+    }
   },
   {
     "id": "core.route.forum.topics",
@@ -2131,7 +3306,12 @@
     "path": "/api/v1/topics",
     "source": "apps/api/app/Http/Controllers/Forum/routes.go:21",
     "access": "public",
-    "policy": "forum public read policy; visibility rechecked by service"
+    "policy": "forum public read policy; visibility rechecked by service",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.forum.read"
+    }
   },
   {
     "id": "core.route.forum.create_topic",
@@ -2142,7 +3322,14 @@
     "path": "/api/v1/topics",
     "source": "apps/api/app/Http/Controllers/Forum/routes.go:25",
     "access": "permission",
-    "policy": "topic.create plus forum publication policy"
+    "policy": "topic.create plus forum publication policy",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [
+        "topic.create"
+      ],
+      "evaluatorId": "core.guard.forum.topic_create"
+    }
   },
   {
     "id": "core.route.forum.delete_topic",
@@ -2153,7 +3340,15 @@
     "path": "/api/v1/topics/:topicID",
     "source": "apps/api/app/Http/Controllers/Forum/routes.go:31",
     "access": "permission",
-    "policy": "topic.delete_own or topic.delete_any"
+    "policy": "topic.delete_own or topic.delete_any",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [
+        "topic.delete_own",
+        "topic.delete_any"
+      ],
+      "evaluatorId": "core.guard.forum.topic_delete"
+    }
   },
   {
     "id": "core.route.forum.topic",
@@ -2164,7 +3359,12 @@
     "path": "/api/v1/topics/:topicID",
     "source": "apps/api/app/Http/Controllers/Forum/routes.go:29",
     "access": "public",
-    "policy": "forum public read policy; visibility rechecked by service"
+    "policy": "forum public read policy; visibility rechecked by service",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.forum.read"
+    }
   },
   {
     "id": "core.route.forum.update_topic",
@@ -2175,7 +3375,15 @@
     "path": "/api/v1/topics/:topicID",
     "source": "apps/api/app/Http/Controllers/Forum/routes.go:30",
     "access": "permission",
-    "policy": "topic.edit_own or topic.edit_any"
+    "policy": "topic.edit_own or topic.edit_any",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [
+        "topic.edit_own",
+        "topic.edit_any"
+      ],
+      "evaluatorId": "core.guard.forum.topic_edit"
+    }
   },
   {
     "id": "core.route.forum.comments",
@@ -2186,7 +3394,12 @@
     "path": "/api/v1/topics/:topicID/comments",
     "source": "apps/api/app/Http/Controllers/Forum/routes.go:38",
     "access": "public",
-    "policy": "forum public read policy; visibility rechecked by service"
+    "policy": "forum public read policy; visibility rechecked by service",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.forum.read"
+    }
   },
   {
     "id": "core.route.forum.create_comment",
@@ -2197,7 +3410,14 @@
     "path": "/api/v1/topics/:topicID/comments",
     "source": "apps/api/app/Http/Controllers/Forum/routes.go:42",
     "access": "permission",
-    "policy": "post.create plus topic/publication policy"
+    "policy": "post.create plus topic/publication policy",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [
+        "post.create"
+      ],
+      "evaluatorId": "core.guard.forum.comment_create"
+    }
   },
   {
     "id": "core.route.forum.hide_topic",
@@ -2208,7 +3428,14 @@
     "path": "/api/v1/topics/:topicID/hide",
     "source": "apps/api/app/Http/Controllers/Forum/routes.go:32",
     "access": "permission",
-    "policy": "topic.delete_any plus state policy"
+    "policy": "topic.delete_any plus state policy",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [
+        "topic.delete_any"
+      ],
+      "evaluatorId": "core.guard.forum.topic_state"
+    }
   },
   {
     "id": "core.route.forum.lock_topic",
@@ -2219,7 +3446,14 @@
     "path": "/api/v1/topics/:topicID/lock",
     "source": "apps/api/app/Http/Controllers/Forum/routes.go:34",
     "access": "permission",
-    "policy": "topic.lock or allowed author close policy"
+    "policy": "topic.lock or allowed author close policy",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [
+        "topic.lock"
+      ],
+      "evaluatorId": "core.guard.forum.topic_lock"
+    }
   },
   {
     "id": "core.route.forum.pin_topic",
@@ -2230,7 +3464,14 @@
     "path": "/api/v1/topics/:topicID/pin",
     "source": "apps/api/app/Http/Controllers/Forum/routes.go:36",
     "access": "permission",
-    "policy": "topic.pin"
+    "policy": "topic.pin",
+    "guard": {
+      "kind": "permission_any",
+      "permissions": [
+        "topic.pin"
+      ],
+      "evaluatorId": ""
+    }
   },
   {
     "id": "core.route.forum.restore_topic",
@@ -2241,7 +3482,14 @@
     "path": "/api/v1/topics/:topicID/restore",
     "source": "apps/api/app/Http/Controllers/Forum/routes.go:33",
     "access": "permission",
-    "policy": "topic.delete_any plus state policy"
+    "policy": "topic.delete_any plus state policy",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [
+        "topic.delete_any"
+      ],
+      "evaluatorId": "core.guard.forum.topic_state"
+    }
   },
   {
     "id": "core.route.forum.unlock_topic",
@@ -2252,7 +3500,14 @@
     "path": "/api/v1/topics/:topicID/unlock",
     "source": "apps/api/app/Http/Controllers/Forum/routes.go:35",
     "access": "permission",
-    "policy": "topic.lock or allowed author close policy"
+    "policy": "topic.lock or allowed author close policy",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [
+        "topic.lock"
+      ],
+      "evaluatorId": "core.guard.forum.topic_lock"
+    }
   },
   {
     "id": "core.route.forum.unpin_topic",
@@ -2263,7 +3518,14 @@
     "path": "/api/v1/topics/:topicID/unpin",
     "source": "apps/api/app/Http/Controllers/Forum/routes.go:37",
     "access": "permission",
-    "policy": "topic.pin"
+    "policy": "topic.pin",
+    "guard": {
+      "kind": "permission_any",
+      "permissions": [
+        "topic.pin"
+      ],
+      "evaluatorId": ""
+    }
   },
   {
     "id": "core.route.forum.topic_by_slug",
@@ -2274,7 +3536,12 @@
     "path": "/api/v1/topics/by-slug/:slug",
     "source": "apps/api/app/Http/Controllers/Forum/routes.go:28",
     "access": "public",
-    "policy": "forum public read policy; visibility rechecked by service"
+    "policy": "forum public read policy; visibility rechecked by service",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.forum.read"
+    }
   },
   {
     "id": "core.route.identity.list_users",
@@ -2285,7 +3552,12 @@
     "path": "/api/v1/users",
     "source": "apps/api/app/Http/Controllers/Identity/routes.go:43",
     "access": "permission",
-    "policy": "identity service route-specific user.view/user.manage/role.manage/user.ban policy"
+    "policy": "identity service route-specific user.view/user.manage/role.manage/user.ban policy",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.identity.admin"
+    }
   },
   {
     "id": "core.route.identity.get_user",
@@ -2296,7 +3568,12 @@
     "path": "/api/v1/users/:userID",
     "source": "apps/api/app/Http/Controllers/Identity/routes.go:44",
     "access": "permission",
-    "policy": "identity service route-specific user.view/user.manage/role.manage/user.ban policy"
+    "policy": "identity service route-specific user.view/user.manage/role.manage/user.ban policy",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.identity.admin"
+    }
   },
   {
     "id": "core.route.identity.update_user",
@@ -2307,7 +3584,12 @@
     "path": "/api/v1/users/:userID",
     "source": "apps/api/app/Http/Controllers/Identity/routes.go:46",
     "access": "permission",
-    "policy": "identity service route-specific user.view/user.manage/role.manage/user.ban policy"
+    "policy": "identity service route-specific user.view/user.manage/role.manage/user.ban policy",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.identity.admin"
+    }
   },
   {
     "id": "core.route.identity.admin_clear_user_client_ips",
@@ -2318,7 +3600,12 @@
     "path": "/api/v1/users/:userID/client-ips/clear",
     "source": "apps/api/app/Http/Controllers/Identity/routes.go:52",
     "access": "permission",
-    "policy": "identity service route-specific user.view/user.manage/role.manage/user.ban policy"
+    "policy": "identity service route-specific user.view/user.manage/role.manage/user.ban policy",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.identity.admin"
+    }
   },
   {
     "id": "core.route.identity.replace_user_permission_overrides",
@@ -2329,7 +3616,12 @@
     "path": "/api/v1/users/:userID/permission-overrides",
     "source": "apps/api/app/Http/Controllers/Identity/routes.go:48",
     "access": "permission",
-    "policy": "identity service route-specific user.view/user.manage/role.manage/user.ban policy"
+    "policy": "identity service route-specific user.view/user.manage/role.manage/user.ban policy",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.identity.admin"
+    }
   },
   {
     "id": "core.route.identity.replace_user_roles",
@@ -2340,7 +3632,12 @@
     "path": "/api/v1/users/:userID/roles",
     "source": "apps/api/app/Http/Controllers/Identity/routes.go:47",
     "access": "permission",
-    "policy": "identity service route-specific user.view/user.manage/role.manage/user.ban policy"
+    "policy": "identity service route-specific user.view/user.manage/role.manage/user.ban policy",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.identity.admin"
+    }
   },
   {
     "id": "core.route.identity.admin_revoke_user_sessions",
@@ -2351,7 +3648,12 @@
     "path": "/api/v1/users/:userID/sessions/revoke",
     "source": "apps/api/app/Http/Controllers/Identity/routes.go:50",
     "access": "permission",
-    "policy": "identity service route-specific user.view/user.manage/role.manage/user.ban policy"
+    "policy": "identity service route-specific user.view/user.manage/role.manage/user.ban policy",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.identity.admin"
+    }
   },
   {
     "id": "core.route.options.list_public",
@@ -2362,7 +3664,12 @@
     "path": "/api/v1/web-options",
     "source": "apps/api/app/Http/Controllers/Options/routes.go:6",
     "access": "public",
-    "policy": "public read contract"
+    "policy": "public read contract",
+    "guard": {
+      "kind": "public",
+      "permissions": [],
+      "evaluatorId": ""
+    }
   },
   {
     "id": "core.route.options.update",
@@ -2373,7 +3680,12 @@
     "path": "/api/v1/web-options",
     "source": "apps/api/app/Http/Controllers/Options/routes.go:8",
     "access": "permission",
-    "policy": "option-owner permission dispatch"
+    "policy": "option-owner permission dispatch",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.options.owner"
+    }
   },
   {
     "id": "core.route.options.get_public",
@@ -2384,7 +3696,12 @@
     "path": "/api/v1/web-options/:name",
     "source": "apps/api/app/Http/Controllers/Options/routes.go:7",
     "access": "public",
-    "policy": "public read contract"
+    "policy": "public read contract",
+    "guard": {
+      "kind": "public",
+      "permissions": [],
+      "evaluatorId": ""
+    }
   },
   {
     "id": "core.route.webhooks.inbound",
@@ -2395,6 +3712,11 @@
     "path": "/api/v1/webhooks/inbound/:source",
     "source": "apps/api/app/Http/Controllers/Webhooks/controller.go:37",
     "access": "public",
-    "policy": "source-specific signature/idempotency policy"
+    "policy": "source-specific signature/idempotency policy",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.webhooks.inbound"
+    }
   }
 ]

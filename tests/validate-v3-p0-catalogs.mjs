@@ -22,6 +22,33 @@ function unique(items, key, label) {
   }
 }
 
+function normalizeRoutePath(...parts) {
+  const value = parts.join('/').replaceAll(/\/+/g, '/')
+  return value === '/' ? value : value.replace(/\/$/, '')
+}
+
+function validateRouteSource(route) {
+  const separator = route.source.lastIndexOf(':')
+  assert(separator > 0, `${route.id} source has no line number`)
+  const source = route.source.slice(0, separator)
+  const lineNumber = Number(route.source.slice(separator + 1))
+  const lines = readFileSync(resolve(root, source), 'utf8').split('\n')
+  assert(Number.isSafeInteger(lineNumber) && lineNumber > 0 && lineNumber <= lines.length, `${route.id} source line is invalid`)
+
+  const routers = new Map([['api', '']])
+  for (let index = 0; index < lineNumber - 1; index++) {
+    const group = lines[index].match(/(\w+)\s*:=\s*(\w+)\.Group\("([^"]*)"\)/)
+    if (group && routers.has(group[2])) routers.set(group[1], normalizeRoutePath(routers.get(group[2]), group[3]))
+  }
+  const registration = lines[lineNumber - 1].match(/(\w+)\.(Get|Post|Put|Patch|Delete|All)\("([^"]*)"/)
+  assert(registration, `${route.id} source line is not a route registration`)
+  const method = registration[2] === 'All' ? '*' : registration[2].toUpperCase()
+  assert(method === route.method, `${route.id} source method ${method} does not match ${route.method}`)
+  assert(routers.has(registration[1]), `${route.id} source router ${registration[1]} has no discoverable group`)
+  const path = normalizeRoutePath('/api/v1', routers.get(registration[1]), registration[3])
+  assert(path === route.path, `${route.id} source path ${path} does not match ${route.path}`)
+}
+
 const generated = spawnSync(process.execPath, ['scripts/v3-catalog/generate.mjs', '--check'], {
   cwd: root,
   encoding: 'utf8'
@@ -30,7 +57,7 @@ assert(generated.status === 0, generated.stderr || generated.stdout || 'V3 catal
 
 const routes = load('docs/extensions/v3/catalogs/routes.json')
 const identities = load('docs/extensions/v3/catalog-identities.json')
-assert(routes.length >= 130, `route inventory unexpectedly small: ${routes.length}`)
+assert(routes.length === 218, `route inventory must contain exactly 218 reviewed routes: ${routes.length}`)
 assert(identities.routes.length === routes.length, 'reviewed route identity map must cover every current route')
 unique(routes, item => item.id, 'route inventory ids')
 unique(routes, item => `${item.method} ${item.path}`, 'route inventory method/path pairs')
@@ -38,8 +65,26 @@ for (const route of routes) {
   assert(/^core\.route\.[a-z0-9_.]+$/.test(route.id), `invalid route id ${route.id}`)
   assert(/^sforum\.route\.[a-z0-9_.]+@1$/.test(route.contractVersion), `invalid route contract ${route.contractVersion}`)
   assert(route.access && route.policy, `${route.id} must record access and policy`)
-  assert(existsSync(resolve(root, route.source.split(':')[0])), `${route.id} source is missing`)
+  assert(route.guard && ['public', 'login', 'guest', 'super_admin', 'permission_any', 'contextual'].includes(route.guard.kind), `${route.id} has no typed reviewed guard`)
+  assert(Array.isArray(route.guard.permissions), `${route.id} guard permissions must be explicit`)
+  if (route.guard.kind === 'permission_any') assert(route.guard.permissions.length > 0 && !route.guard.evaluatorId, `${route.id} permission guard is incomplete`)
+  if (route.guard.kind === 'contextual') assert(/^core\.guard\.[a-z0-9_.]+$/.test(route.guard.evaluatorId), `${route.id} contextual evaluator is missing`)
+  if (!['permission_any', 'contextual'].includes(route.guard.kind)) assert(route.guard.permissions.length === 0 && !route.guard.evaluatorId, `${route.id} metadata guard has contextual fields`)
+  validateRouteSource(route)
 }
+
+const frontendTrustPolicies = new Map([
+  ['core.route.extensions.frontend_confirmation', 'active super_admin challenge issuance'],
+  ['core.route.extensions.grant_frontend_trust', 'active super_admin plus actor-bound exact frontend artifact confirmation'],
+  ['core.route.extensions.revoke_frontend_trust', 'active super_admin trust revocation']
+])
+for (const [id, policy] of frontendTrustPolicies) {
+  const route = routes.find(item => item.id === id)
+  assert(route?.policy === policy, `${id} frontend trust policy drifted`)
+  assert(route.guard.kind === 'super_admin', `${id} must retain its typed super_admin guard`)
+}
+const exactFrontendConfirmationRoutes = routes.filter(route => route.policy.includes('exact frontend artifact confirmation'))
+assert(exactFrontendConfirmationRoutes.length === 1 && exactFrontendConfirmationRoutes[0].id === 'core.route.extensions.grant_frontend_trust', 'only frontend trust grant may claim exact artifact confirmation')
 
 const ui = load('docs/extensions/v3/catalogs/ui-surfaces.json')
 assert(ui.length >= 110, `UI inventory unexpectedly small: ${ui.length}`)

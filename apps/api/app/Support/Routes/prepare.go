@@ -24,6 +24,13 @@ func prepareCoreRoute(input CoreRoute) ([]preparedRoute, error) {
 		input.Method != strings.ToUpper(input.Method) {
 		return nil, fmt.Errorf("%w: invalid core route identity", ErrInvalidRoute)
 	}
+	// Compatibility publications may omit policy metadata, but an inherited
+	// plugin guard can never resolve such a route and therefore remains closed.
+	if !coreGuardDescriptorIsZero(input.Guard) {
+		if err := validateCoreGuardDescriptor(input); err != nil {
+			return nil, err
+		}
+	}
 	compiled, err := compileRoutePath(input.Path)
 	if err != nil {
 		return nil, err
@@ -32,6 +39,7 @@ func prepareCoreRoute(input CoreRoute) ([]preparedRoute, error) {
 		ID: input.ID, ContractVersion: input.ContractVersion, Action: extensionmanifest.RouteActionAdd,
 		Path: input.Path, Method: input.Method, Priority: input.Priority, Mode: extensionmanifest.RouteModeHTTP,
 		PathSignature: compiled.signature, Provider: Provider{Kind: ProviderCore},
+		CoreGuard: cloneCoreGuardDescriptor(input.Guard),
 	}, path: compiled}}, nil
 }
 

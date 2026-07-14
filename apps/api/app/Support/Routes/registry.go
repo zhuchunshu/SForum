@@ -53,6 +53,7 @@ type CoreRoute struct {
 	Method          string
 	Path            string
 	Priority        int
+	Guard           CoreGuardDescriptor
 }
 
 type PluginRouteSet struct {
@@ -87,6 +88,7 @@ type Route struct {
 	TimeoutMS       int
 	PathSignature   string
 	Provider        Provider
+	CoreGuard       CoreGuardDescriptor
 }
 
 type Conflict struct {
@@ -116,6 +118,17 @@ type Match struct {
 	Params        map[string]string
 	Contributions []Route
 	Candidates    []Route
+}
+
+func equalRoute(left, right Route) bool {
+	return left.ID == right.ID && left.ContractVersion == right.ContractVersion &&
+		left.Action == right.Action && left.TargetID == right.TargetID && left.Path == right.Path &&
+		left.Method == right.Method && left.Guard == right.Guard && left.Permission == right.Permission &&
+		left.Priority == right.Priority && left.Fallback == right.Fallback && left.Mode == right.Mode &&
+		left.Destination == right.Destination && left.Handler == right.Handler &&
+		left.RequestSchema == right.RequestSchema && left.ResponseSchema == right.ResponseSchema &&
+		left.TimeoutMS == right.TimeoutMS && left.PathSignature == right.PathSignature &&
+		left.Provider == right.Provider && equalCoreGuardDescriptor(left.CoreGuard, right.CoreGuard)
 }
 
 type preparedRoute struct {
@@ -316,7 +329,7 @@ func (r *Registry) Resolve(method, requestPath string) (Match, error) {
 	}
 	sortRoutes(contributions)
 	return Match{
-		Revision: snapshot.revision, Route: best.prepared.route, Params: best.params,
+		Revision: snapshot.revision, Route: cloneRoute(best.prepared.route), Params: best.params,
 		Contributions: cloneRoutes(contributions),
 	}, nil
 }
@@ -447,14 +460,23 @@ func snapshotView(snapshot *registrySnapshot) Snapshot {
 	view := Snapshot{Revision: snapshot.revision, SafeMode: snapshot.safeMode}
 	view.Routes = make([]Route, 0, len(snapshot.routes))
 	for _, item := range snapshot.routes {
-		view.Routes = append(view.Routes, item.route)
+		view.Routes = append(view.Routes, cloneRoute(item.route))
 	}
 	view.Conflicts = cloneConflicts(snapshot.conflicts)
 	return view
 }
 
+func cloneRoute(value Route) Route {
+	value.CoreGuard = cloneCoreGuardDescriptor(value.CoreGuard)
+	return value
+}
+
 func cloneRoutes(values []Route) []Route {
-	return append([]Route(nil), values...)
+	result := append([]Route(nil), values...)
+	for index := range result {
+		result[index] = cloneRoute(result[index])
+	}
+	return result
 }
 
 func cloneConflicts(values []Conflict) []Conflict {
@@ -469,6 +491,9 @@ func cloneConflicts(values []Conflict) []Conflict {
 func clonePublication(value Publication) Publication {
 	result := Publication{SafeMode: value.SafeMode}
 	result.Core = append([]CoreRoute(nil), value.Core...)
+	for index := range result.Core {
+		result.Core[index].Guard = cloneCoreGuardDescriptor(result.Core[index].Guard)
+	}
 	result.Plugins = make([]PluginRouteSet, len(value.Plugins))
 	for index, plugin := range value.Plugins {
 		result.Plugins[index] = PluginRouteSet{

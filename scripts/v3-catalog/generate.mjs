@@ -92,11 +92,23 @@ function snake(value) {
     .toLowerCase()
 }
 
+function routeRegistrationSource(source, receiver, method, path) {
+  const needle = `${receiver}.${method}(${JSON.stringify(path)}`
+  const lines = read(source).split('\n')
+  const matches = lines.flatMap((line, index) => line.includes(needle) ? [index + 1] : [])
+  if (matches.length !== 1) {
+    throw new Error(`expected exactly one route registration ${needle} in ${source}, found ${matches.length}`)
+  }
+  return `${source}:${matches[0]}`
+}
+
 function routePolicy(route) {
   const { handler, method, module, path } = route
   if (path === '/api/v1/health' || path === '/api/v1/ready') return ['public', 'host liveness/readiness; non-overridable recovery prerequisite']
   if (path === '/api/v1/extensions/:extensionId/*') return ['declared', 'enabled plugin route declaration and manifest access policy']
-  if (path.startsWith('/api/v1/admin/extensions/') && /frontend\/(confirmation|trust)$/.test(path)) return ['super_admin', 'active super_admin plus exact frontend artifact confirmation']
+  if (path === '/api/v1/admin/extensions/:id/frontend/confirmation' && method === 'POST') return ['super_admin', 'active super_admin challenge issuance']
+  if (path === '/api/v1/admin/extensions/:id/frontend/trust' && method === 'POST') return ['super_admin', 'active super_admin plus actor-bound exact frontend artifact confirmation']
+  if (path === '/api/v1/admin/extensions/:id/frontend/trust' && method === 'DELETE') return ['super_admin', 'active super_admin trust revocation']
   if (path.startsWith('/api/v1/admin/extensions')) return ['permission', method === 'GET' ? 'extension.view or matching manage permission' : 'extension.plugin.manage or extension.theme.manage; operation-specific service policy']
   if (path.startsWith('/api/v1/admin/pages')) return ['permission', 'extension.view for inspection; theme/plugin manage and super_admin approval where required']
   if (path.startsWith('/api/v1/admin/attachment-settings')) return ['permission', 'attachment.settings.manage']
@@ -148,6 +160,75 @@ function routePolicy(route) {
   return ['service-policy', `${module}.${handler} authoritative actor/action/resource policy`]
 }
 
+const reviewedGuardPolicies = new Map([
+  ['admin.access', { kind: 'permission_any', permissions: ['admin.access'] }],
+  ['attachment.manage', { kind: 'permission_any', permissions: ['attachment.manage'] }],
+  ['attachment.settings.manage', { kind: 'permission_any', permissions: ['attachment.settings.manage'] }],
+  ['category.manage', { kind: 'permission_any', permissions: ['category.manage'] }],
+  ['database.manage', { kind: 'permission_any', permissions: ['database.manage'] }],
+  ['entity_meta.manage or settings.manage', { kind: 'permission_any', permissions: ['entity_meta.manage', 'settings.manage'] }],
+  ['jobs.manage', { kind: 'permission_any', permissions: ['jobs.manage'] }],
+  ['jobs.view', { kind: 'permission_any', permissions: ['jobs.view'] }],
+  ['moderation.manage', { kind: 'permission_any', permissions: ['moderation.manage'] }],
+  ['search.manage', { kind: 'permission_any', permissions: ['search.manage'] }],
+  ['seo.manage', { kind: 'permission_any', permissions: ['seo.manage'] }],
+  ['settings.mail.manage or settings.manage compatibility policy', { kind: 'permission_any', permissions: ['settings.mail.manage', 'settings.manage'] }],
+  ['settings.manage', { kind: 'permission_any', permissions: ['settings.manage'] }],
+  ['settings.manage or settings.site.manage', { kind: 'permission_any', permissions: ['settings.manage', 'settings.site.manage'] }],
+  ['settings.site.manage', { kind: 'permission_any', permissions: ['settings.site.manage'] }],
+  ['tag.manage', { kind: 'permission_any', permissions: ['tag.manage'] }],
+  ['topic.pin', { kind: 'permission_any', permissions: ['topic.pin'] }],
+  ['active super_admin challenge issuance', { kind: 'super_admin' }],
+  ['active super_admin plus actor-bound exact frontend artifact confirmation', { kind: 'super_admin' }],
+  ['active super_admin trust revocation', { kind: 'super_admin' }],
+  ['host liveness/readiness; non-overridable recovery prerequisite', { kind: 'public' }],
+  ['public read contract', { kind: 'public' }],
+  ['current browser session', { kind: 'login' }],
+
+  ['attachment.upload plus upload/media policy', { kind: 'contextual', permissions: ['attachment.upload'], evaluatorId: 'core.guard.attachments.upload' }],
+  ['attachment visibility and referenced resource read policy', { kind: 'contextual', evaluatorId: 'core.guard.attachments.read' }],
+  ['category.manage, tag.manage, or forum.settings.manage; field owner recheck', { kind: 'contextual', permissions: ['category.manage', 'tag.manage', 'forum.settings.manage'], evaluatorId: 'core.guard.forum.settings' }],
+  ['enabled plugin route declaration and manifest access policy', { kind: 'contextual', evaluatorId: 'core.guard.extensions.declared_route' }],
+  ['entity ownership plus field definition write policy', { kind: 'contextual', evaluatorId: 'core.guard.entity_meta.write' }],
+  ['extension.plugin.manage or extension.theme.manage; operation-specific service policy', { kind: 'contextual', evaluatorId: 'core.guard.extensions.mutation' }],
+  ['extension.view for inspection; theme/plugin manage and super_admin approval where required', { kind: 'contextual', evaluatorId: 'core.guard.pages.admin' }],
+  ['extension.view or matching manage permission', { kind: 'contextual', evaluatorId: 'core.guard.extensions.read' }],
+  ['identity service route-specific user.view/user.manage/role.manage/user.ban policy', { kind: 'contextual', evaluatorId: 'core.guard.identity.admin' }],
+  ['moderation.review; moderation.view_ip controls sensitive fields', { kind: 'contextual', permissions: ['moderation.review'], evaluatorId: 'core.guard.moderation.review' }],
+  ['option-owner permission dispatch', { kind: 'contextual', evaluatorId: 'core.guard.options.owner' }],
+  ['post edit/delete own or any policy', { kind: 'contextual', permissions: ['post.edit_own', 'post.edit_any', 'post.delete_own', 'post.delete_any'], evaluatorId: 'core.guard.forum.comment_write' }],
+  ['post.create plus topic/publication policy', { kind: 'contextual', permissions: ['post.create'], evaluatorId: 'core.guard.forum.comment_create' }],
+  ['topic.create plus forum publication policy', { kind: 'contextual', permissions: ['topic.create'], evaluatorId: 'core.guard.forum.topic_create' }],
+  ['topic.delete_any plus state policy', { kind: 'contextual', permissions: ['topic.delete_any'], evaluatorId: 'core.guard.forum.topic_state' }],
+  ['topic.delete_own or topic.delete_any', { kind: 'contextual', permissions: ['topic.delete_own', 'topic.delete_any'], evaluatorId: 'core.guard.forum.topic_delete' }],
+  ['topic.edit_own or topic.edit_any', { kind: 'contextual', permissions: ['topic.edit_own', 'topic.edit_any'], evaluatorId: 'core.guard.forum.topic_edit' }],
+  ['topic.lock or allowed author close policy', { kind: 'contextual', permissions: ['topic.lock'], evaluatorId: 'core.guard.forum.topic_lock' }],
+  ['active actor and report deduplication policy', { kind: 'contextual', evaluatorId: 'core.guard.moderation.report' }],
+  ['current active actor; attachment.upload for avatar upload', { kind: 'contextual', evaluatorId: 'core.guard.profile.self' }],
+  ['current active actor; token/session ownership', { kind: 'contextual', evaluatorId: 'core.guard.identity.self_credentials' }],
+  ['current active author ownership', { kind: 'contextual', evaluatorId: 'core.guard.forum.author_review' }],
+  ['current recipient ownership', { kind: 'contextual', evaluatorId: 'core.guard.notifications.recipient' }],
+  ['active package containment, digest, MIME, and path policy', { kind: 'contextual', evaluatorId: 'core.guard.pages.theme_asset' }],
+  ['forum public read policy; visibility rechecked by service', { kind: 'contextual', evaluatorId: 'core.guard.forum.read' }],
+  ['identity bootstrap, risk, rate-limit, and human-verification policy', { kind: 'contextual', evaluatorId: 'core.guard.identity.bootstrap' }],
+  ['pages public read policy; visibility rechecked by service', { kind: 'contextual', evaluatorId: 'core.guard.pages.catalog' }],
+  ['public definition visibility or actor/resource read policy', { kind: 'contextual', evaluatorId: 'core.guard.entity_meta.read' }],
+  ['purpose allowlist and Redis rate/replay policy', { kind: 'contextual', evaluatorId: 'core.guard.identity.human_verification' }],
+  ['resolved Page Registry access enum; loader receives no raw session authority', { kind: 'contextual', evaluatorId: 'core.guard.pages.resolve' }],
+  ['seo public read policy; visibility rechecked by service', { kind: 'contextual', evaluatorId: 'core.guard.seo.read' }],
+  ['source-specific signature/idempotency policy', { kind: 'contextual', evaluatorId: 'core.guard.webhooks.inbound' }]
+])
+
+function reviewedRouteGuard(route, access, policy) {
+  const reviewed = reviewedGuardPolicies.get(policy)
+  if (!reviewed) throw new Error(`route ${route.method} ${route.path} has no reviewed guard classification: ${access} / ${policy}`)
+  return {
+    kind: reviewed.kind,
+    permissions: [...(reviewed.permissions || [])],
+    evaluatorId: reviewed.evaluatorId || ''
+  }
+}
+
 function discoverRoutes() {
   const files = walk('apps/api/app/Http/Controllers', '.go').filter(path => !path.endsWith('_test.go'))
   const routes = []
@@ -172,8 +253,8 @@ function discoverRoutes() {
     }
   }
   routes.push(
-    { module: 'system', handler: 'health', method: 'GET', path: '/api/v1/health', source: 'apps/api/app/Http/server.go:169' },
-    { module: 'system', handler: 'ready', method: 'GET', path: '/api/v1/ready', source: 'apps/api/app/Http/server.go:182' }
+    { module: 'system', handler: 'health', method: 'GET', path: '/api/v1/health', source: routeRegistrationSource('apps/api/app/Http/server.go', 'api', 'Get', '/health') },
+    { module: 'system', handler: 'ready', method: 'GET', path: '/api/v1/ready', source: routeRegistrationSource('apps/api/app/Http/server.go', 'api', 'Get', '/ready') }
   )
   const unique = new Map()
   for (const route of routes) unique.set(`${route.method} ${route.path} ${route.handler}`, route)
@@ -189,7 +270,8 @@ function discoverRoutes() {
       contractVersion: `sforum.route.${base}@1`,
       ...item,
       access,
-      policy
+      policy,
+      guard: reviewedRouteGuard(item, access, policy)
     }
   })
 }
@@ -338,8 +420,8 @@ function buildAdminInventory() {
 }
 
 function renderRoutes(routes) {
-  const lines = ['# Core Route Catalog', '', '<!-- Generated by scripts/v3-catalog/generate.mjs. -->', '', '| Stable ID | Contract | Method | Path | Access | Policy | Handler source |', '| --- | --- | --- | --- | --- | --- | --- |']
-  for (const route of routes) lines.push(`| \`${route.id}\` | \`${route.contractVersion}\` | ${route.method} | \`${route.path}\` | ${route.access} | ${cell(route.policy)} | \`${route.source}\` |`)
+  const lines = ['# Core Route Catalog', '', '<!-- Generated by scripts/v3-catalog/generate.mjs. -->', '', '| Stable ID | Contract | Method | Path | Access | Guard kind | Permissions | Evaluator | Policy | Handler source |', '| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |']
+  for (const route of routes) lines.push(`| \`${route.id}\` | \`${route.contractVersion}\` | ${route.method} | \`${route.path}\` | ${route.access} | \`${route.guard.kind}\` | ${route.guard.permissions.map(value => `\`${value}\``).join(', ') || '-'} | ${route.guard.evaluatorId ? `\`${route.guard.evaluatorId}\`` : '-'} | ${cell(route.policy)} | \`${route.source}\` |`)
   return `${lines.join('\n')}\n`
 }
 
@@ -352,14 +434,19 @@ function renderGoRouteCatalog(routes) {
     'var generatedCoreRouteCatalog = [...]CoreRoute{'
   ]
   for (const route of routes) {
-    lines.push(`\t{ID: ${JSON.stringify(route.id)}, ContractVersion: ${JSON.stringify(route.contractVersion)}, Method: ${JSON.stringify(route.method)}, Path: ${JSON.stringify(route.path)}},`)
+    const permissions = route.guard.permissions.map(value => JSON.stringify(value)).join(', ')
+    lines.push(`\t{ID: ${JSON.stringify(route.id)}, ContractVersion: ${JSON.stringify(route.contractVersion)}, Method: ${JSON.stringify(route.method)}, Path: ${JSON.stringify(route.path)}, Guard: CoreGuardDescriptor{RouteID: ${JSON.stringify(route.id)}, ContractVersion: ${JSON.stringify(route.contractVersion)}, Method: ${JSON.stringify(route.method)}, Kind: CoreGuardKind(${JSON.stringify(route.guard.kind)}), Permissions: []string{${permissions}}, EvaluatorID: ${JSON.stringify(route.guard.evaluatorId)}}},`)
   }
   lines.push(
     '}',
     '',
     '// CoreRouteCatalog returns a caller-owned copy of the reviewed P0 catalog.',
     'func CoreRouteCatalog() []CoreRoute {',
-    '\treturn append([]CoreRoute(nil), generatedCoreRouteCatalog[:]...)',
+    '\tresult := append([]CoreRoute(nil), generatedCoreRouteCatalog[:]...)',
+    '\tfor index := range result {',
+    '\t\tresult[index].Guard = cloneCoreGuardDescriptor(result[index].Guard)',
+    '\t}',
+    '\treturn result',
     '}',
     ''
   )

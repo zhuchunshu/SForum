@@ -261,7 +261,7 @@ func inspectorConflict(conflict Conflict) InspectorConflict {
 		Candidates: make([]InspectorStep, 0, len(conflict.Candidates)),
 	}
 	for index, candidate := range conflict.Candidates {
-		step := executionStep(RoutePhaseHandler, candidate)
+		step := routeExecutionStep(RoutePhaseHandler, candidate, candidate.CoreGuard)
 		result.Candidates = append(result.Candidates, inspectorExecutionStep(index, step, candidate.PathSignature))
 	}
 	return result

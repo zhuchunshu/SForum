@@ -76,10 +76,9 @@ func TestInspectorExposesStaleDesiredWithoutForgingLiveChain(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	target := CoreRoute{
-		ID: key.TargetRouteID, ContractVersion: "sforum.route.inspect.create@2",
-		Method: "POST", Path: "/inspect/topics",
-	}
+	target := coreRoute(key.TargetRouteID, "POST", "/inspect/topics")
+	target.ContractVersion = "sforum.route.inspect.create@2"
+	target.Guard.ContractVersion = target.ContractVersion
 	replacement := inspectorReplacement(request.ProviderRouteID, target.ID)
 	before := inspectorBefore(artifact.ExtensionID+".before", target.ID)
 	if _, err := registry.Publish(Publication{
@@ -116,10 +115,7 @@ func TestInspectorExposesUnselectedConflictWithoutImplicitPriorityWinner(t *test
 func TestInspectorExcludesUnrelatedConflictsAndTraces(t *testing.T) {
 	registry, providers, artifact, _, _ := inspectorSelectedFixture(t)
 	publication := registry.PublicationSnapshot().Publication
-	unrelatedTarget := CoreRoute{
-		ID: "core.route.inspect.unrelated", ContractVersion: "sforum.route.inspect.unrelated@1",
-		Method: "GET", Path: "/inspect/unrelated",
-	}
+	unrelatedTarget := coreRoute("core.route.inspect.unrelated", "GET", "/inspect/unrelated")
 	publication.Core = append(publication.Core, unrelatedTarget)
 	publication.Plugins[0].Routes = append(
 		publication.Plugins[0].Routes,
@@ -146,11 +142,8 @@ func TestInspectorSafeModeContainsOnlyHostFacts(t *testing.T) {
 	registry := NewRegistry()
 	if _, err := registry.Publish(Publication{
 		SafeMode: true,
-		Core: []CoreRoute{{
-			ID: "core.route.inspect.health", ContractVersion: "sforum.route.inspect.health@1",
-			Method: "GET", Path: "/inspect/health",
-		}},
-		Plugins: []PluginRouteSet{{Artifact: routeArtifact("ignored.safe", "1.0.0", 'd')}},
+		Core:     []CoreRoute{coreRoute("core.route.inspect.health", "GET", "/inspect/health")},
+		Plugins:  []PluginRouteSet{{Artifact: routeArtifact("ignored.safe", "1.0.0", 'd')}},
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -231,10 +224,7 @@ func inspectorSelectedFixture(t *testing.T) (*Registry, *ProviderSelectionAPI, P
 	t.Helper()
 	registry := NewRegistry()
 	artifact := routeArtifact("inspect.plugin", "1.0.0", 'c')
-	target := CoreRoute{
-		ID: "core.route.inspect.create", ContractVersion: "sforum.route.inspect.create@1",
-		Method: "POST", Path: "/inspect/topics",
-	}
+	target := coreRoute("core.route.inspect.create", "POST", "/inspect/topics")
 	providerRouteID := "inspect.plugin.writer"
 	replacement := inspectorReplacement(providerRouteID, target.ID)
 	before := inspectorBefore("inspect.plugin.before", target.ID)

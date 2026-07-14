@@ -55,6 +55,7 @@ type RouteExecutionStep struct {
 	TimeoutMS       int
 	Fallback        string
 	Priority        int
+	CoreGuard       CoreGuardDescriptor
 }
 
 // RouteExecutionPlan contains data only. Building it never invokes a handler,
@@ -85,14 +86,16 @@ func (p RouteExecutionPlan) Params() map[string]string {
 }
 
 func (p RouteExecutionPlan) Chain() []RouteExecutionStep {
-	return append([]RouteExecutionStep(nil), p.chain...)
+	return cloneRouteExecutionSteps(p.chain)
 }
 
 func (p RouteExecutionPlan) Terminal() RouteExecutionStep {
 	if p.terminalIndex < 0 || p.terminalIndex >= len(p.chain) {
 		return RouteExecutionStep{}
 	}
-	return p.chain[p.terminalIndex]
+	step := p.chain[p.terminalIndex]
+	step.CoreGuard = cloneCoreGuardDescriptor(step.CoreGuard)
+	return step
 }
 
 // AllowsFallback evaluates the declaration belonging to the failed step. A
@@ -181,16 +184,16 @@ func buildRouteExecutionPlan(
 		RoutePhaseGlobal: {}, RoutePhaseBefore: {}, RoutePhaseFilter: {},
 		RoutePhaseWrap: {}, RoutePhaseAfter: {},
 	}
-	seen := make(map[Route]struct{}, len(match.Contributions))
+	seen := make([]Route, 0, len(match.Contributions))
 	expectedTarget := terminal.ID
 	if terminal.Action == extensionmanifest.RouteActionReplace {
 		expectedTarget = terminal.TargetID
 	}
 	for _, contribution := range match.Contributions {
-		if _, duplicate := seen[contribution]; duplicate {
+		if routeInExecutionSnapshot(seen, contribution) {
 			return RouteExecutionPlan{}, fmt.Errorf("%w: duplicate route contribution", ErrInvalidExecutionPlan)
 		}
-		seen[contribution] = struct{}{}
+		seen = append(seen, contribution)
 		if !routeInExecutionSnapshot(snapshot.Routes, contribution) || contribution.Provider.Kind != ProviderPlugin ||
 			snapshot.SafeMode || !routeMethodMatches(contribution, method) && contribution.Action != extensionmanifest.RouteActionGlobalMiddleware {
 			return RouteExecutionPlan{}, fmt.Errorf("%w: contribution is not active in the resolved snapshot", ErrInvalidExecutionPlan)
@@ -219,24 +222,36 @@ func buildRouteExecutionPlan(
 	}
 
 	chain := make([]RouteExecutionStep, 0, len(match.Contributions)+1)
-	appendPhase := func(phase RouteExecutionPhase) {
+	appendPhase := func(phase RouteExecutionPhase) error {
 		routes := append([]Route(nil), groups[phase]...)
 		sortExecutionRoutes(routes)
 		for _, route := range routes {
-			chain = append(chain, executionStep(phase, route))
+			step, stepErr := executionStep(snapshot, phase, route, method)
+			if stepErr != nil {
+				return stepErr
+			}
+			chain = append(chain, step)
+		}
+		return nil
+	}
+	for _, phase := range []RouteExecutionPhase{RoutePhaseGlobal, RoutePhaseBefore, RoutePhaseFilter, RoutePhaseWrap} {
+		if err := appendPhase(phase); err != nil {
+			return RouteExecutionPlan{}, err
 		}
 	}
-	appendPhase(RoutePhaseGlobal)
-	appendPhase(RoutePhaseBefore)
-	appendPhase(RoutePhaseFilter)
-	appendPhase(RoutePhaseWrap)
 	terminalIndex := len(chain)
-	chain = append(chain, executionStep(RoutePhaseHandler, terminal))
-	appendPhase(RoutePhaseAfter)
+	terminalStep, err := executionStep(snapshot, RoutePhaseHandler, terminal, method)
+	if err != nil {
+		return RouteExecutionPlan{}, err
+	}
+	chain = append(chain, terminalStep)
+	if err := appendPhase(RoutePhaseAfter); err != nil {
+		return RouteExecutionPlan{}, err
+	}
 	return RouteExecutionPlan{
 		revision: snapshot.Revision, method: method, path: normalizedPath,
 		params: cloneRouteExecutionParams(params), unsafeMethod: method != "GET" && method != "HEAD",
-		terminalIndex: terminalIndex, chain: append([]RouteExecutionStep(nil), chain...),
+		terminalIndex: terminalIndex, chain: cloneRouteExecutionSteps(chain),
 	}, nil
 }
 
@@ -298,7 +313,19 @@ func executionPhaseForContribution(action string) (RouteExecutionPhase, bool) {
 	}
 }
 
-func executionStep(phase RouteExecutionPhase, route Route) RouteExecutionStep {
+func executionStep(snapshot Snapshot, phase RouteExecutionPhase, route Route, requestMethod string) (RouteExecutionStep, error) {
+	descriptor := cloneCoreGuardDescriptor(route.CoreGuard)
+	if route.Provider.Kind == ProviderPlugin && route.Guard == extensionmanifest.GuardCoreInherit {
+		var err error
+		descriptor, err = resolveInheritedCoreGuard(snapshot, route, requestMethod)
+		if err != nil {
+			return RouteExecutionStep{}, err
+		}
+	}
+	return routeExecutionStep(phase, route, descriptor), nil
+}
+
+func routeExecutionStep(phase RouteExecutionPhase, route Route, descriptor CoreGuardDescriptor) RouteExecutionStep {
 	return RouteExecutionStep{
 		Phase: phase, Action: route.Action, RouteID: route.ID, ContractVersion: route.ContractVersion,
 		TargetID: route.TargetID, Path: route.Path, Method: route.Method, Provider: route.Provider,
@@ -306,7 +333,39 @@ func executionStep(phase RouteExecutionPhase, route Route) RouteExecutionStep {
 		Permission: route.Permission, Mode: route.Mode, Destination: route.Destination, Handler: route.Handler,
 		RequestSchema: route.RequestSchema, ResponseSchema: route.ResponseSchema,
 		TimeoutMS: route.TimeoutMS, Fallback: route.Fallback, Priority: route.Priority,
+		CoreGuard: cloneCoreGuardDescriptor(descriptor),
 	}
+}
+
+func resolveInheritedCoreGuard(snapshot Snapshot, route Route, requestMethod string) (CoreGuardDescriptor, error) {
+	if route.Provider.Kind != ProviderPlugin || route.Guard != extensionmanifest.GuardCoreInherit || route.TargetID == "" {
+		return CoreGuardDescriptor{}, fmt.Errorf("%w: inherited guard declaration is invalid", ErrInvalidExecutionPlan)
+	}
+	bestSpecificity := -1
+	var matched []Route
+	for _, target := range snapshot.Routes {
+		if target.Provider.Kind != ProviderCore || !addressableAction(target.Action) ||
+			target.ID != route.TargetID || !routeMethodMatches(target, requestMethod) {
+			continue
+		}
+		specificity := requestMethodSpecificity(target, requestMethod)
+		if specificity > bestSpecificity {
+			bestSpecificity = specificity
+			matched = matched[:0]
+		}
+		if specificity == bestSpecificity {
+			matched = append(matched, target)
+		}
+	}
+	if len(matched) != 1 {
+		return CoreGuardDescriptor{}, fmt.Errorf("%w: inherited core guard target is missing or ambiguous", ErrInvalidExecutionPlan)
+	}
+	target := matched[0]
+	descriptor := target.CoreGuard
+	if descriptor.RouteID != target.ID || descriptor.ContractVersion != target.ContractVersion || descriptor.Method != target.Method {
+		return CoreGuardDescriptor{}, fmt.Errorf("%w: inherited core guard target drifted", ErrInvalidExecutionPlan)
+	}
+	return cloneCoreGuardDescriptor(descriptor), nil
 }
 
 func routeExecutionAccess(guard string, provider ProviderKind) string {
@@ -351,7 +410,7 @@ func sortExecutionRoutes(routes []Route) {
 
 func routeInExecutionSnapshot(routes []Route, wanted Route) bool {
 	for _, route := range routes {
-		if route == wanted {
+		if equalRoute(route, wanted) {
 			return true
 		}
 	}
@@ -360,7 +419,7 @@ func routeInExecutionSnapshot(routes []Route, wanted Route) bool {
 
 func conflictContainsExecutionRoute(conflict Conflict, wanted Route) bool {
 	for _, route := range conflict.Candidates {
-		if route == wanted {
+		if equalRoute(route, wanted) {
 			return true
 		}
 	}
@@ -388,4 +447,12 @@ func equalRouteExecutionParams(left, right map[string]string) bool {
 		}
 	}
 	return true
+}
+
+func cloneRouteExecutionSteps(source []RouteExecutionStep) []RouteExecutionStep {
+	result := append([]RouteExecutionStep(nil), source...)
+	for index := range result {
+		result[index].CoreGuard = cloneCoreGuardDescriptor(result[index].CoreGuard)
+	}
+	return result
 }

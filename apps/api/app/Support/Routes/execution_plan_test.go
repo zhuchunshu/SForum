@@ -123,6 +123,80 @@ func TestExecutionPlanSupportsEveryTerminalAction(t *testing.T) {
 	}
 }
 
+func TestExecutionPlanCopiesExactInheritedCoreGuard(t *testing.T) {
+	registry := NewRegistry()
+	target := coreRoute("core.route.plan.protected", "PATCH", "/protected/:id")
+	target.Guard = CoreGuardDescriptor{
+		RouteID: target.ID, ContractVersion: target.ContractVersion, Method: target.Method,
+		Kind: CoreGuardContextual, Permissions: []string{"topic.edit_own", "topic.edit_any"},
+		EvaluatorID: "core.guard.forum.topic_edit",
+	}
+	replacement := modifierRoute("plan.guard.replace", target.ID, target.Path, extensionmanifest.RouteActionReplace, target.Method, 100)
+	replacement.Guard = extensionmanifest.GuardCoreInherit
+	artifact := routeArtifact("plan.guard", "1.0.0", 'a')
+	if _, err := registry.Publish(Publication{Core: []CoreRoute{target}, Plugins: []PluginRouteSet{{Artifact: artifact, Routes: []extensionmanifest.ManifestRoute{replacement}}}}); err != nil {
+		t.Fatal(err)
+	}
+	snapshot := registry.Snapshot()
+	plugin := executionRouteByAction(t, snapshot, extensionmanifest.RouteActionReplace)
+	plan, err := buildRouteExecutionPlan(snapshot, Match{Revision: snapshot.Revision, Route: plugin, Params: map[string]string{"id": "7"}}, "PATCH", "/protected/7")
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := plan.Terminal().CoreGuard
+	if !equalCoreGuardDescriptor(got, target.Guard) || got.RouteID != target.ID || got.ContractVersion != target.ContractVersion || got.Method != target.Method {
+		t.Fatalf("inherited guard = %#v", got)
+	}
+	got.Permissions[0] = "mutated"
+	var snapshotGuard CoreGuardDescriptor
+	for _, route := range registry.Snapshot().Routes {
+		if route.Provider.Kind == ProviderCore && route.ID == target.ID {
+			snapshotGuard = route.CoreGuard
+		}
+	}
+	if plan.Terminal().CoreGuard.Permissions[0] != "topic.edit_own" || snapshotGuard.Permissions[0] != "topic.edit_own" {
+		t.Fatal("inherited descriptor escaped immutable plan/snapshot copies")
+	}
+}
+
+func TestExecutionPlanInheritedGuardFailsClosedOnMissingDriftAndPluginTarget(t *testing.T) {
+	t.Run("missing descriptor", func(t *testing.T) {
+		registry := NewRegistry()
+		target := coreRoute("core.route.plan.unreviewed", "GET", "/unreviewed")
+		target.Guard = CoreGuardDescriptor{}
+		alias := pluginRoute("plan.guard.alias", "/alias-unreviewed", 0, "GET")
+		alias.Action, alias.TargetID, alias.Handler, alias.ResponseSchema, alias.Guard = extensionmanifest.RouteActionAlias, target.ID, "", "", extensionmanifest.GuardCoreInherit
+		if _, err := registry.Publish(Publication{Core: []CoreRoute{target}, Plugins: []PluginRouteSet{{Artifact: routeArtifact("plan.guard", "1.0.0", 'b'), Routes: []extensionmanifest.ManifestRoute{alias}}}}); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := registry.BuildExecutionPlan("GET", "/alias-unreviewed"); !errors.Is(err, ErrInvalidExecutionPlan) {
+			t.Fatalf("missing descriptor error = %v", err)
+		}
+	})
+
+	t.Run("descriptor identity drift", func(t *testing.T) {
+		target := coreRoute("core.route.plan.drift", "GET", "/drift")
+		target.Guard.ContractVersion = "sforum.route.plan.drift@2"
+		if _, err := NewRegistry().Publish(Publication{Core: []CoreRoute{target}}); !errors.Is(err, ErrInvalidRoute) {
+			t.Fatalf("drift error = %v", err)
+		}
+	})
+
+	t.Run("plugin target", func(t *testing.T) {
+		registry := NewRegistry()
+		artifact := routeArtifact("plan.plugin_target", "1.0.0", 'c')
+		base := pluginRoute("plan.plugin_target.base", "/plugin-base", 0, "GET")
+		alias := pluginRoute("plan.plugin_target.alias", "/plugin-alias", 0, "GET")
+		alias.Action, alias.TargetID, alias.Handler, alias.ResponseSchema, alias.Guard = extensionmanifest.RouteActionAlias, base.ID, "", "", extensionmanifest.GuardCoreInherit
+		if _, err := registry.Publish(Publication{Plugins: []PluginRouteSet{{Artifact: artifact, Routes: []extensionmanifest.ManifestRoute{base, alias}}}}); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := registry.BuildExecutionPlan("GET", "/plugin-alias"); !errors.Is(err, ErrInvalidExecutionPlan) {
+			t.Fatalf("plugin inheritance error = %v", err)
+		}
+	})
+}
+
 func TestExecutionPlanReplacementRequiresOneExplicitWinner(t *testing.T) {
 	registry := NewRegistry()
 	artifact := routeArtifact("plan.replace", "1.0.0", 'c')

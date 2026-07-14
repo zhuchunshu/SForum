@@ -65,6 +65,7 @@ func TestProviderSelectionAPIRejectsPersistedChoiceAfterTargetContractBump(t *te
 	}
 	target := coreRoute(key.TargetRouteID, "POST", "/topics")
 	target.ContractVersion = "sforum.route.selection.create@2"
+	target.Guard.ContractVersion = target.ContractVersion
 	replacement := modifierRoute(request.ProviderRouteID, key.TargetRouteID, "/topics", extensionmanifest.RouteActionReplace, "POST", 100)
 	if _, err := registry.Publish(Publication{
 		Core: []CoreRoute{target}, Plugins: []PluginRouteSet{{Artifact: artifact, Routes: []extensionmanifest.ManifestRoute{replacement}}},

@@ -325,6 +325,7 @@ func TestRegistryStableIdentityAmbiguityFailsClosed(t *testing.T) {
 	first := coreRoute("core.route.demo.shared", "GET", "/first")
 	second := coreRoute("core.route.demo.shared", "GET", "/second")
 	second.ContractVersion = "sforum.route.demo.shared@2"
+	second.Guard.ContractVersion = second.ContractVersion
 	snapshot, err := registry.Publish(Publication{Core: []CoreRoute{first, second}})
 	if err != nil {
 		t.Fatal(err)
@@ -394,9 +395,112 @@ func TestCoreRouteCatalogReturnsImmutableCopies(t *testing.T) {
 		t.Fatalf("catalog lengths = %d, %d", len(first), len(second))
 	}
 	originalID := second[0].ID
+	originalPermission := ""
+	for index := range first {
+		if len(first[index].Guard.Permissions) > 0 {
+			originalPermission = second[index].Guard.Permissions[0]
+			first[index].Guard.Permissions[0] = "mutated.permission"
+			if CoreRouteCatalog()[index].Guard.Permissions[0] != originalPermission {
+				t.Fatal("caller mutation changed generated core guard permissions")
+			}
+			break
+		}
+	}
+	if originalPermission == "" {
+		t.Fatal("generated catalog has no permission-bearing guard")
+	}
 	first[0].ID = "mutated"
 	if second[0].ID != originalID || CoreRouteCatalog()[0].ID != originalID {
 		t.Fatal("caller mutation changed the generated core route catalog")
+	}
+}
+
+func TestRegistryDetachesCoreGuardPermissionsAtEveryReadBoundary(t *testing.T) {
+	registry := NewRegistry()
+	route := coreRoute("core.route.guard.immutable", "PATCH", "/guard/immutable")
+	route.Guard = CoreGuardDescriptor{
+		RouteID: route.ID, ContractVersion: route.ContractVersion, Method: route.Method,
+		Kind: CoreGuardContextual, Permissions: []string{"topic.edit_own", "topic.edit_any"},
+		EvaluatorID: "core.guard.forum.topic_edit",
+	}
+	publication := Publication{Core: []CoreRoute{route}}
+	published, err := registry.Publish(publication)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	publication.Core[0].Guard.Permissions[0] = "mutated.input"
+	published.Routes[0].CoreGuard.Permissions[0] = "mutated.publish_result"
+	assertResolvedGuardPermission(t, registry, "topic.edit_own")
+
+	snapshot := registry.Snapshot()
+	snapshot.Routes[0].CoreGuard.Permissions[0] = "mutated.snapshot"
+	assertResolvedGuardPermission(t, registry, "topic.edit_own")
+
+	publicationSnapshot := registry.PublicationSnapshot()
+	publicationSnapshot.Publication.Core[0].Guard.Permissions[0] = "mutated.publication_snapshot"
+	if got := registry.PublicationSnapshot().Publication.Core[0].Guard.Permissions[0]; got != "topic.edit_own" {
+		t.Fatalf("publication snapshot permission = %q", got)
+	}
+
+	match, err := registry.Resolve("PATCH", "/guard/immutable")
+	if err != nil {
+		t.Fatal(err)
+	}
+	match.Route.CoreGuard.Permissions[0] = "mutated.match"
+	assertResolvedGuardPermission(t, registry, "topic.edit_own")
+
+	route.Guard.Permissions = []string{"topic.edit_own", "topic.edit_any"}
+	other := route
+	other.Guard = cloneCoreGuardDescriptor(route.Guard)
+	other.ID = "core.route.guard.immutable_other"
+	other.ContractVersion = "sforum.route.guard.immutable_other@1"
+	other.Guard.RouteID = other.ID
+	other.Guard.ContractVersion = other.ContractVersion
+	if _, err := registry.Publish(Publication{Core: []CoreRoute{route, other}}); err != nil {
+		t.Fatal(err)
+	}
+	ambiguous, err := registry.Resolve("PATCH", "/guard/immutable")
+	if !errors.Is(err, ErrAmbiguousRoute) || len(ambiguous.Candidates) != 2 {
+		t.Fatalf("ambiguous match = %#v, %v", ambiguous, err)
+	}
+	ambiguous.Candidates[0].CoreGuard.Permissions[0] = "mutated.candidate"
+	again, err := registry.Resolve("PATCH", "/guard/immutable")
+	if !errors.Is(err, ErrAmbiguousRoute) || again.Candidates[0].CoreGuard.Permissions[0] != "topic.edit_own" {
+		t.Fatalf("candidate mutation escaped into registry: %#v, %v", again, err)
+	}
+}
+
+func assertResolvedGuardPermission(t *testing.T, registry *Registry, want string) {
+	t.Helper()
+	match, err := registry.Resolve("PATCH", "/guard/immutable")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := match.Route.CoreGuard.Permissions[0]; got != want {
+		t.Fatalf("resolved guard permission = %q, want %q", got, want)
+	}
+}
+
+func TestCoreRouteCatalogHasExactReviewedGuardParity(t *testing.T) {
+	catalog := CoreRouteCatalog()
+	if len(catalog) != 218 {
+		t.Fatalf("generated core route count = %d", len(catalog))
+	}
+	kinds := make(map[CoreGuardKind]int)
+	for _, route := range catalog {
+		if coreGuardDescriptorIsZero(route.Guard) {
+			t.Fatalf("route %s has no reviewed guard", route.ID)
+		}
+		if err := validateCoreGuardDescriptor(route); err != nil {
+			t.Fatalf("route %s guard: %v", route.ID, err)
+		}
+		kinds[route.Guard.Kind]++
+	}
+	for _, kind := range []CoreGuardKind{CoreGuardPublic, CoreGuardLogin, CoreGuardSuperAdmin, CoreGuardPermissionAny, CoreGuardContextual} {
+		if kinds[kind] == 0 {
+			t.Fatalf("generated catalog has no %s guard", kind)
+		}
 	}
 }
 
@@ -690,7 +794,11 @@ func TestRegistrySnapshotsBindRetainedAndReplacementRuntimeInstances(t *testing.
 }
 
 func coreRoute(id, method, path string) CoreRoute {
-	return CoreRoute{ID: id, ContractVersion: "sforum." + strings.TrimPrefix(id, "core.") + "@1", Method: method, Path: path}
+	route := CoreRoute{ID: id, ContractVersion: "sforum." + strings.TrimPrefix(id, "core.") + "@1", Method: method, Path: path}
+	route.Guard = CoreGuardDescriptor{
+		RouteID: route.ID, ContractVersion: route.ContractVersion, Method: route.Method, Kind: CoreGuardPublic,
+	}
+	return route
 }
 
 func routeArtifact(id, version string, digest rune) PluginArtifact {

@@ -413,7 +413,7 @@ func sameRouteCandidateSet(left, right []Route) bool {
 	for _, candidate := range left {
 		found := -1
 		for index := range remaining {
-			if remaining[index] == candidate {
+			if equalRoute(remaining[index], candidate) {
 				found = index
 				break
 			}
