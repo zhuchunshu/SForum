@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"mime"
 	"net"
 	stdhttp "net/http"
 	"net/http/httptrace"
@@ -40,7 +41,7 @@ type RouteActorLoader func(fiber.Ctx) (identity.Actor, error)
 // RouteSchemaCatalog owns compiled JSON Schema contracts. A missing catalog
 // deliberately rejects declared schemas instead of treating their ids as prose.
 type RouteSchemaCatalog interface {
-	ValidateRouteSchema(context.Context, routes.PluginArtifact, string, []byte) error
+	ValidateRouteSchema(context.Context, routes.PluginArtifact, string, string, string, string, string, string, string, string, int, []byte) error
 }
 
 type ExactRouteRuntime interface {
@@ -94,21 +95,56 @@ type CatalogRouteSchemaValidator struct {
 }
 
 func (v CatalogRouteSchemaValidator) ValidateRequest(ctx context.Context, step routes.RouteExecutionStep, request routes.DispatchRequest) error {
-	return v.validate(ctx, step, step.RequestSchema, request.Body)
+	return v.validate(ctx, step, "request", step.RequestSchema, request.Method, request.Headers, 0, request.Body)
 }
 
-func (v CatalogRouteSchemaValidator) ValidateResponse(ctx context.Context, step routes.RouteExecutionStep, response routes.DispatchResponse) error {
-	return v.validate(ctx, step, step.ResponseSchema, response.Body)
+func (v CatalogRouteSchemaValidator) ValidateResponse(ctx context.Context, step routes.RouteExecutionStep, request routes.DispatchRequest, response routes.DispatchResponse) error {
+	return v.validate(ctx, step, "response", step.ResponseSchema, request.Method, response.Headers, response.Status, response.Body)
 }
 
-func (v CatalogRouteSchemaValidator) validate(ctx context.Context, step routes.RouteExecutionStep, reference string, body []byte) error {
+func (v CatalogRouteSchemaValidator) validate(
+	ctx context.Context,
+	step routes.RouteExecutionStep,
+	direction string,
+	reference string,
+	actualMethod string,
+	headers stdhttp.Header,
+	responseStatus int,
+	body []byte,
+) error {
 	if strings.TrimSpace(reference) == "" {
 		return nil
 	}
 	if v.Catalog == nil || step.Provider.Kind != routes.ProviderPlugin {
 		return ErrRouteSchemaUnavailable
 	}
-	return v.Catalog.ValidateRouteSchema(ctx, step.Provider.Artifact, reference, append([]byte(nil), body...))
+	mediaType, err := normalizedRouteSchemaMediaType(headers)
+	if err != nil {
+		return err
+	}
+	method := step.Method
+	if step.Action == extensionmanifest.RouteActionGlobalMiddleware {
+		method = "*"
+	}
+	return v.Catalog.ValidateRouteSchema(
+		ctx, step.Provider.Artifact, direction, step.RouteID, method, actualMethod,
+		step.ContractVersion, step.Action, reference, mediaType, responseStatus, append([]byte(nil), body...),
+	)
+}
+
+func normalizedRouteSchemaMediaType(headers stdhttp.Header) (string, error) {
+	values := headers.Values("Content-Type")
+	if len(values) != 1 || strings.TrimSpace(values[0]) == "" {
+		return "", fmt.Errorf("%w: exactly one Content-Type is required", ErrRouteSchemaUnavailable)
+	}
+	mediaType, _, err := mime.ParseMediaType(values[0])
+	mediaType = strings.ToLower(mediaType)
+	jsonMediaType := mediaType == "application/json" ||
+		strings.HasPrefix(mediaType, "application/") && strings.HasSuffix(mediaType, "+json") && len(mediaType) > len("application/+json")
+	if err != nil || strings.Contains(mediaType, "*") || !jsonMediaType {
+		return "", fmt.Errorf("%w: invalid Content-Type", ErrRouteSchemaUnavailable)
+	}
+	return mediaType, nil
 }
 
 type BufferedRouteStepInvoker struct {

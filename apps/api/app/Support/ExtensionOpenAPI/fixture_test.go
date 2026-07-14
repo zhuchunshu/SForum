@@ -105,6 +105,28 @@ func buildFixture(t *testing.T, options fixtureOptions) Artifact {
 	}
 }
 
+func rebuildFixtureManifest(t *testing.T, artifact Artifact, mutate func(*extensionmanifest.Manifest)) Artifact {
+	t.Helper()
+	manifest := artifact.Manifest
+	mutate(&manifest)
+	body, err := json.Marshal(manifest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeFixtureFile(t, artifact.Root, extensionmanifest.ManifestFileName, body)
+	loaded, err := extensionmanifest.LoadPackage(artifact.Root)
+	if err != nil {
+		t.Fatalf("reload fixture manifest: %v\n%s", err, body)
+	}
+	packageDigest, err := extensionpackage.DigestTree(artifact.Root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	artifact.Manifest = loaded
+	artifact.PackageDigest = packageDigest
+	return artifact
+}
+
 func fixtureSecurity(guard string) string {
 	if guard == extensionmanifest.GuardCoreLogin || guard == extensionmanifest.GuardCorePermission {
 		return SecurityAuthenticated

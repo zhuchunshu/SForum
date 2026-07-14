@@ -83,6 +83,17 @@ func loadArtifact(input Artifact, budget *resourceBudget) (*loadedArtifact, erro
 			return nil, err
 		}
 	}
+	// Route contracts may bind middleware schemas directly to a package-local
+	// JSON schema without exposing a synthetic OpenAPI endpoint.
+	for _, route := range manifest.Routes {
+		for _, reference := range []string{route.RequestSchema, route.ResponseSchema} {
+			if strings.HasSuffix(reference, ".json") {
+				if err := loaded.loadDocumentClosure(reference); err != nil {
+					return nil, err
+				}
+			}
+		}
+	}
 	if err := loaded.validateReferences(); err != nil {
 		return nil, err
 	}

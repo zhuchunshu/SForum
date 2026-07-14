@@ -242,7 +242,9 @@ func TestRouteDispatcherHostFenceControlsCoreFallbackFromObservedTransport(t *te
 			_, _ = io.ReadAll(request.Body)
 			closeRouteRuntimeConnection(t, writer)
 		}))
-		response, err := app.Test(httptest.NewRequest(stdhttp.MethodPost, "/api/v1/fence", strings.NewReader("mutation")))
+		request := httptest.NewRequest(stdhttp.MethodPost, "/api/v1/fence", strings.NewReader("mutation"))
+		request.Header.Set("Content-Type", "application/json")
+		response, err := app.Test(request)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -459,7 +461,7 @@ func (r routeRegistryPlanResolver) BuildExecutionPlan(_ context.Context, method,
 
 type acceptRouteSchemaCatalog struct{}
 
-func (acceptRouteSchemaCatalog) ValidateRouteSchema(context.Context, routes.PluginArtifact, string, []byte) error {
+func (acceptRouteSchemaCatalog) ValidateRouteSchema(context.Context, routes.PluginArtifact, string, string, string, string, string, string, string, string, int, []byte) error {
 	return nil
 }
 

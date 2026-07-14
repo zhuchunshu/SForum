@@ -79,7 +79,7 @@ type GuardAuthorizer interface {
 
 type SchemaValidator interface {
 	ValidateRequest(context.Context, RouteExecutionStep, DispatchRequest) error
-	ValidateResponse(context.Context, RouteExecutionStep, DispatchResponse) error
+	ValidateResponse(context.Context, RouteExecutionStep, DispatchRequest, DispatchResponse) error
 }
 
 type CoreInvoker interface {
@@ -233,7 +233,7 @@ func (d *Dispatcher) Dispatch(ctx context.Context, request DispatchRequest, core
 				return DispatchResult{}, fmt.Errorf("%w: response validator is unavailable", ErrDispatchSchema)
 			}
 			if d.schemas != nil && step.ResponseSchema != "" {
-				if err := d.schemas.ValidateResponse(ctx, step, value); err != nil {
+				if err := d.schemas.ValidateResponse(ctx, step, request, value); err != nil {
 					d.appendTrace(plan, index, step, RouteTraceSchemaRejected, started, commit.State())
 					return DispatchResult{}, fmt.Errorf("%w: %v", ErrDispatchSchema, err)
 				}

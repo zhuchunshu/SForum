@@ -284,7 +284,7 @@ func (s *dispatchSchemas) ValidateRequest(context.Context, RouteExecutionStep, D
 	return s.err
 }
 
-func (s *dispatchSchemas) ValidateResponse(context.Context, RouteExecutionStep, DispatchResponse) error {
+func (s *dispatchSchemas) ValidateResponse(context.Context, RouteExecutionStep, DispatchRequest, DispatchResponse) error {
 	s.responseCalls++
 	return s.err
 }

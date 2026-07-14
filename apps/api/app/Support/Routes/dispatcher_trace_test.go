@@ -191,7 +191,7 @@ func (s *traceSchemas) ValidateRequest(context.Context, RouteExecutionStep, Disp
 	return s.requestErr
 }
 
-func (s *traceSchemas) ValidateResponse(context.Context, RouteExecutionStep, DispatchResponse) error {
+func (s *traceSchemas) ValidateResponse(context.Context, RouteExecutionStep, DispatchRequest, DispatchResponse) error {
 	return s.responseErr
 }
 
