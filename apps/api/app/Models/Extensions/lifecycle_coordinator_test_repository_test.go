@@ -97,6 +97,7 @@ func (r *lifecycleCoordinatorTestRepository) TransitionOperation(ctx context.Con
 	if len(input.Progress) > 0 {
 		r.operation.Progress = cloneLifecycleJSON(input.Progress)
 	}
+	r.operation.Error = input.Error
 	r.operation.Revision++
 	r.operation.UpdatedAt = time.Now()
 	r.states = append(r.states, r.operation.State)

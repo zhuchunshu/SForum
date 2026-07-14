@@ -27,6 +27,26 @@ func (c *LifecycleCoordinator) completeSuccess(ctx context.Context, operation Li
 }
 
 func (c *LifecycleCoordinator) persistMachine(ctx context.Context, operation LifecycleOperation, machine LifecycleStateMachine, stepID string) (LifecycleOperation, error) {
+	return c.persistMachineWithError(ctx, operation, machine, stepID, LifecycleExecutionError{})
+}
+
+func (c *LifecycleCoordinator) persistFailedMachine(
+	ctx context.Context,
+	operation LifecycleOperation,
+	machine LifecycleStateMachine,
+	stepID string,
+	failure LifecycleExecutionError,
+) (LifecycleOperation, error) {
+	return c.persistMachineWithError(ctx, operation, machine, stepID, failure)
+}
+
+func (c *LifecycleCoordinator) persistMachineWithError(
+	ctx context.Context,
+	operation LifecycleOperation,
+	machine LifecycleStateMachine,
+	stepID string,
+	failure LifecycleExecutionError,
+) (LifecycleOperation, error) {
 	progress, checkpoint, err := encodeLifecycleCoordinatorMachine(machine, stepID)
 	if err != nil {
 		return operation, err
@@ -34,6 +54,7 @@ func (c *LifecycleCoordinator) persistMachine(ctx context.Context, operation Lif
 	return c.repository.TransitionOperation(ctx, TransitionLifecycleOperationInput{
 		OperationID: operation.ID, ExpectedRevision: operation.Revision, ExpectedState: operation.State,
 		State: string(machine.State), CurrentStepID: stepID, Checkpoint: checkpoint, Progress: progress,
+		Error: failure,
 	})
 }
 

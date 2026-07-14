@@ -148,6 +148,7 @@ type TransitionLifecycleOperationInput struct {
 	CurrentStepID    string
 	Checkpoint       json.RawMessage
 	Progress         json.RawMessage
+	Error            LifecycleExecutionError
 }
 
 type CompleteLifecycleOperationInput struct {

@@ -168,6 +168,12 @@ func TestLifecycleCoordinatorRecoversExactHostFailureAfterCompletionCrash(t *tes
 	if _, err := coordinator.Run(context.Background(), input); !errors.Is(err, errLifecycleCoordinatorTestCrash) {
 		t.Fatalf("Host completion crash = %v", err)
 	}
+	repository.mu.Lock()
+	persistedFailure := repository.operation.Error
+	repository.mu.Unlock()
+	if persistedFailure.Code != "lifecycle.execution_failed" || persistedFailure.Reason != "lifecycle.execution_failed" {
+		t.Fatalf("Host failure was not persisted before terminal completion: %#v", persistedFailure)
+	}
 	recovered, err := coordinator.Run(context.Background(), input)
 	if !errors.Is(err, ErrLifecycleCoordinatorRetryRequired) || recovered.Operation.TerminalResult != LifecycleTerminalFailed {
 		t.Fatalf("Host failure recovery = %#v, %v", recovered, err)

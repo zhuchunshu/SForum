@@ -762,7 +762,7 @@ func (c *LifecycleCoordinator) completeFailure(
 	if err != nil {
 		return operation, machine, err
 	}
-	operation, err = c.persistMachine(ctx, operation, failed, operation.CurrentStepID)
+	operation, err = c.persistFailedMachine(ctx, operation, failed, operation.CurrentStepID, failure)
 	if err != nil {
 		return operation, machine, err
 	}

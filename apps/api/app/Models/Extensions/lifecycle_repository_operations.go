@@ -209,12 +209,17 @@ func (r *PostgresLifecycleRepository) TransitionOperation(ctx context.Context, i
 		    current_step_id = CASE WHEN $5 = '' THEN current_step_id ELSE $5 END,
 		    checkpoint = COALESCE($6::jsonb, checkpoint),
 		    progress = COALESCE($7::jsonb, progress),
+		    error_code = $8, error_reason = $9, error_message = $10,
+		    error_retryable = $11, error_retry_after = $12,
+		    error_metadata = $13::jsonb,
 		    revision = revision + 1,
 		    started_at = COALESCE(started_at, now()),
 		    updated_at = now()
 		WHERE id = $1 AND revision = $2 AND state = $3 AND completed_at IS NULL
 	`, input.OperationID, input.ExpectedRevision, input.ExpectedState, input.State,
-		input.CurrentStepID, lifecycleNullableJSON(input.Checkpoint), lifecycleNullableJSON(input.Progress))
+		input.CurrentStepID, lifecycleNullableJSON(input.Checkpoint), lifecycleNullableJSON(input.Progress),
+		input.Error.Code, input.Error.Reason, input.Error.Message, input.Error.Retryable,
+		input.Error.RetryAfter, lifecycleJSONObject(input.Error.Metadata))
 	if err != nil {
 		return LifecycleOperation{}, mapLifecycleOperationWriteError("transition lifecycle operation", err)
 	}
