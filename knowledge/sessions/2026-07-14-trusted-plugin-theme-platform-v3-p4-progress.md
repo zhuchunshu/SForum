@@ -344,3 +344,26 @@
 - Resume by landing each additive migration alone, then its implementation and
   tests; continue with registry/migration adapters and production lifecycle
   wiring. No product-boundary question is open.
+
+## Lifecycle Recovery Admin UI Checkpoint
+
+- Committed `66ca440b1`, which adds the shared V2 uninstall and lifecycle
+  recovery controls to all three extension administration entry points.
+- V2 uninstall defaults to `preserve` and exposes `preserve`,
+  `export_then_remove`, and `complete_removal` with explicit irreversible and
+  external-resource risk text. V1 themes/plugins retain their compatibility
+  request shape.
+- The client reuses the same in-memory idempotency identity after an uncertain
+  uninstall result, keeps blocking failures in the dialog, and clears dialog
+  state after overlay closure once an in-flight request has settled.
+- Lifecycle history shows allowlisted operation, step, initial audit, and
+  recovery-decision records. Recovery submission covers ordinary retry,
+  reason-required skip, and uninstall-only forced escalation gated by active
+  `super_admin`, an explicit reason, and residual-risk acknowledgement.
+- Focused lifecycle/trust UI tests passed, the complete `apps/web` Bun suite
+  passed with **283/283**, and Nuxt typecheck plus production build passed.
+  The authenticated rendered browser flow was not run because the user had
+  stopped both development servers; it remains part of the final P4/E2E gate.
+- Official progress remains **27% overall** and **47% P4 (7/15)** until the
+  production bootstrap/disposition slices converge and the complete P4 gate
+  proves which task/test rows can be checked.
