@@ -74,3 +74,11 @@ func TestManifestV3KeepsLegacyHostProviderTimeoutSemantics(t *testing.T) {
 		t.Fatalf("legacy provider compatibility: %v", err)
 	}
 }
+
+func TestManifestV3ProviderLocalSchemasMustBelongToExactPackage(t *testing.T) {
+	manifest := completeV3Manifest()
+	manifest.Providers[0].RequestSchema = "schemas/missing-provider-request.json"
+	if err := Validate(manifest); err == nil {
+		t.Fatal("provider accepted a missing package-local request schema")
+	}
+}

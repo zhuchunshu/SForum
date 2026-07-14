@@ -192,6 +192,9 @@ func (v *v3Validator) allLocalSchemasDeclared(files map[string]ManifestPackageFi
 	for _, job := range v.manifest.Jobs {
 		refs = append(refs, job.PayloadSchema)
 	}
+	for _, provider := range v.manifest.Providers {
+		refs = append(refs, provider.RequestSchema, provider.ResponseSchema)
+	}
 	for _, component := range v.manifest.Components {
 		refs = append(refs, component.PropsSchema, component.ResultSchema)
 	}
