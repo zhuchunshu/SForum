@@ -97,7 +97,19 @@ func normalizeV3Manifest(manifest *Manifest) {
 		item.ID = NormalizeID(item.ID)
 		item.ContractVersion = strings.TrimSpace(item.ContractVersion)
 		item.Slot = NormalizeID(item.Slot)
+		item.TargetID = NormalizeID(item.TargetID)
 		item.Handler = strings.TrimSpace(item.Handler)
+		item.RequestSchema = strings.TrimSpace(item.RequestSchema)
+		item.ResponseSchema = strings.TrimSpace(item.ResponseSchema)
+		item.Fallback = strings.ToLower(strings.TrimSpace(item.Fallback))
+		if item.RequestSchema != "" || item.ResponseSchema != "" || item.TargetID != "" {
+			if item.Fallback == "" {
+				item.Fallback = "next"
+			}
+			if item.TimeoutMS == 0 {
+				item.TimeoutMS = ProviderSlotMaximumTimeoutMS
+			}
+		}
 	}
 
 	for index := range manifest.Guards {

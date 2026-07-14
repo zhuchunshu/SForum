@@ -281,7 +281,25 @@ func (v *v3Validator) validateHooksEventsJobsAndProviders() error {
 		if err := v.versionedID(provider.ID, provider.ContractVersion, "provider"); err != nil {
 			return err
 		}
-		if provider.Label == "" || provider.TimeoutMS < 0 || !validHandler(provider.Handler) || !knownOrNamespacedContract(v.manifest.ID, provider.Slot, knownProviderSlot(provider.Slot)) {
+		slotAllowed := knownOrNamespacedContract(v.manifest.ID, provider.Slot, knownProviderSlot(provider.Slot))
+		if provider.TargetID != "" {
+			slotAllowed = manifestIDPattern.MatchString(provider.Slot) && manifestIDPattern.MatchString(provider.TargetID)
+		}
+		if provider.Label == "" || provider.TimeoutMS < 0 || !slotAllowed {
+			return ErrInvalidManifest
+		}
+		versionedSlot := provider.TargetID != "" || provider.RequestSchema != "" || provider.ResponseSchema != ""
+		if !versionedSlot {
+			if !validHandler(provider.Handler) || provider.Fallback != "" {
+				return ErrInvalidManifest
+			}
+			continue
+		}
+		if provider.TimeoutMS <= 0 || provider.TimeoutMS > ProviderSlotMaximumTimeoutMS ||
+			!validSchemaRef(provider.RequestSchema) || !validSchemaRef(provider.ResponseSchema) ||
+			(provider.Fallback != "next" && provider.Fallback != "closed") ||
+			(provider.Handler != "" && !validHandler(provider.Handler)) ||
+			(provider.TargetID != "" && (!manifestIDPattern.MatchString(provider.TargetID) || !validHandler(provider.Handler))) {
 			return ErrInvalidManifest
 		}
 	}

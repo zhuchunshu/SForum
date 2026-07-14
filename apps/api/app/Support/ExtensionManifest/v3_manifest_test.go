@@ -193,6 +193,7 @@ func completeV3Manifest() Manifest {
 	manifest.Providers = []ManifestProvider{{
 		ID: "demo.v3.provider.search", ContractVersion: "demo.v3.provider.search@1",
 		Slot: "demo.v3.provider.slot", Label: "Demo", Handler: "provider.search", TimeoutMS: 1000,
+		RequestSchema: "demo.v3.provider.request@1", ResponseSchema: "demo.v3.provider.response@1",
 	}}
 	manifest.PackageFiles = []ManifestPackageFile{
 		{ID: "demo.v3.file.backend", Kind: "executable", Path: "backend/plugin", Digest: digest},

@@ -26,6 +26,9 @@ const (
 	// HookMaximumTimeoutMS 与 Protocol V2 unary deadline 对齐，防止同步
 	// listener 通过 manifest 长期占用 Host admission/concurrency 槽位。
 	HookMaximumTimeoutMS = 5000
+	// ProviderSlotMaximumTimeoutMS 仅约束带请求/响应 schema 的 V2 slot。
+	// 旧 Host provider 的超时由各 owner contract 管理，不能在 Manifest V3 中静默收紧。
+	ProviderSlotMaximumTimeoutMS = 5000
 )
 
 var (
@@ -224,8 +227,12 @@ type ManifestProvider struct {
 	ID              string `json:"id,omitempty"`
 	ContractVersion string `json:"contractVersion,omitempty"`
 	Slot            string `json:"slot"`
+	TargetID        string `json:"targetId,omitempty"`
 	Label           string `json:"label"`
 	Handler         string `json:"handler,omitempty"`
+	RequestSchema   string `json:"requestSchema,omitempty"`
+	ResponseSchema  string `json:"responseSchema,omitempty"`
+	Fallback        string `json:"fallback,omitempty"`
 	Priority        int    `json:"priority,omitempty"`
 	TimeoutMS       int    `json:"timeoutMs,omitempty"`
 }
