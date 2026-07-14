@@ -225,6 +225,9 @@ func (b *PostgresLifecycleBoundaryRegistries) ValidateLifecycleRegistries(
 			if err := b.hooks.registry.ValidateReplaceRuntime(material.extension, material.binding.RuntimeInstanceID); err != nil {
 				return fmt.Errorf("validate hook registry: %w", err)
 			}
+			if err := b.hooks.providerSlots.ValidateReplaceRuntime(material.extension, material.binding.RuntimeInstanceID); err != nil {
+				return fmt.Errorf("validate provider slot registry: %w", err)
+			}
 		}
 		if err := b.pages.PreflightContributionsReplacing(material.extension.ID, material.pages, material.extension.ID); err != nil {
 			return fmt.Errorf("validate page registry: %w", err)
@@ -287,19 +290,20 @@ type lifecycleRegistryMaterial struct {
 }
 
 type lifecycleRegistryDigestDocument struct {
-	Schema             string                       `json:"schema"`
-	ExtensionID        string                       `json:"extensionId"`
-	ExtensionVersion   string                       `json:"extensionVersion"`
-	PackageDigest      string                       `json:"packageDigest"`
-	VersionID          int64                        `json:"versionId"`
-	RuntimeInstanceID  string                       `json:"runtimeInstanceId"`
-	Hooks              []extensions.ManifestEvent   `json:"hooks"`
-	VersionedHooks     []extensions.ManifestHook    `json:"versionedHooks,omitempty"`
-	Services           []extensions.ManifestService `json:"services"`
-	Pages              []pages.PageContribution     `json:"pages"`
-	Routes             routes.PluginRouteSet        `json:"routes"`
-	ProductionFamilies []string                     `json:"productionFamilies"`
-	FoundationFamilies []string                     `json:"foundationFamilies"`
+	Schema             string                        `json:"schema"`
+	ExtensionID        string                        `json:"extensionId"`
+	ExtensionVersion   string                        `json:"extensionVersion"`
+	PackageDigest      string                        `json:"packageDigest"`
+	VersionID          int64                         `json:"versionId"`
+	RuntimeInstanceID  string                        `json:"runtimeInstanceId"`
+	Hooks              []extensions.ManifestEvent    `json:"hooks"`
+	VersionedHooks     []extensions.ManifestHook     `json:"versionedHooks,omitempty"`
+	VersionedProviders []extensions.ManifestProvider `json:"versionedProviders,omitempty"`
+	Services           []extensions.ManifestService  `json:"services"`
+	Pages              []pages.PageContribution      `json:"pages"`
+	Routes             routes.PluginRouteSet         `json:"routes"`
+	ProductionFamilies []string                      `json:"productionFamilies"`
+	FoundationFamilies []string                      `json:"foundationFamilies"`
 }
 
 func (b *PostgresLifecycleBoundaryRegistries) prepareMaterial(
@@ -371,16 +375,23 @@ func buildLifecycleRegistryMaterial(
 	if hasVersionedPluginHooks(extension) {
 		productionFamilies = append(productionFamilies, "hooks.v2")
 	}
+	for _, provider := range extension.Manifest.Providers {
+		if isVersionedProviderSlot(provider) {
+			productionFamilies = append(productionFamilies, "providers.v2")
+			break
+		}
+	}
 	// Keep registry-plan@1 byte-compatible with durable in-flight operations.
 	// PackageDigest already binds the manifest and every OpenAPI/schema file.
 	document := lifecycleRegistryDigestDocument{
 		Schema: "sforum.lifecycle.registry-plan@1", ExtensionID: extension.ID,
 		ExtensionVersion: extension.Version, PackageDigest: extension.PackageDigest,
 		VersionID: extension.ActiveVersionID, RuntimeInstanceID: binding.RuntimeInstanceID,
-		Hooks:          append([]extensions.ManifestEvent(nil), extensions.DeclaredManifestEvents(extension.Manifest)...),
-		VersionedHooks: cloneManifestHooks(extension.Manifest.Hooks),
-		Services:       append([]extensions.ManifestService(nil), extension.Manifest.Services...),
-		Pages:          append([]pages.PageContribution(nil), pageContributions...), Routes: material.routes,
+		Hooks:              append([]extensions.ManifestEvent(nil), extensions.DeclaredManifestEvents(extension.Manifest)...),
+		VersionedHooks:     cloneManifestHooks(extension.Manifest.Hooks),
+		VersionedProviders: append([]extensions.ManifestProvider(nil), extension.Manifest.Providers...),
+		Services:           append([]extensions.ManifestService(nil), extension.Manifest.Services...),
+		Pages:              append([]pages.PageContribution(nil), pageContributions...), Routes: material.routes,
 		ProductionFamilies: productionFamilies,
 		FoundationFamilies: []string{"routes.v1-foundation"},
 	}

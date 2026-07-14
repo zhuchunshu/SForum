@@ -14,6 +14,8 @@ import (
 	supportjobs "github.com/zhuchunshu/sforum/apps/api/app/Support/Jobs"
 )
 
+var ErrVersionedRuntimeContractInvalid = errors.New("extension versioned runtime contract is invalid")
+
 type Starter interface {
 	Start(ctx context.Context, extension extensions.Extension) (RouteTarget, error)
 	Stop(ctx context.Context, extension extensions.Extension) error
@@ -166,8 +168,8 @@ func (m *Manager) Start(ctx context.Context, extension extensions.Extension) err
 		m.recordRuntimeStartFailure(extension, previousInstanceID, previousStatus, hadPreviousStatus, err)
 		return err
 	}
-	if hasVersionedPluginHooks(extension) && strings.TrimSpace(target.InstanceID) == "" {
-		err := fmt.Errorf("%w: versioned hooks require an exact runtime instance", ErrHookRegistryInvalid)
+	if hasVersionedRuntimeContracts(extension) && strings.TrimSpace(target.InstanceID) == "" {
+		err := fmt.Errorf("%w: exact runtime instance is required", ErrVersionedRuntimeContractInvalid)
 		stopErr := m.starter.Stop(ctx, extension)
 		m.recordRuntimeStartFailure(extension, previousInstanceID, previousStatus, hadPreviousStatus, err)
 		return errors.Join(err, stopErr)

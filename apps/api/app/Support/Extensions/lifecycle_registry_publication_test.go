@@ -92,6 +92,10 @@ func TestLifecycleRegistryPublicationConvergesAcrossRestartWhileTargetStaysDrain
 		contract.Artifact.RuntimeInstanceID != targetBinding.RuntimeInstanceID || contract.Artifact.PackageDigest != target.PackageDigest {
 		t.Fatalf("target versioned hook = %#v, %v", contract, err)
 	}
+	if provider, err := manager.HookBus().ProviderSlots().Discover(ProviderSlotCaller{}, "registry.demo.provider", "registry.demo.provider@1"); err != nil ||
+		provider.Contract.Artifact.RuntimeInstanceID != targetBinding.RuntimeInstanceID || provider.Contract.Artifact.PackageDigest != target.PackageDigest {
+		t.Fatalf("target versioned provider = %#v, %v", provider, err)
+	}
 	assertLifecycleRegistryTargetHidden(t, manager, pageRegistry, routeRegistry, targetRuntime.Identity)
 
 	// A fresh adapter/transaction reconstructs both plans from immutable package
@@ -129,6 +133,10 @@ func TestLifecycleRegistryPublicationConvergesAcrossRestartWhileTargetStaysDrain
 	if contract, _, err := manager.HookBus().VersionedRegistry().Resolve("registry.demo.hook", "registry.demo.hook@1"); err != nil ||
 		contract.Artifact.RuntimeInstanceID != sourceBinding.RuntimeInstanceID || contract.Artifact.PackageDigest != source.PackageDigest {
 		t.Fatalf("restored versioned hook = %#v, %v", contract, err)
+	}
+	if provider, err := manager.HookBus().ProviderSlots().Discover(ProviderSlotCaller{}, "registry.demo.provider", "registry.demo.provider@1"); err != nil ||
+		provider.Contract.Artifact.RuntimeInstanceID != sourceBinding.RuntimeInstanceID || provider.Contract.Artifact.PackageDigest != source.PackageDigest {
+		t.Fatalf("restored versioned provider = %#v, %v", provider, err)
 	}
 	if manager.HookBus().UnregisterRuntime(source.ID, targetBinding.RuntimeInstanceID) {
 		t.Fatal("stale target removed restored source hooks")
@@ -388,6 +396,12 @@ func lifecycleRegistryTestExtension(t *testing.T, version, digest string, versio
 		Name: "registry.demo.content.changed", Kind: "action", Handler: "hook.changed",
 		InputSchema: "registry.demo.content.input@1", ResultSchema: "registry.demo.content.result@1",
 		Execution: "sync", FailurePolicy: "fail_closed", TimeoutMS: 1000,
+	}}
+	extension.Manifest.Providers = []extensions.ManifestProvider{{
+		ID: "registry.demo.provider", ContractVersion: "registry.demo.provider@1",
+		Slot: "registry.demo.provider.slot", Label: "Registry provider", Handler: "provider.call",
+		RequestSchema: "registry.demo.provider.request@1", ResponseSchema: "registry.demo.provider.response@1",
+		Fallback: "next", TimeoutMS: 1000,
 	}}
 	extension.Manifest.Services = []extensions.ManifestService{{
 		ID: "registry.demo.echo", ContractVersion: "registry.demo.echo@1", Action: hostapi.ServiceActionAdd,
