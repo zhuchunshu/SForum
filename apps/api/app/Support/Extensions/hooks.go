@@ -44,19 +44,41 @@ type HookBusConfig struct {
 type HookBus struct {
 	mu      sync.RWMutex
 	invoker HookInvoker
-	plugins map[string]extensions.Extension
+	plugins map[string]hookRuntimeRegistration
+}
+
+type hookRuntimeRegistration struct {
+	extension  extensions.Extension
+	instanceID string
+}
+
+// HookRuntimeSnapshot binds the visible hook declarations to one exact
+// runtime. InstanceID is empty only for the legacy compatibility path.
+type HookRuntimeSnapshot struct {
+	Extension  extensions.Extension
+	InstanceID string
 }
 
 func NewHookBus(config HookBusConfig) *HookBus {
-	return &HookBus{invoker: config.Invoker, plugins: map[string]extensions.Extension{}}
+	return &HookBus{invoker: config.Invoker, plugins: map[string]hookRuntimeRegistration{}}
 }
 
 func (b *HookBus) Register(extension extensions.Extension) {
-	if extension.Type != extensions.TypePlugin || extension.Status != extensions.StatusEnabled {
+	if extension.Status != extensions.StatusEnabled {
+		return
+	}
+	b.RegisterRuntime(extension, "")
+}
+
+// RegisterRuntime atomically replaces one extension's hook declarations with
+// the declarations owned by an exact process. Manager admission remains the
+// execution gate, so registering a drained target does not open ordinary calls.
+func (b *HookBus) RegisterRuntime(extension extensions.Extension, instanceID string) {
+	if extension.Type != extensions.TypePlugin {
 		return
 	}
 	b.mu.Lock()
-	b.plugins[extension.ID] = extension
+	b.plugins[extension.ID] = hookRuntimeRegistration{extension: extension, instanceID: instanceID}
 	b.mu.Unlock()
 }
 
@@ -64,6 +86,30 @@ func (b *HookBus) Unregister(extensionID string) {
 	b.mu.Lock()
 	delete(b.plugins, extensionID)
 	b.mu.Unlock()
+}
+
+// UnregisterRuntime removes declarations only while they still belong to the
+// stopping process. A retained source can therefore never clear its published
+// replacement.
+func (b *HookBus) UnregisterRuntime(extensionID, instanceID string) bool {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	current, ok := b.plugins[extensionID]
+	if !ok || current.instanceID != instanceID {
+		return false
+	}
+	delete(b.plugins, extensionID)
+	return true
+}
+
+func (b *HookBus) RuntimeSnapshot(extensionID string) (HookRuntimeSnapshot, bool) {
+	b.mu.RLock()
+	current, ok := b.plugins[extensionID]
+	b.mu.RUnlock()
+	if !ok {
+		return HookRuntimeSnapshot{}, false
+	}
+	return HookRuntimeSnapshot{Extension: current.extension, InstanceID: current.instanceID}, true
 }
 
 func (b *HookBus) Emit(ctx context.Context, input HookInput) []HookResult {
@@ -85,9 +131,9 @@ func (b *HookBus) Listeners(name string) []extensions.Extension {
 func (b *HookBus) listeners(name string) []extensions.Extension {
 	b.mu.RLock()
 	plugins := make([]extensions.Extension, 0, len(b.plugins))
-	for _, plugin := range b.plugins {
-		if declaresHook(plugin, name) {
-			plugins = append(plugins, plugin)
+	for _, registration := range b.plugins {
+		if declaresHook(registration.extension, name) {
+			plugins = append(plugins, registration.extension)
 		}
 	}
 	b.mu.RUnlock()
