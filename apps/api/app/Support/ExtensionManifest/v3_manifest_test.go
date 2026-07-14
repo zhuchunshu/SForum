@@ -206,6 +206,8 @@ func completeV3Manifest() Manifest {
 		{ID: "demo.v3.file.locale", Kind: "locale", Path: "locales/zh-CN.json", Digest: digest, Locale: "zh-CN"},
 		{ID: "demo.v3.file.database.query", Kind: "database_operation", Path: "database/items-query.sql", Digest: digest},
 		{ID: "demo.v3.file.database.execute", Kind: "database_operation", Path: "database/items-insert.sql", Digest: digest},
+		{ID: "demo.v3.provider.request", Kind: "schema", Path: "schemas/provider-request.json", Digest: digest, Version: "1"},
+		{ID: "demo.v3.provider.response", Kind: "schema", Path: "schemas/provider-response.json", Digest: digest, Version: "1"},
 	}
 	manifest.Templates = []ManifestTemplate{{
 		ID: "demo.v3.template.card", ContractVersion: "demo.v3.template.card@1",

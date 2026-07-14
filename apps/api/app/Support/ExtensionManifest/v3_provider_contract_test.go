@@ -1,6 +1,9 @@
 package extensionmanifest
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestManifestV3NormalizesProviderSlotDefaults(t *testing.T) {
 	manifest := completeV3Manifest()
@@ -23,6 +26,10 @@ func TestManifestV3ProviderSlotSupportsPassiveDefinitionAndDependencyTarget(t *t
 		Slot: "demo.v3.delivery", Label: "Delivery", RequestSchema: "demo.v3.delivery.request@1",
 		ResponseSchema: "demo.v3.delivery.response@1", Fallback: "next", TimeoutMS: 1000,
 	}}
+	manifest.PackageFiles = append(manifest.PackageFiles,
+		ManifestPackageFile{ID: "demo.v3.delivery.request", Kind: "schema", Path: "schemas/delivery-request.json", Digest: strings.Repeat("a", 64), Version: "1"},
+		ManifestPackageFile{ID: "demo.v3.delivery.response", Kind: "schema", Path: "schemas/delivery-response.json", Digest: strings.Repeat("b", 64), Version: "1"},
+	)
 	if err := Validate(manifest); err != nil {
 		t.Fatalf("passive slot definition: %v", err)
 	}
@@ -32,6 +39,10 @@ func TestManifestV3ProviderSlotSupportsPassiveDefinitionAndDependencyTarget(t *t
 		Handler: "provider.delivery", RequestSchema: "owner.delivery.request@1",
 		ResponseSchema: "owner.delivery.response@1", Fallback: "next", TimeoutMS: 1000,
 	}
+	manifest.PackageFiles = append(manifest.PackageFiles,
+		ManifestPackageFile{ID: "owner.delivery.request", Kind: "schema", Path: "schemas/owner-delivery-request.json", Digest: strings.Repeat("c", 64), Version: "1"},
+		ManifestPackageFile{ID: "owner.delivery.response", Kind: "schema", Path: "schemas/owner-delivery-response.json", Digest: strings.Repeat("d", 64), Version: "1"},
+	)
 	manifest.Dependencies = append(manifest.Dependencies, ManifestDependency{ID: "owner", Version: "^1.0.0", Kind: "required"})
 	if err := Validate(manifest); err != nil {
 		t.Fatalf("targeted provider: %v", err)

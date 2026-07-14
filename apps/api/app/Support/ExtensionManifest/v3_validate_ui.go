@@ -5,8 +5,21 @@ import "strings"
 func (v *v3Validator) validateUIAndPackage() error {
 	packageFiles := map[string]ManifestPackageFile{}
 	packagePaths := map[string]ManifestPackageFile{}
+	targetedSchemas := map[string]string{}
+	for _, provider := range v.manifest.Providers {
+		if provider.TargetID == "" {
+			continue
+		}
+		for _, reference := range []string{provider.RequestSchema, provider.ResponseSchema} {
+			separator := strings.LastIndex(reference, "@")
+			if separator > 0 && separator < len(reference)-1 {
+				targetedSchemas[reference[:separator]] = reference[separator+1:]
+			}
+		}
+	}
 	for _, file := range v.manifest.PackageFiles {
-		if !manifestIDPattern.MatchString(file.ID) || !strings.HasPrefix(file.ID, v.manifest.ID+".") {
+		foreignTargetedSchema := file.Kind == "schema" && targetedSchemas[file.ID] == file.Version
+		if !manifestIDPattern.MatchString(file.ID) || !strings.HasPrefix(file.ID, v.manifest.ID+".") && !foreignTargetedSchema {
 			return ErrInvalidManifest
 		}
 		if _, duplicate := packageFiles[file.ID]; duplicate {
@@ -47,6 +60,15 @@ func (v *v3Validator) validateUIAndPackage() error {
 			if !matchingPackageFile(packagePaths, operation.Path, "database_operation", operation.Digest) {
 				return ErrInvalidManifest
 			}
+		}
+	}
+	for _, provider := range v.manifest.Providers {
+		if provider.RequestSchema == "" && provider.ResponseSchema == "" {
+			continue
+		}
+		if !matchingVersionedSchemaFile(packageFiles, provider.RequestSchema) ||
+			!matchingVersionedSchemaFile(packageFiles, provider.ResponseSchema) {
+			return ErrInvalidManifest
 		}
 	}
 
@@ -171,6 +193,15 @@ func (v *v3Validator) validateUIAndPackage() error {
 		return ErrInvalidManifest
 	}
 	return nil
+}
+
+func matchingVersionedSchemaFile(files map[string]ManifestPackageFile, reference string) bool {
+	separator := strings.LastIndex(reference, "@")
+	if separator <= 0 || separator == len(reference)-1 {
+		return false
+	}
+	file, ok := files[reference[:separator]]
+	return ok && file.Kind == "schema" && file.Version == reference[separator+1:]
 }
 
 func matchingPackageFile(files map[string]ManifestPackageFile, path string, kind string, digest string) bool {
