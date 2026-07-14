@@ -49,6 +49,9 @@ const (
 	LifecycleStepFailed    = "failed"
 	LifecycleStepCancelled = "cancelled"
 	LifecycleStepSkipped   = "skipped"
+
+	LifecycleRecoveryRetry    = "retry"
+	LifecycleRecoverySkipStep = "skip_step"
 )
 
 var (
@@ -58,6 +61,7 @@ var (
 	ErrLifecycleRevisionConflict    = errors.New("extensions: lifecycle operation revision conflict")
 	ErrLifecycleOperationClosed     = errors.New("extensions: lifecycle operation is closed")
 	ErrLifecycleNotRecoverable      = errors.New("extensions: lifecycle operation is not recoverable")
+	ErrLifecycleRecoveryNotFound    = errors.New("extensions: lifecycle recovery decision not found")
 	ErrLifecycleStepNotFound        = errors.New("extensions: lifecycle step attempt not found")
 	ErrLifecycleStepConflict        = errors.New("extensions: lifecycle step contract conflict")
 	ErrLifecycleStepClosed          = errors.New("extensions: lifecycle step attempt is closed")
@@ -77,35 +81,37 @@ type LifecycleExecutionError struct {
 }
 
 type LifecycleOperation struct {
-	ID                 int64                   `json:"id"`
-	ExtensionID        string                  `json:"extensionId"`
-	ExtensionVersion   string                  `json:"extensionVersion"`
-	PackageDigest      string                  `json:"packageDigest"`
-	ArtifactDigests    json.RawMessage         `json:"artifactDigests"`
-	Operation          string                  `json:"operation"`
-	State              string                  `json:"state"`
-	PlanVersion        string                  `json:"planVersion"`
-	IdempotencyKey     string                  `json:"idempotencyKey"`
-	RequestFingerprint string                  `json:"requestFingerprint"`
-	AuthorityType      string                  `json:"authorityType"`
-	TrustGrantID       int64                   `json:"trustGrantId,omitempty"`
-	AuthoritySnapshot  json.RawMessage         `json:"authoritySnapshot"`
-	RequestedByUserID  int64                   `json:"requestedByUserId,omitempty"`
-	AuditEventID       int64                   `json:"auditEventId,omitempty"`
-	RemovalMode        string                  `json:"removalMode,omitempty"`
-	Forced             bool                    `json:"forced"`
-	AttemptCount       int                     `json:"attemptCount"`
-	Revision           int64                   `json:"revision"`
-	CurrentStepID      string                  `json:"currentStepId,omitempty"`
-	Checkpoint         json.RawMessage         `json:"checkpoint"`
-	Progress           json.RawMessage         `json:"progress"`
-	TerminalResult     string                  `json:"terminalResult,omitempty"`
-	ResultDocument     json.RawMessage         `json:"resultDocument,omitempty"`
-	Error              LifecycleExecutionError `json:"error,omitempty"`
-	CreatedAt          time.Time               `json:"createdAt"`
-	UpdatedAt          time.Time               `json:"updatedAt"`
-	StartedAt          *time.Time              `json:"startedAt,omitempty"`
-	CompletedAt        *time.Time              `json:"completedAt,omitempty"`
+	ID                   int64                   `json:"id"`
+	ExtensionID          string                  `json:"extensionId"`
+	ExtensionVersion     string                  `json:"extensionVersion"`
+	PackageDigest        string                  `json:"packageDigest"`
+	ArtifactDigests      json.RawMessage         `json:"artifactDigests"`
+	Operation            string                  `json:"operation"`
+	State                string                  `json:"state"`
+	PlanVersion          string                  `json:"planVersion"`
+	IdempotencyKey       string                  `json:"idempotencyKey"`
+	RequestFingerprint   string                  `json:"requestFingerprint"`
+	AuthorityType        string                  `json:"authorityType"`
+	TrustGrantID         int64                   `json:"trustGrantId,omitempty"`
+	AuthoritySnapshot    json.RawMessage         `json:"authoritySnapshot"`
+	RequestedByUserID    int64                   `json:"requestedByUserId,omitempty"`
+	AuditEventID         int64                   `json:"auditEventId,omitempty"`
+	RecoveryActorUserID  int64                   `json:"recoveryActorUserId,omitempty"`
+	RecoveryAuditEventID int64                   `json:"recoveryAuditEventId,omitempty"`
+	RemovalMode          string                  `json:"removalMode,omitempty"`
+	Forced               bool                    `json:"forced"`
+	AttemptCount         int                     `json:"attemptCount"`
+	Revision             int64                   `json:"revision"`
+	CurrentStepID        string                  `json:"currentStepId,omitempty"`
+	Checkpoint           json.RawMessage         `json:"checkpoint"`
+	Progress             json.RawMessage         `json:"progress"`
+	TerminalResult       string                  `json:"terminalResult,omitempty"`
+	ResultDocument       json.RawMessage         `json:"resultDocument,omitempty"`
+	Error                LifecycleExecutionError `json:"error,omitempty"`
+	CreatedAt            time.Time               `json:"createdAt"`
+	UpdatedAt            time.Time               `json:"updatedAt"`
+	StartedAt            *time.Time              `json:"startedAt,omitempty"`
+	CompletedAt          *time.Time              `json:"completedAt,omitempty"`
 }
 
 type AcquireLifecycleOperationInput struct {
@@ -124,6 +130,9 @@ type AcquireLifecycleOperationInput struct {
 	AuditEventID       int64
 	RemovalMode        string
 	Forced             bool
+	// ExistingOnly prevents a retry request from creating a new logical
+	// operation when its original idempotency key no longer exists.
+	ExistingOnly bool
 }
 
 type AcquireLifecycleOperationResult struct {
@@ -156,6 +165,23 @@ type ResumeLifecycleOperationInput struct {
 	OperationID      int64
 	ExpectedRevision int64
 	ExpectedState    string
+	Decision         string
+	EscalateForced   bool
+	Reason           string
+	ActorUserID      int64
+	AuditEventID     int64
+}
+
+type LifecycleRecoveryDecision struct {
+	ID               int64     `json:"id"`
+	OperationID      int64     `json:"operationId"`
+	OperationAttempt int       `json:"operationAttempt"`
+	Decision         string    `json:"decision"`
+	EscalateForced   bool      `json:"escalateForced"`
+	Reason           string    `json:"reason,omitempty"`
+	ActorUserID      int64     `json:"actorUserId"`
+	AuditEventID     int64     `json:"auditEventId"`
+	CreatedAt        time.Time `json:"createdAt"`
 }
 
 type LifecycleStepAttempt struct {
@@ -281,6 +307,7 @@ func scanLifecycleOperation(scanner lifecycleScanner) (LifecycleOperation, error
 		&artifacts, &item.Operation, &item.State, &item.PlanVersion,
 		&item.IdempotencyKey, &item.RequestFingerprint, &item.AuthorityType,
 		&item.TrustGrantID, &authority, &item.RequestedByUserID, &item.AuditEventID,
+		&item.RecoveryActorUserID, &item.RecoveryAuditEventID,
 		&item.RemovalMode, &item.Forced, &item.AttemptCount, &item.Revision,
 		&item.CurrentStepID, &checkpoint, &progress, &item.TerminalResult, &result,
 		&item.Error.Code, &item.Error.Reason, &item.Error.Message, &item.Error.Retryable,
@@ -325,6 +352,7 @@ func lifecycleOperationSelectSQL() string {
 		       operation, state, plan_version, idempotency_key, request_fingerprint,
 		       authority_type, COALESCE(trust_grant_id, 0), authority_snapshot,
 		       COALESCE(requested_by_user_id, 0), COALESCE(audit_event_id, 0),
+		       COALESCE(recovery_actor_user_id, 0), COALESCE(recovery_audit_event_id, 0),
 		       COALESCE(removal_mode, ''), forced, attempt_count, revision,
 		       current_step_id, checkpoint, progress, COALESCE(terminal_result, ''),
 		       result_document, error_code, error_reason, error_message,
@@ -387,3 +415,4 @@ func nullableLifecycleID(value int64) any {
 }
 
 var _ LifecycleInspectionRepository = (*PostgresLifecycleRepository)(nil)
+var _ LifecycleCoordinatorRepository = (*PostgresLifecycleRepository)(nil)

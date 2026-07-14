@@ -11,6 +11,7 @@ type lifecycleCoordinatorTestRepository struct {
 	operation                       LifecycleOperation
 	acquired                        bool
 	steps                           map[string][]LifecycleStepAttempt
+	recoveryDecisions               []LifecycleRecoveryDecision
 	nextStepID                      int64
 	states                          []string
 	failCompleteStepOnce            bool
@@ -50,6 +51,9 @@ func (r *lifecycleCoordinatorTestRepository) AcquireOperation(_ context.Context,
 			return AcquireLifecycleOperationResult{}, ErrLifecycleFingerprintConflict
 		}
 		return AcquireLifecycleOperationResult{Operation: cloneLifecycleCoordinatorTestOperation(r.operation)}, nil
+	}
+	if input.ExistingOnly {
+		return AcquireLifecycleOperationResult{}, ErrLifecycleOperationNotFound
 	}
 	r.acquired = true
 	r.operation = LifecycleOperation{
@@ -117,7 +121,7 @@ func (r *lifecycleCoordinatorTestRepository) CompleteOperation(ctx context.Conte
 	r.operation.TerminalResult = input.TerminalResult
 	r.operation.ResultDocument = cloneLifecycleJSON(input.ResultDocument)
 	r.operation.Error = input.Error
-	if input.AuditEventID != 0 {
+	if r.operation.AuditEventID == 0 && input.AuditEventID != 0 {
 		r.operation.AuditEventID = input.AuditEventID
 	}
 	r.operation.CompletedAt = &now
@@ -129,19 +133,56 @@ func (r *lifecycleCoordinatorTestRepository) CompleteOperation(ctx context.Conte
 func (r *lifecycleCoordinatorTestRepository) ResumeOperation(_ context.Context, input ResumeLifecycleOperationInput) (LifecycleOperation, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	if err := validateLifecycleRecoveryInput(input); err != nil {
+		return LifecycleOperation{}, err
+	}
 	if r.operation.Revision != input.ExpectedRevision || r.operation.State != input.ExpectedState || r.operation.CompletedAt == nil {
 		return LifecycleOperation{}, ErrLifecycleRevisionConflict
 	}
 	if r.operation.TerminalResult != LifecycleTerminalFailed && r.operation.TerminalResult != LifecycleTerminalCancelled {
 		return LifecycleOperation{}, ErrLifecycleNotRecoverable
 	}
+	if input.EscalateForced && (r.operation.Operation != LifecycleOperationUninstall || r.operation.Forced) {
+		return LifecycleOperation{}, ErrLifecycleInvalidInput
+	}
+	nextAttempt := r.operation.AttemptCount + 1
+	r.recoveryDecisions = append(r.recoveryDecisions, LifecycleRecoveryDecision{
+		ID: int64(len(r.recoveryDecisions) + 1), OperationID: r.operation.ID,
+		OperationAttempt: nextAttempt, Decision: input.Decision,
+		EscalateForced: input.EscalateForced, Reason: input.Reason,
+		ActorUserID: input.ActorUserID, AuditEventID: input.AuditEventID, CreatedAt: time.Now(),
+	})
 	r.operation.State = LifecycleStateRecovery
 	r.operation.TerminalResult = ""
 	r.operation.CompletedAt = nil
 	r.operation.AttemptCount++
+	r.operation.RecoveryActorUserID = input.ActorUserID
+	r.operation.RecoveryAuditEventID = input.AuditEventID
+	r.operation.Forced = r.operation.Forced || input.EscalateForced
 	r.operation.Revision++
 	r.states = append(r.states, r.operation.State)
 	return cloneLifecycleCoordinatorTestOperation(r.operation), nil
+}
+
+func (r *lifecycleCoordinatorTestRepository) RecoveryDecision(
+	_ context.Context,
+	operationID int64,
+	operationAttempt int,
+) (LifecycleRecoveryDecision, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	for _, decision := range r.recoveryDecisions {
+		if decision.OperationID == operationID && decision.OperationAttempt == operationAttempt {
+			return decision, nil
+		}
+	}
+	return LifecycleRecoveryDecision{}, ErrLifecycleRecoveryNotFound
+}
+
+func (r *lifecycleCoordinatorTestRepository) recoveryDecisionsSnapshot() []LifecycleRecoveryDecision {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return append([]LifecycleRecoveryDecision(nil), r.recoveryDecisions...)
 }
 
 func (r *lifecycleCoordinatorTestRepository) BeginStepAttempt(_ context.Context, input BeginLifecycleStepAttemptInput) (BeginLifecycleStepAttemptResult, error) {

@@ -163,7 +163,7 @@ func TestLifecycleCoordinatorPersistsFailureAndRetriesFromCheckpointedRecovery(t
 	if _, err := coordinator.Run(context.Background(), input); !errors.Is(err, ErrLifecycleCoordinatorRetryRequired) {
 		t.Fatalf("implicit retry = %v", err)
 	}
-	input.Retry = true
+	lifecycleCoordinatorRetry(&input)
 	recovered, err := coordinator.Run(context.Background(), input)
 	if err != nil || recovered.Operation.TerminalResult != LifecycleTerminalSucceeded || recovered.Operation.AttemptCount != 2 {
 		t.Fatalf("recovered = %#v, %v", recovered, err)
@@ -171,6 +171,19 @@ func TestLifecycleCoordinatorPersistsFailureAndRetriesFromCheckpointedRecovery(t
 	requests := runtime.requestsSnapshot()
 	if len(requests) != 2 || requests[1].Checkpoint != "half" || requests[1].Attempt != 2 || requests[0].StepID != requests[1].StepID {
 		t.Fatalf("retry requests = %#v", requests)
+	}
+	if requests[0].ActorUserID != 42 || requests[0].AuditEventID != 9001 ||
+		requests[1].ActorUserID != 84 || requests[1].AuditEventID != 9002 ||
+		requests[1].AuthorityActorUserID != 42 ||
+		string(requests[1].AuthoritySnapshot) != string(input.Acquire.AuthoritySnapshot) ||
+		recovered.Operation.RequestedByUserID != 42 || recovered.Operation.AuditEventID != 9001 ||
+		recovered.Operation.RecoveryActorUserID != 84 || recovered.Operation.RecoveryAuditEventID != 9002 {
+		t.Fatalf("retry authority split requests=%#v operation=%#v", requests, recovered.Operation)
+	}
+	decisions := repository.recoveryDecisionsSnapshot()
+	if len(decisions) != 1 || decisions[0].Decision != LifecycleRecoveryRetry ||
+		decisions[0].ActorUserID != 84 || decisions[0].AuditEventID != 9002 {
+		t.Fatalf("retry decisions = %#v", decisions)
 	}
 	if !slices.Contains(repository.statesSnapshot(), LifecycleStateRecovery) {
 		t.Fatalf("states = %#v", repository.statesSnapshot())
@@ -225,7 +238,7 @@ func TestLifecycleCoordinatorRetriesFailedHostSafetyGateBeforeAction(t *testing.
 	if err == nil || failed.Operation.TerminalResult != LifecycleTerminalFailed || len(runtime.actionNames()) != 0 {
 		t.Fatalf("failed gate = %#v, %v", failed, err)
 	}
-	input.Retry = true
+	lifecycleCoordinatorRetry(&input)
 	recovered, err := coordinator.Run(context.Background(), input)
 	if err != nil || recovered.Operation.TerminalResult != LifecycleTerminalSucceeded {
 		t.Fatalf("recovered gate = %#v, %v", recovered, err)
@@ -247,16 +260,17 @@ func TestLifecycleCoordinatorForcedUninstallCanSkipFailedCleanup(t *testing.T) {
 		}}},
 	}}
 	coordinator := NewLifecycleCoordinator(repository, runtime, &lifecycleCoordinatorTestHost{})
-	input := lifecycleCoordinatorTestInput(LifecycleMachineUninstall, true)
+	input := lifecycleCoordinatorTestInput(LifecycleMachineUninstall, false)
 	input.Acquire.RequestedByUserID = 42
 	input.Acquire.AuditEventID = 9001
 	failed, err := coordinator.Run(context.Background(), input)
 	if err == nil || failed.Operation.TerminalResult != LifecycleTerminalFailed {
 		t.Fatalf("uninstall failure = %#v, %v", failed, err)
 	}
-	input.Retry = true
+	lifecycleCoordinatorRetry(&input)
 	input.SkipFailedStep = true
 	input.SkipReason = "external subscription remains; operator accepted residual risk"
+	input.EscalateForced = true
 	result, err := coordinator.Run(context.Background(), input)
 	if err != nil || result.Operation.TerminalResult != LifecycleTerminalSucceeded || !result.Operation.Forced {
 		t.Fatalf("forced result = %#v, %v", result, err)
@@ -267,8 +281,15 @@ func TestLifecycleCoordinatorForcedUninstallCanSkipFailedCleanup(t *testing.T) {
 	}
 	latest, err := repository.LatestStepAttempt(context.Background(), result.Operation.ID, "lifecycle.uninstall.05.uninstall.after")
 	if err != nil || latest.Status != LifecycleStepSkipped || latest.SkipReason != input.SkipReason || !latest.Forced ||
-		latest.ActorUserID != 42 || latest.AuditEventID != 9001 {
+		latest.ActorUserID != 84 || latest.AuditEventID != 9002 {
 		t.Fatalf("skipped attempt = %#v, %v", latest, err)
+	}
+	decisions := repository.recoveryDecisionsSnapshot()
+	if len(decisions) != 1 || decisions[0].Decision != LifecycleRecoverySkipStep ||
+		!decisions[0].EscalateForced || decisions[0].Reason != input.SkipReason ||
+		decisions[0].ActorUserID != 84 || decisions[0].AuditEventID != 9002 ||
+		result.Operation.RequestedByUserID != 42 || result.Operation.AuditEventID != 9001 {
+		t.Fatalf("recovery authority split decisions=%#v operation=%#v", decisions, result.Operation)
 	}
 }
 
@@ -283,11 +304,14 @@ func TestLifecycleCoordinatorRejectsUnforcedCleanupSkipBeforeWritingStep(t *test
 	coordinator := NewLifecycleCoordinator(repository, runtime, &lifecycleCoordinatorTestHost{})
 	input := lifecycleCoordinatorTestInput(LifecycleMachineUninstall, false)
 	_, _ = coordinator.Run(context.Background(), input)
-	input.Retry = true
+	lifecycleCoordinatorRetry(&input)
 	input.SkipFailedStep = true
 	input.SkipReason = "unsafe skip"
 	if _, err := coordinator.Run(context.Background(), input); !errors.Is(err, ErrLifecycleStateTransitionDenied) {
 		t.Fatalf("unforced skip = %v", err)
+	}
+	if decisions := repository.recoveryDecisionsSnapshot(); len(decisions) != 0 {
+		t.Fatalf("invalid skip persisted recovery decisions: %#v", decisions)
 	}
 	latest, err := repository.LatestStepAttempt(context.Background(), 1, "lifecycle.uninstall.05.uninstall.after")
 	if err != nil || latest.Attempt != 1 || latest.Status != LifecycleStepFailed {

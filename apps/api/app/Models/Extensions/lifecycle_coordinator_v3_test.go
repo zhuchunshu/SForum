@@ -96,7 +96,7 @@ func TestLifecycleCoordinatorRetriesInitialPlannedHostGate(t *testing.T) {
 	if err == nil || failed.Operation.TerminalResult != LifecycleTerminalFailed || len(runtime.requestsSnapshot()) != 0 {
 		t.Fatalf("initial planned failure = %#v, %v", failed, err)
 	}
-	input.Retry = true
+	lifecycleCoordinatorRetry(&input)
 	recovered, err := coordinator.Run(context.Background(), input)
 	if err != nil || recovered.Operation.TerminalResult != LifecycleTerminalSucceeded ||
 		countLifecycleCoordinatorString(host.gateIDs(), "lifecycle.install.00.host.planned") != 2 {

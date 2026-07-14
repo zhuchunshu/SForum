@@ -122,7 +122,7 @@ func TestLifecycleCoordinatorUsesDetachedContextForSuccessfulAndSkippedStepTermi
 				if result, err := coordinator.Run(context.Background(), *input); err == nil || result.Operation.TerminalResult != LifecycleTerminalFailed {
 					t.Fatalf("prepare forced skip = %#v, %v", result, err)
 				}
-				input.Retry = true
+				lifecycleCoordinatorRetry(input)
 				input.SkipFailedStep = true
 				input.SkipReason = "operator accepted residual cleanup risk"
 			},
@@ -288,7 +288,7 @@ func TestLifecycleCoordinatorReconcilesTerminalStepBeforeExplicitRetry(t *testin
 	if len(runtime.actionNames()) != 1 {
 		t.Fatalf("runtime repeated before retry: %#v", runtime.actionNames())
 	}
-	input.Retry = true
+	lifecycleCoordinatorRetry(&input)
 	recovered, err := coordinator.Run(context.Background(), input)
 	if err != nil || recovered.Operation.TerminalResult != LifecycleTerminalSucceeded || len(runtime.actionNames()) != 2 {
 		t.Fatalf("explicit retry = %#v, %v actions=%#v", recovered, err, runtime.actionNames())
@@ -314,7 +314,7 @@ func TestLifecycleCoordinatorPersistsRetryAttemptBeforeRecoveryReentry(t *testin
 		t.Fatalf("initial failure = %#v, %v", failed, err)
 	}
 	repository.failLatestAfterRecoveryReentry = true
-	input.Retry = true
+	lifecycleCoordinatorRetry(&input)
 	if _, err := coordinator.Run(context.Background(), input); !errors.Is(err, errLifecycleCoordinatorTestCrash) {
 		t.Fatalf("reentry crash = %v", err)
 	}
@@ -323,7 +323,7 @@ func TestLifecycleCoordinatorPersistsRetryAttemptBeforeRecoveryReentry(t *testin
 		open.CompletedUnits != 0 || open.TotalUnits != 0 {
 		t.Fatalf("durable retry attempt = %#v, %v", open, err)
 	}
-	input.Retry = false
+	lifecycleCoordinatorRecoveryReplay(&input)
 	recovered, err := coordinator.Run(context.Background(), input)
 	if err != nil || recovered.Operation.TerminalResult != LifecycleTerminalSucceeded ||
 		recovered.Operation.AttemptCount != 2 || len(runtime.actionNames()) != 2 {
@@ -350,7 +350,7 @@ func TestLifecycleCoordinatorRepairsCrashBetweenResumeAndRecoverySnapshot(t *tes
 	input := lifecycleCoordinatorTestInput(LifecycleMachineEnable, false)
 	_, _ = coordinator.Run(context.Background(), input)
 	repository.failNextTransition()
-	input.Retry = true
+	lifecycleCoordinatorRetry(&input)
 	if _, err := coordinator.Run(context.Background(), input); !errors.Is(err, errLifecycleCoordinatorTestCrash) {
 		t.Fatalf("resume crash = %v", err)
 	}

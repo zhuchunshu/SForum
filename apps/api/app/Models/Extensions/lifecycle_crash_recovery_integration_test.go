@@ -50,6 +50,10 @@ func TestPostgresLifecycleCrashRecoveryAtEveryRecommendedGate(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
+				machine = applyLifecycleCrashTransition(t, machine, LifecycleStateTransition{
+					State: machine.State, Action: machine.Action, CompleteStep: true,
+					Progress: LifecycleProgressCursor{TotalUnits: uint64(len(path) - 1)},
+				})
 				completedStepIDs := make([]string, 0)
 
 				for index := 1; index < target; index++ {
@@ -144,6 +148,7 @@ func TestPostgresLifecycleCrashRecoveryAtEveryRecommendedGate(t *testing.T) {
 				// Resume reuses the same operation row and re-enters only its exact failed gate.
 				resumed, err := restarted.ResumeOperation(ctx, ResumeLifecycleOperationInput{
 					OperationID: failed.ID, ExpectedRevision: failed.Revision, ExpectedState: LifecycleStateFailed,
+					Decision: LifecycleRecoveryRetry, ActorUserID: int64(1000 + target), AuditEventID: int64(2000 + target),
 				})
 				if err != nil {
 					t.Fatal(err)
@@ -198,6 +203,10 @@ func TestPostgresLifecycleConcurrentRecoveryCASHasOneWinner(t *testing.T) {
 	machine, _ := NewLifecycleStateMachine(LifecycleMachineEnable, false)
 	path, _ := RecommendedLifecyclePath(machine.Operation)
 	machine = applyLifecycleCrashTransition(t, machine, LifecycleStateTransition{
+		State: machine.State, Action: machine.Action, CompleteStep: true,
+		Progress: LifecycleProgressCursor{TotalUnits: uint64(len(path) - 1)},
+	})
+	machine = applyLifecycleCrashTransition(t, machine, LifecycleStateTransition{
 		State: path[1].State, Action: path[1].Action,
 		Progress: lifecycleCrashProgress(0, len(path)-1, 1, "begin"),
 	})
@@ -227,6 +236,7 @@ func TestPostgresLifecycleConcurrentRecoveryCASHasOneWinner(t *testing.T) {
 			<-start
 			_, err := repository.ResumeOperation(ctx, ResumeLifecycleOperationInput{
 				OperationID: failed.ID, ExpectedRevision: failed.Revision, ExpectedState: LifecycleStateFailed,
+				Decision: LifecycleRecoveryRetry, ActorUserID: 1001, AuditEventID: 2001,
 			})
 			results <- err
 		}()
@@ -252,6 +262,11 @@ func TestPostgresLifecycleConcurrentRecoveryCASHasOneWinner(t *testing.T) {
 	open, err := repository.OpenOperation(ctx, extensionID)
 	if err != nil || open.State != LifecycleStateRecovery || open.AttemptCount != 2 || open.Revision != failed.Revision+1 {
 		t.Fatalf("recovered operation = %#v, err=%v", open, err)
+	}
+	decisions, err := repository.ListRecoveryDecisions(ctx, failed.ID)
+	if err != nil || len(decisions) != 1 || decisions[0].OperationAttempt != 2 ||
+		decisions[0].ActorUserID != 1001 || decisions[0].AuditEventID != 2001 {
+		t.Fatalf("concurrent recovery decisions = %#v, err=%v", decisions, err)
 	}
 }
 

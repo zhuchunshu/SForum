@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -37,6 +38,9 @@ func (r *PostgresLifecycleRepository) AcquireOperation(ctx context.Context, inpu
 	}
 	if !errors.Is(err, pgx.ErrNoRows) {
 		return AcquireLifecycleOperationResult{}, fmt.Errorf("load lifecycle idempotency key: %w", err)
+	}
+	if input.ExistingOnly {
+		return AcquireLifecycleOperationResult{}, ErrLifecycleOperationNotFound
 	}
 
 	if _, err := loadOpenLifecycleOperation(ctx, tx, input.ExtensionID, true); err == nil {
@@ -249,7 +253,7 @@ func (r *PostgresLifecycleRepository) CompleteOperation(ctx context.Context, inp
 		    error_code = $7, error_reason = $8, error_message = $9,
 		    error_retryable = $10, error_retry_after = $11,
 		    error_metadata = $12::jsonb,
-		    audit_event_id = COALESCE($13, audit_event_id),
+		    audit_event_id = COALESCE(audit_event_id, $13),
 		    completed_at = now(), updated_at = now(), revision = revision + 1
 		WHERE id = $1 AND revision = $2 AND state = $3 AND completed_at IS NULL
 	`, input.OperationID, input.ExpectedRevision, input.ExpectedState, input.State,
@@ -273,6 +277,9 @@ func (r *PostgresLifecycleRepository) CompleteOperation(ctx context.Context, inp
 }
 
 func (r *PostgresLifecycleRepository) ResumeOperation(ctx context.Context, input ResumeLifecycleOperationInput) (LifecycleOperation, error) {
+	if err := validateLifecycleRecoveryInput(input); err != nil {
+		return LifecycleOperation{}, err
+	}
 	tx, err := r.pool.Begin(ctx)
 	if err != nil {
 		return LifecycleOperation{}, fmt.Errorf("begin lifecycle operation recovery: %w", err)
@@ -288,14 +295,30 @@ func (r *PostgresLifecycleRepository) ResumeOperation(ctx context.Context, input
 	if current.CompletedAt == nil || (current.TerminalResult != LifecycleTerminalFailed && current.TerminalResult != LifecycleTerminalCancelled) {
 		return LifecycleOperation{}, ErrLifecycleNotRecoverable
 	}
+	if input.EscalateForced && (current.Operation != LifecycleOperationUninstall || current.Forced) {
+		return LifecycleOperation{}, ErrLifecycleInvalidInput
+	}
+	nextAttempt := current.AttemptCount + 1
+	if _, err := tx.Exec(ctx, `
+		INSERT INTO extension_lifecycle_recovery_decisions (
+			operation_id, operation_attempt, decision, escalate_forced,
+			reason, actor_user_id, audit_event_id
+		) VALUES ($1, $2, $3, $4, $5, $6, $7)
+	`, input.OperationID, nextAttempt, input.Decision, input.EscalateForced,
+		input.Reason, input.ActorUserID, input.AuditEventID); err != nil {
+		return LifecycleOperation{}, mapLifecycleRecoveryWriteError("insert lifecycle recovery decision", err)
+	}
 	tag, err := tx.Exec(ctx, `
 		UPDATE extension_lifecycle_operations
 		SET state = 'recovery', terminal_result = NULL, completed_at = NULL,
 		    attempt_count = attempt_count + 1, revision = revision + 1,
+		    recovery_actor_user_id = $4, recovery_audit_event_id = $5,
+		    forced = forced OR $6,
 		    updated_at = now()
 		WHERE id = $1 AND revision = $2 AND state = $3
 		  AND completed_at IS NOT NULL AND terminal_result IN ('failed', 'cancelled')
-	`, input.OperationID, input.ExpectedRevision, input.ExpectedState)
+	`, input.OperationID, input.ExpectedRevision, input.ExpectedState,
+		input.ActorUserID, input.AuditEventID, input.EscalateForced)
 	if err != nil {
 		return LifecycleOperation{}, mapLifecycleOperationWriteError("resume lifecycle operation", err)
 	}
@@ -310,6 +333,40 @@ func (r *PostgresLifecycleRepository) ResumeOperation(ctx context.Context, input
 		return LifecycleOperation{}, fmt.Errorf("commit lifecycle operation recovery: %w", err)
 	}
 	return resumed, nil
+}
+
+func validateLifecycleRecoveryInput(input ResumeLifecycleOperationInput) error {
+	if input.OperationID <= 0 || input.ExpectedRevision <= 0 || input.ExpectedState == "" ||
+		input.ActorUserID <= 0 || input.AuditEventID <= 0 ||
+		len(input.Reason) > 4096 || input.Reason != strings.TrimSpace(input.Reason) {
+		return ErrLifecycleInvalidInput
+	}
+	switch input.Decision {
+	case LifecycleRecoveryRetry:
+	case LifecycleRecoverySkipStep:
+		if input.Reason == "" {
+			return ErrLifecycleInvalidInput
+		}
+	default:
+		return ErrLifecycleInvalidInput
+	}
+	if input.EscalateForced && input.Reason == "" {
+		return ErrLifecycleInvalidInput
+	}
+	return nil
+}
+
+func mapLifecycleRecoveryWriteError(action string, err error) error {
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) {
+		switch pgErr.Code {
+		case "23505":
+			return fmt.Errorf("%w: %s", ErrLifecycleRevisionConflict, pgErr.ConstraintName)
+		case "23503", "23514":
+			return fmt.Errorf("%w: %s", ErrLifecycleInvalidInput, pgErr.ConstraintName)
+		}
+	}
+	return fmt.Errorf("%s: %w", action, err)
 }
 
 func loadLifecycleOperationByID(ctx context.Context, tx pgx.Tx, id int64, forUpdate bool) (LifecycleOperation, error) {

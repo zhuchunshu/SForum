@@ -32,6 +32,8 @@ type LifecycleOperationIntent struct {
 	Retry           bool
 	SkipFailedStep  bool
 	SkipReason      string
+	EscalateForced  bool
+	RecoveryReason  string
 	AuditEventID    int64
 }
 
@@ -97,10 +99,20 @@ func BuildLifecycleCoordinatorRunInput(
 	if idempotencyKey == "" || idempotencyKey != intent.IdempotencyKey || len(idempotencyKey) > 512 {
 		return LifecycleCoordinatorRunInput{}, fmt.Errorf("%w: stable idempotency key is required", ErrLifecycleCoordinatorInvalid)
 	}
-	if err := validateLifecycleAuthority(extension, actor, authority); err != nil {
+	authorityActor := actor
+	if intent.Retry {
+		if actor.ID <= 0 || intent.AuditEventID <= 0 {
+			return LifecycleCoordinatorRunInput{}, fmt.Errorf("%w: recovery actor and audit identities are required", ErrLifecycleCoordinatorInvalid)
+		}
+		authorityActor.ID = authority.ActorUserID
+	}
+	if err := validateLifecycleAuthority(extension, authorityActor, authority); err != nil {
 		return LifecycleCoordinatorRunInput{}, err
 	}
 	if err := validateLifecycleRemovalIntent(intent); err != nil {
+		return LifecycleCoordinatorRunInput{}, err
+	}
+	if err := validateLifecycleRecoveryIntent(intent); err != nil {
 		return LifecycleCoordinatorRunInput{}, err
 	}
 	actionInputs, fingerprintInputs, err := canonicalLifecycleActionInputs(intent.Operation, intent.ActionInputs)
@@ -147,6 +159,14 @@ func BuildLifecycleCoordinatorRunInput(
 	if authority.Grant != nil {
 		trustGrantID = authority.Grant.ID
 	}
+	initialAuditEventID := intent.AuditEventID
+	recoveryActorUserID := int64(0)
+	recoveryAuditEventID := int64(0)
+	if intent.Retry {
+		initialAuditEventID = 0
+		recoveryActorUserID = actor.ID
+		recoveryAuditEventID = intent.AuditEventID
+	}
 	return LifecycleCoordinatorRunInput{
 		Extension: extension, SourceExtension: sourceExtension,
 		Acquire: AcquireLifecycleOperationInput{
@@ -155,11 +175,15 @@ func BuildLifecycleCoordinatorRunInput(
 			Operation: string(intent.Operation), PlanVersion: extension.Manifest.Lifecycle.ContractVersion,
 			IdempotencyKey: idempotencyKey, RequestFingerprint: hex.EncodeToString(fingerprint[:]),
 			AuthorityType: authority.AuthorityType, TrustGrantID: trustGrantID,
-			AuthoritySnapshot: authorityJSON, RequestedByUserID: actor.ID,
-			AuditEventID: intent.AuditEventID, RemovalMode: intent.RemovalMode, Forced: intent.Forced,
+			AuthoritySnapshot: authorityJSON, RequestedByUserID: authority.ActorUserID,
+			AuditEventID: initialAuditEventID,
+			RemovalMode:  intent.RemovalMode, Forced: intent.Forced, ExistingOnly: intent.Retry,
 		},
 		ActionInputs: actionInputs, Retry: intent.Retry,
 		SkipFailedStep: intent.SkipFailedStep, SkipReason: intent.SkipReason,
+		RecoveryActorUserID:  recoveryActorUserID,
+		RecoveryAuditEventID: recoveryAuditEventID,
+		EscalateForced:       intent.EscalateForced, RecoveryReason: intent.RecoveryReason,
 	}, nil
 }
 
@@ -198,6 +222,30 @@ func validateLifecycleRemovalIntent(intent LifecycleOperationIntent) error {
 		}
 	} else if intent.RemovalMode != "" || intent.Forced {
 		return fmt.Errorf("%w: removal mode and force are uninstall-only", ErrLifecycleCoordinatorInvalid)
+	}
+	return nil
+}
+
+func validateLifecycleRecoveryIntent(intent LifecycleOperationIntent) error {
+	if !intent.Retry {
+		if intent.SkipFailedStep || intent.SkipReason != "" || intent.EscalateForced || intent.RecoveryReason != "" {
+			return fmt.Errorf("%w: recovery controls require retry", ErrLifecycleCoordinatorInvalid)
+		}
+		return nil
+	}
+	if intent.SkipFailedStep {
+		if intent.SkipReason == "" || intent.SkipReason != strings.TrimSpace(intent.SkipReason) || len(intent.SkipReason) > 4096 {
+			return fmt.Errorf("%w: skip-step requires a stable reason", ErrLifecycleCoordinatorInvalid)
+		}
+	} else if intent.SkipReason != "" {
+		return fmt.Errorf("%w: skip reason requires skip-step", ErrLifecycleCoordinatorInvalid)
+	}
+	if intent.RecoveryReason != strings.TrimSpace(intent.RecoveryReason) || len(intent.RecoveryReason) > 4096 {
+		return fmt.Errorf("%w: recovery reason must be stable", ErrLifecycleCoordinatorInvalid)
+	}
+	if intent.EscalateForced && (intent.Operation != LifecycleMachineUninstall ||
+		(intent.RecoveryReason == "" && intent.SkipReason == "")) {
+		return fmt.Errorf("%w: forced recovery is uninstall-only and requires a reason", ErrLifecycleCoordinatorInvalid)
 	}
 	return nil
 }

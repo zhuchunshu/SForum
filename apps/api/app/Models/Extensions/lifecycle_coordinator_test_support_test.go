@@ -2,6 +2,7 @@ package extensions
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"sync"
@@ -215,9 +216,28 @@ func lifecycleCoordinatorTestInput(operation LifecycleMachineOperation, forced b
 			ExtensionID: extension.ID, ExtensionVersion: extension.Version, PackageDigest: digest,
 			Operation: string(operation), PlanVersion: "demo.plugin.lifecycle@1",
 			IdempotencyKey: "operation-1", RequestFingerprint: strings.Repeat("f", 64),
-			AuthorityType: LifecycleAuthorityBuiltin, Forced: forced,
+			AuthorityType: LifecycleAuthorityBuiltin, AuthoritySnapshot: json.RawMessage(`{"schemaVersion":"test"}`),
+			RequestedByUserID: 42, AuditEventID: 9001, Forced: forced,
 		},
 	}
+}
+
+func lifecycleCoordinatorRetry(input *LifecycleCoordinatorRunInput) {
+	input.Retry = true
+	input.Acquire.ExistingOnly = true
+	input.RecoveryActorUserID = 84
+	input.RecoveryAuditEventID = 9002
+}
+
+func lifecycleCoordinatorRecoveryReplay(input *LifecycleCoordinatorRunInput) {
+	input.Retry = false
+	input.Acquire.ExistingOnly = false
+	input.RecoveryActorUserID = 0
+	input.RecoveryAuditEventID = 0
+	input.EscalateForced = false
+	input.RecoveryReason = ""
+	input.SkipFailedStep = false
+	input.SkipReason = ""
 }
 
 func cloneLifecycleCoordinatorTestOperation(value LifecycleOperation) LifecycleOperation {

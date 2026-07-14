@@ -341,6 +341,32 @@ func TestLifecycleSkipAndForcedUninstallPolicies(t *testing.T) {
 	}
 }
 
+func TestLifecycleForcedEscalationIsPersistedOnRecoveryEntry(t *testing.T) {
+	uninstall := failedLifecycleMachineAtFinalGate(t, LifecycleMachineUninstall, false)
+	recovery := applyLifecycleTestTransition(t, uninstall, LifecycleStateTransition{
+		State: LifecycleMachineRecovery, Retry: true, EscalateForced: true,
+		Progress: uninstall.Progress,
+	})
+	if !recovery.Forced || recovery.State != LifecycleMachineRecovery {
+		t.Fatalf("forced recovery = %#v", recovery)
+	}
+	path, _ := RecommendedLifecyclePath(recovery.Operation)
+	step := path[recovery.RecoveryPosition]
+	if err := ValidateLifecycleTransition(recovery, LifecycleStateTransition{
+		State: step.State, Action: step.Action, Progress: recovery.Progress,
+	}); err != nil {
+		t.Fatalf("forced retry reentry = %v", err)
+	}
+
+	enable := failedLifecycleMachineAtFinalGate(t, LifecycleMachineEnable, false)
+	if err := ValidateLifecycleTransition(enable, LifecycleStateTransition{
+		State: LifecycleMachineRecovery, Retry: true, EscalateForced: true,
+		Progress: enable.Progress,
+	}); !errors.Is(err, ErrLifecycleStateTransitionDenied) {
+		t.Fatalf("forced enable recovery = %v", err)
+	}
+}
+
 func TestLifecycleProgressAndCheckpointAreMonotonic(t *testing.T) {
 	machine, _ := NewLifecycleStateMachine(LifecycleMachineEnable, false)
 	machine.Progress = LifecycleProgressCursor{

@@ -28,6 +28,7 @@ type LifecycleCoordinatorRepository interface {
 	TransitionOperation(context.Context, TransitionLifecycleOperationInput) (LifecycleOperation, error)
 	CompleteOperation(context.Context, CompleteLifecycleOperationInput) (LifecycleOperation, error)
 	ResumeOperation(context.Context, ResumeLifecycleOperationInput) (LifecycleOperation, error)
+	RecoveryDecision(context.Context, int64, int) (LifecycleRecoveryDecision, error)
 	BeginStepAttempt(context.Context, BeginLifecycleStepAttemptInput) (BeginLifecycleStepAttemptResult, error)
 	UpdateStepProgress(context.Context, UpdateLifecycleStepProgressInput) (LifecycleStepAttempt, error)
 	CompleteStepAttempt(context.Context, CompleteLifecycleStepAttemptInput) (LifecycleStepAttempt, error)
@@ -70,10 +71,13 @@ type LifecycleCoordinatorActionRequest struct {
 	AuthorityType     string
 	TrustGrantID      int64
 	AuthoritySnapshot json.RawMessage
-	RemovalMode       string
-	Forced            bool
-	ActorUserID       int64
-	AuditEventID      int64
+	// AuthorityActorUserID belongs to the immutable exact-artifact grant;
+	// ActorUserID/AuditEventID identify the current recovery attempt.
+	AuthorityActorUserID int64
+	RemovalMode          string
+	Forced               bool
+	ActorUserID          int64
+	AuditEventID         int64
 }
 
 type LifecycleCoordinatorRuntimeRole string
@@ -121,11 +125,14 @@ type LifecycleCoordinatorGateRequest struct {
 	AuthorityType     string
 	TrustGrantID      int64
 	AuthoritySnapshot json.RawMessage
-	RemovalMode       string
-	Forced            bool
-	ActorUserID       int64
-	AuditEventID      int64
-	Revalidation      bool
+	// AuthorityActorUserID remains frozen while ActorUserID/AuditEventID
+	// advance with each operator recovery decision.
+	AuthorityActorUserID int64
+	RemovalMode          string
+	Forced               bool
+	ActorUserID          int64
+	AuditEventID         int64
+	Revalidation         bool
 }
 
 type LifecycleGateRevalidationPolicy string
@@ -148,13 +155,17 @@ type LifecycleCoordinatorGateResult struct {
 }
 
 type LifecycleCoordinatorRunInput struct {
-	Extension       Extension
-	SourceExtension *Extension
-	Acquire         AcquireLifecycleOperationInput
-	ActionInputs    map[LifecycleMachineAction]json.RawMessage
-	Retry           bool
-	SkipFailedStep  bool
-	SkipReason      string
+	Extension            Extension
+	SourceExtension      *Extension
+	Acquire              AcquireLifecycleOperationInput
+	ActionInputs         map[LifecycleMachineAction]json.RawMessage
+	Retry                bool
+	SkipFailedStep       bool
+	SkipReason           string
+	RecoveryActorUserID  int64
+	RecoveryAuditEventID int64
+	EscalateForced       bool
+	RecoveryReason       string
 }
 
 type LifecycleCoordinatorRunResult struct {
@@ -207,7 +218,7 @@ func (c *LifecycleCoordinator) Run(ctx context.Context, input LifecycleCoordinat
 			if !input.Retry {
 				return LifecycleCoordinatorRunResult{Operation: operation, Replayed: true}, ErrLifecycleCoordinatorRetryRequired
 			}
-			operation, machine, err = c.resume(ctx, operation, machine)
+			operation, machine, err = c.resume(ctx, operation, machine, input)
 			if err != nil {
 				return LifecycleCoordinatorRunResult{Operation: operation}, err
 			}
@@ -313,11 +324,25 @@ func (c *LifecycleCoordinator) validateInput(ctx context.Context, input Lifecycl
 	if err := validateLifecycleSourceArtifact(operation, input.Extension, input.SourceExtension); err != nil {
 		return err
 	}
-	if input.SkipFailedStep && (!input.Retry || strings.TrimSpace(input.SkipReason) == "" || input.SkipReason != strings.TrimSpace(input.SkipReason)) {
+	if input.SkipFailedStep && (!input.Retry || strings.TrimSpace(input.SkipReason) == "" ||
+		input.SkipReason != strings.TrimSpace(input.SkipReason) || len(input.SkipReason) > 4096) {
 		return fmt.Errorf("%w: skip-step requires retry and a stable reason", ErrLifecycleCoordinatorInvalid)
 	}
 	if !input.SkipFailedStep && strings.TrimSpace(input.SkipReason) != "" {
 		return fmt.Errorf("%w: skip reason requires skip-step", ErrLifecycleCoordinatorInvalid)
+	}
+	if input.Retry {
+		if !input.Acquire.ExistingOnly || input.RecoveryActorUserID <= 0 || input.RecoveryAuditEventID <= 0 ||
+			len(input.RecoveryReason) > 4096 || input.RecoveryReason != strings.TrimSpace(input.RecoveryReason) {
+			return fmt.Errorf("%w: retry requires stable recovery actor and audit identities", ErrLifecycleCoordinatorInvalid)
+		}
+		if input.EscalateForced && (operation != LifecycleMachineUninstall ||
+			(input.RecoveryReason == "" && input.SkipReason == "")) {
+			return fmt.Errorf("%w: forced recovery is uninstall-only and requires a reason", ErrLifecycleCoordinatorInvalid)
+		}
+	} else if input.SkipFailedStep || input.RecoveryActorUserID != 0 || input.RecoveryAuditEventID != 0 ||
+		input.EscalateForced || input.RecoveryReason != "" {
+		return fmt.Errorf("%w: recovery controls require retry", ErrLifecycleCoordinatorInvalid)
 	}
 	return nil
 }
@@ -342,7 +367,8 @@ func (c *LifecycleCoordinator) loadOrInitializeMachine(
 		if operation.State == LifecycleStateRecovery && machine.State == LifecycleMachineFailed &&
 			(machine.TerminalResult == LifecycleMachineFailedRun || machine.TerminalResult == LifecycleMachineCancelled) {
 			recovered, applyErr := ApplyLifecycleTransition(machine, LifecycleStateTransition{
-				State: LifecycleMachineRecovery, Retry: true, Progress: machine.Progress,
+				State: LifecycleMachineRecovery, Retry: true,
+				EscalateForced: operation.Forced && !machine.Forced, Progress: machine.Progress,
 			})
 			if applyErr != nil {
 				return LifecycleStateMachine{}, operation, applyErr
@@ -405,16 +431,40 @@ func (c *LifecycleCoordinator) reconcilePendingTerminal(ctx context.Context, ope
 	return completed, machine, err
 }
 
-func (c *LifecycleCoordinator) resume(ctx context.Context, operation LifecycleOperation, machine LifecycleStateMachine) (LifecycleOperation, LifecycleStateMachine, error) {
+func (c *LifecycleCoordinator) resume(
+	ctx context.Context,
+	operation LifecycleOperation,
+	machine LifecycleStateMachine,
+	input LifecycleCoordinatorRunInput,
+) (LifecycleOperation, LifecycleStateMachine, error) {
 	transition := LifecycleStateTransition{
-		State: LifecycleMachineRecovery, Retry: true, Progress: machine.Progress,
+		State: LifecycleMachineRecovery, Retry: true,
+		EscalateForced: input.EscalateForced, Progress: machine.Progress,
 	}
 	recovered, err := ApplyLifecycleTransition(machine, transition)
 	if err != nil {
 		return operation, machine, err
 	}
+	path, _ := RecommendedLifecyclePath(recovered.Operation)
+	step := path[recovered.RecoveryPosition]
+	reentry := LifecycleStateTransition{State: step.State, Action: step.Action, Progress: recovered.Progress}
+	if input.SkipFailedStep {
+		reentry.SkipStep = true
+		reentry.SkipReason = input.SkipReason
+	}
+	if err := ValidateLifecycleTransition(recovered, reentry); err != nil {
+		return operation, machine, err
+	}
+	decision := LifecycleRecoveryRetry
+	reason := input.RecoveryReason
+	if input.SkipFailedStep {
+		decision = LifecycleRecoverySkipStep
+		reason = input.SkipReason
+	}
 	resumed, err := c.repository.ResumeOperation(ctx, ResumeLifecycleOperationInput{
 		OperationID: operation.ID, ExpectedRevision: operation.Revision, ExpectedState: operation.State,
+		Decision: decision, EscalateForced: input.EscalateForced, Reason: reason,
+		ActorUserID: input.RecoveryActorUserID, AuditEventID: input.RecoveryAuditEventID,
 	})
 	if err != nil {
 		return operation, machine, err

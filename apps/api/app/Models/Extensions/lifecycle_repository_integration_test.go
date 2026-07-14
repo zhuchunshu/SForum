@@ -215,9 +215,15 @@ func TestPostgresLifecycleRepositoryConcurrentAcquireAndRecovery(t *testing.T) {
 	}
 	recovered, err := restarted.ResumeOperation(ctx, ResumeLifecycleOperationInput{
 		OperationID: operation.ID, ExpectedRevision: failedOperation.Revision, ExpectedState: LifecycleStateFailed,
+		Decision: LifecycleRecoveryRetry, ActorUserID: 81, AuditEventID: 91,
 	})
 	if err != nil || recovered.State != LifecycleStateRecovery || recovered.AttemptCount != 2 || recovered.CompletedAt != nil {
 		t.Fatalf("recovered operation = %#v, err=%v", recovered, err)
+	}
+	decision, err := restarted.RecoveryDecision(ctx, operation.ID, recovered.AttemptCount)
+	if err != nil || decision.Decision != LifecycleRecoveryRetry || decision.ActorUserID != 81 ||
+		decision.AuditEventID != 91 || recovered.RecoveryActorUserID != 81 || recovered.RecoveryAuditEventID != 91 {
+		t.Fatalf("recovery decision = %#v operation=%#v err=%v", decision, recovered, err)
 	}
 	open, err := restarted.ListOpenOperations(ctx, 10)
 	if err != nil || !lifecycleOperationsContain(open, operation.ID) {
@@ -362,6 +368,67 @@ func TestPostgresLifecycleRepositoryEnforcesAuthorityAndRetentionBoundaries(t *t
 	}
 	if _, err := repository.Operation(ctx, "another.extension", completed.ID); !errors.Is(err, ErrLifecycleOperationNotFound) {
 		t.Fatalf("cross-extension operation lookup error = %v", err)
+	}
+}
+
+func TestPostgresLifecycleRepositoryPersistsEveryRecoveryDecisionWithoutReplacingAuthority(t *testing.T) {
+	ctx, _, repository, extensionID := newLifecycleRepositoryIntegration(t)
+	input := lifecycleAcquireTestInput(extensionID, LifecycleOperationUninstall)
+	input.RemovalMode = LifecycleRemovalComplete
+	input.AuditEventID = 71
+	input.AuthoritySnapshot = json.RawMessage(`{"schemaVersion":"authority@1","actorUserId":41}`)
+	acquired, err := repository.AcquireOperation(ctx, input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	failure := LifecycleExecutionError{Code: "cleanup.failed", Reason: "cleanup.failed", Message: "external resource remains"}
+	failed, err := repository.CompleteOperation(ctx, CompleteLifecycleOperationInput{
+		OperationID: acquired.Operation.ID, ExpectedRevision: acquired.Operation.Revision,
+		ExpectedState: acquired.Operation.State, State: LifecycleStateFailed,
+		TerminalResult: LifecycleTerminalFailed, Error: failure,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	forced, err := repository.ResumeOperation(ctx, ResumeLifecycleOperationInput{
+		OperationID: failed.ID, ExpectedRevision: failed.Revision, ExpectedState: failed.State,
+		Decision: LifecycleRecoverySkipStep, EscalateForced: true,
+		Reason: "operator accepted residual external resources", ActorUserID: 81, AuditEventID: 91,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !forced.Forced || forced.RecoveryActorUserID != 81 || forced.RecoveryAuditEventID != 91 ||
+		forced.AuditEventID != 71 || !lifecycleJSONEqual(forced.AuthoritySnapshot, input.AuthoritySnapshot) {
+		t.Fatalf("forced recovery replaced authority: %#v", forced)
+	}
+
+	failedAgain, err := repository.CompleteOperation(ctx, CompleteLifecycleOperationInput{
+		OperationID: forced.ID, ExpectedRevision: forced.Revision, ExpectedState: forced.State,
+		State: LifecycleStateFailed, TerminalResult: LifecycleTerminalFailed, Error: failure,
+		AuditEventID: 91,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	retried, err := repository.ResumeOperation(ctx, ResumeLifecycleOperationInput{
+		OperationID: failedAgain.ID, ExpectedRevision: failedAgain.Revision, ExpectedState: failedAgain.State,
+		Decision: LifecycleRecoveryRetry, ActorUserID: 82, AuditEventID: 92,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	decisions, err := repository.ListRecoveryDecisions(ctx, retried.ID)
+	if err != nil || len(decisions) != 2 || decisions[0].OperationAttempt != 2 ||
+		decisions[0].Decision != LifecycleRecoverySkipStep || !decisions[0].EscalateForced ||
+		decisions[0].ActorUserID != 81 || decisions[0].AuditEventID != 91 ||
+		decisions[1].OperationAttempt != 3 || decisions[1].Decision != LifecycleRecoveryRetry ||
+		decisions[1].EscalateForced || decisions[1].ActorUserID != 82 || decisions[1].AuditEventID != 92 {
+		t.Fatalf("recovery decisions = %#v, err=%v", decisions, err)
+	}
+	if !retried.Forced || retried.RecoveryActorUserID != 82 || retried.RecoveryAuditEventID != 92 ||
+		retried.AuditEventID != 71 || !lifecycleJSONEqual(retried.AuthoritySnapshot, input.AuthoritySnapshot) {
+		t.Fatalf("latest recovery replaced original authority: %#v", retried)
 	}
 }
 

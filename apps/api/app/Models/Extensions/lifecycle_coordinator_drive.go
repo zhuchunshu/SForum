@@ -100,23 +100,35 @@ func (c *LifecycleCoordinator) recoverGate(
 	path, _ := RecommendedLifecyclePath(machine.Operation)
 	step := path[machine.RecoveryPosition]
 	stepID := lifecycleCoordinatorStepID(machine.Operation, machine.RecoveryPosition, step.State, step.Action)
+	decision, err := c.repository.RecoveryDecision(ctx, operation.ID, operation.AttemptCount)
+	if err != nil {
+		return operation, machine, err
+	}
+	if decision.OperationID != operation.ID || decision.OperationAttempt != operation.AttemptCount ||
+		decision.ActorUserID != operation.RecoveryActorUserID || decision.AuditEventID != operation.RecoveryAuditEventID ||
+		(decision.EscalateForced && !operation.Forced) {
+		return operation, machine, fmt.Errorf("%w: recovery decision does not match the durable operation", ErrLifecycleCoordinatorInvalid)
+	}
 	recoveryCheckpoint := ""
 	latest, err := c.repository.LatestStepAttempt(ctx, operation.ID, stepID)
 	if err == nil {
 		recoveryCheckpoint = latest.Checkpoint
 		if latest.Status == LifecycleStepSkipped {
+			if decision.Decision != LifecycleRecoverySkipStep || latest.SkipReason != decision.Reason {
+				return operation, machine, fmt.Errorf("%w: skipped step does not match the durable recovery decision", ErrLifecycleCoordinatorInvalid)
+			}
 			return c.persistRecoverySkip(ctx, operation, machine, step, latest.SkipReason)
 		}
 	} else if !errors.Is(err, ErrLifecycleStepNotFound) {
 		return operation, machine, err
 	}
-	if input.SkipFailedStep {
+	if decision.Decision == LifecycleRecoverySkipStep {
 		if step.Action == "" {
 			return operation, machine, fmt.Errorf("%w: Host safety gates cannot be skipped", ErrLifecycleCoordinatorInvalid)
 		}
 		skipTransition := LifecycleStateTransition{
 			State: step.State, Action: step.Action, SkipStep: true,
-			SkipReason: input.SkipReason, Progress: machine.Progress,
+			SkipReason: decision.Reason, Progress: machine.Progress,
 		}
 		if err := ValidateLifecycleTransition(machine, skipTransition); err != nil {
 			return operation, machine, err
@@ -124,7 +136,8 @@ func (c *LifecycleCoordinator) recoverGate(
 		begin, err := c.repository.BeginStepAttempt(ctx, BeginLifecycleStepAttemptInput{
 			OperationID: operation.ID, StepID: stepID, LifecycleAction: string(step.Action),
 			PlanVersion: operation.PlanVersion, InputDocument: cloneLifecycleJSON(input.ActionInputs[step.Action]),
-			Checkpoint: recoveryCheckpoint, ActorUserID: operation.RequestedByUserID, AuditEventID: operation.AuditEventID,
+			Checkpoint: recoveryCheckpoint, ActorUserID: lifecycleOperationActorUserID(operation),
+			AuditEventID: lifecycleOperationAuditEventID(operation),
 		})
 		if err != nil {
 			return operation, machine, err
@@ -141,14 +154,18 @@ func (c *LifecycleCoordinator) recoverGate(
 		_, err = lease.complete(terminalCtx, CompleteLifecycleStepAttemptInput{
 			AttemptID: begin.Attempt.ID, Status: LifecycleStepSkipped, Checkpoint: begin.Attempt.Checkpoint,
 			CompletedUnits: begin.Attempt.CompletedUnits, TotalUnits: begin.Attempt.TotalUnits,
-			SkipReason: input.SkipReason, Forced: machine.Forced,
-			ActorUserID: operation.RequestedByUserID, AuditEventID: operation.AuditEventID,
+			SkipReason: decision.Reason, Forced: machine.Forced,
+			ActorUserID:  lifecycleOperationActorUserID(operation),
+			AuditEventID: lifecycleOperationAuditEventID(operation),
 		})
 		cancelTerminal()
 		if err != nil {
 			return operation, machine, err
 		}
-		return c.persistRecoverySkip(ctx, operation, machine, step, input.SkipReason)
+		return c.persistRecoverySkip(ctx, operation, machine, step, decision.Reason)
+	}
+	if decision.Decision != LifecycleRecoveryRetry {
+		return operation, machine, fmt.Errorf("%w: unsupported durable recovery decision", ErrLifecycleCoordinatorInvalid)
 	}
 	transition := LifecycleStateTransition{State: step.State, Action: step.Action, Progress: machine.Progress}
 	reentered, err := ApplyLifecycleTransition(machine, transition)
@@ -158,7 +175,8 @@ func (c *LifecycleCoordinator) recoverGate(
 	if _, err := c.repository.BeginStepAttempt(ctx, BeginLifecycleStepAttemptInput{
 		OperationID: operation.ID, StepID: stepID, LifecycleAction: lifecycleCoordinatorActionName(step.Action),
 		PlanVersion: operation.PlanVersion, InputDocument: cloneLifecycleJSON(input.ActionInputs[step.Action]),
-		Checkpoint: recoveryCheckpoint, ActorUserID: operation.RequestedByUserID, AuditEventID: operation.AuditEventID,
+		Checkpoint: recoveryCheckpoint, ActorUserID: lifecycleOperationActorUserID(operation),
+		AuditEventID: lifecycleOperationAuditEventID(operation),
 	}); err != nil {
 		return operation, machine, err
 	}
@@ -213,7 +231,8 @@ func (c *LifecycleCoordinator) claimCurrentLifecycleGate(
 	begin, err := c.repository.BeginStepAttempt(ctx, BeginLifecycleStepAttemptInput{
 		OperationID: operation.ID, StepID: stepID, LifecycleAction: lifecycleCoordinatorActionName(machine.Action),
 		PlanVersion: operation.PlanVersion, InputDocument: cloneLifecycleJSON(input.ActionInputs[machine.Action]),
-		Checkpoint: checkpoint, ActorUserID: operation.RequestedByUserID, AuditEventID: operation.AuditEventID,
+		Checkpoint: checkpoint, ActorUserID: lifecycleOperationActorUserID(operation),
+		AuditEventID: lifecycleOperationAuditEventID(operation),
 	})
 	if err != nil {
 		return nil, err
@@ -298,7 +317,8 @@ func (c *LifecycleCoordinator) runLifecycleHostGate(
 		begin, err := c.repository.BeginStepAttempt(ctx, BeginLifecycleStepAttemptInput{
 			OperationID: operation.ID, StepID: stepID, LifecycleAction: lifecycleCoordinatorHostGateAction,
 			PlanVersion: operation.PlanVersion, Checkpoint: previous.Checkpoint,
-			ActorUserID: operation.RequestedByUserID, AuditEventID: operation.AuditEventID,
+			ActorUserID:  lifecycleOperationActorUserID(operation),
+			AuditEventID: lifecycleOperationAuditEventID(operation),
 		})
 		if err != nil {
 			return operation, machine, nil, err
@@ -336,8 +356,10 @@ func (c *LifecycleCoordinator) runLifecycleHostGate(
 			ActionResults:  actionResults,
 			SourceBinding:  machine.SourceBinding, TargetBinding: machine.TargetBinding,
 			AuthorityType: operation.AuthorityType, TrustGrantID: operation.TrustGrantID,
-			AuthoritySnapshot: cloneLifecycleJSON(operation.AuthoritySnapshot), RemovalMode: operation.RemovalMode,
-			Forced: machine.Forced, ActorUserID: operation.RequestedByUserID, AuditEventID: operation.AuditEventID,
+			AuthoritySnapshot:    cloneLifecycleJSON(operation.AuthoritySnapshot),
+			AuthorityActorUserID: operation.RequestedByUserID, RemovalMode: operation.RemovalMode,
+			Forced: machine.Forced, ActorUserID: lifecycleOperationActorUserID(operation),
+			AuditEventID: lifecycleOperationAuditEventID(operation),
 			Revalidation: revalidation,
 		})
 		if runErr == nil && runCtx.Err() != nil {
@@ -374,7 +396,8 @@ func (c *LifecycleCoordinator) runLifecycleHostGate(
 	completed, err := lease.complete(terminalCtx, CompleteLifecycleStepAttemptInput{
 		AttemptID: attempt.ID, Status: LifecycleStepSucceeded, Checkpoint: result.Checkpoint,
 		ResultDocument: resultDocument,
-		ActorUserID:    operation.RequestedByUserID, AuditEventID: operation.AuditEventID,
+		ActorUserID:    lifecycleOperationActorUserID(operation),
+		AuditEventID:   lifecycleOperationAuditEventID(operation),
 	})
 	cancelTerminal()
 	if err != nil {
@@ -508,8 +531,10 @@ func (c *LifecycleCoordinator) executeAction(
 		StepID: stepID, PlanVersion: operation.PlanVersion, Attempt: attempt.Attempt,
 		Checkpoint: resumeCheckpoint, InputDocument: cloneLifecycleJSON(input.ActionInputs[machine.Action]),
 		AuthorityType: operation.AuthorityType, TrustGrantID: operation.TrustGrantID,
-		AuthoritySnapshot: cloneLifecycleJSON(operation.AuthoritySnapshot), RemovalMode: operation.RemovalMode,
-		Forced: machine.Forced, ActorUserID: operation.RequestedByUserID, AuditEventID: operation.AuditEventID,
+		AuthoritySnapshot:    cloneLifecycleJSON(operation.AuthoritySnapshot),
+		AuthorityActorUserID: operation.RequestedByUserID, RemovalMode: operation.RemovalMode,
+		Forced: machine.Forced, ActorUserID: lifecycleOperationActorUserID(operation),
+		AuditEventID: lifecycleOperationAuditEventID(operation),
 	}, func(progress LifecycleCoordinatorActionProgress) error {
 		nextOperation, nextMachine, nextAttempt, updateErr := c.persistActionProgress(runCtx, operation, machine, attempt, lease, stepID, progress)
 		if updateErr != nil {
@@ -540,7 +565,8 @@ func (c *LifecycleCoordinator) executeAction(
 		AttemptID: attempt.ID, Status: LifecycleStepSucceeded, Checkpoint: result.Checkpoint,
 		CompletedUnits: result.CompletedUnits, TotalUnits: result.TotalUnits, Message: result.Message,
 		ResultDocument: cloneLifecycleJSON(result.ResultDocument),
-		ActorUserID:    operation.RequestedByUserID, AuditEventID: operation.AuditEventID,
+		ActorUserID:    lifecycleOperationActorUserID(operation),
+		AuditEventID:   lifecycleOperationAuditEventID(operation),
 	})
 	cancelTerminal()
 	if err != nil {
@@ -644,7 +670,8 @@ func (c *LifecycleCoordinator) failAction(
 		AttemptID: attempt.ID, Status: status, Checkpoint: checkpoint,
 		CompletedUnits: completedUnits, TotalUnits: totalUnits, Message: message,
 		ResultDocument: cloneLifecycleJSON(result.ResultDocument), Error: failure,
-		ActorUserID: operation.RequestedByUserID, AuditEventID: operation.AuditEventID,
+		ActorUserID:  lifecycleOperationActorUserID(operation),
+		AuditEventID: lifecycleOperationAuditEventID(operation),
 	})
 	if err != nil {
 		return operation, machine, nil, err
@@ -677,7 +704,8 @@ func (c *LifecycleCoordinator) failHostGate(
 	}
 	if _, err := lease.complete(terminalCtx, CompleteLifecycleStepAttemptInput{
 		AttemptID: attempt.ID, Status: status, Error: failure,
-		ActorUserID: operation.RequestedByUserID, AuditEventID: operation.AuditEventID,
+		ActorUserID:  lifecycleOperationActorUserID(operation),
+		AuditEventID: lifecycleOperationAuditEventID(operation),
 	}); err != nil {
 		return operation, machine, nil, err
 	}
@@ -693,6 +721,20 @@ func lifecycleCoordinatorActionName(action LifecycleMachineAction) string {
 		return lifecycleCoordinatorHostGateAction
 	}
 	return string(action)
+}
+
+func lifecycleOperationActorUserID(operation LifecycleOperation) int64 {
+	if operation.RecoveryActorUserID > 0 && operation.RecoveryAuditEventID > 0 {
+		return operation.RecoveryActorUserID
+	}
+	return operation.RequestedByUserID
+}
+
+func lifecycleOperationAuditEventID(operation LifecycleOperation) int64 {
+	if operation.RecoveryActorUserID > 0 && operation.RecoveryAuditEventID > 0 {
+		return operation.RecoveryAuditEventID
+	}
+	return operation.AuditEventID
 }
 
 func (c *LifecycleCoordinator) completeFailure(

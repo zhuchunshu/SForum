@@ -85,6 +85,23 @@ func TestBuildLifecycleCoordinatorRunInputCanonicalizesAndBindsIntent(t *testing
 	if otherInput.Acquire.RequestFingerprint == first.Acquire.RequestFingerprint {
 		t.Fatal("changed actor reused request fingerprint")
 	}
+
+	recoveryActor := actor
+	recoveryActor.ID = 99
+	recoveryIntent := intent
+	recoveryIntent.Retry = true
+	recoveryIntent.AuditEventID = 9002
+	recovery, err := BuildLifecycleCoordinatorRunInput(extension, recoveryActor, authority, recoveryIntent)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if recovery.Acquire.RequestFingerprint != first.Acquire.RequestFingerprint ||
+		!recovery.Acquire.ExistingOnly || recovery.Acquire.RequestedByUserID != authority.ActorUserID ||
+		recovery.Acquire.AuditEventID != 0 || recovery.RecoveryActorUserID != recoveryActor.ID ||
+		recovery.RecoveryAuditEventID != 9002 ||
+		string(recovery.Acquire.AuthoritySnapshot) != string(first.Acquire.AuthoritySnapshot) {
+		t.Fatalf("recovery authority split = %#v", recovery)
+	}
 }
 
 func TestBuildLifecycleCoordinatorRunInputAllowsCrossContractUpgradeSource(t *testing.T) {
