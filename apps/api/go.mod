@@ -10,6 +10,7 @@ require (
 	github.com/disintegration/imaging v1.6.2
 	github.com/gofiber/fiber/v3 v3.0.0-rc.3
 	github.com/gofiber/storage/redis/v3 v3.5.0
+	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/hashicorp/go-hclog v1.6.3
 	github.com/hashicorp/go-plugin v1.8.0
 	github.com/jackc/pgx/v5 v5.10.0
@@ -57,7 +58,6 @@ require (
 	github.com/fatih/color v1.13.0 // indirect
 	github.com/gofiber/schema v1.6.0 // indirect
 	github.com/gofiber/utils/v2 v2.0.0-rc.4 // indirect
-	github.com/golang-jwt/jwt/v5 v5.3.1 // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/google/go-querystring v1.0.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect
