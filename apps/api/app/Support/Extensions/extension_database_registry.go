@@ -14,6 +14,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
 )
 
 var (
@@ -128,7 +129,7 @@ func (r *PostgresExtensionDatabaseRegistry) issueOwnSchemaCredential(
 	if err != nil {
 		return ExtensionDatabaseCredential{}, err
 	}
-	if declaration.Authority != "own_schema" {
+	if !extensionmanifest.HasDatabaseGrant(&declaration, extensionmanifest.DatabaseGrantOwnSchema) {
 		return ExtensionDatabaseCredential{}, ErrExtensionDatabaseAuthority
 	}
 	databaseName, err := ensureExtensionDatabaseResources(ctx, tx, request.Artifact.ExtensionID, identifiers)
@@ -138,11 +139,6 @@ func (r *PostgresExtensionDatabaseRegistry) issueOwnSchemaCredential(
 
 	var grant extensionDatabaseGrantRecord
 	if provision {
-		if err := revokeActiveExtensionDatabaseGrants(
-			ctx, tx, request.Artifact.ExtensionID, request.ActorUserID, request.AuditEventID,
-		); err != nil {
-			return ExtensionDatabaseCredential{}, err
-		}
 		grant, err = upsertExtensionDatabaseGrant(ctx, tx, request, declaration)
 	} else {
 		grant, err = loadExtensionDatabaseGrant(ctx, tx, request.Artifact, true, true)

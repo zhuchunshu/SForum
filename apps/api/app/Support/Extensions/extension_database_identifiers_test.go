@@ -70,6 +70,29 @@ func TestExtensionDatabaseMigrationRoleBindsExactPlan(t *testing.T) {
 	}
 }
 
+func TestExtensionDatabaseRuntimeLeaseRoleBindsExactRuntimeAndLease(t *testing.T) {
+	leaseID := strings.Repeat("a", 64)
+	first, err := ExtensionDatabaseRuntimeLeaseRoleFor("vendor.plugin", "runtime-1", leaseID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	again, err := ExtensionDatabaseRuntimeLeaseRoleFor("vendor.plugin", "runtime-1", leaseID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	otherRuntime, err := ExtensionDatabaseRuntimeLeaseRoleFor("vendor.plugin", "runtime-2", leaseID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	otherLease, err := ExtensionDatabaseRuntimeLeaseRoleFor("vendor.plugin", "runtime-1", strings.Repeat("b", 64))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if first != again || first == otherRuntime || first == otherLease || !validPostgresIdentifier(first) {
+		t.Fatalf("runtime lease role is not exact: first=%q again=%q runtime=%q lease=%q", first, again, otherRuntime, otherLease)
+	}
+}
+
 func TestExtensionDatabaseIdentifiersRejectInvalidInputs(t *testing.T) {
 	for _, value := range []string{"", "a", "Vendor.Plugin", "vendor/plugin", " vendor.plugin", strings.Repeat("a", 82)} {
 		if _, err := ExtensionDatabaseIdentifiersFor(value); err == nil {
@@ -78,5 +101,18 @@ func TestExtensionDatabaseIdentifiersRejectInvalidInputs(t *testing.T) {
 	}
 	if _, err := ExtensionDatabaseMigrationRoleFor("vendor.plugin", "not-a-digest"); err == nil {
 		t.Fatal("invalid plan digest must fail")
+	}
+	for _, input := range []struct {
+		runtime string
+		lease   string
+	}{
+		{"", strings.Repeat("a", 64)},
+		{" runtime", strings.Repeat("a", 64)},
+		{strings.Repeat("r", 513), strings.Repeat("a", 64)},
+		{"runtime", "not-a-digest"},
+	} {
+		if _, err := ExtensionDatabaseRuntimeLeaseRoleFor("vendor.plugin", input.runtime, input.lease); err == nil {
+			t.Fatalf("invalid runtime lease role input %#v must fail", input)
+		}
 	}
 }

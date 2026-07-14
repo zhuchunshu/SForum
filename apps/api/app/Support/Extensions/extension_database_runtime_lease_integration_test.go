@@ -1,0 +1,386 @@
+package extensionsruntime
+
+import (
+	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"os"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
+
+	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
+	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
+)
+
+func TestPostgresExtensionDatabaseRuntimeLeasesOverlapAndRevokeExactly(t *testing.T) {
+	databaseURL := strings.TrimSpace(os.Getenv("DATABASE_URL"))
+	if databaseURL == "" {
+		t.Skip("DATABASE_URL is required for runtime lease integration test")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
+	defer cancel()
+	pool, err := pgxpool.New(ctx, databaseURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer pool.Close()
+
+	extensionID := fmt.Sprintf("p5.runtime.lease.%d", time.Now().UnixNano())
+	source := insertExtensionDatabaseRuntimeLeaseFixture(
+		t, ctx, pool, extensionID, "1.0.0", "source", []string{extensionmanifest.DatabaseGrantOwnSchema},
+	)
+	target := insertExtensionDatabaseRuntimeLeaseFixture(
+		t, ctx, pool, extensionID, "2.0.0", "target", []string{extensionmanifest.DatabaseGrantOwnSchema},
+	)
+	identifiers, err := ExtensionDatabaseIdentifiersFor(extensionID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { cleanupExtensionDatabaseRuntimeLeaseFixture(t, pool, extensionID, identifiers) })
+
+	registry := NewPostgresExtensionDatabaseRegistry(pool, nil)
+	sourceCredential, err := registry.IssueRuntimeLease(ctx, ExtensionDatabaseRuntimeLeaseIssue{
+		Artifact: source, RuntimeInstanceID: "source-runtime",
+		Authority: ExtensionDatabaseLeaseAuthority{
+			Kind: ExtensionDatabaseLeaseIssuerActor, ActorUserID: 101, AuditEventID: 201,
+		},
+	})
+	if err != nil {
+		t.Fatalf("issue source runtime lease: %v", err)
+	}
+	targetCredential, err := registry.IssueRuntimeLease(ctx, ExtensionDatabaseRuntimeLeaseIssue{
+		Artifact: target, RuntimeInstanceID: "target-runtime",
+		Authority: ExtensionDatabaseLeaseAuthority{
+			Kind: ExtensionDatabaseLeaseIssuerActor, ActorUserID: 102, AuditEventID: 202,
+		},
+	})
+	if err != nil {
+		t.Fatalf("issue target runtime lease: %v", err)
+	}
+	if sourceCredential.RoleName == targetCredential.RoleName ||
+		sourceCredential.Password == targetCredential.Password || sourceCredential.GrantID == targetCredential.GrantID {
+		t.Fatalf("source and target leases are not exact: source=%#v target=%#v", sourceCredential, targetCredential)
+	}
+
+	sourceConnection, err := connectExtensionDatabaseRuntimeCredential(ctx, pool, sourceCredential)
+	if err != nil {
+		t.Fatalf("connect source runtime lease: %v", err)
+	}
+	defer sourceConnection.Close(context.Background())
+	targetConnection, err := connectExtensionDatabaseRuntimeCredential(ctx, pool, targetCredential)
+	if err != nil {
+		t.Fatalf("connect target runtime lease: %v", err)
+	}
+	defer targetConnection.Close(context.Background())
+	if _, err := sourceConnection.Exec(ctx, `CREATE TABLE runtime_lease_probe (id BIGINT PRIMARY KEY, note TEXT NOT NULL)`); err != nil {
+		t.Fatalf("source creates own-schema data: %v", err)
+	}
+	if _, err := targetConnection.Exec(ctx, `INSERT INTO runtime_lease_probe (id, note) VALUES (1, 'overlap')`); err != nil {
+		t.Fatalf("target writes during source overlap: %v", err)
+	}
+	var note string
+	if err := sourceConnection.QueryRow(ctx, `SELECT note FROM runtime_lease_probe WHERE id = 1`).Scan(&note); err != nil || note != "overlap" {
+		t.Fatalf("source reads target write: note=%q err=%v", note, err)
+	}
+
+	if _, err := registry.IssueRuntimeLease(ctx, ExtensionDatabaseRuntimeLeaseIssue{
+		Artifact: source, RuntimeInstanceID: "source-runtime",
+		Authority: ExtensionDatabaseLeaseAuthority{
+			Kind: ExtensionDatabaseLeaseIssuerHost, AuditEventID: 203,
+		},
+	}); !errors.Is(err, ErrExtensionDatabaseRuntimeLeaseConflict) {
+		t.Fatalf("duplicate live runtime error = %v", err)
+	}
+
+	sourceRef := ExtensionDatabaseRuntimeLeaseRef{
+		Artifact: source, RuntimeInstanceID: "source-runtime", LeaseID: sourceCredential.LeaseID,
+	}
+	heartbeat, err := registry.HeartbeatRuntimeLease(ctx, sourceRef, 1)
+	if err != nil {
+		t.Fatalf("heartbeat source runtime lease: %v", err)
+	}
+	if heartbeat.Revision != 2 || heartbeat.Status != ExtensionDatabaseLeaseActive ||
+		!heartbeat.ExpiresAt.After(sourceCredential.ExpiresAt) {
+		t.Fatalf("heartbeat did not extend exact source lease: %#v", heartbeat)
+	}
+	if _, err := registry.HeartbeatRuntimeLease(ctx, sourceRef, 1); !errors.Is(err, ErrExtensionDatabaseRuntimeLeaseConflict) {
+		t.Fatalf("stale heartbeat revision was accepted: %v", err)
+	}
+	draining, err := registry.BeginRuntimeLeaseDrain(ctx, sourceRef, heartbeat.Revision)
+	if err != nil {
+		t.Fatalf("begin exact source lease drain: %v", err)
+	}
+	if draining.Status != ExtensionDatabaseLeaseDraining || draining.Revision != 3 || draining.DrainingAt == nil {
+		t.Fatalf("source lease did not enter draining state: %#v", draining)
+	}
+	if _, err := sourceConnection.Exec(ctx, `SELECT 1`); err != nil {
+		t.Fatalf("drain revoked source before runtime calls completed: %v", err)
+	}
+	if _, err := registry.HeartbeatRuntimeLease(ctx, sourceRef, draining.Revision); !errors.Is(err, ErrExtensionDatabaseRuntimeLeaseConflict) {
+		t.Fatalf("draining lease accepted a heartbeat: %v", err)
+	}
+	revokedSource, err := registry.RevokeRuntimeLease(ctx, sourceRef, ExtensionDatabaseLeaseAuthority{
+		Kind: ExtensionDatabaseLeaseIssuerActor, ActorUserID: 103, AuditEventID: 204,
+	})
+	if err != nil || revokedSource.Status != ExtensionDatabaseLeaseRevoked {
+		t.Fatalf("revoke source runtime lease: snapshot=%#v err=%v", revokedSource, err)
+	}
+	if _, err := sourceConnection.Exec(context.Background(), `SELECT 1`); err == nil {
+		t.Fatal("source session survived exact lease revoke")
+	}
+	if err := targetConnection.QueryRow(ctx, `SELECT note FROM runtime_lease_probe WHERE id = 1`).Scan(&note); err != nil || note != "overlap" {
+		t.Fatalf("target or source-owned data was lost: note=%q err=%v", note, err)
+	}
+	if _, err := registry.RevokeRuntimeLease(ctx, sourceRef, ExtensionDatabaseLeaseAuthority{
+		Kind: ExtensionDatabaseLeaseIssuerHost, AuditEventID: 205,
+	}); err != nil {
+		t.Fatalf("exact revoke replay did not converge: %v", err)
+	}
+
+	hostCredential, err := registry.IssueRuntimeLease(ctx, ExtensionDatabaseRuntimeLeaseIssue{
+		Artifact: target, RuntimeInstanceID: "target-runtime-restarted",
+		Authority: ExtensionDatabaseLeaseAuthority{
+			Kind: ExtensionDatabaseLeaseIssuerHost, AuditEventID: 206,
+		},
+	})
+	if err != nil {
+		t.Fatalf("Host could not issue from an existing exact grant: %v", err)
+	}
+	hostConnection, err := connectExtensionDatabaseRuntimeCredential(ctx, pool, hostCredential)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := hostConnection.QueryRow(ctx, `SELECT note FROM runtime_lease_probe WHERE id = 1`).Scan(&note); err != nil {
+		t.Fatalf("restarted target cannot use retained schema: %v", err)
+	}
+	_ = hostConnection.Close(ctx)
+
+	for _, item := range []struct {
+		credential ExtensionDatabaseRuntimeCredential
+		authority  ExtensionDatabaseLeaseAuthority
+	}{
+		{hostCredential, ExtensionDatabaseLeaseAuthority{Kind: ExtensionDatabaseLeaseIssuerHost, AuditEventID: 207}},
+		{targetCredential, ExtensionDatabaseLeaseAuthority{Kind: ExtensionDatabaseLeaseIssuerActor, ActorUserID: 104, AuditEventID: 208}},
+	} {
+		if _, err := registry.RevokeRuntimeLease(ctx, ExtensionDatabaseRuntimeLeaseRef{
+			Artifact: target, RuntimeInstanceID: item.credential.RuntimeInstanceID, LeaseID: item.credential.LeaseID,
+		}, item.authority); err != nil {
+			t.Fatalf("revoke target runtime %s: %v", item.credential.RuntimeInstanceID, err)
+		}
+	}
+
+	var activeGrants, liveLeases, powerRows, plaintextRows, sourceRoleExists, targetRoleExists int
+	if err := pool.QueryRow(ctx, `
+		SELECT
+		  (SELECT count(*) FROM extension_database_grants WHERE extension_id = $1 AND status = 'active'),
+		  (SELECT count(*) FROM extension_database_runtime_leases WHERE extension_id = $1 AND status IN ('active', 'draining')),
+		  (SELECT count(*) FROM extension_database_grant_powers AS powers
+		   JOIN extension_database_grants AS grants ON grants.id = powers.grant_id
+		   WHERE grants.extension_id = $1),
+		  (SELECT count(*) FROM extension_database_runtime_leases
+		   WHERE extension_id = $1 AND credential_fingerprint IN ($2, $3)),
+		  (SELECT count(*) FROM pg_roles WHERE rolname = $4),
+		  (SELECT count(*) FROM pg_roles WHERE rolname = $5)
+	`, extensionID, sourceCredential.Password, targetCredential.Password,
+		sourceCredential.RoleName, targetCredential.RoleName).Scan(
+		&activeGrants, &liveLeases, &powerRows, &plaintextRows, &sourceRoleExists, &targetRoleExists,
+	); err != nil {
+		t.Fatal(err)
+	}
+	if activeGrants != 2 || liveLeases != 0 || powerRows != 2 || plaintextRows != 0 ||
+		sourceRoleExists != 0 || targetRoleExists != 0 {
+		t.Fatalf(
+			"grant/lease evidence mismatch: grants=%d live=%d powers=%d plaintext=%d sourceRole=%d targetRole=%d",
+			activeGrants, liveLeases, powerRows, plaintextRows, sourceRoleExists, targetRoleExists,
+		)
+	}
+}
+
+func TestPostgresExtensionDatabaseRuntimeLeasePreservesAdditivePowers(t *testing.T) {
+	databaseURL := strings.TrimSpace(os.Getenv("DATABASE_URL"))
+	if databaseURL == "" {
+		t.Skip("DATABASE_URL is required for runtime lease integration test")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
+	defer cancel()
+	pool, err := pgxpool.New(ctx, databaseURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer pool.Close()
+	registry := NewPostgresExtensionDatabaseRegistry(pool, nil)
+
+	tests := []struct {
+		name   string
+		powers []string
+		probe  func(*pgx.Conn) error
+	}{
+		{
+			name: "core views without own schema",
+			powers: []string{
+				extensionmanifest.DatabaseGrantCoreViews,
+			},
+			probe: func(connection *pgx.Conn) error {
+				var count int
+				return connection.QueryRow(ctx, `SELECT count(*) FROM safe_users`).Scan(&count)
+			},
+		},
+		{
+			name: "own schema and raw core",
+			powers: []string{
+				extensionmanifest.DatabaseGrantOwnSchema,
+				extensionmanifest.DatabaseGrantRawCore,
+			},
+			probe: func(connection *pgx.Conn) error {
+				if _, err := connection.Exec(ctx, `CREATE TABLE additive_power_probe (id BIGINT PRIMARY KEY)`); err != nil {
+					return err
+				}
+				var count int
+				return connection.QueryRow(ctx, `SELECT count(*) FROM public.extensions`).Scan(&count)
+			},
+		},
+	}
+	for index, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			extensionID := fmt.Sprintf("p5.runtime.power.%d.%d", time.Now().UnixNano(), index)
+			artifact := insertExtensionDatabaseRuntimeLeaseFixture(
+				t, ctx, pool, extensionID, "1.0.0", test.name, test.powers,
+			)
+			identifiers, err := ExtensionDatabaseIdentifiersFor(extensionID)
+			if err != nil {
+				t.Fatal(err)
+			}
+			t.Cleanup(func() { cleanupExtensionDatabaseRuntimeLeaseFixture(t, pool, extensionID, identifiers) })
+			credential, err := registry.IssueRuntimeLease(ctx, ExtensionDatabaseRuntimeLeaseIssue{
+				Artifact: artifact, RuntimeInstanceID: "runtime",
+				Authority: ExtensionDatabaseLeaseAuthority{
+					Kind: ExtensionDatabaseLeaseIssuerActor, ActorUserID: 301, AuditEventID: 401,
+				},
+			})
+			if err != nil {
+				t.Fatalf("issue additive runtime lease: %v", err)
+			}
+			connection, err := connectExtensionDatabaseRuntimeCredential(ctx, pool, credential)
+			if err != nil {
+				t.Fatalf("connect additive runtime lease: %v", err)
+			}
+			defer connection.Close(context.Background())
+			if err := test.probe(connection); err != nil {
+				t.Fatalf("additive power probe failed: %v", err)
+			}
+		})
+	}
+}
+
+func insertExtensionDatabaseRuntimeLeaseFixture(
+	t *testing.T,
+	ctx context.Context,
+	pool *pgxpool.Pool,
+	extensionID string,
+	version string,
+	digestSource string,
+	powers []string,
+) ExtensionDatabaseArtifact {
+	t.Helper()
+	digest := sha256.Sum256([]byte(extensionID + ":" + digestSource))
+	packageDigest := hex.EncodeToString(digest[:])
+	manifest := extensions.Manifest{
+		ID: extensionID, Name: "P5 runtime lease fixture", Version: version, Type: extensions.TypePlugin,
+		Database: &extensions.ManifestDatabase{
+			ContractVersion: extensionID + ".database@1",
+			Grants:          append([]string(nil), powers...),
+			Schema:          "logical_schema", Role: "logical_role",
+		},
+	}
+	manifestJSON, err := json.Marshal(manifest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, `
+		INSERT INTO extensions (id, type, name, status)
+		VALUES ($1, 'plugin', 'P5 runtime lease fixture', 'installed')
+		ON CONFLICT (id) DO NOTHING
+	`, extensionID); err != nil {
+		t.Fatal(err)
+	}
+	var versionID int64
+	if err := pool.QueryRow(ctx, `
+		INSERT INTO extension_versions (
+			extension_id, version, manifest, package_path, package_digest
+		) VALUES ($1, $2, $3::jsonb, $4, $5)
+		RETURNING id
+	`, extensionID, version, manifestJSON, t.TempDir(), packageDigest).Scan(&versionID); err != nil {
+		t.Fatal(err)
+	}
+	return ExtensionDatabaseArtifact{
+		ExtensionID: extensionID, Version: version, VersionID: versionID, PackageDigest: packageDigest,
+	}
+}
+
+func connectExtensionDatabaseRuntimeCredential(
+	ctx context.Context,
+	pool *pgxpool.Pool,
+	credential ExtensionDatabaseRuntimeCredential,
+) (*pgx.Conn, error) {
+	config := pool.Config().ConnConfig.Copy()
+	config.User = credential.RoleName
+	config.Password = credential.Password
+	config.Database = credential.DatabaseName
+	delete(config.RuntimeParams, "search_path")
+	delete(config.RuntimeParams, "role")
+	return pgx.ConnectConfig(ctx, config)
+}
+
+func cleanupExtensionDatabaseRuntimeLeaseFixture(
+	t *testing.T,
+	pool *pgxpool.Pool,
+	extensionID string,
+	identifiers ExtensionDatabaseIdentifiers,
+) {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	rows, _ := pool.Query(ctx, `
+		SELECT role_name FROM extension_database_runtime_leases WHERE extension_id = $1
+	`, extensionID)
+	var leaseRoles []string
+	if rows != nil {
+		for rows.Next() {
+			var role string
+			if rows.Scan(&role) == nil {
+				leaseRoles = append(leaseRoles, role)
+			}
+		}
+		rows.Close()
+	}
+	for _, role := range leaseRoles {
+		_, _ = pool.Exec(ctx, `SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE usename = $1`, role)
+		quotedRole := pgx.Identifier{role}.Sanitize()
+		quotedOwner := pgx.Identifier{identifiers.OwnerRole}.Sanitize()
+		_, _ = pool.Exec(ctx, `REASSIGN OWNED BY `+quotedRole+` TO `+quotedOwner)
+		_, _ = pool.Exec(ctx, `DROP OWNED BY `+quotedRole)
+		_, _ = pool.Exec(ctx, `DROP ROLE IF EXISTS `+quotedRole)
+	}
+	_, _ = pool.Exec(ctx, `DELETE FROM extension_database_runtime_leases WHERE extension_id = $1`, extensionID)
+	_, _ = pool.Exec(ctx, `
+		DELETE FROM extension_database_grant_powers
+		WHERE grant_id IN (SELECT id FROM extension_database_grants WHERE extension_id = $1)
+	`, extensionID)
+	_, _ = pool.Exec(ctx, `DELETE FROM extension_database_credentials WHERE extension_id = $1`, extensionID)
+	_, _ = pool.Exec(ctx, `DELETE FROM extension_database_grants WHERE extension_id = $1`, extensionID)
+	_, _ = pool.Exec(ctx, `DELETE FROM extension_database_resources WHERE extension_id = $1`, extensionID)
+	_, _ = pool.Exec(ctx, `DELETE FROM extensions WHERE id = $1`, extensionID)
+	_, _ = pool.Exec(ctx, `DROP SCHEMA IF EXISTS `+pgx.Identifier{identifiers.Schema}.Sanitize()+` CASCADE`)
+	for _, role := range []string{identifiers.RuntimeRole, identifiers.OwnerRole} {
+		quoted := pgx.Identifier{role}.Sanitize()
+		_, _ = pool.Exec(ctx, `DROP OWNED BY `+quoted)
+		_, _ = pool.Exec(ctx, `DROP ROLE IF EXISTS `+quoted)
+	}
+}

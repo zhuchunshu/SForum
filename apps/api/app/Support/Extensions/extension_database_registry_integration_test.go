@@ -406,7 +406,21 @@ func cleanupExtensionDatabaseRegistryFixture(
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	_, _ = pool.Exec(ctx, `SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE usename = $1`, identifiers.RuntimeRole)
+	rows, _ := pool.Query(ctx, `SELECT role_name FROM extension_database_runtime_leases WHERE extension_id = $1`, artifact.ExtensionID)
+	if rows != nil {
+		for rows.Next() {
+			var roleName string
+			if rows.Scan(&roleName) == nil && validPostgresIdentifier(roleName) {
+				_, _ = pool.Exec(ctx, `SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE usename = $1`, roleName)
+				_, _ = pool.Exec(ctx, `DROP OWNED BY `+pgx.Identifier{roleName}.Sanitize())
+				_, _ = pool.Exec(ctx, `DROP ROLE IF EXISTS `+pgx.Identifier{roleName}.Sanitize())
+			}
+		}
+		rows.Close()
+	}
+	_, _ = pool.Exec(ctx, `DELETE FROM extension_database_runtime_leases WHERE extension_id = $1`, artifact.ExtensionID)
 	_, _ = pool.Exec(ctx, `DELETE FROM extension_database_credentials WHERE extension_id = $1`, artifact.ExtensionID)
+	_, _ = pool.Exec(ctx, `DELETE FROM extension_database_grant_powers WHERE grant_id IN (SELECT id FROM extension_database_grants WHERE extension_id = $1)`, artifact.ExtensionID)
 	_, _ = pool.Exec(ctx, `DELETE FROM extension_database_grants WHERE extension_id = $1`, artifact.ExtensionID)
 	_, _ = pool.Exec(ctx, `DELETE FROM extension_database_resources WHERE extension_id = $1`, artifact.ExtensionID)
 	_, _ = pool.Exec(ctx, `DELETE FROM extensions WHERE id = $1`, artifact.ExtensionID)

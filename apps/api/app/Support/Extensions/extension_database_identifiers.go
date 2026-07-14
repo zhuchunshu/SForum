@@ -10,12 +10,13 @@ import (
 )
 
 const (
-	extensionDatabaseNamespace      = "sforum_ext"
-	extensionDatabaseSlugBytes      = 24
-	extensionDatabaseHashHexBytes   = 20
-	postgresIdentifierMaximumBytes  = 63
-	extensionDatabaseLockKeyDomain  = "sforum:extension-database:"
-	extensionDatabasePlanRoleDomain = "sforum:extension-database:migration-role:"
+	extensionDatabaseNamespace       = "sforum_ext"
+	extensionDatabaseSlugBytes       = 24
+	extensionDatabaseHashHexBytes    = 20
+	postgresIdentifierMaximumBytes   = 63
+	extensionDatabaseLockKeyDomain   = "sforum:extension-database:"
+	extensionDatabasePlanRoleDomain  = "sforum:extension-database:migration-role:"
+	extensionDatabaseLeaseRoleDomain = "sforum:extension-database:runtime-lease-role:"
 )
 
 var (
@@ -60,6 +61,21 @@ func ExtensionDatabaseMigrationRoleFor(extensionID string, planDigest string) (s
 	slug := extensionDatabaseSlug(extensionID, 16)
 	hash := extensionDatabaseHash(extensionDatabasePlanRoleDomain + extensionID + ":" + planDigest)
 	name := extensionDatabasePhysicalName("m", slug, hash)
+	if name == identifiers.OwnerRole || name == identifiers.RuntimeRole || !validPostgresIdentifier(name) {
+		return "", ErrExtensionDatabaseIdentifier
+	}
+	return name, nil
+}
+
+func ExtensionDatabaseRuntimeLeaseRoleFor(extensionID string, runtimeInstanceID string, leaseID string) (string, error) {
+	identifiers, err := ExtensionDatabaseIdentifiersFor(extensionID)
+	if err != nil || runtimeInstanceID == "" || runtimeInstanceID != strings.TrimSpace(runtimeInstanceID) ||
+		len(runtimeInstanceID) > 512 || !validLifecycleCleanupDigest(leaseID) {
+		return "", ErrExtensionDatabaseIdentifier
+	}
+	slug := extensionDatabaseSlug(extensionID, 16)
+	hash := extensionDatabaseHash(extensionDatabaseLeaseRoleDomain + extensionID + ":" + runtimeInstanceID + ":" + leaseID)
+	name := extensionDatabasePhysicalName("l", slug, hash)
 	if name == identifiers.OwnerRole || name == identifiers.RuntimeRole || !validPostgresIdentifier(name) {
 		return "", ErrExtensionDatabaseIdentifier
 	}

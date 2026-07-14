@@ -5,10 +5,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"reflect"
 
 	"github.com/jackc/pgx/v5"
 
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
+	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
 )
 
 type extensionDatabaseResourceRecord struct {
@@ -38,12 +40,15 @@ type extensionDatabaseGrantRecord struct {
 	Status                   string
 	ActiveCredentialRevision int64
 	Revision                 int64
+	Powers                   []string
 }
 
 func (r extensionDatabaseGrantRecord) matchesDeclaration(declaration extensions.ManifestDatabase) bool {
+	powers := extensionmanifest.DatabaseGrants(&declaration)
 	return r.DatabaseContractVersion == declaration.ContractVersion &&
-		r.Authority == declaration.Authority && r.RequestedSchema == declaration.Schema &&
-		r.RequestedRole == declaration.Role
+		extensionDatabaseStoredAuthorityMatches(r.Authority, powers) &&
+		r.RequestedSchema == declaration.Schema && r.RequestedRole == declaration.Role &&
+		reflect.DeepEqual(r.Powers, powers)
 }
 
 type extensionDatabaseRow interface {
@@ -82,12 +87,13 @@ func loadExactExtensionDatabaseDeclaration(
 	if err := json.Unmarshal(manifestJSON, &manifest); err != nil {
 		return extensions.ManifestDatabase{}, fmt.Errorf("decode exact extension database manifest: %w", err)
 	}
+	manifest = extensionmanifest.Normalize(manifest)
 	if manifest.ID != artifact.ExtensionID || manifest.Version != artifact.Version || manifest.Database == nil {
 		return extensions.ManifestDatabase{}, ErrExtensionDatabaseArtifactConflict
 	}
 	declaration := *manifest.Database
 	if !extensionDatabaseContractPattern.MatchString(declaration.ContractVersion) ||
-		declaration.Authority == "" {
+		len(extensionmanifest.DatabaseGrants(&declaration)) == 0 {
 		return extensions.ManifestDatabase{}, ErrExtensionDatabaseArtifactConflict
 	}
 	return declaration, nil
@@ -157,7 +163,10 @@ func upsertExtensionDatabaseGrant(
 		ON CONFLICT (extension_id, extension_version_id, extension_version, package_digest)
 		DO UPDATE SET
 			database_contract_version = EXCLUDED.database_contract_version,
-			authority = EXCLUDED.authority,
+			authority = CASE
+				WHEN extension_database_grants.authority = 'additive' THEN EXCLUDED.authority
+				ELSE extension_database_grants.authority
+			END,
 			requested_schema = EXCLUDED.requested_schema,
 			requested_role = EXCLUDED.requested_role,
 			status = 'active', granted_by_user_id = EXCLUDED.granted_by_user_id,
@@ -171,12 +180,16 @@ func upsertExtensionDatabaseGrant(
 		          requested_schema, requested_role, status,
 		          active_credential_revision, grant_revision
 	`, request.Artifact.ExtensionID, request.Artifact.VersionID, request.Artifact.Version,
-		request.Artifact.PackageDigest, declaration.ContractVersion, declaration.Authority,
+		request.Artifact.PackageDigest, declaration.ContractVersion, extensionDatabaseStoredAuthority(declaration),
 		declaration.Schema, declaration.Role, request.ActorUserID, request.AuditEventID)
 	record, err := scanExtensionDatabaseGrant(row)
 	if err != nil {
 		return extensionDatabaseGrantRecord{}, fmt.Errorf("upsert exact extension database grant: %w", err)
 	}
+	if err := replaceExtensionDatabaseGrantPowers(ctx, tx, record.ID, declaration); err != nil {
+		return extensionDatabaseGrantRecord{}, err
+	}
+	record.Powers = extensionmanifest.DatabaseGrants(&declaration)
 	return record, nil
 }
 
@@ -211,7 +224,131 @@ func loadExtensionDatabaseGrant(
 	if err != nil {
 		return extensionDatabaseGrantRecord{}, fmt.Errorf("load exact extension database grant: %w", err)
 	}
+	record.Powers, err = loadExtensionDatabaseGrantPowers(ctx, querier, record.ID)
+	if err != nil {
+		return extensionDatabaseGrantRecord{}, err
+	}
 	return record, nil
+}
+
+func extensionDatabaseStoredAuthority(declaration extensions.ManifestDatabase) string {
+	if len(declaration.Grants) > 0 {
+		return "additive"
+	}
+	return declaration.Authority
+}
+
+func extensionDatabaseStoredAuthorityMatches(stored string, powers []string) bool {
+	if stored == "additive" {
+		return len(powers) > 0
+	}
+	legacy := extensions.ManifestDatabase{Authority: stored}
+	return reflect.DeepEqual(extensionmanifest.DatabaseGrants(&legacy), powers)
+}
+
+func replaceExtensionDatabaseGrantPowers(
+	ctx context.Context,
+	tx pgx.Tx,
+	grantID int64,
+	declaration extensions.ManifestDatabase,
+) error {
+	if grantID <= 0 {
+		return ErrExtensionDatabaseRegistryInvalid
+	}
+	desired := extensionmanifest.DatabaseGrants(&declaration)
+	existing, err := loadExtensionDatabaseGrantPowersOptional(ctx, tx, grantID)
+	if err != nil {
+		return err
+	}
+	if len(existing) > 0 {
+		if !reflect.DeepEqual(existing, desired) {
+			return ErrExtensionDatabaseArtifactConflict
+		}
+		return nil
+	}
+	source := "manifest_grants"
+	if len(declaration.Grants) == 0 {
+		source = "legacy_authority"
+	}
+	for _, power := range desired {
+		ordinal := extensionDatabaseGrantOrdinal(power)
+		if ordinal == 0 {
+			return ErrExtensionDatabaseAuthority
+		}
+		if _, err := tx.Exec(ctx, `
+			INSERT INTO extension_database_grant_powers (grant_id, power, source, ordinal)
+			VALUES ($1, $2, $3, $4)
+		`, grantID, power, source, ordinal); err != nil {
+			return fmt.Errorf("insert extension database grant power: %w", err)
+		}
+	}
+	return nil
+}
+
+func loadExtensionDatabaseGrantPowers(
+	ctx context.Context,
+	querier extensionDatabaseQuerier,
+	grantID int64,
+) ([]string, error) {
+	powers, err := loadExtensionDatabaseGrantPowersOptional(ctx, querier, grantID)
+	if err != nil {
+		return nil, err
+	}
+	if len(powers) == 0 {
+		return nil, ErrExtensionDatabaseAuthority
+	}
+	return powers, nil
+}
+
+func loadExtensionDatabaseGrantPowersOptional(
+	ctx context.Context,
+	querier extensionDatabaseQuerier,
+	grantID int64,
+) ([]string, error) {
+	type rowQuerier interface {
+		Query(context.Context, string, ...any) (pgx.Rows, error)
+	}
+	rowsProvider, ok := querier.(rowQuerier)
+	if !ok || grantID <= 0 {
+		return nil, ErrExtensionDatabaseRegistryInvalid
+	}
+	rows, err := rowsProvider.Query(ctx, `
+		SELECT power FROM extension_database_grant_powers
+		WHERE grant_id = $1 ORDER BY ordinal
+	`, grantID)
+	if err != nil {
+		return nil, fmt.Errorf("load extension database grant powers: %w", err)
+	}
+	defer rows.Close()
+	powers := make([]string, 0, 5)
+	for rows.Next() {
+		var power string
+		if err := rows.Scan(&power); err != nil {
+			return nil, err
+		}
+		powers = append(powers, power)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return powers, nil
+}
+
+func extensionDatabaseGrantOrdinal(power string) int {
+	switch power {
+	case extensionmanifest.DatabaseGrantOwnSchema:
+		return 1
+	case extensionmanifest.DatabaseGrantCoreViews:
+		return 2
+	case extensionmanifest.DatabaseGrantHostCommands:
+		return 3
+	case extensionmanifest.DatabaseGrantRawCore:
+		return 4
+	case extensionmanifest.DatabaseGrantKernel:
+		return 5
+	default:
+		return 0
+	}
 }
 
 func scanExtensionDatabaseGrant(row extensionDatabaseRow) (extensionDatabaseGrantRecord, error) {
