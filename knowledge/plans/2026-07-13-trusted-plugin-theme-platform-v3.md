@@ -422,7 +422,7 @@ flowchart LR
 ### Tasks
 
 - [x] Create deterministic safe PostgreSQL role/schema names per extension.
-- [ ] Provision/revoke credentials and `search_path` for plugin processes.
+- [x] Provision/revoke credentials and `search_path` for plugin processes.
 - [x] Implement real migration discovery, checksum, advisory lock, dry-run,
       transaction policy, execution ledger, progress, and failure state.
 - [x] Reuse Goose primitives where appropriate without mixing core and plugin
@@ -487,10 +487,10 @@ The operator approved all recommended P5 defaults on 2026-07-15:
       cancellation, and backpressure through the proxy/runtime.
 - [ ] Default to inherited core guards; implement separately confirmed custom
       guard/raw request authority.
-- [ ] Validate request/response/filter schemas and explicit mutable fields.
+- [x] Validate request/response/filter schemas and explicit mutable fields.
 - [x] Add explicit provider selection and conflict UI for replace providers.
-- [ ] Define safe GET fallback and fail-closed unsafe method behavior.
-- [ ] Prevent fallback after headers/body/plugin side effects begin.
+- [x] Define safe GET fallback and fail-closed unsafe method behavior.
+- [x] Prevent fallback after headers/body/plugin side effects begin.
 - [ ] Add route aliases/redirect SEO status/canonical integration.
 - [ ] Add modular plugin OpenAPI fragments, validation, aggregation, permissions,
       rate-limit, idempotency, and generated-client metadata.
@@ -501,7 +501,7 @@ The operator approved all recommended P5 defaults on 2026-07-15:
 
 - [ ] Every route action, priority order, conflict, locale path, query/body,
       permission, CSRF, custom guard, stream, disconnect, timeout, and crash.
-- [ ] Unsafe replacement failure never executes core as a second writer.
+- [x] Unsafe replacement failure never executes core as a second writer.
 - [x] Safe mode bypasses all third-party route snapshots.
 - [x] OpenAPI aggregation rejects collisions and unsafe references.
 - [x] Performance comparison against current namespaced proxy baseline.
@@ -523,7 +523,7 @@ query, and identity workflows without replacing whole routes.
       and deterministic composition.
 - [x] Preserve core validate/filter revalidation where a core handler remains
       authoritative; trusted replacements own their declared behavior.
-- [ ] Add plugin-defined provider slots and host-brokered service discovery.
+- [x] Add plugin-defined provider slots and host-brokered service discovery.
 - [x] Add typed plugin-to-plugin service calls with dependency/version checks.
 - [ ] Generalize provider selection/reset/probe/health/fallback UI.
 - [ ] Add dynamic typed jobs, schedules, concurrency policies, retries, and
@@ -549,7 +549,7 @@ query, and identity workflows without replacing whole routes.
 
 ### Tests
 
-- [ ] Plugin A defines a hook/service/provider; Plugin B consumes it.
+- [x] Plugin A defines a hook/service/provider; Plugin B consumes it.
 - [ ] Reference admin plugin contributes navigation, dashboard, list column,
       filter, row/bulk action, editor panel, notice, importer, and exporter.
 - [ ] Query plugins compose filters/sorts without bypassing permission checks,
@@ -574,30 +574,30 @@ query, and identity workflows without replacing whole routes.
 
 ### Tasks
 
-- [ ] Define versioned Page ViewModels for every catalog page, including actor/
+- [x] Define versioned Page ViewModels for every catalog page, including actor/
       permission state, route params, pagination, SEO, structured data, and
       safe rich-content fields, navigation trees, breadcrumbs, and region data.
-- [ ] Implement Theme Compiler around `html/template` with restricted FuncMap,
+- [x] Implement Theme Compiler around `html/template` with restricted FuncMap,
       layouts, blocks, partials, asset/route/i18n helpers, missing-key policy,
       bounded execution, output limits, and recursion checks.
-- [ ] Explicitly support standard `if`, `range`, `with`, `template`, and `block`
+- [x] Explicitly support standard `if`, `range`, `with`, `template`, and `block`
       actions without exposing unreviewed Host functions.
-- [ ] Inspect/reject unsafe static template constructs at install; rely on
+- [x] Inspect/reject unsafe static template constructs at install; rely on
       contextual escaping for dynamic values.
-- [ ] Introduce explicit core-produced SafeHTML values for already-sanitized
+- [x] Introduce explicit core-produced SafeHTML values for already-sanitized
       rich content; themes cannot create arbitrary SafeHTML.
-- [ ] Build immutable digest/compiler-version `ThemeRuntimeSnapshot` containing
+- [x] Build immutable digest/compiler-version `ThemeRuntimeSnapshot` containing
       provider bindings, compiled templates, assets, locales, and contracts.
 - [ ] Remove request-time theme/provider DB lookup, template file read, parsing,
       repeated full-template sanitization, and regex island parsing.
-- [ ] Return safe HTML segments, typed island descriptors, and SEO payloads.
-- [ ] Implement fallback order: active theme plugin override, plugin template,
+- [x] Return safe HTML segments, typed island descriptors, and SEO payloads.
+- [x] Implement fallback order: active theme plugin override, plugin template,
       active/default theme template, minimal core emergency output.
 - [ ] Keep theme overrides presentation-only: they consume versioned plugin data
       contracts and cannot alter plugin business data semantics.
-- [ ] Fix exactly-one active theme, restart restore, stale binding cleanup,
+- [x] Fix exactly-one active theme, restart restore, stale binding cleanup,
       preview-bound activation, cache revision, and multi-node convergence.
-- [ ] Keep admin styling outside public theme assets.
+- [x] Keep admin styling outside public theme assets.
 
 ### Tests
 

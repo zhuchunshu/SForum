@@ -2,7 +2,7 @@
 
 ## Changed
 
-- Weighted V3 is 48%. P5 is 11/17, P6 is 11/18, P7 is 4/22, and P8 is 9/18.
+- Weighted V3 is 49%. P5 is 12/17, P6 is 11/18, P7 is 6/22, and P8 is 10/18.
 - Contextual Core Guard production coverage is 114/123. Exact extension trust,
   Options owner policy, public/bootstrap routes, theme assets, Page Registry
   access, public entity metadata, safe custom-role deletion, declared extension
@@ -12,10 +12,10 @@
   snapshots, deterministic priority, typed contracts, sync/fail policy,
   dependency SemVer, optional fallback, Host revalidation, River delivery, and
   Protocol V2 exact declaration binding.
-- P8 has an exact compiled four-level theme fallback implementation, but its
-  authoritative fallback/switch rows remain open while add pages, visible exact
-  preview, stale binding cleanup, concurrent activation, and multi-node
-  convergence are unfinished.
+- P8 has an exact compiled four-level fallback and durable exact publication.
+  Two real nodes converge through LISTEN plus authoritative polling; remaining
+  work is Page ViewModel closure, all-catalog hot-path proof, and crawler/
+  JavaScript-disabled SSR evidence.
 
 ## Commits
 
@@ -42,6 +42,12 @@
 - `d513aea77 feat(database): retain prior theme approval authority`
 - `4850bc999 feat(routes): authorize identity admin target guards`
 - `3bda8e31b feat(routes): authorize identity self resource guards`
+- `0f3cd58ca feat(providers): broker typed provider calls`
+- `97a499957 feat(themes): publish exact durable activation revisions`
+- `a79b04148 feat(themes): persist node publication acknowledgements`
+- `0b56bb8e3 feat(themes): converge runtime publications across nodes`
+- `7962e5127 feat(bootstrap): run theme publication watcher`
+- `c59e60d39 feat(database): issue exact runtime lease credentials`
 
 ## Verification
 
@@ -66,6 +72,13 @@
 - P8 exact-preview backend, OpenAPI, admin typecheck/locales, and the additive
   publication migration passed focused gates. Migration `020` additionally
   passed real PostgreSQL Up/Down/reapply and immutable-history scenarios.
+- P8 publication passed isolated PostgreSQL activation, compensation,
+  concurrency, node lease/ack/retry, LISTEN reconnect, and two-node convergence;
+  full Go tests, focused race, vet, and build also passed.
+- P5 runtime leases passed real PostgreSQL source/target overlap, heartbeat,
+  drain, exact session termination, retained target access, core-view-only
+  login, additive raw-core access, focused repetition, full Extensions tests,
+  race, vet, and build.
 
 ## Decisions
 
@@ -87,9 +100,8 @@
 
 - P6: `apps/api/app/Http/core_guard_authorizer*`, extension guard policy, and a
   narrow bootstrap policy injection for the next contextual batch.
-- P7: Protocol V2 broker transport and real cross-plugin provider consumption.
-- P8: publication repository/activation transaction, watcher, heartbeats,
-  acknowledgements, and multi-node convergence tests.
+- P7: generic Provider Inspector and later selection/reset/probe/health UI.
+- P8: Page ViewModel/hot-path audit and crawler/JavaScript-disabled evidence.
 - Preserve these groups and stage only one coherent owner at a time.
 
 ## Next
@@ -98,15 +110,13 @@
    authority before its product freeze: four executable bootstrap flows, two
    entity-meta value routes, two attachment reads, and one forum comment-create
    route.
-2. Bind the durable P8 publication repository to activation, then implement
-   LISTEN plus poll/reconnect recovery, heartbeat, acknowledgements, and the
-   two-node convergence gate in separate buildable commits.
-3. Recalculate P8 only after concurrent activation/restart/multi-node and
-   JavaScript-disabled evidence meet the authoritative row.
-4. Resume P5 with the additive manifest compatibility contract, then commit its
-   additive persistence migration separately before runtime lease delivery.
-5. Finish the P7 real Plugin B -> Host broker -> Plugin A provider path,
-   lifecycle rollback, race, vet, and build evidence before crediting its row.
+2. Audit every P8 Page ViewModel and prove all-catalog hot rendering has no
+   theme disk I/O or provider database query.
+3. Start API and Nuxt manually, then capture crawler and JavaScript-disabled
+   SSR evidence for home, lists, topic, profile, pagination, SEO, and JSON-LD.
+4. Continue P5 with signed actor delegation and concrete transactional Host
+   Commands, then provider-neutral entitlement persistence.
+5. Continue P7 with Provider Inspector, then selection/reset/probe/health UI.
 
 ## Open Questions
 

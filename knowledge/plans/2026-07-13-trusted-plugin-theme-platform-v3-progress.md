@@ -1,7 +1,7 @@
 # Trusted Plugin And Theme Platform V3 Progress Ledger
 
 Date: 2026-07-15
-Overall progress: **48%**
+Overall progress: **49%**
 Active phase: **P6 - Full Route And Middleware Registry V1 (61%, 11 of 18 rows)**
 
 This ledger is the durable percentage and context-compaction checkpoint for the
@@ -21,10 +21,10 @@ scaffolding, or demo-only code cannot satisfy a runtime exit criterion.
 | P2 Manifest/contracts | 7% | 100% | 7% |
 | P3 Host API v2 | 8% | 100% | 8% |
 | P4 Lifecycle/dependencies | 7% | 100% | 7% |
-| P5 Database/commands | 8% | 65% | 5.18% |
+| P5 Database/commands | 8% | 71% | 5.65% |
 | P6 Routes/middleware | 10% | 61% | 6.11% |
-| P7 Workflow/admin/query/identity | 10% | 18% | 1.82% |
-| P8 Theme compiler/runtime | 8% | 50% | 4% |
+| P7 Workflow/admin/query/identity | 10% | 27% | 2.73% |
+| P8 Theme compiler/runtime | 8% | 56% | 4.44% |
 | P9 Components/assets/L2 | 8% | 0% | 0% |
 | P10 Content/media/data | 8% | 0% | 0% |
 | P11 Platform services | 6% | 0% | 0% |
@@ -1225,3 +1225,27 @@ phase percentage.
   drain revocation; signed delegation and six concrete Host Commands;
   entitlement persistence; physical raw-core grants and complete real
   PostgreSQL atomicity/compatibility evidence.
+
+## 2026-07-15 P5 Lease, P7 Provider, And P8 Convergence Checkpoint
+
+- Weighted V3 is now **49%**. P5 is **71% (12 of 17 rows)**, P6 is **61%
+  (11 of 18)**, P7 is **27% (6 of 22)**, and P8 is **56% (10 of 18)**.
+- `c59e60d39` issues one short-lived PostgreSQL role and credential per exact
+  runtime instance. Rolling source/target leases overlap, heartbeat and drain
+  use CAS revisions, revocation terminates only the selected runtime, plaintext
+  secrets are not persisted, and additive `own_schema`, `core_views`, and
+  `raw_core` powers remain effective together. Focused repetition, full
+  Extensions tests, race, vet, build, and real PostgreSQL tests passed.
+- `0f3cd58ca` completes the real Plugin B -> Host broker -> Plugin A Provider
+  Slot path. Exact dependency/version identity, request and response schemas,
+  timeout, disable, upgrade, rollback, and fallback behavior are exercised
+  through two Protocol V2 subprocesses.
+- `97a499957`, `a79b04148`, `0b56bb8e3`, and `7962e5127` publish exact theme
+  revisions atomically, persist boot-scoped node leases and acknowledgements,
+  recover LISTEN disconnects, poll missed notifications, and converge two real
+  Service/ThemeRuntime nodes on one artifact. Safe Mode bypass and startup/
+  shutdown watcher ownership are Host-controlled.
+- P8 still needs complete Page ViewModel acceptance, all-catalog no-I/O proof,
+  and crawler/JavaScript-disabled API plus Nitro browser evidence before its
+  remaining rows may close. P7 provider selection/reset/probe/health UI remains
+  separate from the now-complete provider discovery and cross-plugin call rows.

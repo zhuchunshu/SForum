@@ -4,7 +4,7 @@ This is the entry point for project memory.
 
 ## Latest Handoff
 
-- **2026-07-15 Trusted Plugin And Theme Platform V3 P6 active at 11/18 (overall 48%)**
+- **2026-07-15 Trusted Plugin And Theme Platform V3 P6 active at 11/18 (overall 49%)**
   - Decision: `knowledge/decisions/2026-07-13-trusted-plugin-theme-platform-v3.md`
   - Task book: `knowledge/plans/2026-07-13-trusted-plugin-theme-platform-v3.md`
   - Active handoff: `knowledge/sessions/2026-07-15-trusted-plugin-theme-platform-v3-p6-p8-progress.md`
@@ -59,7 +59,7 @@ This is the entry point for project memory.
   - Preserve/export/complete removal, repeated uninstall, failure recovery,
     retry/skip/forced controls, audit retention, and exact route/job/schedule
     drain are verified; authenticated desktop/mobile browser QA is green
-  - P5 is 11/17 (65%). Reuse the already-landed Database Registry, scoped roles,
+  - P5 is 12/17 (71%). Reuse the already-landed Database Registry, scoped roles,
     exact migration engine, and uninstall disposition instead of rebuilding them
   - P5 now has exact read-only migration preflight, cross-process migration-once
     proof, runtime connection/time budgets, stable `sforum_core_v1` views,
@@ -74,7 +74,7 @@ This is the entry point for project memory.
     desktop/390px production-component QA passed without overflow or app errors
   - P5 product boundaries are frozen: additive grants with cumulative legacy
     mapping, per-runtime lease roles, short-lived Host-signed actor delegation,
-    and a provider-neutral entitlement minimum; the six open implementation
+    and a provider-neutral entitlement minimum; the five open implementation
     rows may proceed without another product confirmation
   - P6 is active at 11/18 (61%). All 218 core routes have stable generated
     identities; immutable exact route snapshots, arbitrary declared paths,
@@ -103,24 +103,24 @@ This is the entry point for project memory.
     immutable planning removed full-catalog per-request copies, while the report
     retains the selected-route latency/bytes/allocation regression and requires
     P13 remeasurement
-  - P7 is 4/22 (18%). Versioned namespaced action/filter hooks now publish one
+  - P7 is 6/22 (27%). Versioned namespaced action/filter hooks now publish one
     immutable exact-runtime graph with deterministic priority, typed contracts,
     dependency SemVer, optional fallback, Host revalidation, River delivery,
     lifecycle rollback, and exact Protocol V2 invocation
   - Typed versioned Provider Slots now add immutable exact-runtime discovery,
     dependency/SemVer fallback, Host request/response revalidation, bounded
-    Protocol V2 calls, and lifecycle restore. This does not close the P7 row
-    until the external Plugin B -> Host broker -> Plugin A path and generalized
-    provider selection/probe/health UI are complete
-  - P8 is 9/18 (50%). The 23/23 Page ViewModel catalog, sealed typed frontend
+    Protocol V2 calls, lifecycle restore, and the real Plugin B -> Host broker
+    -> Plugin A path. Generalized provider selection/probe/health UI remains
+  - P8 is 10/18 (56%). The 23/23 Page ViewModel catalog, sealed typed frontend
     render output, public/admin skin isolation, install-time template safety,
     and compiled four-level fallback are committed. Add-page SSR, exact visible
-    activation preview, concurrent/multi-node convergence, and crawler/
+    activation preview, all-catalog hot-path proof, and crawler/
     JavaScript-disabled evidence remain open
   - Exact theme activation now binds a visible target/current preview tuple,
     atomically replaces durable Page approvals, repairs stale bindings, and
     exposes process-local revisions. Migration 020 persists desired/node/ack
-    convergence evidence; the repository/watcher and two-node proof remain open
+    convergence evidence. LISTEN reconnect, missed-notification polling, node
+    acknowledgement, and two-node exact-artifact convergence are verified
 
 - **2026-07-13 Legacy Web Release/runtime frontend builds removed**
   - Decision: `knowledge/decisions/2026-07-13-remove-legacy-web-release.md`
