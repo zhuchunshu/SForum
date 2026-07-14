@@ -1,8 +1,8 @@
 # Trusted Plugin And Theme Platform V3 Progress Ledger
 
 Date: 2026-07-15
-Overall progress: **50%**
-Active phase: **P6 - Full Route And Middleware Registry V1 (61%, 11 of 18 rows)**
+Overall progress: **51%**
+Active phase: **P7 - Hooks, Services, Work, Admin Surfaces, Queries, And Identity (41%, 9 of 22 rows)**
 
 This ledger is the durable percentage and context-compaction checkpoint for the
 V3 program. Update it before context compression, at every phase boundary, and
@@ -23,7 +23,7 @@ scaffolding, or demo-only code cannot satisfy a runtime exit criterion.
 | P4 Lifecycle/dependencies | 7% | 100% | 7% |
 | P5 Database/commands | 8% | 71% | 5.65% |
 | P6 Routes/middleware | 10% | 61% | 6.11% |
-| P7 Workflow/admin/query/identity | 10% | 32% | 3.18% |
+| P7 Workflow/admin/query/identity | 10% | 41% | 4.09% |
 | P8 Theme compiler/runtime | 8% | 56% | 4.44% |
 | P9 Components/assets/L2 | 8% | 0% | 0% |
 | P10 Content/media/data | 8% | 0% | 0% |
@@ -111,6 +111,32 @@ phase percentage.
   failing plugin exactly once (`failed`, then `skipped`).
 
 ## Last Durable Checkpoint
+
+### 2026-07-15 P7 Dynamic Jobs And Schedules Checkpoint
+
+- Overall is **51%** and P7 is **41% (9 of 22 rows)**. Dynamic typed jobs now
+  freeze exact artifact, job contract, payload schema version, retry policy,
+  maximum attempts, fixed/exponential backoff choice, and concurrency limit in
+  every River row.
+- Manifest V3, embedded JSON Schema, and OpenAPI expose bounded policy values
+  with deterministic compatibility defaults. The worker enforces per-artifact
+  concurrency before plugin code and delegates exponential retry timing to
+  River while preserving declared fixed retry delays.
+- Plugin schedules use River's native `PeriodicJobs.AddSafely`/`RemoveByID`
+  through a Host-owned dynamic publisher. Periodic leaders enqueue only an
+  exact-runtime trigger marker; the trigger worker acquires the same schedule
+  admission lease used by disable/upgrade drain before it writes the real
+  versioned plugin job.
+- Embedded workers reuse the API lifecycle snapshot. Standalone workers rebuild
+  the same exact snapshot from active runtime identity, immutable Manifest, and
+  executable trust. Safe Mode publishes no third-party periodic work.
+- Commits: `1416aa121`, `0e81befcf`, `1eba53bd1`, and `814e824b3`.
+- Passed ExtensionManifest, Jobs, Models/Extensions, HostAPI, Extensions, and
+  bootstrap focused tests; Jobs/HostAPI/Extensions/bootstrap race passed, with
+  the full Extensions race taking 136.425 seconds. OpenAPI validation passed
+  1,817 references across 44 files.
+- Exact resume point: continue P7 with the Plugin Command Registry, then Admin
+  Surface Registry. Provider management browser QA remains pending after login.
 
 ### 2026-07-15 P7 Provider Management Checkpoint
 

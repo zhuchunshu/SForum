@@ -4,7 +4,7 @@ This is the entry point for project memory.
 
 ## Latest Handoff
 
-- **2026-07-15 Trusted Plugin And Theme Platform V3 P6/P7 active (overall 50%)**
+- **2026-07-15 Trusted Plugin And Theme Platform V3 P6/P7 active (overall 51%)**
   - Decision: `knowledge/decisions/2026-07-13-trusted-plugin-theme-platform-v3.md`
   - Task book: `knowledge/plans/2026-07-13-trusted-plugin-theme-platform-v3.md`
   - Active handoff: `knowledge/sessions/2026-07-15-trusted-plugin-theme-platform-v3-p6-p8-progress.md`
@@ -108,7 +108,7 @@ This is the entry point for project memory.
     immutable planning removed full-catalog per-request copies, while the report
     retains the selected-route latency/bytes/allocation regression and requires
     P13 remeasurement
-  - P7 is 7/22 (32%). Versioned namespaced action/filter hooks now publish one
+  - P7 is 9/22 (41%). Versioned namespaced action/filter hooks now publish one
     immutable exact-runtime graph with deterministic priority, typed contracts,
     dependency SemVer, optional fallback, Host revalidation, River delivery,
     lifecycle rollback, and exact Protocol V2 invocation
@@ -119,6 +119,10 @@ This is the entry point for project memory.
     probe, runtime availability, fallback inspection, lifecycle invalidation,
     append-only events, OpenAPI, and the bilingual management UI are committed.
     Authenticated browser QA remains gated by the current Chrome login session.
+  - Dynamic plugin jobs freeze exact payload schema and bounded retry/concurrency
+    policy in River rows. Host-owned dynamic schedules use River safe add/remove,
+    exact trigger admission, lifecycle drain, and consistent embedded/standalone
+    worker publication; Safe Mode publishes no third-party schedule.
   - P8 is 10/18 (56%). The 23/23 Page ViewModel catalog, sealed typed frontend
     render output, public/admin skin isolation, install-time template safety,
     and compiled four-level fallback are committed. Add-page SSR, exact visible

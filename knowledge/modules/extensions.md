@@ -100,6 +100,12 @@ Manager and the V2 client repeat the check against the running and startup-
 frozen Manifest to close upgrade races. The deterministic upgrade policy
 selects execute, drain, declared payload migration, or cancel. Lifecycle-driven
 River row enumeration/migration is part of the production drain coordinator.
+Manifest V3 additionally freezes bounded `maxAttempts`, fixed/exponential retry
+policy, and per-artifact job concurrency in each row. Plugin schedules publish
+through River's dynamic periodic bundle; the periodic callback creates only a
+Host trigger marker, and its worker must acquire exact schedule admission before
+inserting the real versioned job. Disable/upgrade removes the periodic entry and
+closes trigger admission through the same lifecycle boundary.
 
 ## Purpose
 
