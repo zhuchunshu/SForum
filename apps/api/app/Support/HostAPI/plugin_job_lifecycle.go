@@ -20,6 +20,7 @@ var (
 	ErrPluginJobMigrationPending     = errors.New("plugin job migration ledger entry has no replacement job")
 	ErrPluginJobMigrationConflict    = errors.New("plugin job migration ledger entry conflicts with the requested migration")
 	ErrPluginJobMigratorUnavailable  = errors.New("plugin job payload migrator is unavailable")
+	ErrPluginJobLifecyclePlanDrift   = errors.New("plugin job lifecycle plan changed after preparation")
 )
 
 // PluginJobLifecycleRow 是由存储适配器在事务内锁定的 River 行快照。
@@ -120,6 +121,21 @@ type PluginJobLifecycleResult struct {
 	Committed  bool
 }
 
+// PluginJobLifecycleExpectedPlan is the sanitized durable fence prepared while
+// enqueue and schedule admission are closed. It deliberately contains no args
+// or payload bytes.
+type PluginJobLifecycleExpectedPlan struct {
+	ExtensionID string
+	Entries     []PluginJobLifecycleExpectedDecision
+}
+
+type PluginJobLifecycleExpectedDecision struct {
+	JobID       int64
+	Action      supportjobs.PluginJobAction
+	Reason      string
+	MigrationID string
+}
+
 type PluginJobLifecycleCoordinator struct {
 	Store PluginJobLifecycleStore
 }
@@ -206,6 +222,26 @@ func PlanPluginJobLifecycle(input PluginJobLifecycleInput, rows []PluginJobLifec
 }
 
 func (c *PluginJobLifecycleCoordinator) Reconcile(ctx context.Context, input PluginJobLifecycleInput) (PluginJobLifecycleResult, error) {
+	return c.reconcile(ctx, input, nil)
+}
+
+// ReconcileExpected performs lock -> plan -> expected-plan fence -> execute in
+// one River transaction. A retry after an unknown Host evidence commit may
+// prove an earlier cancel/migration from durable River and migration-ledger
+// facts; it never replays an unproven side effect.
+func (c *PluginJobLifecycleCoordinator) ReconcileExpected(
+	ctx context.Context,
+	input PluginJobLifecycleInput,
+	expected PluginJobLifecycleExpectedPlan,
+) (PluginJobLifecycleResult, error) {
+	return c.reconcile(ctx, input, &expected)
+}
+
+func (c *PluginJobLifecycleCoordinator) reconcile(
+	ctx context.Context,
+	input PluginJobLifecycleInput,
+	expected *PluginJobLifecycleExpectedPlan,
+) (PluginJobLifecycleResult, error) {
 	if c == nil || c.Store == nil {
 		return PluginJobLifecycleResult{}, ErrPluginJobLifecycleUnavailable
 	}
@@ -219,7 +255,17 @@ func (c *PluginJobLifecycleCoordinator) Reconcile(ctx context.Context, input Plu
 		if err != nil {
 			return err
 		}
-		result.Executions, err = executePluginJobLifecyclePlan(ctx, tx, input, result.Plan)
+		plan := result.Plan
+		var recovered []PluginJobLifecycleExecution
+		if expected != nil {
+			plan, recovered, err = fenceExpectedPluginJobLifecyclePlan(ctx, tx, input, rows, result.Plan, *expected)
+			if err != nil {
+				return err
+			}
+		}
+		executions, executeErr := executePluginJobLifecyclePlan(ctx, tx, input, plan)
+		result.Executions = append(recovered, executions...)
+		err = executeErr
 		return err
 	})
 	if err != nil {
@@ -227,6 +273,165 @@ func (c *PluginJobLifecycleCoordinator) Reconcile(ctx context.Context, input Plu
 	}
 	result.Committed = true
 	return result, nil
+}
+
+func fenceExpectedPluginJobLifecyclePlan(
+	ctx context.Context,
+	tx PluginJobLifecycleTx,
+	input PluginJobLifecycleInput,
+	rows []PluginJobLifecycleRow,
+	actual PluginJobLifecyclePlan,
+	expected PluginJobLifecycleExpectedPlan,
+) (PluginJobLifecyclePlan, []PluginJobLifecycleExecution, error) {
+	if expected.ExtensionID != input.ExtensionID || strings.TrimSpace(expected.ExtensionID) == "" {
+		return PluginJobLifecyclePlan{}, nil, ErrPluginJobLifecyclePlanDrift
+	}
+	expectedByID := make(map[int64]PluginJobLifecycleExpectedDecision, len(expected.Entries))
+	for _, decision := range expected.Entries {
+		if decision.JobID <= 0 || !knownExpectedPluginJobAction(decision.Action) {
+			return PluginJobLifecyclePlan{}, nil, ErrPluginJobLifecyclePlanDrift
+		}
+		if _, duplicate := expectedByID[decision.JobID]; duplicate {
+			return PluginJobLifecyclePlan{}, nil, ErrPluginJobLifecyclePlanDrift
+		}
+		expectedByID[decision.JobID] = decision
+	}
+	rowsByID := make(map[int64]PluginJobLifecycleRow, len(rows))
+	for _, row := range rows {
+		rowsByID[row.JobID] = row
+	}
+	actualByID := make(map[int64]PluginJobLifecyclePlanEntry, len(actual.Entries))
+	for _, entry := range actual.Entries {
+		actualByID[entry.Row.JobID] = entry
+	}
+
+	toExecute := PluginJobLifecyclePlan{
+		ExtensionID: input.ExtensionID, IgnoredFinalized: actual.IgnoredFinalized,
+		Entries: make([]PluginJobLifecyclePlanEntry, 0, len(expected.Entries)),
+	}
+	recovered := make([]PluginJobLifecycleExecution, 0)
+	consumedActual := make(map[int64]bool, len(actual.Entries))
+	for _, decision := range expected.Entries {
+		if entry, ok := actualByID[decision.JobID]; ok {
+			if !sameExpectedPluginJobDecision(decision, entry.Decision) {
+				return PluginJobLifecyclePlan{}, nil, ErrPluginJobLifecyclePlanDrift
+			}
+			consumedActual[decision.JobID] = true
+			toExecute.Entries = append(toExecute.Entries, entry)
+			continue
+		}
+		row, ok := rowsByID[decision.JobID]
+		if !ok || !isFinalizedPluginJobState(row.State) {
+			return PluginJobLifecyclePlan{}, nil, ErrPluginJobLifecyclePlanDrift
+		}
+		execution, replacementID, err := proveFinalizedExpectedPluginJob(ctx, tx, input, row, decision)
+		if err != nil {
+			return PluginJobLifecyclePlan{}, nil, err
+		}
+		if replacementID > 0 {
+			replacementRow, exists := rowsByID[replacementID]
+			if !exists || !exactTargetPluginJobRow(replacementRow, input.TargetContracts) {
+				return PluginJobLifecyclePlan{}, nil, ErrPluginJobLifecyclePlanDrift
+			}
+			replacement, exists := actualByID[replacementID]
+			if exists {
+				if replacement.Decision.Action != supportjobs.PluginJobExecute ||
+					replacement.Decision.Reason != supportjobs.PluginJobReasonExactMatch {
+					return PluginJobLifecyclePlan{}, nil, ErrPluginJobLifecyclePlanDrift
+				}
+				consumedActual[replacementID] = true
+			}
+		}
+		recovered = append(recovered, execution)
+	}
+	for _, entry := range actual.Entries {
+		if !consumedActual[entry.Row.JobID] {
+			return PluginJobLifecyclePlan{}, nil, ErrPluginJobLifecyclePlanDrift
+		}
+	}
+	return toExecute, recovered, nil
+}
+
+func exactTargetPluginJobRow(
+	row PluginJobLifecycleRow,
+	targets map[string]PluginJobRuntimeContract,
+) bool {
+	var args PluginJobArgs
+	if json.Unmarshal(row.EncodedArgs, &args) != nil || !args.validEnvelope() {
+		return false
+	}
+	target, ok := targets[args.JobName]
+	return ok && args.Contract().Equal(target.Contract) && args.TrustGrantID == target.TrustGrantID
+}
+
+func proveFinalizedExpectedPluginJob(
+	ctx context.Context,
+	tx PluginJobLifecycleTx,
+	input PluginJobLifecycleInput,
+	row PluginJobLifecycleRow,
+	expected PluginJobLifecycleExpectedDecision,
+) (PluginJobLifecycleExecution, int64, error) {
+	execution := PluginJobLifecycleExecution{
+		JobID: row.JobID, Action: expected.Action, Reason: expected.Reason, MigrationID: expected.MigrationID,
+	}
+	var args PluginJobArgs
+	if err := json.Unmarshal(row.EncodedArgs, &args); err != nil || args.ExtensionID != input.ExtensionID {
+		return PluginJobLifecycleExecution{}, 0, ErrPluginJobLifecyclePlanDrift
+	}
+	switch expected.Action {
+	case supportjobs.PluginJobCancel:
+		if row.State != rivertype.JobStateCancelled {
+			return PluginJobLifecycleExecution{}, 0, ErrPluginJobLifecyclePlanDrift
+		}
+		return execution, 0, nil
+	case supportjobs.PluginJobMigrate:
+		if row.State != rivertype.JobStateCancelled || expected.MigrationID == "" {
+			return PluginJobLifecycleExecution{}, 0, ErrPluginJobLifecyclePlanDrift
+		}
+		target, ok := input.TargetContracts[args.JobName]
+		if !ok {
+			return PluginJobLifecycleExecution{}, 0, ErrPluginJobLifecyclePlanDrift
+		}
+		ledger := PluginJobMigrationLedgerEntry{
+			OldJobID: row.JobID, ExtensionID: args.ExtensionID, MigrationID: expected.MigrationID,
+			SourceContract: args.Contract(), SourceTrustGrantID: args.TrustGrantID,
+			TargetContract: target.Contract, TargetTrustGrantID: target.TrustGrantID,
+		}
+		claim, err := tx.ClaimPluginJobMigration(ctx, ledger)
+		if err != nil || claim.Claimed || claim.NewJobID <= 0 || !samePluginJobMigrationLedger(claim.Ledger, ledger) {
+			return PluginJobLifecycleExecution{}, 0, errors.Join(ErrPluginJobLifecyclePlanDrift, err)
+		}
+		execution.ReplacementJobID = claim.NewJobID
+		return execution, claim.NewJobID, nil
+	case supportjobs.PluginJobExecute:
+		target, ok := input.TargetContracts[args.JobName]
+		if !ok || !args.Contract().Equal(target.Contract) || args.TrustGrantID != target.TrustGrantID {
+			return PluginJobLifecycleExecution{}, 0, ErrPluginJobLifecyclePlanDrift
+		}
+		return execution, 0, nil
+	case supportjobs.PluginJobDrain:
+		source, ok := input.SourceContracts[args.JobName]
+		if !ok || !args.Contract().Equal(source.Contract) || args.TrustGrantID != source.TrustGrantID {
+			return PluginJobLifecycleExecution{}, 0, ErrPluginJobLifecyclePlanDrift
+		}
+		return execution, 0, nil
+	default:
+		return PluginJobLifecycleExecution{}, 0, ErrPluginJobLifecyclePlanDrift
+	}
+}
+
+func knownExpectedPluginJobAction(action supportjobs.PluginJobAction) bool {
+	switch action {
+	case supportjobs.PluginJobExecute, supportjobs.PluginJobDrain,
+		supportjobs.PluginJobMigrate, supportjobs.PluginJobCancel:
+		return true
+	default:
+		return false
+	}
+}
+
+func sameExpectedPluginJobDecision(expected PluginJobLifecycleExpectedDecision, actual supportjobs.PluginJobDecision) bool {
+	return expected.Action == actual.Action && expected.Reason == actual.Reason && expected.MigrationID == actual.MigrationID
 }
 
 func executePluginJobLifecyclePlan(
