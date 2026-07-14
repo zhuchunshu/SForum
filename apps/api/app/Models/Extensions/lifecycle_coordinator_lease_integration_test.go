@@ -44,7 +44,7 @@ func TestPostgresLifecycleCoordinatorFencesActionAndHostSteps(t *testing.T) {
 	}
 	attempts, err := repository.ListStepAttempts(ctx, completed.result.Operation.ID)
 	path, _ := RecommendedLifecyclePath(LifecycleMachineEnable)
-	if err != nil || len(attempts) != len(path)-1 {
+	if err != nil || len(attempts) != len(path) {
 		t.Fatalf("attempts = %#v, %v", attempts, err)
 	}
 	seenHost := false
