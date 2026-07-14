@@ -1182,3 +1182,22 @@ phase percentage.
 - Resume P6 with the three identity self-resource routes. P7 owns exact schema-
   validated Plugin B -> Host broker -> Plugin A evidence. P8 next commits the
   activation/compensation repository slice before starting the watcher.
+
+### 2026-07-15 Identity Self-Resource Continuation
+
+- `3bda8e31b` authorizes session revocation, PAT revocation, and PAT rotation
+  against current PostgreSQL ownership. Session revocation accepts the existing
+  cookie/PAT credential contract; PAT management remains cookie-only. Foreign,
+  missing, forged-param/body/query requests fail before side effects.
+- Contextual Core Guard coverage is now **114 of 123**. The nine remaining
+  routes are four executable bootstrap flows, two entity-meta value routes, two
+  attachment reads, and forum comment creation. P6 remains **11 of 18 rows**.
+- Two independent PostgreSQL pools proved cross-node ownership freshness;
+  focused tests passed twenty repetitions, focused race five repetitions, and
+  full HTTP/Identity/API-token/bootstrap, vet, and build gates passed.
+- An early version of the P8 real-PostgreSQL test fixture wrote append-only test
+  revisions to the configured local development database before isolation was
+  reviewed. The current desired revision was restored, but historical test rows
+  intentionally remain because destructive cleanup would violate publication
+  evidence. Do not delete or mutate them. All new P8 publication tests must run
+  in a uniquely migrated schema and drop that schema after the test.
