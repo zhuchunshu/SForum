@@ -111,6 +111,34 @@ adminPages:
       '403':
         "$ref": "../components/responses.yaml#/Forbidden"
 
+adminThemeActivationPreview:
+  get:
+    summary: Preview an exact theme activation
+    operationId: previewAdminThemeActivation
+    tags: [Pages]
+    description: |
+      Returns the exact target and current active-theme tuples plus every add or
+      replace impact and conflict. Theme managers may activate presentation-only
+      contributions. Core replacements require a separately explicit
+      super_admin approval in the exact activation request.
+    parameters:
+      - "$ref": "../components/parameters.yaml#/ExtensionID"
+    responses:
+      '200':
+        description: Exact activation preview and approval eligibility.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/pages.yaml#/ApiResponseThemeActivationPreview"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '404':
+        "$ref": "../components/responses.yaml#/NotFound"
+      '422':
+        "$ref": "../components/responses.yaml#/UnprocessableEntity"
+
 adminPageApprove:
   post:
     summary: Approve core page replace

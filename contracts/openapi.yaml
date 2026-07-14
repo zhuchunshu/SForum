@@ -252,6 +252,8 @@ paths:
     "$ref": "./openapi/paths/pages.yaml#/pagesResolvePath"
   "/admin/pages":
     "$ref": "./openapi/paths/pages.yaml#/adminPages"
+  "/admin/pages/activate-preview/{extensionID}":
+    "$ref": "./openapi/paths/pages.yaml#/adminThemeActivationPreview"
   "/admin/pages/{pageId}/approve":
     "$ref": "./openapi/paths/pages.yaml#/adminPageApprove"
   "/admin/pages/{pageId}/restore-core":

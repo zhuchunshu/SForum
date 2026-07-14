@@ -36,6 +36,90 @@ PageResolve:
       description: "SSR-only plugin page data from host loader gateway; clients must not fetch plugin routes"
     loaderError: { type: string }
     contractVersion: { type: string, description: "Effective page contract version" }
+    renderOutput: { "$ref": "#/ThemeRenderedPage" }
+
+ThemeIslandProp:
+  type: object
+  required: [name, type]
+  properties:
+    name: { type: string }
+    type: { type: string, enum: [string, boolean, integer, url] }
+    stringValue: { type: string }
+    booleanValue: { type: boolean }
+    integerValue: { type: integer, format: int64 }
+
+ThemeIsland:
+  type: object
+  required: [id, componentId]
+  properties:
+    id: { type: string }
+    componentId: { type: string }
+    props:
+      type: array
+      items: { "$ref": "#/ThemeIslandProp" }
+
+ThemeSEO:
+  type: object
+  required: [title]
+  properties:
+    title: { type: string }
+    description: { type: string }
+    canonicalUrl: { type: string }
+    robots: { type: string }
+    alternateLinks:
+      type: array
+      items:
+        type: object
+        required: [locale, url]
+        properties:
+          locale: { type: string }
+          url: { type: string }
+    structuredData:
+      type: array
+      items:
+        type: object
+        required: [kind]
+        properties:
+          kind: { type: string }
+          id: { type: string }
+          name: { type: string }
+          url: { type: string }
+          description: { type: string }
+          dateCreated: { type: string }
+          dateUpdated: { type: string }
+
+ThemeRenderAttempt:
+  type: object
+  required: [source, outcome]
+  properties:
+    source: { type: string }
+    extensionId: { type: string }
+    packageDigest: { type: string }
+    template: { type: string }
+    outcome: { type: string }
+    failureCode: { type: string }
+
+ThemeRenderedPage:
+  type: object
+  required: [htmlSegments, seo, source, fallback, nodeRevision]
+  properties:
+    htmlSegments:
+      type: array
+      items: { type: string }
+    islands:
+      type: array
+      items: { "$ref": "#/ThemeIsland" }
+    seo: { "$ref": "#/ThemeSEO" }
+    source: { type: string }
+    fallback: { type: boolean }
+    attempts:
+      type: array
+      items: { "$ref": "#/ThemeRenderAttempt" }
+    nodeRevision:
+      type: integer
+      format: int64
+      minimum: 0
+      description: Process-local immutable theme publication revision; not a cluster-wide revision.
 
 AdminPageListItem:
   type: object
@@ -71,14 +155,83 @@ PageProviderMutation:
     pageId: { type: string }
     provider: { type: string }
 
+ThemePageContribution:
+  type: object
+  required: [id, action, extensionId, version]
+  properties:
+    id: { type: string }
+    action: { type: string, enum: [add, replace] }
+    target: { type: string }
+    path: { type: string }
+    template: { type: string }
+    contract: { type: string }
+    access: { type: string }
+    permission: { type: string }
+    dataSource: { type: string }
+    dataRoute: { type: string }
+    dataSchema: { type: string }
+    extensionId: { type: string }
+    version: { type: string }
+    packageDigest: { type: string }
+    runtimeInstanceId: { type: string }
+    routeSignature: { type: string }
+
+ThemeActivationImpact:
+  type: object
+  required: [contribution, requiresApproval]
+  properties:
+    contribution: { "$ref": "#/ThemePageContribution" }
+    page: { "$ref": "#/PageDefinition" }
+    conflicts:
+      type: array
+      items: { "$ref": "#/ThemePageContribution" }
+    requiresApproval: { type: boolean }
+
+ThemeActivationPreview:
+  type: object
+  required:
+    - extensionId
+    - version
+    - packageDigest
+    - currentThemeId
+    - currentThemeVersion
+    - currentThemeDigest
+    - impacts
+    - canActivate
+    - canApproveCoreReplacements
+    - requiresCoreReplacementApproval
+    - note
+  properties:
+    extensionId: { type: string }
+    version: { type: string }
+    packageDigest: { type: string, pattern: '^[0-9a-f]{64}$' }
+    currentThemeId: { type: string }
+    currentThemeVersion: { type: string }
+    currentThemeDigest: { type: string }
+    impacts:
+      type: array
+      items: { "$ref": "#/ThemeActivationImpact" }
+    canActivate: { type: boolean }
+    canApproveCoreReplacements:
+      type: boolean
+      description: True only for a super_admin actor; it is not itself an approval.
+    requiresCoreReplacementApproval: { type: boolean }
+    note: { type: string }
+
 ActiveThemeSkin:
   type: object
   required: [css]
   properties:
     extensionId: { type: string }
     version: { type: string }
+    packageDigest: { type: string }
     css: { type: array, items: { type: string } }
     tokens: { type: string }
+    nodeRevision:
+      type: integer
+      format: int64
+      minimum: 0
+      description: Process-local immutable theme publication revision; omitted for the legacy package fallback.
 
 ApiResponsePageCatalog:
   type: object
@@ -119,3 +272,11 @@ ApiResponsePageProviderMutation:
     code: { type: integer }
     message: { type: string }
     data: { "$ref": "#/PageProviderMutation" }
+
+ApiResponseThemeActivationPreview:
+  type: object
+  required: [code, message, data]
+  properties:
+    code: { type: integer }
+    message: { type: string }
+    data: { "$ref": "#/ThemeActivationPreview" }

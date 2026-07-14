@@ -2360,3 +2360,23 @@ ApiResponseFrontendStatus:
       type: string
     data:
       "$ref": "#/FrontendStatus"
+ThemeActivationRequest:
+  type: object
+  additionalProperties: false
+  required: [version, packageDigest, currentThemeId, currentThemeVersion, currentThemeDigest, approveCoreReplacements]
+  properties:
+    version:
+      type: string
+      minLength: 1
+    packageDigest:
+      type: string
+      pattern: '^[0-9a-f]{64}$'
+    currentThemeId:
+      type: string
+    currentThemeVersion:
+      type: string
+    currentThemeDigest:
+      type: string
+    approveCoreReplacements:
+      type: boolean
+      description: Exact visible-preview approval. Effective only for a super_admin actor; false preserves Core providers.

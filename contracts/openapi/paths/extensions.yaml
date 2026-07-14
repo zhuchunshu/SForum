@@ -878,6 +878,12 @@ adminExtensionActivate:
     operationId: activateAdminExtensionTheme
     parameters:
     - "$ref": "../components/parameters.yaml#/ExtensionID"
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            "$ref": "../schemas/extensions.yaml#/ThemeActivationRequest"
     responses:
       '200':
         description: Theme synchronously activated through the public Page Registry.
@@ -892,7 +898,7 @@ adminExtensionActivate:
       '404':
         "$ref": "../components/responses.yaml#/NotFound"
       '409':
-        description: Safe Mode blocks theme activation (extension.safe_mode_active).
+        description: Safe Mode blocks activation, or the exact preview artifact is stale.
         content:
           application/json:
             schema:
