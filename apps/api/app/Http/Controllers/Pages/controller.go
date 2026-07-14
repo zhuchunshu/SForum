@@ -426,6 +426,10 @@ func (h *Controller) activatePreview(c fiber.Ctx) error {
 	if err != nil {
 		return fiber.NewError(fiber.StatusNotFound, "pages.extension_not_found")
 	}
+	if staged, ok := theme.StagedArtifact(); ok {
+		// 内置/上传主题升级保持 inert，确认页必须展示将被真正激活的 exact staged 制品。
+		theme = staged
+	}
 	pkg, err := pages.LoadThemePackage(extensions.PackageContentRoot(theme))
 	if err != nil {
 		return fiber.NewError(fiber.StatusUnprocessableEntity, "pages.theme_package_invalid")

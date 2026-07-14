@@ -16,8 +16,9 @@ type Store interface {
 	Delete(ctx context.Context, id string) error
 	Enable(ctx context.Context, id string, extensionType string) (Extension, error)
 	Disable(ctx context.Context, id string) (Extension, error)
-	ActivateTheme(ctx context.Context, id string) (Extension, error)
-	ActivateThemeExact(ctx context.Context, id string, expected ThemeActivationInput) (Extension, error)
+	ActivateTheme(ctx context.Context, id string) (ThemeActivationResult, error)
+	ActivateThemeExact(ctx context.Context, id string, expected ThemeActivationInput) (ThemeActivationResult, error)
+	CompensateThemeActivation(ctx context.Context, failed ThemeRuntimePublication, previous *Extension) (ThemeActivationResult, error)
 	ActiveTheme(ctx context.Context) (Extension, error)
 	CreateEvent(ctx context.Context, input EventInput) (ExtensionEvent, error)
 	ListEvents(ctx context.Context, extensionID string, limit int) ([]ExtensionEvent, error)

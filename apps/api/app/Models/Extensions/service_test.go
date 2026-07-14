@@ -1351,6 +1351,59 @@ func TestServiceRegistryFailureRestoresNoActiveThemeDatabaseState(t *testing.T) 
 	}
 }
 
+func TestServiceSameThemePublicationFailureAppendsPriorApprovalCompensation(t *testing.T) {
+	target := exactThemeRuntimeExtensionFixture(t, "same.theme", "/same")
+	target.Status = StatusEnabled
+	store := newFakeExtensionStore(map[string]Extension{target.ID: target})
+	store.activeThemeID = target.ID
+	store.themeApprovalBy = map[string]int64{target.ID: 42}
+	registry := &themeActivationApprovalRegistry{err: errors.New("runtime publication failed")}
+	service := NewServiceWithOptions(store, t.TempDir(), "", LocalRuntimeManager{}, WithPageRegistry(registry))
+	actor := extensionManager()
+	actor.ID = 99
+
+	_, err := service.ActivateThemeFromPreview(context.Background(), actor, target.ID, ThemeActivationInput{
+		Version: target.Version, PackageDigest: target.PackageDigest,
+		CurrentThemeID: target.ID, CurrentThemeVersion: target.Version, CurrentThemeDigest: target.PackageDigest,
+		ApproveCoreReplacements: true,
+	})
+	if !errors.Is(err, ErrBuildFailed) {
+		t.Fatalf("activation error = %v", err)
+	}
+	publication := store.latestThemePublication
+	if publication.Revision != 2 || publication.Reason != ThemeRuntimePublicationCompensation ||
+		publication.ThemeID != target.ID || !publication.CoreReplacementsApproved || publication.ActorUserID != 42 ||
+		!publication.SourceCoreReplacementsApproved || publication.SourceActorUserID != 99 {
+		t.Fatalf("same-theme compensation = %#v", publication)
+	}
+}
+
+func TestServiceActivatesOnlyExactPreviewedStagedThemeArtifact(t *testing.T) {
+	current := exactThemeRuntimeExtensionFixture(t, "staged.theme", "/current")
+	current.Status = StatusEnabled
+	staged := exactThemeRuntimeExtensionFixture(t, "staged.theme", "/candidate")
+	staged.Version = "2.0.0"
+	staged.Manifest.Version = staged.Version
+	current.StagedVersion = &ExtensionVersion{
+		ID: 2, Version: staged.Version, Manifest: staged.Manifest,
+		PackageDigest: staged.PackageDigest, PackagePath: staged.PackagePath,
+	}
+	store := newFakeExtensionStore(map[string]Extension{current.ID: current})
+	store.activeThemeID = current.ID
+	service := NewServiceWithOptions(store, t.TempDir(), "", LocalRuntimeManager{})
+
+	result, err := service.ActivateThemeFromPreview(context.Background(), extensionManager(), current.ID, ThemeActivationInput{
+		Version: staged.Version, PackageDigest: staged.PackageDigest,
+		CurrentThemeID: current.ID, CurrentThemeVersion: current.Version, CurrentThemeDigest: current.PackageDigest,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Version != staged.Version || result.PackageDigest != staged.PackageDigest || result.StagedVersion != nil {
+		t.Fatalf("staged activation=%#v", result)
+	}
+}
+
 type themeActivationApprovalRegistry struct {
 	ordinary   int
 	approved   int
@@ -1822,19 +1875,22 @@ func (r *fakeRuntimeManager) EmitHook(_ context.Context, name string, _ map[stri
 }
 
 type fakeExtensionStore struct {
-	items         map[string]Extension
-	saved         Extension
-	nextVersionID int64
-	enabledID     string
-	disabledID    string
-	activeThemeID string
-	settings      map[string]map[string]string
-	replaceCalls  int
-	replaceErrAt  int
-	replaceErr    error
-	beforeCAS     func()
-	events        []ExtensionEvent
-	deliveries    []ExtensionEventDelivery
+	items                    map[string]Extension
+	saved                    Extension
+	nextVersionID            int64
+	enabledID                string
+	disabledID               string
+	activeThemeID            string
+	themePublicationRevision int64
+	latestThemePublication   ThemeRuntimePublication
+	themeApprovalBy          map[string]int64
+	settings                 map[string]map[string]string
+	replaceCalls             int
+	replaceErrAt             int
+	replaceErr               error
+	beforeCAS                func()
+	events                   []ExtensionEvent
+	deliveries               []ExtensionEventDelivery
 	// migrations 按 extension_id 存账本（F2.4）。
 	migrations map[string][]MigrationRecord
 }
@@ -2019,7 +2075,24 @@ func (s *fakeExtensionStore) Enable(_ context.Context, id string, extensionType 
 	return item, nil
 }
 
-func (s *fakeExtensionStore) ActivateTheme(_ context.Context, id string) (Extension, error) {
+func (s *fakeExtensionStore) ActivateTheme(ctx context.Context, id string) (ThemeActivationResult, error) {
+	current, _ := s.ActiveTheme(ctx)
+	item, err := s.setActiveTheme(id)
+	if err != nil {
+		return ThemeActivationResult{}, err
+	}
+	publication := s.publishThemeRuntime(ThemeRuntimePublication{
+		DesiredState: ThemeRuntimePublicationActive,
+		ThemeID:      item.ID, ThemeVersion: item.Version, PackageDigest: item.PackageDigest,
+		SourceThemeID: current.ID, SourceThemeVersion: current.Version, SourcePackageDigest: current.PackageDigest,
+		SourceCoreReplacementsApproved: s.themeApprovalBy[current.ID] > 0,
+		SourceActorUserID:              s.themeApprovalBy[current.ID],
+		Reason:                         ThemeRuntimePublicationStartupRepair,
+	})
+	return ThemeActivationResult{Extension: item, Publication: publication}, nil
+}
+
+func (s *fakeExtensionStore) setActiveTheme(id string) (Extension, error) {
 	item, ok := s.items[id]
 	if !ok {
 		return Extension{}, ErrExtensionNotFound
@@ -2038,23 +2111,84 @@ func (s *fakeExtensionStore) ActivateTheme(_ context.Context, id string) (Extens
 	return item, nil
 }
 
-func (s *fakeExtensionStore) ActivateThemeExact(ctx context.Context, id string, expected ThemeActivationInput) (Extension, error) {
+func (s *fakeExtensionStore) ActivateThemeExact(ctx context.Context, id string, expected ThemeActivationInput) (ThemeActivationResult, error) {
 	target, ok := s.items[id]
 	if !ok {
-		return Extension{}, ErrExtensionNotFound
+		return ThemeActivationResult{}, ErrExtensionNotFound
 	}
 	current, currentErr := s.ActiveTheme(ctx)
 	if errors.Is(currentErr, ErrExtensionNotFound) {
 		current = Extension{}
 	} else if currentErr != nil {
-		return Extension{}, currentErr
+		return ThemeActivationResult{}, currentErr
 	}
-	if target.Version != expected.Version || !strings.EqualFold(target.PackageDigest, expected.PackageDigest) ||
+	activationTarget := target
+	if staged, hasStaged := target.StagedArtifact(); hasStaged {
+		activationTarget = staged
+	}
+	if activationTarget.Version != expected.Version || !strings.EqualFold(activationTarget.PackageDigest, expected.PackageDigest) ||
 		current.ID != expected.CurrentThemeID || current.Version != expected.CurrentThemeVersion ||
 		!strings.EqualFold(current.PackageDigest, expected.CurrentThemeDigest) {
-		return Extension{}, ErrThemePreviewStale
+		return ThemeActivationResult{}, ErrThemePreviewStale
 	}
-	return s.ActivateTheme(ctx, id)
+	activationTarget.StagedVersion = nil
+	s.items[id] = activationTarget
+	item, err := s.setActiveTheme(id)
+	if err != nil {
+		return ThemeActivationResult{}, err
+	}
+	publication := s.publishThemeRuntime(ThemeRuntimePublication{
+		DesiredState: ThemeRuntimePublicationActive,
+		ThemeID:      item.ID, ThemeVersion: item.Version, PackageDigest: item.PackageDigest,
+		SourceThemeID: current.ID, SourceThemeVersion: current.Version, SourcePackageDigest: current.PackageDigest,
+		SourceCoreReplacementsApproved: s.themeApprovalBy[current.ID] > 0,
+		SourceActorUserID:              s.themeApprovalBy[current.ID],
+		CoreReplacementsApproved:       expected.ApproveCoreReplacements,
+		ActorUserID:                    expected.ActorUserID, Reason: ThemeRuntimePublicationActivation,
+	})
+	return ThemeActivationResult{Extension: item, Publication: publication}, nil
+}
+
+func (s *fakeExtensionStore) CompensateThemeActivation(_ context.Context, failed ThemeRuntimePublication, previous *Extension) (ThemeActivationResult, error) {
+	if !sameThemeRuntimePublication(s.latestThemePublication, failed) {
+		return ThemeActivationResult{}, ErrThemePublicationConflict
+	}
+	publication := ThemeRuntimePublication{
+		SourceThemeID: failed.ThemeID, SourceThemeVersion: failed.ThemeVersion, SourcePackageDigest: failed.PackageDigest,
+		SourceCoreReplacementsApproved: failed.CoreReplacementsApproved,
+		SourceActorUserID:              failed.ActorUserID,
+		ActorUserID:                    failed.ActorUserID, Reason: ThemeRuntimePublicationCompensation,
+	}
+	result := ThemeActivationResult{}
+	if previous == nil {
+		item := s.items[failed.ThemeID]
+		item.Status = StatusDisabled
+		s.items[failed.ThemeID] = item
+		s.activeThemeID = ""
+		publication.DesiredState = ThemeRuntimePublicationNone
+	} else {
+		item, err := s.setActiveTheme(previous.ID)
+		if err != nil {
+			return ThemeActivationResult{}, err
+		}
+		result.Extension = item
+		publication.DesiredState = ThemeRuntimePublicationActive
+		publication.ThemeID, publication.ThemeVersion, publication.PackageDigest = item.ID, item.Version, item.PackageDigest
+		publication.CoreReplacementsApproved = failed.SourceCoreReplacementsApproved
+		if publication.CoreReplacementsApproved {
+			publication.ActorUserID = failed.SourceActorUserID
+		}
+	}
+	result.Publication = s.publishThemeRuntime(publication)
+	return result, nil
+}
+
+func (s *fakeExtensionStore) publishThemeRuntime(publication ThemeRuntimePublication) ThemeRuntimePublication {
+	s.themePublicationRevision++
+	publication.Revision = s.themePublicationRevision
+	publication.CreatedAt = time.Now().UTC()
+	s.latestThemePublication = publication
+	return publication
 }
 
 func (s *fakeExtensionStore) ActiveTheme(context.Context) (Extension, error) {

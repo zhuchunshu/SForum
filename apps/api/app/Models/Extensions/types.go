@@ -262,7 +262,45 @@ type ThemeActivationInput struct {
 	CurrentThemeDigest  string `json:"currentThemeDigest"`
 	// ApproveCoreReplacements is an explicit approval from the exact visible
 	// preview. It is effective only for a super_admin actor.
-	ApproveCoreReplacements bool `json:"approveCoreReplacements"`
+	ApproveCoreReplacements bool  `json:"approveCoreReplacements"`
+	ActorUserID             int64 `json:"-"`
+}
+
+type ThemeRuntimePublicationState string
+
+const (
+	ThemeRuntimePublicationActive ThemeRuntimePublicationState = "active"
+	ThemeRuntimePublicationNone   ThemeRuntimePublicationState = "none"
+)
+
+type ThemeRuntimePublicationReason string
+
+const (
+	ThemeRuntimePublicationActivation    ThemeRuntimePublicationReason = "activation"
+	ThemeRuntimePublicationCompensation  ThemeRuntimePublicationReason = "compensation"
+	ThemeRuntimePublicationStartupRepair ThemeRuntimePublicationReason = "startup_repair"
+)
+
+type ThemeRuntimePublication struct {
+	Revision                       int64                         `json:"revision"`
+	DesiredState                   ThemeRuntimePublicationState  `json:"desiredState"`
+	ThemeID                        string                        `json:"themeId,omitempty"`
+	ThemeVersion                   string                        `json:"themeVersion,omitempty"`
+	PackageDigest                  string                        `json:"packageDigest,omitempty"`
+	SourceThemeID                  string                        `json:"sourceThemeId,omitempty"`
+	SourceThemeVersion             string                        `json:"sourceThemeVersion,omitempty"`
+	SourcePackageDigest            string                        `json:"sourcePackageDigest,omitempty"`
+	SourceCoreReplacementsApproved bool                          `json:"sourceCoreReplacementsApproved"`
+	SourceActorUserID              int64                         `json:"sourceActorUserId,omitempty"`
+	CoreReplacementsApproved       bool                          `json:"coreReplacementsApproved"`
+	ActorUserID                    int64                         `json:"actorUserId,omitempty"`
+	Reason                         ThemeRuntimePublicationReason `json:"reason"`
+	CreatedAt                      time.Time                     `json:"createdAt"`
+}
+
+type ThemeActivationResult struct {
+	Extension   Extension               `json:"extension"`
+	Publication ThemeRuntimePublication `json:"publication"`
 }
 
 // LifecycleRequestInput 是无业务 body 的 V2 lifecycle 请求元数据。

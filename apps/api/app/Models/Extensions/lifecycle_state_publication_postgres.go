@@ -614,6 +614,13 @@ func writeLifecycleExtensionState(
 	current lifecycleStateVector,
 	target lifecycleStateVector,
 ) error {
+	var extensionType string
+	if err := tx.QueryRow(ctx, `SELECT type FROM extensions WHERE id = $1 FOR UPDATE`, extensionID).Scan(&extensionType); err != nil {
+		return mapLifecycleStateExtensionError(err)
+	}
+	if extensionType == TypeTheme {
+		return ErrThemeActivationRequired
+	}
 	tag, err := tx.Exec(ctx, `
 		UPDATE extensions
 		SET status = $5,

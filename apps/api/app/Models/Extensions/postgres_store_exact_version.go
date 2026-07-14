@@ -24,6 +24,9 @@ func (s *PostgresStore) RollbackExtensionVersion(ctx context.Context, input Roll
 	if err := lockExactRollbackVersions(ctx, tx, input); err != nil {
 		return Extension{}, err
 	}
+	if err := rejectActiveThemeArtifactMutation(ctx, tx, input.ExtensionID); err != nil {
+		return Extension{}, err
+	}
 	command, err := tx.Exec(ctx, `
 		UPDATE extensions
 		SET active_version_id = $5,

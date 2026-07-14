@@ -940,30 +940,37 @@ func (s *controllerFakeStore) Disable(_ context.Context, id string) (extensions.
 	return item, nil
 }
 
-func (s *controllerFakeStore) ActivateTheme(_ context.Context, id string) (extensions.Extension, error) {
+func (s *controllerFakeStore) ActivateTheme(_ context.Context, id string) (extensions.ThemeActivationResult, error) {
 	item := s.items[id]
 	item.Status = extensions.StatusEnabled
 	s.items[id] = item
-	return item, nil
+	return extensions.ThemeActivationResult{Extension: item}, nil
 }
 
-func (s *controllerFakeStore) ActivateThemeExact(ctx context.Context, id string, expected extensions.ThemeActivationInput) (extensions.Extension, error) {
+func (s *controllerFakeStore) ActivateThemeExact(ctx context.Context, id string, expected extensions.ThemeActivationInput) (extensions.ThemeActivationResult, error) {
 	target, ok := s.items[id]
 	if !ok {
-		return extensions.Extension{}, extensions.ErrExtensionNotFound
+		return extensions.ThemeActivationResult{}, extensions.ErrExtensionNotFound
 	}
 	current, err := s.ActiveTheme(ctx)
 	if errors.Is(err, extensions.ErrExtensionNotFound) {
 		current = extensions.Extension{}
 	} else if err != nil {
-		return extensions.Extension{}, err
+		return extensions.ThemeActivationResult{}, err
 	}
 	if target.Version != expected.Version || !strings.EqualFold(target.PackageDigest, expected.PackageDigest) ||
 		current.ID != expected.CurrentThemeID || current.Version != expected.CurrentThemeVersion ||
 		!strings.EqualFold(current.PackageDigest, expected.CurrentThemeDigest) {
-		return extensions.Extension{}, extensions.ErrThemePreviewStale
+		return extensions.ThemeActivationResult{}, extensions.ErrThemePreviewStale
 	}
 	return s.ActivateTheme(ctx, id)
+}
+
+func (s *controllerFakeStore) CompensateThemeActivation(_ context.Context, _ extensions.ThemeRuntimePublication, previous *extensions.Extension) (extensions.ThemeActivationResult, error) {
+	if previous == nil {
+		return extensions.ThemeActivationResult{}, nil
+	}
+	return extensions.ThemeActivationResult{Extension: *previous}, nil
 }
 
 func (s *controllerFakeStore) ActiveTheme(context.Context) (extensions.Extension, error) {

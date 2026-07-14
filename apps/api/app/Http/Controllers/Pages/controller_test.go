@@ -433,6 +433,35 @@ func TestThemeActivationPreviewReturnsExactTuplesAndApprovalEligibility(t *testi
 	}
 }
 
+func TestThemeActivationPreviewUsesExactStagedArtifact(t *testing.T) {
+	app, _, themes, _ := newPagesTestApp(t)
+	current := themes.items["demo.theme"]
+	current.StagedVersion = &extensions.ExtensionVersion{
+		ID: 2, Version: "2.0.0", PackageDigest: "theme-staged-d", PackagePath: current.PackagePath,
+		Manifest: current.Manifest,
+	}
+	themes.items[current.ID] = current
+	cookie := loginPagesUser(t, app, 1)
+	resp := performPages(t, app, nethttp.MethodGet, "/api/v1/admin/pages/activate-preview/demo.theme", nil, cookie)
+	if resp.StatusCode != nethttp.StatusOK {
+		t.Fatalf("preview status=%d", resp.StatusCode)
+	}
+	var body pagesEnvelope[themeActivationPreview]
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		t.Fatal(err)
+	}
+	preview := body.Data
+	if preview.Version != "2.0.0" || preview.PackageDigest != "theme-staged-d" ||
+		preview.CurrentThemeVersion != "1.0.0" || preview.CurrentThemeDigest != "theme-d" {
+		t.Fatalf("staged preview=%#v", preview)
+	}
+	for _, impact := range preview.Impacts {
+		if impact.Contribution.Version != "2.0.0" || impact.Contribution.PackageDigest != "theme-staged-d" {
+			t.Fatalf("staged impact=%#v", impact)
+		}
+	}
+}
+
 func TestApproveAndResolveReplace(t *testing.T) {
 	app, reg, _, sink := newPagesTestApp(t)
 	cookie := loginPagesUser(t, app, 1)

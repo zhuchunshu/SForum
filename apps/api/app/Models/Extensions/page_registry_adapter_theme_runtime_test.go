@@ -100,14 +100,23 @@ func TestThemeActivationRuntimeFailureRestoresExactApprovalAcrossServiceAndResta
 	})
 	extensionStore := newFakeExtensionStore(map[string]Extension{previous.ID: previous, target.ID: target})
 	extensionStore.activeThemeID = previous.ID
+	extensionStore.themeApprovalBy = map[string]int64{previous.ID: 42}
 	service := NewServiceWithOptions(extensionStore, t.TempDir(), "", LocalRuntimeManager{}, WithPageRegistry(adapter))
-	_, err := service.ActivateThemeFromPreview(ctx, extensionManager(), target.ID, ThemeActivationInput{
+	targetActor := extensionManager()
+	targetActor.ID = 99
+	_, err := service.ActivateThemeFromPreview(ctx, targetActor, target.ID, ThemeActivationInput{
 		Version: target.Version, PackageDigest: target.PackageDigest,
 		CurrentThemeID: previous.ID, CurrentThemeVersion: previous.Version, CurrentThemeDigest: previous.PackageDigest,
 		ApproveCoreReplacements: true,
 	})
 	if !errors.Is(err, ErrBuildFailed) || extensionStore.activeThemeID != previous.ID {
 		t.Fatalf("activation error=%v active=%q", err, extensionStore.activeThemeID)
+	}
+	compensation := extensionStore.latestThemePublication
+	if compensation.Reason != ThemeRuntimePublicationCompensation || compensation.ThemeID != previous.ID ||
+		!compensation.CoreReplacementsApproved || compensation.ActorUserID != 42 ||
+		!compensation.SourceCoreReplacementsApproved || compensation.SourceActorUserID != 99 {
+		t.Fatalf("compensation publication = %#v", compensation)
 	}
 	assertActiveThemeRuntime(t, runtimeRegistry, previous.ID)
 	resolved, err := registry.Resolve(ctx, "forum.home")

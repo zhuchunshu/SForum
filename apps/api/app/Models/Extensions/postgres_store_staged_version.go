@@ -23,6 +23,9 @@ func (s *PostgresStore) PromoteStagedVersion(ctx context.Context, input StagedVe
 	if err := lockExactStagedVersion(ctx, tx, input); err != nil {
 		return Extension{}, err
 	}
+	if err := rejectActiveThemeArtifactMutation(ctx, tx, input.ExtensionID); err != nil {
+		return Extension{}, err
+	}
 	command, err := tx.Exec(ctx, `
 		UPDATE extensions
 		SET active_version_id = $5,
@@ -183,4 +186,19 @@ func getExtensionInTransaction(ctx context.Context, tx pgx.Tx, extensionID strin
 		return Extension{}, fmt.Errorf("read staged extension version result: %w", err)
 	}
 	return item, nil
+}
+
+func rejectActiveThemeArtifactMutation(ctx context.Context, tx pgx.Tx, extensionID string) error {
+	var extensionType, status string
+	if err := tx.QueryRow(ctx, `
+		SELECT type, status FROM extensions WHERE id = $1 FOR UPDATE
+	`, extensionID).Scan(&extensionType, &status); errors.Is(err, pgx.ErrNoRows) {
+		return ErrExtensionNotFound
+	} else if err != nil {
+		return fmt.Errorf("lock extension artifact mutation: %w", err)
+	}
+	if extensionType == TypeTheme && status == StatusEnabled {
+		return ErrThemeActivationRequired
+	}
+	return nil
 }
