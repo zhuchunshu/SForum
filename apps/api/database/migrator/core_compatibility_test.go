@@ -12,6 +12,23 @@ import (
 )
 
 func TestCoreUpgradeCompatibilityBlocksExactTrustedRawExtension(t *testing.T) {
+	assertCoreUpgradeCompatibilityLifecycle(
+		t,
+		`{"database":{"authority":"raw_core","coreCompatibility":">=1.0.0 <2.0.0"}}`,
+		`{"database":{"authority":"raw_core","coreCompatibility":">=1.0.0 <2.0.0"}}`,
+	)
+}
+
+func TestCoreUpgradeCompatibilityBlocksExactTrustedAdditiveRawGrant(t *testing.T) {
+	assertCoreUpgradeCompatibilityLifecycle(
+		t,
+		`{"database":{"grants":["raw_core","core_views"],"coreCompatibility":">=1.0.0 <2.0.0"}}`,
+		`{"database":{"grants":["core_views","raw_core"],"coreCompatibility":">=1.0.0 <2.0.0"}}`,
+	)
+}
+
+func assertCoreUpgradeCompatibilityLifecycle(t *testing.T, manifest, trustImpact string) {
+	t.Helper()
 	databaseURL := strings.TrimSpace(os.Getenv("DATABASE_URL"))
 	if databaseURL == "" {
 		t.Skip("DATABASE_URL is required for core compatibility integration test")
@@ -28,7 +45,6 @@ func TestCoreUpgradeCompatibilityBlocksExactTrustedRawExtension(t *testing.T) {
 
 	extensionID := fmt.Sprintf("p5.core-compatibility.%d", time.Now().UnixNano())
 	digest := strings.Repeat("a", 64)
-	manifest := `{"database":{"authority":"raw_core","coreCompatibility":">=1.0.0 <2.0.0"}}`
 	if _, err := db.ExecContext(ctx, `
 		INSERT INTO extensions (id, type, name, status, source, is_system)
 		VALUES ($1, 'plugin', 'P5 compatibility fixture', 'installed', 'uploaded', false)
@@ -62,7 +78,7 @@ func TestCoreUpgradeCompatibilityBlocksExactTrustedRawExtension(t *testing.T) {
 		) VALUES (
 			$1, '1.0.0', $2, 'enable', '{}'::jsonb, $3::jsonb, repeat('b', 64)
 		) RETURNING id
-	`, extensionID, digest, manifest).Scan(&grantID); err != nil {
+	`, extensionID, digest, trustImpact).Scan(&grantID); err != nil {
 		t.Fatal(err)
 	}
 

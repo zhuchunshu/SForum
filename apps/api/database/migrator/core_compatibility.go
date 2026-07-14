@@ -35,31 +35,56 @@ func checkCoreUpgradeCompatibility(ctx context.Context, db *sql.DB, targetVersio
 	}
 
 	rows, err := db.QueryContext(ctx, `
-		SELECT extensions.id, extension_versions.version,
-		       extension_versions.manifest #>> '{database,authority}',
-		       COALESCE(extension_versions.manifest #>> '{database,coreCompatibility}', '')
+		WITH enabled_database_extensions AS (
+		  SELECT extensions.id, extensions.source, extensions.is_system,
+		         extension_versions.version, extension_versions.package_digest,
+		         extension_versions.manifest,
+		         COALESCE(extension_versions.manifest #>> '{database,authority}', 'additive') AS authority,
+		         CASE extension_versions.manifest #>> '{database,authority}'
+		           WHEN 'own_schema' THEN '["own_schema"]'::jsonb
+		           WHEN 'core_views' THEN '["own_schema","core_views"]'::jsonb
+		           WHEN 'host_commands' THEN '["own_schema","core_views","host_commands"]'::jsonb
+		           WHEN 'raw_core' THEN '["own_schema","core_views","host_commands","raw_core"]'::jsonb
+		           WHEN 'kernel' THEN '["own_schema","core_views","host_commands","raw_core","kernel"]'::jsonb
+		           ELSE COALESCE(extension_versions.manifest #> '{database,grants}', '[]'::jsonb)
+		         END AS database_grants
 		FROM extensions
 		JOIN extension_versions ON extension_versions.id = extensions.active_version_id
 		WHERE extensions.type = 'plugin'
 		  AND extensions.status = 'enabled'
-		  AND extension_versions.manifest #>> '{database,authority}' IN ('raw_core', 'kernel')
+		)
+		SELECT enabled.id, enabled.version, enabled.authority,
+		       COALESCE(enabled.manifest #>> '{database,coreCompatibility}', '')
+		FROM enabled_database_extensions AS enabled
+		WHERE enabled.database_grants ?| ARRAY['raw_core', 'kernel']
 		  AND (
-		    (extensions.source = 'builtin' AND extensions.is_system)
+		    (enabled.source = 'builtin' AND enabled.is_system)
 		    OR (
-		      extensions.source = 'uploaded' AND NOT extensions.is_system
+		      enabled.source = 'uploaded' AND NOT enabled.is_system
 		      AND EXISTS (
-		        SELECT 1 FROM extension_trust_grants
-		        WHERE extension_trust_grants.extension_id = extensions.id
-		          AND extension_trust_grants.extension_version = extension_versions.version
-		          AND extension_trust_grants.package_digest = extension_versions.package_digest
-		          AND extension_trust_grants.action = 'enable'
-		          AND extension_trust_grants.revoked_at IS NULL
-		          AND extension_trust_grants.impact_document #>> '{database,authority}' =
-		              extension_versions.manifest #>> '{database,authority}'
+		        SELECT 1
+		        FROM extension_trust_grants AS trust
+		        CROSS JOIN LATERAL (
+		          SELECT CASE trust.impact_document #>> '{database,authority}'
+		            WHEN 'own_schema' THEN '["own_schema"]'::jsonb
+		            WHEN 'core_views' THEN '["own_schema","core_views"]'::jsonb
+		            WHEN 'host_commands' THEN '["own_schema","core_views","host_commands"]'::jsonb
+		            WHEN 'raw_core' THEN '["own_schema","core_views","host_commands","raw_core"]'::jsonb
+		            WHEN 'kernel' THEN '["own_schema","core_views","host_commands","raw_core","kernel"]'::jsonb
+		            ELSE COALESCE(trust.impact_document #> '{database,grants}', '[]'::jsonb)
+		          END AS database_grants
+		        ) AS normalized_trust
+		        WHERE trust.extension_id = enabled.id
+		          AND trust.extension_version = enabled.version
+		          AND trust.package_digest = enabled.package_digest
+		          AND trust.action = 'enable'
+		          AND trust.revoked_at IS NULL
+		          AND normalized_trust.database_grants @> enabled.database_grants
+		          AND enabled.database_grants @> normalized_trust.database_grants
 		      )
 		    )
 		  )
-		ORDER BY extensions.id
+		ORDER BY enabled.id
 	`)
 	if err != nil {
 		return fmt.Errorf("load raw database compatibility declarations: %w", err)
