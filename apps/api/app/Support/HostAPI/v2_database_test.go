@@ -11,6 +11,7 @@ import (
 
 	hostv2 "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/host/v2"
 	protocolv2 "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/protocol/v2"
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/structpb"
@@ -416,6 +417,30 @@ func TestProtocolV2DatabaseUnavailableServerIsFailClosed(t *testing.T) {
 	execute, err := (&protocolV2DatabaseServer{}).Execute(context.Background(), &hostv2.DatabaseExecuteRequest{})
 	if err != nil || execute.GetError().GetReason() != "host.database_backend_unavailable" {
 		t.Fatalf("unavailable execute response=%#v err=%v", execute, err)
+	}
+}
+
+func TestGatewayBindsAndFreezesProtocolV2DatabaseRuntime(t *testing.T) {
+	backend := newFakeProtocolV2DatabaseBackend()
+	queries, executes := testProtocolV2DatabaseDefinitions()
+	runtime, err := newProtocolV2DatabaseRuntime(backend, queries, executes)
+	if err != nil {
+		t.Fatal(err)
+	}
+	gateway := NewGateway(New(Config{}))
+	if err := gateway.BindProtocolV2DatabaseRuntime(runtime); err != nil {
+		t.Fatal(err)
+	}
+	if err := gateway.BindProtocolV2DatabaseRuntime(runtime); err == nil {
+		t.Fatal("database runtime rebound before broker registration")
+	}
+	server := grpc.NewServer()
+	gateway.RegisterProtocolV2(server)
+	if _, ok := server.GetServiceInfo()["sforum.host.v2.DatabaseService"]; !ok {
+		t.Fatal("DatabaseService was not registered")
+	}
+	if err := gateway.BindProtocolV2DatabaseRuntime(runtime); err == nil {
+		t.Fatal("database runtime rebound after broker registration")
 	}
 }
 

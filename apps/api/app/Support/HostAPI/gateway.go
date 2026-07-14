@@ -25,8 +25,10 @@ type Gateway struct {
 	services                 *ServiceRegistry
 	commands                 *protocolV2CommandEngine
 	queries                  *protocolV2QueryEngine
+	database                 *protocolV2DatabaseEngine
 	protocolV2CommandsFrozen bool
 	protocolV2QueriesFrozen  bool
+	protocolV2DatabaseFrozen bool
 	server                   *http.Server
 	ln                       net.Listener
 	baseURL                  string
@@ -44,10 +46,34 @@ func (g *Gateway) RegisterProtocolV2(server grpc.ServiceRegistrar) {
 	services := g.services
 	commands := g.commands
 	queries := g.queries
+	database := g.database
 	g.protocolV2CommandsFrozen = true
 	g.protocolV2QueriesFrozen = true
+	g.protocolV2DatabaseFrozen = true
 	g.mu.Unlock()
-	registerProtocolV2(server, service, services, commands, queries)
+	registerProtocolV2(server, service, services, commands, queries, database)
+}
+
+// BindProtocolV2DatabaseRuntime installs one exact-artifact statement catalog.
+// Broker registration freezes it so SQL and authority bindings cannot drift
+// under an already-running plugin process.
+func (g *Gateway) BindProtocolV2DatabaseRuntime(runtime ProtocolV2DatabaseRuntime) error {
+	if g == nil {
+		return fmt.Errorf("hostapi gateway is nil")
+	}
+	if runtime == nil || runtime.databaseEngine() == nil {
+		return fmt.Errorf("hostapi: protocol v2 database runtime is required")
+	}
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	if g.protocolV2DatabaseFrozen {
+		return fmt.Errorf("hostapi: protocol v2 database runtime is frozen until the next Gateway boot")
+	}
+	if g.database != nil {
+		return fmt.Errorf("hostapi: protocol v2 database runtime is already bound")
+	}
+	g.database = runtime.databaseEngine()
+	return nil
 }
 
 // BindProtocolV2QueryRuntime installs the immutable stable-query catalog once.
