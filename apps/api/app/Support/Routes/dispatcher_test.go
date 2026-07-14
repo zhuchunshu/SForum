@@ -66,6 +66,22 @@ func TestDispatcherExecutesBufferedChainInPlanOrder(t *testing.T) {
 	}
 }
 
+func TestDispatcherLeavesCoreOnlyPlanEntirelyUnhandled(t *testing.T) {
+	core := &dispatchCoreInvoker{invoke: func(context.Context, RouteExecutionStep, DispatchRequest) (DispatchResponse, error) {
+		t.Fatal("core-only plan must not enter buffered CoreInvoker")
+		return DispatchResponse{}, nil
+	}}
+	dispatcher := NewDispatcher(DispatcherConfig{
+		Plans: dispatchPlanResolver{plan: dispatchPlan(
+			"GET", "/download", nil, []RouteExecutionStep{dispatchCoreStep("core.route.download")}, 0,
+		)},
+	})
+	result, err := dispatcher.Dispatch(context.Background(), DispatchRequest{Method: "GET", Path: "/download"}, core)
+	if err != nil || result.Handled || core.calls != 0 {
+		t.Fatalf("result=%#v core calls=%d err=%v", result, core.calls, err)
+	}
+}
+
 func TestDispatcherSafeFallbackRequiresPristineGETOrHEAD(t *testing.T) {
 	for _, method := range []string{"GET", "HEAD"} {
 		t.Run(method, func(t *testing.T) {

@@ -46,6 +46,7 @@ import (
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Pages"
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Postgres"
 	redisplatform "github.com/zhuchunshu/sforum/apps/api/app/Support/Redis"
+	routes "github.com/zhuchunshu/sforum/apps/api/app/Support/Routes"
 	search "github.com/zhuchunshu/sforum/apps/api/app/Support/Search"
 	"github.com/zhuchunshu/sforum/apps/api/config"
 )
@@ -503,14 +504,27 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 			health.MeiliChecker{Client: meiliClient},
 		}, extensionService, extensionRuntime)
 	}
+	// P6 buffered HTTP dispatcher consumes the durable provider selection before
+	// Fiber's hardcoded core providers. Declared schemas remain fail-closed until
+	// their exact package catalog is production-published.
+	routeDispatcher := routes.NewDispatcher(routes.DispatcherConfig{
+		Plans:   lifecycleStack.RouteProviders,
+		Steps:   httpserver.NewBufferedRouteStepInvoker(lifecycleStack.RuntimeManager),
+		Guard:   httpserver.HostRouteGuardAuthorizer{},
+		Schemas: httpserver.CatalogRouteSchemaValidator{},
+	})
 
 	app := httpserver.NewApp(cfg, logger, httpserver.Dependencies{
-		RouteProviders: []httpserver.RouteProvider{identityProvider, notificationsProvider, mailProvider, adminOverviewProvider, forumProvider, profileProvider, moderationProvider, optionsProvider, siteChromeProvider, attachmentsProvider, seoProvider, databaseProvider, jobsProvider, extensionsProvider, webhooksProvider, entityMetaProvider, pagesProvider},
-		Options:        optionsService,
-		Storage:        redisStorage,
-		Ready:          readyEvaluate,
-		BearerTokens:   httpserver.TokenServiceAdapter{Service: apiTokenService},
-		Auditor:        auditWriter,
+		RouteProviders:  []httpserver.RouteProvider{identityProvider, notificationsProvider, mailProvider, adminOverviewProvider, forumProvider, profileProvider, moderationProvider, optionsProvider, siteChromeProvider, attachmentsProvider, seoProvider, databaseProvider, jobsProvider, extensionsProvider, webhooksProvider, entityMetaProvider, pagesProvider},
+		RouteDispatcher: routeDispatcher,
+		RouteActors: func(c fiber.Ctx) (identity.Actor, error) {
+			return httpserver.OptionalActor(c, authSessions, identityStore)
+		},
+		Options:      optionsService,
+		Storage:      redisStorage,
+		Ready:        readyEvaluate,
+		BearerTokens: httpserver.TokenServiceAdapter{Service: apiTokenService},
+		Auditor:      auditWriter,
 	})
 
 	// Worker 心跳：嵌入 worker 时由 API 进程发布；独立 worker 在 NewWorker 内发布。

@@ -1,0 +1,419 @@
+package http
+
+import (
+	"bufio"
+	"context"
+	"errors"
+	"io"
+	"log/slog"
+	stdhttp "net/http"
+	"net/http/httptest"
+	"strings"
+	"sync"
+	"sync/atomic"
+	"testing"
+	"time"
+
+	"github.com/gofiber/fiber/v3"
+
+	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
+	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
+	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
+	routes "github.com/zhuchunshu/sforum/apps/api/app/Support/Routes"
+	"github.com/zhuchunshu/sforum/apps/api/config"
+)
+
+func TestRouteDispatcherMiddlewareLeavesCoreOnlyStreamUncapturedAndCallsNextOnce(t *testing.T) {
+	registry := routes.NewRegistry()
+	if _, err := registry.Publish(routes.Publication{Core: []routes.CoreRoute{{
+		ID: "core.route.test.stream", ContractVersion: "sforum.route.test.stream@1",
+		Method: "GET", Path: "/api/v1/core-stream",
+	}}}); err != nil {
+		t.Fatal(err)
+	}
+	dispatcher := routes.NewDispatcher(routes.DispatcherConfig{Plans: routeRegistryPlanResolver{registry: registry}})
+	provider := &routeDispatcherStreamProvider{}
+	app := NewApp(routeDispatcherConfig(), slog.Default(), Dependencies{
+		RouteDispatcher: dispatcher, RouteProviders: []RouteProvider{provider},
+	})
+
+	response, err := app.Test(httptest.NewRequest(stdhttp.MethodGet, "/api/v1/core-stream", nil))
+	if err != nil {
+		t.Fatal(err)
+	}
+	body, _ := io.ReadAll(response.Body)
+	response.Body.Close()
+	if response.StatusCode != stdhttp.StatusOK || string(body) != "chunk-1chunk-2" ||
+		provider.handlerCalls.Load() != 1 || provider.writerCalls.Load() != 1 {
+		t.Fatalf("status=%d body=%q handler=%d writer=%d", response.StatusCode, body, provider.handlerCalls.Load(), provider.writerCalls.Load())
+	}
+}
+
+func TestRouteDispatcherMiddlewareRunsBeforeCoreAndLetsUnknownRoutesContinue(t *testing.T) {
+	registry := routes.NewRegistry()
+	artifact := routeDispatcherArtifact("middleware.demo", 'a')
+	before := routeDispatcherManifestRoute("middleware.demo.before", extensionmanifest.RouteActionBefore, "/api/v1/core", "GET")
+	before.TargetID = "core.route.test.core"
+	before.ResponseSchema = ""
+	if _, err := registry.Publish(routes.Publication{
+		Core:    []routes.CoreRoute{{ID: "core.route.test.core", ContractVersion: "sforum.route.test.core@1", Method: "GET", Path: "/api/v1/core"}},
+		Plugins: []routes.PluginRouteSet{{Artifact: artifact, Routes: []extensionmanifest.ManifestRoute{before}}},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	runtime, target := newRouteDispatcherRuntime(t, artifact)
+	var phasesMu sync.Mutex
+	phases := []string{}
+	target.Config.Handler = stdhttp.HandlerFunc(func(writer stdhttp.ResponseWriter, request *stdhttp.Request) {
+		phasesMu.Lock()
+		phases = append(phases, request.Header.Get("X-SForum-Route-Phase"))
+		phasesMu.Unlock()
+		writer.WriteHeader(stdhttp.StatusNoContent)
+	})
+	dispatcher := routes.NewDispatcher(routes.DispatcherConfig{
+		Plans: routeRegistryPlanResolver{registry: registry}, Steps: NewBufferedRouteStepInvoker(runtime),
+		Guard: HostRouteGuardAuthorizer{}, Schemas: CatalogRouteSchemaValidator{Catalog: acceptRouteSchemaCatalog{}},
+	})
+	provider := &routeDispatcherTestProvider{}
+	app := NewApp(routeDispatcherConfig(), slog.Default(), Dependencies{
+		RouteDispatcher: dispatcher, RouteProviders: []RouteProvider{provider},
+	})
+
+	response, err := app.Test(httptest.NewRequest(stdhttp.MethodGet, "/api/v1/core", nil))
+	if err != nil {
+		t.Fatal(err)
+	}
+	body, _ := io.ReadAll(response.Body)
+	response.Body.Close()
+	if response.StatusCode != stdhttp.StatusOK || string(body) != "core" || provider.coreCalls != 1 {
+		t.Fatalf("status=%d body=%q coreCalls=%d", response.StatusCode, body, provider.coreCalls)
+	}
+	phasesMu.Lock()
+	if len(phases) != 1 || phases[0] != string(routes.RoutePhaseBefore) {
+		t.Fatalf("phases=%#v", phases)
+	}
+	phasesMu.Unlock()
+
+	response, err = app.Test(httptest.NewRequest(stdhttp.MethodGet, "/api/v1/untracked", nil))
+	if err != nil {
+		t.Fatal(err)
+	}
+	body, _ = io.ReadAll(response.Body)
+	response.Body.Close()
+	if response.StatusCode != stdhttp.StatusOK || string(body) != "untracked" || provider.unknownCalls != 1 {
+		t.Fatalf("status=%d body=%q unknownCalls=%d", response.StatusCode, body, provider.unknownCalls)
+	}
+}
+
+func TestRouteDispatcherMiddlewareExecutesSelectedExactReplacementWithoutCoreWriter(t *testing.T) {
+	registry := routes.NewRegistry()
+	artifact := routeDispatcherArtifact("replace.demo", 'b')
+	replacement := routeDispatcherManifestRoute("replace.demo.writer", extensionmanifest.RouteActionReplace, "/api/v1/replace", "GET")
+	replacement.TargetID = "core.route.test.replace"
+	replacement.Fallback = "readonly_core"
+	if _, err := registry.Publish(routes.Publication{
+		Core:    []routes.CoreRoute{{ID: "core.route.test.replace", ContractVersion: "sforum.route.test.replace@1", Method: "GET", Path: "/api/v1/replace"}},
+		Plugins: []routes.PluginRouteSet{{Artifact: artifact, Routes: []extensionmanifest.ManifestRoute{replacement}}},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	store := &routeSelectionMemoryStore{}
+	selectionAPI := routes.NewProviderSelectionAPI(registry, store)
+	pathSignature := ""
+	for _, route := range registry.Snapshot().Routes {
+		if route.ID == replacement.ID {
+			pathSignature = route.PathSignature
+		}
+	}
+	key := routes.ProviderSelectionKey{
+		TargetRouteID: "core.route.test.replace", TargetContractVersion: "sforum.route.test.replace@1",
+		Method: "GET", PathSignature: pathSignature,
+	}
+	if _, err := selectionAPI.Select(context.Background(), routes.SelectProviderRequest{
+		Key: key, ProviderRouteID: replacement.ID, ProviderContractVersion: replacement.ContractVersion,
+		ProviderArtifact: artifact, ActorUserID: 1, AuditEventID: 2,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	runtime, target := newRouteDispatcherRuntime(t, artifact)
+	target.Config.Handler = stdhttp.HandlerFunc(func(writer stdhttp.ResponseWriter, request *stdhttp.Request) {
+		if request.Header.Get("X-SForum-Extension-ID") != artifact.ExtensionID ||
+			request.Header.Get("X-SForum-Route-ID") != replacement.ID ||
+			request.Header.Get("X-SForum-Route-Handler") != replacement.Handler ||
+			request.Header.Get("X-SForum-Actor-ID") != "42" ||
+			request.Header.Get("X-SForum-Route-Phase") != string(routes.RoutePhaseHandler) {
+			t.Errorf("route headers=%#v", request.Header)
+		}
+		if request.Header.Get("Authorization") != "" || request.Header.Get("Cookie") != "" ||
+			request.Header.Get("X-SForum-Forged") != "" || request.Header.Get("X-Trace-ID") != "trace-1" {
+			t.Errorf("authority headers leaked or ordinary header missing: %#v", request.Header)
+		}
+		writer.Header().Set("Content-Type", "application/json")
+		writer.Header().Set("Set-Cookie", "sforum_session=forged")
+		writer.Header().Set("X-SForum-Forged", "runtime")
+		_, _ = writer.Write([]byte(`{"provider":"plugin"}`))
+	})
+	dispatcher := routes.NewDispatcher(routes.DispatcherConfig{
+		Plans: selectionAPI, Steps: NewBufferedRouteStepInvoker(runtime), Guard: HostRouteGuardAuthorizer{},
+		Schemas: CatalogRouteSchemaValidator{Catalog: acceptRouteSchemaCatalog{}},
+	})
+	provider := &routeReplacementCoreProvider{}
+	app := NewApp(routeDispatcherConfig(), slog.Default(), Dependencies{
+		RouteDispatcher: dispatcher, RouteProviders: []RouteProvider{provider},
+		RouteActors: func(fiber.Ctx) (identity.Actor, error) {
+			return identity.Actor{ID: 42, Status: identity.UserStatusActive}, nil
+		},
+	})
+
+	request := httptest.NewRequest(stdhttp.MethodGet, "/api/v1/replace", nil)
+	request.Header.Set("Authorization", "Bearer forged")
+	request.Header.Set("Cookie", "session=forged")
+	request.Header.Set("X-SForum-Extension-ID", "forged.extension")
+	request.Header.Set("X-SForum-Route-ID", "forged.route")
+	request.Header.Set("X-SForum-Route-Handler", "forged.handler")
+	request.Header.Set("X-SForum-Actor-ID", "999")
+	request.Header.Set("X-SForum-Forged", "yes")
+	request.Header.Set("X-Trace-ID", "trace-1")
+	response, err := app.Test(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	body, _ := io.ReadAll(response.Body)
+	response.Body.Close()
+	if response.StatusCode != stdhttp.StatusOK || string(body) != `{"provider":"plugin"}` || provider.calls != 0 ||
+		response.Header.Get("Set-Cookie") != "" || response.Header.Get("X-SForum-Forged") != "" {
+		t.Fatalf("status=%d body=%q core calls=%d", response.StatusCode, body, provider.calls)
+	}
+}
+
+func TestBufferedRouteStepInvokerRejectsStaleArtifactAndNonLoopback(t *testing.T) {
+	artifact := routeDispatcherArtifact("runtime.demo", 'c')
+	runtime, server := newRouteDispatcherRuntime(t, artifact)
+	step := routes.RouteExecutionStep{
+		Provider: routes.Provider{Kind: routes.ProviderPlugin, Artifact: artifact}, Mode: extensionmanifest.RouteModeHTTP,
+		RouteID: "runtime.demo.route", ContractVersion: "runtime.demo.route@1", Handler: "route.handle",
+	}
+	input := routes.RouteInvocation{Step: step, Request: routes.DispatchRequest{Method: "GET", Path: "/api/v1/demo"}}
+	invoker := NewBufferedRouteStepInvoker(runtime)
+
+	stale := input
+	stale.Step.Provider.Artifact.PackageDigest = strings.Repeat("d", 64)
+	if _, err := invoker.Invoke(context.Background(), stale); !errors.Is(err, ErrRouteRuntimeArtifact) {
+		t.Fatalf("stale err=%v", err)
+	}
+	runtime.snapshot.Target.BaseURL = "https://example.com"
+	if _, err := invoker.Invoke(context.Background(), input); !errors.Is(err, ErrRouteRuntimeTarget) {
+		t.Fatalf("target err=%v", err)
+	}
+	server.Close()
+}
+
+func TestRouteDispatcherDeclaredNonHTTPModeFailsClosedBeforeRuntime(t *testing.T) {
+	registry := routes.NewRegistry()
+	artifact := routeDispatcherArtifact("stream.demo", 'e')
+	declaration := routeDispatcherManifestRoute("stream.demo.events", extensionmanifest.RouteActionAdd, "/api/v1/plugin-events", "GET")
+	declaration.Mode = extensionmanifest.RouteModeSSE
+	if _, err := registry.Publish(routes.Publication{Plugins: []routes.PluginRouteSet{{
+		Artifact: artifact, Routes: []extensionmanifest.ManifestRoute{declaration},
+	}}}); err != nil {
+		t.Fatal(err)
+	}
+	runtime, server := newRouteDispatcherRuntime(t, artifact)
+	var calls atomic.Int64
+	server.Config.Handler = stdhttp.HandlerFunc(func(writer stdhttp.ResponseWriter, _ *stdhttp.Request) {
+		calls.Add(1)
+		writer.WriteHeader(stdhttp.StatusOK)
+	})
+	dispatcher := routes.NewDispatcher(routes.DispatcherConfig{
+		Plans: routeRegistryPlanResolver{registry: registry}, Steps: NewBufferedRouteStepInvoker(runtime),
+		Guard: HostRouteGuardAuthorizer{}, Schemas: CatalogRouteSchemaValidator{Catalog: acceptRouteSchemaCatalog{}},
+	})
+	app := NewApp(routeDispatcherConfig(), slog.Default(), Dependencies{RouteDispatcher: dispatcher})
+
+	response, err := app.Test(httptest.NewRequest(stdhttp.MethodGet, "/api/v1/plugin-events", nil))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer response.Body.Close()
+	if response.StatusCode != stdhttp.StatusBadGateway || calls.Load() != 0 {
+		t.Fatalf("status=%d runtime calls=%d", response.StatusCode, calls.Load())
+	}
+}
+
+func TestHostRouteGuardAuthorizerPublicLoginGuestPermissionAndClosedAuthorities(t *testing.T) {
+	authorizer := HostRouteGuardAuthorizer{}
+	request := routes.DispatchRequest{Authenticated: true, Permissions: map[string]bool{"topic.create": true}}
+	tests := []struct {
+		name    string
+		guard   string
+		request routes.DispatchRequest
+		want    error
+	}{
+		{name: "public", guard: extensionmanifest.GuardCorePublic, want: nil},
+		{name: "login", guard: extensionmanifest.GuardCoreLogin, request: request, want: nil},
+		{name: "login denied", guard: extensionmanifest.GuardCoreLogin, want: ErrRouteLoginRequired},
+		{name: "guest", guard: extensionmanifest.GuardCoreGuest, want: nil},
+		{name: "guest denied", guard: extensionmanifest.GuardCoreGuest, request: request, want: ErrRouteGuestRequired},
+		{name: "permission", guard: extensionmanifest.GuardCorePermission, request: request, want: nil},
+		{name: "permission denied", guard: extensionmanifest.GuardCorePermission, request: routes.DispatchRequest{Authenticated: true}, want: ErrRoutePermissionDenied},
+		{name: "inherit closed", guard: extensionmanifest.GuardCoreInherit, request: request, want: ErrRouteGuardUnavailable},
+		{name: "raw closed", guard: extensionmanifest.GuardCoreRaw, request: request, want: ErrRouteGuardUnavailable},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			step := routes.RouteExecutionStep{Guard: test.guard, Permission: "topic.create"}
+			err := authorizer.Authorize(context.Background(), routes.RouteExecutionPlan{}, step, test.request)
+			if !errors.Is(err, test.want) || test.want == nil && err != nil {
+				t.Fatalf("err=%v want=%v", err, test.want)
+			}
+		})
+	}
+}
+
+type routeRegistryPlanResolver struct{ registry *routes.Registry }
+
+func (r routeRegistryPlanResolver) BuildExecutionPlan(_ context.Context, method, path string) (routes.RouteExecutionPlan, error) {
+	return r.registry.BuildExecutionPlan(method, path)
+}
+
+type acceptRouteSchemaCatalog struct{}
+
+func (acceptRouteSchemaCatalog) ValidateRouteSchema(context.Context, routes.PluginArtifact, string, []byte) error {
+	return nil
+}
+
+type routeDispatcherRuntime struct {
+	snapshot extensionsruntime.RuntimeInstanceSnapshot
+	gate     *extensionsruntime.RuntimeAdmissionGate
+}
+
+func (r *routeDispatcherRuntime) InspectRuntimeInstance(identity extensionsruntime.RuntimeInstanceIdentity) (extensionsruntime.RuntimeInstanceSnapshot, error) {
+	if identity != r.snapshot.Identity {
+		return extensionsruntime.RuntimeInstanceSnapshot{}, extensionsruntime.ErrRuntimeInstanceNotFound
+	}
+	return r.snapshot, nil
+}
+
+func (r *routeDispatcherRuntime) AcquireRuntimeCall(ctx context.Context, identity extensionsruntime.RuntimeInstanceIdentity, class extensionsruntime.RuntimeCallClass) (*extensionsruntime.RuntimeAdmissionLease, error) {
+	if identity != r.snapshot.Identity || !r.snapshot.Active || class != extensionsruntime.RuntimeCallRoute {
+		return nil, extensionsruntime.ErrRuntimeInstanceNotActive
+	}
+	return r.gate.Acquire(ctx, class)
+}
+
+func newRouteDispatcherRuntime(t *testing.T, artifact routes.PluginArtifact) (*routeDispatcherRuntime, *httptest.Server) {
+	t.Helper()
+	server := httptest.NewServer(stdhttp.HandlerFunc(func(writer stdhttp.ResponseWriter, _ *stdhttp.Request) {
+		writer.WriteHeader(stdhttp.StatusNoContent)
+	}))
+	identity := extensionsruntime.RuntimeInstanceIdentity{ExtensionID: artifact.ExtensionID, InstanceID: artifact.RuntimeInstanceID}
+	gate, err := extensionsruntime.NewRuntimeAdmissionGate(identity)
+	if err != nil {
+		server.Close()
+		t.Fatal(err)
+	}
+	runtime := &routeDispatcherRuntime{
+		gate: gate,
+		snapshot: extensionsruntime.RuntimeInstanceSnapshot{
+			Identity: identity, ExtensionVersion: artifact.ExtensionVersion, ArtifactDigest: artifact.PackageDigest,
+			Target: extensionsruntime.RouteTarget{BaseURL: server.URL, InstanceID: artifact.RuntimeInstanceID}, Active: true,
+		},
+	}
+	t.Cleanup(server.Close)
+	return runtime, server
+}
+
+type routeDispatcherTestProvider struct {
+	coreCalls    int
+	unknownCalls int
+}
+
+type routeDispatcherStreamProvider struct {
+	handlerCalls atomic.Int64
+	writerCalls  atomic.Int64
+}
+
+func (p *routeDispatcherStreamProvider) RegisterRoutes(api fiber.Router) {
+	api.Get("/core-stream", func(c fiber.Ctx) error {
+		p.handlerCalls.Add(1)
+		return c.SendStreamWriter(func(writer *bufio.Writer) {
+			p.writerCalls.Add(1)
+			_, _ = writer.WriteString("chunk-1")
+			_ = writer.Flush()
+			_, _ = writer.WriteString("chunk-2")
+		})
+	})
+}
+
+func (p *routeDispatcherTestProvider) RegisterRoutes(api fiber.Router) {
+	api.Get("/core", func(c fiber.Ctx) error {
+		p.coreCalls++
+		return c.SendString("core")
+	})
+	api.Get("/untracked", func(c fiber.Ctx) error {
+		p.unknownCalls++
+		return c.SendString("untracked")
+	})
+}
+
+type routeReplacementCoreProvider struct{ calls int }
+
+func (p *routeReplacementCoreProvider) RegisterRoutes(api fiber.Router) {
+	api.Get("/replace", func(c fiber.Ctx) error {
+		p.calls++
+		return c.SendString("core")
+	})
+}
+
+type routeSelectionMemoryStore struct{ selected routes.ProviderSelection }
+
+func (s *routeSelectionMemoryStore) Desired(ctx context.Context, key routes.ProviderSelectionKey) (routes.ProviderSelection, error) {
+	return s.Selected(ctx, key)
+}
+
+func (s *routeSelectionMemoryStore) Selected(context.Context, routes.ProviderSelectionKey) (routes.ProviderSelection, error) {
+	if s.selected.Revision == 0 {
+		return routes.ProviderSelection{}, routes.ErrProviderSelectionNotFound
+	}
+	return s.selected, nil
+}
+
+func (s *routeSelectionMemoryStore) Select(_ context.Context, request routes.SelectProviderRequest) (routes.ProviderSelection, error) {
+	s.selected = routes.ProviderSelection{
+		Key: request.Key, ProviderRouteID: request.ProviderRouteID, ProviderContractVersion: request.ProviderContractVersion,
+		ProviderExtensionID: request.ProviderArtifact.ExtensionID, ProviderExtensionVersion: request.ProviderArtifact.ExtensionVersion,
+		ProviderPackageDigest: request.ProviderArtifact.PackageDigest, SelectedByUserID: request.ActorUserID,
+		SelectionAuditEventID: request.AuditEventID, Revision: 1, SelectedAt: time.Now(), UpdatedAt: time.Now(),
+	}
+	return s.selected, nil
+}
+
+func (*routeSelectionMemoryStore) Reset(context.Context, routes.ResetProviderRequest) error {
+	return nil
+}
+func (*routeSelectionMemoryStore) InvalidateExtension(context.Context, routes.InvalidateProviderRequest) (int64, error) {
+	return 0, nil
+}
+func (*routeSelectionMemoryStore) ListEvents(context.Context, routes.ProviderSelectionKey, int) ([]routes.ProviderSelectionEvent, error) {
+	return nil, nil
+}
+
+func routeDispatcherArtifact(id string, digest byte) routes.PluginArtifact {
+	return routes.PluginArtifact{
+		ExtensionID: id, ExtensionVersion: "1.0.0", PackageDigest: strings.Repeat(string(digest), 64), RuntimeInstanceID: "runtime-1",
+	}
+}
+
+func routeDispatcherManifestRoute(id, action, path, method string) extensionmanifest.ManifestRoute {
+	return extensionmanifest.ManifestRoute{
+		ID: id, ContractVersion: id + "@1", Action: action, Path: path, Methods: []string{method},
+		Guard: extensionmanifest.GuardCorePublic, Fallback: "closed", Mode: extensionmanifest.RouteModeHTTP,
+		Handler: "route.handle", ResponseSchema: id + ".response@1",
+	}
+}
+
+func routeDispatcherConfig() config.Config {
+	return config.Config{AppName: "SForum", AppEnv: "test", AppLocale: "zh-CN", SupportedLocales: []string{"zh-CN"}}
+}
+
+var _ = identity.Actor{}

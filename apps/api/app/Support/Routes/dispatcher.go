@@ -135,13 +135,18 @@ func (d *Dispatcher) Dispatch(ctx context.Context, request DispatchRequest, core
 	if !plan.Valid() {
 		return DispatchResult{}, ErrInvalidExecutionPlan
 	}
+	chain := plan.Chain()
+	if !dispatchPlanHasPluginStep(chain) {
+		// Core-only requests stay entirely on Fiber's existing path. Capturing them
+		// would silently turn downloads, streams, and protocol upgrades into buffers.
+		return DispatchResult{}, nil
+	}
 	request.Params = plan.Params()
 	request.Headers = cloneHTTPHeader(request.Headers)
 	request.Body = append([]byte(nil), request.Body...)
 	request.Permissions = cloneDispatchPermissions(request.Permissions)
 
 	commit := NewRouteCommitObserver()
-	chain := plan.Chain()
 	var response *DispatchResponse
 	for index, step := range chain {
 		if err := d.authorize(ctx, plan, step, request); err != nil {
@@ -226,6 +231,15 @@ func (d *Dispatcher) Dispatch(ctx context.Context, request DispatchRequest, core
 	return DispatchResult{Handled: true, Response: cloneDispatchResponse(*response)}, nil
 }
 
+func dispatchPlanHasPluginStep(chain []RouteExecutionStep) bool {
+	for _, step := range chain {
+		if step.Provider.Kind == ProviderPlugin {
+			return true
+		}
+	}
+	return false
+}
+
 func (d *Dispatcher) authorize(ctx context.Context, plan RouteExecutionPlan, step RouteExecutionStep, request DispatchRequest) error {
 	if step.Provider.Kind == ProviderCore {
 		return nil
@@ -234,7 +248,7 @@ func (d *Dispatcher) authorize(ctx context.Context, plan RouteExecutionPlan, ste
 		return fmt.Errorf("%w: guard evaluator is unavailable", ErrDispatchDenied)
 	}
 	if err := d.guard.Authorize(ctx, plan, step, request); err != nil {
-		return fmt.Errorf("%w: %v", ErrDispatchDenied, err)
+		return fmt.Errorf("%w: %w", ErrDispatchDenied, err)
 	}
 	return nil
 }

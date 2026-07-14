@@ -18,6 +18,7 @@ import (
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Audit"
 	clientip "github.com/zhuchunshu/sforum/apps/api/app/Support/ClientIP"
 	health "github.com/zhuchunshu/sforum/apps/api/app/Support/Health"
+	routes "github.com/zhuchunshu/sforum/apps/api/app/Support/Routes"
 	"github.com/zhuchunshu/sforum/apps/api/config"
 )
 
@@ -40,7 +41,11 @@ type ReadyEvaluator func(ctx context.Context) health.ReadyReport
 
 type Dependencies struct {
 	RouteProviders []RouteProvider
-	Options        *options.Service
+	// RouteDispatcher 在硬编码 core provider 前消费不可变 Route Registry plan。
+	// nil 保持旧路由行为，便于独立测试与回滚。
+	RouteDispatcher *routes.Dispatcher
+	RouteActors     RouteActorLoader
+	Options         *options.Service
 	// Storage 用于分布式限流。为 nil 时 limiter 退化为进程内存限流。
 	Storage fiber.Storage
 	// Ready 为 /api/v1/ready 探测函数（PG required；Redis/Meili degraded）。
@@ -157,6 +162,9 @@ func registerRoutes(app *fiber.App, cfg config.Config, deps Dependencies) {
 	// F3.4：Bearer PAT 鉴权（在路由前解析，供各 controller 读取 context）。
 	if deps.BearerTokens != nil {
 		api.Use(bearerMiddleware(deps.BearerTokens, deps.Auditor))
+	}
+	if deps.RouteDispatcher != nil {
+		api.Use(routeDispatcherMiddleware(deps.RouteDispatcher, deps.RouteActors))
 	}
 
 	for _, provider := range deps.RouteProviders {
