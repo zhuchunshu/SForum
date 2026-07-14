@@ -10,6 +10,31 @@ export type ExecutableTrustAuthority = {
   secrets: string[]
 }
 
+export type ExecutableTrustMigrationDeclaration = {
+  id?: string
+  contractVersion?: string
+  path: string
+  digest?: string
+  transaction?: 'required' | 'forbidden' | 'auto'
+}
+
+export type ExecutableTrustDatabase = {
+  contractVersion: string
+  authority: 'own_schema' | 'core_views' | 'host_commands' | 'raw_core' | 'kernel'
+  schema?: string
+  role?: string
+  coreCompatibility?: string
+  backup: {
+    required: boolean
+    strategy?: string
+  }
+  retention: {
+    onDisable: 'retain'
+    onUninstall: 'retain' | 'delete' | 'export'
+    days?: number
+  }
+}
+
 export type ExecutableTrustImpact = {
   schemaVersion: 'sforum.trust-impact@2'
   action: 'enable'
@@ -28,7 +53,7 @@ export type ExecutableTrustImpact = {
   hooks: Array<Record<string, unknown>>
   events: Array<Record<string, unknown>>
   migrations: Array<Record<string, unknown>>
-  migrationDeclarations: Array<Record<string, unknown>>
+  migrationDeclarations: ExecutableTrustMigrationDeclaration[]
   providers: Array<Record<string, unknown>>
   jobs: Array<Record<string, unknown>>
   schedules: Array<Record<string, unknown>>
@@ -37,7 +62,7 @@ export type ExecutableTrustImpact = {
   templates: Array<Record<string, unknown>>
   assets: Array<Record<string, unknown>>
   content: Array<Record<string, unknown>>
-  database: Record<string, unknown> | null
+  database: ExecutableTrustDatabase | null
   cache: Array<Record<string, unknown>>
   services: Array<Record<string, unknown>>
   commands: Array<Record<string, unknown>>
@@ -59,6 +84,19 @@ export type ExecutableTrustImpact = {
   requestedAuthority: ExecutableTrustAuthority
   contracts: { hostApi: string, frontendApi?: string }
   digest: string
+}
+
+export function executableDatabaseMigrationRisk(impact: Pick<ExecutableTrustImpact, 'database' | 'migrationDeclarations'>) {
+  const nonTransactional = impact.migrationDeclarations.filter(migration => migration.transaction === 'forbidden')
+  const hasMigrations = impact.migrationDeclarations.length > 0
+  const backupRequired = impact.database?.backup.required === true
+  return {
+    hasDatabaseChanges: Boolean(impact.database) || hasMigrations,
+    hasMigrations,
+    backupRequired,
+    missingRequiredBackup: hasMigrations && !backupRequired,
+    nonTransactional
+  }
 }
 
 export type ExecutableTrustStatus = {

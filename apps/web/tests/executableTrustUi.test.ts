@@ -1,5 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 
+import { executableDatabaseMigrationRisk } from '../app/utils/extensionTrust'
+
 const manager = await Bun.file(new URL('../app/composables/useAdminExtensionsManager.ts', import.meta.url)).text()
 const dialog = await Bun.file(new URL('../app/components/SFAdminExtensionEnableDialog.vue', import.meta.url)).text()
 const impact = await Bun.file(new URL('../app/components/SFAdminExecutableTrustImpact.vue', import.meta.url)).text()
@@ -42,6 +44,40 @@ describe('V3 exact-artifact trust operator flow', () => {
     expect(impact).toContain('impact.packageDigest')
     expect(impact).toContain('impact.digest')
     expect(impact).toContain('JSON.stringify(value, null, 2)')
+  })
+
+  test('promotes database migration and recovery risk before confirmation', () => {
+    expect(impact).toContain('data-testid="extension-database-risk"')
+    expect(impact).toContain('database.coreCompatibility')
+    expect(impact).toContain('database.backup.required')
+    expect(impact).toContain('database.backup.strategy')
+    expect(impact).toContain('database.retention.onDisable')
+    expect(impact).toContain('database.retention.onUninstall')
+    expect(impact).toContain('migration.digest')
+    expect(impact).toContain('migrationTransaction(migration)')
+    expect(impact).toContain('data-testid="extension-database-high-risk"')
+    expect(impact).toContain('data-testid="extension-database-backup-guidance"')
+    expect(impact).toContain('}, 10000)')
+
+    const risk = executableDatabaseMigrationRisk({
+      database: {
+        contractVersion: 'fixture.database@1',
+        authority: 'raw_core',
+        coreCompatibility: '>=3.0.0 <4.0.0',
+        backup: { required: false },
+        retention: { onDisable: 'retain', onUninstall: 'export' }
+      },
+      migrationDeclarations: [{
+        id: 'fixture.migration.1',
+        contractVersion: 'fixture.migration@1',
+        path: 'migrations/001.sql',
+        digest: 'a'.repeat(64),
+        transaction: 'forbidden'
+      }]
+    })
+    expect(risk.hasDatabaseChanges).toBe(true)
+    expect(risk.missingRequiredBackup).toBe(true)
+    expect(risk.nonTransactional).toHaveLength(1)
   })
 
   test('reuses one dialog in both admin entry points and retires frontend-only grant in V3', () => {

@@ -111,6 +111,33 @@ for (const requiredThemeState of ["'active'", "'activateDefault'", "'activate'"]
 }
 assert(!adminExtensionsHelper.includes('themeRelease'), 'Theme action state must not depend on a release pipeline')
 
+const executableTrustImpact = read('apps/web/app/components/SFAdminExecutableTrustImpact.vue')
+for (const requiredDatabaseRiskContract of [
+  'data-testid="extension-database-risk"',
+  'database.coreCompatibility',
+  'database.backup.required',
+  'database.backup.strategy',
+  'database.retention.onDisable',
+  'database.retention.onUninstall',
+  'migration.digest',
+  'migrationTransaction(migration)',
+  'data-testid="extension-database-high-risk"',
+  'data-testid="extension-database-backup-guidance"',
+  '}, 10000)'
+]) {
+  assert(executableTrustImpact.includes(requiredDatabaseRiskContract), `Executable trust impact should expose ${requiredDatabaseRiskContract}`)
+}
+const executableTrustDialog = read('apps/web/app/components/SFAdminExtensionEnableDialog.vue')
+assert(executableTrustDialog.includes('v-if="error"'), 'Executable trust blocking errors must remain visible until resolved')
+const zhLocale = JSON.parse(read('apps/web/i18n/locales/zh-CN.json'))
+const enLocale = JSON.parse(read('apps/web/i18n/locales/en-US.json'))
+for (const locale of [zhLocale, enLocale]) {
+  const databaseRisk = locale.admin?.extensions?.trust?.databaseRisk
+  assert(databaseRisk?.highRiskTitle, 'Executable trust locale should explain high-risk database changes')
+  assert(databaseRisk?.backupGuidanceDescription, 'Executable trust locale should recommend a restorable backup or export')
+  assert(databaseRisk?.transactions?.forbidden, 'Executable trust locale should label non-transactional migrations')
+}
+
 const envExample = read('.env.example')
 const productionEnvExample = read('.env.production.example')
 assert(envExample.includes('NUXT_PUBLIC_ADMIN_ROUTE_PREFIX=/control-panel'), '.env.example should document the admin route prefix')

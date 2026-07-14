@@ -1,8 +1,52 @@
 <script setup lang="ts">
-import type { ExecutableTrustImpact } from '~/utils/extensionTrust'
+import {
+  executableDatabaseMigrationRisk,
+  type ExecutableTrustImpact,
+  type ExecutableTrustMigrationDeclaration
+} from '~/utils/extensionTrust'
 
 const props = defineProps<{ impact: ExecutableTrustImpact }>()
 const { t } = useI18n()
+const showBackupGuidance = ref(true)
+let backupGuidanceTimer: ReturnType<typeof setTimeout> | undefined
+
+const database = computed(() => props.impact.database)
+const migrationRisk = computed(() => executableDatabaseMigrationRisk(props.impact))
+const databaseAuthorityColor = computed(() => {
+  if (database.value?.authority === 'raw_core' || database.value?.authority === 'kernel') return 'error'
+  if (database.value?.authority === 'core_views' || database.value?.authority === 'host_commands') return 'warning'
+  return 'neutral'
+})
+const riskDescription = computed(() => [
+  migrationRisk.value.nonTransactional.length
+    ? t('admin.extensions.trust.databaseRisk.nonTransactionalWarning', { count: migrationRisk.value.nonTransactional.length })
+    : '',
+  migrationRisk.value.missingRequiredBackup
+    ? t('admin.extensions.trust.databaseRisk.missingRequiredBackupWarning')
+    : ''
+].filter(Boolean).join(' '))
+
+function migrationLabel(migration: ExecutableTrustMigrationDeclaration, index: number) {
+  return migration.id || migration.path || t('admin.extensions.trust.databaseRisk.migrationFallback', { index: index + 1 })
+}
+
+function migrationTransaction(migration: ExecutableTrustMigrationDeclaration) {
+  return migration.transaction || 'auto'
+}
+
+function scheduleBackupGuidanceDismissal() {
+  showBackupGuidance.value = true
+  if (backupGuidanceTimer) clearTimeout(backupGuidanceTimer)
+  backupGuidanceTimer = setTimeout(() => {
+    showBackupGuidance.value = false
+  }, 10000)
+}
+
+onMounted(scheduleBackupGuidanceDismissal)
+watch(() => props.impact.digest, scheduleBackupGuidanceDismissal)
+onBeforeUnmount(() => {
+  if (backupGuidanceTimer) clearTimeout(backupGuidanceTimer)
+})
 
 const sections = computed(() => [
   { key: 'artifactDigests', value: props.impact.artifactDigests },
@@ -83,6 +127,117 @@ function formatted(value: unknown) {
         <dd class="mt-1 break-all font-mono text-slate-900 dark:text-zinc-100">{{ impact.digest }}</dd>
       </div>
     </dl>
+
+    <section
+      v-if="migrationRisk.hasDatabaseChanges"
+      class="space-y-4 border-y border-slate-200 py-4 dark:border-zinc-800"
+      data-testid="extension-database-risk"
+    >
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <div class="flex min-w-0 items-center gap-2">
+          <UIcon name="i-lucide-database" class="size-5 shrink-0 text-slate-500 dark:text-zinc-400" />
+          <h3 class="text-sm font-semibold text-slate-900 dark:text-zinc-100">
+            {{ t('admin.extensions.trust.databaseRisk.title') }}
+          </h3>
+        </div>
+        <UBadge v-if="database" :color="databaseAuthorityColor" variant="subtle" class="font-mono">
+          {{ database.authority }}
+        </UBadge>
+      </div>
+
+      <UAlert
+        v-if="riskDescription"
+        color="error"
+        variant="subtle"
+        icon="i-lucide-triangle-alert"
+        :title="t('admin.extensions.trust.databaseRisk.highRiskTitle')"
+        :description="riskDescription"
+        data-testid="extension-database-high-risk"
+      />
+      <UAlert
+        v-if="migrationRisk.hasMigrations && showBackupGuidance"
+        color="warning"
+        variant="subtle"
+        icon="i-lucide-database-backup"
+        :title="t('admin.extensions.trust.databaseRisk.backupGuidanceTitle')"
+        :description="t('admin.extensions.trust.databaseRisk.backupGuidanceDescription')"
+        data-testid="extension-database-backup-guidance"
+      />
+
+      <dl v-if="database" class="grid gap-x-5 gap-y-3 text-xs sm:grid-cols-2 lg:grid-cols-4">
+        <div class="min-w-0">
+          <dt class="text-slate-500 dark:text-zinc-400">{{ t('admin.extensions.trust.databaseRisk.authority') }}</dt>
+          <dd class="mt-1 break-all font-mono text-slate-900 dark:text-zinc-100">{{ database.authority }}</dd>
+        </div>
+        <div class="min-w-0">
+          <dt class="text-slate-500 dark:text-zinc-400">{{ t('admin.extensions.trust.databaseRisk.coreCompatibility') }}</dt>
+          <dd class="mt-1 break-all font-mono text-slate-900 dark:text-zinc-100">
+            {{ database.coreCompatibility || t('admin.extensions.trust.databaseRisk.notDeclared') }}
+          </dd>
+        </div>
+        <div class="min-w-0">
+          <dt class="text-slate-500 dark:text-zinc-400">{{ t('admin.extensions.trust.databaseRisk.backup') }}</dt>
+          <dd class="mt-1 flex flex-wrap items-center gap-2">
+            <UBadge :color="database.backup.required ? 'warning' : 'neutral'" variant="subtle" size="xs">
+              {{ database.backup.required
+                ? t('admin.extensions.trust.databaseRisk.backupRequired')
+                : t('admin.extensions.trust.databaseRisk.backupNotRequired') }}
+            </UBadge>
+            <span class="break-all font-mono text-slate-900 dark:text-zinc-100">
+              {{ database.backup.strategy || t('admin.extensions.trust.databaseRisk.strategyNotDeclared') }}
+            </span>
+          </dd>
+        </div>
+        <div class="min-w-0">
+          <dt class="text-slate-500 dark:text-zinc-400">{{ t('admin.extensions.trust.databaseRisk.retention') }}</dt>
+          <dd class="mt-1 space-y-1 text-slate-900 dark:text-zinc-100">
+            <div>{{ t('admin.extensions.trust.databaseRisk.onDisable') }}: <span class="font-mono">{{ database.retention.onDisable }}</span></div>
+            <div>
+              {{ t('admin.extensions.trust.databaseRisk.onUninstall') }}:
+              <span class="font-mono">{{ database.retention.onUninstall }}</span>
+              <span v-if="database.retention.days"> · {{ t('admin.extensions.trust.databaseRisk.retentionDays', { count: database.retention.days }) }}</span>
+            </div>
+          </dd>
+        </div>
+      </dl>
+
+      <div v-if="migrationRisk.hasMigrations" class="space-y-2">
+        <h4 class="text-xs font-semibold text-slate-700 dark:text-zinc-300">
+          {{ t('admin.extensions.trust.databaseRisk.migrationPlan', { count: impact.migrationDeclarations.length }) }}
+        </h4>
+        <ul class="grid gap-2 lg:grid-cols-2">
+          <li
+            v-for="(migration, index) in impact.migrationDeclarations"
+            :key="migration.id || migration.path"
+            class="min-w-0 rounded-md border border-slate-200 px-3 py-2.5 dark:border-zinc-700"
+          >
+            <div class="flex items-start justify-between gap-3">
+              <div class="min-w-0">
+                <p class="truncate text-xs font-medium text-slate-900 dark:text-zinc-100">{{ migrationLabel(migration, index) }}</p>
+                <p class="mt-1 break-all font-mono text-[11px] text-slate-500 dark:text-zinc-400">{{ migration.path }}</p>
+              </div>
+              <UBadge
+                :color="migrationTransaction(migration) === 'forbidden' ? 'error' : migrationTransaction(migration) === 'required' ? 'primary' : 'neutral'"
+                variant="subtle"
+                size="xs"
+              >
+                {{ t(`admin.extensions.trust.databaseRisk.transactions.${migrationTransaction(migration)}`) }}
+              </UBadge>
+            </div>
+            <dl class="mt-2 grid gap-2 text-[11px] sm:grid-cols-2">
+              <div class="min-w-0">
+                <dt class="text-slate-500 dark:text-zinc-400">{{ t('admin.extensions.trust.databaseRisk.contractVersion') }}</dt>
+                <dd class="mt-0.5 break-all font-mono text-slate-700 dark:text-zinc-300">{{ migration.contractVersion || t('admin.extensions.trust.databaseRisk.notDeclared') }}</dd>
+              </div>
+              <div class="min-w-0">
+                <dt class="text-slate-500 dark:text-zinc-400">{{ t('admin.extensions.trust.databaseRisk.digest') }}</dt>
+                <dd class="mt-0.5 break-all font-mono text-slate-700 dark:text-zinc-300">{{ migration.digest || t('admin.extensions.trust.databaseRisk.notDeclared') }}</dd>
+              </div>
+            </dl>
+          </li>
+        </ul>
+      </div>
+    </section>
 
     <div class="grid gap-2 sm:grid-cols-2">
       <details
