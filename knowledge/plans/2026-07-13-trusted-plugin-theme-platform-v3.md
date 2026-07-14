@@ -421,11 +421,11 @@ flowchart LR
 
 ### Tasks
 
-- [ ] Create deterministic safe PostgreSQL role/schema names per extension.
+- [x] Create deterministic safe PostgreSQL role/schema names per extension.
 - [ ] Provision/revoke credentials and `search_path` for plugin processes.
-- [ ] Implement real migration discovery, checksum, advisory lock, dry-run,
+- [x] Implement real migration discovery, checksum, advisory lock, dry-run,
       transaction policy, execution ledger, progress, and failure state.
-- [ ] Reuse Goose primitives where appropriate without mixing core and plugin
+- [x] Reuse Goose primitives where appropriate without mixing core and plugin
       migration histories.
 - [ ] Support plugin-owned transactions through v2 DB service or direct scoped
       connection.
@@ -436,20 +436,20 @@ flowchart LR
 - [ ] Implement exact-artifact `database.core.full` grants for raw core access.
 - [ ] Block incompatible core upgrades using declared schema compatibility.
 - [ ] Add backup/export guidance before destructive migrations.
-- [ ] Integrate uninstall plan and Host fallback cleanup for schemas, roles, and
+- [x] Integrate uninstall plan and Host fallback cleanup for schemas, roles, and
       credentials.
 - [ ] Add DB query tracing, slow-query limits, and per-plugin connection budgets.
 
 ### Tests
 
-- [ ] Concurrent migration, checksum drift, lock recovery, transaction rollback,
+- [x] Concurrent migration, checksum drift, lock recovery, transaction rollback,
       non-transactional DDL warning, credential revoke, and uninstall retention.
-- [ ] Own-schema plugin cannot access core without authority.
+- [x] Own-schema plugin cannot access core without authority.
 - [ ] Raw-authority plugin can perform the disclosed operations and causes the
       expected compatibility warning/block.
 - [ ] Transactional Host Command commits all declared steps or rolls all of them
       back after policy, validation, idempotency, or storage failure.
-- [ ] Multi-process/multi-node migration-once tests.
+- [x] Multi-process/multi-node migration-once tests.
 
 ### Rollback
 
