@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/jackc/pgx/v5"
+
 	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
 )
 
@@ -64,5 +66,44 @@ func TestExtensionDatabaseRuntimeLeaseInputFailsClosed(t *testing.T) {
 		Kind: ExtensionDatabaseLeaseIssuerHost, AuditEventID: 2,
 	}) {
 		t.Fatal("Host lease authority was rejected")
+	}
+	if !validExtensionDatabaseLeaseAuthority(ExtensionDatabaseLeaseAuthority{
+		Kind: ExtensionDatabaseLeaseIssuerHost,
+	}) {
+		t.Fatal("Host-owned audit lease authority was rejected")
+	}
+	if validExtensionDatabaseLeaseAuthority(ExtensionDatabaseLeaseAuthority{
+		Kind: ExtensionDatabaseLeaseIssuerHost, AuditEventID: -1,
+	}) {
+		t.Fatal("negative Host audit identity was accepted")
+	}
+}
+
+func TestExtensionDatabaseRuntimeConnectionURLReplacesHostAuthority(t *testing.T) {
+	base, err := pgx.ParseConfig("postgres://host_user:host_secret@db.internal:5433/host_db?sslmode=disable&search_path=public&pool_max_conns=9")
+	if err != nil {
+		t.Fatal(err)
+	}
+	credential := ExtensionDatabaseRuntimeCredential{
+		LeaseID:      strings.Repeat("a", 64),
+		Artifact:     ExtensionDatabaseArtifact{ExtensionID: "vendor.plugin"},
+		RoleName:     "sforum_ext_l_vendor_plugin_deadbeef",
+		DatabaseName: "sforum", Password: strings.Repeat("A", 43),
+	}
+	connectionURL, err := extensionDatabaseRuntimeConnectionURL(base, credential)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(connectionURL, "host_user") || strings.Contains(connectionURL, "host_secret") ||
+		strings.Contains(connectionURL, "search_path") || strings.Contains(connectionURL, "pool_max_conns") {
+		t.Fatalf("runtime URL retained Host authority: %s", connectionURL)
+	}
+	parsed, err := pgx.ParseConfig(connectionURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if parsed.User != credential.RoleName || parsed.Password != credential.Password ||
+		parsed.Database != credential.DatabaseName || parsed.Host != "db.internal" || parsed.Port != 5433 {
+		t.Fatalf("runtime connection URL mismatch: %#v", parsed.Config)
 	}
 }

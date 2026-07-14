@@ -112,6 +112,7 @@ func (s *ProtocolStarter) newPluginClientConfig(
 	ctx context.Context,
 	extension extensions.Extension,
 	cmd *exec.Cmd,
+	instanceID string,
 ) (*plugin.ClientConfig, string, error) {
 	version := extension.Manifest.Backend.ProtocolVersion
 	if version == 0 {
@@ -133,7 +134,7 @@ func (s *ProtocolStarter) newPluginClientConfig(
 		if !supportsProtocolV2HostAPI(extension.Manifest.Backend.HostAPIVersion) {
 			return nil, "", fmt.Errorf("%w: host API %q", ErrUnsupportedProtocol, extension.Manifest.Backend.HostAPIVersion)
 		}
-		clientConfig, err := s.protocolV2ClientConfig(ctx, extension)
+		clientConfig, err := s.protocolV2ClientConfig(ctx, extension, instanceID)
 		if err != nil {
 			return nil, "", err
 		}
@@ -161,7 +162,11 @@ func supportsProtocolV2HostAPI(value string) bool {
 	}
 }
 
-func (s *ProtocolStarter) protocolV2ClientConfig(ctx context.Context, extension extensions.Extension) (protocolV2ClientConfig, error) {
+func (s *ProtocolStarter) protocolV2ClientConfig(
+	ctx context.Context,
+	extension extensions.Extension,
+	runtimeInstanceID ...string,
+) (protocolV2ClientConfig, error) {
 	trustIdentity := extensions.RuntimeTrustIdentity{}
 	var err error
 	if s.trust != nil {
@@ -181,9 +186,23 @@ func (s *ProtocolStarter) protocolV2ClientConfig(ctx context.Context, extension 
 	if err != nil {
 		return protocolV2ClientConfig{}, fmt.Errorf("create protocol v2 runtime token: %w", err)
 	}
-	instanceBytes, err := randomProtocolV2Bytes(16)
-	if err != nil {
-		return protocolV2ClientConfig{}, fmt.Errorf("create protocol v2 instance id: %w", err)
+	instanceID := ""
+	if len(runtimeInstanceID) > 1 {
+		return protocolV2ClientConfig{}, ErrRuntimeAdmissionInvalid
+	}
+	if len(runtimeInstanceID) == 1 {
+		instanceID = strings.TrimSpace(runtimeInstanceID[0])
+	}
+	if instanceID == "" {
+		instanceID, err = newProtocolV2RuntimeInstanceID()
+		if err != nil {
+			return protocolV2ClientConfig{}, err
+		}
+	}
+	if _, err := normalizeRuntimeInstanceIdentity(RuntimeInstanceIdentity{
+		ExtensionID: extension.ID, InstanceID: instanceID,
+	}); err != nil {
+		return protocolV2ClientConfig{}, err
 	}
 	epoch := uint64(time.Now().UTC().UnixNano())
 	if epoch == 0 {
@@ -193,7 +212,7 @@ func (s *ProtocolStarter) protocolV2ClientConfig(ctx context.Context, extension 
 		identity: &protocolv2.ExtensionIdentity{
 			ExtensionId: extension.ID, ExtensionVersion: extension.Version,
 			ArtifactDigest: extension.PackageDigest, TrustGrantId: trustIdentity.TrustGrantID,
-			RuntimeEpoch: epoch, InstanceId: hex.EncodeToString(instanceBytes),
+			RuntimeEpoch: epoch, InstanceId: instanceID,
 		},
 		authority: protocolV2Authority(extension.CapabilityGrants),
 		events:    append([]extensions.ManifestEvent(nil), extension.Manifest.Events...),
@@ -203,9 +222,17 @@ func (s *ProtocolStarter) protocolV2ClientConfig(ctx context.Context, extension 
 		routes:    cloneProtocolV2Routes(extension.Manifest.Routes),
 		lifecycle: cloneManifestLifecycle(extension.Manifest.Lifecycle),
 		token:     token,
-		instance:  hex.EncodeToString(instanceBytes),
+		instance:  instanceID,
 		hostAPI:   protocolV2HostRegistrarFor(s.hostAPI),
 	}, nil
+}
+
+func newProtocolV2RuntimeInstanceID() (string, error) {
+	instanceBytes, err := randomProtocolV2Bytes(16)
+	if err != nil {
+		return "", fmt.Errorf("create protocol v2 instance id: %w", err)
+	}
+	return hex.EncodeToString(instanceBytes), nil
 }
 
 func (c *protocolV2Client) Handshake(ctx context.Context) error {

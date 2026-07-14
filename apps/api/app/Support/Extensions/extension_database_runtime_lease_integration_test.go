@@ -147,7 +147,7 @@ func TestPostgresExtensionDatabaseRuntimeLeasesOverlapAndRevokeExactly(t *testin
 	hostCredential, err := registry.IssueRuntimeLease(ctx, ExtensionDatabaseRuntimeLeaseIssue{
 		Artifact: target, RuntimeInstanceID: "target-runtime-restarted",
 		Authority: ExtensionDatabaseLeaseAuthority{
-			Kind: ExtensionDatabaseLeaseIssuerHost, AuditEventID: 206,
+			Kind: ExtensionDatabaseLeaseIssuerHost,
 		},
 	})
 	if err != nil {
@@ -161,12 +161,18 @@ func TestPostgresExtensionDatabaseRuntimeLeasesOverlapAndRevokeExactly(t *testin
 		t.Fatalf("restarted target cannot use retained schema: %v", err)
 	}
 	_ = hostConnection.Close(ctx)
+	hostLease, err := registry.InspectRuntimeLease(ctx, ExtensionDatabaseRuntimeLeaseRef{
+		Artifact: target, RuntimeInstanceID: hostCredential.RuntimeInstanceID, LeaseID: hostCredential.LeaseID,
+	})
+	if err != nil || hostLease.IssueAuditEventID <= 0 {
+		t.Fatalf("Host-owned issue audit = %#v, %v", hostLease, err)
+	}
 
 	for _, item := range []struct {
 		credential ExtensionDatabaseRuntimeCredential
 		authority  ExtensionDatabaseLeaseAuthority
 	}{
-		{hostCredential, ExtensionDatabaseLeaseAuthority{Kind: ExtensionDatabaseLeaseIssuerHost, AuditEventID: 207}},
+		{hostCredential, ExtensionDatabaseLeaseAuthority{Kind: ExtensionDatabaseLeaseIssuerHost}},
 		{targetCredential, ExtensionDatabaseLeaseAuthority{Kind: ExtensionDatabaseLeaseIssuerActor, ActorUserID: 104, AuditEventID: 208}},
 	} {
 		if _, err := registry.RevokeRuntimeLease(ctx, ExtensionDatabaseRuntimeLeaseRef{
@@ -176,7 +182,7 @@ func TestPostgresExtensionDatabaseRuntimeLeasesOverlapAndRevokeExactly(t *testin
 		}
 	}
 
-	var activeGrants, liveLeases, powerRows, plaintextRows, sourceRoleExists, targetRoleExists int
+	var activeGrants, liveLeases, powerRows, plaintextRows, sourceRoleExists, targetRoleExists, hostAuditRows int
 	if err := pool.QueryRow(ctx, `
 		SELECT
 		  (SELECT count(*) FROM extension_database_grants WHERE extension_id = $1 AND status = 'active'),
@@ -187,18 +193,25 @@ func TestPostgresExtensionDatabaseRuntimeLeasesOverlapAndRevokeExactly(t *testin
 		  (SELECT count(*) FROM extension_database_runtime_leases
 		   WHERE extension_id = $1 AND credential_fingerprint IN ($2, $3)),
 		  (SELECT count(*) FROM pg_roles WHERE rolname = $4),
-		  (SELECT count(*) FROM pg_roles WHERE rolname = $5)
+		  (SELECT count(*) FROM pg_roles WHERE rolname = $5),
+		  (SELECT count(*) FROM audit_events
+		   WHERE id IN (
+		     SELECT issue_audit_event_id FROM extension_database_runtime_leases WHERE lease_id = $6
+		     UNION ALL
+		     SELECT revoke_audit_event_id FROM extension_database_runtime_leases WHERE lease_id = $6
+		   ) AND action IN ($7, $8))
 	`, extensionID, sourceCredential.Password, targetCredential.Password,
-		sourceCredential.RoleName, targetCredential.RoleName).Scan(
-		&activeGrants, &liveLeases, &powerRows, &plaintextRows, &sourceRoleExists, &targetRoleExists,
+		sourceCredential.RoleName, targetCredential.RoleName, hostCredential.LeaseID,
+		extensionDatabaseRuntimeLeaseIssuedAudit, extensionDatabaseRuntimeLeaseRevokedAudit).Scan(
+		&activeGrants, &liveLeases, &powerRows, &plaintextRows, &sourceRoleExists, &targetRoleExists, &hostAuditRows,
 	); err != nil {
 		t.Fatal(err)
 	}
 	if activeGrants != 2 || liveLeases != 0 || powerRows != 2 || plaintextRows != 0 ||
-		sourceRoleExists != 0 || targetRoleExists != 0 {
+		sourceRoleExists != 0 || targetRoleExists != 0 || hostAuditRows != 2 {
 		t.Fatalf(
-			"grant/lease evidence mismatch: grants=%d live=%d powers=%d plaintext=%d sourceRole=%d targetRole=%d",
-			activeGrants, liveLeases, powerRows, plaintextRows, sourceRoleExists, targetRoleExists,
+			"grant/lease evidence mismatch: grants=%d live=%d powers=%d plaintext=%d sourceRole=%d targetRole=%d hostAudit=%d",
+			activeGrants, liveLeases, powerRows, plaintextRows, sourceRoleExists, targetRoleExists, hostAuditRows,
 		)
 	}
 }

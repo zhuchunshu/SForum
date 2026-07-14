@@ -53,12 +53,12 @@ func TestExtensionRuntimeFactoryCanBeReplacedForBootstrapTests(t *testing.T) {
 	defer func() { newExtensionRuntimeManager = original }()
 
 	called := false
-	newExtensionRuntimeManager = func(extensions.Store, extensionsruntime.HostAPIRegistrar, extensionsruntime.PluginSettings, extensionsruntime.RuntimeTrustSource) extensionRuntime {
+	newExtensionRuntimeManager = func(extensions.Store, extensionsruntime.HostAPIRegistrar, extensionsruntime.PluginSettings, extensionsruntime.RuntimeTrustSource, extensionsruntime.RuntimeDatabaseLeaseRegistry) extensionRuntime {
 		called = true
 		return fakeBootstrapExtensionRuntime{}
 	}
 
-	runtime := newExtensionRuntimeManager(nil, nil, nil, nil)
+	runtime := newExtensionRuntimeManager(nil, nil, nil, nil, nil)
 	runtime.Reconcile(context.Background(), []extensions.Extension{{
 		ID:     "demo.plugin",
 		Type:   extensions.TypePlugin,
@@ -86,7 +86,7 @@ func TestAPIExtensionRuntimeUsesCipherServiceSettings(t *testing.T) {
 	extensions.WithCipher(cipher)(service)
 
 	var got map[string]string
-	newExtensionRuntimeManager = func(_ extensions.Store, _ extensionsruntime.HostAPIRegistrar, settings extensionsruntime.PluginSettings, _ extensionsruntime.RuntimeTrustSource) extensionRuntime {
+	newExtensionRuntimeManager = func(_ extensions.Store, _ extensionsruntime.HostAPIRegistrar, settings extensionsruntime.PluginSettings, _ extensionsruntime.RuntimeTrustSource, _ extensionsruntime.RuntimeDatabaseLeaseRegistry) extensionRuntime {
 		var err error
 		got, err = settings.ListSettings(context.Background(), item.ID)
 		if err != nil {
@@ -94,7 +94,7 @@ func TestAPIExtensionRuntimeUsesCipherServiceSettings(t *testing.T) {
 		}
 		return fakeBootstrapExtensionRuntime{}
 	}
-	_ = bindAPIExtensionRuntime(store, nil, service, nil)
+	_ = bindAPIExtensionRuntime(store, nil, service, nil, nil)
 	if got["token"] != "api-secret" {
 		t.Fatalf("API runtime received %#v", got)
 	}

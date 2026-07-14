@@ -63,6 +63,11 @@ type ProtocolStarterConfig struct {
 	HostAPI HostAPIRegistrar
 	// Trust 为 v2 握手解析精确 artifact grant；上传包不可省略。
 	Trust RuntimeTrustSource
+	// DatabaseLeases 为声明直接数据库权限的 exact runtime 签发独立短租约。
+	DatabaseLeases RuntimeDatabaseLeaseRegistry
+	// 测试可缩短心跳；生产零值使用推荐值。
+	DatabaseLeaseHeartbeatInterval time.Duration
+	DatabaseLeaseOperationTimeout  time.Duration
 }
 
 type ProtocolStarter struct {
@@ -77,6 +82,9 @@ type ProtocolStarter struct {
 	settings               PluginSettings
 	hostAPI                HostAPIRegistrar
 	trust                  RuntimeTrustSource
+	databaseLeases         RuntimeDatabaseLeaseRegistry
+	databaseLeaseHeartbeat time.Duration
+	databaseLeaseTimeout   time.Duration
 }
 
 type PluginProtocol interface {
@@ -187,6 +195,14 @@ type MailProviderResponse struct {
 type PluginEmptyRequest struct{}
 
 func NewProtocolStarter(config ProtocolStarterConfig) *ProtocolStarter {
+	heartbeatInterval := config.DatabaseLeaseHeartbeatInterval
+	if heartbeatInterval <= 0 {
+		heartbeatInterval = RecommendedProtocolDatabaseLeaseHeartbeatInterval
+	}
+	operationTimeout := config.DatabaseLeaseOperationTimeout
+	if operationTimeout <= 0 {
+		operationTimeout = RecommendedProtocolDatabaseLeaseOperationTimeout
+	}
 	return &ProtocolStarter{
 		clients:                map[string]*plugin.Client{},
 		protocols:              map[string]PluginProtocol{},
@@ -197,10 +213,17 @@ func NewProtocolStarter(config ProtocolStarterConfig) *ProtocolStarter {
 		settings:               config.Settings,
 		hostAPI:                config.HostAPI,
 		trust:                  config.Trust,
+		databaseLeases:         config.DatabaseLeases,
+		databaseLeaseHeartbeat: heartbeatInterval,
+		databaseLeaseTimeout:   operationTimeout,
 	}
 }
 
-func (s *ProtocolStarter) startProtocolInstanceLocked(ctx context.Context, extension extensions.Extension, publish bool) (RouteTarget, error) {
+func (s *ProtocolStarter) startProtocolInstanceLocked(
+	ctx context.Context,
+	extension extensions.Extension,
+	publish bool,
+) (result RouteTarget, resultErr error) {
 	if ctx == nil {
 		return RouteTarget{}, ErrRuntimeAdmissionInvalid
 	}
@@ -235,6 +258,13 @@ func (s *ProtocolStarter) startProtocolInstanceLocked(ctx context.Context, exten
 	if protocolVersion == 0 {
 		protocolVersion = 1
 	}
+	instanceID := newProtocolRuntimeInstanceID()
+	if protocolVersion == 2 {
+		instanceID, err = newProtocolV2RuntimeInstanceID()
+		if err != nil {
+			return RouteTarget{}, err
+		}
+	}
 	if s.settings != nil {
 		values, err := s.settings.ListSettings(ctx, extension.ID)
 		if err != nil {
@@ -265,10 +295,24 @@ func (s *ProtocolStarter) startProtocolInstanceLocked(ctx context.Context, exten
 			s.hostAPI.UnregisterExtension(extension.ID)
 		}
 	}()
-	clientConfig, protocolName, err := s.newPluginClientConfig(ctx, extension, cmd)
+	clientConfig, protocolName, err := s.newPluginClientConfig(ctx, extension, cmd, instanceID)
 	if err != nil {
 		return RouteTarget{}, err
 	}
+	databaseLease, databaseEnv, err := s.issueProtocolDatabaseLease(ctx, extension, instanceID)
+	if err != nil {
+		return RouteTarget{}, fmt.Errorf("issue plugin database runtime lease: %w", err)
+	}
+	cmd.Env = append(cmd.Env, databaseEnv...)
+	keepDatabaseLease := false
+	defer func() {
+		if databaseLease == nil || keepDatabaseLease {
+			return
+		}
+		cleanupCtx, cancel := context.WithTimeout(context.Background(), s.databaseLeaseTimeout)
+		defer cancel()
+		resultErr = errors.Join(resultErr, databaseLease.revoke(cleanupCtx))
+	}()
 	client := plugin.NewClient(clientConfig)
 	rpcClient, err := client.Client()
 	if err != nil {
@@ -331,12 +375,14 @@ func (s *ProtocolStarter) startProtocolInstanceLocked(ctx context.Context, exten
 		return RouteTarget{}, err
 	}
 	serviceRegistry := protocolV2ServiceRegistryFor(s.hostAPI)
-	instanceID := ""
 	var registrations []hostapi.ServiceRegistration
 	var serviceRuntime hostapi.ServiceRuntimePublication
 	if v2, ok := protocol.(*protocolV2Client); ok {
 		if v2.identity != nil {
-			instanceID = v2.identity.GetInstanceId()
+			if v2.identity.GetInstanceId() != instanceID {
+				client.Kill()
+				return RouteTarget{}, ErrRuntimeAdmissionInvalid
+			}
 		}
 		registrations, err = v2.serviceRegistrations(extension)
 		if err != nil {
@@ -353,9 +399,6 @@ func (s *ProtocolStarter) startProtocolInstanceLocked(ctx context.Context, exten
 			return RouteTarget{}, err
 		}
 	}
-	if instanceID == "" {
-		instanceID = newProtocolRuntimeInstanceID()
-	}
 	targetResult := RouteTarget{BaseURL: baseURL, InstanceID: instanceID}
 	extensionVersion := extension.Version
 	if extensionVersion == "" {
@@ -366,11 +409,17 @@ func (s *ProtocolStarter) startProtocolInstanceLocked(ctx context.Context, exten
 		extensionVersion: extensionVersion, artifactDigest: extension.PackageDigest, manifestDigest: manifestDigest,
 		protocolVersion: protocolVersion, target: targetResult,
 		client: client, protocol: protocol, registrations: registrations, serviceRuntime: serviceRuntime,
-		healthy: true, ready: ready, readinessChecked: readinessChecked, startedAt: time.Now().UTC(),
+		databaseLease: databaseLease,
+		healthy:       true, ready: ready, readinessChecked: readinessChecked, startedAt: time.Now().UTC(),
 	}
 	if err := s.retainProtocolInstanceLocked(instance); err != nil {
 		client.Kill()
 		return RouteTarget{}, err
+	}
+	if databaseLease != nil {
+		databaseLease.startHeartbeat(s.databaseLeaseHeartbeat, s.databaseLeaseTimeout, func(error) {
+			client.Kill()
+		})
 	}
 	go s.watchClientExit(instance.identity, protocolVersion, protocol, client)
 	if publish {
@@ -384,6 +433,7 @@ func (s *ProtocolStarter) startProtocolInstanceLocked(ctx context.Context, exten
 	s.recordProtocolStartLocked(extension.ID, protocolVersion)
 	s.mu.Unlock()
 	keepHostAPI = true
+	keepDatabaseLease = true
 	return targetResult, nil
 }
 
@@ -549,6 +599,7 @@ func (s *ProtocolStarter) watchClientExit(identity RuntimeInstanceIdentity, prot
 	if protocolVersion == 1 && active && s.hostAPI != nil {
 		s.hostAPI.UnregisterExtension(identity.ExtensionID)
 	}
+	_ = s.revokeProtocolDatabaseLease(instance)
 }
 
 func (s *ProtocolStarter) unregisterProtocolV2Services(extensionID string, protocol PluginProtocol) {

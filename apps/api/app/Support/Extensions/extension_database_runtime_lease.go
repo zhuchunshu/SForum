@@ -17,10 +17,12 @@ const (
 	ExtensionDatabaseLeaseIssuerActor = "actor"
 	ExtensionDatabaseLeaseIssuerHost  = "host"
 
-	ExtensionDatabaseLeaseActive   = "active"
-	ExtensionDatabaseLeaseDraining = "draining"
-	ExtensionDatabaseLeaseRevoked  = "revoked"
-	ExtensionDatabaseLeaseFailed   = "failed"
+	ExtensionDatabaseLeaseActive              = "active"
+	ExtensionDatabaseLeaseDraining            = "draining"
+	ExtensionDatabaseLeaseRevoked             = "revoked"
+	ExtensionDatabaseLeaseFailed              = "failed"
+	extensionDatabaseRuntimeLeaseIssuedAudit  = "extension.database_runtime_lease.issued"
+	extensionDatabaseRuntimeLeaseRevokedAudit = "extension.database_runtime_lease.revoked"
 
 	extensionDatabaseRuntimeLeaseTTL             = 2 * time.Minute
 	extensionDatabaseRuntimeLeaseConnectionLimit = 1
@@ -61,8 +63,10 @@ type ExtensionDatabaseRuntimeCredential struct {
 	RoleName          string
 	DatabaseName      string
 	SearchPath        string
+	ConnectionURL     string
 	Password          string
 	ExpiresAt         time.Time
+	Revision          int64
 }
 
 type ExtensionDatabaseRuntimeLeaseSnapshot struct {
@@ -241,6 +245,15 @@ func (r *PostgresExtensionDatabaseRegistry) IssueRuntimeLease(
 	if err != nil {
 		return ExtensionDatabaseRuntimeCredential{}, fmt.Errorf("create runtime lease role: %w", err)
 	}
+	request.Authority, err = materializeExtensionDatabaseRuntimeLeaseHostAudit(
+		ctx, tx, request.Authority, extensionDatabaseRuntimeLeaseIssuedAudit,
+		ExtensionDatabaseRuntimeLeaseRef{
+			Artifact: request.Artifact, RuntimeInstanceID: request.RuntimeInstanceID, LeaseID: leaseID,
+		},
+	)
+	if err != nil {
+		return ExtensionDatabaseRuntimeCredential{}, err
+	}
 	lease, err := insertExtensionDatabaseRuntimeLease(
 		ctx, tx, request, grant.ID, leaseID, roleName, fingerprint, issuedAt, expiresAt,
 	)
@@ -250,15 +263,21 @@ func (r *PostgresExtensionDatabaseRegistry) IssueRuntimeLease(
 	if err := markExtensionDatabaseResourceProvisioned(ctx, tx, request.Artifact.ExtensionID); err != nil {
 		return ExtensionDatabaseRuntimeCredential{}, err
 	}
-	if err := tx.Commit(ctx); err != nil {
-		return ExtensionDatabaseRuntimeCredential{}, fmt.Errorf("commit extension database runtime lease: %w", err)
-	}
-	return ExtensionDatabaseRuntimeCredential{
+	credential := ExtensionDatabaseRuntimeCredential{
 		LeaseID: lease.LeaseID, GrantID: grant.ID, Artifact: request.Artifact,
 		RuntimeInstanceID: request.RuntimeInstanceID, Powers: append([]string(nil), powers...),
 		SchemaName: identifiers.Schema, OwnerRoleName: identifiers.OwnerRole, RoleName: roleName,
-		DatabaseName: databaseName, SearchPath: searchPath, Password: password, ExpiresAt: expiresAt,
-	}, nil
+		DatabaseName: databaseName, SearchPath: searchPath, Password: password,
+		ExpiresAt: expiresAt, Revision: lease.Revision,
+	}
+	credential.ConnectionURL, err = extensionDatabaseRuntimeConnectionURL(r.pool.Config().ConnConfig, credential)
+	if err != nil {
+		return ExtensionDatabaseRuntimeCredential{}, err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return ExtensionDatabaseRuntimeCredential{}, fmt.Errorf("commit extension database runtime lease: %w", err)
+	}
+	return credential, nil
 }
 
 func (r *PostgresExtensionDatabaseRegistry) RevokeRuntimeLease(
@@ -290,6 +309,12 @@ func (r *PostgresExtensionDatabaseRegistry) RevokeRuntimeLease(
 	}
 	if lease.Status == ExtensionDatabaseLeaseFailed {
 		return ExtensionDatabaseRuntimeLeaseSnapshot{}, ErrExtensionDatabaseRuntimeLeaseConflict
+	}
+	authority, err = materializeExtensionDatabaseRuntimeLeaseHostAudit(
+		ctx, tx, authority, extensionDatabaseRuntimeLeaseRevokedAudit, ref,
+	)
+	if err != nil {
+		return ExtensionDatabaseRuntimeLeaseSnapshot{}, err
 	}
 	databaseName, err := currentExtensionDatabaseName(ctx, tx)
 	if err != nil {
@@ -368,14 +393,11 @@ func (r *PostgresExtensionDatabaseRegistry) validateRuntimeLeaseRef(
 }
 
 func validExtensionDatabaseLeaseAuthority(authority ExtensionDatabaseLeaseAuthority) bool {
-	if authority.AuditEventID <= 0 {
-		return false
-	}
 	switch authority.Kind {
 	case ExtensionDatabaseLeaseIssuerActor:
-		return authority.ActorUserID > 0
+		return authority.ActorUserID > 0 && authority.AuditEventID > 0
 	case ExtensionDatabaseLeaseIssuerHost:
-		return authority.ActorUserID == 0
+		return authority.ActorUserID == 0 && authority.AuditEventID >= 0
 	default:
 		return false
 	}

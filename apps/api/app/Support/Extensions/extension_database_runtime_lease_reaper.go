@@ -3,12 +3,14 @@ package extensionsruntime
 import (
 	"context"
 	"fmt"
+	"time"
 )
 
 const (
-	DefaultExtensionDatabaseRuntimeLeaseReapLimit = 64
-	extensionDatabaseRuntimeLeaseExpiredCode      = "lease_expired"
-	extensionDatabaseRuntimeLeaseExpiredAudit     = "extension.database_runtime_lease.expired"
+	DefaultExtensionDatabaseRuntimeLeaseReapLimit        = 64
+	RecommendedExtensionDatabaseRuntimeLeaseReapInterval = 30 * time.Second
+	extensionDatabaseRuntimeLeaseExpiredCode             = "lease_expired"
+	extensionDatabaseRuntimeLeaseExpiredAudit            = "extension.database_runtime_lease.expired"
 )
 
 // ReapExpiredRuntimeLeases retires physical login roles left behind when a

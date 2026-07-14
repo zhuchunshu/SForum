@@ -7,6 +7,9 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/jackc/pgx/v5"
 
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
 )
@@ -214,6 +217,38 @@ type helperProtocol struct {
 }
 
 func (helperProtocol) Health() (PluginHealth, error) {
+	databaseExpectation := os.Getenv("SFORUM_PLUGIN_EXPECT_DATABASE")
+	if databaseExpectation != "" {
+		for _, key := range []string{
+			protocolDatabaseURLEnv, protocolDatabaseLeaseIDEnv, protocolDatabaseExpiresAtEnv,
+			protocolDatabaseGrantsEnv, protocolDatabaseSchemaEnv, protocolDatabaseSearchEnv,
+		} {
+			if strings.TrimSpace(os.Getenv(key)) == "" {
+				return PluginHealth{}, errors.New("missing exact database lease environment: " + key)
+			}
+		}
+		connectionURL := os.Getenv(protocolDatabaseURLEnv)
+		if databaseExpectation == "lease" && (!strings.Contains(connectionURL, "lease_role:lease_secret@") ||
+			strings.Contains(connectionURL, "host_secret")) {
+			return PluginHealth{}, errors.New("database lease URL contains the wrong authority")
+		}
+		if databaseExpectation == "connect" {
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			connection, err := pgx.Connect(ctx, connectionURL)
+			if err != nil {
+				return PluginHealth{}, err
+			}
+			defer connection.Close(context.Background())
+			var currentUser, searchPath string
+			if err := connection.QueryRow(ctx, `SELECT current_user, current_setting('search_path')`).Scan(&currentUser, &searchPath); err != nil {
+				return PluginHealth{}, err
+			}
+			if currentUser == "" || !strings.Contains(searchPath, os.Getenv(protocolDatabaseSchemaEnv)) {
+				return PluginHealth{}, errors.New("database lease role or search_path is not exact")
+			}
+		}
+	}
 	return PluginHealth{OK: true}, nil
 }
 

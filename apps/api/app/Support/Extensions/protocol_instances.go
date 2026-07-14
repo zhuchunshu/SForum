@@ -70,6 +70,7 @@ type protocolRuntimeInstance struct {
 	protocol         PluginProtocol
 	registrations    []hostapi.ServiceRegistration
 	serviceRuntime   hostapi.ServiceRuntimePublication
+	databaseLease    *protocolDatabaseLease
 	healthy          bool
 	ready            bool
 	readinessChecked bool
@@ -205,8 +206,11 @@ func (s *ProtocolStarter) DiscardInstance(_ context.Context, identity RuntimeIns
 		return fmt.Errorf("%w: %s/%s", ErrProtocolInstancePublished, identity.ExtensionID, identity.InstanceID)
 	}
 	s.removeProtocolInstanceLocked(identity)
+	if instance.databaseLease != nil {
+		instance.databaseLease.stopHeartbeat()
+	}
 	instance.client.Kill()
-	return nil
+	return s.revokeProtocolDatabaseLease(instance)
 }
 
 func (s *ProtocolStarter) retainProtocolInstanceLocked(instance *protocolRuntimeInstance) error {
@@ -320,7 +324,11 @@ func (s *ProtocolStarter) publishProtocolInstanceLocked(
 
 	// V1 沿用单实例硬替换；V2 previous 则保留供 drain/rollback。
 	if instance.protocolVersion == 1 && previous != nil && previous.client != nil {
+		if previous.databaseLease != nil {
+			previous.databaseLease.stopHeartbeat()
+		}
 		previous.client.Kill()
+		_ = s.revokeProtocolDatabaseLease(previous)
 	}
 	return snapshot, nil
 }
@@ -383,13 +391,29 @@ func (s *ProtocolStarter) stopProtocolInstanceLocked(identity RuntimeInstanceIde
 		return ErrProtocolInstanceUnsupported
 	}
 	s.removeProtocolInstanceLocked(identity)
+	if instance.databaseLease != nil {
+		instance.databaseLease.stopHeartbeat()
+	}
 	if instance.protocolVersion == 2 {
 		s.unregisterProtocolV2Services(identity.ExtensionID, instance.protocol)
 	} else if s.hostAPI != nil {
 		s.hostAPI.UnregisterExtension(identity.ExtensionID)
 	}
 	instance.client.Kill()
-	return nil
+	return s.revokeProtocolDatabaseLease(instance)
+}
+
+func (s *ProtocolStarter) revokeProtocolDatabaseLease(instance *protocolRuntimeInstance) error {
+	if s == nil || instance == nil || instance.databaseLease == nil {
+		return nil
+	}
+	timeout := s.databaseLeaseTimeout
+	if timeout <= 0 {
+		timeout = RecommendedProtocolDatabaseLeaseOperationTimeout
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	return instance.databaseLease.revoke(ctx)
 }
 
 func (s *ProtocolStarter) protocolInstance(identity RuntimeInstanceIdentity) *protocolRuntimeInstance {

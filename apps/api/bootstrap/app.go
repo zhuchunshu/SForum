@@ -74,22 +74,35 @@ type extensionRuntime interface {
 	protocolV2ProviderBrokerSource
 }
 
-var newExtensionRuntimeManager = func(store extensions.Store, hostAPI extensionsruntime.HostAPIRegistrar, settings extensionsruntime.PluginSettings, trust extensionsruntime.RuntimeTrustSource) extensionRuntime {
+var newExtensionRuntimeManager = func(
+	store extensions.Store,
+	hostAPI extensionsruntime.HostAPIRegistrar,
+	settings extensionsruntime.PluginSettings,
+	trust extensionsruntime.RuntimeTrustSource,
+	databaseLeases extensionsruntime.RuntimeDatabaseLeaseRegistry,
+) extensionRuntime {
 	if settings == nil {
 		settings = store
 	}
 	return extensionsruntime.NewManager(extensionsruntime.ManagerConfig{
 		Starter: extensionsruntime.NewProtocolStarter(extensionsruntime.ProtocolStarterConfig{
-			Settings: settings,
-			HostAPI:  hostAPI,
-			Trust:    trust,
+			Settings:       settings,
+			HostAPI:        hostAPI,
+			Trust:          trust,
+			DatabaseLeases: databaseLeases,
 		}),
 		DeliveryStore: store,
 	})
 }
 
-func bindAPIExtensionRuntime(store extensions.Store, hostAPI extensionsruntime.HostAPIRegistrar, service *extensions.Service, trust extensionsruntime.RuntimeTrustSource) extensionRuntime {
-	runtime := newExtensionRuntimeManager(store, hostAPI, service, trust)
+func bindAPIExtensionRuntime(
+	store extensions.Store,
+	hostAPI extensionsruntime.HostAPIRegistrar,
+	service *extensions.Service,
+	trust extensionsruntime.RuntimeTrustSource,
+	databaseLeases extensionsruntime.RuntimeDatabaseLeaseRegistry,
+) extensionRuntime {
+	runtime := newExtensionRuntimeManager(store, hostAPI, service, trust, databaseLeases)
 	extensions.WithRuntimeManager(runtime)(service)
 	return runtime
 }
@@ -112,6 +125,13 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 	})
 	if err != nil {
 		return nil, fmt.Errorf("postgres setup failed: %w", err)
+	}
+	databaseLeaseRegistry := extensionsruntime.NewPostgresExtensionDatabaseRegistry(pool, nil)
+	if _, err := databaseLeaseRegistry.ReapExpiredRuntimeLeases(
+		ctx, extensionsruntime.DefaultExtensionDatabaseRuntimeLeaseReapLimit,
+	); err != nil {
+		pool.Close()
+		return nil, fmt.Errorf("reap expired extension database runtime leases: %w", err)
 	}
 
 	redisStorage, err := redisplatform.NewStorage(cfg.RedisAddr, cfg.RedisPassword)
@@ -300,7 +320,9 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		pool.Close()
 		return nil, fmt.Errorf("Host Query runtime setup failed: %w", err)
 	}
-	extensionRuntime := bindAPIExtensionRuntime(extensionStore, hostAPIGateway, extensionService, executableTrustService)
+	extensionRuntime := bindAPIExtensionRuntime(
+		extensionStore, hostAPIGateway, extensionService, executableTrustService, databaseLeaseRegistry,
+	)
 	if runtime, ok := extensionRuntime.(interface {
 		SetStartPreparer(func(context.Context, extensions.Extension) error)
 	}); ok {
@@ -677,6 +699,26 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 	go optionsService.RunForumReadPolicyRefresh(forumReadPolicyCtx, options.RecommendedForumReadPolicyRefreshInterval)
 	extensionGuardPolicyCtx, extensionGuardPolicyCancel := context.WithCancel(context.Background())
 	go extensionGuardPolicy.RunRefresh(extensionGuardPolicyCtx, extensions.RecommendedGuardPolicyRefreshInterval)
+	databaseLeaseReaperCtx, databaseLeaseReaperCancel := context.WithCancel(context.Background())
+	var databaseLeaseReaperWait sync.WaitGroup
+	databaseLeaseReaperWait.Add(1)
+	go func() {
+		defer databaseLeaseReaperWait.Done()
+		ticker := time.NewTicker(extensionsruntime.RecommendedExtensionDatabaseRuntimeLeaseReapInterval)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-databaseLeaseReaperCtx.Done():
+				return
+			case <-ticker.C:
+				if _, err := databaseLeaseRegistry.ReapExpiredRuntimeLeases(
+					databaseLeaseReaperCtx, extensionsruntime.DefaultExtensionDatabaseRuntimeLeaseReapLimit,
+				); err != nil && databaseLeaseReaperCtx.Err() == nil {
+					logger.Warn("extension database runtime lease reaper degraded", "error", err)
+				}
+			}
+		}
+	}()
 	themeRuntimeWatcherCtx, themeRuntimeWatcherCancel := context.WithCancel(context.Background())
 	var themeRuntimeWatcherWait sync.WaitGroup
 	if themeRuntimeWatcher != nil {
@@ -695,6 +737,8 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		close: func() {
 			themeRuntimeWatcherCancel()
 			themeRuntimeWatcherWait.Wait()
+			databaseLeaseReaperCancel()
+			databaseLeaseReaperWait.Wait()
 			extensionGuardPolicyCancel()
 			forumReadPolicyCancel()
 			heartbeatCancel()

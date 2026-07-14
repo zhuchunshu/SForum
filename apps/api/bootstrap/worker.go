@@ -108,12 +108,19 @@ func (r *pluginJobRuntimeResolver) ResolvePluginJobRuntime(ctx context.Context, 
 	return hostapi.PluginJobRuntimeContract{Contract: contract, TrustGrantID: identity.TrustGrantID}, nil
 }
 
-var newStandaloneWorkerRuntimeManager = func(store extensions.Store, hostAPI extensionsruntime.HostAPIRegistrar, settings extensionsruntime.PluginSettings, trust extensionsruntime.RuntimeTrustSource) workerExtensionRuntime {
+var newStandaloneWorkerRuntimeManager = func(
+	store extensions.Store,
+	hostAPI extensionsruntime.HostAPIRegistrar,
+	settings extensionsruntime.PluginSettings,
+	trust extensionsruntime.RuntimeTrustSource,
+	databaseLeases extensionsruntime.RuntimeDatabaseLeaseRegistry,
+) workerExtensionRuntime {
 	return extensionsruntime.NewManager(extensionsruntime.ManagerConfig{
 		Starter: extensionsruntime.NewProtocolStarter(extensionsruntime.ProtocolStarterConfig{
-			Settings: settings,
-			HostAPI:  hostAPI,
-			Trust:    trust,
+			Settings:       settings,
+			HostAPI:        hostAPI,
+			Trust:          trust,
+			DatabaseLeases: databaseLeases,
 		}),
 		DeliveryStore: store,
 	})
@@ -126,6 +133,7 @@ func buildStandaloneWorkerExtensionRuntime(
 	store extensions.Store,
 	cipher *crypto.OptionCipher,
 	trust extensionsruntime.RuntimeTrustSource,
+	databaseLeases extensionsruntime.RuntimeDatabaseLeaseRegistry,
 	coordinators ...*extensions.ActivationCoordinator,
 ) (workerExtensionRuntime, hostAPIGatewayCloser, error) {
 	service := extensions.NewServiceWithBuiltins(store, cfg.ExtensionRoot, cfg.BuiltinExtensionRoot)
@@ -145,7 +153,7 @@ func buildStandaloneWorkerExtensionRuntime(
 		return nil, nil, fmt.Errorf("worker DatabaseService catalog binder is required")
 	}
 	databaseBinder := databaseBinderFactory(workerHostGateway)
-	managedRuntime := newStandaloneWorkerRuntimeManager(store, workerHostGateway, service, trust)
+	managedRuntime := newStandaloneWorkerRuntimeManager(store, workerHostGateway, service, trust, databaseLeases)
 	if err := bindProtocolV2ProviderBroker(workerHostGateway, managedRuntime); err != nil {
 		managedRuntime.Close(ctx)
 		_ = workerHostGateway.Close()
@@ -267,6 +275,14 @@ func newWorkerWithPool(cfg config.Config, pool *pgxpool.Pool, logger *slog.Logge
 	registry := supportjobs.NewRegistry()
 	extensionStore := extensions.NewPostgresStore(pool)
 	runtimeTrust := extensions.NewExecutableTrustService(extensionStore, extensions.NewPostgresExecutableTrustStore(pool))
+	databaseLeaseRegistry := extensionsruntime.NewPostgresExtensionDatabaseRegistry(pool, nil)
+	reapCtx, reapCancel := context.WithTimeout(context.Background(), extensionsruntime.RecommendedProtocolDatabaseLeaseOperationTimeout)
+	defer reapCancel()
+	if _, err := databaseLeaseRegistry.ReapExpiredRuntimeLeases(
+		reapCtx, extensionsruntime.DefaultExtensionDatabaseRuntimeLeaseReapLimit,
+	); err != nil {
+		return nil, fmt.Errorf("reap worker extension database runtime leases: %w", err)
+	}
 	optionCipher, err := crypto.NewOptionCipher(cfg.OptionEncryptionKey)
 	if err != nil {
 		return nil, fmt.Errorf("create worker option cipher: %w", err)
@@ -279,7 +295,7 @@ func newWorkerWithPool(cfg config.Config, pool *pgxpool.Pool, logger *slog.Logge
 			postgresProtocolV2DatabaseCatalogBinderFactory(
 				pool, hostapi.WithProtocolV2DatabaseTraceSink(hostapi.NewSlogDatabaseTraceSink(logger)),
 			),
-			extensionStore, optionCipher, runtimeTrust, activation,
+			extensionStore, optionCipher, runtimeTrust, databaseLeaseRegistry, activation,
 		)
 	})
 	if err != nil {

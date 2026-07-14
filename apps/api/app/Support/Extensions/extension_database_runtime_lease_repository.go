@@ -14,6 +14,43 @@ type extensionDatabaseRuntimeLeaseQuerier interface {
 	QueryRow(context.Context, string, ...any) pgx.Row
 }
 
+func materializeExtensionDatabaseRuntimeLeaseHostAudit(
+	ctx context.Context,
+	tx pgx.Tx,
+	authority ExtensionDatabaseLeaseAuthority,
+	action string,
+	ref ExtensionDatabaseRuntimeLeaseRef,
+) (ExtensionDatabaseLeaseAuthority, error) {
+	if !validExtensionDatabaseLeaseAuthority(authority) || action == "" {
+		return ExtensionDatabaseLeaseAuthority{}, ErrExtensionDatabaseRegistryInvalid
+	}
+	if authority.Kind != ExtensionDatabaseLeaseIssuerHost || authority.AuditEventID > 0 {
+		return authority, nil
+	}
+	if err := validateExtensionDatabaseArtifact(ref.Artifact); err != nil ||
+		ref.RuntimeInstanceID == "" || !validLifecycleCleanupDigest(ref.LeaseID) {
+		return ExtensionDatabaseLeaseAuthority{}, ErrExtensionDatabaseRegistryInvalid
+	}
+	if err := tx.QueryRow(ctx, `
+		INSERT INTO audit_events (action, metadata)
+		VALUES ($1, jsonb_build_object(
+			'extensionId', $2::text,
+			'extensionVersion', $3::text,
+			'packageDigest', $4::text,
+			'runtimeInstanceId', $5::text,
+			'leaseId', $6::text
+		))
+		RETURNING id
+	`, action, ref.Artifact.ExtensionID, ref.Artifact.Version, ref.Artifact.PackageDigest,
+		ref.RuntimeInstanceID, ref.LeaseID).Scan(&authority.AuditEventID); err != nil {
+		return ExtensionDatabaseLeaseAuthority{}, fmt.Errorf("record Host runtime lease audit: %w", err)
+	}
+	if authority.AuditEventID <= 0 {
+		return ExtensionDatabaseLeaseAuthority{}, ErrExtensionDatabaseRuntimeLeaseConflict
+	}
+	return authority, nil
+}
+
 func listExpiredExtensionDatabaseRuntimeLeaseExtensions(
 	ctx context.Context,
 	querier interface {

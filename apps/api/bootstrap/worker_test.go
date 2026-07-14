@@ -162,7 +162,7 @@ func TestStandaloneWorkerRuntimeUsesCipherServiceSettings(t *testing.T) {
 		settings: map[string]string{"token": enc},
 	}
 	var got map[string]string
-	newStandaloneWorkerRuntimeManager = func(_ extensions.Store, _ extensionsruntime.HostAPIRegistrar, settings extensionsruntime.PluginSettings, _ extensionsruntime.RuntimeTrustSource) workerExtensionRuntime {
+	newStandaloneWorkerRuntimeManager = func(_ extensions.Store, _ extensionsruntime.HostAPIRegistrar, settings extensionsruntime.PluginSettings, _ extensionsruntime.RuntimeTrustSource, _ extensionsruntime.RuntimeDatabaseLeaseRegistry) workerExtensionRuntime {
 		var err error
 		got, err = settings.ListSettings(context.Background(), item.ID)
 		if err != nil {
@@ -170,7 +170,7 @@ func TestStandaloneWorkerRuntimeUsesCipherServiceSettings(t *testing.T) {
 		}
 		return &countingWorkerRuntime{}
 	}
-	runtime, gateway, err := buildStandaloneWorkerExtensionRuntime(context.Background(), config.Config{ExtensionRoot: t.TempDir()}, recordingDatabaseBinderFactory(nil), store, cipher, nil)
+	runtime, gateway, err := buildStandaloneWorkerExtensionRuntime(context.Background(), config.Config{ExtensionRoot: t.TempDir()}, recordingDatabaseBinderFactory(nil), store, cipher, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -189,12 +189,12 @@ func TestStandaloneWorkerSafeModeReconcilesNoExtensions(t *testing.T) {
 	plugin.Manifest.Backend = extensions.ManifestBackend{Entry: "missing/plugin"}
 	store := &bootstrapExtensionSettingsStore{item: plugin}
 	runtime := &countingWorkerRuntime{}
-	newStandaloneWorkerRuntimeManager = func(_ extensions.Store, _ extensionsruntime.HostAPIRegistrar, _ extensionsruntime.PluginSettings, _ extensionsruntime.RuntimeTrustSource) workerExtensionRuntime {
+	newStandaloneWorkerRuntimeManager = func(_ extensions.Store, _ extensionsruntime.HostAPIRegistrar, _ extensionsruntime.PluginSettings, _ extensionsruntime.RuntimeTrustSource, _ extensionsruntime.RuntimeDatabaseLeaseRegistry) workerExtensionRuntime {
 		return runtime
 	}
 	built, gateway, err := buildStandaloneWorkerExtensionRuntime(context.Background(), config.Config{
 		SafeMode: true, ExtensionRoot: t.TempDir(),
-	}, recordingDatabaseBinderFactory(nil), store, nil, nil)
+	}, recordingDatabaseBinderFactory(nil), store, nil, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -213,7 +213,7 @@ func TestStandaloneWorkerBindsDatabaseCatalogBeforeReconcile(t *testing.T) {
 	store := &bootstrapExtensionSettingsStore{item: plugin}
 	runtime := &countingWorkerRuntime{}
 	binder := &recordingDatabaseCatalogBinder{}
-	newStandaloneWorkerRuntimeManager = func(_ extensions.Store, _ extensionsruntime.HostAPIRegistrar, _ extensionsruntime.PluginSettings, _ extensionsruntime.RuntimeTrustSource) workerExtensionRuntime {
+	newStandaloneWorkerRuntimeManager = func(_ extensions.Store, _ extensionsruntime.HostAPIRegistrar, _ extensionsruntime.PluginSettings, _ extensionsruntime.RuntimeTrustSource, _ extensionsruntime.RuntimeDatabaseLeaseRegistry) workerExtensionRuntime {
 		runtime.onReconcile = func() {
 			if binder.bindCalls != 1 || len(binder.bound.queries) != 1 || len(binder.bound.executes) != 1 {
 				t.Fatalf("database catalog was not bound before Reconcile: %#v", binder)
@@ -222,7 +222,7 @@ func TestStandaloneWorkerBindsDatabaseCatalogBeforeReconcile(t *testing.T) {
 		return runtime
 	}
 	built, gateway, err := buildStandaloneWorkerExtensionRuntime(
-		context.Background(), config.Config{ExtensionRoot: t.TempDir()}, recordingDatabaseBinderFactory(binder), store, nil, nil,
+		context.Background(), config.Config{ExtensionRoot: t.TempDir()}, recordingDatabaseBinderFactory(binder), store, nil, nil, nil,
 	)
 	if err != nil {
 		t.Fatal(err)
