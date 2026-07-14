@@ -1,8 +1,8 @@
 # Trusted Plugin And Theme Platform V3 Progress Ledger
 
 Date: 2026-07-14
-Overall progress: **31%**
-Active phase: **P5 - Plugin Database Registry And Real Migrations (0%, 0 of 17 rows)**
+Overall progress: **34%**
+Active phase: **P5 - Plugin Database Registry And Real Migrations (41%, 7 of 17 rows)**
 
 This ledger is the durable percentage and context-compaction checkpoint for the
 V3 program. Update it before context compression, at every phase boundary, and
@@ -21,7 +21,7 @@ scaffolding, or demo-only code cannot satisfy a runtime exit criterion.
 | P2 Manifest/contracts | 7% | 100% | 7% |
 | P3 Host API v2 | 8% | 100% | 8% |
 | P4 Lifecycle/dependencies | 7% | 100% | 7% |
-| P5 Database/commands | 8% | 0% | 0% |
+| P5 Database/commands | 8% | 41% | 3.29% |
 | P6 Routes/middleware | 10% | 0% | 0% |
 | P7 Workflow/admin/query/identity | 10% | 0% | 0% |
 | P8 Theme compiler/runtime | 8% | 0% | 0% |
@@ -677,3 +677,45 @@ phase percentage.
   disposition. Resume by auditing the 17 P5 rows against current production
   code before implementing only the missing Host Query/Command and database
   authority boundaries.
+
+## P5 Implementation Checkpoint
+
+- P5 is **41% complete (7 of 17 rows)**. Weighted overall V3 progress is
+  **34%**. This count credits only production behavior or exact integration
+  evidence, not protobuf shapes or unwired foundations.
+- Completed rows: deterministic safe identifiers; exact migration discovery,
+  checksum, lock, read-only dry-run, transaction policy, ledger/progress/failure;
+  isolated Goose parsing/history; uninstall database disposition; broad
+  migration/credential/disposition tests; own-schema isolation; and
+  multi-process migration-once.
+- `c913127c8` adds a public exact-artifact migration preflight. It uses a
+  PostgreSQL read-only transaction and the same Goose parser as execution,
+  reports statement/checksum digests, transaction modes, non-transactional
+  warnings, and backup strategies, and proves no SQL execution, resource
+  provisioning, or ledger writes.
+- `d75de7751` runs the same exact migration plan from two independent test
+  processes and independent PostgreSQL pools. The durable advisory lock and
+  ledger converge to one plan, one applied step, and one state row.
+- Partial rows: runtime credential delivery; physical `database.core.full`
+  grants; destructive-migration guidance in API/UI; and concrete PostgreSQL
+  Host Command atomicity. Missing rows include plugin-owned transactions,
+  stable views/production query-command catalogs, six concrete Host Commands,
+  core-upgrade compatibility blocking, complete DB observability/budgets, and
+  raw-authority behavior tests.
+- The authority audit found a real public-contract conflict. ADR prose says
+  database powers are disclosed in tiers, while Manifest, JSON Schema,
+  OpenAPI, validation, and the database ledger all store one mutually
+  exclusive authority. `DatabaseService.operation_id` also has no exact
+  package declaration/catalog source. Do not silently invent cumulative
+  semantics.
+- Product decision requested: prefer additive composable database grants plus
+  exact-artifact declared operation catalogs and bounded batch transactions.
+  Direct per-process credentials remain an alternative, but the current
+  one-role-per-extension rotation model terminates old sessions and is unsafe
+  for rolling upgrade or multi-node runtime use.
+- Additional product boundaries remain for trusted actor delegation into
+  actor-scoped Host Commands and the provider-neutral entitlement lifecycle.
+  Continue independent stable-view, connection-budget, migration-guidance,
+  and backend-ledger work while awaiting those decisions.
+- PostgreSQL development dependencies were restarted with
+  `./scripts/dev.sh --no-migrate`; frontend and API dev servers remain stopped.
