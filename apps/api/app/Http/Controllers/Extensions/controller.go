@@ -444,6 +444,9 @@ func (h *Controller) optionalActor(c fiber.Ctx) (identity.Actor, bool, error) {
 }
 
 func mapExtensionError(err error) error {
+	if mapped := mapLifecycleInspectionError(err); mapped != nil {
+		return mapped
+	}
 	switch {
 	case errors.Is(err, identity.ErrPermissionDenied):
 		return fiber.NewError(fiber.StatusForbidden, "permission.denied")
