@@ -244,23 +244,25 @@ func (m *Manager) publishRuntimeInstance(
 	extension := instance.extension
 	m.mu.Unlock()
 
+	previousHooks, hadPreviousHooks := m.hooks.RuntimeSnapshot(identity.ExtensionID)
+	publishedVersionedHooks := publishesVersionedHookSnapshot(extension, identity.InstanceID)
+	if publishedVersionedHooks {
+		if err := m.hooks.RegisterRuntime(extension, identity.InstanceID); err != nil {
+			m.resetRuntimePublicationTransition(identity, instance, activeID, activeInstance, candidateWasDraining, keepDraining)
+			return RuntimeInstanceSnapshot{}, err
+		}
+	}
 	protocolSnapshot, publishErr := starter.PublishInstance(ctx, identity)
 	if publishErr == nil {
 		publishErr = validateManagedProtocolSnapshot(protocolSnapshot, extension, identity, ProtocolRuntimePublished)
 	}
 	if publishErr != nil {
-		m.mu.Lock()
-		if current := m.runtimeInstances[identity.ExtensionID][identity.InstanceID]; current == instance {
-			current.transitioning = false
-			if candidateWasDraining || keepDraining {
-				current.gate.BeginDrain()
-			}
+		var hookErr error
+		if publishedVersionedHooks {
+			hookErr = m.hooks.restoreRuntime(identity.ExtensionID, identity.InstanceID, previousHooks, hadPreviousHooks)
 		}
-		if current := m.runtimeInstances[identity.ExtensionID][activeID]; current == activeInstance && current != nil {
-			current.transitioning = false
-		}
-		m.mu.Unlock()
-		return RuntimeInstanceSnapshot{}, publishErr
+		m.resetRuntimePublicationTransition(identity, instance, activeID, activeInstance, candidateWasDraining, keepDraining)
+		return RuntimeInstanceSnapshot{}, errors.Join(publishErr, hookErr)
 	}
 
 	now := time.Now().UTC()
@@ -274,10 +276,20 @@ func (m *Manager) publishRuntimeInstance(
 			activeInstance.transitioning = false
 		}
 		m.mu.Unlock()
-		if currentErr != nil {
-			return RuntimeInstanceSnapshot{}, currentErr
+		var rollbackErr error
+		if publishedVersionedHooks {
+			rollbackErr = m.hooks.restoreRuntime(identity.ExtensionID, identity.InstanceID, previousHooks, hadPreviousHooks)
 		}
-		return RuntimeInstanceSnapshot{}, fmt.Errorf("%w: runtime publication changed concurrently", ErrRuntimeInstanceConflict)
+		if activeID != "" {
+			_, protocolErr := starter.PublishInstance(ctx, RuntimeInstanceIdentity{ExtensionID: identity.ExtensionID, InstanceID: activeID})
+			rollbackErr = errors.Join(rollbackErr, protocolErr)
+		}
+		if currentErr != nil {
+			return RuntimeInstanceSnapshot{}, errors.Join(currentErr, rollbackErr)
+		}
+		return RuntimeInstanceSnapshot{}, errors.Join(
+			fmt.Errorf("%w: runtime publication changed concurrently", ErrRuntimeInstanceConflict), rollbackErr,
+		)
 	}
 	instance.transitioning = false
 	if activeInstance != nil {
@@ -289,8 +301,32 @@ func (m *Manager) publishRuntimeInstance(
 	m.statuses[identity.ExtensionID] = managedRuntimeStatus(extension, extensions.RuntimeRunning, &now)
 	snapshot := m.runtimeInstanceSnapshotLocked(identity, instance)
 	m.mu.Unlock()
-	m.hooks.RegisterRuntime(extension, identity.InstanceID)
+	if !publishedVersionedHooks {
+		if err := m.hooks.RegisterRuntime(extension, identity.InstanceID); err != nil {
+			return RuntimeInstanceSnapshot{}, err
+		}
+	}
 	return snapshot, nil
+}
+
+func (m *Manager) resetRuntimePublicationTransition(
+	identity RuntimeInstanceIdentity,
+	instance *managedRuntimeInstance,
+	activeID string,
+	activeInstance *managedRuntimeInstance,
+	candidateWasDraining, keepDraining bool,
+) {
+	m.mu.Lock()
+	if current := m.runtimeInstances[identity.ExtensionID][identity.InstanceID]; current == instance {
+		current.transitioning = false
+		if candidateWasDraining || keepDraining {
+			current.gate.BeginDrain()
+		}
+	}
+	if current := m.runtimeInstances[identity.ExtensionID][activeID]; current == activeInstance && current != nil {
+		current.transitioning = false
+	}
+	m.mu.Unlock()
 }
 
 // StopRuntimeInstance stops one exact V2 process after its gate is drained and
@@ -343,6 +379,16 @@ func (m *Manager) removeManagedProtocolRuntime(ctx context.Context, identity Run
 	extension := instance.extension
 	m.mu.Unlock()
 
+	if active {
+		if err := m.hooks.validateUnregisterRuntime(extension, identity.InstanceID); err != nil {
+			m.mu.Lock()
+			if current := m.runtimeInstances[identity.ExtensionID][identity.InstanceID]; current == instance {
+				current.transitioning = false
+			}
+			m.mu.Unlock()
+			return err
+		}
+	}
 	if discard {
 		err = starter.DiscardInstance(ctx, identity)
 	} else {
@@ -373,13 +419,14 @@ func (m *Manager) removeManagedProtocolRuntime(ctx context.Context, identity Run
 		}
 	}
 	m.mu.Unlock()
+	var hookErr error
 	if active {
-		m.hooks.UnregisterRuntime(identity.ExtensionID, identity.InstanceID)
+		_, hookErr = m.hooks.unregisterRuntime(identity.ExtensionID, identity.InstanceID)
 		if m.resilience != nil {
 			m.resilience.remove(identity.ExtensionID)
 		}
 	}
-	return nil
+	return hookErr
 }
 
 func (m *Manager) managedRuntimeExtension(identity RuntimeInstanceIdentity) (extensions.Extension, error) {
@@ -446,10 +493,11 @@ func cloneManagedRuntimeExtension(extension extensions.Extension) (extensions.Ex
 }
 
 func managedRuntimeStatus(extension extensions.Extension, state string, startedAt *time.Time) extensions.RuntimeStatus {
+	hookCount, eventCount := runtimeManifestCounts(extension.Manifest)
 	return extensions.RuntimeStatus{
 		State: state, StartedAt: startedAt,
-		RouteCount: len(extension.Manifest.Routes), HookCount: len(extensions.DeclaredManifestEvents(extension.Manifest)),
-		EventCount: len(extensions.DeclaredManifestEvents(extension.Manifest)), ProviderCount: len(extension.Manifest.Providers),
+		RouteCount: len(extension.Manifest.Routes), HookCount: hookCount,
+		EventCount: eventCount, ProviderCount: len(extension.Manifest.Providers),
 	}
 }
 

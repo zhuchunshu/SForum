@@ -88,6 +88,10 @@ func TestLifecycleRegistryPublicationConvergesAcrossRestartWhileTargetStaysDrain
 	if err := transaction.Publish(ctx); err != nil {
 		t.Fatal(err)
 	}
+	if contract, _, err := manager.HookBus().VersionedRegistry().Resolve("registry.demo.hook", "registry.demo.hook@1"); err != nil ||
+		contract.Artifact.RuntimeInstanceID != targetBinding.RuntimeInstanceID || contract.Artifact.PackageDigest != target.PackageDigest {
+		t.Fatalf("target versioned hook = %#v, %v", contract, err)
+	}
 	assertLifecycleRegistryTargetHidden(t, manager, pageRegistry, routeRegistry, targetRuntime.Identity)
 
 	// A fresh adapter/transaction reconstructs both plans from immutable package
@@ -121,6 +125,10 @@ func TestLifecycleRegistryPublicationConvergesAcrossRestartWhileTargetStaysDrain
 	}
 	if hook, ok := manager.HookBus().RuntimeSnapshot(source.ID); !ok || hook.InstanceID != sourceBinding.RuntimeInstanceID {
 		t.Fatalf("restored hook = %#v, %t", hook, ok)
+	}
+	if contract, _, err := manager.HookBus().VersionedRegistry().Resolve("registry.demo.hook", "registry.demo.hook@1"); err != nil ||
+		contract.Artifact.RuntimeInstanceID != sourceBinding.RuntimeInstanceID || contract.Artifact.PackageDigest != source.PackageDigest {
+		t.Fatalf("restored versioned hook = %#v, %v", contract, err)
 	}
 	if manager.HookBus().UnregisterRuntime(source.ID, targetBinding.RuntimeInstanceID) {
 		t.Fatal("stale target removed restored source hooks")
@@ -169,7 +177,7 @@ func TestLifecycleRegistryBootRestoresExactRoutesAndSchemasAndSafeModeClearsBoth
 	legacy.PackageDigest = strings.Repeat("b", 64)
 	legacy.Manifest.ID, legacy.Manifest.Version = legacy.ID, legacy.Version
 	legacy.Manifest.Backend.ProtocolVersion = 1
-	legacy.Manifest.Routes, legacy.Manifest.OpenAPI = nil, nil
+	legacy.Manifest.Routes, legacy.Manifest.OpenAPI, legacy.Manifest.Hooks = nil, nil, nil
 	if err := manager.Start(ctx, legacy); err != nil {
 		t.Fatal(err)
 	}
@@ -374,6 +382,12 @@ func lifecycleRegistryTestExtension(t *testing.T, version, digest string, versio
 	extension.Manifest.Events = []extensions.ManifestEvent{{
 		ID: "registry.demo.changed", ContractVersion: "registry.demo.changed@1", Name: "registry.demo.changed", Kind: "observe",
 		Handler: "event.changed", InputSchema: "registry.demo.changed.input@1",
+	}}
+	extension.Manifest.Hooks = []extensions.ManifestHook{{
+		ID: "registry.demo.hook", ContractVersion: "registry.demo.hook@1",
+		Name: "registry.demo.content.changed", Kind: "action", Handler: "hook.changed",
+		InputSchema: "registry.demo.content.input@1", ResultSchema: "registry.demo.content.result@1",
+		Execution: "sync", FailurePolicy: "fail_closed", TimeoutMS: 1000,
 	}}
 	extension.Manifest.Services = []extensions.ManifestService{{
 		ID: "registry.demo.echo", ContractVersion: "registry.demo.echo@1", Action: hostapi.ServiceActionAdd,

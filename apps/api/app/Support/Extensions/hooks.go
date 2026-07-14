@@ -2,7 +2,9 @@ package extensionsruntime
 
 import (
 	"context"
+	"fmt"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -11,13 +13,18 @@ import (
 )
 
 type HookInput struct {
-	Name          string
-	Kind          string
-	DeliveryID    int64
-	CorrelationID string
-	Timeout       time.Duration
-	Payload       map[string]any
-	PatchFields   []string
+	DeclarationID   string
+	Name            string
+	Kind            string
+	ContractVersion string
+	InputSchema     string
+	ResultSchema    string
+	FailurePolicy   string
+	DeliveryID      int64
+	CorrelationID   string
+	Timeout         time.Duration
+	Payload         map[string]any
+	PatchFields     []string
 }
 
 type HookResult struct {
@@ -25,6 +32,7 @@ type HookResult struct {
 	Reason  string
 	Message string
 	Patch   map[string]any
+	Result  map[string]any
 }
 
 type HookInvoker interface {
@@ -42,9 +50,10 @@ type HookBusConfig struct {
 }
 
 type HookBus struct {
-	mu      sync.RWMutex
-	invoker HookInvoker
-	plugins map[string]hookRuntimeRegistration
+	mu       sync.RWMutex
+	invoker  HookInvoker
+	plugins  map[string]hookRuntimeRegistration
+	registry *VersionedHookRegistry
 }
 
 type hookRuntimeRegistration struct {
@@ -60,47 +69,93 @@ type HookRuntimeSnapshot struct {
 }
 
 func NewHookBus(config HookBusConfig) *HookBus {
-	return &HookBus{invoker: config.Invoker, plugins: map[string]hookRuntimeRegistration{}}
+	return &HookBus{invoker: config.Invoker, plugins: map[string]hookRuntimeRegistration{}, registry: NewVersionedHookRegistry()}
 }
 
 func (b *HookBus) Register(extension extensions.Extension) {
 	if extension.Status != extensions.StatusEnabled {
 		return
 	}
-	b.RegisterRuntime(extension, "")
+	_ = b.RegisterRuntime(extension, "")
 }
 
 // RegisterRuntime atomically replaces one extension's hook declarations with
 // the declarations owned by an exact process. Manager admission remains the
 // execution gate, so registering a drained target does not open ordinary calls.
-func (b *HookBus) RegisterRuntime(extension extensions.Extension, instanceID string) {
+func (b *HookBus) RegisterRuntime(extension extensions.Extension, instanceID string) error {
 	if extension.Type != extensions.TypePlugin {
-		return
+		return nil
+	}
+	if publishesVersionedHookSnapshot(extension, instanceID) {
+		if err := b.registry.ReplaceRuntime(extension, instanceID); err != nil {
+			return err
+		}
 	}
 	b.mu.Lock()
-	b.plugins[extension.ID] = hookRuntimeRegistration{extension: extension, instanceID: instanceID}
+	b.plugins[extension.ID] = hookRuntimeRegistration{extension: cloneHookExtension(extension), instanceID: instanceID}
 	b.mu.Unlock()
+	return nil
 }
 
 func (b *HookBus) Unregister(extensionID string) {
-	b.mu.Lock()
-	delete(b.plugins, extensionID)
-	b.mu.Unlock()
+	b.mu.RLock()
+	current, ok := b.plugins[extensionID]
+	b.mu.RUnlock()
+	if ok {
+		_ = b.UnregisterRuntime(extensionID, current.instanceID)
+	}
 }
 
 // UnregisterRuntime removes declarations only while they still belong to the
 // stopping process. A retained source can therefore never clear its published
 // replacement.
 func (b *HookBus) UnregisterRuntime(extensionID, instanceID string) bool {
+	removed, _ := b.unregisterRuntime(extensionID, instanceID)
+	return removed
+}
+
+func (b *HookBus) unregisterRuntime(extensionID, instanceID string) (bool, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	current, ok := b.plugins[extensionID]
 	if !ok || current.instanceID != instanceID {
-		return false
+		return false, nil
+	}
+	if publishesVersionedHookSnapshot(current.extension, current.instanceID) {
+		removed, err := b.registry.RemoveRuntime(extensionID, instanceID)
+		if err != nil || !removed {
+			return false, err
+		}
 	}
 	delete(b.plugins, extensionID)
-	return true
+	return true, nil
 }
+
+func (b *HookBus) validateUnregisterRuntime(extension extensions.Extension, instanceID string) error {
+	b.mu.RLock()
+	current, ok := b.plugins[extension.ID]
+	b.mu.RUnlock()
+	if !ok || current.instanceID != instanceID {
+		if publishesVersionedHookSnapshot(extension, instanceID) {
+			return fmt.Errorf("%w: exact hook runtime %s/%s is not published", ErrHookRegistryConflict, extension.ID, instanceID)
+		}
+		return nil
+	}
+	if !publishesVersionedHookSnapshot(current.extension, current.instanceID) {
+		return nil
+	}
+	return b.registry.ValidateRemoveRuntime(extension.ID, instanceID)
+}
+
+func (b *HookBus) restoreRuntime(targetID, targetInstanceID string, previous HookRuntimeSnapshot, hadPrevious bool) error {
+	if hadPrevious {
+		return b.RegisterRuntime(previous.Extension, previous.InstanceID)
+	}
+	_, err := b.unregisterRuntime(targetID, targetInstanceID)
+	return err
+}
+
+func (b *HookBus) VersionedRegistry() *VersionedHookRegistry { return b.registry }
 
 func (b *HookBus) RuntimeSnapshot(extensionID string) (HookRuntimeSnapshot, bool) {
 	b.mu.RLock()
@@ -110,6 +165,25 @@ func (b *HookBus) RuntimeSnapshot(extensionID string) (HookRuntimeSnapshot, bool
 		return HookRuntimeSnapshot{}, false
 	}
 	return HookRuntimeSnapshot{Extension: current.extension, InstanceID: current.instanceID}, true
+}
+
+func hasVersionedPluginHooks(extension extensions.Extension) bool {
+	for _, hook := range extension.Manifest.Hooks {
+		if isVersionedPluginHook(hook) {
+			return true
+		}
+	}
+	return false
+}
+
+func publishesVersionedHookSnapshot(extension extensions.Extension, instanceID string) bool {
+	return instanceID != "" && extension.Manifest.Backend.ProtocolVersion == 2 &&
+		(strings.TrimSpace(extension.PackageDigest) != "" || hasVersionedPluginHooks(extension))
+}
+
+func runtimeManifestCounts(manifest extensions.Manifest) (hooks, events int) {
+	// events 不吸收 legacy hooks，避免同一声明同时出现在两个运行状态计数。
+	return len(manifest.Hooks), len(manifest.Events)
 }
 
 func (b *HookBus) Emit(ctx context.Context, input HookInput) []HookResult {

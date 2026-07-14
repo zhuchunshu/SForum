@@ -221,6 +221,11 @@ func (b *PostgresLifecycleBoundaryRegistries) ValidateLifecycleRegistries(
 		if err := b.validateRuntimeMaterial(*material); err != nil {
 			return err
 		}
+		if publishesVersionedHookSnapshot(material.extension, material.binding.RuntimeInstanceID) {
+			if err := b.hooks.registry.ValidateReplaceRuntime(material.extension, material.binding.RuntimeInstanceID); err != nil {
+				return fmt.Errorf("validate hook registry: %w", err)
+			}
+		}
 		if err := b.pages.PreflightContributionsReplacing(material.extension.ID, material.pages, material.extension.ID); err != nil {
 			return fmt.Errorf("validate page registry: %w", err)
 		}
@@ -289,6 +294,7 @@ type lifecycleRegistryDigestDocument struct {
 	VersionID          int64                        `json:"versionId"`
 	RuntimeInstanceID  string                       `json:"runtimeInstanceId"`
 	Hooks              []extensions.ManifestEvent   `json:"hooks"`
+	VersionedHooks     []extensions.ManifestHook    `json:"versionedHooks,omitempty"`
 	Services           []extensions.ManifestService `json:"services"`
 	Pages              []pages.PageContribution     `json:"pages"`
 	Routes             routes.PluginRouteSet        `json:"routes"`
@@ -361,16 +367,21 @@ func buildLifecycleRegistryMaterial(
 			Version: extension.Version, PackageDigest: extension.PackageDigest, Manifest: extension.Manifest,
 		},
 	}
+	productionFamilies := []string{"hooks.v1", "pages.runtime", "services.v2"}
+	if hasVersionedPluginHooks(extension) {
+		productionFamilies = append(productionFamilies, "hooks.v2")
+	}
 	// Keep registry-plan@1 byte-compatible with durable in-flight operations.
 	// PackageDigest already binds the manifest and every OpenAPI/schema file.
 	document := lifecycleRegistryDigestDocument{
 		Schema: "sforum.lifecycle.registry-plan@1", ExtensionID: extension.ID,
 		ExtensionVersion: extension.Version, PackageDigest: extension.PackageDigest,
 		VersionID: extension.ActiveVersionID, RuntimeInstanceID: binding.RuntimeInstanceID,
-		Hooks:    append([]extensions.ManifestEvent(nil), extensions.DeclaredManifestEvents(extension.Manifest)...),
-		Services: append([]extensions.ManifestService(nil), extension.Manifest.Services...),
-		Pages:    append([]pages.PageContribution(nil), pageContributions...), Routes: material.routes,
-		ProductionFamilies: []string{"hooks.v1", "pages.runtime", "services.v2"},
+		Hooks:          append([]extensions.ManifestEvent(nil), extensions.DeclaredManifestEvents(extension.Manifest)...),
+		VersionedHooks: cloneManifestHooks(extension.Manifest.Hooks),
+		Services:       append([]extensions.ManifestService(nil), extension.Manifest.Services...),
+		Pages:          append([]pages.PageContribution(nil), pageContributions...), Routes: material.routes,
+		ProductionFamilies: productionFamilies,
 		FoundationFamilies: []string{"routes.v1-foundation"},
 	}
 	raw, err := json.Marshal(document)
@@ -514,9 +525,13 @@ func (b *PostgresLifecycleBoundaryRegistries) reconcileLocalRegistries(
 		return err
 	}
 	if desired == nil {
-		b.unregisterAllowedHookRuntime(request.TargetExtension.ID, source, target)
+		if err := b.unregisterAllowedHookRuntime(request.TargetExtension.ID, source, target); err != nil {
+			return err
+		}
 	} else {
-		b.hooks.RegisterRuntime(desired.extension, desired.binding.RuntimeInstanceID)
+		if err := b.hooks.RegisterRuntime(desired.extension, desired.binding.RuntimeInstanceID); err != nil {
+			return fmt.Errorf("publish hook registry: %w", err)
+		}
 	}
 	return nil
 }
@@ -644,14 +659,21 @@ func (b *PostgresLifecycleBoundaryRegistries) reconcileServices(
 func (b *PostgresLifecycleBoundaryRegistries) unregisterAllowedHookRuntime(
 	extensionID string,
 	source, target *lifecycleRegistryMaterial,
-) {
+) error {
 	current, ok := b.hooks.RuntimeSnapshot(extensionID)
 	if !ok {
-		return
+		return nil
 	}
 	if registryInstanceAllowed(current.InstanceID, source, target) {
-		b.hooks.UnregisterRuntime(extensionID, current.InstanceID)
+		removed, err := b.hooks.unregisterRuntime(extensionID, current.InstanceID)
+		if err != nil {
+			return fmt.Errorf("unpublish hook registry: %w", err)
+		}
+		if removed {
+			return nil
+		}
 	}
+	return fmt.Errorf("%w: exact hook set is unavailable", ErrLifecycleRegistryPublicationConflict)
 }
 
 func registryInstanceAllowed(instanceID string, materials ...*lifecycleRegistryMaterial) bool {

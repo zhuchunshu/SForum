@@ -11,13 +11,18 @@ import (
 )
 
 type EventDeliveryArgs struct {
-	DeliveryID    int64          `json:"delivery_id" river:"unique"`
-	ExtensionID   string         `json:"extension_id"`
-	EventName     string         `json:"event_name"`
-	EventKind     string         `json:"event_kind"`
-	CorrelationID string         `json:"correlation_id"`
-	Payload       map[string]any `json:"payload,omitempty"`
-	PatchFields   []string       `json:"patch_fields,omitempty"`
+	DeliveryID        int64          `json:"delivery_id" river:"unique"`
+	ExtensionID       string         `json:"extension_id"`
+	EventName         string         `json:"event_name"`
+	EventKind         string         `json:"event_kind"`
+	CorrelationID     string         `json:"correlation_id"`
+	Payload           map[string]any `json:"payload,omitempty"`
+	PatchFields       []string       `json:"patch_fields,omitempty"`
+	DeclarationID     string         `json:"declaration_id,omitempty"`
+	HookID            string         `json:"hook_id,omitempty"`
+	ContractVersion   string         `json:"contract_version,omitempty"`
+	RuntimeInstanceID string         `json:"runtime_instance_id,omitempty"`
+	PackageDigest     string         `json:"package_digest,omitempty"`
 }
 
 func (EventDeliveryArgs) Kind() string {
@@ -40,6 +45,13 @@ type EventDeliveryWorker struct {
 func (w *EventDeliveryWorker) Work(ctx context.Context, job *river.Job[EventDeliveryArgs]) error {
 	if w.Manager == nil {
 		return fmt.Errorf("extension event delivery worker requires manager")
+	}
+	if job.Args.HookID != "" {
+		result := w.Manager.deliverVersionedHook(ctx, job.Args)
+		if !result.OK {
+			return fmt.Errorf("extension hook delivery failed: %s", result.Reason)
+		}
+		return nil
 	}
 	envelope := appevents.Envelope{
 		Name:          job.Args.EventName,

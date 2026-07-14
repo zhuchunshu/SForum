@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -144,14 +145,15 @@ func (m *Manager) Start(ctx context.Context, extension extensions.Extension) err
 	unlock := m.lockRuntimeLifecycle(extension.ID)
 	defer unlock()
 
+	hookCount, eventCount := runtimeManifestCounts(extension.Manifest)
 	m.mu.Lock()
 	previousStatus, hadPreviousStatus := m.statuses[extension.ID]
 	previousInstanceID := m.activeInstances[extension.ID]
 	m.statuses[extension.ID] = extensions.RuntimeStatus{
 		State:         extensions.RuntimeStarting,
 		RouteCount:    len(extension.Manifest.Routes),
-		HookCount:     len(extensions.DeclaredManifestEvents(extension.Manifest)),
-		EventCount:    len(extensions.DeclaredManifestEvents(extension.Manifest)),
+		HookCount:     hookCount,
+		EventCount:    eventCount,
 		ProviderCount: len(extension.Manifest.Providers),
 	}
 	m.mu.Unlock()
@@ -164,12 +166,30 @@ func (m *Manager) Start(ctx context.Context, extension extensions.Extension) err
 		m.recordRuntimeStartFailure(extension, previousInstanceID, previousStatus, hadPreviousStatus, err)
 		return err
 	}
+	if hasVersionedPluginHooks(extension) && strings.TrimSpace(target.InstanceID) == "" {
+		err := fmt.Errorf("%w: versioned hooks require an exact runtime instance", ErrHookRegistryInvalid)
+		stopErr := m.starter.Stop(ctx, extension)
+		m.recordRuntimeStartFailure(extension, previousInstanceID, previousStatus, hadPreviousStatus, err)
+		return errors.Join(err, stopErr)
+	}
+	previousHooks, hadPreviousHooks := m.hooks.RuntimeSnapshot(extension.ID)
+	publishedVersionedHooks := publishesVersionedHookSnapshot(extension, target.InstanceID)
+	if publishedVersionedHooks {
+		if err := m.hooks.RegisterRuntime(extension, target.InstanceID); err != nil {
+			stopErr := m.starter.Stop(ctx, extension)
+			m.recordRuntimeStartFailure(extension, previousInstanceID, previousStatus, hadPreviousStatus, err)
+			return errors.Join(err, stopErr)
+		}
+	}
 	now := time.Now().UTC()
 	m.mu.Lock()
 	target, err = m.activateRuntimeInstanceLocked(extension, target)
 	if err != nil {
 		m.mu.Unlock()
 		_ = m.starter.Stop(ctx, extension)
+		if publishedVersionedHooks {
+			_ = m.hooks.restoreRuntime(extension.ID, target.InstanceID, previousHooks, hadPreviousHooks)
+		}
 		m.recordRuntimeStartFailure(extension, previousInstanceID, previousStatus, hadPreviousStatus, err)
 		return err
 	}
@@ -179,12 +199,16 @@ func (m *Manager) Start(ctx context.Context, extension extensions.Extension) err
 		State:         extensions.RuntimeRunning,
 		StartedAt:     &now,
 		RouteCount:    len(extension.Manifest.Routes),
-		HookCount:     len(extensions.DeclaredManifestEvents(extension.Manifest)),
-		EventCount:    len(extensions.DeclaredManifestEvents(extension.Manifest)),
+		HookCount:     hookCount,
+		EventCount:    eventCount,
 		ProviderCount: len(extension.Manifest.Providers),
 	}
 	m.mu.Unlock()
-	m.hooks.RegisterRuntime(extension, target.InstanceID)
+	if !publishedVersionedHooks {
+		if err := m.hooks.RegisterRuntime(extension, target.InstanceID); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -195,6 +219,9 @@ func (m *Manager) Stop(ctx context.Context, extension extensions.Extension) erro
 	m.mu.RLock()
 	instanceID := m.activeInstances[extension.ID]
 	m.mu.RUnlock()
+	if err := m.hooks.validateUnregisterRuntime(extension, instanceID); err != nil {
+		return err
+	}
 	err := m.starter.Stop(ctx, extension)
 	m.mu.Lock()
 	if m.deactivateRuntimeInstanceLocked(RuntimeInstanceIdentity{ExtensionID: extension.ID, InstanceID: instanceID}) {
@@ -203,8 +230,8 @@ func (m *Manager) Stop(ctx context.Context, extension extensions.Extension) erro
 		m.statuses[extension.ID] = extensions.RuntimeStatus{
 			State:         extensions.RuntimeStopped,
 			RouteCount:    len(extension.Manifest.Routes),
-			HookCount:     len(extensions.DeclaredManifestEvents(extension.Manifest)),
-			EventCount:    len(extensions.DeclaredManifestEvents(extension.Manifest)),
+			HookCount:     len(extension.Manifest.Hooks),
+			EventCount:    len(extension.Manifest.Events),
 			ProviderCount: len(extension.Manifest.Providers),
 		}
 	} else if instanceID == "" {
@@ -213,17 +240,17 @@ func (m *Manager) Stop(ctx context.Context, extension extensions.Extension) erro
 		m.statuses[extension.ID] = extensions.RuntimeStatus{
 			State:         extensions.RuntimeStopped,
 			RouteCount:    len(extension.Manifest.Routes),
-			HookCount:     len(extensions.DeclaredManifestEvents(extension.Manifest)),
-			EventCount:    len(extensions.DeclaredManifestEvents(extension.Manifest)),
+			HookCount:     len(extension.Manifest.Hooks),
+			EventCount:    len(extension.Manifest.Events),
 			ProviderCount: len(extension.Manifest.Providers),
 		}
 	}
 	m.mu.Unlock()
-	m.hooks.UnregisterRuntime(extension.ID, instanceID)
+	_, hookErr := m.hooks.unregisterRuntime(extension.ID, instanceID)
 	if m.resilience != nil {
 		m.resilience.remove(extension.ID)
 	}
-	return err
+	return errors.Join(err, hookErr)
 }
 
 func (m *Manager) Status(_ context.Context, extension extensions.Extension) extensions.RuntimeStatus {
@@ -234,8 +261,8 @@ func (m *Manager) Status(_ context.Context, extension extensions.Extension) exte
 		return extensions.RuntimeStatus{
 			State:         extensions.RuntimeStopped,
 			RouteCount:    len(extension.Manifest.Routes),
-			HookCount:     len(extensions.DeclaredManifestEvents(extension.Manifest)),
-			EventCount:    len(extensions.DeclaredManifestEvents(extension.Manifest)),
+			HookCount:     len(extension.Manifest.Hooks),
+			EventCount:    len(extension.Manifest.Events),
 			ProviderCount: len(extension.Manifest.Providers),
 		}
 	}
@@ -591,7 +618,11 @@ func (m *Manager) invoke(ctx context.Context, extension extensions.Extension, in
 
 	// F2.3：熔断/并发闸门。observe 类 fail_open 事件在熔断时跳过而非阻断。
 	definition, _ := appevents.FindDefinition(input.Name)
-	failOpen := definition.FailurePolicy == appevents.FailurePolicyFailOpen || input.Kind == appevents.KindObserve
+	failurePolicy := input.FailurePolicy
+	if failurePolicy == "" {
+		failurePolicy = definition.FailurePolicy
+	}
+	failOpen := failurePolicy == appevents.FailurePolicyFailOpen || input.Kind == appevents.KindObserve
 
 	release, rejected := m.resilience.tryEnter(ctx, extension.ID)
 	if rejected != "" {

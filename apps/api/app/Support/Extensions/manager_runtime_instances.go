@@ -365,8 +365,8 @@ func (m *Manager) recordRuntimeStartFailure(
 		State:         extensions.RuntimeFailed,
 		LastError:     startErr.Error(),
 		RouteCount:    len(extension.Manifest.Routes),
-		HookCount:     len(extensions.DeclaredManifestEvents(extension.Manifest)),
-		EventCount:    len(extensions.DeclaredManifestEvents(extension.Manifest)),
+		HookCount:     len(extension.Manifest.Hooks),
+		EventCount:    len(extension.Manifest.Events),
 		ProviderCount: len(extension.Manifest.Providers),
 	}
 }
