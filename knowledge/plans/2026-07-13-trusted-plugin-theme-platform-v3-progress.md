@@ -1,8 +1,8 @@
 # Trusted Plugin And Theme Platform V3 Progress Ledger
 
 Date: 2026-07-14
-Overall progress: **34%**
-Active phase: **P5 - Plugin Database Registry And Real Migrations (47%, 8 of 17 rows)**
+Overall progress: **35%**
+Active phase: **P5 - Plugin Database Registry And Real Migrations (59%, 10 of 17 rows)**
 
 This ledger is the durable percentage and context-compaction checkpoint for the
 V3 program. Update it before context compression, at every phase boundary, and
@@ -21,7 +21,7 @@ scaffolding, or demo-only code cannot satisfy a runtime exit criterion.
 | P2 Manifest/contracts | 7% | 100% | 7% |
 | P3 Host API v2 | 8% | 100% | 8% |
 | P4 Lifecycle/dependencies | 7% | 100% | 7% |
-| P5 Database/commands | 8% | 47% | 3.76% |
+| P5 Database/commands | 8% | 59% | 4.72% |
 | P6 Routes/middleware | 10% | 0% | 0% |
 | P7 Workflow/admin/query/identity | 10% | 0% | 0% |
 | P8 Theme compiler/runtime | 8% | 0% | 0% |
@@ -680,14 +680,15 @@ phase percentage.
 
 ## P5 Implementation Checkpoint
 
-- P5 is **47% complete (8 of 17 rows)**. Weighted overall V3 progress is
-  **34%**. This count credits only production behavior or exact integration
+- P5 is **59% complete (10 of 17 rows)**. Weighted overall V3 progress is
+  **35%**. This count credits only production behavior or exact integration
   evidence, not protobuf shapes or unwired foundations.
 - Completed rows: deterministic safe identifiers; exact migration discovery,
   checksum, lock, read-only dry-run, transaction policy, ledger/progress/failure;
   isolated Goose parsing/history; uninstall database disposition; broad
   migration/credential/disposition tests; own-schema isolation; and
-  multi-process migration-once.
+  multi-process migration-once. Core-upgrade compatibility blocking and
+  database query tracing/slow-query observability are now also complete.
 - `c913127c8` adds a public exact-artifact migration preflight. It uses a
   PostgreSQL read-only transaction and the same Goose parser as execution,
   reports statement/checksum digests, transaction modes, non-transactional
@@ -716,11 +717,26 @@ phase percentage.
   Authenticated admin-page QA plus a temporary production-component fixture
   passed on desktop and 390px with no overflow or app console errors; ordinary
   backup guidance expires after ten seconds while high-risk warnings persist.
+- `ebc8c3919` runs an exact-trust raw-authority compatibility check before any
+  Goose core migration. A real PostgreSQL test proves incompatible target
+  versions block while revoked grants no longer do.
+- `86ed767d8` and `36e143386` add bounded, redacted Host Query tracing with
+  slow classification and document the direct-role PostgreSQL logging boundary.
+  Real PostgreSQL, race, vet, and build gates passed.
+- `c13da29d1`, `14086dee2`, and `926ed2ff2` add the exact-artifact
+  DatabaseService core, real own-schema transaction/isolation/replay/revocation
+  proof, and frozen gRPC registration. This remains a partial row until the
+  manifest operation catalog is loaded into production bootstrap.
+- `e5eea90ab`, `7dbe3e3c0`, and `43be1b5d5` begin P6 without inflating its
+  completion count: exact runtime publication fencing, wildcard conflict
+  inspection, the 212-row production core catalog, Safe Mode filtering, and an
+  immutable fail-closed execution plan are present, but Fiber has no Registry
+  dispatcher yet.
 - Partial rows: runtime credential delivery; physical `database.core.full`
-  grants; stable views/typed query-command publication; complete database
-  tracing/budgets; and concrete PostgreSQL Host Command atomicity. Missing rows
-  include plugin-owned transactions, six concrete Host Commands, core-upgrade
-  compatibility blocking, and raw-authority behavior tests.
+  grants; stable views/typed query-command publication; plugin-owned
+  DatabaseService catalog loading; and concrete PostgreSQL Host Command
+  atomicity. Missing rows include six concrete Host Commands and raw-authority
+  behavior tests.
 - The authority audit found a real public-contract conflict. ADR prose says
   database powers are disclosed in tiers, while Manifest, JSON Schema,
   OpenAPI, validation, and the database ledger all store one mutually
@@ -736,5 +752,5 @@ phase percentage.
   actor-scoped Host Commands and the provider-neutral entitlement lifecycle.
   Continue independent stable-view, connection-budget, migration-guidance,
   and backend-ledger work while awaiting those decisions.
-- PostgreSQL development dependencies were restarted with
-  `./scripts/dev.sh --no-migrate`; frontend and API dev servers remain stopped.
+- PostgreSQL development dependencies are available. Do not assume frontend or
+  API dev servers remain running; start them explicitly before browser QA.

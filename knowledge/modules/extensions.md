@@ -694,6 +694,16 @@ template while retaining Schema fallback fields.
   definitions and bootstrap binding wait on actor/entitlement product contracts.
 - Exact trust review prominently shows database authority, core compatibility,
   backup/retention, migration digests, and transaction policy before execution.
+- The core migrator blocks before Goose when an enabled exact-trusted
+  `raw_core`/`kernel` declaration excludes the target SForum release.
+- Host Query emits bounded redacted traces; direct-role SQL tracing remains an
+  operator-owned PostgreSQL boundary because plugin-controlled
+  `application_name` is not trusted attribution.
+- Protocol V2 DatabaseService now has an exact artifact-bound immutable catalog
+  core, typed parameters/results, bounded own-schema transactions, durable
+  idempotent replay, audit, and real PostgreSQL isolation/revocation proof. It
+  is registered fail-closed but not production-bound until exact manifest
+  operation declarations are loaded before broker registration.
 - Do not infer that the current single `database.authority` enum is cumulative.
   The pending recommendation is additive grants plus exact-artifact declared
   database operation catalogs; direct shared credentials are unsafe for rolling

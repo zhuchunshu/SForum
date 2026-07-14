@@ -2,7 +2,7 @@
 
 ## Changed
 
-- P5 is 47% complete at 8 of 17 authoritative rows; weighted V3 remains 34%.
+- P5 is 59% complete at 10 of 17 authoritative rows; weighted V3 is 35%.
 - Added read-only exact migration preflight and independent-process migration-once proof.
 - Enforced per-plugin PostgreSQL connection and slow-query budgets.
 - Added stable read-only core views and production Host Query runtime.
@@ -10,10 +10,21 @@
   real PostgreSQL transactional backend.
 - Added explicit admin backup/export, compatibility, retention, digest, and
   non-transactional migration disclosure.
+- Added a pre-Goose raw-authority core-version compatibility gate and bounded,
+  redacted Host Query tracing with slow classification.
+- Added exact-artifact own-schema DatabaseService transactions, durable replay,
+  real PostgreSQL isolation/revocation proof, and frozen fail-closed gRPC
+  registration. Manifest catalog loading is not production-bound yet.
+- Hardened P6 foundations with exact runtime instance fencing, wildcard method
+  conflict visibility, the production 212-route core snapshot, Safe Mode
+  filtering, and immutable execution plans. P6 remains uncredited until the
+  request dispatcher consumes the Registry.
 
 ## Verification
 
 - Real PostgreSQL migration, registry, stable-view, Host Query, and Host Command suites passed.
+- Real PostgreSQL core-upgrade blocking and DatabaseService transaction,
+  idempotent replay, core-isolation, and revoke tests passed.
 - Focused race and vet gates passed; `go build ./...` passed.
 - Database migration packages passed in full with versions 016 and 017.
 - Nuxt typecheck, focused trust UI tests, all 284 web tests, and admin validator passed.
@@ -30,11 +41,13 @@
 
 ## Next
 
-- Decide and implement additive database grants plus exact-artifact operation catalogs, or a safe per-runtime direct credential model.
-- Implement plugin-owned bounded transactions/DatabaseService.
+- Decide and implement additive database grants while preserving the legacy
+  authority input.
+- Finish the manifest exact operation catalog loader and production-bind
+  DatabaseService before any plugin broker registers.
 - Implement six production Host Commands for user/content/meta/moderation/entitlement/attachment.
-- Implement exact `database.core.full`, core-upgrade compatibility block, and raw-authority tests.
-- Add Host Query/DatabaseService tracing to complete the observability row.
+- Implement exact `database.core.full` and raw-authority tests.
+- Add DatabaseService trace events when production catalog loading is wired.
 
 ## Open Questions
 
@@ -45,6 +58,6 @@
 ## Resume Point
 
 - Branch: `main`.
-- Last implementation commit at this checkpoint: `368e48e4d`.
-- Frontend/API dev servers are running on ports 3000/8081 for continued QA.
+- Last implementation commit at this checkpoint: `43be1b5d5`.
+- Frontend/API server state is not durable; start both explicitly before QA.
 - Preserve any unrelated worktree changes; stage only V3-owned files/hunks.
