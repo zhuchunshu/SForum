@@ -27,7 +27,10 @@ func TestManifestV3DatabaseOperationsRejectInvalidDeclarations(t *testing.T) {
 		name   string
 		change func(*Manifest)
 	}{
-		{name: "authority outside own schema", change: func(manifest *Manifest) { manifest.Database.Authority = "core_views" }},
+		{name: "grants omit own schema", change: func(manifest *Manifest) {
+			manifest.Database.Authority = ""
+			manifest.Database.Grants = []string{DatabaseGrantCoreViews}
+		}},
 		{name: "foreign id", change: func(manifest *Manifest) { manifest.Database.Operations[0].ID = "other.plugin.query" }},
 		{name: "duplicate id", change: func(manifest *Manifest) { manifest.Database.Operations[1].ID = manifest.Database.Operations[0].ID }},
 		{name: "zero statement version", change: func(manifest *Manifest) { manifest.Database.Operations[0].StatementVersion = "0" }},

@@ -5,7 +5,7 @@ import "strings"
 func normalizeV3Platform(manifest *Manifest) {
 	if manifest.Database != nil {
 		manifest.Database.ContractVersion = strings.TrimSpace(manifest.Database.ContractVersion)
-		manifest.Database.Authority = strings.ToLower(strings.TrimSpace(manifest.Database.Authority))
+		normalizeDatabaseGrants(manifest.Database)
 		manifest.Database.Schema = NormalizeID(manifest.Database.Schema)
 		manifest.Database.Role = NormalizeID(manifest.Database.Role)
 		manifest.Database.CoreCompatibility = strings.TrimSpace(manifest.Database.CoreCompatibility)

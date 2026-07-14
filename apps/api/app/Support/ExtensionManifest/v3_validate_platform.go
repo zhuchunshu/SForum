@@ -35,15 +35,36 @@ func (v *v3Validator) validateDatabaseAndCache() error {
 		if !contractVersionPattern.MatchString(database.ContractVersion) {
 			return ErrInvalidManifest
 		}
-		switch database.Authority {
-		case "own_schema", "core_views", "host_commands", "raw_core", "kernel":
-		default:
+		grants := DatabaseGrants(database)
+		if database.Authority != "" || len(grants) == 0 || len(grants) != len(database.Grants) {
 			return ErrInvalidManifest
 		}
-		if database.Authority == "own_schema" && (!databaseNamePattern.MatchString(database.Schema) || !databaseNamePattern.MatchString(database.Role)) {
+		seenGrants := make(map[string]struct{}, len(grants))
+		for _, grant := range grants {
+			switch grant {
+			case DatabaseGrantOwnSchema, DatabaseGrantCoreViews, DatabaseGrantHostCommands, DatabaseGrantRawCore, DatabaseGrantKernel:
+			default:
+				return ErrInvalidManifest
+			}
+			if _, duplicate := seenGrants[grant]; duplicate {
+				return ErrInvalidManifest
+			}
+			seenGrants[grant] = struct{}{}
+		}
+		hasOwnSchema := HasDatabaseGrant(database, DatabaseGrantOwnSchema)
+		if hasOwnSchema {
+			// Host owns physical names. Logical schema/role remain required for
+			// the historical own_schema-only contract and optional for cumulative
+			// legacy tiers, but they must always be supplied as a valid pair.
+			if (database.Schema == "") != (database.Role == "") ||
+				(database.Schema != "" && (!databaseNamePattern.MatchString(database.Schema) || !databaseNamePattern.MatchString(database.Role))) ||
+				len(grants) == 1 && database.Schema == "" {
+				return ErrInvalidManifest
+			}
+		} else if database.Schema != "" || database.Role != "" {
 			return ErrInvalidManifest
 		}
-		if (database.Authority == "raw_core" || database.Authority == "kernel") && !validSemverConstraint(database.CoreCompatibility) {
+		if (HasDatabaseGrant(database, DatabaseGrantRawCore) || HasDatabaseGrant(database, DatabaseGrantKernel)) && !validSemverConstraint(database.CoreCompatibility) {
 			return ErrInvalidManifest
 		}
 		if database.Backup.Required && database.Backup.Strategy == "" || database.Retention.Days < 0 {
@@ -57,7 +78,7 @@ func (v *v3Validator) validateDatabaseAndCache() error {
 		default:
 			return ErrInvalidManifest
 		}
-		if len(database.Operations) > 0 && database.Authority != "own_schema" {
+		if (len(database.Operations) > 0 || len(v.manifest.Migrations) > 0) && !hasOwnSchema {
 			return ErrInvalidManifest
 		}
 		for _, operation := range database.Operations {

@@ -1,8 +1,11 @@
 package extensionmanifest
 
 type ManifestDatabase struct {
-	ContractVersion   string                      `json:"contractVersion"`
-	Authority         string                      `json:"authority"`
+	ContractVersion string `json:"contractVersion"`
+	// Authority is accepted only as a legacy manifest input. Normalize expands
+	// it into the cumulative exact Grants set before runtime consumers use it.
+	Authority         string                      `json:"authority,omitempty"`
+	Grants            []string                    `json:"grants,omitempty"`
 	Schema            string                      `json:"schema,omitempty"`
 	Role              string                      `json:"role,omitempty"`
 	CoreCompatibility string                      `json:"coreCompatibility,omitempty"`

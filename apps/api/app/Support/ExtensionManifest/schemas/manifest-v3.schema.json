@@ -414,10 +414,22 @@
     "database": {
       "type": ["object", "null"],
       "additionalProperties": false,
-      "required": ["contractVersion", "authority", "backup", "retention"],
+      "required": ["contractVersion", "backup", "retention"],
+      "oneOf": [
+        { "type": "null" },
+        { "type": "object", "required": ["authority"], "not": { "required": ["grants"] } },
+        { "type": "object", "required": ["grants"], "not": { "required": ["authority"] } }
+      ],
       "properties": {
         "contractVersion": { "$ref": "#/$defs/contract" },
         "authority": { "enum": ["own_schema", "core_views", "host_commands", "raw_core", "kernel"] },
+        "grants": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 5,
+          "uniqueItems": true,
+          "items": { "enum": ["own_schema", "core_views", "host_commands", "raw_core", "kernel"] }
+        },
         "schema": { "type": "string" },
         "role": { "type": "string" },
         "coreCompatibility": { "type": "string" },
