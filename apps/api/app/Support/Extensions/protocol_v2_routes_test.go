@@ -70,7 +70,7 @@ func TestProtocolV2RouteFailsClosedOnResponseDrift(t *testing.T) {
 		{"wrong identity", func(response *pluginwire.RouteResponse) { response.Context.Extension.InstanceId = "replacement" }, ErrProtocolV2RouteInvalid},
 		{"invalid time", func(response *pluginwire.RouteResponse) { response.Context.ServerTime = nil }, ErrProtocolV2RouteInvalid},
 		{"wrong schema", func(response *pluginwire.RouteResponse) { response.Body.SchemaVersion = "2" }, ErrProtocolV2RouteInvalid},
-		{"stream", func(response *pluginwire.RouteResponse) { response.StreamFollows = true }, ErrProtocolV2RouteStream},
+		{"stream with body", func(response *pluginwire.RouteResponse) { response.StreamFollows = true }, ErrProtocolV2RouteInvalid},
 		{"invalid header name", func(response *pluginwire.RouteResponse) { response.Headers[0].Name = "Bad\r\nName" }, ErrProtocolV2RouteInvalid},
 		{"invalid header value", func(response *pluginwire.RouteResponse) { response.Headers[0].Values[0] = "bad\r\nvalue" }, ErrProtocolV2RouteInvalid},
 		{"typed error", func(response *pluginwire.RouteResponse) {
@@ -96,6 +96,22 @@ func TestProtocolV2RouteFailsClosedOnResponseDrift(t *testing.T) {
 				t.Fatalf("error = %v, want %v", err, test.want)
 			}
 		})
+	}
+}
+
+func TestProtocolV2RouteAcceptsAuthenticatedStreamPreflight(t *testing.T) {
+	client := newProtocolV2RouteTestClient(t, "runtime-1", func(_ context.Context, request *pluginwire.RouteRequest) (*pluginwire.RouteResponse, error) {
+		response := protocolV2RouteTestResponse(request, nil)
+		response.Body = nil
+		response.StreamFollows = true
+		return response, nil
+	})
+	response, err := client.InvokeRouteContext(context.Background(), protocolV2RouteTestRequest())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !response.StreamFollows || response.BodyPresent || response.StatusCode != http.StatusCreated || response.Headers.Get("X-Result") != "one" {
+		t.Fatalf("stream preflight=%#v", response)
 	}
 }
 

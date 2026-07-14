@@ -67,10 +67,11 @@ type ProtocolV2RouteRequest struct {
 }
 
 type ProtocolV2RouteResponse struct {
-	StatusCode  int
-	Headers     http.Header
-	Body        map[string]any
-	BodyPresent bool
+	StatusCode    int
+	Headers       http.Header
+	Body          map[string]any
+	BodyPresent   bool
+	StreamFollows bool
 }
 
 type protocolV2RouteContextInvoker interface {
@@ -130,14 +131,17 @@ func (c *protocolV2Client) InvokeRouteContext(parent context.Context, input Prot
 	if err := protocolV2Error(response.GetError()); err != nil {
 		return ProtocolV2RouteResponse{}, err
 	}
-	if response.GetStreamFollows() {
-		return ProtocolV2RouteResponse{}, ErrProtocolV2RouteStream
-	}
 	status := int(response.GetStatusCode())
 	if status < 100 || status > 599 {
 		return ProtocolV2RouteResponse{}, fmt.Errorf("%w: invalid response status %d", ErrProtocolV2RouteInvalid, status)
 	}
-	if input.ResponseSchema == "" {
+	if response.GetStreamFollows() && response.GetBody() != nil {
+		return ProtocolV2RouteResponse{}, fmt.Errorf("%w: streaming response cannot include a buffered body", ErrProtocolV2RouteInvalid)
+	}
+	if response.GetStreamFollows() {
+		// The declared response schema applies to the stream representation; the
+		// unary preflight authenticates status and headers only.
+	} else if input.ResponseSchema == "" {
 		if response.GetBody() != nil {
 			return ProtocolV2RouteResponse{}, fmt.Errorf("%w: undeclared response body", ErrProtocolV2RouteInvalid)
 		}
@@ -148,7 +152,10 @@ func (c *protocolV2Client) InvokeRouteContext(parent context.Context, input Prot
 	if err != nil {
 		return ProtocolV2RouteResponse{}, err
 	}
-	result := ProtocolV2RouteResponse{StatusCode: status, Headers: headers, BodyPresent: response.GetBody() != nil}
+	result := ProtocolV2RouteResponse{
+		StatusCode: status, Headers: headers, BodyPresent: response.GetBody() != nil,
+		StreamFollows: response.GetStreamFollows(),
+	}
 	if result.BodyPresent {
 		result.Body = protocolV2Values(response.GetBody())
 	}
