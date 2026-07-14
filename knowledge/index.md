@@ -4,10 +4,10 @@ This is the entry point for project memory.
 
 ## Latest Handoff
 
-- **2026-07-14 Trusted Plugin And Theme Platform V3 P5 active at 10/17 (overall 35%)**
+- **2026-07-14 Trusted Plugin And Theme Platform V3 P6 active at 10/18 (overall 41%)**
   - Decision: `knowledge/decisions/2026-07-13-trusted-plugin-theme-platform-v3.md`
   - Task book: `knowledge/plans/2026-07-13-trusted-plugin-theme-platform-v3.md`
-  - P5 handoff: `knowledge/sessions/2026-07-14-trusted-plugin-theme-platform-v3-p5-progress.md`
+  - Active handoff: `knowledge/sessions/2026-07-14-trusted-plugin-theme-platform-v3-p5-progress.md`
   - Durable progress/compaction ledger:
     `knowledge/plans/2026-07-13-trusted-plugin-theme-platform-v3-progress.md`
   - P0 catalogs and governance: `docs/extensions/v3/`
@@ -59,7 +59,7 @@ This is the entry point for project memory.
   - Preserve/export/complete removal, repeated uninstall, failure recovery,
     retry/skip/forced controls, audit retention, and exact route/job/schedule
     drain are verified; authenticated desktop/mobile browser QA is green
-  - P5 is active. Reuse the already-landed Database Registry, scoped roles,
+  - P5 is 11/17 (65%). Reuse the already-landed Database Registry, scoped roles,
     exact migration engine, and uninstall disposition instead of rebuilding them
   - P5 now has exact read-only migration preflight, cross-process migration-once
     proof, runtime connection/time budgets, stable `sforum_core_v1` views,
@@ -74,7 +74,24 @@ This is the entry point for project memory.
     desktop/390px production-component QA passed without overflow or app errors
   - P5 public product choices remain for composable database grants,
     Host-attested actor delegation, and the minimal provider-neutral entitlement
-    lifecycle; independent implementation continues
+    lifecycle; they do not block independent P6 implementation
+  - P6 is active at 10/18 (56%). All 218 core routes have stable generated
+    identities; immutable exact route snapshots, arbitrary declared paths,
+    explicit replace-provider selection/conflict UI, Safe Mode filtering, and
+    strict OpenAPI collision/reference rejection are accepted
+  - The production Fiber Dispatcher uses exact lifecycle Registry/Runtime
+    admission while pure Core routes bypass buffering. The permissioned Route
+    Inspector shares a bounded redacted trace ring with the Dispatcher
+  - Host-observed `net/http/httptrace` evidence now fences fallback: only a
+    pristine safe-method transport failure may use declared Core/not-found
+    fallback; accepted requests, partial responses, crashes, timeouts,
+    cancellation, and unsafe methods can never execute Core as a second writer
+  - Exact route schemas, executable inherited/custom/raw guards, complete route
+    action semantics, streaming transports, SEO integration, the full failure
+    matrix, and the final v1 comparison remain active P6 work
+  - P8 has a committed 23/23 Page ViewModel catalog and sealed typed theme
+    render output, but remains uncredited until production construction and
+    runtime publication are proven
 
 - **2026-07-13 Legacy Web Release/runtime frontend builds removed**
   - Decision: `knowledge/decisions/2026-07-13-remove-legacy-web-release.md`
