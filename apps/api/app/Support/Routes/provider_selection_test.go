@@ -76,6 +76,31 @@ func TestProviderSelectionAPIRejectsPersistedChoiceAfterTargetContractBump(t *te
 	}
 }
 
+func TestProviderSelectionInspectorMarksProviderContractDriftStale(t *testing.T) {
+	registry, artifact, key, request := providerSelectionTestRegistry(t)
+	store := newMemoryProviderSelectionStore()
+	api := NewProviderSelectionAPI(registry, store)
+	if _, err := api.Select(t.Context(), request); err != nil {
+		t.Fatal(err)
+	}
+	target := coreRoute(key.TargetRouteID, "POST", "/topics")
+	replacement := modifierRoute(request.ProviderRouteID, key.TargetRouteID, "/topics", extensionmanifest.RouteActionReplace, "POST", 100)
+	replacement.ContractVersion = request.ProviderRouteID + "@2"
+	if _, err := registry.Publish(Publication{
+		Core: []CoreRoute{target}, Plugins: []PluginRouteSet{{Artifact: artifact, Routes: []extensionmanifest.ManifestRoute{replacement}}},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	conflicts, err := api.Conflicts(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(conflicts) != 1 || conflicts[0].SelectionStatus != "stale" || conflicts[0].Selection == nil ||
+		conflicts[0].Selection.ProviderContractVersion != request.ProviderContractVersion {
+		t.Fatalf("provider contract drift conflicts = %#v", conflicts)
+	}
+}
+
 func TestProviderSelectionAPICASFencesSelectionResetAndInvalidation(t *testing.T) {
 	registry, _, key, request := providerSelectionTestRegistry(t)
 	store := newMemoryProviderSelectionStore()
@@ -170,6 +195,21 @@ func (s *memoryProviderSelectionStore) Selected(_ context.Context, key ProviderS
 		return ProviderSelection{}, ErrProviderSelectionNotFound
 	}
 	return value, nil
+}
+
+func (s *memoryProviderSelectionStore) Desired(_ context.Context, key ProviderSelectionKey) (ProviderSelection, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if value, ok := s.current[key]; ok {
+		return value, nil
+	}
+	for existingKey, value := range s.current {
+		if existingKey.TargetRouteID == key.TargetRouteID && existingKey.Method == key.Method &&
+			existingKey.PathSignature == key.PathSignature {
+			return value, nil
+		}
+	}
+	return ProviderSelection{}, ErrProviderSelectionNotFound
 }
 
 func (s *memoryProviderSelectionStore) Select(_ context.Context, request SelectProviderRequest) (ProviderSelection, error) {

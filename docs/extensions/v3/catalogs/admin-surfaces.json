@@ -153,6 +153,23 @@
     "exporter": false
   },
   {
+    "id": "core.admin.page.extensions_route_providers",
+    "source": "apps/web/app/pages/admin/extensions/route-providers.vue",
+    "navigation": true,
+    "dashboard": false,
+    "list": true,
+    "columns": false,
+    "filters": true,
+    "rowActions": false,
+    "bulkActions": false,
+    "forms": true,
+    "notices": true,
+    "editorPanels": false,
+    "detailRegions": false,
+    "importer": true,
+    "exporter": false
+  },
+  {
     "id": "core.admin.page.extensions_settings",
     "source": "apps/web/app/pages/admin/extensions/settings.vue",
     "navigation": true,

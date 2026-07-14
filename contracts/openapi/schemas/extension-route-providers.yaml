@@ -1,0 +1,182 @@
+RouteProviderSelectionKey:
+  type: object
+  additionalProperties: false
+  required: [targetRouteId, targetContractVersion, method, pathSignature]
+  properties:
+    targetRouteId: { type: string }
+    targetContractVersion:
+      type: string
+      pattern: '^[a-z0-9][a-z0-9._-]*@[1-9][0-9]*$'
+    method: { type: string }
+    pathSignature: { type: string, maxLength: 1024 }
+RouteProviderArtifact:
+  type: object
+  additionalProperties: false
+  required: [extensionId, extensionVersion, packageDigest, runtimeInstanceId]
+  properties:
+    extensionId: { type: string }
+    extensionVersion: { type: string }
+    packageDigest: { type: string, pattern: '^[0-9a-f]{64}$' }
+    runtimeInstanceId: { type: string }
+RouteProviderCandidate:
+  type: object
+  additionalProperties: false
+  required:
+  - routeId
+  - contractVersion
+  - action
+  - method
+  - path
+  - pathSignature
+  - priority
+  - providerKind
+  - guard
+  - mode
+  - fallback
+  - timeoutMs
+  properties:
+    routeId: { type: string }
+    contractVersion: { type: string }
+    action: { type: string, enum: [add, replace] }
+    targetRouteId: { type: string }
+    method: { type: string }
+    path: { type: string }
+    pathSignature: { type: string }
+    priority: { type: integer }
+    providerKind: { type: string, enum: [core, plugin] }
+    artifact:
+      "$ref": "#/RouteProviderArtifact"
+    guard:
+      type: string
+      description: Inherited/core/custom/raw guard declaration. Custom and raw guards require high-risk review.
+    permission: { type: string }
+    handler: { type: string }
+    destination: { type: string }
+    mode: { type: string, enum: [http, sse, websocket, stream, multipart] }
+    fallback: { type: string, enum: ['', closed, not_found, readonly_core] }
+    requestSchema: { type: string }
+    responseSchema: { type: string }
+    timeoutMs: { type: integer, minimum: 0 }
+RouteProviderSelection:
+  type: object
+  additionalProperties: false
+  required:
+  - key
+  - routeId
+  - contractVersion
+  - extensionId
+  - extensionVersionId
+  - extensionVersion
+  - packageDigest
+  - selectedByUserId
+  - selectionAuditEventId
+  - revision
+  - selectedAt
+  - updatedAt
+  properties:
+    key: { "$ref": "#/RouteProviderSelectionKey" }
+    routeId: { type: string }
+    contractVersion: { type: string }
+    extensionId: { type: string }
+    extensionVersionId: { type: integer, format: int64, minimum: 1 }
+    extensionVersion: { type: string }
+    packageDigest: { type: string, pattern: '^[0-9a-f]{64}$' }
+    selectedByUserId: { type: integer, format: int64, minimum: 0 }
+    selectionAuditEventId: { type: integer, format: int64, minimum: 1 }
+    revision: { type: integer, format: int64, minimum: 1 }
+    selectedAt: { type: string, format: date-time }
+    updatedAt: { type: string, format: date-time }
+RouteProviderConflict:
+  type: object
+  additionalProperties: false
+  required: [key, candidates, selectionStatus]
+  properties:
+    key: { "$ref": "#/RouteProviderSelectionKey" }
+    candidates:
+      type: array
+      minItems: 2
+      items: { "$ref": "#/RouteProviderCandidate" }
+    selectionStatus: { type: string, enum: [selected, unselected, stale] }
+    selection: { "$ref": "#/RouteProviderSelection" }
+RouteProviderSelectionEvent:
+  type: object
+  additionalProperties: false
+  required: [id, key, action, auditEventId, selectionRevision, createdAt]
+  properties:
+    id: { type: integer, format: int64, minimum: 1 }
+    key: { "$ref": "#/RouteProviderSelectionKey" }
+    action: { type: string, enum: [select, reset, invalidate] }
+    previousProvider: { "$ref": "#/RouteProviderSelection" }
+    selectedProvider: { "$ref": "#/RouteProviderSelection" }
+    actorUserId: { type: integer, format: int64, minimum: 0 }
+    auditEventId: { type: integer, format: int64, minimum: 1 }
+    reasonCode: { type: string }
+    selectionRevision: { type: integer, format: int64, minimum: 1 }
+    createdAt: { type: string, format: date-time }
+RouteProviderSelectInput:
+  type: object
+  additionalProperties: false
+  required: [targetRouteId, targetContractVersion, method, pathSignature, providerRouteId, providerContractVersion, providerArtifact, expectedRevision]
+  properties:
+    targetRouteId: { type: string }
+    targetContractVersion: { type: string }
+    method: { type: string }
+    pathSignature: { type: string, maxLength: 1024 }
+    providerRouteId: { type: string }
+    providerContractVersion: { type: string }
+    providerArtifact: { "$ref": "#/RouteProviderArtifact" }
+    expectedRevision: { type: integer, format: int64, minimum: 0 }
+RouteProviderResetInput:
+  type: object
+  additionalProperties: false
+  required: [targetRouteId, targetContractVersion, method, pathSignature, expectedRevision]
+  properties:
+    targetRouteId: { type: string }
+    targetContractVersion: { type: string }
+    method: { type: string }
+    pathSignature: { type: string, maxLength: 1024 }
+    expectedRevision: { type: integer, format: int64, minimum: 1 }
+    reasonCode: { type: string, maxLength: 128 }
+RouteProviderResetResult:
+  type: object
+  additionalProperties: false
+  required: [reset, key]
+  properties:
+    reset: { type: boolean, enum: [true] }
+    key: { "$ref": "#/RouteProviderSelectionKey" }
+ApiResponseRouteProviderConflictList:
+  type: object
+  required: [code, message, data]
+  additionalProperties: false
+  properties:
+    code: { type: integer }
+    message: { type: string }
+    data:
+      type: array
+      items: { "$ref": "#/RouteProviderConflict" }
+ApiResponseRouteProviderSelection:
+  type: object
+  required: [code, message, data]
+  additionalProperties: false
+  properties:
+    code: { type: integer }
+    message: { type: string }
+    data: { "$ref": "#/RouteProviderSelection" }
+ApiResponseRouteProviderSelectionEventList:
+  type: object
+  required: [code, message, data]
+  additionalProperties: false
+  properties:
+    code: { type: integer }
+    message: { type: string }
+    data:
+      type: array
+      items: { "$ref": "#/RouteProviderSelectionEvent" }
+ApiResponseRouteProviderReset:
+  type: object
+  required: [code, message, data]
+  additionalProperties: false
+  properties:
+    code: { type: integer }
+    message: { type: string }
+    data: { "$ref": "#/RouteProviderResetResult" }

@@ -65,19 +65,27 @@ type InvalidateProviderRequest struct {
 }
 
 type ProviderSelectionEvent struct {
-	ID                int64
-	Key               ProviderSelectionKey
-	Action            string
-	PreviousProvider  *ProviderSelection
-	SelectedProvider  *ProviderSelection
-	ActorUserID       int64
-	AuditEventID      int64
-	ReasonCode        string
-	SelectionRevision int64
-	CreatedAt         time.Time
+	ID                int64                `json:"id"`
+	Key               ProviderSelectionKey `json:"key"`
+	Action            string               `json:"action"`
+	PreviousProvider  *ProviderSelection   `json:"previousProvider,omitempty"`
+	SelectedProvider  *ProviderSelection   `json:"selectedProvider,omitempty"`
+	ActorUserID       int64                `json:"actorUserId,omitempty"`
+	AuditEventID      int64                `json:"auditEventId"`
+	ReasonCode        string               `json:"reasonCode,omitempty"`
+	SelectionRevision int64                `json:"selectionRevision"`
+	CreatedAt         time.Time            `json:"createdAt"`
+}
+
+type ProviderSelectionConflict struct {
+	Conflict        Conflict
+	Key             ProviderSelectionKey
+	Selection       *ProviderSelection
+	SelectionStatus string
 }
 
 type ProviderSelectionStore interface {
+	Desired(context.Context, ProviderSelectionKey) (ProviderSelection, error)
 	Selected(context.Context, ProviderSelectionKey) (ProviderSelection, error)
 	Select(context.Context, SelectProviderRequest) (ProviderSelection, error)
 	Reset(context.Context, ResetProviderRequest) error
@@ -127,6 +135,70 @@ func (a *ProviderSelectionAPI) Reset(ctx context.Context, request ResetProviderR
 		return ErrProviderSelectionInvalid
 	}
 	return a.store.Reset(ctx, request)
+}
+
+func (a *ProviderSelectionAPI) Current(ctx context.Context, key ProviderSelectionKey) (ProviderSelection, error) {
+	if a == nil || a.store == nil || validateProviderSelectionKey(key) != nil {
+		return ProviderSelection{}, ErrProviderSelectionInvalid
+	}
+	return a.store.Desired(ctx, key)
+}
+
+func (a *ProviderSelectionAPI) Events(ctx context.Context, key ProviderSelectionKey, limit int) ([]ProviderSelectionEvent, error) {
+	if a == nil || a.store == nil || validateProviderSelectionKey(key) != nil {
+		return nil, ErrProviderSelectionInvalid
+	}
+	return a.store.ListEvents(ctx, key, limit)
+}
+
+func (a *ProviderSelectionAPI) Conflicts(ctx context.Context) ([]ProviderSelectionConflict, error) {
+	if a == nil || a.registry == nil || a.store == nil {
+		return nil, ErrProviderSelectionInvalid
+	}
+	snapshot := a.registry.Snapshot()
+	result := make([]ProviderSelectionConflict, 0)
+	for _, conflict := range snapshot.Conflicts {
+		if conflict.Kind != ConflictProviderSelection {
+			continue
+		}
+		key, err := providerSelectionKeyFromConflict(conflict)
+		if err != nil {
+			return nil, err
+		}
+		item := ProviderSelectionConflict{Conflict: conflict, Key: key, SelectionStatus: "unselected"}
+		selection, err := a.store.Desired(ctx, key)
+		switch {
+		case err == nil:
+			item.Selection = &selection
+			if live, liveErr := a.store.Selected(ctx, key); liveErr == nil && providerSelectionMatchesConflict(live, conflict) {
+				item.SelectionStatus = "selected"
+			} else if liveErr == nil || errors.Is(liveErr, ErrProviderSelectionStale) || errors.Is(liveErr, ErrProviderSelectionNotFound) {
+				item.SelectionStatus = "stale"
+			} else {
+				return nil, liveErr
+			}
+		case errors.Is(err, ErrProviderSelectionNotFound):
+		default:
+			return nil, err
+		}
+		result = append(result, item)
+	}
+	return result, nil
+}
+
+func providerSelectionMatchesConflict(selection ProviderSelection, conflict Conflict) bool {
+	for _, candidate := range conflict.Candidates {
+		if candidate.Action == extensionmanifest.RouteActionReplace &&
+			candidate.ID == selection.ProviderRouteID &&
+			candidate.ContractVersion == selection.ProviderContractVersion &&
+			candidate.Provider.Kind == ProviderPlugin &&
+			candidate.Provider.Artifact.ExtensionID == selection.ProviderExtensionID &&
+			candidate.Provider.Artifact.ExtensionVersion == selection.ProviderExtensionVersion &&
+			candidate.Provider.Artifact.PackageDigest == selection.ProviderPackageDigest {
+			return true
+		}
+	}
+	return false
 }
 
 func (a *ProviderSelectionAPI) InvalidateExtension(ctx context.Context, request InvalidateProviderRequest) (int64, error) {
@@ -254,6 +326,24 @@ func providerSelectionKeyForMatch(snapshot Snapshot, match Match, method, reques
 		}
 	}
 	return ProviderSelectionKey{}, ErrAmbiguousRoute
+}
+
+func providerSelectionKeyFromConflict(conflict Conflict) (ProviderSelectionKey, error) {
+	if conflict.Kind != ConflictProviderSelection || !validMethod(conflict.Method) {
+		return ProviderSelectionKey{}, ErrProviderSelectionInvalid
+	}
+	for _, route := range conflict.Candidates {
+		if route.ID == conflict.RouteID && addressableAction(route.Action) {
+			key := ProviderSelectionKey{
+				TargetRouteID: route.ID, TargetContractVersion: route.ContractVersion,
+				Method: conflict.Method, PathSignature: route.PathSignature,
+			}
+			if validateProviderSelectionKey(key) == nil {
+				return key, nil
+			}
+		}
+	}
+	return ProviderSelectionKey{}, ErrProviderSelectionInvalid
 }
 
 func selectedMatch(snapshot Snapshot, ambiguous Match, selection ProviderSelection, method, requestPath string) (Match, error) {

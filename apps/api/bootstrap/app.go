@@ -478,7 +478,8 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 	seoProvider := providers.NewSEOProvider(pool, optionsService)
 	databaseProvider := providers.NewDatabaseProvider(databaseStore, identityStore, authSessions)
 	jobsProvider := providers.NewJobsProvider(pool, jobClient, identityStore, authSessions)
-	extensionsProvider := providers.NewExtensionsProviderWithService(extensionService, identityStore, authSessions, extensionRuntime, frontendService)
+	extensionsProvider := providers.NewExtensionsProviderWithService(extensionService, identityStore, authSessions, extensionRuntime, frontendService).
+		WithRouteProviderSelection(lifecycleStack.RouteProviders, auditWriter)
 	webhooksProvider := providers.NewWebhooksProvider(webhookService, identityStore, authSessions)
 	// PageDataLoader 网关：仅从运行中插件 RouteTarget 拉数据（严格 loopback）。
 	pageLoaderGateway := pages.NewLoaderGateway(

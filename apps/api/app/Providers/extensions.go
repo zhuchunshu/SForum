@@ -11,8 +11,10 @@ import (
 	extensionscontroller "github.com/zhuchunshu/sforum/apps/api/app/Http/Controllers/Extensions"
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
+	"github.com/zhuchunshu/sforum/apps/api/app/Support/Audit"
 	authsession "github.com/zhuchunshu/sforum/apps/api/app/Support/AuthSession"
 	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
+	routes "github.com/zhuchunshu/sforum/apps/api/app/Support/Routes"
 )
 
 type ExtensionsProvider struct {
@@ -60,6 +62,16 @@ func NewExtensionsProviderWithService(
 
 func (p *ExtensionsProvider) RegisterRoutes(api fiber.Router) {
 	p.controller.RegisterRoutes(api)
+}
+
+func (p *ExtensionsProvider) WithRouteProviderSelection(
+	api *routes.ProviderSelectionAPI,
+	auditor audit.IDWriter,
+) *ExtensionsProvider {
+	if p != nil && p.controller != nil {
+		p.controller.WithRouteProviderSelection(api, auditor)
+	}
+	return p
 }
 
 type extensionRouteGateway struct {

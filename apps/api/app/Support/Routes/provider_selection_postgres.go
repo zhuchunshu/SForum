@@ -20,6 +20,19 @@ func NewPostgresProviderSelectionStore(pool *pgxpool.Pool) *PostgresProviderSele
 	return &PostgresProviderSelectionStore{pool: pool}
 }
 
+func (s *PostgresProviderSelectionStore) Desired(ctx context.Context, key ProviderSelectionKey) (ProviderSelection, error) {
+	if s == nil || s.pool == nil || validateProviderSelectionKey(key) != nil {
+		return ProviderSelection{}, ErrProviderSelectionInvalid
+	}
+	selection, err := scanProviderSelection(s.pool.QueryRow(ctx, providerSelectionSQL+`
+		WHERE target_route_id=$1 AND method=$2 AND path_signature=$3
+	`, key.TargetRouteID, key.Method, key.PathSignature))
+	if errors.Is(err, pgx.ErrNoRows) {
+		return ProviderSelection{}, ErrProviderSelectionNotFound
+	}
+	return selection, err
+}
+
 func (s *PostgresProviderSelectionStore) Selected(ctx context.Context, key ProviderSelectionKey) (ProviderSelection, error) {
 	if s == nil || s.pool == nil || validateProviderSelectionKey(key) != nil {
 		return ProviderSelection{}, ErrProviderSelectionInvalid

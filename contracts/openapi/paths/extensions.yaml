@@ -1131,6 +1131,103 @@ adminExtensionFrontendTrust:
         "$ref": "../components/responses.yaml#/NotFound"
       '409':
         "$ref": "../components/responses.yaml#/Conflict"
+adminExtensionRouteProviderConflicts:
+  get:
+    summary: Inspect replace-provider conflicts and durable desired selections
+    operationId: listAdminExtensionRouteProviderConflicts
+    description: Requires extension.view or the legacy extension.manage permission. Stale desired bindings remain visible with their revision for explicit CAS reset.
+    responses:
+      '200':
+        description: Replace-provider conflicts from the current immutable Route Registry snapshot.
+        content:
+          application/json:
+            schema: { "$ref": "../schemas/extension-route-providers.yaml#/ApiResponseRouteProviderConflictList" }
+      '401': { "$ref": "../components/responses.yaml#/Unauthorized" }
+      '403': { "$ref": "../components/responses.yaml#/Forbidden" }
+      '503': { "$ref": "../components/responses.yaml#/ServiceUnavailable" }
+adminExtensionRouteProviderSelection:
+  get:
+    summary: Inspect the durable desired route-provider selection
+    operationId: getAdminExtensionRouteProviderSelection
+    description: Returns the stored binding and revision even when its target contract or exact provider is stale. Runtime dispatch never uses this management-only desired read.
+    parameters:
+    - { name: targetRouteId, in: query, required: true, schema: { type: string } }
+    - { name: targetContractVersion, in: query, required: true, schema: { type: string } }
+    - { name: method, in: query, required: true, schema: { type: string } }
+    - { name: pathSignature, in: query, required: true, schema: { type: string } }
+    responses:
+      '200':
+        description: Durable desired selection.
+        content:
+          application/json:
+            schema: { "$ref": "../schemas/extension-route-providers.yaml#/ApiResponseRouteProviderSelection" }
+      '401': { "$ref": "../components/responses.yaml#/Unauthorized" }
+      '403': { "$ref": "../components/responses.yaml#/Forbidden" }
+      '404': { "$ref": "../components/responses.yaml#/NotFound" }
+      '422': { "$ref": "../components/responses.yaml#/UnprocessableEntity" }
+      '503': { "$ref": "../components/responses.yaml#/ServiceUnavailable" }
+  post:
+    summary: Select an exact replace provider
+    operationId: selectAdminExtensionRouteProvider
+    description: Active super_admin only. The Host appends an attributable audit event before exact-snapshot validation and revision-CAS persistence. Priority never selects a replacement.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { "$ref": "../schemas/extension-route-providers.yaml#/RouteProviderSelectInput" }
+    responses:
+      '200':
+        description: Exact desired provider selected.
+        content:
+          application/json:
+            schema: { "$ref": "../schemas/extension-route-providers.yaml#/ApiResponseRouteProviderSelection" }
+      '401': { "$ref": "../components/responses.yaml#/Unauthorized" }
+      '403': { "$ref": "../components/responses.yaml#/Forbidden" }
+      '409': { "$ref": "../components/responses.yaml#/Conflict" }
+      '422': { "$ref": "../components/responses.yaml#/UnprocessableEntity" }
+      '503': { "$ref": "../components/responses.yaml#/ServiceUnavailable" }
+adminExtensionRouteProviderEvents:
+  get:
+    summary: List append-only route-provider selection events
+    operationId: listAdminExtensionRouteProviderEvents
+    parameters:
+    - { name: targetRouteId, in: query, required: true, schema: { type: string } }
+    - { name: targetContractVersion, in: query, required: true, schema: { type: string } }
+    - { name: method, in: query, required: true, schema: { type: string } }
+    - { name: pathSignature, in: query, required: true, schema: { type: string } }
+    - { name: limit, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 100, default: 50 } }
+    responses:
+      '200':
+        description: Select, reset, and lifecycle invalidation evidence.
+        content:
+          application/json:
+            schema: { "$ref": "../schemas/extension-route-providers.yaml#/ApiResponseRouteProviderSelectionEventList" }
+      '401': { "$ref": "../components/responses.yaml#/Unauthorized" }
+      '403': { "$ref": "../components/responses.yaml#/Forbidden" }
+      '422': { "$ref": "../components/responses.yaml#/UnprocessableEntity" }
+      '503': { "$ref": "../components/responses.yaml#/ServiceUnavailable" }
+adminExtensionRouteProviderReset:
+  post:
+    summary: Reset a durable desired route-provider selection
+    operationId: resetAdminExtensionRouteProvider
+    description: Active super_admin only. Uses the stored key and revision returned by the management inspection API, including for stale bindings.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { "$ref": "../schemas/extension-route-providers.yaml#/RouteProviderResetInput" }
+    responses:
+      '200':
+        description: Desired selection reset; runtime resolution remains fail closed until a new provider is selected.
+        content:
+          application/json:
+            schema: { "$ref": "../schemas/extension-route-providers.yaml#/ApiResponseRouteProviderReset" }
+      '401': { "$ref": "../components/responses.yaml#/Unauthorized" }
+      '403': { "$ref": "../components/responses.yaml#/Forbidden" }
+      '404': { "$ref": "../components/responses.yaml#/NotFound" }
+      '409': { "$ref": "../components/responses.yaml#/Conflict" }
+      '422': { "$ref": "../components/responses.yaml#/UnprocessableEntity" }
+      '503': { "$ref": "../components/responses.yaml#/ServiceUnavailable" }
 extensionPluginRoute:
   parameters:
   - "$ref": "../components/parameters.yaml#/ExtensionID"

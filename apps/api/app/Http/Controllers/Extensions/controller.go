@@ -11,17 +11,21 @@ import (
 	apphttp "github.com/zhuchunshu/sforum/apps/api/app/Http"
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
+	"github.com/zhuchunshu/sforum/apps/api/app/Support/Audit"
 	authsession "github.com/zhuchunshu/sforum/apps/api/app/Support/AuthSession"
+	routes "github.com/zhuchunshu/sforum/apps/api/app/Support/Routes"
 )
 
 const maxUploadedArchiveBytes = 60 * 1024 * 1024
 
 type Controller struct {
-	service  *extensions.Service
-	frontend TrustedFrontendService
-	users    identity.ActorStore
-	sessions *authsession.Manager
-	gateway  RouteGateway
+	service        *extensions.Service
+	frontend       TrustedFrontendService
+	users          identity.ActorStore
+	sessions       *authsession.Manager
+	gateway        RouteGateway
+	routeProviders *routes.ProviderSelectionAPI
+	routeAuditor   audit.IDWriter
 }
 
 type TrustedFrontendService interface {
@@ -67,6 +71,15 @@ func NewControllerWithGateway(service *extensions.Service, users identity.ActorS
 
 func (h *Controller) WithTrustedRuntime(frontend TrustedFrontendService) *Controller {
 	h.frontend = frontend
+	return h
+}
+
+func (h *Controller) WithRouteProviderSelection(
+	api *routes.ProviderSelectionAPI,
+	auditor audit.IDWriter,
+) *Controller {
+	h.routeProviders = api
+	h.routeAuditor = auditor
 	return h
 }
 

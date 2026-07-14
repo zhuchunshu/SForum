@@ -44,6 +44,9 @@ const (
 	ActionPageRestoreCore    = "pages.restore_core"
 	ActionPageConflictSelect = "pages.conflict_select"
 
+	ActionRouteProviderSelect = "routes.provider_select"
+	ActionRouteProviderReset  = "routes.provider_reset"
+
 	// RecommendedRetentionDays 审计日志推荐保留天数（清理 job 默认）。
 	RecommendedRetentionDays = 90
 )

@@ -35,10 +35,10 @@ const (
 
 // PluginArtifact pins every contribution to its immutable package and exact runtime instance.
 type PluginArtifact struct {
-	ExtensionID       string
-	ExtensionVersion  string
-	PackageDigest     string
-	RuntimeInstanceID string
+	ExtensionID       string `json:"extensionId"`
+	ExtensionVersion  string `json:"extensionVersion"`
+	PackageDigest     string `json:"packageDigest"`
+	RuntimeInstanceID string `json:"runtimeInstanceId"`
 }
 
 type Provider struct {

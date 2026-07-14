@@ -326,6 +326,14 @@ paths:
     "$ref": "./openapi/paths/extensions.yaml#/adminExtensionContributionPoints"
   "/admin/extensions/contributions":
     "$ref": "./openapi/paths/extensions.yaml#/adminExtensionContributions"
+  "/admin/extensions/route-providers/conflicts":
+    "$ref": "./openapi/paths/extensions.yaml#/adminExtensionRouteProviderConflicts"
+  "/admin/extensions/route-providers/selection":
+    "$ref": "./openapi/paths/extensions.yaml#/adminExtensionRouteProviderSelection"
+  "/admin/extensions/route-providers/events":
+    "$ref": "./openapi/paths/extensions.yaml#/adminExtensionRouteProviderEvents"
+  "/admin/extensions/route-providers/selection/reset":
+    "$ref": "./openapi/paths/extensions.yaml#/adminExtensionRouteProviderReset"
   "/admin/extensions/{extensionID}":
     "$ref": "./openapi/paths/extensions.yaml#/adminExtensionUninstall"
   "/admin/extensions/{extensionID}/enable":

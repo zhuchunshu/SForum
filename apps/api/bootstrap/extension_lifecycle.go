@@ -48,6 +48,7 @@ type productionLifecycleStack struct {
 	JobCoordinator     *hostapi.PluginJobLifecycleCoordinator
 	Jobs               *extensionsruntime.PostgresLifecycleBoundaryJobs
 	RouteRegistry      *routes.Registry
+	RouteProviders     *routes.ProviderSelectionAPI
 	RegistryRepository *extensionsruntime.PostgresLifecycleRegistryPublicationRepository
 	Registries         *extensionsruntime.PostgresLifecycleBoundaryRegistries
 	State              *extensionsruntime.PostgresLifecycleBoundaryState
@@ -128,6 +129,10 @@ func newProductionLifecycleStack(config productionLifecycleStackConfig) (*produc
 	}); err != nil {
 		return nil, fmt.Errorf("%w: publish core route catalog: %v", errProductionLifecycleDependency, err)
 	}
+	routeProviders := routes.NewProviderSelectionAPI(
+		routeRegistry,
+		routes.NewPostgresProviderSelectionStore(config.Pool),
+	)
 	registryRepository := extensionsruntime.NewPostgresLifecycleRegistryPublicationRepository(config.Pool)
 	registries := extensionsruntime.NewPostgresLifecycleBoundaryRegistries(
 		extensionsruntime.LifecycleRegistryBoundaryConfig{
@@ -155,7 +160,8 @@ func newProductionLifecycleStack(config productionLifecycleStackConfig) (*produc
 		Preflight: preflight, StaticPreflight: staticPreflight,
 		MigrationEngine: config.MigrationEngine, Migrations: migrations,
 		Schedules: schedules, JobStore: jobStore, JobCoordinator: jobCoordinator, Jobs: jobs,
-		RouteRegistry: routeRegistry, RegistryRepository: registryRepository, Registries: registries,
+		RouteRegistry: routeRegistry, RouteProviders: routeProviders,
+		RegistryRepository: registryRepository, Registries: registries,
 		State: state, PublicationJournal: journal, Cleanup: cleanup,
 		Database: config.Database, CleanupPurger: cleanupPurger,
 		CleanupFinalizer: cleanupFinalizer, Boundary: boundary,
@@ -165,12 +171,13 @@ func newProductionLifecycleStack(config productionLifecycleStackConfig) (*produc
 
 func (s *productionLifecycleStack) bindService(service *extensions.Service) error {
 	if s == nil || service == nil || s.Coordinator == nil || s.StaticPreflight == nil ||
-		s.Repository == nil || s.CleanupFinalizer == nil {
+		s.Repository == nil || s.CleanupFinalizer == nil || s.RouteProviders == nil {
 		return errProductionLifecycleDependency
 	}
 	extensions.WithLifecycleCoordinator(s.Coordinator, s.StaticPreflight, s.Repository)(service)
 	extensions.WithLifecycleInspectionRepository(s.Repository)(service)
 	extensions.WithLifecycleCleanupFinalizer(adaptLifecycleCleanupFinalizer(s.CleanupFinalizer))(service)
+	extensions.WithRouteProviderSelectionInvalidator(s.RouteProviders)(service)
 	return nil
 }
 

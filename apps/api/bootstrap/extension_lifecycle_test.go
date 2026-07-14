@@ -103,6 +103,7 @@ func TestProductionLifecycleStackConstructsEveryRequiredDependency(t *testing.T)
 		"schedules": stack.Schedules != nil,
 		"job store": stack.JobStore != nil, "job coordinator": stack.JobCoordinator != nil,
 		"jobs": stack.Jobs != nil, "route registry": stack.RouteRegistry != nil,
+		"route providers":     stack.RouteProviders != nil,
 		"registry repository": stack.RegistryRepository != nil, "registries": stack.Registries != nil,
 		"state": stack.State != nil, "journal": stack.PublicationJournal != nil,
 		"cleanup": stack.Cleanup != nil, "cleanup purger": stack.CleanupPurger != nil,
@@ -119,7 +120,7 @@ func TestProductionLifecycleStackConstructsEveryRequiredDependency(t *testing.T)
 		t.Fatal("coordinator stack did not retain the exact API runtime Manager")
 	}
 	snapshot := stack.RouteRegistry.Snapshot()
-	if snapshot.Revision != 1 || snapshot.SafeMode || len(snapshot.Routes) != 212 || len(snapshot.Conflicts) != 0 {
+	if snapshot.Revision != 1 || snapshot.SafeMode || len(snapshot.Routes) != 217 || len(snapshot.Conflicts) != 0 {
 		t.Fatalf("production core route snapshot = revision %d safe=%t routes=%d conflicts=%#v",
 			snapshot.Revision, snapshot.SafeMode, len(snapshot.Routes), snapshot.Conflicts)
 	}
@@ -163,7 +164,7 @@ func TestProductionLifecycleStackSafeModeKeepsHostRoutesAndSkipsThirdParty(t *te
 	if err != nil {
 		t.Fatalf("safe-mode route publication: %v", err)
 	}
-	if !snapshot.SafeMode || len(snapshot.Routes) != 212 || len(stack.RouteRegistry.PublicationSnapshot().Publication.Plugins) != 0 {
+	if !snapshot.SafeMode || len(snapshot.Routes) != 217 || len(stack.RouteRegistry.PublicationSnapshot().Publication.Plugins) != 0 {
 		t.Fatalf("safe-mode snapshot = safe %t routes %d publication %#v",
 			snapshot.SafeMode, len(snapshot.Routes), stack.RouteRegistry.PublicationSnapshot().Publication)
 	}

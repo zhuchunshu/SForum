@@ -98,6 +98,10 @@ func TestPostgresProviderSelectionExactArtifactCASAuditAndInvalidation(t *testin
 	if _, err := store.Selected(ctx, changedContractKey); !errors.Is(err, ErrProviderSelectionStale) {
 		t.Fatalf("changed target contract error = %v", err)
 	}
+	desired, err := store.Desired(ctx, changedContractKey)
+	if err != nil || desired.Revision != 1 || desired.Key.TargetContractVersion != key.TargetContractVersion {
+		t.Fatalf("stale durable selection = %#v, %v", desired, err)
+	}
 	if _, err := api.Select(ctx, request); !errors.Is(err, ErrProviderSelectionRevisionConflict) {
 		t.Fatalf("stale select CAS error = %v", err)
 	}
