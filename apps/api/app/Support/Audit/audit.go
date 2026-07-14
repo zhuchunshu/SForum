@@ -59,6 +59,14 @@ type Writer interface {
 	Append(ctx context.Context, event Event) error
 }
 
+// IDWriter is the durable audit boundary used when another ledger must retain
+// an immutable correlation to the audit row. Existing best-effort callers can
+// continue to depend on Writer only.
+type IDWriter interface {
+	Writer
+	AppendReturningID(ctx context.Context, event Event) (int64, error)
+}
+
 // Cleaner 清理过期审计行。
 type Cleaner interface {
 	DeleteOlderThan(ctx context.Context, keepDays int) (int64, error)
@@ -74,11 +82,16 @@ func NewPostgresWriter(pool *pgxpool.Pool) *PostgresWriter {
 }
 
 func (w *PostgresWriter) Append(ctx context.Context, event Event) error {
+	_, err := w.AppendReturningID(ctx, event)
+	return err
+}
+
+func (w *PostgresWriter) AppendReturningID(ctx context.Context, event Event) (int64, error) {
 	if w == nil || w.Pool == nil {
-		return fmt.Errorf("audit writer is not configured")
+		return 0, fmt.Errorf("audit writer is not configured")
 	}
 	if event.Action == "" {
-		return fmt.Errorf("audit action is required")
+		return 0, fmt.Errorf("audit action is required")
 	}
 	metadata, err := json.Marshal(event.Metadata)
 	if err != nil {
@@ -97,14 +110,19 @@ func (w *PostgresWriter) Append(ctx context.Context, event Event) error {
 		target = event.TargetUserID
 	}
 
-	_, err = w.Pool.Exec(ctx, `
+	var id int64
+	err = w.Pool.QueryRow(ctx, `
 		INSERT INTO audit_events (actor_user_id, target_user_id, action, metadata)
 		VALUES ($1, $2, $3, $4::jsonb)
-	`, actor, target, event.Action, string(metadata))
+		RETURNING id
+	`, actor, target, event.Action, string(metadata)).Scan(&id)
 	if err != nil {
-		return fmt.Errorf("insert audit event: %w", err)
+		return 0, fmt.Errorf("insert audit event: %w", err)
 	}
-	return nil
+	if id <= 0 {
+		return 0, fmt.Errorf("insert audit event returned an invalid id")
+	}
+	return id, nil
 }
 
 // DeleteOlderThan 删除 created_at 早于 keepDays 的审计行。keepDays<=0 时使用推荐值。
@@ -128,6 +146,8 @@ type NoopWriter struct{}
 
 func (NoopWriter) Append(context.Context, Event) error { return nil }
 
+func (NoopWriter) AppendReturningID(context.Context, Event) (int64, error) { return 0, nil }
+
 // Ensure 返回可用 Writer。
 func Ensure(w Writer) Writer {
 	if w == nil {
@@ -135,3 +155,6 @@ func Ensure(w Writer) Writer {
 	}
 	return w
 }
+
+var _ IDWriter = (*PostgresWriter)(nil)
+var _ IDWriter = NoopWriter{}
