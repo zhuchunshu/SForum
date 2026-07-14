@@ -402,6 +402,25 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 	} else if err := extensionService.RestoreActiveThemeRegistry(ctx); err != nil {
 		logger.Warn("restore active theme page registry failed", "error", err)
 	}
+	var themeRuntimeWatcher *extensions.ThemeRuntimeWatcher
+	if !cfg.SafeMode {
+		themeRuntimeWatcher, err = newAPIThemeRuntimeWatcher(extensionStore, extensionService, logger)
+		if err == nil {
+			err = themeRuntimeWatcher.Initialize(ctx)
+		}
+		if err != nil {
+			if stopErr := supportjobs.Stop(ctx, jobClient); stopErr != nil {
+				logger.Warn("job dispatcher stop failed", "error", stopErr)
+			}
+			extensionRuntime.Close(ctx)
+			sharedRedisClient.Close()
+			if closeErr := redisStorage.Close(); closeErr != nil {
+				logger.Warn("redis session storage close failed", "error", closeErr)
+			}
+			pool.Close()
+			return nil, fmt.Errorf("initialize theme runtime watcher failed: %w", err)
+		}
+	}
 	legacyMailValues, err := optionsService.InternalValues(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("load legacy mail options: %w", err)
@@ -656,11 +675,24 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 	go optionsService.RunForumReadPolicyRefresh(forumReadPolicyCtx, options.RecommendedForumReadPolicyRefreshInterval)
 	extensionGuardPolicyCtx, extensionGuardPolicyCancel := context.WithCancel(context.Background())
 	go extensionGuardPolicy.RunRefresh(extensionGuardPolicyCtx, extensions.RecommendedGuardPolicyRefreshInterval)
+	themeRuntimeWatcherCtx, themeRuntimeWatcherCancel := context.WithCancel(context.Background())
+	var themeRuntimeWatcherWait sync.WaitGroup
+	if themeRuntimeWatcher != nil {
+		themeRuntimeWatcherWait.Add(1)
+		go func() {
+			defer themeRuntimeWatcherWait.Done()
+			if err := themeRuntimeWatcher.Run(themeRuntimeWatcherCtx); err != nil {
+				logger.Error("theme runtime watcher stopped", "error", err)
+			}
+		}()
+	}
 
 	return &API{
 		App:  app,
 		Addr: apiAddress(cfg),
 		close: func() {
+			themeRuntimeWatcherCancel()
+			themeRuntimeWatcherWait.Wait()
 			extensionGuardPolicyCancel()
 			forumReadPolicyCancel()
 			heartbeatCancel()
