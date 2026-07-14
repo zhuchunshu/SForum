@@ -292,6 +292,7 @@
       "extensionSettings": "Extension settings",
       "extensionEvents": "Event log",
       "extensionContributions": "Extension points",
+      "extensionRouteProviders": "Route providers",
       "forumHome": "Forum home",
       "forum": "Forum",
       "forumCategories": "Categories",
@@ -998,6 +999,56 @@
           "guest": "Guests only",
           "moderation": "Moderation",
           "permission": "Permission"
+        }
+      },
+      "routeProviders": {
+        "metaTitle": "Route providers",
+        "title": "Route providers",
+        "intro": "Inspect the exact plugin artifacts replacing core routes and explicitly choose one provider. Selection durably binds the contract version and package digest; priority never decides automatically. Runtime instance is inspection-only.",
+        "count": "{count} conflict(s)",
+        "selectedCount": "{count} selected",
+        "unresolvedCount": "{count} unresolved",
+        "loadFailed": "Failed to load route provider conflicts.",
+        "emptyTitle": "No route provider conflicts",
+        "emptyDescription": "The current immutable route snapshot has no replacement conflicts requiring an operator choice.",
+        "readOnlyTitle": "Read-only access",
+        "readOnlyDescription": "Only an active super administrator can select or reset a route provider. API authorization remains authoritative.",
+        "chooseProvider": "Choose an exact provider",
+        "current": "Current selection",
+        "coreBaseline": "Core baseline (read-only)",
+        "selectAction": "Confirm selection",
+        "resetAction": "Reset selection",
+        "selected": "Route provider selected.",
+        "reset": "Route provider selection reset.",
+        "selectFailed": "Failed to select route provider.",
+        "resetFailed": "Failed to reset route provider.",
+        "casConflict": "Another operation updated this route provider. The list was refreshed; review it before selecting again.",
+        "staleOperation": "This selection is stale. Review the current exact artifact before resetting or selecting again.",
+        "staleTitle": "Current selection is stale",
+        "staleDescription": "The plugin version, package digest, or route contract changed. A stale selection cannot retain route authority; restarting the same artifact does not make it stale. Reset it at the current revision or select a new exact artifact.",
+        "casHint": "Submission will compare selection revision {revision}",
+        "auditEvidence": "revision {revision} · actor #{actor} · audit #{audit} · updated {updatedAt}",
+        "riskTitle": "High-risk route authority",
+        "status": {
+          "selected": "Selected",
+          "unselected": "Unselected",
+          "stale": "Stale"
+        },
+        "fields": {
+          "version": "Extension version",
+          "digest": "Package digest",
+          "runtime": "Runtime instance",
+          "guard": "Guard",
+          "permission": "Permission key",
+          "handler": "Handler / destination",
+          "fallback": "Fallback / mode",
+          "timeout": "Timeout (ms)",
+          "contracts": "Request → response contracts"
+        },
+        "risks": {
+          "rawRequest": "The plugin receives raw request authority; core permission and session policy no longer protect this handler automatically.",
+          "customGuard": "The plugin's custom guard owns authorization; core policy does not decide allowed and denied requests for it.",
+          "replacementHandler": "The plugin handler replaces the core implementation and must preserve the declared data contract and security boundary."
         }
       }
     },

@@ -256,6 +256,13 @@ export const adminPageDefinitions = [
     permissionMode: 'any'
   },
   {
+    id: '/extensions/route-providers',
+    labelKey: 'admin.nav.extensionRouteProviders',
+    icon: 'i-lucide-route',
+    componentName: 'AdminExtensionRouteProviders',
+    requiredPermissions: ['extension.view']
+  },
+  {
     id: '/search',
     labelKey: 'admin.nav.search',
     icon: 'i-lucide-search',
@@ -334,6 +341,7 @@ export const adminSidebarNavigation = [
         { type: 'page', pageId: '/extensions/plugins' },
         { type: 'page', pageId: '/extensions/themes' },
         { type: 'page', pageId: '/extensions/pages' },
+        { type: 'page', pageId: '/extensions/route-providers' },
         { type: 'page', pageId: '/extensions/settings' },
         { type: 'page', pageId: '/extensions/events' },
         { type: 'page', pageId: '/extensions/contributions' }

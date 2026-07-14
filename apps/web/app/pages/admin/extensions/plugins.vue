@@ -111,6 +111,14 @@ useSeoMeta({
       </div>
     </template>
     <template #right>
+      <UButton
+        icon="i-lucide-route"
+        color="neutral"
+        variant="subtle"
+        :to="adminRoutes.path('/extensions/route-providers')"
+      >
+        {{ t('admin.nav.extensionRouteProviders') }}
+      </UButton>
       <UButton icon="i-lucide-rotate-cw" color="neutral" variant="subtle" :loading="pending" @click="refresh()">
         {{ t('admin.extensions.refresh') }}
       </UButton>

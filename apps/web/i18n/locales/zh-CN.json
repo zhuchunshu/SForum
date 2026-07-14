@@ -296,6 +296,7 @@
       "extensionSettings": "扩展设置",
       "extensionEvents": "事件日志",
       "extensionContributions": "扩展点",
+      "extensionRouteProviders": "路由提供者",
       "forumHome": "论坛首页",
       "forum": "论坛管理",
       "forumCategories": "版块分类",
@@ -998,6 +999,56 @@
           "guest": "仅访客",
           "moderation": "版主",
           "permission": "按权限"
+        }
+      },
+      "routeProviders": {
+        "metaTitle": "路由提供者",
+        "title": "路由提供者",
+        "intro": "检查替换核心路由的精确插件制品，并明确选择唯一提供者。选择会持久绑定契约版本与包摘要，不会按优先级自动决定。运行实例仅用于检查当前候选。",
+        "count": "共 {count} 个冲突",
+        "selectedCount": "已选择 {count}",
+        "unresolvedCount": "待处理 {count}",
+        "loadFailed": "路由提供者冲突加载失败。",
+        "emptyTitle": "没有路由提供者冲突",
+        "emptyDescription": "当前不可变路由快照中没有需要人工选择的替换冲突。",
+        "readOnlyTitle": "当前为只读模式",
+        "readOnlyDescription": "只有状态正常的超级管理员可以选择或重置路由提供者。API 权限检查仍是权威边界。",
+        "chooseProvider": "选择精确提供者",
+        "current": "当前选择",
+        "coreBaseline": "核心基线（只读）",
+        "selectAction": "确认选择",
+        "resetAction": "重置选择",
+        "selected": "路由提供者已选择。",
+        "reset": "路由提供者选择已重置。",
+        "selectFailed": "路由提供者选择失败。",
+        "resetFailed": "路由提供者重置失败。",
+        "casConflict": "路由提供者已被其他操作更新，列表已刷新，请重新核对后选择。",
+        "staleOperation": "此选择已过期；请核对当前精确制品后重置或重新选择。",
+        "staleTitle": "当前选择已过期",
+        "staleDescription": "插件版本、包摘要或路由契约已变化。过期选择不会继续获得路由控制权；同一制品的运行时重启不会使选择过期。请按当前 revision 重置或选择新的精确制品。",
+        "casHint": "提交时将校验选择 revision {revision}",
+        "auditEvidence": "revision {revision} · 操作用户 #{actor} · 审计 #{audit} · 更新于 {updatedAt}",
+        "riskTitle": "高风险路由权限",
+        "status": {
+          "selected": "已选择",
+          "unselected": "未选择",
+          "stale": "已过期"
+        },
+        "fields": {
+          "version": "扩展版本",
+          "digest": "包摘要",
+          "runtime": "运行实例",
+          "guard": "Guard",
+          "permission": "权限键",
+          "handler": "处理器 / 目标",
+          "fallback": "失败策略 / 模式",
+          "timeout": "超时（毫秒）",
+          "contracts": "请求 → 响应契约"
+        },
+        "risks": {
+          "rawRequest": "插件接收原始请求权限；核心权限与会话策略不再自动保护此处理器。",
+          "customGuard": "插件自定义 Guard 拥有授权契约；核心策略不会替它判断允许或拒绝。",
+          "replacementHandler": "插件处理器将替代核心实现，并负责保持声明的数据契约与安全边界。"
         }
       }
     },
