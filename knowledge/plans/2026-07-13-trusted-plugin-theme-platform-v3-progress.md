@@ -1119,3 +1119,40 @@ phase percentage.
   immutable Host snapshot with zero request-path Store I/O. Do not credit route
   counts as a completed P6 row until the inherited/custom/raw guard exit gate
   passes as a whole.
+
+## P6 Credential, P7 Provider, And P8 Publication Checkpoint
+
+- Weighted V3 remains **48%**. The active phase is **P6 at 61% (11 of 18
+  rows)**; P5 is independently open at **65% (11 of 17)**, P7 is **18% (4 of
+  22)**, and P8 is **50% (9 of 18)**. Intermediate production slices below do
+  not inflate a row until its complete authoritative exit gate passes.
+- `9e1b80c35` authorizes the current inert inbound-webhook skeleton from an
+  immutable Host policy. It does not claim webhook-signature verification.
+  Contextual Core Guard execution is now **106 of 123**; 17 resource-dependent
+  routes plus separately frozen custom/raw request and session authority remain.
+- `78db19b98`, `9d540fc8e`, `3516bbf7d`, and `c280bbd25` add Manifest-bound
+  typed provider slots, immutable exact-runtime publication, package-closure
+  schema binding, fixed typed invocation, bounded deadlines, deep cloning, Host
+  request/response validation, and explicit fallback. The P7 provider row stays
+  open until a real Plugin B -> Host broker -> Plugin A consumption path and
+  lifecycle rollback evidence pass.
+- `64164cfb2`, `dd7ba898c`, `da90dbf5b`, `f41815ba2`, and `5abdea62b` make theme
+  activation swap provider bindings atomically, expose a process-local runtime
+  revision, require exact visible-preview CAS, publish the HTTP/OpenAPI contract,
+  and bind the admin confirmation flow. Runtime failure restores the previous
+  database theme, runtime, Page publication, and exact approval actor.
+- `457dac0a9` independently adds the durable PostgreSQL theme-publication
+  ledger, boot-scoped node leases, per-node acknowledgements, commit-time wakeup,
+  and database-enforced append-only history. Real PostgreSQL tests covered
+  constraints, mutation rejection, acknowledgement transitions, retention,
+  history-protected Down, and reapply. PostgreSQL remains authoritative;
+  `NOTIFY` is only a wakeup hint.
+- Active ownership remains isolated: P6 owns the remaining contextual guards;
+  P7 owns the real cross-plugin provider broker fixture; P8 owns publication
+  repository/activation integration and the watcher. Resume P8 with repository
+  publication in the activation transaction, then LISTEN plus poll/reconnect,
+  heartbeat, apply/failed acknowledgements, and two-node convergence tests.
+- P5 can resume only after the product freeze for cumulative additive database
+  grants, per-runtime lease roles, short-lived Host-signed actor delegation, and
+  the provider-neutral entitlement minimum. The recommended choice is all four
+  ADR defaults; P5 does not block independent P6-P8 work.
