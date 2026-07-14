@@ -46,6 +46,14 @@ func TestManifestV3AuthoritativeFixtures(t *testing.T) {
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("fixture set = %#v, want %#v", got, want)
 	}
+	if database := manifests["trusted-application-plugin.json"].Database; database == nil ||
+		database.Authority != "" || !reflect.DeepEqual(database.Grants, []string{DatabaseGrantOwnSchema}) {
+		t.Fatalf("trusted application fixture does not use exact database grants: %#v", database)
+	}
+	if database := manifests["raw-db-plugin.json"].Database; database == nil ||
+		database.Authority != "" || !HasDatabaseGrant(database, DatabaseGrantRawCore) {
+		t.Fatalf("legacy raw database fixture did not normalize cumulatively: %#v", database)
+	}
 
 	graph, err := ResolvePackageGraph([]Manifest{
 		manifests["dependency-consumer.json"],

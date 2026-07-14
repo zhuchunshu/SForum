@@ -15,7 +15,7 @@
   "permissionDefinitions": [
     {"key": "fixture.application.manage", "contractVersion": "fixture.application.manage@1", "label": "Manage application", "description": "Manage the application plugin.", "assignmentPolicy": "host"}
   ],
-  "database": {"contractVersion": "fixture.application.database@1", "authority": "own_schema", "schema": "fixture_application", "role": "fixture_application", "backup": {"required": true, "strategy": "pg_dump"}, "retention": {"onDisable": "retain", "onUninstall": "export", "days": 30}},
+  "database": {"contractVersion": "fixture.application.database@1", "grants": ["own_schema"], "schema": "fixture_application", "role": "fixture_application", "backup": {"required": true, "strategy": "pg_dump"}, "retention": {"onDisable": "retain", "onUninstall": "export", "days": 30}},
   "services": [
     {"id": "fixture.application.service.lookup", "contractVersion": "fixture.application.service.lookup@1", "action": "add", "handler": "service.lookup", "requestSchema": "fixture.application.service.lookup.request@1", "responseSchema": "fixture.application.service.lookup.response@1"}
   ],
