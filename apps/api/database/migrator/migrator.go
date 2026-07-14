@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log/slog"
+	"strings"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	_ "github.com/jackc/pgx/v5/stdlib"
@@ -14,11 +15,13 @@ import (
 	"github.com/riverqueue/river/rivermigrate"
 
 	"github.com/zhuchunshu/sforum/apps/api/database/migrations"
+	platformversion "github.com/zhuchunshu/sforum/apps/api/version"
 )
 
 type Config struct {
-	DatabaseURL string
-	Logger      *slog.Logger
+	DatabaseURL       string
+	Logger            *slog.Logger
+	TargetCoreVersion string
 }
 
 func Up(ctx context.Context, cfg Config) error {
@@ -39,6 +42,13 @@ func Up(ctx context.Context, cfg Config) error {
 
 	if err := db.PingContext(ctx); err != nil {
 		return fmt.Errorf("ping database: %w", err)
+	}
+	targetVersion := strings.TrimSpace(cfg.TargetCoreVersion)
+	if targetVersion == "" {
+		targetVersion = platformversion.Current
+	}
+	if err := checkCoreUpgradeCompatibility(ctx, db, targetVersion); err != nil {
+		return fmt.Errorf("check core upgrade compatibility: %w", err)
 	}
 
 	locker, err := lock.NewPostgresTableLocker(lock.WithTableLogger(logger))
