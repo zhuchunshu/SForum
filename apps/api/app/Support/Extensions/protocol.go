@@ -118,13 +118,15 @@ type PluginRouteTarget struct {
 }
 
 type PluginHookRequest struct {
-	Name          string
-	Kind          string
-	DeliveryID    int64
-	CorrelationID string
-	TimeoutMS     int
-	Payload       map[string]any
-	PatchFields   []string
+	DeclarationID   string
+	Name            string
+	Kind            string
+	ContractVersion string
+	DeliveryID      int64
+	CorrelationID   string
+	TimeoutMS       int
+	Payload         map[string]any
+	PatchFields     []string
 }
 
 type PluginHookResponse struct {
@@ -132,6 +134,7 @@ type PluginHookResponse struct {
 	Reason  string
 	Message string
 	Patch   map[string]any
+	Result  map[string]any
 }
 
 type ProviderProbeRequest struct {
@@ -558,13 +561,15 @@ func (s *ProtocolStarter) InvokeHook(ctx context.Context, extension extensions.E
 		timeoutMS = 1
 	}
 	req := PluginHookRequest{
-		Name:          input.Name,
-		Kind:          input.Kind,
-		DeliveryID:    input.DeliveryID,
-		CorrelationID: input.CorrelationID,
-		TimeoutMS:     timeoutMS,
-		Payload:       input.Payload,
-		PatchFields:   input.PatchFields,
+		DeclarationID:   input.DeclarationID,
+		Name:            input.Name,
+		Kind:            input.Kind,
+		ContractVersion: input.ContractVersion,
+		DeliveryID:      input.DeliveryID,
+		CorrelationID:   input.CorrelationID,
+		TimeoutMS:       timeoutMS,
+		Payload:         input.Payload,
+		PatchFields:     input.PatchFields,
 	}
 	if contextual, ok := protocol.(pluginHookContextInvoker); ok {
 		resp, err := contextual.InvokeHookContext(ctx, req)
@@ -603,7 +608,7 @@ func protocolHookResult(ctx context.Context, response PluginHookResponse, err er
 		}
 		return HookResult{OK: false, Reason: "extension.hook_failed", Message: err.Error()}
 	}
-	return HookResult{OK: response.OK, Reason: response.Reason, Message: response.Message, Patch: response.Patch}
+	return HookResult{OK: response.OK, Reason: response.Reason, Message: response.Message, Patch: response.Patch, Result: response.Result}
 }
 
 func (s *ProtocolStarter) SendMail(ctx context.Context, extensionID string, request MailProviderRequest) (MailProviderResponse, error) {

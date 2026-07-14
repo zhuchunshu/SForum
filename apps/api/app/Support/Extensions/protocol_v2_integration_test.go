@@ -70,6 +70,34 @@ func TestProtocolV2NegotiatesGRPCAndInvokesTypedHook(t *testing.T) {
 	}
 }
 
+func TestProtocolV2InvokesVersionedManifestHookByExactDeclaration(t *testing.T) {
+	extension := protocolV2TestExtension(t, "v2")
+	extension.Manifest.Hooks = []extensions.ManifestHook{{
+		ID: "runtime.v2.hook.transform", ContractVersion: "runtime.v2.hook.transform@1",
+		Name: "runtime.v2.content.transform", Kind: "filter", Handler: "runtime.v2.transform",
+		InputSchema: "runtime.v2.content@1", ResultSchema: "runtime.v2.content-result@1",
+		Execution: "sync", FailurePolicy: "fail_closed", TimeoutMS: 1000, MutableFields: []string{"title"},
+	}}
+	gateway, _ := newProtocolV2HostGateway()
+	t.Cleanup(func() { _ = gateway.Close() })
+	starter := extensionsruntime.NewProtocolStarter(extensionsruntime.ProtocolStarterConfig{
+		Trust:   staticRuntimeTrust{identity: extensions.RuntimeTrustIdentity{TrustGrantID: "41", ImpactDigest: "impact-41"}},
+		HostAPI: gateway,
+	})
+	if _, err := starter.Start(context.Background(), extension); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = starter.Stop(context.Background(), extension) })
+	result := starter.InvokeHook(context.Background(), extension, extensionsruntime.HookInput{
+		DeclarationID: "runtime.v2.hook.transform", Name: "runtime.v2.content.transform", Kind: "filter",
+		ContractVersion: "runtime.v2.hook.transform@1", Timeout: time.Second,
+		Payload: map[string]any{"title": "before"}, PatchFields: []string{"title"},
+	})
+	if !result.OK || result.Patch["title"] != "after-v2" {
+		t.Fatalf("versioned protocol hook = %#v", result)
+	}
+}
+
 func TestProtocolV2HostBrokerRejectsInvalidCalls(t *testing.T) {
 	extension := protocolV2TestExtension(t, "v2")
 	gateway, _ := newProtocolV2HostGateway()
@@ -360,9 +388,16 @@ func (s *protocolV2Helper) InvokeHook(ctx context.Context, request *pluginwire.H
 			Code: protocolwire.ErrorCode_ERROR_CODE_INVALID_ARGUMENT, Reason: "fixture.context_invalid", Message: "typed runtime context is incomplete",
 		}}, nil
 	}
-	if request.GetHookId() != "runtime.v2.event.topic-before-create" || request.GetHookName() != "topic.before_create" ||
-		request.GetHookKind() != "filter" || request.GetContractVersion() != "runtime.v2.event.topic-before-create@1" ||
-		request.GetPayload().GetSchemaId() != "runtime.v2.hook-input" || request.GetPayload().GetSchemaVersion() != "1" ||
+	versionedHook := request.GetHookId() == "runtime.v2.hook.transform"
+	wantID, wantName, wantContract, wantInput, wantResult :=
+		"runtime.v2.event.topic-before-create", "topic.before_create", "runtime.v2.event.topic-before-create@1", "runtime.v2.hook-input", "runtime.v2.hook-result"
+	if versionedHook {
+		wantID, wantName, wantContract, wantInput, wantResult =
+			"runtime.v2.hook.transform", "runtime.v2.content.transform", "runtime.v2.hook.transform@1", "runtime.v2.content", "runtime.v2.content-result"
+	}
+	if request.GetHookId() != wantID || request.GetHookName() != wantName ||
+		request.GetHookKind() != "filter" || request.GetContractVersion() != wantContract ||
+		request.GetPayload().GetSchemaId() != wantInput || request.GetPayload().GetSchemaVersion() != "1" ||
 		!hasProtocolV2Authority(requestContext, capabilities.HostAPI) {
 		return &pluginwire.HookResponse{Error: &protocolwire.ErrorDetail{
 			Code: protocolwire.ErrorCode_ERROR_CODE_PERMISSION_DENIED, Reason: "fixture.authority_invalid", Message: "authority or payload contract is incomplete",
@@ -420,8 +455,8 @@ func (s *protocolV2Helper) InvokeHook(ctx context.Context, request *pluginwire.H
 	return &pluginwire.HookResponse{
 		Context:  &protocolwire.ResponseContext{RequestId: requestContext.GetRequestId(), Extension: identity},
 		Accepted: true,
-		Result:   &protocolwire.TypedDocument{SchemaId: "runtime.v2.hook-result", SchemaVersion: "1", Value: result},
-		Patch:    &protocolwire.TypedDocument{SchemaId: "runtime.v2.hook-result.patch", SchemaVersion: "1", Value: patch},
+		Result:   &protocolwire.TypedDocument{SchemaId: wantResult, SchemaVersion: "1", Value: result},
+		Patch:    &protocolwire.TypedDocument{SchemaId: wantResult + ".patch", SchemaVersion: "1", Value: patch},
 	}, nil
 }
 

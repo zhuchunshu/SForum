@@ -46,6 +46,7 @@ type protocolV2ClientConfig struct {
 	identity     *protocolv2.ExtensionIdentity
 	authority    []*protocolv2.AuthorityGrant
 	events       []extensions.ManifestEvent
+	hooks        []extensions.ManifestHook
 	jobs         []extensions.ManifestJob
 	routes       []extensions.ManifestRoute
 	lifecycle    *extensions.ManifestLifecycle
@@ -61,6 +62,7 @@ type protocolV2Client struct {
 	identity     *protocolv2.ExtensionIdentity
 	authority    []*protocolv2.AuthorityGrant
 	events       []extensions.ManifestEvent
+	hooks        []extensions.ManifestHook
 	jobs         []extensions.ManifestJob
 	routes       []extensions.ManifestRoute
 	lifecycle    *extensions.ManifestLifecycle
@@ -93,7 +95,8 @@ func (e *ProtocolV2Error) Error() string {
 func newProtocolV2Client(client pluginv2.PluginRuntimeServiceClient, config protocolV2ClientConfig) *protocolV2Client {
 	return &protocolV2Client{
 		client: client, identity: cloneV2Identity(config.identity), authority: cloneV2Authority(config.authority),
-		events: append([]extensions.ManifestEvent(nil), config.events...), jobs: append([]extensions.ManifestJob(nil), config.jobs...),
+		events: append([]extensions.ManifestEvent(nil), config.events...), hooks: cloneManifestHooks(config.hooks),
+		jobs:      append([]extensions.ManifestJob(nil), config.jobs...),
 		routes:    cloneProtocolV2Routes(config.routes),
 		lifecycle: cloneManifestLifecycle(config.lifecycle),
 		token:     append([]byte(nil), config.token...), instance: config.instance, hostBrokerID: config.hostBrokerID,
@@ -189,6 +192,7 @@ func (s *ProtocolStarter) protocolV2ClientConfig(ctx context.Context, extension 
 		},
 		authority: protocolV2Authority(extension.CapabilityGrants),
 		events:    append([]extensions.ManifestEvent(nil), extension.Manifest.Events...),
+		hooks:     cloneManifestHooks(extension.Manifest.Hooks),
 		jobs:      append([]extensions.ManifestJob(nil), extension.Manifest.Jobs...),
 		routes:    cloneProtocolV2Routes(extension.Manifest.Routes),
 		lifecycle: cloneManifestLifecycle(extension.Manifest.Lifecycle),
@@ -288,9 +292,12 @@ func (c *protocolV2Client) InvokeHook(input PluginHookRequest) (PluginHookRespon
 }
 
 func (c *protocolV2Client) InvokeHookContext(parent context.Context, input PluginHookRequest) (PluginHookResponse, error) {
-	declaration, err := c.eventDeclaration(input.Name, input.Kind)
+	declaration, err := c.eventDeclaration(input.DeclarationID, input.Name, input.Kind)
 	if err != nil {
 		return PluginHookResponse{}, err
+	}
+	if input.ContractVersion != "" && input.ContractVersion != declaration.ContractVersion {
+		return PluginHookResponse{}, fmt.Errorf("protocol v2 hook %q contract does not match %q", declaration.ID, input.ContractVersion)
 	}
 	timeout := DefaultProtocolV2RequestTimeout
 	if input.TimeoutMS > 0 {
@@ -321,8 +328,12 @@ func (c *protocolV2Client) InvokeHookContext(parent context.Context, input Plugi
 	if err := protocolV2Error(response.GetError()); err != nil {
 		return PluginHookResponse{}, err
 	}
-	if err := validateProtocolV2DocumentRef(response.GetResult(), declaration.ResultSchema, "hook result"); err != nil {
-		return PluginHookResponse{}, err
+	if declaration.ResultSchema != "" {
+		if err := validateProtocolV2DocumentRef(response.GetResult(), declaration.ResultSchema, "hook result"); err != nil {
+			return PluginHookResponse{}, err
+		}
+	} else if response.GetResult() != nil {
+		return PluginHookResponse{}, fmt.Errorf("protocol v2 hook %q returned an undeclared result", declaration.Name)
 	}
 	if response.GetPatch() != nil {
 		patchSchema, err := protocolV2PatchSchemaRef(declaration.ResultSchema)
@@ -333,7 +344,7 @@ func (c *protocolV2Client) InvokeHookContext(parent context.Context, input Plugi
 			return PluginHookResponse{}, err
 		}
 	}
-	result := PluginHookResponse{OK: response.GetAccepted()}
+	result := PluginHookResponse{OK: response.GetAccepted(), Result: protocolV2Values(response.GetResult())}
 	if values := protocolV2Values(response.GetResult()); len(values) > 0 {
 		result.Reason = stringValue(values, "reason")
 		result.Message = stringValue(values, "message")
@@ -486,9 +497,23 @@ func (v *pluginJobProgressValidator) accept(update *protocolv2.ProgressUpdate) (
 	return nil, nil
 }
 
-func (c *protocolV2Client) eventDeclaration(name, kind string) (extensions.ManifestEvent, error) {
+func (c *protocolV2Client) eventDeclaration(id, name, kind string) (extensions.ManifestEvent, error) {
 	name = strings.TrimSpace(name)
 	kind = strings.TrimSpace(kind)
+	id = strings.TrimSpace(id)
+	for _, hook := range c.hooks {
+		if (id == "" || hook.ID == id) && hook.Name == name && hook.Kind == kind {
+			if hook.ID == "" || hook.ContractVersion == "" || hook.InputSchema == "" ||
+				(hook.Kind != "observe" && hook.ResultSchema == "") {
+				return extensions.ManifestEvent{}, fmt.Errorf("protocol v2 hook %q has an incomplete contract", name)
+			}
+			return extensions.ManifestEvent{
+				ID: hook.ID, ContractVersion: hook.ContractVersion, Name: hook.Name, Kind: hook.Kind,
+				Handler: hook.Handler, InputSchema: hook.InputSchema, ResultSchema: hook.ResultSchema,
+				Priority: hook.Priority, TimeoutMS: hook.TimeoutMS,
+			}, nil
+		}
+	}
 	for _, event := range c.events {
 		if event.Name == name && event.Kind == kind {
 			if event.ID == "" || event.ContractVersion == "" || event.InputSchema == "" || event.ResultSchema == "" {
@@ -498,6 +523,14 @@ func (c *protocolV2Client) eventDeclaration(name, kind string) (extensions.Manif
 		}
 	}
 	return extensions.ManifestEvent{}, fmt.Errorf("protocol v2 event %q kind %q is not declared by the manifest", name, kind)
+}
+
+func cloneManifestHooks(items []extensions.ManifestHook) []extensions.ManifestHook {
+	result := make([]extensions.ManifestHook, len(items))
+	for index, item := range items {
+		result[index] = cloneManifestHook(item)
+	}
+	return result
 }
 
 func protocolV2SchemaRef(reference string) (string, string, error) {
