@@ -208,7 +208,7 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["id", "contractVersion", "name", "kind", "handler", "inputSchema"],
+        "required": ["id", "contractVersion", "name", "kind", "inputSchema"],
         "properties": {
           "id": { "$ref": "#/$defs/id" },
           "contractVersion": { "$ref": "#/$defs/contract" },
@@ -218,7 +218,11 @@
           "handler": { "$ref": "#/$defs/nonEmpty" },
           "inputSchema": { "$ref": "#/$defs/schemaRef" },
           "resultSchema": { "type": "string" },
-          "priority": { "type": "integer" }
+          "priority": { "type": "integer" },
+          "execution": { "enum": ["sync", "async"] },
+          "failurePolicy": { "enum": ["fail_closed", "fail_open"] },
+          "timeoutMs": { "type": "integer", "minimum": 1, "maximum": 5000 },
+          "mutableFields": { "$ref": "#/$defs/stringArray" }
         }
       }
     },

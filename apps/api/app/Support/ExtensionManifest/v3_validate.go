@@ -190,7 +190,12 @@ func (v *v3Validator) validateHooksEventsJobsAndProviders() error {
 		if err := v.versionedID(hook.ID, hook.ContractVersion, "hook"); err != nil {
 			return err
 		}
-		if !knownOrNamespacedContract(v.manifest.ID, hook.Name, appevents.Known(hook.Name)) || !validHandler(hook.Handler) || !validSchemaRef(hook.InputSchema) {
+		nameAllowed := knownOrNamespacedContract(v.manifest.ID, hook.Name, appevents.Known(hook.Name))
+		if hook.TargetID != "" {
+			nameAllowed = manifestIDPattern.MatchString(hook.Name) && manifestIDPattern.MatchString(hook.TargetID)
+		}
+		if !nameAllowed || !validSchemaRef(hook.InputSchema) || hook.TimeoutMS <= 0 || hook.TimeoutMS > HookMaximumTimeoutMS ||
+			(hook.Handler != "" && !validHandler(hook.Handler)) || (hook.TargetID != "" && !validHandler(hook.Handler)) {
 			return ErrInvalidManifest
 		}
 		switch hook.Kind {
@@ -198,7 +203,31 @@ func (v *v3Validator) validateHooksEventsJobsAndProviders() error {
 		default:
 			return ErrInvalidManifest
 		}
-		if hook.Kind == "filter" && !validSchemaRef(hook.ResultSchema) {
+		if hook.Kind != "observe" && !validSchemaRef(hook.ResultSchema) {
+			return ErrInvalidManifest
+		}
+		if hook.Execution != "sync" && hook.Execution != "async" {
+			return ErrInvalidManifest
+		}
+		if hook.FailurePolicy != "fail_closed" && hook.FailurePolicy != "fail_open" {
+			return ErrInvalidManifest
+		}
+		if hook.Execution == "async" && hook.Kind == "filter" {
+			return ErrInvalidManifest
+		}
+		// Async listeners are durable eventual work; once one item is queued the
+		// Host cannot atomically retract it when a later enqueue fails.
+		if hook.Execution == "async" && hook.FailurePolicy != "fail_open" {
+			return ErrInvalidManifest
+		}
+		seenFields := map[string]bool{}
+		for _, field := range hook.MutableFields {
+			if field == "" || seenFields[field] {
+				return ErrInvalidManifest
+			}
+			seenFields[field] = true
+		}
+		if hook.Kind != "filter" && len(hook.MutableFields) != 0 {
 			return ErrInvalidManifest
 		}
 	}

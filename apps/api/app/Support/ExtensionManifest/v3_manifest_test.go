@@ -175,7 +175,7 @@ func completeV3Manifest() Manifest {
 	manifest.Hooks = []ManifestHook{{
 		ID: "demo.v3.hook.listener", ContractVersion: "demo.v3.hook.listener@1",
 		Name: "demo.v3.hook.changed", Kind: "action", Handler: "hook.changed",
-		InputSchema: "demo.v3.hook.changed.input@1",
+		InputSchema: "demo.v3.hook.changed.input@1", ResultSchema: "demo.v3.hook.changed.result@1",
 	}}
 	manifest.Events = []ManifestEvent{{
 		ID: "demo.v3.event.listener", ContractVersion: "demo.v3.event.listener@1",

@@ -56,6 +56,32 @@ func normalizeV3Manifest(manifest *Manifest) {
 		item.Handler = strings.TrimSpace(item.Handler)
 		item.InputSchema = strings.TrimSpace(item.InputSchema)
 		item.ResultSchema = strings.TrimSpace(item.ResultSchema)
+		item.Execution = strings.ToLower(strings.TrimSpace(item.Execution))
+		if item.Execution == "" {
+			if item.Kind == "observe" {
+				item.Execution = "async"
+			} else {
+				item.Execution = "sync"
+			}
+		}
+		item.FailurePolicy = strings.ToLower(strings.TrimSpace(item.FailurePolicy))
+		if item.FailurePolicy == "" {
+			if item.Execution == "async" {
+				item.FailurePolicy = "fail_open"
+			} else {
+				item.FailurePolicy = "fail_closed"
+			}
+		}
+		if item.TimeoutMS == 0 {
+			if item.Execution == "async" {
+				item.TimeoutMS = 5000
+			} else {
+				item.TimeoutMS = 2000
+			}
+		}
+		for fieldIndex := range item.MutableFields {
+			item.MutableFields[fieldIndex] = strings.TrimSpace(item.MutableFields[fieldIndex])
+		}
 	}
 	for index := range manifest.Jobs {
 		item := &manifest.Jobs[index]

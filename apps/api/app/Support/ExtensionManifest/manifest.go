@@ -22,6 +22,10 @@ const (
 	RouteAccessPublic     = "public"
 	RouteAccessLogin      = "login"
 	RouteAccessPermission = "permission"
+
+	// HookMaximumTimeoutMS 与 Protocol V2 unary deadline 对齐，防止同步
+	// listener 通过 manifest 长期占用 Host admission/concurrency 槽位。
+	HookMaximumTimeoutMS = 5000
 )
 
 var (
@@ -180,15 +184,19 @@ type ManifestRoute struct {
 }
 
 type ManifestHook struct {
-	ID              string `json:"id,omitempty"`
-	ContractVersion string `json:"contractVersion,omitempty"`
-	Name            string `json:"name"`
-	Kind            string `json:"kind,omitempty"`
-	TargetID        string `json:"targetId,omitempty"`
-	Handler         string `json:"handler,omitempty"`
-	InputSchema     string `json:"inputSchema,omitempty"`
-	ResultSchema    string `json:"resultSchema,omitempty"`
-	Priority        int    `json:"priority,omitempty"`
+	ID              string   `json:"id,omitempty"`
+	ContractVersion string   `json:"contractVersion,omitempty"`
+	Name            string   `json:"name"`
+	Kind            string   `json:"kind,omitempty"`
+	TargetID        string   `json:"targetId,omitempty"`
+	Handler         string   `json:"handler,omitempty"`
+	InputSchema     string   `json:"inputSchema,omitempty"`
+	ResultSchema    string   `json:"resultSchema,omitempty"`
+	Priority        int      `json:"priority,omitempty"`
+	Execution       string   `json:"execution,omitempty"`
+	FailurePolicy   string   `json:"failurePolicy,omitempty"`
+	TimeoutMS       int      `json:"timeoutMs,omitempty"`
+	MutableFields   []string `json:"mutableFields,omitempty"`
 }
 
 type ManifestEvent struct {
