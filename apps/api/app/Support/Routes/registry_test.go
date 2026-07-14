@@ -1,0 +1,705 @@
+package routes
+
+import (
+	"encoding/json"
+	"errors"
+	"os"
+	"path/filepath"
+	"runtime"
+	"strings"
+	"sync"
+	"testing"
+
+	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
+)
+
+func TestRegistryPublishesCoreAndExactArtifactRoutes(t *testing.T) {
+	registry := NewRegistry()
+	artifact := routeArtifact("demo.routes", "1.2.3", 'a')
+	snapshot, err := registry.Publish(Publication{
+		Core: []CoreRoute{coreRoute("core.route.forum.topics", "GET", "/api/v1/topics")},
+		Plugins: []PluginRouteSet{{Artifact: artifact, Routes: []extensionmanifest.ManifestRoute{
+			pluginRoute("demo.routes.community", "/community/:slug", 5, "GET", "PURGE"),
+			pluginRoute("demo.routes.admin", "/admin/demo/:id", 0, "REPORT"),
+			pluginRoute("demo.routes.api", "/api/vendor/*rest", 0, "POST"),
+		}}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if snapshot.Revision != 1 || snapshot.SafeMode || len(snapshot.Routes) != 5 || len(snapshot.Conflicts) != 0 {
+		t.Fatalf("snapshot = %#v", snapshot)
+	}
+
+	tests := []struct {
+		method string
+		path   string
+		id     string
+		param  string
+		value  string
+	}{
+		{"GET", "/api/v1/topics", "core.route.forum.topics", "", ""},
+		{"GET", "/community/hello", "demo.routes.community", "slug", "hello"},
+		{"PURGE", "/community/old", "demo.routes.community", "slug", "old"},
+		{"REPORT", "/admin/demo/42", "demo.routes.admin", "id", "42"},
+		{"POST", "/api/vendor/a/b", "demo.routes.api", "rest", "a/b"},
+	}
+	for _, test := range tests {
+		match, err := registry.Resolve(test.method, test.path)
+		if err != nil || match.Route.ID != test.id {
+			t.Fatalf("resolve %s %s = %#v, %v", test.method, test.path, match, err)
+		}
+		if test.param != "" && match.Params[test.param] != test.value {
+			t.Fatalf("params for %s = %#v", test.path, match.Params)
+		}
+		if match.Route.Provider.Kind == ProviderPlugin && match.Route.Provider.Artifact != artifact {
+			t.Fatalf("route lost exact artifact: %#v", match.Route.Provider)
+		}
+		if match.Route.ID == "" || match.Route.ContractVersion == "" {
+			t.Fatalf("route lost stable identity: %#v", match.Route)
+		}
+	}
+}
+
+func TestRegistrySpecificityAndPriorityAreDeterministic(t *testing.T) {
+	registry := NewRegistry()
+	base := routeArtifact("docs.base", "1.0.0", 'a')
+	low := routeArtifact("docs.low", "1.0.0", 'b')
+	high := routeArtifact("docs.high", "1.0.0", 'c')
+	global := routeArtifact("docs.global", "1.0.0", 'd')
+	_, err := registry.Publish(Publication{Plugins: []PluginRouteSet{
+		{Artifact: base, Routes: []extensionmanifest.ManifestRoute{
+			pluginRoute("docs.base.catchall", "/docs/*rest", 100, "GET"),
+			pluginRoute("docs.base.param", "/docs/:slug", 0, "GET"),
+			pluginRoute("docs.base.static", "/docs/archive", -100, "GET"),
+		}},
+		{Artifact: low, Routes: []extensionmanifest.ManifestRoute{
+			modifierRoute("docs.low.before", "docs.base.static", "/docs/archive", extensionmanifest.RouteActionBefore, "GET", 10),
+		}},
+		{Artifact: high, Routes: []extensionmanifest.ManifestRoute{
+			modifierRoute("docs.high.before", "docs.base.static", "/docs/archive", extensionmanifest.RouteActionBefore, "GET", 20),
+		}},
+		{Artifact: global, Routes: []extensionmanifest.ManifestRoute{{
+			ID: "docs.global.middleware", ContractVersion: "docs.global.middleware@1",
+			Action: extensionmanifest.RouteActionGlobalMiddleware, Priority: 15,
+			Guard: extensionmanifest.GuardCoreLogin, Mode: extensionmanifest.RouteModeHTTP, Fallback: "closed",
+			Handler: "route.global", RequestSchema: "docs.global.middleware.request@1",
+			ResponseSchema: "docs.global.middleware.response@1",
+		}}},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	staticMatch, err := registry.Resolve("GET", "/docs/archive")
+	if err != nil || staticMatch.Route.ID != "docs.base.static" {
+		t.Fatalf("static match = %#v, %v", staticMatch, err)
+	}
+	if got := routeIDs(staticMatch.Contributions); strings.Join(got, ",") != "docs.high.before,docs.global.middleware,docs.low.before" {
+		t.Fatalf("priority order = %#v", got)
+	}
+	paramMatch, err := registry.Resolve("GET", "/docs/guide")
+	if err != nil || paramMatch.Route.ID != "docs.base.param" || paramMatch.Params["slug"] != "guide" {
+		t.Fatalf("param match = %#v, %v", paramMatch, err)
+	}
+	catchAll, err := registry.Resolve("GET", "/docs/a/b")
+	if err != nil || catchAll.Route.ID != "docs.base.catchall" || catchAll.Params["rest"] != "a/b" {
+		t.Fatalf("catch-all match = %#v, %v", catchAll, err)
+	}
+}
+
+func TestRegistryPreservesFiberHEADFallbackAndExplicitOverride(t *testing.T) {
+	registry := NewRegistry()
+	_, err := registry.Publish(Publication{Core: []CoreRoute{
+		coreRoute("core.route.head.fallback", "GET", "/head/fallback"),
+		coreRoute("core.route.head.get", "GET", "/head/explicit"),
+		coreRoute("core.route.head.explicit", "HEAD", "/head/explicit"),
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	fallback, err := registry.Resolve("HEAD", "/head/fallback")
+	if err != nil || fallback.Route.ID != "core.route.head.fallback" || fallback.Route.Method != "GET" {
+		t.Fatalf("HEAD fallback = %#v, %v", fallback, err)
+	}
+	explicit, err := registry.Resolve("HEAD", "/head/explicit")
+	if err != nil || explicit.Route.ID != "core.route.head.explicit" || explicit.Route.Method != "HEAD" {
+		t.Fatalf("explicit HEAD = %#v, %v", explicit, err)
+	}
+
+	artifact := routeArtifact("head.stream", "1.0.0", 'a')
+	stream := pluginRoute("head.stream.events", "/head/events", 0, "GET")
+	stream.Mode = extensionmanifest.RouteModeSSE
+	if _, err := registry.Publish(Publication{Plugins: []PluginRouteSet{{Artifact: artifact, Routes: []extensionmanifest.ManifestRoute{stream}}}}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := registry.Resolve("HEAD", "/head/events"); !errors.Is(err, ErrRouteNotFound) {
+		t.Fatalf("HEAD must not enter an SSE stream: %v", err)
+	}
+}
+
+func TestRegistryPublishesEveryV1ActionAndTransportMode(t *testing.T) {
+	registry := NewRegistry()
+	artifact := routeArtifact("complete.routes", "1.0.0", 'a')
+
+	alias := pluginRoute("complete.routes.alias", "/alias", 0, "GET")
+	alias.Action, alias.TargetID, alias.Handler, alias.ResponseSchema = extensionmanifest.RouteActionAlias, "core.route.complete.home", "", ""
+	redirect := pluginRoute("complete.routes.redirect", "/old", 0, "GET")
+	redirect.Action, redirect.Handler, redirect.ResponseSchema, redirect.Destination = extensionmanifest.RouteActionRedirect, "", "", "/new"
+	rewrite := pluginRoute("complete.routes.rewrite", "/rewrite", 0, "GET")
+	rewrite.Action, rewrite.TargetID, rewrite.Handler, rewrite.ResponseSchema = extensionmanifest.RouteActionRewrite, "core.route.complete.home", "", ""
+	replace := modifierRoute("complete.routes.replace", "core.route.complete.create", "/topics", extensionmanifest.RouteActionReplace, "POST", 100)
+	global := extensionmanifest.ManifestRoute{
+		ID: "complete.routes.global", ContractVersion: "complete.routes.global@1",
+		Action: extensionmanifest.RouteActionGlobalMiddleware, Guard: extensionmanifest.GuardCoreLogin,
+		Fallback: "closed", Mode: extensionmanifest.RouteModeHTTP, Handler: "route.global",
+		RequestSchema: "complete.routes.global.request@1", ResponseSchema: "complete.routes.global.response@1",
+	}
+	sse := pluginRoute("complete.routes.sse", "/events", 0, "GET")
+	sse.Mode = extensionmanifest.RouteModeSSE
+	websocket := pluginRoute("complete.routes.websocket", "/socket", 0, "GET")
+	websocket.Mode = extensionmanifest.RouteModeWebSocket
+	multipart := pluginRoute("complete.routes.multipart", "/upload", 0, "POST")
+	multipart.Mode = extensionmanifest.RouteModeMultipart
+	stream := pluginRoute("complete.routes.stream", "/stream", 0, "GET")
+	stream.Mode = extensionmanifest.RouteModeStream
+
+	snapshot, err := registry.Publish(Publication{
+		Core: []CoreRoute{
+			coreRoute("core.route.complete.home", "GET", "/home"),
+			coreRoute("core.route.complete.topics", "GET", "/topics"),
+			coreRoute("core.route.complete.create", "POST", "/topics"),
+		},
+		Plugins: []PluginRouteSet{{Artifact: artifact, Routes: []extensionmanifest.ManifestRoute{
+			pluginRoute("complete.routes.add", "/custom", 0, "GET"), alias, redirect, rewrite,
+			modifierRoute("complete.routes.before", "core.route.complete.topics", "/topics", extensionmanifest.RouteActionBefore, "GET", 40),
+			modifierRoute("complete.routes.after", "core.route.complete.topics", "/topics", extensionmanifest.RouteActionAfter, "GET", 30),
+			modifierRoute("complete.routes.filter", "core.route.complete.topics", "/topics", extensionmanifest.RouteActionFilter, "GET", 20),
+			modifierRoute("complete.routes.wrap", "core.route.complete.topics", "/topics", extensionmanifest.RouteActionWrap, "GET", 10),
+			replace, global, sse, websocket, multipart, stream,
+		}}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(snapshot.Conflicts) != 1 || snapshot.Conflicts[0].Kind != ConflictProviderSelection {
+		t.Fatalf("conflicts = %#v", snapshot.Conflicts)
+	}
+
+	addressable := map[string]string{
+		"/custom":  extensionmanifest.RouteActionAdd,
+		"/alias":   extensionmanifest.RouteActionAlias,
+		"/old":     extensionmanifest.RouteActionRedirect,
+		"/rewrite": extensionmanifest.RouteActionRewrite,
+		"/events":  extensionmanifest.RouteActionAdd,
+		"/socket":  extensionmanifest.RouteActionAdd,
+		"/upload":  extensionmanifest.RouteActionAdd,
+		"/stream":  extensionmanifest.RouteActionAdd,
+	}
+	for path, action := range addressable {
+		method := "GET"
+		if path == "/upload" {
+			method = "POST"
+		}
+		match, err := registry.Resolve(method, path)
+		if err != nil || match.Route.Action != action || match.Route.Provider.Artifact != artifact {
+			t.Fatalf("resolve %s %s = %#v, %v", method, path, match, err)
+		}
+	}
+
+	topics, err := registry.Resolve("GET", "/topics")
+	if err != nil {
+		t.Fatal(err)
+	}
+	actions := map[string]bool{}
+	for _, route := range topics.Contributions {
+		actions[route.Action] = true
+	}
+	for _, action := range []string{
+		extensionmanifest.RouteActionBefore, extensionmanifest.RouteActionAfter,
+		extensionmanifest.RouteActionFilter, extensionmanifest.RouteActionWrap,
+		extensionmanifest.RouteActionGlobalMiddleware,
+	} {
+		if !actions[action] {
+			t.Fatalf("missing %q contribution: %#v", action, topics.Contributions)
+		}
+	}
+	if match, err := registry.Resolve("POST", "/topics"); !errors.Is(err, ErrAmbiguousRoute) || len(match.Candidates) != 2 {
+		t.Fatalf("replace candidates = %#v, %v", match, err)
+	}
+}
+
+func TestRegistryPublishesInspectableConflictsButResolvesFailClosed(t *testing.T) {
+	registry := NewRegistry()
+	first := routeArtifact("conflict.first", "1.0.0", 'a')
+	second := routeArtifact("conflict.second", "1.0.0", 'b')
+	snapshot, err := registry.Publish(Publication{Plugins: []PluginRouteSet{
+		{Artifact: first, Routes: []extensionmanifest.ManifestRoute{pluginRoute("conflict.first.route", "/shared/:id", 10, "GET")}},
+		{Artifact: second, Routes: []extensionmanifest.ManifestRoute{pluginRoute("conflict.second.route", "/shared/:slug", 20, "GET")}},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(snapshot.Conflicts) != 1 || snapshot.Conflicts[0].Kind != ConflictPathMethod ||
+		len(snapshot.Conflicts[0].Candidates) != 2 || snapshot.Conflicts[0].Candidates[0].ID != "conflict.second.route" {
+		t.Fatalf("conflicts = %#v", snapshot.Conflicts)
+	}
+	match, err := registry.Resolve("GET", "/shared/value")
+	if !errors.Is(err, ErrAmbiguousRoute) || match.Route.ID != "" || len(match.Candidates) != 2 {
+		t.Fatalf("ambiguous resolution = %#v, %v", match, err)
+	}
+	if _, err := registry.Resolve("POST", "/shared/value"); !errors.Is(err, ErrRouteNotFound) {
+		t.Fatalf("unknown method must fail closed: %v", err)
+	}
+
+	// Returned inspection data is detached from the immutable active snapshot.
+	snapshot.Conflicts[0].Candidates[0].ID = "mutated"
+	if registry.Conflicts()[0].Candidates[0].ID == "mutated" {
+		t.Fatal("caller mutated active conflict snapshot")
+	}
+}
+
+func TestRegistryRequiresExplicitReplaceProviderSelection(t *testing.T) {
+	registry := NewRegistry()
+	artifact := routeArtifact("replace.demo", "2.0.0", 'a')
+	replacement := modifierRoute(
+		"replace.demo.create", "core.route.forum.create_topic", "/api/v1/topics",
+		extensionmanifest.RouteActionReplace, "POST", 100,
+	)
+	snapshot, err := registry.Publish(Publication{
+		Core:    []CoreRoute{coreRoute("core.route.forum.create_topic", "POST", "/api/v1/topics")},
+		Plugins: []PluginRouteSet{{Artifact: artifact, Routes: []extensionmanifest.ManifestRoute{replacement}}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(snapshot.Conflicts) != 1 || snapshot.Conflicts[0].Kind != ConflictProviderSelection ||
+		snapshot.Conflicts[0].RouteID != "core.route.forum.create_topic" {
+		t.Fatalf("provider conflicts = %#v", snapshot.Conflicts)
+	}
+	match, err := registry.Resolve("POST", "/api/v1/topics")
+	if !errors.Is(err, ErrAmbiguousRoute) || len(match.Candidates) != 2 {
+		t.Fatalf("replace resolution = %#v, %v", match, err)
+	}
+}
+
+func TestRegistryStableIdentityAmbiguityFailsClosed(t *testing.T) {
+	registry := NewRegistry()
+	first := coreRoute("core.route.demo.shared", "GET", "/first")
+	second := coreRoute("core.route.demo.shared", "GET", "/second")
+	second.ContractVersion = "sforum.route.demo.shared@2"
+	snapshot, err := registry.Publish(Publication{Core: []CoreRoute{first, second}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(snapshot.Conflicts) != 1 || snapshot.Conflicts[0].Kind != ConflictRouteIdentity {
+		t.Fatalf("identity conflicts = %#v", snapshot.Conflicts)
+	}
+	match, err := registry.Resolve("GET", "/first")
+	if !errors.Is(err, ErrAmbiguousRoute) || match.Route.ID != "" || len(match.Candidates) != 2 {
+		t.Fatalf("stable identity ambiguity = %#v, %v", match, err)
+	}
+}
+
+func TestRegistrySafeModeFiltersPluginsBeforeValidation(t *testing.T) {
+	registry := NewRegistry()
+	snapshot, err := registry.Publish(Publication{
+		SafeMode: true,
+		Core:     []CoreRoute{coreRoute("core.route.system.health", "GET", "/api/v1/health")},
+		Plugins: []PluginRouteSet{{
+			Artifact: PluginArtifact{ExtensionID: "broken"},
+			Routes:   []extensionmanifest.ManifestRoute{{Action: "unknown", Path: "not-a-path"}},
+		}},
+	})
+	if err != nil {
+		t.Fatalf("safe mode must ignore broken plugin snapshot: %v", err)
+	}
+	if !snapshot.SafeMode || len(snapshot.Routes) != 1 || snapshot.Routes[0].Provider.Kind != ProviderCore {
+		t.Fatalf("safe snapshot = %#v", snapshot)
+	}
+	if _, err := registry.Resolve("GET", "/api/v1/health"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := registry.Resolve("GET", "/broken"); !errors.Is(err, ErrRouteNotFound) {
+		t.Fatalf("safe mode exposed plugin route: %v", err)
+	}
+}
+
+func TestRegistryAcceptsAuthoritativeP0CoreCatalog(t *testing.T) {
+	core := p0CoreCatalog(t)
+	registry := NewRegistry()
+	snapshot, err := registry.Publish(Publication{Core: core})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(core) < 200 || len(snapshot.Routes) != len(core) || len(snapshot.Conflicts) != 0 {
+		t.Fatalf("P0 catalog snapshot routes=%d conflicts=%#v", len(snapshot.Routes), snapshot.Conflicts)
+	}
+	match, err := registry.Resolve("GET", "/api/v1/admin/pages/added")
+	if err != nil || match.Route.ID != "core.route.pages.admin_added" {
+		t.Fatalf("static P0 route did not beat :pageId: %#v, %v", match, err)
+	}
+	match, err = registry.Resolve("PURGE", "/api/v1/extensions/demo.plugin/cache")
+	if err != nil || match.Route.ID != "core.route.extensions.proxy_extension_route" {
+		t.Fatalf("P0 wildcard method/catch-all route = %#v, %v", match, err)
+	}
+}
+
+func p0CoreCatalog(tb testing.TB) []CoreRoute {
+	tb.Helper()
+	_, source, _, ok := runtime.Caller(0)
+	if !ok {
+		tb.Fatal("resolve test source")
+	}
+	catalogPath := filepath.Join(filepath.Dir(source), "../../../../../docs/extensions/v3/catalogs/routes.json")
+	body, err := os.ReadFile(catalogPath)
+	if err != nil {
+		tb.Fatal(err)
+	}
+	var catalog []struct {
+		ID              string `json:"id"`
+		ContractVersion string `json:"contractVersion"`
+		Method          string `json:"method"`
+		Path            string `json:"path"`
+	}
+	if err := json.Unmarshal(body, &catalog); err != nil {
+		tb.Fatal(err)
+	}
+	core := make([]CoreRoute, 0, len(catalog))
+	for _, route := range catalog {
+		core = append(core, CoreRoute{
+			ID: route.ID, ContractVersion: route.ContractVersion, Method: route.Method, Path: route.Path,
+		})
+	}
+	return core
+}
+
+func TestRegistryRejectsUnknownInputWithoutPublishing(t *testing.T) {
+	registry := NewRegistry()
+	valid := Publication{Core: []CoreRoute{coreRoute("core.route.forum.topics", "GET", "/api/v1/topics")}}
+	if _, err := registry.Publish(valid); err != nil {
+		t.Fatal(err)
+	}
+	artifact := routeArtifact("invalid.demo", "1.0.0", 'a')
+	invalid := []Publication{
+		{Plugins: []PluginRouteSet{{Artifact: artifact, Routes: []extensionmanifest.ManifestRoute{{
+			ID: "invalid.demo.unknown", ContractVersion: "invalid.demo.unknown@1", Action: "unknown",
+			Path: "/unknown", Methods: []string{"GET"},
+		}}}}},
+		{Plugins: []PluginRouteSet{{Artifact: artifact, Routes: []extensionmanifest.ManifestRoute{
+			modifierRoute("invalid.demo.before", "core.route.missing", "/missing", extensionmanifest.RouteActionBefore, "POST", 1),
+		}}}},
+		{Plugins: []PluginRouteSet{{Artifact: PluginArtifact{ExtensionID: "invalid.demo", ExtensionVersion: "1.0.0"}, Routes: []extensionmanifest.ManifestRoute{
+			pluginRoute("invalid.demo.route", "/invalid", 0, "GET"),
+		}}}},
+	}
+	for _, input := range invalid {
+		if _, err := registry.Publish(input); !errors.Is(err, ErrInvalidRoute) {
+			t.Fatalf("invalid publication error = %v", err)
+		}
+		if registry.Revision() != 1 {
+			t.Fatalf("invalid publication advanced revision to %d", registry.Revision())
+		}
+		match, err := registry.Resolve("GET", "/api/v1/topics")
+		if err != nil || match.Route.ID != "core.route.forum.topics" {
+			t.Fatalf("invalid publication changed snapshot: %#v, %v", match, err)
+		}
+	}
+}
+
+func TestRegistryRejectsInvalidRuntimeContractsWithoutPublishing(t *testing.T) {
+	registry := NewRegistry()
+	valid := Publication{Core: []CoreRoute{coreRoute("core.route.forum.topics", "GET", "/api/v1/topics")}}
+	if _, err := registry.Publish(valid); err != nil {
+		t.Fatal(err)
+	}
+	artifact := routeArtifact("runtime.contracts", "1.0.0", 'a')
+	base := pluginRoute("runtime.contracts.route", "/runtime", 0, "GET")
+	invalid := []extensionmanifest.ManifestRoute{
+		func() extensionmanifest.ManifestRoute {
+			value := base
+			value.Mode = extensionmanifest.RouteModeSSE
+			value.Methods = []string{"POST"}
+			value.RequestSchema = value.ID + ".request@1"
+			return value
+		}(),
+		func() extensionmanifest.ManifestRoute {
+			value := base
+			value.Mode = extensionmanifest.RouteModeMultipart
+			return value
+		}(),
+		func() extensionmanifest.ManifestRoute { value := base; value.Handler = ""; return value }(),
+		func() extensionmanifest.ManifestRoute {
+			value := base
+			value.Methods = []string{"POST"}
+			value.RequestSchema = ""
+			return value
+		}(),
+		func() extensionmanifest.ManifestRoute {
+			value := base
+			value.Guard = extensionmanifest.GuardCorePermission
+			value.Permission = ""
+			return value
+		}(),
+		func() extensionmanifest.ManifestRoute {
+			value := base
+			value.Action = extensionmanifest.RouteActionRedirect
+			value.Handler = ""
+			value.ResponseSchema = ""
+			value.Destination = "https://example.com"
+			return value
+		}(),
+		func() extensionmanifest.ManifestRoute {
+			value := base
+			value.ID = "runtime.contracts.health"
+			value.Path = "/api/v1/health"
+			return value
+		}(),
+		func() extensionmanifest.ManifestRoute {
+			value := modifierRoute("runtime.contracts.replace", "core.route.system.ready", "/api/v1/ready", extensionmanifest.RouteActionReplace, "GET", 1)
+			return value
+		}(),
+	}
+	for index, route := range invalid {
+		if _, err := registry.Publish(Publication{Core: valid.Core, Plugins: []PluginRouteSet{{Artifact: artifact, Routes: []extensionmanifest.ManifestRoute{route}}}}); !errors.Is(err, ErrInvalidRoute) {
+			t.Fatalf("invalid route %d error = %v", index, err)
+		}
+		if registry.Revision() != 1 {
+			t.Fatalf("invalid route %d advanced revision to %d", index, registry.Revision())
+		}
+	}
+
+	customGuard := base
+	customGuard.Guard = "runtime.contracts.guard.owner"
+	if _, err := registry.Publish(Publication{Core: valid.Core, Plugins: []PluginRouteSet{{Artifact: artifact, Routes: []extensionmanifest.ManifestRoute{customGuard}}}}); err != nil {
+		t.Fatalf("namespaced custom guard must remain eligible after trust confirmation: %v", err)
+	}
+}
+
+func TestRegistryRejectsNonSemverArtifactVersion(t *testing.T) {
+	registry := NewRegistry()
+	artifact := routeArtifact("artifact.version", "latest", 'a')
+	_, err := registry.Publish(Publication{Plugins: []PluginRouteSet{{
+		Artifact: artifact,
+		Routes:   []extensionmanifest.ManifestRoute{pluginRoute("artifact.version.route", "/artifact", 0, "GET")},
+	}}})
+	if !errors.Is(err, ErrInvalidRoute) || registry.Revision() != 0 {
+		t.Fatalf("non-semver artifact error=%v revision=%d", err, registry.Revision())
+	}
+}
+
+func TestRegistryRequiresCanonicalRuntimeInstanceIdentity(t *testing.T) {
+	registry := NewRegistry()
+	for _, instanceID := range []string{"", " runtime-1", "runtime-1 ", "runtime instance", strings.Repeat("a", 129)} {
+		artifact := routeArtifact("artifact.runtime", "1.0.0", 'a')
+		artifact.RuntimeInstanceID = instanceID
+		_, err := registry.Publish(Publication{Plugins: []PluginRouteSet{{
+			Artifact: artifact,
+			Routes:   []extensionmanifest.ManifestRoute{pluginRoute("artifact.runtime.route", "/artifact-runtime", 0, "GET")},
+		}}})
+		if !errors.Is(err, ErrInvalidRoute) || registry.Revision() != 0 {
+			t.Fatalf("instance %q error=%v revision=%d", instanceID, err, registry.Revision())
+		}
+	}
+}
+
+func TestRegistryPublishIfRevisionFencesStaleWriters(t *testing.T) {
+	registry := NewRegistry()
+	first, err := registry.PublishIfRevision(Publication{Core: []CoreRoute{
+		coreRoute("core.route.atomic.first", "GET", "/atomic/first"),
+	}}, 0)
+	if err != nil || first.Revision != 1 {
+		t.Fatalf("first publication = %#v, %v", first, err)
+	}
+	current, err := registry.PublishIfRevision(Publication{Core: []CoreRoute{
+		coreRoute("core.route.atomic.second", "GET", "/atomic/second"),
+	}}, 0)
+	if !errors.Is(err, ErrRevisionConflict) || current.Revision != 1 {
+		t.Fatalf("stale publication = %#v, %v", current, err)
+	}
+	if _, err := registry.Resolve("GET", "/atomic/first"); err != nil {
+		t.Fatalf("stale writer replaced current snapshot: %v", err)
+	}
+	if _, err := registry.Resolve("GET", "/atomic/second"); !errors.Is(err, ErrRouteNotFound) {
+		t.Fatalf("stale route became visible: %v", err)
+	}
+}
+
+func TestRegistryPublishIfRevisionAllowsOneConcurrentWriter(t *testing.T) {
+	registry := NewRegistry()
+	start := make(chan struct{})
+	results := make(chan error, 2)
+	for index := 1; index <= 2; index++ {
+		index := index
+		go func() {
+			<-start
+			_, err := registry.PublishIfRevision(Publication{Core: []CoreRoute{
+				coreRoute("core.route.cas.writer", "GET", "/cas/"+string(rune('0'+index))),
+			}}, 0)
+			results <- err
+		}()
+	}
+	close(start)
+	succeeded, conflicted := 0, 0
+	for range 2 {
+		switch err := <-results; {
+		case err == nil:
+			succeeded++
+		case errors.Is(err, ErrRevisionConflict):
+			conflicted++
+		default:
+			t.Fatalf("unexpected publication error: %v", err)
+		}
+	}
+	if succeeded != 1 || conflicted != 1 || registry.Revision() != 1 {
+		t.Fatalf("succeeded=%d conflicted=%d revision=%d", succeeded, conflicted, registry.Revision())
+	}
+}
+
+func TestRegistrySnapshotsAreImmutableAndAtomicallyReplaced(t *testing.T) {
+	registry := NewRegistry()
+	core := []CoreRoute{coreRoute("core.route.forum.topics", "GET", "/api/v1/topics")}
+	firstArtifact := routeArtifact("atomic.demo", "1.0.0", 'a')
+	first, err := registry.Publish(Publication{Core: core, Plugins: []PluginRouteSet{{
+		Artifact: firstArtifact, Routes: []extensionmanifest.ManifestRoute{
+			pluginRoute("atomic.demo.one", "/atomic/one", 0, "GET"),
+			pluginRoute("atomic.demo.two", "/atomic/two", 0, "GET"),
+		},
+	}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	done := make(chan struct{})
+	errorsSeen := make(chan string, 8)
+	var readers sync.WaitGroup
+	for range 8 {
+		readers.Add(1)
+		go func() {
+			defer readers.Done()
+			for {
+				select {
+				case <-done:
+					return
+				default:
+				}
+				snapshot := registry.Snapshot()
+				var artifact *PluginArtifact
+				for _, route := range snapshot.Routes {
+					if route.Provider.Kind != ProviderPlugin {
+						continue
+					}
+					value := route.Provider.Artifact
+					if artifact == nil {
+						artifact = &value
+					} else if *artifact != value {
+						select {
+						case errorsSeen <- "reader observed mixed artifacts":
+						default:
+						}
+						return
+					}
+				}
+			}
+		}()
+	}
+	for index := 2; index <= 100; index++ {
+		version := "2.0." + string(rune('0'+index%10))
+		artifact := routeArtifact("atomic.demo", version, rune('a'+index%6))
+		if _, err := registry.Publish(Publication{Core: core, Plugins: []PluginRouteSet{{
+			Artifact: artifact, Routes: []extensionmanifest.ManifestRoute{
+				pluginRoute("atomic.demo.one", "/atomic/one", 0, "GET"),
+				pluginRoute("atomic.demo.two", "/atomic/two", 0, "GET"),
+			},
+		}}}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	close(done)
+	readers.Wait()
+	close(errorsSeen)
+	for message := range errorsSeen {
+		t.Fatal(message)
+	}
+	if first.Revision != 1 || first.Routes[1].Provider.Artifact != firstArtifact {
+		t.Fatalf("captured snapshot changed: %#v", first)
+	}
+	if registry.Revision() != 100 {
+		t.Fatalf("revision = %d", registry.Revision())
+	}
+}
+
+func TestRegistrySnapshotsBindRetainedAndReplacementRuntimeInstances(t *testing.T) {
+	registry := NewRegistry()
+	oldArtifact := routeArtifact("runtime.bound", "1.0.0", 'a')
+	oldArtifact.RuntimeInstanceID = "instance-old"
+	oldSnapshot, err := registry.Publish(Publication{Plugins: []PluginRouteSet{{
+		Artifact: oldArtifact,
+		Routes:   []extensionmanifest.ManifestRoute{pluginRoute("runtime.bound.route", "/runtime-bound", 0, "GET")},
+	}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	newArtifact := routeArtifact("runtime.bound", "2.0.0", 'b')
+	newArtifact.RuntimeInstanceID = "instance-new"
+	newSnapshot, err := registry.PublishIfRevision(Publication{Plugins: []PluginRouteSet{{
+		Artifact: newArtifact,
+		Routes:   []extensionmanifest.ManifestRoute{pluginRoute("runtime.bound.route", "/runtime-bound", 0, "GET")},
+	}}}, oldSnapshot.Revision)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if oldSnapshot.Routes[0].Provider.Artifact.RuntimeInstanceID != "instance-old" {
+		t.Fatalf("retained snapshot changed runtime binding: %#v", oldSnapshot.Routes[0].Provider)
+	}
+	if newSnapshot.Routes[0].Provider.Artifact.RuntimeInstanceID != "instance-new" {
+		t.Fatalf("replacement snapshot runtime binding = %#v", newSnapshot.Routes[0].Provider)
+	}
+	match, err := registry.Resolve("GET", "/runtime-bound")
+	if err != nil || match.Route.Provider.Artifact.RuntimeInstanceID != "instance-new" {
+		t.Fatalf("active route runtime binding = %#v, %v", match, err)
+	}
+}
+
+func coreRoute(id, method, path string) CoreRoute {
+	return CoreRoute{ID: id, ContractVersion: "sforum." + strings.TrimPrefix(id, "core.") + "@1", Method: method, Path: path}
+}
+
+func routeArtifact(id, version string, digest rune) PluginArtifact {
+	return PluginArtifact{
+		ExtensionID: id, ExtensionVersion: version, PackageDigest: strings.Repeat(string(digest), 64),
+		RuntimeInstanceID: "runtime-" + string(digest),
+	}
+}
+
+func pluginRoute(id, path string, priority int, methods ...string) extensionmanifest.ManifestRoute {
+	route := extensionmanifest.ManifestRoute{
+		ID: id, ContractVersion: id + "@1", Action: extensionmanifest.RouteActionAdd,
+		Path: path, Methods: methods, Guard: extensionmanifest.GuardCorePublic,
+		Priority: priority, Fallback: "closed", Mode: extensionmanifest.RouteModeHTTP,
+		Handler: "route.handle", ResponseSchema: id + ".response@1",
+	}
+	if hasUnsafeMethod(methods) {
+		route.RequestSchema = id + ".request@1"
+	}
+	return route
+}
+
+func modifierRoute(id, targetID, path, action, method string, priority int) extensionmanifest.ManifestRoute {
+	return extensionmanifest.ManifestRoute{
+		ID: id, ContractVersion: id + "@1", Action: action, TargetID: targetID,
+		Path: path, Methods: []string{method}, Guard: extensionmanifest.GuardCoreLogin,
+		Priority: priority, Fallback: "closed", Mode: extensionmanifest.RouteModeHTTP,
+		Handler: "route.modify", RequestSchema: id + ".request@1", ResponseSchema: id + ".response@1",
+	}
+}
+
+func routeIDs(routes []Route) []string {
+	result := make([]string, 0, len(routes))
+	for _, route := range routes {
+		result = append(result, route.ID)
+	}
+	return result
+}
