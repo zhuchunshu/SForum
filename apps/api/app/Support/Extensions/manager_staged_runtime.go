@@ -124,6 +124,22 @@ func (m *Manager) HealthRuntimeInstance(ctx context.Context, identity RuntimeIns
 // The tiny cross-registry window is fail-closed because service/job admission
 // still resolves the drained old Manager pointer until this method commits.
 func (m *Manager) PublishRuntimeInstance(ctx context.Context, identity RuntimeInstanceIdentity) (RuntimeInstanceSnapshot, error) {
+	return m.publishRuntimeInstance(ctx, identity, false)
+}
+
+// PublishDrainedRuntimeInstance selects the exact process in ProtocolStarter
+// and Manager while keeping its ordinary admission gate closed. Composed
+// lifecycle publication opens it only after durable state and every registry
+// snapshot have committed.
+func (m *Manager) PublishDrainedRuntimeInstance(ctx context.Context, identity RuntimeInstanceIdentity) (RuntimeInstanceSnapshot, error) {
+	return m.publishRuntimeInstance(ctx, identity, true)
+}
+
+func (m *Manager) publishRuntimeInstance(
+	ctx context.Context,
+	identity RuntimeInstanceIdentity,
+	keepDraining bool,
+) (RuntimeInstanceSnapshot, error) {
 	if m == nil || ctx == nil {
 		return RuntimeInstanceSnapshot{}, ErrRuntimeAdmissionInvalid
 	}
@@ -154,16 +170,42 @@ func (m *Manager) PublishRuntimeInstance(ctx context.Context, identity RuntimeIn
 	activeID := m.activeInstances[identity.ExtensionID]
 	var activeInstance *managedRuntimeInstance
 	if activeID == identity.InstanceID {
-		snapshot := m.runtimeInstanceSnapshotLocked(identity, instance)
+		admission := instance.gate.Snapshot()
+		if keepDraining && !admission.Draining {
+			admission = instance.gate.BeginDrain()
+		}
+		if keepDraining && admission.ActiveTotal != 0 {
+			m.mu.Unlock()
+			return RuntimeInstanceSnapshot{}, fmt.Errorf("%w: %s/%s", ErrRuntimeInstanceBusy, identity.ExtensionID, identity.InstanceID)
+		}
+		if keepDraining {
+			instance.transitioning = true
+		}
 		extension := instance.extension
 		m.mu.Unlock()
 		protocolSnapshot, err := starter.PublishInstance(ctx, identity)
 		if err != nil {
+			if keepDraining {
+				m.mu.Lock()
+				instance.transitioning = false
+				m.mu.Unlock()
+			}
 			return RuntimeInstanceSnapshot{}, err
 		}
 		if err := validateManagedProtocolSnapshot(protocolSnapshot, extension, identity, ProtocolRuntimePublished); err != nil {
+			if keepDraining {
+				m.mu.Lock()
+				instance.transitioning = false
+				m.mu.Unlock()
+			}
 			return RuntimeInstanceSnapshot{}, err
 		}
+		m.mu.Lock()
+		if keepDraining {
+			instance.transitioning = false
+		}
+		snapshot := m.runtimeInstanceSnapshotLocked(identity, instance)
+		m.mu.Unlock()
 		return snapshot, nil
 	}
 	if activeID != "" {
@@ -184,7 +226,9 @@ func (m *Manager) PublishRuntimeInstance(ctx context.Context, identity RuntimeIn
 		m.mu.Unlock()
 		return RuntimeInstanceSnapshot{}, fmt.Errorf("%w: %s/%s", ErrRuntimeInstanceBusy, identity.ExtensionID, identity.InstanceID)
 	}
-	if candidateAdmission.Draining {
+	if keepDraining && !candidateAdmission.Draining {
+		instance.gate.BeginDrain()
+	} else if !keepDraining && candidateAdmission.Draining {
 		if _, err := instance.gate.Resume(); err != nil {
 			m.mu.Unlock()
 			return RuntimeInstanceSnapshot{}, err
@@ -205,7 +249,7 @@ func (m *Manager) PublishRuntimeInstance(ctx context.Context, identity RuntimeIn
 		m.mu.Lock()
 		if current := m.runtimeInstances[identity.ExtensionID][identity.InstanceID]; current == instance {
 			current.transitioning = false
-			if candidateWasDraining {
+			if candidateWasDraining || keepDraining {
 				current.gate.BeginDrain()
 			}
 		}
