@@ -1,0 +1,391 @@
+package routes
+
+import (
+	"errors"
+	"fmt"
+	"sort"
+	"strings"
+
+	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
+)
+
+var ErrInvalidExecutionPlan = errors.New("routes: invalid execution plan")
+
+type RouteExecutionPhase string
+
+const (
+	RoutePhaseGlobal  RouteExecutionPhase = "global"
+	RoutePhaseBefore  RouteExecutionPhase = "before"
+	RoutePhaseFilter  RouteExecutionPhase = "filter"
+	RoutePhaseWrap    RouteExecutionPhase = "wrap"
+	RoutePhaseHandler RouteExecutionPhase = "handler"
+	RoutePhaseAfter   RouteExecutionPhase = "after"
+)
+
+// RouteExecutionCommitState is owned by the future dispatcher. Any state past
+// pristine proves that a response or side effect may have started, so another
+// handler cannot safely become a second writer.
+type RouteExecutionCommitState string
+
+const (
+	RouteCommitUnknown           RouteExecutionCommitState = ""
+	RouteCommitPristine          RouteExecutionCommitState = "pristine"
+	RouteCommitResponseStarted   RouteExecutionCommitState = "response_started"
+	RouteCommitSideEffectStarted RouteExecutionCommitState = "side_effect_started"
+	RouteCommitFinal             RouteExecutionCommitState = "committed"
+)
+
+type RouteExecutionStep struct {
+	Phase           RouteExecutionPhase
+	Action          string
+	RouteID         string
+	ContractVersion string
+	TargetID        string
+	Path            string
+	Method          string
+	Provider        Provider
+	Guard           string
+	Access          string
+	Permission      string
+	Mode            string
+	Destination     string
+	Handler         string
+	RequestSchema   string
+	ResponseSchema  string
+	TimeoutMS       int
+	Fallback        string
+	Priority        int
+}
+
+// RouteExecutionPlan contains data only. Building it never invokes a handler,
+// opens a runtime, or mutates the Registry snapshot.
+type RouteExecutionPlan struct {
+	revision      uint64
+	method        string
+	path          string
+	params        map[string]string
+	unsafeMethod  bool
+	terminalIndex int
+	chain         []RouteExecutionStep
+}
+
+func (p RouteExecutionPlan) Revision() uint64   { return p.revision }
+func (p RouteExecutionPlan) Method() string     { return p.method }
+func (p RouteExecutionPlan) Path() string       { return p.path }
+func (p RouteExecutionPlan) UnsafeMethod() bool { return p.unsafeMethod }
+
+func (p RouteExecutionPlan) Valid() bool {
+	return p.revision > 0 && p.method != "" && p.path != "" &&
+		p.terminalIndex >= 0 && p.terminalIndex < len(p.chain) &&
+		p.chain[p.terminalIndex].Phase == RoutePhaseHandler
+}
+
+func (p RouteExecutionPlan) Params() map[string]string {
+	return cloneRouteExecutionParams(p.params)
+}
+
+func (p RouteExecutionPlan) Chain() []RouteExecutionStep {
+	return append([]RouteExecutionStep(nil), p.chain...)
+}
+
+func (p RouteExecutionPlan) Terminal() RouteExecutionStep {
+	if p.terminalIndex < 0 || p.terminalIndex >= len(p.chain) {
+		return RouteExecutionStep{}
+	}
+	return p.chain[p.terminalIndex]
+}
+
+// AllowsFallback evaluates the declaration belonging to the failed step. A
+// plugin may request not_found/readonly_core fallback, but only GET/HEAD while
+// no response or side effect has begun can use it.
+func (p RouteExecutionPlan) AllowsFallback(stepIndex int, state RouteExecutionCommitState) bool {
+	if state != RouteCommitPristine || p.unsafeMethod || stepIndex < 0 || stepIndex >= len(p.chain) {
+		return false
+	}
+	step := p.chain[stepIndex]
+	if step.Provider.Kind != ProviderPlugin {
+		return false
+	}
+	return step.Fallback == "not_found" || step.Fallback == "readonly_core"
+}
+
+// AllowsWriter is deliberately stricter than HTTP method safety. It is the
+// dispatcher fence that prevents a core/plugin fallback becoming a second
+// writer after any observable response or side effect.
+func (p RouteExecutionPlan) AllowsWriter(state RouteExecutionCommitState) bool {
+	return p.Valid() && state == RouteCommitPristine
+}
+
+// BuildExecutionPlan resolves against one immutable revision. A concurrent
+// publication retries resolution; the returned plan remains bound to its old
+// revision even if a newer snapshot is published afterwards.
+func (r *Registry) BuildExecutionPlan(method, requestPath string) (RouteExecutionPlan, error) {
+	if r == nil {
+		return RouteExecutionPlan{}, fmt.Errorf("%w: registry is nil", ErrInvalidExecutionPlan)
+	}
+	for attempt := 0; attempt < 4; attempt++ {
+		match, err := r.Resolve(method, requestPath)
+		if err != nil {
+			return RouteExecutionPlan{}, err
+		}
+		snapshot := r.Snapshot()
+		if snapshot.Revision != match.Revision {
+			continue
+		}
+		return buildRouteExecutionPlan(snapshot, match, method, requestPath)
+	}
+	return RouteExecutionPlan{}, fmt.Errorf("%w: route snapshot changed during resolution", ErrRevisionConflict)
+}
+
+// buildRouteExecutionPlan also accepts an already selected Match. This is kept
+// package-private until the provider-selection registry can prove that a
+// replacement winner was selected explicitly.
+func buildRouteExecutionPlan(
+	snapshot Snapshot,
+	match Match,
+	method string,
+	requestPath string,
+) (RouteExecutionPlan, error) {
+	method = strings.ToUpper(strings.TrimSpace(method))
+	if !validMethod(method) || method == "*" {
+		return RouteExecutionPlan{}, fmt.Errorf("%w: invalid request method", ErrInvalidExecutionPlan)
+	}
+	normalizedPath, err := normalizeRequestPath(requestPath)
+	if err != nil {
+		return RouteExecutionPlan{}, fmt.Errorf("%w: %v", ErrInvalidExecutionPlan, err)
+	}
+	if snapshot.Revision == 0 || match.Revision != snapshot.Revision || len(match.Candidates) != 0 {
+		return RouteExecutionPlan{}, fmt.Errorf("%w: terminal route is unresolved or ambiguous", ErrInvalidExecutionPlan)
+	}
+	terminal := match.Route
+	if !terminalExecutionAction(terminal.Action) || !routeMethodMatches(terminal, method) ||
+		!routeInExecutionSnapshot(snapshot.Routes, terminal) {
+		return RouteExecutionPlan{}, fmt.Errorf("%w: terminal route is not in the resolved snapshot", ErrInvalidExecutionPlan)
+	}
+	compiled, err := compileRoutePath(terminal.Path)
+	if err != nil {
+		return RouteExecutionPlan{}, fmt.Errorf("%w: invalid terminal path", ErrInvalidExecutionPlan)
+	}
+	params, matched := compiled.match(normalizedPath)
+	if !matched || !equalRouteExecutionParams(params, match.Params) {
+		return RouteExecutionPlan{}, fmt.Errorf("%w: terminal route does not match the request", ErrInvalidExecutionPlan)
+	}
+	if snapshot.SafeMode && terminal.Provider.Kind == ProviderPlugin {
+		return RouteExecutionPlan{}, fmt.Errorf("%w: plugin terminal is unavailable in safe mode", ErrInvalidExecutionPlan)
+	}
+	if err := validateExecutionTerminal(snapshot, terminal, method, normalizedPath); err != nil {
+		return RouteExecutionPlan{}, err
+	}
+
+	groups := map[RouteExecutionPhase][]Route{
+		RoutePhaseGlobal: {}, RoutePhaseBefore: {}, RoutePhaseFilter: {},
+		RoutePhaseWrap: {}, RoutePhaseAfter: {},
+	}
+	seen := make(map[Route]struct{}, len(match.Contributions))
+	expectedTarget := terminal.ID
+	if terminal.Action == extensionmanifest.RouteActionReplace {
+		expectedTarget = terminal.TargetID
+	}
+	for _, contribution := range match.Contributions {
+		if _, duplicate := seen[contribution]; duplicate {
+			return RouteExecutionPlan{}, fmt.Errorf("%w: duplicate route contribution", ErrInvalidExecutionPlan)
+		}
+		seen[contribution] = struct{}{}
+		if !routeInExecutionSnapshot(snapshot.Routes, contribution) || contribution.Provider.Kind != ProviderPlugin ||
+			snapshot.SafeMode || !routeMethodMatches(contribution, method) && contribution.Action != extensionmanifest.RouteActionGlobalMiddleware {
+			return RouteExecutionPlan{}, fmt.Errorf("%w: contribution is not active in the resolved snapshot", ErrInvalidExecutionPlan)
+		}
+		phase, ok := executionPhaseForContribution(contribution.Action)
+		if !ok {
+			return RouteExecutionPlan{}, fmt.Errorf("%w: contribution action cannot enter the chain", ErrInvalidExecutionPlan)
+		}
+		if phase == RoutePhaseGlobal {
+			if contribution.TargetID != "" || contribution.Path != "" || contribution.Method != "" {
+				return RouteExecutionPlan{}, fmt.Errorf("%w: invalid global middleware", ErrInvalidExecutionPlan)
+			}
+		} else {
+			if contribution.TargetID != expectedTarget {
+				return RouteExecutionPlan{}, fmt.Errorf("%w: contribution targets a different route", ErrInvalidExecutionPlan)
+			}
+			path, compileErr := compileRoutePath(contribution.Path)
+			if compileErr != nil {
+				return RouteExecutionPlan{}, fmt.Errorf("%w: invalid contribution path", ErrInvalidExecutionPlan)
+			}
+			if _, ok := path.match(normalizedPath); !ok {
+				return RouteExecutionPlan{}, fmt.Errorf("%w: contribution does not match the request", ErrInvalidExecutionPlan)
+			}
+		}
+		groups[phase] = append(groups[phase], contribution)
+	}
+
+	chain := make([]RouteExecutionStep, 0, len(match.Contributions)+1)
+	appendPhase := func(phase RouteExecutionPhase) {
+		routes := append([]Route(nil), groups[phase]...)
+		sortExecutionRoutes(routes)
+		for _, route := range routes {
+			chain = append(chain, executionStep(phase, route))
+		}
+	}
+	appendPhase(RoutePhaseGlobal)
+	appendPhase(RoutePhaseBefore)
+	appendPhase(RoutePhaseFilter)
+	appendPhase(RoutePhaseWrap)
+	terminalIndex := len(chain)
+	chain = append(chain, executionStep(RoutePhaseHandler, terminal))
+	appendPhase(RoutePhaseAfter)
+	return RouteExecutionPlan{
+		revision: snapshot.Revision, method: method, path: normalizedPath,
+		params: cloneRouteExecutionParams(params), unsafeMethod: method != "GET" && method != "HEAD",
+		terminalIndex: terminalIndex, chain: append([]RouteExecutionStep(nil), chain...),
+	}, nil
+}
+
+func validateExecutionTerminal(snapshot Snapshot, terminal Route, method, requestPath string) error {
+	for _, conflict := range snapshot.Conflicts {
+		if !conflictContainsExecutionRoute(conflict, terminal) || !methodsOverlap(conflict.Method, method) {
+			continue
+		}
+		if conflict.Kind != ConflictProviderSelection || terminal.Action != extensionmanifest.RouteActionReplace {
+			return fmt.Errorf("%w: terminal route has an unresolved conflict", ErrInvalidExecutionPlan)
+		}
+	}
+	if terminal.Action != extensionmanifest.RouteActionReplace {
+		return nil
+	}
+	if terminal.Provider.Kind != ProviderPlugin || terminal.TargetID == "" {
+		return fmt.Errorf("%w: replacement terminal is invalid", ErrInvalidExecutionPlan)
+	}
+	replacements := 0
+	targetFound := false
+	for _, route := range snapshot.Routes {
+		if route.Action == extensionmanifest.RouteActionReplace && route.TargetID == terminal.TargetID &&
+			routeMethodMatches(route, method) {
+			compiled, err := compileRoutePath(route.Path)
+			if err == nil {
+				if _, ok := compiled.match(requestPath); ok {
+					replacements++
+				}
+			}
+		}
+		if addressableAction(route.Action) && route.ID == terminal.TargetID && routeMethodMatches(route, method) {
+			targetFound = true
+		}
+	}
+	if !targetFound || replacements != 1 {
+		return fmt.Errorf("%w: replacement provider is missing or ambiguous", ErrInvalidExecutionPlan)
+	}
+	return nil
+}
+
+func terminalExecutionAction(action string) bool {
+	return addressableAction(action) || action == extensionmanifest.RouteActionReplace
+}
+
+func executionPhaseForContribution(action string) (RouteExecutionPhase, bool) {
+	switch action {
+	case extensionmanifest.RouteActionGlobalMiddleware:
+		return RoutePhaseGlobal, true
+	case extensionmanifest.RouteActionBefore:
+		return RoutePhaseBefore, true
+	case extensionmanifest.RouteActionFilter:
+		return RoutePhaseFilter, true
+	case extensionmanifest.RouteActionWrap:
+		return RoutePhaseWrap, true
+	case extensionmanifest.RouteActionAfter:
+		return RoutePhaseAfter, true
+	default:
+		return "", false
+	}
+}
+
+func executionStep(phase RouteExecutionPhase, route Route) RouteExecutionStep {
+	return RouteExecutionStep{
+		Phase: phase, Action: route.Action, RouteID: route.ID, ContractVersion: route.ContractVersion,
+		TargetID: route.TargetID, Path: route.Path, Method: route.Method, Provider: route.Provider,
+		Guard: route.Guard, Access: routeExecutionAccess(route.Guard, route.Provider.Kind),
+		Permission: route.Permission, Mode: route.Mode, Destination: route.Destination, Handler: route.Handler,
+		RequestSchema: route.RequestSchema, ResponseSchema: route.ResponseSchema,
+		TimeoutMS: route.TimeoutMS, Fallback: route.Fallback, Priority: route.Priority,
+	}
+}
+
+func routeExecutionAccess(guard string, provider ProviderKind) string {
+	if provider == ProviderCore && guard == "" {
+		return "core"
+	}
+	switch guard {
+	case extensionmanifest.GuardCorePublic:
+		return "public"
+	case extensionmanifest.GuardCoreLogin:
+		return "login"
+	case extensionmanifest.GuardCorePermission:
+		return "permission"
+	case extensionmanifest.GuardCoreGuest:
+		return "guest"
+	case extensionmanifest.GuardCoreInherit:
+		return "inherit"
+	case extensionmanifest.GuardCoreRaw:
+		return "raw_request"
+	default:
+		return "custom"
+	}
+}
+
+func sortExecutionRoutes(routes []Route) {
+	sort.SliceStable(routes, func(i, j int) bool {
+		if routes[i].Priority != routes[j].Priority {
+			return routes[i].Priority > routes[j].Priority
+		}
+		if routes[i].ID != routes[j].ID {
+			return routes[i].ID < routes[j].ID
+		}
+		if routes[i].ContractVersion != routes[j].ContractVersion {
+			return routes[i].ContractVersion < routes[j].ContractVersion
+		}
+		if routes[i].Provider.Artifact.ExtensionID != routes[j].Provider.Artifact.ExtensionID {
+			return routes[i].Provider.Artifact.ExtensionID < routes[j].Provider.Artifact.ExtensionID
+		}
+		return routes[i].Provider.Artifact.RuntimeInstanceID < routes[j].Provider.Artifact.RuntimeInstanceID
+	})
+}
+
+func routeInExecutionSnapshot(routes []Route, wanted Route) bool {
+	for _, route := range routes {
+		if route == wanted {
+			return true
+		}
+	}
+	return false
+}
+
+func conflictContainsExecutionRoute(conflict Conflict, wanted Route) bool {
+	for _, route := range conflict.Candidates {
+		if route == wanted {
+			return true
+		}
+	}
+	return false
+}
+
+func cloneRouteExecutionParams(source map[string]string) map[string]string {
+	if len(source) == 0 {
+		return map[string]string{}
+	}
+	result := make(map[string]string, len(source))
+	for key, value := range source {
+		result[key] = value
+	}
+	return result
+}
+
+func equalRouteExecutionParams(left, right map[string]string) bool {
+	if len(left) != len(right) {
+		return false
+	}
+	for key, value := range left {
+		if right[key] != value {
+			return false
+		}
+	}
+	return true
+}
