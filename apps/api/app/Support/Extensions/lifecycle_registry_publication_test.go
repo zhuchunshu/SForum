@@ -155,6 +155,65 @@ func TestLifecycleRegistryPublicationSupportsPackageWithoutThemeJSON(t *testing.
 	}
 }
 
+func TestLifecycleRegistryValidationRejectsProviderSchemaDigestDrift(t *testing.T) {
+	ctx := context.Background()
+	repository := &memoryLifecycleRegistryRepository{phase: LifecycleRegistryPublicationSource}
+	manager := NewManager(ManagerConfig{Starter: newManagerStagedStarter()})
+	boundary := NewPostgresLifecycleBoundaryRegistries(LifecycleRegistryBoundaryConfig{
+		Repository: repository, Manager: manager, Pages: pages.NewRegistry(nil), Routes: routes.NewRegistry(),
+		RouteSchemas: lifecycleRouteSchemaPublication(t), Services: hostapi.NewServiceRegistry(),
+	})
+	source := lifecycleRegistryTestExtension(t, "1.0.0", strings.Repeat("a", 64), 31, "/schema-source")
+	if err := manager.Start(ctx, source); err != nil {
+		t.Fatal(err)
+	}
+	sourceRuntime, err := manager.ActiveRuntimeInstance(source.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	target := lifecycleRegistryTestExtension(t, "2.0.0", strings.Repeat("b", 64), 32, "/schema-target")
+	changed := []byte(`{"type":"object","required":["changed"]}`)
+	changedDigest := sha256.Sum256(changed)
+	for index := range target.Manifest.PackageFiles {
+		file := &target.Manifest.PackageFiles[index]
+		if file.ID == "registry.demo.provider.response" {
+			if err := os.WriteFile(filepath.Join(target.PackagePath, file.Path), changed, 0o600); err != nil {
+				t.Fatal(err)
+			}
+			file.Digest = hex.EncodeToString(changedDigest[:])
+		}
+	}
+	manifestBody, err := json.Marshal(target.Manifest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(target.PackagePath, extensionmanifest.ManifestFileName), manifestBody, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	target.PackageDigest, err = extensionpackage.DigestTree(target.PackagePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	targetRuntime, err := manager.StageRuntimeInstance(ctx, target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := manager.HealthRuntimeInstance(ctx, targetRuntime.Identity); err != nil {
+		t.Fatal(err)
+	}
+	request := lifecycleRegistryRequest(
+		source, target, lifecycleRegistryBinding(source, sourceRuntime.Identity.InstanceID),
+		lifecycleRegistryBinding(target, targetRuntime.Identity.InstanceID), 1,
+	)
+	if err := boundary.ValidateLifecycleRegistries(ctx, request); !errors.Is(err, ErrProviderSlotConflict) {
+		t.Fatalf("lifecycle provider schema drift = %v", err)
+	}
+	resolution, err := manager.HookBus().ProviderSlots().Discover(ProviderSlotCaller{}, "registry.demo.provider", "registry.demo.provider@1")
+	if err != nil || resolution.Contract.Artifact.RuntimeInstanceID != sourceRuntime.Identity.InstanceID {
+		t.Fatalf("drift validation changed source snapshot = %#v, %v", resolution, err)
+	}
+}
+
 func TestLifecycleRegistryBootRestoresExactRoutesAndSchemasAndSafeModeClearsBoth(t *testing.T) {
 	ctx := context.Background()
 	manager := NewManager(ManagerConfig{Starter: newManagerStagedStarter()})
@@ -403,6 +462,25 @@ func lifecycleRegistryTestExtension(t *testing.T, version, digest string, versio
 		RequestSchema: "registry.demo.provider.request@1", ResponseSchema: "registry.demo.provider.response@1",
 		Fallback: "next", TimeoutMS: 1000,
 	}}
+	for _, schema := range []struct {
+		id, path, body string
+	}{
+		{"registry.demo.provider.request", "schemas/provider-request.json", `{"type":"object"}`},
+		{"registry.demo.provider.response", "schemas/provider-response.json", `{"type":"object"}`},
+	} {
+		fullPath := filepath.Join(extension.PackagePath, schema.path)
+		if err := os.MkdirAll(filepath.Dir(fullPath), 0o700); err != nil {
+			t.Fatal(err)
+		}
+		body := []byte(schema.body)
+		if err := os.WriteFile(fullPath, body, 0o600); err != nil {
+			t.Fatal(err)
+		}
+		digest := sha256.Sum256(body)
+		extension.Manifest.PackageFiles = append(extension.Manifest.PackageFiles, extensions.ManifestPackageFile{
+			ID: schema.id, Kind: "schema", Path: schema.path, Digest: hex.EncodeToString(digest[:]), Version: "1",
+		})
+	}
 	extension.Manifest.Services = []extensions.ManifestService{{
 		ID: "registry.demo.echo", ContractVersion: "registry.demo.echo@1", Action: hostapi.ServiceActionAdd,
 		Handler: "echo", RequestSchema: "registry.demo.request@1", ResponseSchema: "registry.demo.response@1",

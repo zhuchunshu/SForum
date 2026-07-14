@@ -2,6 +2,8 @@ package extensionsruntime_test
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"os"
 	"path/filepath"
@@ -107,6 +109,7 @@ func TestProtocolV2InvokesVersionedProviderByExactTypedDeclaration(t *testing.T)
 		RequestSchema: "runtime.v2.delivery.request@1", ResponseSchema: "runtime.v2.delivery.response@1",
 		Fallback: "closed", TimeoutMS: 200,
 	}}
+	bindProtocolV2ProviderSchemas(t, &extension)
 	gateway, _ := newProtocolV2HostGateway()
 	t.Cleanup(func() { _ = gateway.Close() })
 	starter := extensionsruntime.NewProtocolStarter(extensionsruntime.ProtocolStarterConfig{
@@ -122,7 +125,7 @@ func TestProtocolV2InvokesVersionedProviderByExactTypedDeclaration(t *testing.T)
 	validations := []string{}
 	result, err := manager.InvokeVersionedProvider(context.Background(), extensionsruntime.VersionedProviderInvocation{
 		SlotID: "runtime.v2.delivery", ContractVersion: "runtime.v2.delivery@1", Operation: extensionsruntime.VersionedProviderOperationInvoke,
-		Input: map[string]any{"message": "hello"},
+		InputSchema: "runtime.v2.delivery.request@1", Input: map[string]any{"message": "hello"},
 		Revalidate: func(_ context.Context, schema string, _ map[string]any) error {
 			validations = append(validations, schema)
 			return nil
@@ -146,11 +149,44 @@ func TestProtocolV2InvokesVersionedProviderByExactTypedDeclaration(t *testing.T)
 	started := time.Now()
 	timedOut, err := manager.InvokeVersionedProvider(context.Background(), extensionsruntime.VersionedProviderInvocation{
 		SlotID: "runtime.v2.delivery", ContractVersion: "runtime.v2.delivery@1",
-		Operation: extensionsruntime.VersionedProviderOperationInvoke, Input: map[string]any{"mode": "wait_for_cancel"},
+		Operation: extensionsruntime.VersionedProviderOperationInvoke, InputSchema: "runtime.v2.delivery.request@1",
+		Input:      map[string]any{"mode": "wait_for_cancel"},
 		Revalidate: func(context.Context, string, map[string]any) error { return nil },
 	})
 	if !errors.Is(err, context.DeadlineExceeded) || timedOut.Attempts != 1 || time.Since(started) >= time.Second {
 		t.Fatalf("Protocol V2 provider timeout = %#v, elapsed=%v, err=%v", timedOut, time.Since(started), err)
+	}
+}
+
+func bindProtocolV2ProviderSchemas(t *testing.T, extension *extensions.Extension) {
+	t.Helper()
+	schemas := []struct {
+		id   string
+		path string
+		body string
+	}{
+		{
+			id: "runtime.v2.delivery.request", path: "schemas/delivery-request.json",
+			body: `{"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","properties":{"message":{"type":"string"},"mode":{"enum":["wait_for_cancel"]}},"additionalProperties":false}`,
+		},
+		{
+			id: "runtime.v2.delivery.response", path: "schemas/delivery-response.json",
+			body: `{"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","required":["status","message"],"properties":{"status":{"const":"delivered"},"message":{"type":"string"}},"additionalProperties":false}`,
+		},
+	}
+	for _, schema := range schemas {
+		fullPath := filepath.Join(extension.PackagePath, filepath.FromSlash(schema.path))
+		if err := os.MkdirAll(filepath.Dir(fullPath), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		body := []byte(schema.body)
+		if err := os.WriteFile(fullPath, body, 0o600); err != nil {
+			t.Fatal(err)
+		}
+		digest := sha256.Sum256(body)
+		extension.Manifest.PackageFiles = append(extension.Manifest.PackageFiles, extensions.ManifestPackageFile{
+			ID: schema.id, Kind: "schema", Path: schema.path, Digest: hex.EncodeToString(digest[:]), Version: "1",
+		})
 	}
 }
 
@@ -427,7 +463,7 @@ type protocolV2Helper struct {
 
 func (s *protocolV2Helper) ProviderCall(ctx context.Context, request *pluginwire.ProviderCallRequest) (*pluginwire.ProviderCallResponse, error) {
 	requestContext := request.GetContext()
-	if request.GetSlotId() != "runtime.v2.delivery.slot" || request.GetContractVersion() != "runtime.v2.delivery@1" ||
+	if request.GetDeclarationId() != "runtime.v2.delivery" || request.GetSlotId() != "runtime.v2.delivery.slot" || request.GetContractVersion() != "runtime.v2.delivery@1" ||
 		request.GetOperation() != extensionsruntime.VersionedProviderOperationInvoke ||
 		request.GetInput().GetSchemaId() != "runtime.v2.delivery.request" || request.GetInput().GetSchemaVersion() != "1" {
 		return &pluginwire.ProviderCallResponse{Error: &protocolwire.ErrorDetail{

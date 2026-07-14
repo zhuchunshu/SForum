@@ -32,7 +32,8 @@ func TestManagerVersionedProviderFallsBackWithIsolatedInputAndHostRevalidation(t
 	validations := []string{}
 	result, err := manager.InvokeVersionedProvider(context.Background(), VersionedProviderInvocation{
 		Caller: providerCaller(t, manager, consumer), SlotID: providerSlotID,
-		ContractVersion: providerContractVersion, Operation: VersionedProviderOperationInvoke, Input: callerInput,
+		ContractVersion: providerContractVersion, Operation: VersionedProviderOperationInvoke,
+		InputSchema: providerRequestSchema, Input: callerInput,
 		Revalidate: func(_ context.Context, schema string, document map[string]any) error {
 			validations = append(validations, schema)
 			if schema == providerRequestSchema && document["nested"].(map[string]any)["value"] != "safe" {
@@ -66,7 +67,8 @@ func TestManagerVersionedProviderClosedAndInvalidOutputStopOrFallback(t *testing
 		_, consumer := startProviderOwnerAndConsumer(t, manager, "closed")
 		result, err := manager.InvokeVersionedProvider(context.Background(), VersionedProviderInvocation{
 			Caller: providerCaller(t, manager, consumer), SlotID: providerSlotID,
-			ContractVersion: providerContractVersion, Operation: VersionedProviderOperationInvoke, Input: map[string]any{},
+			ContractVersion: providerContractVersion, Operation: VersionedProviderOperationInvoke,
+			InputSchema: providerRequestSchema, Input: map[string]any{},
 			Revalidate: func(context.Context, string, map[string]any) error { return nil },
 		})
 		if !errors.Is(err, ErrProviderSlotNoProvider) || result.Attempts != 1 || !reflect.DeepEqual(starter.calls(), []string{consumer.ID}) {
@@ -87,7 +89,8 @@ func TestManagerVersionedProviderClosedAndInvalidOutputStopOrFallback(t *testing
 		owner, consumer := startProviderOwnerAndConsumer(t, manager, "next")
 		result, err := manager.InvokeVersionedProvider(context.Background(), VersionedProviderInvocation{
 			Caller: providerCaller(t, manager, consumer), SlotID: providerSlotID,
-			ContractVersion: providerContractVersion, Operation: VersionedProviderOperationInvoke, Input: map[string]any{},
+			ContractVersion: providerContractVersion, Operation: VersionedProviderOperationInvoke,
+			InputSchema: providerRequestSchema, Input: map[string]any{},
 			Revalidate: func(_ context.Context, schema string, document map[string]any) error {
 				if schema == providerResponseSchema && document["status"] == "invalid" {
 					return errors.New("output schema rejected")
@@ -116,7 +119,8 @@ func TestManagerVersionedProviderEnforcesTimeoutWhenInvokerIgnoresContext(t *tes
 	}
 	started := time.Now()
 	result, err := manager.InvokeVersionedProvider(context.Background(), VersionedProviderInvocation{
-		SlotID: providerSlotID, ContractVersion: providerContractVersion, Operation: VersionedProviderOperationInvoke, Input: map[string]any{},
+		SlotID: providerSlotID, ContractVersion: providerContractVersion, Operation: VersionedProviderOperationInvoke,
+		InputSchema: providerRequestSchema, Input: map[string]any{},
 		Revalidate: func(context.Context, string, map[string]any) error { return nil },
 	})
 	if elapsed := time.Since(started); elapsed >= 100*time.Millisecond {
@@ -135,12 +139,14 @@ func TestManagerVersionedProviderRequiresHostRevalidatorAndExactInstance(t *test
 	}
 	if _, err := manager.InvokeVersionedProvider(context.Background(), VersionedProviderInvocation{
 		SlotID: providerSlotID, ContractVersion: providerContractVersion, Operation: VersionedProviderOperationInvoke,
+		InputSchema: providerRequestSchema,
 	}); !errors.Is(err, ErrProviderSlotInvalid) {
 		t.Fatalf("missing Host revalidator = %v", err)
 	}
 	if _, err := manager.InvokeVersionedProvider(context.Background(), VersionedProviderInvocation{
 		SlotID: providerSlotID, ContractVersion: providerContractVersion, Operation: "undeclared",
-		Revalidate: func(context.Context, string, map[string]any) error { return nil },
+		InputSchema: providerRequestSchema,
+		Revalidate:  func(context.Context, string, map[string]any) error { return nil },
 	}); !errors.Is(err, ErrProviderSlotInvalid) {
 		t.Fatalf("undeclared operation = %v", err)
 	}

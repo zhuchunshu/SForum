@@ -12,22 +12,28 @@ import (
 )
 
 var (
-	ErrProviderSlotInvalid    = errors.New("extension provider slot declaration is invalid")
-	ErrProviderSlotConflict   = errors.New("extension provider slot contract conflicts with the active snapshot")
-	ErrProviderSlotNotFound   = errors.New("extension provider slot is not found")
-	ErrProviderSlotDenied     = errors.New("extension provider slot caller is denied")
-	ErrProviderSlotNoProvider = errors.New("extension provider slot has no available provider")
+	ErrProviderSlotInvalid       = errors.New("extension provider slot declaration is invalid")
+	ErrProviderSlotConflict      = errors.New("extension provider slot contract conflicts with the active snapshot")
+	ErrProviderSlotNotFound      = errors.New("extension provider slot is not found")
+	ErrProviderSlotDenied        = errors.New("extension provider slot caller is denied")
+	ErrProviderSlotNoProvider    = errors.New("extension provider slot has no available provider")
+	ErrProviderSlotInputInvalid  = errors.New("extension provider slot input is invalid")
+	ErrProviderSlotOutputInvalid = errors.New("extension provider slot output is invalid")
 )
 
 type ProviderSlotContract struct {
-	ID              string       `json:"id"`
-	Slot            string       `json:"slot"`
-	ContractVersion string       `json:"contractVersion"`
-	RequestSchema   string       `json:"requestSchema"`
-	ResponseSchema  string       `json:"responseSchema"`
-	Fallback        string       `json:"fallback"`
-	TimeoutMS       int          `json:"timeoutMs"`
-	Artifact        HookArtifact `json:"artifact"`
+	ID                   string       `json:"id"`
+	Slot                 string       `json:"slot"`
+	ContractVersion      string       `json:"contractVersion"`
+	RequestSchema        string       `json:"requestSchema"`
+	ResponseSchema       string       `json:"responseSchema"`
+	RequestSchemaDigest  string       `json:"requestSchemaDigest,omitempty"`
+	ResponseSchemaDigest string       `json:"responseSchemaDigest,omitempty"`
+	Fallback             string       `json:"fallback"`
+	TimeoutMS            int          `json:"timeoutMs"`
+	Artifact             HookArtifact `json:"artifact"`
+	requestValidator     providerDocumentValidator
+	responseValidator    providerDocumentValidator
 }
 
 type ProviderSlotCandidate struct {
@@ -99,6 +105,9 @@ func (r *VersionedProviderSlotRegistry) ReplaceRuntime(extension extensions.Exte
 	if err != nil {
 		return err
 	}
+	if err := validateProviderSlotSchemaContinuity(current, next, extension.ID); err != nil {
+		return err
+	}
 	r.state.Store(next)
 	return nil
 }
@@ -110,8 +119,29 @@ func (r *VersionedProviderSlotRegistry) ValidateReplaceRuntime(extension extensi
 	current := r.load()
 	registrations := cloneProviderSlotRegistrations(current.extensions)
 	registrations[extension.ID] = hookRuntimeRegistration{extension: cloneProviderSlotExtension(extension), instanceID: instanceID}
-	_, err := buildProviderSlotRegistryState(current.revision+1, registrations)
-	return err
+	next, err := buildProviderSlotRegistryState(current.revision+1, registrations)
+	if err != nil {
+		return err
+	}
+	return validateProviderSlotSchemaContinuity(current, next, extension.ID)
+}
+
+func validateProviderSlotSchemaContinuity(current, next *providerSlotRegistryState, extensionID string) error {
+	for id, oldContract := range current.contractsByID {
+		if oldContract.Artifact.ExtensionID != extensionID {
+			continue
+		}
+		newContract, ok := next.contractsByID[id]
+		if !ok || oldContract.ContractVersion != newContract.ContractVersion {
+			continue
+		}
+		if oldContract.RequestSchemaDigest != "" && newContract.RequestSchemaDigest != "" &&
+			(oldContract.RequestSchemaDigest != newContract.RequestSchemaDigest ||
+				oldContract.ResponseSchemaDigest != newContract.ResponseSchemaDigest) {
+			return fmt.Errorf("%w: provider slot %s changed schema bytes without a contract version", ErrProviderSlotConflict, id)
+		}
+	}
+	return nil
 }
 
 func (r *VersionedProviderSlotRegistry) RemoveRuntime(extensionID, instanceID string) (bool, error) {
@@ -218,6 +248,14 @@ func buildProviderSlotRegistryState(
 				return nil, fmt.Errorf("%w: duplicate provider slot %s", ErrProviderSlotConflict, declaration.ID)
 			}
 			contract := providerSlotContract(declaration, artifact)
+			requestValidator, responseValidator, requestDigest, responseDigest, schemaErr := compileProviderSlotSchemas(registration.extension, declaration)
+			if schemaErr != nil {
+				return nil, fmt.Errorf("%w: provider slot %s schemas: %v", ErrProviderSlotInvalid, declaration.ID, schemaErr)
+			}
+			contract.requestValidator = requestValidator
+			contract.responseValidator = responseValidator
+			contract.RequestSchemaDigest = requestDigest
+			contract.ResponseSchemaDigest = responseDigest
 			state.contractsByID[contract.ID] = contract
 			state.contractBySlot[contract.Slot] = contract.ID
 		}
@@ -249,13 +287,13 @@ func buildProviderSlotRegistryState(
 					}
 					return nil, fmt.Errorf("%w: provider %s dependency", ErrProviderSlotConflict, declaration.ID)
 				}
-				if !providerDeclarationMatchesContract(declaration, contract) {
+				if !providerDeclarationMatchesContract(registration.extension, declaration, contract) {
 					if dependency.Kind == "optional" {
 						continue
 					}
 					return nil, fmt.Errorf("%w: provider %s contract", ErrProviderSlotConflict, declaration.ID)
 				}
-			} else if !providerDeclarationMatchesContract(declaration, contract) {
+			} else if !providerDeclarationMatchesContract(registration.extension, declaration, contract) {
 				return nil, fmt.Errorf("%w: provider %s contract", ErrProviderSlotConflict, declaration.ID)
 			}
 			candidate := ProviderSlotCandidate{
@@ -311,8 +349,20 @@ func providerSlotContract(value extensions.ManifestProvider, artifact HookArtifa
 	}
 }
 
-func providerDeclarationMatchesContract(value extensions.ManifestProvider, contract ProviderSlotContract) bool {
-	return value.Slot == contract.Slot && value.ContractVersion == contract.ContractVersion &&
+func providerDeclarationMatchesContract(extension extensions.Extension, value extensions.ManifestProvider, contract ProviderSlotContract) bool {
+	digestsMatch := true
+	if extension.ID == contract.Artifact.ExtensionID {
+		requestDigest, requestOK := providerSchemaDigest(extension, value.RequestSchema)
+		responseDigest, responseOK := providerSchemaDigest(extension, value.ResponseSchema)
+		digestsMatch = contract.RequestSchemaDigest == "" && contract.ResponseSchemaDigest == "" ||
+			requestOK && responseOK && requestDigest == contract.RequestSchemaDigest && responseDigest == contract.ResponseSchemaDigest
+	} else {
+		requestDigest, requestOK := providerSchemaDigest(extension, value.RequestSchema)
+		responseDigest, responseOK := providerSchemaDigest(extension, value.ResponseSchema)
+		digestsMatch = contract.RequestSchemaDigest == "" && contract.ResponseSchemaDigest == "" ||
+			requestOK && responseOK && requestDigest == contract.RequestSchemaDigest && responseDigest == contract.ResponseSchemaDigest
+	}
+	return digestsMatch && value.Slot == contract.Slot && value.ContractVersion == contract.ContractVersion &&
 		value.RequestSchema == contract.RequestSchema && value.ResponseSchema == contract.ResponseSchema &&
 		value.Fallback == contract.Fallback && value.TimeoutMS == contract.TimeoutMS
 }

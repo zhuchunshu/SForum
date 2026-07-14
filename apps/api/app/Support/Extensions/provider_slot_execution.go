@@ -15,6 +15,7 @@ type VersionedProviderInvocation struct {
 	SlotID          string
 	ContractVersion string
 	Operation       string
+	InputSchema     string
 	Input           map[string]any
 	Revalidate      HookDocumentRevalidator
 }
@@ -23,6 +24,7 @@ type VersionedProviderInvocationResult struct {
 	ProviderID        string
 	ExtensionID       string
 	RuntimeInstanceID string
+	ResponseSchema    string
 	Output            map[string]any
 	Attempts          int
 }
@@ -37,6 +39,9 @@ func (m *Manager) InvokeVersionedProvider(
 	resolution, err := m.hooks.providerSlots.Discover(input.Caller, input.SlotID, input.ContractVersion)
 	if err != nil {
 		return VersionedProviderInvocationResult{}, err
+	}
+	if strings.TrimSpace(input.InputSchema) != resolution.Contract.RequestSchema {
+		return VersionedProviderInvocationResult{}, ErrProviderSlotInputInvalid
 	}
 	invoker, ok := m.starter.(interface {
 		InvokeVersionedProvider(context.Context, extensions.Extension, VersionedProviderRequest) (VersionedProviderResponse, error)
@@ -92,7 +97,13 @@ func (m *Manager) InvokeVersionedProvider(
 			cancel()
 			release(false, "extension.provider_input_invalid")
 			admission.Release()
-			return VersionedProviderInvocationResult{}, fmt.Errorf("provider input revalidation: %w", validateErr)
+			return VersionedProviderInvocationResult{}, fmt.Errorf("%w: %v", ErrProviderSlotInputInvalid, validateErr)
+		}
+		if validateErr := m.hooks.providerSlots.ValidateDocument(resolution.Contract.ID, resolution.Contract.RequestSchema, candidateInput); validateErr != nil {
+			cancel()
+			release(false, "extension.provider_input_invalid")
+			admission.Release()
+			return VersionedProviderInvocationResult{}, fmt.Errorf("%w: %v", ErrProviderSlotInputInvalid, validateErr)
 		}
 		type providerCallOutcome struct {
 			response VersionedProviderResponse
@@ -112,7 +123,7 @@ func (m *Manager) InvokeVersionedProvider(
 		var outcome providerCallOutcome
 		select {
 		case outcome = <-outcomes:
-			if outcome.err == nil && callCtx.Err() != nil {
+			if callCtx.Err() != nil {
 				outcome.err = context.Cause(callCtx)
 			}
 		case <-callCtx.Done():
@@ -134,7 +145,7 @@ func (m *Manager) InvokeVersionedProvider(
 			cancel()
 			release(false, "extension.provider_output_invalid")
 			admission.Release()
-			failures = append(failures, fmt.Errorf("%s: clone provider output: %w", candidate.ID, cloneErr))
+			failures = append(failures, fmt.Errorf("%w: %s: clone provider output: %v", ErrProviderSlotOutputInvalid, candidate.ID, cloneErr))
 			if resolution.Contract.Fallback == "closed" {
 				break
 			}
@@ -144,7 +155,17 @@ func (m *Manager) InvokeVersionedProvider(
 			cancel()
 			release(false, "extension.provider_output_invalid")
 			admission.Release()
-			failures = append(failures, fmt.Errorf("%s: provider output revalidation: %w", candidate.ID, validateErr))
+			failures = append(failures, fmt.Errorf("%w: %s: provider output revalidation: %v", ErrProviderSlotOutputInvalid, candidate.ID, validateErr))
+			if resolution.Contract.Fallback == "closed" {
+				break
+			}
+			continue
+		}
+		if validateErr := m.hooks.providerSlots.ValidateDocument(resolution.Contract.ID, resolution.Contract.ResponseSchema, output); validateErr != nil {
+			cancel()
+			release(false, "extension.provider_output_invalid")
+			admission.Release()
+			failures = append(failures, fmt.Errorf("%w: %s: provider exact output schema: %v", ErrProviderSlotOutputInvalid, candidate.ID, validateErr))
 			if resolution.Contract.Fallback == "closed" {
 				break
 			}
@@ -156,6 +177,7 @@ func (m *Manager) InvokeVersionedProvider(
 		return VersionedProviderInvocationResult{
 			ProviderID: candidate.ID, ExtensionID: candidate.Artifact.ExtensionID,
 			RuntimeInstanceID: candidate.Artifact.RuntimeInstanceID,
+			ResponseSchema:    resolution.Contract.ResponseSchema,
 			Output:            output, Attempts: index + 1,
 		}, nil
 	}
