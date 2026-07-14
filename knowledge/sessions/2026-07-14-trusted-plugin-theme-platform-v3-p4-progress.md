@@ -5,7 +5,7 @@
 - Overall V3: **27%**.
 - P0-P3: **100%**.
 - P4: **47%**, active (7 of 15 task/test rows complete).
-- Branch: `main`; last committed slice at this checkpoint: `ccaa03c08`.
+- Branch: `main`; last committed slice at this checkpoint: `b707fa47f`.
 
 ## Registry And Service Production-Path Checkpoint
 
@@ -29,6 +29,43 @@
   `CLAUDE.md` deletions.
 
 ## Changed
+
+- Convergence checkpoint at `b707fa47f`: lifecycle recovery HTTP/OpenAPI,
+  exact River/shared-marker ordering, production preflight, scoped database
+  credentials, and built-in Goose compatibility dependencies are committed.
+- Official progress remains **27% overall** and **47% P4 (7/15)** until the
+  production bootstrap, exact migration engine, cleanup purger/finalizer, UI,
+  and complete gates are all verified together.
+- Parallel ownership is now explicit: migration engine/disposition, bootstrap
+  lifecycle assembly/cleanup, and web recovery/removal controls. The abandoned
+  interactive `git add -p` process was terminated without resetting files.
+
+## Decisions
+
+- Do not credit implementation-only work as an accepted P4 row. Production
+  wiring and evidence are part of the row.
+- A migration advisory-unlock failure must discard the session connection; it
+  must never return a possibly locked connection to the pool.
+- A pre-existing migration role with unexpected memberships, role/database
+  settings, or owned objects fails closed just like the runtime role.
+- Uninstall physical deletion requires a durable exact receipt covering
+  identity, package, runtime recovery material, credential revocation, and the
+  selected database disposition. A synthetic receipt is not acceptable.
+
+## Next
+
+1. Commit and verify the exact migration engine plus role/lock integrity.
+2. Add the independent database-disposition migration and implementation.
+3. Bind the real engine, coordinator, finalizer, and purger in API bootstrap.
+4. Commit the admin removal/recovery UI and run Nuxt typecheck/build/browser QA.
+5. Run real PostgreSQL, race, vet, OpenAPI, and `./scripts/test.sh`; only then
+   recalculate the P4 rows and overall percentage.
+
+## Open Questions
+
+- None. The accepted V3 ADR defines the current product boundary.
+
+## Earlier Session Record
 
 - Closed the remaining P3 runtime streaming, service discovery, compatibility
   matrix, and v1 built-in package rows.

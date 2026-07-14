@@ -112,6 +112,42 @@ phase percentage.
 
 ## Last Durable Checkpoint
 
+### 2026-07-14 P4 Convergence Checkpoint
+
+- Overall remains **27%** and P4 remains **47% (7 of 15)**. The underlying P4
+  implementation is substantially ahead of the accepted rows, but no row is
+  promoted until the production bootstrap, exact migration engine, cleanup
+  finalizer, recovery UI, and repository gates converge.
+- `ee5a58fc1`, `41b8dc7b0`, `b9b52caf1`, `c2dd53941`, `af32d68cb`, and
+  `af2408f0c` complete authoritative uninstall coordination, the PostgreSQL
+  production fence, exact River reconciliation, immutable recovery authority,
+  sanitized history failures, and target-admission ordering across the shared
+  publication marker.
+- `38b84f538` and `9ade60966` add the Database Registry ledger and scoped
+  schema/role credentials. `cfa416e7c` synchronizes the Goose parser dependency
+  for all three built-in protocol-v1 backend compatibility modules.
+- `0cd41344f` exposes V2 uninstall results and retry/skip/forced recovery over
+  authenticated HTTP/OpenAPI. Focused Controller, Models, Localization,
+  OpenAPI-ref, and staged-contract gates passed.
+- `b707fa47f` adds exact-artifact migration source/target proof and static
+  preflight. Focused, race, and six real-PostgreSQL scenarios passed.
+- Active dirty ownership is isolated: exact migration engine and role-integrity
+  work under `app/Support/Extensions/extension_database_migration_*`; production
+  assembly under `apps/api/bootstrap/{app.go,extension_lifecycle*}`; and
+  management recovery/removal UI under `apps/web`. User-owned `.reasonix`,
+  `.zcode`, and `CLAUDE.md` deletions remain untouched.
+- Release blockers: migration-role pre-existing membership/settings/ownership
+  rejection; failed advisory-unlock connection isolation; non-nil production
+  migration engine; exact cleanup finalizer/purger with durable database
+  disposition; full bootstrap/service binding; three removal modes plus
+  retry/skip/forced UI; real PostgreSQL/race/vet/OpenAPI/Nuxt/browser/full-repo
+  gates.
+- Exact resume order: land the exact migration engine; land additive database
+  disposition migration and API; land bootstrap and cleanup finalizer/purger;
+  land the management UI; run the complete P4 gate; then update the 15-row
+  ledger and begin P5 without reimplementing already-landed Database Registry
+  prerequisites.
+
 ### 2026-07-14 P4 Registry And Service Production-Path Checkpoint
 
 - Overall remains **27%** and P4 remains **47% (7 of 15)**. The newly landed
