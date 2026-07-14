@@ -115,13 +115,153 @@ func TestProductionCoreGuardEvaluatorRegistryIsExplicitAndVersioned(t *testing.T
 		t.Fatal(err)
 	}
 	bindings := registry.Bindings()
-	if len(bindings) != len(registrations) || len(bindings) != 16 {
+	if len(bindings) != len(registrations) || len(bindings) != 17 {
 		t.Fatalf("bindings = %#v", bindings)
 	}
 	for _, binding := range bindings {
 		if binding.ContractVersion != routes.CoreGuardEvaluatorContractV1 || !strings.HasPrefix(binding.EvaluatorID, "core.guard.") {
 			t.Fatalf("binding = %#v", binding)
 		}
+	}
+}
+
+func TestProductionExtensionsMutationGuardPartitionsCatalogByProvablePolicy(t *testing.T) {
+	type expectedRoute struct {
+		method      string
+		permissions []string
+		body        string
+		supported   bool
+	}
+	plugin := []string{identity.PermissionExtensionPluginManage, identity.PermissionExtensionManage}
+	theme := []string{identity.PermissionExtensionThemeManage, identity.PermissionExtensionManage}
+	superAdmin := []string{"*"}
+	expected := map[string]expectedRoute{
+		"core.route.extensions.activate":                         {method: "POST", supported: true, permissions: theme},
+		"core.route.extensions.disable":                          {method: "POST", supported: true, permissions: plugin},
+		"core.route.extensions.recover_lifecycle_operation":      {method: "POST", supported: true, permissions: plugin, body: `{"decision":"retry"}`},
+		"core.route.extensions.rollback":                         {method: "POST", supported: true, permissions: plugin},
+		"core.route.extensions.revoke_executable_trust":          {method: "DELETE", supported: true, permissions: superAdmin},
+		"core.route.extensions.issue_executable_trust_challenge": {method: "POST", supported: true, permissions: superAdmin},
+		"core.route.extensions.select_route_provider":            {method: "POST", supported: true, permissions: superAdmin},
+		"core.route.extensions.reset_route_provider":             {method: "POST", supported: true, permissions: superAdmin},
+
+		"core.route.extensions.install":                 {method: "POST"},
+		"core.route.extensions.uninstall":               {method: "DELETE"},
+		"core.route.extensions.enable":                  {method: "POST"},
+		"core.route.extensions.apply_migrations":        {method: "POST"},
+		"core.route.extensions.update_settings":         {method: "PUT"},
+		"core.route.extensions.execute_settings_action": {method: "POST"},
+		"core.route.extensions.reset_settings":          {method: "POST"},
+		"core.route.extensions.upgrade":                 {method: "POST"},
+		"core.route.extensions.verify":                  {method: "POST"},
+	}
+	var catalog []routes.CoreRoute
+	for _, route := range routes.CoreRouteCatalog() {
+		if route.Guard.EvaluatorID == "core.guard.extensions.mutation" {
+			catalog = append(catalog, route)
+		}
+	}
+	if len(catalog) != len(expected) {
+		t.Fatalf("extensions mutation contextual catalog = %#v", catalog)
+	}
+
+	authorizer := NewProductionRouteGuardAuthorizer()
+	for _, route := range catalog {
+		want, exists := expected[route.ID]
+		if !exists || route.Method != want.method || route.Guard.Kind != routes.CoreGuardContextual ||
+			len(route.Guard.Permissions) != 0 {
+			t.Fatalf("unexpected extensions mutation guard route = %#v", route)
+		}
+		delete(expected, route.ID)
+
+		plan, step := productionCatalogInheritedGuardPlan(t, route)
+		if !want.supported {
+			request := productionGuardRequest("*")
+			request.Method, request.Path = plan.Method(), plan.Path()
+			if err := authorizer.Authorize(context.Background(), plan, step, request); !errors.Is(err, ErrRouteGuardUnavailable) {
+				t.Fatalf("%s artifact-dependent policy error = %v", route.ID, err)
+			}
+			continue
+		}
+
+		for _, permission := range want.permissions {
+			allowed := productionGuardRequest(permission)
+			allowed.Method, allowed.Path, allowed.Body = plan.Method(), plan.Path(), []byte(want.body)
+			if err := authorizer.Authorize(context.Background(), plan, step, allowed); err != nil {
+				t.Fatalf("%s permission %s error = %v", route.ID, permission, err)
+			}
+		}
+
+		denied := productionGuardRequest(identity.PermissionPostCreate)
+		denied.Method, denied.Path, denied.Body = plan.Method(), plan.Path(), []byte(want.body)
+		if err := authorizer.Authorize(context.Background(), plan, step, denied); !errors.Is(err, ErrRoutePermissionDenied) {
+			t.Fatalf("%s permission denied error = %v", route.ID, err)
+		}
+
+		anonymous := routes.DispatchRequest{Method: plan.Method(), Path: plan.Path(), Body: []byte(want.body)}
+		if err := authorizer.Authorize(context.Background(), plan, step, anonymous); !errors.Is(err, ErrRouteLoginRequired) {
+			t.Fatalf("%s anonymous error = %v", route.ID, err)
+		}
+
+		allowed := productionGuardRequest(want.permissions[0])
+		allowed.Method, allowed.Path, allowed.Body = plan.Method(), plan.Path(), []byte(want.body)
+		forgedStep := step
+		forgedStep.RouteID += ".forged"
+		if err := authorizer.Authorize(context.Background(), plan, forgedStep, allowed); !errors.Is(err, ErrRouteGuardUnavailable) {
+			t.Fatalf("%s forged step error = %v", route.ID, err)
+		}
+	}
+	if len(expected) != 0 {
+		t.Fatalf("missing extensions mutation guard routes = %#v", expected)
+	}
+}
+
+func TestProductionExtensionsMutationGuardProtectsForcedRecovery(t *testing.T) {
+	var target routes.CoreRoute
+	for _, route := range routes.CoreRouteCatalog() {
+		if route.ID == "core.route.extensions.recover_lifecycle_operation" {
+			target = route
+			break
+		}
+	}
+	if target.ID == "" {
+		t.Fatal("lifecycle recovery route is missing")
+	}
+	plan, step := productionCatalogInheritedGuardPlan(t, target)
+	authorizer := NewProductionRouteGuardAuthorizer()
+	tests := []struct {
+		name        string
+		body        string
+		permissions []string
+		want        error
+	}{
+		{name: "ordinary recovery", body: `{"decision":"retry"}`, permissions: []string{identity.PermissionExtensionPluginManage}},
+		{name: "forced denied", body: `{"decision":"retry","escalateForced":true}`, permissions: []string{identity.PermissionExtensionPluginManage}, want: ErrRoutePermissionDenied},
+		{name: "forced super admin", body: `{"decision":"retry","escalateForced":true}`, permissions: []string{"*"}},
+		{name: "unknown field closes", body: `{"decision":"retry","future":true}`, permissions: []string{identity.PermissionExtensionPluginManage}, want: ErrRouteGuardUnavailable},
+		{name: "malformed closes", body: `{"decision":`, permissions: []string{identity.PermissionExtensionPluginManage}, want: ErrRouteGuardUnavailable},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			request := productionGuardRequest(test.permissions...)
+			request.Method, request.Path, request.Body = plan.Method(), plan.Path(), []byte(test.body)
+			err := authorizer.Authorize(context.Background(), plan, step, request)
+			if !errors.Is(err, test.want) || test.want == nil && err != nil {
+				t.Fatalf("error = %v, want %v", err, test.want)
+			}
+		})
+	}
+}
+
+func TestProductionExtensionsMutationGuardRejectsForeignRouteID(t *testing.T) {
+	descriptor := routes.CoreGuardDescriptor{
+		Kind: routes.CoreGuardContextual, EvaluatorID: "core.guard.extensions.mutation",
+	}
+	plan, step := productionInheritedGuardPlan(t, "core.route.extensions.mutation.foreign", descriptor)
+	request := productionGuardRequest("*")
+	request.Method, request.Path = plan.Method(), plan.Path()
+	if err := NewProductionRouteGuardAuthorizer().Authorize(context.Background(), plan, step, request); !errors.Is(err, ErrRouteGuardUnavailable) {
+		t.Fatalf("foreign extensions mutation route error = %v", err)
 	}
 }
 

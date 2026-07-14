@@ -8,6 +8,7 @@ import (
 	"io"
 	"maps"
 
+	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
 	routes "github.com/zhuchunshu/sforum/apps/api/app/Support/Routes"
 )
@@ -51,6 +52,7 @@ func (a ProductionRouteGuardAuthorizer) Authorize(
 func productionCoreGuardEvaluatorRegistrations() []routes.CoreGuardEvaluatorRegistration {
 	return []routes.CoreGuardEvaluatorRegistration{
 		productionCoreGuardEvaluator("core.guard.attachments.upload", requireDeclaredCoreGuardPermission),
+		productionCoreGuardEvaluator("core.guard.extensions.mutation", requireExtensionsMutationAuthority),
 		productionCoreGuardEvaluator("core.guard.extensions.read", requireExtensionsReadAuthority),
 		productionCoreGuardEvaluator("core.guard.forum.author_review", requireAuthenticatedCoreGuardActor),
 		productionCoreGuardEvaluator("core.guard.forum.comment_write", requireForumCommentGlobalAuthority),
@@ -116,6 +118,44 @@ func requireExtensionsReadAuthority(_ context.Context, evaluation routes.CoreGua
 		)
 	default:
 		// settings/frontend 读取依赖目标扩展类型、provider 与精确制品状态。
+		return routes.ErrCoreGuardEvaluatorUnavailable
+	}
+}
+
+func requireExtensionsMutationAuthority(_ context.Context, evaluation routes.CoreGuardEvaluation) error {
+	switch evaluation.Descriptor.RouteID {
+	case "core.route.extensions.disable", "core.route.extensions.rollback":
+		return requireCoreGuardPermission(evaluation,
+			identity.PermissionExtensionPluginManage,
+			identity.PermissionExtensionManage,
+		)
+	case "core.route.extensions.activate":
+		return requireCoreGuardPermission(evaluation,
+			identity.PermissionExtensionThemeManage,
+			identity.PermissionExtensionManage,
+		)
+	case "core.route.extensions.recover_lifecycle_operation":
+		if err := requireCoreGuardPermission(evaluation,
+			identity.PermissionExtensionPluginManage,
+			identity.PermissionExtensionManage,
+		); err != nil {
+			return err
+		}
+		var input extensions.LifecycleRecoveryInput
+		if err := decodeGuardJSON(evaluation.Request.Body, &input); err != nil {
+			return routes.ErrCoreGuardEvaluatorUnavailable
+		}
+		if input.EscalateForced {
+			return requireCoreGuardPermission(evaluation, "*")
+		}
+		return nil
+	case "core.route.extensions.revoke_executable_trust",
+		"core.route.extensions.issue_executable_trust_challenge",
+		"core.route.extensions.select_route_provider",
+		"core.route.extensions.reset_route_provider":
+		return requireCoreGuardPermission(evaluation, "*")
+	default:
+		// 安装、启用、升级、迁移、校验和设置写入都依赖目标制品策略。
 		return routes.ErrCoreGuardEvaluatorUnavailable
 	}
 }
@@ -242,15 +282,22 @@ func requireForumSettingsAuthority(_ context.Context, evaluation routes.CoreGuar
 
 func decodeForumSettingsGuardInput(body []byte) (forumSettingsGuardInput, error) {
 	var input forumSettingsGuardInput
-	decoder := json.NewDecoder(bytes.NewReader(body))
-	decoder.DisallowUnknownFields()
-	if err := decoder.Decode(&input); err != nil {
+	if err := decodeGuardJSON(body, &input); err != nil {
 		return forumSettingsGuardInput{}, err
 	}
-	if err := decoder.Decode(&struct{}{}); err != io.EOF {
-		return forumSettingsGuardInput{}, errors.New("forum settings guard: trailing JSON value")
-	}
 	return input, nil
+}
+
+func decodeGuardJSON(body []byte, target any) error {
+	decoder := json.NewDecoder(bytes.NewReader(body))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(target); err != nil {
+		return err
+	}
+	if err := decoder.Decode(&struct{}{}); err != io.EOF {
+		return errors.New("route guard: trailing JSON value")
+	}
+	return nil
 }
 
 func forumTagSettingsPresent(input forumSettingsGuardInput) bool {
