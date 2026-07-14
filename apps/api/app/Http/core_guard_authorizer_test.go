@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
 	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
 	routes "github.com/zhuchunshu/sforum/apps/api/app/Support/Routes"
@@ -692,6 +693,140 @@ func TestProductionExtensionsReadGuardRejectsForeignRouteID(t *testing.T) {
 	}
 }
 
+func TestProductionExtensionPolicyClosesExactArtifactCatalogRoutes(t *testing.T) {
+	entry := extensions.GuardPolicyEntry{
+		ExtensionID: "guard.plugin", ExtensionType: extensions.TypePlugin,
+		Status: extensions.StatusEnabled, Source: extensions.SourceBuiltin,
+		Version: "1.0.0", PackageDigest: strings.Repeat("a", 64),
+		AdminFrontendDigest: strings.Repeat("b", 64), HasPrebuiltAdmin: true,
+		FrontendArtifactTrusted: true, LifecycleV2: true,
+		CurrentArtifactTrusted: true, ReviewArtifactTrusted: true,
+		HasStagedArtifact: true, StagedVersion: "2.0.0",
+		StagedPackageDigest: strings.Repeat("c", 64), StagedArtifactTrusted: true,
+	}
+	policy := &testExtensionGuardPolicy{lookup: extensions.GuardPolicyLookup{
+		Revision: 1, TrustChallengesEnabled: true, Entry: entry, Found: true,
+	}, ok: true}
+	authorizer := NewProductionRouteGuardAuthorizerWithPolicies(ProductionRouteGuardPolicies{Extensions: policy})
+	expected := map[string]string{
+		"core.route.extensions.install":                 identity.PermissionExtensionPluginManage,
+		"core.route.extensions.uninstall":               identity.PermissionExtensionPluginManage,
+		"core.route.extensions.enable":                  identity.PermissionExtensionPluginManage,
+		"core.route.extensions.apply_migrations":        identity.PermissionExtensionPluginManage,
+		"core.route.extensions.update_settings":         identity.PermissionExtensionPluginManage,
+		"core.route.extensions.execute_settings_action": identity.PermissionExtensionPluginManage,
+		"core.route.extensions.reset_settings":          identity.PermissionExtensionPluginManage,
+		"core.route.extensions.upgrade":                 identity.PermissionExtensionPluginManage,
+		"core.route.extensions.verify":                  identity.PermissionExtensionPluginManage,
+		"core.route.extensions.frontend_status":         identity.PermissionExtensionView,
+		"core.route.extensions.frontend_asset":          identity.PermissionExtensionPluginManage,
+		"core.route.extensions.settings":                identity.PermissionExtensionPluginManage,
+	}
+	covered := 0
+	for _, route := range routes.CoreRouteCatalog() {
+		permission, wanted := expected[route.ID]
+		if !wanted {
+			continue
+		}
+		covered++
+		delete(expected, route.ID)
+		plan, step := productionExtensionPolicyGuardPlan(t, route, entry)
+		request := productionGuardRequest(permission)
+		request.Method, request.Path, request.Params = plan.Method(), plan.Path(), plan.Params()
+		if err := authorizer.Authorize(context.Background(), plan, step, request); err != nil {
+			t.Fatalf("%s allowed error = %v", route.ID, err)
+		}
+		denied := productionGuardRequest(identity.PermissionPostCreate)
+		denied.Method, denied.Path, denied.Params = plan.Method(), plan.Path(), plan.Params()
+		if err := authorizer.Authorize(context.Background(), plan, step, denied); !errors.Is(err, ErrRoutePermissionDenied) {
+			t.Fatalf("%s denied error = %v", route.ID, err)
+		}
+	}
+	if covered != 12 || len(expected) != 0 {
+		t.Fatalf("covered=%d missing=%#v", covered, expected)
+	}
+}
+
+func TestProductionExtensionPolicyEnforcesTypeTrustSafeModeAndDrift(t *testing.T) {
+	targets := map[string]routes.CoreRoute{}
+	for _, route := range routes.CoreRouteCatalog() {
+		targets[route.ID] = route
+	}
+	base := extensions.GuardPolicyEntry{
+		ExtensionID: "guard.plugin", ExtensionType: extensions.TypePlugin,
+		Status: extensions.StatusEnabled, Source: extensions.SourceUploaded,
+		Version: "1.0.0", PackageDigest: strings.Repeat("a", 64),
+		HasExecutableBackend: true, LifecycleV2: true,
+		ReviewTrustRequired: true, HasStagedArtifact: true,
+		StagedTrustRequired: true, StagedVersion: "2.0.0", StagedPackageDigest: strings.Repeat("c", 64),
+	}
+	policy := &testExtensionGuardPolicy{ok: true}
+	authorizer := NewProductionRouteGuardAuthorizerWithPolicies(ProductionRouteGuardPolicies{Extensions: policy})
+
+	for _, routeID := range []string{"core.route.extensions.enable", "core.route.extensions.upgrade"} {
+		plan, step := productionExtensionPolicyGuardPlan(t, targets[routeID], base)
+		policy.lookup = extensions.GuardPolicyLookup{Revision: 1, TrustChallengesEnabled: true, Entry: base, Found: true}
+		manager := productionGuardRequest(identity.PermissionExtensionPluginManage)
+		manager.Method, manager.Path, manager.Params = plan.Method(), plan.Path(), plan.Params()
+		if err := authorizer.Authorize(context.Background(), plan, step, manager); !errors.Is(err, ErrRoutePermissionDenied) {
+			t.Fatalf("%s untrusted manager error = %v", routeID, err)
+		}
+		superAdmin := productionGuardRequest("*")
+		superAdmin.Method, superAdmin.Path, superAdmin.Params = plan.Method(), plan.Path(), plan.Params()
+		if err := authorizer.Authorize(context.Background(), plan, step, superAdmin); err != nil {
+			t.Fatalf("%s super admin error = %v", routeID, err)
+		}
+	}
+
+	theme := base
+	theme.ExtensionType, theme.Source, theme.HasExecutableBackend = extensions.TypeTheme, extensions.SourceBuiltin, false
+	theme.ReviewTrustRequired, theme.StagedTrustRequired = false, false
+	theme.HasMailProvider = false
+	policy.lookup = extensions.GuardPolicyLookup{Revision: 2, TrustChallengesEnabled: true, Entry: theme, Found: true}
+	settingsPlan, settingsStep := productionExtensionPolicyGuardPlan(t, targets["core.route.extensions.settings"], theme)
+	themeManager := productionGuardRequest(identity.PermissionExtensionThemeManage)
+	themeManager.Method, themeManager.Path, themeManager.Params = settingsPlan.Method(), settingsPlan.Path(), settingsPlan.Params()
+	if err := authorizer.Authorize(context.Background(), settingsPlan, settingsStep, themeManager); err != nil {
+		t.Fatalf("theme settings error = %v", err)
+	}
+
+	policy.lookup.SafeMode = true
+	enablePlan, enableStep := productionExtensionPolicyGuardPlan(t, targets["core.route.extensions.enable"], base)
+	request := productionGuardRequest("*")
+	request.Method, request.Path, request.Params = enablePlan.Method(), enablePlan.Path(), enablePlan.Params()
+	if err := authorizer.Authorize(context.Background(), enablePlan, enableStep, request); !errors.Is(err, ErrRouteGuardUnavailable) {
+		t.Fatalf("safe mode error = %v", err)
+	}
+
+	policy.ok = false
+	if err := authorizer.Authorize(context.Background(), settingsPlan, settingsStep, themeManager); !errors.Is(err, ErrRouteGuardUnavailable) {
+		t.Fatalf("stale policy error = %v", err)
+	}
+	policy.ok = true
+	policy.lookup = extensions.GuardPolicyLookup{Revision: 3, Entry: theme, Found: true}
+	policy.lookup.Entry.ExtensionID = "drifted.plugin"
+	if err := authorizer.Authorize(context.Background(), settingsPlan, settingsStep, themeManager); !errors.Is(err, ErrRouteGuardUnavailable) {
+		t.Fatalf("identity drift error = %v", err)
+	}
+}
+
+type testExtensionGuardPolicy struct {
+	lookup extensions.GuardPolicyLookup
+	ok     bool
+}
+
+func (p *testExtensionGuardPolicy) Lookup(extensionID string) (extensions.GuardPolicyLookup, bool) {
+	if p == nil {
+		return extensions.GuardPolicyLookup{}, false
+	}
+	lookup := p.lookup
+	if extensionID == "" {
+		lookup.Found = false
+		lookup.Entry = extensions.GuardPolicyEntry{}
+	}
+	return lookup, p.ok
+}
+
 func TestProductionIdentityAdminGuardPartitionsCatalogByProvablePolicy(t *testing.T) {
 	type expectedRoute struct {
 		method      string
@@ -1156,6 +1291,29 @@ func productionCatalogInheritedGuardPlan(
 		t.Fatal(err)
 	}
 	return plan, plan.Terminal()
+}
+
+func productionExtensionPolicyGuardPlan(
+	t *testing.T,
+	target routes.CoreRoute,
+	entry extensions.GuardPolicyEntry,
+) (routes.RouteExecutionPlan, routes.RouteExecutionStep) {
+	t.Helper()
+	aliasPath := "/guard/production/extensions"
+	requestPath := aliasPath
+	if target.ID != "core.route.extensions.install" {
+		aliasPath += "/:id"
+		requestPath += "/" + entry.ExtensionID
+	}
+	switch target.ID {
+	case "core.route.extensions.frontend_asset":
+		aliasPath += "/:digest/:asset"
+		requestPath += "/" + entry.AdminFrontendDigest + "/entry"
+	case "core.route.extensions.execute_settings_action":
+		aliasPath += "/:actionId"
+		requestPath += "/probe"
+	}
+	return productionParameterizedInheritedGuardPlan(t, target, aliasPath, requestPath)
 }
 
 func productionParameterizedInheritedGuardPlan(

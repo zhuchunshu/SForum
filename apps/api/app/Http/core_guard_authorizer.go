@@ -21,8 +21,13 @@ type ForumReadPolicy interface {
 	ForumReadPolicySnapshot() (guestRead string, softDeleteVisibility string, revision uint64, ok bool)
 }
 
+type ExtensionGuardPolicy interface {
+	Lookup(extensionID string) (extensions.GuardPolicyLookup, bool)
+}
+
 type ProductionRouteGuardPolicies struct {
-	ForumRead ForumReadPolicy
+	ForumRead  ForumReadPolicy
+	Extensions ExtensionGuardPolicy
 }
 
 func NewProductionRouteGuardAuthorizer() ProductionRouteGuardAuthorizer {
@@ -68,8 +73,8 @@ func productionCoreGuardEvaluatorRegistrations() []routes.CoreGuardEvaluatorRegi
 func productionCoreGuardEvaluatorRegistrationsWithPolicies(policies ProductionRouteGuardPolicies) []routes.CoreGuardEvaluatorRegistration {
 	return []routes.CoreGuardEvaluatorRegistration{
 		productionCoreGuardEvaluator("core.guard.attachments.upload", requireDeclaredCoreGuardPermission),
-		productionCoreGuardEvaluator("core.guard.extensions.mutation", requireExtensionsMutationAuthority),
-		productionCoreGuardEvaluator("core.guard.extensions.read", requireExtensionsReadAuthority),
+		productionCoreGuardEvaluator("core.guard.extensions.mutation", extensionsMutationGuardEvaluator(policies.Extensions)),
+		productionCoreGuardEvaluator("core.guard.extensions.read", extensionsReadGuardEvaluator(policies.Extensions)),
 		productionCoreGuardEvaluator("core.guard.forum.author_review", requireAuthenticatedCoreGuardActor),
 		productionCoreGuardEvaluator("core.guard.forum.comment_write", requireForumCommentGlobalAuthority),
 		productionCoreGuardEvaluator("core.guard.forum.read", forumReadGuardEvaluator(policies.ForumRead)),
@@ -140,6 +145,33 @@ func requireExtensionsReadAuthority(_ context.Context, evaluation routes.CoreGua
 	}
 }
 
+func extensionsReadGuardEvaluator(policy ExtensionGuardPolicy) routes.CoreGuardEvaluatorFunc {
+	return func(ctx context.Context, evaluation routes.CoreGuardEvaluation) error {
+		if err := requireExtensionsReadAuthority(ctx, evaluation); !errors.Is(err, routes.ErrCoreGuardEvaluatorUnavailable) {
+			return err
+		}
+		lookup, ok := extensionGuardPolicyLookup(policy, evaluation)
+		if !ok || !lookup.Found {
+			return routes.ErrCoreGuardEvaluatorUnavailable
+		}
+		switch evaluation.Descriptor.RouteID {
+		case "core.route.extensions.settings":
+			return requireExtensionSettingsAuthority(evaluation, lookup.Entry)
+		case "core.route.extensions.frontend_status":
+			return requireExtensionFrontendStatusAuthority(evaluation, lookup.Entry)
+		case "core.route.extensions.frontend_asset":
+			if lookup.SafeMode || !lookup.Entry.HasPrebuiltAdmin || !lookup.Entry.FrontendArtifactTrusted ||
+				evaluation.Request.Params["digest"] != lookup.Entry.AdminFrontendDigest ||
+				(evaluation.Request.Params["asset"] != "entry" && evaluation.Request.Params["asset"] != "style") {
+				return routes.ErrCoreGuardEvaluatorUnavailable
+			}
+			return requireExtensionSettingsAuthority(evaluation, lookup.Entry)
+		default:
+			return routes.ErrCoreGuardEvaluatorUnavailable
+		}
+	}
+}
+
 func requireExtensionsMutationAuthority(_ context.Context, evaluation routes.CoreGuardEvaluation) error {
 	switch evaluation.Descriptor.RouteID {
 	case "core.route.extensions.disable", "core.route.extensions.rollback":
@@ -176,6 +208,133 @@ func requireExtensionsMutationAuthority(_ context.Context, evaluation routes.Cor
 		// 安装、启用、升级、迁移、校验和设置写入都依赖目标制品策略。
 		return routes.ErrCoreGuardEvaluatorUnavailable
 	}
+}
+
+func extensionsMutationGuardEvaluator(policy ExtensionGuardPolicy) routes.CoreGuardEvaluatorFunc {
+	return func(ctx context.Context, evaluation routes.CoreGuardEvaluation) error {
+		if err := requireExtensionsMutationAuthority(ctx, evaluation); !errors.Is(err, routes.ErrCoreGuardEvaluatorUnavailable) {
+			return err
+		}
+		lookup, ok := extensionGuardPolicyLookup(policy, evaluation)
+		if !ok {
+			return routes.ErrCoreGuardEvaluatorUnavailable
+		}
+		if evaluation.Descriptor.RouteID == "core.route.extensions.install" {
+			if !lookup.TrustChallengesEnabled {
+				return requireCoreGuardPermission(evaluation, "*")
+			}
+			return requireCoreGuardPermission(evaluation,
+				identity.PermissionExtensionPluginManage,
+				identity.PermissionExtensionManage,
+			)
+		}
+		if !lookup.Found {
+			return routes.ErrCoreGuardEvaluatorUnavailable
+		}
+		entry := lookup.Entry
+		switch evaluation.Descriptor.RouteID {
+		case "core.route.extensions.uninstall":
+			if entry.Source != extensions.SourceBuiltin && entry.HasExecutableBackend &&
+				!(entry.LifecycleV2 && (entry.Status == extensions.StatusEnabled || entry.Status == extensions.StatusDisabled)) {
+				return requireCoreGuardPermission(evaluation, "*")
+			}
+			return requireExtensionPluginAuthority(evaluation)
+		case "core.route.extensions.enable":
+			if lookup.SafeMode || entry.ExtensionType != extensions.TypePlugin {
+				return routes.ErrCoreGuardEvaluatorUnavailable
+			}
+			if lookup.TrustChallengesEnabled {
+				if entry.ReviewTrustRequired && !entry.ReviewArtifactTrusted {
+					return requireCoreGuardPermission(evaluation, "*")
+				}
+			} else if entry.Source != extensions.SourceBuiltin && entry.HasExecutableBackend {
+				return requireCoreGuardPermission(evaluation, "*")
+			}
+			return requireExtensionPluginAuthority(evaluation)
+		case "core.route.extensions.apply_migrations", "core.route.extensions.verify":
+			if lookup.SafeMode {
+				return routes.ErrCoreGuardEvaluatorUnavailable
+			}
+			if entry.Source != extensions.SourceBuiltin && entry.HasExecutableBackend {
+				return requireCoreGuardPermission(evaluation, "*")
+			}
+			return requireExtensionPluginAuthority(evaluation)
+		case "core.route.extensions.update_settings", "core.route.extensions.reset_settings":
+			return requireExtensionSettingsAuthority(evaluation, entry)
+		case "core.route.extensions.execute_settings_action":
+			if lookup.SafeMode {
+				return routes.ErrCoreGuardEvaluatorUnavailable
+			}
+			return requireExtensionSettingsAuthority(evaluation, entry)
+		case "core.route.extensions.upgrade":
+			if lookup.SafeMode || entry.ExtensionType != extensions.TypePlugin || !entry.LifecycleV2 ||
+				entry.Status != extensions.StatusEnabled || !entry.HasStagedArtifact {
+				return routes.ErrCoreGuardEvaluatorUnavailable
+			}
+			if entry.StagedTrustRequired && !entry.StagedArtifactTrusted {
+				return requireCoreGuardPermission(evaluation, "*")
+			}
+			return requireExtensionPluginAuthority(evaluation)
+		default:
+			return routes.ErrCoreGuardEvaluatorUnavailable
+		}
+	}
+}
+
+func extensionGuardPolicyLookup(policy ExtensionGuardPolicy, evaluation routes.CoreGuardEvaluation) (extensions.GuardPolicyLookup, bool) {
+	if policy == nil {
+		return extensions.GuardPolicyLookup{}, false
+	}
+	id := ""
+	if evaluation.Descriptor.RouteID != "core.route.extensions.install" {
+		id = evaluation.Request.Params["id"]
+		if id == "" {
+			return extensions.GuardPolicyLookup{}, false
+		}
+	}
+	lookup, ok := policy.Lookup(id)
+	if !ok || lookup.Revision == 0 || lookup.Found && lookup.Entry.ExtensionID != id {
+		return extensions.GuardPolicyLookup{}, false
+	}
+	return lookup, true
+}
+
+func requireExtensionPluginAuthority(evaluation routes.CoreGuardEvaluation) error {
+	return requireCoreGuardPermission(evaluation,
+		identity.PermissionExtensionPluginManage,
+		identity.PermissionExtensionManage,
+	)
+}
+
+func requireExtensionSettingsAuthority(evaluation routes.CoreGuardEvaluation, entry extensions.GuardPolicyEntry) error {
+	switch entry.ExtensionType {
+	case extensions.TypeTheme:
+		return requireCoreGuardPermission(evaluation,
+			identity.PermissionExtensionThemeManage,
+			identity.PermissionExtensionManage,
+		)
+	case extensions.TypePlugin:
+		permissions := []string{identity.PermissionExtensionPluginManage, identity.PermissionExtensionManage}
+		if entry.HasMailProvider {
+			permissions = append(permissions, identity.PermissionSettingsMailManage)
+		}
+		return requireCoreGuardPermission(evaluation, permissions...)
+	default:
+		return routes.ErrCoreGuardEvaluatorUnavailable
+	}
+}
+
+func requireExtensionFrontendStatusAuthority(evaluation routes.CoreGuardEvaluation, entry extensions.GuardPolicyEntry) error {
+	permissions := []string{
+		identity.PermissionExtensionView,
+		identity.PermissionExtensionPluginManage,
+		identity.PermissionExtensionThemeManage,
+		identity.PermissionExtensionManage,
+	}
+	if entry.HasMailProvider {
+		permissions = append(permissions, identity.PermissionSettingsMailManage)
+	}
+	return requireCoreGuardPermission(evaluation, permissions...)
 }
 
 func requireDeclaredCoreGuardPermission(_ context.Context, evaluation routes.CoreGuardEvaluation) error {

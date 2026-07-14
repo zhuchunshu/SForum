@@ -545,6 +545,26 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 			health.MeiliChecker{Client: meiliClient},
 		}, extensionService, extensionRuntime)
 	}
+	extensionGuardPolicy := extensions.NewGuardPolicyCatalog(
+		extensionStore,
+		executableTrustService,
+		frontendTrustStore,
+		extensions.GuardPolicyConfig{
+			SafeMode: cfg.SafeMode, TrustChallengesEnabled: cfg.V3TrustChallenges,
+		},
+	)
+	if err := extensionGuardPolicy.Refresh(ctx); err != nil {
+		if stopErr := supportjobs.Stop(ctx, jobClient); stopErr != nil {
+			logger.Warn("job dispatcher stop failed", "error", stopErr)
+		}
+		extensionRuntime.Close(ctx)
+		sharedRedisClient.Close()
+		if closeErr := redisStorage.Close(); closeErr != nil {
+			logger.Warn("redis session storage close failed", "error", closeErr)
+		}
+		pool.Close()
+		return nil, fmt.Errorf("refresh extension guard policy failed: %w", err)
+	}
 	// P6 buffered HTTP dispatcher consumes the durable provider selection before
 	// Fiber's hardcoded core providers. Declared schemas remain fail-closed until
 	// their exact package catalog is production-published.
@@ -552,7 +572,8 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		Plans: lifecycleStack.RouteProviders,
 		Steps: httpserver.NewBufferedRouteStepInvoker(lifecycleStack.RuntimeManager),
 		Guard: httpserver.NewProductionRouteGuardAuthorizerWithPolicies(httpserver.ProductionRouteGuardPolicies{
-			ForumRead: optionsService,
+			ForumRead:  optionsService,
+			Extensions: extensionGuardPolicy,
 		}),
 		Schemas: httpserver.CatalogRouteSchemaValidator{Catalog: lifecycleStack.RouteSchemas},
 		Trace:   routeTraceRing,
@@ -615,11 +636,14 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 	}
 	forumReadPolicyCtx, forumReadPolicyCancel := context.WithCancel(context.Background())
 	go optionsService.RunForumReadPolicyRefresh(forumReadPolicyCtx, options.RecommendedForumReadPolicyRefreshInterval)
+	extensionGuardPolicyCtx, extensionGuardPolicyCancel := context.WithCancel(context.Background())
+	go extensionGuardPolicy.RunRefresh(extensionGuardPolicyCtx, extensions.RecommendedGuardPolicyRefreshInterval)
 
 	return &API{
 		App:  app,
 		Addr: apiAddress(cfg),
 		close: func() {
+			extensionGuardPolicyCancel()
 			forumReadPolicyCancel()
 			heartbeatCancel()
 			if embeddedWorker != nil {
