@@ -34,6 +34,9 @@ func (m *Manager) StageRuntimeInstance(ctx context.Context, extension extensions
 
 	unlock := m.lockRuntimeLifecycle(frozen.ID)
 	defer unlock()
+	if err := m.prepareRuntimeStart(ctx, frozen); err != nil {
+		return RuntimeInstanceSnapshot{}, err
+	}
 	target, err := starter.StartInstance(ctx, frozen)
 	if err != nil {
 		return RuntimeInstanceSnapshot{}, err

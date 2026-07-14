@@ -248,6 +248,12 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		Auditor:  auditWriter,
 	})
 	hostAPIGateway := hostapi.NewGateway(hostAPIService)
+	databaseCatalogBinder := postgresProtocolV2DatabaseCatalogBinder{
+		pool: pool, gateway: hostAPIGateway,
+		options: []hostapi.ProtocolV2DatabaseRuntimeOption{
+			hostapi.WithProtocolV2DatabaseTraceSink(hostapi.NewSlogDatabaseTraceSink(logger)),
+		},
+	}
 	queryAuthority := hostapi.NewPostgresProtocolV2QueryAuthorityResolver(pool)
 	queryRuntime, err := hostapi.NewPostgresProtocolV2QueryRuntime(
 		pool, queryAuthority,
@@ -268,6 +274,11 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		return nil, fmt.Errorf("Host Query runtime setup failed: %w", err)
 	}
 	extensionRuntime := bindAPIExtensionRuntime(extensionStore, hostAPIGateway, extensionService, executableTrustService)
+	if runtime, ok := extensionRuntime.(interface {
+		SetStartPreparer(func(context.Context, extensions.Extension) error)
+	}); ok {
+		runtime.SetStartPreparer(protocolV2DatabaseStartPreparer(extensionStore, databaseCatalogBinder, cfg.SafeMode))
+	}
 	hostAPIService.BindPluginJobAdmission(newPluginJobEnqueueAdmission(extensionRuntime))
 	hostAPIService.BindServiceProviderAdmission(newPluginServiceProviderAdmission(extensionRuntime))
 	lifecycleRuntime, err := requireProductionExtensionRuntime(extensionRuntime)
@@ -332,6 +343,19 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		}
 		pool.Close()
 		return nil, fmt.Errorf("sync builtin extensions failed: %w", err)
+	}
+	// DatabaseService 的 SQL catalog 必须在首次插件 Reconcile/broker 注册前冻结。
+	if err := bindProductionProtocolV2DatabaseRuntime(ctx, databaseCatalogBinder, extensionStore, cfg.SafeMode); err != nil {
+		if stopErr := supportjobs.Stop(ctx, jobClient); stopErr != nil {
+			logger.Warn("job dispatcher stop failed", "error", stopErr)
+		}
+		extensionRuntime.Close(ctx)
+		sharedRedisClient.Close()
+		if closeErr := redisStorage.Close(); closeErr != nil {
+			logger.Warn("redis session storage close failed", "error", closeErr)
+		}
+		pool.Close()
+		return nil, fmt.Errorf("DatabaseService runtime setup failed: %w", err)
 	}
 	// API 启动恢复：活动主题 L0/L1 + 已启用插件页面贡献。
 	// 无效主题安全回退默认；失败不得留下空 Registry 却 DB 指向主题的分裂状态。

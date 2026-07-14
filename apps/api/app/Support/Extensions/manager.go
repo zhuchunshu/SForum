@@ -51,6 +51,26 @@ type Manager struct {
 	resilience         *resilienceHub
 	activation         *extensions.ActivationCoordinator
 	bootID             string
+	startPreparer      func(context.Context, extensions.Extension) error
+}
+
+func (m *Manager) SetStartPreparer(preparer func(context.Context, extensions.Extension) error) {
+	if m == nil {
+		return
+	}
+	m.mu.Lock()
+	m.startPreparer = preparer
+	m.mu.Unlock()
+}
+
+func (m *Manager) prepareRuntimeStart(ctx context.Context, extension extensions.Extension) error {
+	m.mu.RLock()
+	preparer := m.startPreparer
+	m.mu.RUnlock()
+	if preparer == nil {
+		return nil
+	}
+	return preparer(ctx, extension)
 }
 
 type DeliveryStore interface {
@@ -135,6 +155,10 @@ func (m *Manager) Start(ctx context.Context, extension extensions.Extension) err
 		ProviderCount: len(extension.Manifest.Providers),
 	}
 	m.mu.Unlock()
+	if err := m.prepareRuntimeStart(ctx, extension); err != nil {
+		m.recordRuntimeStartFailure(extension, previousInstanceID, previousStatus, hadPreviousStatus, err)
+		return err
+	}
 	target, err := m.starter.Start(ctx, extension)
 	if err != nil {
 		m.recordRuntimeStartFailure(extension, previousInstanceID, previousStatus, hadPreviousStatus, err)

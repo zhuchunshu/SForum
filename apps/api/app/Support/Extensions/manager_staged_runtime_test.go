@@ -78,6 +78,27 @@ func TestManagerStagesPublishesAndRollsBackExactRuntimeInstances(t *testing.T) {
 	}
 }
 
+func TestManagerPreparesDatabaseCatalogBeforeActiveAndStagedStarts(t *testing.T) {
+	starter := newManagerStagedStarter()
+	manager := NewManager(ManagerConfig{Starter: starter})
+	prepared := []string{}
+	manager.SetStartPreparer(func(_ context.Context, extension extensions.Extension) error {
+		prepared = append(prepared, extension.Version)
+		return nil
+	})
+	active := managerStagedExtension("prepared.manager", "1.0.0", "digest-1")
+	if err := manager.Start(context.Background(), active); err != nil {
+		t.Fatal(err)
+	}
+	staged := managerStagedExtension(active.ID, "2.0.0", "digest-2")
+	if _, err := manager.StageRuntimeInstance(context.Background(), staged); err != nil {
+		t.Fatal(err)
+	}
+	if len(prepared) != 2 || prepared[0] != "1.0.0" || prepared[1] != "2.0.0" {
+		t.Fatalf("prepared versions = %#v", prepared)
+	}
+}
+
 func TestManagerExactStopAndDiscardNeverRemoveReplacement(t *testing.T) {
 	starter := newManagerStagedStarter()
 	manager := NewManager(ManagerConfig{Starter: starter})

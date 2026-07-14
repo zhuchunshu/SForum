@@ -121,6 +121,7 @@ var newStandaloneWorkerRuntimeManager = func(store extensions.Store, hostAPI ext
 func buildStandaloneWorkerExtensionRuntime(
 	ctx context.Context,
 	cfg config.Config,
+	databaseBinderFactory protocolV2DatabaseCatalogBinderFactory,
 	store extensions.Store,
 	cipher *crypto.OptionCipher,
 	trust extensionsruntime.RuntimeTrustSource,
@@ -138,7 +139,17 @@ func buildStandaloneWorkerExtensionRuntime(
 	extensions.WithActivationCoordinator(activation)(service)
 	workerHostAPI := hostapi.New(hostapi.Config{Settings: service})
 	workerHostGateway := hostapi.NewGateway(workerHostAPI)
+	if databaseBinderFactory == nil {
+		_ = workerHostGateway.Close()
+		return nil, nil, fmt.Errorf("worker DatabaseService catalog binder is required")
+	}
+	databaseBinder := databaseBinderFactory(workerHostGateway)
 	managedRuntime := newStandaloneWorkerRuntimeManager(store, workerHostGateway, service, trust)
+	if runtime, ok := managedRuntime.(interface {
+		SetStartPreparer(func(context.Context, extensions.Extension) error)
+	}); ok {
+		runtime.SetStartPreparer(protocolV2DatabaseStartPreparer(store, databaseBinder, cfg.SafeMode))
+	}
 	if runtime, ok := managedRuntime.(interface {
 		WithActivation(*extensions.ActivationCoordinator, string) *extensionsruntime.Manager
 	}); ok {
@@ -155,6 +166,12 @@ func buildStandaloneWorkerExtensionRuntime(
 		managedRuntime.Close(ctx)
 		_ = workerHostGateway.Close()
 		return nil, nil, fmt.Errorf("list worker extensions: %w", err)
+	}
+	// 独立 worker 同样会启动插件 broker，必须先绑定同一份精确 SQL catalog。
+	if err := bindProtocolV2DatabaseRuntime(databaseBinder, items, cfg.SafeMode); err != nil {
+		managedRuntime.Close(ctx)
+		_ = workerHostGateway.Close()
+		return nil, nil, fmt.Errorf("bind worker DatabaseService runtime: %w", err)
 	}
 	if cfg.SafeMode {
 		managedRuntime.Reconcile(ctx, nil)
@@ -251,7 +268,13 @@ func newWorkerWithPool(cfg config.Config, pool *pgxpool.Pool, logger *slog.Logge
 
 	extensionRuntime, hostGateway, ownsRuntime, err := resolveWorkerExtensionRuntime(deps, func() (workerExtensionRuntime, hostAPIGatewayCloser, error) {
 		activation := extensions.NewActivationCoordinator(extensionStore).WithAuditor(audit.NewPostgresWriter(pool))
-		return buildStandaloneWorkerExtensionRuntime(context.Background(), cfg, extensionStore, optionCipher, runtimeTrust, activation)
+		return buildStandaloneWorkerExtensionRuntime(
+			context.Background(), cfg,
+			postgresProtocolV2DatabaseCatalogBinderFactory(
+				pool, hostapi.WithProtocolV2DatabaseTraceSink(hostapi.NewSlogDatabaseTraceSink(logger)),
+			),
+			extensionStore, optionCipher, runtimeTrust, activation,
+		)
 	})
 	if err != nil {
 		return nil, err

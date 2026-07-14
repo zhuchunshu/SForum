@@ -76,6 +76,22 @@ func (g *Gateway) BindProtocolV2DatabaseRuntime(runtime ProtocolV2DatabaseRuntim
 	return nil
 }
 
+// PublishProtocolV2DatabaseRuntime replaces the snapshot used only by future
+// broker registrations. Already-registered brokers retain their immutable
+// engine pointer, so an upgrade cannot change SQL beneath an active process.
+func (g *Gateway) PublishProtocolV2DatabaseRuntime(runtime ProtocolV2DatabaseRuntime) error {
+	if g == nil {
+		return fmt.Errorf("hostapi gateway is nil")
+	}
+	if runtime == nil || runtime.databaseEngine() == nil {
+		return fmt.Errorf("hostapi: protocol v2 database runtime is required")
+	}
+	g.mu.Lock()
+	g.database = runtime.databaseEngine()
+	g.mu.Unlock()
+	return nil
+}
+
 // BindProtocolV2QueryRuntime installs the immutable stable-query catalog once.
 // Broker registration freezes the snapshot for the lifetime of this Gateway.
 func (g *Gateway) BindProtocolV2QueryRuntime(runtime ProtocolV2QueryRuntime) error {

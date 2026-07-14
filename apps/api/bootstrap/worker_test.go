@@ -9,6 +9,7 @@ import (
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Crypto"
 	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
+	hostapi "github.com/zhuchunshu/sforum/apps/api/app/Support/HostAPI"
 	supportjobs "github.com/zhuchunshu/sforum/apps/api/app/Support/Jobs"
 	"github.com/zhuchunshu/sforum/apps/api/config"
 )
@@ -169,7 +170,7 @@ func TestStandaloneWorkerRuntimeUsesCipherServiceSettings(t *testing.T) {
 		}
 		return &countingWorkerRuntime{}
 	}
-	runtime, gateway, err := buildStandaloneWorkerExtensionRuntime(context.Background(), config.Config{ExtensionRoot: t.TempDir()}, store, cipher, nil)
+	runtime, gateway, err := buildStandaloneWorkerExtensionRuntime(context.Background(), config.Config{ExtensionRoot: t.TempDir()}, recordingDatabaseBinderFactory(nil), store, cipher, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -193,7 +194,7 @@ func TestStandaloneWorkerSafeModeReconcilesNoExtensions(t *testing.T) {
 	}
 	built, gateway, err := buildStandaloneWorkerExtensionRuntime(context.Background(), config.Config{
 		SafeMode: true, ExtensionRoot: t.TempDir(),
-	}, store, nil, nil)
+	}, recordingDatabaseBinderFactory(nil), store, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -202,6 +203,42 @@ func TestStandaloneWorkerSafeModeReconcilesNoExtensions(t *testing.T) {
 	if len(runtime.reconciledItems) != 0 {
 		t.Fatalf("safe worker reconciled extensions: %#v", runtime.reconciledItems)
 	}
+}
+
+func TestStandaloneWorkerBindsDatabaseCatalogBeforeReconcile(t *testing.T) {
+	original := newStandaloneWorkerRuntimeManager
+	defer func() { newStandaloneWorkerRuntimeManager = original }()
+
+	plugin := databaseCatalogFixture(t)
+	store := &bootstrapExtensionSettingsStore{item: plugin}
+	runtime := &countingWorkerRuntime{}
+	binder := &recordingDatabaseCatalogBinder{}
+	newStandaloneWorkerRuntimeManager = func(_ extensions.Store, _ extensionsruntime.HostAPIRegistrar, _ extensionsruntime.PluginSettings, _ extensionsruntime.RuntimeTrustSource) workerExtensionRuntime {
+		runtime.onReconcile = func() {
+			if binder.bindCalls != 1 || len(binder.bound.queries) != 1 || len(binder.bound.executes) != 1 {
+				t.Fatalf("database catalog was not bound before Reconcile: %#v", binder)
+			}
+		}
+		return runtime
+	}
+	built, gateway, err := buildStandaloneWorkerExtensionRuntime(
+		context.Background(), config.Config{ExtensionRoot: t.TempDir()}, recordingDatabaseBinderFactory(binder), store, nil, nil,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer gateway.Close()
+	built.Close(context.Background())
+	if len(runtime.reconciledItems) != 1 || runtime.reconciledItems[0].ID != plugin.ID {
+		t.Fatalf("reconciled items = %#v", runtime.reconciledItems)
+	}
+}
+
+func recordingDatabaseBinderFactory(binder *recordingDatabaseCatalogBinder) protocolV2DatabaseCatalogBinderFactory {
+	if binder == nil {
+		binder = &recordingDatabaseCatalogBinder{}
+	}
+	return func(*hostapi.Gateway) protocolV2DatabaseCatalogBinder { return binder }
 }
 
 // TestEmbedSharedRuntimeSingleStart 模拟 API Reconcile + embed 注入后不再 Start。
@@ -258,6 +295,7 @@ func TestEmbedSharedRuntimeSingleStart(t *testing.T) {
 type countingWorkerRuntime struct {
 	closeCalls      int
 	reconciledItems []extensions.Extension
+	onReconcile     func()
 }
 
 func (c *countingWorkerRuntime) SendMail(context.Context, string, extensionsruntime.MailProviderRequest) (extensionsruntime.MailProviderResponse, error) {
@@ -299,6 +337,9 @@ func (c *countingWorkerRuntime) StorageProbe(context.Context, string, extensions
 }
 
 func (c *countingWorkerRuntime) Reconcile(_ context.Context, items []extensions.Extension) {
+	if c.onReconcile != nil {
+		c.onReconcile()
+	}
 	c.reconciledItems = append([]extensions.Extension(nil), items...)
 }
 
