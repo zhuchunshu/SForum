@@ -361,14 +361,23 @@ func validateExactCoordinatorAuthority(request extensions.LifecycleCoordinatorAc
 		return exactCoordinatorInvalid("decode frozen lifecycle authority: %v", err)
 	}
 	impact := authority.Impact
+	authorityActorUserID := request.AuthorityActorUserID
+	if authorityActorUserID == 0 {
+		// Compatibility for callers created before recovery actors were split
+		// from the immutable exact-artifact authority.
+		authorityActorUserID = request.ActorUserID
+	}
+	if authorityActorUserID <= 0 {
+		return exactCoordinatorInvalid("frozen lifecycle authority actor is required")
+	}
 	if authority.SchemaVersion != extensions.LifecycleAuthoritySnapshotSchemaV1 ||
-		authority.AuthorityType != request.AuthorityType || authority.ActorUserID != request.ActorUserID ||
+		authority.AuthorityType != request.AuthorityType || authority.ActorUserID != authorityActorUserID ||
 		impact.SchemaVersion != extensions.TrustImpactSchemaV2 || impact.Action != extensions.TrustActionEnable ||
 		impact.ExtensionID != target.ID || impact.ExtensionVersion != target.Version ||
 		impact.ExtensionType != target.Type || impact.Source != target.Source ||
 		impact.PackageDigest != target.PackageDigest || impact.Digest == "" ||
 		impact.ArtifactDigests["package"] != target.PackageDigest {
-		return exactCoordinatorInvalid("frozen lifecycle authority does not match the target actor and artifact")
+		return exactCoordinatorInvalid("frozen lifecycle authority does not match the target authority actor and artifact")
 	}
 	switch request.AuthorityType {
 	case extensions.LifecycleAuthorityBuiltin:

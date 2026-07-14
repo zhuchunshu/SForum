@@ -253,6 +253,21 @@ func TestExactLifecycleCoordinatorRuntimeAdapterRejectsContextDriftBeforeDispatc
 	}
 }
 
+func TestExactLifecycleCoordinatorAuthorityKeepsRecoveryActorSeparate(t *testing.T) {
+	request := exactCoordinatorTestRequest(
+		t, extensions.LifecycleMachineUpgrade, extensions.LifecycleMachineUpgradeBefore, 3, extensions.LifecycleRuntimeSource,
+	)
+	request.ActorUserID = 62
+	request.AuditEventID = 72
+	if _, err := validateExactCoordinatorRequest(request); err != nil {
+		t.Fatalf("recovery actor rejected exact authority: %v", err)
+	}
+	request.AuthorityActorUserID++
+	if _, err := validateExactCoordinatorRequest(request); !errors.Is(err, ErrInvalidLifecycleRun) {
+		t.Fatalf("drifted authority actor = %v", err)
+	}
+}
+
 func TestExactLifecycleCoordinatorRuntimeAdapterValidatesTargetPlanAndUninstallContext(t *testing.T) {
 	targetRequest := exactCoordinatorTestRequest(
 		t, extensions.LifecycleMachineUpgrade, extensions.LifecycleMachineUpgradePlan, 1, extensions.LifecycleRuntimeTarget,
@@ -513,7 +528,7 @@ func exactCoordinatorTestRequest(
 		StepID:      fmt.Sprintf("lifecycle.%s.%02d.%s", operation, position, action),
 		PlanVersion: target.Manifest.Lifecycle.ContractVersion, Attempt: 2, Checkpoint: "resume-1",
 		RuntimeRole: role, AuthorityType: extensions.LifecycleAuthorityTrustGrant, TrustGrantID: 51,
-		ActorUserID: 61, AuditEventID: 71,
+		AuthorityActorUserID: 61, ActorUserID: 61, AuditEventID: 71,
 	}
 	switch operation {
 	case extensions.LifecycleMachineInstall:
@@ -541,7 +556,7 @@ func exactCoordinatorTestRequest(
 	if operation == extensions.LifecycleMachineUninstall {
 		request.RemovalMode = extensions.LifecycleRemovalPreserve
 	}
-	request.AuthoritySnapshot = exactCoordinatorTestAuthority(t, request.TargetExtension, request.ActorUserID, request.TrustGrantID)
+	request.AuthoritySnapshot = exactCoordinatorTestAuthority(t, request.TargetExtension, request.AuthorityActorUserID, request.TrustGrantID)
 	return request
 }
 
