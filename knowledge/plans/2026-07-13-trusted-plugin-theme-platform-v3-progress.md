@@ -1016,3 +1016,22 @@ phase percentage.
   vet, `go build ./...`, and ordinary ThemeCompiler allocation budgets passed.
   Full ThemeCompiler under `-race` exceeds pre-existing allocation ceilings
   because of race instrumentation and is not treated as an allocation result.
+
+## P5 Remaining-Boundary Audit
+
+- P5 remains **65% (11 of 17 rows)**. The six open rows are credential delivery
+  to plugin processes; stable views plus typed Query/Command publication; six
+  production Host Commands; physical `database.core.full`; raw-authority
+  behavior/compatibility; and complete Host Command atomicity evidence.
+- The current database registry issues one shared runtime role per extension.
+  Password rotation or revocation changes that role and terminates every
+  session using it, so wiring the current credential directly into plugin
+  startup would break rolling upgrades and multi-node operation.
+- Product freeze is required before implementation: map legacy single-choice
+  `database.authority` to additive grants, and choose per-runtime lease roles
+  versus Host-mediated DatabaseService-only access. The recommended V3 path is
+  cumulative compatibility grants plus per-runtime lease roles, with old/new
+  credentials coexisting until the old exact runtime drains.
+- Migration read-only preflight, retry, advisory locking, and failure recovery
+  are already accepted. More tests in those completed areas cannot be used to
+  inflate the six remaining rows.

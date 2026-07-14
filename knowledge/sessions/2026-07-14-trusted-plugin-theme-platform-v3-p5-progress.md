@@ -122,7 +122,13 @@
 
 ## Open Questions
 
-- Recommended: replace the single authority mode with additive grants while preserving the old field as a compatibility input.
+- P5 audit confirms the current one-role-per-extension credential model cannot
+  be wired into plugin startup safely: rotation/revocation terminates all
+  sessions for that role and breaks multi-node rolling upgrades.
+- Recommended: replace the single authority mode with cumulative additive
+  grants while preserving the old field as a compatibility input.
+- Recommended: issue a per-runtime lease role and credential, keep source and
+  target leases valid during upgrade, then revoke only the drained source.
 - Recommended: actor-scoped commands use short-lived Host-signed delegation from a core route/admin invocation; background calls remain actorless service authority.
 - Recommended entitlement minimum: subject, resource/capability, active/revoked/expired state, source reference, validity window, idempotency, and audit, without billing semantics.
 
