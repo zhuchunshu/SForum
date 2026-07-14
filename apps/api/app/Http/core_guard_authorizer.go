@@ -231,6 +231,7 @@ func requireExtensionsReadAuthority(_ context.Context, evaluation routes.CoreGua
 		"core.route.extensions.event_deliveries",
 		"core.route.extensions.navigation",
 		"core.route.extensions.inspect_provider_slots",
+		"core.route.extensions.provider_slot_events",
 		"core.route.extensions.inspect_route",
 		"core.route.extensions.route_provider_conflicts",
 		"core.route.extensions.route_provider_events",
@@ -314,6 +315,9 @@ func requireExtensionsMutationAuthority(_ context.Context, evaluation routes.Cor
 		return nil
 	case "core.route.extensions.revoke_executable_trust",
 		"core.route.extensions.issue_executable_trust_challenge",
+		"core.route.extensions.probe_provider_slot",
+		"core.route.extensions.select_provider_slot",
+		"core.route.extensions.reset_provider_slot",
 		"core.route.extensions.select_route_provider",
 		"core.route.extensions.reset_route_provider":
 		return requireCoreGuardPermission(evaluation, "*")

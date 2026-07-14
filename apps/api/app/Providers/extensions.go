@@ -74,6 +74,17 @@ func (p *ExtensionsProvider) WithRouteProviderSelection(
 	return p
 }
 
+func (p *ExtensionsProvider) WithProviderSlotSelection(
+	api *extensionsruntime.ProviderSlotSelectionAPI,
+	prober extensionscontroller.ProviderSlotProber,
+	auditor audit.IDWriter,
+) *ExtensionsProvider {
+	if p != nil && p.controller != nil {
+		p.controller.WithProviderSlotSelection(api, prober, auditor)
+	}
+	return p
+}
+
 func (p *ExtensionsProvider) WithRouteInspector(inspector *routes.Inspector) *ExtensionsProvider {
 	if p != nil && p.controller != nil {
 		p.controller.WithRouteInspector(inspector)

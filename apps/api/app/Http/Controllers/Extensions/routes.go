@@ -16,6 +16,11 @@ func (h *Controller) RegisterRoutes(api fiber.Router) {
 	api.Get("/admin/extensions/route-inspector", h.inspectRoute)
 	api.Post("/admin/extensions/route-providers/selection", h.selectRouteProvider)
 	api.Post("/admin/extensions/route-providers/selection/reset", h.resetRouteProvider)
+	api.Get("/admin/extensions/provider-slots", h.inspectProviderSlots)
+	api.Get("/admin/extensions/provider-slots/events", h.providerSlotEvents)
+	api.Post("/admin/extensions/provider-slots/selection", h.selectProviderSlot)
+	api.Post("/admin/extensions/provider-slots/selection/reset", h.resetProviderSlot)
+	api.Post("/admin/extensions/provider-slots/probe", h.probeProviderSlot)
 	api.Post("/admin/extensions", h.install)
 	api.Delete("/admin/extensions/:id", h.uninstall)
 	api.Post("/admin/extensions/:id/enable", h.enable)
@@ -44,7 +49,6 @@ func (h *Controller) RegisterRoutes(api fiber.Router) {
 	api.Delete("/admin/extensions/:id/frontend/trust", h.revokeFrontendTrust)
 	api.Get("/admin/extensions/event-definitions", h.eventDefinitions)
 	api.Get("/admin/extensions/event-deliveries", h.eventDeliveries)
-	api.Get("/admin/extensions/provider-slots", h.inspectProviderSlots)
 
 	api.All("/extensions/:extensionId/*", h.proxyExtensionRoute)
 }

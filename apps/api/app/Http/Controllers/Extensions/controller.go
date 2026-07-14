@@ -13,20 +13,28 @@ import (
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Audit"
 	authsession "github.com/zhuchunshu/sforum/apps/api/app/Support/AuthSession"
+	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
 	routes "github.com/zhuchunshu/sforum/apps/api/app/Support/Routes"
 )
 
 const maxUploadedArchiveBytes = 60 * 1024 * 1024
 
 type Controller struct {
-	service        *extensions.Service
-	frontend       TrustedFrontendService
-	users          identity.ActorStore
-	sessions       *authsession.Manager
-	gateway        RouteGateway
-	routeProviders *routes.ProviderSelectionAPI
-	routeInspector *routes.Inspector
-	routeAuditor   audit.IDWriter
+	service         *extensions.Service
+	frontend        TrustedFrontendService
+	users           identity.ActorStore
+	sessions        *authsession.Manager
+	gateway         RouteGateway
+	routeProviders  *routes.ProviderSelectionAPI
+	routeInspector  *routes.Inspector
+	routeAuditor    audit.IDWriter
+	providerSlots   *extensionsruntime.ProviderSlotSelectionAPI
+	providerProber  ProviderSlotProber
+	providerAuditor audit.IDWriter
+}
+
+type ProviderSlotProber interface {
+	ProbeProviderSlotCandidate(context.Context, string, string) (extensionsruntime.ProviderSlotProbeResult, error)
 }
 
 type TrustedFrontendService interface {
@@ -87,6 +95,17 @@ func (h *Controller) WithRouteProviderSelection(
 
 func (h *Controller) WithRouteInspector(inspector *routes.Inspector) *Controller {
 	h.routeInspector = inspector
+	return h
+}
+
+func (h *Controller) WithProviderSlotSelection(
+	api *extensionsruntime.ProviderSlotSelectionAPI,
+	prober ProviderSlotProber,
+	auditor audit.IDWriter,
+) *Controller {
+	h.providerSlots = api
+	h.providerProber = prober
+	h.providerAuditor = auditor
 	return h
 }
 

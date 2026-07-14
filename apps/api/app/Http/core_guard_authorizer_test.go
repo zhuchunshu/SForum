@@ -509,6 +509,9 @@ func TestProductionExtensionsMutationGuardPartitionsCatalogByProvablePolicy(t *t
 		"core.route.extensions.rollback":                         {method: "POST", supported: true, permissions: plugin},
 		"core.route.extensions.revoke_executable_trust":          {method: "DELETE", supported: true, permissions: superAdmin},
 		"core.route.extensions.issue_executable_trust_challenge": {method: "POST", supported: true, permissions: superAdmin},
+		"core.route.extensions.probe_provider_slot":              {method: "POST", supported: true, permissions: superAdmin},
+		"core.route.extensions.select_provider_slot":             {method: "POST", supported: true, permissions: superAdmin},
+		"core.route.extensions.reset_provider_slot":              {method: "POST", supported: true, permissions: superAdmin},
 		"core.route.extensions.select_route_provider":            {method: "POST", supported: true, permissions: superAdmin},
 		"core.route.extensions.reset_route_provider":             {method: "POST", supported: true, permissions: superAdmin},
 
@@ -664,6 +667,7 @@ func TestProductionExtensionsReadGuardPartitionsCatalogByProvablePolicy(t *testi
 		"core.route.extensions.event_deliveries":         {method: "GET", supported: true, permissions: viewer},
 		"core.route.extensions.navigation":               {method: "GET", supported: true, permissions: viewer},
 		"core.route.extensions.inspect_provider_slots":   {method: "GET", supported: true, permissions: viewer},
+		"core.route.extensions.provider_slot_events":     {method: "GET", supported: true, permissions: viewer},
 		"core.route.extensions.inspect_route":            {method: "GET", supported: true, permissions: viewer},
 		"core.route.extensions.route_provider_conflicts": {method: "GET", supported: true, permissions: viewer},
 		"core.route.extensions.route_provider_events":    {method: "GET", supported: true, permissions: viewer},
