@@ -208,6 +208,14 @@ func (i *BufferedRouteStepInvoker) Invoke(ctx context.Context, input routes.Rout
 		snapshot.ArtifactDigest != artifact.PackageDigest {
 		return routes.RouteInvocationResult{}, ErrRouteRuntimeArtifact
 	}
+	if strings.TrimSpace(snapshot.Target.BaseURL) == "" {
+		lease, err := i.Runtime.AcquireRuntimeCall(ctx, identity, extensionsruntime.RuntimeCallRoute)
+		if err != nil {
+			return routes.RouteInvocationResult{}, err
+		}
+		defer lease.Release()
+		return i.invokeProtocolV2(lease.Context, identity, input)
+	}
 	target, err := exactLoopbackRouteURL(snapshot.Target.BaseURL, input.Request.Path, input.Request.Query)
 	if err != nil {
 		return routes.RouteInvocationResult{}, err

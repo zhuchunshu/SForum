@@ -47,6 +47,7 @@ type protocolV2ClientConfig struct {
 	authority    []*protocolv2.AuthorityGrant
 	events       []extensions.ManifestEvent
 	jobs         []extensions.ManifestJob
+	routes       []extensions.ManifestRoute
 	lifecycle    *extensions.ManifestLifecycle
 	token        []byte
 	instance     string
@@ -61,6 +62,7 @@ type protocolV2Client struct {
 	authority    []*protocolv2.AuthorityGrant
 	events       []extensions.ManifestEvent
 	jobs         []extensions.ManifestJob
+	routes       []extensions.ManifestRoute
 	lifecycle    *extensions.ManifestLifecycle
 	token        []byte
 	instance     string
@@ -92,6 +94,7 @@ func newProtocolV2Client(client pluginv2.PluginRuntimeServiceClient, config prot
 	return &protocolV2Client{
 		client: client, identity: cloneV2Identity(config.identity), authority: cloneV2Authority(config.authority),
 		events: append([]extensions.ManifestEvent(nil), config.events...), jobs: append([]extensions.ManifestJob(nil), config.jobs...),
+		routes:    cloneProtocolV2Routes(config.routes),
 		lifecycle: cloneManifestLifecycle(config.lifecycle),
 		token:     append([]byte(nil), config.token...), instance: config.instance, hostBrokerID: config.hostBrokerID,
 	}
@@ -187,6 +190,7 @@ func (s *ProtocolStarter) protocolV2ClientConfig(ctx context.Context, extension 
 		authority: protocolV2Authority(extension.CapabilityGrants),
 		events:    append([]extensions.ManifestEvent(nil), extension.Manifest.Events...),
 		jobs:      append([]extensions.ManifestJob(nil), extension.Manifest.Jobs...),
+		routes:    cloneProtocolV2Routes(extension.Manifest.Routes),
 		lifecycle: cloneManifestLifecycle(extension.Manifest.Lifecycle),
 		token:     token,
 		instance:  hex.EncodeToString(instanceBytes),
