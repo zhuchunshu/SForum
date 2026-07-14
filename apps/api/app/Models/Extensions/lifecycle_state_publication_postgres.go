@@ -367,7 +367,18 @@ func lifecycleTargetState(
 	sourceMatchesInput := input.Source != nil && source.Active == *input.Source
 	switch input.Operation {
 	case LifecycleMachineInstall:
-		if !sourceMatchesTarget || source.Status != StatusInstalled || source.Staged != nil {
+		if source.Status != StatusInstalled {
+			return lifecycleStateVector{}, ErrLifecycleStatePublicationConflict
+		}
+		switch {
+		case sourceMatchesTarget && source.Staged == nil:
+			// 首个惰性包仍是 active pointer，直接发布状态即可。
+		case source.Staged != nil && *source.Staged == input.Target:
+			// 首次启用前再次上传只产生 inert candidate。install 事务发布
+			// 最新精确候选，旧 active 从未执行且仍保留在 source 快照中。
+			target.Active = input.Target
+			target.Staged = nil
+		default:
 			return lifecycleStateVector{}, ErrLifecycleStatePublicationConflict
 		}
 		target.Status = StatusEnabled
@@ -499,9 +510,15 @@ func (r lifecycleStatePublicationRecord) matchesInput(input PrepareLifecycleStat
 		wantSource = *input.Source
 	}
 	wantTarget, err := lifecycleTargetState(input, r.Source)
+	sourceMatches := r.Source.Active == wantSource
+	if input.Operation == LifecycleMachineInstall && input.Source == nil {
+		// install may promote a never-executed staged candidate; lifecycleTargetState
+		// validates the complete physical source vector in that case.
+		sourceMatches = true
+	}
 	return err == nil && r.OperationID == input.OperationID && r.Operation == input.Operation && r.Position == input.Position &&
 		r.StepID == input.StepID && r.Mode == input.Mode && r.ExtensionID == input.Target.ExtensionID &&
-		r.Source.Active == wantSource && r.Target.equal(wantTarget)
+		sourceMatches && r.Target.equal(wantTarget)
 }
 
 func (r lifecycleStatePublicationRecord) currentVector() lifecycleStateVector {

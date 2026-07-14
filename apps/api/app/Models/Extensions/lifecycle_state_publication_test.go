@@ -108,6 +108,32 @@ func TestLifecycleStatePublicationRecordRechecksPersistedSourceAndTarget(t *test
 	}
 }
 
+func TestLifecycleStatePublicationInitialInstallPromotesInertStagedArtifact(t *testing.T) {
+	sourceArtifact := LifecycleStatePublicationArtifact{
+		ExtensionID: "demo.plugin", Version: "1.0.0", PackageDigest: strings.Repeat("a", 64), VersionID: 11,
+	}
+	targetArtifact := LifecycleStatePublicationArtifact{
+		ExtensionID: "demo.plugin", Version: "2.0.0", PackageDigest: strings.Repeat("b", 64), VersionID: 12,
+	}
+	input := lifecycleStatePublicationTestInput(t, LifecycleMachineInstall, nil, targetArtifact)
+	source := lifecycleStateVector{Status: StatusInstalled, Active: sourceArtifact, Staged: &targetArtifact}
+	target, err := lifecycleTargetState(input, source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if target.Status != StatusEnabled || target.Active != targetArtifact || target.Staged != nil {
+		t.Fatalf("staged initial install target = %#v", target)
+	}
+	record := lifecycleStatePublicationRecord{
+		OperationID: input.OperationID, Operation: input.Operation, Position: input.Position,
+		StepID: input.StepID, Mode: input.Mode, ExtensionID: input.Target.ExtensionID,
+		Source: source, Target: target,
+	}
+	if !record.matchesInput(input) {
+		t.Fatal("staged initial install did not preserve its exact physical source vector")
+	}
+}
+
 func lifecycleStatePublicationTestInput(
 	t *testing.T,
 	operation LifecycleMachineOperation,

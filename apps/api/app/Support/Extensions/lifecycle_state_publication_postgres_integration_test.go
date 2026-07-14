@@ -355,7 +355,17 @@ func newLifecycleStatePublicationIntegration(
 	var source *extensions.Extension
 	target := installed
 	switch operation {
-	case extensions.LifecycleMachineInstall, extensions.LifecycleMachineEnable:
+	case extensions.LifecycleMachineInstall:
+		v2 := exactCoordinatorTestExtension(extensionID, "2.0.0", strings.Repeat("b", 64), "state.lifecycle@2", 2)
+		staged, stageErr := store.SaveInstalled(ctx, extensions.SaveInstalledInput{
+			Manifest: v2.Manifest, PackagePath: filepath.Join(root, "v2"), PackageDigest: v2.PackageDigest,
+			AdminFrontendDigest: strings.Repeat("2", 64),
+		})
+		if stageErr != nil || staged.StagedVersion == nil {
+			t.Fatalf("stage inert first-enable candidate = %#v, %v", staged.StagedVersion, stageErr)
+		}
+		target = lifecycleStateExtensionVersion(staged, *staged.StagedVersion)
+	case extensions.LifecycleMachineEnable:
 	case extensions.LifecycleMachineDisable, extensions.LifecycleMachineUninstall:
 		enabled, enableErr := store.Enable(ctx, extensionID, extensions.TypePlugin)
 		if enableErr != nil {
@@ -463,7 +473,7 @@ func newLifecycleStatePublicationIntegration(
 	switch operation {
 	case extensions.LifecycleMachineDisable, extensions.LifecycleMachineUninstall:
 		targetState.status = extensions.StatusDisabled
-	case extensions.LifecycleMachineUpgrade:
+	case extensions.LifecycleMachineInstall, extensions.LifecycleMachineUpgrade:
 		targetState.stagedID = 0
 	}
 	return lifecycleStatePublicationIntegration{
