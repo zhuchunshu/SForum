@@ -512,7 +512,7 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 	routeDispatcher := routes.NewDispatcher(routes.DispatcherConfig{
 		Plans:   lifecycleStack.RouteProviders,
 		Steps:   httpserver.NewBufferedRouteStepInvoker(lifecycleStack.RuntimeManager),
-		Guard:   httpserver.HostRouteGuardAuthorizer{},
+		Guard:   httpserver.NewProductionRouteGuardAuthorizer(),
 		Schemas: httpserver.CatalogRouteSchemaValidator{},
 		Trace:   routeTraceRing,
 	})
