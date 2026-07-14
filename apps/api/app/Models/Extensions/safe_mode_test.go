@@ -109,9 +109,15 @@ func (r *safeModePageRegistry) RegisterThemePackage(_ context.Context, extension
 func (*safeModePageRegistry) RegisterDefaultThemeFallback(context.Context, Extension) error {
 	return nil
 }
+func (r *safeModePageRegistry) RegisterThemePackageRestoring(ctx context.Context, extension Extension, _ []string) error {
+	return r.RegisterThemePackage(ctx, extension)
+}
 func (r *safeModePageRegistry) RegisterThemePackageReplacing(_ context.Context, extension Extension, _ string) error {
 	r.registered = extension.ID
 	return nil
+}
+func (r *safeModePageRegistry) RegisterThemePackageReplacingApproved(ctx context.Context, extension Extension, previous string, _ int64) error {
+	return r.RegisterThemePackageReplacing(ctx, extension, previous)
 }
 func (r *safeModePageRegistry) ClearExtension(extensionID string) {
 	if r.cleared == nil {

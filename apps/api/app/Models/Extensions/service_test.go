@@ -15,6 +15,7 @@ import (
 	"time"
 
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
+	extensionpackage "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionPackage"
 	themecompiler "github.com/zhuchunshu/sforum/apps/api/app/Support/ThemeCompiler"
 )
 
@@ -1266,6 +1267,180 @@ func TestServiceActivateThemeActivatesUploadedThemeImmediately(t *testing.T) {
 	}
 }
 
+func TestServiceActivateThemeRejectsStalePreviewArtifact(t *testing.T) {
+	item := withInstalledPackage(t, installedExtension("preview.theme", TypeTheme, ManifestBackend{}))
+	store := newFakeExtensionStore(map[string]Extension{item.ID: item})
+	service := NewServiceWithOptions(store, t.TempDir(), "", LocalRuntimeManager{})
+
+	_, err := service.ActivateThemeFromPreview(context.Background(), extensionManager(), item.ID, ThemeActivationInput{
+		Version: item.Version, PackageDigest: "stale-digest",
+	})
+	if !errors.Is(err, ErrThemePreviewStale) || store.activeThemeID != "" {
+		t.Fatalf("err=%v active=%q", err, store.activeThemeID)
+	}
+}
+
+func TestServiceActivateThemeRejectsChangedCurrentThemeTuple(t *testing.T) {
+	current := withInstalledPackage(t, installedExtension("current.theme", TypeTheme, ManifestBackend{}))
+	current.Status = StatusEnabled
+	target := withInstalledPackage(t, installedExtension("target.theme", TypeTheme, ManifestBackend{}))
+	store := newFakeExtensionStore(map[string]Extension{current.ID: current, target.ID: target})
+	store.activeThemeID = current.ID
+	service := NewServiceWithOptions(store, t.TempDir(), "", LocalRuntimeManager{})
+
+	_, err := service.ActivateThemeFromPreview(context.Background(), extensionManager(), target.ID, ThemeActivationInput{
+		Version: target.Version, PackageDigest: target.PackageDigest,
+		CurrentThemeID: current.ID, CurrentThemeVersion: current.Version, CurrentThemeDigest: "changed-digest",
+	})
+	if !errors.Is(err, ErrThemePreviewStale) || store.activeThemeID != current.ID {
+		t.Fatalf("err=%v active=%q", err, store.activeThemeID)
+	}
+}
+
+func TestServiceRequiresExplicitSuperAdminApprovalForCoreThemeReplacements(t *testing.T) {
+	target := exactThemeRuntimeExtensionFixture(t, "approval.theme", "/approval")
+	target.Status = StatusInstalled
+	store := newFakeExtensionStore(map[string]Extension{target.ID: target})
+	registry := &themeActivationApprovalRegistry{}
+	service := NewServiceWithOptions(store, t.TempDir(), "", LocalRuntimeManager{}, WithPageRegistry(registry))
+
+	withoutApproval := ThemeActivationInput{
+		Version: target.Version, PackageDigest: target.PackageDigest,
+	}
+	if _, err := service.ActivateThemeFromPreview(context.Background(), extensionManager(), target.ID, withoutApproval); err != nil {
+		t.Fatal(err)
+	}
+	if registry.ordinary != 1 || registry.approved != 0 {
+		t.Fatalf("ordinary=%d approved=%d", registry.ordinary, registry.approved)
+	}
+
+	withApproval := ThemeActivationInput{
+		Version: target.Version, PackageDigest: target.PackageDigest,
+		CurrentThemeID: target.ID, CurrentThemeVersion: target.Version, CurrentThemeDigest: target.PackageDigest,
+		ApproveCoreReplacements: true,
+	}
+	if _, err := service.ActivateThemeFromPreview(context.Background(), extensionManager(), target.ID, withApproval); err != nil {
+		t.Fatal(err)
+	}
+	if registry.ordinary != 1 || registry.approved != 1 || registry.approvedBy != extensionManager().ID {
+		t.Fatalf("ordinary=%d approved=%d approvedBy=%d", registry.ordinary, registry.approved, registry.approvedBy)
+	}
+
+	themeManager := identity.Actor{
+		ID: 84, Status: identity.UserStatusActive,
+		Permissions: map[string]bool{identity.PermissionExtensionThemeManage: true},
+	}
+	if _, err := service.ActivateThemeFromPreview(context.Background(), themeManager, target.ID, withApproval); !errors.Is(err, identity.ErrPermissionDenied) {
+		t.Fatalf("non-super-admin approval error = %v", err)
+	}
+}
+
+func TestServiceRegistryFailureRestoresNoActiveThemeDatabaseState(t *testing.T) {
+	target := exactThemeRuntimeExtensionFixture(t, "first.theme", "/first")
+	target.Status = StatusInstalled
+	store := newFakeExtensionStore(map[string]Extension{target.ID: target})
+	injected := errors.New("registry publication failed")
+	registry := &themeActivationApprovalRegistry{err: injected}
+	service := NewServiceWithOptions(store, t.TempDir(), "", LocalRuntimeManager{}, WithPageRegistry(registry))
+
+	_, err := service.ActivateThemeFromPreview(context.Background(), extensionManager(), target.ID, ThemeActivationInput{
+		Version: target.Version, PackageDigest: target.PackageDigest,
+	})
+	if !errors.Is(err, ErrBuildFailed) || store.activeThemeID != "" || store.items[target.ID].Status != StatusDisabled {
+		t.Fatalf("error=%v active=%q target=%#v", err, store.activeThemeID, store.items[target.ID])
+	}
+}
+
+type themeActivationApprovalRegistry struct {
+	ordinary   int
+	approved   int
+	approvedBy int64
+	err        error
+}
+
+func (*themeActivationApprovalRegistry) PreflightThemePackage(context.Context, Extension, string) error {
+	return nil
+}
+func (*themeActivationApprovalRegistry) RegisterThemePackage(context.Context, Extension) error {
+	return nil
+}
+func (*themeActivationApprovalRegistry) RegisterThemePackageRestoring(context.Context, Extension, []string) error {
+	return nil
+}
+func (*themeActivationApprovalRegistry) RegisterDefaultThemeFallback(context.Context, Extension) error {
+	return nil
+}
+func (r *themeActivationApprovalRegistry) RegisterThemePackageReplacing(context.Context, Extension, string) error {
+	r.ordinary++
+	return r.err
+}
+func (r *themeActivationApprovalRegistry) RegisterThemePackageReplacingApproved(_ context.Context, _ Extension, _ string, approvedBy int64) error {
+	r.approved++
+	r.approvedBy = approvedBy
+	return r.err
+}
+func (*themeActivationApprovalRegistry) RegisterPluginPackage(context.Context, Extension) error {
+	return nil
+}
+func (*themeActivationApprovalRegistry) ClearExtension(string) {}
+
+func TestServiceSerializesConcurrentThemeCommitAndPublication(t *testing.T) {
+	exactTheme := func(id string) Extension {
+		item := withInstalledPackage(t, installedExtension(id, TypeTheme, ManifestBackend{}))
+		item.PackagePath = filepath.Dir(item.PackagePath)
+		digest, err := extensionpackage.DigestTree(item.PackagePath)
+		if err != nil {
+			t.Fatal(err)
+		}
+		item.PackageDigest = digest
+		return item
+	}
+	current := exactTheme("current.theme")
+	current.Status = StatusEnabled
+	left := exactTheme("left.theme")
+	right := exactTheme("right.theme")
+	store := newFakeExtensionStore(map[string]Extension{current.ID: current, left.ID: left, right.ID: right})
+	store.activeThemeID = current.ID
+	service := NewServiceWithOptions(store, t.TempDir(), "", LocalRuntimeManager{})
+	input := func(target Extension) ThemeActivationInput {
+		return ThemeActivationInput{
+			Version: target.Version, PackageDigest: target.PackageDigest,
+			CurrentThemeID: current.ID, CurrentThemeVersion: current.Version, CurrentThemeDigest: current.PackageDigest,
+		}
+	}
+	start := make(chan struct{})
+	type activationResult struct {
+		id  string
+		err error
+	}
+	results := make(chan activationResult, 2)
+	for _, target := range []Extension{left, right} {
+		target := target
+		go func() {
+			<-start
+			_, err := service.ActivateThemeFromPreview(context.Background(), extensionManager(), target.ID, input(target))
+			results <- activationResult{id: target.ID, err: err}
+		}()
+	}
+	close(start)
+	var succeeded, stale int
+	for range 2 {
+		result := <-results
+		err := result.err
+		switch {
+		case err == nil:
+			succeeded++
+		case errors.Is(err, ErrThemePreviewStale):
+			stale++
+		default:
+			t.Fatalf("unexpected activation error for %s: %v", result.id, err)
+		}
+	}
+	if succeeded != 1 || stale != 1 || store.activeThemeID == current.ID {
+		t.Fatalf("succeeded=%d stale=%d active=%q", succeeded, stale, store.activeThemeID)
+	}
+}
+
 func TestServiceActivateThemeRestoresBuiltinDefaultThemeImmediately(t *testing.T) {
 	store := &fakeExtensionStore{items: map[string]Extension{
 		DefaultThemeID: withInstalledPackage(t, protectedBuiltinExtension(DefaultThemeID, TypeTheme)),
@@ -1861,6 +2036,25 @@ func (s *fakeExtensionStore) ActivateTheme(_ context.Context, id string) (Extens
 	s.items[id] = item
 	s.activeThemeID = id
 	return item, nil
+}
+
+func (s *fakeExtensionStore) ActivateThemeExact(ctx context.Context, id string, expected ThemeActivationInput) (Extension, error) {
+	target, ok := s.items[id]
+	if !ok {
+		return Extension{}, ErrExtensionNotFound
+	}
+	current, currentErr := s.ActiveTheme(ctx)
+	if errors.Is(currentErr, ErrExtensionNotFound) {
+		current = Extension{}
+	} else if currentErr != nil {
+		return Extension{}, currentErr
+	}
+	if target.Version != expected.Version || !strings.EqualFold(target.PackageDigest, expected.PackageDigest) ||
+		current.ID != expected.CurrentThemeID || current.Version != expected.CurrentThemeVersion ||
+		!strings.EqualFold(current.PackageDigest, expected.CurrentThemeDigest) {
+		return Extension{}, ErrThemePreviewStale
+	}
+	return s.ActivateTheme(ctx, id)
 }
 
 func (s *fakeExtensionStore) ActiveTheme(context.Context) (Extension, error) {

@@ -25,6 +25,7 @@ import (
 	authsession "github.com/zhuchunshu/sforum/apps/api/app/Support/AuthSession"
 	appevents "github.com/zhuchunshu/sforum/apps/api/app/Support/Events"
 	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
+	extensionpackage "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionPackage"
 	"github.com/zhuchunshu/sforum/apps/api/config"
 )
 
@@ -396,7 +397,15 @@ func TestControllerVerifiesAndActivatesThemesForManager(t *testing.T) {
 		t.Fatalf("expected store verify call for demo.theme, got %q", store.verifiedID)
 	}
 
-	resp = performExtensionRequest(t, app, http.MethodPost, "/api/v1/admin/extensions/demo.theme/activate", cookie)
+	resp = performExtensionJSONRequest(t, app, http.MethodPost, "/api/v1/admin/extensions/demo.theme/activate", cookie,
+		`{"version":"1.0.0","packageDigest":"`+strings.Repeat("f", 64)+`","currentThemeId":"","currentThemeVersion":"","currentThemeDigest":"","approveCoreReplacements":false}`)
+	if resp.StatusCode != http.StatusConflict {
+		t.Fatalf("expected stale preview 409, got %d", resp.StatusCode)
+	}
+
+	theme := store.items["demo.theme"]
+	resp = performExtensionJSONRequest(t, app, http.MethodPost, "/api/v1/admin/extensions/demo.theme/activate", cookie,
+		`{"version":"`+theme.Version+`","packageDigest":"`+theme.PackageDigest+`","currentThemeId":"","currentThemeVersion":"","currentThemeDigest":"","approveCoreReplacements":false}`)
 	// Runtime Page Registry：主题激活同步完成，不触发 Nuxt 构建。
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("expected 200 runtime theme activation, got %d", resp.StatusCode)
@@ -594,7 +603,12 @@ func newExtensionTestApp(t *testing.T) (*fiber.App, *authsession.Manager, *contr
 		InstalledAt: time.Now(),
 		UpdatedAt:   time.Now(),
 	}
-	theme.PackagePath = controllerInstalledPackage(t, theme.Manifest)
+	theme.PackagePath = filepath.Dir(controllerInstalledPackage(t, theme.Manifest))
+	digest, digestErr := extensionpackage.DigestTree(theme.PackagePath)
+	if digestErr != nil {
+		t.Fatal(digestErr)
+	}
+	theme.PackageDigest = digest
 	store := &controllerFakeStore{items: map[string]extensions.Extension{
 		plugin.ID: plugin,
 		theme.ID:  theme,
@@ -931,6 +945,25 @@ func (s *controllerFakeStore) ActivateTheme(_ context.Context, id string) (exten
 	item.Status = extensions.StatusEnabled
 	s.items[id] = item
 	return item, nil
+}
+
+func (s *controllerFakeStore) ActivateThemeExact(ctx context.Context, id string, expected extensions.ThemeActivationInput) (extensions.Extension, error) {
+	target, ok := s.items[id]
+	if !ok {
+		return extensions.Extension{}, extensions.ErrExtensionNotFound
+	}
+	current, err := s.ActiveTheme(ctx)
+	if errors.Is(err, extensions.ErrExtensionNotFound) {
+		current = extensions.Extension{}
+	} else if err != nil {
+		return extensions.Extension{}, err
+	}
+	if target.Version != expected.Version || !strings.EqualFold(target.PackageDigest, expected.PackageDigest) ||
+		current.ID != expected.CurrentThemeID || current.Version != expected.CurrentThemeVersion ||
+		!strings.EqualFold(current.PackageDigest, expected.CurrentThemeDigest) {
+		return extensions.Extension{}, extensions.ErrThemePreviewStale
+	}
+	return s.ActivateTheme(ctx, id)
 }
 
 func (s *controllerFakeStore) ActiveTheme(context.Context) (extensions.Extension, error) {

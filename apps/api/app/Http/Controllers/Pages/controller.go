@@ -388,6 +388,27 @@ func (h *Controller) appendPageAudit(c fiber.Ctx, actor identity.Actor, action s
 	})
 }
 
+type themeActivationImpact struct {
+	Contribution     pages.PageContribution   `json:"contribution"`
+	Page             *pages.PageDefinition    `json:"page,omitempty"`
+	Conflicts        []pages.PageContribution `json:"conflicts,omitempty"`
+	RequiresApproval bool                     `json:"requiresApproval"`
+}
+
+type themeActivationPreview struct {
+	ExtensionID                     string                  `json:"extensionId"`
+	Version                         string                  `json:"version"`
+	PackageDigest                   string                  `json:"packageDigest"`
+	CurrentThemeID                  string                  `json:"currentThemeId"`
+	CurrentThemeVersion             string                  `json:"currentThemeVersion"`
+	CurrentThemeDigest              string                  `json:"currentThemeDigest"`
+	Impacts                         []themeActivationImpact `json:"impacts"`
+	CanActivate                     bool                    `json:"canActivate"`
+	CanApproveCoreReplacements      bool                    `json:"canApproveCoreReplacements"`
+	RequiresCoreReplacementApproval bool                    `json:"requiresCoreReplacementApproval"`
+	Note                            string                  `json:"note"`
+}
+
 // activatePreview 主题激活确认 UI：列出将新增/替换的页面、路径、安全等级与冲突。
 func (h *Controller) activatePreview(c fiber.Ctx) error {
 	actor, err := h.actor(c)
@@ -410,16 +431,12 @@ func (h *Controller) activatePreview(c fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusUnprocessableEntity, "pages.theme_package_invalid")
 	}
 	contribs := pages.ContributionsFromTheme(theme.ID, theme.Version, theme.PackageDigest, pkg)
-	type impact struct {
-		Contribution     pages.PageContribution   `json:"contribution"`
-		Page             *pages.PageDefinition    `json:"page,omitempty"`
-		Conflicts        []pages.PageContribution `json:"conflicts,omitempty"`
-		RequiresApproval bool                     `json:"requiresApproval"`
-	}
-	out := make([]impact, 0, len(contribs))
+	out := make([]themeActivationImpact, 0, len(contribs))
+	requiresApproval := false
 	for _, contrib := range contribs {
-		item := impact{Contribution: contrib, RequiresApproval: contrib.Action == pages.ActionReplace}
+		item := themeActivationImpact{Contribution: contrib, RequiresApproval: contrib.Action == pages.ActionReplace}
 		if contrib.Action == pages.ActionReplace {
+			requiresApproval = true
 			if page, ok := pages.Find(contrib.Target); ok {
 				p := page
 				item.Page = &p
@@ -440,12 +457,16 @@ func (h *Controller) activatePreview(c fiber.Ctx) error {
 		}
 		out = append(out, item)
 	}
-	return apphttp.OK(c, map[string]any{
-		"extensionId":   theme.ID,
-		"version":       theme.Version,
-		"packageDigest": theme.PackageDigest,
-		"impacts":       out,
-		"note":          "Activation only registers candidates; core page replace requires super_admin approval.",
+	current := extensions.Extension{}
+	if active, activeErr := h.themes.ActiveTheme(c.Context()); activeErr == nil {
+		current = active
+	}
+	return apphttp.OK(c, themeActivationPreview{
+		ExtensionID: theme.ID, Version: theme.Version, PackageDigest: theme.PackageDigest,
+		CurrentThemeID: current.ID, CurrentThemeVersion: current.Version, CurrentThemeDigest: current.PackageDigest,
+		Impacts: out, CanActivate: canActivateTheme(actor), CanApproveCoreReplacements: actor.IsSuperAdmin(),
+		RequiresCoreReplacementApproval: requiresApproval,
+		Note:                            "Core page replacement requires an exact visible preview and explicit super_admin approval.",
 	})
 }
 
@@ -650,6 +671,11 @@ func (h *Controller) adminAdded(c fiber.Ctx) error {
 }
 
 func (h *Controller) activeSkin(c fiber.Ctx) error {
+	if h.runtime != nil {
+		if skin, ok := h.runtime.ActiveSkin(); ok {
+			return apphttp.OK(c, skin)
+		}
+	}
 	if h.themes == nil {
 		return apphttp.OK(c, pages.ActiveSkinPublic{CSS: []string{}})
 	}
@@ -730,6 +756,10 @@ func canViewPages(actor identity.Actor) bool {
 	return actor.Can(identity.PermissionExtensionView) ||
 		actor.Can(identity.PermissionExtensionThemeManage) ||
 		actor.Can(identity.PermissionExtensionManage)
+}
+
+func canActivateTheme(actor identity.Actor) bool {
+	return actor.Can(identity.PermissionExtensionThemeManage) || actor.Can(identity.PermissionExtensionManage)
 }
 
 func mapPagesError(err error) error {

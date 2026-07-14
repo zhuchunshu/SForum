@@ -42,10 +42,22 @@ func (a *PageRegistryAdapter) PreflightThemePackage(ctx context.Context, extensi
 }
 
 func (a *PageRegistryAdapter) RegisterThemePackage(ctx context.Context, extension Extension) error {
+	return a.registerThemePackage(ctx, extension, nil)
+}
+
+func (a *PageRegistryAdapter) RegisterThemePackageRestoring(ctx context.Context, extension Extension, staleThemeIDs []string) error {
+	return a.registerThemePackage(ctx, extension, staleThemeIDs)
+}
+
+func (a *PageRegistryAdapter) registerThemePackage(ctx context.Context, extension Extension, oldThemeIDs []string) error {
 	if a == nil || a.Bridge == nil {
 		return nil
 	}
-	contributions, err := a.Bridge.PreflightThemePackage(toThemeExt(extension), "")
+	previous := ""
+	if len(oldThemeIDs) != 0 {
+		previous = oldThemeIDs[0]
+	}
+	contributions, err := a.Bridge.PreflightThemePackage(toThemeExt(extension), previous)
 	if err != nil {
 		return err
 	}
@@ -57,18 +69,23 @@ func (a *PageRegistryAdapter) RegisterThemePackage(ctx context.Context, extensio
 	if err != nil {
 		return err
 	}
-	if err := a.Bridge.Registry.RegisterContributions(extension.ID, contributions); err != nil {
-		a.rollbackStagedThemeRuntime(snapshot, staged)
-		return err
+	previousRuntime := a.activeThemeArtifact()
+	publication := a.Bridge.Registry.CaptureThemePublication(append([]string{extension.ID}, oldThemeIDs...)...)
+	var publishErr error
+	if oldThemeIDs == nil {
+		publishErr = a.Bridge.Registry.RegisterContributions(extension.ID, contributions)
+	} else {
+		publishErr = a.Bridge.Registry.RestoreThemeContributions(ctx, extension.ID, contributions, oldThemeIDs)
+	}
+	if publishErr != nil {
+		return errors.Join(publishErr, a.rollbackStagedThemeRuntime(snapshot, staged))
 	}
 	if err := a.activateThemeRuntime(snapshot); err != nil {
-		a.Bridge.Registry.ClearExtension(extension.ID)
-		a.rollbackStagedThemeRuntime(snapshot, staged)
-		return err
+		return a.compensateThemePublication(ctx, err, publication, previousRuntime, snapshot, staged, append([]string{extension.ID}, oldThemeIDs...)...)
 	}
 	if extension.ID == DefaultThemeID && snapshot != nil {
 		if _, err := a.ThemeRuntime.SetDefaultExact(snapshot.Artifact()); err != nil {
-			return err
+			return a.compensateThemePublication(ctx, err, publication, previousRuntime, snapshot, staged, append([]string{extension.ID}, oldThemeIDs...)...)
 		}
 	}
 	return nil
@@ -91,14 +108,28 @@ func (a *PageRegistryAdapter) RegisterDefaultThemeFallback(ctx context.Context, 
 	if snapshot == nil {
 		return pages.ErrThemeRuntimeMissing
 	}
-	if _, _, err := a.ThemeRuntime.Stage(snapshot); err != nil {
+	if _, staged, err := a.ThemeRuntime.Stage(snapshot); err != nil {
+		return err
+	} else if _, err = a.ThemeRuntime.SetDefaultExact(snapshot.Artifact()); err != nil {
+		if staged {
+			_, removeErr := a.ThemeRuntime.RemoveExact(snapshot.Artifact())
+			return errors.Join(err, removeErr)
+		}
 		return err
 	}
-	_, err = a.ThemeRuntime.SetDefaultExact(snapshot.Artifact())
-	return err
+	return nil
 }
 
 func (a *PageRegistryAdapter) RegisterThemePackageReplacing(ctx context.Context, extension Extension, previousActiveThemeID string) error {
+	return a.RegisterThemePackageReplacingApproved(ctx, extension, previousActiveThemeID, 0)
+}
+
+func (a *PageRegistryAdapter) RegisterThemePackageReplacingApproved(
+	ctx context.Context,
+	extension Extension,
+	previousActiveThemeID string,
+	approvedBy int64,
+) error {
 	if a == nil || a.Bridge == nil {
 		return nil
 	}
@@ -118,17 +149,22 @@ func (a *PageRegistryAdapter) RegisterThemePackageReplacing(ctx context.Context,
 	if err != nil {
 		return err
 	}
-	if err := a.Bridge.Registry.ReplaceThemeContributions(extension.ID, contributions, previousActiveThemeID); err != nil {
-		a.rollbackStagedThemeRuntime(snapshot, staged)
-		return err
+	publication := a.Bridge.Registry.CaptureThemePublication(extension.ID, previousActiveThemeID)
+	var publishErr error
+	if approvedBy > 0 {
+		publishErr = a.Bridge.Registry.ActivateThemeContributions(ctx, extension.ID, contributions, previousActiveThemeID, approvedBy)
+	} else {
+		publishErr = a.Bridge.Registry.SwitchThemeContributions(ctx, extension.ID, contributions, previousActiveThemeID)
+	}
+	if publishErr != nil {
+		return errors.Join(publishErr, a.rollbackStagedThemeRuntime(snapshot, staged))
 	}
 	if err := a.activateThemeRuntime(snapshot); err != nil {
-		a.rollbackStagedThemeRuntime(snapshot, staged)
-		return err
+		return a.compensateThemePublication(ctx, err, publication, previous, snapshot, staged, extension.ID, previousActiveThemeID)
 	}
 	if extension.ID == DefaultThemeID && snapshot != nil {
 		if _, err := a.ThemeRuntime.SetDefaultExact(snapshot.Artifact()); err != nil {
-			return err
+			return a.compensateThemePublication(ctx, err, publication, previous, snapshot, staged, extension.ID, previousActiveThemeID)
 		}
 	}
 	if previous.ExtensionID != "" && previous.ExtensionID != DefaultThemeID && (snapshot == nil || previous != snapshot.Artifact()) {
@@ -228,11 +264,40 @@ func (a *PageRegistryAdapter) activateThemeRuntime(snapshot *pages.ThemeRuntimeS
 	return err
 }
 
-func (a *PageRegistryAdapter) rollbackStagedThemeRuntime(snapshot *pages.ThemeRuntimeSnapshot, staged bool) {
-	if !staged || snapshot == nil || a.ThemeRuntime == nil {
-		return
+func (a *PageRegistryAdapter) activeThemeArtifact() pages.RuntimeArtifact {
+	if a == nil || a.ThemeRuntime == nil {
+		return pages.RuntimeArtifact{}
 	}
-	_, _ = a.ThemeRuntime.RemoveExact(snapshot.Artifact())
+	if active, _, ok := a.ThemeRuntime.Active(); ok {
+		return active.Artifact()
+	}
+	return pages.RuntimeArtifact{}
+}
+
+func (a *PageRegistryAdapter) compensateThemePublication(
+	ctx context.Context,
+	cause error,
+	publication pages.ThemePublicationSnapshot,
+	previous pages.RuntimeArtifact,
+	target *pages.ThemeRuntimeSnapshot,
+	staged bool,
+	owners ...string,
+) error {
+	publicationErr := a.Bridge.Registry.RestoreThemePublication(ctx, publication, owners...)
+	var runtimeErr error
+	if previous.ExtensionID != "" && a.ThemeRuntime != nil {
+		_, runtimeErr = a.ThemeRuntime.ActivateExact(previous)
+	}
+	removeErr := a.rollbackStagedThemeRuntime(target, staged)
+	return errors.Join(cause, publicationErr, runtimeErr, removeErr)
+}
+
+func (a *PageRegistryAdapter) rollbackStagedThemeRuntime(snapshot *pages.ThemeRuntimeSnapshot, staged bool) error {
+	if !staged || snapshot == nil || a.ThemeRuntime == nil {
+		return nil
+	}
+	_, err := a.ThemeRuntime.RemoveExact(snapshot.Artifact())
+	return err
 }
 
 func toThemeExt(extension Extension) pages.ThemeExtension {

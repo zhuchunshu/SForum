@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	extensionpackage "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionPackage"
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Pages"
 )
 
@@ -60,6 +61,83 @@ func TestPageRegistryAdapterFailedSwitchKeepsSourceRuntime(t *testing.T) {
 		ExtensionID: conflicting.ID, ExtensionVersion: conflicting.Version, PackageDigest: conflicting.PackageDigest,
 	}, "forum.home", conflicting.ID+".home"); ok {
 		t.Fatal("failed target snapshot remained staged")
+	}
+}
+
+func TestThemeActivationRuntimeFailureRestoresExactApprovalAcrossServiceAndRestart(t *testing.T) {
+	ctx := context.Background()
+	store := pages.NewMemoryStore()
+	registry := pages.NewRegistry(store)
+	runtimeRegistry := pages.NewThemeRuntimeRegistry()
+	adapter := NewPageRegistryAdapter(registry).WithThemeRuntime(runtimeRegistry, "SForum", []string{"zh-CN"})
+	previous := exactThemeRuntimeExtensionFixture(t, "previous.theme", "/previous")
+	target := exactThemeRuntimeExtensionFixture(t, "target.theme", "/target")
+	previous.Status = StatusEnabled
+	target.Status = StatusInstalled
+
+	if err := adapter.RegisterThemePackage(ctx, previous); err != nil {
+		t.Fatal(err)
+	}
+	previousSnapshot, ok := registry.ExtensionSnapshot(previous.ID)
+	if !ok || len(previousSnapshot.Contributions) != 1 {
+		t.Fatalf("previous publication = %#v", previousSnapshot)
+	}
+	previousContribution := previousSnapshot.Contributions[0]
+	if err := registry.ApproveReplace(ctx, pages.ProviderBinding{
+		PageID: "forum.home", ExtensionID: previous.ID, ContributionID: previousContribution.ID,
+		Version: previous.Version, PackageDigest: previous.PackageDigest,
+		ContractVersion: previousContribution.Contract, ApprovedBy: 42,
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	injected := errors.New("target activation health check failed")
+	runtimeRegistry.WithActivationCheck(func(artifact pages.RuntimeArtifact) error {
+		if artifact.ExtensionID == target.ID {
+			return injected
+		}
+		return nil
+	})
+	extensionStore := newFakeExtensionStore(map[string]Extension{previous.ID: previous, target.ID: target})
+	extensionStore.activeThemeID = previous.ID
+	service := NewServiceWithOptions(extensionStore, t.TempDir(), "", LocalRuntimeManager{}, WithPageRegistry(adapter))
+	_, err := service.ActivateThemeFromPreview(ctx, extensionManager(), target.ID, ThemeActivationInput{
+		Version: target.Version, PackageDigest: target.PackageDigest,
+		CurrentThemeID: previous.ID, CurrentThemeVersion: previous.Version, CurrentThemeDigest: previous.PackageDigest,
+		ApproveCoreReplacements: true,
+	})
+	if !errors.Is(err, ErrBuildFailed) || extensionStore.activeThemeID != previous.ID {
+		t.Fatalf("activation error=%v active=%q", err, extensionStore.activeThemeID)
+	}
+	assertActiveThemeRuntime(t, runtimeRegistry, previous.ID)
+	resolved, err := registry.Resolve(ctx, "forum.home")
+	if err != nil || resolved.Provider != previous.ID {
+		t.Fatalf("restored provider=%#v err=%v", resolved, err)
+	}
+	binding, ok, err := store.GetBinding(ctx, "forum.home")
+	if err != nil || !ok || binding.ExtensionID != previous.ID || binding.ApprovedBy != 42 ||
+		binding.PackageDigest != previous.PackageDigest {
+		t.Fatalf("restored binding=%#v ok=%t err=%v", binding, ok, err)
+	}
+	if _, ok := registry.ExtensionSnapshot(target.ID); ok {
+		t.Fatal("failed target Page publication remained visible")
+	}
+	if _, ok := runtimeRegistry.Resolve(pages.RuntimeArtifact{
+		ExtensionID: target.ID, ExtensionVersion: target.Version, PackageDigest: target.PackageDigest,
+	}, "forum.home", target.ID+".home"); ok {
+		t.Fatal("failed target runtime remained staged")
+	}
+
+	fresh := pages.NewRegistry(store)
+	if err := fresh.RegisterContributions(previous.ID, previousSnapshot.Contributions); err != nil {
+		t.Fatal(err)
+	}
+	if err := fresh.RestoreBindings(ctx); err != nil {
+		t.Fatal(err)
+	}
+	restarted, err := fresh.Resolve(ctx, "forum.home")
+	if err != nil || restarted.Provider != previous.ID {
+		t.Fatalf("restart provider=%#v err=%v", restarted, err)
 	}
 }
 
@@ -154,6 +232,20 @@ func themeRuntimeExtensionFixture(t *testing.T, id, digest, addPath string, incl
 	writeThemeRuntimeExtensionFile(t, root, "templates/home.html", `<main>home</main><sf-home-page></sf-home-page>`)
 	writeThemeRuntimeExtensionFile(t, root, "templates/add.html", `<main>add</main>`)
 	return Extension{ID: id, Type: TypeTheme, Status: StatusEnabled, Version: "1.0.0", PackageDigest: digest, PackagePath: root}
+}
+
+func exactThemeRuntimeExtensionFixture(t *testing.T, id, addPath string) Extension {
+	t.Helper()
+	item := themeRuntimeExtensionFixture(t, id, "", addPath, false)
+	if err := os.WriteFile(filepath.Join(item.PackagePath, ManifestFileName), []byte("{}"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	digest, err := extensionpackage.DigestTree(item.PackagePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	item.PackageDigest = digest
+	return item
 }
 
 func writeThemeRuntimeExtensionFile(t *testing.T, root, name, body string) {

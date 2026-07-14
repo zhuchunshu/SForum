@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Audit"
@@ -25,10 +26,11 @@ import (
 const maxArchiveBytes = 50 * 1024 * 1024
 
 type Service struct {
-	store         Store
-	extensionRoot string
-	builtinRoot   string
-	runtime       RuntimeManager
+	themeActivationMu sync.Mutex
+	store             Store
+	extensionRoot     string
+	builtinRoot       string
+	runtime           RuntimeManager
 	// auditor 写入宿主 audit_events（F1.4）；与 extension_events 互补。
 	auditor audit.Writer
 	// trustRevoker 升级时吊销前端信任（F2.4）。
@@ -63,11 +65,13 @@ type PageRegistry interface {
 	PreflightThemePackage(ctx context.Context, extension Extension, previousActiveThemeID string) error
 	// RegisterThemePackage 校验并注册主题页面贡献（仅候选，不批准 replace）。
 	RegisterThemePackage(ctx context.Context, extension Extension) error
+	RegisterThemePackageRestoring(ctx context.Context, extension Extension, staleThemeIDs []string) error
 	// RegisterDefaultThemeFallback compiles the protected default without
 	// making its Page Registry contributions active.
 	RegisterDefaultThemeFallback(ctx context.Context, extension Extension) error
 	// RegisterThemePackageReplacing 原子替换旧活动主题贡献（同路径切换允许）。
 	RegisterThemePackageReplacing(ctx context.Context, extension Extension, previousActiveThemeID string) error
+	RegisterThemePackageReplacingApproved(ctx context.Context, extension Extension, previousActiveThemeID string, approvedBy int64) error
 	// RegisterPluginPackage 插件 enable 时注册页面贡献（统一 theme.json pages 契约）。
 	RegisterPluginPackage(ctx context.Context, extension Extension) error
 	// ClearExtension 禁用/卸载/切换时撤销贡献。
@@ -927,7 +931,34 @@ func (s *Service) VerifyExtension(ctx context.Context, actor identity.Actor, id 
 }
 
 func (s *Service) ActivateTheme(ctx context.Context, actor identity.Actor, id string) (Extension, error) {
+	return s.activateTheme(ctx, actor, id, ThemeActivationInput{}, false)
+}
+
+func (s *Service) ActivateThemeFromPreview(
+	ctx context.Context,
+	actor identity.Actor,
+	id string,
+	input ThemeActivationInput,
+) (Extension, error) {
+	return s.activateTheme(ctx, actor, id, input, true)
+}
+
+func (s *Service) activateTheme(
+	ctx context.Context,
+	actor identity.Actor,
+	id string,
+	input ThemeActivationInput,
+	requirePreview bool,
+) (Extension, error) {
+	// DB commit and process-local Page/ThemeRuntime publication are one ordered
+	// critical section on this node. P8 still owns the durable revision watcher
+	// required for cross-node convergence.
+	s.themeActivationMu.Lock()
+	defer s.themeActivationMu.Unlock()
 	if !canManageThemes(actor) {
+		return Extension{}, identity.ErrPermissionDenied
+	}
+	if input.ApproveCoreReplacements && !actor.IsSuperAdmin() {
 		return Extension{}, identity.ErrPermissionDenied
 	}
 	if s.safeMode {
@@ -939,6 +970,11 @@ func (s *Service) ActivateTheme(ctx context.Context, actor identity.Actor, id st
 	}
 	if extension.Type != TypeTheme {
 		return Extension{}, ErrThemeActivationRequired
+	}
+	if requirePreview && (strings.TrimSpace(input.Version) == "" || strings.TrimSpace(input.PackageDigest) == "" ||
+		strings.TrimSpace(input.Version) != extension.Version ||
+		!strings.EqualFold(strings.TrimSpace(input.PackageDigest), extension.PackageDigest)) {
+		return Extension{}, ErrThemePreviewStale
 	}
 	if err := s.verifyExtension(ctx, extension); err != nil {
 		s.recordEnableFailure(ctx, actor, extension.ID, err)
@@ -968,7 +1004,12 @@ func (s *Service) ActivateTheme(ctx context.Context, actor identity.Actor, id st
 	}
 
 	// 2) DB 事务切换活动主题（store.ActivateTheme 内部事务；同主题再激活也幂等写状态）。
-	active, err := s.store.ActivateTheme(ctx, extension.ID)
+	var active Extension
+	if requirePreview {
+		active, err = s.store.ActivateThemeExact(ctx, extension.ID, input)
+	} else {
+		active, err = s.store.ActivateTheme(ctx, extension.ID)
+	}
 	if err != nil {
 		return Extension{}, err
 	}
@@ -976,12 +1017,17 @@ func (s *Service) ActivateTheme(ctx context.Context, actor identity.Actor, id st
 	// 3) 事务成功后原子替换 Registry（ReplaceThemeContributions：新旧同路径允许）。
 	//    失败则回滚 DB 活动主题并恢复旧 Registry。
 	if s.pageRegistry != nil {
-		if err := s.pageRegistry.RegisterThemePackageReplacing(ctx, active, prevThemeID); err != nil {
-			s.pageRegistry.ClearExtension(active.ID)
-			if previous != nil && previous.ID != active.ID {
-				s.rollbackThemeActivation(ctx, previous, active.ID)
+		var registerErr error
+		if input.ApproveCoreReplacements {
+			registerErr = s.pageRegistry.RegisterThemePackageReplacingApproved(ctx, active, prevThemeID, actor.ID)
+		} else {
+			registerErr = s.pageRegistry.RegisterThemePackageReplacing(ctx, active, prevThemeID)
+		}
+		if registerErr != nil {
+			if previous == nil || previous.ID != active.ID {
+				s.rollbackThemeDatabaseActivation(ctx, previous, active.ID)
 			}
-			return Extension{}, fmt.Errorf("%w: registry register failed: %v", ErrBuildFailed, err)
+			return Extension{}, fmt.Errorf("%w: registry register failed: %v", ErrBuildFailed, registerErr)
 		}
 	}
 
@@ -992,10 +1038,11 @@ func (s *Service) ActivateTheme(ctx context.Context, actor identity.Actor, id st
 		Message:     "Theme activated via runtime page registry (no site rebuild).",
 	})
 	s.appendAudit(ctx, actor, audit.ActionExtensionActivate, map[string]any{
-		"extensionId": active.ID,
-		"previousId":  themeIDOrEmpty(previous),
-		"queued":      false,
-		"runtime":     true,
+		"extensionId":              active.ID,
+		"previousId":               themeIDOrEmpty(previous),
+		"queued":                   false,
+		"runtime":                  true,
+		"coreReplacementsApproved": input.ApproveCoreReplacements,
 	})
 	return active, nil
 }
@@ -1007,12 +1054,17 @@ func themeIDOrEmpty(e *Extension) string {
 	return e.ID
 }
 
-// rollbackThemeActivation 激活失败时恢复旧主题 DB + Registry。
-func (s *Service) rollbackThemeActivation(ctx context.Context, previous *Extension, failedID string) {
+// rollbackThemeDatabaseActivation restores only the database state. The Page
+// Registry adapter owns publication compensation and must retain exact prior
+// approvals rather than rebuilding them from the manifest.
+func (s *Service) rollbackThemeDatabaseActivation(ctx context.Context, previous *Extension, failedID string) {
+	var err error
 	if previous == nil {
-		return
+		_, err = s.store.Disable(ctx, failedID)
+	} else {
+		_, err = s.store.ActivateTheme(ctx, previous.ID)
 	}
-	if _, err := s.store.ActivateTheme(ctx, previous.ID); err != nil {
+	if err != nil {
 		// 记录诊断；调用方已返回主错误
 		_, _ = s.store.CreateEvent(ctx, EventInput{
 			ExtensionID: failedID,
@@ -1020,10 +1072,6 @@ func (s *Service) rollbackThemeActivation(ctx context.Context, previous *Extensi
 			Message:     "theme activation rollback failed: " + err.Error(),
 		})
 		return
-	}
-	if s.pageRegistry != nil {
-		s.pageRegistry.ClearExtension(failedID)
-		_ = s.pageRegistry.RegisterThemePackage(ctx, *previous)
 	}
 }
 
@@ -1087,7 +1135,13 @@ func (s *Service) RestoreActiveThemeRegistry(ctx context.Context) error {
 			active = def
 		}
 	}
-	if err := s.pageRegistry.RegisterThemePackage(ctx, active); err != nil {
+	staleThemeIDs := make([]string, 0)
+	for _, item := range items {
+		if item.Type == TypeTheme && item.ID != active.ID {
+			staleThemeIDs = append(staleThemeIDs, item.ID)
+		}
+	}
+	if err := s.pageRegistry.RegisterThemePackageRestoring(ctx, active, staleThemeIDs); err != nil {
 		return fmt.Errorf("restore active theme registry: %w", err)
 	}
 	return nil

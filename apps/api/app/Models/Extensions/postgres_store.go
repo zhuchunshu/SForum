@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -305,6 +306,9 @@ func (s *PostgresStore) Enable(ctx context.Context, id string, extensionType str
 	defer tx.Rollback(ctx)
 
 	if extensionType == TypeTheme {
+		if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtext('sforum.theme.activation.v1'))`); err != nil {
+			return Extension{}, fmt.Errorf("lock theme activation: %w", err)
+		}
 		if _, err := tx.Exec(ctx, `
 			UPDATE extensions
 			SET status = 'disabled', updated_at = now()
@@ -332,6 +336,9 @@ func (s *PostgresStore) ActivateTheme(ctx context.Context, id string) (Extension
 		return Extension{}, fmt.Errorf("begin theme activation: %w", err)
 	}
 	defer tx.Rollback(ctx)
+	if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtext('sforum.theme.activation.v1'))`); err != nil {
+		return Extension{}, fmt.Errorf("lock theme activation: %w", err)
+	}
 
 	if _, err := tx.Exec(ctx, `
 		UPDATE extensions
@@ -353,6 +360,58 @@ func (s *PostgresStore) ActivateTheme(ctx context.Context, id string) (Extension
 	}
 	if err := tx.Commit(ctx); err != nil {
 		return Extension{}, fmt.Errorf("commit theme activation: %w", err)
+	}
+	return s.Get(ctx, id)
+}
+
+func (s *PostgresStore) ActivateThemeExact(ctx context.Context, id string, expected ThemeActivationInput) (Extension, error) {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return Extension{}, fmt.Errorf("begin exact theme activation: %w", err)
+	}
+	defer tx.Rollback(ctx)
+	if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtext('sforum.theme.activation.v1'))`); err != nil {
+		return Extension{}, fmt.Errorf("lock theme activation: %w", err)
+	}
+	var currentID, currentVersion, currentDigest string
+	err = tx.QueryRow(ctx, `
+		SELECT e.id, v.version, v.package_digest
+		FROM extensions e
+		JOIN extension_versions v ON v.id = e.active_version_id
+		WHERE e.type = 'theme' AND e.status = 'enabled'
+		FOR UPDATE OF e`).Scan(&currentID, &currentVersion, &currentDigest)
+	if errors.Is(err, pgx.ErrNoRows) {
+		err = nil
+	}
+	if err != nil {
+		return Extension{}, err
+	}
+	if currentID != expected.CurrentThemeID || currentVersion != expected.CurrentThemeVersion ||
+		!strings.EqualFold(currentDigest, expected.CurrentThemeDigest) {
+		return Extension{}, ErrThemePreviewStale
+	}
+	var targetVersion, targetDigest string
+	if err := tx.QueryRow(ctx, `
+		SELECT v.version, v.package_digest
+		FROM extensions e
+		JOIN extension_versions v ON v.id = e.active_version_id
+		WHERE e.id = $1 AND e.type = 'theme'
+		FOR UPDATE OF e`, id).Scan(&targetVersion, &targetDigest); errors.Is(err, pgx.ErrNoRows) {
+		return Extension{}, ErrExtensionNotFound
+	} else if err != nil {
+		return Extension{}, err
+	}
+	if targetVersion != expected.Version || !strings.EqualFold(targetDigest, expected.PackageDigest) {
+		return Extension{}, ErrThemePreviewStale
+	}
+	if _, err := tx.Exec(ctx, `UPDATE extensions SET status = 'disabled', updated_at = now() WHERE type = 'theme' AND id <> $1 AND status = 'enabled'`, id); err != nil {
+		return Extension{}, err
+	}
+	if _, err := tx.Exec(ctx, `UPDATE extensions SET status = 'enabled', updated_at = now() WHERE id = $1 AND type = 'theme'`, id); err != nil {
+		return Extension{}, err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return Extension{}, err
 	}
 	return s.Get(ctx, id)
 }

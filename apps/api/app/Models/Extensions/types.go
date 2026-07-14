@@ -58,6 +58,7 @@ const (
 	CodeBuildFailed                = "extension.build_failed"
 	CodeThemeActivationRequired    = "extension.theme_activation_required"
 	CodeThemeRuntimeUnavailable    = "extension.theme_runtime_unavailable"
+	CodeThemePreviewStale          = "extension.theme_preview_stale"
 	CodeRouteNotFound              = "extension.route_not_found"
 	CodeRouteMethodNotAllowed      = "extension.route_method_not_allowed"
 	CodeRuntimeUnavailable         = "extension.runtime_unavailable"
@@ -111,6 +112,7 @@ var (
 	ErrBuildFailed               = errors.New("extensions: build failed")
 	ErrThemeActivationRequired   = errors.New("extensions: themes must be activated")
 	ErrThemeRuntimeUnavailable   = errors.New("extensions: theme activation runtime unavailable")
+	ErrThemePreviewStale         = errors.New("extensions: theme activation preview is stale")
 	ErrRuntimeFailed             = errors.New("extensions: runtime failed")
 	ErrRouteNotFound             = errors.New("extensions: route not found")
 	ErrRouteMethodNotAllowed     = errors.New("extensions: route method not allowed")
@@ -250,6 +252,17 @@ type EnableInput struct {
 	ConfirmationToken string `json:"confirmationToken,omitempty"`
 	// IdempotencyKey 来自 HTTP Idempotency-Key；不接受 body 覆盖。
 	IdempotencyKey string `json:"-"`
+}
+
+type ThemeActivationInput struct {
+	Version             string `json:"version"`
+	PackageDigest       string `json:"packageDigest"`
+	CurrentThemeID      string `json:"currentThemeId"`
+	CurrentThemeVersion string `json:"currentThemeVersion"`
+	CurrentThemeDigest  string `json:"currentThemeDigest"`
+	// ApproveCoreReplacements is an explicit approval from the exact visible
+	// preview. It is effective only for a super_admin actor.
+	ApproveCoreReplacements bool `json:"approveCoreReplacements"`
 }
 
 // LifecycleRequestInput 是无业务 body 的 V2 lifecycle 请求元数据。

@@ -407,6 +407,32 @@ func TestApproveNonSuperAdmin403(t *testing.T) {
 	}
 }
 
+func TestThemeActivationPreviewReturnsExactTuplesAndApprovalEligibility(t *testing.T) {
+	app, _, _, _ := newPagesTestApp(t)
+	cookie := loginPagesUser(t, app, 1)
+	resp := performPages(t, app, nethttp.MethodGet, "/api/v1/admin/pages/activate-preview/demo.theme", nil, cookie)
+	if resp.StatusCode != nethttp.StatusOK {
+		t.Fatalf("preview status = %d", resp.StatusCode)
+	}
+	var body pagesEnvelope[themeActivationPreview]
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		t.Fatal(err)
+	}
+	preview := body.Data
+	if preview.ExtensionID != "demo.theme" || preview.Version != "1.0.0" || preview.PackageDigest != "theme-d" ||
+		preview.CurrentThemeID != "demo.theme" || preview.CurrentThemeVersion != "1.0.0" || preview.CurrentThemeDigest != "theme-d" {
+		t.Fatalf("preview tuples = %#v", preview)
+	}
+	if !preview.CanActivate || !preview.CanApproveCoreReplacements || !preview.RequiresCoreReplacementApproval || len(preview.Impacts) == 0 {
+		t.Fatalf("preview eligibility = %#v", preview)
+	}
+	for _, impact := range preview.Impacts {
+		if impact.Contribution.Action == pages.ActionReplace && !impact.RequiresApproval {
+			t.Fatalf("replace impact lacks approval requirement: %#v", impact)
+		}
+	}
+}
+
 func TestApproveAndResolveReplace(t *testing.T) {
 	app, reg, _, sink := newPagesTestApp(t)
 	cookie := loginPagesUser(t, app, 1)

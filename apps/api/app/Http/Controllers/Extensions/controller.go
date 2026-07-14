@@ -309,7 +309,11 @@ func (h *Controller) activate(c fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
-	item, err := h.service.ActivateTheme(c.Context(), actor, c.Params("id"))
+	var input extensions.ThemeActivationInput
+	if err := c.Bind().Body(&input); err != nil {
+		return fiber.NewError(fiber.StatusUnprocessableEntity, "validation.invalid")
+	}
+	item, err := h.service.ActivateThemeFromPreview(c.Context(), actor, c.Params("id"), input)
 	if err != nil {
 		return mapExtensionError(err)
 	}
@@ -543,6 +547,8 @@ func mapExtensionError(err error) error {
 		return fiber.NewError(fiber.StatusConflict, extensions.CodeThemeActivationRequired)
 	case errors.Is(err, extensions.ErrThemeRuntimeUnavailable):
 		return fiber.NewError(fiber.StatusConflict, extensions.CodeThemeRuntimeUnavailable)
+	case errors.Is(err, extensions.ErrThemePreviewStale):
+		return fiber.NewError(fiber.StatusConflict, extensions.CodeThemePreviewStale)
 	case errors.Is(err, extensions.ErrRouteNotFound):
 		return fiber.NewError(fiber.StatusNotFound, extensions.CodeRouteNotFound)
 	case errors.Is(err, extensions.ErrRouteMethodNotAllowed):
