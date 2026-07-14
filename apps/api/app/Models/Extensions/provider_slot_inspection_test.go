@@ -34,6 +34,6 @@ type providerSlotInspectionRuntime struct {
 	inspection ProviderSlotInspection
 }
 
-func (r providerSlotInspectionRuntime) ProviderSlotInspection() ProviderSlotInspection {
-	return r.inspection
+func (r providerSlotInspectionRuntime) ProviderSlotInspection(context.Context) (ProviderSlotInspection, error) {
+	return r.inspection, nil
 }

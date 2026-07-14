@@ -1,6 +1,7 @@
 package extensionscontroller
 
 import (
+	"context"
 	"encoding/json"
 	"log/slog"
 	"net/http"
@@ -122,8 +123,8 @@ type providerSlotControllerRuntime struct {
 	inspection extensions.ProviderSlotInspection
 }
 
-func (r providerSlotControllerRuntime) ProviderSlotInspection() extensions.ProviderSlotInspection {
-	return r.inspection
+func (r providerSlotControllerRuntime) ProviderSlotInspection(context.Context) (extensions.ProviderSlotInspection, error) {
+	return r.inspection, nil
 }
 
 var _ extensions.RuntimeManager = providerSlotControllerRuntime{}

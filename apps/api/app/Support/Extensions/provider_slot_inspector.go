@@ -1,6 +1,8 @@
 package extensionsruntime
 
 import (
+	"context"
+	"errors"
 	"sort"
 
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
@@ -12,9 +14,15 @@ const (
 	providerSlotNoCandidates       = "no_candidates"
 	providerSlotRuntimeUnavailable = "runtime_unavailable"
 	providerSlotPriorityTie        = "priority_tie"
+	providerSlotSelectionDefault   = "default"
+	providerSlotSelectionSelected  = "selected"
+	providerSlotSelectionStale     = "stale"
 )
 
-func (m *Manager) ProviderSlotInspection() extensions.ProviderSlotInspection {
+func (m *Manager) ProviderSlotInspection(ctx context.Context) (extensions.ProviderSlotInspection, error) {
+	if ctx == nil {
+		return extensions.ProviderSlotInspection{}, ErrProviderSlotSelectionInvalid
+	}
 	snapshot := m.HookBus().ProviderSlots().Snapshot()
 	candidatesByTarget := make(map[string][]ProviderSlotCandidate, len(snapshot.Contracts))
 	for _, candidate := range snapshot.Candidates {
@@ -34,8 +42,9 @@ func (m *Manager) ProviderSlotInspection() extensions.ProviderSlotInspection {
 				Fallback: contract.Fallback, TimeoutMS: contract.TimeoutMS, Artifact: contractArtifact,
 				ContractRuntimeAvailable: m.providerSlotArtifactAvailable(contract.Artifact),
 			},
-			Candidates: []extensions.ProviderSlotCandidateInspection{},
-			Conflicts:  []extensions.ProviderSlotConflictInspection{},
+			Candidates:      []extensions.ProviderSlotCandidateInspection{},
+			Conflicts:       []extensions.ProviderSlotConflictInspection{},
+			SelectionStatus: providerSlotSelectionDefault,
 		}
 		priorityCandidates := make(map[int][]string)
 		for index, candidate := range candidatesByTarget[contract.ID] {
@@ -67,9 +76,38 @@ func (m *Manager) ProviderSlotInspection() extensions.ProviderSlotInspection {
 				item.UnavailabilityReason = providerSlotRuntimeUnavailable
 			}
 		}
+		if selections := m.ProviderSlotSelections(); selections != nil {
+			desired, selectionErr := selections.Current(ctx, contract.ID)
+			switch {
+			case selectionErr == nil:
+				item.Selection = providerSlotSelectionInspection(desired)
+				live, liveErr := selections.store.Selected(ctx, contract.ID)
+				resolution := ProviderSlotResolution{Revision: snapshot.Revision, Contract: contract, Candidates: candidatesByTarget[contract.ID]}
+				if liveErr == nil && exactProviderSlotSelectionIndex(resolution, live) >= 0 {
+					item.SelectionStatus = providerSlotSelectionSelected
+				} else if liveErr == nil || errors.Is(liveErr, ErrProviderSlotSelectionStale) || errors.Is(liveErr, ErrProviderSlotSelectionNotFound) {
+					item.SelectionStatus = providerSlotSelectionStale
+				} else {
+					return extensions.ProviderSlotInspection{}, liveErr
+				}
+			case errors.Is(selectionErr, ErrProviderSlotSelectionNotFound):
+			default:
+				return extensions.ProviderSlotInspection{}, selectionErr
+			}
+		}
 		result.Slots = append(result.Slots, item)
 	}
-	return result
+	return result, nil
+}
+
+func providerSlotSelectionInspection(selection ProviderSlotSelection) *extensions.ProviderSlotSelectionInspection {
+	return &extensions.ProviderSlotSelectionInspection{
+		ContractID: selection.ContractID, ContractVersion: selection.ContractVersion, Slot: selection.Slot,
+		ContractArtifact: providerSlotInspectionArtifact(selection.ContractArtifact), CandidateID: selection.CandidateID,
+		ProviderArtifact: providerSlotInspectionArtifact(selection.ProviderArtifact),
+		SelectedByUserID: selection.SelectedByUserID, SelectionAuditID: selection.SelectionAuditID,
+		Revision: selection.Revision, SelectedAt: selection.SelectedAt, UpdatedAt: selection.UpdatedAt,
+	}
 }
 
 func (m *Manager) providerSlotArtifactAvailable(artifact HookArtifact) bool {

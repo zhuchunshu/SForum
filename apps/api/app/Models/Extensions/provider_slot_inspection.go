@@ -3,6 +3,7 @@ package extensions
 import (
 	"context"
 	"errors"
+	"time"
 
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
 )
@@ -47,10 +48,26 @@ type ProviderSlotConflictInspection struct {
 	CandidateIDs []string `json:"candidateIds"`
 }
 
+type ProviderSlotSelectionInspection struct {
+	ContractID       string                         `json:"contractId"`
+	ContractVersion  string                         `json:"contractVersion"`
+	Slot             string                         `json:"slot"`
+	ContractArtifact ProviderSlotArtifactInspection `json:"contractArtifact"`
+	CandidateID      string                         `json:"candidateId"`
+	ProviderArtifact ProviderSlotArtifactInspection `json:"providerArtifact"`
+	SelectedByUserID int64                          `json:"selectedByUserId"`
+	SelectionAuditID int64                          `json:"selectionAuditEventId"`
+	Revision         int64                          `json:"revision"`
+	SelectedAt       time.Time                      `json:"selectedAt"`
+	UpdatedAt        time.Time                      `json:"updatedAt"`
+}
+
 type ProviderSlotInspectionItem struct {
 	Contract             ProviderSlotContractInspection    `json:"contract"`
 	Candidates           []ProviderSlotCandidateInspection `json:"candidates"`
 	Conflicts            []ProviderSlotConflictInspection  `json:"conflicts"`
+	SelectionStatus      string                            `json:"selectionStatus"`
+	Selection            *ProviderSlotSelectionInspection  `json:"selection,omitempty"`
 	Availability         string                            `json:"availability"`
 	UnavailabilityReason string                            `json:"unavailabilityReason,omitempty"`
 }
@@ -61,7 +78,7 @@ type ProviderSlotInspection struct {
 }
 
 type ProviderSlotInspectionSource interface {
-	ProviderSlotInspection() ProviderSlotInspection
+	ProviderSlotInspection(context.Context) (ProviderSlotInspection, error)
 }
 
 func (s *Service) InspectProviderSlots(ctx context.Context, actor identity.Actor) (ProviderSlotInspection, error) {
@@ -78,5 +95,5 @@ func (s *Service) InspectProviderSlots(ctx context.Context, actor identity.Actor
 	if !ok || source == nil {
 		return ProviderSlotInspection{}, ErrProviderSlotInspectionUnavailable
 	}
-	return source.ProviderSlotInspection(), nil
+	return source.ProviderSlotInspection(ctx)
 }

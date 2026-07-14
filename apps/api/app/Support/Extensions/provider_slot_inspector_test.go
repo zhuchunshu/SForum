@@ -28,7 +28,10 @@ func TestProviderSlotInspectorPublishesExactAvailabilityFallbackAndConflicts(t *
 		t.Fatal(err)
 	}
 
-	inspection := manager.ProviderSlotInspection()
+	inspection, err := manager.ProviderSlotInspection(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
 	if inspection.Revision == 0 || len(inspection.Slots) != 1 {
 		t.Fatalf("inspection = %#v", inspection)
 	}
@@ -60,9 +63,42 @@ func TestProviderSlotInspectorReportsNoCandidate(t *testing.T) {
 	if err := manager.Start(context.Background(), owner); err != nil {
 		t.Fatal(err)
 	}
-	inspection := manager.ProviderSlotInspection()
+	inspection, err := manager.ProviderSlotInspection(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
 	if len(inspection.Slots) != 1 || inspection.Slots[0].Availability != providerSlotUnavailable ||
 		inspection.Slots[0].UnavailabilityReason != providerSlotNoCandidates || inspection.Slots[0].Candidates == nil {
 		t.Fatalf("no-candidate inspection = %#v", inspection)
+	}
+}
+
+func TestProviderSlotInspectorDistinguishesSelectedAndStaleChoice(t *testing.T) {
+	manager := NewManager(ManagerConfig{Starter: newManagerStagedStarter()})
+	owner, consumer := startProviderOwnerAndConsumer(t, manager, "next")
+	store := &providerSlotSelectionMemoryStore{}
+	manager.BindProviderSlotSelections(store)
+	selection, err := manager.ProviderSlotSelections().Select(t.Context(), providerSlotID, consumer.Manifest.Providers[0].ID, 0, 11, 21)
+	if err != nil {
+		t.Fatal(err)
+	}
+	store.selection = selection
+	inspection, err := manager.ProviderSlotInspection(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(inspection.Slots) != 1 || inspection.Slots[0].SelectionStatus != providerSlotSelectionSelected ||
+		inspection.Slots[0].Selection == nil || inspection.Slots[0].Selection.CandidateID != consumer.Manifest.Providers[0].ID {
+		t.Fatalf("selected inspection = %#v", inspection)
+	}
+
+	store.selection.ContractArtifact.PackageDigest = strings.Repeat("f", 64)
+	inspection, err = manager.ProviderSlotInspection(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if inspection.Slots[0].SelectionStatus != providerSlotSelectionStale || inspection.Slots[0].Selection == nil ||
+		inspection.Slots[0].Selection.ContractID != owner.Manifest.Providers[0].ID {
+		t.Fatalf("stale inspection = %#v", inspection.Slots[0])
 	}
 }
