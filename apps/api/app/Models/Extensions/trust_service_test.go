@@ -6,6 +6,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -406,6 +407,70 @@ func TestManifestV3EveryDeclarationInvalidatesCanonicalTrustImpact(t *testing.T)
 			}
 			if digest == base.Digest {
 				t.Fatalf("%s change did not invalidate impact digest", test.name)
+			}
+		})
+	}
+}
+
+func TestManifestV3DatabaseOperationFieldsInvalidateCanonicalTrustImpact(t *testing.T) {
+	newImpact := func() TrustImpact {
+		impact, err := buildTrustImpact(completeV3TrustExtension(t, "demo.database-operation-digest"), TrustActionEnable)
+		if err != nil {
+			t.Fatal(err)
+		}
+		impact.Database = &ManifestDatabase{
+			ContractVersion: "demo.database-operation-digest.database@1", Authority: "own_schema",
+			Schema: "logical_schema", Role: "logical_role",
+			Operations: []extensionmanifest.ManifestDatabaseOperation{{
+				ID: "demo.database-operation-digest.items.query", StatementVersion: "1", Kind: "query",
+				Path: "database/items.sql", Digest: strings.Repeat("a", 64),
+				Parameters: []extensionmanifest.ManifestDatabaseParameter{{
+					Schema: "demo.database-operation-digest.item-id@1", Field: "item_id",
+					Kind: "int64", Nullable: false, MaxBytes: 64,
+				}},
+				ResultSchema: "demo.database-operation-digest.items.result@1",
+				Columns:      []extensionmanifest.ManifestDatabaseColumn{{Name: "item_id", Nullable: false}},
+				MaxRows:      100, TimeoutMS: 1000,
+			}},
+		}
+		impact.Digest, err = canonicalTrustImpactDigest(impact)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return impact
+	}
+	base := newImpact()
+	tests := []struct {
+		name   string
+		change func(*extensionmanifest.ManifestDatabaseOperation)
+	}{
+		{name: "id", change: func(value *extensionmanifest.ManifestDatabaseOperation) { value.ID += ".changed" }},
+		{name: "statement version", change: func(value *extensionmanifest.ManifestDatabaseOperation) { value.StatementVersion = "2" }},
+		{name: "kind", change: func(value *extensionmanifest.ManifestDatabaseOperation) { value.Kind = "execute" }},
+		{name: "path", change: func(value *extensionmanifest.ManifestDatabaseOperation) { value.Path = "database/changed.sql" }},
+		{name: "digest", change: func(value *extensionmanifest.ManifestDatabaseOperation) { value.Digest = strings.Repeat("b", 64) }},
+		{name: "parameter schema", change: func(value *extensionmanifest.ManifestDatabaseOperation) { value.Parameters[0].Schema += ".changed" }},
+		{name: "parameter field", change: func(value *extensionmanifest.ManifestDatabaseOperation) { value.Parameters[0].Field = "changed_id" }},
+		{name: "parameter kind", change: func(value *extensionmanifest.ManifestDatabaseOperation) { value.Parameters[0].Kind = "string" }},
+		{name: "parameter nullable", change: func(value *extensionmanifest.ManifestDatabaseOperation) { value.Parameters[0].Nullable = true }},
+		{name: "parameter bytes", change: func(value *extensionmanifest.ManifestDatabaseOperation) { value.Parameters[0].MaxBytes++ }},
+		{name: "result schema", change: func(value *extensionmanifest.ManifestDatabaseOperation) { value.ResultSchema += ".changed" }},
+		{name: "result column", change: func(value *extensionmanifest.ManifestDatabaseOperation) { value.Columns[0].Name = "changed_id" }},
+		{name: "result nullable", change: func(value *extensionmanifest.ManifestDatabaseOperation) { value.Columns[0].Nullable = true }},
+		{name: "row limit", change: func(value *extensionmanifest.ManifestDatabaseOperation) { value.MaxRows++ }},
+		{name: "affected limit", change: func(value *extensionmanifest.ManifestDatabaseOperation) { value.MaxAffectedRows = 1 }},
+		{name: "timeout", change: func(value *extensionmanifest.ManifestDatabaseOperation) { value.TimeoutMS++ }},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			changed := newImpact()
+			test.change(&changed.Database.Operations[0])
+			digest, err := canonicalTrustImpactDigest(changed)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if digest == base.Digest {
+				t.Fatalf("database operation %s change did not invalidate trust impact", test.name)
 			}
 		})
 	}
