@@ -49,6 +49,9 @@
 - P7 passed full ExtensionManifest and Extensions tests, complete Extensions
   race in 119.901 seconds, targeted rollback races, vet, build, gofmt, and diff
   checks.
+- The Provider Slot slice separately passed ten focused repetitions, full
+  Extensions including a real Protocol V2 subprocess, Extensions race in 94.66
+  seconds, vet, build, and package-bound schema checks.
 - P8 fallback passed focused Pages/Extensions/Controller tests, race, vet,
   build, and ThemeCompiler allocation checks before commit.
 - P8 exact-preview backend, OpenAPI, admin typecheck/locales, and the additive

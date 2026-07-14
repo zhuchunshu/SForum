@@ -88,9 +88,9 @@ This is the entry point for project memory.
     cancellation, and unsafe methods can never execute Core as a second writer
   - Exact route schema compilation, joint Route/Schema lifecycle publication,
     boot restore, and production inherited Guard authorization are committed.
-    Explicit contextual evaluators cover 105/123 routes through immutable
+    Explicit contextual evaluators cover 106/123 routes through immutable
     extension, option, forum, and Page Registry policy snapshots with no Store
-    I/O on guarded request paths. Eighteen resource-dependent routes plus
+    I/O on guarded request paths. Seventeen resource-dependent routes plus
     custom/raw authority, complete actions, streaming, SEO, and the failure
     matrix remain active P6 work
   - The reproducible same-run v1/V3 route benchmark row is accepted. Internal
@@ -101,11 +101,20 @@ This is the entry point for project memory.
     immutable exact-runtime graph with deterministic priority, typed contracts,
     dependency SemVer, optional fallback, Host revalidation, River delivery,
     lifecycle rollback, and exact Protocol V2 invocation
+  - Typed versioned Provider Slots now add immutable exact-runtime discovery,
+    dependency/SemVer fallback, Host request/response revalidation, bounded
+    Protocol V2 calls, and lifecycle restore. This does not close the P7 row
+    until the external Plugin B -> Host broker -> Plugin A path and generalized
+    provider selection/probe/health UI are complete
   - P8 is 9/18 (50%). The 23/23 Page ViewModel catalog, sealed typed frontend
     render output, public/admin skin isolation, install-time template safety,
     and compiled four-level fallback are committed. Add-page SSR, exact visible
     activation preview, concurrent/multi-node convergence, and crawler/
     JavaScript-disabled evidence remain open
+  - Exact theme activation now binds a visible target/current preview tuple,
+    atomically replaces durable Page approvals, repairs stale bindings, and
+    exposes process-local revisions. Migration 020 persists desired/node/ack
+    convergence evidence; the repository/watcher and two-node proof remain open
 
 - **2026-07-13 Legacy Web Release/runtime frontend builds removed**
   - Decision: `knowledge/decisions/2026-07-13-remove-legacy-web-release.md`
