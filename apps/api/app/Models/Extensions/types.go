@@ -271,11 +271,32 @@ type RollbackInput struct {
 
 // UninstallInput 卸载扩展的请求体（F2.4）。
 type UninstallInput struct {
+	// RemovalMode 是 Lifecycle V2 的数据去向。空值使用安全默认 preserve。
+	RemovalMode string `json:"removalMode,omitempty"`
 	// RetainSettings 为 true 时保留 extension_settings（便于同 id 重装恢复配置）。
-	// 默认 false：随扩展行 CASCADE 删除。
+	// 仅供 Lifecycle V1 兼容路径使用。
 	RetainSettings bool `json:"retainSettings"`
 	// RetainPackage 为 true 时保留磁盘上的包快照目录；默认删除。
+	// 仅供 Lifecycle V1 兼容路径使用。
 	RetainPackage bool `json:"retainPackage"`
+	// IdempotencyKey 来自 HTTP Idempotency-Key；不接受 body 覆盖。
+	IdempotencyKey string `json:"-"`
+}
+
+// LifecycleCleanupFinalization 是 Host exact-receipt finalizer 的最小跨层结果。
+type LifecycleCleanupFinalization struct {
+	OperationID           int64  `json:"operationId"`
+	Status                string `json:"status"`
+	PhysicalPurgeComplete bool   `json:"physicalPurgeComplete"`
+}
+
+type UninstallResult struct {
+	Uninstalled bool                          `json:"uninstalled"`
+	ExtensionID string                        `json:"extensionId"`
+	OperationID int64                         `json:"operationId,omitempty"`
+	RemovalMode string                        `json:"removalMode,omitempty"`
+	Replayed    bool                          `json:"replayed,omitempty"`
+	Cleanup     *LifecycleCleanupFinalization `json:"cleanup,omitempty"`
 }
 
 // InstallResult 安装/升级结果。

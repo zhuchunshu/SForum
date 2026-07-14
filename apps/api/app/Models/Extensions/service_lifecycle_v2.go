@@ -12,7 +12,11 @@ import (
 	appevents "github.com/zhuchunshu/sforum/apps/api/app/Support/Events"
 )
 
-var ErrLifecycleAuthorityNotFound = errors.New("extensions: successful lifecycle authority not found")
+var (
+	ErrLifecycleAuthorityNotFound   = errors.New("extensions: successful lifecycle authority not found")
+	ErrLifecycleCleanupFinalization = errors.New("extensions: lifecycle cleanup finalization failed")
+	ErrLifecycleCleanupNotFinalized = errors.New("extensions: lifecycle cleanup was not finalized")
+)
 
 // LifecycleCoordinatorRunner keeps Models independent from the production
 // runtime/Host adapters assembled under Support/Extensions.
@@ -29,6 +33,16 @@ type LifecycleStaticPreflight func(
 	Extension,
 ) error
 
+// LifecycleCleanupFinalizer 是 terminal-success 之后唯一允许触发物理删除的 Host 边界。
+// Support 层适配器必须校验 durable tombstone 与 exact purge receipt。
+type LifecycleCleanupFinalizer func(context.Context, int64) (LifecycleCleanupFinalization, error)
+
+func WithLifecycleCleanupFinalizer(finalizer LifecycleCleanupFinalizer) ServiceOption {
+	return func(service *Service) {
+		service.lifecycleFinalizer = finalizer
+	}
+}
+
 // LifecycleAuthorityRepository exposes only the immutable successful snapshot
 // needed for deactivation and historical rollback.
 type LifecycleAuthorityRepository interface {
@@ -43,6 +57,8 @@ type lifecycleServiceRequest struct {
 	idempotencyKey    string
 	confirmationToken string
 	frozenAuthority   bool
+	removalMode       string
+	forced            bool
 }
 
 func usesLifecycleV2(extension Extension) bool {
@@ -184,50 +200,81 @@ func (s *Service) Rollback(ctx context.Context, actor identity.Actor, id string,
 	})
 }
 
+func (s *Service) uninstallLifecycleV2(
+	ctx context.Context,
+	actor identity.Actor,
+	extension Extension,
+	input UninstallInput,
+) (UninstallResult, error) {
+	removalMode, err := normalizeLifecycleRemovalMode(input.RemovalMode)
+	if err != nil {
+		return UninstallResult{}, err
+	}
+	request := lifecycleServiceRequest{
+		operation: LifecycleMachineUninstall, source: exactLifecycleCopy(extension), target: extension,
+		idempotencyKey: input.IdempotencyKey, frozenAuthority: true, removalMode: removalMode,
+	}
+	_, result, err := s.runLifecycleV2Operation(ctx, actor, request)
+	if err != nil {
+		return UninstallResult{}, err
+	}
+	return s.finalizeLifecycleUninstall(ctx, extension.ID, removalMode, result.Operation, result.Replayed)
+}
+
 func (s *Service) runLifecycleV2(
 	ctx context.Context,
 	actor identity.Actor,
 	request lifecycleServiceRequest,
 ) (Extension, error) {
+	item, _, err := s.runLifecycleV2Operation(ctx, actor, request)
+	return item, err
+}
+
+func (s *Service) runLifecycleV2Operation(
+	ctx context.Context,
+	actor identity.Actor,
+	request lifecycleServiceRequest,
+) (Extension, LifecycleCoordinatorRunResult, error) {
 	if s.safeMode {
-		return Extension{}, ErrSafeModeActive
+		return Extension{}, LifecycleCoordinatorRunResult{}, ErrSafeModeActive
 	}
 	if !validLifecycleServiceIdempotencyKey(request.idempotencyKey) {
-		return Extension{}, fmt.Errorf("%w: stable Idempotency-Key is required", ErrLifecycleCoordinatorInvalid)
+		return Extension{}, LifecycleCoordinatorRunResult{}, fmt.Errorf("%w: stable Idempotency-Key is required", ErrLifecycleCoordinatorInvalid)
 	}
 	if s.lifecycleCoordinator == nil || s.lifecyclePreflight == nil || s.lifecycleAuthority == nil {
-		return Extension{}, ErrLifecycleCoordinatorUnavailable
+		return Extension{}, LifecycleCoordinatorRunResult{}, ErrLifecycleCoordinatorUnavailable
 	}
 	if err := validateLifecycleSourceArtifact(request.operation, request.target, request.source); err != nil {
-		return Extension{}, err
+		return Extension{}, LifecycleCoordinatorRunResult{}, err
 	}
 
 	authority, err := s.lifecycleServiceAuthority(ctx, actor, request)
 	if err != nil {
-		return Extension{}, err
+		return Extension{}, LifecycleCoordinatorRunResult{}, err
 	}
 	auditEventID, err := s.appendLifecycleRequestAudit(ctx, actor, request)
 	if err != nil {
-		return Extension{}, err
+		return Extension{}, LifecycleCoordinatorRunResult{}, err
 	}
 	// This callback runs before coordinator position zero, so no Host adapter can
 	// stage a runtime instance until all static facts have passed.
 	if err := s.lifecyclePreflight(ctx, request.operation, request.source, request.target); err != nil {
-		return Extension{}, errors.Join(ErrPreflightFailed, err)
+		return Extension{}, LifecycleCoordinatorRunResult{}, errors.Join(ErrPreflightFailed, err)
 	}
 	runInput, err := BuildLifecycleCoordinatorRunInput(request.target, actor, authority, LifecycleOperationIntent{
 		Operation: request.operation, IdempotencyKey: request.idempotencyKey,
 		SourceExtension: request.source, AuditEventID: auditEventID,
-		FrozenAuthority: request.frozenAuthority,
+		FrozenAuthority: request.frozenAuthority, RemovalMode: request.removalMode, Forced: request.forced,
 	})
 	if err != nil {
-		return Extension{}, err
+		return Extension{}, LifecycleCoordinatorRunResult{}, err
 	}
 	result, err := s.lifecycleCoordinator.Run(ctx, runInput)
 	if err != nil {
-		return Extension{}, lifecycleCoordinatorServiceError(err)
+		return Extension{}, result, lifecycleCoordinatorServiceError(err)
 	}
-	return s.finishLifecycleV2(ctx, actor, request, result)
+	item, err := s.finishLifecycleV2(ctx, actor, request, result)
+	return item, result, err
 }
 
 func (s *Service) finishLifecycleV2(
@@ -328,6 +375,7 @@ func (s *Service) rebuildLifecycleReplay(
 		operation: operationKind, target: target, idempotencyKey: operation.IdempotencyKey,
 		frozenAuthority: operationKind == LifecycleMachineDisable || operationKind == LifecycleMachineRollback ||
 			operationKind == LifecycleMachineUninstall,
+		removalMode: operation.RemovalMode, forced: operation.Forced,
 	}
 	switch operationKind {
 	case LifecycleMachineDisable, LifecycleMachineUninstall:
@@ -446,6 +494,8 @@ func (s *Service) appendLifecycleRequestAudit(
 		action = audit.ActionExtensionUpgraded
 	case LifecycleMachineRollback:
 		action = audit.ActionExtensionRollback
+	case LifecycleMachineUninstall:
+		action = audit.ActionExtensionUninstalled
 	}
 	id, err := writer.AppendReturningID(ctx, audit.Event{
 		ActorUserID: actor.ID,
@@ -455,6 +505,8 @@ func (s *Service) appendLifecycleRequestAudit(
 			"operation":     request.operation,
 			"version":       request.target.Version,
 			"packageDigest": request.target.PackageDigest,
+			"removalMode":   request.removalMode,
+			"forced":        request.forced,
 		},
 	})
 	if err != nil {
@@ -492,6 +544,8 @@ func (s *Service) emitLifecycleCompatibilityEvent(
 		action, message = EventUpgraded, "Staged extension upgrade activated."
 	case LifecycleMachineRollback:
 		action, message = EventRolledBack, "Historical extension version restored."
+	case LifecycleMachineUninstall:
+		action, message, hook = EventUninstalled, "Extension uninstall cleanup completed.", ""
 	}
 	_, _ = s.store.CreateEvent(ctx, EventInput{
 		ExtensionID: extension.ID, ActorUserID: actor.ID, Action: action, Message: message,
@@ -499,6 +553,49 @@ func (s *Service) emitLifecycleCompatibilityEvent(
 	if s.runtime != nil && hook != "" {
 		s.runtime.EmitHook(ctx, hook, map[string]any{"extensionId": extension.ID})
 	}
+}
+
+func normalizeLifecycleRemovalMode(value string) (string, error) {
+	if value == "" {
+		return LifecycleRemovalPreserve, nil
+	}
+	if value != strings.TrimSpace(value) {
+		return "", fmt.Errorf("%w: invalid uninstall removal mode", ErrLifecycleCoordinatorInvalid)
+	}
+	switch value {
+	case LifecycleRemovalPreserve, LifecycleRemovalExportThenRemove, LifecycleRemovalComplete:
+		return value, nil
+	default:
+		return "", fmt.Errorf("%w: invalid uninstall removal mode", ErrLifecycleCoordinatorInvalid)
+	}
+}
+
+func (s *Service) finalizeLifecycleUninstall(
+	ctx context.Context,
+	extensionID string,
+	removalMode string,
+	operation LifecycleOperation,
+	replayed bool,
+) (UninstallResult, error) {
+	if operation.ID <= 0 || operation.Operation != string(LifecycleMachineUninstall) ||
+		operation.TerminalResult != LifecycleTerminalSucceeded || operation.CompletedAt == nil ||
+		operation.RemovalMode != removalMode {
+		return UninstallResult{}, ErrLifecycleCleanupNotFinalized
+	}
+	if s.lifecycleFinalizer == nil {
+		return UninstallResult{}, ErrLifecycleCleanupFinalization
+	}
+	cleanup, err := s.lifecycleFinalizer(ctx, operation.ID)
+	if err != nil {
+		return UninstallResult{}, errors.Join(ErrLifecycleCleanupFinalization, err)
+	}
+	if cleanup.OperationID != operation.ID || cleanup.Status != "finalized" || !cleanup.PhysicalPurgeComplete {
+		return UninstallResult{}, ErrLifecycleCleanupNotFinalized
+	}
+	return UninstallResult{
+		Uninstalled: true, ExtensionID: extensionID, OperationID: operation.ID,
+		RemovalMode: removalMode, Replayed: replayed, Cleanup: &cleanup,
+	}, nil
 }
 
 func exactLifecycleCopy(extension Extension) *Extension {

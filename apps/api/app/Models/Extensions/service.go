@@ -51,6 +51,7 @@ type Service struct {
 	lifecycleCoordinator   LifecycleCoordinatorRunner
 	lifecyclePreflight     LifecycleStaticPreflight
 	lifecycleAuthority     LifecycleAuthorityRepository
+	lifecycleFinalizer     LifecycleCleanupFinalizer
 }
 
 // PageRegistry 主题/插件页面贡献注册（避免 extensions 直接依赖 pages 包实现细节）。

@@ -165,29 +165,49 @@ func (s *Service) InstallOrUpgradeArchive(ctx context.Context, actor identity.Ac
 	return result, nil
 }
 
-// Uninstall 删除可删除扩展（F2.4）。
-// enabled 插件/主题须先禁用；系统/内置不可删；默认删除 settings（CASCADE）与包目录。
-// 含后端入口的非内置包仅 super_admin 可卸载，避免 tech_admin 绕过执行边界后清理痕迹。
 func (s *Service) Uninstall(ctx context.Context, actor identity.Actor, id string, input UninstallInput) error {
+	_, err := s.UninstallWithResult(ctx, actor, id, input)
+	return err
+}
+
+// UninstallWithResult 先检查 durable replay，再选择 V2 coordinator 或 V1 兼容路径。
+// V2 的 package/runtime/authority 会保留到 terminal success，物理删除只能由 exact-receipt finalizer 执行。
+func (s *Service) UninstallWithResult(ctx context.Context, actor identity.Actor, id string, input UninstallInput) (UninstallResult, error) {
 	if !canManagePlugins(actor) {
-		return identity.ErrPermissionDenied
+		return UninstallResult{}, identity.ErrPermissionDenied
 	}
-	extension, err := s.store.Get(ctx, normalizeID(id))
+	id = normalizeID(id)
+	if id == "" {
+		return UninstallResult{}, ErrExtensionNotFound
+	}
+	if validLifecycleServiceIdempotencyKey(input.IdempotencyKey) && s.lifecycleAuthority != nil {
+		operation, err := s.lifecycleAuthority.OperationByIdempotencyKey(ctx, id, input.IdempotencyKey)
+		switch {
+		case err == nil:
+			return s.replayLifecycleUninstall(ctx, actor, id, input, operation)
+		case !errors.Is(err, ErrLifecycleOperationNotFound):
+			return UninstallResult{}, errors.Join(ErrLifecycleCoordinatorUnavailable, err)
+		}
+	}
+	extension, err := s.store.Get(ctx, id)
 	if err != nil {
-		return err
+		return UninstallResult{}, err
 	}
 	if extension.Source == SourceBuiltin || extension.IsSystem || !extension.IsDeletable {
-		return ErrNotDeletable
+		return UninstallResult{}, ErrNotDeletable
 	}
 	if extension.ID == DefaultThemeID {
-		return ErrNotDeletable
+		return UninstallResult{}, ErrNotDeletable
+	}
+	if usesLifecycleV2(extension) && (extension.Status == StatusEnabled || extension.Status == StatusDisabled) {
+		return s.uninstallLifecycleV2(ctx, actor, extension, input)
 	}
 	if err := requireSuperAdminForUntrustedBackend(actor, extension.Source, extension.Manifest); err != nil {
 		s.denyUntrustedBackend(ctx, actor, extension.ID, "uninstall")
-		return err
+		return UninstallResult{}, err
 	}
 	if extension.Status == StatusEnabled {
-		return ErrMustDisableFirst
+		return UninstallResult{}, ErrMustDisableFirst
 	}
 
 	_ = s.drainPluginRuntime(ctx, extension)
@@ -198,7 +218,7 @@ func (s *Service) Uninstall(ctx context.Context, actor identity.Actor, id string
 
 	packagePath := extension.PackagePath
 	if err := s.store.Delete(ctx, extension.ID); err != nil {
-		return err
+		return UninstallResult{}, err
 	}
 
 	if !input.RetainPackage && packagePath != "" {
@@ -217,7 +237,51 @@ func (s *Service) Uninstall(ctx context.Context, actor identity.Actor, id string
 		"settingsDeleted": !input.RetainSettings,
 		// v1：settings 随 extensions CASCADE 删除；RetainSettings 记入审计供后续独立备份表使用。
 	})
-	return nil
+	return UninstallResult{Uninstalled: true, ExtensionID: extension.ID}, nil
+}
+
+func (s *Service) replayLifecycleUninstall(
+	ctx context.Context,
+	actor identity.Actor,
+	extensionID string,
+	input UninstallInput,
+	operation LifecycleOperation,
+) (UninstallResult, error) {
+	removalMode, err := normalizeLifecycleRemovalMode(input.RemovalMode)
+	if err != nil {
+		return UninstallResult{}, err
+	}
+	if operation.ExtensionID != extensionID || operation.Operation != string(LifecycleMachineUninstall) ||
+		operation.RemovalMode != removalMode ||
+		(operation.RequestedByUserID > 0 && operation.RequestedByUserID != actor.ID) {
+		return UninstallResult{}, ErrLifecycleFingerprintConflict
+	}
+	if operation.CompletedAt != nil {
+		switch operation.TerminalResult {
+		case LifecycleTerminalSucceeded:
+			return s.finalizeLifecycleUninstall(ctx, extensionID, removalMode, operation, true)
+		case LifecycleTerminalFailed, LifecycleTerminalCancelled:
+			return UninstallResult{}, ErrLifecycleCoordinatorRetryRequired
+		default:
+			return UninstallResult{}, ErrLifecycleCoordinatorInvalid
+		}
+	}
+	current, err := s.store.Get(ctx, extensionID)
+	if err != nil {
+		return UninstallResult{}, errors.Join(ErrLifecycleCoordinatorUnavailable, err)
+	}
+	_, found, err := s.replayLifecycleV2(ctx, actor, current, input.IdempotencyKey)
+	if err != nil {
+		return UninstallResult{}, err
+	}
+	if !found {
+		return UninstallResult{}, ErrLifecycleCoordinatorInvalid
+	}
+	latest, err := s.lifecycleAuthority.OperationByIdempotencyKey(ctx, extensionID, input.IdempotencyKey)
+	if err != nil {
+		return UninstallResult{}, errors.Join(ErrLifecycleCoordinatorUnavailable, err)
+	}
+	return s.finalizeLifecycleUninstall(ctx, extensionID, removalMode, latest, true)
 }
 
 // ApplyDeclaredMigrations 将 manifest.migrations 登记到账本（F2.4 v1）。

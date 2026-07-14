@@ -242,11 +242,176 @@ func TestServiceDisableReplayUsesPersistedOperationAfterStateChanged(t *testing.
 	}
 }
 
+func TestServiceUninstallLifecycleV2UsesFrozenAuthorityAndExactFinalizer(t *testing.T) {
+	for _, test := range []struct {
+		name string
+		mode string
+		want string
+	}{
+		{name: "safe default", want: LifecycleRemovalPreserve},
+		{name: "preserve", mode: LifecycleRemovalPreserve, want: LifecycleRemovalPreserve},
+		{name: "export then remove", mode: LifecycleRemovalExportThenRemove, want: LifecycleRemovalExportThenRemove},
+		{name: "complete removal", mode: LifecycleRemovalComplete, want: LifecycleRemovalComplete},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			item := lifecycleV2ServiceArtifact(t, "service.uninstall."+strings.ReplaceAll(test.name, " ", "-"), "1.0.0", SourceUploaded)
+			item.Status = StatusEnabled
+			store := newFakeExtensionStore(map[string]Extension{item.ID: item})
+			authority := lifecycleAuthorityTestGrant(t, item)
+			order := []string{}
+			runner := &lifecycleV2RecordingRunner{operationID: 401, beforeRun: func(input LifecycleCoordinatorRunInput) {
+				order = append(order, "coordinator")
+				stored := store.items[item.ID]
+				stored.Status = StatusDisabled
+				store.items[item.ID] = stored
+			}}
+			auditor := &lifecycleV2AuditWriter{nextID: 500, onAppend: func() { order = append(order, "audit") }}
+			finalizerCalls := 0
+			service := NewServiceWithOptions(store, t.TempDir(), "", LocalRuntimeManager{},
+				WithAuditor(auditor),
+				WithLifecycleCoordinator(
+					runner,
+					func(_ context.Context, operation LifecycleMachineOperation, source *Extension, target Extension) error {
+						order = append(order, "preflight")
+						if operation != LifecycleMachineUninstall || source == nil || !sameLifecycleExactArtifact(*source, target) {
+							t.Fatalf("uninstall preflight = %q %#v %#v", operation, source, target)
+						}
+						return nil
+					},
+					lifecycleV2AuthorityStore{authority: authority},
+				),
+				WithLifecycleCleanupFinalizer(func(_ context.Context, operationID int64) (LifecycleCleanupFinalization, error) {
+					order = append(order, "finalizer")
+					finalizerCalls++
+					if operationID != 401 {
+						t.Fatalf("finalizer operation = %d", operationID)
+					}
+					if _, ok := store.items[item.ID]; !ok {
+						t.Fatal("extension identity was deleted before terminal finalizer")
+					}
+					delete(store.items, item.ID)
+					return LifecycleCleanupFinalization{OperationID: operationID, Status: "finalized", PhysicalPurgeComplete: true}, nil
+				}),
+			)
+			actor := techAdminPluginManager()
+			actor.ID = 77
+
+			result, err := service.UninstallWithResult(t.Context(), actor, item.ID, UninstallInput{
+				RemovalMode: test.mode, IdempotencyKey: "uninstall-request-" + strings.ReplaceAll(test.name, " ", "-"),
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !result.Uninstalled || result.OperationID != 401 || result.RemovalMode != test.want ||
+				result.Cleanup == nil || !result.Cleanup.PhysicalPurgeComplete || finalizerCalls != 1 {
+				t.Fatalf("uninstall result = %#v", result)
+			}
+			if _, ok := store.items[item.ID]; ok || store.disabledID != "" {
+				t.Fatalf("legacy mutation ran before exact finalizer: disabled=%q itemPresent=%v", store.disabledID, ok)
+			}
+			if runner.input.Acquire.Operation != string(LifecycleMachineUninstall) ||
+				runner.input.Acquire.RemovalMode != test.want || runner.input.Acquire.RequestedByUserID != actor.ID ||
+				runner.input.SourceExtension == nil || !sameLifecycleExactArtifact(*runner.input.SourceExtension, item) ||
+				lifecycleOperationAuthorityActorUserID(LifecycleOperation{
+					AuthoritySnapshot: runner.input.Acquire.AuthoritySnapshot,
+					RequestedByUserID: runner.input.Acquire.RequestedByUserID,
+				}) != authority.ActorUserID {
+				t.Fatalf("uninstall coordinator input = %#v", runner.input)
+			}
+			if got := strings.Join(order, ","); got != "audit,preflight,coordinator,finalizer" {
+				t.Fatalf("uninstall order = %q", got)
+			}
+			if len(auditor.events) != 1 || auditor.events[0].Action != audit.ActionExtensionUninstalled {
+				t.Fatalf("uninstall audit = %#v", auditor.events)
+			}
+		})
+	}
+}
+
+func TestServiceUninstallLifecycleV2TerminalReplayRetriesOnlyFinalizer(t *testing.T) {
+	item := lifecycleV2ServiceArtifact(t, "service.uninstall-replay", "1.0.0", SourceUploaded)
+	item.Status = StatusDisabled
+	authority := lifecycleAuthorityTestGrant(t, item)
+	authorityJSON, err := json.Marshal(authority)
+	if err != nil {
+		t.Fatal(err)
+	}
+	completedAt := time.Now().UTC()
+	operation := LifecycleOperation{
+		ID: 402, ExtensionID: item.ID, ExtensionVersion: item.Version, PackageDigest: item.PackageDigest,
+		Operation: string(LifecycleMachineUninstall), PlanVersion: item.Manifest.Lifecycle.ContractVersion,
+		IdempotencyKey: "uninstall-replay", RequestFingerprint: strings.Repeat("a", 64),
+		AuthorityType: authority.AuthorityType, TrustGrantID: authority.Grant.ID, AuthoritySnapshot: authorityJSON,
+		RequestedByUserID: 88, AuditEventID: 91, RemovalMode: LifecycleRemovalPreserve,
+		TerminalResult: LifecycleTerminalSucceeded, CompletedAt: &completedAt,
+	}
+	store := newFakeExtensionStore(map[string]Extension{}) // Physical identity may already be gone.
+	runner := &lifecycleV2RecordingRunner{}
+	auditor := &lifecycleV2AuditWriter{nextID: 100}
+	finalizerCalls := 0
+	service := NewServiceWithOptions(store, t.TempDir(), "", LocalRuntimeManager{},
+		WithAuditor(auditor),
+		WithLifecycleCoordinator(runner, func(context.Context, LifecycleMachineOperation, *Extension, Extension) error {
+			t.Fatal("terminal uninstall replay ran preflight")
+			return nil
+		}, lifecycleV2AuthorityStore{operation: &operation}),
+		WithLifecycleCleanupFinalizer(func(_ context.Context, operationID int64) (LifecycleCleanupFinalization, error) {
+			finalizerCalls++
+			return LifecycleCleanupFinalization{OperationID: operationID, Status: "finalized", PhysicalPurgeComplete: true}, nil
+		}),
+	)
+	actor := techAdminPluginManager()
+	actor.ID = operation.RequestedByUserID
+
+	result, err := service.UninstallWithResult(t.Context(), actor, item.ID, UninstallInput{IdempotencyKey: operation.IdempotencyKey})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !result.Replayed || result.OperationID != operation.ID || finalizerCalls != 1 || runner.calls != 0 || auditor.calls != 0 {
+		t.Fatalf("terminal replay result=%#v finalizer=%d runner=%d audit=%d", result, finalizerCalls, runner.calls, auditor.calls)
+	}
+	if _, err := service.UninstallWithResult(t.Context(), actor, item.ID, UninstallInput{
+		IdempotencyKey: operation.IdempotencyKey, RemovalMode: LifecycleRemovalComplete,
+	}); !errors.Is(err, ErrLifecycleFingerprintConflict) {
+		t.Fatalf("changed replay removal mode = %v", err)
+	}
+}
+
+func TestServiceUninstallLifecycleV2FailureRetainsArtifactForRecovery(t *testing.T) {
+	item := lifecycleV2ServiceArtifact(t, "service.uninstall-failure", "1.0.0", SourceUploaded)
+	item.Status = StatusEnabled
+	store := newFakeExtensionStore(map[string]Extension{item.ID: item})
+	finalizerCalls := 0
+	service := NewServiceWithOptions(store, t.TempDir(), "", LocalRuntimeManager{},
+		WithAuditor(&lifecycleV2AuditWriter{nextID: 200}),
+		WithLifecycleCoordinator(
+			&lifecycleV2RecordingRunner{err: ErrLifecycleCoordinatorActionFailed},
+			func(context.Context, LifecycleMachineOperation, *Extension, Extension) error { return nil },
+			lifecycleV2AuthorityStore{authority: lifecycleAuthorityTestGrant(t, item)},
+		),
+		WithLifecycleCleanupFinalizer(func(context.Context, int64) (LifecycleCleanupFinalization, error) {
+			finalizerCalls++
+			return LifecycleCleanupFinalization{}, nil
+		}),
+	)
+	actor := techAdminPluginManager()
+
+	_, err := service.UninstallWithResult(t.Context(), actor, item.ID, UninstallInput{IdempotencyKey: "uninstall-failure"})
+	if !errors.Is(err, ErrLifecycleCoordinatorActionFailed) {
+		t.Fatalf("uninstall failure = %v", err)
+	}
+	if _, ok := store.items[item.ID]; !ok || finalizerCalls != 0 || store.disabledID != "" {
+		t.Fatalf("failed uninstall lost recovery state: present=%v finalizer=%d disabled=%q", ok, finalizerCalls, store.disabledID)
+	}
+}
+
 type lifecycleV2RecordingRunner struct {
-	input     LifecycleCoordinatorRunInput
-	calls     int
-	replayed  bool
-	beforeRun func(LifecycleCoordinatorRunInput)
+	input       LifecycleCoordinatorRunInput
+	calls       int
+	replayed    bool
+	operationID int64
+	err         error
+	beforeRun   func(LifecycleCoordinatorRunInput)
 }
 
 func (r *lifecycleV2RecordingRunner) Run(_ context.Context, input LifecycleCoordinatorRunInput) (LifecycleCoordinatorRunResult, error) {
@@ -255,9 +420,18 @@ func (r *lifecycleV2RecordingRunner) Run(_ context.Context, input LifecycleCoord
 	if r.beforeRun != nil {
 		r.beforeRun(input)
 	}
+	if r.err != nil {
+		return LifecycleCoordinatorRunResult{}, r.err
+	}
+	completedAt := time.Now().UTC()
 	return LifecycleCoordinatorRunResult{
-		Operation: LifecycleOperation{TerminalResult: LifecycleTerminalSucceeded},
-		Replayed:  r.replayed,
+		Operation: LifecycleOperation{
+			ID: r.operationID, ExtensionID: input.Acquire.ExtensionID,
+			ExtensionVersion: input.Acquire.ExtensionVersion, PackageDigest: input.Acquire.PackageDigest,
+			Operation: input.Acquire.Operation, RemovalMode: input.Acquire.RemovalMode,
+			TerminalResult: LifecycleTerminalSucceeded, CompletedAt: &completedAt,
+		},
+		Replayed: r.replayed,
 	}, nil
 }
 
@@ -282,6 +456,7 @@ type lifecycleV2AuditWriter struct {
 	nextID   int64
 	calls    int
 	onAppend func()
+	events   []audit.Event
 }
 
 type lifecycleV2VersionStore struct {
@@ -312,8 +487,9 @@ func (w *lifecycleV2AuditWriter) Append(ctx context.Context, event audit.Event) 
 	return err
 }
 
-func (w *lifecycleV2AuditWriter) AppendReturningID(context.Context, audit.Event) (int64, error) {
+func (w *lifecycleV2AuditWriter) AppendReturningID(_ context.Context, event audit.Event) (int64, error) {
 	w.calls++
+	w.events = append(w.events, event)
 	if w.onAppend != nil {
 		w.onAppend()
 	}
