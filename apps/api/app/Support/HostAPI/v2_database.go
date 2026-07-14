@@ -146,9 +146,11 @@ type protocolV2DatabaseBackend interface {
 }
 
 type protocolV2DatabaseEngine struct {
-	backend  protocolV2DatabaseBackend
-	queries  map[protocolV2DatabaseKey]ProtocolV2DatabaseQueryDefinition
-	executes map[protocolV2DatabaseKey]ProtocolV2DatabaseExecuteDefinition
+	backend       protocolV2DatabaseBackend
+	queries       map[protocolV2DatabaseKey]ProtocolV2DatabaseQueryDefinition
+	executes      map[protocolV2DatabaseKey]ProtocolV2DatabaseExecuteDefinition
+	traceSink     DatabaseTraceSink
+	slowThreshold time.Duration
 }
 
 // ProtocolV2DatabaseRuntime exposes only the generated service interface; its
@@ -181,8 +183,9 @@ func newProtocolV2DatabaseRuntime(
 	backend protocolV2DatabaseBackend,
 	queries []ProtocolV2DatabaseQueryDefinition,
 	executes []ProtocolV2DatabaseExecuteDefinition,
+	options ...ProtocolV2DatabaseRuntimeOption,
 ) (ProtocolV2DatabaseRuntime, error) {
-	engine, err := newProtocolV2DatabaseEngine(backend, queries, executes)
+	engine, err := newProtocolV2DatabaseEngine(backend, queries, executes, options...)
 	if err != nil {
 		return nil, err
 	}
@@ -194,6 +197,7 @@ func newProtocolV2DatabaseEngine(
 	backend protocolV2DatabaseBackend,
 	queries []ProtocolV2DatabaseQueryDefinition,
 	executes []ProtocolV2DatabaseExecuteDefinition,
+	options ...ProtocolV2DatabaseRuntimeOption,
 ) (*protocolV2DatabaseEngine, error) {
 	if backend == nil {
 		return nil, errors.New("hostapi: database backend is required")
@@ -231,7 +235,16 @@ func newProtocolV2DatabaseEngine(
 		seen[key] = struct{}{}
 		executeCatalog[key] = definition
 	}
-	return &protocolV2DatabaseEngine{backend: backend, queries: queryCatalog, executes: executeCatalog}, nil
+	runtimeOptions := protocolV2DatabaseRuntimeOptions{}
+	for _, option := range options {
+		if option != nil {
+			option.applyProtocolV2DatabaseRuntime(&runtimeOptions)
+		}
+	}
+	return &protocolV2DatabaseEngine{
+		backend: backend, queries: queryCatalog, executes: executeCatalog,
+		traceSink: runtimeOptions.traceSink, slowThreshold: ProtocolV2DatabaseDefaultSlowThreshold,
+	}, nil
 }
 
 type protocolV2DatabaseServer struct {
@@ -275,6 +288,16 @@ func (e *protocolV2DatabaseEngine) query(
 	ctx context.Context,
 	request *hostv2.DatabaseQueryRequest,
 ) (result *hostv2.DatabaseQueryResponse, rpcErr error) {
+	startedAt := time.Now()
+	trace := newProtocolV2DatabaseTrace(ctx, request.GetOperationId(), request.GetStatementVersion(), "query")
+	defer func() {
+		var detail *protocolv2.ErrorDetail
+		if result != nil {
+			detail = result.GetError()
+			trace.Rows = len(result.GetRows())
+		}
+		e.recordDatabaseTrace(startedAt, trace, detail, rpcErr)
+	}()
 	identity, detail := protocolV2DatabaseRequestIdentity(ctx, request.GetContext())
 	response := &hostv2.DatabaseQueryResponse{
 		Context: protocolV2DatabaseResponseContext(request.GetContext(), identity),
@@ -297,6 +320,7 @@ func (e *protocolV2DatabaseEngine) query(
 		response.Error = databaseError(protocolv2.ErrorCode_ERROR_CODE_FAILED_PRECONDITION, "host.database_operation_unsupported", "The database operation id or statement version is not registered.", false)
 		return response, nil
 	}
+	trace.ShapeDigest = protocolV2DatabaseQueryTraceShapeDigest(definition)
 	arguments, detail := protocolV2DatabaseParameters(request.GetParameters(), definition.Parameters)
 	if detail != nil {
 		response.Error = detail
@@ -365,6 +389,19 @@ func (e *protocolV2DatabaseEngine) execute(
 	ctx context.Context,
 	request *hostv2.DatabaseExecuteRequest,
 ) (result *hostv2.DatabaseExecuteResponse, rpcErr error) {
+	startedAt := time.Now()
+	trace := newProtocolV2DatabaseTrace(ctx, request.GetOperationId(), request.GetStatementVersion(), "execute")
+	defer func() {
+		var detail *protocolv2.ErrorDetail
+		if result != nil {
+			detail = result.GetError()
+			trace.AffectedRows = result.GetAffectedRows()
+			if result.GetResult() != nil {
+				trace.Rows = 1
+			}
+		}
+		e.recordDatabaseTrace(startedAt, trace, detail, rpcErr)
+	}()
 	identity, detail := protocolV2DatabaseRequestIdentity(ctx, request.GetContext())
 	response := &hostv2.DatabaseExecuteResponse{Context: protocolV2DatabaseResponseContext(request.GetContext(), identity)}
 	if detail != nil {
@@ -380,6 +417,7 @@ func (e *protocolV2DatabaseEngine) execute(
 		response.Error = databaseError(protocolv2.ErrorCode_ERROR_CODE_FAILED_PRECONDITION, "host.database_operation_unsupported", "The database operation id or statement version is not registered.", false)
 		return response, nil
 	}
+	trace.ShapeDigest = protocolV2DatabaseExecuteTraceShapeDigest(definition)
 	idempotencyKey, detail := protocolV2DatabaseIdempotencyKey(request)
 	if detail != nil {
 		response.Error = detail

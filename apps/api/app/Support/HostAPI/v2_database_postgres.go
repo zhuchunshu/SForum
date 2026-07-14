@@ -29,6 +29,7 @@ func NewPostgresProtocolV2DatabaseRuntime(
 	pool *pgxpool.Pool,
 	queries []ProtocolV2DatabaseQueryDefinition,
 	executes []ProtocolV2DatabaseExecuteDefinition,
+	options ...ProtocolV2DatabaseRuntimeOption,
 ) (ProtocolV2DatabaseRuntime, error) {
 	if pool == nil {
 		return nil, errors.New("hostapi: PostgreSQL database pool is required")
@@ -36,7 +37,7 @@ func NewPostgresProtocolV2DatabaseRuntime(
 	backend := &postgresProtocolV2DatabaseBackend{
 		pool: pool, commands: NewPostgresProtocolV2CommandBackend(pool),
 	}
-	return newProtocolV2DatabaseRuntime(backend, queries, executes)
+	return newProtocolV2DatabaseRuntime(backend, queries, executes, options...)
 }
 
 func (b *postgresProtocolV2DatabaseBackend) Begin(ctx context.Context, readOnly bool) (protocolV2DatabaseTx, error) {
