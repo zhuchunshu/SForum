@@ -24,7 +24,7 @@ func TestCompilerSupportsLayoutsPartialsAndStandardControlActions(t *testing.T) 
 		Translations:    map[string]map[string]string{"zh-CN": {"footer": "Translated footer"}},
 	}, Limits{})
 
-	output, err := snapshot.Render(context.Background(), "templates/home.html", map[string]any{
+	output, err := snapshot.renderPassive(context.Background(), "templates/home.html", map[string]any{
 		"Show": true, "Locale": "zh-CN",
 		"Items": []map[string]string{{"Name": "one"}, {"Name": "two"}},
 	})
@@ -61,22 +61,22 @@ func TestCompilerBindingsAreDeepCopiedAndDigestIsolated(t *testing.T) {
 		Translations:    map[string]map[string]string{"en-US": {"logo": "A"}},
 	}
 	compiler := NewCompiler(Limits{})
-	first, err := compiler.CompileFS(source, testDigest('a'), bindings)
+	first, err := compiler.CompileFS(source, testDigest('a'), withTestPageViewModels(source, bindings))
 	if err != nil {
 		t.Fatal(err)
 	}
 	bindings.Assets["logo"] = "/assets/b.png"
 	bindings.Routes["home"] = "/b"
 	bindings.Translations["en-US"]["logo"] = "B"
-	second, err := compiler.CompileFS(source, testDigest('b'), bindings)
+	second, err := compiler.CompileFS(source, testDigest('b'), withTestPageViewModels(source, bindings))
 	if err != nil {
 		t.Fatal(err)
 	}
-	firstOutput, err := first.Render(context.Background(), "templates/home.html", map[string]string{"Locale": "en-US"})
+	firstOutput, err := first.renderPassive(context.Background(), "templates/home.html", map[string]string{"Locale": "en-US"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	secondOutput, err := second.Render(context.Background(), "templates/home.html", map[string]string{"Locale": "en-US"})
+	secondOutput, err := second.renderPassive(context.Background(), "templates/home.html", map[string]string{"Locale": "en-US"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -96,15 +96,15 @@ func TestSnapshotSeparatesCompiledAndRuntimeIdentity(t *testing.T) {
 		"templates/home.html": &fstest.MapFile{Data: []byte(`<a href="{{route "home"}}">home</a>`)},
 	}
 	compiler := NewCompiler(Limits{})
-	first, err := compiler.CompileFS(source, testDigest('a'), Bindings{
+	first, err := compiler.CompileFS(source, testDigest('a'), withTestPageViewModels(source, Bindings{
 		BindingRevision: testDigest('1'), Routes: map[string]string{"home": "/first"},
-	})
+	}))
 	if err != nil {
 		t.Fatal(err)
 	}
-	second, err := compiler.CompileFS(source, testDigest('a'), Bindings{
+	second, err := compiler.CompileFS(source, testDigest('a'), withTestPageViewModels(source, Bindings{
 		BindingRevision: testDigest('2'), Routes: map[string]string{"home": "/second"},
-	})
+	}))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -114,11 +114,11 @@ func TestSnapshotSeparatesCompiledAndRuntimeIdentity(t *testing.T) {
 	if first.Key() == second.Key() || first.RuntimeKey() == second.RuntimeKey() {
 		t.Fatalf("different binding revisions shared runtime identity: %#v, %#v", first.Key(), second.Key())
 	}
-	firstOutput, err := first.Render(context.Background(), "templates/home.html", nil)
+	firstOutput, err := first.renderPassive(context.Background(), "templates/home.html", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	secondOutput, err := second.Render(context.Background(), "templates/home.html", nil)
+	secondOutput, err := second.renderPassive(context.Background(), "templates/home.html", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -144,7 +144,7 @@ func TestSnapshotRenderHasNoFilesystemAccessAndIsConcurrentReadOnly(t *testing.T
 		go func() {
 			defer group.Done()
 			for iteration := 0; iteration < iterations; iteration++ {
-				output, err := snapshot.Render(context.Background(), "templates/list.html", []string{"a", "b"})
+				output, err := snapshot.renderPassive(context.Background(), "templates/list.html", []string{"a", "b"})
 				if err != nil {
 					errorsSeen <- err
 					return
@@ -170,29 +170,29 @@ func TestSnapshotEnforcesMissingKeyOutputAndCancellation(t *testing.T) {
 	missing := compileTestSnapshot(t, fstest.MapFS{
 		"templates/missing.html": &fstest.MapFile{Data: []byte(`<p>{{.Required}}</p>`)},
 	}, testDigest('d'), Bindings{}, Limits{})
-	if _, err := missing.Render(context.Background(), "templates/missing.html", map[string]string{}); !errors.Is(err, ErrMissingValue) {
+	if _, err := missing.renderPassive(context.Background(), "templates/missing.html", map[string]string{}); !errors.Is(err, ErrMissingValue) {
 		t.Fatalf("missing key error = %v", err)
 	}
 
 	limited := compileTestSnapshot(t, fstest.MapFS{
 		"templates/large.html": &fstest.MapFile{Data: []byte(strings.Repeat("x", 64))},
 	}, testDigest('e'), Bindings{}, Limits{MaxOutputBytes: 16})
-	if output, err := limited.Render(context.Background(), "templates/large.html", nil); !errors.Is(err, ErrOutputLimit) || output != "" {
+	if output, err := limited.renderPassive(context.Background(), "templates/large.html", nil); !errors.Is(err, ErrOutputLimit) || output != "" {
 		t.Fatalf("output limit = %q, %v", output, err)
 	}
 	exact := compileTestSnapshot(t, fstest.MapFS{
 		"templates/exact.html": &fstest.MapFile{Data: []byte(strings.Repeat("x", 16))},
 	}, testDigest('3'), Bindings{}, Limits{MaxOutputBytes: 16})
-	if output, err := exact.Render(context.Background(), "templates/exact.html", nil); err != nil || len(output) != 16 {
+	if output, err := exact.renderPassive(context.Background(), "templates/exact.html", nil); err != nil || len(output) != 16 {
 		t.Fatalf("exact output limit = %q, %v", output, err)
 	}
 
 	cancelled, cancel := context.WithCancel(context.Background())
 	cancel()
-	if _, err := missing.Render(cancelled, "templates/missing.html", map[string]string{"Required": "x"}); !errors.Is(err, context.Canceled) {
+	if _, err := missing.renderPassive(cancelled, "templates/missing.html", map[string]string{"Required": "x"}); !errors.Is(err, context.Canceled) {
 		t.Fatalf("cancelled render = %v", err)
 	}
-	if _, err := missing.Render(context.Background(), "partials/nope.html", nil); !errors.Is(err, ErrTemplateNotFound) {
+	if _, err := missing.renderPassive(context.Background(), "partials/nope.html", nil); !errors.Is(err, ErrTemplateNotFound) {
 		t.Fatalf("hidden/missing entry = %v", err)
 	}
 }
@@ -206,7 +206,7 @@ func TestSnapshotRenderDeadlineStopsWaitingForBlockedExecution(t *testing.T) {
 		data[index] = true
 	}
 	started := time.Now()
-	_, err := snapshot.Render(context.Background(), "templates/blocked.html", data)
+	_, err := snapshot.renderPassive(context.Background(), "templates/blocked.html", data)
 	elapsed := time.Since(started)
 	if !errors.Is(err, ErrRenderTimeout) {
 		t.Fatalf("blocked render error = %v", err)
@@ -288,14 +288,18 @@ func TestCompileDirReadsSourcesBeforePublishingSnapshot(t *testing.T) {
 	if err := os.WriteFile(path, []byte(`<p>{{.Value}}</p>`), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	snapshot, err := NewCompiler(Limits{}).CompileDir(root, testDigest('7'), withTestBindingRevision(Bindings{}))
+	snapshot, err := NewCompiler(Limits{}).CompileDir(root, testDigest('7'), withTestBindingRevision(Bindings{
+		PageViewModels: map[string]PageTemplateBinding{
+			"templates/page.html": {PageID: "forum.home", SchemaVersion: "sforum.page.home@1"},
+		},
+	}))
 	if err != nil {
 		t.Fatal(err)
 	}
 	if err := os.RemoveAll(root); err != nil {
 		t.Fatal(err)
 	}
-	output, err := snapshot.Render(context.Background(), "templates/page.html", map[string]string{"Value": "still compiled"})
+	output, err := snapshot.renderPassive(context.Background(), "templates/page.html", map[string]string{"Value": "still compiled"})
 	if err != nil || output != "<p>still compiled</p>" {
 		t.Fatalf("render after package removal = %q, %v", output, err)
 	}
@@ -314,11 +318,29 @@ func (f *countingFS) Open(name string) (fs.File, error) {
 func compileTestSnapshot(t testing.TB, source fs.FS, digest string, bindings Bindings, limits Limits) *Snapshot {
 	t.Helper()
 	bindings = withTestBindingRevision(bindings)
+	bindings = withTestPageViewModels(source, bindings)
 	snapshot, err := NewCompiler(limits).CompileFS(source, digest, bindings)
 	if err != nil {
 		t.Fatal(err)
 	}
 	return snapshot
+}
+
+func withTestPageViewModels(source fs.FS, bindings Bindings) Bindings {
+	if bindings.PageViewModels == nil {
+		bindings.PageViewModels = map[string]PageTemplateBinding{}
+	}
+	_ = fs.WalkDir(source, "templates", func(name string, entry fs.DirEntry, err error) error {
+		if err == nil && !entry.IsDir() && filepath.Ext(name) == ".html" {
+			if _, exists := bindings.PageViewModels[name]; !exists {
+				bindings.PageViewModels[name] = PageTemplateBinding{
+					PageID: "forum.home", SchemaVersion: "sforum.page.home@1",
+				}
+			}
+		}
+		return nil
+	})
+	return bindings
 }
 
 func withTestBindingRevision(bindings Bindings) Bindings {

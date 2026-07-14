@@ -13,7 +13,7 @@ func TestHTMLTemplateContextEscapesDynamicValues(t *testing.T) {
 	snapshot := compileTestSnapshot(t, fstest.MapFS{
 		"templates/security.html": &fstest.MapFile{Data: []byte(`<a href="{{.URL}}" title="{{.Title}}">{{.Body}}</a>`)},
 	}, testDigest('1'), Bindings{}, Limits{})
-	output, err := snapshot.Render(context.Background(), "templates/security.html", map[string]string{
+	output, err := snapshot.renderPassive(context.Background(), "templates/security.html", map[string]string{
 		"URL": "javascript:alert(1)", "Title": `x" onclick="alert(1)`, "Body": `<script>alert(1)</script>`,
 	})
 	if err != nil {
@@ -41,7 +41,7 @@ func TestSnapshotRejectsExecutableAndTrustedContentViewModels(t *testing.T) {
 		map[int]string{1: "non-string-key"},
 	}
 	for _, data := range tests {
-		if _, err := snapshot.Render(context.Background(), "templates/value.html", data); !errors.Is(err, ErrInvalidViewModel) {
+		if _, err := snapshot.renderPassive(context.Background(), "templates/value.html", data); !errors.Is(err, ErrInvalidViewModel) {
 			t.Fatalf("view model %T error = %v", data, err)
 		}
 	}
@@ -51,7 +51,7 @@ func TestSafeHTMLHelperOnlyAcceptsHostProducedValues(t *testing.T) {
 	snapshot := compileTestSnapshot(t, fstest.MapFS{
 		"templates/content.html": &fstest.MapFile{Data: []byte(`<article>{{safeHTML .Rich}}</article><p>{{.Plain}}</p>`)},
 	}, testDigest('3'), Bindings{}, Limits{})
-	output, err := snapshot.Render(context.Background(), "templates/content.html", map[string]any{
+	output, err := snapshot.renderPassive(context.Background(), "templates/content.html", map[string]any{
 		"Rich":  NewSafeHTMLFromSanitized(`<p>Sanitized <strong>content</strong>.</p>`),
 		"Plain": `<img src=x onerror=alert(1)>`,
 	})
@@ -73,7 +73,7 @@ func TestSafeHTMLHelperOnlyAcceptsHostProducedValues(t *testing.T) {
 		{forged: htmltemplate.HTML(`<strong>Go trusted alias</strong>`), target: ErrInvalidViewModel},
 		{forged: map[string]any{"value": `<strong>plugin document</strong>`}, target: ErrSafeHTMLRequired},
 	} {
-		if rendered, err := snapshot.Render(context.Background(), "templates/content.html", map[string]any{
+		if rendered, err := snapshot.renderPassive(context.Background(), "templates/content.html", map[string]any{
 			"Rich": test.forged, "Plain": "plain",
 		}); !errors.Is(err, test.target) || rendered != "" {
 			t.Fatalf("forged SafeHTML %T rendered %q with error %v", test.forged, rendered, err)
@@ -85,7 +85,7 @@ func TestSafeHTMLHelperCannotEscapeURLOrAttributeContexts(t *testing.T) {
 	snapshot := compileTestSnapshot(t, fstest.MapFS{
 		"templates/contexts.html": &fstest.MapFile{Data: []byte(`<a href="{{safeHTML .Rich}}" title="{{safeHTML .Rich}}">link</a>`)},
 	}, testDigest('9'), Bindings{}, Limits{})
-	output, err := snapshot.Render(context.Background(), "templates/contexts.html", map[string]any{
+	output, err := snapshot.renderPassive(context.Background(), "templates/contexts.html", map[string]any{
 		"Rich": NewSafeHTMLFromSanitized(`javascript:alert(1)" onclick="alert(2)`),
 	})
 	if err != nil {
@@ -158,7 +158,7 @@ func TestCompilerAllowsContextSafeDynamicURLs(t *testing.T) {
 	snapshot := compileTestSnapshot(t, fstest.MapFS{
 		"templates/url.html": &fstest.MapFile{Data: []byte(`<a href="{{.Full}}">full</a><a href="/users/{{.ID}}">user</a>`)},
 	}, testDigest('8'), Bindings{}, Limits{})
-	output, err := snapshot.Render(context.Background(), "templates/url.html", map[string]string{
+	output, err := snapshot.renderPassive(context.Background(), "templates/url.html", map[string]string{
 		"Full": "javascript:alert(1)", "ID": `x/\" onclick=\"alert(1)`,
 	})
 	if err != nil {
@@ -173,7 +173,7 @@ func TestCompilerMasksQuotedActionsAndTemplateCommentsBeforeHTMLInspection(t *te
 	snapshot := compileTestSnapshot(t, fstest.MapFS{
 		"templates/actions.html": &fstest.MapFile{Data: []byte(`{{/* an unmatched " quote is inert here */}}<a href="{{route "home"}}">home</a>`)},
 	}, testDigest('7'), Bindings{Routes: map[string]string{"home": "/"}}, Limits{})
-	output, err := snapshot.Render(context.Background(), "templates/actions.html", nil)
+	output, err := snapshot.renderPassive(context.Background(), "templates/actions.html", nil)
 	if err != nil || output != `<a href="/">home</a>` {
 		t.Fatalf("masked action render = %q, %v", output, err)
 	}
@@ -186,7 +186,7 @@ func TestBoundURLHelpersRemainContextEscaped(t *testing.T) {
 		Routes: map[string]string{"home": "javascript:alert(1)"},
 		Assets: map[string]string{"logo": "data:text/html,<script>alert(1)</script>"},
 	}, Limits{})
-	output, err := snapshot.Render(context.Background(), "templates/helpers.html", nil)
+	output, err := snapshot.renderPassive(context.Background(), "templates/helpers.html", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -199,7 +199,7 @@ func TestMissingBoundHelperValueKeepsTypedError(t *testing.T) {
 	snapshot := compileTestSnapshot(t, fstest.MapFS{
 		"templates/helper.html": &fstest.MapFile{Data: []byte(`<a href="{{route "missing"}}">missing</a>`)},
 	}, testDigest('4'), Bindings{}, Limits{})
-	if _, err := snapshot.Render(context.Background(), "templates/helper.html", nil); !errors.Is(err, ErrHelperValueMissing) {
+	if _, err := snapshot.renderPassive(context.Background(), "templates/helper.html", nil); !errors.Is(err, ErrHelperValueMissing) {
 		t.Fatalf("missing helper error = %v", err)
 	}
 }

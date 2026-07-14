@@ -21,7 +21,7 @@ func benchmarkCompile(b *testing.B, source string) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for iteration := 0; iteration < b.N; iteration++ {
-		if _, err := compiler.CompileFS(files, testDigest('b'), withTestBindingRevision(Bindings{})); err != nil {
+		if _, err := compiler.CompileFS(files, testDigest('b'), withTestPageViewModels(files, withTestBindingRevision(Bindings{}))); err != nil {
 			b.Fatal(err)
 		}
 	}
@@ -47,7 +47,7 @@ func benchmarkRender(b *testing.B, source string) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for iteration := 0; iteration < b.N; iteration++ {
-		if _, err := snapshot.Render(context.Background(), "templates/page.html", data); err != nil {
+		if _, err := snapshot.renderPassive(context.Background(), "templates/page.html", data); err != nil {
 			b.Fatal(err)
 		}
 	}

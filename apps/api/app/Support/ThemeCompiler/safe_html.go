@@ -24,5 +24,10 @@ func renderSafeHTML(value any) (htmltemplate.HTML, error) {
 	if !ok {
 		return "", fmt.Errorf("%w: got %T", ErrSafeHTMLRequired, value)
 	}
+	// Rich-content sanitizers cannot mint Host component authority. Islands
+	// must be static reviewed template declarations with compiler bindings.
+	if strings.Contains(strings.ToLower(trusted.value), "<sf-") {
+		return "", fmt.Errorf("%w: SafeHTML contains a host island", ErrInvalidIsland)
+	}
 	return htmltemplate.HTML(trusted.value), nil
 }

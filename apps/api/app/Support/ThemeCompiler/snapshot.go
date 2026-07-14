@@ -23,10 +23,12 @@ var renderExecutionSlots = make(chan struct{}, maxConcurrentTemplateExecutions)
 // intentionally private because html/template mutation APIs are not safe after
 // publication.
 type Snapshot struct {
-	key     SnapshotKey
-	entries map[string]*htmltemplate.Template
-	infos   []TemplateInfo
-	limits  Limits
+	key            SnapshotKey
+	entries        map[string]*htmltemplate.Template
+	infos          []TemplateInfo
+	limits         Limits
+	pageViewModels map[string]PageTemplateBinding
+	islands        map[string]IslandBinding
 }
 
 func (s *Snapshot) Key() SnapshotKey {
@@ -77,7 +79,38 @@ func (s *Snapshot) HasTemplate(name string) bool {
 	return ok
 }
 
-func (s *Snapshot) Render(ctx context.Context, name string, data any) (string, error) {
+// Render accepts only a registry-validated, exact-theme Page ViewModel. The
+// lower-level template executor stays package-private so production callers
+// cannot pass actor objects, secrets, or arbitrary maps into theme templates.
+func (s *Snapshot) Render(ctx context.Context, name string, model BoundPageViewModel) (RenderOutput, error) {
+	if s == nil {
+		return RenderOutput{}, fmt.Errorf("%w: snapshot is required", ErrInvalidInput)
+	}
+	if _, ok := s.entries[name]; !ok {
+		return RenderOutput{}, fmt.Errorf("%w: %s", ErrTemplateNotFound, name)
+	}
+	binding, ok := s.pageViewModels[name]
+	if !ok || binding.PageID != model.pageID || binding.SchemaVersion != model.schemaVersion {
+		return RenderOutput{}, ErrViewModelSchema
+	}
+	if model.themePackageDigest == "" || model.themePackageDigest != s.key.PackageDigest {
+		return RenderOutput{}, ErrViewModelTheme
+	}
+	rendered, err := s.renderPassive(ctx, name, model.value)
+	if err != nil {
+		return RenderOutput{}, err
+	}
+	segments, islands, err := segmentRenderedHTML(rendered, s.islands)
+	if err != nil {
+		return RenderOutput{}, err
+	}
+	if err := validateRenderedRequiredPageIsland(binding.PageID, islands); err != nil {
+		return RenderOutput{}, err
+	}
+	return newRenderOutput(segments, islands, model.seo), nil
+}
+
+func (s *Snapshot) renderPassive(ctx context.Context, name string, data any) (string, error) {
 	if s == nil || ctx == nil {
 		return "", fmt.Errorf("%w: snapshot and context are required", ErrInvalidInput)
 	}
@@ -133,6 +166,9 @@ func (s *Snapshot) Render(ctx context.Context, name string, data any) (string, e
 	}
 	if errors.Is(err, ErrSafeHTMLRequired) {
 		return "", fmt.Errorf("%w: %v", ErrSafeHTMLRequired, err)
+	}
+	if errors.Is(err, ErrInvalidIsland) || errors.Is(err, ErrUnknownIsland) {
+		return "", fmt.Errorf("%w: %v", ErrInvalidIsland, err)
 	}
 	message := err.Error()
 	if strings.Contains(message, "map has no entry for key") || strings.Contains(message, "can't evaluate field") ||

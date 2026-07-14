@@ -8,7 +8,7 @@ import (
 const (
 	// CompilerVersion participates in every snapshot identity. Any parsing,
 	// helper, or output-contract change must bump this value.
-	CompilerVersion = "sforum.theme-compiler@2"
+	CompilerVersion = "sforum.theme-compiler@3"
 
 	DefaultMaxSourceBytes = 256 * 1024
 	DefaultMaxTotalBytes  = 4 * 1024 * 1024
@@ -35,6 +35,11 @@ var (
 	ErrExecution              = errors.New("themecompiler: template execution failed")
 	ErrHelperValueMissing     = errors.New("themecompiler: helper value not found")
 	ErrInvalidViewModel       = errors.New("themecompiler: view model must be a passive DTO")
+	ErrViewModelSchema        = errors.New("themecompiler: page view model schema mismatch")
+	ErrViewModelTheme         = errors.New("themecompiler: page view model theme digest mismatch")
+	ErrUnknownIsland          = errors.New("themecompiler: unknown host island")
+	ErrInvalidIsland          = errors.New("themecompiler: invalid host island")
+	ErrRequiredIsland         = errors.New("themecompiler: required host island is missing or ambiguous")
 	ErrSafeHTMLRequired       = errors.New("themecompiler: safeHTML requires a Host-produced value")
 )
 
@@ -77,9 +82,46 @@ type Bindings struct {
 	// BindingRevision 是上层对 registry/provider/assets/locales/contracts
 	// canonical manifest 计算的 SHA-256；编译器不对闭包或 map 自行猜测身份。
 	BindingRevision string
-	Assets          map[string]string
-	Routes          map[string]string
-	Translations    map[string]map[string]string
+	// SiteName preserves the reviewed zero-argument helper used by bundled
+	// buildless themes. It is immutable snapshot data, not request state.
+	SiteName     string
+	Assets       map[string]string
+	Routes       map[string]string
+	Translations map[string]map[string]string
+	// PageViewModels binds each compiled page template to one reviewed Host
+	// Page ViewModel contract. Themes cannot choose a schema at render time.
+	PageViewModels map[string]PageTemplateBinding
+	// Islands is a reviewed host-component contract. Template attributes are
+	// converted to fixed typed props; no arbitrary props map reaches Nuxt.
+	Islands map[string]IslandBinding
+}
+
+// PageTemplateBinding is part of the immutable compiler binding revision.
+// The package digest is already carried by SnapshotKey and checked again when
+// a Host-built ViewModel is rendered.
+type PageTemplateBinding struct {
+	PageID        string `json:"pageId"`
+	SchemaVersion string `json:"schemaVersion"`
+}
+
+type IslandPropType string
+
+const (
+	IslandPropString  IslandPropType = "string"
+	IslandPropBoolean IslandPropType = "boolean"
+	IslandPropInteger IslandPropType = "integer"
+	IslandPropURL     IslandPropType = "url"
+)
+
+type IslandPropContract struct {
+	Name     string         `json:"name"`
+	Type     IslandPropType `json:"type"`
+	Required bool           `json:"required,omitempty"`
+}
+
+type IslandBinding struct {
+	ComponentID string               `json:"componentId"`
+	Props       []IslandPropContract `json:"props,omitempty"`
 }
 
 // CompiledTemplateKey 只标识可复用的模板编译产物。

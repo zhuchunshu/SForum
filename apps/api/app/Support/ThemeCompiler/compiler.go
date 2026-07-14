@@ -80,10 +80,16 @@ func (c *Compiler) CompileFS(source fs.FS, packageDigest string, bindings Bindin
 	}
 
 	immutableBindings := cloneBindings(bindings)
+	if err := validateIslandBindings(immutableBindings.Islands); err != nil {
+		return nil, err
+	}
 	funcs := restrictedFuncMap(immutableBindings)
 	shared := htmltemplate.New(internalRootTemplate).Option("missingkey=error").Funcs(funcs)
 	sharedNames := map[string]string{}
 	for _, item := range sources {
+		if err := validateTemplateIslandDeclarations(item.name, item.body, immutableBindings.Islands); err != nil {
+			return nil, err
+		}
 		if item.kind == KindPage {
 			continue
 		}
@@ -116,6 +122,21 @@ func (c *Compiler) CompileFS(source fs.FS, packageDigest string, bindings Bindin
 		}
 		entries[item.name] = compiled
 	}
+	if len(immutableBindings.PageViewModels) != len(entries) {
+		return nil, fmt.Errorf("%w: every page template requires exactly one Page ViewModel binding", ErrViewModelSchema)
+	}
+	for name, binding := range immutableBindings.PageViewModels {
+		entry, ok := entries[name]
+		if !ok {
+			return nil, fmt.Errorf("%w: binding references unknown template %q", ErrViewModelSchema, name)
+		}
+		if !viewModelIDPattern.MatchString(binding.PageID) || !schemaVersionPattern.MatchString(binding.SchemaVersion) {
+			return nil, fmt.Errorf("%w: invalid binding for %q", ErrViewModelSchema, name)
+		}
+		if err := validateRequiredPageIsland(name, entry, binding.PageID, immutableBindings.Islands); err != nil {
+			return nil, err
+		}
+	}
 
 	infos := make([]TemplateInfo, 0, len(sources))
 	for _, item := range sources {
@@ -130,6 +151,8 @@ func (c *Compiler) CompileFS(source fs.FS, packageDigest string, bindings Bindin
 			BindingRevision: immutableBindings.BindingRevision,
 		},
 		entries: entries, infos: infos, limits: c.limits,
+		pageViewModels: immutableBindings.PageViewModels,
+		islands:        immutableBindings.Islands,
 	}, nil
 }
 
