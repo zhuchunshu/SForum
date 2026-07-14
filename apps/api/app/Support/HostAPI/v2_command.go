@@ -42,20 +42,26 @@ func (s *protocolV2CommandServer) Execute(ctx context.Context, request *hostv2.C
 
 // protocolV2CommandBackend keeps the idempotency ledger and audit event in the
 // same pgx transaction as the command's business writes. LockIdempotency must
-// serialize one extension/key pair until tx ends; P5 supplies the PostgreSQL
-// implementation together with the first concrete Host Commands.
+// serialize one extension/key pair until tx ends. Domain commands are bound by
+// a separate Host-owned catalog.
 type protocolV2CommandBackend interface {
 	Begin(ctx context.Context) (pgx.Tx, error)
+	ResolveScope(ctx context.Context, tx pgx.Tx, requested protocolV2CommandScope) (protocolV2CommandScope, error)
 	LockIdempotency(ctx context.Context, tx pgx.Tx, scope protocolV2CommandScope) (*protocolV2CommandReceipt, error)
 	SaveResult(ctx context.Context, tx pgx.Tx, scope protocolV2CommandScope, receipt protocolV2CommandReceipt) error
 	AppendAudit(ctx context.Context, tx pgx.Tx, event protocolV2CommandAudit) (string, error)
 }
 
 type protocolV2CommandScope struct {
-	ExtensionID    string
-	CommandID      string
-	CommandVersion string
-	IdempotencyKey string
+	ExtensionID        string
+	ExtensionVersionID int64
+	ExtensionVersion   string
+	PackageDigest      string
+	AuthorityType      string
+	TrustGrantID       int64
+	CommandID          string
+	CommandVersion     string
+	IdempotencyKey     string
 }
 
 type protocolV2CommandReceipt struct {
@@ -64,6 +70,7 @@ type protocolV2CommandReceipt struct {
 }
 
 type protocolV2CommandAudit struct {
+	Scope          protocolV2CommandScope
 	ExtensionID    string
 	ActorUserID    int64
 	CommandID      string
@@ -272,7 +279,18 @@ func (e *protocolV2CommandEngine) execute(ctx context.Context, request *hostv2.C
 		return result, nil
 	}
 
-	committed, txnErr := e.executeInTransaction(ctx, tx, scope, fingerprint, definition, request)
+	resolvedScope, err := e.backend.ResolveScope(ctx, tx, scope)
+	if err != nil {
+		rollbackCtx, cancelRollback := context.WithTimeout(context.WithoutCancel(ctx), protocolV2CommandRollbackTimeout)
+		defer cancelRollback()
+		if rollbackErr := tx.Rollback(rollbackCtx); rollbackErr != nil && !errors.Is(rollbackErr, pgx.ErrTxClosed) {
+			return nil, status.Error(codes.Internal, "Host command identity rollback failed; transaction outcome is unknown")
+		}
+		result.State = hostv2.CommandState_COMMAND_STATE_REJECTED
+		result.Error = protocolV2CommandErrorDetail(err, "host.command_identity_invalid")
+		return result, nil
+	}
+	committed, txnErr := e.executeInTransaction(ctx, tx, resolvedScope, fingerprint, definition, request)
 	if txnErr != nil {
 		rollbackCtx, cancelRollback := context.WithTimeout(context.WithoutCancel(ctx), protocolV2CommandRollbackTimeout)
 		defer cancelRollback()
@@ -341,6 +359,7 @@ func (e *protocolV2CommandEngine) executeInTransaction(
 		return nil, fmt.Errorf("create transaction id: %w", err)
 	}
 	auditID, err := e.backend.AppendAudit(ctx, tx, protocolV2CommandAudit{
+		Scope:       scope,
 		ExtensionID: scope.ExtensionID,
 		// Plugin -> Host calls currently have no Host-attested actor channel.
 		ActorUserID: 0,

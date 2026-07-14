@@ -37,6 +37,10 @@ func (b *fakeProtocolV2CommandBackend) Begin(context.Context) (pgx.Tx, error) {
 	}, nil
 }
 
+func (b *fakeProtocolV2CommandBackend) ResolveScope(_ context.Context, _ pgx.Tx, scope protocolV2CommandScope) (protocolV2CommandScope, error) {
+	return scope, nil
+}
+
 func (b *fakeProtocolV2CommandBackend) LockIdempotency(_ context.Context, _ pgx.Tx, scope protocolV2CommandScope) (*protocolV2CommandReceipt, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
