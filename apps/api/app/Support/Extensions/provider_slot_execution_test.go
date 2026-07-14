@@ -216,6 +216,7 @@ type providerInvocationStarter struct {
 	mu     sync.Mutex
 	called []string
 	invoke func(context.Context, extensions.Extension, VersionedProviderRequest) (VersionedProviderResponse, error)
+	probe  func(context.Context, string, ProviderProbeRequest) (ProviderProbeResponse, error)
 }
 
 func newProviderInvocationStarter() *providerInvocationStarter {
