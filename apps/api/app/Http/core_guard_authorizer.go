@@ -141,7 +141,7 @@ func productionCoreGuardEvaluatorRegistrationsWithPolicies(policies ProductionRo
 		productionCoreGuardEvaluator("core.guard.forum.topic_lock", requireDeclaredCoreGuardPermission),
 		productionCoreGuardEvaluator("core.guard.forum.topic_state", requireDeclaredCoreGuardPermission),
 		productionCoreGuardEvaluator("core.guard.identity.admin", identityAdminGuardEvaluator(policies.IdentityAdmins)),
-		productionCoreGuardEvaluator("core.guard.identity.bootstrap", requireIdentityBootstrapAuthority),
+		productionCoreGuardEvaluator("core.guard.identity.bootstrap", identityBootstrapGuardEvaluator),
 		productionCoreGuardEvaluator("core.guard.identity.human_verification", requireHumanVerificationChallengeAuthority),
 		productionCoreGuardEvaluator("core.guard.identity.self_credentials", identitySelfCredentialsGuardEvaluator(
 			policies.IdentitySessions, policies.IdentityAPITokens,
@@ -562,11 +562,23 @@ type optionGuardUpdateManyInput struct {
 	Options []optionGuardUpdateInput `json:"options"`
 }
 
-func requireIdentityBootstrapAuthority(_ context.Context, evaluation routes.CoreGuardEvaluation) error {
-	if evaluation.Descriptor.RouteID == "core.route.identity.registration_status" {
+// identityBootstrapGuardEvaluator keeps executable authentication mutations
+// Host-owned. Login, registration, and recovery combine one-use verification,
+// credential mutation, and raw session authority, so an inherited route guard
+// cannot delegate them without weakening core policy. A plugin must instead
+// declare the separately confirmed custom-guard/raw-request authority.
+func identityBootstrapGuardEvaluator(_ context.Context, evaluation routes.CoreGuardEvaluation) error {
+	switch evaluation.Descriptor.RouteID {
+	case "core.route.identity.registration_status":
 		return nil
+	case "core.route.identity.login",
+		"core.route.identity.register",
+		"core.route.identity.password_reset_request",
+		"core.route.identity.password_reset_confirm":
+		return routes.ErrCoreGuardEvaluatorUnavailable
+	default:
+		return routes.ErrCoreGuardEvaluatorUnavailable
 	}
-	return routes.ErrCoreGuardEvaluatorUnavailable
 }
 
 func requireHumanVerificationChallengeAuthority(_ context.Context, evaluation routes.CoreGuardEvaluation) error {

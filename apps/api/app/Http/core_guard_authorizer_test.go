@@ -1098,23 +1098,57 @@ func TestProductionHumanVerificationGuardRejectsPurposeDrift(t *testing.T) {
 	}
 }
 
-func TestProductionIdentityBootstrapGuardLeavesExecutableFlowsClosed(t *testing.T) {
+func TestProductionIdentityBootstrapGuardKeepsExecutableAuthFlowsHostOwned(t *testing.T) {
 	authorizer := NewProductionRouteGuardAuthorizer()
-	closed := 0
+	executable := map[string]bool{
+		"core.route.identity.login":                  true,
+		"core.route.identity.register":               true,
+		"core.route.identity.password_reset_request": true,
+		"core.route.identity.password_reset_confirm": true,
+	}
 	for _, route := range routes.CoreRouteCatalog() {
-		if route.Guard.EvaluatorID != "core.guard.identity.bootstrap" || route.ID == "core.route.identity.registration_status" {
+		if !executable[route.ID] {
 			continue
 		}
-		closed++
+		delete(executable, route.ID)
 		plan, step := productionCatalogInheritedGuardPlan(t, route)
-		request := productionGuardRequest("*")
-		request.Method, request.Path = plan.Method(), plan.Path()
-		if err := authorizer.Authorize(context.Background(), plan, step, request); !errors.Is(err, ErrRouteGuardUnavailable) {
-			t.Fatalf("%s error = %v", route.ID, err)
+		requests := []routes.DispatchRequest{
+			{Method: plan.Method(), Path: plan.Path()},
+			func() routes.DispatchRequest {
+				request := productionGuardRequest()
+				request.Method, request.Path = plan.Method(), plan.Path()
+				return request
+			}(),
+			func() routes.DispatchRequest {
+				request := productionGuardRequest("*")
+				request.Method, request.Path = plan.Method(), plan.Path()
+				request.Body, request.Query = []byte(`{"future":true}`), "future=1"
+				return request
+			}(),
+		}
+		for _, request := range requests {
+			if err := authorizer.Authorize(context.Background(), plan, step, request); !errors.Is(err, ErrRouteGuardUnavailable) {
+				t.Fatalf("%s error = %v", route.ID, err)
+			}
 		}
 	}
-	if closed != 4 {
-		t.Fatalf("closed bootstrap routes = %d", closed)
+	if len(executable) != 0 {
+		t.Fatalf("missing executable bootstrap routes = %#v", executable)
+	}
+}
+
+func TestProductionIdentityRegistrationStatusRemainsInertAndPublic(t *testing.T) {
+	var target routes.CoreRoute
+	for _, route := range routes.CoreRouteCatalog() {
+		if route.ID == "core.route.identity.registration_status" {
+			target = route
+			break
+		}
+	}
+	plan, step := productionCatalogInheritedGuardPlan(t, target)
+	request := routes.DispatchRequest{Method: plan.Method(), Path: plan.Path()}
+	if err := NewProductionRouteGuardAuthorizer().Authorize(context.Background(), plan, step, request); err != nil {
+		t.Fatal(err)
 	}
 }
 
