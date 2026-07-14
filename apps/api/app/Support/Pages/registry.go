@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"sort"
 	"strings"
 	"sync"
 )
@@ -18,6 +19,8 @@ var (
 	ErrInvalidContribution = errors.New("pages: invalid page contribution")
 	ErrInvalidAccess       = errors.New("pages: invalid access")
 	ErrContractMismatch    = errors.New("pages: contract version mismatch")
+	ErrRevisionConflict    = errors.New("pages: registry revision conflict")
+	ErrArtifactConflict    = errors.New("pages: exact artifact conflict")
 )
 
 // ContributionAction 主题/插件对页面的贡献动作。
@@ -30,20 +33,21 @@ const (
 
 // PageContribution 扩展声明的页面贡献（来自 theme.json / manifest）。
 type PageContribution struct {
-	ID            string             `json:"id"`
-	Action        ContributionAction `json:"action"`
-	Target        string             `json:"target,omitempty"` // replace 目标 page id
-	Path          string             `json:"path,omitempty"`   // add 路径
-	Template      string             `json:"template,omitempty"`
-	Contract      string             `json:"contract,omitempty"`
-	Access        Access             `json:"access,omitempty"`
-	Permission    string             `json:"permission,omitempty"` // access=permission 时必填
-	DataSource    string             `json:"dataSource,omitempty"` // core | plugin
-	DataRoute     string             `json:"dataRoute,omitempty"`
-	DataSchema    string             `json:"dataSchema,omitempty"` // 可选 JSON Schema 相对路径
-	ExtensionID   string             `json:"extensionId"`
-	Version       string             `json:"version"`
-	PackageDigest string             `json:"packageDigest,omitempty"`
+	ID                string             `json:"id"`
+	Action            ContributionAction `json:"action"`
+	Target            string             `json:"target,omitempty"` // replace 目标 page id
+	Path              string             `json:"path,omitempty"`   // add 路径
+	Template          string             `json:"template,omitempty"`
+	Contract          string             `json:"contract,omitempty"`
+	Access            Access             `json:"access,omitempty"`
+	Permission        string             `json:"permission,omitempty"` // access=permission 时必填
+	DataSource        string             `json:"dataSource,omitempty"` // core | plugin
+	DataRoute         string             `json:"dataRoute,omitempty"`
+	DataSchema        string             `json:"dataSchema,omitempty"` // 可选 JSON Schema 相对路径
+	ExtensionID       string             `json:"extensionId"`
+	Version           string             `json:"version"`
+	PackageDigest     string             `json:"packageDigest,omitempty"`
+	RuntimeInstanceID string             `json:"runtimeInstanceId,omitempty"`
 	// RouteSignature 注册时计算的语义签名（参数名无关）。
 	RouteSignature string `json:"routeSignature,omitempty"`
 }
@@ -61,6 +65,21 @@ type ProviderBinding struct {
 	TemplatePath    string `json:"templatePath,omitempty"`
 }
 
+// RuntimeArtifact records the exact plugin process that owns one contribution
+// set. Themes and legacy callers keep RuntimeInstanceID empty.
+type RuntimeArtifact struct {
+	ExtensionID       string `json:"extensionId"`
+	ExtensionVersion  string `json:"extensionVersion"`
+	PackageDigest     string `json:"packageDigest"`
+	RuntimeInstanceID string `json:"runtimeInstanceId,omitempty"`
+}
+
+type ExtensionSnapshot struct {
+	Revision      uint64
+	Artifact      RuntimeArtifact
+	Contributions []PageContribution
+}
+
 // Store 持久化绑定与审批（可实现为内存或 Postgres）。
 type Store interface {
 	ListBindings(ctx context.Context) ([]ProviderBinding, error)
@@ -75,21 +94,37 @@ type Registry struct {
 	logger *slog.Logger
 
 	mu            sync.RWMutex
+	revision      uint64
 	contributions map[string][]PageContribution // pageId or contribution id for add
 	// compiledAdds 确定性匹配表（按 Specificity 排序），不依赖 map 迭代顺序。
 	compiledAdds []CompiledRoute
 	// signatureOwners signature → 当前拥有该语义路径的扩展（用于冲突检测）。
-	signatureOwners map[string]string
+	signatureOwners    map[string]string
+	extensionArtifacts map[string]RuntimeArtifact
+	admission          func(RuntimeArtifact) bool
 }
 
 // NewRegistry 创建注册表；store 可为 nil（仅 core）。
 func NewRegistry(store Store) *Registry {
 	return &Registry{
-		store:           store,
-		contributions:   map[string][]PageContribution{},
-		compiledAdds:    nil,
-		signatureOwners: map[string]string{},
+		store:              store,
+		contributions:      map[string][]PageContribution{},
+		compiledAdds:       nil,
+		signatureOwners:    map[string]string{},
+		extensionArtifacts: map[string]RuntimeArtifact{},
 	}
+}
+
+// WithRuntimeAdmission hides exact-runtime contributions while their Manager
+// gate is staged or draining. It does not replace the execution-time lease.
+func (r *Registry) WithRuntimeAdmission(admission func(RuntimeArtifact) bool) *Registry {
+	if r == nil {
+		return r
+	}
+	r.mu.Lock()
+	r.admission = admission
+	r.mu.Unlock()
+	return r
 }
 
 // WithLogger 注入安全诊断日志（contract 回退等）。
@@ -121,6 +156,8 @@ func (r *Registry) RegisterContributions(extensionID string, items []PageContrib
 	}
 	r.clearExtensionLocked(extensionID)
 	r.applyContributionsLocked(prepared)
+	r.extensionArtifacts[extensionID] = pageArtifactFromContributions(extensionID, prepared)
+	r.revision++
 	return nil
 }
 
@@ -139,6 +176,8 @@ func (r *Registry) ReplaceExtensionContributions(extensionID string, items []Pag
 	}
 	r.clearExtensionLocked(extensionID)
 	r.applyContributionsLocked(prepared)
+	r.extensionArtifacts[extensionID] = pageArtifactFromContributions(extensionID, prepared)
+	r.revision++
 	return nil
 }
 
@@ -180,6 +219,8 @@ func (r *Registry) ReplaceThemeContributions(newThemeID string, newItems []PageC
 	}
 	r.clearExtensionLocked(newThemeID)
 	r.applyContributionsLocked(prepared)
+	r.extensionArtifacts[newThemeID] = pageArtifactFromContributions(newThemeID, prepared)
+	r.revision++
 
 	// 完整性自检：若 apply 后状态异常则恢复（防御）
 	if len(prepared) > 0 {
@@ -381,9 +422,11 @@ func (r *Registry) ClearExtension(extensionID string) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.clearExtensionLocked(extensionID)
+	r.revision++
 }
 
 func (r *Registry) clearExtensionLocked(extensionID string) {
+	delete(r.extensionArtifacts, extensionID)
 	for key, list := range r.contributions {
 		filtered := list[:0]
 		for _, c := range list {
@@ -409,6 +452,95 @@ func (r *Registry) clearExtensionLocked(extensionID string) {
 	r.compiledAdds = kept
 	// 确保 owners 与 routes 一致
 	r.rebuildOwnersLocked()
+}
+
+// PublishExtensionIfRevision atomically replaces one exact plugin page set.
+// The revision CAS lets a lifecycle aggregate preserve unrelated extensions.
+func (r *Registry) PublishExtensionIfRevision(
+	artifact RuntimeArtifact,
+	items []PageContribution,
+	expectedRevision uint64,
+) (uint64, error) {
+	if r == nil || !validRuntimeArtifact(artifact, true) {
+		return 0, ErrArtifactConflict
+	}
+	exact := append([]PageContribution(nil), items...)
+	for index := range exact {
+		exact[index].ExtensionID = artifact.ExtensionID
+		exact[index].Version = artifact.ExtensionVersion
+		exact[index].PackageDigest = artifact.PackageDigest
+		exact[index].RuntimeInstanceID = artifact.RuntimeInstanceID
+	}
+	prepared, err := prepareContributions(artifact.ExtensionID, exact)
+	if err != nil {
+		return 0, err
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.revision != expectedRevision {
+		return r.revision, fmt.Errorf("%w: expected %d, current %d", ErrRevisionConflict, expectedRevision, r.revision)
+	}
+	if err := r.preflightAddsLocked(artifact.ExtensionID, prepared); err != nil {
+		return r.revision, err
+	}
+	r.clearExtensionLocked(artifact.ExtensionID)
+	r.applyContributionsLocked(prepared)
+	r.extensionArtifacts[artifact.ExtensionID] = artifact
+	r.revision++
+	return r.revision, nil
+}
+
+func (r *Registry) RemoveExtensionIfRevision(
+	extensionID string,
+	expected RuntimeArtifact,
+	expectedRevision uint64,
+) (uint64, error) {
+	if r == nil || strings.TrimSpace(extensionID) == "" {
+		return 0, ErrArtifactConflict
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.revision != expectedRevision {
+		return r.revision, fmt.Errorf("%w: expected %d, current %d", ErrRevisionConflict, expectedRevision, r.revision)
+	}
+	current, exists := r.extensionArtifacts[extensionID]
+	if validRuntimeArtifact(expected, false) && (!exists || current != expected) {
+		return r.revision, ErrArtifactConflict
+	}
+	r.clearExtensionLocked(extensionID)
+	r.revision++
+	return r.revision, nil
+}
+
+func (r *Registry) ExtensionSnapshot(extensionID string) (ExtensionSnapshot, bool) {
+	if r == nil {
+		return ExtensionSnapshot{}, false
+	}
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	artifact, ok := r.extensionArtifacts[extensionID]
+	if !ok {
+		return ExtensionSnapshot{Revision: r.revision}, false
+	}
+	result := ExtensionSnapshot{Revision: r.revision, Artifact: artifact}
+	for _, list := range r.contributions {
+		for _, item := range list {
+			if item.ExtensionID == extensionID {
+				result.Contributions = append(result.Contributions, item)
+			}
+		}
+	}
+	sortPageContributions(result.Contributions)
+	return result, true
+}
+
+func (r *Registry) Revision() uint64 {
+	if r == nil {
+		return 0
+	}
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	return r.revision
 }
 
 func (r *Registry) rebuildOwnersLocked() {
@@ -443,6 +575,9 @@ func (r *Registry) Resolve(ctx context.Context, pageID string) (ResolvedPage, er
 	for _, c := range list {
 		if c.ExtensionID != binding.ExtensionID || c.ID != binding.ContributionID {
 			continue
+		}
+		if !r.contributionAdmittedLocked(c) {
+			return core, nil
 		}
 		// 精确匹配 version / digest / contract
 		if binding.Version != "" && c.Version != "" && binding.Version != c.Version {
@@ -630,7 +765,9 @@ func (r *Registry) AddedPages() []PageContribution {
 	defer r.mu.RUnlock()
 	out := make([]PageContribution, 0, len(r.compiledAdds))
 	for _, cr := range r.compiledAdds {
-		out = append(out, cr.Contribution)
+		if r.contributionAdmittedLocked(cr.Contribution) {
+			out = append(out, cr.Contribution)
+		}
 	}
 	return out
 }
@@ -652,7 +789,54 @@ func (r *Registry) ResolveAddedPathMatch(requestPath string) (RouteMatch, bool) 
 	}
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-	return MatchRequestPath(r.compiledAdds, requestPath)
+	visible := make([]CompiledRoute, 0, len(r.compiledAdds))
+	for _, route := range r.compiledAdds {
+		if r.contributionAdmittedLocked(route.Contribution) {
+			visible = append(visible, route)
+		}
+	}
+	return MatchRequestPath(visible, requestPath)
+}
+
+func (r *Registry) contributionAdmittedLocked(contribution PageContribution) bool {
+	if contribution.RuntimeInstanceID == "" || r.admission == nil {
+		return true
+	}
+	return r.admission(RuntimeArtifact{
+		ExtensionID: contribution.ExtensionID, ExtensionVersion: contribution.Version,
+		PackageDigest: contribution.PackageDigest, RuntimeInstanceID: contribution.RuntimeInstanceID,
+	})
+}
+
+func validRuntimeArtifact(artifact RuntimeArtifact, requireRuntime bool) bool {
+	if artifact.ExtensionID == "" || artifact.ExtensionID != strings.TrimSpace(artifact.ExtensionID) ||
+		artifact.ExtensionVersion == "" || artifact.ExtensionVersion != strings.TrimSpace(artifact.ExtensionVersion) ||
+		artifact.PackageDigest == "" || artifact.PackageDigest != strings.TrimSpace(artifact.PackageDigest) {
+		return false
+	}
+	return !requireRuntime || (artifact.RuntimeInstanceID != "" && artifact.RuntimeInstanceID == strings.TrimSpace(artifact.RuntimeInstanceID))
+}
+
+func pageArtifactFromContributions(extensionID string, items []PageContribution) RuntimeArtifact {
+	artifact := RuntimeArtifact{ExtensionID: extensionID}
+	if len(items) > 0 {
+		artifact.ExtensionVersion = items[0].Version
+		artifact.PackageDigest = items[0].PackageDigest
+		artifact.RuntimeInstanceID = items[0].RuntimeInstanceID
+	}
+	return artifact
+}
+
+func sortPageContributions(items []PageContribution) {
+	sort.Slice(items, func(i, j int) bool {
+		if items[i].ID != items[j].ID {
+			return items[i].ID < items[j].ID
+		}
+		if items[i].Action != items[j].Action {
+			return items[i].Action < items[j].Action
+		}
+		return items[i].Path < items[j].Path
+	})
 }
 
 // Snapshot 返回当前贡献的只读拷贝（测试/诊断）。
