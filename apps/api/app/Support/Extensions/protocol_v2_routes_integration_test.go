@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -89,6 +90,47 @@ func TestProtocolV2RouteExactRetainedInstanceNeverFallsBackActive(t *testing.T) 
 	}
 }
 
+func TestProtocolV2CustomGuardAcrossRealSubprocessAndManagerAdmission(t *testing.T) {
+	extension := protocolV2RouteExtension(t)
+	starter := extensionsruntime.NewProtocolStarter(extensionsruntime.ProtocolStarterConfig{
+		Trust: staticRuntimeTrust{identity: extensions.RuntimeTrustIdentity{TrustGrantID: "41", ImpactDigest: "impact-41"}},
+	})
+	manager := extensionsruntime.NewManager(extensionsruntime.ManagerConfig{Starter: starter})
+	if err := manager.Start(context.Background(), extension); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = manager.Stop(context.Background(), extension) })
+	snapshot, lease, err := manager.AcquireActiveRuntimeCall(context.Background(), extension.ID, extensionsruntime.RuntimeCallGuard)
+	if err != nil {
+		t.Fatal(err)
+	}
+	request := extensionsruntime.ProtocolV2GuardRequest{
+		GuardID: "runtime.v2.guard.owner", GuardContractVersion: "runtime.v2.guard.owner@1",
+		RouteID: "runtime.v2.route.echo", RouteContractVersion: "runtime.v2.route.echo@1",
+		Method: http.MethodPost, Path: "/runtime/41", PathParameters: map[string]string{"id": "41"},
+		RequestSchema: "runtime.v2.route.request@1", Body: map[string]any{"title": "guarded"}, BodyPresent: true,
+		Actor: extensionsruntime.NewProtocolV2RouteActor(42, true, map[string]bool{"topics.write": true}), Timeout: 3 * time.Second,
+	}
+	err = manager.InvokeGuardInstance(lease.Context, snapshot.Identity, request)
+	lease.Release()
+	if err != nil {
+		t.Fatal(err)
+	}
+	request.QueryParameters = map[string]string{"deny": "1"}
+	snapshot, lease, err = manager.AcquireActiveRuntimeCall(context.Background(), extension.ID, extensionsruntime.RuntimeCallGuard)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = manager.InvokeGuardInstance(lease.Context, snapshot.Identity, request)
+	lease.Release()
+	if !errors.Is(err, extensionsruntime.ErrProtocolV2GuardDenied) {
+		t.Fatalf("denied guard error = %v", err)
+	}
+	if after, err := manager.InspectRuntimeInstance(snapshot.Identity); err != nil || after.Admission.ActiveTotal != 0 {
+		t.Fatalf("guard admission after call = %#v, %v", after, err)
+	}
+}
+
 func TestProtocolV2RouteHelperProcess(t *testing.T) {
 	if os.Getenv("SFORUM_PLUGIN_HELPER") != protocolV2RouteHelperEnv {
 		return
@@ -101,6 +143,19 @@ type protocolV2RouteE2EServer struct{ *pluginv2sdk.Server }
 
 func (s *protocolV2RouteE2EServer) InvokeRoute(_ context.Context, request *pluginwire.RouteRequest) (*pluginwire.RouteResponse, error) {
 	ctx := request.GetContext()
+	if request.GetRouteId() == "runtime.v2.guard.owner" {
+		status := http.StatusNoContent
+		if request.GetQueryParameters()["deny"] == "1" {
+			status = http.StatusForbidden
+		}
+		if request.GetContractVersion() != "runtime.v2.guard.owner@1" || request.GetMethod() != http.MethodPost ||
+			request.GetPath() != "/runtime/41" || request.GetPathParameters()["id"] != "41" ||
+			request.GetContext().GetActor().GetUserId() != 42 ||
+			request.GetBody().GetSchemaId() != "runtime.v2.route.request" {
+			status = http.StatusForbidden
+		}
+		return &pluginwire.RouteResponse{Context: protocolV2RouteResponseContext(ctx), StatusCode: uint32(status)}, nil
+	}
 	if request.GetRouteId() != "runtime.v2.route.echo" || request.GetContractVersion() != "runtime.v2.route.echo@1" ||
 		request.GetMethod() != http.MethodPost || request.GetPath() != "/runtime/41" ||
 		request.GetPathParameters()["id"] != "41" || request.GetQueryParameters()["page"] != "2" ||
@@ -142,9 +197,13 @@ func protocolV2RouteExtension(t *testing.T) extensions.Extension {
 	}
 	extension.Manifest.Events = nil
 	extension.Manifest.Services = nil
+	extension.Manifest.Guards = []extensions.ManifestGuard{{
+		ID: "runtime.v2.guard.owner", ContractVersion: "runtime.v2.guard.owner@1", Kind: "custom",
+		Entry: "backend/guard", Digest: strings.Repeat("c", 64),
+	}}
 	extension.Manifest.Routes = []extensions.ManifestRoute{{
 		ID: "runtime.v2.route.echo", ContractVersion: "runtime.v2.route.echo@1", Action: "add",
-		Path: "/runtime/{id}", Methods: []string{http.MethodPost}, Handler: "route.echo",
+		Path: "/runtime/{id}", Methods: []string{http.MethodPost}, Guard: "runtime.v2.guard.owner", Handler: "route.echo",
 		RequestSchema: "runtime.v2.route.request@1", ResponseSchema: "runtime.v2.route.response@1",
 	}}
 	return extension

@@ -29,6 +29,27 @@ type CoreGuardEvaluation struct {
 	Request       DispatchRequest
 }
 
+type PluginGuardEvaluation struct {
+	PlanRevision  uint64
+	RequestMethod string
+	RequestPath   string
+	Step          RouteExecutionStep
+	Request       DispatchRequest
+}
+
+type PluginGuardEvaluator interface {
+	EvaluatePluginGuard(context.Context, PluginGuardEvaluation) error
+}
+
+type PluginGuardEvaluatorFunc func(context.Context, PluginGuardEvaluation) error
+
+func (f PluginGuardEvaluatorFunc) EvaluatePluginGuard(ctx context.Context, evaluation PluginGuardEvaluation) error {
+	if f == nil {
+		return ErrCoreGuardEvaluatorUnavailable
+	}
+	return f(ctx, evaluation)
+}
+
 type CoreGuardEvaluator interface {
 	EvaluateCoreGuard(context.Context, CoreGuardEvaluation) error
 }
@@ -119,7 +140,8 @@ func (r *CoreGuardEvaluatorRegistry) evaluate(ctx context.Context, evaluation Co
 }
 
 type CoreGuardAuthorizer struct {
-	Evaluators *CoreGuardEvaluatorRegistry
+	Evaluators   *CoreGuardEvaluatorRegistry
+	PluginGuards PluginGuardEvaluator
 }
 
 func (a CoreGuardAuthorizer) Authorize(
@@ -149,9 +171,32 @@ func (a CoreGuardAuthorizer) Authorize(
 	case extensionmanifest.GuardCoreInherit:
 		return a.authorizeInherited(ctx, plan, step, request)
 	default:
-		// Custom and raw-request guards require their separately confirmed runtime.
+		return a.authorizePluginGuard(ctx, plan, step, request)
+	}
+}
+
+func (a CoreGuardAuthorizer) authorizePluginGuard(
+	ctx context.Context,
+	plan RouteExecutionPlan,
+	step RouteExecutionStep,
+	request DispatchRequest,
+) error {
+	if a.PluginGuards == nil || !validPluginGuardBinding(step) {
 		return ErrCoreGuardEvaluatorUnavailable
 	}
+	return a.PluginGuards.EvaluatePluginGuard(ctx, PluginGuardEvaluation{
+		PlanRevision: plan.Revision(), RequestMethod: plan.Method(), RequestPath: plan.Path(),
+		Step: cloneRouteExecutionSteps([]RouteExecutionStep{step})[0], Request: cloneDispatchRequest(request),
+	})
+}
+
+func validPluginGuardBinding(step RouteExecutionStep) bool {
+	if step.Guard == extensionmanifest.GuardCoreRaw {
+		return step.PluginGuard.ID == ""
+	}
+	return step.PluginGuard.ID == step.Guard && step.PluginGuard.ContractVersion != "" &&
+		(step.PluginGuard.Kind == "custom" || step.PluginGuard.Kind == "raw_request") &&
+		step.PluginGuard.Entry != "" && packageDigestPattern.MatchString(step.PluginGuard.Digest)
 }
 
 func (a CoreGuardAuthorizer) authorizeInherited(

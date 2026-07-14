@@ -20,6 +20,7 @@ type RuntimeCallClass string
 
 const (
 	RuntimeCallRoute            RuntimeCallClass = "route"
+	RuntimeCallGuard            RuntimeCallClass = "guard"
 	RuntimeCallPage             RuntimeCallClass = "page"
 	RuntimeCallHook             RuntimeCallClass = "hook"
 	RuntimeCallProvider         RuntimeCallClass = "provider"

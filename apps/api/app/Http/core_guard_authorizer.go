@@ -79,6 +79,7 @@ type ProductionRouteGuardPolicies struct {
 	EntityMetaValues  EntityMetaValueGuardPolicy
 	AttachmentReads   AttachmentReadGuardPolicy
 	ForumComments     ForumCommentCreateGuardPolicy
+	PluginGuards      routes.PluginGuardEvaluator
 }
 
 func NewProductionRouteGuardAuthorizer() ProductionRouteGuardAuthorizer {
@@ -87,7 +88,9 @@ func NewProductionRouteGuardAuthorizer() ProductionRouteGuardAuthorizer {
 
 func NewProductionRouteGuardAuthorizerWithPolicies(policies ProductionRouteGuardPolicies) ProductionRouteGuardAuthorizer {
 	registry := routes.MustNewCoreGuardEvaluatorRegistry(productionCoreGuardEvaluatorRegistrationsWithPolicies(policies))
-	return ProductionRouteGuardAuthorizer{authorizer: routes.CoreGuardAuthorizer{Evaluators: registry}}
+	return ProductionRouteGuardAuthorizer{authorizer: routes.CoreGuardAuthorizer{
+		Evaluators: registry, PluginGuards: policies.PluginGuards,
+	}}
 }
 
 func (a ProductionRouteGuardAuthorizer) Authorize(

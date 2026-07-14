@@ -182,6 +182,56 @@ func TestCoreGuardAuthorizerRejectsDirectGuardOutsideExactPlan(t *testing.T) {
 	}
 }
 
+func TestCoreGuardAuthorizerExecutesExactPluginGuardEvaluator(t *testing.T) {
+	for _, guard := range []string{extensionmanifest.GuardCoreRaw, "guard.direct.custom"} {
+		plan, step := directCoreGuardPlan(t, guard, "")
+		request := DispatchRequest{
+			Method: plan.Method(), Path: plan.Path(), ActorID: 42, Authenticated: true,
+			Permissions: map[string]bool{"topic.read": true}, Params: plan.Params(),
+		}
+		called := 0
+		authorizer := CoreGuardAuthorizer{PluginGuards: PluginGuardEvaluatorFunc(func(_ context.Context, evaluation PluginGuardEvaluation) error {
+			called++
+			if evaluation.PlanRevision != plan.Revision() || evaluation.RequestMethod != plan.Method() ||
+				evaluation.RequestPath != plan.Path() || !equalCoreGuardExecutionStep(evaluation.Step, step) ||
+				evaluation.Request.ActorID != request.ActorID {
+				t.Fatalf("plugin guard evaluation = %#v", evaluation)
+			}
+			evaluation.Request.Permissions["forged"] = true
+			evaluation.Step.PluginGuard.Permissions = append(evaluation.Step.PluginGuard.Permissions, "forged")
+			return nil
+		})}
+		if err := authorizer.Authorize(context.Background(), plan, step, request); err != nil || called != 1 {
+			t.Fatalf("guard %q error = %v, called = %d", guard, err, called)
+		}
+		if request.Permissions["forged"] || len(plan.Terminal().PluginGuard.Permissions) != len(step.PluginGuard.Permissions) {
+			t.Fatal("plugin guard evaluator mutated immutable request or plan")
+		}
+	}
+}
+
+func TestCoreGuardAuthorizerRejectsForgedPluginGuardBinding(t *testing.T) {
+	plan, step := directCoreGuardPlan(t, "guard.direct.custom", "")
+	request := DispatchRequest{Method: plan.Method(), Path: plan.Path(), Params: plan.Params()}
+	authorizer := CoreGuardAuthorizer{PluginGuards: PluginGuardEvaluatorFunc(func(context.Context, PluginGuardEvaluation) error {
+		t.Fatal("forged plugin guard reached evaluator")
+		return nil
+	})}
+	for _, mutate := range []func(*RouteExecutionStep){
+		func(value *RouteExecutionStep) { value.PluginGuard.ID = "guard.direct.other" },
+		func(value *RouteExecutionStep) { value.PluginGuard.ContractVersion = "" },
+		func(value *RouteExecutionStep) { value.PluginGuard.Kind = "builtin" },
+		func(value *RouteExecutionStep) { value.PluginGuard.Entry = "" },
+		func(value *RouteExecutionStep) { value.PluginGuard.Digest = "forged" },
+	} {
+		candidate := step
+		mutate(&candidate)
+		if err := authorizer.Authorize(context.Background(), plan, candidate, request); !errors.Is(err, ErrCoreGuardEvaluatorUnavailable) {
+			t.Fatalf("forged binding error = %v", err)
+		}
+	}
+}
+
 func inheritedCoreGuardPlan(t *testing.T, descriptor CoreGuardDescriptor) (RouteExecutionPlan, RouteExecutionStep) {
 	t.Helper()
 	registry := NewRegistry()

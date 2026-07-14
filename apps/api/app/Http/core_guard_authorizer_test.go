@@ -2155,12 +2155,19 @@ func productionDirectGuardPlan(t *testing.T, guard, permission string) (routes.R
 		Guard: guard, Permission: permission, Fallback: "closed", Mode: extensionmanifest.RouteModeHTTP,
 		Handler: "route.handle", ResponseSchema: "guard.production.direct.response@1",
 	}
+	var guards []extensionmanifest.ManifestGuard
+	if guard == "guard.production.custom" {
+		guards = []extensionmanifest.ManifestGuard{{
+			ID: guard, ContractVersion: guard + "@1", Kind: "custom",
+			Entry: "backend/guard", Digest: strings.Repeat("c", 64),
+		}}
+	}
 	if _, err := registry.Publish(routes.Publication{Plugins: []routes.PluginRouteSet{{
 		Artifact: routes.PluginArtifact{
 			ExtensionID: "guard.production", ExtensionVersion: "1.0.0",
 			PackageDigest: strings.Repeat("b", 64), RuntimeInstanceID: "runtime-b",
 		},
-		Routes: []extensionmanifest.ManifestRoute{route},
+		Routes: []extensionmanifest.ManifestRoute{route}, Guards: guards,
 	}}}); err != nil {
 		t.Fatal(err)
 	}
