@@ -283,9 +283,12 @@ func TestCompilerRejectsCallGraphBeyondConfiguredDepth(t *testing.T) {
 }
 
 func TestCompilerRejectsInconsistentHTMLTemplateContext(t *testing.T) {
+	const name = "templates/context.html"
 	_, err := NewCompiler(Limits{}).CompileFS(fstest.MapFS{
-		"templates/context.html": &fstest.MapFile{Data: []byte(`{{if .Open}}<a href="{{end}}{{.Value}}`)},
-	}, testDigest('9'), withTestBindingRevision(Bindings{}))
+		name: &fstest.MapFile{Data: []byte(`{{if .Open}}<a href="{{end}}{{.Value}}`)},
+	}, testDigest('9'), withTestBindingRevision(Bindings{PageViewModels: map[string]PageTemplateBinding{
+		name: {PageID: "test.context", SchemaVersion: "test.context@1"},
+	}}))
 	if !errors.Is(err, ErrInvalidTemplate) {
 		t.Fatalf("context error = %v", err)
 	}

@@ -117,6 +117,18 @@ func (c *Compiler) CompileFS(source fs.FS, packageDigest string, bindings Bindin
 		if err := validateTemplateSet(compiled, item.name, c.limits.MaxCallDepth); err != nil {
 			return nil, err
 		}
+		binding, ok := immutableBindings.PageViewModels[item.name]
+		if !ok {
+			return nil, fmt.Errorf("%w: every page template requires exactly one Page ViewModel binding", ErrViewModelSchema)
+		}
+		if !viewModelIDPattern.MatchString(binding.PageID) || !schemaVersionPattern.MatchString(binding.SchemaVersion) {
+			return nil, fmt.Errorf("%w: invalid binding for %q", ErrViewModelSchema, item.name)
+		}
+		// html/template 的上下文分析会向语法树注入内部 escaper。
+		// required-island 必须先检查原始受限模板，避免把标准库函数误判成插件 helper。
+		if err := validateRequiredPageIsland(item.name, compiled, binding.PageID, immutableBindings.Islands); err != nil {
+			return nil, err
+		}
 		if err := validateContextEscaping(compiled, item.name); err != nil {
 			return nil, err
 		}
@@ -125,16 +137,10 @@ func (c *Compiler) CompileFS(source fs.FS, packageDigest string, bindings Bindin
 	if len(immutableBindings.PageViewModels) != len(entries) {
 		return nil, fmt.Errorf("%w: every page template requires exactly one Page ViewModel binding", ErrViewModelSchema)
 	}
-	for name, binding := range immutableBindings.PageViewModels {
-		entry, ok := entries[name]
+	for name := range immutableBindings.PageViewModels {
+		_, ok := entries[name]
 		if !ok {
 			return nil, fmt.Errorf("%w: binding references unknown template %q", ErrViewModelSchema, name)
-		}
-		if !viewModelIDPattern.MatchString(binding.PageID) || !schemaVersionPattern.MatchString(binding.SchemaVersion) {
-			return nil, fmt.Errorf("%w: invalid binding for %q", ErrViewModelSchema, name)
-		}
-		if err := validateRequiredPageIsland(name, entry, binding.PageID, immutableBindings.Islands); err != nil {
-			return nil, err
 		}
 	}
 
