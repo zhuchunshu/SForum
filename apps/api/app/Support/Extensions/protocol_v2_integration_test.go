@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"sync"
 	"testing"
@@ -95,6 +96,61 @@ func TestProtocolV2InvokesVersionedManifestHookByExactDeclaration(t *testing.T) 
 	})
 	if !result.OK || result.Patch["title"] != "after-v2" {
 		t.Fatalf("versioned protocol hook = %#v", result)
+	}
+}
+
+func TestProtocolV2InvokesVersionedProviderByExactTypedDeclaration(t *testing.T) {
+	extension := protocolV2TestExtension(t, "v2")
+	extension.Manifest.Providers = []extensions.ManifestProvider{{
+		ID: "runtime.v2.delivery", ContractVersion: "runtime.v2.delivery@1",
+		Slot: "runtime.v2.delivery.slot", Label: "Delivery", Handler: "provider.delivery",
+		RequestSchema: "runtime.v2.delivery.request@1", ResponseSchema: "runtime.v2.delivery.response@1",
+		Fallback: "closed", TimeoutMS: 200,
+	}}
+	gateway, _ := newProtocolV2HostGateway()
+	t.Cleanup(func() { _ = gateway.Close() })
+	starter := extensionsruntime.NewProtocolStarter(extensionsruntime.ProtocolStarterConfig{
+		Trust:   staticRuntimeTrust{identity: extensions.RuntimeTrustIdentity{TrustGrantID: "41", ImpactDigest: "impact-41"}},
+		HostAPI: gateway,
+	})
+	manager := extensionsruntime.NewManager(extensionsruntime.ManagerConfig{Starter: starter})
+	if err := manager.Start(context.Background(), extension); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = manager.Stop(context.Background(), extension) })
+
+	validations := []string{}
+	result, err := manager.InvokeVersionedProvider(context.Background(), extensionsruntime.VersionedProviderInvocation{
+		SlotID: "runtime.v2.delivery", ContractVersion: "runtime.v2.delivery@1", Operation: extensionsruntime.VersionedProviderOperationInvoke,
+		Input: map[string]any{"message": "hello"},
+		Revalidate: func(_ context.Context, schema string, _ map[string]any) error {
+			validations = append(validations, schema)
+			return nil
+		},
+	})
+	if err != nil || result.ProviderID != "runtime.v2.delivery" || result.ExtensionID != extension.ID ||
+		result.Output["status"] != "delivered" || result.Output["message"] != "hello" {
+		t.Fatalf("versioned provider = %#v, %v", result, err)
+	}
+	if !reflect.DeepEqual(validations, []string{"runtime.v2.delivery.request@1", "runtime.v2.delivery.response@1"}) {
+		t.Fatalf("Host validations = %#v", validations)
+	}
+	if _, err := starter.InvokeVersionedProvider(context.Background(), extension, extensionsruntime.VersionedProviderRequest{
+		DeclarationID: "runtime.v2.undeclared", Slot: "runtime.v2.delivery.slot",
+		ContractVersion: "runtime.v2.delivery@1", Operation: extensionsruntime.VersionedProviderOperationInvoke,
+		RequestSchema: "runtime.v2.delivery.request@1", ResponseSchema: "runtime.v2.delivery.response@1",
+		Input: map[string]any{"message": "forged"},
+	}); err == nil {
+		t.Fatal("Protocol V2 accepted an undeclared provider identity")
+	}
+	started := time.Now()
+	timedOut, err := manager.InvokeVersionedProvider(context.Background(), extensionsruntime.VersionedProviderInvocation{
+		SlotID: "runtime.v2.delivery", ContractVersion: "runtime.v2.delivery@1",
+		Operation: extensionsruntime.VersionedProviderOperationInvoke, Input: map[string]any{"mode": "wait_for_cancel"},
+		Revalidate: func(context.Context, string, map[string]any) error { return nil },
+	})
+	if !errors.Is(err, context.DeadlineExceeded) || timedOut.Attempts != 1 || time.Since(started) >= time.Second {
+		t.Fatalf("Protocol V2 provider timeout = %#v, elapsed=%v, err=%v", timedOut, time.Since(started), err)
 	}
 }
 
@@ -367,6 +423,30 @@ func TestProtocolV2HelperProcess(t *testing.T) {
 type protocolV2Helper struct {
 	*pluginv2sdk.Server
 	readinessFail bool
+}
+
+func (s *protocolV2Helper) ProviderCall(ctx context.Context, request *pluginwire.ProviderCallRequest) (*pluginwire.ProviderCallResponse, error) {
+	requestContext := request.GetContext()
+	if request.GetSlotId() != "runtime.v2.delivery.slot" || request.GetContractVersion() != "runtime.v2.delivery@1" ||
+		request.GetOperation() != extensionsruntime.VersionedProviderOperationInvoke ||
+		request.GetInput().GetSchemaId() != "runtime.v2.delivery.request" || request.GetInput().GetSchemaVersion() != "1" {
+		return &pluginwire.ProviderCallResponse{Error: &protocolwire.ErrorDetail{
+			Code: protocolwire.ErrorCode_ERROR_CODE_INVALID_ARGUMENT, Reason: "fixture.provider_contract_invalid",
+		}}, nil
+	}
+	if request.GetInput().GetValue().AsMap()["mode"] == "wait_for_cancel" {
+		<-ctx.Done()
+		return nil, ctx.Err()
+	}
+	input := request.GetInput().GetValue().AsMap()
+	output, err := structpb.NewStruct(map[string]any{"status": "delivered", "message": input["message"]})
+	if err != nil {
+		return nil, err
+	}
+	return &pluginwire.ProviderCallResponse{
+		Context: &protocolwire.ResponseContext{RequestId: requestContext.GetRequestId(), Extension: requestContext.GetExtension()},
+		Output:  &protocolwire.TypedDocument{SchemaId: "runtime.v2.delivery.response", SchemaVersion: "1", Value: output},
+	}, nil
 }
 
 func (s *protocolV2Helper) Readiness(ctx context.Context, request *protocolwire.ReadinessRequest) (*protocolwire.ReadinessResponse, error) {

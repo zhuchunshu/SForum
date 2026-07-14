@@ -47,6 +47,7 @@ type protocolV2ClientConfig struct {
 	authority    []*protocolv2.AuthorityGrant
 	events       []extensions.ManifestEvent
 	hooks        []extensions.ManifestHook
+	providers    []extensions.ManifestProvider
 	jobs         []extensions.ManifestJob
 	routes       []extensions.ManifestRoute
 	lifecycle    *extensions.ManifestLifecycle
@@ -63,6 +64,7 @@ type protocolV2Client struct {
 	authority    []*protocolv2.AuthorityGrant
 	events       []extensions.ManifestEvent
 	hooks        []extensions.ManifestHook
+	providers    []extensions.ManifestProvider
 	jobs         []extensions.ManifestJob
 	routes       []extensions.ManifestRoute
 	lifecycle    *extensions.ManifestLifecycle
@@ -96,6 +98,7 @@ func newProtocolV2Client(client pluginv2.PluginRuntimeServiceClient, config prot
 	return &protocolV2Client{
 		client: client, identity: cloneV2Identity(config.identity), authority: cloneV2Authority(config.authority),
 		events: append([]extensions.ManifestEvent(nil), config.events...), hooks: cloneManifestHooks(config.hooks),
+		providers: append([]extensions.ManifestProvider(nil), config.providers...),
 		jobs:      append([]extensions.ManifestJob(nil), config.jobs...),
 		routes:    cloneProtocolV2Routes(config.routes),
 		lifecycle: cloneManifestLifecycle(config.lifecycle),
@@ -193,6 +196,7 @@ func (s *ProtocolStarter) protocolV2ClientConfig(ctx context.Context, extension 
 		authority: protocolV2Authority(extension.CapabilityGrants),
 		events:    append([]extensions.ManifestEvent(nil), extension.Manifest.Events...),
 		hooks:     cloneManifestHooks(extension.Manifest.Hooks),
+		providers: append([]extensions.ManifestProvider(nil), extension.Manifest.Providers...),
 		jobs:      append([]extensions.ManifestJob(nil), extension.Manifest.Jobs...),
 		routes:    cloneProtocolV2Routes(extension.Manifest.Routes),
 		lifecycle: cloneManifestLifecycle(extension.Manifest.Lifecycle),
@@ -597,6 +601,54 @@ func (c *protocolV2Client) SendMail(input MailProviderRequest) (MailProviderResp
 		OK: booleanValue(values, "ok"), Classification: stringValue(values, "classification"),
 		Reason: stringValue(values, "reason"), Message: stringValue(values, "message"),
 	}, nil
+}
+
+func (c *protocolV2Client) InvokeVersionedProvider(
+	parent context.Context,
+	input VersionedProviderRequest,
+) (VersionedProviderResponse, error) {
+	if input.Operation != VersionedProviderOperationInvoke {
+		return VersionedProviderResponse{}, fmt.Errorf("protocol v2 provider operation %q is not declared", input.Operation)
+	}
+	var declaration *extensions.ManifestProvider
+	for index := range c.providers {
+		candidate := &c.providers[index]
+		if candidate.ID == input.DeclarationID && candidate.Slot == input.Slot && candidate.ContractVersion == input.ContractVersion {
+			declaration = candidate
+			break
+		}
+	}
+	if declaration == nil || declaration.RequestSchema != input.RequestSchema || declaration.ResponseSchema != input.ResponseSchema {
+		return VersionedProviderResponse{}, fmt.Errorf("protocol v2 provider %q contract is not declared", input.DeclarationID)
+	}
+	timeout := input.Timeout
+	if timeout <= 0 || timeout > DefaultProtocolV2RequestTimeout {
+		timeout = DefaultProtocolV2RequestTimeout
+	}
+	ctx, cancel := protocolV2Deadline(parent, timeout)
+	defer cancel()
+	requestSchemaID, requestSchemaVersion, err := protocolV2SchemaRef(input.RequestSchema)
+	if err != nil {
+		return VersionedProviderResponse{}, err
+	}
+	document, err := protocolV2Document(requestSchemaID, requestSchemaVersion, input.Input)
+	if err != nil {
+		return VersionedProviderResponse{}, err
+	}
+	response, err := c.client.ProviderCall(ctx, &pluginv2.ProviderCallRequest{
+		Context: c.requestContext(ctx, input.Operation), SlotId: input.Slot, Operation: input.Operation,
+		ContractVersion: input.ContractVersion, Input: document,
+	})
+	if err != nil {
+		return VersionedProviderResponse{}, err
+	}
+	if err := protocolV2Error(response.GetError()); err != nil {
+		return VersionedProviderResponse{}, err
+	}
+	if err := validateProtocolV2DocumentRef(response.GetOutput(), input.ResponseSchema, "provider output"); err != nil {
+		return VersionedProviderResponse{}, err
+	}
+	return VersionedProviderResponse{Output: protocolV2Values(response.GetOutput())}, nil
 }
 
 func (c *protocolV2Client) providerCall(slot, operation string, input map[string]any) (*pluginv2.ProviderCallResponse, error) {

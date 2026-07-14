@@ -149,6 +149,23 @@ type ProviderProbeResponse struct {
 	Suggestions []string
 }
 
+type VersionedProviderRequest struct {
+	DeclarationID   string
+	Slot            string
+	ContractVersion string
+	Operation       string
+	RequestSchema   string
+	ResponseSchema  string
+	Timeout         time.Duration
+	Input           map[string]any
+}
+
+const VersionedProviderOperationInvoke = "invoke"
+
+type VersionedProviderResponse struct {
+	Output map[string]any
+}
+
 type MailProviderRequest struct {
 	DeliveryID    string
 	CorrelationID string
@@ -595,6 +612,22 @@ func (s *ProtocolStarter) InvokeHook(ctx context.Context, extension extensions.E
 	case out := <-done:
 		return protocolHookResult(ctx, out.resp, out.err)
 	}
+}
+
+func (s *ProtocolStarter) InvokeVersionedProvider(
+	ctx context.Context,
+	extension extensions.Extension,
+	input VersionedProviderRequest,
+) (VersionedProviderResponse, error) {
+	s.mu.Lock()
+	protocol := s.protocols[extension.ID]
+	s.recordProtocolCallLocked(extension.ID)
+	s.mu.Unlock()
+	client, ok := protocol.(*protocolV2Client)
+	if !ok {
+		return VersionedProviderResponse{}, fmt.Errorf("versioned provider requires Protocol V2")
+	}
+	return client.InvokeVersionedProvider(ctx, input)
 }
 
 func protocolHookResult(ctx context.Context, response PluginHookResponse, err error) HookResult {
