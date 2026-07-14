@@ -215,6 +215,29 @@
 
 - None. The accepted V3 ADR defines the current product boundary.
 
+## Cleanup And State Publication Checkpoint
+
+- Overall V3 remains **27%**; P4 remains **47% (7/15)** because the production
+  lifecycle stack is not yet constructed or called by Service mutations.
+- Landed cleanup migration/implementation/real-PG tests in `72806f0ad`,
+  `cfdf2b246`, and `83162467b`. Cleanup stages retained recovery evidence and an
+  uninstall tombstone; only a terminal-success finalizer with an exact durable
+  purge receipt may remove physical identity/package/runtime recovery material.
+- Landed exact extension-state migration/repository/adapter in `341b38f36`,
+  `afa7ea044`, and `71a64dfc8`; all six operations, fixed lock order, restart,
+  concurrent attempts, marker-controlled compensation, physical drift, and
+  atomic write failure passed real PostgreSQL and race coverage.
+- Landed `da13783f4` for the six canonical enable attempts and `1e71190f9` so a
+  never-enabled extension with a newer inert staged artifact installs the exact
+  candidate and can restore the old inert vector on failure.
+- Active uncommitted owners: jobs/schedules (`010`), aggregate registries
+  (`011`), and preflight/migration proof (`012`). Do not stage one owner's files
+  with another. Jobs must still close the expected-plan and post-River-commit
+  crash findings before review.
+- Exact resume point: receive those three reports, make each migration its own
+  commit, review implementation contracts in clean archives, then build the
+  production lifecycle stack in bootstrap and replace the first V3 Enable path.
+
 ## Inspection, Catalog, SafeHTML, And Boundary Audit Checkpoint
 
 - Committed lifecycle inspection HTTP in `74c13e64f` and its OpenAPI/stable

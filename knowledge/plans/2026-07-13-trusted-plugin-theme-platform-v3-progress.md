@@ -112,6 +112,51 @@ phase percentage.
 
 ## Last Durable Checkpoint
 
+### 2026-07-14 P4 Cleanup And Exact State Publication Checkpoint
+
+- Overall remains **27%** and P4 remains **47% (7 of 15)**. The production
+  cleanup and extension-state delegates are complete, but jobs/schedules,
+  aggregate registries, migration proof, bootstrap construction, and Service
+  routing are not yet one verified production path.
+- `72806f0ad`, `cfdf2b246`, and `83162467b` add the retained cleanup schema,
+  exact-artifact staging/finalization contracts, and real PostgreSQL coverage.
+  Disable and retired-source recovery records remain retained. Uninstall only
+  stages a durable tombstone; physical identity/package/data purge requires a
+  terminally succeeded operation plus an idempotent exact receipt. Evidence
+  retention is distinct from physical resource presence, and both purge/commit
+  crash windows converge without inventing success.
+- `341b38f36`, `afa7ea044`, and `71a64dfc8` add the durable extension-state
+  publication intent, PostgreSQL transaction, and composed-boundary adapter.
+  All six operations use operation-first locking, immutable source/target
+  vectors, exact version CAS, marker-controlled restore, and restart-safe
+  inspection. Upgrade restores its staged candidate; rollback preserves an
+  unrelated staged pointer; a committed publication can never restore source.
+- `da13783f4` updates the coordinator lease test to count every canonical Host
+  gate. `1e71190f9` makes first trusted install promote a newer never-executed
+  staged candidate atomically while retaining the old inert active/staged
+  vector for compensation.
+- Clean `git archive HEAD` plus staged-patch gates passed full Models and
+  Support/Extensions tests, focused repetition, real PostgreSQL, race, and vet.
+  Migration `009` passed isolated `Up -> evidence-protected Down refusal ->
+  empty Down -> Up` against PostgreSQL.
+- Three parallel uncommitted slices are active and isolated by ownership:
+  `010` jobs/schedules plus HostAPI expected-plan fencing and post-marker
+  reconciliation; `011` aggregate registry publication plus exact Page/Route/
+  Hook/Service admission; and `012` static preflight plus durable migration
+  source-resume proof. Their temporary shared-package compile failures are not
+  committed and must be cleared before review.
+- Mandatory review findings already sent to the jobs owner: post-marker River
+  reconciliation must run before target admission opens; expected plan
+  comparison must occur inside the same River transaction before irreversible
+  mutation; crash after River commit but before evidence marking must recover
+  from durable facts; arbitrary plugin/SQL error text must not be persisted.
+- Next: review and land `010`, `011`, and `012` migrations independently, then
+  their adapters; construct the exact Manager/runtime/Host/coordinator stack in
+  bootstrap; run the same static preflight before position-zero process staging;
+  and route first trusted enable through deferred install plus atomic
+  publication. User-owned `.reasonix`, `.zcode`, and `CLAUDE.md` deletions remain
+  untouched.
+
 ### 2026-07-14 P4 Atomic Lifecycle Publication Boundary Checkpoint
 
 - Latest committed slices are `bd8afbfb8 feat(extensions): compose atomic
