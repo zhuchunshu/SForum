@@ -249,7 +249,10 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 	})
 	hostAPIGateway := hostapi.NewGateway(hostAPIService)
 	queryAuthority := hostapi.NewPostgresProtocolV2QueryAuthorityResolver(pool)
-	queryRuntime, err := hostapi.NewPostgresProtocolV2QueryRuntime(pool, queryAuthority)
+	queryRuntime, err := hostapi.NewPostgresProtocolV2QueryRuntime(
+		pool, queryAuthority,
+		hostapi.WithProtocolV2QueryTraceSink(hostapi.NewSlogQueryTraceSink(logger)),
+	)
 	if err == nil {
 		err = hostAPIGateway.BindProtocolV2QueryRuntime(queryRuntime)
 	}

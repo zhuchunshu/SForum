@@ -65,9 +65,11 @@ type protocolV2QueryExecutor interface {
 }
 
 type protocolV2QueryEngine struct {
-	executor    protocolV2QueryExecutor
-	authority   ProtocolV2QueryAuthorityResolver
-	definitions map[protocolV2QueryKey]protocolV2QueryDefinition
+	executor      protocolV2QueryExecutor
+	authority     ProtocolV2QueryAuthorityResolver
+	definitions   map[protocolV2QueryKey]protocolV2QueryDefinition
+	traceSink     QueryTraceSink
+	slowThreshold time.Duration
 }
 
 func newProtocolV2QueryRuntime(
@@ -102,7 +104,10 @@ func newProtocolV2QueryEngine(
 		}
 		catalog[key] = definition
 	}
-	return &protocolV2QueryEngine{executor: executor, authority: authority, definitions: catalog}, nil
+	return &protocolV2QueryEngine{
+		executor: executor, authority: authority, definitions: catalog,
+		slowThreshold: ProtocolV2QueryDefaultSlowThreshold,
+	}, nil
 }
 
 func isStableProtocolV2QueryID(queryID string) bool {
@@ -119,26 +124,55 @@ func (e *protocolV2QueryEngine) execute(
 	request *hostv2.QueryRequest,
 ) *hostv2.QueryResponse {
 	response := &hostv2.QueryResponse{Context: protocolV2ResponseContext(request.GetContext()), Page: &protocolv2.PageInfo{}}
+	startedAt := time.Now()
+	identity := protocolV2RuntimeIdentityFromContext(ctx)
+	trace := QueryTrace{
+		QueryID: strings.TrimSpace(request.GetQueryId()), PlanVersion: strings.TrimSpace(request.GetPlanVersion()),
+		Outcome: QueryTraceError,
+	}
+	if identity != nil {
+		trace.ExtensionID = identity.GetExtensionId()
+		trace.ExtensionVersion = identity.GetExtensionVersion()
+		trace.ArtifactDigest = identity.GetArtifactDigest()
+	}
+	defer func() {
+		if e == nil || e.traceSink == nil {
+			return
+		}
+		trace.Duration = time.Since(startedAt)
+		threshold := e.slowThreshold
+		if threshold <= 0 || threshold > ProtocolV2QueryDefaultSlowThreshold {
+			threshold = ProtocolV2QueryDefaultSlowThreshold
+		}
+		trace.Slow = trace.Duration >= threshold
+		e.traceSink.RecordQueryTrace(boundedQueryTrace(trace))
+	}()
 	if e == nil || e.executor == nil || e.authority == nil {
 		response.Error = queryError(protocolv2.ErrorCode_ERROR_CODE_UNAVAILABLE, "host.query_backend_unavailable", "Stable Host Queries are not configured.", true)
 		return response
 	}
 	ctx, cancel := context.WithTimeout(ctx, protocolV2QueryExecutionTimeout)
 	defer cancel()
-	authority, err := e.authority.ResolveProtocolV2QueryAuthority(ctx, protocolV2RuntimeIdentityFromContext(ctx))
+	authority, err := e.authority.ResolveProtocolV2QueryAuthority(ctx, identity)
 	if err != nil {
 		if errors.Is(err, ErrProtocolV2QueryRuntimeStale) {
+			trace.Outcome = QueryTraceStale
 			response.Error = queryError(protocolv2.ErrorCode_ERROR_CODE_FAILED_PRECONDITION, "host.query_runtime_stale", "The exact extension artifact or trust grant is no longer active.", false)
+		} else if detail, outcome, interrupted := protocolV2QueryInterruption(ctx, err); interrupted {
+			trace.Outcome = outcome
+			response.Error = detail
 		} else {
 			response.Error = queryError(protocolv2.ErrorCode_ERROR_CODE_UNAVAILABLE, "host.query_authority_unavailable", "Host Query authority could not be resolved.", true)
 		}
 		return response
 	}
 	if !authority.ExactArtifact {
+		trace.Outcome = QueryTraceStale
 		response.Error = queryError(protocolv2.ErrorCode_ERROR_CODE_FAILED_PRECONDITION, "host.query_runtime_stale", "The exact extension artifact or trust grant is no longer active.", false)
 		return response
 	}
 	if !authority.CoreViews {
+		trace.Outcome = QueryTraceDenied
 		response.Error = queryError(protocolv2.ErrorCode_ERROR_CODE_PERMISSION_DENIED, "host.query_core_views_denied", "The exact extension artifact has no stable core-view authority.", false)
 		return response
 	}
@@ -152,12 +186,12 @@ func (e *protocolV2QueryEngine) execute(
 		response.Error = detail
 		return response
 	}
+	trace.ShapeDigest = protocolV2QueryTraceShapeDigest(plan)
 	rows, err := e.executor.ExecuteProtocolV2Query(ctx, plan)
 	if err != nil {
-		if errors.Is(err, context.Canceled) {
-			response.Error = queryError(protocolv2.ErrorCode_ERROR_CODE_CANCELLED, "host.query_cancelled", "The Host Query was cancelled.", true)
-		} else if errors.Is(err, context.DeadlineExceeded) || errors.Is(ctx.Err(), context.DeadlineExceeded) {
-			response.Error = queryError(protocolv2.ErrorCode_ERROR_CODE_DEADLINE_EXCEEDED, "host.query_deadline_exceeded", "The Host Query exceeded its deadline.", true)
+		if detail, outcome, interrupted := protocolV2QueryInterruption(ctx, err); interrupted {
+			trace.Outcome = outcome
+			response.Error = detail
 		} else {
 			response.Error = queryError(protocolv2.ErrorCode_ERROR_CODE_INTERNAL, "host.query_execution_failed", "The Host Query failed.", false)
 		}
@@ -184,5 +218,26 @@ func (e *protocolV2QueryEngine) execute(
 			ShapeDigest: plan.ShapeDigest, Offset: plan.Offset + plan.Limit,
 		})
 	}
+	trace.Rows = len(response.Rows)
+	trace.Outcome = QueryTraceAllowed
 	return response
+}
+
+func protocolV2QueryInterruption(
+	ctx context.Context,
+	err error,
+) (*protocolv2.ErrorDetail, QueryTraceOutcome, bool) {
+	if errors.Is(err, context.DeadlineExceeded) || errors.Is(ctx.Err(), context.DeadlineExceeded) {
+		return queryError(
+			protocolv2.ErrorCode_ERROR_CODE_DEADLINE_EXCEEDED,
+			"host.query_deadline_exceeded", "The Host Query exceeded its deadline.", true,
+		), QueryTraceDeadline, true
+	}
+	if errors.Is(err, context.Canceled) || errors.Is(ctx.Err(), context.Canceled) {
+		return queryError(
+			protocolv2.ErrorCode_ERROR_CODE_CANCELLED,
+			"host.query_cancelled", "The Host Query was cancelled.", true,
+		), QueryTraceCancel, true
+	}
+	return nil, "", false
 }

@@ -28,15 +28,27 @@ func NewPostgresProtocolV2QueryAuthorityResolver(pool *pgxpool.Pool) ProtocolV2Q
 func NewPostgresProtocolV2QueryRuntime(
 	pool *pgxpool.Pool,
 	authority ProtocolV2QueryAuthorityResolver,
+	options ...ProtocolV2QueryRuntimeOption,
 ) (ProtocolV2QueryRuntime, error) {
 	if pool == nil || authority == nil {
 		return nil, errors.New("hostapi: PostgreSQL query pool and authority resolver are required")
 	}
-	return newProtocolV2QueryRuntime(
+	runtime, err := newProtocolV2QueryRuntime(
 		&postgresProtocolV2QueryExecutor{pool: pool},
 		authority,
 		stableCoreProtocolV2QueryDefinitions()...,
 	)
+	if err != nil {
+		return nil, err
+	}
+	configured := protocolV2QueryRuntimeOptions{}
+	for _, option := range options {
+		if option != nil {
+			option.applyProtocolV2QueryRuntime(&configured)
+		}
+	}
+	runtime.queryEngine().traceSink = configured.traceSink
+	return runtime, nil
 }
 
 func (r *postgresProtocolV2QueryAuthorityResolver) ResolveProtocolV2QueryAuthority(
