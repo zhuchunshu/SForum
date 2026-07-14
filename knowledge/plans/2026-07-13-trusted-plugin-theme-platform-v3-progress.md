@@ -764,3 +764,48 @@ phase percentage.
   and backend-ledger work while awaiting those decisions.
 - PostgreSQL development dependencies are available. Do not assume frontend or
   API dev servers remain running; start them explicitly before browser QA.
+
+## P6 Route Inspector And Dispatcher Integration Checkpoint
+
+- Weighted V3 progress remains **36%**. P5 remains **65% (11 of 17 rows)** and
+  P6 remains **0% by authoritative exit rows**. P6 foundations are materially
+  ahead of zero, but no row is promoted until its production transport,
+  authority, schema, and fallback boundaries close together.
+- Latest committed slice: `738b8a30b feat(routes): inspect exact execution
+  chains`. The detached Inspector reports one immutable Registry revision,
+  exact execution chain, selected/stale/unselected provider state, guard and
+  contract metadata, and relevant bounded timing/fallback traces. It never
+  chooses a provider by priority and filters unrelated route conflicts/traces.
+- `RouteTraceRing` is concurrency-safe and circular, defaults to 256 records,
+  hard-caps at 4096, and accepts no request, response, header, query, body,
+  secret, actor, idempotency-key, or raw-error fields. Forged exact-artifact
+  attribution is rejected.
+- Inspector focused, race, vet, build, and diff checks passed. The committed
+  core is not yet exposed through HTTP/UI and the Dispatcher has not yet
+  published trace events, so the P6 Inspector task remains open.
+- Authenticated Chrome initially rendered
+  `/control-panel/extensions/route-providers` with the expected super-admin
+  identity, navigation, route-provider copy, counters, and loading state with
+  no console warnings/errors. API hot reload temporarily disappeared and the
+  page received 502 responses; after API recovery, a full reload found the
+  login session expired. Desktop/mobile selection/reset QA therefore remains
+  incomplete and must not be reported as passed.
+- Active dirty ownership is isolated: Fiber buffered dispatcher and production
+  bootstrap in `app/Http`, `Support/Routes/dispatcher*`, and `bootstrap/app.go`;
+  Inspector HTTP/OpenAPI/catalog generation in Extensions controllers,
+  contracts, and generated route catalogs; Page ViewModel/compiler work in
+  `Support/ThemeCompiler`. Do not stage these groups together.
+- Dispatcher review found boundaries that must stay explicit: pure core plans
+  must bypass buffering to preserve existing streaming/download behavior;
+  inherited core guards need executable Host guard metadata; declared schemas
+  need an exact-artifact schema catalog; and safe fallback needs Host-observed
+  side-effect evidence rather than trusting only a plugin response header.
+  SSE, WebSocket, multipart, streaming, and backpressure remain unimplemented.
+- P8 review rejected a ThemeCompiler-only `forum.search` identity because the
+  current Page Registry has no standalone search page. Search remains state in
+  the existing home/list ViewModel until a real core page identity is added.
+- Exact resume order: review and land the pure-core-safe Fiber adapter; review
+  and land Inspector HTTP/OpenAPI separately; review and land the catalog-only
+  Page ViewModel slice; then implement Dispatcher trace publication, exact
+  schema catalogs, inherited/custom guard contracts, Host-observed side-effect
+  fencing, and the non-buffered transport modes before recalculating P6.

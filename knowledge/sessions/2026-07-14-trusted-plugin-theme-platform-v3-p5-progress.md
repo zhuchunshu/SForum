@@ -28,6 +28,11 @@
   conflict visibility, the production 212-route core snapshot, Safe Mode
   filtering, and immutable execution plans. P6 remains uncredited until the
   request dispatcher consumes the Registry.
+- Added the detached Route Inspector core and bounded redacted trace ring in
+  `738b8a30b`. Inspection filters to the requested method/path, distinguishes
+  selected, unselected, and stale providers without an implicit winner, and
+  freezes exact guard/schema/fallback/artifact evidence at one Registry
+  revision.
 
 ## Verification
 
@@ -44,6 +49,9 @@
 - Nuxt typecheck, focused trust UI tests, all 284 web tests, and admin validator passed.
 - Authenticated `/control-panel/extensions` and the production risk component
   passed desktop plus 390px Browser QA with no overflow or app console errors.
+- Authenticated route-provider QA rendered once in Chrome, but API hot reload
+  dropped during data loading and the session expired before retry. Do not
+  treat route-provider desktop/mobile interaction QA as passed.
 
 ## Decisions
 
@@ -61,6 +69,12 @@
 - Implement exact `database.core.full` and raw-authority tests.
 - Production-bind route provider selection, expose the permissioned admin
   conflict workflow, and make the Fiber dispatcher consume selected plans.
+- Land the reviewed Fiber adapter only after pure core routes bypass buffering;
+  then add exact schema catalogs, inherited/custom guard execution, Dispatcher
+  trace publication, and Host-observed side-effect fencing.
+- Land Inspector HTTP/OpenAPI separately, followed by its admin UI. Keep SSE,
+  WebSocket, multipart, streaming, and backpressure open until real transports
+  and disconnect tests pass.
 
 ## Open Questions
 
@@ -71,6 +85,10 @@
 ## Resume Point
 
 - Branch: `main`.
-- Last implementation commit at this checkpoint: `dc49dcf6d`.
-- Frontend/API server state is not durable; start both explicitly before QA.
+- Last implementation commit at this checkpoint: `738b8a30b`.
+- Frontend was started on port 3000 and API hot reload recovered on 8081, but
+  process and login state are not durable; verify both before QA.
+- Active dirty groups belong to three agents: Fiber dispatcher/bootstrap,
+  Inspector HTTP/OpenAPI/generated route catalogs, and ThemeCompiler Page
+  ViewModels. Review, test, and commit each group independently.
 - Preserve any unrelated worktree changes; stage only V3-owned files/hunks.
