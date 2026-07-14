@@ -429,6 +429,7 @@ func (b *PostgresLifecycleBoundaryJobs) buildLifecycleJobSnapshot(
 		snapshot.Schedules = append(snapshot.Schedules, supportjobs.PluginScheduleDeclaration{
 			ScheduleID: scheduleID, JobName: job.Contract.JobName,
 			JobContract: job.Contract.JobContract, Cron: cron, Timezone: timezone,
+			Contract: job.Contract, TrustGrantID: job.TrustGrantID,
 		})
 		scheduleIDs[scheduleID] = struct{}{}
 	}

@@ -109,7 +109,7 @@ func (r *PluginScheduleAdmissionRegistry) PublishActive(runtime PluginScheduleRu
 		if !samePluginSchedules(existing.schedules, schedules) {
 			return r.snapshotLocked(existing), fmt.Errorf("%w: exact runtime declarations changed", ErrPluginScheduleInvalid)
 		}
-		if r.periodic != nil && (!hasCurrent || currentIdentity != identity) {
+		if r.periodic != nil && (!hasCurrent || currentIdentity != identity || existing.draining) {
 			if err := r.periodic.Replace(previousRuntime, PluginScheduleRuntime{Identity: identity, Schedules: mapPluginSchedules(schedules)}); err != nil {
 				return r.snapshotLocked(existing), err
 			}

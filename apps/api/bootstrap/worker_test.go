@@ -81,6 +81,42 @@ func TestPluginJobRuntimeResolverBindsLiveArtifactAndTrust(t *testing.T) {
 	}
 }
 
+func TestStandaloneWorkerPublishesExactPluginSchedules(t *testing.T) {
+	item := runtimeSettingsExtension("demo.plugin")
+	item.Version = "1.0.0"
+	item.PackageDigest = "digest-a"
+	item.Manifest.Jobs = []extensions.ManifestJob{{
+		ID: "demo.plugin.job.sync", ContractVersion: "demo.plugin.job.sync@1",
+		Name: "demo.sync", Handler: "job.sync", PayloadSchema: "demo.plugin.sync.payload@1",
+		RetryPolicy: "bounded", MaxAttempts: 5, RetryDelaySeconds: 30, ConcurrencyLimit: 2,
+	}}
+	item.Manifest.Schedules = []extensions.ManifestSchedule{{
+		ID: "demo.plugin.schedule.sync", ContractVersion: "demo.plugin.schedule.sync@1",
+		JobID: "demo.plugin.job.sync", Cron: "0 3 * * *", Timezone: "UTC",
+	}}
+	runtime := &countingWorkerRuntime{active: map[string]extensionsruntime.RuntimeInstanceSnapshot{
+		item.ID: {
+			Identity:         extensionsruntime.RuntimeInstanceIdentity{ExtensionID: item.ID, InstanceID: "instance-a"},
+			ExtensionVersion: item.Version, ArtifactDigest: item.PackageDigest, Active: true,
+		},
+	}}
+	registry := supportjobs.NewPluginScheduleAdmissionRegistry()
+	if err := publishStandalonePluginSchedules(
+		context.Background(), &bootstrapExtensionSettingsStore{item: item}, runtime,
+		pluginJobTrustStub{grant: "grant-a"}, registry,
+	); err != nil {
+		t.Fatal(err)
+	}
+	snapshot, err := registry.Snapshot(supportjobs.PluginScheduleRuntimeIdentity{
+		ExtensionID: item.ID, ExtensionVersion: item.Version,
+		ArtifactDigest: item.PackageDigest, InstanceID: "instance-a",
+	})
+	if err != nil || !snapshot.Active || len(snapshot.Schedules) != 1 ||
+		!snapshot.Schedules[0].Contract.Valid() || snapshot.Schedules[0].TrustGrantID != "grant-a" {
+		t.Fatalf("schedule snapshot = %#v, %v", snapshot, err)
+	}
+}
+
 type pluginJobTrustStub struct {
 	grant string
 	err   error
@@ -296,6 +332,14 @@ type countingWorkerRuntime struct {
 	closeCalls      int
 	reconciledItems []extensions.Extension
 	onReconcile     func()
+	active          map[string]extensionsruntime.RuntimeInstanceSnapshot
+}
+
+func (c *countingWorkerRuntime) ActiveRuntimeInstance(extensionID string) (extensionsruntime.RuntimeInstanceSnapshot, error) {
+	if snapshot, ok := c.active[extensionID]; ok {
+		return snapshot, nil
+	}
+	return extensionsruntime.RuntimeInstanceSnapshot{}, extensionsruntime.ErrRuntimeInstanceNotFound
 }
 
 func (c *countingWorkerRuntime) ProtocolV2ProviderBroker() (hostapi.ProtocolV2ProviderBroker, error) {

@@ -665,6 +665,7 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		// OwnsRuntime=false：Worker.Close 不关 runtime；API close 在 River stop 之后再关。
 		embeddedWorker, err = newWorkerWithPool(cfg, pool, logger, workerRuntimeDeps{
 			ExtensionRuntime: extensionRuntime,
+			PluginSchedules:  lifecycleStack.Schedules,
 			OwnsRuntime:      false,
 		})
 		if err != nil {

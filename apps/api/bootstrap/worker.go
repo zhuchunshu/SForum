@@ -40,7 +40,8 @@ import (
 type Worker struct {
 	Client *supportjobs.Client
 	// Schedules 是宿主 schedule catalog（含元数据）；River PeriodicJobs 由其 Build 得到。
-	Schedules *supportjobs.ScheduleRegistry
+	Schedules       *supportjobs.ScheduleRegistry
+	PluginSchedules *supportjobs.PluginScheduleAdmissionRegistry
 
 	closeOnce sync.Once
 	close     func()
@@ -62,6 +63,7 @@ type workerExtensionRuntime interface {
 // ExtensionRuntime 为 nil 时由 worker 自建 Manager + Host API gateway（独立 worker 路径）。
 type workerRuntimeDeps struct {
 	ExtensionRuntime workerExtensionRuntime
+	PluginSchedules  *supportjobs.PluginScheduleAdmissionRegistry
 	// OwnsRuntime 为 true 时 Worker.Close 关闭 runtime（及自建的 Host API gateway）。
 	// 注入共享 runtime 时必须为 false，由 API shutdown 负责 Close。
 	OwnsRuntime bool
@@ -273,6 +275,10 @@ func resolveWorkerExtensionRuntime(
 
 func newWorkerWithPool(cfg config.Config, pool *pgxpool.Pool, logger *slog.Logger, deps workerRuntimeDeps) (*Worker, error) {
 	registry := supportjobs.NewRegistry()
+	pluginSchedules := deps.PluginSchedules
+	if pluginSchedules == nil {
+		pluginSchedules = supportjobs.NewPluginScheduleAdmissionRegistry()
+	}
 	extensionStore := extensions.NewPostgresStore(pool)
 	runtimeTrust := extensions.NewExecutableTrustService(extensionStore, extensions.NewPostgresExecutableTrustStore(pool))
 	databaseLeaseRegistry := extensionsruntime.NewPostgresExtensionDatabaseRegistry(pool, nil)
@@ -348,6 +354,7 @@ func newWorkerWithPool(cfg config.Config, pool *pgxpool.Pool, logger *slog.Logge
 	registerIdentityCleanupWorker(registry, cfg, pool, logger)
 	registerForumAutoLockWorker(registry, cfg, pool, logger)
 	// F2.2：插件经 Host API 入队的 extension.plugin_job。
+	pluginJobEnqueuer := &hostapi.RiverJobEnqueuer{}
 	registry.Add(func(workers *river.Workers) error {
 		var executor hostapi.PluginJobExecutor
 		if candidate, ok := extensionRuntime.(hostapi.PluginJobExecutor); ok {
@@ -356,6 +363,12 @@ func newWorkerWithPool(cfg config.Config, pool *pgxpool.Pool, logger *slog.Logge
 		river.AddWorker(workers, &hostapi.PluginJobWorker{
 			Resolver: &pluginJobRuntimeResolver{store: extensionStore, trust: runtimeTrust},
 			Executor: executor,
+		})
+		return nil
+	})
+	registry.Add(func(workers *river.Workers) error {
+		river.AddWorker(workers, &hostapi.PluginScheduleTriggerWorker{
+			Schedules: pluginSchedules, Jobs: pluginJobEnqueuer,
 		})
 		return nil
 	})
@@ -408,7 +421,7 @@ func newWorkerWithPool(cfg config.Config, pool *pgxpool.Pool, logger *slog.Logge
 	}
 
 	if registry.IsEmpty() {
-		return &Worker{Schedules: scheduleRegistry}, nil
+		return &Worker{Schedules: scheduleRegistry, PluginSchedules: pluginSchedules}, nil
 	}
 
 	workers, err := registry.Build()
@@ -419,6 +432,17 @@ func newWorkerWithPool(cfg config.Config, pool *pgxpool.Pool, logger *slog.Logge
 	client, err := supportjobs.NewClientWithPeriodic(pool, supportjobs.FromAppConfig(cfg), workers, periodicJobs)
 	if err != nil {
 		return nil, fmt.Errorf("job client setup failed: %w", err)
+	}
+	pluginJobEnqueuer.Dispatcher = supportjobs.NewDispatcher(client)
+	if err := pluginSchedules.BindPeriodicPublisher(
+		supportjobs.NewPluginSchedulePeriodicPublisher(client.PeriodicJobs()),
+	); err != nil {
+		return nil, fmt.Errorf("bind plugin schedule publisher: %w", err)
+	}
+	if ownsRuntime && !cfg.SafeMode {
+		if err := publishStandalonePluginSchedules(context.Background(), extensionStore, extensionRuntime, runtimeTrust, pluginSchedules); err != nil {
+			return nil, fmt.Errorf("publish standalone plugin schedules: %w", err)
+		}
 	}
 
 	// 仅 worker 拥有 runtime 时关闭；embed 注入路径由 API 在 River stop 之后关闭。
@@ -435,9 +459,10 @@ func newWorkerWithPool(cfg config.Config, pool *pgxpool.Pool, logger *slog.Logge
 	}
 
 	return &Worker{
-		Client:    client,
-		Schedules: scheduleRegistry,
-		close:     closeFn,
+		Client:          client,
+		Schedules:       scheduleRegistry,
+		PluginSchedules: pluginSchedules,
+		close:           closeFn,
 	}, nil
 }
 
