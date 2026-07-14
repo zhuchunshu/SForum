@@ -391,7 +391,8 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 	if err := notifications.NewPostgresStore(pool).AdoptLegacyMail(ctx, legacyMailValues); err != nil {
 		return nil, fmt.Errorf("adopt legacy mail settings: %w", err)
 	}
-	if err := reconcileAPIExtensionRuntime(ctx, cfg.SafeMode, extensionStore, extensionRuntime); err != nil {
+	reconciledExtensions, err := reconcileAPIExtensionRuntime(ctx, cfg.SafeMode, extensionStore, extensionRuntime)
+	if err != nil {
 		if stopErr := supportjobs.Stop(ctx, jobClient); stopErr != nil {
 			logger.Warn("job dispatcher stop failed", "error", stopErr)
 		}
@@ -402,6 +403,18 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		}
 		pool.Close()
 		return nil, fmt.Errorf("list extensions for runtime reconciliation failed: %w", err)
+	}
+	if err := lifecycleStack.Registries.RestoreRoutePublications(ctx, reconciledExtensions, cfg.SafeMode); err != nil {
+		if stopErr := supportjobs.Stop(ctx, jobClient); stopErr != nil {
+			logger.Warn("job dispatcher stop failed", "error", stopErr)
+		}
+		extensionRuntime.Close(ctx)
+		sharedRedisClient.Close()
+		if closeErr := redisStorage.Close(); closeErr != nil {
+			logger.Warn("redis session storage close failed", "error", closeErr)
+		}
+		pool.Close()
+		return nil, fmt.Errorf("restore extension route publications failed: %w", err)
 	}
 	notificationStore := notifications.NewPostgresStore(pool)
 	mailOutbox := notifications.NewOutbox(pool, notificationStore, jobDispatcher).WithPolicyReader(optionsService)
@@ -531,7 +544,7 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		Plans:   lifecycleStack.RouteProviders,
 		Steps:   httpserver.NewBufferedRouteStepInvoker(lifecycleStack.RuntimeManager),
 		Guard:   httpserver.NewProductionRouteGuardAuthorizer(),
-		Schemas: httpserver.CatalogRouteSchemaValidator{},
+		Schemas: httpserver.CatalogRouteSchemaValidator{Catalog: lifecycleStack.RouteSchemas},
 		Trace:   routeTraceRing,
 	})
 

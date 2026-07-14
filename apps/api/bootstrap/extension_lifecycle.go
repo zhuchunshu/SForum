@@ -9,6 +9,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
+	extensionopenapi "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionOpenAPI"
 	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
 	hostapi "github.com/zhuchunshu/sforum/apps/api/app/Support/HostAPI"
 	supportjobs "github.com/zhuchunshu/sforum/apps/api/app/Support/Jobs"
@@ -48,6 +49,7 @@ type productionLifecycleStack struct {
 	JobCoordinator     *hostapi.PluginJobLifecycleCoordinator
 	Jobs               *extensionsruntime.PostgresLifecycleBoundaryJobs
 	RouteRegistry      *routes.Registry
+	RouteSchemas       *extensionopenapi.RouteSchemaPublication
 	RouteProviders     *routes.ProviderSelectionAPI
 	RegistryRepository *extensionsruntime.PostgresLifecycleRegistryPublicationRepository
 	Registries         *extensionsruntime.PostgresLifecycleBoundaryRegistries
@@ -129,6 +131,10 @@ func newProductionLifecycleStack(config productionLifecycleStackConfig) (*produc
 	}); err != nil {
 		return nil, fmt.Errorf("%w: publish core route catalog: %v", errProductionLifecycleDependency, err)
 	}
+	routeSchemas, err := extensionopenapi.NewRouteSchemaPublication(nil)
+	if err != nil {
+		return nil, fmt.Errorf("%w: create route schema publication: %v", errProductionLifecycleDependency, err)
+	}
 	routeProviders := routes.NewProviderSelectionAPI(
 		routeRegistry,
 		routes.NewPostgresProviderSelectionStore(config.Pool),
@@ -137,7 +143,7 @@ func newProductionLifecycleStack(config productionLifecycleStackConfig) (*produc
 	registries := extensionsruntime.NewPostgresLifecycleBoundaryRegistries(
 		extensionsruntime.LifecycleRegistryBoundaryConfig{
 			Repository: registryRepository, Manager: config.Runtime, Pages: config.Pages,
-			Routes: routeRegistry, Services: config.Services,
+			Routes: routeRegistry, RouteSchemas: routeSchemas, Services: config.Services,
 		},
 	)
 	state := extensionsruntime.NewPostgresLifecycleBoundaryState(config.Store)
@@ -160,7 +166,7 @@ func newProductionLifecycleStack(config productionLifecycleStackConfig) (*produc
 		Preflight: preflight, StaticPreflight: staticPreflight,
 		MigrationEngine: config.MigrationEngine, Migrations: migrations,
 		Schedules: schedules, JobStore: jobStore, JobCoordinator: jobCoordinator, Jobs: jobs,
-		RouteRegistry: routeRegistry, RouteProviders: routeProviders,
+		RouteRegistry: routeRegistry, RouteSchemas: routeSchemas, RouteProviders: routeProviders,
 		RegistryRepository: registryRepository, Registries: registries,
 		State: state, PublicationJournal: journal, Cleanup: cleanup,
 		Database: config.Database, CleanupPurger: cleanupPurger,
@@ -208,17 +214,17 @@ func reconcileAPIExtensionRuntime(
 	safeMode bool,
 	store extensions.Store,
 	runtime extensionRuntimeReconciler,
-) error {
+) ([]extensions.Extension, error) {
 	if store == nil || runtime == nil {
-		return fmt.Errorf("%w: runtime reconciliation", errProductionLifecycleDependency)
+		return nil, fmt.Errorf("%w: runtime reconciliation", errProductionLifecycleDependency)
 	}
 	items, err := store.List(ctx)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if safeMode {
 		items = nil
 	}
 	runtime.Reconcile(ctx, items)
-	return nil
+	return items, nil
 }

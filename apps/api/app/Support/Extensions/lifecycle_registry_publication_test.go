@@ -2,8 +2,11 @@ package extensionsruntime
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -12,6 +15,8 @@ import (
 
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
 	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
+	extensionopenapi "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionOpenAPI"
+	extensionpackage "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionPackage"
 	hostapi "github.com/zhuchunshu/sforum/apps/api/app/Support/HostAPI"
 	pages "github.com/zhuchunshu/sforum/apps/api/app/Support/Pages"
 	routes "github.com/zhuchunshu/sforum/apps/api/app/Support/Routes"
@@ -24,10 +29,11 @@ func TestLifecycleRegistryPublicationConvergesAcrossRestartWhileTargetStaysDrain
 	manager := NewManager(ManagerConfig{Starter: newManagerStagedStarter()})
 	pageRegistry := pages.NewRegistry(nil)
 	routeRegistry := routes.NewRegistry()
+	routeSchemas := lifecycleRouteSchemaPublication(t)
 	serviceRegistry := hostapi.NewServiceRegistry()
 	boundary := NewPostgresLifecycleBoundaryRegistries(LifecycleRegistryBoundaryConfig{
 		Repository: repository, Manager: manager, Pages: pageRegistry,
-		Routes: routeRegistry, Services: serviceRegistry,
+		Routes: routeRegistry, RouteSchemas: routeSchemas, Services: serviceRegistry,
 	})
 
 	source := lifecycleRegistryTestExtension(t, "1.0.0", strings.Repeat("a", 64), 1, "/registry-source")
@@ -89,7 +95,7 @@ func TestLifecycleRegistryPublicationConvergesAcrossRestartWhileTargetStaysDrain
 	request.Attempt = 2
 	restarted := NewPostgresLifecycleBoundaryRegistries(LifecycleRegistryBoundaryConfig{
 		Repository: repository, Manager: manager, Pages: pageRegistry,
-		Routes: routeRegistry, Services: serviceRegistry,
+		Routes: routeRegistry, RouteSchemas: routeSchemas, Services: serviceRegistry,
 	})
 	recovered, err := restarted.PrepareLifecycleRegistryPublication(ctx, request, LifecycleBoundaryActivate)
 	if err != nil {
@@ -133,6 +139,41 @@ func TestLifecycleRegistryPublicationSupportsPackageWithoutThemeJSON(t *testing.
 	}
 }
 
+func TestLifecycleRegistryBootRestoresExactRoutesAndSchemasAndSafeModeClearsBoth(t *testing.T) {
+	ctx := context.Background()
+	manager := NewManager(ManagerConfig{Starter: newManagerStagedStarter()})
+	routeRegistry := routes.NewRegistry()
+	routeSchemas := lifecycleRouteSchemaPublication(t)
+	boundary := NewPostgresLifecycleBoundaryRegistries(LifecycleRegistryBoundaryConfig{
+		Manager: manager, Routes: routeRegistry, RouteSchemas: routeSchemas,
+	})
+	extension := lifecycleRegistryTestExtension(t, "1.0.0", strings.Repeat("a", 64), 7, "/boot-route")
+	if err := manager.Start(ctx, extension); err != nil {
+		t.Fatal(err)
+	}
+	if err := boundary.RestoreRoutePublications(ctx, []extensions.Extension{extension}, false); err != nil {
+		t.Fatal(err)
+	}
+	match, err := routeRegistry.Resolve("GET", "/boot-route/api")
+	if err != nil || match.Route.Provider.Artifact.ExtensionID != extension.ID {
+		t.Fatalf("restored route = %#v, %v", match, err)
+	}
+	if snapshot := routeSchemas.PublicationSnapshot(); len(snapshot.Artifacts) != 1 ||
+		snapshot.Artifacts[0].PackageDigest != extension.PackageDigest {
+		t.Fatalf("restored schema publication = %#v", snapshot)
+	}
+
+	if err := boundary.RestoreRoutePublications(ctx, []extensions.Extension{extension}, true); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := routeRegistry.Resolve("GET", "/boot-route/api"); !errors.Is(err, routes.ErrRouteNotFound) {
+		t.Fatalf("safe mode route resolution = %v", err)
+	}
+	if snapshot := routeSchemas.PublicationSnapshot(); len(snapshot.Artifacts) != 0 {
+		t.Fatalf("safe mode schema publication = %#v", snapshot)
+	}
+}
+
 func TestLifecycleRegistryPublicationRejectsSameArtifactFromDifferentRuntimeInstance(t *testing.T) {
 	extension := lifecycleRegistryTestExtension(t, "1.0.0", strings.Repeat("c", 64), 4, "/instance-fence")
 	binding := lifecycleRegistryBinding(extension, "expected-runtime")
@@ -166,10 +207,11 @@ func TestLifecycleRegistryPartialFamilyFailureStaysInvisibleAndFailsClosed(t *te
 	manager := NewManager(ManagerConfig{Starter: newManagerStagedStarter()})
 	pageRegistry := pages.NewRegistry(nil)
 	routeRegistry := routes.NewRegistry()
+	routeSchemas := lifecycleRouteSchemaPublication(t)
 	serviceRegistry := hostapi.NewServiceRegistry()
 	boundary := NewPostgresLifecycleBoundaryRegistries(LifecycleRegistryBoundaryConfig{
 		Repository: repository, Manager: manager, Pages: pageRegistry,
-		Routes: routeRegistry, Services: serviceRegistry,
+		Routes: routeRegistry, RouteSchemas: routeSchemas, Services: serviceRegistry,
 	})
 
 	source := lifecycleRegistryTestExtension(t, "1.0.0", strings.Repeat("d", 64), 11, "/partial-source")
@@ -292,8 +334,24 @@ func lifecycleRegistryTestExtension(t *testing.T, version, digest string, versio
 	extension := exactCoordinatorTestExtension("registry.demo", version, digest, "registry.demo.lifecycle@1", versionID)
 	extension.Status = extensions.StatusEnabled
 	extension.PackagePath = t.TempDir()
+	extension.Manifest.Name = "Registry demo"
+	extension.Manifest.Description = "Lifecycle registry fixture."
+	extension.Manifest.URL = "https://example.com/registry-demo"
+	extension.Manifest.Author = extensions.ManifestAuthor{Name: "SForum"}
+	extension.Manifest.SForumVersion = "^1.0.0"
+	backendBody := []byte("registry-demo-binary")
+	backendDigest := sha256.Sum256(backendBody)
+	backendDigestValue := hex.EncodeToString(backendDigest[:])
+	extension.Manifest.Backend = extensions.ManifestBackend{
+		Entry: "bin/plugin", RPC: "hashicorp-go-plugin", ProtocolVersion: 2,
+		Digest: backendDigestValue, HostAPIVersion: "sforum.host@2",
+	}
+	extension.Manifest.PackageFiles = []extensions.ManifestPackageFile{{
+		ID: extension.ID + ".file.backend", Kind: "executable", Path: "bin/plugin", Digest: backendDigestValue,
+	}}
 	extension.Manifest.Events = []extensions.ManifestEvent{{
 		ID: "registry.demo.changed", ContractVersion: "registry.demo.changed@1", Name: "registry.demo.changed", Kind: "observe",
+		Handler: "event.changed", InputSchema: "registry.demo.changed.input@1",
 	}}
 	extension.Manifest.Services = []extensions.ManifestService{{
 		ID: "registry.demo.echo", ContractVersion: "registry.demo.echo@1", Action: hostapi.ServiceActionAdd,
@@ -305,6 +363,37 @@ func lifecycleRegistryTestExtension(t *testing.T, version, digest string, versio
 		Guard: extensionmanifest.GuardCorePublic, Mode: extensionmanifest.RouteModeHTTP,
 		Fallback: "closed", Handler: "route.read", ResponseSchema: "registry.demo.read.response@1",
 	}}
+	openAPIBody := []byte(fmt.Sprintf(`openapi: 3.1.0
+info:
+  title: Registry demo
+  version: %s
+paths:
+  %s/api:
+    get:
+      operationId: registry.demo.api.read
+      x-sforum-route-id: registry.demo.read
+      x-sforum-contract-version: registry.demo.read@1
+      x-sforum-guard: core.guard.public
+      x-sforum-response-schema: registry.demo.read.response@1
+      x-sforum-rate-limit: public.read@1
+      x-sforum-idempotency: disabled
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+`, version, pagePath))
+	openAPIDigest := sha256.Sum256(openAPIBody)
+	openAPIDigestValue := hex.EncodeToString(openAPIDigest[:])
+	extension.Manifest.OpenAPI = []extensions.ManifestOpenAPIFragment{{
+		ID: "registry.demo.openapi", ContractVersion: "registry.demo.openapi@1",
+		Path: "openapi/routes.yaml", Digest: openAPIDigestValue, Namespace: "registry.demo.api",
+	}}
+	extension.Manifest.PackageFiles = append(extension.Manifest.PackageFiles, extensions.ManifestPackageFile{
+		ID: "registry.demo.file.openapi", Kind: "openapi", Path: "openapi/routes.yaml", Digest: openAPIDigestValue,
+	})
 	packageDocument, err := json.Marshal(pages.ThemePackage{Pages: []pages.ThemePageDecl{{
 		ID: "registry.demo.page", Action: string(pages.ActionAdd), Path: pagePath,
 	}}})
@@ -314,7 +403,43 @@ func lifecycleRegistryTestExtension(t *testing.T, version, digest string, versio
 	if err := os.WriteFile(filepath.Join(extension.PackagePath, "theme.json"), packageDocument, 0o600); err != nil {
 		t.Fatal(err)
 	}
+	if err := os.MkdirAll(filepath.Join(extension.PackagePath, "bin"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(extension.PackagePath, "bin", "plugin"), backendBody, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(extension.PackagePath, "openapi"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(extension.PackagePath, "openapi", "routes.yaml"), openAPIBody, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(extension.PackagePath, "artifact-seed.txt"), []byte(digest), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	manifestDocument, err := json.Marshal(extension.Manifest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(extension.PackagePath, extensionmanifest.ManifestFileName), manifestDocument, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	packageDigest, err := extensionpackage.DigestTree(extension.PackagePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	extension.PackageDigest = packageDigest
 	return extension
+}
+
+func lifecycleRouteSchemaPublication(t *testing.T) *extensionopenapi.RouteSchemaPublication {
+	t.Helper()
+	publication, err := extensionopenapi.NewRouteSchemaPublication(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return publication
 }
 
 func lifecycleRegistryRequest(

@@ -103,6 +103,7 @@ func TestProductionLifecycleStackConstructsEveryRequiredDependency(t *testing.T)
 		"schedules": stack.Schedules != nil,
 		"job store": stack.JobStore != nil, "job coordinator": stack.JobCoordinator != nil,
 		"jobs": stack.Jobs != nil, "route registry": stack.RouteRegistry != nil,
+		"route schemas":       stack.RouteSchemas != nil,
 		"route providers":     stack.RouteProviders != nil,
 		"registry repository": stack.RegistryRepository != nil, "registries": stack.Registries != nil,
 		"state": stack.State != nil, "journal": stack.PublicationJournal != nil,
@@ -142,6 +143,10 @@ func TestProductionLifecycleStackConstructsEveryRequiredDependency(t *testing.T)
 	boundaryRoutes := reflect.ValueOf(stack.Registries).Elem().FieldByName("routes")
 	if boundaryRoutes.IsNil() || boundaryRoutes.Pointer() != reflect.ValueOf(stack.RouteRegistry).Pointer() {
 		t.Fatal("lifecycle boundary and production stack use different Route Registry instances")
+	}
+	boundarySchemas := reflect.ValueOf(stack.Registries).Elem().FieldByName("routeSchemas")
+	if boundarySchemas.IsNil() || boundarySchemas.Pointer() != reflect.ValueOf(stack.RouteSchemas).Pointer() {
+		t.Fatal("lifecycle boundary and production stack use different Route Schema Publication instances")
 	}
 }
 
@@ -282,7 +287,7 @@ func TestReconcileAPIExtensionRuntimeKeepsSafeModePluginFree(t *testing.T) {
 	store := lifecycleReconcileStore{items: []extensions.Extension{item}}
 
 	safeRuntime := &lifecycleReconcileRuntime{}
-	if err := reconcileAPIExtensionRuntime(context.Background(), true, store, safeRuntime); err != nil {
+	if items, err := reconcileAPIExtensionRuntime(context.Background(), true, store, safeRuntime); err != nil || len(items) != 0 {
 		t.Fatalf("safe mode reconcile: %v", err)
 	}
 	if safeRuntime.calls != 1 || len(safeRuntime.items) != 0 {
@@ -290,10 +295,12 @@ func TestReconcileAPIExtensionRuntimeKeepsSafeModePluginFree(t *testing.T) {
 	}
 
 	normalRuntime := &lifecycleReconcileRuntime{}
-	if err := reconcileAPIExtensionRuntime(context.Background(), false, store, normalRuntime); err != nil {
+	items, err := reconcileAPIExtensionRuntime(context.Background(), false, store, normalRuntime)
+	if err != nil {
 		t.Fatalf("normal reconcile: %v", err)
 	}
-	if normalRuntime.calls != 1 || !reflect.DeepEqual(normalRuntime.items, []extensions.Extension{item}) {
+	if normalRuntime.calls != 1 || !reflect.DeepEqual(normalRuntime.items, []extensions.Extension{item}) ||
+		!reflect.DeepEqual(items, []extensions.Extension{item}) {
 		t.Fatalf("normal mode reconciled %#v", normalRuntime.items)
 	}
 }
