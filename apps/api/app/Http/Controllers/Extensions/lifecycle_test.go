@@ -151,10 +151,15 @@ func TestLifecycleInspectionHTTPReturnsOnlyAllowlistedFields(t *testing.T) {
 		"inputDocument", "resultDocument", "metadata", "leaseOwnerToken",
 		"leaseExpiresAt", "leaseRevision", "leaseHeartbeatAt", "private-idempotency",
 		"private-fingerprint", "private-lease-token", "\"secret\"",
+		"external.cleanup", "cleanup failed", "Cleaning external resources",
 	} {
 		if strings.Contains(document, forbidden) {
 			t.Fatalf("lifecycle HTTP response leaked %q: %s", forbidden, document)
 		}
+	}
+	if detail.Error.Code != "lifecycle.action_failed" || detail.Steps[0].Error.Code != "lifecycle.action_failed" ||
+		detail.Steps[0].ProgressMessage != "" {
+		t.Fatalf("lifecycle HTTP errors were not canonicalized: %#v", detail)
 	}
 
 	wrongExtensionResponse := performExtensionRequest(t, app, http.MethodGet, "/api/v1/admin/extensions/other.plugin/lifecycle/41", cookie)

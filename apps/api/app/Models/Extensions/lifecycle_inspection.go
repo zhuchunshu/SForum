@@ -202,16 +202,36 @@ func lifecycleStepSummary(attempt LifecycleStepAttempt) LifecycleStepSummary {
 		ID: attempt.ID, StepID: attempt.StepID, LifecycleAction: attempt.LifecycleAction,
 		PlanVersion: attempt.PlanVersion, Attempt: attempt.Attempt, Status: attempt.Status,
 		CompletedUnits: attempt.CompletedUnits, TotalUnits: attempt.TotalUnits,
-		ProgressMessage: attempt.ProgressMessage, SkipReason: attempt.SkipReason,
-		Forced: attempt.Forced, ActorUserID: attempt.ActorUserID, AuditEventID: attempt.AuditEventID,
+		SkipReason: attempt.SkipReason,
+		Forced:     attempt.Forced, ActorUserID: attempt.ActorUserID, AuditEventID: attempt.AuditEventID,
 		Error: lifecyclePublicError(attempt.Error), CreatedAt: attempt.CreatedAt,
 		UpdatedAt: attempt.UpdatedAt, StartedAt: attempt.StartedAt, CompletedAt: attempt.CompletedAt,
 	}
 }
 
 func lifecyclePublicError(value LifecycleExecutionError) LifecyclePublicError {
+	if value.Code == "" && value.Reason == "" && value.Message == "" {
+		return LifecyclePublicError{}
+	}
+	code := value.Code
+	if _, ok := lifecyclePublicErrorMessages[code]; !ok {
+		code = value.Reason
+	}
+	message, ok := lifecyclePublicErrorMessages[code]
+	if !ok {
+		code = "lifecycle.action_failed"
+		message = lifecyclePublicErrorMessages[code]
+	}
 	return LifecyclePublicError{
-		Code: value.Code, Reason: value.Reason, Message: value.Message,
+		Code: code, Reason: code, Message: message,
 		Retryable: value.Retryable, RetryAfter: value.RetryAfter,
 	}
+}
+
+var lifecyclePublicErrorMessages = map[string]string{
+	"lifecycle.action_failed":           "The lifecycle action failed.",
+	"lifecycle.cancelled":               "The lifecycle operation was cancelled.",
+	"lifecycle.coordinator_interrupted": "The lifecycle operation was interrupted and can be retried.",
+	"lifecycle.deadline_exceeded":       "The lifecycle operation deadline expired.",
+	"lifecycle.execution_failed":        "The lifecycle operation failed.",
 }

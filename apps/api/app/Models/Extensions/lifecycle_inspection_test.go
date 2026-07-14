@@ -116,10 +116,15 @@ func TestLifecycleInspectionReturnsOnlyAllowlistedFields(t *testing.T) {
 		"artifactDigests", "authoritySnapshot", "trustGrantId", "idempotencyKey", "requestFingerprint",
 		"checkpoint", "progress\"", "inputDocument", "resultDocument", "metadata", "leaseOwnerToken", "leaseRevision",
 		"private-idempotency", "private-fingerprint", "secret", "private-lease-token",
+		"external.cleanup", "cleanup failed", "Cleaning external resources",
 	} {
 		if strings.Contains(string(document), forbidden) {
 			t.Fatalf("public lifecycle document leaked %q: %s", forbidden, document)
 		}
+	}
+	if detail.Error.Code != "lifecycle.action_failed" || detail.Error.Reason != "lifecycle.action_failed" ||
+		detail.Steps[0].Error.Code != "lifecycle.action_failed" || detail.Steps[0].ProgressMessage != "" {
+		t.Fatalf("public lifecycle errors were not canonicalized: %#v", detail)
 	}
 }
 
