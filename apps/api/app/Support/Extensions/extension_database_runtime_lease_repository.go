@@ -14,6 +14,155 @@ type extensionDatabaseRuntimeLeaseQuerier interface {
 	QueryRow(context.Context, string, ...any) pgx.Row
 }
 
+func listExpiredExtensionDatabaseRuntimeLeaseExtensions(
+	ctx context.Context,
+	querier interface {
+		Query(context.Context, string, ...any) (pgx.Rows, error)
+	},
+	limit int,
+) ([]string, error) {
+	rows, err := querier.Query(ctx, `
+		SELECT extension_id
+		FROM extension_database_runtime_leases
+		WHERE status IN ('active', 'draining')
+		  AND lease_expires_at <= statement_timestamp()
+		GROUP BY extension_id
+		ORDER BY min(lease_expires_at), extension_id
+		LIMIT $1
+	`, limit)
+	if err != nil {
+		return nil, fmt.Errorf("list expired runtime lease extensions: %w", err)
+	}
+	defer rows.Close()
+	extensionIDs := make([]string, 0, limit)
+	for rows.Next() {
+		var extensionID string
+		if err := rows.Scan(&extensionID); err != nil {
+			return nil, err
+		}
+		extensionIDs = append(extensionIDs, extensionID)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return extensionIDs, nil
+}
+
+func reapExpiredExtensionDatabaseRuntimeLeasesLocked(
+	ctx context.Context,
+	tx pgx.Tx,
+	extensionID string,
+	identifiers ExtensionDatabaseIdentifiers,
+	databaseName string,
+	limit int,
+) (int, error) {
+	rows, err := tx.Query(ctx, `
+		SELECT id, lease_id, grant_id, extension_id, extension_version_id,
+		       extension_version, package_digest, runtime_instance_id, role_name,
+		       status, issued_by, COALESCE(issued_by_user_id, 0), issue_audit_event_id,
+		       issued_at, last_heartbeat_at, lease_expires_at, draining_at,
+		       revoked_at, failure_code, lease_revision
+		FROM extension_database_runtime_leases
+		WHERE extension_id = $1 AND status IN ('active', 'draining')
+		  AND lease_expires_at <= statement_timestamp()
+		ORDER BY lease_expires_at, id
+		LIMIT $2
+		FOR UPDATE
+	`, extensionID, limit)
+	if err != nil {
+		return 0, fmt.Errorf("lock expired runtime leases: %w", err)
+	}
+	leases := make([]ExtensionDatabaseRuntimeLeaseSnapshot, 0, limit)
+	for rows.Next() {
+		lease, err := scanExtensionDatabaseRuntimeLease(rows)
+		if err != nil {
+			rows.Close()
+			return 0, err
+		}
+		leases = append(leases, lease)
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return 0, err
+	}
+	rows.Close()
+
+	for _, lease := range leases {
+		auditEventID, err := insertExtensionDatabaseRuntimeLeaseExpiryAudit(ctx, tx, lease)
+		if err != nil {
+			return 0, err
+		}
+		if err := revokeExtensionDatabaseRuntimeLeaseRole(
+			ctx, tx, lease.RoleName, identifiers.OwnerRole, databaseName,
+		); err != nil {
+			return 0, err
+		}
+		if _, err := expireExtensionDatabaseRuntimeLease(ctx, tx, lease, auditEventID); err != nil {
+			return 0, err
+		}
+	}
+	return len(leases), nil
+}
+
+func insertExtensionDatabaseRuntimeLeaseExpiryAudit(
+	ctx context.Context,
+	tx pgx.Tx,
+	lease ExtensionDatabaseRuntimeLeaseSnapshot,
+) (int64, error) {
+	var auditEventID int64
+	err := tx.QueryRow(ctx, `
+		INSERT INTO audit_events (action, metadata)
+		VALUES ($1, jsonb_build_object(
+			'extensionId', $2::text,
+			'extensionVersion', $3::text,
+			'packageDigest', $4::text,
+			'runtimeInstanceId', $5::text,
+			'leaseId', $6::text,
+			'failureCode', $7::text
+		))
+		RETURNING id
+	`, extensionDatabaseRuntimeLeaseExpiredAudit, lease.Artifact.ExtensionID,
+		lease.Artifact.Version, lease.Artifact.PackageDigest, lease.RuntimeInstanceID,
+		lease.LeaseID, extensionDatabaseRuntimeLeaseExpiredCode).Scan(&auditEventID)
+	if err != nil {
+		return 0, fmt.Errorf("record expired runtime lease audit: %w", err)
+	}
+	if auditEventID <= 0 {
+		return 0, ErrExtensionDatabaseRuntimeLeaseConflict
+	}
+	return auditEventID, nil
+}
+
+func expireExtensionDatabaseRuntimeLease(
+	ctx context.Context,
+	tx pgx.Tx,
+	lease ExtensionDatabaseRuntimeLeaseSnapshot,
+	auditEventID int64,
+) (ExtensionDatabaseRuntimeLeaseSnapshot, error) {
+	row := tx.QueryRow(ctx, `
+		UPDATE extension_database_runtime_leases
+		SET status = 'failed', revoked_by = 'host', revoked_by_user_id = NULL,
+		    revoke_audit_event_id = $2, revoked_at = statement_timestamp(),
+		    failure_code = $3, lease_revision = lease_revision + 1
+		WHERE id = $1 AND lease_revision = $4
+		  AND status IN ('active', 'draining')
+		  AND lease_expires_at <= statement_timestamp()
+		RETURNING id, lease_id, grant_id, extension_id, extension_version_id,
+		          extension_version, package_digest, runtime_instance_id, role_name,
+		          status, issued_by, COALESCE(issued_by_user_id, 0), issue_audit_event_id,
+		          issued_at, last_heartbeat_at, lease_expires_at, draining_at,
+		          revoked_at, failure_code, lease_revision
+	`, lease.ID, auditEventID, extensionDatabaseRuntimeLeaseExpiredCode, lease.Revision)
+	next, err := scanExtensionDatabaseRuntimeLease(row)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return ExtensionDatabaseRuntimeLeaseSnapshot{}, ErrExtensionDatabaseRuntimeLeaseConflict
+	}
+	if err != nil {
+		return ExtensionDatabaseRuntimeLeaseSnapshot{}, fmt.Errorf("expire extension database runtime lease: %w", err)
+	}
+	return next, nil
+}
+
 func ensureExtensionDatabaseRuntimeLeaseCapacity(ctx context.Context, tx pgx.Tx, extensionID string) error {
 	var count int
 	if err := tx.QueryRow(ctx, `

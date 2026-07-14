@@ -2,6 +2,7 @@ package extensionsruntime
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 
@@ -45,6 +46,9 @@ func TestExtensionDatabaseRuntimeLeaseInputFailsClosed(t *testing.T) {
 	}
 	if err := registry.validateRuntimeLeaseIssue(context.Background(), valid); err == nil {
 		t.Fatal("registry without a PostgreSQL pool accepted runtime lease issue")
+	}
+	if _, err := registry.ReapExpiredRuntimeLeases(context.Background(), 1); !errors.Is(err, ErrExtensionDatabaseRegistryInvalid) {
+		t.Fatalf("registry without a PostgreSQL pool reaped leases: %v", err)
 	}
 	for _, authority := range []ExtensionDatabaseLeaseAuthority{
 		{},

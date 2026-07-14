@@ -279,6 +279,121 @@ func TestPostgresExtensionDatabaseRuntimeLeasePreservesAdditivePowers(t *testing
 	}
 }
 
+func TestPostgresExtensionDatabaseRuntimeLeaseReaperConvergesAndAudits(t *testing.T) {
+	databaseURL := strings.TrimSpace(os.Getenv("DATABASE_URL"))
+	if databaseURL == "" {
+		t.Skip("DATABASE_URL is required for runtime lease integration test")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
+	defer cancel()
+	pool, err := pgxpool.New(ctx, databaseURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer pool.Close()
+
+	extensionID := fmt.Sprintf("p5.runtime.reaper.%d", time.Now().UnixNano())
+	artifact := insertExtensionDatabaseRuntimeLeaseFixture(
+		t, ctx, pool, extensionID, "1.0.0", "expired", []string{extensionmanifest.DatabaseGrantOwnSchema},
+	)
+	identifiers, err := ExtensionDatabaseIdentifiersFor(extensionID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { cleanupExtensionDatabaseRuntimeLeaseFixture(t, pool, extensionID, identifiers) })
+	registry := NewPostgresExtensionDatabaseRegistry(pool, nil)
+	credential, err := registry.IssueRuntimeLease(ctx, ExtensionDatabaseRuntimeLeaseIssue{
+		Artifact: artifact, RuntimeInstanceID: "orphan-runtime",
+		Authority: ExtensionDatabaseLeaseAuthority{
+			Kind: ExtensionDatabaseLeaseIssuerActor, ActorUserID: 501, AuditEventID: 601,
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	connection, err := connectExtensionDatabaseRuntimeCredential(ctx, pool, credential)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer connection.Close(context.Background())
+	if _, err := connection.Exec(ctx, `SELECT 1`); err != nil {
+		t.Fatalf("runtime lease was not live before expiry: %v", err)
+	}
+	if _, err := pool.Exec(ctx, `
+		UPDATE extension_database_runtime_leases
+		SET issued_at = statement_timestamp() - interval '4 minutes',
+		    last_heartbeat_at = statement_timestamp() - interval '2 minutes',
+		    lease_expires_at = statement_timestamp() - interval '1 minute'
+		WHERE lease_id = $1
+	`, credential.LeaseID); err != nil {
+		t.Fatal(err)
+	}
+
+	type reapResult struct {
+		count int
+		err   error
+	}
+	results := make(chan reapResult, 2)
+	for range 2 {
+		go func() {
+			count, err := registry.reapExpiredRuntimeLeasesForExtension(
+				ctx, extensionID, DefaultExtensionDatabaseRuntimeLeaseReapLimit,
+			)
+			results <- reapResult{count: count, err: err}
+		}()
+	}
+	reaped := 0
+	for range 2 {
+		result := <-results
+		if result.err != nil {
+			t.Fatal(result.err)
+		}
+		reaped += result.count
+	}
+	if reaped != 1 {
+		t.Fatalf("concurrent reaper count = %d, want 1", reaped)
+	}
+	if _, err := connection.Exec(context.Background(), `SELECT 1`); err == nil {
+		t.Fatal("expired runtime session survived the reaper")
+	}
+	ref := ExtensionDatabaseRuntimeLeaseRef{
+		Artifact: artifact, RuntimeInstanceID: credential.RuntimeInstanceID, LeaseID: credential.LeaseID,
+	}
+	snapshot, err := registry.InspectRuntimeLease(ctx, ref)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if snapshot.Status != ExtensionDatabaseLeaseFailed || snapshot.FailureCode != extensionDatabaseRuntimeLeaseExpiredCode ||
+		snapshot.RevokedAt == nil || snapshot.Revision != 2 {
+		t.Fatalf("expired lease evidence = %#v", snapshot)
+	}
+	var roleCount, auditCount int
+	if err := pool.QueryRow(ctx, `
+		SELECT
+		  (SELECT count(*) FROM pg_roles WHERE rolname = $1),
+		  (SELECT count(*)
+		   FROM extension_database_runtime_leases AS leases
+		   JOIN audit_events AS events ON events.id = leases.revoke_audit_event_id
+		   WHERE leases.lease_id = $2
+		     AND events.action = $3
+		     AND events.metadata->>'runtimeInstanceId' = $4)
+	`, credential.RoleName, credential.LeaseID, extensionDatabaseRuntimeLeaseExpiredAudit,
+		credential.RuntimeInstanceID).Scan(&roleCount, &auditCount); err != nil {
+		t.Fatal(err)
+	}
+	if roleCount != 0 || auditCount != 1 {
+		t.Fatalf("reaper evidence mismatch: role=%d audit=%d", roleCount, auditCount)
+	}
+	if count, err := registry.reapExpiredRuntimeLeasesForExtension(
+		ctx, extensionID, DefaultExtensionDatabaseRuntimeLeaseReapLimit,
+	); err != nil || count != 0 {
+		t.Fatalf("exact extension reaper replay = %d, %v", count, err)
+	}
+	if _, err := registry.ReapExpiredRuntimeLeases(ctx, DefaultExtensionDatabaseRuntimeLeaseReapLimit); err != nil {
+		t.Fatalf("global reaper failed: %v", err)
+	}
+}
+
 func insertExtensionDatabaseRuntimeLeaseFixture(
 	t *testing.T,
 	ctx context.Context,

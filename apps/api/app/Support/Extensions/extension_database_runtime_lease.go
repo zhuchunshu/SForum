@@ -218,6 +218,12 @@ func (r *PostgresExtensionDatabaseRegistry) IssueRuntimeLease(
 	if err != nil {
 		return ExtensionDatabaseRuntimeCredential{}, fmt.Errorf("ensure runtime lease database resources: %w", err)
 	}
+	if _, err := reapExpiredExtensionDatabaseRuntimeLeasesLocked(
+		ctx, tx, request.Artifact.ExtensionID, identifiers, databaseName,
+		DefaultExtensionDatabaseRuntimeLeaseReapLimit,
+	); err != nil {
+		return ExtensionDatabaseRuntimeCredential{}, fmt.Errorf("reap expired runtime leases before issue: %w", err)
+	}
 	grant, err := r.resolveRuntimeLeaseGrant(ctx, tx, request, declaration)
 	if err != nil {
 		return ExtensionDatabaseRuntimeCredential{}, fmt.Errorf("resolve runtime lease exact grant: %w", err)
