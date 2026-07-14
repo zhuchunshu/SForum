@@ -15,6 +15,7 @@ import (
 	"time"
 
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
+	themecompiler "github.com/zhuchunshu/sforum/apps/api/app/Support/ThemeCompiler"
 )
 
 func TestReadZipFileLimitedCapsInflation(t *testing.T) {
@@ -377,6 +378,25 @@ func TestServiceInstallArchiveAllowsThemeSettingsAndAdminPages(t *testing.T) {
 				t.Fatalf("expected invalid theme manifest, got %v", err)
 			}
 		})
+	}
+}
+
+func TestServiceInstallArchiveRejectsUnsafeThemeTemplateBeforeStore(t *testing.T) {
+	store := &fakeExtensionStore{}
+	service := NewService(store, t.TempDir())
+
+	_, err := service.InstallArchive(context.Background(), extensionManager(), ArchiveInput{
+		FileName: "unsafe-theme.zip",
+		Data: extensionArchive(t, validThemeManifest("unsafe.theme"),
+			zipFile{name: "theme.json", body: `{"schemaVersion":1,"styles":{"tokens":{}}}`},
+			zipFile{name: "templates/unused.html", body: `<img src="x" onerror="alert(1)">`},
+		),
+	})
+	if !errors.Is(err, ErrInvalidManifest) || !errors.Is(err, themecompiler.ErrUnsafeStaticHTML) {
+		t.Fatalf("expected install-time unsafe template rejection, got %v", err)
+	}
+	if store.saved.ID != "" || len(store.items) != 0 {
+		t.Fatalf("unsafe theme reached Store: saved=%#v items=%#v", store.saved, store.items)
 	}
 }
 

@@ -15,6 +15,7 @@ import (
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Audit"
 	appevents "github.com/zhuchunshu/sforum/apps/api/app/Support/Events"
 	extensionpackage "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionPackage"
+	themecompiler "github.com/zhuchunshu/sforum/apps/api/app/Support/ThemeCompiler"
 )
 
 // TrustRevoker 在包 digest 变化时吊销前端信任（F2.4 升级重审批）。
@@ -100,6 +101,13 @@ func (s *Service) InstallOrUpgradeArchive(ctx context.Context, actor identity.Ac
 			return InstallResult{}, ErrInvalidArchive
 		}
 		return InstallResult{}, err
+	}
+	if manifest.Type == TypeTheme {
+		// 上传安装仍是惰性的，但所有 L1 模板必须在进入权威 Store 前完成
+		// 静态安全检查、受限 AST 校验和 html/template 上下文编译。
+		if err := themecompiler.NewCompiler(themecompiler.Limits{}).PreflightFS(os.DirFS(snapshot.Root)); err != nil {
+			return InstallResult{}, fmt.Errorf("%w: theme template preflight: %w", ErrInvalidManifest, err)
+		}
 	}
 
 	adminFrontendDigest, err := ComputeAdminFrontendDigest(manifest, snapshot.Root)

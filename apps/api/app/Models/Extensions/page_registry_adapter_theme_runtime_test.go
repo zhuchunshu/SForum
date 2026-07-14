@@ -2,6 +2,7 @@ package extensions
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -54,6 +55,30 @@ func TestPageRegistryAdapterFailedSwitchKeepsSourceRuntime(t *testing.T) {
 		ExtensionID: conflicting.ID, ExtensionVersion: conflicting.Version, PackageDigest: conflicting.PackageDigest,
 	}, "forum.home", conflicting.ID+".home"); ok {
 		t.Fatal("failed target snapshot remained staged")
+	}
+}
+
+func TestPageRegistryAdapterUnsafeTemplateFailsBeforeRuntimeSwitch(t *testing.T) {
+	registry := pages.NewRegistry(pages.NewMemoryStore())
+	runtimeRegistry := pages.NewThemeRuntimeRegistry()
+	adapter := NewPageRegistryAdapter(registry).WithThemeRuntime(runtimeRegistry, "SForum", []string{"zh-CN"})
+	source := themeRuntimeExtensionFixture(t, "source.theme", strings.Repeat("5", 64), "/source", false)
+	target := themeRuntimeExtensionFixture(t, "unsafe.theme", strings.Repeat("6", 64), "/unsafe", false)
+	// Legacy page validation treats this as inert text; the V3 compiler must
+	// reject the unapproved html/template helper before staging the snapshot.
+	writeThemeRuntimeExtensionFile(t, target.PackagePath, "templates/home.html", `{{printf "%s" .Base.SEO.Title}}<sf-home-page></sf-home-page>`)
+
+	if err := adapter.RegisterThemePackage(context.Background(), source); err != nil {
+		t.Fatal(err)
+	}
+	if err := adapter.RegisterThemePackageReplacing(context.Background(), target, source.ID); !errors.Is(err, pages.ErrThemeRuntimeInvalid) {
+		t.Fatalf("unsafe activation error = %v", err)
+	}
+	assertActiveThemeRuntime(t, runtimeRegistry, source.ID)
+	if _, ok := runtimeRegistry.Resolve(pages.RuntimeArtifact{
+		ExtensionID: target.ID, ExtensionVersion: target.Version, PackageDigest: target.PackageDigest,
+	}, "forum.home", target.ID+".home"); ok {
+		t.Fatal("unsafe target snapshot was published")
 	}
 }
 
