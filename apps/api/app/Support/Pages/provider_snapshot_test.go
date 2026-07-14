@@ -185,6 +185,137 @@ func TestProviderSnapshotConcurrentApprovalAndLifecyclePublication(t *testing.T)
 	}
 }
 
+func TestThemeActivationReplacesBindingsAndCleansStaleOwnersAcrossRestart(t *testing.T) {
+	ctx := t.Context()
+	store := newCountingBindingStore(
+		ProviderBinding{PageID: "forum.home", ExtensionID: "old.home-theme", ContributionID: "old.home", ContractVersion: "sforum.page.home@1"},
+		ProviderBinding{PageID: "forum.topic.show", ExtensionID: "old.topic-theme", ContributionID: "old.topic", ContractVersion: "sforum.page.topic_show@1"},
+	)
+	registry := NewRegistry(store)
+	if err := registry.RestoreBindings(ctx); err != nil {
+		t.Fatal(err)
+	}
+	contribution := PageContribution{
+		ID: "new.theme.home", Action: ActionReplace, Target: "forum.home", Template: "templates/home.html",
+		Contract: "sforum.page.home@1", Version: "2.0.0", PackageDigest: "new-digest",
+	}
+	if err := registry.ActivateThemeContributionsReplacing(
+		ctx, "new.theme", []PageContribution{contribution}, 42, "old.home-theme", "old.topic-theme",
+	); err != nil {
+		t.Fatal(err)
+	}
+	resolved, err := registry.Resolve(ctx, "forum.home")
+	if err != nil || resolved.Provider != "new.theme" {
+		t.Fatalf("new provider=%#v err=%v", resolved, err)
+	}
+	if topic, err := registry.Resolve(ctx, "forum.topic.show"); err != nil || topic.Provider != ProviderCore {
+		t.Fatalf("stale topic binding survived: %#v err=%v", topic, err)
+	}
+
+	restarted := NewRegistry(store)
+	if err := restarted.RestoreBindings(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if err := restarted.RestoreThemeContributions(ctx, "new.theme", []PageContribution{contribution}, []string{"old.home-theme", "old.topic-theme"}); err != nil {
+		t.Fatal(err)
+	}
+	resolved, err = restarted.Resolve(ctx, "forum.home")
+	if err != nil || resolved.Provider != "new.theme" {
+		t.Fatalf("restart provider=%#v err=%v", resolved, err)
+	}
+	stored, ok, err := store.GetBinding(ctx, "forum.home")
+	if err != nil || !ok || stored.ApprovedBy != 42 || stored.PackageDigest != "new-digest" {
+		t.Fatalf("stored binding=%#v ok=%v err=%v", stored, ok, err)
+	}
+	if _, ok, _ := store.GetBinding(ctx, "forum.topic.show"); ok {
+		t.Fatal("stale binding remained durable")
+	}
+}
+
+func TestThemeActivationRequiresActorApproval(t *testing.T) {
+	registry := NewRegistry(NewMemoryStore())
+	err := registry.ActivateThemeContributions(t.Context(), "theme.demo", []PageContribution{{
+		ID: "theme.demo.home", Action: ActionReplace, Target: "forum.home",
+		Contract: "sforum.page.home@1", Version: "1.0.0", PackageDigest: "digest",
+	}}, "", 0)
+	if !errors.Is(err, ErrApprovalRequired) || mustResolveProvider(t, registry, t.Context()) != ProviderCore {
+		t.Fatalf("err=%v provider=%s", err, mustResolveProvider(t, registry, t.Context()))
+	}
+}
+
+func TestUnapprovedThemeSwitchCleansOldBindingImmediatelyAndOnRestart(t *testing.T) {
+	ctx := t.Context()
+	store := NewMemoryStore()
+	oldBinding := ProviderBinding{
+		PageID: "forum.home", ExtensionID: "old.theme", ContributionID: "old.home",
+		Version: "1.0.0", PackageDigest: "old-digest", ContractVersion: "sforum.page.home@1", ApprovedBy: 9,
+	}
+	if err := store.UpsertBinding(ctx, oldBinding); err != nil {
+		t.Fatal(err)
+	}
+	registry := NewRegistry(store)
+	if err := registry.RestoreBindings(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if err := registry.RegisterContributions("old.theme", []PageContribution{{
+		ID: "old.home", Action: ActionReplace, Target: "forum.home", Contract: "sforum.page.home@1",
+		Version: "1.0.0", PackageDigest: "old-digest",
+	}}); err != nil {
+		t.Fatal(err)
+	}
+	newContribution := PageContribution{
+		ID: "default.home", Action: ActionReplace, Target: "forum.home", Contract: "sforum.page.home@1",
+		Version: "2.0.0", PackageDigest: "default-digest",
+	}
+	if err := registry.SwitchThemeContributions(ctx, "default.theme", []PageContribution{newContribution}, "old.theme"); err != nil {
+		t.Fatal(err)
+	}
+	if provider := mustResolveProvider(t, registry, ctx); provider != ProviderCore {
+		t.Fatalf("unapproved replacement became active: %s", provider)
+	}
+	if _, ok, _ := store.GetBinding(ctx, "forum.home"); ok {
+		t.Fatal("old approval remained durable after theme switch")
+	}
+	restarted := NewRegistry(store)
+	if err := restarted.RestoreBindings(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if err := restarted.RegisterContributions("default.theme", []PageContribution{newContribution}); err != nil {
+		t.Fatal(err)
+	}
+	if provider := mustResolveProvider(t, restarted, ctx); provider != ProviderCore {
+		t.Fatalf("stale approval returned after restart: %s", provider)
+	}
+}
+
+func TestThemeActivationStoreFailureLeavesPublishedRevisionUntouched(t *testing.T) {
+	ctx := t.Context()
+	store := newCountingBindingStore(ProviderBinding{
+		PageID: "forum.home", ExtensionID: "old.theme", ContributionID: "old.home",
+		Version: "1.0.0", PackageDigest: "old-digest", ContractVersion: "sforum.page.home@1",
+	})
+	registry := NewRegistry(store)
+	if err := registry.RestoreBindings(ctx); err != nil {
+		t.Fatal(err)
+	}
+	old := PageContribution{
+		ID: "old.home", Action: ActionReplace, Target: "forum.home", Contract: "sforum.page.home@1",
+		Version: "1.0.0", PackageDigest: "old-digest",
+	}
+	if err := registry.RegisterContributions("old.theme", []PageContribution{old}); err != nil {
+		t.Fatal(err)
+	}
+	revision := registry.Revision()
+	store.setWriteErrors(errors.New("replace failed"), nil)
+	err := registry.ActivateThemeContributions(ctx, "new.theme", []PageContribution{{
+		ID: "new.home", Action: ActionReplace, Target: "forum.home", Contract: "sforum.page.home@1",
+		Version: "2.0.0", PackageDigest: "new-digest",
+	}}, "old.theme", 7)
+	if err == nil || registry.Revision() != revision || mustResolveProvider(t, registry, ctx) != "old.theme" {
+		t.Fatalf("err=%v revision=%d provider=%s", err, registry.Revision(), mustResolveProvider(t, registry, ctx))
+	}
+}
+
 func mustResolveProvider(t *testing.T, registry *Registry, ctx context.Context) string {
 	t.Helper()
 	resolved, err := registry.Resolve(ctx, "forum.home")
@@ -229,9 +360,12 @@ func (s *countingBindingStore) ListBindings(context.Context) ([]ProviderBinding,
 	return result, nil
 }
 
-func (s *countingBindingStore) GetBinding(context.Context, string) (ProviderBinding, bool, error) {
+func (s *countingBindingStore) GetBinding(_ context.Context, pageID string) (ProviderBinding, bool, error) {
 	s.getCalls.Add(1)
-	return ProviderBinding{}, false, nil
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	binding, ok := s.bindings[pageID]
+	return cloneBinding(binding), ok, nil
 }
 
 func (s *countingBindingStore) UpsertBinding(_ context.Context, binding ProviderBinding) error {
@@ -253,6 +387,56 @@ func (s *countingBindingStore) DeleteBinding(_ context.Context, pageID string) e
 		return s.deleteErr
 	}
 	delete(s.bindings, pageID)
+	return nil
+}
+
+func (s *countingBindingStore) ReplaceExtensionBindings(_ context.Context, extensionIDs []string, bindings []ProviderBinding) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.upsertErr != nil {
+		return s.upsertErr
+	}
+	owners := map[string]struct{}{}
+	for _, id := range extensionIDs {
+		owners[id] = struct{}{}
+	}
+	for pageID, binding := range s.bindings {
+		if _, ok := owners[binding.ExtensionID]; ok {
+			delete(s.bindings, pageID)
+		}
+	}
+	for _, binding := range bindings {
+		s.bindings[binding.PageID] = cloneBinding(binding)
+	}
+	return nil
+}
+
+func (s *countingBindingStore) ReconcileExtensionBindings(_ context.Context, activeExtensionID string, staleExtensionIDs []string, allowed []ProviderBinding) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.upsertErr != nil {
+		return s.upsertErr
+	}
+	stale := map[string]struct{}{}
+	for _, id := range staleExtensionIDs {
+		stale[id] = struct{}{}
+	}
+	allowedByPage := map[string]ProviderBinding{}
+	for _, binding := range allowed {
+		allowedByPage[binding.PageID] = binding
+	}
+	for pageID, binding := range s.bindings {
+		if _, ok := stale[binding.ExtensionID]; ok && binding.ExtensionID != activeExtensionID {
+			delete(s.bindings, pageID)
+			continue
+		}
+		if binding.ExtensionID == activeExtensionID {
+			exact, ok := allowedByPage[pageID]
+			if !ok || !sameProviderArtifact(binding, exact) {
+				delete(s.bindings, pageID)
+			}
+		}
+	}
 	return nil
 }
 

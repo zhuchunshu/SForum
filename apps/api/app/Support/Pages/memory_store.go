@@ -49,6 +49,51 @@ func (s *MemoryStore) DeleteBinding(_ context.Context, pageID string) error {
 	return nil
 }
 
+func (s *MemoryStore) ReplaceExtensionBindings(_ context.Context, extensionIDs []string, bindings []ProviderBinding) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	owners := make(map[string]struct{}, len(extensionIDs))
+	for _, extensionID := range extensionIDs {
+		owners[extensionID] = struct{}{}
+	}
+	for pageID, binding := range s.bindings {
+		if _, remove := owners[binding.ExtensionID]; remove {
+			delete(s.bindings, pageID)
+		}
+	}
+	for _, binding := range bindings {
+		binding = cloneBinding(binding)
+		s.bindings[binding.PageID] = binding
+	}
+	return nil
+}
+
+func (s *MemoryStore) ReconcileExtensionBindings(_ context.Context, activeExtensionID string, staleExtensionIDs []string, allowed []ProviderBinding) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	stale := make(map[string]struct{}, len(staleExtensionIDs))
+	for _, extensionID := range staleExtensionIDs {
+		stale[extensionID] = struct{}{}
+	}
+	allowedByPage := make(map[string]ProviderBinding, len(allowed))
+	for _, binding := range allowed {
+		allowedByPage[binding.PageID] = binding
+	}
+	for pageID, binding := range s.bindings {
+		if _, remove := stale[binding.ExtensionID]; remove && binding.ExtensionID != activeExtensionID {
+			delete(s.bindings, pageID)
+			continue
+		}
+		if binding.ExtensionID == activeExtensionID {
+			exact, ok := allowedByPage[pageID]
+			if !ok || !sameProviderArtifact(binding, exact) {
+				delete(s.bindings, pageID)
+			}
+		}
+	}
+	return nil
+}
+
 func cloneBinding(b ProviderBinding) ProviderBinding {
 	b.PageID = strings.Clone(b.PageID)
 	b.ExtensionID = strings.Clone(b.ExtensionID)

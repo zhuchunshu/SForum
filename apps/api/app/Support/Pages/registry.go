@@ -80,12 +80,23 @@ type ExtensionSnapshot struct {
 	Contributions []PageContribution
 }
 
+type ThemePublicationSnapshot struct {
+	ExtensionIDs  []string
+	Artifacts     map[string]RuntimeArtifact
+	Contributions map[string][]PageContribution
+	Bindings      []ProviderBinding
+}
+
 // Store 持久化绑定与审批（可实现为内存或 Postgres）。
 type Store interface {
 	ListBindings(ctx context.Context) ([]ProviderBinding, error)
 	GetBinding(ctx context.Context, pageID string) (ProviderBinding, bool, error)
 	UpsertBinding(ctx context.Context, binding ProviderBinding) error
 	DeleteBinding(ctx context.Context, pageID string) error
+	// ReplaceExtensionBindings atomically removes stale bindings owned by the
+	// listed extensions and publishes the exact replacement set.
+	ReplaceExtensionBindings(ctx context.Context, extensionIDs []string, bindings []ProviderBinding) error
+	ReconcileExtensionBindings(ctx context.Context, activeExtensionID string, staleExtensionIDs []string, allowed []ProviderBinding) error
 }
 
 // Registry 解析页面提供者：目录 + 贡献 + 管理员绑定。
@@ -119,6 +130,90 @@ func NewRegistry(store Store) *Registry {
 		signatureOwners:    map[string]string{},
 		extensionArtifacts: map[string]RuntimeArtifact{},
 	}
+}
+
+func (r *Registry) CaptureThemePublication(extensionIDs ...string) ThemePublicationSnapshot {
+	snapshot := ThemePublicationSnapshot{
+		Artifacts: make(map[string]RuntimeArtifact), Contributions: make(map[string][]PageContribution),
+	}
+	if r == nil {
+		return snapshot
+	}
+	owners := make(map[string]struct{}, len(extensionIDs))
+	for _, extensionID := range extensionIDs {
+		if extensionID != "" {
+			owners[extensionID] = struct{}{}
+			snapshot.ExtensionIDs = append(snapshot.ExtensionIDs, extensionID)
+		}
+	}
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	for extensionID := range owners {
+		if artifact, ok := r.extensionArtifacts[extensionID]; ok {
+			snapshot.Artifacts[extensionID] = artifact
+		}
+	}
+	for _, list := range r.contributions {
+		for _, contribution := range list {
+			if _, ok := owners[contribution.ExtensionID]; ok {
+				snapshot.Contributions[contribution.ExtensionID] = append(snapshot.Contributions[contribution.ExtensionID], contribution)
+			}
+		}
+	}
+	for _, binding := range r.bindings {
+		if _, ok := owners[binding.ExtensionID]; ok {
+			snapshot.Bindings = append(snapshot.Bindings, cloneBinding(binding))
+		}
+	}
+	return snapshot
+}
+
+func (r *Registry) RestoreThemePublication(ctx context.Context, snapshot ThemePublicationSnapshot, currentExtensionIDs ...string) error {
+	if r == nil {
+		return nil
+	}
+	prepared := make(map[string][]PageContribution, len(snapshot.Contributions))
+	for extensionID, contributions := range snapshot.Contributions {
+		items, err := prepareContributions(extensionID, contributions)
+		if err != nil {
+			return err
+		}
+		prepared[extensionID] = items
+	}
+	owners := append([]string(nil), currentExtensionIDs...)
+	owners = append(owners, snapshot.ExtensionIDs...)
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.store != nil {
+		if err := r.store.ReplaceExtensionBindings(ctx, owners, snapshot.Bindings); err != nil {
+			return err
+		}
+	}
+	for _, extensionID := range owners {
+		r.clearExtensionLocked(extensionID)
+	}
+	for extensionID, contributions := range prepared {
+		r.applyContributionsLocked(contributions)
+		if artifact, ok := snapshot.Artifacts[extensionID]; ok {
+			r.extensionArtifacts[extensionID] = artifact
+		}
+	}
+	next := cloneBindings(r.bindings)
+	ownerSet := make(map[string]struct{}, len(owners))
+	for _, owner := range owners {
+		ownerSet[owner] = struct{}{}
+	}
+	for pageID, binding := range next {
+		if _, ok := ownerSet[binding.ExtensionID]; ok {
+			delete(next, pageID)
+		}
+	}
+	for _, binding := range snapshot.Bindings {
+		next[binding.PageID] = cloneBinding(binding)
+	}
+	r.bindings = next
+	r.revision++
+	return nil
 }
 
 // RestoreBindings loads durable provider choices exactly once during boot.
@@ -240,11 +335,99 @@ func (r *Registry) ReplaceThemeContributions(newThemeID string, newItems []PageC
 	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	if err := r.preflightThemeAddsLocked(newThemeID, prepared, oldThemeID); err != nil {
+		return err
+	}
+	if oldThemeID != "" && oldThemeID != newThemeID {
+		r.clearExtensionLocked(oldThemeID)
+	}
+	r.clearExtensionLocked(newThemeID)
+	r.applyContributionsLocked(prepared)
+	r.extensionArtifacts[newThemeID] = pageArtifactFromContributions(newThemeID, prepared)
+	r.revision++
+	return nil
+}
+
+// SwitchThemeContributions removes old theme approvals and publishes the new
+// theme as presentation candidates without granting any Core replacement.
+func (r *Registry) SwitchThemeContributions(ctx context.Context, newThemeID string, newItems []PageContribution, oldThemeID string) error {
+	prepared, err := prepareContributions(newThemeID, newItems)
+	if err != nil {
+		return err
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if err := r.preflightThemeAddsLocked(newThemeID, prepared, oldThemeID); err != nil {
+		return err
+	}
+	removeOwners := []string{newThemeID}
+	if oldThemeID != "" && oldThemeID != newThemeID {
+		removeOwners = append(removeOwners, oldThemeID)
+	}
+	if r.store != nil {
+		if err := r.store.ReplaceExtensionBindings(ctx, removeOwners, nil); err != nil {
+			return err
+		}
+	}
+	if oldThemeID != "" && oldThemeID != newThemeID {
+		r.clearExtensionLocked(oldThemeID)
+	}
+	r.clearExtensionLocked(newThemeID)
+	r.applyContributionsLocked(prepared)
+	r.extensionArtifacts[newThemeID] = pageArtifactFromContributions(newThemeID, prepared)
+	next := cloneBindings(r.bindings)
+	for pageID, binding := range next {
+		for _, owner := range removeOwners {
+			if binding.ExtensionID == owner {
+				delete(next, pageID)
+				break
+			}
+		}
+	}
+	r.bindings = next
+	r.revision++
+	return nil
+}
+
+// ActivateThemeContributions publishes theme contributions and their automatic
+// replace bindings as one process-local revision. Durable bindings are swapped
+// first, so a failed store transaction cannot expose a partial runtime view.
+func (r *Registry) ActivateThemeContributions(
+	ctx context.Context,
+	newThemeID string,
+	newItems []PageContribution,
+	oldThemeID string,
+	approvedBy int64,
+) error {
+	if approvedBy <= 0 {
+		return ErrApprovalRequired
+	}
+	return r.ActivateThemeContributionsReplacing(ctx, newThemeID, newItems, approvedBy, oldThemeID)
+}
+
+func (r *Registry) ActivateThemeContributionsReplacing(
+	ctx context.Context,
+	newThemeID string,
+	newItems []PageContribution,
+	approvedBy int64,
+	oldThemeIDs ...string,
+) error {
+	if approvedBy <= 0 {
+		return ErrApprovalRequired
+	}
+	prepared, err := prepareContributions(newThemeID, newItems)
+	if err != nil {
+		return err
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
 
 	// 模拟最终状态：去掉旧主题 + 新主题旧贡献，再校验新主题 adds
 	ignore := map[string]struct{}{newThemeID: {}}
-	if oldThemeID != "" && oldThemeID != newThemeID {
-		ignore[oldThemeID] = struct{}{}
+	for _, oldThemeID := range oldThemeIDs {
+		if oldThemeID != "" && oldThemeID != newThemeID {
+			ignore[oldThemeID] = struct{}{}
+		}
 	}
 	for _, item := range prepared {
 		if item.Action != ActionAdd {
@@ -258,43 +441,145 @@ func (r *Registry) ReplaceThemeContributions(newThemeID string, newItems []PageC
 		}
 	}
 
-	// 备份以便失败回滚（理论上后续 apply 不应失败）
-	backupContrib := cloneContributions(r.contributions)
-	backupRoutes := append([]CompiledRoute(nil), r.compiledAdds...)
-	backupOwners := cloneStringMap(r.signatureOwners)
+	bindings := make([]ProviderBinding, 0, len(prepared))
+	for _, item := range prepared {
+		if item.Action != ActionReplace {
+			continue
+		}
+		bindings = append(bindings, ProviderBinding{
+			PageID: item.Target, ExtensionID: newThemeID, ContributionID: item.ID,
+			Version: item.Version, PackageDigest: item.PackageDigest, ApprovedBy: approvedBy,
+			TemplatePath: item.Template, ContractVersion: item.Contract,
+		})
+	}
+	removeOwners := []string{newThemeID}
+	for _, oldThemeID := range oldThemeIDs {
+		if oldThemeID != "" && oldThemeID != newThemeID {
+			removeOwners = append(removeOwners, oldThemeID)
+		}
+	}
+	if r.store != nil {
+		if err := r.store.ReplaceExtensionBindings(ctx, removeOwners, bindings); err != nil {
+			return err
+		}
+	}
 
-	if oldThemeID != "" && oldThemeID != newThemeID {
-		r.clearExtensionLocked(oldThemeID)
+	for _, oldThemeID := range oldThemeIDs {
+		if oldThemeID != "" && oldThemeID != newThemeID {
+			r.clearExtensionLocked(oldThemeID)
+		}
 	}
 	r.clearExtensionLocked(newThemeID)
 	r.applyContributionsLocked(prepared)
 	r.extensionArtifacts[newThemeID] = pageArtifactFromContributions(newThemeID, prepared)
-	r.revision++
-
-	// 完整性自检：若 apply 后状态异常则恢复（防御）
-	if len(prepared) > 0 {
-		// no-op check placeholder
+	nextBindings := cloneBindings(r.bindings)
+	for pageID, binding := range nextBindings {
+		for _, extensionID := range removeOwners {
+			if binding.ExtensionID == extensionID {
+				delete(nextBindings, pageID)
+				break
+			}
+		}
 	}
-	_ = backupContrib
-	_ = backupRoutes
-	_ = backupOwners
+	for _, binding := range bindings {
+		nextBindings[binding.PageID] = cloneBinding(binding)
+	}
+	r.bindings = nextBindings
+	r.revision++
 	return nil
 }
 
-func cloneContributions(in map[string][]PageContribution) map[string][]PageContribution {
-	out := make(map[string][]PageContribution, len(in))
-	for k, v := range in {
-		out[k] = append([]PageContribution(nil), v...)
+// RestoreThemeContributions never invents approval. It preserves only durable
+// bindings that still match the active exact artifact and removes stale theme
+// owners before publishing the restored contribution snapshot.
+func (r *Registry) RestoreThemeContributions(
+	ctx context.Context,
+	activeThemeID string,
+	items []PageContribution,
+	staleThemeIDs []string,
+) error {
+	prepared, err := prepareContributions(activeThemeID, items)
+	if err != nil {
+		return err
 	}
-	return out
+	allowed := make([]ProviderBinding, 0, len(prepared))
+	for _, item := range prepared {
+		if item.Action == ActionReplace {
+			allowed = append(allowed, ProviderBinding{
+				PageID: item.Target, ExtensionID: activeThemeID, ContributionID: item.ID,
+				Version: item.Version, PackageDigest: item.PackageDigest,
+				TemplatePath: item.Template, ContractVersion: item.Contract,
+			})
+		}
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if err := r.preflightThemeAddsLocked(activeThemeID, prepared, staleThemeIDs...); err != nil {
+		return err
+	}
+	if r.store != nil {
+		if err := r.store.ReconcileExtensionBindings(ctx, activeThemeID, staleThemeIDs, allowed); err != nil {
+			return err
+		}
+	}
+	for _, staleID := range staleThemeIDs {
+		if staleID != "" && staleID != activeThemeID {
+			r.clearExtensionLocked(staleID)
+		}
+	}
+	r.clearExtensionLocked(activeThemeID)
+	r.applyContributionsLocked(prepared)
+	r.extensionArtifacts[activeThemeID] = pageArtifactFromContributions(activeThemeID, prepared)
+	allowedByPage := make(map[string]ProviderBinding, len(allowed))
+	for _, binding := range allowed {
+		allowedByPage[binding.PageID] = binding
+	}
+	next := cloneBindings(r.bindings)
+	for pageID, binding := range next {
+		if binding.ExtensionID == activeThemeID {
+			exact, ok := allowedByPage[pageID]
+			if !ok || !sameProviderArtifact(binding, exact) {
+				delete(next, pageID)
+			}
+			continue
+		}
+		for _, staleID := range staleThemeIDs {
+			if binding.ExtensionID == staleID {
+				delete(next, pageID)
+				break
+			}
+		}
+	}
+	r.bindings = next
+	r.revision++
+	return nil
 }
 
-func cloneStringMap(in map[string]string) map[string]string {
-	out := make(map[string]string, len(in))
-	for k, v := range in {
-		out[k] = v
+func (r *Registry) preflightThemeAddsLocked(newThemeID string, prepared []PageContribution, oldThemeIDs ...string) error {
+	ignore := map[string]struct{}{newThemeID: {}}
+	for _, oldThemeID := range oldThemeIDs {
+		if oldThemeID != "" {
+			ignore[oldThemeID] = struct{}{}
+		}
 	}
-	return out
+	for _, item := range prepared {
+		if item.Action != ActionAdd {
+			continue
+		}
+		if owner, ok := r.signatureOwners[item.RouteSignature]; ok {
+			if _, ignored := ignore[owner]; !ignored {
+				return fmt.Errorf("%w: path signature %s owned by %s", ErrConflictProvider, item.RouteSignature, owner)
+			}
+		}
+	}
+	return nil
+}
+
+func sameProviderArtifact(current, exact ProviderBinding) bool {
+	return current.PageID == exact.PageID && current.ExtensionID == exact.ExtensionID &&
+		current.ContributionID == exact.ContributionID && current.Version == exact.Version &&
+		current.PackageDigest == exact.PackageDigest && current.TemplatePath == exact.TemplatePath &&
+		current.ContractVersion == exact.ContractVersion
 }
 
 func (r *Registry) preflightAddsLocked(extensionID string, prepared []PageContribution) error {
