@@ -51,6 +51,7 @@ func (a ProductionRouteGuardAuthorizer) Authorize(
 func productionCoreGuardEvaluatorRegistrations() []routes.CoreGuardEvaluatorRegistration {
 	return []routes.CoreGuardEvaluatorRegistration{
 		productionCoreGuardEvaluator("core.guard.attachments.upload", requireDeclaredCoreGuardPermission),
+		productionCoreGuardEvaluator("core.guard.extensions.read", requireExtensionsReadAuthority),
 		productionCoreGuardEvaluator("core.guard.forum.author_review", requireAuthenticatedCoreGuardActor),
 		productionCoreGuardEvaluator("core.guard.forum.comment_write", requireForumCommentGlobalAuthority),
 		productionCoreGuardEvaluator("core.guard.forum.settings", requireForumSettingsAuthority),
@@ -79,6 +80,44 @@ func requireAuthenticatedCoreGuardActor(_ context.Context, evaluation routes.Cor
 		return nil
 	}
 	return routes.ErrCoreGuardLoginRequired
+}
+
+func requireExtensionsReadAuthority(_ context.Context, evaluation routes.CoreGuardEvaluation) error {
+	switch evaluation.Descriptor.RouteID {
+	case "core.route.extensions.list",
+		"core.route.extensions.events",
+		"core.route.extensions.lifecycle_operations",
+		"core.route.extensions.lifecycle_operation",
+		"core.route.extensions.contribution_points",
+		"core.route.extensions.contributions",
+		"core.route.extensions.event_definitions",
+		"core.route.extensions.event_deliveries",
+		"core.route.extensions.navigation",
+		"core.route.extensions.inspect_route",
+		"core.route.extensions.route_provider_conflicts",
+		"core.route.extensions.route_provider_events",
+		"core.route.extensions.route_provider_selection":
+		return requireCoreGuardPermission(evaluation,
+			identity.PermissionExtensionView,
+			identity.PermissionExtensionManage,
+		)
+	case "core.route.extensions.list_migrations":
+		return requireCoreGuardPermission(evaluation,
+			identity.PermissionExtensionView,
+			identity.PermissionExtensionPluginManage,
+			identity.PermissionExtensionManage,
+		)
+	case "core.route.extensions.executable_trust_status":
+		return requireCoreGuardPermission(evaluation,
+			identity.PermissionExtensionView,
+			identity.PermissionExtensionPluginManage,
+			identity.PermissionExtensionThemeManage,
+			identity.PermissionExtensionManage,
+		)
+	default:
+		// settings/frontend 读取依赖目标扩展类型、provider 与精确制品状态。
+		return routes.ErrCoreGuardEvaluatorUnavailable
+	}
 }
 
 func requireDeclaredCoreGuardPermission(_ context.Context, evaluation routes.CoreGuardEvaluation) error {

@@ -115,13 +115,130 @@ func TestProductionCoreGuardEvaluatorRegistryIsExplicitAndVersioned(t *testing.T
 		t.Fatal(err)
 	}
 	bindings := registry.Bindings()
-	if len(bindings) != len(registrations) || len(bindings) != 15 {
+	if len(bindings) != len(registrations) || len(bindings) != 16 {
 		t.Fatalf("bindings = %#v", bindings)
 	}
 	for _, binding := range bindings {
 		if binding.ContractVersion != routes.CoreGuardEvaluatorContractV1 || !strings.HasPrefix(binding.EvaluatorID, "core.guard.") {
 			t.Fatalf("binding = %#v", binding)
 		}
+	}
+}
+
+func TestProductionExtensionsReadGuardPartitionsCatalogByProvablePolicy(t *testing.T) {
+	type expectedRoute struct {
+		method      string
+		permissions []string
+		supported   bool
+	}
+	viewer := []string{identity.PermissionExtensionView, identity.PermissionExtensionManage}
+	migrations := []string{
+		identity.PermissionExtensionView,
+		identity.PermissionExtensionPluginManage,
+		identity.PermissionExtensionManage,
+	}
+	trust := []string{
+		identity.PermissionExtensionView,
+		identity.PermissionExtensionPluginManage,
+		identity.PermissionExtensionThemeManage,
+		identity.PermissionExtensionManage,
+	}
+	expected := map[string]expectedRoute{
+		"core.route.extensions.list":                     {method: "GET", supported: true, permissions: viewer},
+		"core.route.extensions.events":                   {method: "GET", supported: true, permissions: viewer},
+		"core.route.extensions.lifecycle_operations":     {method: "GET", supported: true, permissions: viewer},
+		"core.route.extensions.lifecycle_operation":      {method: "GET", supported: true, permissions: viewer},
+		"core.route.extensions.list_migrations":          {method: "GET", supported: true, permissions: migrations},
+		"core.route.extensions.executable_trust_status":  {method: "GET", supported: true, permissions: trust},
+		"core.route.extensions.contribution_points":      {method: "GET", supported: true, permissions: viewer},
+		"core.route.extensions.contributions":            {method: "GET", supported: true, permissions: viewer},
+		"core.route.extensions.event_definitions":        {method: "GET", supported: true, permissions: viewer},
+		"core.route.extensions.event_deliveries":         {method: "GET", supported: true, permissions: viewer},
+		"core.route.extensions.navigation":               {method: "GET", supported: true, permissions: viewer},
+		"core.route.extensions.inspect_route":            {method: "GET", supported: true, permissions: viewer},
+		"core.route.extensions.route_provider_conflicts": {method: "GET", supported: true, permissions: viewer},
+		"core.route.extensions.route_provider_events":    {method: "GET", supported: true, permissions: viewer},
+		"core.route.extensions.route_provider_selection": {method: "GET", supported: true, permissions: viewer},
+
+		"core.route.extensions.frontend_status": {method: "GET"},
+		"core.route.extensions.frontend_asset":  {method: "GET"},
+		"core.route.extensions.settings":        {method: "GET"},
+	}
+	var catalog []routes.CoreRoute
+	for _, route := range routes.CoreRouteCatalog() {
+		if route.Guard.EvaluatorID == "core.guard.extensions.read" {
+			catalog = append(catalog, route)
+		}
+	}
+	if len(catalog) != len(expected) {
+		t.Fatalf("extensions read contextual catalog = %#v", catalog)
+	}
+
+	authorizer := NewProductionRouteGuardAuthorizer()
+	for _, route := range catalog {
+		want, exists := expected[route.ID]
+		if !exists || route.Method != want.method || route.Guard.Kind != routes.CoreGuardContextual ||
+			len(route.Guard.Permissions) != 0 {
+			t.Fatalf("unexpected extensions read guard route = %#v", route)
+		}
+		delete(expected, route.ID)
+
+		plan, step := productionCatalogInheritedGuardPlan(t, route)
+		if !want.supported {
+			request := productionGuardRequest("*")
+			request.Method, request.Path = plan.Method(), plan.Path()
+			if err := authorizer.Authorize(context.Background(), plan, step, request); !errors.Is(err, ErrRouteGuardUnavailable) {
+				t.Fatalf("%s target-dependent policy error = %v", route.ID, err)
+			}
+			continue
+		}
+
+		for _, permission := range want.permissions {
+			allowed := productionGuardRequest(permission)
+			allowed.Method, allowed.Path = plan.Method(), plan.Path()
+			if err := authorizer.Authorize(context.Background(), plan, step, allowed); err != nil {
+				t.Fatalf("%s permission %s error = %v", route.ID, permission, err)
+			}
+		}
+
+		denied := productionGuardRequest(identity.PermissionPostCreate)
+		denied.Method, denied.Path = plan.Method(), plan.Path()
+		if err := authorizer.Authorize(context.Background(), plan, step, denied); !errors.Is(err, ErrRoutePermissionDenied) {
+			t.Fatalf("%s permission denied error = %v", route.ID, err)
+		}
+
+		anonymous := routes.DispatchRequest{Method: plan.Method(), Path: plan.Path()}
+		if err := authorizer.Authorize(context.Background(), plan, step, anonymous); !errors.Is(err, ErrRouteLoginRequired) {
+			t.Fatalf("%s anonymous error = %v", route.ID, err)
+		}
+
+		allowed := productionGuardRequest(want.permissions[0])
+		allowed.Method, allowed.Path = plan.Method(), plan.Path()
+		forgedStep := step
+		forgedStep.RouteID += ".forged"
+		if err := authorizer.Authorize(context.Background(), plan, forgedStep, allowed); !errors.Is(err, ErrRouteGuardUnavailable) {
+			t.Fatalf("%s forged step error = %v", route.ID, err)
+		}
+		forgedRequest := allowed
+		forgedRequest.Path += "/forged"
+		if err := authorizer.Authorize(context.Background(), plan, step, forgedRequest); !errors.Is(err, ErrRouteGuardUnavailable) {
+			t.Fatalf("%s forged request error = %v", route.ID, err)
+		}
+	}
+	if len(expected) != 0 {
+		t.Fatalf("missing extensions read guard routes = %#v", expected)
+	}
+}
+
+func TestProductionExtensionsReadGuardRejectsForeignRouteID(t *testing.T) {
+	descriptor := routes.CoreGuardDescriptor{
+		Kind: routes.CoreGuardContextual, EvaluatorID: "core.guard.extensions.read",
+	}
+	plan, step := productionInheritedGuardPlan(t, "core.route.extensions.read.foreign", descriptor)
+	request := productionGuardRequest("*")
+	request.Method, request.Path = plan.Method(), plan.Path()
+	if err := NewProductionRouteGuardAuthorizer().Authorize(context.Background(), plan, step, request); !errors.Is(err, ErrRouteGuardUnavailable) {
+		t.Fatalf("foreign extensions read route error = %v", err)
 	}
 }
 
