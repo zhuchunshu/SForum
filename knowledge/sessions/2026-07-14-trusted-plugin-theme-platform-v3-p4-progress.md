@@ -5,7 +5,7 @@
 - Overall V3: **27%**.
 - P0-P3: **100%**.
 - P4: **47%**, active (7 of 15 task/test rows complete).
-- Branch: `main`; last implementation commit: `11d12ed82`.
+- Branch: `main`; last committed slice: `74fd5f367`.
 
 ## Changed
 
@@ -112,6 +112,26 @@
   authority, plan version, removal mode, and uninstall-only force before
   acquiring a Manager lifecycle-cleanup lease and dispatching to the persisted
   `InstanceID`; stale identities never fall back to the active process.
+- Corrected coordinator recovery ordering, database-time lease claims,
+  multi-role revalidation, canonical Host markers, and side-effectful skipped
+  gates; Host gates now receive independently reconstructed durable action
+  results rather than overloading their previous Host result.
+- Added the production exact Host dispatcher for all 32 gate positions across
+  six operations. Every returned runtime/admission snapshot is rechecked for
+  exact identity, artifact, health, and readiness; missing composed boundaries
+  fail closed.
+- Added durable audit identities, scoped lifecycle history reads, and safe
+  inspection DTOs that exclude authority, checkpoints, raw action documents,
+  error metadata, and lease ownership.
+- Added P6 immutable API-route snapshot foundations with revision CAS,
+  deterministic matching, exact runtime instance bindings, conflict inspection,
+  Safe Mode, and inherited-core-guard declarations. This is not production
+  route execution and does not close a P6 row yet.
+- Added the P8 bounded contextual Theme Compiler with immutable compiled/runtime
+  identities, tokenizer-backed static HTML checks, passive ViewModels, standard
+  template control actions, restricted helpers, and zero hot-path filesystem
+  access. It is not connected to Page runtime publication and does not close a
+  P8 row yet.
 
 ## Verification
 
@@ -170,23 +190,21 @@
 
 ## Active Ownership
 
-- Models lifecycle coordinator corrections are in flight after self-audit found
-  final-gate recovery ordering, lease TOCTOU, multi-role revalidation,
-  canonical marker, and skipped-terminal defects. These files remain
-  uncommitted until their normal/race/vet gates pass again.
-- Exact lifecycle runtime execution, Manager staged publication, and exact
-  service-provider admission are committed. They remain prerequisites rather
-  than a completed P4 row because no production Service/HTTP caller constructs
-  and drives the coordinator yet.
-- The production Host gate, bootstrap coordinator construction, first trusted
-  enable transaction, and recovery API/UI remain open.
+- Composed lifecycle publication/compensation is in flight under
+  `app/Support/Extensions/lifecycle_composed_boundary*.go`; it must prove exact
+  reverse compensation for runtime, database, and registry failure windows.
+- Lifecycle inspection controller/OpenAPI work is in flight. Service DTOs are
+  committed, but the HTTP contract remains uncommitted until leak and ref gates
+  pass.
+- Bootstrap construction, first trusted enable, disable/upgrade/rollback,
+  uninstall removal modes, recovery mutations/UI, and exact route/theme
+  publication remain open.
 
 ## Next
 
-1. Land the corrected Models coordinator after its normal/race/vet gates pass.
-2. Add the production Host gate over the committed Manager
-   stage/health/publish/drain/stop API, then construct the coordinator in
-   bootstrap.
+1. Land composed publication/compensation and lifecycle inspection HTTP after
+   their focused gates pass.
+2. Construct the real repository/runtime/Host/coordinator in bootstrap.
 3. Wire the lifecycle state machine and first-trusted-enable transaction to the
    durable ledger, exact-artifact trust, frozen runtime, drain, audit, and
    recovery contracts.

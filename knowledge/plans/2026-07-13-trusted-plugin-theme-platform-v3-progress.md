@@ -112,6 +112,48 @@ phase percentage.
 
 ## Last Durable Checkpoint
 
+### 2026-07-14 P4 Host Gates, P6 Route Snapshot, And P8 Compiler Checkpoint
+
+- Latest committed slice: `74fd5f367 test(themes): cover compiler security
+  boundaries`. Overall remains **27%** and P4 remains **47% (7 of 15)**. P6
+  and P8 foundations are not wired into production request/activation paths,
+  so no authoritative row or displayed percentage is advanced.
+- `891bcdbe5`, `110f752c2`, and `2794eb5eb` fixed the coordinator's five
+  recovery defects, bound source/target exact runtimes, and exposed durable
+  allowlisted lifecycle action results to Host gates.
+- `a7a0d80ff` exposes a Manager-owned exact coordinator adapter without leaking
+  or mismatching its private `ProtocolStarter`; `0b13bf3e3` dispatches all 32
+  Host gate positions and revalidates stage/inspect/health/drain snapshots.
+- `6f9dab6eb`, `5418fa1b5`, and `110a6941f` provide durable audit ids, scoped
+  lifecycle history queries, and Service allowlist DTOs. Authority snapshots,
+  opaque checkpoints, input/result documents, error metadata, and lease tokens
+  cannot cross that Service inspection boundary.
+- `ec5ed7fee`, `42ff24177`, and `1a37d7f41` add the P6 immutable API-route
+  snapshot foundation: deterministic specificity/priority, revision CAS,
+  exact runtime-instance artifact bindings, Safe Mode, conflicts, GET-to-HEAD,
+  defensive activation validation, and explicit inherited-core-guard syntax.
+  It still lacks Nuxt public/admin route defaults, execution/proxy semantics,
+  provider selection, guard/schema/fallback enforcement, OpenAPI aggregation,
+  Inspector/UI, and production lifecycle publication.
+- `4969a6872` and `74fd5f367` add the P8 `html/template` compiler foundation:
+  layouts/partials/control actions, restricted helpers, contextual escaping,
+  tokenizer-backed static XSS rejection, passive ViewModel enforcement,
+  recursion/source/output/deadline limits, immutable binding revisions, and no
+  render-time filesystem access. Page ViewModels, explicit SafeHTML, typed
+  segments/SEO, fallback, publication/restart convergence, and theme migration
+  remain open.
+- Focused normal/repeated/race/vet gates passed for Models/Extensions,
+  Support/Extensions, Routes, ThemeCompiler, Pages, and Pages controllers.
+  User-owned `.reasonix`, `.zcode`, and `CLAUDE.md` deletions remain untouched.
+- In-flight dirty files belong to two isolated agent slices:
+  `app/Support/Extensions/lifecycle_composed_boundary*.go` and lifecycle
+  inspection controller/OpenAPI files. Neither is committable until its own
+  failure-injection/contract gates finish.
+- Next: commit the composed publication/compensation boundary and safe
+  inspection HTTP contract; bootstrap the real repository/runtime/Host/
+  coordinator; then route first trusted enable through deferred install and
+  atomic activation before disable/upgrade/rollback/uninstall recovery UI.
+
 ### 2026-07-14 P4 Exact Runtime Publication And Call Barriers Checkpoint
 
 - Last implementation commit: `11d12ed82 feat(extensions): run lifecycle on
