@@ -136,6 +136,17 @@ Managed PostgreSQL environments that cannot create roles must use the scoped
 Host DB service fallback defined in P5; they must not silently grant the main
 application credential.
 
+Typed Host Queries emit bounded Host-owned traces containing only exact artifact
+identity, query identity and shape digest, duration, returned row count, outcome,
+and the slow flag. They never record parameters, results, SQL, credentials, or
+error text. Direct own-schema connections remain subject to operator-managed
+PostgreSQL tracing (for example server log policy or pgAudit). The Host does not
+use `application_name` as a security-grade plugin trace identity because an
+ordinary plugin role can overwrite it with arbitrary text that PostgreSQL then
+publishes through activity/logging surfaces. The role also cannot safely set
+the superuser-owned `log_min_duration_statement`; operators must configure and
+redact direct-SQL logging at the PostgreSQL boundary.
+
 ## Conflict And Rollback Rules
 
 - Registries publish immutable snapshots; partial registration is invisible.
