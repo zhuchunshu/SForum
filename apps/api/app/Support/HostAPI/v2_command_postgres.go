@@ -7,11 +7,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"reflect"
 	"strconv"
 	"strings"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
 	hostv2 "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/host/v2"
 	protocolv2 "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/protocol/v2"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -92,7 +94,7 @@ func (b *PostgresProtocolV2CommandBackend) resolveScope(
 		return protocolV2CommandScope{}, staleProtocolV2CommandIdentity()
 	}
 
-	var manifestAuthority string
+	var manifestDatabaseJSON []byte
 	var system bool
 	resolved := requested
 	// Do not require active_version_id here. A live, authenticated candidate
@@ -101,7 +103,7 @@ func (b *PostgresProtocolV2CommandBackend) resolveScope(
 	// admission fence; lifecycle drain closes the broker before revocation.
 	err := tx.QueryRow(ctx, `
 		SELECT extension_versions.id, extensions.source, extensions.is_system,
-		       COALESCE(extension_versions.manifest #>> '{database,authority}', '')
+		       COALESCE(extension_versions.manifest -> 'database', 'null'::jsonb)
 		FROM extension_versions
 		JOIN extensions ON extensions.id = extension_versions.extension_id
 		WHERE extension_versions.extension_id = $1
@@ -109,7 +111,7 @@ func (b *PostgresProtocolV2CommandBackend) resolveScope(
 		  AND extension_versions.package_digest = $3
 		FOR SHARE OF extension_versions, extensions
 	`, identity.GetExtensionId(), identity.GetExtensionVersion(), identity.GetArtifactDigest()).Scan(
-		&resolved.ExtensionVersionID, &resolved.AuthorityType, &system, &manifestAuthority,
+		&resolved.ExtensionVersionID, &resolved.AuthorityType, &system, &manifestDatabaseJSON,
 	)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return protocolV2CommandScope{}, staleProtocolV2CommandIdentity()
@@ -119,7 +121,8 @@ func (b *PostgresProtocolV2CommandBackend) resolveScope(
 	}
 	resolved.ExtensionVersion = identity.GetExtensionVersion()
 	resolved.PackageDigest = identity.GetArtifactDigest()
-	if requiredAuthority != "" && manifestAuthority != requiredAuthority {
+	manifestGrants, err := protocolV2CommandDatabaseGrants(manifestDatabaseJSON)
+	if err != nil || requiredAuthority != "" && !protocolV2CommandHasDatabaseGrant(manifestGrants, requiredAuthority) {
 		return protocolV2CommandScope{}, deniedProtocolV2HostCommandAuthority()
 	}
 
@@ -136,15 +139,15 @@ func (b *PostgresProtocolV2CommandBackend) resolveScope(
 			return protocolV2CommandScope{}, staleProtocolV2CommandIdentity()
 		}
 		var liveGrantID int64
-		var grantAuthority string
+		var grantDatabaseJSON []byte
 		err = tx.QueryRow(ctx, `
-			SELECT id, COALESCE(impact_document #>> '{database,authority}', '')
+			SELECT id, COALESCE(impact_document -> 'database', 'null'::jsonb)
 			FROM extension_trust_grants
 			WHERE id = $1 AND extension_id = $2 AND extension_version = $3
 			  AND package_digest = $4 AND action = 'enable' AND revoked_at IS NULL
 			FOR SHARE
 		`, grantID, identity.GetExtensionId(), identity.GetExtensionVersion(), identity.GetArtifactDigest()).Scan(
-			&liveGrantID, &grantAuthority,
+			&liveGrantID, &grantDatabaseJSON,
 		)
 		if errors.Is(err, pgx.ErrNoRows) {
 			return protocolV2CommandScope{}, staleProtocolV2CommandIdentity()
@@ -152,7 +155,8 @@ func (b *PostgresProtocolV2CommandBackend) resolveScope(
 		if err != nil {
 			return protocolV2CommandScope{}, fmt.Errorf("resolve Host Command trust grant: %w", err)
 		}
-		if requiredAuthority != "" && grantAuthority != manifestAuthority {
+		grantPowers, grantErr := protocolV2CommandDatabaseGrants(grantDatabaseJSON)
+		if grantErr != nil || !reflect.DeepEqual(grantPowers, manifestGrants) {
 			return protocolV2CommandScope{}, deniedProtocolV2HostCommandAuthority()
 		}
 		resolved.AuthorityType = "trust_grant"
@@ -164,6 +168,43 @@ func (b *PostgresProtocolV2CommandBackend) resolveScope(
 		return protocolV2CommandScope{}, staleProtocolV2CommandIdentity()
 	}
 	return resolved, nil
+}
+
+func protocolV2CommandDatabaseGrants(document []byte) ([]string, error) {
+	var database *extensionmanifest.ManifestDatabase
+	if len(document) == 0 || json.Unmarshal(document, &database) != nil || database == nil {
+		return nil, errors.New("hostapi: database authority declaration is invalid")
+	}
+	grants := extensionmanifest.DatabaseGrants(database)
+	if len(grants) == 0 {
+		return nil, errors.New("hostapi: database authority declaration is empty")
+	}
+	seen := make(map[string]bool, len(grants))
+	for _, grant := range grants {
+		switch grant {
+		case extensionmanifest.DatabaseGrantOwnSchema,
+			extensionmanifest.DatabaseGrantCoreViews,
+			extensionmanifest.DatabaseGrantHostCommands,
+			extensionmanifest.DatabaseGrantRawCore,
+			extensionmanifest.DatabaseGrantKernel:
+		default:
+			return nil, errors.New("hostapi: database authority declaration contains an unknown grant")
+		}
+		if seen[grant] {
+			return nil, errors.New("hostapi: database authority declaration contains a duplicate grant")
+		}
+		seen[grant] = true
+	}
+	return grants, nil
+}
+
+func protocolV2CommandHasDatabaseGrant(grants []string, required string) bool {
+	for _, grant := range grants {
+		if grant == required {
+			return true
+		}
+	}
+	return false
 }
 
 func (b *PostgresProtocolV2CommandBackend) LockIdempotency(

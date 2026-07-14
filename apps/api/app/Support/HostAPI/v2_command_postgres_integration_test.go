@@ -195,6 +195,21 @@ func TestPostgresProtocolV2HostCommandBackendRequiresExactDeclaredAuthority(t *t
 		t.Fatalf("exact Host Command authority = %#v, %v", resolved, err)
 	}
 
+	setAuthority(`{"database":{"grants":["host_commands"]}}`, `{"database":{"grants":["host_commands"]}}`)
+	if additive, additiveErr := resolve("additive-authority", h.identity); additiveErr != nil || additive.TrustGrantID != h.grantID {
+		t.Fatalf("additive Host Command authority = %#v, %v", additive, additiveErr)
+	}
+	setAuthority(`{"database":{"authority":"raw_core"}}`, `{"database":{"authority":"raw_core"}}`)
+	if cumulative, cumulativeErr := resolve("cumulative-legacy-authority", h.identity); cumulativeErr != nil || cumulative.TrustGrantID != h.grantID {
+		t.Fatalf("cumulative legacy Host Command authority = %#v, %v", cumulative, cumulativeErr)
+	}
+	setAuthority(
+		`{"database":{"grants":["host_commands"]}}`,
+		`{"database":{"grants":["own_schema","host_commands"]}}`,
+	)
+	_, err = resolve("mismatched-additive-authority", h.identity)
+	assertReason("mismatched additive authority", err, "host.command_authority_denied")
+
 	setAuthority(`{"database":{"authority":"own_schema"}}`, `{"database":{"authority":"own_schema"}}`)
 	request := postgresCommandRequest(h.identity, "forged-request-authority", "value")
 	request.Context.GrantedAuthority = []*protocolv2.AuthorityGrant{{
