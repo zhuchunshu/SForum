@@ -174,6 +174,33 @@ func TestActivationDependencyPreflightReplacesSameIDManifest(t *testing.T) {
 	}
 }
 
+func TestResolveLifecycleDependencyGraphRemovesDeactivatedCandidate(t *testing.T) {
+	provider := dependencyExtension("graph.provider", StatusEnabled, "2.0.0", nil)
+	consumer := dependencyExtension("graph.consumer", StatusEnabled, "1.0.0", []ManifestDependency{
+		{ID: provider.ID, Version: "^2.0.0", Kind: "required"},
+	})
+	if _, err := ResolveLifecycleDependencyGraph([]Extension{provider, consumer}, provider, false); !errors.Is(err, extensionmanifest.ErrDependencyMissing) {
+		t.Fatalf("deactivation dependency error = %v", err)
+	}
+}
+
+func TestResolveLifecycleDependencyGraphUsesExactUpgradeCandidate(t *testing.T) {
+	active := dependencyExtension("graph.provider", StatusEnabled, "1.0.0", nil)
+	target := dependencyExtension("graph.provider", StatusInstalled, "2.0.0", nil)
+	consumer := dependencyExtension("graph.consumer", StatusEnabled, "1.0.0", []ManifestDependency{
+		{ID: target.ID, Version: "^2.0.0", Kind: "required"},
+	})
+	graph, err := ResolveLifecycleDependencyGraph([]Extension{active, consumer}, target, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, node := range graph.Nodes {
+		if node.ID == target.ID && node.Version != target.Version {
+			t.Fatalf("resolved provider version = %q, want %q", node.Version, target.Version)
+		}
+	}
+}
+
 func TestActivationDependencyPreflightDiagnosticsAreListOrderStable(t *testing.T) {
 	candidate := dependencyExtension("graph.candidate", StatusInstalled, "1.0.0", []ManifestDependency{
 		{ID: "graph.missing", Version: "^1.0.0", Kind: "required"},

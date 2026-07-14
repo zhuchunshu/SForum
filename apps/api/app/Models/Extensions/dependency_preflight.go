@@ -42,15 +42,32 @@ func (s *Service) preflightActivationDependencies(ctx context.Context, candidate
 	if err != nil {
 		return extensionmanifest.PackageGraph{}, fmt.Errorf("%w: list activation dependencies for %s: %w", ErrPreflightFailed, candidate.ID, err)
 	}
+	graph, err := ResolveLifecycleDependencyGraph(items, candidate, true)
+	if err != nil {
+		return extensionmanifest.PackageGraph{}, fmt.Errorf("%w: resolve activation dependency graph for %s: %w", ErrPreflightFailed, candidate.ID, err)
+	}
+	return graph, nil
+}
 
+// ResolveLifecycleDependencyGraph resolves the exact post-transition enabled
+// set without reading mutable package state. Activation replaces the installed
+// same-id manifest with candidate; deactivation removes that id so enabled
+// dependants fail through the existing package graph resolver.
+func ResolveLifecycleDependencyGraph(
+	items []Extension,
+	candidate Extension,
+	activate bool,
+) (extensionmanifest.PackageGraph, error) {
 	selected := make(map[string]extensionmanifest.Manifest, len(items)+1)
 	for _, item := range items {
 		if item.Status == StatusEnabled && item.ID != candidate.ID {
 			selected[item.ID] = item.Manifest
 		}
 	}
-	// 候选始终覆盖同 ID 已安装记录，避免升级后用旧版本做依赖判定。
-	selected[candidate.ID] = candidate.Manifest
+	if activate {
+		// 候选始终覆盖同 ID 已安装记录，避免升级/回滚用旧版本做依赖判定。
+		selected[candidate.ID] = candidate.Manifest
+	}
 
 	ids := make([]string, 0, len(selected))
 	for id := range selected {
@@ -62,9 +79,5 @@ func (s *Service) preflightActivationDependencies(ctx context.Context, candidate
 		manifests = append(manifests, selected[id])
 	}
 
-	graph, err := extensionmanifest.ResolvePackageGraph(manifests)
-	if err != nil {
-		return extensionmanifest.PackageGraph{}, fmt.Errorf("%w: resolve activation dependency graph for %s: %w", ErrPreflightFailed, candidate.ID, err)
-	}
-	return graph, nil
+	return extensionmanifest.ResolvePackageGraph(manifests)
 }
