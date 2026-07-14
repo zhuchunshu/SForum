@@ -44,6 +44,12 @@
 - Added the complete 23/23 Page ViewModel registry and sealed typed theme render
   output in `d9268872a`. P8 remains uncredited pending production construction
   and runtime publication.
+- Added reviewed typed Core guards and exact inherited guard snapshots in
+  `1fcfdbf05`; every returned permission slice is detached and mutation-tested.
+- Added the exact-artifact Route Schema Catalog in `6667e630f`, including exact
+  operation/status/media binding, HEAD response policy, duplicate/trailing JSON
+  rejection, and bounded decode/validation. It remains uncredited until the
+  lifecycle publishes it and bootstrap injects a non-nil catalog.
 
 ## Verification
 
@@ -96,12 +102,13 @@
 ## Resume Point
 
 - Branch: `main`.
-- Last implementation commit at this checkpoint: `caa158402`.
+- Last implementation commit at this checkpoint: `6667e630f`.
 - Frontend was started on port 3000 and API hot reload recovered on 8081, but
   process and login state are not durable; verify both before QA.
-- The active dirty group is exact route schemas under `Support/ExtensionOpenAPI`
-  plus its isolated HTTP validator hunks. A second review requires exact
-  status/media identity, duplicate-key rejection, and bounded/cancellable
-  validation before commit. ThemeCompiler is clean and committed, but P8 stays
-  uncredited until production binding.
+- Exact route schemas are clean and committed. Production publication is
+  blocked on the missing Host-owned route policy source and the need to restore
+  Route + Schema snapshots together at boot; do not inject a standalone catalog.
+- Active dirty files are the isolated Dispatcher benchmark/report group. Parallel
+  agents own production Core Guard authorization and P8 ViewModel publication.
+  ThemeCompiler stays uncredited until production binding.
 - Preserve any unrelated worktree changes; stage only V3-owned files/hunks.

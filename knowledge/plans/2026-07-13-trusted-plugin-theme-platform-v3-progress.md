@@ -885,3 +885,32 @@ phase percentage.
   and separately trusted custom/raw guards; then complete action protocol,
   alias/rewrite, streaming transports, SEO integration, failure matrix, and
   the v1 comparison benchmark.
+
+## P6 Typed Guard And Exact Schema Foundation Checkpoint
+
+- P6 remains **56% complete (10 of 18 authoritative rows)** and weighted V3
+  remains **41%**. Neither foundation is promoted until its production runtime
+  and lifecycle publication are complete.
+- `1fcfdbf05` adds reviewed typed guards for all 218 Core routes, exact inherited
+  guard resolution, fail-closed missing/plugin targets, immutable permission
+  slices across Registry/Match/Inspector/plan boundaries, and source-verified
+  generated catalog policy. The production Guard Authorizer is still active
+  work; custom/raw guard authority remains separate high-risk trust.
+- `6667e630f` adds an exact artifact/route/method/contract/action/direction/
+  schema/media/status catalog using `jsonschema/v6`. It isolates operation
+  variants, rejects duplicate/trailing/deep/oversized JSON, shares compiled
+  schemas, and bounds decode plus validation with slots, deadlines, structural
+  budgets, and exact HEAD-to-GET response admission.
+- Schema focused count-10, split race, vet, and `go build ./...` gates passed.
+  Production still injects a nil catalog. Correct publication must join Route
+  and Schema restore under the durable lifecycle fence; restart currently
+  restores only Core routes.
+- Production has no source for the Host-owned OpenAPI route policy tuple
+  (security, rate-limit, idempotency). The ADR requires Host authority but does
+  not select defaults or a persistence/resolution contract. Do not invent
+  plugin-controlled or inferred policy values merely to publish the catalog.
+- P5 remains 11/17: its remaining rows depend on composable database grants,
+  actor delegation, provider-neutral entitlement semantics, and direct database
+  credential rolling-upgrade policy. These do not block independent P6/P8 work.
+- Active parallel work: production typed Guard Authorizer, Dispatcher allocation
+  regression/benchmark, and P8 production Page ViewModel construction/publication.

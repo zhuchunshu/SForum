@@ -86,9 +86,12 @@ This is the entry point for project memory.
     pristine safe-method transport failure may use declared Core/not-found
     fallback; accepted requests, partial responses, crashes, timeouts,
     cancellation, and unsafe methods can never execute Core as a second writer
-  - Exact route schemas, executable inherited/custom/raw guards, complete route
-    action semantics, streaming transports, SEO integration, the full failure
-    matrix, and the final v1 comparison remain active P6 work
+  - Exact route schema compilation and typed inherited guard metadata are now
+    committed, including immutable guard copies, operation/status/media binding,
+    HEAD policy, and bounded decode/validation. Production Guard authorization,
+    joint Route/Schema lifecycle publication and boot restore, custom/raw guards,
+    complete action semantics, streaming, SEO, failure matrix, and benchmark
+    closure remain active P6 work
   - P8 has a committed 23/23 Page ViewModel catalog and sealed typed theme
     render output, but remains uncredited until production construction and
     runtime publication are proven
