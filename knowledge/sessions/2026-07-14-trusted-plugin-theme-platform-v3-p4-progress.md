@@ -5,7 +5,7 @@
 - Overall V3: **27%**.
 - P0-P3: **100%**.
 - P4: **47%**, active (7 of 15 task/test rows complete).
-- Branch: `main`; last implementation commit: `3be41740a`.
+- Branch: `main`; last implementation commit: `11d12ed82`.
 
 ## Changed
 
@@ -97,6 +97,21 @@
 - Added exact-runtime schedule publish/acquire/drain/wait admission with atomic
   failed-activation compensation and retained rollback. No production schedule
   trigger owner exists yet, so this prerequisite does not close the drain row.
+- Bound each Service Registry winner to its exact Manager runtime identity.
+  Unary provider invocation and the full bidirectional stream hold a
+  `RuntimeCallService` lease, use its cancellation context, distinguish caller
+  cancellation from forced drain, and fail closed on stale/draining winners
+  without selecting a fallback provider.
+- Added Manager-owned staged runtime orchestration over ProtocolStarter:
+  candidate start, exact health/readiness, old-instance drain/wait, publication,
+  retained stop, and unpublished discard. Both source and target are fenced
+  during publication, the old instance must be idle, failed transitions are
+  compensated, and retained instances can be republished for rollback.
+- Added the exact `LifecycleCoordinatorRuntime` adapter. It validates canonical
+  step identity, operation role, exact source/target artifact bindings, frozen
+  authority, plan version, removal mode, and uninstall-only force before
+  acquiring a Manager lifecycle-cleanup lease and dispatching to the persisted
+  `InstanceID`; stale identities never fall back to the active process.
 
 ## Verification
 
@@ -142,6 +157,16 @@
 - HostAPI, Jobs, Extensions, and bootstrap focused tests passed after job and
   schedule admission; HostAPI/Jobs/bootstrap race and all four package vet
   gates passed.
+- Exact service admission passed unary and bidirectional-stream lease coverage,
+  stale-winner/no-fallback checks, forced-drain cancellation, bootstrap adapter
+  tests, focused package tests, race detection, and vet.
+- Manager staged publication passed focused and repeated tests, race detection,
+  vet, and real protocol-v2 subprocess coverage for healthy publication,
+  transition compensation, retained rollback, exact stop, and discard.
+- Exact lifecycle runtime execution passed every action/role mapping,
+  cross-version source cleanup, drift rejection, typed cancellation, lease
+  fencing, active/retained instance tests, repeated/race/vet gates, and real
+  subprocess verification that stale identities cannot reach the active runtime.
 
 ## Active Ownership
 
@@ -149,17 +174,19 @@
   final-gate recovery ordering, lease TOCTOU, multi-role revalidation,
   canonical marker, and skipped-terminal defects. These files remain
   uncommitted until their normal/race/vet gates pass again.
-- The exact-instance `LifecycleCoordinatorRuntime` adapter is in flight under
-  new `Support/Extensions` files.
-- Exact service-provider invocation admission is in flight under HostAPI and
-  bootstrap files.
+- Exact lifecycle runtime execution, Manager staged publication, and exact
+  service-provider admission are committed. They remain prerequisites rather
+  than a completed P4 row because no production Service/HTTP caller constructs
+  and drives the coordinator yet.
+- The production Host gate, bootstrap coordinator construction, first trusted
+  enable transaction, and recovery API/UI remain open.
 
 ## Next
 
-1. Land the corrected Models coordinator, exact lifecycle runtime adapter, and
-   service-provider admission as independent commits.
-2. Add the production Host gate and Manager stage/health/publish/drain API, then
-   construct the coordinator in bootstrap.
+1. Land the corrected Models coordinator after its normal/race/vet gates pass.
+2. Add the production Host gate over the committed Manager
+   stage/health/publish/drain/stop API, then construct the coordinator in
+   bootstrap.
 3. Wire the lifecycle state machine and first-trusted-enable transaction to the
    durable ledger, exact-artifact trust, frozen runtime, drain, audit, and
    recovery contracts.

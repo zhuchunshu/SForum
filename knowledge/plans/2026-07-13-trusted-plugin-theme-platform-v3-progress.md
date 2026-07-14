@@ -114,8 +114,8 @@ phase percentage.
 
 ### 2026-07-14 P4 Exact Runtime Publication And Call Barriers Checkpoint
 
-- Last implementation commit: `3be41740a feat(jobs): gate plugin enqueue by
-  runtime instance`.
+- Last implementation commit: `11d12ed82 feat(extensions): run lifecycle on
+  exact runtime instances`.
 - P4 remains 7 of 15 rows complete. These commits close prerequisite runtime
   publication and call-admission contracts, but the lifecycle Service/HTTP path
   does not invoke them yet, so no authoritative task row or percentage was
@@ -134,21 +134,40 @@ phase percentage.
   instance. The lease spans the River insert, stale/draining identities fail
   closed, forced drain and caller cancellation remain distinguishable, and
   bootstrap installs the production adapter without creating an import cycle.
-- Focused normal/race tests and vet passed for ProtocolStarter, HostAPI, Jobs,
-  and bootstrap. The exact Protocol V2 instance suite also passed repeated real
-  subprocess tests and the full `Support/Extensions` race gate.
+- `c20a87cde` binds the Service Registry winner's exact extension/instance
+  identity to a Manager `RuntimeCallService` lease. Unary invocation and the
+  complete bidirectional stream run on the lease context; stale, draining, and
+  unavailable winners fail closed without trying a lower-priority provider,
+  while forced drain remains distinguishable from caller cancellation.
+- `fab179571` adds Manager-owned candidate start, exact health/readiness,
+  publish, drain/wait, stop, and discard orchestration. Publication requires
+  the old active instance to be drained and idle, fences both sides during the
+  transition, fails closed across the ProtocolStarter/Manager switch, and
+  preserves retained runtimes for exact rollback publication.
+- `11d12ed82` adds the coordinator's exact-runtime adapter. Every lifecycle
+  action validates its canonical step, source/target role and binding, frozen
+  authority, plan, removal mode, and forced authority before acquiring a
+  Manager lifecycle-cleanup lease and calling `RunLifecycleInstance`; a stale
+  binding cannot fall back to the active process.
+- Focused normal/repeated/race tests and vet passed for ProtocolStarter,
+  Manager, HostAPI, Jobs, bootstrap, service admission, and exact lifecycle
+  execution. Real subprocess coverage passed for staged publication, active
+  plus retained lifecycle calls, stale-binding rejection, and forced-drain
+  cancellation.
 - The uncommitted Models coordinator slice passed its first normal/race/vet
   gate, then a mandatory self-audit found five recovery defects: final-gate
   success ordering, local-clock lease TOCTOU, incomplete source/target
   revalidation coverage, non-canonical marker ids, and side-effectful skipped
   terminal semantics. It is being corrected before commit.
-- Active parallel work is limited to those Models corrections, the
-  exact-instance coordinator runtime adapter, and service-provider admission.
-  Unrelated `.reasonix`, `.zcode`, and `CLAUDE.md` deletions remain untouched.
-- Next: land the corrected coordinator and runtime adapter; implement the
-  production Host gate plus Manager stage/health/publish/drain API; construct
-  the coordinator in bootstrap; then move first trusted enable from the legacy
-  `store.Enable -> runtime.Start` path into the durable transaction.
+- The exact-instance coordinator adapter, service-provider admission, and
+  Manager staged-runtime API are committed. The Models coordinator corrections
+  remain pending and uncommitted; the five self-audit defects must be fixed and
+  its normal/race/vet gates rerun before that slice can land. Unrelated
+  `.reasonix`, `.zcode`, and `CLAUDE.md` deletions remain untouched.
+- Next: land the corrected Models coordinator; implement the production Host
+  gate against the committed Manager stage/health/publish/drain/stop API;
+  construct the coordinator in bootstrap; then move first trusted enable from
+  the legacy `store.Enable -> runtime.Start` path into the durable transaction.
 
 ### 2026-07-14 P4 Exact Version And Runtime Instance Foundations Checkpoint
 
