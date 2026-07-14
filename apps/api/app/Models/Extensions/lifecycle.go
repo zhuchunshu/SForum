@@ -356,6 +356,16 @@ type RouteProviderSelectionInvalidator interface {
 	) error
 }
 
+type ProviderSlotSelectionInvalidator interface {
+	InvalidateProviderSlotSelections(
+		ctx context.Context,
+		extensionID string,
+		actorUserID int64,
+		auditEventID int64,
+		reasonCode string,
+	) error
+}
+
 // clearPluginProviderSelections 是 V1/V2 共用的 Host-owned 幂等清理边界。
 // 它不触碰 runtime；V2 的进程 drain 只能由 durable coordinator 管理。
 func (s *Service) clearPluginProviderSelections(ctx context.Context, extensionID string) error {
@@ -369,6 +379,16 @@ func (s *Service) clearPluginProviderSelectionsWithAudit(
 	auditEventID int64,
 	reasonCode string,
 ) error {
+	if s.providerSlotSelections != nil {
+		if actorUserID <= 0 || auditEventID <= 0 || reasonCode == "" {
+			return fmt.Errorf("provider slot selection invalidation requires actor and audit evidence")
+		}
+		if err := s.providerSlotSelections.InvalidateProviderSlotSelections(
+			ctx, extensionID, actorUserID, auditEventID, reasonCode,
+		); err != nil {
+			return err
+		}
+	}
 	if s.routeProviderSelections != nil {
 		if actorUserID <= 0 || auditEventID <= 0 || reasonCode == "" {
 			return fmt.Errorf("route provider selection invalidation requires actor and audit evidence")

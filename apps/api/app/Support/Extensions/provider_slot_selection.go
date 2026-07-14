@@ -140,6 +140,23 @@ func (a *ProviderSlotSelectionAPI) InvalidateExtension(ctx context.Context, requ
 	return a.store.InvalidateExtension(ctx, request)
 }
 
+// InvalidateProviderSlotSelections is the narrow lifecycle adapter used by
+// Models/Extensions without importing registry or PostgreSQL implementation
+// details.
+func (a *ProviderSlotSelectionAPI) InvalidateProviderSlotSelections(
+	ctx context.Context,
+	extensionID string,
+	actorUserID int64,
+	auditEventID int64,
+	reasonCode string,
+) error {
+	_, err := a.InvalidateExtension(ctx, InvalidateProviderSlotRequest{
+		ExtensionID: extensionID, ActorUserID: actorUserID,
+		AuditEventID: auditEventID, ReasonCode: reasonCode,
+	})
+	return err
+}
+
 func (a *ProviderSlotSelectionAPI) Resolve(ctx context.Context, caller ProviderSlotCaller, contractID, contractVersion string) (ProviderSlotResolution, string, error) {
 	if a == nil || a.registry == nil || ctx == nil {
 		return ProviderSlotResolution{}, "", ErrProviderSlotSelectionInvalid

@@ -42,6 +42,22 @@ type lifecycleRouteSelectionInvalidator struct {
 	onCall func()
 }
 
+type lifecycleProviderSlotSelectionInvalidator struct {
+	calls  []string
+	err    error
+	onCall func()
+}
+
+func (i *lifecycleProviderSlotSelectionInvalidator) InvalidateProviderSlotSelections(
+	_ context.Context, extensionID string, actorUserID, auditEventID int64, reasonCode string,
+) error {
+	i.calls = append(i.calls, fmt.Sprintf("%s:%d:%d:%s", extensionID, actorUserID, auditEventID, reasonCode))
+	if i.onCall != nil {
+		i.onCall()
+	}
+	return i.err
+}
+
 func (i *lifecycleRouteSelectionInvalidator) InvalidateRouteProviderSelections(
 	_ context.Context, extensionID string, actorUserID, auditEventID int64, reasonCode string,
 ) error {
@@ -75,6 +91,39 @@ func TestLegacyProviderCleanupDoesNotRequireV2RouteAuditEvidence(t *testing.T) {
 	}
 	if len(routes.calls) != 0 || store.selectedMail != "" {
 		t.Fatalf("legacy cleanup route calls=%#v mail=%q", routes.calls, store.selectedMail)
+	}
+}
+
+func TestLifecycleCleanupInvalidatesProviderSlotsBeforeRoutesAndLegacySelections(t *testing.T) {
+	item := lifecycleV2ServiceArtifact(t, "service.provider-slot-cleanup", "1.0.0", SourceBuiltin)
+	item.Status = StatusEnabled
+	store := &lifecycleProviderSelectionStore{
+		fakeExtensionStore: newFakeExtensionStore(map[string]Extension{item.ID: item}),
+		selectedMail:       item.ID,
+	}
+	routeSelections := &lifecycleRouteSelectionInvalidator{}
+	providerSlots := &lifecycleProviderSlotSelectionInvalidator{onCall: func() {
+		if len(routeSelections.calls) != 0 || store.selectedMail == "" {
+			t.Fatal("provider slot invalidation did not run before route and legacy cleanup")
+		}
+	}}
+	routeSelections.onCall = func() {
+		if len(providerSlots.calls) != 1 || store.selectedMail == "" {
+			t.Fatal("route invalidation ran outside provider selection ordering")
+		}
+	}
+	service := NewServiceWithOptions(
+		store, t.TempDir(), "", &fakeRuntimeManager{},
+		WithProviderSlotSelectionInvalidator(providerSlots),
+		WithRouteProviderSelectionInvalidator(routeSelections),
+	)
+	if err := service.clearPluginProviderSelectionsWithAudit(
+		t.Context(), item.ID, 17, 23, "extension_disabled",
+	); err != nil {
+		t.Fatal(err)
+	}
+	if len(providerSlots.calls) != 1 || len(routeSelections.calls) != 1 || store.selectedMail != "" || store.restoreCalls != 1 {
+		t.Fatalf("slot=%#v route=%#v mail=%q restores=%d", providerSlots.calls, routeSelections.calls, store.selectedMail, store.restoreCalls)
 	}
 }
 

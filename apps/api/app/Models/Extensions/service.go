@@ -43,6 +43,8 @@ type Service struct {
 	storageSelection StorageSelectionClearer
 	// routeProviderSelections 在进程/扩展身份清理前撤销精确 replace 选择。
 	routeProviderSelections RouteProviderSelectionInvalidator
+	// providerSlotSelections 撤销 contract owner/candidate 的精确服务选择。
+	providerSlotSelections ProviderSlotSelectionInvalidator
 	// pageRegistry 运行时主题页面贡献（L0/L1）；nil 时跳过注册。
 	pageRegistry    PageRegistry
 	settingsActions SettingsActionRuntime
@@ -110,6 +112,12 @@ func WithStorageSelectionClearer(clearer StorageSelectionClearer) ServiceOption 
 func WithRouteProviderSelectionInvalidator(invalidator RouteProviderSelectionInvalidator) ServiceOption {
 	return func(s *Service) {
 		s.routeProviderSelections = invalidator
+	}
+}
+
+func WithProviderSlotSelectionInvalidator(invalidator ProviderSlotSelectionInvalidator) ServiceOption {
+	return func(s *Service) {
+		s.providerSlotSelections = invalidator
 	}
 }
 
