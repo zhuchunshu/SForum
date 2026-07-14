@@ -242,6 +242,15 @@
     "targetRegistry": "P7 Admin Surface Registry"
   },
   {
+    "id": "core.component.page.admin.extensions.provider.slots",
+    "contractVersion": "sforum.component.page.admin.extensions.provider.slots@1",
+    "kind": "page",
+    "scope": "admin",
+    "route": "/admin/extensions/provider-slots",
+    "source": "apps/web/app/pages/admin/extensions/provider-slots.vue",
+    "targetRegistry": "P7 Admin Surface Registry"
+  },
+  {
     "id": "core.component.page.admin.extensions.route.providers",
     "contractVersion": "sforum.component.page.admin.extensions.route.providers@1",
     "kind": "page",
