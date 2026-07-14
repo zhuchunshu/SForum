@@ -251,6 +251,9 @@ func TestContractMismatchFallsBack(t *testing.T) {
 		PageID: "forum.home", ExtensionID: "demo.theme", ContributionID: "demo.home",
 		Version: "1.0.0", PackageDigest: "abc", ContractVersion: "sforum.page.home@999",
 	})
+	if err := reg.RestoreBindings(ctx); err != nil {
+		t.Fatal(err)
+	}
 	r, _ := reg.Resolve(ctx, "forum.home")
 	if r.Provider != ProviderCore {
 		t.Fatalf("bad contract should fallback core, got %s", r.Provider)

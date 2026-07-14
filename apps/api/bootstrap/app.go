@@ -221,6 +221,17 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 	// Page Registry：运行时主题 L0/L1，主题激活不重建 Nuxt、不写 current.json。
 	pageRegistryStore := pages.NewPostgresStore(pool)
 	pageRegistry := pages.NewRegistry(pageRegistryStore)
+	if err := pageRegistry.RestoreBindings(ctx); err != nil {
+		if stopErr := supportjobs.Stop(ctx, jobClient); stopErr != nil {
+			logger.Warn("job dispatcher stop failed", "error", stopErr)
+		}
+		sharedRedisClient.Close()
+		if closeErr := redisStorage.Close(); closeErr != nil {
+			logger.Warn("redis session storage close failed", "error", closeErr)
+		}
+		pool.Close()
+		return nil, fmt.Errorf("restore page provider bindings failed: %w", err)
+	}
 	themeRuntime := pages.NewThemeRuntimeRegistry()
 	themeSiteName, _ := optionsService.SiteName(ctx)
 	if strings.TrimSpace(themeSiteName) == "" {

@@ -93,8 +93,13 @@ type Registry struct {
 	store  Store
 	logger *slog.Logger
 
-	mu            sync.RWMutex
-	revision      uint64
+	mu                  sync.RWMutex
+	revision            uint64
+	restoreBindingsOnce sync.Once
+	restoreBindingsErr  error
+	// bindings is copy-on-write. Reads hold mu.RLock while lifecycle changes,
+	// approvals, and restores publish one coherent provider/contribution view.
+	bindings      map[string]ProviderBinding
 	contributions map[string][]PageContribution // pageId or contribution id for add
 	// compiledAdds 确定性匹配表（按 Specificity 排序），不依赖 map 迭代顺序。
 	compiledAdds []CompiledRoute
@@ -108,11 +113,55 @@ type Registry struct {
 func NewRegistry(store Store) *Registry {
 	return &Registry{
 		store:              store,
+		bindings:           map[string]ProviderBinding{},
 		contributions:      map[string][]PageContribution{},
 		compiledAdds:       nil,
 		signatureOwners:    map[string]string{},
 		extensionArtifacts: map[string]RuntimeArtifact{},
 	}
+}
+
+// RestoreBindings loads durable provider choices exactly once during boot.
+// Request resolution never falls back to Store.GetBinding.
+func (r *Registry) RestoreBindings(ctx context.Context) error {
+	if r == nil || r.store == nil {
+		return nil
+	}
+	r.restoreBindingsOnce.Do(func() {
+		r.restoreBindingsErr = r.restoreBindings(ctx)
+	})
+	return r.restoreBindingsErr
+}
+
+func (r *Registry) restoreBindings(ctx context.Context) error {
+	items, err := r.store.ListBindings(ctx)
+	if err != nil {
+		return err
+	}
+	next := make(map[string]ProviderBinding, len(items))
+	for _, binding := range items {
+		binding.PageID = strings.TrimSpace(binding.PageID)
+		if binding.PageID == "" {
+			return fmt.Errorf("%w: stored page binding has no page id", ErrInvalidContribution)
+		}
+		if _, exists := next[binding.PageID]; exists {
+			return fmt.Errorf("%w: duplicate stored page binding %s", ErrInvalidContribution, binding.PageID)
+		}
+		next[binding.PageID] = cloneBinding(binding)
+	}
+	r.mu.Lock()
+	r.bindings = next
+	r.revision++
+	r.mu.Unlock()
+	return nil
+}
+
+func cloneBindings(input map[string]ProviderBinding) map[string]ProviderBinding {
+	result := make(map[string]ProviderBinding, len(input))
+	for pageID, binding := range input {
+		result[pageID] = cloneBinding(binding)
+	}
+	return result
 }
 
 // WithRuntimeAdmission hides exact-runtime contributions while their Manager
@@ -553,42 +602,43 @@ func (r *Registry) rebuildOwnersLocked() {
 
 // Resolve 解析页面 id 的当前提供者；失败时回退 core。
 // 绑定的 version/digest/contract 与在线贡献、核心目录任一不匹配立即回退。
-func (r *Registry) Resolve(ctx context.Context, pageID string) (ResolvedPage, error) {
+func (r *Registry) Resolve(_ context.Context, pageID string) (ResolvedPage, error) {
 	core, err := ResolveCore(pageID)
 	if err != nil {
 		return ResolvedPage{}, err
 	}
-	if r == nil || r.store == nil {
-		return core, nil
-	}
-	binding, ok, err := r.store.GetBinding(ctx, pageID)
-	if err != nil {
-		r.logWarn("pages.resolve store error, fallback core", "pageId", pageID, "error", err)
-		return core, nil
-	}
-	if !ok || strings.TrimSpace(binding.ExtensionID) == "" || binding.ExtensionID == ProviderCore {
+	if r == nil {
 		return core, nil
 	}
 	r.mu.RLock()
 	defer r.mu.RUnlock()
+	return r.resolveLocked(core), nil
+}
+
+func (r *Registry) resolveLocked(core ResolvedPage) ResolvedPage {
+	pageID := core.Page.ID
+	binding, ok := r.bindings[pageID]
+	if !ok || strings.TrimSpace(binding.ExtensionID) == "" || binding.ExtensionID == ProviderCore {
+		return core
+	}
 	list := r.contributions[pageID]
 	for _, c := range list {
 		if c.ExtensionID != binding.ExtensionID || c.ID != binding.ContributionID {
 			continue
 		}
 		if !r.contributionAdmittedLocked(c) {
-			return core, nil
+			return core
 		}
 		// 精确匹配 version / digest / contract
 		if binding.Version != "" && c.Version != "" && binding.Version != c.Version {
 			r.logWarn("pages.resolve version mismatch, fallback core",
 				"pageId", pageID, "binding", binding.Version, "contrib", c.Version)
-			return core, nil
+			return core
 		}
 		if binding.PackageDigest != "" && c.PackageDigest != "" && binding.PackageDigest != c.PackageDigest {
 			r.logWarn("pages.resolve digest mismatch, fallback core",
 				"pageId", pageID, "binding", binding.PackageDigest, "contrib", c.PackageDigest)
-			return core, nil
+			return core
 		}
 		// contract：binding、贡献、核心目录三者一致
 		coreContract := core.Page.ContractVersion
@@ -598,18 +648,18 @@ func (r *Registry) Resolve(ctx context.Context, pageID string) (ResolvedPage, er
 			if contribContract != "" && contribContract != coreContract {
 				r.logWarn("pages.resolve contrib contract != core, fallback",
 					"pageId", pageID, "contrib", contribContract, "core", coreContract)
-				return core, nil
+				return core
 			}
 			if bindContract != "" && bindContract != coreContract {
 				r.logWarn("pages.resolve binding contract != core, fallback",
 					"pageId", pageID, "binding", bindContract, "core", coreContract)
-				return core, nil
+				return core
 			}
 		}
 		if bindContract != "" && contribContract != "" && bindContract != contribContract {
 			r.logWarn("pages.resolve binding contract != contrib, fallback",
 				"pageId", pageID, "binding", bindContract, "contrib", contribContract)
-			return core, nil
+			return core
 		}
 		// 模板路径与 data schema 仅从已注册贡献读取，忽略客户端伪造
 		return ResolvedPage{
@@ -626,11 +676,11 @@ func (r *Registry) Resolve(ctx context.Context, pageID string) (ResolvedPage, er
 			Version:           c.Version,
 			PackageDigest:     c.PackageDigest,
 			RuntimeInstanceID: c.RuntimeInstanceID,
-		}, nil
+		}
 	}
 	// 绑定存在但贡献已卸载 → core
 	r.logWarn("pages.resolve contribution offline, fallback core", "pageId", pageID, "extensionId", binding.ExtensionID)
-	return core, nil
+	return core
 }
 
 func firstNonEmpty(values ...string) string {
@@ -652,27 +702,30 @@ type ProviderListItem struct {
 	Candidates      []PageContribution `json:"candidates,omitempty"`
 }
 
-func (r *Registry) ListProviders(ctx context.Context) ([]ProviderListItem, error) {
+func (r *Registry) ListProviders(_ context.Context) ([]ProviderListItem, error) {
 	items := make([]ProviderListItem, 0, len(coreCatalog))
+	if r == nil {
+		for _, page := range Catalog() {
+			items = append(items, ProviderListItem{Page: page, Provider: ProviderCore, ContractVersion: page.ContractVersion})
+		}
+		return items, nil
+	}
+	r.mu.RLock()
+	defer r.mu.RUnlock()
 	for _, page := range Catalog() {
-		resolved, _ := r.Resolve(ctx, page.ID)
+		core, _ := ResolveCore(page.ID)
+		resolved := r.resolveLocked(core)
 		item := ProviderListItem{
 			Page:            page,
 			Provider:        resolved.Provider,
 			ExtensionID:     resolved.ExtensionID,
 			ContractVersion: page.ContractVersion,
 		}
-		if r != nil {
-			r.mu.RLock()
-			item.Candidates = append([]PageContribution(nil), r.contributions[page.ID]...)
-			r.mu.RUnlock()
-		}
-		if r != nil && r.store != nil {
-			if b, ok, _ := r.store.GetBinding(ctx, page.ID); ok {
-				item.ContributionID = b.ContributionID
-				if b.ContractVersion != "" {
-					item.ContractVersion = b.ContractVersion
-				}
+		item.Candidates = append([]PageContribution(nil), r.contributions[page.ID]...)
+		if binding, ok := r.bindings[page.ID]; ok {
+			item.ContributionID = binding.ContributionID
+			if binding.ContractVersion != "" {
+				item.ContractVersion = binding.ContractVersion
 			}
 		}
 		items = append(items, item)
@@ -712,17 +765,18 @@ func (r *Registry) ApproveReplace(ctx context.Context, binding ProviderBinding) 
 		return fmt.Errorf("%w: request contract %q != core %q", ErrContractMismatch, reqContract, page.ContractVersion)
 	}
 
-	r.mu.RLock()
-	var matched *PageContribution
-	for i := range r.contributions[binding.PageID] {
-		c := &r.contributions[binding.PageID][i]
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	var matched PageContribution
+	matchedFound := false
+	for _, c := range r.contributions[binding.PageID] {
 		if c.ExtensionID == binding.ExtensionID && c.ID == binding.ContributionID {
 			matched = c
+			matchedFound = true
 			break
 		}
 	}
-	r.mu.RUnlock()
-	if matched == nil {
+	if !matchedFound {
 		return fmt.Errorf("%w: contribution not registered", ErrInvalidContribution)
 	}
 	if matched.Version != binding.Version {
@@ -745,7 +799,14 @@ func (r *Registry) ApproveReplace(ctx context.Context, binding ProviderBinding) 
 	// 模板路径仅来自已注册贡献，禁止客户端任意 templatePath
 	binding.TemplatePath = matched.Template
 	binding.ContractVersion = matched.Contract
-	return r.store.UpsertBinding(ctx, binding)
+	if err := r.store.UpsertBinding(ctx, binding); err != nil {
+		return err
+	}
+	next := cloneBindings(r.bindings)
+	next[binding.PageID] = cloneBinding(binding)
+	r.bindings = next
+	r.revision++
+	return nil
 }
 
 // RestoreCore 一键恢复核心页面。
@@ -756,7 +817,16 @@ func (r *Registry) RestoreCore(ctx context.Context, pageID string) error {
 	if _, ok := Find(pageID); !ok {
 		return ErrUnknownPage
 	}
-	return r.store.DeleteBinding(ctx, pageID)
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if err := r.store.DeleteBinding(ctx, pageID); err != nil {
+		return err
+	}
+	next := cloneBindings(r.bindings)
+	delete(next, pageID)
+	r.bindings = next
+	r.revision++
+	return nil
 }
 
 // AddedPages 返回插件/主题 add 的动态路径贡献（稳定排序）。

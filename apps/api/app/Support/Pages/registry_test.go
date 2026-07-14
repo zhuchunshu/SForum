@@ -78,6 +78,9 @@ func TestDigestMismatchFallsBack(t *testing.T) {
 		PageID: "forum.home", ExtensionID: "demo.theme", ContributionID: "demo.home",
 		Version: "1.0.0", PackageDigest: "old", ContractVersion: "sforum.page.home@1",
 	})
+	if err := reg.RestoreBindings(ctx); err != nil {
+		t.Fatal(err)
+	}
 	r, _ := reg.Resolve(ctx, "forum.home")
 	if r.Provider != ProviderCore {
 		t.Fatalf("digest mismatch should fallback core, got %s", r.Provider)
