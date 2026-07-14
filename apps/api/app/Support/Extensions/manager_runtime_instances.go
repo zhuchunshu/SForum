@@ -189,6 +189,26 @@ func (m *Manager) InspectRuntimeInstance(identity RuntimeInstanceIdentity) (Runt
 	return m.runtimeInstanceSnapshotLocked(identity, instance), nil
 }
 
+// RuntimeInstanceAvailable is the read-side visibility predicate used by
+// in-process registries. It never opens admission: execution must still acquire
+// a lease, but a staged or drained target is hidden before the durable marker.
+func (m *Manager) RuntimeInstanceAvailable(identity RuntimeInstanceIdentity) bool {
+	if m == nil {
+		return false
+	}
+	identity, err := normalizeRuntimeInstanceIdentity(identity)
+	if err != nil {
+		return false
+	}
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	instance, err := m.runtimeInstanceLocked(identity)
+	if err != nil || instance.transitioning || m.activeInstances[identity.ExtensionID] != identity.InstanceID {
+		return false
+	}
+	return !instance.gate.Snapshot().Draining
+}
+
 func (m *Manager) ActiveRuntimeInstance(extensionID string) (RuntimeInstanceSnapshot, error) {
 	extensionID = strings.TrimSpace(extensionID)
 	if extensionID == "" {

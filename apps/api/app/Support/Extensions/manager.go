@@ -160,7 +160,7 @@ func (m *Manager) Start(ctx context.Context, extension extensions.Extension) err
 		ProviderCount: len(extension.Manifest.Providers),
 	}
 	m.mu.Unlock()
-	m.hooks.Register(extension)
+	m.hooks.RegisterRuntime(extension, target.InstanceID)
 	return nil
 }
 
@@ -195,7 +195,7 @@ func (m *Manager) Stop(ctx context.Context, extension extensions.Extension) erro
 		}
 	}
 	m.mu.Unlock()
-	m.hooks.Unregister(extension.ID)
+	m.hooks.UnregisterRuntime(extension.ID, instanceID)
 	if m.resilience != nil {
 		m.resilience.remove(extension.ID)
 	}
@@ -224,6 +224,15 @@ func (m *Manager) RouteTarget(extensionID string) (RouteTarget, bool) {
 	defer m.mu.RUnlock()
 	target, ok := m.targets[extensionID]
 	return target, ok
+}
+
+// HookBus exposes the Manager-owned exact hook snapshot to the lifecycle
+// aggregate. Callers must still use Manager admission for execution.
+func (m *Manager) HookBus() *HookBus {
+	if m == nil {
+		return nil
+	}
+	return m.hooks
 }
 
 func (m *Manager) SendMail(ctx context.Context, extensionID string, request MailProviderRequest) (MailProviderResponse, error) {

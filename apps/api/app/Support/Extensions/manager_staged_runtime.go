@@ -286,7 +286,7 @@ func (m *Manager) publishRuntimeInstance(
 	m.statuses[identity.ExtensionID] = managedRuntimeStatus(extension, extensions.RuntimeRunning, &now)
 	snapshot := m.runtimeInstanceSnapshotLocked(identity, instance)
 	m.mu.Unlock()
-	m.hooks.Register(extension)
+	m.hooks.RegisterRuntime(extension, identity.InstanceID)
 	return snapshot, nil
 }
 
@@ -371,7 +371,7 @@ func (m *Manager) removeManagedProtocolRuntime(ctx context.Context, identity Run
 	}
 	m.mu.Unlock()
 	if active {
-		m.hooks.Unregister(identity.ExtensionID)
+		m.hooks.UnregisterRuntime(identity.ExtensionID, identity.InstanceID)
 		if m.resilience != nil {
 			m.resilience.remove(identity.ExtensionID)
 		}
