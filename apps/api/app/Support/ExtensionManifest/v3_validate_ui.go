@@ -19,7 +19,7 @@ func (v *v3Validator) validateUIAndPackage() error {
 			return ErrInvalidManifest
 		}
 		switch file.Kind {
-		case "executable", "frontend", "locale", "schema", "migration", "template", "asset", "openapi":
+		case "executable", "frontend", "locale", "schema", "migration", "template", "asset", "openapi", "database_operation":
 		default:
 			return ErrInvalidManifest
 		}
@@ -40,6 +40,13 @@ func (v *v3Validator) validateUIAndPackage() error {
 	for _, migration := range v.manifest.Migrations {
 		if !matchingPackageFile(packagePaths, migration.Path, "migration", migration.Digest) {
 			return ErrInvalidManifest
+		}
+	}
+	if database := v.manifest.Database; database != nil {
+		for _, operation := range database.Operations {
+			if !matchingPackageFile(packagePaths, operation.Path, "database_operation", operation.Digest) {
+				return ErrInvalidManifest
+			}
 		}
 	}
 
@@ -205,6 +212,14 @@ func (v *v3Validator) allLocalSchemasDeclared(files map[string]ManifestPackageFi
 	}
 	for _, query := range v.manifest.Queries {
 		refs = append(refs, query.ResultSchema)
+	}
+	if v.manifest.Database != nil {
+		for _, operation := range v.manifest.Database.Operations {
+			refs = append(refs, operation.ResultSchema)
+			for _, parameter := range operation.Parameters {
+				refs = append(refs, parameter.Schema)
+			}
+		}
 	}
 	if v.manifest.Identity != nil {
 		for _, field := range v.manifest.Identity.UserFields {

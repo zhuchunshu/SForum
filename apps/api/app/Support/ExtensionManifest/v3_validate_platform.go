@@ -2,6 +2,15 @@ package extensionmanifest
 
 import "strings"
 
+const (
+	manifestDatabaseMaximumParameters    = 32
+	manifestDatabaseMaximumColumns       = 64
+	manifestDatabaseMaximumParameterSize = 64 << 10
+	manifestDatabaseMaximumRows          = 1000
+	manifestDatabaseMaximumAffectedRows  = 10_000
+	manifestDatabaseMaximumTimeoutMS     = 5000
+)
+
 func (v *v3Validator) validatePlatform() error {
 	if err := v.validateDatabaseAndCache(); err != nil {
 		return err
@@ -48,6 +57,14 @@ func (v *v3Validator) validateDatabaseAndCache() error {
 		default:
 			return ErrInvalidManifest
 		}
+		if len(database.Operations) > 0 && database.Authority != "own_schema" {
+			return ErrInvalidManifest
+		}
+		for _, operation := range database.Operations {
+			if err := v.validateDatabaseOperation(operation); err != nil {
+				return err
+			}
+		}
 	}
 	for _, cache := range v.manifest.Cache {
 		if err := v.versionedID(cache.ID, cache.ContractVersion, "cache"); err != nil {
@@ -66,6 +83,63 @@ func (v *v3Validator) validateDatabaseAndCache() error {
 				return ErrInvalidManifest
 			}
 		}
+	}
+	return nil
+}
+
+func (v *v3Validator) validateDatabaseOperation(operation ManifestDatabaseOperation) error {
+	if !manifestIDPattern.MatchString(operation.ID) || !strings.HasPrefix(operation.ID, v.manifest.ID+".") ||
+		!positiveIntegerPattern.MatchString(operation.StatementVersion) ||
+		!validPackagePath(operation.Path) || !validDigest(operation.Digest) ||
+		operation.Parameters == nil || operation.Columns == nil ||
+		len(operation.Parameters) > manifestDatabaseMaximumParameters ||
+		len(operation.Columns) > manifestDatabaseMaximumColumns ||
+		operation.TimeoutMS < 0 || operation.TimeoutMS > manifestDatabaseMaximumTimeoutMS {
+		return ErrInvalidManifest
+	}
+	if _, duplicate := v.ids[operation.ID]; duplicate {
+		return ErrInvalidManifest
+	}
+	v.ids[operation.ID] = "database_operation"
+
+	for _, parameter := range operation.Parameters {
+		if !validSchemaRef(parameter.Schema) || !databaseOperationNamePattern.MatchString(parameter.Field) ||
+			parameter.MaxBytes < 0 || parameter.MaxBytes > manifestDatabaseMaximumParameterSize {
+			return ErrInvalidManifest
+		}
+		switch parameter.Kind {
+		case "string", "int64", "number", "bool":
+		default:
+			return ErrInvalidManifest
+		}
+	}
+	seenColumns := make(map[string]struct{}, len(operation.Columns))
+	for _, column := range operation.Columns {
+		if !databaseOperationNamePattern.MatchString(column.Name) {
+			return ErrInvalidManifest
+		}
+		if _, duplicate := seenColumns[column.Name]; duplicate {
+			return ErrInvalidManifest
+		}
+		seenColumns[column.Name] = struct{}{}
+	}
+
+	switch operation.Kind {
+	case "query":
+		if !validSchemaRef(operation.ResultSchema) || len(operation.Columns) == 0 ||
+			operation.MaxRows <= 0 || operation.MaxRows > manifestDatabaseMaximumRows ||
+			operation.MaxAffectedRows != 0 {
+			return ErrInvalidManifest
+		}
+	case "execute":
+		if operation.MaxRows != 0 || operation.MaxAffectedRows == 0 || operation.MaxAffectedRows > manifestDatabaseMaximumAffectedRows {
+			return ErrInvalidManifest
+		}
+		if len(operation.Columns) == 0 && operation.ResultSchema != "" || len(operation.Columns) > 0 && !validSchemaRef(operation.ResultSchema) {
+			return ErrInvalidManifest
+		}
+	default:
+		return ErrInvalidManifest
 	}
 	return nil
 }

@@ -12,6 +12,24 @@ func normalizeV3Platform(manifest *Manifest) {
 		manifest.Database.Backup.Strategy = strings.ToLower(strings.TrimSpace(manifest.Database.Backup.Strategy))
 		manifest.Database.Retention.OnDisable = strings.ToLower(strings.TrimSpace(manifest.Database.Retention.OnDisable))
 		manifest.Database.Retention.OnUninstall = strings.ToLower(strings.TrimSpace(manifest.Database.Retention.OnUninstall))
+		for index := range manifest.Database.Operations {
+			operation := &manifest.Database.Operations[index]
+			operation.ID = NormalizeID(operation.ID)
+			operation.StatementVersion = strings.TrimSpace(operation.StatementVersion)
+			operation.Kind = strings.ToLower(strings.TrimSpace(operation.Kind))
+			operation.Path = strings.TrimSpace(operation.Path)
+			operation.Digest = normalizeDigest(operation.Digest)
+			operation.ResultSchema = strings.TrimSpace(operation.ResultSchema)
+			for parameterIndex := range operation.Parameters {
+				parameter := &operation.Parameters[parameterIndex]
+				parameter.Schema = strings.TrimSpace(parameter.Schema)
+				parameter.Field = NormalizeID(parameter.Field)
+				parameter.Kind = strings.ToLower(strings.TrimSpace(parameter.Kind))
+			}
+			for columnIndex := range operation.Columns {
+				operation.Columns[columnIndex].Name = NormalizeID(operation.Columns[columnIndex].Name)
+			}
+		}
 	}
 	for index := range manifest.Cache {
 		item := &manifest.Cache[index]

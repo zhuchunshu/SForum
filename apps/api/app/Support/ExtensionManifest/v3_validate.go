@@ -10,9 +10,11 @@ import (
 )
 
 var (
-	contractVersionPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9._-]*@[1-9][0-9]*$`)
-	sha256Pattern          = regexp.MustCompile(`^[0-9a-f]{64}$`)
-	databaseNamePattern    = regexp.MustCompile(`^[a-z_][a-z0-9_]{0,62}$`)
+	contractVersionPattern       = regexp.MustCompile(`^[a-z0-9][a-z0-9._-]*@[1-9][0-9]*$`)
+	sha256Pattern                = regexp.MustCompile(`^[0-9a-f]{64}$`)
+	databaseNamePattern          = regexp.MustCompile(`^[a-z_][a-z0-9_]{0,62}$`)
+	databaseOperationNamePattern = regexp.MustCompile(`^[a-z0-9][a-z0-9._-]{0,254}$`)
+	positiveIntegerPattern       = regexp.MustCompile(`^[1-9][0-9]*$`)
 )
 
 type v3Validator struct {

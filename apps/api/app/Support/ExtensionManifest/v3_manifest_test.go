@@ -203,6 +203,8 @@ func completeV3Manifest() Manifest {
 		{ID: "demo.v3.file.frontend", Kind: "frontend", Path: "frontend/card.mjs", Digest: digest},
 		{ID: "demo.v3.file.openapi", Kind: "openapi", Path: "openapi/routes.yaml", Digest: digest},
 		{ID: "demo.v3.file.locale", Kind: "locale", Path: "locales/zh-CN.json", Digest: digest, Locale: "zh-CN"},
+		{ID: "demo.v3.file.database.query", Kind: "database_operation", Path: "database/items-query.sql", Digest: digest},
+		{ID: "demo.v3.file.database.execute", Kind: "database_operation", Path: "database/items-insert.sql", Digest: digest},
 	}
 	manifest.Templates = []ManifestTemplate{{
 		ID: "demo.v3.template.card", ContractVersion: "demo.v3.template.card@1",
@@ -226,6 +228,30 @@ func completeV3Manifest() Manifest {
 		ContractVersion: "demo.v3.database@1", Authority: "own_schema", Schema: "demo_v3", Role: "demo_v3",
 		Backup:    ManifestBackupPolicy{Required: true, Strategy: "pg_dump"},
 		Retention: ManifestRetention{OnDisable: "retain", OnUninstall: "export", Days: 30},
+		Operations: []ManifestDatabaseOperation{
+			{
+				ID: "demo.v3.database.items.query", StatementVersion: "1", Kind: "query",
+				Path: "database/items-query.sql", Digest: digest,
+				Parameters: []ManifestDatabaseParameter{{
+					Schema: "demo.v3.database.item-id@1", Field: "id", Kind: "int64", MaxBytes: 8,
+				}},
+				ResultSchema: "demo.v3.database.items.result@1",
+				Columns:      []ManifestDatabaseColumn{{Name: "id"}, {Name: "name", Nullable: true}},
+				MaxRows:      100,
+				TimeoutMS:    3000,
+			},
+			{
+				ID: "demo.v3.database.items.insert", StatementVersion: "1", Kind: "execute",
+				Path: "database/items-insert.sql", Digest: digest,
+				Parameters: []ManifestDatabaseParameter{{
+					Schema: "demo.v3.database.item-name@1", Field: "name", Kind: "string", MaxBytes: 1024,
+				}},
+				ResultSchema:    "demo.v3.database.items.result@1",
+				Columns:         []ManifestDatabaseColumn{{Name: "id"}, {Name: "name"}},
+				MaxAffectedRows: 1,
+				TimeoutMS:       3000,
+			},
+		},
 	}
 	manifest.Cache = []ManifestCache{{
 		ID: "demo.v3.cache.results", ContractVersion: "demo.v3.cache.results@1",

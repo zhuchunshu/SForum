@@ -137,5 +137,6 @@ func normalizeV3Manifest(manifest *Manifest) {
 }
 
 func normalizeDigest(value string) string {
-	return strings.ToLower(strings.TrimSpace(strings.TrimPrefix(value, "sha256:")))
+	value = strings.ToLower(strings.TrimSpace(value))
+	return strings.TrimSpace(strings.TrimPrefix(value, "sha256:"))
 }

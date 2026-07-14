@@ -1,13 +1,43 @@
 package extensionmanifest
 
 type ManifestDatabase struct {
-	ContractVersion   string               `json:"contractVersion"`
-	Authority         string               `json:"authority"`
-	Schema            string               `json:"schema,omitempty"`
-	Role              string               `json:"role,omitempty"`
-	CoreCompatibility string               `json:"coreCompatibility,omitempty"`
-	Backup            ManifestBackupPolicy `json:"backup"`
-	Retention         ManifestRetention    `json:"retention"`
+	ContractVersion   string                      `json:"contractVersion"`
+	Authority         string                      `json:"authority"`
+	Schema            string                      `json:"schema,omitempty"`
+	Role              string                      `json:"role,omitempty"`
+	CoreCompatibility string                      `json:"coreCompatibility,omitempty"`
+	Backup            ManifestBackupPolicy        `json:"backup"`
+	Retention         ManifestRetention           `json:"retention"`
+	Operations        []ManifestDatabaseOperation `json:"operations,omitempty"`
+}
+
+// ManifestDatabaseOperation 将一个宿主管理的 SQL 文件绑定到有界运行时契约。
+// SQL 字节不得内联到 manifest，也不会穿过 RPC 边界。
+type ManifestDatabaseOperation struct {
+	ID               string                      `json:"id"`
+	StatementVersion string                      `json:"statementVersion"`
+	Kind             string                      `json:"kind"`
+	Path             string                      `json:"path"`
+	Digest           string                      `json:"digest"`
+	Parameters       []ManifestDatabaseParameter `json:"parameters"`
+	ResultSchema     string                      `json:"resultSchema,omitempty"`
+	Columns          []ManifestDatabaseColumn    `json:"columns"`
+	MaxRows          int                         `json:"maxRows,omitempty"`
+	MaxAffectedRows  uint64                      `json:"maxAffectedRows,omitempty"`
+	TimeoutMS        int                         `json:"timeoutMs"`
+}
+
+type ManifestDatabaseParameter struct {
+	Schema   string `json:"schema"`
+	Field    string `json:"field"`
+	Kind     string `json:"kind"`
+	Nullable bool   `json:"nullable"`
+	MaxBytes int    `json:"maxBytes"`
+}
+
+type ManifestDatabaseColumn struct {
+	Name     string `json:"name"`
+	Nullable bool   `json:"nullable"`
 }
 
 type ManifestBackupPolicy struct {
