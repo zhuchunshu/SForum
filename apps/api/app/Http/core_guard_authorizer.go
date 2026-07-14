@@ -1,8 +1,11 @@
 package http
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
+	"io"
 	"maps"
 
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
@@ -50,6 +53,7 @@ func productionCoreGuardEvaluatorRegistrations() []routes.CoreGuardEvaluatorRegi
 		productionCoreGuardEvaluator("core.guard.attachments.upload", requireDeclaredCoreGuardPermission),
 		productionCoreGuardEvaluator("core.guard.forum.author_review", requireAuthenticatedCoreGuardActor),
 		productionCoreGuardEvaluator("core.guard.forum.comment_write", requireForumCommentGlobalAuthority),
+		productionCoreGuardEvaluator("core.guard.forum.settings", requireForumSettingsAuthority),
 		productionCoreGuardEvaluator("core.guard.forum.topic_create", requireDeclaredCoreGuardPermission),
 		productionCoreGuardEvaluator("core.guard.forum.topic_delete", requireForumTopicGlobalAuthority),
 		productionCoreGuardEvaluator("core.guard.forum.topic_edit", requireForumTopicGlobalAuthority),
@@ -125,6 +129,108 @@ func requirePagesAdminAuthority(_ context.Context, evaluation routes.CoreGuardEv
 	default:
 		return routes.ErrCoreGuardEvaluatorUnavailable
 	}
+}
+
+type forumSettingsGuardInput struct {
+	DefaultCategorySlug *string `json:"defaultCategorySlug"`
+	TagCreationMode     *string `json:"tagCreationMode"`
+	TagPublicPages      *bool   `json:"tagPublicPages"`
+	TagMinPerTopic      *int    `json:"tagMinPerTopic"`
+	TagMaxPerTopic      *int    `json:"tagMaxPerTopic"`
+	TopicsPerPage       *int    `json:"topicsPerPage"`
+	CommentsPerPage     *int    `json:"commentsPerPage"`
+
+	TopicTitleMinRunes       *int `json:"topicTitleMinRunes"`
+	TopicTitleMaxRunes       *int `json:"topicTitleMaxRunes"`
+	TopicContentMinRunes     *int `json:"topicContentMinRunes"`
+	TopicContentMaxRunes     *int `json:"topicContentMaxRunes"`
+	TopicEditWindowMinutes   *int `json:"topicEditWindowMinutes"`
+	TopicCooldownSeconds     *int `json:"topicCooldownSeconds"`
+	DailyTopicLimit          *int `json:"dailyTopicLimit"`
+	CommentMinRunes          *int `json:"commentMinRunes"`
+	CommentMaxRunes          *int `json:"commentMaxRunes"`
+	CommentMaxNestingDepth   *int `json:"commentMaxNestingDepth"`
+	CommentEditWindowMinutes *int `json:"commentEditWindowMinutes"`
+	CommentCooldownSeconds   *int `json:"commentCooldownSeconds"`
+	DailyCommentLimit        *int `json:"dailyCommentLimit"`
+	ExcerptRuneLimit         *int `json:"excerptRuneLimit"`
+
+	GuestRead               *string `json:"guestRead"`
+	ListDefaultSort         *string `json:"listDefaultSort"`
+	ListHotWindowDays       *int    `json:"listHotWindowDays"`
+	AllowAuthorCloseReplies *bool   `json:"allowAuthorCloseReplies"`
+	AllowAuthorDelete       *bool   `json:"allowAuthorDelete"`
+	AutoLockIdleDays        *int    `json:"autoLockIdleDays"`
+	ShowTopicEditMark       *bool   `json:"showTopicEditMark"`
+	DuplicateTitlePolicy    *string `json:"duplicateTitlePolicy"`
+	ShowCommentEditMark     *bool   `json:"showCommentEditMark"`
+	SoftDeleteVisibility    *string `json:"softDeleteVisibility"`
+	MentionsEnabled         *bool   `json:"mentionsEnabled"`
+	MentionsMaxPerPost      *int    `json:"mentionsMaxPerPost"`
+}
+
+func requireForumSettingsAuthority(_ context.Context, evaluation routes.CoreGuardEvaluation) error {
+	if err := requireCoreGuardPermission(evaluation, evaluation.Descriptor.Permissions...); err != nil {
+		return err
+	}
+	switch evaluation.Descriptor.RouteID {
+	case "core.route.forum.admin_settings", "core.route.forum.admin_reset_settings":
+		return nil
+	case "core.route.forum.admin_update_settings":
+		input, err := decodeForumSettingsGuardInput(evaluation.Request.Body)
+		if err != nil {
+			return routes.ErrCoreGuardEvaluatorUnavailable
+		}
+		if input.DefaultCategorySlug != nil {
+			if err := requireCoreGuardPermission(evaluation, identity.PermissionCategoryManage); err != nil {
+				return err
+			}
+		}
+		if forumTagSettingsPresent(input) {
+			if err := requireCoreGuardPermission(evaluation, identity.PermissionTagManage); err != nil {
+				return err
+			}
+		}
+		if forumRuntimeSettingsPresent(input) {
+			return requireCoreGuardPermission(evaluation, identity.PermissionForumSettingsManage)
+		}
+		return nil
+	default:
+		return routes.ErrCoreGuardEvaluatorUnavailable
+	}
+}
+
+func decodeForumSettingsGuardInput(body []byte) (forumSettingsGuardInput, error) {
+	var input forumSettingsGuardInput
+	decoder := json.NewDecoder(bytes.NewReader(body))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&input); err != nil {
+		return forumSettingsGuardInput{}, err
+	}
+	if err := decoder.Decode(&struct{}{}); err != io.EOF {
+		return forumSettingsGuardInput{}, errors.New("forum settings guard: trailing JSON value")
+	}
+	return input, nil
+}
+
+func forumTagSettingsPresent(input forumSettingsGuardInput) bool {
+	return input.TagCreationMode != nil || input.TagPublicPages != nil ||
+		input.TagMinPerTopic != nil || input.TagMaxPerTopic != nil
+}
+
+func forumRuntimeSettingsPresent(input forumSettingsGuardInput) bool {
+	return input.TopicsPerPage != nil || input.CommentsPerPage != nil ||
+		input.TopicTitleMinRunes != nil || input.TopicTitleMaxRunes != nil ||
+		input.TopicContentMinRunes != nil || input.TopicContentMaxRunes != nil ||
+		input.TopicEditWindowMinutes != nil || input.TopicCooldownSeconds != nil ||
+		input.DailyTopicLimit != nil || input.CommentMinRunes != nil ||
+		input.CommentMaxRunes != nil || input.CommentMaxNestingDepth != nil ||
+		input.CommentEditWindowMinutes != nil || input.CommentCooldownSeconds != nil ||
+		input.DailyCommentLimit != nil || input.ExcerptRuneLimit != nil ||
+		input.GuestRead != nil || input.ListDefaultSort != nil || input.ListHotWindowDays != nil ||
+		input.AllowAuthorCloseReplies != nil || input.AllowAuthorDelete != nil || input.AutoLockIdleDays != nil ||
+		input.ShowTopicEditMark != nil || input.DuplicateTitlePolicy != nil || input.ShowCommentEditMark != nil ||
+		input.SoftDeleteVisibility != nil || input.MentionsEnabled != nil || input.MentionsMaxPerPost != nil
 }
 
 func requireForumTopicGlobalAuthority(_ context.Context, evaluation routes.CoreGuardEvaluation) error {

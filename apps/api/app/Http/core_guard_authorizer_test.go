@@ -115,7 +115,7 @@ func TestProductionCoreGuardEvaluatorRegistryIsExplicitAndVersioned(t *testing.T
 		t.Fatal(err)
 	}
 	bindings := registry.Bindings()
-	if len(bindings) != len(registrations) || len(bindings) != 13 {
+	if len(bindings) != len(registrations) || len(bindings) != 14 {
 		t.Fatalf("bindings = %#v", bindings)
 	}
 	for _, binding := range bindings {
@@ -123,6 +123,137 @@ func TestProductionCoreGuardEvaluatorRegistryIsExplicitAndVersioned(t *testing.T
 			t.Fatalf("binding = %#v", binding)
 		}
 	}
+}
+
+func TestProductionForumSettingsGuardClosesCatalogModule(t *testing.T) {
+	expected := map[string]string{
+		"core.route.forum.admin_settings":        "GET",
+		"core.route.forum.admin_update_settings": "PUT",
+		"core.route.forum.admin_reset_settings":  "POST",
+	}
+	var catalog []routes.CoreRoute
+	for _, route := range routes.CoreRouteCatalog() {
+		if route.Guard.EvaluatorID == "core.guard.forum.settings" {
+			catalog = append(catalog, route)
+		}
+	}
+	if len(catalog) != len(expected) {
+		t.Fatalf("forum settings contextual catalog = %#v", catalog)
+	}
+
+	authorizer := NewProductionRouteGuardAuthorizer()
+	for _, route := range catalog {
+		method, exists := expected[route.ID]
+		if !exists || route.Method != method || route.Guard.Kind != routes.CoreGuardContextual ||
+			!sameStringSet(route.Guard.Permissions, []string{
+				identity.PermissionCategoryManage, identity.PermissionTagManage, identity.PermissionForumSettingsManage,
+			}) {
+			t.Fatalf("unexpected forum settings guard route = %#v", route)
+		}
+		delete(expected, route.ID)
+
+		plan, step := productionCatalogInheritedGuardPlan(t, route)
+		allowed := productionGuardRequest(identity.PermissionCategoryManage)
+		allowed.Method, allowed.Path = plan.Method(), plan.Path()
+		if route.ID == "core.route.forum.admin_update_settings" {
+			allowed.Body = []byte(`{"defaultCategorySlug":"general"}`)
+		}
+		if err := authorizer.Authorize(context.Background(), plan, step, allowed); err != nil {
+			t.Fatalf("%s allowed error = %v", route.ID, err)
+		}
+
+		denied := productionGuardRequest()
+		denied.Method, denied.Path, denied.Body = plan.Method(), plan.Path(), allowed.Body
+		if err := authorizer.Authorize(context.Background(), plan, step, denied); !errors.Is(err, ErrRoutePermissionDenied) {
+			t.Fatalf("%s permission denied error = %v", route.ID, err)
+		}
+
+		forgedStep := step
+		forgedStep.RouteID += ".forged"
+		if err := authorizer.Authorize(context.Background(), plan, forgedStep, allowed); !errors.Is(err, ErrRouteGuardUnavailable) {
+			t.Fatalf("%s forged step error = %v", route.ID, err)
+		}
+	}
+	if len(expected) != 0 {
+		t.Fatalf("missing forum settings guard routes = %#v", expected)
+	}
+}
+
+func TestProductionForumSettingsGuardEnforcesFieldOwners(t *testing.T) {
+	var target routes.CoreRoute
+	for _, route := range routes.CoreRouteCatalog() {
+		if route.ID == "core.route.forum.admin_update_settings" {
+			target = route
+			break
+		}
+	}
+	if target.ID == "" {
+		t.Fatal("forum settings update route is missing")
+	}
+	plan, step := productionCatalogInheritedGuardPlan(t, target)
+	authorizer := NewProductionRouteGuardAuthorizer()
+	tests := []struct {
+		name        string
+		body        string
+		permissions []string
+		want        error
+	}{
+		{name: "category", body: `{"defaultCategorySlug":"general"}`, permissions: []string{identity.PermissionCategoryManage}},
+		{name: "category denied", body: `{"defaultCategorySlug":"general"}`, permissions: []string{identity.PermissionTagManage}, want: ErrRoutePermissionDenied},
+		{name: "tag", body: `{"tagCreationMode":"review","tagMaxPerTopic":5}`, permissions: []string{identity.PermissionTagManage}},
+		{name: "tag denied", body: `{"tagPublicPages":true}`, permissions: []string{identity.PermissionCategoryManage}, want: ErrRoutePermissionDenied},
+		{name: "runtime", body: `{"topicsPerPage":30}`, permissions: []string{identity.PermissionForumSettingsManage}},
+		{name: "community runtime", body: `{"guestRead":"login_required","mentionsEnabled":false}`, permissions: []string{identity.PermissionForumSettingsManage}},
+		{name: "runtime denied", body: `{"listDefaultSort":"hot"}`, permissions: []string{identity.PermissionTagManage}, want: ErrRoutePermissionDenied},
+		{name: "mixed", body: `{"defaultCategorySlug":"general","tagMinPerTopic":1}`, permissions: []string{identity.PermissionCategoryManage, identity.PermissionTagManage}},
+		{name: "mixed body escalation", body: `{"defaultCategorySlug":"general","tagMinPerTopic":1}`, permissions: []string{identity.PermissionCategoryManage}, want: ErrRoutePermissionDenied},
+		{name: "empty requires module authority", body: `{}`, permissions: []string{identity.PermissionTagManage}},
+		{name: "unknown field closes", body: `{"futureSetting":true}`, permissions: []string{identity.PermissionForumSettingsManage}, want: ErrRouteGuardUnavailable},
+		{name: "malformed closes", body: `{"topicsPerPage":`, permissions: []string{identity.PermissionForumSettingsManage}, want: ErrRouteGuardUnavailable},
+		{name: "trailing value closes", body: `{} {}`, permissions: []string{identity.PermissionForumSettingsManage}, want: ErrRouteGuardUnavailable},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			request := productionGuardRequest(test.permissions...)
+			request.Method, request.Path, request.Body = plan.Method(), plan.Path(), []byte(test.body)
+			err := authorizer.Authorize(context.Background(), plan, step, request)
+			if !errors.Is(err, test.want) || test.want == nil && err != nil {
+				t.Fatalf("error = %v, want %v", err, test.want)
+			}
+		})
+	}
+}
+
+func TestProductionForumSettingsGuardRejectsForeignRouteID(t *testing.T) {
+	descriptor := routes.CoreGuardDescriptor{
+		Kind: routes.CoreGuardContextual,
+		Permissions: []string{
+			identity.PermissionCategoryManage, identity.PermissionTagManage, identity.PermissionForumSettingsManage,
+		},
+		EvaluatorID: "core.guard.forum.settings",
+	}
+	plan, step := productionInheritedGuardPlan(t, "core.route.forum.settings.foreign", descriptor)
+	request := productionGuardRequest(identity.PermissionForumSettingsManage)
+	request.Method, request.Path = plan.Method(), plan.Path()
+	if err := NewProductionRouteGuardAuthorizer().Authorize(context.Background(), plan, step, request); !errors.Is(err, ErrRouteGuardUnavailable) {
+		t.Fatalf("foreign forum settings route error = %v", err)
+	}
+}
+
+func sameStringSet(left, right []string) bool {
+	if len(left) != len(right) {
+		return false
+	}
+	set := make(map[string]struct{}, len(left))
+	for _, value := range left {
+		set[value] = struct{}{}
+	}
+	for _, value := range right {
+		if _, exists := set[value]; !exists {
+			return false
+		}
+	}
+	return true
 }
 
 func TestProductionPagesAdminGuardClosesCatalogModule(t *testing.T) {
