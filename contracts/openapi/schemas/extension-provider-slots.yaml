@@ -57,10 +57,46 @@ ProviderSlotConflict:
       minItems: 2
       uniqueItems: true
       items: { type: string }
+ProviderSlotSelectedArtifact:
+  type: object
+  additionalProperties: false
+  required: [extensionId, extensionVersion, packageDigest]
+  properties:
+    extensionId: { type: string }
+    extensionVersion: { type: string }
+    packageDigest: { type: string, pattern: '^[0-9a-f]{64}$' }
+    runtimeInstanceId: { type: string }
+ProviderSlotSelection:
+  type: object
+  additionalProperties: false
+  required:
+  - contractId
+  - contractVersion
+  - slot
+  - contractArtifact
+  - candidateId
+  - providerArtifact
+  - selectedByUserId
+  - selectionAuditEventId
+  - revision
+  - selectedAt
+  - updatedAt
+  properties:
+    contractId: { type: string }
+    contractVersion: { type: string }
+    slot: { type: string }
+    contractArtifact: { "$ref": "#/ProviderSlotSelectedArtifact" }
+    candidateId: { type: string }
+    providerArtifact: { "$ref": "#/ProviderSlotSelectedArtifact" }
+    selectedByUserId: { type: integer, format: int64 }
+    selectionAuditEventId: { type: integer, format: int64, minimum: 1 }
+    revision: { type: integer, format: int64, minimum: 1 }
+    selectedAt: { type: string, format: date-time }
+    updatedAt: { type: string, format: date-time }
 ProviderSlotInspectionItem:
   type: object
   additionalProperties: false
-  required: [contract, candidates, conflicts, availability]
+  required: [contract, candidates, conflicts, selectionStatus, availability]
   properties:
     contract: { "$ref": "#/ProviderSlotContract" }
     candidates:
@@ -69,6 +105,8 @@ ProviderSlotInspectionItem:
     conflicts:
       type: array
       items: { "$ref": "#/ProviderSlotConflict" }
+    selectionStatus: { type: string, enum: [default, selected, stale] }
+    selection: { "$ref": "#/ProviderSlotSelection" }
     availability: { type: string, enum: [available, unavailable] }
     unavailabilityReason: { type: string, enum: [no_candidates, runtime_unavailable] }
 ProviderSlotInspection:
@@ -88,3 +126,102 @@ ApiResponseProviderSlotInspection:
     code: { type: integer }
     message: { type: string }
     data: { "$ref": "#/ProviderSlotInspection" }
+ProviderSlotSelectRequest:
+  type: object
+  additionalProperties: false
+  required: [contractId, candidateId, expectedRevision]
+  properties:
+    contractId: { type: string }
+    candidateId: { type: string }
+    expectedRevision: { type: integer, format: int64, minimum: 0 }
+ProviderSlotResetRequest:
+  type: object
+  additionalProperties: false
+  required: [contractId, expectedRevision, reasonCode]
+  properties:
+    contractId: { type: string }
+    expectedRevision: { type: integer, format: int64, minimum: 1 }
+    reasonCode: { type: string, pattern: '^[a-z0-9][a-z0-9._-]{0,127}$' }
+ProviderSlotProbeRequest:
+  type: object
+  additionalProperties: false
+  required: [contractId, candidateId]
+  properties:
+    contractId: { type: string }
+    candidateId: { type: string }
+ProviderSlotReset:
+  type: object
+  additionalProperties: false
+  required: [reset, contractId]
+  properties:
+    reset: { type: boolean, enum: [true] }
+    contractId: { type: string }
+ProviderSlotProbe:
+  type: object
+  additionalProperties: false
+  required: [contractId, candidateId, artifact, ok, reason, message, durationMs]
+  properties:
+    contractId: { type: string }
+    candidateId: { type: string }
+    artifact: { "$ref": "#/ProviderSlotArtifact" }
+    ok: { type: boolean }
+    reason: { type: string }
+    message: { type: string }
+    details:
+      type: object
+      additionalProperties: { type: string }
+    suggestions:
+      type: array
+      items: { type: string }
+    durationMs: { type: integer, format: int64, minimum: 0 }
+ProviderSlotSelectionEvent:
+  type: object
+  additionalProperties: false
+  required: [id, contractId, contractVersion, slot, action, auditEventId, selectionRevision, createdAt]
+  properties:
+    id: { type: integer, format: int64 }
+    contractId: { type: string }
+    contractVersion: { type: string }
+    slot: { type: string }
+    action: { type: string, enum: [select, reset, invalidate] }
+    previousSelection: { "$ref": "#/ProviderSlotSelection" }
+    selectedSelection: { "$ref": "#/ProviderSlotSelection" }
+    actorUserId: { type: integer, format: int64 }
+    auditEventId: { type: integer, format: int64, minimum: 1 }
+    reasonCode: { type: string }
+    selectionRevision: { type: integer, format: int64, minimum: 1 }
+    createdAt: { type: string, format: date-time }
+ApiResponseProviderSlotSelection:
+  type: object
+  additionalProperties: false
+  required: [code, message, data]
+  properties:
+    code: { type: integer }
+    message: { type: string }
+    data: { "$ref": "#/ProviderSlotSelection" }
+ApiResponseProviderSlotSelectionEvents:
+  type: object
+  additionalProperties: false
+  required: [code, message, data]
+  properties:
+    code: { type: integer }
+    message: { type: string }
+    data:
+      type: array
+      items: { "$ref": "#/ProviderSlotSelectionEvent" }
+ApiResponseProviderSlotProbe:
+  type: object
+  additionalProperties: false
+  required: [code, message, data]
+  properties:
+    code: { type: integer }
+    message: { type: string }
+    data: { "$ref": "#/ProviderSlotProbe" }
+ApiResponseProviderSlotReset:
+  type: object
+  additionalProperties: false
+  required: [code, message, data]
+  properties:
+    code: { type: integer }
+    message: { type: string }
+    data: { "$ref": "#/ProviderSlotReset" }

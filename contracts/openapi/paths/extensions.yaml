@@ -1155,7 +1155,7 @@ adminExtensionProviderSlots:
   get:
     summary: Inspect the immutable plugin-defined Provider Slot Registry
     operationId: inspectAdminExtensionProviderSlots
-    description: Requires extension.view or the legacy extension.manage permission. Returns exact contract and candidate artifacts, deterministic priority conflicts, fallback policy, and current runtime admission availability. This read-only endpoint does not probe providers or change selection.
+    description: Requires extension.view or the legacy extension.manage permission. Returns exact contract and candidate artifacts, durable selection status, deterministic priority conflicts, fallback policy, and current runtime admission availability. This read-only endpoint does not probe providers or change selection.
     responses:
       '200':
         description: Provider slots from one immutable Registry revision.
@@ -1164,6 +1164,88 @@ adminExtensionProviderSlots:
             schema: { "$ref": "../schemas/extension-provider-slots.yaml#/ApiResponseProviderSlotInspection" }
       '401': { "$ref": "../components/responses.yaml#/Unauthorized" }
       '403': { "$ref": "../components/responses.yaml#/Forbidden" }
+      '503': { "$ref": "../components/responses.yaml#/ServiceUnavailable" }
+adminExtensionProviderSlotEvents:
+  get:
+    summary: List durable provider-slot selection events
+    operationId: listAdminExtensionProviderSlotEvents
+    description: Requires extension.view or the legacy extension.manage permission. Events are append-only audit evidence for one contract.
+    parameters:
+    - { name: contractId, in: query, required: true, schema: { type: string } }
+    - { name: limit, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 100, default: 50 } }
+    responses:
+      '200':
+        description: Newest selection events first.
+        content:
+          application/json:
+            schema: { "$ref": "../schemas/extension-provider-slots.yaml#/ApiResponseProviderSlotSelectionEvents" }
+      '401': { "$ref": "../components/responses.yaml#/Unauthorized" }
+      '403': { "$ref": "../components/responses.yaml#/Forbidden" }
+      '422': { "$ref": "../components/responses.yaml#/UnprocessableEntity" }
+      '503': { "$ref": "../components/responses.yaml#/ServiceUnavailable" }
+adminExtensionProviderSlotSelection:
+  post:
+    summary: Select an exact provider-slot candidate
+    operationId: selectAdminExtensionProviderSlot
+    description: Active super_admin only. The Host appends an attributable audit event before validating the current immutable registry snapshot and persisting through revision CAS.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { "$ref": "../schemas/extension-provider-slots.yaml#/ProviderSlotSelectRequest" }
+    responses:
+      '200':
+        description: Durable exact-artifact selection.
+        content:
+          application/json:
+            schema: { "$ref": "../schemas/extension-provider-slots.yaml#/ApiResponseProviderSlotSelection" }
+      '401': { "$ref": "../components/responses.yaml#/Unauthorized" }
+      '403': { "$ref": "../components/responses.yaml#/Forbidden" }
+      '409': { "$ref": "../components/responses.yaml#/Conflict" }
+      '422': { "$ref": "../components/responses.yaml#/UnprocessableEntity" }
+      '503': { "$ref": "../components/responses.yaml#/ServiceUnavailable" }
+adminExtensionProviderSlotReset:
+  post:
+    summary: Restore deterministic provider priority defaults
+    operationId: resetAdminExtensionProviderSlot
+    description: Active super_admin only. Deletes the durable desired choice through revision CAS; provider-owned settings and secrets are preserved.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { "$ref": "../schemas/extension-provider-slots.yaml#/ProviderSlotResetRequest" }
+    responses:
+      '200':
+        description: Default ordering restored.
+        content:
+          application/json:
+            schema: { "$ref": "../schemas/extension-provider-slots.yaml#/ApiResponseProviderSlotReset" }
+      '401': { "$ref": "../components/responses.yaml#/Unauthorized" }
+      '403': { "$ref": "../components/responses.yaml#/Forbidden" }
+      '404': { "$ref": "../components/responses.yaml#/NotFound" }
+      '409': { "$ref": "../components/responses.yaml#/Conflict" }
+      '422': { "$ref": "../components/responses.yaml#/UnprocessableEntity" }
+      '503': { "$ref": "../components/responses.yaml#/ServiceUnavailable" }
+adminExtensionProviderSlotProbe:
+  post:
+    summary: Probe one exact active provider candidate
+    operationId: probeAdminExtensionProviderSlot
+    description: Active super_admin only. Uses the provider's side-effect-free ProviderProbe RPC under runtime admission and the contract timeout; it never sends a business invocation payload.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { "$ref": "../schemas/extension-provider-slots.yaml#/ProviderSlotProbeRequest" }
+    responses:
+      '200':
+        description: Bounded provider probe result.
+        content:
+          application/json:
+            schema: { "$ref": "../schemas/extension-provider-slots.yaml#/ApiResponseProviderSlotProbe" }
+      '401': { "$ref": "../components/responses.yaml#/Unauthorized" }
+      '403': { "$ref": "../components/responses.yaml#/Forbidden" }
+      '409': { "$ref": "../components/responses.yaml#/Conflict" }
+      '422': { "$ref": "../components/responses.yaml#/UnprocessableEntity" }
       '503': { "$ref": "../components/responses.yaml#/ServiceUnavailable" }
 adminExtensionRouteProviderSelection:
   get:

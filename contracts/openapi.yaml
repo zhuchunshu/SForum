@@ -340,6 +340,14 @@ paths:
     "$ref": "./openapi/paths/extension-route-inspector.yaml#/adminExtensionRouteInspector"
   "/admin/extensions/provider-slots":
     "$ref": "./openapi/paths/extensions.yaml#/adminExtensionProviderSlots"
+  "/admin/extensions/provider-slots/events":
+    "$ref": "./openapi/paths/extensions.yaml#/adminExtensionProviderSlotEvents"
+  "/admin/extensions/provider-slots/selection":
+    "$ref": "./openapi/paths/extensions.yaml#/adminExtensionProviderSlotSelection"
+  "/admin/extensions/provider-slots/selection/reset":
+    "$ref": "./openapi/paths/extensions.yaml#/adminExtensionProviderSlotReset"
+  "/admin/extensions/provider-slots/probe":
+    "$ref": "./openapi/paths/extensions.yaml#/adminExtensionProviderSlotProbe"
   "/admin/extensions/{extensionID}":
     "$ref": "./openapi/paths/extensions.yaml#/adminExtensionUninstall"
   "/admin/extensions/{extensionID}/enable":
