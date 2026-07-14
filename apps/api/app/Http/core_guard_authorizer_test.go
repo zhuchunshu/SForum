@@ -115,13 +115,104 @@ func TestProductionCoreGuardEvaluatorRegistryIsExplicitAndVersioned(t *testing.T
 		t.Fatal(err)
 	}
 	bindings := registry.Bindings()
-	if len(bindings) != len(registrations) || len(bindings) != 18 {
+	if len(bindings) != len(registrations) || len(bindings) != 19 {
 		t.Fatalf("bindings = %#v", bindings)
 	}
 	for _, binding := range bindings {
 		if binding.ContractVersion != routes.CoreGuardEvaluatorContractV1 || !strings.HasPrefix(binding.EvaluatorID, "core.guard.") {
 			t.Fatalf("binding = %#v", binding)
 		}
+	}
+}
+
+func TestProductionForumReadGuardPartitionsCatalogByProvablePolicy(t *testing.T) {
+	type expectedRoute struct {
+		method    string
+		supported bool
+	}
+	expected := map[string]expectedRoute{
+		"core.route.forum.composer_toolbar": {method: "GET", supported: true},
+
+		"core.route.forum.categories":      {method: "GET"},
+		"core.route.forum.category_groups": {method: "GET"},
+		"core.route.forum.replies":         {method: "GET"},
+		"core.route.forum.search":          {method: "GET"},
+		"core.route.forum.tags":            {method: "GET"},
+		"core.route.forum.topics":          {method: "GET"},
+		"core.route.forum.topic":           {method: "GET"},
+		"core.route.forum.comments":        {method: "GET"},
+		"core.route.forum.topic_by_slug":   {method: "GET"},
+	}
+	var catalog []routes.CoreRoute
+	for _, route := range routes.CoreRouteCatalog() {
+		if route.Guard.EvaluatorID == "core.guard.forum.read" {
+			catalog = append(catalog, route)
+		}
+	}
+	if len(catalog) != len(expected) {
+		t.Fatalf("forum read contextual catalog = %#v", catalog)
+	}
+
+	authorizer := NewProductionRouteGuardAuthorizer()
+	for _, route := range catalog {
+		want, exists := expected[route.ID]
+		if !exists || route.Method != want.method || route.Guard.Kind != routes.CoreGuardContextual ||
+			len(route.Guard.Permissions) != 0 {
+			t.Fatalf("unexpected forum read guard route = %#v", route)
+		}
+		delete(expected, route.ID)
+
+		plan, step := productionCatalogInheritedGuardPlan(t, route)
+		if !want.supported {
+			request := productionGuardRequest("*")
+			request.Method, request.Path = plan.Method(), plan.Path()
+			if err := authorizer.Authorize(context.Background(), plan, step, request); !errors.Is(err, ErrRouteGuardUnavailable) {
+				t.Fatalf("%s runtime-policy error = %v", route.ID, err)
+			}
+			continue
+		}
+
+		allowed := productionGuardRequest(identity.PermissionPostCreate)
+		allowed.Method, allowed.Path = plan.Method(), plan.Path()
+		if err := authorizer.Authorize(context.Background(), plan, step, allowed); err != nil {
+			t.Fatalf("%s authenticated error = %v", route.ID, err)
+		}
+
+		anonymous := routes.DispatchRequest{Method: plan.Method(), Path: plan.Path()}
+		if err := authorizer.Authorize(context.Background(), plan, step, anonymous); !errors.Is(err, ErrRouteLoginRequired) {
+			t.Fatalf("%s anonymous error = %v", route.ID, err)
+		}
+		forgedActor := allowed
+		forgedActor.ActorID = 0
+		if err := authorizer.Authorize(context.Background(), plan, step, forgedActor); !errors.Is(err, ErrRouteLoginRequired) {
+			t.Fatalf("%s forged actor error = %v", route.ID, err)
+		}
+
+		forgedStep := step
+		forgedStep.RouteID += ".forged"
+		if err := authorizer.Authorize(context.Background(), plan, forgedStep, allowed); !errors.Is(err, ErrRouteGuardUnavailable) {
+			t.Fatalf("%s forged step error = %v", route.ID, err)
+		}
+		forgedRequest := allowed
+		forgedRequest.Path += "/forged"
+		if err := authorizer.Authorize(context.Background(), plan, step, forgedRequest); !errors.Is(err, ErrRouteGuardUnavailable) {
+			t.Fatalf("%s forged request error = %v", route.ID, err)
+		}
+	}
+	if len(expected) != 0 {
+		t.Fatalf("missing forum read guard routes = %#v", expected)
+	}
+}
+
+func TestProductionForumReadGuardRejectsForeignRouteID(t *testing.T) {
+	descriptor := routes.CoreGuardDescriptor{
+		Kind: routes.CoreGuardContextual, EvaluatorID: "core.guard.forum.read",
+	}
+	plan, step := productionInheritedGuardPlan(t, "core.route.forum.read.foreign", descriptor)
+	request := productionGuardRequest("*")
+	request.Method, request.Path = plan.Method(), plan.Path()
+	if err := NewProductionRouteGuardAuthorizer().Authorize(context.Background(), plan, step, request); !errors.Is(err, ErrRouteGuardUnavailable) {
+		t.Fatalf("foreign forum read route error = %v", err)
 	}
 }
 

@@ -56,6 +56,7 @@ func productionCoreGuardEvaluatorRegistrations() []routes.CoreGuardEvaluatorRegi
 		productionCoreGuardEvaluator("core.guard.extensions.read", requireExtensionsReadAuthority),
 		productionCoreGuardEvaluator("core.guard.forum.author_review", requireAuthenticatedCoreGuardActor),
 		productionCoreGuardEvaluator("core.guard.forum.comment_write", requireForumCommentGlobalAuthority),
+		productionCoreGuardEvaluator("core.guard.forum.read", requireForumReadAuthority),
 		productionCoreGuardEvaluator("core.guard.forum.settings", requireForumSettingsAuthority),
 		productionCoreGuardEvaluator("core.guard.forum.topic_create", requireDeclaredCoreGuardPermission),
 		productionCoreGuardEvaluator("core.guard.forum.topic_delete", requireForumTopicGlobalAuthority),
@@ -208,6 +209,17 @@ func requirePagesAdminAuthority(_ context.Context, evaluation routes.CoreGuardEv
 		// 页面替换批准和恢复会改变公共呈现的可信提供者，只允许超管。
 		return requireCoreGuardPermission(evaluation, "*")
 	default:
+		return routes.ErrCoreGuardEvaluatorUnavailable
+	}
+}
+
+func requireForumReadAuthority(ctx context.Context, evaluation routes.CoreGuardEvaluation) error {
+	switch evaluation.Descriptor.RouteID {
+	case "core.route.forum.composer_toolbar":
+		// 工具栏与发帖入口一致，只对当前活跃主体开放，不接收目标资源。
+		return requireAuthenticatedCoreGuardActor(ctx, evaluation)
+	default:
+		// 其余读取依赖实时 guestRead，评论还依赖 viewer/软删除可见性。
 		return routes.ErrCoreGuardEvaluatorUnavailable
 	}
 }
