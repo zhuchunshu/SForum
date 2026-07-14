@@ -673,3 +673,28 @@ template while retaining Schema fallback fields.
 - Add plugin migration execution, dependency checks, SForum version
   compatibility checks, signature/trust metadata, marketplace metadata, local
   debugging, packaging, SDK docs, and example plugins.
+
+## V3 P5 database platform checkpoint
+
+- The PostgreSQL Database Registry owns deterministic schema/role names,
+  credential rotation/revocation, exact `search_path`, eight-connection budgets,
+  five-second statement timeouts, and fifteen-second idle-transaction timeouts.
+- Plugin migrations use exact package declarations, Goose parsing without its
+  global history, checksums, advisory locks, a separate durable ledger, and a
+  public read-only preflight. Two independent processes prove once-only execution.
+- Host-owned `sforum_core_v1` stable views expose only safe identity, public
+  forum, public entity-meta, and public attachment metadata fields. PUBLIC has
+  no privileges and every view is security-barrier and non-updatable.
+- Protocol V2 Host Query production-binds four immutable stable-view queries
+  with server-attested exact identity, live trust checks, allowlisted shapes,
+  bounded cursor pagination, and read-only PostgreSQL transactions.
+- Transactional Host Commands now have server-attested exact scope, a durable
+  receipt ledger, transaction-scoped idempotency locking, audit insertion, and
+  replay in the same PostgreSQL transaction as domain writes. Concrete domain
+  definitions and bootstrap binding wait on actor/entitlement product contracts.
+- Exact trust review prominently shows database authority, core compatibility,
+  backup/retention, migration digests, and transaction policy before execution.
+- Do not infer that the current single `database.authority` enum is cumulative.
+  The pending recommendation is additive grants plus exact-artifact declared
+  database operation catalogs; direct shared credentials are unsafe for rolling
+  upgrades and multiple nodes.

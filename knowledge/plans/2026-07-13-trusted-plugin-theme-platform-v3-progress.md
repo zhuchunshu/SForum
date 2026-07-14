@@ -2,7 +2,7 @@
 
 Date: 2026-07-14
 Overall progress: **34%**
-Active phase: **P5 - Plugin Database Registry And Real Migrations (41%, 7 of 17 rows)**
+Active phase: **P5 - Plugin Database Registry And Real Migrations (47%, 8 of 17 rows)**
 
 This ledger is the durable percentage and context-compaction checkpoint for the
 V3 program. Update it before context compression, at every phase boundary, and
@@ -21,7 +21,7 @@ scaffolding, or demo-only code cannot satisfy a runtime exit criterion.
 | P2 Manifest/contracts | 7% | 100% | 7% |
 | P3 Host API v2 | 8% | 100% | 8% |
 | P4 Lifecycle/dependencies | 7% | 100% | 7% |
-| P5 Database/commands | 8% | 41% | 3.29% |
+| P5 Database/commands | 8% | 47% | 3.76% |
 | P6 Routes/middleware | 10% | 0% | 0% |
 | P7 Workflow/admin/query/identity | 10% | 0% | 0% |
 | P8 Theme compiler/runtime | 8% | 0% | 0% |
@@ -680,7 +680,7 @@ phase percentage.
 
 ## P5 Implementation Checkpoint
 
-- P5 is **41% complete (7 of 17 rows)**. Weighted overall V3 progress is
+- P5 is **47% complete (8 of 17 rows)**. Weighted overall V3 progress is
   **34%**. This count credits only production behavior or exact integration
   evidence, not protobuf shapes or unwired foundations.
 - Completed rows: deterministic safe identifiers; exact migration discovery,
@@ -696,12 +696,31 @@ phase percentage.
 - `d75de7751` runs the same exact migration plan from two independent test
   processes and independent PostgreSQL pools. The durable advisory lock and
   ledger converge to one plan, one applied step, and one state row.
+- `dd0e08e74` enforces eight connections, a five-second statement timeout, and
+  a fifteen-second idle-transaction timeout on every own-schema runtime role;
+  real PostgreSQL tests prove over-budget rejection and slow-query cancellation.
+- `c9ca0d797` publishes Host-owned, security-barrier, non-updatable
+  `sforum_core_v1` views for safe identities, public forum content, entity
+  metadata, and attachment metadata without granting base-table access.
+- `801052f2e`, `0c2fcdfec`, and `eedaabb15` add the durable Host Command receipt
+  ledger, server-attested exact broker identity, and a PostgreSQL backend that
+  keeps domain writes, audit, and replay evidence in one transaction. Concrete
+  production domain command definitions remain required before the command
+  rows can close.
+- `368e48e4d` production-binds an immutable Host Query catalog for safe user,
+  public topic, and public attachment reads. Exact enabled artifacts and live
+  trust grants are resolved server-side; forged request identity/authority,
+  stale artifacts, PII fields, unsafe shapes, and oversized pages fail closed.
+- `c142426a2` promotes database authority, compatibility, backup/retention,
+  migration digest, and transaction policy in the exact-artifact trust flow.
+  Authenticated admin-page QA plus a temporary production-component fixture
+  passed on desktop and 390px with no overflow or app console errors; ordinary
+  backup guidance expires after ten seconds while high-risk warnings persist.
 - Partial rows: runtime credential delivery; physical `database.core.full`
-  grants; destructive-migration guidance in API/UI; and concrete PostgreSQL
-  Host Command atomicity. Missing rows include plugin-owned transactions,
-  stable views/production query-command catalogs, six concrete Host Commands,
-  core-upgrade compatibility blocking, complete DB observability/budgets, and
-  raw-authority behavior tests.
+  grants; stable views/typed query-command publication; complete database
+  tracing/budgets; and concrete PostgreSQL Host Command atomicity. Missing rows
+  include plugin-owned transactions, six concrete Host Commands, core-upgrade
+  compatibility blocking, and raw-authority behavior tests.
 - The authority audit found a real public-contract conflict. ADR prose says
   database powers are disclosed in tiers, while Manifest, JSON Schema,
   OpenAPI, validation, and the database ledger all store one mutually

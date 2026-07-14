@@ -4,10 +4,10 @@ This is the entry point for project memory.
 
 ## Latest Handoff
 
-- **2026-07-14 Trusted Plugin And Theme Platform V3 P4 complete, P5 active (overall 31%)**
+- **2026-07-14 Trusted Plugin And Theme Platform V3 P5 active at 8/17 (overall 34%)**
   - Decision: `knowledge/decisions/2026-07-13-trusted-plugin-theme-platform-v3.md`
   - Task book: `knowledge/plans/2026-07-13-trusted-plugin-theme-platform-v3.md`
-  - P4 handoff: `knowledge/sessions/2026-07-14-trusted-plugin-theme-platform-v3-p4-progress.md`
+  - P5 handoff: `knowledge/sessions/2026-07-14-trusted-plugin-theme-platform-v3-p5-progress.md`
   - Durable progress/compaction ledger:
     `knowledge/plans/2026-07-13-trusted-plugin-theme-platform-v3-progress.md`
   - P0 catalogs and governance: `docs/extensions/v3/`
@@ -61,6 +61,16 @@ This is the entry point for project memory.
     drain are verified; authenticated desktop/mobile browser QA is green
   - P5 is active. Reuse the already-landed Database Registry, scoped roles,
     exact migration engine, and uninstall disposition instead of rebuilding them
+  - P5 now has exact read-only migration preflight, cross-process migration-once
+    proof, runtime connection/time budgets, stable `sforum_core_v1` views,
+    durable Host Command receipts/PostgreSQL backend, and a production-bound
+    stable Host Query catalog
+  - Exact trust UI now discloses database authority, compatibility, backup and
+    retention, migration digest, and transaction risk; authenticated admin plus
+    desktop/390px production-component QA passed without overflow or app errors
+  - Three P5 public product choices remain for composable database grants and
+    operation catalogs, Host-attested actor delegation, and the minimal
+    provider-neutral entitlement lifecycle; independent implementation continues
 
 - **2026-07-13 Legacy Web Release/runtime frontend builds removed**
   - Decision: `knowledge/decisions/2026-07-13-remove-legacy-web-release.md`

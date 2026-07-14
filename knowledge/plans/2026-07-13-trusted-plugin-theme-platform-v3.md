@@ -435,7 +435,7 @@ flowchart LR
       an escape hatch rather than the normal integration path.
 - [ ] Implement exact-artifact `database.core.full` grants for raw core access.
 - [ ] Block incompatible core upgrades using declared schema compatibility.
-- [ ] Add backup/export guidance before destructive migrations.
+- [x] Add backup/export guidance before destructive migrations.
 - [x] Integrate uninstall plan and Host fallback cleanup for schemas, roles, and
       credentials.
 - [ ] Add DB query tracing, slow-query limits, and per-plugin connection budgets.
