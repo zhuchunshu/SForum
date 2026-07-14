@@ -107,6 +107,16 @@ type ServiceConflict struct {
 	Candidates []ServiceRegistration
 }
 
+// ServiceExtensionSnapshot is a caller-owned view of one extension's complete
+// exact-runtime service set. An extension with no declared services has no
+// snapshot entry; the immutable Manifest remains the authority for that case.
+type ServiceExtensionSnapshot struct {
+	Revision      uint64
+	ExtensionID   string
+	InstanceID    string
+	Registrations []ServiceRegistration
+}
+
 type preparedServiceRegistration struct {
 	registration ServiceRegistration
 	publishedID  string
@@ -239,6 +249,32 @@ func (r *ServiceRegistry) UnregisterProtocolV2ServiceInstance(extensionID, insta
 
 func (r *ServiceRegistry) Revision() uint64 {
 	return r.loadSnapshot().revision
+}
+
+func (r *ServiceRegistry) ExtensionSnapshot(extensionID string) (ServiceExtensionSnapshot, bool, error) {
+	extensionID = strings.TrimSpace(extensionID)
+	if r == nil || extensionID == "" {
+		return ServiceExtensionSnapshot{}, false, fmt.Errorf("%w: extension id is required", ErrInvalidServiceRegistration)
+	}
+	snapshot := r.loadSnapshot()
+	result := ServiceExtensionSnapshot{Revision: snapshot.revision, ExtensionID: extensionID}
+	for _, item := range snapshot.registrations {
+		if item.registration.ExtensionID != extensionID {
+			continue
+		}
+		if result.InstanceID == "" {
+			result.InstanceID = item.registration.InstanceID
+		} else if result.InstanceID != item.registration.InstanceID {
+			return ServiceExtensionSnapshot{}, false, fmt.Errorf(
+				"%w: extension %q spans multiple runtime instances", ErrInvalidServiceRegistration, extensionID,
+			)
+		}
+		result.Registrations = append(result.Registrations, cloneServiceRegistration(item.registration))
+	}
+	if len(result.Registrations) == 0 {
+		return ServiceExtensionSnapshot{}, false, nil
+	}
+	return result, true, nil
 }
 
 // List returns one effective provider for each matching service/version pair.
