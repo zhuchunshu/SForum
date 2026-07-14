@@ -291,6 +291,11 @@ func (s *Service) finishLifecycleV2(
 	if err != nil {
 		return Extension{}, errors.Join(ErrLifecycleCoordinatorUnavailable, err)
 	}
+	if result.Operation.TerminalResult == LifecycleTerminalSucceeded && request.operation == LifecycleMachineDisable {
+		if err := s.clearPluginProviderSelections(ctx, request.target.ID); err != nil {
+			return Extension{}, errors.Join(ErrLifecycleCoordinatorUnavailable, fmt.Errorf("clear disabled provider selections: %w", err))
+		}
+	}
 	if result.Operation.TerminalResult == LifecycleTerminalSucceeded && !result.Replayed {
 		s.emitLifecycleCompatibilityEvent(ctx, actor, request.operation, current)
 	}
@@ -325,6 +330,15 @@ func (s *Service) replayLifecycleV2(
 	if operation.CompletedAt != nil {
 		switch operation.TerminalResult {
 		case LifecycleTerminalSucceeded, LifecycleTerminalSkipped:
+			if operation.TerminalResult == LifecycleTerminalSucceeded &&
+				LifecycleMachineOperation(operation.Operation) == LifecycleMachineDisable {
+				if cleanupErr := s.clearPluginProviderSelections(ctx, current.ID); cleanupErr != nil {
+					return Extension{}, true, errors.Join(
+						ErrLifecycleCoordinatorUnavailable,
+						fmt.Errorf("clear disabled provider selections: %w", cleanupErr),
+					)
+				}
+			}
 			// A completed replay has no coordinator work and therefore no process
 			// staging boundary to preflight again. Return the published state directly.
 			item, loadErr := s.store.Get(ctx, current.ID)
@@ -588,6 +602,15 @@ func (s *Service) finalizeLifecycleUninstall(
 	}
 	if s.lifecycleFinalizer == nil {
 		return UninstallResult{}, ErrLifecycleCleanupFinalization
+	}
+	// Provider selections are Host registrations, not plugin-owned data. Clear
+	// them before physical purge so a failed options write leaves the exact
+	// package/identity available for an idempotent retry.
+	if err := s.clearPluginProviderSelections(ctx, extensionID); err != nil {
+		return UninstallResult{}, errors.Join(
+			ErrLifecycleCleanupFinalization,
+			fmt.Errorf("clear uninstalled provider selections: %w", err),
+		)
 	}
 	cleanup, err := s.lifecycleFinalizer(ctx, operation.ID)
 	if err != nil {

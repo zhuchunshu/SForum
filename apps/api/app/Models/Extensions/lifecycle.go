@@ -333,16 +333,20 @@ type StorageSelectionClearer interface {
 	ClearStorageProviderSelectionIfMatch(ctx context.Context, extensionID string) error
 }
 
-// drainPluginRuntime 禁用/升级/卸载共用的 drain：停子进程、清 mail/storage 选择、发 disabled hook。
-func (s *Service) drainPluginRuntime(ctx context.Context, extension Extension) error {
-	if extension.Type != TypePlugin {
-		return nil
-	}
-	if selectionStore, ok := s.store.(interface {
-		SelectedMailProvider(context.Context) (string, error)
-		RestoreMailProvider(context.Context) error
-	}); ok {
-		if selected, selectErr := selectionStore.SelectedMailProvider(ctx); selectErr == nil && selected == extension.ID {
+type mailProviderSelectionStore interface {
+	SelectedMailProvider(context.Context) (string, error)
+	RestoreMailProvider(context.Context) error
+}
+
+// clearPluginProviderSelections 是 V1/V2 共用的 Host-owned 幂等清理边界。
+// 它不触碰 runtime；V2 的进程 drain 只能由 durable coordinator 管理。
+func (s *Service) clearPluginProviderSelections(ctx context.Context, extensionID string) error {
+	if selectionStore, ok := s.store.(mailProviderSelectionStore); ok {
+		selected, err := selectionStore.SelectedMailProvider(ctx)
+		if err != nil {
+			return err
+		}
+		if selected == extensionID {
 			if err := selectionStore.RestoreMailProvider(ctx); err != nil {
 				return err
 			}
@@ -350,9 +354,20 @@ func (s *Service) drainPluginRuntime(ctx context.Context, extension Extension) e
 	}
 	// E6.1：若附件存储选中了本插件，回落 local，避免孤儿 plugin: 选择。
 	if s.storageSelection != nil {
-		if err := s.storageSelection.ClearStorageProviderSelectionIfMatch(ctx, extension.ID); err != nil {
+		if err := s.storageSelection.ClearStorageProviderSelectionIfMatch(ctx, extensionID); err != nil {
 			return err
 		}
+	}
+	return nil
+}
+
+// drainPluginRuntime 禁用/升级/卸载共用的 V1 drain：停子进程、清 provider、发 disabled hook。
+func (s *Service) drainPluginRuntime(ctx context.Context, extension Extension) error {
+	if extension.Type != TypePlugin {
+		return nil
+	}
+	if err := s.clearPluginProviderSelections(ctx, extension.ID); err != nil {
+		return err
 	}
 	if s.runtime != nil {
 		_ = s.runtime.Stop(ctx, extension)
