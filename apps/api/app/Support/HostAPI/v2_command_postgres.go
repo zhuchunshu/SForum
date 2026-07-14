@@ -17,7 +17,10 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
-const protocolV2CommandAuditSchema = "sforum.host-command-audit@1"
+const (
+	protocolV2CommandAuditSchema         = "sforum.host-command-audit@1"
+	protocolV2HostCommandLegacyAuthority = "host_commands"
+)
 
 // PostgresProtocolV2CommandBackend stores command audit and replay evidence in
 // the same transaction as domain writes. It has no command catalog of its own.
@@ -25,8 +28,22 @@ type PostgresProtocolV2CommandBackend struct {
 	pool *pgxpool.Pool
 }
 
+// PostgresProtocolV2HostCommandBackend adds the legacy manifest/trust authority
+// gate required by Host Commands. The underlying backend deliberately remains
+// authority-neutral because DatabaseService reuses its transaction receipts for
+// independently approved own-schema operations.
+type PostgresProtocolV2HostCommandBackend struct {
+	*PostgresProtocolV2CommandBackend
+}
+
 func NewPostgresProtocolV2CommandBackend(pool *pgxpool.Pool) *PostgresProtocolV2CommandBackend {
 	return &PostgresProtocolV2CommandBackend{pool: pool}
+}
+
+func NewPostgresProtocolV2HostCommandBackend(pool *pgxpool.Pool) *PostgresProtocolV2HostCommandBackend {
+	return &PostgresProtocolV2HostCommandBackend{
+		PostgresProtocolV2CommandBackend: NewPostgresProtocolV2CommandBackend(pool),
+	}
 }
 
 func (b *PostgresProtocolV2CommandBackend) Begin(ctx context.Context) (pgx.Tx, error) {
@@ -41,19 +58,50 @@ func (b *PostgresProtocolV2CommandBackend) ResolveScope(
 	tx pgx.Tx,
 	requested protocolV2CommandScope,
 ) (protocolV2CommandScope, error) {
+	return b.resolveScope(ctx, tx, requested, "")
+}
+
+func (b *PostgresProtocolV2CommandBackend) ResolveHostCommandScope(
+	ctx context.Context,
+	tx pgx.Tx,
+	requested protocolV2CommandScope,
+) (protocolV2CommandScope, error) {
+	return b.resolveScope(ctx, tx, requested, protocolV2HostCommandLegacyAuthority)
+}
+
+func (b *PostgresProtocolV2HostCommandBackend) ResolveScope(
+	ctx context.Context,
+	tx pgx.Tx,
+	requested protocolV2CommandScope,
+) (protocolV2CommandScope, error) {
+	if b == nil || b.PostgresProtocolV2CommandBackend == nil {
+		return protocolV2CommandScope{}, staleProtocolV2CommandIdentity()
+	}
+	return b.ResolveHostCommandScope(ctx, tx, requested)
+}
+
+func (b *PostgresProtocolV2CommandBackend) resolveScope(
+	ctx context.Context,
+	tx pgx.Tx,
+	requested protocolV2CommandScope,
+	requiredAuthority string,
+) (protocolV2CommandScope, error) {
 	identity := ProtocolV2RuntimeIdentityFromContext(ctx)
-	if tx == nil || identity == nil || strings.TrimSpace(requested.ExtensionID) == "" ||
+	if b == nil || tx == nil || identity == nil || strings.TrimSpace(requested.ExtensionID) == "" ||
 		requested.ExtensionID != identity.GetExtensionId() {
 		return protocolV2CommandScope{}, staleProtocolV2CommandIdentity()
 	}
 
+	var manifestAuthority string
+	var system bool
 	resolved := requested
 	// Do not require active_version_id here. A live, authenticated candidate
 	// broker must call Host Commands during pre-publication lifecycle hooks. The
 	// broker token plus exact immutable version and live enable grant are the
 	// admission fence; lifecycle drain closes the broker before revocation.
 	err := tx.QueryRow(ctx, `
-		SELECT extension_versions.id, extensions.source
+		SELECT extension_versions.id, extensions.source, extensions.is_system,
+		       COALESCE(extension_versions.manifest #>> '{database,authority}', '')
 		FROM extension_versions
 		JOIN extensions ON extensions.id = extension_versions.extension_id
 		WHERE extension_versions.extension_id = $1
@@ -61,7 +109,7 @@ func (b *PostgresProtocolV2CommandBackend) ResolveScope(
 		  AND extension_versions.package_digest = $3
 		FOR SHARE OF extension_versions, extensions
 	`, identity.GetExtensionId(), identity.GetExtensionVersion(), identity.GetArtifactDigest()).Scan(
-		&resolved.ExtensionVersionID, &resolved.AuthorityType,
+		&resolved.ExtensionVersionID, &resolved.AuthorityType, &system, &manifestAuthority,
 	)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return protocolV2CommandScope{}, staleProtocolV2CommandIdentity()
@@ -71,32 +119,41 @@ func (b *PostgresProtocolV2CommandBackend) ResolveScope(
 	}
 	resolved.ExtensionVersion = identity.GetExtensionVersion()
 	resolved.PackageDigest = identity.GetArtifactDigest()
+	if requiredAuthority != "" && manifestAuthority != requiredAuthority {
+		return protocolV2CommandScope{}, deniedProtocolV2HostCommandAuthority()
+	}
 
 	switch resolved.AuthorityType {
 	case "builtin":
-		if identity.GetTrustGrantId() != "builtin" {
+		if identity.GetTrustGrantId() != "builtin" || !system {
 			return protocolV2CommandScope{}, staleProtocolV2CommandIdentity()
 		}
 		resolved.AuthorityType = "builtin"
 		resolved.TrustGrantID = 0
 	case "uploaded":
 		grantID, parseErr := strconv.ParseInt(identity.GetTrustGrantId(), 10, 64)
-		if parseErr != nil || grantID <= 0 {
+		if parseErr != nil || grantID <= 0 || strconv.FormatInt(grantID, 10) != identity.GetTrustGrantId() || system {
 			return protocolV2CommandScope{}, staleProtocolV2CommandIdentity()
 		}
 		var liveGrantID int64
+		var grantAuthority string
 		err = tx.QueryRow(ctx, `
-			SELECT id
+			SELECT id, COALESCE(impact_document #>> '{database,authority}', '')
 			FROM extension_trust_grants
 			WHERE id = $1 AND extension_id = $2 AND extension_version = $3
 			  AND package_digest = $4 AND action = 'enable' AND revoked_at IS NULL
 			FOR SHARE
-		`, grantID, identity.GetExtensionId(), identity.GetExtensionVersion(), identity.GetArtifactDigest()).Scan(&liveGrantID)
+		`, grantID, identity.GetExtensionId(), identity.GetExtensionVersion(), identity.GetArtifactDigest()).Scan(
+			&liveGrantID, &grantAuthority,
+		)
 		if errors.Is(err, pgx.ErrNoRows) {
 			return protocolV2CommandScope{}, staleProtocolV2CommandIdentity()
 		}
 		if err != nil {
 			return protocolV2CommandScope{}, fmt.Errorf("resolve Host Command trust grant: %w", err)
+		}
+		if requiredAuthority != "" && grantAuthority != manifestAuthority {
+			return protocolV2CommandScope{}, deniedProtocolV2HostCommandAuthority()
 		}
 		resolved.AuthorityType = "trust_grant"
 		resolved.TrustGrantID = liveGrantID
@@ -282,4 +339,14 @@ func staleProtocolV2CommandIdentity() error {
 	)
 }
 
+func deniedProtocolV2HostCommandAuthority() error {
+	return newProtocolV2CommandError(
+		protocolv2.ErrorCode_ERROR_CODE_PERMISSION_DENIED,
+		"host.command_authority_denied",
+		"The exact extension artifact has no approved Host Command authority.",
+		false,
+	)
+}
+
 var _ protocolV2CommandBackend = (*PostgresProtocolV2CommandBackend)(nil)
+var _ protocolV2CommandBackend = (*PostgresProtocolV2HostCommandBackend)(nil)

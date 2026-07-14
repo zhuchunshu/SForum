@@ -30,7 +30,7 @@ const (
 type postgresCommandHarness struct {
 	ctx       context.Context
 	pool      *pgxpool.Pool
-	backend   *PostgresProtocolV2CommandBackend
+	backend   *PostgresProtocolV2HostCommandBackend
 	identity  *protocolv2.ExtensionIdentity
 	versionID int64
 	grantID   int64
@@ -154,6 +154,163 @@ func TestPostgresProtocolV2CommandBackendResolvesServerIdentity(t *testing.T) {
 	expectStale("missing-grant", ctx)
 }
 
+func TestPostgresProtocolV2HostCommandBackendRequiresExactDeclaredAuthority(t *testing.T) {
+	h := newPostgresCommandHarness(t)
+	resolve := func(label string, identity *protocolv2.ExtensionIdentity) (protocolV2CommandScope, error) {
+		t.Helper()
+		ctx := ContextWithProtocolV2RuntimeIdentity(h.ctx, identity)
+		tx, err := h.backend.Begin(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer tx.Rollback(h.ctx)
+		return h.backend.ResolveScope(ctx, tx, protocolV2CommandScope{
+			ExtensionID: identity.GetExtensionId(), CommandID: postgresCommandTestID,
+			CommandVersion: postgresCommandTestVersion, IdempotencyKey: label,
+		})
+	}
+	assertReason := func(label string, err error, reason string) {
+		t.Helper()
+		var commandErr *protocolV2CommandError
+		if !errors.As(err, &commandErr) || commandErr.detail.GetReason() != reason {
+			t.Fatalf("%s error = %v, want %s", label, err, reason)
+		}
+	}
+	setAuthority := func(manifest, impact string) {
+		t.Helper()
+		if _, err := h.pool.Exec(h.ctx, `
+			UPDATE extension_versions SET manifest = $2::jsonb WHERE id = $1
+		`, h.versionID, manifest); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := h.pool.Exec(h.ctx, `
+			UPDATE extension_trust_grants SET impact_document = $2::jsonb WHERE id = $1
+		`, h.grantID, impact); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	resolved, err := resolve("declared-authority", h.identity)
+	if err != nil || resolved.AuthorityType != "trust_grant" || resolved.TrustGrantID != h.grantID {
+		t.Fatalf("exact Host Command authority = %#v, %v", resolved, err)
+	}
+
+	setAuthority(`{"database":{"authority":"own_schema"}}`, `{"database":{"authority":"own_schema"}}`)
+	request := postgresCommandRequest(h.identity, "forged-request-authority", "value")
+	request.Context.GrantedAuthority = []*protocolv2.AuthorityGrant{{
+		Key: protocolV2HostCommandLegacyAuthority, Source: "plugin-request",
+	}}
+	denied, err := newPostgresCommandEngine(t, h, false).execute(
+		ContextWithProtocolV2RuntimeIdentity(h.ctx, h.identity), request,
+	)
+	if err != nil || denied.GetState() != hostv2.CommandState_COMMAND_STATE_REJECTED ||
+		denied.GetError().GetReason() != "host.command_authority_denied" {
+		t.Fatalf("forged request authority = %#v, %v", denied, err)
+	}
+	assertPostgresCommandCounts(t, h, "forged-request-authority", 0, 0, 0)
+
+	setAuthority(`{}`, `{"database":{"authority":"host_commands"}}`)
+	_, err = resolve("missing-manifest-authority", h.identity)
+	assertReason("missing manifest authority", err, "host.command_authority_denied")
+
+	setAuthority(`{"database":{"authority":"host_commands"}}`, `{"database":{"authority":"raw_core"}}`)
+	_, err = resolve("mismatched-trust-authority", h.identity)
+	assertReason("mismatched trust authority", err, "host.command_authority_denied")
+
+	setAuthority(`{"database":{"authority":"host_commands"}}`, `{}`)
+	_, err = resolve("missing-trust-authority", h.identity)
+	assertReason("missing trust authority", err, "host.command_authority_denied")
+
+	setAuthority(`{"database":{"authority":"host_commands"}}`, `{"database":{"authority":"host_commands"}}`)
+	stale := proto.Clone(h.identity).(*protocolv2.ExtensionIdentity)
+	stale.ArtifactDigest = strings.Repeat("f", 64)
+	_, err = resolve("stale-artifact", stale)
+	assertReason("stale artifact", err, "host.command_identity_stale")
+
+	if _, err := h.pool.Exec(h.ctx, `
+		UPDATE extension_trust_grants SET revoked_at = statement_timestamp() WHERE id = $1
+	`, h.grantID); err != nil {
+		t.Fatal(err)
+	}
+	_, err = resolve("revoked-authority", h.identity)
+	assertReason("revoked authority", err, "host.command_identity_stale")
+}
+
+func TestPostgresProtocolV2HostCommandBackendRequiresBuiltinManifestAuthority(t *testing.T) {
+	h := newPostgresCommandHarness(t)
+	const extensionID = "fixture.builtin-command"
+	const version = "1.0.0"
+	digest := strings.Repeat("b", 64)
+	if _, err := h.pool.Exec(h.ctx, `
+		INSERT INTO extensions (id, source, is_system) VALUES ($1, 'builtin', true)
+	`, extensionID); err != nil {
+		t.Fatal(err)
+	}
+	var versionID int64
+	if err := h.pool.QueryRow(h.ctx, `
+		INSERT INTO extension_versions (extension_id, version, package_digest, manifest)
+		VALUES ($1, $2, $3, '{"database":{"authority":"host_commands"}}'::jsonb)
+		RETURNING id
+	`, extensionID, version, digest).Scan(&versionID); err != nil {
+		t.Fatal(err)
+	}
+	identity := &protocolv2.ExtensionIdentity{
+		ExtensionId: extensionID, ExtensionVersion: version, ArtifactDigest: digest,
+		TrustGrantId: "builtin", RuntimeEpoch: 1, InstanceId: "builtin-command-runtime",
+	}
+	resolve := func(label string) (protocolV2CommandScope, error) {
+		t.Helper()
+		ctx := ContextWithProtocolV2RuntimeIdentity(h.ctx, identity)
+		tx, err := h.backend.Begin(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer tx.Rollback(h.ctx)
+		return h.backend.ResolveScope(ctx, tx, protocolV2CommandScope{
+			ExtensionID: extensionID, CommandID: postgresCommandTestID,
+			CommandVersion: postgresCommandTestVersion, IdempotencyKey: label,
+		})
+	}
+	resolved, err := resolve("builtin-allowed")
+	if err != nil || resolved.ExtensionVersionID != versionID || resolved.AuthorityType != "builtin" || resolved.TrustGrantID != 0 {
+		t.Fatalf("builtin Host Command authority = %#v, %v", resolved, err)
+	}
+
+	if _, err := h.pool.Exec(h.ctx, `
+		UPDATE extension_versions SET manifest = '{"database":{"authority":"core_views"}}'::jsonb
+		WHERE id = $1
+	`, versionID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := resolve("builtin-wrong-authority"); err == nil {
+		t.Fatal("builtin without host_commands manifest authority was accepted")
+	} else {
+		var commandErr *protocolV2CommandError
+		if !errors.As(err, &commandErr) || commandErr.detail.GetReason() != "host.command_authority_denied" {
+			t.Fatalf("builtin wrong authority = %v", err)
+		}
+	}
+
+	if _, err := h.pool.Exec(h.ctx, `
+		UPDATE extension_versions SET manifest = '{"database":{"authority":"host_commands"}}'::jsonb WHERE id = $1
+	`, versionID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := h.pool.Exec(h.ctx, `
+		UPDATE extensions SET is_system = false WHERE id = $1
+	`, extensionID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := resolve("builtin-non-system"); err == nil {
+		t.Fatal("non-system builtin Host Command identity was accepted")
+	} else {
+		var commandErr *protocolV2CommandError
+		if !errors.As(err, &commandErr) || commandErr.detail.GetReason() != "host.command_identity_stale" {
+			t.Fatalf("non-system builtin = %v", err)
+		}
+	}
+}
+
 func TestPostgresProtocolV2CommandBackendRollsBackEveryFailureBoundary(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -223,22 +380,23 @@ func newPostgresCommandHarness(t *testing.T) *postgresCommandHarness {
 	const extensionVersion = "1.0.0"
 	packageDigest := strings.Repeat("a", 64)
 	if _, err := pool.Exec(ctx, `
-		INSERT INTO extensions (id, source) VALUES ($1, 'uploaded')
+		INSERT INTO extensions (id, source, is_system) VALUES ($1, 'uploaded', false)
 	`, extensionID); err != nil {
 		t.Fatal(err)
 	}
 	var versionID int64
 	if err := pool.QueryRow(ctx, `
-		INSERT INTO extension_versions (extension_id, version, package_digest)
-		VALUES ($1, $2, $3) RETURNING id
+		INSERT INTO extension_versions (extension_id, version, package_digest, manifest)
+		VALUES ($1, $2, $3, '{"database":{"authority":"host_commands"}}'::jsonb) RETURNING id
 	`, extensionID, extensionVersion, packageDigest).Scan(&versionID); err != nil {
 		t.Fatal(err)
 	}
 	var grantID int64
 	if err := pool.QueryRow(ctx, `
 		INSERT INTO extension_trust_grants (
-			extension_id, extension_version, package_digest, action, revoked_at
-		) VALUES ($1, $2, $3, 'enable', NULL) RETURNING id
+			extension_id, extension_version, package_digest, action, impact_document, revoked_at
+		) VALUES ($1, $2, $3, 'enable', '{"database":{"authority":"host_commands"}}'::jsonb, NULL)
+		RETURNING id
 	`, extensionID, extensionVersion, packageDigest).Scan(&grantID); err != nil {
 		t.Fatal(err)
 	}
@@ -248,7 +406,7 @@ func newPostgresCommandHarness(t *testing.T) *postgresCommandHarness {
 		RuntimeEpoch: 1, InstanceId: "fixture-instance",
 	}
 	return &postgresCommandHarness{
-		ctx: ctx, pool: pool, backend: NewPostgresProtocolV2CommandBackend(pool),
+		ctx: ctx, pool: pool, backend: NewPostgresProtocolV2HostCommandBackend(pool),
 		identity: identity, versionID: versionID, grantID: grantID,
 	}
 }
@@ -256,12 +414,13 @@ func newPostgresCommandHarness(t *testing.T) *postgresCommandHarness {
 func installPostgresCommandPrerequisites(t *testing.T, ctx context.Context, pool *pgxpool.Pool) {
 	t.Helper()
 	for _, statement := range []string{
-		`CREATE TABLE extensions (id TEXT PRIMARY KEY, source TEXT NOT NULL)`,
+		`CREATE TABLE extensions (id TEXT PRIMARY KEY, source TEXT NOT NULL, is_system BOOLEAN NOT NULL)`,
 		`CREATE TABLE extension_versions (
 			id BIGSERIAL PRIMARY KEY,
 			extension_id TEXT NOT NULL,
 			version TEXT NOT NULL,
 			package_digest TEXT NOT NULL,
+			manifest JSONB NOT NULL,
 			UNIQUE (extension_id, version, package_digest)
 		)`,
 		`CREATE TABLE extension_trust_grants (
@@ -270,6 +429,7 @@ func installPostgresCommandPrerequisites(t *testing.T, ctx context.Context, pool
 			extension_version TEXT NOT NULL,
 			package_digest TEXT NOT NULL,
 			action TEXT NOT NULL,
+			impact_document JSONB NOT NULL,
 			revoked_at TIMESTAMPTZ
 		)`,
 		`CREATE TABLE audit_events (
