@@ -5,7 +5,28 @@
 - Overall V3: **27%**.
 - P0-P3: **100%**.
 - P4: **47%**, active (7 of 15 task/test rows complete).
-- Branch: `main`; last committed slice: `74fd5f367`.
+- Branch: `main`; last committed slice at this checkpoint: `ccaa03c08`.
+
+## Registry And Service Production-Path Checkpoint
+
+- Exact Page and Route publication snapshots, exact Hook ownership, Service
+  inspection, Manager admission visibility, aggregate Registry persistence,
+  and aggregate convergence are committed through `7ed4e15c7`.
+- Partial-family target publication remains request-invisible and fails closed;
+  frozen source convergence is covered after the conflicting writer is removed.
+- Trusted install/enable, disable, staged upgrade, and exact rollback now enter
+  the durable coordinator through `064b24f4b`, `548a4826e`, and `ccaa03c08`.
+  Stable actor-bound idempotency survives a completed state publication and is
+  propagated by HTTP/OpenAPI and the admin client.
+- Clean committed-tree package tests passed. Focused Registry repetition/race/
+  vet and real PostgreSQL publication tests passed.
+- Do not mark P4 complete yet: uninstall removal modes, forced/retry/skip
+  recovery, Jobs post-marker reconciliation, production migration engine,
+  bootstrap construction, and full P4 gates remain open.
+- Current parallel ownership: Jobs/shared fence and composed boundary;
+  preflight/migration plus migration `013` Database Registry; bootstrap wiring;
+  Service uninstall/recovery. Preserve user-owned `.reasonix`, `.zcode`, and
+  `CLAUDE.md` deletions.
 
 ## Changed
 

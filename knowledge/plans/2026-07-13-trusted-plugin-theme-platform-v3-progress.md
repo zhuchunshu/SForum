@@ -112,6 +112,43 @@ phase percentage.
 
 ## Last Durable Checkpoint
 
+### 2026-07-14 P4 Registry And Service Production-Path Checkpoint
+
+- Overall remains **27%** and P4 remains **47% (7 of 15)**. The newly landed
+  Registry and Service slices are production prerequisites, but Jobs,
+  migrations, bootstrap, uninstall/recovery, and the complete P4 gates have not
+  yet converged as one production path.
+- `8163f1673`, `02771edc2`, `687d84905`, `efa053d33`, and `acec487f8` bind Page,
+  Route, Hook, and Service snapshots to immutable revisions and exact Manager
+  runtime admission. A drained or staged target stays invisible, stale Hook or
+  Service teardown cannot remove its replacement, and caller-owned inspection
+  snapshots cannot mutate live Registry state.
+- `392344a17` and `7ed4e15c7` persist the aggregate Registry publication phase
+  and deterministically reconcile Page, Route foundation, Hook, and Service
+  families behind the shared lifecycle publication fence. The failure test
+  covers Route target publication followed by a conflicting Page snapshot;
+  ordinary target calls remain closed and frozen-source recovery is required.
+- `8dfb53009` and `be73a5eb5` prove and implement idempotent Protocol V2 service
+  republication from the startup-frozen handshake after compensation removed
+  the process-local Service set.
+- `064b24f4b`, `548a4826e`, and `ccaa03c08` route trusted install/enable,
+  disable, staged upgrade, and exact historical rollback through the durable
+  coordinator with actor-bound stable idempotency keys, static preflight before
+  position zero, retained authority for deactivation/rollback, HTTP/OpenAPI
+  contracts, and admin client key propagation. A retry after state publication
+  resolves the original operation before consulting mutated extension state.
+- Clean `git archive HEAD` tests passed Models/Extensions, Pages, Routes,
+  HostAPI, and Support/Extensions. Registry focused repetition, race, vet, and
+  a real PostgreSQL Registry publication test also passed.
+- Active dirty ownership is isolated: Jobs/shared-fence plus composed-boundary
+  ordering; preflight/migration engine plus additive migration `013` Database
+  Registry; bootstrap production assembly; and Service uninstall/recovery. The
+  user-owned `.reasonix`, `.zcode`, and `CLAUDE.md` deletions remain untouched.
+- Next: land the Jobs fence and post-marker reconciliation, migration `013`
+  independently before its P5 implementation, then migration/preflight and
+  bootstrap adapters. Finish uninstall preserve/export/remove, forced recovery,
+  retry/skip UI, and denied/allowed tests before recalculating P4 progress.
+
 ### 2026-07-14 P4 Cleanup And Exact State Publication Checkpoint
 
 - Overall remains **27%** and P4 remains **47% (7 of 15)**. The production
