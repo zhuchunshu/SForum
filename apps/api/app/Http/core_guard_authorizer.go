@@ -45,12 +45,17 @@ type PageResolvePolicy interface {
 	ResolveAddedPathMatch(string) (pages.RouteMatch, bool)
 }
 
+type IdentityAdminGuardPolicy interface {
+	LoadAdminGuardSubject(context.Context, int64) (identity.AdminGuardSubject, error)
+}
+
 type ProductionRouteGuardPolicies struct {
 	ForumRead      ForumReadPolicy
 	Extensions     ExtensionGuardPolicy
 	DeclaredRoutes DeclaredExtensionRoutePolicy
 	Options        OptionsOwnerPolicy
 	Pages          PageResolvePolicy
+	IdentityAdmins IdentityAdminGuardPolicy
 }
 
 func NewProductionRouteGuardAuthorizer() ProductionRouteGuardAuthorizer {
@@ -109,7 +114,7 @@ func productionCoreGuardEvaluatorRegistrationsWithPolicies(policies ProductionRo
 		productionCoreGuardEvaluator("core.guard.forum.topic_edit", requireForumTopicGlobalAuthority),
 		productionCoreGuardEvaluator("core.guard.forum.topic_lock", requireDeclaredCoreGuardPermission),
 		productionCoreGuardEvaluator("core.guard.forum.topic_state", requireDeclaredCoreGuardPermission),
-		productionCoreGuardEvaluator("core.guard.identity.admin", requireIdentityAdminAuthority),
+		productionCoreGuardEvaluator("core.guard.identity.admin", identityAdminGuardEvaluator(policies.IdentityAdmins)),
 		productionCoreGuardEvaluator("core.guard.identity.bootstrap", requireIdentityBootstrapAuthority),
 		productionCoreGuardEvaluator("core.guard.identity.human_verification", requireHumanVerificationChallengeAuthority),
 		productionCoreGuardEvaluator("core.guard.identity.self_credentials", requireIdentitySelfCredentialsAuthority),
