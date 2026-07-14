@@ -489,8 +489,87 @@
       "uninstall": "Uninstall",
       "confirmUninstallTitle": "Uninstall this extension?",
       "confirmUninstallBody": "This removes “{name}” and its settings by default. Disable it first; built-in/system extensions cannot be uninstalled.",
+      "confirmUninstallV2Body": "This runs the recoverable trusted uninstall flow for “{name}”. Its package, runtime recovery material, and last successful authority remain available until terminal success.",
       "confirmUninstallAction": "Uninstall",
       "confirmUninstallCancel": "Cancel",
+      "uninstallModes": {
+        "legend": "Data disposition",
+        "preserve": {
+          "label": "Preserve data (recommended)",
+          "description": "Uninstall code and Host registrations while retaining plugin data for a later reinstall.",
+          "warning": "Plugin data remains. Credentials, tokens, and Host-managed registrations are still revoked by the uninstall flow."
+        },
+        "export": {
+          "label": "Export, then remove",
+          "description": "Require the plugin to create a verifiable export artifact before removing its data.",
+          "warning": "The Host continues only after the uninstall hook returns a durable export ID and digest; missing evidence fails closed."
+        },
+        "complete": {
+          "label": "Complete removal",
+          "description": "Remove plugin data, package, and Host-managed resources.",
+          "warning": "This is irreversible. External resources remain owned by plugin hooks; a hook failure retains the package and recovery material."
+        }
+      },
+      "lifecycle": {
+        "title": "Lifecycle history",
+        "history": "Lifecycle operation history",
+        "loading": "Loading lifecycle history",
+        "emptyTitle": "No lifecycle history",
+        "emptyDescription": "This plugin has not run through the V2 lifecycle coordinator yet.",
+        "loadFailed": "Lifecycle history could not be loaded.",
+        "recoveryFailed": "The lifecycle recovery operation failed.",
+        "retrySuccess": "The failed lifecycle step was recovered and retried.",
+        "skipSuccess": "The skippable step was skipped with an audited decision.",
+        "forced": "Forced mode",
+        "version": "Exact version",
+        "attempts": "Attempts",
+        "removalMode": "Data disposition",
+        "audit": "Initial audit event",
+        "steps": "Step history",
+        "stepAttempt": "Attempt {attempt} · progress {completed}/{total}",
+        "recoveryHistory": "Recovery decisions",
+        "operations": {
+          "install": "Install",
+          "enable": "Enable",
+          "disable": "Disable",
+          "upgrade": "Upgrade",
+          "rollback": "Rollback",
+          "uninstall": "Uninstall"
+        },
+        "results": {
+          "running": "Running",
+          "succeeded": "Succeeded",
+          "failed": "Failed",
+          "cancelled": "Cancelled",
+          "skipped": "Skipped"
+        },
+        "stepResults": {
+          "planned": "Planned",
+          "running": "Running",
+          "waiting": "Waiting",
+          "succeeded": "Succeeded",
+          "failed": "Failed",
+          "cancelled": "Cancelled",
+          "skipped": "Skipped"
+        },
+        "recovery": {
+          "title": "Recover failed operation",
+          "retry": "Retry failed step",
+          "retryDescription": "Resume with the original exact artifact, frozen authority, idempotency key, and checkpoint, while recording a new audit event.",
+          "skip": "Skip failed step",
+          "skipDescription": "Available only for plugin steps explicitly marked skippable by the lifecycle contract.",
+          "skipRisk": "Host safety gates can never be skipped. Skipping plugin cleanup may leave external resources, and uninstall also requires explicit forced escalation.",
+          "forceLabel": "Force uninstall to continue",
+          "forceSuperAdmin": "Only an active super administrator can accept residual-resource risk.",
+          "forceRiskTitle": "External resources may still exist",
+          "forceRiskDescription": "Forced uninstall continues revoking Host registrations, tokens, and managed namespaces, but cannot prove that webhooks, SaaS subscriptions, cloud resources, or external data were removed.",
+          "forceAcknowledge": "I understand external resources may remain and accept responsibility for manual follow-up cleanup.",
+          "reason": "Recovery reason",
+          "reasonDescription": "Required for skip or forced uninstall and stored verbatim with the durable audit decision.",
+          "retryAction": "Recover and retry",
+          "skipAction": "Record decision and skip"
+        }
+      },
       "uploadFailed": "Extension upload failed.",
       "enabled": "Extension enabled.",
       "disabled": "Extension disabled.",

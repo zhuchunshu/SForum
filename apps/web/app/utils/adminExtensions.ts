@@ -81,6 +81,7 @@ export type AdminExtensionManifest = {
   settings?: AdminExtensionSetting[] | AdminManifestSettingsDocument
   migrations?: Array<{ path: string }>
   backend?: { entry?: string, rpc?: string, protocolVersion?: number }
+  lifecycle?: { contractVersion?: string }
   admin?: AdminExtensionAdmin
   adminPages?: AdminExtensionAdminPage[]
   routes?: Array<{ path: string, methods?: string[], access?: 'public' | 'login' | 'permission', permission?: string, timeoutMs?: number }>
@@ -281,6 +282,113 @@ export type AdminExtension = {
   stagedVersion?: AdminExtensionVersion
   installedAt: string
   updatedAt: string
+}
+
+export type AdminLifecycleRemovalMode = 'preserve' | 'export_then_remove' | 'complete_removal'
+export const RECOMMENDED_LIFECYCLE_REMOVAL_MODE: AdminLifecycleRemovalMode = 'preserve'
+export type AdminLifecycleRecoveryDecision = 'retry' | 'skip_step'
+export type AdminLifecycleTerminalResult = 'succeeded' | 'failed' | 'cancelled' | 'skipped'
+
+export type AdminLifecyclePublicError = {
+  code?: string
+  reason?: string
+  message?: string
+  retryable: boolean
+  retryAfter?: string
+}
+
+export type AdminLifecycleOperation = {
+  id: number
+  extensionId: string
+  extensionVersion: string
+  packageDigest: string
+  operation: 'install' | 'enable' | 'disable' | 'upgrade' | 'rollback' | 'uninstall'
+  state: 'planned' | 'migrating' | 'starting' | 'healthy' | 'registering' | 'enabled' | 'draining' | 'uninstalling' | 'failed' | 'recovery'
+  planVersion: string
+  removalMode?: AdminLifecycleRemovalMode
+  forced: boolean
+  attemptCount: number
+  revision: number
+  currentStepId?: string
+  terminalResult?: AdminLifecycleTerminalResult
+  requestedByUserId?: number
+  auditEventId?: number
+  recoveryActorUserId?: number
+  recoveryAuditEventId?: number
+  error: AdminLifecyclePublicError
+  createdAt: string
+  updatedAt: string
+  startedAt?: string
+  completedAt?: string
+}
+
+export type AdminLifecycleStep = {
+  id: number
+  stepId: string
+  lifecycleAction: string
+  planVersion: string
+  attempt: number
+  status: 'planned' | 'running' | 'waiting' | 'succeeded' | 'failed' | 'cancelled' | 'skipped'
+  completedUnits: number
+  totalUnits: number
+  skipReason?: string
+  forced: boolean
+  actorUserId?: number
+  auditEventId?: number
+  error: AdminLifecyclePublicError
+  createdAt: string
+  updatedAt: string
+  startedAt?: string
+  completedAt?: string
+}
+
+export type AdminLifecycleRecovery = {
+  id: number
+  operationAttempt: number
+  decision: AdminLifecycleRecoveryDecision
+  escalateForced: boolean
+  reason?: string
+  actorUserId: number
+  auditEventId: number
+  createdAt: string
+}
+
+export type AdminLifecycleOperationDetail = AdminLifecycleOperation & {
+  steps: AdminLifecycleStep[]
+  recoveries: AdminLifecycleRecovery[]
+}
+
+export type AdminLifecycleRecoveryInput = {
+  decision: AdminLifecycleRecoveryDecision
+  reason: string
+  escalateForced: boolean
+  residualRiskAcknowledged: boolean
+}
+
+export function isLifecycleV2Plugin(extension: AdminExtension) {
+  return extension.type === 'plugin'
+    && extension.manifest.backend?.protocolVersion === 2
+    && Boolean(extension.manifest.lifecycle?.contractVersion?.trim())
+}
+
+export function canRecoverLifecycleOperation(operation?: AdminLifecycleOperation | null) {
+  return operation?.terminalResult === 'failed' || operation?.terminalResult === 'cancelled'
+}
+
+export function lifecycleRecoveryRequiresReason(input: Pick<AdminLifecycleRecoveryInput, 'decision' | 'escalateForced'>) {
+  return input.decision === 'skip_step' || input.escalateForced
+}
+
+export function canSubmitLifecycleRecovery(
+  operation: AdminLifecycleOperation | null | undefined,
+  input: AdminLifecycleRecoveryInput,
+  isSuperAdmin: boolean
+) {
+  if (!canRecoverLifecycleOperation(operation)) return false
+  if (input.escalateForced) {
+    if (operation?.operation !== 'uninstall' || !isSuperAdmin || !input.residualRiskAcknowledged) return false
+  }
+  return !lifecycleRecoveryRequiresReason(input) || input.reason.trim().length > 0
 }
 
 export type AdminExtensionSettingsProfile = 'none' | 'schema' | 'actions' | 'prebuilt'

@@ -5,6 +5,8 @@ import {
   extensionStats,
   mergeExtensionDeliveries,
   mergeExtensionEvents,
+  isLifecycleV2Plugin,
+  RECOMMENDED_LIFECYCLE_REMOVAL_MODE,
   type AdminContributionPointDefinition,
   type AdminEffectiveContribution,
   type AdminExtension,
@@ -12,7 +14,11 @@ import {
   type AdminExtensionEventDelivery,
   type AdminExtensionEvent,
   type AdminExtensionVersion,
-  type AdminExtensionStatus
+  type AdminExtensionStatus,
+  type AdminLifecycleOperation,
+  type AdminLifecycleOperationDetail,
+  type AdminLifecycleRecoveryInput,
+  type AdminLifecycleRemovalMode
 } from '~/utils/adminExtensions'
 import type {
   ExecutableTrustChallenge,
@@ -37,6 +43,13 @@ export const useAdminExtensionsManager = async () => {
   const loadingEventDeliveries = ref(false)
   const loadingContributionPoints = ref(false)
   const loadingContributions = ref(false)
+  const lifecycleDialogOpen = ref(false)
+  const lifecycleDialogItem = ref<AdminExtension | null>(null)
+  const lifecycleOperations = ref<AdminLifecycleOperation[]>([])
+  const lifecycleOperation = ref<AdminLifecycleOperationDetail | null>(null)
+  const lifecycleLoading = ref(false)
+  const lifecycleRecoveryBusy = ref(false)
+  const lifecycleError = ref('')
   const eventsByExtension = ref<Record<string, AdminExtensionEvent[]>>({})
   const eventDefinitions = ref<AdminExtensionEventDefinition[]>([])
   const eventDeliveries = ref<AdminExtensionEventDelivery[]>([])
@@ -125,18 +138,28 @@ export const useAdminExtensionsManager = async () => {
   // 卸载确认（F2.4）。
   const uninstallConfirmOpen = ref(false)
   const uninstallConfirmItem = ref<AdminExtension | null>(null)
+  const uninstallRemovalMode = ref<AdminLifecycleRemovalMode>(RECOMMENDED_LIFECYCLE_REMOVAL_MODE)
+  const uninstallError = ref('')
+  const uninstallKeys = new Map<string, string>()
 
   function openUninstallExtension(item: AdminExtension) {
     if (!item.isDeletable || item.source === 'builtin' || item.isSystem) {
       return
     }
     uninstallConfirmItem.value = item
+    uninstallRemovalMode.value = RECOMMENDED_LIFECYCLE_REMOVAL_MODE
+    uninstallError.value = ''
+    if (!uninstallKeys.has(item.id)) {
+      uninstallKeys.set(item.id, lifecycleIdempotencyKey())
+    }
     uninstallConfirmOpen.value = true
   }
 
   function cancelUninstallExtension() {
     uninstallConfirmOpen.value = false
     uninstallConfirmItem.value = null
+    uninstallRemovalMode.value = RECOMMENDED_LIFECYCLE_REMOVAL_MODE
+    uninstallError.value = ''
   }
 
   async function confirmUninstallExtension() {
@@ -144,13 +167,13 @@ export const useAdminExtensionsManager = async () => {
     if (!item) {
       return
     }
-    uninstallConfirmOpen.value = false
-    uninstallConfirmItem.value = null
     busyId.value = item.id
+    uninstallError.value = ''
     try {
       await request(`/admin/extensions/${item.id}`, {
         method: 'DELETE',
-        body: {}
+        body: isLifecycleV2Plugin(item) ? { removalMode: uninstallRemovalMode.value } : {},
+        headers: { 'Idempotency-Key': uninstallKeys.get(item.id) || lifecycleIdempotencyKey() }
       })
       const current = extensions.value.filter(row => row.id !== item.id)
       data.value = current
@@ -163,16 +186,126 @@ export const useAdminExtensionsManager = async () => {
         title: t('admin.extensions.uninstalled'),
         duration: 10000
       })
+      uninstallKeys.delete(item.id)
+      cancelUninstallExtension()
     } catch (error) {
+      uninstallError.value = apiErrorMessage(error) || t('admin.extensions.actionFailed')
       toast.add({
         color: 'error',
         icon: 'i-lucide-triangle-alert',
-        title: apiErrorMessage(error) || t('admin.extensions.actionFailed')
+        title: uninstallError.value,
+        duration: 0
       })
     } finally {
       busyId.value = ''
     }
   }
+
+  async function openLifecycleExtension(item: AdminExtension) {
+    lifecycleDialogItem.value = item
+    lifecycleDialogOpen.value = true
+    lifecycleError.value = ''
+    lifecycleOperations.value = []
+    lifecycleOperation.value = null
+    await loadLifecycleOperations(item.id)
+  }
+
+  function closeLifecycleExtension() {
+    lifecycleDialogOpen.value = false
+    lifecycleDialogItem.value = null
+    lifecycleOperations.value = []
+    lifecycleOperation.value = null
+    lifecycleError.value = ''
+  }
+
+  async function loadLifecycleOperations(extensionId: string, preferredOperationId?: number) {
+    lifecycleLoading.value = true
+    lifecycleError.value = ''
+    try {
+      const operations = await request<AdminLifecycleOperation[]>(`/admin/extensions/${extensionId}/lifecycle`)
+      lifecycleOperations.value = operations
+      const selectedId = preferredOperationId && operations.some(item => item.id === preferredOperationId)
+        ? preferredOperationId
+        : operations[0]?.id
+      if (selectedId) {
+        await selectLifecycleOperation(selectedId)
+      } else {
+        lifecycleOperation.value = null
+      }
+    } catch (error) {
+      lifecycleError.value = apiErrorMessage(error) || t('admin.extensions.lifecycle.loadFailed')
+    } finally {
+      lifecycleLoading.value = false
+    }
+  }
+
+  async function selectLifecycleOperation(operationId: number) {
+    const item = lifecycleDialogItem.value
+    if (!item || operationId <= 0) return
+    lifecycleLoading.value = true
+    lifecycleError.value = ''
+    try {
+      lifecycleOperation.value = await request<AdminLifecycleOperationDetail>(`/admin/extensions/${item.id}/lifecycle/${operationId}`)
+    } catch (error) {
+      lifecycleError.value = apiErrorMessage(error) || t('admin.extensions.lifecycle.loadFailed')
+    } finally {
+      lifecycleLoading.value = false
+    }
+  }
+
+  async function recoverLifecycleOperation(input: AdminLifecycleRecoveryInput) {
+    const item = lifecycleDialogItem.value
+    const operation = lifecycleOperation.value
+    if (!item || !operation) return
+    lifecycleRecoveryBusy.value = true
+    lifecycleError.value = ''
+    try {
+      const updated = await request<AdminLifecycleOperationDetail>(`/admin/extensions/${item.id}/lifecycle/${operation.id}/recovery`, {
+        method: 'POST',
+        body: {
+          decision: input.decision,
+          reason: input.reason.trim(),
+          escalateForced: input.escalateForced
+        }
+      })
+      lifecycleOperation.value = updated
+      lifecycleOperations.value = lifecycleOperations.value.map(row => row.id === updated.id ? updated : row)
+      if (updated.operation === 'uninstall' && updated.terminalResult === 'succeeded') {
+        data.value = extensions.value.filter(row => row.id !== item.id)
+      }
+      toast.add({
+        color: 'success',
+        icon: input.decision === 'retry' ? 'i-lucide-refresh-cw' : 'i-lucide-skip-forward',
+        title: t(input.decision === 'retry' ? 'admin.extensions.lifecycle.retrySuccess' : 'admin.extensions.lifecycle.skipSuccess'),
+        duration: 10000
+      })
+      await loadLifecycleOperations(item.id, updated.id)
+    } catch (error) {
+      lifecycleError.value = apiErrorMessage(error) || t('admin.extensions.lifecycle.recoveryFailed')
+      toast.add({
+        color: 'error', icon: 'i-lucide-triangle-alert', title: lifecycleError.value, duration: 0
+      })
+    } finally {
+      lifecycleRecoveryBusy.value = false
+    }
+  }
+
+  watch([uninstallConfirmOpen, busyId], ([open, busy]) => {
+    if (!open && busy !== uninstallConfirmItem.value?.id) {
+      uninstallConfirmItem.value = null
+      uninstallRemovalMode.value = RECOMMENDED_LIFECYCLE_REMOVAL_MODE
+      uninstallError.value = ''
+    }
+  })
+
+  watch([lifecycleDialogOpen, lifecycleRecoveryBusy, lifecycleLoading], ([open, recoveryBusy, loading]) => {
+    if (!open && !recoveryBusy && !loading) {
+      lifecycleDialogItem.value = null
+      lifecycleOperations.value = []
+      lifecycleOperation.value = null
+      lifecycleError.value = ''
+    }
+  })
 
   // V3 优先读取服务端 canonical impact；开关关闭时才回落 F2.1 capability review。
   const enableConfirmOpen = ref(false)
@@ -567,6 +700,19 @@ export const useAdminExtensionsManager = async () => {
     cancelUninstallExtension,
     uninstallConfirmOpen,
     uninstallConfirmItem,
+    uninstallRemovalMode,
+    uninstallError,
+    lifecycleDialogOpen,
+    lifecycleDialogItem,
+    lifecycleOperations,
+    lifecycleOperation,
+    lifecycleLoading,
+    lifecycleRecoveryBusy,
+    lifecycleError,
+    openLifecycleExtension,
+    closeLifecycleExtension,
+    selectLifecycleOperation,
+    recoverLifecycleOperation,
     disableExtension,
     upgradeExtension,
     rollbackExtension,

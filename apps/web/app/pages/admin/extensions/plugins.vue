@@ -8,6 +8,7 @@ import {
   extensionManageRoute,
   extensionSettingsPresentation,
   filterExtensionsByType,
+  isLifecycleV2Plugin,
   runtimeCapabilitySummary,
   runtimeStatusLabelKey,
   type AdminRuntimeState
@@ -48,6 +49,18 @@ const {
   cancelUninstallExtension,
   uninstallConfirmOpen,
   uninstallConfirmItem,
+  uninstallRemovalMode,
+  uninstallError,
+  lifecycleDialogOpen,
+  lifecycleDialogItem,
+  lifecycleOperations,
+  lifecycleOperation,
+  lifecycleLoading,
+  lifecycleRecoveryBusy,
+  lifecycleError,
+  openLifecycleExtension,
+  selectLifecycleOperation,
+  recoverLifecycleOperation,
   disableExtension,
   restartExtension,
   statusColor,
@@ -220,6 +233,15 @@ useSeoMeta({
             size="sm"
             color="neutral"
             variant="ghost"
+            icon="i-lucide-history"
+            :title="t('admin.extensions.lifecycle.title')"
+            :aria-label="t('admin.extensions.lifecycle.title')"
+            @click="openLifecycleExtension(item)"
+          />
+          <UButton
+            size="sm"
+            color="neutral"
+            variant="ghost"
             icon="i-lucide-settings"
             :to="adminRoutes.path(extensionManageRoute(item))"
           >
@@ -263,9 +285,9 @@ useSeoMeta({
             color="error"
             variant="ghost"
             icon="i-lucide-trash-2"
-			:disabled="item.status === 'enabled'"
+            :disabled="item.status === 'enabled' && !isLifecycleV2Plugin(item)"
             :loading="busyId === item.id"
-            :title="item.status === 'enabled' ? t('admin.extensions.confirmUninstallBody', { name: item.name }) : t('admin.extensions.uninstall')"
+            :title="item.status === 'enabled' && !isLifecycleV2Plugin(item) ? t('admin.extensions.confirmUninstallBody', { name: item.name }) : t('admin.extensions.uninstall')"
             @click="openUninstallExtension(item)"
           >
             {{ t('admin.extensions.uninstall') }}
@@ -288,25 +310,27 @@ useSeoMeta({
       @confirm="confirmEnableExtension"
     />
 
-    <UModal v-model:open="uninstallConfirmOpen">
-      <template #content>
-        <div class="p-5 sm:p-6">
-          <h2 class="text-base font-semibold text-slate-900 dark:text-zinc-100">
-            {{ t('admin.extensions.confirmUninstallTitle') }}
-          </h2>
-          <p class="mt-2 text-sm leading-6 text-slate-600 dark:text-zinc-300">
-            {{ t('admin.extensions.confirmUninstallBody', { name: uninstallConfirmItem?.name || '' }) }}
-          </p>
-          <div class="mt-6 flex justify-end gap-2">
-            <UButton color="neutral" variant="ghost" @click="cancelUninstallExtension">
-              {{ t('admin.extensions.confirmUninstallCancel') }}
-            </UButton>
-            <UButton color="error" icon="i-lucide-trash-2" @click="confirmUninstallExtension">
-              {{ t('admin.extensions.confirmUninstallAction') }}
-            </UButton>
-          </div>
-        </div>
-      </template>
-    </UModal>
+    <SFAdminExtensionUninstallDialog
+      v-model:open="uninstallConfirmOpen"
+      v-model:removal-mode="uninstallRemovalMode"
+      :extension="uninstallConfirmItem"
+      :busy="Boolean(uninstallConfirmItem && busyId === uninstallConfirmItem.id)"
+      :error="uninstallError"
+      @cancel="cancelUninstallExtension"
+      @confirm="confirmUninstallExtension"
+    />
+
+    <SFAdminExtensionLifecycleDialog
+      v-model:open="lifecycleDialogOpen"
+      :extension="lifecycleDialogItem"
+      :operations="lifecycleOperations"
+      :operation="lifecycleOperation"
+      :loading="lifecycleLoading"
+      :recovery-busy="lifecycleRecoveryBusy"
+      :error="lifecycleError"
+      :is-super-admin="isSuperAdmin"
+      @select="selectLifecycleOperation"
+      @recover="recoverLifecycleOperation"
+    />
   </div>
 </template>

@@ -489,8 +489,87 @@
       "uninstall": "卸载",
       "confirmUninstallTitle": "确认卸载扩展？",
       "confirmUninstallBody": "将删除「{name}」的安装记录与配置（默认）。请先禁用扩展；内置/系统扩展不可卸载。",
+      "confirmUninstallV2Body": "将对「{name}」执行可恢复的受信任卸载流程。包、运行时恢复材料与最后成功授权会保留到终态成功。",
       "confirmUninstallAction": "确认卸载",
       "confirmUninstallCancel": "取消",
+      "uninstallModes": {
+        "legend": "数据处理方式",
+        "preserve": {
+          "label": "保留数据（推荐）",
+          "description": "卸载代码与宿主注册，保留插件数据，方便以后重装恢复。",
+          "warning": "插件数据将保留；凭据、令牌和宿主管理的注册仍会按卸载流程撤销。"
+        },
+        "export": {
+          "label": "导出后删除",
+          "description": "先由插件生成可验证的导出制品，再删除插件数据。",
+          "warning": "只有卸载钩子返回 durable export ID 与 digest 后才会继续；缺少证据时安全失败。"
+        },
+        "complete": {
+          "label": "完全删除",
+          "description": "删除插件数据、包与宿主管理的资源。",
+          "warning": "这是不可逆操作。外部资源仍由插件卸载钩子负责，钩子失败时不会提前删除包或恢复材料。"
+        }
+      },
+      "lifecycle": {
+        "title": "生命周期记录",
+        "history": "生命周期操作历史",
+        "loading": "正在读取生命周期记录",
+        "emptyTitle": "暂无生命周期记录",
+        "emptyDescription": "此插件尚未通过 V2 生命周期协调器执行操作。",
+        "loadFailed": "无法读取生命周期记录。",
+        "recoveryFailed": "生命周期恢复操作失败。",
+        "retrySuccess": "失败步骤已恢复并重试。",
+        "skipSuccess": "可跳过步骤已按审计决定跳过。",
+        "forced": "强制模式",
+        "version": "精确版本",
+        "attempts": "执行次数",
+        "removalMode": "数据处理",
+        "audit": "初始审计记录",
+        "steps": "步骤记录",
+        "stepAttempt": "第 {attempt} 次·进度 {completed}/{total}",
+        "recoveryHistory": "恢复决定",
+        "operations": {
+          "install": "安装",
+          "enable": "启用",
+          "disable": "禁用",
+          "upgrade": "升级",
+          "rollback": "回滚",
+          "uninstall": "卸载"
+        },
+        "results": {
+          "running": "执行中",
+          "succeeded": "已成功",
+          "failed": "已失败",
+          "cancelled": "已取消",
+          "skipped": "已跳过"
+        },
+        "stepResults": {
+          "planned": "已计划",
+          "running": "执行中",
+          "waiting": "等待中",
+          "succeeded": "已成功",
+          "failed": "已失败",
+          "cancelled": "已取消",
+          "skipped": "已跳过"
+        },
+        "recovery": {
+          "title": "恢复失败操作",
+          "retry": "重试失败步骤",
+          "retryDescription": "使用原精确制品、冻结授权、幂等键与 checkpoint 恢复，并写入新审计记录。",
+          "skip": "跳过失败步骤",
+          "skipDescription": "仅适用于契约明确允许跳过的插件步骤。",
+          "skipRisk": "Host 安全门永远不能跳过。跳过插件清理步骤可能留下外部资源，卸载时还必须明确升级为强制模式。",
+          "forceLabel": "强制继续卸载",
+          "forceSuperAdmin": "只有当前有效的超级管理员可以承担剩余资源风险。",
+          "forceRiskTitle": "外部资源可能仍然存在",
+          "forceRiskDescription": "强制卸载会继续撤销 Host 注册、令牌与托管命名空间，但无法证明 webhook、SaaS 订阅、云资源或外部数据已删除。",
+          "forceAcknowledge": "我理解外部资源可能残留，并接受后续人工清理责任。",
+          "reason": "恢复原因",
+          "reasonDescription": "跳过或强制卸载时必填，将原样写入 durable 审计决定。",
+          "retryAction": "恢复并重试",
+          "skipAction": "记录决定并跳过"
+        }
+      },
       "uploadFailed": "扩展上传失败。",
       "enabled": "扩展已启用。",
       "disabled": "扩展已禁用。",
