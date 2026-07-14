@@ -1,8 +1,8 @@
 # Trusted Plugin And Theme Platform V3 Progress Ledger
 
 Date: 2026-07-14
-Overall progress: **39%**
-Active phase: **P6 - Full Route And Middleware Registry V1 (33%, 6 of 18 rows)**
+Overall progress: **40%**
+Active phase: **P6 - Full Route And Middleware Registry V1 (39%, 7 of 18 rows)**
 
 This ledger is the durable percentage and context-compaction checkpoint for the
 V3 program. Update it before context compression, at every phase boundary, and
@@ -22,7 +22,7 @@ scaffolding, or demo-only code cannot satisfy a runtime exit criterion.
 | P3 Host API v2 | 8% | 100% | 8% |
 | P4 Lifecycle/dependencies | 7% | 100% | 7% |
 | P5 Database/commands | 8% | 65% | 5.18% |
-| P6 Routes/middleware | 10% | 33% | 3.33% |
+| P6 Routes/middleware | 10% | 39% | 3.89% |
 | P7 Workflow/admin/query/identity | 10% | 0% | 0% |
 | P8 Theme compiler/runtime | 8% | 0% | 0% |
 | P9 Components/assets/L2 | 8% | 0% | 0% |
@@ -831,3 +831,29 @@ phase percentage.
   guards, exact schema catalogs, Host-observed side-effect fencing, SEO alias/
   redirect integration, live trace publication, streaming transports, the
   complete action/disconnect/crash matrix, or the new-vs-v1 benchmark row.
+
+## P6 Production Trace Checkpoint
+
+- P6 is now **39% complete (7 of 18 authoritative rows)** and weighted V3 is
+  **40%**. The newly accepted row is the production Route Inspector with exact
+  chain/provider/guard/contract metadata plus bounded timing and fallback
+  traces.
+- `3b017173c` injects one concurrency-safe trace ring into both the production
+  Dispatcher and permissioned Inspector. Plugin steps publish redacted denied,
+  schema-rejected, transport-failed, fallback-used, succeeded, and committed
+  outcomes with exact artifact attribution and commit state. Pure core routes
+  remain untraced and keep their existing streaming path.
+- Independent review found that a non-handler `readonly_core` fallback was
+  allowed to continue without a fallback/commit trace. `61da559d5` closes that
+  audit gap and adds the before-plugin -> core fallback regression.
+- Verification passed 20 repeated Route package runs, Route/HTTP race tests,
+  focused vet, bootstrap/controller/provider regressions, `go build ./...`, and
+  `git diff --check`.
+- Active dirty groups remain isolated: the exact-artifact OpenAPI route schema
+  catalog under `Support/ExtensionOpenAPI`, and P8 Page ViewModel/typed render
+  work under `Support/ThemeCompiler`. P8 independent review found nested-island
+  structure and required Host-form-island blockers, so no P8 row is credited.
+- Next: review and land the schema catalog foundation, then production-publish
+  it from exact lifecycle artifacts; complete Host-observed side-effect fencing,
+  inherited/custom/raw guards, remaining action semantics, streaming transports,
+  SEO integration, complete failure matrix, and the v1 comparison benchmark.

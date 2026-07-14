@@ -3,7 +3,7 @@
 ## Changed
 
 - P5 is 65% complete at 11 of 17 authoritative rows. P6 is the active phase at
-  33% (6 of 18 rows), and weighted V3 is 39%.
+  39% (7 of 18 rows), and weighted V3 is 40%.
 - Added read-only exact migration preflight and independent-process migration-once proof.
 - Enforced per-plugin PostgreSQL connection and slow-query budgets.
 - Added stable read-only core views and production Host Query runtime.
@@ -34,6 +34,9 @@
   selected, unselected, and stale providers without an implicit winner, and
   freezes exact guard/schema/fallback/artifact evidence at one Registry
   revision.
+- Production-bound the same Route trace ring to the Dispatcher and Inspector in
+  `3b017173c`, then fixed non-handler readonly fallback/commit attribution in
+  `61da559d5`. The production Inspector row is now accepted.
 
 ## Verification
 
@@ -86,11 +89,11 @@
 ## Resume Point
 
 - Branch: `main`.
-- Last implementation commit at this checkpoint: `ace782c5b`.
+- Last implementation commit at this checkpoint: `61da559d5`.
 - Frontend was started on port 3000 and API hot reload recovered on 8081, but
   process and login state are not durable; verify both before QA.
-- The only active dirty group is ThemeCompiler Page ViewModels/typed render
-  output. It failed review because the first registry covered only 8 of the 23
-  authoritative Page Catalog identities; require exact catalog parity before
-  committing it.
+- Active dirty groups are exact route schemas under `Support/ExtensionOpenAPI`
+  and ThemeCompiler Page ViewModels/typed render output. The Page catalog now
+  has 23/23 parity, but independent review found nested-island structure and
+  required Host-form-island blockers; do not commit or credit P8 until fixed.
 - Preserve any unrelated worktree changes; stage only V3-owned files/hunks.
