@@ -520,7 +520,7 @@ func replaceLifecycleRouteSet(
 
 func sameRouteArtifact(left, right routes.PluginArtifact) bool {
 	return left.ExtensionID == right.ExtensionID && left.ExtensionVersion == right.ExtensionVersion &&
-		left.PackageDigest == right.PackageDigest
+		left.PackageDigest == right.PackageDigest && left.RuntimeInstanceID == right.RuntimeInstanceID
 }
 
 func (b *PostgresLifecycleBoundaryRegistries) reconcilePages(
@@ -567,7 +567,8 @@ func pageArtifactAllowed(artifact pages.RuntimeArtifact, materials ...*lifecycle
 		}
 		if artifact.ExtensionID == material.extension.ID &&
 			artifact.ExtensionVersion == material.extension.Version &&
-			artifact.PackageDigest == material.extension.PackageDigest {
+			artifact.PackageDigest == material.extension.PackageDigest &&
+			artifact.RuntimeInstanceID == material.binding.RuntimeInstanceID {
 			return true
 		}
 	}

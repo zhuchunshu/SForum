@@ -255,6 +255,47 @@ func TestRegistryPublishesInspectableConflictsButResolvesFailClosed(t *testing.T
 	}
 }
 
+func TestRegistryInspectsWildcardAndConcreteMethodOverlaps(t *testing.T) {
+	registry := NewRegistry()
+	wildcard := routeArtifact("method.wildcard", "1.0.0", 'a')
+	get := routeArtifact("method.get", "1.0.0", 'b')
+	post := routeArtifact("method.post", "1.0.0", 'c')
+	snapshot, err := registry.Publish(Publication{Plugins: []PluginRouteSet{
+		{Artifact: wildcard, Routes: []extensionmanifest.ManifestRoute{pluginRoute("method.wildcard.route", "/method-overlap", 0, "*")}},
+		{Artifact: get, Routes: []extensionmanifest.ManifestRoute{pluginRoute("method.get.route", "/method-overlap", 0, "GET")}},
+		{Artifact: post, Routes: []extensionmanifest.ManifestRoute{pluginRoute("method.post.route", "/method-overlap", 0, "POST")}},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(snapshot.Conflicts) != 2 {
+		t.Fatalf("wildcard conflict count = %d: %#v", len(snapshot.Conflicts), snapshot.Conflicts)
+	}
+	for index, method := range []string{"GET", "POST"} {
+		conflict := snapshot.Conflicts[index]
+		if conflict.Kind != ConflictPathMethod || conflict.Method != method || len(conflict.Candidates) != 2 {
+			t.Fatalf("%s wildcard conflict = %#v", method, conflict)
+		}
+		ids := strings.Join(routeIDs(conflict.Candidates), ",")
+		if !strings.Contains(ids, "method.wildcard.route") {
+			t.Fatalf("%s conflict omitted wildcard candidate: %#v", method, conflict.Candidates)
+		}
+	}
+}
+
+func TestRegistryInspectsWildcardStableIdentityOverlap(t *testing.T) {
+	wildcard := coreRoute("core.route.method.shared", "*", "/method-identity/wildcard")
+	concrete := coreRoute("core.route.method.shared", "GET", "/method-identity/concrete")
+	snapshot, err := NewRegistry().Publish(Publication{Core: []CoreRoute{wildcard, concrete}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(snapshot.Conflicts) != 1 || snapshot.Conflicts[0].Kind != ConflictRouteIdentity ||
+		snapshot.Conflicts[0].Method != "GET" || len(snapshot.Conflicts[0].Candidates) != 2 {
+		t.Fatalf("wildcard identity conflict = %#v", snapshot.Conflicts)
+	}
+}
+
 func TestRegistryRequiresExplicitReplaceProviderSelection(t *testing.T) {
 	registry := NewRegistry()
 	artifact := routeArtifact("replace.demo", "2.0.0", 'a')

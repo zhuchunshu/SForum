@@ -133,6 +133,33 @@ func TestLifecycleRegistryPublicationSupportsPackageWithoutThemeJSON(t *testing.
 	}
 }
 
+func TestLifecycleRegistryPublicationRejectsSameArtifactFromDifferentRuntimeInstance(t *testing.T) {
+	extension := lifecycleRegistryTestExtension(t, "1.0.0", strings.Repeat("c", 64), 4, "/instance-fence")
+	binding := lifecycleRegistryBinding(extension, "expected-runtime")
+	material, err := buildLifecycleRegistryMaterial(extension, binding)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	foreignRoutes := lifecycleRouteSet(extension, binding)
+	foreignRoutes.Artifact.RuntimeInstanceID = "foreign-runtime"
+	if _, err := replaceLifecycleRouteSet(
+		routes.Publication{Plugins: []routes.PluginRouteSet{foreignRoutes}},
+		extension.ID,
+		nil,
+		&material,
+		nil,
+	); !errors.Is(err, ErrLifecycleRegistryPublicationConflict) {
+		t.Fatalf("same package from foreign route runtime was accepted: %v", err)
+	}
+
+	foreignPage := lifecyclePageArtifact(extension, binding)
+	foreignPage.RuntimeInstanceID = "foreign-runtime"
+	if pageArtifactAllowed(foreignPage, &material) {
+		t.Fatal("same package from foreign page runtime was accepted")
+	}
+}
+
 func TestLifecycleRegistryPartialFamilyFailureStaysInvisibleAndFailsClosed(t *testing.T) {
 	ctx := context.Background()
 	repository := &memoryLifecycleRegistryRepository{phase: LifecycleRegistryPublicationSource}
