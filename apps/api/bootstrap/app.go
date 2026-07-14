@@ -479,8 +479,10 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 	seoProvider := providers.NewSEOProvider(pool, optionsService)
 	databaseProvider := providers.NewDatabaseProvider(databaseStore, identityStore, authSessions)
 	jobsProvider := providers.NewJobsProvider(pool, jobClient, identityStore, authSessions)
+	routeTraceRing := routes.NewRouteTraceRing(0)
 	extensionsProvider := providers.NewExtensionsProviderWithService(extensionService, identityStore, authSessions, extensionRuntime, frontendService).
-		WithRouteProviderSelection(lifecycleStack.RouteProviders, auditWriter)
+		WithRouteProviderSelection(lifecycleStack.RouteProviders, auditWriter).
+		WithRouteInspector(routes.NewProviderSelectionInspector(lifecycleStack.RouteProviders, routeTraceRing))
 	webhooksProvider := providers.NewWebhooksProvider(webhookService, identityStore, authSessions)
 	// PageDataLoader 网关：仅从运行中插件 RouteTarget 拉数据（严格 loopback）。
 	pageLoaderGateway := pages.NewLoaderGateway(
@@ -512,6 +514,7 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		Steps:   httpserver.NewBufferedRouteStepInvoker(lifecycleStack.RuntimeManager),
 		Guard:   httpserver.HostRouteGuardAuthorizer{},
 		Schemas: httpserver.CatalogRouteSchemaValidator{},
+		Trace:   routeTraceRing,
 	})
 
 	app := httpserver.NewApp(cfg, logger, httpserver.Dependencies{

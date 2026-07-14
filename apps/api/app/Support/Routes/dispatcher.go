@@ -95,6 +95,7 @@ type DispatcherConfig struct {
 	Steps          StepInvoker
 	Guard          GuardAuthorizer
 	Schemas        SchemaValidator
+	Trace          RouteTraceSink
 	DefaultTimeout time.Duration
 }
 
@@ -103,6 +104,7 @@ type Dispatcher struct {
 	steps          StepInvoker
 	guard          GuardAuthorizer
 	schemas        SchemaValidator
+	trace          RouteTraceSink
 	defaultTimeout time.Duration
 }
 
@@ -113,7 +115,7 @@ func NewDispatcher(config DispatcherConfig) *Dispatcher {
 	}
 	return &Dispatcher{
 		plans: config.Plans, steps: config.Steps, guard: config.Guard,
-		schemas: config.Schemas, defaultTimeout: timeout,
+		schemas: config.Schemas, trace: config.Trace, defaultTimeout: timeout,
 	}
 }
 
@@ -148,15 +150,21 @@ func (d *Dispatcher) Dispatch(ctx context.Context, request DispatchRequest, core
 
 	commit := NewRouteCommitObserver()
 	var response *DispatchResponse
+	committingStep := -1
+	var committingStarted time.Time
 	for index, step := range chain {
+		started := time.Now()
 		if err := d.authorize(ctx, plan, step, request); err != nil {
+			d.appendTrace(plan, index, step, RouteTraceDenied, started, commit.State())
 			return DispatchResult{}, err
 		}
 		if d.schemas == nil && step.RequestSchema != "" {
+			d.appendTrace(plan, index, step, RouteTraceSchemaRejected, started, commit.State())
 			return DispatchResult{}, fmt.Errorf("%w: request validator is unavailable", ErrDispatchSchema)
 		}
 		if d.schemas != nil && step.RequestSchema != "" {
 			if err := d.schemas.ValidateRequest(ctx, step, request); err != nil {
+				d.appendTrace(plan, index, step, RouteTraceSchemaRejected, started, commit.State())
 				return DispatchResult{}, fmt.Errorf("%w: %v", ErrDispatchSchema, err)
 			}
 		}
@@ -165,10 +173,12 @@ func (d *Dispatcher) Dispatch(ctx context.Context, request DispatchRequest, core
 		if step.Phase == RoutePhaseHandler && step.Provider.Kind == ProviderCore ||
 			step.Phase == RoutePhaseHandler && (step.Action == extensionmanifest.RouteActionAlias || step.Action == extensionmanifest.RouteActionRewrite) {
 			if core == nil {
+				d.appendTrace(plan, index, step, RouteTraceTransportFailed, started, commit.State())
 				return DispatchResult{}, fmt.Errorf("%w: core handler is unavailable", ErrDispatchTransport)
 			}
 			value, callErr := core.InvokeCore(ctx, step, request)
 			if callErr != nil {
+				d.appendTrace(plan, index, step, RouteTraceTransportFailed, started, commit.State())
 				return DispatchResult{}, callErr
 			}
 			invocation.Response = &value
@@ -185,12 +195,16 @@ func (d *Dispatcher) Dispatch(ctx context.Context, request DispatchRequest, core
 				if invocation.ResponseStarted {
 					commit.ResponseStarted()
 				}
+				d.appendTrace(plan, index, step, RouteTraceTransportFailed, started, commit.State())
 				fallback, fallbackErr := d.fallback(ctx, plan, index, step, request, core, commit)
 				if fallbackErr != nil {
 					return DispatchResult{}, fallbackErr
 				}
 				if fallback != nil {
 					response = fallback
+					d.appendTrace(plan, index, step, RouteTraceFallbackUsed, started, commit.State())
+					committingStep = index
+					committingStarted = started
 					break
 				}
 				if plan.AllowsFallback(index, commit.State()) && step.Phase != RoutePhaseHandler {
@@ -212,14 +226,21 @@ func (d *Dispatcher) Dispatch(ctx context.Context, request DispatchRequest, core
 		if invocation.Response != nil {
 			value := cloneDispatchResponse(*invocation.Response)
 			if d.schemas == nil && step.ResponseSchema != "" {
+				d.appendTrace(plan, index, step, RouteTraceSchemaRejected, started, commit.State())
 				return DispatchResult{}, fmt.Errorf("%w: response validator is unavailable", ErrDispatchSchema)
 			}
 			if d.schemas != nil && step.ResponseSchema != "" {
 				if err := d.schemas.ValidateResponse(ctx, step, value); err != nil {
+					d.appendTrace(plan, index, step, RouteTraceSchemaRejected, started, commit.State())
 					return DispatchResult{}, fmt.Errorf("%w: %v", ErrDispatchSchema, err)
 				}
 			}
 			response = &value
+		}
+		if step.Provider.Kind == ProviderPlugin {
+			d.appendTrace(plan, index, step, RouteTraceSucceeded, started, commit.State())
+			committingStep = index
+			committingStarted = started
 		}
 	}
 	if response == nil {
@@ -228,7 +249,29 @@ func (d *Dispatcher) Dispatch(ctx context.Context, request DispatchRequest, core
 	if !commit.Finalize() {
 		return DispatchResult{}, ErrDispatchAlreadyCommitted
 	}
+	if committingStep >= 0 {
+		d.appendTrace(plan, committingStep, chain[committingStep], RouteTraceCommitted, committingStarted, commit.State())
+	}
 	return DispatchResult{Handled: true, Response: cloneDispatchResponse(*response)}, nil
+}
+
+func (d *Dispatcher) appendTrace(
+	plan RouteExecutionPlan,
+	index int,
+	step RouteExecutionStep,
+	outcome RouteTraceOutcome,
+	started time.Time,
+	state RouteExecutionCommitState,
+) {
+	if d == nil || d.trace == nil || step.Provider.Kind != ProviderPlugin {
+		return
+	}
+	d.trace.AppendRouteTrace(RouteTraceEvent{
+		Revision: plan.Revision(), StepIndex: index, Phase: step.Phase, Action: step.Action,
+		RouteID: step.RouteID, ContractVersion: step.ContractVersion, Method: plan.Method(),
+		PathSignature: routeStepPathSignature(step), Mode: step.Mode, Fallback: step.Fallback,
+		Outcome: outcome, Duration: time.Since(started), CommitState: state, Provider: step.Provider,
+	})
 }
 
 func dispatchPlanHasPluginStep(chain []RouteExecutionStep) bool {

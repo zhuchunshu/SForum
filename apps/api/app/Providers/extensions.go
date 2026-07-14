@@ -74,6 +74,13 @@ func (p *ExtensionsProvider) WithRouteProviderSelection(
 	return p
 }
 
+func (p *ExtensionsProvider) WithRouteInspector(inspector *routes.Inspector) *ExtensionsProvider {
+	if p != nil && p.controller != nil {
+		p.controller.WithRouteInspector(inspector)
+	}
+	return p
+}
+
 type extensionRouteGateway struct {
 	runtime extensionRuntime
 	gateway *extensionsruntime.RouteGateway
