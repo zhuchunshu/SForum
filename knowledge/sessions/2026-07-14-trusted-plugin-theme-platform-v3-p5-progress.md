@@ -3,7 +3,7 @@
 ## Changed
 
 - P5 is 65% complete at 11 of 17 authoritative rows. P6 is the active phase at
-  61% (11 of 18 rows), P8 is 39% (7 of 18 rows), and weighted V3 is 45%.
+  61% (11 of 18 rows), P8 is 44% (8 of 18 rows), and weighted V3 is 45%.
 - Added read-only exact migration preflight and independent-process migration-once proof.
 - Enforced per-plugin PostgreSQL connection and slow-query budgets.
 - Added stable read-only core views and production Host Query runtime.
@@ -73,6 +73,10 @@
   expanded explicit contextual guards to 26 of 123 routes in `ecf860984`, and
   accepted public-theme/admin style isolation in `9e369ffc8` after desktop,
   mobile, and SPA-return browser verification.
+- Added install-time preflight for every uploaded theme L1 template in
+  `b54b8f541`. Unsafe static HTML, forbidden helpers, recursive/deep graphs, and
+  contextual escaping failures cannot reach the Store; failed activation keeps
+  the prior immutable runtime active.
 
 ## Verification
 
@@ -125,13 +129,13 @@
 ## Resume Point
 
 - Branch: `main`.
-- Last implementation commit at this checkpoint: `69266b051`.
+- Last implementation commit at this checkpoint: `b54b8f541`.
 - Frontend was started on port 3000 and API hot reload recovered on 8081, but
   process and login state are not durable; verify both before QA.
 - Exact Route + Schema publication is production-bound and restored together at
   boot. The remaining P6 work is contextual/custom/raw guards, full action
   semantics, and non-buffered transports.
-- Theme runtime is credited only for 7 of 18 rows; do not claim all-catalog
+- Theme runtime is credited only for 8 of 18 rows; do not claim all-catalog
   zero-I/O or complete fallback until the remaining legacy/add paths and
   frontend contract close.
 - Preserve any unrelated worktree changes; stage only V3-owned files/hunks.

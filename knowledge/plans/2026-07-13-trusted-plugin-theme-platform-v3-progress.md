@@ -24,7 +24,7 @@ scaffolding, or demo-only code cannot satisfy a runtime exit criterion.
 | P5 Database/commands | 8% | 65% | 5.18% |
 | P6 Routes/middleware | 10% | 61% | 6.11% |
 | P7 Workflow/admin/query/identity | 10% | 0% | 0% |
-| P8 Theme compiler/runtime | 8% | 39% | 3.11% |
+| P8 Theme compiler/runtime | 8% | 44% | 3.56% |
 | P9 Components/assets/L2 | 8% | 0% | 0% |
 | P10 Content/media/data | 8% | 0% | 0% |
 | P11 Platform services | 6% | 0% | 0% |
@@ -998,6 +998,21 @@ phase percentage.
   web tests, Nuxt typecheck, production build, and desktop/mobile browser QA.
 - Next close the remaining contextual guard catalog and independently trusted
   custom/raw guards, then implement the frozen route-action semantics and real
-  multipart/streaming/SSE/WebSocket transports. P8 next owns install-time
-  unsafe compilation checks, typed frontend render segments, four-level
-  fallback, and all-catalog zero-I/O evidence.
+  multipart/streaming/SSE/WebSocket transports. P8 next owns typed frontend
+  render segments, four-level fallback, and all-catalog zero-I/O evidence.
+
+## P8 Install-Time Template Safety Checkpoint
+
+- Weighted V3 remains **45%** after flooring. P8 advances to **44% (8 of 18
+  rows)** by closing install-time static template safety; P6 remains **61% (11
+  of 18 rows)** and P5 remains **65% (11 of 17 rows)**.
+- `b54b8f541` runs bounded preflight over every uploaded theme L1 page plus its
+  shared layouts and partials before the package enters the authoritative
+  Store. Static dangerous HTML, forbidden helpers, recursive/deep template
+  graphs, and contextual escaping failures are rejected even in unused pages.
+- Activation still recompiles the exact artifact. A failed candidate cannot be
+  staged or published, and the prior immutable runtime continues serving.
+- Focused and repeated package tests, targeted race tests, Models race tests,
+  vet, `go build ./...`, and ordinary ThemeCompiler allocation budgets passed.
+  Full ThemeCompiler under `-race` exceeds pre-existing allocation ceilings
+  because of race instrumentation and is not treated as an allocation result.
