@@ -89,6 +89,55 @@ func (r *PostgresLifecycleRepository) OperationByIdempotencyKey(ctx context.Cont
 	return operation, nil
 }
 
+func (r *PostgresLifecycleRepository) Operation(ctx context.Context, extensionID string, operationID int64) (LifecycleOperation, error) {
+	if r == nil || r.pool == nil || ctx == nil || extensionID == "" || extensionID != normalizeID(extensionID) || operationID <= 0 {
+		return LifecycleOperation{}, ErrLifecycleInvalidInput
+	}
+	operation, err := scanLifecycleOperation(r.pool.QueryRow(ctx, lifecycleOperationSelectSQL()+`
+		WHERE extension_id = $1 AND id = $2
+	`, extensionID, operationID))
+	if errors.Is(err, pgx.ErrNoRows) {
+		return LifecycleOperation{}, ErrLifecycleOperationNotFound
+	}
+	if err != nil {
+		return LifecycleOperation{}, fmt.Errorf("load lifecycle operation: %w", err)
+	}
+	return operation, nil
+}
+
+func (r *PostgresLifecycleRepository) ListOperations(ctx context.Context, extensionID string, limit int) ([]LifecycleOperation, error) {
+	if r == nil || r.pool == nil || ctx == nil || extensionID == "" || extensionID != normalizeID(extensionID) {
+		return nil, ErrLifecycleInvalidInput
+	}
+	if limit <= 0 {
+		limit = 100
+	}
+	if limit > 500 {
+		limit = 500
+	}
+	rows, err := r.pool.Query(ctx, lifecycleOperationSelectSQL()+`
+		WHERE extension_id = $1
+		ORDER BY created_at DESC, id DESC
+		LIMIT $2
+	`, extensionID, limit)
+	if err != nil {
+		return nil, fmt.Errorf("list lifecycle operations: %w", err)
+	}
+	defer rows.Close()
+	items := make([]LifecycleOperation, 0)
+	for rows.Next() {
+		item, scanErr := scanLifecycleOperation(rows)
+		if scanErr != nil {
+			return nil, fmt.Errorf("scan lifecycle operation: %w", scanErr)
+		}
+		items = append(items, item)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate lifecycle operations: %w", err)
+	}
+	return items, nil
+}
+
 func (r *PostgresLifecycleRepository) OpenOperation(ctx context.Context, extensionID string) (LifecycleOperation, error) {
 	operation, err := scanLifecycleOperation(r.pool.QueryRow(ctx, lifecycleOperationSelectSQL()+`
 		WHERE extension_id = $1 AND completed_at IS NULL

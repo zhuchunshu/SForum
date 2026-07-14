@@ -2,6 +2,7 @@ package extensions
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"reflect"
@@ -254,6 +255,16 @@ type PostgresLifecycleRepository struct {
 	pool *pgxpool.Pool
 }
 
+// LifecycleInspectionRepository exposes durable history to the service layer.
+// HTTP callers must still map these internal rows to an allowlisted DTO: the
+// records intentionally contain authority, checkpoint, input, and lease data.
+type LifecycleInspectionRepository interface {
+	Operation(context.Context, string, int64) (LifecycleOperation, error)
+	OpenOperation(context.Context, string) (LifecycleOperation, error)
+	ListOperations(context.Context, string, int) ([]LifecycleOperation, error)
+	ListStepAttempts(context.Context, int64) ([]LifecycleStepAttempt, error)
+}
+
 func NewPostgresLifecycleRepository(pool *pgxpool.Pool) *PostgresLifecycleRepository {
 	return &PostgresLifecycleRepository{pool: pool}
 }
@@ -374,3 +385,5 @@ func nullableLifecycleID(value int64) any {
 	}
 	return value
 }
+
+var _ LifecycleInspectionRepository = (*PostgresLifecycleRepository)(nil)

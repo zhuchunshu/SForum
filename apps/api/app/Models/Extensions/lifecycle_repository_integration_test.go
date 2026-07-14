@@ -352,6 +352,30 @@ func TestPostgresLifecycleRepositoryEnforcesAuthorityAndRetentionBoundaries(t *t
 	if err != nil || retained.ID != completed.ID || retained.RemovalMode != LifecycleRemovalPreserve || !retained.Forced {
 		t.Fatalf("uninstall history after extension deletion = %#v, err=%v", retained, err)
 	}
+	byID, err := repository.Operation(ctx, extensionID, completed.ID)
+	if err != nil || byID.ID != completed.ID {
+		t.Fatalf("operation by exact extension/id = %#v, err=%v", byID, err)
+	}
+	history, err := repository.ListOperations(ctx, extensionID, 1)
+	if err != nil || len(history) != 1 || history[0].ID != completed.ID {
+		t.Fatalf("bounded operation history = %#v, err=%v", history, err)
+	}
+	if _, err := repository.Operation(ctx, "another.extension", completed.ID); !errors.Is(err, ErrLifecycleOperationNotFound) {
+		t.Fatalf("cross-extension operation lookup error = %v", err)
+	}
+}
+
+func TestPostgresLifecycleInspectionRejectsInvalidScopeBeforeQuery(t *testing.T) {
+	repository := &PostgresLifecycleRepository{}
+	if _, err := repository.Operation(context.Background(), "", 1); !errors.Is(err, ErrLifecycleInvalidInput) {
+		t.Fatalf("empty extension operation error = %v", err)
+	}
+	if _, err := repository.Operation(context.Background(), "valid.extension", 0); !errors.Is(err, ErrLifecycleInvalidInput) {
+		t.Fatalf("zero operation id error = %v", err)
+	}
+	if _, err := repository.ListOperations(context.Background(), "INVALID", 10); !errors.Is(err, ErrLifecycleInvalidInput) {
+		t.Fatalf("invalid extension history error = %v", err)
+	}
 }
 
 func newLifecycleRepositoryIntegration(t *testing.T) (context.Context, *pgxpool.Pool, *PostgresLifecycleRepository, string) {
