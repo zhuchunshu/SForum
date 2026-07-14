@@ -6,6 +6,8 @@ import (
 	"strings"
 	"sync"
 	"testing"
+
+	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
 )
 
 func TestRouteSchemaPublicationPreparesPublishesAndRestoresExactCatalog(t *testing.T) {
@@ -182,5 +184,90 @@ func TestRouteSchemaPublicationSnapshotIsDetached(t *testing.T) {
 	snapshot.Artifacts[0].PackageDigest = strings.Repeat("f", 64)
 	if owner.PublicationSnapshot().Artifacts[0].PackageDigest == snapshot.Artifacts[0].PackageDigest {
 		t.Fatal("inspection mutation changed active publication")
+	}
+}
+
+func TestRouteSchemaPublicationReplacesOneExactArtifactWithoutExposingOthers(t *testing.T) {
+	owner, err := NewRouteSchemaPublication(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	first := buildFixture(t, defaultFixtureOptions("schema.replace-first"))
+	first.Policies = nil
+	secondOptions := defaultFixtureOptions("schema.replace-second")
+	secondOptions.path, secondOptions.manifestPath = "/api/second/{id}", "/api/second/:id"
+	second := buildFixture(t, secondOptions)
+	second.Policies = nil
+	if _, err := owner.Publish([]Artifact{first, second}); err != nil {
+		t.Fatal(err)
+	}
+
+	replacement := buildFixture(t, defaultFixtureOptions("schema.replace-first"))
+	replacement = rebuildFixtureManifest(t, replacement, func(manifest *extensionmanifest.Manifest) {
+		manifest.Version = "2.0.0"
+	})
+	replacement.Version = replacement.Manifest.Version
+	allowed := []PublishedRouteSchemaArtifact{
+		{ExtensionID: first.ExtensionID, ExtensionVersion: first.Version, PackageDigest: first.PackageDigest},
+		{ExtensionID: replacement.ExtensionID, ExtensionVersion: replacement.Version, PackageDigest: replacement.PackageDigest},
+	}
+	before := owner.PublicationSnapshot()
+	if err := owner.ValidateExtensionReplacement(first.ExtensionID, &replacement, allowed); err != nil {
+		t.Fatal(err)
+	}
+	if owner.Revision() != before.Revision {
+		t.Fatal("replacement validation mutated live publication")
+	}
+	published, err := owner.ReplaceExtensionIfRevision(first.ExtensionID, &replacement, allowed, before.Revision)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if published.Revision != before.Revision+1 || len(published.Artifacts) != 2 {
+		t.Fatalf("replacement snapshot = %#v", published)
+	}
+	artifacts := map[string]PublishedRouteSchemaArtifact{}
+	for _, artifact := range published.Artifacts {
+		artifacts[artifact.ExtensionID] = artifact
+	}
+	if artifacts[first.ExtensionID].ExtensionVersion != replacement.Version ||
+		artifacts[second.ExtensionID].PackageDigest != second.PackageDigest {
+		t.Fatalf("replacement artifacts = %#v", artifacts)
+	}
+	if _, err := owner.ReplaceExtensionIfRevision(first.ExtensionID, nil, allowed, published.Revision); err != nil {
+		t.Fatal(err)
+	}
+	if snapshot := owner.PublicationSnapshot(); len(snapshot.Artifacts) != 1 || snapshot.Artifacts[0].ExtensionID != second.ExtensionID {
+		t.Fatalf("removal snapshot = %#v", snapshot)
+	}
+}
+
+func TestRouteSchemaPublicationRejectsForeignExactArtifactAndStaleRevision(t *testing.T) {
+	owner, err := NewRouteSchemaPublication(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	foreign := buildFixture(t, defaultFixtureOptions("schema.foreign"))
+	foreign.Policies = nil
+	if _, err := owner.Publish([]Artifact{foreign}); err != nil {
+		t.Fatal(err)
+	}
+	allowed := []PublishedRouteSchemaArtifact{{
+		ExtensionID: foreign.ExtensionID, ExtensionVersion: foreign.Version,
+		PackageDigest: strings.Repeat("f", 64),
+	}}
+	if _, err := owner.ReplaceExtensionIfRevision(
+		foreign.ExtensionID, nil, allowed, owner.Revision(),
+	); !errors.Is(err, ErrRouteSchemaArtifactConflict) {
+		t.Fatalf("foreign artifact error = %v", err)
+	}
+	if _, err := owner.ReplaceExtensionIfRevision(
+		foreign.ExtensionID, nil, []PublishedRouteSchemaArtifact{{
+			ExtensionID: foreign.ExtensionID, ExtensionVersion: foreign.Version, PackageDigest: foreign.PackageDigest,
+		}}, owner.Revision()-1,
+	); !errors.Is(err, ErrRouteSchemaRevisionConflict) {
+		t.Fatalf("stale revision error = %v", err)
+	}
+	if len(owner.PublicationSnapshot().Artifacts) != 1 {
+		t.Fatal("failed replacement changed live publication")
 	}
 }

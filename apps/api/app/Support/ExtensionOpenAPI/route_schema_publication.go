@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"sync/atomic"
 
@@ -14,6 +15,7 @@ import (
 var (
 	ErrRouteSchemaPublicationInvalid = errors.New("extension openapi: invalid route schema publication")
 	ErrRouteSchemaRevisionConflict   = errors.New("extension openapi: route schema publication revision conflict")
+	ErrRouteSchemaArtifactConflict   = errors.New("extension openapi: route schema publication exact artifact conflict")
 )
 
 type PublishedRouteSchemaArtifact struct {
@@ -97,6 +99,99 @@ func (p *RouteSchemaPublication) Publish(artifacts []Artifact) (RouteSchemaPubli
 		return RouteSchemaPublicationSnapshot{}, ErrRouteSchemaPublicationInvalid
 	}
 	return p.PublishPrepared(prepared, prepared.baseRevision)
+}
+
+// ReplaceExtensionIfRevision publishes one extension without requiring callers
+// to read or reconstruct the other frozen package manifests. Existing state for
+// that extension must belong to the explicitly allowed source/target pair.
+func (p *RouteSchemaPublication) ReplaceExtensionIfRevision(
+	extensionID string,
+	desired *Artifact,
+	allowed []PublishedRouteSchemaArtifact,
+	expectedRevision uint64,
+) (RouteSchemaPublicationSnapshot, error) {
+	prepared, err := p.prepareExtensionReplacement(extensionID, desired, allowed, expectedRevision)
+	if err != nil {
+		if p == nil {
+			return RouteSchemaPublicationSnapshot{}, err
+		}
+		return p.PublicationSnapshot(), err
+	}
+	return p.PublishPrepared(prepared, expectedRevision)
+}
+
+// ValidateExtensionReplacement compiles the same candidate used by lifecycle
+// publication but leaves the live catalog untouched.
+func (p *RouteSchemaPublication) ValidateExtensionReplacement(
+	extensionID string,
+	desired *Artifact,
+	allowed []PublishedRouteSchemaArtifact,
+) error {
+	if p == nil {
+		return ErrRouteSchemaPublicationInvalid
+	}
+	_, err := p.prepareExtensionReplacement(extensionID, desired, allowed, p.Revision())
+	return err
+}
+
+func (p *RouteSchemaPublication) prepareExtensionReplacement(
+	extensionID string,
+	desired *Artifact,
+	allowed []PublishedRouteSchemaArtifact,
+	expectedRevision uint64,
+) (*PreparedRouteSchemaPublication, error) {
+	if p == nil {
+		return nil, ErrRouteSchemaPublicationInvalid
+	}
+	extensionID = strings.TrimSpace(extensionID)
+	if extensionID == "" || desired != nil && strings.TrimSpace(desired.ExtensionID) != extensionID {
+		return nil, ErrRouteSchemaPublicationInvalid
+	}
+	current := p.loadSnapshot()
+	if current.revision != expectedRevision {
+		return nil, fmt.Errorf(
+			"%w: expected %d, current %d", ErrRouteSchemaRevisionConflict, expectedRevision, current.revision,
+		)
+	}
+	artifacts := make([]Artifact, 0, len(current.artifacts)+1)
+	for _, artifact := range current.artifacts {
+		if artifact.ExtensionID != extensionID {
+			artifacts = append(artifacts, artifact)
+			continue
+		}
+		if !publishedRouteSchemaArtifactAllowed(artifact, allowed) {
+			return nil, fmt.Errorf(
+				"%w: %s@%s#%s", ErrRouteSchemaArtifactConflict,
+				artifact.ExtensionID, artifact.Version, artifact.PackageDigest,
+			)
+		}
+	}
+	if desired != nil {
+		artifacts = append(artifacts, *desired)
+	}
+	frozen, err := cloneRouteSchemaPublicationArtifacts(artifacts)
+	if err != nil {
+		return nil, err
+	}
+	catalog, err := BuildRouteSchemaCatalog(BuildInput{
+		Core: append([]CoreOperation(nil), p.core...), Artifacts: frozen,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &PreparedRouteSchemaPublication{
+		owner: p, baseRevision: expectedRevision, catalog: catalog, artifacts: frozen,
+	}, nil
+}
+
+func publishedRouteSchemaArtifactAllowed(artifact Artifact, allowed []PublishedRouteSchemaArtifact) bool {
+	for _, candidate := range allowed {
+		if artifact.ExtensionID == candidate.ExtensionID && artifact.Version == candidate.ExtensionVersion &&
+			artifact.PackageDigest == candidate.PackageDigest {
+			return true
+		}
+	}
+	return false
 }
 
 func (p *RouteSchemaPublication) PublishPrepared(
