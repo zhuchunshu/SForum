@@ -208,6 +208,9 @@ func (d *Dispatcher) Dispatch(ctx context.Context, request DispatchRequest, core
 					break
 				}
 				if plan.AllowsFallback(index, commit.State()) && step.Phase != RoutePhaseHandler {
+					d.appendTrace(plan, index, step, RouteTraceFallbackUsed, started, commit.State())
+					committingStep = index
+					committingStarted = started
 					continue
 				}
 				return DispatchResult{}, err

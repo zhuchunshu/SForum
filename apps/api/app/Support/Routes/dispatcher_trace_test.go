@@ -99,6 +99,41 @@ func TestDispatcherTracesFallbackAndFinalCommit(t *testing.T) {
 	}
 }
 
+func TestDispatcherTracesNonHandlerReadonlyFallbackAndFinalCommit(t *testing.T) {
+	plugin := dispatchTraceStep(RoutePhaseBefore, "trace.route.before-fallback")
+	plugin.Fallback = "readonly_core"
+	coreStep := dispatchCoreStep("core.route.trace")
+	coreStep.Path = "/trace"
+	coreStep.Method = "GET"
+	ring := NewRouteTraceRing(8)
+	dispatcher := NewDispatcher(DispatcherConfig{
+		Plans: dispatchPlanResolver{plan: dispatchPlan("GET", "/trace", nil, []RouteExecutionStep{plugin, coreStep}, 1)},
+		Steps: &dispatchStepInvoker{invoke: func(context.Context, RouteInvocation) (RouteInvocationResult, error) {
+			return RouteInvocationResult{}, errors.New("private upstream failure")
+		}},
+		Guard: &dispatchGuard{}, Schemas: &traceSchemas{}, Trace: ring,
+	})
+	core := &dispatchCoreInvoker{invoke: func(context.Context, RouteExecutionStep, DispatchRequest) (DispatchResponse, error) {
+		return DispatchResponse{Status: http.StatusOK, Body: []byte("core")}, nil
+	}}
+	if _, err := dispatcher.Dispatch(context.Background(), DispatchRequest{Method: "GET", Path: "/trace"}, core); err != nil {
+		t.Fatal(err)
+	}
+	records := ring.RouteTraces(0)
+	want := []RouteTraceOutcome{RouteTraceTransportFailed, RouteTraceFallbackUsed, RouteTraceCommitted}
+	if len(records) != len(want) {
+		t.Fatalf("records=%#v", records)
+	}
+	for index, outcome := range want {
+		if records[index].Outcome != outcome || records[index].StepIndex != 0 {
+			t.Fatalf("record[%d]=%#v", index, records[index])
+		}
+	}
+	if records[2].CommitState != RouteCommitFinal {
+		t.Fatalf("commit trace=%#v", records[2])
+	}
+}
+
 func TestDispatcherAttributesCommitToLastPluginContributor(t *testing.T) {
 	plugin := dispatchTraceStep(RoutePhaseBefore, "trace.route.contributor")
 	coreStep := dispatchCoreStep("core.route.trace")
