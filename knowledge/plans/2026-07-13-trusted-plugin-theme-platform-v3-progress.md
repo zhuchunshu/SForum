@@ -1,8 +1,8 @@
 # Trusted Plugin And Theme Platform V3 Progress Ledger
 
 Date: 2026-07-14
-Overall progress: **40%**
-Active phase: **P6 - Full Route And Middleware Registry V1 (39%, 7 of 18 rows)**
+Overall progress: **41%**
+Active phase: **P6 - Full Route And Middleware Registry V1 (56%, 10 of 18 rows)**
 
 This ledger is the durable percentage and context-compaction checkpoint for the
 V3 program. Update it before context compression, at every phase boundary, and
@@ -22,7 +22,7 @@ scaffolding, or demo-only code cannot satisfy a runtime exit criterion.
 | P3 Host API v2 | 8% | 100% | 8% |
 | P4 Lifecycle/dependencies | 7% | 100% | 7% |
 | P5 Database/commands | 8% | 65% | 5.18% |
-| P6 Routes/middleware | 10% | 39% | 3.89% |
+| P6 Routes/middleware | 10% | 56% | 5.56% |
 | P7 Workflow/admin/query/identity | 10% | 0% | 0% |
 | P8 Theme compiler/runtime | 8% | 0% | 0% |
 | P9 Components/assets/L2 | 8% | 0% | 0% |
@@ -857,3 +857,31 @@ phase percentage.
   it from exact lifecycle artifacts; complete Host-observed side-effect fencing,
   inherited/custom/raw guards, remaining action semantics, streaming transports,
   SEO integration, complete failure matrix, and the v1 comparison benchmark.
+
+## P6 Host-Observed Fallback Fence Checkpoint
+
+- P6 is now **56% complete (10 of 18 authoritative rows)** and weighted V3 is
+  **41%**. Newly accepted rows are safe GET/fail-closed unsafe fallback,
+  preventing fallback after Host-observed request/response commitment, and the
+  unsafe replacement failure test that proves Core is never a second writer.
+- `caa158402` removes the plugin-controlled side-effect response header as an
+  authority source. The Host transport records request headers/request write
+  and first response byte through `net/http/httptrace`; after the request leaves
+  the Host, crash, disconnect, cancellation, timeout, oversized response, or
+  partial response all remain fail closed.
+- A pristine safe-method dial failure may still use declared `not_found` or
+  `readonly_core` fallback. Unsafe methods never fallback. Tests cover accepted
+  GET crash, partial headers/body, accepted POST, timeout/cancellation, forged
+  side-effect headers, exact commit-state precedence, trace publication, and
+  zero Core calls after any possible plugin write.
+- Verification passed 10 repeated HTTP/Route/bootstrap runs, race detection,
+  focused vet, `go build ./...`, and staged diff checks.
+- The schema catalog remains uncommitted after a second independent review
+  found missing status/media-type identity, duplicate JSON-key rejection, and
+  bounded/cancellable validation. P8 typed Page ViewModel output was committed
+  in `d9268872a` but remains at 0 authoritative rows until production
+  construction and runtime publication are proven.
+- Next: close and production-bind exact schemas; implement executable inherited
+  and separately trusted custom/raw guards; then complete action protocol,
+  alias/rewrite, streaming transports, SEO integration, failure matrix, and
+  the v1 comparison benchmark.
