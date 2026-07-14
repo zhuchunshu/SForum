@@ -92,6 +92,10 @@ func TestPostgresExecutableTrustStoreConsumesChallengeOnce(t *testing.T) {
 	if err != nil || !granted {
 		t.Fatalf("live grant=%v err=%v", granted, err)
 	}
+	liveGrant, err := store.LiveGrant(ctx, identity)
+	if err != nil || liveGrant.ID <= 0 || liveGrant.RevokedAt != nil || liveGrant.RevokedByUserID != 0 {
+		t.Fatalf("loaded live grant=%#v err=%v", liveGrant, err)
+	}
 	if err := store.RevokeAll(ctx, extensionID, actorID, "integration_test"); err != nil {
 		t.Fatal(err)
 	}
