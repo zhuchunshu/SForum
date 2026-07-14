@@ -3,6 +3,7 @@ package http
 import (
 	"context"
 	"errors"
+	"maps"
 
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
 	routes "github.com/zhuchunshu/sforum/apps/api/app/Support/Routes"
@@ -23,6 +24,10 @@ func (a ProductionRouteGuardAuthorizer) Authorize(
 	step routes.RouteExecutionStep,
 	request routes.DispatchRequest,
 ) error {
+	// Params 由不可变执行计划解析，不能接受上游中间件伪造的资源身份。
+	if !maps.Equal(request.Params, plan.Params()) {
+		return ErrRouteGuardUnavailable
+	}
 	err := a.authorizer.Authorize(ctx, plan, step, request)
 	switch {
 	case err == nil:
@@ -53,6 +58,7 @@ func productionCoreGuardEvaluatorRegistrations() []routes.CoreGuardEvaluatorRegi
 		productionCoreGuardEvaluator("core.guard.moderation.report", requireAuthenticatedCoreGuardActor),
 		productionCoreGuardEvaluator("core.guard.moderation.review", requireDeclaredCoreGuardPermission),
 		productionCoreGuardEvaluator("core.guard.notifications.recipient", requireNotificationRecipientAuthority),
+		productionCoreGuardEvaluator("core.guard.pages.admin", requirePagesAdminAuthority),
 		productionCoreGuardEvaluator("core.guard.profile.self", requireProfileSelfAuthority),
 	}
 }
@@ -97,6 +103,25 @@ func requireNotificationRecipientAuthority(ctx context.Context, evaluation route
 		// 这些路由没有可选 recipient 参数。核心 Store 始终用当前 ActorID
 		// 约束 recipient_user_id，Guard 只负责阻止匿名主体进入该所有权边界。
 		return requireAuthenticatedCoreGuardActor(ctx, evaluation)
+	default:
+		return routes.ErrCoreGuardEvaluatorUnavailable
+	}
+}
+
+func requirePagesAdminAuthority(_ context.Context, evaluation routes.CoreGuardEvaluation) error {
+	switch evaluation.Descriptor.RouteID {
+	case "core.route.pages.admin_list",
+		"core.route.pages.admin_get",
+		"core.route.pages.activate_preview",
+		"core.route.pages.admin_added":
+		return requireCoreGuardPermission(evaluation,
+			identity.PermissionExtensionView,
+			identity.PermissionExtensionThemeManage,
+			identity.PermissionExtensionManage,
+		)
+	case "core.route.pages.admin_approve", "core.route.pages.admin_restore":
+		// 页面替换批准和恢复会改变公共呈现的可信提供者，只允许超管。
+		return requireCoreGuardPermission(evaluation, "*")
 	default:
 		return routes.ErrCoreGuardEvaluatorUnavailable
 	}

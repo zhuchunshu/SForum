@@ -115,13 +115,142 @@ func TestProductionCoreGuardEvaluatorRegistryIsExplicitAndVersioned(t *testing.T
 		t.Fatal(err)
 	}
 	bindings := registry.Bindings()
-	if len(bindings) != len(registrations) || len(bindings) != 12 {
+	if len(bindings) != len(registrations) || len(bindings) != 13 {
 		t.Fatalf("bindings = %#v", bindings)
 	}
 	for _, binding := range bindings {
 		if binding.ContractVersion != routes.CoreGuardEvaluatorContractV1 || !strings.HasPrefix(binding.EvaluatorID, "core.guard.") {
 			t.Fatalf("binding = %#v", binding)
 		}
+	}
+}
+
+func TestProductionPagesAdminGuardClosesCatalogModule(t *testing.T) {
+	type expectedRoute struct {
+		method     string
+		superAdmin bool
+	}
+	expected := map[string]expectedRoute{
+		"core.route.pages.admin_list":       {method: "GET"},
+		"core.route.pages.admin_get":        {method: "GET"},
+		"core.route.pages.admin_approve":    {method: "POST", superAdmin: true},
+		"core.route.pages.admin_restore":    {method: "POST", superAdmin: true},
+		"core.route.pages.activate_preview": {method: "GET"},
+		"core.route.pages.admin_added":      {method: "GET"},
+	}
+	var catalog []routes.CoreRoute
+	for _, route := range routes.CoreRouteCatalog() {
+		if route.Guard.EvaluatorID == "core.guard.pages.admin" {
+			catalog = append(catalog, route)
+		}
+	}
+	if len(catalog) != len(expected) {
+		t.Fatalf("pages admin contextual catalog = %#v", catalog)
+	}
+
+	authorizer := NewProductionRouteGuardAuthorizer()
+	for _, route := range catalog {
+		want, exists := expected[route.ID]
+		if !exists || route.Method != want.method || route.Guard.Kind != routes.CoreGuardContextual ||
+			len(route.Guard.Permissions) != 0 {
+			t.Fatalf("unexpected pages admin guard route = %#v", route)
+		}
+		delete(expected, route.ID)
+
+		plan, step := productionCatalogInheritedGuardPlan(t, route)
+		permission := identity.PermissionExtensionView
+		if want.superAdmin {
+			permission = "*"
+		}
+		allowed := productionGuardRequest(permission)
+		allowed.Method, allowed.Path = plan.Method(), plan.Path()
+		if err := authorizer.Authorize(context.Background(), plan, step, allowed); err != nil {
+			t.Fatalf("%s allowed error = %v", route.ID, err)
+		}
+
+		denied := productionGuardRequest()
+		denied.Method, denied.Path = plan.Method(), plan.Path()
+		if err := authorizer.Authorize(context.Background(), plan, step, denied); !errors.Is(err, ErrRoutePermissionDenied) {
+			t.Fatalf("%s permission denied error = %v", route.ID, err)
+		}
+		if want.superAdmin {
+			themeManager := productionGuardRequest(identity.PermissionExtensionThemeManage)
+			themeManager.Method, themeManager.Path = plan.Method(), plan.Path()
+			if err := authorizer.Authorize(context.Background(), plan, step, themeManager); !errors.Is(err, ErrRoutePermissionDenied) {
+				t.Fatalf("%s theme manager downgrade error = %v", route.ID, err)
+			}
+		}
+
+		anonymous := routes.DispatchRequest{Method: plan.Method(), Path: plan.Path()}
+		if err := authorizer.Authorize(context.Background(), plan, step, anonymous); !errors.Is(err, ErrRouteLoginRequired) {
+			t.Fatalf("%s anonymous error = %v", route.ID, err)
+		}
+		forgedActor := allowed
+		forgedActor.ActorID = 0
+		if err := authorizer.Authorize(context.Background(), plan, step, forgedActor); !errors.Is(err, ErrRouteLoginRequired) {
+			t.Fatalf("%s forged actor error = %v", route.ID, err)
+		}
+
+		forgedRequest := allowed
+		forgedRequest.Path += "/forged"
+		if err := authorizer.Authorize(context.Background(), plan, step, forgedRequest); !errors.Is(err, ErrRouteGuardUnavailable) {
+			t.Fatalf("%s forged path error = %v", route.ID, err)
+		}
+		forgedRequest = allowed
+		if forgedRequest.Method == "GET" {
+			forgedRequest.Method = "POST"
+		} else {
+			forgedRequest.Method = "GET"
+		}
+		if err := authorizer.Authorize(context.Background(), plan, step, forgedRequest); !errors.Is(err, ErrRouteGuardUnavailable) {
+			t.Fatalf("%s forged method error = %v", route.ID, err)
+		}
+
+		forgedStep := step
+		forgedStep.RouteID += ".forged"
+		if err := authorizer.Authorize(context.Background(), plan, forgedStep, allowed); !errors.Is(err, ErrRouteGuardUnavailable) {
+			t.Fatalf("%s forged step error = %v", route.ID, err)
+		}
+	}
+	if len(expected) != 0 {
+		t.Fatalf("missing pages admin guard routes = %#v", expected)
+	}
+}
+
+func TestProductionPagesAdminGuardRequiresExactParsedResource(t *testing.T) {
+	var target routes.CoreRoute
+	for _, route := range routes.CoreRouteCatalog() {
+		if route.ID == "core.route.pages.admin_get" {
+			target = route
+			break
+		}
+	}
+	if target.ID == "" {
+		t.Fatal("pages admin get route is missing")
+	}
+	plan, step := productionParameterizedInheritedGuardPlan(t, target,
+		"/guard/production/pages/:pageId", "/guard/production/pages/forum.home")
+	request := productionGuardRequest(identity.PermissionExtensionView)
+	request.Method, request.Path, request.Params = plan.Method(), plan.Path(), plan.Params()
+	if err := NewProductionRouteGuardAuthorizer().Authorize(context.Background(), plan, step, request); err != nil {
+		t.Fatalf("exact resource error = %v", err)
+	}
+
+	request.Params["pageId"] = "admin.secret"
+	if err := NewProductionRouteGuardAuthorizer().Authorize(context.Background(), plan, step, request); !errors.Is(err, ErrRouteGuardUnavailable) {
+		t.Fatalf("forged resource error = %v", err)
+	}
+}
+
+func TestProductionPagesAdminGuardRejectsForeignRouteID(t *testing.T) {
+	descriptor := routes.CoreGuardDescriptor{
+		Kind: routes.CoreGuardContextual, EvaluatorID: "core.guard.pages.admin",
+	}
+	plan, step := productionInheritedGuardPlan(t, "core.route.pages.foreign", descriptor)
+	request := productionGuardRequest(identity.PermissionExtensionView)
+	request.Method, request.Path = plan.Method(), plan.Path()
+	if err := NewProductionRouteGuardAuthorizer().Authorize(context.Background(), plan, step, request); !errors.Is(err, ErrRouteGuardUnavailable) {
+		t.Fatalf("foreign pages admin route error = %v", err)
 	}
 }
 
@@ -218,6 +347,39 @@ func productionCatalogInheritedGuardPlan(
 		t.Fatal(err)
 	}
 	plan, err := registry.BuildExecutionPlan(target.Method, alias.Path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return plan, plan.Terminal()
+}
+
+func productionParameterizedInheritedGuardPlan(
+	t *testing.T,
+	target routes.CoreRoute,
+	aliasPath string,
+	requestPath string,
+) (routes.RouteExecutionPlan, routes.RouteExecutionStep) {
+	t.Helper()
+	registry := routes.NewRegistry()
+	alias := extensionmanifest.ManifestRoute{
+		ID: "guard.production.parameterized_alias", ContractVersion: "guard.production.parameterized_alias@1",
+		Action: extensionmanifest.RouteActionAlias, TargetID: target.ID,
+		Path: aliasPath, Methods: []string{target.Method}, Guard: extensionmanifest.GuardCoreInherit,
+		Fallback: "closed", Mode: extensionmanifest.RouteModeHTTP,
+	}
+	if _, err := registry.Publish(routes.Publication{
+		Core: []routes.CoreRoute{target},
+		Plugins: []routes.PluginRouteSet{{
+			Artifact: routes.PluginArtifact{
+				ExtensionID: "guard.production", ExtensionVersion: "1.0.0",
+				PackageDigest: strings.Repeat("d", 64), RuntimeInstanceID: "runtime-d",
+			},
+			Routes: []extensionmanifest.ManifestRoute{alias},
+		}},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	plan, err := registry.BuildExecutionPlan(target.Method, requestPath)
 	if err != nil {
 		t.Fatal(err)
 	}
