@@ -452,3 +452,35 @@ phase percentage.
 - Working tree was clean at `756c33738` before this documentation checkpoint.
 - This older checkpoint's Service Discovery next step is superseded by the
   2026-07-14 checkpoint above.
+
+### 2026-07-14 Lifecycle Inspection, Generated Route Catalog, And SafeHTML Checkpoint
+
+- Latest committed slice: `9100b078c feat(themes): add host-produced safe HTML
+  values`. Overall remains **27%** and P4 remains **47% (7 of 15)**. The new
+  P6/P8 prerequisites are still not production-published and therefore do not
+  advance an authoritative row.
+- `74c13e64f` and `ce30b306c` expose allowlisted lifecycle history/detail over
+  authenticated `extension.view`, contract it in OpenAPI, and add stable route
+  identities. The HTTP response excludes exact authority, idempotency,
+  checkpoint, input/result, lease, and opaque error metadata.
+- `2fe465eea` generates all 209 reviewed core API route identities into a
+  caller-owned Go catalog from the same P0 source generator. Runtime code no
+  longer needs to read `docs/` or maintain a handwritten duplicate when the
+  Route Registry is production-wired.
+- `9100b078c` bumps the Theme Compiler contract to
+  `sforum.theme-compiler@2` and adds an opaque Host-produced `SafeHTML` value.
+  Only the explicit `safeHTML` helper accepts it; ordinary strings remain
+  context-escaped, Go trusted-content aliases remain rejected, and URL or
+  attribute contexts retain `html/template` filtering.
+- Composed lifecycle review found three release-blocking crash boundaries now
+  being corrected before commit: target admission must remain drained until
+  DB/jobs/registries are exact; uninstall position 6 may only stage a durable
+  pending purge until the operation terminal is committed; and publication
+  requires a durable exact-operation journal so restart can converge partial
+  DB/jobs/registry writes instead of relying on process-local compensation.
+- Source drain must close jobs, schedules, and route-facing admission before
+  waiting on the exact runtime. A missing production drainer fails closed.
+- Recovery decision persistence is in flight against migration `202607140006`.
+  It keeps the original exact-artifact authority immutable while recording the
+  actor/audit/reason for every retry, skip, and forced-uninstall escalation.
+- User-owned `.reasonix`, `.zcode`, and `CLAUDE.md` deletions remain untouched.
