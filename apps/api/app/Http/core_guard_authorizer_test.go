@@ -117,7 +117,7 @@ func TestProductionCoreGuardEvaluatorRegistryIsExplicitAndVersioned(t *testing.T
 		t.Fatal(err)
 	}
 	bindings := registry.Bindings()
-	if len(bindings) != len(registrations) || len(bindings) != 31 {
+	if len(bindings) != len(registrations) || len(bindings) != 32 {
 		t.Fatalf("bindings = %#v", bindings)
 	}
 	for _, binding := range bindings {

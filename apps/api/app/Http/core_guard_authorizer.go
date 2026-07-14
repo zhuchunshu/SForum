@@ -78,6 +78,7 @@ type ProductionRouteGuardPolicies struct {
 	IdentityAPITokens IdentityAPITokenGuardPolicy
 	EntityMetaValues  EntityMetaValueGuardPolicy
 	AttachmentReads   AttachmentReadGuardPolicy
+	ForumComments     ForumCommentCreateGuardPolicy
 }
 
 func NewProductionRouteGuardAuthorizer() ProductionRouteGuardAuthorizer {
@@ -131,6 +132,7 @@ func productionCoreGuardEvaluatorRegistrationsWithPolicies(policies ProductionRo
 		productionCoreGuardEvaluator("core.guard.entity_meta.write", entityMetaWriteGuardEvaluator(policies.EntityMetaValues)),
 		productionCoreGuardEvaluator("core.guard.forum.author_review", requireAuthenticatedCoreGuardActor),
 		productionCoreGuardEvaluator("core.guard.forum.comment_write", requireForumCommentGlobalAuthority),
+		productionCoreGuardEvaluator("core.guard.forum.comment_create", forumCommentCreateGuardEvaluator(policies.ForumComments)),
 		productionCoreGuardEvaluator("core.guard.forum.read", forumReadGuardEvaluator(policies.ForumRead)),
 		productionCoreGuardEvaluator("core.guard.forum.settings", requireForumSettingsAuthority),
 		productionCoreGuardEvaluator("core.guard.forum.topic_create", requireDeclaredCoreGuardPermission),
