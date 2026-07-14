@@ -47,9 +47,11 @@ func (s pagesActors) LoadActor(_ context.Context, userID int64) (identity.Actor,
 type pagesThemeStore struct {
 	active extensions.Extension
 	items  map[string]extensions.Extension
+	gets   int
 }
 
 func (s *pagesThemeStore) Get(_ context.Context, id string) (extensions.Extension, error) {
+	s.gets++
 	if e, ok := s.items[id]; ok {
 		return e, nil
 	}
@@ -251,6 +253,98 @@ func TestResolveCore(t *testing.T) {
 	_ = json.NewDecoder(resp.Body).Decode(&body)
 	if body.Data["provider"] != "core" {
 		t.Fatalf("%#v", body.Data)
+	}
+}
+
+func TestResolveCompiledThemeAvoidsPackageStoreAndFailsClosedOnStaleArtifact(t *testing.T) {
+	for _, test := range []struct {
+		name           string
+		registryDigest string
+		wantProvider   string
+		wantOutput     bool
+	}{
+		{name: "exact snapshot", registryDigest: strings.Repeat("a", 64), wantProvider: "compiled.theme", wantOutput: true},
+		{name: "stale registry artifact", registryDigest: strings.Repeat("b", 64), wantProvider: pages.ProviderCore},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			root := t.TempDir()
+			if err := os.WriteFile(filepath.Join(root, "theme.json"), []byte(`{"pages":[]}`), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.MkdirAll(filepath.Join(root, "templates"), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(filepath.Join(root, "templates/home.html"), []byte(`<main>compiled home</main><sf-home-page></sf-home-page>`), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			artifact := pages.RuntimeArtifact{
+				ExtensionID: "compiled.theme", ExtensionVersion: "1.0.0", PackageDigest: strings.Repeat("a", 64),
+			}
+			compiledContribution := pages.PageContribution{
+				ID: "compiled.home", Action: pages.ActionReplace, Target: "forum.home",
+				Template: "templates/home.html", Contract: "sforum.page.home@1",
+				ExtensionID: artifact.ExtensionID, Version: artifact.ExtensionVersion, PackageDigest: artifact.PackageDigest,
+			}
+			snapshot, err := pages.BuildThemeRuntimeSnapshot(pages.ThemeRuntimeBuildInput{
+				Artifact: artifact, PackageRoot: root, Contributions: []pages.PageContribution{compiledContribution},
+				SiteName: "SForum", Locales: []string{"zh-CN"},
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			runtimeRegistry := pages.NewThemeRuntimeRegistry()
+			runtimeRegistry.Publish(snapshot)
+
+			registered := compiledContribution
+			registered.PackageDigest = test.registryDigest
+			registry := pages.NewRegistry(pages.NewMemoryStore())
+			if err := registry.RegisterContributions(artifact.ExtensionID, []pages.PageContribution{registered}); err != nil {
+				t.Fatal(err)
+			}
+			if err := registry.ApproveReplace(context.Background(), pages.ProviderBinding{
+				PageID: "forum.home", ExtensionID: artifact.ExtensionID, ContributionID: registered.ID,
+				Version: registered.Version, PackageDigest: registered.PackageDigest,
+				ContractVersion: registered.Contract, ApprovedBy: 1,
+			}); err != nil {
+				t.Fatal(err)
+			}
+
+			manager := authsession.NewManager(session.NewStore(), authsession.Config{HashSecret: "test-secret"})
+			themeStore := &pagesThemeStore{items: map[string]extensions.Extension{
+				artifact.ExtensionID: {ID: artifact.ExtensionID, Version: artifact.ExtensionVersion, PackageDigest: test.registryDigest, PackagePath: filepath.Join(root, "missing")},
+			}}
+			controller := NewControllerWithThemes(registry, pagesActors{actors: map[int64]identity.Actor{}}, manager, themeStore).
+				WithThemeRuntime(runtimeRegistry)
+			cfg := config.Config{AppName: "SForum", AppEnv: "test", CSRFEnabled: false, AppLocale: "zh-CN", SupportedLocales: []string{"zh-CN"}}
+			app := apphttp.NewApp(cfg, slog.Default(), apphttp.Dependencies{RouteProviders: []apphttp.RouteProvider{
+				pagesRouteProvider(func(api fiber.Router) { controller.RegisterRoutes(api) }),
+			}})
+			response := performPages(t, app, nethttp.MethodGet, "/api/v1/pages/resolve?id=forum.home", nil, nil)
+			if response.StatusCode != nethttp.StatusOK {
+				t.Fatalf("status=%d", response.StatusCode)
+			}
+			var envelope pagesEnvelope[resolveResponse]
+			if err := json.NewDecoder(response.Body).Decode(&envelope); err != nil {
+				t.Fatal(err)
+			}
+			if envelope.Data.Provider != test.wantProvider || (envelope.Data.RenderOutput != nil) != test.wantOutput {
+				t.Fatalf("response=%#v", envelope.Data)
+			}
+			if themeStore.gets != 0 {
+				t.Fatalf("request performed %d package store lookups", themeStore.gets)
+			}
+		})
+	}
+}
+
+func TestActorPermissionKeysPreservesScopedAuthority(t *testing.T) {
+	got := actorPermissionKeys(identity.Actor{Permissions: map[string]bool{
+		"z.allowed": true,
+		"a.denied":  false,
+		"a.allowed": true,
+	}})
+	if strings.Join(got, ",") != "a.allowed,z.allowed" {
+		t.Fatalf("permissions=%v", got)
 	}
 }
 

@@ -221,7 +221,13 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 	// Page Registry：运行时主题 L0/L1，主题激活不重建 Nuxt、不写 current.json。
 	pageRegistryStore := pages.NewPostgresStore(pool)
 	pageRegistry := pages.NewRegistry(pageRegistryStore)
-	pageRegistryAdapter := extensions.NewPageRegistryAdapter(pageRegistry)
+	themeRuntime := pages.NewThemeRuntimeRegistry()
+	themeSiteName, _ := optionsService.SiteName(ctx)
+	if strings.TrimSpace(themeSiteName) == "" {
+		themeSiteName = cfg.AppName
+	}
+	pageRegistryAdapter := extensions.NewPageRegistryAdapter(pageRegistry).
+		WithThemeRuntime(themeRuntime, themeSiteName, cfg.SupportedLocales)
 	// 先构造带 Cipher 的 Service，插件启动与 Host API 才能共享同一个解密设置源。
 	// 主题激活走 Page Registry 同步路径；不再注入 theme_activate dispatcher。
 	extensionService := extensions.NewServiceWithOptions(
@@ -491,7 +497,8 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 	).WithPackages(pagePackageRootAdapter{store: extensionStore})
 	pagesProvider := providers.NewPagesProviderWithThemes(pageRegistry, identityStore, authSessions, extensionStore).
 		WithAuditor(auditWriter).
-		WithLoader(pageLoaderGateway)
+		WithLoader(pageLoaderGateway).
+		WithThemeRuntime(themeRuntime)
 
 	// F4.4：实体自定义字段（EAV，无 per-plugin core ALTER）。
 	entityMetaService := entitymeta.NewService(entitymeta.NewPostgresStore(pool)).WithPublisher(eventPublisher)

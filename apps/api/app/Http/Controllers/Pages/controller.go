@@ -6,6 +6,7 @@ import (
 	"mime"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/gofiber/fiber/v3"
@@ -16,12 +17,17 @@ import (
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Audit"
 	authsession "github.com/zhuchunshu/sforum/apps/api/app/Support/AuthSession"
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Pages"
+	themecompiler "github.com/zhuchunshu/sforum/apps/api/app/Support/ThemeCompiler"
 )
 
 // ThemePackageStore 页面解析所需的扩展包最小接口（避免测试实现完整 Store）。
 type ThemePackageStore interface {
 	Get(ctx context.Context, id string) (extensions.Extension, error)
 	ActiveTheme(ctx context.Context) (extensions.Extension, error)
+}
+
+type pageViewerStore interface {
+	GetCurrentUser(context.Context, int64) (identity.CurrentUser, error)
 }
 
 // Controller 暴露 Page Registry 管理与公开解析 API。
@@ -32,6 +38,14 @@ type Controller struct {
 	themes   ThemePackageStore
 	auditor  audit.Writer
 	loader   *pages.LoaderGateway
+	runtime  *pages.ThemeRuntimeRegistry
+}
+
+func (h *Controller) WithThemeRuntime(runtime *pages.ThemeRuntimeRegistry) *Controller {
+	if h != nil {
+		h.runtime = runtime
+	}
+	return h
 }
 
 func NewController(registry *pages.Registry, users identity.ActorStore, sessions *authsession.Manager) *Controller {
@@ -76,20 +90,21 @@ func (h *Controller) RegisterRoutes(api fiber.Router) {
 }
 
 type resolveResponse struct {
-	Page           pages.PageDefinition `json:"page"`
-	Provider       string               `json:"provider"`
-	ExtensionID    string               `json:"extensionId,omitempty"`
-	ContributionID string               `json:"contributionId,omitempty"`
-	Action         string               `json:"action"`
-	Fallback       bool                 `json:"fallback"`
-	TemplatePath   string               `json:"templatePath,omitempty"`
-	TemplateHTML   string               `json:"templateHtml,omitempty"`
-	DataSource     string               `json:"dataSource,omitempty"`
-	DataRoute      string               `json:"dataRoute,omitempty"`
-	RouteParams    map[string]string    `json:"routeParams,omitempty"`
-	LoaderData     any                  `json:"loaderData,omitempty"`
-	LoaderError    string               `json:"loaderError,omitempty"`
-	Contract       string               `json:"contractVersion,omitempty"`
+	Page           pages.PageDefinition     `json:"page"`
+	Provider       string                   `json:"provider"`
+	ExtensionID    string                   `json:"extensionId,omitempty"`
+	ContributionID string                   `json:"contributionId,omitempty"`
+	Action         string                   `json:"action"`
+	Fallback       bool                     `json:"fallback"`
+	TemplatePath   string                   `json:"templatePath,omitempty"`
+	TemplateHTML   string                   `json:"templateHtml,omitempty"`
+	DataSource     string                   `json:"dataSource,omitempty"`
+	DataRoute      string                   `json:"dataRoute,omitempty"`
+	RouteParams    map[string]string        `json:"routeParams,omitempty"`
+	LoaderData     any                      `json:"loaderData,omitempty"`
+	LoaderError    string                   `json:"loaderError,omitempty"`
+	Contract       string                   `json:"contractVersion,omitempty"`
+	RenderOutput   *pages.ThemeRenderedPage `json:"renderOutput,omitempty"`
 }
 
 func (h *Controller) resolve(c fiber.Ctx) error {
@@ -127,22 +142,27 @@ func (h *Controller) resolve(c fiber.Ctx) error {
 	}
 	actorID := h.optionalActorID(c)
 
-	// L1：非 core 时尽力加载模板 HTML；失败则标记 fallback（前台渲染 core slot）。
-	if resolved.Provider != pages.ProviderCore && resolved.TemplatePath != "" && h.themes != nil {
-		extID := resolved.ExtensionID
-		if extID == "" {
-			extID = resolved.Provider
+	var runtimeOutput *pages.ThemeRenderedPage
+	runtimeCovered := false
+	if resolved.Provider != pages.ProviderCore && h.runtime != nil {
+		artifact := pages.RuntimeArtifact{
+			ExtensionID: resolved.ExtensionID, ExtensionVersion: resolved.Version,
+			PackageDigest: resolved.PackageDigest, RuntimeInstanceID: resolved.RuntimeInstanceID,
 		}
-		if theme, terr := h.themes.Get(c.Context(), extID); terr == nil {
-			root := extensions.PackageContentRoot(theme)
-			if root != "" {
-				if html, lerr := pages.LoadTemplate(root, resolved.TemplatePath); lerr == nil {
-					vars := map[string]string{"locale": locale}
-					if rendered, rerr := pages.RenderTemplate(html, vars); rerr == nil {
-						resolved.TemplateHTML = rendered
+		if snapshot, ok := h.runtime.Resolve(artifact, resolved.Page.ID, resolved.ContributionID); ok {
+			runtimeCovered = true
+			viewer, viewerErr := h.pageViewer(c)
+			if viewerErr == nil {
+				output, renderErr := snapshot.Render(c.Context(), pages.CorePageViewModelRequest{
+					PageID: resolved.Page.ID, Locale: locale, Path: resolved.Page.PathPattern,
+					Viewer: viewer, SEO: themecompiler.PageSEOView{Title: resolved.Page.ID},
+				}, resolved.ContributionID)
+				if renderErr == nil {
+					resolved.TemplateHTML = snapshot.LegacyHTML(output)
+					if resolved.TemplateHTML != "" {
+						runtimeOutput = &output
 					} else {
 						resolved.Fallback = true
-						resolved.TemplateHTML = ""
 					}
 				} else {
 					resolved.Fallback = true
@@ -150,8 +170,41 @@ func (h *Controller) resolve(c fiber.Ctx) error {
 			} else {
 				resolved.Fallback = true
 			}
-		} else {
+		} else if h.runtime.Claims(resolved.ExtensionID, resolved.Page.ID, resolved.ContributionID) {
+			// 精确 artifact 不匹配时禁止降级读取旧包文件。
+			runtimeCovered = true
 			resolved.Fallback = true
+		}
+	}
+
+	// Unmigrated plugin/add contracts retain the explicit legacy L1 path until
+	// P13. An exact compiled snapshot never falls back to request-time IO.
+	if resolved.Provider != pages.ProviderCore && resolved.TemplatePath != "" && h.themes != nil {
+		if !runtimeCovered {
+			extID := resolved.ExtensionID
+			if extID == "" {
+				extID = resolved.Provider
+			}
+			if theme, terr := h.themes.Get(c.Context(), extID); terr == nil {
+				root := extensions.PackageContentRoot(theme)
+				if root != "" {
+					if html, lerr := pages.LoadTemplate(root, resolved.TemplatePath); lerr == nil {
+						vars := map[string]string{"locale": locale}
+						if rendered, rerr := pages.RenderTemplate(html, vars); rerr == nil {
+							resolved.TemplateHTML = rendered
+						} else {
+							resolved.Fallback = true
+							resolved.TemplateHTML = ""
+						}
+					} else {
+						resolved.Fallback = true
+					}
+				} else {
+					resolved.Fallback = true
+				}
+			} else {
+				resolved.Fallback = true
+			}
 		}
 	}
 
@@ -177,6 +230,7 @@ func (h *Controller) resolve(c fiber.Ctx) error {
 		DataSource:     resolved.DataSource,
 		DataRoute:      resolved.DataRoute,
 		Contract:       resolved.Page.ContractVersion,
+		RenderOutput:   runtimeOutput,
 	}
 
 	// access 通过后才调用 loader
@@ -537,13 +591,46 @@ func (h *Controller) optionalActorID(c fiber.Ctx) int64 {
 	return actor.ID
 }
 
-func (h *Controller) optionalActor(c fiber.Ctx) (identity.Actor, error) {
-	// 尽力加载；匿名不报错
-	actor, err := apphttp.LoadActor(c, h.sessions, h.users)
+func (h *Controller) pageViewer(c fiber.Ctx) (themecompiler.PageViewerState, error) {
+	actor, err := h.optionalActor(c)
 	if err != nil {
-		return identity.Actor{}, err
+		return themecompiler.PageViewerState{}, err
 	}
-	return actor, nil
+	if actor.ID == 0 {
+		return themecompiler.PageViewerState{}, nil
+	}
+	store, ok := h.users.(pageViewerStore)
+	if !ok {
+		return themecompiler.PageViewerState{}, errors.New("pages: current user projection unavailable")
+	}
+	current, err := store.GetCurrentUser(c.Context(), actor.ID)
+	if err != nil {
+		return themecompiler.PageViewerState{}, err
+	}
+	return themecompiler.PageViewerState{
+		Authenticated: true,
+		UserID:        current.ID,
+		Username:      current.Username,
+		DisplayName:   current.DisplayName,
+		AvatarURL:     current.Avatar.URL,
+		// Actor 已包含 PAT scope 收窄结果，不能从 CurrentUser 恢复完整权限。
+		Permissions: actorPermissionKeys(actor),
+	}, nil
+}
+
+func actorPermissionKeys(actor identity.Actor) []string {
+	permissions := make([]string, 0, len(actor.Permissions))
+	for permission, allowed := range actor.Permissions {
+		if allowed {
+			permissions = append(permissions, permission)
+		}
+	}
+	sort.Strings(permissions)
+	return permissions
+}
+
+func (h *Controller) optionalActor(c fiber.Ctx) (identity.Actor, error) {
+	return apphttp.OptionalActor(c, h.sessions, h.users)
 }
 
 func (h *Controller) adminAdded(c fiber.Ctx) error {

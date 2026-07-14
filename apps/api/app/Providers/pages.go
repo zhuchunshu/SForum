@@ -47,6 +47,14 @@ func (p *PagesProvider) WithLoader(g *pages.LoaderGateway) *PagesProvider {
 	return p
 }
 
+// WithThemeRuntime 注入启动/生命周期统一发布的精确主题快照。
+func (p *PagesProvider) WithThemeRuntime(runtime *pages.ThemeRuntimeRegistry) *PagesProvider {
+	if p != nil && p.controller != nil {
+		p.controller.WithThemeRuntime(runtime)
+	}
+	return p
+}
+
 func (p *PagesProvider) RegisterRoutes(api fiber.Router) {
 	p.controller.RegisterRoutes(api)
 }
