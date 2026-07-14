@@ -95,6 +95,7 @@ func validateOperation(
 	routes map[string]routeContract,
 	artifact *loadedArtifact,
 	sourcePath string,
+	requirePolicies bool,
 ) (GeneratedOperation, routeContract, error) {
 	operationID, operationIDOK := canonicalStringField(operation, "operationId")
 	if !operationIDOK || !strings.HasPrefix(operationID, fragment.Namespace+".") {
@@ -111,18 +112,23 @@ func validateOperation(
 	if route.path != pathValue {
 		return GeneratedOperation{}, routeContract{}, fmt.Errorf("%w: operation %s path %s does not match route path %s", ErrContractMismatch, operationID, pathValue, route.path)
 	}
-	checks := []struct {
+	type metadataCheck struct {
 		key      string
 		expected string
 		required bool
-	}{
+	}
+	checks := []metadataCheck{
 		{extContractVersion, route.route.ContractVersion, true},
 		{extGuard, route.route.Guard, true},
 		{extPermission, route.route.Permission, route.route.Permission != ""},
 		{extRequestSchema, route.route.RequestSchema, route.route.RequestSchema != ""},
 		{extResponseSchema, route.route.ResponseSchema, route.route.ResponseSchema != ""},
-		{extRateLimit, route.policy.RateLimit, true},
-		{extIdempotency, route.policy.Idempotency, true},
+	}
+	if requirePolicies {
+		checks = append(checks,
+			metadataCheck{extRateLimit, route.policy.RateLimit, true},
+			metadataCheck{extIdempotency, route.policy.Idempotency, true},
+		)
 	}
 	for _, check := range checks {
 		actual, present := operation[check.key]
@@ -132,8 +138,16 @@ func validateOperation(
 			return GeneratedOperation{}, routeContract{}, fmt.Errorf("%w: operation %s metadata %s does not match %q", ErrContractMismatch, operationID, check.key, check.expected)
 		}
 	}
-	if err := applyHostSecurity(operation, route.policy.Security); err != nil {
-		return GeneratedOperation{}, routeContract{}, fmt.Errorf("%w: operation %s: %w", ErrContractMismatch, operationID, err)
+	if requirePolicies {
+		if err := applyHostSecurity(operation, route.policy.Security); err != nil {
+			return GeneratedOperation{}, routeContract{}, fmt.Errorf("%w: operation %s: %w", ErrContractMismatch, operationID, err)
+		}
+	} else {
+		// Schema compilation must not retain plugin policy prose in the internal
+		// aggregate or imply that the Host accepted it for enforcement.
+		delete(operation, "security")
+		delete(operation, extRateLimit)
+		delete(operation, extIdempotency)
 	}
 	if err := validatePathParameters(operation, pathValue, artifact, sourcePath); err != nil {
 		return GeneratedOperation{}, routeContract{}, fmt.Errorf("%w: operation %s: %w", ErrInvalidDocument, operationID, err)

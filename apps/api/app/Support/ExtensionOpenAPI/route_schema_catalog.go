@@ -114,7 +114,7 @@ func BuildRouteSchemaCatalog(input BuildInput) (*RouteSchemaCatalog, error) {
 	if err := rejectRouteSchemaArtifactDrift(input.Artifacts); err != nil {
 		return nil, err
 	}
-	aggregate, err := Build(input)
+	aggregate, err := buildSchemaAggregate(input)
 	if err != nil {
 		return nil, err
 	}

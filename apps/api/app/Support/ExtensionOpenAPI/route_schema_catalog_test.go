@@ -48,6 +48,25 @@ func TestRouteSchemaCatalogBuildsImmutableExactArtifactValidator(t *testing.T) {
 	}
 }
 
+func TestRouteSchemaCatalogDoesNotPublishOrRequireRoutePolicies(t *testing.T) {
+	fixture := buildFixture(t, defaultFixtureOptions("schema.policy-neutral"))
+	fixture.Policies = nil
+	if _, err := Build(BuildInput{Artifacts: []Artifact{fixture}}); !errors.Is(err, ErrContractMismatch) {
+		t.Fatalf("public aggregate accepted missing Host policies: %v", err)
+	}
+
+	catalog, err := BuildRouteSchemaCatalog(BuildInput{Artifacts: []Artifact{fixture}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	binding := catalog.Bindings()[0]
+	if err := validateFixtureRouteSchema(
+		catalog, context.Background(), routeSchemaFixtureArtifact(fixture), binding, []byte(`{"id":"42"}`),
+	); err != nil {
+		t.Fatalf("policy-neutral schema validation: %v", err)
+	}
+}
+
 func TestRouteSchemaCatalogRejectsMissingAndCrossArtifactLookups(t *testing.T) {
 	fixture := buildFixture(t, defaultFixtureOptions("schema.exact"))
 	catalog, err := BuildRouteSchemaCatalog(BuildInput{Artifacts: []Artifact{fixture}})

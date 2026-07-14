@@ -23,23 +23,34 @@ const (
 )
 
 type aggregateBuilder struct {
-	paths          map[string]any
-	sources        map[string]any
-	sourceFiles    map[string]any
-	sourceIdentity []SourceIdentity
-	operations     []GeneratedOperation
-	pathMethods    map[string]GeneratedOperation
-	operationIDs   map[string]string
-	namespaces     map[string]string
-	core           map[string]CoreOperation
+	paths           map[string]any
+	sources         map[string]any
+	sourceFiles     map[string]any
+	sourceIdentity  []SourceIdentity
+	operations      []GeneratedOperation
+	pathMethods     map[string]GeneratedOperation
+	operationIDs    map[string]string
+	namespaces      map[string]string
+	core            map[string]CoreOperation
+	requirePolicies bool
 }
 
 func Build(input BuildInput) (Snapshot, error) {
+	return buildAggregate(input, true)
+}
+
+// buildSchemaAggregate validates contract and schema identity without
+// publishing plugin-declared policy metadata as Host authority.
+func buildSchemaAggregate(input BuildInput) (Snapshot, error) {
+	return buildAggregate(input, false)
+}
+
+func buildAggregate(input BuildInput, requirePolicies bool) (Snapshot, error) {
 	budget := &resourceBudget{}
 	builder := &aggregateBuilder{
 		paths: make(map[string]any), sources: make(map[string]any), sourceFiles: make(map[string]any),
 		pathMethods: make(map[string]GeneratedOperation), operationIDs: make(map[string]string),
-		namespaces: make(map[string]string), core: make(map[string]CoreOperation),
+		namespaces: make(map[string]string), core: make(map[string]CoreOperation), requirePolicies: requirePolicies,
 	}
 	if err := builder.addCore(input.Core); err != nil {
 		return Snapshot{}, err
@@ -98,7 +109,7 @@ func (b *aggregateBuilder) addCore(core []CoreOperation) error {
 }
 
 func (b *aggregateBuilder) addArtifact(artifact *loadedArtifact) error {
-	routes, err := routeContracts(artifact)
+	routes, err := routeContracts(artifact, b.requirePolicies)
 	if err != nil {
 		return err
 	}
@@ -168,9 +179,9 @@ type routeContract struct {
 	addressable bool
 }
 
-func routeContracts(artifact *loadedArtifact) (map[string]routeContract, error) {
+func routeContracts(artifact *loadedArtifact, requirePolicies bool) (map[string]routeContract, error) {
 	result := make(map[string]routeContract)
-	if len(artifact.manifest.OpenAPI) == 0 && len(artifact.policies) != 0 {
+	if requirePolicies && len(artifact.manifest.OpenAPI) == 0 && len(artifact.policies) != 0 {
 		return nil, fmt.Errorf("%w: policies exist without documented routes", ErrContractMismatch)
 	}
 	for _, route := range artifact.manifest.Routes {
@@ -191,10 +202,10 @@ func routeContracts(artifact *loadedArtifact) (map[string]routeContract, error) 
 			}
 			key := routeMethodKey(route.ID, method)
 			policy, exists := artifact.policies[key]
-			if !exists && len(artifact.manifest.OpenAPI) > 0 {
+			if requirePolicies && !exists && len(artifact.manifest.OpenAPI) > 0 {
 				return nil, fmt.Errorf("%w: missing authoritative policy for %s %s", ErrContractMismatch, route.ID, method)
 			}
-			if exists {
+			if requirePolicies && exists {
 				if expected := securityForGuard(route.Guard); expected != "" && policy.Security != expected {
 					return nil, fmt.Errorf("%w: security policy %q contradicts guard %q for %s %s", ErrContractMismatch, policy.Security, route.Guard, route.ID, method)
 				}
@@ -205,7 +216,7 @@ func routeContracts(artifact *loadedArtifact) (map[string]routeContract, error) 
 			result[key] = routeContract{route: route, method: method, path: pathValue, signature: signature, policy: policy, addressable: true}
 		}
 	}
-	if len(artifact.manifest.OpenAPI) > 0 {
+	if requirePolicies && len(artifact.manifest.OpenAPI) > 0 {
 		if len(artifact.policies) != len(result) {
 			return nil, fmt.Errorf("%w: route policy set is not exact", ErrContractMismatch)
 		}
@@ -270,7 +281,9 @@ func (b *aggregateBuilder) addFragmentOperations(
 			if err != nil {
 				return err
 			}
-			generated, route, err := validateOperation(effective, pathValue, method, fragment, identity, routes, artifact, fragment.Path)
+			generated, route, err := validateOperation(
+				effective, pathValue, method, fragment, identity, routes, artifact, fragment.Path, b.requirePolicies,
+			)
 			if err != nil {
 				return err
 			}
