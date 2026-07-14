@@ -1,0 +1,173 @@
+package extensions
+
+import (
+	"context"
+	"time"
+
+	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
+)
+
+// LifecyclePublicError deliberately omits opaque metadata returned by trusted
+// code. Recovery screens only need stable classification and operator text.
+type LifecyclePublicError struct {
+	Code       string     `json:"code,omitempty"`
+	Reason     string     `json:"reason,omitempty"`
+	Message    string     `json:"message,omitempty"`
+	Retryable  bool       `json:"retryable"`
+	RetryAfter *time.Time `json:"retryAfter,omitempty"`
+}
+
+type LifecycleOperationSummary struct {
+	ID                int64                `json:"id"`
+	ExtensionID       string               `json:"extensionId"`
+	ExtensionVersion  string               `json:"extensionVersion"`
+	PackageDigest     string               `json:"packageDigest"`
+	Operation         string               `json:"operation"`
+	State             string               `json:"state"`
+	PlanVersion       string               `json:"planVersion"`
+	RemovalMode       string               `json:"removalMode,omitempty"`
+	Forced            bool                 `json:"forced"`
+	AttemptCount      int                  `json:"attemptCount"`
+	Revision          int64                `json:"revision"`
+	CurrentStepID     string               `json:"currentStepId,omitempty"`
+	TerminalResult    string               `json:"terminalResult,omitempty"`
+	RequestedByUserID int64                `json:"requestedByUserId,omitempty"`
+	AuditEventID      int64                `json:"auditEventId,omitempty"`
+	Error             LifecyclePublicError `json:"error"`
+	CreatedAt         time.Time            `json:"createdAt"`
+	UpdatedAt         time.Time            `json:"updatedAt"`
+	StartedAt         *time.Time           `json:"startedAt,omitempty"`
+	CompletedAt       *time.Time           `json:"completedAt,omitempty"`
+}
+
+type LifecycleStepSummary struct {
+	ID              int64                `json:"id"`
+	StepID          string               `json:"stepId"`
+	LifecycleAction string               `json:"lifecycleAction"`
+	PlanVersion     string               `json:"planVersion"`
+	Attempt         int                  `json:"attempt"`
+	Status          string               `json:"status"`
+	CompletedUnits  int64                `json:"completedUnits"`
+	TotalUnits      int64                `json:"totalUnits"`
+	ProgressMessage string               `json:"progressMessage,omitempty"`
+	SkipReason      string               `json:"skipReason,omitempty"`
+	Forced          bool                 `json:"forced"`
+	ActorUserID     int64                `json:"actorUserId,omitempty"`
+	AuditEventID    int64                `json:"auditEventId,omitempty"`
+	Error           LifecyclePublicError `json:"error"`
+	CreatedAt       time.Time            `json:"createdAt"`
+	UpdatedAt       time.Time            `json:"updatedAt"`
+	StartedAt       *time.Time           `json:"startedAt,omitempty"`
+	CompletedAt     *time.Time           `json:"completedAt,omitempty"`
+}
+
+type LifecycleOperationDetail struct {
+	LifecycleOperationSummary
+	Steps []LifecycleStepSummary `json:"steps"`
+}
+
+func WithLifecycleInspectionRepository(repository LifecycleInspectionRepository) ServiceOption {
+	return func(service *Service) {
+		service.lifecycleInspector = repository
+	}
+}
+
+func (s *Service) LifecycleOperations(
+	ctx context.Context,
+	actor identity.Actor,
+	extensionID string,
+	limit int,
+) ([]LifecycleOperationSummary, error) {
+	if !canViewExtensions(actor) {
+		return nil, identity.ErrPermissionDenied
+	}
+	if s == nil || s.lifecycleInspector == nil {
+		return nil, ErrLifecycleCoordinatorUnavailable
+	}
+	extensionID = normalizeID(extensionID)
+	if extensionID == "" {
+		return nil, ErrLifecycleInvalidInput
+	}
+	operations, err := s.lifecycleInspector.ListOperations(ctx, extensionID, limit)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]LifecycleOperationSummary, 0, len(operations))
+	for _, operation := range operations {
+		if operation.ExtensionID != extensionID {
+			return nil, ErrLifecycleInvalidInput
+		}
+		result = append(result, lifecycleOperationSummary(operation))
+	}
+	return result, nil
+}
+
+func (s *Service) LifecycleOperation(
+	ctx context.Context,
+	actor identity.Actor,
+	extensionID string,
+	operationID int64,
+) (LifecycleOperationDetail, error) {
+	if !canViewExtensions(actor) {
+		return LifecycleOperationDetail{}, identity.ErrPermissionDenied
+	}
+	if s == nil || s.lifecycleInspector == nil {
+		return LifecycleOperationDetail{}, ErrLifecycleCoordinatorUnavailable
+	}
+	extensionID = normalizeID(extensionID)
+	if extensionID == "" || operationID <= 0 {
+		return LifecycleOperationDetail{}, ErrLifecycleInvalidInput
+	}
+	operation, err := s.lifecycleInspector.Operation(ctx, extensionID, operationID)
+	if err != nil {
+		return LifecycleOperationDetail{}, err
+	}
+	if operation.ExtensionID != extensionID || operation.ID != operationID {
+		return LifecycleOperationDetail{}, ErrLifecycleInvalidInput
+	}
+	attempts, err := s.lifecycleInspector.ListStepAttempts(ctx, operationID)
+	if err != nil {
+		return LifecycleOperationDetail{}, err
+	}
+	steps := make([]LifecycleStepSummary, 0, len(attempts))
+	for _, attempt := range attempts {
+		if attempt.OperationID != operationID {
+			return LifecycleOperationDetail{}, ErrLifecycleInvalidInput
+		}
+		steps = append(steps, lifecycleStepSummary(attempt))
+	}
+	return LifecycleOperationDetail{LifecycleOperationSummary: lifecycleOperationSummary(operation), Steps: steps}, nil
+}
+
+func lifecycleOperationSummary(operation LifecycleOperation) LifecycleOperationSummary {
+	return LifecycleOperationSummary{
+		ID: operation.ID, ExtensionID: operation.ExtensionID,
+		ExtensionVersion: operation.ExtensionVersion, PackageDigest: operation.PackageDigest,
+		Operation: operation.Operation, State: operation.State, PlanVersion: operation.PlanVersion,
+		RemovalMode: operation.RemovalMode, Forced: operation.Forced,
+		AttemptCount: operation.AttemptCount, Revision: operation.Revision,
+		CurrentStepID: operation.CurrentStepID, TerminalResult: operation.TerminalResult,
+		RequestedByUserID: operation.RequestedByUserID, AuditEventID: operation.AuditEventID,
+		Error: lifecyclePublicError(operation.Error), CreatedAt: operation.CreatedAt,
+		UpdatedAt: operation.UpdatedAt, StartedAt: operation.StartedAt, CompletedAt: operation.CompletedAt,
+	}
+}
+
+func lifecycleStepSummary(attempt LifecycleStepAttempt) LifecycleStepSummary {
+	return LifecycleStepSummary{
+		ID: attempt.ID, StepID: attempt.StepID, LifecycleAction: attempt.LifecycleAction,
+		PlanVersion: attempt.PlanVersion, Attempt: attempt.Attempt, Status: attempt.Status,
+		CompletedUnits: attempt.CompletedUnits, TotalUnits: attempt.TotalUnits,
+		ProgressMessage: attempt.ProgressMessage, SkipReason: attempt.SkipReason,
+		Forced: attempt.Forced, ActorUserID: attempt.ActorUserID, AuditEventID: attempt.AuditEventID,
+		Error: lifecyclePublicError(attempt.Error), CreatedAt: attempt.CreatedAt,
+		UpdatedAt: attempt.UpdatedAt, StartedAt: attempt.StartedAt, CompletedAt: attempt.CompletedAt,
+	}
+}
+
+func lifecyclePublicError(value LifecycleExecutionError) LifecyclePublicError {
+	return LifecyclePublicError{
+		Code: value.Code, Reason: value.Reason, Message: value.Message,
+		Retryable: value.Retryable, RetryAfter: value.RetryAfter,
+	}
+}

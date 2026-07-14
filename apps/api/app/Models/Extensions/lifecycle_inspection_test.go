@@ -1,0 +1,118 @@
+package extensions
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"strings"
+	"testing"
+	"time"
+
+	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
+)
+
+type lifecycleInspectionTestRepository struct {
+	operation  LifecycleOperation
+	operations []LifecycleOperation
+	steps      []LifecycleStepAttempt
+}
+
+func (r *lifecycleInspectionTestRepository) Operation(_ context.Context, extensionID string, operationID int64) (LifecycleOperation, error) {
+	if r.operation.ExtensionID != extensionID || r.operation.ID != operationID {
+		return LifecycleOperation{}, ErrLifecycleOperationNotFound
+	}
+	return r.operation, nil
+}
+
+func (r *lifecycleInspectionTestRepository) OpenOperation(context.Context, string) (LifecycleOperation, error) {
+	return LifecycleOperation{}, ErrLifecycleOperationNotFound
+}
+
+func (r *lifecycleInspectionTestRepository) ListOperations(_ context.Context, extensionID string, _ int) ([]LifecycleOperation, error) {
+	result := make([]LifecycleOperation, 0, len(r.operations))
+	for _, operation := range r.operations {
+		if operation.ExtensionID == extensionID {
+			result = append(result, operation)
+		}
+	}
+	return result, nil
+}
+
+func (r *lifecycleInspectionTestRepository) ListStepAttempts(_ context.Context, operationID int64) ([]LifecycleStepAttempt, error) {
+	result := make([]LifecycleStepAttempt, 0, len(r.steps))
+	for _, step := range r.steps {
+		if step.OperationID == operationID {
+			result = append(result, step)
+		}
+	}
+	return result, nil
+}
+
+func TestLifecycleInspectionReturnsOnlyAllowlistedFields(t *testing.T) {
+	now := time.Now().UTC()
+	operation := LifecycleOperation{
+		ID: 41, ExtensionID: "demo.lifecycle", ExtensionVersion: "1.0.0",
+		PackageDigest: strings.Repeat("a", 64), ArtifactDigests: json.RawMessage(`{"secret":"artifact"}`),
+		Operation: LifecycleOperationUninstall, State: LifecycleStateFailed,
+		PlanVersion: "demo.lifecycle@1", IdempotencyKey: "private-idempotency",
+		RequestFingerprint: "private-fingerprint", AuthorityType: LifecycleAuthorityTrustGrant,
+		TrustGrantID: 9, AuthoritySnapshot: json.RawMessage(`{"secret":"authority"}`),
+		RequestedByUserID: 7, AuditEventID: 8, RemovalMode: LifecycleRemovalComplete,
+		Forced: true, AttemptCount: 2, Revision: 5, CurrentStepID: "lifecycle.uninstall.04.uninstall",
+		Checkpoint: json.RawMessage(`{"secret":"checkpoint"}`),
+		Progress:   json.RawMessage(`{"secret":"progress"}`), TerminalResult: LifecycleTerminalFailed,
+		ResultDocument: json.RawMessage(`{"secret":"operation-result"}`),
+		Error:          LifecycleExecutionError{Code: "external.cleanup", Message: "cleanup failed", Retryable: true, Metadata: json.RawMessage(`{"secret":"error-metadata"}`)},
+		CreatedAt:      now, UpdatedAt: now,
+	}
+	step := LifecycleStepAttempt{
+		ID: 52, OperationID: operation.ID, StepID: operation.CurrentStepID,
+		LifecycleAction: LifecycleOperationUninstall, PlanVersion: operation.PlanVersion,
+		Attempt: 2, Status: LifecycleStepFailed, Checkpoint: "private-step-checkpoint",
+		CompletedUnits: 1, TotalUnits: 3, ProgressMessage: "Cleaning external resources",
+		InputDocument: json.RawMessage(`{"secret":"step-input"}`), ResultDocument: json.RawMessage(`{"secret":"step-result"}`),
+		Error:      LifecycleExecutionError{Code: "external.cleanup", Message: "cleanup failed", Metadata: json.RawMessage(`{"secret":"step-error-metadata"}`)},
+		SkipReason: "operator accepted residual resources", Forced: true,
+		ActorUserID: 7, AuditEventID: 8, LeaseOwnerToken: "private-lease-token",
+		LeaseRevision: 4, CreatedAt: now, UpdatedAt: now,
+	}
+	repository := &lifecycleInspectionTestRepository{operation: operation, operations: []LifecycleOperation{operation}, steps: []LifecycleStepAttempt{step}}
+	service := NewServiceWithOptions(newFakeExtensionStore(map[string]Extension{}), "", "", nil, WithLifecycleInspectionRepository(repository))
+	actor := identity.Actor{ID: 7, Status: identity.UserStatusActive, Permissions: map[string]bool{identity.PermissionExtensionView: true}}
+
+	history, err := service.LifecycleOperations(context.Background(), actor, operation.ExtensionID, 10)
+	if err != nil || len(history) != 1 || history[0].ID != operation.ID {
+		t.Fatalf("history=%#v err=%v", history, err)
+	}
+	detail, err := service.LifecycleOperation(context.Background(), actor, operation.ExtensionID, operation.ID)
+	if err != nil || len(detail.Steps) != 1 || detail.Steps[0].ID != step.ID {
+		t.Fatalf("detail=%#v err=%v", detail, err)
+	}
+	document, err := json.Marshal(detail)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, forbidden := range []string{
+		"artifactDigests", "authoritySnapshot", "trustGrantId", "idempotencyKey", "requestFingerprint",
+		"checkpoint", "progress\"", "inputDocument", "resultDocument", "metadata", "leaseOwnerToken", "leaseRevision",
+		"private-idempotency", "private-fingerprint", "secret", "private-lease-token",
+	} {
+		if strings.Contains(string(document), forbidden) {
+			t.Fatalf("public lifecycle document leaked %q: %s", forbidden, document)
+		}
+	}
+}
+
+func TestLifecycleInspectionPermissionAndDependencyBoundaries(t *testing.T) {
+	service := NewService(newFakeExtensionStore(map[string]Extension{}), "")
+	if _, err := service.LifecycleOperations(context.Background(), identity.Actor{}, "demo.lifecycle", 10); !errors.Is(err, identity.ErrPermissionDenied) {
+		t.Fatalf("unprivileged history error=%v", err)
+	}
+	actor := identity.Actor{ID: 1, Status: identity.UserStatusActive, Permissions: map[string]bool{identity.PermissionExtensionView: true}}
+	if _, err := service.LifecycleOperations(context.Background(), actor, "demo.lifecycle", 10); !errors.Is(err, ErrLifecycleCoordinatorUnavailable) {
+		t.Fatalf("missing inspector history error=%v", err)
+	}
+	if _, err := service.LifecycleOperation(context.Background(), actor, "", 1); !errors.Is(err, ErrLifecycleCoordinatorUnavailable) {
+		t.Fatalf("missing inspector detail error=%v", err)
+	}
+}
