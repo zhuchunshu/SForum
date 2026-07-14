@@ -69,6 +69,9 @@ message CommandRequest {
   bool dry_run = 5;
   string expected_revision = 6;
   sforum.protocol.v2.TypedDocument input = 7;
+  // actor_delegation is a short-lived Host-signed capability. RequestContext.actor
+  // remains untrusted and must be absent on plugin-to-Host command calls.
+  string actor_delegation = 8;
 }
 
 // PolicyDecision records one authoritative policy result in an impact plan.
