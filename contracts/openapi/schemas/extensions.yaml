@@ -215,6 +215,273 @@ ApiResponseExecutableTrustChallenge:
     message: { type: string }
     data:
       "$ref": "#/ExecutableTrustChallenge"
+ApiResponseLifecycleOperationList:
+  type: object
+  required: [code, message, data]
+  additionalProperties: false
+  properties:
+    code: { type: integer }
+    message: { type: string }
+    data:
+      type: array
+      items:
+        "$ref": "#/LifecycleOperationSummary"
+ApiResponseLifecycleOperationDetail:
+  type: object
+  required: [code, message, data]
+  additionalProperties: false
+  properties:
+    code: { type: integer }
+    message: { type: string }
+    data:
+      "$ref": "#/LifecycleOperationDetail"
+LifecyclePublicError:
+  type: object
+  description: Stable operator-facing lifecycle error. Trusted runtime metadata and opaque failure payloads are never returned.
+  required: [retryable]
+  additionalProperties: false
+  properties:
+    code:
+      type: string
+    reason:
+      type: string
+    message:
+      type: string
+    retryable:
+      type: boolean
+    retryAfter:
+      type: string
+      format: date-time
+LifecycleOperationSummary:
+  type: object
+  description: Allowlisted durable lifecycle operation status. Authority snapshots, idempotency data, checkpoints, progress documents, and result documents are excluded.
+  required:
+  - id
+  - extensionId
+  - extensionVersion
+  - packageDigest
+  - operation
+  - state
+  - planVersion
+  - forced
+  - attemptCount
+  - revision
+  - error
+  - createdAt
+  - updatedAt
+  additionalProperties: false
+  properties:
+    id:
+      type: integer
+      format: int64
+      minimum: 1
+    extensionId:
+      type: string
+    extensionVersion:
+      type: string
+    packageDigest:
+      type: string
+      pattern: '^[0-9a-f]{64}$'
+    operation:
+      type: string
+      enum: [install, enable, disable, upgrade, rollback, uninstall]
+    state:
+      type: string
+      enum: [planned, migrating, starting, healthy, registering, enabled, draining, uninstalling, failed, recovery]
+    planVersion:
+      type: string
+    removalMode:
+      type: string
+      enum: [preserve, export_then_remove, complete_removal]
+    forced:
+      type: boolean
+    attemptCount:
+      type: integer
+      minimum: 0
+    revision:
+      type: integer
+      format: int64
+      minimum: 0
+    currentStepId:
+      type: string
+    terminalResult:
+      type: string
+      enum: [succeeded, failed, cancelled, skipped]
+    requestedByUserId:
+      type: integer
+      format: int64
+      minimum: 1
+    auditEventId:
+      type: integer
+      format: int64
+      minimum: 1
+    error:
+      "$ref": "#/LifecyclePublicError"
+    createdAt:
+      type: string
+      format: date-time
+    updatedAt:
+      type: string
+      format: date-time
+    startedAt:
+      type: string
+      format: date-time
+    completedAt:
+      type: string
+      format: date-time
+LifecycleStepSummary:
+  type: object
+  description: Allowlisted lifecycle step progress. Checkpoints, inputs, results, lease credentials, and error metadata are excluded.
+  required:
+  - id
+  - stepId
+  - lifecycleAction
+  - planVersion
+  - attempt
+  - status
+  - completedUnits
+  - totalUnits
+  - forced
+  - error
+  - createdAt
+  - updatedAt
+  additionalProperties: false
+  properties:
+    id:
+      type: integer
+      format: int64
+      minimum: 1
+    stepId:
+      type: string
+    lifecycleAction:
+      type: string
+      enum: [install.plan, install, enable, disable, upgrade.plan, upgrade.before, upgrade.after, rollback, uninstall.plan, uninstall, uninstall.after, host.gate]
+    planVersion:
+      type: string
+    attempt:
+      type: integer
+      minimum: 1
+    status:
+      type: string
+      enum: [planned, running, waiting, succeeded, failed, cancelled, skipped]
+    completedUnits:
+      type: integer
+      format: int64
+      minimum: 0
+    totalUnits:
+      type: integer
+      format: int64
+      minimum: 0
+    progressMessage:
+      type: string
+    skipReason:
+      type: string
+    forced:
+      type: boolean
+    actorUserId:
+      type: integer
+      format: int64
+      minimum: 1
+    auditEventId:
+      type: integer
+      format: int64
+      minimum: 1
+    error:
+      "$ref": "#/LifecyclePublicError"
+    createdAt:
+      type: string
+      format: date-time
+    updatedAt:
+      type: string
+      format: date-time
+    startedAt:
+      type: string
+      format: date-time
+    completedAt:
+      type: string
+      format: date-time
+LifecycleOperationDetail:
+  type: object
+  description: One lifecycle operation plus its allowlisted step-attempt history.
+  required:
+  - id
+  - extensionId
+  - extensionVersion
+  - packageDigest
+  - operation
+  - state
+  - planVersion
+  - forced
+  - attemptCount
+  - revision
+  - error
+  - createdAt
+  - updatedAt
+  - steps
+  additionalProperties: false
+  properties:
+    id:
+      type: integer
+      format: int64
+      minimum: 1
+    extensionId:
+      type: string
+    extensionVersion:
+      type: string
+    packageDigest:
+      type: string
+      pattern: '^[0-9a-f]{64}$'
+    operation:
+      type: string
+      enum: [install, enable, disable, upgrade, rollback, uninstall]
+    state:
+      type: string
+      enum: [planned, migrating, starting, healthy, registering, enabled, draining, uninstalling, failed, recovery]
+    planVersion:
+      type: string
+    removalMode:
+      type: string
+      enum: [preserve, export_then_remove, complete_removal]
+    forced:
+      type: boolean
+    attemptCount:
+      type: integer
+      minimum: 0
+    revision:
+      type: integer
+      format: int64
+      minimum: 0
+    currentStepId:
+      type: string
+    terminalResult:
+      type: string
+      enum: [succeeded, failed, cancelled, skipped]
+    requestedByUserId:
+      type: integer
+      format: int64
+      minimum: 1
+    auditEventId:
+      type: integer
+      format: int64
+      minimum: 1
+    error:
+      "$ref": "#/LifecyclePublicError"
+    createdAt:
+      type: string
+      format: date-time
+    updatedAt:
+      type: string
+      format: date-time
+    startedAt:
+      type: string
+      format: date-time
+    completedAt:
+      type: string
+      format: date-time
+    steps:
+      type: array
+      items:
+        "$ref": "#/LifecycleStepSummary"
 ExtensionType:
   type: string
   enum:

@@ -128,6 +128,98 @@ adminExtensionUninstall:
           application/json:
             schema:
               "$ref": "../schemas/common.yaml#/ApiErrorResponse"
+adminExtensionLifecycleOperations:
+  get:
+    summary: List durable extension lifecycle operations
+    description: >-
+      Requires extension.view (or the extension.manage compatibility parent).
+      Returns newest-first durable operation summaries for this extension. The
+      response is a strict allowlist and never exposes authority snapshots,
+      idempotency keys, request fingerprints, checkpoints, progress documents,
+      trusted-runtime inputs/results, lease credentials, or opaque metadata.
+    operationId: listAdminExtensionLifecycleOperations
+    parameters:
+    - "$ref": "../components/parameters.yaml#/ExtensionID"
+    - name: limit
+      in: query
+      required: false
+      description: Maximum number of newest operations. Empty, repeated, signed, non-canonical, or out-of-range values are rejected.
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 500
+        default: 100
+    responses:
+      '200':
+        description: Allowlisted lifecycle operation history.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/extensions.yaml#/ApiResponseLifecycleOperationList"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '422':
+        description: Invalid extension id or limit (reason validation.invalid).
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/common.yaml#/ApiErrorResponse"
+      '503':
+        description: Lifecycle inspection is not initialized (reason extension.lifecycle_unavailable).
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/common.yaml#/ApiErrorResponse"
+adminExtensionLifecycleOperation:
+  get:
+    summary: Inspect one durable extension lifecycle operation
+    description: >-
+      Requires extension.view (or the extension.manage compatibility parent).
+      The operation is scoped by both extensionID and operationID. Returns the
+      allowlisted operation and step history without authority, checkpoint,
+      input, result, lease, or opaque metadata fields.
+    operationId: getAdminExtensionLifecycleOperation
+    parameters:
+    - "$ref": "../components/parameters.yaml#/ExtensionID"
+    - name: operationID
+      in: path
+      required: true
+      description: Canonical positive base-10 lifecycle operation id.
+      schema:
+        type: integer
+        format: int64
+        minimum: 1
+    responses:
+      '200':
+        description: Allowlisted lifecycle operation detail and step attempts.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/extensions.yaml#/ApiResponseLifecycleOperationDetail"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '404':
+        description: No operation with this id belongs to the extension (reason extension.lifecycle_operation_not_found).
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/common.yaml#/ApiErrorResponse"
+      '422':
+        description: Invalid extension id or operation id (reason validation.invalid).
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/common.yaml#/ApiErrorResponse"
+      '503':
+        description: Lifecycle inspection is not initialized (reason extension.lifecycle_unavailable).
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/common.yaml#/ApiErrorResponse"
 adminExtensionMigrations:
   get:
     summary: List recorded extension migration ledger entries

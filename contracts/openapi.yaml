@@ -342,6 +342,10 @@ paths:
     "$ref": "./openapi/paths/extensions.yaml#/adminExtensionActivate"
   "/admin/extensions/{extensionID}/events":
     "$ref": "./openapi/paths/extensions.yaml#/adminExtensionEvents"
+  "/admin/extensions/{extensionID}/lifecycle":
+    "$ref": "./openapi/paths/extensions.yaml#/adminExtensionLifecycleOperations"
+  "/admin/extensions/{extensionID}/lifecycle/{operationID}":
+    "$ref": "./openapi/paths/extensions.yaml#/adminExtensionLifecycleOperation"
   "/admin/extensions/{extensionID}/migrations":
     "$ref": "./openapi/paths/extensions.yaml#/adminExtensionMigrations"
   "/admin/extensions/{extensionID}/migrations/apply":
@@ -590,6 +594,18 @@ components:
       "$ref": "./openapi/schemas/extensions.yaml#/ExtensionEventDefinition"
     ExtensionEventDelivery:
       "$ref": "./openapi/schemas/extensions.yaml#/ExtensionEventDelivery"
+    LifecyclePublicError:
+      "$ref": "./openapi/schemas/extensions.yaml#/LifecyclePublicError"
+    LifecycleOperationSummary:
+      "$ref": "./openapi/schemas/extensions.yaml#/LifecycleOperationSummary"
+    LifecycleStepSummary:
+      "$ref": "./openapi/schemas/extensions.yaml#/LifecycleStepSummary"
+    LifecycleOperationDetail:
+      "$ref": "./openapi/schemas/extensions.yaml#/LifecycleOperationDetail"
+    ApiResponseLifecycleOperationList:
+      "$ref": "./openapi/schemas/extensions.yaml#/ApiResponseLifecycleOperationList"
+    ApiResponseLifecycleOperationDetail:
+      "$ref": "./openapi/schemas/extensions.yaml#/ApiResponseLifecycleOperationDetail"
     Health:
       "$ref": "./openapi/schemas/common.yaml#/Health"
     DatabaseTableSummary:

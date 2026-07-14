@@ -194,6 +194,18 @@
       "path": "/api/v1/admin/extensions/:id/frontend/trust"
     },
     {
+      "id": "core.route.extensions.lifecycle_operations",
+      "contractVersion": "sforum.route.extensions.lifecycle_operations@1",
+      "method": "GET",
+      "path": "/api/v1/admin/extensions/:id/lifecycle"
+    },
+    {
+      "id": "core.route.extensions.lifecycle_operation",
+      "contractVersion": "sforum.route.extensions.lifecycle_operation@1",
+      "method": "GET",
+      "path": "/api/v1/admin/extensions/:id/lifecycle/:operationID"
+    },
+    {
       "id": "core.route.extensions.list_migrations",
       "contractVersion": "sforum.route.extensions.list_migrations@1",
       "method": "GET",
