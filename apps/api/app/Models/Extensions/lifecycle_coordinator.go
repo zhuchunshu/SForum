@@ -233,7 +233,7 @@ func (c *LifecycleCoordinator) Run(ctx context.Context, input LifecycleCoordinat
 	if err != nil {
 		return LifecycleCoordinatorRunResult{Operation: operation}, err
 	}
-	return LifecycleCoordinatorRunResult{Operation: operation}, nil
+	return LifecycleCoordinatorRunResult{Operation: operation, Replayed: !acquired.Created}, nil
 }
 
 func (c *LifecycleCoordinator) reconcilePendingStepTerminal(

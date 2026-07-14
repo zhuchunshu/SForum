@@ -17,7 +17,9 @@ func (e Extension) StagedArtifact() (Extension, bool) {
 }
 
 func trustReviewArtifact(extension Extension) Extension {
-	if staged, ok := extension.StagedArtifact(); ok {
+	// A disabled plugin restarts its current exact artifact. Its staged package
+	// stays inert until an explicit upgrade, so the challenge must bind current.
+	if staged, ok := extension.StagedArtifact(); ok && extension.Status != StatusDisabled {
 		return staged
 	}
 	return extension

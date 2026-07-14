@@ -35,6 +35,9 @@ type LifecycleOperationIntent struct {
 	EscalateForced  bool
 	RecoveryReason  string
 	AuditEventID    int64
+	// FrozenAuthority 允许 disable/rollback 复用目标制品最后一次成功授权。
+	// 当前请求 actor 仍写入 operation/audit；授权 actor 保留在 immutable snapshot。
+	FrozenAuthority bool
 }
 
 // ConfirmLifecycleAuthority 消费或复用 exact-artifact grant，并返回可持久化的授权快照。
@@ -100,6 +103,12 @@ func BuildLifecycleCoordinatorRunInput(
 		return LifecycleCoordinatorRunInput{}, fmt.Errorf("%w: stable idempotency key is required", ErrLifecycleCoordinatorInvalid)
 	}
 	authorityActor := actor
+	if intent.FrozenAuthority {
+		if intent.Operation != LifecycleMachineDisable && intent.Operation != LifecycleMachineRollback {
+			return LifecycleCoordinatorRunInput{}, fmt.Errorf("%w: frozen authority is limited to disable and rollback", ErrLifecycleCoordinatorInvalid)
+		}
+		authorityActor.ID = authority.ActorUserID
+	}
 	if intent.Retry {
 		if actor.ID <= 0 || intent.AuditEventID <= 0 {
 			return LifecycleCoordinatorRunInput{}, fmt.Errorf("%w: recovery actor and audit identities are required", ErrLifecycleCoordinatorInvalid)
@@ -160,6 +169,10 @@ func BuildLifecycleCoordinatorRunInput(
 		trustGrantID = authority.Grant.ID
 	}
 	initialAuditEventID := intent.AuditEventID
+	requestedByUserID := authority.ActorUserID
+	if intent.FrozenAuthority && !intent.Retry {
+		requestedByUserID = actor.ID
+	}
 	recoveryActorUserID := int64(0)
 	recoveryAuditEventID := int64(0)
 	if intent.Retry {
@@ -175,7 +188,7 @@ func BuildLifecycleCoordinatorRunInput(
 			Operation: string(intent.Operation), PlanVersion: extension.Manifest.Lifecycle.ContractVersion,
 			IdempotencyKey: idempotencyKey, RequestFingerprint: hex.EncodeToString(fingerprint[:]),
 			AuthorityType: authority.AuthorityType, TrustGrantID: trustGrantID,
-			AuthoritySnapshot: authorityJSON, RequestedByUserID: authority.ActorUserID,
+			AuthoritySnapshot: authorityJSON, RequestedByUserID: requestedByUserID,
 			AuditEventID: initialAuditEventID,
 			RemovalMode:  intent.RemovalMode, Forced: intent.Forced, ExistingOnly: intent.Retry,
 		},

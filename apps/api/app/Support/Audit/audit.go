@@ -23,6 +23,7 @@ const (
 	ActionExtensionActivate          = "extension.theme_activate"
 	ActionExtensionInstalled         = "extension.install"
 	ActionExtensionUpgraded          = "extension.upgrade"
+	ActionExtensionRollback          = "extension.rollback"
 	ActionExtensionUninstalled       = "extension.uninstall"
 	ActionExtensionFrontendGrant     = "extension.frontend_trust_grant"
 	ActionExtensionFrontendRevoke    = "extension.frontend_trust_revoke"

@@ -357,7 +357,7 @@ func (c *LifecycleCoordinator) runLifecycleHostGate(
 			SourceBinding:  machine.SourceBinding, TargetBinding: machine.TargetBinding,
 			AuthorityType: operation.AuthorityType, TrustGrantID: operation.TrustGrantID,
 			AuthoritySnapshot:    cloneLifecycleJSON(operation.AuthoritySnapshot),
-			AuthorityActorUserID: operation.RequestedByUserID, RemovalMode: operation.RemovalMode,
+			AuthorityActorUserID: lifecycleOperationAuthorityActorUserID(operation), RemovalMode: operation.RemovalMode,
 			Forced: machine.Forced, ActorUserID: lifecycleOperationActorUserID(operation),
 			AuditEventID: lifecycleOperationAuditEventID(operation),
 			Revalidation: revalidation,
@@ -532,7 +532,7 @@ func (c *LifecycleCoordinator) executeAction(
 		Checkpoint: resumeCheckpoint, InputDocument: cloneLifecycleJSON(input.ActionInputs[machine.Action]),
 		AuthorityType: operation.AuthorityType, TrustGrantID: operation.TrustGrantID,
 		AuthoritySnapshot:    cloneLifecycleJSON(operation.AuthoritySnapshot),
-		AuthorityActorUserID: operation.RequestedByUserID, RemovalMode: operation.RemovalMode,
+		AuthorityActorUserID: lifecycleOperationAuthorityActorUserID(operation), RemovalMode: operation.RemovalMode,
 		Forced: machine.Forced, ActorUserID: lifecycleOperationActorUserID(operation),
 		AuditEventID: lifecycleOperationAuditEventID(operation),
 	}, func(progress LifecycleCoordinatorActionProgress) error {
@@ -727,6 +727,16 @@ func lifecycleOperationActorUserID(operation LifecycleOperation) int64 {
 	if operation.RecoveryActorUserID > 0 && operation.RecoveryAuditEventID > 0 {
 		return operation.RecoveryActorUserID
 	}
+	return operation.RequestedByUserID
+}
+
+func lifecycleOperationAuthorityActorUserID(operation LifecycleOperation) int64 {
+	var authority LifecycleAuthoritySnapshot
+	if json.Unmarshal(operation.AuthoritySnapshot, &authority) == nil && authority.ActorUserID > 0 {
+		return authority.ActorUserID
+	}
+	// Compatibility with coordinator rows written before request and authority
+	// actors were split. Exact runtime validation still rejects malformed rows.
 	return operation.RequestedByUserID
 }
 

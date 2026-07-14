@@ -48,6 +48,9 @@ type Service struct {
 	safeMode               bool
 	activation             *ActivationCoordinator
 	lifecycleInspector     LifecycleInspectionRepository
+	lifecycleCoordinator   LifecycleCoordinatorRunner
+	lifecyclePreflight     LifecycleStaticPreflight
+	lifecycleAuthority     LifecycleAuthorityRepository
 }
 
 // PageRegistry 主题/插件页面贡献注册（避免 extensions 直接依赖 pages 包实现细节）。
@@ -139,6 +142,20 @@ func WithSafeMode(enabled bool) ServiceOption {
 
 func WithActivationCoordinator(coordinator *ActivationCoordinator) ServiceOption {
 	return func(s *Service) { s.activation = coordinator }
+}
+
+// WithLifecycleCoordinator 注入 V2 durable coordinator 及其静态前置检查。
+// preflight 只接收不可变制品快照，不得持有或启动 runtime process。
+func WithLifecycleCoordinator(
+	coordinator LifecycleCoordinatorRunner,
+	preflight LifecycleStaticPreflight,
+	authority LifecycleAuthorityRepository,
+) ServiceOption {
+	return func(s *Service) {
+		s.lifecycleCoordinator = coordinator
+		s.lifecyclePreflight = preflight
+		s.lifecycleAuthority = authority
+	}
 }
 
 func (s *Service) ExecutableTrustStatus(ctx context.Context, actor identity.Actor, extensionID string) (ExecutableTrustStatus, error) {
@@ -730,6 +747,9 @@ func (s *Service) Enable(ctx context.Context, actor identity.Actor, id string, i
 	if extension.Type == TypeTheme {
 		return Extension{}, ErrThemeActivationRequired
 	}
+	if usesLifecycleV2(extension) {
+		return s.enableLifecycleV2(ctx, actor, extension, input)
+	}
 	if s.trustChallengesEnabled {
 		if s.executableTrust == nil {
 			return Extension{}, ErrTrustChallengeRequired
@@ -816,6 +836,12 @@ func (s *Service) Enable(ctx context.Context, actor identity.Actor, id string, i
 }
 
 func (s *Service) Disable(ctx context.Context, actor identity.Actor, id string) (Extension, error) {
+	return s.DisableWithInput(ctx, actor, id, LifecycleRequestInput{})
+}
+
+// DisableWithInput preserves the old Disable call surface while allowing HTTP
+// callers to bind a stable idempotency key for protocol V2 plugins.
+func (s *Service) DisableWithInput(ctx context.Context, actor identity.Actor, id string, input LifecycleRequestInput) (Extension, error) {
 	if !canManagePlugins(actor) {
 		return Extension{}, identity.ErrPermissionDenied
 	}
@@ -825,6 +851,9 @@ func (s *Service) Disable(ctx context.Context, actor identity.Actor, id string) 
 	}
 	if extension.Type == TypeTheme {
 		return Extension{}, ErrThemeActivationRequired
+	}
+	if usesLifecycleV2(extension) {
+		return s.disableLifecycleV2(ctx, actor, extension, input)
 	}
 	// F2.4：先 drain runtime（停进程、清 provider），再改 DB 状态。
 	if err := s.drainPluginRuntime(ctx, extension); err != nil {

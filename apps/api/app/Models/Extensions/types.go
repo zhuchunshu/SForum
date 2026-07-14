@@ -40,6 +40,7 @@ const (
 	EventEnabled               = "enabled"
 	EventEnableFailed          = "enable_failed"
 	EventDisabled              = "disabled"
+	EventRolledBack            = "rolled_back"
 	EventThemeActivated        = "theme_activated"
 	EventThemeActivationQueued = "theme_activation_queued"
 	EventMigrationsApplied     = "migrations_applied"
@@ -82,8 +83,15 @@ const (
 	// 卸载前必须先禁用（或 drain 失败）。
 	CodeMustDisableFirst = "extension.must_disable_first"
 	// 插件迁移执行失败。
-	CodeMigrationFailed = "extension.migration_failed"
-	CodeSafeModeActive  = "extension.safe_mode_active"
+	CodeMigrationFailed        = "extension.migration_failed"
+	CodeSafeModeActive         = "extension.safe_mode_active"
+	CodeLifecycleInvalid       = "extension.lifecycle_invalid"
+	CodeLifecycleUnavailable   = "extension.lifecycle_unavailable"
+	CodeLifecycleConflict      = "extension.lifecycle_conflict"
+	CodeLifecycleActionFailed  = "extension.lifecycle_action_failed"
+	CodeLifecycleAuthorityGone = "extension.lifecycle_authority_not_found"
+	CodeStagedVersionNotFound  = "extension.staged_version_not_found"
+	CodeVersionNotFound        = "extension.version_not_found"
 	// CodeUntrustedBackendRestricted 见 backend_trust.go（非 super_admin 执行非内置后端）。
 
 	SourceBuiltin  = "builtin"
@@ -239,6 +247,26 @@ type EnableInput struct {
 	ConfirmCapabilities bool `json:"confirmCapabilities"`
 	// ConfirmationToken 是 V3 P1 服务端签发的一次性 exact-artifact token。
 	ConfirmationToken string `json:"confirmationToken,omitempty"`
+	// IdempotencyKey 来自 HTTP Idempotency-Key；不接受 body 覆盖。
+	IdempotencyKey string `json:"-"`
+}
+
+// LifecycleRequestInput 是无业务 body 的 V2 lifecycle 请求元数据。
+type LifecycleRequestInput struct {
+	IdempotencyKey string `json:"-"`
+}
+
+// UpgradeInput 激活当前不可变 staged candidate。
+type UpgradeInput struct {
+	ConfirmationToken string `json:"confirmationToken,omitempty"`
+	IdempotencyKey    string `json:"-"`
+}
+
+// RollbackInput 只接受 exact historical version + digest，禁止“最近版本”一类可变指针。
+type RollbackInput struct {
+	TargetVersion       string `json:"targetVersion"`
+	TargetPackageDigest string `json:"targetPackageDigest"`
+	IdempotencyKey      string `json:"-"`
 }
 
 // UninstallInput 卸载扩展的请求体（F2.4）。
