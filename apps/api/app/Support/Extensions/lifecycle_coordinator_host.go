@@ -26,10 +26,6 @@ type LifecycleHostRuntime interface {
 	ForceDrain(RuntimeInstanceIdentity, error) (RuntimeAdmissionSnapshot, error)
 }
 
-type lifecycleHostRuntimeResumer interface {
-	ResumeRuntimeInstance(RuntimeInstanceIdentity) (RuntimeAdmissionSnapshot, error)
-}
-
 // LifecycleHostBoundaryResult deliberately excludes runtime bindings. Exact
 // process selection belongs to this dispatcher; database/registry/job/removal
 // boundaries may only return their durable checkpoint and typed result.
@@ -344,23 +340,11 @@ func (h *ExactLifecycleCoordinatorHost) compensateLifecycleHostDrain(
 		}
 		return cause
 	}
-	resumer, ok := h.runtime.(lifecycleHostRuntimeResumer)
-	if !ok {
-		closeErr := h.closeLifecycleHostRuntime(compensationCtx, identity)
-		return lifecycleBoundaryFailure(cause, []error{errors.Join(fmt.Errorf("exact runtime resume is unavailable"), closeErr)})
-	}
-	resumed, err := resumer.ResumeRuntimeInstance(identity)
-	if err == nil {
-		err = validateLifecycleBoundaryAdmission("resume source after drain failure", resumed, identity, false, false)
-	}
-	if err != nil {
-		closeErr := h.closeLifecycleHostRuntime(compensationCtx, identity)
-		return lifecycleBoundaryFailure(cause, []error{errors.Join(fmt.Errorf("resume source runtime: %w", err), closeErr)})
-	}
 	if err := drainer.ResumeLifecycleHostSources(compensationCtx, request); err != nil {
-		// Keep both admission families closed if schedules cannot be reopened.
+		// The composed resume publishes schedules while RuntimeCallJob remains
+		// drained, then opens that runtime exactly once as its final action.
 		closeErr := h.closeLifecycleHostRuntime(compensationCtx, identity)
-		return lifecycleBoundaryFailure(cause, []error{errors.Join(fmt.Errorf("resume jobs and schedules: %w", err), closeErr)})
+		return lifecycleBoundaryFailure(cause, []error{errors.Join(fmt.Errorf("resume lifecycle admissions: %w", err), closeErr)})
 	}
 	return cause
 }

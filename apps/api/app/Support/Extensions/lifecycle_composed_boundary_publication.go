@@ -32,11 +32,8 @@ func (b *ComposedLifecycleHostBoundary) publishActivation(
 		// reopening source against an ambiguous target trigger snapshot.
 		return err
 	}
-	state, jobs, registries, committed, recovery, err := b.preparePublication(ctx, request, jobMode, LifecycleBoundaryActivate)
+	state, jobs, registries, committed, err := b.preparePublication(ctx, request, jobMode, LifecycleBoundaryActivate)
 	if err != nil {
-		if recovery == lifecyclePublicationPrepareMarkerControlled {
-			return b.failBeforePublication(ctx, request, err)
-		}
 		return err
 	}
 	transactions := []namedLifecycleCompensation{
@@ -77,11 +74,9 @@ func (b *ComposedLifecycleHostBoundary) publishActivation(
 		}
 		return b.failActivationPhase(ctx, request, jobMode, false, err, transactions)
 	}
-	resumed, err := b.dependencies.Runtime.ResumeRuntimeInstance(target)
-	if err == nil {
-		err = validateLifecycleBoundaryAdmission("open published target", resumed, target, false, true)
-	}
-	if err != nil {
+	if err := b.dependencies.Jobs.ReconcileCommittedLifecycleJobs(
+		ctx, cloneLifecycleBoundaryRequest(request), jobMode, LifecycleBoundaryActivate,
+	); err != nil {
 		return b.failCommittedActivation(ctx, request, jobMode, err)
 	}
 	if err := b.dependencies.Jobs.ResumeLifecycleJobs(
@@ -103,11 +98,8 @@ func (b *ComposedLifecycleHostBoundary) publishDeactivation(ctx context.Context,
 	if err := b.drainSourceAdmissions(ctx, request, jobMode); err != nil {
 		return b.failBeforePublication(ctx, request, err)
 	}
-	state, jobs, registries, committed, recovery, err := b.preparePublication(ctx, request, jobMode, LifecycleBoundaryDeactivate)
+	state, jobs, registries, committed, err := b.preparePublication(ctx, request, jobMode, LifecycleBoundaryDeactivate)
 	if err != nil {
-		if recovery == lifecyclePublicationPrepareMarkerControlled {
-			return b.failBeforePublication(ctx, request, err)
-		}
 		return err
 	}
 	transactions := []namedLifecycleCompensation{
@@ -133,6 +125,13 @@ func (b *ComposedLifecycleHostBoundary) publishDeactivation(ctx context.Context,
 		}
 		return b.failDeactivationPhase(ctx, request, false, err, transactions)
 	}
+	if err := b.dependencies.Jobs.ReconcileCommittedLifecycleJobs(
+		ctx, cloneLifecycleBoundaryRequest(request), jobMode, LifecycleBoundaryDeactivate,
+	); err != nil {
+		// The marker is authoritative. Source runtime, enqueue, and schedule
+		// admissions stay closed; a retry may only converge forward.
+		return err
+	}
 	return nil
 }
 
@@ -141,74 +140,67 @@ func (b *ComposedLifecycleHostBoundary) preparePublication(
 	request LifecycleBoundaryRequest,
 	jobMode LifecycleBoundaryJobMode,
 	mode LifecycleBoundaryPublicationMode,
-) (LifecycleBoundaryTransaction, LifecycleBoundaryTransaction, LifecycleBoundaryTransaction, bool, lifecyclePublicationPrepareRecovery, error) {
+) (LifecycleBoundaryTransaction, LifecycleBoundaryTransaction, LifecycleBoundaryTransaction, bool, error) {
 	if b.dependencies.Journal == nil {
-		return nil, nil, nil, false, lifecyclePublicationPrepareMarkerControlled, lifecycleBoundaryMissing("publication journal", request)
+		return nil, nil, nil, false, lifecycleBoundaryMissing("publication journal", request)
 	}
 	if b.dependencies.State == nil {
-		return nil, nil, nil, false, lifecyclePublicationPrepareMarkerControlled, lifecycleBoundaryMissing("durable state", request)
+		return nil, nil, nil, false, lifecycleBoundaryMissing("durable state", request)
 	}
 	if b.dependencies.Jobs == nil {
-		return nil, nil, nil, false, lifecyclePublicationPrepareMarkerControlled, lifecycleBoundaryMissing("jobs and schedules", request)
+		return nil, nil, nil, false, lifecycleBoundaryMissing("jobs and schedules", request)
 	}
 	if b.dependencies.Registries == nil {
-		return nil, nil, nil, false, lifecyclePublicationPrepareMarkerControlled, lifecycleBoundaryMissing("registries", request)
+		return nil, nil, nil, false, lifecycleBoundaryMissing("registries", request)
 	}
 	if err := b.dependencies.Journal.PrepareLifecyclePublication(ctx, cloneLifecycleBoundaryRequest(request), mode); err != nil {
-		return nil, nil, nil, false, lifecyclePublicationPrepareMarkerControlled, err
+		return nil, nil, nil, false, err
 	}
 	committed, err := b.dependencies.Journal.LifecyclePublicationCommitted(ctx, cloneLifecycleBoundaryRequest(request), mode)
 	if err != nil {
-		return nil, nil, nil, false, lifecyclePublicationPrepareMarkerControlled, err
+		return nil, nil, nil, false, err
 	}
 	if err := b.dependencies.Jobs.ValidateLifecycleJobs(ctx, cloneLifecycleBoundaryRequest(request), jobMode); err != nil {
-		return nil, nil, nil, committed, lifecyclePublicationPrepareMarkerControlled, err
+		return nil, nil, nil, committed, err
 	}
 	if err := b.dependencies.Registries.ValidateLifecycleRegistries(ctx, cloneLifecycleBoundaryRequest(request)); err != nil {
-		return nil, nil, nil, committed, lifecyclePublicationPrepareMarkerControlled, err
+		return nil, nil, nil, committed, err
 	}
 	state, err := b.dependencies.State.PrepareLifecycleStatePublication(ctx, cloneLifecycleBoundaryRequest(request), mode)
 	if err != nil {
-		return nil, nil, nil, committed, lifecyclePublicationPrepareMarkerControlled, err
+		return nil, nil, nil, committed, err
 	}
 	if state == nil {
-		return nil, nil, nil, committed, lifecyclePublicationPrepareMarkerControlled, lifecycleBoundaryMissing("durable state transaction", request)
+		return nil, nil, nil, committed, lifecycleBoundaryMissing("durable state transaction", request)
 	}
 	jobs, err := b.dependencies.Jobs.PrepareLifecycleJobPublication(ctx, cloneLifecycleBoundaryRequest(request), mode)
 	if err != nil {
-		return nil, nil, nil, committed, lifecyclePublicationPrepareMarkerControlled, err
+		return nil, nil, nil, committed, err
 	}
 	if jobs == nil {
-		return nil, nil, nil, committed, lifecyclePublicationPrepareMarkerControlled, lifecycleBoundaryMissing("job transaction", request)
+		return nil, nil, nil, committed, lifecycleBoundaryMissing("job transaction", request)
 	}
 	registries, err := b.dependencies.Registries.PrepareLifecycleRegistryPublication(ctx, cloneLifecycleBoundaryRequest(request), mode)
 	if err != nil {
-		return nil, nil, nil, committed, lifecyclePublicationPrepareMarkerControlled, err
+		return nil, nil, nil, committed, err
 	}
 	if registries == nil {
-		return nil, nil, nil, committed, lifecyclePublicationPrepareMarkerControlled, lifecycleBoundaryMissing("registry transaction", request)
+		return nil, nil, nil, committed, lifecycleBoundaryMissing("registry transaction", request)
 	}
 	transactions := []namedLifecycleCompensation{
 		{"registries", registries}, {"jobs and schedules", jobs}, {"state", state},
 	}
 	states, err := inspectLifecycleTransactions(ctx, transactions)
 	if err != nil {
-		return nil, nil, nil, committed, lifecyclePublicationPrepareKeepClosed, err
+		return nil, nil, nil, committed, err
 	}
 	if !committed && lifecycleTransactionsContainTarget(states) {
 		if err := b.restoreUncommittedPublication(ctx, request, jobMode, transactions); err != nil {
-			return nil, nil, nil, false, lifecyclePublicationPrepareKeepClosed, err
+			return nil, nil, nil, false, err
 		}
 	}
-	return state, jobs, registries, committed, lifecyclePublicationPrepareKeepClosed, nil
+	return state, jobs, registries, committed, nil
 }
-
-type lifecyclePublicationPrepareRecovery uint8
-
-const (
-	lifecyclePublicationPrepareKeepClosed lifecyclePublicationPrepareRecovery = iota
-	lifecyclePublicationPrepareMarkerControlled
-)
 
 type namedLifecycleCompensation struct {
 	name        string
@@ -480,15 +472,14 @@ func (b *ComposedLifecycleHostBoundary) restoreSourceRuntime(ctx context.Context
 	if err != nil {
 		return errors.Join(drainErr, err)
 	}
-	snapshot, publishErr := b.dependencies.Runtime.PublishRuntimeInstance(ctx, source)
+	snapshot, publishErr := b.dependencies.Runtime.PublishDrainedRuntimeInstance(ctx, source)
 	if publishErr == nil {
-		publishErr = validateLifecycleBoundaryRuntimeSnapshot("restore source", snapshot, *request.SourceExtension, source, true)
+		publishErr = validateLifecycleBoundaryRuntimeSnapshot("restore drained source", snapshot, *request.SourceExtension, source, true)
 	}
-	resume, resumeErr := b.dependencies.Runtime.ResumeRuntimeInstance(source)
-	if resumeErr == nil {
-		resumeErr = validateLifecycleBoundaryAdmission("resume source", resume, source, false, true)
+	if publishErr == nil {
+		publishErr = validateLifecycleBoundaryAdmission("restore drained source", snapshot.Admission, source, true, true)
 	}
-	return errors.Join(drainErr, publishErr, resumeErr)
+	return errors.Join(drainErr, publishErr)
 }
 
 func (b *ComposedLifecycleHostBoundary) restoreSourceRuntimeDrained(ctx context.Context, request LifecycleBoundaryRequest) error {
@@ -533,18 +524,6 @@ func (b *ComposedLifecycleHostBoundary) closeFailedTargetRuntime(ctx context.Con
 		stopErr = nil
 	}
 	return errors.Join(drainErr, stopErr)
-}
-
-func (b *ComposedLifecycleHostBoundary) resumeSourceRuntime(request LifecycleBoundaryRequest) error {
-	source, err := lifecycleBoundarySourceIdentity(request)
-	if err != nil {
-		return err
-	}
-	snapshot, err := b.dependencies.Runtime.ResumeRuntimeInstance(source)
-	if err != nil {
-		return err
-	}
-	return validateLifecycleBoundaryAdmission("resume source", snapshot, source, false, true)
 }
 
 func (b *ComposedLifecycleHostBoundary) drainSourceAdmissions(
@@ -596,10 +575,6 @@ func (b *ComposedLifecycleHostBoundary) resumeSourceAdmissions(ctx context.Conte
 	if err := b.requireLifecycleSourceResumeProof(ctx, request); err != nil {
 		closeErr := b.closeSourceAdmissions(ctx, request)
 		return fmt.Errorf("migration resume proof: %w", errors.Join(err, closeErr))
-	}
-	if err := b.resumeSourceRuntime(request); err != nil {
-		closeErr := b.closeSourceAdmissions(ctx, request)
-		return fmt.Errorf("runtime admission: %w", errors.Join(err, closeErr))
 	}
 	if err := b.openSourceLifecycleJobs(ctx, request); err != nil {
 		return fmt.Errorf("jobs and schedules: %w", err)

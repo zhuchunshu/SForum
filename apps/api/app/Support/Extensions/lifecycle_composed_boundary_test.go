@@ -469,8 +469,20 @@ type composedBoundaryJobs struct {
 	resumeErr      error
 	validateErr    error
 	prepareErr     error
+	reconcileErr   error
+	reconcileCalls int
 	nilTransaction bool
 	transaction    *composedBoundaryTransaction
+}
+
+func (d *composedBoundaryJobs) ReconcileCommittedLifecycleJobs(
+	_ context.Context,
+	_ LifecycleBoundaryRequest,
+	_ LifecycleBoundaryJobMode,
+	_ LifecycleBoundaryPublicationMode,
+) error {
+	d.reconcileCalls++
+	return d.reconcileErr
 }
 
 func (d *composedBoundaryJobs) DrainLifecycleJobs(_ context.Context, _ LifecycleBoundaryRequest, mode LifecycleBoundaryJobMode, role extensions.LifecycleCoordinatorRuntimeRole) error {
@@ -664,7 +676,7 @@ func activationCalls(job string) []string {
 		"registries.inspect", "jobs.inspect", "state.inspect",
 		"runtime.publish-drained:target-instance", "state.publish", "jobs.publish", "registries.publish",
 		"registries.inspect", "jobs.inspect", "state.inspect", "journal.commit:activate",
-		"runtime.resume:target-instance", "jobs.resume:"+job+":target",
+		"jobs.resume:"+job+":target",
 	)
 	return calls
 }

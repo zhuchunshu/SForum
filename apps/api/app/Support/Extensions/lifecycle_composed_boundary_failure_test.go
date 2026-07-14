@@ -168,15 +168,12 @@ func TestComposedLifecycleBoundaryDeactivationCompensatesBeforeCommit(t *testing
 		{
 			name:       "preflight",
 			configure:  func(f *composedBoundaryFixture) { f.preflight.err = errComposedDelegate },
-			wantSuffix: []string{"preflight", "journal.inspect-operation:deactivate", "runtime.resume:target-instance", "jobs.resume:disable:source"},
+			wantSuffix: []string{"preflight", "journal.inspect-operation:deactivate", "jobs.resume:disable:source"},
 		},
 		{
-			name:      "state prepare",
-			configure: func(f *composedBoundaryFixture) { f.state.prepareErr = errComposedDelegate },
-			wantSuffix: []string{
-				"state.prepare:deactivate", "journal.inspect-operation:deactivate",
-				"runtime.resume:target-instance", "jobs.resume:disable:source",
-			},
+			name:       "state prepare",
+			configure:  func(f *composedBoundaryFixture) { f.state.prepareErr = errComposedDelegate },
+			wantSuffix: []string{"state.prepare:deactivate"},
 		},
 		{
 			name: "state publish",
@@ -327,7 +324,9 @@ func TestComposedLifecycleBoundaryCompensatesWithCancelledCallerContext(t *testi
 		t.Fatal(err)
 	}
 	err = fixture.boundary.publishActivation(ctx, request, LifecycleBoundaryJobsUpgrade)
-	if !errors.Is(err, context.Canceled) || countCall(fixture.calls, "registries.restore") != 1 || countCall(fixture.calls, "runtime.resume:source-instance") != 1 {
+	if !errors.Is(err, context.Canceled) || countCall(fixture.calls, "registries.restore") != 1 ||
+		countCall(fixture.calls, "runtime.publish-drained:source-instance") != 1 ||
+		countCall(fixture.calls, "jobs.resume:upgrade:source") != 1 || countCallPrefix(fixture.calls, "runtime.resume") != 0 {
 		t.Fatalf("error = %v, calls = %#v", err, fixture.calls)
 	}
 }
@@ -376,7 +375,8 @@ func TestComposedLifecycleBoundaryExplicitRetryRedrainsSourceAndConverges(t *tes
 	if _, err := fixture.boundary.RunLifecycleHostBoundary(context.Background(), fixture.request); !errors.Is(err, errComposedPublish) {
 		t.Fatalf("first attempt = %v", err)
 	}
-	if countCall(fixture.calls, "runtime.resume:source-instance") != 1 || countCall(fixture.calls, "jobs.resume:upgrade:source") != 1 {
+	if countCall(fixture.calls, "runtime.publish-drained:source-instance") != 1 ||
+		countCall(fixture.calls, "jobs.resume:upgrade:source") != 1 || countCallPrefix(fixture.calls, "runtime.resume") != 0 {
 		t.Fatalf("first compensation = %#v", fixture.calls)
 	}
 	fixture.registries.transaction.publishErr = nil
@@ -463,7 +463,7 @@ func TestComposedLifecycleBoundaryInstallRetryRetainsDrainedCandidate(t *testing
 	}
 	publish := slices.Index(fixture.calls, "runtime.publish-drained:target-instance")
 	if publish < 0 || slices.Index(fixture.calls[:publish], "runtime.stop:target-instance") >= 0 ||
-		countCall(fixture.calls, "runtime.resume:target-instance") != 1 {
+		countCall(fixture.calls, "jobs.resume:install:target") != 1 || countCallPrefix(fixture.calls, "runtime.resume") != 0 {
 		t.Fatalf("candidate was not retained for republish: %#v", fixture.calls)
 	}
 }
@@ -524,7 +524,55 @@ func TestComposedLifecycleBoundaryCleanupRequiresDurableRecoveryProof(t *testing
 func runtimeSourceCompensationCalls() []string {
 	return []string{
 		"runtime.drain:target-instance", "runtime.wait:target-instance",
-		"runtime.publish:source-instance", "runtime.resume:source-instance", "jobs.resume:upgrade:source",
+		"runtime.publish-drained:source-instance", "jobs.resume:upgrade:source",
+	}
+}
+
+func TestComposedLifecycleBoundaryCommittedJobFailureRetriesOnlyForward(t *testing.T) {
+	tests := []struct {
+		name      string
+		operation extensions.LifecycleMachineOperation
+		position  int
+	}{
+		{"activation", extensions.LifecycleMachineEnable, 5},
+		{"deactivation", extensions.LifecycleMachineDisable, 3},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			fixture := newComposedBoundaryFixture(t, test.operation, test.position)
+			fixture.jobs.reconcileErr = errComposedDelegate
+			_, err := fixture.boundary.RunLifecycleHostBoundary(t.Context(), fixture.request)
+			if !errors.Is(err, errComposedDelegate) {
+				t.Fatalf("first error = %v", err)
+			}
+			if !fixture.journal.committed || fixture.jobs.reconcileCalls != 1 {
+				t.Fatalf("marker/reconcile = %v/%d", fixture.journal.committed, fixture.jobs.reconcileCalls)
+			}
+			if countCallSuffix(fixture.calls, ".restore") != 0 || countCallPrefix(fixture.calls, "jobs.resume") != 0 {
+				t.Fatalf("committed failure moved backward: %#v", fixture.calls)
+			}
+			if test.operation == extensions.LifecycleMachineEnable && countCall(fixture.calls, "runtime.resume:target-instance") != 0 {
+				t.Fatalf("target opened before committed reconciliation: %#v", fixture.calls)
+			}
+			if test.operation == extensions.LifecycleMachineDisable && countCallPrefix(fixture.calls, "cleanup:") != 0 {
+				t.Fatalf("deactivation cleaned up before reconciliation: %#v", fixture.calls)
+			}
+
+			fixture.jobs.reconcileErr = nil
+			fixture.calls = nil
+			result, err := fixture.boundary.RunLifecycleHostBoundary(t.Context(), fixture.request)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if fixture.jobs.reconcileCalls != 2 || countCallSuffix(fixture.calls, ".restore") != 0 {
+				t.Fatalf("forward retry calls = %#v, reconcile=%d", fixture.calls, fixture.jobs.reconcileCalls)
+			}
+			wantStage := "published"
+			if test.operation == extensions.LifecycleMachineDisable {
+				wantStage = "disabled"
+			}
+			assertComposedBoundaryResult(t, result, fixture.request, wantStage)
+		})
 	}
 }
 
@@ -537,7 +585,7 @@ func precommitActivationCompensationCalls() []string {
 func precommitDeactivationCompensationCalls() []string {
 	return []string{
 		"registries.restore", "jobs.restore", "state.restore",
-		"runtime.resume:target-instance", "jobs.resume:disable:source",
+		"jobs.resume:disable:source",
 	}
 }
 

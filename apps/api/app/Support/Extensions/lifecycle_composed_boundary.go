@@ -130,11 +130,16 @@ type LifecycleBoundaryMigrations interface {
 
 type LifecycleBoundaryJobs interface {
 	// Drain/Resume atomically cover queued-job enqueue admission and schedule
-	// trigger admission for the exact source/target artifact.
+	// trigger admission for the exact source/target artifact. Resume publishes
+	// schedules while RuntimeCallJob remains drained, then opens that exact
+	// runtime once as the final action.
 	DrainLifecycleJobs(context.Context, LifecycleBoundaryRequest, LifecycleBoundaryJobMode, extensions.LifecycleCoordinatorRuntimeRole) error
 	ResumeLifecycleJobs(context.Context, LifecycleBoundaryRequest, LifecycleBoundaryJobMode, extensions.LifecycleCoordinatorRuntimeRole) error
 	ValidateLifecycleJobs(context.Context, LifecycleBoundaryRequest, LifecycleBoundaryJobMode) error
 	PrepareLifecycleJobPublication(context.Context, LifecycleBoundaryRequest, LifecycleBoundaryPublicationMode) (LifecycleBoundaryTransaction, error)
+	// River cancel/migrate is intentionally outside the reversible prepared
+	// transaction and may execute only after the shared marker commits.
+	ReconcileCommittedLifecycleJobs(context.Context, LifecycleBoundaryRequest, LifecycleBoundaryJobMode, LifecycleBoundaryPublicationMode) error
 }
 
 // LifecycleHostDrainBoundary extends the dispatcher at its earlier draining

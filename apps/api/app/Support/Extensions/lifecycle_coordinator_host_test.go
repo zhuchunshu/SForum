@@ -406,14 +406,14 @@ func TestExactLifecycleCoordinatorHostPropagatesDependencyErrors(t *testing.T) {
 			configure: func(runtime *lifecycleHostRuntimeTestDouble, _ *lifecycleHostBoundaryTestDouble, _ extensions.LifecycleCoordinatorGateRequest) {
 				runtime.beginErr = dependencyError
 			},
-			wantCalls: []string{"begin:target-instance", "resume:target-instance"},
+			wantCalls: []string{"begin:target-instance"},
 		},
 		{
 			name: "wait drain", operation: extensions.LifecycleMachineDisable, position: 1,
 			configure: func(runtime *lifecycleHostRuntimeTestDouble, _ *lifecycleHostBoundaryTestDouble, _ extensions.LifecycleCoordinatorGateRequest) {
 				runtime.waitErr = dependencyError
 			},
-			wantCalls: []string{"begin:target-instance", "wait:target-instance", "resume:target-instance"},
+			wantCalls: []string{"begin:target-instance", "wait:target-instance"},
 		},
 		{
 			name: "force drain", operation: extensions.LifecycleMachineUninstall, position: 2, forced: true,
@@ -535,18 +535,11 @@ func TestExactLifecycleCoordinatorHostEarlyDrainCompensationFailsClosed(t *testi
 			wantCalls: []string{"begin:source-instance", "wait:source-instance"},
 		},
 		{
-			name: "runtime resume failure",
-			configure: func(runtime *lifecycleHostRuntimeTestDouble, _ *lifecycleHostBoundaryTestDouble) {
-				runtime.resumeErr = compensationError
-			},
-			wantCalls: []string{"resume:source-instance", "begin:source-instance", "wait:source-instance"},
-		},
-		{
 			name: "jobs resume failure",
 			configure: func(_ *lifecycleHostRuntimeTestDouble, boundary *lifecycleHostBoundaryTestDouble) {
 				boundary.drainResumeErr = compensationError
 			},
-			wantCalls: []string{"resume:source-instance", "begin:source-instance", "wait:source-instance"},
+			wantCalls: []string{"begin:source-instance", "wait:source-instance"},
 			wantJobs:  1,
 		},
 	}
