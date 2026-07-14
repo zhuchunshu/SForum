@@ -47,6 +47,57 @@ func TestSnapshotRejectsExecutableAndTrustedContentViewModels(t *testing.T) {
 	}
 }
 
+func TestSafeHTMLHelperOnlyAcceptsHostProducedValues(t *testing.T) {
+	snapshot := compileTestSnapshot(t, fstest.MapFS{
+		"templates/content.html": &fstest.MapFile{Data: []byte(`<article>{{safeHTML .Rich}}</article><p>{{.Plain}}</p>`)},
+	}, testDigest('3'), Bindings{}, Limits{})
+	output, err := snapshot.Render(context.Background(), "templates/content.html", map[string]any{
+		"Rich":  NewSafeHTMLFromSanitized(`<p>Sanitized <strong>content</strong>.</p>`),
+		"Plain": `<img src=x onerror=alert(1)>`,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(output, `<article><p>Sanitized <strong>content</strong>.</p></article>`) {
+		t.Fatalf("Host SafeHTML was not rendered as markup: %s", output)
+	}
+	if !strings.Contains(output, `&lt;img src=x onerror=alert(1)&gt;`) || strings.Contains(output, `<img src=x`) {
+		t.Fatalf("ordinary text bypassed contextual escaping: %s", output)
+	}
+
+	for _, test := range []struct {
+		forged any
+		target error
+	}{
+		{forged: `<strong>ordinary string</strong>`, target: ErrSafeHTMLRequired},
+		{forged: htmltemplate.HTML(`<strong>Go trusted alias</strong>`), target: ErrInvalidViewModel},
+		{forged: map[string]any{"value": `<strong>plugin document</strong>`}, target: ErrSafeHTMLRequired},
+	} {
+		if rendered, err := snapshot.Render(context.Background(), "templates/content.html", map[string]any{
+			"Rich": test.forged, "Plain": "plain",
+		}); !errors.Is(err, test.target) || rendered != "" {
+			t.Fatalf("forged SafeHTML %T rendered %q with error %v", test.forged, rendered, err)
+		}
+	}
+}
+
+func TestSafeHTMLHelperCannotEscapeURLOrAttributeContexts(t *testing.T) {
+	snapshot := compileTestSnapshot(t, fstest.MapFS{
+		"templates/contexts.html": &fstest.MapFile{Data: []byte(`<a href="{{safeHTML .Rich}}" title="{{safeHTML .Rich}}">link</a>`)},
+	}, testDigest('9'), Bindings{}, Limits{})
+	output, err := snapshot.Render(context.Background(), "templates/contexts.html", map[string]any{
+		"Rich": NewSafeHTMLFromSanitized(`javascript:alert(1)" onclick="alert(2)`),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	lower := strings.ToLower(output)
+	if strings.Contains(lower, `" onclick="`) || !strings.Contains(output, `href="#ZgotmplZ"`) ||
+		!strings.Contains(output, `&#34; onclick=&#34;`) {
+		t.Fatalf("SafeHTML escaped its output context: %s", output)
+	}
+}
+
 type viewModelWithMethod struct{}
 
 func (viewModelWithMethod) Execute() string { return "executed" }

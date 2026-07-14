@@ -8,7 +8,7 @@ import (
 const (
 	// CompilerVersion participates in every snapshot identity. Any parsing,
 	// helper, or output-contract change must bump this value.
-	CompilerVersion = "sforum.theme-compiler@1"
+	CompilerVersion = "sforum.theme-compiler@2"
 
 	DefaultMaxSourceBytes = 256 * 1024
 	DefaultMaxTotalBytes  = 4 * 1024 * 1024
@@ -35,6 +35,7 @@ var (
 	ErrExecution              = errors.New("themecompiler: template execution failed")
 	ErrHelperValueMissing     = errors.New("themecompiler: helper value not found")
 	ErrInvalidViewModel       = errors.New("themecompiler: view model must be a passive DTO")
+	ErrSafeHTMLRequired       = errors.New("themecompiler: safeHTML requires a Host-produced value")
 )
 
 // Limits are copied into a Compiler and then into every compiled snapshot.

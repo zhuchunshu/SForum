@@ -131,6 +131,9 @@ func (s *Snapshot) Render(ctx context.Context, name string, data any) (string, e
 	if errors.Is(err, ErrHelperValueMissing) {
 		return "", fmt.Errorf("%w: %v", ErrHelperValueMissing, err)
 	}
+	if errors.Is(err, ErrSafeHTMLRequired) {
+		return "", fmt.Errorf("%w: %v", ErrSafeHTMLRequired, err)
+	}
 	message := err.Error()
 	if strings.Contains(message, "map has no entry for key") || strings.Contains(message, "can't evaluate field") ||
 		strings.Contains(message, "nil pointer evaluating") {
@@ -141,8 +144,8 @@ func (s *Snapshot) Render(ctx context.Context, name string, data any) (string, e
 
 // validatePassiveViewModel prevents templates from invoking niladic methods or
 // receiving html/template trusted-content aliases. Page ViewModels are data,
-// not an executable Host API; already-sanitized rich content needs the later
-// explicit SForum SafeHTML contract instead of Go's forgeable aliases.
+// not an executable Host API; already-sanitized rich content uses the sealed
+// SForum SafeHTML value and must pass through the explicit safeHTML helper.
 func validatePassiveViewModel(data any) error {
 	remaining := maxViewModelValues
 	var inspect func(reflect.Value, int) error

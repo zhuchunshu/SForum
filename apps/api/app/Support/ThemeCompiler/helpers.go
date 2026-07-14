@@ -29,6 +29,7 @@ func cloneStringMap(input map[string]string) map[string]string {
 
 func restrictedFuncMap(bindings Bindings) htmltemplate.FuncMap {
 	return htmltemplate.FuncMap{
+		"safeHTML": renderSafeHTML,
 		"asset": func(id string) (string, error) {
 			return boundValue(bindings.Assets, "asset", id)
 		},
