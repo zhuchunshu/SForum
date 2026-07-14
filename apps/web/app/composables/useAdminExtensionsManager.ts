@@ -11,6 +11,7 @@ import {
   type AdminExtensionEventDefinition,
   type AdminExtensionEventDelivery,
   type AdminExtensionEvent,
+  type AdminExtensionVersion,
   type AdminExtensionStatus
 } from '~/utils/adminExtensions'
 import type {
@@ -297,13 +298,32 @@ export const useAdminExtensionsManager = async () => {
     await lifecycle(item, 'disable')
   }
 
+  async function upgradeExtension(item: AdminExtension, confirmationToken?: string) {
+    return lifecycle(item, 'upgrade', { confirmationToken })
+  }
+
+  async function rollbackExtension(item: AdminExtension, target: AdminExtensionVersion) {
+    return lifecycle(item, 'rollback', {
+      targetVersion: target.version,
+      targetPackageDigest: target.packageDigest
+    })
+  }
+
   async function restartExtension(item: AdminExtension) {
+	if (item.stagedVersion) {
+		// Enabled + staged is an upgrade transaction, so it must use the same
+		// exact-artifact challenge flow as enable instead of a blind restart.
+		await enableExtension(item)
+		return
+	}
     busyId.value = item.id
+	const idempotencyKey = lifecycleIdempotencyKey()
     try {
       // 已启用插件重启不要求再次确认 capabilities。
 		const updated = await request<AdminExtension>(`/admin/extensions/${item.id}/enable`, {
 			method: 'POST',
-			body: { confirmCapabilities: true }
+			body: { confirmCapabilities: true },
+			headers: { 'Idempotency-Key': idempotencyKey }
 		})
 		replaceExtension(updated)
 		await loadEvents(updated.id)
@@ -351,21 +371,23 @@ export const useAdminExtensionsManager = async () => {
 
   async function lifecycle(
     item: AdminExtension,
-    action: 'enable' | 'disable',
+    action: 'enable' | 'disable' | 'upgrade' | 'rollback',
     body: Record<string, unknown> = {}
   ) {
     busyId.value = item.id
+	const idempotencyKey = lifecycleIdempotencyKey()
     try {
 		const updated = await request<AdminExtension>(`/admin/extensions/${item.id}/${action}`, {
 			method: 'POST',
-			body
+			body,
+			headers: { 'Idempotency-Key': idempotencyKey }
 		})
 		replaceExtension(updated)
 		await loadEvents(updated.id)
 		toast.add({
 			color: 'success',
-			icon: action === 'enable' ? 'i-lucide-play' : 'i-lucide-pause',
-			title: action === 'enable' ? t('admin.extensions.enabled') : t('admin.extensions.disabled'),
+			icon: lifecycleSuccessIcon(action),
+			title: t(lifecycleSuccessMessage(action)),
 			duration: 10000
 		})
 		return { ok: true as const, updated }
@@ -546,6 +568,8 @@ export const useAdminExtensionsManager = async () => {
     uninstallConfirmOpen,
     uninstallConfirmItem,
     disableExtension,
+    upgradeExtension,
+    rollbackExtension,
     restartExtension,
     verifyExtension,
     activateTheme,
@@ -558,5 +582,27 @@ export const useAdminExtensionsManager = async () => {
     statusColor,
     typeLabel,
     statusLabel
+  }
+}
+
+function lifecycleIdempotencyKey() {
+  return globalThis.crypto.randomUUID()
+}
+
+function lifecycleSuccessIcon(action: 'enable' | 'disable' | 'upgrade' | 'rollback') {
+  switch (action) {
+    case 'enable': return 'i-lucide-play'
+    case 'disable': return 'i-lucide-pause'
+    case 'upgrade': return 'i-lucide-package-check'
+    case 'rollback': return 'i-lucide-history'
+  }
+}
+
+function lifecycleSuccessMessage(action: 'enable' | 'disable' | 'upgrade' | 'rollback') {
+  switch (action) {
+    case 'enable': return 'admin.extensions.enabled'
+    case 'disable': return 'admin.extensions.disabled'
+    case 'upgrade': return 'admin.extensions.upgraded'
+    case 'rollback': return 'admin.extensions.rolledBack'
   }
 }

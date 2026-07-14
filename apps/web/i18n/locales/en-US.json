@@ -480,6 +480,7 @@
       "loadFailed": "Extensions could not be loaded.",
       "uploaded": "Extension installed.",
       "upgraded": "Extension upgraded.",
+      "rolledBack": "Extension rolled back to the selected historical version.",
       "upgradeStaged": "Upgrade candidate saved.",
       "upgradeStagedHint": "The candidate was saved. The current version continues running and activation requires trusted upgrade confirmation.",
       "upgradedReEnableHint": "Status was reset to installed. Re-enable the plugin to start it again.",

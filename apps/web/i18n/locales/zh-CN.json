@@ -480,6 +480,7 @@
       "loadFailed": "扩展列表加载失败。",
       "uploaded": "扩展已安装。",
       "upgraded": "扩展已升级。",
+      "rolledBack": "扩展已回滚到指定历史版本。",
       "upgradeStaged": "升级候选已保存。",
       "upgradeStagedHint": "候选已保存，当前版本继续运行；完成受信任升级确认后才会激活。",
       "upgradedReEnableHint": "状态已重置为已安装，请重新启用插件。",
