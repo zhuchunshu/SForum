@@ -305,6 +305,10 @@ func (r *lifecycleCoordinatorTestRepository) ClaimStepLease(_ context.Context, i
 		return LifecycleStepAttempt{}, ErrLifecycleStepLeaseConflict
 	}
 	expires := now.Add(time.Duration(input.DurationMS) * time.Millisecond)
+	attempt.Status = LifecycleStepRunning
+	if attempt.StartedAt == nil {
+		attempt.StartedAt = &now
+	}
 	attempt.LeaseOwnerToken = input.OwnerToken
 	attempt.LeaseHeartbeatAt = &now
 	attempt.LeaseExpiresAt = &expires

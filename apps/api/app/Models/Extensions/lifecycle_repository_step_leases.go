@@ -36,7 +36,9 @@ func (r *PostgresLifecycleRepository) ClaimStepLease(ctx context.Context, input 
 	}
 	tag, err := tx.Exec(ctx, `
 		UPDATE extension_lifecycle_steps
-		SET lease_owner_token = $3,
+		SET status = 'running',
+		    started_at = COALESCE(started_at, statement_timestamp()),
+		    lease_owner_token = $3,
 		    lease_heartbeat_at = statement_timestamp(),
 		    lease_expires_at = statement_timestamp() + ($4 * interval '1 millisecond'),
 		    lease_revision = lease_revision + 1,

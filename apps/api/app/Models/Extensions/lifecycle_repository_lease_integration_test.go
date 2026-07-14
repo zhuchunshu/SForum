@@ -56,7 +56,8 @@ func TestPostgresLifecycleRepositoryStepLeaseCAS(t *testing.T) {
 	if succeeded != 1 || conflicted != claimers-1 {
 		t.Fatalf("concurrent claims succeeded=%d conflicted=%d", succeeded, conflicted)
 	}
-	if winner.attempt.LeaseOwnerToken != winner.owner || winner.attempt.LeaseRevision != attempt.LeaseRevision+1 ||
+	if winner.attempt.Status != LifecycleStepRunning || winner.attempt.StartedAt == nil ||
+		winner.attempt.LeaseOwnerToken != winner.owner || winner.attempt.LeaseRevision != attempt.LeaseRevision+1 ||
 		winner.attempt.LeaseExpiresAt == nil || winner.attempt.LeaseHeartbeatAt == nil {
 		t.Fatalf("winning lease = %#v, owner=%q", winner.attempt, winner.owner)
 	}
@@ -101,7 +102,7 @@ func TestPostgresLifecycleRepositoryStepLeaseCAS(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if expired.Status != LifecycleStepPlanned || expired.LeaseOwnerToken != winner.owner ||
+	if expired.Status != LifecycleStepRunning || expired.LeaseOwnerToken != winner.owner ||
 		expired.LeaseRevision != winner.attempt.LeaseRevision || expired.CompletedUnits != 0 ||
 		expired.TotalUnits != 0 || expired.CompletedAt != nil {
 		t.Fatalf("expired lease calls changed step state: %#v", expired)
