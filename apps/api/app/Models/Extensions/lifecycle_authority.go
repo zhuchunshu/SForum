@@ -23,15 +23,16 @@ type LifecycleAuthoritySnapshot struct {
 }
 
 type LifecycleOperationIntent struct {
-	Operation      LifecycleMachineOperation
-	IdempotencyKey string
-	ActionInputs   map[LifecycleMachineAction]json.RawMessage
-	RemovalMode    string
-	Forced         bool
-	Retry          bool
-	SkipFailedStep bool
-	SkipReason     string
-	AuditEventID   int64
+	Operation       LifecycleMachineOperation
+	IdempotencyKey  string
+	SourceExtension *Extension
+	ActionInputs    map[LifecycleMachineAction]json.RawMessage
+	RemovalMode     string
+	Forced          bool
+	Retry           bool
+	SkipFailedStep  bool
+	SkipReason      string
+	AuditEventID    int64
 }
 
 // ConfirmLifecycleAuthority 消费或复用 exact-artifact grant，并返回可持久化的授权快照。
@@ -89,6 +90,9 @@ func BuildLifecycleCoordinatorRunInput(
 	if _, err := RecommendedLifecyclePath(intent.Operation); err != nil {
 		return LifecycleCoordinatorRunInput{}, fmt.Errorf("%w: %v", ErrLifecycleCoordinatorInvalid, err)
 	}
+	if err := validateLifecycleSourceArtifact(intent.Operation, extension, intent.SourceExtension); err != nil {
+		return LifecycleCoordinatorRunInput{}, err
+	}
 	idempotencyKey := strings.TrimSpace(intent.IdempotencyKey)
 	if idempotencyKey == "" || idempotencyKey != intent.IdempotencyKey || len(idempotencyKey) > 512 {
 		return LifecycleCoordinatorRunInput{}, fmt.Errorf("%w: stable idempotency key is required", ErrLifecycleCoordinatorInvalid)
@@ -102,6 +106,11 @@ func BuildLifecycleCoordinatorRunInput(
 	actionInputs, fingerprintInputs, err := canonicalLifecycleActionInputs(intent.Operation, intent.ActionInputs)
 	if err != nil {
 		return LifecycleCoordinatorRunInput{}, err
+	}
+	var sourceExtension *Extension
+	if intent.SourceExtension != nil {
+		value := *intent.SourceExtension
+		sourceExtension = &value
 	}
 	authorityJSON, err := json.Marshal(authority)
 	if err != nil {
@@ -121,11 +130,13 @@ func BuildLifecycleCoordinatorRunInput(
 		ActionInputs  map[string]json.RawMessage `json:"actionInputs"`
 		RemovalMode   string                     `json:"removalMode,omitempty"`
 		Forced        bool                       `json:"forced"`
+		SourceBinding LifecycleRuntimeBinding    `json:"sourceBinding,omitempty"`
 	}{
 		ExtensionID: extension.ID, Version: extension.Version, PackageDigest: extension.PackageDigest,
 		Operation: intent.Operation, PlanVersion: extension.Manifest.Lifecycle.ContractVersion,
 		Authority: authorityJSON, ActionInputs: fingerprintInputs,
 		RemovalMode: intent.RemovalMode, Forced: intent.Forced,
+		SourceBinding: lifecycleOptionalRuntimeBinding(sourceExtension),
 	}
 	fingerprintJSON, err := json.Marshal(fingerprintDocument)
 	if err != nil {
@@ -137,7 +148,7 @@ func BuildLifecycleCoordinatorRunInput(
 		trustGrantID = authority.Grant.ID
 	}
 	return LifecycleCoordinatorRunInput{
-		Extension: extension,
+		Extension: extension, SourceExtension: sourceExtension,
 		Acquire: AcquireLifecycleOperationInput{
 			ExtensionID: extension.ID, ExtensionVersion: extension.Version,
 			PackageDigest: extension.PackageDigest, ArtifactDigests: artifactJSON,

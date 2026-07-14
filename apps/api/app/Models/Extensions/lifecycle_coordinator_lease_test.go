@@ -264,7 +264,8 @@ type lifecycleCoordinatorLeaseTestHost struct {
 	afterTarget func()
 }
 
-func (h *lifecycleCoordinatorLeaseTestHost) RunLifecycleHostGate(ctx context.Context, request LifecycleCoordinatorGateRequest) error {
+func (h *lifecycleCoordinatorLeaseTestHost) RunLifecycleHostGate(ctx context.Context, request LifecycleCoordinatorGateRequest) (LifecycleCoordinatorGateResult, error) {
+	result := lifecycleCoordinatorTestPlannedGateResult(request)
 	h.mu.Lock()
 	if h.calls == nil {
 		h.calls = make(map[LifecycleMachineState]int)
@@ -272,7 +273,7 @@ func (h *lifecycleCoordinatorLeaseTestHost) RunLifecycleHostGate(ctx context.Con
 	h.calls[request.State]++
 	h.mu.Unlock()
 	if request.State != h.target {
-		return nil
+		return result, nil
 	}
 	h.startedOnce.Do(func() {
 		if h.started != nil {
@@ -283,14 +284,14 @@ func (h *lifecycleCoordinatorLeaseTestHost) RunLifecycleHostGate(ctx context.Con
 		select {
 		case <-h.release:
 		case <-ctx.Done():
-			return ctx.Err()
+			return LifecycleCoordinatorGateResult{}, ctx.Err()
 		}
 	}
 	if h.afterTarget != nil {
 		h.afterTarget()
 		h.afterTarget = nil
 	}
-	return nil
+	return result, nil
 }
 
 func (h *lifecycleCoordinatorLeaseTestHost) count(state LifecycleMachineState) int {

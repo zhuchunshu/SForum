@@ -46,8 +46,8 @@ func TestLifecycleCoordinatorRunsEveryRecommendedOperationAndAction(t *testing.T
 			}
 
 			path, _ := RecommendedLifecyclePath(test.operation)
-			wantEvents := make([]string, 0, len(path)-1)
-			for _, step := range path[1:] {
+			wantEvents := make([]string, 0, len(path))
+			for _, step := range path {
 				if step.Action == "" {
 					wantEvents = append(wantEvents, "host:"+string(step.State))
 				} else {
@@ -230,7 +230,7 @@ func TestLifecycleCoordinatorRetriesFailedHostSafetyGateBeforeAction(t *testing.
 	if err != nil || recovered.Operation.TerminalResult != LifecycleTerminalSucceeded {
 		t.Fatalf("recovered gate = %#v, %v", recovered, err)
 	}
-	if got := host.gateIDs(); len(got) < 2 || got[0] != got[1] {
+	if got := host.gateIDs(); countLifecycleCoordinatorString(got, "lifecycle.enable.01.host.starting") != 2 {
 		t.Fatalf("host gate ids = %#v", got)
 	}
 	if got := runtime.actionNames(); !slices.Equal(got, []LifecycleMachineAction{LifecycleMachineEnableAction}) {
@@ -342,7 +342,7 @@ func TestLifecycleCoordinatorPreservesActorAndAuditOnEveryActionAttempt(t *testi
 	}
 	attempts := repository.stepsSnapshot()
 	path, _ := RecommendedLifecyclePath(LifecycleMachineInstall)
-	if len(attempts) != len(path)-1 {
+	if len(attempts) != len(path) {
 		t.Fatalf("attempts = %#v", attempts)
 	}
 	for _, attempt := range attempts {

@@ -10,8 +10,10 @@ import (
 )
 
 const (
-	lifecycleCoordinatorSnapshotSchema  = "sforum.lifecycle.coordinator@1"
-	lifecycleCoordinatorTerminalTimeout = 5 * time.Second
+	lifecycleCoordinatorSnapshotSchemaV1 = "sforum.lifecycle.coordinator@1"
+	lifecycleCoordinatorSnapshotSchema   = "sforum.lifecycle.coordinator@2"
+	lifecycleCoordinatorTerminalTimeout  = 5 * time.Second
+	lifecycleCoordinatorGateResultSchema = "sforum.lifecycle.host-gate-result@1"
 )
 
 var (
@@ -41,7 +43,7 @@ type LifecycleCoordinatorRuntime interface {
 }
 
 type LifecycleCoordinatorHost interface {
-	RunLifecycleHostGate(context.Context, LifecycleCoordinatorGateRequest) error
+	RunLifecycleHostGate(context.Context, LifecycleCoordinatorGateRequest) (LifecycleCoordinatorGateResult, error)
 }
 
 type LifecycleCoordinatorFailureCarrier interface {
@@ -49,16 +51,37 @@ type LifecycleCoordinatorFailureCarrier interface {
 }
 
 type LifecycleCoordinatorActionRequest struct {
-	Extension     Extension
-	Operation     LifecycleMachineOperation
-	Action        LifecycleMachineAction
-	StepID        string
-	PlanVersion   string
-	Attempt       int
-	Checkpoint    string
-	InputDocument json.RawMessage
-	Forced        bool
+	// Extension remains the artifact that must execute this action. Source and
+	// Target make both sides explicit for upgrade/rollback cleanup.
+	Extension         Extension
+	SourceExtension   *Extension
+	TargetExtension   Extension
+	RuntimeRole       LifecycleCoordinatorRuntimeRole
+	SourceBinding     LifecycleRuntimeBinding
+	TargetBinding     LifecycleRuntimeBinding
+	OperationID       int64
+	Operation         LifecycleMachineOperation
+	Action            LifecycleMachineAction
+	StepID            string
+	PlanVersion       string
+	Attempt           int
+	Checkpoint        string
+	InputDocument     json.RawMessage
+	AuthorityType     string
+	TrustGrantID      int64
+	AuthoritySnapshot json.RawMessage
+	RemovalMode       string
+	Forced            bool
+	ActorUserID       int64
+	AuditEventID      int64
 }
+
+type LifecycleCoordinatorRuntimeRole string
+
+const (
+	LifecycleRuntimeSource LifecycleCoordinatorRuntimeRole = "source"
+	LifecycleRuntimeTarget LifecycleCoordinatorRuntimeRole = "target"
+)
 
 type LifecycleCoordinatorActionProgress struct {
 	Status         string
@@ -79,20 +102,56 @@ type LifecycleCoordinatorActionResult struct {
 }
 
 type LifecycleCoordinatorGateRequest struct {
-	Extension Extension
-	Operation LifecycleMachineOperation
-	State     LifecycleMachineState
-	StepID    string
-	Forced    bool
+	Extension         Extension
+	SourceExtension   *Extension
+	TargetExtension   Extension
+	OperationID       int64
+	Operation         LifecycleMachineOperation
+	State             LifecycleMachineState
+	Position          int
+	StepID            string
+	Attempt           int
+	Checkpoint        string
+	PreviousResult    json.RawMessage
+	SourceBinding     LifecycleRuntimeBinding
+	TargetBinding     LifecycleRuntimeBinding
+	AuthorityType     string
+	TrustGrantID      int64
+	AuthoritySnapshot json.RawMessage
+	RemovalMode       string
+	Forced            bool
+	ActorUserID       int64
+	AuditEventID      int64
+	Revalidation      bool
+}
+
+type LifecycleGateRevalidationPolicy string
+
+const (
+	LifecycleGateRevalidationRequired LifecycleGateRevalidationPolicy = "required"
+	LifecycleGateDurable              LifecycleGateRevalidationPolicy = "durable"
+)
+
+// LifecycleCoordinatorGateResult is persisted as the terminal step result.
+// A Host that returns RevalidationRequired is promising process-local state,
+// so a later coordinator invocation must revalidate/recreate it before the
+// next executable action.
+type LifecycleCoordinatorGateResult struct {
+	Checkpoint         string                          `json:"checkpoint,omitempty"`
+	SourceBinding      LifecycleRuntimeBinding         `json:"sourceBinding,omitempty"`
+	TargetBinding      LifecycleRuntimeBinding         `json:"targetBinding,omitempty"`
+	RevalidationPolicy LifecycleGateRevalidationPolicy `json:"revalidationPolicy,omitempty"`
+	ResultDocument     json.RawMessage                 `json:"resultDocument,omitempty"`
 }
 
 type LifecycleCoordinatorRunInput struct {
-	Extension      Extension
-	Acquire        AcquireLifecycleOperationInput
-	ActionInputs   map[LifecycleMachineAction]json.RawMessage
-	Retry          bool
-	SkipFailedStep bool
-	SkipReason     string
+	Extension       Extension
+	SourceExtension *Extension
+	Acquire         AcquireLifecycleOperationInput
+	ActionInputs    map[LifecycleMachineAction]json.RawMessage
+	Retry           bool
+	SkipFailedStep  bool
+	SkipReason      string
 }
 
 type LifecycleCoordinatorRunResult struct {
@@ -125,7 +184,7 @@ func (c *LifecycleCoordinator) Run(ctx context.Context, input LifecycleCoordinat
 		return LifecycleCoordinatorRunResult{}, err
 	}
 	operation := acquired.Operation
-	machine, operation, err := c.loadOrInitializeMachine(ctx, operation, acquired.Created)
+	machine, operation, err := c.loadOrInitializeMachine(ctx, operation, acquired.Created, input)
 	if err != nil {
 		return LifecycleCoordinatorRunResult{Operation: operation}, err
 	}
@@ -156,7 +215,7 @@ func (c *LifecycleCoordinator) Run(ctx context.Context, input LifecycleCoordinat
 		return LifecycleCoordinatorRunResult{Operation: operation}, fmt.Errorf("%w: retry requires a completed failed or cancelled operation", ErrLifecycleCoordinatorInvalid)
 	}
 
-	operation, machine, err = c.drive(ctx, operation, machine, input)
+	operation, machine, err = c.drive(ctx, operation, machine, input, !acquired.Created)
 	if err != nil {
 		return LifecycleCoordinatorRunResult{Operation: operation}, err
 	}
@@ -179,15 +238,47 @@ func (c *LifecycleCoordinator) reconcilePendingStepTerminal(
 	if err != nil {
 		return operation, machine, err
 	}
-	terminal := LifecycleMachineTerminal("")
 	switch attempt.Status {
+	case LifecycleStepSucceeded, LifecycleStepSkipped:
+		if attempt.Status == LifecycleStepSkipped && machine.Action == "" {
+			return operation, machine, fmt.Errorf("%w: Host safety gates cannot be skipped", ErrLifecycleCoordinatorInvalid)
+		}
+		if attempt.Status == LifecycleStepSucceeded && machine.Action == "" {
+			previous, typed, decodeErr := decodeLifecycleHostGateResult(attempt.ResultDocument)
+			if decodeErr != nil {
+				return operation, machine, decodeErr
+			}
+			if typed {
+				machine, decodeErr = applyLifecycleHostGateResult(machine, stepID, machine.Position, previous)
+				if decodeErr != nil {
+					return operation, machine, decodeErr
+				}
+			}
+			if machine.Position == 0 {
+				// Legacy untyped Host results still prove that the planned gate ran.
+				machine.HostSideEffectsStarted = true
+			}
+		}
+		return c.completeMachineGate(
+			ctx, operation, machine, lifecycleCoordinatorCheckpoint(stepID, attempt.Checkpoint),
+		)
 	case LifecycleStepFailed:
-		terminal = LifecycleMachineFailedRun
+		return c.reconcilePendingStepFailure(ctx, operation, machine, LifecycleMachineFailedRun, attempt)
 	case LifecycleStepCancelled:
-		terminal = LifecycleMachineCancelled
+		return c.reconcilePendingStepFailure(ctx, operation, machine, LifecycleMachineCancelled, attempt)
 	default:
 		return operation, machine, nil
 	}
+
+}
+
+func (c *LifecycleCoordinator) reconcilePendingStepFailure(
+	ctx context.Context,
+	operation LifecycleOperation,
+	machine LifecycleStateMachine,
+	terminal LifecycleMachineTerminal,
+	attempt LifecycleStepAttempt,
+) (LifecycleOperation, LifecycleStateMachine, error) {
 	failure := attempt.Error
 	if failure.Code == "" || failure.Reason == "" {
 		failure = LifecycleExecutionError{
@@ -216,6 +307,9 @@ func (c *LifecycleCoordinator) validateInput(ctx context.Context, input Lifecycl
 	if input.Extension.Type != TypePlugin || input.Acquire.PlanVersion == "" || input.Acquire.IdempotencyKey == "" || input.Acquire.RequestFingerprint == "" {
 		return fmt.Errorf("%w: exact plugin, plan, idempotency key, and fingerprint are required", ErrLifecycleCoordinatorInvalid)
 	}
+	if err := validateLifecycleSourceArtifact(operation, input.Extension, input.SourceExtension); err != nil {
+		return err
+	}
 	if input.SkipFailedStep && (!input.Retry || strings.TrimSpace(input.SkipReason) == "" || input.SkipReason != strings.TrimSpace(input.SkipReason)) {
 		return fmt.Errorf("%w: skip-step requires retry and a stable reason", ErrLifecycleCoordinatorInvalid)
 	}
@@ -225,10 +319,18 @@ func (c *LifecycleCoordinator) validateInput(ctx context.Context, input Lifecycl
 	return nil
 }
 
-func (c *LifecycleCoordinator) loadOrInitializeMachine(ctx context.Context, operation LifecycleOperation, created bool) (LifecycleStateMachine, LifecycleOperation, error) {
+func (c *LifecycleCoordinator) loadOrInitializeMachine(
+	ctx context.Context,
+	operation LifecycleOperation,
+	created bool,
+	input LifecycleCoordinatorRunInput,
+) (LifecycleStateMachine, LifecycleOperation, error) {
 	if !created && len(operation.Progress) > 0 && string(operation.Progress) != "{}" {
 		machine, err := decodeLifecycleCoordinatorMachine(operation.Progress)
 		if err != nil {
+			return LifecycleStateMachine{}, operation, err
+		}
+		if err := hydrateLifecycleCoordinatorBindings(&machine, input.Extension, input.SourceExtension); err != nil {
 			return LifecycleStateMachine{}, operation, err
 		}
 		// ResumeOperation and the coordinator snapshot are separate durable CAS
@@ -257,9 +359,13 @@ func (c *LifecycleCoordinator) loadOrInitializeMachine(ctx context.Context, oper
 	if err != nil {
 		return LifecycleStateMachine{}, operation, err
 	}
+	if err := hydrateLifecycleCoordinatorBindings(&machine, input.Extension, input.SourceExtension); err != nil {
+		return LifecycleStateMachine{}, operation, err
+	}
 	path, _ := RecommendedLifecyclePath(machine.Operation)
 	machine.Progress.TotalUnits = uint64(len(path) - 1)
-	operation, err = c.persistMachine(ctx, operation, machine, "")
+	stepID := lifecycleCoordinatorStepID(machine.Operation, machine.Position, machine.State, machine.Action)
+	operation, err = c.persistMachine(ctx, operation, machine, stepID)
 	return machine, operation, err
 }
 

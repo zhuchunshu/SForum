@@ -64,13 +64,85 @@ func decodeLifecycleCoordinatorMachine(value json.RawMessage) (LifecycleStateMac
 	if err := json.Unmarshal(value, &snapshot); err != nil {
 		return LifecycleStateMachine{}, fmt.Errorf("%w: decode coordinator snapshot: %v", ErrLifecycleCoordinatorInvalid, err)
 	}
-	if snapshot.Schema != lifecycleCoordinatorSnapshotSchema {
+	switch snapshot.Schema {
+	case lifecycleCoordinatorSnapshotSchemaV1:
+		snapshot.Machine = migrateLifecycleCoordinatorV1(snapshot.Machine)
+	case lifecycleCoordinatorSnapshotSchema:
+		// Current snapshot.
+	default:
 		return LifecycleStateMachine{}, fmt.Errorf("%w: unsupported coordinator snapshot %q", ErrLifecycleCoordinatorInvalid, snapshot.Schema)
 	}
 	if _, err := validateLifecycleMachine(snapshot.Machine); err != nil {
 		return LifecycleStateMachine{}, err
 	}
 	return snapshot.Machine, nil
+}
+
+// migrateLifecycleCoordinatorV1 preserves completed historical operations and
+// moves only open snapshots onto the additive Host-finalization path.
+func migrateLifecycleCoordinatorV1(machine LifecycleStateMachine) LifecycleStateMachine {
+	path := lifecycleRecommendedPaths[machine.Operation]
+	if len(path) == 0 {
+		return machine
+	}
+	machine.Progress.TotalUnits = uint64(len(path) - 1)
+
+	legacyTerminal := machine.TerminalResult == LifecycleMachineSucceeded
+	switch machine.Operation {
+	case LifecycleMachineDisable:
+		if legacyTerminal {
+			machine.Position = len(path) - 1
+			machine.RecoveryPosition = machine.Position
+			machine.State = path[machine.Position].State
+			machine.Action = path[machine.Position].Action
+			machine.StepComplete = true
+			machine.Progress.CompletedUnits = machine.Progress.TotalUnits
+		}
+	case LifecycleMachineUpgrade:
+		if legacyTerminal {
+			machine.Position = len(path) - 1
+			machine.RecoveryPosition = machine.Position
+			machine.State = path[machine.Position].State
+			machine.Action = path[machine.Position].Action
+			machine.StepComplete = true
+			machine.Progress.CompletedUnits = machine.Progress.TotalUnits
+		} else if machine.Position == 8 {
+			// V1 position 8 was upgrade.after. It retains its historical step id
+			// but lives after the new atomic activation gate.
+			machine.Position = 9
+			machine.RecoveryPosition = 9
+			if machine.StepComplete && machine.State != LifecycleMachineFailed && machine.State != LifecycleMachineRecovery {
+				machine.Progress.CompletedUnits = 9
+			}
+		}
+	case LifecycleMachineUninstall:
+		if legacyTerminal {
+			machine.Position = len(path) - 1
+			machine.RecoveryPosition = machine.Position
+			machine.State = path[machine.Position].State
+			machine.Action = path[machine.Position].Action
+			machine.StepComplete = true
+			machine.Progress.CompletedUnits = machine.Progress.TotalUnits
+		}
+	}
+
+	historicallyClosed := machine.TerminalResult == LifecycleMachineSucceeded || machine.TerminalResult == LifecycleMachineSkipped
+	if historicallyClosed {
+		return machine
+	}
+	if machine.Position == 0 && machine.State == LifecycleMachinePlanned && machine.Action == "" {
+		// V1 constructed this bit as complete without invoking Host code. Open
+		// operations must execute the newly authoritative planned gate.
+		machine.StepComplete = false
+		return machine
+	}
+	if machine.Position > 0 && !lifecycleRuntimeBindingsReady(machine) {
+		machine.Revalidation = LifecycleGateRevalidation{
+			StepID:   lifecycleCoordinatorStepID(machine.Operation, 0, LifecycleMachinePlanned, ""),
+			Position: 0,
+		}
+	}
+	return machine
 }
 
 func lifecycleCoordinatorProgress(current LifecycleProgressCursor, stepID, checkpoint string) LifecycleProgressCursor {
@@ -96,6 +168,11 @@ func lifecycleCoordinatorCheckpoint(stepID, checkpoint string) string {
 }
 
 func lifecycleCoordinatorStepID(operation LifecycleMachineOperation, position int, state LifecycleMachineState, action LifecycleMachineAction) string {
+	// upgrade.after shipped at position 8. Stable ids are durable ledger keys,
+	// so the additive activation gate must not rename historical attempts.
+	if operation == LifecycleMachineUpgrade && action == LifecycleMachineUpgradeAfter {
+		position = 8
+	}
 	name := string(action)
 	if name == "" {
 		name = "host." + string(state)

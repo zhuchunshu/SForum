@@ -177,7 +177,7 @@ func TestLifecycleCoordinatorRecoversExactHostFailureAfterCompletionCrash(t *tes
 		recovered.Operation.Error.Message != "host gate starting failed" || recovered.Operation.Error.Retryable {
 		t.Fatalf("Host failure changed during recovery: %#v", recovered.Operation.Error)
 	}
-	if len(host.gateIDs()) != 1 {
+	if countLifecycleCoordinatorString(host.gateIDs(), "lifecycle.enable.01.host.starting") != 1 {
 		t.Fatalf("Host failure was re-executed: %#v", host.gateIDs())
 	}
 }

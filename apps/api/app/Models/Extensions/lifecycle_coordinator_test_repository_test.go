@@ -56,7 +56,9 @@ func (r *lifecycleCoordinatorTestRepository) AcquireOperation(_ context.Context,
 		ID: 1, ExtensionID: input.ExtensionID, ExtensionVersion: input.ExtensionVersion,
 		PackageDigest: input.PackageDigest, Operation: input.Operation, State: LifecycleStatePlanned,
 		PlanVersion: input.PlanVersion, IdempotencyKey: input.IdempotencyKey,
-		RequestFingerprint: input.RequestFingerprint, Forced: input.Forced,
+		RequestFingerprint: input.RequestFingerprint, AuthorityType: input.AuthorityType,
+		TrustGrantID: input.TrustGrantID, AuthoritySnapshot: cloneLifecycleJSON(input.AuthoritySnapshot),
+		RemovalMode: input.RemovalMode, Forced: input.Forced,
 		RequestedByUserID: input.RequestedByUserID, AuditEventID: input.AuditEventID,
 		AttemptCount: 1, Revision: 1, CreatedAt: time.Now(), UpdatedAt: time.Now(),
 	}
@@ -307,6 +309,9 @@ func (r *lifecycleCoordinatorTestRepository) HeartbeatStepLease(_ context.Contex
 func (r *lifecycleCoordinatorTestRepository) ReleaseStepLease(_ context.Context, input ReleaseLifecycleStepLeaseInput) (LifecycleStepAttempt, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	if r.operation.CompletedAt != nil {
+		return LifecycleStepAttempt{}, ErrLifecycleOperationClosed
+	}
 	attempt, err := r.stepByID(input.AttemptID)
 	if err != nil {
 		return LifecycleStepAttempt{}, err

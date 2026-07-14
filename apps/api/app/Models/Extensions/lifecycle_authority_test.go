@@ -87,11 +87,38 @@ func TestBuildLifecycleCoordinatorRunInputCanonicalizesAndBindsIntent(t *testing
 	}
 }
 
+func TestBuildLifecycleCoordinatorRunInputAllowsCrossContractUpgradeSource(t *testing.T) {
+	target := lifecycleAuthorityTestExtension(t, "cross-contract.plugin", SourceUploaded)
+	target.ActiveVersionID = 12
+	authority := lifecycleAuthorityTestGrant(t, target)
+	source := target
+	source.Version = "0.9.0"
+	source.Manifest.Version = source.Version
+	source.Manifest.Lifecycle = &ManifestLifecycle{ContractVersion: "cross-contract.plugin.lifecycle@0"}
+	source.PackageDigest = strings.Repeat("b", 64)
+	source.ActiveVersionID = 11
+
+	input, err := BuildLifecycleCoordinatorRunInput(target, extensionManager(), authority, LifecycleOperationIntent{
+		Operation: LifecycleMachineUpgrade, IdempotencyKey: "cross-contract-upgrade-1", SourceExtension: &source,
+	})
+	if err != nil || input.SourceExtension == nil ||
+		input.SourceExtension.Manifest.Lifecycle.ContractVersion != "cross-contract.plugin.lifecycle@0" {
+		t.Fatalf("cross-contract upgrade input = %#v, %v", input, err)
+	}
+}
+
 func TestLifecycleAuthorityRejectsMismatchedOrUnsafeIntent(t *testing.T) {
 	extension := lifecycleAuthorityTestExtension(t, "invalid-authority.plugin", SourceUploaded)
+	extension.ActiveVersionID = 12
 	authority := lifecycleAuthorityTestGrant(t, extension)
 	actor := extensionManager()
 	base := LifecycleOperationIntent{Operation: LifecycleMachineEnable, IdempotencyKey: "enable-1"}
+	exactSource := extension
+	historicalSource := extension
+	historicalSource.Version = "0.9.0"
+	historicalSource.Manifest.Version = historicalSource.Version
+	historicalSource.PackageDigest = strings.Repeat("b", 64)
+	historicalSource.ActiveVersionID = 11
 
 	tests := []struct {
 		name      string
@@ -115,6 +142,30 @@ func TestLifecycleAuthorityRejectsMismatchedOrUnsafeIntent(t *testing.T) {
 		}},
 		{name: "uninstall without mode", extension: extension, authority: authority, intent: LifecycleOperationIntent{
 			Operation: LifecycleMachineUninstall, IdempotencyKey: "uninstall-1",
+		}},
+		{name: "install with source", extension: extension, authority: authority, intent: LifecycleOperationIntent{
+			Operation: LifecycleMachineInstall, IdempotencyKey: "install-1", SourceExtension: &exactSource,
+		}},
+		{name: "disable with historical source", extension: extension, authority: authority, intent: LifecycleOperationIntent{
+			Operation: LifecycleMachineDisable, IdempotencyKey: "disable-1", SourceExtension: &historicalSource,
+		}},
+		{name: "uninstall with historical source", extension: extension, authority: authority, intent: LifecycleOperationIntent{
+			Operation: LifecycleMachineUninstall, IdempotencyKey: "uninstall-1", RemovalMode: LifecycleRemovalPreserve,
+			SourceExtension: &historicalSource,
+		}},
+		{name: "upgrade without source", extension: extension, authority: authority, intent: LifecycleOperationIntent{
+			Operation: LifecycleMachineUpgrade, IdempotencyKey: "upgrade-1",
+		}},
+		{name: "upgrade with target as source", extension: extension, authority: authority, intent: LifecycleOperationIntent{
+			Operation: LifecycleMachineUpgrade, IdempotencyKey: "upgrade-1", SourceExtension: &exactSource,
+		}},
+		{name: "foreign upgrade source", extension: extension, authority: authority, intent: LifecycleOperationIntent{
+			Operation: LifecycleMachineUpgrade, IdempotencyKey: "upgrade-1",
+			SourceExtension: func() *Extension {
+				value := extension
+				value.ID = "other.plugin"
+				return &value
+			}(),
 		}},
 	}
 	for _, test := range tests {

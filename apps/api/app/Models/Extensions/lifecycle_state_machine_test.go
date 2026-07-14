@@ -50,12 +50,13 @@ func TestLifecycleStateMachineCompletesEveryRecommendedPath(t *testing.T) {
 				t.Fatal(err)
 			}
 			path, _ := RecommendedLifecyclePath(operation)
+			machine = applyLifecycleTestTransition(t, machine, LifecycleStateTransition{
+				State: machine.State, Action: machine.Action, CompleteStep: true,
+				Progress: LifecycleProgressCursor{TotalUnits: uint64(len(path) - 1)},
+			})
 			for index := 1; index < len(path); index++ {
 				step := path[index]
 				beginProgress := machine.Progress
-				if index == 1 {
-					beginProgress.TotalUnits = uint64(len(path) - 1)
-				}
 				machine = applyLifecycleTestTransition(t, machine, LifecycleStateTransition{
 					State: step.State, Action: step.Action, Progress: beginProgress,
 				})
@@ -107,19 +108,26 @@ func TestLifecycleStateMachineRejectsEveryNonRecommendedInitialGate(t *testing.T
 	for _, operation := range allLifecycleMachineOperations() {
 		machine, _ := NewLifecycleStateMachine(operation, false)
 		path, _ := RecommendedLifecyclePath(operation)
-		expected := path[1]
 		for _, state := range states {
 			for _, action := range actions {
 				transition := LifecycleStateTransition{State: state, Action: action, Progress: machine.Progress}
 				err := ValidateLifecycleTransition(machine, transition)
-				allowed := state == expected.State && action == expected.Action
+				allowed := state == path[0].State && action == path[0].Action
 				if allowed && err != nil {
-					t.Fatalf("%s rejected recommended %s/%s: %v", operation, state, action, err)
+					t.Fatalf("%s rejected its initial Host gate %s/%s: %v", operation, state, action, err)
 				}
 				if !allowed && !errors.Is(err, ErrLifecycleStateTransitionDenied) {
-					t.Fatalf("%s accepted non-recommended %s/%s: %v", operation, state, action, err)
+					t.Fatalf("%s advanced before initial Host gate completion to %s/%s: %v", operation, state, action, err)
 				}
 			}
+		}
+		machine = applyLifecycleTestTransition(t, machine, LifecycleStateTransition{
+			State: machine.State, Action: machine.Action, CompleteStep: true, Progress: machine.Progress,
+		})
+		if err := ValidateLifecycleTransition(machine, LifecycleStateTransition{
+			State: path[1].State, Action: path[1].Action, Progress: machine.Progress,
+		}); err != nil {
+			t.Fatalf("%s rejected first post-Host gate %s/%s: %v", operation, path[1].State, path[1].Action, err)
 		}
 	}
 }
@@ -131,6 +139,11 @@ func TestLifecycleStateMachineExhaustivelyRejectsGateJumps(t *testing.T) {
 		machine, _ := NewLifecycleStateMachine(operation, false)
 		path, _ := RecommendedLifecyclePath(operation)
 		for position := 0; position < len(path); position++ {
+			if !machine.StepComplete {
+				machine = applyLifecycleTestTransition(t, machine, LifecycleStateTransition{
+					State: machine.State, Action: machine.Action, CompleteStep: true, Progress: machine.Progress,
+				})
+			}
 			if machine.Position != position || !machine.StepComplete {
 				t.Fatalf("%s position %d snapshot = %#v", operation, position, machine)
 			}
@@ -179,7 +192,7 @@ func TestLifecycleRetryHasOneRecoveryPathAndCannotJumpBoundary(t *testing.T) {
 	machine, _ := NewLifecycleStateMachine(LifecycleMachineUpgrade, false)
 	path, _ := RecommendedLifecyclePath(machine.Operation)
 	starting := lifecycleTestStepIndex(path, LifecycleMachineStarting, "")
-	for index := 1; index < starting; index++ {
+	for index := 0; index < starting; index++ {
 		machine = beginAndCompleteLifecycleTestGate(t, machine, path[index])
 	}
 	// Enter starting but fail before completing its host-owned start gate.
@@ -221,6 +234,9 @@ func TestLifecycleRetryHasOneRecoveryPathAndCannotJumpBoundary(t *testing.T) {
 func TestLifecycleTerminalSuccessAndSkipCannotBeRevived(t *testing.T) {
 	skipped, _ := NewLifecycleStateMachine(LifecycleMachineDisable, false)
 	skipped = applyLifecycleTestTransition(t, skipped, LifecycleStateTransition{
+		State: skipped.State, Action: skipped.Action, CompleteStep: true, Progress: skipped.Progress,
+	})
+	skipped = applyLifecycleTestTransition(t, skipped, LifecycleStateTransition{
 		State: LifecycleMachinePlanned, TerminalResult: LifecycleMachineSkipped, Progress: skipped.Progress,
 	})
 	if err := ValidateLifecycleTransition(skipped, LifecycleStateTransition{
@@ -231,7 +247,7 @@ func TestLifecycleTerminalSuccessAndSkipCannotBeRevived(t *testing.T) {
 
 	succeeded, _ := NewLifecycleStateMachine(LifecycleMachineDisable, false)
 	path, _ := RecommendedLifecyclePath(succeeded.Operation)
-	for index := 1; index < len(path); index++ {
+	for index := 0; index < len(path); index++ {
 		succeeded = beginAndCompleteLifecycleTestGate(t, succeeded, path[index])
 	}
 	succeeded = applyLifecycleTestTransition(t, succeeded, LifecycleStateTransition{
@@ -245,8 +261,42 @@ func TestLifecycleTerminalSuccessAndSkipCannotBeRevived(t *testing.T) {
 	}
 }
 
+func TestLifecyclePlannedHostSideEffectsCannotBecomeSkipped(t *testing.T) {
+	input := lifecycleCoordinatorTestInput(LifecycleMachineInstall, false)
+	machine, _ := NewLifecycleStateMachine(LifecycleMachineInstall, false)
+	if err := hydrateLifecycleCoordinatorBindings(&machine, input.Extension, input.SourceExtension); err != nil {
+		t.Fatal(err)
+	}
+	var err error
+	machine, err = applyLifecycleHostGateResult(machine, "lifecycle.install.00.host.planned", 0, LifecycleCoordinatorGateResult{
+		TargetBinding:      LifecycleRuntimeBinding{RuntimeInstanceID: "target-instance"},
+		RevalidationPolicy: LifecycleGateRevalidationRequired,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	machine = applyLifecycleTestTransition(t, machine, LifecycleStateTransition{
+		State: machine.State, Action: machine.Action, CompleteStep: true, Progress: machine.Progress,
+	})
+	if err := ValidateLifecycleTransition(machine, LifecycleStateTransition{
+		State: LifecycleMachinePlanned, TerminalResult: LifecycleMachineSkipped, Progress: machine.Progress,
+	}); !errors.Is(err, ErrLifecycleStateTransitionDenied) {
+		t.Fatalf("planned Host side effects became skipped: %v", err)
+	}
+
+	// Old snapshots did not carry the side-effect bit. Their already-closed
+	// skipped state remains readable for compatibility.
+	historical, _ := NewLifecycleStateMachine(LifecycleMachineInstall, false)
+	historical.StepComplete = true
+	historical.TerminalResult = LifecycleMachineSkipped
+	if _, err := validateLifecycleMachine(historical); err != nil {
+		t.Fatalf("historical skipped snapshot = %v", err)
+	}
+}
+
 func TestLifecycleSkipAndForcedUninstallPolicies(t *testing.T) {
-	upgrade := failedLifecycleMachineAtFinalGate(t, LifecycleMachineUpgrade, false)
+	upgradePath, _ := RecommendedLifecyclePath(LifecycleMachineUpgrade)
+	upgrade := failedLifecycleMachineAtGate(t, LifecycleMachineUpgrade, lifecycleTestActionIndex(upgradePath, LifecycleMachineUpgradeAfter), false)
 	upgrade = applyLifecycleTestTransition(t, upgrade, LifecycleStateTransition{
 		State: LifecycleMachineRecovery, Retry: true, Progress: upgrade.Progress,
 	})
@@ -258,7 +308,8 @@ func TestLifecycleSkipAndForcedUninstallPolicies(t *testing.T) {
 		t.Fatal("upgrade.after skip did not complete its exact gate")
 	}
 
-	uninstall := failedLifecycleMachineAtFinalGate(t, LifecycleMachineUninstall, false)
+	uninstallPath, _ := RecommendedLifecyclePath(LifecycleMachineUninstall)
+	uninstall := failedLifecycleMachineAtGate(t, LifecycleMachineUninstall, lifecycleTestActionIndex(uninstallPath, LifecycleMachineUninstallAfter), false)
 	uninstall = applyLifecycleTestTransition(t, uninstall, LifecycleStateTransition{
 		State: LifecycleMachineRecovery, Retry: true, Progress: uninstall.Progress,
 	})
@@ -295,6 +346,9 @@ func TestLifecycleProgressAndCheckpointAreMonotonic(t *testing.T) {
 	machine.Progress = LifecycleProgressCursor{
 		CompletedUnits: 2, TotalUnits: 5, Checkpoint: "checkpoint-2", CheckpointSequence: 2,
 	}
+	machine = applyLifecycleTestTransition(t, machine, LifecycleStateTransition{
+		State: machine.State, Action: machine.Action, CompleteStep: true, Progress: machine.Progress,
+	})
 	invalid := []LifecycleProgressCursor{
 		{CompletedUnits: 1, TotalUnits: 5, Checkpoint: "checkpoint-2", CheckpointSequence: 2},
 		{CompletedUnits: 2, TotalUnits: 4, Checkpoint: "checkpoint-2", CheckpointSequence: 2},
@@ -326,6 +380,9 @@ func TestLifecycleProgressAndCheckpointAreMonotonic(t *testing.T) {
 
 func TestApplyLifecycleTransitionDoesNotMutateInput(t *testing.T) {
 	current, _ := NewLifecycleStateMachine(LifecycleMachineEnable, false)
+	current = applyLifecycleTestTransition(t, current, LifecycleStateTransition{
+		State: current.State, Action: current.Action, CompleteStep: true, Progress: current.Progress,
+	})
 	want := current
 	path, _ := RecommendedLifecyclePath(current.Operation)
 	_, err := ApplyLifecycleTransition(current, LifecycleStateTransition{
@@ -362,7 +419,7 @@ func failedLifecycleMachineAtGate(t *testing.T, operation LifecycleMachineOperat
 		t.Fatal(err)
 	}
 	path, _ := RecommendedLifecyclePath(operation)
-	for index := 1; index < target; index++ {
+	for index := 0; index < target; index++ {
 		machine = beginAndCompleteLifecycleTestGate(t, machine, path[index])
 	}
 	machine = applyLifecycleTestTransition(t, machine, LifecycleStateTransition{

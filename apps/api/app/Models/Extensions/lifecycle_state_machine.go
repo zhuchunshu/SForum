@@ -79,6 +79,22 @@ type LifecycleRecommendedStep struct {
 	ForceRequired bool
 }
 
+// LifecycleRuntimeBinding pins lifecycle work to one immutable artifact and,
+// once started, one exact runtime instance. RuntimeInstanceID may be empty only
+// before the Host has prepared or discovered the process.
+type LifecycleRuntimeBinding struct {
+	ExtensionID       string `json:"extensionId,omitempty"`
+	ExtensionVersion  string `json:"extensionVersion,omitempty"`
+	PackageDigest     string `json:"packageDigest,omitempty"`
+	RuntimeInstanceID string `json:"runtimeInstanceId,omitempty"`
+	VersionID         int64  `json:"versionId,omitempty"`
+}
+
+type LifecycleGateRevalidation struct {
+	StepID   string `json:"stepId,omitempty"`
+	Position int    `json:"position,omitempty"`
+}
+
 // LifecycleStateMachine is a pure snapshot suitable for persistence in the
 // operation progress document. Position points into RecommendedLifecyclePath.
 type LifecycleStateMachine struct {
@@ -91,6 +107,12 @@ type LifecycleStateMachine struct {
 	Forced           bool
 	RecoveryPosition int
 	Progress         LifecycleProgressCursor
+	SourceBinding    LifecycleRuntimeBinding   `json:"sourceBinding,omitempty"`
+	TargetBinding    LifecycleRuntimeBinding   `json:"targetBinding,omitempty"`
+	Revalidation     LifecycleGateRevalidation `json:"revalidation,omitempty"`
+	// HostSideEffectsStarted distinguishes historical side-effect-free skipped
+	// snapshots from V2 planned gates that may already have created a process.
+	HostSideEffectsStarted bool `json:"hostSideEffectsStarted,omitempty"`
 }
 
 type LifecycleStateTransition struct {
@@ -129,6 +151,7 @@ var lifecycleRecommendedPaths = map[LifecycleMachineOperation][]LifecycleRecomme
 		{State: LifecycleMachinePlanned},
 		{State: LifecycleMachineDraining},
 		{State: LifecycleMachineDraining, Action: LifecycleMachineDisableAction},
+		{State: LifecycleMachineDraining},
 	},
 	LifecycleMachineUpgrade: {
 		{State: LifecycleMachinePlanned},
@@ -139,7 +162,11 @@ var lifecycleRecommendedPaths = map[LifecycleMachineOperation][]LifecycleRecomme
 		{State: LifecycleMachineStarting},
 		{State: LifecycleMachineHealthy},
 		{State: LifecycleMachineRegistering},
+		// Activation is a Host-owned atomic publication boundary. upgrade.after
+		// runs only after the new exact instance is active.
+		{State: LifecycleMachineEnabled},
 		{State: LifecycleMachineEnabled, Action: LifecycleMachineUpgradeAfter, Skippable: true},
+		{State: LifecycleMachineEnabled},
 	},
 	LifecycleMachineRollback: {
 		{State: LifecycleMachinePlanned},
@@ -157,6 +184,7 @@ var lifecycleRecommendedPaths = map[LifecycleMachineOperation][]LifecycleRecomme
 		{State: LifecycleMachineUninstalling},
 		{State: LifecycleMachineUninstalling, Action: LifecycleMachineUninstallStep, Skippable: true, ForceRequired: true},
 		{State: LifecycleMachineUninstalling, Action: LifecycleMachineUninstallAfter, Skippable: true, ForceRequired: true},
+		{State: LifecycleMachineUninstalling},
 	},
 }
 
@@ -170,7 +198,7 @@ func NewLifecycleStateMachine(operation LifecycleMachineOperation, forced bool) 
 	}
 	return LifecycleStateMachine{
 		Operation: operation, State: path[0].State, Action: path[0].Action,
-		Position: 0, StepComplete: true, Forced: forced,
+		Position: 0, StepComplete: false, Forced: forced,
 	}, nil
 }
 
@@ -286,6 +314,9 @@ func validateLifecycleMachine(current LifecycleStateMachine) ([]LifecycleRecomme
 		return nil, fmt.Errorf("%w: %v", ErrLifecycleStateMachineInvalid, err)
 	}
 	step := path[current.Position]
+	if err := validateLifecycleRevalidationMarker(current, path); err != nil {
+		return nil, err
+	}
 	switch current.State {
 	case LifecycleMachineFailed:
 		if current.TerminalResult != LifecycleMachineFailedRun && current.TerminalResult != LifecycleMachineCancelled {
@@ -313,7 +344,8 @@ func validateLifecycleMachine(current LifecycleStateMachine) ([]LifecycleRecomme
 				(current.Progress.TotalUnits > 0 && current.Progress.CompletedUnits != current.Progress.TotalUnits)) {
 			return nil, fmt.Errorf("%w: succeeded snapshot did not complete its final gate", ErrLifecycleStateMachineInvalid)
 		}
-		if current.TerminalResult == LifecycleMachineSkipped && (current.Position != 0 || !current.StepComplete) {
+		if current.TerminalResult == LifecycleMachineSkipped &&
+			(current.Position != 0 || !current.StepComplete || current.HostSideEffectsStarted) {
 			return nil, fmt.Errorf("%w: skipped snapshot has already crossed a side-effect gate", ErrLifecycleStateMachineInvalid)
 		}
 	}
@@ -372,7 +404,8 @@ func validateLifecycleTerminal(current LifecycleStateMachine, transition Lifecyc
 			return lifecycleTransitionDenied("success requires all progress units to complete")
 		}
 	case LifecycleMachineSkipped:
-		if current.Position != 0 || !current.StepComplete || transition.State != LifecycleMachinePlanned || transition.Action != "" {
+		if current.Position != 0 || !current.StepComplete || current.HostSideEffectsStarted ||
+			transition.State != LifecycleMachinePlanned || transition.Action != "" {
 			return lifecycleTransitionDenied("only a side-effect-free planned operation may be skipped")
 		}
 	case LifecycleMachineFailedRun, LifecycleMachineCancelled:
@@ -381,6 +414,25 @@ func validateLifecycleTerminal(current LifecycleStateMachine, transition Lifecyc
 		}
 	default:
 		return lifecycleTransitionDenied(fmt.Sprintf("unknown terminal result %q", transition.TerminalResult))
+	}
+	return nil
+}
+
+func validateLifecycleRevalidationMarker(current LifecycleStateMachine, path []LifecycleRecommendedStep) error {
+	marker := current.Revalidation
+	if marker.StepID == "" {
+		if marker.Position != 0 {
+			return fmt.Errorf("%w: Host revalidation position has no step id", ErrLifecycleStateMachineInvalid)
+		}
+		return nil
+	}
+	if marker.Position < 0 || marker.Position >= len(path) || path[marker.Position].Action != "" {
+		return fmt.Errorf("%w: Host revalidation marker does not identify a Host gate", ErrLifecycleStateMachineInvalid)
+	}
+	step := path[marker.Position]
+	canonical := lifecycleCoordinatorStepID(current.Operation, marker.Position, step.State, step.Action)
+	if marker.StepID != canonical {
+		return fmt.Errorf("%w: Host revalidation step id %q is not canonical", ErrLifecycleStateMachineInvalid, marker.StepID)
 	}
 	return nil
 }

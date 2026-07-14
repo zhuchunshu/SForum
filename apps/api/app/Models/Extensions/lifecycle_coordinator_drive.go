@@ -14,6 +14,7 @@ func (c *LifecycleCoordinator) drive(
 	operation LifecycleOperation,
 	machine LifecycleStateMachine,
 	input LifecycleCoordinatorRunInput,
+	revalidateBindings bool,
 ) (LifecycleOperation, LifecycleStateMachine, error) {
 	path, _ := RecommendedLifecyclePath(machine.Operation)
 	for {
@@ -26,9 +27,43 @@ func (c *LifecycleCoordinator) drive(
 			continue
 		}
 		if !machine.StepComplete {
-			var result json.RawMessage
 			var err error
-			operation, machine, result, err = c.executeCurrentGate(ctx, operation, machine, input)
+			operation, machine, err = c.reconcilePendingStepTerminal(ctx, operation, machine)
+			if err != nil {
+				return operation, machine, err
+			}
+			if operation.CompletedAt != nil {
+				return operation, machine, &LifecycleCoordinatorRunError{Failure: operation.Error}
+			}
+			if machine.StepComplete {
+				// Persisted succeeded/skipped steps are authoritative. Advance first;
+				// a later executable step will still consume the revalidation barrier.
+				continue
+			}
+			claim, err := c.claimCurrentLifecycleGate(ctx, operation, machine, input)
+			if errors.Is(err, ErrLifecycleStepClosed) {
+				// The step became terminal after the replay check. Loop back and
+				// consume that durable result instead of creating another attempt.
+				continue
+			}
+			if err != nil {
+				return operation, machine, err
+			}
+			if revalidateBindings {
+				operation, machine, err = c.revalidateLifecycleHostState(ctx, operation, machine, input, claim)
+				if err != nil {
+					if !claim.released {
+						releaseErr := c.releaseLifecycleGateClaim(ctx, claim)
+						if releaseErr != nil {
+							err = errors.Join(err, releaseErr)
+						}
+					}
+					return operation, machine, err
+				}
+				revalidateBindings = false
+			}
+			var result json.RawMessage
+			operation, machine, result, err = c.executeCurrentGate(ctx, operation, machine, input, claim)
 			if err != nil {
 				return operation, machine, err
 			}
@@ -151,17 +186,84 @@ func (c *LifecycleCoordinator) persistRecoverySkip(
 	return operation, skipped, err
 }
 
+type lifecycleCoordinatorGateClaim struct {
+	attempt   LifecycleStepAttempt
+	lease     *lifecycleCoordinatorLeaseSession
+	runCtx    context.Context
+	cancelRun context.CancelFunc
+	released  bool
+}
+
+func (c *LifecycleCoordinator) claimCurrentLifecycleGate(
+	ctx context.Context,
+	operation LifecycleOperation,
+	machine LifecycleStateMachine,
+	input LifecycleCoordinatorRunInput,
+) (*lifecycleCoordinatorGateClaim, error) {
+	stepID := lifecycleCoordinatorStepID(machine.Operation, machine.Position, machine.State, machine.Action)
+	checkpoint := ""
+	if latest, err := c.repository.LatestStepAttempt(ctx, operation.ID, stepID); err == nil {
+		if lifecycleStepTerminal(latest.Status) {
+			return nil, ErrLifecycleStepClosed
+		}
+		checkpoint = latest.Checkpoint
+	} else if !errors.Is(err, ErrLifecycleStepNotFound) {
+		return nil, err
+	}
+	begin, err := c.repository.BeginStepAttempt(ctx, BeginLifecycleStepAttemptInput{
+		OperationID: operation.ID, StepID: stepID, LifecycleAction: lifecycleCoordinatorActionName(machine.Action),
+		PlanVersion: operation.PlanVersion, InputDocument: cloneLifecycleJSON(input.ActionInputs[machine.Action]),
+		Checkpoint: checkpoint, ActorUserID: operation.RequestedByUserID, AuditEventID: operation.AuditEventID,
+	})
+	if err != nil {
+		return nil, err
+	}
+	runCtx, cancelRun := context.WithCancel(ctx)
+	lease, err := c.claimStepLease(runCtx, begin.Attempt, cancelRun)
+	if err != nil {
+		cancelRun()
+		return nil, err
+	}
+	return &lifecycleCoordinatorGateClaim{
+		attempt: begin.Attempt, lease: lease, runCtx: runCtx, cancelRun: cancelRun,
+	}, nil
+}
+
+func (c *LifecycleCoordinator) releaseLifecycleGateClaim(
+	ctx context.Context,
+	claim *lifecycleCoordinatorGateClaim,
+) error {
+	if claim == nil || claim.released {
+		return nil
+	}
+	claim.lease.stopHeartbeat()
+	claim.cancelRun()
+	terminalCtx, cancel := lifecycleCoordinatorTerminalContext(ctx)
+	defer cancel()
+	claim.lease.mu.Lock()
+	defer claim.lease.mu.Unlock()
+	_, err := c.repository.ReleaseStepLease(terminalCtx, ReleaseLifecycleStepLeaseInput{
+		AttemptID: claim.lease.attemptID, OwnerToken: claim.lease.ownerToken,
+		Revision: claim.lease.revision,
+	})
+	if err == nil {
+		claim.released = true
+	}
+	return err
+}
+
 func (c *LifecycleCoordinator) executeCurrentGate(
 	ctx context.Context,
 	operation LifecycleOperation,
 	machine LifecycleStateMachine,
 	input LifecycleCoordinatorRunInput,
+	claim *lifecycleCoordinatorGateClaim,
 ) (LifecycleOperation, LifecycleStateMachine, json.RawMessage, error) {
 	stepID := lifecycleCoordinatorStepID(machine.Operation, machine.Position, machine.State, machine.Action)
 	if machine.Action == "" {
-		return c.executeHostGate(ctx, operation, machine, input, stepID)
+		return c.executeHostGate(ctx, operation, machine, input, stepID, claim)
 	}
-	return c.executeAction(ctx, operation, machine, input, stepID)
+	return c.executeAction(ctx, operation, machine, input, stepID, claim)
 }
 
 func (c *LifecycleCoordinator) executeHostGate(
@@ -170,35 +272,67 @@ func (c *LifecycleCoordinator) executeHostGate(
 	machine LifecycleStateMachine,
 	input LifecycleCoordinatorRunInput,
 	stepID string,
+	claim *lifecycleCoordinatorGateClaim,
 ) (LifecycleOperation, LifecycleStateMachine, json.RawMessage, error) {
-	latest, latestErr := c.repository.LatestStepAttempt(ctx, operation.ID, stepID)
-	if latestErr == nil && latest.Status == LifecycleStepSucceeded {
-		operation, machine, err := c.completeMachineGate(ctx, operation, machine, "")
-		return operation, machine, nil, err
+	return c.runLifecycleHostGate(
+		ctx, operation, machine, input, machine.Position, machine.State, stepID,
+		LifecycleStepAttempt{}, false, true, claim, nil,
+	)
+}
+
+func (c *LifecycleCoordinator) runLifecycleHostGate(
+	ctx context.Context,
+	operation LifecycleOperation,
+	machine LifecycleStateMachine,
+	input LifecycleCoordinatorRunInput,
+	gatePosition int,
+	gateState LifecycleMachineState,
+	stepID string,
+	previous LifecycleStepAttempt,
+	revalidation bool,
+	completeCurrent bool,
+	claimed *lifecycleCoordinatorGateClaim,
+	failureBarrier *lifecycleCoordinatorGateClaim,
+) (LifecycleOperation, LifecycleStateMachine, json.RawMessage, error) {
+	if claimed == nil {
+		begin, err := c.repository.BeginStepAttempt(ctx, BeginLifecycleStepAttemptInput{
+			OperationID: operation.ID, StepID: stepID, LifecycleAction: lifecycleCoordinatorHostGateAction,
+			PlanVersion: operation.PlanVersion, Checkpoint: previous.Checkpoint,
+			ActorUserID: operation.RequestedByUserID, AuditEventID: operation.AuditEventID,
+		})
+		if err != nil {
+			return operation, machine, nil, err
+		}
+		runCtx, cancelRun := context.WithCancel(ctx)
+		lease, err := c.claimStepLease(runCtx, begin.Attempt, cancelRun)
+		if err != nil {
+			cancelRun()
+			return operation, machine, nil, err
+		}
+		claimed = &lifecycleCoordinatorGateClaim{
+			attempt: begin.Attempt, lease: lease, runCtx: runCtx, cancelRun: cancelRun,
+		}
 	}
-	if latestErr != nil && !errors.Is(latestErr, ErrLifecycleStepNotFound) {
-		return operation, machine, nil, latestErr
+	if claimed.attempt.StepID != stepID || claimed.attempt.LifecycleAction != lifecycleCoordinatorHostGateAction {
+		return operation, machine, nil, fmt.Errorf("%w: claimed Host gate does not match the current step", ErrLifecycleCoordinatorInvalid)
 	}
-	begin, err := c.repository.BeginStepAttempt(ctx, BeginLifecycleStepAttemptInput{
-		OperationID: operation.ID, StepID: stepID, LifecycleAction: lifecycleCoordinatorHostGateAction,
-		PlanVersion: operation.PlanVersion, ActorUserID: operation.RequestedByUserID, AuditEventID: operation.AuditEventID,
-	})
-	if err != nil {
-		return operation, machine, nil, err
-	}
-	attempt := begin.Attempt
-	runCtx, cancelRun := context.WithCancel(ctx)
-	defer cancelRun()
-	lease, err := c.claimStepLease(ctx, attempt, cancelRun)
-	if err != nil {
-		return operation, machine, nil, err
-	}
+	attempt, lease, runCtx := claimed.attempt, claimed.lease, claimed.runCtx
+	defer claimed.cancelRun()
+	var result LifecycleCoordinatorGateResult
 	var runErr error
 	if c.host == nil {
 		runErr = fmt.Errorf("%w: Host gate runner is required", ErrLifecycleCoordinatorUnavailable)
 	} else {
-		runErr = c.host.RunLifecycleHostGate(runCtx, LifecycleCoordinatorGateRequest{
-			Extension: input.Extension, Operation: machine.Operation, State: machine.State, StepID: stepID, Forced: machine.Forced,
+		result, runErr = c.host.RunLifecycleHostGate(runCtx, LifecycleCoordinatorGateRequest{
+			Extension: input.Extension, SourceExtension: lifecycleSourceExtension(input), TargetExtension: input.Extension,
+			OperationID: operation.ID, Operation: machine.Operation, State: gateState, Position: gatePosition,
+			StepID: stepID, Attempt: attempt.Attempt, Checkpoint: attempt.Checkpoint,
+			PreviousResult: cloneLifecycleJSON(previous.ResultDocument),
+			SourceBinding:  machine.SourceBinding, TargetBinding: machine.TargetBinding,
+			AuthorityType: operation.AuthorityType, TrustGrantID: operation.TrustGrantID,
+			AuthoritySnapshot: cloneLifecycleJSON(operation.AuthoritySnapshot), RemovalMode: operation.RemovalMode,
+			Forced: machine.Forced, ActorUserID: operation.RequestedByUserID, AuditEventID: operation.AuditEventID,
+			Revalidation: revalidation,
 		})
 		if runErr == nil && runCtx.Err() != nil {
 			runErr = runCtx.Err()
@@ -209,19 +343,136 @@ func (c *LifecycleCoordinator) executeHostGate(
 		return operation, machine, nil, leaseErr
 	}
 	if runErr != nil {
-		return c.failHostGate(ctx, operation, machine, attempt, lease, runErr)
+		return c.failLifecycleHostGate(ctx, operation, machine, attempt, lease, failureBarrier, runErr)
+	}
+	updatedMachine, err := applyLifecycleHostGateResult(machine, stepID, gatePosition, result)
+	if err != nil {
+		return c.failLifecycleHostGate(ctx, operation, machine, attempt, lease, failureBarrier, err)
+	}
+	machine = updatedMachine
+	if gatePosition == 0 && gateState == LifecycleMachinePlanned && !lifecycleRuntimeBindingsReady(machine) {
+		return c.failLifecycleHostGate(ctx, operation, machine, attempt, lease, failureBarrier, fmt.Errorf(
+			"%w: planned Host gate did not bind every required runtime instance", ErrLifecycleCoordinatorInvalid,
+		))
+	}
+	if revalidation && result.RevalidationPolicy != LifecycleGateRevalidationRequired {
+		return c.failLifecycleHostGate(ctx, operation, machine, attempt, lease, failureBarrier, fmt.Errorf(
+			"%w: runtime revalidation must remain explicitly process-local", ErrLifecycleCoordinatorInvalid,
+		))
+	}
+	resultDocument, err := encodeLifecycleHostGateResult(result)
+	if err != nil {
+		return c.failLifecycleHostGate(ctx, operation, machine, attempt, lease, failureBarrier, err)
 	}
 	terminalCtx, cancelTerminal := lifecycleCoordinatorTerminalContext(ctx)
 	completed, err := lease.complete(terminalCtx, CompleteLifecycleStepAttemptInput{
-		AttemptID: attempt.ID, Status: LifecycleStepSucceeded,
-		ActorUserID: operation.RequestedByUserID, AuditEventID: operation.AuditEventID,
+		AttemptID: attempt.ID, Status: LifecycleStepSucceeded, Checkpoint: result.Checkpoint,
+		ResultDocument: resultDocument,
+		ActorUserID:    operation.RequestedByUserID, AuditEventID: operation.AuditEventID,
 	})
 	cancelTerminal()
 	if err != nil {
 		return operation, machine, nil, err
 	}
-	operation, machine, err = c.completeMachineGate(ctx, operation, machine, lifecycleCoordinatorCheckpoint(stepID, completed.Checkpoint))
-	return operation, machine, nil, err
+	if completeCurrent {
+		operation, machine, err = c.completeMachineGate(ctx, operation, machine, lifecycleCoordinatorCheckpoint(stepID, completed.Checkpoint))
+		return operation, machine, cloneLifecycleJSON(completed.ResultDocument), err
+	}
+	cursor := lifecycleCoordinatorProgress(machine.Progress, stepID, completed.Checkpoint)
+	updated, err := ApplyLifecycleTransition(machine, LifecycleStateTransition{
+		State: machine.State, Action: machine.Action, Progress: cursor,
+	})
+	if err != nil {
+		return operation, machine, nil, err
+	}
+	operation, err = c.persistMachine(ctx, operation, updated, operation.CurrentStepID)
+	return operation, updated, cloneLifecycleJSON(completed.ResultDocument), err
+}
+
+func (c *LifecycleCoordinator) failLifecycleHostGate(
+	ctx context.Context,
+	operation LifecycleOperation,
+	machine LifecycleStateMachine,
+	attempt LifecycleStepAttempt,
+	lease *lifecycleCoordinatorLeaseSession,
+	failureBarrier *lifecycleCoordinatorGateClaim,
+	cause error,
+) (LifecycleOperation, LifecycleStateMachine, json.RawMessage, error) {
+	if failureBarrier != nil && !failureBarrier.released {
+		if err := c.releaseLifecycleGateClaim(ctx, failureBarrier); err != nil {
+			return operation, machine, nil, errors.Join(cause, fmt.Errorf("release current lifecycle gate lease: %w", err))
+		}
+	}
+	return c.failHostGate(ctx, operation, machine, attempt, lease, cause)
+}
+
+func (c *LifecycleCoordinator) revalidateLifecycleHostState(
+	ctx context.Context,
+	operation LifecycleOperation,
+	machine LifecycleStateMachine,
+	input LifecycleCoordinatorRunInput,
+	failureBarrier *lifecycleCoordinatorGateClaim,
+) (LifecycleOperation, LifecycleStateMachine, error) {
+	marker := machine.Revalidation
+	if marker.StepID == "" {
+		return operation, machine, nil
+	}
+	path, _ := RecommendedLifecyclePath(machine.Operation)
+	if err := validateLifecycleRevalidationMarker(machine, path); err != nil {
+		return operation, machine, fmt.Errorf("%w: invalid Host revalidation marker", ErrLifecycleCoordinatorInvalid)
+	}
+	if marker.StepID == lifecycleCoordinatorStepID(machine.Operation, machine.Position, machine.State, machine.Action) {
+		return operation, machine, nil
+	}
+	latest, err := c.repository.LatestStepAttempt(ctx, operation.ID, marker.StepID)
+	if errors.Is(err, ErrLifecycleStepNotFound) {
+		operation, machine, _, err = c.runLifecycleHostGate(
+			ctx, operation, machine, input, marker.Position, path[marker.Position].State,
+			marker.StepID, LifecycleStepAttempt{}, true, false, nil, failureBarrier,
+		)
+		return operation, machine, err
+	}
+	if err != nil {
+		return operation, machine, err
+	}
+	if latest.Status == LifecycleStepFailed || latest.Status == LifecycleStepCancelled {
+		terminal := LifecycleMachineFailedRun
+		if latest.Status == LifecycleStepCancelled {
+			terminal = LifecycleMachineCancelled
+		}
+		failure := latest.Error
+		if failure.Code == "" || failure.Reason == "" {
+			failure = LifecycleExecutionError{
+				Code: "lifecycle.coordinator_interrupted", Reason: "lifecycle.coordinator_interrupted",
+				Message: "The Host resumed after revalidation failed but before the operation was finalized.", Retryable: true,
+			}
+		}
+		if failureBarrier != nil && !failureBarrier.released {
+			if releaseErr := c.releaseLifecycleGateClaim(ctx, failureBarrier); releaseErr != nil {
+				return operation, machine, fmt.Errorf("release current lifecycle gate lease: %w", releaseErr)
+			}
+		}
+		operation, machine, err = c.completeFailure(ctx, operation, machine, terminal, failure, latest.ResultDocument)
+		if err != nil {
+			return operation, machine, err
+		}
+		return operation, machine, &LifecycleCoordinatorRunError{Failure: failure}
+	}
+	previous, typed, err := decodeLifecycleHostGateResult(latest.ResultDocument)
+	if err != nil {
+		return operation, machine, err
+	}
+	if latest.Status != LifecycleStepSucceeded || !typed {
+		return operation, machine, fmt.Errorf("%w: ephemeral Host state has no durable revalidation result", ErrLifecycleCoordinatorInvalid)
+	}
+	if previous.RevalidationPolicy != LifecycleGateRevalidationRequired {
+		return operation, machine, fmt.Errorf("%w: ephemeral Host state lost its revalidation policy", ErrLifecycleCoordinatorInvalid)
+	}
+	operation, machine, _, err = c.runLifecycleHostGate(
+		ctx, operation, machine, input, marker.Position, path[marker.Position].State,
+		marker.StepID, latest, true, false, nil, failureBarrier,
+	)
+	return operation, machine, err
 }
 
 func (c *LifecycleCoordinator) executeAction(
@@ -230,46 +481,29 @@ func (c *LifecycleCoordinator) executeAction(
 	machine LifecycleStateMachine,
 	input LifecycleCoordinatorRunInput,
 	stepID string,
+	claim *lifecycleCoordinatorGateClaim,
 ) (LifecycleOperation, LifecycleStateMachine, json.RawMessage, error) {
-	latest, latestErr := c.repository.LatestStepAttempt(ctx, operation.ID, stepID)
-	if latestErr == nil && (latest.Status == LifecycleStepSucceeded || latest.Status == LifecycleStepSkipped) {
-		operation, machine, err := c.completeMachineGate(ctx, operation, machine, lifecycleCoordinatorCheckpoint(stepID, latest.Checkpoint))
-		return operation, machine, cloneLifecycleJSON(latest.ResultDocument), err
+	if claim == nil || claim.attempt.StepID != stepID || claim.attempt.LifecycleAction != string(machine.Action) {
+		return operation, machine, nil, fmt.Errorf("%w: claimed action does not match the current step", ErrLifecycleCoordinatorInvalid)
 	}
-	if latestErr != nil && !errors.Is(latestErr, ErrLifecycleStepNotFound) {
-		return operation, machine, nil, latestErr
-	}
-	resumeCheckpoint := ""
-	if latestErr == nil {
-		resumeCheckpoint = latest.Checkpoint
-	}
-	begin, err := c.repository.BeginStepAttempt(ctx, BeginLifecycleStepAttemptInput{
-		OperationID: operation.ID, StepID: stepID, LifecycleAction: string(machine.Action),
-		PlanVersion: operation.PlanVersion, InputDocument: cloneLifecycleJSON(input.ActionInputs[machine.Action]),
-		Checkpoint: resumeCheckpoint, ActorUserID: operation.RequestedByUserID, AuditEventID: operation.AuditEventID,
-	})
-	if err != nil {
-		return operation, machine, nil, err
-	}
-	attempt := begin.Attempt
-	if attempt.Checkpoint != "" {
-		resumeCheckpoint = attempt.Checkpoint
-	}
-	runCtx, cancelRun := context.WithCancel(ctx)
-	defer cancelRun()
-	lease, err := c.claimStepLease(ctx, attempt, cancelRun)
-	if err != nil {
-		return operation, machine, nil, err
-	}
+	attempt, lease, runCtx := claim.attempt, claim.lease, claim.runCtx
+	defer claim.cancelRun()
+	resumeCheckpoint := attempt.Checkpoint
 	if c.runtime == nil {
 		lease.stopHeartbeat()
 		return c.failAction(ctx, operation, machine, attempt, lease, LifecycleCoordinatorActionResult{}, fmt.Errorf("%w: lifecycle runtime is required", ErrLifecycleCoordinatorUnavailable))
 	}
 	var progressPersistenceErr error
+	role := lifecycleActionRuntimeRole(machine.Action)
 	result, runErr := c.runtime.RunLifecycleAction(runCtx, LifecycleCoordinatorActionRequest{
-		Extension: input.Extension, Operation: machine.Operation, Action: machine.Action,
+		Extension: lifecycleActionExtension(input, role), SourceExtension: lifecycleSourceExtension(input), TargetExtension: input.Extension,
+		RuntimeRole: role, SourceBinding: machine.SourceBinding, TargetBinding: machine.TargetBinding,
+		OperationID: operation.ID, Operation: machine.Operation, Action: machine.Action,
 		StepID: stepID, PlanVersion: operation.PlanVersion, Attempt: attempt.Attempt,
-		Checkpoint: resumeCheckpoint, InputDocument: cloneLifecycleJSON(input.ActionInputs[machine.Action]), Forced: machine.Forced,
+		Checkpoint: resumeCheckpoint, InputDocument: cloneLifecycleJSON(input.ActionInputs[machine.Action]),
+		AuthorityType: operation.AuthorityType, TrustGrantID: operation.TrustGrantID,
+		AuthoritySnapshot: cloneLifecycleJSON(operation.AuthoritySnapshot), RemovalMode: operation.RemovalMode,
+		Forced: machine.Forced, ActorUserID: operation.RequestedByUserID, AuditEventID: operation.AuditEventID,
 	}, func(progress LifecycleCoordinatorActionProgress) error {
 		nextOperation, nextMachine, nextAttempt, updateErr := c.persistActionProgress(runCtx, operation, machine, attempt, lease, stepID, progress)
 		if updateErr != nil {

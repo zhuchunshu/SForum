@@ -81,16 +81,39 @@ func (r *lifecycleCoordinatorTestRuntime) requestsSnapshot() []LifecycleCoordina
 }
 
 type lifecycleCoordinatorTestHost struct {
-	mu        sync.Mutex
-	requests  []LifecycleCoordinatorGateRequest
-	failState LifecycleMachineState
-	events    *lifecycleCoordinatorTestEvents
-	cancel    context.CancelFunc
+	mu         sync.Mutex
+	requests   []LifecycleCoordinatorGateRequest
+	results    map[string][]LifecycleCoordinatorGateResult
+	gateErrors map[string][]error
+	afterStep  map[string][]func()
+	failState  LifecycleMachineState
+	events     *lifecycleCoordinatorTestEvents
+	cancel     context.CancelFunc
 }
 
-func (h *lifecycleCoordinatorTestHost) RunLifecycleHostGate(_ context.Context, request LifecycleCoordinatorGateRequest) error {
+func (h *lifecycleCoordinatorTestHost) RunLifecycleHostGate(_ context.Context, request LifecycleCoordinatorGateRequest) (LifecycleCoordinatorGateResult, error) {
 	h.mu.Lock()
 	h.requests = append(h.requests, request)
+	result := LifecycleCoordinatorGateResult{}
+	resultSet := false
+	if queue := h.results[request.StepID]; len(queue) > 0 {
+		result = queue[0]
+		h.results[request.StepID] = queue[1:]
+		resultSet = true
+	}
+	if !resultSet {
+		result = lifecycleCoordinatorTestPlannedGateResult(request)
+	}
+	var gateErr error
+	if queue := h.gateErrors[request.StepID]; len(queue) > 0 {
+		gateErr = queue[0]
+		h.gateErrors[request.StepID] = queue[1:]
+	}
+	var after func()
+	if queue := h.afterStep[request.StepID]; len(queue) > 0 {
+		after = queue[0]
+		h.afterStep[request.StepID] = queue[1:]
+	}
 	fail := h.failState == request.State
 	if fail {
 		h.failState = ""
@@ -104,10 +127,38 @@ func (h *lifecycleCoordinatorTestHost) RunLifecycleHostGate(_ context.Context, r
 	if cancel != nil {
 		cancel()
 	}
-	if fail {
-		return fmt.Errorf("host gate %s failed", request.State)
+	if after != nil {
+		after()
 	}
-	return nil
+	if fail {
+		return LifecycleCoordinatorGateResult{}, fmt.Errorf("host gate %s failed", request.State)
+	}
+	if gateErr != nil {
+		return LifecycleCoordinatorGateResult{}, gateErr
+	}
+	return result, nil
+}
+
+func lifecycleCoordinatorTestPlannedGateResult(request LifecycleCoordinatorGateRequest) LifecycleCoordinatorGateResult {
+	if request.Position != 0 || request.State != LifecycleMachinePlanned {
+		return LifecycleCoordinatorGateResult{}
+	}
+	result := LifecycleCoordinatorGateResult{RevalidationPolicy: LifecycleGateRevalidationRequired}
+	result.SourceBinding = request.SourceBinding
+	result.TargetBinding = request.TargetBinding
+	if result.TargetBinding.RuntimeInstanceID == "" {
+		result.TargetBinding.RuntimeInstanceID = "test-target-instance"
+	}
+	if !lifecycleRuntimeBindingEmpty(result.SourceBinding) && result.SourceBinding.RuntimeInstanceID == "" {
+		result.SourceBinding.RuntimeInstanceID = "test-source-instance"
+	}
+	return result
+}
+
+func (h *lifecycleCoordinatorTestHost) requestsSnapshot() []LifecycleCoordinatorGateRequest {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	return append([]LifecycleCoordinatorGateRequest(nil), h.requests...)
 }
 
 func (h *lifecycleCoordinatorTestHost) gateIDs() []string {
@@ -142,9 +193,24 @@ func lifecycleCoordinatorTestInput(operation LifecycleMachineOperation, forced b
 	extension := Extension{
 		ID: "demo.plugin", Version: "1.0.0", Type: TypePlugin,
 		Status: StatusEnabled, PackageDigest: digest,
+		Manifest: Manifest{
+			ID: "demo.plugin", Version: "1.0.0", Type: TypePlugin,
+			Lifecycle: &ManifestLifecycle{ContractVersion: "demo.plugin.lifecycle@1"},
+		},
+	}
+	var source *Extension
+	if operation != LifecycleMachineInstall {
+		value := extension
+		if operation == LifecycleMachineUpgrade || operation == LifecycleMachineRollback {
+			value.Version = "0.9.0"
+			value.PackageDigest = strings.Repeat("b", 64)
+			value.Manifest.Version = value.Version
+			value.Manifest.Lifecycle = &ManifestLifecycle{ContractVersion: "demo.plugin.lifecycle@0"}
+		}
+		source = &value
 	}
 	return LifecycleCoordinatorRunInput{
-		Extension: extension,
+		Extension: extension, SourceExtension: source,
 		Acquire: AcquireLifecycleOperationInput{
 			ExtensionID: extension.ID, ExtensionVersion: extension.Version, PackageDigest: digest,
 			Operation: string(operation), PlanVersion: "demo.plugin.lifecycle@1",
@@ -155,6 +221,8 @@ func lifecycleCoordinatorTestInput(operation LifecycleMachineOperation, forced b
 }
 
 func cloneLifecycleCoordinatorTestOperation(value LifecycleOperation) LifecycleOperation {
+	value.ArtifactDigests = cloneLifecycleJSON(value.ArtifactDigests)
+	value.AuthoritySnapshot = cloneLifecycleJSON(value.AuthoritySnapshot)
 	value.Progress = cloneLifecycleJSON(value.Progress)
 	value.Checkpoint = cloneLifecycleJSON(value.Checkpoint)
 	value.ResultDocument = cloneLifecycleJSON(value.ResultDocument)
@@ -165,6 +233,16 @@ func countLifecycleCoordinatorAction(values []LifecycleMachineAction, action Lif
 	count := 0
 	for _, value := range values {
 		if value == action {
+			count++
+		}
+	}
+	return count
+}
+
+func countLifecycleCoordinatorString(values []string, target string) int {
+	count := 0
+	for _, value := range values {
+		if value == target {
 			count++
 		}
 	}
