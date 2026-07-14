@@ -96,11 +96,11 @@ func (b *ComposedLifecycleHostBoundary) publishDeactivation(ctx context.Context,
 		jobMode = LifecycleBoundaryJobsUninstall
 	}
 	if err := b.drainSourceAdmissions(ctx, request, jobMode); err != nil {
-		return b.failBeforePublication(ctx, request, err)
+		return b.failBeforePublication(ctx, request, fmt.Errorf("deactivation drain source admissions: %w", err))
 	}
 	state, jobs, registries, committed, err := b.preparePublication(ctx, request, jobMode, LifecycleBoundaryDeactivate)
 	if err != nil {
-		return err
+		return fmt.Errorf("prepare deactivation publication: %w", err)
 	}
 	transactions := []namedLifecycleCompensation{
 		{"registries", registries}, {"jobs and schedules", jobs}, {"state", state},

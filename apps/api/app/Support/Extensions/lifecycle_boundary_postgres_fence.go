@@ -158,7 +158,11 @@ func validateLifecycleBoundaryPostgresFence(
 		extensionID != fence.Target.ExtensionID ||
 		extensionVersion != fence.Target.ExtensionVersion || packageDigest != fence.Target.PackageDigest ||
 		terminalResult.Valid || completedAt.Valid {
-		return ErrLifecycleBoundaryFenceConflict
+		return fmt.Errorf(
+			"%w: operation row operation=%s state=%s step=%s extension=%s version=%s terminal=%t completed=%t",
+			ErrLifecycleBoundaryFenceConflict, operation, state, currentStepID, extensionID,
+			extensionVersion, terminalResult.Valid, completedAt.Valid,
+		)
 	}
 
 	var action, status string
@@ -181,7 +185,10 @@ func validateLifecycleBoundaryPostgresFence(
 	if attempt != fence.Attempt || action != "host.gate" ||
 		(status != "running" && status != "waiting" && status != "succeeded") ||
 		actorUserID != fence.ActorUserID || auditEventID != fence.AuditEventID {
-		return ErrLifecycleBoundaryFenceConflict
+		return fmt.Errorf(
+			"%w: step row attempt=%d action=%s status=%s actor=%d audit=%d",
+			ErrLifecycleBoundaryFenceConflict, attempt, action, status, actorUserID, auditEventID,
+		)
 	}
 	return nil
 }

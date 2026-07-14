@@ -541,13 +541,13 @@ func (b *ComposedLifecycleHostBoundary) runUninstall(ctx context.Context, reques
 	switch request.Position {
 	case 3:
 		if err := b.drainSourceAdmissions(ctx, request, LifecycleBoundaryJobsUninstall); err != nil {
-			return "", b.failBeforePublication(ctx, request, err)
+			return "", b.failBeforePublication(ctx, request, fmt.Errorf("uninstall drain source admissions: %w", err))
 		}
 		if err := b.checkPreflight(ctx, request); err != nil {
-			return "", b.failBeforePublication(ctx, request, err)
+			return "", b.failBeforePublication(ctx, request, fmt.Errorf("uninstall static preflight: %w", err))
 		}
 		if err := b.publishDeactivation(ctx, request); err != nil {
-			return "", err
+			return "", fmt.Errorf("uninstall deactivation publication: %w", err)
 		}
 		// The exact source runtime remains retained for uninstall/uninstall.after.
 		return "registrations_removed", nil
