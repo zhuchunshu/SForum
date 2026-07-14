@@ -124,6 +124,30 @@ func TestBuildLifecycleCoordinatorRunInputAllowsCrossContractUpgradeSource(t *te
 	}
 }
 
+func TestBuildLifecycleCoordinatorRunInputAllowsFrozenUninstallAuthority(t *testing.T) {
+	extension := lifecycleAuthorityTestExtension(t, "frozen-uninstall.plugin", SourceUploaded)
+	authority := lifecycleAuthorityTestGrant(t, extension)
+	actor := techAdminPluginManager()
+	actor.ID = authority.ActorUserID + 100
+
+	input, err := BuildLifecycleCoordinatorRunInput(extension, actor, authority, LifecycleOperationIntent{
+		Operation: LifecycleMachineUninstall, IdempotencyKey: "frozen-uninstall-1",
+		SourceExtension: exactLifecycleCopy(extension), RemovalMode: LifecycleRemovalPreserve,
+		FrozenAuthority: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if input.Acquire.RequestedByUserID != actor.ID || input.Acquire.RemovalMode != LifecycleRemovalPreserve ||
+		input.SourceExtension == nil || !sameLifecycleExactArtifact(*input.SourceExtension, extension) ||
+		lifecycleOperationAuthorityActorUserID(LifecycleOperation{
+			AuthoritySnapshot: input.Acquire.AuthoritySnapshot,
+			RequestedByUserID: input.Acquire.RequestedByUserID,
+		}) != authority.ActorUserID {
+		t.Fatalf("frozen uninstall input = %#v", input)
+	}
+}
+
 func TestLifecycleAuthorityRejectsMismatchedOrUnsafeIntent(t *testing.T) {
 	extension := lifecycleAuthorityTestExtension(t, "invalid-authority.plugin", SourceUploaded)
 	extension.ActiveVersionID = 12

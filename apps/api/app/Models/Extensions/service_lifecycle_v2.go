@@ -326,10 +326,11 @@ func (s *Service) rebuildLifecycleReplay(
 	}
 	request := lifecycleServiceRequest{
 		operation: operationKind, target: target, idempotencyKey: operation.IdempotencyKey,
-		frozenAuthority: operationKind == LifecycleMachineDisable || operationKind == LifecycleMachineRollback,
+		frozenAuthority: operationKind == LifecycleMachineDisable || operationKind == LifecycleMachineRollback ||
+			operationKind == LifecycleMachineUninstall,
 	}
 	switch operationKind {
-	case LifecycleMachineDisable:
+	case LifecycleMachineDisable, LifecycleMachineUninstall:
 		request.source = exactLifecycleCopy(target)
 	case LifecycleMachineUpgrade, LifecycleMachineRollback:
 		source, sourceErr := s.lifecycleReplaySource(ctx, current, operation)

@@ -35,7 +35,7 @@ type LifecycleOperationIntent struct {
 	EscalateForced  bool
 	RecoveryReason  string
 	AuditEventID    int64
-	// FrozenAuthority 允许 disable/rollback 复用目标制品最后一次成功授权。
+	// FrozenAuthority 允许 disable/rollback/uninstall 复用目标制品最后一次成功授权。
 	// 当前请求 actor 仍写入 operation/audit；授权 actor 保留在 immutable snapshot。
 	FrozenAuthority bool
 }
@@ -104,8 +104,9 @@ func BuildLifecycleCoordinatorRunInput(
 	}
 	authorityActor := actor
 	if intent.FrozenAuthority {
-		if intent.Operation != LifecycleMachineDisable && intent.Operation != LifecycleMachineRollback {
-			return LifecycleCoordinatorRunInput{}, fmt.Errorf("%w: frozen authority is limited to disable and rollback", ErrLifecycleCoordinatorInvalid)
+		if intent.Operation != LifecycleMachineDisable && intent.Operation != LifecycleMachineRollback &&
+			intent.Operation != LifecycleMachineUninstall {
+			return LifecycleCoordinatorRunInput{}, fmt.Errorf("%w: frozen authority is limited to disable, rollback, and uninstall", ErrLifecycleCoordinatorInvalid)
 		}
 		authorityActor.ID = authority.ActorUserID
 	}
