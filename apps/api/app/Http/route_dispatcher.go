@@ -17,6 +17,7 @@ import (
 
 	"github.com/gofiber/fiber/v3"
 
+	apitokens "github.com/zhuchunshu/sforum/apps/api/app/Models/APITokens"
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
 	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
 	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
@@ -332,10 +333,18 @@ func routeDispatchRequest(c fiber.Ctx, actor identity.Actor) routes.DispatchRequ
 	if actor.IsSuperAdmin() {
 		permissions["*"] = true
 	}
+	credentialSource := routes.DispatchCredentialSource("")
+	if actor.ID > 0 && actor.IsActive() {
+		credentialSource = routes.DispatchCredentialCookie
+		if apitokens.TokenIDFromContext(c.Context()) > 0 {
+			credentialSource = routes.DispatchCredentialBearer
+		}
+	}
 	return routes.DispatchRequest{
 		Method: c.Method(), Path: c.Path(), Query: string(c.Request().URI().QueryString()),
 		Headers: fasthttpRequestHeaders(c), Body: append([]byte(nil), c.Body()...),
-		ActorID: actor.ID, Authenticated: actor.ID > 0 && actor.IsActive(), Permissions: permissions,
+		ActorID: actor.ID, Authenticated: actor.ID > 0 && actor.IsActive(),
+		CredentialSource: credentialSource, Permissions: permissions,
 	}
 }
 

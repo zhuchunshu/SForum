@@ -16,12 +16,47 @@ import (
 
 	"github.com/gofiber/fiber/v3"
 
+	apitokens "github.com/zhuchunshu/sforum/apps/api/app/Models/APITokens"
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
 	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
 	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
 	routes "github.com/zhuchunshu/sforum/apps/api/app/Support/Routes"
 	"github.com/zhuchunshu/sforum/apps/api/config"
 )
+
+func TestRouteDispatchRequestCapturesHostCredentialSource(t *testing.T) {
+	tests := []struct {
+		name   string
+		actor  identity.Actor
+		bearer bool
+		want   routes.DispatchCredentialSource
+	}{
+		{name: "anonymous"},
+		{name: "cookie", actor: identity.Actor{ID: 7, Status: identity.UserStatusActive}, want: routes.DispatchCredentialCookie},
+		{name: "bearer", actor: identity.Actor{ID: 7, Status: identity.UserStatusActive}, bearer: true, want: routes.DispatchCredentialBearer},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			app := fiber.New()
+			var captured routes.DispatchRequest
+			app.Get("/", func(c fiber.Ctx) error {
+				if test.bearer {
+					c.SetContext(apitokens.WithAuth(c.Context(), apitokens.Authenticated{UserID: 7, TokenID: 11}))
+				}
+				captured = routeDispatchRequest(c, test.actor)
+				return c.SendStatus(fiber.StatusNoContent)
+			})
+			response, err := app.Test(httptest.NewRequest(stdhttp.MethodGet, "/", nil))
+			if err != nil {
+				t.Fatal(err)
+			}
+			_ = response.Body.Close()
+			if captured.CredentialSource != test.want {
+				t.Fatalf("credential source = %q, want %q", captured.CredentialSource, test.want)
+			}
+		})
+	}
+}
 
 func TestRouteDispatcherMiddlewareLeavesCoreOnlyStreamUncapturedAndCallsNextOnce(t *testing.T) {
 	registry := routes.NewRegistry()

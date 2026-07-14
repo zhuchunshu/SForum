@@ -129,8 +129,11 @@ func TestProductionCoreGuardEvaluatorRegistryIsExplicitAndVersioned(t *testing.T
 
 func TestProductionForumReadGuardPartitionsCatalogByProvablePolicy(t *testing.T) {
 	type expectedRoute struct {
-		method    string
-		supported bool
+		method     string
+		body       string
+		query      string
+		cookieOnly bool
+		supported  bool
 	}
 	expected := map[string]expectedRoute{
 		"core.route.forum.composer_toolbar": {method: "GET", supported: true},
@@ -350,16 +353,19 @@ func (p *testForumReadPolicy) ForumReadPolicySnapshot() (string, string, uint64,
 
 func TestProductionIdentitySelfCredentialsGuardPartitionsCatalogByProvablePolicy(t *testing.T) {
 	type expectedRoute struct {
-		method    string
-		supported bool
+		method     string
+		body       string
+		query      string
+		cookieOnly bool
+		supported  bool
 	}
 	expected := map[string]expectedRoute{
 		"core.route.identity.list_sessions":         {method: "GET", supported: true},
 		"core.route.identity.revoke_other_sessions": {method: "POST", supported: true},
 
 		"core.route.identity.revoke_session":  {method: "DELETE"},
-		"core.route.identity.list_apitokens":  {method: "GET"},
-		"core.route.identity.create_apitoken": {method: "POST"},
+		"core.route.identity.list_apitokens":  {method: "GET", query: "includeRevoked=false", cookieOnly: true, supported: true},
+		"core.route.identity.create_apitoken": {method: "POST", body: `{"name":"automation","scopes":["post.create"]}`, cookieOnly: true, supported: true},
 		"core.route.identity.revoke_apitoken": {method: "DELETE"},
 		"core.route.identity.rotate_apitoken": {method: "POST"},
 	}
@@ -394,12 +400,15 @@ func TestProductionIdentitySelfCredentialsGuardPartitionsCatalogByProvablePolicy
 
 		// 会话自服务允许 scope 收窄的 PAT；资源主体仍只能是 Host ActorID。
 		allowed := productionGuardRequest(identity.PermissionPostCreate)
-		allowed.Method, allowed.Path = plan.Method(), plan.Path()
+		allowed.Method, allowed.Path, allowed.Query, allowed.Body = plan.Method(), plan.Path(), want.query, []byte(want.body)
+		if want.cookieOnly {
+			allowed.CredentialSource = routes.DispatchCredentialCookie
+		}
 		if err := authorizer.Authorize(context.Background(), plan, step, allowed); err != nil {
 			t.Fatalf("%s authenticated PAT error = %v", route.ID, err)
 		}
 
-		anonymous := routes.DispatchRequest{Method: plan.Method(), Path: plan.Path()}
+		anonymous := routes.DispatchRequest{Method: plan.Method(), Path: plan.Path(), Query: want.query, Body: []byte(want.body)}
 		if err := authorizer.Authorize(context.Background(), plan, step, anonymous); !errors.Is(err, ErrRouteLoginRequired) {
 			t.Fatalf("%s anonymous error = %v", route.ID, err)
 		}
@@ -419,6 +428,13 @@ func TestProductionIdentitySelfCredentialsGuardPartitionsCatalogByProvablePolicy
 		if err := authorizer.Authorize(context.Background(), plan, step, forgedRequest); !errors.Is(err, ErrRouteGuardUnavailable) {
 			t.Fatalf("%s forged request error = %v", route.ID, err)
 		}
+		if want.cookieOnly {
+			bearer := allowed
+			bearer.CredentialSource = routes.DispatchCredentialBearer
+			if err := authorizer.Authorize(context.Background(), plan, step, bearer); !errors.Is(err, ErrRoutePermissionDenied) {
+				t.Fatalf("%s bearer credential error = %v", route.ID, err)
+			}
+		}
 	}
 	if len(expected) != 0 {
 		t.Fatalf("missing identity self credentials routes = %#v", expected)
@@ -434,6 +450,45 @@ func TestProductionIdentitySelfCredentialsGuardRejectsForeignRouteID(t *testing.
 	request.Method, request.Path = plan.Method(), plan.Path()
 	if err := NewProductionRouteGuardAuthorizer().Authorize(context.Background(), plan, step, request); !errors.Is(err, ErrRouteGuardUnavailable) {
 		t.Fatalf("foreign identity self credentials route error = %v", err)
+	}
+}
+
+func TestProductionAPITokenSelfGuardRejectsCredentialAndPayloadDrift(t *testing.T) {
+	targets := map[string]routes.CoreRoute{}
+	for _, route := range routes.CoreRouteCatalog() {
+		if route.ID == "core.route.identity.list_apitokens" || route.ID == "core.route.identity.create_apitoken" {
+			targets[route.ID] = route
+		}
+	}
+	authorizer := NewProductionRouteGuardAuthorizer()
+	listPlan, listStep := productionCatalogInheritedGuardPlan(t, targets["core.route.identity.list_apitokens"])
+	for _, query := range []string{"includeRevoked=1", "includeRevoked=true&includeRevoked=false", "future=1", "%zz"} {
+		request := productionGuardRequest()
+		request.CredentialSource = routes.DispatchCredentialCookie
+		request.Method, request.Path, request.Query = listPlan.Method(), listPlan.Path(), query
+		if err := authorizer.Authorize(context.Background(), listPlan, listStep, request); !errors.Is(err, ErrRouteGuardUnavailable) {
+			t.Fatalf("query %q error = %v", query, err)
+		}
+	}
+
+	createPlan, createStep := productionCatalogInheritedGuardPlan(t, targets["core.route.identity.create_apitoken"])
+	for _, body := range []string{
+		`{"name":"automation","scopes":[""]}`,
+		`{"name":"automation","scopes":["post.create"],"future":true}`,
+		`{"name":"automation","scopes":`,
+	} {
+		request := productionGuardRequest()
+		request.CredentialSource = routes.DispatchCredentialCookie
+		request.Method, request.Path, request.Body = createPlan.Method(), createPlan.Path(), []byte(body)
+		if err := authorizer.Authorize(context.Background(), createPlan, createStep, request); !errors.Is(err, ErrRouteGuardUnavailable) {
+			t.Fatalf("body %s error = %v", body, err)
+		}
+	}
+	request := productionGuardRequest()
+	request.Method, request.Path = createPlan.Method(), createPlan.Path()
+	request.Body = []byte(`{"name":"automation","scopes":["post.create"]}`)
+	if err := authorizer.Authorize(context.Background(), createPlan, createStep, request); !errors.Is(err, ErrRoutePermissionDenied) {
+		t.Fatalf("missing credential source error = %v", err)
 	}
 }
 

@@ -878,10 +878,55 @@ func requireIdentitySelfCredentialsAuthority(ctx context.Context, evaluation rou
 	case "core.route.identity.list_sessions", "core.route.identity.revoke_other_sessions":
 		// 两条路径始终以 Host 认证的 ActorID 查询/更新，不接收目标 user_id。
 		return requireAuthenticatedCoreGuardActor(ctx, evaluation)
+	case "core.route.identity.list_apitokens":
+		if err := requireCookieCredentialAuthority(ctx, evaluation); err != nil {
+			return err
+		}
+		query, err := url.ParseQuery(evaluation.Request.Query)
+		if err != nil || len(query) > 1 {
+			return routes.ErrCoreGuardEvaluatorUnavailable
+		}
+		if len(query) == 1 {
+			values, exists := query["includeRevoked"]
+			if !exists || len(values) != 1 || (values[0] != "true" && values[0] != "false") {
+				return routes.ErrCoreGuardEvaluatorUnavailable
+			}
+		}
+		return nil
+	case "core.route.identity.create_apitoken":
+		if err := requireCookieCredentialAuthority(ctx, evaluation); err != nil {
+			return err
+		}
+		var input createAPITokenGuardInput
+		if err := decodeGuardJSON(evaluation.Request.Body, &input); err != nil {
+			return routes.ErrCoreGuardEvaluatorUnavailable
+		}
+		for _, scope := range input.Scopes {
+			if strings.TrimSpace(scope) == "" {
+				return routes.ErrCoreGuardEvaluatorUnavailable
+			}
+		}
+		return nil
 	default:
 		// 单会话撤销依赖 sid 所有权；PAT 管理还要求真实 cookie 会话。
 		return routes.ErrCoreGuardEvaluatorUnavailable
 	}
+}
+
+type createAPITokenGuardInput struct {
+	Name      string   `json:"name"`
+	Scopes    []string `json:"scopes"`
+	ExpiresAt *string  `json:"expiresAt"`
+}
+
+func requireCookieCredentialAuthority(ctx context.Context, evaluation routes.CoreGuardEvaluation) error {
+	if err := requireAuthenticatedCoreGuardActor(ctx, evaluation); err != nil {
+		return err
+	}
+	if evaluation.Request.CredentialSource != routes.DispatchCredentialCookie {
+		return routes.ErrCoreGuardPermissionDenied
+	}
+	return nil
 }
 
 func requireForumTopicGlobalAuthority(_ context.Context, evaluation routes.CoreGuardEvaluation) error {

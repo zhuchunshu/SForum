@@ -21,16 +21,24 @@ var (
 )
 
 type DispatchRequest struct {
-	Method        string
-	Path          string
-	Query         string
-	Headers       http.Header
-	Body          []byte
-	Params        map[string]string
-	ActorID       int64
-	Authenticated bool
-	Permissions   map[string]bool
+	Method           string
+	Path             string
+	Query            string
+	Headers          http.Header
+	Body             []byte
+	Params           map[string]string
+	ActorID          int64
+	Authenticated    bool
+	CredentialSource DispatchCredentialSource
+	Permissions      map[string]bool
 }
+
+type DispatchCredentialSource string
+
+const (
+	DispatchCredentialCookie DispatchCredentialSource = "cookie"
+	DispatchCredentialBearer DispatchCredentialSource = "bearer"
+)
 
 type DispatchResponse struct {
 	Status  int
