@@ -1,0 +1,248 @@
+package hostapi_test
+
+import (
+	"context"
+	"fmt"
+	"os"
+	"strconv"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
+	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
+	hostapi "github.com/zhuchunshu/sforum/apps/api/app/Support/HostAPI"
+	"github.com/zhuchunshu/sforum/apps/api/database/migrator"
+	hostv2 "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/host/v2"
+	protocolv2 "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/protocol/v2"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/structpb"
+)
+
+func TestPostgresProtocolV2DatabaseRuntimeExactTransactionsAndRevocation(t *testing.T) {
+	databaseURL := strings.TrimSpace(os.Getenv("DATABASE_URL"))
+	if databaseURL == "" {
+		t.Skip("DATABASE_URL is required for DatabaseService integration test")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 40*time.Second)
+	defer cancel()
+	if err := migrator.Up(ctx, migrator.Config{DatabaseURL: databaseURL}); err != nil {
+		t.Fatalf("prepare database schema: %v", err)
+	}
+	pool, err := pgxpool.New(ctx, databaseURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer pool.Close()
+
+	extensionID := fmt.Sprintf("p5.database-service.%d", time.Now().UnixNano())
+	version := "1.0.0"
+	digest := strings.Repeat("d", 64)
+	artifact, trustGrantID := insertDatabaseServiceArtifact(t, ctx, pool, extensionID, version, digest)
+	identifiers, err := extensionsruntime.ExtensionDatabaseIdentifiersFor(extensionID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	registry := extensionsruntime.NewPostgresExtensionDatabaseRegistry(pool, nil)
+	if _, err := registry.ProvisionOwnSchema(ctx, extensionsruntime.ExtensionDatabaseGrantRequest{
+		Artifact: artifact, ActorUserID: 701, AuditEventID: 801,
+	}); err != nil {
+		t.Fatalf("provision exact own-schema grant: %v", err)
+	}
+	installDatabaseServiceTable(t, ctx, pool, identifiers)
+	t.Cleanup(func() {
+		cleanupDatabaseServiceArtifact(t, pool, artifact, identifiers)
+	})
+
+	identity := &protocolv2.ExtensionIdentity{
+		ExtensionId: extensionID, ExtensionVersion: version, ArtifactDigest: digest,
+		TrustGrantId: strconv.FormatInt(trustGrantID, 10), RuntimeEpoch: 1,
+		InstanceId: "database-service-runtime-1",
+	}
+	queryID := extensionID + ".items.list"
+	executeID := extensionID + ".items.create"
+	parameterSchema := extensionID + ".parameter"
+	resultSchema := extensionID + ".result"
+	columns := []hostapi.ProtocolV2DatabaseColumn{{Name: "id"}, {Name: "name"}}
+	runtime, err := hostapi.NewPostgresProtocolV2DatabaseRuntime(
+		pool,
+		[]hostapi.ProtocolV2DatabaseQueryDefinition{{
+			ExtensionID: extensionID, ExtensionVersion: version, PackageDigest: digest,
+			OperationID: queryID, StatementVersion: "1", Scope: hostapi.ProtocolV2DatabaseOwnSchema,
+			SQL: "SELECT id, name FROM items ORDER BY id", ResultSchemaID: resultSchema,
+			ResultSchemaVersion: "1", Columns: columns, MaxRows: 10,
+		}},
+		[]hostapi.ProtocolV2DatabaseExecuteDefinition{{
+			ExtensionID: extensionID, ExtensionVersion: version, PackageDigest: digest,
+			OperationID: executeID, StatementVersion: "1",
+			SQL: "INSERT INTO items (name) VALUES ($1) RETURNING id, name",
+			Parameters: []hostapi.ProtocolV2DatabaseParameter{{
+				SchemaID: parameterSchema, SchemaVersion: "1", Field: "value",
+				Kind: hostapi.ProtocolV2DatabaseString, MaxBytes: 100,
+			}},
+			ResultSchemaID: resultSchema, ResultSchemaVersion: "1",
+			ReturningColumns: columns, MaxAffectedRows: 1,
+		}},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	service := runtime.DatabaseService()
+
+	execute := &hostv2.DatabaseExecuteRequest{
+		Context:     databaseServiceContext(t, identity, "database-e2e-1"),
+		OperationId: executeID, StatementVersion: "1", IdempotencyKey: "database-e2e-1",
+		Parameters: []*protocolv2.TypedDocument{databaseServiceParameter(t, parameterSchema, "created")},
+	}
+	executeResponse, err := service.Execute(hostapi.ContextWithProtocolV2RuntimeIdentity(ctx, identity), execute)
+	if err != nil || executeResponse.GetError() != nil || executeResponse.GetAffectedRows() != 1 ||
+		executeResponse.GetResult().GetValue().AsMap()["name"] != "created" {
+		t.Fatalf("execute exact operation: response=%#v err=%v", executeResponse, err)
+	}
+
+	restarted := proto.Clone(identity).(*protocolv2.ExtensionIdentity)
+	restarted.RuntimeEpoch = 2
+	restarted.InstanceId = "database-service-runtime-2"
+	replay := proto.Clone(execute).(*hostv2.DatabaseExecuteRequest)
+	replay.Context.Extension = proto.Clone(restarted).(*protocolv2.ExtensionIdentity)
+	replayed, err := service.Execute(hostapi.ContextWithProtocolV2RuntimeIdentity(ctx, restarted), replay)
+	if err != nil || replayed.GetError() != nil || replayed.GetAffectedRows() != 1 {
+		t.Fatalf("replay after runtime restart: response=%#v err=%v", replayed, err)
+	}
+	var itemCount int
+	if err := pool.QueryRow(ctx, `SELECT count(*) FROM `+pgx.Identifier{identifiers.Schema, "items"}.Sanitize()).Scan(&itemCount); err != nil || itemCount != 1 {
+		t.Fatalf("idempotent replay wrote %d rows: %v", itemCount, err)
+	}
+
+	query := &hostv2.DatabaseQueryRequest{
+		Context:     databaseServiceContext(t, restarted, "database-e2e-query"),
+		OperationId: queryID, StatementVersion: "1", Page: &protocolv2.PageRequest{Limit: 10},
+	}
+	queryResponse, err := service.Query(hostapi.ContextWithProtocolV2RuntimeIdentity(ctx, restarted), query)
+	if err != nil || queryResponse.GetError() != nil || len(queryResponse.GetRows()) != 1 ||
+		queryResponse.GetRows()[0].GetValue().AsMap()["name"] != "created" {
+		t.Fatalf("query exact operation: response=%#v err=%v", queryResponse, err)
+	}
+
+	coreRuntime, err := hostapi.NewPostgresProtocolV2DatabaseRuntime(pool, []hostapi.ProtocolV2DatabaseQueryDefinition{{
+		ExtensionID: extensionID, ExtensionVersion: version, PackageDigest: digest,
+		OperationID: extensionID + ".core.probe", StatementVersion: "1", Scope: hostapi.ProtocolV2DatabaseOwnSchema,
+		SQL: "SELECT id FROM public.users", ResultSchemaID: resultSchema, ResultSchemaVersion: "1",
+		Columns: []hostapi.ProtocolV2DatabaseColumn{{Name: "id"}}, MaxRows: 1,
+	}}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	denied, err := coreRuntime.DatabaseService().Query(
+		hostapi.ContextWithProtocolV2RuntimeIdentity(ctx, restarted),
+		&hostv2.DatabaseQueryRequest{
+			Context:     databaseServiceContext(t, restarted, "database-core-denied"),
+			OperationId: extensionID + ".core.probe", StatementVersion: "1",
+		},
+	)
+	if err != nil || denied.GetError().GetReason() != "host.database_query_failed" ||
+		strings.Contains(strings.ToLower(denied.GetError().GetMessage()), "permission") || strings.Contains(denied.GetError().GetMessage(), "users") {
+		t.Fatalf("core isolation/error redaction: response=%#v err=%v", denied, err)
+	}
+
+	if err := registry.RevokeOwnSchema(ctx, extensionsruntime.ExtensionDatabaseGrantRequest{
+		Artifact: artifact, ActorUserID: 702, AuditEventID: 802,
+	}); err != nil {
+		t.Fatalf("revoke exact own-schema grant: %v", err)
+	}
+	revoked, err := service.Query(hostapi.ContextWithProtocolV2RuntimeIdentity(ctx, restarted), query)
+	if err != nil || revoked.GetError().GetReason() != "host.database_runtime_stale" {
+		t.Fatalf("revoked database grant remained callable: response=%#v err=%v", revoked, err)
+	}
+}
+
+func insertDatabaseServiceArtifact(
+	t *testing.T,
+	ctx context.Context,
+	pool *pgxpool.Pool,
+	extensionID, version, digest string,
+) (extensionsruntime.ExtensionDatabaseArtifact, int64) {
+	t.Helper()
+	manifest := fmt.Sprintf(`{"id":%q,"version":%q,"database":{"contractVersion":%q,"authority":"own_schema","schema":"logical_schema","role":"logical_role","backup":{"required":false},"retention":{"onDisable":"retain","onUninstall":"retain"}}}`, extensionID, version, extensionID+".database@1")
+	if _, err := pool.Exec(ctx, `
+		INSERT INTO extensions (id, type, name, status, source, is_system)
+		VALUES ($1, 'plugin', 'DatabaseService integration fixture', 'installed', 'uploaded', false)
+	`, extensionID); err != nil {
+		t.Fatal(err)
+	}
+	var versionID int64
+	if err := pool.QueryRow(ctx, `
+		INSERT INTO extension_versions (extension_id, version, manifest, package_path, package_digest)
+		VALUES ($1, $2, $3::jsonb, '/tmp/inert-database-service-fixture', $4)
+		RETURNING id
+	`, extensionID, version, manifest, digest).Scan(&versionID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, `UPDATE extensions SET status = 'enabled', active_version_id = $2 WHERE id = $1`, extensionID, versionID); err != nil {
+		t.Fatal(err)
+	}
+	var grantID int64
+	if err := pool.QueryRow(ctx, `
+		INSERT INTO extension_trust_grants (
+			extension_id, extension_version, package_digest, action,
+			artifact_digests, impact_document, impact_digest
+		) VALUES (
+			$1, $2, $3, 'enable', '{}'::jsonb, $4::jsonb, repeat('e', 64)
+		) RETURNING id
+	`, extensionID, version, digest, manifest).Scan(&grantID); err != nil {
+		t.Fatal(err)
+	}
+	return extensionsruntime.ExtensionDatabaseArtifact{
+		ExtensionID: extensionID, Version: version, VersionID: versionID, PackageDigest: digest,
+	}, grantID
+}
+
+func installDatabaseServiceTable(t *testing.T, ctx context.Context, pool *pgxpool.Pool, identifiers extensionsruntime.ExtensionDatabaseIdentifiers) {
+	t.Helper()
+	table := pgx.Identifier{identifiers.Schema, "items"}.Sanitize()
+	if _, err := pool.Exec(ctx, `CREATE TABLE `+table+` (id BIGSERIAL PRIMARY KEY, name TEXT NOT NULL)`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, `ALTER TABLE `+table+` OWNER TO `+pgx.Identifier{identifiers.OwnerRole}.Sanitize()); err != nil {
+		t.Fatal(err)
+	}
+	sequence := pgx.Identifier{identifiers.Schema, "items_id_seq"}.Sanitize()
+	if _, err := pool.Exec(ctx, `ALTER SEQUENCE `+sequence+` OWNER TO `+pgx.Identifier{identifiers.OwnerRole}.Sanitize()); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func cleanupDatabaseServiceArtifact(t *testing.T, pool *pgxpool.Pool, artifact extensionsruntime.ExtensionDatabaseArtifact, identifiers extensionsruntime.ExtensionDatabaseIdentifiers) {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	_, _ = pool.Exec(ctx, `DELETE FROM extension_host_command_receipts WHERE extension_id = $1`, artifact.ExtensionID)
+	_, _ = pool.Exec(ctx, `DELETE FROM extension_database_credentials WHERE extension_id = $1`, artifact.ExtensionID)
+	_, _ = pool.Exec(ctx, `DELETE FROM extension_database_grants WHERE extension_id = $1`, artifact.ExtensionID)
+	_, _ = pool.Exec(ctx, `DROP SCHEMA IF EXISTS `+pgx.Identifier{identifiers.Schema}.Sanitize()+` CASCADE`)
+	_, _ = pool.Exec(ctx, `REVOKE `+pgx.Identifier{identifiers.OwnerRole}.Sanitize()+` FROM `+pgx.Identifier{identifiers.RuntimeRole}.Sanitize())
+	_, _ = pool.Exec(ctx, `DROP ROLE IF EXISTS `+pgx.Identifier{identifiers.RuntimeRole}.Sanitize())
+	_, _ = pool.Exec(ctx, `DROP ROLE IF EXISTS `+pgx.Identifier{identifiers.OwnerRole}.Sanitize())
+	_, _ = pool.Exec(ctx, `DELETE FROM extension_database_resources WHERE extension_id = $1`, artifact.ExtensionID)
+	_, _ = pool.Exec(ctx, `DELETE FROM extension_trust_grants WHERE extension_id = $1`, artifact.ExtensionID)
+	_, _ = pool.Exec(ctx, `UPDATE extensions SET active_version_id = NULL WHERE id = $1`, artifact.ExtensionID)
+	_, _ = pool.Exec(ctx, `DELETE FROM extensions WHERE id = $1`, artifact.ExtensionID)
+	_, _ = pool.Exec(ctx, `DELETE FROM audit_events WHERE metadata #>> '{extensionId}' = $1`, artifact.ExtensionID)
+}
+
+func databaseServiceContext(t *testing.T, identity *protocolv2.ExtensionIdentity, requestID string) *protocolv2.RequestContext {
+	t.Helper()
+	return &protocolv2.RequestContext{
+		RequestId: requestID, Extension: proto.Clone(identity).(*protocolv2.ExtensionIdentity),
+	}
+}
+
+func databaseServiceParameter(t *testing.T, schemaID, value string) *protocolv2.TypedDocument {
+	t.Helper()
+	document, err := structpb.NewStruct(map[string]any{"value": value})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return &protocolv2.TypedDocument{SchemaId: schemaID, SchemaVersion: "1", Value: document}
+}
