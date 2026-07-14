@@ -26,6 +26,10 @@ type LifecycleHostRuntime interface {
 	ForceDrain(RuntimeInstanceIdentity, error) (RuntimeAdmissionSnapshot, error)
 }
 
+type lifecycleHostRuntimeResumer interface {
+	ResumeRuntimeInstance(RuntimeInstanceIdentity) (RuntimeAdmissionSnapshot, error)
+}
+
 // LifecycleHostBoundaryResult deliberately excludes runtime bindings. Exact
 // process selection belongs to this dispatcher; database/registry/job/removal
 // boundaries may only return their durable checkpoint and typed result.
@@ -70,7 +74,16 @@ func (h *ExactLifecycleCoordinatorHost) RunLifecycleHostGate(
 		return extensions.LifecycleCoordinatorGateResult{}, err
 	}
 
-	switch lookupLifecycleHostGateKind(request.Operation, request.Position) {
+	kind := lookupLifecycleHostGateKind(request.Operation, request.Position)
+	if request.Revalidation && (kind == lifecycleHostGateStarting || kind == lifecycleHostGateHealthy || kind == lifecycleHostGateDrain) {
+		var err error
+		request, err = h.rebuildLifecycleHostRuntimes(ctx, request)
+		if err != nil {
+			return extensions.LifecycleCoordinatorGateResult{}, err
+		}
+	}
+
+	switch kind {
 	case lifecycleHostGatePrepare:
 		return h.prepareExactRuntimes(ctx, request)
 	case lifecycleHostGateStarting:
@@ -86,6 +99,29 @@ func (h *ExactLifecycleCoordinatorHost) RunLifecycleHostGate(
 			"%w: unsupported %s position %d", ErrLifecycleHostGateInvalid, request.Operation, request.Position,
 		)
 	}
+}
+
+func (h *ExactLifecycleCoordinatorHost) rebuildLifecycleHostRuntimes(
+	ctx context.Context,
+	request extensions.LifecycleCoordinatorGateRequest,
+) (extensions.LifecycleCoordinatorGateRequest, error) {
+	if lifecycleHostRequiresSource(request.Operation) {
+		source := lifecycleHostSourceExtension(request)
+		snapshot, err := h.ensureRuntime(ctx, source, request.SourceBinding)
+		if err != nil {
+			return request, fmt.Errorf("rebuild source runtime for revalidation: %w", err)
+		}
+		request.SourceBinding = lifecycleHostBinding(source, snapshot)
+	}
+	if lifecycleHostRequiresTarget(request.Operation) {
+		target := request.TargetExtension
+		snapshot, err := h.ensureRuntime(ctx, target, request.TargetBinding)
+		if err != nil {
+			return request, fmt.Errorf("rebuild target runtime for revalidation: %w", err)
+		}
+		request.TargetBinding = lifecycleHostBinding(target, snapshot)
+	}
+	return request, nil
 }
 
 type lifecycleHostGateKind uint8
@@ -244,12 +280,26 @@ func (h *ExactLifecycleCoordinatorHost) drainSource(
 	if err != nil {
 		return extensions.LifecycleCoordinatorGateResult{}, err
 	}
+	drainer, ok := h.boundary.(LifecycleHostDrainBoundary)
+	if !ok {
+		return extensions.LifecycleCoordinatorGateResult{}, fmt.Errorf(
+			"%w: jobs and schedules drain is required for %s position %d",
+			ErrLifecycleHostBoundaryMissing, request.Operation, request.Position,
+		)
+	}
+	if err := drainer.DrainLifecycleHostSources(ctx, request); err != nil {
+		return extensions.LifecycleCoordinatorGateResult{}, h.compensateLifecycleHostDrain(ctx, drainer, request, identity, err)
+	}
 	draining, err := h.runtime.BeginDrain(identity)
 	if err != nil {
-		return extensions.LifecycleCoordinatorGateResult{}, err
+		return extensions.LifecycleCoordinatorGateResult{}, h.compensateLifecycleHostDrain(ctx, drainer, request, identity, err)
 	}
 	if err := validateLifecycleHostAdmissionSnapshot("begin drain", draining, identity); err != nil {
-		return extensions.LifecycleCoordinatorGateResult{}, err
+		return extensions.LifecycleCoordinatorGateResult{}, h.compensateLifecycleHostDrain(ctx, drainer, request, identity, err)
+	}
+	if !draining.Draining {
+		err := fmt.Errorf("%w: begin drain did not close ordinary admission", ErrLifecycleHostGateInvalid)
+		return extensions.LifecycleCoordinatorGateResult{}, h.compensateLifecycleHostDrain(ctx, drainer, request, identity, err)
 	}
 	if request.Forced {
 		cause := fmt.Errorf("forced uninstall operation %d", request.OperationID)
@@ -260,11 +310,70 @@ func (h *ExactLifecycleCoordinatorHost) drainSource(
 		if err := validateLifecycleHostAdmissionSnapshot("force drain", forced, identity); err != nil {
 			return extensions.LifecycleCoordinatorGateResult{}, err
 		}
+		if !forced.Draining || !forced.Forced {
+			return extensions.LifecycleCoordinatorGateResult{}, fmt.Errorf(
+				"%w: force drain did not close and cancel ordinary admission", ErrLifecycleHostGateInvalid,
+			)
+		}
 	}
 	if err := h.runtime.WaitDrain(ctx, identity); err != nil {
+		if !request.Forced {
+			err = h.compensateLifecycleHostDrain(ctx, drainer, request, identity, err)
+		}
 		return extensions.LifecycleCoordinatorGateResult{}, err
 	}
 	return lifecycleHostProcessResult(request), nil
+}
+
+func (h *ExactLifecycleCoordinatorHost) compensateLifecycleHostDrain(
+	ctx context.Context,
+	drainer LifecycleHostDrainBoundary,
+	request extensions.LifecycleCoordinatorGateRequest,
+	identity RuntimeInstanceIdentity,
+	cause error,
+) error {
+	compensationCtx, cancel := lifecycleBoundaryCompensationContext(ctx)
+	defer cancel()
+	canResume, policyErr := drainer.CanResumeLifecycleHostSources(compensationCtx, request)
+	if policyErr != nil || !canResume {
+		closeErr := h.closeLifecycleHostRuntime(compensationCtx, identity)
+		if policyErr != nil || closeErr != nil {
+			return lifecycleBoundaryFailure(cause, []error{errors.Join(
+				fmt.Errorf("inspect source resume policy: %w", policyErr), closeErr,
+			)})
+		}
+		return cause
+	}
+	resumer, ok := h.runtime.(lifecycleHostRuntimeResumer)
+	if !ok {
+		closeErr := h.closeLifecycleHostRuntime(compensationCtx, identity)
+		return lifecycleBoundaryFailure(cause, []error{errors.Join(fmt.Errorf("exact runtime resume is unavailable"), closeErr)})
+	}
+	resumed, err := resumer.ResumeRuntimeInstance(identity)
+	if err == nil {
+		err = validateLifecycleBoundaryAdmission("resume source after drain failure", resumed, identity, false, false)
+	}
+	if err != nil {
+		closeErr := h.closeLifecycleHostRuntime(compensationCtx, identity)
+		return lifecycleBoundaryFailure(cause, []error{errors.Join(fmt.Errorf("resume source runtime: %w", err), closeErr)})
+	}
+	if err := drainer.ResumeLifecycleHostSources(compensationCtx, request); err != nil {
+		// Keep both admission families closed if schedules cannot be reopened.
+		closeErr := h.closeLifecycleHostRuntime(compensationCtx, identity)
+		return lifecycleBoundaryFailure(cause, []error{errors.Join(fmt.Errorf("resume jobs and schedules: %w", err), closeErr)})
+	}
+	return cause
+}
+
+func (h *ExactLifecycleCoordinatorHost) closeLifecycleHostRuntime(ctx context.Context, identity RuntimeInstanceIdentity) error {
+	snapshot, err := h.runtime.BeginDrain(identity)
+	if err != nil {
+		return err
+	}
+	if err := validateLifecycleBoundaryAdmission("close source runtime", snapshot, identity, true, false); err != nil {
+		return err
+	}
+	return h.runtime.WaitDrain(ctx, identity)
 }
 
 func (h *ExactLifecycleCoordinatorHost) runBoundary(
@@ -415,6 +524,7 @@ func validateLifecycleHostGateRequest(request extensions.LifecycleCoordinatorGat
 	if err := validateExactCoordinatorAuthority(extensions.LifecycleCoordinatorActionRequest{
 		AuthorityType: request.AuthorityType, TrustGrantID: request.TrustGrantID,
 		AuthoritySnapshot: request.AuthoritySnapshot, ActorUserID: request.ActorUserID,
+		AuthorityActorUserID: request.AuthorityActorUserID,
 	}, request.TargetExtension); err != nil {
 		return err
 	}

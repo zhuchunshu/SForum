@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"testing"
 
@@ -193,18 +194,34 @@ func TestExactLifecycleCoordinatorHostRejectsRuntimeSnapshotDrift(t *testing.T) 
 		{
 			name: "begin drain identity", operation: extensions.LifecycleMachineDisable, position: 1,
 			configure: func(runtime *lifecycleHostRuntimeTestDouble, _ extensions.LifecycleCoordinatorGateRequest) {
-				result := RuntimeAdmissionSnapshot{Identity: RuntimeInstanceIdentity{ExtensionID: "demo.lifecycle", InstanceID: "another-source"}}
+				result := RuntimeAdmissionSnapshot{Identity: RuntimeInstanceIdentity{ExtensionID: "demo.lifecycle", InstanceID: "another-source"}, Draining: true}
 				runtime.beginResult = &result
 			},
 			want: ErrRuntimeInstanceConflict,
 		},
 		{
+			name: "begin drain remains open", operation: extensions.LifecycleMachineDisable, position: 1,
+			configure: func(runtime *lifecycleHostRuntimeTestDouble, request extensions.LifecycleCoordinatorGateRequest) {
+				result := RuntimeAdmissionSnapshot{Identity: lifecycleHostIdentityFor(request.SourceBinding)}
+				runtime.beginResult = &result
+			},
+			want: ErrLifecycleHostGateInvalid,
+		},
+		{
 			name: "force drain identity", operation: extensions.LifecycleMachineUninstall, position: 2, forced: true,
 			configure: func(runtime *lifecycleHostRuntimeTestDouble, _ extensions.LifecycleCoordinatorGateRequest) {
-				result := RuntimeAdmissionSnapshot{Identity: RuntimeInstanceIdentity{ExtensionID: "demo.lifecycle", InstanceID: "another-source"}}
+				result := RuntimeAdmissionSnapshot{Identity: RuntimeInstanceIdentity{ExtensionID: "demo.lifecycle", InstanceID: "another-source"}, Draining: true, Forced: true}
 				runtime.forceResult = &result
 			},
 			want: ErrRuntimeInstanceConflict,
+		},
+		{
+			name: "force drain is not forced", operation: extensions.LifecycleMachineUninstall, position: 2, forced: true,
+			configure: func(runtime *lifecycleHostRuntimeTestDouble, request extensions.LifecycleCoordinatorGateRequest) {
+				result := RuntimeAdmissionSnapshot{Identity: lifecycleHostIdentityFor(request.SourceBinding), Draining: true}
+				runtime.forceResult = &result
+			},
+			want: ErrLifecycleHostGateInvalid,
 		},
 	}
 
@@ -216,7 +233,7 @@ func TestExactLifecycleCoordinatorHostRejectsRuntimeSnapshotDrift(t *testing.T) 
 			seedLifecycleHostExactInstances(runtime, request)
 			test.configure(runtime, request)
 
-			_, err := NewExactLifecycleCoordinatorHost(runtime, nil).RunLifecycleHostGate(context.Background(), request)
+			_, err := NewExactLifecycleCoordinatorHost(runtime, &lifecycleHostBoundaryTestDouble{}).RunLifecycleHostGate(context.Background(), request)
 			if !errors.Is(err, test.want) {
 				t.Fatalf("RunLifecycleHostGate() error = %v, want %v", err, test.want)
 			}
@@ -224,12 +241,84 @@ func TestExactLifecycleCoordinatorHostRejectsRuntimeSnapshotDrift(t *testing.T) 
 	}
 }
 
+func TestExactLifecycleCoordinatorHostRebuildsFreshManagerForProcessRevalidation(t *testing.T) {
+	tests := []struct {
+		name     string
+		position int
+	}{
+		{"drain", 2},
+		{"starting", 5},
+		{"healthy", 6},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			request := lifecycleHostTestRequest(t, extensions.LifecycleMachineUpgrade, test.position)
+			request.Revalidation = true
+
+			oldManager := NewManager(ManagerConfig{Starter: newManagerStagedStarter()})
+			oldSource, err := oldManager.StageRuntimeInstance(context.Background(), *request.SourceExtension)
+			if err != nil {
+				t.Fatal(err)
+			}
+			oldTarget, err := oldManager.StageRuntimeInstance(context.Background(), request.TargetExtension)
+			if err != nil {
+				t.Fatal(err)
+			}
+			request.SourceBinding = lifecycleHostBinding(*request.SourceExtension, oldSource)
+			request.TargetBinding = lifecycleHostBinding(request.TargetExtension, oldTarget)
+
+			freshStarter := newManagerStagedStarter()
+			freshStarter.next = 100
+			freshManager := NewManager(ManagerConfig{Starter: freshStarter})
+			result, err := NewExactLifecycleCoordinatorHost(
+				freshManager, &lifecycleHostBoundaryTestDouble{},
+			).RunLifecycleHostGate(context.Background(), request)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if result.RevalidationPolicy != extensions.LifecycleGateRevalidationRequired ||
+				result.SourceBinding.RuntimeInstanceID == oldSource.Identity.InstanceID ||
+				result.TargetBinding.RuntimeInstanceID == oldTarget.Identity.InstanceID {
+				t.Fatalf("revalidation result = %#v", result)
+			}
+			for role, binding := range map[string]extensions.LifecycleRuntimeBinding{
+				"source": result.SourceBinding, "target": result.TargetBinding,
+			} {
+				snapshot, inspectErr := freshManager.InspectRuntimeInstance(lifecycleHostIdentityFor(binding))
+				if inspectErr != nil || snapshot.ExtensionVersion != binding.ExtensionVersion ||
+					snapshot.ArtifactDigest != binding.PackageDigest {
+					t.Fatalf("fresh %s runtime = %#v, %v", role, snapshot, inspectErr)
+				}
+			}
+		})
+	}
+}
+
+func TestExactLifecycleCoordinatorHostDoesNotReplaceStaleBindingOutsideRevalidation(t *testing.T) {
+	request := lifecycleHostTestRequest(t, extensions.LifecycleMachineUpgrade, 5)
+	starter := newManagerStagedStarter()
+	starter.next = 100
+	manager := NewManager(ManagerConfig{Starter: starter})
+	_, err := NewExactLifecycleCoordinatorHost(manager, &lifecycleHostBoundaryTestDouble{}).RunLifecycleHostGate(
+		context.Background(), request,
+	)
+	if !errors.Is(err, ErrRuntimeInstanceNotFound) || starter.next != 100 {
+		t.Fatalf("non-revalidation stale binding = %v, starts=%d", err, starter.next-100)
+	}
+}
+
 func TestExactLifecycleCoordinatorHostForceDrainIsUninstallOnly(t *testing.T) {
 	request := lifecycleHostTestRequest(t, extensions.LifecycleMachineUninstall, 2)
 	request.Forced = true
 	runtime := newLifecycleHostRuntimeTestDouble()
+	boundary := &lifecycleHostBoundaryTestDouble{}
+	boundary.drainInspect = func(_ extensions.LifecycleCoordinatorGateRequest) {
+		if len(runtime.calls) != 0 {
+			t.Fatalf("runtime drain started before jobs/schedules closed: %#v", runtime.calls)
+		}
+	}
 
-	result, err := NewExactLifecycleCoordinatorHost(runtime, nil).RunLifecycleHostGate(context.Background(), request)
+	result, err := NewExactLifecycleCoordinatorHost(runtime, boundary).RunLifecycleHostGate(context.Background(), request)
 	if err != nil || result.SourceBinding != request.SourceBinding {
 		t.Fatalf("forced uninstall drain = %#v, error = %v", result, err)
 	}
@@ -242,7 +331,7 @@ func TestExactLifecycleCoordinatorHostForceDrainIsUninstallOnly(t *testing.T) {
 	disable := lifecycleHostTestRequest(t, extensions.LifecycleMachineDisable, 1)
 	disable.Forced = true
 	disableRuntime := newLifecycleHostRuntimeTestDouble()
-	_, err = NewExactLifecycleCoordinatorHost(disableRuntime, nil).RunLifecycleHostGate(context.Background(), disable)
+	_, err = NewExactLifecycleCoordinatorHost(disableRuntime, &lifecycleHostBoundaryTestDouble{}).RunLifecycleHostGate(context.Background(), disable)
 	if !errors.Is(err, ErrInvalidLifecycleRun) || len(disableRuntime.calls) != 0 {
 		t.Fatalf("forced disable error = %v, calls = %#v", err, disableRuntime.calls)
 	}
@@ -317,14 +406,14 @@ func TestExactLifecycleCoordinatorHostPropagatesDependencyErrors(t *testing.T) {
 			configure: func(runtime *lifecycleHostRuntimeTestDouble, _ *lifecycleHostBoundaryTestDouble, _ extensions.LifecycleCoordinatorGateRequest) {
 				runtime.beginErr = dependencyError
 			},
-			wantCalls: []string{"begin:target-instance"},
+			wantCalls: []string{"begin:target-instance", "resume:target-instance"},
 		},
 		{
 			name: "wait drain", operation: extensions.LifecycleMachineDisable, position: 1,
 			configure: func(runtime *lifecycleHostRuntimeTestDouble, _ *lifecycleHostBoundaryTestDouble, _ extensions.LifecycleCoordinatorGateRequest) {
 				runtime.waitErr = dependencyError
 			},
-			wantCalls: []string{"begin:target-instance", "wait:target-instance"},
+			wantCalls: []string{"begin:target-instance", "wait:target-instance", "resume:target-instance"},
 		},
 		{
 			name: "force drain", operation: extensions.LifecycleMachineUninstall, position: 2, forced: true,
@@ -357,6 +446,126 @@ func TestExactLifecycleCoordinatorHostPropagatesDependencyErrors(t *testing.T) {
 			assertLifecycleHostCalls(t, runtime.calls, test.wantCalls...)
 			if test.name == "boundary" && len(boundary.calls) != 1 {
 				t.Fatalf("boundary calls = %d", len(boundary.calls))
+			}
+		})
+	}
+}
+
+func TestExactLifecycleCoordinatorHostCommittedPublicationNeverReopensEarlyDrain(t *testing.T) {
+	dependencyError := errors.New("drain revalidation failed")
+	tests := []struct {
+		name      string
+		configure func(*lifecycleHostRuntimeTestDouble)
+	}{
+		{"begin", func(runtime *lifecycleHostRuntimeTestDouble) { runtime.beginErr = dependencyError }},
+		{"wait", func(runtime *lifecycleHostRuntimeTestDouble) { runtime.waitErr = dependencyError }},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			fixture := newComposedBoundaryFixture(t, extensions.LifecycleMachineUpgrade, 2)
+			fixture.request.Attempt = 2
+			fixture.journal.committed = true
+			runtime := newLifecycleHostRuntimeTestDouble()
+			seedLifecycleHostExactInstances(runtime, fixture.request)
+			test.configure(runtime)
+
+			_, err := NewExactLifecycleCoordinatorHost(runtime, fixture.boundary).RunLifecycleHostGate(
+				context.Background(), fixture.request,
+			)
+			if !errors.Is(err, dependencyError) {
+				t.Fatalf("RunLifecycleHostGate() error = %v", err)
+			}
+			if slices.Contains(runtime.calls, "resume:source-instance") ||
+				countCall(fixture.calls, "jobs.resume:upgrade:source") != 0 {
+				t.Fatalf("committed source reopened: runtime=%#v boundary=%#v", runtime.calls, fixture.calls)
+			}
+			if len(fixture.journal.operationReads) != 1 || fixture.journal.operationReads[0].Position != 8 {
+				t.Fatalf("publication marker reads = %#v", fixture.journal.operationReads)
+			}
+		})
+	}
+}
+
+func TestExactLifecycleCoordinatorHostPostMigrationRevalidationRequiresSourceResumeProof(t *testing.T) {
+	cause := errors.New("revalidation jobs drain failed")
+	fixture := newComposedBoundaryFixture(t, extensions.LifecycleMachineUpgrade, 2)
+	fixture.request.Revalidation = true
+	fixture.request.Attempt = 2
+	fixture.jobs.drainErr = cause
+	fixture.migrations.resumeDenied = true
+	runtime := newLifecycleHostRuntimeTestDouble()
+
+	_, err := NewExactLifecycleCoordinatorHost(runtime, fixture.boundary).RunLifecycleHostGate(
+		context.Background(), fixture.request,
+	)
+	if !errors.Is(err, cause) || !errors.Is(err, ErrLifecycleBoundaryCompensationFailed) ||
+		!strings.Contains(err.Error(), ErrLifecycleBoundarySourceResumeUnsafe.Error()) {
+		t.Fatalf("RunLifecycleHostGate() error = %v", err)
+	}
+	if countCall(fixture.calls, "migrations.resume-proof:upgrade") != 1 ||
+		countCall(fixture.calls, "jobs.resume:upgrade:source") != 0 ||
+		len(fixture.journal.operationReads) != 1 || fixture.journal.operationReads[0].Position != 8 {
+		t.Fatalf("boundary compensation calls = %#v, marker reads = %#v", fixture.calls, fixture.journal.operationReads)
+	}
+	for _, call := range runtime.calls {
+		if strings.HasPrefix(call, "resume:") {
+			t.Fatalf("post-migration source reopened: %#v", runtime.calls)
+		}
+	}
+	if countCall(runtime.calls, "begin:staged-1.0.0") != 1 ||
+		countCall(runtime.calls, "stage:1.0.0") != 1 || countCall(runtime.calls, "stage:2.0.0") != 1 {
+		t.Fatalf("fresh runtime fail-closed calls = %#v", runtime.calls)
+	}
+}
+
+func TestExactLifecycleCoordinatorHostEarlyDrainCompensationFailsClosed(t *testing.T) {
+	cause := errors.New("jobs drain failed")
+	compensationError := errors.New("compensation failed")
+	tests := []struct {
+		name      string
+		configure func(*lifecycleHostRuntimeTestDouble, *lifecycleHostBoundaryTestDouble)
+		wantCalls []string
+		wantJobs  int
+	}{
+		{
+			name: "marker unknown",
+			configure: func(_ *lifecycleHostRuntimeTestDouble, boundary *lifecycleHostBoundaryTestDouble) {
+				boundary.resumePolicyErr = compensationError
+			},
+			wantCalls: []string{"begin:source-instance", "wait:source-instance"},
+		},
+		{
+			name: "runtime resume failure",
+			configure: func(runtime *lifecycleHostRuntimeTestDouble, _ *lifecycleHostBoundaryTestDouble) {
+				runtime.resumeErr = compensationError
+			},
+			wantCalls: []string{"resume:source-instance", "begin:source-instance", "wait:source-instance"},
+		},
+		{
+			name: "jobs resume failure",
+			configure: func(_ *lifecycleHostRuntimeTestDouble, boundary *lifecycleHostBoundaryTestDouble) {
+				boundary.drainResumeErr = compensationError
+			},
+			wantCalls: []string{"resume:source-instance", "begin:source-instance", "wait:source-instance"},
+			wantJobs:  1,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			request := lifecycleHostTestRequest(t, extensions.LifecycleMachineUpgrade, 2)
+			runtime := newLifecycleHostRuntimeTestDouble()
+			seedLifecycleHostExactInstances(runtime, request)
+			boundary := &lifecycleHostBoundaryTestDouble{drainErr: cause}
+			test.configure(runtime, boundary)
+
+			_, err := NewExactLifecycleCoordinatorHost(runtime, boundary).RunLifecycleHostGate(context.Background(), request)
+			if !errors.Is(err, cause) || !errors.Is(err, ErrLifecycleBoundaryCompensationFailed) ||
+				!strings.Contains(err.Error(), compensationError.Error()) {
+				t.Fatalf("RunLifecycleHostGate() error = %v", err)
+			}
+			assertLifecycleHostCalls(t, runtime.calls, test.wantCalls...)
+			if len(boundary.drainResumeCalls) != test.wantJobs {
+				t.Fatalf("jobs resume calls = %#v", boundary.drainResumeCalls)
 			}
 		})
 	}
@@ -417,11 +626,13 @@ type lifecycleHostRuntimeTestDouble struct {
 	stageResult    *RuntimeInstanceSnapshot
 	beginResult    *RuntimeAdmissionSnapshot
 	forceResult    *RuntimeAdmissionSnapshot
+	resumeResult   *RuntimeAdmissionSnapshot
 	stageErr       error
 	healthErr      error
 	beginErr       error
 	waitErr        error
 	forceErr       error
+	resumeErr      error
 	forceCauses    []error
 	stageContexts  []context.Context
 	healthContexts []context.Context
@@ -519,10 +730,17 @@ func (r *lifecycleHostRuntimeTestDouble) ForceDrain(identity RuntimeInstanceIden
 }
 
 type lifecycleHostBoundaryTestDouble struct {
-	contexts []context.Context
-	calls    []extensions.LifecycleCoordinatorGateRequest
-	result   LifecycleHostBoundaryResult
-	err      error
+	contexts         []context.Context
+	calls            []extensions.LifecycleCoordinatorGateRequest
+	drainCalls       []extensions.LifecycleCoordinatorGateRequest
+	drainResumeCalls []extensions.LifecycleCoordinatorGateRequest
+	result           LifecycleHostBoundaryResult
+	err              error
+	drainErr         error
+	drainResumeErr   error
+	resumePolicyErr  error
+	resumeDenied     bool
+	drainInspect     func(extensions.LifecycleCoordinatorGateRequest)
 }
 
 func (b *lifecycleHostBoundaryTestDouble) RunLifecycleHostBoundary(
@@ -559,7 +777,7 @@ func lifecycleHostTestRequest(
 		StepID:  fmt.Sprintf("lifecycle.%s.%02d.host.%s", operation, position, path[position].State),
 		Attempt: 2, Checkpoint: "checkpoint-1",
 		AuthorityType: extensions.LifecycleAuthorityTrustGrant, TrustGrantID: 51,
-		ActorUserID: 61, AuditEventID: 71,
+		AuthorityActorUserID: 61, ActorUserID: 61, AuditEventID: 71,
 	}
 	switch operation {
 	case extensions.LifecycleMachineInstall:
@@ -576,7 +794,7 @@ func lifecycleHostTestRequest(
 	if operation == extensions.LifecycleMachineUninstall {
 		request.RemovalMode = extensions.LifecycleRemovalPreserve
 	}
-	request.AuthoritySnapshot = exactCoordinatorTestAuthority(t, target, request.ActorUserID, request.TrustGrantID)
+	request.AuthoritySnapshot = exactCoordinatorTestAuthority(t, target, request.AuthorityActorUserID, request.TrustGrantID)
 	return request
 }
 
@@ -674,6 +892,9 @@ func assertLifecycleHostDispatch(
 			t.Fatal("health did not receive caller context")
 		}
 	case lifecycleHostGateDrain:
+		if len(boundary.drainCalls) != 1 || boundary.drainCalls[0].StepID != request.StepID {
+			t.Fatalf("jobs/schedules drain calls = %#v", boundary.drainCalls)
+		}
 		wantRuntime["begin"] = 1
 		wantRuntime["wait"] = 1
 		if len(runtime.waitContexts) != 1 || runtime.waitContexts[0] != ctx {
