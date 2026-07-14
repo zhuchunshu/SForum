@@ -613,16 +613,19 @@ func (r *Registry) Resolve(ctx context.Context, pageID string) (ResolvedPage, er
 		}
 		// 模板路径与 data schema 仅从已注册贡献读取，忽略客户端伪造
 		return ResolvedPage{
-			Page:           core.Page,
-			Provider:       binding.ExtensionID,
-			ExtensionID:    binding.ExtensionID,
-			ContributionID: binding.ContributionID,
-			Action:         string(ActionReplace),
-			Fallback:       false,
-			TemplatePath:   c.Template,
-			DataSource:     c.DataSource,
-			DataRoute:      c.DataRoute,
-			DataSchema:     c.DataSchema,
+			Page:              core.Page,
+			Provider:          binding.ExtensionID,
+			ExtensionID:       binding.ExtensionID,
+			ContributionID:    binding.ContributionID,
+			Action:            string(ActionReplace),
+			Fallback:          false,
+			TemplatePath:      c.Template,
+			DataSource:        c.DataSource,
+			DataRoute:         c.DataRoute,
+			DataSchema:        c.DataSchema,
+			Version:           c.Version,
+			PackageDigest:     c.PackageDigest,
+			RuntimeInstanceID: c.RuntimeInstanceID,
 		}, nil
 	}
 	// 绑定存在但贡献已卸载 → core

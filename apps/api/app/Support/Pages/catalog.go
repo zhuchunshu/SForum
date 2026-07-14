@@ -69,8 +69,11 @@ type ResolvedPage struct {
 	DataSource   string `json:"dataSource,omitempty"`
 	DataRoute    string `json:"dataRoute,omitempty"`
 	// DataSchema 为包内相对路径；replace 必须带入 ResolvedPage，否则 LoadForResolved 会丢 schema 校验。
-	DataSchema  string `json:"dataSchema,omitempty"`
-	PackageRoot string `json:"-"` // 仅服务端内部使用，不序列化
+	DataSchema        string `json:"dataSchema,omitempty"`
+	Version           string `json:"version,omitempty"`
+	PackageDigest     string `json:"packageDigest,omitempty"`
+	RuntimeInstanceID string `json:"runtimeInstanceId,omitempty"`
+	PackageRoot       string `json:"-"` // 仅服务端内部使用，不序列化
 }
 
 var coreCatalog = []PageDefinition{
