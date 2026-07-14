@@ -1,6 +1,6 @@
 # Extensions Module
 
-## Accepted V3 Target (P0-P3 Complete, P4 Active)
+## Accepted V3 Target (P0-P4 Complete, P5 Active)
 
 The accepted target, including the canonical 99-row comparison and detailed
 architecture mind map, is documented in
@@ -83,14 +83,15 @@ after a process restart. Coordinator execution claims and heartbeats every
 plugin action, Host gate, and forced skip with exact revision fencing and
 bounded detached terminal persistence.
 
-Static package upgrades are now inert candidates: `staged_version_id` is
+Static package upgrades are inert candidates: `staged_version_id` is
 separate from `active_version_id`; upload does not stop the active process,
 change enabled state, clear providers, revoke the active grant, execute hooks,
 or write migration execution history. Trust preview/challenge binds the staged
 artifact while runtime trust still binds the active artifact. An instance-bound
-admission gate provides the foundation for atomic drain closure and inflight
-wait. First-trusted-enable wiring, staged promotion, retained process drain,
-uninstall cleanup, and operator recovery UI remain active P4 work.
+admission gate closes routes, services, jobs, and schedule admission before
+waiting for inflight work. First trusted enable, staged promotion, retained
+runtime hooks, three uninstall data modes, Host finalization, and retry/skip/
+forced recovery UI are production-wired and covered by durable recovery tests.
 
 Versioned River plugin jobs now execute only against the live exact artifact,
 trust grant, job contract, and payload schema that authorized their enqueue.
@@ -98,7 +99,7 @@ The worker cancels legacy, revoked, removed, disabled, or incompatible rows;
 Manager and the V2 client repeat the check against the running and startup-
 frozen Manifest to close upgrade races. The deterministic upgrade policy
 selects execute, drain, declared payload migration, or cancel. Lifecycle-driven
-River row enumeration/migration remains part of the active drain coordinator.
+River row enumeration/migration is part of the production drain coordinator.
 
 ## Purpose
 

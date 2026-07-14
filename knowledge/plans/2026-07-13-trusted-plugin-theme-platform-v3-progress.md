@@ -1,8 +1,8 @@
 # Trusted Plugin And Theme Platform V3 Progress Ledger
 
 Date: 2026-07-14
-Overall progress: **27%**
-Active phase: **P4 - Lifecycle V2, Dependency Graph, And Authoritative Hooks (47%, 7 of 15 rows)**
+Overall progress: **31%**
+Active phase: **P5 - Plugin Database Registry And Real Migrations (0%, 0 of 17 rows)**
 
 This ledger is the durable percentage and context-compaction checkpoint for the
 V3 program. Update it before context compression, at every phase boundary, and
@@ -20,7 +20,7 @@ scaffolding, or demo-only code cannot satisfy a runtime exit criterion.
 | P1 Trust/recovery | 6% | 100% | 6% |
 | P2 Manifest/contracts | 7% | 100% | 7% |
 | P3 Host API v2 | 8% | 100% | 8% |
-| P4 Lifecycle/dependencies | 7% | 47% | 3% |
+| P4 Lifecycle/dependencies | 7% | 100% | 7% |
 | P5 Database/commands | 8% | 0% | 0% |
 | P6 Routes/middleware | 10% | 0% | 0% |
 | P7 Workflow/admin/query/identity | 10% | 0% | 0% |
@@ -638,3 +638,42 @@ phase percentage.
   It keeps the original exact-artifact authority immutable while recording the
   actor/audit/reason for every retry, skip, and forced-uninstall escalation.
 - User-owned `.reasonix`, `.zcode`, and `CLAUDE.md` deletions remain untouched.
+
+## P4 Exit Checkpoint
+
+- P4 is complete at **15 of 15 rows**. Overall V3 progress is **31%** and P5 is
+  active at **0 of 17 rows**.
+- Production bootstrap binds Service mutations to the PostgreSQL lifecycle
+  repository, exact protocol-v2 runtime, static preflight, migration engine,
+  River jobs, schedule admission, route/service/page registries, durable state,
+  publication journal, cleanup tombstone, database disposition, and terminal
+  physical-purge finalizer.
+- Static install remains inert. `install.plan` and `install` first run only in
+  the exact-artifact trusted enable transaction. Disable, upgrade, rollback,
+  and uninstall retain frozen authority and exact runtimes until their declared
+  hooks and Host-owned cleanup boundaries finish.
+- Preserve, export-then-remove, and complete removal have real PostgreSQL
+  coverage. Repeated uninstall, external cleanup failure, forced skip/recovery,
+  original actor/audit retention, crash replay, and incompatible queued jobs
+  are covered across Service, coordinator, boundary, and full-chain tests.
+- `9895221a8` makes the failed machine snapshot and typed error one durable
+  transition before terminal completion. `3b6480fb9` marks a successfully
+  claimed step lease `running`, so the exact PostgreSQL fence cannot reject its
+  own Host gate. `1982525d6` proves Service -> PostgreSQL coordinator -> real
+  protocol-v2 subprocess -> composed deactivation -> cleanup/finalizer.
+- Authenticated Chrome QA passed on desktop and 390px mobile for lifecycle
+  history, close behavior, long-id wrapping, and all three uninstall modes;
+  refreshed console warn/error output was empty.
+- Final gates passed: real PostgreSQL lifecycle suites, related five-package
+  race detection, five-package vet, and complete `./scripts/test.sh`, including
+  1,677 OpenAPI references, Nuxt typecheck, 212 routes, 117 UI surfaces, and 99
+  traceability rows.
+- P4 owns schedule admission and drain only. Dynamic plugin periodic trigger
+  registration remains a P7 deliverable and should use River
+  `PeriodicJobs.AddSafely` / `RemoveByID`; no current production trigger caller
+  bypasses the P4 admission gate.
+- P5 must reuse the already-landed deterministic Database Registry, scoped
+  credentials, exact migration engine, migration ledger, and uninstall data
+  disposition. Resume by auditing the 17 P5 rows against current production
+  code before implementing only the missing Host Query/Command and database
+  authority boundaries.

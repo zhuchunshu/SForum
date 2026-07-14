@@ -4,7 +4,7 @@ This is the entry point for project memory.
 
 ## Latest Handoff
 
-- **2026-07-14 Trusted Plugin And Theme Platform V3 P4 active (overall 27%, P4 47%)**
+- **2026-07-14 Trusted Plugin And Theme Platform V3 P4 complete, P5 active (overall 31%)**
   - Decision: `knowledge/decisions/2026-07-13-trusted-plugin-theme-platform-v3.md`
   - Task book: `knowledge/plans/2026-07-13-trusted-plugin-theme-platform-v3.md`
   - P4 handoff: `knowledge/sessions/2026-07-14-trusted-plugin-theme-platform-v3-p4-progress.md`
@@ -13,7 +13,7 @@ This is the entry point for project memory.
   - P0 catalogs and governance: `docs/extensions/v3/`
   - Decision contains the authoritative 27-row template comparison, 72-row
     plugin comparison, detailed architecture mind map, and boundary checklist
-  - P0 froze 99-row traceability, 204 routes, 113 UI surfaces, 33 admin
+  - P0 governance now tracks 99-row traceability, 212 routes, 117 UI surfaces, 33 admin
     surfaces, 19-module Extension Surface Matrix, stable identities, governance,
     migration gates, and performance baseline; CI rejects catalog drift
   - P1 completed exact-artifact one-use trust, delegated inert preview,
@@ -53,9 +53,14 @@ This is the entry point for project memory.
     frozen declarations before V2 dispatch, and cancel old incompatible rows;
     deterministic upgrade policy covers execute/drain/migrate/cancel, with a
     Host-owned exact replacement ledger and transactional planner
-  - Active parallel P4 work owns the real PostgreSQL/River lifecycle adapter
-    and coordinator lease heartbeat wiring; Service/HTTP, drain, uninstall
-    modes, and recovery UI remain open
+  - P4 is complete at 15/15: production bootstrap binds Service to the exact
+    coordinator, protocol-v2 runtime, PostgreSQL fences/publication journals,
+    migrations, jobs/schedules, registries, state, cleanup and finalization
+  - Preserve/export/complete removal, repeated uninstall, failure recovery,
+    retry/skip/forced controls, audit retention, and exact route/job/schedule
+    drain are verified; authenticated desktop/mobile browser QA is green
+  - P5 is active. Reuse the already-landed Database Registry, scoped roles,
+    exact migration engine, and uninstall disposition instead of rebuilding them
 
 - **2026-07-13 Legacy Web Release/runtime frontend builds removed**
   - Decision: `knowledge/decisions/2026-07-13-remove-legacy-web-release.md`

@@ -384,21 +384,21 @@ flowchart LR
 - [x] Implement `install.plan`, `install`, `enable`, `disable`, `upgrade.plan`,
       `upgrade.before`, `upgrade.after`, `rollback`, `uninstall.plan`,
       `uninstall`, and `uninstall.after` contracts.
-- [ ] Defer executable `install.plan` and `install` to the first trusted enable
+- [x] Defer executable `install.plan` and `install` to the first trusted enable
       transaction; static package installation must never invoke them.
 - [x] Resolve dependency graph and conflicts before code/migrations execute.
 - [x] Add lifecycle state machine with planned, migrating, starting, healthy,
       registering, enabled, draining, uninstalling, failed, and recovery states.
-- [ ] Require idempotency keys, stable step ids, checkpoints, progress, and
+- [x] Require idempotency keys, stable step ids, checkpoints, progress, and
       resumable failure behavior.
-- [ ] Run uninstall hooks while package/runtime and last approved authority are
+- [x] Run uninstall hooks while package/runtime and last approved authority are
       still available.
-- [ ] Support preserve data, export then remove, and complete removal modes.
-- [ ] Make plugin hooks primary for business/core/external cleanup and Host
+- [x] Support preserve data, export then remove, and complete removal modes.
+- [x] Make plugin hooks primary for business/core/external cleanup and Host
       cleanup primary for registrations/tokens/managed namespaces.
-- [ ] Add retry, skip-step, and forced uninstall UI with accurate residual-risk
+- [x] Add retry, skip-step, and forced uninstall UI with accurate residual-risk
       text.
-- [ ] Drain routes/jobs/schedules before disable/upgrade/uninstall.
+- [x] Drain routes/jobs/schedules before disable/upgrade/uninstall.
 - [x] Version queued job payloads and define drain/migrate/cancel behavior.
 
 ### Tests
@@ -406,7 +406,7 @@ flowchart LR
 - [x] Crash/retry at every lifecycle boundary.
 - [x] Dependency cycle, missing version, optional dependency, conflict, and
       provides resolution.
-- [ ] Idempotent repeated uninstall, external cleanup failure, forced removal,
+- [x] Idempotent repeated uninstall, external cleanup failure, forced removal,
       data preserve/export/delete, and audit coverage.
 - [x] Old-version queued jobs cannot execute against incompatible new code.
 

@@ -2,10 +2,11 @@
 
 ## Status
 
-- Overall V3: **27%**.
-- P0-P3: **100%**.
-- P4: **47%**, active (7 of 15 task/test rows complete).
-- Branch: `main`; last committed slice at this checkpoint: `b707fa47f`.
+- Overall V3: **31%**.
+- P0-P4: **100%**.
+- P5: **0%**, active (0 of 17 task/test rows complete).
+- Branch: `main`; P4 implementation exit at `1982525d6`, catalog exit at
+  `baa5f250a`.
 
 ## Registry And Service Production-Path Checkpoint
 
@@ -367,3 +368,51 @@
 - Official progress remains **27% overall** and **47% P4 (7/15)** until the
   production bootstrap/disposition slices converge and the complete P4 gate
   proves which task/test rows can be checked.
+
+## P4 Exit Handoff
+
+### Changed
+
+- P4 is complete at **15/15**; overall V3 is **31%** and P5 is now active.
+- Production lifecycle assembly, exact migrations, River and schedule drain,
+  registry/state publication, cleanup dispositions, finalization, Service/HTTP
+  recovery, and operator UI are all committed.
+- The final full-chain test starts a real protocol-v2 subprocess and proves
+  Service uninstall through PostgreSQL coordination, deactivation publication,
+  package/identity/runtime purge, preserved schema ownership, credential
+  revocation, durable receipt replay, and retained actor/audit evidence.
+- Stable identities now cover 212 routes and 117 UI surfaces, including
+  lifecycle recovery, upgrade/rollback, lifecycle dialog, and uninstall dialog.
+
+### Verification
+
+- Real PostgreSQL lifecycle suites: passed, including cleanup/finalizer and all
+  three database dispositions.
+- `go test -race` for Models/Extensions, Support/Extensions, HostAPI, Jobs, and
+  bootstrap: passed with no race.
+- `go vet` for the same five packages: passed.
+- Complete `./scripts/test.sh`: passed, including 1,677 OpenAPI references,
+  Nuxt typecheck, 212 routes, 117 UI surfaces, and 99 traceability rows.
+- Authenticated Chrome desktop and 390px mobile QA: passed with no relevant
+  console warnings/errors or horizontal overflow.
+
+### Decisions
+
+- P4 schedule work ends at exact admission/drain. P7 owns dynamic periodic
+  registration and must use River's native safe add/remove APIs.
+- Do not rebuild P5 prerequisites already landed during P4: Database Registry,
+  scoped roles/credentials, exact migration execution, and uninstall database
+  disposition are production code.
+
+### Next
+
+1. Audit all 17 P5 rows against current code and credit only production-backed
+   tests.
+2. Implement missing own-schema transaction, stable view, Host Query/Command,
+   raw-core authority, compatibility-block, and tracing/budget contracts.
+3. Keep additive migrations isolated and rerun real PostgreSQL plus multi-node
+   migration-once gates before closing P5.
+
+### Open Questions
+
+- None. The accepted V3 ADR defines the P5 boundary.
