@@ -1,7 +1,7 @@
 # Trusted Plugin And Theme Platform V3 Progress Ledger
 
 Date: 2026-07-14
-Overall progress: **45%**
+Overall progress: **46%**
 Active phase: **P6 - Full Route And Middleware Registry V1 (61%, 11 of 18 rows)**
 
 This ledger is the durable percentage and context-compaction checkpoint for the
@@ -23,8 +23,8 @@ scaffolding, or demo-only code cannot satisfy a runtime exit criterion.
 | P4 Lifecycle/dependencies | 7% | 100% | 7% |
 | P5 Database/commands | 8% | 65% | 5.18% |
 | P6 Routes/middleware | 10% | 61% | 6.11% |
-| P7 Workflow/admin/query/identity | 10% | 0% | 0% |
-| P8 Theme compiler/runtime | 8% | 44% | 3.56% |
+| P7 Workflow/admin/query/identity | 10% | 5% | 0.45% |
+| P8 Theme compiler/runtime | 8% | 50% | 4% |
 | P9 Components/assets/L2 | 8% | 0% | 0% |
 | P10 Content/media/data | 8% | 0% | 0% |
 | P11 Platform services | 6% | 0% | 0% |
@@ -1035,3 +1035,32 @@ phase percentage.
 - Migration read-only preflight, retry, advisory locking, and failure recovery
   are already accepted. More tests in those completed areas cannot be used to
   inflate the six remaining rows.
+
+## P6 Guard, P7 Service Dependency, And P8 Typed Render Checkpoint
+
+- Weighted V3 progress is now **46%**. P6 remains **61% (11 of 18 rows)**;
+  P7 begins at **5% (1 of 22 rows)**; P8 advances to **50% (9 of 18 rows)**.
+- `28b3dbf74`, `40aab8be5`, `e60324989`, `7b93272a0`, `ff85c6fa3`,
+  `a8a59df5b`, and `afaaa6eb8` expand exact contextual guard execution from 26
+  to 68 of 123 routes. Fifty-five resource- or policy-dependent routes remain
+  fail closed; custom and raw request/session authority also remain closed.
+- `82a16c65e` closes typed plugin-to-plugin service dependency/version checks.
+  Protocol V2 atomically publishes exact caller/provider identity, services,
+  required/optional ID or capability SemVer, and provided capabilities. List,
+  Resolve, Invoke, and Stream share one immutable snapshot with no database hot
+  path; stale, disabled, upgraded, missing, version-drifted, and ambiguous
+  runtimes fail closed.
+- `615a9496f` closes typed frontend RenderOutput consumption. Public registry
+  routes prefer typed HTML segments and island descriptors; parse5 rebuilds the
+  same nested HTML5 AST in SSR and hydration, while the legacy L1 compatibility
+  path also no longer uses regex or `v-html` island splitting.
+- Typed output rejects missing/duplicate/forged placeholders, unknown
+  components, cross-type props, dangerous elements/attributes/URLs, and
+  correctly restores Go `omitempty` zero values. Focused tests passed 14/14,
+  all web tests 304/304, Nuxt typecheck and production build passed, and real
+  3002 SSR/reload QA reported no placeholder leakage, alert, or console errors.
+- `e11c518bb` fixes startup Route/Schema restoration so legacy provider-only
+  plugins are skipped while exact runtimes with declared Routes/OpenAPI remain
+  eligible without requiring lifecycle hooks. A real API boot completed
+  migrations, runtime reconciliation, publication restore, embedded worker
+  startup, and listen on 8081 before a clean shutdown.

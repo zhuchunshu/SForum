@@ -3,7 +3,8 @@
 ## Changed
 
 - P5 is 65% complete at 11 of 17 authoritative rows. P6 is the active phase at
-  61% (11 of 18 rows), P8 is 44% (8 of 18 rows), and weighted V3 is 45%.
+  61% (11 of 18 rows), P7 is 5% (1 of 22 rows), P8 is 50% (9 of 18 rows), and
+  weighted V3 is 46%.
 - Added read-only exact migration preflight and independent-process migration-once proof.
 - Enforced per-plugin PostgreSQL connection and slow-query budgets.
 - Added stable read-only core views and production Host Query runtime.
@@ -77,6 +78,13 @@
   `b54b8f541`. Unsafe static HTML, forbidden helpers, recursive/deep graphs, and
   contextual escaping failures cannot reach the Store; failed activation keeps
   the prior immutable runtime active.
+- Expanded contextual guard execution from 26 to 68 of 123 routes across page
+  admin, forum settings/read, identity admin/self credentials, and extension
+  read/mutation contracts. Resource-dependent routes remain fail closed.
+- Added exact immutable plugin-to-plugin service dependency checks in
+  `82a16c65e` and typed frontend RenderOutput consumption in `615a9496f`.
+- Fixed production startup restoration for legacy provider-only plugins in
+  `e11c518bb`; real API boot reached a healthy 8081 listener and embedded worker.
 
 ## Verification
 
@@ -135,13 +143,13 @@
 ## Resume Point
 
 - Branch: `main`.
-- Last implementation commit at this checkpoint: `b54b8f541`.
+- Last implementation commit at this checkpoint: `e11c518bb`.
 - Frontend was started on port 3000 and API hot reload recovered on 8081, but
   process and login state are not durable; verify both before QA.
 - Exact Route + Schema publication is production-bound and restored together at
   boot. The remaining P6 work is contextual/custom/raw guards, full action
   semantics, and non-buffered transports.
-- Theme runtime is credited only for 8 of 18 rows; do not claim all-catalog
+- Theme runtime is credited only for 9 of 18 rows; do not claim all-catalog
   zero-I/O or complete fallback until the remaining legacy/add paths and
   frontend contract close.
 - Preserve any unrelated worktree changes; stage only V3-owned files/hunks.
