@@ -27,21 +27,58 @@ type ThemeRuntimeBuildInput struct {
 	Artifact      RuntimeArtifact
 	PackageRoot   string
 	Contributions []PageContribution
-	SiteName      string
-	Locales       []string
+	Templates     []RuntimeTemplateDeclaration
+	PackageKind   RuntimeTemplatePackageKind
+	// RequireDeclaredTemplates is enabled for Manifest V3 packages. Legacy
+	// theme.json packages keep their synthetic stable template identity until
+	// the P13 compatibility path is removed.
+	RequireDeclaredTemplates bool
+	SiteName                 string
+	Locales                  []string
+}
+
+type RuntimeTemplatePackageKind string
+
+const (
+	RuntimeTemplateTheme  RuntimeTemplatePackageKind = "theme"
+	RuntimeTemplatePlugin RuntimeTemplatePackageKind = "plugin"
+)
+
+type RuntimeTemplateDeclaration struct {
+	ID               string
+	ContractVersion  string
+	Action           string
+	TargetID         string
+	Path             string
+	Digest           string
+	ViewModelSchema  string
+	ThemeOverrideKey string
 }
 
 type ThemeRuntimeProviderBinding struct {
 	PageID          string `json:"pageId"`
 	ContributionID  string `json:"contributionId"`
+	TemplateID      string `json:"templateId"`
 	Template        string `json:"template"`
 	ContractVersion string `json:"contractVersion"`
+}
+
+type ThemeRenderAttempt struct {
+	Source        string `json:"source"`
+	ExtensionID   string `json:"extensionId,omitempty"`
+	PackageDigest string `json:"packageDigest,omitempty"`
+	Template      string `json:"template,omitempty"`
+	Outcome       string `json:"outcome"`
+	FailureCode   string `json:"failureCode,omitempty"`
 }
 
 type ThemeRenderedPage struct {
 	HTMLSegments []string                         `json:"htmlSegments"`
 	Islands      []themecompiler.IslandDescriptor `json:"islands,omitempty"`
 	SEO          themecompiler.PageSEOView        `json:"seo"`
+	Source       string                           `json:"source"`
+	Fallback     bool                             `json:"fallback"`
+	Attempts     []ThemeRenderAttempt             `json:"attempts,omitempty"`
 }
 
 type ThemeRuntimeSnapshot struct {
@@ -52,6 +89,9 @@ type ThemeRuntimeSnapshot struct {
 	locales    []string
 	contracts  map[string]string
 	islandTags map[string]string
+	kind       RuntimeTemplatePackageKind
+	overrides  map[string]ThemeRuntimeProviderBinding
+	plan       *themeRenderPlan
 }
 
 func BuildThemeRuntimeSnapshot(input ThemeRuntimeBuildInput) (*ThemeRuntimeSnapshot, error) {
@@ -65,6 +105,13 @@ func BuildThemeRuntimeSnapshot(input ThemeRuntimeBuildInput) (*ThemeRuntimeSnaps
 	realRoot, err := filepath.EvalSymlinks(root)
 	if err != nil {
 		return nil, fmt.Errorf("%w: package root: %v", ErrThemeRuntimeInvalid, err)
+	}
+	kind := input.PackageKind
+	if kind == "" {
+		kind = RuntimeTemplateTheme
+	}
+	if kind != RuntimeTemplateTheme && kind != RuntimeTemplatePlugin {
+		return nil, ErrThemeRuntimeInvalid
 	}
 	providers := make(map[string]ThemeRuntimeProviderBinding)
 	pageBindings := make(map[string]themecompiler.PageTemplateBinding)
@@ -94,6 +141,54 @@ func BuildThemeRuntimeSnapshot(input ThemeRuntimeBuildInput) (*ThemeRuntimeSnaps
 		selectedTemplates[templateName] = struct{}{}
 		contracts[page.ID] = page.ContractVersion
 	}
+	declarations := make(map[string]RuntimeTemplateDeclaration, len(input.Templates))
+	for _, declaration := range input.Templates {
+		templateName := filepath.ToSlash(strings.TrimSpace(declaration.Path))
+		if templateName == "" || declarations[templateName].ID != "" {
+			return nil, ErrThemeRuntimeConflict
+		}
+		declaration.Path = templateName
+		declarations[templateName] = declaration
+	}
+	for pageID, provider := range providers {
+		declaration, declared := declarations[provider.Template]
+		if input.RequireDeclaredTemplates && !declared {
+			return nil, fmt.Errorf("%w: %s has no exact template declaration", ErrThemeRuntimeConflict, provider.Template)
+		}
+		if declared {
+			if declaration.Action != "add" || declaration.ContractVersion == "" || declaration.ViewModelSchema != provider.ContractVersion ||
+				declaration.Digest == "" {
+				return nil, fmt.Errorf("%w: declaration contract for %s", ErrThemeRuntimeConflict, provider.Template)
+			}
+			provider.TemplateID = declaration.ID
+		} else {
+			provider.TemplateID = input.Artifact.ExtensionID + ".template." + provider.ContributionID
+		}
+		providers[pageID] = provider
+	}
+	overrides := make(map[string]ThemeRuntimeProviderBinding)
+	if kind == RuntimeTemplateTheme {
+		for _, declaration := range input.Templates {
+			if declaration.Action != "replace" || strings.TrimSpace(declaration.TargetID) == "" {
+				continue
+			}
+			page, ok := pageForTemplateContract(declaration.ViewModelSchema)
+			if !ok || declaration.ContractVersion == "" || declaration.Digest == "" ||
+				!validPluginOverridePath(declaration.Path, declaration.TargetID) {
+				return nil, fmt.Errorf("%w: invalid theme override %s", ErrThemeRuntimeConflict, declaration.ID)
+			}
+			if _, exists := overrides[declaration.TargetID]; exists {
+				return nil, ErrThemeRuntimeConflict
+			}
+			binding := ThemeRuntimeProviderBinding{
+				PageID: page.ID, TemplateID: declaration.ID, Template: declaration.Path,
+				ContractVersion: declaration.ViewModelSchema,
+			}
+			overrides[declaration.TargetID] = binding
+			pageBindings[declaration.Path] = themecompiler.PageTemplateBinding{PageID: page.ID, SchemaVersion: page.ContractVersion}
+			selectedTemplates[declaration.Path] = struct{}{}
+		}
+	}
 	if len(providers) == 0 {
 		return nil, ErrThemeRuntimeMissing
 	}
@@ -108,7 +203,7 @@ func BuildThemeRuntimeSnapshot(input ThemeRuntimeBuildInput) (*ThemeRuntimeSnaps
 		routes[page.ID] = page.PathPattern
 	}
 	islands := productionThemeIslandBindings()
-	bindingRevision, err := themeBindingRevision(input.Artifact, providers, assets, input.Locales, contracts, islands)
+	bindingRevision, err := themeBindingRevision(input.Artifact, kind, providers, overrides, assets, input.Locales, contracts, islands)
 	if err != nil {
 		return nil, err
 	}
@@ -123,6 +218,19 @@ func BuildThemeRuntimeSnapshot(input ThemeRuntimeBuildInput) (*ThemeRuntimeSnaps
 	if err != nil {
 		return nil, fmt.Errorf("%w: compile exact theme: %v", ErrThemeRuntimeInvalid, err)
 	}
+	infos := make(map[string]themecompiler.TemplateInfo)
+	for _, info := range compiled.Templates() {
+		infos[info.Name] = info
+	}
+	for name := range selectedTemplates {
+		declaration, declared := declarations[name]
+		if !declared {
+			continue
+		}
+		if info, ok := infos[name]; !ok || info.Digest != declaration.Digest {
+			return nil, fmt.Errorf("%w: exact digest for %s", ErrThemeRuntimeConflict, name)
+		}
+	}
 	islandTags := make(map[string]string, len(islands))
 	for tag, binding := range islands {
 		islandTags[binding.ComponentID] = tag
@@ -130,6 +238,7 @@ func BuildThemeRuntimeSnapshot(input ThemeRuntimeBuildInput) (*ThemeRuntimeSnaps
 	return &ThemeRuntimeSnapshot{
 		artifact: input.Artifact, compiled: compiled, providers: providers, assets: assets,
 		locales: normalizedLocales(input.Locales), contracts: contracts, islandTags: islandTags,
+		kind: kind, overrides: overrides,
 	}, nil
 }
 
@@ -163,6 +272,9 @@ func (s *ThemeRuntimeSnapshot) Render(
 	if s == nil || s.compiled == nil || ctx == nil {
 		return ThemeRenderedPage{}, ErrThemeRuntimeMissing
 	}
+	if s.plan != nil {
+		return s.renderPlan(ctx, request, contributionID)
+	}
 	binding, ok := s.providers[request.PageID]
 	if !ok || binding.ContributionID != contributionID {
 		return ThemeRenderedPage{}, ErrThemeRuntimeMissing
@@ -182,7 +294,10 @@ func (s *ThemeRuntimeSnapshot) Render(
 		return ThemeRenderedPage{}, err
 	}
 	segments := output.HTMLSegments()
-	result := ThemeRenderedPage{HTMLSegments: make([]string, len(segments)), Islands: output.Islands(), SEO: output.SEO()}
+	result := ThemeRenderedPage{
+		HTMLSegments: make([]string, len(segments)), Islands: output.Islands(), SEO: output.SEO(),
+		Source: ThemeRenderSourceActiveTheme,
+	}
 	for index := range segments {
 		result.HTMLSegments[index] = segments[index].String()
 	}
@@ -206,18 +321,23 @@ func (s *ThemeRuntimeSnapshot) LegacyHTML(output ThemeRenderedPage) string {
 }
 
 type ThemeRuntimeRegistry struct {
-	mu        sync.RWMutex
-	revision  uint64
-	active    RuntimeArtifact
-	snapshots map[RuntimeArtifact]*ThemeRuntimeSnapshot
+	mu              sync.RWMutex
+	revision        uint64
+	active          RuntimeArtifact
+	defaultArtifact RuntimeArtifact
+	snapshots       map[RuntimeArtifact]*ThemeRuntimeSnapshot
+	renderers       map[string]*ThemeRuntimeSnapshot
 }
 
 func NewThemeRuntimeRegistry() *ThemeRuntimeRegistry {
-	return &ThemeRuntimeRegistry{snapshots: make(map[RuntimeArtifact]*ThemeRuntimeSnapshot)}
+	return &ThemeRuntimeRegistry{
+		snapshots: make(map[RuntimeArtifact]*ThemeRuntimeSnapshot),
+		renderers: make(map[string]*ThemeRuntimeSnapshot),
+	}
 }
 
 func (r *ThemeRuntimeRegistry) Publish(snapshot *ThemeRuntimeSnapshot) uint64 {
-	if r == nil || snapshot == nil {
+	if r == nil || snapshot == nil || snapshot.kind != RuntimeTemplateTheme {
 		return 0
 	}
 	r.mu.Lock()
@@ -225,6 +345,7 @@ func (r *ThemeRuntimeRegistry) Publish(snapshot *ThemeRuntimeSnapshot) uint64 {
 	r.ensureSnapshots()
 	r.snapshots[snapshot.artifact] = snapshot
 	r.active = snapshot.artifact
+	r.rebuildRenderersLocked()
 	r.revision++
 	return r.revision
 }
@@ -245,6 +366,7 @@ func (r *ThemeRuntimeRegistry) Stage(snapshot *ThemeRuntimeSnapshot) (uint64, bo
 		return r.revision, false, nil
 	}
 	r.snapshots[snapshot.artifact] = snapshot
+	r.rebuildRenderersLocked()
 	r.revision++
 	return r.revision, true, nil
 }
@@ -255,13 +377,36 @@ func (r *ThemeRuntimeRegistry) ActivateExact(artifact RuntimeArtifact) (uint64, 
 	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	if _, exists := r.snapshots[artifact]; !exists {
+	snapshot, exists := r.snapshots[artifact]
+	if !exists || snapshot.kind != RuntimeTemplateTheme {
 		return r.revision, ErrThemeRuntimeMissing
 	}
 	if r.active == artifact {
 		return r.revision, nil
 	}
 	r.active = artifact
+	r.rebuildRenderersLocked()
+	r.revision++
+	return r.revision, nil
+}
+
+// SetDefaultExact retains the protected default theme as the third-level
+// fallback without changing the active public theme.
+func (r *ThemeRuntimeRegistry) SetDefaultExact(artifact RuntimeArtifact) (uint64, error) {
+	if r == nil {
+		return 0, ErrThemeRuntimeMissing
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	snapshot := r.snapshots[artifact]
+	if snapshot == nil || snapshot.kind != RuntimeTemplateTheme {
+		return r.revision, ErrThemeRuntimeMissing
+	}
+	if r.defaultArtifact == artifact {
+		return r.revision, nil
+	}
+	r.defaultArtifact = artifact
+	r.rebuildRenderersLocked()
 	r.revision++
 	return r.revision, nil
 }
@@ -283,6 +428,10 @@ func (r *ThemeRuntimeRegistry) RemoveExact(artifact RuntimeArtifact) (uint64, er
 	if r.active == artifact {
 		r.active = RuntimeArtifact{}
 	}
+	if r.defaultArtifact == artifact {
+		r.defaultArtifact = RuntimeArtifact{}
+	}
+	r.rebuildRenderersLocked()
 	r.revision++
 	return r.revision, nil
 }
@@ -304,9 +453,14 @@ func (r *ThemeRuntimeRegistry) ClearExtension(extensionID string) uint64 {
 		r.active = RuntimeArtifact{}
 		changed = true
 	}
+	if r.defaultArtifact.ExtensionID == extensionID {
+		r.defaultArtifact = RuntimeArtifact{}
+		changed = true
+	}
 	if !changed {
 		return r.revision
 	}
+	r.rebuildRenderersLocked()
 	r.revision++
 	return r.revision
 }
@@ -317,8 +471,8 @@ func (r *ThemeRuntimeRegistry) Resolve(artifact RuntimeArtifact, pageID, contrib
 	}
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-	snapshot := r.snapshots[artifact]
-	if snapshot == nil || !snapshot.Covers(pageID, contributionID) {
+	snapshot := r.renderers[runtimeRenderKey(artifact, pageID, contributionID)]
+	if snapshot == nil {
 		return nil, false
 	}
 	return snapshot, true
@@ -333,8 +487,8 @@ func (r *ThemeRuntimeRegistry) Claims(extensionID, pageID, contributionID string
 	}
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-	for artifact, snapshot := range r.snapshots {
-		if artifact.ExtensionID == extensionID && snapshot.Covers(pageID, contributionID) {
+	for artifact := range r.snapshots {
+		if artifact.ExtensionID == extensionID && r.renderers[runtimeRenderKey(artifact, pageID, contributionID)] != nil {
 			return true
 		}
 	}
@@ -355,6 +509,9 @@ func (r *ThemeRuntimeRegistry) ensureSnapshots() {
 	if r.snapshots == nil {
 		r.snapshots = make(map[RuntimeArtifact]*ThemeRuntimeSnapshot)
 	}
+	if r.renderers == nil {
+		r.renderers = make(map[string]*ThemeRuntimeSnapshot)
+	}
 }
 
 func validThemeRuntimeArtifact(artifact RuntimeArtifact) bool {
@@ -364,7 +521,9 @@ func validThemeRuntimeArtifact(artifact RuntimeArtifact) bool {
 
 func themeBindingRevision(
 	artifact RuntimeArtifact,
+	kind RuntimeTemplatePackageKind,
 	providers map[string]ThemeRuntimeProviderBinding,
+	overrides map[string]ThemeRuntimeProviderBinding,
 	assets ActiveSkinPublic,
 	locales []string,
 	contracts map[string]string,
@@ -373,12 +532,14 @@ func themeBindingRevision(
 	document := struct {
 		Schema    string                                 `json:"schema"`
 		Artifact  RuntimeArtifact                        `json:"artifact"`
+		Kind      RuntimeTemplatePackageKind             `json:"kind"`
 		Providers map[string]ThemeRuntimeProviderBinding `json:"providers"`
+		Overrides map[string]ThemeRuntimeProviderBinding `json:"overrides"`
 		Assets    ActiveSkinPublic                       `json:"assets"`
 		Locales   []string                               `json:"locales"`
 		Contracts map[string]string                      `json:"contracts"`
 		Islands   map[string]themecompiler.IslandBinding `json:"islands"`
-	}{"sforum.theme-runtime-binding@1", artifact, providers, assets, normalizedLocales(locales), contracts, islands}
+	}{"sforum.theme-runtime-binding@2", artifact, kind, providers, overrides, assets, normalizedLocales(locales), contracts, islands}
 	raw, err := json.Marshal(document)
 	if err != nil {
 		return "", err

@@ -161,6 +161,8 @@ func (h *Controller) resolve(c fiber.Ctx) error {
 					resolved.TemplateHTML = snapshot.LegacyHTML(output)
 					if resolved.TemplateHTML != "" {
 						runtimeOutput = &output
+						// 模板链回退仍是有效 L1；只有 emergency 才交还核心页面。
+						resolved.Fallback = output.Source == pages.ThemeRenderSourceEmergency
 					} else {
 						resolved.Fallback = true
 					}

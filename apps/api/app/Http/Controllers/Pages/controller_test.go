@@ -260,11 +260,15 @@ func TestResolveCompiledThemeAvoidsPackageStoreAndFailsClosedOnStaleArtifact(t *
 	for _, test := range []struct {
 		name           string
 		registryDigest string
+		template       string
 		wantProvider   string
 		wantOutput     bool
+		wantSource     string
+		wantFallback   bool
 	}{
-		{name: "exact snapshot", registryDigest: strings.Repeat("a", 64), wantProvider: "compiled.theme", wantOutput: true},
-		{name: "stale registry artifact", registryDigest: strings.Repeat("b", 64), wantProvider: pages.ProviderCore},
+		{name: "exact snapshot", registryDigest: strings.Repeat("a", 64), template: `<main>compiled home</main><sf-home-page></sf-home-page>`, wantProvider: "compiled.theme", wantOutput: true, wantSource: pages.ThemeRenderSourceActiveTheme},
+		{name: "runtime emergency fallback", registryDigest: strings.Repeat("a", 64), template: `<main>{{asset "missing"}}</main><sf-home-page></sf-home-page>`, wantProvider: pages.ProviderCore, wantOutput: true, wantSource: pages.ThemeRenderSourceEmergency, wantFallback: true},
+		{name: "stale registry artifact", registryDigest: strings.Repeat("b", 64), template: `<main>compiled home</main><sf-home-page></sf-home-page>`, wantProvider: pages.ProviderCore},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			root := t.TempDir()
@@ -274,7 +278,7 @@ func TestResolveCompiledThemeAvoidsPackageStoreAndFailsClosedOnStaleArtifact(t *
 			if err := os.MkdirAll(filepath.Join(root, "templates"), 0o755); err != nil {
 				t.Fatal(err)
 			}
-			if err := os.WriteFile(filepath.Join(root, "templates/home.html"), []byte(`<main>compiled home</main><sf-home-page></sf-home-page>`), 0o600); err != nil {
+			if err := os.WriteFile(filepath.Join(root, "templates/home.html"), []byte(test.template), 0o600); err != nil {
 				t.Fatal(err)
 			}
 			artifact := pages.RuntimeArtifact{
@@ -329,6 +333,9 @@ func TestResolveCompiledThemeAvoidsPackageStoreAndFailsClosedOnStaleArtifact(t *
 			}
 			if envelope.Data.Provider != test.wantProvider || (envelope.Data.RenderOutput != nil) != test.wantOutput {
 				t.Fatalf("response=%#v", envelope.Data)
+			}
+			if test.wantOutput && (envelope.Data.RenderOutput.Source != test.wantSource || envelope.Data.Fallback != test.wantFallback) {
+				t.Fatalf("fallback response=%#v", envelope.Data)
 			}
 			if themeStore.gets != 0 {
 				t.Fatalf("request performed %d package store lookups", themeStore.gets)

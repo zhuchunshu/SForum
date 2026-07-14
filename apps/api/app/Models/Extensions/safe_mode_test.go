@@ -106,6 +106,9 @@ func (r *safeModePageRegistry) RegisterThemePackage(_ context.Context, extension
 	r.registered = extension.ID
 	return nil
 }
+func (*safeModePageRegistry) RegisterDefaultThemeFallback(context.Context, Extension) error {
+	return nil
+}
 func (r *safeModePageRegistry) RegisterThemePackageReplacing(_ context.Context, extension Extension, _ string) error {
 	r.registered = extension.ID
 	return nil

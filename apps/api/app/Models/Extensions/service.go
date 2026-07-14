@@ -63,6 +63,9 @@ type PageRegistry interface {
 	PreflightThemePackage(ctx context.Context, extension Extension, previousActiveThemeID string) error
 	// RegisterThemePackage 校验并注册主题页面贡献（仅候选，不批准 replace）。
 	RegisterThemePackage(ctx context.Context, extension Extension) error
+	// RegisterDefaultThemeFallback compiles the protected default without
+	// making its Page Registry contributions active.
+	RegisterDefaultThemeFallback(ctx context.Context, extension Extension) error
 	// RegisterThemePackageReplacing 原子替换旧活动主题贡献（同路径切换允许）。
 	RegisterThemePackageReplacing(ctx context.Context, extension Extension, previousActiveThemeID string) error
 	// RegisterPluginPackage 插件 enable 时注册页面贡献（统一 theme.json pages 契约）。
@@ -1057,6 +1060,15 @@ func (s *Service) RestoreActiveThemeRegistry(ctx context.Context) error {
 			active = def
 		} else {
 			return derr
+		}
+	}
+	if active.ID != DefaultThemeID {
+		defaultTheme, defaultErr := s.store.Get(ctx, DefaultThemeID)
+		if defaultErr != nil {
+			return defaultErr
+		}
+		if defaultErr = s.pageRegistry.RegisterDefaultThemeFallback(ctx, defaultTheme); defaultErr != nil {
+			return fmt.Errorf("restore default theme fallback: %w", defaultErr)
 		}
 	}
 	if err := s.pageRegistry.PreflightThemePackage(ctx, active, ""); err != nil {

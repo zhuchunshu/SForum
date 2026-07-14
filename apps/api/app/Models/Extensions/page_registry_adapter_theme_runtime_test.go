@@ -15,7 +15,7 @@ func TestPageRegistryAdapterThemeRuntimeSwitchAndRollback(t *testing.T) {
 	registry := pages.NewRegistry(pages.NewMemoryStore())
 	runtimeRegistry := pages.NewThemeRuntimeRegistry()
 	adapter := NewPageRegistryAdapter(registry).WithThemeRuntime(runtimeRegistry, "SForum", []string{"zh-CN"})
-	source := themeRuntimeExtensionFixture(t, "source.theme", strings.Repeat("1", 64), "/shared", false)
+	source := themeRuntimeExtensionFixture(t, DefaultThemeID, strings.Repeat("1", 64), "/shared", false)
 	target := themeRuntimeExtensionFixture(t, "target.theme", strings.Repeat("2", 64), "/shared", false)
 
 	if err := adapter.RegisterThemePackage(context.Background(), source); err != nil {
@@ -26,6 +26,11 @@ func TestPageRegistryAdapterThemeRuntimeSwitchAndRollback(t *testing.T) {
 		t.Fatal(err)
 	}
 	assertActiveThemeRuntime(t, runtimeRegistry, target.ID)
+	if _, ok := runtimeRegistry.Resolve(pages.RuntimeArtifact{
+		ExtensionID: source.ID, ExtensionVersion: source.Version, PackageDigest: source.PackageDigest,
+	}, "forum.home", source.ID+".home"); !ok {
+		t.Fatal("default theme fallback was removed after custom theme activation")
+	}
 	if err := adapter.RegisterThemePackageReplacing(context.Background(), source, target.ID); err != nil {
 		t.Fatal(err)
 	}
@@ -79,6 +84,61 @@ func TestPageRegistryAdapterUnsafeTemplateFailsBeforeRuntimeSwitch(t *testing.T)
 		ExtensionID: target.ID, ExtensionVersion: target.Version, PackageDigest: target.PackageDigest,
 	}, "forum.home", target.ID+".home"); ok {
 		t.Fatal("unsafe target snapshot was published")
+	}
+}
+
+func TestPageRegistryAdapterPublishesPluginOnlyAfterCompiledSnapshot(t *testing.T) {
+	registry := pages.NewRegistry(pages.NewMemoryStore())
+	runtimeRegistry := pages.NewThemeRuntimeRegistry()
+	adapter := NewPageRegistryAdapter(registry).WithThemeRuntime(runtimeRegistry, "SForum", []string{"zh-CN"})
+	plugin := themeRuntimeExtensionFixture(t, "plugin.demo", strings.Repeat("7", 64), "/plugin", false)
+	plugin.Type = TypePlugin
+
+	if err := adapter.RegisterPluginPackage(context.Background(), plugin); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := runtimeRegistry.Resolve(pages.RuntimeArtifact{
+		ExtensionID: plugin.ID, ExtensionVersion: plugin.Version, PackageDigest: plugin.PackageDigest,
+	}, "forum.home", plugin.ID+".home"); !ok {
+		t.Fatal("plugin page became visible without an exact compiled renderer")
+	}
+
+	unsafe := themeRuntimeExtensionFixture(t, "plugin.unsafe", strings.Repeat("8", 64), "/unsafe", false)
+	unsafe.Type = TypePlugin
+	writeThemeRuntimeExtensionFile(t, unsafe.PackagePath, "templates/home.html", `{{printf "%s" .Base.SEO.Title}}<sf-home-page></sf-home-page>`)
+	if err := adapter.RegisterPluginPackage(context.Background(), unsafe); !errors.Is(err, pages.ErrThemeRuntimeInvalid) {
+		t.Fatalf("unsafe plugin error=%v", err)
+	}
+	if _, ok := registry.ExtensionSnapshot(unsafe.ID); ok {
+		t.Fatal("plugin contribution was published before compiler success")
+	}
+}
+
+func TestPageRegistryAdapterRestoresDefaultFallbackBeforeCustomTheme(t *testing.T) {
+	registry := pages.NewRegistry(pages.NewMemoryStore())
+	runtimeRegistry := pages.NewThemeRuntimeRegistry()
+	adapter := NewPageRegistryAdapter(registry).WithThemeRuntime(runtimeRegistry, "SForum", []string{"zh-CN"})
+	defaultTheme := themeRuntimeExtensionFixture(t, DefaultThemeID, strings.Repeat("9", 64), "/default", false)
+	custom := themeRuntimeExtensionFixture(t, "custom.theme", strings.Repeat("a", 64), "/custom", false)
+	writeThemeRuntimeExtensionFile(t, custom.PackagePath, "templates/home.html", `<main>{{asset "missing"}}</main><sf-home-page></sf-home-page>`)
+
+	if err := adapter.RegisterDefaultThemeFallback(context.Background(), defaultTheme); err != nil {
+		t.Fatal(err)
+	}
+	if err := adapter.RegisterThemePackage(context.Background(), custom); err != nil {
+		t.Fatal(err)
+	}
+	renderer, ok := runtimeRegistry.Resolve(pages.RuntimeArtifact{
+		ExtensionID: custom.ID, ExtensionVersion: custom.Version, PackageDigest: custom.PackageDigest,
+	}, "forum.home", custom.ID+".home")
+	if !ok {
+		t.Fatal("custom theme runtime did not resolve")
+	}
+	output, err := renderer.Render(context.Background(), pages.CorePageViewModelRequest{
+		PageID: "forum.home", Locale: "zh-CN", Path: "/",
+	}, custom.ID+".home")
+	if err != nil || output.Source != pages.ThemeRenderSourceDefaultTheme || !output.Fallback {
+		t.Fatalf("output=%#v err=%v", output, err)
 	}
 }
 

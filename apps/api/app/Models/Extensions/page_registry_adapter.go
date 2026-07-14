@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 
+	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Pages"
 )
 
@@ -65,7 +66,36 @@ func (a *PageRegistryAdapter) RegisterThemePackage(ctx context.Context, extensio
 		a.rollbackStagedThemeRuntime(snapshot, staged)
 		return err
 	}
+	if extension.ID == DefaultThemeID && snapshot != nil {
+		if _, err := a.ThemeRuntime.SetDefaultExact(snapshot.Artifact()); err != nil {
+			return err
+		}
+	}
 	return nil
+}
+
+// RegisterDefaultThemeFallback compiles and retains the protected default
+// theme without publishing its Page Registry contributions as the active UI.
+func (a *PageRegistryAdapter) RegisterDefaultThemeFallback(ctx context.Context, extension Extension) error {
+	if a == nil || a.Bridge == nil || a.ThemeRuntime == nil {
+		return nil
+	}
+	contributions, err := a.Bridge.PreflightThemePackage(toThemeExt(extension), "")
+	if err != nil {
+		return err
+	}
+	snapshot, err := a.buildThemeRuntime(extension, contributions)
+	if err != nil {
+		return err
+	}
+	if snapshot == nil {
+		return pages.ErrThemeRuntimeMissing
+	}
+	if _, _, err := a.ThemeRuntime.Stage(snapshot); err != nil {
+		return err
+	}
+	_, err = a.ThemeRuntime.SetDefaultExact(snapshot.Artifact())
+	return err
 }
 
 func (a *PageRegistryAdapter) RegisterThemePackageReplacing(ctx context.Context, extension Extension, previousActiveThemeID string) error {
@@ -96,7 +126,12 @@ func (a *PageRegistryAdapter) RegisterThemePackageReplacing(ctx context.Context,
 		a.rollbackStagedThemeRuntime(snapshot, staged)
 		return err
 	}
-	if previous.ExtensionID != "" && (snapshot == nil || previous != snapshot.Artifact()) {
+	if extension.ID == DefaultThemeID && snapshot != nil {
+		if _, err := a.ThemeRuntime.SetDefaultExact(snapshot.Artifact()); err != nil {
+			return err
+		}
+	}
+	if previous.ExtensionID != "" && previous.ExtensionID != DefaultThemeID && (snapshot == nil || previous != snapshot.Artifact()) {
 		_, _ = a.ThemeRuntime.RemoveExact(previous)
 	}
 	return nil
@@ -106,7 +141,26 @@ func (a *PageRegistryAdapter) RegisterPluginPackage(ctx context.Context, extensi
 	if a == nil || a.Bridge == nil {
 		return nil
 	}
-	return a.Bridge.RegisterPluginPackage(ctx, toThemeExt(extension))
+	contributions, err := a.Bridge.PreflightPluginPackage(toThemeExt(extension))
+	if err != nil {
+		return err
+	}
+	if len(contributions) == 0 || a.ThemeRuntime == nil {
+		return a.Bridge.Registry.RegisterContributions(extension.ID, contributions)
+	}
+	snapshot, err := a.buildTemplateRuntime(extension, contributions, pages.RuntimeTemplatePlugin)
+	if err != nil {
+		return err
+	}
+	staged, err := a.stageThemeRuntime(snapshot)
+	if err != nil {
+		return err
+	}
+	if err := a.Bridge.Registry.RegisterContributions(extension.ID, contributions); err != nil {
+		a.rollbackStagedThemeRuntime(snapshot, staged)
+		return err
+	}
+	return nil
 }
 
 func (a *PageRegistryAdapter) ClearExtension(extensionID string) {
@@ -120,6 +174,14 @@ func (a *PageRegistryAdapter) ClearExtension(extensionID string) {
 }
 
 func (a *PageRegistryAdapter) buildThemeRuntime(extension Extension, contributions []pages.PageContribution) (*pages.ThemeRuntimeSnapshot, error) {
+	return a.buildTemplateRuntime(extension, contributions, pages.RuntimeTemplateTheme)
+}
+
+func (a *PageRegistryAdapter) buildTemplateRuntime(
+	extension Extension,
+	contributions []pages.PageContribution,
+	kind pages.RuntimeTemplatePackageKind,
+) (*pages.ThemeRuntimeSnapshot, error) {
 	if a == nil || a.ThemeRuntime == nil {
 		return nil, nil
 	}
@@ -128,12 +190,26 @@ func (a *PageRegistryAdapter) buildThemeRuntime(extension Extension, contributio
 			ExtensionID: extension.ID, ExtensionVersion: extension.Version, PackageDigest: extension.PackageDigest,
 		},
 		PackageRoot: PackageContentRoot(extension), Contributions: contributions,
-		SiteName: a.SiteName, Locales: a.Locales,
+		Templates: runtimeTemplateDeclarations(extension.Manifest.Templates), PackageKind: kind,
+		RequireDeclaredTemplates: extensionmanifest.EffectiveManifestVersion(extension.Manifest) >= extensionmanifest.ManifestVersionV3,
+		SiteName:                 a.SiteName, Locales: a.Locales,
 	})
 	if errors.Is(err, pages.ErrThemeRuntimeMissing) {
 		return nil, nil
 	}
 	return snapshot, err
+}
+
+func runtimeTemplateDeclarations(input []ManifestTemplate) []pages.RuntimeTemplateDeclaration {
+	result := make([]pages.RuntimeTemplateDeclaration, len(input))
+	for index, item := range input {
+		result[index] = pages.RuntimeTemplateDeclaration{
+			ID: item.ID, ContractVersion: item.ContractVersion, Action: item.Action,
+			TargetID: item.TargetID, Path: item.Path, Digest: item.Digest,
+			ViewModelSchema: item.ViewModelSchema, ThemeOverrideKey: item.ThemeOverrideKey,
+		}
+	}
+	return result
 }
 
 func (a *PageRegistryAdapter) stageThemeRuntime(snapshot *pages.ThemeRuntimeSnapshot) (bool, error) {

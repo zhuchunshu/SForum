@@ -126,13 +126,23 @@ func (b *ExtensionBridge) RegisterPluginPackage(ctx context.Context, ext ThemeEx
 	if b == nil || b.Registry == nil {
 		return nil
 	}
-	// 插件可选 theme.json；无则无页面贡献
-	pkg, err := LoadThemePackage(ext.PackagePath)
+	contribs, err := b.PreflightPluginPackage(ext)
 	if err != nil {
 		return err
 	}
+	return b.Registry.RegisterContributions(ext.ID, contribs)
+}
+
+// PreflightPluginPackage performs all package I/O before a plugin page or its
+// compiled template snapshot becomes visible.
+func (b *ExtensionBridge) PreflightPluginPackage(ext ThemeExtension) ([]PageContribution, error) {
+	// 插件可选 theme.json；无则无页面贡献
+	pkg, err := LoadThemePackage(ext.PackagePath)
+	if err != nil {
+		return nil, err
+	}
 	if len(pkg.Pages) == 0 {
-		return nil
+		return nil, nil
 	}
 	// 校验模板
 	for _, p := range pkg.Pages {
@@ -140,14 +150,14 @@ func (b *ExtensionBridge) RegisterPluginPackage(ctx context.Context, ext ThemeEx
 			continue
 		}
 		if _, err := LoadTemplate(ext.PackagePath, p.Template); err != nil {
-			return fmt.Errorf("pages: plugin template %s: %w", p.Template, err)
+			return nil, fmt.Errorf("pages: plugin template %s: %w", p.Template, err)
 		}
 	}
 	contribs := ContributionsFromTheme(ext.ID, ext.Version, ext.PackageDigest, pkg)
 	if err := b.Registry.PreflightContributions(ext.ID, contribs); err != nil {
-		return err
+		return nil, err
 	}
-	return b.Registry.RegisterContributions(ext.ID, contribs)
+	return contribs, nil
 }
 
 // ClearExtension 实现 extensions.PageRegistry。
