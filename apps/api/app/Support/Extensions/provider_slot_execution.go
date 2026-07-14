@@ -36,7 +36,13 @@ func (m *Manager) InvokeVersionedProvider(
 	if m == nil || ctx == nil || m.hooks == nil || strings.TrimSpace(input.Operation) != VersionedProviderOperationInvoke || input.Revalidate == nil {
 		return VersionedProviderInvocationResult{}, ErrProviderSlotInvalid
 	}
-	resolution, err := m.hooks.providerSlots.Discover(input.Caller, input.SlotID, input.ContractVersion)
+	var resolution ProviderSlotResolution
+	var err error
+	if selections := m.ProviderSlotSelections(); selections != nil {
+		resolution, _, err = selections.Resolve(ctx, input.Caller, input.SlotID, input.ContractVersion)
+	} else {
+		resolution, err = m.hooks.providerSlots.Discover(input.Caller, input.SlotID, input.ContractVersion)
+	}
 	if err != nil {
 		return VersionedProviderInvocationResult{}, err
 	}

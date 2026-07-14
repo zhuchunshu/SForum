@@ -104,6 +104,57 @@ func TestManagerVersionedProviderClosedAndInvalidOutputStopOrFallback(t *testing
 	})
 }
 
+func TestManagerVersionedProviderHonorsDurablePreferredCandidate(t *testing.T) {
+	starter := newProviderInvocationStarter()
+	starter.invoke = func(_ context.Context, extension extensions.Extension, _ VersionedProviderRequest) (VersionedProviderResponse, error) {
+		starter.record(extension.ID)
+		return VersionedProviderResponse{Output: map[string]any{"status": extension.ID}}, nil
+	}
+	manager := NewManager(ManagerConfig{Starter: starter})
+	owner, consumer := startProviderOwnerAndConsumer(t, manager, "next")
+	store := &providerSlotSelectionMemoryStore{}
+	manager.BindProviderSlotSelections(store)
+	selection, err := manager.ProviderSlotSelections().Select(t.Context(), providerSlotID, owner.Manifest.Providers[0].ID, 0, 11, 21)
+	if err != nil {
+		t.Fatal(err)
+	}
+	store.selection = selection
+
+	result, err := manager.InvokeVersionedProvider(t.Context(), VersionedProviderInvocation{
+		Caller: providerCaller(t, manager, consumer), SlotID: providerSlotID,
+		ContractVersion: providerContractVersion, Operation: VersionedProviderOperationInvoke,
+		InputSchema: providerRequestSchema, Input: map[string]any{},
+		Revalidate: func(context.Context, string, map[string]any) error { return nil },
+	})
+	if err != nil || result.ExtensionID != owner.ID || !reflect.DeepEqual(starter.calls(), []string{owner.ID}) {
+		t.Fatalf("selected provider result=%#v calls=%#v err=%v", result, starter.calls(), err)
+	}
+}
+
+func TestManagerVersionedProviderFailsClosedForStaleDurableChoice(t *testing.T) {
+	starter := newProviderInvocationStarter()
+	manager := NewManager(ManagerConfig{Starter: starter})
+	owner, consumer := startProviderOwnerAndConsumer(t, manager, "closed")
+	store := &providerSlotSelectionMemoryStore{}
+	manager.BindProviderSlotSelections(store)
+	selection, err := manager.ProviderSlotSelections().Select(t.Context(), providerSlotID, owner.Manifest.Providers[0].ID, 0, 11, 21)
+	if err != nil {
+		t.Fatal(err)
+	}
+	selection.ProviderArtifact.PackageDigest = strings.Repeat("f", 64)
+	store.selection = selection
+
+	_, err = manager.InvokeVersionedProvider(t.Context(), VersionedProviderInvocation{
+		Caller: providerCaller(t, manager, consumer), SlotID: providerSlotID,
+		ContractVersion: providerContractVersion, Operation: VersionedProviderOperationInvoke,
+		InputSchema: providerRequestSchema, Input: map[string]any{},
+		Revalidate: func(context.Context, string, map[string]any) error { return nil },
+	})
+	if !errors.Is(err, ErrProviderSlotSelectionStale) || len(starter.calls()) != 0 {
+		t.Fatalf("stale closed selection calls=%#v err=%v", starter.calls(), err)
+	}
+}
+
 func TestManagerVersionedProviderEnforcesTimeoutWhenInvokerIgnoresContext(t *testing.T) {
 	starter := newProviderInvocationStarter()
 	starter.invoke = func(context.Context, extensions.Extension, VersionedProviderRequest) (VersionedProviderResponse, error) {

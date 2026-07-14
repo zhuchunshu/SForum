@@ -55,6 +55,32 @@ type Manager struct {
 	activation         *extensions.ActivationCoordinator
 	bootID             string
 	startPreparer      func(context.Context, extensions.Extension) error
+	providerSelections *ProviderSlotSelectionAPI
+}
+
+// BindProviderSlotSelections attaches the durable exact-artifact choice to the
+// already constructed registry. API and worker bootstrap call this before any
+// provider invocation; registry publication itself remains database-free.
+func (m *Manager) BindProviderSlotSelections(store ProviderSlotSelectionStore) {
+	if m == nil {
+		return
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if store == nil {
+		m.providerSelections = nil
+		return
+	}
+	m.providerSelections = NewProviderSlotSelectionAPI(m.hooks.ProviderSlots(), store)
+}
+
+func (m *Manager) ProviderSlotSelections() *ProviderSlotSelectionAPI {
+	if m == nil {
+		return nil
+	}
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.providerSelections
 }
 
 func (m *Manager) SetStartPreparer(preparer func(context.Context, extensions.Extension) error) {

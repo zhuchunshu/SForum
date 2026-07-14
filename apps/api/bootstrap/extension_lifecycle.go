@@ -51,6 +51,7 @@ type productionLifecycleStack struct {
 	RouteRegistry      *routes.Registry
 	RouteSchemas       *extensionopenapi.RouteSchemaPublication
 	RouteProviders     *routes.ProviderSelectionAPI
+	ProviderSlots      *extensionsruntime.ProviderSlotSelectionAPI
 	RegistryRepository *extensionsruntime.PostgresLifecycleRegistryPublicationRepository
 	Registries         *extensionsruntime.PostgresLifecycleBoundaryRegistries
 	State              *extensionsruntime.PostgresLifecycleBoundaryState
@@ -139,6 +140,12 @@ func newProductionLifecycleStack(config productionLifecycleStackConfig) (*produc
 		routeRegistry,
 		routes.NewPostgresProviderSelectionStore(config.Pool),
 	)
+	providerSlotStore := extensionsruntime.NewPostgresProviderSlotSelectionStore(config.Pool)
+	config.Runtime.BindProviderSlotSelections(providerSlotStore)
+	providerSlots := config.Runtime.ProviderSlotSelections()
+	if providerSlots == nil {
+		return nil, fmt.Errorf("%w: provider slot selections", errProductionLifecycleDependency)
+	}
 	registryRepository := extensionsruntime.NewPostgresLifecycleRegistryPublicationRepository(config.Pool)
 	registries := extensionsruntime.NewPostgresLifecycleBoundaryRegistries(
 		extensionsruntime.LifecycleRegistryBoundaryConfig{
@@ -167,6 +174,7 @@ func newProductionLifecycleStack(config productionLifecycleStackConfig) (*produc
 		MigrationEngine: config.MigrationEngine, Migrations: migrations,
 		Schedules: schedules, JobStore: jobStore, JobCoordinator: jobCoordinator, Jobs: jobs,
 		RouteRegistry: routeRegistry, RouteSchemas: routeSchemas, RouteProviders: routeProviders,
+		ProviderSlots:      providerSlots,
 		RegistryRepository: registryRepository, Registries: registries,
 		State: state, PublicationJournal: journal, Cleanup: cleanup,
 		Database: config.Database, CleanupPurger: cleanupPurger,
