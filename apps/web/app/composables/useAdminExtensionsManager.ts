@@ -485,7 +485,42 @@ export const useAdminExtensionsManager = async () => {
 	async function activateTheme(item: AdminExtension) {
     busyId.value = item.id
     try {
-		const activated = await request<AdminExtension>(`/admin/extensions/${item.id}/activate`, { method: 'POST', body: {} })
+		const preview = await request<{
+			version: string
+			packageDigest: string
+			currentThemeId: string
+			currentThemeVersion: string
+			currentThemeDigest: string
+			canActivate: boolean
+			canApproveCoreReplacements: boolean
+			requiresCoreReplacementApproval: boolean
+			impacts: Array<{
+				contribution: { id: string, action: string, target?: string, path?: string }
+				conflicts?: Array<{ id: string, extensionId: string }>
+			}>
+		}>(`/admin/pages/activate-preview/${item.id}`)
+		const replaceCount = preview.impacts.filter(impact => impact.contribution.action === 'replace').length
+		const addCount = preview.impacts.filter(impact => impact.contribution.action === 'add').length
+		const impactDetails = preview.impacts.map((impact) => {
+			const destination = impact.contribution.target || impact.contribution.path || impact.contribution.id
+			const conflicts = (impact.conflicts || []).map(conflict => `${conflict.extensionId}:${conflict.id}`).join(', ')
+			return `${impact.contribution.action.toUpperCase()}  ${destination}${conflicts ? `  [${conflicts}]` : ''}`
+		}).join('\n')
+		const confirmation = `${t('admin.extensions.confirmThemeActivation', { name: item.name, replaceCount, addCount })}\n\n${impactDetails}`
+		if (!globalThis.confirm(confirmation)) {
+			return
+		}
+		const activated = await request<AdminExtension>(`/admin/extensions/${item.id}/activate`, {
+			method: 'POST',
+			body: {
+				version: preview.version,
+				packageDigest: preview.packageDigest,
+				currentThemeId: preview.currentThemeId,
+				currentThemeVersion: preview.currentThemeVersion,
+				currentThemeDigest: preview.currentThemeDigest,
+				approveCoreReplacements: preview.requiresCoreReplacementApproval && preview.canApproveCoreReplacements
+			}
+		})
 		replaceExtension(activated)
 		await refresh()
 		await loadEvents(activated.id)

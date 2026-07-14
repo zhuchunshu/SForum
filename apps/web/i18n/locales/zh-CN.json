@@ -580,6 +580,7 @@
       "restarted": "插件运行时已重启。",
       "verified": "扩展预检已通过。",
       "themeActivated": "主题已激活，公开 Page Registry 与静态资源已切换。",
+      "confirmThemeActivation": "激活 {name}？本次精确预览会新增 {addCount} 个页面，并请求替换 {replaceCount} 个核心页面。核心页面替换仍需超级管理员明确批准。",
       "themeActivationUnavailable": "主题激活失败。",
       "actionFailed": "扩展操作失败。",
       "settingsProfiles": {

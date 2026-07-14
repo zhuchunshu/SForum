@@ -580,6 +580,7 @@
       "restarted": "Plugin runtime restarted.",
       "verified": "Extension preflight verified.",
       "themeActivated": "Theme activated. The public Page Registry and static assets have switched.",
+      "confirmThemeActivation": "Activate {name}? This exact preview adds {addCount} pages and requests {replaceCount} core page replacements. Core replacements still require explicit super administrator approval.",
       "themeActivationUnavailable": "Theme activation failed.",
       "actionFailed": "Extension action failed.",
       "settingsProfiles": {
