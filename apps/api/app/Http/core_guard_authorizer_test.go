@@ -116,7 +116,7 @@ func TestProductionCoreGuardEvaluatorRegistryIsExplicitAndVersioned(t *testing.T
 		t.Fatal(err)
 	}
 	bindings := registry.Bindings()
-	if len(bindings) != len(registrations) || len(bindings) != 19 {
+	if len(bindings) != len(registrations) || len(bindings) != 25 {
 		t.Fatalf("bindings = %#v", bindings)
 	}
 	for _, binding := range bindings {
@@ -810,15 +810,237 @@ func TestProductionExtensionPolicyEnforcesTypeTrustSafeModeAndDrift(t *testing.T
 	}
 }
 
+func TestProductionOptionsOwnerGuardClosesStaticPolicyCatalog(t *testing.T) {
+	policy := &testOptionsOwnerPolicy{permissions: map[string]string{
+		"site.name":                   identity.PermissionSettingsSiteManage,
+		"forum.default_category_slug": identity.PermissionCategoryManage,
+	}}
+	authorizer := NewProductionRouteGuardAuthorizerWithPolicies(ProductionRouteGuardPolicies{Options: policy})
+	targets := map[string]routes.CoreRoute{}
+	for _, route := range routes.CoreRouteCatalog() {
+		if route.Guard.EvaluatorID == "core.guard.options.owner" {
+			targets[route.ID] = route
+		}
+	}
+	if len(targets) != 3 {
+		t.Fatalf("options owner routes = %#v", targets)
+	}
+
+	listPlan, listStep := productionCatalogInheritedGuardPlan(t, targets["core.route.options.list_admin"])
+	listRequest := productionGuardRequest(identity.PermissionCategoryManage)
+	listRequest.Method, listRequest.Path = listPlan.Method(), listPlan.Path()
+	if err := authorizer.Authorize(context.Background(), listPlan, listStep, listRequest); err != nil {
+		t.Fatalf("list admin error = %v", err)
+	}
+
+	updatePlan, updateStep := productionCatalogInheritedGuardPlan(t, targets["core.route.options.update"])
+	update := productionGuardRequest(identity.PermissionSettingsSiteManage)
+	update.Method, update.Path = updatePlan.Method(), updatePlan.Path()
+	update.Body = []byte(`{"name":"site.name","value":"Forum"}`)
+	if err := authorizer.Authorize(context.Background(), updatePlan, updateStep, update); err != nil {
+		t.Fatalf("single update error = %v", err)
+	}
+
+	batchPlan, batchStep := productionCatalogInheritedGuardPlan(t, targets["core.route.options.update_admin"])
+	batchBody := []byte(`{"options":[{"name":"site.name","value":"Forum"},{"name":"forum.default_category_slug","value":"general"}]}`)
+	batch := productionGuardRequest(identity.PermissionSettingsSiteManage, identity.PermissionCategoryManage)
+	batch.Method, batch.Path, batch.Body = batchPlan.Method(), batchPlan.Path(), batchBody
+	if err := authorizer.Authorize(context.Background(), batchPlan, batchStep, batch); err != nil {
+		t.Fatalf("batch update error = %v", err)
+	}
+	onePermission := productionGuardRequest(identity.PermissionSettingsSiteManage)
+	onePermission.Method, onePermission.Path, onePermission.Body = batchPlan.Method(), batchPlan.Path(), batchBody
+	if err := authorizer.Authorize(context.Background(), batchPlan, batchStep, onePermission); !errors.Is(err, ErrRoutePermissionDenied) {
+		t.Fatalf("partial batch permission error = %v", err)
+	}
+
+	for _, body := range []string{
+		`{"name":"future.option","value":"x"}`,
+		`{"name":"site.name","value":"x","future":true}`,
+		`{"options":[]}`,
+		`{"options":`,
+	} {
+		request := productionGuardRequest("*")
+		plan, step := updatePlan, updateStep
+		if strings.Contains(body, "options") {
+			plan, step = batchPlan, batchStep
+		}
+		request.Method, request.Path, request.Body = plan.Method(), plan.Path(), []byte(body)
+		if err := authorizer.Authorize(context.Background(), plan, step, request); !errors.Is(err, ErrRouteGuardUnavailable) {
+			t.Fatalf("body %s error = %v", body, err)
+		}
+	}
+	if policy.calls != 5 {
+		// list + single + allowed batch + denied batch；非法 JSON/unknown option 仅 unknown option 进入 policy。
+		// future/empty/malformed 在解码阶段关闭，因此总数额外包含 unknown option 一次。
+		t.Fatalf("option policy calls = %d", policy.calls)
+	}
+}
+
+func TestProductionPublicContextualGuardsCloseExactRoutes(t *testing.T) {
+	tests := []struct {
+		routeID string
+		query   string
+	}{
+		{routeID: "core.route.identity.registration_status"},
+		{routeID: "core.route.identity.human_verification_challenge", query: "purpose=register"},
+		{routeID: "core.route.pages.public_catalog"},
+		{routeID: "core.route.seo.list"},
+	}
+	authorizer := NewProductionRouteGuardAuthorizer()
+	for _, test := range tests {
+		var target routes.CoreRoute
+		for _, route := range routes.CoreRouteCatalog() {
+			if route.ID == test.routeID {
+				target = route
+				break
+			}
+		}
+		plan, step := productionCatalogInheritedGuardPlan(t, target)
+		for _, request := range []routes.DispatchRequest{
+			{Method: plan.Method(), Path: plan.Path(), Query: test.query},
+			func() routes.DispatchRequest {
+				r := productionGuardRequest(identity.PermissionPostCreate)
+				r.Method, r.Path, r.Query = plan.Method(), plan.Path(), test.query
+				return r
+			}(),
+		} {
+			if err := authorizer.Authorize(context.Background(), plan, step, request); err != nil {
+				t.Fatalf("%s error = %v", test.routeID, err)
+			}
+		}
+	}
+}
+
+func TestProductionHumanVerificationGuardRejectsPurposeDrift(t *testing.T) {
+	var target routes.CoreRoute
+	for _, route := range routes.CoreRouteCatalog() {
+		if route.ID == "core.route.identity.human_verification_challenge" {
+			target = route
+			break
+		}
+	}
+	plan, step := productionCatalogInheritedGuardPlan(t, target)
+	authorizer := NewProductionRouteGuardAuthorizer()
+	for _, query := range []string{"", "purpose=future", "purpose=register&purpose=post_risk", "purpose=register&future=1", "%zz"} {
+		request := routes.DispatchRequest{Method: plan.Method(), Path: plan.Path(), Query: query}
+		if err := authorizer.Authorize(context.Background(), plan, step, request); !errors.Is(err, ErrRouteGuardUnavailable) {
+			t.Fatalf("query %q error = %v", query, err)
+		}
+	}
+}
+
+func TestProductionIdentityBootstrapGuardLeavesExecutableFlowsClosed(t *testing.T) {
+	authorizer := NewProductionRouteGuardAuthorizer()
+	closed := 0
+	for _, route := range routes.CoreRouteCatalog() {
+		if route.Guard.EvaluatorID != "core.guard.identity.bootstrap" || route.ID == "core.route.identity.registration_status" {
+			continue
+		}
+		closed++
+		plan, step := productionCatalogInheritedGuardPlan(t, route)
+		request := productionGuardRequest("*")
+		request.Method, request.Path = plan.Method(), plan.Path()
+		if err := authorizer.Authorize(context.Background(), plan, step, request); !errors.Is(err, ErrRouteGuardUnavailable) {
+			t.Fatalf("%s error = %v", route.ID, err)
+		}
+	}
+	if closed != 4 {
+		t.Fatalf("closed bootstrap routes = %d", closed)
+	}
+}
+
+func TestProductionThemeAssetGuardRequiresExactActiveArtifact(t *testing.T) {
+	const extensionID = "sforum.theme"
+	digest := strings.Repeat("d", 64)
+	entry := extensions.GuardPolicyEntry{
+		ExtensionID: extensionID, ExtensionType: extensions.TypeTheme,
+		Status: extensions.StatusEnabled, Version: "1.0.0", PackageDigest: digest,
+	}
+	policy := &testExtensionGuardPolicy{lookup: extensions.GuardPolicyLookup{
+		Revision: 7, Entry: entry, Found: true,
+	}, ok: true}
+	var target routes.CoreRoute
+	for _, route := range routes.CoreRouteCatalog() {
+		if route.ID == "core.route.pages.theme_asset" {
+			target = route
+			break
+		}
+	}
+	plan, step := productionParameterizedInheritedGuardPlan(
+		t, target, "/guard/theme/:extensionId/*", "/guard/theme/"+extensionID+"/styles/site.css",
+	)
+	request := routes.DispatchRequest{
+		Method: plan.Method(), Path: plan.Path(), Params: plan.Params(), Query: "v=" + digest,
+	}
+	authorizer := NewProductionRouteGuardAuthorizerWithPolicies(ProductionRouteGuardPolicies{Extensions: policy})
+	if err := authorizer.Authorize(context.Background(), plan, step, request); err != nil {
+		t.Fatalf("exact theme asset error = %v params=%#v", err, plan.Params())
+	}
+
+	for name, mutate := range map[string]func(*routes.DispatchRequest){
+		"digest drift":   func(r *routes.DispatchRequest) { r.Query = "v=" + strings.Repeat("e", 64) },
+		"missing digest": func(r *routes.DispatchRequest) { r.Query = "" },
+		"digest alias":   func(r *routes.DispatchRequest) { r.Query = "digest=" + digest },
+		"asset type":     func(r *routes.DispatchRequest) { r.Params["path"] = "bin/plugin" },
+		"path traversal": func(r *routes.DispatchRequest) { r.Params["path"] = "../site.css" },
+	} {
+		t.Run(name, func(t *testing.T) {
+			forged := request
+			forged.Params = plan.Params()
+			mutate(&forged)
+			if err := authorizer.Authorize(context.Background(), plan, step, forged); !errors.Is(err, ErrRouteGuardUnavailable) {
+				t.Fatalf("error = %v", err)
+			}
+		})
+	}
+	policy.ok = false
+	if err := authorizer.Authorize(context.Background(), plan, step, request); !errors.Is(err, ErrRouteGuardUnavailable) {
+		t.Fatalf("stale policy error = %v", err)
+	}
+	policy.ok = true
+	policy.lookup.Entry.ExtensionType = extensions.TypePlugin
+	if err := authorizer.Authorize(context.Background(), plan, step, request); !errors.Is(err, ErrRouteGuardUnavailable) {
+		t.Fatalf("type drift error = %v", err)
+	}
+}
+
+type testOptionsOwnerPolicy struct {
+	permissions map[string]string
+	calls       int
+}
+
+func (p *testOptionsOwnerPolicy) OptionGuardManagePermissions(names []string) ([]string, bool) {
+	p.calls++
+	if names == nil {
+		return []string{identity.PermissionSettingsSiteManage, identity.PermissionCategoryManage}, true
+	}
+	seen := map[string]bool{}
+	result := []string{}
+	for _, name := range names {
+		permission := p.permissions[name]
+		if permission == "" {
+			return nil, false
+		}
+		if !seen[permission] {
+			seen[permission] = true
+			result = append(result, permission)
+		}
+	}
+	return result, len(result) > 0
+}
+
 type testExtensionGuardPolicy struct {
 	lookup extensions.GuardPolicyLookup
 	ok     bool
+	calls  int
 }
 
 func (p *testExtensionGuardPolicy) Lookup(extensionID string) (extensions.GuardPolicyLookup, bool) {
 	if p == nil {
 		return extensions.GuardPolicyLookup{}, false
 	}
+	p.calls++
 	lookup := p.lookup
 	if extensionID == "" {
 		lookup.Found = false

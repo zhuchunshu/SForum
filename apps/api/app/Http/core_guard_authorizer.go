@@ -7,9 +7,14 @@ import (
 	"errors"
 	"io"
 	"maps"
+	"net/url"
+	"path"
+	"strings"
 
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
+	humanverify "github.com/zhuchunshu/sforum/apps/api/app/Support/HumanVerify"
+	pages "github.com/zhuchunshu/sforum/apps/api/app/Support/Pages"
 	routes "github.com/zhuchunshu/sforum/apps/api/app/Support/Routes"
 )
 
@@ -25,9 +30,14 @@ type ExtensionGuardPolicy interface {
 	Lookup(extensionID string) (extensions.GuardPolicyLookup, bool)
 }
 
+type OptionsOwnerPolicy interface {
+	OptionGuardManagePermissions(names []string) ([]string, bool)
+}
+
 type ProductionRouteGuardPolicies struct {
 	ForumRead  ForumReadPolicy
 	Extensions ExtensionGuardPolicy
+	Options    OptionsOwnerPolicy
 }
 
 func NewProductionRouteGuardAuthorizer() ProductionRouteGuardAuthorizer {
@@ -85,12 +95,18 @@ func productionCoreGuardEvaluatorRegistrationsWithPolicies(policies ProductionRo
 		productionCoreGuardEvaluator("core.guard.forum.topic_lock", requireDeclaredCoreGuardPermission),
 		productionCoreGuardEvaluator("core.guard.forum.topic_state", requireDeclaredCoreGuardPermission),
 		productionCoreGuardEvaluator("core.guard.identity.admin", requireIdentityAdminAuthority),
+		productionCoreGuardEvaluator("core.guard.identity.bootstrap", requireIdentityBootstrapAuthority),
+		productionCoreGuardEvaluator("core.guard.identity.human_verification", requireHumanVerificationChallengeAuthority),
 		productionCoreGuardEvaluator("core.guard.identity.self_credentials", requireIdentitySelfCredentialsAuthority),
 		productionCoreGuardEvaluator("core.guard.moderation.report", requireAuthenticatedCoreGuardActor),
 		productionCoreGuardEvaluator("core.guard.moderation.review", requireDeclaredCoreGuardPermission),
 		productionCoreGuardEvaluator("core.guard.notifications.recipient", requireNotificationRecipientAuthority),
+		productionCoreGuardEvaluator("core.guard.options.owner", optionsOwnerGuardEvaluator(policies.Options)),
 		productionCoreGuardEvaluator("core.guard.pages.admin", requirePagesAdminAuthority),
+		productionCoreGuardEvaluator("core.guard.pages.catalog", requirePagesCatalogAuthority),
+		productionCoreGuardEvaluator("core.guard.pages.theme_asset", themeAssetGuardEvaluator(policies.Extensions)),
 		productionCoreGuardEvaluator("core.guard.profile.self", requireProfileSelfAuthority),
+		productionCoreGuardEvaluator("core.guard.seo.read", requireSEOReadAuthority),
 	}
 }
 
@@ -369,6 +385,128 @@ func requireNotificationRecipientAuthority(ctx context.Context, evaluation route
 	}
 }
 
+func optionsOwnerGuardEvaluator(policy OptionsOwnerPolicy) routes.CoreGuardEvaluatorFunc {
+	return func(_ context.Context, evaluation routes.CoreGuardEvaluation) error {
+		if policy == nil {
+			return routes.ErrCoreGuardEvaluatorUnavailable
+		}
+		var names []string
+		switch evaluation.Descriptor.RouteID {
+		case "core.route.options.list_admin":
+			// nil 明确请求静态目录中的 any-of 权限。
+			permissions, ok := policy.OptionGuardManagePermissions(nil)
+			if !ok {
+				return routes.ErrCoreGuardEvaluatorUnavailable
+			}
+			return requireCoreGuardPermission(evaluation, permissions...)
+		case "core.route.options.update":
+			var input optionGuardUpdateInput
+			if err := decodeGuardJSON(evaluation.Request.Body, &input); err != nil {
+				return routes.ErrCoreGuardEvaluatorUnavailable
+			}
+			names = []string{input.Name}
+		case "core.route.options.update_admin":
+			var input optionGuardUpdateManyInput
+			if err := decodeGuardJSON(evaluation.Request.Body, &input); err != nil || len(input.Options) == 0 {
+				return routes.ErrCoreGuardEvaluatorUnavailable
+			}
+			names = make([]string, 0, len(input.Options))
+			for _, item := range input.Options {
+				names = append(names, item.Name)
+			}
+		default:
+			return routes.ErrCoreGuardEvaluatorUnavailable
+		}
+		permissions, ok := policy.OptionGuardManagePermissions(names)
+		if !ok {
+			return routes.ErrCoreGuardEvaluatorUnavailable
+		}
+		return requireAllCoreGuardPermissions(evaluation, permissions...)
+	}
+}
+
+type optionGuardUpdateInput struct {
+	Name  string `json:"name"`
+	Value string `json:"value"`
+}
+
+type optionGuardUpdateManyInput struct {
+	Options []optionGuardUpdateInput `json:"options"`
+}
+
+func requireIdentityBootstrapAuthority(_ context.Context, evaluation routes.CoreGuardEvaluation) error {
+	if evaluation.Descriptor.RouteID == "core.route.identity.registration_status" {
+		return nil
+	}
+	return routes.ErrCoreGuardEvaluatorUnavailable
+}
+
+func requireHumanVerificationChallengeAuthority(_ context.Context, evaluation routes.CoreGuardEvaluation) error {
+	if evaluation.Descriptor.RouteID != "core.route.identity.human_verification_challenge" {
+		return routes.ErrCoreGuardEvaluatorUnavailable
+	}
+	query, err := url.ParseQuery(evaluation.Request.Query)
+	if err != nil || len(query) != 1 || len(query["purpose"]) != 1 {
+		return routes.ErrCoreGuardEvaluatorUnavailable
+	}
+	switch humanverify.Purpose(query.Get("purpose")) {
+	case humanverify.PurposeRegister, humanverify.PurposePasswordReset,
+		humanverify.PurposeLoginRisk, humanverify.PurposePostRisk:
+		return nil
+	default:
+		return routes.ErrCoreGuardEvaluatorUnavailable
+	}
+}
+
+func requirePagesCatalogAuthority(_ context.Context, evaluation routes.CoreGuardEvaluation) error {
+	if evaluation.Descriptor.RouteID == "core.route.pages.public_catalog" {
+		return nil
+	}
+	return routes.ErrCoreGuardEvaluatorUnavailable
+}
+
+func requireSEOReadAuthority(_ context.Context, evaluation routes.CoreGuardEvaluation) error {
+	if evaluation.Descriptor.RouteID == "core.route.seo.list" {
+		return nil
+	}
+	return routes.ErrCoreGuardEvaluatorUnavailable
+}
+
+func themeAssetGuardEvaluator(policy ExtensionGuardPolicy) routes.CoreGuardEvaluatorFunc {
+	return func(_ context.Context, evaluation routes.CoreGuardEvaluation) error {
+		if evaluation.Descriptor.RouteID != "core.route.pages.theme_asset" || policy == nil {
+			return routes.ErrCoreGuardEvaluatorUnavailable
+		}
+		extensionID := evaluation.Request.Params["extensionId"]
+		lookup, ok := policy.Lookup(extensionID)
+		if !ok || lookup.Revision == 0 || lookup.SafeMode || !lookup.Found ||
+			lookup.Entry.ExtensionID != extensionID || lookup.Entry.ExtensionType != extensions.TypeTheme ||
+			lookup.Entry.Status != extensions.StatusEnabled || lookup.Entry.PackageDigest == "" {
+			return routes.ErrCoreGuardEvaluatorUnavailable
+		}
+		query, err := url.ParseQuery(evaluation.Request.Query)
+		if err != nil || len(query) != 1 {
+			return routes.ErrCoreGuardEvaluatorUnavailable
+		}
+		digests := query["v"]
+		if len(digests) != 1 || !strings.EqualFold(digests[0], lookup.Entry.PackageDigest) {
+			return routes.ErrCoreGuardEvaluatorUnavailable
+		}
+		relative := evaluation.Request.Params["*"]
+		if relative == "" {
+			relative = evaluation.Request.Params["path"]
+		}
+		if relative == "" || strings.ContainsAny(relative, "\\\x00") ||
+			strings.TrimPrefix(path.Clean("/"+relative), "/") != relative {
+			return routes.ErrCoreGuardEvaluatorUnavailable
+		}
+		if _, allowed := pages.AllowedThemeAssetExt[strings.ToLower(path.Ext(relative))]; !allowed {
+			return routes.ErrCoreGuardEvaluatorUnavailable
+		}
+		return nil
+	}
+}
+
 func requirePagesAdminAuthority(_ context.Context, evaluation routes.CoreGuardEvaluation) error {
 	switch evaluation.Descriptor.RouteID {
 	case "core.route.pages.admin_list",
@@ -617,4 +755,19 @@ func requireCoreGuardPermission(evaluation routes.CoreGuardEvaluation, permissio
 		}
 	}
 	return routes.ErrCoreGuardPermissionDenied
+}
+
+func requireAllCoreGuardPermissions(evaluation routes.CoreGuardEvaluation, permissions ...string) error {
+	if !evaluation.Request.Authenticated || evaluation.Request.ActorID <= 0 {
+		return routes.ErrCoreGuardLoginRequired
+	}
+	if evaluation.Request.Permissions["*"] {
+		return nil
+	}
+	for _, permission := range permissions {
+		if permission == "" || !evaluation.Request.Permissions[permission] {
+			return routes.ErrCoreGuardPermissionDenied
+		}
+	}
+	return nil
 }

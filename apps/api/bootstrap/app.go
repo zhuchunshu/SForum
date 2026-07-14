@@ -574,6 +574,7 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		Guard: httpserver.NewProductionRouteGuardAuthorizerWithPolicies(httpserver.ProductionRouteGuardPolicies{
 			ForumRead:  optionsService,
 			Extensions: extensionGuardPolicy,
+			Options:    optionsService,
 		}),
 		Schemas: httpserver.CatalogRouteSchemaValidator{Catalog: lifecycleStack.RouteSchemas},
 		Trace:   routeTraceRing,
