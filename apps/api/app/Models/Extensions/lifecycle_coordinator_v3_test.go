@@ -617,6 +617,199 @@ func TestLifecycleCoordinatorRejectsRuntimeBindingWithoutRevalidationPolicy(t *t
 	}
 }
 
+func TestLifecycleCoordinatorHostGatesReceivePriorDurableActionResults(t *testing.T) {
+	tests := []struct {
+		name      string
+		operation LifecycleMachineOperation
+		gateID    string
+		behaviors map[LifecycleMachineAction][]lifecycleCoordinatorTestBehavior
+		expected  map[LifecycleMachineAction]string
+	}{
+		{
+			name: "install migrating receives plan", operation: LifecycleMachineInstall,
+			gateID: "lifecycle.install.02.host.migrating",
+			behaviors: map[LifecycleMachineAction][]lifecycleCoordinatorTestBehavior{
+				LifecycleMachineInstallPlan: {{result: LifecycleCoordinatorActionResult{
+					Status: LifecycleStepSucceeded, ResultDocument: json.RawMessage(`{"plan":"install"}`),
+				}}},
+			},
+			expected: map[LifecycleMachineAction]string{LifecycleMachineInstallPlan: `{"plan":"install"}`},
+		},
+		{
+			name: "upgrade migrating receives plan and before", operation: LifecycleMachineUpgrade,
+			gateID: "lifecycle.upgrade.04.host.migrating",
+			behaviors: map[LifecycleMachineAction][]lifecycleCoordinatorTestBehavior{
+				LifecycleMachineUpgradePlan: {{result: LifecycleCoordinatorActionResult{
+					Status: LifecycleStepSucceeded, ResultDocument: json.RawMessage(`{"plan":"upgrade"}`),
+				}}},
+				LifecycleMachineUpgradeBefore: {{result: LifecycleCoordinatorActionResult{
+					Status: LifecycleStepSucceeded, ResultDocument: json.RawMessage(`{"before":"drained"}`),
+				}}},
+			},
+			expected: map[LifecycleMachineAction]string{
+				LifecycleMachineUpgradePlan:   `{"plan":"upgrade"}`,
+				LifecycleMachineUpgradeBefore: `{"before":"drained"}`,
+			},
+		},
+		{
+			name: "uninstall draining receives plan", operation: LifecycleMachineUninstall,
+			gateID: "lifecycle.uninstall.02.host.draining",
+			behaviors: map[LifecycleMachineAction][]lifecycleCoordinatorTestBehavior{
+				LifecycleMachineUninstallPlan: {{result: LifecycleCoordinatorActionResult{
+					Status: LifecycleStepSucceeded, ResultDocument: json.RawMessage(`{"plan":"uninstall"}`),
+				}}},
+			},
+			expected: map[LifecycleMachineAction]string{LifecycleMachineUninstallPlan: `{"plan":"uninstall"}`},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			repository := newLifecycleCoordinatorTestRepository()
+			host := &lifecycleCoordinatorTestHost{}
+			runtime := &lifecycleCoordinatorTestRuntime{behaviors: test.behaviors}
+			result, err := NewLifecycleCoordinator(repository, runtime, host).
+				Run(context.Background(), lifecycleCoordinatorTestInput(test.operation, false))
+			if err != nil || result.Operation.TerminalResult != LifecycleTerminalSucceeded {
+				t.Fatalf("operation = %#v, %v", result, err)
+			}
+			requests := host.requestsSnapshot()
+			index := slices.IndexFunc(requests, func(request LifecycleCoordinatorGateRequest) bool {
+				return request.StepID == test.gateID
+			})
+			if index < 0 {
+				t.Fatalf("Host gate %q missing from %#v", test.gateID, requests)
+			}
+			request := requests[index]
+			if len(request.PreviousResult) != 0 || len(request.ActionResults) != len(test.expected) {
+				t.Fatalf("Host result channels = previous:%s actions:%#v", request.PreviousResult, request.ActionResults)
+			}
+			for action, expected := range test.expected {
+				if string(request.ActionResults[action]) != expected {
+					t.Fatalf("action %q result = %s", action, request.ActionResults[action])
+				}
+			}
+		})
+	}
+}
+
+func TestLifecycleCoordinatorRebuildsActionResultsAcrossCrashReplayAndRevalidation(t *testing.T) {
+	repository := newLifecycleCoordinatorTestRepository()
+	host := &lifecycleCoordinatorTestHost{}
+	runtime := &lifecycleCoordinatorTestRuntime{behaviors: map[LifecycleMachineAction][]lifecycleCoordinatorTestBehavior{
+		LifecycleMachineInstallPlan: {{
+			result: LifecycleCoordinatorActionResult{
+				Status: LifecycleStepSucceeded, ResultDocument: json.RawMessage(`{"plan":"durable"}`),
+			},
+			after: repository.failNextTransition,
+		}},
+	}}
+	coordinator := NewLifecycleCoordinator(repository, runtime, host)
+	input := lifecycleCoordinatorTestInput(LifecycleMachineInstall, false)
+	if _, err := coordinator.Run(context.Background(), input); !errors.Is(err, errLifecycleCoordinatorTestCrash) {
+		t.Fatalf("action terminal crash = %v", err)
+	}
+	result, err := coordinator.Run(context.Background(), input)
+	if err != nil || result.Operation.TerminalResult != LifecycleTerminalSucceeded ||
+		countLifecycleCoordinatorAction(runtime.actionNames(), LifecycleMachineInstallPlan) != 1 {
+		t.Fatalf("replayed operation = %#v, %v actions=%#v", result, err, runtime.actionNames())
+	}
+
+	requests := host.requestsSnapshot()
+	planned := make([]LifecycleCoordinatorGateRequest, 0, 2)
+	for _, request := range requests {
+		if request.StepID == "lifecycle.install.00.host.planned" {
+			planned = append(planned, request)
+		}
+	}
+	if len(planned) != 2 || planned[0].Revalidation || !planned[1].Revalidation ||
+		len(planned[0].ActionResults) != 0 || len(planned[1].ActionResults) != 0 || len(planned[1].PreviousResult) == 0 {
+		t.Fatalf("planned Host result separation = %#v", planned)
+	}
+	migrating := slices.IndexFunc(requests, func(request LifecycleCoordinatorGateRequest) bool {
+		return request.StepID == "lifecycle.install.02.host.migrating"
+	})
+	if migrating < 0 || string(requests[migrating].ActionResults[LifecycleMachineInstallPlan]) != `{"plan":"durable"}` {
+		t.Fatalf("durable action result after replay = %#v", requests)
+	}
+}
+
+func TestLifecycleCoordinatorHostActionResultsFailClosed(t *testing.T) {
+	tests := []struct {
+		name   string
+		status string
+	}{
+		{name: "missing"},
+		{name: "planned", status: LifecycleStepPlanned},
+		{name: "failed", status: LifecycleStepFailed},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			repository := newLifecycleCoordinatorTestRepository()
+			input := lifecycleCoordinatorTestInput(LifecycleMachineInstall, false)
+			acquired, err := repository.AcquireOperation(context.Background(), input.Acquire)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if test.status != "" {
+				begin, err := repository.BeginStepAttempt(context.Background(), BeginLifecycleStepAttemptInput{
+					OperationID: acquired.Operation.ID, StepID: "lifecycle.install.01.install.plan",
+					LifecycleAction: string(LifecycleMachineInstallPlan), PlanVersion: input.Acquire.PlanVersion,
+				})
+				if err != nil {
+					t.Fatal(err)
+				}
+				if test.status == LifecycleStepFailed {
+					if _, err := repository.CompleteStepAttempt(context.Background(), CompleteLifecycleStepAttemptInput{
+						AttemptID: begin.Attempt.ID, Status: LifecycleStepFailed,
+					}); err != nil {
+						t.Fatal(err)
+					}
+				}
+			}
+			_, err = NewLifecycleCoordinator(repository, nil, nil).lifecycleHostActionResults(
+				context.Background(), acquired.Operation.ID, LifecycleMachineInstall, 2,
+			)
+			if !errors.Is(err, ErrLifecycleCoordinatorInvalid) {
+				t.Fatalf("action result state %q = %v", test.status, err)
+			}
+		})
+	}
+}
+
+func TestLifecycleCoordinatorHostCannotMutateDurableActionResults(t *testing.T) {
+	repository := newLifecycleCoordinatorTestRepository()
+	runtime := &lifecycleCoordinatorTestRuntime{behaviors: map[LifecycleMachineAction][]lifecycleCoordinatorTestBehavior{
+		LifecycleMachineInstallPlan: {{result: LifecycleCoordinatorActionResult{
+			Status: LifecycleStepSucceeded, ResultDocument: json.RawMessage(`{"plan":"immutable"}`),
+		}}},
+	}}
+	result, err := NewLifecycleCoordinator(repository, runtime, lifecycleCoordinatorMutatingActionResultsHost{}).
+		Run(context.Background(), lifecycleCoordinatorTestInput(LifecycleMachineInstall, false))
+	if err != nil || result.Operation.TerminalResult != LifecycleTerminalSucceeded {
+		t.Fatalf("operation = %#v, %v", result, err)
+	}
+	attempt, err := repository.LatestStepAttempt(context.Background(), result.Operation.ID, "lifecycle.install.01.install.plan")
+	if err != nil || string(attempt.ResultDocument) != `{"plan":"immutable"}` {
+		t.Fatalf("Host mutated ledger result = %#v, %v", attempt, err)
+	}
+}
+
+type lifecycleCoordinatorMutatingActionResultsHost struct{}
+
+func (lifecycleCoordinatorMutatingActionResultsHost) RunLifecycleHostGate(
+	_ context.Context,
+	request LifecycleCoordinatorGateRequest,
+) (LifecycleCoordinatorGateResult, error) {
+	if request.StepID == "lifecycle.install.02.host.migrating" {
+		if raw := request.ActionResults[LifecycleMachineInstallPlan]; len(raw) > 0 {
+			raw[0] = '['
+		}
+		request.ActionResults[LifecycleMachineInstallPlan] = json.RawMessage(`{"plan":"forged"}`)
+		request.ActionResults[LifecycleMachineDisableAction] = json.RawMessage(`{"not":"allowlisted"}`)
+	}
+	return lifecycleCoordinatorTestPlannedGateResult(request), nil
+}
+
 func TestLifecycleRecommendedPathsFinalizeDestructiveOperationsAndActivateUpgrade(t *testing.T) {
 	tests := []struct {
 		operation LifecycleMachineOperation
@@ -662,8 +855,33 @@ func seedLifecycleCoordinatorV1OpenOperation(
 	machine LifecycleStateMachine,
 ) {
 	t.Helper()
-	if _, err := repository.AcquireOperation(context.Background(), input.Acquire); err != nil {
+	acquired, err := repository.AcquireOperation(context.Background(), input.Acquire)
+	if err != nil {
 		t.Fatal(err)
+	}
+	if machine.TerminalResult == "" {
+		path, _ := RecommendedLifecyclePath(machine.Operation)
+		for index, step := range path {
+			if index > machine.Position || (index == machine.Position && !machine.StepComplete) {
+				break
+			}
+			if step.Action == "" {
+				continue
+			}
+			stepID := lifecycleCoordinatorStepID(machine.Operation, index, step.State, step.Action)
+			begin, beginErr := repository.BeginStepAttempt(context.Background(), BeginLifecycleStepAttemptInput{
+				OperationID: acquired.Operation.ID, StepID: stepID, LifecycleAction: string(step.Action),
+				PlanVersion: input.Acquire.PlanVersion,
+			})
+			if beginErr != nil {
+				t.Fatal(beginErr)
+			}
+			if _, completeErr := repository.CompleteStepAttempt(context.Background(), CompleteLifecycleStepAttemptInput{
+				AttemptID: begin.Attempt.ID, Status: LifecycleStepSucceeded,
+			}); completeErr != nil {
+				t.Fatal(completeErr)
+			}
+		}
 	}
 	value, err := json.Marshal(lifecycleCoordinatorSnapshot{Schema: lifecycleCoordinatorSnapshotSchemaV1, Machine: machine})
 	if err != nil {

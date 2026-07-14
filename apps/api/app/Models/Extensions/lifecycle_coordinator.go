@@ -102,17 +102,20 @@ type LifecycleCoordinatorActionResult struct {
 }
 
 type LifecycleCoordinatorGateRequest struct {
-	Extension         Extension
-	SourceExtension   *Extension
-	TargetExtension   Extension
-	OperationID       int64
-	Operation         LifecycleMachineOperation
-	State             LifecycleMachineState
-	Position          int
-	StepID            string
-	Attempt           int
-	Checkpoint        string
-	PreviousResult    json.RawMessage
+	Extension       Extension
+	SourceExtension *Extension
+	TargetExtension Extension
+	OperationID     int64
+	Operation       LifecycleMachineOperation
+	State           LifecycleMachineState
+	Position        int
+	StepID          string
+	Attempt         int
+	Checkpoint      string
+	PreviousResult  json.RawMessage
+	// ActionResults is rebuilt from the durable step ledger for allowlisted
+	// plugin actions before Position. Hosts may mutate this local copy only.
+	ActionResults     map[LifecycleMachineAction]json.RawMessage
 	SourceBinding     LifecycleRuntimeBinding
 	TargetBinding     LifecycleRuntimeBinding
 	AuthorityType     string

@@ -2,6 +2,7 @@ package extensions
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -100,6 +101,41 @@ func lifecycleManifestContract(extension Extension) string {
 		return ""
 	}
 	return extension.Manifest.Lifecycle.ContractVersion
+}
+
+func (c *LifecycleCoordinator) lifecycleHostActionResults(
+	ctx context.Context,
+	operationID int64,
+	operation LifecycleMachineOperation,
+	position int,
+) (map[LifecycleMachineAction]json.RawMessage, error) {
+	path, err := RecommendedLifecyclePath(operation)
+	if err != nil || position < 0 || position >= len(path) || path[position].Action != "" {
+		return nil, fmt.Errorf("%w: Host action result position is invalid", ErrLifecycleCoordinatorInvalid)
+	}
+	results := make(map[LifecycleMachineAction]json.RawMessage)
+	for index := 0; index < position; index++ {
+		step := path[index]
+		if step.Action == "" {
+			continue
+		}
+		stepID := lifecycleCoordinatorStepID(operation, index, step.State, step.Action)
+		attempt, loadErr := c.repository.LatestStepAttempt(ctx, operationID, stepID)
+		if loadErr != nil {
+			return nil, fmt.Errorf("%w: prior action %q has no durable terminal result: %v", ErrLifecycleCoordinatorInvalid, step.Action, loadErr)
+		}
+		if attempt.Status != LifecycleStepSucceeded && attempt.Status != LifecycleStepSkipped {
+			return nil, fmt.Errorf(
+				"%w: prior action %q is not successfully terminal (status %q)",
+				ErrLifecycleCoordinatorInvalid, step.Action, attempt.Status,
+			)
+		}
+		if _, duplicate := results[step.Action]; duplicate {
+			return nil, fmt.Errorf("%w: duplicate prior action %q", ErrLifecycleCoordinatorInvalid, step.Action)
+		}
+		results[step.Action] = cloneLifecycleJSON(attempt.ResultDocument)
+	}
+	return results, nil
 }
 
 func lifecycleOperationUsesCurrentArtifact(operation LifecycleMachineOperation) bool {

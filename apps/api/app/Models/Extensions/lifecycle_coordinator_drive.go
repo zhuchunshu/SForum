@@ -318,6 +318,11 @@ func (c *LifecycleCoordinator) runLifecycleHostGate(
 	}
 	attempt, lease, runCtx := claimed.attempt, claimed.lease, claimed.runCtx
 	defer claimed.cancelRun()
+	actionResults, err := c.lifecycleHostActionResults(ctx, operation.ID, machine.Operation, gatePosition)
+	if err != nil {
+		lease.stopHeartbeat()
+		return c.failLifecycleHostGate(ctx, operation, machine, attempt, lease, failureBarrier, err)
+	}
 	var result LifecycleCoordinatorGateResult
 	var runErr error
 	if c.host == nil {
@@ -328,6 +333,7 @@ func (c *LifecycleCoordinator) runLifecycleHostGate(
 			OperationID: operation.ID, Operation: machine.Operation, State: gateState, Position: gatePosition,
 			StepID: stepID, Attempt: attempt.Attempt, Checkpoint: attempt.Checkpoint,
 			PreviousResult: cloneLifecycleJSON(previous.ResultDocument),
+			ActionResults:  actionResults,
 			SourceBinding:  machine.SourceBinding, TargetBinding: machine.TargetBinding,
 			AuthorityType: operation.AuthorityType, TrustGrantID: operation.TrustGrantID,
 			AuthoritySnapshot: cloneLifecycleJSON(operation.AuthoritySnapshot), RemovalMode: operation.RemovalMode,
