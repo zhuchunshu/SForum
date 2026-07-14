@@ -12,18 +12,21 @@ import (
 )
 
 var (
-	ErrRuntimeInstanceNotFound  = errors.New("extension runtime instance was not found")
-	ErrRuntimeInstanceNotActive = errors.New("extension runtime instance is not active")
-	ErrRuntimeInstanceActive    = errors.New("extension runtime instance is active")
-	ErrRuntimeInstanceBusy      = errors.New("extension runtime instance still has active calls")
-	ErrRuntimeInstanceConflict  = errors.New("extension runtime instance already exists")
+	ErrRuntimeInstanceNotFound   = errors.New("extension runtime instance was not found")
+	ErrRuntimeInstanceNotActive  = errors.New("extension runtime instance is not active")
+	ErrRuntimeInstanceActive     = errors.New("extension runtime instance is active")
+	ErrRuntimeInstanceBusy       = errors.New("extension runtime instance still has active calls")
+	ErrRuntimeInstanceConflict   = errors.New("extension runtime instance already exists")
+	ErrRuntimeInstanceNotDrained = errors.New("extension runtime instance must be drained before transition")
 )
 
 type managedRuntimeInstance struct {
+	extension        extensions.Extension
 	extensionVersion string
 	artifactDigest   string
 	target           RouteTarget
 	gate             *RuntimeAdmissionGate
+	transitioning    bool
 }
 
 // RuntimeInstanceSnapshot 是一个精确 runtime 实例的宿主侧保留句柄。
@@ -59,6 +62,10 @@ func (m *Manager) AcquireActiveRuntimeCall(ctx context.Context, extensionID stri
 		m.mu.RUnlock()
 		return RuntimeInstanceSnapshot{}, nil, err
 	}
+	if instance.transitioning {
+		m.mu.RUnlock()
+		return RuntimeInstanceSnapshot{}, nil, fmt.Errorf("%w: %s/%s", ErrRuntimeInstanceBusy, identity.ExtensionID, identity.InstanceID)
+	}
 	lease, err := instance.gate.Acquire(ctx, class)
 	if err != nil {
 		m.mu.RUnlock()
@@ -89,6 +96,10 @@ func (m *Manager) AcquireRuntimeCall(ctx context.Context, identity RuntimeInstan
 		m.mu.RUnlock()
 		return nil, fmt.Errorf("%w: %s/%s", ErrRuntimeInstanceNotActive, identity.ExtensionID, identity.InstanceID)
 	}
+	if instance.transitioning {
+		m.mu.RUnlock()
+		return nil, fmt.Errorf("%w: %s/%s", ErrRuntimeInstanceBusy, identity.ExtensionID, identity.InstanceID)
+	}
 	// 保持 Manager 读锁直至 gate 完成 admission，使 Start 的 drain+switch 具有单一线性化边界。
 	lease, err := instance.gate.Acquire(ctx, class)
 	m.mu.RUnlock()
@@ -100,6 +111,8 @@ func (m *Manager) BeginDrain(identity RuntimeInstanceIdentity) (RuntimeAdmission
 	if err != nil {
 		return RuntimeAdmissionSnapshot{}, err
 	}
+	unlock := m.lockRuntimeLifecycle(identity.ExtensionID)
+	defer unlock()
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	instance, err := m.runtimeInstanceLocked(identity)
@@ -115,6 +128,8 @@ func (m *Manager) ResumeRuntimeInstance(identity RuntimeInstanceIdentity) (Runti
 	if err != nil {
 		return RuntimeAdmissionSnapshot{}, err
 	}
+	unlock := m.lockRuntimeLifecycle(identity.ExtensionID)
+	defer unlock()
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	instance, err := m.runtimeInstanceLocked(identity)
@@ -149,6 +164,8 @@ func (m *Manager) ForceDrain(identity RuntimeInstanceIdentity, cause error) (Run
 	if err != nil {
 		return RuntimeAdmissionSnapshot{}, err
 	}
+	unlock := m.lockRuntimeLifecycle(identity.ExtensionID)
+	defer unlock()
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	instance, err := m.runtimeInstanceLocked(identity)
@@ -197,6 +214,8 @@ func (m *Manager) RemoveRuntimeInstance(identity RuntimeInstanceIdentity) error 
 	if err != nil {
 		return err
 	}
+	unlock := m.lockRuntimeLifecycle(identity.ExtensionID)
+	defer unlock()
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	instance, err := m.runtimeInstanceLocked(identity)
@@ -251,6 +270,7 @@ func (m *Manager) activateRuntimeInstanceLocked(extension extensions.Extension, 
 		version = extension.Manifest.Version
 	}
 	instances[instanceID] = &managedRuntimeInstance{
+		extension:        extension,
 		extensionVersion: version,
 		artifactDigest:   extension.PackageDigest,
 		target:           target,

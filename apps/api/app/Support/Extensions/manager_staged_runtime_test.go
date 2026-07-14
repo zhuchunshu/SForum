@@ -1,0 +1,436 @@
+package extensionsruntime
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"sync"
+	"testing"
+
+	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
+)
+
+func TestManagerStagesPublishesAndRollsBackExactRuntimeInstances(t *testing.T) {
+	starter := newManagerStagedStarter()
+	manager := NewManager(ManagerConfig{Starter: starter})
+	oldExtension := managerStagedExtension("staged.manager", "1.0.0", "digest-1")
+	if err := manager.Start(context.Background(), oldExtension); err != nil {
+		t.Fatal(err)
+	}
+	old, err := manager.ActiveRuntimeInstance(oldExtension.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	newExtension := managerStagedExtension(oldExtension.ID, "2.0.0", "digest-2")
+	staged, err := manager.StageRuntimeInstance(context.Background(), newExtension)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if staged.Active || staged.ExtensionVersion != "2.0.0" || staged.ArtifactDigest != "digest-2" {
+		t.Fatalf("staged snapshot = %#v", staged)
+	}
+	if active, _ := manager.ActiveRuntimeInstance(oldExtension.ID); active.Identity != old.Identity {
+		t.Fatalf("staging changed active identity: %#v", active)
+	}
+	if _, err := manager.AcquireRuntimeCall(context.Background(), staged.Identity, RuntimeCallRoute); !errors.Is(err, ErrRuntimeInstanceNotActive) {
+		t.Fatalf("inactive ordinary admission = %v", err)
+	}
+	cleanup := acquireManagerRuntimeCall(t, manager, staged.Identity, RuntimeCallLifecycleCleanup)
+	cleanup.Release()
+	if _, err := manager.HealthRuntimeInstance(context.Background(), staged.Identity); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := manager.PublishRuntimeInstance(context.Background(), staged.Identity); !errors.Is(err, ErrRuntimeInstanceNotDrained) {
+		t.Fatalf("publish before old drain = %v", err)
+	}
+	if _, err := manager.BeginDrain(old.Identity); err != nil {
+		t.Fatal(err)
+	}
+	if err := manager.WaitDrain(context.Background(), old.Identity); err != nil {
+		t.Fatal(err)
+	}
+	published, err := manager.PublishRuntimeInstance(context.Background(), staged.Identity)
+	if err != nil || !published.Active || published.Identity != staged.Identity || published.Admission.Draining {
+		t.Fatalf("published snapshot = %#v, %v", published, err)
+	}
+	retained, err := manager.InspectRuntimeInstance(old.Identity)
+	if err != nil || retained.Active || !retained.Admission.Draining {
+		t.Fatalf("retained old snapshot = %#v, %v", retained, err)
+	}
+
+	if _, err := manager.BeginDrain(staged.Identity); err != nil {
+		t.Fatal(err)
+	}
+	if err := manager.WaitDrain(context.Background(), staged.Identity); err != nil {
+		t.Fatal(err)
+	}
+	rolledBack, err := manager.PublishRuntimeInstance(context.Background(), old.Identity)
+	if err != nil || !rolledBack.Active || rolledBack.Identity != old.Identity || rolledBack.Admission.Draining {
+		t.Fatalf("rollback snapshot = %#v, %v", rolledBack, err)
+	}
+	replacement, err := manager.InspectRuntimeInstance(staged.Identity)
+	if err != nil || replacement.Active || !replacement.Admission.Draining {
+		t.Fatalf("rolled-back replacement = %#v, %v", replacement, err)
+	}
+	if got := starter.activeIdentity(oldExtension.ID); got != old.Identity {
+		t.Fatalf("protocol active identity = %#v", got)
+	}
+}
+
+func TestManagerExactStopAndDiscardNeverRemoveReplacement(t *testing.T) {
+	starter := newManagerStagedStarter()
+	manager := NewManager(ManagerConfig{Starter: starter})
+	extension := managerStagedExtension("remove.staged", "1.0.0", "digest-1")
+	if err := manager.Start(context.Background(), extension); err != nil {
+		t.Fatal(err)
+	}
+	active, _ := manager.ActiveRuntimeInstance(extension.ID)
+
+	candidateExtension := managerStagedExtension(extension.ID, "2.0.0", "digest-2")
+	candidate, err := manager.StageRuntimeInstance(context.Background(), candidateExtension)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := manager.DiscardRuntimeInstance(context.Background(), candidate.Identity); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := manager.InspectRuntimeInstance(candidate.Identity); !errors.Is(err, ErrRuntimeInstanceNotFound) {
+		t.Fatalf("discarded Manager identity = %v", err)
+	}
+	if status := manager.Status(context.Background(), candidateExtension); status.State != extensions.RuntimeRunning {
+		t.Fatalf("discarded upgrade candidate changed active status: %#v", status)
+	}
+	if got := starter.activeIdentity(extension.ID); got != active.Identity {
+		t.Fatalf("discard changed active protocol identity: %#v", got)
+	}
+	if err := manager.DiscardRuntimeInstance(context.Background(), active.Identity); !errors.Is(err, ErrRuntimeInstanceActive) {
+		t.Fatalf("active discard = %v", err)
+	}
+	if err := manager.StopRuntimeInstance(context.Background(), active.Identity); !errors.Is(err, ErrRuntimeInstanceNotDrained) {
+		t.Fatalf("undrained stop = %v", err)
+	}
+	if _, err := manager.BeginDrain(active.Identity); err != nil {
+		t.Fatal(err)
+	}
+	if err := manager.StopRuntimeInstance(context.Background(), active.Identity); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := manager.ActiveRuntimeInstance(extension.ID); !errors.Is(err, ErrRuntimeInstanceNotFound) {
+		t.Fatalf("stopped active lookup = %v", err)
+	}
+}
+
+func TestManagerDiscardedInitialCandidateReturnsToStoppedStatus(t *testing.T) {
+	starter := newManagerStagedStarter()
+	manager := NewManager(ManagerConfig{Starter: starter})
+	extension := managerStagedExtension("initial.staged", "1.0.0", "digest-1")
+	staged, err := manager.StageRuntimeInstance(context.Background(), extension)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if status := manager.Status(context.Background(), extension); status.State != extensions.RuntimeStarting {
+		t.Fatalf("staged status = %#v", status)
+	}
+	if err := manager.DiscardRuntimeInstance(context.Background(), staged.Identity); err != nil {
+		t.Fatal(err)
+	}
+	if status := manager.Status(context.Background(), extension); status.State != extensions.RuntimeStopped {
+		t.Fatalf("discarded status = %#v", status)
+	}
+}
+
+func TestManagerPublishRejectsConcurrentLifecycleCleanup(t *testing.T) {
+	starter := newManagerStagedStarter()
+	manager := NewManager(ManagerConfig{Starter: starter})
+	extension := managerStagedExtension("busy.staged", "1.0.0", "digest-1")
+	staged, err := manager.StageRuntimeInstance(context.Background(), extension)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := manager.HealthRuntimeInstance(context.Background(), staged.Identity); err != nil {
+		t.Fatal(err)
+	}
+	cleanup := acquireManagerRuntimeCall(t, manager, staged.Identity, RuntimeCallLifecycleCleanup)
+	if _, err := manager.PublishRuntimeInstance(context.Background(), staged.Identity); !errors.Is(err, ErrRuntimeInstanceBusy) {
+		t.Fatalf("publish with cleanup = %v", err)
+	}
+	if err := manager.DiscardRuntimeInstance(context.Background(), staged.Identity); !errors.Is(err, ErrRuntimeInstanceBusy) {
+		t.Fatalf("discard with cleanup = %v", err)
+	}
+	cleanup.Release()
+	if err := manager.DiscardRuntimeInstance(context.Background(), staged.Identity); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestManagerPublishBlocksNewSourceAndTargetCleanupAcrossPointerSwitch(t *testing.T) {
+	starter := newManagerStagedStarter()
+	manager := NewManager(ManagerConfig{Starter: starter})
+	source := managerStagedExtension("switch.staged", "1.0.0", "digest-1")
+	if err := manager.Start(context.Background(), source); err != nil {
+		t.Fatal(err)
+	}
+	active, _ := manager.ActiveRuntimeInstance(source.ID)
+	target := managerStagedExtension(source.ID, "2.0.0", "digest-2")
+	staged, err := manager.StageRuntimeInstance(context.Background(), target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := manager.HealthRuntimeInstance(context.Background(), staged.Identity); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := manager.BeginDrain(active.Identity); err != nil {
+		t.Fatal(err)
+	}
+	starter.publishStarted = make(chan struct{}, 1)
+	starter.publishContinue = make(chan struct{})
+	result := make(chan error, 1)
+	go func() {
+		_, err := manager.PublishRuntimeInstance(context.Background(), staged.Identity)
+		result <- err
+	}()
+	<-starter.publishStarted
+	if _, err := manager.AcquireRuntimeCall(context.Background(), active.Identity, RuntimeCallLifecycleCleanup); !errors.Is(err, ErrRuntimeInstanceBusy) {
+		t.Fatalf("source cleanup during switch = %v", err)
+	}
+	if _, err := manager.AcquireRuntimeCall(context.Background(), staged.Identity, RuntimeCallLifecycleCleanup); !errors.Is(err, ErrRuntimeInstanceBusy) {
+		t.Fatalf("target cleanup during switch = %v", err)
+	}
+	close(starter.publishContinue)
+	if err := <-result; err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestManagerFailedRollbackPublishRestoresRetainedDrain(t *testing.T) {
+	starter := newManagerStagedStarter()
+	manager := NewManager(ManagerConfig{Starter: starter})
+	source := managerStagedExtension("failed.rollback", "1.0.0", "digest-1")
+	if err := manager.Start(context.Background(), source); err != nil {
+		t.Fatal(err)
+	}
+	old, _ := manager.ActiveRuntimeInstance(source.ID)
+	target := managerStagedExtension(source.ID, "2.0.0", "digest-2")
+	staged, err := manager.StageRuntimeInstance(context.Background(), target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := manager.HealthRuntimeInstance(context.Background(), staged.Identity); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := manager.BeginDrain(old.Identity); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := manager.PublishRuntimeInstance(context.Background(), staged.Identity); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := manager.BeginDrain(staged.Identity); err != nil {
+		t.Fatal(err)
+	}
+	starter.failPublish(old.Identity, errors.New("registry publication failed"))
+	if _, err := manager.PublishRuntimeInstance(context.Background(), old.Identity); err == nil {
+		t.Fatal("expected rollback publication failure")
+	}
+	retained, err := manager.InspectRuntimeInstance(old.Identity)
+	if err != nil || retained.Active || !retained.Admission.Draining {
+		t.Fatalf("failed rollback reopened retained gate: %#v, %v", retained, err)
+	}
+	active, err := manager.ActiveRuntimeInstance(source.ID)
+	if err != nil || active.Identity != staged.Identity || !active.Admission.Draining {
+		t.Fatalf("failed rollback changed current identity: %#v, %v", active, err)
+	}
+}
+
+func TestManagerHealthRejectsFrozenManifestDrift(t *testing.T) {
+	starter := newManagerStagedStarter()
+	manager := NewManager(ManagerConfig{Starter: starter})
+	extension := managerStagedExtension("manifest-drift.staged", "1.0.0", "digest-1")
+	staged, err := manager.StageRuntimeInstance(context.Background(), extension)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = manager.DiscardRuntimeInstance(context.Background(), staged.Identity) })
+
+	starter.mu.Lock()
+	protocolSnapshot := starter.instances[staged.Identity]
+	protocolSnapshot.ManifestDigest = "different-manifest"
+	starter.instances[staged.Identity] = protocolSnapshot
+	starter.mu.Unlock()
+
+	if _, err := manager.HealthRuntimeInstance(context.Background(), staged.Identity); !errors.Is(err, ErrRuntimeInstanceConflict) {
+		t.Fatalf("health manifest drift = %v", err)
+	}
+	managed, err := manager.InspectRuntimeInstance(staged.Identity)
+	if err != nil || managed.Active {
+		t.Fatalf("manifest drift changed Manager state: %#v, %v", managed, err)
+	}
+}
+
+type managerStagedStarter struct {
+	mu        sync.Mutex
+	next      int
+	instances map[RuntimeInstanceIdentity]ProtocolRuntimeInstanceSnapshot
+	active    map[string]RuntimeInstanceIdentity
+
+	publishStarted  chan struct{}
+	publishContinue chan struct{}
+	publishErrors   map[RuntimeInstanceIdentity]error
+}
+
+func newManagerStagedStarter() *managerStagedStarter {
+	return &managerStagedStarter{
+		instances: make(map[RuntimeInstanceIdentity]ProtocolRuntimeInstanceSnapshot),
+		active:    make(map[string]RuntimeInstanceIdentity),
+	}
+}
+
+func (s *managerStagedStarter) Start(ctx context.Context, extension extensions.Extension) (RouteTarget, error) {
+	target, err := s.StartInstance(ctx, extension)
+	if err != nil {
+		return RouteTarget{}, err
+	}
+	identity := RuntimeInstanceIdentity{ExtensionID: extension.ID, InstanceID: target.InstanceID}
+	if _, err := s.HealthInstance(ctx, identity); err != nil {
+		return RouteTarget{}, err
+	}
+	if _, err := s.PublishInstance(ctx, identity); err != nil {
+		return RouteTarget{}, err
+	}
+	return target, nil
+}
+
+func (s *managerStagedStarter) Stop(_ context.Context, extension extensions.Extension) error {
+	s.mu.Lock()
+	identity := s.active[extension.ID]
+	s.mu.Unlock()
+	if identity.InstanceID == "" {
+		return nil
+	}
+	return s.StopInstance(context.Background(), identity)
+}
+
+func (s *managerStagedStarter) StartInstance(_ context.Context, extension extensions.Extension) (RouteTarget, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.next++
+	identity := RuntimeInstanceIdentity{ExtensionID: extension.ID, InstanceID: fmt.Sprintf("instance-%d", s.next)}
+	target := RouteTarget{BaseURL: fmt.Sprintf("http://127.0.0.1:%d", 44000+s.next), InstanceID: identity.InstanceID}
+	manifestDigest, err := protocolRuntimeManifestDigest(extension.Manifest)
+	if err != nil {
+		return RouteTarget{}, err
+	}
+	s.instances[identity] = ProtocolRuntimeInstanceSnapshot{
+		Identity: identity, ExtensionVersion: extension.Version, ArtifactDigest: extension.PackageDigest,
+		ManifestDigest: manifestDigest, ProtocolVersion: 2, Target: target, State: ProtocolRuntimeStaged, Healthy: true,
+	}
+	return target, nil
+}
+
+func (s *managerStagedStarter) InspectInstance(identity RuntimeInstanceIdentity) (ProtocolRuntimeInstanceSnapshot, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	snapshot, ok := s.instances[identity]
+	if !ok {
+		return ProtocolRuntimeInstanceSnapshot{}, ErrRuntimeInstanceNotFound
+	}
+	return snapshot, nil
+}
+
+func (s *managerStagedStarter) HealthInstance(_ context.Context, identity RuntimeInstanceIdentity) (PluginHealth, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	snapshot, ok := s.instances[identity]
+	if !ok {
+		return PluginHealth{}, ErrRuntimeInstanceNotFound
+	}
+	snapshot.Healthy = true
+	snapshot.Ready = true
+	snapshot.ReadinessChecked = true
+	s.instances[identity] = snapshot
+	return PluginHealth{OK: true}, nil
+}
+
+func (s *managerStagedStarter) PublishInstance(_ context.Context, identity RuntimeInstanceIdentity) (ProtocolRuntimeInstanceSnapshot, error) {
+	if s.publishStarted != nil {
+		s.publishStarted <- struct{}{}
+		<-s.publishContinue
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if err := s.publishErrors[identity]; err != nil {
+		return ProtocolRuntimeInstanceSnapshot{}, err
+	}
+	snapshot, ok := s.instances[identity]
+	if !ok {
+		return ProtocolRuntimeInstanceSnapshot{}, ErrRuntimeInstanceNotFound
+	}
+	if !snapshot.Ready {
+		return ProtocolRuntimeInstanceSnapshot{}, ErrProtocolInstanceNotReady
+	}
+	if previous := s.active[identity.ExtensionID]; previous.InstanceID != "" && previous != identity {
+		old := s.instances[previous]
+		old.State = ProtocolRuntimeRetained
+		s.instances[previous] = old
+	}
+	snapshot.State = ProtocolRuntimePublished
+	s.instances[identity] = snapshot
+	s.active[identity.ExtensionID] = identity
+	return snapshot, nil
+}
+
+func (s *managerStagedStarter) failPublish(identity RuntimeInstanceIdentity, err error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.publishErrors == nil {
+		s.publishErrors = make(map[RuntimeInstanceIdentity]error)
+	}
+	s.publishErrors[identity] = err
+}
+
+func (*managerStagedStarter) RunLifecycleInstance(context.Context, RuntimeInstanceIdentity, extensions.Extension, LifecycleInvocation) (LifecycleRunResult, error) {
+	return LifecycleRunResult{}, nil
+}
+
+func (s *managerStagedStarter) StopInstance(_ context.Context, identity RuntimeInstanceIdentity) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if _, ok := s.instances[identity]; !ok {
+		return ErrRuntimeInstanceNotFound
+	}
+	delete(s.instances, identity)
+	if s.active[identity.ExtensionID] == identity {
+		delete(s.active, identity.ExtensionID)
+	}
+	return nil
+}
+
+func (s *managerStagedStarter) DiscardInstance(_ context.Context, identity RuntimeInstanceIdentity) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	snapshot, ok := s.instances[identity]
+	if !ok {
+		return ErrRuntimeInstanceNotFound
+	}
+	if snapshot.State != ProtocolRuntimeStaged {
+		return ErrProtocolInstancePublished
+	}
+	delete(s.instances, identity)
+	return nil
+}
+
+func (s *managerStagedStarter) activeIdentity(extensionID string) RuntimeInstanceIdentity {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.active[extensionID]
+}
+
+func managerStagedExtension(id, version, digest string) extensions.Extension {
+	extension := managerRuntimeExtension(id, version, digest)
+	extension.Manifest.Backend.ProtocolVersion = 2
+	extension.Manifest.Backend.HostAPIVersion = "sforum.host.v2"
+	extension.Manifest.Lifecycle = &extensions.ManifestLifecycle{ContractVersion: "demo.lifecycle@1"}
+	return extension
+}
+
+var _ StagedRuntimeStarter = (*managerStagedStarter)(nil)
