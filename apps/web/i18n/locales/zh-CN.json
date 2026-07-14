@@ -297,6 +297,7 @@
       "extensionEvents": "事件日志",
       "extensionContributions": "扩展点",
       "extensionRouteProviders": "路由提供者",
+      "extensionProviderSlots": "服务提供者",
       "forumHome": "论坛首页",
       "forum": "论坛管理",
       "forumCategories": "版块分类",
@@ -1051,6 +1052,60 @@
           "rawRequest": "插件接收原始请求权限；核心权限与会话策略不再自动保护此处理器。",
           "customGuard": "插件自定义 Guard 拥有授权契约；核心策略不会替它判断允许或拒绝。",
           "replacementHandler": "插件处理器将替代核心实现，并负责保持声明的数据契约与安全边界。"
+        }
+      },
+      "providerSlots": {
+        "metaTitle": "服务提供者",
+        "title": "服务提供者",
+        "intro": "检查插件定义的服务契约、精确候选制品、运行状态与回退顺序。",
+        "count": "共 {count} 个服务槽",
+        "revision": "快照 revision {revision}",
+        "selectedCount": "已选择 {count}",
+        "staleCount": "已过期 {count}",
+        "loadFailed": "服务提供者目录加载失败。",
+        "emptyTitle": "暂无服务提供者",
+        "emptyDescription": "当前运行快照没有插件定义的服务槽。",
+        "readOnlyTitle": "当前为只读模式",
+        "readOnlyDescription": "只有状态正常的超级管理员可以选择、重置或探测服务提供者。",
+        "chooseProvider": "选择服务提供者",
+        "current": "当前选择",
+        "selectAction": "确认选择",
+        "restoreDefault": "恢复推荐默认",
+        "probe": "探测",
+        "selected": "服务提供者已选择。",
+        "reset": "已恢复按优先级排序的推荐默认。提供者设置和密钥未被删除。",
+        "probePassed": "提供者探测通过。",
+        "probeFailed": "提供者探测未通过。",
+        "selectFailed": "服务提供者选择失败。",
+        "resetFailed": "恢复推荐默认失败。",
+        "casConflict": "选择已被其他操作更新，目录已刷新，请重新核对。",
+        "staleOperation": "选择绑定的契约或精确制品已过期，请重新核对。",
+        "staleTitle": "当前选择已过期",
+        "staleDescription": "契约所有者或候选插件的版本、包摘要已变化。过期选择不会静默继承到新制品。",
+        "casHint": "提交时将校验选择 revision {revision}",
+        "auditEvidence": "revision {revision} · 操作用户 #{actor} · 审计 #{audit} · 更新于 {updatedAt}",
+        "status": {
+          "default": "推荐默认",
+          "selected": "已选择",
+          "stale": "已过期"
+        },
+        "availability": {
+          "available": "运行中",
+          "unavailable": "不可用"
+        },
+        "fallback": {
+          "next": "失败后尝试下一候选",
+          "closed": "失败后停止"
+        },
+        "fields": {
+          "owner": "契约所有者",
+          "fallback": "回退策略",
+          "timeout": "调用超时",
+          "schemas": "请求 → 响应契约",
+          "extension": "候选扩展",
+          "digest": "包摘要",
+          "runtime": "运行实例",
+          "handler": "处理器"
         }
       }
     },

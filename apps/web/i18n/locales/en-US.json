@@ -293,6 +293,7 @@
       "extensionEvents": "Event log",
       "extensionContributions": "Extension points",
       "extensionRouteProviders": "Route providers",
+      "extensionProviderSlots": "Service providers",
       "forumHome": "Forum home",
       "forum": "Forum",
       "forumCategories": "Categories",
@@ -1051,6 +1052,60 @@
           "rawRequest": "The plugin receives raw request authority; core permission and session policy no longer protect this handler automatically.",
           "customGuard": "The plugin's custom guard owns authorization; core policy does not decide allowed and denied requests for it.",
           "replacementHandler": "The plugin handler replaces the core implementation and must preserve the declared data contract and security boundary."
+        }
+      },
+      "providerSlots": {
+        "metaTitle": "Service providers",
+        "title": "Service providers",
+        "intro": "Inspect plugin-defined service contracts, exact candidate artifacts, runtime health, and fallback order.",
+        "count": "{count} provider slot(s)",
+        "revision": "Snapshot revision {revision}",
+        "selectedCount": "{count} selected",
+        "staleCount": "{count} stale",
+        "loadFailed": "Failed to load the service provider catalog.",
+        "emptyTitle": "No service providers",
+        "emptyDescription": "The current runtime snapshot has no plugin-defined provider slots.",
+        "readOnlyTitle": "Read-only access",
+        "readOnlyDescription": "Only an active super administrator can select, reset, or probe service providers.",
+        "chooseProvider": "Choose a service provider",
+        "current": "Current selection",
+        "selectAction": "Confirm selection",
+        "restoreDefault": "Restore recommended default",
+        "probe": "Probe",
+        "selected": "Service provider selected.",
+        "reset": "Recommended priority order restored. Provider settings and secrets were preserved.",
+        "probePassed": "Provider probe passed.",
+        "probeFailed": "Provider probe did not pass.",
+        "selectFailed": "Failed to select the service provider.",
+        "resetFailed": "Failed to restore the recommended default.",
+        "casConflict": "Another operation updated this selection. The catalog was refreshed; review it again.",
+        "staleOperation": "The selected contract or exact artifact is stale. Review the current catalog.",
+        "staleTitle": "Current selection is stale",
+        "staleDescription": "The contract owner or candidate plugin version or package digest changed. A stale choice never transfers silently to a new artifact.",
+        "casHint": "Submission will compare selection revision {revision}",
+        "auditEvidence": "revision {revision} · actor #{actor} · audit #{audit} · updated {updatedAt}",
+        "status": {
+          "default": "Recommended default",
+          "selected": "Selected",
+          "stale": "Stale"
+        },
+        "availability": {
+          "available": "Running",
+          "unavailable": "Unavailable"
+        },
+        "fallback": {
+          "next": "Try the next candidate on failure",
+          "closed": "Stop after failure"
+        },
+        "fields": {
+          "owner": "Contract owner",
+          "fallback": "Fallback policy",
+          "timeout": "Call timeout",
+          "schemas": "Request → response contract",
+          "extension": "Candidate extension",
+          "digest": "Package digest",
+          "runtime": "Runtime instance",
+          "handler": "Handler"
         }
       }
     },

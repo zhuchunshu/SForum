@@ -119,6 +119,14 @@ useSeoMeta({
       >
         {{ t('admin.nav.extensionRouteProviders') }}
       </UButton>
+      <UButton
+        icon="i-lucide-waypoints"
+        color="neutral"
+        variant="subtle"
+        :to="adminRoutes.path('/extensions/provider-slots')"
+      >
+        {{ t('admin.nav.extensionProviderSlots') }}
+      </UButton>
       <UButton icon="i-lucide-rotate-cw" color="neutral" variant="subtle" :loading="pending" @click="refresh()">
         {{ t('admin.extensions.refresh') }}
       </UButton>

@@ -1492,6 +1492,11 @@
       "source": "apps/web/app/pages/admin/extensions/route-providers.vue"
     },
     {
+      "id": "core.component.page.admin.extensions.provider.slots",
+      "contractVersion": "sforum.component.page.admin.extensions.provider.slots@1",
+      "source": "apps/web/app/pages/admin/extensions/provider-slots.vue"
+    },
+    {
       "id": "core.component.page.admin.extensions.settings",
       "contractVersion": "sforum.component.page.admin.extensions.settings@1",
       "source": "apps/web/app/pages/admin/extensions/settings.vue"

@@ -263,6 +263,13 @@ export const adminPageDefinitions = [
     requiredPermissions: ['extension.view']
   },
   {
+    id: '/extensions/provider-slots',
+    labelKey: 'admin.nav.extensionProviderSlots',
+    icon: 'i-lucide-waypoints',
+    componentName: 'AdminExtensionProviderSlots',
+    requiredPermissions: ['extension.view']
+  },
+  {
     id: '/search',
     labelKey: 'admin.nav.search',
     icon: 'i-lucide-search',
@@ -342,6 +349,7 @@ export const adminSidebarNavigation = [
         { type: 'page', pageId: '/extensions/themes' },
         { type: 'page', pageId: '/extensions/pages' },
         { type: 'page', pageId: '/extensions/route-providers' },
+        { type: 'page', pageId: '/extensions/provider-slots' },
         { type: 'page', pageId: '/extensions/settings' },
         { type: 'page', pageId: '/extensions/events' },
         { type: 'page', pageId: '/extensions/contributions' }
