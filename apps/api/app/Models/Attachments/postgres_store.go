@@ -180,6 +180,84 @@ func (s *PostgresStore) ListReferenceAccess(ctx context.Context, attachmentID in
 	return items, nil
 }
 
+// LoadReadGuardSubject loads attachment and referenced-resource authority in
+// one PostgreSQL snapshot so another API node's moderation changes are visible.
+func (s *PostgresStore) LoadReadGuardSubject(ctx context.Context, publicID string) (ReadGuardSubject, error) {
+	if s == nil || s.pool == nil || ctx == nil || publicID == "" || publicID != strings.TrimSpace(publicID) {
+		return ReadGuardSubject{}, ErrInvalidAttachment
+	}
+	rows, err := s.pool.Query(ctx, `
+		SELECT a.public_id, COALESCE(a.owner_user_id, 0), a.status, a.visibility,
+		  ar.id, ar.attachment_id, ar.resource_type, ar.resource_id, ar.context, ar.created_at,
+		  COALESCE(t.author_user_id, c.author_user_id, pt.author_user_id, pc.author_user_id, 0),
+		  COALESCE(t.status, c.status, pt.status, pc.status, ''),
+		  COALESCE(t.status, ct.status, pt.status, pct.status, ''),
+		  COALESCE(tc.visibility, cc.visibility, ptc.visibility, pcc.visibility, ''),
+		  CASE
+		    WHEN ar.id IS NULL THEN FALSE
+		    WHEN ar.resource_type = 'topic' THEN t.id IS NOT NULL
+		    WHEN ar.resource_type = 'comment' THEN c.id IS NOT NULL AND ct.id IS NOT NULL
+		    WHEN ar.resource_type = 'post' THEN (pt.id IS NOT NULL OR (pc.id IS NOT NULL AND pct.id IS NOT NULL))
+		    ELSE TRUE
+		  END
+		FROM attachments a
+		LEFT JOIN attachment_references ar ON ar.attachment_id = a.id
+		LEFT JOIN topics t ON ar.resource_type = 'topic' AND t.id = ar.resource_id
+		LEFT JOIN categories tc ON tc.id = t.category_id
+		LEFT JOIN comments c ON ar.resource_type = 'comment' AND c.id = ar.resource_id
+		LEFT JOIN topics ct ON ct.id = c.topic_id
+		LEFT JOIN categories cc ON cc.id = ct.category_id
+		LEFT JOIN topics pt ON ar.resource_type = 'post' AND pt.content_id = ar.resource_id
+		LEFT JOIN categories ptc ON ptc.id = pt.category_id
+		LEFT JOIN comments pc ON ar.resource_type = 'post' AND pc.content_id = ar.resource_id
+		LEFT JOIN topics pct ON pct.id = pc.topic_id
+		LEFT JOIN categories pcc ON pcc.id = pct.category_id
+		WHERE a.public_id = $1
+		ORDER BY ar.created_at DESC NULLS LAST, ar.id DESC NULLS LAST
+	`, publicID)
+	if err != nil {
+		return ReadGuardSubject{}, fmt.Errorf("load attachment read guard subject: %w", err)
+	}
+	defer rows.Close()
+	var subject ReadGuardSubject
+	for rows.Next() {
+		var reference struct {
+			ID, AttachmentID, ResourceID, AuthorUserID                             sql.NullInt64
+			ResourceType, Context, ResourceStatus, TopicStatus, CategoryVisibility sql.NullString
+			CreatedAt                                                              sql.NullTime
+			Exists                                                                 sql.NullBool
+		}
+		if err := rows.Scan(
+			&subject.PublicID, &subject.OwnerUserID, &subject.Status, &subject.Visibility,
+			&reference.ID, &reference.AttachmentID, &reference.ResourceType, &reference.ResourceID,
+			&reference.Context, &reference.CreatedAt, &reference.AuthorUserID,
+			&reference.ResourceStatus, &reference.TopicStatus, &reference.CategoryVisibility, &reference.Exists,
+		); err != nil {
+			return ReadGuardSubject{}, fmt.Errorf("scan attachment read guard subject: %w", err)
+		}
+		subject.Exists = true
+		if reference.ID.Valid {
+			subject.References = append(subject.References, ReferenceAccess{
+				AttachmentReference: AttachmentReference{
+					ID: reference.ID.Int64, AttachmentID: reference.AttachmentID.Int64,
+					ResourceType: reference.ResourceType.String, ResourceID: reference.ResourceID.Int64,
+					Context: reference.Context.String, CreatedAt: reference.CreatedAt.Time,
+				},
+				AuthorUserID: reference.AuthorUserID.Int64, ResourceStatus: reference.ResourceStatus.String,
+				TopicStatus: reference.TopicStatus.String, CategoryVisibility: reference.CategoryVisibility.String,
+				Exists: reference.Exists.Bool,
+			})
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return ReadGuardSubject{}, fmt.Errorf("iterate attachment read guard subject: %w", err)
+	}
+	if !subject.Exists {
+		return ReadGuardSubject{}, ErrAttachmentNotFound
+	}
+	return subject, nil
+}
+
 // ReplaceSEOReference 原子替换同一 SEO 上下文的图片引用和引用计数。
 func (s *PostgresStore) ReplaceSEOReference(ctx context.Context, attachmentID int64, referenceContext string, actorUserID int64) error {
 	tx, err := s.pool.Begin(ctx)

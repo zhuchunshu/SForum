@@ -92,31 +92,57 @@ func (s *Service) authorizeAttachmentView(ctx context.Context, actor identity.Ac
 	if !canViewAttachment(actor, attachment) {
 		return identity.ErrPermissionDenied
 	}
-	if actor.Can(identity.PermissionAttachmentManage) {
-		return nil
-	}
-	// 私有附件仅保留既有所有者路径，不通过引用扩大权限。
-	if attachment.Status != StatusActive || attachment.Visibility != VisibilityPublic {
+	if actor.Can(identity.PermissionAttachmentManage) ||
+		attachment.Status != StatusActive || attachment.Visibility != VisibilityPublic {
 		return nil
 	}
 	refs, err := s.store.ListReferenceAccess(ctx, attachment.ID)
 	if err != nil {
 		return identity.ErrPermissionDenied
 	}
-	if len(refs) == 0 {
-		if attachment.Owner != nil && actor.IsActive() && attachment.Owner.ID == actor.ID {
+	ownerUserID := int64(0)
+	if attachment.Owner != nil {
+		ownerUserID = attachment.Owner.ID
+	}
+	return AuthorizeReadGuardSubject(actor, ReadGuardSubject{
+		PublicID: attachment.PublicID, OwnerUserID: ownerUserID,
+		Status: attachment.Status, Visibility: attachment.Visibility,
+		Exists: true, References: refs,
+	}, s.guestReadLoginRequired(ctx))
+}
+
+// AuthorizeReadGuardSubject keeps core and trusted replacement reads on the
+// same attachment/reference policy without exposing storage internals.
+func AuthorizeReadGuardSubject(actor identity.Actor, subject ReadGuardSubject, guestLoginRequired bool) error {
+	if !subject.Exists || strings.TrimSpace(subject.PublicID) == "" {
+		return ErrAttachmentNotFound
+	}
+	if actor.Can(identity.PermissionAttachmentManage) {
+		return nil
+	}
+	if subject.Status != StatusActive {
+		return identity.ErrPermissionDenied
+	}
+	if subject.Visibility != VisibilityPublic {
+		if actor.IsActive() && subject.OwnerUserID > 0 && actor.ID == subject.OwnerUserID {
 			return nil
 		}
 		return identity.ErrPermissionDenied
 	}
-	for _, ref := range refs {
+	if len(subject.References) == 0 {
+		if actor.IsActive() && subject.OwnerUserID > 0 && actor.ID == subject.OwnerUserID {
+			return nil
+		}
+		return identity.ErrPermissionDenied
+	}
+	for _, ref := range subject.References {
 		if isSitePublicReference(ref.AttachmentReference) {
 			return nil
 		}
 		if !isForumReference(ref.ResourceType) || !canViewForumReference(actor, ref) {
 			continue
 		}
-		if !actor.IsActive() && s.guestReadLoginRequired(ctx) {
+		if !actor.IsActive() && guestLoginRequired {
 			return ErrGuestLoginRequired
 		}
 		return nil

@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	apitokens "github.com/zhuchunshu/sforum/apps/api/app/Models/APITokens"
+	attachments "github.com/zhuchunshu/sforum/apps/api/app/Models/Attachments"
 	entitymeta "github.com/zhuchunshu/sforum/apps/api/app/Models/EntityMeta"
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
@@ -62,6 +63,10 @@ type EntityMetaValueGuardPolicy interface {
 	LoadValueGuardSubject(context.Context, string, int64, []string) (entitymeta.ValueGuardSubject, error)
 }
 
+type AttachmentReadGuardPolicy interface {
+	LoadReadGuardSubject(context.Context, string) (attachments.ReadGuardSubject, error)
+}
+
 type ProductionRouteGuardPolicies struct {
 	ForumRead         ForumReadPolicy
 	Extensions        ExtensionGuardPolicy
@@ -72,6 +77,7 @@ type ProductionRouteGuardPolicies struct {
 	IdentitySessions  IdentitySessionGuardPolicy
 	IdentityAPITokens IdentityAPITokenGuardPolicy
 	EntityMetaValues  EntityMetaValueGuardPolicy
+	AttachmentReads   AttachmentReadGuardPolicy
 }
 
 func NewProductionRouteGuardAuthorizer() ProductionRouteGuardAuthorizer {
@@ -116,6 +122,7 @@ func productionCoreGuardEvaluatorRegistrations() []routes.CoreGuardEvaluatorRegi
 
 func productionCoreGuardEvaluatorRegistrationsWithPolicies(policies ProductionRouteGuardPolicies) []routes.CoreGuardEvaluatorRegistration {
 	return []routes.CoreGuardEvaluatorRegistration{
+		productionCoreGuardEvaluator("core.guard.attachments.read", attachmentReadGuardEvaluator(policies.AttachmentReads, policies.ForumRead)),
 		productionCoreGuardEvaluator("core.guard.attachments.upload", requireDeclaredCoreGuardPermission),
 		productionCoreGuardEvaluator("core.guard.extensions.mutation", extensionsMutationGuardEvaluator(policies.Extensions)),
 		productionCoreGuardEvaluator("core.guard.extensions.read", extensionsReadGuardEvaluator(policies.Extensions)),
@@ -148,6 +155,49 @@ func productionCoreGuardEvaluatorRegistrationsWithPolicies(policies ProductionRo
 		productionCoreGuardEvaluator("core.guard.pages.theme_asset", themeAssetGuardEvaluator(policies.Extensions)),
 		productionCoreGuardEvaluator("core.guard.profile.self", requireProfileSelfAuthority),
 		productionCoreGuardEvaluator("core.guard.seo.read", requireSEOReadAuthority),
+	}
+}
+
+func attachmentReadGuardEvaluator(policy AttachmentReadGuardPolicy, forumRead ForumReadPolicy) routes.CoreGuardEvaluatorFunc {
+	return func(ctx context.Context, evaluation routes.CoreGuardEvaluation) error {
+		if policy == nil || (evaluation.Descriptor.RouteID != "core.route.attachments.get" &&
+			evaluation.Descriptor.RouteID != "core.route.attachments.content") ||
+			len(evaluation.Request.Body) != 0 || evaluation.Request.Query != "" {
+			return routes.ErrCoreGuardEvaluatorUnavailable
+		}
+		publicID := evaluation.Request.Params["publicId"]
+		if publicID == "" || publicID != strings.TrimSpace(publicID) {
+			return routes.ErrCoreGuardEvaluatorUnavailable
+		}
+		subject, err := policy.LoadReadGuardSubject(ctx, publicID)
+		if err != nil || !subject.Exists || subject.PublicID != publicID {
+			return routes.ErrCoreGuardEvaluatorUnavailable
+		}
+		actor := identity.Actor{ID: evaluation.Request.ActorID, Permissions: maps.Clone(evaluation.Request.Permissions)}
+		if evaluation.Request.Authenticated && evaluation.Request.ActorID > 0 {
+			actor.Status = identity.UserStatusActive
+		}
+		if evaluation.Request.Permissions["*"] {
+			actor.RoleKeys = []string{identity.RoleSuperAdmin}
+		}
+		guestLoginRequired := true
+		if forumRead != nil {
+			guestRead, _, _, ok := forumRead.ForumReadPolicySnapshot()
+			if ok {
+				guestLoginRequired = strings.TrimSpace(guestRead) != "public"
+			}
+		}
+		err = attachments.AuthorizeReadGuardSubject(actor, subject, guestLoginRequired)
+		switch {
+		case err == nil:
+			return nil
+		case errors.Is(err, attachments.ErrGuestLoginRequired):
+			return routes.ErrCoreGuardLoginRequired
+		case errors.Is(err, identity.ErrPermissionDenied):
+			return routes.ErrCoreGuardPermissionDenied
+		default:
+			return routes.ErrCoreGuardEvaluatorUnavailable
+		}
 	}
 }
 

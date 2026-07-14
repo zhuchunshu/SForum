@@ -77,6 +77,17 @@ type ReferenceAccess struct {
 	Exists             bool
 }
 
+// ReadGuardSubject is the authoritative resource snapshot used before a
+// trusted replacement handles an attachment read route.
+type ReadGuardSubject struct {
+	PublicID    string
+	OwnerUserID int64
+	Status      string
+	Visibility  string
+	Exists      bool
+	References  []ReferenceAccess
+}
+
 type AttachmentDetail struct {
 	Attachment
 	References []AttachmentReference `json:"references"`
