@@ -363,6 +363,124 @@ func TestServiceUsesCacheUntilInvalidated(t *testing.T) {
 	}
 }
 
+func TestForumReadPolicySnapshotNeverReadsStore(t *testing.T) {
+	store := &fakeStore{items: map[string]string{
+		NameForumGuestRead:                    "login_required",
+		NameForumCommentsSoftDeleteVisibility: "staff_only",
+	}}
+	service := NewServiceWithCacheTTL(store, time.Minute)
+	if _, _, _, ok := service.ForumReadPolicySnapshot(); ok {
+		t.Fatal("unpublished policy must be unavailable")
+	}
+	if err := service.RefreshForumReadPolicy(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	guestRead, softDeleteVisibility, revision, ok := service.ForumReadPolicySnapshot()
+	if !ok || guestRead != "login_required" || softDeleteVisibility != "staff_only" || revision == 0 {
+		t.Fatalf("snapshot = %q %q %d %v", guestRead, softDeleteVisibility, revision, ok)
+	}
+	for range 100 {
+		if _, _, _, ok := service.ForumReadPolicySnapshot(); !ok {
+			t.Fatal("published policy disappeared")
+		}
+	}
+	if store.listCalls != 1 {
+		t.Fatalf("snapshot reads reached Store: calls=%d", store.listCalls)
+	}
+}
+
+func TestForumReadPolicySnapshotInvalidatesAndRepublishesOnUpdate(t *testing.T) {
+	store := &fakeStore{}
+	service := NewServiceWithCacheTTL(store, time.Minute)
+	ctx := context.Background()
+	if err := service.RefreshForumReadPolicy(ctx); err != nil {
+		t.Fatal(err)
+	}
+	beforeGuest, beforeSoftDelete, beforeRevision, ok := service.ForumReadPolicySnapshot()
+	if !ok || beforeGuest != "public" || beforeSoftDelete != "author_and_staff" {
+		t.Fatalf("initial snapshot = %q %q %d %v", beforeGuest, beforeSoftDelete, beforeRevision, ok)
+	}
+	if _, err := service.Update(ctx, settingsActor(), UpdateInput{Name: NameForumGuestRead, Value: "login_required"}); err != nil {
+		t.Fatal(err)
+	}
+	afterGuest, afterSoftDelete, afterRevision, ok := service.ForumReadPolicySnapshot()
+	if !ok || afterGuest != "login_required" || afterSoftDelete != "author_and_staff" || afterRevision <= beforeRevision {
+		t.Fatalf("updated snapshot = %q %q %d %v", afterGuest, afterSoftDelete, afterRevision, ok)
+	}
+	service.Invalidate()
+	if _, _, _, ok := service.ForumReadPolicySnapshot(); ok {
+		t.Fatal("invalidated policy remained available")
+	}
+}
+
+func TestForumReadPolicySnapshotExpiresWithoutRequestTimeRefresh(t *testing.T) {
+	store := &fakeStore{}
+	service := NewServiceWithCacheTTL(store, 15*time.Millisecond)
+	if err := service.RefreshForumReadPolicy(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	time.Sleep(25 * time.Millisecond)
+	if _, _, _, ok := service.ForumReadPolicySnapshot(); ok {
+		t.Fatal("expired policy remained available")
+	}
+	if store.listCalls != 1 {
+		t.Fatalf("snapshot expiry performed I/O: calls=%d", store.listCalls)
+	}
+	if err := service.RefreshForumReadPolicy(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, _, ok := service.ForumReadPolicySnapshot(); !ok || store.listCalls != 2 {
+		t.Fatalf("background-style refresh did not republish: ok=%v calls=%d", ok, store.listCalls)
+	}
+}
+
+func TestForumReadPolicyRefreshExtendsSnapshotBeforeCacheExpiry(t *testing.T) {
+	store := &fakeStore{}
+	service := NewServiceWithCacheTTL(store, 80*time.Millisecond)
+	ctx := context.Background()
+	if err := service.RefreshForumReadPolicy(ctx); err != nil {
+		t.Fatal(err)
+	}
+	time.Sleep(50 * time.Millisecond)
+	if err := service.RefreshForumReadPolicy(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if store.listCalls != 2 {
+		t.Fatalf("policy refresh reused stale Options cache: calls=%d", store.listCalls)
+	}
+
+	// 已越过首次快照的有效期，但第二次成功刷新应保证策略连续可用。
+	time.Sleep(50 * time.Millisecond)
+	if _, _, _, ok := service.ForumReadPolicySnapshot(); !ok {
+		t.Fatal("successful periodic refresh left an expiry gap")
+	}
+}
+
+func TestForumReadPolicyRefreshFailureEventuallyFailsClosed(t *testing.T) {
+	store := &fakeStore{}
+	service := NewServiceWithCacheTTL(store, 60*time.Millisecond)
+	ctx := context.Background()
+	if err := service.RefreshForumReadPolicy(ctx); err != nil {
+		t.Fatal(err)
+	}
+	time.Sleep(20 * time.Millisecond)
+	store.listErr = errors.New("database unavailable")
+	if err := service.RefreshForumReadPolicy(ctx); !errors.Is(err, store.listErr) {
+		t.Fatalf("refresh error = %v", err)
+	}
+	if _, _, _, ok := service.ForumReadPolicySnapshot(); !ok {
+		t.Fatal("one failed refresh discarded a still-valid snapshot")
+	}
+
+	time.Sleep(50 * time.Millisecond)
+	if _, _, _, ok := service.ForumReadPolicySnapshot(); ok {
+		t.Fatal("snapshot remained available after refresh failure exceeded TTL")
+	}
+	if store.listCalls != 2 {
+		t.Fatalf("snapshot reads reached Store after failure: calls=%d", store.listCalls)
+	}
+}
+
 func TestServiceUpdateRequiresSettingsPermission(t *testing.T) {
 	service := NewServiceWithCacheTTL(&fakeStore{}, time.Minute)
 	actor := identity.Actor{ID: 2, Status: identity.UserStatusActive, Permissions: map[string]bool{}}
@@ -1021,10 +1139,14 @@ func stringsOfRunes(value string, count int) string {
 type fakeStore struct {
 	items     map[string]string
 	listCalls int
+	listErr   error
 }
 
 func (s *fakeStore) List(context.Context) ([]Option, error) {
 	s.listCalls++
+	if s.listErr != nil {
+		return nil, s.listErr
+	}
 	options := make([]Option, 0, len(s.items))
 	for name, value := range s.items {
 		options = append(options, Option{Name: name, Value: value})

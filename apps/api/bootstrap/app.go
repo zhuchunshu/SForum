@@ -156,6 +156,14 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		pool.Close()
 		return nil, fmt.Errorf("ensure runtime options defaults failed: %w", err)
 	}
+	if err := optionsService.RefreshForumReadPolicy(ctx); err != nil {
+		sharedRedisClient.Close()
+		if closeErr := redisStorage.Close(); closeErr != nil {
+			logger.Warn("redis session storage close failed", "error", closeErr)
+		}
+		pool.Close()
+		return nil, fmt.Errorf("refresh forum read policy failed: %w", err)
+	}
 	humanVerifier := humanverify.NewRuntimeService(optionsService, humanVerifyStore, humanVerifyConfigFromConfig(cfg))
 
 	// CookieSecure：生产环境强制 true；此外当 APP_URL 是 https 时也启用，
@@ -541,9 +549,11 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 	// Fiber's hardcoded core providers. Declared schemas remain fail-closed until
 	// their exact package catalog is production-published.
 	routeDispatcher := routes.NewDispatcher(routes.DispatcherConfig{
-		Plans:   lifecycleStack.RouteProviders,
-		Steps:   httpserver.NewBufferedRouteStepInvoker(lifecycleStack.RuntimeManager),
-		Guard:   httpserver.NewProductionRouteGuardAuthorizer(),
+		Plans: lifecycleStack.RouteProviders,
+		Steps: httpserver.NewBufferedRouteStepInvoker(lifecycleStack.RuntimeManager),
+		Guard: httpserver.NewProductionRouteGuardAuthorizerWithPolicies(httpserver.ProductionRouteGuardPolicies{
+			ForumRead: optionsService,
+		}),
 		Schemas: httpserver.CatalogRouteSchemaValidator{Catalog: lifecycleStack.RouteSchemas},
 		Trace:   routeTraceRing,
 	})
@@ -603,11 +613,14 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		go (&health.Publisher{Store: heartbeatStore}).Run(heartbeatCtx)
 		logger.InfoContext(ctx, "embedded api worker started")
 	}
+	forumReadPolicyCtx, forumReadPolicyCancel := context.WithCancel(context.Background())
+	go optionsService.RunForumReadPolicyRefresh(forumReadPolicyCtx, options.RecommendedForumReadPolicyRefreshInterval)
 
 	return &API{
 		App:  app,
 		Addr: apiAddress(cfg),
 		close: func() {
+			forumReadPolicyCancel()
 			heartbeatCancel()
 			if embeddedWorker != nil {
 				shutdownCtx, cancel := context.WithTimeout(context.Background(), cfg.WorkerShutdownTimeout)

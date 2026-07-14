@@ -216,6 +216,136 @@ func TestProductionForumReadGuardRejectsForeignRouteID(t *testing.T) {
 	}
 }
 
+func TestProductionForumReadPolicyClosesDynamicCatalogRoutes(t *testing.T) {
+	policy := &testForumReadPolicy{guestRead: "public", softDeleteVisibility: "author_and_staff", revision: 1, ok: true}
+	authorizer := NewProductionRouteGuardAuthorizerWithPolicies(ProductionRouteGuardPolicies{ForumRead: policy})
+	covered := 0
+	for _, route := range routes.CoreRouteCatalog() {
+		if route.Guard.EvaluatorID != "core.guard.forum.read" || route.ID == "core.route.forum.composer_toolbar" {
+			continue
+		}
+		covered++
+		plan, step := productionCatalogInheritedGuardPlan(t, route)
+		anonymous := routes.DispatchRequest{Method: plan.Method(), Path: plan.Path()}
+		if err := authorizer.Authorize(context.Background(), plan, step, anonymous); err != nil {
+			t.Fatalf("%s public error = %v", route.ID, err)
+		}
+
+		policy.guestRead = "login_required"
+		if err := authorizer.Authorize(context.Background(), plan, step, anonymous); !errors.Is(err, ErrRouteLoginRequired) {
+			t.Fatalf("%s login-required anonymous error = %v", route.ID, err)
+		}
+		authenticated := productionGuardRequest()
+		authenticated.Method, authenticated.Path = plan.Method(), plan.Path()
+		if err := authorizer.Authorize(context.Background(), plan, step, authenticated); err != nil {
+			t.Fatalf("%s login-required actor error = %v", route.ID, err)
+		}
+		policy.guestRead = "public"
+	}
+	if covered != 9 {
+		t.Fatalf("dynamic forum read routes = %d, want 9", covered)
+	}
+}
+
+func TestProductionForumReadPolicyPreservesSoftDeleteViewerBoundary(t *testing.T) {
+	policy := &testForumReadPolicy{guestRead: "public", revision: 1, ok: true}
+	authorizer := NewProductionRouteGuardAuthorizerWithPolicies(ProductionRouteGuardPolicies{ForumRead: policy})
+	for _, routeID := range []string{"core.route.forum.comments", "core.route.forum.replies"} {
+		var target routes.CoreRoute
+		for _, route := range routes.CoreRouteCatalog() {
+			if route.ID == routeID {
+				target = route
+				break
+			}
+		}
+		plan, step := productionCatalogInheritedGuardPlan(t, target)
+		for _, visibility := range []string{"hidden", "staff_only", "author_and_staff"} {
+			policy.softDeleteVisibility = visibility
+			anonymous := routes.DispatchRequest{Method: plan.Method(), Path: plan.Path()}
+			if err := authorizer.Authorize(context.Background(), plan, step, anonymous); err != nil {
+				t.Fatalf("%s visibility %s public admission error = %v", routeID, visibility, err)
+			}
+
+			// 权限位不能在没有 Host actor 的情况下伪造 viewer；具体墓碑范围仍由
+			// Forum Service 使用同一 actor snapshot 按 author/staff 过滤。
+			policy.guestRead = "login_required"
+			forgedStaff := routes.DispatchRequest{
+				Method: plan.Method(), Path: plan.Path(),
+				Permissions: map[string]bool{identity.PermissionPostDeleteAny: true},
+			}
+			if err := authorizer.Authorize(context.Background(), plan, step, forgedStaff); !errors.Is(err, ErrRouteLoginRequired) {
+				t.Fatalf("%s visibility %s forged staff error = %v", routeID, visibility, err)
+			}
+			policy.guestRead = "public"
+		}
+	}
+}
+
+func TestProductionForumReadPolicyFailsClosedWhenUnavailableOrDrifted(t *testing.T) {
+	var target routes.CoreRoute
+	for _, route := range routes.CoreRouteCatalog() {
+		if route.ID == "core.route.forum.topics" {
+			target = route
+			break
+		}
+	}
+	plan, step := productionCatalogInheritedGuardPlan(t, target)
+	request := routes.DispatchRequest{Method: plan.Method(), Path: plan.Path()}
+	policy := &testForumReadPolicy{guestRead: "public", softDeleteVisibility: "hidden", revision: 1, ok: true}
+	authorizer := NewProductionRouteGuardAuthorizerWithPolicies(ProductionRouteGuardPolicies{ForumRead: policy})
+	if err := authorizer.Authorize(context.Background(), plan, step, request); err != nil {
+		t.Fatalf("initial policy error = %v", err)
+	}
+	forgedRequest := request
+	forgedRequest.Path += "/forged"
+	if err := authorizer.Authorize(context.Background(), plan, step, forgedRequest); !errors.Is(err, ErrRouteGuardUnavailable) {
+		t.Fatalf("forged request error = %v", err)
+	}
+	forgedStep := step
+	forgedStep.RouteID += ".forged"
+	if err := authorizer.Authorize(context.Background(), plan, forgedStep, request); !errors.Is(err, ErrRouteGuardUnavailable) {
+		t.Fatalf("forged step error = %v", err)
+	}
+
+	tests := []struct {
+		name                 string
+		guestRead            string
+		softDeleteVisibility string
+		revision             uint64
+		ok                   bool
+	}{
+		{name: "unavailable", guestRead: "public", softDeleteVisibility: "hidden", revision: 2},
+		{name: "zero revision", guestRead: "public", softDeleteVisibility: "hidden", ok: true},
+		{name: "guest mode drift", guestRead: "members_only", softDeleteVisibility: "hidden", revision: 3, ok: true},
+		{name: "soft delete drift", guestRead: "public", softDeleteVisibility: "everyone", revision: 4, ok: true},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			policy.guestRead = test.guestRead
+			policy.softDeleteVisibility = test.softDeleteVisibility
+			policy.revision = test.revision
+			policy.ok = test.ok
+			if err := authorizer.Authorize(context.Background(), plan, step, request); !errors.Is(err, ErrRouteGuardUnavailable) {
+				t.Fatalf("error = %v", err)
+			}
+		})
+	}
+}
+
+type testForumReadPolicy struct {
+	guestRead            string
+	softDeleteVisibility string
+	revision             uint64
+	ok                   bool
+}
+
+func (p *testForumReadPolicy) ForumReadPolicySnapshot() (string, string, uint64, bool) {
+	if p == nil {
+		return "", "", 0, false
+	}
+	return p.guestRead, p.softDeleteVisibility, p.revision, p.ok
+}
+
 func TestProductionIdentitySelfCredentialsGuardPartitionsCatalogByProvablePolicy(t *testing.T) {
 	type expectedRoute struct {
 		method    string

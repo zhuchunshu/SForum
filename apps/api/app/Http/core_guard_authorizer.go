@@ -17,8 +17,20 @@ type ProductionRouteGuardAuthorizer struct {
 	authorizer routes.CoreGuardAuthorizer
 }
 
+type ForumReadPolicy interface {
+	ForumReadPolicySnapshot() (guestRead string, softDeleteVisibility string, revision uint64, ok bool)
+}
+
+type ProductionRouteGuardPolicies struct {
+	ForumRead ForumReadPolicy
+}
+
 func NewProductionRouteGuardAuthorizer() ProductionRouteGuardAuthorizer {
-	registry := routes.MustNewCoreGuardEvaluatorRegistry(productionCoreGuardEvaluatorRegistrations())
+	return NewProductionRouteGuardAuthorizerWithPolicies(ProductionRouteGuardPolicies{})
+}
+
+func NewProductionRouteGuardAuthorizerWithPolicies(policies ProductionRouteGuardPolicies) ProductionRouteGuardAuthorizer {
+	registry := routes.MustNewCoreGuardEvaluatorRegistry(productionCoreGuardEvaluatorRegistrationsWithPolicies(policies))
 	return ProductionRouteGuardAuthorizer{authorizer: routes.CoreGuardAuthorizer{Evaluators: registry}}
 }
 
@@ -50,13 +62,17 @@ func (a ProductionRouteGuardAuthorizer) Authorize(
 }
 
 func productionCoreGuardEvaluatorRegistrations() []routes.CoreGuardEvaluatorRegistration {
+	return productionCoreGuardEvaluatorRegistrationsWithPolicies(ProductionRouteGuardPolicies{})
+}
+
+func productionCoreGuardEvaluatorRegistrationsWithPolicies(policies ProductionRouteGuardPolicies) []routes.CoreGuardEvaluatorRegistration {
 	return []routes.CoreGuardEvaluatorRegistration{
 		productionCoreGuardEvaluator("core.guard.attachments.upload", requireDeclaredCoreGuardPermission),
 		productionCoreGuardEvaluator("core.guard.extensions.mutation", requireExtensionsMutationAuthority),
 		productionCoreGuardEvaluator("core.guard.extensions.read", requireExtensionsReadAuthority),
 		productionCoreGuardEvaluator("core.guard.forum.author_review", requireAuthenticatedCoreGuardActor),
 		productionCoreGuardEvaluator("core.guard.forum.comment_write", requireForumCommentGlobalAuthority),
-		productionCoreGuardEvaluator("core.guard.forum.read", requireForumReadAuthority),
+		productionCoreGuardEvaluator("core.guard.forum.read", forumReadGuardEvaluator(policies.ForumRead)),
 		productionCoreGuardEvaluator("core.guard.forum.settings", requireForumSettingsAuthority),
 		productionCoreGuardEvaluator("core.guard.forum.topic_create", requireDeclaredCoreGuardPermission),
 		productionCoreGuardEvaluator("core.guard.forum.topic_delete", requireForumTopicGlobalAuthority),
@@ -213,14 +229,53 @@ func requirePagesAdminAuthority(_ context.Context, evaluation routes.CoreGuardEv
 	}
 }
 
-func requireForumReadAuthority(ctx context.Context, evaluation routes.CoreGuardEvaluation) error {
-	switch evaluation.Descriptor.RouteID {
-	case "core.route.forum.composer_toolbar":
-		// 工具栏与发帖入口一致，只对当前活跃主体开放，不接收目标资源。
-		return requireAuthenticatedCoreGuardActor(ctx, evaluation)
+func forumReadGuardEvaluator(policy ForumReadPolicy) routes.CoreGuardEvaluatorFunc {
+	return func(ctx context.Context, evaluation routes.CoreGuardEvaluation) error {
+		if evaluation.Descriptor.RouteID == "core.route.forum.composer_toolbar" {
+			// 工具栏与发帖入口一致，只对当前活跃主体开放，不接收目标资源。
+			return requireAuthenticatedCoreGuardActor(ctx, evaluation)
+		}
+		if !forumReadPolicyRoute(evaluation.Descriptor.RouteID) || policy == nil {
+			return routes.ErrCoreGuardEvaluatorUnavailable
+		}
+		guestRead, softDeleteVisibility, revision, ok := policy.ForumReadPolicySnapshot()
+		if !ok || revision == 0 || !validForumSoftDeleteVisibility(softDeleteVisibility) {
+			return routes.ErrCoreGuardEvaluatorUnavailable
+		}
+		switch guestRead {
+		case "public":
+			return nil
+		case "login_required":
+			return requireAuthenticatedCoreGuardActor(ctx, evaluation)
+		default:
+			return routes.ErrCoreGuardEvaluatorUnavailable
+		}
+	}
+}
+
+func forumReadPolicyRoute(routeID string) bool {
+	switch routeID {
+	case "core.route.forum.categories",
+		"core.route.forum.category_groups",
+		"core.route.forum.replies",
+		"core.route.forum.search",
+		"core.route.forum.tags",
+		"core.route.forum.topics",
+		"core.route.forum.topic",
+		"core.route.forum.comments",
+		"core.route.forum.topic_by_slug":
+		return true
 	default:
-		// 其余读取依赖实时 guestRead，评论还依赖 viewer/软删除可见性。
-		return routes.ErrCoreGuardEvaluatorUnavailable
+		return false
+	}
+}
+
+func validForumSoftDeleteVisibility(value string) bool {
+	switch value {
+	case "hidden", "staff_only", "author_and_staff":
+		return true
+	default:
+		return false
 	}
 }
 

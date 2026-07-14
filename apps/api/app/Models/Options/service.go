@@ -19,6 +19,7 @@ import (
 )
 
 const defaultCacheTTL = 30 * time.Second
+const RecommendedForumReadPolicyRefreshInterval = 5 * time.Second
 const footerCopyrightMaxRunes = 200
 const footerLinkLabelMaxRunes = 40
 const seoTitleTemplateMaxRunes = 120
@@ -284,6 +285,16 @@ type Service struct {
 	mu        sync.RWMutex
 	cached    map[string]string
 	expiresAt time.Time
+
+	forumReadPolicy         *forumReadPolicySnapshot
+	forumReadPolicyRevision uint64
+}
+
+type forumReadPolicySnapshot struct {
+	guestRead            string
+	softDeleteVisibility string
+	expiresAt            time.Time
+	revision             uint64
 }
 
 func NewService(store Store) *Service {
@@ -575,13 +586,67 @@ func (s *Service) Invalidate() {
 
 	s.cached = nil
 	s.expiresAt = time.Time{}
+	s.forumReadPolicy = nil
+}
+
+// RefreshForumReadPolicy 在后台/启动路径刷新只读策略快照。HTTP Guard 只读取
+// ForumReadPolicySnapshot，绝不从请求热路径调用本方法。
+func (s *Service) RefreshForumReadPolicy(ctx context.Context) error {
+	_, err := s.loadMapFresh(ctx)
+	return err
+}
+
+// RunForumReadPolicyRefresh 定期刷新底层 Options 缓存。快照到期而刷新失败时
+// Guard 会保守关闭动态论坛读取路由，不使用无限期陈旧策略。
+func (s *Service) RunForumReadPolicyRefresh(ctx context.Context, interval time.Duration) {
+	if s == nil || ctx == nil {
+		return
+	}
+	if interval <= 0 {
+		interval = RecommendedForumReadPolicyRefreshInterval
+	}
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			_ = s.RefreshForumReadPolicy(ctx)
+		}
+	}
+}
+
+// ForumReadPolicySnapshot 返回当前不可变策略，不执行 I/O。返回 ok=false 表示
+// 快照不存在或已过期，调用方必须 fail closed。
+func (s *Service) ForumReadPolicySnapshot() (guestRead string, softDeleteVisibility string, revision uint64, ok bool) {
+	if s == nil {
+		return "", "", 0, false
+	}
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	snapshot := s.forumReadPolicy
+	if snapshot == nil || !time.Now().Before(snapshot.expiresAt) {
+		return "", "", 0, false
+	}
+	return snapshot.guestRead, snapshot.softDeleteVisibility, snapshot.revision, true
 }
 
 func (s *Service) loadMap(ctx context.Context) (map[string]string, error) {
+	return s.loadMapWithFreshness(ctx, false)
+}
+
+// loadMapFresh 绕过通用 Options 缓存，供后台策略刷新使用。这样每次成功刷新
+// 都会延长快照有效期，不会在通用缓存边界产生周期性 fail-closed 窗口。
+func (s *Service) loadMapFresh(ctx context.Context) (map[string]string, error) {
+	return s.loadMapWithFreshness(ctx, true)
+}
+
+func (s *Service) loadMapWithFreshness(ctx context.Context, forceFresh bool) (map[string]string, error) {
 	now := time.Now()
 
 	s.mu.RLock()
-	if s.cached != nil && now.Before(s.expiresAt) {
+	if !forceFresh && s.cached != nil && now.Before(s.expiresAt) {
 		cached := copyValues(s.cached)
 		s.mu.RUnlock()
 		return cached, nil
@@ -591,7 +656,7 @@ func (s *Service) loadMap(ctx context.Context) (map[string]string, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if s.cached != nil && now.Before(s.expiresAt) {
+	if !forceFresh && s.cached != nil && now.Before(s.expiresAt) {
 		return copyValues(s.cached), nil
 	}
 
@@ -620,7 +685,24 @@ func (s *Service) loadMap(ctx context.Context) (map[string]string, error) {
 
 	s.cached = values
 	s.expiresAt = now.Add(s.cacheTTL)
+	s.publishForumReadPolicyLocked(values, s.expiresAt)
 	return copyValues(values), nil
+}
+
+func (s *Service) publishForumReadPolicyLocked(values map[string]string, expiresAt time.Time) {
+	guestRead := strings.TrimSpace(values[NameForumGuestRead])
+	softDeleteVisibility := strings.TrimSpace(values[NameForumCommentsSoftDeleteVisibility])
+	if (guestRead != "public" && guestRead != "login_required") ||
+		(softDeleteVisibility != "hidden" && softDeleteVisibility != "staff_only" && softDeleteVisibility != "author_and_staff") ||
+		!time.Now().Before(expiresAt) {
+		s.forumReadPolicy = nil
+		return
+	}
+	s.forumReadPolicyRevision++
+	s.forumReadPolicy = &forumReadPolicySnapshot{
+		guestRead: guestRead, softDeleteVisibility: softDeleteVisibility,
+		expiresAt: expiresAt, revision: s.forumReadPolicyRevision,
+	}
 }
 
 func (s *Service) adminOptions(values map[string]string, actor identity.Actor) []AdminOption {
