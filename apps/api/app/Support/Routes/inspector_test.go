@@ -211,6 +211,38 @@ func TestRouteTraceRingIsBoundedConcurrentDetachedAndPayloadFree(t *testing.T) {
 	}
 }
 
+func TestInspectorDisclosesExactCustomGuardBinding(t *testing.T) {
+	registry := NewRegistry()
+	artifact := routeArtifact("inspect.guard", "1.0.0", 'a')
+	route := pluginRoute("inspect.guard.route", "/inspect-guard", 0, "GET")
+	route.Guard = "inspect.guard.owner"
+	guard := pluginGuard(route.Guard, "custom")
+	guard.Permissions = []string{"inspect.guard.read"}
+	if _, err := registry.Publish(Publication{Plugins: []PluginRouteSet{{
+		Artifact: artifact, Routes: []extensionmanifest.ManifestRoute{route},
+		Guards: []extensionmanifest.ManifestGuard{guard},
+	}}}); err != nil {
+		t.Fatal(err)
+	}
+
+	snapshot, err := NewInspector(registry, nil, nil).Inspect(t.Context(), "GET", route.Path)
+	if err != nil || len(snapshot.Chain) != 1 || snapshot.Chain[0].PluginGuard == nil {
+		t.Fatalf("inspection = %#v, %v", snapshot, err)
+	}
+	want := PluginGuardBinding{
+		ID: guard.ID, ContractVersion: guard.ContractVersion, Kind: guard.Kind,
+		Entry: guard.Entry, Digest: guard.Digest, Permissions: []string{"inspect.guard.read"},
+	}
+	if !equalPluginGuardBinding(*snapshot.Chain[0].PluginGuard, want) {
+		t.Fatalf("inspected guard = %#v", snapshot.Chain[0].PluginGuard)
+	}
+	snapshot.Chain[0].PluginGuard.Permissions[0] = "forged"
+	again, err := NewInspector(registry, nil, nil).Inspect(t.Context(), "GET", route.Path)
+	if err != nil || !equalPluginGuardBinding(*again.Chain[0].PluginGuard, want) {
+		t.Fatalf("detached inspected guard = %#v, %v", again.Chain[0].PluginGuard, err)
+	}
+}
+
 func TestInspectorRejectsInvalidRequests(t *testing.T) {
 	if _, err := (*Inspector)(nil).Inspect(t.Context(), "GET", "/"); !errors.Is(err, ErrInspectorInvalid) {
 		t.Fatalf("nil inspector error = %v", err)

@@ -234,7 +234,8 @@ func equalCoreGuardExecutionStep(left, right RouteExecutionStep) bool {
 		left.Destination == right.Destination && left.Handler == right.Handler &&
 		left.RequestSchema == right.RequestSchema && left.ResponseSchema == right.ResponseSchema &&
 		left.TimeoutMS == right.TimeoutMS && left.Fallback == right.Fallback && left.Priority == right.Priority &&
-		equalCoreGuardDescriptor(left.CoreGuard, right.CoreGuard)
+		equalCoreGuardDescriptor(left.CoreGuard, right.CoreGuard) &&
+		equalPluginGuardBinding(left.PluginGuard, right.PluginGuard)
 }
 
 func requireCoreGuardLogin(request DispatchRequest) error {

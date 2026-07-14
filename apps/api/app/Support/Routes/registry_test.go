@@ -601,8 +601,76 @@ func TestRegistryRejectsInvalidRuntimeContractsWithoutPublishing(t *testing.T) {
 
 	customGuard := base
 	customGuard.Guard = "runtime.contracts.guard.owner"
-	if _, err := registry.Publish(Publication{Core: valid.Core, Plugins: []PluginRouteSet{{Artifact: artifact, Routes: []extensionmanifest.ManifestRoute{customGuard}}}}); err != nil {
+	if _, err := registry.Publish(Publication{Core: valid.Core, Plugins: []PluginRouteSet{{
+		Artifact: artifact, Routes: []extensionmanifest.ManifestRoute{customGuard},
+		Guards: []extensionmanifest.ManifestGuard{pluginGuard(customGuard.Guard, "custom")},
+	}}}); err != nil {
 		t.Fatalf("namespaced custom guard must remain eligible after trust confirmation: %v", err)
+	}
+}
+
+func TestRegistryFreezesExactCustomGuardBinding(t *testing.T) {
+	registry := NewRegistry()
+	artifact := routeArtifact("guard.binding", "1.0.0", 'a')
+	route := pluginRoute("guard.binding.route", "/guard-binding", 0, "GET")
+	route.Guard = "guard.binding.owner"
+	guard := pluginGuard(route.Guard, "raw_request")
+	guard.Permissions = []string{"guard.binding.manage"}
+
+	publication := Publication{Plugins: []PluginRouteSet{{
+		Artifact: artifact, Routes: []extensionmanifest.ManifestRoute{route},
+		Guards: []extensionmanifest.ManifestGuard{guard},
+	}}}
+	snapshot, err := registry.Publish(publication)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := PluginGuardBinding{
+		ID: guard.ID, ContractVersion: guard.ContractVersion, Kind: guard.Kind,
+		Entry: guard.Entry, Digest: guard.Digest, Permissions: []string{"guard.binding.manage"},
+	}
+	if len(snapshot.Routes) != 1 || !equalPluginGuardBinding(snapshot.Routes[0].PluginGuard, want) {
+		t.Fatalf("published guard binding = %#v", snapshot.Routes)
+	}
+
+	publication.Plugins[0].Guards[0].Digest = strings.Repeat("b", 64)
+	publication.Plugins[0].Guards[0].Permissions[0] = "forged.manage"
+	snapshot.Routes[0].PluginGuard.Permissions[0] = "mutated.result"
+	match, err := registry.Resolve("GET", route.Path)
+	if err != nil || !equalPluginGuardBinding(match.Route.PluginGuard, want) {
+		t.Fatalf("immutable guard binding = %#v, %v", match.Route.PluginGuard, err)
+	}
+	plan, err := registry.BuildExecutionPlan("GET", route.Path)
+	if err != nil || !equalPluginGuardBinding(plan.Terminal().PluginGuard, want) {
+		t.Fatalf("execution guard binding = %#v, %v", plan.Terminal().PluginGuard, err)
+	}
+}
+
+func TestRegistryRejectsMissingOrInvalidCustomGuardBinding(t *testing.T) {
+	artifact := routeArtifact("guard.invalid", "1.0.0", 'a')
+	route := pluginRoute("guard.invalid.route", "/guard-invalid", 0, "GET")
+	route.Guard = "guard.invalid.owner"
+	valid := pluginGuard(route.Guard, "custom")
+	tests := []struct {
+		name   string
+		guards []extensionmanifest.ManifestGuard
+	}{
+		{name: "missing"},
+		{name: "wrong id", guards: []extensionmanifest.ManifestGuard{pluginGuard("guard.invalid.other", "custom")}},
+		{name: "wrong kind", guards: []extensionmanifest.ManifestGuard{func() extensionmanifest.ManifestGuard { value := valid; value.Kind = "builtin"; return value }()}},
+		{name: "wrong digest", guards: []extensionmanifest.ManifestGuard{func() extensionmanifest.ManifestGuard { value := valid; value.Digest = "changed"; return value }()}},
+		{name: "duplicate", guards: []extensionmanifest.ManifestGuard{valid, valid}},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			registry := NewRegistry()
+			_, err := registry.Publish(Publication{Plugins: []PluginRouteSet{{
+				Artifact: artifact, Routes: []extensionmanifest.ManifestRoute{route}, Guards: test.guards,
+			}}})
+			if !errors.Is(err, ErrInvalidRoute) || registry.Revision() != 0 {
+				t.Fatalf("error = %v, revision = %d", err, registry.Revision())
+			}
+		})
 	}
 }
 
@@ -819,6 +887,13 @@ func pluginRoute(id, path string, priority int, methods ...string) extensionmani
 		route.RequestSchema = id + ".request@1"
 	}
 	return route
+}
+
+func pluginGuard(id, kind string) extensionmanifest.ManifestGuard {
+	return extensionmanifest.ManifestGuard{
+		ID: id, ContractVersion: id + "@1", Kind: kind,
+		Entry: "backend/guard", Digest: strings.Repeat("c", 64),
+	}
 }
 
 func modifierRoute(id, targetID, path, action, method string, priority int) extensionmanifest.ManifestRoute {

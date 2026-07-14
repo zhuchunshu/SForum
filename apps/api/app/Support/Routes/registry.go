@@ -59,6 +59,7 @@ type CoreRoute struct {
 type PluginRouteSet struct {
 	Artifact PluginArtifact
 	Routes   []extensionmanifest.ManifestRoute
+	Guards   []extensionmanifest.ManifestGuard
 }
 
 // Publication always replaces the complete active snapshot.
@@ -89,6 +90,7 @@ type Route struct {
 	PathSignature   string
 	Provider        Provider
 	CoreGuard       CoreGuardDescriptor
+	PluginGuard     PluginGuardBinding
 }
 
 type Conflict struct {
@@ -128,7 +130,8 @@ func equalRoute(left, right Route) bool {
 		left.Destination == right.Destination && left.Handler == right.Handler &&
 		left.RequestSchema == right.RequestSchema && left.ResponseSchema == right.ResponseSchema &&
 		left.TimeoutMS == right.TimeoutMS && left.PathSignature == right.PathSignature &&
-		left.Provider == right.Provider && equalCoreGuardDescriptor(left.CoreGuard, right.CoreGuard)
+		left.Provider == right.Provider && equalCoreGuardDescriptor(left.CoreGuard, right.CoreGuard) &&
+		equalPluginGuardBinding(left.PluginGuard, right.PluginGuard)
 }
 
 type preparedRoute struct {
@@ -378,8 +381,12 @@ func preparePublication(input Publication) (*registrySnapshot, error) {
 				return nil, fmt.Errorf("%w: extension %q appears more than once", ErrInvalidRoute, plugin.Artifact.ExtensionID)
 			}
 			seenExtensions[plugin.Artifact.ExtensionID] = struct{}{}
+			guardBindings, err := preparePluginGuardBindings(plugin.Artifact, plugin.Guards)
+			if err != nil {
+				return nil, err
+			}
 			for _, declaration := range plugin.Routes {
-				items, err := preparePluginRoute(plugin.Artifact, declaration)
+				items, err := preparePluginRoute(plugin.Artifact, declaration, guardBindings)
 				if err != nil {
 					return nil, err
 				}
@@ -505,6 +512,7 @@ func publicPlanningView(snapshot Snapshot) planningSnapshot {
 
 func cloneRoute(value Route) Route {
 	value.CoreGuard = cloneCoreGuardDescriptor(value.CoreGuard)
+	value.PluginGuard = clonePluginGuardBinding(value.PluginGuard)
 	return value
 }
 
@@ -546,10 +554,16 @@ func clonePublication(value Publication) Publication {
 		result.Plugins[index] = PluginRouteSet{
 			Artifact: plugin.Artifact,
 			Routes:   append([]extensionmanifest.ManifestRoute(nil), plugin.Routes...),
+			Guards:   append([]extensionmanifest.ManifestGuard(nil), plugin.Guards...),
 		}
 		for routeIndex := range result.Plugins[index].Routes {
 			result.Plugins[index].Routes[routeIndex].Methods = append(
 				[]string(nil), plugin.Routes[routeIndex].Methods...,
+			)
+		}
+		for guardIndex := range result.Plugins[index].Guards {
+			result.Plugins[index].Guards[guardIndex].Permissions = append(
+				[]string(nil), plugin.Guards[guardIndex].Permissions...,
 			)
 		}
 	}

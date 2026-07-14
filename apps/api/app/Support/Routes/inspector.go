@@ -45,6 +45,7 @@ type InspectorStep struct {
 	Fallback        string              `json:"fallback"`
 	TimeoutMS       int                 `json:"timeoutMs"`
 	Priority        int                 `json:"priority"`
+	PluginGuard     *PluginGuardBinding `json:"pluginGuard,omitempty"`
 }
 
 type InspectorConflict struct {
@@ -243,7 +244,7 @@ func inspectorChain(plan RouteExecutionPlan) []InspectorStep {
 }
 
 func inspectorExecutionStep(index int, step RouteExecutionStep, signature string) InspectorStep {
-	return InspectorStep{
+	result := InspectorStep{
 		Index: index, Phase: step.Phase, Action: step.Action, RouteID: step.RouteID,
 		ContractVersion: step.ContractVersion, TargetRouteID: step.TargetID,
 		Method: step.Method, Path: step.Path, PathSignature: signature,
@@ -252,6 +253,11 @@ func inspectorExecutionStep(index int, step RouteExecutionStep, signature string
 		RequestSchema: step.RequestSchema, ResponseSchema: step.ResponseSchema,
 		Mode: step.Mode, Fallback: step.Fallback, TimeoutMS: step.TimeoutMS, Priority: step.Priority,
 	}
+	if step.PluginGuard.ID != "" {
+		binding := clonePluginGuardBinding(step.PluginGuard)
+		result.PluginGuard = &binding
+	}
+	return result
 }
 
 func inspectorConflict(conflict Conflict) InspectorConflict {

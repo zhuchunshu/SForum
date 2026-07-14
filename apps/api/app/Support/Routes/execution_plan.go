@@ -56,6 +56,7 @@ type RouteExecutionStep struct {
 	Fallback        string
 	Priority        int
 	CoreGuard       CoreGuardDescriptor
+	PluginGuard     PluginGuardBinding
 }
 
 // RouteExecutionPlan contains data only. Building it never invokes a handler,
@@ -95,6 +96,7 @@ func (p RouteExecutionPlan) Terminal() RouteExecutionStep {
 	}
 	step := p.chain[p.terminalIndex]
 	step.CoreGuard = cloneCoreGuardDescriptor(step.CoreGuard)
+	step.PluginGuard = clonePluginGuardBinding(step.PluginGuard)
 	return step
 }
 
@@ -335,7 +337,7 @@ func routeExecutionStep(phase RouteExecutionPhase, route Route, descriptor CoreG
 		Permission: route.Permission, Mode: route.Mode, Destination: route.Destination, Handler: route.Handler,
 		RequestSchema: route.RequestSchema, ResponseSchema: route.ResponseSchema,
 		TimeoutMS: route.TimeoutMS, Fallback: route.Fallback, Priority: route.Priority,
-		CoreGuard: cloneCoreGuardDescriptor(descriptor),
+		CoreGuard: cloneCoreGuardDescriptor(descriptor), PluginGuard: clonePluginGuardBinding(route.PluginGuard),
 	}
 }
 
@@ -455,6 +457,7 @@ func cloneRouteExecutionSteps(source []RouteExecutionStep) []RouteExecutionStep 
 	result := append([]RouteExecutionStep(nil), source...)
 	for index := range result {
 		result[index].CoreGuard = cloneCoreGuardDescriptor(result[index].CoreGuard)
+		result[index].PluginGuard = clonePluginGuardBinding(result[index].PluginGuard)
 	}
 	return result
 }

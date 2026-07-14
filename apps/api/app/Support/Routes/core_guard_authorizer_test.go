@@ -211,8 +211,12 @@ func directCoreGuardPlan(t *testing.T, guard, permission string) (RouteExecution
 	registry := NewRegistry()
 	route := pluginRoute("guard.direct.route", "/guard/direct", 0, "GET")
 	route.Guard, route.Permission = guard, permission
+	var guards []extensionmanifest.ManifestGuard
+	if guard == "guard.direct.custom" {
+		guards = []extensionmanifest.ManifestGuard{pluginGuard(guard, "custom")}
+	}
 	if _, err := registry.Publish(Publication{Plugins: []PluginRouteSet{{
-		Artifact: routeArtifact("guard.direct", "1.0.0", 'b'), Routes: []extensionmanifest.ManifestRoute{route},
+		Artifact: routeArtifact("guard.direct", "1.0.0", 'b'), Routes: []extensionmanifest.ManifestRoute{route}, Guards: guards,
 	}}}); err != nil {
 		t.Fatal(err)
 	}

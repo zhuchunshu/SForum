@@ -195,7 +195,8 @@ func buildStartupRoutePublicationMaterial(
 		routes: routes.PluginRouteSet{Artifact: routes.PluginArtifact{
 			ExtensionID: extension.ID, ExtensionVersion: extension.Version,
 			PackageDigest: extension.PackageDigest, RuntimeInstanceID: binding.RuntimeInstanceID,
-		}, Routes: append([]extensions.ManifestRoute(nil), extension.Manifest.Routes...)},
+		}, Routes: append([]extensions.ManifestRoute(nil), extension.Manifest.Routes...),
+			Guards: append([]extensions.ManifestGuard(nil), extension.Manifest.Guards...)},
 		routeSchema: extensionopenapi.Artifact{
 			Root: extensions.PackageContentRoot(extension), ExtensionID: extension.ID,
 			Version: extension.Version, PackageDigest: extension.PackageDigest, Manifest: extension.Manifest,

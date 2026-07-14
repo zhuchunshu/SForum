@@ -43,7 +43,11 @@ func prepareCoreRoute(input CoreRoute) ([]preparedRoute, error) {
 	}, path: compiled}}, nil
 }
 
-func preparePluginRoute(artifact PluginArtifact, declaration extensionmanifest.ManifestRoute) ([]preparedRoute, error) {
+func preparePluginRoute(
+	artifact PluginArtifact,
+	declaration extensionmanifest.ManifestRoute,
+	guardBindings map[string]PluginGuardBinding,
+) ([]preparedRoute, error) {
 	if !routeIDPattern.MatchString(declaration.ID) || !strings.HasPrefix(declaration.ID, artifact.ExtensionID+".") ||
 		!contractPattern.MatchString(declaration.ContractVersion) || !validAction(declaration.Action) ||
 		!validRouteMode(declaration.Mode) || !validFallback(declaration.Fallback) || declaration.TimeoutMS < 0 {
@@ -52,11 +56,15 @@ func preparePluginRoute(artifact PluginArtifact, declaration extensionmanifest.M
 	if err := validatePluginRouteContract(artifact, declaration); err != nil {
 		return nil, err
 	}
+	guardBinding, err := pluginGuardBindingForRoute(artifact.ExtensionID, declaration.Guard, guardBindings)
+	if err != nil {
+		return nil, err
+	}
 	if declaration.Action == extensionmanifest.RouteActionGlobalMiddleware {
 		if declaration.Path != "" || declaration.TargetID != "" || len(declaration.Methods) != 0 {
 			return nil, fmt.Errorf("%w: invalid global middleware declaration", ErrInvalidRoute)
 		}
-		return []preparedRoute{{route: routeFromManifest(artifact, declaration, "", "")}}, nil
+		return []preparedRoute{{route: routeFromManifest(artifact, declaration, guardBinding, "", "")}}, nil
 	}
 	if len(declaration.Methods) == 0 {
 		return nil, fmt.Errorf("%w: route methods are required", ErrInvalidRoute)
@@ -85,20 +93,25 @@ func preparePluginRoute(artifact PluginArtifact, declaration extensionmanifest.M
 		}
 		methodSeen[method] = struct{}{}
 		items = append(items, preparedRoute{
-			route: routeFromManifest(artifact, declaration, method, compiled.signature), path: compiled,
+			route: routeFromManifest(artifact, declaration, guardBinding, method, compiled.signature), path: compiled,
 		})
 	}
 	return items, nil
 }
 
-func routeFromManifest(artifact PluginArtifact, value extensionmanifest.ManifestRoute, method, signature string) Route {
+func routeFromManifest(
+	artifact PluginArtifact,
+	value extensionmanifest.ManifestRoute,
+	guard PluginGuardBinding,
+	method, signature string,
+) Route {
 	return Route{
 		ID: value.ID, ContractVersion: value.ContractVersion, Action: value.Action, TargetID: value.TargetID,
 		Path: value.Path, Method: method, Guard: value.Guard, Permission: value.Permission,
 		Priority: value.Priority, Fallback: value.Fallback, Mode: value.Mode, Destination: value.Destination,
 		Handler: value.Handler, RequestSchema: value.RequestSchema, ResponseSchema: value.ResponseSchema,
 		TimeoutMS: value.TimeoutMS, PathSignature: signature,
-		Provider: Provider{Kind: ProviderPlugin, Artifact: artifact},
+		Provider: Provider{Kind: ProviderPlugin, Artifact: artifact}, PluginGuard: clonePluginGuardBinding(guard),
 	}
 }
 
