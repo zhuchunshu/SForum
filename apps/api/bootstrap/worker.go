@@ -285,6 +285,11 @@ func newWorkerWithPool(cfg config.Config, pool *pgxpool.Pool, logger *slog.Logge
 	if err != nil {
 		return nil, err
 	}
+	if runtime, ok := extensionRuntime.(interface {
+		BindProviderSlotSelections(extensionsruntime.ProviderSlotSelectionStore)
+	}); ok {
+		runtime.BindProviderSlotSelections(extensionsruntime.NewPostgresProviderSlotSelectionStore(pool))
+	}
 
 	workerOptions := options.NewServiceWithDefaults(options.NewPostgresStore(pool), optionsDefaultsFromConfig(cfg)).
 		WithCipher(optionCipher)
