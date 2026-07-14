@@ -3,6 +3,7 @@ node_modules/
 
 # Nuxt, Nitro, and Vite output
 .nuxt/
+.nuxt-*
 .output/
 .nitro/
 dist/
