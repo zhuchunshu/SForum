@@ -15,6 +15,7 @@ require (
 	github.com/gofiber/fiber/v3 v3.0.0-rc.3 // indirect
 	github.com/gofiber/schema v1.6.0 // indirect
 	github.com/gofiber/utils/v2 v2.0.0-rc.4 // indirect
+	github.com/golang-jwt/jwt/v5 v5.3.1 // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/google/go-querystring v1.0.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect
@@ -47,6 +48,7 @@ require (
 	github.com/riverqueue/river/riverdriver/riverpgxv5 v0.40.0 // indirect
 	github.com/riverqueue/river/rivershared v0.40.0 // indirect
 	github.com/riverqueue/river/rivertype v0.40.0 // indirect
+	github.com/robfig/cron/v3 v3.0.1 // indirect
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.2 // indirect
 	github.com/sethvargo/go-retry v0.3.0 // indirect
 	github.com/stretchr/testify v1.11.1 // indirect
