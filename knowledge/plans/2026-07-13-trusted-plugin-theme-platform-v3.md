@@ -1,6 +1,6 @@
 # Trusted Plugin And Theme Platform V3 - Implementation Task Book
 
-Status: **active implementation; P0-P4 complete, P5 partially open, P6 active, P8 underway**
+Status: **active implementation; P0-P4 complete, P5 partially open, P6 active, P7/P8 underway**
 Date: 2026-07-13  
 Decision: `knowledge/decisions/2026-07-13-trusted-plugin-theme-platform-v3.md`
 
@@ -503,13 +503,13 @@ query, and identity workflows without replacing whole routes.
 
 ### Tasks
 
-- [ ] Implement versioned namespaced action/filter hook registration.
-- [ ] Support priority, typed payload/result schemas, failure policy, sync/async,
+- [x] Implement versioned namespaced action/filter hook registration.
+- [x] Support priority, typed payload/result schemas, failure policy, sync/async,
       and deterministic composition.
-- [ ] Preserve core validate/filter revalidation where a core handler remains
+- [x] Preserve core validate/filter revalidation where a core handler remains
       authoritative; trusted replacements own their declared behavior.
 - [ ] Add plugin-defined provider slots and host-brokered service discovery.
-- [ ] Add typed plugin-to-plugin service calls with dependency/version checks.
+- [x] Add typed plugin-to-plugin service calls with dependency/version checks.
 - [ ] Generalize provider selection/reset/probe/health/fallback UI.
 - [ ] Add dynamic typed jobs, schedules, concurrency policies, retries, and
       versioned payloads.

@@ -1,7 +1,7 @@
 # Trusted Plugin And Theme Platform V3 Progress Ledger
 
-Date: 2026-07-14
-Overall progress: **46%**
+Date: 2026-07-15
+Overall progress: **48%**
 Active phase: **P6 - Full Route And Middleware Registry V1 (61%, 11 of 18 rows)**
 
 This ledger is the durable percentage and context-compaction checkpoint for the
@@ -23,7 +23,7 @@ scaffolding, or demo-only code cannot satisfy a runtime exit criterion.
 | P4 Lifecycle/dependencies | 7% | 100% | 7% |
 | P5 Database/commands | 8% | 65% | 5.18% |
 | P6 Routes/middleware | 10% | 61% | 6.11% |
-| P7 Workflow/admin/query/identity | 10% | 5% | 0.45% |
+| P7 Workflow/admin/query/identity | 10% | 18% | 1.82% |
 | P8 Theme compiler/runtime | 8% | 50% | 4% |
 | P9 Components/assets/L2 | 8% | 0% | 0% |
 | P10 Content/media/data | 8% | 0% | 0% |
@@ -1064,3 +1064,36 @@ phase percentage.
   eligible without requiring lifecycle hooks. A real API boot completed
   migrations, runtime reconciliation, publication restore, embedded worker
   startup, and listen on 8081 before a clean shutdown.
+
+## P6 Guard, P7 Hook Registry, And P8 Fallback Checkpoint
+
+- Weighted V3 progress is now **48%**. P6 remains **61% (11 of 18 rows)**;
+  P7 advances to **18% (4 of 22 rows)**; P8 remains **50% (9 of 18 rows)**
+  until the full theme-switch row, add-page SSR path, and multi-node evidence
+  converge.
+- `476ca7aca`, `5b96b58f2`, and `24ed8b4d8` production-bind immutable
+  exact-artifact extension policy, static option/public policy, and Page
+  Registry access policy. Contextual guard execution now covers **101 of 123**
+  routes; 22 resource-dependent routes plus custom/raw authority remain closed.
+- `ae4ca62fd` implements the compiled active-override -> plugin -> active theme
+  -> default theme -> Host emergency render plan, exact template digest and
+  ViewModel binding, default-theme prewarm, typed attempt evidence, and zero
+  request-time package I/O. The P8 fallback row remains open until plugin add
+  pages and the complete switch/convergence contract are verified.
+- `124c151dc`, `77674b2fc`, and `4b3f8b82c` close the first three P7 tasks:
+  Manifest V3 versioned namespaced action/filter hooks; immutable exact-runtime
+  priority/schema/failure-policy composition; and mandatory Host revalidation
+  for authoritative filters. Plugin dependency SemVer, optional-provider
+  downgrade, River exact delivery, nested payload isolation, lifecycle
+  rollback, and Protocol V2 declaration binding fail closed.
+- Hook validation rejects async fail-closed contracts because individually
+  durable enqueues cannot be rolled back, and bounds Host listener deadlines to
+  1-5000 ms. Full ExtensionManifest/Extensions tests, complete Extensions race,
+  focused rollback races, vet, and build passed before the three commits.
+- Active uncommitted ownership is isolated: P6 continues the remaining guards;
+  P8 owns additive active-theme migration, exact-preview/current-theme CAS,
+  stale binding reconciliation, runtime skin revision, OpenAPI, and admin UI.
+  Do not stage P8 files with guard or documentation commits.
+- P5 remains **65% (11 of 17 rows)** pending explicit product freeze for
+  additive grants, per-runtime lease roles, actor delegation, and the
+  provider-neutral entitlement minimum. Independent P6-P8 work continues.

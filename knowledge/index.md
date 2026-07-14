@@ -4,10 +4,10 @@ This is the entry point for project memory.
 
 ## Latest Handoff
 
-- **2026-07-15 Trusted Plugin And Theme Platform V3 P6 active at 11/18 (overall 42%)**
+- **2026-07-15 Trusted Plugin And Theme Platform V3 P6 active at 11/18 (overall 48%)**
   - Decision: `knowledge/decisions/2026-07-13-trusted-plugin-theme-platform-v3.md`
   - Task book: `knowledge/plans/2026-07-13-trusted-plugin-theme-platform-v3.md`
-  - Active handoff: `knowledge/sessions/2026-07-14-trusted-plugin-theme-platform-v3-p5-progress.md`
+  - Active handoff: `knowledge/sessions/2026-07-15-trusted-plugin-theme-platform-v3-p6-p8-progress.md`
   - Durable progress/compaction ledger:
     `knowledge/plans/2026-07-13-trusted-plugin-theme-platform-v3-progress.md`
   - P0 catalogs and governance: `docs/extensions/v3/`
@@ -86,19 +86,26 @@ This is the entry point for project memory.
     pristine safe-method transport failure may use declared Core/not-found
     fallback; accepted requests, partial responses, crashes, timeouts,
     cancellation, and unsafe methods can never execute Core as a second writer
-  - Exact route schema compilation and typed inherited guard metadata are now
-    committed, including immutable guard copies, operation/status/media binding,
-    HEAD policy, and bounded decode/validation. Production Guard authorization,
-    joint Route/Schema lifecycle publication and boot restore, custom/raw guards,
-    complete action semantics, streaming, SEO, failure matrix, and benchmark
-    closure remain active P6 work
+  - Exact route schema compilation, joint Route/Schema lifecycle publication,
+    boot restore, and production inherited Guard authorization are committed.
+    Explicit contextual evaluators cover 101/123 routes through immutable
+    extension, option, forum, and Page Registry policy snapshots with no Store
+    I/O on guarded request paths. Twenty-two resource-dependent routes plus
+    custom/raw authority, complete actions, streaming, SEO, and the failure
+    matrix remain active P6 work
   - The reproducible same-run v1/V3 route benchmark row is accepted. Internal
     immutable planning removed full-catalog per-request copies, while the report
     retains the selected-route latency/bytes/allocation regression and requires
     P13 remeasurement
-  - P8 has a committed 23/23 Page ViewModel catalog and sealed typed theme
-    render output, but remains uncredited until production construction and
-    runtime publication are proven
+  - P7 is 4/22 (18%). Versioned namespaced action/filter hooks now publish one
+    immutable exact-runtime graph with deterministic priority, typed contracts,
+    dependency SemVer, optional fallback, Host revalidation, River delivery,
+    lifecycle rollback, and exact Protocol V2 invocation
+  - P8 is 9/18 (50%). The 23/23 Page ViewModel catalog, sealed typed frontend
+    render output, public/admin skin isolation, install-time template safety,
+    and compiled four-level fallback are committed. Add-page SSR, exact visible
+    activation preview, concurrent/multi-node convergence, and crawler/
+    JavaScript-disabled evidence remain open
 
 - **2026-07-13 Legacy Web Release/runtime frontend builds removed**
   - Decision: `knowledge/decisions/2026-07-13-remove-legacy-web-release.md`
