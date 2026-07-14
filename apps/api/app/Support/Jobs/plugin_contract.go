@@ -1,12 +1,25 @@
 package jobs
 
 import (
+	"context"
 	"errors"
+	"fmt"
 	"strings"
+	"sync"
 	"time"
 )
 
 const PluginJobEnvelopeVersion = 1
+
+const (
+	PluginJobRetryNone        = "none"
+	PluginJobRetryBounded     = "bounded"
+	PluginJobRetryExponential = "exponential"
+
+	PluginJobDefaultConcurrencyLimit = 4
+	PluginJobDefaultMaxAttempts      = 5
+	PluginJobDefaultRetryDelay       = 30 * time.Second
+)
 
 var ErrPluginJobRuntimeStale = errors.New("plugin job runtime contract is stale")
 
@@ -21,20 +34,65 @@ type PluginJobContract struct {
 	JobContract          string `json:"jobContractVersion"`
 	PayloadSchemaID      string `json:"payloadSchemaId"`
 	PayloadSchemaVersion string `json:"payloadSchemaVersion"`
+	RetryPolicy          string `json:"retryPolicy,omitempty"`
+	MaxAttempts          int    `json:"maxAttempts,omitempty"`
+	RetryDelaySeconds    int    `json:"retryDelaySeconds,omitempty"`
+	ConcurrencyLimit     int    `json:"concurrencyLimit,omitempty"`
 }
 
 func (c PluginJobContract) Valid() bool {
+	c = c.Normalized()
 	return strings.TrimSpace(c.ExtensionID) != "" &&
 		strings.TrimSpace(c.ExtensionVersion) != "" &&
 		strings.TrimSpace(c.ArtifactDigest) != "" &&
 		strings.TrimSpace(c.JobName) != "" &&
 		strings.TrimSpace(c.JobContract) != "" &&
 		strings.TrimSpace(c.PayloadSchemaID) != "" &&
-		strings.TrimSpace(c.PayloadSchemaVersion) != ""
+		strings.TrimSpace(c.PayloadSchemaVersion) != "" &&
+		c.policyValid()
 }
 
 func (c PluginJobContract) Equal(other PluginJobContract) bool {
-	return c == other
+	return c.Normalized() == other.Normalized()
+}
+
+// Normalized pins legacy rows to the V3 recommended execution policy. Policy
+// fields are part of exact contract equality so an undeclared policy change
+// cannot silently alter already queued work.
+func (c PluginJobContract) Normalized() PluginJobContract {
+	c.RetryPolicy = strings.ToLower(strings.TrimSpace(c.RetryPolicy))
+	if c.RetryPolicy == "" {
+		c.RetryPolicy = PluginJobRetryBounded
+	}
+	if c.MaxAttempts == 0 {
+		switch c.RetryPolicy {
+		case PluginJobRetryNone:
+			c.MaxAttempts = 1
+		default:
+			c.MaxAttempts = PluginJobDefaultMaxAttempts
+		}
+	}
+	if c.RetryPolicy == PluginJobRetryBounded && c.RetryDelaySeconds == 0 {
+		c.RetryDelaySeconds = int(PluginJobDefaultRetryDelay / time.Second)
+	}
+	if c.ConcurrencyLimit == 0 {
+		c.ConcurrencyLimit = PluginJobDefaultConcurrencyLimit
+	}
+	return c
+}
+
+func (c PluginJobContract) policyValid() bool {
+	if c.MaxAttempts < 1 || c.MaxAttempts > 25 || c.ConcurrencyLimit < 1 || c.ConcurrencyLimit > 16 {
+		return false
+	}
+	switch c.RetryPolicy {
+	case PluginJobRetryNone, PluginJobRetryExponential:
+		return c.RetryDelaySeconds == 0
+	case PluginJobRetryBounded:
+		return c.RetryDelaySeconds >= 1 && c.RetryDelaySeconds <= 3600
+	default:
+		return false
+	}
 }
 
 // SplitVersionedSchema separates a manifest reference such as demo.payload@1.
@@ -145,4 +203,38 @@ type PluginJobInvocation struct {
 	TrustGrantID string
 	Payload      map[string]any
 	EnqueuedAt   time.Time
+}
+
+// PluginJobConcurrencyLimiter enforces the immutable per-artifact job policy
+// before plugin code starts. Keys include the artifact digest so an upgrade
+// cannot reuse a channel with a different declared capacity.
+type PluginJobConcurrencyLimiter struct {
+	mu    sync.Mutex
+	slots map[string]chan struct{}
+}
+
+func (l *PluginJobConcurrencyLimiter) Acquire(ctx context.Context, contract PluginJobContract) (func(), error) {
+	contract = contract.Normalized()
+	if ctx == nil || !contract.Valid() {
+		return nil, fmt.Errorf("%w: invalid concurrency contract", ErrPluginJobRuntimeStale)
+	}
+	key := strings.Join([]string{contract.ExtensionID, contract.ArtifactDigest, contract.JobContract}, "\x00")
+	l.mu.Lock()
+	if l.slots == nil {
+		l.slots = make(map[string]chan struct{})
+	}
+	slots := l.slots[key]
+	if slots == nil {
+		slots = make(chan struct{}, contract.ConcurrencyLimit)
+		l.slots[key] = slots
+	}
+	l.mu.Unlock()
+
+	select {
+	case slots <- struct{}{}:
+		var once sync.Once
+		return func() { once.Do(func() { <-slots }) }, nil
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
 }

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/riverqueue/river"
@@ -25,6 +26,10 @@ type PluginJobArgs struct {
 	JobContractVersion   string         `json:"jobContractVersion,omitempty"`
 	PayloadSchemaID      string         `json:"payloadSchemaId,omitempty"`
 	PayloadSchemaVersion string         `json:"payloadSchemaVersion,omitempty"`
+	RetryPolicy          string         `json:"retryPolicy,omitempty"`
+	MaxAttempts          int            `json:"maxAttempts,omitempty"`
+	RetryDelaySeconds    int            `json:"retryDelaySeconds,omitempty"`
+	ConcurrencyLimit     int            `json:"concurrencyLimit,omitempty"`
 	Payload              map[string]any `json:"payload,omitempty"`
 	EnqueuedAt           time.Time      `json:"enqueuedAt"`
 }
@@ -37,7 +42,13 @@ func (a PluginJobArgs) Contract() supportjobs.PluginJobContract {
 		ExtensionID: a.ExtensionID, ExtensionVersion: a.ExtensionVersion, ArtifactDigest: a.ArtifactDigest,
 		JobName: a.JobName, JobContract: a.JobContractVersion,
 		PayloadSchemaID: a.PayloadSchemaID, PayloadSchemaVersion: a.PayloadSchemaVersion,
+		RetryPolicy: a.RetryPolicy, MaxAttempts: a.MaxAttempts,
+		RetryDelaySeconds: a.RetryDelaySeconds, ConcurrencyLimit: a.ConcurrencyLimit,
 	}
+}
+
+func (a PluginJobArgs) InsertOpts() river.InsertOpts {
+	return river.InsertOpts{MaxAttempts: a.Contract().Normalized().MaxAttempts}
 }
 
 func (a PluginJobArgs) validEnvelope() bool {
@@ -80,15 +91,20 @@ func (e *RiverJobEnqueuer) EnqueueVersionedPluginJob(
 	if !contract.Valid() || trustGrantID == "" {
 		return fmt.Errorf("%w: exact plugin job contract is required", ErrInvalidRequest)
 	}
+	contract = contract.Normalized()
 	args := PluginJobArgs{
 		EnvelopeVersion: supportjobs.PluginJobEnvelopeVersion,
 		ExtensionID:     contract.ExtensionID, ExtensionVersion: contract.ExtensionVersion,
 		ArtifactDigest: contract.ArtifactDigest, TrustGrantID: trustGrantID,
 		JobName: contract.JobName, JobContractVersion: contract.JobContract,
 		PayloadSchemaID: contract.PayloadSchemaID, PayloadSchemaVersion: contract.PayloadSchemaVersion,
+		RetryPolicy: contract.RetryPolicy, MaxAttempts: contract.MaxAttempts,
+		RetryDelaySeconds: contract.RetryDelaySeconds, ConcurrencyLimit: contract.ConcurrencyLimit,
 		Payload: payload, EnqueuedAt: time.Now().UTC(),
 	}
-	_, err := e.Dispatcher.Enqueue(ctx, args, supportjobs.EnqueueOptions{Queue: supportjobs.QueueDefault})
+	_, err := e.Dispatcher.Enqueue(ctx, args, supportjobs.EnqueueOptions{
+		Queue: supportjobs.QueueDefault, MaxAttempts: contract.MaxAttempts,
+	})
 	return err
 }
 
@@ -128,8 +144,18 @@ func (e *PluginJobCompatibilityError) Error() string {
 // invoked. Legacy or incompatible rows are permanently cancelled.
 type PluginJobWorker struct {
 	river.WorkerDefaults[PluginJobArgs]
-	Resolver PluginJobRuntimeResolver
-	Executor PluginJobExecutor
+	Resolver    PluginJobRuntimeResolver
+	Executor    PluginJobExecutor
+	Limiter     *supportjobs.PluginJobConcurrencyLimiter
+	limiterOnce sync.Once
+}
+
+func (w *PluginJobWorker) NextRetry(job *river.Job[PluginJobArgs]) time.Time {
+	if job == nil || job.Args.Contract().Normalized().RetryPolicy != supportjobs.PluginJobRetryBounded {
+		return time.Time{}
+	}
+	delay := time.Duration(job.Args.Contract().Normalized().RetryDelaySeconds) * time.Second
+	return time.Now().UTC().Add(delay)
 }
 
 func (w *PluginJobWorker) Work(ctx context.Context, job *river.Job[PluginJobArgs]) error {
@@ -167,6 +193,16 @@ func (w *PluginJobWorker) Work(ctx context.Context, job *river.Job[PluginJobArgs
 	if w.Executor == nil {
 		return errors.New("plugin job runtime executor is not configured")
 	}
+	w.limiterOnce.Do(func() {
+		if w.Limiter == nil {
+			w.Limiter = &supportjobs.PluginJobConcurrencyLimiter{}
+		}
+	})
+	release, err := w.Limiter.Acquire(ctx, job.Args.Contract())
+	if err != nil {
+		return err
+	}
+	defer release()
 	invocation := supportjobs.PluginJobInvocation{
 		Contract: job.Args.Contract(), TrustGrantID: job.Args.TrustGrantID,
 		Payload: job.Args.Payload, EnqueuedAt: job.Args.EnqueuedAt,

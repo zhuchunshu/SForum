@@ -13,6 +13,7 @@ func TestServicePluginJobContractUsesInstalledArtifact(t *testing.T) {
 		Manifest: Manifest{Jobs: []ManifestJob{{
 			ID: "demo.plugin.job.sync", ContractVersion: "demo.plugin.job.sync@2",
 			Name: "demo.sync", PayloadSchema: "demo.plugin.sync.payload@3",
+			RetryPolicy: "exponential", MaxAttempts: 8, ConcurrencyLimit: 2,
 		}}},
 	}
 	service := NewService(newFakeExtensionStore(map[string]Extension{item.ID: item}), t.TempDir())
@@ -22,7 +23,8 @@ func TestServicePluginJobContractUsesInstalledArtifact(t *testing.T) {
 	}
 	if contract.ExtensionVersion != item.Version || contract.ArtifactDigest != item.PackageDigest ||
 		contract.JobContract != "demo.plugin.job.sync@2" || contract.PayloadSchemaID != "demo.plugin.sync.payload" ||
-		contract.PayloadSchemaVersion != "3" {
+		contract.PayloadSchemaVersion != "3" || contract.RetryPolicy != "exponential" ||
+		contract.MaxAttempts != 8 || contract.ConcurrencyLimit != 2 {
 		t.Fatalf("contract = %#v", contract)
 	}
 

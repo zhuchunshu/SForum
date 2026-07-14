@@ -116,6 +116,26 @@ func TestPluginJobWorkerRetriesResolverAndExecutorFailures(t *testing.T) {
 	}
 }
 
+func TestPluginJobWorkerUsesDeclaredRetryPolicy(t *testing.T) {
+	args := pluginJobArgsFixture()
+	args.RetryPolicy = supportjobs.PluginJobRetryBounded
+	args.MaxAttempts = 3
+	args.RetryDelaySeconds = 12
+	args.ConcurrencyLimit = 1
+	worker := &PluginJobWorker{}
+	before := time.Now().UTC().Add(12 * time.Second)
+	next := worker.NextRetry(&river.Job[PluginJobArgs]{Args: args})
+	after := time.Now().UTC().Add(12 * time.Second)
+	if next.Before(before) || next.After(after) {
+		t.Fatalf("next retry = %s, expected within [%s, %s]", next, before, after)
+	}
+	args.RetryPolicy = supportjobs.PluginJobRetryExponential
+	args.RetryDelaySeconds = 0
+	if got := worker.NextRetry(&river.Job[PluginJobArgs]{Args: args}); !got.IsZero() {
+		t.Fatalf("exponential policy must delegate to River, got %s", got)
+	}
+}
+
 func assertPluginJobCancelled(t *testing.T, err error, reason string) {
 	t.Helper()
 	var cancelErr *river.JobCancelError

@@ -132,11 +132,13 @@ func protocolV2JobTestRequest(requestContext *protocolv2.RequestContext) *hostv2
 type recordingPluginJobRiverClient struct {
 	ctx  context.Context
 	args river.JobArgs
+	opts *river.InsertOpts
 }
 
-func (c *recordingPluginJobRiverClient) Insert(ctx context.Context, args river.JobArgs, _ *river.InsertOpts) (*rivertype.JobInsertResult, error) {
+func (c *recordingPluginJobRiverClient) Insert(ctx context.Context, args river.JobArgs, opts *river.InsertOpts) (*rivertype.JobInsertResult, error) {
 	c.ctx = ctx
 	c.args = args
+	c.opts = opts
 	return &rivertype.JobInsertResult{}, nil
 }
 
@@ -156,13 +158,18 @@ func TestRiverJobEnqueuerForwardsLeaseContextAndExactEnvelope(t *testing.T) {
 		ExtensionID: "demo.plugin", ExtensionVersion: "2.0.0", ArtifactDigest: "sha256:exact",
 		JobName: "demo.sync", JobContract: "demo.plugin.job.sync@2",
 		PayloadSchemaID: "demo.sync.payload", PayloadSchemaVersion: "2",
+		RetryPolicy: supportjobs.PluginJobRetryBounded, MaxAttempts: 7,
+		RetryDelaySeconds: 45, ConcurrencyLimit: 2,
 	}
 	if err := enqueuer.EnqueueVersionedPluginJob(ctx, contract, "grant-2", map[string]any{"page": 2}); err != nil {
 		t.Fatal(err)
 	}
 	args, ok := client.args.(PluginJobArgs)
-	if !ok || args.Contract() != contract || args.TrustGrantID != "grant-2" {
+	if !ok || !args.Contract().Equal(contract) || args.TrustGrantID != "grant-2" {
 		t.Fatalf("args = %#v", client.args)
+	}
+	if client.opts == nil || client.opts.MaxAttempts != 7 || args.InsertOpts().MaxAttempts != 7 {
+		t.Fatalf("insert opts = %#v args opts = %#v", client.opts, args.InsertOpts())
 	}
 	if client.ctx.Value(pluginJobLeaseContextKey{}) != "river-lease" {
 		t.Fatalf("dispatcher context = %#v", client.ctx)

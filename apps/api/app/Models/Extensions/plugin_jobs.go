@@ -39,7 +39,10 @@ func PluginJobContractForExtension(extension Extension, jobName string) (support
 			ExtensionID: extension.ID, ExtensionVersion: extension.Version, ArtifactDigest: extension.PackageDigest,
 			JobName: jobName, JobContract: strings.TrimSpace(declared.ContractVersion),
 			PayloadSchemaID: schemaID, PayloadSchemaVersion: schemaVersion,
+			RetryPolicy: declared.RetryPolicy, MaxAttempts: declared.MaxAttempts,
+			RetryDelaySeconds: declared.RetryDelaySeconds, ConcurrencyLimit: declared.ConcurrencyLimit,
 		}
+		contract = contract.Normalized()
 		if !ok || !contract.Valid() {
 			return supportjobs.PluginJobContract{}, ErrInvalidManifest
 		}

@@ -1,8 +1,11 @@
 package jobs
 
 import (
+	"context"
+	"errors"
 	"slices"
 	"testing"
+	"time"
 )
 
 func TestDecidePluginJobExecution(t *testing.T) {
@@ -71,6 +74,49 @@ func TestSplitVersionedSchema(t *testing.T) {
 			t.Fatalf("accepted invalid schema %q", invalid)
 		}
 	}
+}
+
+func TestPluginJobContractNormalizesLegacyExecutionPolicy(t *testing.T) {
+	contract := pluginJobContractFixture("1.0.0", "digest-v1", "demo.payload", "1")
+	normalized := contract.Normalized()
+	if normalized.RetryPolicy != PluginJobRetryBounded || normalized.MaxAttempts != PluginJobDefaultMaxAttempts ||
+		normalized.RetryDelaySeconds != int(PluginJobDefaultRetryDelay/time.Second) ||
+		normalized.ConcurrencyLimit != PluginJobDefaultConcurrencyLimit || !normalized.Valid() {
+		t.Fatalf("normalized contract = %#v", normalized)
+	}
+	if !contract.Equal(normalized) {
+		t.Fatal("legacy omitted policy must equal its canonical defaults")
+	}
+}
+
+func TestPluginJobConcurrencyLimiterHonorsExactArtifactCapacity(t *testing.T) {
+	limiter := &PluginJobConcurrencyLimiter{}
+	contract := pluginJobContractFixture("1.0.0", "digest-v1", "demo.payload", "1").Normalized()
+	contract.ConcurrencyLimit = 1
+	release, err := limiter.Acquire(context.Background(), contract)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	blocked, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
+	defer cancel()
+	if _, err := limiter.Acquire(blocked, contract); !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("second acquire = %v", err)
+	}
+	release()
+	secondRelease, err := limiter.Acquire(context.Background(), contract)
+	if err != nil {
+		t.Fatal(err)
+	}
+	secondRelease()
+
+	replacement := contract
+	replacement.ArtifactDigest = "digest-v2"
+	replacementRelease, err := limiter.Acquire(context.Background(), replacement)
+	if err != nil {
+		t.Fatal(err)
+	}
+	replacementRelease()
 }
 
 func pluginJobContractFixture(version, digest, schema, schemaVersion string) PluginJobContract {
