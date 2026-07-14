@@ -289,6 +289,7 @@ type LifecycleInspectionRepository interface {
 	OpenOperation(context.Context, string) (LifecycleOperation, error)
 	ListOperations(context.Context, string, int) ([]LifecycleOperation, error)
 	ListStepAttempts(context.Context, int64) ([]LifecycleStepAttempt, error)
+	ListRecoveryDecisions(context.Context, int64) ([]LifecycleRecoveryDecision, error)
 }
 
 func NewPostgresLifecycleRepository(pool *pgxpool.Pool) *PostgresLifecycleRepository {

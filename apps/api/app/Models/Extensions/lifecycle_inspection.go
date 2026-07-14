@@ -18,26 +18,39 @@ type LifecyclePublicError struct {
 }
 
 type LifecycleOperationSummary struct {
-	ID                int64                `json:"id"`
-	ExtensionID       string               `json:"extensionId"`
-	ExtensionVersion  string               `json:"extensionVersion"`
-	PackageDigest     string               `json:"packageDigest"`
-	Operation         string               `json:"operation"`
-	State             string               `json:"state"`
-	PlanVersion       string               `json:"planVersion"`
-	RemovalMode       string               `json:"removalMode,omitempty"`
-	Forced            bool                 `json:"forced"`
-	AttemptCount      int                  `json:"attemptCount"`
-	Revision          int64                `json:"revision"`
-	CurrentStepID     string               `json:"currentStepId,omitempty"`
-	TerminalResult    string               `json:"terminalResult,omitempty"`
-	RequestedByUserID int64                `json:"requestedByUserId,omitempty"`
-	AuditEventID      int64                `json:"auditEventId,omitempty"`
-	Error             LifecyclePublicError `json:"error"`
-	CreatedAt         time.Time            `json:"createdAt"`
-	UpdatedAt         time.Time            `json:"updatedAt"`
-	StartedAt         *time.Time           `json:"startedAt,omitempty"`
-	CompletedAt       *time.Time           `json:"completedAt,omitempty"`
+	ID                   int64                `json:"id"`
+	ExtensionID          string               `json:"extensionId"`
+	ExtensionVersion     string               `json:"extensionVersion"`
+	PackageDigest        string               `json:"packageDigest"`
+	Operation            string               `json:"operation"`
+	State                string               `json:"state"`
+	PlanVersion          string               `json:"planVersion"`
+	RemovalMode          string               `json:"removalMode,omitempty"`
+	Forced               bool                 `json:"forced"`
+	AttemptCount         int                  `json:"attemptCount"`
+	Revision             int64                `json:"revision"`
+	CurrentStepID        string               `json:"currentStepId,omitempty"`
+	TerminalResult       string               `json:"terminalResult,omitempty"`
+	RequestedByUserID    int64                `json:"requestedByUserId,omitempty"`
+	AuditEventID         int64                `json:"auditEventId,omitempty"`
+	RecoveryActorUserID  int64                `json:"recoveryActorUserId,omitempty"`
+	RecoveryAuditEventID int64                `json:"recoveryAuditEventId,omitempty"`
+	Error                LifecyclePublicError `json:"error"`
+	CreatedAt            time.Time            `json:"createdAt"`
+	UpdatedAt            time.Time            `json:"updatedAt"`
+	StartedAt            *time.Time           `json:"startedAt,omitempty"`
+	CompletedAt          *time.Time           `json:"completedAt,omitempty"`
+}
+
+type LifecycleRecoverySummary struct {
+	ID               int64     `json:"id"`
+	OperationAttempt int       `json:"operationAttempt"`
+	Decision         string    `json:"decision"`
+	EscalateForced   bool      `json:"escalateForced"`
+	Reason           string    `json:"reason,omitempty"`
+	ActorUserID      int64     `json:"actorUserId"`
+	AuditEventID     int64     `json:"auditEventId"`
+	CreatedAt        time.Time `json:"createdAt"`
 }
 
 type LifecycleStepSummary struct {
@@ -63,7 +76,8 @@ type LifecycleStepSummary struct {
 
 type LifecycleOperationDetail struct {
 	LifecycleOperationSummary
-	Steps []LifecycleStepSummary `json:"steps"`
+	Steps      []LifecycleStepSummary     `json:"steps"`
+	Recoveries []LifecycleRecoverySummary `json:"recoveries"`
 }
 
 func WithLifecycleInspectionRepository(repository LifecycleInspectionRepository) ServiceOption {
@@ -111,6 +125,14 @@ func (s *Service) LifecycleOperation(
 	if !canViewExtensions(actor) {
 		return LifecycleOperationDetail{}, identity.ErrPermissionDenied
 	}
+	return s.lifecycleOperationDetail(ctx, extensionID, operationID)
+}
+
+func (s *Service) lifecycleOperationDetail(
+	ctx context.Context,
+	extensionID string,
+	operationID int64,
+) (LifecycleOperationDetail, error) {
 	if s == nil || s.lifecycleInspector == nil {
 		return LifecycleOperationDetail{}, ErrLifecycleCoordinatorUnavailable
 	}
@@ -136,7 +158,20 @@ func (s *Service) LifecycleOperation(
 		}
 		steps = append(steps, lifecycleStepSummary(attempt))
 	}
-	return LifecycleOperationDetail{LifecycleOperationSummary: lifecycleOperationSummary(operation), Steps: steps}, nil
+	decisions, err := s.lifecycleInspector.ListRecoveryDecisions(ctx, operationID)
+	if err != nil {
+		return LifecycleOperationDetail{}, err
+	}
+	recoveries := make([]LifecycleRecoverySummary, 0, len(decisions))
+	for _, decision := range decisions {
+		if decision.OperationID != operationID {
+			return LifecycleOperationDetail{}, ErrLifecycleInvalidInput
+		}
+		recoveries = append(recoveries, lifecycleRecoverySummary(decision))
+	}
+	return LifecycleOperationDetail{
+		LifecycleOperationSummary: lifecycleOperationSummary(operation), Steps: steps, Recoveries: recoveries,
+	}, nil
 }
 
 func lifecycleOperationSummary(operation LifecycleOperation) LifecycleOperationSummary {
@@ -148,8 +183,17 @@ func lifecycleOperationSummary(operation LifecycleOperation) LifecycleOperationS
 		AttemptCount: operation.AttemptCount, Revision: operation.Revision,
 		CurrentStepID: operation.CurrentStepID, TerminalResult: operation.TerminalResult,
 		RequestedByUserID: operation.RequestedByUserID, AuditEventID: operation.AuditEventID,
+		RecoveryActorUserID: operation.RecoveryActorUserID, RecoveryAuditEventID: operation.RecoveryAuditEventID,
 		Error: lifecyclePublicError(operation.Error), CreatedAt: operation.CreatedAt,
 		UpdatedAt: operation.UpdatedAt, StartedAt: operation.StartedAt, CompletedAt: operation.CompletedAt,
+	}
+}
+
+func lifecycleRecoverySummary(decision LifecycleRecoveryDecision) LifecycleRecoverySummary {
+	return LifecycleRecoverySummary{
+		ID: decision.ID, OperationAttempt: decision.OperationAttempt, Decision: decision.Decision,
+		EscalateForced: decision.EscalateForced, Reason: decision.Reason,
+		ActorUserID: decision.ActorUserID, AuditEventID: decision.AuditEventID, CreatedAt: decision.CreatedAt,
 	}
 }
 

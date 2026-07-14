@@ -524,7 +524,11 @@ func lifecycleCoordinatorServiceError(err error) error {
 		errors.Is(err, ErrLifecycleCoordinatorRetryRequired) ||
 		errors.Is(err, ErrLifecycleCoordinatorActionFailed) ||
 		errors.Is(err, ErrLifecycleFingerprintConflict) ||
-		errors.Is(err, ErrLifecycleOperationInProgress) {
+		errors.Is(err, ErrLifecycleOperationInProgress) ||
+		errors.Is(err, ErrLifecycleNotRecoverable) ||
+		errors.Is(err, ErrLifecycleRevisionConflict) ||
+		errors.Is(err, ErrLifecycleOperationClosed) ||
+		errors.Is(err, ErrLifecycleStateTransitionDenied) {
 		return err
 	}
 	return errors.Join(ErrLifecycleCoordinatorUnavailable, err)

@@ -23,6 +23,7 @@ type lifecycleControllerRepository struct {
 	operation  extensions.LifecycleOperation
 	operations []extensions.LifecycleOperation
 	steps      []extensions.LifecycleStepAttempt
+	recoveries []extensions.LifecycleRecoveryDecision
 	lastLimit  int
 }
 
@@ -53,6 +54,16 @@ func (r *lifecycleControllerRepository) ListStepAttempts(_ context.Context, oper
 	for _, step := range r.steps {
 		if step.OperationID == operationID {
 			items = append(items, step)
+		}
+	}
+	return items, nil
+}
+
+func (r *lifecycleControllerRepository) ListRecoveryDecisions(_ context.Context, operationID int64) ([]extensions.LifecycleRecoveryDecision, error) {
+	items := make([]extensions.LifecycleRecoveryDecision, 0, len(r.recoveries))
+	for _, decision := range r.recoveries {
+		if decision.OperationID == operationID {
+			items = append(items, decision)
 		}
 	}
 	return items, nil
@@ -91,9 +102,14 @@ func TestLifecycleInspectionHTTPReturnsOnlyAllowlistedFields(t *testing.T) {
 		ActorUserID: 1, AuditEventID: 8, LeaseOwnerToken: "private-lease-token", LeaseRevision: 4,
 		CreatedAt: now, UpdatedAt: now,
 	}
+	recovery := extensions.LifecycleRecoveryDecision{
+		ID: 53, OperationID: operation.ID, OperationAttempt: 2,
+		Decision: extensions.LifecycleRecoverySkipStep, EscalateForced: true,
+		Reason: "operator accepted residual resources", ActorUserID: 1, AuditEventID: 9, CreatedAt: now,
+	}
 	repository := &lifecycleControllerRepository{
 		operation: operation, operations: []extensions.LifecycleOperation{operation},
-		steps: []extensions.LifecycleStepAttempt{step},
+		steps: []extensions.LifecycleStepAttempt{step}, recoveries: []extensions.LifecycleRecoveryDecision{recovery},
 	}
 	app, manager := newLifecycleInspectionTestApp(t, repository)
 	cookie := loginExtensionUser(t, app, manager, 1)
@@ -124,7 +140,8 @@ func TestLifecycleInspectionHTTPReturnsOnlyAllowlistedFields(t *testing.T) {
 	if err := json.Unmarshal(detailEnvelope.Data, &detail); err != nil {
 		t.Fatalf("decode lifecycle detail data: %v", err)
 	}
-	if detail.ID != operation.ID || len(detail.Steps) != 1 || detail.Steps[0].ID != step.ID {
+	if detail.ID != operation.ID || len(detail.Steps) != 1 || detail.Steps[0].ID != step.ID ||
+		len(detail.Recoveries) != 1 || detail.Recoveries[0].ID != recovery.ID {
 		t.Fatalf("unexpected lifecycle detail: %#v", detail)
 	}
 	document := string(detailEnvelope.Data)

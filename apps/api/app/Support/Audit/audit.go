@@ -25,6 +25,7 @@ const (
 	ActionExtensionUpgraded          = "extension.upgrade"
 	ActionExtensionRollback          = "extension.rollback"
 	ActionExtensionUninstalled       = "extension.uninstall"
+	ActionExtensionLifecycleRecovery = "extension.lifecycle_recovery"
 	ActionExtensionFrontendGrant     = "extension.frontend_trust_grant"
 	ActionExtensionFrontendRevoke    = "extension.frontend_trust_revoke"
 	ActionExtensionTrustChallenge    = "extension.trust_challenge"

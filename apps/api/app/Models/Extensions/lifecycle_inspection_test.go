@@ -15,6 +15,7 @@ type lifecycleInspectionTestRepository struct {
 	operation  LifecycleOperation
 	operations []LifecycleOperation
 	steps      []LifecycleStepAttempt
+	recoveries []LifecycleRecoveryDecision
 }
 
 func (r *lifecycleInspectionTestRepository) Operation(_ context.Context, extensionID string, operationID int64) (LifecycleOperation, error) {
@@ -48,6 +49,16 @@ func (r *lifecycleInspectionTestRepository) ListStepAttempts(_ context.Context, 
 	return result, nil
 }
 
+func (r *lifecycleInspectionTestRepository) ListRecoveryDecisions(_ context.Context, operationID int64) ([]LifecycleRecoveryDecision, error) {
+	result := make([]LifecycleRecoveryDecision, 0, len(r.recoveries))
+	for _, decision := range r.recoveries {
+		if decision.OperationID == operationID {
+			result = append(result, decision)
+		}
+	}
+	return result, nil
+}
+
 func TestLifecycleInspectionReturnsOnlyAllowlistedFields(t *testing.T) {
 	now := time.Now().UTC()
 	operation := LifecycleOperation{
@@ -76,7 +87,15 @@ func TestLifecycleInspectionReturnsOnlyAllowlistedFields(t *testing.T) {
 		ActorUserID: 7, AuditEventID: 8, LeaseOwnerToken: "private-lease-token",
 		LeaseRevision: 4, CreatedAt: now, UpdatedAt: now,
 	}
-	repository := &lifecycleInspectionTestRepository{operation: operation, operations: []LifecycleOperation{operation}, steps: []LifecycleStepAttempt{step}}
+	recovery := LifecycleRecoveryDecision{
+		ID: 53, OperationID: operation.ID, OperationAttempt: 2,
+		Decision: LifecycleRecoverySkipStep, EscalateForced: true,
+		Reason: "operator accepted residual resources", ActorUserID: 7, AuditEventID: 9, CreatedAt: now,
+	}
+	repository := &lifecycleInspectionTestRepository{
+		operation: operation, operations: []LifecycleOperation{operation},
+		steps: []LifecycleStepAttempt{step}, recoveries: []LifecycleRecoveryDecision{recovery},
+	}
 	service := NewServiceWithOptions(newFakeExtensionStore(map[string]Extension{}), "", "", nil, WithLifecycleInspectionRepository(repository))
 	actor := identity.Actor{ID: 7, Status: identity.UserStatusActive, Permissions: map[string]bool{identity.PermissionExtensionView: true}}
 
@@ -85,7 +104,8 @@ func TestLifecycleInspectionReturnsOnlyAllowlistedFields(t *testing.T) {
 		t.Fatalf("history=%#v err=%v", history, err)
 	}
 	detail, err := service.LifecycleOperation(context.Background(), actor, operation.ExtensionID, operation.ID)
-	if err != nil || len(detail.Steps) != 1 || detail.Steps[0].ID != step.ID {
+	if err != nil || len(detail.Steps) != 1 || detail.Steps[0].ID != step.ID ||
+		len(detail.Recoveries) != 1 || detail.Recoveries[0].ID != recovery.ID {
 		t.Fatalf("detail=%#v err=%v", detail, err)
 	}
 	document, err := json.Marshal(detail)

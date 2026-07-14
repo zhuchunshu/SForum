@@ -299,6 +299,13 @@ type UninstallResult struct {
 	Cleanup     *LifecycleCleanupFinalization `json:"cleanup,omitempty"`
 }
 
+// LifecycleRecoveryInput 精确恢复原 operation，不会创建新幂等域。
+type LifecycleRecoveryInput struct {
+	Decision       string `json:"decision"`
+	Reason         string `json:"reason,omitempty"`
+	EscalateForced bool   `json:"escalateForced,omitempty"`
+}
+
 // InstallResult 安装/升级结果。
 type InstallResult struct {
 	Extension Extension `json:"extension"`
