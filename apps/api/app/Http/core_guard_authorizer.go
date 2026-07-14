@@ -52,6 +52,7 @@ func productionCoreGuardEvaluatorRegistrations() []routes.CoreGuardEvaluatorRegi
 		productionCoreGuardEvaluator("core.guard.forum.topic_state", requireDeclaredCoreGuardPermission),
 		productionCoreGuardEvaluator("core.guard.moderation.report", requireAuthenticatedCoreGuardActor),
 		productionCoreGuardEvaluator("core.guard.moderation.review", requireDeclaredCoreGuardPermission),
+		productionCoreGuardEvaluator("core.guard.notifications.recipient", requireNotificationRecipientAuthority),
 		productionCoreGuardEvaluator("core.guard.profile.self", requireProfileSelfAuthority),
 	}
 }
@@ -82,6 +83,20 @@ func requireProfileSelfAuthority(_ context.Context, evaluation routes.CoreGuardE
 		return nil
 	case "core.route.profile.upload_avatar":
 		return requireCoreGuardPermission(evaluation, identity.PermissionAttachmentUpload)
+	default:
+		return routes.ErrCoreGuardEvaluatorUnavailable
+	}
+}
+
+func requireNotificationRecipientAuthority(ctx context.Context, evaluation routes.CoreGuardEvaluation) error {
+	switch evaluation.Descriptor.RouteID {
+	case "core.route.notifications.list",
+		"core.route.notifications.mark_read",
+		"core.route.notifications.mark_all_read",
+		"core.route.notifications.unread_count":
+		// 这些路由没有可选 recipient 参数。核心 Store 始终用当前 ActorID
+		// 约束 recipient_user_id，Guard 只负责阻止匿名主体进入该所有权边界。
+		return requireAuthenticatedCoreGuardActor(ctx, evaluation)
 	default:
 		return routes.ErrCoreGuardEvaluatorUnavailable
 	}

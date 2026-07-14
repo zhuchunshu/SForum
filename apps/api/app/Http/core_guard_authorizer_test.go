@@ -115,7 +115,7 @@ func TestProductionCoreGuardEvaluatorRegistryIsExplicitAndVersioned(t *testing.T
 		t.Fatal(err)
 	}
 	bindings := registry.Bindings()
-	if len(bindings) != len(registrations) || len(bindings) != 11 {
+	if len(bindings) != len(registrations) || len(bindings) != 12 {
 		t.Fatalf("bindings = %#v", bindings)
 	}
 	for _, binding := range bindings {
@@ -123,6 +123,105 @@ func TestProductionCoreGuardEvaluatorRegistryIsExplicitAndVersioned(t *testing.T
 			t.Fatalf("binding = %#v", binding)
 		}
 	}
+}
+
+func TestProductionNotificationRecipientGuardClosesCatalogModule(t *testing.T) {
+	expected := map[string]string{
+		"core.route.notifications.list":          "GET",
+		"core.route.notifications.mark_read":     "PATCH",
+		"core.route.notifications.mark_all_read": "POST",
+		"core.route.notifications.unread_count":  "GET",
+	}
+	var catalog []routes.CoreRoute
+	for _, route := range routes.CoreRouteCatalog() {
+		if route.Guard.EvaluatorID == "core.guard.notifications.recipient" {
+			catalog = append(catalog, route)
+		}
+	}
+	if len(catalog) != len(expected) {
+		t.Fatalf("notification contextual catalog = %#v", catalog)
+	}
+
+	authorizer := NewProductionRouteGuardAuthorizer()
+	for _, route := range catalog {
+		method, exists := expected[route.ID]
+		if !exists || route.Method != method || route.Guard.Kind != routes.CoreGuardContextual {
+			t.Fatalf("unexpected notification guard route = %#v", route)
+		}
+		delete(expected, route.ID)
+
+		plan, step := productionCatalogInheritedGuardPlan(t, route)
+		// 通知收件箱是登录主体能力，不要求额外 scope；PAT 权限仍保持收窄，
+		// 资源所有权由核心通知查询的 recipient_user_id 条件继续强制。
+		patRequest := productionGuardRequest(identity.PermissionPostCreate)
+		patRequest.Method, patRequest.Path = plan.Method(), plan.Path()
+		if err := authorizer.Authorize(context.Background(), plan, step, patRequest); err != nil {
+			t.Fatalf("%s scoped PAT error = %v", route.ID, err)
+		}
+
+		anonymous := routes.DispatchRequest{Method: plan.Method(), Path: plan.Path()}
+		if err := authorizer.Authorize(context.Background(), plan, step, anonymous); !errors.Is(err, ErrRouteLoginRequired) {
+			t.Fatalf("%s anonymous error = %v", route.ID, err)
+		}
+
+		forgedRequest := patRequest
+		forgedRequest.Path += "/forged"
+		if err := authorizer.Authorize(context.Background(), plan, step, forgedRequest); !errors.Is(err, ErrRouteGuardUnavailable) {
+			t.Fatalf("%s forged request error = %v", route.ID, err)
+		}
+
+		forgedStep := step
+		forgedStep.RouteID += ".forged"
+		if err := authorizer.Authorize(context.Background(), plan, forgedStep, patRequest); !errors.Is(err, ErrRouteGuardUnavailable) {
+			t.Fatalf("%s forged step error = %v", route.ID, err)
+		}
+	}
+	if len(expected) != 0 {
+		t.Fatalf("missing notification guard routes = %#v", expected)
+	}
+}
+
+func TestProductionNotificationRecipientGuardRejectsForeignRouteID(t *testing.T) {
+	descriptor := routes.CoreGuardDescriptor{
+		Kind: routes.CoreGuardContextual, EvaluatorID: "core.guard.notifications.recipient",
+	}
+	plan, step := productionInheritedGuardPlan(t, "core.route.notifications.foreign", descriptor)
+	request := productionGuardRequest()
+	request.Method, request.Path = plan.Method(), plan.Path()
+	if err := NewProductionRouteGuardAuthorizer().Authorize(context.Background(), plan, step, request); !errors.Is(err, ErrRouteGuardUnavailable) {
+		t.Fatalf("foreign notification route error = %v", err)
+	}
+}
+
+func productionCatalogInheritedGuardPlan(
+	t *testing.T,
+	target routes.CoreRoute,
+) (routes.RouteExecutionPlan, routes.RouteExecutionStep) {
+	t.Helper()
+	registry := routes.NewRegistry()
+	alias := extensionmanifest.ManifestRoute{
+		ID: "guard.production.catalog_alias", ContractVersion: "guard.production.catalog_alias@1",
+		Action: extensionmanifest.RouteActionAlias, TargetID: target.ID,
+		Path: "/guard/production/catalog", Methods: []string{target.Method}, Guard: extensionmanifest.GuardCoreInherit,
+		Fallback: "closed", Mode: extensionmanifest.RouteModeHTTP,
+	}
+	if _, err := registry.Publish(routes.Publication{
+		Core: []routes.CoreRoute{target},
+		Plugins: []routes.PluginRouteSet{{
+			Artifact: routes.PluginArtifact{
+				ExtensionID: "guard.production", ExtensionVersion: "1.0.0",
+				PackageDigest: strings.Repeat("c", 64), RuntimeInstanceID: "runtime-c",
+			},
+			Routes: []extensionmanifest.ManifestRoute{alias},
+		}},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	plan, err := registry.BuildExecutionPlan(target.Method, alias.Path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return plan, plan.Terminal()
 }
 
 func productionInheritedGuardPlan(
