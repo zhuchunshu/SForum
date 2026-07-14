@@ -36,15 +36,7 @@ ApiResponseExtensionUninstall:
     message:
       type: string
     data:
-      type: object
-      required:
-      - uninstalled
-      - extensionId
-      properties:
-        uninstalled:
-          type: boolean
-        extensionId:
-          type: string
+      "$ref": "#/ExtensionUninstallResult"
 ApiResponseExtensionMigrationList:
   type: object
   required:
@@ -235,6 +227,57 @@ ApiResponseLifecycleOperationDetail:
     message: { type: string }
     data:
       "$ref": "#/LifecycleOperationDetail"
+LifecycleCleanupFinalization:
+  type: object
+  required: [operationId, status, physicalPurgeComplete]
+  additionalProperties: false
+  properties:
+    operationId:
+      type: integer
+      format: int64
+      minimum: 1
+    status:
+      type: string
+      enum: [finalized]
+    physicalPurgeComplete:
+      type: boolean
+      const: true
+ExtensionUninstallResult:
+  type: object
+  required: [uninstalled, extensionId]
+  additionalProperties: false
+  properties:
+    uninstalled:
+      type: boolean
+    extensionId:
+      type: string
+    operationId:
+      type: integer
+      format: int64
+      minimum: 1
+    removalMode:
+      type: string
+      enum: [preserve, export_then_remove, complete_removal]
+    replayed:
+      type: boolean
+    cleanup:
+      "$ref": "#/LifecycleCleanupFinalization"
+LifecycleRecoveryInput:
+  type: object
+  required: [decision]
+  additionalProperties: false
+  properties:
+    decision:
+      type: string
+      enum: [retry, skip_step]
+    reason:
+      type: string
+      maxLength: 4096
+      description: Required for skip-step and every forced uninstall escalation.
+    escalateForced:
+      type: boolean
+      default: false
+      description: Super-admin-only uninstall escalation acknowledging residual external resources.
 LifecyclePublicError:
   type: object
   description: Stable operator-facing lifecycle error. Trusted runtime metadata and opaque failure payloads are never returned.
@@ -243,8 +286,10 @@ LifecyclePublicError:
   properties:
     code:
       type: string
+      enum: [lifecycle.action_failed, lifecycle.cancelled, lifecycle.coordinator_interrupted, lifecycle.deadline_exceeded, lifecycle.execution_failed]
     reason:
       type: string
+      enum: [lifecycle.action_failed, lifecycle.cancelled, lifecycle.coordinator_interrupted, lifecycle.deadline_exceeded, lifecycle.execution_failed]
     message:
       type: string
     retryable:
@@ -315,6 +360,14 @@ LifecycleOperationSummary:
       type: integer
       format: int64
       minimum: 1
+    recoveryActorUserId:
+      type: integer
+      format: int64
+      minimum: 1
+    recoveryAuditEventId:
+      type: integer
+      format: int64
+      minimum: 1
     error:
       "$ref": "#/LifecyclePublicError"
     createdAt:
@@ -372,8 +425,6 @@ LifecycleStepSummary:
       type: integer
       format: int64
       minimum: 0
-    progressMessage:
-      type: string
     skipReason:
       type: string
     forced:
@@ -400,9 +451,46 @@ LifecycleStepSummary:
     completedAt:
       type: string
       format: date-time
+LifecycleRecoverySummary:
+  type: object
+  required:
+  - id
+  - operationAttempt
+  - decision
+  - escalateForced
+  - actorUserId
+  - auditEventId
+  - createdAt
+  additionalProperties: false
+  properties:
+    id:
+      type: integer
+      format: int64
+      minimum: 1
+    operationAttempt:
+      type: integer
+      minimum: 2
+    decision:
+      type: string
+      enum: [retry, skip_step]
+    escalateForced:
+      type: boolean
+    reason:
+      type: string
+    actorUserId:
+      type: integer
+      format: int64
+      minimum: 1
+    auditEventId:
+      type: integer
+      format: int64
+      minimum: 1
+    createdAt:
+      type: string
+      format: date-time
 LifecycleOperationDetail:
   type: object
-  description: One lifecycle operation plus its allowlisted step-attempt history.
+  description: One lifecycle operation plus allowlisted step-attempt and operator recovery-decision history.
   required:
   - id
   - extensionId
@@ -418,6 +506,7 @@ LifecycleOperationDetail:
   - createdAt
   - updatedAt
   - steps
+  - recoveries
   additionalProperties: false
   properties:
     id:
@@ -464,6 +553,14 @@ LifecycleOperationDetail:
       type: integer
       format: int64
       minimum: 1
+    recoveryActorUserId:
+      type: integer
+      format: int64
+      minimum: 1
+    recoveryAuditEventId:
+      type: integer
+      format: int64
+      minimum: 1
     error:
       "$ref": "#/LifecyclePublicError"
     createdAt:
@@ -482,6 +579,10 @@ LifecycleOperationDetail:
       type: array
       items:
         "$ref": "#/LifecycleStepSummary"
+    recoveries:
+      type: array
+      items:
+        "$ref": "#/LifecycleRecoverySummary"
 ExtensionType:
   type: string
   enum:

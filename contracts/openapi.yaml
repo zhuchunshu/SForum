@@ -350,6 +350,8 @@ paths:
     "$ref": "./openapi/paths/extensions.yaml#/adminExtensionLifecycleOperations"
   "/admin/extensions/{extensionID}/lifecycle/{operationID}":
     "$ref": "./openapi/paths/extensions.yaml#/adminExtensionLifecycleOperation"
+  "/admin/extensions/{extensionID}/lifecycle/{operationID}/recovery":
+    "$ref": "./openapi/paths/extensions.yaml#/adminExtensionLifecycleRecovery"
   "/admin/extensions/{extensionID}/migrations":
     "$ref": "./openapi/paths/extensions.yaml#/adminExtensionMigrations"
   "/admin/extensions/{extensionID}/migrations/apply":

@@ -205,12 +205,39 @@ func TestLifecycleInspectionHTTPPermissionParametersAndErrors(t *testing.T) {
 	assertLifecycleHTTPError(t, response, http.StatusServiceUnavailable, lifecycleUnavailableReason)
 }
 
+func TestLifecycleRecoveryHTTPPermissionValidationAndUnavailableBoundary(t *testing.T) {
+	repository := &lifecycleControllerRepository{}
+	app, manager := newLifecycleInspectionTestApp(t, repository)
+	path := "/api/v1/admin/extensions/demo.plugin/lifecycle/41/recovery"
+
+	response := performExtensionJSONRequest(t, app, http.MethodPost, path, nil, `{"decision":"retry"}`)
+	assertLifecycleHTTPStatus(t, response, http.StatusUnauthorized)
+
+	viewCookie := loginExtensionUser(t, app, manager, 1)
+	response = performExtensionJSONRequest(t, app, http.MethodPost, path, viewCookie, `{"decision":"retry"}`)
+	assertLifecycleHTTPError(t, response, http.StatusForbidden, "permission.denied")
+
+	manageCookie := loginExtensionUser(t, app, manager, 3)
+	response = performExtensionRequest(t, app, http.MethodPost, path, manageCookie)
+	assertLifecycleHTTPStatus(t, response, http.StatusUnprocessableEntity)
+	response = performExtensionJSONRequest(t, app, http.MethodPost, path, manageCookie, `{`)
+	assertLifecycleHTTPStatus(t, response, http.StatusUnprocessableEntity)
+	response = performExtensionJSONRequest(t, app, http.MethodPost,
+		"/api/v1/admin/extensions/demo.plugin/lifecycle/01/recovery", manageCookie, `{"decision":"retry"}`)
+	assertLifecycleHTTPStatus(t, response, http.StatusUnprocessableEntity)
+
+	// The manage-authorized request reaches the service dependency boundary.
+	response = performExtensionJSONRequest(t, app, http.MethodPost, path, manageCookie, `{"decision":"retry"}`)
+	assertLifecycleHTTPError(t, response, http.StatusServiceUnavailable, lifecycleUnavailableReason)
+}
+
 func newLifecycleInspectionTestApp(t *testing.T, repository extensions.LifecycleInspectionRepository) (*fiber.App, *authsession.Manager) {
 	t.Helper()
 	manager := authsession.NewManager(session.NewStore(), authsession.Config{HashSecret: "test-secret"})
 	users := controllerActors{actors: map[int64]identity.Actor{
 		1: {ID: 1, Status: identity.UserStatusActive, Permissions: map[string]bool{identity.PermissionExtensionView: true}},
 		2: {ID: 2, Status: identity.UserStatusActive, Permissions: map[string]bool{}},
+		3: {ID: 3, Status: identity.UserStatusActive, Permissions: map[string]bool{identity.PermissionExtensionPluginManage: true}},
 	}}
 	store := &controllerFakeStore{items: map[string]extensions.Extension{}}
 	service := extensions.NewServiceWithOptions(store, "", "", nil, extensions.WithLifecycleInspectionRepository(repository))
@@ -218,8 +245,11 @@ func newLifecycleInspectionTestApp(t *testing.T, repository extensions.Lifecycle
 	loginProvider := extensionRouteProviderFunc(func(api fiber.Router) {
 		api.Post("/test-login/:id", func(c fiber.Ctx) error {
 			userID := int64(1)
-			if c.Params("id") == "2" {
+			switch c.Params("id") {
+			case "2":
 				userID = 2
+			case "3":
+				userID = 3
 			}
 			_, err := manager.Start(c, userID)
 			return err

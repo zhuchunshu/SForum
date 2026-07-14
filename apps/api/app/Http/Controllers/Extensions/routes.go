@@ -24,6 +24,7 @@ func (h *Controller) RegisterRoutes(api fiber.Router) {
 	api.Get("/admin/extensions/:id/events", h.events)
 	api.Get("/admin/extensions/:id/lifecycle", h.lifecycleOperations)
 	api.Get("/admin/extensions/:id/lifecycle/:operationID", h.lifecycleOperation)
+	api.Post("/admin/extensions/:id/lifecycle/:operationID/recovery", h.recoverLifecycleOperation)
 	api.Get("/admin/extensions/:id/migrations", h.listMigrations)
 	api.Post("/admin/extensions/:id/migrations/apply", h.applyMigrations)
 	api.Get("/admin/extensions/:id/settings", h.settings)

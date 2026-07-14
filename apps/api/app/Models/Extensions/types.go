@@ -90,6 +90,7 @@ const (
 	CodeLifecycleConflict      = "extension.lifecycle_conflict"
 	CodeLifecycleActionFailed  = "extension.lifecycle_action_failed"
 	CodeLifecycleAuthorityGone = "extension.lifecycle_authority_not_found"
+	CodeLifecycleCleanupFailed = "extension.lifecycle_cleanup_failed"
 	CodeStagedVersionNotFound  = "extension.staged_version_not_found"
 	CodeVersionNotFound        = "extension.version_not_found"
 	// CodeUntrustedBackendRestricted 见 backend_trust.go（非 super_admin 执行非内置后端）。

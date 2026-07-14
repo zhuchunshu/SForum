@@ -66,6 +66,20 @@ func TestMapLifecycleErrorDoesNotExposeInternalFailure(t *testing.T) {
 	}
 }
 
+func TestMapLifecycleCleanupErrorDoesNotExposeInternalFailure(t *testing.T) {
+	mapped := mapExtensionError(errors.Join(
+		extensions.ErrLifecycleCleanupFinalization,
+		errors.New("private purge path and SQL output"),
+	))
+	fiberErr, ok := mapped.(*fiber.Error)
+	if !ok {
+		t.Fatalf("expected fiber error, got %T", mapped)
+	}
+	if fiberErr.Code != http.StatusServiceUnavailable || fiberErr.Message != extensions.CodeLifecycleCleanupFailed {
+		t.Fatalf("unexpected mapping: %#v", fiberErr)
+	}
+}
+
 func TestControllerBindsLifecycleIdempotencyHeaderAndRequiresItForV2(t *testing.T) {
 	manager := authsession.NewManager(session.NewStore(), authsession.Config{HashSecret: "test-secret"})
 	users := controllerActors{actors: map[int64]identity.Actor{
@@ -74,25 +88,30 @@ func TestControllerBindsLifecycleIdempotencyHeaderAndRequiresItForV2(t *testing.
 	digest := strings.Repeat("a", 64)
 	plugin := extensions.Extension{
 		ID: "v2.controller", Name: "V2 Controller", Version: "1.0.0",
-		Type: extensions.TypePlugin, Status: extensions.StatusEnabled, Source: extensions.SourceBuiltin,
+		Type: extensions.TypePlugin, Status: extensions.StatusEnabled, Source: extensions.SourceUploaded,
 		Manifest: extensions.Manifest{
 			ID: "v2.controller", Name: "V2 Controller", Version: "1.0.0", Type: extensions.TypePlugin,
 			Backend:   extensions.ManifestBackend{ProtocolVersion: 2},
 			Lifecycle: &extensions.ManifestLifecycle{ContractVersion: "v2.controller.lifecycle@1"},
 		},
 		PackageDigest: digest, ActiveVersionID: 11,
+		IsDeletable: true,
 	}
 	store := &controllerFakeStore{items: map[string]extensions.Extension{plugin.ID: plugin}}
 	runner := &controllerLifecycleRunner{}
 	authority := extensions.LifecycleAuthoritySnapshot{
 		SchemaVersion: extensions.LifecycleAuthoritySnapshotSchemaV1,
-		AuthorityType: extensions.LifecycleAuthorityBuiltin,
+		AuthorityType: extensions.LifecycleAuthorityTrustGrant,
 		ActorUserID:   1,
 		Impact: extensions.TrustImpact{
 			SchemaVersion: extensions.TrustImpactSchemaV2, Action: extensions.TrustActionEnable,
 			ExtensionID: plugin.ID, ExtensionVersion: plugin.Version, ExtensionType: plugin.Type,
 			Source: plugin.Source, PackageDigest: digest, Digest: "frozen-impact",
 			ArtifactDigests: map[string]string{"package": digest},
+		},
+		Grant: &extensions.TrustGrant{
+			ID: 41, ExtensionID: plugin.ID, ExtensionVersion: plugin.Version,
+			PackageDigest: digest, Action: extensions.TrustActionEnable, ImpactDigest: "frozen-impact",
 		},
 	}
 	service := extensions.NewServiceWithOptions(store, t.TempDir(), "", extensions.LocalRuntimeManager{},
@@ -104,6 +123,11 @@ func TestControllerBindsLifecycleIdempotencyHeaderAndRequiresItForV2(t *testing.
 			},
 			controllerLifecycleAuthority{authority: authority},
 		),
+		extensions.WithLifecycleCleanupFinalizer(func(_ context.Context, operationID int64) (extensions.LifecycleCleanupFinalization, error) {
+			return extensions.LifecycleCleanupFinalization{
+				OperationID: operationID, Status: "finalized", PhysicalPurgeComplete: true,
+			}, nil
+		}),
 	)
 	controller := NewController(service, users, manager)
 	loginProvider := extensionRouteProviderFunc(func(api fiber.Router) {
@@ -136,6 +160,32 @@ func TestControllerBindsLifecycleIdempotencyHeaderAndRequiresItForV2(t *testing.
 	}
 	if runner.key != "controller-disable-1" {
 		t.Fatalf("ledger idempotency key = %q", runner.key)
+	}
+
+	uninstallRequest := httptest.NewRequest(
+		http.MethodDelete,
+		"/api/v1/admin/extensions/v2.controller",
+		strings.NewReader(`{"removalMode":"complete_removal"}`),
+	)
+	uninstallRequest.AddCookie(cookie)
+	uninstallRequest.Header.Set("Content-Type", "application/json")
+	uninstallRequest.Header.Set("Idempotency-Key", "controller-uninstall-1")
+	uninstallResponse, err := app.Test(uninstallRequest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer uninstallResponse.Body.Close()
+	if uninstallResponse.StatusCode != http.StatusOK {
+		t.Fatalf("uninstall status = %d: %s", uninstallResponse.StatusCode, responseBody(t, uninstallResponse))
+	}
+	var uninstallEnvelope testEnvelope[extensions.UninstallResult]
+	if err := json.NewDecoder(uninstallResponse.Body).Decode(&uninstallEnvelope); err != nil {
+		t.Fatal(err)
+	}
+	if runner.key != "controller-uninstall-1" || runner.operation != extensions.LifecycleOperationUninstall ||
+		runner.removalMode != extensions.LifecycleRemovalComplete || !uninstallEnvelope.Data.Uninstalled ||
+		uninstallEnvelope.Data.Cleanup == nil || !uninstallEnvelope.Data.Cleanup.PhysicalPurgeComplete {
+		t.Fatalf("uninstall binding result=%#v runner=%#v", uninstallEnvelope.Data, runner)
 	}
 }
 
@@ -596,6 +646,8 @@ func loginExtensionUser(t *testing.T, app *fiber.App, _ *authsession.Manager, us
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/test-login/1", nil)
 	if userID == 2 {
 		req = httptest.NewRequest(http.MethodPost, "/api/v1/test-login/2", nil)
+	} else if userID == 3 {
+		req = httptest.NewRequest(http.MethodPost, "/api/v1/test-login/3", nil)
 	}
 	resp, err := app.Test(req)
 	if err != nil {
@@ -706,13 +758,23 @@ func (controllerFakeGateway) Proxy(c fiber.Ctx, input ProxyInput) error {
 }
 
 type controllerLifecycleRunner struct {
-	key string
+	key         string
+	operation   string
+	removalMode string
 }
 
 func (r *controllerLifecycleRunner) Run(_ context.Context, input extensions.LifecycleCoordinatorRunInput) (extensions.LifecycleCoordinatorRunResult, error) {
 	r.key = input.Acquire.IdempotencyKey
+	r.operation = input.Acquire.Operation
+	r.removalMode = input.Acquire.RemovalMode
+	completedAt := time.Now().UTC()
 	return extensions.LifecycleCoordinatorRunResult{
-		Operation: extensions.LifecycleOperation{TerminalResult: extensions.LifecycleTerminalSucceeded},
+		Operation: extensions.LifecycleOperation{
+			ID: 61, ExtensionID: input.Acquire.ExtensionID, ExtensionVersion: input.Acquire.ExtensionVersion,
+			PackageDigest: input.Acquire.PackageDigest, Operation: input.Acquire.Operation,
+			RemovalMode: input.Acquire.RemovalMode, TerminalResult: extensions.LifecycleTerminalSucceeded,
+			CompletedAt: &completedAt,
+		},
 	}, nil
 }
 

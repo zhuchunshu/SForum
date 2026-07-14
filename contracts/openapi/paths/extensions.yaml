@@ -86,27 +86,35 @@ adminExtensionUninstall:
   delete:
     summary: Uninstall a deletable extension
     description: >-
-      Removes an uploaded (non-system) extension after it is disabled (F2.4).
-      Defaults delete settings (CASCADE) and the package snapshot directory.
-      retainPackage keeps the on-disk snapshot; retainSettings is recorded in
-      audit for future independent settings backup (v1 still CASCADE-deletes
-      settings with the extension row).
+      Protocol V2 plugins run digest-bound uninstall hooks while their exact
+      package, runtime recovery material, and last successful authority remain
+      available. The safe default preserves plugin data. Physical identity and
+      package deletion occurs only after terminal success through a durable
+      tombstone and exact purge receipt. Legacy extensions retain the V1
+      retainSettings/retainPackage compatibility behavior.
     operationId: uninstallAdminExtension
     parameters:
     - "$ref": "../components/parameters.yaml#/ExtensionID"
+    - "$ref": "../components/parameters.yaml#/IdempotencyKey"
     requestBody:
       required: false
       content:
         application/json:
           schema:
             type: object
+            additionalProperties: false
             properties:
+              removalMode:
+                type: string
+                enum: [preserve, export_then_remove, complete_removal]
+                default: preserve
+                description: V2 data disposition. Omission selects the safe preserve default.
               retainSettings:
                 type: boolean
-                description: Audit/docs only in v1; settings still CASCADE with the extension row.
+                description: V1 compatibility only; settings still CASCADE with the extension row.
               retainPackage:
                 type: boolean
-                description: When true, keep the package snapshot directory on disk.
+                description: V1 compatibility only; keep the package snapshot directory on disk.
     responses:
       '200':
         description: Extension uninstalled.
@@ -122,8 +130,20 @@ adminExtensionUninstall:
         "$ref": "../components/responses.yaml#/NotFound"
       '409':
         description: >-
-          Not deletable (builtin/system) or still enabled
-          (extension.must_disable_first / extension.not_deletable).
+          Not deletable, a lifecycle conflict, or an explicit recovery is
+          required. V1 extensions may still require disable first.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/common.yaml#/ApiErrorResponse"
+      '422':
+        description: Invalid removal mode or missing/invalid V2 Idempotency-Key.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/common.yaml#/ApiErrorResponse"
+      '503':
+        description: Lifecycle coordinator or exact cleanup finalizer unavailable.
         content:
           application/json:
             schema:
@@ -216,6 +236,73 @@ adminExtensionLifecycleOperation:
               "$ref": "../schemas/common.yaml#/ApiErrorResponse"
       '503':
         description: Lifecycle inspection is not initialized (reason extension.lifecycle_unavailable).
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/common.yaml#/ApiErrorResponse"
+adminExtensionLifecycleRecovery:
+  post:
+    summary: Recover one failed durable lifecycle operation
+    description: >-
+      Requires plugin management permission and targets the exact extensionID
+      plus operationID. Retry and skip-step preserve the original artifact,
+      authority snapshot, idempotency key, request fingerprint, and initial
+      audit identity. Each decision receives a new durable recovery audit id.
+      Forced uninstall escalation additionally requires an active super_admin
+      and an explicit residual-risk reason. Successful operations cannot be
+      recovered.
+    operationId: recoverAdminExtensionLifecycleOperation
+    parameters:
+    - "$ref": "../components/parameters.yaml#/ExtensionID"
+    - name: operationID
+      in: path
+      required: true
+      description: Canonical positive base-10 lifecycle operation id.
+      schema:
+        type: integer
+        format: int64
+        minimum: 1
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            "$ref": "../schemas/extensions.yaml#/LifecycleRecoveryInput"
+    responses:
+      '200':
+        description: Updated operation detail with recovery decision history.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/extensions.yaml#/ApiResponseLifecycleOperationDetail"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        description: Missing plugin management permission, or forced escalation by a non-super-admin.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/common.yaml#/ApiErrorResponse"
+      '404':
+        description: No operation with this id belongs to the extension.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/common.yaml#/ApiErrorResponse"
+      '409':
+        description: Operation is not recoverable or its durable state changed.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/common.yaml#/ApiErrorResponse"
+      '422':
+        description: Invalid operation id, decision, reason, or forced recovery request.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/common.yaml#/ApiErrorResponse"
+      '503':
+        description: Lifecycle coordinator, audit writer, or cleanup finalizer unavailable.
         content:
           application/json:
             schema:

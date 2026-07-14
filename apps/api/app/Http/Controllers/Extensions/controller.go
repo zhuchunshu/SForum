@@ -134,10 +134,12 @@ func (h *Controller) uninstall(c fiber.Ctx) error {
 			return fiber.NewError(fiber.StatusUnprocessableEntity, "validation.invalid")
 		}
 	}
-	if err := h.service.Uninstall(c.Context(), actor, c.Params("id"), input); err != nil {
+	input.IdempotencyKey = c.Get("Idempotency-Key")
+	result, err := h.service.UninstallWithResult(c.Context(), actor, c.Params("id"), input)
+	if err != nil {
 		return mapExtensionError(err)
 	}
-	return apphttp.OK(c, map[string]any{"uninstalled": true, "extensionId": c.Params("id")})
+	return apphttp.OK(c, result)
 }
 
 func (h *Controller) listMigrations(c fiber.Ctx) error {
@@ -566,9 +568,16 @@ func mapExtensionError(err error) error {
 	case errors.Is(err, extensions.ErrLifecycleFingerprintConflict),
 		errors.Is(err, extensions.ErrLifecycleOperationInProgress),
 		errors.Is(err, extensions.ErrLifecycleCoordinatorRetryRequired),
+		errors.Is(err, extensions.ErrLifecycleNotRecoverable),
+		errors.Is(err, extensions.ErrLifecycleRevisionConflict),
+		errors.Is(err, extensions.ErrLifecycleOperationClosed),
+		errors.Is(err, extensions.ErrLifecycleStateTransitionDenied),
 		errors.Is(err, extensions.ErrExtensionVersionConflict),
 		errors.Is(err, extensions.ErrStagedVersionConflict):
 		return fiber.NewError(fiber.StatusConflict, extensions.CodeLifecycleConflict)
+	case errors.Is(err, extensions.ErrLifecycleCleanupFinalization),
+		errors.Is(err, extensions.ErrLifecycleCleanupNotFinalized):
+		return fiber.NewError(fiber.StatusServiceUnavailable, extensions.CodeLifecycleCleanupFailed)
 	case errors.Is(err, extensions.ErrLifecycleAuthorityNotFound):
 		return fiber.NewError(fiber.StatusConflict, extensions.CodeLifecycleAuthorityGone)
 	case errors.Is(err, extensions.ErrStagedVersionNotFound):

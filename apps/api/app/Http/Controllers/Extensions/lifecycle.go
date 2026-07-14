@@ -57,6 +57,29 @@ func (h *Controller) lifecycleOperation(c fiber.Ctx) error {
 	return apphttp.OK(c, item)
 }
 
+func (h *Controller) recoverLifecycleOperation(c fiber.Ctx) error {
+	actor, err := h.actor(c)
+	if err != nil {
+		return err
+	}
+	operationID, err := positiveLifecycleID(c.Params("operationID"))
+	if err != nil {
+		return err
+	}
+	var input extensions.LifecycleRecoveryInput
+	if len(c.Body()) == 0 {
+		return fiber.NewError(fiber.StatusUnprocessableEntity, "validation.invalid")
+	}
+	if err := c.Bind().Body(&input); err != nil {
+		return fiber.NewError(fiber.StatusUnprocessableEntity, "validation.invalid")
+	}
+	item, err := h.service.RecoverLifecycleOperation(c.Context(), actor, c.Params("id"), operationID, input)
+	if err != nil {
+		return mapExtensionError(err)
+	}
+	return apphttp.OK(c, item)
+}
+
 func canInspectLifecycle(actor identity.Actor) bool {
 	return actor.Can(identity.PermissionExtensionView) || actor.Can(identity.PermissionExtensionManage)
 }
