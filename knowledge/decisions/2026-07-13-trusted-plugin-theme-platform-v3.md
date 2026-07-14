@@ -427,6 +427,32 @@ Database authority is disclosed in tiers:
 - fully trusted raw core database access;
 - core schema migration authority for explicitly approved kernel-level work.
 
+The V3 product boundary was frozen by the operator on 2026-07-15. New
+manifests declare database grants as an additive set rather than one mutually
+exclusive mode. The legacy `database.authority` field remains a compatibility
+input and expands cumulatively in the tier order above: each legacy value
+includes the preceding grants through its selected tier. Exact-artifact trust
+and impact review bind the normalized grant set, so adding or removing any
+grant invalidates the prior executable grant.
+
+Direct database credentials use a per-runtime lease role. Source and target
+runtime leases may coexist during a rolling upgrade; only the exact drained
+runtime lease is revoked. A shared mutable login role must not be rotated in a
+way that terminates unrelated nodes or the replacement runtime.
+
+Actor-scoped Host Commands accept only a short-lived Host-signed delegation
+created from a core route or admin invocation. It is bound to the actor, exact
+artifact/runtime, command scope, audience, issued/expiry times, and a replay
+identifier. The Host remains authoritative for live actor and permission
+checks. Background work has explicit actorless service authority and cannot
+invent an actor delegation.
+
+The provider-neutral entitlement minimum contains subject, resource or
+capability, `active`/`revoked`/`expired` lifecycle state, source reference,
+validity window, idempotency, and audit evidence. Billing, checkout, gateway,
+currency, and provider-specific transaction semantics remain outside this
+minimum and belong behind provider contracts.
+
 Raw core access is allowed in platform v1 because the accepted goal is
 WordPress-class flexibility. It is never presented as compatible or safe by
 default. Plugins that use it must declare a narrow SForum compatibility range,

@@ -69,6 +69,10 @@
 
 ## Decisions
 
+- The operator approved all recommended P5 defaults on 2026-07-15: cumulative
+  legacy-to-additive database grants, per-runtime lease roles, short-lived
+  Host-signed actor delegation, and a provider-neutral entitlement minimum.
+  P5 implementation may resume without another product confirmation.
 - Do not credit individual guard batches as the inherited/custom/raw guard row;
   custom and raw request/session authority remain a separately confirmed
   high-risk boundary.
@@ -99,16 +103,13 @@
    two-node convergence gate in separate buildable commits.
 3. Recalculate P8 only after concurrent activation/restart/multi-node and
    JavaScript-disabled evidence meet the authoritative row.
-4. Resume P5 immediately after the user approves the recommended product
-   boundaries.
+4. Resume P5 with the additive manifest compatibility contract, then commit its
+   additive persistence migration separately before runtime lease delivery.
 5. Finish the P7 real Plugin B -> Host broker -> Plugin A provider path,
    lifecycle rollback, race, vet, and build evidence before crediting its row.
 
 ## Open Questions
 
-- Awaiting user freeze: cumulative additive database grants, per-runtime lease
-  roles, short-lived Host-signed actor delegation, and provider-neutral
-  entitlement lifecycle.
 - Awaiting user freeze: RFC 6901 mutable-field paths, high-priority wrap order,
   after fail-closed semantics, and redirect/canonical policy for remaining P6
   actions.

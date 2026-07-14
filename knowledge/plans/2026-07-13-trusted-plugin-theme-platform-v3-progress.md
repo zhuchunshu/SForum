@@ -1201,3 +1201,27 @@ phase percentage.
   intentionally remain because destructive cleanup would violate publication
   evidence. Do not delete or mutate them. All new P8 publication tests must run
   in a uniquely migrated schema and drop that schema after the test.
+
+## 2026-07-15 P5 Product-Boundary Freeze
+
+- The operator explicitly approved all four recommended P5 boundaries. P5 is
+  no longer product-blocked, but remains **65% (11 of 17 rows)** until the six
+  production rows and their exit evidence are implemented. Weighted V3 remains
+  **48%**; a decision alone does not earn implementation credit.
+- Database powers are additive grants. Legacy `database.authority` expands
+  cumulatively through `own_schema`, `core_views`, `host_commands`, `raw_core`,
+  and `kernel`; new manifests may select the exact additive set. The normalized
+  set is exact-artifact trust authority.
+- Direct credentials use exact per-runtime lease roles. Rolling source and
+  target leases coexist, and draining one runtime revokes only its lease.
+- Actor-scoped Host Commands use short-lived Host-signed delegation created by
+  a core route/admin invocation and rechecked by the Host. Background work uses
+  explicit actorless service authority.
+- The entitlement minimum is provider-neutral: subject, resource/capability,
+  active/revoked/expired state, source reference, validity window, idempotency,
+  and audit. It deliberately contains no billing or gateway semantics.
+- Resume P5 in buildable boundaries: additive manifest compatibility first;
+  additive persistence migration independently; runtime lease issuance and
+  drain revocation; signed delegation and six concrete Host Commands;
+  entitlement persistence; physical raw-core grants and complete real
+  PostgreSQL atomicity/compatibility evidence.

@@ -440,6 +440,21 @@ flowchart LR
       credentials.
 - [x] Add DB query tracing, slow-query limits, and per-plugin connection budgets.
 
+### Frozen Product Boundary
+
+The operator approved all recommended P5 defaults on 2026-07-15:
+
+- replace the mutually exclusive V3 model with additive database grants while
+  retaining `database.authority` as a cumulative compatibility input;
+- issue one lease role/credential per exact runtime and keep source and target
+  leases valid together until the source runtime drains;
+- use short-lived Host-signed, actor-bound delegation only for actor-scoped Host
+  Commands initiated by a core route/admin invocation; background calls remain
+  explicit actorless service authority;
+- implement the provider-neutral entitlement minimum as subject, resource or
+  capability, lifecycle state, source, validity, idempotency, and audit without
+  embedding billing or provider behavior.
+
 ### Tests
 
 - [x] Concurrent migration, checksum drift, lock recovery, transaction rollback,

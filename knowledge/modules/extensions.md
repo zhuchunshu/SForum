@@ -704,7 +704,11 @@ template while retaining Schema fallback fields.
   idempotent replay, audit, and real PostgreSQL isolation/revocation proof. It
   is registered fail-closed but not production-bound until exact manifest
   operation declarations are loaded before broker registration.
-- Do not infer that the current single `database.authority` enum is cumulative.
-  The pending recommendation is additive grants plus exact-artifact declared
-  database operation catalogs; direct shared credentials are unsafe for rolling
-  upgrades and multiple nodes.
+- The V3 boundary is now frozen as additive grants. The legacy single
+  `database.authority` enum expands cumulatively for compatibility; new
+  manifests declare an exact grant set. Direct credentials use per-runtime
+  lease roles so rolling source and target runtimes coexist until exact drain.
+- Actor-scoped Host Commands use short-lived Host-signed delegation from a core
+  route/admin invocation. The provider-neutral entitlement minimum contains
+  subject, resource/capability, lifecycle state, source, validity, idempotency,
+  and audit without billing semantics.

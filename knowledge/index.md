@@ -72,9 +72,10 @@ This is the entry point for project memory.
   - Exact trust UI now discloses database authority, compatibility, backup and
     retention, migration digest, and transaction risk; authenticated admin plus
     desktop/390px production-component QA passed without overflow or app errors
-  - P5 public product choices remain for composable database grants,
-    Host-attested actor delegation, and the minimal provider-neutral entitlement
-    lifecycle; they do not block independent P6 implementation
+  - P5 product boundaries are frozen: additive grants with cumulative legacy
+    mapping, per-runtime lease roles, short-lived Host-signed actor delegation,
+    and a provider-neutral entitlement minimum; the six open implementation
+    rows may proceed without another product confirmation
   - P6 is active at 11/18 (61%). All 218 core routes have stable generated
     identities; immutable exact route snapshots, arbitrary declared paths,
     explicit replace-provider selection/conflict UI, Safe Mode filtering, and
