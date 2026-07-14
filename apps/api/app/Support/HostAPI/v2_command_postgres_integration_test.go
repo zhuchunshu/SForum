@@ -389,7 +389,7 @@ func newPostgresCommandHarness(t *testing.T) *postgresCommandHarness {
 	}
 	t.Cleanup(pool.Close)
 	installPostgresCommandPrerequisites(t, ctx, pool)
-	installPostgresCommandReceiptMigration(t, ctx, pool)
+	installPostgresCommandMigrations(t, ctx, pool)
 
 	const extensionID = "fixture.command"
 	const extensionVersion = "1.0.0"
@@ -447,6 +447,32 @@ func installPostgresCommandPrerequisites(t *testing.T, ctx context.Context, pool
 			impact_document JSONB NOT NULL,
 			revoked_at TIMESTAMPTZ
 		)`,
+		`CREATE TABLE users (
+			id BIGINT PRIMARY KEY,
+			status TEXT NOT NULL
+		)`,
+		`CREATE TABLE roles (
+			id BIGINT PRIMARY KEY,
+			key TEXT NOT NULL UNIQUE,
+			is_enabled BOOLEAN NOT NULL DEFAULT TRUE
+		)`,
+		`CREATE TABLE permissions (key TEXT PRIMARY KEY)`,
+		`CREATE TABLE user_roles (
+			user_id BIGINT NOT NULL REFERENCES users(id),
+			role_id BIGINT NOT NULL REFERENCES roles(id),
+			PRIMARY KEY (user_id, role_id)
+		)`,
+		`CREATE TABLE role_permissions (
+			role_id BIGINT NOT NULL REFERENCES roles(id),
+			permission_key TEXT NOT NULL REFERENCES permissions(key),
+			PRIMARY KEY (role_id, permission_key)
+		)`,
+		`CREATE TABLE user_permission_overrides (
+			user_id BIGINT NOT NULL REFERENCES users(id),
+			permission_key TEXT NOT NULL REFERENCES permissions(key),
+			effect TEXT NOT NULL CHECK (effect IN ('allow', 'deny')),
+			PRIMARY KEY (user_id, permission_key)
+		)`,
 		`CREATE TABLE audit_events (
 			id BIGSERIAL PRIMARY KEY,
 			actor_user_id BIGINT,
@@ -465,19 +491,23 @@ func installPostgresCommandPrerequisites(t *testing.T, ctx context.Context, pool
 	}
 }
 
-func installPostgresCommandReceiptMigration(t *testing.T, ctx context.Context, pool *pgxpool.Pool) {
+func installPostgresCommandMigrations(t *testing.T, ctx context.Context, pool *pgxpool.Pool) {
 	t.Helper()
-	const filename = "202607140017_host_command_receipts.sql"
-	body, err := fs.ReadFile(migrations.Files(), filename)
-	if err != nil {
-		t.Fatal(err)
-	}
-	parts := strings.SplitN(string(body), "-- +goose Down", 2)
-	if len(parts) != 2 {
-		t.Fatalf("migration %s has no Down boundary", filename)
-	}
-	if _, err := pool.Exec(ctx, parts[0], pgx.QueryExecModeSimpleProtocol); err != nil {
-		t.Fatalf("install Host Command receipt migration: %v", err)
+	for _, filename := range []string{
+		"202607140017_host_command_receipts.sql",
+		"202607150024_host_command_actor_delegations.sql",
+	} {
+		body, err := fs.ReadFile(migrations.Files(), filename)
+		if err != nil {
+			t.Fatal(err)
+		}
+		parts := strings.SplitN(string(body), "-- +goose Down", 2)
+		if len(parts) != 2 {
+			t.Fatalf("migration %s has no Down boundary", filename)
+		}
+		if _, err := pool.Exec(ctx, parts[0], pgx.QueryExecModeSimpleProtocol); err != nil {
+			t.Fatalf("install Host Command migration %s: %v", filename, err)
+		}
 	}
 }
 

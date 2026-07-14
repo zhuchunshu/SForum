@@ -141,12 +141,41 @@ func (a *ProtocolV2ActorDelegationAuthority) verifyActorDelegation(
 	token string,
 	expected ProtocolV2ActorDelegationRequest,
 ) (protocolV2VerifiedActorDelegation, error) {
-	if a == nil || len(a.key) < protocolV2ActorDelegationKeyBytes || len(token) == 0 || len(token) > protocolV2ActorDelegationMaxBytes {
-		return protocolV2VerifiedActorDelegation{}, ErrProtocolV2ActorDelegationInvalid
-	}
 	expected, err := normalizeProtocolV2ActorDelegationRequest(expected)
 	if err != nil {
 		return protocolV2VerifiedActorDelegation{}, ErrProtocolV2ActorDelegationInvalid
+	}
+	claims, err := a.parseActorDelegation(token)
+	if err != nil || validateProtocolV2ActorDelegationClaims(claims, expected) != nil {
+		return protocolV2VerifiedActorDelegation{}, ErrProtocolV2ActorDelegationInvalid
+	}
+	return verifiedProtocolV2ActorDelegation(claims), nil
+}
+
+func (a *ProtocolV2ActorDelegationAuthority) verifyActorDelegationForCommand(
+	token string,
+	runtime *protocolv2.ExtensionIdentity,
+	commandID string,
+	commandVersion string,
+	idempotencyKey string,
+) (protocolV2VerifiedActorDelegation, error) {
+	claims, err := a.parseActorDelegation(token)
+	if err != nil {
+		return protocolV2VerifiedActorDelegation{}, ErrProtocolV2ActorDelegationInvalid
+	}
+	expected, err := normalizeProtocolV2ActorDelegationRequest(ProtocolV2ActorDelegationRequest{
+		ActorUserID: claims.ActorUserID, Runtime: runtime, CommandID: commandID,
+		CommandVersion: commandVersion, IdempotencyKey: idempotencyKey,
+	})
+	if err != nil || validateProtocolV2ActorDelegationClaims(claims, expected) != nil {
+		return protocolV2VerifiedActorDelegation{}, ErrProtocolV2ActorDelegationInvalid
+	}
+	return verifiedProtocolV2ActorDelegation(claims), nil
+}
+
+func (a *ProtocolV2ActorDelegationAuthority) parseActorDelegation(token string) (*protocolV2ActorDelegationClaims, error) {
+	if a == nil || len(a.key) < protocolV2ActorDelegationKeyBytes || len(token) == 0 || len(token) > protocolV2ActorDelegationMaxBytes {
+		return nil, ErrProtocolV2ActorDelegationInvalid
 	}
 	claims := &protocolV2ActorDelegationClaims{}
 	parsed, err := jwt.ParseWithClaims(token, claims, func(candidate *jwt.Token) (any, error) {
@@ -165,17 +194,18 @@ func (a *ProtocolV2ActorDelegationAuthority) verifyActorDelegation(
 		jwt.WithStrictDecoding(),
 	)
 	if err != nil || parsed == nil || !parsed.Valid {
-		return protocolV2VerifiedActorDelegation{}, ErrProtocolV2ActorDelegationInvalid
+		return nil, ErrProtocolV2ActorDelegationInvalid
 	}
-	if err := validateProtocolV2ActorDelegationClaims(claims, expected); err != nil {
-		return protocolV2VerifiedActorDelegation{}, err
-	}
+	return claims, nil
+}
+
+func verifiedProtocolV2ActorDelegation(claims *protocolV2ActorDelegationClaims) protocolV2VerifiedActorDelegation {
 	digest := sha256.Sum256([]byte(claims.ID))
 	return protocolV2VerifiedActorDelegation{
 		ActorUserID: claims.ActorUserID, DelegationIDDigest: hex.EncodeToString(digest[:]),
 		RuntimeEpoch: int64(claims.RuntimeEpoch), RuntimeInstanceID: claims.InstanceID,
 		IssuedAt: claims.IssuedAt.Time.UTC(), NotBefore: claims.NotBefore.Time.UTC(), ExpiresAt: claims.ExpiresAt.Time.UTC(),
-	}, nil
+	}
 }
 
 func normalizeProtocolV2ActorDelegationRequest(request ProtocolV2ActorDelegationRequest) (ProtocolV2ActorDelegationRequest, error) {

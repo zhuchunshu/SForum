@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -48,6 +49,7 @@ type protocolV2CommandBackend interface {
 	Begin(ctx context.Context) (pgx.Tx, error)
 	ResolveScope(ctx context.Context, tx pgx.Tx, requested protocolV2CommandScope) (protocolV2CommandScope, error)
 	LockIdempotency(ctx context.Context, tx pgx.Tx, scope protocolV2CommandScope) (*protocolV2CommandReceipt, error)
+	AuthorizeActorDelegation(ctx context.Context, tx pgx.Tx, scope protocolV2CommandScope, delegation protocolV2VerifiedActorDelegation, fingerprint string, receiptExists bool, requiredPermissions []string) (int64, error)
 	SaveResult(ctx context.Context, tx pgx.Tx, scope protocolV2CommandScope, receipt protocolV2CommandReceipt) error
 	AppendAudit(ctx context.Context, tx pgx.Tx, event protocolV2CommandAudit) (string, error)
 }
@@ -59,6 +61,8 @@ type protocolV2CommandScope struct {
 	PackageDigest      string
 	AuthorityType      string
 	TrustGrantID       int64
+	RuntimeEpoch       int64
+	RuntimeInstanceID  string
 	CommandID          string
 	CommandVersion     string
 	IdempotencyKey     string
@@ -91,6 +95,13 @@ type protocolV2CommandExecution struct {
 	CommittedRevision string
 }
 
+type protocolV2CommandActorMode string
+
+const (
+	protocolV2CommandActorService   protocolV2CommandActorMode = "service"
+	protocolV2CommandActorDelegated protocolV2CommandActorMode = "delegated"
+)
+
 type protocolV2CommandDefinition struct {
 	ID                  string
 	Version             string
@@ -98,6 +109,8 @@ type protocolV2CommandDefinition struct {
 	InputSchemaVersion  string
 	OutputSchemaID      string
 	OutputSchemaVersion string
+	ActorMode           protocolV2CommandActorMode
+	RequiredPermissions []string
 	// Preview is read-only guidance for Plan. Execute never trusts its result.
 	Preview func(context.Context, *hostv2.CommandRequest) (*protocolV2CommandPreparation, error)
 	// Prepare performs authoritative reads through tx immediately before writes.
@@ -114,6 +127,7 @@ type protocolV2CommandKey struct {
 // execution can run concurrently without a mutable registration surface.
 type protocolV2CommandEngine struct {
 	backend     protocolV2CommandBackend
+	delegations *ProtocolV2ActorDelegationAuthority
 	definitions map[protocolV2CommandKey]protocolV2CommandDefinition
 }
 
@@ -139,6 +153,14 @@ func newProtocolV2CommandRuntime(engine *protocolV2CommandEngine) ProtocolV2Comm
 }
 
 func newProtocolV2CommandEngine(backend protocolV2CommandBackend, definitions ...protocolV2CommandDefinition) (*protocolV2CommandEngine, error) {
+	return newProtocolV2CommandEngineWithActorDelegation(backend, nil, definitions...)
+}
+
+func newProtocolV2CommandEngineWithActorDelegation(
+	backend protocolV2CommandBackend,
+	delegations *ProtocolV2ActorDelegationAuthority,
+	definitions ...protocolV2CommandDefinition,
+) (*protocolV2CommandEngine, error) {
 	registered := make(map[protocolV2CommandKey]protocolV2CommandDefinition, len(definitions))
 	for _, definition := range definitions {
 		definition.ID = strings.TrimSpace(definition.ID)
@@ -151,25 +173,55 @@ func newProtocolV2CommandEngine(backend protocolV2CommandBackend, definitions ..
 			(definition.OutputSchemaID == "") != (definition.OutputSchemaVersion == "") {
 			return nil, fmt.Errorf("hostapi: command schema id and version must be declared together")
 		}
+		if definition.ActorMode == "" {
+			definition.ActorMode = protocolV2CommandActorService
+		}
+		permissions := make([]string, 0, len(definition.RequiredPermissions))
+		seenPermissions := make(map[string]bool, len(definition.RequiredPermissions))
+		for _, permission := range definition.RequiredPermissions {
+			permission = strings.TrimSpace(permission)
+			if permission == "" || seenPermissions[permission] {
+				return nil, fmt.Errorf("hostapi: command permissions must be non-empty and unique")
+			}
+			seenPermissions[permission] = true
+			permissions = append(permissions, permission)
+		}
+		sort.Strings(permissions)
+		definition.RequiredPermissions = permissions
+		switch definition.ActorMode {
+		case protocolV2CommandActorService:
+			if len(permissions) != 0 {
+				return nil, fmt.Errorf("hostapi: actorless service command cannot require actor permissions")
+			}
+		case protocolV2CommandActorDelegated:
+			if delegations == nil {
+				return nil, fmt.Errorf("hostapi: delegated command requires an actor delegation authority")
+			}
+		default:
+			return nil, fmt.Errorf("hostapi: command actor mode is unsupported")
+		}
 		if _, exists := registered[key]; exists {
 			return nil, fmt.Errorf("hostapi: duplicate command %s@%s", definition.ID, definition.Version)
 		}
 		registered[key] = definition
 	}
-	return &protocolV2CommandEngine{backend: backend, definitions: registered}, nil
+	return &protocolV2CommandEngine{backend: backend, delegations: delegations, definitions: registered}, nil
 }
 
 func (e *protocolV2CommandEngine) plan(ctx context.Context, request *hostv2.CommandRequest) (*hostv2.CommandPlan, error) {
-	definition, plan := e.definition(request)
+	definition, _, plan := e.definition(ctx, request)
 	if plan.GetError() != nil {
 		return plan, nil
 	}
+	// Plan validates the signed binding but deliberately does not expose an actor
+	// context: live status and permissions are authoritative only inside Execute's
+	// PostgreSQL transaction.
 	preparation, err := definition.Preview(ctx, request)
 	plan = finalizeProtocolV2CommandPlan(request, definition, preparation, err, plan)
 	return plan, nil
 }
 
-func (e *protocolV2CommandEngine) definition(request *hostv2.CommandRequest) (protocolV2CommandDefinition, *hostv2.CommandPlan) {
+func (e *protocolV2CommandEngine) definition(ctx context.Context, request *hostv2.CommandRequest) (protocolV2CommandDefinition, *protocolV2VerifiedActorDelegation, *hostv2.CommandPlan) {
 	plan := &hostv2.CommandPlan{
 		Context:        protocolV2ResponseContext(request.GetContext()),
 		CommandId:      strings.TrimSpace(request.GetCommandId()),
@@ -177,26 +229,58 @@ func (e *protocolV2CommandEngine) definition(request *hostv2.CommandRequest) (pr
 	}
 	if e == nil {
 		plan.Error = protocolV2CommandUnavailable()
-		return protocolV2CommandDefinition{}, plan
+		return protocolV2CommandDefinition{}, nil, plan
 	}
 	definition, ok := e.definitions[protocolV2CommandKey{id: plan.GetCommandId(), version: plan.GetCommandVersion()}]
 	if !ok {
 		plan.Error = commandError(protocolv2.ErrorCode_ERROR_CODE_FAILED_PRECONDITION, "host.command_unsupported", "The command id or version is not registered.", false)
-		return protocolV2CommandDefinition{}, plan
+		return protocolV2CommandDefinition{}, nil, plan
 	}
 	if strings.TrimSpace(request.GetContext().GetExtension().GetExtensionId()) == "" {
 		plan.Error = commandError(protocolv2.ErrorCode_ERROR_CODE_INVALID_ARGUMENT, "host.command_extension_required", "The authenticated extension identity is required.", false)
-		return definition, plan
+		return definition, nil, plan
 	}
 	if request.GetContext().GetActor() != nil {
 		plan.Error = commandError(protocolv2.ErrorCode_ERROR_CODE_PERMISSION_DENIED, "host.command_actor_unattested", "Plugin-initiated Host Commands cannot supply an actor.", false)
-		return definition, plan
+		return definition, nil, plan
 	}
 	if detail := validateProtocolV2CommandDocument(request.GetInput(), definition.InputSchemaID, definition.InputSchemaVersion, "input"); detail != nil {
 		plan.Error = detail
-		return definition, plan
+		return definition, nil, plan
 	}
-	return definition, plan
+	switch definition.ActorMode {
+	case protocolV2CommandActorService:
+		if strings.TrimSpace(request.GetActorDelegation()) != "" {
+			plan.Error = commandError(protocolv2.ErrorCode_ERROR_CODE_PERMISSION_DENIED, "host.command_actor_delegation_unexpected", "This Host Command accepts only actorless service authority.", false)
+		}
+		return definition, nil, plan
+	case protocolV2CommandActorDelegated:
+		if strings.TrimSpace(request.GetActorDelegation()) == "" {
+			plan.Error = commandError(protocolv2.ErrorCode_ERROR_CODE_UNAUTHENTICATED, "host.command_actor_delegation_required", "A Host-signed actor delegation is required.", false)
+			return definition, nil, plan
+		}
+		idempotencyKey, detail := protocolV2CommandIdempotencyKey(request, true)
+		if detail != nil {
+			plan.Error = detail
+			return definition, nil, plan
+		}
+		runtime := ProtocolV2RuntimeIdentityFromContext(ctx)
+		if runtime == nil || request.GetContext().GetExtension().GetExtensionId() != runtime.GetExtensionId() || e.delegations == nil {
+			plan.Error = commandError(protocolv2.ErrorCode_ERROR_CODE_UNAUTHENTICATED, "host.command_actor_delegation_invalid", "The Host-signed actor delegation is invalid or stale.", false)
+			return definition, nil, plan
+		}
+		delegation, err := e.delegations.verifyActorDelegationForCommand(
+			request.GetActorDelegation(), runtime, definition.ID, definition.Version, idempotencyKey,
+		)
+		if err != nil {
+			plan.Error = commandError(protocolv2.ErrorCode_ERROR_CODE_UNAUTHENTICATED, "host.command_actor_delegation_invalid", "The Host-signed actor delegation is invalid or stale.", false)
+			return definition, nil, plan
+		}
+		return definition, &delegation, plan
+	default:
+		plan.Error = protocolV2CommandUnavailable()
+		return definition, nil, plan
+	}
 }
 
 func finalizeProtocolV2CommandPlan(
@@ -239,7 +323,7 @@ func finalizeProtocolV2CommandPlan(
 }
 
 func (e *protocolV2CommandEngine) execute(ctx context.Context, request *hostv2.CommandRequest) (*hostv2.CommandResult, error) {
-	definition, plan := e.definition(request)
+	definition, delegation, plan := e.definition(ctx, request)
 	result := &hostv2.CommandResult{Context: protocolV2ResponseContext(request.GetContext())}
 	if plan.GetError() != nil {
 		result.State = hostv2.CommandState_COMMAND_STATE_REJECTED
@@ -262,7 +346,7 @@ func (e *protocolV2CommandEngine) execute(ctx context.Context, request *hostv2.C
 		result.Error = protocolV2CommandUnavailable()
 		return result, nil
 	}
-	fingerprint, err := protocolV2CommandFingerprint(request)
+	fingerprint, err := protocolV2CommandExecutionFingerprint(ctx, request, delegation)
 	if err != nil {
 		result.State = hostv2.CommandState_COMMAND_STATE_REJECTED
 		result.Error = protocolV2CommandErrorDetail(err, "host.command_fingerprint_failed")
@@ -271,6 +355,10 @@ func (e *protocolV2CommandEngine) execute(ctx context.Context, request *hostv2.C
 	scope := protocolV2CommandScope{
 		ExtensionID: strings.TrimSpace(request.GetContext().GetExtension().GetExtensionId()),
 		CommandID:   definition.ID, CommandVersion: definition.Version, IdempotencyKey: idempotencyKey,
+	}
+	if runtime := ProtocolV2RuntimeIdentityFromContext(ctx); runtime != nil && runtime.GetRuntimeEpoch() <= uint64(^uint64(0)>>1) {
+		scope.RuntimeEpoch = int64(runtime.GetRuntimeEpoch())
+		scope.RuntimeInstanceID = runtime.GetInstanceId()
 	}
 	tx, err := e.backend.Begin(ctx)
 	if err != nil {
@@ -290,7 +378,7 @@ func (e *protocolV2CommandEngine) execute(ctx context.Context, request *hostv2.C
 		result.Error = protocolV2CommandErrorDetail(err, "host.command_identity_invalid")
 		return result, nil
 	}
-	committed, txnErr := e.executeInTransaction(ctx, tx, resolvedScope, fingerprint, definition, request)
+	committed, txnErr := e.executeInTransaction(ctx, tx, resolvedScope, fingerprint, definition, delegation, request)
 	if txnErr != nil {
 		rollbackCtx, cancelRollback := context.WithTimeout(context.WithoutCancel(ctx), protocolV2CommandRollbackTimeout)
 		defer cancelRollback()
@@ -319,11 +407,23 @@ func (e *protocolV2CommandEngine) executeInTransaction(
 	scope protocolV2CommandScope,
 	fingerprint string,
 	definition protocolV2CommandDefinition,
+	delegation *protocolV2VerifiedActorDelegation,
 	request *hostv2.CommandRequest,
 ) (*hostv2.CommandResult, error) {
 	receipt, err := e.backend.LockIdempotency(ctx, tx, scope)
 	if err != nil {
 		return nil, fmt.Errorf("lock idempotency key: %w", err)
+	}
+	actorUserID := int64(0)
+	commandCtx := ctx
+	if delegation != nil {
+		actorUserID, err = e.backend.AuthorizeActorDelegation(
+			ctx, tx, scope, *delegation, fingerprint, receipt != nil, definition.RequiredPermissions,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("authorize actor delegation: %w", err)
+		}
+		commandCtx = contextWithProtocolV2CommandActor(ctx, delegation)
 	}
 	if receipt != nil {
 		if receipt.Fingerprint != fingerprint || receipt.Result == nil {
@@ -333,7 +433,7 @@ func (e *protocolV2CommandEngine) executeInTransaction(
 		replayed.State = hostv2.CommandState_COMMAND_STATE_REPLAYED
 		return replayed, nil
 	}
-	preparation, err := definition.Prepare(ctx, tx, request)
+	preparation, err := definition.Prepare(commandCtx, tx, request)
 	if err != nil {
 		return nil, fmt.Errorf("prepare command: %w", err)
 	}
@@ -344,7 +444,7 @@ func (e *protocolV2CommandEngine) executeInTransaction(
 		return nil, &protocolV2CommandError{detail: cloneProtocolV2CommandError(plan.GetError())}
 	}
 
-	execution, err := definition.Execute(ctx, tx, request, preparation)
+	execution, err := definition.Execute(commandCtx, tx, request, preparation)
 	if err != nil {
 		return nil, err
 	}
@@ -361,8 +461,7 @@ func (e *protocolV2CommandEngine) executeInTransaction(
 	auditID, err := e.backend.AppendAudit(ctx, tx, protocolV2CommandAudit{
 		Scope:       scope,
 		ExtensionID: scope.ExtensionID,
-		// Plugin -> Host calls currently have no Host-attested actor channel.
-		ActorUserID: 0,
+		ActorUserID: actorUserID,
 		CommandID:   definition.ID, CommandVersion: definition.Version,
 		TransactionID: transactionID, IdempotencyKey: scope.IdempotencyKey,
 		Impact: cloneProtocolV2Impact(preparation.Impact),
@@ -384,4 +483,23 @@ func (e *protocolV2CommandEngine) executeInTransaction(
 		return nil, fmt.Errorf("save command result: %w", err)
 	}
 	return committed, nil
+}
+
+type protocolV2CommandActorContextKey struct{}
+
+// ProtocolV2CommandActorUserID returns only the Host-verified actor installed
+// by the command engine. RequestContext.actor is never consulted.
+func ProtocolV2CommandActorUserID(ctx context.Context) (int64, bool) {
+	if ctx == nil {
+		return 0, false
+	}
+	userID, ok := ctx.Value(protocolV2CommandActorContextKey{}).(int64)
+	return userID, ok && userID > 0
+}
+
+func contextWithProtocolV2CommandActor(ctx context.Context, delegation *protocolV2VerifiedActorDelegation) context.Context {
+	if ctx == nil || delegation == nil || delegation.ActorUserID <= 0 {
+		return ctx
+	}
+	return context.WithValue(ctx, protocolV2CommandActorContextKey{}, delegation.ActorUserID)
 }

@@ -85,13 +85,39 @@ func validProtocolV2CommandIdempotencyKey(value string) bool {
 }
 
 func protocolV2CommandFingerprint(request *hostv2.CommandRequest) (string, error) {
-	extension := request.GetContext().GetExtension()
+	return protocolV2CommandFingerprintWithBinding(request, request.GetContext().GetExtension(), 0)
+}
+
+func protocolV2CommandExecutionFingerprint(
+	ctx context.Context,
+	request *hostv2.CommandRequest,
+	delegation *protocolV2VerifiedActorDelegation,
+) (string, error) {
+	extension := ProtocolV2RuntimeIdentityFromContext(ctx)
+	if extension == nil {
+		extension = request.GetContext().GetExtension()
+	}
+	actorUserID := int64(0)
+	if delegation != nil {
+		actorUserID = delegation.ActorUserID
+	}
+	return protocolV2CommandFingerprintWithBinding(request, extension, actorUserID)
+}
+
+func protocolV2CommandFingerprintWithBinding(
+	request *hostv2.CommandRequest,
+	extension *protocolv2.ExtensionIdentity,
+	actorUserID int64,
+) (string, error) {
 	contextBinding := &protocolv2.RequestContext{
 		Extension: &protocolv2.ExtensionIdentity{
 			ExtensionId: extension.GetExtensionId(), ExtensionVersion: extension.GetExtensionVersion(),
 			ArtifactDigest: extension.GetArtifactDigest(), TrustGrantId: extension.GetTrustGrantId(),
 		},
 		GrantedAuthority: cloneProtocolV2Authority(request.GetContext().GetGrantedAuthority()),
+	}
+	if actorUserID > 0 {
+		contextBinding.Actor = &protocolv2.Actor{UserId: actorUserID}
 	}
 	bound := &hostv2.CommandRequest{
 		Context: contextBinding, CommandId: strings.TrimSpace(request.GetCommandId()),

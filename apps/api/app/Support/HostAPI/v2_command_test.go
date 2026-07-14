@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -103,6 +104,120 @@ func TestProtocolV2CommandExecuteCommitsAuditsAndReplays(t *testing.T) {
 	}
 	if backend.commitCount() != 3 || backend.rollbackCount() != 0 {
 		t.Fatalf("transaction counts: commits=%d rollbacks=%d", backend.commitCount(), backend.rollbackCount())
+	}
+}
+
+func TestProtocolV2CommandDelegatedActorIsVerifiedAuthorizedAndAudited(t *testing.T) {
+	backend := newFakeProtocolV2CommandBackend()
+	authority, err := NewProtocolV2ActorDelegationAuthority()
+	if err != nil {
+		t.Fatal(err)
+	}
+	definition := testProtocolV2CommandDefinition(t, func(ctx context.Context, _ pgx.Tx, _ *hostv2.CommandRequest, _ *protocolV2CommandPreparation) (*protocolV2CommandExecution, error) {
+		if actorUserID, ok := ProtocolV2CommandActorUserID(ctx); !ok || actorUserID != 42 {
+			t.Fatalf("execute actor = %d, %v", actorUserID, ok)
+		}
+		return testProtocolV2CommandExecution(t), nil
+	})
+	definition.ActorMode = protocolV2CommandActorDelegated
+	definition.RequiredPermissions = []string{"topic.edit", "topic.read"}
+	originalPreview := definition.Preview
+	definition.Preview = func(ctx context.Context, request *hostv2.CommandRequest) (*protocolV2CommandPreparation, error) {
+		if actorUserID, ok := ProtocolV2CommandActorUserID(ctx); ok || actorUserID != 0 {
+			t.Fatalf("plan exposed un-rechecked actor = %d, %v", actorUserID, ok)
+		}
+		return originalPreview(ctx, request)
+	}
+	originalPrepare := definition.Prepare
+	definition.Prepare = func(ctx context.Context, tx pgx.Tx, request *hostv2.CommandRequest) (*protocolV2CommandPreparation, error) {
+		if actorUserID, ok := ProtocolV2CommandActorUserID(ctx); !ok || actorUserID != 42 {
+			t.Fatalf("prepare actor = %d, %v", actorUserID, ok)
+		}
+		return originalPrepare(ctx, tx, request)
+	}
+	engine, err := newProtocolV2CommandEngineWithActorDelegation(backend, authority, definition)
+	if err != nil {
+		t.Fatal(err)
+	}
+	request := testProtocolV2CommandRequest(t, "delegated-key", "next")
+	request.Context.Extension.ArtifactDigest = strings.Repeat("a", 64)
+	request.Context.Extension.TrustGrantId = "41"
+	runtime := cloneProtocolV2ExtensionIdentity(request.Context.Extension)
+	request.ActorDelegation, err = authority.IssueActorDelegation(context.Background(), ProtocolV2ActorDelegationRequest{
+		ActorUserID: 42, Runtime: runtime, CommandID: definition.ID,
+		CommandVersion: definition.Version, IdempotencyKey: request.IdempotencyKey,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx := ContextWithProtocolV2RuntimeIdentity(context.Background(), runtime)
+	plan, err := engine.plan(ctx, request)
+	if err != nil || plan.GetError() != nil || backend.beginCount() != 0 {
+		t.Fatalf("delegated plan = %#v, %v, begins=%d", plan, err, backend.beginCount())
+	}
+	committed, err := engine.execute(ctx, request)
+	if err != nil || committed.GetState() != hostv2.CommandState_COMMAND_STATE_COMMITTED || committed.GetError() != nil {
+		t.Fatalf("delegated command = %#v, %v", committed, err)
+	}
+	backend.mu.Lock()
+	if backend.actorCalls != 1 || backend.actorReceipt || !protocolV2SHA256Hex(backend.actorFingerprint) ||
+		len(backend.actorPermissions) != 2 || backend.actorPermissions[0] != "topic.edit" || backend.actorPermissions[1] != "topic.read" {
+		t.Fatalf("actor authorization = calls:%d receipt:%v permissions:%#v fingerprint:%q", backend.actorCalls, backend.actorReceipt, backend.actorPermissions, backend.actorFingerprint)
+	}
+	backend.mu.Unlock()
+	if audits := backend.auditSnapshot(); len(audits) != 1 || audits[0].ActorUserID != 42 {
+		t.Fatalf("delegated audits = %#v", audits)
+	}
+
+	retry := proto.Clone(request).(*hostv2.CommandRequest)
+	retry.Context.RequestId = "delegated-retry"
+	replayed, err := engine.execute(ctx, retry)
+	if err != nil || replayed.GetState() != hostv2.CommandState_COMMAND_STATE_REPLAYED || replayed.GetError() != nil {
+		t.Fatalf("delegated replay = %#v, %v", replayed, err)
+	}
+	backend.mu.Lock()
+	if backend.actorCalls != 2 || !backend.actorReceipt {
+		t.Fatalf("replay authorization = calls:%d receipt:%v", backend.actorCalls, backend.actorReceipt)
+	}
+	backend.mu.Unlock()
+}
+
+func TestProtocolV2CommandDelegationEnvelopeFailsClosed(t *testing.T) {
+	authority, err := NewProtocolV2ActorDelegationAuthority()
+	if err != nil {
+		t.Fatal(err)
+	}
+	actorDefinition := testProtocolV2CommandDefinition(t, func(context.Context, pgx.Tx, *hostv2.CommandRequest, *protocolV2CommandPreparation) (*protocolV2CommandExecution, error) {
+		t.Fatal("invalid delegated command executed")
+		return nil, nil
+	})
+	actorDefinition.ActorMode = protocolV2CommandActorDelegated
+	actorDefinition.RequiredPermissions = []string{"topic.read"}
+	actorEngine, err := newProtocolV2CommandEngineWithActorDelegation(newFakeProtocolV2CommandBackend(), authority, actorDefinition)
+	if err != nil {
+		t.Fatal(err)
+	}
+	request := testProtocolV2CommandRequest(t, "delegation-required", "next")
+	result, err := actorEngine.execute(context.Background(), request)
+	if err != nil || result.GetState() != hostv2.CommandState_COMMAND_STATE_REJECTED || result.GetError().GetReason() != "host.command_actor_delegation_required" {
+		t.Fatalf("missing delegation = %#v, %v", result, err)
+	}
+	request.ActorDelegation = "forged"
+	result, err = actorEngine.execute(context.Background(), request)
+	if err != nil || result.GetState() != hostv2.CommandState_COMMAND_STATE_REJECTED || result.GetError().GetReason() != "host.command_actor_delegation_invalid" {
+		t.Fatalf("forged delegation = %#v, %v", result, err)
+	}
+
+	serviceBackend := newFakeProtocolV2CommandBackend()
+	serviceEngine := newTestProtocolV2CommandEngine(t, serviceBackend, func(context.Context, pgx.Tx, *hostv2.CommandRequest, *protocolV2CommandPreparation) (*protocolV2CommandExecution, error) {
+		t.Fatal("actor token reached actorless service command")
+		return nil, nil
+	})
+	serviceRequest := testProtocolV2CommandRequest(t, "service-key", "next")
+	serviceRequest.ActorDelegation = "forged"
+	result, err = serviceEngine.execute(context.Background(), serviceRequest)
+	if err != nil || result.GetState() != hostv2.CommandState_COMMAND_STATE_REJECTED || result.GetError().GetReason() != "host.command_actor_delegation_unexpected" || serviceBackend.beginCount() != 0 {
+		t.Fatalf("unexpected service delegation = %#v, %v", result, err)
 	}
 }
 

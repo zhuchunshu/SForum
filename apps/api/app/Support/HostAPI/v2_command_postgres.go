@@ -121,6 +121,11 @@ func (b *PostgresProtocolV2CommandBackend) resolveScope(
 	}
 	resolved.ExtensionVersion = identity.GetExtensionVersion()
 	resolved.PackageDigest = identity.GetArtifactDigest()
+	if identity.GetRuntimeEpoch() == 0 || identity.GetRuntimeEpoch() > uint64(^uint64(0)>>1) || strings.TrimSpace(identity.GetInstanceId()) == "" {
+		return protocolV2CommandScope{}, staleProtocolV2CommandIdentity()
+	}
+	resolved.RuntimeEpoch = int64(identity.GetRuntimeEpoch())
+	resolved.RuntimeInstanceID = identity.GetInstanceId()
 	manifestGrants, err := protocolV2CommandDatabaseGrants(manifestDatabaseJSON)
 	if err != nil || requiredAuthority != "" && !protocolV2CommandHasDatabaseGrant(manifestGrants, requiredAuthority) {
 		return protocolV2CommandScope{}, deniedProtocolV2HostCommandAuthority()

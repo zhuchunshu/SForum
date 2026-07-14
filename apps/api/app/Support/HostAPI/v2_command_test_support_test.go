@@ -13,15 +13,20 @@ import (
 )
 
 type fakeProtocolV2CommandBackend struct {
-	mu        sync.Mutex
-	values    map[string]string
-	receipts  map[string]protocolV2CommandReceipt
-	audits    []protocolV2CommandAudit
-	begins    int
-	commits   int
-	rollbacks int
-	auditErr  error
-	saveErr   error
+	mu               sync.Mutex
+	values           map[string]string
+	receipts         map[string]protocolV2CommandReceipt
+	audits           []protocolV2CommandAudit
+	begins           int
+	commits          int
+	rollbacks        int
+	auditErr         error
+	saveErr          error
+	actorErr         error
+	actorCalls       int
+	actorPermissions []string
+	actorReceipt     bool
+	actorFingerprint string
 }
 
 func newFakeProtocolV2CommandBackend() *fakeProtocolV2CommandBackend {
@@ -50,6 +55,27 @@ func (b *fakeProtocolV2CommandBackend) LockIdempotency(_ context.Context, _ pgx.
 	}
 	receipt.Result = proto.Clone(receipt.Result).(*hostv2.CommandResult)
 	return &receipt, nil
+}
+
+func (b *fakeProtocolV2CommandBackend) AuthorizeActorDelegation(
+	_ context.Context,
+	_ pgx.Tx,
+	_ protocolV2CommandScope,
+	delegation protocolV2VerifiedActorDelegation,
+	fingerprint string,
+	receiptExists bool,
+	requiredPermissions []string,
+) (int64, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.actorCalls++
+	b.actorPermissions = append([]string(nil), requiredPermissions...)
+	b.actorReceipt = receiptExists
+	b.actorFingerprint = fingerprint
+	if b.actorErr != nil {
+		return 0, b.actorErr
+	}
+	return delegation.ActorUserID, nil
 }
 
 func (b *fakeProtocolV2CommandBackend) SaveResult(_ context.Context, tx pgx.Tx, scope protocolV2CommandScope, receipt protocolV2CommandReceipt) error {
