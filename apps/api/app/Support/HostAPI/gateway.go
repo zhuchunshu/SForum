@@ -20,19 +20,21 @@ import (
 // Gateway 在 loopback 上暴露 Host API，供插件子进程调用（F2.2）。
 // 每个已启动插件持有独立 token；请求必须带 X-SForum-Extension-Id 与 Bearer token。
 type Gateway struct {
-	mu                       sync.RWMutex
-	service                  *Service
-	services                 *ServiceRegistry
-	commands                 *protocolV2CommandEngine
-	queries                  *protocolV2QueryEngine
-	database                 *protocolV2DatabaseEngine
-	protocolV2CommandsFrozen bool
-	protocolV2QueriesFrozen  bool
-	protocolV2DatabaseFrozen bool
-	server                   *http.Server
-	ln                       net.Listener
-	baseURL                  string
-	tokens                   map[string]string // extensionID → token
+	mu                        sync.RWMutex
+	service                   *Service
+	services                  *ServiceRegistry
+	commands                  *protocolV2CommandEngine
+	queries                   *protocolV2QueryEngine
+	database                  *protocolV2DatabaseEngine
+	providers                 ProtocolV2ProviderBroker
+	protocolV2CommandsFrozen  bool
+	protocolV2QueriesFrozen   bool
+	protocolV2DatabaseFrozen  bool
+	protocolV2ProvidersFrozen bool
+	server                    *http.Server
+	ln                        net.Listener
+	baseURL                   string
+	tokens                    map[string]string // extensionID → token
 }
 
 // RegisterProtocolV2 exposes typed Host services only on the caller's
@@ -47,11 +49,29 @@ func (g *Gateway) RegisterProtocolV2(server grpc.ServiceRegistrar) {
 	commands := g.commands
 	queries := g.queries
 	database := g.database
+	providers := g.providers
 	g.protocolV2CommandsFrozen = true
 	g.protocolV2QueriesFrozen = true
 	g.protocolV2DatabaseFrozen = true
+	g.protocolV2ProvidersFrozen = true
 	g.mu.Unlock()
-	registerProtocolV2(server, service, services, commands, queries, database)
+	registerProtocolV2(server, service, services, commands, queries, database, providers)
+}
+
+func (g *Gateway) BindProtocolV2ProviderBroker(provider ProtocolV2ProviderBroker) error {
+	if g == nil || provider == nil {
+		return fmt.Errorf("hostapi: protocol v2 provider broker is required")
+	}
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	if g.protocolV2ProvidersFrozen {
+		return fmt.Errorf("hostapi: protocol v2 provider broker is frozen until the next Gateway boot")
+	}
+	if g.providers != nil {
+		return fmt.Errorf("hostapi: protocol v2 provider broker is already bound")
+	}
+	g.providers = provider
+	return nil
 }
 
 // BindProtocolV2DatabaseRuntime installs one exact-artifact statement catalog.

@@ -54,6 +54,7 @@ type workerExtensionRuntime interface {
 	extensionsruntime.StorageRuntime
 	Reconcile(ctx context.Context, items []extensions.Extension)
 	Close(ctx context.Context)
+	protocolV2ProviderBrokerSource
 }
 
 // workerRuntimeDeps 控制 extension runtime / Host API 的所有权。
@@ -145,6 +146,11 @@ func buildStandaloneWorkerExtensionRuntime(
 	}
 	databaseBinder := databaseBinderFactory(workerHostGateway)
 	managedRuntime := newStandaloneWorkerRuntimeManager(store, workerHostGateway, service, trust)
+	if err := bindProtocolV2ProviderBroker(workerHostGateway, managedRuntime); err != nil {
+		managedRuntime.Close(ctx)
+		_ = workerHostGateway.Close()
+		return nil, nil, err
+	}
 	if runtime, ok := managedRuntime.(interface {
 		SetStartPreparer(func(context.Context, extensions.Extension) error)
 	}); ok {

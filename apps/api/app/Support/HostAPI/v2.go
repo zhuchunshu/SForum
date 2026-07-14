@@ -27,15 +27,16 @@ const (
 )
 
 type protocolV2Core struct {
-	service  *Service
-	services *ServiceRegistry
-	commands *protocolV2CommandEngine
-	queries  *protocolV2QueryEngine
-	database *protocolV2DatabaseEngine
+	service   *Service
+	services  *ServiceRegistry
+	commands  *protocolV2CommandEngine
+	queries   *protocolV2QueryEngine
+	database  *protocolV2DatabaseEngine
+	providers ProtocolV2ProviderBroker
 }
 
-func registerProtocolV2(server grpc.ServiceRegistrar, service *Service, services *ServiceRegistry, commands *protocolV2CommandEngine, queries *protocolV2QueryEngine, database *protocolV2DatabaseEngine) {
-	core := &protocolV2Core{service: service, services: services, commands: commands, queries: queries, database: database}
+func registerProtocolV2(server grpc.ServiceRegistrar, service *Service, services *ServiceRegistry, commands *protocolV2CommandEngine, queries *protocolV2QueryEngine, database *protocolV2DatabaseEngine, providers ProtocolV2ProviderBroker) {
+	core := &protocolV2Core{service: service, services: services, commands: commands, queries: queries, database: database, providers: providers}
 	hostv2.RegisterHostQueryServiceServer(server, &protocolV2QueryServer{core: core})
 	hostv2.RegisterHostCommandServiceServer(server, &protocolV2CommandServer{core: core})
 	hostv2.RegisterDatabaseServiceServer(server, &protocolV2DatabaseServer{engine: core.database})

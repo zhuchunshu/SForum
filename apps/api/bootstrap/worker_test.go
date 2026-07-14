@@ -298,6 +298,16 @@ type countingWorkerRuntime struct {
 	onReconcile     func()
 }
 
+func (c *countingWorkerRuntime) ProtocolV2ProviderBroker() (hostapi.ProtocolV2ProviderBroker, error) {
+	return workerProviderBrokerStub{}, nil
+}
+
+type workerProviderBrokerStub struct{}
+
+func (workerProviderBrokerStub) InvokeProtocolV2Provider(context.Context, hostapi.ProtocolV2ProviderInvocation) (hostapi.ProtocolV2ProviderResult, error) {
+	return hostapi.ProtocolV2ProviderResult{}, errors.New("worker provider broker test stub")
+}
+
 func (c *countingWorkerRuntime) SendMail(context.Context, string, extensionsruntime.MailProviderRequest) (extensionsruntime.MailProviderResponse, error) {
 	return extensionsruntime.MailProviderResponse{}, nil
 }

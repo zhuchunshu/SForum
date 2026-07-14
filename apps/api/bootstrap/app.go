@@ -71,6 +71,7 @@ type extensionRuntime interface {
 	SendMail(ctx context.Context, extensionID string, request extensionsruntime.MailProviderRequest) (extensionsruntime.MailProviderResponse, error)
 	// 附件存储槽 RPC（E6.2）；与 StorageRuntime 对齐。
 	extensionsruntime.StorageRuntime
+	protocolV2ProviderBrokerSource
 }
 
 var newExtensionRuntimeManager = func(store extensions.Store, hostAPI extensionsruntime.HostAPIRegistrar, settings extensionsruntime.PluginSettings, trust extensionsruntime.RuntimeTrustSource) extensionRuntime {
@@ -312,6 +313,15 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		if stopErr := supportjobs.Stop(ctx, jobClient); stopErr != nil {
 			logger.Warn("job dispatcher stop failed", "error", stopErr)
 		}
+		extensionRuntime.Close(ctx)
+		sharedRedisClient.Close()
+		if closeErr := redisStorage.Close(); closeErr != nil {
+			logger.Warn("redis session storage close failed", "error", closeErr)
+		}
+		pool.Close()
+		return nil, err
+	}
+	if err := bindProtocolV2ProviderBroker(hostAPIGateway, lifecycleRuntime); err != nil {
 		extensionRuntime.Close(ctx)
 		sharedRedisClient.Close()
 		if closeErr := redisStorage.Close(); closeErr != nil {

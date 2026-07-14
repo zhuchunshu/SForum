@@ -10,6 +10,7 @@ import (
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Crypto"
 	appevents "github.com/zhuchunshu/sforum/apps/api/app/Support/Events"
 	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
+	hostapi "github.com/zhuchunshu/sforum/apps/api/app/Support/HostAPI"
 	humanverify "github.com/zhuchunshu/sforum/apps/api/app/Support/HumanVerify"
 	"github.com/zhuchunshu/sforum/apps/api/config"
 )
@@ -114,6 +115,10 @@ func TestNewHumanVerifyServiceRespectsDisabledProvider(t *testing.T) {
 }
 
 type fakeBootstrapExtensionRuntime struct{}
+
+func (fakeBootstrapExtensionRuntime) ProtocolV2ProviderBroker() (hostapi.ProtocolV2ProviderBroker, error) {
+	return workerProviderBrokerStub{}, nil
+}
 
 func (fakeBootstrapExtensionRuntime) Check(context.Context, extensions.Extension) error { return nil }
 
