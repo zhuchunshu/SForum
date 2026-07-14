@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 
-import { executableDatabaseMigrationRisk } from '../app/utils/extensionTrust'
+import { executableDatabaseGrants, executableDatabaseMigrationRisk } from '../app/utils/extensionTrust'
 
 const manager = await Bun.file(new URL('../app/composables/useAdminExtensionsManager.ts', import.meta.url)).text()
 const dialog = await Bun.file(new URL('../app/components/SFAdminExtensionEnableDialog.vue', import.meta.url)).text()
@@ -49,6 +49,7 @@ describe('V3 exact-artifact trust operator flow', () => {
   test('promotes database migration and recovery risk before confirmation', () => {
     expect(impact).toContain('data-testid="extension-database-risk"')
     expect(impact).toContain('database.coreCompatibility')
+    expect(impact).toContain('databaseGrantSummary')
     expect(impact).toContain('database.backup.required')
     expect(impact).toContain('database.backup.strategy')
     expect(impact).toContain('database.retention.onDisable')
@@ -78,6 +79,18 @@ describe('V3 exact-artifact trust operator flow', () => {
     expect(risk.hasDatabaseChanges).toBe(true)
     expect(risk.missingRequiredBackup).toBe(true)
     expect(risk.nonTransactional).toHaveLength(1)
+    expect(executableDatabaseGrants({
+      contractVersion: 'fixture.database@1',
+      authority: 'raw_core',
+      backup: { required: false },
+      retention: { onDisable: 'retain', onUninstall: 'retain' }
+    })).toEqual(['own_schema', 'core_views', 'host_commands', 'raw_core'])
+    expect(executableDatabaseGrants({
+      contractVersion: 'fixture.database@1',
+      grants: ['raw_core', 'core_views'],
+      backup: { required: false },
+      retention: { onDisable: 'retain', onUninstall: 'retain' }
+    })).toEqual(['core_views', 'raw_core'])
   })
 
   test('reuses one dialog in both admin entry points and retires frontend-only grant in V3', () => {

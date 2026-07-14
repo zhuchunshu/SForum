@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import {
+  executableDatabaseGrants,
   executableDatabaseMigrationRisk,
   type ExecutableTrustImpact,
   type ExecutableTrustMigrationDeclaration
@@ -11,10 +12,12 @@ const showBackupGuidance = ref(true)
 let backupGuidanceTimer: ReturnType<typeof setTimeout> | undefined
 
 const database = computed(() => props.impact.database)
+const databaseGrants = computed(() => executableDatabaseGrants(database.value))
+const databaseGrantSummary = computed(() => databaseGrants.value.join(' · '))
 const migrationRisk = computed(() => executableDatabaseMigrationRisk(props.impact))
 const databaseAuthorityColor = computed(() => {
-  if (database.value?.authority === 'raw_core' || database.value?.authority === 'kernel') return 'error'
-  if (database.value?.authority === 'core_views' || database.value?.authority === 'host_commands') return 'warning'
+  if (databaseGrants.value.includes('raw_core') || databaseGrants.value.includes('kernel')) return 'error'
+  if (databaseGrants.value.includes('core_views') || databaseGrants.value.includes('host_commands')) return 'warning'
   return 'neutral'
 })
 const riskDescription = computed(() => [
@@ -140,8 +143,8 @@ function formatted(value: unknown) {
             {{ t('admin.extensions.trust.databaseRisk.title') }}
           </h3>
         </div>
-        <UBadge v-if="database" :color="databaseAuthorityColor" variant="subtle" class="font-mono">
-          {{ database.authority }}
+        <UBadge v-if="database" :color="databaseAuthorityColor" variant="subtle" class="max-w-full whitespace-normal break-words font-mono">
+          {{ databaseGrantSummary }}
         </UBadge>
       </div>
 
@@ -166,8 +169,8 @@ function formatted(value: unknown) {
 
       <dl v-if="database" class="grid gap-x-5 gap-y-3 text-xs sm:grid-cols-2 lg:grid-cols-4">
         <div class="min-w-0">
-          <dt class="text-slate-500 dark:text-zinc-400">{{ t('admin.extensions.trust.databaseRisk.authority') }}</dt>
-          <dd class="mt-1 break-all font-mono text-slate-900 dark:text-zinc-100">{{ database.authority }}</dd>
+          <dt class="text-slate-500 dark:text-zinc-400">{{ t('admin.extensions.trust.databaseRisk.grants') }}</dt>
+          <dd class="mt-1 break-all font-mono text-slate-900 dark:text-zinc-100">{{ databaseGrantSummary }}</dd>
         </div>
         <div class="min-w-0">
           <dt class="text-slate-500 dark:text-zinc-400">{{ t('admin.extensions.trust.databaseRisk.coreCompatibility') }}</dt>

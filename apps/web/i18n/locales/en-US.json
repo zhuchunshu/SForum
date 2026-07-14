@@ -634,6 +634,7 @@
         "databaseRisk": {
           "title": "Database changes and recovery plan",
           "authority": "Database authority",
+          "grants": "Database grants",
           "coreCompatibility": "Core compatibility",
           "backup": "Backup requirement and strategy",
           "backupRequired": "Backup required",

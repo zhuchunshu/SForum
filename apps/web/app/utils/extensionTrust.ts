@@ -18,9 +18,10 @@ export type ExecutableTrustMigrationDeclaration = {
   transaction?: 'required' | 'forbidden' | 'auto'
 }
 
-export type ExecutableTrustDatabase = {
+export type ExecutableDatabaseGrant = 'own_schema' | 'core_views' | 'host_commands' | 'raw_core' | 'kernel'
+
+type ExecutableTrustDatabaseBase = {
   contractVersion: string
-  authority: 'own_schema' | 'core_views' | 'host_commands' | 'raw_core' | 'kernel'
   schema?: string
   role?: string
   coreCompatibility?: string
@@ -33,6 +34,25 @@ export type ExecutableTrustDatabase = {
     onUninstall: 'retain' | 'delete' | 'export'
     days?: number
   }
+}
+
+export type ExecutableTrustDatabase = ExecutableTrustDatabaseBase & (
+  | { grants: ExecutableDatabaseGrant[], authority?: never }
+  | { authority: ExecutableDatabaseGrant, grants?: never }
+)
+
+const databaseGrantTierOrder: ExecutableDatabaseGrant[] = [
+  'own_schema', 'core_views', 'host_commands', 'raw_core', 'kernel'
+]
+
+export function executableDatabaseGrants(database: ExecutableTrustDatabase | null): ExecutableDatabaseGrant[] {
+  if (!database) return []
+  if (database.grants?.length) {
+    return databaseGrantTierOrder.filter(grant => database.grants?.includes(grant))
+  }
+  if (!database.authority) return []
+  const tier = databaseGrantTierOrder.indexOf(database.authority)
+  return tier < 0 ? [] : databaseGrantTierOrder.slice(0, tier + 1)
 }
 
 export type ExecutableTrustImpact = {

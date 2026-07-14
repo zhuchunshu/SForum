@@ -634,6 +634,7 @@
         "databaseRisk": {
           "title": "数据库变更与恢复计划",
           "authority": "数据库权限层级",
+          "grants": "数据库权限集合",
           "coreCompatibility": "核心兼容范围",
           "backup": "备份要求与策略",
           "backupRequired": "必须备份",
