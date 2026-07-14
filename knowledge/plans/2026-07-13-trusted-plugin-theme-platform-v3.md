@@ -489,7 +489,7 @@ flowchart LR
 - [ ] Unsafe replacement failure never executes core as a second writer.
 - [x] Safe mode bypasses all third-party route snapshots.
 - [x] OpenAPI aggregation rejects collisions and unsafe references.
-- [ ] Performance comparison against current namespaced proxy baseline.
+- [x] Performance comparison against current namespaced proxy baseline.
 
 ### Rollback
 

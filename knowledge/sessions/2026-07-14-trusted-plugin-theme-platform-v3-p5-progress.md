@@ -50,6 +50,13 @@
   operation/status/media binding, HEAD response policy, duplicate/trailing JSON
   rejection, and bounded decode/validation. It remains uncredited until the
   lifecycle publishes it and bootstrap injects a non-nil catalog.
+- Added production typed Core guard authorization in `24ae6a3a2`; 11 explicit
+  contextual evaluators cover 22 routes and all unadapted/custom/raw authority
+  stays fail closed.
+- Accepted the P6 performance comparison in `e38d91f7a` after removing
+  per-request full Registry copies. Selected HTTP remains materially slower and
+  more allocation-heavy than the same-run v1 fixture, with P13 remeasurement
+  required.
 
 ## Verification
 
@@ -102,7 +109,7 @@
 ## Resume Point
 
 - Branch: `main`.
-- Last implementation commit at this checkpoint: `6667e630f`.
+- Last implementation commit at this checkpoint: `e38d91f7a`.
 - Frontend was started on port 3000 and API hot reload recovered on 8081, but
   process and login state are not durable; verify both before QA.
 - Exact route schemas are clean and committed. Production publication is

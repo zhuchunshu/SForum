@@ -4,7 +4,7 @@ This is the entry point for project memory.
 
 ## Latest Handoff
 
-- **2026-07-14 Trusted Plugin And Theme Platform V3 P6 active at 10/18 (overall 41%)**
+- **2026-07-15 Trusted Plugin And Theme Platform V3 P6 active at 11/18 (overall 42%)**
   - Decision: `knowledge/decisions/2026-07-13-trusted-plugin-theme-platform-v3.md`
   - Task book: `knowledge/plans/2026-07-13-trusted-plugin-theme-platform-v3.md`
   - Active handoff: `knowledge/sessions/2026-07-14-trusted-plugin-theme-platform-v3-p5-progress.md`
@@ -13,7 +13,7 @@ This is the entry point for project memory.
   - P0 catalogs and governance: `docs/extensions/v3/`
   - Decision contains the authoritative 27-row template comparison, 72-row
     plugin comparison, detailed architecture mind map, and boundary checklist
-  - P0 governance now tracks 99-row traceability, 212 routes, 117 UI surfaces, 33 admin
+  - P0 governance now tracks 99-row traceability, 218 routes, 118 UI surfaces, 33 admin
     surfaces, 19-module Extension Surface Matrix, stable identities, governance,
     migration gates, and performance baseline; CI rejects catalog drift
   - P1 completed exact-artifact one-use trust, delegated inert preview,
@@ -75,7 +75,7 @@ This is the entry point for project memory.
   - P5 public product choices remain for composable database grants,
     Host-attested actor delegation, and the minimal provider-neutral entitlement
     lifecycle; they do not block independent P6 implementation
-  - P6 is active at 10/18 (56%). All 218 core routes have stable generated
+  - P6 is active at 11/18 (61%). All 218 core routes have stable generated
     identities; immutable exact route snapshots, arbitrary declared paths,
     explicit replace-provider selection/conflict UI, Safe Mode filtering, and
     strict OpenAPI collision/reference rejection are accepted
@@ -92,6 +92,10 @@ This is the entry point for project memory.
     joint Route/Schema lifecycle publication and boot restore, custom/raw guards,
     complete action semantics, streaming, SEO, failure matrix, and benchmark
     closure remain active P6 work
+  - The reproducible same-run v1/V3 route benchmark row is accepted. Internal
+    immutable planning removed full-catalog per-request copies, while the report
+    retains the selected-route latency/bytes/allocation regression and requires
+    P13 remeasurement
   - P8 has a committed 23/23 Page ViewModel catalog and sealed typed theme
     render output, but remains uncredited until production construction and
     runtime publication are proven

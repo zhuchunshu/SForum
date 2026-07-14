@@ -1,8 +1,8 @@
 # Trusted Plugin And Theme Platform V3 Progress Ledger
 
 Date: 2026-07-14
-Overall progress: **41%**
-Active phase: **P6 - Full Route And Middleware Registry V1 (56%, 10 of 18 rows)**
+Overall progress: **42%**
+Active phase: **P6 - Full Route And Middleware Registry V1 (61%, 11 of 18 rows)**
 
 This ledger is the durable percentage and context-compaction checkpoint for the
 V3 program. Update it before context compression, at every phase boundary, and
@@ -22,7 +22,7 @@ scaffolding, or demo-only code cannot satisfy a runtime exit criterion.
 | P3 Host API v2 | 8% | 100% | 8% |
 | P4 Lifecycle/dependencies | 7% | 100% | 7% |
 | P5 Database/commands | 8% | 65% | 5.18% |
-| P6 Routes/middleware | 10% | 56% | 5.56% |
+| P6 Routes/middleware | 10% | 61% | 6.11% |
 | P7 Workflow/admin/query/identity | 10% | 0% | 0% |
 | P8 Theme compiler/runtime | 8% | 0% | 0% |
 | P9 Components/assets/L2 | 8% | 0% | 0% |
@@ -914,3 +914,27 @@ phase percentage.
   credential rolling-upgrade policy. These do not block independent P6/P8 work.
 - Active parallel work: production typed Guard Authorizer, Dispatcher allocation
   regression/benchmark, and P8 production Page ViewModel construction/publication.
+
+## P6 Performance Comparison Checkpoint
+
+- P6 is now **61% complete (11 of 18 authoritative rows)** and weighted V3 is
+  **42%**. The accepted row is the reproducible performance comparison against
+  the current namespaced proxy baseline; the measured V3 regression remains
+  explicit and must be remeasured at P13.
+- `e38d91f7a` binds planning to one internal immutable Registry revision instead
+  of copying all 218 routes one or two times per request. Public Snapshot,
+  Resolve, Match, and plan getters remain caller-owned deep copies with mutation
+  and concurrent-publication race coverage.
+- Allocation gates pass at Core 21/64, selected HTTP 352/480, and six-step chain
+  1,557/2,100 allocations. The same-run medians are v1 198.263 us, Core 117.740
+  us, selected 606.905 us, and composed 2.418 ms.
+- Selected HTTP is still +206.1% latency, +232.9% bytes, and +208.8%
+  allocations versus the comparable v1 fixture. Production PostgreSQL provider
+  lookup is excluded, so this is not a no-regression claim.
+- `24ae6a3a2` production-binds the typed Core Guard Authorizer with an exact
+  plan/step/request fence. Eleven explicit evaluator ids cover 22 contextual
+  routes; the remaining 101 contextual routes and custom/raw authority stay
+  fail closed and therefore do not close the guard row.
+- `b84920a03` separates schema-only aggregation from policy publication. Schema
+  compilation strips policy fields; public OpenAPI aggregation still requires
+  exact Host-owned security, rate-limit, and idempotency policies.
