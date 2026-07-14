@@ -112,6 +112,42 @@ phase percentage.
 
 ## Last Durable Checkpoint
 
+### 2026-07-14 P4 Atomic Lifecycle Publication Boundary Checkpoint
+
+- Latest committed slices are `bd8afbfb8 feat(extensions): compose atomic
+  lifecycle boundary` and `c938e74db feat(extensions): persist atomic
+  publication decisions`. Overall remains **27%** and P4 remains **47% (7 of
+  15)** because the production state/jobs/registry/migration adapters and
+  Service/bootstrap path are not yet wired.
+- The exact Host now drains job/schedule admission before runtime admission,
+  rebuilds process-local source/target instances only during explicit
+  revalidation, and reopens a failed early drain only after the canonical
+  publication marker and durable migration compatibility proof both allow it.
+- The composed boundary covers install, enable, disable, upgrade, rollback,
+  and uninstall. Target runtime publication remains drained until durable
+  extension state, jobs/schedules, and the aggregate registries all inspect as
+  the exact target. The journal marker commits only after that convergence;
+  post-marker failures remain closed and converge forward.
+- PostgreSQL publication decisions are fenced by operation, canonical Host
+  step, mode, exact source/target versions and digests, and attempt. Runtime
+  instance ids may be rebound after process restart without changing artifact
+  authority. Commit-unknown recovery reads a fresh durable marker, and marker
+  evidence survives deletion of the mutable extension row.
+- Focused `count=10`, race, vet, migration tests, full Support/Extensions tests,
+  and real PostgreSQL concurrency/restart/commit-unknown tests passed. A clean
+  `git archive HEAD` test also proved the commits do not depend on parallel
+  uncommitted files.
+- In-flight files are isolated to three parallel P4 slices: cleanup tombstones
+  and finalization (`202607140008`), exact extension-state publication
+  (`202607140009`), and production jobs/schedules publication (reserved
+  `202607140010` if persistence is required). User-owned `.reasonix`, `.zcode`,
+  and `CLAUDE.md` deletions remain untouched.
+- Next: review and land migrations `008` and `009` independently, then their
+  adapters; finish jobs/schedules and aggregate registry transactions; build
+  the production preflight/migration adapter; construct the lifecycle stack in
+  bootstrap; and route first trusted enable through deferred install plus
+  atomic publication.
+
 ### 2026-07-14 P4 Host Gates, P6 Route Snapshot, And P8 Compiler Checkpoint
 
 - Latest committed slice: `74fd5f367 test(themes): cover compiler security

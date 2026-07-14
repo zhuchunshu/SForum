@@ -239,3 +239,27 @@
 - Next remains: land those two audited slices, add the durable publication
   journal/finalizer migration if required, then construct the real lifecycle
   stack in bootstrap and route Service mutations through it.
+
+## Atomic Lifecycle Publication Boundary Checkpoint
+
+- Committed `bd8afbfb8`, which composes exact runtime, durable state,
+  jobs/schedules, aggregate registries, publication journal, migrations,
+  preflight, and cleanup behind all six lifecycle operations. Source and target
+  admissions stay closed across partial publication, and source reopening now
+  requires marker plus migration-resume proof.
+- Committed `c938e74db`, the PostgreSQL exact-artifact publication journal. It
+  supports crash/restart runtime-id rebinding, concurrent exact CAS, operation-
+  level reads for earlier drain attempts, unknown commit inspection, and
+  retention after extension deletion.
+- Normal, repeated, race, vet, migration, full package, and real PostgreSQL
+  gates passed. The two commits also passed Support/Extensions from a clean
+  archive without any untracked parallel files.
+- Overall remains **27%** and P4 remains **47% (7/15)**. Production adapters,
+  bootstrap construction, Service mutation routing, recovery API/UI, and the
+  complete P4 repository gate remain open.
+- Dirty V3 files are owned by cleanup/finalizer migration `008`, state
+  publication migration `009`, and jobs/schedules publication work. Preserve
+  unrelated `.reasonix`, `.zcode`, and `CLAUDE.md` deletions.
+- Resume by landing each additive migration alone, then its implementation and
+  tests; continue with registry/migration adapters and production lifecycle
+  wiring. No product-boundary question is open.
