@@ -21,8 +21,9 @@ func TestLifecycleMigrationPreflightResultReportsTransactionsAndBackup(t *testin
 	)
 	artifact.LifecycleMigrationArtifact.MigrationsDigest = strings.Repeat("a", 64)
 	artifact.Database = extensions.ManifestDatabase{
-		ContractVersion: "fixture.plugin.database@1", Authority: "own_schema",
-		Backup: extensionmanifest.ManifestBackupPolicy{Required: true, Strategy: "operator_snapshot"},
+		ContractVersion: "fixture.plugin.database@1",
+		Grants:          []string{extensionmanifest.DatabaseGrantOwnSchema, extensionmanifest.DatabaseGrantHostCommands},
+		Backup:          extensionmanifest.ManifestBackupPolicy{Required: true, Strategy: "operator_snapshot"},
 	}
 	step := extensionDatabaseMigrationStepPlan{
 		Position: 1, Direction: "up", Declaration: artifact.Migrations[0], Artifact: artifact,
@@ -45,6 +46,7 @@ func TestLifecycleMigrationPreflightResultReportsTransactionsAndBackup(t *testin
 	wantStatementDigest := sha256.Sum256([]byte(step.Statements[0]))
 	if result.Operation != "install" || result.Attempt != 2 || result.DryRunDigest != dryRun.Digest ||
 		result.Target.DatabaseContractVersion != artifact.Database.ContractVersion ||
+		!reflect.DeepEqual(result.Target.DatabaseGrants, artifact.Database.Grants) ||
 		!result.Backup.Required || !reflect.DeepEqual(result.Backup.Strategies, []string{"operator_snapshot"}) ||
 		!result.HasNonTransactional || !reflect.DeepEqual(result.Warnings, []string{extensionDatabaseMigrationWarningNonTransactional}) ||
 		len(result.Steps) != 1 || !result.Steps[0].NoTransaction ||

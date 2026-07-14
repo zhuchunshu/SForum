@@ -235,13 +235,14 @@ func loadExactExtensionDatabaseMigrationArtifact(
 			fmt.Errorf("%w: decode manifest: %v", ErrExtensionDatabaseMigrationArtifactConflict, err),
 		)
 	}
+	manifest = extensionmanifest.Normalize(manifest)
 	if manifest.ID != artifact.ExtensionID || manifest.Version != artifact.Version ||
 		!reflect.DeepEqual(manifest.Migrations, artifact.Migrations) || manifest.Database == nil {
 		return extensionDatabaseExactMigrationArtifact{}, newExtensionDatabaseMigrationFailure(
 			extensionDatabaseMigrationFailureArtifactConflict, ErrExtensionDatabaseMigrationArtifactConflict,
 		)
 	}
-	if manifest.Database.Authority != "own_schema" {
+	if !extensionmanifest.HasDatabaseGrant(manifest.Database, extensionmanifest.DatabaseGrantOwnSchema) {
 		return extensionDatabaseExactMigrationArtifact{}, newExtensionDatabaseMigrationFailure(
 			extensionDatabaseMigrationFailureAuthority, ErrExtensionDatabaseAuthority,
 		)

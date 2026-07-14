@@ -250,7 +250,9 @@ func databaseCatalogFixture(t *testing.T) extensions.Extension {
 		URL: "https://example.com/database-catalog", Author: extensionmanifest.ManifestAuthor{Name: "SForum"},
 		Version: "1.0.0", Type: extensionmanifest.TypePlugin, SForumVersion: "^1.0.0",
 		Database: &extensionmanifest.ManifestDatabase{
-			ContractVersion: "demo.catalog.database@1", Authority: "own_schema", Schema: "demo_catalog", Role: "demo_catalog",
+			ContractVersion: "demo.catalog.database@1",
+			Grants:          []string{extensionmanifest.DatabaseGrantOwnSchema, extensionmanifest.DatabaseGrantHostCommands},
+			Schema:          "demo_catalog", Role: "demo_catalog",
 			Retention: extensionmanifest.ManifestRetention{OnDisable: "retain", OnUninstall: "retain"},
 			Operations: []extensionmanifest.ManifestDatabaseOperation{
 				{

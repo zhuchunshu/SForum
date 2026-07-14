@@ -9,6 +9,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
+	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
 )
 
 // LifecycleMigrationPreflight exposes the exact migration plan without
@@ -43,7 +44,7 @@ type LifecycleMigrationPreflightArtifact struct {
 	PackageDigest           string
 	MigrationsDigest        string
 	DatabaseContractVersion string
-	DatabaseAuthority       string
+	DatabaseGrants          []string
 	BackupRequired          bool
 	BackupStrategy          string
 }
@@ -151,7 +152,7 @@ func lifecycleMigrationPreflightArtifact(
 		VersionID: artifact.VersionID, PackageDigest: artifact.PackageDigest,
 		MigrationsDigest:        artifact.MigrationsDigest,
 		DatabaseContractVersion: artifact.Database.ContractVersion,
-		DatabaseAuthority:       artifact.Database.Authority,
+		DatabaseGrants:          extensionmanifest.DatabaseGrants(&artifact.Database),
 		BackupRequired:          artifact.Database.Backup.Required,
 		BackupStrategy:          artifact.Database.Backup.Strategy,
 	}

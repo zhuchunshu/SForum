@@ -194,8 +194,8 @@ func appendProtocolV2DatabaseArtifact(catalog *protocolV2DatabaseCatalog, extens
 		manifest.ID != extension.ID || manifest.Version != extension.Version || manifest.Type != extension.Type {
 		return fmt.Errorf("database catalog %s exact manifest identity is invalid", extension.ID)
 	}
-	if manifest.Database.Authority != hostapi.ProtocolV2DatabaseOwnSchema {
-		return fmt.Errorf("database catalog %s authority must be own_schema", extension.ID)
+	if !extensionmanifest.HasDatabaseGrant(manifest.Database, extensionmanifest.DatabaseGrantOwnSchema) {
+		return fmt.Errorf("database catalog %s grants must include own_schema", extension.ID)
 	}
 
 	packageFiles := make(map[string]extensionmanifest.ManifestPackageFile, len(manifest.PackageFiles))
