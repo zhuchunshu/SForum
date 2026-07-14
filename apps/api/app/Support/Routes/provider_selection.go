@@ -230,44 +230,50 @@ func (a *ProviderSelectionAPI) Resolve(ctx context.Context, method, requestPath 
 	if a == nil || a.registry == nil || a.store == nil {
 		return Match{}, fmt.Errorf("%w: provider selection API is not configured", ErrProviderSelectionInvalid)
 	}
-	match, err := a.registry.Resolve(method, requestPath)
+	_, match, err := a.resolveForPlanning(ctx, method, requestPath)
+	return cloneMatch(match), err
+}
+
+func (a *ProviderSelectionAPI) resolveForPlanning(
+	ctx context.Context,
+	method string,
+	requestPath string,
+) (*registrySnapshot, Match, error) {
+	snapshot, match, err := a.registry.resolveForPlanning(method, requestPath)
 	if err == nil || !errors.Is(err, ErrAmbiguousRoute) {
-		return match, err
+		return snapshot, match, err
 	}
-	snapshot := a.registry.Snapshot()
-	if snapshot.Revision != match.Revision {
-		return Match{}, ErrRevisionConflict
+	view := planningView(snapshot)
+	if view.revision != match.Revision {
+		return nil, Match{}, ErrRevisionConflict
 	}
-	key, err := providerSelectionKeyForMatch(snapshot, match, method, requestPath)
+	key, err := providerSelectionKeyForMatchView(view, match, method, requestPath)
 	if err != nil {
-		return match, err
+		return snapshot, match, err
 	}
 	selection, err := a.store.Selected(ctx, key)
 	if err != nil {
 		if errors.Is(err, ErrProviderSelectionNotFound) {
-			return match, ErrAmbiguousRoute
+			return snapshot, match, ErrAmbiguousRoute
 		}
-		return Match{}, err
+		return nil, Match{}, err
 	}
 	if selection.Key != key {
-		return Match{}, ErrProviderSelectionStale
+		return nil, Match{}, ErrProviderSelectionStale
 	}
-	return selectedMatch(snapshot, match, selection, method, requestPath)
+	selected, err := selectedMatchView(view, match, selection, method, requestPath)
+	return snapshot, selected, err
 }
 
 func (a *ProviderSelectionAPI) BuildExecutionPlan(ctx context.Context, method, requestPath string) (RouteExecutionPlan, error) {
-	for attempt := 0; attempt < 4; attempt++ {
-		match, err := a.Resolve(ctx, method, requestPath)
-		if err != nil {
-			return RouteExecutionPlan{}, err
-		}
-		snapshot := a.registry.Snapshot()
-		if snapshot.Revision != match.Revision {
-			continue
-		}
-		return buildRouteExecutionPlan(snapshot, match, method, requestPath)
+	if a == nil || a.registry == nil || a.store == nil {
+		return RouteExecutionPlan{}, fmt.Errorf("%w: provider selection API is not configured", ErrProviderSelectionInvalid)
 	}
-	return RouteExecutionPlan{}, ErrRevisionConflict
+	snapshot, match, err := a.resolveForPlanning(ctx, method, requestPath)
+	if err != nil {
+		return RouteExecutionPlan{}, err
+	}
+	return buildRouteExecutionPlanView(planningView(snapshot), match, method, requestPath)
 }
 
 func exactReplacementCandidate(snapshot Snapshot, request SelectProviderRequest) (Route, error) {
@@ -296,12 +302,16 @@ func exactReplacementCandidate(snapshot Snapshot, request SelectProviderRequest)
 }
 
 func providerSelectionKeyForMatch(snapshot Snapshot, match Match, method, requestPath string) (ProviderSelectionKey, error) {
+	return providerSelectionKeyForMatchView(publicPlanningView(snapshot), match, method, requestPath)
+}
+
+func providerSelectionKeyForMatchView(snapshot planningSnapshot, match Match, method, requestPath string) (ProviderSelectionKey, error) {
 	method = strings.ToUpper(strings.TrimSpace(method))
 	normalizedPath, err := normalizeRequestPath(requestPath)
 	if err != nil {
 		return ProviderSelectionKey{}, err
 	}
-	for _, conflict := range snapshot.Conflicts {
+	for _, conflict := range snapshot.conflicts {
 		if conflict.Kind != ConflictProviderSelection || !methodsOverlap(conflict.Method, method) ||
 			!sameRouteCandidateSet(conflict.Candidates, match.Candidates) {
 			continue
@@ -347,7 +357,11 @@ func providerSelectionKeyFromConflict(conflict Conflict) (ProviderSelectionKey, 
 }
 
 func selectedMatch(snapshot Snapshot, ambiguous Match, selection ProviderSelection, method, requestPath string) (Match, error) {
-	currentKey, err := providerSelectionKeyForMatch(snapshot, ambiguous, method, requestPath)
+	return selectedMatchView(publicPlanningView(snapshot), ambiguous, selection, method, requestPath)
+}
+
+func selectedMatchView(snapshot planningSnapshot, ambiguous Match, selection ProviderSelection, method, requestPath string) (Match, error) {
+	currentKey, err := providerSelectionKeyForMatchView(snapshot, ambiguous, method, requestPath)
 	if err != nil || selection.Key != currentKey || selection.Revision <= 0 {
 		return Match{}, ErrProviderSelectionStale
 	}
@@ -378,12 +392,12 @@ func selectedMatch(snapshot Snapshot, ambiguous Match, selection ProviderSelecti
 		return Match{}, ErrProviderSelectionStale
 	}
 	contributions := matchingContributions(snapshot, selected.TargetID, method, normalizedPath)
-	return Match{Revision: snapshot.Revision, Route: selected, Params: params, Contributions: contributions}, nil
+	return Match{Revision: snapshot.revision, Route: selected, Params: params, Contributions: contributions}, nil
 }
 
-func matchingContributions(snapshot Snapshot, targetID, method, requestPath string) []Route {
+func matchingContributions(snapshot planningSnapshot, targetID, method, requestPath string) []Route {
 	result := make([]Route, 0)
-	for _, route := range snapshot.Routes {
+	for _, route := range snapshot.routes {
 		if route.Provider.Kind != ProviderPlugin {
 			continue
 		}

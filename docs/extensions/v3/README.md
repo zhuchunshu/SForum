@@ -15,6 +15,8 @@ that a later runtime phase is implemented.
   and custom-guard policy.
 - `performance-baseline.md` - reproducible current-runtime benchmarks and live
   SSR/process samples.
+- `performance-p6-route-registry.md` - same-run v1/V3 route comparison,
+  composed-chain evidence, allocation gates, and remaining regression risks.
 - `extension-surface-matrix.md` - current/open/planned/closed status for every
   core module across all eleven required surface families.
 - `knowledge/plans/2026-07-13-trusted-plugin-theme-platform-v3-traceability.md`

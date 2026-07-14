@@ -140,8 +140,18 @@ type registrySnapshot struct {
 	revision    uint64
 	safeMode    bool
 	routes      []preparedRoute
+	routeValues []Route
 	conflicts   []Conflict
 	publication Publication
+}
+
+// planningSnapshot is an internal read-only view of one atomic registry
+// revision. Its slices must never escape through a public API.
+type planningSnapshot struct {
+	revision  uint64
+	safeMode  bool
+	routes    []Route
+	conflicts []Conflict
 }
 
 // Registry keeps readers lock-free while complete candidate sets are validated off-snapshot.
@@ -235,13 +245,21 @@ func (r *Registry) Resolve(method, requestPath string) (Match, error) {
 	if r == nil {
 		return Match{}, fmt.Errorf("%w: registry is nil", ErrInvalidRoute)
 	}
+	_, match, err := r.resolveForPlanning(method, requestPath)
+	return cloneMatch(match), err
+}
+
+// resolveForPlanning keeps the matched route bound to the exact immutable
+// snapshot used for resolution. Callers must not return match or snapshot data
+// without cloning it first.
+func (r *Registry) resolveForPlanning(method, requestPath string) (*registrySnapshot, Match, error) {
 	method = strings.ToUpper(strings.TrimSpace(method))
 	if !validMethod(method) || method == "*" {
-		return Match{}, fmt.Errorf("%w: invalid request method", ErrInvalidRoute)
+		return nil, Match{}, fmt.Errorf("%w: invalid request method", ErrInvalidRoute)
 	}
 	requestPath, err := normalizeRequestPath(requestPath)
 	if err != nil {
-		return Match{}, err
+		return nil, Match{}, err
 	}
 	snapshot := r.loadSnapshot()
 
@@ -259,7 +277,7 @@ func (r *Registry) Resolve(method, requestPath string) (Match, error) {
 		}
 	}
 	if len(candidates) == 0 {
-		return Match{Revision: snapshot.revision}, ErrRouteNotFound
+		return snapshot, Match{Revision: snapshot.revision}, ErrRouteNotFound
 	}
 	sort.SliceStable(candidates, func(i, j int) bool {
 		left, right := candidates[i].prepared, candidates[j].prepared
@@ -282,12 +300,12 @@ func (r *Registry) Resolve(method, requestPath string) (Match, error) {
 	}
 	if len(top) > 1 {
 		sortRoutes(top)
-		return Match{Revision: snapshot.revision, Candidates: cloneRoutes(top)}, ErrAmbiguousRoute
+		return snapshot, Match{Revision: snapshot.revision, Candidates: top}, ErrAmbiguousRoute
 	}
 	for _, conflict := range snapshot.conflicts {
 		if conflict.Kind == ConflictRouteIdentity && conflict.RouteID == best.prepared.route.ID &&
 			methodsOverlap(conflict.Method, method) {
-			return Match{Revision: snapshot.revision, Candidates: cloneRoutes(conflict.Candidates)}, ErrAmbiguousRoute
+			return snapshot, Match{Revision: snapshot.revision, Candidates: conflict.Candidates}, ErrAmbiguousRoute
 		}
 	}
 
@@ -304,7 +322,7 @@ func (r *Registry) Resolve(method, requestPath string) (Match, error) {
 	if len(replacements) > 0 {
 		top = append([]Route{best.prepared.route}, replacements...)
 		sortRoutes(top)
-		return Match{Revision: snapshot.revision, Candidates: cloneRoutes(top)}, ErrAmbiguousRoute
+		return snapshot, Match{Revision: snapshot.revision, Candidates: top}, ErrAmbiguousRoute
 	}
 
 	contributions := make([]Route, 0)
@@ -328,9 +346,9 @@ func (r *Registry) Resolve(method, requestPath string) (Match, error) {
 		}
 	}
 	sortRoutes(contributions)
-	return Match{
-		Revision: snapshot.revision, Route: cloneRoute(best.prepared.route), Params: best.params,
-		Contributions: cloneRoutes(contributions),
+	return snapshot, Match{
+		Revision: snapshot.revision, Route: best.prepared.route, Params: best.params,
+		Contributions: contributions,
 	}, nil
 }
 
@@ -377,12 +395,17 @@ func preparePublication(input Publication) (*registrySnapshot, error) {
 		return nil, err
 	}
 	sort.SliceStable(prepared, func(i, j int) bool { return routeLess(prepared[i], prepared[j]) })
+	routeValues := make([]Route, len(prepared))
+	for index := range prepared {
+		routeValues[index] = prepared[index].route
+	}
 	publication := clonePublication(input)
 	if input.SafeMode {
 		publication.Plugins = nil
 	}
 	return &registrySnapshot{
-		safeMode: input.SafeMode, routes: prepared, conflicts: inspectConflicts(prepared), publication: publication,
+		safeMode: input.SafeMode, routes: prepared, routeValues: routeValues,
+		conflicts: inspectConflicts(prepared), publication: publication,
 	}, nil
 }
 
@@ -458,12 +481,26 @@ func (r *Registry) loadSnapshot() *registrySnapshot {
 
 func snapshotView(snapshot *registrySnapshot) Snapshot {
 	view := Snapshot{Revision: snapshot.revision, SafeMode: snapshot.safeMode}
-	view.Routes = make([]Route, 0, len(snapshot.routes))
-	for _, item := range snapshot.routes {
-		view.Routes = append(view.Routes, cloneRoute(item.route))
-	}
+	view.Routes = cloneRoutes(snapshot.routeValues)
 	view.Conflicts = cloneConflicts(snapshot.conflicts)
 	return view
+}
+
+func planningView(snapshot *registrySnapshot) planningSnapshot {
+	if snapshot == nil {
+		return planningSnapshot{}
+	}
+	return planningSnapshot{
+		revision: snapshot.revision, safeMode: snapshot.safeMode,
+		routes: snapshot.routeValues, conflicts: snapshot.conflicts,
+	}
+}
+
+func publicPlanningView(snapshot Snapshot) planningSnapshot {
+	return planningSnapshot{
+		revision: snapshot.Revision, safeMode: snapshot.SafeMode,
+		routes: snapshot.Routes, conflicts: snapshot.Conflicts,
+	}
 }
 
 func cloneRoute(value Route) Route {
@@ -486,6 +523,16 @@ func cloneConflicts(values []Conflict) []Conflict {
 		result[index].Candidates = cloneRoutes(value.Candidates)
 	}
 	return result
+}
+
+func cloneMatch(value Match) Match {
+	value.Route = cloneRoute(value.Route)
+	if value.Params != nil {
+		value.Params = cloneRouteExecutionParams(value.Params)
+	}
+	value.Contributions = cloneRoutes(value.Contributions)
+	value.Candidates = cloneRoutes(value.Candidates)
+	return value
 }
 
 func clonePublication(value Publication) Publication {

@@ -126,18 +126,11 @@ func (r *Registry) BuildExecutionPlan(method, requestPath string) (RouteExecutio
 	if r == nil {
 		return RouteExecutionPlan{}, fmt.Errorf("%w: registry is nil", ErrInvalidExecutionPlan)
 	}
-	for attempt := 0; attempt < 4; attempt++ {
-		match, err := r.Resolve(method, requestPath)
-		if err != nil {
-			return RouteExecutionPlan{}, err
-		}
-		snapshot := r.Snapshot()
-		if snapshot.Revision != match.Revision {
-			continue
-		}
-		return buildRouteExecutionPlan(snapshot, match, method, requestPath)
+	snapshot, match, err := r.resolveForPlanning(method, requestPath)
+	if err != nil {
+		return RouteExecutionPlan{}, err
 	}
-	return RouteExecutionPlan{}, fmt.Errorf("%w: route snapshot changed during resolution", ErrRevisionConflict)
+	return buildRouteExecutionPlanView(planningView(snapshot), match, method, requestPath)
 }
 
 // buildRouteExecutionPlan also accepts an already selected Match. This is kept
@@ -145,6 +138,15 @@ func (r *Registry) BuildExecutionPlan(method, requestPath string) (RouteExecutio
 // replacement winner was selected explicitly.
 func buildRouteExecutionPlan(
 	snapshot Snapshot,
+	match Match,
+	method string,
+	requestPath string,
+) (RouteExecutionPlan, error) {
+	return buildRouteExecutionPlanView(publicPlanningView(snapshot), match, method, requestPath)
+}
+
+func buildRouteExecutionPlanView(
+	snapshot planningSnapshot,
 	match Match,
 	method string,
 	requestPath string,
@@ -157,12 +159,12 @@ func buildRouteExecutionPlan(
 	if err != nil {
 		return RouteExecutionPlan{}, fmt.Errorf("%w: %v", ErrInvalidExecutionPlan, err)
 	}
-	if snapshot.Revision == 0 || match.Revision != snapshot.Revision || len(match.Candidates) != 0 {
+	if snapshot.revision == 0 || match.Revision != snapshot.revision || len(match.Candidates) != 0 {
 		return RouteExecutionPlan{}, fmt.Errorf("%w: terminal route is unresolved or ambiguous", ErrInvalidExecutionPlan)
 	}
 	terminal := match.Route
 	if !terminalExecutionAction(terminal.Action) || !routeMethodMatches(terminal, method) ||
-		!routeInExecutionSnapshot(snapshot.Routes, terminal) {
+		!routeInExecutionSnapshot(snapshot.routes, terminal) {
 		return RouteExecutionPlan{}, fmt.Errorf("%w: terminal route is not in the resolved snapshot", ErrInvalidExecutionPlan)
 	}
 	compiled, err := compileRoutePath(terminal.Path)
@@ -173,7 +175,7 @@ func buildRouteExecutionPlan(
 	if !matched || !equalRouteExecutionParams(params, match.Params) {
 		return RouteExecutionPlan{}, fmt.Errorf("%w: terminal route does not match the request", ErrInvalidExecutionPlan)
 	}
-	if snapshot.SafeMode && terminal.Provider.Kind == ProviderPlugin {
+	if snapshot.safeMode && terminal.Provider.Kind == ProviderPlugin {
 		return RouteExecutionPlan{}, fmt.Errorf("%w: plugin terminal is unavailable in safe mode", ErrInvalidExecutionPlan)
 	}
 	if err := validateExecutionTerminal(snapshot, terminal, method, normalizedPath); err != nil {
@@ -194,8 +196,8 @@ func buildRouteExecutionPlan(
 			return RouteExecutionPlan{}, fmt.Errorf("%w: duplicate route contribution", ErrInvalidExecutionPlan)
 		}
 		seen = append(seen, contribution)
-		if !routeInExecutionSnapshot(snapshot.Routes, contribution) || contribution.Provider.Kind != ProviderPlugin ||
-			snapshot.SafeMode || !routeMethodMatches(contribution, method) && contribution.Action != extensionmanifest.RouteActionGlobalMiddleware {
+		if !routeInExecutionSnapshot(snapshot.routes, contribution) || contribution.Provider.Kind != ProviderPlugin ||
+			snapshot.safeMode || !routeMethodMatches(contribution, method) && contribution.Action != extensionmanifest.RouteActionGlobalMiddleware {
 			return RouteExecutionPlan{}, fmt.Errorf("%w: contribution is not active in the resolved snapshot", ErrInvalidExecutionPlan)
 		}
 		phase, ok := executionPhaseForContribution(contribution.Action)
@@ -249,14 +251,14 @@ func buildRouteExecutionPlan(
 		return RouteExecutionPlan{}, err
 	}
 	return RouteExecutionPlan{
-		revision: snapshot.Revision, method: method, path: normalizedPath,
+		revision: snapshot.revision, method: method, path: normalizedPath,
 		params: cloneRouteExecutionParams(params), unsafeMethod: method != "GET" && method != "HEAD",
 		terminalIndex: terminalIndex, chain: cloneRouteExecutionSteps(chain),
 	}, nil
 }
 
-func validateExecutionTerminal(snapshot Snapshot, terminal Route, method, requestPath string) error {
-	for _, conflict := range snapshot.Conflicts {
+func validateExecutionTerminal(snapshot planningSnapshot, terminal Route, method, requestPath string) error {
+	for _, conflict := range snapshot.conflicts {
 		if !conflictContainsExecutionRoute(conflict, terminal) || !methodsOverlap(conflict.Method, method) {
 			continue
 		}
@@ -272,7 +274,7 @@ func validateExecutionTerminal(snapshot Snapshot, terminal Route, method, reques
 	}
 	replacements := 0
 	targetFound := false
-	for _, route := range snapshot.Routes {
+	for _, route := range snapshot.routes {
 		if route.Action == extensionmanifest.RouteActionReplace && route.TargetID == terminal.TargetID &&
 			routeMethodMatches(route, method) {
 			compiled, err := compileRoutePath(route.Path)
@@ -313,7 +315,7 @@ func executionPhaseForContribution(action string) (RouteExecutionPhase, bool) {
 	}
 }
 
-func executionStep(snapshot Snapshot, phase RouteExecutionPhase, route Route, requestMethod string) (RouteExecutionStep, error) {
+func executionStep(snapshot planningSnapshot, phase RouteExecutionPhase, route Route, requestMethod string) (RouteExecutionStep, error) {
 	descriptor := cloneCoreGuardDescriptor(route.CoreGuard)
 	if route.Provider.Kind == ProviderPlugin && route.Guard == extensionmanifest.GuardCoreInherit {
 		var err error
@@ -337,13 +339,13 @@ func routeExecutionStep(phase RouteExecutionPhase, route Route, descriptor CoreG
 	}
 }
 
-func resolveInheritedCoreGuard(snapshot Snapshot, route Route, requestMethod string) (CoreGuardDescriptor, error) {
+func resolveInheritedCoreGuard(snapshot planningSnapshot, route Route, requestMethod string) (CoreGuardDescriptor, error) {
 	if route.Provider.Kind != ProviderPlugin || route.Guard != extensionmanifest.GuardCoreInherit || route.TargetID == "" {
 		return CoreGuardDescriptor{}, fmt.Errorf("%w: inherited guard declaration is invalid", ErrInvalidExecutionPlan)
 	}
 	bestSpecificity := -1
 	var matched []Route
-	for _, target := range snapshot.Routes {
+	for _, target := range snapshot.routes {
 		if target.Provider.Kind != ProviderCore || !addressableAction(target.Action) ||
 			target.ID != route.TargetID || !routeMethodMatches(target, requestMethod) {
 			continue
