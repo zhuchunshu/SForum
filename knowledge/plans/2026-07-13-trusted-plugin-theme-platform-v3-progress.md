@@ -1,8 +1,8 @@
 # Trusted Plugin And Theme Platform V3 Progress Ledger
 
 Date: 2026-07-14
-Overall progress: **35%**
-Active phase: **P5 - Plugin Database Registry And Real Migrations (59%, 10 of 17 rows)**
+Overall progress: **36%**
+Active phase: **P5 - Plugin Database Registry And Real Migrations (65%, 11 of 17 rows)**
 
 This ledger is the durable percentage and context-compaction checkpoint for the
 V3 program. Update it before context compression, at every phase boundary, and
@@ -21,7 +21,7 @@ scaffolding, or demo-only code cannot satisfy a runtime exit criterion.
 | P2 Manifest/contracts | 7% | 100% | 7% |
 | P3 Host API v2 | 8% | 100% | 8% |
 | P4 Lifecycle/dependencies | 7% | 100% | 7% |
-| P5 Database/commands | 8% | 59% | 4.72% |
+| P5 Database/commands | 8% | 65% | 5.18% |
 | P6 Routes/middleware | 10% | 0% | 0% |
 | P7 Workflow/admin/query/identity | 10% | 0% | 0% |
 | P8 Theme compiler/runtime | 8% | 0% | 0% |
@@ -680,8 +680,8 @@ phase percentage.
 
 ## P5 Implementation Checkpoint
 
-- P5 is **59% complete (10 of 17 rows)**. Weighted overall V3 progress is
-  **35%**. This count credits only production behavior or exact integration
+- P5 is **65% complete (11 of 17 rows)**. Weighted overall V3 progress is
+  **36%**. This count credits only production behavior or exact integration
   evidence, not protobuf shapes or unwired foundations.
 - Completed rows: deterministic safe identifiers; exact migration discovery,
   checksum, lock, read-only dry-run, transaction policy, ledger/progress/failure;
@@ -725,30 +725,34 @@ phase percentage.
   Real PostgreSQL, race, vet, and build gates passed.
 - `c13da29d1`, `14086dee2`, and `926ed2ff2` add the exact-artifact
   DatabaseService core, real own-schema transaction/isolation/replay/revocation
-  proof, and frozen gRPC registration. This remains a partial row until the
-  manifest operation catalog is loaded into production bootstrap.
+  proof, and frozen gRPC registration.
 - `42a9d895d` adds the Manifest V3 source for that catalog: namespaced positive-
   version operations bind exact `database_operation` package files and digests,
   typed parameter/result schemas, column allowlists, and HostAPI-aligned limits.
   Inline SQL, authority mismatch, query/execute field mixing, undeclared local
-  schemas, and JSON Schema drift fail closed. Production loading remains open,
-  so the P5 row and displayed percentage do not change yet.
+  schemas, and JSON Schema drift fail closed.
+- `e5bb88c3b` and `4a1fb0fb3` complete the plugin-owned transaction row:
+  API and standalone worker bootstrap bind exact SQL catalogs before any
+  broker registration; active, disabled/installed, staged, upgrade, and
+  rollback artifacts are supported without mutating already-running broker
+  snapshots. DatabaseService trace output is bounded and redacted.
+- `bc591e691`, `09df90982`, and `dc49dcf6d` add strict modular plugin OpenAPI
+  aggregation plus the durable route-provider selection Store/API and V2
+  cleanup invalidation. They do not advance P6 yet because production
+  bootstrap, admin conflict UI/API, and the Fiber dispatcher remain open.
 - `e5eea90ab`, `7dbe3e3c0`, and `43be1b5d5` begin P6 without inflating its
   completion count: exact runtime publication fencing, wildcard conflict
   inspection, the 212-row production core catalog, Safe Mode filtering, and an
   immutable fail-closed execution plan are present, but Fiber has no Registry
   dispatcher yet.
 - Partial rows: runtime credential delivery; physical `database.core.full`
-  grants; stable views/typed query-command publication; plugin-owned
-  DatabaseService catalog loading; and concrete PostgreSQL Host Command
-  atomicity. Missing rows include six concrete Host Commands and raw-authority
-  behavior tests.
+  grants; stable views/typed query-command publication; and concrete PostgreSQL
+  Host Command atomicity. Missing rows include six concrete Host Commands and
+  raw-authority behavior tests.
 - The authority audit found a real public-contract conflict. ADR prose says
   database powers are disclosed in tiers, while Manifest, JSON Schema,
   OpenAPI, validation, and the database ledger all store one mutually
-  exclusive authority. `DatabaseService.operation_id` also has no exact
-  package declaration/catalog source. Do not silently invent cumulative
-  semantics.
+  exclusive authority. Do not silently invent cumulative semantics.
 - Product decision requested: prefer additive composable database grants plus
   exact-artifact declared operation catalogs and bounded batch transactions.
   Direct per-process credentials remain an alternative, but the current

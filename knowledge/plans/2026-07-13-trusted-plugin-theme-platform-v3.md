@@ -427,18 +427,18 @@ flowchart LR
       transaction policy, execution ledger, progress, and failure state.
 - [x] Reuse Goose primitives where appropriate without mixing core and plugin
       migration histories.
-- [ ] Support plugin-owned transactions through v2 DB service or direct scoped
+- [x] Support plugin-owned transactions through v2 DB service or direct scoped
       connection.
 - [ ] Publish stable read-only core views and typed Host Query/Command APIs.
 - [ ] Implement the first transactional Host Commands for user/content/meta,
       moderation, entitlement, and attachment workflows so raw core DB access is
       an escape hatch rather than the normal integration path.
 - [ ] Implement exact-artifact `database.core.full` grants for raw core access.
-- [ ] Block incompatible core upgrades using declared schema compatibility.
+- [x] Block incompatible core upgrades using declared schema compatibility.
 - [x] Add backup/export guidance before destructive migrations.
 - [x] Integrate uninstall plan and Host fallback cleanup for schemas, roles, and
       credentials.
-- [ ] Add DB query tracing, slow-query limits, and per-plugin connection budgets.
+- [x] Add DB query tracing, slow-query limits, and per-plugin connection budgets.
 
 ### Tests
 
