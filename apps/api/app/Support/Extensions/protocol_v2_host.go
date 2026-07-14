@@ -100,9 +100,9 @@ func (s *protocolV2AuthenticatedHostStream) Context() context.Context {
 	if s == nil || s.ServerStream == nil {
 		return context.Background()
 	}
-	if !s.validated.Load() {
-		return s.ServerStream.Context()
-	}
+	// The broker token already authenticates this immutable binding. Publish it
+	// immediately because grpc's generic stream wrapper may cache Context before
+	// the first Recv; RecvMsg still validates the open-frame identity/authority.
 	return hostapi.ContextWithProtocolV2RuntimeIdentity(s.ServerStream.Context(), s.binding.identity)
 }
 

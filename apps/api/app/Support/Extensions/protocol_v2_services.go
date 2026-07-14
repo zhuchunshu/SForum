@@ -19,8 +19,41 @@ import (
 
 type protocolV2ServiceRegistry interface {
 	ReplaceProtocolV2Services(string, []hostapi.ServiceRegistration) error
+	PublishProtocolV2ServiceRuntime(hostapi.ServiceRuntimePublication) error
 	UnregisterProtocolV2Services(string)
 	UnregisterProtocolV2ServiceInstance(string, string) bool
+}
+
+func (c *protocolV2Client) serviceRuntimePublication(
+	extension extensions.Extension,
+	registrations []hostapi.ServiceRegistration,
+) (hostapi.ServiceRuntimePublication, error) {
+	if c == nil || c.identity == nil {
+		return hostapi.ServiceRuntimePublication{}, fmt.Errorf("protocol v2 services: exact runtime identity is unavailable")
+	}
+	publication := hostapi.ServiceRuntimePublication{
+		ExtensionID: c.identity.GetExtensionId(), ExtensionVersion: c.identity.GetExtensionVersion(),
+		ArtifactDigest: c.identity.GetArtifactDigest(), TrustGrantID: c.identity.GetTrustGrantId(),
+		RuntimeEpoch: c.identity.GetRuntimeEpoch(), InstanceID: c.identity.GetInstanceId(),
+		Registrations: registrations,
+	}
+	if publication.ExtensionID != extension.ID || publication.ArtifactDigest != extension.PackageDigest {
+		return hostapi.ServiceRuntimePublication{}, fmt.Errorf("protocol v2 services: runtime identity does not match exact extension artifact")
+	}
+	for _, dependency := range extension.Manifest.Dependencies {
+		switch dependency.Kind {
+		case hostapi.ServiceDependencyRequired, hostapi.ServiceDependencyOptional:
+			publication.Dependencies = append(publication.Dependencies, hostapi.ServiceDependency{
+				ExtensionID: dependency.ID, Capability: dependency.Capability,
+				VersionConstraint: dependency.Version, Kind: dependency.Kind,
+			})
+		case "provides":
+			publication.Provides = append(publication.Provides, hostapi.ServiceCapability{
+				ID: dependency.Capability, Version: dependency.Version,
+			})
+		}
+	}
+	return publication, nil
 }
 
 func protocolV2ServiceRegistryFor(registrar HostAPIRegistrar) protocolV2ServiceRegistry {

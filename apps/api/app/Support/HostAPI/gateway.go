@@ -155,6 +155,16 @@ func (g *Gateway) ReplaceProtocolV2Services(extensionID string, registrations []
 	return registry.ReplaceExtension(extensionID, registrations)
 }
 
+// PublishProtocolV2ServiceRuntime atomically exposes one exact runtime as both
+// a service provider and a dependency-authorized caller.
+func (g *Gateway) PublishProtocolV2ServiceRuntime(publication ServiceRuntimePublication) error {
+	registry := g.ProtocolV2ServiceRegistry()
+	if registry == nil {
+		return fmt.Errorf("hostapi gateway is nil")
+	}
+	return registry.ReplaceRuntime(publication)
+}
+
 // UnregisterProtocolV2Services removes all services owned by one runtime.
 func (g *Gateway) UnregisterProtocolV2Services(extensionID string) {
 	if registry := g.ProtocolV2ServiceRegistry(); registry != nil {

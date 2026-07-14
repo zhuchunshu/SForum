@@ -313,6 +313,7 @@ func (s *ProtocolStarter) startProtocolInstanceLocked(ctx context.Context, exten
 	serviceRegistry := protocolV2ServiceRegistryFor(s.hostAPI)
 	instanceID := ""
 	var registrations []hostapi.ServiceRegistration
+	var serviceRuntime hostapi.ServiceRuntimePublication
 	if v2, ok := protocol.(*protocolV2Client); ok {
 		if v2.identity != nil {
 			instanceID = v2.identity.GetInstanceId()
@@ -325,6 +326,11 @@ func (s *ProtocolStarter) startProtocolInstanceLocked(ctx context.Context, exten
 		if len(registrations) > 0 && serviceRegistry == nil {
 			client.Kill()
 			return RouteTarget{}, fmt.Errorf("protocol v2 service registry is not configured")
+		}
+		serviceRuntime, err = v2.serviceRuntimePublication(extension, registrations)
+		if err != nil {
+			client.Kill()
+			return RouteTarget{}, err
 		}
 	}
 	if instanceID == "" {
@@ -339,7 +345,7 @@ func (s *ProtocolStarter) startProtocolInstanceLocked(ctx context.Context, exten
 		identity:         RuntimeInstanceIdentity{ExtensionID: extension.ID, InstanceID: instanceID},
 		extensionVersion: extensionVersion, artifactDigest: extension.PackageDigest, manifestDigest: manifestDigest,
 		protocolVersion: protocolVersion, target: targetResult,
-		client: client, protocol: protocol, registrations: registrations,
+		client: client, protocol: protocol, registrations: registrations, serviceRuntime: serviceRuntime,
 		healthy: true, ready: ready, readinessChecked: readinessChecked, startedAt: time.Now().UTC(),
 	}
 	if err := s.retainProtocolInstanceLocked(instance); err != nil {

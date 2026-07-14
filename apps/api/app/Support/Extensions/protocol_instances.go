@@ -69,6 +69,7 @@ type protocolRuntimeInstance struct {
 	client           *plugin.Client
 	protocol         PluginProtocol
 	registrations    []hostapi.ServiceRegistration
+	serviceRuntime   hostapi.ServiceRuntimePublication
 	healthy          bool
 	ready            bool
 	readinessChecked bool
@@ -260,7 +261,7 @@ func (s *ProtocolStarter) publishProtocolInstanceLocked(
 				if len(instance.registrations) > 0 {
 					return ProtocolRuntimeInstanceSnapshot{}, fmt.Errorf("protocol v2 service registry is not configured")
 				}
-			} else if err := registry.ReplaceProtocolV2Services(identity.ExtensionID, instance.registrations); err != nil {
+			} else if err := registry.PublishProtocolV2ServiceRuntime(instance.serviceRuntime); err != nil {
 				return ProtocolRuntimeInstanceSnapshot{}, fmt.Errorf("reconcile protocol v2 services: %w", err)
 			}
 		}
@@ -280,7 +281,7 @@ func (s *ProtocolStarter) publishProtocolInstanceLocked(
 			if len(instance.registrations) > 0 {
 				return ProtocolRuntimeInstanceSnapshot{}, fmt.Errorf("protocol v2 service registry is not configured")
 			}
-		} else if err := registry.ReplaceProtocolV2Services(identity.ExtensionID, instance.registrations); err != nil {
+		} else if err := registry.PublishProtocolV2ServiceRuntime(instance.serviceRuntime); err != nil {
 			return ProtocolRuntimeInstanceSnapshot{}, fmt.Errorf("register protocol v2 services: %w", err)
 		}
 	} else {

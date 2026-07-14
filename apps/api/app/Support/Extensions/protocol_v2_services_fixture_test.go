@@ -311,7 +311,12 @@ func serviceE2EConsumerExtension(t *testing.T, allowed bool) extensions.Extensio
 		Name: serviceE2EConsumerHookName, Kind: "filter", Handler: "e2e.consumer.probe",
 		InputSchema: serviceE2EConsumerInput, ResultSchema: serviceE2EConsumerResult,
 	}}
-	return serviceE2EExtension(t, "e2e.consumer", "consumer", "consumer", nil, events, allowed)
+	extension := serviceE2EExtension(t, "e2e.consumer", "consumer", "consumer", nil, events, allowed)
+	extension.Manifest.Dependencies = []extensions.ManifestDependency{
+		{ID: "e2e.provider.low", Version: "^1.0.0", Kind: "optional"},
+		{ID: "e2e.provider.high", Version: "^1.0.0", Kind: "optional"},
+	}
+	return extension
 }
 
 func serviceE2EExtension(

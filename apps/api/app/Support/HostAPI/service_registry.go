@@ -64,12 +64,17 @@ type ServiceRegistration struct {
 	Provider    ServiceProvider
 }
 
-// ServiceCaller carries the identity and authority needed by the Host before
-// it invokes the provider. Dependency checks remain a higher-level concern.
+// ServiceCaller carries the broker-attested exact identity and authority used
+// by both dependency admission and provider authority checks.
 type ServiceCaller struct {
 	ExtensionID      string
+	ExtensionVersion string
+	ArtifactDigest   string
+	TrustGrantID     string
+	RuntimeEpoch     uint64
 	InstanceID       string
 	GrantedAuthority []string
+	Attested         bool
 }
 
 // ServiceAuthorityDecision is deterministic and safe to include in audit data.
@@ -87,6 +92,7 @@ type ResolvedService struct {
 	Revision   uint64
 	Winner     ServiceRegistration
 	Candidates []ServiceRegistration
+	snapshot   *serviceRegistrySnapshot
 }
 
 func (s ResolvedService) HasConflict() bool {
@@ -124,8 +130,10 @@ type preparedServiceRegistration struct {
 }
 
 type serviceRegistrySnapshot struct {
-	revision      uint64
-	registrations []preparedServiceRegistration
+	revision           uint64
+	registrations      []preparedServiceRegistration
+	runtimes           map[string]preparedServiceRuntime
+	dependencyEnforced bool
 }
 
 // ServiceRegistry publishes immutable read snapshots. A failed extension
@@ -137,7 +145,7 @@ type ServiceRegistry struct {
 
 func NewServiceRegistry() *ServiceRegistry {
 	r := &ServiceRegistry{}
-	r.snapshot.Store(&serviceRegistrySnapshot{})
+	r.snapshot.Store(&serviceRegistrySnapshot{runtimes: map[string]preparedServiceRuntime{}})
 	return r
 }
 
@@ -178,7 +186,10 @@ func (r *ServiceRegistry) ReplaceExtension(extensionID string, registrations []S
 	}
 	next = append(next, prepared...)
 	sortPreparedServices(next)
-	r.snapshot.Store(&serviceRegistrySnapshot{revision: current.revision + 1, registrations: next})
+	r.snapshot.Store(&serviceRegistrySnapshot{
+		revision: current.revision + 1, registrations: next,
+		runtimes: clonePreparedServiceRuntimes(current.runtimes), dependencyEnforced: current.dependencyEnforced,
+	})
 	return nil
 }
 
@@ -201,10 +212,16 @@ func (r *ServiceRegistry) UnregisterExtension(extensionID string) bool {
 			next = append(next, item)
 		}
 	}
-	if len(next) == len(current.registrations) {
+	runtimes := clonePreparedServiceRuntimes(current.runtimes)
+	_, hadRuntime := runtimes[extensionID]
+	delete(runtimes, extensionID)
+	if len(next) == len(current.registrations) && !hadRuntime {
 		return false
 	}
-	r.snapshot.Store(&serviceRegistrySnapshot{revision: current.revision + 1, registrations: next})
+	r.snapshot.Store(&serviceRegistrySnapshot{
+		revision: current.revision + 1, registrations: next,
+		runtimes: runtimes, dependencyEnforced: current.dependencyEnforced,
+	})
 	return true
 }
 
@@ -225,6 +242,12 @@ func (r *ServiceRegistry) UnregisterProtocolV2ServiceInstance(extensionID, insta
 	defer r.writeMu.Unlock()
 	current := r.loadSnapshot()
 	found := false
+	if runtime, ok := current.runtimes[extensionID]; ok {
+		found = true
+		if runtime.publication.InstanceID != instanceID {
+			return false
+		}
+	}
 	for _, item := range current.registrations {
 		if item.registration.ExtensionID != extensionID {
 			continue
@@ -243,7 +266,12 @@ func (r *ServiceRegistry) UnregisterProtocolV2ServiceInstance(extensionID, insta
 			next = append(next, item)
 		}
 	}
-	r.snapshot.Store(&serviceRegistrySnapshot{revision: current.revision + 1, registrations: next})
+	runtimes := clonePreparedServiceRuntimes(current.runtimes)
+	delete(runtimes, extensionID)
+	r.snapshot.Store(&serviceRegistrySnapshot{
+		revision: current.revision + 1, registrations: next,
+		runtimes: runtimes, dependencyEnforced: current.dependencyEnforced,
+	})
 	return true
 }
 
@@ -258,6 +286,9 @@ func (r *ServiceRegistry) ExtensionSnapshot(extensionID string) (ServiceExtensio
 	}
 	snapshot := r.loadSnapshot()
 	result := ServiceExtensionSnapshot{Revision: snapshot.revision, ExtensionID: extensionID}
+	if runtime, ok := snapshot.runtimes[extensionID]; ok {
+		result.InstanceID = runtime.publication.InstanceID
+	}
 	for _, item := range snapshot.registrations {
 		if item.registration.ExtensionID != extensionID {
 			continue
@@ -271,7 +302,7 @@ func (r *ServiceRegistry) ExtensionSnapshot(extensionID string) (ServiceExtensio
 		}
 		result.Registrations = append(result.Registrations, cloneServiceRegistration(item.registration))
 	}
-	if len(result.Registrations) == 0 {
+	if len(result.Registrations) == 0 && result.InstanceID == "" {
 		return ServiceExtensionSnapshot{}, false, nil
 	}
 	return result, true, nil
@@ -300,7 +331,7 @@ func (r *ServiceRegistry) List(serviceID, versionConstraint string) ([]ResolvedS
 			}
 			result = append(result, ResolvedService{
 				ServiceID: first.publishedID, Revision: snapshot.revision,
-				Winner: candidates[0], Candidates: candidates,
+				Winner: candidates[0], Candidates: candidates, snapshot: snapshot,
 			})
 		}
 		index = end
@@ -351,7 +382,7 @@ func (r *ServiceRegistry) ResolveExact(serviceID, version string) (ResolvedServi
 			}
 			return ResolvedService{
 				ServiceID: serviceID, Revision: snapshot.revision,
-				Winner: candidates[0], Candidates: candidates,
+				Winner: candidates[0], Candidates: candidates, snapshot: snapshot,
 			}, nil
 		}
 		index = end
@@ -599,10 +630,10 @@ func cloneServiceRegistration(value ServiceRegistration) ServiceRegistration {
 
 func (r *ServiceRegistry) loadSnapshot() *serviceRegistrySnapshot {
 	if r == nil {
-		return &serviceRegistrySnapshot{}
+		return &serviceRegistrySnapshot{runtimes: map[string]preparedServiceRuntime{}}
 	}
 	if snapshot := r.snapshot.Load(); snapshot != nil {
 		return snapshot
 	}
-	return &serviceRegistrySnapshot{}
+	return &serviceRegistrySnapshot{runtimes: map[string]preparedServiceRuntime{}}
 }

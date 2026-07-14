@@ -94,8 +94,8 @@ func TestProtocolV2HostStreamAuthenticatesOnlyOpenFrame(t *testing.T) {
 		&hostv2.ServiceStreamFrame{Frame: &hostv2.ServiceStreamFrame_Message{Message: &protocolv2.TypedDocument{SchemaId: "demo.message", SchemaVersion: "1"}}},
 	}}
 	stream := &protocolV2AuthenticatedHostStream{ServerStream: backend, binding: binding}
-	if trusted := hostapi.ProtocolV2RuntimeIdentityFromContext(stream.Context()); trusted != nil {
-		t.Fatalf("stream exposed identity before validating its open frame: %#v", trusted)
+	if trusted := hostapi.ProtocolV2RuntimeIdentityFromContext(stream.Context()); !proto.Equal(trusted, identity) {
+		t.Fatalf("stream broker identity = %#v", trusted)
 	}
 	if err := stream.RecvMsg(new(hostv2.ServiceStreamFrame)); err != nil {
 		t.Fatalf("open frame: %v", err)

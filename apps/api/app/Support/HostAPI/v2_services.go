@@ -28,7 +28,7 @@ type protocolV2ServiceDiscoveryServer struct {
 	core *protocolV2Core
 }
 
-func (s *protocolV2ServiceDiscoveryServer) List(_ context.Context, request *hostv2.ServiceListRequest) (*hostv2.ServiceListResponse, error) {
+func (s *protocolV2ServiceDiscoveryServer) List(ctx context.Context, request *hostv2.ServiceListRequest) (*hostv2.ServiceListResponse, error) {
 	response := &hostv2.ServiceListResponse{Context: protocolV2ResponseContext(request.GetContext()), Page: &protocolv2.PageInfo{}}
 	registry := s.registry()
 	if registry == nil {
@@ -47,10 +47,10 @@ func (s *protocolV2ServiceDiscoveryServer) List(_ context.Context, request *host
 		listRevision = services[0].Revision
 	}
 
-	caller := serviceCallerFromContext(request.GetContext())
+	caller := serviceCallerFromContexts(ctx, request.GetContext())
 	authorized := services[:0]
 	for _, service := range services {
-		if service.Authorize(caller).Allowed {
+		if service.Authorize(caller).Allowed && service.AuthorizeDependency(caller).Allowed {
 			authorized = append(authorized, service)
 		}
 	}
@@ -81,9 +81,9 @@ func (s *protocolV2ServiceDiscoveryServer) List(_ context.Context, request *host
 	return response, nil
 }
 
-func (s *protocolV2ServiceDiscoveryServer) Resolve(_ context.Context, request *hostv2.ServiceResolveRequest) (*hostv2.ServiceResolveResponse, error) {
+func (s *protocolV2ServiceDiscoveryServer) Resolve(ctx context.Context, request *hostv2.ServiceResolveRequest) (*hostv2.ServiceResolveResponse, error) {
 	response := &hostv2.ServiceResolveResponse{Context: protocolV2ResponseContext(request.GetContext())}
-	resolved, detail := s.resolve(request.GetContext(), request.GetServiceId(), request.GetVersionConstraint(), false)
+	resolved, detail := s.resolve(ctx, request.GetContext(), request.GetServiceId(), request.GetVersionConstraint(), false)
 	if detail != nil {
 		response.Error = detail
 		return response, nil
@@ -102,7 +102,7 @@ func (s *protocolV2ServiceDiscoveryServer) Invoke(ctx context.Context, request *
 		return response, nil
 	}
 	version := strings.TrimSpace(request.GetVersion())
-	resolved, detail := s.resolve(request.GetContext(), request.GetServiceId(), version, true)
+	resolved, detail := s.resolve(ctx, request.GetContext(), request.GetServiceId(), version, true)
 	if detail != nil {
 		response.Error = detail
 		return response, nil
@@ -163,7 +163,7 @@ func (s *protocolV2ServiceDiscoveryServer) Stream(stream grpc.BidiStreamingServe
 	if operation == "" {
 		return sendServiceStreamError(stream, serviceDiscoveryError(protocolv2.ErrorCode_ERROR_CODE_INVALID_ARGUMENT, "host.service_operation_required", "Service operation is required.", false))
 	}
-	resolved, detail := s.resolve(open.GetContext(), open.GetServiceId(), open.GetVersion(), true)
+	resolved, detail := s.resolve(stream.Context(), open.GetContext(), open.GetServiceId(), open.GetVersion(), true)
 	if detail != nil {
 		return sendServiceStreamError(stream, detail)
 	}
@@ -297,7 +297,7 @@ func (s *protocolV2ServiceDiscoveryServer) registry() *ServiceRegistry {
 	return s.core.services
 }
 
-func (s *protocolV2ServiceDiscoveryServer) resolve(requestContext *protocolv2.RequestContext, serviceID, version string, exact bool) (ResolvedService, *protocolv2.ErrorDetail) {
+func (s *protocolV2ServiceDiscoveryServer) resolve(ctx context.Context, requestContext *protocolv2.RequestContext, serviceID, version string, exact bool) (ResolvedService, *protocolv2.ErrorDetail) {
 	registry := s.registry()
 	if registry == nil {
 		return ResolvedService{}, serviceDiscoveryError(protocolv2.ErrorCode_ERROR_CODE_UNAVAILABLE, "host.service_registry_unavailable", "Service discovery is not configured.", true)
@@ -322,7 +322,8 @@ func (s *protocolV2ServiceDiscoveryServer) resolve(requestContext *protocolv2.Re
 	if err != nil {
 		return ResolvedService{}, serviceRegistryError(err)
 	}
-	decision := resolved.Authorize(serviceCallerFromContext(requestContext))
+	caller := serviceCallerFromContexts(ctx, requestContext)
+	decision := resolved.Authorize(caller)
 	if !decision.Allowed {
 		return ResolvedService{}, &protocolv2.ErrorDetail{
 			Code: protocolv2.ErrorCode_ERROR_CODE_PERMISSION_DENIED, Reason: "host.service_authority_denied",
@@ -332,6 +333,9 @@ func (s *protocolV2ServiceDiscoveryServer) resolve(requestContext *protocolv2.Re
 				"missingAuthority":  strings.Join(decision.Missing, ","),
 			},
 		}
+	}
+	if dependency := resolved.AuthorizeDependency(caller); !dependency.Allowed {
+		return ResolvedService{}, serviceDependencyError(dependency)
 	}
 	return resolved, nil
 }
@@ -588,13 +592,23 @@ func validateServiceDocument(document *protocolv2.TypedDocument, expectedSchemaI
 	return nil
 }
 
-func serviceCallerFromContext(requestContext *protocolv2.RequestContext) ServiceCaller {
+func serviceCallerFromContexts(ctx context.Context, requestContext *protocolv2.RequestContext) ServiceCaller {
 	caller := ServiceCaller{}
 	if requestContext == nil {
 		return caller
 	}
-	caller.ExtensionID = requestContext.GetExtension().GetExtensionId()
-	caller.InstanceID = requestContext.GetExtension().GetInstanceId()
+	identity := ProtocolV2RuntimeIdentityFromContext(ctx)
+	if identity != nil {
+		caller.Attested = true
+	} else {
+		identity = requestContext.GetExtension()
+	}
+	caller.ExtensionID = identity.GetExtensionId()
+	caller.ExtensionVersion = identity.GetExtensionVersion()
+	caller.ArtifactDigest = identity.GetArtifactDigest()
+	caller.TrustGrantID = identity.GetTrustGrantId()
+	caller.RuntimeEpoch = identity.GetRuntimeEpoch()
+	caller.InstanceID = identity.GetInstanceId()
 	caller.GrantedAuthority = make([]string, 0, len(requestContext.GetGrantedAuthority()))
 	for _, grant := range requestContext.GetGrantedAuthority() {
 		if grant != nil {
@@ -602,6 +616,29 @@ func serviceCallerFromContext(requestContext *protocolv2.RequestContext) Service
 		}
 	}
 	return caller
+}
+
+func serviceDependencyError(decision ServiceDependencyDecision) *protocolv2.ErrorDetail {
+	code := protocolv2.ErrorCode_ERROR_CODE_FAILED_PRECONDITION
+	reason := "host.service_dependency_" + decision.Reason
+	message := "The caller's exact runtime dependency does not authorize this service provider."
+	if decision.Reason == "undeclared" {
+		code = protocolv2.ErrorCode_ERROR_CODE_PERMISSION_DENIED
+	}
+	metadata := map[string]string{}
+	if decision.DependencyTarget != "" {
+		metadata["dependencyTarget"] = decision.DependencyTarget
+	}
+	if decision.VersionConstraint != "" {
+		metadata["versionConstraint"] = decision.VersionConstraint
+	}
+	if decision.ProviderVersion != "" {
+		metadata["providerVersion"] = decision.ProviderVersion
+	}
+	if len(decision.Candidates) > 0 {
+		metadata["candidates"] = strings.Join(decision.Candidates, ",")
+	}
+	return &protocolv2.ErrorDetail{Code: code, Reason: reason, Message: message, Metadata: metadata}
 }
 
 func resolvedServiceDescriptor(resolved ResolvedService) *protocolv2.ServiceDescriptor {
