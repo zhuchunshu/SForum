@@ -81,6 +81,30 @@ func TestGuardPolicyCatalogRejectsDriftAndEventuallyExpires(t *testing.T) {
 	}
 }
 
+func TestGuardPolicyCatalogSkipsOnlyInvalidDisabledArtifacts(t *testing.T) {
+	valid := guardPolicyFixture("guard.valid", TypePlugin, strings.Repeat("a", 64))
+	invalidDisabled := guardPolicyFixture("guard.disabled", TypePlugin, strings.Repeat("b", 64))
+	invalidDisabled.Status = StatusDisabled
+	invalidDisabled.Manifest.ID = "drifted.disabled"
+	source := &guardPolicySourceStub{items: []Extension{valid, invalidDisabled}}
+	catalog := NewGuardPolicyCatalog(source, &guardPolicyTrustStub{}, nil, GuardPolicyConfig{TTL: time.Minute})
+	if err := catalog.Refresh(context.Background()); err != nil {
+		t.Fatalf("disabled invalid artifact blocked recovery refresh: %v", err)
+	}
+	if lookup, ok := catalog.Lookup(valid.ID); !ok || !lookup.Found {
+		t.Fatalf("valid artifact disappeared: lookup=%#v ok=%v", lookup, ok)
+	}
+	if lookup, ok := catalog.Lookup(invalidDisabled.ID); !ok || lookup.Found {
+		t.Fatalf("invalid disabled artifact was published: lookup=%#v ok=%v", lookup, ok)
+	}
+
+	invalidDisabled.Status = StatusEnabled
+	source.set([]Extension{valid, invalidDisabled}, nil)
+	if err := catalog.Refresh(context.Background()); !errors.Is(err, errGuardPolicyArtifactInvalid) {
+		t.Fatalf("enabled invalid artifact error = %v", err)
+	}
+}
+
 func TestGuardPolicyCatalogRefreshFailurePreservesThenCloses(t *testing.T) {
 	plugin := guardPolicyFixture("guard.plugin", TypePlugin, strings.Repeat("a", 64))
 	source := &guardPolicySourceStub{items: []Extension{plugin}}

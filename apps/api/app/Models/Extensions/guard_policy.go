@@ -17,6 +17,8 @@ const (
 	RecommendedGuardPolicyRefreshInterval = 5 * time.Second
 )
 
+var errGuardPolicyArtifactInvalid = errors.New("extensions: invalid guard policy artifact")
+
 // GuardPolicyEntry 是管理路由 Guard 所需的最小 exact-artifact 视图。
 // 该类型不暴露 Manifest，避免请求路径读到可变切片或 map。
 type GuardPolicyEntry struct {
@@ -133,6 +135,11 @@ func (c *GuardPolicyCatalog) Refresh(ctx context.Context) error {
 	for _, extension := range items {
 		entry, err := c.freezeEntry(ctx, extension)
 		if err != nil {
+			// Out-of-band disable must recover boot even when the retained artifact
+			// cannot be decoded. Other failures still fail closed.
+			if extension.Status == StatusDisabled && errors.Is(err, errGuardPolicyArtifactInvalid) {
+				continue
+			}
 			return err
 		}
 		if _, duplicate := entries[entry.ExtensionID]; duplicate {
@@ -236,7 +243,7 @@ func (c *GuardPolicyCatalog) freezeEntry(ctx context.Context, extension Extensio
 		(extension.Status != StatusInstalled && extension.Status != StatusEnabled && extension.Status != StatusDisabled) ||
 		strings.TrimSpace(extension.Version) == "" || strings.TrimSpace(extension.PackageDigest) == "" ||
 		extension.Manifest.ID != extension.ID || extension.Manifest.Version != extension.Version || extension.Manifest.Type != extension.Type {
-		return GuardPolicyEntry{}, fmt.Errorf("extensions: invalid guard policy artifact %q", extension.ID)
+		return GuardPolicyEntry{}, fmt.Errorf("%w %q", errGuardPolicyArtifactInvalid, extension.ID)
 	}
 
 	currentTrusted, err := c.artifactTrusted(ctx, extension)
