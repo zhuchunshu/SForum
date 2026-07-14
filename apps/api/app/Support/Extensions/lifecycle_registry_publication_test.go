@@ -148,10 +148,32 @@ func TestLifecycleRegistryBootRestoresExactRoutesAndSchemasAndSafeModeClearsBoth
 		Manager: manager, Routes: routeRegistry, RouteSchemas: routeSchemas,
 	})
 	extension := lifecycleRegistryTestExtension(t, "1.0.0", strings.Repeat("a", 64), 7, "/boot-route")
+	// Route publication is not conditional on executable lifecycle hooks.
+	extension.Manifest.Lifecycle = nil
+	manifestDocument, err := json.Marshal(extension.Manifest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(extension.PackagePath, extensionmanifest.ManifestFileName), manifestDocument, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	extension.PackageDigest, err = extensionpackage.DigestTree(extension.PackagePath)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if err := manager.Start(ctx, extension); err != nil {
 		t.Fatal(err)
 	}
-	if err := boundary.RestoreRoutePublications(ctx, []extensions.Extension{extension}, false); err != nil {
+	legacy := extension
+	legacy.ID, legacy.Version, legacy.ActiveVersionID = "legacy.provider", "1.0.0", 8
+	legacy.PackageDigest = strings.Repeat("b", 64)
+	legacy.Manifest.ID, legacy.Manifest.Version = legacy.ID, legacy.Version
+	legacy.Manifest.Backend.ProtocolVersion = 1
+	legacy.Manifest.Routes, legacy.Manifest.OpenAPI = nil, nil
+	if err := manager.Start(ctx, legacy); err != nil {
+		t.Fatal(err)
+	}
+	if err := boundary.RestoreRoutePublications(ctx, []extensions.Extension{legacy, extension}, false); err != nil {
 		t.Fatal(err)
 	}
 	match, err := routeRegistry.Resolve("GET", "/boot-route/api")
@@ -159,7 +181,7 @@ func TestLifecycleRegistryBootRestoresExactRoutesAndSchemasAndSafeModeClearsBoth
 		t.Fatalf("restored route = %#v, %v", match, err)
 	}
 	if snapshot := routeSchemas.PublicationSnapshot(); len(snapshot.Artifacts) != 1 ||
-		snapshot.Artifacts[0].PackageDigest != extension.PackageDigest {
+		snapshot.Artifacts[0].ExtensionID != extension.ID || snapshot.Artifacts[0].PackageDigest != extension.PackageDigest {
 		t.Fatalf("restored schema publication = %#v", snapshot)
 	}
 

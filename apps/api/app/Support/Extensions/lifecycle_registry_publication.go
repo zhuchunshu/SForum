@@ -130,7 +130,8 @@ func (b *PostgresLifecycleBoundaryRegistries) RestoreRoutePublications(
 	if !safeMode {
 		for _, item := range items {
 			if item.Type != extensions.TypePlugin || item.Status != extensions.StatusEnabled ||
-				strings.TrimSpace(item.Manifest.Backend.Entry) == "" {
+				strings.TrimSpace(item.Manifest.Backend.Entry) == "" ||
+				(len(item.Manifest.Routes) == 0 && len(item.Manifest.OpenAPI) == 0) {
 				continue
 			}
 			runtime, err := b.manager.ActiveRuntimeInstance(item.ID)
@@ -139,16 +140,16 @@ func (b *PostgresLifecycleBoundaryRegistries) RestoreRoutePublications(
 				// preventing Host startup or publishing stale package routes.
 				continue
 			}
+			if !runtimeInstanceMatchesExtension(runtime, item) || !b.manager.RuntimeInstanceAvailable(runtime.Identity) {
+				return fmt.Errorf("%w: startup runtime for %s is not exact and available", ErrLifecycleRegistryPublicationConflict, item.ID)
+			}
 			binding := extensions.LifecycleRuntimeBinding{
 				ExtensionID: item.ID, ExtensionVersion: item.Version, PackageDigest: item.PackageDigest,
 				RuntimeInstanceID: runtime.Identity.InstanceID, VersionID: item.ActiveVersionID,
 			}
-			material, err := buildLifecycleRegistryMaterial(item, binding)
+			material, err := buildStartupRoutePublicationMaterial(item, binding)
 			if err != nil {
 				return fmt.Errorf("restore route publication for %s: %w", item.ID, err)
-			}
-			if !runtimeInstanceMatchesExtension(runtime, item) || !b.manager.RuntimeInstanceAvailable(runtime.Identity) {
-				return fmt.Errorf("%w: startup runtime for %s is not exact and available", ErrLifecycleRegistryPublicationConflict, item.ID)
 			}
 			pluginRoutes = append(pluginRoutes, material.routes)
 			schemaArtifacts = append(schemaArtifacts, material.routeSchema)
@@ -169,6 +170,37 @@ func (b *PostgresLifecycleBoundaryRegistries) RestoreRoutePublications(
 		}
 	}
 	return routes.ErrRevisionConflict
+}
+
+// buildStartupRoutePublicationMaterial is deliberately independent from the
+// Lifecycle V2 coordinator. Route/OpenAPI declarations may belong to an exact
+// enabled runtime without declaring executable lifecycle hooks, while legacy
+// provider-only plugins have no route material and are skipped by the caller.
+func buildStartupRoutePublicationMaterial(
+	extension extensions.Extension,
+	binding extensions.LifecycleRuntimeBinding,
+) (lifecycleRegistryMaterial, error) {
+	if extension.ID == "" || extension.Version == "" || extension.ActiveVersionID <= 0 ||
+		!validLifecycleCleanupDigest(extension.PackageDigest) || extension.Type != extensions.TypePlugin ||
+		extension.Manifest.ID != extension.ID || extension.Manifest.Version != extension.Version ||
+		extension.Manifest.Type != extensions.TypePlugin ||
+		binding.ExtensionID != extension.ID || binding.ExtensionVersion != extension.Version ||
+		binding.PackageDigest != extension.PackageDigest || binding.VersionID != extension.ActiveVersionID ||
+		binding.RuntimeInstanceID == "" || binding.RuntimeInstanceID != strings.TrimSpace(binding.RuntimeInstanceID) {
+		return lifecycleRegistryMaterial{}, ErrLifecycleRegistryPublicationInvalid
+	}
+	return lifecycleRegistryMaterial{
+		extension: extension,
+		binding:   binding,
+		routes: routes.PluginRouteSet{Artifact: routes.PluginArtifact{
+			ExtensionID: extension.ID, ExtensionVersion: extension.Version,
+			PackageDigest: extension.PackageDigest, RuntimeInstanceID: binding.RuntimeInstanceID,
+		}, Routes: append([]extensions.ManifestRoute(nil), extension.Manifest.Routes...)},
+		routeSchema: extensionopenapi.Artifact{
+			Root: extensions.PackageContentRoot(extension), ExtensionID: extension.ID,
+			Version: extension.Version, PackageDigest: extension.PackageDigest, Manifest: extension.Manifest,
+		},
+	}, nil
 }
 
 func (b *PostgresLifecycleBoundaryRegistries) ValidateLifecycleRegistries(
