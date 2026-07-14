@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/jackc/pgx/v5"
@@ -12,9 +13,11 @@ import (
 	"github.com/riverqueue/river/rivertype"
 
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
+	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
 	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
 	hostapi "github.com/zhuchunshu/sforum/apps/api/app/Support/HostAPI"
 	pages "github.com/zhuchunshu/sforum/apps/api/app/Support/Pages"
+	routes "github.com/zhuchunshu/sforum/apps/api/app/Support/Routes"
 )
 
 type lifecycleFeatureFacts struct{}
@@ -64,6 +67,13 @@ func (lifecycleDatabaseDisposition) ApplyLifecycleDataDisposition(
 }
 
 func newBootstrapLifecycleStack(t *testing.T) (*productionLifecycleStack, *extensionsruntime.Manager, *extensions.PostgresStore) {
+	return newBootstrapLifecycleStackWithSafeMode(t, false)
+}
+
+func newBootstrapLifecycleStackWithSafeMode(
+	t *testing.T,
+	safeMode bool,
+) (*productionLifecycleStack, *extensionsruntime.Manager, *extensions.PostgresStore) {
 	t.Helper()
 	pool := &pgxpool.Pool{}
 	store := extensions.NewPostgresStore(pool)
@@ -75,7 +85,7 @@ func newBootstrapLifecycleStack(t *testing.T) (*productionLifecycleStack, *exten
 		Pool: pool, Store: store, Features: lifecycleFeatureFacts{}, Trust: trust,
 		Runtime: manager, Pages: pages.NewRegistry(nil), Services: hostapi.NewServiceRegistry(),
 		River: lifecycleRiverClient{}, MigrationEngine: lifecycleMigrationEngine{},
-		ExtensionRoot: t.TempDir(), Database: lifecycleDatabaseDisposition{},
+		ExtensionRoot: t.TempDir(), Database: lifecycleDatabaseDisposition{}, SafeMode: safeMode,
 	})
 	if err != nil {
 		t.Fatalf("new production lifecycle stack: %v", err)
@@ -92,7 +102,7 @@ func TestProductionLifecycleStackConstructsEveryRequiredDependency(t *testing.T)
 		"migration engine": stack.MigrationEngine != nil, "migrations": stack.Migrations != nil,
 		"schedules": stack.Schedules != nil,
 		"job store": stack.JobStore != nil, "job coordinator": stack.JobCoordinator != nil,
-		"jobs": stack.Jobs != nil, "route foundation": stack.RouteFoundation != nil,
+		"jobs": stack.Jobs != nil, "route registry": stack.RouteRegistry != nil,
 		"registry repository": stack.RegistryRepository != nil, "registries": stack.Registries != nil,
 		"state": stack.State != nil, "journal": stack.PublicationJournal != nil,
 		"cleanup": stack.Cleanup != nil, "cleanup purger": stack.CleanupPurger != nil,
@@ -108,8 +118,66 @@ func TestProductionLifecycleStackConstructsEveryRequiredDependency(t *testing.T)
 	if stack.RuntimeManager != manager {
 		t.Fatal("coordinator stack did not retain the exact API runtime Manager")
 	}
-	if stack.RouteFoundation.Revision() != 0 {
-		t.Fatal("P4 route foundation must not masquerade as a populated P6 production registry")
+	snapshot := stack.RouteRegistry.Snapshot()
+	if snapshot.Revision != 1 || snapshot.SafeMode || len(snapshot.Routes) != 212 || len(snapshot.Conflicts) != 0 {
+		t.Fatalf("production core route snapshot = revision %d safe=%t routes=%d conflicts=%#v",
+			snapshot.Revision, snapshot.SafeMode, len(snapshot.Routes), snapshot.Conflicts)
+	}
+	for _, routeID := range []string{"core.route.system.health", "core.route.system.ready"} {
+		found := false
+		for _, route := range snapshot.Routes {
+			if route.ID == routeID && route.Provider.Kind == routes.ProviderCore {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Fatalf("production core catalog omitted Host route %q", routeID)
+		}
+	}
+
+	// lifecycle boundary 必须持有 stack 暴露的同一个 Registry，否则激活发布与
+	// 请求解析会落到两份不同的快照。
+	boundaryRoutes := reflect.ValueOf(stack.Registries).Elem().FieldByName("routes")
+	if boundaryRoutes.IsNil() || boundaryRoutes.Pointer() != reflect.ValueOf(stack.RouteRegistry).Pointer() {
+		t.Fatal("lifecycle boundary and production stack use different Route Registry instances")
+	}
+}
+
+func TestProductionLifecycleStackSafeModeKeepsHostRoutesAndSkipsThirdParty(t *testing.T) {
+	stack, _, _ := newBootstrapLifecycleStackWithSafeMode(t, true)
+	publication := stack.RouteRegistry.PublicationSnapshot().Publication
+	publication.Plugins = []routes.PluginRouteSet{{
+		Artifact: routes.PluginArtifact{
+			ExtensionID: "third.party", ExtensionVersion: "1.0.0",
+			PackageDigest: strings.Repeat("a", 64), RuntimeInstanceID: "runtime-safe-mode",
+		},
+		Routes: []extensionmanifest.ManifestRoute{{
+			ID: "third.party.route", ContractVersion: "third.party.route@1",
+			Action: extensionmanifest.RouteActionAdd, Path: "/third-party", Methods: []string{"GET"},
+			Guard: extensionmanifest.GuardCorePublic, Mode: extensionmanifest.RouteModeHTTP,
+			Handler: "routes/third-party", ResponseSchema: "third.party.response@1",
+		}},
+	}}
+	snapshot, err := stack.RouteRegistry.Publish(publication)
+	if err != nil {
+		t.Fatalf("safe-mode route publication: %v", err)
+	}
+	if !snapshot.SafeMode || len(snapshot.Routes) != 212 || len(stack.RouteRegistry.PublicationSnapshot().Publication.Plugins) != 0 {
+		t.Fatalf("safe-mode snapshot = safe %t routes %d publication %#v",
+			snapshot.SafeMode, len(snapshot.Routes), stack.RouteRegistry.PublicationSnapshot().Publication)
+	}
+	if _, err := stack.RouteRegistry.Resolve("GET", "/third-party"); !errors.Is(err, routes.ErrRouteNotFound) {
+		t.Fatalf("safe mode exposed third-party route: %v", err)
+	}
+	for path, routeID := range map[string]string{
+		"/api/v1/health": "core.route.system.health",
+		"/api/v1/ready":  "core.route.system.ready",
+	} {
+		match, err := stack.RouteRegistry.Resolve("GET", path)
+		if err != nil || match.Route.ID != routeID || match.Route.Provider.Kind != routes.ProviderCore {
+			t.Fatalf("safe-mode Host route %s = %#v, %v", path, match, err)
+		}
 	}
 }
 

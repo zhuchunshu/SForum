@@ -291,7 +291,7 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		Trust: executableTrustService, Runtime: lifecycleRuntime, Pages: pageRegistry,
 		Services: hostAPIGateway.ProtocolV2ServiceRegistry(), River: jobClient,
 		ExtensionRoot: cfg.ExtensionRoot, MigrationEngine: lifecycleMigrationEngine,
-		Database: lifecycleDatabaseDisposition,
+		Database: lifecycleDatabaseDisposition, SafeMode: cfg.SafeMode,
 	})
 	if err != nil {
 		if stopErr := supportjobs.Stop(ctx, jobClient); stopErr != nil {

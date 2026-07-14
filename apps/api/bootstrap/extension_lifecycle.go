@@ -30,6 +30,7 @@ type productionLifecycleStackConfig struct {
 	ExtensionRoot   string
 	MigrationEngine extensionsruntime.LifecycleMigrationEngine
 	Database        extensionsruntime.ExtensionDatabaseDisposition
+	SafeMode        bool
 }
 
 // productionLifecycleStack 保留组装后的具体实例，避免 lifecycle 的不同边界
@@ -46,7 +47,7 @@ type productionLifecycleStack struct {
 	JobStore           *hostapi.PostgresPluginJobLifecycleStore
 	JobCoordinator     *hostapi.PluginJobLifecycleCoordinator
 	Jobs               *extensionsruntime.PostgresLifecycleBoundaryJobs
-	RouteFoundation    *routes.Registry
+	RouteRegistry      *routes.Registry
 	RegistryRepository *extensionsruntime.PostgresLifecycleRegistryPublicationRepository
 	Registries         *extensionsruntime.PostgresLifecycleBoundaryRegistries
 	State              *extensionsruntime.PostgresLifecycleBoundaryState
@@ -119,13 +120,19 @@ func newProductionLifecycleStack(config productionLifecycleStackConfig) (*produc
 		},
 	)
 
-	// P4 只建立 publication foundation；P6 才会接入完整 core route catalog 与执行链。
-	routeFoundation := routes.NewRegistry()
+	// Core 路由是每个进程第一个不可变快照。Safe Mode 仍使用这份 Host
+	// catalog，但后续 lifecycle 发布即使携带第三方路由也会被 Registry 过滤。
+	routeRegistry := routes.NewRegistry()
+	if _, err := routeRegistry.Publish(routes.Publication{
+		Core: routes.CoreRouteCatalog(), SafeMode: config.SafeMode,
+	}); err != nil {
+		return nil, fmt.Errorf("%w: publish core route catalog: %v", errProductionLifecycleDependency, err)
+	}
 	registryRepository := extensionsruntime.NewPostgresLifecycleRegistryPublicationRepository(config.Pool)
 	registries := extensionsruntime.NewPostgresLifecycleBoundaryRegistries(
 		extensionsruntime.LifecycleRegistryBoundaryConfig{
 			Repository: registryRepository, Manager: config.Runtime, Pages: config.Pages,
-			Routes: routeFoundation, Services: config.Services,
+			Routes: routeRegistry, Services: config.Services,
 		},
 	)
 	state := extensionsruntime.NewPostgresLifecycleBoundaryState(config.Store)
@@ -148,7 +155,7 @@ func newProductionLifecycleStack(config productionLifecycleStackConfig) (*produc
 		Preflight: preflight, StaticPreflight: staticPreflight,
 		MigrationEngine: config.MigrationEngine, Migrations: migrations,
 		Schedules: schedules, JobStore: jobStore, JobCoordinator: jobCoordinator, Jobs: jobs,
-		RouteFoundation: routeFoundation, RegistryRepository: registryRepository, Registries: registries,
+		RouteRegistry: routeRegistry, RegistryRepository: registryRepository, Registries: registries,
 		State: state, PublicationJournal: journal, Cleanup: cleanup,
 		Database: config.Database, CleanupPurger: cleanupPurger,
 		CleanupFinalizer: cleanupFinalizer, Boundary: boundary,
