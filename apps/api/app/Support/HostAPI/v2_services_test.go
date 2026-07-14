@@ -18,25 +18,29 @@ import (
 )
 
 type v2ServiceProvider struct {
-	invokeCalls int
-	context     *protocolv2.RequestContext
-	serviceID   string
-	version     string
-	operation   string
-	input       *protocolv2.TypedDocument
-	output      *protocolv2.TypedDocument
-	remoteError *protocolv2.ErrorDetail
-	transport   error
+	invokeCalls   int
+	invokeContext context.Context
+	context       *protocolv2.RequestContext
+	serviceID     string
+	version       string
+	operation     string
+	input         *protocolv2.TypedDocument
+	output        *protocolv2.TypedDocument
+	remoteError   *protocolv2.ErrorDetail
+	transport     error
 
 	streamMessages  []*protocolv2.TypedDocument
 	streamSawEOF    bool
 	streamFinal     *protocolv2.TypedDocument
 	streamError     *protocolv2.ErrorDetail
 	streamTransport error
+	streamContext   context.Context
+	adapterContext  context.Context
 }
 
-func (p *v2ServiceProvider) Invoke(_ context.Context, requestContext *protocolv2.RequestContext, serviceID, version, operation string, input *protocolv2.TypedDocument) (*protocolv2.TypedDocument, *protocolv2.ErrorDetail, error) {
+func (p *v2ServiceProvider) Invoke(ctx context.Context, requestContext *protocolv2.RequestContext, serviceID, version, operation string, input *protocolv2.TypedDocument) (*protocolv2.TypedDocument, *protocolv2.ErrorDetail, error) {
 	p.invokeCalls++
+	p.invokeContext = ctx
 	p.context = requestContext
 	p.serviceID = serviceID
 	p.version = version
@@ -45,7 +49,9 @@ func (p *v2ServiceProvider) Invoke(_ context.Context, requestContext *protocolv2
 	return p.output, p.remoteError, p.transport
 }
 
-func (p *v2ServiceProvider) Stream(_ context.Context, requestContext *protocolv2.RequestContext, serviceID, version, operation string, stream ServiceBidiStream) (*protocolv2.ErrorDetail, error) {
+func (p *v2ServiceProvider) Stream(ctx context.Context, requestContext *protocolv2.RequestContext, serviceID, version, operation string, stream ServiceBidiStream) (*protocolv2.ErrorDetail, error) {
+	p.streamContext = ctx
+	p.adapterContext = stream.Context()
 	p.context = requestContext
 	p.serviceID = serviceID
 	p.version = version
@@ -118,7 +124,7 @@ func TestProtocolV2ServiceListResolvePaginationAndAuthority(t *testing.T) {
 	if err := registry.ReplaceExtension("catalog.plugin", []ServiceRegistration{beta, hidden, alpha}); err != nil {
 		t.Fatal(err)
 	}
-	server := &protocolV2ServiceDiscoveryServer{core: &protocolV2Core{services: registry}}
+	server := newProtocolV2ServiceTestServer(registry, nil)
 	requestContext := v2ServiceRequestContext("consumer.plugin", "instance-caller", "service.call")
 
 	first, err := server.List(context.Background(), &hostv2.ServiceListRequest{
@@ -177,7 +183,7 @@ func TestProtocolV2ServiceInvokeValidatesContractAndPropagatesContext(t *testing
 	if err := registry.ReplaceExtension("provider.plugin", []ServiceRegistration{registration}); err != nil {
 		t.Fatal(err)
 	}
-	server := &protocolV2ServiceDiscoveryServer{core: &protocolV2Core{services: registry}}
+	server := newProtocolV2ServiceTestServer(registry, nil)
 	requestContext := v2ServiceRequestContext("consumer.plugin", "instance-consumer", "service.call")
 	requestContext.Locale = "zh-CN"
 	requestContext.Trace = &protocolv2.TraceContext{TraceId: "trace-1", SpanId: "span-1"}
@@ -220,7 +226,7 @@ func TestProtocolV2ServiceInvokePreservesTypedErrorsAndMapsProviderFailures(t *t
 	}); err != nil {
 		t.Fatal(err)
 	}
-	server := &protocolV2ServiceDiscoveryServer{core: &protocolV2Core{services: registry}}
+	server := newProtocolV2ServiceTestServer(registry, nil)
 	request := &hostv2.ServiceInvokeRequest{
 		Context:   v2ServiceRequestContext("consumer.plugin", "instance-consumer"),
 		ServiceId: "demo.lookup", Version: "1.0.0", Operation: "find",
@@ -265,7 +271,7 @@ func TestProtocolV2ServiceReplacementPublishesTargetButInvokesContribution(t *te
 	if err := registry.ReplaceExtension("provider.plugin", []ServiceRegistration{replacement}); err != nil {
 		t.Fatal(err)
 	}
-	server := &protocolV2ServiceDiscoveryServer{core: &protocolV2Core{services: registry}}
+	server := newProtocolV2ServiceTestServer(registry, nil)
 	requestContext := v2ServiceRequestContext("consumer.plugin", "instance-consumer")
 	resolved, _ := server.Resolve(context.Background(), &hostv2.ServiceResolveRequest{
 		Context: requestContext, ServiceId: "shared.lookup", VersionConstraint: "1.0.0",
@@ -291,7 +297,7 @@ func TestProtocolV2ServiceStreamForwardsMessagesAndPreservesHalfClose(t *testing
 	if err := registry.ReplaceExtension("provider.plugin", []ServiceRegistration{registration}); err != nil {
 		t.Fatal(err)
 	}
-	server := &protocolV2ServiceDiscoveryServer{core: &protocolV2Core{services: registry}}
+	server := newProtocolV2ServiceTestServer(registry, nil)
 	requestContext := v2ServiceRequestContext("consumer.plugin", "instance-consumer")
 	stream := &fakeV2HostServiceStream{
 		ctx: context.Background(),
@@ -326,7 +332,7 @@ func TestProtocolV2ServiceStreamRejectsFrameAndSchemaViolations(t *testing.T) {
 		if err := registry.ReplaceExtension("provider.plugin", []ServiceRegistration{registration}); err != nil {
 			t.Fatal(err)
 		}
-		return &protocolV2ServiceDiscoveryServer{core: &protocolV2Core{services: registry}}, provider
+		return newProtocolV2ServiceTestServer(registry, nil), provider
 	}
 	requestContext := v2ServiceRequestContext("consumer.plugin", "instance-consumer")
 	tests := []struct {
@@ -378,7 +384,7 @@ func TestProtocolV2ServiceStreamMapsTransportFailureAndCancellation(t *testing.T
 		if err := registry.ReplaceExtension("provider.plugin", []ServiceRegistration{registration}); err != nil {
 			t.Fatal(err)
 		}
-		server := &protocolV2ServiceDiscoveryServer{core: &protocolV2Core{services: registry}}
+		server := newProtocolV2ServiceTestServer(registry, nil)
 		stream := &fakeV2HostServiceStream{
 			ctx: ctx,
 			recv: []*hostv2.ServiceStreamFrame{

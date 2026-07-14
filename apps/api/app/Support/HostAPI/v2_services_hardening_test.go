@@ -47,7 +47,7 @@ func TestProtocolV2InvokeAndStreamMatchExactBuildVersion(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	server := &protocolV2ServiceDiscoveryServer{core: &protocolV2Core{services: registry}}
+	server := newProtocolV2ServiceTestServer(registry, nil)
 	requestContext := v2ServiceRequestContext("consumer.plugin", "instance-consumer")
 	requestContext.Actor = &protocolv2.Actor{UserId: 42, SessionId: "unattested"}
 	response, err := server.Invoke(context.Background(), &hostv2.ServiceInvokeRequest{
@@ -116,7 +116,7 @@ func TestProtocolV2ServerStreamRequiresExactlyOneInput(t *testing.T) {
 		if err := registry.ReplaceExtension("provider.plugin", []ServiceRegistration{registration}); err != nil {
 			t.Fatal(err)
 		}
-		return &protocolV2ServiceDiscoveryServer{core: &protocolV2Core{services: registry}}, provider
+		return newProtocolV2ServiceTestServer(registry, nil), provider
 	}
 	open := v2ServiceOpenFrame(v2ServiceRequestContext("consumer.plugin", "instance-consumer"), "demo.stream", "1.0.0", "watch")
 	tests := []struct {
@@ -149,7 +149,7 @@ func TestProtocolV2ClientStreamPermitsExactlyOneOutput(t *testing.T) {
 		if err := registry.ReplaceExtension("provider.plugin", []ServiceRegistration{registration}); err != nil {
 			t.Fatal(err)
 		}
-		return &protocolV2ServiceDiscoveryServer{core: &protocolV2Core{services: registry}}
+		return newProtocolV2ServiceTestServer(registry, nil)
 	}
 	frames := func() []*hostv2.ServiceStreamFrame {
 		return []*hostv2.ServiceStreamFrame{

@@ -12,7 +12,9 @@ import (
 )
 
 func TestProtocolV2ServiceDiscoveryAcrossRealPluginProcesses(t *testing.T) {
-	gateway := hostapi.NewGateway(nil)
+	// 本夹具验证真实 broker/provider 组合；production 由 bootstrap 的 Manager
+	// adapter 对 Winner exact instance 执行 RuntimeCallService admission。
+	gateway := hostapi.NewGateway(hostapi.New(hostapi.Config{ServiceAdmission: serviceE2ETestAdmission{}}))
 	t.Cleanup(func() { _ = gateway.Close() })
 	starter := extensionsruntime.NewProtocolStarter(extensionsruntime.ProtocolStarterConfig{
 		Trust: serviceE2ETrust{}, HostAPI: gateway,
@@ -105,6 +107,22 @@ func TestProtocolV2ServiceDiscoveryAcrossRealPluginProcesses(t *testing.T) {
 		t.Fatalf("consumer authority was not enforced across discovery modes: %#v", denied)
 	}
 }
+
+type serviceE2ETestAdmission struct{}
+
+func (serviceE2ETestAdmission) AcquireServiceProvider(
+	ctx context.Context,
+	_ hostapi.ServiceProviderIdentity,
+) (hostapi.ServiceProviderAdmissionLease, error) {
+	return serviceE2ETestLease{ctx: ctx}, nil
+}
+
+type serviceE2ETestLease struct {
+	ctx context.Context
+}
+
+func (l serviceE2ETestLease) Context() context.Context { return l.ctx }
+func (serviceE2ETestLease) Release()                   {}
 
 func startServiceE2EExtension(t *testing.T, starter *extensionsruntime.ProtocolStarter, extension extensions.Extension) {
 	t.Helper()

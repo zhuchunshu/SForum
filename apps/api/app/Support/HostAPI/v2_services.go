@@ -115,14 +115,24 @@ func (s *protocolV2ServiceDiscoveryServer) Invoke(ctx context.Context, request *
 		response.Error = detail
 		return response, nil
 	}
+	lease, detail := s.acquireProvider(ctx, resolved.Winner)
+	if detail != nil {
+		response.Error = detail
+		return response, nil
+	}
+	defer lease.Release()
 
 	providerContext := cloneServiceRequestContext(request.GetContext())
 	output, remoteError, err := resolved.Winner.Provider.Invoke(
-		ctx, providerContext, resolved.Winner.Descriptor.GetServiceId(),
+		lease.Context(), providerContext, resolved.Winner.Descriptor.GetServiceId(),
 		resolved.Winner.Descriptor.GetVersion(), operation, cloneServiceDocument(request.GetInput()),
 	)
 	if err != nil {
-		response.Error = serviceProviderFailure(err)
+		response.Error = s.providerCallFailure(lease, err)
+		return response, nil
+	}
+	if lease.Context().Err() != nil {
+		response.Error = s.providerCallFailure(lease, context.Cause(lease.Context()))
 		return response, nil
 	}
 	if remoteError != nil {
@@ -164,11 +174,19 @@ func (s *protocolV2ServiceDiscoveryServer) Stream(stream grpc.BidiStreamingServe
 	if !ok {
 		return sendServiceStreamError(stream, serviceDiscoveryError(protocolv2.ErrorCode_ERROR_CODE_UNAVAILABLE, "host.service_stream_provider_unavailable", "The resolved service provider cannot accept streams.", true))
 	}
+	lease, detail := s.acquireProvider(stream.Context(), resolved.Winner)
+	if detail != nil {
+		return returnServiceStreamFailure(stream, detail)
+	}
+	defer lease.Release()
 	var unaryInput *protocolv2.TypedDocument
 	if !resolved.Winner.Descriptor.GetClientStreaming() {
 		var inputError *protocolv2.ErrorDetail
-		unaryInput, inputError, err = receiveUnaryServiceInput(stream, resolved.Winner.Descriptor.GetRequestSchemaId())
+		unaryInput, inputError, err = receiveUnaryServiceInput(lease.Context(), stream, resolved.Winner.Descriptor.GetRequestSchemaId())
 		if err != nil {
+			if lease.Context().Err() != nil {
+				return s.sendProviderStreamFailure(stream, lease, err)
+			}
 			return err
 		}
 		if inputError != nil {
@@ -177,14 +195,14 @@ func (s *protocolV2ServiceDiscoveryServer) Stream(stream grpc.BidiStreamingServe
 	}
 
 	adapter := &protocolV2ServiceBidiStream{
-		stream: stream, requestSchemaID: resolved.Winner.Descriptor.GetRequestSchemaId(),
+		ctx: lease.Context(), stream: stream, requestSchemaID: resolved.Winner.Descriptor.GetRequestSchemaId(),
 		responseSchemaID: resolved.Winner.Descriptor.GetResponseSchemaId(),
 		clientStreaming:  resolved.Winner.Descriptor.GetClientStreaming(),
 		serverStreaming:  resolved.Winner.Descriptor.GetServerStreaming(),
 		unaryInput:       unaryInput,
 	}
 	remoteError, err := provider.Stream(
-		stream.Context(), cloneServiceRequestContext(open.GetContext()),
+		lease.Context(), cloneServiceRequestContext(open.GetContext()),
 		resolved.Winner.Descriptor.GetServiceId(), resolved.Winner.Descriptor.GetVersion(), operation, adapter,
 	)
 	if err != nil {
@@ -192,6 +210,8 @@ func (s *protocolV2ServiceDiscoveryServer) Stream(stream grpc.BidiStreamingServe
 		switch {
 		case errors.As(err, &validation):
 			return sendServiceStreamError(stream, validation.detail)
+		case lease.Context().Err() != nil:
+			return s.sendProviderStreamFailure(stream, lease, err)
 		case errors.Is(err, context.Canceled):
 			return status.Error(codes.Canceled, "service stream cancelled")
 		case errors.Is(err, context.DeadlineExceeded):
@@ -200,6 +220,9 @@ func (s *protocolV2ServiceDiscoveryServer) Stream(stream grpc.BidiStreamingServe
 			return sendServiceStreamError(stream, serviceProviderFailure(err))
 		}
 	}
+	if lease.Context().Err() != nil {
+		return s.sendProviderStreamFailure(stream, lease, context.Cause(lease.Context()))
+	}
 	if remoteError != nil {
 		return sendServiceStreamError(stream, cloneServiceError(remoteError))
 	}
@@ -207,6 +230,64 @@ func (s *protocolV2ServiceDiscoveryServer) Stream(stream grpc.BidiStreamingServe
 		return sendServiceStreamError(stream, validation.detail)
 	}
 	return nil
+}
+
+func (s *protocolV2ServiceDiscoveryServer) acquireProvider(ctx context.Context, winner ServiceRegistration) (ServiceProviderAdmissionLease, *protocolv2.ErrorDetail) {
+	if s == nil || s.core == nil || s.core.service == nil || s.core.service.serviceAdmission == nil {
+		return nil, serviceProviderAdmissionError(ErrServiceProviderAdmissionUnavailable)
+	}
+	identity := ServiceProviderIdentity{ExtensionID: winner.ExtensionID, InstanceID: winner.InstanceID}
+	if !identity.valid() {
+		return nil, serviceProviderAdmissionError(ErrServiceProviderStale)
+	}
+	lease, err := s.core.service.serviceAdmission.AcquireServiceProvider(ctx, identity)
+	if err != nil {
+		return nil, serviceProviderAdmissionError(err)
+	}
+	if lease == nil || lease.Context() == nil {
+		if lease != nil {
+			lease.Release()
+		}
+		return nil, serviceProviderAdmissionError(ErrServiceProviderAdmissionUnavailable)
+	}
+	if lease.Context().Err() != nil {
+		detail := s.providerCallFailure(lease, context.Cause(lease.Context()))
+		lease.Release()
+		return nil, detail
+	}
+	return lease, nil
+}
+
+func (s *protocolV2ServiceDiscoveryServer) providerCallFailure(lease ServiceProviderAdmissionLease, fallback error) *protocolv2.ErrorDetail {
+	if failure, ok := lease.(ServiceProviderAdmissionLeaseFailure); ok {
+		if err := failure.ServiceProviderAdmissionFailure(); err != nil {
+			return serviceProviderAdmissionError(err)
+		}
+	}
+	return serviceProviderAdmissionError(fallback)
+}
+
+func (s *protocolV2ServiceDiscoveryServer) sendProviderStreamFailure(
+	stream grpc.BidiStreamingServer[hostv2.ServiceStreamFrame, hostv2.ServiceStreamFrame],
+	lease ServiceProviderAdmissionLease,
+	fallback error,
+) error {
+	detail := s.providerCallFailure(lease, fallback)
+	return returnServiceStreamFailure(stream, detail)
+}
+
+func returnServiceStreamFailure(
+	stream grpc.BidiStreamingServer[hostv2.ServiceStreamFrame, hostv2.ServiceStreamFrame],
+	detail *protocolv2.ErrorDetail,
+) error {
+	switch detail.GetCode() {
+	case protocolv2.ErrorCode_ERROR_CODE_CANCELLED:
+		return status.Error(codes.Canceled, detail.GetMessage())
+	case protocolv2.ErrorCode_ERROR_CODE_DEADLINE_EXCEEDED:
+		return status.Error(codes.DeadlineExceeded, detail.GetMessage())
+	default:
+		return sendServiceStreamError(stream, detail)
+	}
 }
 
 func (s *protocolV2ServiceDiscoveryServer) registry() *ServiceRegistry {
@@ -313,6 +394,7 @@ func encodeServicePageCursor(cursor servicePageCursor) (string, error) {
 }
 
 type protocolV2ServiceBidiStream struct {
+	ctx              context.Context
 	stream           grpc.BidiStreamingServer[hostv2.ServiceStreamFrame, hostv2.ServiceStreamFrame]
 	requestSchemaID  string
 	responseSchemaID string
@@ -327,7 +409,7 @@ type protocolV2ServiceBidiStream struct {
 }
 
 func (s *protocolV2ServiceBidiStream) Context() context.Context {
-	return s.stream.Context()
+	return s.ctx
 }
 
 func (s *protocolV2ServiceBidiStream) Send(document *protocolv2.TypedDocument) error {
@@ -341,12 +423,15 @@ func (s *protocolV2ServiceBidiStream) Send(document *protocolv2.TypedDocument) e
 	}
 	s.outputCount++
 	s.stateMu.Unlock()
-	return s.stream.Send(&hostv2.ServiceStreamFrame{
+	return sendServiceFrame(s.ctx, s.stream, &hostv2.ServiceStreamFrame{
 		Frame: &hostv2.ServiceStreamFrame_Message{Message: cloneServiceDocument(document)},
 	})
 }
 
 func (s *protocolV2ServiceBidiStream) Recv() (*protocolv2.TypedDocument, error) {
+	if err := s.ctx.Err(); err != nil {
+		return nil, context.Cause(s.ctx)
+	}
 	if !s.clientStreaming {
 		s.stateMu.Lock()
 		if s.unaryInputDelivered {
@@ -358,7 +443,7 @@ func (s *protocolV2ServiceBidiStream) Recv() (*protocolv2.TypedDocument, error) 
 		s.stateMu.Unlock()
 		return message, nil
 	}
-	frame, err := s.stream.Recv()
+	frame, err := receiveServiceFrame(s.ctx, s.stream)
 	if err != nil {
 		return nil, err
 	}
@@ -406,8 +491,8 @@ func (s *protocolV2ServiceBidiStream) completionError() *serviceStreamValidation
 	return nil
 }
 
-func receiveUnaryServiceInput(stream grpc.BidiStreamingServer[hostv2.ServiceStreamFrame, hostv2.ServiceStreamFrame], expectedSchemaID string) (*protocolv2.TypedDocument, *protocolv2.ErrorDetail, error) {
-	frame, err := stream.Recv()
+func receiveUnaryServiceInput(ctx context.Context, stream grpc.BidiStreamingServer[hostv2.ServiceStreamFrame, hostv2.ServiceStreamFrame], expectedSchemaID string) (*protocolv2.TypedDocument, *protocolv2.ErrorDetail, error) {
+	frame, err := receiveServiceFrame(ctx, stream)
 	if err != nil {
 		if errors.Is(err, io.EOF) {
 			return nil, serviceDiscoveryError(protocolv2.ErrorCode_ERROR_CODE_INVALID_ARGUMENT, "host.service_input_message_required", "The resolved service requires exactly one input message.", false), nil
@@ -421,12 +506,45 @@ func receiveUnaryServiceInput(stream grpc.BidiStreamingServer[hostv2.ServiceStre
 	if detail := validateServiceDocument(message, expectedSchemaID, "input"); detail != nil {
 		return nil, detail, nil
 	}
-	if _, err := stream.Recv(); err == nil {
+	if _, err := receiveServiceFrame(ctx, stream); err == nil {
 		return nil, serviceDiscoveryError(protocolv2.ErrorCode_ERROR_CODE_INVALID_ARGUMENT, "host.service_input_message_limit", "The resolved service permits exactly one input message.", false), nil
 	} else if !errors.Is(err, io.EOF) {
 		return nil, nil, err
 	}
 	return cloneServiceDocument(message), nil, nil
+}
+
+type serviceFrameResult struct {
+	frame *hostv2.ServiceStreamFrame
+	err   error
+}
+
+// gRPC 的原始 stream context 只受 caller 控制；runtime force-drain 需要用
+// lease context 额外中断 provider 侧的阻塞收发。
+func receiveServiceFrame(ctx context.Context, stream grpc.BidiStreamingServer[hostv2.ServiceStreamFrame, hostv2.ServiceStreamFrame]) (*hostv2.ServiceStreamFrame, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, context.Cause(ctx)
+	}
+	result := make(chan serviceFrameResult, 1)
+	go func() {
+		frame, err := stream.Recv()
+		result <- serviceFrameResult{frame: frame, err: err}
+	}()
+	select {
+	case <-ctx.Done():
+		return nil, context.Cause(ctx)
+	case received := <-result:
+		return received.frame, received.err
+	}
+}
+
+func sendServiceFrame(ctx context.Context, stream grpc.BidiStreamingServer[hostv2.ServiceStreamFrame, hostv2.ServiceStreamFrame], frame *hostv2.ServiceStreamFrame) error {
+	if err := ctx.Err(); err != nil {
+		return context.Cause(ctx)
+	}
+	// gRPC 只允许一个并发 Send；直接转发避免 force-drain 后错误帧与
+	// 尚未退出的发送 goroutine 发生并发写。Provider 仍可由 Context 中断。
+	return stream.Send(frame)
 }
 
 type serviceStreamValidationError struct {
@@ -511,6 +629,19 @@ func serviceProviderFailure(err error) *protocolv2.ErrorDetail {
 		return serviceDiscoveryError(protocolv2.ErrorCode_ERROR_CODE_DEADLINE_EXCEEDED, "host.service_deadline_exceeded", "Service invocation exceeded its deadline.", false)
 	default:
 		return serviceDiscoveryError(protocolv2.ErrorCode_ERROR_CODE_UNAVAILABLE, "host.service_transport_unavailable", "The service provider transport is unavailable.", true)
+	}
+}
+
+func serviceProviderAdmissionError(err error) *protocolv2.ErrorDetail {
+	switch {
+	case errors.Is(err, ErrServiceProviderStale):
+		return serviceDiscoveryError(protocolv2.ErrorCode_ERROR_CODE_FAILED_PRECONDITION, "host.service_provider_stale", "The resolved service provider is no longer the active runtime instance.", false)
+	case errors.Is(err, ErrServiceProviderDraining):
+		return serviceDiscoveryError(protocolv2.ErrorCode_ERROR_CODE_FAILED_PRECONDITION, "host.service_provider_draining", "The resolved service provider is draining and no longer accepts calls.", true)
+	case errors.Is(err, ErrServiceProviderAdmissionUnavailable):
+		return serviceDiscoveryError(protocolv2.ErrorCode_ERROR_CODE_UNAVAILABLE, "host.service_provider_admission_unavailable", "Service provider runtime admission is unavailable.", true)
+	default:
+		return serviceProviderFailure(err)
 	}
 }
 

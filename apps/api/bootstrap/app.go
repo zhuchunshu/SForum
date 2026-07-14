@@ -63,6 +63,7 @@ type extensionRuntime interface {
 	appevents.Publisher
 	RouteTarget(extensionID string) (extensionsruntime.RouteTarget, bool)
 	AcquireActiveRuntimeCall(context.Context, string, extensionsruntime.RuntimeCallClass) (extensionsruntime.RuntimeInstanceSnapshot, *extensionsruntime.RuntimeAdmissionLease, error)
+	AcquireRuntimeCall(context.Context, extensionsruntime.RuntimeInstanceIdentity, extensionsruntime.RuntimeCallClass) (*extensionsruntime.RuntimeAdmissionLease, error)
 	Reconcile(ctx context.Context, items []extensions.Extension)
 	Close(ctx context.Context)
 	// SendMail 供 embed worker 的 mail.deliver 复用同一 runtime（P0 共享插件进程）。
@@ -249,6 +250,7 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 	hostAPIGateway := hostapi.NewGateway(hostAPIService)
 	extensionRuntime := bindAPIExtensionRuntime(extensionStore, hostAPIGateway, extensionService, executableTrustService)
 	hostAPIService.BindPluginJobAdmission(newPluginJobEnqueueAdmission(extensionRuntime))
+	hostAPIService.BindServiceProviderAdmission(newPluginServiceProviderAdmission(extensionRuntime))
 	if runtime, ok := extensionRuntime.(interface {
 		WithActivation(*extensions.ActivationCoordinator, string) *extensionsruntime.Manager
 	}); ok {

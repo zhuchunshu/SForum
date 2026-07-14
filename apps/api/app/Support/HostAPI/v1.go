@@ -92,35 +92,45 @@ type CapabilitySource interface {
 
 // Service 是 Host API v1 实现。
 type Service struct {
-	capabilities CapabilitySource
-	permissions  PermissionChecker
-	settings     SettingsStore
-	jobs         JobEnqueuer
-	jobAdmission PluginJobEnqueueAdmission
-	users        UserReader
-	auditor      audit.Writer
+	capabilities     CapabilitySource
+	permissions      PermissionChecker
+	settings         SettingsStore
+	jobs             JobEnqueuer
+	jobAdmission     PluginJobEnqueueAdmission
+	serviceAdmission ServiceProviderAdmission
+	users            UserReader
+	auditor          audit.Writer
 }
 
 // Config 注入依赖；未注入的可选面在对应方法上返回 unavailable。
 type Config struct {
-	Capabilities CapabilitySource
-	Permissions  PermissionChecker
-	Settings     SettingsStore
-	Jobs         JobEnqueuer
-	JobAdmission PluginJobEnqueueAdmission
-	Users        UserReader
-	Auditor      audit.Writer
+	Capabilities     CapabilitySource
+	Permissions      PermissionChecker
+	Settings         SettingsStore
+	Jobs             JobEnqueuer
+	JobAdmission     PluginJobEnqueueAdmission
+	ServiceAdmission ServiceProviderAdmission
+	Users            UserReader
+	Auditor          audit.Writer
 }
 
 func New(config Config) *Service {
 	return &Service{
-		capabilities: config.Capabilities,
-		permissions:  config.Permissions,
-		settings:     config.Settings,
-		jobs:         config.Jobs,
-		jobAdmission: config.JobAdmission,
-		users:        config.Users,
-		auditor:      config.Auditor,
+		capabilities:     config.Capabilities,
+		permissions:      config.Permissions,
+		settings:         config.Settings,
+		jobs:             config.Jobs,
+		jobAdmission:     config.JobAdmission,
+		serviceAdmission: config.ServiceAdmission,
+		users:            config.Users,
+		auditor:          config.Auditor,
+	}
+}
+
+// BindServiceProviderAdmission 在 runtime 构造完成后接入 exact-instance service admission。
+func (s *Service) BindServiceProviderAdmission(admission ServiceProviderAdmission) {
+	if s != nil {
+		s.serviceAdmission = admission
 	}
 }
 
