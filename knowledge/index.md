@@ -88,9 +88,9 @@ This is the entry point for project memory.
     cancellation, and unsafe methods can never execute Core as a second writer
   - Exact route schema compilation, joint Route/Schema lifecycle publication,
     boot restore, and production inherited Guard authorization are committed.
-    Explicit contextual evaluators cover 101/123 routes through immutable
+    Explicit contextual evaluators cover 105/123 routes through immutable
     extension, option, forum, and Page Registry policy snapshots with no Store
-    I/O on guarded request paths. Twenty-two resource-dependent routes plus
+    I/O on guarded request paths. Eighteen resource-dependent routes plus
     custom/raw authority, complete actions, streaming, SEO, and the failure
     matrix remain active P6 work
   - The reproducible same-run v1/V3 route benchmark row is accepted. Internal

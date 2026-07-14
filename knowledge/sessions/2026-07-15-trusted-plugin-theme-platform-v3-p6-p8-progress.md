@@ -3,10 +3,11 @@
 ## Changed
 
 - Weighted V3 is 48%. P5 is 11/17, P6 is 11/18, P7 is 4/22, and P8 is 9/18.
-- Contextual Core Guard production coverage is 101/123. Exact extension trust,
+- Contextual Core Guard production coverage is 105/123. Exact extension trust,
   Options owner policy, public/bootstrap routes, theme assets, Page Registry
-  access, public entity metadata, and safe custom-role deletion use immutable
-  policy sources with request-path I/O tests.
+  access, public entity metadata, safe custom-role deletion, declared extension
+  routes, and cookie-bound PAT list/create use immutable Host authority with
+  request-path I/O tests.
 - P7 now has production versioned action/filter hooks with exact runtime
   snapshots, deterministic priority, typed contracts, sync/fail policy,
   dependency SemVer, optional fallback, Host revalidation, River delivery, and
@@ -25,11 +26,15 @@
 - `124c151dc feat(manifest): define versioned hook contracts`
 - `77674b2fc feat(hooks): add immutable exact runtime registry`
 - `4b3f8b82c feat(protocol): bind exact versioned hook calls`
+- `32d32ac72 feat(routes): authorize declared extension route guards`
+- `306204f98 feat(routes): authorize cookie-bound API token management`
 
 ## Verification
 
 - P6 batches passed focused repetition, full HTTP/bootstrap or policy race,
   `go vet ./...`, and `go build ./...` before commit.
+- Cookie-bound PAT management additionally passed ten focused repetitions,
+  full HTTP race, Routes/bootstrap tests, vet, build, and staged diff checks.
 - P7 passed full ExtensionManifest and Extensions tests, complete Extensions
   race in 119.901 seconds, targeted rollback races, vet, build, gofmt, and diff
   checks.
@@ -58,8 +63,11 @@
 
 ## Next
 
-1. Continue the remaining 22 contextual guards without opening custom/raw
-   authority before its product freeze.
+1. Continue the remaining 18 contextual guards without opening custom/raw
+   authority before its product freeze: five target-dependent identity admin,
+   three self resource-dependent identity, four executable bootstrap flows, two
+   entity-meta value routes, two attachment reads, one inbound webhook, and one
+   forum comment-create route.
 2. Land the P8 additive migration separately, then exact preview/CAS, stale
    binding cleanup, runtime convergence, OpenAPI, and visible admin preview in
    separate buildable commits.

@@ -1097,3 +1097,25 @@ phase percentage.
 - P5 remains **65% (11 of 17 rows)** pending explicit product freeze for
   additive grants, per-runtime lease roles, actor delegation, and the
   provider-neutral entitlement minimum. Independent P6-P8 work continues.
+
+## P6 Declared Route And Cookie Credential Checkpoint
+
+- Weighted V3 remains **48%**. P6 remains **61% (11 of 18 authoritative
+  rows)** because these guard batches do not yet close the complete inherited/
+  custom/raw guard row.
+- `32d32ac72` authorizes declared extension route guards against immutable
+  exact-artifact policy, and `306204f98` adds Host-derived cookie/bearer
+  credential provenance for PAT list/create. Client header text is not trusted;
+  the dispatcher reads the authenticated PAT context after Bearer middleware.
+- Contextual guard execution now covers **105 of 123** routes. The remaining 18
+  are five target-dependent identity admin routes, three self resource-dependent
+  identity routes, four executable bootstrap flows, two entity-meta value
+  routes, two attachment reads, one inbound webhook, and one forum comment
+  creation route. Custom/raw request and session authority remain fail closed.
+- The cookie-bound slice passed ten focused repetitions, full HTTP race,
+  Routes/bootstrap tests, `go vet ./...`, `go build ./...`, gofmt, staged diff,
+  and whitespace checks.
+- Resume by closing only routes whose ownership/policy can be proven from an
+  immutable Host snapshot with zero request-path Store I/O. Do not credit route
+  counts as a completed P6 row until the inherited/custom/raw guard exit gate
+  passes as a whole.
