@@ -525,7 +525,7 @@ query, and identity workflows without replacing whole routes.
       authoritative; trusted replacements own their declared behavior.
 - [x] Add plugin-defined provider slots and host-brokered service discovery.
 - [x] Add typed plugin-to-plugin service calls with dependency/version checks.
-- [ ] Generalize provider selection/reset/probe/health/fallback UI.
+- [x] Generalize provider selection/reset/probe/health/fallback UI.
 - [ ] Add dynamic typed jobs, schedules, concurrency policies, retries, and
       versioned payloads.
 - [ ] Add Plugin Command Registry to the `sforum` CLI with namespace/conflict

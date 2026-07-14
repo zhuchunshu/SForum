@@ -712,3 +712,23 @@ template while retaining Schema fallback fields.
   route/admin invocation. The provider-neutral entitlement minimum contains
   subject, resource/capability, lifecycle state, source, validity, idempotency,
   and audit without billing semantics.
+
+## V3 P7 provider management checkpoint
+
+- Versioned Provider Slots use durable exact-artifact choices in
+  `extension_provider_slot_selections`; both contract owner and candidate bind
+  active immutable extension-version rows and package digests through revision
+  CAS. Selection events are append-only audit evidence.
+- Runtime selection is a preferred ordering, not implicit replacement power.
+  `next` tries the selected candidate then the remaining deterministic order;
+  `closed` tries only the selected exact candidate. A stale closed choice fails
+  before plugin execution.
+- `GET /api/v1/admin/extensions/provider-slots` exposes default/selected/stale,
+  runtime availability, priority ties, exact identities, fallback, timeout, and
+  schemas. Super admins may select, reset, or run the side-effect-free
+  `ProviderProbe` RPC; viewers may inspect selection events.
+- API and worker bind the same PostgreSQL selection store. Disable/uninstall
+  invalidates choices for either the contract owner or provider candidate before
+  route/mail/storage provider cleanup.
+- Admin UI: `/control-panel/extensions/provider-slots`. It preserves provider
+  settings and secrets when restoring recommended priority defaults.

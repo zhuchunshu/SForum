@@ -2,7 +2,7 @@
 
 ## Changed
 
-- Weighted V3 is 49%. P5 is 12/17, P6 is 11/18, P7 is 6/22, and P8 is 10/18.
+- Weighted V3 is 50%. P5 is 12/17, P6 remains active, P7 is 7/22, and P8 is 10/18.
 - Contextual Core Guard production coverage is 114/123. Exact extension trust,
   Options owner policy, public/bootstrap routes, theme assets, Page Registry
   access, public entity metadata, safe custom-role deletion, declared extension
@@ -12,6 +12,10 @@
   snapshots, deterministic priority, typed contracts, sync/fail policy,
   dependency SemVer, optional fallback, Host revalidation, River delivery, and
   Protocol V2 exact declaration binding.
+- P7 Provider Slots now add durable exact-artifact selection/reset, active
+  candidate probe, default/selected/stale inspection, runtime availability,
+  `next`/`closed` fallback enforcement, lifecycle invalidation, append-only
+  events, OpenAPI, generated catalogs, and a bilingual management page.
 - P8 has an exact compiled four-level fallback and durable exact publication.
   Two real nodes converge through LISTEN plus authoritative polling; remaining
   work is Page ViewModel closure, all-catalog hot-path proof, and crawler/
@@ -48,6 +52,17 @@
 - `0b56bb8e3 feat(themes): converge runtime publications across nodes`
 - `7962e5127 feat(bootstrap): run theme publication watcher`
 - `c59e60d39 feat(database): issue exact runtime lease credentials`
+- `881e08811 feat(database): add exact provider slot selections`
+- `a08f68250 feat(providers): persist exact slot selections`
+- `5d9afdd28 feat(providers): honor durable slot selection`
+- `26175bbdf feat(worker): bind provider slot selections`
+- `ca9574339 feat(providers): inspect durable slot selection`
+- `0648ba15b feat(providers): probe exact slot candidate`
+- `9913e543c feat(admin): manage provider slot selections`
+- `123fac2f9 docs(openapi): manage provider slot selections`
+- `2868e1d1e feat(web): manage provider slot fallbacks`
+- `e4afa1b16 docs(catalog): publish provider slot management`
+- `5fb841180 feat(providers): invalidate lifecycle selections`
 
 ## Verification
 
@@ -67,6 +82,9 @@
 - The Provider Slot slice separately passed ten focused repetitions, full
   Extensions including a real Protocol V2 subprocess, Extensions race in 94.66
   seconds, vet, build, and package-bound schema checks.
+- Provider management passed full Support/Extensions, focused Models/HTTP/
+  Routes/bootstrap, Nuxt typecheck, 1,816 OpenAPI refs, and V3 catalog drift.
+  Browser QA is pending because the available Chrome session redirects to login.
 - P8 fallback passed focused Pages/Extensions/Controller tests, race, vet,
   build, and ThemeCompiler allocation checks before commit.
 - P8 exact-preview backend, OpenAPI, admin typecheck/locales, and the additive
@@ -100,7 +118,7 @@
 
 - P6: `apps/api/app/Http/core_guard_authorizer*`, extension guard policy, and a
   narrow bootstrap policy injection for the next contextual batch.
-- P7: generic Provider Inspector and later selection/reset/probe/health UI.
+- P7: dynamic typed jobs/schedules are next; provider browser QA awaits login.
 - P8: Page ViewModel/hot-path audit and crawler/JavaScript-disabled evidence.
 - Preserve these groups and stage only one coherent owner at a time.
 
@@ -116,7 +134,8 @@
    SSR evidence for home, lists, topic, profile, pagination, SEO, and JSON-LD.
 4. Continue P5 with signed actor delegation and concrete transactional Host
    Commands, then provider-neutral entitlement persistence.
-5. Continue P7 with Provider Inspector, then selection/reset/probe/health UI.
+5. Continue P7 with dynamic typed jobs, schedules, retries, concurrency policy,
+   and payload-version drain behavior; rerun provider UI QA after Chrome login.
 
 ## Open Questions
 

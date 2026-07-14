@@ -1,7 +1,7 @@
 # Trusted Plugin And Theme Platform V3 Progress Ledger
 
 Date: 2026-07-15
-Overall progress: **49%**
+Overall progress: **50%**
 Active phase: **P6 - Full Route And Middleware Registry V1 (61%, 11 of 18 rows)**
 
 This ledger is the durable percentage and context-compaction checkpoint for the
@@ -23,7 +23,7 @@ scaffolding, or demo-only code cannot satisfy a runtime exit criterion.
 | P4 Lifecycle/dependencies | 7% | 100% | 7% |
 | P5 Database/commands | 8% | 71% | 5.65% |
 | P6 Routes/middleware | 10% | 61% | 6.11% |
-| P7 Workflow/admin/query/identity | 10% | 27% | 2.73% |
+| P7 Workflow/admin/query/identity | 10% | 32% | 3.18% |
 | P8 Theme compiler/runtime | 8% | 56% | 4.44% |
 | P9 Components/assets/L2 | 8% | 0% | 0% |
 | P10 Content/media/data | 8% | 0% | 0% |
@@ -111,6 +111,35 @@ phase percentage.
   failing plugin exactly once (`failed`, then `skipped`).
 
 ## Last Durable Checkpoint
+
+### 2026-07-15 P7 Provider Management Checkpoint
+
+- Overall is **50%** and P7 is **32% (7 of 22 rows)**. Generic versioned
+  Provider Slots now have durable exact-artifact selection, reset, active
+  candidate probe, runtime health/availability, deterministic fallback
+  inspection, append-only events, and a bilingual management UI.
+- Migration `023` stores exact contract-owner and candidate extension-version
+  identities with revision CAS. A same-version digest replacement, owner or
+  candidate upgrade, disable, or uninstall cannot inherit the choice.
+- Runtime invocation honors the selected candidate first. `fallback=next`
+  retains the declared deterministic remainder; `fallback=closed` tries only
+  the selected exact candidate and fails closed when the binding is stale.
+- API and standalone worker use the same PostgreSQL store. Lifecycle cleanup
+  invalidates provider-slot choices before route and legacy provider cleanup,
+  preserving actor/audit evidence.
+- Commits: `881e08811`, `a08f68250`, `5d9afdd28`, `26175bbdf`, `ca9574339`,
+  `0648ba15b`, `9913e543c`, `123fac2f9`, `2868e1d1e`, `e4afa1b16`, and
+  `5fb841180`.
+- Passed full `Support/Extensions`, targeted Models/HTTP/Routes/bootstrap,
+  complete Go tests during the Inspector contract change, Nuxt typecheck,
+  1,816 OpenAPI references, and the 12-file V3 catalog gate. PostgreSQL-only
+  integration tests skip when no database URL is exported.
+- Authenticated browser QA remains a final gate: Chrome redirects the new page
+  to login and the in-app browser is unavailable. The login tab is retained as
+  a handoff; do not inspect cookies or session storage.
+- Exact resume point: run the final provider UI browser pass after login, then
+  continue P7 with dynamic typed jobs, schedules, retries, concurrency, and
+  payload-version drain behavior.
 
 ### 2026-07-14 P4 Convergence Checkpoint
 
