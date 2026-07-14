@@ -1,0 +1,32 @@
+adminExtensionRouteInspector:
+  get:
+    summary: Inspect an exact Route Registry resolution
+    operationId: inspectAdminExtensionRoute
+    description: >-
+      Requires extension.view or the legacy extension.manage permission. The
+      requested path is used only for matching and is never returned or retained;
+      the detached snapshot exposes declared route templates, contracts, exact
+      providers, guards, schemas, conflicts, and bounded metadata-only traces.
+    parameters:
+    - name: method
+      in: query
+      required: true
+      schema: { type: string }
+      description: Concrete uppercase or lowercase HTTP method. Wildcard is rejected.
+    - name: path
+      in: query
+      required: true
+      schema: { type: string }
+      description: Absolute path to resolve. Query data is discarded and never appears in the response.
+    responses:
+      '200':
+        description: Detached Route Inspector snapshot.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/extension-route-inspector.yaml#/ApiResponseRouteInspectorSnapshot"
+      '401': { "$ref": "../components/responses.yaml#/Unauthorized" }
+      '403': { "$ref": "../components/responses.yaml#/Forbidden" }
+      '409': { "$ref": "../components/responses.yaml#/Conflict" }
+      '422': { "$ref": "../components/responses.yaml#/UnprocessableEntity" }
+      '503': { "$ref": "../components/responses.yaml#/ServiceUnavailable" }

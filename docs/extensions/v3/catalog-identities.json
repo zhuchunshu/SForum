@@ -308,6 +308,12 @@
       "path": "/api/v1/admin/extensions/route-providers/selection/reset"
     },
     {
+      "id": "core.route.extensions.inspect_route",
+      "contractVersion": "sforum.route.extensions.inspect_route@1",
+      "method": "GET",
+      "path": "/api/v1/admin/extensions/route-inspector"
+    },
+    {
       "id": "core.route.extensions.event_definitions",
       "contractVersion": "sforum.route.extensions.event_definitions@1",
       "method": "GET",

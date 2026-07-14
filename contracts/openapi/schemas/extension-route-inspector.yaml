@@ -1,0 +1,147 @@
+RouteInspectorProvider:
+  type: object
+  additionalProperties: false
+  required: [kind]
+  properties:
+    kind: { type: string, enum: [core, plugin] }
+    artifact:
+      "$ref": "./extension-route-providers.yaml#/RouteProviderArtifact"
+RouteInspectorStep:
+  type: object
+  additionalProperties: false
+  required:
+  - index
+  - phase
+  - action
+  - routeId
+  - contractVersion
+  - method
+  - path
+  - pathSignature
+  - provider
+  - guard
+  - access
+  - mode
+  - fallback
+  - timeoutMs
+  - priority
+  properties:
+    index: { type: integer, minimum: 0 }
+    phase: { type: string, enum: [global, before, filter, wrap, handler, after] }
+    action: { type: string }
+    routeId: { type: string }
+    contractVersion: { type: string }
+    targetRouteId: { type: string }
+    method: { type: string }
+    path:
+      type: string
+      description: Declared route template, never the raw request path.
+    pathSignature: { type: string }
+    provider: { "$ref": "#/RouteInspectorProvider" }
+    guard: { type: string }
+    access: { type: string }
+    permission: { type: string }
+    handler: { type: string }
+    destination: { type: string }
+    requestSchema: { type: string }
+    responseSchema: { type: string }
+    mode: { type: string }
+    fallback: { type: string }
+    timeoutMs: { type: integer, minimum: 0 }
+    priority: { type: integer }
+RouteInspectorConflict:
+  type: object
+  additionalProperties: false
+  required: [kind, method, pathSignature, candidates]
+  properties:
+    kind: { type: string, enum: [path_method, route_identity, provider_selection] }
+    routeId: { type: string }
+    contractVersion: { type: string }
+    method: { type: string }
+    pathSignature: { type: string }
+    candidates:
+      type: array
+      minItems: 2
+      items: { "$ref": "#/RouteInspectorStep" }
+    selectionKey:
+      "$ref": "./extension-route-providers.yaml#/RouteProviderSelectionKey"
+    desired:
+      "$ref": "./extension-route-providers.yaml#/RouteProviderSelection"
+    selectionStatus: { type: string, enum: [selected, unselected, stale] }
+RouteInspectorProviderResolution:
+  type: object
+  additionalProperties: false
+  required: [status]
+  properties:
+    status: { type: string, enum: [not_required, selected, unselected, stale] }
+    desired:
+      "$ref": "./extension-route-providers.yaml#/RouteProviderSelection"
+    live:
+      "$ref": "#/RouteInspectorProvider"
+RouteInspectorTrace:
+  type: object
+  additionalProperties: false
+  required:
+  - sequence
+  - observedAt
+  - revision
+  - stepIndex
+  - phase
+  - action
+  - routeId
+  - contractVersion
+  - method
+  - pathSignature
+  - mode
+  - fallback
+  - outcome
+  - durationMicros
+  - commitState
+  - provider
+  properties:
+    sequence: { type: integer, format: int64, minimum: 1 }
+    observedAt: { type: string, format: date-time }
+    revision: { type: integer, format: int64, minimum: 1 }
+    stepIndex: { type: integer, minimum: 0 }
+    phase: { type: string, enum: [global, before, filter, wrap, handler, after] }
+    action: { type: string }
+    routeId: { type: string }
+    contractVersion: { type: string }
+    method: { type: string }
+    pathSignature:
+      type: string
+      description: Declared path signature; raw request paths and query strings are never retained.
+    mode: { type: string }
+    fallback: { type: string }
+    outcome: { type: string, enum: [succeeded, denied, schema_rejected, transport_failed, fallback_used, committed] }
+    durationMicros: { type: integer, format: int64, minimum: 0 }
+    commitState: { type: string, enum: [pristine, response_started, side_effect_started, committed] }
+    provider: { "$ref": "#/RouteInspectorProvider" }
+RouteInspectorSnapshot:
+  type: object
+  additionalProperties: false
+  required: [revision, safeMode, method, resolution, chain, provider, conflicts, traces]
+  properties:
+    revision: { type: integer, format: int64, minimum: 1 }
+    safeMode: { type: boolean }
+    method: { type: string }
+    resolution: { type: string, enum: [resolved, not_found, ambiguous, stale] }
+    chain:
+      type: array
+      items: { "$ref": "#/RouteInspectorStep" }
+    provider: { "$ref": "#/RouteInspectorProviderResolution" }
+    conflicts:
+      type: array
+      items: { "$ref": "#/RouteInspectorConflict" }
+    traces:
+      type: array
+      maxItems: 50
+      items: { "$ref": "#/RouteInspectorTrace" }
+ApiResponseRouteInspectorSnapshot:
+  type: object
+  additionalProperties: false
+  required: [code, message, data]
+  properties:
+    code: { type: integer }
+    message: { type: string }
+    data: { "$ref": "#/RouteInspectorSnapshot" }

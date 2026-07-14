@@ -25,6 +25,7 @@ type Controller struct {
 	sessions       *authsession.Manager
 	gateway        RouteGateway
 	routeProviders *routes.ProviderSelectionAPI
+	routeInspector *routes.Inspector
 	routeAuditor   audit.IDWriter
 }
 
@@ -79,7 +80,13 @@ func (h *Controller) WithRouteProviderSelection(
 	auditor audit.IDWriter,
 ) *Controller {
 	h.routeProviders = api
+	h.routeInspector = routes.NewProviderSelectionInspector(api, nil)
 	h.routeAuditor = auditor
+	return h
+}
+
+func (h *Controller) WithRouteInspector(inspector *routes.Inspector) *Controller {
+	h.routeInspector = inspector
 	return h
 }
 

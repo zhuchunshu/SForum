@@ -88,6 +88,16 @@ func NewInspector(registry *Registry, providers *ProviderSelectionAPI, traces Ro
 	return &Inspector{registry: registry, providers: providers, traces: traces}
 }
 
+// NewProviderSelectionInspector derives the Inspector from the already
+// production-bound selection API, guaranteeing both surfaces observe the same
+// immutable Registry rather than constructing a second snapshot owner.
+func NewProviderSelectionInspector(providers *ProviderSelectionAPI, traces RouteTraceReader) *Inspector {
+	if providers == nil {
+		return nil
+	}
+	return NewInspector(providers.registry, providers, traces)
+}
+
 func (i *Inspector) Inspect(ctx context.Context, method, requestPath string) (RouteInspectorSnapshot, error) {
 	if i == nil || i.registry == nil || ctx == nil {
 		return RouteInspectorSnapshot{}, ErrInspectorInvalid

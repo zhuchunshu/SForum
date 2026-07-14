@@ -334,6 +334,8 @@ paths:
     "$ref": "./openapi/paths/extensions.yaml#/adminExtensionRouteProviderEvents"
   "/admin/extensions/route-providers/selection/reset":
     "$ref": "./openapi/paths/extensions.yaml#/adminExtensionRouteProviderReset"
+  "/admin/extensions/route-inspector":
+    "$ref": "./openapi/paths/extension-route-inspector.yaml#/adminExtensionRouteInspector"
   "/admin/extensions/{extensionID}":
     "$ref": "./openapi/paths/extensions.yaml#/adminExtensionUninstall"
   "/admin/extensions/{extensionID}/enable":

@@ -13,6 +13,7 @@ func (h *Controller) RegisterRoutes(api fiber.Router) {
 	api.Get("/admin/extensions/route-providers/conflicts", h.routeProviderConflicts)
 	api.Get("/admin/extensions/route-providers/selection", h.routeProviderCurrent)
 	api.Get("/admin/extensions/route-providers/events", h.routeProviderEvents)
+	api.Get("/admin/extensions/route-inspector", h.inspectRoute)
 	api.Post("/admin/extensions/route-providers/selection", h.selectRouteProvider)
 	api.Post("/admin/extensions/route-providers/selection/reset", h.resetRouteProvider)
 	api.Post("/admin/extensions", h.install)

@@ -52,6 +52,7 @@ var generatedCoreRouteCatalog = [...]CoreRoute{
 	{ID: "core.route.extensions.event_definitions", ContractVersion: "sforum.route.extensions.event_definitions@1", Method: "GET", Path: "/api/v1/admin/extensions/event-definitions"},
 	{ID: "core.route.extensions.event_deliveries", ContractVersion: "sforum.route.extensions.event_deliveries@1", Method: "GET", Path: "/api/v1/admin/extensions/event-deliveries"},
 	{ID: "core.route.extensions.navigation", ContractVersion: "sforum.route.extensions.navigation@1", Method: "GET", Path: "/api/v1/admin/extensions/navigation"},
+	{ID: "core.route.extensions.inspect_route", ContractVersion: "sforum.route.extensions.inspect_route@1", Method: "GET", Path: "/api/v1/admin/extensions/route-inspector"},
 	{ID: "core.route.extensions.route_provider_conflicts", ContractVersion: "sforum.route.extensions.route_provider_conflicts@1", Method: "GET", Path: "/api/v1/admin/extensions/route-providers/conflicts"},
 	{ID: "core.route.extensions.route_provider_events", ContractVersion: "sforum.route.extensions.route_provider_events@1", Method: "GET", Path: "/api/v1/admin/extensions/route-providers/events"},
 	{ID: "core.route.extensions.route_provider_selection", ContractVersion: "sforum.route.extensions.route_provider_selection@1", Method: "GET", Path: "/api/v1/admin/extensions/route-providers/selection"},
