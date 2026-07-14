@@ -23,6 +23,9 @@
     "moderationWorkbench": "Moderation workbench",
     "notifications": "Notifications"
   },
+  "common": {
+    "close": "Close"
+  },
   "legal": {
     "termsTitle": "Terms of Service",
     "privacyTitle": "Privacy Policy",

@@ -58,10 +58,10 @@ const riskKey = computed(() => {
             <h2 class="text-base font-semibold text-slate-900 dark:text-zinc-100">
               {{ t('admin.extensions.confirmUninstallTitle') }}
             </h2>
-            <p class="mt-1 text-sm leading-6 text-slate-600 dark:text-zinc-300">
+            <p class="mt-1 break-words text-sm leading-6 text-slate-600 dark:text-zinc-300">
               {{ lifecycleV2
-                ? t('admin.extensions.confirmUninstallV2Body', { name: extension?.name || '' })
-                : t('admin.extensions.confirmUninstallBody', { name: extension?.name || '' }) }}
+                ? t('admin.extensions.confirmUninstallV2Body', { name: extension?.name?.trim() || extension?.id || '' })
+                : t('admin.extensions.confirmUninstallBody', { name: extension?.name?.trim() || extension?.id || '' }) }}
             </p>
           </div>
         </div>

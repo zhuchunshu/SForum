@@ -23,6 +23,9 @@
     "moderationWorkbench": "审核工作台",
     "notifications": "通知"
   },
+  "common": {
+    "close": "关闭"
+  },
   "legal": {
     "termsTitle": "服务条款",
     "privacyTitle": "隐私政策",

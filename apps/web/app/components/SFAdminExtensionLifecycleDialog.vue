@@ -32,6 +32,12 @@ const reason = ref('')
 const escalateForced = ref(false)
 const residualRiskAcknowledged = ref(false)
 
+const extensionIdentity = computed(() => {
+  const id = props.extension?.id || ''
+  const name = props.extension?.name?.trim()
+  return name && name !== id ? `${name} · ${id}` : id || name || ''
+})
+
 const recoveryOptions = computed(() => [
   {
     value: 'retry' as const,
@@ -103,7 +109,7 @@ function closeDialog() {
               {{ t('admin.extensions.lifecycle.title') }}
             </h2>
             <p class="mt-1 truncate text-sm text-slate-500 dark:text-zinc-400">
-              {{ extension?.name }} · {{ extension?.id }}
+              {{ extensionIdentity }}
             </p>
           </div>
           <UButton
