@@ -59,6 +59,7 @@ func productionCoreGuardEvaluatorRegistrations() []routes.CoreGuardEvaluatorRegi
 		productionCoreGuardEvaluator("core.guard.forum.topic_edit", requireForumTopicGlobalAuthority),
 		productionCoreGuardEvaluator("core.guard.forum.topic_lock", requireDeclaredCoreGuardPermission),
 		productionCoreGuardEvaluator("core.guard.forum.topic_state", requireDeclaredCoreGuardPermission),
+		productionCoreGuardEvaluator("core.guard.identity.admin", requireIdentityAdminAuthority),
 		productionCoreGuardEvaluator("core.guard.moderation.report", requireAuthenticatedCoreGuardActor),
 		productionCoreGuardEvaluator("core.guard.moderation.review", requireDeclaredCoreGuardPermission),
 		productionCoreGuardEvaluator("core.guard.notifications.recipient", requireNotificationRecipientAuthority),
@@ -231,6 +232,30 @@ func forumRuntimeSettingsPresent(input forumSettingsGuardInput) bool {
 		input.AllowAuthorCloseReplies != nil || input.AllowAuthorDelete != nil || input.AutoLockIdleDays != nil ||
 		input.ShowTopicEditMark != nil || input.DuplicateTitlePolicy != nil || input.ShowCommentEditMark != nil ||
 		input.SoftDeleteVisibility != nil || input.MentionsEnabled != nil || input.MentionsMaxPerPost != nil
+}
+
+func requireIdentityAdminAuthority(_ context.Context, evaluation routes.CoreGuardEvaluation) error {
+	switch evaluation.Descriptor.RouteID {
+	case "core.route.identity.list_permissions", "core.route.identity.permission_matrix":
+		return requireCoreGuardPermission(evaluation,
+			identity.PermissionRoleManage,
+			identity.PermissionUserManage,
+			identity.PermissionUserView,
+			identity.PermissionUserPermissionOverride,
+		)
+	case "core.route.identity.list_roles",
+		"core.route.identity.create_role",
+		"core.route.identity.update_role":
+		return requireCoreGuardPermission(evaluation, identity.PermissionRoleManage)
+	case "core.route.identity.list_users", "core.route.identity.get_user":
+		// user.manage 是 user.view 的兼容父权限；生产会话通常已展开，
+		// 这里仍显式接受父权限，避免旧会话在 Guard 层被错误收窄。
+		return requireCoreGuardPermission(evaluation, identity.PermissionUserView, identity.PermissionUserManage)
+	default:
+		// 删除/改角色权限和用户写操作都依赖目标资源或请求字段，
+		// 当前 Guard 输入不能完整复现 Service 的保护，继续保持关闭。
+		return routes.ErrCoreGuardEvaluatorUnavailable
+	}
 }
 
 func requireForumTopicGlobalAuthority(_ context.Context, evaluation routes.CoreGuardEvaluation) error {

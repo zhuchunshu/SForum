@@ -115,13 +115,120 @@ func TestProductionCoreGuardEvaluatorRegistryIsExplicitAndVersioned(t *testing.T
 		t.Fatal(err)
 	}
 	bindings := registry.Bindings()
-	if len(bindings) != len(registrations) || len(bindings) != 14 {
+	if len(bindings) != len(registrations) || len(bindings) != 15 {
 		t.Fatalf("bindings = %#v", bindings)
 	}
 	for _, binding := range bindings {
 		if binding.ContractVersion != routes.CoreGuardEvaluatorContractV1 || !strings.HasPrefix(binding.EvaluatorID, "core.guard.") {
 			t.Fatalf("binding = %#v", binding)
 		}
+	}
+}
+
+func TestProductionIdentityAdminGuardPartitionsCatalogByProvablePolicy(t *testing.T) {
+	type expectedRoute struct {
+		method      string
+		permissions []string
+		supported   bool
+	}
+	expected := map[string]expectedRoute{
+		"core.route.identity.list_permissions": {method: "GET", supported: true, permissions: []string{
+			identity.PermissionRoleManage, identity.PermissionUserManage,
+			identity.PermissionUserView, identity.PermissionUserPermissionOverride,
+		}},
+		"core.route.identity.permission_matrix": {method: "GET", supported: true, permissions: []string{
+			identity.PermissionRoleManage, identity.PermissionUserManage,
+			identity.PermissionUserView, identity.PermissionUserPermissionOverride,
+		}},
+		"core.route.identity.list_roles":  {method: "GET", supported: true, permissions: []string{identity.PermissionRoleManage}},
+		"core.route.identity.create_role": {method: "POST", supported: true, permissions: []string{identity.PermissionRoleManage}},
+		"core.route.identity.update_role": {method: "PATCH", supported: true, permissions: []string{identity.PermissionRoleManage}},
+		"core.route.identity.list_users":  {method: "GET", supported: true, permissions: []string{identity.PermissionUserView, identity.PermissionUserManage}},
+		"core.route.identity.get_user":    {method: "GET", supported: true, permissions: []string{identity.PermissionUserView, identity.PermissionUserManage}},
+
+		"core.route.identity.delete_role":                       {method: "DELETE"},
+		"core.route.identity.replace_role_permissions":          {method: "PUT"},
+		"core.route.identity.update_user":                       {method: "PATCH"},
+		"core.route.identity.admin_clear_user_client_ips":       {method: "POST"},
+		"core.route.identity.replace_user_permission_overrides": {method: "PUT"},
+		"core.route.identity.replace_user_roles":                {method: "PUT"},
+		"core.route.identity.admin_revoke_user_sessions":        {method: "POST"},
+	}
+	var catalog []routes.CoreRoute
+	for _, route := range routes.CoreRouteCatalog() {
+		if route.Guard.EvaluatorID == "core.guard.identity.admin" {
+			catalog = append(catalog, route)
+		}
+	}
+	if len(catalog) != len(expected) {
+		t.Fatalf("identity admin contextual catalog = %#v", catalog)
+	}
+
+	authorizer := NewProductionRouteGuardAuthorizer()
+	for _, route := range catalog {
+		want, exists := expected[route.ID]
+		if !exists || route.Method != want.method || route.Guard.Kind != routes.CoreGuardContextual ||
+			len(route.Guard.Permissions) != 0 {
+			t.Fatalf("unexpected identity admin guard route = %#v", route)
+		}
+		delete(expected, route.ID)
+
+		plan, step := productionCatalogInheritedGuardPlan(t, route)
+		if !want.supported {
+			request := productionGuardRequest("*")
+			request.Method, request.Path = plan.Method(), plan.Path()
+			if err := authorizer.Authorize(context.Background(), plan, step, request); !errors.Is(err, ErrRouteGuardUnavailable) {
+				t.Fatalf("%s unprovable policy error = %v", route.ID, err)
+			}
+			continue
+		}
+
+		for _, permission := range want.permissions {
+			allowed := productionGuardRequest(permission)
+			allowed.Method, allowed.Path = plan.Method(), plan.Path()
+			if err := authorizer.Authorize(context.Background(), plan, step, allowed); err != nil {
+				t.Fatalf("%s permission %s error = %v", route.ID, permission, err)
+			}
+		}
+
+		denied := productionGuardRequest(identity.PermissionPostCreate)
+		denied.Method, denied.Path = plan.Method(), plan.Path()
+		if err := authorizer.Authorize(context.Background(), plan, step, denied); !errors.Is(err, ErrRoutePermissionDenied) {
+			t.Fatalf("%s permission denied error = %v", route.ID, err)
+		}
+
+		anonymous := routes.DispatchRequest{Method: plan.Method(), Path: plan.Path()}
+		if err := authorizer.Authorize(context.Background(), plan, step, anonymous); !errors.Is(err, ErrRouteLoginRequired) {
+			t.Fatalf("%s anonymous error = %v", route.ID, err)
+		}
+
+		allowed := productionGuardRequest(want.permissions[0])
+		allowed.Method, allowed.Path = plan.Method(), plan.Path()
+		forgedStep := step
+		forgedStep.RouteID += ".forged"
+		if err := authorizer.Authorize(context.Background(), plan, forgedStep, allowed); !errors.Is(err, ErrRouteGuardUnavailable) {
+			t.Fatalf("%s forged step error = %v", route.ID, err)
+		}
+		forgedRequest := allowed
+		forgedRequest.Path += "/forged"
+		if err := authorizer.Authorize(context.Background(), plan, step, forgedRequest); !errors.Is(err, ErrRouteGuardUnavailable) {
+			t.Fatalf("%s forged request error = %v", route.ID, err)
+		}
+	}
+	if len(expected) != 0 {
+		t.Fatalf("missing identity admin guard routes = %#v", expected)
+	}
+}
+
+func TestProductionIdentityAdminGuardRejectsForeignRouteID(t *testing.T) {
+	descriptor := routes.CoreGuardDescriptor{
+		Kind: routes.CoreGuardContextual, EvaluatorID: "core.guard.identity.admin",
+	}
+	plan, step := productionInheritedGuardPlan(t, "core.route.identity.admin.foreign", descriptor)
+	request := productionGuardRequest("*")
+	request.Method, request.Path = plan.Method(), plan.Path()
+	if err := NewProductionRouteGuardAuthorizer().Authorize(context.Background(), plan, step, request); !errors.Is(err, ErrRouteGuardUnavailable) {
+		t.Fatalf("foreign identity admin route error = %v", err)
 	}
 }
 
