@@ -186,6 +186,89 @@ func TestRouteDispatcherMiddlewareExecutesSelectedExactReplacementWithoutCoreWri
 	}
 }
 
+func TestRouteDispatcherHostFenceControlsCoreFallbackFromObservedTransport(t *testing.T) {
+	t.Run("pre-write dial failure may use readonly core", func(t *testing.T) {
+		app, provider, ring, server := newRouteFenceApp(t, stdhttp.MethodGet, 0, stdhttp.HandlerFunc(func(stdhttp.ResponseWriter, *stdhttp.Request) {}))
+		server.Close()
+		response, err := app.Test(httptest.NewRequest(stdhttp.MethodGet, "/api/v1/fence", nil))
+		if err != nil {
+			t.Fatal(err)
+		}
+		body, _ := io.ReadAll(response.Body)
+		response.Body.Close()
+		if response.StatusCode != stdhttp.StatusOK || string(body) != "core" || provider.calls.Load() != 1 {
+			t.Fatalf("status=%d body=%q core calls=%d", response.StatusCode, body, provider.calls.Load())
+		}
+		assertRouteFenceTrace(t, ring, routes.RouteCommitFinal,
+			routes.RouteTraceTransportFailed, routes.RouteTraceFallbackUsed, routes.RouteTraceCommitted)
+	})
+
+	t.Run("accepted GET crash cannot become a second writer", func(t *testing.T) {
+		app, provider, ring, _ := newRouteFenceApp(t, stdhttp.MethodGet, 0, stdhttp.HandlerFunc(func(writer stdhttp.ResponseWriter, _ *stdhttp.Request) {
+			closeRouteRuntimeConnection(t, writer)
+		}))
+		response, err := app.Test(httptest.NewRequest(stdhttp.MethodGet, "/api/v1/fence", nil))
+		if err != nil {
+			t.Fatal(err)
+		}
+		response.Body.Close()
+		if response.StatusCode != stdhttp.StatusBadGateway || provider.calls.Load() != 0 {
+			t.Fatalf("status=%d core calls=%d", response.StatusCode, provider.calls.Load())
+		}
+		assertRouteFenceTrace(t, ring, routes.RouteCommitSideEffectStarted, routes.RouteTraceTransportFailed)
+	})
+
+	t.Run("partial response cannot become a second writer", func(t *testing.T) {
+		app, provider, ring, _ := newRouteFenceApp(t, stdhttp.MethodGet, 0, stdhttp.HandlerFunc(func(writer stdhttp.ResponseWriter, _ *stdhttp.Request) {
+			writer.Header().Set("Content-Length", "64")
+			writer.WriteHeader(stdhttp.StatusOK)
+			_, _ = writer.Write([]byte("partial"))
+			writer.(stdhttp.Flusher).Flush()
+			closeRouteRuntimeConnection(t, writer)
+		}))
+		response, err := app.Test(httptest.NewRequest(stdhttp.MethodGet, "/api/v1/fence", nil))
+		if err != nil {
+			t.Fatal(err)
+		}
+		response.Body.Close()
+		if response.StatusCode != stdhttp.StatusBadGateway || provider.calls.Load() != 0 {
+			t.Fatalf("status=%d core calls=%d", response.StatusCode, provider.calls.Load())
+		}
+		assertRouteFenceTrace(t, ring, routes.RouteCommitResponseStarted, routes.RouteTraceTransportFailed)
+	})
+
+	t.Run("unsafe accepted request always fails closed", func(t *testing.T) {
+		app, provider, ring, _ := newRouteFenceApp(t, stdhttp.MethodPost, 0, stdhttp.HandlerFunc(func(writer stdhttp.ResponseWriter, request *stdhttp.Request) {
+			_, _ = io.ReadAll(request.Body)
+			closeRouteRuntimeConnection(t, writer)
+		}))
+		response, err := app.Test(httptest.NewRequest(stdhttp.MethodPost, "/api/v1/fence", strings.NewReader("mutation")))
+		if err != nil {
+			t.Fatal(err)
+		}
+		response.Body.Close()
+		if response.StatusCode != stdhttp.StatusBadGateway || provider.calls.Load() != 0 {
+			t.Fatalf("status=%d core calls=%d", response.StatusCode, provider.calls.Load())
+		}
+		assertRouteFenceTrace(t, ring, routes.RouteCommitSideEffectStarted, routes.RouteTraceTransportFailed)
+	})
+
+	t.Run("timeout after acceptance cannot become a second writer", func(t *testing.T) {
+		app, provider, ring, _ := newRouteFenceApp(t, stdhttp.MethodGet, 30, stdhttp.HandlerFunc(func(_ stdhttp.ResponseWriter, request *stdhttp.Request) {
+			<-request.Context().Done()
+		}))
+		response, err := app.Test(httptest.NewRequest(stdhttp.MethodGet, "/api/v1/fence", nil))
+		if err != nil {
+			t.Fatal(err)
+		}
+		response.Body.Close()
+		if response.StatusCode != stdhttp.StatusBadGateway || provider.calls.Load() != 0 {
+			t.Fatalf("status=%d core calls=%d", response.StatusCode, provider.calls.Load())
+		}
+		assertRouteFenceTrace(t, ring, routes.RouteCommitSideEffectStarted, routes.RouteTraceTransportFailed)
+	})
+}
+
 func TestBufferedRouteStepInvokerRejectsStaleArtifactAndNonLoopback(t *testing.T) {
 	artifact := routeDispatcherArtifact("runtime.demo", 'c')
 	runtime, server := newRouteDispatcherRuntime(t, artifact)
@@ -206,6 +289,104 @@ func TestBufferedRouteStepInvokerRejectsStaleArtifactAndNonLoopback(t *testing.T
 		t.Fatalf("target err=%v", err)
 	}
 	server.Close()
+}
+
+func TestBufferedRouteStepInvokerUsesHostObservedCommitEvidence(t *testing.T) {
+	artifact := routeDispatcherArtifact("evidence.demo", 'f')
+	step := routes.RouteExecutionStep{
+		Provider: routes.Provider{Kind: routes.ProviderPlugin, Artifact: artifact}, Mode: extensionmanifest.RouteModeHTTP,
+		RouteID: "evidence.demo.route", ContractVersion: "evidence.demo.route@1", Handler: "route.handle",
+	}
+
+	t.Run("successful exchange ignores plugin false header", func(t *testing.T) {
+		runtime, server := newRouteDispatcherRuntime(t, artifact)
+		server.Config.Handler = stdhttp.HandlerFunc(func(writer stdhttp.ResponseWriter, _ *stdhttp.Request) {
+			writer.Header().Set("X-SForum-Side-Effect-Started", "false")
+			_, _ = writer.Write([]byte("ok"))
+		})
+		observer := routes.NewRouteCommitObserver()
+		result, err := NewBufferedRouteStepInvoker(runtime).Invoke(context.Background(), routes.RouteInvocation{
+			Step: step, Commit: observer, Request: routes.DispatchRequest{Method: "GET", Path: "/evidence"},
+		})
+		if err != nil || !result.SideEffectStarted || !result.ResponseStarted || observer.State() != routes.RouteCommitResponseStarted {
+			t.Fatalf("result=%#v state=%q err=%v", result, observer.State(), err)
+		}
+	})
+
+	t.Run("dial failure stays pristine", func(t *testing.T) {
+		runtime, server := newRouteDispatcherRuntime(t, artifact)
+		server.Close()
+		observer := routes.NewRouteCommitObserver()
+		result, err := NewBufferedRouteStepInvoker(runtime).Invoke(context.Background(), routes.RouteInvocation{
+			Step: step, Commit: observer, Request: routes.DispatchRequest{Method: "GET", Path: "/evidence"},
+		})
+		if err == nil || result.SideEffectStarted || result.ResponseStarted || observer.State() != routes.RouteCommitPristine {
+			t.Fatalf("result=%#v state=%q err=%v", result, observer.State(), err)
+		}
+	})
+}
+
+func TestBufferedRouteStepInvokerFencesCrashPartialResponseAndCancellation(t *testing.T) {
+	artifact := routeDispatcherArtifact("transport.fence", 'd')
+	step := routes.RouteExecutionStep{
+		Provider: routes.Provider{Kind: routes.ProviderPlugin, Artifact: artifact}, Mode: extensionmanifest.RouteModeHTTP,
+		RouteID: "transport.fence.route", ContractVersion: "transport.fence.route@1", Handler: "route.handle",
+	}
+
+	t.Run("runtime accepts request then crashes", func(t *testing.T) {
+		runtime, server := newRouteDispatcherRuntime(t, artifact)
+		server.Config.Handler = stdhttp.HandlerFunc(func(writer stdhttp.ResponseWriter, _ *stdhttp.Request) {
+			closeRouteRuntimeConnection(t, writer)
+		})
+		observer := routes.NewRouteCommitObserver()
+		result, err := NewBufferedRouteStepInvoker(runtime).Invoke(context.Background(), routes.RouteInvocation{
+			Step: step, Commit: observer, Request: routes.DispatchRequest{Method: "GET", Path: "/crash"},
+		})
+		if err == nil || !result.SideEffectStarted || result.ResponseStarted || observer.State() != routes.RouteCommitSideEffectStarted {
+			t.Fatalf("result=%#v state=%q err=%v", result, observer.State(), err)
+		}
+	})
+
+	t.Run("response headers and body begin before disconnect", func(t *testing.T) {
+		runtime, server := newRouteDispatcherRuntime(t, artifact)
+		server.Config.Handler = stdhttp.HandlerFunc(func(writer stdhttp.ResponseWriter, _ *stdhttp.Request) {
+			writer.Header().Set("Content-Length", "64")
+			writer.WriteHeader(stdhttp.StatusOK)
+			_, _ = writer.Write([]byte("partial"))
+			writer.(stdhttp.Flusher).Flush()
+			closeRouteRuntimeConnection(t, writer)
+		})
+		observer := routes.NewRouteCommitObserver()
+		result, err := NewBufferedRouteStepInvoker(runtime).Invoke(context.Background(), routes.RouteInvocation{
+			Step: step, Commit: observer, Request: routes.DispatchRequest{Method: "GET", Path: "/partial"},
+		})
+		if err == nil || !result.SideEffectStarted || !result.ResponseStarted || observer.State() != routes.RouteCommitResponseStarted {
+			t.Fatalf("result=%#v state=%q err=%v", result, observer.State(), err)
+		}
+	})
+
+	t.Run("caller cancellation after request acceptance", func(t *testing.T) {
+		runtime, server := newRouteDispatcherRuntime(t, artifact)
+		accepted := make(chan struct{})
+		server.Config.Handler = stdhttp.HandlerFunc(func(_ stdhttp.ResponseWriter, request *stdhttp.Request) {
+			close(accepted)
+			<-request.Context().Done()
+		})
+		ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+		defer cancel()
+		observer := routes.NewRouteCommitObserver()
+		result, err := NewBufferedRouteStepInvoker(runtime).Invoke(ctx, routes.RouteInvocation{
+			Step: step, Commit: observer, Request: routes.DispatchRequest{Method: "GET", Path: "/cancel"},
+		})
+		if err == nil || !result.SideEffectStarted || result.ResponseStarted || observer.State() != routes.RouteCommitSideEffectStarted {
+			t.Fatalf("result=%#v state=%q err=%v", result, observer.State(), err)
+		}
+		select {
+		case <-accepted:
+		default:
+			t.Fatal("runtime never accepted the cancelled request")
+		}
+	})
 }
 
 func TestRouteDispatcherDeclaredNonHTTPModeFailsClosedBeforeRuntime(t *testing.T) {
@@ -323,6 +504,93 @@ func newRouteDispatcherRuntime(t *testing.T, artifact routes.PluginArtifact) (*r
 	return runtime, server
 }
 
+func closeRouteRuntimeConnection(t *testing.T, writer stdhttp.ResponseWriter) {
+	t.Helper()
+	hijacker, ok := writer.(stdhttp.Hijacker)
+	if !ok {
+		t.Error("route runtime response writer cannot hijack connection")
+		return
+	}
+	connection, _, err := hijacker.Hijack()
+	if err != nil {
+		t.Errorf("hijack route runtime connection: %v", err)
+		return
+	}
+	_ = connection.Close()
+}
+
+func newRouteFenceApp(
+	t *testing.T,
+	method string,
+	timeoutMS int,
+	handler stdhttp.Handler,
+) (*fiber.App, *routeFenceCoreProvider, *routes.RouteTraceRing, *httptest.Server) {
+	t.Helper()
+	registry := routes.NewRegistry()
+	artifact := routeDispatcherArtifact("fence.demo", 'e')
+	replacement := routeDispatcherManifestRoute("fence.demo.writer", extensionmanifest.RouteActionReplace, "/api/v1/fence", method)
+	replacement.TargetID = "core.route.test.fence"
+	replacement.Fallback = "readonly_core"
+	replacement.TimeoutMS = timeoutMS
+	if method != stdhttp.MethodGet && method != stdhttp.MethodHead {
+		replacement.RequestSchema = replacement.ID + ".request@1"
+	}
+	if _, err := registry.Publish(routes.Publication{
+		Core: []routes.CoreRoute{{
+			ID: "core.route.test.fence", ContractVersion: "sforum.route.test.fence@1", Method: method, Path: "/api/v1/fence",
+		}},
+		Plugins: []routes.PluginRouteSet{{Artifact: artifact, Routes: []extensionmanifest.ManifestRoute{replacement}}},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	pathSignature := ""
+	for _, route := range registry.Snapshot().Routes {
+		if route.ID == replacement.ID {
+			pathSignature = route.PathSignature
+			break
+		}
+	}
+	selectionAPI := routes.NewProviderSelectionAPI(registry, &routeSelectionMemoryStore{})
+	if _, err := selectionAPI.Select(context.Background(), routes.SelectProviderRequest{
+		Key: routes.ProviderSelectionKey{
+			TargetRouteID: "core.route.test.fence", TargetContractVersion: "sforum.route.test.fence@1",
+			Method: method, PathSignature: pathSignature,
+		},
+		ProviderRouteID: replacement.ID, ProviderContractVersion: replacement.ContractVersion,
+		ProviderArtifact: artifact, ActorUserID: 1, AuditEventID: 1,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	runtime, server := newRouteDispatcherRuntime(t, artifact)
+	server.Config.Handler = handler
+	ring := routes.NewRouteTraceRing(16)
+	dispatcher := routes.NewDispatcher(routes.DispatcherConfig{
+		Plans: selectionAPI, Steps: NewBufferedRouteStepInvoker(runtime), Guard: HostRouteGuardAuthorizer{},
+		Schemas: CatalogRouteSchemaValidator{Catalog: acceptRouteSchemaCatalog{}}, Trace: ring,
+	})
+	provider := &routeFenceCoreProvider{}
+	app := NewApp(routeDispatcherConfig(), slog.Default(), Dependencies{
+		RouteDispatcher: dispatcher, RouteProviders: []RouteProvider{provider},
+	})
+	return app, provider, ring, server
+}
+
+func assertRouteFenceTrace(t *testing.T, ring *routes.RouteTraceRing, state routes.RouteExecutionCommitState, outcomes ...routes.RouteTraceOutcome) {
+	t.Helper()
+	records := ring.RouteTraces(0)
+	if len(records) != len(outcomes) {
+		t.Fatalf("traces=%#v", records)
+	}
+	for index, outcome := range outcomes {
+		if records[index].Outcome != outcome {
+			t.Fatalf("trace[%d]=%#v", index, records[index])
+		}
+	}
+	if records[len(records)-1].CommitState != state {
+		t.Fatalf("last trace=%#v", records[len(records)-1])
+	}
+}
+
 type routeDispatcherTestProvider struct {
 	coreCalls    int
 	unknownCalls int
@@ -363,6 +631,17 @@ func (p *routeReplacementCoreProvider) RegisterRoutes(api fiber.Router) {
 		p.calls++
 		return c.SendString("core")
 	})
+}
+
+type routeFenceCoreProvider struct{ calls atomic.Int64 }
+
+func (p *routeFenceCoreProvider) RegisterRoutes(api fiber.Router) {
+	handler := func(c fiber.Ctx) error {
+		p.calls.Add(1)
+		return c.SendString("core")
+	}
+	api.Get("/fence", handler)
+	api.Post("/fence", handler)
 }
 
 type routeSelectionMemoryStore struct{ selected routes.ProviderSelection }

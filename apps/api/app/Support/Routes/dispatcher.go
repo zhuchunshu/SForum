@@ -412,6 +412,10 @@ func (o *RouteCommitObserver) advance(next RouteExecutionCommitState) bool {
 	}
 	o.mu.Lock()
 	defer o.mu.Unlock()
+	if o.state == RouteCommitSideEffectStarted && next == RouteCommitResponseStarted {
+		o.state = next
+		return true
+	}
 	if o.state != RouteCommitPristine {
 		return false
 	}

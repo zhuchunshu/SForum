@@ -231,7 +231,7 @@ func TestRouteCommitObserverIsSingleFinalizerAndNeverReturnsToPristine(t *testin
 	go func() { defer wait.Done(); observer.ResponseStarted() }()
 	go func() { defer wait.Done(); observer.SideEffectStarted() }()
 	wait.Wait()
-	if observer.State() == RouteCommitPristine || observer.State() == RouteCommitUnknown {
+	if observer.State() != RouteCommitResponseStarted {
 		t.Fatalf("state=%q", observer.State())
 	}
 	if !observer.Finalize() || observer.Finalize() || observer.State() != RouteCommitFinal {

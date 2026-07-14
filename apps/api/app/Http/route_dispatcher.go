@@ -8,9 +8,11 @@ import (
 	"io"
 	"net"
 	stdhttp "net/http"
+	"net/http/httptrace"
 	"net/url"
 	"strconv"
 	"strings"
+	"sync/atomic"
 
 	"github.com/gofiber/fiber/v3"
 
@@ -115,6 +117,33 @@ type BufferedRouteStepInvoker struct {
 	ResponseLimit int64
 }
 
+// routeTransportEvidence only records facts observed by the Host transport.
+// Once request headers leave the Host, the plugin may have acted; fallback is
+// no longer safe even when the connection dies before returning a response.
+type routeTransportEvidence struct {
+	requestStarted  atomic.Bool
+	responseStarted atomic.Bool
+	commit          *routes.RouteCommitObserver
+}
+
+func (e *routeTransportEvidence) markRequestStarted() {
+	if e.requestStarted.CompareAndSwap(false, true) && e.commit != nil {
+		e.commit.SideEffectStarted()
+	}
+}
+
+func (e *routeTransportEvidence) markResponseStarted() {
+	if e.responseStarted.CompareAndSwap(false, true) && e.commit != nil {
+		e.commit.ResponseStarted()
+	}
+}
+
+func (e *routeTransportEvidence) result() routes.RouteInvocationResult {
+	return routes.RouteInvocationResult{
+		SideEffectStarted: e.requestStarted.Load(), ResponseStarted: e.responseStarted.Load(),
+	}
+}
+
 func NewBufferedRouteStepInvoker(runtime ExactRouteRuntime) *BufferedRouteStepInvoker {
 	transport := stdhttp.DefaultTransport.(*stdhttp.Transport).Clone()
 	transport.Proxy = nil
@@ -171,10 +200,16 @@ func (i *BufferedRouteStepInvoker) Invoke(ctx context.Context, input routes.Rout
 	if input.Response != nil {
 		request.Header.Set("X-SForum-Route-Response-Status", strconv.Itoa(input.Response.Status))
 	}
+	evidence := &routeTransportEvidence{commit: input.Commit}
+	request = request.WithContext(httptrace.WithClientTrace(request.Context(), &httptrace.ClientTrace{
+		WroteHeaders:         evidence.markRequestStarted,
+		WroteRequest:         func(httptrace.WroteRequestInfo) { evidence.markRequestStarted() },
+		GotFirstResponseByte: evidence.markResponseStarted,
+	}))
 
 	response, err := i.Client.Do(request)
 	if err != nil {
-		return routes.RouteInvocationResult{}, err
+		return evidence.result(), err
 	}
 	defer response.Body.Close()
 	limit := i.ResponseLimit
@@ -183,15 +218,15 @@ func (i *BufferedRouteStepInvoker) Invoke(ctx context.Context, input routes.Rout
 	}
 	body, err := io.ReadAll(io.LimitReader(response.Body, limit+1))
 	if err != nil {
-		return routes.RouteInvocationResult{}, err
+		return evidence.result(), err
 	}
 	if int64(len(body)) > limit {
-		return routes.RouteInvocationResult{SideEffectStarted: routeSideEffectStarted(response.Header)}, ErrRouteResponseTooLarge
+		return evidence.result(), ErrRouteResponseTooLarge
 	}
 	value := routes.DispatchResponse{Status: response.StatusCode, Headers: filteredRouteResponseHeaders(response.Header), Body: body}
-	return routes.RouteInvocationResult{
-		Response: &value, SideEffectStarted: routeSideEffectStarted(response.Header),
-	}, nil
+	result := evidence.result()
+	result.Response = &value
+	return result, nil
 }
 
 func routeDispatcherMiddleware(dispatcher *routes.Dispatcher, actors RouteActorLoader) fiber.Handler {
@@ -358,10 +393,6 @@ func filteredRouteResponseHeaders(source stdhttp.Header) stdhttp.Header {
 		}
 	}
 	return result
-}
-
-func routeSideEffectStarted(header stdhttp.Header) bool {
-	return strings.EqualFold(strings.TrimSpace(header.Get("X-SForum-Side-Effect-Started")), "true")
 }
 
 func mapRouteDispatchError(err error) error {
