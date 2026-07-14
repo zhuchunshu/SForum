@@ -300,7 +300,7 @@ func TestReleaseExtensionDatabaseMigrationLockDiscardsUnprovenSession(t *testing
 	}
 	// This session never acquired the key, so pg_advisory_unlock returns false.
 	// The release helper must discard it rather than returning it to MaxConns=1.
-	releaseExtensionDatabaseMigrationLock(connection, extensionDatabaseAdvisoryKey("p5.unlock.failure"))
+	releaseExtensionDatabaseSessionLock(connection, extensionDatabaseAdvisoryKey("p5.unlock.failure"))
 
 	replacement, err := pool.Acquire(ctx)
 	if err != nil {

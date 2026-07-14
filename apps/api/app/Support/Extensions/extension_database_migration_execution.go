@@ -24,7 +24,7 @@ type extensionDatabaseMigrationExecutionOutcome struct {
 	Err              error
 }
 
-func acquireExtensionDatabaseMigrationLock(
+func acquireExtensionDatabaseSessionLock(
 	ctx context.Context,
 	pool *pgxpool.Pool,
 	lockKey int64,
@@ -52,7 +52,7 @@ func acquireExtensionDatabaseMigrationLock(
 	}
 }
 
-func releaseExtensionDatabaseMigrationLock(connection *pgxpool.Conn, lockKey int64) {
+func releaseExtensionDatabaseSessionLock(connection *pgxpool.Conn, lockKey int64) {
 	if connection == nil {
 		return
 	}

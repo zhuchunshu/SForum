@@ -49,11 +49,11 @@ func (e *PostgresLifecycleMigrationEngine) ReconcileLifecycleMigration(
 	if err != nil {
 		return ErrExtensionDatabaseMigrationInvalid
 	}
-	connection, err := acquireExtensionDatabaseMigrationLock(ctx, e.pool, identifiers.LockKey)
+	connection, err := acquireExtensionDatabaseSessionLock(ctx, e.pool, identifiers.LockKey)
 	if err != nil {
 		return newExtensionDatabaseMigrationFailure(extensionDatabaseMigrationFailureRecovery, err)
 	}
-	defer releaseExtensionDatabaseMigrationLock(connection, identifiers.LockKey)
+	defer releaseExtensionDatabaseSessionLock(connection, identifiers.LockKey)
 
 	if proof, proofErr := loadExtensionDatabaseMigrationProof(ctx, connection, plan.PlanDigest); proofErr == nil {
 		record, recordErr := loadExtensionDatabaseMigrationPlan(ctx, connection, plan.PlanDigest, false)
