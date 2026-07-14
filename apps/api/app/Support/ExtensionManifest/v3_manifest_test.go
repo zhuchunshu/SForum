@@ -54,6 +54,7 @@ func TestManifestV3RejectsUnsafeContracts(t *testing.T) {
 		change func(*Manifest)
 	}{
 		{name: "unknown guard", change: func(manifest *Manifest) { manifest.Routes[0].Guard = "missing.guard" }},
+		{name: "inherited guard without target", change: func(manifest *Manifest) { manifest.Routes[0].Guard = GuardCoreInherit }},
 		{name: "duplicate id", change: func(manifest *Manifest) {
 			manifest.Components = append(manifest.Components, manifest.Components[0])
 		}},

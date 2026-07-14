@@ -89,7 +89,7 @@ func (v *v3Validator) validateBackendAndMigrations() error {
 func (v *v3Validator) validateGuardsAndRoutes() error {
 	guards := map[string]bool{
 		GuardCorePublic: true, GuardCoreLogin: true, GuardCorePermission: true,
-		GuardCoreGuest: true, GuardCoreRaw: true,
+		GuardCoreGuest: true, GuardCoreRaw: true, GuardCoreInherit: true,
 	}
 	for _, guard := range v.manifest.Guards {
 		if err := v.versionedID(guard.ID, guard.ContractVersion, "guard"); err != nil {
@@ -120,6 +120,9 @@ func (v *v3Validator) validateGuardsAndRoutes() error {
 			return ErrInvalidManifest
 		}
 		if route.Guard == GuardCorePermission && (route.Permission == "" || !manifestHasPermission(v.manifest, route.Permission)) {
+			return ErrInvalidManifest
+		}
+		if route.Guard == GuardCoreInherit && !routeTargetsExisting(route.Action) {
 			return ErrInvalidManifest
 		}
 		if route.Action == RouteActionGlobalMiddleware {

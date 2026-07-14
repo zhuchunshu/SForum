@@ -23,6 +23,7 @@ const (
 	GuardCorePermission = "core.guard.permission"
 	GuardCoreGuest      = "core.guard.guest"
 	GuardCoreRaw        = "core.guard.raw_request"
+	GuardCoreInherit    = "core.guard.inherit"
 
 	ComponentActionAdd          = "add"
 	ComponentActionBefore       = "before"

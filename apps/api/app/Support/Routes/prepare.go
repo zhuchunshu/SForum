@@ -126,6 +126,9 @@ func validatePluginRouteContract(artifact PluginArtifact, route extensionmanifes
 	if !validRouteGuard(artifact.ExtensionID, route.Guard) {
 		return fmt.Errorf("%w: invalid guard %q", ErrInvalidRoute, route.Guard)
 	}
+	if route.Guard == extensionmanifest.GuardCoreInherit && !targetsExisting(route.Action) {
+		return fmt.Errorf("%w: inherited guard requires a target route", ErrInvalidRoute)
+	}
 	if route.Guard == extensionmanifest.GuardCorePermission && !routeIDPattern.MatchString(route.Permission) {
 		return fmt.Errorf("%w: permission guard requires a permission", ErrInvalidRoute)
 	}
@@ -166,7 +169,7 @@ func validRouteGuard(extensionID, guard string) bool {
 	switch guard {
 	case extensionmanifest.GuardCorePublic, extensionmanifest.GuardCoreLogin,
 		extensionmanifest.GuardCorePermission, extensionmanifest.GuardCoreGuest,
-		extensionmanifest.GuardCoreRaw:
+		extensionmanifest.GuardCoreRaw, extensionmanifest.GuardCoreInherit:
 		return true
 	default:
 		return routeIDPattern.MatchString(guard) && strings.HasPrefix(guard, extensionID+".")
