@@ -251,10 +251,52 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 	extensionRuntime := bindAPIExtensionRuntime(extensionStore, hostAPIGateway, extensionService, executableTrustService)
 	hostAPIService.BindPluginJobAdmission(newPluginJobEnqueueAdmission(extensionRuntime))
 	hostAPIService.BindServiceProviderAdmission(newPluginServiceProviderAdmission(extensionRuntime))
-	if runtime, ok := extensionRuntime.(interface {
-		WithActivation(*extensions.ActivationCoordinator, string) *extensionsruntime.Manager
-	}); ok {
-		runtime.WithActivation(activationCoordinator, extensions.NewActivationBootID())
+	lifecycleRuntime, err := requireProductionExtensionRuntime(extensionRuntime)
+	if err != nil {
+		if stopErr := supportjobs.Stop(ctx, jobClient); stopErr != nil {
+			logger.Warn("job dispatcher stop failed", "error", stopErr)
+		}
+		extensionRuntime.Close(ctx)
+		sharedRedisClient.Close()
+		if closeErr := redisStorage.Close(); closeErr != nil {
+			logger.Warn("redis session storage close failed", "error", closeErr)
+		}
+		pool.Close()
+		return nil, err
+	}
+	lifecycleRuntime.WithActivation(activationCoordinator, extensions.NewActivationBootID())
+	lifecycleMigrationEngine := extensionsruntime.NewPostgresLifecycleMigrationEngine(pool, nil)
+	lifecycleDatabaseDisposition := extensionsruntime.NewPostgresExtensionDatabaseDisposition(pool)
+	lifecycleStack, err := newProductionLifecycleStack(productionLifecycleStackConfig{
+		Pool: pool, Store: extensionStore, Features: optionsService,
+		Trust: executableTrustService, Runtime: lifecycleRuntime, Pages: pageRegistry,
+		Services: hostAPIGateway.ProtocolV2ServiceRegistry(), River: jobClient,
+		ExtensionRoot: cfg.ExtensionRoot, MigrationEngine: lifecycleMigrationEngine,
+		Database: lifecycleDatabaseDisposition,
+	})
+	if err != nil {
+		if stopErr := supportjobs.Stop(ctx, jobClient); stopErr != nil {
+			logger.Warn("job dispatcher stop failed", "error", stopErr)
+		}
+		extensionRuntime.Close(ctx)
+		sharedRedisClient.Close()
+		if closeErr := redisStorage.Close(); closeErr != nil {
+			logger.Warn("redis session storage close failed", "error", closeErr)
+		}
+		pool.Close()
+		return nil, fmt.Errorf("extension lifecycle setup failed: %w", err)
+	}
+	if err := lifecycleStack.bindService(extensionService); err != nil {
+		if stopErr := supportjobs.Stop(ctx, jobClient); stopErr != nil {
+			logger.Warn("job dispatcher stop failed", "error", stopErr)
+		}
+		extensionRuntime.Close(ctx)
+		sharedRedisClient.Close()
+		if closeErr := redisStorage.Close(); closeErr != nil {
+			logger.Warn("redis session storage close failed", "error", closeErr)
+		}
+		pool.Close()
+		return nil, fmt.Errorf("bind extension lifecycle service failed: %w", err)
 	}
 	// 把已构造的 extensionService 接到 Host API 能力/权限解析（避免循环构造）。
 	hostAPIService.BindCapabilitySource(extensionService)
@@ -288,13 +330,7 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 	if err := notifications.NewPostgresStore(pool).AdoptLegacyMail(ctx, legacyMailValues); err != nil {
 		return nil, fmt.Errorf("adopt legacy mail settings: %w", err)
 	}
-	if items, err := extensionStore.List(ctx); err == nil {
-		if cfg.SafeMode {
-			extensionRuntime.Reconcile(ctx, nil)
-		} else {
-			extensionRuntime.Reconcile(ctx, items)
-		}
-	} else {
+	if err := reconcileAPIExtensionRuntime(ctx, cfg.SafeMode, extensionStore, extensionRuntime); err != nil {
 		if stopErr := supportjobs.Stop(ctx, jobClient); stopErr != nil {
 			logger.Warn("job dispatcher stop failed", "error", stopErr)
 		}
