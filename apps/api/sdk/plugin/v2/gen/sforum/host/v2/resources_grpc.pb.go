@@ -20,10 +20,11 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	ServiceDiscoveryService_List_FullMethodName    = "/sforum.host.v2.ServiceDiscoveryService/List"
-	ServiceDiscoveryService_Resolve_FullMethodName = "/sforum.host.v2.ServiceDiscoveryService/Resolve"
-	ServiceDiscoveryService_Invoke_FullMethodName  = "/sforum.host.v2.ServiceDiscoveryService/Invoke"
-	ServiceDiscoveryService_Stream_FullMethodName  = "/sforum.host.v2.ServiceDiscoveryService/Stream"
+	ServiceDiscoveryService_List_FullMethodName           = "/sforum.host.v2.ServiceDiscoveryService/List"
+	ServiceDiscoveryService_Resolve_FullMethodName        = "/sforum.host.v2.ServiceDiscoveryService/Resolve"
+	ServiceDiscoveryService_Invoke_FullMethodName         = "/sforum.host.v2.ServiceDiscoveryService/Invoke"
+	ServiceDiscoveryService_InvokeProvider_FullMethodName = "/sforum.host.v2.ServiceDiscoveryService/InvokeProvider"
+	ServiceDiscoveryService_Stream_FullMethodName         = "/sforum.host.v2.ServiceDiscoveryService/Stream"
 )
 
 // ServiceDiscoveryServiceClient is the client API for ServiceDiscoveryService service.
@@ -35,6 +36,7 @@ type ServiceDiscoveryServiceClient interface {
 	List(ctx context.Context, in *ServiceListRequest, opts ...grpc.CallOption) (*ServiceListResponse, error)
 	Resolve(ctx context.Context, in *ServiceResolveRequest, opts ...grpc.CallOption) (*ServiceResolveResponse, error)
 	Invoke(ctx context.Context, in *ServiceInvokeRequest, opts ...grpc.CallOption) (*ServiceInvokeResponse, error)
+	InvokeProvider(ctx context.Context, in *ProviderInvokeRequest, opts ...grpc.CallOption) (*ProviderInvokeResponse, error)
 	Stream(ctx context.Context, opts ...grpc.CallOption) (grpc.BidiStreamingClient[ServiceStreamFrame, ServiceStreamFrame], error)
 }
 
@@ -76,6 +78,16 @@ func (c *serviceDiscoveryServiceClient) Invoke(ctx context.Context, in *ServiceI
 	return out, nil
 }
 
+func (c *serviceDiscoveryServiceClient) InvokeProvider(ctx context.Context, in *ProviderInvokeRequest, opts ...grpc.CallOption) (*ProviderInvokeResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ProviderInvokeResponse)
+	err := c.cc.Invoke(ctx, ServiceDiscoveryService_InvokeProvider_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *serviceDiscoveryServiceClient) Stream(ctx context.Context, opts ...grpc.CallOption) (grpc.BidiStreamingClient[ServiceStreamFrame, ServiceStreamFrame], error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	stream, err := c.cc.NewStream(ctx, &ServiceDiscoveryService_ServiceDesc.Streams[0], ServiceDiscoveryService_Stream_FullMethodName, cOpts...)
@@ -98,6 +110,7 @@ type ServiceDiscoveryServiceServer interface {
 	List(context.Context, *ServiceListRequest) (*ServiceListResponse, error)
 	Resolve(context.Context, *ServiceResolveRequest) (*ServiceResolveResponse, error)
 	Invoke(context.Context, *ServiceInvokeRequest) (*ServiceInvokeResponse, error)
+	InvokeProvider(context.Context, *ProviderInvokeRequest) (*ProviderInvokeResponse, error)
 	Stream(grpc.BidiStreamingServer[ServiceStreamFrame, ServiceStreamFrame]) error
 	mustEmbedUnimplementedServiceDiscoveryServiceServer()
 }
@@ -117,6 +130,9 @@ func (UnimplementedServiceDiscoveryServiceServer) Resolve(context.Context, *Serv
 }
 func (UnimplementedServiceDiscoveryServiceServer) Invoke(context.Context, *ServiceInvokeRequest) (*ServiceInvokeResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method Invoke not implemented")
+}
+func (UnimplementedServiceDiscoveryServiceServer) InvokeProvider(context.Context, *ProviderInvokeRequest) (*ProviderInvokeResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method InvokeProvider not implemented")
 }
 func (UnimplementedServiceDiscoveryServiceServer) Stream(grpc.BidiStreamingServer[ServiceStreamFrame, ServiceStreamFrame]) error {
 	return status.Error(codes.Unimplemented, "method Stream not implemented")
@@ -197,6 +213,24 @@ func _ServiceDiscoveryService_Invoke_Handler(srv interface{}, ctx context.Contex
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ServiceDiscoveryService_InvokeProvider_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ProviderInvokeRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ServiceDiscoveryServiceServer).InvokeProvider(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ServiceDiscoveryService_InvokeProvider_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ServiceDiscoveryServiceServer).InvokeProvider(ctx, req.(*ProviderInvokeRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _ServiceDiscoveryService_Stream_Handler(srv interface{}, stream grpc.ServerStream) error {
 	return srv.(ServiceDiscoveryServiceServer).Stream(&grpc.GenericServerStream[ServiceStreamFrame, ServiceStreamFrame]{ServerStream: stream})
 }
@@ -222,6 +256,10 @@ var ServiceDiscoveryService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Invoke",
 			Handler:    _ServiceDiscoveryService_Invoke_Handler,
+		},
+		{
+			MethodName: "InvokeProvider",
+			Handler:    _ServiceDiscoveryService_InvokeProvider_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

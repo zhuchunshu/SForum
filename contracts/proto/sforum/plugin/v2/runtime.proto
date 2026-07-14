@@ -112,6 +112,7 @@ message ProviderCallRequest {
   string operation = 3;
   string contract_version = 4;
   sforum.protocol.v2.TypedDocument input = 5;
+  string declaration_id = 6;
 }
 
 // ProviderCallResponse contains the declared provider result.

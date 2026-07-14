@@ -741,6 +741,7 @@ type ProviderCallRequest struct {
 	Operation       string                 `protobuf:"bytes,3,opt,name=operation,proto3" json:"operation,omitempty"`
 	ContractVersion string                 `protobuf:"bytes,4,opt,name=contract_version,json=contractVersion,proto3" json:"contract_version,omitempty"`
 	Input           *v2.TypedDocument      `protobuf:"bytes,5,opt,name=input,proto3" json:"input,omitempty"`
+	DeclarationId   string                 `protobuf:"bytes,6,opt,name=declaration_id,json=declarationId,proto3" json:"declaration_id,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -808,6 +809,13 @@ func (x *ProviderCallRequest) GetInput() *v2.TypedDocument {
 		return x.Input
 	}
 	return nil
+}
+
+func (x *ProviderCallRequest) GetDeclarationId() string {
+	if x != nil {
+		return x.DeclarationId
+	}
+	return ""
 }
 
 // ProviderCallResponse contains the declared provider result.
@@ -1518,13 +1526,14 @@ const file_sforum_plugin_v2_runtime_proto_rawDesc = "" +
 	"\n" +
 	"checkpoint\x18\x06 \x01(\tR\n" +
 	"checkpoint\x12;\n" +
-	"\apayload\x18\a \x01(\v2!.sforum.protocol.v2.TypedDocumentR\apayload\"\xee\x01\n" +
+	"\apayload\x18\a \x01(\v2!.sforum.protocol.v2.TypedDocumentR\apayload\"\x95\x02\n" +
 	"\x13ProviderCallRequest\x12<\n" +
 	"\acontext\x18\x01 \x01(\v2\".sforum.protocol.v2.RequestContextR\acontext\x12\x17\n" +
 	"\aslot_id\x18\x02 \x01(\tR\x06slotId\x12\x1c\n" +
 	"\toperation\x18\x03 \x01(\tR\toperation\x12)\n" +
 	"\x10contract_version\x18\x04 \x01(\tR\x0fcontractVersion\x127\n" +
-	"\x05input\x18\x05 \x01(\v2!.sforum.protocol.v2.TypedDocumentR\x05input\"\xe9\x01\n" +
+	"\x05input\x18\x05 \x01(\v2!.sforum.protocol.v2.TypedDocumentR\x05input\x12%\n" +
+	"\x0edeclaration_id\x18\x06 \x01(\tR\rdeclarationId\"\xe9\x01\n" +
 	"\x14ProviderCallResponse\x12=\n" +
 	"\acontext\x18\x01 \x01(\v2#.sforum.protocol.v2.ResponseContextR\acontext\x129\n" +
 	"\x06output\x18\x02 \x01(\v2!.sforum.protocol.v2.TypedDocumentR\x06output\x12 \n" +

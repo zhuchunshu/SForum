@@ -22,6 +22,8 @@ import (
 	pluginv2 "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/plugin/v2"
 	protocolv2 "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/protocol/v2"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/structpb"
@@ -637,9 +639,15 @@ func (c *protocolV2Client) InvokeVersionedProvider(
 	}
 	response, err := c.client.ProviderCall(ctx, &pluginv2.ProviderCallRequest{
 		Context: c.requestContext(ctx, input.Operation), SlotId: input.Slot, Operation: input.Operation,
-		ContractVersion: input.ContractVersion, Input: document,
+		ContractVersion: input.ContractVersion, Input: document, DeclarationId: input.DeclarationID,
 	})
 	if err != nil {
+		switch status.Code(err) {
+		case codes.DeadlineExceeded:
+			return VersionedProviderResponse{}, context.DeadlineExceeded
+		case codes.Canceled:
+			return VersionedProviderResponse{}, context.Canceled
+		}
 		return VersionedProviderResponse{}, err
 	}
 	if err := protocolV2Error(response.GetError()); err != nil {

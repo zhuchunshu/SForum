@@ -431,6 +431,174 @@ func (x *ServiceInvokeResponse) GetError() *v2.ErrorDetail {
 	return nil
 }
 
+type ProviderInvokeRequest struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	Context         *v2.RequestContext     `protobuf:"bytes,1,opt,name=context,proto3" json:"context,omitempty"`
+	SlotId          string                 `protobuf:"bytes,2,opt,name=slot_id,json=slotId,proto3" json:"slot_id,omitempty"`
+	ContractVersion string                 `protobuf:"bytes,3,opt,name=contract_version,json=contractVersion,proto3" json:"contract_version,omitempty"`
+	Operation       string                 `protobuf:"bytes,4,opt,name=operation,proto3" json:"operation,omitempty"`
+	Input           *v2.TypedDocument      `protobuf:"bytes,5,opt,name=input,proto3" json:"input,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *ProviderInvokeRequest) Reset() {
+	*x = ProviderInvokeRequest{}
+	mi := &file_sforum_host_v2_resources_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ProviderInvokeRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ProviderInvokeRequest) ProtoMessage() {}
+
+func (x *ProviderInvokeRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_sforum_host_v2_resources_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ProviderInvokeRequest.ProtoReflect.Descriptor instead.
+func (*ProviderInvokeRequest) Descriptor() ([]byte, []int) {
+	return file_sforum_host_v2_resources_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *ProviderInvokeRequest) GetContext() *v2.RequestContext {
+	if x != nil {
+		return x.Context
+	}
+	return nil
+}
+
+func (x *ProviderInvokeRequest) GetSlotId() string {
+	if x != nil {
+		return x.SlotId
+	}
+	return ""
+}
+
+func (x *ProviderInvokeRequest) GetContractVersion() string {
+	if x != nil {
+		return x.ContractVersion
+	}
+	return ""
+}
+
+func (x *ProviderInvokeRequest) GetOperation() string {
+	if x != nil {
+		return x.Operation
+	}
+	return ""
+}
+
+func (x *ProviderInvokeRequest) GetInput() *v2.TypedDocument {
+	if x != nil {
+		return x.Input
+	}
+	return nil
+}
+
+type ProviderInvokeResponse struct {
+	state               protoimpl.MessageState `protogen:"open.v1"`
+	Context             *v2.ResponseContext    `protobuf:"bytes,1,opt,name=context,proto3" json:"context,omitempty"`
+	Output              *v2.TypedDocument      `protobuf:"bytes,2,opt,name=output,proto3" json:"output,omitempty"`
+	ProviderId          string                 `protobuf:"bytes,3,opt,name=provider_id,json=providerId,proto3" json:"provider_id,omitempty"`
+	ProviderExtensionId string                 `protobuf:"bytes,4,opt,name=provider_extension_id,json=providerExtensionId,proto3" json:"provider_extension_id,omitempty"`
+	RuntimeInstanceId   string                 `protobuf:"bytes,5,opt,name=runtime_instance_id,json=runtimeInstanceId,proto3" json:"runtime_instance_id,omitempty"`
+	Attempts            uint32                 `protobuf:"varint,6,opt,name=attempts,proto3" json:"attempts,omitempty"`
+	Error               *v2.ErrorDetail        `protobuf:"bytes,7,opt,name=error,proto3" json:"error,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
+}
+
+func (x *ProviderInvokeResponse) Reset() {
+	*x = ProviderInvokeResponse{}
+	mi := &file_sforum_host_v2_resources_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ProviderInvokeResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ProviderInvokeResponse) ProtoMessage() {}
+
+func (x *ProviderInvokeResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_sforum_host_v2_resources_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ProviderInvokeResponse.ProtoReflect.Descriptor instead.
+func (*ProviderInvokeResponse) Descriptor() ([]byte, []int) {
+	return file_sforum_host_v2_resources_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *ProviderInvokeResponse) GetContext() *v2.ResponseContext {
+	if x != nil {
+		return x.Context
+	}
+	return nil
+}
+
+func (x *ProviderInvokeResponse) GetOutput() *v2.TypedDocument {
+	if x != nil {
+		return x.Output
+	}
+	return nil
+}
+
+func (x *ProviderInvokeResponse) GetProviderId() string {
+	if x != nil {
+		return x.ProviderId
+	}
+	return ""
+}
+
+func (x *ProviderInvokeResponse) GetProviderExtensionId() string {
+	if x != nil {
+		return x.ProviderExtensionId
+	}
+	return ""
+}
+
+func (x *ProviderInvokeResponse) GetRuntimeInstanceId() string {
+	if x != nil {
+		return x.RuntimeInstanceId
+	}
+	return ""
+}
+
+func (x *ProviderInvokeResponse) GetAttempts() uint32 {
+	if x != nil {
+		return x.Attempts
+	}
+	return 0
+}
+
+func (x *ProviderInvokeResponse) GetError() *v2.ErrorDetail {
+	if x != nil {
+		return x.Error
+	}
+	return nil
+}
+
 type ServiceStreamOpen struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Context       *v2.RequestContext     `protobuf:"bytes,1,opt,name=context,proto3" json:"context,omitempty"`
@@ -443,7 +611,7 @@ type ServiceStreamOpen struct {
 
 func (x *ServiceStreamOpen) Reset() {
 	*x = ServiceStreamOpen{}
-	mi := &file_sforum_host_v2_resources_proto_msgTypes[6]
+	mi := &file_sforum_host_v2_resources_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -455,7 +623,7 @@ func (x *ServiceStreamOpen) String() string {
 func (*ServiceStreamOpen) ProtoMessage() {}
 
 func (x *ServiceStreamOpen) ProtoReflect() protoreflect.Message {
-	mi := &file_sforum_host_v2_resources_proto_msgTypes[6]
+	mi := &file_sforum_host_v2_resources_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -468,7 +636,7 @@ func (x *ServiceStreamOpen) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ServiceStreamOpen.ProtoReflect.Descriptor instead.
 func (*ServiceStreamOpen) Descriptor() ([]byte, []int) {
-	return file_sforum_host_v2_resources_proto_rawDescGZIP(), []int{6}
+	return file_sforum_host_v2_resources_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *ServiceStreamOpen) GetContext() *v2.RequestContext {
@@ -513,7 +681,7 @@ type ServiceStreamFrame struct {
 
 func (x *ServiceStreamFrame) Reset() {
 	*x = ServiceStreamFrame{}
-	mi := &file_sforum_host_v2_resources_proto_msgTypes[7]
+	mi := &file_sforum_host_v2_resources_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -525,7 +693,7 @@ func (x *ServiceStreamFrame) String() string {
 func (*ServiceStreamFrame) ProtoMessage() {}
 
 func (x *ServiceStreamFrame) ProtoReflect() protoreflect.Message {
-	mi := &file_sforum_host_v2_resources_proto_msgTypes[7]
+	mi := &file_sforum_host_v2_resources_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -538,7 +706,7 @@ func (x *ServiceStreamFrame) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ServiceStreamFrame.ProtoReflect.Descriptor instead.
 func (*ServiceStreamFrame) Descriptor() ([]byte, []int) {
-	return file_sforum_host_v2_resources_proto_rawDescGZIP(), []int{7}
+	return file_sforum_host_v2_resources_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *ServiceStreamFrame) GetFrame() isServiceStreamFrame_Frame {
@@ -609,7 +777,7 @@ type SecretResolveRequest struct {
 
 func (x *SecretResolveRequest) Reset() {
 	*x = SecretResolveRequest{}
-	mi := &file_sforum_host_v2_resources_proto_msgTypes[8]
+	mi := &file_sforum_host_v2_resources_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -621,7 +789,7 @@ func (x *SecretResolveRequest) String() string {
 func (*SecretResolveRequest) ProtoMessage() {}
 
 func (x *SecretResolveRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_sforum_host_v2_resources_proto_msgTypes[8]
+	mi := &file_sforum_host_v2_resources_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -634,7 +802,7 @@ func (x *SecretResolveRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SecretResolveRequest.ProtoReflect.Descriptor instead.
 func (*SecretResolveRequest) Descriptor() ([]byte, []int) {
-	return file_sforum_host_v2_resources_proto_rawDescGZIP(), []int{8}
+	return file_sforum_host_v2_resources_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *SecretResolveRequest) GetContext() *v2.RequestContext {
@@ -678,7 +846,7 @@ type SecretResolveResponse struct {
 
 func (x *SecretResolveResponse) Reset() {
 	*x = SecretResolveResponse{}
-	mi := &file_sforum_host_v2_resources_proto_msgTypes[9]
+	mi := &file_sforum_host_v2_resources_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -690,7 +858,7 @@ func (x *SecretResolveResponse) String() string {
 func (*SecretResolveResponse) ProtoMessage() {}
 
 func (x *SecretResolveResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_sforum_host_v2_resources_proto_msgTypes[9]
+	mi := &file_sforum_host_v2_resources_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -703,7 +871,7 @@ func (x *SecretResolveResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SecretResolveResponse.ProtoReflect.Descriptor instead.
 func (*SecretResolveResponse) Descriptor() ([]byte, []int) {
-	return file_sforum_host_v2_resources_proto_rawDescGZIP(), []int{9}
+	return file_sforum_host_v2_resources_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *SecretResolveResponse) GetContext() *v2.ResponseContext {
@@ -753,7 +921,7 @@ type FileReadRequest struct {
 
 func (x *FileReadRequest) Reset() {
 	*x = FileReadRequest{}
-	mi := &file_sforum_host_v2_resources_proto_msgTypes[10]
+	mi := &file_sforum_host_v2_resources_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -765,7 +933,7 @@ func (x *FileReadRequest) String() string {
 func (*FileReadRequest) ProtoMessage() {}
 
 func (x *FileReadRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_sforum_host_v2_resources_proto_msgTypes[10]
+	mi := &file_sforum_host_v2_resources_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -778,7 +946,7 @@ func (x *FileReadRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FileReadRequest.ProtoReflect.Descriptor instead.
 func (*FileReadRequest) Descriptor() ([]byte, []int) {
-	return file_sforum_host_v2_resources_proto_rawDescGZIP(), []int{10}
+	return file_sforum_host_v2_resources_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *FileReadRequest) GetContext() *v2.RequestContext {
@@ -823,7 +991,7 @@ type FileWriteOpen struct {
 
 func (x *FileWriteOpen) Reset() {
 	*x = FileWriteOpen{}
-	mi := &file_sforum_host_v2_resources_proto_msgTypes[11]
+	mi := &file_sforum_host_v2_resources_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -835,7 +1003,7 @@ func (x *FileWriteOpen) String() string {
 func (*FileWriteOpen) ProtoMessage() {}
 
 func (x *FileWriteOpen) ProtoReflect() protoreflect.Message {
-	mi := &file_sforum_host_v2_resources_proto_msgTypes[11]
+	mi := &file_sforum_host_v2_resources_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -848,7 +1016,7 @@ func (x *FileWriteOpen) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FileWriteOpen.ProtoReflect.Descriptor instead.
 func (*FileWriteOpen) Descriptor() ([]byte, []int) {
-	return file_sforum_host_v2_resources_proto_rawDescGZIP(), []int{11}
+	return file_sforum_host_v2_resources_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *FileWriteOpen) GetContext() *v2.RequestContext {
@@ -906,7 +1074,7 @@ type FileWriteFrame struct {
 
 func (x *FileWriteFrame) Reset() {
 	*x = FileWriteFrame{}
-	mi := &file_sforum_host_v2_resources_proto_msgTypes[12]
+	mi := &file_sforum_host_v2_resources_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -918,7 +1086,7 @@ func (x *FileWriteFrame) String() string {
 func (*FileWriteFrame) ProtoMessage() {}
 
 func (x *FileWriteFrame) ProtoReflect() protoreflect.Message {
-	mi := &file_sforum_host_v2_resources_proto_msgTypes[12]
+	mi := &file_sforum_host_v2_resources_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -931,7 +1099,7 @@ func (x *FileWriteFrame) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FileWriteFrame.ProtoReflect.Descriptor instead.
 func (*FileWriteFrame) Descriptor() ([]byte, []int) {
-	return file_sforum_host_v2_resources_proto_rawDescGZIP(), []int{12}
+	return file_sforum_host_v2_resources_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *FileWriteFrame) GetFrame() isFileWriteFrame_Frame {
@@ -987,7 +1155,7 @@ type FileWriteResponse struct {
 
 func (x *FileWriteResponse) Reset() {
 	*x = FileWriteResponse{}
-	mi := &file_sforum_host_v2_resources_proto_msgTypes[13]
+	mi := &file_sforum_host_v2_resources_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -999,7 +1167,7 @@ func (x *FileWriteResponse) String() string {
 func (*FileWriteResponse) ProtoMessage() {}
 
 func (x *FileWriteResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_sforum_host_v2_resources_proto_msgTypes[13]
+	mi := &file_sforum_host_v2_resources_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1012,7 +1180,7 @@ func (x *FileWriteResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FileWriteResponse.ProtoReflect.Descriptor instead.
 func (*FileWriteResponse) Descriptor() ([]byte, []int) {
-	return file_sforum_host_v2_resources_proto_rawDescGZIP(), []int{13}
+	return file_sforum_host_v2_resources_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *FileWriteResponse) GetContext() *v2.ResponseContext {
@@ -1053,7 +1221,7 @@ type FileDeleteRequest struct {
 
 func (x *FileDeleteRequest) Reset() {
 	*x = FileDeleteRequest{}
-	mi := &file_sforum_host_v2_resources_proto_msgTypes[14]
+	mi := &file_sforum_host_v2_resources_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1065,7 +1233,7 @@ func (x *FileDeleteRequest) String() string {
 func (*FileDeleteRequest) ProtoMessage() {}
 
 func (x *FileDeleteRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_sforum_host_v2_resources_proto_msgTypes[14]
+	mi := &file_sforum_host_v2_resources_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1078,7 +1246,7 @@ func (x *FileDeleteRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FileDeleteRequest.ProtoReflect.Descriptor instead.
 func (*FileDeleteRequest) Descriptor() ([]byte, []int) {
-	return file_sforum_host_v2_resources_proto_rawDescGZIP(), []int{14}
+	return file_sforum_host_v2_resources_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *FileDeleteRequest) GetContext() *v2.RequestContext {
@@ -1106,7 +1274,7 @@ type FileDeleteResponse struct {
 
 func (x *FileDeleteResponse) Reset() {
 	*x = FileDeleteResponse{}
-	mi := &file_sforum_host_v2_resources_proto_msgTypes[15]
+	mi := &file_sforum_host_v2_resources_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1118,7 +1286,7 @@ func (x *FileDeleteResponse) String() string {
 func (*FileDeleteResponse) ProtoMessage() {}
 
 func (x *FileDeleteResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_sforum_host_v2_resources_proto_msgTypes[15]
+	mi := &file_sforum_host_v2_resources_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1131,7 +1299,7 @@ func (x *FileDeleteResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FileDeleteResponse.ProtoReflect.Descriptor instead.
 func (*FileDeleteResponse) Descriptor() ([]byte, []int) {
-	return file_sforum_host_v2_resources_proto_rawDescGZIP(), []int{15}
+	return file_sforum_host_v2_resources_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *FileDeleteResponse) GetContext() *v2.ResponseContext {
@@ -1165,7 +1333,7 @@ type FileStatRequest struct {
 
 func (x *FileStatRequest) Reset() {
 	*x = FileStatRequest{}
-	mi := &file_sforum_host_v2_resources_proto_msgTypes[16]
+	mi := &file_sforum_host_v2_resources_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1177,7 +1345,7 @@ func (x *FileStatRequest) String() string {
 func (*FileStatRequest) ProtoMessage() {}
 
 func (x *FileStatRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_sforum_host_v2_resources_proto_msgTypes[16]
+	mi := &file_sforum_host_v2_resources_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1190,7 +1358,7 @@ func (x *FileStatRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FileStatRequest.ProtoReflect.Descriptor instead.
 func (*FileStatRequest) Descriptor() ([]byte, []int) {
-	return file_sforum_host_v2_resources_proto_rawDescGZIP(), []int{16}
+	return file_sforum_host_v2_resources_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *FileStatRequest) GetContext() *v2.RequestContext {
@@ -1221,7 +1389,7 @@ type FileStatResponse struct {
 
 func (x *FileStatResponse) Reset() {
 	*x = FileStatResponse{}
-	mi := &file_sforum_host_v2_resources_proto_msgTypes[17]
+	mi := &file_sforum_host_v2_resources_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1233,7 +1401,7 @@ func (x *FileStatResponse) String() string {
 func (*FileStatResponse) ProtoMessage() {}
 
 func (x *FileStatResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_sforum_host_v2_resources_proto_msgTypes[17]
+	mi := &file_sforum_host_v2_resources_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1246,7 +1414,7 @@ func (x *FileStatResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FileStatResponse.ProtoReflect.Descriptor instead.
 func (*FileStatResponse) Descriptor() ([]byte, []int) {
-	return file_sforum_host_v2_resources_proto_rawDescGZIP(), []int{17}
+	return file_sforum_host_v2_resources_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *FileStatResponse) GetContext() *v2.ResponseContext {
@@ -1306,7 +1474,7 @@ type HttpRequest struct {
 
 func (x *HttpRequest) Reset() {
 	*x = HttpRequest{}
-	mi := &file_sforum_host_v2_resources_proto_msgTypes[18]
+	mi := &file_sforum_host_v2_resources_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1318,7 +1486,7 @@ func (x *HttpRequest) String() string {
 func (*HttpRequest) ProtoMessage() {}
 
 func (x *HttpRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_sforum_host_v2_resources_proto_msgTypes[18]
+	mi := &file_sforum_host_v2_resources_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1331,7 +1499,7 @@ func (x *HttpRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HttpRequest.ProtoReflect.Descriptor instead.
 func (*HttpRequest) Descriptor() ([]byte, []int) {
-	return file_sforum_host_v2_resources_proto_rawDescGZIP(), []int{18}
+	return file_sforum_host_v2_resources_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *HttpRequest) GetContext() *v2.RequestContext {
@@ -1396,7 +1564,7 @@ type HttpResponse struct {
 
 func (x *HttpResponse) Reset() {
 	*x = HttpResponse{}
-	mi := &file_sforum_host_v2_resources_proto_msgTypes[19]
+	mi := &file_sforum_host_v2_resources_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1408,7 +1576,7 @@ func (x *HttpResponse) String() string {
 func (*HttpResponse) ProtoMessage() {}
 
 func (x *HttpResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_sforum_host_v2_resources_proto_msgTypes[19]
+	mi := &file_sforum_host_v2_resources_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1421,7 +1589,7 @@ func (x *HttpResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HttpResponse.ProtoReflect.Descriptor instead.
 func (*HttpResponse) Descriptor() ([]byte, []int) {
-	return file_sforum_host_v2_resources_proto_rawDescGZIP(), []int{19}
+	return file_sforum_host_v2_resources_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *HttpResponse) GetContext() *v2.ResponseContext {
@@ -1473,7 +1641,7 @@ type HttpStreamOpen struct {
 
 func (x *HttpStreamOpen) Reset() {
 	*x = HttpStreamOpen{}
-	mi := &file_sforum_host_v2_resources_proto_msgTypes[20]
+	mi := &file_sforum_host_v2_resources_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1485,7 +1653,7 @@ func (x *HttpStreamOpen) String() string {
 func (*HttpStreamOpen) ProtoMessage() {}
 
 func (x *HttpStreamOpen) ProtoReflect() protoreflect.Message {
-	mi := &file_sforum_host_v2_resources_proto_msgTypes[20]
+	mi := &file_sforum_host_v2_resources_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1498,7 +1666,7 @@ func (x *HttpStreamOpen) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HttpStreamOpen.ProtoReflect.Descriptor instead.
 func (*HttpStreamOpen) Descriptor() ([]byte, []int) {
-	return file_sforum_host_v2_resources_proto_rawDescGZIP(), []int{20}
+	return file_sforum_host_v2_resources_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *HttpStreamOpen) GetContext() *v2.RequestContext {
@@ -1554,7 +1722,7 @@ type HttpStreamClose struct {
 
 func (x *HttpStreamClose) Reset() {
 	*x = HttpStreamClose{}
-	mi := &file_sforum_host_v2_resources_proto_msgTypes[21]
+	mi := &file_sforum_host_v2_resources_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1566,7 +1734,7 @@ func (x *HttpStreamClose) String() string {
 func (*HttpStreamClose) ProtoMessage() {}
 
 func (x *HttpStreamClose) ProtoReflect() protoreflect.Message {
-	mi := &file_sforum_host_v2_resources_proto_msgTypes[21]
+	mi := &file_sforum_host_v2_resources_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1579,7 +1747,7 @@ func (x *HttpStreamClose) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HttpStreamClose.ProtoReflect.Descriptor instead.
 func (*HttpStreamClose) Descriptor() ([]byte, []int) {
-	return file_sforum_host_v2_resources_proto_rawDescGZIP(), []int{21}
+	return file_sforum_host_v2_resources_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *HttpStreamClose) GetStatusCode() uint32 {
@@ -1617,7 +1785,7 @@ type HttpStreamFrame struct {
 
 func (x *HttpStreamFrame) Reset() {
 	*x = HttpStreamFrame{}
-	mi := &file_sforum_host_v2_resources_proto_msgTypes[22]
+	mi := &file_sforum_host_v2_resources_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1629,7 +1797,7 @@ func (x *HttpStreamFrame) String() string {
 func (*HttpStreamFrame) ProtoMessage() {}
 
 func (x *HttpStreamFrame) ProtoReflect() protoreflect.Message {
-	mi := &file_sforum_host_v2_resources_proto_msgTypes[22]
+	mi := &file_sforum_host_v2_resources_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1642,7 +1810,7 @@ func (x *HttpStreamFrame) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HttpStreamFrame.ProtoReflect.Descriptor instead.
 func (*HttpStreamFrame) Descriptor() ([]byte, []int) {
-	return file_sforum_host_v2_resources_proto_rawDescGZIP(), []int{22}
+	return file_sforum_host_v2_resources_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *HttpStreamFrame) GetFrame() isHttpStreamFrame_Frame {
@@ -1738,7 +1906,22 @@ const file_sforum_host_v2_resources_proto_rawDesc = "" +
 	"\x15ServiceInvokeResponse\x12=\n" +
 	"\acontext\x18\x01 \x01(\v2#.sforum.protocol.v2.ResponseContextR\acontext\x129\n" +
 	"\x06output\x18\x02 \x01(\v2!.sforum.protocol.v2.TypedDocumentR\x06output\x125\n" +
-	"\x05error\x18\x03 \x01(\v2\x1f.sforum.protocol.v2.ErrorDetailR\x05error\"\xa8\x01\n" +
+	"\x05error\x18\x03 \x01(\v2\x1f.sforum.protocol.v2.ErrorDetailR\x05error\"\xf0\x01\n" +
+	"\x15ProviderInvokeRequest\x12<\n" +
+	"\acontext\x18\x01 \x01(\v2\".sforum.protocol.v2.RequestContextR\acontext\x12\x17\n" +
+	"\aslot_id\x18\x02 \x01(\tR\x06slotId\x12)\n" +
+	"\x10contract_version\x18\x03 \x01(\tR\x0fcontractVersion\x12\x1c\n" +
+	"\toperation\x18\x04 \x01(\tR\toperation\x127\n" +
+	"\x05input\x18\x05 \x01(\v2!.sforum.protocol.v2.TypedDocumentR\x05input\"\xea\x02\n" +
+	"\x16ProviderInvokeResponse\x12=\n" +
+	"\acontext\x18\x01 \x01(\v2#.sforum.protocol.v2.ResponseContextR\acontext\x129\n" +
+	"\x06output\x18\x02 \x01(\v2!.sforum.protocol.v2.TypedDocumentR\x06output\x12\x1f\n" +
+	"\vprovider_id\x18\x03 \x01(\tR\n" +
+	"providerId\x122\n" +
+	"\x15provider_extension_id\x18\x04 \x01(\tR\x13providerExtensionId\x12.\n" +
+	"\x13runtime_instance_id\x18\x05 \x01(\tR\x11runtimeInstanceId\x12\x1a\n" +
+	"\battempts\x18\x06 \x01(\rR\battempts\x125\n" +
+	"\x05error\x18\a \x01(\v2\x1f.sforum.protocol.v2.ErrorDetailR\x05error\"\xa8\x01\n" +
 	"\x11ServiceStreamOpen\x12<\n" +
 	"\acontext\x18\x01 \x01(\v2\".sforum.protocol.v2.RequestContextR\acontext\x12\x1d\n" +
 	"\n" +
@@ -1833,11 +2016,12 @@ const file_sforum_host_v2_resources_proto_rawDesc = "" +
 	"\x04open\x18\x01 \x01(\v2\x1e.sforum.host.v2.HttpStreamOpenH\x00R\x04open\x125\n" +
 	"\x05chunk\x18\x02 \x01(\v2\x1d.sforum.protocol.v2.DataChunkH\x00R\x05chunk\x127\n" +
 	"\x05close\x18\x03 \x01(\v2\x1f.sforum.host.v2.HttpStreamCloseH\x00R\x05closeB\a\n" +
-	"\x05frame2\xf1\x02\n" +
+	"\x05frame2\xd2\x03\n" +
 	"\x17ServiceDiscoveryService\x12O\n" +
 	"\x04List\x12\".sforum.host.v2.ServiceListRequest\x1a#.sforum.host.v2.ServiceListResponse\x12X\n" +
 	"\aResolve\x12%.sforum.host.v2.ServiceResolveRequest\x1a&.sforum.host.v2.ServiceResolveResponse\x12U\n" +
-	"\x06Invoke\x12$.sforum.host.v2.ServiceInvokeRequest\x1a%.sforum.host.v2.ServiceInvokeResponse\x12T\n" +
+	"\x06Invoke\x12$.sforum.host.v2.ServiceInvokeRequest\x1a%.sforum.host.v2.ServiceInvokeResponse\x12_\n" +
+	"\x0eInvokeProvider\x12%.sforum.host.v2.ProviderInvokeRequest\x1a&.sforum.host.v2.ProviderInvokeResponse\x12T\n" +
 	"\x06Stream\x12\".sforum.host.v2.ServiceStreamFrame\x1a\".sforum.host.v2.ServiceStreamFrame(\x010\x012g\n" +
 	"\rSecretService\x12V\n" +
 	"\aResolve\x12$.sforum.host.v2.SecretResolveRequest\x1a%.sforum.host.v2.SecretResolveResponse2\xc1\x02\n" +
@@ -1862,7 +2046,7 @@ func file_sforum_host_v2_resources_proto_rawDescGZIP() []byte {
 	return file_sforum_host_v2_resources_proto_rawDescData
 }
 
-var file_sforum_host_v2_resources_proto_msgTypes = make([]protoimpl.MessageInfo, 23)
+var file_sforum_host_v2_resources_proto_msgTypes = make([]protoimpl.MessageInfo, 25)
 var file_sforum_host_v2_resources_proto_goTypes = []any{
 	(*ServiceListRequest)(nil),     // 0: sforum.host.v2.ServiceListRequest
 	(*ServiceListResponse)(nil),    // 1: sforum.host.v2.ServiceListResponse
@@ -1870,111 +2054,120 @@ var file_sforum_host_v2_resources_proto_goTypes = []any{
 	(*ServiceResolveResponse)(nil), // 3: sforum.host.v2.ServiceResolveResponse
 	(*ServiceInvokeRequest)(nil),   // 4: sforum.host.v2.ServiceInvokeRequest
 	(*ServiceInvokeResponse)(nil),  // 5: sforum.host.v2.ServiceInvokeResponse
-	(*ServiceStreamOpen)(nil),      // 6: sforum.host.v2.ServiceStreamOpen
-	(*ServiceStreamFrame)(nil),     // 7: sforum.host.v2.ServiceStreamFrame
-	(*SecretResolveRequest)(nil),   // 8: sforum.host.v2.SecretResolveRequest
-	(*SecretResolveResponse)(nil),  // 9: sforum.host.v2.SecretResolveResponse
-	(*FileReadRequest)(nil),        // 10: sforum.host.v2.FileReadRequest
-	(*FileWriteOpen)(nil),          // 11: sforum.host.v2.FileWriteOpen
-	(*FileWriteFrame)(nil),         // 12: sforum.host.v2.FileWriteFrame
-	(*FileWriteResponse)(nil),      // 13: sforum.host.v2.FileWriteResponse
-	(*FileDeleteRequest)(nil),      // 14: sforum.host.v2.FileDeleteRequest
-	(*FileDeleteResponse)(nil),     // 15: sforum.host.v2.FileDeleteResponse
-	(*FileStatRequest)(nil),        // 16: sforum.host.v2.FileStatRequest
-	(*FileStatResponse)(nil),       // 17: sforum.host.v2.FileStatResponse
-	(*HttpRequest)(nil),            // 18: sforum.host.v2.HttpRequest
-	(*HttpResponse)(nil),           // 19: sforum.host.v2.HttpResponse
-	(*HttpStreamOpen)(nil),         // 20: sforum.host.v2.HttpStreamOpen
-	(*HttpStreamClose)(nil),        // 21: sforum.host.v2.HttpStreamClose
-	(*HttpStreamFrame)(nil),        // 22: sforum.host.v2.HttpStreamFrame
-	(*v2.RequestContext)(nil),      // 23: sforum.protocol.v2.RequestContext
-	(*v2.PageRequest)(nil),         // 24: sforum.protocol.v2.PageRequest
-	(*v2.ResponseContext)(nil),     // 25: sforum.protocol.v2.ResponseContext
-	(*v2.ServiceDescriptor)(nil),   // 26: sforum.protocol.v2.ServiceDescriptor
-	(*v2.PageInfo)(nil),            // 27: sforum.protocol.v2.PageInfo
-	(*v2.ErrorDetail)(nil),         // 28: sforum.protocol.v2.ErrorDetail
-	(*v2.TypedDocument)(nil),       // 29: sforum.protocol.v2.TypedDocument
-	(*durationpb.Duration)(nil),    // 30: google.protobuf.Duration
-	(*v2.DataChunk)(nil),           // 31: sforum.protocol.v2.DataChunk
-	(*v2.Header)(nil),              // 32: sforum.protocol.v2.Header
+	(*ProviderInvokeRequest)(nil),  // 6: sforum.host.v2.ProviderInvokeRequest
+	(*ProviderInvokeResponse)(nil), // 7: sforum.host.v2.ProviderInvokeResponse
+	(*ServiceStreamOpen)(nil),      // 8: sforum.host.v2.ServiceStreamOpen
+	(*ServiceStreamFrame)(nil),     // 9: sforum.host.v2.ServiceStreamFrame
+	(*SecretResolveRequest)(nil),   // 10: sforum.host.v2.SecretResolveRequest
+	(*SecretResolveResponse)(nil),  // 11: sforum.host.v2.SecretResolveResponse
+	(*FileReadRequest)(nil),        // 12: sforum.host.v2.FileReadRequest
+	(*FileWriteOpen)(nil),          // 13: sforum.host.v2.FileWriteOpen
+	(*FileWriteFrame)(nil),         // 14: sforum.host.v2.FileWriteFrame
+	(*FileWriteResponse)(nil),      // 15: sforum.host.v2.FileWriteResponse
+	(*FileDeleteRequest)(nil),      // 16: sforum.host.v2.FileDeleteRequest
+	(*FileDeleteResponse)(nil),     // 17: sforum.host.v2.FileDeleteResponse
+	(*FileStatRequest)(nil),        // 18: sforum.host.v2.FileStatRequest
+	(*FileStatResponse)(nil),       // 19: sforum.host.v2.FileStatResponse
+	(*HttpRequest)(nil),            // 20: sforum.host.v2.HttpRequest
+	(*HttpResponse)(nil),           // 21: sforum.host.v2.HttpResponse
+	(*HttpStreamOpen)(nil),         // 22: sforum.host.v2.HttpStreamOpen
+	(*HttpStreamClose)(nil),        // 23: sforum.host.v2.HttpStreamClose
+	(*HttpStreamFrame)(nil),        // 24: sforum.host.v2.HttpStreamFrame
+	(*v2.RequestContext)(nil),      // 25: sforum.protocol.v2.RequestContext
+	(*v2.PageRequest)(nil),         // 26: sforum.protocol.v2.PageRequest
+	(*v2.ResponseContext)(nil),     // 27: sforum.protocol.v2.ResponseContext
+	(*v2.ServiceDescriptor)(nil),   // 28: sforum.protocol.v2.ServiceDescriptor
+	(*v2.PageInfo)(nil),            // 29: sforum.protocol.v2.PageInfo
+	(*v2.ErrorDetail)(nil),         // 30: sforum.protocol.v2.ErrorDetail
+	(*v2.TypedDocument)(nil),       // 31: sforum.protocol.v2.TypedDocument
+	(*durationpb.Duration)(nil),    // 32: google.protobuf.Duration
+	(*v2.DataChunk)(nil),           // 33: sforum.protocol.v2.DataChunk
+	(*v2.Header)(nil),              // 34: sforum.protocol.v2.Header
 }
 var file_sforum_host_v2_resources_proto_depIdxs = []int32{
-	23, // 0: sforum.host.v2.ServiceListRequest.context:type_name -> sforum.protocol.v2.RequestContext
-	24, // 1: sforum.host.v2.ServiceListRequest.page:type_name -> sforum.protocol.v2.PageRequest
-	25, // 2: sforum.host.v2.ServiceListResponse.context:type_name -> sforum.protocol.v2.ResponseContext
-	26, // 3: sforum.host.v2.ServiceListResponse.services:type_name -> sforum.protocol.v2.ServiceDescriptor
-	27, // 4: sforum.host.v2.ServiceListResponse.page:type_name -> sforum.protocol.v2.PageInfo
-	28, // 5: sforum.host.v2.ServiceListResponse.error:type_name -> sforum.protocol.v2.ErrorDetail
-	23, // 6: sforum.host.v2.ServiceResolveRequest.context:type_name -> sforum.protocol.v2.RequestContext
-	25, // 7: sforum.host.v2.ServiceResolveResponse.context:type_name -> sforum.protocol.v2.ResponseContext
-	26, // 8: sforum.host.v2.ServiceResolveResponse.service:type_name -> sforum.protocol.v2.ServiceDescriptor
-	28, // 9: sforum.host.v2.ServiceResolveResponse.error:type_name -> sforum.protocol.v2.ErrorDetail
-	23, // 10: sforum.host.v2.ServiceInvokeRequest.context:type_name -> sforum.protocol.v2.RequestContext
-	29, // 11: sforum.host.v2.ServiceInvokeRequest.input:type_name -> sforum.protocol.v2.TypedDocument
-	25, // 12: sforum.host.v2.ServiceInvokeResponse.context:type_name -> sforum.protocol.v2.ResponseContext
-	29, // 13: sforum.host.v2.ServiceInvokeResponse.output:type_name -> sforum.protocol.v2.TypedDocument
-	28, // 14: sforum.host.v2.ServiceInvokeResponse.error:type_name -> sforum.protocol.v2.ErrorDetail
-	23, // 15: sforum.host.v2.ServiceStreamOpen.context:type_name -> sforum.protocol.v2.RequestContext
-	6,  // 16: sforum.host.v2.ServiceStreamFrame.open:type_name -> sforum.host.v2.ServiceStreamOpen
-	29, // 17: sforum.host.v2.ServiceStreamFrame.message:type_name -> sforum.protocol.v2.TypedDocument
-	28, // 18: sforum.host.v2.ServiceStreamFrame.error:type_name -> sforum.protocol.v2.ErrorDetail
-	23, // 19: sforum.host.v2.SecretResolveRequest.context:type_name -> sforum.protocol.v2.RequestContext
-	30, // 20: sforum.host.v2.SecretResolveRequest.requested_ttl:type_name -> google.protobuf.Duration
-	25, // 21: sforum.host.v2.SecretResolveResponse.context:type_name -> sforum.protocol.v2.ResponseContext
-	28, // 22: sforum.host.v2.SecretResolveResponse.error:type_name -> sforum.protocol.v2.ErrorDetail
-	23, // 23: sforum.host.v2.FileReadRequest.context:type_name -> sforum.protocol.v2.RequestContext
-	23, // 24: sforum.host.v2.FileWriteOpen.context:type_name -> sforum.protocol.v2.RequestContext
-	11, // 25: sforum.host.v2.FileWriteFrame.open:type_name -> sforum.host.v2.FileWriteOpen
-	31, // 26: sforum.host.v2.FileWriteFrame.chunk:type_name -> sforum.protocol.v2.DataChunk
-	25, // 27: sforum.host.v2.FileWriteResponse.context:type_name -> sforum.protocol.v2.ResponseContext
-	28, // 28: sforum.host.v2.FileWriteResponse.error:type_name -> sforum.protocol.v2.ErrorDetail
-	23, // 29: sforum.host.v2.FileDeleteRequest.context:type_name -> sforum.protocol.v2.RequestContext
-	25, // 30: sforum.host.v2.FileDeleteResponse.context:type_name -> sforum.protocol.v2.ResponseContext
-	28, // 31: sforum.host.v2.FileDeleteResponse.error:type_name -> sforum.protocol.v2.ErrorDetail
-	23, // 32: sforum.host.v2.FileStatRequest.context:type_name -> sforum.protocol.v2.RequestContext
-	25, // 33: sforum.host.v2.FileStatResponse.context:type_name -> sforum.protocol.v2.ResponseContext
-	28, // 34: sforum.host.v2.FileStatResponse.error:type_name -> sforum.protocol.v2.ErrorDetail
-	23, // 35: sforum.host.v2.HttpRequest.context:type_name -> sforum.protocol.v2.RequestContext
-	32, // 36: sforum.host.v2.HttpRequest.headers:type_name -> sforum.protocol.v2.Header
-	30, // 37: sforum.host.v2.HttpRequest.timeout:type_name -> google.protobuf.Duration
-	25, // 38: sforum.host.v2.HttpResponse.context:type_name -> sforum.protocol.v2.ResponseContext
-	32, // 39: sforum.host.v2.HttpResponse.headers:type_name -> sforum.protocol.v2.Header
-	28, // 40: sforum.host.v2.HttpResponse.error:type_name -> sforum.protocol.v2.ErrorDetail
-	23, // 41: sforum.host.v2.HttpStreamOpen.context:type_name -> sforum.protocol.v2.RequestContext
-	32, // 42: sforum.host.v2.HttpStreamOpen.headers:type_name -> sforum.protocol.v2.Header
-	30, // 43: sforum.host.v2.HttpStreamOpen.timeout:type_name -> google.protobuf.Duration
-	32, // 44: sforum.host.v2.HttpStreamClose.headers:type_name -> sforum.protocol.v2.Header
-	28, // 45: sforum.host.v2.HttpStreamClose.error:type_name -> sforum.protocol.v2.ErrorDetail
-	20, // 46: sforum.host.v2.HttpStreamFrame.open:type_name -> sforum.host.v2.HttpStreamOpen
-	31, // 47: sforum.host.v2.HttpStreamFrame.chunk:type_name -> sforum.protocol.v2.DataChunk
-	21, // 48: sforum.host.v2.HttpStreamFrame.close:type_name -> sforum.host.v2.HttpStreamClose
-	0,  // 49: sforum.host.v2.ServiceDiscoveryService.List:input_type -> sforum.host.v2.ServiceListRequest
-	2,  // 50: sforum.host.v2.ServiceDiscoveryService.Resolve:input_type -> sforum.host.v2.ServiceResolveRequest
-	4,  // 51: sforum.host.v2.ServiceDiscoveryService.Invoke:input_type -> sforum.host.v2.ServiceInvokeRequest
-	7,  // 52: sforum.host.v2.ServiceDiscoveryService.Stream:input_type -> sforum.host.v2.ServiceStreamFrame
-	8,  // 53: sforum.host.v2.SecretService.Resolve:input_type -> sforum.host.v2.SecretResolveRequest
-	10, // 54: sforum.host.v2.FileService.Read:input_type -> sforum.host.v2.FileReadRequest
-	12, // 55: sforum.host.v2.FileService.Write:input_type -> sforum.host.v2.FileWriteFrame
-	14, // 56: sforum.host.v2.FileService.Delete:input_type -> sforum.host.v2.FileDeleteRequest
-	16, // 57: sforum.host.v2.FileService.Stat:input_type -> sforum.host.v2.FileStatRequest
-	18, // 58: sforum.host.v2.HttpService.Do:input_type -> sforum.host.v2.HttpRequest
-	22, // 59: sforum.host.v2.HttpService.Stream:input_type -> sforum.host.v2.HttpStreamFrame
-	1,  // 60: sforum.host.v2.ServiceDiscoveryService.List:output_type -> sforum.host.v2.ServiceListResponse
-	3,  // 61: sforum.host.v2.ServiceDiscoveryService.Resolve:output_type -> sforum.host.v2.ServiceResolveResponse
-	5,  // 62: sforum.host.v2.ServiceDiscoveryService.Invoke:output_type -> sforum.host.v2.ServiceInvokeResponse
-	7,  // 63: sforum.host.v2.ServiceDiscoveryService.Stream:output_type -> sforum.host.v2.ServiceStreamFrame
-	9,  // 64: sforum.host.v2.SecretService.Resolve:output_type -> sforum.host.v2.SecretResolveResponse
-	31, // 65: sforum.host.v2.FileService.Read:output_type -> sforum.protocol.v2.DataChunk
-	13, // 66: sforum.host.v2.FileService.Write:output_type -> sforum.host.v2.FileWriteResponse
-	15, // 67: sforum.host.v2.FileService.Delete:output_type -> sforum.host.v2.FileDeleteResponse
-	17, // 68: sforum.host.v2.FileService.Stat:output_type -> sforum.host.v2.FileStatResponse
-	19, // 69: sforum.host.v2.HttpService.Do:output_type -> sforum.host.v2.HttpResponse
-	22, // 70: sforum.host.v2.HttpService.Stream:output_type -> sforum.host.v2.HttpStreamFrame
-	60, // [60:71] is the sub-list for method output_type
-	49, // [49:60] is the sub-list for method input_type
-	49, // [49:49] is the sub-list for extension type_name
-	49, // [49:49] is the sub-list for extension extendee
-	0,  // [0:49] is the sub-list for field type_name
+	25, // 0: sforum.host.v2.ServiceListRequest.context:type_name -> sforum.protocol.v2.RequestContext
+	26, // 1: sforum.host.v2.ServiceListRequest.page:type_name -> sforum.protocol.v2.PageRequest
+	27, // 2: sforum.host.v2.ServiceListResponse.context:type_name -> sforum.protocol.v2.ResponseContext
+	28, // 3: sforum.host.v2.ServiceListResponse.services:type_name -> sforum.protocol.v2.ServiceDescriptor
+	29, // 4: sforum.host.v2.ServiceListResponse.page:type_name -> sforum.protocol.v2.PageInfo
+	30, // 5: sforum.host.v2.ServiceListResponse.error:type_name -> sforum.protocol.v2.ErrorDetail
+	25, // 6: sforum.host.v2.ServiceResolveRequest.context:type_name -> sforum.protocol.v2.RequestContext
+	27, // 7: sforum.host.v2.ServiceResolveResponse.context:type_name -> sforum.protocol.v2.ResponseContext
+	28, // 8: sforum.host.v2.ServiceResolveResponse.service:type_name -> sforum.protocol.v2.ServiceDescriptor
+	30, // 9: sforum.host.v2.ServiceResolveResponse.error:type_name -> sforum.protocol.v2.ErrorDetail
+	25, // 10: sforum.host.v2.ServiceInvokeRequest.context:type_name -> sforum.protocol.v2.RequestContext
+	31, // 11: sforum.host.v2.ServiceInvokeRequest.input:type_name -> sforum.protocol.v2.TypedDocument
+	27, // 12: sforum.host.v2.ServiceInvokeResponse.context:type_name -> sforum.protocol.v2.ResponseContext
+	31, // 13: sforum.host.v2.ServiceInvokeResponse.output:type_name -> sforum.protocol.v2.TypedDocument
+	30, // 14: sforum.host.v2.ServiceInvokeResponse.error:type_name -> sforum.protocol.v2.ErrorDetail
+	25, // 15: sforum.host.v2.ProviderInvokeRequest.context:type_name -> sforum.protocol.v2.RequestContext
+	31, // 16: sforum.host.v2.ProviderInvokeRequest.input:type_name -> sforum.protocol.v2.TypedDocument
+	27, // 17: sforum.host.v2.ProviderInvokeResponse.context:type_name -> sforum.protocol.v2.ResponseContext
+	31, // 18: sforum.host.v2.ProviderInvokeResponse.output:type_name -> sforum.protocol.v2.TypedDocument
+	30, // 19: sforum.host.v2.ProviderInvokeResponse.error:type_name -> sforum.protocol.v2.ErrorDetail
+	25, // 20: sforum.host.v2.ServiceStreamOpen.context:type_name -> sforum.protocol.v2.RequestContext
+	8,  // 21: sforum.host.v2.ServiceStreamFrame.open:type_name -> sforum.host.v2.ServiceStreamOpen
+	31, // 22: sforum.host.v2.ServiceStreamFrame.message:type_name -> sforum.protocol.v2.TypedDocument
+	30, // 23: sforum.host.v2.ServiceStreamFrame.error:type_name -> sforum.protocol.v2.ErrorDetail
+	25, // 24: sforum.host.v2.SecretResolveRequest.context:type_name -> sforum.protocol.v2.RequestContext
+	32, // 25: sforum.host.v2.SecretResolveRequest.requested_ttl:type_name -> google.protobuf.Duration
+	27, // 26: sforum.host.v2.SecretResolveResponse.context:type_name -> sforum.protocol.v2.ResponseContext
+	30, // 27: sforum.host.v2.SecretResolveResponse.error:type_name -> sforum.protocol.v2.ErrorDetail
+	25, // 28: sforum.host.v2.FileReadRequest.context:type_name -> sforum.protocol.v2.RequestContext
+	25, // 29: sforum.host.v2.FileWriteOpen.context:type_name -> sforum.protocol.v2.RequestContext
+	13, // 30: sforum.host.v2.FileWriteFrame.open:type_name -> sforum.host.v2.FileWriteOpen
+	33, // 31: sforum.host.v2.FileWriteFrame.chunk:type_name -> sforum.protocol.v2.DataChunk
+	27, // 32: sforum.host.v2.FileWriteResponse.context:type_name -> sforum.protocol.v2.ResponseContext
+	30, // 33: sforum.host.v2.FileWriteResponse.error:type_name -> sforum.protocol.v2.ErrorDetail
+	25, // 34: sforum.host.v2.FileDeleteRequest.context:type_name -> sforum.protocol.v2.RequestContext
+	27, // 35: sforum.host.v2.FileDeleteResponse.context:type_name -> sforum.protocol.v2.ResponseContext
+	30, // 36: sforum.host.v2.FileDeleteResponse.error:type_name -> sforum.protocol.v2.ErrorDetail
+	25, // 37: sforum.host.v2.FileStatRequest.context:type_name -> sforum.protocol.v2.RequestContext
+	27, // 38: sforum.host.v2.FileStatResponse.context:type_name -> sforum.protocol.v2.ResponseContext
+	30, // 39: sforum.host.v2.FileStatResponse.error:type_name -> sforum.protocol.v2.ErrorDetail
+	25, // 40: sforum.host.v2.HttpRequest.context:type_name -> sforum.protocol.v2.RequestContext
+	34, // 41: sforum.host.v2.HttpRequest.headers:type_name -> sforum.protocol.v2.Header
+	32, // 42: sforum.host.v2.HttpRequest.timeout:type_name -> google.protobuf.Duration
+	27, // 43: sforum.host.v2.HttpResponse.context:type_name -> sforum.protocol.v2.ResponseContext
+	34, // 44: sforum.host.v2.HttpResponse.headers:type_name -> sforum.protocol.v2.Header
+	30, // 45: sforum.host.v2.HttpResponse.error:type_name -> sforum.protocol.v2.ErrorDetail
+	25, // 46: sforum.host.v2.HttpStreamOpen.context:type_name -> sforum.protocol.v2.RequestContext
+	34, // 47: sforum.host.v2.HttpStreamOpen.headers:type_name -> sforum.protocol.v2.Header
+	32, // 48: sforum.host.v2.HttpStreamOpen.timeout:type_name -> google.protobuf.Duration
+	34, // 49: sforum.host.v2.HttpStreamClose.headers:type_name -> sforum.protocol.v2.Header
+	30, // 50: sforum.host.v2.HttpStreamClose.error:type_name -> sforum.protocol.v2.ErrorDetail
+	22, // 51: sforum.host.v2.HttpStreamFrame.open:type_name -> sforum.host.v2.HttpStreamOpen
+	33, // 52: sforum.host.v2.HttpStreamFrame.chunk:type_name -> sforum.protocol.v2.DataChunk
+	23, // 53: sforum.host.v2.HttpStreamFrame.close:type_name -> sforum.host.v2.HttpStreamClose
+	0,  // 54: sforum.host.v2.ServiceDiscoveryService.List:input_type -> sforum.host.v2.ServiceListRequest
+	2,  // 55: sforum.host.v2.ServiceDiscoveryService.Resolve:input_type -> sforum.host.v2.ServiceResolveRequest
+	4,  // 56: sforum.host.v2.ServiceDiscoveryService.Invoke:input_type -> sforum.host.v2.ServiceInvokeRequest
+	6,  // 57: sforum.host.v2.ServiceDiscoveryService.InvokeProvider:input_type -> sforum.host.v2.ProviderInvokeRequest
+	9,  // 58: sforum.host.v2.ServiceDiscoveryService.Stream:input_type -> sforum.host.v2.ServiceStreamFrame
+	10, // 59: sforum.host.v2.SecretService.Resolve:input_type -> sforum.host.v2.SecretResolveRequest
+	12, // 60: sforum.host.v2.FileService.Read:input_type -> sforum.host.v2.FileReadRequest
+	14, // 61: sforum.host.v2.FileService.Write:input_type -> sforum.host.v2.FileWriteFrame
+	16, // 62: sforum.host.v2.FileService.Delete:input_type -> sforum.host.v2.FileDeleteRequest
+	18, // 63: sforum.host.v2.FileService.Stat:input_type -> sforum.host.v2.FileStatRequest
+	20, // 64: sforum.host.v2.HttpService.Do:input_type -> sforum.host.v2.HttpRequest
+	24, // 65: sforum.host.v2.HttpService.Stream:input_type -> sforum.host.v2.HttpStreamFrame
+	1,  // 66: sforum.host.v2.ServiceDiscoveryService.List:output_type -> sforum.host.v2.ServiceListResponse
+	3,  // 67: sforum.host.v2.ServiceDiscoveryService.Resolve:output_type -> sforum.host.v2.ServiceResolveResponse
+	5,  // 68: sforum.host.v2.ServiceDiscoveryService.Invoke:output_type -> sforum.host.v2.ServiceInvokeResponse
+	7,  // 69: sforum.host.v2.ServiceDiscoveryService.InvokeProvider:output_type -> sforum.host.v2.ProviderInvokeResponse
+	9,  // 70: sforum.host.v2.ServiceDiscoveryService.Stream:output_type -> sforum.host.v2.ServiceStreamFrame
+	11, // 71: sforum.host.v2.SecretService.Resolve:output_type -> sforum.host.v2.SecretResolveResponse
+	33, // 72: sforum.host.v2.FileService.Read:output_type -> sforum.protocol.v2.DataChunk
+	15, // 73: sforum.host.v2.FileService.Write:output_type -> sforum.host.v2.FileWriteResponse
+	17, // 74: sforum.host.v2.FileService.Delete:output_type -> sforum.host.v2.FileDeleteResponse
+	19, // 75: sforum.host.v2.FileService.Stat:output_type -> sforum.host.v2.FileStatResponse
+	21, // 76: sforum.host.v2.HttpService.Do:output_type -> sforum.host.v2.HttpResponse
+	24, // 77: sforum.host.v2.HttpService.Stream:output_type -> sforum.host.v2.HttpStreamFrame
+	66, // [66:78] is the sub-list for method output_type
+	54, // [54:66] is the sub-list for method input_type
+	54, // [54:54] is the sub-list for extension type_name
+	54, // [54:54] is the sub-list for extension extendee
+	0,  // [0:54] is the sub-list for field type_name
 }
 
 func init() { file_sforum_host_v2_resources_proto_init() }
@@ -1982,16 +2175,16 @@ func file_sforum_host_v2_resources_proto_init() {
 	if File_sforum_host_v2_resources_proto != nil {
 		return
 	}
-	file_sforum_host_v2_resources_proto_msgTypes[7].OneofWrappers = []any{
+	file_sforum_host_v2_resources_proto_msgTypes[9].OneofWrappers = []any{
 		(*ServiceStreamFrame_Open)(nil),
 		(*ServiceStreamFrame_Message)(nil),
 		(*ServiceStreamFrame_Error)(nil),
 	}
-	file_sforum_host_v2_resources_proto_msgTypes[12].OneofWrappers = []any{
+	file_sforum_host_v2_resources_proto_msgTypes[14].OneofWrappers = []any{
 		(*FileWriteFrame_Open)(nil),
 		(*FileWriteFrame_Chunk)(nil),
 	}
-	file_sforum_host_v2_resources_proto_msgTypes[22].OneofWrappers = []any{
+	file_sforum_host_v2_resources_proto_msgTypes[24].OneofWrappers = []any{
 		(*HttpStreamFrame_Open)(nil),
 		(*HttpStreamFrame_Chunk)(nil),
 		(*HttpStreamFrame_Close)(nil),
@@ -2002,7 +2195,7 @@ func file_sforum_host_v2_resources_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_sforum_host_v2_resources_proto_rawDesc), len(file_sforum_host_v2_resources_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   23,
+			NumMessages:   25,
 			NumExtensions: 0,
 			NumServices:   4,
 		},

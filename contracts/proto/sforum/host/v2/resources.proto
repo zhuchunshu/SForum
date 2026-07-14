@@ -13,6 +13,7 @@ service ServiceDiscoveryService {
   rpc List(ServiceListRequest) returns (ServiceListResponse);
   rpc Resolve(ServiceResolveRequest) returns (ServiceResolveResponse);
   rpc Invoke(ServiceInvokeRequest) returns (ServiceInvokeResponse);
+  rpc InvokeProvider(ProviderInvokeRequest) returns (ProviderInvokeResponse);
   rpc Stream(stream ServiceStreamFrame) returns (stream ServiceStreamFrame);
 }
 
@@ -75,6 +76,24 @@ message ServiceInvokeResponse {
   sforum.protocol.v2.ResponseContext context = 1;
   sforum.protocol.v2.TypedDocument output = 2;
   sforum.protocol.v2.ErrorDetail error = 3;
+}
+
+message ProviderInvokeRequest {
+  sforum.protocol.v2.RequestContext context = 1;
+  string slot_id = 2;
+  string contract_version = 3;
+  string operation = 4;
+  sforum.protocol.v2.TypedDocument input = 5;
+}
+
+message ProviderInvokeResponse {
+  sforum.protocol.v2.ResponseContext context = 1;
+  sforum.protocol.v2.TypedDocument output = 2;
+  string provider_id = 3;
+  string provider_extension_id = 4;
+  string runtime_instance_id = 5;
+  uint32 attempts = 6;
+  sforum.protocol.v2.ErrorDetail error = 7;
 }
 
 message ServiceStreamOpen {
