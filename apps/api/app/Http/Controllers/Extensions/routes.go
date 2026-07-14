@@ -17,6 +17,8 @@ func (h *Controller) RegisterRoutes(api fiber.Router) {
 	api.Post("/admin/extensions/:id/trust/challenge", h.issueExecutableTrustChallenge)
 	api.Delete("/admin/extensions/:id/trust", h.revokeExecutableTrust)
 	api.Post("/admin/extensions/:id/disable", h.disable)
+	api.Post("/admin/extensions/:id/upgrade", h.upgrade)
+	api.Post("/admin/extensions/:id/rollback", h.rollback)
 	api.Post("/admin/extensions/:id/verify", h.verify)
 	api.Post("/admin/extensions/:id/activate", h.activate)
 	api.Get("/admin/extensions/:id/events", h.events)

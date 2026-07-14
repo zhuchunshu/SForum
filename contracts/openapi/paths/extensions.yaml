@@ -474,9 +474,12 @@ adminExtensionEnable:
       confirmationToken returned by the challenge endpoint. An already trusted
       exact digest may restart without another token. With the migration gate
       disabled, confirmCapabilities remains the v1 compatibility field.
+      Idempotency-Key is required for protocol V2 plus manifest.lifecycle and
+      remains optional for legacy plugins.
     operationId: enableAdminExtension
     parameters:
     - "$ref": "../components/parameters.yaml#/ExtensionID"
+    - "$ref": "../components/parameters.yaml#/IdempotencyKey"
     requestBody:
       required: false
       content:
@@ -510,6 +513,12 @@ adminExtensionEnable:
           Themes must use activation, or capability confirmation is required
           (reason extension.capability_confirmation_required), or Safe Mode
           blocks executable activation (extension.safe_mode_active).
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/common.yaml#/ApiErrorResponse"
+      '422':
+        description: Invalid or missing V2 lifecycle Idempotency-Key.
         content:
           application/json:
             schema:
@@ -603,9 +612,14 @@ adminExtensionTrustChallenge:
 adminExtensionDisable:
   post:
     summary: Disable an installed plugin
+    description: >-
+      Runs the durable lifecycle transaction for protocol V2 plus
+      manifest.lifecycle; those plugins require Idempotency-Key. Legacy plugins
+      continue to use the compatibility disable path.
     operationId: disableAdminExtension
     parameters:
     - "$ref": "../components/parameters.yaml#/ExtensionID"
+    - "$ref": "../components/parameters.yaml#/IdempotencyKey"
     responses:
       '200':
         description: Plugin disabled.
@@ -625,6 +639,122 @@ adminExtensionDisable:
           application/json:
             schema:
               "$ref": "../schemas/common.yaml#/ApiErrorResponse"
+      '422':
+        description: Invalid or missing V2 lifecycle Idempotency-Key.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/common.yaml#/ApiErrorResponse"
+      '503':
+        "$ref": "../components/responses.yaml#/ServiceUnavailable"
+adminExtensionUpgrade:
+  post:
+    summary: Activate the exact staged plugin version
+    description: >-
+      Runs the protocol V2 upgrade transaction for the immutable staged
+      candidate. Idempotency-Key is required when the selected plugin declares
+      backend protocolVersion 2 plus manifest.lifecycle. Candidate code remains
+      inert until static preflight and exact-artifact trust both pass.
+    operationId: upgradeAdminExtension
+    parameters:
+    - "$ref": "../components/parameters.yaml#/ExtensionID"
+    - "$ref": "../components/parameters.yaml#/IdempotencyKey"
+    requestBody:
+      required: false
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+            properties:
+              confirmationToken:
+                type: string
+                pattern: '^[0-9a-f]{64}$'
+    responses:
+      '200':
+        description: The exact staged artifact is active.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/extensions.yaml#/ApiResponseExtension"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '404':
+        "$ref": "../components/responses.yaml#/NotFound"
+      '409':
+        description: No staged candidate, trust conflict, or another lifecycle operation is open.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/common.yaml#/ApiErrorResponse"
+      '422':
+        description: Invalid or missing V2 lifecycle idempotency identity.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/common.yaml#/ApiErrorResponse"
+      '503':
+        "$ref": "../components/responses.yaml#/ServiceUnavailable"
+adminExtensionRollback:
+  post:
+    summary: Roll back to an exact historical plugin version
+    description: >-
+      Runs the protocol V2 rollback transaction for the exact version and
+      digest. The Host reuses that artifact's last successful immutable
+      authority snapshot even if its live grant was later revoked; current
+      operator permission and audit identity remain authoritative.
+    operationId: rollbackAdminExtension
+    parameters:
+    - "$ref": "../components/parameters.yaml#/ExtensionID"
+    - "$ref": "../components/parameters.yaml#/IdempotencyKey"
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+            required: [targetVersion, targetPackageDigest]
+            properties:
+              targetVersion:
+                type: string
+                minLength: 1
+              targetPackageDigest:
+                type: string
+                pattern: '^[0-9a-f]{64}$'
+    responses:
+      '200':
+        description: The exact historical artifact is active.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/extensions.yaml#/ApiResponseExtension"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '404':
+        description: Extension or exact historical version not found.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/common.yaml#/ApiErrorResponse"
+      '409':
+        description: No successful frozen authority or another lifecycle operation is open.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/common.yaml#/ApiErrorResponse"
+      '422':
+        description: Invalid rollback target or missing V2 lifecycle idempotency identity.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/common.yaml#/ApiErrorResponse"
+      '503':
+        "$ref": "../components/responses.yaml#/ServiceUnavailable"
 adminExtensionVerify:
   post:
     summary: Verify an installed plugin or theme package without applying it

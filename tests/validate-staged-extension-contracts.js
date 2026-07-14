@@ -37,6 +37,20 @@ assert(installResultSchema.includes('Static package upload and staging preserve 
 const paths = read('contracts/openapi/paths/extensions.yaml')
 assert(paths.includes('stores an immutable upgrade candidate without changing the active package'), 'upload contract must describe inert candidate staging')
 assert(paths.includes('InstallResult (extension plus activationPending metadata)'), 'upload response must describe activationPending')
+const enablePath = section(paths, 'adminExtensionEnable:\n', 'adminExtensionTrust:\n')
+const disablePath = section(paths, 'adminExtensionDisable:\n', 'adminExtensionUpgrade:\n')
+const upgradePath = section(paths, 'adminExtensionUpgrade:\n', 'adminExtensionRollback:\n')
+const rollbackPath = section(paths, 'adminExtensionRollback:\n', 'adminExtensionVerify:\n')
+for (const [name, contract] of Object.entries({ enablePath, disablePath, upgradePath, rollbackPath })) {
+  assert(contract.includes('../components/parameters.yaml#/IdempotencyKey'), `${name} must accept Idempotency-Key`)
+}
+assert(upgradePath.includes('operationId: upgradeAdminExtension'), 'OpenAPI must expose the staged upgrade operation')
+assert(rollbackPath.includes('operationId: rollbackAdminExtension'), 'OpenAPI must expose the exact rollback operation')
+assert(rollbackPath.includes('required: [targetVersion, targetPackageDigest]'), 'rollback must bind exact version and digest')
+
+const openapi = read('contracts/openapi.yaml')
+assert(openapi.includes('/admin/extensions/{extensionID}/upgrade'), 'OpenAPI index must expose upgrade')
+assert(openapi.includes('/admin/extensions/{extensionID}/rollback'), 'OpenAPI index must expose rollback')
 
 const types = read('apps/web/app/utils/adminExtensions.ts')
 assert(types.includes('export type AdminExtensionVersion = {'), 'web types must define AdminExtensionVersion')
@@ -45,6 +59,9 @@ assert(types.includes('stagedVersion?: AdminExtensionVersion'), 'AdminExtension 
 const manager = read('apps/web/app/composables/useAdminExtensionsManager.ts')
 assert(manager.includes('activationPending?: boolean'), 'upload result type must expose activationPending')
 assert(manager.includes("t('admin.extensions.upgradeStagedHint')"), 'staged upload toast must explain pending activation')
+assert(manager.includes("headers: { 'Idempotency-Key': idempotencyKey }"), 'lifecycle requests must send Idempotency-Key')
+assert(manager.includes('globalThis.crypto.randomUUID()'), 'each lifecycle operation must use a UUID idempotency key')
+assert(manager.includes("action: 'enable' | 'disable' | 'upgrade' | 'rollback'"), 'frontend lifecycle helper must cover V2 operations')
 
 const overview = read('apps/web/app/pages/admin/extensions/index.vue')
 assert(overview.includes("t('admin.extensions.stagedVersionBadge'"), 'extension list must identify a staged candidate')

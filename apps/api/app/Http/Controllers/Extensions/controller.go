@@ -176,6 +176,7 @@ func (h *Controller) enable(c fiber.Ctx) error {
 			return fiber.NewError(fiber.StatusUnprocessableEntity, "validation.invalid")
 		}
 	}
+	input.IdempotencyKey = c.Get("Idempotency-Key")
 	item, err := h.service.Enable(c.Context(), actor, c.Params("id"), input)
 	if err != nil {
 		return mapExtensionError(err)
@@ -224,7 +225,45 @@ func (h *Controller) disable(c fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
-	item, err := h.service.Disable(c.Context(), actor, c.Params("id"))
+	item, err := h.service.DisableWithInput(c.Context(), actor, c.Params("id"), extensions.LifecycleRequestInput{
+		IdempotencyKey: c.Get("Idempotency-Key"),
+	})
+	if err != nil {
+		return mapExtensionError(err)
+	}
+	return apphttp.OK(c, item)
+}
+
+func (h *Controller) upgrade(c fiber.Ctx) error {
+	actor, err := h.actor(c)
+	if err != nil {
+		return err
+	}
+	var input extensions.UpgradeInput
+	if len(c.Body()) > 0 {
+		if err := c.Bind().Body(&input); err != nil {
+			return fiber.NewError(fiber.StatusUnprocessableEntity, "validation.invalid")
+		}
+	}
+	input.IdempotencyKey = c.Get("Idempotency-Key")
+	item, err := h.service.Upgrade(c.Context(), actor, c.Params("id"), input)
+	if err != nil {
+		return mapExtensionError(err)
+	}
+	return apphttp.OK(c, item)
+}
+
+func (h *Controller) rollback(c fiber.Ctx) error {
+	actor, err := h.actor(c)
+	if err != nil {
+		return err
+	}
+	var input extensions.RollbackInput
+	if err := c.Bind().Body(&input); err != nil {
+		return fiber.NewError(fiber.StatusUnprocessableEntity, "validation.invalid")
+	}
+	input.IdempotencyKey = c.Get("Idempotency-Key")
+	item, err := h.service.Rollback(c.Context(), actor, c.Params("id"), input)
 	if err != nil {
 		return mapExtensionError(err)
 	}
@@ -516,6 +555,26 @@ func mapExtensionError(err error) error {
 		return fiber.NewError(fiber.StatusUnprocessableEntity, extensions.CodeMigrationFailed)
 	case errors.Is(err, extensions.ErrSafeModeActive):
 		return fiber.NewError(fiber.StatusConflict, extensions.CodeSafeModeActive)
+	case errors.Is(err, extensions.ErrLifecycleCoordinatorInvalid),
+		errors.Is(err, extensions.ErrExtensionVersionInvalid),
+		errors.Is(err, extensions.ErrStagedVersionInvalid):
+		return fiber.NewError(fiber.StatusUnprocessableEntity, extensions.CodeLifecycleInvalid)
+	case errors.Is(err, extensions.ErrLifecycleCoordinatorUnavailable):
+		return fiber.NewError(fiber.StatusServiceUnavailable, extensions.CodeLifecycleUnavailable)
+	case errors.Is(err, extensions.ErrLifecycleCoordinatorActionFailed):
+		return fiber.NewError(fiber.StatusServiceUnavailable, extensions.CodeLifecycleActionFailed)
+	case errors.Is(err, extensions.ErrLifecycleFingerprintConflict),
+		errors.Is(err, extensions.ErrLifecycleOperationInProgress),
+		errors.Is(err, extensions.ErrLifecycleCoordinatorRetryRequired),
+		errors.Is(err, extensions.ErrExtensionVersionConflict),
+		errors.Is(err, extensions.ErrStagedVersionConflict):
+		return fiber.NewError(fiber.StatusConflict, extensions.CodeLifecycleConflict)
+	case errors.Is(err, extensions.ErrLifecycleAuthorityNotFound):
+		return fiber.NewError(fiber.StatusConflict, extensions.CodeLifecycleAuthorityGone)
+	case errors.Is(err, extensions.ErrStagedVersionNotFound):
+		return fiber.NewError(fiber.StatusConflict, extensions.CodeStagedVersionNotFound)
+	case errors.Is(err, extensions.ErrExtensionVersionNotFound):
+		return fiber.NewError(fiber.StatusNotFound, extensions.CodeVersionNotFound)
 	default:
 		return err
 	}

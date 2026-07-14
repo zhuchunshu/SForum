@@ -11,6 +11,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -20,6 +21,7 @@ import (
 	apphttp "github.com/zhuchunshu/sforum/apps/api/app/Http"
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
+	audit "github.com/zhuchunshu/sforum/apps/api/app/Support/Audit"
 	authsession "github.com/zhuchunshu/sforum/apps/api/app/Support/AuthSession"
 	appevents "github.com/zhuchunshu/sforum/apps/api/app/Support/Events"
 	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
@@ -47,6 +49,93 @@ func TestMapExtensionSettingsRollbackFailure(t *testing.T) {
 	}
 	if fiberErr.Code != http.StatusServiceUnavailable || fiberErr.Message != extensions.CodeSettingsRollbackFailed {
 		t.Fatalf("unexpected mapping: %#v", fiberErr)
+	}
+}
+
+func TestMapLifecycleErrorDoesNotExposeInternalFailure(t *testing.T) {
+	mapped := mapExtensionError(errors.Join(
+		extensions.ErrLifecycleCoordinatorActionFailed,
+		errors.New("private plugin SQL and process output"),
+	))
+	fiberErr, ok := mapped.(*fiber.Error)
+	if !ok {
+		t.Fatalf("expected fiber error, got %T", mapped)
+	}
+	if fiberErr.Code != http.StatusServiceUnavailable || fiberErr.Message != extensions.CodeLifecycleActionFailed {
+		t.Fatalf("unexpected mapping: %#v", fiberErr)
+	}
+}
+
+func TestControllerBindsLifecycleIdempotencyHeaderAndRequiresItForV2(t *testing.T) {
+	manager := authsession.NewManager(session.NewStore(), authsession.Config{HashSecret: "test-secret"})
+	users := controllerActors{actors: map[int64]identity.Actor{
+		1: {ID: 1, Status: identity.UserStatusActive, Permissions: map[string]bool{identity.PermissionExtensionManage: true}},
+	}}
+	digest := strings.Repeat("a", 64)
+	plugin := extensions.Extension{
+		ID: "v2.controller", Name: "V2 Controller", Version: "1.0.0",
+		Type: extensions.TypePlugin, Status: extensions.StatusEnabled, Source: extensions.SourceBuiltin,
+		Manifest: extensions.Manifest{
+			ID: "v2.controller", Name: "V2 Controller", Version: "1.0.0", Type: extensions.TypePlugin,
+			Backend:   extensions.ManifestBackend{ProtocolVersion: 2},
+			Lifecycle: &extensions.ManifestLifecycle{ContractVersion: "v2.controller.lifecycle@1"},
+		},
+		PackageDigest: digest, ActiveVersionID: 11,
+	}
+	store := &controllerFakeStore{items: map[string]extensions.Extension{plugin.ID: plugin}}
+	runner := &controllerLifecycleRunner{}
+	authority := extensions.LifecycleAuthoritySnapshot{
+		SchemaVersion: extensions.LifecycleAuthoritySnapshotSchemaV1,
+		AuthorityType: extensions.LifecycleAuthorityBuiltin,
+		ActorUserID:   1,
+		Impact: extensions.TrustImpact{
+			SchemaVersion: extensions.TrustImpactSchemaV2, Action: extensions.TrustActionEnable,
+			ExtensionID: plugin.ID, ExtensionVersion: plugin.Version, ExtensionType: plugin.Type,
+			Source: plugin.Source, PackageDigest: digest, Digest: "frozen-impact",
+			ArtifactDigests: map[string]string{"package": digest},
+		},
+	}
+	service := extensions.NewServiceWithOptions(store, t.TempDir(), "", extensions.LocalRuntimeManager{},
+		extensions.WithAuditor(controllerAuditIDWriter{}),
+		extensions.WithLifecycleCoordinator(
+			runner,
+			func(context.Context, extensions.LifecycleMachineOperation, *extensions.Extension, extensions.Extension) error {
+				return nil
+			},
+			controllerLifecycleAuthority{authority: authority},
+		),
+	)
+	controller := NewController(service, users, manager)
+	loginProvider := extensionRouteProviderFunc(func(api fiber.Router) {
+		api.Post("/test-login/:id", func(c fiber.Ctx) error {
+			_, err := manager.Start(c, 1)
+			return err
+		})
+	})
+	app := apphttp.NewApp(config.Config{AppName: "SForum", AppEnv: "test", CSRFEnabled: false}, slog.Default(), apphttp.Dependencies{
+		RouteProviders: []apphttp.RouteProvider{controller, loginProvider},
+	})
+	cookie := loginExtensionUser(t, app, manager, 1)
+
+	missing := performExtensionRequest(t, app, http.MethodPost, "/api/v1/admin/extensions/v2.controller/disable", cookie)
+	if missing.StatusCode != http.StatusUnprocessableEntity {
+		t.Fatalf("missing Idempotency-Key status = %d", missing.StatusCode)
+	}
+	missing.Body.Close()
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/extensions/v2.controller/disable", nil)
+	req.AddCookie(cookie)
+	req.Header.Set("Idempotency-Key", "controller-disable-1")
+	response, err := app.Test(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("disable status = %d", response.StatusCode)
+	}
+	if runner.key != "controller-disable-1" {
+		t.Fatalf("ledger idempotency key = %q", runner.key)
 	}
 }
 
@@ -614,6 +703,37 @@ type controllerFakeGateway struct{}
 func (controllerFakeGateway) Proxy(c fiber.Ctx, input ProxyInput) error {
 	c.Status(http.StatusOK)
 	return c.SendString("plugin-ok")
+}
+
+type controllerLifecycleRunner struct {
+	key string
+}
+
+func (r *controllerLifecycleRunner) Run(_ context.Context, input extensions.LifecycleCoordinatorRunInput) (extensions.LifecycleCoordinatorRunResult, error) {
+	r.key = input.Acquire.IdempotencyKey
+	return extensions.LifecycleCoordinatorRunResult{
+		Operation: extensions.LifecycleOperation{TerminalResult: extensions.LifecycleTerminalSucceeded},
+	}, nil
+}
+
+type controllerLifecycleAuthority struct {
+	authority extensions.LifecycleAuthoritySnapshot
+}
+
+func (r controllerLifecycleAuthority) LastSuccessfulLifecycleAuthority(context.Context, extensions.ExactExtensionVersionInput) (extensions.LifecycleAuthoritySnapshot, error) {
+	return r.authority, nil
+}
+
+func (r controllerLifecycleAuthority) OperationByIdempotencyKey(context.Context, string, string) (extensions.LifecycleOperation, error) {
+	return extensions.LifecycleOperation{}, extensions.ErrLifecycleOperationNotFound
+}
+
+type controllerAuditIDWriter struct{}
+
+func (controllerAuditIDWriter) Append(context.Context, audit.Event) error { return nil }
+
+func (controllerAuditIDWriter) AppendReturningID(context.Context, audit.Event) (int64, error) {
+	return 51, nil
 }
 
 type controllerFakeStore struct {
