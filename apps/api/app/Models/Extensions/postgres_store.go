@@ -8,6 +8,8 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+
+	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
 )
 
 type PostgresStore struct {
@@ -707,11 +709,13 @@ func scanExtension(row extensionRow) (Extension, error) {
 	if err := json.Unmarshal(manifestJSON, &item.Manifest); err != nil {
 		return Extension{}, fmt.Errorf("decode extension manifest: %w", err)
 	}
+	item.Manifest = extensionmanifest.Normalize(item.Manifest)
 	if len(stagedVersionJSON) > 0 {
 		var staged ExtensionVersion
 		if err := json.Unmarshal(stagedVersionJSON, &staged); err != nil {
 			return Extension{}, fmt.Errorf("decode staged extension version: %w", err)
 		}
+		staged.Manifest = extensionmanifest.Normalize(staged.Manifest)
 		staged.ID = stagedVersionID
 		item.StagedVersion = &staged
 	}

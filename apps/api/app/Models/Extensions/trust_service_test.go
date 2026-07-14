@@ -6,6 +6,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"sync"
 	"testing"
@@ -353,6 +354,15 @@ func TestManifestV3TrustImpactIncludesEveryDeclarationAndExecutableDigest(t *tes
 	if !impact.RequestedAuthority.RawRequest || !impact.RequestedAuthority.RawCoreDatabase || !RequiresExecutableTrust(extension) {
 		t.Fatalf("high-risk authority was not derived from V3 declarations: %#v", impact.RequestedAuthority)
 	}
+	wantDatabaseGrants := []string{
+		extensionmanifest.DatabaseGrantOwnSchema,
+		extensionmanifest.DatabaseGrantCoreViews,
+		extensionmanifest.DatabaseGrantHostCommands,
+		extensionmanifest.DatabaseGrantRawCore,
+	}
+	if impact.Database == nil || impact.Database.Authority != "" || !reflect.DeepEqual(impact.Database.Grants, wantDatabaseGrants) {
+		t.Fatalf("database authority was not normalized into exact grants: %#v", impact.Database)
+	}
 	if len(impact.GuardDeclarations) != 1 || len(impact.MigrationDeclarations) != 1 || len(impact.Schedules) != 1 ||
 		len(impact.RegistryComponents) != 1 || len(impact.Templates) != 1 || len(impact.Assets) != 1 || len(impact.Content) != 1 ||
 		impact.Database == nil || len(impact.Cache) != 1 || len(impact.Services) != 1 || len(impact.Commands) != 1 ||
@@ -360,6 +370,47 @@ func TestManifestV3TrustImpactIncludesEveryDeclarationAndExecutableDigest(t *tes
 		len(impact.Media) != 1 || len(impact.Navigation) != 1 || len(impact.Regions) != 1 || len(impact.Dependencies) != 1 ||
 		impact.Lifecycle == nil || len(impact.OpenAPI) != 1 || len(impact.PackageFiles) != 7 {
 		t.Fatalf("incomplete V3 trust impact: %#v", impact)
+	}
+}
+
+func TestTrustImpactDatabaseGrantSetIsCanonicalAndDigestBound(t *testing.T) {
+	extension := completeV3TrustExtension(t, "demo.database-grants")
+	extension.Manifest.Database = &ManifestDatabase{
+		ContractVersion: extension.ID + ".database@1",
+		Grants: []string{
+			extensionmanifest.DatabaseGrantRawCore,
+			extensionmanifest.DatabaseGrantOwnSchema,
+			extensionmanifest.DatabaseGrantCoreViews,
+		},
+		CoreCompatibility: ">=1.0.0 <2.0.0",
+		Backup:            extensionmanifest.ManifestBackupPolicy{Required: true, Strategy: "operator_snapshot"},
+		Retention:         extensionmanifest.ManifestRetention{OnDisable: "retain", OnUninstall: "retain"},
+	}
+	base, err := buildTrustImpact(extension, TrustActionEnable)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{
+		extensionmanifest.DatabaseGrantOwnSchema,
+		extensionmanifest.DatabaseGrantCoreViews,
+		extensionmanifest.DatabaseGrantRawCore,
+	}
+	if base.Database == nil || !reflect.DeepEqual(base.Database.Grants, want) || !base.RequestedAuthority.RawCoreDatabase {
+		t.Fatalf("canonical trust database grants = %#v", base.Database)
+	}
+
+	changed := base
+	database := *base.Database
+	database.Grants = append([]string(nil), database.Grants...)
+	database.Grants = append(database.Grants, extensionmanifest.DatabaseGrantHostCommands)
+	database.Grants = extensionmanifest.DatabaseGrants(&database)
+	changed.Database = &database
+	digest, err := canonicalTrustImpactDigest(changed)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if digest == base.Digest {
+		t.Fatal("adding one exact database grant did not invalidate trust impact")
 	}
 }
 

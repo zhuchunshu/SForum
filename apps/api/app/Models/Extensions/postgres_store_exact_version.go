@@ -7,6 +7,8 @@ import (
 	"fmt"
 
 	"github.com/jackc/pgx/v5"
+
+	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
 )
 
 // RollbackExtensionVersion 原子地把一个精确活动制品切回一个精确历史制品。
@@ -194,6 +196,7 @@ func scanExtensionVersion(row extensionRow) (ExtensionVersion, error) {
 	if err := json.Unmarshal(manifestJSON, &version.Manifest); err != nil {
 		return ExtensionVersion{}, fmt.Errorf("decode extension version manifest: %w", err)
 	}
+	version.Manifest = extensionmanifest.Normalize(version.Manifest)
 	return version, nil
 }
 

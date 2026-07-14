@@ -261,6 +261,7 @@ func buildTrustImpact(extension Extension, action string) (TrustImpact, error) {
 		return TrustImpact{}, err
 	}
 	manifest := extension.Manifest
+	normalizedDatabase := extensionmanifest.Normalize(manifest).Database
 	artifacts := map[string]string{"package": extension.PackageDigest}
 	binaries := []TrustArtifact{}
 	packageFileSet := map[string]struct{}{}
@@ -378,7 +379,7 @@ func buildTrustImpact(extension Extension, action string) (TrustImpact, error) {
 		Jobs:      append([]ManifestJob{}, manifest.Jobs...), Schedules: append([]ManifestSchedule{}, manifest.Schedules...),
 		Components: components, RegistryComponents: append([]ManifestComponent{}, manifest.Components...),
 		Templates: append([]ManifestTemplate{}, manifest.Templates...), Assets: append([]ManifestAsset{}, manifest.Assets...),
-		Content: append([]ManifestContent{}, manifest.Content...), Database: manifest.Database,
+		Content: append([]ManifestContent{}, manifest.Content...), Database: normalizedDatabase,
 		Cache: append([]ManifestCache{}, manifest.Cache...), Services: append([]ManifestService{}, manifest.Services...),
 		Commands: append([]ManifestCommand{}, manifest.Commands...), AdminSurfaces: append([]ManifestAdminSurface{}, manifest.AdminSurfaces...),
 		Queries: append([]ManifestQuery{}, manifest.Queries...), Identity: manifest.Identity,
@@ -432,10 +433,8 @@ func requestsRawRequest(manifest Manifest) bool {
 }
 
 func requestsRawCoreDatabase(manifest Manifest) bool {
-	if manifest.Database == nil {
-		return false
-	}
-	return manifest.Database.Authority == "raw_core" || manifest.Database.Authority == "kernel"
+	return extensionmanifest.HasDatabaseGrant(manifest.Database, extensionmanifest.DatabaseGrantRawCore) ||
+		extensionmanifest.HasDatabaseGrant(manifest.Database, extensionmanifest.DatabaseGrantKernel)
 }
 
 func hasExecutableLifecycle(manifest Manifest) bool {
