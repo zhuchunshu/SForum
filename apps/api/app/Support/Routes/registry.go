@@ -105,6 +105,11 @@ type Snapshot struct {
 	Conflicts []Conflict
 }
 
+type PublicationSnapshot struct {
+	Revision    uint64
+	Publication Publication
+}
+
 type Match struct {
 	Revision      uint64
 	Route         Route
@@ -119,22 +124,38 @@ type preparedRoute struct {
 }
 
 type registrySnapshot struct {
-	revision  uint64
-	safeMode  bool
-	routes    []preparedRoute
-	conflicts []Conflict
+	revision    uint64
+	safeMode    bool
+	routes      []preparedRoute
+	conflicts   []Conflict
+	publication Publication
 }
 
 // Registry keeps readers lock-free while complete candidate sets are validated off-snapshot.
 type Registry struct {
-	writeMu  sync.Mutex
-	snapshot atomic.Pointer[registrySnapshot]
+	writeMu     sync.Mutex
+	snapshot    atomic.Pointer[registrySnapshot]
+	admissionMu sync.RWMutex
+	admission   func(PluginArtifact) bool
 }
 
 func NewRegistry() *Registry {
 	registry := &Registry{}
 	registry.snapshot.Store(&registrySnapshot{})
 	return registry
+}
+
+// WithPluginAdmission binds resolution to the exact Manager runtime gate.
+// Snapshot inspection remains available while staged/drained contributions are
+// excluded from ordinary route resolution.
+func (r *Registry) WithPluginAdmission(admission func(PluginArtifact) bool) *Registry {
+	if r == nil {
+		return r
+	}
+	r.admissionMu.Lock()
+	r.admission = admission
+	r.admissionMu.Unlock()
+	return r
 }
 
 func (r *Registry) Publish(input Publication) (Snapshot, error) {
@@ -183,6 +204,14 @@ func (r *Registry) Revision() uint64 {
 	return r.loadSnapshot().revision
 }
 
+func (r *Registry) PublicationSnapshot() PublicationSnapshot {
+	if r == nil {
+		return PublicationSnapshot{}
+	}
+	snapshot := r.loadSnapshot()
+	return PublicationSnapshot{Revision: snapshot.revision, Publication: clonePublication(snapshot.publication)}
+}
+
 func (r *Registry) Conflicts() []Conflict {
 	return r.Snapshot().Conflicts
 }
@@ -209,7 +238,7 @@ func (r *Registry) Resolve(method, requestPath string) (Match, error) {
 	}
 	candidates := make([]candidate, 0)
 	for _, item := range snapshot.routes {
-		if !addressableAction(item.route.Action) || !routeMethodMatches(item.route, method) {
+		if !addressableAction(item.route.Action) || !routeMethodMatches(item.route, method) || !r.routeAdmitted(item.route) {
 			continue
 		}
 		if params, ok := item.path.match(requestPath); ok {
@@ -252,7 +281,7 @@ func (r *Registry) Resolve(method, requestPath string) (Match, error) {
 	replacements := make([]Route, 0)
 	for _, item := range snapshot.routes {
 		if item.route.Action != extensionmanifest.RouteActionReplace || item.route.TargetID != best.prepared.route.ID ||
-			!routeMethodMatches(item.route, method) {
+			!routeMethodMatches(item.route, method) || !r.routeAdmitted(item.route) {
 			continue
 		}
 		if _, ok := item.path.match(requestPath); ok {
@@ -268,6 +297,9 @@ func (r *Registry) Resolve(method, requestPath string) (Match, error) {
 	contributions := make([]Route, 0)
 	for _, item := range snapshot.routes {
 		if item.route.Provider.Kind != ProviderPlugin {
+			continue
+		}
+		if !r.routeAdmitted(item.route) {
 			continue
 		}
 		if item.route.Action == extensionmanifest.RouteActionGlobalMiddleware {
@@ -332,9 +364,23 @@ func preparePublication(input Publication) (*registrySnapshot, error) {
 		return nil, err
 	}
 	sort.SliceStable(prepared, func(i, j int) bool { return routeLess(prepared[i], prepared[j]) })
+	publication := clonePublication(input)
+	if input.SafeMode {
+		publication.Plugins = nil
+	}
 	return &registrySnapshot{
-		safeMode: input.SafeMode, routes: prepared, conflicts: inspectConflicts(prepared),
+		safeMode: input.SafeMode, routes: prepared, conflicts: inspectConflicts(prepared), publication: publication,
 	}, nil
+}
+
+func (r *Registry) routeAdmitted(route Route) bool {
+	if route.Provider.Kind != ProviderPlugin {
+		return true
+	}
+	r.admissionMu.RLock()
+	admission := r.admission
+	r.admissionMu.RUnlock()
+	return admission == nil || admission(route.Provider.Artifact)
 }
 
 func routeLess(left, right preparedRoute) bool {
@@ -416,6 +462,24 @@ func cloneConflicts(values []Conflict) []Conflict {
 	for index, value := range values {
 		result[index] = value
 		result[index].Candidates = cloneRoutes(value.Candidates)
+	}
+	return result
+}
+
+func clonePublication(value Publication) Publication {
+	result := Publication{SafeMode: value.SafeMode}
+	result.Core = append([]CoreRoute(nil), value.Core...)
+	result.Plugins = make([]PluginRouteSet, len(value.Plugins))
+	for index, plugin := range value.Plugins {
+		result.Plugins[index] = PluginRouteSet{
+			Artifact: plugin.Artifact,
+			Routes:   append([]extensionmanifest.ManifestRoute(nil), plugin.Routes...),
+		}
+		for routeIndex := range result.Plugins[index].Routes {
+			result.Plugins[index].Routes[routeIndex].Methods = append(
+				[]string(nil), plugin.Routes[routeIndex].Methods...,
+			)
+		}
 	}
 	return result
 }
