@@ -1156,3 +1156,29 @@ phase percentage.
   grants, per-runtime lease roles, short-lived Host-signed actor delegation, and
   the provider-neutral entitlement minimum. The recommended choice is all four
   ADR defaults; P5 does not block independent P6-P8 work.
+
+## P6 Identity Target And P8 Approval Authority Checkpoint
+
+- Weighted V3 remains **48%** and P6 remains **61% (11 of 18 rows)**. Guard
+  batches are not credited as the inherited/custom/raw row until that complete
+  high-risk boundary closes.
+- `4850bc999` authorizes five target-dependent identity-admin routes: user
+  update, client-IP clearing, permission overrides, role replacement, and
+  session revocation. Contextual Core Guard production coverage is now **111 of
+  123**; three self-resource routes, four executable bootstrap flows, two
+  entity-meta value routes, two attachment reads, and comment creation remain.
+- These five low-frequency authorized requests deliberately perform one narrow
+  PostgreSQL target lookup. A process-local target-role cache was rejected
+  because another API node could grant or revoke `super_admin` without
+  invalidating it. Unauthorized requests perform no Store I/O. Two isolated
+  PostgreSQL pools proved a grant and revoke are observed by the next guard.
+- P6 verification passed focused HTTP twenty times, focused race five times,
+  full HTTP/Identity/bootstrap tests, `go vet ./...`, and `go build ./...`.
+- `d513aea77` independently extends the theme publication ledger with the exact
+  prior Core-replacement approval actor. Database constraints reject approval
+  without an actor/source tuple and reject an actor without approval; historical
+  rows protect Down. P8 activation/compensation code remains uncommitted until
+  all active-theme mutation paths and real PostgreSQL atomicity tests pass.
+- Resume P6 with the three identity self-resource routes. P7 owns exact schema-
+  validated Plugin B -> Host broker -> Plugin A evidence. P8 next commits the
+  activation/compensation repository slice before starting the watcher.

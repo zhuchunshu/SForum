@@ -3,7 +3,7 @@
 ## Changed
 
 - Weighted V3 is 48%. P5 is 11/17, P6 is 11/18, P7 is 4/22, and P8 is 9/18.
-- Contextual Core Guard production coverage is 106/123. Exact extension trust,
+- Contextual Core Guard production coverage is 111/123. Exact extension trust,
   Options owner policy, public/bootstrap routes, theme assets, Page Registry
   access, public entity metadata, safe custom-role deletion, declared extension
   routes, cookie-bound PAT list/create, and the inert inbound-webhook skeleton
@@ -39,6 +39,8 @@
 - `f41815ba2 feat(contracts): define exact theme activation preview`
 - `5abdea62b feat(admin): bind theme activation to exact preview`
 - `457dac0a9 feat(database): add durable theme publication ledger`
+- `d513aea77 feat(database): retain prior theme approval authority`
+- `4850bc999 feat(routes): authorize identity admin target guards`
 
 ## Verification
 
@@ -46,6 +48,9 @@
   `go vet ./...`, and `go build ./...` before commit.
 - Cookie-bound PAT management additionally passed ten focused repetitions,
   full HTTP race, Routes/bootstrap tests, vet, build, and staged diff checks.
+- Identity-admin target guards passed focused HTTP twenty times, focused race
+  five times, full HTTP/Identity/bootstrap, vet, build, and a real PostgreSQL
+  two-pool grant/revoke freshness scenario.
 - P7 passed full ExtensionManifest and Extensions tests, complete Extensions
   race in 119.901 seconds, targeted rollback races, vet, build, gofmt, and diff
   checks.
@@ -81,11 +86,10 @@
 
 ## Next
 
-1. Continue the remaining 17 contextual guards without opening custom/raw
-   authority before its product freeze: five target-dependent identity admin,
-   three self resource-dependent identity, four executable bootstrap flows, two
-   entity-meta value routes, two attachment reads, and one forum comment-create
-   route.
+1. Continue the remaining 12 contextual guards without opening custom/raw
+   authority before its product freeze: three self resource-dependent identity,
+   four executable bootstrap flows, two entity-meta value routes, two attachment
+   reads, and one forum comment-create route.
 2. Bind the durable P8 publication repository to activation, then implement
    LISTEN plus poll/reconnect recovery, heartbeat, acknowledgements, and the
    two-node convergence gate in separate buildable commits.
