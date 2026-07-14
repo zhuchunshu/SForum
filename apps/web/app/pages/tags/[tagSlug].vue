@@ -21,7 +21,7 @@ const tagSlug = computed(() => routeParam(route.params.tagSlug))
 const publicTagPagesEnabled = computed(() => parseForumTagPublicPagesOption(
   webOption('forum.tags.public_pages', 'enabled')
 ))
-const currentPage = ref(1)
+const currentPage = computed(() => parsePublicPage(route.query.page))
 const canCreateTopic = computed(() => can(FORUM_PERMISSIONS.topicCreate))
 const renderedAt = useState<number>('forum-taxonomy-rendered-at', () => Date.now())
 const emptyTopicList = (): ForumTopicList => ({
@@ -62,7 +62,7 @@ if (!tag.value) {
 }
 
 const { data: topicList, pending: topicsPending } = await useAsyncData(
-  `forum-tag-page-topics:${tagSlug.value}`,
+  () => `forum-tag-page-topics:${tagSlug.value}:${currentPage.value}`,
   () => forumApi.listTopics({
     tagSlug: tagSlug.value,
     page: currentPage.value
@@ -94,6 +94,10 @@ function routeParam(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] || '' : value || ''
 }
 
+function tagPageTo(page: number) {
+  return publicPageLocation(localePath(forumTagPath(tagSlug.value)), page)
+}
+
 function topicActivity(topic: ForumTopicSummary) {
   const value = topic.lastActivityAt || topic.createdAt
   const date = new Date(value)
@@ -119,9 +123,6 @@ function topicActivity(topic: ForumTopicSummary) {
   return date.toISOString().slice(0, 10)
 }
 
-watch(tagSlug, () => {
-  currentPage.value = 1
-})
 </script>
 
 <template>
@@ -211,8 +212,9 @@ watch(tagSlug, () => {
 
         <div v-if="topics.length > 0 && !topicsPending && totalPages > 1" class="sforum-home__pagination">
           <SFPagination
-            v-model:page="currentPage"
+            :page="currentPage"
             :total-pages="totalPages"
+            :page-to="tagPageTo"
           />
         </div>
       </section>

@@ -35,18 +35,12 @@ const {
   rightRailTagLimit
 } = useActiveThemeSettings()
 
-useSForumSeo(computed(() => ({
-  type: 'home',
-  path: '/',
-  description: t('home.metaDescription', { siteName: seoSettings.value.seoSiteName }),
-  public: true,
-  noindex: Object.keys(route.query).length > 0
-})))
-
 const topicUrlMode = computed(() => seoSettings.value.topicUrlMode)
 const committedFilters = computed(() => parseForumHomeQuery(route.query))
+const currentPage = computed(() => parsePublicPage(route.query.page))
 const activeFeedKey = computed(() => forumHomeFeedKey(committedFilters.value))
-const topicDataKey = computed(() => `forum-home-topics:${activeFeedKey.value}`)
+const activePageFeedKey = computed(() => `${activeFeedKey.value}:${currentPage.value}`)
+const topicDataKey = computed(() => `forum-home-topics:${activePageFeedKey.value}`)
 const searchDraft = ref(committedFilters.value.query)
 const selectedCategorySlug = computed(() => committedFilters.value.categorySlug)
 const selectedTagSlug = computed(() => committedFilters.value.tagSlug)
@@ -99,7 +93,7 @@ const {
   topicDataKey,
   async () => {
     const filters = { ...committedFilters.value }
-    return loadTopicPage(1, filters)
+    return loadTopicPage(currentPage.value, filters)
   },
   {
     default: emptyTopicList
@@ -108,8 +102,8 @@ const {
 
 const loadedTopics = useState<ForumTopicSummary[]>('forum-home-loaded-topics', () => topicList.value.items)
 const loadedTopicTotal = useState<number>('forum-home-topic-total', () => topicList.value.total)
-const loadedFeedKey = useState<string>('forum-home-loaded-feed-key', () => activeFeedKey.value)
-const nextPage = ref(2)
+const loadedFeedKey = useState<string>('forum-home-loaded-feed-key', () => activePageFeedKey.value)
+const nextPage = ref(currentPage.value + 1)
 const isLoadingMore = ref(false)
 const loadMoreError = ref('')
 const loadMoreTrigger = ref<HTMLElement | null>(null)
@@ -117,12 +111,21 @@ const hasLoadedAllPages = ref(false)
 
 const categories = computed(() => categoryGroups.value.flatMap((group) => group.categories || []))
 const topics = computed(() => loadedTopics.value)
+const totalPages = computed(() => Math.ceil(loadedTopicTotal.value / Math.max(topicList.value.perPage, 1)) || 1)
 const hasMoreTopics = computed(() => !hasLoadedAllPages.value && topics.value.length < loadedTopicTotal.value)
 const hasActiveFilters = computed(() => Boolean(
   committedFilters.value.query
   || committedFilters.value.categorySlug
   || committedFilters.value.tagSlug
 ))
+
+useSForumSeo(computed(() => ({
+  type: 'home',
+  path: publicPagePath('/', currentPage.value),
+  description: t('home.metaDescription', { siteName: seoSettings.value.seoSiteName }),
+  public: true,
+  noindex: hasActiveFilters.value || Object.keys(route.query).some(key => key !== 'page')
+})))
 const selectedCategory = computed(() => categories.value.find(
   category => category.slug === selectedCategorySlug.value
 ))
@@ -186,15 +189,15 @@ function replaceLoadedTopics(list: ForumTopicList) {
     return true
   })
   loadedTopicTotal.value = list.total
-  loadedFeedKey.value = activeFeedKey.value
-  nextPage.value = Math.max(2, list.page + 1)
+  loadedFeedKey.value = activePageFeedKey.value
+  nextPage.value = Math.max(currentPage.value + 1, list.page + 1)
   loadMoreError.value = ''
   hasLoadedAllPages.value = list.items.length >= list.total || list.items.length < list.perPage
 }
 
 function shouldIgnoreClientEmptyHydration(list: ForumTopicList) {
   return import.meta.client
-    && activeFeedKey.value === loadedFeedKey.value
+    && activePageFeedKey.value === loadedFeedKey.value
     && loadedTopics.value.length > 0
     && loadedTopicTotal.value > 0
     && list.items.length === 0
@@ -208,9 +211,9 @@ watch(topicList, (list) => {
   replaceLoadedTopics(list)
 }, { immediate: true })
 
-watch(activeFeedKey, () => {
+watch(activePageFeedKey, () => {
   feedGeneration += 1
-  nextPage.value = 2
+  nextPage.value = currentPage.value + 1
   isLoadingMore.value = false
   loadMoreError.value = ''
   hasLoadedAllPages.value = false
@@ -227,7 +230,7 @@ async function loadMoreTopics(forceRetry = false) {
   const filters = { ...committedFilters.value }
   const request: ForumHomeRequestToken = {
     generation: feedGeneration,
-    feedKey: activeFeedKey.value
+    feedKey: activePageFeedKey.value
   }
   const page = nextPage.value
   isLoadingMore.value = true
@@ -235,7 +238,7 @@ async function loadMoreTopics(forceRetry = false) {
 
   try {
     const nextList = await loadTopicPage(page, filters)
-    if (!isForumHomeRequestCurrent(request, feedGeneration, activeFeedKey.value)) {
+    if (!isForumHomeRequestCurrent(request, feedGeneration, activePageFeedKey.value)) {
       return
     }
 
@@ -243,7 +246,7 @@ async function loadMoreTopics(forceRetry = false) {
     const newTopics = nextList.items.filter((topic) => !existingIds.has(topic.id))
     loadedTopics.value = [...loadedTopics.value, ...newTopics]
     loadedTopicTotal.value = Math.max(loadedTopicTotal.value, nextList.total)
-    loadedFeedKey.value = activeFeedKey.value
+    loadedFeedKey.value = activePageFeedKey.value
     nextPage.value = nextList.page + 1
     hasLoadedAllPages.value = hasReachedForumHomeEnd({
       requestedPage: page,
@@ -255,11 +258,11 @@ async function loadMoreTopics(forceRetry = false) {
       perPage: nextList.perPage
     })
   } catch {
-    if (isForumHomeRequestCurrent(request, feedGeneration, activeFeedKey.value)) {
+    if (isForumHomeRequestCurrent(request, feedGeneration, activePageFeedKey.value)) {
       loadMoreError.value = 'home.feed.loadMoreFailed'
     }
   } finally {
-    if (isForumHomeRequestCurrent(request, feedGeneration, activeFeedKey.value)) {
+    if (isForumHomeRequestCurrent(request, feedGeneration, activePageFeedKey.value)) {
       isLoadingMore.value = false
     }
   }
@@ -277,13 +280,17 @@ function clearSearchDebounce() {
 }
 
 function commitFilters(nextFilters: ForumHomeFilters) {
-  if (forumHomeFeedKey(nextFilters) === activeFeedKey.value) {
+  if (forumHomeFeedKey(nextFilters) === activeFeedKey.value && currentPage.value === 1) {
     return
   }
   return router.replace({
     path: localePath('/'),
     query: buildForumHomeQuery(nextFilters)
   })
+}
+
+function homePageTo(page: number) {
+  return publicPageLocation(localePath('/'), page, buildForumHomeQuery(committedFilters.value))
 }
 
 watch(() => committedFilters.value.query, (query) => {
@@ -516,6 +523,14 @@ onBeforeUnmount(() => {
               @action="resetFilters"
             />
           </div>
+        </div>
+
+        <div v-if="topics.length > 0 && !topicsPending && totalPages > 1" class="sforum-home__pagination">
+          <SFPagination
+            :page="currentPage"
+            :total-pages="totalPages"
+            :page-to="homePageTo"
+          />
         </div>
 
         <div

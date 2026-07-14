@@ -16,7 +16,7 @@ const forumApi = useForumApi()
 const { can } = usePermissions()
 
 const categorySlug = computed(() => routeParam(route.params.categorySlug))
-const currentPage = ref(1)
+const currentPage = computed(() => parsePublicPage(route.query.page))
 const canCreateTopic = computed(() => can(FORUM_PERMISSIONS.topicCreate))
 const renderedAt = useState<number>('forum-taxonomy-rendered-at', () => Date.now())
 const emptyTopicList = (): ForumTopicList => ({
@@ -44,7 +44,7 @@ if (!category.value || category.value.visibility === 'hidden') {
 }
 
 const { data: topicList, pending: topicsPending } = await useAsyncData(
-  `forum-category-page-topics:${categorySlug.value}`,
+  () => `forum-category-page-topics:${categorySlug.value}:${currentPage.value}`,
   () => forumApi.listTopics({
     categorySlug: categorySlug.value,
     page: currentPage.value
@@ -75,6 +75,10 @@ function routeParam(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] || '' : value || ''
 }
 
+function categoryPageTo(page: number) {
+  return publicPageLocation(localePath(forumCategoryPath(categorySlug.value)), page)
+}
+
 function topicActivity(topic: ForumTopicSummary) {
   const value = topic.lastActivityAt || topic.createdAt
   const date = new Date(value)
@@ -100,10 +104,6 @@ function topicActivity(topic: ForumTopicSummary) {
   return date.toISOString().slice(0, 10)
 }
 
-// 切换类别路由时回到第一页。
-watch(categorySlug, () => {
-  currentPage.value = 1
-})
 </script>
 
 <template>
@@ -179,8 +179,9 @@ watch(categorySlug, () => {
 
         <div v-if="topics.length > 0 && !topicsPending && totalPages > 1" class="sforum-home__pagination">
           <SFPagination
-            v-model:page="currentPage"
+            :page="currentPage"
             :total-pages="totalPages"
+            :page-to="categoryPageTo"
           />
         </div>
       </section>

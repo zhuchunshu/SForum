@@ -49,13 +49,13 @@ if (!page.includes('SFPageOutlet') || !page.includes('forum.home')) {
   throw new Error('index.vue must wrap content in SFPageOutlet page="forum.home"')
 }
 
-for (const token of ['<SFHomeNavigation', '<SFHomeTopicRow', '<SFHomeRightRail', 'sforum-home__layout--with-right', 'useActiveThemeSettings', 'rightRailEnabled', 'parseForumHomeQuery', 'buildForumHomeQuery', 'forumHomeFeedKey', 'IntersectionObserver', 'hotTopics']) {
+for (const token of ['<SFHomeNavigation', '<SFHomeTopicRow', '<SFHomeRightRail', '<SFPagination', 'sforum-home__layout--with-right', 'useActiveThemeSettings', 'rightRailEnabled', 'parseForumHomeQuery', 'buildForumHomeQuery', 'forumHomeFeedKey', 'parsePublicPage', 'publicPageLocation', 'IntersectionObserver', 'hotTopics']) {
   if (!page.includes(token)) {
     throw new Error(`index.vue is missing the hybrid homepage contract: ${token}`)
   }
 }
 
-for (const obsolete of ['layout: false', 'sforum-home__topbar', '<SFFooter', 'topicReplyStackLabel', 'participants', '<SFPagination']) {
+for (const obsolete of ['layout: false', 'sforum-home__topbar', '<SFFooter', 'topicReplyStackLabel', 'participants']) {
   if (page.includes(obsolete)) {
     throw new Error(`index.vue still contains obsolete or fabricated homepage UI: ${obsolete}`)
   }

@@ -126,7 +126,7 @@ describe('default theme V32 left-nav homepage contract', () => {
   test('preserves SSR hydration, stale-response, deduplication, and infinite-loading guards', () => {
     const page = homepage()
     const feedReset = page.slice(
-      page.indexOf('watch(activeFeedKey'),
+      page.indexOf('watch(activePageFeedKey'),
       page.indexOf('async function loadMoreTopics')
     )
 
@@ -138,6 +138,8 @@ describe('default theme V32 left-nav homepage contract', () => {
     expect(page).toContain('isForumHomeRequestCurrent')
     expect(page).toContain('hasReachedForumHomeEnd')
     expect(page).toContain('IntersectionObserver')
+    expect(page).toContain('parsePublicPage(route.query.page)')
+    expect(page).toContain(':page-to="homePageTo"')
     expect(page).toContain('feedGeneration')
     expect(feedReset).toContain('feedGeneration += 1')
     expect(page).toContain('existingIds')

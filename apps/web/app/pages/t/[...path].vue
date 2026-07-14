@@ -24,6 +24,7 @@ definePageMeta({
 })
 
 const route = useRoute()
+const router = useRouter()
 const { t, locale } = useI18n()
 const localePath = useLocalePath()
 const { seoSettings, webOption } = useWebOptions()
@@ -111,6 +112,13 @@ function isTopicLookupNotFound(error: unknown) {
 // 编辑模式：通过 ?edit=1 query 进入（避免 catch-all 嵌套子路由问题）。
 // 需登录；未登录时全局 auth 中间件会重定向到登录页。
 const isEditing = computed(() => route.query.edit !== undefined && route.query.edit !== null)
+const commentPage = computed({
+  get: () => parsePublicPage(route.query.page),
+  set: (page: number) => {
+    const query: Record<string, string> = isEditing.value ? { edit: '1' } : {}
+    void router.replace(publicPageLocation(route.path, page, query))
+  }
+})
 
 // 规范化：URL 形态/slug 与当前 mode 下的规范路径不符时，301（SSR）/ replace（客户端）。
 // 触发场景：模式切换后的旧 URL、slug 变更后的旧 slug、id 模式下多余的 slug 段。
@@ -121,7 +129,8 @@ watchEffect(() => {
   }
   const targetPath = localePath(forumTopicPath(topic.value, topicUrlMode.value))
   if (targetPath !== route.path) {
-    const target = isEditing.value ? { path: targetPath, query: { edit: '1' } } : targetPath
+    const query: Record<string, string> = isEditing.value ? { edit: '1' } : {}
+    const target = publicPageLocation(targetPath, commentPage.value, query)
     if (import.meta.server) {
       navigateTo(target, { redirectCode: 301 })
     } else {
@@ -131,7 +140,8 @@ watchEffect(() => {
 })
 
 // canonical 用当前 mode 的规范路径（与上面的规范化目标一致）。
-const canonicalPath = computed(() => topic.value ? forumTopicPath(topic.value, topicUrlMode.value) : (route.path))
+const canonicalTopicPath = computed(() => topic.value ? forumTopicPath(topic.value, topicUrlMode.value) : route.path)
+const canonicalPath = computed(() => publicPagePath(canonicalTopicPath.value, commentPage.value))
 
 useSForumSeo(computed(() => ({
   type: 'topic',
@@ -169,7 +179,6 @@ function cancelEditing() {
 }
 
 // 评论数据：默认 tree 视图。
-const commentPage = ref(1)
 const commentView = ref<'tree' | 'flat'>('tree')
 const commentQuery = computed(() => ({
   view: commentView.value,
@@ -178,6 +187,10 @@ const commentQuery = computed(() => ({
 watch(commentView, () => {
   commentPage.value = 1
 }, { flush: 'sync' })
+
+function commentPageTo(page: number) {
+  return publicPageLocation(localePath(canonicalTopicPath.value), page)
+}
 
 // 评论查询基于已加载主题的真实 id（slug 模式下 topicID 可能为 0，必须用 topic.value.id）。
 const loadedTopicID = computed(() => topic.value?.id ?? topicID.value)
@@ -928,7 +941,11 @@ async function submitReport() {
                 </div>
 
                 <div v-if="commentTotalPages > 1" class="flex justify-center pt-2">
-                  <SFPagination v-model:page="commentPage" :total-pages="commentTotalPages" />
+                  <SFPagination
+                    :page="commentPage"
+                    :total-pages="commentTotalPages"
+                    :page-to="commentPageTo"
+                  />
                 </div>
               </template>
 
