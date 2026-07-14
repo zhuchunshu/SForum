@@ -462,9 +462,9 @@ flowchart LR
 
 ### Tasks
 
-- [ ] Inventory/register stable ids and versions for every core route.
-- [ ] Implement immutable route snapshots and deterministic specificity/priority.
-- [ ] Remove the `/extensions/{id}/*` target restriction and support any declared
+- [x] Inventory/register stable ids and versions for every core route.
+- [x] Implement immutable route snapshots and deterministic specificity/priority.
+- [x] Remove the `/extensions/{id}/*` target restriction and support any declared
       public, admin, or API path and HTTP method by stable route id.
 - [ ] Implement `add`, `alias`, `redirect`, `rewrite`, `before`, `after`,
       `filter`, `wrap`, `replace`, and global middleware.
@@ -473,7 +473,7 @@ flowchart LR
 - [ ] Default to inherited core guards; implement separately confirmed custom
       guard/raw request authority.
 - [ ] Validate request/response/filter schemas and explicit mutable fields.
-- [ ] Add explicit provider selection and conflict UI for replace providers.
+- [x] Add explicit provider selection and conflict UI for replace providers.
 - [ ] Define safe GET fallback and fail-closed unsafe method behavior.
 - [ ] Prevent fallback after headers/body/plugin side effects begin.
 - [ ] Add route aliases/redirect SEO status/canonical integration.
@@ -487,8 +487,8 @@ flowchart LR
 - [ ] Every route action, priority order, conflict, locale path, query/body,
       permission, CSRF, custom guard, stream, disconnect, timeout, and crash.
 - [ ] Unsafe replacement failure never executes core as a second writer.
-- [ ] Safe mode bypasses all third-party route snapshots.
-- [ ] OpenAPI aggregation rejects collisions and unsafe references.
+- [x] Safe mode bypasses all third-party route snapshots.
+- [x] OpenAPI aggregation rejects collisions and unsafe references.
 - [ ] Performance comparison against current namespaced proxy baseline.
 
 ### Rollback

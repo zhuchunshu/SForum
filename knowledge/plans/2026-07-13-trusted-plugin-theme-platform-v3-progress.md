@@ -1,8 +1,8 @@
 # Trusted Plugin And Theme Platform V3 Progress Ledger
 
 Date: 2026-07-14
-Overall progress: **36%**
-Active phase: **P5 - Plugin Database Registry And Real Migrations (65%, 11 of 17 rows)**
+Overall progress: **39%**
+Active phase: **P6 - Full Route And Middleware Registry V1 (33%, 6 of 18 rows)**
 
 This ledger is the durable percentage and context-compaction checkpoint for the
 V3 program. Update it before context compression, at every phase boundary, and
@@ -22,7 +22,7 @@ scaffolding, or demo-only code cannot satisfy a runtime exit criterion.
 | P3 Host API v2 | 8% | 100% | 8% |
 | P4 Lifecycle/dependencies | 7% | 100% | 7% |
 | P5 Database/commands | 8% | 65% | 5.18% |
-| P6 Routes/middleware | 10% | 0% | 0% |
+| P6 Routes/middleware | 10% | 33% | 3.33% |
 | P7 Workflow/admin/query/identity | 10% | 0% | 0% |
 | P8 Theme compiler/runtime | 8% | 0% | 0% |
 | P9 Components/assets/L2 | 8% | 0% | 0% |
@@ -809,3 +809,25 @@ phase percentage.
   Page ViewModel slice; then implement Dispatcher trace publication, exact
   schema catalogs, inherited/custom guard contracts, Host-observed side-effect
   fencing, and the non-buffered transport modes before recalculating P6.
+
+## P6 First Accepted Rows Checkpoint
+
+- P6 is now **33% complete (6 of 18 authoritative rows)** and the weighted V3
+  total is **39%**. The active phase is P6; P5 remains partially open at 65%
+  only for the three recorded product decisions and their dependent rows.
+- Accepted task rows: all 218 core routes have generated stable ids/contracts;
+  snapshots are immutable with deterministic specificity/priority; declared
+  plugin routes may target arbitrary public/admin/API paths and methods; and
+  exact replace-provider selection plus conflict API/UI is production-bound.
+- Accepted test rows: Safe Mode excludes all third-party route snapshots while
+  preserving Host routes, and strict plugin OpenAPI aggregation rejects
+  collisions and unsafe package references.
+- `9bcaad539` exposes a permissioned, detached Route Inspector snapshot over
+  modular OpenAPI without returning the raw inspected path/query. `ace782c5b`
+  production-binds the buffered HTTP dispatcher to the exact lifecycle
+  Registry/Runtime Manager while leaving pure core streams untouched and
+  filtering request authority, Host headers, and plugin `Set-Cookie` output.
+- These commits do not close full action semantics, inherited/custom/raw
+  guards, exact schema catalogs, Host-observed side-effect fencing, SEO alias/
+  redirect integration, live trace publication, streaming transports, the
+  complete action/disconnect/crash matrix, or the new-vs-v1 benchmark row.

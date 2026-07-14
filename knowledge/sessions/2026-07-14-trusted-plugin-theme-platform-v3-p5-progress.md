@@ -2,7 +2,8 @@
 
 ## Changed
 
-- P5 is 65% complete at 11 of 17 authoritative rows; weighted V3 is 36%.
+- P5 is 65% complete at 11 of 17 authoritative rows. P6 is the active phase at
+  33% (6 of 18 rows), and weighted V3 is 39%.
 - Added read-only exact migration preflight and independent-process migration-once proof.
 - Enforced per-plugin PostgreSQL connection and slow-query budgets.
 - Added stable read-only core views and production Host Query runtime.
@@ -85,10 +86,11 @@
 ## Resume Point
 
 - Branch: `main`.
-- Last implementation commit at this checkpoint: `738b8a30b`.
+- Last implementation commit at this checkpoint: `ace782c5b`.
 - Frontend was started on port 3000 and API hot reload recovered on 8081, but
   process and login state are not durable; verify both before QA.
-- Active dirty groups belong to three agents: Fiber dispatcher/bootstrap,
-  Inspector HTTP/OpenAPI/generated route catalogs, and ThemeCompiler Page
-  ViewModels. Review, test, and commit each group independently.
+- The only active dirty group is ThemeCompiler Page ViewModels/typed render
+  output. It failed review because the first registry covered only 8 of the 23
+  authoritative Page Catalog identities; require exact catalog parity before
+  committing it.
 - Preserve any unrelated worktree changes; stage only V3-owned files/hunks.
