@@ -35,8 +35,28 @@ func New() *Registry {
 	return r
 }
 
-// Publish atomically replaces one extension's entire publication.
+// Publish atomically adds one extension publication or replays the exact active
+// artifact idempotently. Artifact changes must use PublishIfArtifact so a stale
+// runtime cannot overwrite a newer publication without an exact CAS check.
 func (r *Registry) Publish(publication Publication) (uint64, error) {
+	return r.publish(nil, publication)
+}
+
+// PublishIfArtifact replaces one extension publication only while expected is
+// still the exact active artifact. Package rollback uses the same CAS contract;
+// artifact version ordering is deliberately not inferred here.
+func (r *Registry) PublishIfArtifact(expected Artifact, publication Publication) (uint64, error) {
+	if r == nil {
+		return 0, ErrInvalid
+	}
+	normalizedExpected, err := normalizeArtifact(expected)
+	if err != nil {
+		return r.load().revision, ErrInvalid
+	}
+	return r.publish(&normalizedExpected, publication)
+}
+
+func (r *Registry) publish(expected *Artifact, publication Publication) (uint64, error) {
 	if r == nil {
 		return 0, ErrInvalid
 	}
@@ -46,26 +66,50 @@ func (r *Registry) Publish(publication Publication) (uint64, error) {
 	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
+
 	current := r.load()
+	active, found := current.publications[normalized.Artifact.ExtensionID]
+	if expected != nil {
+		if expected.ExtensionID != normalized.Artifact.ExtensionID || !found || active.Artifact != *expected {
+			return current.revision, ErrArtifactConflict
+		}
+	} else if found && active.Artifact != normalized.Artifact {
+		return current.revision, ErrArtifactConflict
+	}
+	// 同 exact artifact 仅允许语义等价重放；声明漂移 fail-closed。
+	if found && active.Artifact == normalized.Artifact && !equalPublications(active, normalized) {
+		return current.revision, ErrArtifactConflict
+	}
 	publications := clonePublicationMap(current.publications)
 	publications[normalized.Artifact.ExtensionID] = normalized
 	next, err := buildState(current.revision+1, publicationValues(publications))
 	if err != nil {
 		return current.revision, err
 	}
-	if reflect.DeepEqual(current.publications, next.publications) {
+	if equalPublicationMaps(current.publications, next.publications) {
 		return current.revision, nil
 	}
 	r.state.Store(next)
 	return next.revision, nil
 }
 
-// ReplaceAll is the startup/restart path. Input order cannot change provider
-// winners, target ordering, or the restart-stable digest.
+// ReplaceAll replaces the complete graph only if no writer advances the
+// revision while the candidate graph is being built.
 func (r *Registry) ReplaceAll(publications []Publication) (uint64, error) {
 	if r == nil {
 		return 0, ErrInvalid
 	}
+	return r.ReplaceAllIfRevision(r.load().revision, publications)
+}
+
+// ReplaceAllIfRevision publishes one fully validated graph while the expected
+// revision is still current. Exact-artifact declarations are immutable; a
+// revision-fenced batch may add, remove, upgrade, or roll back artifacts.
+func (r *Registry) ReplaceAllIfRevision(expectedRevision uint64, publications []Publication) (uint64, error) {
+	if r == nil {
+		return 0, ErrInvalid
+	}
+	// 完整图先在锁外构建，锁内只做 revision CAS、artifact 漂移校验和一次发布。
 	next, err := buildState(0, publications)
 	if err != nil {
 		return r.load().revision, err
@@ -73,7 +117,13 @@ func (r *Registry) ReplaceAll(publications []Publication) (uint64, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	current := r.load()
-	if reflect.DeepEqual(current.publications, next.publications) {
+	if current.revision != expectedRevision {
+		return current.revision, ErrRevisionConflict
+	}
+	if err := validateExactPublicationReplay(current.publications, next.publications); err != nil {
+		return current.revision, err
+	}
+	if equalPublicationMaps(current.publications, next.publications) {
 		return current.revision, nil
 	}
 	next.revision = current.revision + 1
@@ -109,6 +159,27 @@ func (r *Registry) Remove(artifact Artifact) (uint64, bool, error) {
 	}
 	r.state.Store(next)
 	return next.revision, true, nil
+}
+
+func equalPublicationMaps(left, right map[string]Publication) bool {
+	return reflect.DeepEqual(left, right)
+}
+
+func equalPublications(left, right Publication) bool {
+	return reflect.DeepEqual(left, right)
+}
+
+func validateExactPublicationReplay(current, next map[string]Publication) error {
+	for extensionID, active := range current {
+		candidate, found := next[extensionID]
+		if !found || active.Artifact != candidate.Artifact {
+			continue
+		}
+		if !equalPublications(active, candidate) {
+			return fmt.Errorf("%w: exact artifact %s changed declarations", ErrArtifactConflict, extensionID)
+		}
+	}
+	return nil
 }
 
 func (r *Registry) Revision() uint64 {

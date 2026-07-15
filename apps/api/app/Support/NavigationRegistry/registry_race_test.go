@@ -1,7 +1,10 @@
 package navigationregistry
 
 import (
+	"errors"
 	"fmt"
+	"reflect"
+	"strings"
 	"sync"
 	"testing"
 )
@@ -44,7 +47,8 @@ func TestRegistryConcurrentReadersObserveOnlyCompleteSnapshots(t *testing.T) {
 			<-start
 			for index := 0; index < 500; index++ {
 				snapshot := registry.Snapshot()
-				if len(snapshot.Navigation) != 2 || snapshot.Revision == 0 || snapshot.Digest == "" {
+				if len(snapshot.Navigation) != 2 || len(snapshot.Publications) != 1 ||
+					snapshot.Revision == 0 || snapshot.Digest == "" {
 					report(fmt.Errorf("reader %d partial snapshot: %#v", reader, snapshot))
 					return
 				}
@@ -62,6 +66,60 @@ func TestRegistryConcurrentReadersObserveOnlyCompleteSnapshots(t *testing.T) {
 	case err := <-errorsCh:
 		t.Fatal(err)
 	default:
+	}
+}
+
+func TestRegistryConcurrentStaleRemoveAndPublishAreFenced(t *testing.T) {
+	registry := New()
+	initial := publication("race.navigation", false, 'a')
+	initial.Navigation = []NavigationDeclaration{
+		navigation("race.navigation.item.base", NavigationKindItem, ActionAdd, "", 0),
+	}
+	if _, err := registry.Publish(initial); err != nil {
+		t.Fatal(err)
+	}
+	replacement := publication("race.navigation", false, 'b')
+	replacement.Artifact.ExtensionVersion = "2.0.0"
+	replacement.Artifact.PackageDigest = strings.Repeat("b", 64)
+	replacement.Navigation = []NavigationDeclaration{
+		navigation("race.navigation.item.next", NavigationKindItem, ActionAdd, "", 0),
+	}
+	if _, err := registry.PublishIfArtifact(initial.Artifact, replacement); err != nil {
+		t.Fatal(err)
+	}
+	before := registry.Snapshot()
+
+	start := make(chan struct{})
+	results := make(chan error, 3)
+	// 只并发陈旧路径；成功路径单独验证，避免 remove 清空后 Publish 被误计为成功。
+	go func() {
+		<-start
+		_, _, err := registry.Remove(initial.Artifact)
+		results <- err
+	}()
+	go func() {
+		<-start
+		_, err := registry.Publish(initial)
+		results <- err
+	}()
+	go func() {
+		<-start
+		_, err := registry.PublishIfArtifact(initial.Artifact, initial)
+		results <- err
+	}()
+	close(start)
+
+	for range 3 {
+		err := <-results
+		if !errors.Is(err, ErrArtifactConflict) {
+			t.Fatalf("stale path should conflict, got %v", err)
+		}
+	}
+	if after := registry.Snapshot(); !reflect.DeepEqual(before, after) {
+		t.Fatalf("stale concurrent paths changed snapshot: before=%#v after=%#v", before, after)
+	}
+	if revision, removed, err := registry.Remove(replacement.Artifact); err != nil || !removed || revision != before.Revision+1 {
+		t.Fatalf("exact active remove: revision=%d removed=%t err=%v", revision, removed, err)
 	}
 }
 

@@ -44,6 +44,7 @@ var (
 	ErrConflict         = errors.New("navigation registry conflicts with the active graph")
 	ErrDependency       = errors.New("navigation registry dependency is unavailable, ambiguous, or cyclic")
 	ErrArtifactConflict = errors.New("navigation registry artifact does not own the active publication")
+	ErrRevisionConflict = errors.New("navigation registry revision changed during replacement")
 )
 
 // Artifact binds every contribution to the exact inert package that declared
@@ -126,9 +127,12 @@ type RegionProviderConflict struct {
 }
 
 type Snapshot struct {
-	SchemaVersion       string                       `json:"schemaVersion"`
-	Revision            uint64                       `json:"revision"`
-	Digest              string                       `json:"digest"`
+	SchemaVersion string `json:"schemaVersion"`
+	Revision      uint64 `json:"revision"`
+	Digest        string `json:"digest"`
+	// Publications retains every exact-artifact owner, including empty graphs
+	// that only declare capability/lifecycle identity for dependency consumers.
+	Publications        []Publication                `json:"publications"`
 	Navigation          []NavigationContribution     `json:"navigation"`
 	Regions             []RegionContribution         `json:"regions"`
 	NavigationConflicts []NavigationProviderConflict `json:"navigationConflicts,omitempty"`

@@ -1,11 +1,15 @@
 package navigationregistry
 
-import "sort"
+import (
+	"slices"
+	"sort"
+)
 
 func clonePublication(value Publication) Publication {
-	value.Dependencies = append([]Dependency(nil), value.Dependencies...)
-	value.Navigation = append([]NavigationDeclaration(nil), value.Navigation...)
-	value.Regions = append([]RegionDeclaration(nil), value.Regions...)
+	// 克隆不能改变规范化 publication 的 nil/非 nil 形态或后续等价判断。
+	value.Dependencies = slices.Clone(value.Dependencies)
+	value.Navigation = slices.Clone(value.Navigation)
+	value.Regions = slices.Clone(value.Regions)
 	return value
 }
 
@@ -22,6 +26,14 @@ func publicationValues(values map[string]Publication) []Publication {
 	for _, publication := range values {
 		result = append(result, clonePublication(publication))
 	}
+	return result
+}
+
+func sortedPublications(values map[string]Publication) []Publication {
+	result := publicationValues(values)
+	sort.Slice(result, func(i, j int) bool {
+		return artifactBefore(result[i].Artifact, result[j].Artifact)
+	})
 	return result
 }
 
@@ -44,7 +56,12 @@ func sortedRegionValues(values map[string]RegionContribution) []RegionContributi
 }
 
 func snapshotFromState(state *registryState) Snapshot {
-	result := Snapshot{SchemaVersion: SchemaVersion, Revision: state.revision, Digest: state.digest}
+	result := Snapshot{
+		SchemaVersion: SchemaVersion,
+		Revision:      state.revision,
+		Digest:        state.digest,
+		Publications:  sortedPublications(state.publications),
+	}
 	result.Navigation = sortedNavigationValues(state.navigation)
 	result.Regions = sortedRegionValues(state.regions)
 	for _, target := range sortedNavigationTargetValues(state.navigationTargets) {
@@ -87,6 +104,10 @@ func regionContributionsByAction(values []RegionContribution, action string) []R
 }
 
 func cloneSnapshot(value Snapshot) Snapshot {
+	value.Publications = slices.Clone(value.Publications)
+	for index := range value.Publications {
+		value.Publications[index] = clonePublication(value.Publications[index])
+	}
 	value.Navigation = append([]NavigationContribution(nil), value.Navigation...)
 	value.Regions = append([]RegionContribution(nil), value.Regions...)
 	value.NavigationConflicts = append([]NavigationProviderConflict(nil), value.NavigationConflicts...)
