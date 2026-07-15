@@ -4,10 +4,11 @@ This is the entry point for project memory.
 
 ## Latest Handoff
 
-- **2026-07-16 Trusted Plugin And Theme Platform V3 P6/P7/P8/P9 active (overall 61%)**
+- **2026-07-16 Trusted Plugin And Theme Platform V3 P6/P7/P8/P9 active (overall 62%)**
   - Decision: `knowledge/decisions/2026-07-13-trusted-plugin-theme-platform-v3.md`
   - Task book: `knowledge/plans/2026-07-13-trusted-plugin-theme-platform-v3.md`
-  - Active handoff: `knowledge/sessions/2026-07-16-trusted-plugin-theme-platform-v3-p8-p9-progress.md`
+  - Active checkpoint: `knowledge/sessions/2026-07-16-trusted-plugin-theme-platform-v3-asset-checkpoint.md`
+  - Prior handoff: `knowledge/sessions/2026-07-16-trusted-plugin-theme-platform-v3-p8-p9-progress.md`
   - P5 closure: `knowledge/sessions/2026-07-16-trusted-plugin-theme-platform-v3-p5-closure.md`
   - Prior P6-P9 handoff: `knowledge/sessions/2026-07-15-trusted-plugin-theme-platform-v3-p6-p8-progress.md`
   - P8 handoff: `knowledge/sessions/2026-07-15-trusted-plugin-theme-platform-v3-p8-crawler-hotpath.md`
@@ -87,7 +88,7 @@ This is the entry point for project memory.
     composition, and concurrent idempotent replay. The production entitlement
     Host Command now proves eight-way replay, payload/revision conflict,
     revoke/replay, and actorless delegation rejection through real PostgreSQL
-  - P6 is active at 13/18 (72%). All 227 core routes have stable generated
+  - P6 is active at 13/18 (72%). All 230 core routes have stable generated
     identities; immutable exact route snapshots, arbitrary declared paths,
     explicit replace-provider selection/conflict UI, Safe Mode filtering, and
     strict OpenAPI collision/reference rejection are accepted
@@ -121,7 +122,7 @@ This is the entry point for project memory.
     immutable planning removed full-catalog per-request copies, while the report
     retains the selected-route latency/bytes/allocation regression and requires
     P13 remeasurement
-  - P7 is 11/22 (50%). Versioned namespaced action/filter hooks now publish one
+  - P7 is 14/22 (64%). Versioned namespaced action/filter hooks now publish one
     immutable exact-runtime graph with deterministic priority, typed contracts,
     dependency SemVer, optional fallback, Host revalidation, River delivery,
     lifecycle rollback, and exact Protocol V2 invocation
@@ -136,14 +137,21 @@ This is the entry point for project memory.
     policy in River rows. Host-owned dynamic schedules use River safe add/remove,
     exact trigger admission, lifecycle drain, and consistent embedded/standalone
     worker publication; Safe Mode publishes no third-party schedule.
+  - Commit `e92016366` closes the six-family SDK/catalog row for hooks,
+    services, providers, jobs, schedules, and commands. Callable families have
+    typed registries/clients and source-derived limits; schedules remain an
+    explicitly Host-owned Manifest declaration surface. The generated schedule
+    wire client is documented as unregistered rather than exposed through an
+    invented List/Trigger helper.
   - The Admin Surface Registry now publishes immutable exact-runtime contracts,
     typed Protocol V2 invocation, lifecycle rollback, active-runtime visibility,
     a permission-filtered/redacted HTTP catalog, durable pre-execution audit, and
     stable localized errors. Exact publication swaps are fenced before and during
     invocation. Frozen exact placements, distinct props/result schemas, typed
-    frontend clients, sidebar navigation, and the first real admin-shell outlet
-    are committed. The row remains open pending specialized list/action
-    consumers and an independent reference admin plugin.
+    frontend clients, sidebar navigation, specialized list/action consumers,
+    and an independent uploaded reference admin plugin are committed and
+    accepted. Query, Identity/Permission, Auth/Profile, and automation
+    authority remain open.
   - P8 is 18/18 (100%). Immutable 23-page compiler snapshots, sealed typed
     frontend output, public/admin skin isolation, install-time safety,
     four-level fallback, exact publication, all-catalog zero-I/O proof, and
@@ -162,7 +170,7 @@ This is the entry point for project memory.
     exposes process-local revisions. Migration 020 persists desired/node/ack
     convergence evidence. LISTEN reconnect, missed-notification polling, node
     acknowledgement, and two-node exact-artifact convergence are verified
-  - P9 is 2/16 (12%). The generated neutral `ComponentCatalog` contains 120
+  - P9 is 4/16 (25%). The generated neutral `ComponentCatalog` contains 120
     active public/admin Core component identities, with explicit
     page/component kind, ownership, contract, exact lookup, immutable copies,
     and collision/drift tests
@@ -177,6 +185,14 @@ This is the entry point for project memory.
     artifact trust, immediate activation, native relative ESM/CSS loading,
     browser interaction, API/Nitro restart, trust revoke, unmount, and complete
     stylesheet cleanup while retaining the Host SSR/L1 fallback
+  - Asset Registry and exact frontend-safety rows are accepted. One shared
+    immutable Registry now validates bounded handles, contracts, dependencies,
+    module/loading/integrity/CSP declarations, scopes, deduplication, and exact
+    cleanup. Commits `cf5636927`, `44cfb67dc`, and `f5ed19d2c` bind immutable
+    byte delivery, legacy/theme lifecycle transitions, durable publication
+    plans, restart/Safe Mode restore, and post-reconciliation bootstrap sharing
+    without request-time Store rebuilds. Page-scoped CSP aggregation into Nuxt
+    SSR headers remains open, so public L2 stays production-default off.
 
 - **2026-07-13 Legacy Web Release/runtime frontend builds removed**
   - Decision: `knowledge/decisions/2026-07-13-remove-legacy-web-release.md`

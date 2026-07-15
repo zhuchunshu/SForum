@@ -1,8 +1,8 @@
 # Trusted Plugin And Theme Platform V3 Progress Ledger
 
 Date: 2026-07-16
-Overall progress: **61%**
-Active phase: **P9 - Components/assets/L2 (12% accepted; implementation ahead of accepted production exits)**
+Overall progress: **62%**
+Active phase: **P9 - Components/assets/L2 (25% accepted; CSP and composition exits remain open)**
 
 This ledger is the durable percentage and context-compaction checkpoint for the
 V3 program. Update it before context compression, at every phase boundary, and
@@ -23,9 +23,9 @@ scaffolding, or demo-only code cannot satisfy a runtime exit criterion.
 | P4 Lifecycle/dependencies | 7% | 100% | 7% |
 | P5 Database/commands | 8% | 100% | 8% |
 | P6 Routes/middleware | 10% | 72% | 7.22% |
-| P7 Workflow/admin/query/identity | 10% | 59% | 5.91% |
+| P7 Workflow/admin/query/identity | 10% | 64% | 6.36% |
 | P8 Theme compiler/runtime | 8% | 100% | 8% |
-| P9 Components/assets/L2 | 8% | 12% | 1.00% |
+| P9 Components/assets/L2 | 8% | 25% | 2.00% |
 | P10 Content/media/data | 8% | 0% | 0% |
 | P11 Platform services | 6% | 0% | 0% |
 | P12 Operations/ecosystem | 6% | 0% | 0% |
@@ -111,6 +111,65 @@ phase percentage.
   failing plugin exactly once (`failed`, then `skipped`).
 
 ## Last Durable Checkpoint
+
+### 2026-07-16 P7 SDK And P9 Asset Lifecycle Closure
+
+- Overall advances to **62%** after flooring. P7 advances to **14/22 (64%)**
+  and earns **6.36%** of its 10% weight. P9 advances to **4/16 (25%)** and
+  earns **2.00%** of its 8% weight. P6 remains **13/18 (72%)**.
+- Exact earned weight is `39 + 10*(13/18) + 10*(14/22) + 8 + 8*(4/16)` =
+  `62.5859`; the displayed total is the floor, **62%**.
+- `e92016366` closes the P7 hook/service/provider/job/schedule/command
+  SDK/catalog row. Callable families expose typed registries or clients and
+  source-derived limits. Schedules are explicitly Host-owned Manifest
+  declarations; the unregistered generated wire client is documented instead
+  of being wrapped in a nonfunctional List/Trigger helper.
+- `2a8c0d3e6`, `d8d6d5205`, and `55063b1a3` establish the immutable bounded
+  Asset Registry, deterministic dependency plans, exact artifact/revision CAS,
+  quarantine closure, cleanup, and race fences. `cf5636927` binds immutable
+  frontend bytes and descriptors to live exact authority without request-time
+  Store rebuilds.
+- `44cfb67dc` binds plugin/theme lifecycle transitions and compensation to the
+  exact Asset graph. `f5ed19d2c` adds durable lifecycle publication plans,
+  startup and Safe Mode restore, and one shared Registry late-bound after
+  authoritative reconciliation. `86d112ef5` remains the production inert ZIP,
+  browser mount, restart, revoke, unmount, CSS cleanup, and SSR fallback proof.
+- The converged Asset tree passed Models and Support/Extensions/bootstrap
+  normal plus race tests, focused repetitions, vet, `go build ./...`, and diff
+  checks. The SDK slice passed normal/race, vet, generated documentation drift,
+  and diff checks.
+- `4c2911122` strengthens route action ordering, replacement selection, Safe
+  Mode, fallback fencing, cancellation, and timeout coverage. It does **not**
+  close a P6 row: locale/query/body, permission, CSRF, custom/raw guards,
+  crash, redirect SEO, and open composition semantics remain incomplete.
+- Page-scoped CSP aggregation into Nuxt SSR headers remains open even though
+  Asset declarations validate and return bounded CSP values. Public L2 stays
+  production-default off. Navigation/Region production contracts also remain
+  open.
+
+Dirty ownership at this checkpoint:
+
+- `apps/api/app/Support/QueryRegistry/` is owned by the active P7 production
+  wiring task. It is untracked and receives no progress credit before
+  lifecycle/bootstrap/Host execution and production tests land.
+- `apps/api/app/Models/PageViewModels/source_test.go` and
+  `extensions/builtin/plugins/sforum-content-policy/sforum.extension.json`
+  remain unrelated/user-owned and must not enter this checkpoint commit.
+- The checkpoint owns only `knowledge/index.md`, this progress ledger, the V3
+  task book, and
+  `knowledge/sessions/2026-07-16-trusted-plugin-theme-platform-v3-asset-checkpoint.md`.
+
+Exact resume command:
+
+```bash
+git diff --check -- knowledge/index.md \
+  knowledge/plans/2026-07-13-trusted-plugin-theme-platform-v3.md \
+  knowledge/plans/2026-07-13-trusted-plugin-theme-platform-v3-progress.md \
+  knowledge/sessions/2026-07-16-trusted-plugin-theme-platform-v3-asset-checkpoint.md
+```
+
+Then inspect those four files, commit only their hunks, and continue the P7
+Query production path without crediting the disconnected foundation.
 
 ### 2026-07-16 P5 Database And Host Command Closure
 

@@ -1,6 +1,6 @@
 # Trusted Plugin And Theme Platform V3 - Implementation Task Book
 
-Status: **active implementation; P0-P4 complete, P5 partially open, P6 active, P7/P8 underway**
+Status: **active implementation; P0-P5 and P8 complete; P6, P7, and P9 active**
 Date: 2026-07-13  
 Decision: `knowledge/decisions/2026-07-13-trusted-plugin-theme-platform-v3.md`
 
@@ -550,7 +550,7 @@ query, and identity workflows without replacing whole routes.
 - [ ] Keep permission assignment Host-owned: install/enable previews declared
       capabilities but never grants them silently; admins approve role mappings.
 - [ ] Add extension read/call/manage authority for trusted automation plugins.
-- [ ] Generate hook/service/provider/job/schedule/command docs and SDK clients.
+- [x] Generate hook/service/provider/job/schedule/command docs and SDK clients.
 
 ### Tests
 
@@ -565,6 +565,12 @@ query, and identity workflows without replacing whole routes.
       cycle, and provider fallback.
 - [x] CLI command is unavailable in safe mode unless explicitly recovery-safe.
 - [x] Job/schedule disable and upgrade drain behavior.
+
+The six-family SDK/catalog row closed in `e92016366`. Callable hook, service,
+provider, job, and command families expose typed registries or clients with
+source-derived validation limits. Plugin schedules remain a Host-owned Manifest
+declaration surface: the generated wire client is documented as unregistered,
+and the SDK does not invent a List/Trigger helper that production cannot serve.
 
 ### Rollback
 
@@ -648,10 +654,10 @@ falls back without changing plugin business or numeric semantics.
       contract and digest checks.
 - [ ] Reject theme overrides that declare or infer a different plugin business
       data contract.
-- [ ] Build Asset Registry for handles, dependencies, versions, modules,
+- [x] Build Asset Registry for handles, dependencies, versions, modules,
       loading strategy, integrity, CSP, scope, deduplication, and cleanup.
 - [x] Implement package-local prebuilt public L2 ESM/CSS mount/unmount contract.
-- [ ] Reuse exact-digest confirmation, immutable asset delivery, error boundary,
+- [x] Reuse exact-digest confirmation, immutable asset delivery, error boundary,
       cleanup, quarantine, and SSR/L1 fallback principles from admin components.
 - [ ] Allow trusted component code to run with current browser authority and
       state that honestly in UI/docs.
@@ -668,6 +674,15 @@ falls back without changing plugin business or numeric semantics.
 - [ ] Desktop/mobile visual and interaction checks for replaced high-traffic
       components.
 - [ ] L2 failure never removes primary content or breaks unrelated navigation.
+
+The Asset Registry and exact frontend-safety rows closed through
+`d8d6d5205`, `55063b1a3`, `cf5636927`, `44cfb67dc`, and `f5ed19d2c`, with the
+production upload/mount/restart/revoke proof retained in `86d112ef5`. One shared
+immutable Registry now owns bounded declarations, dependency plans, exact
+artifact/revision fences, lifecycle cleanup, restart/Safe Mode restore, and
+request-path delivery. CSP declarations are validated and returned, but
+page-scoped aggregation into Nuxt SSR response headers remains open; public L2
+therefore stays production-default off.
 
 ### Rollback
 
