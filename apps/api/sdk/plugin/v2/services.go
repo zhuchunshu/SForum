@@ -30,7 +30,9 @@ var (
 // operations. Request and response schemas apply to every operation because
 // the wire ServiceDescriptor publishes schemas at service scope.
 type ServiceDefinition struct {
-	ServiceID        string
+	ServiceID string
+	// Version 必须是严格 SemVer；Host 还会要求 major 与 Manifest
+	// service contractVersion 的 @N 一致。
 	Version          string
 	RequestSchemaID  string
 	ResponseSchemaID string
@@ -147,7 +149,9 @@ func (r *ServiceRegistry) InvokeService(ctx context.Context, request *pluginwire
 		response.Error = detail
 		return response, nil
 	}
-	output, err := operation.Unary(ctx, &ServiceCall{
+	handlerCtx, cancel := bindRequestContextDeadline(ctx, request.GetContext())
+	defer cancel()
+	output, err := operation.Unary(handlerCtx, &ServiceCall{
 		Context:        cloneRequestContext(request.GetContext()),
 		ServiceID:      service.descriptor.GetServiceId(),
 		ServiceVersion: service.descriptor.GetVersion(),

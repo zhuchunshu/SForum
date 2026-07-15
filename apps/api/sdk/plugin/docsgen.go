@@ -27,6 +27,12 @@ const (
 	DocProviderSlots      = "provider-slots.md"
 	DocSchedules          = "schedules.md"
 	DocManifestV3         = "manifest-v3.md"
+	// P7 冻结家族目录（与 hooks/services/providers/jobs/schedules/commands 对齐）。
+	DocHooks    = "hooks.md"
+	DocServices = "services.md"
+	DocJobs     = "jobs.md"
+	DocCommands = "commands.md"
+	DocFamilies = "families.md"
 )
 
 // genMarker 出现在每个生成文件顶部；人工编辑应改代码目录，再 re-generate。
@@ -48,6 +54,11 @@ func GenerateCatalogDocs() GeneratedDocs {
 		DocProviderSlots:      ensureNL(renderProviderSlots()),
 		DocSchedules:          ensureNL(renderSchedules()),
 		DocManifestV3:         ensureNL(renderManifestV3()),
+		DocFamilies:           ensureNL(renderFamilies()),
+		DocHooks:              ensureNL(renderHooks()),
+		DocServices:           ensureNL(renderServices()),
+		DocJobs:               ensureNL(renderJobs()),
+		DocCommands:           ensureNL(renderCommands()),
 	}
 	return GeneratedDocs{Files: files}
 }
@@ -138,11 +149,16 @@ func renderIndex() string {
 	b.WriteString("| [capabilities.md](./capabilities.md) | Host capability grants (risk tiers) |\n")
 	b.WriteString("| [contribution-points.md](./contribution-points.md) | UI/admin contribution points |\n")
 	b.WriteString("| [provider-slots.md](./provider-slots.md) | Provider slots plugins may fill |\n")
-	b.WriteString("| [schedules.md](./schedules.md) | Core host schedules (plugins must not private-cron) |\n")
+	b.WriteString("| [schedules.md](./schedules.md) | Core host schedules + plugin schedule declaration boundary |\n")
 	b.WriteString("| [manifest-v3.md](./manifest-v3.md) | Manifest V3 root fields, include shards, and exact-artifact workflow |\n")
+	b.WriteString("| [families.md](./families.md) | P7 frozen family matrix (hooks/services/providers/jobs/schedules/commands) |\n")
+	b.WriteString("| [hooks.md](./hooks.md) | Versioned hooks: kinds, limits, host event names, InvokeHook |\n")
+	b.WriteString("| [services.md](./services.md) | Plugin services + host-brokered discovery/invoke |\n")
+	b.WriteString("| [jobs.md](./jobs.md) | Dynamic jobs: retry/concurrency limits + Enqueue/ExecuteJob |\n")
+	b.WriteString("| [commands.md](./commands.md) | Plugin CLI commands + InvokeCommand boundary |\n")
 	b.WriteString("\n## Authoring\n\n")
 	b.WriteString("- Hand-written guide: [../authoring-guide.md](../authoring-guide.md)\n")
-	b.WriteString("- Go SDK: `github.com/zhuchunshu/sforum/apps/api/sdk/plugin`\n")
+	b.WriteString("- Go SDK: `github.com/zhuchunshu/sforum/apps/api/sdk/plugin` and `/v2`\n")
 	b.WriteString("- Contract CLI: `sforum extension test [path]`\n")
 	b.WriteString("- Scenario map: [../scenario-map.md](../scenario-map.md)\n")
 	b.WriteString("- Reference plugins: built-in `sforum.smtp` (mail provider), `sforum.content-policy` (workflow filters), fixtures under `extensions/fixtures/plugins/`\n")
@@ -217,32 +233,295 @@ func renderProviderSlots() string {
 	var b strings.Builder
 	b.WriteString(renderHeader(
 		"Provider slots",
-		"Plugins declare `providers[]` with a `slot` the host knows. "+
-			"Selection and restore-defaults stay host-owned; vendor transport lives in the plugin.",
+		"Plugins declare `providers[]` with a `slot` the host knows or a namespaced plugin-defined slot. "+
+			"Selection, probe, fallback, and restore-defaults stay host-owned; vendor transport lives in the plugin.",
 	))
+	b.WriteString("## Callable transport boundary\n\n")
+	b.WriteString(familyBoundaryParagraph(FamilyProviderSlots))
+	b.WriteString("\n## Host-known slots\n\n")
 	b.WriteString("| Slot | Notes |\n")
 	b.WriteString("| --- | --- |\n")
 	for _, slot := range ProviderSlotCatalog() {
 		b.WriteString(fmt.Sprintf("| `%s` | %s |\n", slot.Slot, escapePipes(slot.Description)))
 	}
+	limits := FrozenFamilyLimits()
+	b.WriteString("\n## Versioned provider declaration\n\n")
+	b.WriteString("| Field | Notes |\n")
+	b.WriteString("| --- | --- |\n")
+	b.WriteString("| `id` / `contractVersion` | Versioned provider candidate identity; `contractVersion` is `id@positiveVersion` |\n")
+	b.WriteString("| `slot` / `targetId` | Host-known slot or namespaced plugin slot contract |\n")
+	b.WriteString("| `label` | Operator-facing selection label |\n")
+	b.WriteString("| `handler` | Backend handler for `ProviderCall` |\n")
+	b.WriteString("| `requestSchema` / `responseSchema` | Required for versioned V2 slots |\n")
+	b.WriteString("| `fallback` | `next` or `closed` for versioned slots |\n")
+	b.WriteString(fmt.Sprintf("| `timeoutMs` | Versioned slots: 1..%d |\n", limits.ProviderSlotMaximumTimeoutMS))
+	b.WriteString("| `priority` | Host candidate ordering |\n")
+	b.WriteString("\n## Wire RPCs\n\n")
+	b.WriteString("| Direction | RPC | Role |\n")
+	b.WriteString("| --- | --- | --- |\n")
+	b.WriteString("| Host → plugin | `ProviderCall` | Selected versioned provider implementation |\n")
+	b.WriteString("| Plugin → host | `ServiceDiscoveryService.InvokeProvider` | Consumer calls selected slot |\n")
+	b.WriteString("\n**Versioned path only accepts `operation=invoke`.** ")
+	b.WriteString("`pluginv2.VersionedProviderOperationInvoke` / Host `InvokeVersionedProvider` and ")
+	b.WriteString("`provider_slot_execution` reject every other operation. ")
+	b.WriteString("Legacy known-slot `probe`/`send` must override the generated `ProviderCall` RPC ")
+	b.WriteString("or use provider-specific compatibility APIs — they must not be faked through ")
+	b.WriteString("`pluginv2.ProviderRegistry` or `Host.InvokeProvider`.\n")
+	b.WriteString("\nSDK: `pluginv2.ProviderRegistry` (invoke only) for versioned providers; ")
+	b.WriteString("`Host.InvokeProvider` for consumers (rejects non-invoke).\n")
 	return b.String()
 }
 
 func renderSchedules() string {
 	var b strings.Builder
 	b.WriteString(renderHeader(
-		"Core schedule catalog",
-		"Periodic maintenance jobs are registered only through the host schedule registry. "+
-			"**Plugins must not start private cron/goroutine loops.** "+
-			"Future plugin schedules will also declare through this registry (not in process).",
+		"Schedule catalog",
+		"Periodic work is host-owned. Core schedules below are built-in maintenance jobs. "+
+			"Plugins may declare Manifest V3 `schedules[]` that reference their own `jobs[]` and a cron expression; "+
+			"the host admits triggers and enqueues the exact versioned job. "+
+			"**Plugins must not start private cron/goroutine loops.**",
 	))
+	b.WriteString("## Callable transport boundary\n\n")
+	b.WriteString(familyBoundaryParagraph(FamilySchedules))
+	b.WriteString("\n## Core host schedules\n\n")
 	b.WriteString("| ID | Job kind | Queue | Interval | Owner | Default enabled | Description |\n")
 	b.WriteString("| --- | --- | --- | --- | --- | --- | --- |\n")
 	for _, s := range CoreSchedules() {
 		b.WriteString(fmt.Sprintf("| `%s` | `%s` | %s | %s | %s | %t | %s |\n",
 			s.ID, s.JobKind, s.Queue, formatDuration(s.Interval), s.Owner, s.Enabled, escapePipes(s.Description)))
 	}
+	b.WriteString("\n## Plugin schedule declaration (Manifest V3)\n\n")
+	b.WriteString("| Field | Required | Notes |\n")
+	b.WriteString("| --- | --- | --- |\n")
+	b.WriteString("| `id` | yes | Namespaced versioned schedule id |\n")
+	b.WriteString("| `contractVersion` | yes | Stable `id@positiveVersion` contract (never bare `1`) |\n")
+	b.WriteString("| `jobId` | yes | Must reference a job id declared in the same package |\n")
+	b.WriteString("| `cron` | yes | Host-validated cron expression |\n")
+	b.WriteString("| `timezone` | no | IANA timezone when set |\n")
+	b.WriteString("\nAuthoring: declare plugin schedules only via Manifest V3 `schedules[]`. ")
+	b.WriteString("The public SDK exposes `CoreSchedules` (host core schedule catalog) and does **not** ")
+	b.WriteString("provide `List`/`Trigger` helper methods. `Host.Schedules` is only the generated wire client field; ")
+	b.WriteString("the host process does not register `ScheduleService` today, so those RPCs are not callable in practice.\n")
 	return b.String()
+}
+
+func renderFamilies() string {
+	var b strings.Builder
+	b.WriteString(renderHeader(
+		"P7 frozen extension families",
+		"Six frozen platform families for plugin authors. "+
+			"Each row is source-derived: manifest field, runtime registry/RPC, and an honest callable boundary. "+
+			"Descriptors never invent a transport.",
+	))
+	b.WriteString("| Family | Manifest field | Callable transport | Catalog | SDK entry |\n")
+	b.WriteString("| --- | --- | --- | --- | --- |\n")
+	for _, surface := range FrozenFamilySurfaces() {
+		callable := "no (authoring/catalog only)"
+		if surface.CallableTransport {
+			callable = "yes"
+		}
+		b.WriteString(fmt.Sprintf("| `%s` | `%s` | %s | [%s](./%s) | %s |\n",
+			surface.ID, surface.ManifestField, callable, surface.CatalogDoc, surface.CatalogDoc, escapePipes(surface.SDKAuthorEntry)))
+	}
+	b.WriteString("\n## Boundaries\n\n")
+	for _, surface := range FrozenFamilySurfaces() {
+		b.WriteString(fmt.Sprintf("### `%s`\n\n", surface.ID))
+		b.WriteString(surface.Boundary)
+		b.WriteString("\n\n**Source authorities**\n\n")
+		for _, source := range surface.SourceAuthorities {
+			b.WriteString(fmt.Sprintf("- %s\n", source))
+		}
+		if surface.HostToPluginRPC != "" {
+			b.WriteString(fmt.Sprintf("\n- Host → plugin: `%s`\n", surface.HostToPluginRPC))
+		}
+		if surface.PluginToHostRPC != "" {
+			b.WriteString(fmt.Sprintf("- Plugin → host: `%s`\n", surface.PluginToHostRPC))
+		}
+		b.WriteByte('\n')
+	}
+	limits := FrozenFamilyLimits()
+	b.WriteString("## Frozen limits\n\n")
+	b.WriteString("| Limit | Value |\n")
+	b.WriteString("| --- | ---: |\n")
+	b.WriteString(fmt.Sprintf("| Hook maximum timeout (ms) | %d |\n", limits.HookMaximumTimeoutMS))
+	b.WriteString(fmt.Sprintf("| Provider slot maximum timeout (ms) | %d |\n", limits.ProviderSlotMaximumTimeoutMS))
+	b.WriteString(fmt.Sprintf("| Plugin command maximum timeout (ms) | %d |\n", limits.PluginCommandMaximumTimeoutMS))
+	b.WriteString(fmt.Sprintf("| Plugin job default concurrency | %d |\n", limits.PluginJobDefaultConcurrency))
+	b.WriteString(fmt.Sprintf("| Plugin job maximum concurrency | %d |\n", limits.PluginJobMaximumConcurrency))
+	b.WriteString(fmt.Sprintf("| Plugin job maximum attempts | %d |\n", limits.PluginJobMaximumAttempts))
+	b.WriteString(fmt.Sprintf("| Plugin job maximum retry delay (s) | %d |\n", limits.PluginJobMaximumRetryDelaySec))
+	b.WriteString(fmt.Sprintf("| Default sync event timeout (ms) | %d |\n", limits.DefaultSyncTimeoutMS))
+	b.WriteString(fmt.Sprintf("| Default async event timeout (ms) | %d |\n", limits.DefaultAsyncTimeoutMS))
+	return b.String()
+}
+
+func renderHooks() string {
+	var b strings.Builder
+	b.WriteString(renderHeader(
+		"Hook family catalog",
+		"Versioned action/filter/observe hooks. Host event names below are the shared catalog plugins may target; "+
+			"plugins may also declare namespaced hook contracts for cross-plugin composition through the host registry.",
+	))
+	b.WriteString("## Callable transport boundary\n\n")
+	b.WriteString(familyBoundaryParagraph(FamilyHooks))
+	b.WriteString("\n## Accepted enums\n\n")
+	b.WriteString(fmt.Sprintf("- **kind**: %s\n", joinCodeList(HookKindValues())))
+	b.WriteString(fmt.Sprintf("- **execution**: %s\n", joinCodeList(HookExecutionValues())))
+	b.WriteString(fmt.Sprintf("- **failurePolicy**: %s\n", joinCodeList(HookFailurePolicyValues())))
+	limits := FrozenFamilyLimits()
+	b.WriteString(fmt.Sprintf("- **timeoutMs**: 1..%d (Protocol V2 unary deadline aligned)\n", limits.HookMaximumTimeoutMS))
+	b.WriteString("\nRules: async + filter is rejected; async requires fail_open; mutableFields only on filter.\n")
+	b.WriteString("\n## Host event names (shared catalog)\n\n")
+	b.WriteString("| Name | Kind | Timeout (ms) | Failure policy | Payload | Patch |\n")
+	b.WriteString("| --- | --- | ---: | --- | --- | --- |\n")
+	for _, e := range EventCatalog() {
+		b.WriteString(fmt.Sprintf("| `%s` | %s | %d | %s | %s | %s |\n",
+			e.Name, e.Kind, e.TimeoutMS, e.FailurePolicy, joinOrDash(e.PayloadFields), joinOrDash(e.PatchFields)))
+	}
+	b.WriteString("\n## Manifest declaration fields\n\n")
+	b.WriteString("| Field | Notes |\n")
+	b.WriteString("| --- | --- |\n")
+	b.WriteString("| `id` / `contractVersion` | Versioned identity; `contractVersion` is `id@positiveVersion` (never bare `1`) |\n")
+	b.WriteString("| `name` | Host event name or namespaced plugin contract name |\n")
+	b.WriteString("| `kind` | `action` / `filter` / `observe` |\n")
+	b.WriteString("| `targetId` | Optional target contract when listening to another declaration |\n")
+	b.WriteString("| `handler` | Required for executable runtime registration |\n")
+	b.WriteString("| `inputSchema` / `resultSchema` | Versioned schema refs (`id@version`). No separate `patchSchema` field. |\n")
+	b.WriteString("| `priority` / `execution` / `failurePolicy` / `timeoutMs` / `mutableFields` | Composition and safety |\n")
+	b.WriteString("\nFilter patches bind Host-derived schema `resultSchemaID+\".patch@\"+version` (not a Manifest field).\n")
+	b.WriteString("Multiple declarations may target the same event `name`; Host dispatches by declaration id.\n")
+	b.WriteString("Host delivers frozen `mutableFields`; SDK rejects request drift from the declaration.\n")
+	b.WriteString("\nSDK: `pluginv2.HookRegistry` is for **executable** listeners only (requires handler + Execute).\n")
+	b.WriteString("Passive catalog-only hook definitions must not be registered as runtime handlers.\n")
+	b.WriteString("Schema binding is `id@version` identity only; no full JSON Schema value validation in the public SDK.\n")
+	return b.String()
+}
+
+func renderServices() string {
+	var b strings.Builder
+	b.WriteString(renderHeader(
+		"Service family catalog",
+		"Plugins publish versioned services for host-brokered discovery and typed invoke. "+
+			"Consumers never dial peer plugins directly.",
+	))
+	b.WriteString("## Callable transport boundary\n\n")
+	b.WriteString(familyBoundaryParagraph(FamilyServices))
+	b.WriteString("\n## Accepted actions\n\n")
+	b.WriteString(fmt.Sprintf("- %s\n", joinCodeList(ServiceActionValues())))
+	b.WriteString("- Current validation allows composition action tokens, but non-`add` actions still require a `targetId`. Unsupported host composition chains fail closed.\n")
+	b.WriteString("\n## Manifest declaration fields\n\n")
+	b.WriteString("| Field | Notes |\n")
+	b.WriteString("| --- | --- |\n")
+	b.WriteString("| `id` / `contractVersion` | Versioned service identity; `contractVersion` is `id@positiveVersion` |\n")
+	b.WriteString("| `action` | Composition action (`add` for new providers) |\n")
+	b.WriteString("| `targetId` | Required when action is not `add` |\n")
+	b.WriteString("| `handler` | Backend operation entry |\n")
+	b.WriteString("| `requestSchema` / `responseSchema` | Versioned schema refs |\n")
+	b.WriteString("| `priority` | Host resolution order |\n")
+	b.WriteString("\n## Wire RPCs\n\n")
+	b.WriteString("| Direction | RPC | Role |\n")
+	b.WriteString("| --- | --- | --- |\n")
+	b.WriteString("| Host → plugin | `InvokeService` / `StreamService` | Dispatch to provider process |\n")
+	b.WriteString("| Plugin → host | `ServiceDiscoveryService.List` | Enumerate authorized services |\n")
+	b.WriteString("| Plugin → host | `ServiceDiscoveryService.Resolve` | Exact SemVer resolution |\n")
+	b.WriteString("| Plugin → host | `ServiceDiscoveryService.Invoke` | Unary brokered call |\n")
+	b.WriteString("| Plugin → host | `ServiceDiscoveryService.Stream` | Bidirectional brokered stream |\n")
+	b.WriteString("\nSDK: `pluginv2.ServiceRegistry` for providers; `Host.ListServices` / `ResolveService` / `InvokeService` for consumers. ")
+	b.WriteString("`ServiceDefinition.Version` must be strict SemVer, and its major must equal the Manifest service `contractVersion` `@N`; the Host rejects handshake drift.\n")
+	return b.String()
+}
+
+func renderJobs() string {
+	var b strings.Builder
+	limits := FrozenFamilyLimits()
+	b.WriteString(renderHeader(
+		"Dynamic job family catalog",
+		"Plugins declare versioned River jobs with frozen payload schema and bounded retry/concurrency. "+
+			"Enqueue binds the live exact artifact; workers re-check the frozen contract before ExecuteJob.",
+	))
+	b.WriteString("## Callable transport boundary\n\n")
+	b.WriteString(familyBoundaryParagraph(FamilyJobs))
+	b.WriteString("\n## Retry policies\n\n")
+	b.WriteString(fmt.Sprintf("- %s\n", joinCodeList(JobRetryPolicyValues())))
+	b.WriteString("\n## Limits\n\n")
+	b.WriteString("| Limit | Value |\n")
+	b.WriteString("| --- | ---: |\n")
+	b.WriteString(fmt.Sprintf("| maxAttempts | 1..%d |\n", limits.PluginJobMaximumAttempts))
+	b.WriteString(fmt.Sprintf("| concurrencyLimit | 1..%d (default %d) |\n", limits.PluginJobMaximumConcurrency, limits.PluginJobDefaultConcurrency))
+	b.WriteString(fmt.Sprintf("| retryDelaySeconds (bounded) | 1..%d |\n", limits.PluginJobMaximumRetryDelaySec))
+	b.WriteString("| retryDelaySeconds (none/exponential) | must be 0 |\n")
+	b.WriteString("\n## Manifest declaration fields\n\n")
+	b.WriteString("| Field | Notes |\n")
+	b.WriteString("| --- | --- |\n")
+	b.WriteString("| `id` / `contractVersion` | Versioned job contract; `contractVersion` is `id@positiveVersion` |\n")
+	b.WriteString("| `name` | Stable job kind string used at enqueue / `JobRequest.job_kind` |\n")
+	b.WriteString("| `handler` | Required executable handler for `ExecuteJob` |\n")
+	b.WriteString("| `payloadSchema` | Versioned schema ref (`id@version`) |\n")
+	b.WriteString("| `retryPolicy` / `maxAttempts` / `retryDelaySeconds` / `concurrencyLimit` | Frozen execution policy |\n")
+	b.WriteString("\n`JobRequest.payload_version` is the **payload schema numeric version**, not `contractVersion`.\n")
+	b.WriteString("\n## Wire RPCs\n\n")
+	b.WriteString("| Direction | RPC | Status |\n")
+	b.WriteString("| --- | --- | --- |\n")
+	b.WriteString("| Plugin → host | `JobService.Enqueue` | Implemented (exact schema + admission) |\n")
+	b.WriteString("| Plugin → host | `JobService.Cancel` | Wire only; returns `host.job_cancel_unavailable` |\n")
+	b.WriteString("| Plugin → host | `JobService.Watch` | Wire only; returns `host.job_watch_unavailable` |\n")
+	b.WriteString("| Host → plugin | `ExecuteJob` | Implemented (progress stream) |\n")
+	b.WriteString("\nSDK: `pluginv2.JobRegistry` for execution dispatch; `Host.EnqueueJob` for versioned enqueue.\n")
+	return b.String()
+}
+
+func renderCommands() string {
+	var b strings.Builder
+	limits := FrozenFamilyLimits()
+	b.WriteString(renderHeader(
+		"Plugin command family catalog",
+		"Plugins declare namespaced CLI commands under the host `sforum` command registry. "+
+			"The host invokes the exact runtime via `InvokeCommand` after trust, permission, and safe-mode checks.",
+	))
+	b.WriteString("## Callable transport boundary\n\n")
+	b.WriteString(familyBoundaryParagraph(FamilyCommands))
+	b.WriteString("\n## Limits\n\n")
+	b.WriteString(fmt.Sprintf("- **timeoutMs**: 1..%d\n", limits.PluginCommandMaximumTimeoutMS))
+	b.WriteString("- **permission**: when set, must also appear in package `permissions` or `permissionDefinitions`\n")
+	b.WriteString("- **recoverySafe**: only recovery-safe commands remain available in safe mode\n")
+	b.WriteString("\n## Manifest declaration fields\n\n")
+	b.WriteString("| Field | Notes |\n")
+	b.WriteString("| --- | --- |\n")
+	b.WriteString("| `id` / `contractVersion` | Versioned command identity; `contractVersion` is `id@positiveVersion` |\n")
+	b.WriteString("| `handler` | Required executable handler id |\n")
+	b.WriteString("| `permission` | Optional operator permission gate |\n")
+	b.WriteString("| `inputSchema` / `resultSchema` | Versioned schema refs |\n")
+	b.WriteString("| `description` | CLI help text |\n")
+	b.WriteString("| `recoverySafe` | Safe-mode eligibility |\n")
+	b.WriteString("| `timeoutMs` | Host-enforced deadline (1..max) |\n")
+	b.WriteString("\n## Wire RPCs\n\n")
+	b.WriteString("| Direction | RPC | Role |\n")
+	b.WriteString("| --- | --- | --- |\n")
+	b.WriteString("| Host → plugin | `InvokeCommand` | CLI/host execution against exact artifact |\n")
+	b.WriteString("| Plugin → host | — | **None.** Plugins cannot invoke peer plugin commands over Host API. |\n")
+	b.WriteString("\nSDK: `pluginv2.CommandRegistry` validates executable declarations and dispatches `InvokeCommand`.\n")
+	return b.String()
+}
+
+func familyBoundaryParagraph(familyID string) string {
+	for _, surface := range FrozenFamilySurfaces() {
+		if surface.ID == familyID {
+			callable := "Authoring/catalog only — no honest callable transport from the plugin process."
+			if surface.CallableTransport {
+				callable = "Callable transport exists (see wire RPCs)."
+			}
+			return surface.Boundary + "\n\n" + callable + "\n"
+		}
+	}
+	return ""
+}
+
+func joinCodeList(items []string) string {
+	parts := make([]string, len(items))
+	for i, item := range items {
+		parts[i] = "`" + item + "`"
+	}
+	return strings.Join(parts, ", ")
 }
 
 type manifestV3SchemaDocument struct {
@@ -499,6 +778,11 @@ func DocFileNames() []string {
 		DocProviderSlots,
 		DocSchedules,
 		DocManifestV3,
+		DocFamilies,
+		DocHooks,
+		DocServices,
+		DocJobs,
+		DocCommands,
 	}
 	sort.Strings(names)
 	return names

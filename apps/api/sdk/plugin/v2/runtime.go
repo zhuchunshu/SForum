@@ -26,18 +26,22 @@ type ServeOptions = extensionsruntime.ProtocolV2ServerConfig
 type Server struct {
 	pluginwire.UnimplementedPluginRuntimeServiceServer
 
-	mu              sync.RWMutex
-	started         bool
-	identity        *protocolwire.ExtensionIdentity
-	tokenHash       [sha256.Size]byte
-	features        []*protocolwire.ProtocolFeature
-	services        []*protocolwire.ServiceDescriptor
-	serviceRegistry *ServiceRegistry
-	streams         RuntimeStreams
-	broker          *plugin.GRPCBroker
-	host            *Host
-	brokerID        uint32
-	now             func() time.Time
+	mu               sync.RWMutex
+	started          bool
+	identity         *protocolwire.ExtensionIdentity
+	tokenHash        [sha256.Size]byte
+	features         []*protocolwire.ProtocolFeature
+	services         []*protocolwire.ServiceDescriptor
+	serviceRegistry  *ServiceRegistry
+	hookRegistry     *HookRegistry
+	providerRegistry *ProviderRegistry
+	commandRegistry  *CommandRegistry
+	jobRegistry      *JobRegistry
+	streams          RuntimeStreams
+	broker           *plugin.GRPCBroker
+	host             *Host
+	brokerID         uint32
+	now              func() time.Time
 }
 
 // BindProtocolV2Broker is called by the transport before the runtime service is
@@ -90,6 +94,47 @@ func (s *Server) WithServiceRegistry(registry *ServiceRegistry) *Server {
 	s.mu.Lock()
 	if !s.started {
 		s.serviceRegistry = registry
+	}
+	s.mu.Unlock()
+	return s
+}
+
+// WithHookRegistry enables default InvokeHook dispatch for declared hooks.
+func (s *Server) WithHookRegistry(registry *HookRegistry) *Server {
+	s.mu.Lock()
+	if !s.started {
+		s.hookRegistry = registry
+	}
+	s.mu.Unlock()
+	return s
+}
+
+// WithProviderRegistry enables default ProviderCall dispatch.
+func (s *Server) WithProviderRegistry(registry *ProviderRegistry) *Server {
+	s.mu.Lock()
+	if !s.started {
+		s.providerRegistry = registry
+	}
+	s.mu.Unlock()
+	return s
+}
+
+// WithCommandRegistry enables default InvokeCommand dispatch for CLI commands.
+func (s *Server) WithCommandRegistry(registry *CommandRegistry) *Server {
+	s.mu.Lock()
+	if !s.started {
+		s.commandRegistry = registry
+	}
+	s.mu.Unlock()
+	return s
+}
+
+// WithJobRegistry installs ExecuteJob dispatch for declared job kinds.
+// Explicit RuntimeStreams.Job overrides this registry when both are set.
+func (s *Server) WithJobRegistry(registry *JobRegistry) *Server {
+	s.mu.Lock()
+	if !s.started {
+		s.jobRegistry = registry
 	}
 	s.mu.Unlock()
 	return s
@@ -204,6 +249,51 @@ func (s *Server) StreamService(stream grpc.BidiStreamingServer[pluginwire.Servic
 		return s.UnimplementedPluginRuntimeServiceServer.StreamService(stream)
 	}
 	return registry.streamService(stream, s.validateRuntimeContext)
+}
+
+func (s *Server) InvokeHook(ctx context.Context, request *pluginwire.HookRequest) (*pluginwire.HookResponse, error) {
+	s.mu.RLock()
+	registry := s.hookRegistry
+	s.mu.RUnlock()
+	if registry == nil {
+		return s.UnimplementedPluginRuntimeServiceServer.InvokeHook(ctx, request)
+	}
+	if detail := s.validateRuntimeContext(request.GetContext()); detail != nil {
+		return &pluginwire.HookResponse{
+			Context: responseContext(request.GetContext(), s.nowTime()), Accepted: false, Error: detail,
+		}, nil
+	}
+	return registry.InvokeHook(ctx, request)
+}
+
+func (s *Server) ProviderCall(ctx context.Context, request *pluginwire.ProviderCallRequest) (*pluginwire.ProviderCallResponse, error) {
+	s.mu.RLock()
+	registry := s.providerRegistry
+	s.mu.RUnlock()
+	if registry == nil {
+		return s.UnimplementedPluginRuntimeServiceServer.ProviderCall(ctx, request)
+	}
+	if detail := s.validateRuntimeContext(request.GetContext()); detail != nil {
+		return &pluginwire.ProviderCallResponse{
+			Context: responseContext(request.GetContext(), s.nowTime()), Error: detail,
+		}, nil
+	}
+	return registry.ProviderCall(ctx, request)
+}
+
+func (s *Server) InvokeCommand(ctx context.Context, request *pluginwire.CommandInvocationRequest) (*pluginwire.CommandInvocationResponse, error) {
+	s.mu.RLock()
+	registry := s.commandRegistry
+	s.mu.RUnlock()
+	if registry == nil {
+		return s.UnimplementedPluginRuntimeServiceServer.InvokeCommand(ctx, request)
+	}
+	if detail := s.validateRuntimeContext(request.GetContext()); detail != nil {
+		return &pluginwire.CommandInvocationResponse{
+			Context: responseContext(request.GetContext(), s.nowTime()), Error: detail,
+		}, nil
+	}
+	return registry.InvokeCommand(ctx, request)
 }
 
 func (s *Server) validateRuntimeContext(ctx *protocolwire.RequestContext) *protocolwire.ErrorDetail {

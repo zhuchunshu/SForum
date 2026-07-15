@@ -23,13 +23,18 @@ cd apps/api && go run ./cmd/sforum extension docs generate --check
 | [capabilities.md](./capabilities.md) | Host capability grants (risk tiers) |
 | [contribution-points.md](./contribution-points.md) | UI/admin contribution points |
 | [provider-slots.md](./provider-slots.md) | Provider slots plugins may fill |
-| [schedules.md](./schedules.md) | Core host schedules (plugins must not private-cron) |
+| [schedules.md](./schedules.md) | Core host schedules + plugin schedule declaration boundary |
 | [manifest-v3.md](./manifest-v3.md) | Manifest V3 root fields, include shards, and exact-artifact workflow |
+| [families.md](./families.md) | P7 frozen family matrix (hooks/services/providers/jobs/schedules/commands) |
+| [hooks.md](./hooks.md) | Versioned hooks: kinds, limits, host event names, InvokeHook |
+| [services.md](./services.md) | Plugin services + host-brokered discovery/invoke |
+| [jobs.md](./jobs.md) | Dynamic jobs: retry/concurrency limits + Enqueue/ExecuteJob |
+| [commands.md](./commands.md) | Plugin CLI commands + InvokeCommand boundary |
 
 ## Authoring
 
 - Hand-written guide: [../authoring-guide.md](../authoring-guide.md)
-- Go SDK: `github.com/zhuchunshu/sforum/apps/api/sdk/plugin`
+- Go SDK: `github.com/zhuchunshu/sforum/apps/api/sdk/plugin` and `/v2`
 - Contract CLI: `sforum extension test [path]`
 - Scenario map: [../scenario-map.md](../scenario-map.md)
 - Reference plugins: built-in `sforum.smtp` (mail provider), `sforum.content-policy` (workflow filters), fixtures under `extensions/fixtures/plugins/`

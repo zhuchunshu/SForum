@@ -37,6 +37,59 @@ func TestGenerateCatalogDocsNonEmpty(t *testing.T) {
 	if !strings.Contains(docs.Files[DocSchedules], "identity.cleanup_sessions") {
 		t.Fatal("schedules.md should list identity.cleanup_sessions")
 	}
+	if !strings.Contains(docs.Files[DocFamilies], FamilyHooks) {
+		t.Fatal("families.md should list hooks family")
+	}
+	if !strings.Contains(docs.Files[DocHooks], "topic.before_create") {
+		t.Fatal("hooks.md should list host event names")
+	}
+	if !strings.Contains(docs.Files[DocServices], "ServiceDiscoveryService") {
+		t.Fatal("services.md should document discovery RPCs")
+	}
+	if !strings.Contains(docs.Files[DocJobs], "ExecuteJob") {
+		t.Fatal("jobs.md should document ExecuteJob")
+	}
+	if !strings.Contains(docs.Files[DocCommands], "InvokeCommand") {
+		t.Fatal("commands.md should document InvokeCommand")
+	}
+	// schedules 必须诚实声明：无 List/Trigger helper，Host 未注册 ScheduleService。
+	if !strings.Contains(docs.Files[DocSchedules], "ScheduleService") {
+		t.Fatal("schedules.md must mention ScheduleService wire boundary")
+	}
+	if !strings.Contains(docs.Files[DocSchedules], "does not register") &&
+		!strings.Contains(docs.Files[DocSchedules], "not callable") {
+		t.Fatal("schedules.md must honestly deny a registered/callable ScheduleService path")
+	}
+	if strings.Contains(docs.Files[DocSchedules], "Host.ScheduleList") ||
+		strings.Contains(docs.Files[DocSchedules], "ScheduleService helper methods") {
+		t.Fatal("schedules.md must not invent a public ScheduleService helper")
+	}
+	if !strings.Contains(docs.Files[DocHooks], "resultSchemaID+\".patch@\"+version") &&
+		!strings.Contains(docs.Files[DocHooks], `.patch@`) {
+		t.Fatal("hooks.md must document Host-derived filter patch schema convention")
+	}
+	if !strings.Contains(docs.Files[DocProviderSlots], "invoke") ||
+		!strings.Contains(docs.Files[DocProviderSlots], "probe") {
+		t.Fatal("provider-slots.md must document invoke-only versioned path and legacy probe boundary")
+	}
+	if strings.Contains(docs.Files[DocProviderSlots], "for example `invoke`, `probe`, `send`") {
+		t.Fatal("provider-slots.md must not claim probe/send are accepted by ProviderRegistry")
+	}
+	for name, body := range map[string]string{
+		DocProviderSlots: docs.Files[DocProviderSlots],
+		DocServices:      docs.Files[DocServices],
+		DocSchedules:     docs.Files[DocSchedules],
+	} {
+		if !strings.Contains(body, "id@positiveVersion") {
+			t.Fatalf("%s must document the contractVersion=id@positiveVersion shape", name)
+		}
+	}
+	if !strings.Contains(docs.Files[DocServices], "ServiceDefinition.Version") ||
+		!strings.Contains(docs.Files[DocServices], "strict SemVer") ||
+		!strings.Contains(docs.Files[DocServices], "major") ||
+		!strings.Contains(docs.Files[DocServices], "@N") {
+		t.Fatal("services.md must document the SDK SemVer-to-Manifest contract-major rule")
+	}
 	fields, _, _, _ := manifestV3SchemaFields()
 	if len(fields) < 40 {
 		t.Fatalf("Manifest V3 root field catalog is incomplete: %d", len(fields))

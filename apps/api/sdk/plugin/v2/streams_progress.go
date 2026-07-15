@@ -86,6 +86,10 @@ func (s *Server) RunLifecycle(request *protocolwire.LifecycleRequest, stream grp
 func (s *Server) ExecuteJob(request *pluginwire.JobRequest, stream grpc.ServerStreamingServer[protocolwire.ProgressUpdate]) error {
 	s.mu.RLock()
 	handler := s.streams.Job
+	// 显式 RuntimeStreams.Job 优先；否则回落到 JobRegistry 分发。
+	if handler == nil && s.jobRegistry != nil {
+		handler = s.jobRegistry.StreamHandler()
+	}
 	s.mu.RUnlock()
 	if handler == nil {
 		return s.UnimplementedPluginRuntimeServiceServer.ExecuteJob(request, stream)
