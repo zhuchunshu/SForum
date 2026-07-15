@@ -806,3 +806,28 @@ template while retaining Schema fallback fields.
   construction still populates mostly base/form fields rather than each page's
   business data. Plugin business-contract preservation and an exact API/Nitro
   restart plus concurrent activation exit also remain open.
+
+## V3 P9 stable component identity checkpoint
+
+- P9 is 1/16. Commit `a805cbe01` adds the neutral, standard-library-only
+  `Support/ComponentCatalog` leaf and generates 119 active Core UI targets from
+  the reviewed identity map. Every target freezes its stable ID, contract,
+  page/component kind, source/route, and explicit public/admin owners; catalog
+  and lookup results detach owner slices from caller mutation.
+- `ExtensionManifest` depends only on the neutral catalog leaf, preserving the
+  future dependency direction where the Component Registry may import both.
+  Manifest V3 component targets require an exact `targetId` plus
+  `targetContractVersion` pair. Core contracts must match the active catalog;
+  cross-plugin contracts are syntax-checked now and exact-resolved during later
+  Registry publication. Themes may target only Core surfaces with public
+  ownership, and non-component reserved `core.*` targets are rejected.
+- UI identities have explicit `active`/`retired` state. Removal retains the row
+  and appends its exact ID/contract to the immutable-path tombstone ledger.
+  Catalog validation compares the ledger with full reachable Git history and a
+  generated reservation artifact, rejecting deletion plus regeneration and
+  active reuse of a retired ID or contract.
+- The stable-ID row passed generator/catalog drift, collision, owner/source,
+  tombstone transition, target-contract, theme-owner, focused Go/race,
+  downstream extension, vet/build, diff, and 1,842-reference OpenAPI gates.
+  Component actions, provider priority/conflicts, runtime publication,
+  templates/assets/L2, inspectors, and visual/failure exits remain open P9 work.

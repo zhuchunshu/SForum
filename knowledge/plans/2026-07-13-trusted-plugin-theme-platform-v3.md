@@ -627,7 +627,7 @@ not complete product-data acceptance.
 
 ### Tasks
 
-- [ ] Define stable component ids for public and admin surfaces.
+- [x] Define stable component ids for public and admin surfaces.
 - [ ] Implement Navigation/Region Registry for menus, breadcrumbs, headers,
       footers, sidebars, theme-defined widget regions, ordering, visibility,
       permission filtering, fallback, and cache invalidation.

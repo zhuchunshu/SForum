@@ -4,7 +4,7 @@ This is the entry point for project memory.
 
 ## Latest Handoff
 
-- **2026-07-15 Trusted Plugin And Theme Platform V3 P6/P7/P8 active (overall 54%)**
+- **2026-07-15 Trusted Plugin And Theme Platform V3 P6/P7/P8/P9 active (overall 55%)**
   - Decision: `knowledge/decisions/2026-07-13-trusted-plugin-theme-platform-v3.md`
   - Task book: `knowledge/plans/2026-07-13-trusted-plugin-theme-platform-v3.md`
   - Active handoff: `knowledge/sessions/2026-07-15-trusted-plugin-theme-platform-v3-p6-p8-progress.md`
@@ -14,7 +14,7 @@ This is the entry point for project memory.
   - P0 catalogs and governance: `docs/extensions/v3/`
   - Decision contains the authoritative 27-row template comparison, 72-row
     plugin comparison, detailed architecture mind map, and boundary checklist
-  - P0 governance now tracks 99-row traceability, 225 routes, 118 UI surfaces,
+  - P0 governance now tracks 99-row traceability, 225 routes, 119 UI surfaces,
     33 admin surfaces, 19-module Extension Surface Matrix, stable identities,
     governance, migration gates, and performance baseline; CI rejects catalog drift
   - P1 completed exact-artifact one-use trust, delegated inert preview,
@@ -144,6 +144,16 @@ This is the entry point for project memory.
     exposes process-local revisions. Migration 020 persists desired/node/ack
     convergence evidence. LISTEN reconnect, missed-notification polling, node
     acknowledgement, and two-node exact-artifact convergence are verified
+  - P9 is 1/16 (6%). `a805cbe01` freezes 119 active public/admin Core component
+    identities in a generated neutral `ComponentCatalog`, with explicit
+    page/component kind, ownership, contract, exact lookup, immutable copies,
+    and collision/drift tests
+  - Manifest V3 component targets now pair `targetId` with
+    `targetContractVersion`: Core targets match the Host catalog exactly,
+    cross-plugin targets remain versioned for later Registry resolution, themes
+    cannot target admin-only Core surfaces, and other reserved `core.*` families
+    fail closed. Retired identities remain reserved through an immutable-path,
+    full-history tombstone ledger and generated reservation catalog
 
 - **2026-07-13 Legacy Web Release/runtime frontend builds removed**
   - Decision: `knowledge/decisions/2026-07-13-remove-legacy-web-release.md`

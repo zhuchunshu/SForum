@@ -1,8 +1,8 @@
 # Trusted Plugin And Theme Platform V3 Progress Ledger
 
 Date: 2026-07-15
-Overall progress: **54%**
-Active phase: **P7 - Hooks, Services, Work, Admin Surfaces, Queries, And Identity (50%, 11 of 22 rows)**
+Overall progress: **55%**
+Active phase: **P5 - Database/commands closure (71%, 12 of 17 rows)**
 
 This ledger is the durable percentage and context-compaction checkpoint for the
 V3 program. Update it before context compression, at every phase boundary, and
@@ -25,7 +25,7 @@ scaffolding, or demo-only code cannot satisfy a runtime exit criterion.
 | P6 Routes/middleware | 10% | 67% | 6.67% |
 | P7 Workflow/admin/query/identity | 10% | 50% | 5.00% |
 | P8 Theme compiler/runtime | 8% | 83% | 6.67% |
-| P9 Components/assets/L2 | 8% | 0% | 0% |
+| P9 Components/assets/L2 | 8% | 6% | 0.50% |
 | P10 Content/media/data | 8% | 0% | 0% |
 | P11 Platform services | 6% | 0% | 0% |
 | P12 Operations/ecosystem | 6% | 0% | 0% |
@@ -111,6 +111,29 @@ phase percentage.
   failing plugin exactly once (`failed`, then `skipped`).
 
 ## Last Durable Checkpoint
+
+### 2026-07-15 P9 Stable Component Identity Checkpoint
+
+- Overall advances to **55%** after flooring. P9 is **6% (1 of 16 rows)**
+  and earns **0.50%**; P5 remains **71% (12 of 17 rows)**.
+- `a805cbe01` adds the neutral, standard-library-only `ComponentCatalog` leaf
+  with 119 generated active Core targets, stable contracts, page/component
+  kinds, explicit public/admin ownership, immutable caller copies, and exact
+  lookup. A future Component Registry can import both this leaf and Manifest V3
+  without creating an import cycle.
+- Manifest V3 now binds every nonempty component `targetId` to a required
+  `targetContractVersion`. Core targets must exactly match the Host catalog;
+  cross-plugin targets are syntactically versioned for later exact Registry
+  resolution. Themes cannot target admin-only Core surfaces, and non-component
+  `core.*` targets fail closed.
+- UI identities use explicit active/retired state. Retired IDs/contracts remain
+  reserved in an append-only, immutable-path tombstone ledger checked against
+  full reachable Git history and a generated reservation artifact, so deletion
+  plus regeneration and unrelated reuse are rejected.
+- Verification passed 14-output generator drift, the 225-route/119-UI/99-row
+  catalog validator and its collision/owner/source/retirement transitions,
+  focused ComponentCatalog and Manifest tests plus race, downstream extension
+  tests, vet, build, scoped diff checks, and 1,842 OpenAPI references.
 
 ### 2026-07-15 P8 Hot Path, SSR, And Crawler Checkpoint
 
