@@ -407,6 +407,10 @@ paths:
     "$ref": "./openapi/paths/extensions.yaml#/adminExtensionEventDefinitions"
   "/admin/extensions/event-deliveries":
     "$ref": "./openapi/paths/extensions.yaml#/adminExtensionEventDeliveries"
+  "/extensions/runtime/{extensionID}/components/{componentID}":
+    "$ref": "./openapi/paths/extensions.yaml#/publicExtensionComponent"
+  "/extensions/runtime/{extensionID}/assets/{packageDigest}/{digest}/{handle}":
+    "$ref": "./openapi/paths/extensions.yaml#/publicExtensionAsset"
   "/extensions/{extensionID}/{pluginPath}":
     "$ref": "./openapi/paths/extensions.yaml#/extensionPluginRoute"
 components:
@@ -551,6 +555,8 @@ components:
       "$ref": "./openapi/schemas/extensions.yaml#/ApiResponsePublicActiveThemeSettings"
     ApiResponseFrontendStatus:
       "$ref": "./openapi/schemas/extensions.yaml#/ApiResponseFrontendStatus"
+    ApiResponsePublicFrontendComponent:
+      "$ref": "./openapi/schemas/extensions.yaml#/ApiResponsePublicFrontendComponent"
     ApiResponseDatabaseTableList:
       "$ref": "./openapi/schemas/database.yaml#/ApiResponseDatabaseTableList"
     ApiResponseDatabaseTableDetail:
@@ -627,6 +633,8 @@ components:
       "$ref": "./openapi/schemas/extensions.yaml#/ExtensionSettingsInput"
     FrontendStatus:
       "$ref": "./openapi/schemas/extensions.yaml#/FrontendStatus"
+    PublicFrontendComponent:
+      "$ref": "./openapi/schemas/extensions.yaml#/PublicFrontendComponent"
     ExtensionEvent:
       "$ref": "./openapi/schemas/extensions.yaml#/ExtensionEvent"
     ExtensionEventDefinition:

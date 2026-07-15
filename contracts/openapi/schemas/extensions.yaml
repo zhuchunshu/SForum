@@ -2323,6 +2323,97 @@ FrontendStatus:
     digest:
       type: string
       description: Current adminFrontendDigest presented for explicit trust.
+PublicFrontendAssetReference:
+  type: object
+  additionalProperties: false
+  required:
+  - handle
+  - contractVersion
+  - extensionId
+  - packageDigest
+  - impactDigest
+  - type
+  - digest
+  - integrity
+  - module
+  - loading
+  - assetPath
+  properties:
+    handle: { type: string, pattern: '^[a-z0-9][a-z0-9._-]{1,120}$' }
+    contractVersion: { type: string }
+    extensionId: { type: string }
+    packageDigest: { type: string, pattern: '^[0-9a-f]{64}$' }
+    impactDigest: { type: string, pattern: '^[0-9a-f]{64}$' }
+    type: { type: string, enum: [script, style] }
+    digest: { type: string, pattern: '^[0-9a-f]{64}$' }
+    integrity: { type: string, pattern: '^sha256-[A-Za-z0-9+/]{43}=$' }
+    dependencies:
+      type: array
+      uniqueItems: true
+      items: { type: string }
+    scope:
+      type: array
+      uniqueItems: true
+      items: { type: string }
+    module: { type: boolean }
+    loading: { type: string, enum: ['', blocking, defer, async, preload, lazy] }
+    csp:
+      type: array
+      uniqueItems: true
+      items: { type: string, maxLength: 512 }
+    assetPath:
+      type: string
+      pattern: '^/extensions/runtime/'
+PublicFrontendComponent:
+  type: object
+  additionalProperties: false
+  required:
+  - schemaVersion
+  - apiVersion
+  - trustNotice
+  - extensionId
+  - extensionVersion
+  - packageDigest
+  - impactDigest
+  - componentId
+  - contractVersion
+  - action
+  - entry
+  - assets
+  properties:
+    schemaVersion: { type: string, const: sforum.public-frontend-component@1 }
+    apiVersion: { type: integer, const: 1 }
+    trustNotice: { type: string, const: fully_trusted_browser_code }
+    extensionId: { type: string }
+    extensionVersion: { type: string }
+    packageDigest: { type: string, pattern: '^[0-9a-f]{64}$' }
+    impactDigest: { type: string, pattern: '^[0-9a-f]{64}$' }
+    componentId: { type: string }
+    contractVersion: { type: string }
+    action: { type: string, enum: [add, before, after, wrap, replace, filter_props, filter_result] }
+    targetId: { type: string }
+    targetContractVersion: { type: string }
+    propsSchema: { type: string }
+    resultSchema: { type: string }
+    entry:
+      "$ref": "#/PublicFrontendAssetReference"
+    assets:
+      type: array
+      maxItems: 255
+      items:
+        "$ref": "#/PublicFrontendAssetReference"
+    csp:
+      type: array
+      uniqueItems: true
+      items: { type: string, maxLength: 512 }
+ApiResponsePublicFrontendComponent:
+  type: object
+  required: [code, message, data]
+  properties:
+    code: { type: integer }
+    message: { type: string }
+    data:
+      "$ref": "#/PublicFrontendComponent"
 PrebuiltSettingsComponent:
   type: object
   required: [id, apiVersion, entry]
@@ -2384,6 +2475,10 @@ ThemeActivationRequest:
       type: string
     currentThemeDigest:
       type: string
+    confirmationToken:
+      type: string
+      minLength: 1
+      description: One-use actor-bound exact-artifact token required when the uploaded theme declares executable L2 or another trusted power.
     approveCoreReplacements:
       type: boolean
       description: Exact visible-preview approval. Effective only for a super_admin actor; false preserves Core providers.

@@ -16,6 +16,97 @@ siteActiveThemeSettings:
             schema:
               "$ref": "../schemas/extensions.yaml#/ApiResponsePublicActiveThemeSettings"
 
+publicExtensionComponent:
+  get:
+    summary: Resolve one trusted prebuilt public component
+    operationId: getPublicExtensionComponent
+    tags: [Extensions]
+    description: >-
+      Returns a no-store descriptor only while the exact extension artifact is
+      enabled, its package bytes still match, its executable super_admin grant
+      is live, public L2 is enabled, and Safe Mode is off. The descriptor states
+      that the module is fully trusted browser code and binds every package-local
+      script/style URL to package, trust-impact, and file digests. Missing,
+      disabled, revoked, stale, changed, or undeclared components all return the
+      same 404 response. Primary content remains in the surrounding SSR/L1 output.
+    parameters:
+    - "$ref": "../components/parameters.yaml#/ExtensionID"
+    - name: componentID
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: '^[a-z0-9][a-z0-9._-]{1,120}$'
+    responses:
+      '200':
+        description: Exact public component descriptor. Cache-Control is no-store so revocation is observed before a new mount.
+        headers:
+          Cache-Control:
+            schema: { type: string, enum: [no-store] }
+          X-Content-Type-Options:
+            schema: { type: string, enum: [nosniff] }
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/extensions.yaml#/ApiResponsePublicFrontendComponent"
+      '404':
+        "$ref": "../components/responses.yaml#/NotFound"
+      '503':
+        "$ref": "../components/responses.yaml#/ServiceUnavailable"
+
+publicExtensionAsset:
+  get:
+    summary: Load one exact trusted public extension asset
+    operationId: getPublicExtensionAsset
+    tags: [Extensions]
+    description: >-
+      Serves only package-local ESM, JavaScript, or CSS declared in the immutable
+      Asset Registry after rechecking enabled state, live exact-artifact trust,
+      package identity, handle ownership, and file SHA-256. It accepts no raw
+      package path or remote URL. The browser verifies the response digest before
+      import; immutable bytes may remain cached after revocation, but the no-store
+      descriptor and Host mount boundary prevent a revoked artifact from mounting
+      again.
+    parameters:
+    - "$ref": "../components/parameters.yaml#/ExtensionID"
+    - name: packageDigest
+      in: path
+      required: true
+      schema: { type: string, pattern: '^[0-9a-f]{64}$' }
+    - name: digest
+      in: path
+      required: true
+      schema: { type: string, pattern: '^[0-9a-f]{64}$' }
+    - name: handle
+      in: path
+      required: true
+      schema: { type: string, pattern: '^[a-z0-9][a-z0-9._-]{1,120}$' }
+    responses:
+      '200':
+        description: Exact immutable JavaScript module/script or CSS bytes.
+        headers:
+          Cache-Control:
+            schema: { type: string }
+          ETag:
+            schema: { type: string }
+          X-Content-Type-Options:
+            schema: { type: string, enum: [nosniff] }
+          Cross-Origin-Resource-Policy:
+            schema: { type: string, enum: [same-origin] }
+          X-SForum-Asset-Digest:
+            schema: { type: string, pattern: '^[0-9a-f]{64}$' }
+          X-SForum-Asset-Integrity:
+            schema: { type: string, pattern: '^sha256-[A-Za-z0-9+/]{43}=$' }
+        content:
+          application/javascript:
+            schema: { type: string, format: binary }
+          text/css:
+            schema: { type: string, format: binary }
+      '404':
+        "$ref": "../components/responses.yaml#/NotFound"
+      '503':
+        "$ref": "../components/responses.yaml#/ServiceUnavailable"
+
 adminSurfaces:
   get:
     summary: List visible exact-runtime Admin Surface contracts
@@ -1457,6 +1548,22 @@ extensionPluginRoute:
   parameters:
   - "$ref": "../components/parameters.yaml#/ExtensionID"
   - "$ref": "../components/parameters.yaml#/ExtensionPluginPath"
+  - name: X-SForum-Public-Extension-ID
+    in: header
+    description: Optional exact public-frontend bridge identity. Supplying any bridge header requires the complete five-header set.
+    schema: { type: string }
+  - name: X-SForum-Public-Extension-Version
+    in: header
+    schema: { type: string }
+  - name: X-SForum-Public-Package-Digest
+    in: header
+    schema: { type: string, pattern: '^[0-9a-f]{64}$' }
+  - name: X-SForum-Public-Impact-Digest
+    in: header
+    schema: { type: string, pattern: '^[0-9a-f]{64}$' }
+  - name: X-SForum-Public-Component-ID
+    in: header
+    schema: { type: string }
   get:
     summary: Invoke a declared plugin route
     description: Proxies a plugin-declared GET route under /api/v1/extensions/{extensionID}/* after host-side manifest matching and access checks. Plugins cannot override core API routes.
@@ -1476,6 +1583,12 @@ extensionPluginRoute:
         "$ref": "../components/responses.yaml#/NotFound"
       '405':
         description: Plugin route exists but does not declare this HTTP method.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/common.yaml#/ApiErrorResponse"
+      '412':
+        description: The optional public-frontend bridge identity is incomplete, revoked, upgraded, or no longer matches the admitted runtime.
         content:
           application/json:
             schema:
@@ -1501,6 +1614,12 @@ extensionPluginRoute:
         "$ref": "../components/responses.yaml#/NotFound"
       '405':
         description: Plugin route exists but does not declare this HTTP method.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/common.yaml#/ApiErrorResponse"
+      '412':
+        description: The optional public-frontend bridge identity is incomplete, revoked, upgraded, or no longer matches the admitted runtime.
         content:
           application/json:
             schema:
