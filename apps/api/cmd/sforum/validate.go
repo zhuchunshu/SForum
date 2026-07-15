@@ -11,6 +11,7 @@ import (
 	"github.com/spf13/cobra"
 
 	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
+	pluginsdk "github.com/zhuchunshu/sforum/apps/api/sdk/plugin"
 )
 
 func newExtensionCommand() *cobra.Command {
@@ -53,6 +54,10 @@ func newExtensionValidateCommand() *cobra.Command {
 			}
 			manifest, err := extensionmanifest.LoadPackage(abs)
 			if err != nil {
+				return fmt.Errorf("invalid package at %s: %w", abs, err)
+			}
+			// 显式 V3 包：复用生产 BuildThemeRuntimeSnapshot，拒绝激活时会失败的 page template。
+			if err := pluginsdk.PreflightExactTemplateRuntime(abs, manifest); err != nil {
 				return fmt.Errorf("invalid package at %s: %w", abs, err)
 			}
 			if asJSON {

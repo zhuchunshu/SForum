@@ -10,6 +10,7 @@ import (
 	appevents "github.com/zhuchunshu/sforum/apps/api/app/Support/Events"
 	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
 	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
+	pages "github.com/zhuchunshu/sforum/apps/api/app/Support/Pages"
 )
 
 // Check 是一次契约检查的结果项。
@@ -233,6 +234,17 @@ func TestManifest(root string, manifest extensionmanifest.Manifest, opts Options
 			add("error", "theme.runtime_missing", "theme requires theme.json or assets/", "theme.json")
 		} else {
 			add("ok", "theme.runtime_present", "runtime theme contract found", "theme.json")
+		}
+	}
+
+	// 显式 Manifest V3：package-local theme.json page template 必须能通过
+	// 生产 BuildThemeRuntimeSnapshot 精确声明/摘要/契约预检（激活同路径）。
+	if err := PreflightExactTemplateRuntime(root, manifest); err != nil {
+		add("error", "template.runtime_exact", err.Error(), "theme.json")
+	} else if extensionmanifest.EffectiveManifestVersion(manifest) == extensionmanifest.ManifestVersionV3 {
+		contentRoot := resolveThemeContentRoot(root)
+		if pkg, loadErr := pages.LoadThemePackage(contentRoot); loadErr == nil && themePackageHasPageTemplates(pkg) {
+			add("ok", "template.runtime_exact", "exact template runtime preflight passed", "theme.json")
 		}
 	}
 
