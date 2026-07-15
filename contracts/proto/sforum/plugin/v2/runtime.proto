@@ -18,6 +18,7 @@ service PluginRuntimeService {
   rpc StreamRoute(stream RouteStreamFrame) returns (stream RouteStreamFrame);
   rpc InvokeHook(HookRequest) returns (HookResponse);
   rpc ExecuteJob(JobRequest) returns (stream sforum.protocol.v2.ProgressUpdate);
+  rpc InvokeCommand(CommandInvocationRequest) returns (CommandInvocationResponse);
   rpc ProviderCall(ProviderCallRequest) returns (ProviderCallResponse);
   rpc TransferFile(stream FileFrame) returns (stream FileFrame);
   rpc InvokeService(ServiceRequest) returns (ServiceResponse);
@@ -103,6 +104,21 @@ message JobRequest {
   uint32 attempt = 5;
   string checkpoint = 6;
   sforum.protocol.v2.TypedDocument payload = 7;
+}
+
+// CommandInvocationRequest runs one exact Manifest CLI command.
+message CommandInvocationRequest {
+  sforum.protocol.v2.RequestContext context = 1;
+  string command_id = 2;
+  string contract_version = 3;
+  string handler = 4;
+  sforum.protocol.v2.TypedDocument input = 5;
+}
+
+message CommandInvocationResponse {
+  sforum.protocol.v2.ResponseContext context = 1;
+  sforum.protocol.v2.TypedDocument result = 2;
+  sforum.protocol.v2.ErrorDetail error = 3;
 }
 
 // ProviderCallRequest invokes an implementation selected by a provider slot.

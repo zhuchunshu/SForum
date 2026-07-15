@@ -28,6 +28,7 @@ const (
 	PluginRuntimeService_StreamRoute_FullMethodName   = "/sforum.plugin.v2.PluginRuntimeService/StreamRoute"
 	PluginRuntimeService_InvokeHook_FullMethodName    = "/sforum.plugin.v2.PluginRuntimeService/InvokeHook"
 	PluginRuntimeService_ExecuteJob_FullMethodName    = "/sforum.plugin.v2.PluginRuntimeService/ExecuteJob"
+	PluginRuntimeService_InvokeCommand_FullMethodName = "/sforum.plugin.v2.PluginRuntimeService/InvokeCommand"
 	PluginRuntimeService_ProviderCall_FullMethodName  = "/sforum.plugin.v2.PluginRuntimeService/ProviderCall"
 	PluginRuntimeService_TransferFile_FullMethodName  = "/sforum.plugin.v2.PluginRuntimeService/TransferFile"
 	PluginRuntimeService_InvokeService_FullMethodName = "/sforum.plugin.v2.PluginRuntimeService/InvokeService"
@@ -48,6 +49,7 @@ type PluginRuntimeServiceClient interface {
 	StreamRoute(ctx context.Context, opts ...grpc.CallOption) (grpc.BidiStreamingClient[RouteStreamFrame, RouteStreamFrame], error)
 	InvokeHook(ctx context.Context, in *HookRequest, opts ...grpc.CallOption) (*HookResponse, error)
 	ExecuteJob(ctx context.Context, in *JobRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[v2.ProgressUpdate], error)
+	InvokeCommand(ctx context.Context, in *CommandInvocationRequest, opts ...grpc.CallOption) (*CommandInvocationResponse, error)
 	ProviderCall(ctx context.Context, in *ProviderCallRequest, opts ...grpc.CallOption) (*ProviderCallResponse, error)
 	TransferFile(ctx context.Context, opts ...grpc.CallOption) (grpc.BidiStreamingClient[FileFrame, FileFrame], error)
 	InvokeService(ctx context.Context, in *ServiceRequest, opts ...grpc.CallOption) (*ServiceResponse, error)
@@ -163,6 +165,16 @@ func (c *pluginRuntimeServiceClient) ExecuteJob(ctx context.Context, in *JobRequ
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type PluginRuntimeService_ExecuteJobClient = grpc.ServerStreamingClient[v2.ProgressUpdate]
 
+func (c *pluginRuntimeServiceClient) InvokeCommand(ctx context.Context, in *CommandInvocationRequest, opts ...grpc.CallOption) (*CommandInvocationResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CommandInvocationResponse)
+	err := c.cc.Invoke(ctx, PluginRuntimeService_InvokeCommand_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *pluginRuntimeServiceClient) ProviderCall(ctx context.Context, in *ProviderCallRequest, opts ...grpc.CallOption) (*ProviderCallResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(ProviderCallResponse)
@@ -223,6 +235,7 @@ type PluginRuntimeServiceServer interface {
 	StreamRoute(grpc.BidiStreamingServer[RouteStreamFrame, RouteStreamFrame]) error
 	InvokeHook(context.Context, *HookRequest) (*HookResponse, error)
 	ExecuteJob(*JobRequest, grpc.ServerStreamingServer[v2.ProgressUpdate]) error
+	InvokeCommand(context.Context, *CommandInvocationRequest) (*CommandInvocationResponse, error)
 	ProviderCall(context.Context, *ProviderCallRequest) (*ProviderCallResponse, error)
 	TransferFile(grpc.BidiStreamingServer[FileFrame, FileFrame]) error
 	InvokeService(context.Context, *ServiceRequest) (*ServiceResponse, error)
@@ -260,6 +273,9 @@ func (UnimplementedPluginRuntimeServiceServer) InvokeHook(context.Context, *Hook
 }
 func (UnimplementedPluginRuntimeServiceServer) ExecuteJob(*JobRequest, grpc.ServerStreamingServer[v2.ProgressUpdate]) error {
 	return status.Error(codes.Unimplemented, "method ExecuteJob not implemented")
+}
+func (UnimplementedPluginRuntimeServiceServer) InvokeCommand(context.Context, *CommandInvocationRequest) (*CommandInvocationResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method InvokeCommand not implemented")
 }
 func (UnimplementedPluginRuntimeServiceServer) ProviderCall(context.Context, *ProviderCallRequest) (*ProviderCallResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ProviderCall not implemented")
@@ -413,6 +429,24 @@ func _PluginRuntimeService_ExecuteJob_Handler(srv interface{}, stream grpc.Serve
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type PluginRuntimeService_ExecuteJobServer = grpc.ServerStreamingServer[v2.ProgressUpdate]
 
+func _PluginRuntimeService_InvokeCommand_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CommandInvocationRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PluginRuntimeServiceServer).InvokeCommand(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PluginRuntimeService_InvokeCommand_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PluginRuntimeServiceServer).InvokeCommand(ctx, req.(*CommandInvocationRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _PluginRuntimeService_ProviderCall_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(ProviderCallRequest)
 	if err := dec(in); err != nil {
@@ -489,6 +523,10 @@ var PluginRuntimeService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "InvokeHook",
 			Handler:    _PluginRuntimeService_InvokeHook_Handler,
+		},
+		{
+			MethodName: "InvokeCommand",
+			Handler:    _PluginRuntimeService_InvokeCommand_Handler,
 		},
 		{
 			MethodName: "ProviderCall",

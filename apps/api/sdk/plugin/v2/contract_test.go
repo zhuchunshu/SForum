@@ -66,6 +66,9 @@ func TestRequiredEnvelopeAndCommandFields(t *testing.T) {
 		"context", "command_id", "command_version", "idempotency_key", "dry_run", "expected_revision", "input", "actor_delegation")
 	assertFields(t, "sforum.host.v2.CommandResult",
 		"context", "state", "transaction_id", "audit_event_id", "committed_revision", "output", "error")
+	assertFields(t, "sforum.plugin.v2.CommandInvocationRequest",
+		"context", "command_id", "contract_version", "handler", "input")
+	assertFields(t, "sforum.plugin.v2.CommandInvocationResponse", "context", "result", "error")
 }
 
 func TestStreamingModesRemainExplicit(t *testing.T) {
