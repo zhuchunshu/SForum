@@ -5,7 +5,9 @@ import (
 	"errors"
 	"net/url"
 	"reflect"
+	"strings"
 	"testing"
+	"testing/fstest"
 	"time"
 
 	forum "github.com/zhuchunshu/sforum/apps/api/app/Models/Forum"
@@ -264,6 +266,48 @@ func TestCorePageViewModelSourceEnforcesGuestReadBeforeForumQueries(t *testing.T
 	}
 	if forumReader.lastTopicInput.Page != 0 {
 		t.Fatal("forum data was queried before guest read authorization")
+	}
+}
+
+func TestCorePageViewModelSourceRendersRealProductDataThroughThemeCompiler(t *testing.T) {
+	source := newTestSource(&sourceForum{}, defaultSourceOptions("public"))
+	request, err := source.Populate(t.Context(), CorePageViewModelInput{Request: pages.CorePageViewModelRequest{
+		PageID: "forum.home", Locale: "en-US", Path: "/", SEO: themecompiler.PageSEOView{Title: "forum.home"},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	model, err := pages.BuildCorePageViewModel(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	digest := strings.Repeat("a", 64)
+	snapshot, err := themecompiler.NewCompiler(themecompiler.Limits{}).CompileFS(fstest.MapFS{
+		"templates/home.html": &fstest.MapFile{Data: []byte(`{{range .Topics}}<a href="{{.URL}}">{{.Title}}</a>{{end}}{{range .Categories}}<span>{{.Name}}:{{.Count}}</span>{{end}}`)},
+	}, digest, themecompiler.Bindings{
+		BindingRevision: strings.Repeat("b", 64),
+		PageViewModels: map[string]themecompiler.PageTemplateBinding{
+			"templates/home.html": {PageID: "forum.home", SchemaVersion: "sforum.page.home@1"},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	bound, err := themecompiler.CorePageViewModelRegistry().Bind("forum.home", "sforum.page.home@1", digest, model)
+	if err != nil {
+		t.Fatal(err)
+	}
+	output, err := snapshot.Render(t.Context(), "templates/home.html", bound)
+	if err != nil {
+		t.Fatal(err)
+	}
+	segments := output.HTMLSegments()
+	var html strings.Builder
+	for _, segment := range segments {
+		html.WriteString(segment.String())
+	}
+	if !strings.Contains(html.String(), `href="/t/42/hello"`) || !strings.Contains(html.String(), "Hello") || !strings.Contains(html.String(), "Support:1") {
+		t.Fatalf("production ViewModel did not reach L1 output: %#v", segments)
 	}
 }
 
