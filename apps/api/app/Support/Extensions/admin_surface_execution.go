@@ -60,10 +60,15 @@ func (m *Manager) InvokeAdminSurface(
 	if version := strings.TrimSpace(input.ContractVersion); version == "" || version != contract.ContractVersion {
 		return AdminSurfaceInvocationResult{}, ErrAdminSurfaceRuntimeStale
 	}
-	if strings.TrimSpace(contract.Handler) == "" || strings.TrimSpace(contract.Schema) == "" {
+	if strings.TrimSpace(contract.Handler) == "" || strings.TrimSpace(contract.PropsSchema) == "" || strings.TrimSpace(contract.ResultSchema) == "" {
 		return AdminSurfaceInvocationResult{}, ErrAdminSurfaceNotInvokable
 	}
-	if err := m.hooks.adminSurfaces.ValidateDocument(contract, input.Input); err != nil {
+	if contract.Operation == extensions.AdminSurfaceOperationCommand {
+		if input.Actor == nil || input.Actor.UserID <= 0 || strings.TrimSpace(input.IdempotencyKey) == "" || ValidateProtocolV2InvocationIdempotencyKey(input.IdempotencyKey) != nil {
+			return AdminSurfaceInvocationResult{}, ErrProtocolV2ActorDelegationInvalid
+		}
+	}
+	if err := m.hooks.adminSurfaces.ValidateProps(contract, input.Input); err != nil {
 		return AdminSurfaceInvocationResult{}, err
 	}
 	runtime, ok := m.starter.(adminSurfaceRuntime)
@@ -86,7 +91,7 @@ func (m *Manager) InvokeAdminSurface(
 	if err != nil {
 		return AdminSurfaceInvocationResult{}, err
 	}
-	if err := m.hooks.adminSurfaces.ValidateDocument(contract, output); err != nil {
+	if err := m.hooks.adminSurfaces.ValidateResult(contract, output); err != nil {
 		return AdminSurfaceInvocationResult{}, err
 	}
 	result, err := cloneHookDocument(output)
@@ -100,18 +105,39 @@ func validateFrozenAdminSurface(
 	contract AdminSurfaceContract,
 	declarations []extensions.ManifestAdminSurface,
 ) error {
+	contractPropsSchema, contractResultSchema := adminSurfaceContractSchemaReferences(contract)
+	contractOperation := contract.Operation
+	if contractOperation == "" {
+		contractOperation = defaultAdminSurfaceOperationForKind(contract.Kind)
+	}
 	for _, declaration := range declarations {
 		if declaration.ID != contract.ID {
 			continue
 		}
+		propsSchema, resultSchema := adminSurfaceSchemaReferences(declaration)
 		if declaration.ContractVersion != contract.ContractVersion || declaration.Kind != contract.Kind ||
 			declaration.Action != contract.Action || declaration.TargetID != contract.TargetID ||
+			declaration.PlacementID != contract.PlacementID || declaration.PlacementContractVersion != contract.PlacementContractVersion ||
 			declaration.Label != contract.Label || declaration.Handler != contract.Handler ||
-			declaration.Schema != contract.Schema || declaration.Permission != contract.Permission ||
+			propsSchema != contractPropsSchema || resultSchema != contractResultSchema ||
+			adminSurfaceOperation(declaration) != contractOperation || declaration.Schema != contract.Schema || declaration.Permission != contract.Permission ||
 			declaration.Priority != contract.Priority {
 			return ErrAdminSurfaceRuntimeStale
 		}
 		return nil
 	}
 	return fmt.Errorf("%w: surface %s", ErrAdminSurfaceRuntimeStale, strings.TrimSpace(contract.ID))
+}
+
+func adminSurfaceContractSchemaReferences(contract AdminSurfaceContract) (string, string) {
+	propsSchema, resultSchema := contract.PropsSchema, contract.ResultSchema
+	if contract.Schema != "" {
+		if propsSchema == "" {
+			propsSchema = contract.Schema
+		}
+		if resultSchema == "" {
+			resultSchema = contract.Schema
+		}
+	}
+	return propsSchema, resultSchema
 }

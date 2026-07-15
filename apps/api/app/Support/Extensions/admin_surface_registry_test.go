@@ -119,6 +119,44 @@ func TestAdminSurfaceRegistryValidatesExactSchemaAndVersionDrift(t *testing.T) {
 	}
 }
 
+func TestAdminSurfaceRegistryFreezesPlacementAndDistinctSchemas(t *testing.T) {
+	extension := adminSurfaceExtension("admin.typed", []extensions.ManifestAdminSurface{{
+		ID: "admin.typed.surface.notice", ContractVersion: "admin.typed.surface.notice@1",
+		Kind: "notice", Action: "add", PlacementID: "core.component.page.admin",
+		PlacementContractVersion: "sforum.component.page.admin@1", Label: "Notice", Handler: "admin.notice",
+		PropsSchema: "admin.typed.surface.notice.props@1", ResultSchema: "admin.typed.surface.notice.result@1",
+		Operation: extensions.AdminSurfaceOperationQuery,
+	}})
+	extension.PackagePath = t.TempDir()
+	writeAdminSurfaceSchema(t, &extension, extension.Manifest.AdminSurfaces[0].PropsSchema, "schemas/notice-props.json",
+		`{"type":"object","required":["scope"],"properties":{"scope":{"type":"string"}},"additionalProperties":false}`)
+	writeAdminSurfaceSchema(t, &extension, extension.Manifest.AdminSurfaces[0].ResultSchema, "schemas/notice-result.json",
+		`{"type":"object","required":["message"],"properties":{"message":{"type":"string"}},"additionalProperties":false}`)
+	registry := NewAdminSurfaceRegistry()
+	if err := registry.ReplaceRuntime(extension, "runtime-typed"); err != nil {
+		t.Fatal(err)
+	}
+	contract, err := registry.Resolve(extension.Manifest.AdminSurfaces[0].ID)
+	if err != nil || contract.PlacementID != "core.component.page.admin" ||
+		contract.PlacementContractVersion != "sforum.component.page.admin@1" ||
+		contract.PropsSchemaDigest == "" || contract.ResultSchemaDigest == "" ||
+		contract.PropsSchemaDigest == contract.ResultSchemaDigest {
+		t.Fatalf("typed contract=%#v err=%v", contract, err)
+	}
+	if err := registry.ValidateProps(contract, map[string]any{"scope": "dashboard"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := registry.ValidateResult(contract, map[string]any{"message": "Ready"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := registry.ValidateProps(contract, map[string]any{"message": "wrong contract"}); !errors.Is(err, ErrAdminSurfaceRegistryInvalid) {
+		t.Fatalf("props/result schema crossed = %v", err)
+	}
+	if err := registry.ValidateResult(contract, map[string]any{"scope": "wrong contract"}); !errors.Is(err, ErrAdminSurfaceRegistryInvalid) {
+		t.Fatalf("result/props schema crossed = %v", err)
+	}
+}
+
 func TestHookBusAdminSurfacesPublishAndRemoveAtomically(t *testing.T) {
 	owner := adminSurfaceExtension("admin.owner", []extensions.ManifestAdminSurface{{
 		ID: "admin.owner.surface.users", ContractVersion: "admin.owner.surface.users@1",

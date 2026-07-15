@@ -28,9 +28,11 @@ const (
 	RuntimeDegraded = "degraded"
 	RuntimeFailed   = "failed"
 
-	RouteAccessPublic     = extensionmanifest.RouteAccessPublic
-	RouteAccessLogin      = extensionmanifest.RouteAccessLogin
-	RouteAccessPermission = extensionmanifest.RouteAccessPermission
+	RouteAccessPublic            = extensionmanifest.RouteAccessPublic
+	RouteAccessLogin             = extensionmanifest.RouteAccessLogin
+	RouteAccessPermission        = extensionmanifest.RouteAccessPermission
+	AdminSurfaceOperationQuery   = extensionmanifest.AdminSurfaceOperationQuery
+	AdminSurfaceOperationCommand = extensionmanifest.AdminSurfaceOperationCommand
 
 	EventInstalled             = "installed"
 	EventUpgraded              = "upgraded"

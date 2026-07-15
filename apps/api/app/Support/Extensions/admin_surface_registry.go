@@ -9,6 +9,7 @@ import (
 	"sync/atomic"
 
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
+	componentcatalog "github.com/zhuchunshu/sforum/apps/api/app/Support/ComponentCatalog"
 )
 
 var (
@@ -18,23 +19,33 @@ var (
 )
 
 type AdminSurfaceContract struct {
-	ID               string `json:"id"`
-	ContractVersion  string `json:"contractVersion"`
-	ExtensionID      string `json:"extensionId"`
-	ExtensionVersion string `json:"extensionVersion"`
-	ArtifactDigest   string `json:"artifactDigest"`
-	InstanceID       string `json:"runtimeInstanceId"`
-	Kind             string `json:"kind"`
-	Action           string `json:"action"`
-	TargetID         string `json:"targetId,omitempty"`
-	Label            string `json:"label"`
-	Handler          string `json:"handler,omitempty"`
-	Schema           string `json:"schema,omitempty"`
-	SchemaDigest     string `json:"schemaDigest,omitempty"`
-	Permission       string `json:"permission,omitempty"`
-	Priority         int    `json:"priority"`
+	ID                       string `json:"id"`
+	ContractVersion          string `json:"contractVersion"`
+	ExtensionID              string `json:"extensionId"`
+	ExtensionVersion         string `json:"extensionVersion"`
+	ArtifactDigest           string `json:"artifactDigest"`
+	InstanceID               string `json:"runtimeInstanceId"`
+	Kind                     string `json:"kind"`
+	Action                   string `json:"action"`
+	TargetID                 string `json:"targetId,omitempty"`
+	PlacementID              string `json:"placementId,omitempty"`
+	PlacementContractVersion string `json:"placementContractVersion,omitempty"`
+	Label                    string `json:"label"`
+	Handler                  string `json:"handler,omitempty"`
+	PropsSchema              string `json:"propsSchema,omitempty"`
+	PropsSchemaDigest        string `json:"propsSchemaDigest,omitempty"`
+	ResultSchema             string `json:"resultSchema,omitempty"`
+	ResultSchemaDigest       string `json:"resultSchemaDigest,omitempty"`
+	Operation                string `json:"operation"`
+	// Schema fields preserve the old catalog response until P13 removes the
+	// single-document compatibility contract.
+	Schema       string `json:"schema,omitempty"`
+	SchemaDigest string `json:"schemaDigest,omitempty"`
+	Permission   string `json:"permission,omitempty"`
+	Priority     int    `json:"priority"`
 
-	validator providerDocumentValidator
+	propsValidator  providerDocumentValidator
+	resultValidator providerDocumentValidator
 }
 
 type AdminSurfaceRegistrySnapshot struct {
@@ -176,18 +187,35 @@ func (r *AdminSurfaceRegistry) resolveRuntimeContract(id string) (AdminSurfaceCo
 	return contract, nil
 }
 
+func (r *AdminSurfaceRegistry) ValidateProps(contract AdminSurfaceContract, document map[string]any) error {
+	return r.validateDocument(contract, document, true)
+}
+
+func (r *AdminSurfaceRegistry) ValidateResult(contract AdminSurfaceContract, document map[string]any) error {
+	return r.validateDocument(contract, document, false)
+}
+
+// ValidateDocument preserves the pre-split API as a props validation alias.
 func (r *AdminSurfaceRegistry) ValidateDocument(contract AdminSurfaceContract, document map[string]any) error {
-	if contract.validator == nil {
+	return r.ValidateProps(contract, document)
+}
+
+func (r *AdminSurfaceRegistry) validateDocument(contract AdminSurfaceContract, document map[string]any, props bool) error {
+	if contract.propsValidator == nil && contract.resultValidator == nil {
 		stored, ok := r.load().surfaces[contract.ID]
 		if !ok || !sameAdminSurfaceRuntimeContract(stored, contract) {
 			return ErrAdminSurfaceNotFound
 		}
 		contract = stored
 	}
-	if contract.validator == nil {
+	validator := contract.resultValidator
+	if props {
+		validator = contract.propsValidator
+	}
+	if validator == nil {
 		return nil
 	}
-	if err := contract.validator.Validate(document); err != nil {
+	if err := validator.Validate(document); err != nil {
 		return fmt.Errorf("%w: %v", ErrAdminSurfaceRegistryInvalid, err)
 	}
 	return nil
@@ -198,7 +226,11 @@ func sameAdminSurfaceRuntimeContract(left, right AdminSurfaceContract) bool {
 		left.ExtensionID == right.ExtensionID && left.ExtensionVersion == right.ExtensionVersion &&
 		left.ArtifactDigest == right.ArtifactDigest && left.InstanceID == right.InstanceID &&
 		left.Kind == right.Kind && left.Action == right.Action && left.TargetID == right.TargetID &&
-		left.Label == right.Label && left.Handler == right.Handler && left.Schema == right.Schema &&
+		left.PlacementID == right.PlacementID && left.PlacementContractVersion == right.PlacementContractVersion &&
+		left.Label == right.Label && left.Handler == right.Handler &&
+		left.PropsSchema == right.PropsSchema && left.PropsSchemaDigest == right.PropsSchemaDigest &&
+		left.ResultSchema == right.ResultSchema && left.ResultSchemaDigest == right.ResultSchemaDigest &&
+		left.Operation == right.Operation && left.Schema == right.Schema &&
 		left.SchemaDigest == right.SchemaDigest && left.Permission == right.Permission && left.Priority == right.Priority
 }
 
@@ -247,18 +279,31 @@ func buildAdminSurfaceRegistryState(
 			if _, duplicate := state.surfaces[declaration.ID]; duplicate {
 				return nil, fmt.Errorf("%w: duplicate surface %s", ErrAdminSurfaceRegistryConflict, declaration.ID)
 			}
-			validator, digest, err := compileAdminSurfaceSchema(extension, declaration.Schema)
+			propsSchema, resultSchema := adminSurfaceSchemaReferences(declaration)
+			propsValidator, propsDigest, err := compileAdminSurfaceSchema(extension, propsSchema)
 			if err != nil {
-				return nil, fmt.Errorf("%w: surface %s schema: %v", ErrAdminSurfaceRegistryInvalid, declaration.ID, err)
+				return nil, fmt.Errorf("%w: surface %s props schema: %v", ErrAdminSurfaceRegistryInvalid, declaration.ID, err)
+			}
+			resultValidator, resultDigest := propsValidator, propsDigest
+			if resultSchema != propsSchema {
+				resultValidator, resultDigest, err = compileAdminSurfaceSchema(extension, resultSchema)
+				if err != nil {
+					return nil, fmt.Errorf("%w: surface %s result schema: %v", ErrAdminSurfaceRegistryInvalid, declaration.ID, err)
+				}
 			}
 			state.surfaces[declaration.ID] = AdminSurfaceContract{
 				ID: declaration.ID, ContractVersion: declaration.ContractVersion,
 				ExtensionID: extension.ID, ExtensionVersion: extension.Version,
 				ArtifactDigest: extension.PackageDigest, InstanceID: registration.instanceID,
 				Kind: declaration.Kind, Action: declaration.Action, TargetID: declaration.TargetID,
-				Label: declaration.Label, Handler: declaration.Handler, Schema: declaration.Schema,
-				SchemaDigest: digest, Permission: declaration.Permission, Priority: declaration.Priority,
-				validator: validator,
+				PlacementID: declaration.PlacementID, PlacementContractVersion: declaration.PlacementContractVersion,
+				Label: declaration.Label, Handler: declaration.Handler,
+				PropsSchema: propsSchema, PropsSchemaDigest: propsDigest,
+				ResultSchema: resultSchema, ResultSchemaDigest: resultDigest,
+				Operation: adminSurfaceOperation(declaration), Schema: declaration.Schema,
+				SchemaDigest: legacyAdminSurfaceSchemaDigest(declaration.Schema, propsDigest),
+				Permission:   declaration.Permission, Priority: declaration.Priority,
+				propsValidator: propsValidator, resultValidator: resultValidator,
 			}
 		}
 	}
@@ -276,7 +321,9 @@ func buildAdminSurfaceRegistryState(
 			}
 			return nil, fmt.Errorf("%w: surface %s target %s", ErrAdminSurfaceRegistryConflict, contract.ID, contract.TargetID)
 		}
-		if target.Action != "add" || target.Kind != contract.Kind {
+		if target.Action != "add" || target.Kind != contract.Kind ||
+			target.PlacementID != contract.PlacementID || target.PlacementContractVersion != contract.PlacementContractVersion ||
+			target.Operation != contract.Operation {
 			return nil, fmt.Errorf("%w: surface %s target %s", ErrAdminSurfaceRegistryConflict, contract.ID, contract.TargetID)
 		}
 		if target.ExtensionID == contract.ExtensionID {
@@ -296,10 +343,17 @@ func buildAdminSurfaceRegistryState(
 }
 
 func validateAdminSurfaceDeclaration(extension extensions.Extension, declaration extensions.ManifestAdminSurface) error {
+	propsSchema, resultSchema := adminSurfaceSchemaReferences(declaration)
+	typedContract := declaration.PlacementID != "" || declaration.PlacementContractVersion != "" ||
+		declaration.Schema == "" && (declaration.PropsSchema != "" || declaration.ResultSchema != "")
 	if !strings.HasPrefix(declaration.ID, extension.ID+".") || declaration.ContractVersion == "" ||
 		!validRuntimeAdminSurfaceKind(declaration.Kind) || !validRuntimeAdminSurfaceAction(declaration.Action) ||
 		declaration.Label == "" || declaration.Handler == "" && declaration.Schema == "" ||
-		declaration.Action != "add" && declaration.TargetID == "" {
+		declaration.Action != "add" && declaration.TargetID == "" ||
+		declaration.Schema != "" && (propsSchema != declaration.Schema || resultSchema != declaration.Schema) ||
+		typedContract && (declaration.Handler == "" || propsSchema == "" || resultSchema == "" ||
+			!validRuntimeAdminSurfacePlacement(declaration.PlacementID, declaration.PlacementContractVersion)) ||
+		!validRuntimeAdminSurfaceOperation(adminSurfaceOperation(declaration)) {
 		return fmt.Errorf("%w: surface %s", ErrAdminSurfaceRegistryInvalid, declaration.ID)
 	}
 	return nil
@@ -329,13 +383,71 @@ func validateAdminSurfaceUpgrade(previous, next extensions.Extension) error {
 		if !ok || old.ContractVersion != surface.ContractVersion {
 			continue
 		}
-		oldDigest, oldDigestOK := providerSchemaDigest(previous, old.Schema)
-		newDigest, newDigestOK := providerSchemaDigest(next, surface.Schema)
-		if old != surface || oldDigestOK != newDigestOK || oldDigestOK && oldDigest != newDigest {
+		if old != surface || adminSurfaceSchemaContentChanged(previous, next, old) {
 			return fmt.Errorf("%w: surface %s changed without contract version", ErrAdminSurfaceRegistryConflict, surface.ID)
 		}
 	}
 	return nil
+}
+
+func adminSurfaceSchemaContentChanged(previous, next extensions.Extension, surface extensions.ManifestAdminSurface) bool {
+	for _, reference := range []string{surface.Schema, surface.PropsSchema, surface.ResultSchema} {
+		if reference == "" {
+			continue
+		}
+		oldDigest, oldOK := providerSchemaDigest(previous, reference)
+		newDigest, newOK := providerSchemaDigest(next, reference)
+		if oldOK != newOK || oldOK && oldDigest != newDigest {
+			return true
+		}
+	}
+	return false
+}
+
+func adminSurfaceSchemaReferences(declaration extensions.ManifestAdminSurface) (string, string) {
+	propsSchema := strings.TrimSpace(declaration.PropsSchema)
+	resultSchema := strings.TrimSpace(declaration.ResultSchema)
+	if declaration.Schema != "" {
+		if propsSchema == "" {
+			propsSchema = declaration.Schema
+		}
+		if resultSchema == "" {
+			resultSchema = declaration.Schema
+		}
+	}
+	return propsSchema, resultSchema
+}
+
+func adminSurfaceOperation(declaration extensions.ManifestAdminSurface) string {
+	if operation := strings.TrimSpace(declaration.Operation); operation != "" {
+		return operation
+	}
+	return defaultAdminSurfaceOperationForKind(declaration.Kind)
+}
+
+func defaultAdminSurfaceOperationForKind(kind string) string {
+	switch kind {
+	case "row_action", "bulk_action", "form", "importer":
+		return extensions.AdminSurfaceOperationCommand
+	default:
+		return extensions.AdminSurfaceOperationQuery
+	}
+}
+
+func legacyAdminSurfaceSchemaDigest(reference, digest string) string {
+	if reference == "" {
+		return ""
+	}
+	return digest
+}
+
+func validRuntimeAdminSurfacePlacement(id, contractVersion string) bool {
+	target, found := componentcatalog.FindCoreComponent(id)
+	return found && target.ContractVersion == contractVersion && target.Kind == componentcatalog.KindPage && target.OwnedBy(componentcatalog.OwnerAdmin)
+}
+
+func validRuntimeAdminSurfaceOperation(value string) bool {
+	return value == extensions.AdminSurfaceOperationQuery || value == extensions.AdminSurfaceOperationCommand
 }
 
 func validRuntimeAdminSurfaceKind(value string) bool {
@@ -371,7 +483,8 @@ func adminSurfaceBefore(left, right AdminSurfaceContract) bool {
 }
 
 func cloneAdminSurfaceContract(contract AdminSurfaceContract) AdminSurfaceContract {
-	contract.validator = nil
+	contract.propsValidator = nil
+	contract.resultValidator = nil
 	return contract
 }
 

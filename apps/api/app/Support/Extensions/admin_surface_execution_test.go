@@ -28,7 +28,7 @@ func (s *adminSurfaceRuntimeServer) InvokeHook(
 	request *pluginwire.HookRequest,
 ) (*pluginwire.HookResponse, error) {
 	s.request = request
-	result, err := protocolV2Document("demo.admin.surface.props", "1", map[string]any{"title": "Rendered"})
+	result, err := protocolV2Document("demo.admin.surface.result", "1", map[string]any{"title": "Rendered"})
 	if err != nil {
 		return nil, err
 	}
@@ -172,7 +172,7 @@ func TestManagerAdminSurfaceValidatesDocumentsAndExactRuntimeAdmission(t *testin
 	}
 	if _, err := manager.InvokeAdminSurface(context.Background(), AdminSurfaceInvocation{
 		ExpectedContract: contract, ContractVersion: extension.Manifest.AdminSurfaces[0].ContractVersion,
-		Input: map[string]any{"title": 42},
+		Input: map[string]any{"title": 42}, Actor: NewProtocolV2RouteActor(42, true, nil), IdempotencyKey: "invalid-props-42",
 	}); !errors.Is(err, ErrAdminSurfaceRegistryInvalid) || starter.calls != 1 {
 		t.Fatalf("invalid props calls=%d err=%v", starter.calls, err)
 	}
@@ -182,7 +182,7 @@ func TestManagerAdminSurfaceValidatesDocumentsAndExactRuntimeAdmission(t *testin
 	}
 	if _, err := manager.InvokeAdminSurface(context.Background(), AdminSurfaceInvocation{
 		ExpectedContract: contract, ContractVersion: extension.Manifest.AdminSurfaces[0].ContractVersion,
-		Input: map[string]any{"title": "SForum"},
+		Input: map[string]any{"title": "SForum"}, Actor: NewProtocolV2RouteActor(42, true, nil), IdempotencyKey: "draining-42",
 	}); !errors.Is(err, ErrRuntimeAdmissionDraining) {
 		t.Fatalf("draining surface = %v", err)
 	}
@@ -260,7 +260,7 @@ func TestManagerAdminSurfaceKeepsFrozenValidatorAcrossInflightPublicationSwap(t 
 	go func() {
 		result, invokeErr := manager.InvokeAdminSurface(t.Context(), AdminSurfaceInvocation{
 			ExpectedContract: expected, ContractVersion: expected.ContractVersion,
-			Input: map[string]any{"title": "SForum"},
+			Input: map[string]any{"title": "SForum"}, Actor: NewProtocolV2RouteActor(42, true, nil), IdempotencyKey: "inflight-42",
 		})
 		done <- invocationResult{result: result, err: invokeErr}
 	}()
@@ -361,6 +361,7 @@ func TestManagerInvokesEveryTaskbookAdminSurfaceKind(t *testing.T) {
 		}
 		result, err := manager.InvokeAdminSurface(context.Background(), AdminSurfaceInvocation{
 			ExpectedContract: contract, ContractVersion: declaration.ContractVersion, Input: map[string]any{"title": declaration.Kind},
+			Actor: NewProtocolV2RouteActor(42, true, nil), IdempotencyKey: "all-kinds-" + declaration.Kind,
 		})
 		if err != nil || result.Contract.Kind != declaration.Kind || result.Output["title"] != "Rendered" {
 			t.Fatalf("kind %s result=%#v err=%v", declaration.Kind, result, err)
@@ -392,6 +393,39 @@ func TestManagerRejectsUntypedAdminSurfaceHandler(t *testing.T) {
 	}
 }
 
+func TestManagerAdminSurfaceCommandRequiresActorAndIdempotency(t *testing.T) {
+	starter := &adminSurfaceStarterStub{instanceID: "runtime-command"}
+	manager := NewManager(ManagerConfig{Starter: starter})
+	extension := adminSurfaceExtension("demo.command", []extensions.ManifestAdminSurface{{
+		ID: "demo.command.surface.action", ContractVersion: "demo.command.surface.action@1",
+		Kind: "row_action", Action: "add", Label: "Action", Handler: "admin.action",
+		Schema: "demo.command.surface.action@1", Operation: extensions.AdminSurfaceOperationCommand,
+	}})
+	if err := manager.Start(context.Background(), extension); err != nil {
+		t.Fatal(err)
+	}
+	contract, err := manager.ResolveAdminSurface(extension.Manifest.AdminSurfaces[0].ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	base := AdminSurfaceInvocation{ExpectedContract: contract, ContractVersion: contract.ContractVersion, Input: map[string]any{}}
+	if _, err := manager.InvokeAdminSurface(context.Background(), base); !errors.Is(err, ErrProtocolV2ActorDelegationInvalid) {
+		t.Fatalf("actorless command = %v", err)
+	}
+	base.Actor = NewProtocolV2RouteActor(42, true, nil)
+	if _, err := manager.InvokeAdminSurface(context.Background(), base); !errors.Is(err, ErrProtocolV2ActorDelegationInvalid) {
+		t.Fatalf("non-idempotent command = %v", err)
+	}
+	base.Actor = &ProtocolV2InvocationActor{}
+	base.IdempotencyKey = "forged-actor"
+	if _, err := manager.InvokeAdminSurface(context.Background(), base); !errors.Is(err, ErrProtocolV2ActorDelegationInvalid) {
+		t.Fatalf("forged command actor = %v", err)
+	}
+	if starter.calls != 0 {
+		t.Fatalf("invalid command reached runtime %d times", starter.calls)
+	}
+}
+
 func adminSurfaceProtocolClient(t *testing.T, server *adminSurfaceRuntimeServer) *protocolV2Client {
 	t.Helper()
 	listener := bufconn.Listen(1 << 20)
@@ -416,7 +450,9 @@ func adminSurfaceProtocolClient(t *testing.T, server *adminSurfaceRuntimeServer)
 	}
 	declaration := extensions.ManifestAdminSurface{
 		ID: "demo.admin.surface.form", ContractVersion: "demo.admin.surface.form@1",
-		Kind: "form", Action: "add", Label: "Form", Handler: "admin.form", Schema: "demo.admin.surface.props@1",
+		Kind: "form", Action: "add", PlacementID: "core.component.page.admin", PlacementContractVersion: "sforum.component.page.admin@1",
+		Label: "Form", Handler: "admin.form", PropsSchema: "demo.admin.surface.props@1",
+		ResultSchema: "demo.admin.surface.result@1", Operation: extensions.AdminSurfaceOperationCommand,
 	}
 	return newProtocolV2Client(pluginwire.NewPluginRuntimeServiceClient(connection), protocolV2ClientConfig{
 		identity: identity, adminSurfaces: []extensions.ManifestAdminSurface{declaration},
@@ -428,6 +464,8 @@ func adminSurfaceRuntimeContract() AdminSurfaceContract {
 	return AdminSurfaceContract{
 		ID: "demo.admin.surface.form", ContractVersion: "demo.admin.surface.form@1",
 		ExtensionID: "demo.admin", ExtensionVersion: "1.0.0", ArtifactDigest: "digest-a", InstanceID: "runtime-admin",
-		Kind: "form", Action: "add", Label: "Form", Handler: "admin.form", Schema: "demo.admin.surface.props@1",
+		Kind: "form", Action: "add", PlacementID: "core.component.page.admin", PlacementContractVersion: "sforum.component.page.admin@1",
+		Label: "Form", Handler: "admin.form", PropsSchema: "demo.admin.surface.props@1",
+		ResultSchema: "demo.admin.surface.result@1", Operation: extensions.AdminSurfaceOperationCommand,
 	}
 }

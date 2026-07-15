@@ -538,15 +538,16 @@ func (c *protocolV2Client) invokeAdminSurface(
 	if c == nil || c.client == nil || c.identity == nil || parent == nil {
 		return nil, extensions.ErrRuntimeUnavailable
 	}
+	propsSchema, resultSchema := adminSurfaceContractSchemaReferences(contract)
 	if contract.ExtensionID != c.identity.GetExtensionId() || contract.ExtensionVersion != c.identity.GetExtensionVersion() ||
 		contract.ArtifactDigest != c.identity.GetArtifactDigest() || contract.InstanceID != c.identity.GetInstanceId() ||
-		contract.Handler == "" || contract.Schema == "" {
+		contract.Handler == "" || propsSchema == "" || resultSchema == "" {
 		return nil, ErrAdminSurfaceRuntimeStale
 	}
 	if err := validateFrozenAdminSurface(contract, c.adminSurfaces); err != nil {
 		return nil, err
 	}
-	schemaID, schemaVersion, err := protocolV2SchemaRef(contract.Schema)
+	schemaID, schemaVersion, err := protocolV2SchemaRef(propsSchema)
 	if err != nil {
 		return nil, err
 	}
@@ -577,7 +578,7 @@ func (c *protocolV2Client) invokeAdminSurface(
 	if !response.GetAccepted() || response.GetPatch() != nil {
 		return nil, ErrAdminSurfaceRuntimeStale
 	}
-	if err := validateProtocolV2DocumentRef(response.GetResult(), contract.Schema, "admin surface result"); err != nil {
+	if err := validateProtocolV2DocumentRef(response.GetResult(), resultSchema, "admin surface result"); err != nil {
 		return nil, err
 	}
 	return protocolV2Values(response.GetResult()), nil
