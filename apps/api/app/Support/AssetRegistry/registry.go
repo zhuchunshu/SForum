@@ -11,16 +11,15 @@ import (
 )
 
 const (
-	SchemaVersion     = "sforum.asset-registry@1"
-	maxRegistryAssets = 4096
-	maxRegistryOwners = 512
+	SchemaVersion = "sforum.asset-registry@1"
 )
 
 var (
-	ErrInvalid    = errors.New("asset registry declaration is invalid")
-	ErrConflict   = errors.New("asset registry handle conflicts with the active snapshot")
-	ErrDependency = errors.New("asset registry dependency is unavailable or cyclic")
-	ErrNotFound   = errors.New("asset registry handle is not found")
+	ErrInvalid          = errors.New("asset registry declaration is invalid")
+	ErrConflict         = errors.New("asset registry handle conflicts with the active snapshot")
+	ErrDependency       = errors.New("asset registry dependency is unavailable or cyclic")
+	ErrNotFound         = errors.New("asset registry handle is not found")
+	ErrArtifactConflict = errors.New("asset registry artifact does not own the active publication")
 )
 
 var (
@@ -34,6 +33,7 @@ type Artifact struct {
 	ExtensionVersion string `json:"extensionVersion"`
 	PackageDigest    string `json:"packageDigest"`
 	ImpactDigest     string `json:"impactDigest"`
+	Core             bool   `json:"core,omitempty"`
 }
 
 type Declaration struct {
@@ -56,8 +56,8 @@ type Asset struct {
 }
 
 type Publication struct {
-	Artifact Artifact
-	Assets   []Declaration
+	Artifact Artifact      `json:"artifact"`
+	Assets   []Declaration `json:"assets"`
 }
 
 type PlanRequest struct {
@@ -67,14 +67,18 @@ type PlanRequest struct {
 }
 
 type Snapshot struct {
-	SchemaVersion string  `json:"schemaVersion"`
-	Revision      uint64  `json:"revision"`
-	Assets        []Asset `json:"assets"`
+	SchemaVersion string        `json:"schemaVersion"`
+	Revision      uint64        `json:"revision"`
+	Digest        string        `json:"digest"`
+	Publications  []Publication `json:"publications"`
+	Assets        []Asset       `json:"assets"`
 }
 
 type registryState struct {
-	revision uint64
-	assets   map[string]Asset
+	revision     uint64
+	digest       string
+	publications map[string]Publication
+	assets       map[string]Asset
 }
 
 type Registry struct {
@@ -84,12 +88,32 @@ type Registry struct {
 
 func New() *Registry {
 	registry := &Registry{}
-	registry.state.Store(&registryState{assets: map[string]Asset{}})
+	registry.state.Store(emptyState())
 	return registry
 }
 
-// Publish atomically replaces one extension's complete asset publication.
+// Publish atomically adds one extension publication or replays the exact active
+// artifact idempotently. Artifact changes must use PublishIfArtifact so a stale
+// runtime cannot overwrite a newer publication without an exact CAS check.
 func (r *Registry) Publish(publication Publication) (uint64, error) {
+	return r.publish(nil, publication)
+}
+
+// PublishIfArtifact replaces one extension publication only while expected is
+// still the exact active artifact. Package rollback uses the same CAS contract;
+// artifact version ordering is deliberately not inferred here.
+func (r *Registry) PublishIfArtifact(expected Artifact, publication Publication) (uint64, error) {
+	if r == nil {
+		return 0, ErrInvalid
+	}
+	normalizedExpected, err := normalizeArtifact(expected)
+	if err != nil {
+		return r.load().revision, ErrInvalid
+	}
+	return r.publish(&normalizedExpected, publication)
+}
+
+func (r *Registry) publish(expected *Artifact, publication Publication) (uint64, error) {
 	if r == nil {
 		return 0, ErrInvalid
 	}
@@ -101,63 +125,59 @@ func (r *Registry) Publish(publication Publication) (uint64, error) {
 	defer r.mu.Unlock()
 
 	current := r.load()
-	next := make(map[string]Asset, len(current.assets)+len(normalized.Assets))
-	for handle, asset := range current.assets {
-		if asset.Artifact.ExtensionID != normalized.Artifact.ExtensionID {
-			next[handle] = asset
+	active, found := current.publications[normalized.Artifact.ExtensionID]
+	if expected != nil {
+		if expected.ExtensionID != normalized.Artifact.ExtensionID || !found || active.Artifact != *expected {
+			return current.revision, ErrArtifactConflict
 		}
+	} else if found && active.Artifact != normalized.Artifact {
+		return current.revision, ErrArtifactConflict
 	}
-	for _, declaration := range normalized.Assets {
-		if _, exists := next[declaration.Handle]; exists {
-			return current.revision, ErrConflict
-		}
-		next[declaration.Handle] = Asset{Declaration: declaration, Artifact: normalized.Artifact}
+	if found && active.Artifact == normalized.Artifact && !equalPublications(active, normalized) {
+		return current.revision, ErrArtifactConflict
 	}
-	if len(next) > maxRegistryAssets {
-		return current.revision, ErrInvalid
-	}
-	if err := validateGraph(next); err != nil {
+	publications := clonePublicationMap(current.publications)
+	publications[normalized.Artifact.ExtensionID] = normalized
+	next, err := buildState(current.revision+1, publicationValues(publications))
+	if err != nil {
 		return current.revision, err
 	}
-	if equalAssetMaps(current.assets, next) {
+	if equalPublicationMaps(current.publications, next.publications) {
 		return current.revision, nil
 	}
-	revision := current.revision + 1
-	r.state.Store(&registryState{revision: revision, assets: next})
-	return revision, nil
+	r.state.Store(next)
+	return next.revision, nil
 }
 
-// Remove revokes all handles owned by an extension in one snapshot swap. It
-// refuses to publish a graph that would strand another extension's assets.
-func (r *Registry) Remove(extensionID string) (uint64, error) {
+// Remove revokes one exact artifact publication in one snapshot swap. A stale
+// shutdown cannot remove a newer package, version, or trust-impact publication.
+// Required consumers keep the removal fail-closed until they are removed too.
+func (r *Registry) Remove(artifact Artifact) (uint64, bool, error) {
 	if r == nil {
-		return 0, ErrInvalid
+		return 0, false, ErrInvalid
 	}
-	extensionID = strings.ToLower(strings.TrimSpace(extensionID))
-	if !idPattern.MatchString(extensionID) {
-		return r.load().revision, ErrInvalid
+	normalized, err := normalizeArtifact(artifact)
+	if err != nil {
+		return r.load().revision, false, ErrInvalid
 	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	current := r.load()
-	next := make(map[string]Asset, len(current.assets))
-	removed := false
-	for handle, asset := range current.assets {
-		if asset.Artifact.ExtensionID == extensionID {
-			removed = true
-			continue
-		}
-		next[handle] = asset
+	publication, found := current.publications[normalized.ExtensionID]
+	if !found {
+		return current.revision, false, nil
 	}
-	if !removed {
-		return current.revision, nil
+	if publication.Artifact != normalized {
+		return current.revision, false, ErrArtifactConflict
 	}
-	if err := validateGraph(next); err != nil {
-		return current.revision, err
+	publications := clonePublicationMap(current.publications)
+	delete(publications, normalized.ExtensionID)
+	next, err := buildState(current.revision+1, publicationValues(publications))
+	if err != nil {
+		return current.revision, false, err
 	}
-	revision := current.revision + 1
-	r.state.Store(&registryState{revision: revision, assets: next})
-	return revision, nil
+	r.state.Store(next)
+	return next.revision, true, nil
 }
 
 func (r *Registry) Resolve(handle string) (Asset, bool) {
@@ -176,19 +196,29 @@ func (r *Registry) Plan(request PlanRequest) ([]Asset, error) {
 	if r == nil {
 		return nil, ErrInvalid
 	}
-	if len(request.Handles) > maxRegistryAssets || len(request.Scopes) > maxRegistryAssets {
+	handles, err := strictPlanIDs(request.Handles, maxPlanHandles)
+	if err != nil {
 		return nil, ErrInvalid
 	}
+	scopeValues, err := strictPlanIDs(request.Scopes, maxPlanScopes)
+	if err != nil {
+		return nil, ErrInvalid
+	}
+	scopes := stringSet(scopeValues)
 	state := r.load()
 	roots := map[string]struct{}{}
-	for _, handle := range request.Handles {
-		handle = strings.ToLower(strings.TrimSpace(handle))
-		if _, ok := state.assets[handle]; !ok {
+	for _, handle := range handles {
+		asset, ok := state.assets[handle]
+		if !ok {
 			return nil, ErrNotFound
+		}
+		// 显式 handle 可以单独解析；一旦调用方同时声明页面/组件 scope，
+		// scoped asset 就不能借显式 handle 绕过其声明的适用范围。
+		if len(scopes) > 0 && len(asset.Scope) > 0 && !intersects(asset.Scope, scopes) {
+			return nil, ErrInvalid
 		}
 		roots[handle] = struct{}{}
 	}
-	scopes := stringSet(request.Scopes)
 	for handle, asset := range state.assets {
 		if len(asset.Scope) == 0 {
 			if request.IncludeGlobal {
@@ -241,6 +271,10 @@ func (r *Registry) Plan(request PlanRequest) ([]Asset, error) {
 
 func (r *Registry) Snapshot() Snapshot {
 	state := r.load()
+	publications := publicationValues(state.publications)
+	sort.Slice(publications, func(i, j int) bool {
+		return publications[i].Artifact.ExtensionID < publications[j].Artifact.ExtensionID
+	})
 	handles := make([]string, 0, len(state.assets))
 	for handle := range state.assets {
 		handles = append(handles, handle)
@@ -250,14 +284,25 @@ func (r *Registry) Snapshot() Snapshot {
 	for _, handle := range handles {
 		assets = append(assets, cloneAsset(state.assets[handle]))
 	}
-	return Snapshot{SchemaVersion: SchemaVersion, Revision: state.revision, Assets: assets}
+	return Snapshot{
+		SchemaVersion: SchemaVersion, Revision: state.revision, Digest: state.digest,
+		Publications: publications, Assets: assets,
+	}
 }
 
 func (r *Registry) load() *registryState {
-	if state := r.state.Load(); state != nil {
-		return state
+	if r != nil {
+		if state := r.state.Load(); state != nil {
+			return state
+		}
 	}
-	return &registryState{assets: map[string]Asset{}}
+	return emptyState()
+}
+
+func emptyState() *registryState {
+	return &registryState{
+		digest: computeGraphDigest(nil), publications: map[string]Publication{}, assets: map[string]Asset{},
+	}
 }
 
 func stringSet(values []string) map[string]struct{} {
@@ -290,8 +335,37 @@ func sortedKeys(values map[string]struct{}) []string {
 }
 
 func cloneAsset(asset Asset) Asset {
-	asset.Dependencies = slices.Clone(asset.Dependencies)
-	asset.Scope = slices.Clone(asset.Scope)
-	asset.CSP = slices.Clone(asset.CSP)
+	asset.Declaration = cloneDeclaration(asset.Declaration)
 	return asset
+}
+
+func cloneDeclaration(declaration Declaration) Declaration {
+	declaration.Dependencies = slices.Clone(declaration.Dependencies)
+	declaration.Scope = slices.Clone(declaration.Scope)
+	declaration.CSP = slices.Clone(declaration.CSP)
+	return declaration
+}
+
+func clonePublication(publication Publication) Publication {
+	publication.Assets = slices.Clone(publication.Assets)
+	for index := range publication.Assets {
+		publication.Assets[index] = cloneDeclaration(publication.Assets[index])
+	}
+	return publication
+}
+
+func clonePublicationMap(publications map[string]Publication) map[string]Publication {
+	result := make(map[string]Publication, len(publications))
+	for extensionID, publication := range publications {
+		result[extensionID] = clonePublication(publication)
+	}
+	return result
+}
+
+func publicationValues(publications map[string]Publication) []Publication {
+	result := make([]Publication, 0, len(publications))
+	for _, publication := range publications {
+		result = append(result, clonePublication(publication))
+	}
+	return result
 }

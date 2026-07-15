@@ -1,7 +1,7 @@
 package assetregistry
 
 import (
-	"slices"
+	"reflect"
 	"sort"
 )
 
@@ -9,43 +9,56 @@ import (
 // multi-node convergence should use this path so publication order cannot pick
 // a different winner for conflicting handles.
 func (r *Registry) ReplaceAll(publications []Publication) (uint64, error) {
-	if r == nil || len(publications) > maxRegistryOwners {
+	if r == nil {
 		return 0, ErrInvalid
 	}
-	normalized, err := normalizePublications(publications)
+	next, err := buildState(0, publications)
 	if err != nil {
-		return r.load().revision, err
-	}
-	next := make(map[string]Asset)
-	for _, publication := range normalized {
-		for _, declaration := range publication.Assets {
-			if _, exists := next[declaration.Handle]; exists {
-				return r.load().revision, ErrConflict
-			}
-			next[declaration.Handle] = Asset{Declaration: declaration, Artifact: publication.Artifact}
-			if len(next) > maxRegistryAssets {
-				return r.load().revision, ErrInvalid
-			}
-		}
-	}
-	if err := validateGraph(next); err != nil {
 		return r.load().revision, err
 	}
 
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	current := r.load()
-	if equalAssetMaps(current.assets, next) {
+	if equalPublicationMaps(current.publications, next.publications) {
 		return current.revision, nil
 	}
-	revision := current.revision + 1
-	r.state.Store(&registryState{revision: revision, assets: next})
-	return revision, nil
+	next.revision = current.revision + 1
+	r.state.Store(next)
+	return next.revision, nil
+}
+
+func buildState(revision uint64, publications []Publication) (*registryState, error) {
+	normalized, err := normalizePublications(publications)
+	if err != nil {
+		return nil, err
+	}
+	state := &registryState{
+		revision: revision, publications: make(map[string]Publication, len(normalized)), assets: map[string]Asset{},
+	}
+	state.digest = computeGraphDigest(normalized)
+	for _, publication := range normalized {
+		state.publications[publication.Artifact.ExtensionID] = clonePublication(publication)
+		for _, declaration := range publication.Assets {
+			if _, exists := state.assets[declaration.Handle]; exists {
+				return nil, ErrConflict
+			}
+			state.assets[declaration.Handle] = Asset{Declaration: cloneDeclaration(declaration), Artifact: publication.Artifact}
+		}
+	}
+	if err := validateGraph(state.assets); err != nil {
+		return nil, err
+	}
+	return state, nil
 }
 
 func normalizePublications(publications []Publication) ([]Publication, error) {
+	if len(publications) > maxRegistryOwners {
+		return nil, ErrInvalid
+	}
 	normalized := make([]Publication, 0, len(publications))
 	owners := make(map[string]struct{}, len(publications))
+	assets, dependencies, scopes, csp := 0, 0, 0, 0
 	for _, publication := range publications {
 		item, err := normalizePublication(publication)
 		if err != nil {
@@ -56,6 +69,16 @@ func normalizePublications(publications []Publication) ([]Publication, error) {
 		}
 		owners[item.Artifact.ExtensionID] = struct{}{}
 		normalized = append(normalized, item)
+		assets += len(item.Assets)
+		for _, declaration := range item.Assets {
+			dependencies += len(declaration.Dependencies)
+			scopes += len(declaration.Scope)
+			csp += len(declaration.CSP)
+		}
+		if assets > maxRegistryAssets || dependencies > maxRegistryDependencies ||
+			scopes > maxRegistryScopes || csp > maxRegistryCSP {
+			return nil, ErrInvalid
+		}
 	}
 	sort.Slice(normalized, func(i, j int) bool {
 		left, right := normalized[i].Artifact, normalized[j].Artifact
@@ -73,18 +96,10 @@ func normalizePublications(publications []Publication) ([]Publication, error) {
 	return normalized, nil
 }
 
-func equalAssetMaps(left, right map[string]Asset) bool {
-	if len(left) != len(right) {
-		return false
-	}
-	for handle, a := range left {
-		b, ok := right[handle]
-		if !ok || a.Handle != b.Handle || a.ContractVersion != b.ContractVersion || a.Type != b.Type ||
-			a.Path != b.Path || a.Digest != b.Digest || a.Module != b.Module || a.Loading != b.Loading ||
-			a.Integrity != b.Integrity || a.Artifact != b.Artifact ||
-			!slices.Equal(a.Dependencies, b.Dependencies) || !slices.Equal(a.Scope, b.Scope) || !slices.Equal(a.CSP, b.CSP) {
-			return false
-		}
-	}
-	return true
+func equalPublicationMaps(left, right map[string]Publication) bool {
+	return reflect.DeepEqual(left, right)
+}
+
+func equalPublications(left, right Publication) bool {
+	return reflect.DeepEqual(left, right)
 }

@@ -42,15 +42,19 @@ func TestRegistryPublishesScopedDependencyFirstPlan(t *testing.T) {
 
 func TestRegistryRejectsConflictWithoutPublishingPartialState(t *testing.T) {
 	registry := New()
-	if _, err := registry.Publish(fixturePublication("one.assets", digestA, []Declaration{
-		{Handle: "shared.asset.handle", ContractVersion: "shared.asset.handle@1", Type: "style", Path: "style.css", Digest: digestB},
-	})); err != nil {
+	first := fixturePublication("core.assets.one", digestA, []Declaration{
+		{Handle: "core.asset.shared", ContractVersion: "sforum.asset.shared@1", Type: "style", Path: "style.css", Digest: digestB},
+	})
+	first.Artifact.Core = true
+	if _, err := registry.Publish(first); err != nil {
 		t.Fatal(err)
 	}
 	before := registry.Snapshot()
-	if _, err := registry.Publish(fixturePublication("two.assets", digestB, []Declaration{
-		{Handle: "shared.asset.handle", ContractVersion: "shared.asset.handle@1", Type: "style", Path: "other.css", Digest: digestC},
-	})); !errors.Is(err, ErrConflict) {
+	second := fixturePublication("core.assets.two", digestB, []Declaration{
+		{Handle: "core.asset.shared", ContractVersion: "sforum.asset.shared@1", Type: "style", Path: "other.css", Digest: digestC},
+	})
+	second.Artifact.Core = true
+	if _, err := registry.Publish(second); !errors.Is(err, ErrConflict) {
 		t.Fatalf("expected conflict, got %v", err)
 	}
 	after := registry.Snapshot()
@@ -84,9 +88,10 @@ func TestRegistryReplaceAndRemoveCleanOwnedHandles(t *testing.T) {
 	})); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := registry.Publish(fixturePublication("demo.assets", digestC, []Declaration{
+	replacement := fixturePublication("demo.assets", digestC, []Declaration{
 		{Handle: "demo.assets.new", ContractVersion: "demo.assets.new@1", Type: "style", Path: "new.css", Digest: digestC},
-	})); err != nil {
+	})
+	if _, err := registry.PublishIfArtifact(fixturePublication("demo.assets", digestA, nil).Artifact, replacement); err != nil {
 		t.Fatal(err)
 	}
 	if _, ok := registry.Resolve("demo.assets.old"); ok {
@@ -95,8 +100,8 @@ func TestRegistryReplaceAndRemoveCleanOwnedHandles(t *testing.T) {
 	if _, ok := registry.Resolve("demo.assets.new"); !ok {
 		t.Fatal("replacement did not publish new handle")
 	}
-	if revision, err := registry.Remove("demo.assets"); err != nil || revision != 3 {
-		t.Fatalf("remove revision=%d err=%v", revision, err)
+	if revision, removed, err := registry.Remove(replacement.Artifact); err != nil || !removed || revision != 3 {
+		t.Fatalf("remove revision=%d removed=%t err=%v", revision, removed, err)
 	}
 	if len(registry.Snapshot().Assets) != 0 {
 		t.Fatal("remove retained extension assets")
@@ -116,8 +121,8 @@ func TestRegistryRemoveRejectsDanglingDependency(t *testing.T) {
 		t.Fatal(err)
 	}
 	before := registry.Snapshot()
-	if revision, err := registry.Remove("owner.assets"); !errors.Is(err, ErrDependency) || revision != before.Revision {
-		t.Fatalf("remove dangling owner: revision=%d err=%v", revision, err)
+	if revision, removed, err := registry.Remove(owner.Artifact); !errors.Is(err, ErrDependency) || removed || revision != before.Revision {
+		t.Fatalf("remove dangling owner: revision=%d removed=%t err=%v", revision, removed, err)
 	}
 	if after := registry.Snapshot(); !reflect.DeepEqual(before, after) {
 		t.Fatalf("failed remove changed snapshot: before=%#v after=%#v", before, after)
@@ -141,6 +146,9 @@ func TestRegistryReplaceAllConvergesAcrossPublicationOrderAndRestart(t *testing.
 	}
 	if left, right := first.Snapshot(), second.Snapshot(); !reflect.DeepEqual(left, right) {
 		t.Fatalf("publication order changed snapshot: left=%#v right=%#v", left, right)
+	}
+	if first.Snapshot().Digest == "" {
+		t.Fatal("restart-stable snapshot omitted its graph digest")
 	}
 	if revision, err := second.ReplaceAll([]Publication{owner, consumer}); err != nil || revision != 1 {
 		t.Fatalf("idempotent restart churned revision: revision=%d err=%v", revision, err)
