@@ -1,6 +1,14 @@
 <script setup lang="ts">
 import { apiErrorMessage } from '~/composables/useApiClient'
 import { useAdminPage } from '~/composables/useAdminPage'
+import type {
+  AdminUserDetail,
+  AdminUserList,
+  AdminUserSummary,
+  Permission,
+  Role,
+  UserStatus
+} from '~/utils/adminUsers'
 
 definePageMeta({
   middleware: 'admin',
@@ -10,64 +18,6 @@ definePageMeta({
 defineOptions({
   name: 'AdminUsers'
 })
-
-type UserStatus = 'active' | 'disabled' | 'banned'
-
-type Role = {
-  id: number
-  key: string
-  alias: string
-  description: string
-  isSystem: boolean
-  isDefault: boolean
-  isDeletable: boolean
-  isEnabled: boolean
-  permissionKeys: string[]
-}
-
-type Permission = {
-  key: string
-  module: string
-  description: string
-}
-
-type AdminUserProfile = {
-  bio: string
-  signature: string
-  location: string
-  websiteUrl: string
-}
-
-type AdminUserSummary = {
-  id: number
-  username: string
-  email: string
-  displayName: string
-  locale: string
-  status: UserStatus
-  isInitialSuperAdmin: boolean
-  roleKeys: string[]
-  createdAt?: string
-  updatedAt?: string
-}
-
-type PermissionOverrides = {
-  allow: string[]
-  deny: string[]
-}
-
-type AdminUserDetail = AdminUserSummary & {
-  permissions: string[]
-  permissionOverrides: PermissionOverrides
-  profile: AdminUserProfile
-}
-
-type AdminUserList = {
-  items: AdminUserSummary[]
-  total: number
-  page: number
-  perPage: number
-}
 
 const DEFAULT_PER_PAGE = 20
 
@@ -120,7 +70,36 @@ onMounted(() => {
 
 const totalPages = computed(() => Math.max(1, Math.ceil(total.value / Math.max(perPage.value, 1))))
 
+const userSurfaceResources = computed(() => users.value.map(user => ({
+  id: String(user.id),
+  attributes: {
+    username: user.username,
+    email: user.email,
+    displayName: user.displayName,
+    locale: user.locale,
+    status: user.status,
+    isInitialSuperAdmin: user.isInitialSuperAdmin,
+    roleKeys: [...user.roleKeys],
+    createdAt: user.createdAt,
+    updatedAt: user.updatedAt
+  }
+})))
+const userListSurfaces = useAdminListSurfaces({
+  pageId: '/users',
+  resources: userSurfaceResources,
+  context: computed(() => ({
+    resourceType: 'user',
+    page: page.value,
+    perPage: perPage.value,
+    total: total.value,
+    coreFilters: { query: search.value.trim(), status: status.value, roleKey: roleKey.value }
+  })),
+  refreshHost: refreshUsers
+})
+const visibleUsers = computed(() => users.value.filter(user => userListSurfaces.isResourceVisible(String(user.id))))
+
 const columns = computed(() => [
+  ...(userListSurfaces.hasBulkActions.value ? [{ id: 'selection', header: '' }] : []),
   {
     accessorKey: 'username',
     header: t('admin.users.username')
@@ -133,6 +112,11 @@ const columns = computed(() => [
     id: 'roles',
     header: t('admin.users.roles')
   },
+  ...userListSurfaces.columns.value.map(item => ({
+    id: `extension_${item.surface.id.replace(/[^a-zA-Z0-9_]/g, '_')}`,
+    header: item.view.title || item.surface.label,
+    accessorFn: (user: AdminUserSummary) => userListSurfaces.columnValue(item, String(user.id))
+  })),
   {
     id: 'status',
     header: t('admin.users.status')
@@ -296,6 +280,11 @@ async function openUser(user: AdminUserSummary) {
   } finally {
     detailPending.value = false
   }
+}
+
+async function refreshSelectedUser() {
+  if (!selectedUser.value) return
+  await openUser(selectedUser.value)
 }
 
 function closeUser() {
@@ -521,6 +510,20 @@ watch([status, roleKey], () => {
             {{ role.label }}
           </option>
         </select>
+        <label v-for="item in userListSurfaces.filters.value" :key="item.surface.id" class="flex items-center gap-2">
+          <span class="sr-only">{{ item.view.title || item.surface.label }}</span>
+          <select
+            :value="userListSurfaces.filterValue(item.surface.id)"
+            :disabled="userListSurfaces.pending.value"
+            class="h-9 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition-colors hover:border-slate-300 focus:border-[var(--sf-accent)] dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200"
+            @change="userListSurfaces.setFilter(item.surface.id, ($event.target as HTMLSelectElement).value)"
+          >
+            <option value="">{{ item.view.title || item.surface.label }}: {{ t('admin.surfaces.filterAll') }}</option>
+            <option v-for="option in item.view.options" :key="option.value" :value="option.value">
+              {{ option.label }}
+            </option>
+          </select>
+        </label>
       </div>
     </template>
     <template #right>
@@ -560,10 +563,44 @@ watch([status, roleKey], () => {
       icon="i-lucide-check-circle"
       :title="successMessage"
     />
+    <UAlert
+      v-if="userListSurfaces.failureMessage.value"
+      color="error"
+      variant="soft"
+      icon="i-lucide-triangle-alert"
+      :title="t('admin.surfaces.loadFailed')"
+      :description="userListSurfaces.failureMessage.value"
+    />
 
     <UCard class="border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-slate-900 dark:text-zinc-100">
+      <div
+        v-if="userListSurfaces.hasBulkActions.value"
+        class="mb-3 flex min-h-9 flex-wrap items-center gap-2 border-b border-slate-200 pb-3 dark:border-zinc-800"
+      >
+        <UCheckbox
+          :model-value="userListSurfaces.allVisibleSelected.value"
+          :label="t('admin.surfaces.selectVisible')"
+          @update:model-value="userListSurfaces.selectAllVisible($event === true)"
+        />
+        <UBadge v-if="userListSurfaces.selectedResourceIds.value.length" color="neutral" variant="soft">
+          {{ t('admin.surfaces.selectedCount', { count: userListSurfaces.selectedResourceIds.value.length }) }}
+        </UBadge>
+        <UButton
+          v-for="action in userListSurfaces.bulkActions.value"
+          :key="action.surface.id"
+          size="sm"
+          :color="action.tone"
+          variant="soft"
+          :icon="action.icon"
+          :loading="userListSurfaces.busySurfaceId.value === action.surface.id"
+          :disabled="userListSurfaces.selectedResourceIds.value.length === 0"
+          @click="userListSurfaces.executeAction(action, userListSurfaces.selectedResourceIds.value)"
+        >
+          {{ action.label }}
+        </UButton>
+      </div>
       <UTable
-        :data="users"
+        :data="visibleUsers"
         :columns="columns"
         :loading="pending"
         :empty="t('admin.users.empty')"
@@ -571,6 +608,14 @@ watch([status, roleKey], () => {
         sticky
         class="max-h-[calc(100vh-20rem)]"
       >
+        <template #selection-cell="{ row }">
+          <UCheckbox
+            :model-value="userListSurfaces.selectedResourceIds.value.includes(String(row.original.id))"
+            :aria-label="t('admin.surfaces.selectResource', { label: row.original.displayName })"
+            @update:model-value="userListSurfaces.toggleResource(String(row.original.id), $event === true)"
+          />
+        </template>
+
         <template #username-cell="{ row }">
           <div class="min-w-0">
             <div class="flex items-center gap-2">
@@ -608,15 +653,29 @@ watch([status, roleKey], () => {
         </template>
 
         <template #actions-cell="{ row }">
-          <UButton
-            color="primary"
-            variant="ghost"
-            leading-icon="i-lucide-panel-right-open"
-            :loading="detailPending && selectedUser?.id === row.original.id"
-            @click="openUser(row.original)"
-          >
-            {{ t('admin.users.manage') }}
-          </UButton>
+          <div class="flex flex-wrap items-center gap-1">
+            <UButton
+              color="primary"
+              variant="ghost"
+              leading-icon="i-lucide-panel-right-open"
+              :loading="detailPending && selectedUser?.id === row.original.id"
+              @click="openUser(row.original)"
+            >
+              {{ t('admin.users.manage') }}
+            </UButton>
+            <UButton
+              v-for="action in userListSurfaces.rowActionsFor(String(row.original.id))"
+              :key="action.surface.id"
+              size="sm"
+              :color="action.tone"
+              variant="ghost"
+              :icon="action.icon"
+              :loading="userListSurfaces.busySurfaceId.value === action.surface.id"
+              @click="userListSurfaces.executeAction(action, [String(row.original.id)])"
+            >
+              {{ action.label }}
+            </UButton>
+          </div>
         </template>
       </UTable>
 
@@ -664,6 +723,13 @@ watch([status, roleKey], () => {
       </header>
 
       <div class="space-y-5 px-5 py-5">
+        <SFAdminSurfaceOutlet
+          page-id="/users"
+          :kinds="['detail_region', 'editor_panel']"
+          :context="{ resourceType: 'user', resource: selectedUser }"
+          @refresh="refreshSelectedUser"
+        />
+
         <!-- 账户信息 -->
         <section class="rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-zinc-800 dark:bg-zinc-900/60">
           <div class="mb-4 flex items-center justify-between gap-3">

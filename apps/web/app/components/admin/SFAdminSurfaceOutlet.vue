@@ -56,13 +56,11 @@ const { data, pending, error, refresh } = await useAsyncData<SurfaceOutletData>(
 
 const notices = computed(() => resolvedByKind('notice'))
 const dashboards = computed(() => resolvedByKind('dashboard'))
-const details = computed(() => [
-  ...resolvedByKind('detail_region'),
-  ...resolvedByKind('editor_panel')
-])
+const details = computed(() => resolvedByKind('detail_region'))
 const forms = computed(() => [
   ...resolvedByKind('form'),
-  ...resolvedByKind('importer')
+  ...resolvedByKind('importer'),
+  ...resolvedByKind('editor_panel')
 ])
 const exporters = computed(() => resolvedByKind('exporter'))
 const referencedCommands = computed(() => new Set(data.value.resolved.flatMap(item => item.view.commandSurfaceId || [])))

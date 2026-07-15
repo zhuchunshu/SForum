@@ -279,7 +279,12 @@
       "open": "打开",
       "emptyValue": "未设置",
       "yes": "是",
-      "no": "否"
+      "no": "否",
+      "extensions": "管理端扩展",
+      "filterAll": "全部",
+      "selectVisible": "选择当前结果",
+      "selectResource": "选择 {label}",
+      "selectedCount": "已选择 {count} 项"
     },
     "nav": {
       "dashboard": "仪表盘",

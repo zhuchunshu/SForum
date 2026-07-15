@@ -279,7 +279,12 @@
       "open": "Open",
       "emptyValue": "Not set",
       "yes": "Yes",
-      "no": "No"
+      "no": "No",
+      "extensions": "Admin extensions",
+      "filterAll": "All",
+      "selectVisible": "Select visible",
+      "selectResource": "Select {label}",
+      "selectedCount": "{count} selected"
     },
     "nav": {
       "dashboard": "Dashboard",

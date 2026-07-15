@@ -80,6 +80,7 @@ export type AdminSurfaceViewModel = {
   cells: Record<string, AdminSurfacePrimitive>
   options: AdminSurfaceOption[]
   visibleResourceIds: string[]
+  visibleResourceIdsDeclared: boolean
   fields: AdminSurfaceField[]
   values: Record<string, AdminSurfacePrimitive>
   refresh: boolean
@@ -126,6 +127,7 @@ export function normalizeAdminSurfaceOutput(output: unknown): AdminSurfaceViewMo
     cells: normalizePrimitiveRecord(output.cells, 1000),
     options: normalizeOptions(output.options),
     visibleResourceIds: normalizeResourceIds(output.visibleResourceIds),
+    visibleResourceIdsDeclared: Array.isArray(output.visibleResourceIds),
     fields: normalizeFields(output.fields),
     values: normalizePrimitiveRecord(output.values, 100),
     refresh: output.refresh === true,
@@ -134,7 +136,7 @@ export function normalizeAdminSurfaceOutput(output: unknown): AdminSurfaceViewMo
   if (result.title === undefined && result.description === undefined && result.message === undefined && result.value === undefined &&
     result.icon === undefined && result.pageId === undefined && result.commandSurfaceId === undefined &&
     result.items.length === 0 && Object.keys(result.cells).length === 0 &&
-    result.options.length === 0 && result.visibleResourceIds.length === 0 && result.fields.length === 0 &&
+    result.options.length === 0 && !result.visibleResourceIdsDeclared && result.fields.length === 0 &&
     Object.keys(result.values).length === 0 && !result.refresh && result.download === undefined) {
     return null
   }

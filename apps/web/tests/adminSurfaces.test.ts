@@ -49,10 +49,15 @@ describe('admin surface consumers', () => {
       cells: { '42': 'trusted' },
       options: [{ label: 'All', value: 'all' }],
       visibleResourceIds: [],
+      visibleResourceIdsDeclared: false,
       fields: [{ key: 'note', label: 'Note', type: 'textarea', required: true, placeholder: undefined, options: [] }],
       values: {},
       refresh: false,
       download: { url: '/api/v1/exports/42', filename: 'users.csv' }
+    })
+    expect(normalizeAdminSurfaceOutput({ visibleResourceIds: [] })).toMatchObject({
+      visibleResourceIds: [],
+      visibleResourceIdsDeclared: true
     })
     expect(normalizeAdminSurfaceOutput({ html: '<script>alert(1)</script>', pageId: '//evil.test', icon: '<svg>' })).toBeNull()
   })
