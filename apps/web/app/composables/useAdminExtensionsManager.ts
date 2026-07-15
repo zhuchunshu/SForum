@@ -317,6 +317,58 @@ export const useAdminExtensionsManager = async () => {
   const enableTrustBusy = ref(false)
   const isSuperAdmin = computed(() => user.value?.roleKeys?.includes('super_admin') === true)
 
+  // Theme activation executable trust (L2). Ordinary L0/L1 themes stay operator-buildless (preview confirm only).
+  type ThemeActivationPreview = {
+    version: string
+    packageDigest: string
+    currentThemeId: string
+    currentThemeVersion: string
+    currentThemeDigest: string
+    canActivate: boolean
+    canApproveCoreReplacements: boolean
+    requiresCoreReplacementApproval: boolean
+    impacts: Array<{
+      contribution: { id: string, action: string, target?: string, path?: string }
+      conflicts?: Array<{ id: string, extensionId: string }>
+    }>
+  }
+  const themeActivateTrustMode = ref<ExtensionEnableTrustMode>('exact')
+  const themeActivateConfirmOpen = ref(false)
+  const themeActivateConfirmItem = ref<AdminExtension | null>(null)
+  const themeActivatePreview = ref<ThemeActivationPreview | null>(null)
+  const themeActivateTrustStatus = ref<ExecutableTrustStatus | null>(null)
+  const themeActivateTrustChallenge = ref<ExecutableTrustChallenge | null>(null)
+  const themeActivateTrustError = ref('')
+  const themeActivateTrustBusy = ref(false)
+
+  // 与 ThemeActivationRequest 对齐：完整 preview 元组 + 可选的一次性 confirmationToken。
+  function themeActivationRequestBody(preview: ThemeActivationPreview, confirmationToken?: string) {
+    const body: Record<string, unknown> = {
+      version: preview.version,
+      packageDigest: preview.packageDigest,
+      currentThemeId: preview.currentThemeId,
+      currentThemeVersion: preview.currentThemeVersion,
+      currentThemeDigest: preview.currentThemeDigest,
+      approveCoreReplacements: preview.requiresCoreReplacementApproval && preview.canApproveCoreReplacements
+    }
+    const token = confirmationToken?.trim()
+    if (token) {
+      body.confirmationToken = token
+    }
+    return body
+  }
+
+  function themeActivationConfirmMessage(item: AdminExtension, preview: ThemeActivationPreview) {
+    const replaceCount = preview.impacts.filter(impact => impact.contribution.action === 'replace').length
+    const addCount = preview.impacts.filter(impact => impact.contribution.action === 'add').length
+    const impactDetails = preview.impacts.map((impact) => {
+      const destination = impact.contribution.target || impact.contribution.path || impact.contribution.id
+      const conflicts = (impact.conflicts || []).map(conflict => `${conflict.extensionId}:${conflict.id}`).join(', ')
+      return `${impact.contribution.action.toUpperCase()}  ${destination}${conflicts ? `  [${conflicts}]` : ''}`
+    }).join('\n')
+    return `${t('admin.extensions.confirmThemeActivation', { name: item.name, replaceCount, addCount })}\n\n${impactDetails}`
+  }
+
   function resetEnableTrust() {
     enableTrustStatus.value = null
     enableTrustChallenge.value = null
@@ -427,6 +479,125 @@ export const useAdminExtensionsManager = async () => {
     enableTrustBusy.value = false
   }
 
+  function resetThemeActivateTrust() {
+    themeActivateTrustStatus.value = null
+    themeActivateTrustChallenge.value = null
+    themeActivateTrustError.value = ''
+    themeActivateTrustBusy.value = false
+    themeActivatePreview.value = null
+    themeActivateConfirmItem.value = null
+  }
+
+  async function issueThemeActivateTrustChallenge() {
+    const item = themeActivateConfirmItem.value
+    if (!item || !isSuperAdmin.value) return
+    themeActivateTrustBusy.value = true
+    themeActivateTrustError.value = ''
+    try {
+      const challenge = await request<ExecutableTrustChallenge>(`/admin/extensions/${item.id}/trust/challenge`, {
+        method: 'POST',
+        body: {}
+      })
+      themeActivateTrustChallenge.value = challenge
+      themeActivateTrustStatus.value = {
+        impact: challenge.impact,
+        trustRequired: true,
+        trusted: false
+      }
+    } catch (error) {
+      themeActivateTrustError.value = apiErrorMessage(error) || t('admin.extensions.trust.challengeFailed')
+      toast.add({
+        color: 'error',
+        icon: 'i-lucide-triangle-alert',
+        title: themeActivateTrustError.value,
+        duration: 0
+      })
+    } finally {
+      themeActivateTrustBusy.value = false
+    }
+  }
+
+  // 共享 activate POST：成功时刷新列表；失败时把 error 交给调用方（对话框或 toast）。
+  async function postActivateTheme(
+    item: AdminExtension,
+    preview: ThemeActivationPreview,
+    confirmationToken?: string
+  ) {
+    try {
+      const activated = await request<AdminExtension>(`/admin/extensions/${item.id}/activate`, {
+        method: 'POST',
+        body: themeActivationRequestBody(preview, confirmationToken)
+      })
+      replaceExtension(activated)
+      await refresh()
+      await loadEvents(activated.id)
+      return { ok: true as const, activated }
+    } catch (error) {
+      return { ok: false as const, error }
+    }
+  }
+
+  async function refreshThemeActivateRetryContext(item: AdminExtension) {
+    const [status, preview] = await Promise.allSettled([
+      request<ExecutableTrustStatus>(`/admin/extensions/${item.id}/trust`),
+      request<ThemeActivationPreview>(`/admin/pages/activate-preview/${item.id}`)
+    ])
+    if (status.status === 'fulfilled') {
+      themeActivateTrustStatus.value = status.value
+    }
+    if (preview.status === 'fulfilled') {
+      themeActivatePreview.value = preview.value
+    }
+  }
+
+  async function confirmThemeActivate() {
+    const item = themeActivateConfirmItem.value
+    const preview = themeActivatePreview.value
+    if (!item || !preview) {
+      return
+    }
+    themeActivateTrustError.value = ''
+    themeActivateTrustBusy.value = true
+    try {
+      const result = await postActivateTheme(item, preview, themeActivateTrustChallenge.value?.token)
+      if (result.ok) {
+        themeActivateConfirmOpen.value = false
+        // 保留 impact 到关闭过渡结束，避免弹窗在离场动画中闪成空内容；一次性 token 立即丢弃。
+        themeActivateTrustChallenge.value = null
+        themeActivateTrustError.value = ''
+        themeActivateTrustBusy.value = false
+        toast.add({
+          color: 'success',
+          icon: 'i-lucide-palette',
+          title: t('admin.extensions.themeActivated'),
+          duration: 10000
+        })
+        return
+      }
+      // stale/expired/replayed/denied：保留阻塞错误、丢弃 token、刷新 trust 状态后允许安全重试。
+      themeActivateTrustError.value = apiErrorMessage(result.error) || t('admin.extensions.actionFailed')
+      themeActivateTrustChallenge.value = null
+      toast.add({
+        color: 'error',
+        icon: 'i-lucide-triangle-alert',
+        title: themeActivateTrustError.value,
+        duration: 0
+      })
+      // Both documents are exact and independently staleable: a package update
+      // changes trust impact, while another activation changes the preview CAS tuple.
+      await refreshThemeActivateRetryContext(item)
+    } finally {
+      themeActivateTrustBusy.value = false
+    }
+  }
+
+  function cancelThemeActivate() {
+    themeActivateConfirmOpen.value = false
+    themeActivateTrustChallenge.value = null
+    themeActivateTrustError.value = ''
+    themeActivateTrustBusy.value = false
+  }
+
   async function disableExtension(item: AdminExtension) {
     await lifecycle(item, 'disable')
   }
@@ -482,56 +653,75 @@ export const useAdminExtensionsManager = async () => {
     }
   }
 
-	async function activateTheme(item: AdminExtension) {
+  async function activateTheme(item: AdminExtension) {
+    busyId.value = item.id
+    resetThemeActivateTrust()
+    try {
+      const preview = await request<ThemeActivationPreview>(`/admin/pages/activate-preview/${item.id}`)
+
+      // 先读 exact trust 状态：L0/L1 与迁移门关闭时不走 challenge；仅 L2 未授权才弹 exact trust 对话框。
+      let trustStatus: ExecutableTrustStatus | null = null
+      try {
+        trustStatus = await request<ExecutableTrustStatus>(`/admin/extensions/${item.id}/trust`)
+      } catch (err) {
+        if (apiErrorReason(err) === 'extension.trust_not_required') {
+          // V3 迁移门关闭：保持既有 page-registry 预览确认，零 challenge、零构建。
+          if (!globalThis.confirm(themeActivationConfirmMessage(item, preview))) {
+            return
+          }
+          await performActivateTheme(item, preview)
+          return
+        }
+        throw err
+      }
+
+      // trustRequired=false 仅表示普通 L0/L1（或制品不需要可执行信任）。已授权 L2 仍为 trustRequired=true。
+      if (!trustStatus.trustRequired) {
+        if (!globalThis.confirm(themeActivationConfirmMessage(item, preview))) {
+          return
+        }
+        await performActivateTheme(item, preview)
+        return
+      }
+
+      // Executable/L2：复用 exact trust 对话框；仅 super_admin 可签发 actor-bound 一次性 token。
+      themeActivateTrustMode.value = 'exact'
+      themeActivateTrustStatus.value = trustStatus
+      themeActivatePreview.value = preview
+      themeActivateConfirmItem.value = item
+      themeActivateConfirmOpen.value = true
+    } catch (error) {
+      toast.add({
+        color: 'error',
+        icon: 'i-lucide-triangle-alert',
+        title: apiErrorMessage(error) || t('admin.extensions.themeActivationUnavailable'),
+        duration: 0
+      })
+    } finally {
+      busyId.value = ''
+    }
+  }
+
+  // 普通 L0/L1 激活（无 trust challenge）。L2 确认走 confirmThemeActivate → postActivateTheme。
+  async function performActivateTheme(item: AdminExtension, preview: ThemeActivationPreview, confirmationToken?: string) {
     busyId.value = item.id
     try {
-		const preview = await request<{
-			version: string
-			packageDigest: string
-			currentThemeId: string
-			currentThemeVersion: string
-			currentThemeDigest: string
-			canActivate: boolean
-			canApproveCoreReplacements: boolean
-			requiresCoreReplacementApproval: boolean
-			impacts: Array<{
-				contribution: { id: string, action: string, target?: string, path?: string }
-				conflicts?: Array<{ id: string, extensionId: string }>
-			}>
-		}>(`/admin/pages/activate-preview/${item.id}`)
-		const replaceCount = preview.impacts.filter(impact => impact.contribution.action === 'replace').length
-		const addCount = preview.impacts.filter(impact => impact.contribution.action === 'add').length
-		const impactDetails = preview.impacts.map((impact) => {
-			const destination = impact.contribution.target || impact.contribution.path || impact.contribution.id
-			const conflicts = (impact.conflicts || []).map(conflict => `${conflict.extensionId}:${conflict.id}`).join(', ')
-			return `${impact.contribution.action.toUpperCase()}  ${destination}${conflicts ? `  [${conflicts}]` : ''}`
-		}).join('\n')
-		const confirmation = `${t('admin.extensions.confirmThemeActivation', { name: item.name, replaceCount, addCount })}\n\n${impactDetails}`
-		if (!globalThis.confirm(confirmation)) {
-			return
-		}
-		const activated = await request<AdminExtension>(`/admin/extensions/${item.id}/activate`, {
-			method: 'POST',
-			body: {
-				version: preview.version,
-				packageDigest: preview.packageDigest,
-				currentThemeId: preview.currentThemeId,
-				currentThemeVersion: preview.currentThemeVersion,
-				currentThemeDigest: preview.currentThemeDigest,
-				approveCoreReplacements: preview.requiresCoreReplacementApproval && preview.canApproveCoreReplacements
-			}
-		})
-		replaceExtension(activated)
-		await refresh()
-		await loadEvents(activated.id)
-		toast.add({
-			color: 'success',
-			icon: 'i-lucide-palette',
-			title: t('admin.extensions.themeActivated'),
-			duration: 10000
-		})
-    } catch (error) {
-      toast.add({ color: 'error', icon: 'i-lucide-triangle-alert', title: apiErrorMessage(error) || t('admin.extensions.themeActivationUnavailable') })
+      const result = await postActivateTheme(item, preview, confirmationToken)
+      if (result.ok) {
+        toast.add({
+          color: 'success',
+          icon: 'i-lucide-palette',
+          title: t('admin.extensions.themeActivated'),
+          duration: 10000
+        })
+        return
+      }
+      toast.add({
+        color: 'error',
+        icon: 'i-lucide-triangle-alert',
+        title: apiErrorMessage(result.error) || t('admin.extensions.themeActivationUnavailable'),
+        duration: 0
+      })
     } finally {
       busyId.value = ''
     }
@@ -730,6 +920,17 @@ export const useAdminExtensionsManager = async () => {
     enableTrustError,
     enableTrustBusy,
     isSuperAdmin,
+    themeActivateTrustMode,
+    themeActivateConfirmOpen,
+    themeActivateConfirmItem,
+    themeActivatePreview,
+    themeActivateTrustStatus,
+    themeActivateTrustChallenge,
+    themeActivateTrustError,
+    themeActivateTrustBusy,
+    issueThemeActivateTrustChallenge,
+    confirmThemeActivate,
+    cancelThemeActivate,
     openUninstallExtension,
     confirmUninstallExtension,
     cancelUninstallExtension,

@@ -14,10 +14,15 @@ const props = defineProps<{
   error: string
   busy: boolean
   isSuperAdmin: boolean
+  // 'activate' reuses the exact trust UI pattern for executable theme activation.
+  purpose?: 'enable' | 'activate'
 }>()
 const emit = defineEmits<{ cancel: [], issueChallenge: [], confirm: [] }>()
 const open = defineModel<boolean>('open', { required: true })
 const { t, locale } = useI18n()
+
+const purpose = computed(() => props.purpose || 'enable')
+const isActivatePurpose = computed(() => purpose.value === 'activate')
 
 const needsChallenge = computed(() => props.mode === 'exact'
   && props.trustStatus?.trustRequired === true
@@ -39,11 +44,15 @@ function cancel() {
           <div class="flex items-start justify-between gap-4">
             <div class="min-w-0">
               <h2 class="text-base font-semibold text-slate-900 dark:text-zinc-100">
-                {{ mode === 'exact' ? t('admin.extensions.trust.title') : t('admin.extensions.confirmEnableTitle') }}
+                {{ mode === 'exact'
+                  ? (isActivatePurpose ? t('admin.extensions.trust.titleActivate') : t('admin.extensions.trust.title'))
+                  : t('admin.extensions.confirmEnableTitle') }}
               </h2>
               <p class="mt-1 text-sm leading-6 text-slate-600 dark:text-zinc-300">
                 {{ mode === 'exact'
-                  ? t('admin.extensions.trust.body', { name: extension?.name || '' })
+                  ? (isActivatePurpose
+                      ? t('admin.extensions.trust.bodyActivate', { name: extension?.name || '' })
+                      : t('admin.extensions.trust.body', { name: extension?.name || '' }))
                   : t('admin.extensions.confirmEnableBody', { name: extension?.name || '' }) }}
               </p>
             </div>
@@ -57,8 +66,11 @@ function cancel() {
             color="error"
             variant="subtle"
             icon="i-lucide-triangle-alert"
-            :title="t('admin.extensions.trust.blockingError')"
+            :title="isActivatePurpose
+              ? t('admin.extensions.trust.blockingErrorActivate')
+              : t('admin.extensions.trust.blockingError')"
             :description="error"
+            role="alert"
           />
 
           <template v-if="mode === 'exact'">
@@ -146,7 +158,9 @@ function cancel() {
             :disabled="!canConfirm"
             @click="emit('confirm')"
           >
-            {{ mode === 'exact' ? t('admin.extensions.trust.confirmEnable') : t('admin.extensions.confirmEnableAction') }}
+            {{ mode === 'exact'
+              ? (isActivatePurpose ? t('admin.extensions.trust.confirmActivate') : t('admin.extensions.trust.confirmEnable'))
+              : t('admin.extensions.confirmEnableAction') }}
           </UButton>
         </footer>
       </div>

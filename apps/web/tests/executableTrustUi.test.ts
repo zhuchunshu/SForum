@@ -7,6 +7,7 @@ const dialog = await Bun.file(new URL('../app/components/SFAdminExtensionEnableD
 const impact = await Bun.file(new URL('../app/components/SFAdminExecutableTrustImpact.vue', import.meta.url)).text()
 const overview = await Bun.file(new URL('../app/pages/admin/extensions/index.vue', import.meta.url)).text()
 const plugins = await Bun.file(new URL('../app/pages/admin/extensions/plugins.vue', import.meta.url)).text()
+const themesPage = await Bun.file(new URL('../app/pages/admin/extensions/themes.vue', import.meta.url)).text()
 const frontendPanel = await Bun.file(new URL('../app/components/SFAdminFrontendTrustPanel.vue', import.meta.url)).text()
 const frontendTrust = await Bun.file(new URL('../app/composables/useAdminFrontendTrust.ts', import.meta.url)).text()
 
@@ -100,5 +101,49 @@ describe('V3 exact-artifact trust operator flow', () => {
     expect(frontendPanel).toContain('exactTrustDescription')
     expect(frontendTrust).toContain('extension.value.status')
     expect(frontendTrust).toContain('extension.value.packageDigest')
+  })
+
+  test('executable uploaded themes reuse exact trust challenge for activate and send confirmationToken with preview tuple', () => {
+    // Ordinary L0/L1 (or V3 gate off) stays operator-buildless: page preview confirm, no challenge issue step.
+    expect(manager).toContain("apiErrorReason(err) === 'extension.trust_not_required'")
+    expect(manager).toContain('!trustStatus.trustRequired')
+    expect(manager).toContain('themeActivationConfirmMessage(item, preview)')
+    expect(manager).toContain('await performActivateTheme(item, preview)')
+    // L2 path: open exact dialog only when trustRequired; challenge is super_admin-gated.
+    expect(manager).toContain('themeActivateConfirmOpen.value = true')
+    expect(manager).toContain('if (!item || !isSuperAdmin.value) return')
+    expect(manager).toContain('/admin/extensions/${item.id}/trust/challenge')
+    // Activate POST carries the full ThemeActivationRequest tuple and optional one-use token.
+    expect(manager).toContain('function themeActivationRequestBody')
+    for (const field of [
+      'version: preview.version',
+      'packageDigest: preview.packageDigest',
+      'currentThemeId: preview.currentThemeId',
+      'currentThemeVersion: preview.currentThemeVersion',
+      'currentThemeDigest: preview.currentThemeDigest',
+      'approveCoreReplacements: preview.requiresCoreReplacementApproval && preview.canApproveCoreReplacements'
+    ]) {
+      expect(manager).toContain(field)
+    }
+    expect(manager).toContain('body.confirmationToken = token')
+    expect(manager).toContain('postActivateTheme(item, preview, themeActivateTrustChallenge.value?.token)')
+    // stale/expired/replayed/denied: blocking error stays, token discarded, trust status refreshed for retry.
+    expect(manager).toMatch(
+      /themeActivateTrustError\.value = apiErrorMessage\(result\.error\)[\s\S]*?themeActivateTrustChallenge\.value = null[\s\S]*?await refreshThemeActivateRetryContext\(item\)/
+    )
+    expect(manager).toContain('request<ExecutableTrustStatus>(`/admin/extensions/${item.id}/trust`)')
+    expect(manager).toContain('request<ThemeActivationPreview>(`/admin/pages/activate-preview/${item.id}`)')
+    expect(manager).toContain('duration: 0')
+    // Dialog surfaces: activate purpose, no raw token render, super_admin gate, disabled confirm until ready.
+    expect(overview).toContain('purpose="activate"')
+    expect(themesPage).toContain('purpose="activate"')
+    expect(themesPage).toContain('confirmThemeActivate')
+    expect(themesPage).toContain('issueThemeActivateTrustChallenge')
+    expect(dialog).toContain("purpose?: 'enable' | 'activate'")
+    expect(dialog).toContain('blockingErrorActivate')
+    expect(dialog).not.toContain('challenge.token')
+    expect(dialog).toContain('needsChallenge && !isSuperAdmin')
+    expect(dialog).toContain(':disabled="!canConfirm"')
+    expect(dialog).toContain('role="alert"')
   })
 })

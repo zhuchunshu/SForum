@@ -22,6 +22,17 @@ const {
   refresh,
   busyId,
   activateTheme,
+  themeActivateTrustMode,
+  themeActivateConfirmOpen,
+  themeActivateConfirmItem,
+  themeActivateTrustStatus,
+  themeActivateTrustChallenge,
+  themeActivateTrustError,
+  themeActivateTrustBusy,
+  issueThemeActivateTrustChallenge,
+  confirmThemeActivate,
+  cancelThemeActivate,
+  isSuperAdmin,
   openUninstallExtension,
   confirmUninstallExtension,
   cancelUninstallExtension,
@@ -200,6 +211,22 @@ useSeoMeta({
       :error="uninstallError"
       @cancel="cancelUninstallExtension"
       @confirm="confirmUninstallExtension"
+    />
+
+    <!-- Executable (L2) theme activation reuses the exact trust challenge dialog pattern. -->
+    <SFAdminExtensionEnableDialog
+      v-model:open="themeActivateConfirmOpen"
+      :extension="themeActivateConfirmItem"
+      :mode="themeActivateTrustMode"
+      :trust-status="themeActivateTrustStatus"
+      :challenge="themeActivateTrustChallenge"
+      :error="themeActivateTrustError"
+      :busy="themeActivateTrustBusy || Boolean(themeActivateConfirmItem && busyId === themeActivateConfirmItem.id)"
+      :is-super-admin="isSuperAdmin"
+      purpose="activate"
+      @cancel="cancelThemeActivate"
+      @issue-challenge="issueThemeActivateTrustChallenge"
+      @confirm="confirmThemeActivate"
     />
   </div>
 </template>
