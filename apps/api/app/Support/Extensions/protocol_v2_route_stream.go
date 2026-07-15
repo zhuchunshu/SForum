@@ -21,6 +21,10 @@ var ErrProtocolV2RouteStreamInvalid = errors.New("protocol v2 route stream is in
 
 const MaxProtocolV2RouteChunkSize = 1 << 20
 
+// DefaultProtocolV2RouteStreamTimeout bounds abandoned long-lived connections
+// while leaving ordinary disconnect and runtime-drain cancellation immediate.
+const DefaultProtocolV2RouteStreamTimeout = 24 * time.Hour
+
 // ProtocolV2RouteStreamRequest binds a bidirectional stream to one exact
 // non-buffered route declaration. Path may include the raw query because the
 // v2 stream open frame deliberately carries the original request target.
@@ -79,7 +83,7 @@ func (c *protocolV2Client) OpenRouteStreamContext(
 	}
 	timeout := input.Timeout
 	if timeout <= 0 {
-		timeout = DefaultProtocolV2RequestTimeout
+		timeout = DefaultProtocolV2RouteStreamTimeout
 	}
 	ctx, cancel := protocolV2Deadline(parent, timeout)
 	requestContext := c.requestContext(ctx, input.CorrelationID)

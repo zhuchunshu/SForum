@@ -49,7 +49,7 @@ func TestProtocolV2RouteStreamCarriesExactContextAndBoundedChunks(t *testing.T) 
 		RouteID: "demo.stream", ContractVersion: "demo.stream@1", Method: http.MethodPost,
 		Path: "/stream?part=1", Mode: extensionmanifest.RouteModeStream,
 		Headers: http.Header{"X-Test": {"one", "two"}},
-		Actor:   NewProtocolV2RouteActor(42, true, map[string]bool{"stream.write": true}), Timeout: time.Second,
+		Actor:   NewProtocolV2RouteActor(42, true, map[string]bool{"stream.write": true}),
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -77,6 +77,10 @@ func TestProtocolV2RouteStreamCarriesExactContextAndBoundedChunks(t *testing.T) 
 		!reflect.DeepEqual(receivedOpen.GetContext().GetActor().GetPermissionKeys(), []string{"stream.write"}) ||
 		len(receivedOpen.GetHeaders()) != 1 {
 		t.Fatalf("open=%#v", receivedOpen)
+	}
+	remaining := time.Until(receivedOpen.GetContext().GetDeadline().AsTime())
+	if remaining < 23*time.Hour || remaining > DefaultProtocolV2RouteStreamTimeout {
+		t.Fatalf("default stream deadline remaining=%s", remaining)
 	}
 }
 

@@ -8,6 +8,7 @@ import (
 	stdhttp "net/http"
 	"strings"
 	"sync"
+	"time"
 
 	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
 	routes "github.com/zhuchunshu/sforum/apps/api/app/Support/Routes"
@@ -77,7 +78,7 @@ func (i *BufferedRouteStepInvoker) OpenStream(
 	stream, err := runtime.OpenRouteStreamInstance(lease.Context, identity, extensionsruntime.ProtocolV2RouteStreamRequest{
 		RouteID: input.Step.RouteID, ContractVersion: input.Step.ContractVersion,
 		Method: input.Request.Method, Path: requestTarget, Mode: input.Step.Mode,
-		Headers: headers, Actor: actor,
+		Headers: headers, Actor: actor, Timeout: routeStreamTimeout(input.Step.TimeoutMS),
 	})
 	if err != nil {
 		lease.Release()
@@ -92,6 +93,13 @@ func (i *BufferedRouteStepInvoker) OpenStream(
 		},
 		Session: session,
 	}, nil
+}
+
+func routeStreamTimeout(timeoutMS int) time.Duration {
+	if timeoutMS <= 0 {
+		return 0
+	}
+	return time.Duration(timeoutMS) * time.Millisecond
 }
 
 type routeV2WireStream interface {
