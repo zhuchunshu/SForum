@@ -32,12 +32,23 @@ func TestPublicFrontendRequiresLiveExactArtifactTrust(t *testing.T) {
 	if descriptor.SchemaVersion != PublicFrontendSchemaV1 || descriptor.APIVersion != PublicFrontendAPIVersion ||
 		descriptor.TrustNotice != PublicFrontendTrustNotice || descriptor.PackageDigest != extension.PackageDigest ||
 		descriptor.Entry.Handle != extension.Manifest.Components[0].ID+publicL2EntrySuffix || !descriptor.Entry.Module ||
+		descriptor.Entry.ContractVersion != descriptor.Entry.Handle+"@1" ||
 		len(descriptor.Assets) != 1 || descriptor.Assets[0].Handle != extension.Manifest.Assets[0].Handle {
 		t.Fatalf("unexpected public descriptor: %#v", descriptor)
 	}
 	if descriptor.Entry.Integrity == "" || descriptor.Assets[0].Integrity == "" ||
 		!strings.Contains(descriptor.Entry.AssetPath, "/packages/"+extension.PackageDigest+"/frontend/public/card.mjs") {
 		t.Fatalf("descriptor is not immutable/integrity-bound: %#v", descriptor)
+	}
+}
+
+func TestPublicL2EntryAssetContractTracksComponentMajor(t *testing.T) {
+	component := ManifestComponent{
+		ID:              "demo.public.component.card",
+		ContractVersion: "demo.public.component.card@2",
+	}
+	if got, want := publicL2EntryContractVersion(component), "demo.public.component.card.l2.entry@2"; got != want {
+		t.Fatalf("entry asset contract=%q want=%q", got, want)
 	}
 }
 

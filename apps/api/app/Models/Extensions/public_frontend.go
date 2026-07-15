@@ -296,7 +296,7 @@ func publicAssetPublication(
 			}
 		}
 		declarations = append(declarations, assetregistry.Declaration{
-			Handle: publicL2EntryHandle(component), ContractVersion: component.ContractVersion, Type: "script",
+			Handle: publicL2EntryHandle(component), ContractVersion: publicL2EntryContractVersion(component), Type: "script",
 			Path: entryFile.Path, Digest: entryFile.Digest, Dependencies: entryDependencies,
 			Scope: scopes, Module: true, Loading: "lazy",
 		})
@@ -312,6 +312,14 @@ func publicAssetPublication(
 
 func publicL2EntryHandle(component ManifestComponent) string {
 	return component.ID + publicL2EntrySuffix
+}
+
+func publicL2EntryContractVersion(component ManifestComponent) string {
+	_, major, ok := strings.Cut(component.ContractVersion, "@")
+	if !ok || major == "" {
+		return ""
+	}
+	return publicL2EntryHandle(component) + "@" + major
 }
 
 func publicAssetReference(asset assetregistry.Asset) PublicFrontendAssetReference {
