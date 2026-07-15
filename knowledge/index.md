@@ -4,11 +4,13 @@ This is the entry point for project memory.
 
 ## Latest Handoff
 
-- **2026-07-15 Trusted Plugin And Theme Platform V3 P6/P7/P8/P9 active (overall 56%)**
+- **2026-07-15 Trusted Plugin And Theme Platform V3 P6/P7/P8/P9 active (overall 57%)**
   - Decision: `knowledge/decisions/2026-07-13-trusted-plugin-theme-platform-v3.md`
   - Task book: `knowledge/plans/2026-07-13-trusted-plugin-theme-platform-v3.md`
   - Active handoff: `knowledge/sessions/2026-07-15-trusted-plugin-theme-platform-v3-p6-p8-progress.md`
   - P8 handoff: `knowledge/sessions/2026-07-15-trusted-plugin-theme-platform-v3-p8-crawler-hotpath.md`
+  - P8/P9 production checkpoint:
+    `knowledge/sessions/2026-07-15-trusted-plugin-theme-platform-v3-p8-p9-production-checkpoint.md`
   - Durable progress/compaction ledger:
     `knowledge/plans/2026-07-13-trusted-plugin-theme-platform-v3-progress.md`
   - P0 catalogs and governance: `docs/extensions/v3/`
@@ -144,8 +146,10 @@ This is the entry point for project memory.
     four-level fallback, exact publication, all-catalog zero-I/O proof, and
     crawler/JavaScript-disabled SSR evidence, and the production API/Nitro
     restart plus concurrent exact-activation exit are accepted
-  - The P8 Page ViewModel row is deliberately open: production construction
-    still leaves most page-specific product fields empty
+  - The P8 Page ViewModel row remains open only for the clean production/browser
+    acceptance gate. Service-backed product fields, all 23 frontend outlets,
+    protected Host islands, private-cache boundaries, catalog features,
+    guest-read policy, Unicode params, and SEO canonicals are now implemented
   - `cd1573d5a` seals exact plugin Page ViewModels across lifecycle publication,
     theme overrides, fallback, and restart. Theme presentation cannot change the
     plugin schema or numeric business semantics, and invalid payloads fail back
