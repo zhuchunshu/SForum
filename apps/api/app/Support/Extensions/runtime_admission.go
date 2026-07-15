@@ -28,6 +28,7 @@ const (
 	RuntimeCallHost             RuntimeCallClass = "host_call"
 	RuntimeCallJob              RuntimeCallClass = "job"
 	RuntimeCallSchedule         RuntimeCallClass = "schedule"
+	RuntimeCallCommand          RuntimeCallClass = "command"
 	RuntimeCallLifecycleCleanup RuntimeCallClass = "lifecycle_cleanup"
 )
 

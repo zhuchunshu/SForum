@@ -51,6 +51,7 @@ type protocolV2ClientConfig struct {
 	hooks        []extensions.ManifestHook
 	providers    []extensions.ManifestProvider
 	jobs         []extensions.ManifestJob
+	commands     []extensions.ManifestCommand
 	routes       []extensions.ManifestRoute
 	guards       []extensions.ManifestGuard
 	lifecycle    *extensions.ManifestLifecycle
@@ -69,6 +70,7 @@ type protocolV2Client struct {
 	hooks        []extensions.ManifestHook
 	providers    []extensions.ManifestProvider
 	jobs         []extensions.ManifestJob
+	commands     []extensions.ManifestCommand
 	routes       []extensions.ManifestRoute
 	guards       []extensions.ManifestGuard
 	lifecycle    *extensions.ManifestLifecycle
@@ -104,6 +106,7 @@ func newProtocolV2Client(client pluginv2.PluginRuntimeServiceClient, config prot
 		events: append([]extensions.ManifestEvent(nil), config.events...), hooks: cloneManifestHooks(config.hooks),
 		providers: append([]extensions.ManifestProvider(nil), config.providers...),
 		jobs:      append([]extensions.ManifestJob(nil), config.jobs...),
+		commands:  append([]extensions.ManifestCommand(nil), config.commands...),
 		routes:    cloneProtocolV2Routes(config.routes),
 		guards:    cloneProtocolV2Guards(config.guards),
 		lifecycle: cloneManifestLifecycle(config.lifecycle),
@@ -222,6 +225,7 @@ func (s *ProtocolStarter) protocolV2ClientConfig(
 		hooks:     cloneManifestHooks(extension.Manifest.Hooks),
 		providers: append([]extensions.ManifestProvider(nil), extension.Manifest.Providers...),
 		jobs:      append([]extensions.ManifestJob(nil), extension.Manifest.Jobs...),
+		commands:  append([]extensions.ManifestCommand(nil), extension.Manifest.Commands...),
 		routes:    cloneProtocolV2Routes(extension.Manifest.Routes),
 		guards:    cloneProtocolV2Guards(extension.Manifest.Guards),
 		lifecycle: cloneManifestLifecycle(extension.Manifest.Lifecycle),
@@ -457,6 +461,50 @@ func (c *protocolV2Client) ExecutePluginJob(parent context.Context, invocation s
 			terminalError = remoteError
 		}
 	}
+}
+
+func (c *protocolV2Client) invokePluginCommand(
+	parent context.Context,
+	contract PluginCommandContract,
+	input map[string]any,
+) (map[string]any, error) {
+	if c == nil || c.client == nil || c.identity == nil || parent == nil {
+		return nil, extensions.ErrRuntimeUnavailable
+	}
+	if contract.ExtensionID != c.identity.GetExtensionId() || contract.ExtensionVersion != c.identity.GetExtensionVersion() ||
+		contract.ArtifactDigest != c.identity.GetArtifactDigest() || contract.InstanceID != c.identity.GetInstanceId() {
+		return nil, ErrPluginCommandRuntimeStale
+	}
+	if err := validateFrozenPluginCommand(contract, c.commands); err != nil {
+		return nil, err
+	}
+	schemaID, schemaVersion, err := protocolV2SchemaRef(contract.InputSchema)
+	if err != nil {
+		return nil, err
+	}
+	document, err := protocolV2Document(schemaID, schemaVersion, input)
+	if err != nil {
+		return nil, err
+	}
+	ctx, cancel := protocolV2Deadline(parent, contract.Timeout)
+	defer cancel()
+	response, err := c.client.InvokeCommand(ctx, &pluginv2.CommandInvocationRequest{
+		Context: c.requestContext(ctx, contract.ID), CommandId: contract.ID,
+		ContractVersion: contract.ContractVersion, Handler: contract.Handler, Input: document,
+	})
+	if err != nil {
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
+		return nil, err
+	}
+	if err := protocolV2Error(response.GetError()); err != nil {
+		return nil, err
+	}
+	if err := validateProtocolV2DocumentRef(response.GetResult(), contract.ResultSchema, "plugin command result"); err != nil {
+		return nil, err
+	}
+	return protocolV2Values(response.GetResult()), nil
 }
 
 type pluginJobProgressValidator struct {
