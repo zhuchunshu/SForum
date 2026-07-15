@@ -33,18 +33,25 @@ type AdminSurfaceRuntime interface {
 }
 
 type AdminSurfaceView struct {
-	ID               string `json:"id"`
-	ContractVersion  string `json:"contractVersion"`
-	ExtensionID      string `json:"extensionId"`
-	ExtensionVersion string `json:"extensionVersion"`
-	Kind             string `json:"kind"`
-	Action           string `json:"action"`
-	TargetID         string `json:"targetId,omitempty"`
-	Label            string `json:"label"`
-	Schema           string `json:"schema,omitempty"`
-	SchemaDigest     string `json:"schemaDigest,omitempty"`
-	Priority         int    `json:"priority"`
-	Invokable        bool   `json:"invokable"`
+	ID                       string `json:"id"`
+	ContractVersion          string `json:"contractVersion"`
+	ExtensionID              string `json:"extensionId"`
+	ExtensionVersion         string `json:"extensionVersion"`
+	Kind                     string `json:"kind"`
+	Action                   string `json:"action"`
+	TargetID                 string `json:"targetId,omitempty"`
+	PlacementID              string `json:"placementId,omitempty"`
+	PlacementContractVersion string `json:"placementContractVersion,omitempty"`
+	Label                    string `json:"label"`
+	PropsSchema              string `json:"propsSchema,omitempty"`
+	PropsSchemaDigest        string `json:"propsSchemaDigest,omitempty"`
+	ResultSchema             string `json:"resultSchema,omitempty"`
+	ResultSchemaDigest       string `json:"resultSchemaDigest,omitempty"`
+	Operation                string `json:"operation"`
+	Schema                   string `json:"schema,omitempty"`
+	SchemaDigest             string `json:"schemaDigest,omitempty"`
+	Priority                 int    `json:"priority"`
+	Invokable                bool   `json:"invokable"`
 }
 
 type AdminSurfaceCatalogView struct {
@@ -83,6 +90,7 @@ func (h *Controller) listAdminSurfaces(c fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusUnprocessableEntity, CodeAdminSurfaceInvalid)
 	}
 	snapshot := h.adminSurfaces.AdminSurfaceSnapshot(kind)
+	placementID := strings.TrimSpace(c.Query("placementId"))
 	allowed := make(map[string]bool, len(snapshot.Surfaces))
 	for _, surface := range snapshot.Surfaces {
 		allowed[surface.ID] = surface.Permission == "" || actor.Can(surface.Permission)
@@ -92,6 +100,9 @@ func (h *Controller) listAdminSurfaces(c fiber.Ctx) error {
 		Surfaces: make([]AdminSurfaceView, 0, len(snapshot.Surfaces)),
 	}
 	for _, surface := range snapshot.Surfaces {
+		if placementID != "" && surface.PlacementID != placementID {
+			continue
+		}
 		if !allowed[surface.ID] || surface.Action != "add" && !allowed[surface.TargetID] {
 			continue
 		}
@@ -124,11 +135,14 @@ func (h *Controller) invokeAdminSurface(c fiber.Ctx) error {
 	if err := extensionsruntime.ValidateProtocolV2InvocationIdempotencyKey(idempotencyKey); err != nil {
 		return fiber.NewError(fiber.StatusUnprocessableEntity, CodeAdminSurfaceInvalid)
 	}
+	if contract.Operation == extensions.AdminSurfaceOperationCommand && strings.TrimSpace(idempotencyKey) == "" {
+		return fiber.NewError(fiber.StatusUnprocessableEntity, CodeAdminSurfaceInvalid)
+	}
 	metadata := map[string]any{
 		"surfaceId": contract.ID, "contractVersion": contract.ContractVersion,
 		"extensionId": contract.ExtensionID, "extensionVersion": contract.ExtensionVersion,
 		"artifactDigest": contract.ArtifactDigest, "runtimeInstanceId": contract.InstanceID,
-		"kind": contract.Kind, "status": "attempted",
+		"kind": contract.Kind, "operation": contract.Operation, "placementId": contract.PlacementID, "status": "attempted",
 	}
 	if err := h.adminAuditor.Append(c.Context(), audit.Event{
 		ActorUserID: actor.ID, Action: audit.ActionExtensionAdminSurface, Metadata: metadata,
@@ -188,8 +202,11 @@ func adminSurfaceView(contract extensionsruntime.AdminSurfaceContract) AdminSurf
 		ID: contract.ID, ContractVersion: contract.ContractVersion,
 		ExtensionID: contract.ExtensionID, ExtensionVersion: contract.ExtensionVersion,
 		Kind: contract.Kind, Action: contract.Action, TargetID: contract.TargetID,
-		Label: contract.Label, Schema: contract.Schema, SchemaDigest: contract.SchemaDigest,
-		Priority: contract.Priority, Invokable: contract.Handler != "" && contract.Schema != "",
+		PlacementID: contract.PlacementID, PlacementContractVersion: contract.PlacementContractVersion,
+		Label: contract.Label, PropsSchema: contract.PropsSchema, PropsSchemaDigest: contract.PropsSchemaDigest,
+		ResultSchema: contract.ResultSchema, ResultSchemaDigest: contract.ResultSchemaDigest, Operation: contract.Operation,
+		Schema: contract.Schema, SchemaDigest: contract.SchemaDigest,
+		Priority: contract.Priority, Invokable: contract.Handler != "" && contract.PropsSchema != "" && contract.ResultSchema != "",
 	}
 }
 

@@ -32,6 +32,12 @@ adminSurfaces:
       required: false
       schema:
         "$ref": "../schemas/extension-admin-surfaces.yaml#/AdminSurfaceKind"
+    - name: placementId
+      in: query
+      required: false
+      description: Exact stable Core admin page identity for the current consumer.
+      schema:
+        type: string
     responses:
       '200':
         description: Permission-filtered Admin Surface catalog.
@@ -65,8 +71,8 @@ adminSurfaceInvoke:
       selected surface. The surface id and contract version bind the call to one
       immutable runtime contract. The Host records an exact-artifact audit
       attempt before execution and validates the typed input and result. When
-      Idempotency-Key is present and the exact artifact declares host_commands,
-      the invocation receives short-lived actor-bound Host Command delegations.
+      Query surfaces accept an optional Idempotency-Key. Command surfaces
+      require it, and receive short-lived actor-bound Host Command delegations.
     parameters:
     - name: surfaceID
       in: path

@@ -65,6 +65,20 @@ func TestAdminSurfaceHTTPFiltersPermissionsCompositionAndInternals(t *testing.T)
 	if catalog.Data.Revision != 7 || len(catalog.Data.Surfaces) != 1 || catalog.Data.Surfaces[0].ID != "fixture.admin.surface.public" {
 		t.Fatalf("admin catalog = %#v", catalog.Data)
 	}
+	response = performExtensionRequest(t, app, http.MethodGet,
+		"/api/v1/admin/admin-surfaces?placementId=core.component.page.admin.users", privileged)
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("placement list status=%d body=%s", response.StatusCode, responseBody(t, response))
+	}
+	var placed testEnvelope[AdminSurfaceCatalogView]
+	if err := json.NewDecoder(response.Body).Decode(&placed); err != nil {
+		t.Fatal(err)
+	}
+	response.Body.Close()
+	if len(placed.Data.Surfaces) != 2 || placed.Data.Surfaces[0].PlacementID != "core.component.page.admin.users" ||
+		placed.Data.Surfaces[1].PlacementID != "core.component.page.admin.users" {
+		t.Fatalf("placement catalog = %#v", placed.Data)
+	}
 
 	response = performExtensionRequest(t, app, http.MethodGet, "/api/v1/admin/admin-surfaces", privileged)
 	if response.StatusCode != http.StatusOK {
@@ -87,6 +101,28 @@ func TestAdminSurfaceHTTPFiltersPermissionsCompositionAndInternals(t *testing.T)
 			}
 		}
 	}
+}
+
+func TestAdminSurfaceHTTPCommandRequiresIdempotencyKeyBeforeAudit(t *testing.T) {
+	runtime := newAdminSurfaceControllerRuntime()
+	contract := runtime.contracts["fixture.admin.surface.protected"]
+	contract.Operation = extensions.AdminSurfaceOperationCommand
+	runtime.contracts[contract.ID] = contract
+	for index := range runtime.snapshot.Surfaces {
+		if runtime.snapshot.Surfaces[index].ID == contract.ID {
+			runtime.snapshot.Surfaces[index] = contract
+		}
+	}
+	auditor := &adminSurfaceControllerAuditor{}
+	app := newAdminSurfaceControllerApp(t, runtime, auditor)
+	privileged := loginAdminSurfaceControllerUser(t, app, 2)
+	response := performExtensionJSONRequest(t, app, http.MethodPost,
+		"/api/v1/admin/admin-surfaces/fixture.admin.surface.protected/invoke", privileged,
+		`{"contractVersion":"fixture.admin.surface.protected@1","input":{"title":"SForum"}}`)
+	if response.StatusCode != http.StatusUnprocessableEntity || runtime.calls != 0 || len(auditor.events) != 0 {
+		t.Fatalf("status=%d calls=%d audits=%#v body=%s", response.StatusCode, runtime.calls, auditor.events, responseBody(t, response))
+	}
+	response.Body.Close()
 }
 
 func TestAdminSurfaceHTTPEnforcesDeclarationAndAuditsExactInvocation(t *testing.T) {
@@ -247,9 +283,9 @@ type adminSurfaceControllerRuntime struct {
 
 func newAdminSurfaceControllerRuntime() *adminSurfaceControllerRuntime {
 	contracts := []extensionsruntime.AdminSurfaceContract{
-		adminSurfaceControllerContract("fixture.admin.surface.public", "notice", "add", "", ""),
-		adminSurfaceControllerContract("fixture.admin.surface.protected", "notice", "add", "", adminSurfaceTestPermission),
-		adminSurfaceControllerContract("fixture.admin.surface.after", "notice", "after", "fixture.admin.surface.protected", ""),
+		adminSurfaceControllerContract("fixture.admin.surface.public", "notice", "add", "", "core.component.page.admin", ""),
+		adminSurfaceControllerContract("fixture.admin.surface.protected", "notice", "add", "", "core.component.page.admin.users", adminSurfaceTestPermission),
+		adminSurfaceControllerContract("fixture.admin.surface.after", "notice", "after", "fixture.admin.surface.protected", "core.component.page.admin.users", ""),
 	}
 	byID := make(map[string]extensionsruntime.AdminSurfaceContract, len(contracts))
 	for _, contract := range contracts {
@@ -322,13 +358,20 @@ func performAdminSurfaceJSONRequest(
 	return response
 }
 
-func adminSurfaceControllerContract(id, kind, action, targetID, permission string) extensionsruntime.AdminSurfaceContract {
+func adminSurfaceControllerContract(id, kind, action, targetID, placementID, permission string) extensionsruntime.AdminSurfaceContract {
+	placementContractVersion := "sforum.component.page.admin@1"
+	if placementID == "core.component.page.admin.users" {
+		placementContractVersion = "sforum.component.page.admin.users@1"
+	}
 	return extensionsruntime.AdminSurfaceContract{
 		ID: id, ContractVersion: id + "@1", ExtensionID: "fixture.admin", ExtensionVersion: "1.0.0",
 		ArtifactDigest: strings.Repeat("a", 64), InstanceID: "runtime-admin",
-		Kind: kind, Action: action, TargetID: targetID, Label: id,
-		Handler: "admin.render", Schema: "fixture.admin.surface.document@1",
-		SchemaDigest: strings.Repeat("b", 64), Permission: permission, Priority: 10,
+		Kind: kind, Action: action, TargetID: targetID, PlacementID: placementID,
+		PlacementContractVersion: placementContractVersion, Label: id,
+		Handler: "admin.render", PropsSchema: "fixture.admin.surface.props@1",
+		PropsSchemaDigest: strings.Repeat("b", 64), ResultSchema: "fixture.admin.surface.result@1",
+		ResultSchemaDigest: strings.Repeat("c", 64), Operation: extensions.AdminSurfaceOperationQuery,
+		Permission: permission, Priority: 10,
 	}
 }
 

@@ -29,6 +29,7 @@ AdminSurface:
   - kind
   - action
   - label
+  - operation
   - priority
   - invokable
   properties:
@@ -39,7 +40,20 @@ AdminSurface:
     kind: { "$ref": "#/AdminSurfaceKind" }
     action: { "$ref": "#/AdminSurfaceAction" }
     targetId: { type: string }
+    placementId: { type: string }
+    placementContractVersion: { type: string }
     label: { type: string }
+    propsSchema: { type: string }
+    propsSchemaDigest:
+      type: string
+      pattern: '^[0-9a-f]{64}$'
+    resultSchema: { type: string }
+    resultSchemaDigest:
+      type: string
+      pattern: '^[0-9a-f]{64}$'
+    operation:
+      type: string
+      enum: [query, command]
     schema: { type: string }
     schemaDigest:
       type: string
