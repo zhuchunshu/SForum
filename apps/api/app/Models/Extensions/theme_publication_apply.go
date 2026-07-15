@@ -17,6 +17,9 @@ func (s *Service) ApplyThemeRuntimePublication(ctx context.Context, publication 
 	}
 	s.themeActivationMu.Lock()
 	defer s.themeActivationMu.Unlock()
+	s.assetPublicationMu.Lock()
+	defer s.assetPublicationMu.Unlock()
+	assetBefore := s.captureAssetPublicationSnapshot()
 
 	items, err := s.store.List(ctx)
 	if err != nil {
@@ -34,6 +37,19 @@ func (s *Service) ApplyThemeRuntimePublication(ctx context.Context, publication 
 			if err := s.componentRegistry.PublishThemeTransition(nil, source, publication.Revision); err != nil {
 				return errors.Join(ErrThemeRuntimeApplyFailed, err)
 			}
+		}
+		if err := s.validateThemeAssetTransition(ctx, assetBefore, nil, source); err != nil {
+			return errors.Join(ErrThemeRuntimeApplyFailed, err)
+		}
+		if _, err := s.publishThemeAssetTransition(ctx, assetBefore, nil, source); err != nil {
+			if s.componentRegistry != nil {
+				if rollbackErr := s.componentRegistry.RollbackThemeTransition(
+					source, nil, publication.Revision,
+				); rollbackErr != nil {
+					err = errors.Join(err, fmt.Errorf("restore source component publication: %w", rollbackErr))
+				}
+			}
+			return errors.Join(ErrThemeRuntimeApplyFailed, err)
 		}
 		for _, item := range items {
 			if item.Type == TypeTheme {
@@ -59,6 +75,9 @@ func (s *Service) ApplyThemeRuntimePublication(ctx context.Context, publication 
 			return errors.Join(ErrThemeRuntimeApplyFailed, err)
 		}
 	}
+	if err := s.validateThemeAssetTransition(ctx, assetBefore, &target, source); err != nil {
+		return errors.Join(ErrThemeRuntimeApplyFailed, err)
+	}
 	if target.ID != DefaultThemeID {
 		defaultTheme, defaultErr := s.store.Get(ctx, DefaultThemeID)
 		if defaultErr != nil {
@@ -75,6 +94,17 @@ func (s *Service) ApplyThemeRuntimePublication(ctx context.Context, publication 
 		}
 		componentPublished = true
 	}
+	assetAfter, publishErr := s.publishThemeAssetTransition(ctx, assetBefore, &target, source)
+	if publishErr != nil {
+		if componentPublished {
+			if rollbackErr := s.componentRegistry.RollbackThemeTransition(
+				source, &target, publication.Revision,
+			); rollbackErr != nil {
+				publishErr = errors.Join(publishErr, fmt.Errorf("restore source component publication: %w", rollbackErr))
+			}
+		}
+		return errors.Join(ErrThemeRuntimeApplyFailed, publishErr)
+	}
 	if publication.CoreReplacementsApproved {
 		err = s.pageRegistry.RegisterThemePackageReplacingApproved(
 			ctx, target, publication.SourceThemeID, publication.ActorUserID,
@@ -89,6 +119,11 @@ func (s *Service) ApplyThemeRuntimePublication(ctx context.Context, publication 
 			); rollbackErr != nil {
 				err = errors.Join(err, fmt.Errorf("restore source component publication: %w", rollbackErr))
 			}
+		}
+		if _, rollbackErr := s.rollbackThemeAssetTransition(
+			ctx, assetAfter, source, &target,
+		); rollbackErr != nil {
+			err = errors.Join(err, fmt.Errorf("restore source asset publication: %w", rollbackErr))
 		}
 		return errors.Join(ErrThemeRuntimeApplyFailed, err)
 	}

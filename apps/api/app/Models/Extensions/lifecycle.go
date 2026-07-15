@@ -217,15 +217,31 @@ func (s *Service) UninstallWithResult(ctx context.Context, actor identity.Actor,
 	if extension.Status == StatusEnabled {
 		return UninstallResult{}, ErrMustDisableFirst
 	}
+	s.assetPublicationMu.Lock()
+	defer s.assetPublicationMu.Unlock()
+	extension, err = s.store.Get(ctx, extension.ID)
+	if err != nil {
+		return UninstallResult{}, err
+	}
+	if extension.Status == StatusEnabled {
+		return UninstallResult{}, ErrMustDisableFirst
+	}
+	assetBefore := s.captureAssetPublicationSnapshot()
+	assetMutation, err := s.quarantineExactAssetPublication(ctx, assetBefore, extension)
+	if err != nil {
+		return UninstallResult{}, fmt.Errorf("remove exact asset publication before uninstall: %w", err)
+	}
 
 	_ = s.drainPluginRuntime(ctx, extension)
 	// 立即清除页面贡献（即便已 disable 也应幂等清理）
 	if s.pageRegistry != nil {
 		s.pageRegistry.ClearExtension(extension.ID)
 	}
-
 	packagePath := extension.PackagePath
 	if err := s.store.Delete(ctx, extension.ID); err != nil {
+		if restoreErr := s.rollbackExactAssetMutation(assetMutation); restoreErr != nil {
+			return UninstallResult{}, errors.Join(err, fmt.Errorf("restore asset publication after uninstall failure: %w", restoreErr))
+		}
 		return UninstallResult{}, err
 	}
 

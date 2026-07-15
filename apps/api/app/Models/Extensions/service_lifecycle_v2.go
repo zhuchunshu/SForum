@@ -609,6 +609,15 @@ func (s *Service) finalizeLifecycleUninstall(
 	if s.lifecycleFinalizer == nil {
 		return UninstallResult{}, ErrLifecycleCleanupFinalization
 	}
+	s.assetPublicationMu.Lock()
+	assetErr := s.quarantineLifecycleAssetPublication(operation)
+	s.assetPublicationMu.Unlock()
+	if assetErr != nil {
+		return UninstallResult{}, errors.Join(
+			ErrLifecycleCleanupFinalization,
+			fmt.Errorf("quarantine exact lifecycle asset publication (forced=%t): %w", operation.Forced, assetErr),
+		)
+	}
 	// Provider selections are Host registrations, not plugin-owned data. Clear
 	// them before physical purge so a failed options write leaves the exact
 	// package/identity available for an idempotent retry.

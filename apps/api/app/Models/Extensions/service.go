@@ -16,6 +16,7 @@ import (
 	"time"
 
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
+	assetregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/AssetRegistry"
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Audit"
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Capabilities"
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Crypto"
@@ -30,11 +31,12 @@ const (
 )
 
 type Service struct {
-	themeActivationMu sync.Mutex
-	store             Store
-	extensionRoot     string
-	builtinRoot       string
-	runtime           RuntimeManager
+	themeActivationMu  sync.Mutex
+	assetPublicationMu sync.Mutex
+	store              Store
+	extensionRoot      string
+	builtinRoot        string
+	runtime            RuntimeManager
 	// auditor 写入宿主 audit_events（F1.4）；与 extension_events 互补。
 	auditor audit.Writer
 	// trustRevoker 升级时吊销前端信任（F2.4）。
@@ -52,7 +54,9 @@ type Service struct {
 	// pageRegistry 运行时主题页面贡献（L0/L1）；nil 时跳过注册。
 	pageRegistry      PageRegistry
 	componentRegistry ComponentRegistry
-	settingsActions   SettingsActionRuntime
+	// assetRegistry 与公开 L2 / 生命周期共享的 Host Asset Registry。
+	assetRegistry   *assetregistry.Registry
+	settingsActions SettingsActionRuntime
 	// executableTrust 在 V3 P1 开关开启时取代 confirmCapabilities 布尔确认。
 	executableTrust        *ExecutableTrustService
 	trustChallengesEnabled bool
@@ -147,6 +151,25 @@ func WithComponentRegistry(registry ComponentRegistry) ServiceOption {
 	return func(s *Service) {
 		s.componentRegistry = registry
 	}
+}
+
+// WithAssetRegistry 注入与公开 L2 请求路径共享的 Host Asset Registry。
+func WithAssetRegistry(registry *assetregistry.Registry) ServiceOption {
+	return func(s *Service) {
+		s.assetRegistry = registry
+	}
+}
+
+// BindAssetRegistry late-binds the shared Host Registry after authoritative
+// lifecycle startup reconciliation. Binding never performs a second restore.
+func (s *Service) BindAssetRegistry(registry *assetregistry.Registry) *Service {
+	if s == nil {
+		return nil
+	}
+	s.assetPublicationMu.Lock()
+	s.assetRegistry = registry
+	s.assetPublicationMu.Unlock()
+	return s
 }
 
 // WithCipher 注入与 web_options 相同的 AES-GCM 加密器（secret 设置静态加密）。
@@ -806,15 +829,25 @@ func (s *Service) Enable(ctx context.Context, actor identity.Actor, id string, i
 	if s.safeMode {
 		return Extension{}, ErrSafeModeActive
 	}
+	s.assetPublicationMu.Lock()
 	extension, err := s.store.Get(ctx, normalizeID(id))
 	if err != nil {
+		s.assetPublicationMu.Unlock()
 		return Extension{}, err
 	}
 	if extension.Type == TypeTheme {
+		s.assetPublicationMu.Unlock()
 		return Extension{}, ErrThemeActivationRequired
 	}
 	if usesLifecycleV2(extension) {
+		s.assetPublicationMu.Unlock()
 		return s.enableLifecycleV2(ctx, actor, extension, input)
+	}
+	defer s.assetPublicationMu.Unlock()
+	assetBefore := s.captureAssetPublicationSnapshot()
+	if err := s.validateExtensionAssetPublication(ctx, assetBefore, extension); err != nil {
+		s.recordEnableFailure(ctx, actor, extension.ID, err)
+		return Extension{}, fmt.Errorf("%w: asset registry preflight failed: %v", ErrPreflightFailed, err)
 	}
 	if s.trustChallengesEnabled {
 		if s.executableTrust == nil {
@@ -853,8 +886,16 @@ func (s *Service) Enable(ctx context.Context, actor identity.Actor, id string, i
 		s.recordEnableFailure(ctx, actor, extension.ID, err)
 		return Extension{}, err
 	}
+	assetMutation, err := s.publishExactExtensionAssetPublication(ctx, assetBefore, extension)
+	if err != nil {
+		s.recordEnableFailure(ctx, actor, extension.ID, err)
+		return Extension{}, fmt.Errorf("%w: asset registry publication failed: %v", ErrPreflightFailed, err)
+	}
 	enabled, err := s.store.Enable(ctx, extension.ID, extension.Type)
 	if err != nil {
+		if rollbackErr := s.rollbackExactAssetMutation(assetMutation); rollbackErr != nil {
+			return Extension{}, errors.Join(err, fmt.Errorf("restore asset publication after enable failure: %w", rollbackErr))
+		}
 		return Extension{}, err
 	}
 	if enabled.Type == TypePlugin && enabled.Manifest.Backend.Entry != "" && s.runtime != nil {
@@ -866,6 +907,9 @@ func (s *Service) Enable(ctx context.Context, actor identity.Actor, id string, i
 		}
 		if startErr != nil {
 			_, _ = s.store.Disable(ctx, enabled.ID)
+			if rollbackErr := s.rollbackExactAssetMutation(assetMutation); rollbackErr != nil {
+				startErr = errors.Join(startErr, fmt.Errorf("restore asset publication after runtime failure: %w", rollbackErr))
+			}
 			s.recordEnableFailure(ctx, actor, enabled.ID, startErr)
 			return Extension{}, fmt.Errorf("%w: %v", ErrRuntimeFailed, startErr)
 		}
@@ -879,6 +923,9 @@ func (s *Service) Enable(ctx context.Context, actor identity.Actor, id string, i
 			}
 			_, _ = s.store.Disable(ctx, enabled.ID)
 			s.pageRegistry.ClearExtension(enabled.ID)
+			if rollbackErr := s.rollbackExactAssetMutation(assetMutation); rollbackErr != nil {
+				err = errors.Join(err, fmt.Errorf("restore asset publication after page failure: %w", rollbackErr))
+			}
 			s.recordEnableFailure(ctx, actor, enabled.ID, err)
 			return Extension{}, fmt.Errorf("%w: page contributions: %v", ErrPreflightFailed, err)
 		}
@@ -911,18 +958,31 @@ func (s *Service) DisableWithInput(ctx context.Context, actor identity.Actor, id
 	if !canManagePlugins(actor) {
 		return Extension{}, identity.ErrPermissionDenied
 	}
+	s.assetPublicationMu.Lock()
 	extension, err := s.store.Get(ctx, normalizeID(id))
 	if err != nil {
+		s.assetPublicationMu.Unlock()
 		return Extension{}, err
 	}
 	if extension.Type == TypeTheme {
+		s.assetPublicationMu.Unlock()
 		return Extension{}, ErrThemeActivationRequired
 	}
 	if usesLifecycleV2(extension) {
+		s.assetPublicationMu.Unlock()
 		return s.disableLifecycleV2(ctx, actor, extension, input)
+	}
+	defer s.assetPublicationMu.Unlock()
+	assetBefore := s.captureAssetPublicationSnapshot()
+	assetMutation, err := s.quarantineExactAssetPublication(ctx, assetBefore, extension)
+	if err != nil {
+		return Extension{}, fmt.Errorf("remove exact asset publication: %w", err)
 	}
 	// F2.4：先 drain runtime（停进程、清 provider），再改 DB 状态。
 	if err := s.drainPluginRuntime(ctx, extension); err != nil {
+		if rollbackErr := s.rollbackExactAssetMutation(assetMutation); rollbackErr != nil {
+			return Extension{}, errors.Join(err, fmt.Errorf("restore asset publication after drain failure: %w", rollbackErr))
+		}
 		return Extension{}, err
 	}
 	// 立即撤销页面贡献，使 replace 绑定在 Resolve 时回退 core。
@@ -931,6 +991,9 @@ func (s *Service) DisableWithInput(ctx context.Context, actor identity.Actor, id
 	}
 	disabled, err := s.store.Disable(ctx, extension.ID)
 	if err != nil {
+		if restoreErr := s.rollbackExactAssetMutation(assetMutation); restoreErr != nil {
+			return Extension{}, errors.Join(err, fmt.Errorf("restore asset publication after disable failure: %w", restoreErr))
+		}
 		return Extension{}, err
 	}
 	_, _ = s.store.CreateEvent(ctx, EventInput{
@@ -1005,6 +1068,9 @@ func (s *Service) activateTheme(
 	// required for cross-node convergence.
 	s.themeActivationMu.Lock()
 	defer s.themeActivationMu.Unlock()
+	s.assetPublicationMu.Lock()
+	defer s.assetPublicationMu.Unlock()
+	assetBefore := s.captureAssetPublicationSnapshot()
 	if !canManageThemes(actor) {
 		return Extension{}, identity.ErrPermissionDenied
 	}
@@ -1066,6 +1132,11 @@ func (s *Service) activateTheme(
 			return Extension{}, wrapped
 		}
 	}
+	if err := s.validateThemeAssetTransition(ctx, assetBefore, &activationTarget, previous); err != nil {
+		wrapped := fmt.Errorf("%w: asset registry preflight failed: %v", ErrBuildFailed, err)
+		s.recordEnableFailure(ctx, actor, extension.ID, wrapped)
+		return Extension{}, wrapped
+	}
 
 	// 所有静态预检完成后、任何 DB/Registry 切换前消费一次性 exact-artifact
 	// challenge。普通 L0/L1 主题不请求可执行权限，因此继续零确认激活。
@@ -1098,6 +1169,20 @@ func (s *Service) activateTheme(
 	if err != nil {
 		return Extension{}, s.compensateThemeActivationTrust(ctx, actor, trustReceipt, activationTarget, previous, err)
 	}
+	committedSource := previous
+	var sourceErr error
+	if !themeRuntimePublicationSourceMatches(activationPublication, previous) {
+		committedSource, sourceErr = s.themePublicationSource(ctx, activationPublication)
+	}
+	if sourceErr != nil {
+		failure := fmt.Errorf("resolve exact theme activation source: %w", sourceErr)
+		previous = nil
+		return Extension{}, s.compensateCommittedThemeActivation(
+			ctx, actor, trustReceipt, activationTarget, active, previous, activationPublication,
+			assetBefore, false, failure,
+		)
+	}
+	previous = committedSource
 
 	// 多节点下，另一个失败请求可能在本节点等待 DB CAS 时精确撤销了新 grant。
 	// Registry 发布前再次确认 live identity；丢失授权时立即回滚 DB，绝不导入 L2。
@@ -1111,12 +1196,14 @@ func (s *Service) activateTheme(
 			rollback, rollbackErr := s.store.CompensateThemeActivation(ctx, activationPublication, previous)
 			if rollbackErr != nil {
 				failure = errors.Join(failure, fmt.Errorf("theme activation compensation failed: %w", rollbackErr))
-			} else if s.componentRegistry != nil {
+			} else {
 				failedTarget := active
-				if componentErr := s.componentRegistry.PublishThemeTransition(
-					previous, &failedTarget, rollback.Publication.Revision,
-				); componentErr != nil {
-					failure = errors.Join(failure, fmt.Errorf("component registry compensation failed: %w", componentErr))
+				if s.componentRegistry != nil {
+					if componentErr := s.componentRegistry.PublishThemeTransition(
+						previous, &failedTarget, rollback.Publication.Revision,
+					); componentErr != nil {
+						failure = errors.Join(failure, fmt.Errorf("component registry compensation failed: %w", componentErr))
+					}
 				}
 			}
 			return Extension{}, s.compensateThemeActivationTrust(
@@ -1125,9 +1212,9 @@ func (s *Service) activateTheme(
 		}
 	}
 
-	// 3) 先原子替换 Component Registry，再发布 Page/ThemeRuntime。
-	//    Component 失败时 Page 尚未切换；Page 失败时则按 exact
-	//    target 反向恢复 Component，两条路径都使用 DB CAS 补偿。
+	// 3) 先原子替换 Component/Asset Registry，再发布 Page/ThemeRuntime。
+	//    Registry 失败时 Page 尚未切换；Page 失败时则按 exact
+	//    target 反向恢复 Registry，两条路径都使用 DB CAS 补偿。
 	if s.componentRegistry != nil {
 		target := active
 		if publishErr := s.componentRegistry.PublishThemeTransition(
@@ -1135,9 +1222,18 @@ func (s *Service) activateTheme(
 		); publishErr != nil {
 			failure := fmt.Errorf("%w: component registry register failed: %v", ErrBuildFailed, publishErr)
 			return Extension{}, s.compensateCommittedThemeActivation(
-				ctx, actor, trustReceipt, activationTarget, active, previous, activationPublication, failure,
+				ctx, actor, trustReceipt, activationTarget, active, previous, activationPublication,
+				assetBefore, false, failure,
 			)
 		}
+	}
+	assetAfter, publishErr := s.publishThemeAssetTransition(ctx, assetBefore, &active, previous)
+	if publishErr != nil {
+		failure := fmt.Errorf("%w: asset registry register failed: %v", ErrBuildFailed, publishErr)
+		return Extension{}, s.compensateCommittedThemeActivation(
+			ctx, actor, trustReceipt, activationTarget, active, previous, activationPublication,
+			assetBefore, false, failure,
+		)
 	}
 
 	if s.pageRegistry != nil {
@@ -1150,7 +1246,8 @@ func (s *Service) activateTheme(
 		if registerErr != nil {
 			failure := fmt.Errorf("%w: registry register failed: %v", ErrBuildFailed, registerErr)
 			return Extension{}, s.compensateCommittedThemeActivation(
-				ctx, actor, trustReceipt, activationTarget, active, previous, activationPublication, failure,
+				ctx, actor, trustReceipt, activationTarget, active, previous, activationPublication,
+				assetAfter, true, failure,
 			)
 		}
 	}
@@ -1180,6 +1277,8 @@ func (s *Service) compensateCommittedThemeActivation(
 	active Extension,
 	previous *Extension,
 	publication ThemeRuntimePublication,
+	assetAfter assetPublicationSnapshot,
+	assetPublished bool,
 	failure error,
 ) error {
 	rollback, rollbackErr := s.store.CompensateThemeActivation(ctx, publication, previous)
@@ -1195,7 +1294,15 @@ func (s *Service) compensateCommittedThemeActivation(
 			failure = errors.Join(failure, fmt.Errorf("component registry compensation failed: %w", componentRollbackErr))
 		}
 	}
-	if rollbackErr != nil || componentRollbackErr != nil {
+	var assetRollbackErr error
+	if rollbackErr == nil && assetPublished {
+		failedTarget := active
+		_, assetRollbackErr = s.rollbackThemeAssetTransition(ctx, assetAfter, previous, &failedTarget)
+		if assetRollbackErr != nil {
+			failure = errors.Join(failure, fmt.Errorf("asset registry compensation failed: %w", assetRollbackErr))
+		}
+	}
+	if rollbackErr != nil || componentRollbackErr != nil || assetRollbackErr != nil {
 		_, _ = s.store.CreateEvent(ctx, EventInput{
 			ExtensionID: active.ID, ActorUserID: actor.ID, Action: EventEnableFailed,
 			Message: failure.Error(),
@@ -1244,6 +1351,15 @@ func sameThemeExactArtifact(left, right Extension) bool {
 		left.Version == right.Version && strings.EqualFold(left.PackageDigest, right.PackageDigest)
 }
 
+func themeRuntimePublicationSourceMatches(publication ThemeRuntimePublication, source *Extension) bool {
+	if source == nil {
+		return publication.SourceThemeID == "" && publication.SourceThemeVersion == "" &&
+			publication.SourcePackageDigest == ""
+	}
+	return publication.SourceThemeID == source.ID && publication.SourceThemeVersion == source.Version &&
+		strings.EqualFold(publication.SourcePackageDigest, source.PackageDigest)
+}
+
 func themeIDOrEmpty(e *Extension) string {
 	if e == nil {
 		return ""
@@ -1254,12 +1370,19 @@ func themeIDOrEmpty(e *Extension) string {
 // RestoreActiveThemeRegistry API 启动时恢复活动主题 + 已启用插件的页面贡献。
 // 无效/缺失主题时安全回退默认主题并写诊断事件。
 func (s *Service) RestoreActiveThemeRegistry(ctx context.Context) error {
-	if s == nil || s.pageRegistry == nil {
+	if s == nil || (s.pageRegistry == nil && s.assetRegistry == nil) {
 		return nil
 	}
+	s.assetPublicationMu.Lock()
+	defer s.assetPublicationMu.Unlock()
+	assetBefore := s.captureAssetPublicationSnapshot()
 	// 恢复已启用插件页面贡献
 	items, err := s.store.List(ctx)
 	if err != nil {
+		return err
+	}
+	if s.pageRegistry == nil {
+		_, err = s.restoreEnabledAssetPublications(ctx, assetBefore, items, false)
 		return err
 	}
 	for _, item := range items {
@@ -1320,12 +1443,28 @@ func (s *Service) RestoreActiveThemeRegistry(ctx context.Context) error {
 	if err := s.pageRegistry.RegisterThemePackageRestoring(ctx, active, staleThemeIDs); err != nil {
 		return fmt.Errorf("restore active theme registry: %w", err)
 	}
-	return nil
+	items, err = s.store.List(ctx)
+	if err != nil {
+		return err
+	}
+	_, err = s.restoreEnabledAssetPublications(ctx, assetBefore, items, false)
+	return err
 }
 
 // RestoreSafeModeThemeRegistry 忽略数据库 desired theme 与全部插件贡献，只加载受保护默认主题。
 func (s *Service) RestoreSafeModeThemeRegistry(ctx context.Context) error {
-	if s == nil || s.pageRegistry == nil {
+	if s == nil || (s.pageRegistry == nil && s.assetRegistry == nil) {
+		return nil
+	}
+	s.assetPublicationMu.Lock()
+	defer s.assetPublicationMu.Unlock()
+	assetBefore := s.captureAssetPublicationSnapshot()
+	if s.assetRegistry != nil {
+		if _, err := s.restoreEnabledAssetPublications(ctx, assetBefore, nil, true); err != nil {
+			return err
+		}
+	}
+	if s.pageRegistry == nil {
 		return nil
 	}
 	items, err := s.store.List(ctx)
@@ -1345,7 +1484,10 @@ func (s *Service) RestoreSafeModeThemeRegistry(ctx context.Context) error {
 	if err := s.pageRegistry.PreflightThemePackage(ctx, defaultTheme, ""); err != nil {
 		return err
 	}
-	return s.pageRegistry.RegisterThemePackage(ctx, defaultTheme)
+	if err := s.pageRegistry.RegisterThemePackage(ctx, defaultTheme); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (s *Service) EnsureDefaultThemeActive(ctx context.Context) (Extension, error) {
