@@ -114,6 +114,15 @@ func validateOperation(
 	if route.path != pathValue {
 		return GeneratedOperation{}, routeContract{}, fmt.Errorf("%w: operation %s path %s does not match route path %s", ErrContractMismatch, operationID, pathValue, route.path)
 	}
+	derivedPolicy := false
+	if requirePolicies && route.policy.RouteID == "" {
+		policy, err := hostPolicyForOperation(route, operation, artifact, sourcePath)
+		if err != nil {
+			return GeneratedOperation{}, routeContract{}, fmt.Errorf("%w: operation %s policy: %v", ErrContractMismatch, operationID, err)
+		}
+		route.policy = policy
+		derivedPolicy = true
+	}
 	type metadataCheck struct {
 		key      string
 		expected string
@@ -127,10 +136,22 @@ func validateOperation(
 		{extResponseSchema, route.route.ResponseSchema, route.route.ResponseSchema != ""},
 	}
 	if requirePolicies {
-		checks = append(checks,
-			metadataCheck{extRateLimit, route.policy.RateLimit, true},
-			metadataCheck{extIdempotency, route.policy.Idempotency, true},
-		)
+		if derivedPolicy {
+			for _, field := range []metadataCheck{
+				{key: extRateLimit, expected: route.policy.RateLimit},
+				{key: extIdempotency, expected: route.policy.Idempotency},
+			} {
+				if actual, present := operation[field.key]; present && actual != field.expected {
+					return GeneratedOperation{}, routeContract{}, fmt.Errorf("%w: operation %s metadata %s does not match %q", ErrContractMismatch, operationID, field.key, field.expected)
+				}
+				operation[field.key] = field.expected
+			}
+		} else {
+			checks = append(checks,
+				metadataCheck{extRateLimit, route.policy.RateLimit, true},
+				metadataCheck{extIdempotency, route.policy.Idempotency, true},
+			)
+		}
 	}
 	for _, check := range checks {
 		actual, present := operation[check.key]
@@ -151,6 +172,7 @@ func validateOperation(
 		delete(operation, extRateLimit)
 		delete(operation, extIdempotency)
 		delete(operation, extSecurityOwner)
+		route.policy = RoutePolicy{}
 	}
 	if err := validatePathParameters(operation, pathValue, artifact, sourcePath); err != nil {
 		return GeneratedOperation{}, routeContract{}, fmt.Errorf("%w: operation %s: %w", ErrInvalidDocument, operationID, err)
@@ -174,14 +196,25 @@ func validateOperation(
 	if route.route.ResponseSchema != "" && !responseHasSchema {
 		return GeneratedOperation{}, routeContract{}, fmt.Errorf("%w: operation %s response body disagrees with route schema", ErrContractMismatch, operationID)
 	}
-	return GeneratedOperation{
+	generated := GeneratedOperation{
 		OperationID: operationID, RouteID: route.route.ID, ContractVersion: route.route.ContractVersion,
-		Path: pathValue, Method: method, Guard: route.route.Guard, Permission: route.route.Permission,
+		Path: pathValue, Method: method, Action: route.route.Action, Mode: route.route.Mode,
+		Guard: route.route.Guard, Permission: route.route.Permission,
 		RequestSchema: route.route.RequestSchema, ResponseSchema: route.route.ResponseSchema,
 		RateLimit: route.policy.RateLimit, Idempotency: route.policy.Idempotency, Security: route.policy.Security,
 		ExtensionID: identity.ExtensionID, ExtensionVersion: identity.ExtensionVersion,
 		PackageDigest: identity.PackageDigest, FragmentID: identity.FragmentID, Namespace: identity.Namespace,
-	}, route, nil
+	}
+	if route.policy.RateLimit != PolicyDisabled {
+		generated.RateLimitScope = "client_ip"
+	}
+	if route.policy.Idempotency == PolicyIdempotencyRequired24h {
+		generated.IdempotencyRequired = true
+		generated.IdempotencyHeader = idempotencyHeader
+		generated.IdempotencyKeyMaxLength = 128
+		generated.IdempotencyTTLSeconds = 24 * 60 * 60
+	}
+	return generated, route, nil
 }
 
 func canonicalOpenAPIPath(value string) (string, string, error) {

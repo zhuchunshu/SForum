@@ -17,23 +17,26 @@ var (
 )
 
 const (
-	SecurityPublic        = "public"
-	SecurityAuthenticated = "authenticated"
-	SecurityHostInherited = "host_inherited"
-	SecurityPluginOwned   = "plugin_owned"
-	PolicyDisabled        = "disabled"
+	SecurityPublic               = "public"
+	SecurityAuthenticated        = "authenticated"
+	SecurityHostInherited        = "host_inherited"
+	SecurityPluginOwned          = "plugin_owned"
+	PolicyDisabled               = "disabled"
+	PolicyRateLimitIPWrite       = "host.ip_write@1"
+	PolicyIdempotencyRequired24h = "required.24h@1"
 )
 
-// Artifact is an immutable package snapshot plus Host-owned route policy facts.
-// Policies are deliberately outside the plugin manifest: the runtime policy
-// registry, rather than plugin prose, remains authoritative for enforcement.
+// Artifact is an immutable package snapshot. Host route policies are derived
+// from validated route and OpenAPI declarations instead of caller-supplied prose.
 type Artifact struct {
 	Root          string
 	ExtensionID   string
 	Version       string
 	PackageDigest string
 	Manifest      extensionmanifest.Manifest
-	Policies      []RoutePolicy
+	// Policies is retained for source compatibility while Host policy derivation
+	// moves into the aggregate. Production callers must not author these values.
+	Policies []RoutePolicy
 }
 
 type RoutePolicy struct {
@@ -71,23 +74,30 @@ type SourceIdentity struct {
 }
 
 type GeneratedOperation struct {
-	OperationID      string `json:"operationId"`
-	RouteID          string `json:"routeId"`
-	ContractVersion  string `json:"contractVersion"`
-	Path             string `json:"path"`
-	Method           string `json:"method"`
-	Guard            string `json:"guard"`
-	Permission       string `json:"permission,omitempty"`
-	RequestSchema    string `json:"requestSchema,omitempty"`
-	ResponseSchema   string `json:"responseSchema,omitempty"`
-	RateLimit        string `json:"rateLimit"`
-	Idempotency      string `json:"idempotency"`
-	Security         string `json:"security"`
-	ExtensionID      string `json:"extensionId"`
-	ExtensionVersion string `json:"extensionVersion"`
-	PackageDigest    string `json:"packageDigest"`
-	FragmentID       string `json:"fragmentId"`
-	Namespace        string `json:"namespace"`
+	OperationID             string `json:"operationId"`
+	RouteID                 string `json:"routeId"`
+	ContractVersion         string `json:"contractVersion"`
+	Path                    string `json:"path"`
+	Method                  string `json:"method"`
+	Action                  string `json:"action"`
+	Mode                    string `json:"mode"`
+	Guard                   string `json:"guard"`
+	Permission              string `json:"permission,omitempty"`
+	RequestSchema           string `json:"requestSchema,omitempty"`
+	ResponseSchema          string `json:"responseSchema,omitempty"`
+	RateLimit               string `json:"rateLimit"`
+	Idempotency             string `json:"idempotency"`
+	IdempotencyRequired     bool   `json:"idempotencyRequired"`
+	IdempotencyHeader       string `json:"idempotencyHeader,omitempty"`
+	IdempotencyKeyMaxLength int    `json:"idempotencyKeyMaxLength,omitempty"`
+	IdempotencyTTLSeconds   int    `json:"idempotencyTtlSeconds,omitempty"`
+	RateLimitScope          string `json:"rateLimitScope,omitempty"`
+	Security                string `json:"security"`
+	ExtensionID             string `json:"extensionId"`
+	ExtensionVersion        string `json:"extensionVersion"`
+	PackageDigest           string `json:"packageDigest"`
+	FragmentID              string `json:"fragmentId"`
+	Namespace               string `json:"namespace"`
 }
 
 // Snapshot exposes copies only. Callers cannot mutate the canonical aggregate

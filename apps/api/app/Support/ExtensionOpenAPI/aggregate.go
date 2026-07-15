@@ -181,7 +181,8 @@ type routeContract struct {
 
 func routeContracts(artifact *loadedArtifact, requirePolicies bool) (map[string]routeContract, error) {
 	result := make(map[string]routeContract)
-	if requirePolicies && len(artifact.manifest.OpenAPI) == 0 && len(artifact.policies) != 0 {
+	legacyPolicies := len(artifact.policies) != 0
+	if requirePolicies && len(artifact.manifest.OpenAPI) == 0 && legacyPolicies {
 		return nil, fmt.Errorf("%w: policies exist without documented routes", ErrContractMismatch)
 	}
 	for _, route := range artifact.manifest.Routes {
@@ -202,10 +203,10 @@ func routeContracts(artifact *loadedArtifact, requirePolicies bool) (map[string]
 			}
 			key := routeMethodKey(route.ID, method)
 			policy, exists := artifact.policies[key]
-			if requirePolicies && !exists && len(artifact.manifest.OpenAPI) > 0 {
+			if requirePolicies && legacyPolicies && !exists && len(artifact.manifest.OpenAPI) > 0 {
 				return nil, fmt.Errorf("%w: missing authoritative policy for %s %s", ErrContractMismatch, route.ID, method)
 			}
-			if requirePolicies && exists {
+			if requirePolicies && legacyPolicies && exists {
 				if expected := securityForGuard(route.Guard); expected != "" && policy.Security != expected {
 					return nil, fmt.Errorf("%w: security policy %q contradicts guard %q for %s %s", ErrContractMismatch, policy.Security, route.Guard, route.ID, method)
 				}
@@ -216,7 +217,7 @@ func routeContracts(artifact *loadedArtifact, requirePolicies bool) (map[string]
 			result[key] = routeContract{route: route, method: method, path: pathValue, signature: signature, policy: policy, addressable: true}
 		}
 	}
-	if requirePolicies && len(artifact.manifest.OpenAPI) > 0 {
+	if requirePolicies && legacyPolicies && len(artifact.manifest.OpenAPI) > 0 {
 		if len(artifact.policies) != len(result) {
 			return nil, fmt.Errorf("%w: route policy set is not exact", ErrContractMismatch)
 		}

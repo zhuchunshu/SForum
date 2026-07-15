@@ -16,22 +16,25 @@ import (
 )
 
 type fixtureOptions struct {
-	extensionID    string
-	path           string
-	manifestPath   string
-	method         string
-	action         string
-	targetID       string
-	operationID    string
-	namespace      string
-	requestSchema  string
-	responseSchema string
-	guard          string
-	permission     string
-	rateLimit      string
-	idempotency    string
-	document       string
-	schema         string
+	extensionID         string
+	path                string
+	manifestPath        string
+	method              string
+	action              string
+	targetID            string
+	operationID         string
+	namespace           string
+	requestSchema       string
+	responseSchema      string
+	guard               string
+	permission          string
+	rateLimit           string
+	idempotency         string
+	requiredIdempotency bool
+	omitPolicyMetadata  bool
+	mode                string
+	document            string
+	schema              string
 }
 
 func defaultFixtureOptions(extensionID string) fixtureOptions {
@@ -42,6 +45,7 @@ func defaultFixtureOptions(extensionID string) fixtureOptions {
 		operationID: namespace + ".getCatalog", namespace: namespace,
 		responseSchema: extensionID + ".catalog.response@1", guard: extensionmanifest.GuardCorePublic,
 		rateLimit: "public.read@1", idempotency: "disabled",
+		mode:   extensionmanifest.RouteModeHTTP,
 		schema: `{"Catalog":{"type":"object","properties":{"id":{"type":"string"}},"required":["id"]}}`,
 	}
 }
@@ -59,7 +63,7 @@ func buildFixture(t *testing.T, options fixtureOptions) Artifact {
 	route := extensionmanifest.ManifestRoute{
 		ID: routeID, ContractVersion: routeID + "@1", Action: options.action, TargetID: options.targetID,
 		Path: options.manifestPath, Methods: []string{options.method}, Guard: options.guard,
-		Permission: options.permission, Fallback: "closed", Mode: extensionmanifest.RouteModeHTTP,
+		Permission: options.permission, Fallback: "closed", Mode: options.mode,
 		Handler: "route.catalog", RequestSchema: options.requestSchema, ResponseSchema: options.responseSchema,
 	}
 	if options.action == extensionmanifest.RouteActionAlias || options.action == extensionmanifest.RouteActionRewrite {
@@ -151,10 +155,13 @@ func fixtureDocument(options fixtureOptions) string {
 		names = append(names, name)
 	}
 	sort.Strings(names)
-	if len(names) > 0 {
+	if len(names) > 0 || options.requiredIdempotency {
 		parameters = "      parameters:\n"
 		for _, name := range names {
 			parameters += fmt.Sprintf("        - name: %s\n          in: path\n          required: true\n          schema:\n            type: string\n", name)
+		}
+		if options.requiredIdempotency {
+			parameters += "        - name: Idempotency-Key\n          in: header\n          required: true\n          schema:\n            type: string\n            maxLength: 128\n"
 		}
 	}
 	requestBody := ""
@@ -177,6 +184,10 @@ func fixtureDocument(options fixtureOptions) string {
 	if options.responseSchema != "" {
 		responseMetadata = fmt.Sprintf("      x-sforum-response-schema: %s\n", options.responseSchema)
 	}
+	policyMetadata := fmt.Sprintf("      x-sforum-rate-limit: %s\n      x-sforum-idempotency: %s\n", options.rateLimit, options.idempotency)
+	if options.omitPolicyMetadata {
+		policyMetadata = ""
+	}
 	return fmt.Sprintf(`openapi: 3.1.0
 info:
   title: Fixture
@@ -188,14 +199,12 @@ paths:
       x-sforum-route-id: %s.catalog
       x-sforum-contract-version: %s.catalog@1
       x-sforum-guard: %s
-%s%s%s      x-sforum-rate-limit: %s
-      x-sforum-idempotency: %s
-%s%s      responses:
+%s%s%s%s%s%s      responses:
         "200":
           description: ok
 %s`, options.path, strings.ToLower(options.method), options.operationID,
 		options.extensionID, options.extensionID, options.guard,
-		permission, requestMetadata, responseMetadata, options.rateLimit, options.idempotency,
+		permission, requestMetadata, responseMetadata, policyMetadata,
 		parameters, requestBody, responseContent)
 }
 
