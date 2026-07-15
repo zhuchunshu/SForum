@@ -396,7 +396,7 @@
           "dependencies": { "$ref": "#/$defs/stringArray" },
           "scope": { "$ref": "#/$defs/stringArray" },
           "module": { "type": "boolean" },
-          "loading": { "enum": ["", "blocking", "defer", "async", "preload"] },
+          "loading": { "enum": ["", "blocking", "defer", "async", "preload", "lazy"] },
           "integrity": { "type": "string" },
           "csp": { "$ref": "#/$defs/stringArray" }
         }

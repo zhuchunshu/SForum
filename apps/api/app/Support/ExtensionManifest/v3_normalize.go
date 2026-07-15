@@ -177,6 +177,15 @@ func normalizeV3Manifest(manifest *Manifest) {
 		item.Digest = normalizeDigest(item.Digest)
 		item.Loading = strings.ToLower(strings.TrimSpace(item.Loading))
 		item.Integrity = strings.TrimSpace(item.Integrity)
+		for dependencyIndex := range item.Dependencies {
+			item.Dependencies[dependencyIndex] = NormalizeID(item.Dependencies[dependencyIndex])
+		}
+		for scopeIndex := range item.Scope {
+			item.Scope[scopeIndex] = NormalizeID(item.Scope[scopeIndex])
+		}
+		for cspIndex := range item.CSP {
+			item.CSP[cspIndex] = strings.Join(strings.Fields(item.CSP[cspIndex]), " ")
+		}
 	}
 	for index := range manifest.Content {
 		item := &manifest.Content[index]

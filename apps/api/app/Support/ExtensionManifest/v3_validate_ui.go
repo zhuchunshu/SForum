@@ -1,6 +1,9 @@
 package extensionmanifest
 
 import (
+	"encoding/base64"
+	"encoding/hex"
+	"path/filepath"
 	"strings"
 
 	componentcatalog "github.com/zhuchunshu/sforum/apps/api/app/Support/ComponentCatalog"
@@ -98,7 +101,9 @@ func (v *v3Validator) validateUIAndPackage() error {
 		if err := v.versionedID(asset.Handle, asset.ContractVersion, "asset"); err != nil {
 			return err
 		}
-		if asset.Type != "script" && asset.Type != "style" || !validPackagePath(asset.Path) || !validDigest(asset.Digest) {
+		if asset.Type != "script" && asset.Type != "style" || !validPackagePath(asset.Path) || !validDigest(asset.Digest) ||
+			asset.Type == "style" && asset.Module || !validPrebuiltAssetPath(asset.Type, asset.Path) ||
+			!validAssetIntegrity(asset.Digest, asset.Integrity) || !validAssetCSP(asset.CSP) {
 			return ErrInvalidManifest
 		}
 		file, declared := packagePaths[asset.Path]
@@ -106,14 +111,29 @@ func (v *v3Validator) validateUIAndPackage() error {
 			return ErrInvalidManifest
 		}
 		switch asset.Loading {
-		case "", "blocking", "defer", "async", "preload":
+		case "", "blocking", "defer", "async", "preload", "lazy":
 		default:
 			return ErrInvalidManifest
 		}
+		seenDependencies := map[string]struct{}{}
 		for _, dependency := range asset.Dependencies {
-			if !manifestIDPattern.MatchString(dependency) {
+			if !manifestIDPattern.MatchString(dependency) || dependency == asset.Handle {
 				return ErrInvalidManifest
 			}
+			if _, duplicate := seenDependencies[dependency]; duplicate {
+				return ErrInvalidManifest
+			}
+			seenDependencies[dependency] = struct{}{}
+		}
+		seenScopes := map[string]struct{}{}
+		for _, scope := range asset.Scope {
+			if !manifestIDPattern.MatchString(scope) {
+				return ErrInvalidManifest
+			}
+			if _, duplicate := seenScopes[scope]; duplicate {
+				return ErrInvalidManifest
+			}
+			seenScopes[scope] = struct{}{}
 		}
 	}
 	for _, asset := range v.manifest.Assets {
@@ -148,7 +168,7 @@ func (v *v3Validator) validateUIAndPackage() error {
 		}
 		if component.L2Component != "" {
 			file, exists := packageFiles[component.L2Component]
-			if !exists || file.Kind != "frontend" {
+			if !exists || file.Kind != "frontend" || !validPrebuiltAssetPath("script", file.Path) {
 				return ErrInvalidManifest
 			}
 		}
@@ -200,6 +220,48 @@ func (v *v3Validator) validateUIAndPackage() error {
 		return ErrInvalidManifest
 	}
 	return nil
+}
+
+func validPrebuiltAssetPath(assetType, value string) bool {
+	extension := strings.ToLower(filepath.Ext(value))
+	if assetType == "style" {
+		return extension == ".css"
+	}
+	return extension == ".js" || extension == ".mjs"
+}
+
+func validAssetIntegrity(digest, integrity string) bool {
+	if integrity == "" {
+		return true
+	}
+	raw, err := hex.DecodeString(strings.TrimSpace(digest))
+	if err != nil || len(raw) != 32 {
+		return false
+	}
+	return integrity == "sha256-"+base64.StdEncoding.EncodeToString(raw)
+}
+
+func validAssetCSP(declarations []string) bool {
+	for _, declaration := range declarations {
+		if declaration == "" || len(declaration) > 512 || strings.ContainsAny(declaration, ";\r\n\x00") {
+			return false
+		}
+		fields := strings.Fields(declaration)
+		if len(fields) < 2 {
+			return false
+		}
+		switch fields[0] {
+		case "connect-src", "font-src", "img-src", "media-src", "script-src", "style-src", "worker-src":
+		default:
+			return false
+		}
+		for _, source := range fields[1:] {
+			if len(source) > 240 || strings.ContainsAny(source, "\"<>\\") {
+				return false
+			}
+		}
+	}
+	return true
 }
 
 func matchingVersionedSchemaFile(files map[string]ManifestPackageFile, reference string) bool {
