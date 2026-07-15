@@ -320,6 +320,21 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		pool.Close()
 		return nil, fmt.Errorf("Host Query runtime setup failed: %w", err)
 	}
+	// 六域 Host Command 必须在首个插件 broker 注册前冻结；否则同一启动中
+	// 已运行插件会看到缺失目录，而后启动插件看到另一份能力集合。
+	if err := bindPostgresProtocolV2CommandRuntime(
+		hostAPIGateway, pool, jobDispatcher, moderationStore, attachmentStore,
+	); err != nil {
+		if stopErr := supportjobs.Stop(ctx, jobClient); stopErr != nil {
+			logger.Warn("job dispatcher stop failed", "error", stopErr)
+		}
+		sharedRedisClient.Close()
+		if closeErr := redisStorage.Close(); closeErr != nil {
+			logger.Warn("redis session storage close failed", "error", closeErr)
+		}
+		pool.Close()
+		return nil, fmt.Errorf("Host Command runtime setup failed: %w", err)
+	}
 	extensionRuntime := bindAPIExtensionRuntime(
 		extensionStore, hostAPIGateway, extensionService, executableTrustService, databaseLeaseRegistry,
 	)
