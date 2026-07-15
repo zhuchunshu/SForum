@@ -88,10 +88,14 @@ func (g *RouteGateway) Proxy(input *ProxyInput) error {
 }
 
 func routeRequestHeaderAllowed(name string) bool {
-	switch strings.ToLower(strings.TrimSpace(name)) {
+	canonical := strings.ToLower(strings.TrimSpace(name))
+	if strings.HasPrefix(canonical, "x-sforum-") {
+		return false
+	}
+	switch canonical {
 	case "", "host", "content-length", "cookie", "authorization", "proxy-authorization",
-		"x-sforum-actor-id", "x-sforum-extension-id", "x-sforum-locale", "x-api-key", "x-auth-token",
-		"connection", "keep-alive", "proxy-authenticate", "te", "trailer", "transfer-encoding", "upgrade":
+		"x-api-key", "x-auth-token", "x-csrf-token", "connection", "keep-alive", "proxy-authenticate",
+		"te", "trailer", "transfer-encoding", "upgrade":
 		return false
 	default:
 		return true

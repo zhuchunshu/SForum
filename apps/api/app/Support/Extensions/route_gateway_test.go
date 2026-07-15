@@ -100,6 +100,9 @@ func TestRouteGatewayStripsSpoofableClientHeaders(t *testing.T) {
 		gotLocale      string
 		gotAuth        string
 		gotCookie      string
+		gotCSRF        string
+		gotForged      string
+		gotTrace       string
 	)
 	server := fasthttp.Server{Handler: func(ctx *fasthttp.RequestCtx) {
 		gotActorID = string(ctx.Request.Header.Peek("X-SForum-Actor-ID"))
@@ -107,6 +110,9 @@ func TestRouteGatewayStripsSpoofableClientHeaders(t *testing.T) {
 		gotLocale = string(ctx.Request.Header.Peek("X-SForum-Locale"))
 		gotAuth = string(ctx.Request.Header.Peek("Authorization"))
 		gotCookie = string(ctx.Request.Header.Peek("Cookie"))
+		gotCSRF = string(ctx.Request.Header.Peek("X-Csrf-Token"))
+		gotForged = string(ctx.Request.Header.Peek("X-SForum-Forged"))
+		gotTrace = string(ctx.Request.Header.Peek("X-Trace-ID"))
 		ctx.SetStatusCode(fasthttp.StatusOK)
 	}}
 	listener := listenLocalhost(t)
@@ -125,8 +131,11 @@ func TestRouteGatewayStripsSpoofableClientHeaders(t *testing.T) {
 	req.Header.Set("X-SForum-Actor-ID", "spoofed-actor")
 	req.Header.Set("X-SForum-Extension-ID", "spoofed.plugin")
 	req.Header.Set("X-SForum-Locale", "spoofed-locale")
+	req.Header.Set("X-SForum-Forged", "spoofed-authority")
 	req.Header.Set("Authorization", "Bearer stolen-token")
 	req.Header.Set("Cookie", "sforum_session=evil")
+	req.Header.Set("X-Csrf-Token", "double-submit-secret")
+	req.Header.Set("X-Trace-ID", "trace-41")
 
 	err := NewRouteGateway().Proxy(&ProxyInput{
 		Request:     req,
@@ -156,6 +165,15 @@ func TestRouteGatewayStripsSpoofableClientHeaders(t *testing.T) {
 	}
 	if gotCookie != "" {
 		t.Fatalf("Cookie must not be forwarded, got %q", gotCookie)
+	}
+	if gotCSRF != "" {
+		t.Fatalf("X-Csrf-Token must not be forwarded, got %q", gotCSRF)
+	}
+	if gotForged != "" {
+		t.Fatalf("client-spoofed X-SForum authority must not reach plugin, got %q", gotForged)
+	}
+	if gotTrace != "trace-41" {
+		t.Fatalf("ordinary request header was lost, trace=%q", gotTrace)
 	}
 }
 
