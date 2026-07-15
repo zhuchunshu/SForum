@@ -118,6 +118,8 @@ type resolveResponse struct {
 }
 
 func (h *Controller) resolve(c fiber.Ctx) error {
+	setPrivatePageResponse(c)
+
 	pageID := strings.TrimSpace(c.Query("id"))
 	if pageID == "" {
 		pageID = strings.TrimSpace(string(c.Request().URI().QueryArgs().Peek("id")))
@@ -561,6 +563,8 @@ func (h *Controller) activatePreview(c fiber.Ctx) error {
 
 // resolvePath 公开：按请求 path 解析 add 页面（动态公开路由）。
 func (h *Controller) resolvePath(c fiber.Ctx) error {
+	setPrivatePageResponse(c)
+
 	path := strings.TrimSpace(c.Query("path"))
 	if path == "" {
 		return fiber.NewError(fiber.StatusUnprocessableEntity, "pages.path_required")
@@ -686,6 +690,11 @@ func (h *Controller) resolvePath(c fiber.Ctx) error {
 	}
 
 	return apphttp.OK(c, resp)
+}
+
+func setPrivatePageResponse(c fiber.Ctx) {
+	c.Set(fiber.HeaderCacheControl, "private, no-store")
+	c.Vary(fiber.HeaderCookie, fiber.HeaderAuthorization, fiber.HeaderAcceptLanguage)
 }
 
 // enforcePageAccess 严格校验 access；未知值拒绝。
