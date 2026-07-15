@@ -120,6 +120,14 @@ useSeoMeta({
         {{ t('admin.nav.extensionRouteProviders') }}
       </UButton>
       <UButton
+        icon="i-lucide-scan-search"
+        color="neutral"
+        variant="subtle"
+        :to="adminRoutes.path('/extensions/route-inspector')"
+      >
+        {{ t('admin.nav.extensionRouteInspector') }}
+      </UButton>
+      <UButton
         icon="i-lucide-waypoints"
         color="neutral"
         variant="subtle"
