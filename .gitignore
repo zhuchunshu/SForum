@@ -31,6 +31,10 @@ yarn-error.log*
 pnpm-debug.log*
 bun-debug.log*
 
+# Local browser automation artifacts
+.playwright-cli/
+.playwright-*.json
+
 # Temporary files
 tmp/
 temp/
