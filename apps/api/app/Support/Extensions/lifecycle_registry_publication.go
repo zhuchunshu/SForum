@@ -229,6 +229,9 @@ func (b *PostgresLifecycleBoundaryRegistries) ValidateLifecycleRegistries(
 			if err := b.hooks.providerSlots.ValidateReplaceRuntime(material.extension, material.binding.RuntimeInstanceID); err != nil {
 				return fmt.Errorf("validate provider slot registry: %w", err)
 			}
+			if err := b.hooks.commands.ValidateReplaceRuntime(material.extension, material.binding.RuntimeInstanceID); err != nil {
+				return fmt.Errorf("validate plugin command registry: %w", err)
+			}
 		}
 		if err := b.pages.PreflightContributionsReplacing(material.extension.ID, material.pages, material.extension.ID); err != nil {
 			return fmt.Errorf("validate page registry: %w", err)

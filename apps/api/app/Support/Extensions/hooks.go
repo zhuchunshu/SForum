@@ -56,6 +56,7 @@ type HookBus struct {
 	plugins       map[string]hookRuntimeRegistration
 	registry      *VersionedHookRegistry
 	providerSlots *VersionedProviderSlotRegistry
+	commands      *PluginCommandRegistry
 }
 
 type hookRuntimeRegistration struct {
@@ -74,6 +75,7 @@ func NewHookBus(config HookBusConfig) *HookBus {
 	return &HookBus{
 		invoker: config.Invoker, plugins: map[string]hookRuntimeRegistration{},
 		registry: NewVersionedHookRegistry(), providerSlots: NewVersionedProviderSlotRegistry(),
+		commands: NewPluginCommandRegistry(),
 	}
 }
 
@@ -103,6 +105,16 @@ func (b *HookBus) RegisterRuntime(extension extensions.Extension, instanceID str
 				_ = b.providerSlots.ReplaceRuntime(previous.extension, previous.instanceID)
 			} else {
 				_, _ = b.providerSlots.RemoveRuntime(extension.ID, instanceID)
+			}
+			return err
+		}
+		if err := b.commands.ReplaceRuntime(extension, instanceID); err != nil {
+			if hadPrevious && publishesVersionedHookSnapshot(previous.extension, previous.instanceID) {
+				_ = b.providerSlots.ReplaceRuntime(previous.extension, previous.instanceID)
+				_ = b.registry.ReplaceRuntime(previous.extension, previous.instanceID)
+			} else {
+				_, _ = b.providerSlots.RemoveRuntime(extension.ID, instanceID)
+				_, _ = b.registry.RemoveRuntime(extension.ID, instanceID)
 			}
 			return err
 		}
@@ -144,13 +156,22 @@ func (b *HookBus) unregisterRuntime(extensionID, instanceID string) (bool, error
 		if err := b.registry.ValidateRemoveRuntime(extensionID, instanceID); err != nil {
 			return false, err
 		}
+		if err := b.commands.ValidateRemoveRuntime(extensionID, instanceID); err != nil {
+			return false, err
+		}
+		commandRemoved, commandErr := b.commands.RemoveRuntime(extensionID, instanceID)
+		if commandErr != nil || !commandRemoved {
+			return false, commandErr
+		}
 		removed, err := b.registry.RemoveRuntime(extensionID, instanceID)
 		if err != nil || !removed {
+			_ = b.commands.ReplaceRuntime(current.extension, current.instanceID)
 			return false, err
 		}
 		providerRemoved, providerErr := b.providerSlots.RemoveRuntime(extensionID, instanceID)
 		if providerErr != nil || !providerRemoved {
 			_ = b.registry.ReplaceRuntime(current.extension, current.instanceID)
+			_ = b.commands.ReplaceRuntime(current.extension, current.instanceID)
 			return false, providerErr
 		}
 	}
@@ -174,6 +195,7 @@ func (b *HookBus) validateUnregisterRuntime(extension extensions.Extension, inst
 	return errors.Join(
 		b.registry.ValidateRemoveRuntime(extension.ID, instanceID),
 		b.providerSlots.ValidateRemoveRuntime(extension.ID, instanceID),
+		b.commands.ValidateRemoveRuntime(extension.ID, instanceID),
 	)
 }
 
@@ -188,6 +210,8 @@ func (b *HookBus) restoreRuntime(targetID, targetInstanceID string, previous Hoo
 func (b *HookBus) VersionedRegistry() *VersionedHookRegistry { return b.registry }
 
 func (b *HookBus) ProviderSlots() *VersionedProviderSlotRegistry { return b.providerSlots }
+
+func (b *HookBus) Commands() *PluginCommandRegistry { return b.commands }
 
 func (b *HookBus) RuntimeSnapshot(extensionID string) (HookRuntimeSnapshot, bool) {
 	b.mu.RLock()
@@ -218,7 +242,7 @@ func hasVersionedProviderSlots(extension extensions.Extension) bool {
 }
 
 func hasVersionedRuntimeContracts(extension extensions.Extension) bool {
-	return hasVersionedPluginHooks(extension) || hasVersionedProviderSlots(extension)
+	return hasVersionedPluginHooks(extension) || hasVersionedProviderSlots(extension) || len(extension.Manifest.Commands) > 0
 }
 
 func publishesVersionedHookSnapshot(extension extensions.Extension, instanceID string) bool {
