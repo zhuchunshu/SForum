@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"strconv"
+	"strings"
 	"sync/atomic"
 	"time"
 
@@ -17,7 +18,10 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-var ErrHostUnavailable = errors.New("protocol v2 host broker is unavailable")
+var (
+	ErrHostUnavailable                = errors.New("protocol v2 host broker is unavailable")
+	ErrHostActorDelegationUnavailable = errors.New("protocol v2 actor delegation is unavailable")
+)
 
 const (
 	HostQueryOwnSettingsID       = "sforum.extensions.settings.own"
@@ -112,6 +116,9 @@ func (h *Host) RequestContext(parent *protocolwire.RequestContext) *protocolwire
 	result.Actor = nil
 	result.Extension = cloneIdentity(h.identity)
 	result.GrantedAuthority = cloneAuthority(h.authority)
+	// Delegation tokens are consumed only by DelegatedCommandRequest and must
+	// not be copied onto arbitrary plugin-to-Host calls.
+	result.HostCommandDelegations = nil
 	if result.Locale == "" {
 		result.Locale = "und"
 	}
@@ -120,6 +127,47 @@ func (h *Host) RequestContext(parent *protocolwire.RequestContext) *protocolwire
 		result.Deadline = timestamppb.New(maximum)
 	}
 	return result
+}
+
+// DelegatedCommandRequest binds the one matching Host-issued token and
+// idempotency key to a generated command request. Callers may set dry-run or an
+// expected revision on the returned request before Plan or Execute.
+func (h *Host) DelegatedCommandRequest(
+	parent *protocolwire.RequestContext,
+	commandID string,
+	commandVersion string,
+	input *protocolwire.TypedDocument,
+) (*hostwire.CommandRequest, error) {
+	commandID = strings.TrimSpace(commandID)
+	commandVersion = strings.TrimSpace(commandVersion)
+	if h == nil || parent == nil || commandID == "" || commandVersion == "" {
+		return nil, ErrHostActorDelegationUnavailable
+	}
+	var matched *protocolwire.HostCommandDelegation
+	for _, delegation := range parent.GetHostCommandDelegations() {
+		if delegation == nil || delegation.GetCommandId() != commandID || delegation.GetCommandVersion() != commandVersion {
+			continue
+		}
+		if matched != nil {
+			return nil, ErrHostActorDelegationUnavailable
+		}
+		matched = delegation
+	}
+	if matched == nil || strings.TrimSpace(matched.GetToken()) == "" ||
+		strings.TrimSpace(matched.GetIdempotencyKey()) == "" ||
+		(parent.GetIdempotencyKey() != "" && parent.GetIdempotencyKey() != matched.GetIdempotencyKey()) {
+		return nil, ErrHostActorDelegationUnavailable
+	}
+	requestContext := h.RequestContext(parent)
+	requestContext.IdempotencyKey = matched.GetIdempotencyKey()
+	request := &hostwire.CommandRequest{
+		Context: requestContext, CommandId: commandID, CommandVersion: commandVersion,
+		IdempotencyKey: matched.GetIdempotencyKey(), ActorDelegation: matched.GetToken(),
+	}
+	if input != nil {
+		request.Input = proto.Clone(input).(*protocolwire.TypedDocument)
+	}
+	return request, nil
 }
 
 func hostUnaryClientInterceptor(token []byte) grpc.UnaryClientInterceptor {
