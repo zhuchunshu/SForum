@@ -84,6 +84,19 @@ func TestBufferedRouteStepInvokerV2EnforcesResponseLimit(t *testing.T) {
 	}
 }
 
+func TestBufferedRouteStepInvokerV2RejectsStreamPreflight(t *testing.T) {
+	runtime := newRouteDispatcherV2Runtime(t)
+	runtime.response.Body = nil
+	runtime.response.BodyPresent = false
+	runtime.response.StreamFollows = true
+	result, err := NewBufferedRouteStepInvoker(runtime).Invoke(
+		context.Background(), routeDispatcherV2Invocation(routes.NewRouteCommitObserver()),
+	)
+	if !errors.Is(err, ErrRouteRuntimeTarget) || !result.SideEffectStarted || result.ResponseStarted {
+		t.Fatalf("result=%#v err=%v", result, err)
+	}
+}
+
 type routeDispatcherV2Runtime struct {
 	snapshot    extensionsruntime.RuntimeInstanceSnapshot
 	gate        *extensionsruntime.RuntimeAdmissionGate

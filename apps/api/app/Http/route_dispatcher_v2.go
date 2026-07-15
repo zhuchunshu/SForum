@@ -52,6 +52,9 @@ func (i *BufferedRouteStepInvoker) invokeProtocolV2(
 	if err != nil {
 		return evidence.result(), err
 	}
+	if response.StreamFollows {
+		return evidence.result(), fmt.Errorf("%w: buffered route returned a stream preflight", ErrRouteRuntimeTarget)
+	}
 	evidence.markResponseStarted()
 	var responseBody []byte
 	if response.BodyPresent {

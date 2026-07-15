@@ -79,6 +79,10 @@ func NewApp(cfg config.Config, logger *slog.Logger, deps Dependencies) *fiber.Ap
 		WriteTimeout: cfg.HTTPWriteTimeout,
 		IdleTimeout:  cfg.HTTPIdleTimeout,
 		BodyLimit:    cfg.HTTPBodyLimit,
+		// Trusted multipart/stream routes forward request chunks with bounded
+		// memory; ordinary handlers still materialize c.Body() on demand.
+		StreamRequestBody:            true,
+		DisablePreParseMultipartForm: true,
 		// Fiber 内置 c.IP() / 限流也走同一套信任代理策略。
 		ProxyHeader: proxyHeader,
 		TrustProxy:  cfg.TrustProxy,

@@ -1,6 +1,7 @@
 package http
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"errors"
@@ -287,7 +288,15 @@ func routeDispatcherMiddleware(dispatcher *routes.Dispatcher, actors RouteActorL
 				return err
 			}
 		}
-		request := routeDispatchRequest(c, actor)
+		request := routeDispatchRequestMetadata(c, actor)
+		prepared, err := dispatcher.PrepareStream(c.Context(), request)
+		if err != nil {
+			return mapRouteDispatchError(err)
+		}
+		if prepared.Handled {
+			return serveRouteStream(c, prepared.Dispatch)
+		}
+		request.Body = append([]byte(nil), c.Body()...)
 		core := &fiberCoreRouteInvoker{ctx: c}
 		result, err := dispatcher.Dispatch(c.Context(), request, core)
 		if err != nil {
@@ -339,6 +348,12 @@ func (i *fiberCoreRouteInvoker) InvokeCore(_ context.Context, step routes.RouteE
 }
 
 func routeDispatchRequest(c fiber.Ctx, actor identity.Actor) routes.DispatchRequest {
+	request := routeDispatchRequestMetadata(c, actor)
+	request.Body = append([]byte(nil), c.Body()...)
+	return request
+}
+
+func routeDispatchRequestMetadata(c fiber.Ctx, actor identity.Actor) routes.DispatchRequest {
 	permissions := make(map[string]bool, len(actor.Permissions)+1)
 	for key, allowed := range actor.Permissions {
 		permissions[key] = allowed
@@ -355,9 +370,117 @@ func routeDispatchRequest(c fiber.Ctx, actor identity.Actor) routes.DispatchRequ
 	}
 	return routes.DispatchRequest{
 		Method: c.Method(), Path: c.Path(), Query: string(c.Request().URI().QueryString()),
-		Headers: fasthttpRequestHeaders(c), Body: append([]byte(nil), c.Body()...),
+		Headers: fasthttpRequestHeaders(c),
 		ActorID: actor.ID, Authenticated: actor.ID > 0 && actor.IsActive(),
 		CredentialSource: credentialSource, Permissions: permissions,
+	}
+}
+
+func serveRouteStream(c fiber.Ctx, dispatch *routes.RouteStreamDispatch) error {
+	if dispatch == nil || dispatch.Step().Mode == extensionmanifest.RouteModeWebSocket {
+		return mapRouteDispatchError(fmt.Errorf("%w: websocket adapter is unavailable", routes.ErrDispatchTransport))
+	}
+	start, err := dispatch.Open(c.Context())
+	if err != nil {
+		return mapRouteDispatchError(err)
+	}
+	if err := validateRouteStreamPreflight(dispatch.Step().Mode, start.Response); err != nil {
+		start.Session.Cancel()
+		dispatch.Fail()
+		return mapRouteDispatchError(err)
+	}
+	requestBody := c.Request().BodyStream()
+	if requestBody == nil {
+		requestBody = bytes.NewReader(c.Body())
+	}
+	if err := pumpRouteStreamRequest(requestBody, start.Session); err != nil {
+		start.Session.Cancel()
+		dispatch.Fail()
+		return mapRouteDispatchError(fmt.Errorf("%w: %w", routes.ErrDispatchTransport, err))
+	}
+	c.Response().Reset()
+	c.Status(start.Response.Status)
+	for name, values := range start.Response.Headers {
+		for _, value := range values {
+			c.Response().Header.Add(name, value)
+		}
+	}
+	dispatch.ResponseStarted()
+	return c.SendStreamWriter(func(writer *bufio.Writer) {
+		streamRouteResponse(writer, start.Session, dispatch)
+	})
+}
+
+func validateRouteStreamPreflight(mode string, response routes.DispatchResponse) error {
+	if mode != extensionmanifest.RouteModeSSE {
+		return nil
+	}
+	mediaType, _, err := mime.ParseMediaType(response.Headers.Get("Content-Type"))
+	if err != nil || !strings.EqualFold(mediaType, "text/event-stream") {
+		return fmt.Errorf("%w: SSE requires text/event-stream", ErrRouteRuntimeTarget)
+	}
+	return nil
+}
+
+func pumpRouteStreamRequest(reader io.Reader, session routes.RouteStreamSession) error {
+	if reader == nil || session == nil {
+		return routes.ErrDispatchTransport
+	}
+	buffer := make([]byte, extensionsruntime.MaxProtocolV2RouteChunkSize)
+	for {
+		read, err := reader.Read(buffer)
+		if read > 0 {
+			if sendErr := session.Send(buffer[:read], false); sendErr != nil {
+				return sendErr
+			}
+		}
+		if errors.Is(err, io.EOF) {
+			return session.CloseRequest()
+		}
+		if err != nil {
+			return err
+		}
+		if read == 0 {
+			return io.ErrNoProgress
+		}
+	}
+}
+
+func streamRouteResponse(writer *bufio.Writer, session routes.RouteStreamSession, dispatch *routes.RouteStreamDispatch) {
+	if writer == nil || session == nil || dispatch == nil {
+		if session != nil {
+			session.Cancel()
+		}
+		return
+	}
+	for {
+		chunk, err := session.Recv()
+		if errors.Is(err, io.EOF) {
+			if _, ok := session.Response(); !ok {
+				dispatch.Fail()
+				return
+			}
+			_ = dispatch.Complete()
+			return
+		}
+		if err != nil {
+			session.Cancel()
+			_ = dispatch.StreamFailed(err)
+			return
+		}
+		if len(chunk.Data) == 0 {
+			continue
+		}
+		if _, err := writer.Write(chunk.Data); err != nil {
+			session.Cancel()
+			_ = dispatch.StreamFailed(err)
+			return
+		}
+		if err := writer.Flush(); err != nil {
+			session.Cancel()
+			_ = dispatch.StreamFailed(err)
+			return
+		}
 	}
 }
 
