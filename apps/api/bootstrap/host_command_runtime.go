@@ -17,6 +17,8 @@ type protocolV2AttachmentStatusMutator struct {
 	store *attachments.PostgresStore
 }
 
+type protocolV2CommandRuntimeBinder func(*hostapi.Gateway) error
+
 func (m protocolV2AttachmentStatusMutator) MutateProtocolV2AttachmentStatus(
 	ctx context.Context,
 	tx pgx.Tx,
@@ -64,6 +66,17 @@ func bindPostgresProtocolV2CommandRuntime(
 		return fmt.Errorf("bind Host Command runtime: %w", err)
 	}
 	return nil
+}
+
+func postgresProtocolV2CommandRuntimeBinder(
+	pool *pgxpool.Pool,
+	jobs *supportjobs.Dispatcher,
+	moderationStore *moderation.PostgresStore,
+	attachmentStore *attachments.PostgresStore,
+) protocolV2CommandRuntimeBinder {
+	return func(gateway *hostapi.Gateway) error {
+		return bindPostgresProtocolV2CommandRuntime(gateway, pool, jobs, moderationStore, attachmentStore)
+	}
 }
 
 var _ hostapi.ProtocolV2AttachmentStatusMutator = protocolV2AttachmentStatusMutator{}

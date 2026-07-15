@@ -206,7 +206,11 @@ func TestStandaloneWorkerRuntimeUsesCipherServiceSettings(t *testing.T) {
 		}
 		return &countingWorkerRuntime{}
 	}
-	runtime, gateway, err := buildStandaloneWorkerExtensionRuntime(context.Background(), config.Config{ExtensionRoot: t.TempDir()}, recordingDatabaseBinderFactory(nil), store, cipher, nil, nil)
+	runtime, gateway, err := buildStandaloneWorkerExtensionRuntime(
+		context.Background(), config.Config{ExtensionRoot: t.TempDir()},
+		recordingDatabaseBinderFactory(nil), newRecordingCommandRuntimeBinder(nil),
+		store, cipher, nil, nil,
+	)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -230,7 +234,7 @@ func TestStandaloneWorkerSafeModeReconcilesNoExtensions(t *testing.T) {
 	}
 	built, gateway, err := buildStandaloneWorkerExtensionRuntime(context.Background(), config.Config{
 		SafeMode: true, ExtensionRoot: t.TempDir(),
-	}, recordingDatabaseBinderFactory(nil), store, nil, nil, nil)
+	}, recordingDatabaseBinderFactory(nil), newRecordingCommandRuntimeBinder(nil), store, nil, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -249,16 +253,22 @@ func TestStandaloneWorkerBindsDatabaseCatalogBeforeReconcile(t *testing.T) {
 	store := &bootstrapExtensionSettingsStore{item: plugin}
 	runtime := &countingWorkerRuntime{}
 	binder := &recordingDatabaseCatalogBinder{}
+	commandBinder := &recordingCommandRuntimeBinder{}
 	newStandaloneWorkerRuntimeManager = func(_ extensions.Store, _ extensionsruntime.HostAPIRegistrar, _ extensionsruntime.PluginSettings, _ extensionsruntime.RuntimeTrustSource, _ extensionsruntime.RuntimeDatabaseLeaseRegistry) workerExtensionRuntime {
 		runtime.onReconcile = func() {
 			if binder.bindCalls != 1 || len(binder.bound.queries) != 1 || len(binder.bound.executes) != 1 {
 				t.Fatalf("database catalog was not bound before Reconcile: %#v", binder)
 			}
+			if commandBinder.bindCalls != 1 {
+				t.Fatalf("Host Command catalog was not bound before Reconcile: %#v", commandBinder)
+			}
 		}
 		return runtime
 	}
 	built, gateway, err := buildStandaloneWorkerExtensionRuntime(
-		context.Background(), config.Config{ExtensionRoot: t.TempDir()}, recordingDatabaseBinderFactory(binder), store, nil, nil, nil,
+		context.Background(), config.Config{ExtensionRoot: t.TempDir()},
+		recordingDatabaseBinderFactory(binder), newRecordingCommandRuntimeBinder(commandBinder),
+		store, nil, nil, nil,
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -275,6 +285,20 @@ func recordingDatabaseBinderFactory(binder *recordingDatabaseCatalogBinder) prot
 		binder = &recordingDatabaseCatalogBinder{}
 	}
 	return func(*hostapi.Gateway) protocolV2DatabaseCatalogBinder { return binder }
+}
+
+type recordingCommandRuntimeBinder struct {
+	bindCalls int
+}
+
+func newRecordingCommandRuntimeBinder(binder *recordingCommandRuntimeBinder) protocolV2CommandRuntimeBinder {
+	if binder == nil {
+		binder = &recordingCommandRuntimeBinder{}
+	}
+	return func(*hostapi.Gateway) error {
+		binder.bindCalls++
+		return nil
+	}
 }
 
 // TestEmbedSharedRuntimeSingleStart 模拟 API Reconcile + embed 注入后不再 Start。

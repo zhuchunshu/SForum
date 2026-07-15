@@ -23,6 +23,7 @@ import (
 	forum "github.com/zhuchunshu/sforum/apps/api/app/Models/Forum"
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
 	jobsmodel "github.com/zhuchunshu/sforum/apps/api/app/Models/Jobs"
+	moderation "github.com/zhuchunshu/sforum/apps/api/app/Models/Moderation"
 	notifications "github.com/zhuchunshu/sforum/apps/api/app/Models/Notifications"
 	options "github.com/zhuchunshu/sforum/apps/api/app/Models/Options"
 	webhooks "github.com/zhuchunshu/sforum/apps/api/app/Models/Webhooks"
@@ -132,6 +133,7 @@ func buildStandaloneWorkerExtensionRuntime(
 	ctx context.Context,
 	cfg config.Config,
 	databaseBinderFactory protocolV2DatabaseCatalogBinderFactory,
+	commandBinder protocolV2CommandRuntimeBinder,
 	store extensions.Store,
 	cipher *crypto.OptionCipher,
 	trust extensionsruntime.RuntimeTrustSource,
@@ -150,6 +152,14 @@ func buildStandaloneWorkerExtensionRuntime(
 	extensions.WithActivationCoordinator(activation)(service)
 	workerHostAPI := hostapi.New(hostapi.Config{Settings: service})
 	workerHostGateway := hostapi.NewGateway(workerHostAPI)
+	if commandBinder == nil {
+		_ = workerHostGateway.Close()
+		return nil, nil, fmt.Errorf("worker Host Command runtime binder is required")
+	}
+	if err := commandBinder(workerHostGateway); err != nil {
+		_ = workerHostGateway.Close()
+		return nil, nil, fmt.Errorf("bind worker Host Command runtime: %w", err)
+	}
 	if databaseBinderFactory == nil {
 		_ = workerHostGateway.Close()
 		return nil, nil, fmt.Errorf("worker DatabaseService catalog binder is required")
@@ -296,10 +306,20 @@ func newWorkerWithPool(cfg config.Config, pool *pgxpool.Pool, logger *slog.Logge
 
 	extensionRuntime, hostGateway, ownsRuntime, err := resolveWorkerExtensionRuntime(deps, func() (workerExtensionRuntime, hostAPIGatewayCloser, error) {
 		activation := extensions.NewActivationCoordinator(extensionStore).WithAuditor(audit.NewPostgresWriter(pool))
+		commandJobClient, commandErr := supportjobs.NewInsertOnlyClient(pool, supportjobs.FromAppConfig(cfg))
+		if commandErr != nil {
+			return nil, nil, fmt.Errorf("worker Host Command dispatcher setup failed: %w", commandErr)
+		}
 		return buildStandaloneWorkerExtensionRuntime(
 			context.Background(), cfg,
 			postgresProtocolV2DatabaseCatalogBinderFactory(
 				pool, hostapi.WithProtocolV2DatabaseTraceSink(hostapi.NewSlogDatabaseTraceSink(logger)),
+			),
+			postgresProtocolV2CommandRuntimeBinder(
+				pool,
+				supportjobs.NewDispatcher(commandJobClient),
+				moderation.NewPostgresStore(pool),
+				attachments.NewPostgresStore(pool),
 			),
 			extensionStore, optionCipher, runtimeTrust, databaseLeaseRegistry, activation,
 		)
