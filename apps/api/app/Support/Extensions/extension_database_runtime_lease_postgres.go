@@ -39,6 +39,11 @@ func createExtensionDatabaseRuntimeLeaseRole(
 	if roleExists {
 		return "", ErrExtensionDatabaseRuntimeLeaseConflict
 	}
+	wantKernel := containsExtensionDatabasePower(powers, extensionmanifest.DatabaseGrantKernel)
+	identity, kernelCoreOwners, err := validateExtensionDatabaseKernelCoreState(ctx, tx)
+	if err != nil {
+		return "", fmt.Errorf("validate Core state before runtime lease issue: %w", err)
+	}
 	role := pgx.Identifier{roleName}.Sanitize()
 	database := pgx.Identifier{databaseName}.Sanitize()
 	owner := pgx.Identifier{identifiers.OwnerRole}.Sanitize()
@@ -51,27 +56,25 @@ func createExtensionDatabaseRuntimeLeaseRole(
 	if containsExtensionDatabasePower(powers, extensionmanifest.DatabaseGrantOwnSchema) {
 		schema := pgx.Identifier{identifiers.Schema}.Sanitize()
 		queries = append(queries,
-			`GRANT `+owner+` TO `+role,
+			`GRANT `+owner+` TO `+role+` WITH ADMIN FALSE, INHERIT TRUE, SET TRUE`,
 			`ALTER DEFAULT PRIVILEGES FOR ROLE `+role+` IN SCHEMA `+schema+` GRANT ALL ON TABLES TO `+owner,
 			`ALTER DEFAULT PRIVILEGES FOR ROLE `+role+` IN SCHEMA `+schema+` GRANT ALL ON SEQUENCES TO `+owner,
 			`ALTER DEFAULT PRIVILEGES FOR ROLE `+role+` IN SCHEMA `+schema+` GRANT ALL ON FUNCTIONS TO `+owner,
 			`ALTER DEFAULT PRIVILEGES FOR ROLE `+role+` IN SCHEMA `+schema+` GRANT USAGE ON TYPES TO `+owner,
 		)
 	}
-	if containsExtensionDatabasePower(powers, extensionmanifest.DatabaseGrantCoreViews) {
+	if containsExtensionDatabasePower(powers, extensionmanifest.DatabaseGrantCoreViews) && !wantKernel {
 		coreViews := pgx.Identifier{extensionDatabaseCoreViewSchema}.Sanitize()
 		queries = append(queries,
 			`GRANT USAGE ON SCHEMA `+coreViews+` TO `+role,
 			`GRANT SELECT ON ALL TABLES IN SCHEMA `+coreViews+` TO `+role,
 		)
 	}
-	if containsExtensionDatabasePower(powers, extensionmanifest.DatabaseGrantKernel) {
-		publicSchema := pgx.Identifier{"public"}.Sanitize()
+	if wantKernel {
+		coreOwner := pgx.Identifier{identity.ownerRole}.Sanitize()
 		queries = append(queries,
-			`GRANT USAGE ON SCHEMA `+publicSchema+` TO `+role,
-			`GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA `+publicSchema+` TO `+role,
-			`GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA `+publicSchema+` TO `+role,
-			`GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA `+publicSchema+` TO `+role,
+			`GRANT `+coreOwner+` TO `+role+` WITH ADMIN FALSE, INHERIT TRUE, SET FALSE`,
+			`ALTER DEFAULT PRIVILEGES FOR ROLE `+role+` REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC`,
 		)
 	}
 	queries = append(queries,
@@ -81,18 +84,28 @@ func createExtensionDatabaseRuntimeLeaseRole(
 		`ALTER ROLE `+role+` IN DATABASE `+database+` SET statement_timeout TO '`+extensionDatabaseRuntimeStatementTimeout+`'`,
 		`ALTER ROLE `+role+` IN DATABASE `+database+` SET idle_in_transaction_session_timeout TO '`+extensionDatabaseRuntimeIdleTransactionTimeout+`'`,
 	)
-	for _, query := range queries {
-		if _, err := tx.Exec(ctx, query); err != nil {
-			return "", fmt.Errorf("%w: configure runtime lease role: %v", ErrExtensionDatabaseCredential, err)
-		}
-	}
-	if err := hardenExtensionDatabaseCoreRoutineAuthority(ctx, tx); err != nil {
+	if err := acquireExtensionDatabaseKernelOwnerAuthority(ctx, tx, kernelCoreOwners); err != nil {
 		return "", err
 	}
-	if containsExtensionDatabasePower(powers, extensionmanifest.DatabaseGrantRawCore) {
-		if err := grantExtensionDatabaseRawCoreAuthority(ctx, tx, roleName); err != nil {
-			return "", err
+	configurationErr := func() error {
+		for _, query := range queries {
+			if _, err := tx.Exec(ctx, query); err != nil {
+				return fmt.Errorf("%w: configure runtime lease role: %v", ErrExtensionDatabaseCredential, err)
+			}
 		}
+		if err := hardenExtensionDatabaseCoreRoutineAuthority(ctx, tx, kernelCoreOwners); err != nil {
+			return err
+		}
+		if containsExtensionDatabasePower(powers, extensionmanifest.DatabaseGrantRawCore) && !wantKernel {
+			return grantExtensionDatabaseRawCoreAuthority(ctx, tx, roleName, kernelCoreOwners)
+		}
+		return nil
+	}()
+	if configurationErr != nil {
+		return "", configurationErr
+	}
+	if err := releaseExtensionDatabaseKernelOwnerAuthority(ctx, tx, kernelCoreOwners); err != nil {
+		return "", err
 	}
 	if err := validateExtensionDatabaseRuntimeLeaseRole(
 		ctx, tx, identifiers, roleName, databaseName, powers, searchPath, expiresAt,
@@ -131,12 +144,27 @@ func validateExtensionDatabaseRuntimeLeaseRole(
 		return ErrExtensionDatabaseResourceConflict
 	}
 
-	expectedMembership := ""
+	extraKernelRoles := []string(nil)
+	if containsExtensionDatabasePower(powers, extensionmanifest.DatabaseGrantKernel) {
+		extraKernelRoles = append(extraKernelRoles, roleName)
+	}
+	identity, kernelCoreOwners, err := validateExtensionDatabaseKernelCoreState(ctx, tx, extraKernelRoles...)
+	if err != nil {
+		return fmt.Errorf("validate Core state after runtime lease issue: %w", err)
+	}
+	expectedMemberships := make(map[string]extensionDatabaseMembershipOptions, 2)
 	if containsExtensionDatabasePower(powers, extensionmanifest.DatabaseGrantOwnSchema) {
-		expectedMembership = identifiers.OwnerRole
+		expectedMemberships[identifiers.OwnerRole] = extensionDatabaseMembershipOptions{
+			inherit: true,
+			set:     true,
+		}
+	}
+	if containsExtensionDatabasePower(powers, extensionmanifest.DatabaseGrantKernel) {
+		expectedMemberships[identity.ownerRole] = extensionDatabaseMembershipOptions{inherit: true}
 	}
 	rows, err := tx.Query(ctx, `
-		SELECT granted.rolname
+		SELECT granted.rolname, memberships.admin_option,
+		       memberships.inherit_option, memberships.set_option
 		FROM pg_auth_members AS memberships
 		JOIN pg_roles AS member ON member.oid = memberships.member
 		JOIN pg_roles AS granted ON granted.oid = memberships.roleid
@@ -149,15 +177,17 @@ func validateExtensionDatabaseRuntimeLeaseRole(
 	memberships := 0
 	for rows.Next() {
 		var granted string
-		if err := rows.Scan(&granted); err != nil {
+		var actual extensionDatabaseMembershipOptions
+		if err := rows.Scan(&granted, &actual.admin, &actual.inherit, &actual.set); err != nil {
 			return err
 		}
 		memberships++
-		if expectedMembership == "" || granted != expectedMembership {
+		expected, ok := expectedMemberships[granted]
+		if !ok || actual != expected {
 			return ErrExtensionDatabaseResourceConflict
 		}
 	}
-	if err := rows.Err(); err != nil || (expectedMembership != "" && memberships != 1) {
+	if err := rows.Err(); err != nil || memberships != len(expectedMemberships) {
 		if err != nil {
 			return err
 		}
@@ -199,12 +229,12 @@ func validateExtensionDatabaseRuntimeLeaseRole(
 	if len(seen) != len(expectedSettings) {
 		return ErrExtensionDatabaseResourceConflict
 	}
-	if err := validateExtensionDatabaseRawCoreAuthority(ctx, tx, roleName, powers); err != nil {
-		return err
+	if err := validateExtensionDatabaseRawCoreAuthority(ctx, tx, roleName, powers, kernelCoreOwners); err != nil {
+		return fmt.Errorf("validate runtime lease Core ACL authority: %w", err)
 	}
 	// 持久 owner 不得携带 Core 权限，否则普通 own_schema 租约会继承已撤销运行时的权力。
-	if err := validateExtensionDatabaseRawCoreAuthority(ctx, tx, identifiers.OwnerRole, nil); err != nil {
-		return err
+	if err := validateExtensionDatabaseRawCoreAuthority(ctx, tx, identifiers.OwnerRole, nil, kernelCoreOwners); err != nil {
+		return fmt.Errorf("validate persistent extension owner Core isolation: %w", err)
 	}
 	return nil
 }
@@ -213,15 +243,13 @@ func normalizeExtensionDatabaseLeaseSetting(value string) string {
 	return strings.NewReplacer(" ", "", `"`, "").Replace(value)
 }
 
-func revokeExtensionDatabaseRuntimeLeaseRole(
+func disableExtensionDatabaseRuntimeLeaseRole(
 	ctx context.Context,
 	tx pgx.Tx,
 	roleName string,
-	ownerRoleName string,
 	databaseName string,
 ) error {
-	if !validPostgresIdentifier(roleName) || !validPostgresIdentifier(ownerRoleName) ||
-		!validPostgresCatalogName(databaseName) {
+	if !validPostgresIdentifier(roleName) || !validPostgresCatalogName(databaseName) {
 		return ErrExtensionDatabaseRegistryInvalid
 	}
 	if err := lockExtensionDatabasePhysicalAuthority(ctx, tx); err != nil {
@@ -235,13 +263,11 @@ func revokeExtensionDatabaseRuntimeLeaseRole(
 		return nil
 	}
 	role := pgx.Identifier{roleName}.Sanitize()
-	owner := pgx.Identifier{ownerRoleName}.Sanitize()
 	database := pgx.Identifier{databaseName}.Sanitize()
-	queries := []string{
+	for _, query := range []string{
 		`ALTER ROLE ` + role + ` NOLOGIN PASSWORD NULL VALID UNTIL 'epoch'`,
 		`REVOKE CONNECT ON DATABASE ` + database + ` FROM ` + role,
-	}
-	for _, query := range queries {
+	} {
 		if _, err := tx.Exec(ctx, query); err != nil {
 			return fmt.Errorf("%w: disable runtime lease role: %v", ErrExtensionDatabaseCredential, err)
 		}
@@ -253,16 +279,88 @@ func revokeExtensionDatabaseRuntimeLeaseRole(
 	`, roleName, databaseName); err != nil {
 		return fmt.Errorf("%w: terminate runtime lease sessions: %v", ErrExtensionDatabaseCredential, err)
 	}
-	for _, query := range []string{
-		`REASSIGN OWNED BY ` + role + ` TO ` + owner,
-		`DROP OWNED BY ` + role,
-		`DROP ROLE ` + role,
-	} {
+	return nil
+}
+
+func cleanupExtensionDatabaseRuntimeLeaseRole(
+	ctx context.Context,
+	tx pgx.Tx,
+	roleName string,
+	ownerRoleName string,
+	schemaName string,
+	databaseName string,
+	powers []string,
+) error {
+	if !validPostgresIdentifier(roleName) || !validPostgresIdentifier(ownerRoleName) ||
+		!validPostgresIdentifier(schemaName) || !validPostgresCatalogName(databaseName) || len(powers) == 0 {
+		return ErrExtensionDatabaseRegistryInvalid
+	}
+	if err := lockExtensionDatabasePhysicalAuthority(ctx, tx); err != nil {
+		return err
+	}
+	var exists bool
+	if err := tx.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = $1)`, roleName).Scan(&exists); err != nil {
+		return fmt.Errorf("inspect runtime lease cleanup role: %w", err)
+	}
+	if !exists {
+		return nil
+	}
+	role := pgx.Identifier{roleName}.Sanitize()
+	owner := pgx.Identifier{ownerRoleName}.Sanitize()
+	wantKernel := containsExtensionDatabasePower(powers, extensionmanifest.DatabaseGrantKernel)
+	retirementOwners := map[string]struct{}{roleName: {}}
+	if wantKernel {
+		_, kernelOwners, err := validateExtensionDatabaseKernelCoreState(ctx, tx)
+		if err != nil {
+			return err
+		}
+		retirementOwners = kernelOwners
+	}
+	if err := acquireExtensionDatabaseKernelOwnerAuthority(ctx, tx, retirementOwners); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(ctx, `
+		SELECT pg_terminate_backend(pid)
+		FROM pg_stat_activity
+		WHERE usename = $1 AND datname = $2 AND pid <> pg_backend_pid()
+	`, roleName, databaseName); err != nil {
+		return fmt.Errorf("%w: terminate fenced runtime lease sessions: %v", ErrExtensionDatabaseCredential, err)
+	}
+	if wantKernel {
+		if err := hardenExtensionDatabaseCoreRoutineAuthority(ctx, tx, retirementOwners); err != nil {
+			return err
+		}
+		if err := reassignExtensionDatabaseKernelCoreObjects(ctx, tx, roleName); err != nil {
+			return err
+		}
+		if err := validateExtensionDatabaseKernelRemainingOwnership(
+			ctx, tx, roleName, schemaName,
+			containsExtensionDatabasePower(powers, extensionmanifest.DatabaseGrantOwnSchema),
+		); err != nil {
+			return err
+		}
+	}
+	retirementQueries := make([]string, 0, 3)
+	if containsExtensionDatabasePower(powers, extensionmanifest.DatabaseGrantOwnSchema) {
+		retirementQueries = append(retirementQueries, `REASSIGN OWNED BY `+role+` TO `+owner)
+	}
+	retirementQueries = append(retirementQueries, `DROP OWNED BY `+role, `DROP ROLE `+role)
+	for _, query := range retirementQueries {
 		if _, err := tx.Exec(ctx, query); err != nil {
 			return fmt.Errorf("%w: retire runtime lease role: %v", ErrExtensionDatabaseCredential, err)
 		}
 	}
+	delete(retirementOwners, roleName)
+	if err := releaseExtensionDatabaseKernelOwnerAuthority(ctx, tx, retirementOwners); err != nil {
+		return err
+	}
 	return nil
+}
+
+type extensionDatabaseMembershipOptions struct {
+	admin   bool
+	inherit bool
+	set     bool
 }
 
 func extendExtensionDatabaseRuntimeLeaseRole(

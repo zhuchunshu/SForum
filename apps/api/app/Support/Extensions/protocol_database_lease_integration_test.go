@@ -26,7 +26,7 @@ func TestProtocolStarterUsesRealExactDatabaseLease(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer pool.Close()
+	t.Cleanup(pool.Close)
 
 	extensionID := fmt.Sprintf("p5.protocol.database.%d", time.Now().UnixNano())
 	artifact := insertExtensionDatabaseRuntimeLeaseFixture(

@@ -15,6 +15,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
+	"github.com/zhuchunshu/sforum/apps/api/database/coreauthority"
 )
 
 var (
@@ -324,9 +325,9 @@ func lockExtensionDatabasePhysicalAuthority(ctx context.Context, tx pgx.Tx) erro
 	if _, err := tx.Exec(ctx, `
 		SELECT pg_advisory_xact_lock(
 			hashtext(current_database()),
-			hashtext('sforum.extension-database.physical-authority.v1')
+			hashtext($1)
 		)
-	`); err != nil {
+	`, coreauthority.PhysicalAuthorityLockName); err != nil {
 		return fmt.Errorf("lock extension database physical authority: %w", err)
 	}
 	return nil

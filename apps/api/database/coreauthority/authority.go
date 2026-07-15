@@ -8,11 +8,14 @@ import (
 )
 
 const (
-	PublicSchema         = "public"
-	StableCoreViewSchema = "sforum_core_v1"
-	ownerRolePrefix      = "sforum_core_o_"
-	roleHashBytes        = 20
-	postgresNameMaxBytes = 63
+	PublicSchema                    = "public"
+	StableCoreViewSchema            = "sforum_core_v1"
+	PhysicalAuthorityLockName       = "sforum.extension-database.physical-authority.v1"
+	KernelCleanupPendingRevokeCode  = "lease_cleanup_pending.revoke"
+	KernelCleanupPendingExpiredCode = "lease_cleanup_pending.expired"
+	ownerRolePrefix                 = "sforum_core_o_"
+	roleHashBytes                   = 20
+	postgresNameMaxBytes            = 63
 )
 
 var ErrInvalidDatabaseIdentity = errors.New("core database identity is invalid")

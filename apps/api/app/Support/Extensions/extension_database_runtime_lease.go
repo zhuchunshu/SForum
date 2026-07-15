@@ -11,23 +11,31 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
+	"github.com/zhuchunshu/sforum/apps/api/database/coreauthority"
 )
 
 const (
 	ExtensionDatabaseLeaseIssuerActor = "actor"
 	ExtensionDatabaseLeaseIssuerHost  = "host"
 
-	ExtensionDatabaseLeaseActive              = "active"
-	ExtensionDatabaseLeaseDraining            = "draining"
-	ExtensionDatabaseLeaseRevoked             = "revoked"
-	ExtensionDatabaseLeaseFailed              = "failed"
-	extensionDatabaseRuntimeLeaseIssuedAudit  = "extension.database_runtime_lease.issued"
-	extensionDatabaseRuntimeLeaseRevokedAudit = "extension.database_runtime_lease.revoked"
+	ExtensionDatabaseLeaseActive                           = "active"
+	ExtensionDatabaseLeaseDraining                         = "draining"
+	ExtensionDatabaseLeaseRevoked                          = "revoked"
+	ExtensionDatabaseLeaseFailed                           = "failed"
+	extensionDatabaseRuntimeLeaseIssuedAudit               = "extension.database_runtime_lease.issued"
+	extensionDatabaseRuntimeLeaseRevokedAudit              = "extension.database_runtime_lease.revoked"
+	extensionDatabaseRuntimeLeaseCleanupPendingRevokeCode  = coreauthority.KernelCleanupPendingRevokeCode
+	extensionDatabaseRuntimeLeaseCleanupPendingExpiredCode = coreauthority.KernelCleanupPendingExpiredCode
 
 	extensionDatabaseRuntimeLeaseTTL             = 2 * time.Minute
 	extensionDatabaseRuntimeLeaseConnectionLimit = 1
 	extensionDatabaseMaximumLiveRuntimeLeases    = 8
 )
+
+func isExtensionDatabaseRuntimeLeaseCleanupPending(code string) bool {
+	return code == extensionDatabaseRuntimeLeaseCleanupPendingRevokeCode ||
+		code == extensionDatabaseRuntimeLeaseCleanupPendingExpiredCode
+}
 
 var (
 	ErrExtensionDatabaseRuntimeLeaseNotFound = errors.New("extension database runtime lease not found")
@@ -195,6 +203,11 @@ func (r *PostgresExtensionDatabaseRegistry) IssueRuntimeLease(
 	if err != nil {
 		return ExtensionDatabaseRuntimeCredential{}, ErrExtensionDatabaseRegistryInvalid
 	}
+	if _, err := r.reapExpiredRuntimeLeasesForExtension(
+		ctx, request.Artifact.ExtensionID, DefaultExtensionDatabaseRuntimeLeaseReapLimit,
+	); err != nil {
+		return ExtensionDatabaseRuntimeCredential{}, fmt.Errorf("reconcile runtime leases before issue: %w", err)
+	}
 	roleName, err := ExtensionDatabaseRuntimeLeaseRoleFor(
 		request.Artifact.ExtensionID, request.RuntimeInstanceID, leaseID,
 	)
@@ -222,11 +235,8 @@ func (r *PostgresExtensionDatabaseRegistry) IssueRuntimeLease(
 	if err != nil {
 		return ExtensionDatabaseRuntimeCredential{}, fmt.Errorf("ensure runtime lease database resources: %w", err)
 	}
-	if _, err := reapExpiredExtensionDatabaseRuntimeLeasesLocked(
-		ctx, tx, request.Artifact.ExtensionID, identifiers, databaseName,
-		DefaultExtensionDatabaseRuntimeLeaseReapLimit,
-	); err != nil {
-		return ExtensionDatabaseRuntimeCredential{}, fmt.Errorf("reap expired runtime leases before issue: %w", err)
+	if err := ensureExtensionDatabaseRuntimeLeaseCleanupReady(ctx, tx, request.Artifact.ExtensionID); err != nil {
+		return ExtensionDatabaseRuntimeCredential{}, err
 	}
 	grant, err := r.resolveRuntimeLeaseGrant(ctx, tx, request, declaration)
 	if err != nil {
@@ -288,6 +298,22 @@ func (r *PostgresExtensionDatabaseRegistry) RevokeRuntimeLease(
 	if err := r.validateRuntimeLeaseRef(ctx, ref); err != nil || !validExtensionDatabaseLeaseAuthority(authority) {
 		return ExtensionDatabaseRuntimeLeaseSnapshot{}, ErrExtensionDatabaseRegistryInvalid
 	}
+	lease, err := r.fenceRuntimeLeaseForRevoke(ctx, ref, authority)
+	if err != nil || lease.Status == ExtensionDatabaseLeaseRevoked {
+		return lease, err
+	}
+	if !isExtensionDatabaseRuntimeLeaseCleanupPending(lease.FailureCode) {
+		return ExtensionDatabaseRuntimeLeaseSnapshot{}, ErrExtensionDatabaseRuntimeLeaseConflict
+	}
+	lease, _, err = r.cleanupRuntimeLease(ctx, ref)
+	return lease, err
+}
+
+func (r *PostgresExtensionDatabaseRegistry) fenceRuntimeLeaseForRevoke(
+	ctx context.Context,
+	ref ExtensionDatabaseRuntimeLeaseRef,
+	authority ExtensionDatabaseLeaseAuthority,
+) (ExtensionDatabaseRuntimeLeaseSnapshot, error) {
 	identifiers, err := ExtensionDatabaseIdentifiersFor(ref.Artifact.ExtensionID)
 	if err != nil {
 		return ExtensionDatabaseRuntimeLeaseSnapshot{}, ErrExtensionDatabaseRegistryInvalid
@@ -308,6 +334,9 @@ func (r *PostgresExtensionDatabaseRegistry) RevokeRuntimeLease(
 		return lease, nil
 	}
 	if lease.Status == ExtensionDatabaseLeaseFailed {
+		if isExtensionDatabaseRuntimeLeaseCleanupPending(lease.FailureCode) {
+			return lease, nil
+		}
 		return ExtensionDatabaseRuntimeLeaseSnapshot{}, ErrExtensionDatabaseRuntimeLeaseConflict
 	}
 	authority, err = materializeExtensionDatabaseRuntimeLeaseHostAudit(
@@ -320,19 +349,67 @@ func (r *PostgresExtensionDatabaseRegistry) RevokeRuntimeLease(
 	if err != nil {
 		return ExtensionDatabaseRuntimeLeaseSnapshot{}, err
 	}
-	if err := revokeExtensionDatabaseRuntimeLeaseRole(
-		ctx, tx, lease.RoleName, identifiers.OwnerRole, databaseName,
-	); err != nil {
+	if err := disableExtensionDatabaseRuntimeLeaseRole(ctx, tx, lease.RoleName, databaseName); err != nil {
 		return ExtensionDatabaseRuntimeLeaseSnapshot{}, err
 	}
-	lease, err = revokeExtensionDatabaseRuntimeLease(ctx, tx, lease, authority)
+	lease, err = markExtensionDatabaseRuntimeLeaseRevokeCleanupPending(ctx, tx, lease, authority)
 	if err != nil {
 		return ExtensionDatabaseRuntimeLeaseSnapshot{}, err
 	}
 	if err := tx.Commit(ctx); err != nil {
-		return ExtensionDatabaseRuntimeLeaseSnapshot{}, fmt.Errorf("commit runtime lease revoke: %w", err)
+		return ExtensionDatabaseRuntimeLeaseSnapshot{}, fmt.Errorf("commit runtime lease authority fence: %w", err)
 	}
 	return lease, nil
+}
+
+func (r *PostgresExtensionDatabaseRegistry) cleanupRuntimeLease(
+	ctx context.Context,
+	ref ExtensionDatabaseRuntimeLeaseRef,
+) (ExtensionDatabaseRuntimeLeaseSnapshot, bool, error) {
+	identifiers, err := ExtensionDatabaseIdentifiersFor(ref.Artifact.ExtensionID)
+	if err != nil {
+		return ExtensionDatabaseRuntimeLeaseSnapshot{}, false, ErrExtensionDatabaseRegistryInvalid
+	}
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return ExtensionDatabaseRuntimeLeaseSnapshot{}, false, fmt.Errorf("begin runtime lease cleanup: %w", err)
+	}
+	defer tx.Rollback(ctx)
+	if err := lockExtensionDatabaseResource(ctx, tx, identifiers.LockKey); err != nil {
+		return ExtensionDatabaseRuntimeLeaseSnapshot{}, false, err
+	}
+	lease, err := loadExtensionDatabaseRuntimeLease(ctx, tx, ref, true)
+	if err != nil {
+		return ExtensionDatabaseRuntimeLeaseSnapshot{}, false, err
+	}
+	if lease.Status == ExtensionDatabaseLeaseRevoked ||
+		lease.Status == ExtensionDatabaseLeaseFailed && lease.FailureCode == extensionDatabaseRuntimeLeaseExpiredCode {
+		return lease, false, nil
+	}
+	if lease.Status != ExtensionDatabaseLeaseFailed || !isExtensionDatabaseRuntimeLeaseCleanupPending(lease.FailureCode) {
+		return ExtensionDatabaseRuntimeLeaseSnapshot{}, false, ErrExtensionDatabaseRuntimeLeaseConflict
+	}
+	databaseName, err := currentExtensionDatabaseName(ctx, tx)
+	if err != nil {
+		return ExtensionDatabaseRuntimeLeaseSnapshot{}, false, err
+	}
+	powers, err := loadExtensionDatabaseGrantPowers(ctx, tx, lease.GrantID)
+	if err != nil {
+		return ExtensionDatabaseRuntimeLeaseSnapshot{}, false, err
+	}
+	if err := cleanupExtensionDatabaseRuntimeLeaseRole(
+		ctx, tx, lease.RoleName, identifiers.OwnerRole, identifiers.Schema, databaseName, powers,
+	); err != nil {
+		return lease, false, err
+	}
+	lease, err = finalizeExtensionDatabaseRuntimeLeaseCleanup(ctx, tx, lease)
+	if err != nil {
+		return ExtensionDatabaseRuntimeLeaseSnapshot{}, false, err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return ExtensionDatabaseRuntimeLeaseSnapshot{}, false, fmt.Errorf("commit runtime lease cleanup: %w", err)
+	}
+	return lease, true, nil
 }
 
 func (r *PostgresExtensionDatabaseRegistry) InspectRuntimeLease(

@@ -395,7 +395,7 @@ func TestPostgresExtensionDatabaseRuntimeLeaseReaperConvergesAndAudits(t *testin
 		t.Fatal(err)
 	}
 	if snapshot.Status != ExtensionDatabaseLeaseFailed || snapshot.FailureCode != extensionDatabaseRuntimeLeaseExpiredCode ||
-		snapshot.RevokedAt == nil || snapshot.Revision != 2 {
+		snapshot.RevokedAt == nil || snapshot.Revision != 3 {
 		t.Fatalf("expired lease evidence = %#v", snapshot)
 	}
 	var roleCount, auditCount int

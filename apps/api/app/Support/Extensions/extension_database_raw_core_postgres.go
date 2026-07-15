@@ -42,6 +42,7 @@ func grantExtensionDatabaseRawCoreAuthority(
 	ctx context.Context,
 	tx pgx.Tx,
 	roleName string,
+	allowedKernelOwners ...map[string]struct{},
 ) error {
 	if !validPostgresIdentifier(roleName) {
 		return ErrExtensionDatabaseRegistryInvalid
@@ -51,7 +52,7 @@ func grantExtensionDatabaseRawCoreAuthority(
 	if _, err := tx.Exec(ctx, `GRANT USAGE ON SCHEMA `+coreSchema+` TO `+role); err != nil {
 		return fmt.Errorf("%w: grant raw Core schema usage: %v", ErrExtensionDatabaseCredential, err)
 	}
-	relations, err := loadExtensionDatabaseCoreRelations(ctx, tx)
+	relations, err := loadExtensionDatabaseCoreRelations(ctx, tx, allowedKernelOwners...)
 	if err != nil {
 		return err
 	}
@@ -73,7 +74,11 @@ func grantExtensionDatabaseRawCoreAuthority(
 
 // PostgreSQL 默认向 PUBLIC 开放函数执行；只省略显式 GRANT 不能形成 raw_core 边界。
 // 同时收敛 Core 与原始数据库登录的默认权限，避免滚动升级中新建函数重新泄露给存量租约。
-func hardenExtensionDatabaseCoreRoutineAuthority(ctx context.Context, tx pgx.Tx) error {
+func hardenExtensionDatabaseCoreRoutineAuthority(
+	ctx context.Context,
+	tx pgx.Tx,
+	allowedKernelOwners map[string]struct{},
+) error {
 	identity, err := loadExtensionDatabaseCoreIdentity(ctx, tx)
 	if err != nil {
 		return err
@@ -96,10 +101,12 @@ func hardenExtensionDatabaseCoreRoutineAuthority(ctx context.Context, tx pgx.Tx)
 			return err
 		}
 		expectedOwner := identity.ownerRole
-		if schema == extensionDatabaseCoreSchema && coreauthority.IsRiverObjectName(name) {
+		isRiver := schema == extensionDatabaseCoreSchema && coreauthority.IsRiverObjectName(name)
+		if isRiver {
 			expectedOwner = identity.sessionRole
 		}
-		if owner != expectedOwner {
+		_, allowedKernelOwner := allowedKernelOwners[owner]
+		if owner != expectedOwner && (!allowedKernelOwner || isRiver) {
 			routines.Close()
 			return ErrExtensionDatabaseResourceConflict
 		}
@@ -136,7 +143,11 @@ func hardenExtensionDatabaseCoreRoutineAuthority(ctx context.Context, tx pgx.Tx)
 	return nil
 }
 
-func loadExtensionDatabaseCoreRelations(ctx context.Context, tx pgx.Tx) ([]extensionDatabaseCoreRelation, error) {
+func loadExtensionDatabaseCoreRelations(
+	ctx context.Context,
+	tx pgx.Tx,
+	allowedKernelOwners ...map[string]struct{},
+) ([]extensionDatabaseCoreRelation, error) {
 	identity, err := loadExtensionDatabaseCoreIdentity(ctx, tx)
 	if err != nil {
 		return nil, err
@@ -156,6 +167,10 @@ func loadExtensionDatabaseCoreRelations(ctx context.Context, tx pgx.Tx) ([]exten
 	}
 	defer rows.Close()
 	relations := make([]extensionDatabaseCoreRelation, 0)
+	allowedOwners := map[string]struct{}(nil)
+	if len(allowedKernelOwners) > 0 {
+		allowedOwners = allowedKernelOwners[0]
+	}
 	for rows.Next() {
 		var relation extensionDatabaseCoreRelation
 		var owner string
@@ -167,7 +182,8 @@ func loadExtensionDatabaseCoreRelations(ctx context.Context, tx pgx.Tx) ([]exten
 		if relation.isRiver {
 			expectedOwner = identity.sessionRole
 		}
-		if owner != expectedOwner {
+		_, allowedKernelOwner := allowedOwners[owner]
+		if owner != expectedOwner && (!allowedKernelOwner || relation.isRiver) {
 			return nil, ErrExtensionDatabaseResourceConflict
 		}
 		relations = append(relations, relation)
@@ -213,6 +229,7 @@ func validateExtensionDatabaseRawCoreAuthority(
 	tx pgx.Tx,
 	roleName string,
 	powers []string,
+	allowedKernelOwners ...map[string]struct{},
 ) error {
 	if !validPostgresIdentifier(roleName) {
 		return ErrExtensionDatabaseRegistryInvalid
@@ -223,7 +240,7 @@ func validateExtensionDatabaseRawCoreAuthority(
 	}
 	wantRawCore := containsExtensionDatabasePower(powers, extensionmanifest.DatabaseGrantRawCore)
 	wantCoreViews := containsExtensionDatabasePower(powers, extensionmanifest.DatabaseGrantCoreViews)
-	relations, err := loadExtensionDatabaseCoreRelations(ctx, tx)
+	relations, err := loadExtensionDatabaseCoreRelations(ctx, tx, allowedKernelOwners...)
 	if err != nil {
 		return err
 	}

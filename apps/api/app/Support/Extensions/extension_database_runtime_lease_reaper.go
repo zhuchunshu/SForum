@@ -2,6 +2,7 @@ package extensionsruntime
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 )
@@ -30,17 +31,18 @@ func (r *PostgresExtensionDatabaseRegistry) ReapExpiredRuntimeLeases(
 		return 0, err
 	}
 	reaped := 0
+	var cleanupErrors []error
 	for _, extensionID := range extensionIDs {
 		if reaped >= limit {
 			break
 		}
 		count, err := r.reapExpiredRuntimeLeasesForExtension(ctx, extensionID, limit-reaped)
 		if err != nil {
-			return reaped, err
+			cleanupErrors = append(cleanupErrors, err)
 		}
 		reaped += count
 	}
-	return reaped, nil
+	return reaped, errors.Join(cleanupErrors...)
 }
 
 func (r *PostgresExtensionDatabaseRegistry) reapExpiredRuntimeLeasesForExtension(
@@ -64,7 +66,7 @@ func (r *PostgresExtensionDatabaseRegistry) reapExpiredRuntimeLeasesForExtension
 	if err != nil {
 		return 0, err
 	}
-	reaped, err := reapExpiredExtensionDatabaseRuntimeLeasesLocked(
+	_, err = reapExpiredExtensionDatabaseRuntimeLeasesLocked(
 		ctx, tx, extensionID, identifiers, databaseName, limit,
 	)
 	if err != nil {
@@ -73,5 +75,21 @@ func (r *PostgresExtensionDatabaseRegistry) reapExpiredRuntimeLeasesForExtension
 	if err := tx.Commit(ctx); err != nil {
 		return 0, fmt.Errorf("commit expired runtime lease reap: %w", err)
 	}
-	return reaped, nil
+	refs, err := listExtensionDatabaseRuntimeLeaseCleanupPendingRefs(ctx, r.pool, extensionID, limit)
+	if err != nil {
+		return 0, err
+	}
+	cleaned := 0
+	var cleanupErrors []error
+	for _, ref := range refs {
+		_, didClean, cleanupErr := r.cleanupRuntimeLease(ctx, ref)
+		if cleanupErr != nil {
+			cleanupErrors = append(cleanupErrors, fmt.Errorf("cleanup runtime lease %s: %w", ref.LeaseID, cleanupErr))
+			continue
+		}
+		if didClean {
+			cleaned++
+		}
+	}
+	return cleaned, errors.Join(cleanupErrors...)
 }
