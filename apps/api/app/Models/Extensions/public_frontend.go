@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"io"
 	"net/url"
 	"os"
 	"path"
@@ -42,43 +43,63 @@ var publicPackageAssetContentTypes = map[string]string{
 }
 
 func (s *FrontendService) PublicComponent(ctx context.Context, extensionID, componentID string) (PublicFrontendComponent, error) {
-	extension, identity, err := s.publicRuntimeExtension(ctx, extensionID)
-	if err != nil {
+	if err := s.publicRuntimeGates(ctx, extensionID); err != nil {
 		return PublicFrontendComponent{}, err
 	}
+	extensionID = normalizeID(extensionID)
 	componentID = normalizeID(componentID)
+	entryHandle := componentID + publicL2EntrySuffix
+	// 请求先捕获不可变 Registry 发布物与依赖计划，再读取扩展元组和 live grant。
+	ownerPublication, found := s.publicAssets.SnapshotPublication(extensionID)
+	if !found {
+		return PublicFrontendComponent{}, ErrPublicFrontendUnavailable
+	}
+	plan, err := s.publicAssets.Plan(assetregistry.PlanRequest{Handles: []string{entryHandle}})
+	if err != nil {
+		return PublicFrontendComponent{}, errors.Join(ErrPublicFrontendUnavailable, err)
+	}
+	extension, err := s.extensions.Get(ctx, extensionID)
+	if err != nil {
+		return PublicFrontendComponent{}, s.failClosedPublicIdentity(ownerPublication.Artifact, err)
+	}
+	if err := s.executableTrust.ValidatePublishedIdentity(ctx, extension, ownerPublication.Artifact); err != nil {
+		return PublicFrontendComponent{}, s.failClosedPublicIdentity(ownerPublication.Artifact, err)
+	}
 	component, ok := publicManifestComponent(extension.Manifest, componentID)
-	if !ok {
+	if !ok || publicL2EntryHandle(component) != entryHandle {
 		return PublicFrontendComponent{}, ErrPublicFrontendUnavailable
 	}
 	if s.publicComponents == nil || !s.publicComponents.AdmitPublicComponent(extension, component) {
 		return PublicFrontendComponent{}, ErrPublicFrontendUnavailable
 	}
-	if err := s.refreshPublicAssetSnapshot(ctx); err != nil {
-		return PublicFrontendComponent{}, errors.Join(ErrPublicFrontendUnavailable, err)
-	}
-	entryHandle := publicL2EntryHandle(component)
-	plan, err := s.publicAssets.Plan(assetregistry.PlanRequest{Handles: []string{entryHandle}})
-	if err != nil {
-		return PublicFrontendComponent{}, errors.Join(ErrPublicFrontendUnavailable, err)
-	}
 
 	assets := make([]PublicFrontendAssetReference, 0, len(plan))
 	var entry PublicFrontendAssetReference
 	cspSet := map[string]struct{}{}
+	validatedOwners := map[string]assetregistry.Artifact{}
+	validatedOwners[ownerPublication.Artifact.ExtensionID] = ownerPublication.Artifact
 	for _, asset := range plan {
+		if err := s.ensurePlanOwnerTrusted(ctx, asset.Artifact, validatedOwners); err != nil {
+			return PublicFrontendComponent{}, err
+		}
 		reference := publicAssetReference(asset)
 		for _, declaration := range reference.CSP {
 			cspSet[declaration] = struct{}{}
 		}
 		if asset.Handle == entryHandle {
-			if !publicAssetMatchesRuntime(asset, extension, identity) {
+			if !publicAssetMatchesPublication(asset, ownerPublication.Artifact) {
 				return PublicFrontendComponent{}, ErrPublicFrontendUnavailable
 			}
 			entry = reference
 			continue
 		}
 		assets = append(assets, reference)
+	}
+	for ownerID, artifact := range validatedOwners {
+		publication, found := s.publicAssets.SnapshotPublication(ownerID)
+		if !found || publication.Artifact != artifact {
+			return PublicFrontendComponent{}, ErrPublicFrontendUnavailable
+		}
 	}
 	if entry.Handle == "" || entry.Type != "script" || !entry.Module {
 		return PublicFrontendComponent{}, ErrPublicFrontendUnavailable
@@ -92,7 +113,7 @@ func (s *FrontendService) PublicComponent(ctx context.Context, extensionID, comp
 		SchemaVersion: PublicFrontendSchemaV1, APIVersion: PublicFrontendAPIVersion,
 		TrustNotice: PublicFrontendTrustNotice, ExtensionID: extension.ID,
 		ExtensionVersion: extension.Version, PackageDigest: extension.PackageDigest,
-		ImpactDigest: identity.ImpactDigest, ComponentID: component.ID,
+		ImpactDigest: ownerPublication.Artifact.ImpactDigest, ComponentID: component.ID,
 		ContractVersion: component.ContractVersion, Action: component.Action,
 		TargetID: component.TargetID, TargetContractVersion: component.TargetContractVersion,
 		PropsSchema: component.PropsSchema, ResultSchema: component.ResultSchema,
@@ -104,32 +125,35 @@ func (s *FrontendService) PublicAsset(
 	ctx context.Context,
 	extensionID, packageDigest, digest, handle string,
 ) (FrontendAsset, error) {
-	extension, identity, err := s.publicRuntimeExtension(ctx, extensionID)
-	if err != nil {
+	if err := s.publicRuntimeGates(ctx, extensionID); err != nil {
 		return FrontendAsset{}, err
 	}
+	extensionID = normalizeID(extensionID)
 	packageDigest = normalizedPublicDigest(packageDigest)
 	digest = normalizedPublicDigest(digest)
 	handle = normalizeID(handle)
-	if packageDigest != extension.PackageDigest || handle == "" || digest == "" {
+	if packageDigest == "" || handle == "" || digest == "" {
 		return FrontendAsset{}, ErrPublicFrontendUnavailable
 	}
-	if err := s.refreshPublicAssetSnapshot(ctx); err != nil {
-		return FrontendAsset{}, errors.Join(ErrPublicFrontendUnavailable, err)
-	}
+	// 请求路径只读共享不可变快照；缺失或陈旧制品直接失败关闭。
 	asset, ok := s.publicAssets.Resolve(handle)
-	if !ok || asset.Artifact.ExtensionID != extension.ID ||
-		asset.Artifact.ExtensionVersion != extension.Version ||
-		asset.Artifact.PackageDigest != extension.PackageDigest ||
-		asset.Artifact.ImpactDigest != identity.ImpactDigest || asset.Digest != digest {
+	if !ok || asset.Artifact.ExtensionID != extensionID ||
+		asset.Artifact.PackageDigest != packageDigest || asset.Digest != digest {
 		return FrontendAsset{}, ErrPublicFrontendUnavailable
+	}
+	publication, found := s.publicAssets.SnapshotPublication(extensionID)
+	if !found || publication.Artifact != asset.Artifact {
+		return FrontendAsset{}, ErrPublicFrontendUnavailable
+	}
+	extension, err := s.extensions.Get(ctx, extensionID)
+	if err != nil {
+		return FrontendAsset{}, s.failClosedPublicIdentity(asset.Artifact, err)
+	}
+	if err := s.executableTrust.ValidatePublishedIdentity(ctx, extension, asset.Artifact); err != nil {
+		return FrontendAsset{}, s.failClosedPublicIdentity(asset.Artifact, err)
 	}
 	target, ok := installedFilePath(extension, asset.Path)
 	if !ok {
-		return FrontendAsset{}, ErrPublicFrontendUnavailable
-	}
-	info, statErr := os.Lstat(target)
-	if statErr != nil || !info.Mode().IsRegular() || info.Mode()&os.ModeSymlink != 0 {
 		return FrontendAsset{}, ErrPublicFrontendUnavailable
 	}
 	limit := int64(maxPrebuiltAdminModuleBytes)
@@ -138,17 +162,17 @@ func (s *FrontendService) PublicAsset(
 		limit = maxPrebuiltAdminCSSBytes
 		contentType = "text/css; charset=utf-8"
 	}
-	if info.Size() > limit || !validPublicAssetExtension(asset.Type, target) {
+	if !validPublicAssetExtension(asset.Type, target) {
 		return FrontendAsset{}, ErrPublicFrontendUnavailable
 	}
-	body, readErr := os.ReadFile(target)
+	body, actualDigest, readErr := readExactExtensionDigestFile(extension, asset.Path, asset.Digest, limit, false)
 	if readErr != nil {
-		return FrontendAsset{}, readErr
-	}
-	actual := sha256.Sum256(body)
-	actualDigest := hex.EncodeToString(actual[:])
-	if actualDigest != asset.Digest {
-		return FrontendAsset{}, errors.Join(ErrPublicFrontendUnavailable, ErrFrontendPackageChanged)
+		if errors.Is(readErr, ErrFrontendPackageChanged) {
+			return FrontendAsset{}, s.failClosedPublicIdentity(
+				asset.Artifact, errors.Join(ErrPublicFrontendUnavailable, ErrFrontendPackageChanged),
+			)
+		}
+		return FrontendAsset{}, ErrPublicFrontendUnavailable
 	}
 	return FrontendAsset{
 		Body: body, ContentType: contentType, ETag: `"` + actualDigest + `"`,
@@ -164,14 +188,29 @@ func (s *FrontendService) PublicPackageAsset(
 	ctx context.Context,
 	extensionID, packageDigest, packagePath string,
 ) (FrontendAsset, error) {
-	extension, _, err := s.publicRuntimeExtension(ctx, extensionID)
-	if err != nil {
+	if err := s.publicRuntimeGates(ctx, extensionID); err != nil {
 		return FrontendAsset{}, err
 	}
+	extensionID = normalizeID(extensionID)
 	packageDigest = normalizedPublicDigest(packageDigest)
 	packagePath = strings.TrimPrefix(strings.TrimSpace(packagePath), "/")
-	if packageDigest != extension.PackageDigest || !safePublicPackagePath(packagePath) {
+	if packageDigest == "" || !safePublicPackagePath(packagePath) {
 		return FrontendAsset{}, ErrPublicFrontendUnavailable
+	}
+	publication, found := s.publicAssets.SnapshotPublication(extensionID)
+	if !found || publication.Artifact.PackageDigest != packageDigest {
+		return FrontendAsset{}, ErrPublicFrontendUnavailable
+	}
+	extension, err := s.extensions.Get(ctx, extensionID)
+	if err != nil {
+		return FrontendAsset{}, s.failClosedPublicIdentity(publication.Artifact, err)
+	}
+	// asset-only owner 也可服务 exact 声明的包内文件，但必须先通过 live grant。
+	if !hasPublicAssetPayload(extension.Manifest) {
+		return FrontendAsset{}, ErrPublicFrontendUnavailable
+	}
+	if err := s.executableTrust.ValidatePublishedIdentity(ctx, extension, publication.Artifact); err != nil {
+		return FrontendAsset{}, s.failClosedPublicIdentity(publication.Artifact, err)
 	}
 	file, ok := publicPackageFileByPath(extension.Manifest, packagePath)
 	if !ok {
@@ -181,71 +220,143 @@ func (s *FrontendService) PublicPackageAsset(
 	if !ok {
 		return FrontendAsset{}, ErrPublicFrontendUnavailable
 	}
-	return readExactPublicPackageFile(extension, file, contentType)
+	return readExactPublicPackageFile(extension, file, contentType, func(cause error) error {
+		return s.failClosedPublicIdentity(publication.Artifact, cause)
+	})
 }
 
-func (s *FrontendService) refreshPublicAssetSnapshot(ctx context.Context) error {
-	catalog, ok := s.extensions.(PublicFrontendExtensionCatalog)
-	if !ok || ctx == nil {
+// RestorePublicAssetPublications 由 Host 启动/Safe Mode 路径调用，发布完整确定性
+// exact-artifact 集合。请求路径不得调用本方法。
+func (s *FrontendService) RestorePublicAssetPublications(
+	ctx context.Context,
+	items []Extension,
+	safeMode bool,
+) error {
+	if s == nil || s.publicAssets == nil {
 		return ErrPublicFrontendUnavailable
 	}
-	items, err := catalog.List(ctx)
+	publications, err := s.buildPublicAssetPublications(ctx, items, safeMode)
 	if err != nil {
 		return err
-	}
-	publications := make([]assetregistry.Publication, 0, len(items))
-	for _, extension := range items {
-		if extension.Status != StatusEnabled || !hasL2Components(extension.Manifest) {
-			continue
-		}
-		identity, identityErr := s.executableTrust.RuntimeIdentity(ctx, extension)
-		if errors.Is(identityErr, ErrTrustGrantNotFound) || errors.Is(identityErr, ErrFrontendPackageChanged) {
-			// An untrusted, revoked, or byte-drifted owner contributes nothing.
-			// Required cross-owner dependencies then fail the complete graph.
-			continue
-		}
-		if identityErr != nil {
-			return identityErr
-		}
-		if identity.ImpactDigest == "" {
-			return ErrPublicFrontendUnavailable
-		}
-		publication, publicationErr := publicAssetPublication(extension, identity)
-		if publicationErr != nil {
-			return publicationErr
-		}
-		publications = append(publications, publication)
 	}
 	_, err = s.publicAssets.ReplaceAll(publications)
 	return err
 }
 
-func (s *FrontendService) publicRuntimeExtension(
+// RestorePublicAssetPublicationsIfRevision 为生命周期/多节点收敛提供调用方 fenced 的完整图替换。
+// 本方法不读取当前 revision；陈旧调用方会收到 AssetRegistry.ErrRevisionConflict。
+func (s *FrontendService) RestorePublicAssetPublicationsIfRevision(
 	ctx context.Context,
-	extensionID string,
-) (Extension, RuntimeTrustIdentity, error) {
+	expectedRevision uint64,
+	items []Extension,
+	safeMode bool,
+) error {
+	if s == nil || s.publicAssets == nil {
+		return ErrPublicFrontendUnavailable
+	}
+	publications, err := s.buildPublicAssetPublications(ctx, items, safeMode)
+	if err != nil {
+		return err
+	}
+	_, err = s.publicAssets.ReplaceAllIfRevision(expectedRevision, publications)
+	return err
+}
+
+func (s *FrontendService) buildPublicAssetPublications(
+	ctx context.Context,
+	items []Extension,
+	safeMode bool,
+) ([]assetregistry.Publication, error) {
+	if safeMode {
+		return []assetregistry.Publication{}, nil
+	}
+	if ctx == nil || s == nil || s.executableTrust == nil {
+		return nil, ErrPublicFrontendUnavailable
+	}
+	publications := make([]assetregistry.Publication, 0, len(items))
+	for _, extension := range items {
+		if extension.Status != StatusEnabled || !hasPublicAssetPayload(extension.Manifest) {
+			continue
+		}
+		identity, err := s.executableTrust.RuntimeIdentity(ctx, extension)
+		if errors.Is(err, ErrTrustGrantNotFound) || errors.Is(err, ErrFrontendPackageChanged) {
+			// 未信任、已吊销或字节漂移的 owner 不进入快照；依赖方在整图校验时失败关闭。
+			continue
+		}
+		if err != nil {
+			return nil, err
+		}
+		publication, err := BuildPublicAssetPublication(extension, identity.ImpactDigest)
+		if err != nil {
+			return nil, err
+		}
+		publications = append(publications, publication)
+	}
+	return publications, nil
+}
+
+func (s *FrontendService) publicRuntimeGates(ctx context.Context, extensionID string) error {
 	extensionID = normalizeID(extensionID)
 	if s == nil || ctx == nil || !s.publicL2 || s.safeMode || !s.v3TrustChallenges ||
 		s.extensions == nil || s.executableTrust == nil || s.publicAssets == nil || extensionID == "" {
-		if s != nil && s.publicAssets != nil && (s.safeMode || !s.publicL2) {
-			_, _ = s.publicAssets.ReplaceAll(nil)
+		return ErrPublicFrontendUnavailable
+	}
+	return nil
+}
+
+// ensurePlanOwnerTrusted 校验 plan 中每个 dependency owner 的 live 发布身份。
+// 任一 owner 失效时隔离其闭包，避免吊销/未信任依赖的 CSP 残留在 descriptor 中。
+func (s *FrontendService) ensurePlanOwnerTrusted(
+	ctx context.Context,
+	artifact assetregistry.Artifact,
+	validated map[string]assetregistry.Artifact,
+) error {
+	if previous, ok := validated[artifact.ExtensionID]; ok {
+		if previous != artifact {
+			return ErrPublicFrontendUnavailable
 		}
-		return Extension{}, RuntimeTrustIdentity{}, ErrPublicFrontendUnavailable
+		return nil
 	}
-	extension, err := s.extensions.Get(ctx, extensionID)
-	if err != nil || extension.Status != StatusEnabled || !hasL2Components(extension.Manifest) {
-		_ = s.refreshPublicAssetSnapshot(ctx)
-		return Extension{}, RuntimeTrustIdentity{}, ErrPublicFrontendUnavailable
+	publication, found := s.publicAssets.SnapshotPublication(artifact.ExtensionID)
+	if !found || publication.Artifact != artifact {
+		return ErrPublicFrontendUnavailable
 	}
-	identity, err := s.executableTrust.RuntimeIdentity(ctx, extension)
-	if err != nil || identity.ImpactDigest == "" {
-		_ = s.refreshPublicAssetSnapshot(ctx)
-		if errors.Is(err, ErrFrontendPackageChanged) {
-			return Extension{}, RuntimeTrustIdentity{}, errors.Join(ErrPublicFrontendUnavailable, err)
+	if artifact.OwnerKind == assetregistry.OwnerKindCore {
+		if err := s.executableTrust.ValidatePublishedIdentity(ctx, Extension{}, artifact); err != nil {
+			return s.failClosedPublicIdentity(artifact, err)
 		}
-		return Extension{}, RuntimeTrustIdentity{}, ErrPublicFrontendUnavailable
+		validated[artifact.ExtensionID] = artifact
+		return nil
 	}
-	return extension, identity, nil
+	extension, err := s.extensions.Get(ctx, artifact.ExtensionID)
+	if err != nil {
+		return s.failClosedPublicIdentity(artifact, err)
+	}
+	if err := s.executableTrust.ValidatePublishedIdentity(ctx, extension, artifact); err != nil {
+		return s.failClosedPublicIdentity(artifact, err)
+	}
+	validated[artifact.ExtensionID] = artifact
+	return nil
+}
+
+func (s *FrontendService) failClosedPublicIdentity(artifact assetregistry.Artifact, cause error) error {
+	if cause != nil && !errors.Is(cause, ErrTrustGrantNotFound) &&
+		!errors.Is(cause, ErrFrontendPackageChanged) &&
+		!errors.Is(cause, ErrPublicFrontendUnavailable) &&
+		!errors.Is(cause, ErrExtensionNotFound) {
+		return errors.Join(ErrPublicFrontendUnavailable, cause)
+	}
+	if s == nil || s.publicAssets == nil {
+		return errors.Join(ErrPublicFrontendUnavailable, cause)
+	}
+	_, _, quarantineErr := s.publicAssets.QuarantineExact(artifact)
+	if quarantineErr != nil {
+		return errors.Join(ErrPublicFrontendUnavailable, cause, quarantineErr)
+	}
+	if cause == nil {
+		return ErrPublicFrontendUnavailable
+	}
+	return errors.Join(ErrPublicFrontendUnavailable, cause)
 }
 
 func publicManifestComponent(manifest Manifest, componentID string) (ManifestComponent, bool) {
@@ -258,10 +369,17 @@ func publicManifestComponent(manifest Manifest, componentID string) (ManifestCom
 	return ManifestComponent{}, false
 }
 
-func publicAssetPublication(
+// BuildPublicAssetPublication 构造 exact-artifact 资产发布物，供生命周期与启动恢复复用。
+// 允许 asset-only provider（仅 script/style 声明、无 L2 component）。
+// OwnerKind 只由 Extension.Type 推导；Host core publication 不经此构造器。
+func BuildPublicAssetPublication(
 	extension Extension,
-	identity RuntimeTrustIdentity,
+	impactDigest string,
 ) (assetregistry.Publication, error) {
+	impactDigest = normalizedPublicDigest(impactDigest)
+	if impactDigest == "" || !hasPublicAssetPayload(extension.Manifest) {
+		return assetregistry.Publication{}, ErrPublicFrontendUnavailable
+	}
 	manifest := extensionmanifest.Normalize(extension.Manifest)
 	packageFiles := make(map[string]ManifestPackageFile, len(manifest.PackageFiles))
 	for _, file := range manifest.PackageFiles {
@@ -269,6 +387,9 @@ func publicAssetPublication(
 	}
 	declarations := make([]assetregistry.Declaration, 0, len(manifest.Assets)+len(manifest.Components))
 	for _, asset := range manifest.Assets {
+		if asset.Type != "script" && asset.Type != "style" {
+			continue
+		}
 		declaration := assetregistry.Declaration{
 			Handle: asset.Handle, ContractVersion: asset.ContractVersion, Type: asset.Type,
 			Path: asset.Path, Digest: asset.Digest, Dependencies: append([]string(nil), asset.Dependencies...),
@@ -304,10 +425,27 @@ func publicAssetPublication(
 	if len(declarations) == 0 || len(declarations) > maxPublicL2Assets {
 		return assetregistry.Publication{}, ErrPublicFrontendUnavailable
 	}
+	ownerKind, ok := publicAssetOwnerKind(extension)
+	if !ok || strings.HasPrefix(normalizeID(extension.ID), "core.") {
+		return assetregistry.Publication{}, ErrPublicFrontendUnavailable
+	}
 	return assetregistry.Publication{Artifact: assetregistry.Artifact{
 		ExtensionID: extension.ID, ExtensionVersion: extension.Version,
-		PackageDigest: extension.PackageDigest, ImpactDigest: identity.ImpactDigest,
+		PackageDigest: extension.PackageDigest, ImpactDigest: impactDigest,
+		OwnerKind: ownerKind,
 	}, Assets: declarations}, nil
+}
+
+// publicAssetOwnerKind 将扩展类型映射为 Asset Registry OwnerKind。
+func publicAssetOwnerKind(extension Extension) (string, bool) {
+	switch extension.Type {
+	case TypePlugin:
+		return assetregistry.OwnerKindPlugin, true
+	case TypeTheme:
+		return assetregistry.OwnerKindTheme, true
+	default:
+		return "", false
+	}
 }
 
 func publicL2EntryHandle(component ManifestComponent) string {
@@ -338,15 +476,8 @@ func publicAssetReference(asset assetregistry.Asset) PublicFrontendAssetReferenc
 	}
 }
 
-func publicAssetMatchesRuntime(
-	asset assetregistry.Asset,
-	extension Extension,
-	identity RuntimeTrustIdentity,
-) bool {
-	return asset.Artifact.ExtensionID == extension.ID &&
-		asset.Artifact.ExtensionVersion == extension.Version &&
-		asset.Artifact.PackageDigest == extension.PackageDigest &&
-		asset.Artifact.ImpactDigest == identity.ImpactDigest
+func publicAssetMatchesPublication(asset assetregistry.Asset, artifact assetregistry.Artifact) bool {
+	return asset.Artifact == artifact
 }
 
 func publicPackageFileByPath(manifest Manifest, packagePath string) (ManifestPackageFile, bool) {
@@ -378,30 +509,172 @@ func readExactPublicPackageFile(
 	extension Extension,
 	file ManifestPackageFile,
 	contentType string,
+	onDrift func(error) error,
 ) (FrontendAsset, error) {
-	target, ok := installedFilePath(extension, file.Path)
-	if !ok {
+	if _, ok := installedFilePath(extension, file.Path); !ok {
 		return FrontendAsset{}, ErrPublicFrontendUnavailable
 	}
-	info, err := os.Lstat(target)
-	if err != nil || !info.Mode().IsRegular() || info.Mode()&os.ModeSymlink != 0 ||
-		info.Size() <= 0 || info.Size() > maxPublicPackageResourceSize {
+	expectedDigest := normalizedPublicDigest(file.Digest)
+	if expectedDigest == "" {
 		return FrontendAsset{}, ErrPublicFrontendUnavailable
 	}
-	body, err := os.ReadFile(target)
+	body, actualDigest, err := readExactExtensionDigestFile(
+		extension, file.Path, expectedDigest, maxPublicPackageResourceSize, true,
+	)
 	if err != nil {
-		return FrontendAsset{}, err
+		if errors.Is(err, ErrFrontendPackageChanged) && onDrift != nil {
+			return FrontendAsset{}, onDrift(errors.Join(ErrPublicFrontendUnavailable, ErrFrontendPackageChanged))
+		}
+		return FrontendAsset{}, ErrPublicFrontendUnavailable
 	}
-	digest := sha256.Sum256(body)
-	actualDigest := hex.EncodeToString(digest[:])
-	if !strings.EqualFold(actualDigest, normalizedPublicDigest(file.Digest)) {
-		return FrontendAsset{}, errors.Join(ErrPublicFrontendUnavailable, ErrFrontendPackageChanged)
+	raw, decodeErr := hex.DecodeString(actualDigest)
+	if decodeErr != nil {
+		return FrontendAsset{}, ErrPublicFrontendUnavailable
 	}
-	integrity := "sha256-" + base64.StdEncoding.EncodeToString(digest[:])
+	integrity := "sha256-" + base64.StdEncoding.EncodeToString(raw)
 	return FrontendAsset{
 		Body: body, ContentType: contentType, ETag: `"` + actualDigest + `"`,
 		Digest: actualDigest, Integrity: integrity,
 	}, nil
+}
+
+func readExactExtensionDigestFile(
+	extension Extension,
+	manifestPath, expectedDigest string,
+	limit int64,
+	requireNonEmpty bool,
+) ([]byte, string, error) {
+	expectedDigest = normalizedPublicDigest(expectedDigest)
+	if expectedDigest == "" || limit <= 0 {
+		return nil, "", ErrPublicFrontendUnavailable
+	}
+	body, err := readStableExtensionFile(extension, manifestPath, limit, requireNonEmpty)
+	if err != nil {
+		return nil, "", err
+	}
+	sum := sha256.Sum256(body)
+	actualDigest := hex.EncodeToString(sum[:])
+	if !strings.EqualFold(actualDigest, expectedDigest) {
+		return nil, "", ErrFrontendPackageChanged
+	}
+	return body, actualDigest, nil
+}
+
+// readStableRegularFile 在打开前拒绝非常规文件，并用非阻塞 flag
+// 关闭 Lstat/Open 之间被替换为 FIFO 的竞态。
+func readStableRegularFile(target string, limit int64, requireNonEmpty bool) ([]byte, error) {
+	pathBefore, err := os.Lstat(target)
+	if err != nil || !regularPath(pathBefore) {
+		return nil, ErrPublicFrontendUnavailable
+	}
+	file, err := openStableReadFile(target)
+	if err != nil {
+		return nil, ErrPublicFrontendUnavailable
+	}
+	defer file.Close()
+	return readOpenedStableRegularFileWithPath(
+		file, pathBefore, func() (os.FileInfo, error) { return os.Lstat(target) }, limit, requireNonEmpty,
+	)
+}
+
+func readOpenedStableRegularFile(file *os.File, target string, limit int64, requireNonEmpty bool) ([]byte, error) {
+	if file == nil || target == "" {
+		return nil, ErrPublicFrontendUnavailable
+	}
+	pathBefore, pathErr := os.Lstat(target)
+	if pathErr != nil {
+		return nil, ErrPublicFrontendUnavailable
+	}
+	return readOpenedStableRegularFileWithPath(
+		file, pathBefore, func() (os.FileInfo, error) { return os.Lstat(target) }, limit, requireNonEmpty,
+	)
+}
+
+func readStableExtensionFile(extension Extension, manifestPath string, limit int64, requireNonEmpty bool) ([]byte, error) {
+	name, ok := safeArchivePath(manifestPath)
+	rootPath := PackageContentRoot(extension)
+	if !ok || rootPath == "" {
+		return nil, ErrPublicFrontendUnavailable
+	}
+	rootBefore, err := os.Lstat(rootPath)
+	if err != nil || !rootBefore.IsDir() || rootBefore.Mode()&os.ModeSymlink != 0 {
+		return nil, ErrPublicFrontendUnavailable
+	}
+	root, err := os.OpenRoot(rootPath)
+	if err != nil {
+		return nil, ErrPublicFrontendUnavailable
+	}
+	defer root.Close()
+	openedRoot, err := root.Stat(".")
+	if err != nil || !openedRoot.IsDir() || !os.SameFile(rootBefore, openedRoot) {
+		return nil, ErrPublicFrontendUnavailable
+	}
+	pathBefore, err := root.Lstat(name)
+	if err != nil || !regularPath(pathBefore) {
+		return nil, ErrPublicFrontendUnavailable
+	}
+	file, err := openStableRootReadFile(root, name)
+	if err != nil {
+		return nil, ErrPublicFrontendUnavailable
+	}
+	defer file.Close()
+	return readOpenedStableRegularFileWithPath(
+		file, pathBefore, func() (os.FileInfo, error) { return root.Lstat(name) }, limit, requireNonEmpty,
+	)
+}
+
+func readOpenedStableRegularFileWithPath(
+	file *os.File,
+	pathBefore os.FileInfo,
+	lstat func() (os.FileInfo, error),
+	limit int64,
+	requireNonEmpty bool,
+) ([]byte, error) {
+	if file == nil || pathBefore == nil || lstat == nil {
+		return nil, ErrPublicFrontendUnavailable
+	}
+	fdBefore, fdErr := file.Stat()
+	if fdErr != nil || !stableRegularFile(pathBefore, fdBefore) ||
+		!os.SameFile(pathBefore, fdBefore) {
+		return nil, ErrPublicFrontendUnavailable
+	}
+	if requireNonEmpty && fdBefore.Size() <= 0 {
+		return nil, ErrPublicFrontendUnavailable
+	}
+	if limit <= 0 {
+		limit = fdBefore.Size()
+	}
+	if fdBefore.Size() > limit || limit == int64(^uint64(0)>>1) {
+		return nil, ErrPublicFrontendUnavailable
+	}
+	body, err := io.ReadAll(io.LimitReader(file, limit+1))
+	if err != nil || int64(len(body)) > limit || int64(len(body)) != fdBefore.Size() {
+		return nil, ErrPublicFrontendUnavailable
+	}
+	fdAfter, fdErr := file.Stat()
+	pathAfter, pathErr := lstat()
+	if fdErr != nil || pathErr != nil || !stableRegularFile(pathAfter, fdAfter) ||
+		!os.SameFile(fdBefore, fdAfter) || !os.SameFile(pathBefore, pathAfter) ||
+		!os.SameFile(fdAfter, pathAfter) || !sameStableFileMetadata(fdBefore, fdAfter) {
+		return nil, ErrPublicFrontendUnavailable
+	}
+	return body, nil
+}
+
+func regularPath(info os.FileInfo) bool {
+	return info != nil && info.Mode().IsRegular() && info.Mode()&os.ModeSymlink == 0
+}
+
+func stableRegularFile(pathInfo, fdInfo os.FileInfo) bool {
+	return pathInfo != nil && fdInfo != nil && pathInfo.Mode().IsRegular() &&
+		pathInfo.Mode()&os.ModeSymlink == 0 && fdInfo.Mode().IsRegular() &&
+		pathInfo.Size() == fdInfo.Size() && pathInfo.Mode() == fdInfo.Mode() &&
+		pathInfo.ModTime().Equal(fdInfo.ModTime())
+}
+
+func sameStableFileMetadata(before, after os.FileInfo) bool {
+	return before.Size() == after.Size() && before.Mode() == after.Mode() &&
+		before.ModTime().Equal(after.ModTime())
 }
 
 func safePublicPackagePath(value string) bool {
@@ -448,4 +721,18 @@ func normalizedPublicDigest(value string) string {
 		return ""
 	}
 	return value
+}
+
+func hasPublicAssetPayload(manifest Manifest) bool {
+	return hasL2Components(manifest) || hasAssetRegistryDeclarations(manifest)
+}
+
+func hasAssetRegistryDeclarations(manifest Manifest) bool {
+	for _, asset := range manifest.Assets {
+		typ := strings.ToLower(strings.TrimSpace(asset.Type))
+		if typ == "script" || typ == "style" {
+			return true
+		}
+	}
+	return false
 }

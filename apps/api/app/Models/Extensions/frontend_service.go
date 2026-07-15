@@ -7,7 +7,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"os"
 	"slices"
 	"strings"
 	"sync"
@@ -26,14 +25,6 @@ var (
 
 type FrontendExtensionReader interface {
 	Get(context.Context, string) (Extension, error)
-}
-
-// PublicFrontendExtensionCatalog supplies the complete enabled set used to
-// rebuild one deterministic Asset Registry snapshot. Public L2 must never
-// depend on which extension happened to receive the first browser request.
-type PublicFrontendExtensionCatalog interface {
-	FrontendExtensionReader
-	List(context.Context) ([]Extension, error)
 }
 
 // PublicComponentAdmission is implemented by the Host-owned Component
@@ -86,6 +77,23 @@ func (s *FrontendService) WithSafeMode(enabled bool) *FrontendService {
 func (s *FrontendService) WithPublicL2(enabled bool) *FrontendService {
 	s.publicL2 = enabled
 	return s
+}
+
+// WithPublicAssetRegistry injects the Host-owned shared Asset Registry. Production
+// bootstrap must pass the same instance used by lifecycle restore and publication.
+func (s *FrontendService) WithPublicAssetRegistry(registry *assetregistry.Registry) *FrontendService {
+	if s != nil && registry != nil {
+		s.publicAssets = registry
+	}
+	return s
+}
+
+// PublicAssetRegistry exposes the process-local shared registry for Host wiring tests.
+func (s *FrontendService) PublicAssetRegistry() *assetregistry.Registry {
+	if s == nil {
+		return nil
+	}
+	return s.publicAssets
 }
 
 func (s *FrontendService) WithPublicComponentAdmission(admission PublicComponentAdmission) *FrontendService {
@@ -238,35 +246,20 @@ func (s *FrontendService) Asset(ctx context.Context, actor identity.Actor, exten
 			return FrontendAsset{}, ErrFrontendTrustUnavailable
 		}
 	}
-	currentDigest, err := ComputeAdminFrontendDigest(extension.Manifest, extension.PackagePath)
-	if err != nil || currentDigest != extension.AdminFrontendDigest {
+	material, err := readAdminFrontendMaterial(extension.Manifest, PackageContentRoot(extension))
+	if err != nil || material.Digest != extension.AdminFrontendDigest {
 		return FrontendAsset{}, fmt.Errorf("%w: component bytes changed", ErrFrontendPackageChanged)
 	}
-	relative := component.Entry
+	body := material.Entry
 	contentType := "application/javascript; charset=utf-8"
 	if assetName == "style" {
-		relative = component.CSS
+		if component.CSS == "" {
+			return FrontendAsset{}, ErrFrontendTrustUnavailable
+		}
+		body = material.CSS
 		contentType = "text/css; charset=utf-8"
 	} else if assetName != "entry" {
 		return FrontendAsset{}, ErrFrontendTrustUnavailable
-	}
-	if relative == "" {
-		return FrontendAsset{}, ErrFrontendTrustUnavailable
-	}
-	target, info, err := resolveAdminAsset(extension.PackagePath, relative)
-	if err != nil {
-		return FrontendAsset{}, ErrFrontendTrustUnavailable
-	}
-	limit := int64(maxPrebuiltAdminModuleBytes)
-	if assetName == "style" {
-		limit = maxPrebuiltAdminCSSBytes
-	}
-	if info.Size() > limit {
-		return FrontendAsset{}, ErrFrontendTrustUnavailable
-	}
-	body, err := os.ReadFile(target)
-	if err != nil {
-		return FrontendAsset{}, err
 	}
 	etag := sha256.Sum256(body)
 	return FrontendAsset{Body: body, ContentType: contentType, ETag: fmt.Sprintf("\"%x\"", etag[:])}, nil

@@ -1,6 +1,7 @@
 package extensions
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"os"
@@ -116,14 +117,19 @@ func TestFrontendServiceAssetRequiresExactGrantAndImmutableBytes(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if asset.ContentType != "application/javascript; charset=utf-8" || asset.ETag == "" {
+	entryPath := extension.Manifest.SettingsDocument.UI.Component.Entry
+	wantEntry, err := os.ReadFile(filepath.Join(extension.PackagePath, entryPath))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if asset.ContentType != "application/javascript; charset=utf-8" || asset.ETag == "" ||
+		!bytes.Equal(asset.Body, wantEntry) {
 		t.Fatalf("unexpected asset: %#v", asset)
 	}
 	if _, err := service.Asset(context.Background(), frontendSuperAdmin(), extension.ID, extension.AdminFrontendDigest, "backend"); !errors.Is(err, ErrFrontendTrustUnavailable) {
 		t.Fatalf("asset allowlist bypassed: %v", err)
 	}
-	entry := extension.Manifest.SettingsDocument.UI.Component.Entry
-	if err := os.WriteFile(filepath.Join(extension.PackagePath, entry), []byte("changed"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(extension.PackagePath, entryPath), []byte("changed"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := service.Asset(context.Background(), frontendSuperAdmin(), extension.ID, extension.AdminFrontendDigest, "entry"); !errors.Is(err, ErrFrontendPackageChanged) {

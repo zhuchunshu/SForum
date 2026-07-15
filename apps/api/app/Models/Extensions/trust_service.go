@@ -9,13 +9,13 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"os"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
 
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
+	assetregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/AssetRegistry"
 	audit "github.com/zhuchunshu/sforum/apps/api/app/Support/Audit"
 	capabilities "github.com/zhuchunshu/sforum/apps/api/app/Support/Capabilities"
 	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
@@ -24,12 +24,13 @@ import (
 const DefaultTrustChallengeTTL = 5 * time.Minute
 
 type ExecutableTrustService struct {
-	extensions FrontendExtensionReader
-	store      ExecutableTrustStore
-	auditor    audit.Writer
-	ttl        time.Duration
-	now        func() time.Time
-	random     io.Reader
+	extensions   FrontendExtensionReader
+	store        ExecutableTrustStore
+	auditor      audit.Writer
+	ttl          time.Duration
+	now          func() time.Time
+	random       io.Reader
+	publicAssets *assetregistry.Registry
 }
 
 // executableTrustGrantReceipt 只在 Host 激活事务内部流转。普通调用者仍只看到
@@ -64,6 +65,36 @@ func (s *ExecutableTrustService) WithTTL(ttl time.Duration) *ExecutableTrustServ
 		s.ttl = ttl
 	}
 	return s
+}
+
+// WithPublicAssetRegistry binds the same Host-owned registry used by lifecycle publication.
+func (s *ExecutableTrustService) WithPublicAssetRegistry(registry *assetregistry.Registry) *ExecutableTrustService {
+	if s != nil && registry != nil {
+		s.publicAssets = registry
+	}
+	return s
+}
+
+// capturePublicAssetArtifact 在 DB revoke 之前冻结 exact live artifact。
+func (s *ExecutableTrustService) capturePublicAssetArtifact(extensionID string) (assetregistry.Artifact, bool) {
+	if s == nil || s.publicAssets == nil {
+		return assetregistry.Artifact{}, false
+	}
+	publication, found := s.publicAssets.SnapshotPublication(normalizeID(extensionID))
+	if !found {
+		return assetregistry.Artifact{}, false
+	}
+	return publication.Artifact, true
+}
+
+// quarantineCapturedPublicAsset 在 DB revoke 之后隔离 captured exact artifact。
+// 陈旧 captured 不得擦除新发布物，Registry conflict 也必须向调用方返回。
+func (s *ExecutableTrustService) quarantineCapturedPublicAsset(artifact assetregistry.Artifact, captured bool) error {
+	if !captured || s == nil || s.publicAssets == nil {
+		return nil
+	}
+	_, _, err := s.publicAssets.QuarantineExact(artifact)
+	return err
 }
 
 func (s *ExecutableTrustService) Impact(ctx context.Context, actor identity.Actor, extensionID string) (TrustImpact, error) {
@@ -122,6 +153,9 @@ func (s *ExecutableTrustService) TrustedArtifact(ctx context.Context, extension 
 // RuntimeIdentity returns the exact live trust row used by a v2 subprocess.
 // The handshake may disclose this identity, but only the host-side grant lookup
 // is authoritative for execution.
+//
+// 注意：本方法会 buildTrustImpact / DigestTree，仅供 Host 启动恢复与授权路径使用。
+// 公开请求路径必须改用 ValidatePublishedIdentity。
 func (s *ExecutableTrustService) RuntimeIdentity(ctx context.Context, extension Extension) (RuntimeTrustIdentity, error) {
 	impact, err := buildTrustImpact(extension, TrustActionEnable)
 	if err != nil {
@@ -138,6 +172,64 @@ func (s *ExecutableTrustService) RuntimeIdentity(ctx context.Context, extension 
 		return RuntimeTrustIdentity{}, err
 	}
 	return RuntimeTrustIdentity{TrustGrantID: strconv.FormatInt(grant.ID, 10), ImpactDigest: grant.ImpactDigest}, nil
+}
+
+// ValidatePublishedIdentity 校验 Registry 已发布 artifact 与扩展当前元组/状态是否一致，
+// 并对 uploaded 制品做 exact live grant 查询。
+//
+// 绝对禁止 buildTrustImpact、DigestTree 与包内文件扫描——请求路径热路径专用。
+func (s *ExecutableTrustService) ValidatePublishedIdentity(
+	ctx context.Context,
+	extension Extension,
+	artifact assetregistry.Artifact,
+) error {
+	if s == nil || ctx == nil {
+		return ErrPublicFrontendUnavailable
+	}
+	artifactID := normalizeID(artifact.ExtensionID)
+	artifactPackage := normalizedPublicDigest(artifact.PackageDigest)
+	impactDigest := normalizedPublicDigest(artifact.ImpactDigest)
+	if artifactID == "" || strings.TrimSpace(artifact.ExtensionVersion) == "" ||
+		artifactPackage == "" || impactDigest == "" {
+		return ErrPublicFrontendUnavailable
+	}
+	if artifact.OwnerKind == assetregistry.OwnerKindCore {
+		if !artifact.Core || !strings.HasPrefix(artifactID, "core.") || extension.ID != "" {
+			return ErrPublicFrontendUnavailable
+		}
+		return nil
+	}
+	if artifact.Core || strings.HasPrefix(artifactID, "core.") {
+		return ErrPublicFrontendUnavailable
+	}
+	extensionID := normalizeID(extension.ID)
+	packageDigest := normalizedPublicDigest(extension.PackageDigest)
+	wantKind, ok := publicAssetOwnerKind(extension)
+	if !ok || artifact.OwnerKind != wantKind || extensionID == "" || extensionID != artifactID ||
+		strings.TrimSpace(extension.Version) != strings.TrimSpace(artifact.ExtensionVersion) ||
+		packageDigest == "" || packageDigest != artifactPackage || extension.Status != StatusEnabled {
+		return ErrPublicFrontendUnavailable
+	}
+	if extension.Source == SourceBuiltin {
+		if !extension.IsSystem || extension.IsDeletable {
+			return ErrPublicFrontendUnavailable
+		}
+		return nil
+	}
+	if !RequiresExecutableTrust(extension) || s.store == nil {
+		return ErrTrustGrantNotFound
+	}
+	granted, err := s.store.HasLiveGrant(ctx, TrustIdentity{
+		ExtensionID: extensionID, ExtensionVersion: strings.TrimSpace(extension.Version),
+		PackageDigest: packageDigest, Action: TrustActionEnable, ImpactDigest: impactDigest,
+	})
+	if err != nil {
+		return err
+	}
+	if !granted {
+		return ErrTrustGrantNotFound
+	}
+	return nil
 }
 
 func (s *ExecutableTrustService) hasLiveGrant(ctx context.Context, impact TrustImpact) (bool, error) {
@@ -248,7 +340,13 @@ func (s *ExecutableTrustService) RevokeAllForExtension(ctx context.Context, exte
 	if s == nil || s.store == nil {
 		return nil
 	}
-	return s.store.RevokeAll(ctx, normalizeID(extensionID), actorUserID, strings.TrimSpace(reason))
+	extensionID = normalizeID(extensionID)
+	// 安全吊销：先捕获 exact artifact，再 DB revoke，最后隔离 captured（而非当前）制品。
+	captured, found := s.capturePublicAssetArtifact(extensionID)
+	if err := s.store.RevokeAll(ctx, extensionID, actorUserID, strings.TrimSpace(reason)); err != nil {
+		return err
+	}
+	return s.quarantineCapturedPublicAsset(captured, found)
 }
 
 func (s *ExecutableTrustService) Revoke(ctx context.Context, actor identity.Actor, extensionID string) (ExecutableTrustStatus, error) {
@@ -259,7 +357,11 @@ func (s *ExecutableTrustService) Revoke(ctx context.Context, actor identity.Acto
 	if err != nil {
 		return ExecutableTrustStatus{}, err
 	}
+	captured, found := s.capturePublicAssetArtifact(extension.ID)
 	if err := s.store.RevokeAll(ctx, extension.ID, actor.ID, "operator_revoked"); err != nil {
+		return ExecutableTrustStatus{}, err
+	}
+	if err := s.quarantineCapturedPublicAsset(captured, found); err != nil {
 		return ExecutableTrustStatus{}, err
 	}
 	extension = trustReviewArtifact(extension)
@@ -339,6 +441,7 @@ func RequiresExecutableTrust(extension Extension) bool {
 	manifest := extension.Manifest
 	return hasExecutableBackend(manifest) || strings.TrimSpace(extension.AdminFrontendDigest) != "" ||
 		len(manifest.Migrations) > 0 || len(manifest.Guards) > 0 || hasL2Components(manifest) ||
+		hasAssetRegistryDeclarations(manifest) ||
 		requestsRawRequest(manifest) || requestsRawCoreDatabase(manifest) || hasExecutableLifecycle(manifest)
 }
 
@@ -550,17 +653,12 @@ func canonicalTrustImpactDigest(impact TrustImpact) (string, error) {
 }
 
 func digestInstalledFile(extension Extension, relative string) (string, error) {
-	path, ok := installedFilePath(extension, relative)
-	if !ok {
+	if _, ok := installedFilePath(extension, relative); !ok {
 		return "", fmt.Errorf("%w: unsafe executable path %s", ErrFrontendPackageChanged, relative)
 	}
-	info, err := os.Lstat(path)
-	if err != nil || !info.Mode().IsRegular() || info.Mode()&os.ModeSymlink != 0 {
-		return "", fmt.Errorf("%w: executable path %s is unavailable", ErrFrontendPackageChanged, relative)
-	}
-	body, err := os.ReadFile(path)
+	body, err := readStableExtensionFile(extension, relative, 0, false)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("%w: executable path %s is unavailable: %v", ErrFrontendPackageChanged, relative, err)
 	}
 	digest := sha256.Sum256(body)
 	return hex.EncodeToString(digest[:]), nil

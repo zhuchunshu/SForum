@@ -5,9 +5,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"os"
-	"path/filepath"
-	"strings"
 )
 
 const (
@@ -21,79 +18,63 @@ type adminFrontendDigestContract struct {
 	CSSDigest   string             `json:"cssDigest,omitempty"`
 }
 
+type adminFrontendMaterial struct {
+	Digest string
+	Entry  []byte
+	CSS    []byte
+}
+
 // ComputeAdminFrontendDigest 只覆盖作者预构建的设置组件及其公开契约。
 func ComputeAdminFrontendDigest(manifest Manifest, packageRoot string) (string, error) {
+	material, err := readAdminFrontendMaterial(manifest, packageRoot)
+	return material.Digest, err
+}
+
+// readAdminFrontendMaterial 从同一批稳定、根目录限域的文件句柄构造授权摘要和
+// 实际返回字节。调用方不得在验证 Digest 后二次读盘。
+func readAdminFrontendMaterial(manifest Manifest, packageRoot string) (adminFrontendMaterial, error) {
 	contract := adminFrontendDigestContract{}
+	material := adminFrontendMaterial{}
 	if component := manifest.SettingsDocument.UI.Component; component != nil && component.Entry != "" {
-		entryDigest, err := digestAdminAsset(packageRoot, component.Entry)
+		entry, err := readAdminAsset(packageRoot, component.Entry, maxPrebuiltAdminModuleBytes)
 		if err != nil {
-			return "", err
+			return adminFrontendMaterial{}, err
 		}
 		copy := *component
 		contract.Settings = &copy
-		contract.EntryDigest = entryDigest
+		material.Entry = entry
+		contract.EntryDigest = digestAdminAssetBytes(entry)
 		if component.CSS != "" {
-			contract.CSSDigest, err = digestAdminAsset(packageRoot, component.CSS)
+			material.CSS, err = readAdminAsset(packageRoot, component.CSS, maxPrebuiltAdminCSSBytes)
 			if err != nil {
-				return "", err
+				return adminFrontendMaterial{}, err
 			}
+			contract.CSSDigest = digestAdminAssetBytes(material.CSS)
 		}
 	}
 	if contract.EntryDigest == "" {
-		return "", nil
+		return material, nil
 	}
 	body, err := json.Marshal(contract)
 	if err != nil {
-		return "", err
+		return adminFrontendMaterial{}, err
 	}
 	digest := sha256.Sum256(body)
-	return hex.EncodeToString(digest[:]), nil
+	material.Digest = hex.EncodeToString(digest[:])
+	return material, nil
 }
 
-func digestAdminAsset(packageRoot, relative string) (string, error) {
-	target, info, err := resolveAdminAsset(packageRoot, relative)
+func readAdminAsset(packageRoot, relative string, limit int) ([]byte, error) {
+	body, err := readStableExtensionFile(
+		Extension{PackagePath: packageRoot}, relative, int64(limit), false,
+	)
 	if err != nil {
-		return "", err
+		return nil, fmt.Errorf("read admin asset %s: %w", relative, err)
 	}
-	limit := int64(maxPrebuiltAdminModuleBytes)
-	if filepath.Ext(target) == ".css" {
-		limit = maxPrebuiltAdminCSSBytes
-	}
-	if info.Size() > limit {
-		return "", fmt.Errorf("admin asset %s exceeds %d bytes", relative, limit)
-	}
-	body, err := os.ReadFile(target)
-	if err != nil {
-		return "", fmt.Errorf("read admin asset %s: %w", relative, err)
-	}
+	return body, nil
+}
+
+func digestAdminAssetBytes(body []byte) string {
 	digest := sha256.Sum256(body)
-	return hex.EncodeToString(digest[:]), nil
-}
-
-func resolveAdminAsset(packageRoot, relative string) (string, os.FileInfo, error) {
-	clean := filepath.Clean(filepath.FromSlash(relative))
-	root, err := filepath.Abs(packageRoot)
-	if err != nil {
-		return "", nil, err
-	}
-	target, err := filepath.Abs(filepath.Join(root, clean))
-	if err != nil || (target != root && !strings.HasPrefix(target, root+string(filepath.Separator))) {
-		return "", nil, fmt.Errorf("unsafe admin asset %s", relative)
-	}
-	info, err := os.Lstat(target)
-	if err != nil {
-		return "", nil, fmt.Errorf("stat admin asset %s: %w", relative, err)
-	}
-	if !info.Mode().IsRegular() {
-		return "", nil, fmt.Errorf("admin asset %s must be a regular file", relative)
-	}
-	resolvedRoot, err := filepath.EvalSymlinks(root)
-	if err != nil {
-		return "", nil, err
-	}
-	resolvedTarget, err := filepath.EvalSymlinks(target)
-	if err != nil || (resolvedTarget != resolvedRoot && !strings.HasPrefix(resolvedTarget, resolvedRoot+string(filepath.Separator))) {
-		return "", nil, fmt.Errorf("unsafe admin asset %s", relative)
-	}
-	return target, info, nil
+	return hex.EncodeToString(digest[:])
 }
