@@ -5,7 +5,7 @@
  *
  * 1) Offline contract checks (always run, no servers, no Playwright):
  *    - Host wiring (SFPageOutlet, catch-all route, SSR loaderData only)
- *    - L2 not dynamically imported
+ *    - trusted L2 loads only through the exact-artifact Host runtime
  *    - API carries DataSchema on ResolvedPage / LoadForResolved
  *    - Fixture plugin + theme packages still declare expected pages
  *
@@ -81,9 +81,25 @@ function validateOfflineContracts() {
   assertIncludes(template, '禁止客户端再请求插件 route', 'template must document no client plugin fetch')
   assertIncludes(template, "'identity.component.login_form': HostPageIsland", 'login replacement must preserve the Host form')
   assertIncludes(template, "'forum.component.topic_composer': HostPageIsland", 'topic replacement must preserve the Host composer')
-  // L2 closed: no dynamic import() of remote/package widgets in this component
-  assert.ok(!/\bimport\s*\(/.test(template), 'L2 dynamic import must stay closed in SFThemeTemplate')
-  assertNotIncludes(template, 'SFExtensionWidget', 'L2 widget island must not mount')
+  // Themes may name only the reviewed Host island. Package code loading remains
+  // inside the exact-artifact runtime rather than accepting a template URL.
+  assert.ok(!/\bimport\s*\(/.test(template), 'SFThemeTemplate must not import package code directly')
+  assertIncludes(template, "'core.component.shared.sfextension_widget': resolveComponent('SFExtensionWidget')", 'trusted L2 must use the reviewed Host island')
+  assertIncludes(template, 'fallbackComponents', 'public L2 must retain its typed SSR fallback')
+
+  const widget = read('apps/web/app/components/SFExtensionWidget.vue')
+  const publicAssets = read('apps/web/app/runtime/public-extensions/assets.ts')
+  assertIncludes(widget, 'parsePublicFrontendDescriptor', 'widget must validate a Host-issued descriptor')
+  assertIncludes(widget, 'publicComponentPath', 'widget must resolve by extension and component identity')
+  assertIncludes(widget, 'data-l2-fallback', 'widget must preserve SSR/L1 fallback content')
+  assertNotIncludes(widget, 'entry?: string', 'theme input must not supply an executable entry URL')
+  assertIncludes(publicAssets, 'sameOriginAssetURL', 'public assets must stay on the Host origin')
+  assertIncludes(publicAssets, "crypto.subtle.digest('SHA-256'", 'public assets must be verified byte-for-byte')
+  assertIncludes(publicAssets, 'import(/* @vite-ignore */ url)', 'verified ESM must use the native module loader')
+  assertIncludes(publicAssets, "createElement('link')", 'stylesheets must retain their immutable package URL as the CSS base')
+  assertIncludes(publicAssets, 'element.integrity = reference.integrity', 'stylesheets must retain exact SRI')
+  assertNotIncludes(publicAssets, 'blob:', 'public L2 must not bypass CSP with blob modules')
+  assertNotIncludes(publicAssets, 'createElement(\'script\')', 'public L2 must not execute classic scripts')
 
   // Index home wrapped in outlet
   const index = read('apps/web/app/pages/index.vue')

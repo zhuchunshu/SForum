@@ -61,11 +61,13 @@ describe('SFPageOutlet catalog wiring', () => {
     expect(src).toContain('route.path}?${requestQuery.value}')
   })
 
-  it('disables L2 widget execution', () => {
+  it('loads only Host-issued exact-artifact L2 descriptors', () => {
     const src = read('app/components/SFExtensionWidget.vue')
-    expect(src).toContain('data-l2-disabled')
-    expect(src).not.toContain('import(/* @vite-ignore */')
-    expect(src).not.toMatch(/await import\(/)
+    expect(src).toContain('parsePublicFrontendDescriptor')
+    expect(src).toContain('publicComponentPath')
+    expect(src).toContain('data-l2-fallback')
+    expect(src).not.toContain('entry?: string')
+    expect(src).not.toContain('integrity?: string')
   })
 
   it('dynamic registry catch-all resolves path via API', () => {
