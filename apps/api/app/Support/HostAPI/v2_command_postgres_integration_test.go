@@ -357,10 +357,7 @@ func newPostgresCommandHarness(t *testing.T) *postgresCommandHarness {
 	t.Helper()
 	databaseURL := strings.TrimSpace(os.Getenv("SFORUM_TEST_DATABASE_URL"))
 	if databaseURL == "" {
-		databaseURL = strings.TrimSpace(os.Getenv("DATABASE_URL"))
-	}
-	if databaseURL == "" {
-		t.Skip("SFORUM_TEST_DATABASE_URL or DATABASE_URL is required for Host Command integration tests")
+		t.Skip("SFORUM_TEST_DATABASE_URL is required for destructive Host Command integration tests")
 	}
 	ctx := context.Background()
 	admin, err := pgxpool.New(ctx, databaseURL)
