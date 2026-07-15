@@ -37,7 +37,19 @@ type coreOwnedType struct {
 	name   string
 }
 
-func prepareCoreMigrationAuthority(ctx context.Context, db *sql.DB) (coreMigrationAuthority, error) {
+type coreAuthorityTransactionBeginner interface {
+	BeginTx(context.Context, *sql.TxOptions) (*sql.Tx, error)
+}
+
+func prepareCoreMigrationAuthority(ctx context.Context, db coreAuthorityTransactionBeginner) (coreMigrationAuthority, error) {
+	return prepareCoreMigrationAuthorityForVersion(ctx, db, "")
+}
+
+func prepareCoreMigrationAuthorityForVersion(
+	ctx context.Context,
+	db coreAuthorityTransactionBeginner,
+	targetVersion string,
+) (coreMigrationAuthority, error) {
 	if ctx == nil || db == nil {
 		return coreMigrationAuthority{}, fmt.Errorf("%w: database connection is required", ErrCoreAuthorityConflict)
 	}
@@ -64,7 +76,14 @@ func prepareCoreMigrationAuthority(ctx context.Context, db *sql.DB) (coreMigrati
 	if err != nil {
 		return coreMigrationAuthority{}, fmt.Errorf("derive Core owner role: %w", err)
 	}
+	if err := lockCorePhysicalAuthority(ctx, tx); err != nil {
+		return coreMigrationAuthority{}, err
+	}
 	if err := ensureCoreOwnerRole(ctx, tx, authority); err != nil {
+		return coreMigrationAuthority{}, err
+	}
+	compatibilityErr, err := reconcileCoreKernelAuthority(ctx, tx, authority, targetVersion)
+	if err != nil {
 		return coreMigrationAuthority{}, err
 	}
 	if err := validateCoreOwnershipSources(ctx, tx, authority); err != nil {
@@ -78,6 +97,9 @@ func prepareCoreMigrationAuthority(ctx context.Context, db *sql.DB) (coreMigrati
 	}
 	if err := tx.Commit(); err != nil {
 		return coreMigrationAuthority{}, fmt.Errorf("commit Core ownership convergence: %w", err)
+	}
+	if compatibilityErr != nil {
+		return coreMigrationAuthority{}, compatibilityErr
 	}
 	return authority, nil
 }

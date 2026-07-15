@@ -27,6 +27,14 @@ func TestCoreUpgradeCompatibilityBlocksExactTrustedAdditiveRawGrant(t *testing.T
 	)
 }
 
+func TestCoreUpgradeCompatibilityBlocksExactTrustedAdditiveKernelGrant(t *testing.T) {
+	assertCoreUpgradeCompatibilityLifecycle(
+		t,
+		`{"database":{"grants":["own_schema","kernel"],"coreCompatibility":">=1.0.0 <2.0.0"}}`,
+		`{"database":{"grants":["kernel","own_schema"],"coreCompatibility":">=1.0.0 <2.0.0"}}`,
+	)
+}
+
 func assertCoreUpgradeCompatibilityLifecycle(t *testing.T, manifest, trustImpact string) {
 	t.Helper()
 	databaseURL := strings.TrimSpace(os.Getenv("SFORUM_TEST_DATABASE_URL"))
@@ -87,6 +95,23 @@ func assertCoreUpgradeCompatibilityLifecycle(t *testing.T, manifest, trustImpact
 	}
 	if err := checkCoreUpgradeCompatibility(ctx, db, "2.0.0"); !errors.Is(err, ErrCoreUpgradeIncompatible) {
 		t.Fatalf("incompatible target was not blocked: %v", err)
+	}
+	if _, err := db.ExecContext(ctx, `
+		UPDATE extension_versions
+		SET manifest = jsonb_set(
+			manifest, '{database,coreCompatibility}', to_jsonb('>=1.0.0 <3.0.0'::TEXT)
+		)
+		WHERE id = $1
+	`, versionID); err != nil {
+		t.Fatal(err)
+	}
+	if err := checkCoreUpgradeCompatibility(ctx, db, "2.0.0"); !errors.Is(err, ErrCoreUpgradeIncompatible) {
+		t.Fatalf("constraint-only exact-trust drift was not blocked: %v", err)
+	}
+	if _, err := db.ExecContext(ctx,
+		`UPDATE extension_versions SET manifest = $2::jsonb WHERE id = $1`, versionID, manifest,
+	); err != nil {
+		t.Fatal(err)
 	}
 	if _, err := db.ExecContext(ctx, `UPDATE extension_trust_grants SET revoked_at = now() WHERE id = $1`, grantID); err != nil {
 		t.Fatal(err)

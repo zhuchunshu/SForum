@@ -2,7 +2,6 @@ package migrator
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
 	"strings"
@@ -17,9 +16,10 @@ type coreCompatibilityBlocker struct {
 	ExtensionVersion string
 	Authority        string
 	Constraint       string
+	DeclarationExact bool
 }
 
-func checkCoreUpgradeCompatibility(ctx context.Context, db *sql.DB, targetVersion string) error {
+func checkCoreUpgradeCompatibility(ctx context.Context, db coreAuthorityQueryer, targetVersion string) error {
 	target, err := semver.StrictNewVersion(strings.TrimSpace(targetVersion))
 	if err != nil {
 		return fmt.Errorf("invalid target SForum version %q: %w", targetVersion, err)
@@ -48,62 +48,103 @@ func checkCoreUpgradeCompatibility(ctx context.Context, db *sql.DB, targetVersio
 		           WHEN 'kernel' THEN '["own_schema","core_views","host_commands","raw_core","kernel"]'::jsonb
 		           ELSE COALESCE(extension_versions.manifest #> '{database,grants}', '[]'::jsonb)
 		         END AS database_grants
-		FROM extensions
-		JOIN extension_versions ON extension_versions.id = extensions.active_version_id
+			FROM public.extensions
+			JOIN public.extension_versions ON extension_versions.id = extensions.active_version_id
 		WHERE extensions.type = 'plugin'
 		  AND extensions.status = 'enabled'
 		)
-		SELECT enabled.id, enabled.version, enabled.authority,
-		       COALESCE(enabled.manifest #>> '{database,coreCompatibility}', '')
-		FROM enabled_database_extensions AS enabled
-		WHERE enabled.database_grants ?| ARRAY['raw_core', 'kernel']
-		  AND (
-		    (enabled.source = 'builtin' AND enabled.is_system)
-		    OR (
-		      enabled.source = 'uploaded' AND NOT enabled.is_system
-		      AND EXISTS (
-		        SELECT 1
-		        FROM extension_trust_grants AS trust
-		        CROSS JOIN LATERAL (
-		          SELECT CASE trust.impact_document #>> '{database,authority}'
-		            WHEN 'own_schema' THEN '["own_schema"]'::jsonb
-		            WHEN 'core_views' THEN '["own_schema","core_views"]'::jsonb
-		            WHEN 'host_commands' THEN '["own_schema","core_views","host_commands"]'::jsonb
-		            WHEN 'raw_core' THEN '["own_schema","core_views","host_commands","raw_core"]'::jsonb
-		            WHEN 'kernel' THEN '["own_schema","core_views","host_commands","raw_core","kernel"]'::jsonb
-		            ELSE COALESCE(trust.impact_document #> '{database,grants}', '[]'::jsonb)
-		          END AS database_grants
-		        ) AS normalized_trust
-		        WHERE trust.extension_id = enabled.id
-		          AND trust.extension_version = enabled.version
-		          AND trust.package_digest = enabled.package_digest
-		          AND trust.action = 'enable'
-		          AND trust.revoked_at IS NULL
-		          AND normalized_trust.database_grants @> enabled.database_grants
-		          AND enabled.database_grants @> normalized_trust.database_grants
-		      )
-		    )
-		  )
+			SELECT enabled.id, enabled.version, enabled.authority,
+			       COALESCE(enabled.manifest #>> '{database,coreCompatibility}', ''),
+			       CASE
+			         WHEN enabled.source = 'builtin' AND enabled.is_system THEN TRUE
+			         ELSE COALESCE(trusted.declaration_exact, FALSE)
+			       END
+			FROM enabled_database_extensions AS enabled
+			LEFT JOIN LATERAL (
+			  SELECT
+			    COALESCE(bool_or(
+			      normalized_trust.database_grants @> enabled.database_grants
+			      AND enabled.database_grants @> normalized_trust.database_grants
+			      AND jsonb_array_length(normalized_trust.database_grants) =
+			          jsonb_array_length(enabled.database_grants)
+			    ), FALSE) AS powers_exact,
+			    COALESCE(bool_or(
+			      normalized_trust.database_grants @> enabled.database_grants
+			      AND enabled.database_grants @> normalized_trust.database_grants
+			      AND jsonb_array_length(normalized_trust.database_grants) =
+			          jsonb_array_length(enabled.database_grants)
+			      AND COALESCE(trust.impact_document #>> '{database,coreCompatibility}', '') =
+			          COALESCE(enabled.manifest #>> '{database,coreCompatibility}', '')
+			    ), FALSE) AS declaration_exact
+			  FROM public.extension_trust_grants AS trust
+			  CROSS JOIN LATERAL (
+			    SELECT CASE trust.impact_document #>> '{database,authority}'
+			      WHEN 'own_schema' THEN '["own_schema"]'::jsonb
+			      WHEN 'core_views' THEN '["own_schema","core_views"]'::jsonb
+			      WHEN 'host_commands' THEN '["own_schema","core_views","host_commands"]'::jsonb
+			      WHEN 'raw_core' THEN '["own_schema","core_views","host_commands","raw_core"]'::jsonb
+			      WHEN 'kernel' THEN '["own_schema","core_views","host_commands","raw_core","kernel"]'::jsonb
+			      ELSE COALESCE(trust.impact_document #> '{database,grants}', '[]'::jsonb)
+			    END AS database_grants
+			  ) AS normalized_trust
+			  WHERE trust.extension_id = enabled.id
+			    AND trust.extension_version = enabled.version
+			    AND trust.package_digest = enabled.package_digest
+			    AND trust.action = 'enable'
+			    AND trust.revoked_at IS NULL
+			) AS trusted ON TRUE
+			WHERE enabled.database_grants ?| ARRAY['raw_core', 'kernel']
+			  AND (
+			    (enabled.source = 'builtin' AND enabled.is_system)
+			    OR (
+			      enabled.source = 'uploaded' AND NOT enabled.is_system
+			      AND COALESCE(trusted.powers_exact, FALSE)
+			    )
+			  )
 		ORDER BY enabled.id
 	`)
 	if err != nil {
 		return fmt.Errorf("load raw database compatibility declarations: %w", err)
 	}
-	defer rows.Close()
-
-	blockers := make([]coreCompatibilityBlocker, 0)
+	declarations := make([]coreCompatibilityBlocker, 0)
 	for rows.Next() {
-		var blocker coreCompatibilityBlocker
-		if err := rows.Scan(&blocker.ExtensionID, &blocker.ExtensionVersion, &blocker.Authority, &blocker.Constraint); err != nil {
+		var declaration coreCompatibilityBlocker
+		if err := rows.Scan(
+			&declaration.ExtensionID,
+			&declaration.ExtensionVersion,
+			&declaration.Authority,
+			&declaration.Constraint,
+			&declaration.DeclarationExact,
+		); err != nil {
+			rows.Close()
 			return fmt.Errorf("scan raw database compatibility declaration: %w", err)
 		}
-		constraint, constraintErr := semver.NewConstraint(blocker.Constraint)
-		if constraintErr != nil || !constraint.Check(target) {
-			blockers = append(blockers, blocker)
-		}
+		declarations = append(declarations, declaration)
 	}
 	if err := rows.Err(); err != nil {
+		rows.Close()
 		return fmt.Errorf("read raw database compatibility declarations: %w", err)
+	}
+	rows.Close()
+	return rejectCoreCompatibilityDeclarations(target, declarations)
+}
+
+func rejectCoreCompatibilityDeclarations(
+	target *semver.Version,
+	declarations []coreCompatibilityBlocker,
+) error {
+	blockers := make([]coreCompatibilityBlocker, 0)
+	seen := make(map[coreCompatibilityBlocker]struct{}, len(declarations))
+	for _, declaration := range declarations {
+		if _, duplicate := seen[declaration]; duplicate {
+			continue
+		}
+		seen[declaration] = struct{}{}
+		constraint, constraintErr := semver.NewConstraint(declaration.Constraint)
+		if !declaration.DeclarationExact || strings.TrimSpace(declaration.Constraint) == "" ||
+			constraintErr != nil || !constraint.Check(target) {
+			blockers = append(blockers, declaration)
+		}
 	}
 	if len(blockers) == 0 {
 		return nil
@@ -116,7 +157,7 @@ func checkCoreUpgradeCompatibility(ctx context.Context, db *sql.DB, targetVersio
 	)
 }
 
-func coreCompatibilityFactsReady(ctx context.Context, db *sql.DB) (bool, error) {
+func coreCompatibilityFactsReady(ctx context.Context, db coreAuthorityQueryer) (bool, error) {
 	if db == nil {
 		return false, errors.New("database is required")
 	}

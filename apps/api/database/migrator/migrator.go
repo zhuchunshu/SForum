@@ -3,6 +3,7 @@ package migrator
 import (
 	"context"
 	"database/sql"
+	"database/sql/driver"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -50,10 +51,23 @@ func Up(ctx context.Context, cfg Config) error {
 	if targetVersion == "" {
 		targetVersion = platformversion.Current
 	}
-	if err := checkCoreUpgradeCompatibility(ctx, adminDB, targetVersion); err != nil {
+	return withCorePhysicalAuthoritySession(ctx, adminDB, func(adminConnection *sql.Conn) error {
+		return runCoreMigrationsLocked(ctx, cfg, logger, adminDB, adminConnection, targetVersion)
+	})
+}
+
+func runCoreMigrationsLocked(
+	ctx context.Context,
+	cfg Config,
+	logger *slog.Logger,
+	adminDB *sql.DB,
+	adminConnection *sql.Conn,
+	targetVersion string,
+) error {
+	if err := checkCoreUpgradeCompatibility(ctx, adminConnection, targetVersion); err != nil {
 		return fmt.Errorf("check core upgrade compatibility: %w", err)
 	}
-	authority, err := prepareCoreMigrationAuthority(ctx, adminDB)
+	authority, err := prepareCoreMigrationAuthorityForVersion(ctx, adminConnection, targetVersion)
 	if err != nil {
 		return fmt.Errorf("prepare Core migration authority: %w", err)
 	}
@@ -87,10 +101,22 @@ func Up(ctx context.Context, cfg Config) error {
 	if err != nil {
 		return fmt.Errorf("create goose provider: %w", err)
 	}
+	runtimeStateExisted, runtimeStateMarked, err := markCoreMigrationStarted(
+		ctx, adminConnection, targetVersion, false,
+	)
+	if err != nil {
+		return err
+	}
 
 	results, err := runWithCoreMigrationDatabaseCreate(ctx, adminDB, authority, provider.Up)
 	if err != nil {
 		return fmt.Errorf("run migrations: %w", err)
+	}
+	if !runtimeStateExisted {
+		_, runtimeStateMarked, err = markCoreMigrationStarted(ctx, adminConnection, targetVersion, true)
+		if err != nil {
+			return err
+		}
 	}
 	if len(results) == 0 {
 		logger.InfoContext(ctx, "database migrations already up to date")
@@ -104,7 +130,48 @@ func Up(ctx context.Context, cfg Config) error {
 		}
 		logger.InfoContext(ctx, "database migrations complete", slog.Int("applied", len(results)))
 	}
-	return runRiverMigrations(ctx, cfg.DatabaseURL, logger)
+	if err := runRiverMigrations(ctx, cfg.DatabaseURL, logger); err != nil {
+		return err
+	}
+	if !runtimeStateMarked {
+		return nil
+	}
+	return publishCoreRuntimeVersion(ctx, adminConnection, targetVersion)
+}
+
+func withCorePhysicalAuthoritySession(
+	ctx context.Context,
+	db *sql.DB,
+	operation func(*sql.Conn) error,
+) (returnErr error) {
+	if ctx == nil || db == nil || operation == nil {
+		return fmt.Errorf("%w: physical authority session inputs are required", ErrCoreAuthorityConflict)
+	}
+	connection, err := db.Conn(ctx)
+	if err != nil {
+		return fmt.Errorf("acquire Core physical authority connection: %w", err)
+	}
+	discard := false
+	defer func() {
+		if discard {
+			// ErrBadConn prevents database/sql from returning an uncertain lock owner to the idle pool.
+			_ = connection.Raw(func(any) error { return driver.ErrBadConn })
+		}
+		returnErr = errors.Join(returnErr, connection.Close())
+	}()
+	if err := lockCorePhysicalAuthoritySession(ctx, connection); err != nil {
+		discard = true
+		return err
+	}
+	defer func() {
+		unlockCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second)
+		defer cancel()
+		if err := unlockCorePhysicalAuthoritySession(unlockCtx, connection); err != nil {
+			discard = true
+			returnErr = errors.Join(returnErr, err)
+		}
+	}()
+	return operation(connection)
 }
 
 func runWithCoreMigrationDatabaseCreate(

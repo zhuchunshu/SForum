@@ -445,6 +445,10 @@ func insertExtensionDatabaseRuntimeLeaseFixture(
 			Schema:          "logical_schema", Role: "logical_role",
 		},
 	}
+	if containsExtensionDatabasePower(powers, extensionmanifest.DatabaseGrantRawCore) ||
+		containsExtensionDatabasePower(powers, extensionmanifest.DatabaseGrantKernel) {
+		manifest.Database.CoreCompatibility = ">=1.0.0 <2.0.0"
+	}
 	manifestJSON, err := json.Marshal(manifest)
 	if err != nil {
 		t.Fatal(err)

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"slices"
 	"strings"
 	"time"
 
@@ -124,6 +125,26 @@ func (r *PostgresExtensionDatabaseRegistry) HeartbeatRuntimeLease(
 	if lease.Status != ExtensionDatabaseLeaseActive || lease.Revision != expectedRevision {
 		return ExtensionDatabaseRuntimeLeaseSnapshot{}, ErrExtensionDatabaseRuntimeLeaseConflict
 	}
+	powers, err := loadExtensionDatabaseGrantPowers(ctx, tx, lease.GrantID)
+	if err != nil {
+		return ExtensionDatabaseRuntimeLeaseSnapshot{}, err
+	}
+	if containsExtensionDatabasePower(powers, extensionmanifest.DatabaseGrantRawCore) ||
+		containsExtensionDatabasePower(powers, extensionmanifest.DatabaseGrantKernel) {
+		if err := lockExtensionDatabasePhysicalAuthority(ctx, tx); err != nil {
+			return ExtensionDatabaseRuntimeLeaseSnapshot{}, err
+		}
+		declaration, err := loadExactExtensionDatabaseDeclaration(ctx, tx, lease.Artifact)
+		if err != nil {
+			return ExtensionDatabaseRuntimeLeaseSnapshot{}, err
+		}
+		if !slices.Equal(extensionmanifest.DatabaseGrants(&declaration), powers) {
+			return ExtensionDatabaseRuntimeLeaseSnapshot{}, ErrExtensionDatabaseArtifactConflict
+		}
+		if err := validateExtensionDatabaseCoreCompatibility(ctx, tx, declaration, powers); err != nil {
+			return ExtensionDatabaseRuntimeLeaseSnapshot{}, err
+		}
+	}
 	heartbeatAt, expiresAt, err := extensionDatabaseRuntimeLeaseWindow(ctx, tx)
 	if err != nil {
 		return ExtensionDatabaseRuntimeLeaseSnapshot{}, err
@@ -230,6 +251,15 @@ func (r *PostgresExtensionDatabaseRegistry) IssueRuntimeLease(
 	powers := extensionmanifest.DatabaseGrants(&declaration)
 	if len(powers) == 0 {
 		return ExtensionDatabaseRuntimeCredential{}, ErrExtensionDatabaseAuthority
+	}
+	if containsExtensionDatabasePower(powers, extensionmanifest.DatabaseGrantRawCore) ||
+		containsExtensionDatabasePower(powers, extensionmanifest.DatabaseGrantKernel) {
+		if err := lockExtensionDatabasePhysicalAuthority(ctx, tx); err != nil {
+			return ExtensionDatabaseRuntimeCredential{}, err
+		}
+		if err := validateExtensionDatabaseCoreCompatibility(ctx, tx, declaration, powers); err != nil {
+			return ExtensionDatabaseRuntimeCredential{}, err
+		}
 	}
 	databaseName, err := ensureExtensionDatabaseResources(ctx, tx, request.Artifact.ExtensionID, identifiers)
 	if err != nil {

@@ -23,6 +23,7 @@ var (
 	ErrExtensionDatabaseArtifactConflict = errors.New("extension database exact artifact conflict")
 	ErrExtensionDatabaseGrantNotFound    = errors.New("extension database exact grant not found")
 	ErrExtensionDatabaseAuthority        = errors.New("extension database authority is not supported")
+	ErrExtensionDatabaseCoreIncompatible = errors.New("extension database authority is incompatible with migrated Core")
 	ErrExtensionDatabaseResourceConflict = errors.New("extension database physical resource conflict")
 	ErrExtensionDatabaseCredential       = errors.New("extension database credential operation failed")
 )
