@@ -62,7 +62,7 @@ if (error.value) {
 }
 
 const templateHtml = computed(() => (data.value?.templateHtml || '').trim())
-const useTemplate = computed(() => Boolean(data.value?.renderOutput || templateHtml.value) && !data.value?.fallback)
+const useTemplate = computed(() => Boolean(data.value?.renderOutput || templateHtml.value))
 
 useSForumSeo({
   title: () => data.value?.page?.id || requestPath.value,

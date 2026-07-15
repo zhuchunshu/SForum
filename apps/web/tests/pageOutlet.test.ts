@@ -76,6 +76,14 @@ describe('SFPageOutlet catalog wiring', () => {
     expect(src).toContain('createError')
   })
 
+  it('renders Host emergency output for dynamic extension pages', () => {
+    for (const file of ['app/pages/[...sfRegistryPage].vue', 'app/pages/x/[...path].vue']) {
+      const src = read(file)
+      expect(src).toContain('Boolean(data.value?.renderOutput || templateHtml.value)')
+      expect(src).not.toContain('&& !data.value?.fallback')
+    }
+  })
+
   it('keeps non-404 failures outside the replaceable not-found surface', () => {
     const src = read('app/error.vue')
     expect(src).toContain('v-if="isNotFound"')
