@@ -66,6 +66,26 @@ func TestManifestV3RejectsUnsafeAssetRuntimeContracts(t *testing.T) {
 	}
 }
 
+func TestManifestV3RequiresDeclaredOwnerForCrossExtensionAssetDependency(t *testing.T) {
+	manifest := completeV3Manifest()
+	manifest.Assets[0].Dependencies = []string{"owner.assets.shared"}
+	if err := Validate(manifest); err == nil {
+		t.Fatal("undeclared cross-extension asset owner must fail closed")
+	}
+
+	manifest.Dependencies = append(manifest.Dependencies, ManifestDependency{
+		ID: "owner.assets", Version: "^1.0.0", Kind: "required",
+	})
+	if err := Validate(manifest); err != nil {
+		t.Fatalf("required exact owner should permit its asset handle: %v", err)
+	}
+
+	manifest.Dependencies[len(manifest.Dependencies)-1].Kind = "optional"
+	if err := Validate(manifest); err == nil {
+		t.Fatal("asset graph has no optional edge semantics and must reject an optional owner")
+	}
+}
+
 func assetIntegrityForTest(t *testing.T, digest string) string {
 	t.Helper()
 	raw, err := hex.DecodeString(digest)

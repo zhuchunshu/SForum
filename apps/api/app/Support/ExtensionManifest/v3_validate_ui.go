@@ -138,7 +138,12 @@ func (v *v3Validator) validateUIAndPackage() error {
 	}
 	for _, asset := range v.manifest.Assets {
 		for _, dependency := range asset.Dependencies {
-			if family, declared := v.ids[dependency]; !declared && !strings.HasPrefix(dependency, "core.asset.") || declared && family != "asset" {
+			family, declared := v.ids[dependency]
+			if declared && family != "asset" {
+				return ErrInvalidManifest
+			}
+			if !declared && !strings.HasPrefix(dependency, "core.asset.") &&
+				!requiredExtensionOwnsAsset(v.manifest.Dependencies, dependency) {
 				return ErrInvalidManifest
 			}
 		}
@@ -220,6 +225,16 @@ func (v *v3Validator) validateUIAndPackage() error {
 		return ErrInvalidManifest
 	}
 	return nil
+}
+
+func requiredExtensionOwnsAsset(dependencies []ManifestDependency, handle string) bool {
+	for _, dependency := range dependencies {
+		if dependency.Kind == "required" && dependency.ID != "" &&
+			strings.HasPrefix(handle, dependency.ID+".") {
+			return true
+		}
+	}
+	return false
 }
 
 func validPrebuiltAssetPath(assetType, value string) bool {
