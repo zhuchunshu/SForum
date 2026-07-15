@@ -25,6 +25,7 @@ func newExtensionCommand() *cobra.Command {
 	cmd.AddCommand(newExtensionRecoveryListCommand())
 	cmd.AddCommand(newExtensionRecoveryDisableCommand())
 	cmd.AddCommand(newExtensionRecoveryDisableAllCommand())
+	cmd.AddCommand(newPluginCommandCommand())
 	return cmd
 }
 
