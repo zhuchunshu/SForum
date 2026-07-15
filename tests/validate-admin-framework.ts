@@ -185,6 +185,8 @@ const adminPagePathsById: Record<string, string> = {
   '/extensions/contributions': 'apps/web/app/pages/admin/extensions/contributions.vue',
   '/extensions/releases': 'apps/web/app/pages/admin/extensions/releases.vue',
   '/extensions/pages': 'apps/web/app/pages/admin/extensions/pages.vue',
+  '/extensions/route-providers': 'apps/web/app/pages/admin/extensions/route-providers.vue',
+  '/extensions/provider-slots': 'apps/web/app/pages/admin/extensions/provider-slots.vue',
   '/jobs': 'apps/web/app/pages/admin/jobs.vue',
   '/schedules': 'apps/web/app/pages/admin/schedules.vue',
   '/webhooks': 'apps/web/app/pages/admin/webhooks.vue',
@@ -309,7 +311,11 @@ assert(!systemFolder.children?.some(entry => entry.pageId === '/jobs'), 'System 
 assert(!systemFolder.children?.some(entry => entry.pageId === '/extensions'), 'System folder should not contain the extension overview page')
 const extensionFolder = firstSidebarGroup.find(entry => entry.type === 'folder' && entry.labelKey === 'admin.nav.extensions')
 assert(extensionFolder, 'Admin sidebar should expose extensions as an independent folder')
-assert(extensionFolder.children?.map(entry => entry.pageId).join(',') === '/extensions,/extensions/plugins,/extensions/themes,/extensions/pages,/extensions/settings,/extensions/events,/extensions/contributions', 'Extension folder should keep the approved submenu order without the app store')
+assert(
+  extensionFolder.children?.map(entry => entry.pageId).join(',') ===
+    '/extensions,/extensions/plugins,/extensions/themes,/extensions/pages,/extensions/route-providers,/extensions/provider-slots,/extensions/settings,/extensions/events,/extensions/contributions',
+  'Extension folder should keep the approved submenu order without the app store'
+)
 assert(!extensionFolder.children?.some(entry => entry.pageId === '/extensions/store'), 'App store should not live under the extensions folder')
 const extensionStoreFolder = firstSidebarGroup.find(entry => entry.type === 'folder' && entry.labelKey === 'admin.nav.extensionStore')
 assert(extensionStoreFolder, 'Admin sidebar should expose app store as an independent top-level folder')
