@@ -24,6 +24,9 @@ func prepareExtensionDatabaseMigrationRole(
 		!extensionDatabasePasswordPattern.MatchString(password) {
 		return ErrExtensionDatabaseRegistryInvalid
 	}
+	if err := lockExtensionDatabasePhysicalAuthority(ctx, tx); err != nil {
+		return err
+	}
 	var superuser, createDatabase, createRole, replication, bypassRLS bool
 	err := tx.QueryRow(ctx, `
 		SELECT rolsuper, rolcreatedb, rolcreaterole, rolreplication, rolbypassrls
@@ -86,6 +89,9 @@ func revokeExtensionDatabaseMigrationRole(
 	if !validPostgresIdentifier(roleName) || !validPostgresIdentifier(ownerRoleName) ||
 		!validPostgresIdentifier(schemaName) || !validPostgresCatalogName(databaseName) {
 		return ErrExtensionDatabaseRegistryInvalid
+	}
+	if err := lockExtensionDatabasePhysicalAuthority(ctx, tx); err != nil {
+		return err
 	}
 	role := pgx.Identifier{roleName}.Sanitize()
 	owner := pgx.Identifier{ownerRoleName}.Sanitize()

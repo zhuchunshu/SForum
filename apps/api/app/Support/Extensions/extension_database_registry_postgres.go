@@ -101,6 +101,9 @@ func ensureExtensionDatabaseRole(
 	if !validPostgresIdentifier(roleName) {
 		return ErrExtensionDatabaseIdentifier
 	}
+	if err := lockExtensionDatabasePhysicalAuthority(ctx, tx); err != nil {
+		return err
+	}
 	var canLogin, superuser, createDatabase, createRole, replication, bypassRLS bool
 	var connectionLimit int
 	err := tx.QueryRow(ctx, `
@@ -325,6 +328,9 @@ func configureExtensionDatabaseOwnership(
 	tx pgx.Tx,
 	identifiers ExtensionDatabaseIdentifiers,
 ) error {
+	if err := lockExtensionDatabasePhysicalAuthority(ctx, tx); err != nil {
+		return err
+	}
 	owner := pgx.Identifier{identifiers.OwnerRole}.Sanitize()
 	runtime := pgx.Identifier{identifiers.RuntimeRole}.Sanitize()
 	schema := pgx.Identifier{identifiers.Schema}.Sanitize()
@@ -357,6 +363,9 @@ func activateExtensionDatabaseRuntimeRole(
 	if !identifiers.valid() || !validPostgresCatalogName(databaseName) ||
 		!extensionDatabasePasswordPattern.MatchString(password) {
 		return ErrExtensionDatabaseRegistryInvalid
+	}
+	if err := lockExtensionDatabasePhysicalAuthority(ctx, tx); err != nil {
+		return err
 	}
 	runtime := pgx.Identifier{identifiers.RuntimeRole}.Sanitize()
 	database := pgx.Identifier{databaseName}.Sanitize()
@@ -455,6 +464,9 @@ func disableExtensionDatabaseRuntimeRole(
 ) error {
 	if !validPostgresIdentifier(roleName) || !validPostgresCatalogName(databaseName) {
 		return ErrExtensionDatabaseRegistryInvalid
+	}
+	if err := lockExtensionDatabasePhysicalAuthority(ctx, tx); err != nil {
+		return err
 	}
 	role := pgx.Identifier{roleName}.Sanitize()
 	database := pgx.Identifier{databaseName}.Sanitize()

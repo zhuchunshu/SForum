@@ -29,9 +29,9 @@ func TestCoreUpgradeCompatibilityBlocksExactTrustedAdditiveRawGrant(t *testing.T
 
 func assertCoreUpgradeCompatibilityLifecycle(t *testing.T, manifest, trustImpact string) {
 	t.Helper()
-	databaseURL := strings.TrimSpace(os.Getenv("DATABASE_URL"))
+	databaseURL := strings.TrimSpace(os.Getenv("SFORUM_TEST_DATABASE_URL"))
 	if databaseURL == "" {
-		t.Skip("DATABASE_URL is required for core compatibility integration test")
+		t.Skip("SFORUM_TEST_DATABASE_URL is required for core compatibility integration test")
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()

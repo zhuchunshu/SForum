@@ -29,6 +29,9 @@ func createExtensionDatabaseRuntimeLeaseRole(
 		expiresAt.IsZero() || len(powers) == 0 {
 		return "", ErrExtensionDatabaseRegistryInvalid
 	}
+	if err := lockExtensionDatabasePhysicalAuthority(ctx, tx); err != nil {
+		return "", err
+	}
 	var roleExists bool
 	if err := tx.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = $1)`, roleName).Scan(&roleExists); err != nil {
 		return "", fmt.Errorf("inspect extension database runtime lease role: %w", err)
@@ -62,8 +65,7 @@ func createExtensionDatabaseRuntimeLeaseRole(
 			`GRANT SELECT ON ALL TABLES IN SCHEMA `+coreViews+` TO `+role,
 		)
 	}
-	if containsExtensionDatabasePower(powers, extensionmanifest.DatabaseGrantRawCore) ||
-		containsExtensionDatabasePower(powers, extensionmanifest.DatabaseGrantKernel) {
+	if containsExtensionDatabasePower(powers, extensionmanifest.DatabaseGrantKernel) {
 		publicSchema := pgx.Identifier{"public"}.Sanitize()
 		queries = append(queries,
 			`GRANT USAGE ON SCHEMA `+publicSchema+` TO `+role,
@@ -82,6 +84,14 @@ func createExtensionDatabaseRuntimeLeaseRole(
 	for _, query := range queries {
 		if _, err := tx.Exec(ctx, query); err != nil {
 			return "", fmt.Errorf("%w: configure runtime lease role: %v", ErrExtensionDatabaseCredential, err)
+		}
+	}
+	if err := hardenExtensionDatabaseCoreRoutineAuthority(ctx, tx); err != nil {
+		return "", err
+	}
+	if containsExtensionDatabasePower(powers, extensionmanifest.DatabaseGrantRawCore) {
+		if err := grantExtensionDatabaseRawCoreAuthority(ctx, tx, roleName); err != nil {
+			return "", err
 		}
 	}
 	if err := validateExtensionDatabaseRuntimeLeaseRole(
@@ -189,6 +199,13 @@ func validateExtensionDatabaseRuntimeLeaseRole(
 	if len(seen) != len(expectedSettings) {
 		return ErrExtensionDatabaseResourceConflict
 	}
+	if err := validateExtensionDatabaseRawCoreAuthority(ctx, tx, roleName, powers); err != nil {
+		return err
+	}
+	// 持久 owner 不得携带 Core 权限，否则普通 own_schema 租约会继承已撤销运行时的权力。
+	if err := validateExtensionDatabaseRawCoreAuthority(ctx, tx, identifiers.OwnerRole, nil); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -206,6 +223,9 @@ func revokeExtensionDatabaseRuntimeLeaseRole(
 	if !validPostgresIdentifier(roleName) || !validPostgresIdentifier(ownerRoleName) ||
 		!validPostgresCatalogName(databaseName) {
 		return ErrExtensionDatabaseRegistryInvalid
+	}
+	if err := lockExtensionDatabasePhysicalAuthority(ctx, tx); err != nil {
+		return err
 	}
 	var exists bool
 	if err := tx.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = $1)`, roleName).Scan(&exists); err != nil {
@@ -253,6 +273,9 @@ func extendExtensionDatabaseRuntimeLeaseRole(
 ) error {
 	if !validPostgresIdentifier(roleName) || expiresAt.IsZero() {
 		return ErrExtensionDatabaseRegistryInvalid
+	}
+	if err := lockExtensionDatabasePhysicalAuthority(ctx, tx); err != nil {
+		return err
 	}
 	role := pgx.Identifier{roleName}.Sanitize()
 	if _, err := tx.Exec(ctx, `ALTER ROLE `+role+` VALID UNTIL '`+expiresAt.UTC().Format(time.RFC3339Nano)+`'`); err != nil {

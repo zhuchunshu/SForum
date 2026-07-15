@@ -317,3 +317,17 @@ func lockExtensionDatabaseResource(ctx context.Context, tx pgx.Tx, lockKey int64
 	}
 	return nil
 }
+
+// 物理角色与数据库 ACL 共用 PostgreSQL catalog。生产调用先持有扩展级或迁移 session 锁，
+// 再获取此数据库级事务锁；持有本锁的路径不得反向获取扩展锁。
+func lockExtensionDatabasePhysicalAuthority(ctx context.Context, tx pgx.Tx) error {
+	if _, err := tx.Exec(ctx, `
+		SELECT pg_advisory_xact_lock(
+			hashtext(current_database()),
+			hashtext('sforum.extension-database.physical-authority.v1')
+		)
+	`); err != nil {
+		return fmt.Errorf("lock extension database physical authority: %w", err)
+	}
+	return nil
+}

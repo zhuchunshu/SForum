@@ -20,9 +20,9 @@ import (
 )
 
 func TestPostgresExtensionDatabaseRuntimeLeasesOverlapAndRevokeExactly(t *testing.T) {
-	databaseURL := strings.TrimSpace(os.Getenv("DATABASE_URL"))
+	databaseURL := strings.TrimSpace(os.Getenv("SFORUM_TEST_DATABASE_URL"))
 	if databaseURL == "" {
-		t.Skip("DATABASE_URL is required for runtime lease integration test")
+		t.Skip("SFORUM_TEST_DATABASE_URL is required for runtime lease integration test")
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
 	defer cancel()
@@ -30,14 +30,22 @@ func TestPostgresExtensionDatabaseRuntimeLeasesOverlapAndRevokeExactly(t *testin
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer pool.Close()
+	t.Cleanup(pool.Close)
 
 	extensionID := fmt.Sprintf("p5.runtime.lease.%d", time.Now().UnixNano())
+	coreProbeName := createExtensionDatabaseRawCoreProbe(t, ctx, pool)
+	coreProbe := pgx.Identifier{extensionDatabaseCoreSchema, coreProbeName}.Sanitize()
 	source := insertExtensionDatabaseRuntimeLeaseFixture(
-		t, ctx, pool, extensionID, "1.0.0", "source", []string{extensionmanifest.DatabaseGrantOwnSchema},
+		t, ctx, pool, extensionID, "1.0.0", "source", []string{
+			extensionmanifest.DatabaseGrantOwnSchema,
+			extensionmanifest.DatabaseGrantRawCore,
+		},
 	)
 	target := insertExtensionDatabaseRuntimeLeaseFixture(
-		t, ctx, pool, extensionID, "2.0.0", "target", []string{extensionmanifest.DatabaseGrantOwnSchema},
+		t, ctx, pool, extensionID, "2.0.0", "target", []string{
+			extensionmanifest.DatabaseGrantOwnSchema,
+			extensionmanifest.DatabaseGrantRawCore,
+		},
 	)
 	identifiers, err := ExtensionDatabaseIdentifiersFor(extensionID)
 	if err != nil {
@@ -84,6 +92,13 @@ func TestPostgresExtensionDatabaseRuntimeLeasesOverlapAndRevokeExactly(t *testin
 	}
 	if _, err := targetConnection.Exec(ctx, `INSERT INTO runtime_lease_probe (id, note) VALUES (1, 'overlap')`); err != nil {
 		t.Fatalf("target writes during source overlap: %v", err)
+	}
+	var coreProbeID int64
+	if err := sourceConnection.QueryRow(ctx, `INSERT INTO `+coreProbe+` (note) VALUES ('source') RETURNING id`).Scan(&coreProbeID); err != nil {
+		t.Fatalf("source raw Core write: %v", err)
+	}
+	if _, err := targetConnection.Exec(ctx, `UPDATE `+coreProbe+` SET note = 'target' WHERE id = $1`, coreProbeID); err != nil {
+		t.Fatalf("target raw Core write during overlap: %v", err)
 	}
 	var note string
 	if err := sourceConnection.QueryRow(ctx, `SELECT note FROM runtime_lease_probe WHERE id = 1`).Scan(&note); err != nil || note != "overlap" {
@@ -137,6 +152,9 @@ func TestPostgresExtensionDatabaseRuntimeLeasesOverlapAndRevokeExactly(t *testin
 	}
 	if err := targetConnection.QueryRow(ctx, `SELECT note FROM runtime_lease_probe WHERE id = 1`).Scan(&note); err != nil || note != "overlap" {
 		t.Fatalf("target or source-owned data was lost: note=%q err=%v", note, err)
+	}
+	if err := targetConnection.QueryRow(ctx, `SELECT note FROM `+coreProbe+` WHERE id = $1`, coreProbeID).Scan(&note); err != nil || note != "target" {
+		t.Fatalf("target raw Core authority was lost with source revoke: note=%q err=%v", note, err)
 	}
 	if _, err := registry.RevokeRuntimeLease(ctx, sourceRef, ExtensionDatabaseLeaseAuthority{
 		Kind: ExtensionDatabaseLeaseIssuerHost, AuditEventID: 205,
@@ -207,7 +225,7 @@ func TestPostgresExtensionDatabaseRuntimeLeasesOverlapAndRevokeExactly(t *testin
 	); err != nil {
 		t.Fatal(err)
 	}
-	if activeGrants != 2 || liveLeases != 0 || powerRows != 2 || plaintextRows != 0 ||
+	if activeGrants != 2 || liveLeases != 0 || powerRows != 4 || plaintextRows != 0 ||
 		sourceRoleExists != 0 || targetRoleExists != 0 || hostAuditRows != 2 {
 		t.Fatalf(
 			"grant/lease evidence mismatch: grants=%d live=%d powers=%d plaintext=%d sourceRole=%d targetRole=%d hostAudit=%d",
@@ -217,9 +235,9 @@ func TestPostgresExtensionDatabaseRuntimeLeasesOverlapAndRevokeExactly(t *testin
 }
 
 func TestPostgresExtensionDatabaseRuntimeLeasePreservesAdditivePowers(t *testing.T) {
-	databaseURL := strings.TrimSpace(os.Getenv("DATABASE_URL"))
+	databaseURL := strings.TrimSpace(os.Getenv("SFORUM_TEST_DATABASE_URL"))
 	if databaseURL == "" {
-		t.Skip("DATABASE_URL is required for runtime lease integration test")
+		t.Skip("SFORUM_TEST_DATABASE_URL is required for runtime lease integration test")
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
 	defer cancel()
@@ -227,7 +245,7 @@ func TestPostgresExtensionDatabaseRuntimeLeasePreservesAdditivePowers(t *testing
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer pool.Close()
+	t.Cleanup(pool.Close)
 	registry := NewPostgresExtensionDatabaseRegistry(pool, nil)
 
 	tests := []struct {
@@ -293,9 +311,9 @@ func TestPostgresExtensionDatabaseRuntimeLeasePreservesAdditivePowers(t *testing
 }
 
 func TestPostgresExtensionDatabaseRuntimeLeaseReaperConvergesAndAudits(t *testing.T) {
-	databaseURL := strings.TrimSpace(os.Getenv("DATABASE_URL"))
+	databaseURL := strings.TrimSpace(os.Getenv("SFORUM_TEST_DATABASE_URL"))
 	if databaseURL == "" {
-		t.Skip("DATABASE_URL is required for runtime lease integration test")
+		t.Skip("SFORUM_TEST_DATABASE_URL is required for runtime lease integration test")
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
 	defer cancel()
@@ -303,7 +321,7 @@ func TestPostgresExtensionDatabaseRuntimeLeaseReaperConvergesAndAudits(t *testin
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer pool.Close()
+	t.Cleanup(pool.Close)
 
 	extensionID := fmt.Sprintf("p5.runtime.reaper.%d", time.Now().UnixNano())
 	artifact := insertExtensionDatabaseRuntimeLeaseFixture(
@@ -475,8 +493,21 @@ func cleanupExtensionDatabaseRuntimeLeaseFixture(
 	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
-	rows, _ := pool.Query(ctx, `
-		SELECT role_name FROM extension_database_runtime_leases WHERE extension_id = $1
+	tx, err := pool.Begin(ctx)
+	if err != nil {
+		t.Errorf("begin runtime lease fixture cleanup: %v", err)
+		return
+	}
+	defer tx.Rollback(ctx)
+	if err := lockExtensionDatabasePhysicalAuthority(ctx, tx); err != nil {
+		t.Errorf("lock runtime lease fixture cleanup: %v", err)
+		return
+	}
+	rows, _ := tx.Query(ctx, `
+		SELECT leases.role_name
+		FROM extension_database_runtime_leases AS leases
+		JOIN pg_roles AS roles ON roles.rolname = leases.role_name
+		WHERE leases.extension_id = $1
 	`, extensionID)
 	var leaseRoles []string
 	if rows != nil {
@@ -489,26 +520,59 @@ func cleanupExtensionDatabaseRuntimeLeaseFixture(
 		rows.Close()
 	}
 	for _, role := range leaseRoles {
-		_, _ = pool.Exec(ctx, `SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE usename = $1`, role)
+		if _, err := tx.Exec(ctx, `SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE usename = $1`, role); err != nil {
+			t.Errorf("terminate runtime lease fixture role %s: %v", role, err)
+			return
+		}
 		quotedRole := pgx.Identifier{role}.Sanitize()
 		quotedOwner := pgx.Identifier{identifiers.OwnerRole}.Sanitize()
-		_, _ = pool.Exec(ctx, `REASSIGN OWNED BY `+quotedRole+` TO `+quotedOwner)
-		_, _ = pool.Exec(ctx, `DROP OWNED BY `+quotedRole)
-		_, _ = pool.Exec(ctx, `DROP ROLE IF EXISTS `+quotedRole)
+		for _, query := range []string{
+			`REASSIGN OWNED BY ` + quotedRole + ` TO ` + quotedOwner,
+			`DROP OWNED BY ` + quotedRole,
+			`DROP ROLE ` + quotedRole,
+		} {
+			if _, err := tx.Exec(ctx, query); err != nil {
+				t.Errorf("cleanup runtime lease fixture role %s: %v", role, err)
+				return
+			}
+		}
 	}
-	_, _ = pool.Exec(ctx, `DELETE FROM extension_database_runtime_leases WHERE extension_id = $1`, extensionID)
-	_, _ = pool.Exec(ctx, `
-		DELETE FROM extension_database_grant_powers
-		WHERE grant_id IN (SELECT id FROM extension_database_grants WHERE extension_id = $1)
-	`, extensionID)
-	_, _ = pool.Exec(ctx, `DELETE FROM extension_database_credentials WHERE extension_id = $1`, extensionID)
-	_, _ = pool.Exec(ctx, `DELETE FROM extension_database_grants WHERE extension_id = $1`, extensionID)
-	_, _ = pool.Exec(ctx, `DELETE FROM extension_database_resources WHERE extension_id = $1`, extensionID)
-	_, _ = pool.Exec(ctx, `DELETE FROM extensions WHERE id = $1`, extensionID)
-	_, _ = pool.Exec(ctx, `DROP SCHEMA IF EXISTS `+pgx.Identifier{identifiers.Schema}.Sanitize()+` CASCADE`)
+	for _, query := range []struct {
+		statement string
+		arguments []any
+	}{
+		{`DELETE FROM extension_database_runtime_leases WHERE extension_id = $1`, []any{extensionID}},
+		{`DELETE FROM extension_database_grant_powers
+		  WHERE grant_id IN (SELECT id FROM extension_database_grants WHERE extension_id = $1)`, []any{extensionID}},
+		{`DELETE FROM extension_database_credentials WHERE extension_id = $1`, []any{extensionID}},
+		{`DELETE FROM extension_database_grants WHERE extension_id = $1`, []any{extensionID}},
+		{`DELETE FROM extension_database_resources WHERE extension_id = $1`, []any{extensionID}},
+		{`DELETE FROM extensions WHERE id = $1`, []any{extensionID}},
+		{`DROP SCHEMA IF EXISTS ` + pgx.Identifier{identifiers.Schema}.Sanitize() + ` CASCADE`, nil},
+	} {
+		if _, err := tx.Exec(ctx, query.statement, query.arguments...); err != nil {
+			t.Errorf("cleanup runtime lease fixture data: %v", err)
+			return
+		}
+	}
 	for _, role := range []string{identifiers.RuntimeRole, identifiers.OwnerRole} {
+		var exists bool
+		if err := tx.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = $1)`, role).Scan(&exists); err != nil {
+			t.Errorf("inspect runtime lease fixture role %s: %v", role, err)
+			return
+		}
+		if !exists {
+			continue
+		}
 		quoted := pgx.Identifier{role}.Sanitize()
-		_, _ = pool.Exec(ctx, `DROP OWNED BY `+quoted)
-		_, _ = pool.Exec(ctx, `DROP ROLE IF EXISTS `+quoted)
+		for _, query := range []string{`DROP OWNED BY ` + quoted, `DROP ROLE ` + quoted} {
+			if _, err := tx.Exec(ctx, query); err != nil {
+				t.Errorf("cleanup runtime lease fixture role %s: %v", role, err)
+				return
+			}
+		}
+	}
+	if err := tx.Commit(ctx); err != nil {
+		t.Errorf("commit runtime lease fixture cleanup: %v", err)
 	}
 }

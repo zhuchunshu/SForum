@@ -401,6 +401,9 @@ func reassignAndDropExtensionDatabaseRole(
 	ownerRoleName string,
 	databaseName string,
 ) error {
+	if err := lockExtensionDatabasePhysicalAuthority(ctx, tx); err != nil {
+		return err
+	}
 	role := pgx.Identifier{roleName}.Sanitize()
 	owner := pgx.Identifier{ownerRoleName}.Sanitize()
 	database := pgx.Identifier{databaseName}.Sanitize()
@@ -419,6 +422,9 @@ func reassignAndDropExtensionDatabaseRole(
 }
 
 func dropExtensionDatabaseOwnerRole(ctx context.Context, tx pgx.Tx, roleName string) error {
+	if err := lockExtensionDatabasePhysicalAuthority(ctx, tx); err != nil {
+		return err
+	}
 	role := pgx.Identifier{roleName}.Sanitize()
 	for _, query := range []string{`DROP OWNED BY ` + role, `DROP ROLE ` + role} {
 		if _, err := tx.Exec(ctx, query); err != nil {
