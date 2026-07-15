@@ -28,6 +28,7 @@ type ThemeRuntimeBuildInput struct {
 	PackageRoot   string
 	Contributions []PageContribution
 	Templates     []RuntimeTemplateDeclaration
+	DataSchemas   []RuntimeDataSchemaDeclaration
 	PackageKind   RuntimeTemplatePackageKind
 	// RequireDeclaredTemplates is enabled for Manifest V3 packages. Legacy
 	// theme.json packages keep their synthetic stable template identity until
@@ -55,12 +56,23 @@ type RuntimeTemplateDeclaration struct {
 	ThemeOverrideKey string
 }
 
+type RuntimeDataSchemaDeclaration struct {
+	ID      string
+	Version string
+	Path    string
+	Digest  string
+}
+
 type ThemeRuntimeProviderBinding struct {
-	PageID          string `json:"pageId"`
-	ContributionID  string `json:"contributionId"`
-	TemplateID      string `json:"templateId"`
-	Template        string `json:"template"`
-	ContractVersion string `json:"contractVersion"`
+	PageID           string `json:"pageId"`
+	ContributionID   string `json:"contributionId"`
+	TemplateID       string `json:"templateId"`
+	Template         string `json:"template"`
+	ContractVersion  string `json:"contractVersion"`
+	ViewModelID      string `json:"viewModelId"`
+	ViewModelSchema  string `json:"viewModelSchema"`
+	SchemaDigest     string `json:"schemaDigest,omitempty"`
+	ThemeOverrideKey string `json:"themeOverrideKey,omitempty"`
 }
 
 type ThemeRenderAttempt struct {
@@ -92,6 +104,7 @@ type ThemeRuntimeSnapshot struct {
 	islandTags          map[string]string
 	kind                RuntimeTemplatePackageKind
 	overrides           map[string]ThemeRuntimeProviderBinding
+	pluginContracts     map[string]*themecompiler.PluginPageViewModelContract
 	plan                *themeRenderPlan
 	publicationRevision uint64
 }
@@ -116,15 +129,31 @@ func BuildThemeRuntimeSnapshot(input ThemeRuntimeBuildInput) (*ThemeRuntimeSnaps
 		return nil, ErrThemeRuntimeInvalid
 	}
 	providers := make(map[string]ThemeRuntimeProviderBinding)
+	providerContributions := make(map[string]PageContribution)
 	pageBindings := make(map[string]themecompiler.PageTemplateBinding)
 	selectedTemplates := make(map[string]struct{})
 	contracts := make(map[string]string)
 	for _, contribution := range input.Contributions {
-		if contribution.Action != ActionReplace || strings.TrimSpace(contribution.Template) == "" {
+		if strings.TrimSpace(contribution.Template) == "" {
 			continue
 		}
-		page, ok := Find(contribution.Target)
-		if !ok || page.ContractVersion != contribution.Contract || contribution.ExtensionID != input.Artifact.ExtensionID ||
+		var page PageDefinition
+		switch contribution.Action {
+		case ActionReplace:
+			var ok bool
+			page, ok = Find(contribution.Target)
+			if !ok || page.ContractVersion != contribution.Contract {
+				return nil, ErrThemeRuntimeConflict
+			}
+		case ActionAdd:
+			if kind != RuntimeTemplatePlugin || strings.TrimSpace(contribution.ID) == "" || strings.TrimSpace(contribution.Contract) == "" {
+				continue
+			}
+			page = PageDefinition{ID: contribution.ID, ContractVersion: contribution.Contract}
+		default:
+			continue
+		}
+		if contribution.ExtensionID != input.Artifact.ExtensionID ||
 			contribution.Version != input.Artifact.ExtensionVersion || contribution.PackageDigest != input.Artifact.PackageDigest {
 			return nil, ErrThemeRuntimeConflict
 		}
@@ -137,10 +166,9 @@ func BuildThemeRuntimeSnapshot(input ThemeRuntimeBuildInput) (*ThemeRuntimeSnaps
 		}
 		providers[page.ID] = ThemeRuntimeProviderBinding{
 			PageID: page.ID, ContributionID: contribution.ID, Template: templateName,
-			ContractVersion: page.ContractVersion,
+			ContractVersion: page.ContractVersion, ViewModelID: page.ID, ViewModelSchema: page.ContractVersion,
 		}
-		pageBindings[templateName] = themecompiler.PageTemplateBinding{PageID: page.ID, SchemaVersion: page.ContractVersion}
-		selectedTemplates[templateName] = struct{}{}
+		providerContributions[page.ID] = contribution
 		contracts[page.ID] = page.ContractVersion
 	}
 	declarations := make(map[string]RuntimeTemplateDeclaration, len(input.Templates))
@@ -152,20 +180,53 @@ func BuildThemeRuntimeSnapshot(input ThemeRuntimeBuildInput) (*ThemeRuntimeSnaps
 		declaration.Path = templateName
 		declarations[templateName] = declaration
 	}
+	pluginContracts := make(map[string]*themecompiler.PluginPageViewModelContract)
 	for pageID, provider := range providers {
+		contribution := providerContributions[pageID]
 		declaration, declared := declarations[provider.Template]
 		if input.RequireDeclaredTemplates && !declared {
 			return nil, fmt.Errorf("%w: %s has no exact template declaration", ErrThemeRuntimeConflict, provider.Template)
 		}
 		if declared {
-			if declaration.Action != "add" || declaration.ContractVersion == "" || declaration.ViewModelSchema != provider.ContractVersion ||
-				declaration.Digest == "" {
+			if declaration.Action != "add" || declaration.ContractVersion == "" || declaration.ViewModelSchema == "" || declaration.Digest == "" {
 				return nil, fmt.Errorf("%w: declaration contract for %s", ErrThemeRuntimeConflict, provider.Template)
 			}
 			provider.TemplateID = declaration.ID
+			provider.ThemeOverrideKey = declaration.ThemeOverrideKey
+			if pluginBusinessDataRequested(contribution) {
+				if kind != RuntimeTemplatePlugin {
+					return nil, fmt.Errorf("%w: themes cannot own plugin page data", ErrThemeRuntimeConflict)
+				}
+				contract, contractErr := compilePluginPageDataContract(realRoot, declaration, contribution, input.DataSchemas)
+				if contractErr != nil {
+					return nil, contractErr
+				}
+				descriptor := contract.Schema()
+				provider.ViewModelID = descriptor.ViewModelID
+				provider.ViewModelSchema = descriptor.SchemaVersion
+				provider.SchemaDigest = descriptor.SchemaDigest
+				pluginContracts[provider.TemplateID] = contract
+			} else if contribution.Action == ActionAdd {
+				// Static legacy add pages remain on the explicit compatibility path.
+				delete(providers, pageID)
+				delete(contracts, pageID)
+				continue
+			} else if declaration.ViewModelSchema != provider.ContractVersion {
+				return nil, fmt.Errorf("%w: declaration contract for %s", ErrThemeRuntimeConflict, provider.Template)
+			}
 		} else {
+			if contribution.Action != ActionReplace || pluginBusinessDataRequested(contribution) {
+				return nil, fmt.Errorf("%w: plugin business templates require exact declarations", ErrThemeRuntimeConflict)
+			}
 			provider.TemplateID = input.Artifact.ExtensionID + ".template." + provider.ContributionID
 		}
+		if _, exists := pageBindings[provider.Template]; exists {
+			return nil, ErrThemeRuntimeConflict
+		}
+		pageBindings[provider.Template] = themecompiler.PageTemplateBinding{
+			PageID: provider.ViewModelID, SchemaVersion: provider.ViewModelSchema,
+		}
+		selectedTemplates[provider.Template] = struct{}{}
 		providers[pageID] = provider
 	}
 	overrides := make(map[string]ThemeRuntimeProviderBinding)
@@ -174,20 +235,31 @@ func BuildThemeRuntimeSnapshot(input ThemeRuntimeBuildInput) (*ThemeRuntimeSnaps
 			if declaration.Action != "replace" || strings.TrimSpace(declaration.TargetID) == "" {
 				continue
 			}
-			page, ok := pageForTemplateContract(declaration.ViewModelSchema)
-			if !ok || declaration.ContractVersion == "" || declaration.Digest == "" ||
+			page, coreContract := pageForTemplateContract(declaration.ViewModelSchema)
+			if declaration.ContractVersion == "" || declaration.Digest == "" ||
 				!validPluginOverridePath(declaration.Path, declaration.TargetID) {
 				return nil, fmt.Errorf("%w: invalid theme override %s", ErrThemeRuntimeConflict, declaration.ID)
+			}
+			viewModelID := declaration.TargetID
+			pageID := ""
+			if coreContract {
+				viewModelID = page.ID
+				pageID = page.ID
+			} else if strings.TrimSpace(declaration.ThemeOverrideKey) == "" {
+				return nil, fmt.Errorf("%w: plugin override %s has no exact override key", ErrThemeRuntimeConflict, declaration.ID)
 			}
 			if _, exists := overrides[declaration.TargetID]; exists {
 				return nil, ErrThemeRuntimeConflict
 			}
 			binding := ThemeRuntimeProviderBinding{
-				PageID: page.ID, TemplateID: declaration.ID, Template: declaration.Path,
-				ContractVersion: declaration.ViewModelSchema,
+				PageID: pageID, TemplateID: declaration.ID, Template: declaration.Path,
+				ContractVersion: declaration.ViewModelSchema, ViewModelID: viewModelID,
+				ViewModelSchema: declaration.ViewModelSchema, ThemeOverrideKey: declaration.ThemeOverrideKey,
 			}
 			overrides[declaration.TargetID] = binding
-			pageBindings[declaration.Path] = themecompiler.PageTemplateBinding{PageID: page.ID, SchemaVersion: page.ContractVersion}
+			pageBindings[declaration.Path] = themecompiler.PageTemplateBinding{
+				PageID: viewModelID, SchemaVersion: declaration.ViewModelSchema,
+			}
 			selectedTemplates[declaration.Path] = struct{}{}
 		}
 	}
@@ -240,8 +312,64 @@ func BuildThemeRuntimeSnapshot(input ThemeRuntimeBuildInput) (*ThemeRuntimeSnaps
 	return &ThemeRuntimeSnapshot{
 		artifact: input.Artifact, compiled: compiled, providers: providers, assets: assets,
 		locales: normalizedLocales(input.Locales), contracts: contracts, islandTags: islandTags,
-		kind: kind, overrides: overrides,
+		kind: kind, overrides: overrides, pluginContracts: pluginContracts,
 	}, nil
+}
+
+func pluginBusinessDataRequested(contribution PageContribution) bool {
+	return strings.TrimSpace(contribution.DataSource) != "" || strings.TrimSpace(contribution.DataRoute) != "" ||
+		strings.TrimSpace(contribution.DataSchema) != ""
+}
+
+func compilePluginPageDataContract(
+	realRoot string,
+	template RuntimeTemplateDeclaration,
+	contribution PageContribution,
+	schemas []RuntimeDataSchemaDeclaration,
+) (*themecompiler.PluginPageViewModelContract, error) {
+	if strings.TrimSpace(strings.ToLower(contribution.DataSource)) != "plugin" ||
+		strings.TrimSpace(contribution.DataRoute) == "" || strings.TrimSpace(contribution.DataSchema) == "" {
+		return nil, fmt.Errorf("%w: plugin data source, route, and schema are required", ErrThemeRuntimeConflict)
+	}
+	if err := ValidateDataRoute(contribution.DataRoute); err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrThemeRuntimeConflict, err)
+	}
+	reference := strings.TrimSpace(template.ViewModelSchema)
+	separator := strings.LastIndex(reference, "@")
+	if separator <= 0 || separator == len(reference)-1 {
+		return nil, fmt.Errorf("%w: invalid plugin data schema reference", ErrThemeRuntimeConflict)
+	}
+	schemaID, schemaVersion := reference[:separator], reference[separator+1:]
+	var declared *RuntimeDataSchemaDeclaration
+	for index := range schemas {
+		candidate := &schemas[index]
+		if candidate.ID == schemaID && candidate.Version == schemaVersion {
+			declared = candidate
+			break
+		}
+	}
+	if declared == nil || filepath.ToSlash(strings.TrimSpace(declared.Path)) != filepath.ToSlash(strings.TrimSpace(contribution.DataSchema)) {
+		return nil, fmt.Errorf("%w: exact plugin data schema declaration is missing", ErrThemeRuntimeConflict)
+	}
+	relative := filepath.Clean(filepath.FromSlash(strings.TrimSpace(declared.Path)))
+	if relative == "." || filepath.IsAbs(relative) || relative == ".." || strings.HasPrefix(relative, ".."+string(os.PathSeparator)) {
+		return nil, fmt.Errorf("%w: plugin data schema escapes package", ErrThemeRuntimeConflict)
+	}
+	realPath, err := filepath.EvalSymlinks(filepath.Join(realRoot, relative))
+	if err != nil || realPath == realRoot || !strings.HasPrefix(realPath, realRoot+string(os.PathSeparator)) {
+		return nil, fmt.Errorf("%w: plugin data schema escapes package", ErrThemeRuntimeConflict)
+	}
+	body, err := os.ReadFile(realPath)
+	if err != nil {
+		return nil, fmt.Errorf("%w: read plugin data schema: %v", ErrThemeRuntimeConflict, err)
+	}
+	contract, err := themecompiler.CompilePluginPageViewModelContract(
+		template.ID, reference, declared.Digest, body,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrThemeRuntimeConflict, err)
+	}
+	return contract, nil
 }
 
 func (s *ThemeRuntimeSnapshot) Artifact() RuntimeArtifact {
@@ -266,6 +394,15 @@ func (s *ThemeRuntimeSnapshot) Covers(pageID, contributionID string) bool {
 	return ok && binding.ContributionID == contributionID
 }
 
+func (s *ThemeRuntimeSnapshot) PluginDataContract(
+	contributionID string,
+) (themecompiler.PluginPageViewModelSchema, bool) {
+	if s == nil || s.plan == nil || s.plan.contributionID != contributionID || s.plan.pluginContract == nil {
+		return themecompiler.PluginPageViewModelSchema{}, false
+	}
+	return s.plan.pluginContract.Schema(), true
+}
+
 func (s *ThemeRuntimeSnapshot) Render(
 	ctx context.Context,
 	request CorePageViewModelRequest,
@@ -286,7 +423,7 @@ func (s *ThemeRuntimeSnapshot) Render(
 		return ThemeRenderedPage{}, err
 	}
 	bound, err := themecompiler.CorePageViewModelRegistry().Bind(
-		binding.PageID, binding.ContractVersion, s.artifact.PackageDigest, value,
+		binding.ViewModelID, binding.ViewModelSchema, s.artifact.PackageDigest, value,
 	)
 	if err != nil {
 		return ThemeRenderedPage{}, err
@@ -304,6 +441,18 @@ func (s *ThemeRuntimeSnapshot) Render(
 		result.HTMLSegments[index] = segments[index].String()
 	}
 	return result, nil
+}
+
+func (s *ThemeRuntimeSnapshot) RenderPluginData(
+	ctx context.Context,
+	payload json.RawMessage,
+	seo themecompiler.PageSEOView,
+	contributionID string,
+) (ThemeRenderedPage, error) {
+	if s == nil || s.compiled == nil || ctx == nil {
+		return ThemeRenderedPage{}, ErrThemeRuntimeMissing
+	}
+	return s.renderPluginPlan(ctx, payload, seo, contributionID)
 }
 
 func (s *ThemeRuntimeSnapshot) LegacyHTML(output ThemeRenderedPage) string {

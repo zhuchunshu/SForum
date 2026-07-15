@@ -3,6 +3,7 @@ package themecompiler
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	htmltemplate "html/template"
@@ -203,6 +204,11 @@ func validatePassiveViewModel(data any) error {
 			value = value.Elem()
 		}
 		typeOf := value.Type()
+		// json.Number is the standard decoder's precision-preserving scalar. Its
+		// methods are pure conversions, not an executable domain/Host surface.
+		if typeOf == reflect.TypeOf(json.Number("")) {
+			return nil
+		}
 		if typeOf.NumMethod() != 0 || isGoTrustedContentType(typeOf) {
 			return fmt.Errorf("%w: type %s exposes executable or trusted content", ErrInvalidViewModel, typeOf)
 		}

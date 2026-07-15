@@ -144,6 +144,9 @@ func (h *Controller) resolve(c fiber.Ctx) error {
 
 	var runtimeOutput *pages.ThemeRenderedPage
 	runtimeCovered := false
+	var loaderData any
+	var loaderError string
+	loaderHandled := false
 	if resolved.Provider != pages.ProviderCore && h.runtime != nil {
 		artifact := pages.RuntimeArtifact{
 			ExtensionID: resolved.ExtensionID, ExtensionVersion: resolved.Version,
@@ -151,8 +154,38 @@ func (h *Controller) resolve(c fiber.Ctx) error {
 		}
 		if snapshot, ok := h.runtime.Resolve(artifact, resolved.Page.ID, resolved.ContributionID); ok {
 			runtimeCovered = true
-			viewer, viewerErr := h.pageViewer(c)
-			if viewerErr == nil {
+			if _, pluginData := snapshot.PluginDataContract(resolved.ContributionID); pluginData {
+				loaderHandled = true
+				if h.loader == nil {
+					loaderError = "pages: loader unavailable"
+					resolved.Fallback = true
+				} else {
+					loaded := h.loader.LoadExactForResolved(c.Context(), resolved, locale, actorID)
+					if loaded.Error != "" || len(loaded.Data) == 0 {
+						loaderError = loaded.Error
+						resolved.Fallback = true
+					} else {
+						output, renderErr := snapshot.RenderPluginData(
+							c.Context(), loaded.Data, themecompiler.PageSEOView{Title: resolved.Page.ID}, resolved.ContributionID,
+						)
+						if renderErr == nil {
+							resolved.TemplateHTML = snapshot.LegacyHTML(output)
+							if resolved.TemplateHTML != "" {
+								runtimeOutput = &output
+								resolved.Fallback = output.Source == pages.ThemeRenderSourceEmergency
+								if !resolved.Fallback {
+									loaderData = pages.DecodeLoaderData(loaded.Data)
+								}
+							} else {
+								resolved.Fallback = true
+							}
+						} else {
+							loaderError = renderErr.Error()
+							resolved.Fallback = true
+						}
+					}
+				}
+			} else if viewer, viewerErr := h.pageViewer(c); viewerErr == nil {
 				output, renderErr := snapshot.Render(c.Context(), pages.CorePageViewModelRequest{
 					PageID: resolved.Page.ID, Locale: locale, Path: resolved.Page.PathPattern,
 					Viewer: viewer, SEO: themecompiler.PageSEOView{Title: resolved.Page.ID},
@@ -233,10 +266,12 @@ func (h *Controller) resolve(c fiber.Ctx) error {
 		DataRoute:      resolved.DataRoute,
 		Contract:       resolved.Page.ContractVersion,
 		RenderOutput:   runtimeOutput,
+		LoaderData:     loaderData,
+		LoaderError:    loaderError,
 	}
 
 	// access 通过后才调用 loader
-	if !resolved.Fallback && resolved.DataSource == "plugin" && resolved.DataRoute != "" && h.loader != nil {
+	if !loaderHandled && !resolved.Fallback && resolved.DataSource == "plugin" && resolved.DataRoute != "" && h.loader != nil {
 		lr := h.loader.LoadForResolved(c.Context(), resolved, locale, actorID)
 		if lr.Error != "" {
 			resp.LoaderError = lr.Error
@@ -525,9 +560,51 @@ func (h *Controller) resolvePath(c fiber.Ctx) error {
 		RouteParams:    match.Params,
 		Contract:       contrib.Contract,
 	}
+	runtimeCovered := false
+	loaderHandled := false
+	if h.runtime != nil {
+		artifact := pages.RuntimeArtifact{
+			ExtensionID: contrib.ExtensionID, ExtensionVersion: contrib.Version,
+			PackageDigest: contrib.PackageDigest, RuntimeInstanceID: contrib.RuntimeInstanceID,
+		}
+		if snapshot, found := h.runtime.Resolve(artifact, contrib.ID, contrib.ID); found {
+			runtimeCovered = true
+			if _, pluginData := snapshot.PluginDataContract(contrib.ID); pluginData {
+				loaderHandled = true
+				if h.loader == nil {
+					resp.LoaderError = "pages: loader unavailable"
+					resp.Fallback = true
+				} else {
+					loaded := h.loader.LoadExactForContribution(c.Context(), contrib, match.Params, locale, actorID)
+					if loaded.Error != "" || len(loaded.Data) == 0 {
+						resp.LoaderError = loaded.Error
+						resp.Fallback = true
+					} else {
+						output, renderErr := snapshot.RenderPluginData(
+							c.Context(), loaded.Data, themecompiler.PageSEOView{Title: contrib.ID}, contrib.ID,
+						)
+						if renderErr != nil {
+							resp.LoaderError = renderErr.Error()
+							resp.Fallback = true
+						} else {
+							resp.TemplateHTML = snapshot.LegacyHTML(output)
+							resp.RenderOutput = &output
+							resp.Fallback = resp.TemplateHTML == "" || output.Source == pages.ThemeRenderSourceEmergency
+							if !resp.Fallback {
+								resp.LoaderData = pages.DecodeLoaderData(loaded.Data)
+							}
+						}
+					}
+				}
+			}
+		} else if h.runtime.Claims(contrib.ExtensionID, contrib.ID, contrib.ID) {
+			runtimeCovered = true
+			resp.Fallback = true
+		}
+	}
 
 	// 加载模板（注入 route params）
-	if contrib.Template != "" && h.themes != nil {
+	if !runtimeCovered && contrib.Template != "" && h.themes != nil {
 		if theme, terr := h.themes.Get(c.Context(), contrib.ExtensionID); terr == nil {
 			root := extensions.PackageContentRoot(theme)
 			if root != "" {
@@ -549,7 +626,7 @@ func (h *Controller) resolvePath(c fiber.Ctx) error {
 	}
 
 	// access 已通过 → loader
-	if !resp.Fallback && contrib.DataRoute != "" && h.loader != nil {
+	if !loaderHandled && !resp.Fallback && contrib.DataRoute != "" && h.loader != nil {
 		lr := h.loader.LoadForContribution(c.Context(), contrib, match.Params, locale, actorID)
 		if lr.Error != "" {
 			resp.LoaderError = lr.Error

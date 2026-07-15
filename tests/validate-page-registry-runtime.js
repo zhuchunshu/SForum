@@ -91,10 +91,10 @@ function validateOfflineContracts() {
   assertIncludes(catalog, 'DataSchema', 'ResolvedPage must include DataSchema field')
 
   const registry = read('apps/api/app/Support/Pages/registry.go')
-  assertIncludes(registry, 'DataSchema:     c.DataSchema', 'Resolve(replace) must copy DataSchema from contribution')
+  assert.match(registry, /DataSchema:\s+c\.DataSchema/, 'Resolve(replace) must copy DataSchema from contribution')
 
   const gateway = read('apps/api/app/Support/Pages/loader_gateway.go')
-  assertIncludes(gateway, 'DataSchema:  resolved.DataSchema', 'LoadForResolved must forward DataSchema')
+  assert.match(gateway, /DataSchema:\s+resolved\.DataSchema/, 'LoadForResolved must forward DataSchema')
 
   // Controller enforces access before loader (ordering signal)
   const controller = read('apps/api/app/Http/Controllers/Pages/controller.go')

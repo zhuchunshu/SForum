@@ -31,6 +31,7 @@ type PageViewModelSchema struct {
 type BoundPageViewModel struct {
 	pageID             string
 	schemaVersion      string
+	pluginSchemaDigest string
 	themePackageDigest string
 	value              any
 	seo                PageSEOView

@@ -3,6 +3,8 @@ package pagescontroller
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"io"
 	"log/slog"
@@ -78,8 +80,22 @@ type fakeRouteTargets struct {
 	bases map[string]string
 }
 
-func (f fakeRouteTargets) AcquireRouteTarget(ctx context.Context, id string) (pages.LoaderRouteTarget, bool) {
-	b, ok := f.bases[id]
+type exactRouteTargets struct {
+	want   pages.RuntimeArtifact
+	base   string
+	called int
+}
+
+func (f *exactRouteTargets) AcquireRouteTarget(ctx context.Context, artifact pages.RuntimeArtifact) (pages.LoaderRouteTarget, bool) {
+	f.called++
+	if artifact != f.want {
+		return pages.LoaderRouteTarget{}, false
+	}
+	return pages.LoaderRouteTarget{BaseURL: f.base, Context: ctx, Release: func() {}}, true
+}
+
+func (f fakeRouteTargets) AcquireRouteTarget(ctx context.Context, artifact pages.RuntimeArtifact) (pages.LoaderRouteTarget, bool) {
+	b, ok := f.bases[artifact.ExtensionID]
 	return pages.LoaderRouteTarget{BaseURL: b, Context: ctx, Release: func() {}}, ok
 }
 
@@ -341,6 +357,112 @@ func TestResolveCompiledThemeAvoidsPackageStoreAndFailsClosedOnStaleArtifact(t *
 				t.Fatalf("request performed %d package store lookups", themeStore.gets)
 			}
 		})
+	}
+}
+
+func TestResolvePathValidatesExactPluginDataBeforeCompiledRender(t *testing.T) {
+	root := t.TempDir()
+	writeControllerFixtureFile(t, root, "theme.json", `{"pages":[]}`)
+	templateBody := `<article data-contract="exact">{{.title}} / {{.state}}</article>`
+	schemaBody := `{"type":"object","required":["title","state"],"additionalProperties":false,"properties":{"title":{"type":"string"},"state":{"const":"published"}}}`
+	writeControllerFixtureFile(t, root, "templates/article.html", templateBody)
+	writeControllerFixtureFile(t, root, "schemas/article.json", schemaBody)
+	templateDigest := sha256.Sum256([]byte(templateBody))
+	schemaDigest := sha256.Sum256([]byte(schemaBody))
+	artifact := pages.RuntimeArtifact{
+		ExtensionID: "plugin.exact-page", ExtensionVersion: "2.0.0", PackageDigest: strings.Repeat("e", 64),
+		RuntimeInstanceID: "runtime-exact-page",
+	}
+	contribution := pages.PageContribution{
+		ID: "plugin.exact-page.article", Action: pages.ActionAdd, Path: "/exact-articles/:slug",
+		Template: "templates/article.html", Contract: "plugin.exact-page.page.article@1", Access: pages.AccessPublic,
+		DataSource: "plugin", DataRoute: "/page-data/article", DataSchema: "schemas/article.json",
+		ExtensionID: artifact.ExtensionID, Version: artifact.ExtensionVersion,
+		PackageDigest: artifact.PackageDigest, RuntimeInstanceID: artifact.RuntimeInstanceID,
+	}
+	snapshot, err := pages.BuildThemeRuntimeSnapshot(pages.ThemeRuntimeBuildInput{
+		Artifact: artifact, PackageRoot: root, Contributions: []pages.PageContribution{contribution},
+		Templates: []pages.RuntimeTemplateDeclaration{{
+			ID: "plugin.exact-page.template.article", ContractVersion: "plugin.exact-page.template.article@1",
+			Action: "add", Path: "templates/article.html", Digest: hex.EncodeToString(templateDigest[:]),
+			ViewModelSchema: "plugin.exact-page.article.data@1", ThemeOverrideKey: "plugin.exact-page.article",
+		}},
+		DataSchemas: []pages.RuntimeDataSchemaDeclaration{{
+			ID: "plugin.exact-page.article.data", Version: "1", Path: "schemas/article.json",
+			Digest: hex.EncodeToString(schemaDigest[:]),
+		}},
+		PackageKind: pages.RuntimeTemplatePlugin, RequireDeclaredTemplates: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	runtimeRegistry := pages.NewThemeRuntimeRegistry()
+	if _, _, err := runtimeRegistry.Stage(snapshot); err != nil {
+		t.Fatal(err)
+	}
+	registry := pages.NewRegistry(pages.NewMemoryStore())
+	if _, err := registry.PublishExtensionIfRevision(artifact, []pages.PageContribution{contribution}, 0); err != nil {
+		t.Fatal(err)
+	}
+	targets := &exactRouteTargets{want: artifact, base: "http://127.0.0.1:19999"}
+	payload := `{"title":"Business truth","state":"published"}`
+	loader := pages.NewPageDataLoader(roundTripFunc(func(*nethttp.Request) (*nethttp.Response, error) {
+		return &nethttp.Response{
+			StatusCode: 200, Header: nethttp.Header{"Content-Type": []string{"application/json"}},
+			Body: io.NopCloser(strings.NewReader(payload)),
+		}, nil
+	}))
+	manager := authsession.NewManager(session.NewStore(), authsession.Config{HashSecret: "test-secret"})
+	themeStore := &pagesThemeStore{items: map[string]extensions.Extension{}}
+	controller := NewControllerWithThemes(registry, pagesActors{actors: map[int64]identity.Actor{}}, manager, themeStore).
+		WithThemeRuntime(runtimeRegistry).
+		WithLoader(pages.NewLoaderGateway(loader, targets))
+	cfg := config.Config{AppName: "SForum", AppEnv: "test", CSRFEnabled: false, AppLocale: "zh-CN", SupportedLocales: []string{"zh-CN"}}
+	app := apphttp.NewApp(cfg, slog.Default(), apphttp.Dependencies{RouteProviders: []apphttp.RouteProvider{
+		pagesRouteProvider(func(api fiber.Router) { controller.RegisterRoutes(api) }),
+	}})
+	response := performPages(t, app, nethttp.MethodGet, "/api/v1/pages/resolve-path?path=/exact-articles/one", nil, nil)
+	if response.StatusCode != nethttp.StatusOK {
+		t.Fatalf("status=%d", response.StatusCode)
+	}
+	var envelope pagesEnvelope[resolveResponse]
+	if err := json.NewDecoder(response.Body).Decode(&envelope); err != nil {
+		t.Fatal(err)
+	}
+	if envelope.Data.Provider != artifact.ExtensionID || envelope.Data.Fallback || envelope.Data.RenderOutput == nil ||
+		envelope.Data.RenderOutput.Source != pages.ThemeRenderSourcePlugin ||
+		!strings.Contains(strings.Join(envelope.Data.RenderOutput.HTMLSegments, ""), "Business truth / published") ||
+		targets.called != 1 || themeStore.gets != 0 {
+		t.Fatalf("response=%#v targets=%d packageGets=%d", envelope.Data, targets.called, themeStore.gets)
+	}
+	loaded, ok := envelope.Data.LoaderData.(map[string]any)
+	if !ok || loaded["title"] != "Business truth" || loaded["state"] != "published" {
+		t.Fatalf("loader data=%#v", envelope.Data.LoaderData)
+	}
+
+	payload = `{"title":"Business truth","state":"published","themeMutation":true}`
+	rejected := performPages(t, app, nethttp.MethodGet, "/api/v1/pages/resolve-path?path=/exact-articles/two", nil, nil)
+	if rejected.StatusCode != nethttp.StatusOK {
+		t.Fatalf("rejected status=%d", rejected.StatusCode)
+	}
+	var rejectedEnvelope pagesEnvelope[resolveResponse]
+	if err := json.NewDecoder(rejected.Body).Decode(&rejectedEnvelope); err != nil {
+		t.Fatal(err)
+	}
+	if !rejectedEnvelope.Data.Fallback || rejectedEnvelope.Data.LoaderData != nil || rejectedEnvelope.Data.RenderOutput == nil ||
+		rejectedEnvelope.Data.RenderOutput.Source != pages.ThemeRenderSourceEmergency || targets.called != 2 || themeStore.gets != 0 {
+		t.Fatalf("rejected response=%#v targets=%d packageGets=%d", rejectedEnvelope.Data, targets.called, themeStore.gets)
+	}
+}
+
+func writeControllerFixtureFile(t *testing.T, root, name, body string) {
+	t.Helper()
+	path := filepath.Join(root, filepath.FromSlash(name))
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+		t.Fatal(err)
 	}
 }
 

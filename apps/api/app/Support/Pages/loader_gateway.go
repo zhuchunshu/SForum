@@ -1,6 +1,7 @@
 package pages
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"os"
@@ -17,7 +18,7 @@ type LoaderRouteTarget struct {
 
 // RouteTargetSource 从运行中的插件 runtime 原子取得目标和调用 lease。
 type RouteTargetSource interface {
-	AcquireRouteTarget(context.Context, string) (LoaderRouteTarget, bool)
+	AcquireRouteTarget(context.Context, RuntimeArtifact) (LoaderRouteTarget, bool)
 }
 
 // ExtensionPackageRoot 解析扩展包内容根（用于读取 schema 文件）。
@@ -52,6 +53,24 @@ func (g *LoaderGateway) WithPackages(p ExtensionPackageRoot) *LoaderGateway {
 // LoadForContribution 为 add/replace 贡献拉取数据。
 // 要求：DataSource=plugin 且 DataRoute 非空；否则跳过。
 func (g *LoaderGateway) LoadForContribution(ctx context.Context, contrib PageContribution, params map[string]string, locale string, actorID int64) LoaderResult {
+	return g.loadForContribution(ctx, contrib, params, locale, actorID, true)
+}
+
+// LoadExactForContribution skips request-time schema file I/O. The immutable
+// compiled ThemeRuntimeSnapshot validates the returned document against the
+// exact package schema before any template executes.
+func (g *LoaderGateway) LoadExactForContribution(ctx context.Context, contrib PageContribution, params map[string]string, locale string, actorID int64) LoaderResult {
+	return g.loadForContribution(ctx, contrib, params, locale, actorID, false)
+}
+
+func (g *LoaderGateway) loadForContribution(
+	ctx context.Context,
+	contrib PageContribution,
+	params map[string]string,
+	locale string,
+	actorID int64,
+	loadPackageSchema bool,
+) LoaderResult {
 	if g == nil || g.Loader == nil {
 		return LoaderResult{Error: "pages: loader unavailable", Fallback: true, Status: 503}
 	}
@@ -68,7 +87,15 @@ func (g *LoaderGateway) LoadForContribution(ctx context.Context, contrib PageCon
 	if g.Targets == nil {
 		return LoaderResult{Error: "pages: plugin runtime unavailable", Fallback: true, Status: 503}
 	}
-	target, ok := g.Targets.AcquireRouteTarget(ctx, contrib.ExtensionID)
+	artifact := RuntimeArtifact{
+		ExtensionID: contrib.ExtensionID, ExtensionVersion: contrib.Version,
+		PackageDigest: contrib.PackageDigest, RuntimeInstanceID: contrib.RuntimeInstanceID,
+	}
+	if !loadPackageSchema && (!validThemeRuntimeArtifact(artifact) ||
+		artifact.RuntimeInstanceID == "" || artifact.RuntimeInstanceID != strings.TrimSpace(artifact.RuntimeInstanceID)) {
+		return LoaderResult{Error: "pages: exact plugin runtime unavailable", Fallback: true, Status: 503}
+	}
+	target, ok := g.Targets.AcquireRouteTarget(ctx, artifact)
 	if !ok {
 		return LoaderResult{Error: "pages: plugin not enabled or runtime unavailable", Fallback: true, Status: 503}
 	}
@@ -83,7 +110,7 @@ func (g *LoaderGateway) LoadForContribution(ctx context.Context, contrib PageCon
 		ctx = target.Context
 	}
 	schemaJSON := ""
-	if schemaRel := strings.TrimSpace(contrib.DataSchema); schemaRel != "" && g.Packages != nil {
+	if schemaRel := strings.TrimSpace(contrib.DataSchema); loadPackageSchema && schemaRel != "" && g.Packages != nil {
 		if root, ok := g.Packages.PackageRoot(contrib.ExtensionID); ok {
 			// 仅允许包内相对路径
 			if !strings.Contains(schemaRel, "..") && !strings.HasPrefix(schemaRel, "/") {
@@ -112,10 +139,9 @@ func (g *LoaderGateway) LoadForResolved(ctx context.Context, resolved ResolvedPa
 		return LoaderResult{}
 	}
 	contrib := PageContribution{
-		ExtensionID: resolved.ExtensionID,
-		DataSource:  resolved.DataSource,
-		DataRoute:   resolved.DataRoute,
-		DataSchema:  resolved.DataSchema,
+		ExtensionID: resolved.ExtensionID, Version: resolved.Version,
+		PackageDigest: resolved.PackageDigest, RuntimeInstanceID: resolved.RuntimeInstanceID,
+		DataSource: resolved.DataSource, DataRoute: resolved.DataRoute, DataSchema: resolved.DataSchema,
 	}
 	if contrib.ExtensionID == "" {
 		contrib.ExtensionID = resolved.Provider
@@ -123,13 +149,30 @@ func (g *LoaderGateway) LoadForResolved(ctx context.Context, resolved ResolvedPa
 	return g.LoadForContribution(ctx, contrib, nil, locale, actorID)
 }
 
+func (g *LoaderGateway) LoadExactForResolved(ctx context.Context, resolved ResolvedPage, locale string, actorID int64) LoaderResult {
+	if resolved.DataSource != "plugin" || strings.TrimSpace(resolved.DataRoute) == "" {
+		return LoaderResult{}
+	}
+	contrib := PageContribution{
+		ExtensionID: resolved.ExtensionID, Version: resolved.Version,
+		PackageDigest: resolved.PackageDigest, RuntimeInstanceID: resolved.RuntimeInstanceID,
+		DataSource: resolved.DataSource, DataRoute: resolved.DataRoute, DataSchema: resolved.DataSchema,
+	}
+	if contrib.ExtensionID == "" {
+		contrib.ExtensionID = resolved.Provider
+	}
+	return g.LoadExactForContribution(ctx, contrib, nil, locale, actorID)
+}
+
 // DecodeLoaderData 将 RawMessage 解为 any 供 JSON 响应。
 func DecodeLoaderData(raw json.RawMessage) any {
 	if len(raw) == 0 {
 		return nil
 	}
+	decoder := json.NewDecoder(bytes.NewReader(raw))
+	decoder.UseNumber()
 	var v any
-	if err := json.Unmarshal(raw, &v); err != nil {
+	if err := decoder.Decode(&v); err != nil {
 		return nil
 	}
 	return v

@@ -221,12 +221,24 @@ func (a *PageRegistryAdapter) buildTemplateRuntime(
 	if a == nil || a.ThemeRuntime == nil {
 		return nil, nil
 	}
+	runtimeInstanceID := ""
+	for _, contribution := range contributions {
+		if contribution.RuntimeInstanceID == "" {
+			continue
+		}
+		if runtimeInstanceID != "" && runtimeInstanceID != contribution.RuntimeInstanceID {
+			return nil, pages.ErrThemeRuntimeConflict
+		}
+		runtimeInstanceID = contribution.RuntimeInstanceID
+	}
 	snapshot, err := pages.BuildThemeRuntimeSnapshot(pages.ThemeRuntimeBuildInput{
 		Artifact: pages.RuntimeArtifact{
 			ExtensionID: extension.ID, ExtensionVersion: extension.Version, PackageDigest: extension.PackageDigest,
+			RuntimeInstanceID: runtimeInstanceID,
 		},
 		PackageRoot: PackageContentRoot(extension), Contributions: contributions,
-		Templates: runtimeTemplateDeclarations(extension.Manifest.Templates), PackageKind: kind,
+		Templates:   runtimeTemplateDeclarations(extension.Manifest.Templates),
+		DataSchemas: runtimeDataSchemaDeclarations(extension.Manifest.PackageFiles), PackageKind: kind,
 		RequireDeclaredTemplates: extensionmanifest.EffectiveManifestVersion(extension.Manifest) >= extensionmanifest.ManifestVersionV3,
 		SiteName:                 a.SiteName, Locales: a.Locales,
 	})
@@ -234,6 +246,19 @@ func (a *PageRegistryAdapter) buildTemplateRuntime(
 		return nil, nil
 	}
 	return snapshot, err
+}
+
+func runtimeDataSchemaDeclarations(input []ManifestPackageFile) []pages.RuntimeDataSchemaDeclaration {
+	result := make([]pages.RuntimeDataSchemaDeclaration, 0, len(input))
+	for _, item := range input {
+		if item.Kind != "schema" {
+			continue
+		}
+		result = append(result, pages.RuntimeDataSchemaDeclaration{
+			ID: item.ID, Version: item.Version, Path: item.Path, Digest: item.Digest,
+		})
+	}
+	return result
 }
 
 func runtimeTemplateDeclarations(input []ManifestTemplate) []pages.RuntimeTemplateDeclaration {

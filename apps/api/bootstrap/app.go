@@ -376,6 +376,7 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 	lifecycleStack, err := newProductionLifecycleStack(productionLifecycleStackConfig{
 		Pool: pool, Store: extensionStore, Features: optionsService,
 		Trust: executableTrustService, Runtime: lifecycleRuntime, Pages: pageRegistry,
+		ThemeRuntime: themeRuntime, PageSiteName: themeSiteName, PageLocales: cfg.SupportedLocales,
 		Services: hostAPIGateway.ProtocolV2ServiceRegistry(), River: jobClient,
 		ExtensionRoot: cfg.ExtensionRoot, MigrationEngine: lifecycleMigrationEngine,
 		Database: lifecycleDatabaseDisposition, SafeMode: cfg.SafeMode,
@@ -917,12 +918,18 @@ type pageRouteTargetAdapter struct {
 	runtime extensionRuntime
 }
 
-func (a pageRouteTargetAdapter) AcquireRouteTarget(ctx context.Context, extensionID string) (pages.LoaderRouteTarget, bool) {
+func (a pageRouteTargetAdapter) AcquireRouteTarget(ctx context.Context, artifact pages.RuntimeArtifact) (pages.LoaderRouteTarget, bool) {
 	if a.runtime == nil {
 		return pages.LoaderRouteTarget{}, false
 	}
-	target, admission, err := a.runtime.AcquireActiveRuntimeCall(ctx, extensionID, extensionsruntime.RuntimeCallPage)
+	target, admission, err := a.runtime.AcquireActiveRuntimeCall(ctx, artifact.ExtensionID, extensionsruntime.RuntimeCallPage)
 	if err != nil {
+		return pages.LoaderRouteTarget{}, false
+	}
+	if artifact.ExtensionVersion != "" && target.ExtensionVersion != artifact.ExtensionVersion ||
+		artifact.PackageDigest != "" && target.ArtifactDigest != artifact.PackageDigest ||
+		artifact.RuntimeInstanceID != "" && target.Identity.InstanceID != artifact.RuntimeInstanceID {
+		admission.Release()
 		return pages.LoaderRouteTarget{}, false
 	}
 	if strings.TrimSpace(target.Target.BaseURL) == "" {

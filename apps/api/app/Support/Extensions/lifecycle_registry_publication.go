@@ -62,6 +62,9 @@ type LifecycleRegistryBoundaryConfig struct {
 	Repository   LifecycleRegistryPublicationRepository
 	Manager      *Manager
 	Pages        *pages.Registry
+	ThemeRuntime *pages.ThemeRuntimeRegistry
+	PageSiteName string
+	PageLocales  []string
 	Routes       *routes.Registry
 	RouteSchemas *extensionopenapi.RouteSchemaPublication
 	Services     *hostapi.ServiceRegistry
@@ -75,6 +78,9 @@ type PostgresLifecycleBoundaryRegistries struct {
 	manager      *Manager
 	hooks        *HookBus
 	pages        *pages.Registry
+	themeRuntime *pages.ThemeRuntimeRegistry
+	pageSiteName string
+	pageLocales  []string
 	routes       *routes.Registry
 	routeSchemas *extensionopenapi.RouteSchemaPublication
 	services     *hostapi.ServiceRegistry
@@ -85,6 +91,9 @@ func NewPostgresLifecycleBoundaryRegistries(config LifecycleRegistryBoundaryConf
 		repository:   config.Repository,
 		manager:      config.Manager,
 		pages:        config.Pages,
+		themeRuntime: config.ThemeRuntime,
+		pageSiteName: config.PageSiteName,
+		pageLocales:  append([]string(nil), config.PageLocales...),
 		routes:       config.Routes,
 		routeSchemas: config.RouteSchemas,
 		services:     config.Services,
@@ -123,6 +132,9 @@ func (b *PostgresLifecycleBoundaryRegistries) RestoreRoutePublications(
 		return ErrLifecycleRegistryPublicationUnavailable
 	}
 	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if err := b.restoreExactPluginPagePublications(ctx, items, safeMode); err != nil {
 		return err
 	}
 	pluginRoutes := make([]routes.PluginRouteSet, 0, len(items))
@@ -170,6 +182,78 @@ func (b *PostgresLifecycleBoundaryRegistries) RestoreRoutePublications(
 		}
 	}
 	return routes.ErrRevisionConflict
+}
+
+func (b *PostgresLifecycleBoundaryRegistries) restoreExactPluginPagePublications(
+	ctx context.Context,
+	items []extensions.Extension,
+	safeMode bool,
+) error {
+	if b == nil || b.pages == nil || b.manager == nil || safeMode {
+		return nil
+	}
+	for _, item := range items {
+		if item.Type != extensions.TypePlugin || item.Status != extensions.StatusEnabled ||
+			strings.TrimSpace(item.Manifest.Backend.Entry) == "" {
+			continue
+		}
+		runtime, err := b.manager.ActiveRuntimeInstance(item.ID)
+		if err != nil {
+			continue
+		}
+		if !runtimeInstanceMatchesExtension(runtime, item) || !b.manager.RuntimeInstanceAvailable(runtime.Identity) {
+			return fmt.Errorf("%w: startup page runtime for %s is not exact and available", ErrLifecycleRegistryPublicationConflict, item.ID)
+		}
+		pkg, err := pages.LoadThemePackage(extensions.PackageContentRoot(item))
+		if err != nil {
+			return fmt.Errorf("restore plugin page package for %s: %w", item.ID, err)
+		}
+		contributions := pages.ContributionsFromTheme(item.ID, item.Version, item.PackageDigest, pkg)
+		if len(contributions) == 0 {
+			continue
+		}
+		binding := extensions.LifecycleRuntimeBinding{
+			ExtensionID: item.ID, ExtensionVersion: item.Version, PackageDigest: item.PackageDigest,
+			RuntimeInstanceID: runtime.Identity.InstanceID, VersionID: item.ActiveVersionID,
+		}
+		for index := range contributions {
+			contributions[index].RuntimeInstanceID = binding.RuntimeInstanceID
+		}
+		if b.themeRuntime != nil {
+			snapshot, buildErr := buildExactPluginPageRuntime(item, binding, contributions, b.pageSiteName, b.pageLocales)
+			if buildErr != nil {
+				return fmt.Errorf("restore exact plugin page runtime for %s: %w", item.ID, buildErr)
+			}
+			if snapshot != nil {
+				if _, _, stageErr := b.themeRuntime.Stage(snapshot); stageErr != nil {
+					return fmt.Errorf("stage exact plugin page runtime for %s: %w", item.ID, stageErr)
+				}
+			}
+		}
+		artifact := pages.RuntimeArtifact{
+			ExtensionID: item.ID, ExtensionVersion: item.Version, PackageDigest: item.PackageDigest,
+			RuntimeInstanceID: binding.RuntimeInstanceID,
+		}
+		published := false
+		for attempts := 0; attempts < 16; attempts++ {
+			existing, existed := b.pages.ExtensionSnapshot(item.ID)
+			if _, publishErr := b.pages.PublishExtensionIfRevision(artifact, contributions, existing.Revision); publishErr == nil {
+				if existed && existing.Artifact != artifact && b.themeRuntime != nil {
+					if _, removeErr := b.themeRuntime.RemoveExact(existing.Artifact); removeErr != nil {
+						return fmt.Errorf("remove superseded plugin page runtime for %s: %w", item.ID, removeErr)
+					}
+				}
+				published = true
+				break
+			} else if !errors.Is(publishErr, pages.ErrRevisionConflict) {
+				return fmt.Errorf("restore exact plugin page publication for %s: %w", item.ID, publishErr)
+			}
+		}
+		if !published {
+			return pages.ErrRevisionConflict
+		}
+	}
+	return nil
 }
 
 // buildStartupRoutePublicationMaterial is deliberately independent from the
@@ -238,6 +322,13 @@ func (b *PostgresLifecycleBoundaryRegistries) ValidateLifecycleRegistries(
 		}
 		if err := b.pages.PreflightContributionsReplacing(material.extension.ID, material.pages, material.extension.ID); err != nil {
 			return fmt.Errorf("validate page registry: %w", err)
+		}
+		if b.themeRuntime != nil {
+			if _, err := buildExactPluginPageRuntime(
+				material.extension, material.binding, material.pages, b.pageSiteName, b.pageLocales,
+			); err != nil {
+				return fmt.Errorf("validate plugin page runtime: %w", err)
+			}
 		}
 		if err := b.validateRouteMaterial(*material); err != nil {
 			return err
@@ -766,13 +857,36 @@ func (b *PostgresLifecycleBoundaryRegistries) reconcilePages(
 	extensionID string,
 	source, target, desired *lifecycleRegistryMaterial,
 ) error {
+	var stagedRuntime *pages.ThemeRuntimeSnapshot
+	staged := false
+	if desired != nil && b.themeRuntime != nil {
+		runtimeSnapshot, err := buildExactPluginPageRuntime(
+			desired.extension, desired.binding, desired.pages, b.pageSiteName, b.pageLocales,
+		)
+		if err != nil {
+			return fmt.Errorf("build exact plugin page runtime: %w", err)
+		}
+		if runtimeSnapshot != nil {
+			if _, staged, err = b.themeRuntime.Stage(runtimeSnapshot); err != nil {
+				return fmt.Errorf("stage exact plugin page runtime: %w", err)
+			}
+			stagedRuntime = runtimeSnapshot
+		}
+	}
+	rollbackStaged := func(cause error) error {
+		if !staged || stagedRuntime == nil || b.themeRuntime == nil {
+			return cause
+		}
+		_, removeErr := b.themeRuntime.RemoveExact(stagedRuntime.Artifact())
+		return errors.Join(cause, removeErr)
+	}
 	for attempts := 0; attempts < 16; attempts++ {
 		if err := ctx.Err(); err != nil {
-			return err
+			return rollbackStaged(err)
 		}
 		snapshot, exists := b.pages.ExtensionSnapshot(extensionID)
 		if exists && !pageArtifactAllowed(snapshot.Artifact, source, target) {
-			return ErrLifecycleRegistryPublicationConflict
+			return rollbackStaged(ErrLifecycleRegistryPublicationConflict)
 		}
 		if desired != nil {
 			artifact := pages.RuntimeArtifact{
@@ -780,22 +894,54 @@ func (b *PostgresLifecycleBoundaryRegistries) reconcilePages(
 				PackageDigest: desired.extension.PackageDigest, RuntimeInstanceID: desired.binding.RuntimeInstanceID,
 			}
 			if _, err := b.pages.PublishExtensionIfRevision(artifact, desired.pages, snapshot.Revision); err == nil {
-				return nil
+				return b.removeSupersededPageRuntimes(desired, source, target)
 			} else if !errors.Is(err, pages.ErrRevisionConflict) {
-				return err
+				return rollbackStaged(err)
 			}
 			continue
 		}
 		if !exists {
-			return nil
+			return b.removeSupersededPageRuntimes(nil, source, target)
 		}
 		if _, err := b.pages.RemoveExtensionIfRevision(extensionID, snapshot.Artifact, snapshot.Revision); err == nil {
-			return nil
+			return b.removeSupersededPageRuntimes(nil, source, target)
 		} else if !errors.Is(err, pages.ErrRevisionConflict) {
+			return rollbackStaged(err)
+		}
+	}
+	return rollbackStaged(pages.ErrRevisionConflict)
+}
+
+func (b *PostgresLifecycleBoundaryRegistries) removeSupersededPageRuntimes(
+	desired *lifecycleRegistryMaterial,
+	materials ...*lifecycleRegistryMaterial,
+) error {
+	if b == nil || b.themeRuntime == nil {
+		return nil
+	}
+	var keep pages.RuntimeArtifact
+	if desired != nil {
+		keep = pages.RuntimeArtifact{
+			ExtensionID: desired.extension.ID, ExtensionVersion: desired.extension.Version,
+			PackageDigest: desired.extension.PackageDigest, RuntimeInstanceID: desired.binding.RuntimeInstanceID,
+		}
+	}
+	for _, material := range materials {
+		if material == nil {
+			continue
+		}
+		artifact := pages.RuntimeArtifact{
+			ExtensionID: material.extension.ID, ExtensionVersion: material.extension.Version,
+			PackageDigest: material.extension.PackageDigest, RuntimeInstanceID: material.binding.RuntimeInstanceID,
+		}
+		if artifact == keep {
+			continue
+		}
+		if _, err := b.themeRuntime.RemoveExact(artifact); err != nil && !errors.Is(err, pages.ErrThemeRuntimeConflict) {
 			return err
 		}
 	}
-	return pages.ErrRevisionConflict
+	return nil
 }
 
 func pageArtifactAllowed(artifact pages.RuntimeArtifact, materials ...*lifecycleRegistryMaterial) bool {

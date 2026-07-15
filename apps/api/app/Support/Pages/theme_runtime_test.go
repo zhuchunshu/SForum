@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
@@ -281,6 +282,166 @@ func TestThemeRuntimeV3TemplateDeclarationIsDigestAndContractBound(t *testing.T)
 	if _, err := BuildThemeRuntimeSnapshot(input); !errors.Is(err, ErrThemeRuntimeConflict) {
 		t.Fatalf("contract mismatch error=%v", err)
 	}
+}
+
+func TestThemeRuntimePluginBusinessContractIsPreservedThroughThemeOverride(t *testing.T) {
+	plugin, payloadSchemaDigest := buildPluginBusinessRuntime(t, "plugin.demo", "1.0.0", "runtime-1", "plugin.demo.page.article.data@1")
+	theme := buildPluginBusinessOverrideRuntime(
+		t, "theme.presentation", "plugin.demo.template.article", "plugin.demo.article",
+		"plugin.demo.page.article.data@1", `theme: {{.title}} / {{.state}}`,
+	)
+	registry := NewThemeRuntimeRegistry()
+	if _, _, err := registry.Stage(theme); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := registry.ActivateExact(theme.Artifact()); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := registry.Stage(plugin); err != nil {
+		t.Fatal(err)
+	}
+	renderer, ok := registry.Resolve(plugin.Artifact(), "plugin.demo.article", "plugin.demo.article")
+	if !ok {
+		t.Fatal("exact plugin add page did not resolve")
+	}
+	contract, ok := renderer.PluginDataContract("plugin.demo.article")
+	if !ok || contract.ViewModelID != "plugin.demo.template.article" ||
+		contract.SchemaVersion != "plugin.demo.page.article.data@1" || contract.SchemaDigest != payloadSchemaDigest {
+		t.Fatalf("plugin contract = %#v ok=%t", contract, ok)
+	}
+	output, err := renderer.RenderPluginData(
+		context.Background(), json.RawMessage(`{"title":"Exact article","state":"published"}`),
+		themecompiler.PageSEOView{Title: "Article"}, "plugin.demo.article",
+	)
+	if err != nil || output.Source != ThemeRenderSourceActiveOverride || output.Fallback {
+		t.Fatalf("override output=%#v err=%v", output, err)
+	}
+	if html := renderer.LegacyHTML(output); !strings.Contains(html, "theme: Exact article / published") {
+		t.Fatalf("override HTML = %q", html)
+	}
+
+	invalid, err := renderer.RenderPluginData(
+		context.Background(), json.RawMessage(`{"title":"Exact article","state":"published","themeMutation":true}`),
+		themecompiler.PageSEOView{Title: "Article"}, "plugin.demo.article",
+	)
+	if err != nil || invalid.Source != ThemeRenderSourceEmergency || !invalid.Fallback ||
+		len(invalid.Attempts) != 3 || invalid.Attempts[0].FailureCode != "view_model_contract" ||
+		invalid.Attempts[1].FailureCode != "view_model_contract" {
+		t.Fatalf("invalid payload output=%#v err=%v", invalid, err)
+	}
+}
+
+func TestThemeRuntimePluginOverrideRequiresExactKeyAndSchema(t *testing.T) {
+	plugin, _ := buildPluginBusinessRuntime(t, "plugin.demo", "1.0.0", "runtime-1", "plugin.demo.page.article.data@1")
+	for _, test := range []struct {
+		name, key, schema string
+	}{
+		{name: "key drift", key: "plugin.demo.other", schema: "plugin.demo.page.article.data@1"},
+		{name: "schema drift", key: "plugin.demo.article", schema: "plugin.demo.page.article.data@2"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			theme := buildPluginBusinessOverrideRuntime(
+				t, "theme."+strings.ReplaceAll(test.name, " ", "-"), "plugin.demo.template.article", test.key,
+				test.schema, `mismatched theme: {{.title}}`,
+			)
+			registry := NewThemeRuntimeRegistry()
+			_, _, _ = registry.Stage(theme)
+			_, _ = registry.ActivateExact(theme.Artifact())
+			_, _, _ = registry.Stage(plugin)
+			renderer, ok := registry.Resolve(plugin.Artifact(), "plugin.demo.article", "plugin.demo.article")
+			if !ok {
+				t.Fatal("plugin renderer missing")
+			}
+			output, err := renderer.RenderPluginData(
+				context.Background(), json.RawMessage(`{"title":"Plugin semantics","state":"archived"}`),
+				themecompiler.PageSEOView{Title: "Article"}, "plugin.demo.article",
+			)
+			if err != nil || output.Source != ThemeRenderSourcePlugin || output.Fallback ||
+				!strings.Contains(renderer.LegacyHTML(output), "plugin: Plugin semantics / archived") {
+				t.Fatalf("mismatched override changed output=%#v html=%q err=%v", output, renderer.LegacyHTML(output), err)
+			}
+		})
+	}
+}
+
+func buildPluginBusinessRuntime(
+	t *testing.T,
+	extensionID, version, runtimeID, schemaVersion string,
+) (*ThemeRuntimeSnapshot, string) {
+	t.Helper()
+	root := t.TempDir()
+	templateBody := `plugin: {{.title}} / {{.state}}`
+	schemaBody := `{"type":"object","required":["title","state"],"additionalProperties":false,"properties":{"title":{"type":"string"},"state":{"type":"string","enum":["published","archived"]}}}`
+	writeThemeRuntimeTestFile(t, root, "theme.json", `{"pages":[]}`)
+	writeThemeRuntimeTestFile(t, root, "templates/article.html", templateBody)
+	writeThemeRuntimeTestFile(t, root, "schemas/article.json", schemaBody)
+	templateDigest := sha256.Sum256([]byte(templateBody))
+	schemaDigest := sha256.Sum256([]byte(schemaBody))
+	artifact := RuntimeArtifact{
+		ExtensionID: extensionID, ExtensionVersion: version, PackageDigest: strings.Repeat("c", 64),
+		RuntimeInstanceID: runtimeID,
+	}
+	contribution := PageContribution{
+		ID: extensionID + ".article", Action: ActionAdd, Path: "/articles/:slug", Template: "templates/article.html",
+		Contract: extensionID + ".page.article@1", Access: AccessPublic,
+		DataSource: "plugin", DataRoute: "/page-data/article", DataSchema: "schemas/article.json",
+		ExtensionID: extensionID, Version: version, PackageDigest: artifact.PackageDigest, RuntimeInstanceID: runtimeID,
+	}
+	snapshot, err := BuildThemeRuntimeSnapshot(ThemeRuntimeBuildInput{
+		Artifact: artifact, PackageRoot: root, Contributions: []PageContribution{contribution},
+		Templates: []RuntimeTemplateDeclaration{{
+			ID: extensionID + ".template.article", ContractVersion: extensionID + ".template.article@1",
+			Action: "add", Path: "templates/article.html", Digest: hex.EncodeToString(templateDigest[:]),
+			ViewModelSchema: schemaVersion, ThemeOverrideKey: extensionID + ".article",
+		}},
+		DataSchemas: []RuntimeDataSchemaDeclaration{{
+			ID: strings.TrimSuffix(schemaVersion, "@1"), Version: "1", Path: "schemas/article.json",
+			Digest: hex.EncodeToString(schemaDigest[:]),
+		}},
+		PackageKind: RuntimeTemplatePlugin, RequireDeclaredTemplates: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return snapshot, hex.EncodeToString(schemaDigest[:])
+}
+
+func buildPluginBusinessOverrideRuntime(
+	t *testing.T,
+	extensionID, targetID, overrideKey, schemaVersion, overrideBody string,
+) *ThemeRuntimeSnapshot {
+	t.Helper()
+	root := t.TempDir()
+	homeBody := `<main>theme home</main><sf-home-page></sf-home-page>`
+	overridePath := "templates/plugins/plugin.demo/article.html"
+	writeThemeRuntimeTestFile(t, root, "theme.json", `{"pages":[]}`)
+	writeThemeRuntimeTestFile(t, root, "templates/home.html", homeBody)
+	writeThemeRuntimeTestFile(t, root, overridePath, overrideBody)
+	homeDigest := sha256.Sum256([]byte(homeBody))
+	overrideDigest := sha256.Sum256([]byte(overrideBody))
+	artifact := RuntimeArtifact{
+		ExtensionID: extensionID, ExtensionVersion: "1.0.0", PackageDigest: strings.Repeat("d", 64),
+	}
+	contribution := PageContribution{
+		ID: extensionID + ".home", Action: ActionReplace, Target: "forum.home", Template: "templates/home.html",
+		Contract: "sforum.page.home@1", ExtensionID: extensionID, Version: artifact.ExtensionVersion,
+		PackageDigest: artifact.PackageDigest,
+	}
+	snapshot, err := BuildThemeRuntimeSnapshot(ThemeRuntimeBuildInput{
+		Artifact: artifact, PackageRoot: root, Contributions: []PageContribution{contribution},
+		Templates: []RuntimeTemplateDeclaration{
+			{ID: extensionID + ".template.home", ContractVersion: extensionID + ".template.home@1", Action: "add",
+				Path: "templates/home.html", Digest: hex.EncodeToString(homeDigest[:]), ViewModelSchema: "sforum.page.home@1"},
+			{ID: extensionID + ".template.article", ContractVersion: extensionID + ".template.article@1", Action: "replace",
+				TargetID: targetID, Path: overridePath, Digest: hex.EncodeToString(overrideDigest[:]),
+				ViewModelSchema: schemaVersion, ThemeOverrideKey: overrideKey},
+		},
+		PackageKind: RuntimeTemplateTheme, RequireDeclaredTemplates: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return snapshot
 }
 
 func buildFallbackRuntime(

@@ -26,6 +26,9 @@ type productionLifecycleStackConfig struct {
 	Trust           *extensions.ExecutableTrustService
 	Runtime         *extensionsruntime.Manager
 	Pages           *pages.Registry
+	ThemeRuntime    *pages.ThemeRuntimeRegistry
+	PageSiteName    string
+	PageLocales     []string
 	Services        *hostapi.ServiceRegistry
 	River           hostapi.PluginJobLifecycleRiverClient
 	ExtensionRoot   string
@@ -152,6 +155,7 @@ func newProductionLifecycleStack(config productionLifecycleStackConfig) (*produc
 	registries := extensionsruntime.NewPostgresLifecycleBoundaryRegistries(
 		extensionsruntime.LifecycleRegistryBoundaryConfig{
 			Repository: registryRepository, Manager: config.Runtime, Pages: config.Pages,
+			ThemeRuntime: config.ThemeRuntime, PageSiteName: config.PageSiteName, PageLocales: config.PageLocales,
 			Routes: routeRegistry, RouteSchemas: routeSchemas, Services: config.Services,
 		},
 	)

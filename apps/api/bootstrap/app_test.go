@@ -12,6 +12,7 @@ import (
 	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
 	hostapi "github.com/zhuchunshu/sforum/apps/api/app/Support/HostAPI"
 	humanverify "github.com/zhuchunshu/sforum/apps/api/app/Support/HumanVerify"
+	pages "github.com/zhuchunshu/sforum/apps/api/app/Support/Pages"
 	"github.com/zhuchunshu/sforum/apps/api/config"
 )
 
@@ -71,6 +72,51 @@ func TestExtensionRuntimeFactoryCanBeReplacedForBootstrapTests(t *testing.T) {
 	}
 }
 
+func TestPageRouteTargetAdapterRequiresExactRuntimeAndReleasesMismatches(t *testing.T) {
+	identity := extensionsruntime.RuntimeInstanceIdentity{ExtensionID: "plugin.page", InstanceID: "runtime-1"}
+	snapshot := extensionsruntime.RuntimeInstanceSnapshot{
+		Identity: identity, ExtensionVersion: "1.2.3", ArtifactDigest: strings.Repeat("a", 64),
+		Target: extensionsruntime.RouteTarget{BaseURL: "http://127.0.0.1:44001", InstanceID: identity.InstanceID},
+	}
+	artifact := pages.RuntimeArtifact{
+		ExtensionID: identity.ExtensionID, ExtensionVersion: snapshot.ExtensionVersion,
+		PackageDigest: snapshot.ArtifactDigest, RuntimeInstanceID: identity.InstanceID,
+	}
+	for _, test := range []struct {
+		name   string
+		mutate func(*pages.RuntimeArtifact)
+		want   bool
+	}{
+		{name: "exact", mutate: func(*pages.RuntimeArtifact) {}, want: true},
+		{name: "version", mutate: func(item *pages.RuntimeArtifact) { item.ExtensionVersion = "9.9.9" }},
+		{name: "digest", mutate: func(item *pages.RuntimeArtifact) { item.PackageDigest = strings.Repeat("b", 64) }},
+		{name: "runtime", mutate: func(item *pages.RuntimeArtifact) { item.RuntimeInstanceID = "runtime-2" }},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			gate, err := extensionsruntime.NewRuntimeAdmissionGate(identity)
+			if err != nil {
+				t.Fatal(err)
+			}
+			runtime := &pageTargetRuntimeStub{snapshot: snapshot, gate: gate}
+			candidate := artifact
+			test.mutate(&candidate)
+			target, ok := (pageRouteTargetAdapter{runtime: runtime}).AcquireRouteTarget(context.Background(), candidate)
+			if ok != test.want || runtime.extensionID != identity.ExtensionID || runtime.class != extensionsruntime.RuntimeCallPage {
+				t.Fatalf("target=%#v ok=%t runtime=%#v", target, ok, runtime)
+			}
+			if ok {
+				if target.BaseURL != snapshot.Target.BaseURL || target.Release == nil {
+					t.Fatalf("exact target=%#v", target)
+				}
+				target.Release()
+			}
+			if active := gate.Snapshot().ActiveTotal; active != 0 {
+				t.Fatalf("admission leases after resolution=%d", active)
+			}
+		})
+	}
+}
+
 func TestAPIExtensionRuntimeUsesCipherServiceSettings(t *testing.T) {
 	original := newExtensionRuntimeManager
 	defer func() { newExtensionRuntimeManager = original }()
@@ -115,6 +161,25 @@ func TestNewHumanVerifyServiceRespectsDisabledProvider(t *testing.T) {
 }
 
 type fakeBootstrapExtensionRuntime struct{}
+
+type pageTargetRuntimeStub struct {
+	fakeBootstrapExtensionRuntime
+	snapshot    extensionsruntime.RuntimeInstanceSnapshot
+	gate        *extensionsruntime.RuntimeAdmissionGate
+	extensionID string
+	class       extensionsruntime.RuntimeCallClass
+}
+
+func (s *pageTargetRuntimeStub) AcquireActiveRuntimeCall(
+	ctx context.Context,
+	extensionID string,
+	class extensionsruntime.RuntimeCallClass,
+) (extensionsruntime.RuntimeInstanceSnapshot, *extensionsruntime.RuntimeAdmissionLease, error) {
+	s.extensionID = extensionID
+	s.class = class
+	lease, err := s.gate.Acquire(ctx, class)
+	return s.snapshot, lease, err
+}
 
 func (fakeBootstrapExtensionRuntime) ProtocolV2ProviderBroker() (hostapi.ProtocolV2ProviderBroker, error) {
 	return workerProviderBrokerStub{}, nil

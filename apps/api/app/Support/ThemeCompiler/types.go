@@ -37,6 +37,7 @@ var (
 	ErrInvalidViewModel       = errors.New("themecompiler: view model must be a passive DTO")
 	ErrViewModelSchema        = errors.New("themecompiler: page view model schema mismatch")
 	ErrViewModelTheme         = errors.New("themecompiler: page view model theme digest mismatch")
+	ErrPluginViewModelSchema  = errors.New("themecompiler: plugin page view model schema is invalid")
 	ErrUnknownIsland          = errors.New("themecompiler: unknown host island")
 	ErrInvalidIsland          = errors.New("themecompiler: invalid host island")
 	ErrRequiredIsland         = errors.New("themecompiler: required host island is missing or ambiguous")

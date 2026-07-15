@@ -2,6 +2,7 @@ package pages
 
 import (
 	"context"
+	"encoding/json"
 	"io"
 	"net/http"
 	"os"
@@ -85,6 +86,46 @@ func TestLoaderGatewayReleasesAdmissionWhenTargetIsEmpty(t *testing.T) {
 	}, nil, "zh-CN", 0)
 	if !result.Fallback || result.Status != 503 || released.Load() != 1 {
 		t.Fatalf("empty target result=%#v releases=%d", result, released.Load())
+	}
+}
+
+func TestLoaderGatewayExactLoadRequiresCompleteRuntimeArtifact(t *testing.T) {
+	var calls atomic.Int32
+	targets := countingExactTargets{calls: &calls}
+	gateway := NewLoaderGateway(NewPageDataLoader(nil), targets)
+	base := PageContribution{
+		ExtensionID: "plugin.exact", Version: "1.0.0", PackageDigest: strings.Repeat("a", 64),
+		RuntimeInstanceID: "runtime-1", DataSource: "plugin", DataRoute: "/page-data",
+	}
+	for _, mutate := range []func(*PageContribution){
+		func(item *PageContribution) { item.Version = "" },
+		func(item *PageContribution) { item.PackageDigest = "" },
+		func(item *PageContribution) { item.RuntimeInstanceID = "" },
+	} {
+		contribution := base
+		mutate(&contribution)
+		result := gateway.LoadExactForContribution(context.Background(), contribution, nil, "zh-CN", 0)
+		if !result.Fallback || result.Status != http.StatusServiceUnavailable {
+			t.Fatalf("incomplete exact artifact result = %#v", result)
+		}
+	}
+	if calls.Load() != 0 {
+		t.Fatalf("incomplete exact artifacts acquired runtime %d times", calls.Load())
+	}
+}
+
+func TestDecodeLoaderDataPreservesJSONNumberPrecision(t *testing.T) {
+	decoded, ok := DecodeLoaderData(json.RawMessage(`{"sequence":9007199254740993}`)).(map[string]any)
+	if !ok {
+		t.Fatalf("decoded loader data=%#v", decoded)
+	}
+	sequence, ok := decoded["sequence"].(json.Number)
+	if !ok || sequence.String() != "9007199254740993" {
+		t.Fatalf("decoded sequence=%#v", decoded["sequence"])
+	}
+	encoded, err := json.Marshal(decoded)
+	if err != nil || string(encoded) != `{"sequence":9007199254740993}` {
+		t.Fatalf("encoded loader data=%s err=%v", encoded, err)
 	}
 }
 
@@ -242,7 +283,16 @@ type admissionTargets struct {
 	release func()
 }
 
-func (f admissionTargets) AcquireRouteTarget(context.Context, string) (LoaderRouteTarget, bool) {
+type countingExactTargets struct {
+	calls *atomic.Int32
+}
+
+func (f countingExactTargets) AcquireRouteTarget(context.Context, RuntimeArtifact) (LoaderRouteTarget, bool) {
+	f.calls.Add(1)
+	return LoaderRouteTarget{}, false
+}
+
+func (f admissionTargets) AcquireRouteTarget(context.Context, RuntimeArtifact) (LoaderRouteTarget, bool) {
 	return LoaderRouteTarget{
 		BaseURL: f.baseURL,
 		Context: f.ctx,
@@ -250,8 +300,8 @@ func (f admissionTargets) AcquireRouteTarget(context.Context, string) (LoaderRou
 	}, true
 }
 
-func (f fakeTargets) AcquireRouteTarget(ctx context.Context, id string) (LoaderRouteTarget, bool) {
-	b, ok := f.bases[id]
+func (f fakeTargets) AcquireRouteTarget(ctx context.Context, artifact RuntimeArtifact) (LoaderRouteTarget, bool) {
+	b, ok := f.bases[artifact.ExtensionID]
 	return LoaderRouteTarget{BaseURL: b, Context: ctx, Release: func() {}}, ok
 }
 
