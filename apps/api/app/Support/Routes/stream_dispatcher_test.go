@@ -97,6 +97,28 @@ func TestStreamDispatcherFailsClosedWithoutGuard(t *testing.T) {
 	}
 }
 
+func TestStreamDispatcherRejectsPublishedRequiredIdempotencyPolicy(t *testing.T) {
+	registry := NewRegistry()
+	artifact := routeArtifact("stream.idempotency", "1.0.0", '1')
+	stream := pluginRoute("stream.idempotency.events", "/idempotent-stream", 0, "POST")
+	stream.Mode = extensionmanifest.RouteModeMultipart
+	if _, err := registry.Publish(Publication{Plugins: []PluginRouteSet{{Artifact: artifact, Routes: []extensionmanifest.ManifestRoute{stream}}}}); err != nil {
+		t.Fatal(err)
+	}
+	dispatcher := NewDispatcher(DispatcherConfig{
+		Plans: streamRegistryResolver{registry}, Guard: allowStreamGuard{},
+		Policies: dispatchPolicyResolver{policy: RouteExecutionPolicy{
+			Idempotency: "required.24h@1", IdempotencyRequired: true,
+		}},
+	})
+	prepared, err := dispatcher.PrepareStream(
+		context.Background(), DispatchRequest{Method: "POST", Path: "/idempotent-stream"},
+	)
+	if prepared.Handled || !errors.Is(err, ErrDispatchIdempotencyUnavailable) {
+		t.Fatalf("prepared=%#v error=%v", prepared, err)
+	}
+}
+
 type allowStreamGuard struct{}
 
 func (allowStreamGuard) Authorize(context.Context, RouteExecutionPlan, RouteExecutionStep, DispatchRequest) error {

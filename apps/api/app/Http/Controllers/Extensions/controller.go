@@ -27,6 +27,7 @@ type Controller struct {
 	gateway         RouteGateway
 	routeProviders  *routes.ProviderSelectionAPI
 	routeInspector  *routes.Inspector
+	routeContracts  RouteContractCatalog
 	routeAuditor    audit.IDWriter
 	providerSlots   *extensionsruntime.ProviderSlotSelectionAPI
 	providerProber  ProviderSlotProber

@@ -92,6 +92,15 @@ func (p *ExtensionsProvider) WithRouteInspector(inspector *routes.Inspector) *Ex
 	return p
 }
 
+func (p *ExtensionsProvider) WithRouteContractCatalog(
+	catalog extensionscontroller.RouteContractCatalog,
+) *ExtensionsProvider {
+	if p != nil && p.controller != nil {
+		p.controller.WithRouteContractCatalog(catalog)
+	}
+	return p
+}
+
 func (p *ExtensionsProvider) WithAdminSurfaces(
 	runtime extensionscontroller.AdminSurfaceRuntime,
 	auditor audit.Writer,

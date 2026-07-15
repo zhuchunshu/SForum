@@ -1,7 +1,7 @@
 # Trusted Plugin And Theme Platform V3 Progress Ledger
 
 Date: 2026-07-15
-Overall progress: **55%**
+Overall progress: **56%**
 Active phase: **P5 - Database/commands closure (71%, 12 of 17 rows)**
 
 This ledger is the durable percentage and context-compaction checkpoint for the
@@ -22,7 +22,7 @@ scaffolding, or demo-only code cannot satisfy a runtime exit criterion.
 | P3 Host API v2 | 8% | 100% | 8% |
 | P4 Lifecycle/dependencies | 7% | 100% | 7% |
 | P5 Database/commands | 8% | 71% | 5.65% |
-| P6 Routes/middleware | 10% | 67% | 6.67% |
+| P6 Routes/middleware | 10% | 72% | 7.22% |
 | P7 Workflow/admin/query/identity | 10% | 50% | 5.00% |
 | P8 Theme compiler/runtime | 8% | 89% | 7.11% |
 | P9 Components/assets/L2 | 8% | 6% | 0.50% |
@@ -111,6 +111,35 @@ phase percentage.
   failing plugin exactly once (`failed`, then `skipped`).
 
 ## Last Durable Checkpoint
+
+### 2026-07-15 P6 Exact OpenAPI Policy Runtime Checkpoint
+
+- Overall advances to **56%** after flooring. P6 advances to **72% (13 of 18
+  rows)** and earns **7.22%** of its 10% weight.
+- The Host now derives rate-limit, security, and idempotency facts from each
+  validated OpenAPI operation. Unsafe methods use the existing Fiber
+  `host.ip_write@1` client-IP limiter; undeclared replay remains disabled; a
+  required standard `Idempotency-Key` becomes `required.24h@1` only on bounded
+  unsafe HTTP routes. Safe and non-buffered declarations fail static validation,
+  with an independent streaming runtime fence against publication drift.
+- Required replay is Host-owned and fail-closed. The 24-hour Redis/memory ledger
+  scopes a hashed key to actor or anonymous client, cookie/bearer source, exact
+  artifact route contract, and method; fingerprints canonical path, sorted query
+  values, normalized content type, and raw body; fences completion/abort by CAS;
+  and stores only bounded 2xx responses. Replays rerun current Host guards without
+  invoking the plugin. Authorization and Cookie data are neither fingerprinted
+  nor persisted.
+- Production bootstrap consumes the lifecycle-owned policy snapshot and shared
+  Redis replay store. Permissioned `extension.view` endpoints expose the exact
+  aggregate document and generated-client operation metadata from one immutable
+  publication revision with a digest ETag.
+- The reviewed Host catalog now contains **227 routes**. Verification passed all
+  Go tests, focused HTTP and package tests, race across Idempotency/Routes/HTTP/
+  controller/OpenAPI, vet, build, 1,858 OpenAPI references across 47 files,
+  Nuxt typecheck, protobuf and documentation drift, and the 227-route/120-UI/
+  99-row catalog gate. The final repository script then stopped on the separately
+  owned P7 admin registry path `/extensions/route-providers`; P6 did not modify
+  that failure.
 
 ### 2026-07-15 P8 Production Restart And Concurrent Activation Checkpoint
 

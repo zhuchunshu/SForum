@@ -1,6 +1,9 @@
 package routes
 
-import "errors"
+import (
+	"context"
+	"errors"
+)
 
 var ErrRoutePolicyNotFound = errors.New("routes: exact route policy is not published")
 
@@ -14,4 +17,21 @@ type RouteExecutionPolicy struct {
 
 type RoutePolicyResolver interface {
 	ResolveRouteExecutionPolicy(RouteExecutionStep) (RouteExecutionPolicy, error)
+}
+
+type RouteIdempotencyLease interface {
+	Complete(context.Context, DispatchResponse) error
+	Abort(context.Context) error
+}
+
+// RouteIdempotencyController owns the durable replay lease while Dispatcher
+// remains transport-neutral and keeps one resolved execution plan.
+type RouteIdempotencyController interface {
+	Begin(
+		context.Context,
+		RouteExecutionPlan,
+		RouteExecutionStep,
+		RouteExecutionPolicy,
+		DispatchRequest,
+	) (RouteIdempotencyLease, *DispatchResponse, error)
 }

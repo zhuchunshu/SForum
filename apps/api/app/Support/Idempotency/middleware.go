@@ -5,8 +5,6 @@ import (
 	"unicode/utf8"
 
 	"github.com/gofiber/fiber/v3"
-
-	apphttp "github.com/zhuchunshu/sforum/apps/api/app/Http"
 )
 
 // ActorResolver 解析当前请求的幂等作用域主体（通常为登录用户 ID）。
@@ -22,7 +20,7 @@ func Middleware(store *Store, resolveActor ActorResolver) fiber.Handler {
 			return c.Next()
 		}
 		if err := ValidateKey(key); err != nil {
-			return apphttp.ErrorResponse(c, fiber.StatusBadRequest, "idempotency.key_invalid")
+			return fiber.NewError(fiber.StatusBadRequest, "idempotency.key_invalid")
 		}
 
 		var actorID int64
@@ -42,7 +40,7 @@ func Middleware(store *Store, resolveActor ActorResolver) fiber.Handler {
 			return c.Next()
 		}
 		if conflict {
-			return apphttp.ErrorResponse(c, fiber.StatusConflict, "idempotency.in_progress")
+			return fiber.NewError(fiber.StatusConflict, "idempotency.in_progress")
 		}
 		if !started && rec.State == stateCompleted {
 			c.Set(ReplayedHeader, "true")

@@ -17,16 +17,19 @@ info:
 
     ## Idempotency-Key
 
-    Selected mutating routes (currently `POST /topics` and
-    `POST /topics/{topicID}/comments`) accept an optional `Idempotency-Key`
-    request header. Within a 24-hour TTL, the same actor + method + path + key
-    replays the first successful (2xx) response body and status, and sets
-    `Idempotency-Replayed: true`. Failed responses are not stored so clients may
-    retry with the same key. Concurrent in-flight duplicates return `409` with
-    reason `idempotency.in_progress`. Invalid keys return `400` with
-    `idempotency.key_invalid`. Storage failures fail open (request proceeds).
-    Plugin authors and webhook receivers should follow the same actor+route+key
-    scoping when integrating.
+    Selected Core mutations (currently `POST /topics` and
+    `POST /topics/{topicID}/comments`) accept an optional `Idempotency-Key` and
+    retain their compatibility fail-open storage behavior.
+
+    A plugin OpenAPI operation may instead require the standard header on a
+    buffered unsafe route. The Host then scopes its 24-hour replay to the actor,
+    cookie-or-bearer credential source, exact artifact route contract, and HTTP
+    method. It fingerprints the canonical path/query/content type and raw body,
+    replays only a stored 2xx response after rerunning current guards, and sets
+    `Idempotency-Replayed: true`. Missing or invalid keys return `400`; an
+    in-flight request or changed fingerprint returns `409`; replay storage
+    failure returns `503` before plugin execution. Non-buffered routes cannot
+    declare required replay.
 
     ## Personal Access Tokens (PAT)
 
@@ -342,6 +345,10 @@ paths:
     "$ref": "./openapi/paths/extensions.yaml#/adminExtensionRouteProviderReset"
   "/admin/extensions/route-inspector":
     "$ref": "./openapi/paths/extension-route-inspector.yaml#/adminExtensionRouteInspector"
+  "/admin/extensions/openapi/aggregate":
+    "$ref": "./openapi/paths/extension-route-contracts.yaml#/adminExtensionOpenAPIAggregate"
+  "/admin/extensions/openapi/generated-client":
+    "$ref": "./openapi/paths/extension-route-contracts.yaml#/adminExtensionGeneratedClientMetadata"
   "/admin/extensions/provider-slots":
     "$ref": "./openapi/paths/extensions.yaml#/adminExtensionProviderSlots"
   "/admin/extensions/provider-slots/events":

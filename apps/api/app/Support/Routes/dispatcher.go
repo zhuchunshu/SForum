@@ -13,11 +13,15 @@ import (
 )
 
 var (
-	ErrDispatchInvalid          = errors.New("routes: invalid dispatch request")
-	ErrDispatchDenied           = errors.New("routes: route guard denied")
-	ErrDispatchSchema           = errors.New("routes: route schema rejected")
-	ErrDispatchTransport        = errors.New("routes: route transport unavailable")
-	ErrDispatchAlreadyCommitted = errors.New("routes: route writer already committed")
+	ErrDispatchInvalid                = errors.New("routes: invalid dispatch request")
+	ErrDispatchDenied                 = errors.New("routes: route guard denied")
+	ErrDispatchSchema                 = errors.New("routes: route schema rejected")
+	ErrDispatchTransport              = errors.New("routes: route transport unavailable")
+	ErrDispatchAlreadyCommitted       = errors.New("routes: route writer already committed")
+	ErrDispatchIdempotencyKeyInvalid  = errors.New("routes: required idempotency key is invalid")
+	ErrDispatchIdempotencyInProgress  = errors.New("routes: idempotent request is in progress")
+	ErrDispatchIdempotencyConflict    = errors.New("routes: idempotency key request conflict")
+	ErrDispatchIdempotencyUnavailable = errors.New("routes: idempotency replay is unavailable")
 )
 
 type DispatchRequest struct {
@@ -31,6 +35,7 @@ type DispatchRequest struct {
 	Authenticated    bool
 	CredentialSource DispatchCredentialSource
 	Permissions      map[string]bool
+	ClientIP         string
 }
 
 type DispatchCredentialSource string
@@ -104,6 +109,8 @@ type DispatcherConfig struct {
 	Guard          GuardAuthorizer
 	Schemas        SchemaValidator
 	Trace          RouteTraceSink
+	Policies       RoutePolicyResolver
+	Idempotency    RouteIdempotencyController
 	DefaultTimeout time.Duration
 }
 
@@ -113,6 +120,8 @@ type Dispatcher struct {
 	guard          GuardAuthorizer
 	schemas        SchemaValidator
 	trace          RouteTraceSink
+	policies       RoutePolicyResolver
+	idempotency    RouteIdempotencyController
 	defaultTimeout time.Duration
 }
 
@@ -123,7 +132,8 @@ func NewDispatcher(config DispatcherConfig) *Dispatcher {
 	}
 	return &Dispatcher{
 		plans: config.Plans, steps: config.Steps, guard: config.Guard,
-		schemas: config.Schemas, trace: config.Trace, defaultTimeout: timeout,
+		schemas: config.Schemas, trace: config.Trace, policies: config.Policies,
+		idempotency: config.Idempotency, defaultTimeout: timeout,
 	}
 }
 
@@ -155,6 +165,40 @@ func (d *Dispatcher) Dispatch(ctx context.Context, request DispatchRequest, core
 	request.Headers = cloneHTTPHeader(request.Headers)
 	request.Body = append([]byte(nil), request.Body...)
 	request.Permissions = cloneDispatchPermissions(request.Permissions)
+
+	var idempotencyLease RouteIdempotencyLease
+	preservePending := false
+	terminal := plan.Terminal()
+	if terminal.Provider.Kind == ProviderPlugin && d.policies != nil {
+		policy, policyErr := d.policies.ResolveRouteExecutionPolicy(terminal)
+		if policyErr != nil && !errors.Is(policyErr, ErrRoutePolicyNotFound) {
+			return DispatchResult{}, fmt.Errorf("%w: %v", ErrDispatchIdempotencyUnavailable, policyErr)
+		}
+		if policyErr == nil && policy.IdempotencyRequired {
+			if terminal.Mode != extensionmanifest.RouteModeHTTP || d.idempotency == nil {
+				return DispatchResult{}, ErrDispatchIdempotencyUnavailable
+			}
+			var replay *DispatchResponse
+			idempotencyLease, replay, err = d.idempotency.Begin(ctx, plan, terminal, policy, request)
+			if err != nil {
+				return DispatchResult{}, err
+			}
+			if replay != nil {
+				if err := d.authorizeReplay(ctx, plan, chain, request); err != nil {
+					return DispatchResult{}, err
+				}
+				return DispatchResult{Handled: true, Response: cloneDispatchResponse(*replay)}, nil
+			}
+			if idempotencyLease == nil {
+				return DispatchResult{}, ErrDispatchIdempotencyUnavailable
+			}
+			defer func() {
+				if !preservePending {
+					_ = idempotencyLease.Abort(ctx)
+				}
+			}()
+		}
+	}
 
 	commit := NewRouteCommitObserver()
 	var response *DispatchResponse
@@ -263,7 +307,33 @@ func (d *Dispatcher) Dispatch(ctx context.Context, request DispatchRequest, core
 	if committingStep >= 0 {
 		d.appendTrace(plan, committingStep, chain[committingStep], RouteTraceCommitted, committingStarted, commit.State())
 	}
+	if idempotencyLease != nil && response.Status >= http.StatusOK && response.Status < http.StatusMultipleChoices {
+		// Complete 失败时保留 pending；客户端只能得到 fail-closed unavailable，
+		// 不能在未知持久化结果后再次执行插件副作用。
+		preservePending = true
+		if err := idempotencyLease.Complete(ctx, *response); err != nil {
+			return DispatchResult{}, fmt.Errorf("%w: %v", ErrDispatchIdempotencyUnavailable, err)
+		}
+	}
 	return DispatchResult{Handled: true, Response: cloneDispatchResponse(*response)}, nil
+}
+
+func (d *Dispatcher) authorizeReplay(
+	ctx context.Context,
+	plan RouteExecutionPlan,
+	chain []RouteExecutionStep,
+	request DispatchRequest,
+) error {
+	for index, step := range chain {
+		if step.Provider.Kind != ProviderPlugin {
+			continue
+		}
+		if err := d.authorize(ctx, plan, step, request); err != nil {
+			d.appendTrace(plan, index, step, RouteTraceDenied, time.Now(), RouteCommitPristine)
+			return err
+		}
+	}
+	return nil
 }
 
 func (d *Dispatcher) appendTrace(

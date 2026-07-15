@@ -1,0 +1,134 @@
+ExtensionRouteContractArtifact:
+  type: object
+  additionalProperties: false
+  required: [extensionId, extensionVersion, packageDigest]
+  properties:
+    extensionId: { type: string, minLength: 1 }
+    extensionVersion: { type: string, minLength: 1 }
+    packageDigest: { type: string, pattern: '^[0-9a-f]{64}$' }
+
+ExtensionOpenAPISource:
+  type: object
+  additionalProperties: false
+  required:
+  - extensionId
+  - extensionVersion
+  - packageDigest
+  - fragmentId
+  - contractVersion
+  - path
+  - digest
+  - namespace
+  properties:
+    extensionId: { type: string, minLength: 1 }
+    extensionVersion: { type: string, minLength: 1 }
+    packageDigest: { type: string, pattern: '^[0-9a-f]{64}$' }
+    fragmentId: { type: string, minLength: 1 }
+    contractVersion: { type: string, minLength: 1 }
+    path: { type: string, minLength: 1 }
+    digest: { type: string, pattern: '^[0-9a-f]{64}$' }
+    namespace: { type: string, minLength: 1 }
+
+ExtensionOpenAPIDocument:
+  type: object
+  additionalProperties: true
+  required: [openapi, info, paths]
+  properties:
+    openapi: { type: string, const: 3.1.0 }
+    info: { type: object, additionalProperties: true }
+    paths: { type: object, additionalProperties: true }
+
+ExtensionGeneratedClientOperation:
+  type: object
+  additionalProperties: false
+  required:
+  - operationId
+  - routeId
+  - contractVersion
+  - path
+  - method
+  - action
+  - mode
+  - guard
+  - rateLimit
+  - idempotency
+  - idempotencyRequired
+  - security
+  - extensionId
+  - extensionVersion
+  - packageDigest
+  - fragmentId
+  - namespace
+  properties:
+    operationId: { type: string, minLength: 1 }
+    routeId: { type: string, minLength: 1 }
+    contractVersion: { type: string, minLength: 1 }
+    path: { type: string, pattern: '^/' }
+    method:
+      type: string
+      enum: [GET, PUT, POST, DELETE, OPTIONS, HEAD, PATCH, TRACE]
+    action: { type: string, enum: [add, alias, redirect, rewrite, replace] }
+    mode: { type: string, enum: [http, sse, websocket, stream, multipart] }
+    guard: { type: string, minLength: 1 }
+    permission: { type: string, minLength: 1 }
+    requestSchema: { type: string, minLength: 1 }
+    responseSchema: { type: string, minLength: 1 }
+    rateLimit: { type: string, enum: [disabled, 'host.ip_write@1'] }
+    rateLimitScope: { type: string, enum: [client_ip] }
+    idempotency: { type: string, enum: [disabled, 'required.24h@1'] }
+    idempotencyRequired: { type: boolean }
+    idempotencyHeader: { type: string, const: Idempotency-Key }
+    idempotencyKeyMaxLength: { type: integer, minimum: 1, maximum: 128 }
+    idempotencyTtlSeconds: { type: integer, const: 86400 }
+    security:
+      type: string
+      enum: [public, authenticated, host_inherited, plugin_owned]
+    extensionId: { type: string, minLength: 1 }
+    extensionVersion: { type: string, minLength: 1 }
+    packageDigest: { type: string, pattern: '^[0-9a-f]{64}$' }
+    fragmentId: { type: string, minLength: 1 }
+    namespace: { type: string, minLength: 1 }
+
+ExtensionOpenAPIAggregate:
+  type: object
+  additionalProperties: false
+  required: [revision, aggregateRevision, artifacts, sources, document]
+  properties:
+    revision: { type: integer, format: int64, minimum: 0 }
+    aggregateRevision: { type: string, pattern: '^sha256:[0-9a-f]{64}$' }
+    artifacts:
+      type: array
+      items: { "$ref": "#/ExtensionRouteContractArtifact" }
+    sources:
+      type: array
+      items: { "$ref": "#/ExtensionOpenAPISource" }
+    document: { "$ref": "#/ExtensionOpenAPIDocument" }
+
+ExtensionGeneratedClientMetadata:
+  type: object
+  additionalProperties: false
+  required: [revision, aggregateRevision, operations]
+  properties:
+    revision: { type: integer, format: int64, minimum: 0 }
+    aggregateRevision: { type: string, pattern: '^sha256:[0-9a-f]{64}$' }
+    operations:
+      type: array
+      items: { "$ref": "#/ExtensionGeneratedClientOperation" }
+
+ApiResponseExtensionOpenAPIAggregate:
+  type: object
+  additionalProperties: false
+  required: [code, message, data]
+  properties:
+    code: { type: integer }
+    message: { type: string }
+    data: { "$ref": "#/ExtensionOpenAPIAggregate" }
+
+ApiResponseExtensionGeneratedClientMetadata:
+  type: object
+  additionalProperties: false
+  required: [code, message, data]
+  properties:
+    code: { type: integer }
+    message: { type: string }
+    data: { "$ref": "#/ExtensionGeneratedClientMetadata" }

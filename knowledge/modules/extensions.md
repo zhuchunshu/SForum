@@ -107,6 +107,17 @@ Host trigger marker, and its worker must acquire exact schedule admission before
 inserting the real versioned job. Disable/upgrade removes the periodic entry and
 closes trigger admission through the same lifecycle boundary.
 
+P6 now publishes exact plugin OpenAPI contracts and Host-derived route policy
+metadata from the same lifecycle-fenced snapshot used for schema validation.
+Unsafe operations use the existing Host client-IP limiter. A required standard
+`Idempotency-Key` is available only to bounded unsafe HTTP routes and is enforced
+through a 24-hour CAS-fenced replay ledger with canonical request fingerprints,
+current-guard reauthorization, bounded 2xx responses, exact artifact/route/
+credential scope, and fail-closed storage behavior. `extension.view` consumers
+can read the immutable aggregate and generated-client metadata through separate
+admin endpoints; streaming modes reject required replay both statically and at
+runtime.
+
 ## Purpose
 
 Owns installable plugins and themes for SForum. Plugins are multi-enable

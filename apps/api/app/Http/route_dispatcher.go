@@ -20,6 +20,7 @@ import (
 
 	apitokens "github.com/zhuchunshu/sforum/apps/api/app/Models/APITokens"
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
+	clientip "github.com/zhuchunshu/sforum/apps/api/app/Support/ClientIP"
 	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
 	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
 	routes "github.com/zhuchunshu/sforum/apps/api/app/Support/Routes"
@@ -373,6 +374,7 @@ func routeDispatchRequestMetadata(c fiber.Ctx, actor identity.Actor) routes.Disp
 		Headers: fasthttpRequestHeaders(c),
 		ActorID: actor.ID, Authenticated: actor.ID > 0 && actor.IsActive(),
 		CredentialSource: credentialSource, Permissions: permissions,
+		ClientIP: clientip.FromCtx(c),
 	}
 }
 
@@ -577,7 +579,7 @@ func filteredRouteResponseHeaders(source stdhttp.Header) stdhttp.Header {
 		}
 		switch canonical {
 		case "", "content-length", "connection", "keep-alive", "proxy-authenticate", "proxy-authorization",
-			"set-cookie", "te", "trailer", "transfer-encoding", "upgrade":
+			"set-cookie", "idempotency-replayed", "te", "trailer", "transfer-encoding", "upgrade":
 			continue
 		}
 		for _, value := range values {
@@ -597,6 +599,14 @@ func mapRouteDispatchError(err error) error {
 		return fiber.NewError(fiber.StatusServiceUnavailable, "extensions.route_provider_unavailable")
 	case errors.Is(err, routes.ErrDispatchSchema):
 		return fiber.NewError(fiber.StatusUnprocessableEntity, "extensions.route_schema_invalid")
+	case errors.Is(err, routes.ErrDispatchIdempotencyKeyInvalid):
+		return fiber.NewError(fiber.StatusBadRequest, "idempotency.key_invalid")
+	case errors.Is(err, routes.ErrDispatchIdempotencyInProgress):
+		return fiber.NewError(fiber.StatusConflict, "idempotency.in_progress")
+	case errors.Is(err, routes.ErrDispatchIdempotencyConflict):
+		return fiber.NewError(fiber.StatusConflict, "idempotency.key_conflict")
+	case errors.Is(err, routes.ErrDispatchIdempotencyUnavailable):
+		return fiber.NewError(fiber.StatusServiceUnavailable, "idempotency.unavailable")
 	case errors.Is(err, routes.ErrDispatchTransport):
 		return fiber.NewError(fiber.StatusBadGateway, "extensions.route_unavailable")
 	default:

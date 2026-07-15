@@ -4,7 +4,7 @@ This is the entry point for project memory.
 
 ## Latest Handoff
 
-- **2026-07-15 Trusted Plugin And Theme Platform V3 P6/P7/P8/P9 active (overall 55%)**
+- **2026-07-15 Trusted Plugin And Theme Platform V3 P6/P7/P8/P9 active (overall 56%)**
   - Decision: `knowledge/decisions/2026-07-13-trusted-plugin-theme-platform-v3.md`
   - Task book: `knowledge/plans/2026-07-13-trusted-plugin-theme-platform-v3.md`
   - Active handoff: `knowledge/sessions/2026-07-15-trusted-plugin-theme-platform-v3-p6-p8-progress.md`
@@ -14,7 +14,7 @@ This is the entry point for project memory.
   - P0 catalogs and governance: `docs/extensions/v3/`
   - Decision contains the authoritative 27-row template comparison, 72-row
     plugin comparison, detailed architecture mind map, and boundary checklist
-  - P0 governance now tracks 99-row traceability, 225 routes, 120 UI surfaces,
+  - P0 governance now tracks 99-row traceability, 227 routes, 120 UI surfaces,
     33 admin surfaces, 19-module Extension Surface Matrix, stable identities,
     governance, migration gates, and performance baseline; CI rejects catalog drift
   - P1 completed exact-artifact one-use trust, delegated inert preview,
@@ -82,10 +82,17 @@ This is the entry point for project memory.
     resource/capability scopes, effective-window checks, transaction-aware
     composition, and concurrent idempotent replay. P5 remains 12/17 until the
     production entitlement Host Command and the other open row exits are wired
-  - P6 is active at 12/18 (67%). All 225 core routes have stable generated
+  - P6 is active at 13/18 (72%). All 227 core routes have stable generated
     identities; immutable exact route snapshots, arbitrary declared paths,
     explicit replace-provider selection/conflict UI, Safe Mode filtering, and
     strict OpenAPI collision/reference rejection are accepted
+  - Exact OpenAPI operations now derive Host-owned permission/security,
+    `host.ip_write@1` rate-limit, and `required.24h@1` replay metadata. Required
+    replay is production-wired through a 24-hour CAS-fenced Redis ledger,
+    canonical request fingerprints, bounded 2xx response replay, current-guard
+    reauthorization, exact artifact/route/credential scoping, and fail-closed
+    streaming/storage behavior. Permissioned aggregate and generated-client
+    endpoints expose one immutable lifecycle revision with a digest ETag
   - The production Fiber Dispatcher uses exact lifecycle Registry/Runtime
     admission while pure Core routes bypass buffering. The permissioned Route
     Inspector shares a bounded redacted trace ring with the Dispatcher
@@ -95,7 +102,7 @@ This is the entry point for project memory.
     cancellation, and unsafe methods can never execute Core as a second writer
   - Exact route schema compilation, joint Route/Schema lifecycle publication,
     boot restore, and production inherited Guard authorization are committed.
-    Explicit contextual evaluators cover 114/123 routes through immutable
+    Explicit contextual evaluators cover 116/125 routes through immutable
     extension, option, forum, and Page Registry policy snapshots with no Store
     I/O on their guarded request paths. Five low-frequency identity-admin target
     routes deliberately use one minimal PostgreSQL lookup after the caller's

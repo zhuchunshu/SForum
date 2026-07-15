@@ -492,7 +492,7 @@ The operator approved all recommended P5 defaults on 2026-07-15:
 - [x] Define safe GET fallback and fail-closed unsafe method behavior.
 - [x] Prevent fallback after headers/body/plugin side effects begin.
 - [ ] Add route aliases/redirect SEO status/canonical integration.
-- [ ] Add modular plugin OpenAPI fragments, validation, aggregation, permissions,
+- [x] Add modular plugin OpenAPI fragments, validation, aggregation, permissions,
       rate-limit, idempotency, and generated-client metadata.
 - [ ] Add Route Inspector with chain, provider, guard, timing, fallback, and
       contract details.

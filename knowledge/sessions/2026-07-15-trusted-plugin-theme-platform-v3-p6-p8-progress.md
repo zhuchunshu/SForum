@@ -2,8 +2,17 @@
 
 ## Changed
 
-- Weighted V3 is 55%. P5/P6/P7/P8 remain parallel; P6 is 12/18, P7 is
+- Weighted V3 is 56%. P5/P6/P7/P8 remain parallel; P6 is 13/18, P7 is
   11/22, and P8 is 16/18.
+- P6 now closes the OpenAPI policy row: validated operations derive exact
+  security/permission, Host client-IP rate-limit, and optional required-replay
+  metadata. Production required replay uses a 24-hour CAS-fenced ledger,
+  canonical request fingerprints, exact route/artifact/credential scope,
+  current-guard reauthorization, bounded 2xx storage, and fail-closed stream or
+  storage behavior.
+- Two `extension.view` endpoints expose the immutable extension OpenAPI
+  aggregate and generated-client operation catalog with a digest ETag. Their
+  stable Host identities bring the reviewed route catalog to 227 routes.
 - P6 now has real-process multipart, SSE, WebSocket, disconnect cancellation,
   and bounded backpressure evidence through Fiber, Registry, Dispatcher,
   Manager admission, Protocol V2 gRPC, and the plugin SDK.
@@ -41,6 +50,10 @@
 
 ## Commits
 
+- `a30c8f757 fix(openapi): normalize exact manifest comparisons`
+- `2344a580c feat(idempotency): add fenced required route replay`
+- `dd12b755d feat(openapi): derive host route policies`
+- `cfff68b2c feat(routes): index exact OpenAPI policies`
 - `3e771b149 fix(themes): preserve exact activation across restarts`
 - `ae4ca62fd feat(themes): add exact runtime fallback chain`
 - `476ca7aca feat(routes): bind exact extension guard policy`
@@ -107,6 +120,12 @@
 
 - P6 batches passed focused repetition, full HTTP/bootstrap or policy race,
   `go vet ./...`, and `go build ./...` before commit.
+- The P6 OpenAPI policy runtime passed all Go tests; focused replay, limiter,
+  controller, Routes, OpenAPI, Extensions, bootstrap, and localization tests;
+  race across the five changed runtime packages; vet; build; 1,858 OpenAPI refs;
+  Nuxt typecheck; protobuf/documentation drift; and the 227-route/120-UI/99-row
+  catalog gate. The final repository script stopped only on the separately owned
+  P7 admin registry path `/extensions/route-providers`.
 - Cookie-bound PAT management additionally passed ten focused repetitions,
   full HTTP race, Routes/bootstrap tests, vet, build, and staged diff checks.
 - Identity-admin target guards passed focused HTTP twenty times, focused race
@@ -174,8 +193,9 @@
 
 ## Active Dirty Ownership
 
-- P6: no uncommitted transport files; continue guard/action/SEO/OpenAPI work
-  only after checking the current shared tree.
+- P6: exact OpenAPI policy runtime and consumer endpoints are ready for their
+  isolated commit; continue action/SEO and remaining failure-matrix work after
+  checking the current shared tree.
 - P7: Admin Surface production consumers remain active; provider browser QA
   awaits login.
 - P8: Page-specific ViewModels and exact plugin data preservation remain open.
@@ -186,8 +206,8 @@
 1. Continue the remaining nine contextual guards without opening custom/raw
    authority before its product freeze: four executable bootstrap flows, two
    entity-meta value routes, two attachment reads, and one forum comment-create
-   route. Continue independent P6 action/SEO/OpenAPI work where semantics are
-   already frozen.
+   route. Continue independent P6 action/SEO and failure-matrix work where
+   semantics are already frozen.
 2. Populate production page-specific P8 ViewModels and prove theme overrides
    preserve each plugin's versioned business-data contract.
 3. Continue P5 with signed actor delegation and concrete transactional Host

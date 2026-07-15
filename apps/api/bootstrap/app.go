@@ -589,6 +589,7 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 	routeTraceRing := routes.NewRouteTraceRing(0)
 	extensionsProvider := providers.NewExtensionsProviderWithService(extensionService, identityStore, authSessions, extensionRuntime, frontendService).
 		WithRouteProviderSelection(lifecycleStack.RouteProviders, auditWriter).
+		WithRouteContractCatalog(lifecycleStack.RouteSchemas).
 		WithProviderSlotSelection(lifecycleStack.ProviderSlots, lifecycleRuntime, auditWriter).
 		WithRouteInspector(routes.NewProviderSelectionInspector(lifecycleStack.RouteProviders, routeTraceRing)).
 		WithAdminSurfaces(extensionRuntime, auditWriter)
@@ -657,8 +658,10 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 			ForumComments:     forumStore,
 			PluginGuards:      httpserver.NewRuntimePluginRouteGuardEvaluator(lifecycleStack.RuntimeManager, extensionGuardPolicy),
 		}),
-		Schemas: httpserver.CatalogRouteSchemaValidator{Catalog: lifecycleStack.RouteSchemas},
-		Trace:   routeTraceRing,
+		Schemas:     httpserver.CatalogRouteSchemaValidator{Catalog: lifecycleStack.RouteSchemas},
+		Trace:       routeTraceRing,
+		Policies:    lifecycleStack.RouteSchemas,
+		Idempotency: httpserver.NewRequiredRouteIdempotency(idempotencyStore),
 	})
 
 	app := httpserver.NewApp(cfg, logger, httpserver.Dependencies{

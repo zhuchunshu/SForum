@@ -326,6 +326,18 @@
       "path": "/api/v1/admin/extensions/route-inspector"
     },
     {
+      "id": "core.route.extensions.openapi_aggregate",
+      "contractVersion": "sforum.route.extensions.openapi_aggregate@1",
+      "method": "GET",
+      "path": "/api/v1/admin/extensions/openapi/aggregate"
+    },
+    {
+      "id": "core.route.extensions.generated_client_metadata",
+      "contractVersion": "sforum.route.extensions.generated_client_metadata@1",
+      "method": "GET",
+      "path": "/api/v1/admin/extensions/openapi/generated-client"
+    },
+    {
       "id": "core.route.extensions.inspect_provider_slots",
       "contractVersion": "sforum.route.extensions.inspect_provider_slots@1",
       "method": "GET",

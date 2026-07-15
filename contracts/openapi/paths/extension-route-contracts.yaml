@@ -1,0 +1,54 @@
+adminExtensionOpenAPIAggregate:
+  get:
+    summary: Read the exact extension OpenAPI aggregate
+    operationId: getAdminExtensionOpenAPIAggregate
+    description: >-
+      Requires extension.view or the legacy extension.manage permission. Returns
+      the detached OpenAPI 3.1 aggregate, exact artifact and fragment sources,
+      lifecycle publication revision, and digest ETag from one immutable
+      snapshot. Core operations are collision reservations and are not copied
+      into the extension document.
+    responses:
+      '200':
+        description: Exact lifecycle-published extension OpenAPI aggregate.
+        headers:
+          ETag:
+            description: Quoted sha256 aggregate revision.
+            schema: { type: string }
+          X-SForum-Route-Contract-Revision:
+            description: Monotonic process-local lifecycle publication revision.
+            schema: { type: string }
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/extension-route-contracts.yaml#/ApiResponseExtensionOpenAPIAggregate"
+      '401': { "$ref": "../components/responses.yaml#/Unauthorized" }
+      '403': { "$ref": "../components/responses.yaml#/Forbidden" }
+      '503': { "$ref": "../components/responses.yaml#/ServiceUnavailable" }
+
+adminExtensionGeneratedClientMetadata:
+  get:
+    summary: Read exact generated-client route metadata
+    operationId: getAdminExtensionGeneratedClientMetadata
+    description: >-
+      Requires extension.view or the legacy extension.manage permission. Returns
+      one operation per exact artifact route contract with Host-derived guard,
+      permission, rate-limit, idempotency, schema, and security metadata. The
+      metadata revision and ETag are identical to the aggregate endpoint.
+    responses:
+      '200':
+        description: Exact generated-client operation catalog.
+        headers:
+          ETag:
+            description: Quoted sha256 aggregate revision.
+            schema: { type: string }
+          X-SForum-Route-Contract-Revision:
+            description: Monotonic process-local lifecycle publication revision.
+            schema: { type: string }
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/extension-route-contracts.yaml#/ApiResponseExtensionGeneratedClientMetadata"
+      '401': { "$ref": "../components/responses.yaml#/Unauthorized" }
+      '403': { "$ref": "../components/responses.yaml#/Forbidden" }
+      '503': { "$ref": "../components/responses.yaml#/ServiceUnavailable" }

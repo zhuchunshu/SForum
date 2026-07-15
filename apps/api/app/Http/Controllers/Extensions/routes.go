@@ -16,6 +16,8 @@ func (h *Controller) RegisterRoutes(api fiber.Router) {
 	api.Get("/admin/extensions/route-providers/selection", h.routeProviderCurrent)
 	api.Get("/admin/extensions/route-providers/events", h.routeProviderEvents)
 	api.Get("/admin/extensions/route-inspector", h.inspectRoute)
+	api.Get("/admin/extensions/openapi/aggregate", h.routeOpenAPIAggregate)
+	api.Get("/admin/extensions/openapi/generated-client", h.routeGeneratedClientMetadata)
 	api.Post("/admin/extensions/route-providers/selection", h.selectRouteProvider)
 	api.Post("/admin/extensions/route-providers/selection/reset", h.resetRouteProvider)
 	api.Get("/admin/extensions/provider-slots", h.inspectProviderSlots)
