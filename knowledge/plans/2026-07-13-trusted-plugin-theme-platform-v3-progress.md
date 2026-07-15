@@ -1,8 +1,8 @@
 # Trusted Plugin And Theme Platform V3 Progress Ledger
 
 Date: 2026-07-15
-Overall progress: **51%**
-Active phase: **P7 - Hooks, Services, Work, Admin Surfaces, Queries, And Identity (41%, 9 of 22 rows)**
+Overall progress: **52%**
+Active phase: **P7 - Hooks, Services, Work, Admin Surfaces, Queries, And Identity (50%, 11 of 22 rows)**
 
 This ledger is the durable percentage and context-compaction checkpoint for the
 V3 program. Update it before context compression, at every phase boundary, and
@@ -22,8 +22,8 @@ scaffolding, or demo-only code cannot satisfy a runtime exit criterion.
 | P3 Host API v2 | 8% | 100% | 8% |
 | P4 Lifecycle/dependencies | 7% | 100% | 7% |
 | P5 Database/commands | 8% | 71% | 5.65% |
-| P6 Routes/middleware | 10% | 61% | 6.11% |
-| P7 Workflow/admin/query/identity | 10% | 41% | 4.09% |
+| P6 Routes/middleware | 10% | 67% | 6.67% |
+| P7 Workflow/admin/query/identity | 10% | 50% | 5.00% |
 | P8 Theme compiler/runtime | 8% | 56% | 4.44% |
 | P9 Components/assets/L2 | 8% | 0% | 0% |
 | P10 Content/media/data | 8% | 0% | 0% |
@@ -111,6 +111,39 @@ phase percentage.
   failing plugin exactly once (`failed`, then `skipped`).
 
 ## Last Durable Checkpoint
+
+### 2026-07-15 P6 Streamed Transports And P7 Plugin Commands Checkpoint
+
+- Overall is **52%**. P5 is **71% (12 of 17 rows)**, P6 is **67% (12
+  of 18)**, P7 is **50% (11 of 22)**, and P8 is **56% (10 of 18)**.
+- `cdcd46979`, `de3627df8`, `33702960d`, `90333626d`, `6cc634bf6`,
+  `0f185817f`, `81f5d8208`, and `7f9b83cc7` close the P6 transport row with
+  bounded Protocol V2 streams, authenticated preflight, exact-runtime leases,
+  HTTP streaming, multipart, SSE, WebSocket, cancellation, and blocking
+  backpressure pumps. The real-process test crosses Fiber, the immutable Route
+  Registry, Dispatcher, Manager admission, gRPC, and the plugin SDK.
+- Multipart delivered 1,049,078 bytes intact with a 652,000-byte observed
+  maximum chunk below the 1 MiB limit. Real SSE delivered two events with the
+  required media type; real WebSocket covered subprotocol negotiation and
+  bidirectional messages; client disconnect returned exact runtime admission
+  to zero.
+- `a9b08a412`, `53068aea0`, `1becca5b1`, `cccdf3512`, and `9c446c7b8`
+  close the P7 Plugin Command Registry row. Manifest commands publish through
+  an immutable exact-artifact registry, invoke over Protocol V2 under runtime
+  admission, and run from the out-of-band `sforum` CLI with namespace,
+  conflict, trust, Safe Mode, and audit enforcement. The independent Safe Mode
+  CLI recovery exit row is also closed.
+- P6 passed focused stream repetition, real WebSocket TCP upgrade repetition,
+  full Routes/HTTP/Extensions tests, focused race, vet, build, and the
+  223-route/119-UI/99-trace-row catalog gate. P7 command focused, package,
+  CLI, and race coverage passed; full nested builtin-plugin module gates remain
+  open because their `go.sum` files lack Goldmark and go-redis entries. Do not
+  report the nested-module gate as green until those dependency sums are fixed
+  and the tests are rerun.
+- Exact resume point: P6 continues the remaining inherited/custom/raw guard and
+  action/SEO/OpenAPI work without freezing the six unresolved product
+  semantics. P7 continues with Admin Surface Registry, then Query and Identity;
+  first repair and rerun the nested builtin-module dependency gates.
 
 ### 2026-07-15 P7 Dynamic Jobs And Schedules Checkpoint
 

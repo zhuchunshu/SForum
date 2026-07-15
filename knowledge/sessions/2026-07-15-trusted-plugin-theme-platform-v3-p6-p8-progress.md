@@ -2,7 +2,14 @@
 
 ## Changed
 
-- Weighted V3 is 51%. P5/P6/P7/P8 remain parallel; P7 is 9/22 and P8 is 10/18.
+- Weighted V3 is 52%. P5/P6/P7/P8 remain parallel; P6 is 12/18, P7 is
+  11/22, and P8 is 10/18.
+- P6 now has real-process multipart, SSE, WebSocket, disconnect cancellation,
+  and bounded backpressure evidence through Fiber, Registry, Dispatcher,
+  Manager admission, Protocol V2 gRPC, and the plugin SDK.
+- P7 now has an exact-artifact Plugin Command Registry and out-of-band CLI
+  execution with namespace/conflict, trust, Safe Mode, admission, and audit
+  enforcement.
 - Contextual Core Guard production coverage is 114/123. Exact extension trust,
   Options owner policy, public/bootstrap routes, theme assets, Page Registry
   access, public entity metadata, safe custom-role deletion, declared extension
@@ -71,6 +78,19 @@
 - `0e81befcf feat(jobs): enforce manifest execution policies`
 - `1eba53bd1 feat(schedules): publish dynamic River catalog`
 - `814e824b3 feat(schedules): trigger exact plugin jobs`
+- `cdcd46979 feat(protocol): open bounded route streams`
+- `de3627df8 feat(runtime): open exact route streams`
+- `33702960d feat(protocol): authenticate streamed route preflights`
+- `90333626d feat(routes): fence non-buffered dispatch`
+- `6cc634bf6 feat(routes): stream protocol v2 responses`
+- `0f185817f fix(routes): extend streamed route leases`
+- `81f5d8208 feat(routes): bridge websocket streams`
+- `7f9b83cc7 test(routes): verify real streamed transports`
+- `a9b08a412 feat(manifest): define trusted plugin CLI commands`
+- `53068aea0 feat(extensions): publish exact plugin commands`
+- `1becca5b1 feat(protocol): invoke exact plugin commands`
+- `cccdf3512 feat(extensions): execute exact plugin commands`
+- `9c446c7b8 feat(cli): run exact trusted plugin commands`
 
 ## Verification
 
@@ -96,9 +116,15 @@
 - Dynamic jobs/schedules passed focused ExtensionManifest, Jobs, Models,
   HostAPI, Extensions, and bootstrap tests plus race for the four runtime
   packages. OpenAPI validation passed 1,817 references across 44 files.
-- The V3 catalog gate currently reports 223 live routes against the committed
-  218-route review constant because concurrent P6 stream routes are not yet
-  regenerated/reviewed; P6 owns that drift before its next checkpoint.
+- P6 streamed transports passed focused Protocol V2 repetition, real
+  WebSocket TCP upgrade repetition, full Routes/HTTP/Extensions tests, focused
+  race, vet, build, and the reviewed 223-route/119-UI/99-trace-row catalog gate.
+  The real plugin subprocess preserved a 1,049,078-byte multipart body, emitted
+  two SSE events, negotiated and echoed WebSocket traffic, and released exact
+  runtime admission after client disconnect.
+- P7 Plugin Command Registry focused, package, CLI, and race gates passed.
+  Nested builtin-plugin module gates are not fully green: their `go.sum` files
+  still lack Goldmark and go-redis entries and must be repaired and rerun.
 - P8 fallback passed focused Pages/Extensions/Controller tests, race, vet,
   build, and ThemeCompiler allocation checks before commit.
 - P8 exact-preview backend, OpenAPI, admin typecheck/locales, and the additive
@@ -130,9 +156,9 @@
 
 ## Active Dirty Ownership
 
-- P6: `apps/api/app/Http/core_guard_authorizer*`, extension guard policy, and a
-  narrow bootstrap policy injection for the next contextual batch.
-- P7: Plugin Command Registry is next; provider browser QA awaits login.
+- P6: no uncommitted transport files; continue guard/action/SEO/OpenAPI work
+  only after checking the current shared tree.
+- P7: Admin Surface Registry is active; provider browser QA awaits login.
 - P8: Page ViewModel/hot-path audit and crawler/JavaScript-disabled evidence.
 - Preserve these groups and stage only one coherent owner at a time.
 
@@ -141,15 +167,17 @@
 1. Continue the remaining nine contextual guards without opening custom/raw
    authority before its product freeze: four executable bootstrap flows, two
    entity-meta value routes, two attachment reads, and one forum comment-create
-   route.
+   route. Continue independent P6 action/SEO/OpenAPI work where semantics are
+   already frozen.
 2. Audit every P8 Page ViewModel and prove all-catalog hot rendering has no
    theme disk I/O or provider database query.
 3. Start API and Nuxt manually, then capture crawler and JavaScript-disabled
    SSR evidence for home, lists, topic, profile, pagination, SEO, and JSON-LD.
 4. Continue P5 with signed actor delegation and concrete transactional Host
    Commands, then provider-neutral entitlement persistence.
-5. Continue P7 with the Plugin Command Registry, then Admin Surface Registry;
-   rerun provider UI QA after Chrome login.
+5. Continue P7 with Admin Surface Registry, then Query/Identity. Repair the
+   nested builtin-plugin Goldmark/go-redis `go.sum` gaps and rerun their full
+   module gates; rerun provider UI QA after Chrome login.
 
 ## P5 Entitlement Persistence Continuation
 

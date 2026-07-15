@@ -744,3 +744,26 @@ template while retaining Schema fallback fields.
   route/mail/storage provider cleanup.
 - Admin UI: `/control-panel/extensions/provider-slots`. It preserves provider
   settings and secrets when restoring recommended priority defaults.
+
+## V3 P6 streamed transport and P7 command checkpoint
+
+- Route Protocol V2 supports bounded bidirectional streams with a 1 MiB chunk
+  ceiling, an authenticated unary preflight, and one exact Manager admission
+  lease held until stream termination. Fiber bridges HTTP streamed responses,
+  multipart uploads, SSE, and WebSocket traffic; disconnect, disable, Safe Mode,
+  upgrade drain, timeout, and cancellation terminate the stream.
+- Real subprocess coverage crosses Fiber, immutable Route Registry, Dispatcher,
+  Manager admission, gRPC, and the plugin SDK. It verifies intact multipart
+  bytes, SSE media type/events, WebSocket subprotocol/echo, and admission release
+  after client disconnect. Composed non-buffered before/after/filter/wrap chains
+  remain fail closed until their product semantics are frozen.
+- Plugin CLI commands are Manifest-declared and published in an immutable,
+  revisioned exact-artifact Registry. Namespace/conflict checks happen before
+  selection; execution rechecks live trust, Safe Mode, command contract,
+  artifact identity, and runtime admission before Protocol V2 invocation.
+- `sforum plugin <extension-id> <command>` is the out-of-band runner. It boots
+  only the selected trusted plugin runtime, never the API or Nuxt application,
+  records Host-owned audit evidence, and cannot be used to bypass Safe Mode.
+- Focused command, registry, transport, CLI, and race gates pass. Full nested
+  builtin-plugin module gates still need Goldmark and go-redis `go.sum` entries;
+  they are not considered green until those sums are repaired and tests rerun.

@@ -483,7 +483,7 @@ The operator approved all recommended P5 defaults on 2026-07-15:
       public, admin, or API path and HTTP method by stable route id.
 - [ ] Implement `add`, `alias`, `redirect`, `rewrite`, `before`, `after`,
       `filter`, `wrap`, `replace`, and global middleware.
-- [ ] Support HTTP request/response, multipart upload, streaming, SSE, WebSocket,
+- [x] Support HTTP request/response, multipart upload, streaming, SSE, WebSocket,
       cancellation, and backpressure through the proxy/runtime.
 - [ ] Default to inherited core guards; implement separately confirmed custom
       guard/raw request authority.
@@ -528,7 +528,7 @@ query, and identity workflows without replacing whole routes.
 - [x] Generalize provider selection/reset/probe/health/fallback UI.
 - [x] Add dynamic typed jobs, schedules, concurrency policies, retries, and
       versioned payloads.
-- [ ] Add Plugin Command Registry to the `sforum` CLI with namespace/conflict
+- [x] Add Plugin Command Registry to the `sforum` CLI with namespace/conflict
       rules and trust checks.
 - [ ] Implement Admin Surface Registry for navigation, dashboards, lists,
       columns, filters, row/bulk actions, forms, notices, editor panels, detail
@@ -791,7 +791,7 @@ query, and identity workflows without replacing whole routes.
       index, offline direct-upload, staged update, and rollback flows.
 - [ ] LTS compatibility farm runs current and deprecated fixtures; telemetry
       identifies shim use before any supported contract is removed.
-- [ ] Broken system extension cannot prevent Safe Mode or out-of-band CLI boot.
+- [x] Broken system extension cannot prevent Safe Mode or out-of-band CLI boot.
 - [ ] Inspector accuracy and overhead benchmark.
 - [ ] Privacy export/delete and retained external-resource warning.
 
