@@ -46,6 +46,7 @@ func TestRegistryRejectsConflictWithoutPublishingPartialState(t *testing.T) {
 		{Handle: "core.asset.shared", ContractVersion: "sforum.asset.shared@1", Type: "style", Path: "style.css", Digest: digestB},
 	})
 	first.Artifact.Core = true
+	first.Artifact.OwnerKind = OwnerKindCore
 	if _, err := registry.Publish(first); err != nil {
 		t.Fatal(err)
 	}
@@ -54,6 +55,7 @@ func TestRegistryRejectsConflictWithoutPublishingPartialState(t *testing.T) {
 		{Handle: "core.asset.shared", ContractVersion: "sforum.asset.shared@1", Type: "style", Path: "other.css", Digest: digestC},
 	})
 	second.Artifact.Core = true
+	second.Artifact.OwnerKind = OwnerKindCore
 	if _, err := registry.Publish(second); !errors.Is(err, ErrConflict) {
 		t.Fatalf("expected conflict, got %v", err)
 	}
@@ -208,5 +210,6 @@ func TestRegistryReturnsDetachedSnapshots(t *testing.T) {
 func fixturePublication(extensionID, impactDigest string, assets []Declaration) Publication {
 	return Publication{Artifact: Artifact{
 		ExtensionID: extensionID, ExtensionVersion: "1.0.0", PackageDigest: digestA, ImpactDigest: impactDigest,
+		OwnerKind: OwnerKindPlugin,
 	}, Assets: assets}
 }

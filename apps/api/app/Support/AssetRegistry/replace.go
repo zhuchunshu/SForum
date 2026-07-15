@@ -1,6 +1,7 @@
 package assetregistry
 
 import (
+	"fmt"
 	"reflect"
 	"sort"
 )
@@ -12,6 +13,17 @@ func (r *Registry) ReplaceAll(publications []Publication) (uint64, error) {
 	if r == nil {
 		return 0, ErrInvalid
 	}
+	return r.ReplaceAllIfRevision(r.load().revision, publications)
+}
+
+// ReplaceAllIfRevision publishes one fully validated graph while the expected
+// revision remains current. Exact-artifact declarations are immutable; a
+// revision-fenced batch may add, remove, upgrade, or roll back artifacts.
+func (r *Registry) ReplaceAllIfRevision(expectedRevision uint64, publications []Publication) (uint64, error) {
+	if r == nil {
+		return 0, ErrInvalid
+	}
+	// 完整图先在锁外构建，锁内只做 revision CAS、artifact 漂移校验和一次发布。
 	next, err := buildState(0, publications)
 	if err != nil {
 		return r.load().revision, err
@@ -20,6 +32,12 @@ func (r *Registry) ReplaceAll(publications []Publication) (uint64, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	current := r.load()
+	if current.revision != expectedRevision {
+		return current.revision, ErrRevisionConflict
+	}
+	if err := validateExactPublicationReplay(current.publications, next.publications); err != nil {
+		return current.revision, err
+	}
 	if equalPublicationMaps(current.publications, next.publications) {
 		return current.revision, nil
 	}
@@ -102,4 +120,17 @@ func equalPublicationMaps(left, right map[string]Publication) bool {
 
 func equalPublications(left, right Publication) bool {
 	return reflect.DeepEqual(left, right)
+}
+
+func validateExactPublicationReplay(current, next map[string]Publication) error {
+	for extensionID, active := range current {
+		candidate, found := next[extensionID]
+		if !found || active.Artifact != candidate.Artifact {
+			continue
+		}
+		if !equalPublications(active, candidate) {
+			return fmt.Errorf("%w: exact artifact %s changed declarations", ErrArtifactConflict, extensionID)
+		}
+	}
+	return nil
 }

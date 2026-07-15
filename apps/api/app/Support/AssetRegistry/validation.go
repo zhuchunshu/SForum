@@ -71,9 +71,13 @@ func normalizeArtifact(artifact Artifact) (Artifact, error) {
 	artifact.ExtensionVersion = strings.TrimSpace(artifact.ExtensionVersion)
 	artifact.PackageDigest = normalizeDigest(artifact.PackageDigest)
 	artifact.ImpactDigest = normalizeDigest(artifact.ImpactDigest)
+	artifact.OwnerKind = strings.ToLower(strings.TrimSpace(artifact.OwnerKind))
+	isCoreKind := artifact.OwnerKind == OwnerKindCore
+	isCoreNamespace := strings.HasPrefix(artifact.ExtensionID, "core.")
 	if !idPattern.MatchString(artifact.ExtensionID) || artifact.ExtensionID == "core" || len(artifact.ExtensionVersion) > 64 ||
 		!digestPattern.MatchString(artifact.PackageDigest) || !digestPattern.MatchString(artifact.ImpactDigest) ||
-		artifact.Core != strings.HasPrefix(artifact.ExtensionID, "core.") {
+		(artifact.OwnerKind != OwnerKindCore && artifact.OwnerKind != OwnerKindPlugin && artifact.OwnerKind != OwnerKindTheme) ||
+		artifact.Core != isCoreKind || isCoreKind != isCoreNamespace {
 		return Artifact{}, ErrInvalid
 	}
 	if _, err := semver.StrictNewVersion(artifact.ExtensionVersion); err != nil {
@@ -188,7 +192,7 @@ func isReservedCoreHandle(handle string) bool {
 }
 
 func isCoreArtifact(artifact Artifact) bool {
-	return artifact.Core
+	return artifact.Core && artifact.OwnerKind == OwnerKindCore
 }
 
 func validAssetIdentity(artifact Artifact, handle, contractVersion string) bool {

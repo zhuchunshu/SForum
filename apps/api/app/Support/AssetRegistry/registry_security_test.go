@@ -27,10 +27,10 @@ func TestRegistryRemoveBindsExactArtifact(t *testing.T) {
 	before := registry.Snapshot()
 
 	staleArtifacts := []Artifact{
-		{ExtensionID: "other.assets", ExtensionVersion: active.Artifact.ExtensionVersion, PackageDigest: active.Artifact.PackageDigest, ImpactDigest: active.Artifact.ImpactDigest},
-		{ExtensionID: active.Artifact.ExtensionID, ExtensionVersion: "1.0.0", PackageDigest: active.Artifact.PackageDigest, ImpactDigest: active.Artifact.ImpactDigest},
-		{ExtensionID: active.Artifact.ExtensionID, ExtensionVersion: active.Artifact.ExtensionVersion, PackageDigest: digestC, ImpactDigest: active.Artifact.ImpactDigest},
-		{ExtensionID: active.Artifact.ExtensionID, ExtensionVersion: active.Artifact.ExtensionVersion, PackageDigest: active.Artifact.PackageDigest, ImpactDigest: digestB},
+		{ExtensionID: "other.assets", ExtensionVersion: active.Artifact.ExtensionVersion, PackageDigest: active.Artifact.PackageDigest, ImpactDigest: active.Artifact.ImpactDigest, OwnerKind: OwnerKindPlugin},
+		{ExtensionID: active.Artifact.ExtensionID, ExtensionVersion: "1.0.0", PackageDigest: active.Artifact.PackageDigest, ImpactDigest: active.Artifact.ImpactDigest, OwnerKind: OwnerKindPlugin},
+		{ExtensionID: active.Artifact.ExtensionID, ExtensionVersion: active.Artifact.ExtensionVersion, PackageDigest: digestC, ImpactDigest: active.Artifact.ImpactDigest, OwnerKind: OwnerKindPlugin},
+		{ExtensionID: active.Artifact.ExtensionID, ExtensionVersion: active.Artifact.ExtensionVersion, PackageDigest: active.Artifact.PackageDigest, ImpactDigest: digestB, OwnerKind: OwnerKindPlugin},
 	}
 	for index, stale := range staleArtifacts {
 		revision, removed, err := registry.Remove(stale)
@@ -84,6 +84,7 @@ func TestRegistryReservesCoreAssetNamespaceForCoreArtifacts(t *testing.T) {
 	}
 	core := fixturePublication("core.assets", digestA, []Declaration{declaration})
 	core.Artifact.Core = true
+	core.Artifact.OwnerKind = OwnerKindCore
 	registry := New()
 	if _, err := registry.Publish(core); err != nil {
 		t.Fatalf("core publication: %v", err)
@@ -112,6 +113,7 @@ func TestRegistryReservesCoreAssetNamespaceForCoreArtifacts(t *testing.T) {
 		Handle: "core.asset", ContractVersion: "sforum.asset@1", Type: "script", Path: "asset.mjs", Digest: digestB,
 	}})
 	coreRoot.Artifact.Core = true
+	coreRoot.Artifact.OwnerKind = OwnerKindCore
 	if _, err := New().Publish(coreRoot); !errors.Is(err, ErrInvalid) {
 		t.Fatalf("core artifact published the reserved family root: %v", err)
 	}
@@ -150,6 +152,7 @@ func TestRegistryBindsHandlesToOwnerAndContractVersion(t *testing.T) {
 		Type: "script", Path: "vue.mjs", Digest: digestB,
 	}})
 	core.Artifact.Core = true
+	core.Artifact.OwnerKind = OwnerKindCore
 	if _, err := New().Publish(core); !errors.Is(err, ErrInvalid) {
 		t.Fatalf("core handle accepted a non-sforum contract: %v", err)
 	}

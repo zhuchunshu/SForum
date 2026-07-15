@@ -14,12 +14,19 @@ const (
 	SchemaVersion = "sforum.asset-registry@1"
 )
 
+const (
+	OwnerKindCore   = "core"
+	OwnerKindPlugin = "plugin"
+	OwnerKindTheme  = "theme"
+)
+
 var (
 	ErrInvalid          = errors.New("asset registry declaration is invalid")
 	ErrConflict         = errors.New("asset registry handle conflicts with the active snapshot")
 	ErrDependency       = errors.New("asset registry dependency is unavailable or cyclic")
 	ErrNotFound         = errors.New("asset registry handle is not found")
 	ErrArtifactConflict = errors.New("asset registry artifact does not own the active publication")
+	ErrRevisionConflict = errors.New("asset registry revision changed during replacement")
 )
 
 var (
@@ -33,6 +40,7 @@ type Artifact struct {
 	ExtensionVersion string `json:"extensionVersion"`
 	PackageDigest    string `json:"packageDigest"`
 	ImpactDigest     string `json:"impactDigest"`
+	OwnerKind        string `json:"ownerKind"`
 	Core             bool   `json:"core,omitempty"`
 }
 
@@ -119,7 +127,7 @@ func (r *Registry) publish(expected *Artifact, publication Publication) (uint64,
 	}
 	normalized, err := normalizePublication(publication)
 	if err != nil {
-		return 0, err
+		return r.load().revision, err
 	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -288,6 +296,26 @@ func (r *Registry) Snapshot() Snapshot {
 		SchemaVersion: SchemaVersion, Revision: state.revision, Digest: state.digest,
 		Publications: publications, Assets: assets,
 	}
+}
+
+// SnapshotPublication returns one extension's exact active publication, if any.
+func (r *Registry) SnapshotPublication(extensionID string) (Publication, bool) {
+	if r == nil {
+		return Publication{}, false
+	}
+	extensionID = strings.ToLower(strings.TrimSpace(extensionID))
+	if extensionID == "" {
+		return Publication{}, false
+	}
+	publication, ok := r.load().publications[extensionID]
+	if !ok {
+		return Publication{}, false
+	}
+	return clonePublication(publication), true
+}
+
+func (r *Registry) Revision() uint64 {
+	return r.load().revision
 }
 
 func (r *Registry) load() *registryState {
