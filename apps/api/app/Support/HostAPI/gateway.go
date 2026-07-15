@@ -156,6 +156,21 @@ func (g *Gateway) BindProtocolV2CommandRuntime(runtime ProtocolV2CommandRuntime)
 	return nil
 }
 
+// ProtocolV2ActorDelegationIssuer exposes only the boot-scoped issuer used by
+// Host-owned route/admin adapters. It is nil until a delegated command catalog
+// is bound and never crosses the plugin transport boundary.
+func (g *Gateway) ProtocolV2ActorDelegationIssuer() ProtocolV2ActorDelegationIssuer {
+	if g == nil {
+		return nil
+	}
+	g.mu.RLock()
+	defer g.mu.RUnlock()
+	if g.commands == nil || g.commands.delegations == nil {
+		return nil
+	}
+	return g.commands.delegations
+}
+
 // NewGateway 创建未启动的网关；Start 后才监听。
 func NewGateway(service *Service) *Gateway {
 	return &Gateway{
