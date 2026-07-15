@@ -1,0 +1,32 @@
+package pages
+
+import themecompiler "github.com/zhuchunshu/sforum/apps/api/app/Support/ThemeCompiler"
+
+// CorePageViewModelData is the closed set of Host-produced page payloads.
+// Keeping one typed slot per catalog page prevents request data, domain models,
+// or arbitrary maps from crossing the theme execution boundary.
+type CorePageViewModelData struct {
+	Home                  *themecompiler.HomePageViewModel
+	CategoryIndex         *themecompiler.CategoryIndexPageViewModel
+	CategoryShow          *themecompiler.CategoryShowPageViewModel
+	TagIndex              *themecompiler.TagIndexPageViewModel
+	TagShow               *themecompiler.TagShowPageViewModel
+	TopicDetail           *themecompiler.TopicDetailPageViewModel
+	TopicCreate           *themecompiler.TopicCreatePageViewModel
+	Profile               *themecompiler.ProfilePageViewModel
+	MyHome                *themecompiler.MyHomePageViewModel
+	MyContentReview       *themecompiler.MyContentReviewPageViewModel
+	ProfileSettings       *themecompiler.ProfileSettingsPageViewModel
+	SecuritySettings      *themecompiler.SecuritySettingsPageViewModel
+	Notifications         *themecompiler.NotificationsPageViewModel
+	ModerationReview      *themecompiler.ModerationReviewPageViewModel
+	Login                 *themecompiler.LoginPageViewModel
+	Register              *themecompiler.RegisterPageViewModel
+	ForgotPassword        *themecompiler.ForgotPasswordPageViewModel
+	ResetPassword         *themecompiler.ResetPasswordPageViewModel
+	Terms                 *themecompiler.TermsPageViewModel
+	Privacy               *themecompiler.PrivacyPageViewModel
+	Guidelines            *themecompiler.GuidelinesPageViewModel
+	NotFound              *themecompiler.ErrorPageViewModel
+	DevelopmentComponents *themecompiler.DevelopmentComponentsPageViewModel
+}

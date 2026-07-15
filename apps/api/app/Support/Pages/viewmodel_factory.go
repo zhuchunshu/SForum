@@ -22,6 +22,7 @@ type CorePageViewModelRequest struct {
 	Navigation  []themecompiler.NavigationItem
 	Breadcrumbs []themecompiler.BreadcrumbItem
 	Regions     []themecompiler.PageRegion
+	Data        CorePageViewModelData
 }
 
 func BuildCorePageViewModel(request CorePageViewModelRequest) (any, error) {
@@ -55,72 +56,127 @@ func BuildCorePageViewModel(request CorePageViewModelRequest) (any, error) {
 
 	switch page.ID {
 	case "forum.home":
-		return themecompiler.HomePageViewModel{Base: base}, nil
+		model := valueOrZero(request.Data.Home)
+		model.Base = base
+		return model, nil
 	case "forum.category.index":
-		return themecompiler.CategoryIndexPageViewModel{Base: base}, nil
+		model := valueOrZero(request.Data.CategoryIndex)
+		model.Base = base
+		return model, nil
 	case "forum.category.show":
-		return themecompiler.CategoryShowPageViewModel{Base: base}, nil
+		model := valueOrZero(request.Data.CategoryShow)
+		model.Base = base
+		return model, nil
 	case "forum.tag.index":
-		return themecompiler.TagIndexPageViewModel{Base: base}, nil
+		model := valueOrZero(request.Data.TagIndex)
+		model.Base = base
+		return model, nil
 	case "forum.tag.show":
-		return themecompiler.TagShowPageViewModel{Base: base}, nil
+		model := valueOrZero(request.Data.TagShow)
+		model.Base = base
+		return model, nil
 	case "forum.topic.show":
-		return themecompiler.TopicDetailPageViewModel{Base: base}, nil
+		model := valueOrZero(request.Data.TopicDetail)
+		model.Base = base
+		return model, nil
 	case "forum.topic.create":
-		return themecompiler.TopicCreatePageViewModel{
-			Base: base, Form: hostForm("forum.component.topic_composer", "core.route.forum.create_topic"),
-		}, nil
+		model := valueOrZero(request.Data.TopicCreate)
+		model.Base = base
+		model.Form = hostForm("forum.component.topic_composer", "core.route.forum.create_topic")
+		return model, nil
 	case "forum.profile.show":
-		return themecompiler.ProfilePageViewModel{Base: base}, nil
+		model := valueOrZero(request.Data.Profile)
+		model.Base = base
+		return model, nil
 	case "forum.my.home":
-		return themecompiler.MyHomePageViewModel{Base: base}, nil
+		model := valueOrZero(request.Data.MyHome)
+		model.Base = base
+		return model, nil
 	case "forum.my.content_review":
-		return themecompiler.MyContentReviewPageViewModel{Base: base}, nil
+		model := valueOrZero(request.Data.MyContentReview)
+		model.Base = base
+		return model, nil
 	case "forum.settings.profile":
-		return themecompiler.ProfileSettingsPageViewModel{
-			Base: base, Form: hostForm("profile.component.settings_form", "core.route.profile.update_my_profile"),
-		}, nil
+		model := valueOrZero(request.Data.ProfileSettings)
+		model.Base = base
+		model.Form = hostForm("profile.component.settings_form", "core.route.profile.update_my_profile")
+		return model, nil
 	case "forum.settings.security":
-		return themecompiler.SecuritySettingsPageViewModel{Base: base, Form: hostForm(
+		model := valueOrZero(request.Data.SecuritySettings)
+		model.Base = base
+		model.Form = hostForm(
 			"identity.component.security_settings",
 			"core.route.identity.create_apitoken", "core.route.identity.list_apitokens",
 			"core.route.identity.list_sessions", "core.route.identity.revoke_apitoken",
 			"core.route.identity.revoke_other_sessions", "core.route.identity.revoke_session",
 			"core.route.identity.rotate_apitoken",
-		)}, nil
+		)
+		return model, nil
 	case "forum.notifications":
-		return themecompiler.NotificationsPageViewModel{Base: base}, nil
+		model := valueOrZero(request.Data.Notifications)
+		model.Base = base
+		return model, nil
 	case "moderation.review":
-		return themecompiler.ModerationReviewPageViewModel{Base: base}, nil
+		model := valueOrZero(request.Data.ModerationReview)
+		model.Base = base
+		return model, nil
 	case "auth.login":
-		return themecompiler.LoginPageViewModel{
-			Base: base, Form: hostForm("identity.component.login_form", "core.route.identity.login"),
-		}, nil
+		model := valueOrZero(request.Data.Login)
+		model.Base = base
+		model.Form = hostForm("identity.component.login_form", "core.route.identity.login")
+		return model, nil
 	case "auth.register":
-		return themecompiler.RegisterPageViewModel{
-			Base: base, Form: hostForm("identity.component.register_form", "core.route.identity.register"),
-		}, nil
+		model := valueOrZero(request.Data.Register)
+		model.Base = base
+		model.Form = hostForm("identity.component.register_form", "core.route.identity.register")
+		return model, nil
 	case "auth.forgot_password":
-		return themecompiler.ForgotPasswordPageViewModel{
-			Base: base, Form: hostForm("identity.component.recovery_request_form", "core.route.identity.password_reset_request"),
-		}, nil
+		model := valueOrZero(request.Data.ForgotPassword)
+		model.Base = base
+		model.Form = hostForm("identity.component.recovery_request_form", "core.route.identity.password_reset_request")
+		return model, nil
 	case "auth.reset_password":
-		return themecompiler.ResetPasswordPageViewModel{
-			Base: base, Form: hostForm("identity.component.recovery_confirm_form", "core.route.identity.password_reset_confirm"),
-		}, nil
+		model := valueOrZero(request.Data.ResetPassword)
+		model.Base = base
+		model.Form = hostForm("identity.component.recovery_confirm_form", "core.route.identity.password_reset_confirm")
+		return model, nil
 	case "site.terms":
-		return themecompiler.TermsPageViewModel{Base: base}, nil
+		model := valueOrZero(request.Data.Terms)
+		model.Base = base
+		return model, nil
 	case "site.privacy":
-		return themecompiler.PrivacyPageViewModel{Base: base}, nil
+		model := valueOrZero(request.Data.Privacy)
+		model.Base = base
+		return model, nil
 	case "site.guidelines":
-		return themecompiler.GuidelinesPageViewModel{Base: base}, nil
+		model := valueOrZero(request.Data.Guidelines)
+		model.Base = base
+		return model, nil
 	case "system.not_found":
-		return themecompiler.ErrorPageViewModel{Base: base, StatusCode: 404, Title: seo.Title}, nil
+		model := valueOrZero(request.Data.NotFound)
+		model.Base = base
+		if model.StatusCode == 0 {
+			model.StatusCode = 404
+		}
+		if strings.TrimSpace(model.Title) == "" {
+			model.Title = seo.Title
+		}
+		return model, nil
 	case "dev.components":
-		return themecompiler.DevelopmentComponentsPageViewModel{Base: base}, nil
+		model := valueOrZero(request.Data.DevelopmentComponents)
+		model.Base = base
+		return model, nil
 	default:
 		return nil, fmt.Errorf("%w: no Host ViewModel factory for %s", ErrUnknownPage, page.ID)
 	}
+}
+
+func valueOrZero[T any](value *T) T {
+	if value == nil {
+		var zero T
+		return zero
+	}
+	return *value
 }
 
 func sortedRouteParams(input map[string]string) []themecompiler.RouteParam {
