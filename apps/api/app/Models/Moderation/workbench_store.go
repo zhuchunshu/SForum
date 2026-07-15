@@ -288,6 +288,25 @@ func (s *PostgresStore) SubmitDecision(ctx context.Context, input DecisionInput)
 		return Decision{}, fmt.Errorf("begin moderation decision: %w", err)
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
+	decision, err := s.SubmitDecisionTx(ctx, tx, input)
+	if err != nil {
+		return Decision{}, err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return Decision{}, fmt.Errorf("commit moderation decision: %w", err)
+	}
+	return decision, nil
+}
+
+// SubmitDecisionTx composes the complete moderation decision write with a
+// caller-owned transaction. Authorization remains the caller's responsibility.
+func (s *PostgresStore) SubmitDecisionTx(ctx context.Context, tx pgx.Tx, input DecisionInput) (Decision, error) {
+	if tx == nil {
+		return Decision{}, fmt.Errorf("moderation decision transaction is required")
+	}
+	if err := validateDecision(&input); err != nil {
+		return Decision{}, err
+	}
 
 	triggers, err := applyDecision(ctx, tx, input)
 	if err != nil {
@@ -314,9 +333,6 @@ func (s *PostgresStore) SubmitDecision(ctx context.Context, input DecisionInput)
 		if err := s.notifications.NotifyModerationTx(ctx, tx, DecisionNotificationInput{DecisionID: decision.ID, TargetType: input.TargetType, TargetID: input.TargetID, ReviewerUserID: input.ReviewerUserID, Approved: input.Action == ActionApprove, ReviewNote: input.ReviewNote}); err != nil {
 			return Decision{}, fmt.Errorf("create moderation notification: %w", err)
 		}
-	}
-	if err := tx.Commit(ctx); err != nil {
-		return Decision{}, fmt.Errorf("commit moderation decision: %w", err)
 	}
 	return decision, nil
 }

@@ -163,6 +163,13 @@ type WorkbenchStore interface {
 	SubmitDecision(ctx context.Context, input DecisionInput) (Decision, error)
 }
 
+// ValidateDecision validates a moderation action without reading or writing
+// state. Host Commands call it while planning, then SubmitDecisionTx performs
+// the same validation again inside the authoritative transaction.
+func ValidateDecision(input DecisionInput) error {
+	return validateDecision(&input)
+}
+
 func validateDecision(input *DecisionInput) error {
 	input.ReviewNote = strings.TrimSpace(input.ReviewNote)
 	if input.TargetID <= 0 || !isValidTargetType(input.TargetType) || len(input.ReviewNote) > 2000 {
