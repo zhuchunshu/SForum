@@ -31,6 +31,8 @@ type Controller struct {
 	providerSlots   *extensionsruntime.ProviderSlotSelectionAPI
 	providerProber  ProviderSlotProber
 	providerAuditor audit.IDWriter
+	adminSurfaces   AdminSurfaceRuntime
+	adminAuditor    audit.Writer
 }
 
 type ProviderSlotProber interface {

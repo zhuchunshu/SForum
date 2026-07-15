@@ -6,6 +6,8 @@ func (h *Controller) RegisterRoutes(api fiber.Router) {
 	// 前台：当前激活主题的非 secret 设置（主题 layer 消费）。
 	api.Get("/site/active-theme/settings", h.publicActiveThemeSettings)
 
+	api.Get("/admin/admin-surfaces", h.listAdminSurfaces)
+	api.Post("/admin/admin-surfaces/:surfaceId/invoke", h.invokeAdminSurface)
 	api.Get("/admin/extensions", h.list)
 	api.Get("/admin/extensions/navigation", h.navigation)
 	api.Get("/admin/extensions/contribution-points", h.contributionPoints)

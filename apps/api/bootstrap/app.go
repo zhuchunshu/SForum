@@ -65,6 +65,9 @@ type extensionRuntime interface {
 	RouteTarget(extensionID string) (extensionsruntime.RouteTarget, bool)
 	AcquireActiveRuntimeCall(context.Context, string, extensionsruntime.RuntimeCallClass) (extensionsruntime.RuntimeInstanceSnapshot, *extensionsruntime.RuntimeAdmissionLease, error)
 	AcquireRuntimeCall(context.Context, extensionsruntime.RuntimeInstanceIdentity, extensionsruntime.RuntimeCallClass) (*extensionsruntime.RuntimeAdmissionLease, error)
+	AdminSurfaceSnapshot(string) extensionsruntime.AdminSurfaceRegistrySnapshot
+	ResolveAdminSurface(string) (extensionsruntime.AdminSurfaceContract, error)
+	InvokeAdminSurface(context.Context, extensionsruntime.AdminSurfaceInvocation) (extensionsruntime.AdminSurfaceInvocationResult, error)
 	Reconcile(ctx context.Context, items []extensions.Extension)
 	Close(ctx context.Context)
 	// SendMail 供 embed worker 的 mail.deliver 复用同一 runtime（P0 共享插件进程）。
@@ -587,7 +590,8 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 	extensionsProvider := providers.NewExtensionsProviderWithService(extensionService, identityStore, authSessions, extensionRuntime, frontendService).
 		WithRouteProviderSelection(lifecycleStack.RouteProviders, auditWriter).
 		WithProviderSlotSelection(lifecycleStack.ProviderSlots, lifecycleRuntime, auditWriter).
-		WithRouteInspector(routes.NewProviderSelectionInspector(lifecycleStack.RouteProviders, routeTraceRing))
+		WithRouteInspector(routes.NewProviderSelectionInspector(lifecycleStack.RouteProviders, routeTraceRing)).
+		WithAdminSurfaces(extensionRuntime, auditWriter)
 	webhooksProvider := providers.NewWebhooksProvider(webhookService, identityStore, authSessions)
 	// PageDataLoader 网关：仅从运行中插件 RouteTarget 拉数据（严格 loopback）。
 	pageLoaderGateway := pages.NewLoaderGateway(

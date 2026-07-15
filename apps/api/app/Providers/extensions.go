@@ -92,6 +92,16 @@ func (p *ExtensionsProvider) WithRouteInspector(inspector *routes.Inspector) *Ex
 	return p
 }
 
+func (p *ExtensionsProvider) WithAdminSurfaces(
+	runtime extensionscontroller.AdminSurfaceRuntime,
+	auditor audit.Writer,
+) *ExtensionsProvider {
+	if p != nil && p.controller != nil {
+		p.controller.WithAdminSurfaces(runtime, auditor)
+	}
+	return p
+}
+
 type extensionRouteGateway struct {
 	runtime extensionRuntime
 	gateway *extensionsruntime.RouteGateway

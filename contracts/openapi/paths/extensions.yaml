@@ -16,6 +16,120 @@ siteActiveThemeSettings:
             schema:
               "$ref": "../schemas/extensions.yaml#/ApiResponsePublicActiveThemeSettings"
 
+adminSurfaces:
+  get:
+    summary: List visible exact-runtime Admin Surface contracts
+    operationId: listAdminSurfaces
+    description: >-
+      Requires admin.access. Returns only contracts whose exact runtime is
+      active and accepting calls, filtered by each declaration's Host-owned
+      permission. A composed contribution is omitted when its target is not
+      visible to the actor. Artifact digests, runtime instance ids, handler
+      names, and permission internals are never returned.
+    parameters:
+    - name: kind
+      in: query
+      required: false
+      schema:
+        "$ref": "../schemas/extension-admin-surfaces.yaml#/AdminSurfaceKind"
+    responses:
+      '200':
+        description: Permission-filtered Admin Surface catalog.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/extension-admin-surfaces.yaml#/ApiResponseAdminSurfaceCatalog"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '422':
+        description: Invalid Admin Surface kind.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/common.yaml#/ApiErrorResponse"
+      '503':
+        description: Admin Surface runtime catalog is unavailable.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/common.yaml#/ApiErrorResponse"
+
+adminSurfaceInvoke:
+  post:
+    summary: Invoke one visible typed Admin Surface handler
+    operationId: invokeAdminSurface
+    description: >-
+      Requires admin.access and the exact Host-owned permission declared by the
+      selected surface. The surface id and contract version bind the call to one
+      immutable runtime contract. The Host records an exact-artifact audit
+      attempt before execution and validates the typed input and result.
+    parameters:
+    - name: surfaceID
+      in: path
+      required: true
+      schema:
+        type: string
+        minLength: 1
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            "$ref": "../schemas/extension-admin-surfaces.yaml#/AdminSurfaceInvocationInput"
+    responses:
+      '200':
+        description: Validated Admin Surface result with a redacted contract view.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/extension-admin-surfaces.yaml#/ApiResponseAdminSurfaceInvocation"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        description: Missing admin.access or the surface declaration permission.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/common.yaml#/ApiErrorResponse"
+      '404':
+        description: Surface or the requested handler resource does not exist.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/common.yaml#/ApiErrorResponse"
+      '409':
+        description: Contract/runtime identity or handler state is stale.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/common.yaml#/ApiErrorResponse"
+      '422':
+        description: Invalid input document or a surface without a typed handler.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/common.yaml#/ApiErrorResponse"
+      '500':
+        description: Unexpected Host failure while invoking the Admin Surface.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/common.yaml#/ApiErrorResponse"
+      '503':
+        description: Audit, exact plugin runtime, or handler is unavailable.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/common.yaml#/ApiErrorResponse"
+      '504':
+        description: Exact plugin runtime invocation exceeded its deadline.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/common.yaml#/ApiErrorResponse"
+
 adminExtensions:
   get:
     summary: List installed extensions and themes

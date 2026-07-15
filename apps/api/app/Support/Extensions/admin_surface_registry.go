@@ -158,11 +158,22 @@ func (r *AdminSurfaceRegistry) RemoveRuntime(extensionID, instanceID string) (bo
 }
 
 func (r *AdminSurfaceRegistry) Resolve(id string) (AdminSurfaceContract, error) {
+	contract, err := r.resolveRuntimeContract(id)
+	if err != nil {
+		return AdminSurfaceContract{}, err
+	}
+	return cloneAdminSurfaceContract(contract), nil
+}
+
+// resolveRuntimeContract retains the compiled validator from one immutable
+// snapshot so an admitted call never re-reads a replacement publication while
+// validating its result.
+func (r *AdminSurfaceRegistry) resolveRuntimeContract(id string) (AdminSurfaceContract, error) {
 	contract, ok := r.load().surfaces[strings.TrimSpace(id)]
 	if !ok {
 		return AdminSurfaceContract{}, ErrAdminSurfaceNotFound
 	}
-	return cloneAdminSurfaceContract(contract), nil
+	return contract, nil
 }
 
 func (r *AdminSurfaceRegistry) ValidateDocument(contract AdminSurfaceContract, document map[string]any) error {
@@ -187,7 +198,8 @@ func sameAdminSurfaceRuntimeContract(left, right AdminSurfaceContract) bool {
 		left.ExtensionID == right.ExtensionID && left.ExtensionVersion == right.ExtensionVersion &&
 		left.ArtifactDigest == right.ArtifactDigest && left.InstanceID == right.InstanceID &&
 		left.Kind == right.Kind && left.Action == right.Action && left.TargetID == right.TargetID &&
-		left.Handler == right.Handler && left.Schema == right.Schema && left.SchemaDigest == right.SchemaDigest
+		left.Label == right.Label && left.Handler == right.Handler && left.Schema == right.Schema &&
+		left.SchemaDigest == right.SchemaDigest && left.Permission == right.Permission && left.Priority == right.Priority
 }
 
 func (r *AdminSurfaceRegistry) Snapshot(kind string) AdminSurfaceRegistrySnapshot {

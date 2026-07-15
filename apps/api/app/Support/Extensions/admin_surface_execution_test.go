@@ -5,7 +5,9 @@ import (
 	"errors"
 	"net"
 	"reflect"
+	"strings"
 	"testing"
+	"time"
 
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
 	pluginwire "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/plugin/v2"
@@ -62,6 +64,41 @@ type adminSurfaceStarterStub struct {
 	contract   AdminSurfaceContract
 }
 
+type blockingAdminSurfaceStarter struct {
+	instances []string
+	next      int
+	entered   chan RuntimeInstanceIdentity
+	release   chan struct{}
+}
+
+func (s *blockingAdminSurfaceStarter) Start(context.Context, extensions.Extension) (RouteTarget, error) {
+	if s.next >= len(s.instances) {
+		return RouteTarget{}, errors.New("admin surface test starter exhausted")
+	}
+	instanceID := s.instances[s.next]
+	s.next++
+	return RouteTarget{InstanceID: instanceID}, nil
+}
+
+func (*blockingAdminSurfaceStarter) Stop(context.Context, extensions.Extension) error { return nil }
+
+func (s *blockingAdminSurfaceStarter) InvokeAdminSurface(
+	ctx context.Context,
+	identity RuntimeInstanceIdentity,
+	_ AdminSurfaceContract,
+	_ map[string]any,
+) (map[string]any, error) {
+	s.entered <- identity
+	if identity.InstanceID == "runtime-old" {
+		select {
+		case <-s.release:
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
+	}
+	return map[string]any{"title": "Rendered"}, nil
+}
+
 func (s *adminSurfaceStarterStub) Start(context.Context, extensions.Extension) (RouteTarget, error) {
 	return RouteTarget{InstanceID: s.instanceID}, nil
 }
@@ -95,17 +132,20 @@ func TestManagerAdminSurfaceValidatesDocumentsAndExactRuntimeAdmission(t *testin
 	if err := manager.Start(context.Background(), extension); err != nil {
 		t.Fatal(err)
 	}
+	contract, err := manager.ResolveAdminSurface(extension.Manifest.AdminSurfaces[0].ID)
+	if err != nil {
+		t.Fatal(err)
+	}
 	input := map[string]any{"title": "SForum"}
 	result, err := manager.InvokeAdminSurface(context.Background(), AdminSurfaceInvocation{
-		SurfaceID: extension.Manifest.AdminSurfaces[0].ID, ContractVersion: extension.Manifest.AdminSurfaces[0].ContractVersion,
-		Input: input,
+		ExpectedContract: contract, ContractVersion: extension.Manifest.AdminSurfaces[0].ContractVersion, Input: input,
 	})
 	if err != nil || result.Output["title"] != "Rendered" || starter.calls != 1 ||
 		!reflect.DeepEqual(input, map[string]any{"title": "SForum"}) || starter.contract.InstanceID != starter.instanceID {
 		t.Fatalf("result=%#v calls=%d input=%#v contract=%#v err=%v", result, starter.calls, input, starter.contract, err)
 	}
 	if _, err := manager.InvokeAdminSurface(context.Background(), AdminSurfaceInvocation{
-		SurfaceID: extension.Manifest.AdminSurfaces[0].ID, ContractVersion: extension.Manifest.AdminSurfaces[0].ContractVersion,
+		ExpectedContract: contract, ContractVersion: extension.Manifest.AdminSurfaces[0].ContractVersion,
 		Input: map[string]any{"title": 42},
 	}); !errors.Is(err, ErrAdminSurfaceRegistryInvalid) || starter.calls != 1 {
 		t.Fatalf("invalid props calls=%d err=%v", starter.calls, err)
@@ -115,10 +155,115 @@ func TestManagerAdminSurfaceValidatesDocumentsAndExactRuntimeAdmission(t *testin
 		t.Fatal(err)
 	}
 	if _, err := manager.InvokeAdminSurface(context.Background(), AdminSurfaceInvocation{
-		SurfaceID: extension.Manifest.AdminSurfaces[0].ID, ContractVersion: extension.Manifest.AdminSurfaces[0].ContractVersion,
+		ExpectedContract: contract, ContractVersion: extension.Manifest.AdminSurfaces[0].ContractVersion,
 		Input: map[string]any{"title": "SForum"},
 	}); !errors.Is(err, ErrRuntimeAdmissionDraining) {
 		t.Fatalf("draining surface = %v", err)
+	}
+}
+
+func TestManagerAdminSurfaceRejectsPublicationSwapAfterResolve(t *testing.T) {
+	starter := &adminSurfaceStarterStub{instanceID: "runtime-old"}
+	manager := NewManager(ManagerConfig{Starter: starter})
+	extension := adminSurfaceExtension("demo.swap", []extensions.ManifestAdminSurface{{
+		ID: "demo.swap.surface.form", ContractVersion: "demo.swap.surface.form@1",
+		Kind: "form", Action: "add", Label: "Form", Handler: "admin.form",
+		Schema: "demo.swap.surface.props@1",
+	}})
+	extension.PackagePath = t.TempDir()
+	writeAdminSurfaceSchema(t, &extension, extension.Manifest.AdminSurfaces[0].Schema, "schemas/admin-surface.json",
+		`{"type":"object","required":["title"],"properties":{"title":{"type":"string"}},"additionalProperties":false}`)
+	if err := manager.Start(context.Background(), extension); err != nil {
+		t.Fatal(err)
+	}
+	expected, err := manager.ResolveAdminSurface(extension.Manifest.AdminSurfaces[0].ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	replacement := extension
+	replacement.Version = "1.1.0"
+	replacement.Manifest.Version = replacement.Version
+	replacement.PackageDigest = strings.Repeat("b", 64)
+	starter.instanceID = "runtime-new"
+	if err := manager.Start(context.Background(), replacement); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := manager.InvokeAdminSurface(context.Background(), AdminSurfaceInvocation{
+		ExpectedContract: expected, ContractVersion: expected.ContractVersion,
+		Input: map[string]any{"title": "SForum"},
+	}); !errors.Is(err, ErrAdminSurfaceRuntimeStale) || starter.calls != 0 {
+		t.Fatalf("publication swap calls=%d err=%v", starter.calls, err)
+	}
+}
+
+func TestManagerAdminSurfaceKeepsFrozenValidatorAcrossInflightPublicationSwap(t *testing.T) {
+	starter := &blockingAdminSurfaceStarter{
+		instances: []string{"runtime-old", "runtime-new"},
+		entered:   make(chan RuntimeInstanceIdentity, 2),
+		release:   make(chan struct{}),
+	}
+	defer func() {
+		select {
+		case <-starter.release:
+		default:
+			close(starter.release)
+		}
+	}()
+	manager := NewManager(ManagerConfig{Starter: starter})
+	extension := adminSurfaceExtension("demo.inflight", []extensions.ManifestAdminSurface{{
+		ID: "demo.inflight.surface.action", ContractVersion: "demo.inflight.surface.action@1",
+		Kind: "row_action", Action: "add", Label: "Action", Handler: "admin.action",
+		Schema: "demo.inflight.surface.props@1",
+	}})
+	extension.PackagePath = t.TempDir()
+	writeAdminSurfaceSchema(t, &extension, extension.Manifest.AdminSurfaces[0].Schema, "schemas/admin-surface.json",
+		`{"type":"object","required":["title"],"properties":{"title":{"type":"string"}},"additionalProperties":false}`)
+	if err := manager.Start(context.Background(), extension); err != nil {
+		t.Fatal(err)
+	}
+	expected, err := manager.ResolveAdminSurface(extension.Manifest.AdminSurfaces[0].ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	type invocationResult struct {
+		result AdminSurfaceInvocationResult
+		err    error
+	}
+	done := make(chan invocationResult, 1)
+	go func() {
+		result, invokeErr := manager.InvokeAdminSurface(t.Context(), AdminSurfaceInvocation{
+			ExpectedContract: expected, ContractVersion: expected.ContractVersion,
+			Input: map[string]any{"title": "SForum"},
+		})
+		done <- invocationResult{result: result, err: invokeErr}
+	}()
+
+	select {
+	case identity := <-starter.entered:
+		if identity.InstanceID != "runtime-old" {
+			t.Fatalf("admitted runtime = %#v", identity)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("old runtime was not invoked")
+	}
+	replacement := extension
+	replacement.Version = "1.1.0"
+	replacement.Manifest.Version = replacement.Version
+	replacement.PackageDigest = strings.Repeat("b", 64)
+	if err := manager.Start(context.Background(), replacement); err != nil {
+		t.Fatal(err)
+	}
+	close(starter.release)
+
+	select {
+	case outcome := <-done:
+		if outcome.err != nil || outcome.result.Output["title"] != "Rendered" ||
+			outcome.result.Contract.ArtifactDigest != expected.ArtifactDigest || outcome.result.Contract.InstanceID != "runtime-old" {
+			t.Fatalf("in-flight result=%#v err=%v", outcome.result, outcome.err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("old runtime invocation did not finish")
 	}
 }
 
@@ -184,9 +329,12 @@ func TestManagerInvokesEveryTaskbookAdminSurfaceKind(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, declaration := range extension.Manifest.AdminSurfaces {
+		contract, err := manager.ResolveAdminSurface(declaration.ID)
+		if err != nil {
+			t.Fatal(err)
+		}
 		result, err := manager.InvokeAdminSurface(context.Background(), AdminSurfaceInvocation{
-			SurfaceID: declaration.ID, ContractVersion: declaration.ContractVersion,
-			Input: map[string]any{"title": declaration.Kind},
+			ExpectedContract: contract, ContractVersion: declaration.ContractVersion, Input: map[string]any{"title": declaration.Kind},
 		})
 		if err != nil || result.Contract.Kind != declaration.Kind || result.Output["title"] != "Rendered" {
 			t.Fatalf("kind %s result=%#v err=%v", declaration.Kind, result, err)
@@ -207,8 +355,12 @@ func TestManagerRejectsUntypedAdminSurfaceHandler(t *testing.T) {
 	if err := manager.Start(context.Background(), extension); err != nil {
 		t.Fatal(err)
 	}
+	contract, err := manager.ResolveAdminSurface(extension.Manifest.AdminSurfaces[0].ID)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if _, err := manager.InvokeAdminSurface(context.Background(), AdminSurfaceInvocation{
-		SurfaceID: extension.Manifest.AdminSurfaces[0].ID, ContractVersion: extension.Manifest.AdminSurfaces[0].ContractVersion,
+		ExpectedContract: contract, ContractVersion: extension.Manifest.AdminSurfaces[0].ContractVersion,
 	}); !errors.Is(err, ErrAdminSurfaceNotInvokable) || starter.calls != 0 {
 		t.Fatalf("untyped surface calls=%d err=%v", starter.calls, err)
 	}

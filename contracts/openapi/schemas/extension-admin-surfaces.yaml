@@ -1,0 +1,98 @@
+AdminSurfaceKind:
+  type: string
+  enum:
+  - navigation
+  - dashboard
+  - list_column
+  - list_filter
+  - row_action
+  - bulk_action
+  - form
+  - notice
+  - editor_panel
+  - detail_region
+  - importer
+  - exporter
+
+AdminSurfaceAction:
+  type: string
+  enum: [add, before, after, wrap, replace, hide, filter]
+
+AdminSurface:
+  type: object
+  additionalProperties: false
+  required:
+  - id
+  - contractVersion
+  - extensionId
+  - extensionVersion
+  - kind
+  - action
+  - label
+  - priority
+  - invokable
+  properties:
+    id: { type: string }
+    contractVersion: { type: string }
+    extensionId: { type: string }
+    extensionVersion: { type: string }
+    kind: { "$ref": "#/AdminSurfaceKind" }
+    action: { "$ref": "#/AdminSurfaceAction" }
+    targetId: { type: string }
+    label: { type: string }
+    schema: { type: string }
+    schemaDigest:
+      type: string
+      pattern: '^[0-9a-f]{64}$'
+    priority: { type: integer }
+    invokable: { type: boolean }
+
+AdminSurfaceCatalog:
+  type: object
+  additionalProperties: false
+  required: [revision, surfaces]
+  properties:
+    revision:
+      type: integer
+      minimum: 0
+    surfaces:
+      type: array
+      items: { "$ref": "#/AdminSurface" }
+
+AdminSurfaceInvocationInput:
+  type: object
+  additionalProperties: false
+  required: [contractVersion, input]
+  properties:
+    contractVersion:
+      type: string
+      minLength: 1
+    input:
+      type: object
+      additionalProperties: true
+
+AdminSurfaceInvocation:
+  type: object
+  additionalProperties: false
+  required: [surface, output]
+  properties:
+    surface: { "$ref": "#/AdminSurface" }
+    output:
+      type: object
+      additionalProperties: true
+
+ApiResponseAdminSurfaceCatalog:
+  type: object
+  required: [code, message, data]
+  properties:
+    code: { type: integer }
+    message: { type: string }
+    data: { "$ref": "#/AdminSurfaceCatalog" }
+
+ApiResponseAdminSurfaceInvocation:
+  type: object
+  required: [code, message, data]
+  properties:
+    code: { type: integer }
+    message: { type: string }
+    data: { "$ref": "#/AdminSurfaceInvocation" }

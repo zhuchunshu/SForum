@@ -320,6 +320,10 @@ paths:
     "$ref": "./openapi/paths/forum.yaml#/adminForumSearchReindex"
   "/admin/forum/search/reindex/runs":
     "$ref": "./openapi/paths/forum.yaml#/adminForumSearchReindexRuns"
+  "/admin/admin-surfaces":
+    "$ref": "./openapi/paths/extensions.yaml#/adminSurfaces"
+  "/admin/admin-surfaces/{surfaceID}/invoke":
+    "$ref": "./openapi/paths/extensions.yaml#/adminSurfaceInvoke"
   "/admin/extensions":
     "$ref": "./openapi/paths/extensions.yaml#/adminExtensions"
   "/admin/extensions/navigation":

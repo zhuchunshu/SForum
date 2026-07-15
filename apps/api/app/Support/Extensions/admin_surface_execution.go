@@ -15,9 +15,9 @@ var (
 )
 
 type AdminSurfaceInvocation struct {
-	SurfaceID       string
-	ContractVersion string
-	Input           map[string]any
+	ExpectedContract AdminSurfaceContract
+	ContractVersion  string
+	Input            map[string]any
 }
 
 type AdminSurfaceInvocationResult struct {
@@ -43,9 +43,15 @@ func (m *Manager) InvokeAdminSurface(
 	if m == nil || ctx == nil || m.hooks == nil || m.hooks.adminSurfaces == nil {
 		return AdminSurfaceInvocationResult{}, ErrAdminSurfaceRegistryInvalid
 	}
-	contract, err := m.hooks.adminSurfaces.Resolve(input.SurfaceID)
+	contract, err := m.hooks.adminSurfaces.resolveRuntimeContract(input.ExpectedContract.ID)
 	if err != nil {
 		return AdminSurfaceInvocationResult{}, err
+	}
+	// HTTP consumers audit the resolved exact artifact before entering plugin
+	// code. Reject a compatible publication swap instead of silently executing
+	// a newer artifact under the older audit identity.
+	if !sameAdminSurfaceRuntimeContract(contract, input.ExpectedContract) {
+		return AdminSurfaceInvocationResult{}, ErrAdminSurfaceRuntimeStale
 	}
 	if version := strings.TrimSpace(input.ContractVersion); version == "" || version != contract.ContractVersion {
 		return AdminSurfaceInvocationResult{}, ErrAdminSurfaceRuntimeStale

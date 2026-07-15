@@ -68,14 +68,19 @@ func TestMessageFallsBackToDefaultLocaleAndKey(t *testing.T) {
 
 func TestMessageLocalizesSiteChromeAndRecentAdminCodes(t *testing.T) {
 	cases := map[string][2]string{
-		"site_chrome.invalid":          {"站点导航/公告/友链配置不正确，请检查后重试。", "The site navigation, announcement, or friend-link data is invalid. Check it and try again."},
-		"site_chrome.not_found":        {"站点导航/公告/友链不存在，请刷新后重试。", "The site navigation, announcement, or friend link does not exist. Refresh and try again."},
-		"jobs.schedule_disabled":       {"该定时任务已禁用，请先启用后再触发。", "This scheduled job is disabled. Enable it before triggering."},
-		"profile.invalid":              {"用户资料不正确，请检查后重试。", "The user profile is invalid. Check it and try again."},
-		"database.table_not_found":     {"数据表不存在或不可访问。", "The data table does not exist or is not accessible."},
-		"moderation.report_duplicate":  {"你已经举报过该内容。", "You have already reported this content."},
-		"mail.test_recipient_required": {"请填写测试邮件收件人。", "Enter a recipient for the test email."},
-		"csrf.invalid":                 {"请求校验失败，请刷新页面后重试。", "Request validation failed. Refresh the page and try again."},
+		"site_chrome.invalid":                    {"站点导航/公告/友链配置不正确，请检查后重试。", "The site navigation, announcement, or friend-link data is invalid. Check it and try again."},
+		"site_chrome.not_found":                  {"站点导航/公告/友链不存在，请刷新后重试。", "The site navigation, announcement, or friend link does not exist. Refresh and try again."},
+		"jobs.schedule_disabled":                 {"该定时任务已禁用，请先启用后再触发。", "This scheduled job is disabled. Enable it before triggering."},
+		"profile.invalid":                        {"用户资料不正确，请检查后重试。", "The user profile is invalid. Check it and try again."},
+		"database.table_not_found":               {"数据表不存在或不可访问。", "The data table does not exist or is not accessible."},
+		"moderation.report_duplicate":            {"你已经举报过该内容。", "You have already reported this content."},
+		"mail.test_recipient_required":           {"请填写测试邮件收件人。", "Enter a recipient for the test email."},
+		"csrf.invalid":                           {"请求校验失败，请刷新页面后重试。", "Request validation failed. Refresh the page and try again."},
+		"extensions.admin_surface_invalid":       {"管理端界面扩展请求不正确，请检查契约版本和输入数据。", "The Admin Surface request is invalid. Check the contract version and input data."},
+		"extensions.admin_surface_not_found":     {"管理端界面扩展不存在或当前不可用。", "The Admin Surface does not exist or is not currently available."},
+		"extensions.admin_surface_not_invokable": {"该管理端界面扩展未声明可调用的类型化处理器。", "This Admin Surface does not declare an invokable typed handler."},
+		"extensions.admin_surface_stale":         {"管理端界面扩展契约或操作状态已变化，请刷新后重试。", "The Admin Surface contract or operation state has changed. Refresh and try again."},
+		"extensions.admin_surface_unavailable":   {"管理端界面扩展运行时暂时不可用，请稍后重试。", "The Admin Surface runtime is temporarily unavailable. Please try again later."},
 	}
 	for key, want := range cases {
 		if got := Message("zh-CN", key); got != want[0] {

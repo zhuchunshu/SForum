@@ -35,6 +35,7 @@ const (
 	ActionExtensionSafeModeBoot      = "extension.safe_mode_boot"
 	ActionExtensionCLIRecovery       = "extension.cli_recovery"
 	ActionExtensionPluginCommand     = "extension.plugin_command"
+	ActionExtensionAdminSurface      = "extension.admin_surface"
 	ActionExtensionActivationFailed  = "extension.activation_failed"
 	ActionExtensionActivationSkipped = "extension.activation_skipped"
 	// ActionExtensionBackendDenied 非 super_admin 试图引入/执行非内置后端插件。

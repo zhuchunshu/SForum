@@ -148,6 +148,18 @@ func (fakeBootstrapExtensionRuntime) AcquireRuntimeCall(context.Context, extensi
 	return nil, extensions.ErrRuntimeUnavailable
 }
 
+func (fakeBootstrapExtensionRuntime) AdminSurfaceSnapshot(string) extensionsruntime.AdminSurfaceRegistrySnapshot {
+	return extensionsruntime.AdminSurfaceRegistrySnapshot{}
+}
+
+func (fakeBootstrapExtensionRuntime) ResolveAdminSurface(string) (extensionsruntime.AdminSurfaceContract, error) {
+	return extensionsruntime.AdminSurfaceContract{}, extensionsruntime.ErrAdminSurfaceNotFound
+}
+
+func (fakeBootstrapExtensionRuntime) InvokeAdminSurface(context.Context, extensionsruntime.AdminSurfaceInvocation) (extensionsruntime.AdminSurfaceInvocationResult, error) {
+	return extensionsruntime.AdminSurfaceInvocationResult{}, extensionsruntime.ErrAdminSurfaceNotFound
+}
+
 func (fakeBootstrapExtensionRuntime) Reconcile(context.Context, []extensions.Extension) {}
 
 func (fakeBootstrapExtensionRuntime) Close(context.Context) {}

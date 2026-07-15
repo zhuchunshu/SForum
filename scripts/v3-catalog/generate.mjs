@@ -130,6 +130,7 @@ function routePolicy(route) {
   if (path.startsWith('/api/v1/admin/features')) return ['permission', 'settings.site.manage']
   if (path.startsWith('/api/v1/admin/web-options')) return ['permission', 'option-owner permission dispatch']
   if (path === '/api/v1/admin/overview') return ['permission', 'admin.access']
+  if (path.startsWith('/api/v1/admin/admin-surfaces')) return ['permission', 'admin.access']
   if (/^\/api\/v1\/(permissions|roles|users)(\/|$)/.test(path)) return ['permission', 'identity service route-specific user.view/user.manage/role.manage/user.ban policy']
   if (path.startsWith('/api/v1/auth/sessions') || path.startsWith('/api/v1/auth/tokens')) return ['login', 'current active actor; token/session ownership']
   if (path === '/api/v1/auth/logout' || path === '/api/v1/auth/session') return ['login', 'current browser session']

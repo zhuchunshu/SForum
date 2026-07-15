@@ -104,6 +104,18 @@
       "path": "/api/v1/admin/entity-meta/definitions/:fieldKey"
     },
     {
+      "id": "core.route.extensions.list_admin_surfaces",
+      "contractVersion": "sforum.route.extensions.list_admin_surfaces@1",
+      "method": "GET",
+      "path": "/api/v1/admin/admin-surfaces"
+    },
+    {
+      "id": "core.route.extensions.invoke_admin_surface",
+      "contractVersion": "sforum.route.extensions.invoke_admin_surface@1",
+      "method": "POST",
+      "path": "/api/v1/admin/admin-surfaces/:surfaceId/invoke"
+    },
+    {
       "id": "core.route.extensions.list",
       "contractVersion": "sforum.route.extensions.list@1",
       "method": "GET",
