@@ -272,6 +272,25 @@ func TestResolveCore(t *testing.T) {
 	}
 }
 
+func TestResolveCoreBindsOnlyMatchingRequestPath(t *testing.T) {
+	app, _, _, _ := newPagesTestApp(t)
+	resp := performPages(t, app, nethttp.MethodGet, "/api/v1/pages/resolve?id=forum.category.show&path=/c/support", nil, nil)
+	if resp.StatusCode != nethttp.StatusOK {
+		t.Fatalf("matching path status %d", resp.StatusCode)
+	}
+	var body pagesEnvelope[map[string]any]
+	_ = json.NewDecoder(resp.Body).Decode(&body)
+	params, ok := body.Data["routeParams"].(map[string]any)
+	if !ok || params["categorySlug"] != "support" {
+		t.Fatalf("route params %#v", body.Data["routeParams"])
+	}
+
+	rejected := performPages(t, app, nethttp.MethodGet, "/api/v1/pages/resolve?id=forum.home&path=/u/alice", nil, nil)
+	if rejected.StatusCode != nethttp.StatusUnprocessableEntity {
+		t.Fatalf("mismatched path status %d", rejected.StatusCode)
+	}
+}
+
 func TestResolveCompiledThemeAvoidsPackageStoreAndFailsClosedOnStaleArtifact(t *testing.T) {
 	for _, test := range []struct {
 		name           string

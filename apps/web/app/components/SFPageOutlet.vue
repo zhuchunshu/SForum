@@ -14,6 +14,8 @@ const props = defineProps<{
   page: string
 }>()
 
+const route = useRoute()
+
 /** 必须由核心 Vue 页执行 mutation 的页面 id */
 const CONSTRAINED_PAGES = new Set([
   'auth.login',
@@ -37,7 +39,21 @@ const registryEnabled = computed(() => {
 
 const isConstrained = computed(() => CONSTRAINED_PAGES.has(props.page))
 
-const resolveKey = computed(() => `page-resolve:${props.page}`)
+const requestQuery = computed(() => {
+  const query = new URLSearchParams()
+  for (const key of Object.keys(route.query).sort()) {
+    const raw = route.query[key]
+    const values = Array.isArray(raw) ? raw : [raw]
+    for (const value of values) {
+      if (value !== null && value !== undefined) {
+        query.append(key, String(value))
+      }
+    }
+  }
+  return query.toString()
+})
+
+const resolveKey = computed(() => `page-resolve:${props.page}:${route.path}?${requestQuery.value}`)
 
 type ResolvePayload = {
   page?: { id: string, contractVersion?: string }
@@ -68,7 +84,11 @@ const { data: resolved, error: resolveError } = await useAsyncData(
     }
     try {
       const { request } = useApiClient()
-      return await request<ResolvePayload>(`/pages/resolve?id=${encodeURIComponent(props.page)}`)
+      const query = new URLSearchParams({ id: props.page, path: route.path })
+      if (requestQuery.value) {
+        query.set('query', requestQuery.value)
+      }
+      return await request<ResolvePayload>(`/pages/resolve?${query.toString()}`)
     } catch {
       return {
         page: { id: props.page },
@@ -78,7 +98,7 @@ const { data: resolved, error: resolveError } = await useAsyncData(
       } satisfies ResolvePayload
     }
   },
-  { watch: [() => props.page, registryEnabled, isConstrained] }
+  { watch: [() => props.page, () => route.path, requestQuery, registryEnabled, isConstrained] }
 )
 
 const provider = computed(() => {

@@ -302,3 +302,20 @@ func TestCompileRouteErrors(t *testing.T) {
 	}
 	_ = fmt.Sprintf("ok")
 }
+
+func TestMatchCorePagePathBindsOnlyTheExactCatalogPage(t *testing.T) {
+	params, ok := MatchCorePagePath("forum.category.show", "/zh-CN/c/support")
+	if !ok || params["categorySlug"] != "support" {
+		t.Fatalf("expected exact localized category match, got ok=%v params=%v", ok, params)
+	}
+	params, ok = MatchCorePagePath("forum.topic.show", "/t/42/hello-world")
+	if !ok || params["path"] != "42/hello-world" {
+		t.Fatalf("expected catch-all topic path, got ok=%v params=%v", ok, params)
+	}
+	if _, ok := MatchCorePagePath("forum.home", "/u/alice"); ok {
+		t.Fatal("a profile path must not be accepted for the home ViewModel")
+	}
+	if _, ok := MatchCorePagePath("plugin.unknown", "/"); ok {
+		t.Fatal("unknown page ids must fail closed")
+	}
+}

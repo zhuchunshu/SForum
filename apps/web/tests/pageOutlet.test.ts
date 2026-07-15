@@ -48,6 +48,13 @@ describe('SFPageOutlet catalog wiring', () => {
     expect(src).toContain('isConstrained')
   })
 
+  it('binds core theme resolution to the current path and query', () => {
+    const src = read('app/components/SFPageOutlet.vue')
+    expect(src).toContain("path: route.path")
+    expect(src).toContain("query.set('query', requestQuery.value)")
+    expect(src).toContain('route.path}?${requestQuery.value}')
+  })
+
   it('disables L2 widget execution', () => {
     const src = read('app/components/SFExtensionWidget.vue')
     expect(src).toContain('data-l2-disabled')

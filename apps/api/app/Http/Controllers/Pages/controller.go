@@ -136,6 +136,19 @@ func (h *Controller) resolve(c fiber.Ctx) error {
 		return err
 	}
 
+	requestPath := strings.TrimSpace(c.Query("path"))
+	routeParams := map[string]string(nil)
+	if requestPath != "" {
+		var matched bool
+		routeParams, matched = pages.MatchCorePagePath(resolved.Page.ID, requestPath)
+		if !matched {
+			return fiber.NewError(fiber.StatusUnprocessableEntity, "pages.path_mismatch")
+		}
+	} else {
+		// Compatibility for callers that do not yet forward the browser path.
+		requestPath = resolved.Page.PathPattern
+	}
+
 	locale := strings.TrimSpace(c.Get("Accept-Language"))
 	if i := strings.Index(locale, ","); i >= 0 {
 		locale = locale[:i]
@@ -187,7 +200,7 @@ func (h *Controller) resolve(c fiber.Ctx) error {
 				}
 			} else if viewer, viewerErr := h.pageViewer(c); viewerErr == nil {
 				output, renderErr := snapshot.Render(c.Context(), pages.CorePageViewModelRequest{
-					PageID: resolved.Page.ID, Locale: locale, Path: resolved.Page.PathPattern,
+					PageID: resolved.Page.ID, Locale: locale, Path: requestPath, RouteParams: routeParams,
 					Viewer: viewer, SEO: themecompiler.PageSEOView{Title: resolved.Page.ID},
 				}, resolved.ContributionID)
 				if renderErr == nil {
@@ -264,6 +277,7 @@ func (h *Controller) resolve(c fiber.Ctx) error {
 		TemplateHTML:   resolved.TemplateHTML,
 		DataSource:     resolved.DataSource,
 		DataRoute:      resolved.DataRoute,
+		RouteParams:    routeParams,
 		Contract:       resolved.Page.ContractVersion,
 		RenderOutput:   runtimeOutput,
 		LoaderData:     loaderData,

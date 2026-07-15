@@ -184,6 +184,28 @@ func MatchRequestPath(routes []CompiledRoute, requestPath string) (RouteMatch, b
 	return RouteMatch{}, false
 }
 
+// MatchCorePagePath verifies that a catalog page id and a browser-controlled
+// path describe the same core page before route parameters enter a ViewModel.
+func MatchCorePagePath(pageID, requestPath string) (map[string]string, bool) {
+	page, ok := Find(strings.TrimSpace(pageID))
+	if !ok || strings.TrimSpace(page.PathPattern) == "" {
+		return nil, false
+	}
+	route, err := CompileRoute(page.PathPattern, PageContribution{})
+	if err != nil {
+		return nil, false
+	}
+	matched, ok := MatchRequestPath([]CompiledRoute{route}, requestPath)
+	if !ok {
+		return nil, false
+	}
+	params := make(map[string]string, len(matched.Params))
+	for key, value := range matched.Params {
+		params[key] = value
+	}
+	return params, true
+}
+
 func matchSegments(segs []routeSegment, parts []string) (map[string]string, bool) {
 	params := map[string]string{}
 	if len(segs) == 0 {
