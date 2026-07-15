@@ -39,6 +39,7 @@ const (
 	PluginJobDefaultExponentialAttempts = 10
 	PluginJobDefaultRetryDelaySeconds   = 30
 	PluginJobMaximumRetryDelaySeconds   = 3600
+	PluginCommandMaximumTimeoutMS       = 5000
 )
 
 var (

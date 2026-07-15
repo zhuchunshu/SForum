@@ -160,6 +160,12 @@ ExtensionManifestCommand:
     permission: { type: string }
     inputSchema: { type: string }
     resultSchema: { type: string }
+    description: { type: string }
+    recoverySafe:
+      type: boolean
+      default: false
+      description: Explicitly permits this exact trusted command in Safe Mode.
+    timeoutMs: { type: integer, minimum: 1, maximum: 5000, default: 5000 }
 ExtensionManifestDependency:
   type: object
   required: [version, kind]

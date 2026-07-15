@@ -118,6 +118,9 @@ type ManifestCommand struct {
 	Permission      string `json:"permission,omitempty"`
 	InputSchema     string `json:"inputSchema"`
 	ResultSchema    string `json:"resultSchema"`
+	Description     string `json:"description,omitempty"`
+	RecoverySafe    bool   `json:"recoverySafe,omitempty"`
+	TimeoutMS       int    `json:"timeoutMs,omitempty"`
 }
 
 type ManifestPackageFile struct {

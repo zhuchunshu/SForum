@@ -57,6 +57,10 @@ func normalizeV3Platform(manifest *Manifest) {
 		item.Permission = NormalizeID(item.Permission)
 		item.InputSchema = strings.TrimSpace(item.InputSchema)
 		item.ResultSchema = strings.TrimSpace(item.ResultSchema)
+		item.Description = strings.TrimSpace(item.Description)
+		if item.TimeoutMS == 0 {
+			item.TimeoutMS = PluginCommandMaximumTimeoutMS
+		}
 	}
 	for index := range manifest.AdminSurfaces {
 		item := &manifest.AdminSurfaces[index]

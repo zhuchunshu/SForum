@@ -574,7 +574,10 @@
           "handler": { "$ref": "#/$defs/nonEmpty" },
           "permission": { "type": "string" },
           "inputSchema": { "$ref": "#/$defs/schemaRef" },
-          "resultSchema": { "$ref": "#/$defs/schemaRef" }
+          "resultSchema": { "$ref": "#/$defs/schemaRef" },
+          "description": { "type": "string" },
+          "recoverySafe": { "type": "boolean" },
+          "timeoutMs": { "type": "integer", "minimum": 1, "maximum": 5000 }
         }
       }
     },

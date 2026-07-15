@@ -39,6 +39,18 @@ func TestManifestV3JobPolicyDefaultsAreDeterministic(t *testing.T) {
 	}
 }
 
+func TestManifestV3CommandDefaultsAreDeterministic(t *testing.T) {
+	manifest := completeV3Manifest()
+	manifest.Commands[0].TimeoutMS = 0
+	normalized := Normalize(manifest)
+	if normalized.Commands[0].TimeoutMS != PluginCommandMaximumTimeoutMS || normalized.Commands[0].RecoverySafe {
+		t.Fatalf("normalized command = %#v", normalized.Commands[0])
+	}
+	if err := Validate(normalized); err != nil {
+		t.Fatalf("defaulted command should validate: %v", err)
+	}
+}
+
 func TestManifestV3ThemePresentationContract(t *testing.T) {
 	digest := strings.Repeat("b", 64)
 	manifest := versionedTestManifest(ManifestVersionV3)
@@ -89,6 +101,7 @@ func TestManifestV3RejectsUnsafeContracts(t *testing.T) {
 			manifest.Jobs[0].RetryPolicy = "exponential"
 			manifest.Jobs[0].RetryDelaySeconds = 30
 		}},
+		{name: "command timeout exceeds host bound", change: func(manifest *Manifest) { manifest.Commands[0].TimeoutMS = 5001 }},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -292,6 +305,7 @@ func completeV3Manifest() Manifest {
 	manifest.Commands = []ManifestCommand{{
 		ID: "demo.v3.command.write", ContractVersion: "demo.v3.command.write@1", Handler: "command.write",
 		Permission: "demo.v3.manage", InputSchema: "demo.v3.command.write.input@1", ResultSchema: "demo.v3.command.write.result@1",
+		Description: "Write one demo record", RecoverySafe: false, TimeoutMS: 3000,
 	}}
 	manifest.AdminSurfaces = []ManifestAdminSurface{{
 		ID: "demo.v3.admin.notice", ContractVersion: "demo.v3.admin.notice@1", Kind: "notice", Action: "add",

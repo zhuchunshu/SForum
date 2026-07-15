@@ -178,7 +178,8 @@ func (v *v3Validator) validateServicesCommandsAdminAndQueries() error {
 		if err := v.versionedID(command.ID, command.ContractVersion, "command"); err != nil {
 			return err
 		}
-		if !validHandler(command.Handler) || !validSchemaRef(command.InputSchema) || !validSchemaRef(command.ResultSchema) {
+		if !validHandler(command.Handler) || !validSchemaRef(command.InputSchema) || !validSchemaRef(command.ResultSchema) ||
+			command.TimeoutMS <= 0 || command.TimeoutMS > PluginCommandMaximumTimeoutMS {
 			return ErrInvalidManifest
 		}
 		if command.Permission != "" && !manifestHasPermission(v.manifest, command.Permission) {
