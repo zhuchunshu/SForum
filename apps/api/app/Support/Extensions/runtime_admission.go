@@ -29,6 +29,7 @@ const (
 	RuntimeCallJob              RuntimeCallClass = "job"
 	RuntimeCallSchedule         RuntimeCallClass = "schedule"
 	RuntimeCallCommand          RuntimeCallClass = "command"
+	RuntimeCallAdminSurface     RuntimeCallClass = "admin_surface"
 	RuntimeCallLifecycleCleanup RuntimeCallClass = "lifecycle_cleanup"
 )
 

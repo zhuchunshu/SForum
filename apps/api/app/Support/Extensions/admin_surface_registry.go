@@ -18,28 +18,28 @@ var (
 )
 
 type AdminSurfaceContract struct {
-	ID               string
-	ContractVersion  string
-	ExtensionID      string
-	ExtensionVersion string
-	ArtifactDigest   string
-	InstanceID       string
-	Kind             string
-	Action           string
-	TargetID         string
-	Label            string
-	Handler          string
-	Schema           string
-	SchemaDigest     string
-	Permission       string
-	Priority         int
+	ID               string `json:"id"`
+	ContractVersion  string `json:"contractVersion"`
+	ExtensionID      string `json:"extensionId"`
+	ExtensionVersion string `json:"extensionVersion"`
+	ArtifactDigest   string `json:"artifactDigest"`
+	InstanceID       string `json:"runtimeInstanceId"`
+	Kind             string `json:"kind"`
+	Action           string `json:"action"`
+	TargetID         string `json:"targetId,omitempty"`
+	Label            string `json:"label"`
+	Handler          string `json:"handler,omitempty"`
+	Schema           string `json:"schema,omitempty"`
+	SchemaDigest     string `json:"schemaDigest,omitempty"`
+	Permission       string `json:"permission,omitempty"`
+	Priority         int    `json:"priority"`
 
 	validator providerDocumentValidator
 }
 
 type AdminSurfaceRegistrySnapshot struct {
-	Revision uint64
-	Surfaces []AdminSurfaceContract
+	Revision uint64                 `json:"revision"`
+	Surfaces []AdminSurfaceContract `json:"surfaces"`
 }
 
 type adminSurfaceRuntimeRegistration struct {
@@ -224,7 +224,7 @@ func buildAdminSurfaceRegistryState(
 	state.registrations = cloneAdminSurfaceRegistrations(registrations)
 	for extensionID, registration := range state.registrations {
 		extension := registration.extension
-		if extension.ID != extensionID || extension.Type != extensions.TypePlugin || extension.Status != extensions.StatusEnabled ||
+		if extension.ID != extensionID || extension.Type != extensions.TypePlugin ||
 			extension.Manifest.Backend.ProtocolVersion != 2 || extension.PackageDigest == "" || registration.instanceID == "" {
 			return nil, ErrAdminSurfaceRegistryInvalid
 		}

@@ -119,6 +119,51 @@ func TestAdminSurfaceRegistryValidatesExactSchemaAndVersionDrift(t *testing.T) {
 	}
 }
 
+func TestHookBusAdminSurfacesPublishAndRemoveAtomically(t *testing.T) {
+	owner := adminSurfaceExtension("admin.owner", []extensions.ManifestAdminSurface{{
+		ID: "admin.owner.surface.users", ContractVersion: "admin.owner.surface.users@1",
+		Kind: "list_column", Action: "add", Label: "Users", Handler: "admin.users",
+	}})
+	consumer := adminSurfaceExtension("admin.consumer", []extensions.ManifestAdminSurface{{
+		ID: "admin.consumer.surface.score", ContractVersion: "admin.consumer.surface.score@1",
+		Kind: "list_column", Action: "after", TargetID: "admin.owner.surface.users",
+		Label: "Score", Handler: "admin.score",
+	}})
+	consumer.Manifest.Dependencies = []extensions.ManifestDependency{{ID: owner.ID, Version: "^1.0.0", Kind: "required"}}
+	bus := NewHookBus(HookBusConfig{})
+	if err := bus.RegisterRuntime(owner, "runtime-owner"); err != nil {
+		t.Fatal(err)
+	}
+	if err := bus.RegisterRuntime(consumer, "runtime-consumer"); err != nil {
+		t.Fatal(err)
+	}
+	if removed := bus.UnregisterRuntime(owner.ID, "runtime-owner"); removed {
+		t.Fatal("required owner removal succeeded")
+	}
+	if snapshot := bus.AdminSurfaces().Snapshot("list_column"); len(snapshot.Surfaces) != 2 {
+		t.Fatalf("failed removal changed snapshot = %#v", snapshot)
+	}
+
+	invalid := consumer
+	invalid.Version, invalid.Manifest.Version = "1.1.0", "1.1.0"
+	invalid.PackageDigest = strings.Repeat("b", 64)
+	invalid.Manifest.AdminSurfaces[0].Label = "Changed without a contract version"
+	if err := bus.RegisterRuntime(invalid, "runtime-invalid"); !errors.Is(err, ErrAdminSurfaceRegistryConflict) {
+		t.Fatalf("invalid replacement = %v", err)
+	}
+	current, ok := bus.RuntimeSnapshot(consumer.ID)
+	if !ok || current.InstanceID != "runtime-consumer" || current.Extension.Version != "1.0.0" {
+		t.Fatalf("failed replacement changed runtime = %#v, %t", current, ok)
+	}
+	contract, err := bus.AdminSurfaces().Resolve(consumer.Manifest.AdminSurfaces[0].ID)
+	if err != nil || contract.InstanceID != "runtime-consumer" {
+		t.Fatalf("failed replacement changed surface = %#v, %v", contract, err)
+	}
+	if !bus.UnregisterRuntime(consumer.ID, "runtime-consumer") || !bus.UnregisterRuntime(owner.ID, "runtime-owner") {
+		t.Fatal("exact removal failed")
+	}
+}
+
 func adminSurfaceExtension(id string, surfaces []extensions.ManifestAdminSurface) extensions.Extension {
 	return extensions.Extension{
 		ID: id, Version: "1.0.0", Type: extensions.TypePlugin, Status: extensions.StatusEnabled,

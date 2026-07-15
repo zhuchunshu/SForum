@@ -45,41 +45,43 @@ type RuntimeTrustSource interface {
 }
 
 type protocolV2ClientConfig struct {
-	identity     *protocolv2.ExtensionIdentity
-	authority    []*protocolv2.AuthorityGrant
-	events       []extensions.ManifestEvent
-	hooks        []extensions.ManifestHook
-	providers    []extensions.ManifestProvider
-	jobs         []extensions.ManifestJob
-	commands     []extensions.ManifestCommand
-	routes       []extensions.ManifestRoute
-	guards       []extensions.ManifestGuard
-	lifecycle    *extensions.ManifestLifecycle
-	token        []byte
-	instance     string
-	hostAPI      ProtocolV2HostRegistrar
-	hostBrokerID uint32
+	identity      *protocolv2.ExtensionIdentity
+	authority     []*protocolv2.AuthorityGrant
+	events        []extensions.ManifestEvent
+	hooks         []extensions.ManifestHook
+	providers     []extensions.ManifestProvider
+	jobs          []extensions.ManifestJob
+	commands      []extensions.ManifestCommand
+	adminSurfaces []extensions.ManifestAdminSurface
+	routes        []extensions.ManifestRoute
+	guards        []extensions.ManifestGuard
+	lifecycle     *extensions.ManifestLifecycle
+	token         []byte
+	instance      string
+	hostAPI       ProtocolV2HostRegistrar
+	hostBrokerID  uint32
 }
 
 type protocolV2Client struct {
 	ProtocolNoop
-	client       pluginv2.PluginRuntimeServiceClient
-	identity     *protocolv2.ExtensionIdentity
-	authority    []*protocolv2.AuthorityGrant
-	events       []extensions.ManifestEvent
-	hooks        []extensions.ManifestHook
-	providers    []extensions.ManifestProvider
-	jobs         []extensions.ManifestJob
-	commands     []extensions.ManifestCommand
-	routes       []extensions.ManifestRoute
-	guards       []extensions.ManifestGuard
-	lifecycle    *extensions.ManifestLifecycle
-	token        []byte
-	instance     string
-	hostBrokerID uint32
-	serviceMu    sync.RWMutex
-	services     []*protocolv2.ServiceDescriptor
-	sequence     atomic.Uint64
+	client        pluginv2.PluginRuntimeServiceClient
+	identity      *protocolv2.ExtensionIdentity
+	authority     []*protocolv2.AuthorityGrant
+	events        []extensions.ManifestEvent
+	hooks         []extensions.ManifestHook
+	providers     []extensions.ManifestProvider
+	jobs          []extensions.ManifestJob
+	commands      []extensions.ManifestCommand
+	adminSurfaces []extensions.ManifestAdminSurface
+	routes        []extensions.ManifestRoute
+	guards        []extensions.ManifestGuard
+	lifecycle     *extensions.ManifestLifecycle
+	token         []byte
+	instance      string
+	hostBrokerID  uint32
+	serviceMu     sync.RWMutex
+	services      []*protocolv2.ServiceDescriptor
+	sequence      atomic.Uint64
 }
 
 // ProtocolV2Error preserves the stable typed error returned by a plugin.
@@ -104,13 +106,14 @@ func newProtocolV2Client(client pluginv2.PluginRuntimeServiceClient, config prot
 	return &protocolV2Client{
 		client: client, identity: cloneV2Identity(config.identity), authority: cloneV2Authority(config.authority),
 		events: append([]extensions.ManifestEvent(nil), config.events...), hooks: cloneManifestHooks(config.hooks),
-		providers: append([]extensions.ManifestProvider(nil), config.providers...),
-		jobs:      append([]extensions.ManifestJob(nil), config.jobs...),
-		commands:  append([]extensions.ManifestCommand(nil), config.commands...),
-		routes:    cloneProtocolV2Routes(config.routes),
-		guards:    cloneProtocolV2Guards(config.guards),
-		lifecycle: cloneManifestLifecycle(config.lifecycle),
-		token:     append([]byte(nil), config.token...), instance: config.instance, hostBrokerID: config.hostBrokerID,
+		providers:     append([]extensions.ManifestProvider(nil), config.providers...),
+		jobs:          append([]extensions.ManifestJob(nil), config.jobs...),
+		commands:      append([]extensions.ManifestCommand(nil), config.commands...),
+		adminSurfaces: append([]extensions.ManifestAdminSurface(nil), config.adminSurfaces...),
+		routes:        cloneProtocolV2Routes(config.routes),
+		guards:        cloneProtocolV2Guards(config.guards),
+		lifecycle:     cloneManifestLifecycle(config.lifecycle),
+		token:         append([]byte(nil), config.token...), instance: config.instance, hostBrokerID: config.hostBrokerID,
 	}
 }
 
@@ -220,18 +223,19 @@ func (s *ProtocolStarter) protocolV2ClientConfig(
 			ArtifactDigest: extension.PackageDigest, TrustGrantId: trustIdentity.TrustGrantID,
 			RuntimeEpoch: epoch, InstanceId: instanceID,
 		},
-		authority: protocolV2Authority(extension.CapabilityGrants),
-		events:    append([]extensions.ManifestEvent(nil), extension.Manifest.Events...),
-		hooks:     cloneManifestHooks(extension.Manifest.Hooks),
-		providers: append([]extensions.ManifestProvider(nil), extension.Manifest.Providers...),
-		jobs:      append([]extensions.ManifestJob(nil), extension.Manifest.Jobs...),
-		commands:  append([]extensions.ManifestCommand(nil), extension.Manifest.Commands...),
-		routes:    cloneProtocolV2Routes(extension.Manifest.Routes),
-		guards:    cloneProtocolV2Guards(extension.Manifest.Guards),
-		lifecycle: cloneManifestLifecycle(extension.Manifest.Lifecycle),
-		token:     token,
-		instance:  instanceID,
-		hostAPI:   protocolV2HostRegistrarFor(s.hostAPI),
+		authority:     protocolV2Authority(extension.CapabilityGrants),
+		events:        append([]extensions.ManifestEvent(nil), extension.Manifest.Events...),
+		hooks:         cloneManifestHooks(extension.Manifest.Hooks),
+		providers:     append([]extensions.ManifestProvider(nil), extension.Manifest.Providers...),
+		jobs:          append([]extensions.ManifestJob(nil), extension.Manifest.Jobs...),
+		commands:      append([]extensions.ManifestCommand(nil), extension.Manifest.Commands...),
+		adminSurfaces: append([]extensions.ManifestAdminSurface(nil), extension.Manifest.AdminSurfaces...),
+		routes:        cloneProtocolV2Routes(extension.Manifest.Routes),
+		guards:        cloneProtocolV2Guards(extension.Manifest.Guards),
+		lifecycle:     cloneManifestLifecycle(extension.Manifest.Lifecycle),
+		token:         token,
+		instance:      instanceID,
+		hostAPI:       protocolV2HostRegistrarFor(s.hostAPI),
 	}, nil
 }
 
@@ -502,6 +506,55 @@ func (c *protocolV2Client) invokePluginCommand(
 		return nil, err
 	}
 	if err := validateProtocolV2DocumentRef(response.GetResult(), contract.ResultSchema, "plugin command result"); err != nil {
+		return nil, err
+	}
+	return protocolV2Values(response.GetResult()), nil
+}
+
+func (c *protocolV2Client) invokeAdminSurface(
+	parent context.Context,
+	contract AdminSurfaceContract,
+	input map[string]any,
+) (map[string]any, error) {
+	if c == nil || c.client == nil || c.identity == nil || parent == nil {
+		return nil, extensions.ErrRuntimeUnavailable
+	}
+	if contract.ExtensionID != c.identity.GetExtensionId() || contract.ExtensionVersion != c.identity.GetExtensionVersion() ||
+		contract.ArtifactDigest != c.identity.GetArtifactDigest() || contract.InstanceID != c.identity.GetInstanceId() ||
+		contract.Handler == "" || contract.Schema == "" {
+		return nil, ErrAdminSurfaceRuntimeStale
+	}
+	if err := validateFrozenAdminSurface(contract, c.adminSurfaces); err != nil {
+		return nil, err
+	}
+	schemaID, schemaVersion, err := protocolV2SchemaRef(contract.Schema)
+	if err != nil {
+		return nil, err
+	}
+	document, err := protocolV2Document(schemaID, schemaVersion, input)
+	if err != nil {
+		return nil, err
+	}
+	ctx, cancel := protocolV2Deadline(parent, DefaultProtocolV2RequestTimeout)
+	defer cancel()
+	response, err := c.client.InvokeHook(ctx, &pluginv2.HookRequest{
+		Context: c.requestContext(ctx, contract.ID), HookId: contract.ID,
+		HookName: contract.Handler, HookKind: "admin_surface", ContractVersion: contract.ContractVersion,
+		DeliveryId: contract.ID, Payload: document,
+	})
+	if err != nil {
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
+		return nil, err
+	}
+	if err := protocolV2Error(response.GetError()); err != nil {
+		return nil, err
+	}
+	if !response.GetAccepted() || response.GetPatch() != nil {
+		return nil, ErrAdminSurfaceRuntimeStale
+	}
+	if err := validateProtocolV2DocumentRef(response.GetResult(), contract.Schema, "admin surface result"); err != nil {
 		return nil, err
 	}
 	return protocolV2Values(response.GetResult()), nil

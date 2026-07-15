@@ -96,6 +96,10 @@ func TestLifecycleRegistryPublicationConvergesAcrossRestartWhileTargetStaysDrain
 		provider.Contract.Artifact.RuntimeInstanceID != targetBinding.RuntimeInstanceID || provider.Contract.Artifact.PackageDigest != target.PackageDigest {
 		t.Fatalf("target versioned provider = %#v, %v", provider, err)
 	}
+	if surface, err := manager.HookBus().AdminSurfaces().Resolve("registry.demo.admin.detail"); err != nil ||
+		surface.InstanceID != targetBinding.RuntimeInstanceID || surface.ArtifactDigest != target.PackageDigest {
+		t.Fatalf("target admin surface = %#v, %v", surface, err)
+	}
 	assertLifecycleRegistryTargetHidden(t, manager, pageRegistry, routeRegistry, targetRuntime.Identity)
 
 	// A fresh adapter/transaction reconstructs both plans from immutable package
@@ -138,8 +142,60 @@ func TestLifecycleRegistryPublicationConvergesAcrossRestartWhileTargetStaysDrain
 		provider.Contract.Artifact.RuntimeInstanceID != sourceBinding.RuntimeInstanceID || provider.Contract.Artifact.PackageDigest != source.PackageDigest {
 		t.Fatalf("restored versioned provider = %#v, %v", provider, err)
 	}
+	if surface, err := manager.HookBus().AdminSurfaces().Resolve("registry.demo.admin.detail"); err != nil ||
+		surface.InstanceID != sourceBinding.RuntimeInstanceID || surface.ArtifactDigest != source.PackageDigest {
+		t.Fatalf("restored admin surface = %#v, %v", surface, err)
+	}
 	if manager.HookBus().UnregisterRuntime(source.ID, targetBinding.RuntimeInstanceID) {
 		t.Fatal("stale target removed restored source hooks")
+	}
+}
+
+func TestLifecycleRegistryDeactivationRemovesAndRestoresExactAdminSurfaces(t *testing.T) {
+	ctx := context.Background()
+	repository := &memoryLifecycleRegistryRepository{phase: LifecycleRegistryPublicationSource}
+	manager := NewManager(ManagerConfig{Starter: newManagerStagedStarter()})
+	boundary := NewPostgresLifecycleBoundaryRegistries(LifecycleRegistryBoundaryConfig{
+		Repository: repository, Manager: manager, Pages: pages.NewRegistry(nil), Routes: routes.NewRegistry(),
+		RouteSchemas: lifecycleRouteSchemaPublication(t), Services: hostapi.NewServiceRegistry(),
+	})
+	extension := lifecycleRegistryTestExtension(t, "1.0.0", strings.Repeat("a", 64), 41, "/registry-disable")
+	if err := manager.Start(ctx, extension); err != nil {
+		t.Fatal(err)
+	}
+	runtime, err := manager.ActiveRuntimeInstance(extension.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	binding := lifecycleRegistryBinding(extension, runtime.Identity.InstanceID)
+	request := LifecycleBoundaryRequest{
+		OperationID: 202, Operation: extensions.LifecycleMachineDisable, Position: 3,
+		StepID: "lifecycle.disable.03.host.disabled", Attempt: 1,
+		SourceExtension: &extension, TargetExtension: extension,
+		SourceBinding: binding, TargetBinding: binding, ActorUserID: 42, AuditEventID: 85,
+	}
+	transaction, err := boundary.PrepareLifecycleRegistryPublication(ctx, request, LifecycleBoundaryDeactivate)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := manager.BeginDrain(runtime.Identity); err != nil {
+		t.Fatal(err)
+	}
+	if err := manager.WaitDrain(ctx, runtime.Identity); err != nil {
+		t.Fatal(err)
+	}
+	if err := transaction.Publish(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := manager.HookBus().AdminSurfaces().Resolve("registry.demo.admin.detail"); !errors.Is(err, ErrAdminSurfaceNotFound) {
+		t.Fatalf("deactivated admin surface = %v", err)
+	}
+	if err := transaction.Restore(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if surface, err := manager.HookBus().AdminSurfaces().Resolve("registry.demo.admin.detail"); err != nil ||
+		surface.InstanceID != binding.RuntimeInstanceID || surface.ArtifactDigest != extension.PackageDigest {
+		t.Fatalf("rollback admin surface = %#v, %v", surface, err)
 	}
 }
 
@@ -419,7 +475,14 @@ func assertLifecycleRegistryTargetHidden(
 	if _, err := routeRegistry.Resolve("GET", "/registry-target/api"); !errors.Is(err, routes.ErrRouteNotFound) {
 		t.Fatalf("drained target route = %v", err)
 	}
-	for _, class := range []RuntimeCallClass{RuntimeCallPage, RuntimeCallRoute, RuntimeCallHook, RuntimeCallService} {
+	for _, surface := range manager.AdminSurfaceSnapshot("").Surfaces {
+		if surface.ExtensionID == identity.ExtensionID && surface.InstanceID == identity.InstanceID {
+			t.Fatalf("drained target admin surface is visible before marker: %#v", surface)
+		}
+	}
+	for _, class := range []RuntimeCallClass{
+		RuntimeCallPage, RuntimeCallRoute, RuntimeCallHook, RuntimeCallService, RuntimeCallAdminSurface,
+	} {
 		if _, err := manager.AcquireRuntimeCall(context.Background(), identity, class); !errors.Is(err, ErrRuntimeAdmissionDraining) {
 			t.Fatalf("%s target admission = %v", class, err)
 		}
@@ -461,6 +524,10 @@ func lifecycleRegistryTestExtension(t *testing.T, version, digest string, versio
 		Slot: "registry.demo.provider.slot", Label: "Registry provider", Handler: "provider.call",
 		RequestSchema: "registry.demo.provider.request@1", ResponseSchema: "registry.demo.provider.response@1",
 		Fallback: "next", TimeoutMS: 1000,
+	}}
+	extension.Manifest.AdminSurfaces = []extensions.ManifestAdminSurface{{
+		ID: "registry.demo.admin.detail", ContractVersion: "registry.demo.admin.detail@1",
+		Kind: "detail_region", Action: "add", Label: "Registry detail", Handler: "admin.detail",
 	}}
 	for _, schema := range []struct {
 		id, path, body string

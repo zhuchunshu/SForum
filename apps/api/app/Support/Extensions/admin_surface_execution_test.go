@@ -1,0 +1,255 @@
+package extensionsruntime
+
+import (
+	"context"
+	"errors"
+	"net"
+	"reflect"
+	"testing"
+
+	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
+	pluginwire "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/plugin/v2"
+	protocolwire "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/protocol/v2"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/test/bufconn"
+)
+
+type adminSurfaceRuntimeServer struct {
+	pluginwire.UnimplementedPluginRuntimeServiceServer
+	request *pluginwire.HookRequest
+}
+
+func (s *adminSurfaceRuntimeServer) InvokeHook(
+	_ context.Context,
+	request *pluginwire.HookRequest,
+) (*pluginwire.HookResponse, error) {
+	s.request = request
+	result, err := protocolV2Document("demo.admin.surface.props", "1", map[string]any{"title": "Rendered"})
+	if err != nil {
+		return nil, err
+	}
+	return &pluginwire.HookResponse{Accepted: true, Result: result}, nil
+}
+
+func TestProtocolV2AdminSurfaceCarriesExactTypedContract(t *testing.T) {
+	server := &adminSurfaceRuntimeServer{}
+	client := adminSurfaceProtocolClient(t, server)
+	contract := adminSurfaceRuntimeContract()
+	output, err := client.invokeAdminSurface(context.Background(), contract, map[string]any{"title": "SForum"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	request := server.request
+	if request.GetHookId() != contract.ID || request.GetContractVersion() != contract.ContractVersion ||
+		request.GetHookName() != contract.Handler || request.GetHookKind() != "admin_surface" ||
+		request.GetPayload().GetSchemaId() != "demo.admin.surface.props" ||
+		request.GetPayload().GetSchemaVersion() != "1" || request.GetPayload().GetValue().AsMap()["title"] != "SForum" ||
+		output["title"] != "Rendered" {
+		t.Fatalf("request=%#v output=%#v", request, output)
+	}
+	stale := contract
+	stale.Handler = "admin.changed"
+	if _, err := client.invokeAdminSurface(context.Background(), stale, map[string]any{}); !errors.Is(err, ErrAdminSurfaceRuntimeStale) {
+		t.Fatalf("stale surface = %v", err)
+	}
+}
+
+type adminSurfaceStarterStub struct {
+	instanceID string
+	calls      int
+	input      map[string]any
+	contract   AdminSurfaceContract
+}
+
+func (s *adminSurfaceStarterStub) Start(context.Context, extensions.Extension) (RouteTarget, error) {
+	return RouteTarget{InstanceID: s.instanceID}, nil
+}
+
+func (*adminSurfaceStarterStub) Stop(context.Context, extensions.Extension) error { return nil }
+
+func (s *adminSurfaceStarterStub) InvokeAdminSurface(
+	_ context.Context,
+	_ RuntimeInstanceIdentity,
+	contract AdminSurfaceContract,
+	input map[string]any,
+) (map[string]any, error) {
+	s.calls++
+	s.contract = contract
+	s.input = input
+	input["title"] = "mutated by plugin"
+	return map[string]any{"title": "Rendered"}, nil
+}
+
+func TestManagerAdminSurfaceValidatesDocumentsAndExactRuntimeAdmission(t *testing.T) {
+	starter := &adminSurfaceStarterStub{instanceID: "runtime-admin"}
+	manager := NewManager(ManagerConfig{Starter: starter})
+	extension := adminSurfaceExtension("demo.admin", []extensions.ManifestAdminSurface{{
+		ID: "demo.admin.surface.form", ContractVersion: "demo.admin.surface.form@1",
+		Kind: "form", Action: "add", Label: "Form", Handler: "admin.form",
+		Schema: "demo.admin.surface.props@1",
+	}})
+	extension.PackagePath = t.TempDir()
+	writeAdminSurfaceSchema(t, &extension, extension.Manifest.AdminSurfaces[0].Schema, "schemas/admin-surface.json",
+		`{"type":"object","required":["title"],"properties":{"title":{"type":"string"}},"additionalProperties":false}`)
+	if err := manager.Start(context.Background(), extension); err != nil {
+		t.Fatal(err)
+	}
+	input := map[string]any{"title": "SForum"}
+	result, err := manager.InvokeAdminSurface(context.Background(), AdminSurfaceInvocation{
+		SurfaceID: extension.Manifest.AdminSurfaces[0].ID, ContractVersion: extension.Manifest.AdminSurfaces[0].ContractVersion,
+		Input: input,
+	})
+	if err != nil || result.Output["title"] != "Rendered" || starter.calls != 1 ||
+		!reflect.DeepEqual(input, map[string]any{"title": "SForum"}) || starter.contract.InstanceID != starter.instanceID {
+		t.Fatalf("result=%#v calls=%d input=%#v contract=%#v err=%v", result, starter.calls, input, starter.contract, err)
+	}
+	if _, err := manager.InvokeAdminSurface(context.Background(), AdminSurfaceInvocation{
+		SurfaceID: extension.Manifest.AdminSurfaces[0].ID, ContractVersion: extension.Manifest.AdminSurfaces[0].ContractVersion,
+		Input: map[string]any{"title": 42},
+	}); !errors.Is(err, ErrAdminSurfaceRegistryInvalid) || starter.calls != 1 {
+		t.Fatalf("invalid props calls=%d err=%v", starter.calls, err)
+	}
+	identity := RuntimeInstanceIdentity{ExtensionID: extension.ID, InstanceID: starter.instanceID}
+	if _, err := manager.BeginDrain(identity); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := manager.InvokeAdminSurface(context.Background(), AdminSurfaceInvocation{
+		SurfaceID: extension.Manifest.AdminSurfaces[0].ID, ContractVersion: extension.Manifest.AdminSurfaces[0].ContractVersion,
+		Input: map[string]any{"title": "SForum"},
+	}); !errors.Is(err, ErrRuntimeAdmissionDraining) {
+		t.Fatalf("draining surface = %v", err)
+	}
+}
+
+func TestManagerAdminSurfaceCatalogHidesDrainedRuntimeWithoutMutatingRegistry(t *testing.T) {
+	starter := &adminSurfaceStarterStub{instanceID: "runtime-visible"}
+	manager := NewManager(ManagerConfig{Starter: starter})
+	extension := adminSurfaceExtension("demo.visible", []extensions.ManifestAdminSurface{{
+		ID: "demo.visible.surface.notice", ContractVersion: "demo.visible.surface.notice@1",
+		Kind: "notice", Action: "add", Label: "Notice", Handler: "admin.notice",
+	}})
+	if err := manager.Start(context.Background(), extension); err != nil {
+		t.Fatal(err)
+	}
+	if snapshot := manager.AdminSurfaceSnapshot("notice"); len(snapshot.Surfaces) != 1 ||
+		snapshot.Surfaces[0].ID != extension.Manifest.AdminSurfaces[0].ID {
+		t.Fatalf("active catalog = %#v", snapshot)
+	}
+	if _, err := manager.ResolveAdminSurface(extension.Manifest.AdminSurfaces[0].ID); err != nil {
+		t.Fatalf("resolve active surface: %v", err)
+	}
+
+	identity := RuntimeInstanceIdentity{ExtensionID: extension.ID, InstanceID: starter.instanceID}
+	if _, err := manager.BeginDrain(identity); err != nil {
+		t.Fatal(err)
+	}
+	if snapshot := manager.AdminSurfaceSnapshot(""); len(snapshot.Surfaces) != 0 {
+		t.Fatalf("drained catalog = %#v", snapshot)
+	}
+	if _, err := manager.ResolveAdminSurface(extension.Manifest.AdminSurfaces[0].ID); !errors.Is(err, ErrAdminSurfaceNotFound) {
+		t.Fatalf("resolve drained surface = %v", err)
+	}
+	if contract, err := manager.HookBus().AdminSurfaces().Resolve(extension.Manifest.AdminSurfaces[0].ID); err != nil ||
+		contract.InstanceID != starter.instanceID {
+		t.Fatalf("immutable rollback descriptor = %#v, %v", contract, err)
+	}
+	if _, err := manager.ResumeRuntimeInstance(identity); err != nil {
+		t.Fatal(err)
+	}
+	if snapshot := manager.AdminSurfaceSnapshot(""); len(snapshot.Surfaces) != 1 {
+		t.Fatalf("resumed catalog = %#v", snapshot)
+	}
+}
+
+func TestManagerInvokesEveryTaskbookAdminSurfaceKind(t *testing.T) {
+	kinds := []string{
+		"navigation", "dashboard", "list_column", "list_filter", "row_action", "bulk_action",
+		"form", "notice", "editor_panel", "detail_region", "importer", "exporter",
+	}
+	starter := &adminSurfaceStarterStub{instanceID: "runtime-all-kinds"}
+	manager := NewManager(ManagerConfig{Starter: starter})
+	extension := adminSurfaceExtension("demo.admin.all", nil)
+	for _, kind := range kinds {
+		extension.Manifest.AdminSurfaces = append(extension.Manifest.AdminSurfaces, extensions.ManifestAdminSurface{
+			ID: "demo.admin.all.surface." + kind, ContractVersion: "demo.admin.all.surface." + kind + "@1",
+			Kind: kind, Action: "add", Label: kind, Handler: "admin." + kind,
+			Schema: "demo.admin.all.surface.props@1",
+		})
+	}
+	extension.PackagePath = t.TempDir()
+	writeAdminSurfaceSchema(t, &extension, "demo.admin.all.surface.props@1", "schemas/admin-surface.json",
+		`{"type":"object","required":["title"],"properties":{"title":{"type":"string"}},"additionalProperties":false}`)
+	if err := manager.Start(context.Background(), extension); err != nil {
+		t.Fatal(err)
+	}
+	for _, declaration := range extension.Manifest.AdminSurfaces {
+		result, err := manager.InvokeAdminSurface(context.Background(), AdminSurfaceInvocation{
+			SurfaceID: declaration.ID, ContractVersion: declaration.ContractVersion,
+			Input: map[string]any{"title": declaration.Kind},
+		})
+		if err != nil || result.Contract.Kind != declaration.Kind || result.Output["title"] != "Rendered" {
+			t.Fatalf("kind %s result=%#v err=%v", declaration.Kind, result, err)
+		}
+	}
+	if starter.calls != len(kinds) {
+		t.Fatalf("calls = %d, want %d", starter.calls, len(kinds))
+	}
+}
+
+func TestManagerRejectsUntypedAdminSurfaceHandler(t *testing.T) {
+	starter := &adminSurfaceStarterStub{instanceID: "runtime-untyped"}
+	manager := NewManager(ManagerConfig{Starter: starter})
+	extension := adminSurfaceExtension("demo.untyped", []extensions.ManifestAdminSurface{{
+		ID: "demo.untyped.surface.notice", ContractVersion: "demo.untyped.surface.notice@1",
+		Kind: "notice", Action: "add", Label: "Notice", Handler: "admin.notice",
+	}})
+	if err := manager.Start(context.Background(), extension); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := manager.InvokeAdminSurface(context.Background(), AdminSurfaceInvocation{
+		SurfaceID: extension.Manifest.AdminSurfaces[0].ID, ContractVersion: extension.Manifest.AdminSurfaces[0].ContractVersion,
+	}); !errors.Is(err, ErrAdminSurfaceNotInvokable) || starter.calls != 0 {
+		t.Fatalf("untyped surface calls=%d err=%v", starter.calls, err)
+	}
+}
+
+func adminSurfaceProtocolClient(t *testing.T, server *adminSurfaceRuntimeServer) *protocolV2Client {
+	t.Helper()
+	listener := bufconn.Listen(1 << 20)
+	grpcServer := grpc.NewServer()
+	pluginwire.RegisterPluginRuntimeServiceServer(grpcServer, server)
+	go func() { _ = grpcServer.Serve(listener) }()
+	t.Cleanup(func() {
+		grpcServer.Stop()
+		_ = listener.Close()
+	})
+	connection, err := grpc.NewClient("passthrough:///admin-surface-test",
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithContextDialer(func(context.Context, string) (net.Conn, error) { return listener.Dial() }),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = connection.Close() })
+	identity := &protocolwire.ExtensionIdentity{
+		ExtensionId: "demo.admin", ExtensionVersion: "1.0.0", ArtifactDigest: "digest-a",
+		TrustGrantId: "grant-a", RuntimeEpoch: 1, InstanceId: "runtime-admin",
+	}
+	declaration := extensions.ManifestAdminSurface{
+		ID: "demo.admin.surface.form", ContractVersion: "demo.admin.surface.form@1",
+		Kind: "form", Action: "add", Label: "Form", Handler: "admin.form", Schema: "demo.admin.surface.props@1",
+	}
+	return newProtocolV2Client(pluginwire.NewPluginRuntimeServiceClient(connection), protocolV2ClientConfig{
+		identity: identity, adminSurfaces: []extensions.ManifestAdminSurface{declaration},
+		token: []byte("01234567890123456789012345678901"), instance: identity.InstanceId,
+	})
+}
+
+func adminSurfaceRuntimeContract() AdminSurfaceContract {
+	return AdminSurfaceContract{
+		ID: "demo.admin.surface.form", ContractVersion: "demo.admin.surface.form@1",
+		ExtensionID: "demo.admin", ExtensionVersion: "1.0.0", ArtifactDigest: "digest-a", InstanceID: "runtime-admin",
+		Kind: "form", Action: "add", Label: "Form", Handler: "admin.form", Schema: "demo.admin.surface.props@1",
+	}
+}

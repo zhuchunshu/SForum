@@ -349,6 +349,9 @@ func cloneHookExtension(extension extensions.Extension) extensions.Extension {
 		extension.Manifest.Hooks[index] = cloneManifestHook(hook)
 	}
 	extension.Manifest.Dependencies = append([]extensions.ManifestDependency(nil), extension.Manifest.Dependencies...)
+	extension.Manifest.Commands = append([]extensions.ManifestCommand(nil), extension.Manifest.Commands...)
+	extension.Manifest.AdminSurfaces = append([]extensions.ManifestAdminSurface(nil), extension.Manifest.AdminSurfaces...)
+	extension.Manifest.PackageFiles = append([]extensions.ManifestPackageFile(nil), extension.Manifest.PackageFiles...)
 	return extension
 }
 
