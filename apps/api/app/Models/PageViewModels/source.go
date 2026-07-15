@@ -234,6 +234,7 @@ func (s *CorePageViewModelSource) populateHome(ctx context.Context, request *pag
 		model.Topics = mapSearchTopics(found.Items, mode)
 		model.Search = &themecompiler.SearchStateView{Query: query, Results: mapSearchResults(found.Items, mode)}
 		request.Pagination = paginationView(request.Path, input.Query, found.Page, found.PerPage, found.Total)
+		applyPaginatedSEO(request, input.Query, found.Page, request.Path)
 	} else {
 		list, listErr := s.deps.Forum.ListTopics(ctx, forum.TopicListInput{Page: page, CategorySlug: categorySlug, TagSlug: tagSlug, Sort: input.Query.Get("sort")})
 		if listErr != nil {
@@ -241,6 +242,7 @@ func (s *CorePageViewModelSource) populateHome(ctx context.Context, request *pag
 		}
 		model.Topics = mapForumTopics(list.Items, mode)
 		request.Pagination = paginationView(request.Path, input.Query, list.Page, list.PerPage, list.Total)
+		applyPaginatedSEO(request, input.Query, list.Page, request.Path)
 	}
 	if s.deps.SiteChrome != nil {
 		announcements, announcementErr := s.deps.SiteChrome.ListPublicAnnouncements(ctx)
@@ -293,6 +295,7 @@ func (s *CorePageViewModelSource) populateCategoryShow(ctx context.Context, requ
 	request.SEO.Description = category.Description
 	request.Breadcrumbs = breadcrumbs(homeLabel(request.Locale), category.Name, request.Path)
 	request.Pagination = paginationView(request.Path, input.Query, list.Page, list.PerPage, list.Total)
+	applyPaginatedSEO(request, input.Query, list.Page, request.Path)
 	request.Data.CategoryShow = &themecompiler.CategoryShowPageViewModel{
 		Category: categoryView,
 		List:     themecompiler.PageListView{Title: category.Name, Description: safePlainHTML(category.Description), Items: mapForumTopics(list.Items, s.topicURLMode(ctx))},
@@ -350,6 +353,7 @@ func (s *CorePageViewModelSource) populateTagShow(ctx context.Context, request *
 	request.SEO.Description = tag.Description
 	request.Breadcrumbs = breadcrumbs(homeLabel(request.Locale), tag.Name, request.Path)
 	request.Pagination = paginationView(request.Path, input.Query, list.Page, list.PerPage, list.Total)
+	applyPaginatedSEO(request, input.Query, list.Page, request.Path)
 	request.Data.TagShow = &themecompiler.TagShowPageViewModel{
 		Tag:  mapTag(tag),
 		List: themecompiler.PageListView{Title: tag.Name, Description: safePlainHTML(tag.Description), Items: mapForumTopics(list.Items, s.topicURLMode(ctx))},
@@ -377,6 +381,9 @@ func (s *CorePageViewModelSource) populateTopicDetail(ctx context.Context, reque
 	if err != nil {
 		return err
 	}
+	mode := s.topicURLMode(ctx)
+	request.Pagination = paginationView(request.Path, input.Query, comments.Page, comments.PerPage, comments.Total)
+	applyPaginatedSEO(request, input.Query, comments.Page, localizedTopicPath(request.Path, topicPublicPath(topic.ID, topic.Slug, mode)))
 	request.SEO.Title = topic.Title
 	request.SEO.Description = topic.Content.Excerpt
 	request.SEO.StructuredData = []themecompiler.StructuredDataView{{
@@ -385,9 +392,8 @@ func (s *CorePageViewModelSource) populateTopicDetail(ctx context.Context, reque
 		DateCreated: formatViewTime(topic.CreatedAt), DateUpdated: formatViewTime(topic.UpdatedAt),
 	}}
 	request.Breadcrumbs = []themecompiler.BreadcrumbItem{{Label: topic.CategoryName, URL: "/c/" + url.PathEscape(topic.CategorySlug)}, {Label: topic.Title, URL: request.Path}}
-	request.Pagination = paginationView(request.Path, input.Query, comments.Page, comments.PerPage, comments.Total)
 	request.Data.TopicDetail = &themecompiler.TopicDetailPageViewModel{
-		Topic: mapForumTopic(topic.TopicSummary, s.topicURLMode(ctx)),
+		Topic: mapForumTopic(topic.TopicSummary, mode),
 		Body:  themecompiler.NewSafeHTMLFromSanitized(topic.Content.HTMLContent), Comments: mapComments(comments.Items),
 	}
 	return nil
@@ -683,6 +689,30 @@ func paginationView(path string, query url.Values, page, perPage int, total int6
 		result.NextURL = pageURL(path, query, page+1)
 	}
 	return result
+}
+
+func applyPaginatedSEO(request *pages.CorePageViewModelRequest, query url.Values, page int, canonicalPath string) {
+	canonicalQuery := make(url.Values)
+	if page > 1 {
+		canonicalQuery.Set("page", strconv.Itoa(page))
+	}
+	if encoded := canonicalQuery.Encode(); encoded != "" {
+		canonicalPath += "?" + encoded
+	}
+	request.SEO.CanonicalURL = absolutePublicURL(request.SEO.CanonicalURL, canonicalPath)
+	for key := range query {
+		if key != "page" {
+			request.SEO.Robots = "noindex,follow"
+			break
+		}
+	}
+}
+
+func localizedTopicPath(requestPath, topicPath string) string {
+	if index := strings.Index(strings.ToLower(requestPath), "/t/"); index >= 0 {
+		return strings.TrimRight(requestPath[:index], "/") + topicPath
+	}
+	return topicPath
 }
 
 func pageURL(path string, input url.Values, page int) string {
