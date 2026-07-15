@@ -36,6 +36,13 @@ type PublicFrontendExtensionCatalog interface {
 	List(context.Context) ([]Extension, error)
 }
 
+// PublicComponentAdmission is implemented by the Host-owned Component
+// Registry. A manifest declaration alone must never authorize browser code:
+// the exact artifact still has to be active in the current composition plan.
+type PublicComponentAdmission interface {
+	AdmitPublicComponent(Extension, ManifestComponent) bool
+}
+
 type FrontendService struct {
 	extensions        FrontendExtensionReader
 	trust             FrontendTrustStore
@@ -47,6 +54,7 @@ type FrontendService struct {
 	safeMode          bool
 	publicL2          bool
 	publicAssets      *assetregistry.Registry
+	publicComponents  PublicComponentAdmission
 }
 
 type frontendTrustChallengeState struct {
@@ -77,6 +85,11 @@ func (s *FrontendService) WithSafeMode(enabled bool) *FrontendService {
 // remain authoritative even when this gate is enabled.
 func (s *FrontendService) WithPublicL2(enabled bool) *FrontendService {
 	s.publicL2 = enabled
+	return s
+}
+
+func (s *FrontendService) WithPublicComponentAdmission(admission PublicComponentAdmission) *FrontendService {
+	s.publicComponents = admission
 	return s
 }
 

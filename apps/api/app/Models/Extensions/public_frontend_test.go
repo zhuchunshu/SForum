@@ -19,9 +19,7 @@ func TestPublicFrontendRequiresLiveExactArtifactTrust(t *testing.T) {
 	reader := &fakeFrontendExtensionReader{item: extension}
 	store := &memoryExecutableTrustStore{}
 	exactTrust := NewExecutableTrustService(reader, store)
-	service := NewFrontendService(reader, &fakeFrontendTrustStore{}).
-		WithExecutableTrust(exactTrust, true).
-		WithPublicL2(true)
+	service := newAdmittedPublicFrontendService(reader, exactTrust)
 
 	if _, err := service.PublicComponent(context.Background(), extension.ID, extension.Manifest.Components[0].ID); !errors.Is(err, ErrPublicFrontendUnavailable) {
 		t.Fatalf("untrusted L2 component must be unavailable, got %v", err)
@@ -56,8 +54,7 @@ func TestPublicFrontendReplaceAllIsIndependentOfFirstRequestAndCatalogOrder(t *t
 	grantPublicFrontend(t, trust, owner)
 	grantPublicFrontend(t, trust, consumer)
 
-	first := NewFrontendService(reader, &fakeFrontendTrustStore{}).
-		WithExecutableTrust(trust, true).WithPublicL2(true)
+	first := newAdmittedPublicFrontendService(reader, trust)
 	descriptor, err := first.PublicComponent(t.Context(), consumer.ID, consumer.Manifest.Components[0].ID)
 	if err != nil || len(descriptor.Assets) != 2 || descriptor.Assets[0].Handle != ownerHandle {
 		t.Fatalf("consumer-first dependency plan=%#v err=%v", descriptor.Assets, err)
@@ -65,8 +62,7 @@ func TestPublicFrontendReplaceAllIsIndependentOfFirstRequestAndCatalogOrder(t *t
 	firstSnapshot := first.publicAssets.Snapshot()
 
 	reader.items = []Extension{owner, consumer}
-	restarted := NewFrontendService(reader, &fakeFrontendTrustStore{}).
-		WithExecutableTrust(trust, true).WithPublicL2(true)
+	restarted := newAdmittedPublicFrontendService(reader, trust)
 	if _, err := restarted.PublicComponent(t.Context(), owner.ID, owner.Manifest.Components[0].ID); err != nil {
 		t.Fatal(err)
 	}
@@ -79,8 +75,7 @@ func TestPublicFrontendServesExactPackageLocalModuleCSSAndBinaryResources(t *tes
 	extension := publicFrontendFixture(t)
 	reader := &fakeFrontendExtensionReader{item: extension}
 	trust := NewExecutableTrustService(reader, &memoryExecutableTrustStore{})
-	service := NewFrontendService(reader, &fakeFrontendTrustStore{}).
-		WithExecutableTrust(trust, true).WithPublicL2(true)
+	service := newAdmittedPublicFrontendService(reader, trust)
 	grantPublicFrontend(t, trust, extension)
 
 	tests := []struct {
@@ -118,9 +113,7 @@ func TestPublicFrontendServesOnlyDeclaredImmutableBytes(t *testing.T) {
 	reader := &fakeFrontendExtensionReader{item: extension}
 	store := &memoryExecutableTrustStore{}
 	exactTrust := NewExecutableTrustService(reader, store)
-	service := NewFrontendService(reader, &fakeFrontendTrustStore{}).
-		WithExecutableTrust(exactTrust, true).
-		WithPublicL2(true)
+	service := newAdmittedPublicFrontendService(reader, exactTrust)
 	grantPublicFrontend(t, exactTrust, extension)
 	descriptor, err := service.PublicComponent(context.Background(), extension.ID, extension.Manifest.Components[0].ID)
 	if err != nil {
@@ -156,18 +149,14 @@ func TestPublicFrontendRebuildsAssetSnapshotAfterHostRestart(t *testing.T) {
 	reader := &fakeFrontendExtensionReader{item: extension}
 	store := &memoryExecutableTrustStore{}
 	exactTrust := NewExecutableTrustService(reader, store)
-	first := NewFrontendService(reader, &fakeFrontendTrustStore{}).
-		WithExecutableTrust(exactTrust, true).
-		WithPublicL2(true)
+	first := newAdmittedPublicFrontendService(reader, exactTrust)
 	grantPublicFrontend(t, exactTrust, extension)
 	descriptor, err := first.PublicComponent(context.Background(), extension.ID, extension.Manifest.Components[0].ID)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	restarted := NewFrontendService(reader, &fakeFrontendTrustStore{}).
-		WithExecutableTrust(exactTrust, true).
-		WithPublicL2(true)
+	restarted := newAdmittedPublicFrontendService(reader, exactTrust)
 	asset, err := restarted.PublicAsset(context.Background(), extension.ID, extension.PackageDigest, descriptor.Entry.Digest, descriptor.Entry.Handle)
 	if err != nil || len(asset.Body) == 0 || restarted.publicAssets.Snapshot().Revision != 1 {
 		t.Fatalf("restart did not rebuild immutable asset snapshot: asset=%#v revision=%d err=%v", asset, restarted.publicAssets.Snapshot().Revision, err)
@@ -179,9 +168,7 @@ func TestPublicFrontendRevocationDisableSafeModeAndByteDriftFailClosed(t *testin
 	reader := &fakeFrontendExtensionReader{item: extension}
 	store := &memoryExecutableTrustStore{}
 	exactTrust := NewExecutableTrustService(reader, store)
-	service := NewFrontendService(reader, &fakeFrontendTrustStore{}).
-		WithExecutableTrust(exactTrust, true).
-		WithPublicL2(true)
+	service := newAdmittedPublicFrontendService(reader, exactTrust)
 	grantPublicFrontend(t, exactTrust, extension)
 	if _, err := service.PublicComponent(context.Background(), extension.ID, extension.Manifest.Components[0].ID); err != nil {
 		t.Fatal(err)
@@ -203,10 +190,7 @@ func TestPublicFrontendRevocationDisableSafeModeAndByteDriftFailClosed(t *testin
 		t.Fatalf("disabled component must fail, got %v", err)
 	}
 	reader.item.Status = StatusEnabled
-	safe := NewFrontendService(reader, &fakeFrontendTrustStore{}).
-		WithExecutableTrust(exactTrust, true).
-		WithPublicL2(true).
-		WithSafeMode(true)
+	safe := newAdmittedPublicFrontendService(reader, exactTrust).WithSafeMode(true)
 	if _, err := safe.PublicComponent(context.Background(), extension.ID, extension.Manifest.Components[0].ID); !errors.Is(err, ErrPublicFrontendUnavailable) {
 		t.Fatalf("safe mode must close L2, got %v", err)
 	}
@@ -228,6 +212,35 @@ func TestPublicFrontendGateDefaultsClosed(t *testing.T) {
 	if _, err := service.PublicComponent(context.Background(), extension.ID, extension.Manifest.Components[0].ID); !errors.Is(err, ErrPublicFrontendUnavailable) {
 		t.Fatalf("public L2 migration gate must default closed, got %v", err)
 	}
+}
+
+func TestPublicFrontendComponentAdmissionDefaultsClosed(t *testing.T) {
+	extension := publicFrontendFixture(t)
+	reader := &fakeFrontendExtensionReader{item: extension}
+	exactTrust := NewExecutableTrustService(reader, &memoryExecutableTrustStore{})
+	grantPublicFrontend(t, exactTrust, extension)
+	service := NewFrontendService(reader, &fakeFrontendTrustStore{}).
+		WithExecutableTrust(exactTrust, true).
+		WithPublicL2(true)
+	if _, err := service.PublicComponent(t.Context(), extension.ID, extension.Manifest.Components[0].ID); !errors.Is(err, ErrPublicFrontendUnavailable) {
+		t.Fatalf("public L2 must require Component Registry admission, got %v", err)
+	}
+}
+
+type allowPublicComponentAdmission struct{}
+
+func (allowPublicComponentAdmission) AdmitPublicComponent(Extension, ManifestComponent) bool {
+	return true
+}
+
+func newAdmittedPublicFrontendService(
+	reader FrontendExtensionReader,
+	trust *ExecutableTrustService,
+) *FrontendService {
+	return NewFrontendService(reader, &fakeFrontendTrustStore{}).
+		WithExecutableTrust(trust, true).
+		WithPublicL2(true).
+		WithPublicComponentAdmission(allowPublicComponentAdmission{})
 }
 
 func grantPublicFrontend(t *testing.T, trust *ExecutableTrustService, extension Extension) {

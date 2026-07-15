@@ -51,6 +51,9 @@ func (s *FrontendService) PublicComponent(ctx context.Context, extensionID, comp
 	if !ok {
 		return PublicFrontendComponent{}, ErrPublicFrontendUnavailable
 	}
+	if s.publicComponents == nil || !s.publicComponents.AdmitPublicComponent(extension, component) {
+		return PublicFrontendComponent{}, ErrPublicFrontendUnavailable
+	}
 	if err := s.refreshPublicAssetSnapshot(ctx); err != nil {
 		return PublicFrontendComponent{}, errors.Join(ErrPublicFrontendUnavailable, err)
 	}

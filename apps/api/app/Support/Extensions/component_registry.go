@@ -382,6 +382,61 @@ func (r *ComponentRegistry) ResolvePlan(targetID, contractVersion string) (Compo
 	return cloneComponentResolvePlan(plan), nil
 }
 
+// AdmitPublicComponent is the fail-closed bridge used by the public L2
+// descriptor service. It admits only the exact active artifact and, for a
+// replacement, only the current winner. A hidden target never exposes an L2
+// descriptor even if its package manifest still contains the declaration.
+func (r *ComponentRegistry) AdmitPublicComponent(
+	extension extensions.Extension,
+	declaration extensions.ManifestComponent,
+) bool {
+	if r == nil || strings.TrimSpace(declaration.L2Component) == "" ||
+		extension.Status != extensions.StatusEnabled {
+		return false
+	}
+	state := r.load()
+	registration, registered := state.registrations[extension.ID]
+	if !registered || !componentRuntimeRegistrationMatches(
+		registration,
+		extension,
+		componentPackageRuntimeInstanceID(extension),
+	) {
+		return false
+	}
+	contribution, published := state.contributionsByID[declaration.ID]
+	if !published || contribution.manifest != declaration ||
+		contribution.Artifact.ExtensionID != extension.ID ||
+		contribution.Artifact.ExtensionVersion != extension.Version ||
+		contribution.Artifact.PackageDigest != extension.PackageDigest ||
+		contribution.Artifact.RuntimeInstanceID != registration.instanceID {
+		return false
+	}
+
+	targetID, targetContract := declaration.TargetID, declaration.TargetContractVersion
+	if declaration.Action == extensionmanifest.ComponentActionAdd {
+		targetID, targetContract = declaration.ID, declaration.ContractVersion
+	}
+	plan, err := r.resolveRuntimePlan(targetID, targetContract)
+	if err != nil {
+		return false
+	}
+	for _, item := range plan.Contributions {
+		if item.Action == extensionmanifest.ComponentActionHide {
+			return false
+		}
+	}
+	if declaration.Action == extensionmanifest.ComponentActionAdd {
+		return plan.Target.Provider != nil &&
+			sameComponentRuntimeContribution(*plan.Target.Provider, contribution)
+	}
+	for _, item := range plan.Contributions {
+		if sameComponentRuntimeContribution(item, contribution) {
+			return true
+		}
+	}
+	return false
+}
+
 func (r *ComponentRegistry) resolveRuntimePlan(targetID, contractVersion string) (ComponentResolvePlan, error) {
 	state := r.load()
 	target, found := state.targetsByID[strings.TrimSpace(targetID)]

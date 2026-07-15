@@ -395,6 +395,7 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		pool.Close()
 		return nil, fmt.Errorf("extension lifecycle setup failed: %w", err)
 	}
+	frontendService.WithPublicComponentAdmission(lifecycleStack.ComponentRegistry)
 	if err := lifecycleStack.bindService(extensionService); err != nil {
 		if stopErr := supportjobs.Stop(ctx, jobClient); stopErr != nil {
 			logger.Warn("job dispatcher stop failed", "error", stopErr)
