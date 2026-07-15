@@ -68,11 +68,12 @@ type LifecycleRegistryBoundaryConfig struct {
 	Routes       *routes.Registry
 	RouteSchemas *extensionopenapi.RouteSchemaPublication
 	Services     *hostapi.ServiceRegistry
+	Components   *ComponentRegistry
 }
 
 // PostgresLifecycleBoundaryRegistries composes the production HookBus,
-// Protocol-v2 Service Registry, Page Registry, Route Registry, and the exact
-// package schema publication consumed by the Route dispatcher.
+// Protocol-v2 Service Registry, Page, Route, and Component registries, plus the
+// exact package schema publication consumed by the Route dispatcher.
 type PostgresLifecycleBoundaryRegistries struct {
 	repository   LifecycleRegistryPublicationRepository
 	manager      *Manager
@@ -84,9 +85,14 @@ type PostgresLifecycleBoundaryRegistries struct {
 	routes       *routes.Registry
 	routeSchemas *extensionopenapi.RouteSchemaPublication
 	services     *hostapi.ServiceRegistry
+	components   *ComponentRegistry
 }
 
 func NewPostgresLifecycleBoundaryRegistries(config LifecycleRegistryBoundaryConfig) *PostgresLifecycleBoundaryRegistries {
+	components := config.Components
+	if components == nil {
+		components = NewComponentRegistry()
+	}
 	boundary := &PostgresLifecycleBoundaryRegistries{
 		repository:   config.Repository,
 		manager:      config.Manager,
@@ -97,6 +103,7 @@ func NewPostgresLifecycleBoundaryRegistries(config LifecycleRegistryBoundaryConf
 		routes:       config.Routes,
 		routeSchemas: config.RouteSchemas,
 		services:     config.Services,
+		components:   components,
 	}
 	if config.Manager != nil {
 		boundary.hooks = config.Manager.HookBus()
@@ -120,9 +127,17 @@ func NewPostgresLifecycleBoundaryRegistries(config LifecycleRegistryBoundaryConf
 	return boundary
 }
 
+func (b *PostgresLifecycleBoundaryRegistries) ComponentRegistry() *ComponentRegistry {
+	if b == nil {
+		return nil
+	}
+	return b.components
+}
+
 // RestoreRoutePublications rebuilds process-local immutable catalogs from the
 // exact runtime instances that survived startup reconciliation. Safe Mode owns
-// a deliberately empty plugin schema catalog and a core-only Route Registry.
+// deliberately empty extension schema/component catalogs and core-only Route
+// and Component registries.
 func (b *PostgresLifecycleBoundaryRegistries) RestoreRoutePublications(
 	ctx context.Context,
 	items []extensions.Extension,
@@ -133,6 +148,9 @@ func (b *PostgresLifecycleBoundaryRegistries) RestoreRoutePublications(
 	}
 	if err := ctx.Err(); err != nil {
 		return err
+	}
+	if err := b.components.RestoreRuntimes(items, safeMode); err != nil {
+		return fmt.Errorf("restore component registry publication: %w", err)
 	}
 	if err := b.restoreExactPluginPagePublications(ctx, items, safeMode); err != nil {
 		return err
@@ -299,6 +317,9 @@ func (b *PostgresLifecycleBoundaryRegistries) ValidateLifecycleRegistries(
 	if err != nil {
 		return err
 	}
+	if err := b.validateComponentTransition(source, target); err != nil {
+		return err
+	}
 	for _, material := range []*lifecycleRegistryMaterial{source, target} {
 		if material == nil {
 			continue
@@ -372,7 +393,7 @@ func (b *PostgresLifecycleBoundaryRegistries) PrepareLifecycleRegistryPublicatio
 
 func (b *PostgresLifecycleBoundaryRegistries) validateDependencies(ctx context.Context) error {
 	if b == nil || ctx == nil || b.repository == nil || b.manager == nil || b.hooks == nil ||
-		b.pages == nil || b.routes == nil || b.routeSchemas == nil || b.services == nil {
+		b.pages == nil || b.routes == nil || b.routeSchemas == nil || b.services == nil || b.components == nil {
 		return ErrLifecycleRegistryPublicationUnavailable
 	}
 	return ctx.Err()
@@ -620,6 +641,9 @@ func (b *PostgresLifecycleBoundaryRegistries) reconcileLocalRegistries(
 			!snapshot.Admission.Draining || snapshot.Admission.ActiveTotal != 0 {
 			return fmt.Errorf("%w: target runtime is not published and drained", ErrLifecycleRegistryPublicationConflict)
 		}
+	}
+	if err := b.reconcileComponents(request.TargetExtension.ID, source, target, desired); err != nil {
+		return err
 	}
 	if err := b.reconcileServices(request.TargetExtension.ID, source, target, desired, phase); err != nil {
 		return err

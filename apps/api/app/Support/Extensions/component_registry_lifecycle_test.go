@@ -158,15 +158,121 @@ func TestComponentRegistryDropsExactSelectionOnProviderUpgrade(t *testing.T) {
 	}
 }
 
-func TestComponentRegistryConcurrentReadersObserveWholeSnapshots(t *testing.T) {
-	id := "component.concurrent"
-	declaration := componentTestContribution(
-		id, "replace-home", extensionmanifest.ComponentActionReplace, 10,
-		componentTestCoreTarget, componentTestCoreContract,
+func TestComponentRegistryReplaceAllBuildsRequiredGraphAtomicallyAndPreservesFailureState(t *testing.T) {
+	ownerID := "component.batch-owner"
+	ownerTarget := ownerID + ".component.card"
+	ownerContract := ownerTarget + "@1"
+	owner := componentTestExtension(t, ownerID, extensions.TypePlugin,
+		componentTestContribution(ownerID, "card", extensionmanifest.ComponentActionAdd, 0, "", ""),
 	)
-	extension := componentTestExtension(t, id, extensions.TypePlugin, declaration)
+	consumerID := "component.batch-consumer"
+	consumer := componentTestExtension(t, consumerID, extensions.TypePlugin,
+		componentTestContribution(
+			consumerID, "wrap-card", extensionmanifest.ComponentActionWrap, 10, ownerTarget, ownerContract,
+		),
+	)
+	consumer.Manifest.Dependencies = []extensions.ManifestDependency{{
+		ID: ownerID, Version: "^1.0.0", Kind: "required",
+	}}
+
 	registry := NewComponentRegistry()
-	if err := registry.ReplaceRuntime(extension, "runtime-0"); err != nil {
+	// Consumer intentionally precedes its required provider. ReplaceAll builds
+	// the complete graph once rather than exposing input-order behavior.
+	if err := registry.ReplaceAll([]ComponentRuntimeSnapshot{
+		{Extension: consumer, InstanceID: "runtime-consumer"},
+		{Extension: owner, InstanceID: "runtime-owner"},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	plan, err := registry.ResolvePlan(ownerTarget, ownerContract)
+	if err != nil || plan.Target.Provider == nil ||
+		plan.Target.Provider.Artifact.RuntimeInstanceID != "runtime-owner" ||
+		len(plan.Contributions) != 1 || plan.Contributions[0].Artifact.RuntimeInstanceID != "runtime-consumer" {
+		t.Fatalf("batch plan = %#v, %v", plan, err)
+	}
+	revision := plan.Revision
+	if err := registry.ReplaceAll([]ComponentRuntimeSnapshot{
+		{Extension: owner, InstanceID: "runtime-owner"},
+		{Extension: consumer, InstanceID: "runtime-consumer"},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if repeated := registry.Snapshot().Revision; repeated != revision {
+		t.Fatalf("idempotent reverse-order batch changed revision from %d to %d", revision, repeated)
+	}
+
+	before := registry.Snapshot()
+	if err := registry.ReplaceAll([]ComponentRuntimeSnapshot{
+		{Extension: consumer, InstanceID: "runtime-consumer-invalid"},
+	}); !errors.Is(err, ErrComponentRegistryConflict) {
+		t.Fatalf("invalid batch = %v", err)
+	}
+	after := registry.Snapshot()
+	if after.Revision != before.Revision || len(after.Targets) != len(before.Targets) ||
+		len(after.Contributions) != len(before.Contributions) {
+		t.Fatalf("failed batch changed snapshot: before=%#v after=%#v", before, after)
+	}
+	if snapshot, ok := registry.RuntimeSnapshot(ownerID); !ok || snapshot.InstanceID != "runtime-owner" {
+		t.Fatalf("owner snapshot after failed batch = %#v, %t", snapshot, ok)
+	}
+}
+
+func TestComponentRegistryRuntimeSnapshotIsDetachedAndHostIdentityIsFrozen(t *testing.T) {
+	id := "component.identity"
+	extension := componentTestExtension(t, id, extensions.TypePlugin,
+		componentTestContribution(
+			id, "replace-home", extensionmanifest.ComponentActionReplace, 10,
+			componentTestCoreTarget, componentTestCoreContract,
+		),
+	)
+	extension.Version, extension.Manifest.Version = "1.2.3", "1.2.3"
+	registry := NewComponentRegistry()
+	instanceID := componentPackageRuntimeInstanceID(extension)
+	const expected = "host-component-package:9b96b1de2f316496a74b086fbc1f4ae038d30f20149df979cb2d2ec294edfaf5"
+	if instanceID != expected {
+		t.Fatalf("Host component identity = %q, want %q", instanceID, expected)
+	}
+	if err := registry.ReplaceRuntime(extension, instanceID); err != nil {
+		t.Fatal(err)
+	}
+	snapshot, ok := registry.RuntimeSnapshot(id)
+	if !ok || snapshot.InstanceID != expected || snapshot.Extension.Version != "1.2.3" ||
+		snapshot.Extension.PackageDigest != extension.PackageDigest {
+		t.Fatalf("runtime snapshot = %#v, %t", snapshot, ok)
+	}
+	snapshot.Extension.Manifest.Components[0].ID = "mutated"
+	snapshot.Extension.Manifest.Dependencies = append(snapshot.Extension.Manifest.Dependencies, extensions.ManifestDependency{
+		ID: "mutated", Version: "1.0.0", Kind: "required",
+	})
+	snapshot.Extension.Manifest.PackageFiles[0].Digest = "mutated"
+	fresh, ok := registry.RuntimeSnapshot(id)
+	if !ok || fresh.Extension.Manifest.Components[0].ID == "mutated" ||
+		len(fresh.Extension.Manifest.Dependencies) != 0 || fresh.Extension.Manifest.PackageFiles[0].Digest == "mutated" {
+		t.Fatalf("runtime snapshot shared registry state = %#v, %t", fresh, ok)
+	}
+}
+
+func TestComponentRegistryConcurrentReadersObserveWholeSnapshots(t *testing.T) {
+	ownerID := "component.concurrent-owner"
+	ownerTarget := ownerID + ".component.card"
+	ownerContract := ownerTarget + "@1"
+	ownerDeclaration := componentTestContribution(
+		ownerID, "card", extensionmanifest.ComponentActionAdd, 0, "", "",
+	)
+	owner := componentTestExtension(t, ownerID, extensions.TypePlugin, ownerDeclaration)
+	consumerID := "component.concurrent-consumer"
+	consumerDeclaration := componentTestContribution(
+		consumerID, "wrap-card", extensionmanifest.ComponentActionWrap, 10, ownerTarget, ownerContract,
+	)
+	consumer := componentTestExtension(t, consumerID, extensions.TypePlugin, consumerDeclaration)
+	consumer.Manifest.Dependencies = []extensions.ManifestDependency{{
+		ID: ownerID, Version: "^1.0.0", Kind: "required",
+	}}
+	registry := NewComponentRegistry()
+	if err := registry.ReplaceAll([]ComponentRuntimeSnapshot{
+		{Extension: consumer, InstanceID: "runtime-consumer-0"},
+		{Extension: owner, InstanceID: "runtime-owner-0"},
+	}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -186,15 +292,16 @@ func TestComponentRegistryConcurrentReadersObserveWholeSnapshots(t *testing.T) {
 					return
 				}
 				previous = snapshot.Revision
-				plan, err := registry.ResolvePlan(componentTestCoreTarget, componentTestCoreContract)
-				if err != nil || len(plan.ReplaceCandidates) != 1 || plan.ReplaceWinner == nil ||
-					plan.ReplaceWinner.ID != declaration.ID || plan.ReplaceWinner.Artifact.RuntimeInstanceID == "" {
-					errorsCh <- fmt.Errorf("partial resolve plan: %#v, %v", plan, err)
+				ownerContribution := componentTestContributionFromSnapshot(snapshot, ownerDeclaration.ID)
+				consumerContribution := componentTestContributionFromSnapshot(snapshot, consumerDeclaration.ID)
+				if ownerContribution.ID == "" || consumerContribution.ID == "" ||
+					ownerContribution.Artifact.ExtensionVersion != consumerContribution.Artifact.ExtensionVersion {
+					errorsCh <- fmt.Errorf("partial batch snapshot: %#v", snapshot)
 					return
 				}
-				err = registry.ValidateProps(*plan.ReplaceWinner, map[string]any{"scope": "home"})
-				if err != nil && !errors.Is(err, ErrComponentRegistryTargetNotFound) {
-					errorsCh <- fmt.Errorf("validate concurrent plan: %w", err)
+				plan, err := registry.ResolvePlan(ownerTarget, ownerContract)
+				if err != nil || plan.Target.Provider == nil || len(plan.Contributions) != 1 {
+					errorsCh <- fmt.Errorf("partial resolve plan: %#v, %v", plan, err)
 					return
 				}
 			}
@@ -204,12 +311,19 @@ func TestComponentRegistryConcurrentReadersObserveWholeSnapshots(t *testing.T) {
 	go func() {
 		defer wait.Done()
 		for version := 1; version <= 50; version++ {
-			next := extension
-			next.Version = fmt.Sprintf("1.0.%d", version)
-			next.Manifest.Version = next.Version
-			next.PackageDigest = fmt.Sprintf("%064x", version+1)
-			if err := registry.ReplaceRuntime(next, fmt.Sprintf("runtime-%d", version)); err != nil {
-				errorsCh <- fmt.Errorf("replace runtime %d: %w", version, err)
+			nextOwner := owner
+			nextOwner.Version = fmt.Sprintf("1.0.%d", version)
+			nextOwner.Manifest.Version = nextOwner.Version
+			nextOwner.PackageDigest = fmt.Sprintf("%064x", version+1)
+			nextConsumer := consumer
+			nextConsumer.Version = nextOwner.Version
+			nextConsumer.Manifest.Version = nextOwner.Version
+			nextConsumer.PackageDigest = fmt.Sprintf("%064x", version+101)
+			if err := registry.ReplaceAll([]ComponentRuntimeSnapshot{
+				{Extension: nextConsumer, InstanceID: fmt.Sprintf("runtime-consumer-%d", version)},
+				{Extension: nextOwner, InstanceID: fmt.Sprintf("runtime-owner-%d", version)},
+			}); err != nil {
+				errorsCh <- fmt.Errorf("replace batch %d: %w", version, err)
 				return
 			}
 		}
@@ -219,9 +333,22 @@ func TestComponentRegistryConcurrentReadersObserveWholeSnapshots(t *testing.T) {
 	for err := range errorsCh {
 		t.Fatal(err)
 	}
-	final, err := registry.ResolvePlan(componentTestCoreTarget, componentTestCoreContract)
-	if err != nil || final.Revision != 51 || final.ReplaceWinner == nil ||
-		final.ReplaceWinner.Artifact.RuntimeInstanceID != "runtime-50" {
+	final, err := registry.ResolvePlan(ownerTarget, ownerContract)
+	if err != nil || final.Revision != 51 || final.Target.Provider == nil ||
+		final.Target.Provider.Artifact.RuntimeInstanceID != "runtime-owner-50" ||
+		len(final.Contributions) != 1 || final.Contributions[0].Artifact.RuntimeInstanceID != "runtime-consumer-50" {
 		t.Fatalf("final concurrent plan = %#v, %v", final, err)
 	}
+}
+
+func componentTestContributionFromSnapshot(
+	snapshot ComponentRegistrySnapshot,
+	id string,
+) ComponentContribution {
+	for _, contribution := range snapshot.Contributions {
+		if contribution.ID == id {
+			return contribution
+		}
+	}
+	return ComponentContribution{}
 }

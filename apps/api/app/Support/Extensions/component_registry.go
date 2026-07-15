@@ -1,6 +1,8 @@
 package extensionsruntime
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"sort"
@@ -100,6 +102,14 @@ type ResetComponentProviderRequest struct {
 	ExpectedRevision      uint64
 }
 
+// ComponentRuntimeSnapshot identifies one exact Host-published package graph.
+// Component publication is declarative and therefore does not borrow a plugin
+// process identity, including for packages that have no backend process.
+type ComponentRuntimeSnapshot struct {
+	Extension  extensions.Extension `json:"extension"`
+	InstanceID string               `json:"instanceId"`
+}
+
 type componentRuntimeRegistration struct {
 	extension  extensions.Extension
 	instanceID string
@@ -132,6 +142,16 @@ func NewComponentRegistry() *ComponentRegistry {
 }
 
 func (r *ComponentRegistry) ReplaceRuntime(extension extensions.Extension, instanceID string) error {
+	return r.replaceRuntime(extension, instanceID, true, false, nil)
+}
+
+func (r *ComponentRegistry) replaceRuntime(
+	extension extensions.Extension,
+	instanceID string,
+	publish bool,
+	idempotent bool,
+	currentAllowed func(componentRuntimeRegistration) bool,
+) error {
 	if r == nil || validateComponentRuntime(extension, instanceID) != nil {
 		return ErrComponentRegistryInvalid
 	}
@@ -140,6 +160,12 @@ func (r *ComponentRegistry) ReplaceRuntime(extension extensions.Extension, insta
 	current := r.load()
 	registrations := cloneComponentRegistrations(current.registrations)
 	if previous, found := registrations[extension.ID]; found {
+		if currentAllowed != nil && !currentAllowed(previous) {
+			return ErrComponentRegistryConflict
+		}
+		if idempotent && componentRuntimeRegistrationMatches(previous, extension, instanceID) {
+			return nil
+		}
 		if err := validateComponentUpgrade(previous.extension, extension); err != nil {
 			return err
 		}
@@ -151,28 +177,86 @@ func (r *ComponentRegistry) ReplaceRuntime(extension extensions.Extension, insta
 	if err != nil {
 		return err
 	}
-	r.state.Store(next)
+	if publish {
+		r.state.Store(next)
+	}
 	return nil
 }
 
 func (r *ComponentRegistry) ValidateReplaceRuntime(extension extensions.Extension, instanceID string) error {
-	if r == nil || validateComponentRuntime(extension, instanceID) != nil {
+	return r.replaceRuntime(extension, instanceID, false, false, nil)
+}
+
+// ReplaceAll validates and publishes one complete component graph. The graph is
+// built once, so required cross-plugin targets do not depend on input order.
+func (r *ComponentRegistry) ReplaceAll(snapshots []ComponentRuntimeSnapshot) error {
+	if r == nil {
 		return ErrComponentRegistryInvalid
 	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	current := r.load()
-	registrations := cloneComponentRegistrations(current.registrations)
-	if previous, found := registrations[extension.ID]; found {
-		if err := validateComponentUpgrade(previous.extension, extension); err != nil {
-			return err
+	registrations := make(map[string]componentRuntimeRegistration, len(snapshots))
+	for _, snapshot := range snapshots {
+		extension := snapshot.Extension
+		instanceID := strings.TrimSpace(snapshot.InstanceID)
+		if validateComponentRuntime(extension, instanceID) != nil {
+			return ErrComponentRegistryInvalid
+		}
+		if _, duplicate := registrations[extension.ID]; duplicate {
+			return fmt.Errorf("%w: duplicate runtime %s", ErrComponentRegistryConflict, extension.ID)
+		}
+		if previous, found := current.registrations[extension.ID]; found {
+			if err := validateComponentUpgrade(previous.extension, extension); err != nil {
+				return err
+			}
+		}
+		registrations[extension.ID] = componentRuntimeRegistration{
+			extension: cloneComponentExtension(extension), instanceID: instanceID,
 		}
 	}
-	registrations[extension.ID] = componentRuntimeRegistration{
-		extension: cloneComponentExtension(extension), instanceID: strings.TrimSpace(instanceID),
+	if componentRuntimeRegistrationsMatch(current.registrations, registrations) {
+		return nil
 	}
-	_, err := buildComponentRegistryState(current.revision+1, registrations, current.selectionsByTarget)
-	return err
+	next, err := buildComponentRegistryState(current.revision+1, registrations, current.selectionsByTarget)
+	if err != nil {
+		return err
+	}
+	r.state.Store(next)
+	return nil
+}
+
+// RestoreRuntimes reconstructs enabled Manifest V3 component packages without
+// requiring an executable backend. Safe Mode atomically removes all extension
+// registrations while retaining the Host-owned Core target catalog.
+func (r *ComponentRegistry) RestoreRuntimes(items []extensions.Extension, safeMode bool) error {
+	snapshots := make([]ComponentRuntimeSnapshot, 0, len(items))
+	if !safeMode {
+		for _, item := range items {
+			if item.Status != extensions.StatusEnabled || item.Manifest.ManifestVersion != 3 ||
+				(item.Type != extensions.TypePlugin && item.Type != extensions.TypeTheme) ||
+				len(item.Manifest.Components) == 0 {
+				continue
+			}
+			snapshots = append(snapshots, ComponentRuntimeSnapshot{
+				Extension: item, InstanceID: componentPackageRuntimeInstanceID(item),
+			})
+		}
+	}
+	return r.ReplaceAll(snapshots)
+}
+
+func (r *ComponentRegistry) RuntimeSnapshot(extensionID string) (ComponentRuntimeSnapshot, bool) {
+	if r == nil || strings.TrimSpace(extensionID) == "" {
+		return ComponentRuntimeSnapshot{}, false
+	}
+	registration, found := r.load().registrations[strings.TrimSpace(extensionID)]
+	if !found {
+		return ComponentRuntimeSnapshot{}, false
+	}
+	return ComponentRuntimeSnapshot{
+		Extension: cloneComponentExtension(registration.extension), InstanceID: registration.instanceID,
+	}, true
 }
 
 func (r *ComponentRegistry) ValidateRemoveRuntime(extensionID, instanceID string) error {
@@ -398,4 +482,47 @@ func (r *ComponentRegistry) load() *componentRegistryState {
 		return state
 	}
 	return emptyComponentRegistryState()
+}
+
+// This format is a restart-stable Host identity, not a plugin process lease.
+// The domain-separated NUL-delimited tuple is frozen by a hardcoded test vector.
+func componentPackageRuntimeInstanceID(extension extensions.Extension) string {
+	document := strings.Join([]string{
+		"sforum.component.package-publication@1",
+		extension.Type,
+		extension.ID,
+		extension.Version,
+		strings.ToLower(strings.TrimSpace(extension.PackageDigest)),
+	}, "\x00")
+	sum := sha256.Sum256([]byte(document))
+	return "host-component-package:" + hex.EncodeToString(sum[:])
+}
+
+func componentRuntimeRegistrationMatches(
+	registration componentRuntimeRegistration,
+	extension extensions.Extension,
+	instanceID string,
+) bool {
+	return registration.instanceID == strings.TrimSpace(instanceID) &&
+		registration.extension.ID == extension.ID && registration.extension.Version == extension.Version &&
+		registration.extension.Type == extension.Type && registration.extension.PackageDigest == extension.PackageDigest
+}
+
+func componentRuntimeRegistrationsMatch(
+	left, right map[string]componentRuntimeRegistration,
+) bool {
+	if len(left) != len(right) {
+		return false
+	}
+	for extensionID, registration := range left {
+		candidate, found := right[extensionID]
+		if !found || !componentRuntimeRegistrationMatches(
+			candidate,
+			registration.extension,
+			registration.instanceID,
+		) {
+			return false
+		}
+	}
+	return true
 }
