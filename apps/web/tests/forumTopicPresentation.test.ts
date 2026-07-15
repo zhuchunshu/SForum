@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 
 import {
+  buildCommentActionMenuItems,
   buildTopicActionMenuItems,
   type TopicActionLabels,
   type TopicActionMenuInput
@@ -93,5 +94,22 @@ describe('topic action presentation', () => {
       requiresConfirm: true
     })
     expect(items.find(item => item.id === 'extension:demo:first')?.requiresConfirm).toBe(true)
+  })
+})
+
+describe('comment action presentation', () => {
+  test('keeps authorized core actions ahead of extension actions', () => {
+    expect(buildCommentActionMenuItems({
+      canReply: true,
+      canEdit: false,
+      canDelete: true,
+      canReport: false,
+      labels: { reply: 'Reply', edit: 'Edit', delete: 'Delete', report: 'Report' },
+      extensions: [{ label: 'Resolve', value: 'extension:demo:resolve', icon: 'i-lucide-check' }]
+    })).toEqual([
+      { label: 'Reply', value: 'reply', icon: 'i-lucide-reply' },
+      { label: 'Delete', value: 'delete', icon: 'i-lucide-trash-2' },
+      { label: 'Resolve', value: 'extension:demo:resolve', icon: 'i-lucide-check' }
+    ])
   })
 })

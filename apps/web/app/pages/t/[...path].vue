@@ -16,7 +16,7 @@ import {
   type ForumTopicExtensionAction,
   type TopicPathLookup
 } from '~/utils/forumTaxonomy'
-import { buildTopicActionMenuItems } from '~/utils/forumTopicPresentation'
+import { buildCommentActionMenuItems, buildTopicActionMenuItems } from '~/utils/forumTopicPresentation'
 
 definePageMeta({
   // 主题详情对所有人可见（公开读限定 active/locked）。
@@ -37,12 +37,7 @@ const { user: reportUser } = useAuthSession()
 const toast = useToast()
 
 function showSuccessToast(title: string) {
-  toast.add({
-    color: 'success',
-    icon: 'i-lucide-check',
-    title,
-    duration: 10000
-  })
+  toast.add({ color: 'success', icon: 'i-lucide-check', title, duration: 10000 })
 }
 
 // 顶级回复编辑器状态。
@@ -188,9 +183,7 @@ watch(commentView, () => {
   commentPage.value = 1
 }, { flush: 'sync' })
 
-function commentPageTo(page: number) {
-  return publicPageLocation(localePath(canonicalTopicPath.value), page)
-}
+function commentPageTo(page: number) { return publicPageLocation(localePath(canonicalTopicPath.value), page) }
 
 // 评论查询基于已加载主题的真实 id（slug 模式下 topicID 可能为 0，必须用 topic.value.id）。
 const loadedTopicID = computed(() => topic.value?.id ?? topicID.value)
@@ -219,13 +212,9 @@ const authorPath = computed(() => {
   return localePath(forumUserProfilePath(topic.value.author.username))
 })
 
-function tagPath(slug: string) {
-  return localePath(forumTagPath(slug))
-}
+function tagPath(slug: string) { return localePath(forumTagPath(slug)) }
 
-function categoryPath(slug: string) {
-  return localePath(forumCategoryPath(slug))
-}
+function categoryPath(slug: string) { return localePath(forumCategoryPath(slug)) }
 
 const headingTags = computed(() => (topic.value?.tags || []).map(tag => ({
   id: tag.id,
@@ -234,9 +223,7 @@ const headingTags = computed(() => (topic.value?.tags || []).map(tag => ({
 })))
 
 // 按站点时区与日期时间格式展示（不再硬编码 UTC）。
-function formatDate(value: string) {
-  return formatSiteDateTime(value)
-}
+function formatDate(value: string) { return formatSiteDateTime(value) }
 
 function commentAuthorName(comment: ForumComment) {
   return forumAuthorName(comment.author, comment.authorUserId)
@@ -355,34 +342,23 @@ async function deleteTopic() {
 }
 
 function commentActions(comment: ForumComment) {
-  // 操作按钮内聚进 SFComment 的 actions，替代之前硬编码在模板里的按钮。
-  // 颜色由 .sf-comment__action 统一用 --sf-* token 控制（之前硬编码 teal-300/slate-500 违反主题规范）。
-  const actions: { label: string; value: string; icon?: string }[] = []
-  if (canReplyToComments.value) {
-    actions.push({ label: t('topicDetail.reply'), value: 'reply', icon: 'i-lucide-reply' })
-  }
-  if (isCommentEditable(comment)) {
-    actions.push({ label: t('topicDetail.edit'), value: 'edit', icon: 'i-lucide-pencil' })
-  }
-  if (isCommentDeletable(comment)) {
-    actions.push({
-      label: deletingCommentId.value === comment.id ? t('topicDetail.deleting') : t('topicDetail.delete'),
-      value: 'delete',
-      icon: 'i-lucide-trash-2'
-    })
-  }
-  if (canReportComment()) {
-    actions.push({ label: t('topicDetail.report'), value: 'report', icon: 'i-lucide-flag' })
-  }
-  // 扩展评论动作：挂在核心动作之后；游客隐藏 requiresAuth 项。
-  for (const action of visibleCommentExtensionActions.value) {
-    actions.push({
+  return buildCommentActionMenuItems({
+    canReply: canReplyToComments.value,
+    canEdit: isCommentEditable(comment),
+    canDelete: isCommentDeletable(comment),
+    canReport: canReportComment(),
+    labels: {
+      reply: t('topicDetail.reply'),
+      edit: t('topicDetail.edit'),
+      delete: deletingCommentId.value === comment.id ? t('topicDetail.deleting') : t('topicDetail.delete'),
+      report: t('topicDetail.report')
+    },
+    extensions: visibleCommentExtensionActions.value.map(action => ({
       label: forumTopicExtensionActionLabel(action, String(locale.value || 'zh-CN')),
       value: `extension:${action.extensionId}:${action.id}`,
       icon: action.icon
-    })
-  }
-  return actions
+    }))
+  })
 }
 
 const visibleCommentExtensionActions = computed(() => {

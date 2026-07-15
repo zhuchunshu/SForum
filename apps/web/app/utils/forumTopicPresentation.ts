@@ -32,6 +32,26 @@ export type TopicActionMenuItem = {
   }
 }
 
+export type CommentActionMenuItem = {
+  label: string
+  value: string
+  icon?: string
+}
+
+export type CommentActionMenuInput = {
+  canReply: boolean
+  canEdit: boolean
+  canDelete: boolean
+  canReport: boolean
+  labels: {
+    reply: string
+    edit: string
+    delete: string
+    report: string
+  }
+  extensions: CommentActionMenuItem[]
+}
+
 export type TopicActionMenuInput = {
   canEdit: boolean
   canDelete: boolean
@@ -97,4 +117,16 @@ export function buildTopicActionMenuItems(input: TopicActionMenuInput): TopicAct
   }
 
   return items
+}
+
+/**
+ * 权限仍由路由和 API 决定；这里仅统一评论操作的展示顺序。
+ */
+export function buildCommentActionMenuItems(input: CommentActionMenuInput): CommentActionMenuItem[] {
+  const items: CommentActionMenuItem[] = []
+  if (input.canReply) items.push({ label: input.labels.reply, value: 'reply', icon: 'i-lucide-reply' })
+  if (input.canEdit) items.push({ label: input.labels.edit, value: 'edit', icon: 'i-lucide-pencil' })
+  if (input.canDelete) items.push({ label: input.labels.delete, value: 'delete', icon: 'i-lucide-trash-2' })
+  if (input.canReport) items.push({ label: input.labels.report, value: 'report', icon: 'i-lucide-flag' })
+  return items.concat(input.extensions)
 }
