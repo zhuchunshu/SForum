@@ -2,9 +2,9 @@
 import { forumCategoryPath, type ForumCategory } from '~/utils/forumTaxonomy'
 
 const props = withDefaults(defineProps<{
-  categories: ForumCategory[]
-  selectedCategorySlug: string
-  totalTopics: number
+  categories?: ForumCategory[]
+  selectedCategorySlug?: string
+  totalTopics?: number
   pending?: boolean
   canCreateTopic?: boolean
   /** 仅渲染移动端选择器（用于主列顶部） */
@@ -17,6 +17,9 @@ const props = withDefaults(defineProps<{
    */
   navigationMode?: 'filter' | 'route'
 }>(), {
+  categories: () => [],
+  selectedCategorySlug: '',
+  totalTopics: 0,
   pending: false,
   canCreateTopic: false,
   mobileOnly: false,

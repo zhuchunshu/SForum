@@ -80,14 +80,15 @@ export default defineNuxtConfig({
       // 根路由的 query 变体由 middleware 设为 no-store；基础页仍交给 CDN 做 SWR。
       '/': publicHomepageRouteRule,
       '/en': publicHomepageRouteRule,
-      '/c/**': { swr: 600 },
-      '/en/c/**': { swr: 600 },
+      // 分类/标签详情包含分页 query；Nuxt payload 路径不携带该 query，不能共享 SWR 缓存。
+      '/c/**': { cache: false },
+      '/en/c/**': { cache: false },
       '/categories': { swr: 600 },
       '/en/categories': { swr: 600 },
       '/tags': { swr: 600 },
       '/en/tags': { swr: 600 },
-      '/tags/**': { swr: 600 },
-      '/en/tags/**': { swr: 600 },
+      '/tags/**': { cache: false },
+      '/en/tags/**': { cache: false },
       '/u/**': { swr: 3600 },
       '/en/u/**': { swr: 3600 },
       // 主题详情承载 ?edit=1 编辑态，routeRules 无法按 query 区分；禁缓存优先保证用户态安全。

@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import { readFileSync } from 'node:fs'
+import { compileScript, parse } from '@vue/compiler-sfc'
 
 const source = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf8')
 const homepage = () => source('../../../apps/web/app/pages/index.vue')
@@ -12,6 +13,7 @@ const themeCss = () => source('../../../apps/web/app/assets/css/sforum-theme.css
 const themePackage = () => source('../../../extensions/builtin/themes/sforum-default/theme.json')
 const footer = () => source('../../../apps/web/app/components/SFFooter.vue')
 const homeQueryCacheMiddleware = () => source('../server/middleware/home-query-cache.ts')
+const pluginDocsTemplate = () => source('../../../extensions/fixtures/plugins/page-registry-demo/templates/docs.html')
 
 describe('default theme V32 left-nav homepage contract', () => {
   test('uses the shared public layout with left sidebar and topic table', () => {
@@ -83,10 +85,25 @@ describe('default theme V32 left-nav homepage contract', () => {
     expect(nav).toContain('canCreateTopic')
     expect(nav).toContain('navShowCompose')
     expect(nav).toContain('navShowCounts')
+    expect(nav).toContain('categories?: ForumCategory[]')
+    expect(nav).toContain('categories: () => []')
+    expect(nav).toContain("selectedCategorySlug: ''")
+    expect(nav).toContain('totalTopics: 0')
     expect(nav).toContain("navigationMode?: 'filter' | 'route'")
     expect(nav).toContain('forumCategoryPath')
     expect(nav).not.toContain('unread')
     expect(nav).not.toContain('ranking')
+  })
+
+  test('legacy theme navigation islands compile with safe empty defaults', () => {
+    const { descriptor, errors } = parse(homeNav(), { filename: 'SFHomeNavigation.vue' })
+    expect(errors).toHaveLength(0)
+
+    const compiled = compileScript(descriptor, { id: 'sf-home-navigation' }).content
+    expect(pluginDocsTemplate()).toContain('<sf-home-navigation></sf-home-navigation>')
+    expect(compiled).toContain('categories: { type: Array, required: false, default: () => [] }')
+    expect(compiled).toContain("selectedCategorySlug: { type: String, required: false, default: '' }")
+    expect(compiled).toContain('totalTopics: { type: Number, required: false, default: 0 }')
   })
 
   test('category and tag pages reuse the V32 left-nav topic table shell', () => {
@@ -176,9 +193,14 @@ describe('default theme V32 left-nav homepage contract', () => {
     expect(rightRail).toContain("emit('select-tag'")
   })
 
-  test('keeps homepage query-cache middleware for root route payload safety', () => {
+  test('keeps query-bearing public pages out of unsafe shared payload caches', () => {
     const middleware = homeQueryCacheMiddleware()
+    const config = hostConfig()
+
     expect(middleware).toContain('no-store')
+    for (const route of ['/c/**', '/en/c/**', '/tags/**', '/en/tags/**']) {
+      expect(config).toContain(`'${route}': { cache: false }`)
+    }
   })
 
   test('footer remains in the shared layout shell', () => {
