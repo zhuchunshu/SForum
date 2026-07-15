@@ -593,7 +593,7 @@ query, and identity workflows without replacing whole routes.
 - [x] Return safe HTML segments, typed island descriptors, and SEO payloads.
 - [x] Implement fallback order: active theme plugin override, plugin template,
       active/default theme template, minimal core emergency output.
-- [ ] Keep theme overrides presentation-only: they consume versioned plugin data
+- [x] Keep theme overrides presentation-only: they consume versioned plugin data
       contracts and cannot alter plugin business data semantics.
 - [x] Fix exactly-one active theme, restart restore, stale binding cleanup,
       preview-bound activation, cache revision, and multi-node convergence.
@@ -615,6 +615,11 @@ The Page ViewModel row remains open after the 2026-07-15 audit. All 23 typed
 schemas and base projections exist, but production `BuildCorePageViewModel`
 still leaves most page-specific product fields empty. Schema presence alone is
 not complete product-data acceptance.
+
+Exact plugin business-contract preservation was accepted in `cd1573d5a`.
+Lifecycle publication freezes one digest-bound plugin DTO/schema, theme
+overrides receive only that sealed value, and invalid or mismatched output
+falls back without changing plugin business or numeric semantics.
 
 ### Rollback
 

@@ -139,14 +139,17 @@ This is the entry point for project memory.
     frontend clients, sidebar navigation, and the first real admin-shell outlet
     are committed. The row remains open pending specialized list/action
     consumers and an independent reference admin plugin.
-  - P8 is 16/18 (89%). Immutable 23-page compiler snapshots, sealed typed
+  - P8 is 17/18 (94%). Immutable 23-page compiler snapshots, sealed typed
     frontend output, public/admin skin isolation, install-time safety,
     four-level fallback, exact publication, all-catalog zero-I/O proof, and
     crawler/JavaScript-disabled SSR evidence, and the production API/Nitro
     restart plus concurrent exact-activation exit are accepted
   - The P8 Page ViewModel row is deliberately open: production construction
-    still leaves most page-specific product fields empty. Exact plugin
-    business-data contract preservation across theme overrides also remains open
+    still leaves most page-specific product fields empty
+  - `cd1573d5a` seals exact plugin Page ViewModels across lifecycle publication,
+    theme overrides, fallback, and restart. Theme presentation cannot change the
+    plugin schema or numeric business semantics, and invalid payloads fail back
+    to the prior exact contract
   - Exact theme activation now binds a visible target/current preview tuple,
     atomically replaces durable Page approvals, repairs stale bindings, and
     exposes process-local revisions. Migration 020 persists desired/node/ack

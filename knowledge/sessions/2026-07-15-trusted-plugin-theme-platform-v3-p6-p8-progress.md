@@ -3,7 +3,7 @@
 ## Changed
 
 - Weighted V3 is 56%. P5/P6/P7/P8 remain parallel; P6 is 13/18, P7 is
-  11/22, and P8 is 16/18.
+  11/22, and P8 is 17/18.
 - P6 now closes the OpenAPI policy row: validated operations derive exact
   security/permission, Host client-IP rate-limit, and optional required-replay
   metadata. Production required replay uses a 24-hour CAS-fenced ledger,
@@ -45,11 +45,12 @@
 - P8 now has the exact compiled four-level fallback, durable convergence,
   all-catalog zero-I/O proof, and crawler/JavaScript-disabled SSR evidence.
   A self-contained production API/Nitro restart and concurrent exact-activation
-  exit is accepted. Page-specific production ViewModels and plugin
-  business-data preservation remain open.
+  exit is accepted. Exact plugin business-data preservation is also accepted;
+  only page-specific production Core ViewModel population remains open.
 
 ## Commits
 
+- `cd1573d5a feat(themes): preserve plugin business contracts`
 - `a30c8f757 fix(openapi): normalize exact manifest comparisons`
 - `2344a580c feat(idempotency): add fenced required route replay`
 - `dd12b755d feat(openapi): derive host route policies`
@@ -170,6 +171,9 @@
 - P8 production restart passed the fresh-build real API/Nitro E2E in 203.78
   seconds, including exact switch persistence, one-winner concurrent CAS, and a
   second full restart. Browser QA confirmed the Nocturne artifact/skin and menu.
+- P8 plugin business-contract preservation passed twenty focused repetitions,
+  all affected packages, Extensions and targeted ThemeCompiler race gates,
+  allocation budgets, vet, build, and `./scripts/test.sh` before `cd1573d5a`.
 - P5 runtime leases passed real PostgreSQL source/target overlap, heartbeat,
   drain, exact session termination, retained target access, core-view-only
   login, additive raw-core access, focused repetition, full Extensions tests,
@@ -193,29 +197,28 @@
 
 ## Active Dirty Ownership
 
-- P6: exact OpenAPI policy runtime and consumer endpoints are ready for their
-  isolated commit; continue action/SEO and remaining failure-matrix work after
-  checking the current shared tree.
-- P7: Admin Surface production consumers remain active; provider browser QA
-  awaits login.
-- P8: Page-specific ViewModels and exact plugin data preservation remain open.
-- Preserve these groups and stage only one coherent owner at a time.
+- P5 owns only the dirty database runtime-lease/kernel-recovery and migrator
+  files. Its two P1 exits are durable two-stage credential revocation and
+  migration-time reconciliation of legitimate ledger-backed kernel owners.
+- P7 owns only the four dirty Web Admin Surface consumer files. The reference
+  plugin upload, exact trust, Protocol V2 runtime, main list/action placements,
+  and restart restore passed; detail editor/export/denied/mobile/browser exits
+  and the Web production gates remain.
+- P8 has no dirty source after `cd1573d5a`; only page-specific Core ViewModel
+  population remains open.
+- Do not stage the content-policy manifest, `.playwright-cli/`, or
+  `.playwright-p8-nojs.json` with any of these slices.
 
 ## Next
 
-1. Continue the remaining nine contextual guards without opening custom/raw
-   authority before its product freeze: four executable bootstrap flows, two
-   entity-meta value routes, two attachment reads, and one forum comment-create
-   route. Continue independent P6 action/SEO and failure-matrix work where
-   semantics are already frozen.
-2. Populate production page-specific P8 ViewModels and prove theme overrides
-   preserve each plugin's versioned business-data contract.
-3. Continue P5 with signed actor delegation and concrete transactional Host
-   Commands, then provider-neutral entitlement persistence.
-4. Continue P7 Admin Surfaces with specialized list/action consumers and an
-   independent reference plugin; then continue Query/Identity. Repair the
-   nested builtin-plugin Goldmark/go-redis `go.sum` gaps and rerun their full
-   module gates; rerun provider UI QA after Chrome login.
+1. Finish P7 detail editor/export/denied/mobile browser QA, then run all Web
+   tests, Nuxt typecheck, and production build before committing its four files.
+2. Finish P5 two-stage durable revoke and physical kernel-owner reconciliation.
+   Run the real non-super PostgreSQL restart/overlap/pending/forged/drift matrix,
+   then commit those two contracts separately.
+3. Resume P6 action/SEO and remaining failure-matrix work, and start P9
+   Navigation/Region plus Component Registry on non-overlapping files.
+4. Populate all production page-specific P8 Core ViewModels while P9 proceeds.
 
 ## P5 Entitlement Persistence Continuation
 

@@ -24,7 +24,7 @@ scaffolding, or demo-only code cannot satisfy a runtime exit criterion.
 | P5 Database/commands | 8% | 71% | 5.65% |
 | P6 Routes/middleware | 10% | 72% | 7.22% |
 | P7 Workflow/admin/query/identity | 10% | 50% | 5.00% |
-| P8 Theme compiler/runtime | 8% | 89% | 7.11% |
+| P8 Theme compiler/runtime | 8% | 94% | 7.56% |
 | P9 Components/assets/L2 | 8% | 6% | 0.50% |
 | P10 Content/media/data | 8% | 0% | 0% |
 | P11 Platform services | 6% | 0% | 0% |
@@ -111,6 +111,24 @@ phase percentage.
   failing plugin exactly once (`failed`, then `skipped`).
 
 ## Last Durable Checkpoint
+
+### 2026-07-15 P8 Plugin Business-Contract Preservation Checkpoint
+
+- Overall remains **56%** after flooring. P8 advances to **94% (17 of 18
+  rows)** and earns **7.56%** of its 8% weight; only production population of
+  all page-specific Core ViewModels remains open.
+- `cd1573d5a` freezes a versioned, exact-artifact plugin Page ViewModel at
+  lifecycle publication and passes that sealed DTO through plugin template,
+  theme override, default-theme fallback, and emergency fallback resolution.
+- Theme code can change presentation only. It cannot replace the plugin data
+  schema or coerce numeric business values; exact loader/runtime admission and
+  invalid-payload fallback preserve the prior published artifact.
+- Verification passed twenty focused repetitions, all affected Go packages,
+  Extensions and targeted ThemeCompiler race gates, compiler allocation
+  budgets, vet, build, and the full repository test script before commit.
+- Active dirty ownership after the commit is P5 database credential/kernel
+  recovery and P7 Admin Surface browser consumption. The content-policy
+  manifest and `.playwright*` artifacts remain excluded from V3 staging.
 
 ### 2026-07-15 P6 Exact OpenAPI Policy Runtime Checkpoint
 
