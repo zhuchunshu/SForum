@@ -7,6 +7,8 @@ import (
 	"errors"
 	"regexp"
 	"strings"
+
+	"github.com/zhuchunshu/sforum/apps/api/database/coreauthority"
 )
 
 const (
@@ -36,16 +38,15 @@ type ExtensionDatabaseIdentifiers struct {
 }
 
 func ExtensionDatabaseIdentifiersFor(extensionID string) (ExtensionDatabaseIdentifiers, error) {
-	if !extensionDatabaseIDPattern.MatchString(extensionID) {
+	shared, err := coreauthority.ExtensionDatabaseIdentifiersFor(extensionID)
+	if err != nil {
 		return ExtensionDatabaseIdentifiers{}, ErrExtensionDatabaseIdentifier
 	}
-	slug := extensionDatabaseSlug(extensionID, extensionDatabaseSlugBytes)
-	hash := extensionDatabaseHash(extensionID)
 	identifiers := ExtensionDatabaseIdentifiers{
-		Schema:      extensionDatabasePhysicalName("s", slug, hash),
-		OwnerRole:   extensionDatabasePhysicalName("o", slug, hash),
-		RuntimeRole: extensionDatabasePhysicalName("r", slug, hash),
-		LockKey:     extensionDatabaseAdvisoryKey(extensionID),
+		Schema:      shared.Schema,
+		OwnerRole:   shared.OwnerRole,
+		RuntimeRole: shared.RuntimeRole,
+		LockKey:     shared.LockKey,
 	}
 	if !identifiers.valid() {
 		return ExtensionDatabaseIdentifiers{}, ErrExtensionDatabaseIdentifier
@@ -54,29 +55,16 @@ func ExtensionDatabaseIdentifiersFor(extensionID string) (ExtensionDatabaseIdent
 }
 
 func ExtensionDatabaseMigrationRoleFor(extensionID string, planDigest string) (string, error) {
-	identifiers, err := ExtensionDatabaseIdentifiersFor(extensionID)
-	if err != nil || !validLifecycleCleanupDigest(planDigest) {
-		return "", ErrExtensionDatabaseIdentifier
-	}
-	slug := extensionDatabaseSlug(extensionID, 16)
-	hash := extensionDatabaseHash(extensionDatabasePlanRoleDomain + extensionID + ":" + planDigest)
-	name := extensionDatabasePhysicalName("m", slug, hash)
-	if name == identifiers.OwnerRole || name == identifiers.RuntimeRole || !validPostgresIdentifier(name) {
+	name, err := coreauthority.ExtensionDatabaseMigrationRoleFor(extensionID, planDigest)
+	if err != nil {
 		return "", ErrExtensionDatabaseIdentifier
 	}
 	return name, nil
 }
 
 func ExtensionDatabaseRuntimeLeaseRoleFor(extensionID string, runtimeInstanceID string, leaseID string) (string, error) {
-	identifiers, err := ExtensionDatabaseIdentifiersFor(extensionID)
-	if err != nil || runtimeInstanceID == "" || runtimeInstanceID != strings.TrimSpace(runtimeInstanceID) ||
-		len(runtimeInstanceID) > 512 || !validLifecycleCleanupDigest(leaseID) {
-		return "", ErrExtensionDatabaseIdentifier
-	}
-	slug := extensionDatabaseSlug(extensionID, 16)
-	hash := extensionDatabaseHash(extensionDatabaseLeaseRoleDomain + extensionID + ":" + runtimeInstanceID + ":" + leaseID)
-	name := extensionDatabasePhysicalName("l", slug, hash)
-	if name == identifiers.OwnerRole || name == identifiers.RuntimeRole || !validPostgresIdentifier(name) {
+	name, err := coreauthority.ExtensionDatabaseRuntimeLeaseRoleFor(extensionID, runtimeInstanceID, leaseID)
+	if err != nil {
 		return "", ErrExtensionDatabaseIdentifier
 	}
 	return name, nil
