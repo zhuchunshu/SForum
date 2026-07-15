@@ -184,18 +184,38 @@ func (s *PostgresStore) SaveBuiltin(ctx context.Context, input SaveBuiltinInput)
 		// 新内置主题必须经由 ActivateTheme 发布 desired revision，不能在同步时静默生效。
 		initialStatus = StatusInstalled
 	}
-	if _, err := tx.Exec(ctx, `
+	inserted, err := tx.Exec(ctx, `
 		INSERT INTO extensions (id, type, name, status, source, is_system, is_deletable)
 		VALUES ($1, $2, $3, $4, 'builtin', true, false)
-		ON CONFLICT (id) DO UPDATE
-		SET type = EXCLUDED.type,
-		    name = EXCLUDED.name,
-		    source = 'builtin',
-		    is_system = true,
-		    is_deletable = false,
-		    updated_at = now()
-	`, input.Manifest.ID, input.Manifest.Type, input.Manifest.Name, initialStatus); err != nil {
+		ON CONFLICT (id) DO NOTHING
+	`, input.Manifest.ID, input.Manifest.Type, input.Manifest.Name, initialStatus)
+	if err != nil {
 		return Extension{}, fmt.Errorf("upsert builtin extension: %w", err)
+	}
+	created := inserted.RowsAffected() == 1
+	var storedType, storedStatus, storedSource string
+	var activeVersionID int64
+	if err := tx.QueryRow(ctx, `
+		SELECT type, status, source, COALESCE(active_version_id, 0)
+		FROM extensions WHERE id = $1 FOR UPDATE
+	`, input.Manifest.ID).Scan(&storedType, &storedStatus, &storedSource, &activeVersionID); err != nil {
+		return Extension{}, fmt.Errorf("lock builtin extension state: %w", err)
+	}
+	if storedType != input.Manifest.Type {
+		return Extension{}, ErrInvalidManifest
+	}
+	// 内置同步只能刷新 Host 已持有的身份；禁止 uploaded 活动字节继承 source trust。
+	if !created && storedSource != SourceBuiltin {
+		return Extension{}, ErrNotDeletable
+	}
+	if !created {
+		if _, err := tx.Exec(ctx, `
+			UPDATE extensions
+			SET name = $2, is_system = true, is_deletable = false, updated_at = now()
+			WHERE id = $1
+		`, input.Manifest.ID, input.Manifest.Name); err != nil {
+			return Extension{}, fmt.Errorf("update builtin extension metadata: %w", err)
+		}
 	}
 
 	versionID, err := ensureExtensionVersion(ctx, tx, extensionVersionInput{
@@ -208,14 +228,6 @@ func (s *PostgresStore) SaveBuiltin(ctx context.Context, input SaveBuiltinInput)
 	})
 	if err != nil {
 		return Extension{}, fmt.Errorf("upsert builtin extension version: %w", err)
-	}
-	var storedType, storedStatus string
-	var activeVersionID int64
-	if err := tx.QueryRow(ctx, `
-		SELECT type, status, COALESCE(active_version_id, 0)
-		FROM extensions WHERE id = $1 FOR UPDATE
-	`, input.Manifest.ID).Scan(&storedType, &storedStatus, &activeVersionID); err != nil {
-		return Extension{}, fmt.Errorf("lock builtin extension state: %w", err)
 	}
 	if storedType == TypeTheme && storedStatus == StatusEnabled && activeVersionID != 0 && activeVersionID != versionID {
 		if _, err := tx.Exec(ctx, `

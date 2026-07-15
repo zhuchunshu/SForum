@@ -280,6 +280,42 @@ func TestPostgresBuiltinThemeSyncStagesUntilExactActivation(t *testing.T) {
 	}
 }
 
+func TestPostgresBuiltinSyncRejectsUploadedIDCollision(t *testing.T) {
+	fixture := newThemePublicationPGFixture(t, "builtin-source-collision")
+	uploaded := fixture.saveTheme("uploaded", "1.0.0", strings.Repeat("5", 64))
+	current := fixture.activeTheme()
+	activated, err := fixture.store.ActivateThemeExact(
+		fixture.ctx, uploaded.ID, exactThemeActivationInput(current, uploaded, 106, false),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	before := activated.Extension
+	revision := activated.Publication.Revision
+
+	_, err = fixture.store.SaveBuiltin(fixture.ctx, SaveBuiltinInput{
+		Manifest: Manifest{
+			ID: uploaded.ID, Name: "Builtin collision", Version: "2.0.0", Type: TypeTheme,
+		},
+		PackagePath: "/tmp/" + uploaded.ID + "/builtin-v2", PackageDigest: strings.Repeat("6", 64),
+	})
+	if !errors.Is(err, ErrNotDeletable) {
+		t.Fatalf("builtin/uploaded collision error=%v", err)
+	}
+	after, err := fixture.store.Get(fixture.ctx, uploaded.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if after.Source != SourceUploaded || after.IsSystem || !after.IsDeletable ||
+		after.ActiveVersionID != before.ActiveVersionID || after.Version != before.Version ||
+		after.PackageDigest != before.PackageDigest || after.StagedVersion != nil {
+		t.Fatalf("collision mutated uploaded identity: before=%#v after=%#v", before, after)
+	}
+	if got := fixture.latestRevision(); got != revision {
+		t.Fatalf("collision published revision=%d want=%d", got, revision)
+	}
+}
+
 func TestPostgresRemovedActiveBuiltinConvergesBeforePrune(t *testing.T) {
 	fixture := newThemePublicationPGFixture(t, "builtin-prune")
 	saveBuiltin := func(label, digit string) Extension {

@@ -623,6 +623,39 @@ func TestServiceSyncBuiltinsPreservesSelectedUploadedThemeAcrossRestart(t *testi
 	}
 }
 
+func TestServiceSyncBuiltinsRejectsUploadedIDCollision(t *testing.T) {
+	builtinRoot := t.TempDir()
+	id := "operator.future-builtin"
+	packageRoot := filepath.Join(builtinRoot, "themes", id)
+	builtin := protectedBuiltinExtension(id, TypeTheme)
+	if err := os.MkdirAll(packageRoot, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := writeManifest(packageRoot, builtin.Manifest); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(packageRoot, "theme.json"), []byte(`{"pages":[]}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	uploaded := builtin
+	uploaded.Source = SourceUploaded
+	uploaded.IsSystem = false
+	uploaded.IsDeletable = true
+	uploaded.PackagePath = t.TempDir()
+	uploaded.PackageDigest = strings.Repeat("a", 64)
+	store := &fakeExtensionStore{items: map[string]Extension{id: uploaded}, activeThemeID: id}
+	service := NewServiceWithBuiltins(store, t.TempDir(), builtinRoot)
+
+	if _, err := service.SyncBuiltins(t.Context()); !errors.Is(err, ErrNotDeletable) {
+		t.Fatalf("builtin/uploaded collision error=%v", err)
+	}
+	after := store.items[id]
+	if after.Source != SourceUploaded || after.IsSystem || !after.IsDeletable ||
+		after.PackageDigest != uploaded.PackageDigest || after.PackagePath != uploaded.PackagePath {
+		t.Fatalf("collision mutated uploaded extension: %#v", after)
+	}
+}
+
 func TestServiceInstallArchiveValidatesRuntimeManifestDeclarations(t *testing.T) {
 	service := NewService(&fakeExtensionStore{}, t.TempDir())
 	actor := extensionManager()
@@ -2066,6 +2099,9 @@ func (s *fakeExtensionStore) DiscardStagedVersion(_ context.Context, input Stage
 }
 
 func (s *fakeExtensionStore) SaveBuiltin(_ context.Context, input SaveBuiltinInput) (Extension, error) {
+	if existing, ok := s.items[input.Manifest.ID]; ok && existing.Source != SourceBuiltin {
+		return Extension{}, ErrNotDeletable
+	}
 	item := Extension{
 		ID:                  input.Manifest.ID,
 		Name:                input.Manifest.Name,
