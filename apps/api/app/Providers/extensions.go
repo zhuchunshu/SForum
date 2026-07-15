@@ -122,6 +122,9 @@ func (g extensionRouteGateway) Proxy(c fiber.Ctx, input extensionscontroller.Pro
 		return errors.Join(extensions.ErrRuntimeUnavailable, err)
 	}
 	defer admission.Release()
+	if !publicFrontendRuntimeMatches(input.PublicFrontendExact, target) {
+		return extensionscontroller.ErrPublicFrontendBridgeStale
+	}
 	if target.Target.BaseURL == "" {
 		return extensions.ErrRuntimeUnavailable
 	}
@@ -148,4 +151,16 @@ func (g extensionRouteGateway) Proxy(c fiber.Ctx, input extensionscontroller.Pro
 		TargetPath:  targetPath,
 		Timeout:     timeout,
 	})
+}
+
+func publicFrontendRuntimeMatches(
+	exact *extensionscontroller.PublicFrontendBridgeIdentity,
+	target extensionsruntime.RuntimeInstanceSnapshot,
+) bool {
+	if exact == nil {
+		return true
+	}
+	return target.Identity.ExtensionID == exact.ExtensionID &&
+		target.ExtensionVersion == exact.ExtensionVersion &&
+		target.ArtifactDigest == exact.PackageDigest
 }
