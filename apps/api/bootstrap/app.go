@@ -26,6 +26,7 @@ import (
 	moderation "github.com/zhuchunshu/sforum/apps/api/app/Models/Moderation"
 	notifications "github.com/zhuchunshu/sforum/apps/api/app/Models/Notifications"
 	options "github.com/zhuchunshu/sforum/apps/api/app/Models/Options"
+	pageviewmodels "github.com/zhuchunshu/sforum/apps/api/app/Models/PageViewModels"
 	profile "github.com/zhuchunshu/sforum/apps/api/app/Models/Profile"
 	sitechrome "github.com/zhuchunshu/sforum/apps/api/app/Models/SiteChrome"
 	webhooks "github.com/zhuchunshu/sforum/apps/api/app/Models/Webhooks"
@@ -600,10 +601,27 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		pages.NewPageDataLoader(nil),
 		pageRouteTargetAdapter{runtime: extensionRuntime},
 	).WithPackages(pagePackageRootAdapter{store: extensionStore})
+	// Core Page ViewModels reuse the same domain services and policy sources as
+	// their JSON endpoints. Only reviewed presentation DTOs cross into themes.
+	pageForumService := forum.NewServiceWithSettingsAndEvents(forumCachedStore, forumSettingsResolver, eventPublisher)
+	pageProfileService := profile.NewServiceWithAvatar(profileStore, avatarAttachmentService, optionsService).
+		WithProfileTabs(providers.NewExtensionProfileTabProvider(extensionService))
+	pageModerationService := moderation.NewServiceWithWorkbench(
+		moderationStore, moderation.NewForumTargetValidator(forumStore), moderationStore, moderationStore,
+	)
+	pageIdentityService := identity.NewServiceWithPolicies(identityStore, eventPublisher, optionsService, optionsService)
+	pageSiteChromeService := sitechrome.NewService(siteChromeStore).
+		WithExtensionNavItems(providers.NewExtensionNavItemProvider(extensionService))
+	corePageViews := pageviewmodels.NewCorePageViewModelSource(pageviewmodels.CorePageViewModelDependencies{
+		Forum: pageForumService, Profiles: pageProfileService, Notifications: notificationStore,
+		Moderation: pageModerationService, Options: optionsService, Registration: pageIdentityService,
+		Sessions: identityStore, SiteChrome: pageSiteChromeService, Search: searchService,
+	})
 	pagesProvider := providers.NewPagesProviderWithThemes(pageRegistry, identityStore, authSessions, extensionStore).
 		WithAuditor(auditWriter).
 		WithLoader(pageLoaderGateway).
-		WithThemeRuntime(themeRuntime)
+		WithThemeRuntime(themeRuntime).
+		WithCorePageViewModels(corePageViews)
 
 	// F4.4：实体自定义字段（EAV，无 per-plugin core ALTER）。
 	entityMetaStore := entitymeta.NewPostgresStore(pool)

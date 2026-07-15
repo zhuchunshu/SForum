@@ -31,7 +31,7 @@ PageResolve:
     routeParams:
       type: object
       additionalProperties: { type: string }
-      description: "Matched route parameters for add paths"
+      description: "Exact matched route parameters for core catalog or added paths"
     loaderData:
       description: "SSR-only plugin page data from host loader gateway; clients must not fetch plugin routes"
     loaderError: { type: string }

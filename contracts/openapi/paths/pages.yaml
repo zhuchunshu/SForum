@@ -18,8 +18,11 @@ pagesResolve:
     operationId: resolvePage
     tags: [Pages]
     description: |
-      Resolves a core catalog page id. After access checks, may invoke the host
-      loader gateway for plugin dataSource (loopback only; no Cookie/Authorization).
+      Resolves a core catalog page id. The optional browser path must match that
+      exact catalog page before route parameters enter a Host ViewModel. The
+      nested page query is bounded and used only as untrusted domain-service
+      filters. After access checks, the route may invoke the host loader gateway
+      for plugin dataSource (loopback only; no Cookie/Authorization).
     parameters:
       - name: id
         in: query
@@ -27,6 +30,21 @@ pagesResolve:
         schema:
           type: string
           example: forum.home
+      - name: path
+        in: query
+        required: false
+        description: Actual browser path; production clients send this for exact route-parameter binding.
+        schema:
+          type: string
+          example: /c/support
+      - name: query
+        in: query
+        required: false
+        description: URL-encoded query string of the public page, limited to 4096 bytes and bounded keys/values.
+        schema:
+          type: string
+          maxLength: 4096
+          example: page=2&sort=latest
     responses:
       '200':
         description: Resolved page provider (core or extension).
@@ -40,6 +58,8 @@ pagesResolve:
         "$ref": "../components/responses.yaml#/Forbidden"
       '404':
         "$ref": "../components/responses.yaml#/NotFound"
+      '422':
+        "$ref": "../components/responses.yaml#/UnprocessableEntity"
 
 pagesResolvePath:
   get:

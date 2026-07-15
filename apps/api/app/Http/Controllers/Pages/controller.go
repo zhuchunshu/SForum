@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"mime"
+	"net/url"
 	"os"
 	"path/filepath"
 	"sort"
@@ -14,6 +15,7 @@ import (
 	apphttp "github.com/zhuchunshu/sforum/apps/api/app/Http"
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
+	pageviewmodels "github.com/zhuchunshu/sforum/apps/api/app/Models/PageViewModels"
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Audit"
 	authsession "github.com/zhuchunshu/sforum/apps/api/app/Support/AuthSession"
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Pages"
@@ -39,11 +41,19 @@ type Controller struct {
 	auditor  audit.Writer
 	loader   *pages.LoaderGateway
 	runtime  *pages.ThemeRuntimeRegistry
+	coreData *pageviewmodels.CorePageViewModelSource
 }
 
 func (h *Controller) WithThemeRuntime(runtime *pages.ThemeRuntimeRegistry) *Controller {
 	if h != nil {
 		h.runtime = runtime
+	}
+	return h
+}
+
+func (h *Controller) WithCorePageViewModels(source *pageviewmodels.CorePageViewModelSource) *Controller {
+	if h != nil {
+		h.coreData = source
 	}
 	return h
 }
@@ -198,11 +208,37 @@ func (h *Controller) resolve(c fiber.Ctx) error {
 						}
 					}
 				}
-			} else if viewer, viewerErr := h.pageViewer(c); viewerErr == nil {
-				output, renderErr := snapshot.Render(c.Context(), pages.CorePageViewModelRequest{
+			} else if actor, actorErr := h.optionalActor(c); actorErr == nil {
+				viewer, viewerErr := h.pageViewerForActor(c.Context(), actor)
+				viewRequest := pages.CorePageViewModelRequest{
 					PageID: resolved.Page.ID, Locale: locale, Path: requestPath, RouteParams: routeParams,
 					Viewer: viewer, SEO: themecompiler.PageSEOView{Title: resolved.Page.ID},
-				}, resolved.ContributionID)
+				}
+				var dataErr error
+				if viewerErr == nil && h.coreData != nil {
+					query, queryErr := parseViewModelQuery(c.Query("query"))
+					if queryErr != nil {
+						return fiber.NewError(fiber.StatusUnprocessableEntity, "pages.query_invalid")
+					}
+					currentSID := ""
+					if h.sessions != nil && actor.ID > 0 {
+						currentSID, _ = h.sessions.CurrentSID(c)
+					}
+					viewRequest, dataErr = h.coreData.Populate(c.Context(), pageviewmodels.CorePageViewModelInput{
+						Request: viewRequest, Actor: actor, CurrentSessionID: currentSID, Query: query,
+					})
+				}
+				if errors.Is(dataErr, pageviewmodels.ErrCorePageDataNotFound) {
+					return fiber.NewError(fiber.StatusNotFound, "pages.data_not_found")
+				}
+				if errors.Is(dataErr, pageviewmodels.ErrCorePageDataUnauthorized) {
+					return fiber.NewError(fiber.StatusUnauthorized, "auth.required")
+				}
+				var output pages.ThemeRenderedPage
+				renderErr := firstPageRenderError(viewerErr, dataErr)
+				if renderErr == nil {
+					output, renderErr = snapshot.Render(c.Context(), viewRequest, resolved.ContributionID)
+				}
 				if renderErr == nil {
 					resolved.TemplateHTML = snapshot.LegacyHTML(output)
 					if resolved.TemplateHTML != "" {
@@ -714,6 +750,10 @@ func (h *Controller) pageViewer(c fiber.Ctx) (themecompiler.PageViewerState, err
 	if err != nil {
 		return themecompiler.PageViewerState{}, err
 	}
+	return h.pageViewerForActor(c.Context(), actor)
+}
+
+func (h *Controller) pageViewerForActor(ctx context.Context, actor identity.Actor) (themecompiler.PageViewerState, error) {
 	if actor.ID == 0 {
 		return themecompiler.PageViewerState{}, nil
 	}
@@ -721,7 +761,7 @@ func (h *Controller) pageViewer(c fiber.Ctx) (themecompiler.PageViewerState, err
 	if !ok {
 		return themecompiler.PageViewerState{}, errors.New("pages: current user projection unavailable")
 	}
-	current, err := store.GetCurrentUser(c.Context(), actor.ID)
+	current, err := store.GetCurrentUser(ctx, actor.ID)
 	if err != nil {
 		return themecompiler.PageViewerState{}, err
 	}
@@ -734,6 +774,36 @@ func (h *Controller) pageViewer(c fiber.Ctx) (themecompiler.PageViewerState, err
 		// Actor 已包含 PAT scope 收窄结果，不能从 CurrentUser 恢复完整权限。
 		Permissions: actorPermissionKeys(actor),
 	}, nil
+}
+
+func parseViewModelQuery(raw string) (url.Values, error) {
+	if len(raw) > 4096 {
+		return nil, errors.New("pages: view model query exceeds limit")
+	}
+	query, err := url.ParseQuery(raw)
+	if err != nil || len(query) > 32 {
+		return nil, errors.New("pages: invalid view model query")
+	}
+	for key, values := range query {
+		if len(key) > 64 || len(values) > 8 {
+			return nil, errors.New("pages: invalid view model query")
+		}
+		for _, value := range values {
+			if len(value) > 512 {
+				return nil, errors.New("pages: invalid view model query")
+			}
+		}
+	}
+	return query, nil
+}
+
+func firstPageRenderError(errs ...error) error {
+	for _, err := range errs {
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func actorPermissionKeys(actor identity.Actor) []string {

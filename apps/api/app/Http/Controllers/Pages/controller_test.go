@@ -291,6 +291,22 @@ func TestResolveCoreBindsOnlyMatchingRequestPath(t *testing.T) {
 	}
 }
 
+func TestParseViewModelQueryBoundsNestedPageFilters(t *testing.T) {
+	query, err := parseViewModelQuery("page=2&q=hello+world&tag=go&tag=vue")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if query.Get("page") != "2" || query.Get("q") != "hello world" || len(query["tag"]) != 2 {
+		t.Fatalf("parsed query %#v", query)
+	}
+	if _, err := parseViewModelQuery("broken=%zz"); err == nil {
+		t.Fatal("malformed nested query must fail closed")
+	}
+	if _, err := parseViewModelQuery(strings.Repeat("x", 4097)); err == nil {
+		t.Fatal("oversized nested query must fail closed")
+	}
+}
+
 func TestResolveCompiledThemeAvoidsPackageStoreAndFailsClosedOnStaleArtifact(t *testing.T) {
 	for _, test := range []struct {
 		name           string

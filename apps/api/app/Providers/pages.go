@@ -6,6 +6,7 @@ import (
 	pagescontroller "github.com/zhuchunshu/sforum/apps/api/app/Http/Controllers/Pages"
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
+	pageviewmodels "github.com/zhuchunshu/sforum/apps/api/app/Models/PageViewModels"
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Audit"
 	authsession "github.com/zhuchunshu/sforum/apps/api/app/Support/AuthSession"
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Pages"
@@ -51,6 +52,13 @@ func (p *PagesProvider) WithLoader(g *pages.LoaderGateway) *PagesProvider {
 func (p *PagesProvider) WithThemeRuntime(runtime *pages.ThemeRuntimeRegistry) *PagesProvider {
 	if p != nil && p.controller != nil {
 		p.controller.WithThemeRuntime(runtime)
+	}
+	return p
+}
+
+func (p *PagesProvider) WithCorePageViewModels(source *pageviewmodels.CorePageViewModelSource) *PagesProvider {
+	if p != nil && p.controller != nil {
+		p.controller.WithCorePageViewModels(source)
 	}
 	return p
 }
