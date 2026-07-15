@@ -109,6 +109,9 @@ func (s *CorePageViewModelSource) Populate(ctx context.Context, input CorePageVi
 		return pages.CorePageViewModelRequest{}, ErrCorePageDataUnavailable
 	}
 	request := input.Request
+	if err := s.requirePageFeatures(ctx, request.PageID); err != nil {
+		return pages.CorePageViewModelRequest{}, err
+	}
 	if err := s.populateCommon(ctx, &request); err != nil {
 		return pages.CorePageViewModelRequest{}, err
 	}
@@ -130,7 +133,7 @@ func (s *CorePageViewModelSource) Populate(ctx context.Context, input CorePageVi
 	case "forum.topic.create":
 		err = s.populateTopicCreate(ctx, &request)
 	case "forum.profile.show":
-		err = s.populateProfile(ctx, &request)
+		err = s.populateProfile(ctx, &request, input.Actor)
 	case "forum.my.home":
 		err = s.populateMyHome(ctx, &request, input)
 	case "forum.my.content_review":
@@ -154,6 +157,7 @@ func (s *CorePageViewModelSource) Populate(ctx context.Context, input CorePageVi
 	case "site.terms", "site.privacy", "site.guidelines":
 		err = s.populateLegal(ctx, &request)
 	case "system.not_found":
+		request.SEO.Robots = "noindex,nofollow"
 		request.Data.NotFound = &themecompiler.ErrorPageViewModel{StatusCode: 404, Title: localizedText(request.Locale, "页面未找到", "Page not found")}
 	case "dev.components":
 		request.Data.DevelopmentComponents = &themecompiler.DevelopmentComponentsPageViewModel{Components: componentPreviews()}
@@ -402,16 +406,12 @@ func (s *CorePageViewModelSource) populateTopicCreate(ctx context.Context, reque
 	return nil
 }
 
-func (s *CorePageViewModelSource) populateProfile(ctx context.Context, request *pages.CorePageViewModelRequest) error {
-	if s.deps.Profiles == nil {
-		return ErrCorePageDataUnavailable
-	}
-	enabled, err := s.deps.Options.IsFeatureEnabled(ctx, options.NameFeaturePublicProfiles)
-	if err != nil {
+func (s *CorePageViewModelSource) populateProfile(ctx context.Context, request *pages.CorePageViewModelRequest, actor identity.Actor) error {
+	if err := s.requireForumRead(actor); err != nil {
 		return err
 	}
-	if !enabled {
-		return fmt.Errorf("%w: public profiles disabled", ErrCorePageDataNotFound)
+	if s.deps.Profiles == nil {
+		return ErrCorePageDataUnavailable
 	}
 	item, err := s.deps.Profiles.GetPublicProfile(ctx, request.RouteParams["username"])
 	if err != nil {
@@ -603,6 +603,23 @@ func (s *CorePageViewModelSource) requireForumRead(actor identity.Actor) error {
 	}
 	if guestRead == "login_required" && actor.ID <= 0 {
 		return ErrCorePageDataUnauthorized
+	}
+	return nil
+}
+
+func (s *CorePageViewModelSource) requirePageFeatures(ctx context.Context, pageID string) error {
+	page, ok := pages.Find(pageID)
+	if !ok {
+		return pages.ErrUnknownPage
+	}
+	for _, feature := range page.RequiresFeatures {
+		enabled, err := s.deps.Options.IsFeatureEnabled(ctx, feature)
+		if err != nil {
+			return fmt.Errorf("%w: required feature %s: %v", ErrCorePageDataUnavailable, feature, err)
+		}
+		if !enabled {
+			return fmt.Errorf("%w: required feature %s disabled", ErrCorePageDataNotFound, feature)
+		}
 	}
 	return nil
 }
