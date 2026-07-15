@@ -104,6 +104,21 @@ type EffectiveInput struct {
 	At      time.Time
 }
 
+// ValidateGrant validates the provider-neutral grant contract without writing
+// data. Transactional Host Commands use it for dry-run plans before calling
+// GrantTx inside the authoritative transaction.
+func ValidateGrant(input GrantInput) error {
+	_, _, err := prepareGrant(input)
+	return err
+}
+
+// ValidateTransition validates a revoke/expire request without reading or
+// mutating lifecycle state. Current state remains authoritative in the Tx path.
+func ValidateTransition(action string, input TransitionInput) error {
+	_, _, err := prepareTransition(action, input)
+	return err
+}
+
 type preparedGrant struct {
 	Subject        Subject    `json:"subject"`
 	Scope          Scope      `json:"scope"`
