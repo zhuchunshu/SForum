@@ -77,4 +77,48 @@ describe('typed theme render hydration', () => {
       container.remove()
     }
   })
+
+  it('hydrates an island-owned SSR fallback without replacing primary content', async () => {
+    const componentId = 'core.component.shared.sfextension_widget'
+    const nodes = parseThemeRenderOutput({
+      htmlSegments: [`<template data-sforum-island="${componentId}:1"></template>`],
+      islands: [{
+        id: `${componentId}:1`,
+        componentId,
+        fallbackHtmlSegments: ['<article data-fallback><h2>Primary SSR content</h2><a href="/topics">Topics</a></article>']
+      }]
+    }, {
+      allowedComponents: new Set([componentId]),
+      fallbackComponents: new Set([componentId])
+    })
+    const Widget = defineComponent({
+      setup(_, { slots }) {
+        return () => h('section', { 'data-widget': '' }, slots.default?.())
+      }
+    })
+    const Root = defineComponent(() => () => h('main', renderThemeRenderNodes(nodes, () => Widget)))
+
+    const serverHTML = await renderToString(createSSRApp(Root))
+    const container = browser.document.createElement('div')
+    container.innerHTML = serverHTML
+    browser.document.body.append(container)
+    const beforeHydration = container.innerHTML
+    const hydrationMessages: string[] = []
+    const originalError = console.error
+    const originalWarn = console.warn
+    console.error = (...args: unknown[]) => hydrationMessages.push(args.join(' '))
+    console.warn = (...args: unknown[]) => hydrationMessages.push(args.join(' '))
+
+    try {
+      createSSRApp(Root).mount(container)
+      expect(container.innerHTML).toBe(beforeHydration)
+      expect(hydrationMessages.join('\n')).not.toMatch(/hydration|mismatch/i)
+      expect(container.querySelector('[data-fallback]')?.textContent).toContain('Primary SSR content')
+      expect(container.querySelector<HTMLAnchorElement>('[data-fallback] a')?.getAttribute('href')).toBe('/topics')
+    } finally {
+      console.error = originalError
+      console.warn = originalWarn
+      container.remove()
+    }
+  })
 })

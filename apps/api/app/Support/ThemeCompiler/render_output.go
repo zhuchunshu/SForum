@@ -21,9 +21,10 @@ type IslandProp struct {
 
 type IslandDescriptor struct {
 	// ID is also the value of the generated data-sforum-island placeholder.
-	ID          string       `json:"id"`
-	ComponentID string       `json:"componentId"`
-	Props       []IslandProp `json:"props,omitempty"`
+	ID                   string       `json:"id"`
+	ComponentID          string       `json:"componentId"`
+	Props                []IslandProp `json:"props,omitempty"`
+	FallbackHTMLSegments []string     `json:"fallbackHtmlSegments,omitempty"`
 }
 
 type RenderOutput struct {
@@ -69,6 +70,10 @@ func cloneIslandDescriptors(input []IslandDescriptor) []IslandDescriptor {
 	for index, descriptor := range input {
 		result[index] = descriptor
 		result[index].Props = append([]IslandProp(nil), descriptor.Props...)
+		result[index].FallbackHTMLSegments = make([]string, len(descriptor.FallbackHTMLSegments))
+		for segmentIndex, segment := range descriptor.FallbackHTMLSegments {
+			result[index].FallbackHTMLSegments[segmentIndex] = strings.Clone(segment)
+		}
 	}
 	return result
 }

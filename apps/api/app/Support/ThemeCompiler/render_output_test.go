@@ -89,6 +89,81 @@ func TestRenderOutputReturnsOrderedTypedSegmentsAndHostSEO(t *testing.T) {
 	}
 }
 
+func TestRenderOutputPreservesExplicitIslandFallback(t *testing.T) {
+	files := fstest.MapFS{
+		"templates/home.html": &fstest.MapFile{Data: []byte(
+			`<main><sf-extension-widget extension-id="demo.public"><article>Indexable <strong>fallback</strong></article></sf-extension-widget></main>`,
+		)},
+	}
+	snapshot, err := NewCompiler(Limits{}).CompileFS(files, viewModelThemeDigest, Bindings{
+		BindingRevision: viewModelBindingRevision,
+		PageViewModels: map[string]PageTemplateBinding{
+			"templates/home.html": {PageID: "forum.home", SchemaVersion: "sforum.page.home@1"},
+		},
+		Islands: map[string]IslandBinding{
+			"sf-extension-widget": {
+				ComponentID: "core.component.shared.sfextension_widget", AllowFallback: true,
+				Props: []IslandPropContract{{Name: "extension-id", Type: IslandPropString, Required: true}},
+			},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	bound, err := CorePageViewModelRegistry().Bind(
+		"forum.home", "sforum.page.home@1", viewModelThemeDigest, validHomeViewModel(),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	output, err := snapshot.Render(context.Background(), "templates/home.html", bound)
+	if err != nil {
+		t.Fatal(err)
+	}
+	islands := output.Islands()
+	if len(islands) != 1 || len(islands[0].FallbackHTMLSegments) != 1 ||
+		islands[0].FallbackHTMLSegments[0] != "<article>Indexable <strong>fallback</strong></article>" {
+		t.Fatalf("fallback segments = %#v", islands)
+	}
+	if strings.Contains(strings.Join(renderedHTMLStrings(output.HTMLSegments()), ""), "Indexable") {
+		t.Fatal("fallback content leaked outside its typed island descriptor")
+	}
+	islands[0].FallbackHTMLSegments[0] = "mutated"
+	if output.Islands()[0].FallbackHTMLSegments[0] == "mutated" {
+		t.Fatal("island fallback getter exposed mutable state")
+	}
+}
+
+func TestIslandFallbackRejectsNestedOrUndeclaredChildren(t *testing.T) {
+	bindings := map[string]IslandBinding{
+		"sf-widget": {ComponentID: "demo.component.widget", AllowFallback: true},
+		"sf-core":   {ComponentID: "demo.component.core"},
+	}
+	if _, _, err := segmentRenderedHTML(
+		`<sf-widget><sf-core></sf-core></sf-widget>`, bindings,
+	); !errors.Is(err, ErrInvalidIsland) {
+		t.Fatalf("nested fallback island error = %v", err)
+	}
+	if _, _, err := segmentRenderedHTML(
+		`<sf-core><p>unexpected</p></sf-core>`, bindings,
+	); !errors.Is(err, ErrInvalidIsland) {
+		t.Fatalf("undeclared fallback error = %v", err)
+	}
+	if _, _, err := segmentRenderedHTML(
+		`<sf-widget>`+strings.Repeat(`<span>x</span>`, maxIslandFallbackSegments+1)+`</sf-widget>`, bindings,
+	); !errors.Is(err, ErrOutputLimit) {
+		t.Fatalf("fallback segment limit error = %v", err)
+	}
+}
+
+func renderedHTMLStrings(segments []RenderedHTML) []string {
+	result := make([]string, len(segments))
+	for index, segment := range segments {
+		result[index] = segment.String()
+	}
+	return result
+}
+
 func TestCompilerAndRenderRejectUndeclaredOrInvalidIslands(t *testing.T) {
 	compiler := NewCompiler(Limits{})
 	baseBindings := Bindings{

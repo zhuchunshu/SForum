@@ -26,8 +26,9 @@ func cloneBindings(input Bindings) Bindings {
 	}
 	for tag, binding := range input.Islands {
 		output.Islands[strings.Clone(tag)] = IslandBinding{
-			ComponentID: strings.Clone(binding.ComponentID),
-			Props:       append([]IslandPropContract(nil), binding.Props...),
+			ComponentID:   strings.Clone(binding.ComponentID),
+			Props:         append([]IslandPropContract(nil), binding.Props...),
+			AllowFallback: binding.AllowFallback,
 		}
 	}
 	return output

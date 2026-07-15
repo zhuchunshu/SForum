@@ -57,6 +57,11 @@ ThemeIsland:
     props:
       type: array
       items: { "$ref": "#/ThemeIslandProp" }
+    fallbackHtmlSegments:
+      type: array
+      maxItems: 256
+      description: Balanced L1/SSR fallback fragments rendered as the Host island default slot.
+      items: { type: string }
 
 ThemeSEO:
   type: object

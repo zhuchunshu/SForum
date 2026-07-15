@@ -19,7 +19,11 @@ import (
 var islandTagPattern = regexp.MustCompile(`^sf-[a-z][a-z0-9-]*$`)
 var islandPropPattern = regexp.MustCompile(`^[a-z][a-z0-9-]*$`)
 
-const islandPlaceholderAttribute = "data-sforum-island"
+const (
+	islandPlaceholderAttribute   = "data-sforum-island"
+	maxIslandFallbackSegments    = 256
+	maxIslandFallbackOutputBytes = DefaultMaxOutputBytes
+)
 
 var requiredPageComponents = map[string]string{
 	"forum.topic.create":      "forum.component.topic_composer",
@@ -206,6 +210,8 @@ func segmentRenderedHTML(source string, bindings map[string]IslandBinding) ([]Re
 	var skeleton strings.Builder
 	islands := make([]IslandDescriptor, 0, 2)
 	islandIndex := 0
+	fallbackSegments := 0
+	var fallbackBytes int64
 
 	for {
 		tokenType := tokenizer.Next()
@@ -248,17 +254,68 @@ func segmentRenderedHTML(source string, bindings map[string]IslandBinding) ([]Re
 		if err != nil {
 			return nil, nil, err
 		}
+		var fallback []string
 		if tokenType == nethtml.StartTagToken {
-			if err := consumeEmptyIsland(tokenizer, tag); err != nil {
+			if binding.AllowFallback {
+				fallback, err = consumeIslandFallback(tokenizer, tag)
+			} else {
+				err = consumeEmptyIsland(tokenizer, tag)
+			}
+			if err != nil {
 				return nil, nil, err
+			}
+			fallbackSegments += len(fallback)
+			for _, segment := range fallback {
+				fallbackBytes += int64(len(segment))
+			}
+			if fallbackSegments > maxIslandFallbackSegments || fallbackBytes > maxIslandFallbackOutputBytes {
+				return nil, nil, ErrOutputLimit
 			}
 		}
 		islandIndex++
 		descriptor := IslandDescriptor{
-			ID: fmt.Sprintf("%s:%d", binding.ComponentID, islandIndex), ComponentID: binding.ComponentID, Props: props,
+			ID: fmt.Sprintf("%s:%d", binding.ComponentID, islandIndex), ComponentID: binding.ComponentID,
+			Props: props, FallbackHTMLSegments: fallback,
 		}
 		islands = append(islands, descriptor)
 		fmt.Fprintf(&skeleton, `<template %s="%s"></template>`, islandPlaceholderAttribute, stdhtml.EscapeString(descriptor.ID))
+	}
+}
+
+func consumeIslandFallback(tokenizer *nethtml.Tokenizer, tag string) ([]string, error) {
+	var source strings.Builder
+	for {
+		tokenType := tokenizer.Next()
+		if tokenType == nethtml.ErrorToken {
+			return nil, fmt.Errorf("%w: unclosed %s", ErrInvalidIsland, tag)
+		}
+		raw := string(tokenizer.Raw())
+		if tokenType == nethtml.StartTagToken || tokenType == nethtml.SelfClosingTagToken || tokenType == nethtml.EndTagToken {
+			token := tokenizer.Token()
+			currentTag := strings.ToLower(token.Data)
+			if tokenType == nethtml.EndTagToken && currentTag == tag {
+				segments, err := balanceHTMLSkeleton(source.String())
+				if err != nil {
+					return nil, err
+				}
+				result := make([]string, len(segments))
+				for index, segment := range segments {
+					result[index] = segment.String()
+				}
+				return result, nil
+			}
+			if strings.HasPrefix(currentTag, "sf-") || currentTag == "template" {
+				return nil, fmt.Errorf("%w: %s fallback contains nested island %s", ErrInvalidIsland, tag, currentTag)
+			}
+			if tokenType != nethtml.EndTagToken {
+				for _, attribute := range token.Attr {
+					if strings.EqualFold(attribute.Key, islandPlaceholderAttribute) {
+						return nil, fmt.Errorf("%w: %s fallback contains reserved island placeholder", ErrInvalidIsland, tag)
+					}
+				}
+			}
+		}
+		source.WriteString(raw)
 	}
 }
 

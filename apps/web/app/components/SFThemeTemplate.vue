@@ -24,7 +24,7 @@ const HostPageIsland = defineComponent({
   }
 })
 
-// 该映射与 ThemeRuntimeSnapshot 的 reviewed Component Registry 对齐；L2 不在此表。
+// 该映射与 ThemeRuntimeSnapshot 的 reviewed Component Registry 对齐。
 const islandComponents: Record<string, Component> = {
   'forum.component.home_page': resolveComponent('SFHomePage') as Component,
   'navigation.component.navbar': resolveComponent('SFNavbar') as Component,
@@ -36,7 +36,8 @@ const islandComponents: Record<string, Component> = {
   'identity.component.login_form': HostPageIsland,
   'identity.component.register_form': HostPageIsland,
   'identity.component.recovery_request_form': HostPageIsland,
-  'identity.component.recovery_confirm_form': HostPageIsland
+  'identity.component.recovery_confirm_form': HostPageIsland,
+  'core.component.shared.sfextension_widget': resolveComponent('SFExtensionWidget') as Component
 }
 const legacyIslandBindings = {
   'sf-home-page': { componentId: 'forum.component.home_page' },
@@ -49,14 +50,16 @@ const legacyIslandBindings = {
   'sf-login-form': { componentId: 'identity.component.login_form' },
   'sf-register-form': { componentId: 'identity.component.register_form' },
   'sf-recovery-request': { componentId: 'identity.component.recovery_request_form' },
-  'sf-recovery-confirm': { componentId: 'identity.component.recovery_confirm_form' }
+  'sf-recovery-confirm': { componentId: 'identity.component.recovery_confirm_form' },
+  'sf-extension-widget': { componentId: 'core.component.shared.sfextension_widget' }
 } as const
 const allowedComponents = new Set(Object.keys(islandComponents))
+const fallbackComponents = new Set(['core.component.shared.sfextension_widget'])
 
 const renderState = computed(() => {
   try {
     const nodes = props.renderOutput
-      ? parseThemeRenderOutput(props.renderOutput, { allowedComponents })
+      ? parseThemeRenderOutput(props.renderOutput, { allowedComponents, fallbackComponents })
       : parseLegacyThemeHTML(props.html || '', legacyIslandBindings)
     return { nodes, error: false }
   } catch {

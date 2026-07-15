@@ -15,6 +15,7 @@ export type ThemeIslandDescriptor = {
   id: string
   componentId: string
   props?: ThemeIslandProp[]
+  fallbackHtmlSegments?: string[]
 }
 
 export type ThemeRenderOutput = {
@@ -27,10 +28,11 @@ export type ThemeRenderNode =
   | { kind: 'text', value: string }
   | { kind: 'comment', value: string }
   | { kind: 'element', tag: string, attrs: Record<string, string>, children: ThemeRenderNode[] }
-  | { kind: 'island', descriptor: ThemeIslandDescriptor, props: Record<string, string | boolean | number> }
+  | { kind: 'island', descriptor: ThemeIslandDescriptor, props: Record<string, string | boolean | number>, children: ThemeRenderNode[] }
 
 type ParseOptions = {
   allowedComponents?: ReadonlySet<string>
+  fallbackComponents?: ReadonlySet<string>
 }
 
 type LegacyIslandBinding = {
@@ -41,6 +43,8 @@ const HTML_NAMESPACE = 'http://www.w3.org/1999/xhtml'
 const ISLAND_ATTRIBUTE = 'data-sforum-island'
 const MAX_RENDER_NODES = 50_000
 const MAX_RENDER_DEPTH = 128
+const MAX_FALLBACK_SEGMENTS = 256
+const MAX_FALLBACK_CHARACTERS = 1024 * 1024
 const ID_PATTERN = /^[a-z][a-z0-9_.-]*:[1-9][0-9]*$/
 const COMPONENT_PATTERN = /^[a-z][a-z0-9_.-]*$/
 const PROP_PATTERN = /^[a-z][a-z0-9-]*$/
@@ -76,7 +80,7 @@ export function parseThemeRenderOutput(input: unknown, options: ParseOptions = {
     throw new ThemeRenderOutputError('invalid html segments')
   }
 
-  const descriptors = normalizeDescriptors(input.islands ?? [], options.allowedComponents)
+  const descriptors = normalizeDescriptors(input.islands ?? [], options)
   const context = createParseContext(descriptors)
   const nodes = segments.flatMap(segment => parseHTMLFragment(segment, context, 0))
   assertAllIslandsConsumed(context)
@@ -111,7 +115,8 @@ export function renderThemeRenderNodes(
       if (!component) {
         return createCommentVNode('sforum-island-unavailable')
       }
-      return h(component, node.props)
+      const children = node.children.map(renderNode)
+      return h(component, node.props, children.length ? { default: () => children } : undefined)
     }
     return h(node.tag, node.attrs, node.children.map(renderNode))
   }
@@ -210,7 +215,12 @@ function convertTypedIsland(
     throw new ThemeRenderOutputError('unknown or duplicate island placeholder')
   }
   context.consumed.add(id)
-  return { kind: 'island', descriptor, props: normalizeIslandProps(descriptor.props ?? []) }
+  const fallbackContext = createParseContext(new Map())
+  fallbackContext.nodeCount = context.nodeCount
+  const children = (descriptor.fallbackHtmlSegments ?? [])
+    .flatMap(segment => parseHTMLFragment(segment, fallbackContext, 0))
+  context.nodeCount = fallbackContext.nodeCount
+  return { kind: 'island', descriptor, props: normalizeIslandProps(descriptor.props ?? []), children }
 }
 
 function convertLegacyIsland(
@@ -225,36 +235,56 @@ function convertLegacyIsland(
     componentId: binding.componentId,
     props: []
   }
-  return { kind: 'island', descriptor, props: normalizeHTMLAttributes(node.attrs) }
+  return { kind: 'island', descriptor, props: normalizeHTMLAttributes(node.attrs), children: [] }
 }
 
 function normalizeDescriptors(
   input: unknown[],
-  allowedComponents?: ReadonlySet<string>
+  options: ParseOptions
 ): Map<string, ThemeIslandDescriptor> {
   const result = new Map<string, ThemeIslandDescriptor>()
+  let fallbackSegments = 0
+  let fallbackCharacters = 0
   for (const value of input) {
     if (!isObject(value) || typeof value.id !== 'string' || typeof value.componentId !== 'string'
       || !ID_PATTERN.test(value.id) || !COMPONENT_PATTERN.test(value.componentId)
       || !Array.isArray(value.props ?? [])) {
       throw new ThemeRenderOutputError('invalid island descriptor')
     }
-    if (allowedComponents && !allowedComponents.has(value.componentId)) {
+    if (options.allowedComponents && !options.allowedComponents.has(value.componentId)) {
       throw new ThemeRenderOutputError('unknown island component')
     }
     if (result.has(value.id)) {
       throw new ThemeRenderOutputError('duplicate island descriptor')
     }
+    const fallbackHtmlSegments = normalizeFallbackSegments(value.fallbackHtmlSegments)
+    if (fallbackHtmlSegments.length && !options.fallbackComponents?.has(value.componentId)) {
+      throw new ThemeRenderOutputError('island fallback is not allowed')
+    }
+    fallbackSegments += fallbackHtmlSegments.length
+    fallbackCharacters += fallbackHtmlSegments.reduce((total, segment) => total + segment.length, 0)
+    if (fallbackSegments > MAX_FALLBACK_SEGMENTS || fallbackCharacters > MAX_FALLBACK_CHARACTERS) {
+      throw new ThemeRenderOutputError('island fallback limit exceeded')
+    }
     const descriptor: ThemeIslandDescriptor = {
       id: value.id,
       componentId: value.componentId,
-      props: value.props as ThemeIslandProp[]
+      props: value.props as ThemeIslandProp[],
+      fallbackHtmlSegments
     }
     // Validate typed values before any component receives them.
     normalizeIslandProps(descriptor.props ?? [])
     result.set(descriptor.id, descriptor)
   }
   return result
+}
+
+function normalizeFallbackSegments(input: unknown): string[] {
+  if (input === undefined) return []
+  if (!Array.isArray(input) || input.some(segment => typeof segment !== 'string')) {
+    throw new ThemeRenderOutputError('invalid island fallback')
+  }
+  return [...input]
 }
 
 function normalizeIslandProps(input: ThemeIslandProp[]): Record<string, string | boolean | number> {

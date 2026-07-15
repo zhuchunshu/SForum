@@ -73,6 +73,28 @@ describe('typed theme render output', () => {
     expect(html).not.toContain('data-sforum-island')
   })
 
+  it('renders an exact typed island fallback through the component slot', async () => {
+    const widgetId = 'core.component.shared.sfextension_widget'
+    const nodes = parseThemeRenderOutput(output({
+      htmlSegments: [`<template data-sforum-island="${widgetId}:1"></template>`],
+      islands: [{
+        id: `${widgetId}:1`,
+        componentId: widgetId,
+        props: [],
+        fallbackHtmlSegments: ['<article><h2>Indexable fallback</h2><a href="/topics">Topics</a></article>']
+      }]
+    }), { allowedComponents: new Set([widgetId]), fallbackComponents: new Set([widgetId]) })
+    const Widget = defineComponent({
+      setup(_, { slots }) {
+        return () => h('section', { 'data-widget': '' }, slots.default?.())
+      }
+    })
+    const Root = defineComponent(() => () => h('main', renderThemeRenderNodes(nodes, () => Widget)))
+
+    const html = await renderToString(createSSRApp(Root))
+    expect(html).toContain('<section data-widget><article><h2>Indexable fallback</h2><a href="/topics">Topics</a></article></section>')
+  })
+
   it('parses the legacy compatibility path without flattening nested DOM', async () => {
     const nodes = parseLegacyThemeHTML(
       '<article><div><sf-home-page></sf-home-page></div></article>',
@@ -156,6 +178,15 @@ describe('typed theme render output', () => {
       value: output({ htmlSegments: [
         '<form action="/login"></form><template data-sforum-island="forum.component.home_page:1"></template>'
       ] })
+    },
+    {
+      name: 'unsafe island fallback',
+      value: output({ islands: [{
+        id: 'forum.component.home_page:1',
+        componentId: 'forum.component.home_page',
+        props: [],
+        fallbackHtmlSegments: ['<script>alert(1)</script>']
+      }] })
     },
     {
       name: 'invalid typed prop',

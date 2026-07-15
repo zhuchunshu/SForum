@@ -83,6 +83,65 @@ func TestThemeRuntimeSnapshotCompilesOnceAndRendersExactProvider(t *testing.T) {
 	}
 }
 
+func TestThemeRuntimeEmitsExactPublicL2HostIslandWithSSRContent(t *testing.T) {
+	root := t.TempDir()
+	body := `<main><sf-extension-widget extension-id="demo.public" component-id="demo.public.component.card"><article>Primary SSR content</article></sf-extension-widget><sf-home-page></sf-home-page></main>`
+	writeThemeRuntimeTestFile(t, root, "templates/home.html", body)
+	artifact := RuntimeArtifact{ExtensionID: "l2.theme", ExtensionVersion: "1.0.0", PackageDigest: strings.Repeat("9", 64)}
+	contribution := PageContribution{
+		ID: "l2.theme.home", Action: ActionReplace, Target: "forum.home", Template: "templates/home.html",
+		Contract: "sforum.page.home@1", ExtensionID: artifact.ExtensionID,
+		Version: artifact.ExtensionVersion, PackageDigest: artifact.PackageDigest,
+	}
+	snapshot, err := BuildThemeRuntimeSnapshot(ThemeRuntimeBuildInput{
+		Artifact: artifact, PackageRoot: root, Contributions: []PageContribution{contribution}, SiteName: "SForum",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	output, err := snapshot.Render(context.Background(), CorePageViewModelRequest{
+		PageID: "forum.home", Locale: "en-US", Path: "/", SEO: themecompiler.PageSEOView{Title: "Home"},
+	}, contribution.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var widget *themecompiler.IslandDescriptor
+	for index := range output.Islands {
+		if output.Islands[index].ComponentID == "core.component.shared.sfextension_widget" {
+			widget = &output.Islands[index]
+			break
+		}
+	}
+	props := map[string]string{}
+	if widget != nil {
+		for _, prop := range widget.Props {
+			props[prop.Name] = prop.StringValue
+		}
+	}
+	if widget == nil || len(widget.Props) != 2 || props["extension-id"] != "demo.public" ||
+		props["component-id"] != "demo.public.component.card" || len(widget.FallbackHTMLSegments) != 1 ||
+		!strings.Contains(widget.FallbackHTMLSegments[0], "Primary SSR content") {
+		t.Fatalf("public L2 island is not exact-id bound: %#v", output.Islands)
+	}
+}
+
+func TestThemeRuntimeRejectsPublicL2IslandWithoutExactComponentIdentity(t *testing.T) {
+	root := t.TempDir()
+	writeThemeRuntimeTestFile(t, root, "templates/home.html", `<main><sf-extension-widget extension-id="demo.public"></sf-extension-widget><sf-home-page></sf-home-page></main>`)
+	artifact := RuntimeArtifact{ExtensionID: "invalid-l2.theme", ExtensionVersion: "1.0.0", PackageDigest: strings.Repeat("8", 64)}
+	_, err := BuildThemeRuntimeSnapshot(ThemeRuntimeBuildInput{
+		Artifact: artifact, PackageRoot: root, SiteName: "SForum",
+		Contributions: []PageContribution{{
+			ID: "invalid-l2.theme.home", Action: ActionReplace, Target: "forum.home", Template: "templates/home.html",
+			Contract: "sforum.page.home@1", ExtensionID: artifact.ExtensionID,
+			Version: artifact.ExtensionVersion, PackageDigest: artifact.PackageDigest,
+		}},
+	})
+	if err == nil {
+		t.Fatal("L2 Host island without component-id must fail static compilation")
+	}
+}
+
 func TestThemeRuntimeSnapshotIgnoresUncoveredLegacyAddTemplates(t *testing.T) {
 	root := t.TempDir()
 	writeThemeRuntimeTestFile(t, root, "templates/core.html", `<main>core</main><sf-home-page></sf-home-page>`)

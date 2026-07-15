@@ -772,6 +772,14 @@ func productionThemeIslandBindings() map[string]themecompiler.IslandBinding {
 		"sf-register-form":     {ComponentID: "identity.component.register_form"},
 		"sf-recovery-request":  {ComponentID: "identity.component.recovery_request_form"},
 		"sf-recovery-confirm":  {ComponentID: "identity.component.recovery_confirm_form"},
+		"sf-extension-widget": {
+			ComponentID:   "core.component.shared.sfextension_widget",
+			AllowFallback: true,
+			Props: []themecompiler.IslandPropContract{
+				{Name: "extension-id", Type: themecompiler.IslandPropString, Required: true},
+				{Name: "component-id", Type: themecompiler.IslandPropString, Required: true},
+			},
+		},
 	}
 }
 

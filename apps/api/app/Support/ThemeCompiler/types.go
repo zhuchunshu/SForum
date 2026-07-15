@@ -8,7 +8,7 @@ import (
 const (
 	// CompilerVersion participates in every snapshot identity. Any parsing,
 	// helper, or output-contract change must bump this value.
-	CompilerVersion = "sforum.theme-compiler@3"
+	CompilerVersion = "sforum.theme-compiler@4"
 
 	DefaultMaxSourceBytes = 256 * 1024
 	DefaultMaxTotalBytes  = 4 * 1024 * 1024
@@ -121,8 +121,9 @@ type IslandPropContract struct {
 }
 
 type IslandBinding struct {
-	ComponentID string               `json:"componentId"`
-	Props       []IslandPropContract `json:"props,omitempty"`
+	ComponentID   string               `json:"componentId"`
+	Props         []IslandPropContract `json:"props,omitempty"`
+	AllowFallback bool                 `json:"allowFallback,omitempty"`
 }
 
 // CompiledTemplateKey 只标识可复用的模板编译产物。
