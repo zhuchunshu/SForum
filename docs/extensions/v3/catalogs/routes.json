@@ -2748,7 +2748,7 @@
     "handler": "health",
     "method": "GET",
     "path": "/api/v1/health",
-    "source": "apps/api/app/Http/server.go:177",
+    "source": "apps/api/app/Http/server.go:181",
     "access": "public",
     "policy": "host liveness/readiness; non-overridable recovery prerequisite",
     "guard": {
@@ -3144,7 +3144,7 @@
     "handler": "ready",
     "method": "GET",
     "path": "/api/v1/ready",
-    "source": "apps/api/app/Http/server.go:190",
+    "source": "apps/api/app/Http/server.go:194",
     "access": "public",
     "policy": "host liveness/readiness; non-overridable recovery prerequisite",
     "guard": {

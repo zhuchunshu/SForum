@@ -57,7 +57,7 @@ assert(generated.status === 0, generated.stderr || generated.stdout || 'V3 catal
 
 const routes = load('docs/extensions/v3/catalogs/routes.json')
 const identities = load('docs/extensions/v3/catalog-identities.json')
-assert(routes.length === 218, `route inventory must contain exactly 218 reviewed routes: ${routes.length}`)
+assert(routes.length === 223, `route inventory must contain exactly 223 reviewed routes: ${routes.length}`)
 assert(identities.routes.length === routes.length, 'reviewed route identity map must cover every current route')
 unique(routes, item => item.id, 'route inventory ids')
 unique(routes, item => `${item.method} ${item.path}`, 'route inventory method/path pairs')
