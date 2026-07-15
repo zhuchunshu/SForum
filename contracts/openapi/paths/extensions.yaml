@@ -107,6 +107,78 @@ publicExtensionAsset:
       '503':
         "$ref": "../components/responses.yaml#/ServiceUnavailable"
 
+publicExtensionPackageAsset:
+  get:
+    summary: Load one exact package-local public extension resource
+    operationId: getPublicExtensionPackageAsset
+    tags: [Extensions]
+    description: >-
+      Serves a manifest-declared resource from its original immutable package
+      directory after rechecking enabled state, live exact-artifact trust,
+      package identity, file kind, and SHA-256. Keeping the original path lets
+      native ESM relative imports, import.meta.url, CSS url(), and package-local
+      @import resolve without source rewriting. Only JavaScript modules, CSS,
+      safe bitmap formats, and WOFF/WOFF2 fonts are served; HTML, SVG, symbolic
+      links, undeclared paths, and stale package digests return the same 404.
+    parameters:
+    - "$ref": "../components/parameters.yaml#/ExtensionID"
+    - name: packageDigest
+      in: path
+      required: true
+      schema: { type: string, pattern: '^[0-9a-f]{64}$' }
+    - name: packagePath
+      in: path
+      required: true
+      allowReserved: true
+      description: Slash-preserving package-relative path declared by packageFiles.
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 512
+    responses:
+      '200':
+        description: Exact immutable package-local JavaScript, CSS, bitmap, or font bytes.
+        headers:
+          Cache-Control:
+            schema: { type: string }
+          ETag:
+            schema: { type: string }
+          X-Content-Type-Options:
+            schema: { type: string, enum: [nosniff] }
+          Cross-Origin-Resource-Policy:
+            schema: { type: string, enum: [same-origin] }
+          X-Frame-Options:
+            schema: { type: string, enum: [DENY] }
+          X-SForum-Asset-Digest:
+            schema: { type: string, pattern: '^[0-9a-f]{64}$' }
+          X-SForum-Asset-Integrity:
+            schema: { type: string, pattern: '^sha256-[A-Za-z0-9+/]{43}=$' }
+        content:
+          application/javascript:
+            schema: { type: string, format: binary }
+          text/css:
+            schema: { type: string, format: binary }
+          image/png:
+            schema: { type: string, format: binary }
+          image/jpeg:
+            schema: { type: string, format: binary }
+          image/gif:
+            schema: { type: string, format: binary }
+          image/webp:
+            schema: { type: string, format: binary }
+          image/avif:
+            schema: { type: string, format: binary }
+          image/x-icon:
+            schema: { type: string, format: binary }
+          font/woff:
+            schema: { type: string, format: binary }
+          font/woff2:
+            schema: { type: string, format: binary }
+      '404':
+        "$ref": "../components/responses.yaml#/NotFound"
+      '503':
+        "$ref": "../components/responses.yaml#/ServiceUnavailable"
+
 adminSurfaces:
   get:
     summary: List visible exact-runtime Admin Surface contracts

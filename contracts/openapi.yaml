@@ -411,6 +411,8 @@ paths:
     "$ref": "./openapi/paths/extensions.yaml#/publicExtensionComponent"
   "/extensions/runtime/{extensionID}/assets/{packageDigest}/{digest}/{handle}":
     "$ref": "./openapi/paths/extensions.yaml#/publicExtensionAsset"
+  "/extensions/runtime/{extensionID}/packages/{packageDigest}/{packagePath}":
+    "$ref": "./openapi/paths/extensions.yaml#/publicExtensionPackageAsset"
   "/extensions/{extensionID}/{pluginPath}":
     "$ref": "./openapi/paths/extensions.yaml#/extensionPluginRoute"
 components:

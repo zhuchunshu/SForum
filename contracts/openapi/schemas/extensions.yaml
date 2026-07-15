@@ -2363,7 +2363,7 @@ PublicFrontendAssetReference:
       items: { type: string, maxLength: 512 }
     assetPath:
       type: string
-      pattern: '^/extensions/runtime/'
+      pattern: '^/extensions/runtime/[a-z0-9][a-z0-9._-]{1,120}/packages/[0-9a-f]{64}/.+'
 PublicFrontendComponent:
   type: object
   additionalProperties: false
