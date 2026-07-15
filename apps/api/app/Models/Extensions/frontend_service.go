@@ -28,6 +28,14 @@ type FrontendExtensionReader interface {
 	Get(context.Context, string) (Extension, error)
 }
 
+// PublicFrontendExtensionCatalog supplies the complete enabled set used to
+// rebuild one deterministic Asset Registry snapshot. Public L2 must never
+// depend on which extension happened to receive the first browser request.
+type PublicFrontendExtensionCatalog interface {
+	FrontendExtensionReader
+	List(context.Context) ([]Extension, error)
+}
+
 type FrontendService struct {
 	extensions        FrontendExtensionReader
 	trust             FrontendTrustStore

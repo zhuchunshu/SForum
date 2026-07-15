@@ -277,18 +277,37 @@ func frontendGrantForExtension(extension Extension) FrontendTrustGrant {
 }
 
 type fakeFrontendExtensionReader struct {
-	item Extension
-	err  error
+	item  Extension
+	items []Extension
+	err   error
 }
 
 func (r *fakeFrontendExtensionReader) Get(_ context.Context, id string) (Extension, error) {
 	if r.err != nil {
 		return Extension{}, r.err
 	}
+	for _, item := range r.items {
+		if item.ID == id {
+			return item, nil
+		}
+	}
 	if id != r.item.ID {
 		return Extension{}, ErrExtensionNotFound
 	}
 	return r.item, nil
+}
+
+func (r *fakeFrontendExtensionReader) List(context.Context) ([]Extension, error) {
+	if r.err != nil {
+		return nil, r.err
+	}
+	if r.items != nil {
+		return append([]Extension(nil), r.items...), nil
+	}
+	if r.item.ID == "" {
+		return []Extension{}, nil
+	}
+	return []Extension{r.item}, nil
 }
 
 type fakeFrontendTrustStore struct {

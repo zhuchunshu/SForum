@@ -49,6 +49,32 @@ func (h *Controller) publicFrontendAsset(c fiber.Ctx) error {
 	return c.Send(asset.Body)
 }
 
+func (h *Controller) publicFrontendPackageAsset(c fiber.Ctx) error {
+	runtime, ok := h.frontend.(PublicFrontendRuntimeService)
+	if h.frontend == nil || !ok {
+		return publicFrontendNotFound()
+	}
+	packageDigest := c.Params("packageDigest")
+	if !frontendDigestPattern.MatchString(packageDigest) {
+		return publicFrontendNotFound()
+	}
+	asset, err := runtime.PublicPackageAsset(
+		c.Context(), c.Params("extensionId"), packageDigest, c.Params("*"),
+	)
+	if err != nil {
+		return mapPublicFrontendError(err)
+	}
+	c.Set(fiber.HeaderContentType, asset.ContentType)
+	c.Set(fiber.HeaderCacheControl, "public, max-age=31536000, immutable")
+	c.Set(fiber.HeaderETag, asset.ETag)
+	c.Set("X-Content-Type-Options", "nosniff")
+	c.Set("Cross-Origin-Resource-Policy", "same-origin")
+	c.Set("X-Frame-Options", "DENY")
+	c.Set("X-SForum-Asset-Digest", asset.Digest)
+	c.Set("X-SForum-Asset-Integrity", asset.Integrity)
+	return c.Send(asset.Body)
+}
+
 func mapPublicFrontendError(err error) error {
 	// Public callers cannot distinguish disabled, revoked, stale, changed, or
 	// undeclared artifacts. The exact trust inspector remains admin-only.

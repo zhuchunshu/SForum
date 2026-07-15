@@ -7,6 +7,7 @@ func (h *Controller) RegisterRoutes(api fiber.Router) {
 	api.Get("/site/active-theme/settings", h.publicActiveThemeSettings)
 	api.Get("/extensions/runtime/:extensionId/components/:componentId", h.publicFrontendComponent)
 	api.Get("/extensions/runtime/:extensionId/assets/:packageDigest/:digest/:handle", h.publicFrontendAsset)
+	api.Get("/extensions/runtime/:extensionId/packages/:packageDigest/*", h.publicFrontendPackageAsset)
 
 	api.Get("/admin/admin-surfaces", h.listAdminSurfaces)
 	api.Post("/admin/admin-surfaces/:surfaceId/invoke", h.invokeAdminSurface)

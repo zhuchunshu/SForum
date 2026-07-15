@@ -7,6 +7,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -37,8 +38,78 @@ func TestPublicFrontendRequiresLiveExactArtifactTrust(t *testing.T) {
 		t.Fatalf("unexpected public descriptor: %#v", descriptor)
 	}
 	if descriptor.Entry.Integrity == "" || descriptor.Assets[0].Integrity == "" ||
-		!strings.HasPrefix(descriptor.Entry.AssetPath, "/extensions/runtime/") {
+		!strings.Contains(descriptor.Entry.AssetPath, "/packages/"+extension.PackageDigest+"/frontend/public/card.mjs") {
 		t.Fatalf("descriptor is not immutable/integrity-bound: %#v", descriptor)
+	}
+}
+
+func TestPublicFrontendReplaceAllIsIndependentOfFirstRequestAndCatalogOrder(t *testing.T) {
+	owner := publicFrontendFixtureFor(t, "owner.assets", nil)
+	ownerHandle := owner.Manifest.Assets[0].Handle
+	consumer := publicFrontendFixtureFor(t, "consumer.assets", []string{ownerHandle})
+	consumer.Manifest.Dependencies = []ManifestDependency{{
+		ID: owner.ID, Version: "^1.0.0", Kind: "required",
+	}}
+	reader := &fakeFrontendExtensionReader{items: []Extension{consumer, owner}}
+	trustStore := &memoryExecutableTrustStore{}
+	trust := NewExecutableTrustService(reader, trustStore)
+	grantPublicFrontend(t, trust, owner)
+	grantPublicFrontend(t, trust, consumer)
+
+	first := NewFrontendService(reader, &fakeFrontendTrustStore{}).
+		WithExecutableTrust(trust, true).WithPublicL2(true)
+	descriptor, err := first.PublicComponent(t.Context(), consumer.ID, consumer.Manifest.Components[0].ID)
+	if err != nil || len(descriptor.Assets) != 2 || descriptor.Assets[0].Handle != ownerHandle {
+		t.Fatalf("consumer-first dependency plan=%#v err=%v", descriptor.Assets, err)
+	}
+	firstSnapshot := first.publicAssets.Snapshot()
+
+	reader.items = []Extension{owner, consumer}
+	restarted := NewFrontendService(reader, &fakeFrontendTrustStore{}).
+		WithExecutableTrust(trust, true).WithPublicL2(true)
+	if _, err := restarted.PublicComponent(t.Context(), owner.ID, owner.Manifest.Components[0].ID); err != nil {
+		t.Fatal(err)
+	}
+	if secondSnapshot := restarted.publicAssets.Snapshot(); !reflect.DeepEqual(firstSnapshot, secondSnapshot) {
+		t.Fatalf("catalog order changed snapshot: first=%#v second=%#v", firstSnapshot, secondSnapshot)
+	}
+}
+
+func TestPublicFrontendServesExactPackageLocalModuleCSSAndBinaryResources(t *testing.T) {
+	extension := publicFrontendFixture(t)
+	reader := &fakeFrontendExtensionReader{item: extension}
+	trust := NewExecutableTrustService(reader, &memoryExecutableTrustStore{})
+	service := NewFrontendService(reader, &fakeFrontendTrustStore{}).
+		WithExecutableTrust(trust, true).WithPublicL2(true)
+	grantPublicFrontend(t, trust, extension)
+
+	tests := []struct {
+		path        string
+		contentType string
+	}{
+		{path: "frontend/public/card.mjs", contentType: "application/javascript; charset=utf-8"},
+		{path: "frontend/public/chunk.mjs", contentType: "application/javascript; charset=utf-8"},
+		{path: "frontend/public/card.css", contentType: "text/css; charset=utf-8"},
+		{path: "frontend/public/nested.css", contentType: "text/css; charset=utf-8"},
+		{path: "frontend/public/font.woff2", contentType: "font/woff2"},
+	}
+	for _, test := range tests {
+		asset, err := service.PublicPackageAsset(t.Context(), extension.ID, extension.PackageDigest, test.path)
+		if err != nil || asset.ContentType != test.contentType || asset.Digest == "" || asset.Integrity == "" {
+			t.Fatalf("%s asset=%#v err=%v", test.path, asset, err)
+		}
+	}
+	for _, rejected := range []string{
+		"frontend/public/unsafe.html", "frontend/public/unsafe.svg", "frontend/public/missing.mjs", "../card.mjs",
+	} {
+		if _, err := service.PublicPackageAsset(t.Context(), extension.ID, extension.PackageDigest, rejected); !errors.Is(err, ErrPublicFrontendUnavailable) {
+			t.Fatalf("unsafe package resource %q error=%v", rejected, err)
+		}
+	}
+	if _, err := service.PublicPackageAsset(
+		t.Context(), extension.ID, strings.Repeat("f", 64), "frontend/public/card.mjs",
+	); !errors.Is(err, ErrPublicFrontendUnavailable) {
+		t.Fatalf("stale package resource error=%v", err)
 	}
 }
 
@@ -172,13 +243,24 @@ func grantPublicFrontend(t *testing.T, trust *ExecutableTrustService, extension 
 }
 
 func publicFrontendFixture(t *testing.T) Extension {
+	return publicFrontendFixtureFor(t, "demo.public", nil)
+}
+
+func publicFrontendFixtureFor(t *testing.T, id string, assetDependencies []string) Extension {
 	t.Helper()
 	root := t.TempDir()
 	entryPath := "frontend/public/card.mjs"
 	stylePath := "frontend/public/card.css"
-	entryBody := []byte("export const apiVersion = 1\nexport async function mount(target) { target.dataset.mounted = '1'; return () => target.replaceChildren() }\n")
-	styleBody := []byte(".demo-l2 { color: var(--sf-accent); }\n")
-	for name, body := range map[string][]byte{entryPath: entryBody, stylePath: styleBody} {
+	files := map[string][]byte{
+		entryPath:                     []byte("import { marker } from './chunk.mjs'\nexport const apiVersion = 1\nexport const moduleURL = import.meta.url\nexport async function mount(target) { target.dataset.mounted = marker; return () => target.replaceChildren() }\n"),
+		stylePath:                     []byte("@import './nested.css';\n.demo-l2 { font-family: demo; src: url('./font.woff2'); }\n"),
+		"frontend/public/chunk.mjs":   []byte("export const marker = '1'\n"),
+		"frontend/public/nested.css":  []byte(".nested { color: var(--sf-accent); }\n"),
+		"frontend/public/font.woff2":  []byte("test-font"),
+		"frontend/public/unsafe.html": []byte("<script>top.location='https://example.invalid'</script>"),
+		"frontend/public/unsafe.svg":  []byte("<svg xmlns='http://www.w3.org/2000/svg'><script>alert(1)</script></svg>"),
+	}
+	for name, body := range files {
 		if err := os.MkdirAll(filepath.Dir(filepath.Join(root, name)), 0o755); err != nil {
 			t.Fatal(err)
 		}
@@ -186,22 +268,30 @@ func publicFrontendFixture(t *testing.T) Extension {
 			t.Fatal(err)
 		}
 	}
+	entryBody := files[entryPath]
+	styleBody := files[stylePath]
 	entryDigest := bytesDigest(entryBody)
 	styleDigest := bytesDigest(styleBody)
 	manifest := Manifest{
-		ManifestVersion: 3, ID: "demo.public", Name: "Public L2", Version: "1.0.0", Type: TypePlugin,
+		ManifestVersion: 3, ID: id, Name: "Public L2", Version: "1.0.0", Type: TypePlugin,
 		PackageFiles: []ManifestPackageFile{
-			{ID: "demo.public.file.card", Kind: "frontend", Path: entryPath, Digest: entryDigest},
-			{ID: "demo.public.file.style", Kind: "asset", Path: stylePath, Digest: styleDigest},
+			{ID: id + ".file.card", Kind: "frontend", Path: entryPath, Digest: entryDigest},
+			{ID: id + ".file.style", Kind: "asset", Path: stylePath, Digest: styleDigest},
+			{ID: id + ".file.chunk", Kind: "frontend", Path: "frontend/public/chunk.mjs", Digest: bytesDigest(files["frontend/public/chunk.mjs"])},
+			{ID: id + ".file.nested", Kind: "asset", Path: "frontend/public/nested.css", Digest: bytesDigest(files["frontend/public/nested.css"])},
+			{ID: id + ".file.font", Kind: "asset", Path: "frontend/public/font.woff2", Digest: bytesDigest(files["frontend/public/font.woff2"])},
+			{ID: id + ".file.html", Kind: "asset", Path: "frontend/public/unsafe.html", Digest: bytesDigest(files["frontend/public/unsafe.html"])},
+			{ID: id + ".file.svg", Kind: "asset", Path: "frontend/public/unsafe.svg", Digest: bytesDigest(files["frontend/public/unsafe.svg"])},
 		},
 		Assets: []ManifestAsset{{
-			Handle: "demo.public.asset.style", ContractVersion: "demo.public.asset.style@1",
+			Handle: id + ".asset.style", ContractVersion: id + ".asset.style@1",
 			Type: "style", Path: stylePath, Digest: styleDigest,
-			Scope: []string{"demo.public.component.card"}, Loading: "blocking", CSP: []string{"connect-src 'self'"},
+			Dependencies: append([]string(nil), assetDependencies...),
+			Scope:        []string{id + ".component.card"}, Loading: "blocking", CSP: []string{"connect-src 'self'"},
 		}},
 		Components: []ManifestComponent{{
-			ID: "demo.public.component.card", ContractVersion: "demo.public.component.card@1",
-			Action: "add", L2Component: "demo.public.file.card", PropsSchema: "demo.public.component.card.props@1",
+			ID: id + ".component.card", ContractVersion: id + ".component.card@1",
+			Action: "add", L2Component: id + ".file.card", PropsSchema: id + ".component.card.props@1",
 		}},
 	}
 	packageDigest, err := extensionpackage.DigestTree(root)

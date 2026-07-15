@@ -3,11 +3,13 @@ package extensions
 import (
 	"context"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/hex"
 	"errors"
 	"fmt"
 	"net/url"
 	"os"
+	"path"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -19,9 +21,25 @@ import (
 var ErrPublicFrontendUnavailable = errors.New("extensions: public frontend is unavailable")
 
 const (
-	publicL2EntrySuffix = ".l2.entry"
-	maxPublicL2Assets   = 256
+	publicL2EntrySuffix          = ".l2.entry"
+	maxPublicL2Assets            = 256
+	maxPublicPackageResourceSize = 8 * 1024 * 1024
 )
+
+var publicPackageAssetContentTypes = map[string]string{
+	".js":    "application/javascript; charset=utf-8",
+	".mjs":   "application/javascript; charset=utf-8",
+	".css":   "text/css; charset=utf-8",
+	".png":   "image/png",
+	".jpg":   "image/jpeg",
+	".jpeg":  "image/jpeg",
+	".gif":   "image/gif",
+	".webp":  "image/webp",
+	".avif":  "image/avif",
+	".ico":   "image/x-icon",
+	".woff":  "font/woff",
+	".woff2": "font/woff2",
+}
 
 func (s *FrontendService) PublicComponent(ctx context.Context, extensionID, componentID string) (PublicFrontendComponent, error) {
 	extension, identity, err := s.publicRuntimeExtension(ctx, extensionID)
@@ -33,11 +51,7 @@ func (s *FrontendService) PublicComponent(ctx context.Context, extensionID, comp
 	if !ok {
 		return PublicFrontendComponent{}, ErrPublicFrontendUnavailable
 	}
-	publication, err := publicAssetPublication(extension, identity)
-	if err != nil {
-		return PublicFrontendComponent{}, err
-	}
-	if _, err := s.publicAssets.Publish(publication); err != nil {
+	if err := s.refreshPublicAssetSnapshot(ctx); err != nil {
 		return PublicFrontendComponent{}, errors.Join(ErrPublicFrontendUnavailable, err)
 	}
 	entryHandle := publicL2EntryHandle(component)
@@ -55,6 +69,9 @@ func (s *FrontendService) PublicComponent(ctx context.Context, extensionID, comp
 			cspSet[declaration] = struct{}{}
 		}
 		if asset.Handle == entryHandle {
+			if !publicAssetMatchesRuntime(asset, extension, identity) {
+				return PublicFrontendComponent{}, ErrPublicFrontendUnavailable
+			}
 			entry = reference
 			continue
 		}
@@ -94,11 +111,7 @@ func (s *FrontendService) PublicAsset(
 	if packageDigest != extension.PackageDigest || handle == "" || digest == "" {
 		return FrontendAsset{}, ErrPublicFrontendUnavailable
 	}
-	publication, err := publicAssetPublication(extension, identity)
-	if err != nil {
-		return FrontendAsset{}, err
-	}
-	if _, err := s.publicAssets.Publish(publication); err != nil {
+	if err := s.refreshPublicAssetSnapshot(ctx); err != nil {
 		return FrontendAsset{}, errors.Join(ErrPublicFrontendUnavailable, err)
 	}
 	asset, ok := s.publicAssets.Resolve(handle)
@@ -140,23 +153,90 @@ func (s *FrontendService) PublicAsset(
 	}, nil
 }
 
+// PublicPackageAsset serves package-local resources from their original URL
+// directory. Native ESM relative imports, import.meta.url, CSS url(), and
+// package-local @import therefore keep browser semantics without a runtime
+// source rewrite. Only exact manifest declarations cross this boundary.
+func (s *FrontendService) PublicPackageAsset(
+	ctx context.Context,
+	extensionID, packageDigest, packagePath string,
+) (FrontendAsset, error) {
+	extension, _, err := s.publicRuntimeExtension(ctx, extensionID)
+	if err != nil {
+		return FrontendAsset{}, err
+	}
+	packageDigest = normalizedPublicDigest(packageDigest)
+	packagePath = strings.TrimPrefix(strings.TrimSpace(packagePath), "/")
+	if packageDigest != extension.PackageDigest || !safePublicPackagePath(packagePath) {
+		return FrontendAsset{}, ErrPublicFrontendUnavailable
+	}
+	file, ok := publicPackageFileByPath(extension.Manifest, packagePath)
+	if !ok {
+		return FrontendAsset{}, ErrPublicFrontendUnavailable
+	}
+	contentType, ok := publicPackageFileContentType(file)
+	if !ok {
+		return FrontendAsset{}, ErrPublicFrontendUnavailable
+	}
+	return readExactPublicPackageFile(extension, file, contentType)
+}
+
+func (s *FrontendService) refreshPublicAssetSnapshot(ctx context.Context) error {
+	catalog, ok := s.extensions.(PublicFrontendExtensionCatalog)
+	if !ok || ctx == nil {
+		return ErrPublicFrontendUnavailable
+	}
+	items, err := catalog.List(ctx)
+	if err != nil {
+		return err
+	}
+	publications := make([]assetregistry.Publication, 0, len(items))
+	for _, extension := range items {
+		if extension.Status != StatusEnabled || !hasL2Components(extension.Manifest) {
+			continue
+		}
+		identity, identityErr := s.executableTrust.RuntimeIdentity(ctx, extension)
+		if errors.Is(identityErr, ErrTrustGrantNotFound) || errors.Is(identityErr, ErrFrontendPackageChanged) {
+			// An untrusted, revoked, or byte-drifted owner contributes nothing.
+			// Required cross-owner dependencies then fail the complete graph.
+			continue
+		}
+		if identityErr != nil {
+			return identityErr
+		}
+		if identity.ImpactDigest == "" {
+			return ErrPublicFrontendUnavailable
+		}
+		publication, publicationErr := publicAssetPublication(extension, identity)
+		if publicationErr != nil {
+			return publicationErr
+		}
+		publications = append(publications, publication)
+	}
+	_, err = s.publicAssets.ReplaceAll(publications)
+	return err
+}
+
 func (s *FrontendService) publicRuntimeExtension(
 	ctx context.Context,
 	extensionID string,
 ) (Extension, RuntimeTrustIdentity, error) {
 	extensionID = normalizeID(extensionID)
-	if s == nil || !s.publicL2 || s.safeMode || !s.v3TrustChallenges ||
+	if s == nil || ctx == nil || !s.publicL2 || s.safeMode || !s.v3TrustChallenges ||
 		s.extensions == nil || s.executableTrust == nil || s.publicAssets == nil || extensionID == "" {
+		if s != nil && s.publicAssets != nil && (s.safeMode || !s.publicL2) {
+			_, _ = s.publicAssets.ReplaceAll(nil)
+		}
 		return Extension{}, RuntimeTrustIdentity{}, ErrPublicFrontendUnavailable
 	}
 	extension, err := s.extensions.Get(ctx, extensionID)
 	if err != nil || extension.Status != StatusEnabled || !hasL2Components(extension.Manifest) {
-		_, _ = s.publicAssets.Remove(extensionID)
+		_ = s.refreshPublicAssetSnapshot(ctx)
 		return Extension{}, RuntimeTrustIdentity{}, ErrPublicFrontendUnavailable
 	}
 	identity, err := s.executableTrust.RuntimeIdentity(ctx, extension)
 	if err != nil || identity.ImpactDigest == "" {
-		_, _ = s.publicAssets.Remove(extensionID)
+		_ = s.refreshPublicAssetSnapshot(ctx)
 		if errors.Is(err, ErrFrontendPackageChanged) {
 			return Extension{}, RuntimeTrustIdentity{}, errors.Join(ErrPublicFrontendUnavailable, err)
 		}
@@ -232,10 +312,10 @@ func publicL2EntryHandle(component ManifestComponent) string {
 }
 
 func publicAssetReference(asset assetregistry.Asset) PublicFrontendAssetReference {
-	path := fmt.Sprintf(
-		"/extensions/runtime/%s/assets/%s/%s/%s",
+	assetPath := fmt.Sprintf(
+		"/extensions/runtime/%s/packages/%s/%s",
 		url.PathEscape(asset.Artifact.ExtensionID), url.PathEscape(asset.Artifact.PackageDigest),
-		url.PathEscape(asset.Digest), url.PathEscape(asset.Handle),
+		escapePublicPackagePath(asset.Path),
 	)
 	return PublicFrontendAssetReference{
 		Handle: asset.Handle, ContractVersion: asset.ContractVersion,
@@ -243,8 +323,88 @@ func publicAssetReference(asset assetregistry.Asset) PublicFrontendAssetReferenc
 		ImpactDigest: asset.Artifact.ImpactDigest, Type: asset.Type, Digest: asset.Digest,
 		Integrity: asset.Integrity, Dependencies: append([]string(nil), asset.Dependencies...),
 		Scope: append([]string(nil), asset.Scope...), Module: asset.Module, Loading: asset.Loading,
-		CSP: append([]string(nil), asset.CSP...), AssetPath: path,
+		CSP: append([]string(nil), asset.CSP...), AssetPath: assetPath,
 	}
+}
+
+func publicAssetMatchesRuntime(
+	asset assetregistry.Asset,
+	extension Extension,
+	identity RuntimeTrustIdentity,
+) bool {
+	return asset.Artifact.ExtensionID == extension.ID &&
+		asset.Artifact.ExtensionVersion == extension.Version &&
+		asset.Artifact.PackageDigest == extension.PackageDigest &&
+		asset.Artifact.ImpactDigest == identity.ImpactDigest
+}
+
+func publicPackageFileByPath(manifest Manifest, packagePath string) (ManifestPackageFile, bool) {
+	manifest = extensionmanifest.Normalize(manifest)
+	for _, file := range manifest.PackageFiles {
+		if file.Path == packagePath {
+			return file, true
+		}
+	}
+	return ManifestPackageFile{}, false
+}
+
+func publicPackageFileContentType(file ManifestPackageFile) (string, bool) {
+	if file.Kind != "frontend" && file.Kind != "asset" {
+		return "", false
+	}
+	extension := strings.ToLower(path.Ext(file.Path))
+	contentType, ok := publicPackageAssetContentTypes[extension]
+	if !ok {
+		return "", false
+	}
+	if file.Kind == "frontend" && extension != ".js" && extension != ".mjs" {
+		return "", false
+	}
+	return contentType, true
+}
+
+func readExactPublicPackageFile(
+	extension Extension,
+	file ManifestPackageFile,
+	contentType string,
+) (FrontendAsset, error) {
+	target, ok := installedFilePath(extension, file.Path)
+	if !ok {
+		return FrontendAsset{}, ErrPublicFrontendUnavailable
+	}
+	info, err := os.Lstat(target)
+	if err != nil || !info.Mode().IsRegular() || info.Mode()&os.ModeSymlink != 0 ||
+		info.Size() <= 0 || info.Size() > maxPublicPackageResourceSize {
+		return FrontendAsset{}, ErrPublicFrontendUnavailable
+	}
+	body, err := os.ReadFile(target)
+	if err != nil {
+		return FrontendAsset{}, err
+	}
+	digest := sha256.Sum256(body)
+	actualDigest := hex.EncodeToString(digest[:])
+	if !strings.EqualFold(actualDigest, normalizedPublicDigest(file.Digest)) {
+		return FrontendAsset{}, errors.Join(ErrPublicFrontendUnavailable, ErrFrontendPackageChanged)
+	}
+	integrity := "sha256-" + base64.StdEncoding.EncodeToString(digest[:])
+	return FrontendAsset{
+		Body: body, ContentType: contentType, ETag: `"` + actualDigest + `"`,
+		Digest: actualDigest, Integrity: integrity,
+	}, nil
+}
+
+func safePublicPackagePath(value string) bool {
+	return value != "" && len(value) <= 512 && !strings.Contains(value, "\\") &&
+		!strings.HasPrefix(value, "/") && path.Clean(value) == value &&
+		value != "." && value != ".." && !strings.HasPrefix(value, "../")
+}
+
+func escapePublicPackagePath(value string) string {
+	parts := strings.Split(value, "/")
+	for index := range parts {
+		parts[index] = url.PathEscape(parts[index])
+	}
+	return strings.Join(parts, "/")
 }
 
 func stringSlicesIntersect(left, right []string) bool {

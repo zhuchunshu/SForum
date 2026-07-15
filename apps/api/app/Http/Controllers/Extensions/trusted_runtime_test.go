@@ -130,6 +130,18 @@ func TestTrustedRuntimeControllerServesPublicL2DescriptorAndImmutableAssetsWitho
 		resp.Header.Get("Cross-Origin-Resource-Policy") != "same-origin" {
 		t.Fatalf("public asset headers=%v body=%q", resp.Header, body.String())
 	}
+
+	packagePath := "/api/v1/extensions/runtime/demo.plugin/packages/" + digest + "/frontend/public/chunks/card.mjs"
+	resp = performExtensionRequest(t, app, http.MethodGet, packagePath, nil)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("public package asset: status=%d", resp.StatusCode)
+	}
+	defer resp.Body.Close()
+	if resp.Header.Get("Content-Type") != "application/javascript; charset=utf-8" ||
+		resp.Header.Get("X-Frame-Options") != "DENY" ||
+		resp.Header.Get("X-SForum-Asset-Digest") != fileDigest {
+		t.Fatalf("public package asset headers=%v", resp.Header)
+	}
 }
 
 func TestTrustedRuntimeControllerHidesInvalidOrRevokedPublicL2(t *testing.T) {
@@ -221,5 +233,9 @@ func (s *fakeTrustedFrontendHTTPService) PublicComponent(context.Context, string
 }
 
 func (s *fakeTrustedFrontendHTTPService) PublicAsset(context.Context, string, string, string, string) (extensions.FrontendAsset, error) {
+	return s.publicAsset, s.publicErr
+}
+
+func (s *fakeTrustedFrontendHTTPService) PublicPackageAsset(context.Context, string, string, string) (extensions.FrontendAsset, error) {
 	return s.publicAsset, s.publicErr
 }

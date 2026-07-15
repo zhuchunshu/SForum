@@ -69,6 +69,7 @@ type TrustedFrontendChallengeService interface {
 type PublicFrontendRuntimeService interface {
 	PublicComponent(context.Context, string, string) (extensions.PublicFrontendComponent, error)
 	PublicAsset(context.Context, string, string, string, string) (extensions.FrontendAsset, error)
+	PublicPackageAsset(context.Context, string, string, string) (extensions.FrontendAsset, error)
 }
 
 type ProxyInput struct {
