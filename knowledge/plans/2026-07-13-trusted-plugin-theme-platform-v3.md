@@ -558,7 +558,7 @@ query, and identity workflows without replacing whole routes.
       actors remain denied and no role receives an implicit grant.
 - [ ] Priority, timeout, failure policy, version mismatch, dependency disable,
       cycle, and provider fallback.
-- [ ] CLI command is unavailable in safe mode unless explicitly recovery-safe.
+- [x] CLI command is unavailable in safe mode unless explicitly recovery-safe.
 - [x] Job/schedule disable and upgrade drain behavior.
 
 ### Rollback

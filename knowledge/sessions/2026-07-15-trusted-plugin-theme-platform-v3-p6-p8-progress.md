@@ -2,8 +2,8 @@
 
 ## Changed
 
-- Weighted V3 is 52%. P5/P6/P7/P8 remain parallel; P6 is 12/18, P7 is
-  11/22, and P8 is 10/18.
+- Weighted V3 is 54%. P5/P6/P7/P8 remain parallel; P6 is 12/18, P7 is
+  11/22, and P8 is 15/18.
 - P6 now has real-process multipart, SSE, WebSocket, disconnect cancellation,
   and bounded backpressure evidence through Fiber, Registry, Dispatcher,
   Manager admission, Protocol V2 gRPC, and the plugin SDK.
@@ -27,10 +27,16 @@
   bounded retry/concurrency, publish plugin schedules dynamically through
   River's safe add/remove API, and hold lifecycle admission through the real
   job insert. Embedded and standalone workers publish the same exact snapshot.
-- P8 has an exact compiled four-level fallback and durable exact publication.
-  Two real nodes converge through LISTEN plus authoritative polling; remaining
-  work is Page ViewModel closure, all-catalog hot-path proof, and crawler/
-  JavaScript-disabled SSR evidence.
+- P7 Admin Surfaces now have immutable exact-runtime publication, typed Protocol
+  V2 invocation, active-runtime visibility, reviewed HTTP routes, declaration
+  permission filtering, redacted catalog output, and durable pre-call audit.
+  Publication swaps cannot redirect an audited call or invalidate an admitted
+  old call's frozen output validator. Terminal audit is best-effort after the
+  mandatory durable attempt.
+- P8 now has the exact compiled four-level fallback, durable convergence,
+  all-catalog zero-I/O proof, and crawler/JavaScript-disabled SSR evidence.
+  Page-specific production ViewModels, plugin business-data preservation, and
+  exact API/Nitro restart plus concurrent activation remain open.
 
 ## Commits
 
@@ -91,6 +97,9 @@
 - `1becca5b1 feat(protocol): invoke exact plugin commands`
 - `cccdf3512 feat(extensions): execute exact plugin commands`
 - `9c446c7b8 feat(cli): run exact trusted plugin commands`
+- `3dff78a05 feat(extensions): register immutable admin surfaces`
+- `00470c41e feat(extensions): invoke exact admin surfaces`
+- `8ee782c78 feat(extensions): expose typed admin surfaces`
 
 ## Verification
 
@@ -125,6 +134,10 @@
 - P7 Plugin Command Registry focused, package, CLI, and race gates passed.
   Nested builtin-plugin module gates are not fully green: their `go.sum` files
   still lack Goldmark and go-redis entries and must be repaired and rerun.
+- P7 Admin Surfaces passed full Support/Extensions, Extensions HTTP, bootstrap,
+  Routes, and Localization packages; focused runtime/HTTP race; vet; build;
+  1,841 OpenAPI refs across 45 files; and the 225-route catalog drift gate.
+  Deterministic regressions cover both exact-artifact publication races.
 - P8 fallback passed focused Pages/Extensions/Controller tests, race, vet,
   build, and ThemeCompiler allocation checks before commit.
 - P8 exact-preview backend, OpenAPI, admin typecheck/locales, and the additive
@@ -158,8 +171,10 @@
 
 - P6: no uncommitted transport files; continue guard/action/SEO/OpenAPI work
   only after checking the current shared tree.
-- P7: Admin Surface Registry is active; provider browser QA awaits login.
-- P8: Page ViewModel/hot-path audit and crawler/JavaScript-disabled evidence.
+- P7: Admin Surface production consumers remain active; provider browser QA
+  awaits login.
+- P8: Page-specific ViewModels, plugin data preservation, and restart/concurrent
+  activation evidence remain open.
 - Preserve these groups and stage only one coherent owner at a time.
 
 ## Next
@@ -169,13 +184,14 @@
    entity-meta value routes, two attachment reads, and one forum comment-create
    route. Continue independent P6 action/SEO/OpenAPI work where semantics are
    already frozen.
-2. Audit every P8 Page ViewModel and prove all-catalog hot rendering has no
-   theme disk I/O or provider database query.
-3. Start API and Nuxt manually, then capture crawler and JavaScript-disabled
-   SSR evidence for home, lists, topic, profile, pagination, SEO, and JSON-LD.
+2. Populate production page-specific P8 ViewModels and prove theme overrides
+   preserve each plugin's versioned business-data contract.
+3. Run the exact API/Nitro restart plus concurrent theme-activation exit test.
 4. Continue P5 with signed actor delegation and concrete transactional Host
    Commands, then provider-neutral entitlement persistence.
-5. Continue P7 with Admin Surface Registry, then Query/Identity. Repair the
+5. Continue P7 Admin Surfaces with frozen kind-specific placement, distinct
+   props/result schemas, concrete admin-shell consumers, actor/idempotency for
+   mutations, and a reference plugin; then continue Query/Identity. Repair the
    nested builtin-plugin Goldmark/go-redis `go.sum` gaps and rerun their full
    module gates; rerun provider UI QA after Chrome login.
 

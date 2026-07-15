@@ -768,6 +768,28 @@ template while retaining Schema fallback fields.
   builtin-plugin module gates still need Goldmark and go-redis `go.sum` entries;
   they are not considered green until those sums are repaired and tests rerun.
 
+## V3 P7 Admin Surface checkpoint
+
+- P7 remains 11/22. The immutable Admin Surface Registry publishes declarations
+  for all twelve V3 kinds to exact active runtime instances, restores/removes
+  them through lifecycle snapshots, and invokes typed Protocol V2 handlers under
+  exact admission with one frozen validator for both input and output.
+- `GET /api/v1/admin/admin-surfaces` requires `admin.access`, filters each
+  declaration by its Host-owned permission, removes modifiers whose targets are
+  hidden, and redacts artifact, runtime, handler, and permission internals.
+  `POST /api/v1/admin/admin-surfaces/:surfaceId/invoke` repeats authorization,
+  requires a durable exact-artifact audit attempt, and returns stable localized
+  errors without recording typed input or output documents. The terminal
+  success/failure append is best-effort; only the pre-call attempt is guaranteed.
+- The invocation boundary fences both publication races: an audit for an old
+  contract cannot execute the replacement instance, and an admitted old call
+  continues to validate against its original schema after a concurrent upgrade.
+- This is not complete production consumption. Manifest V3 still needs frozen
+  kind-specific layout/placement and distinct props/result schemas; the admin
+  shell needs concrete list/form/dashboard/editor/detail/import/export consumers
+  with actor/idempotency propagation for mutations; and an independent reference
+  admin plugin must exercise the complete surface family.
+
 ## V3 P8 theme runtime checkpoint
 
 - P8 is 15/18. The immutable compiler/runtime covers all 23 catalog identities,

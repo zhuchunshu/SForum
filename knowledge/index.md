@@ -14,9 +14,9 @@ This is the entry point for project memory.
   - P0 catalogs and governance: `docs/extensions/v3/`
   - Decision contains the authoritative 27-row template comparison, 72-row
     plugin comparison, detailed architecture mind map, and boundary checklist
-  - P0 governance now tracks 99-row traceability, 218 routes, 118 UI surfaces, 33 admin
-    surfaces, 19-module Extension Surface Matrix, stable identities, governance,
-    migration gates, and performance baseline; CI rejects catalog drift
+  - P0 governance now tracks 99-row traceability, 225 routes, 118 UI surfaces,
+    33 admin surfaces, 19-module Extension Surface Matrix, stable identities,
+    governance, migration gates, and performance baseline; CI rejects catalog drift
   - P1 completed exact-artifact one-use trust, delegated inert preview,
     super-admin HTTP/UI flow, pre-plugin Safe Mode, PostgreSQL-only recovery,
     boot-loop containment, audit, and full digest/declaration invalidation
@@ -82,7 +82,7 @@ This is the entry point for project memory.
     resource/capability scopes, effective-window checks, transaction-aware
     composition, and concurrent idempotent replay. P5 remains 12/17 until the
     production entitlement Host Command and the other open row exits are wired
-  - P6 is active at 11/18 (61%). All 218 core routes have stable generated
+  - P6 is active at 12/18 (67%). All 225 core routes have stable generated
     identities; immutable exact route snapshots, arbitrary declared paths,
     explicit replace-provider selection/conflict UI, Safe Mode filtering, and
     strict OpenAPI collision/reference rejection are accepted
@@ -109,7 +109,7 @@ This is the entry point for project memory.
     immutable planning removed full-catalog per-request copies, while the report
     retains the selected-route latency/bytes/allocation regression and requires
     P13 remeasurement
-  - P7 is 9/22 (41%). Versioned namespaced action/filter hooks now publish one
+  - P7 is 11/22 (50%). Versioned namespaced action/filter hooks now publish one
     immutable exact-runtime graph with deterministic priority, typed contracts,
     dependency SemVer, optional fallback, Host revalidation, River delivery,
     lifecycle rollback, and exact Protocol V2 invocation
@@ -124,6 +124,13 @@ This is the entry point for project memory.
     policy in River rows. Host-owned dynamic schedules use River safe add/remove,
     exact trigger admission, lifecycle drain, and consistent embedded/standalone
     worker publication; Safe Mode publishes no third-party schedule.
+  - The Admin Surface Registry now publishes immutable exact-runtime contracts,
+    typed Protocol V2 invocation, lifecycle rollback, active-runtime visibility,
+    a permission-filtered/redacted HTTP catalog, durable pre-execution audit, and
+    stable localized errors. Exact publication swaps are fenced before and during
+    invocation. The row remains open pending frozen kind-specific placement,
+    distinct props/result schemas, real admin-shell consumers, and a reference
+    admin plugin; do not credit the HTTP catalog as full production completion.
   - P8 is 15/18 (83%). Immutable 23-page compiler snapshots, sealed typed
     frontend output, public/admin skin isolation, install-time safety,
     four-level fallback, exact publication, all-catalog zero-I/O proof, and

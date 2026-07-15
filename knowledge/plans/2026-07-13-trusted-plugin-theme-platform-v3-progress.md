@@ -145,6 +145,40 @@ phase percentage.
   end-to-end plugin business-data contract preservation for theme overrides,
   and one exact API/Nitro restart plus concurrent-activation exit test.
 
+### 2026-07-15 P7 Admin Surface HTTP Checkpoint
+
+- Overall remains **54%** after flooring and P7 remains **50% (11 of 22
+  rows)**. The Admin Surface production row is deliberately still open; this
+  registry/transport/HTTP slice does not earn another row by itself.
+- `3dff78a05` and `00470c41e` add the immutable exact-artifact Admin Surface
+  Registry, lifecycle publication/rollback, active-runtime visibility fence,
+  typed Protocol V2 invocation, frozen schema validation, and runtime admission.
+- `8ee782c78` exposes the permissioned/redacted catalog at
+  `GET /api/v1/admin/admin-surfaces` and exact typed invocation at
+  `POST /api/v1/admin/admin-surfaces/:surfaceId/invoke`. Core Route guards
+  require `admin.access`; the controller rechecks each declaration's Host-owned
+  permission and hides modifiers whose target is not visible.
+- Invocation requires a durable exact-artifact audit attempt before plugin code.
+  Compatible publication swaps cannot redirect the call to a newer artifact,
+  while an already-admitted old call retains its frozen validator and completes
+  against the audited old instance. Input/output documents are never audited.
+  The terminal success/failure append is best-effort; the mandatory attempted
+  row is the durable gate that prevents unaudited plugin execution.
+- Stable localized HTTP errors cover invalid/missing input, permission, missing,
+  conflict/stale, timeout, transport, and runtime-unavailable outcomes. Public
+  responses omit artifact digest, runtime instance, handler, and permission
+  internals. The reviewed catalog now contains 225 Core routes.
+- Verification passed full Support/Extensions, Extensions HTTP, bootstrap,
+  Routes, and Localization packages; focused runtime and HTTP race tests; vet;
+  build; V3 catalog drift; and 1,841 OpenAPI references across 45 files. The
+  nested builtin-plugin Goldmark/go-redis `go.sum` gaps remain a separate open
+  full-module gate.
+- Do not close the Admin Surface row until Manifest V3 freezes kind-specific
+  layout/placement, props and result use distinct schemas, the admin shell has
+  concrete list/form/dashboard/editor/detail/import/export consumers with
+  Host-attested actor/idempotency where mutation is possible, and an independent
+  reference admin plugin exercises the complete surface family.
+
 ### 2026-07-15 P6 Streamed Transports And P7 Plugin Commands Checkpoint
 
 - Overall is **52%**. P5 is **71% (12 of 17 rows)**, P6 is **67% (12
