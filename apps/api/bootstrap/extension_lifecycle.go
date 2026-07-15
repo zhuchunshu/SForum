@@ -53,6 +53,7 @@ type productionLifecycleStack struct {
 	Jobs               *extensionsruntime.PostgresLifecycleBoundaryJobs
 	RouteRegistry      *routes.Registry
 	RouteSchemas       *extensionopenapi.RouteSchemaPublication
+	ComponentRegistry  *extensionsruntime.ComponentRegistry
 	RouteProviders     *routes.ProviderSelectionAPI
 	ProviderSlots      *extensionsruntime.ProviderSlotSelectionAPI
 	RegistryRepository *extensionsruntime.PostgresLifecycleRegistryPublicationRepository
@@ -141,6 +142,7 @@ func newProductionLifecycleStack(config productionLifecycleStackConfig) (*produc
 	if err != nil {
 		return nil, fmt.Errorf("%w: create route schema publication: %v", errProductionLifecycleDependency, err)
 	}
+	componentRegistry := extensionsruntime.NewComponentRegistry()
 	routeProviders := routes.NewProviderSelectionAPI(
 		routeRegistry,
 		routes.NewPostgresProviderSelectionStore(config.Pool),
@@ -157,6 +159,7 @@ func newProductionLifecycleStack(config productionLifecycleStackConfig) (*produc
 			Repository: registryRepository, Manager: config.Runtime, Pages: config.Pages,
 			ThemeRuntime: config.ThemeRuntime, PageSiteName: config.PageSiteName, PageLocales: config.PageLocales,
 			Routes: routeRegistry, RouteSchemas: routeSchemas, Services: config.Services,
+			Components: componentRegistry,
 		},
 	)
 	state := extensionsruntime.NewPostgresLifecycleBoundaryState(config.Store)
@@ -179,7 +182,8 @@ func newProductionLifecycleStack(config productionLifecycleStackConfig) (*produc
 		Preflight: preflight, StaticPreflight: staticPreflight,
 		MigrationEngine: config.MigrationEngine, Migrations: migrations,
 		Schedules: schedules, JobStore: jobStore, JobCoordinator: jobCoordinator, Jobs: jobs,
-		RouteRegistry: routeRegistry, RouteSchemas: routeSchemas, RouteProviders: routeProviders,
+		RouteRegistry: routeRegistry, RouteSchemas: routeSchemas, ComponentRegistry: componentRegistry,
+		RouteProviders:     routeProviders,
 		ProviderSlots:      providerSlots,
 		RegistryRepository: registryRepository, Registries: registries,
 		State: state, PublicationJournal: journal, Cleanup: cleanup,

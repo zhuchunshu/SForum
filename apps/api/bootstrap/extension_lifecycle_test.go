@@ -13,6 +13,7 @@ import (
 	"github.com/riverqueue/river/rivertype"
 
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
+	componentcatalog "github.com/zhuchunshu/sforum/apps/api/app/Support/ComponentCatalog"
 	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
 	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
 	hostapi "github.com/zhuchunshu/sforum/apps/api/app/Support/HostAPI"
@@ -104,6 +105,7 @@ func TestProductionLifecycleStackConstructsEveryRequiredDependency(t *testing.T)
 		"job store": stack.JobStore != nil, "job coordinator": stack.JobCoordinator != nil,
 		"jobs": stack.Jobs != nil, "route registry": stack.RouteRegistry != nil,
 		"route schemas":       stack.RouteSchemas != nil,
+		"component registry":  stack.ComponentRegistry != nil,
 		"route providers":     stack.RouteProviders != nil,
 		"registry repository": stack.RegistryRepository != nil, "registries": stack.Registries != nil,
 		"state": stack.State != nil, "journal": stack.PublicationJournal != nil,
@@ -120,8 +122,12 @@ func TestProductionLifecycleStackConstructsEveryRequiredDependency(t *testing.T)
 	if stack.RuntimeManager != manager {
 		t.Fatal("coordinator stack did not retain the exact API runtime Manager")
 	}
+	if stack.Registries.ComponentRegistry() != stack.ComponentRegistry {
+		t.Fatal("lifecycle boundary and production stack use different Component Registry instances")
+	}
 	snapshot := stack.RouteRegistry.Snapshot()
-	if snapshot.Revision != 1 || snapshot.SafeMode || len(snapshot.Routes) != 227 || len(snapshot.Conflicts) != 0 {
+	if snapshot.Revision != 1 || snapshot.SafeMode || len(snapshot.Routes) != len(routes.CoreRouteCatalog()) ||
+		len(snapshot.Conflicts) != 0 {
 		t.Fatalf("production core route snapshot = revision %d safe=%t routes=%d conflicts=%#v",
 			snapshot.Revision, snapshot.SafeMode, len(snapshot.Routes), snapshot.Conflicts)
 	}
@@ -150,8 +156,41 @@ func TestProductionLifecycleStackConstructsEveryRequiredDependency(t *testing.T)
 	}
 }
 
+func TestProductionLifecycleStackRestoresComponentsThroughSharedRegistry(t *testing.T) {
+	stack, _, _ := newBootstrapLifecycleStack(t)
+	extension := bootstrapLifecycleComponentExtension(t, "bootstrap.component.normal")
+	if err := stack.Registries.RestoreRoutePublications(
+		context.Background(), []extensions.Extension{extension}, false,
+	); err != nil {
+		t.Fatalf("restore production component publication: %v", err)
+	}
+	runtime, ok := stack.ComponentRegistry.RuntimeSnapshot(extension.ID)
+	if !ok || runtime.Extension.PackageDigest != extension.PackageDigest ||
+		!strings.HasPrefix(runtime.InstanceID, "host-component-package:") {
+		t.Fatalf("restored production component runtime = %#v, %t", runtime, ok)
+	}
+	if snapshot := stack.ComponentRegistry.Snapshot(); snapshot.Revision != 1 || len(snapshot.Contributions) != 1 {
+		t.Fatalf("restored production component snapshot = %#v", snapshot)
+	}
+}
+
 func TestProductionLifecycleStackSafeModeKeepsHostRoutesAndSkipsThirdParty(t *testing.T) {
 	stack, _, _ := newBootstrapLifecycleStackWithSafeMode(t, true)
+	component := bootstrapLifecycleComponentExtension(t, "bootstrap.component.safe-mode")
+	if err := stack.ComponentRegistry.ReplaceRuntime(component, "pre-safe-mode-component"); err != nil {
+		t.Fatalf("seed pre-Safe-Mode component: %v", err)
+	}
+	if err := stack.Registries.RestoreRoutePublications(
+		context.Background(), []extensions.Extension{component}, true,
+	); err != nil {
+		t.Fatalf("restore Safe Mode component publication: %v", err)
+	}
+	if _, ok := stack.ComponentRegistry.RuntimeSnapshot(component.ID); ok {
+		t.Fatal("Safe Mode restore retained a third-party component runtime")
+	}
+	if componentSnapshot := stack.ComponentRegistry.Snapshot(); componentSnapshot.Revision != 2 || len(componentSnapshot.Contributions) != 0 {
+		t.Fatalf("Safe Mode component snapshot = %#v", componentSnapshot)
+	}
 	publication := stack.RouteRegistry.PublicationSnapshot().Publication
 	publication.Plugins = []routes.PluginRouteSet{{
 		Artifact: routes.PluginArtifact{
@@ -169,7 +208,8 @@ func TestProductionLifecycleStackSafeModeKeepsHostRoutesAndSkipsThirdParty(t *te
 	if err != nil {
 		t.Fatalf("safe-mode route publication: %v", err)
 	}
-	if !snapshot.SafeMode || len(snapshot.Routes) != 227 || len(stack.RouteRegistry.PublicationSnapshot().Publication.Plugins) != 0 {
+	if !snapshot.SafeMode || len(snapshot.Routes) != len(routes.CoreRouteCatalog()) ||
+		len(stack.RouteRegistry.PublicationSnapshot().Publication.Plugins) != 0 {
 		t.Fatalf("safe-mode snapshot = safe %t routes %d publication %#v",
 			snapshot.SafeMode, len(snapshot.Routes), stack.RouteRegistry.PublicationSnapshot().Publication)
 	}
@@ -184,6 +224,26 @@ func TestProductionLifecycleStackSafeModeKeepsHostRoutesAndSkipsThirdParty(t *te
 		if err != nil || match.Route.ID != routeID || match.Route.Provider.Kind != routes.ProviderCore {
 			t.Fatalf("safe-mode Host route %s = %#v, %v", path, match, err)
 		}
+	}
+}
+
+func bootstrapLifecycleComponentExtension(t *testing.T, id string) extensions.Extension {
+	t.Helper()
+	target, ok := componentcatalog.FindCoreComponent("core.component.page.forum.home")
+	if !ok {
+		t.Fatal("reviewed forum home component target is missing")
+	}
+	return extensions.Extension{
+		ID: id, Version: "1.0.0", Type: extensions.TypePlugin, Status: extensions.StatusEnabled,
+		PackageDigest: strings.Repeat("a", 64),
+		Manifest: extensions.Manifest{
+			ManifestVersion: 3, ID: id, Version: "1.0.0", Type: extensions.TypePlugin,
+			Components: []extensions.ManifestComponent{{
+				ID: id + ".component.hide-home", ContractVersion: id + ".component.hide-home@1",
+				Action:   extensionmanifest.ComponentActionHide,
+				TargetID: target.ID, TargetContractVersion: target.ContractVersion,
+			}},
+		},
 	}
 }
 
