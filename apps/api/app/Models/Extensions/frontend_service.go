@@ -14,6 +14,7 @@ import (
 	"time"
 
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
+	assetregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/AssetRegistry"
 	audit "github.com/zhuchunshu/sforum/apps/api/app/Support/Audit"
 	extensionpackage "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionPackage"
 )
@@ -36,6 +37,8 @@ type FrontendService struct {
 	challenges        map[string]frontendTrustChallengeState
 	mu                sync.Mutex
 	safeMode          bool
+	publicL2          bool
+	publicAssets      *assetregistry.Registry
 }
 
 type frontendTrustChallengeState struct {
@@ -45,9 +48,10 @@ type frontendTrustChallengeState struct {
 
 func NewFrontendService(extensions FrontendExtensionReader, trust FrontendTrustStore) *FrontendService {
 	return &FrontendService{
-		extensions: extensions,
-		trust:      trust,
-		challenges: map[string]frontendTrustChallengeState{},
+		extensions:   extensions,
+		trust:        trust,
+		challenges:   map[string]frontendTrustChallengeState{},
+		publicAssets: assetregistry.New(),
 	}
 }
 
@@ -58,6 +62,13 @@ func (s *FrontendService) WithAuditor(writer audit.Writer) *FrontendService {
 
 func (s *FrontendService) WithSafeMode(enabled bool) *FrontendService {
 	s.safeMode = enabled
+	return s
+}
+
+// WithPublicL2 is a Host migration gate. Safe Mode and exact-artifact trust
+// remain authoritative even when this gate is enabled.
+func (s *FrontendService) WithPublicL2(enabled bool) *FrontendService {
+	s.publicL2 = enabled
 	return s
 }
 

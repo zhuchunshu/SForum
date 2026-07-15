@@ -55,6 +55,52 @@ type FrontendAsset struct {
 	Body        []byte
 	ContentType string
 	ETag        string
+	Digest      string
+	Integrity   string
+	CSP         []string
+}
+
+const (
+	PublicFrontendSchemaV1    = "sforum.public-frontend-component@1"
+	PublicFrontendAPIVersion  = 1
+	PublicFrontendTrustNotice = "fully_trusted_browser_code"
+)
+
+type PublicFrontendAssetReference struct {
+	Handle          string   `json:"handle"`
+	ContractVersion string   `json:"contractVersion"`
+	ExtensionID     string   `json:"extensionId"`
+	PackageDigest   string   `json:"packageDigest"`
+	ImpactDigest    string   `json:"impactDigest"`
+	Type            string   `json:"type"`
+	Digest          string   `json:"digest"`
+	Integrity       string   `json:"integrity"`
+	Dependencies    []string `json:"dependencies,omitempty"`
+	Scope           []string `json:"scope,omitempty"`
+	Module          bool     `json:"module"`
+	Loading         string   `json:"loading"`
+	CSP             []string `json:"csp,omitempty"`
+	AssetPath       string   `json:"assetPath"`
+}
+
+type PublicFrontendComponent struct {
+	SchemaVersion         string                         `json:"schemaVersion"`
+	APIVersion            int                            `json:"apiVersion"`
+	TrustNotice           string                         `json:"trustNotice"`
+	ExtensionID           string                         `json:"extensionId"`
+	ExtensionVersion      string                         `json:"extensionVersion"`
+	PackageDigest         string                         `json:"packageDigest"`
+	ImpactDigest          string                         `json:"impactDigest"`
+	ComponentID           string                         `json:"componentId"`
+	ContractVersion       string                         `json:"contractVersion"`
+	Action                string                         `json:"action"`
+	TargetID              string                         `json:"targetId,omitempty"`
+	TargetContractVersion string                         `json:"targetContractVersion,omitempty"`
+	PropsSchema           string                         `json:"propsSchema,omitempty"`
+	ResultSchema          string                         `json:"resultSchema,omitempty"`
+	Entry                 PublicFrontendAssetReference   `json:"entry"`
+	Assets                []PublicFrontendAssetReference `json:"assets"`
+	CSP                   []string                       `json:"csp,omitempty"`
 }
 
 type FrontendTrustGrant struct {
