@@ -9,6 +9,7 @@ require (
 	github.com/aliyun/aliyun-oss-go-sdk v3.0.2+incompatible // indirect
 	github.com/andybalholm/brotli v1.2.1 // indirect
 	github.com/aymerick/douceur v0.2.0 // indirect
+	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/clbanning/mxj v1.8.4 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/fatih/color v1.13.0 // indirect
@@ -43,6 +44,7 @@ require (
 	github.com/pkg/sftp v1.13.10 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/pressly/goose/v3 v3.27.2 // indirect
+	github.com/redis/go-redis/v9 v9.21.0 // indirect
 	github.com/riverqueue/river v0.40.0 // indirect
 	github.com/riverqueue/river/riverdriver v0.40.0 // indirect
 	github.com/riverqueue/river/riverdriver/riverpgxv5 v0.40.0 // indirect
@@ -61,6 +63,8 @@ require (
 	github.com/tinylib/msgp v1.5.0 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fasthttp v1.68.0 // indirect
+	github.com/yuin/goldmark v1.8.2 // indirect
+	go.uber.org/atomic v1.11.0 // indirect
 	go.uber.org/goleak v1.3.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/crypto v0.53.0 // indirect
