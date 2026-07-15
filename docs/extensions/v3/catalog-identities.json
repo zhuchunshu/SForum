@@ -992,6 +992,12 @@
       "path": "/api/v1/extensions/runtime/:extensionId/components/:componentId"
     },
     {
+      "id": "core.route.extensions.public_frontend_package_asset",
+      "contractVersion": "sforum.route.extensions.public_frontend_package_asset@1",
+      "method": "GET",
+      "path": "/api/v1/extensions/runtime/:extensionId/packages/:packageDigest/*"
+    },
+    {
       "id": "core.route.system.health",
       "contractVersion": "sforum.route.system.health@1",
       "method": "GET",
