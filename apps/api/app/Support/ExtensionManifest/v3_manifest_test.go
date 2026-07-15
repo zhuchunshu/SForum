@@ -309,7 +309,9 @@ func completeV3Manifest() Manifest {
 	}}
 	manifest.AdminSurfaces = []ManifestAdminSurface{{
 		ID: "demo.v3.admin.notice", ContractVersion: "demo.v3.admin.notice@1", Kind: "notice", Action: "add",
-		Label: "Demo notice", Schema: "demo.v3.admin.notice.schema@1", Permission: "demo.v3.manage",
+		PlacementID: "core.component.page.admin", PlacementContractVersion: "sforum.component.page.admin@1",
+		Label: "Demo notice", Handler: "admin.notice", PropsSchema: "demo.v3.admin.notice.props@1",
+		ResultSchema: "demo.v3.admin.notice.result@1", Operation: AdminSurfaceOperationQuery, Permission: "demo.v3.manage",
 	}}
 	manifest.Queries = []ManifestQuery{{
 		ID: "demo.v3.query.items", ContractVersion: "demo.v3.query.items@1", Entity: "demo.v3.item",

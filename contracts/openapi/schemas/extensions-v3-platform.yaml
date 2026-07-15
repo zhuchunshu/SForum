@@ -9,8 +9,18 @@ ExtensionManifestAdminSurface:
       enum: [navigation, dashboard, list_column, list_filter, row_action, bulk_action, form, notice, editor_panel, detail_region, importer, exporter]
     action: { type: string, enum: [add, before, after, wrap, replace, hide, filter] }
     targetId: { type: string }
+    placementId:
+      type: string
+      description: Exact stable Core admin page identity that owns this contribution placement.
+    placementContractVersion: { type: string }
     label: { type: string }
     handler: { type: string }
+    propsSchema: { type: string }
+    resultSchema: { type: string }
+    operation:
+      type: string
+      enum: [query, command]
+      description: Command invocations require an Idempotency-Key and always receive actor delegation.
     schema: { type: string }
     permission: { type: string }
     priority: { type: integer }

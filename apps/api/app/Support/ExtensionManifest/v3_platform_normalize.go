@@ -69,9 +69,25 @@ func normalizeV3Platform(manifest *Manifest) {
 		item.Kind = strings.ToLower(strings.TrimSpace(item.Kind))
 		item.Action = strings.ToLower(strings.TrimSpace(item.Action))
 		item.TargetID = NormalizeID(item.TargetID)
+		item.PlacementID = NormalizeID(item.PlacementID)
+		item.PlacementContractVersion = strings.TrimSpace(item.PlacementContractVersion)
 		item.Label = strings.TrimSpace(item.Label)
 		item.Handler = strings.TrimSpace(item.Handler)
 		item.Schema = strings.TrimSpace(item.Schema)
+		item.PropsSchema = strings.TrimSpace(item.PropsSchema)
+		item.ResultSchema = strings.TrimSpace(item.ResultSchema)
+		if item.Schema != "" {
+			if item.PropsSchema == "" {
+				item.PropsSchema = item.Schema
+			}
+			if item.ResultSchema == "" {
+				item.ResultSchema = item.Schema
+			}
+		}
+		item.Operation = strings.ToLower(strings.TrimSpace(item.Operation))
+		if item.Operation == "" {
+			item.Operation = defaultAdminSurfaceOperation(item.Kind)
+		}
 		item.Permission = NormalizeID(item.Permission)
 	}
 	for index := range manifest.Queries {
@@ -173,6 +189,15 @@ func normalizeV3Platform(manifest *Manifest) {
 		item.Digest = normalizeDigest(item.Digest)
 		item.Locale = normalizeLocaleKey(item.Locale)
 		item.Version = strings.TrimSpace(item.Version)
+	}
+}
+
+func defaultAdminSurfaceOperation(kind string) string {
+	switch kind {
+	case "row_action", "bulk_action", "form", "importer":
+		return AdminSurfaceOperationCommand
+	default:
+		return AdminSurfaceOperationQuery
 	}
 }
 

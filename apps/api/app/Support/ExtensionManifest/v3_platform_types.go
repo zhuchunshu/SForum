@@ -65,17 +65,29 @@ type ManifestCache struct {
 }
 
 type ManifestAdminSurface struct {
-	ID              string `json:"id"`
-	ContractVersion string `json:"contractVersion"`
-	Kind            string `json:"kind"`
-	Action          string `json:"action"`
-	TargetID        string `json:"targetId,omitempty"`
-	Label           string `json:"label"`
-	Handler         string `json:"handler,omitempty"`
-	Schema          string `json:"schema,omitempty"`
-	Permission      string `json:"permission,omitempty"`
-	Priority        int    `json:"priority,omitempty"`
+	ID                       string `json:"id"`
+	ContractVersion          string `json:"contractVersion"`
+	Kind                     string `json:"kind"`
+	Action                   string `json:"action"`
+	TargetID                 string `json:"targetId,omitempty"`
+	PlacementID              string `json:"placementId,omitempty"`
+	PlacementContractVersion string `json:"placementContractVersion,omitempty"`
+	Label                    string `json:"label"`
+	Handler                  string `json:"handler,omitempty"`
+	PropsSchema              string `json:"propsSchema,omitempty"`
+	ResultSchema             string `json:"resultSchema,omitempty"`
+	Operation                string `json:"operation,omitempty"`
+	// Schema is the legacy single-document contract. Normalize maps it to both
+	// PropsSchema and ResultSchema so installed V3 packages remain readable.
+	Schema     string `json:"schema,omitempty"`
+	Permission string `json:"permission,omitempty"`
+	Priority   int    `json:"priority,omitempty"`
 }
+
+const (
+	AdminSurfaceOperationQuery   = "query"
+	AdminSurfaceOperationCommand = "command"
+)
 
 type ManifestQuery struct {
 	ID               string   `json:"id"`

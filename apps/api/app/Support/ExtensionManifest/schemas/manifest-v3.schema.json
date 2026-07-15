@@ -598,8 +598,13 @@
           "kind": { "enum": ["navigation", "dashboard", "list_column", "list_filter", "row_action", "bulk_action", "form", "notice", "editor_panel", "detail_region", "importer", "exporter"] },
           "action": { "enum": ["add", "before", "after", "wrap", "replace", "hide", "filter"] },
           "targetId": { "$ref": "#/$defs/id" },
+          "placementId": { "$ref": "#/$defs/id" },
+          "placementContractVersion": { "$ref": "#/$defs/contract" },
           "label": { "$ref": "#/$defs/nonEmpty" },
           "handler": { "type": "string" },
+          "propsSchema": { "$ref": "#/$defs/schemaRef" },
+          "resultSchema": { "$ref": "#/$defs/schemaRef" },
+          "operation": { "enum": ["query", "command"] },
           "schema": { "type": "string" },
           "permission": { "type": "string" },
           "priority": { "type": "integer" }

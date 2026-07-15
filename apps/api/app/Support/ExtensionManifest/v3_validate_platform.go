@@ -196,7 +196,19 @@ func (v *v3Validator) validateServicesCommandsAdminAndQueries() error {
 		if surface.Handler == "" && surface.Schema == "" {
 			return ErrInvalidManifest
 		}
-		if surface.Schema != "" && !validSchemaRef(surface.Schema) || surface.Handler != "" && !validHandler(surface.Handler) {
+		if surface.Operation != AdminSurfaceOperationQuery && surface.Operation != AdminSurfaceOperationCommand {
+			return ErrInvalidManifest
+		}
+		if surface.Schema != "" && (!validSchemaRef(surface.Schema) || surface.PropsSchema != surface.Schema || surface.ResultSchema != surface.Schema) {
+			return ErrInvalidManifest
+		}
+		typedContract := surface.PlacementID != "" || surface.PlacementContractVersion != "" ||
+			surface.Schema == "" && (surface.PropsSchema != "" || surface.ResultSchema != "")
+		if typedContract && (surface.Handler == "" || !validSchemaRef(surface.PropsSchema) || !validSchemaRef(surface.ResultSchema) ||
+			!validAdminSurfacePlacement(surface.PlacementID, surface.PlacementContractVersion)) {
+			return ErrInvalidManifest
+		}
+		if surface.Handler != "" && !validHandler(surface.Handler) {
 			return ErrInvalidManifest
 		}
 		if surface.Permission != "" && !manifestHasPermission(v.manifest, surface.Permission) {

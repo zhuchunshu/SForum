@@ -310,3 +310,11 @@ func validComponentTarget(targetID string, targetContractVersion string, manifes
 	target, found := componentcatalog.FindCoreComponent(targetID)
 	return found && target.ContractVersion == targetContractVersion && (manifestType != TypeTheme || target.OwnedBy(componentcatalog.OwnerPublic))
 }
+
+func validAdminSurfacePlacement(targetID string, targetContractVersion string) bool {
+	if !manifestIDPattern.MatchString(targetID) || !contractVersionPattern.MatchString(targetContractVersion) {
+		return false
+	}
+	target, found := componentcatalog.FindCoreComponent(targetID)
+	return found && target.ContractVersion == targetContractVersion && target.Kind == componentcatalog.KindPage && target.OwnedBy(componentcatalog.OwnerAdmin)
+}
