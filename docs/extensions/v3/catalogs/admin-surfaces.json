@@ -569,10 +569,10 @@
     "columns": true,
     "filters": true,
     "rowActions": true,
-    "bulkActions": false,
+    "bulkActions": true,
     "forms": true,
     "notices": true,
-    "editorPanels": false,
+    "editorPanels": true,
     "detailRegions": true,
     "importer": true,
     "exporter": false
