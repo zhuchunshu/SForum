@@ -304,7 +304,28 @@ func (s *PostgresStore) ReplaceSEOReference(ctx context.Context, attachmentID in
 }
 
 func (s *PostgresStore) UpdateStatus(ctx context.Context, id int64, status string, deleted bool) (Attachment, error) {
-	row := s.pool.QueryRow(ctx, `
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return Attachment{}, fmt.Errorf("begin attachment status update: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+	attachment, err := s.UpdateStatusTx(ctx, tx, id, status, deleted)
+	if err != nil {
+		return Attachment{}, err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return Attachment{}, fmt.Errorf("commit attachment status update: %w", err)
+	}
+	return attachment, nil
+}
+
+// UpdateStatusTx lets a Host Command keep attachment lifecycle metadata,
+// command receipt, and audit evidence in one caller-owned transaction.
+func (s *PostgresStore) UpdateStatusTx(ctx context.Context, tx pgx.Tx, id int64, status string, deleted bool) (Attachment, error) {
+	if tx == nil {
+		return Attachment{}, fmt.Errorf("attachment status transaction is required")
+	}
+	row := tx.QueryRow(ctx, `
 		UPDATE attachments
 		SET status = $2,
 		    deleted_at = CASE WHEN $3 THEN COALESCE(deleted_at, now()) ELSE NULL END,
@@ -318,7 +339,7 @@ func (s *PostgresStore) UpdateStatus(ctx context.Context, id int64, status strin
 	if err != nil {
 		return Attachment{}, fmt.Errorf("update attachment status: %w", err)
 	}
-	return s.hydrateOwner(ctx, attachment)
+	return hydrateAttachmentOwner(ctx, tx, attachment)
 }
 
 func (s *PostgresStore) ListCleanupCandidates(ctx context.Context, cutoff time.Time, limit int) ([]Attachment, error) {
@@ -374,10 +395,18 @@ func (s *PostgresStore) scanOne(ctx context.Context, row pgx.Row) (Attachment, e
 }
 
 func (s *PostgresStore) hydrateOwner(ctx context.Context, attachment Attachment) (Attachment, error) {
+	return hydrateAttachmentOwner(ctx, s.pool, attachment)
+}
+
+type attachmentOwnerQueryer interface {
+	QueryRow(context.Context, string, ...any) pgx.Row
+}
+
+func hydrateAttachmentOwner(ctx context.Context, queryer attachmentOwnerQueryer, attachment Attachment) (Attachment, error) {
 	if attachment.Owner == nil {
 		return attachment, nil
 	}
-	err := s.pool.QueryRow(ctx, `
+	err := queryer.QueryRow(ctx, `
 		SELECT username, display_name
 		FROM users
 		WHERE id = $1
