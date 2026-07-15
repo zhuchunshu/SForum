@@ -19,6 +19,9 @@ var (
 const (
 	SecurityPublic        = "public"
 	SecurityAuthenticated = "authenticated"
+	SecurityHostInherited = "host_inherited"
+	SecurityPluginOwned   = "plugin_owned"
+	PolicyDisabled        = "disabled"
 )
 
 // Artifact is an immutable package snapshot plus Host-owned route policy facts.

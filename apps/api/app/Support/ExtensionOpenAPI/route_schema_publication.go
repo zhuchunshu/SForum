@@ -27,17 +27,19 @@ type PublishedRouteSchemaArtifact struct {
 type routeSchemaPublicationSnapshot struct {
 	revision  uint64
 	catalog   *RouteSchemaCatalog
+	aggregate Snapshot
 	artifacts []Artifact
 }
 
 // RouteSchemaPublicationSnapshot is detached inspection data plus a private
-// restore handle. Only the owner that created it may restore the frozen catalog.
+// restore handle. Only the owner may restore its frozen schema and aggregate.
 type RouteSchemaPublicationSnapshot struct {
-	Revision        uint64                         `json:"revision"`
-	CatalogRevision string                         `json:"catalogRevision"`
-	Artifacts       []PublishedRouteSchemaArtifact `json:"artifacts"`
-	owner           *RouteSchemaPublication
-	source          *routeSchemaPublicationSnapshot
+	Revision          uint64                         `json:"revision"`
+	CatalogRevision   string                         `json:"catalogRevision"`
+	AggregateRevision string                         `json:"aggregateRevision"`
+	Artifacts         []PublishedRouteSchemaArtifact `json:"artifacts"`
+	owner             *RouteSchemaPublication
+	source            *routeSchemaPublicationSnapshot
 }
 
 // PreparedRouteSchemaPublication is compiled off-snapshot and can be published
@@ -46,6 +48,7 @@ type PreparedRouteSchemaPublication struct {
 	owner        *RouteSchemaPublication
 	baseRevision uint64
 	catalog      *RouteSchemaCatalog
+	aggregate    Snapshot
 	artifacts    []Artifact
 }
 
@@ -56,19 +59,47 @@ func (p *PreparedRouteSchemaPublication) CatalogRevision() string {
 	return p.catalog.Revision()
 }
 
+func (p *PreparedRouteSchemaPublication) AggregateRevision() string {
+	if p == nil {
+		return ""
+	}
+	return p.aggregate.Revision()
+}
+
 type RouteSchemaPublication struct {
-	writeMu  sync.Mutex
-	core     []CoreOperation
-	snapshot atomic.Pointer[routeSchemaPublicationSnapshot]
+	writeMu          sync.Mutex
+	core             []CoreOperation
+	publishContracts bool
+	snapshot         atomic.Pointer[routeSchemaPublicationSnapshot]
 }
 
 func NewRouteSchemaPublication(core []CoreOperation) (*RouteSchemaPublication, error) {
-	owner := &RouteSchemaPublication{core: append([]CoreOperation(nil), core...)}
+	return newRouteSchemaPublication(core, false)
+}
+
+// NewRouteSchemaContractPublication joins schema validation and public contract
+// aggregation in one lifecycle-fenced immutable snapshot.
+func NewRouteSchemaContractPublication(core []CoreOperation) (*RouteSchemaPublication, error) {
+	return newRouteSchemaPublication(core, true)
+}
+
+func newRouteSchemaPublication(core []CoreOperation, publishContracts bool) (*RouteSchemaPublication, error) {
+	owner := &RouteSchemaPublication{
+		core:             append([]CoreOperation(nil), core...),
+		publishContracts: publishContracts,
+	}
 	catalog, err := BuildRouteSchemaCatalog(BuildInput{Core: owner.core})
 	if err != nil {
 		return nil, err
 	}
-	owner.snapshot.Store(&routeSchemaPublicationSnapshot{catalog: catalog})
+	var aggregate Snapshot
+	if publishContracts {
+		aggregate, err = Build(BuildInput{Core: owner.core})
+		if err != nil {
+			return nil, err
+		}
+	}
+	owner.snapshot.Store(&routeSchemaPublicationSnapshot{catalog: catalog, aggregate: aggregate})
 	return owner, nil
 }
 
@@ -85,8 +116,19 @@ func (p *RouteSchemaPublication) Prepare(artifacts []Artifact) (*PreparedRouteSc
 	if err != nil {
 		return nil, err
 	}
+	var aggregate Snapshot
+	if p.publishContracts {
+		aggregate, err = Build(BuildInput{Core: append([]CoreOperation(nil), p.core...), Artifacts: frozen})
+		if err != nil {
+			return nil, err
+		}
+	}
 	return &PreparedRouteSchemaPublication{
-		owner: p, baseRevision: baseRevision, catalog: catalog, artifacts: frozen,
+		owner:        p,
+		baseRevision: baseRevision,
+		catalog:      catalog,
+		aggregate:    aggregate,
+		artifacts:    frozen,
 	}, nil
 }
 
@@ -179,8 +221,21 @@ func (p *RouteSchemaPublication) prepareExtensionReplacement(
 	if err != nil {
 		return nil, err
 	}
+	var aggregate Snapshot
+	if p.publishContracts {
+		aggregate, err = Build(BuildInput{
+			Core: append([]CoreOperation(nil), p.core...), Artifacts: frozen,
+		})
+		if err != nil {
+			return nil, err
+		}
+	}
 	return &PreparedRouteSchemaPublication{
-		owner: p, baseRevision: expectedRevision, catalog: catalog, artifacts: frozen,
+		owner:        p,
+		baseRevision: expectedRevision,
+		catalog:      catalog,
+		aggregate:    aggregate,
+		artifacts:    frozen,
 	}, nil
 }
 
@@ -198,7 +253,8 @@ func (p *RouteSchemaPublication) PublishPrepared(
 	prepared *PreparedRouteSchemaPublication,
 	expectedRevision uint64,
 ) (RouteSchemaPublicationSnapshot, error) {
-	if p == nil || prepared == nil || prepared.owner != p || prepared.catalog == nil {
+	if p == nil || prepared == nil || prepared.owner != p || prepared.catalog == nil ||
+		p.publishContracts && prepared.aggregate.Revision() == "" {
 		return RouteSchemaPublicationSnapshot{}, ErrRouteSchemaPublicationInvalid
 	}
 	p.writeMu.Lock()
@@ -210,7 +266,10 @@ func (p *RouteSchemaPublication) PublishPrepared(
 		)
 	}
 	next := &routeSchemaPublicationSnapshot{
-		revision: current.revision + 1, catalog: prepared.catalog, artifacts: prepared.artifacts,
+		revision:  current.revision + 1,
+		catalog:   prepared.catalog,
+		aggregate: prepared.aggregate,
+		artifacts: prepared.artifacts,
 	}
 	p.snapshot.Store(next)
 	return p.publicationSnapshot(next), nil
@@ -232,7 +291,10 @@ func (p *RouteSchemaPublication) Restore(
 		)
 	}
 	next := &routeSchemaPublicationSnapshot{
-		revision: current.revision + 1, catalog: snapshot.source.catalog, artifacts: snapshot.source.artifacts,
+		revision:  current.revision + 1,
+		catalog:   snapshot.source.catalog,
+		aggregate: snapshot.source.aggregate,
+		artifacts: snapshot.source.artifacts,
 	}
 	p.snapshot.Store(next)
 	return p.publicationSnapshot(next), nil
@@ -257,6 +319,32 @@ func (p *RouteSchemaPublication) Bindings() []RouteSchemaBinding {
 		return nil
 	}
 	return p.loadSnapshot().catalog.Bindings()
+}
+
+// PublishedContractSnapshot is detached aggregate data for documentation and
+// generated-client consumers at one exact lifecycle publication revision.
+type PublishedContractSnapshot struct {
+	Revision                  uint64                         `json:"revision"`
+	AggregateRevision         string                         `json:"aggregateRevision"`
+	Artifacts                 []PublishedRouteSchemaArtifact `json:"artifacts"`
+	Document                  json.RawMessage                `json:"document"`
+	Sources                   []SourceIdentity               `json:"sources"`
+	GeneratedClientOperations []GeneratedOperation           `json:"generatedClientOperations"`
+}
+
+func (p *RouteSchemaPublication) ContractSnapshot() PublishedContractSnapshot {
+	if p == nil || !p.publishContracts {
+		return PublishedContractSnapshot{}
+	}
+	source := p.loadSnapshot()
+	return PublishedContractSnapshot{
+		Revision:                  source.revision,
+		AggregateRevision:         source.aggregate.Revision(),
+		Artifacts:                 p.publicationSnapshot(source).Artifacts,
+		Document:                  source.aggregate.Document(),
+		Sources:                   source.aggregate.Sources(),
+		GeneratedClientOperations: source.aggregate.GeneratedClientOperations(),
+	}
 }
 
 func (p *RouteSchemaPublication) ValidateRouteSchema(
@@ -294,6 +382,7 @@ func (p *RouteSchemaPublication) publicationSnapshot(source *routeSchemaPublicat
 	if source.catalog != nil {
 		result.CatalogRevision = source.catalog.Revision()
 	}
+	result.AggregateRevision = source.aggregate.Revision()
 	result.Artifacts = make([]PublishedRouteSchemaArtifact, len(source.artifacts))
 	for index, artifact := range source.artifacts {
 		result.Artifacts[index] = PublishedRouteSchemaArtifact{

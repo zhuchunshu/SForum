@@ -16,6 +16,8 @@ var pathParameterPattern = regexp.MustCompile(`^[A-Za-z0-9_-]+$`)
 var openAPIVersionPattern = regexp.MustCompile(`^3\.1\.(?:0|[1-9][0-9]*)(?:-[0-9A-Za-z]+(?:[.-][0-9A-Za-z]+)*)?$`)
 var responseStatusPattern = regexp.MustCompile(`^(?:[1-5][0-9]{2}|[1-5]XX|default)$`)
 
+const extSecurityOwner = "x-sforum-security-owner"
+
 func validateOpenAPIRoot(value any, fragment extensionmanifest.ManifestOpenAPIFragment) (map[string]any, error) {
 	root, ok := value.(map[string]any)
 	if !ok {
@@ -148,6 +150,7 @@ func validateOperation(
 		delete(operation, "security")
 		delete(operation, extRateLimit)
 		delete(operation, extIdempotency)
+		delete(operation, extSecurityOwner)
 	}
 	if err := validatePathParameters(operation, pathValue, artifact, sourcePath); err != nil {
 		return GeneratedOperation{}, routeContract{}, fmt.Errorf("%w: operation %s: %w", ErrInvalidDocument, operationID, err)
@@ -250,6 +253,9 @@ func canonicalStringField(object map[string]any, key string) (string, bool) {
 }
 
 func applyHostSecurity(operation map[string]any, policy string) error {
+	if _, exists := operation[extSecurityOwner]; exists {
+		return fmt.Errorf("plugin cannot declare Host security ownership")
+	}
 	var expected []any
 	switch policy {
 	case SecurityPublic:
@@ -259,6 +265,12 @@ func applyHostSecurity(operation map[string]any, policy string) error {
 			map[string]any{"cookieAuth": []any{}},
 			map[string]any{"bearerAuth": []any{}},
 		}
+	case SecurityHostInherited, SecurityPluginOwned:
+		if _, exists := operation["security"]; exists {
+			return fmt.Errorf("non-standard security owner %q cannot declare standard OpenAPI security", policy)
+		}
+		operation[extSecurityOwner] = policy
+		return nil
 	default:
 		return fmt.Errorf("unknown Host security policy %q", policy)
 	}
@@ -266,6 +278,7 @@ func applyHostSecurity(operation map[string]any, policy string) error {
 		return fmt.Errorf("plugin security contradicts Host policy %q", policy)
 	}
 	operation["security"] = expected
+	operation[extSecurityOwner] = policy
 	return nil
 }
 

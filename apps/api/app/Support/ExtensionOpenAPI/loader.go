@@ -62,6 +62,15 @@ func loadArtifact(input Artifact, budget *resourceBudget) (*loadedArtifact, erro
 	for _, file := range manifest.PackageFiles {
 		loaded.files[file.Path] = file
 	}
+	routeSecurity := make(map[string]string)
+	for _, route := range manifest.Routes {
+		if !openAPIAddressableRouteAction(route.Action) {
+			continue
+		}
+		for _, method := range route.Methods {
+			routeSecurity[routeMethodKey(route.ID, strings.ToUpper(method))] = securityForDeclaredGuard(route.Guard)
+		}
+	}
 	for _, policy := range input.Policies {
 		if policy.RouteID != strings.TrimSpace(policy.RouteID) || policy.Method != strings.TrimSpace(policy.Method) ||
 			policy.Method != strings.ToUpper(policy.Method) {
@@ -74,6 +83,12 @@ func loadArtifact(input Artifact, budget *resourceBudget) (*loadedArtifact, erro
 		}
 		if _, duplicate := loaded.policies[key]; duplicate {
 			return nil, fmt.Errorf("%w: duplicate route policy %q", ErrContractMismatch, key)
+		}
+		if expected, exists := routeSecurity[key]; exists && policy.Security != expected {
+			return nil, fmt.Errorf(
+				"%w: security policy %q contradicts guard ownership %q for %s",
+				ErrContractMismatch, policy.Security, expected, key,
+			)
 		}
 		loaded.policies[key] = policy
 	}
@@ -260,7 +275,8 @@ func validPolicyName(value string) bool {
 }
 
 func validSecurityPolicy(value string) bool {
-	return value == SecurityPublic || value == SecurityAuthenticated
+	return value == SecurityPublic || value == SecurityAuthenticated ||
+		value == SecurityHostInherited || value == SecurityPluginOwned
 }
 
 func readLimitedRegularFile(target string, limit int64, budget *resourceBudget) ([]byte, error) {

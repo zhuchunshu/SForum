@@ -200,6 +200,7 @@ func buildStartupRoutePublicationMaterial(
 		routeSchema: extensionopenapi.Artifact{
 			Root: extensions.PackageContentRoot(extension), ExtensionID: extension.ID,
 			Version: extension.Version, PackageDigest: extension.PackageDigest, Manifest: extension.Manifest,
+			Policies: extensionopenapi.HostRoutePolicies(extension.Manifest),
 		},
 	}, nil
 }
@@ -376,6 +377,7 @@ func buildLifecycleRegistryMaterial(
 		routeSchema: extensionopenapi.Artifact{
 			Root: extensions.PackageContentRoot(extension), ExtensionID: extension.ID,
 			Version: extension.Version, PackageDigest: extension.PackageDigest, Manifest: extension.Manifest,
+			Policies: extensionopenapi.HostRoutePolicies(extension.Manifest),
 		},
 	}
 	productionFamilies := []string{"hooks.v1", "pages.runtime", "services.v2"}

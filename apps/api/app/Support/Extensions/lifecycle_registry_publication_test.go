@@ -570,7 +570,7 @@ paths:
       x-sforum-contract-version: registry.demo.read@1
       x-sforum-guard: core.guard.public
       x-sforum-response-schema: registry.demo.read.response@1
-      x-sforum-rate-limit: public.read@1
+      x-sforum-rate-limit: disabled
       x-sforum-idempotency: disabled
       responses:
         "200":
@@ -630,7 +630,7 @@ paths:
 
 func lifecycleRouteSchemaPublication(t *testing.T) *extensionopenapi.RouteSchemaPublication {
 	t.Helper()
-	publication, err := extensionopenapi.NewRouteSchemaPublication(nil)
+	publication, err := extensionopenapi.NewRouteSchemaContractPublication(nil)
 	if err != nil {
 		t.Fatal(err)
 	}

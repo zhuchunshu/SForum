@@ -132,7 +132,9 @@ func newProductionLifecycleStack(config productionLifecycleStackConfig) (*produc
 	}); err != nil {
 		return nil, fmt.Errorf("%w: publish core route catalog: %v", errProductionLifecycleDependency, err)
 	}
-	routeSchemas, err := extensionopenapi.NewRouteSchemaPublication(nil)
+	routeSchemas, err := extensionopenapi.NewRouteSchemaContractPublication(
+		extensionopenapi.CoreOperations(routes.CoreRouteCatalog()),
+	)
 	if err != nil {
 		return nil, fmt.Errorf("%w: create route schema publication: %v", errProductionLifecycleDependency, err)
 	}
