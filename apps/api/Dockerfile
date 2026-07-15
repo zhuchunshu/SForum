@@ -13,6 +13,8 @@ RUN cd /app/extensions/builtin/plugins/sforum-smtp/backend && \
 	CGO_ENABLED=0 GOOS=linux go build -trimpath -buildvcs=false -o plugin . && \
 	cd /app/extensions/builtin/plugins/sforum-content-policy/backend && \
 	CGO_ENABLED=0 GOOS=linux go build -trimpath -buildvcs=false -o plugin . && \
+	cd /app/extensions/builtin/plugins/sforum-storage-fs/backend && \
+	CGO_ENABLED=0 GOOS=linux go build -trimpath -buildvcs=false -o plugin . && \
 	cd /app/apps/api && \
 	CGO_ENABLED=0 go run ./cmd/sforum extension digest --write /app/extensions/builtin/plugins/sforum-content-policy && \
 	CGO_ENABLED=0 go run ./cmd/sforum extension validate /app/extensions/builtin/plugins/sforum-content-policy && \

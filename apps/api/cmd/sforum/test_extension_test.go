@@ -123,7 +123,7 @@ func TestExtensionTestCommandContentPolicyV2Package(t *testing.T) {
 	}
 }
 
-func TestContentPolicyDockerBuildRefreshesAndValidatesLinuxDigest(t *testing.T) {
+func TestDockerBuildsProtectedBuiltinBackendsAndValidatesV3Digest(t *testing.T) {
 	_, file, _, ok := runtime.Caller(0)
 	if !ok {
 		t.Fatal("runtime.Caller failed")
@@ -134,14 +134,20 @@ func TestContentPolicyDockerBuildRefreshesAndValidatesLinuxDigest(t *testing.T) 
 		t.Fatal(err)
 	}
 	text := string(body)
+	const linuxBuild = "CGO_ENABLED=0 GOOS=linux go build -trimpath -buildvcs=false -o plugin ."
+	if count := strings.Count(text, linuxBuild); count < 3 {
+		t.Errorf("Dockerfile builds only %d protected builtin Linux backends, want at least 3", count)
+	}
 	for _, required := range []string{
-		"CGO_ENABLED=0 GOOS=linux go build -trimpath -buildvcs=false -o plugin .",
+		"cd /app/extensions/builtin/plugins/sforum-smtp/backend",
+		"cd /app/extensions/builtin/plugins/sforum-content-policy/backend",
+		"cd /app/extensions/builtin/plugins/sforum-storage-fs/backend",
 		"extension digest --write /app/extensions/builtin/plugins/sforum-content-policy",
 		"extension validate /app/extensions/builtin/plugins/sforum-content-policy",
 		"extension test /app/extensions/builtin/plugins/sforum-content-policy",
 	} {
 		if !strings.Contains(text, required) {
-			t.Errorf("Dockerfile is missing content-policy Linux package gate %q", required)
+			t.Errorf("Dockerfile is missing protected builtin Linux package gate %q", required)
 		}
 	}
 }
