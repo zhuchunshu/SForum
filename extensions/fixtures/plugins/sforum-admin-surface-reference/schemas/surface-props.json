@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["placementId", "placementContractVersion", "kind", "locale", "route", "context"],
+  "properties": {
+    "placementId": {"const": "core.component.page.admin.users"},
+    "placementContractVersion": {"const": "sforum.component.page.admin.users@1"},
+    "kind": {"enum": ["navigation", "dashboard", "list_column", "list_filter", "row_action", "bulk_action", "form", "notice", "editor_panel", "detail_region", "importer", "exporter"]},
+    "locale": {"type": "string", "minLength": 2, "maxLength": 32},
+    "route": {"type": "object"},
+    "context": {"type": "object"},
+    "resources": {
+      "type": "array",
+      "maxItems": 1000,
+      "items": {
+        "type": "object",
+        "required": ["id", "attributes"],
+        "properties": {
+          "id": {"type": "string", "minLength": 1, "maxLength": 160},
+          "attributes": {"type": "object"}
+        },
+        "additionalProperties": false
+      }
+    },
+    "filters": {"type": "object", "additionalProperties": {"type": "string", "maxLength": 160}},
+    "selection": {"type": "string", "maxLength": 160},
+    "sourceSurfaceId": {"type": "string", "maxLength": 160},
+    "values": {"type": "object"},
+    "resourceIds": {"type": "array", "maxItems": 1000, "items": {"type": "string", "minLength": 1, "maxLength": 160}}
+  },
+  "additionalProperties": false
+}

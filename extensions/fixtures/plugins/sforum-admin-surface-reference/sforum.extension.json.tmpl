@@ -1,0 +1,57 @@
+{
+  "manifestVersion": 3,
+  "id": "sforum.admin-surface-reference",
+  "name": "SForum Admin Surface Reference",
+  "description": "Protocol V2 reference plugin exercising every typed Admin Surface kind.",
+  "url": "https://github.com/zhuchunshu/sforum",
+  "author": {
+    "name": "SForum",
+    "url": "https://github.com/zhuchunshu/sforum"
+  },
+  "version": "1.0.0",
+  "type": "plugin",
+  "sforumVersion": ">=0.1.0",
+  "capabilities": ["host.api"],
+  "backend": {
+    "entry": "backend/plugin",
+    "rpc": "hashicorp-go-plugin",
+    "protocolVersion": 2,
+    "hostApiVersion": "sforum.host@2",
+    "digest": "__BACKEND_DIGEST__"
+  },
+  "includes": {
+    "adminSurfaces": "manifest/admin-surfaces.json"
+  },
+  "permissionDefinitions": [
+    {
+      "key": "sforum.admin-surface-reference.manage",
+      "contractVersion": "sforum.admin-surface-reference.permission.manage@1",
+      "label": "Use admin surface reference",
+      "description": "View and invoke the reference plugin's admin surfaces.",
+      "recommendedRoles": ["administrator"],
+      "assignmentPolicy": "host"
+    }
+  ],
+  "packageFiles": [
+    {
+      "id": "sforum.admin-surface-reference.file.backend",
+      "kind": "executable",
+      "path": "backend/plugin",
+      "digest": "__BACKEND_DIGEST__"
+    },
+    {
+      "id": "sforum.admin-surface-reference.surface.props",
+      "kind": "schema",
+      "path": "schemas/surface-props.json",
+      "digest": "__PROPS_DIGEST__",
+      "version": "1"
+    },
+    {
+      "id": "sforum.admin-surface-reference.surface.result",
+      "kind": "schema",
+      "path": "schemas/surface-result.json",
+      "digest": "__RESULT_DIGEST__",
+      "version": "1"
+    }
+  ]
+}

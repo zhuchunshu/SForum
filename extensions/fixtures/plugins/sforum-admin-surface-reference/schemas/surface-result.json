@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "primitive": {"type": ["string", "number", "boolean", "null"]},
+    "option": {
+      "type": "object",
+      "required": ["label", "value"],
+      "properties": {"label": {"type": "string", "minLength": 1, "maxLength": 160}, "value": {"type": "string", "minLength": 1, "maxLength": 160}},
+      "additionalProperties": false
+    }
+  },
+  "type": "object",
+  "minProperties": 1,
+  "properties": {
+    "title": {"type": "string", "minLength": 1, "maxLength": 160},
+    "description": {"type": "string", "minLength": 1, "maxLength": 1000},
+    "message": {"type": "string", "minLength": 1, "maxLength": 1000},
+    "value": {"$ref": "#/$defs/primitive"},
+    "tone": {"enum": ["neutral", "primary", "success", "warning", "error"]},
+    "icon": {"type": "string", "pattern": "^i-(lucide|tabler)-[a-z0-9-]+$"},
+    "pageId": {"type": "string", "pattern": "^/[^\\\\]*$", "maxLength": 512},
+    "commandSurfaceId": {"type": "string", "pattern": "^[a-z0-9][a-z0-9._-]+$", "maxLength": 160},
+    "items": {
+      "type": "array",
+      "maxItems": 100,
+      "items": {
+        "type": "object",
+        "required": ["label", "value"],
+        "properties": {"label": {"type": "string", "minLength": 1, "maxLength": 160}, "value": {"$ref": "#/$defs/primitive"}},
+        "additionalProperties": false
+      }
+    },
+    "cells": {"type": "object", "maxProperties": 1000, "additionalProperties": {"$ref": "#/$defs/primitive"}},
+    "options": {"type": "array", "maxItems": 100, "items": {"$ref": "#/$defs/option"}},
+    "visibleResourceIds": {"type": "array", "maxItems": 1000, "items": {"type": "string", "minLength": 1, "maxLength": 160}, "uniqueItems": true},
+    "fields": {
+      "type": "array",
+      "maxItems": 50,
+      "items": {
+        "type": "object",
+        "required": ["key", "label", "type"],
+        "properties": {
+          "key": {"type": "string", "pattern": "^[a-z0-9][a-z0-9._-]*$", "maxLength": 80},
+          "label": {"type": "string", "minLength": 1, "maxLength": 160},
+          "type": {"enum": ["text", "textarea", "number", "boolean", "select"]},
+          "required": {"type": "boolean"},
+          "placeholder": {"type": "string", "maxLength": 240},
+          "options": {"type": "array", "maxItems": 100, "items": {"$ref": "#/$defs/option"}}
+        },
+        "additionalProperties": false
+      }
+    },
+    "values": {"type": "object", "maxProperties": 100, "additionalProperties": {"$ref": "#/$defs/primitive"}},
+    "refresh": {"type": "boolean"},
+    "download": {
+      "type": "object",
+      "required": ["url"],
+      "properties": {"url": {"type": "string", "pattern": "^/[^\\\\]*$", "maxLength": 2048}, "filename": {"type": "string", "maxLength": 255}},
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
