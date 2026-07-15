@@ -1,0 +1,14 @@
+{
+  "pages": [
+    {
+      "id": "sforum.public-l2-e2e-theme.home",
+      "action": "replace",
+      "target": "forum.home",
+      "template": "templates/home.html",
+      "contract": "sforum.page.home@1"
+    }
+  ],
+  "skin": {
+    "css": []
+  }
+}

@@ -1,0 +1,87 @@
+{
+  "manifestVersion": 3,
+  "id": "sforum.public-l2-e2e-theme",
+  "name": "SForum Public L2 E2E Theme",
+  "description": "Uploadable production fixture for exact-trusted public L2 ESM, CSS, SSR fallback, restart, and revocation.",
+  "url": "https://sforum.local/themes/public-l2-e2e",
+  "author": {
+    "name": "SForum Team",
+    "url": "https://sforum.local"
+  },
+  "version": "1.0.0",
+  "type": "theme",
+  "sforumVersion": ">=0.1.0",
+  "components": [
+    {
+      "id": "sforum.public-l2-e2e-theme.component.card",
+      "contractVersion": "sforum.public-l2-e2e-theme.component.card@1",
+      "action": "add",
+      "l2Component": "sforum.public-l2-e2e-theme.file.card",
+      "propsSchema": "sforum.public-l2-e2e-theme.component.card.props@1"
+    }
+  ],
+  "templates": [
+    {
+      "id": "sforum.public-l2-e2e-theme.template.home",
+      "contractVersion": "sforum.public-l2-e2e-theme.template.home@1",
+      "action": "add",
+      "path": "templates/home.html",
+      "digest": "9e90f0a2daa5f93e256cbc5da773aadca7784f3e51aa1ff5b6eb4a0c1cea94d3",
+      "viewModelSchema": "sforum.page.home@1",
+      "themeOverrideKey": "sforum.public-l2-e2e-theme.home"
+    }
+  ],
+  "assets": [
+    {
+      "handle": "sforum.public-l2-e2e-theme.asset.card",
+      "contractVersion": "sforum.public-l2-e2e-theme.asset.card@1",
+      "type": "style",
+      "path": "frontend/public/card.css",
+      "digest": "d434d4c6464602661813ab6f0aead31aeb4700b12a0c2cb10a1be6c44ef62d47",
+      "scope": [
+        "sforum.public-l2-e2e-theme.component.card"
+      ],
+      "loading": "blocking",
+      "integrity": "sha256-1DTUxkZGAmYYE6tvCurTGutHALEqDCyxChvmxE72LUc="
+    }
+  ],
+  "packageFiles": [
+    {
+      "id": "sforum.public-l2-e2e-theme.file.card",
+      "kind": "frontend",
+      "path": "frontend/public/card.mjs",
+      "digest": "f3ce2cb1c368ce57fd252c0b4135080eb3efaa01b6c2872cc34867cf8827f854"
+    },
+    {
+      "id": "sforum.public-l2-e2e-theme.file.chunk",
+      "kind": "frontend",
+      "path": "frontend/public/chunk.mjs",
+      "digest": "e9be4604169176c934f93ddf52de6d0f0ab581c25abf5fb0ac5c35d9c6e58aab"
+    },
+    {
+      "id": "sforum.public-l2-e2e-theme.file.card-style",
+      "kind": "asset",
+      "path": "frontend/public/card.css",
+      "digest": "d434d4c6464602661813ab6f0aead31aeb4700b12a0c2cb10a1be6c44ef62d47"
+    },
+    {
+      "id": "sforum.public-l2-e2e-theme.file.nested-style",
+      "kind": "asset",
+      "path": "frontend/public/nested.css",
+      "digest": "789932e57ba7e2427682a4be3dc5e032360537afaecda7d6bdd9f7a8d5b39518"
+    },
+    {
+      "id": "sforum.public-l2-e2e-theme.file.home-template",
+      "kind": "template",
+      "path": "templates/home.html",
+      "digest": "9e90f0a2daa5f93e256cbc5da773aadca7784f3e51aa1ff5b6eb4a0c1cea94d3"
+    },
+    {
+      "id": "sforum.public-l2-e2e-theme.component.card.props",
+      "kind": "schema",
+      "path": "schemas/card-props.json",
+      "digest": "2656294ca60aa23acaa3e6e1b688fa8b754196e6636657eb146a559936511803",
+      "version": "1"
+    }
+  ]
+}

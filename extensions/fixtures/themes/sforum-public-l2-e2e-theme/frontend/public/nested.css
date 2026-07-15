@@ -1,0 +1,12 @@
+.public-l2-e2e-card[data-public-l2-mounted] {
+  --sforum-public-l2-relative-css: ready;
+}
+
+.public-l2-e2e-card__badge {
+  width: max-content;
+  padding: 0.25rem 0.5rem;
+  border: 1px solid rgb(234 88 12);
+  background: rgb(255 247 237);
+  color: rgb(154 52 18);
+  font-weight: 700;
+}
