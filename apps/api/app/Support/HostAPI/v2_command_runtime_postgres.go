@@ -25,7 +25,7 @@ func NewPostgresProtocolV2CommandRuntime(config PostgresProtocolV2CommandRuntime
 		return nil, errors.New("hostapi: complete PostgreSQL Host Command runtime dependencies are required")
 	}
 	engine, err := newProtocolV2CommandEngineWithActorDelegation(
-		NewPostgresProtocolV2CommandBackend(config.Pool),
+		NewPostgresProtocolV2HostCommandBackend(config.Pool),
 		config.ActorDelegations,
 		newProtocolV2IdentityUserStatusCommandDefinition(),
 		newProtocolV2TopicVisibilityCommandDefinition(config.Pool, config.Jobs),
