@@ -989,6 +989,23 @@ func (s *PostgresStore) ApplyTopicAction(ctx context.Context, input TopicLifecyc
 	defer func() {
 		_ = tx.Rollback(ctx)
 	}()
+	result, err := s.ApplyTopicActionTx(ctx, tx, input)
+	if err != nil {
+		return TopicLifecycleRecord{}, err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return TopicLifecycleRecord{}, fmt.Errorf("commit topic action: %w", err)
+	}
+	return result, nil
+}
+
+// ApplyTopicActionTx lets Host-owned transactional commands compose the
+// existing topic lifecycle write with their receipt and audit evidence.
+// The caller owns commit/rollback and must enforce actor authorization first.
+func (s *PostgresStore) ApplyTopicActionTx(ctx context.Context, tx pgx.Tx, input TopicLifecycleInput) (TopicLifecycleRecord, error) {
+	if tx == nil {
+		return TopicLifecycleRecord{}, fmt.Errorf("topic action transaction is required")
+	}
 
 	// 锁定主题，确认存在。
 	var status string
@@ -1080,9 +1097,6 @@ func (s *PostgresStore) ApplyTopicAction(ctx context.Context, input TopicLifecyc
 		return TopicLifecycleRecord{}, fmt.Errorf("read topic after action: %w", err)
 	}
 
-	if err := tx.Commit(ctx); err != nil {
-		return TopicLifecycleRecord{}, fmt.Errorf("commit topic action: %w", err)
-	}
 	return result, nil
 }
 
