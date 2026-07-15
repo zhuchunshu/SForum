@@ -104,6 +104,12 @@ func TestProtocolV2RouteCarriesCatalogIssuedActorDelegations(t *testing.T) {
 	if issuer.calls != 0 || len(received.GetContext().GetHostCommandDelegations()) != 0 {
 		t.Fatal("artifact without host_commands acquired an actor delegation")
 	}
+	client.hostCommands = true
+	background := client.requestContext(context.Background(), "background-job")
+	if issuer.calls != 0 || background.GetActor() != nil || background.GetIdempotencyKey() != "" ||
+		len(background.GetHostCommandDelegations()) != 0 {
+		t.Fatalf("background context acquired actor authority: %#v", background)
+	}
 }
 
 func TestProtocolV2RouteRejectsUnavailableOrMalformedActorDelegations(t *testing.T) {
