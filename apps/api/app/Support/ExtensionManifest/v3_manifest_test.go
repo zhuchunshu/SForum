@@ -67,7 +67,7 @@ func TestManifestV3ThemePresentationContract(t *testing.T) {
 	manifest.Components = []ManifestComponent{{
 		ID: "demo.theme.component.home", ContractVersion: "demo.theme.component.home@1",
 		Action: ComponentActionAdd, SSRTemplate: "demo.theme.template.home",
-		PropsSchema: "sforum.page.home@1",
+		PropsSchema: "sforum.page.home@1", ThemeOverrideKey: "demo.theme.home",
 	}}
 	if err := Validate(manifest); err != nil {
 		t.Fatalf("V3 presentation-only theme should validate: %v", err)
@@ -250,7 +250,8 @@ func completeV3Manifest() Manifest {
 	manifest.Templates = []ManifestTemplate{{
 		ID: "demo.v3.template.card", ContractVersion: "demo.v3.template.card@1",
 		Action: "add", Path: "templates/card.html", Digest: digest,
-		ViewModelSchema: "demo.v3.template.card.model@1", ThemeOverrideKey: "demo.v3.card",
+		// 与绑定组件的 PropsSchema 精确同一引用；组件 SSR 准入禁止隐式 schema 拓宽。
+		ViewModelSchema: "demo.v3.component.card.props@1", ThemeOverrideKey: "demo.v3.card",
 	}}
 	manifest.Assets = []ManifestAsset{{
 		Handle: "demo.v3.asset.card", ContractVersion: "demo.v3.asset.card@1",

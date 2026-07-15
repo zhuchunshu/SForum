@@ -79,7 +79,8 @@ func (v *v3Validator) validateUIAndPackage() error {
 		}
 	}
 
-	templates := map[string]bool{}
+	// 模板按规范化 ID 唯一登记；后续组件 SSR 与 content renderer 都只解析同包声明。
+	templates := map[string]ManifestTemplate{}
 	for _, template := range v.manifest.Templates {
 		if err := v.versionedID(template.ID, template.ContractVersion, "template"); err != nil {
 			return err
@@ -94,7 +95,7 @@ func (v *v3Validator) validateUIAndPackage() error {
 		if !declared || file.Kind != "template" || file.Digest != template.Digest {
 			return ErrInvalidManifest
 		}
-		templates[template.ID] = true
+		templates[template.ID] = template
 	}
 
 	for _, asset := range v.manifest.Assets {
@@ -168,8 +169,12 @@ func (v *v3Validator) validateUIAndPackage() error {
 		if component.Action != ComponentActionHide && component.SSRTemplate == "" && component.L2Component == "" {
 			return ErrInvalidManifest
 		}
-		if component.SSRTemplate != "" && !templates[component.SSRTemplate] {
-			return ErrInvalidManifest
+		// 非空 ssrTemplate 必须解析到同包唯一模板，并与 props/override 契约精确一致。
+		if component.SSRTemplate != "" {
+			template, declared := templates[component.SSRTemplate]
+			if !declared || !componentSSRTemplateConsistent(component, template) {
+				return ErrInvalidManifest
+			}
 		}
 		if component.L2Component != "" {
 			file, exists := packageFiles[component.L2Component]
@@ -191,7 +196,12 @@ func (v *v3Validator) validateUIAndPackage() error {
 		if !validSchemaRef(content.Schema) || content.Handler == "" && content.Renderer == "" {
 			return ErrInvalidManifest
 		}
-		if content.Renderer != "" && !templates[content.Renderer] || content.Migration != "" && v.ids[content.Migration] != "migration" {
+		if content.Renderer != "" {
+			if _, declared := templates[content.Renderer]; !declared {
+				return ErrInvalidManifest
+			}
+		}
+		if content.Migration != "" && v.ids[content.Migration] != "migration" {
 			return ErrInvalidManifest
 		}
 	}
@@ -369,6 +379,24 @@ func validComponentAction(value string) bool {
 	default:
 		return false
 	}
+}
+
+// componentSSRTemplateConsistent 校验组件与其 SSR 模板的生产准入契约。
+// 仅使用已冻结字段：不发明 fragment 输入/wrap/filter 语义，也不合成 theme override target version。
+func componentSSRTemplateConsistent(component ManifestComponent, template ManifestTemplate) bool {
+	// 组件 SSR 片段只绑定同包 action=add 且无 target 的模板；replace/target 留给主题覆盖声明。
+	if template.Action != "add" || template.TargetID != "" {
+		return false
+	}
+	// PropsSchema 与 ViewModelSchema 必须是规范化后的精确同一引用，禁止隐式拓宽或缺失。
+	if component.PropsSchema != template.ViewModelSchema {
+		return false
+	}
+	// 双方皆空：明确表示无 theme override 绑定；任一方非空时必须逐字一致。
+	if component.ThemeOverrideKey != template.ThemeOverrideKey {
+		return false
+	}
+	return true
 }
 
 func validComponentTarget(targetID string, targetContractVersion string, manifestType string) bool {
