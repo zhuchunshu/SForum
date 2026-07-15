@@ -1,7 +1,7 @@
 # Trusted Plugin And Theme Platform V3 Progress Ledger
 
 Date: 2026-07-15
-Overall progress: **52%**
+Overall progress: **54%**
 Active phase: **P7 - Hooks, Services, Work, Admin Surfaces, Queries, And Identity (50%, 11 of 22 rows)**
 
 This ledger is the durable percentage and context-compaction checkpoint for the
@@ -24,7 +24,7 @@ scaffolding, or demo-only code cannot satisfy a runtime exit criterion.
 | P5 Database/commands | 8% | 71% | 5.65% |
 | P6 Routes/middleware | 10% | 67% | 6.67% |
 | P7 Workflow/admin/query/identity | 10% | 50% | 5.00% |
-| P8 Theme compiler/runtime | 8% | 56% | 4.44% |
+| P8 Theme compiler/runtime | 8% | 83% | 6.67% |
 | P9 Components/assets/L2 | 8% | 0% | 0% |
 | P10 Content/media/data | 8% | 0% | 0% |
 | P11 Platform services | 6% | 0% | 0% |
@@ -111,6 +111,39 @@ phase percentage.
   failing plugin exactly once (`failed`, then `skipped`).
 
 ## Last Durable Checkpoint
+
+### 2026-07-15 P8 Hot Path, SSR, And Crawler Checkpoint
+
+- Overall advances to **54%** after flooring. P8 is **83% (15 of 18 rows)**;
+  P5 is **71% (12 of 17)**, P6 is **67% (12 of 18)**, and P7 is **50%
+  (11 of 22)** at this checkpoint.
+- The row audit corrects two stale checkboxes without inflating progress:
+  production Page ViewModel construction is reopened because it leaves most
+  page-specific product fields empty, while the already-accepted small/large
+  compiler benchmark is now marked complete.
+- `1c85d27b4` proves all 23 catalog templates perform no filesystem opens after
+  compilation and 100 complete catalog provider-resolution passes perform one
+  startup binding-list read and zero request-path binding reads. Existing typed
+  render output removes regex island parsing and repeated template sanitizing.
+- The compiler security matrix now covers dynamic XSS and URL contexts, missing
+  values, recursive/invalid partials, unknown helpers, bounded output and
+  cancellation, exact digest/schema binding, and the compiled fallback chain.
+- `e125a47fc` makes the legacy plugin navigation island safe with empty defaults
+  and disables query-insensitive Nitro SWR for paginated category/tag detail
+  routes. Browser reproduction proved the old cached payload contained 6,004
+  topics while current SSR/API contained 50; page 2 now hydrates without
+  warnings and linked page 3 navigation changes content and canonical URL.
+- JavaScript-disabled Playwright exercised home page 2, category page 2 -> 3,
+  topic body/comments, profile topics, and the plugin add page. Independent
+  Baiduspider parsing returned 200 SSR HTML with title, content, links,
+  canonical, robots, five hreflang links, and valid JSON-LD on all five routes;
+  home and category included real pagination anchors.
+- Verification passed 27 focused Web tests, a 111-test P8 superset, all 310 Web
+  tests, Nuxt typecheck/build, focused ThemeCompiler/Pages/Pages Controller Go
+  tests, desktop browser screenshots, and the JavaScript-disabled browser run.
+- The three open P8 rows are production page-specific ViewModel population,
+  end-to-end plugin business-data contract preservation for theme overrides,
+  and one exact API/Nitro restart plus concurrent-activation exit test.
 
 ### 2026-07-15 P6 Streamed Transports And P7 Plugin Commands Checkpoint
 

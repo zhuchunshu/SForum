@@ -574,7 +574,7 @@ query, and identity workflows without replacing whole routes.
 
 ### Tasks
 
-- [x] Define versioned Page ViewModels for every catalog page, including actor/
+- [ ] Define versioned Page ViewModels for every catalog page, including actor/
       permission state, route params, pagination, SEO, structured data, and
       safe rich-content fields, navigation trees, breadcrumbs, and region data.
 - [x] Implement Theme Compiler around `html/template` with restricted FuncMap,
@@ -588,7 +588,7 @@ query, and identity workflows without replacing whole routes.
       rich content; themes cannot create arbitrary SafeHTML.
 - [x] Build immutable digest/compiler-version `ThemeRuntimeSnapshot` containing
       provider bindings, compiled templates, assets, locales, and contracts.
-- [ ] Remove request-time theme/provider DB lookup, template file read, parsing,
+- [x] Remove request-time theme/provider DB lookup, template file read, parsing,
       repeated full-template sanitization, and regex island parsing.
 - [x] Return safe HTML segments, typed island descriptors, and SEO payloads.
 - [x] Implement fallback order: active theme plugin override, plugin template,
@@ -601,15 +601,20 @@ query, and identity workflows without replacing whole routes.
 
 ### Tests
 
-- [ ] Compile/execute performance and memory benchmark for small/large templates.
-- [ ] XSS, URL context, missing values, recursion, excessive output, unsafe
+- [x] Compile/execute performance and memory benchmark for small/large templates.
+- [x] XSS, URL context, missing values, recursion, excessive output, unsafe
       helper, invalid partial, digest change, and fallback.
 - [ ] Theme switch survives API/Nitro restart and concurrent activation.
-- [ ] `curl` with Baiduspider and JavaScript-disabled browser receives title,
+- [x] `curl` with Baiduspider and JavaScript-disabled browser receives title,
       content, links, pagination, canonical, robots, hreflang, and JSON-LD.
-- [ ] With JavaScript disabled, body, lists, comments, and pagination remain
+- [x] With JavaScript disabled, body, lists, comments, and pagination remain
       complete across the home, list, topic, profile, and plugin-page catalog.
-- [ ] No theme disk I/O or provider DB query on the hot request path.
+- [x] No theme disk I/O or provider DB query on the hot request path.
+
+The Page ViewModel row remains open after the 2026-07-15 audit. All 23 typed
+schemas and base projections exist, but production `BuildCorePageViewModel`
+still leaves most page-specific product fields empty. Schema presence alone is
+not complete product-data acceptance.
 
 ### Rollback
 

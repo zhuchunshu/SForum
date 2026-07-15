@@ -4,10 +4,11 @@ This is the entry point for project memory.
 
 ## Latest Handoff
 
-- **2026-07-15 Trusted Plugin And Theme Platform V3 P6/P7 active (overall 51%)**
+- **2026-07-15 Trusted Plugin And Theme Platform V3 P6/P7/P8 active (overall 54%)**
   - Decision: `knowledge/decisions/2026-07-13-trusted-plugin-theme-platform-v3.md`
   - Task book: `knowledge/plans/2026-07-13-trusted-plugin-theme-platform-v3.md`
   - Active handoff: `knowledge/sessions/2026-07-15-trusted-plugin-theme-platform-v3-p6-p8-progress.md`
+  - P8 handoff: `knowledge/sessions/2026-07-15-trusted-plugin-theme-platform-v3-p8-crawler-hotpath.md`
   - Durable progress/compaction ledger:
     `knowledge/plans/2026-07-13-trusted-plugin-theme-platform-v3-progress.md`
   - P0 catalogs and governance: `docs/extensions/v3/`
@@ -123,11 +124,14 @@ This is the entry point for project memory.
     policy in River rows. Host-owned dynamic schedules use River safe add/remove,
     exact trigger admission, lifecycle drain, and consistent embedded/standalone
     worker publication; Safe Mode publishes no third-party schedule.
-  - P8 is 10/18 (56%). The 23/23 Page ViewModel catalog, sealed typed frontend
-    render output, public/admin skin isolation, install-time template safety,
-    and compiled four-level fallback are committed. Add-page SSR, exact visible
-    activation preview, all-catalog hot-path proof, and crawler/
-    JavaScript-disabled evidence remain open
+  - P8 is 15/18 (83%). Immutable 23-page compiler snapshots, sealed typed
+    frontend output, public/admin skin isolation, install-time safety,
+    four-level fallback, exact publication, all-catalog zero-I/O proof, and
+    crawler/JavaScript-disabled SSR evidence are accepted
+  - The P8 Page ViewModel row is deliberately open: production construction
+    still leaves most page-specific product fields empty. Plugin business-data
+    contract preservation and an exact API/Nitro restart plus concurrent
+    activation exit also remain open
   - Exact theme activation now binds a visible target/current preview tuple,
     atomically replaces durable Page approvals, repairs stale bindings, and
     exposes process-local revisions. Migration 020 persists desired/node/ack

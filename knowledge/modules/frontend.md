@@ -332,3 +332,21 @@ plugin dependencies. The compiled CSS was verified to contain all `prose`
 - `seoStructuredData.ts` builds WebSite, Organization, CollectionPage,
   BreadcrumbList, DiscussionForumPosting, and ProfilePage-compatible graphs
   from the resolved public context.
+
+## V3 P8 SSR And Crawler Checkpoint (2026-07-15)
+
+- Public pagination is anchor-based on home, category, tag, and topic surfaces;
+  canonical URLs preserve `page` while page one remains query-free.
+- Category and tag detail routes stay SSR but use `cache: false`. Nuxt's payload
+  URL omits the pagination query, so shared SWR could hydrate current HTML with
+  another page or an old dataset. Caching may return only with a normalized
+  query and theme-revision-aware key.
+- `SFHomeNavigation` accepts omitted catalog props with safe empty defaults so
+  legacy L1/plugin templates can render the host island without Vue warnings.
+- In-app browser QA passed category page 2 -> 3 navigation, topic/comments,
+  profile, and the plugin add page with no hydration warnings or framework
+  overlay in a stable API window.
+- JavaScript-disabled Playwright rendered complete home/list/topic/profile/
+  plugin content and followed linked pagination. Baiduspider received title,
+  content, links, canonical, robots, five hreflang links, and valid JSON-LD.
+- The Web gate is 310/310 tests plus Nuxt typecheck and production build.
