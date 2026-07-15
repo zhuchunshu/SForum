@@ -377,8 +377,11 @@ func routeDispatchRequestMetadata(c fiber.Ctx, actor identity.Actor) routes.Disp
 }
 
 func serveRouteStream(c fiber.Ctx, dispatch *routes.RouteStreamDispatch) error {
-	if dispatch == nil || dispatch.Step().Mode == extensionmanifest.RouteModeWebSocket {
-		return mapRouteDispatchError(fmt.Errorf("%w: websocket adapter is unavailable", routes.ErrDispatchTransport))
+	if dispatch == nil {
+		return mapRouteDispatchError(routes.ErrDispatchTransport)
+	}
+	if dispatch.Step().Mode == extensionmanifest.RouteModeWebSocket {
+		return serveRouteWebSocket(c, dispatch)
 	}
 	start, err := dispatch.Open(c.Context())
 	if err != nil {

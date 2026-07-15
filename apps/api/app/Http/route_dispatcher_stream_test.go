@@ -6,10 +6,15 @@ import (
 	"context"
 	"errors"
 	"io"
+	"net"
 	stdhttp "net/http"
 	"net/http/httptest"
+	"sync"
+	"sync/atomic"
 	"testing"
+	"time"
 
+	"github.com/fasthttp/websocket"
 	"github.com/gofiber/fiber/v3"
 
 	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
@@ -110,7 +115,110 @@ func TestStreamRouteResponseCancelsOnRuntimeFailure(t *testing.T) {
 	}
 }
 
-type streamHTTPTestInvoker struct{ start routes.RouteStreamStart }
+func TestRouteDispatcherBridgesWebSocketMessagesAndDisconnect(t *testing.T) {
+	registry := routes.NewRegistry()
+	artifact := routeDispatcherArtifact("stream.websocket", 'c')
+	declaration := routeDispatcherManifestRoute("stream.websocket.echo", extensionmanifest.RouteActionAdd, "/socket", "GET")
+	declaration.Mode = extensionmanifest.RouteModeWebSocket
+	if _, err := registry.Publish(routes.Publication{Plugins: []routes.PluginRouteSet{{
+		Artifact: artifact, Routes: []extensionmanifest.ManifestRoute{declaration},
+	}}}); err != nil {
+		t.Fatal(err)
+	}
+	session := newWebSocketEchoSession()
+	traces := routes.NewRouteTraceRing(8)
+	invoker := &streamHTTPTestInvoker{start: routes.RouteStreamStart{
+		Response: routes.DispatchResponse{
+			Status:  fiber.StatusSwitchingProtocols,
+			Headers: stdhttp.Header{"Sec-WebSocket-Protocol": {"sforum.echo.v1"}},
+		},
+		Session: session,
+	}}
+	dispatcher := routes.NewDispatcher(routes.DispatcherConfig{
+		Plans: routeRegistryPlanResolver{registry: registry}, Steps: invoker,
+		Guard: HostRouteGuardAuthorizer{}, Trace: traces,
+	})
+	app := fiber.New()
+	app.Use(routeDispatcherMiddleware(dispatcher, nil))
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	serverDone := make(chan error, 1)
+	go func() { serverDone <- app.Listener(listener) }()
+	t.Cleanup(func() {
+		_ = app.Shutdown()
+		_ = listener.Close()
+		<-serverDone
+	})
+	dialer := websocket.Dialer{Subprotocols: []string{"sforum.echo.v1"}}
+	connection, response, err := dialer.Dial("ws://"+listener.Addr().String()+"/socket", nil)
+	if err != nil {
+		t.Fatalf("dial status=%v err=%v", response, err)
+	}
+	t.Cleanup(func() { _ = connection.Close() })
+	if response.StatusCode != fiber.StatusSwitchingProtocols || connection.Subprotocol() != "sforum.echo.v1" {
+		t.Fatalf("status=%d subprotocol=%q", response.StatusCode, connection.Subprotocol())
+	}
+	if err := connection.WriteMessage(websocket.TextMessage, []byte("hello")); err != nil {
+		t.Fatal(err)
+	}
+	messageType, payload, err := connection.ReadMessage()
+	if err != nil || messageType != websocket.BinaryMessage || string(payload) != "hello" {
+		t.Fatalf("messageType=%d payload=%q err=%v", messageType, payload, err)
+	}
+	_ = connection.Close()
+	select {
+	case <-session.done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("websocket disconnect did not cancel the runtime session")
+	}
+	if invoker.openCalls.Load() != 1 || string(session.received) != "hello" {
+		t.Fatalf("openCalls=%d received=%q", invoker.openCalls.Load(), session.received)
+	}
+	records := traces.RouteTraces(8)
+	if len(records) != 2 || records[0].Outcome != routes.RouteTraceSucceeded || records[1].Outcome != routes.RouteTraceCommitted {
+		t.Fatalf("traces=%#v", records)
+	}
+}
+
+func TestRouteDispatcherRejectsMalformedWebSocketBeforeRuntime(t *testing.T) {
+	registry := routes.NewRegistry()
+	artifact := routeDispatcherArtifact("stream.websocket.invalid", 'd')
+	declaration := routeDispatcherManifestRoute("stream.websocket.invalid.socket", extensionmanifest.RouteActionAdd, "/socket-invalid", "GET")
+	declaration.Mode = extensionmanifest.RouteModeWebSocket
+	if _, err := registry.Publish(routes.Publication{Plugins: []routes.PluginRouteSet{{Artifact: artifact, Routes: []extensionmanifest.ManifestRoute{declaration}}}}); err != nil {
+		t.Fatal(err)
+	}
+	invoker := &streamHTTPTestInvoker{}
+	dispatcher := routes.NewDispatcher(routes.DispatcherConfig{
+		Plans: routeRegistryPlanResolver{registry: registry}, Steps: invoker, Guard: HostRouteGuardAuthorizer{},
+	})
+	app := fiber.New()
+	app.Use(routeDispatcherMiddleware(dispatcher, nil))
+	plain := httptest.NewRequest(stdhttp.MethodGet, "/socket-invalid", nil)
+	crossOrigin := httptest.NewRequest(stdhttp.MethodGet, "/socket-invalid", nil)
+	crossOrigin.Header.Set("Connection", "Upgrade")
+	crossOrigin.Header.Set("Upgrade", "websocket")
+	crossOrigin.Header.Set("Sec-WebSocket-Key", "dGhlIHNhbXBsZSBub25jZQ==")
+	crossOrigin.Header.Set("Sec-WebSocket-Version", "13")
+	crossOrigin.Header.Set("Origin", "https://evil.example")
+	for _, request := range []*stdhttp.Request{plain, crossOrigin} {
+		response, err := app.Test(request)
+		if err != nil {
+			t.Fatal(err)
+		}
+		response.Body.Close()
+		if response.StatusCode != fiber.StatusUpgradeRequired || invoker.openCalls.Load() != 0 {
+			t.Fatalf("status=%d openCalls=%d", response.StatusCode, invoker.openCalls.Load())
+		}
+	}
+}
+
+type streamHTTPTestInvoker struct {
+	start     routes.RouteStreamStart
+	openCalls atomic.Int64
+}
 
 func (*streamHTTPTestInvoker) SupportsMode(string) bool { return false }
 
@@ -119,6 +227,7 @@ func (*streamHTTPTestInvoker) Invoke(context.Context, routes.RouteInvocation) (r
 }
 
 func (i *streamHTTPTestInvoker) OpenStream(context.Context, routes.RouteInvocation) (routes.RouteStreamStart, error) {
+	i.openCalls.Add(1)
 	return i.start, nil
 }
 
@@ -170,3 +279,43 @@ func (s *streamHTTPTestSession) Cancel() { s.cancelled = true }
 var _ routes.StepInvoker = (*streamHTTPTestInvoker)(nil)
 var _ routes.StreamingStepInvoker = (*streamHTTPTestInvoker)(nil)
 var _ routes.RouteStreamSession = (*streamHTTPTestSession)(nil)
+
+type webSocketEchoSession struct {
+	messages  chan []byte
+	done      chan struct{}
+	doneOnce  sync.Once
+	received  []byte
+	terminal  atomic.Bool
+	responded atomic.Bool
+}
+
+func newWebSocketEchoSession() *webSocketEchoSession {
+	return &webSocketEchoSession{messages: make(chan []byte, 1), done: make(chan struct{})}
+}
+
+func (s *webSocketEchoSession) Send(data []byte, _ bool) error {
+	s.received = append([]byte(nil), data...)
+	s.messages <- append([]byte(nil), data...)
+	return nil
+}
+
+func (*webSocketEchoSession) CloseRequest() error { return nil }
+
+func (s *webSocketEchoSession) Recv() (routes.RouteStreamChunk, error) {
+	if s.responded.CompareAndSwap(false, true) {
+		message := <-s.messages
+		return routes.RouteStreamChunk{Sequence: 1, Data: message}, nil
+	}
+	s.terminal.Store(true)
+	return routes.RouteStreamChunk{}, io.EOF
+}
+
+func (s *webSocketEchoSession) Response() (routes.DispatchResponse, bool) {
+	return routes.DispatchResponse{Status: fiber.StatusSwitchingProtocols}, s.terminal.Load()
+}
+
+func (s *webSocketEchoSession) Cancel() {
+	s.doneOnce.Do(func() { close(s.done) })
+}
+
+var _ routes.RouteStreamSession = (*webSocketEchoSession)(nil)
