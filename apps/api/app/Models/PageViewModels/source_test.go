@@ -1,0 +1,303 @@
+package pageviewmodels
+
+import (
+	"context"
+	"errors"
+	"net/url"
+	"reflect"
+	"testing"
+	"time"
+
+	forum "github.com/zhuchunshu/sforum/apps/api/app/Models/Forum"
+	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
+	moderation "github.com/zhuchunshu/sforum/apps/api/app/Models/Moderation"
+	notifications "github.com/zhuchunshu/sforum/apps/api/app/Models/Notifications"
+	options "github.com/zhuchunshu/sforum/apps/api/app/Models/Options"
+	profile "github.com/zhuchunshu/sforum/apps/api/app/Models/Profile"
+	sitechrome "github.com/zhuchunshu/sforum/apps/api/app/Models/SiteChrome"
+	pages "github.com/zhuchunshu/sforum/apps/api/app/Support/Pages"
+	search "github.com/zhuchunshu/sforum/apps/api/app/Support/Search"
+	themecompiler "github.com/zhuchunshu/sforum/apps/api/app/Support/ThemeCompiler"
+)
+
+var sourceTestNow = time.Date(2026, 7, 15, 8, 0, 0, 0, time.UTC)
+
+type sourceForum struct {
+	lastTopicInput   forum.TopicListInput
+	lastCommentInput forum.CommentListInput
+}
+
+func (s *sourceForum) ListCategoryGroups(context.Context) ([]forum.CategoryGroup, error) {
+	return []forum.CategoryGroup{{
+		ID: 1, Slug: "general", Name: "General", Visibility: "public",
+		Categories: []forum.Category{{ID: 10, Slug: "support", Name: "Support", Description: "Help topics", Visibility: "public", TopicCount: 1}},
+	}}, nil
+}
+
+func (s *sourceForum) ListTags(context.Context, bool) ([]forum.Tag, error) {
+	return []forum.Tag{{ID: 20, Slug: "go", Name: "Go", Description: "Go language", Status: forum.TagStatusActive, TopicCount: 1}}, nil
+}
+
+func (s *sourceForum) ListTopics(_ context.Context, input forum.TopicListInput) (forum.TopicList, error) {
+	s.lastTopicInput = input
+	return forum.TopicList{Items: []forum.TopicSummary{sourceTopic().TopicSummary}, Total: 1, Page: max(input.Page, 1), PerPage: 20}, nil
+}
+
+func (s *sourceForum) GetTopic(context.Context, int64) (forum.TopicDetail, error) {
+	return sourceTopic(), nil
+}
+
+func (s *sourceForum) GetTopicBySlug(context.Context, string) (forum.TopicDetail, error) {
+	return sourceTopic(), nil
+}
+
+func (s *sourceForum) ListComments(_ context.Context, input forum.CommentListInput) (forum.CommentList, error) {
+	s.lastCommentInput = input
+	return forum.CommentList{Items: []forum.Comment{{
+		ID: 91, TopicID: 42, AuthorUserID: 8, Author: sourceUser(),
+		Content: forum.RenderedContent{HTMLContent: "<p>Reply</p>"}, CreatedAt: sourceTestNow, UpdatedAt: sourceTestNow,
+	}}, Total: 1, Page: max(input.Page, 1), PerPage: 20, View: input.View}, nil
+}
+
+func (s *sourceForum) ListAuthorReviewItems(context.Context, identity.Actor) (forum.AuthorReviewList, error) {
+	return forum.AuthorReviewList{Items: []forum.AuthorReviewItem{{
+		TargetType: "topic", TargetID: 42, Title: "Hello", Status: forum.TopicStatusPending, ReviewNote: "review", CreatedAt: sourceTestNow,
+	}}}, nil
+}
+
+type sourceProfiles struct{}
+
+func (sourceProfiles) GetPublicProfile(context.Context, string) (profile.PublicProfile, error) {
+	return sourceProfile(), nil
+}
+
+func (sourceProfiles) GetMyProfile(context.Context, int64) (profile.PublicProfile, error) {
+	return sourceProfile(), nil
+}
+
+type sourceNotifications struct{}
+
+func (sourceNotifications) List(context.Context, notifications.ListInput) (notifications.Page, error) {
+	return notifications.Page{Items: []notifications.Notification{{
+		ID: 71, Type: notifications.TypeReply, TargetType: "topic", TargetID: 42,
+		Payload: []byte(`{"topicId":42,"title":"New reply"}`), CreatedAt: sourceTestNow,
+	}}}, nil
+}
+
+func (sourceNotifications) UnreadCount(context.Context, int64) (int64, error) { return 3, nil }
+
+type sourceModeration struct{}
+
+func (sourceModeration) ListPending(context.Context, identity.Actor, moderation.WorkbenchListInput) (moderation.PendingList, error) {
+	return moderation.PendingList{Items: []moderation.PendingItem{{
+		TargetType: moderation.TargetTypeTopic, TargetID: 42, Title: "Pending topic", CreatedAt: sourceTestNow,
+	}}, Total: 1, Page: 1, PerPage: 20}, nil
+}
+
+type sourceOptions struct {
+	guestRead string
+	ready     bool
+	values    map[string]string
+}
+
+func (s sourceOptions) WebOption(_ context.Context, name string) (string, error) {
+	value, ok := s.values[name]
+	if !ok {
+		return "", errors.New("missing option " + name)
+	}
+	return value, nil
+}
+
+func (sourceOptions) IsFeatureEnabled(context.Context, string) (bool, error) { return true, nil }
+
+func (s sourceOptions) ForumReadPolicySnapshot() (string, string, uint64, bool) {
+	return s.guestRead, "author_and_staff", 1, s.ready
+}
+
+type sourceRegistration struct{}
+
+func (sourceRegistration) RegistrationStatus(context.Context) (identity.RegistrationStatus, error) {
+	return identity.RegistrationStatus{RegistrationEnabled: true}, nil
+}
+
+type sourceSessions struct{}
+
+func (sourceSessions) ListUserSessions(context.Context, int64, string, bool, int, int) (identity.SessionListResult, error) {
+	return identity.SessionListResult{Items: []identity.SessionRecord{{
+		ID: "device-1", DeviceName: "Chrome on macOS", IsCurrent: true, LastSeenAt: sourceTestNow,
+	}}, Total: 1, Page: 1, PerPage: 20}, nil
+}
+
+type sourceChrome struct{}
+
+func (sourceChrome) ListPublicNavItems(context.Context) ([]sitechrome.NavItem, error) {
+	return []sitechrome.NavItem{{ID: 1, LabelZhCN: "文档", LabelEnUS: "Docs", Href: "/docs", Enabled: true}}, nil
+}
+
+func (sourceChrome) ListPublicExtensionNavItems(context.Context) []sitechrome.ExtensionNavItem {
+	return []sitechrome.ExtensionNavItem{{ExtensionID: "reference.nav", ID: "guide", Label: map[string]string{"en-US": "Guide"}, URL: "/guide"}}
+}
+
+func (sourceChrome) ListPublicAnnouncements(context.Context) ([]sitechrome.Announcement, error) {
+	return []sitechrome.Announcement{{ID: 1, TitleEnUS: "Notice", BodyEnUS: "Production data", Enabled: true}}, nil
+}
+
+type sourceSearch struct{}
+
+func (sourceSearch) Search(context.Context, search.SearchInput) (search.SearchResult, error) {
+	return search.SearchResult{Items: []search.TopicSearchDoc{{
+		ID: 42, Title: "Search hit", Slug: "hello", CategoryID: 10, CategorySlug: "support", CategoryName: "Support",
+		AuthorUserID: 8, AuthorUsername: "alice", AuthorDisplayName: "Alice", Status: forum.TopicStatusActive,
+		CreatedAt: sourceTestNow, UpdatedAt: sourceTestNow,
+	}}, Total: 1, Page: 1, PerPage: 20}, nil
+}
+
+func TestCorePageViewModelSourcePopulatesEveryCatalogContract(t *testing.T) {
+	forumReader := &sourceForum{}
+	source := newTestSource(forumReader, sourceOptions{
+		guestRead: "public", ready: true,
+		values: map[string]string{
+			options.NameSiteName: "SForum", options.NameSiteURL: "https://forum.example",
+			options.NameSEOTopicURLMode: "id_slug", options.NameForumTagPublicPages: "enabled",
+			options.NameLegalTermsBodyENUS:      "## Terms\n\nReal terms.",
+			options.NameLegalPrivacyBodyENUS:    "## Privacy\n\nReal privacy policy.",
+			options.NameLegalGuidelinesBodyENUS: "## Guidelines\n\nReal guidelines.",
+		},
+	})
+	actor := identity.Actor{ID: 8, Status: identity.UserStatusActive, Permissions: map[string]bool{identity.PermissionModerationReview: true}}
+	viewer := themecompiler.PageViewerState{Authenticated: true, UserID: 8, Username: "alice", DisplayName: "Alice", Permissions: []string{identity.PermissionModerationReview}}
+
+	requests := map[string]struct {
+		path   string
+		params map[string]string
+		query  url.Values
+		typeOf reflect.Type
+	}{
+		"forum.home":              {"/", nil, nil, reflect.TypeOf(themecompiler.HomePageViewModel{})},
+		"forum.category.index":    {"/categories", nil, nil, reflect.TypeOf(themecompiler.CategoryIndexPageViewModel{})},
+		"forum.category.show":     {"/c/support", map[string]string{"categorySlug": "support"}, url.Values{"page": {"1"}}, reflect.TypeOf(themecompiler.CategoryShowPageViewModel{})},
+		"forum.tag.index":         {"/tags", nil, nil, reflect.TypeOf(themecompiler.TagIndexPageViewModel{})},
+		"forum.tag.show":          {"/tags/go", map[string]string{"tagSlug": "go"}, nil, reflect.TypeOf(themecompiler.TagShowPageViewModel{})},
+		"forum.topic.show":        {"/t/42/hello", map[string]string{"path": "42/hello"}, url.Values{"page": {"1"}}, reflect.TypeOf(themecompiler.TopicDetailPageViewModel{})},
+		"forum.topic.create":      {"/topics/new", nil, nil, reflect.TypeOf(themecompiler.TopicCreatePageViewModel{})},
+		"forum.profile.show":      {"/u/alice", map[string]string{"username": "alice"}, nil, reflect.TypeOf(themecompiler.ProfilePageViewModel{})},
+		"forum.my.home":           {"/my", nil, nil, reflect.TypeOf(themecompiler.MyHomePageViewModel{})},
+		"forum.my.content_review": {"/my/content-review", nil, nil, reflect.TypeOf(themecompiler.MyContentReviewPageViewModel{})},
+		"forum.settings.profile":  {"/settings/profile", nil, nil, reflect.TypeOf(themecompiler.ProfileSettingsPageViewModel{})},
+		"forum.settings.security": {"/settings/security", nil, nil, reflect.TypeOf(themecompiler.SecuritySettingsPageViewModel{})},
+		"forum.notifications":     {"/notifications", nil, nil, reflect.TypeOf(themecompiler.NotificationsPageViewModel{})},
+		"moderation.review":       {"/moderation", nil, nil, reflect.TypeOf(themecompiler.ModerationReviewPageViewModel{})},
+		"auth.login":              {"/login", nil, nil, reflect.TypeOf(themecompiler.LoginPageViewModel{})},
+		"auth.register":           {"/register", nil, nil, reflect.TypeOf(themecompiler.RegisterPageViewModel{})},
+		"auth.forgot_password":    {"/forgot-password", nil, nil, reflect.TypeOf(themecompiler.ForgotPasswordPageViewModel{})},
+		"auth.reset_password":     {"/reset-password", nil, url.Values{"token": {"exact-token"}}, reflect.TypeOf(themecompiler.ResetPasswordPageViewModel{})},
+		"site.terms":              {"/terms", nil, nil, reflect.TypeOf(themecompiler.TermsPageViewModel{})},
+		"site.privacy":            {"/privacy", nil, nil, reflect.TypeOf(themecompiler.PrivacyPageViewModel{})},
+		"site.guidelines":         {"/guidelines", nil, nil, reflect.TypeOf(themecompiler.GuidelinesPageViewModel{})},
+		"system.not_found":        {"/missing", nil, nil, reflect.TypeOf(themecompiler.ErrorPageViewModel{})},
+		"dev.components":          {"/components", nil, nil, reflect.TypeOf(themecompiler.DevelopmentComponentsPageViewModel{})},
+	}
+
+	if len(requests) != len(pages.Catalog()) {
+		t.Fatalf("test catalog drift: requests=%d catalog=%d", len(requests), len(pages.Catalog()))
+	}
+	for _, definition := range pages.Catalog() {
+		t.Run(definition.ID, func(t *testing.T) {
+			test := requests[definition.ID]
+			populated, err := source.Populate(t.Context(), CorePageViewModelInput{
+				Request: pages.CorePageViewModelRequest{
+					PageID: definition.ID, Locale: "en-US", Path: test.path, RouteParams: test.params,
+					Viewer: viewer, SEO: themecompiler.PageSEOView{Title: definition.ID},
+				},
+				Actor: actor, CurrentSessionID: "device-1", Query: test.query,
+			})
+			if err != nil {
+				t.Fatalf("Populate: %v", err)
+			}
+			model, err := pages.BuildCorePageViewModel(populated)
+			if err != nil {
+				t.Fatalf("BuildCorePageViewModel: %v", err)
+			}
+			if reflect.TypeOf(model) != test.typeOf {
+				t.Fatalf("type %T, want %v", model, test.typeOf)
+			}
+			if _, err := themecompiler.CorePageViewModelRegistry().Bind(definition.ID, definition.ContractVersion, string(make([]byte, 0)), model); !errors.Is(err, themecompiler.ErrViewModelTheme) {
+				t.Fatalf("expected only invalid test digest before schema validation, got %v", err)
+			}
+			if _, err := themecompiler.CorePageViewModelRegistry().Bind(definition.ID, definition.ContractVersion, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", model); err != nil {
+				t.Fatalf("bind exact ViewModel: %v", err)
+			}
+		})
+	}
+
+	if forumReader.lastCommentInput.Viewer.ID != actor.ID {
+		t.Fatalf("comment visibility lost authoritative actor: %#v", forumReader.lastCommentInput.Viewer)
+	}
+}
+
+func TestCorePageViewModelSourceUsesSearchAndBoundsUntrustedFilters(t *testing.T) {
+	forumReader := &sourceForum{}
+	source := newTestSource(forumReader, defaultSourceOptions("public"))
+	request, err := source.Populate(t.Context(), CorePageViewModelInput{
+		Request: pages.CorePageViewModelRequest{PageID: "forum.home", Locale: "en-US", Path: "/", SEO: themecompiler.PageSEOView{Title: "forum.home"}},
+		Query:   url.Values{"q": {"production"}, "page": {"999999"}, "category": {"support"}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if request.Data.Home == nil || request.Data.Home.Search == nil || len(request.Data.Home.Search.Results) != 1 {
+		t.Fatalf("search projection missing: %#v", request.Data.Home)
+	}
+	if request.Pagination == nil || request.Pagination.Page != 1 {
+		t.Fatalf("search service result must remain authoritative: %#v", request.Pagination)
+	}
+}
+
+func TestCorePageViewModelSourceEnforcesGuestReadBeforeForumQueries(t *testing.T) {
+	forumReader := &sourceForum{}
+	source := newTestSource(forumReader, defaultSourceOptions("login_required"))
+	_, err := source.Populate(t.Context(), CorePageViewModelInput{
+		Request: pages.CorePageViewModelRequest{PageID: "forum.home", Locale: "en-US", Path: "/", SEO: themecompiler.PageSEOView{Title: "forum.home"}},
+	})
+	if !errors.Is(err, ErrCorePageDataUnauthorized) {
+		t.Fatalf("expected guest read denial, got %v", err)
+	}
+	if forumReader.lastTopicInput.Page != 0 {
+		t.Fatal("forum data was queried before guest read authorization")
+	}
+}
+
+func newTestSource(forumReader *sourceForum, optionReader sourceOptions) *CorePageViewModelSource {
+	return NewCorePageViewModelSource(CorePageViewModelDependencies{
+		Forum: forumReader, Profiles: sourceProfiles{}, Notifications: sourceNotifications{}, Moderation: sourceModeration{},
+		Options: optionReader, Registration: sourceRegistration{}, Sessions: sourceSessions{}, SiteChrome: sourceChrome{}, Search: sourceSearch{},
+	})
+}
+
+func defaultSourceOptions(guestRead string) sourceOptions {
+	return sourceOptions{guestRead: guestRead, ready: true, values: map[string]string{
+		options.NameSiteName: "SForum", options.NameSiteURL: "https://forum.example",
+		options.NameSEOTopicURLMode: "id_slug", options.NameForumTagPublicPages: "enabled",
+	}}
+}
+
+func sourceTopic() forum.TopicDetail {
+	return forum.TopicDetail{TopicSummary: forum.TopicSummary{
+		ID: 42, CategoryID: 10, CategorySlug: "support", CategoryName: "Support",
+		AuthorUserID: 8, Author: sourceUser(), Title: "Hello", Slug: "hello", Status: forum.TopicStatusActive,
+		CommentCount: 1, Tags: []forum.TopicTagSummary{{ID: 20, Slug: "go", Name: "Go", Status: forum.TagStatusActive}},
+		Excerpt: "Hello excerpt", CreatedAt: sourceTestNow, UpdatedAt: sourceTestNow,
+	}, Content: forum.RenderedContent{HTMLContent: "<p>Hello body</p>", Excerpt: "Hello excerpt"}}
+}
+
+func sourceUser() *forum.UserSummary {
+	return &forum.UserSummary{ID: 8, Username: "alice", DisplayName: "Alice"}
+}
+
+func sourceProfile() profile.PublicProfile {
+	return profile.PublicProfile{
+		UserID: 8, Username: "alice", DisplayName: "Alice",
+		Profile:    profile.Profile{UserID: 8, Bio: "<b>plain bio</b>"},
+		TopicCount: 1, CommentCount: 2, RecentTopics: []forum.TopicSummary{sourceTopic().TopicSummary}, JoinedAt: sourceTestNow,
+	}
+}
