@@ -6,12 +6,14 @@ import (
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/zhuchunshu/sforum/apps/api/database/coreauthority"
 )
 
 func TestStableCoreViewsProductionMigrationContract(t *testing.T) {
-	databaseURL := strings.TrimSpace(os.Getenv("DATABASE_URL"))
+	databaseURL := strings.TrimSpace(os.Getenv("SFORUM_TEST_DATABASE_URL"))
 	if databaseURL == "" {
-		t.Skip("DATABASE_URL is required for migrator integration test")
+		t.Skip("SFORUM_TEST_DATABASE_URL is required for migrator integration test")
 	}
 	ctx := context.Background()
 	if err := Up(ctx, Config{DatabaseURL: databaseURL}); err != nil {
@@ -29,6 +31,14 @@ func TestStableCoreViewsProductionMigrationContract(t *testing.T) {
 
 func assertStableCoreViewOwnershipAndACL(t *testing.T, ctx context.Context, db *sql.DB) {
 	t.Helper()
+	var databaseName string
+	if err := db.QueryRowContext(ctx, `SELECT current_database()`).Scan(&databaseName); err != nil {
+		t.Fatal(err)
+	}
+	ownerRole, err := coreauthority.OwnerRoleName(databaseName)
+	if err != nil {
+		t.Fatal(err)
+	}
 	var schemaOwned, publicSchemaPrivileges bool
 	if err := db.QueryRowContext(ctx, `
 		SELECT namespace.nspowner = roles.oid,
@@ -38,9 +48,9 @@ func assertStableCoreViewOwnershipAndACL(t *testing.T, ctx context.Context, db *
 		         WHERE acl.grantee = 0
 		       )
 		FROM pg_namespace AS namespace
-		JOIN pg_roles AS roles ON roles.rolname = current_user
+		JOIN pg_roles AS roles ON roles.rolname = $1
 		WHERE namespace.nspname = 'sforum_core_v1'
-	`).Scan(&schemaOwned, &publicSchemaPrivileges); err != nil {
+	`, ownerRole).Scan(&schemaOwned, &publicSchemaPrivileges); err != nil {
 		t.Fatal(err)
 	}
 	if !schemaOwned || publicSchemaPrivileges {
@@ -49,7 +59,7 @@ func assertStableCoreViewOwnershipAndACL(t *testing.T, ctx context.Context, db *
 
 	rows, err := db.QueryContext(ctx, `
 		SELECT class.relname,
-		       owner.rolname = current_user,
+		       owner.rolname = $1,
 		       COALESCE(class.reloptions @> ARRAY['security_barrier=true'], FALSE),
 		       COALESCE(class.reloptions @> ARRAY['security_invoker=false'], FALSE),
 		       NOT EXISTS (
@@ -62,7 +72,7 @@ func assertStableCoreViewOwnershipAndACL(t *testing.T, ctx context.Context, db *
 		JOIN pg_roles AS owner ON owner.oid = class.relowner
 		WHERE namespace.nspname = 'sforum_core_v1' AND class.relkind = 'v'
 		ORDER BY class.relname
-	`)
+	`, ownerRole)
 	if err != nil {
 		t.Fatal(err)
 	}

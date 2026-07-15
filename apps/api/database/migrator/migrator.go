@@ -3,12 +3,15 @@ package migrator
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"log/slog"
 	"strings"
+	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
-	_ "github.com/jackc/pgx/v5/stdlib"
+	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/pressly/goose/v3"
 	"github.com/pressly/goose/v3/lock"
 	"github.com/riverqueue/river/riverdriver/riverpgxv5"
@@ -30,25 +33,42 @@ func Up(ctx context.Context, cfg Config) error {
 		logger = slog.Default()
 	}
 
-	db, err := sql.Open("pgx", cfg.DatabaseURL)
+	adminDB, err := openMigrationSQLDatabase(cfg.DatabaseURL, "")
 	if err != nil {
 		return fmt.Errorf("open database: %w", err)
 	}
-	defer db.Close()
+	defer adminDB.Close()
 
 	// Goose 的 table lock 会持有连接并维护心跳；至少保留两个连接，避免未来 Go 迁移死锁。
-	db.SetMaxOpenConns(2)
-	db.SetMaxIdleConns(2)
+	adminDB.SetMaxOpenConns(2)
+	adminDB.SetMaxIdleConns(2)
 
-	if err := db.PingContext(ctx); err != nil {
+	if err := adminDB.PingContext(ctx); err != nil {
 		return fmt.Errorf("ping database: %w", err)
 	}
 	targetVersion := strings.TrimSpace(cfg.TargetCoreVersion)
 	if targetVersion == "" {
 		targetVersion = platformversion.Current
 	}
-	if err := checkCoreUpgradeCompatibility(ctx, db, targetVersion); err != nil {
+	if err := checkCoreUpgradeCompatibility(ctx, adminDB, targetVersion); err != nil {
 		return fmt.Errorf("check core upgrade compatibility: %w", err)
+	}
+	authority, err := prepareCoreMigrationAuthority(ctx, adminDB)
+	if err != nil {
+		return fmt.Errorf("prepare Core migration authority: %w", err)
+	}
+	db, err := openMigrationSQLDatabase(cfg.DatabaseURL, authority.OwnerRole)
+	if err != nil {
+		return fmt.Errorf("open Core-owner migration database: %w", err)
+	}
+	defer db.Close()
+	db.SetMaxOpenConns(2)
+	db.SetMaxIdleConns(2)
+	if err := db.PingContext(ctx); err != nil {
+		return fmt.Errorf("ping Core-owner migration database: %w", err)
+	}
+	if err := validateCoreMigrationConnection(ctx, db, authority); err != nil {
+		return err
 	}
 
 	locker, err := lock.NewPostgresTableLocker(lock.WithTableLogger(logger))
@@ -68,7 +88,7 @@ func Up(ctx context.Context, cfg Config) error {
 		return fmt.Errorf("create goose provider: %w", err)
 	}
 
-	results, err := provider.Up(ctx)
+	results, err := runWithCoreMigrationDatabaseCreate(ctx, adminDB, authority, provider.Up)
 	if err != nil {
 		return fmt.Errorf("run migrations: %w", err)
 	}
@@ -85,6 +105,33 @@ func Up(ctx context.Context, cfg Config) error {
 		logger.InfoContext(ctx, "database migrations complete", slog.Int("applied", len(results)))
 	}
 	return runRiverMigrations(ctx, cfg.DatabaseURL, logger)
+}
+
+func runWithCoreMigrationDatabaseCreate(
+	ctx context.Context,
+	adminDB *sql.DB,
+	authority coreMigrationAuthority,
+	operation func(context.Context) ([]*goose.MigrationResult, error),
+) ([]*goose.MigrationResult, error) {
+	if err := configureCoreMigrationDatabaseCreate(ctx, adminDB, authority, true); err != nil {
+		return nil, err
+	}
+	results, operationErr := operation(ctx)
+	cleanupCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	cleanupErr := configureCoreMigrationDatabaseCreate(cleanupCtx, adminDB, authority, false)
+	return results, errors.Join(operationErr, cleanupErr)
+}
+
+func openMigrationSQLDatabase(databaseURL string, roleName string) (*sql.DB, error) {
+	config, err := pgx.ParseConfig(databaseURL)
+	if err != nil {
+		return nil, err
+	}
+	if roleName != "" {
+		config.RuntimeParams["role"] = roleName
+	}
+	return stdlib.OpenDB(*config), nil
 }
 
 func runRiverMigrations(ctx context.Context, databaseURL string, logger *slog.Logger) error {
