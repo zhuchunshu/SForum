@@ -64,7 +64,9 @@ adminSurfaceInvoke:
       Requires admin.access and the exact Host-owned permission declared by the
       selected surface. The surface id and contract version bind the call to one
       immutable runtime contract. The Host records an exact-artifact audit
-      attempt before execution and validates the typed input and result.
+      attempt before execution and validates the typed input and result. When
+      Idempotency-Key is present and the exact artifact declares host_commands,
+      the invocation receives short-lived actor-bound Host Command delegations.
     parameters:
     - name: surfaceID
       in: path
@@ -72,6 +74,7 @@ adminSurfaceInvoke:
       schema:
         type: string
         minLength: 1
+    - "$ref": "../components/parameters.yaml#/IdempotencyKey"
     requestBody:
       required: true
       content:
@@ -106,7 +109,7 @@ adminSurfaceInvoke:
             schema:
               "$ref": "../schemas/common.yaml#/ApiErrorResponse"
       '422':
-        description: Invalid input document or a surface without a typed handler.
+        description: Invalid input document, Idempotency-Key, or a surface without a typed handler.
         content:
           application/json:
             schema:
@@ -118,7 +121,7 @@ adminSurfaceInvoke:
             schema:
               "$ref": "../schemas/common.yaml#/ApiErrorResponse"
       '503':
-        description: Audit, exact plugin runtime, or handler is unavailable.
+        description: Audit, exact plugin runtime, handler, or Host Command delegation service is unavailable.
         content:
           application/json:
             schema:
