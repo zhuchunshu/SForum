@@ -192,7 +192,21 @@ func lifecycleRegistryRef(fence lifecyclePublicationFence) LifecycleRegistryPubl
 
 func validLifecycleRegistryPrepareInput(input PrepareLifecycleRegistryPublicationInput) bool {
 	return input.Fence.OperationID > 0 && input.Fence.Attempt > 0 &&
-		validLifecycleCleanupDigest(input.SourceDigest) && validLifecycleCleanupDigest(input.TargetDigest)
+		validLifecycleCleanupDigest(input.SourceDigest) && validLifecycleCleanupDigest(input.TargetDigest) &&
+		validLifecycleRegistryCompatibleDigests(input.CompatibleSourceDigests, input.SourceDigest) &&
+		validLifecycleRegistryCompatibleDigests(input.CompatibleTargetDigests, input.TargetDigest)
+}
+
+func validLifecycleRegistryCompatibleDigests(values []string, primary string) bool {
+	if len(values) > 1 {
+		return false
+	}
+	for _, value := range values {
+		if !validLifecycleCleanupDigest(value) || value == primary {
+			return false
+		}
+	}
+	return true
 }
 
 func validLifecycleRegistryRef(ref LifecycleRegistryPublicationRef) bool {
@@ -341,8 +355,21 @@ func loadLifecycleRegistryPublication(
 }
 
 func (record lifecycleRegistryPublicationRecord) matchesInput(input PrepareLifecycleRegistryPublicationInput) bool {
-	return lifecycleRegistryFenceMatchesOperation(record.Fence, input.Fence) && record.SourceDigest == input.SourceDigest &&
-		record.TargetDigest == input.TargetDigest
+	return lifecycleRegistryFenceMatchesOperation(record.Fence, input.Fence) &&
+		lifecycleRegistryDigestMatches(record.SourceDigest, input.SourceDigest, input.CompatibleSourceDigests) &&
+		lifecycleRegistryDigestMatches(record.TargetDigest, input.TargetDigest, input.CompatibleTargetDigests)
+}
+
+func lifecycleRegistryDigestMatches(stored, primary string, compatible []string) bool {
+	if stored == primary {
+		return true
+	}
+	for _, value := range compatible {
+		if stored == value {
+			return true
+		}
+	}
+	return false
 }
 
 func lifecycleRegistryFenceMatches(left, right lifecyclePublicationFence) bool {

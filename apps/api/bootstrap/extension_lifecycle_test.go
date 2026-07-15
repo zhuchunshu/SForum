@@ -106,6 +106,7 @@ func TestProductionLifecycleStackConstructsEveryRequiredDependency(t *testing.T)
 		"jobs": stack.Jobs != nil, "route registry": stack.RouteRegistry != nil,
 		"route schemas":       stack.RouteSchemas != nil,
 		"component registry":  stack.ComponentRegistry != nil,
+		"asset registry":      stack.AssetRegistry != nil,
 		"route providers":     stack.RouteProviders != nil,
 		"registry repository": stack.RegistryRepository != nil, "registries": stack.Registries != nil,
 		"state": stack.State != nil, "journal": stack.PublicationJournal != nil,
@@ -124,6 +125,9 @@ func TestProductionLifecycleStackConstructsEveryRequiredDependency(t *testing.T)
 	}
 	if stack.Registries.ComponentRegistry() != stack.ComponentRegistry {
 		t.Fatal("lifecycle boundary and production stack use different Component Registry instances")
+	}
+	if stack.Registries.AssetRegistry() != stack.AssetRegistry {
+		t.Fatal("lifecycle boundary and production stack use different Asset Registry instances")
 	}
 	snapshot := stack.RouteRegistry.Snapshot()
 	if snapshot.Revision != 1 || snapshot.SafeMode || len(snapshot.Routes) != len(routes.CoreRouteCatalog()) ||
@@ -294,6 +298,40 @@ func TestProductionLifecycleStackBindsV2AndInspectionOptions(t *testing.T) {
 	if componentBinding.Elem().Pointer() != reflect.ValueOf(stack.ComponentRegistry).Pointer() {
 		t.Fatal("theme activation service did not receive the shared production Component Registry")
 	}
+	if assetBinding := value.FieldByName("assetRegistry"); !assetBinding.IsValid() || !assetBinding.IsNil() {
+		t.Fatal("lifecycle bind exposed Asset Registry before authoritative startup restore")
+	}
+}
+
+func TestProductionLifecycleStackLateBindsOneSharedAssetRegistry(t *testing.T) {
+	stack, _, store := newBootstrapLifecycleStack(t)
+	service := extensions.NewService(store, t.TempDir())
+	if err := stack.bindService(service); err != nil {
+		t.Fatal(err)
+	}
+	trust := extensions.NewExecutableTrustService(
+		store,
+		extensions.NewPostgresExecutableTrustStore(&pgxpool.Pool{}),
+	)
+	frontend := extensions.NewFrontendService(store, nil)
+	if frontend.PublicAssetRegistry() == stack.AssetRegistry {
+		t.Fatal("frontend received lifecycle Asset Registry before late binding")
+	}
+	before := stack.AssetRegistry.Snapshot()
+	if err := stack.bindAssetRegistryConsumers(service, frontend, trust); err != nil {
+		t.Fatalf("late bind asset consumers: %v", err)
+	}
+	serviceRegistry := reflect.ValueOf(service).Elem().FieldByName("assetRegistry")
+	trustRegistry := reflect.ValueOf(trust).Elem().FieldByName("publicAssets")
+	want := reflect.ValueOf(stack.AssetRegistry).Pointer()
+	if serviceRegistry.IsNil() || serviceRegistry.Pointer() != want ||
+		trustRegistry.IsNil() || trustRegistry.Pointer() != want ||
+		frontend.PublicAssetRegistry() != stack.AssetRegistry {
+		t.Fatal("asset consumers did not receive the exact shared lifecycle Registry")
+	}
+	if after := stack.AssetRegistry.Snapshot(); !reflect.DeepEqual(before, after) {
+		t.Fatalf("late binding mutated Asset graph: before=%#v after=%#v", before, after)
+	}
 }
 
 type lifecycleCleanupFinalizer struct {
@@ -346,9 +384,11 @@ func (r *lifecycleReconcileRuntime) Reconcile(_ context.Context, items []extensi
 	r.items = append([]extensions.Extension(nil), items...)
 }
 
-func TestReconcileAPIExtensionRuntimeKeepsSafeModePluginFree(t *testing.T) {
-	item := extensions.Extension{ID: "demo.safe-mode", Type: extensions.TypePlugin, Status: extensions.StatusEnabled}
-	store := lifecycleReconcileStore{items: []extensions.Extension{item}}
+func TestReconcileAPIExtensionRuntimeKeepsSafeModeFreeAndReturnsFullNormalInventory(t *testing.T) {
+	plugin := extensions.Extension{ID: "demo.safe-mode", Type: extensions.TypePlugin, Status: extensions.StatusEnabled}
+	theme := extensions.Extension{ID: "legacy.asset-theme", Type: extensions.TypeTheme, Status: extensions.StatusEnabled}
+	want := []extensions.Extension{plugin, theme}
+	store := lifecycleReconcileStore{items: want}
 
 	safeRuntime := &lifecycleReconcileRuntime{}
 	if items, err := reconcileAPIExtensionRuntime(context.Background(), true, store, safeRuntime); err != nil || len(items) != 0 {
@@ -363,8 +403,8 @@ func TestReconcileAPIExtensionRuntimeKeepsSafeModePluginFree(t *testing.T) {
 	if err != nil {
 		t.Fatalf("normal reconcile: %v", err)
 	}
-	if normalRuntime.calls != 1 || !reflect.DeepEqual(normalRuntime.items, []extensions.Extension{item}) ||
-		!reflect.DeepEqual(items, []extensions.Extension{item}) {
+	if normalRuntime.calls != 1 || !reflect.DeepEqual(normalRuntime.items, want) ||
+		!reflect.DeepEqual(items, want) {
 		t.Fatalf("normal mode reconciled %#v", normalRuntime.items)
 	}
 }

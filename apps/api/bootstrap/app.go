@@ -437,7 +437,8 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		pool.Close()
 		return nil, fmt.Errorf("DatabaseService runtime setup failed: %w", err)
 	}
-	// API 启动恢复：活动主题 L0/L1 + 已启用插件页面贡献。
+	// API 启动恢复：活动主题 L0/L1 + 已启用插件页面贡献。Asset Registry
+	// 此时尚未注入 Service；唯一权威恢复在 runtime reconciliation 之后。
 	// 无效主题安全回退默认；失败不得留下空 Registry 却 DB 指向主题的分裂状态。
 	if cfg.SafeMode {
 		if err := extensionService.RestoreSafeModeThemeRegistry(ctx); err != nil {
@@ -496,6 +497,20 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		}
 		pool.Close()
 		return nil, fmt.Errorf("restore extension route publications failed: %w", err)
+	}
+	if err := lifecycleStack.bindAssetRegistryConsumers(
+		extensionService, frontendService, executableTrustService,
+	); err != nil {
+		if stopErr := supportjobs.Stop(ctx, jobClient); stopErr != nil {
+			logger.Warn("job dispatcher stop failed", "error", stopErr)
+		}
+		extensionRuntime.Close(ctx)
+		sharedRedisClient.Close()
+		if closeErr := redisStorage.Close(); closeErr != nil {
+			logger.Warn("redis session storage close failed", "error", closeErr)
+		}
+		pool.Close()
+		return nil, fmt.Errorf("bind extension asset registry consumers failed: %w", err)
 	}
 	notificationStore := notifications.NewPostgresStore(pool)
 	mailOutbox := notifications.NewOutbox(pool, notificationStore, jobDispatcher).WithPolicyReader(optionsService)

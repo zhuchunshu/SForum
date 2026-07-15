@@ -719,7 +719,8 @@ func (r *memoryLifecycleRegistryRepository) PrepareLifecycleRegistryPublication(
 		return LifecycleRegistryPublicationRef{}, ErrLifecycleRegistryPublicationConflict
 	}
 	if r.attempt > 0 && (!lifecycleRegistryFenceMatchesOperation(r.input.Fence, input.Fence) ||
-		r.input.SourceDigest != input.SourceDigest || r.input.TargetDigest != input.TargetDigest) {
+		!lifecycleRegistryDigestMatches(r.input.SourceDigest, input.SourceDigest, input.CompatibleSourceDigests) ||
+		!lifecycleRegistryDigestMatches(r.input.TargetDigest, input.TargetDigest, input.CompatibleTargetDigests)) {
 		return LifecycleRegistryPublicationRef{}, ErrLifecycleRegistryPublicationConflict
 	}
 	r.input = input

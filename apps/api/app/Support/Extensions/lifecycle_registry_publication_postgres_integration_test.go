@@ -30,6 +30,13 @@ func TestPostgresLifecycleRegistryPublicationPrepareMoveRestartCASAndMarkerRefus
 	if _, err := repository.PrepareLifecycleRegistryPublication(ctx, conflict); !errors.Is(err, ErrLifecycleRegistryPublicationConflict) {
 		t.Fatalf("changed immutable plan = %v", err)
 	}
+	upgradedPlan := conflict
+	upgradedPlan.SourceDigest = strings.Repeat("a", 64)
+	upgradedPlan.CompatibleSourceDigests = []string{input.SourceDigest}
+	upgradedPlan.CompatibleTargetDigests = []string{input.TargetDigest}
+	if _, err := repository.PrepareLifecycleRegistryPublication(ctx, upgradedPlan); err != nil {
+		t.Fatalf("explicit legacy in-flight plan compatibility = %v", err)
+	}
 
 	restarted := NewPostgresLifecycleRegistryPublicationRepository(pool)
 	if phase, err := restarted.InspectLifecycleRegistryPublication(ctx, ref); err != nil || phase != LifecycleRegistryPublicationSource {

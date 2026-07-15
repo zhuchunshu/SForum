@@ -1,0 +1,628 @@
+package extensionsruntime
+
+import (
+	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"sort"
+	"strings"
+	"sync"
+
+	"github.com/jackc/pgx/v5/pgxpool"
+
+	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
+	assetregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/AssetRegistry"
+	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
+	pages "github.com/zhuchunshu/sforum/apps/api/app/Support/Pages"
+	routes "github.com/zhuchunshu/sforum/apps/api/app/Support/Routes"
+)
+
+type lifecycleRegistryDigestDocument struct {
+	Schema             string                        `json:"schema"`
+	ExtensionID        string                        `json:"extensionId"`
+	ExtensionVersion   string                        `json:"extensionVersion"`
+	PackageDigest      string                        `json:"packageDigest"`
+	VersionID          int64                         `json:"versionId"`
+	RuntimeInstanceID  string                        `json:"runtimeInstanceId"`
+	Hooks              []extensions.ManifestEvent    `json:"hooks"`
+	VersionedHooks     []extensions.ManifestHook     `json:"versionedHooks,omitempty"`
+	VersionedProviders []extensions.ManifestProvider `json:"versionedProviders,omitempty"`
+	Services           []extensions.ManifestService  `json:"services"`
+	Pages              []pages.PageContribution      `json:"pages"`
+	Routes             routes.PluginRouteSet         `json:"routes"`
+	Asset              *assetregistry.Publication    `json:"asset,omitempty"`
+	AssetAdmitted      bool                          `json:"assetAdmitted,omitempty"`
+	ProductionFamilies []string                      `json:"productionFamilies"`
+	FoundationFamilies []string                      `json:"foundationFamilies"`
+}
+
+func refreshLifecycleRegistryMaterialDigest(material *lifecycleRegistryMaterial) error {
+	if material == nil {
+		return ErrLifecycleRegistryPublicationInvalid
+	}
+	legacyDigest, err := encodeLifecycleRegistryMaterialDigest(material, false)
+	if err != nil {
+		return err
+	}
+	material.legacyDigest = ""
+	material.digest = legacyDigest
+	if material.assetPublication == nil {
+		return nil
+	}
+	currentDigest, err := encodeLifecycleRegistryMaterialDigest(material, true)
+	if err != nil {
+		return err
+	}
+	material.digest = currentDigest
+	material.legacyDigest = legacyDigest
+	return nil
+}
+
+func encodeLifecycleRegistryMaterialDigest(material *lifecycleRegistryMaterial, includeAsset bool) (string, error) {
+	extension := material.extension
+	binding := material.binding
+	productionFamilies := []string{"hooks.v1", "pages.runtime", "services.v2"}
+	if hasVersionedPluginHooks(extension) {
+		productionFamilies = append(productionFamilies, "hooks.v2")
+	}
+	for _, provider := range extension.Manifest.Providers {
+		if isVersionedProviderSlot(provider) {
+			productionFamilies = append(productionFamilies, "providers.v2")
+			break
+		}
+	}
+	schema := "sforum.lifecycle.registry-plan@1"
+	var asset *assetregistry.Publication
+	assetAdmitted := false
+	if includeAsset {
+		schema = "sforum.lifecycle.registry-plan@2"
+		asset = material.assetPublication
+		assetAdmitted = material.assetAdmitted
+	}
+	// @1 remains byte-for-byte compatible with pre-P9 in-flight rows. New
+	// asset-bearing operations persist @2; @1 is accepted only as an explicit
+	// recovery alias computed from the same exact source/target material.
+	document := lifecycleRegistryDigestDocument{
+		Schema: schema, ExtensionID: extension.ID,
+		ExtensionVersion: extension.Version, PackageDigest: extension.PackageDigest,
+		VersionID: extension.ActiveVersionID, RuntimeInstanceID: binding.RuntimeInstanceID,
+		Hooks:              append([]extensions.ManifestEvent(nil), extensions.DeclaredManifestEvents(extension.Manifest)...),
+		VersionedHooks:     cloneManifestHooks(extension.Manifest.Hooks),
+		VersionedProviders: append([]extensions.ManifestProvider(nil), extension.Manifest.Providers...),
+		Services:           append([]extensions.ManifestService(nil), extension.Manifest.Services...),
+		Pages:              append([]pages.PageContribution(nil), material.pages...), Routes: material.routes,
+		Asset: asset, AssetAdmitted: assetAdmitted,
+		ProductionFamilies: productionFamilies,
+		FoundationFamilies: []string{"routes.v1-foundation"},
+	}
+	raw, err := json.Marshal(document)
+	if err != nil {
+		return "", fmt.Errorf("encode lifecycle registry plan: %w", err)
+	}
+	sum := sha256.Sum256(raw)
+	return hex.EncodeToString(sum[:]), nil
+}
+
+// LifecycleAssetAuthority supplies an impact digest from durable Host state.
+// Implementations must never rebuild trust impact by scanning package bytes.
+type LifecycleAssetAuthority interface {
+	OperationImpactDigest(context.Context, int64, extensions.Extension) (string, error)
+	RestoreImpactDigest(context.Context, extensions.Extension) (string, error)
+}
+
+// LifecycleAssetAdmission checks the frozen publication against current trust.
+// The production implementation performs an exact grant lookup without package I/O.
+type LifecycleAssetAdmission interface {
+	ValidatePublishedIdentity(context.Context, extensions.Extension, assetregistry.Artifact) error
+}
+
+// LifecycleAssetOperationRepository is the durable operation/authority subset
+// needed to reconstruct exact registry material after a process restart.
+type LifecycleAssetOperationRepository interface {
+	Operation(context.Context, string, int64) (extensions.LifecycleOperation, error)
+	LastSuccessfulLifecycleAuthority(
+		context.Context,
+		extensions.ExactExtensionVersionInput,
+	) (extensions.LifecycleAuthoritySnapshot, error)
+}
+
+// PostgresLifecycleAssetAuthority reads immutable lifecycle authority first and
+// falls back to an unambiguous exact live grant for asset-only extensions.
+type PostgresLifecycleAssetAuthority struct {
+	pool       *pgxpool.Pool
+	operations LifecycleAssetOperationRepository
+}
+
+func NewPostgresLifecycleAssetAuthority(
+	pool *pgxpool.Pool,
+	operations LifecycleAssetOperationRepository,
+) *PostgresLifecycleAssetAuthority {
+	return &PostgresLifecycleAssetAuthority{pool: pool, operations: operations}
+}
+
+func (a *PostgresLifecycleAssetAuthority) OperationImpactDigest(
+	ctx context.Context,
+	operationID int64,
+	extension extensions.Extension,
+) (string, error) {
+	if a == nil || a.operations == nil || ctx == nil || operationID <= 0 {
+		return "", ErrLifecycleRegistryPublicationUnavailable
+	}
+	operation, err := a.operations.Operation(ctx, extension.ID, operationID)
+	if err != nil {
+		return "", err
+	}
+	if operation.ID != operationID || operation.ExtensionID != extension.ID ||
+		operation.ExtensionVersion != extension.Version || operation.PackageDigest != extension.PackageDigest {
+		return "", ErrLifecycleRegistryPublicationConflict
+	}
+	var authority extensions.LifecycleAuthoritySnapshot
+	if json.Unmarshal(operation.AuthoritySnapshot, &authority) != nil ||
+		operation.AuthorityType != authority.AuthorityType ||
+		(authority.Grant == nil && operation.TrustGrantID != 0) ||
+		(authority.Grant != nil && operation.TrustGrantID != authority.Grant.ID) {
+		return "", ErrLifecycleRegistryPublicationConflict
+	}
+	return lifecycleAssetAuthorityImpact(extension, operation.AuthoritySnapshot)
+}
+
+func (a *PostgresLifecycleAssetAuthority) RestoreImpactDigest(
+	ctx context.Context,
+	extension extensions.Extension,
+) (string, error) {
+	if a == nil || a.operations == nil || ctx == nil {
+		return "", ErrLifecycleRegistryPublicationUnavailable
+	}
+	authority, err := a.operations.LastSuccessfulLifecycleAuthority(ctx, extensions.ExactExtensionVersionInput{
+		ExtensionID: extension.ID, Version: extension.Version, PackageDigest: extension.PackageDigest,
+	})
+	if err == nil {
+		document, marshalErr := json.Marshal(authority)
+		if marshalErr != nil {
+			return "", fmt.Errorf("encode lifecycle asset authority: %w", marshalErr)
+		}
+		return lifecycleAssetAuthorityImpact(extension, document)
+	}
+	if !errors.Is(err, extensions.ErrLifecycleAuthorityNotFound) {
+		return "", err
+	}
+	if extension.Source == extensions.SourceBuiltin {
+		// Built-ins require no grant. Their immutable package digest is the Host
+		// authority identity used by other startup runtime contracts as well.
+		if !validLifecycleCleanupDigest(extension.PackageDigest) {
+			return "", ErrLifecycleRegistryPublicationConflict
+		}
+		return extension.PackageDigest, nil
+	}
+	return a.exactLiveGrantImpact(ctx, extension)
+}
+
+func (a *PostgresLifecycleAssetAuthority) exactLiveGrantImpact(
+	ctx context.Context,
+	extension extensions.Extension,
+) (string, error) {
+	if a == nil || a.pool == nil {
+		return "", ErrLifecycleRegistryPublicationUnavailable
+	}
+	rows, err := a.pool.Query(ctx, `
+		SELECT impact_digest
+		FROM extension_trust_grants
+		WHERE extension_id = $1
+		  AND extension_version = $2
+		  AND package_digest = $3
+		  AND action = $4
+		  AND revoked_at IS NULL
+		ORDER BY granted_at DESC, id DESC
+		LIMIT 2
+	`, extension.ID, extension.Version, extension.PackageDigest, extensions.TrustActionEnable)
+	if err != nil {
+		return "", fmt.Errorf("load lifecycle asset grant authority: %w", err)
+	}
+	defer rows.Close()
+	impacts := make([]string, 0, 2)
+	for rows.Next() {
+		var impact string
+		if scanErr := rows.Scan(&impact); scanErr != nil {
+			return "", fmt.Errorf("scan lifecycle asset grant authority: %w", scanErr)
+		}
+		impacts = append(impacts, impact)
+	}
+	if err := rows.Err(); err != nil {
+		return "", fmt.Errorf("read lifecycle asset grant authority: %w", err)
+	}
+	if len(impacts) == 0 {
+		return "", extensions.ErrTrustGrantNotFound
+	}
+	if len(impacts) != 1 || !validLifecycleCleanupDigest(impacts[0]) {
+		// More than one live impact for one package has no durable selected
+		// provider. Startup must not guess which browser authority to publish.
+		return "", ErrLifecycleRegistryPublicationConflict
+	}
+	return impacts[0], nil
+}
+
+func lifecycleAssetAuthorityImpact(extension extensions.Extension, document json.RawMessage) (string, error) {
+	var authority extensions.LifecycleAuthoritySnapshot
+	if len(document) == 0 || json.Unmarshal(document, &authority) != nil {
+		return "", ErrLifecycleRegistryPublicationConflict
+	}
+	impact := authority.Impact
+	if authority.SchemaVersion != extensions.LifecycleAuthoritySnapshotSchemaV1 || authority.ActorUserID <= 0 ||
+		impact.SchemaVersion != extensions.TrustImpactSchemaV2 || impact.Action != extensions.TrustActionEnable ||
+		impact.ExtensionID != extension.ID || impact.ExtensionVersion != extension.Version ||
+		impact.ExtensionType != extension.Type || impact.Source != extension.Source ||
+		impact.PackageDigest != extension.PackageDigest || impact.ArtifactDigests["package"] != extension.PackageDigest ||
+		!validLifecycleCleanupDigest(impact.Digest) {
+		return "", ErrLifecycleRegistryPublicationConflict
+	}
+	switch authority.AuthorityType {
+	case extensions.LifecycleAuthorityBuiltin:
+		if extension.Source != extensions.SourceBuiltin || authority.Grant != nil {
+			return "", ErrLifecycleRegistryPublicationConflict
+		}
+	case extensions.LifecycleAuthorityTrustGrant:
+		grant := authority.Grant
+		if grant == nil || grant.ID <= 0 || grant.ExtensionID != extension.ID ||
+			grant.ExtensionVersion != extension.Version || grant.PackageDigest != extension.PackageDigest ||
+			grant.Action != extensions.TrustActionEnable || grant.ImpactDigest != impact.Digest || grant.RevokedAt != nil {
+			return "", ErrLifecycleRegistryPublicationConflict
+		}
+	default:
+		return "", ErrLifecycleRegistryPublicationConflict
+	}
+	return impact.Digest, nil
+}
+
+func (b *PostgresLifecycleBoundaryRegistries) AssetRegistry() *assetregistry.Registry {
+	if b == nil {
+		return nil
+	}
+	return b.assets
+}
+
+// restoreAssetPublications captures the caller-visible revision before any
+// authority lookup. A concurrent watcher/revoke therefore wins and restoration
+// fails closed instead of replacing its newer graph.
+func (b *PostgresLifecycleBoundaryRegistries) restoreAssetPublications(
+	ctx context.Context,
+	items []extensions.Extension,
+	safeMode bool,
+) error {
+	if b == nil || b.assets == nil {
+		return nil
+	}
+	if ctx == nil {
+		return ErrLifecycleRegistryPublicationUnavailable
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	snapshot := b.assets.Snapshot()
+	publications := coreAssetPublications(snapshot.Publications)
+	if !safeMode {
+		if b.assetAuthority == nil || b.assetAdmission == nil {
+			return ErrLifecycleRegistryPublicationUnavailable
+		}
+		for _, item := range items {
+			if item.Status != extensions.StatusEnabled || !extensionHasPublicAssets(item) {
+				continue
+			}
+			impactDigest, err := b.assetAuthority.RestoreImpactDigest(ctx, item)
+			if errors.Is(err, extensions.ErrTrustGrantNotFound) ||
+				errors.Is(err, extensions.ErrLifecycleAuthorityNotFound) {
+				continue
+			}
+			if err != nil {
+				return fmt.Errorf("restore asset authority for %s: %w", item.ID, err)
+			}
+			publication, err := extensions.BuildPublicAssetPublication(item, impactDigest)
+			if err != nil {
+				return fmt.Errorf("restore asset registry for %s: %w", item.ID, err)
+			}
+			if err := b.assetAdmission.ValidatePublishedIdentity(ctx, enabledAssetExtension(item), publication.Artifact); err != nil {
+				if errors.Is(err, extensions.ErrTrustGrantNotFound) ||
+					errors.Is(err, extensions.ErrFrontendPackageChanged) {
+					continue
+				}
+				return fmt.Errorf("restore asset admission for %s: %w", item.ID, err)
+			}
+			publications = append(publications, publication)
+		}
+	}
+	var err error
+	publications, err = convergedLifecycleAssetRestoreGraph(publications)
+	if err != nil {
+		return wrapLifecycleAssetError("converge restored asset graph", err)
+	}
+	if _, err := b.assets.ReplaceAllIfRevision(snapshot.Revision, publications); err != nil {
+		return wrapLifecycleAssetError("restore asset registry publication", err)
+	}
+	return nil
+}
+
+// convergedLifecycleAssetRestoreGraph applies the same transitive hard-
+// dependency closure as QuarantineExact when a revoked owner was excluded
+// before startup. Cycles and declaration conflicts still fail validation.
+func convergedLifecycleAssetRestoreGraph(
+	publications []assetregistry.Publication,
+) ([]assetregistry.Publication, error) {
+	remaining := append([]assetregistry.Publication(nil), publications...)
+	for {
+		available := make(map[string]struct{})
+		for _, publication := range remaining {
+			for _, asset := range publication.Assets {
+				available[strings.ToLower(strings.TrimSpace(asset.Handle))] = struct{}{}
+			}
+		}
+		invalid := make(map[string]struct{})
+		for _, publication := range remaining {
+			for _, asset := range publication.Assets {
+				for _, dependency := range asset.Dependencies {
+					dependency = strings.ToLower(strings.TrimSpace(dependency))
+					if strings.HasPrefix(dependency, "core.asset.") {
+						continue
+					}
+					if _, ok := available[dependency]; !ok {
+						if publication.Artifact.Core {
+							return nil, assetregistry.ErrDependency
+						}
+						invalid[publication.Artifact.ExtensionID] = struct{}{}
+						break
+					}
+				}
+			}
+		}
+		if len(invalid) == 0 {
+			break
+		}
+		next := make([]assetregistry.Publication, 0, len(remaining)-len(invalid))
+		for _, publication := range remaining {
+			if _, remove := invalid[publication.Artifact.ExtensionID]; !remove {
+				next = append(next, publication)
+			}
+		}
+		remaining = next
+	}
+	probe := assetregistry.New()
+	if _, err := probe.ReplaceAllIfRevision(0, remaining); err != nil {
+		return nil, err
+	}
+	return probe.Snapshot().Publications, nil
+}
+
+func (b *PostgresLifecycleBoundaryRegistries) freezeAssetMaterials(
+	ctx context.Context,
+	request LifecycleBoundaryRequest,
+	source, target *lifecycleRegistryMaterial,
+) error {
+	if b == nil || b.assets == nil {
+		return nil
+	}
+	if b.assetAuthority == nil || b.assetAdmission == nil {
+		return ErrLifecycleRegistryPublicationUnavailable
+	}
+	if source != nil && extensionHasPublicAssets(source.extension) {
+		impact, err := b.assetAuthority.RestoreImpactDigest(ctx, source.extension)
+		if err != nil {
+			return fmt.Errorf("freeze source asset authority: %w", err)
+		}
+		if err := b.freezeAssetMaterial(ctx, source, impact, false); err != nil {
+			return err
+		}
+	}
+	if target != nil && extensionHasPublicAssets(target.extension) {
+		impact, err := b.assetAuthority.OperationImpactDigest(ctx, request.OperationID, target.extension)
+		if err != nil {
+			return fmt.Errorf("freeze target asset authority: %w", err)
+		}
+		if err := b.freezeAssetMaterial(ctx, target, impact, true); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (b *PostgresLifecycleBoundaryRegistries) freezeAssetMaterial(
+	ctx context.Context,
+	material *lifecycleRegistryMaterial,
+	impactDigest string,
+	requireAdmission bool,
+) error {
+	publication, err := extensions.BuildPublicAssetPublication(material.extension, impactDigest)
+	if err != nil {
+		return wrapLifecycleAssetError("build frozen asset publication", err)
+	}
+	material.assetPublication = &publication
+	material.assetAdmitted = true
+	if err := b.assetAdmission.ValidatePublishedIdentity(
+		ctx,
+		enabledAssetExtension(material.extension),
+		publication.Artifact,
+	); err != nil {
+		if !requireAdmission && (errors.Is(err, extensions.ErrTrustGrantNotFound) ||
+			errors.Is(err, extensions.ErrFrontendPackageChanged)) {
+			material.assetAdmitted = false
+		} else {
+			return fmt.Errorf("validate frozen asset admission: %w", err)
+		}
+	}
+	return refreshLifecycleRegistryMaterialDigest(material)
+}
+
+type lifecycleAssetPlan struct {
+	mu       sync.Mutex
+	revision uint64
+	source   []assetregistry.Publication
+	target   []assetregistry.Publication
+}
+
+func (b *PostgresLifecycleBoundaryRegistries) prepareAssetPlan(
+	source, target *lifecycleRegistryMaterial,
+) (*lifecycleAssetPlan, error) {
+	if b == nil || b.assets == nil {
+		return nil, nil
+	}
+	snapshot := b.assets.Snapshot()
+	extensionID := lifecycleComponentExtensionID(source, target)
+	if extensionID == "" {
+		return nil, ErrLifecycleRegistryPublicationInvalid
+	}
+	allowed := lifecycleAssetAllowedPublications(source, target)
+	sourceDesired := admittedAssetPublication(source)
+	targetDesired := admittedAssetPublication(target)
+	sourceGraph, err := lifecycleAssetGraph(snapshot.Publications, extensionID, sourceDesired, allowed)
+	if err != nil {
+		return nil, wrapLifecycleAssetError("prepare source asset graph", err)
+	}
+	targetGraph, err := lifecycleAssetGraph(snapshot.Publications, extensionID, targetDesired, allowed)
+	if err != nil {
+		return nil, wrapLifecycleAssetError("prepare target asset graph", err)
+	}
+	return &lifecycleAssetPlan{revision: snapshot.Revision, source: sourceGraph, target: targetGraph}, nil
+}
+
+func (b *PostgresLifecycleBoundaryRegistries) applyAssetPlan(
+	ctx context.Context,
+	plan *lifecycleAssetPlan,
+	phase LifecycleRegistryPublicationPhase,
+) error {
+	if b == nil || b.assets == nil || plan == nil {
+		return nil
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	plan.mu.Lock()
+	defer plan.mu.Unlock()
+	desired := plan.source
+	if phase == LifecycleRegistryPublicationTarget {
+		desired = plan.target
+	}
+	revision, err := b.assets.ReplaceAllIfRevision(plan.revision, desired)
+	if err != nil {
+		return wrapLifecycleAssetError("apply asset registry graph", err)
+	}
+	plan.revision = revision
+	return nil
+}
+
+func lifecycleAssetGraph(
+	base []assetregistry.Publication,
+	extensionID string,
+	desired *assetregistry.Publication,
+	allowed map[assetregistry.Artifact]struct{},
+) ([]assetregistry.Publication, error) {
+	current, found := findAssetPublication(base, extensionID)
+	if found {
+		if _, ok := allowed[current.Artifact]; !ok {
+			return nil, assetregistry.ErrArtifactConflict
+		}
+	}
+	probe := assetregistry.New()
+	if _, err := probe.ReplaceAllIfRevision(0, base); err != nil {
+		return nil, err
+	}
+	if desired == nil {
+		if found {
+			if _, _, err := probe.QuarantineExact(current.Artifact); err != nil {
+				return nil, err
+			}
+		}
+		return probe.Snapshot().Publications, nil
+	}
+	publications := make([]assetregistry.Publication, 0, len(base)+1)
+	for _, publication := range base {
+		if publication.Artifact.ExtensionID != extensionID {
+			publications = append(publications, publication)
+		}
+	}
+	publications = append(publications, *desired)
+	if _, err := probe.ReplaceAllIfRevision(probe.Revision(), publications); err != nil {
+		return nil, err
+	}
+	return probe.Snapshot().Publications, nil
+}
+
+func lifecycleAssetAllowedPublications(
+	materials ...*lifecycleRegistryMaterial,
+) map[assetregistry.Artifact]struct{} {
+	allowed := make(map[assetregistry.Artifact]struct{}, len(materials))
+	for _, material := range materials {
+		if material != nil && material.assetPublication != nil {
+			allowed[material.assetPublication.Artifact] = struct{}{}
+		}
+	}
+	return allowed
+}
+
+func admittedAssetPublication(material *lifecycleRegistryMaterial) *assetregistry.Publication {
+	if material == nil || material.assetPublication == nil || !material.assetAdmitted {
+		return nil
+	}
+	value := *material.assetPublication
+	value.Assets = append([]assetregistry.Declaration(nil), material.assetPublication.Assets...)
+	return &value
+}
+
+func findAssetPublication(
+	publications []assetregistry.Publication,
+	extensionID string,
+) (assetregistry.Publication, bool) {
+	for _, publication := range publications {
+		if publication.Artifact.ExtensionID == extensionID {
+			return publication, true
+		}
+	}
+	return assetregistry.Publication{}, false
+}
+
+func coreAssetPublications(publications []assetregistry.Publication) []assetregistry.Publication {
+	result := make([]assetregistry.Publication, 0, len(publications))
+	for _, publication := range publications {
+		if publication.Artifact.OwnerKind == assetregistry.OwnerKindCore && publication.Artifact.Core {
+			result = append(result, publication)
+		}
+	}
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].Artifact.ExtensionID < result[j].Artifact.ExtensionID
+	})
+	return result
+}
+
+func extensionHasPublicAssets(extension extensions.Extension) bool {
+	manifest := extensionmanifest.Normalize(extension.Manifest)
+	for _, asset := range manifest.Assets {
+		switch strings.ToLower(strings.TrimSpace(asset.Type)) {
+		case "script", "style":
+			return true
+		}
+	}
+	for _, component := range manifest.Components {
+		if strings.TrimSpace(component.L2Component) != "" && component.Action != extensionmanifest.ComponentActionHide {
+			return true
+		}
+	}
+	return false
+}
+
+func enabledAssetExtension(extension extensions.Extension) extensions.Extension {
+	extension.Status = extensions.StatusEnabled
+	return extension
+}
+
+func wrapLifecycleAssetError(action string, err error) error {
+	if err == nil {
+		return nil
+	}
+	if errors.Is(err, assetregistry.ErrArtifactConflict) || errors.Is(err, assetregistry.ErrRevisionConflict) ||
+		errors.Is(err, assetregistry.ErrConflict) || errors.Is(err, assetregistry.ErrDependency) ||
+		errors.Is(err, assetregistry.ErrInvalid) {
+		return fmt.Errorf("%w: %s: %w", ErrLifecycleRegistryPublicationConflict, action, err)
+	}
+	return fmt.Errorf("%s: %w", action, err)
+}
+
+var _ LifecycleAssetAuthority = (*PostgresLifecycleAssetAuthority)(nil)

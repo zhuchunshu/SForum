@@ -9,6 +9,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
+	assetregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/AssetRegistry"
 	extensionopenapi "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionOpenAPI"
 	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
 	hostapi "github.com/zhuchunshu/sforum/apps/api/app/Support/HostAPI"
@@ -54,6 +55,7 @@ type productionLifecycleStack struct {
 	RouteRegistry      *routes.Registry
 	RouteSchemas       *extensionopenapi.RouteSchemaPublication
 	ComponentRegistry  *extensionsruntime.ComponentRegistry
+	AssetRegistry      *assetregistry.Registry
 	RouteProviders     *routes.ProviderSelectionAPI
 	ProviderSlots      *extensionsruntime.ProviderSlotSelectionAPI
 	RegistryRepository *extensionsruntime.PostgresLifecycleRegistryPublicationRepository
@@ -143,6 +145,8 @@ func newProductionLifecycleStack(config productionLifecycleStackConfig) (*produc
 		return nil, fmt.Errorf("%w: create route schema publication: %v", errProductionLifecycleDependency, err)
 	}
 	componentRegistry := extensionsruntime.NewComponentRegistry()
+	// 全进程唯一 Asset Registry：生命周期恢复/发布与 FrontendService 请求读取共享。
+	assetRegistry := assetregistry.New()
 	routeProviders := routes.NewProviderSelectionAPI(
 		routeRegistry,
 		routes.NewPostgresProviderSelectionStore(config.Pool),
@@ -154,12 +158,14 @@ func newProductionLifecycleStack(config productionLifecycleStackConfig) (*produc
 		return nil, fmt.Errorf("%w: provider slot selections", errProductionLifecycleDependency)
 	}
 	registryRepository := extensionsruntime.NewPostgresLifecycleRegistryPublicationRepository(config.Pool)
+	assetAuthority := extensionsruntime.NewPostgresLifecycleAssetAuthority(config.Pool, repository)
 	registries := extensionsruntime.NewPostgresLifecycleBoundaryRegistries(
 		extensionsruntime.LifecycleRegistryBoundaryConfig{
 			Repository: registryRepository, Manager: config.Runtime, Pages: config.Pages,
 			ThemeRuntime: config.ThemeRuntime, PageSiteName: config.PageSiteName, PageLocales: config.PageLocales,
 			Routes: routeRegistry, RouteSchemas: routeSchemas, Services: config.Services,
-			Components: componentRegistry,
+			Components: componentRegistry, Assets: assetRegistry,
+			AssetAuthority: assetAuthority, AssetAdmission: config.Trust,
 		},
 	)
 	state := extensionsruntime.NewPostgresLifecycleBoundaryState(config.Store)
@@ -183,7 +189,7 @@ func newProductionLifecycleStack(config productionLifecycleStackConfig) (*produc
 		MigrationEngine: config.MigrationEngine, Migrations: migrations,
 		Schedules: schedules, JobStore: jobStore, JobCoordinator: jobCoordinator, Jobs: jobs,
 		RouteRegistry: routeRegistry, RouteSchemas: routeSchemas, ComponentRegistry: componentRegistry,
-		RouteProviders:     routeProviders,
+		AssetRegistry: assetRegistry, RouteProviders: routeProviders,
 		ProviderSlots:      providerSlots,
 		RegistryRepository: registryRepository, Registries: registries,
 		State: state, PublicationJournal: journal, Cleanup: cleanup,
@@ -196,7 +202,7 @@ func newProductionLifecycleStack(config productionLifecycleStackConfig) (*produc
 func (s *productionLifecycleStack) bindService(service *extensions.Service) error {
 	if s == nil || service == nil || s.Coordinator == nil || s.StaticPreflight == nil ||
 		s.Repository == nil || s.CleanupFinalizer == nil || s.RouteProviders == nil || s.ProviderSlots == nil ||
-		s.ComponentRegistry == nil {
+		s.ComponentRegistry == nil || s.AssetRegistry == nil {
 		return errProductionLifecycleDependency
 	}
 	extensions.WithLifecycleCoordinator(s.Coordinator, s.StaticPreflight, s.Repository)(service)
@@ -205,6 +211,23 @@ func (s *productionLifecycleStack) bindService(service *extensions.Service) erro
 	extensions.WithRouteProviderSelectionInvalidator(s.RouteProviders)(service)
 	extensions.WithProviderSlotSelectionInvalidator(s.ProviderSlots)(service)
 	extensions.WithComponentRegistry(s.ComponentRegistry)(service)
+	return nil
+}
+
+// bindAssetRegistryConsumers runs only after authoritative lifecycle startup
+// restore succeeds. Theme/Page restoration must not publish a second Asset graph
+// from the unreconciled Store view.
+func (s *productionLifecycleStack) bindAssetRegistryConsumers(
+	service *extensions.Service,
+	frontend *extensions.FrontendService,
+	trust *extensions.ExecutableTrustService,
+) error {
+	if s == nil || s.AssetRegistry == nil || service == nil || frontend == nil || trust == nil {
+		return errProductionLifecycleDependency
+	}
+	service.BindAssetRegistry(s.AssetRegistry)
+	frontend.WithPublicAssetRegistry(s.AssetRegistry)
+	trust.WithPublicAssetRegistry(s.AssetRegistry)
 	return nil
 }
 
