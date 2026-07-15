@@ -563,7 +563,7 @@ func routeRequestHeaderAllowed(name string) bool {
 	}
 	switch strings.ToLower(strings.TrimSpace(name)) {
 	case "", "host", "content-length", "cookie", "authorization", "proxy-authorization",
-		"connection", "keep-alive", "proxy-authenticate", "te", "trailer", "transfer-encoding", "upgrade":
+		"x-csrf-token", "connection", "keep-alive", "proxy-authenticate", "te", "trailer", "transfer-encoding", "upgrade":
 		return false
 	default:
 		return true
