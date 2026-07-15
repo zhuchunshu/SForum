@@ -120,6 +120,10 @@ func loadArtifact(input Artifact, budget *resourceBudget) (*loadedArtifact, erro
 }
 
 func manifestsEqual(left, right extensionmanifest.Manifest) bool {
+	// 调用方可能持有尚未展开兼容默认值的精确清单快照。两侧统一归一化，
+	// 避免新增确定性默认值后把同一包误判为 artifact 漂移。
+	left = extensionmanifest.Normalize(left)
+	right = extensionmanifest.Normalize(right)
 	leftJSON, leftErr := json.Marshal(left)
 	rightJSON, rightErr := json.Marshal(right)
 	if leftErr != nil || rightErr != nil {
