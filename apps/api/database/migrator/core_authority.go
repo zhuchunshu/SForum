@@ -87,7 +87,8 @@ func ensureCoreOwnerRole(ctx context.Context, tx *sql.Tx, authority coreMigratio
 	if err := tx.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = $1)`, authority.OwnerRole).Scan(&exists); err != nil {
 		return fmt.Errorf("inspect Core owner role: %w", err)
 	}
-	if !exists {
+	created := !exists
+	if created {
 		role := pgx.Identifier{authority.OwnerRole}.Sanitize()
 		if _, err := tx.ExecContext(ctx, `CREATE ROLE `+role+` NOLOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS`); err != nil {
 			return fmt.Errorf("create database-specific Core owner role %s: %w; the migration login needs CREATEROLE", authority.OwnerRole, err)
@@ -104,22 +105,50 @@ func ensureCoreOwnerRole(ctx context.Context, tx *sql.Tx, authority coreMigratio
 	}
 
 	var adminOption, inheritOption, setOption bool
-	err := tx.QueryRowContext(ctx, `
-		SELECT memberships.admin_option, memberships.inherit_option, memberships.set_option
+	if err := tx.QueryRowContext(ctx, `
+		SELECT COALESCE(bool_or(memberships.admin_option), FALSE),
+		       COALESCE(bool_or(memberships.inherit_option), FALSE),
+		       COALESCE(bool_or(memberships.set_option), FALSE)
 		FROM pg_auth_members AS memberships
 		JOIN pg_roles AS granted ON granted.oid = memberships.roleid
 		JOIN pg_roles AS member ON member.oid = memberships.member
 		WHERE granted.rolname = $1 AND member.rolname = $2
-	`, authority.OwnerRole, authority.SessionRole).Scan(&adminOption, &inheritOption, &setOption)
-	if errors.Is(err, sql.ErrNoRows) {
+	`, authority.OwnerRole, authority.SessionRole).Scan(&adminOption, &inheritOption, &setOption); err != nil {
+		return fmt.Errorf("inspect Core owner membership: %w", err)
+	}
+	if created && (!adminOption || !inheritOption || !setOption) {
 		owner := pgx.Identifier{authority.OwnerRole}.Sanitize()
 		session := pgx.Identifier{authority.SessionRole}.Sanitize()
-		if _, err := tx.ExecContext(ctx, `GRANT `+owner+` TO `+session+` WITH ADMIN TRUE, INHERIT TRUE, SET TRUE`); err != nil {
+		var sessionSuperuser bool
+		if err := tx.QueryRowContext(ctx, `SELECT rolsuper FROM pg_roles WHERE rolname = $1`, authority.SessionRole).Scan(&sessionSuperuser); err != nil {
+			return fmt.Errorf("inspect Core migration login attributes: %w", err)
+		}
+		// PostgreSQL 17 gives a non-super CREATEROLE creator a bootstrap-granted
+		// ADMIN-only row. The creator cannot grant ADMIN back to itself, so a
+		// second grantor-specific row supplies only the missing effective options.
+		adminGrant := "FALSE"
+		if sessionSuperuser {
+			adminGrant = "TRUE"
+		} else if !adminOption {
+			return fmt.Errorf(
+				"%w: migration login %s lacks creator ADMIN membership in %s",
+				ErrCoreAuthorityConflict, authority.SessionRole, authority.OwnerRole,
+			)
+		}
+		if _, err := tx.ExecContext(ctx, `GRANT `+owner+` TO `+session+` WITH ADMIN `+adminGrant+`, INHERIT TRUE, SET TRUE`); err != nil {
 			return fmt.Errorf("grant Core owner role to migration login %s: %w", authority.SessionRole, err)
 		}
-		adminOption, inheritOption, setOption = true, true, true
-	} else if err != nil {
-		return fmt.Errorf("inspect Core owner membership: %w", err)
+		if err := tx.QueryRowContext(ctx, `
+			SELECT COALESCE(bool_or(memberships.admin_option), FALSE),
+			       COALESCE(bool_or(memberships.inherit_option), FALSE),
+			       COALESCE(bool_or(memberships.set_option), FALSE)
+			FROM pg_auth_members AS memberships
+			JOIN pg_roles AS granted ON granted.oid = memberships.roleid
+			JOIN pg_roles AS member ON member.oid = memberships.member
+			WHERE granted.rolname = $1 AND member.rolname = $2
+		`, authority.OwnerRole, authority.SessionRole).Scan(&adminOption, &inheritOption, &setOption); err != nil {
+			return fmt.Errorf("validate converged Core owner membership: %w", err)
+		}
 	}
 	if !adminOption || !inheritOption || !setOption {
 		return fmt.Errorf(

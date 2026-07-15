@@ -87,6 +87,47 @@ func TestCoreMigrationAuthorityConvergesExistingDatabaseAndRepeats(t *testing.T)
 	}
 }
 
+func TestCoreMigrationAuthorityConvergesPostgres17CreatorMembership(t *testing.T) {
+	fixture := newCoreAuthorityNonSuperTestDatabase(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
+	defer cancel()
+	db := openCoreAuthorityFixtureDB(t, fixture)
+	defer db.Close()
+
+	var serverVersion int
+	var superuser, createRole bool
+	if err := db.QueryRowContext(ctx, `
+		SELECT current_setting('server_version_num')::INTEGER, rolsuper, rolcreaterole
+		FROM pg_roles WHERE rolname = current_user
+	`).Scan(&serverVersion, &superuser, &createRole); err != nil {
+		t.Fatal(err)
+	}
+	if serverVersion < 170000 {
+		t.Skipf("PostgreSQL 17 creator membership semantics require PostgreSQL 17+, got %d", serverVersion)
+	}
+	if superuser || !createRole {
+		t.Fatalf("fixture login attributes = superuser:%t createrole:%t", superuser, createRole)
+	}
+
+	authority, err := prepareCoreMigrationAuthority(ctx, db)
+	if err != nil {
+		t.Fatalf("converge fresh non-super Core owner: %v", err)
+	}
+	if authority.SessionRole != fixture.sessionRole || authority.OwnerRole != fixture.ownerRole {
+		t.Fatalf("Core authority = %#v, fixture = %#v", authority, fixture)
+	}
+	firstRows := assertCoreAuthorityCreatorMembership(t, ctx, db, fixture)
+	assertCoreAuthorityDatabaseCreateRevoked(t, ctx, db, fixture.ownerRole)
+
+	repeated, err := prepareCoreMigrationAuthority(ctx, db)
+	if err != nil || repeated != authority {
+		t.Fatalf("repeat non-super Core owner convergence = %#v, %v", repeated, err)
+	}
+	if repeatedRows := assertCoreAuthorityCreatorMembership(t, ctx, db, fixture); repeatedRows != firstRows {
+		t.Fatalf("repeat Core owner membership rows = %d, want stable %d", repeatedRows, firstRows)
+	}
+}
+
 func TestCoreMigratorFreshDatabaseOwnsGooseButNotRiver(t *testing.T) {
 	fixture := newCoreAuthorityTestDatabase(t)
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
@@ -183,9 +224,18 @@ type coreAuthorityTestDatabase struct {
 	ownerRole    string
 	adminConfig  *pgx.ConnConfig
 	cleanupRoles []string
+	dropSession  bool
 }
 
 func newCoreAuthorityTestDatabase(t *testing.T) *coreAuthorityTestDatabase {
+	return newCoreAuthorityTestDatabaseWithSession(t, false)
+}
+
+func newCoreAuthorityNonSuperTestDatabase(t *testing.T) *coreAuthorityTestDatabase {
+	return newCoreAuthorityTestDatabaseWithSession(t, true)
+}
+
+func newCoreAuthorityTestDatabaseWithSession(t *testing.T, nonSuperSession bool) *coreAuthorityTestDatabase {
 	t.Helper()
 	databaseURL := strings.TrimSpace(os.Getenv("SFORUM_TEST_DATABASE_URL"))
 	if databaseURL == "" {
@@ -206,8 +256,9 @@ func newCoreAuthorityTestDatabase(t *testing.T) *coreAuthorityTestDatabase {
 		t.Fatalf("connect Core authority test administrator: %v", err)
 	}
 	defer admin.Close(context.Background())
+	nonce := time.Now().UnixNano()
 	fixture := &coreAuthorityTestDatabase{
-		databaseName: fmt.Sprintf("sforum_p5_core_%d", time.Now().UnixNano()),
+		databaseName: fmt.Sprintf("sforum_p5_core_%d", nonce),
 		adminConfig:  adminConfig,
 	}
 	if err := admin.QueryRow(ctx, `SELECT current_user`).Scan(&fixture.sessionRole); err != nil {
@@ -217,7 +268,21 @@ func newCoreAuthorityTestDatabase(t *testing.T) *coreAuthorityTestDatabase {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := admin.Exec(ctx, `CREATE DATABASE `+pgx.Identifier{fixture.databaseName}.Sanitize()); err != nil {
+	t.Cleanup(func() { fixture.cleanup(t) })
+	const sessionPassword = "sforum_core_authority_test"
+	if nonSuperSession {
+		fixture.sessionRole = fmt.Sprintf("sforum_p5_core_login_%d", nonce)
+		fixture.dropSession = true
+		session := pgx.Identifier{fixture.sessionRole}.Sanitize()
+		if _, err := admin.Exec(ctx, `CREATE ROLE `+session+` LOGIN INHERIT NOSUPERUSER NOCREATEDB CREATEROLE NOREPLICATION NOBYPASSRLS PASSWORD '`+sessionPassword+`'`); err != nil {
+			t.Fatalf("create non-super Core migration login: %v", err)
+		}
+	}
+	createDatabase := `CREATE DATABASE ` + pgx.Identifier{fixture.databaseName}.Sanitize()
+	if nonSuperSession {
+		createDatabase += ` OWNER ` + pgx.Identifier{fixture.sessionRole}.Sanitize()
+	}
+	if _, err := admin.Exec(ctx, createDatabase); err != nil {
 		t.Fatalf("create isolated Core authority test database: %v", err)
 	}
 	targetURL, err := url.Parse(databaseURL)
@@ -229,8 +294,10 @@ func newCoreAuthorityTestDatabase(t *testing.T) *coreAuthorityTestDatabase {
 	targetQuery.Del("role")
 	targetQuery.Del("search_path")
 	targetURL.RawQuery = targetQuery.Encode()
+	if nonSuperSession {
+		targetURL.User = url.UserPassword(fixture.sessionRole, sessionPassword)
+	}
 	fixture.databaseURL = targetURL.String()
-	t.Cleanup(func() { fixture.cleanup(t) })
 	return fixture
 }
 
@@ -261,6 +328,11 @@ func (f *coreAuthorityTestDatabase) cleanup(t *testing.T) {
 			t.Errorf("drop Core authority test role %s: %v", roleName, err)
 		}
 	}
+	if f.dropSession {
+		if _, err := admin.Exec(ctx, `DROP ROLE IF EXISTS `+pgx.Identifier{f.sessionRole}.Sanitize()); err != nil {
+			t.Errorf("drop Core authority test login %s: %v", f.sessionRole, err)
+		}
+	}
 }
 
 func openCoreAuthorityFixtureDB(t *testing.T, fixture *coreAuthorityTestDatabase) *sql.DB {
@@ -276,7 +348,9 @@ func assertCoreAuthorityMembership(t *testing.T, ctx context.Context, db *sql.DB
 	t.Helper()
 	var adminOption, inheritOption, setOption bool
 	if err := db.QueryRowContext(ctx, `
-		SELECT memberships.admin_option, memberships.inherit_option, memberships.set_option
+		SELECT COALESCE(bool_or(memberships.admin_option), FALSE),
+		       COALESCE(bool_or(memberships.inherit_option), FALSE),
+		       COALESCE(bool_or(memberships.set_option), FALSE)
 		FROM pg_auth_members AS memberships
 		JOIN pg_roles AS granted ON granted.oid = memberships.roleid
 		JOIN pg_roles AS member ON member.oid = memberships.member
@@ -287,6 +361,50 @@ func assertCoreAuthorityMembership(t *testing.T, ctx context.Context, db *sql.DB
 	if !adminOption || !inheritOption || !setOption {
 		t.Fatalf("Core owner membership options = %t/%t/%t", adminOption, inheritOption, setOption)
 	}
+}
+
+func assertCoreAuthorityCreatorMembership(
+	t *testing.T,
+	ctx context.Context,
+	db *sql.DB,
+	fixture *coreAuthorityTestDatabase,
+) int {
+	t.Helper()
+	var rows, creatorAdminRows, selfGrantedAuthorityRows int
+	var adminOption, inheritOption, setOption, canSet, hasPrivileges bool
+	if err := db.QueryRowContext(ctx, `
+		SELECT count(*),
+		       count(*) FILTER (
+		         WHERE memberships.admin_option
+		           AND NOT memberships.inherit_option AND NOT memberships.set_option
+		       ),
+		       count(*) FILTER (
+		         WHERE NOT memberships.admin_option
+		           AND memberships.inherit_option AND memberships.set_option
+		       ),
+		       COALESCE(bool_or(memberships.admin_option), FALSE),
+		       COALESCE(bool_or(memberships.inherit_option), FALSE),
+		       COALESCE(bool_or(memberships.set_option), FALSE),
+		       pg_has_role($2, $1, 'SET'), pg_has_role($2, $1, 'USAGE')
+		FROM pg_auth_members AS memberships
+		JOIN pg_roles AS granted ON granted.oid = memberships.roleid
+		JOIN pg_roles AS member ON member.oid = memberships.member
+		WHERE granted.rolname = $1 AND member.rolname = $2
+	`, fixture.ownerRole, fixture.sessionRole).Scan(
+		&rows, &creatorAdminRows, &selfGrantedAuthorityRows,
+		&adminOption, &inheritOption, &setOption, &canSet, &hasPrivileges,
+	); err != nil {
+		t.Fatal(err)
+	}
+	if rows != 2 || creatorAdminRows != 1 || selfGrantedAuthorityRows != 1 ||
+		!adminOption || !inheritOption || !setOption || !canSet || !hasPrivileges {
+		t.Fatalf(
+			"creator membership = rows:%d creatorAdmin:%d selfAuthority:%d admin:%t inherit:%t set:%t canSet:%t privileges:%t",
+			rows, creatorAdminRows, selfGrantedAuthorityRows,
+			adminOption, inheritOption, setOption, canSet, hasPrivileges,
+		)
+	}
+	return rows
 }
 
 func assertCoreAuthorityDatabaseCreateRevoked(t *testing.T, ctx context.Context, db *sql.DB, ownerRole string) {
