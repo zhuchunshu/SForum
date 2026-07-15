@@ -8,6 +8,7 @@ require (
 	github.com/altcha-org/altcha-lib-go/v2 v2.0.0-20260512100103-f14102c7e9bd
 	github.com/charmbracelet/huh v1.0.0
 	github.com/disintegration/imaging v1.6.2
+	github.com/fasthttp/websocket v1.5.12
 	github.com/gofiber/fiber/v3 v3.0.0-rc.3
 	github.com/gofiber/storage/redis/v3 v3.5.0
 	github.com/golang-jwt/jwt/v5 v5.3.1
@@ -91,6 +92,7 @@ require (
 	github.com/riverqueue/river/riverdriver v0.40.0 // indirect
 	github.com/riverqueue/river/rivershared v0.40.0 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
+	github.com/savsgio/gotils v0.0.0-20240704082632-aef3928b8a38 // indirect
 	github.com/sethvargo/go-retry v0.3.0 // indirect
 	github.com/spf13/pflag v1.0.9 // indirect
 	github.com/stretchr/testify v1.11.1 // indirect
