@@ -14,7 +14,7 @@ This is the entry point for project memory.
   - P0 catalogs and governance: `docs/extensions/v3/`
   - Decision contains the authoritative 27-row template comparison, 72-row
     plugin comparison, detailed architecture mind map, and boundary checklist
-  - P0 governance now tracks 99-row traceability, 225 routes, 119 UI surfaces,
+  - P0 governance now tracks 99-row traceability, 225 routes, 120 UI surfaces,
     33 admin surfaces, 19-module Extension Surface Matrix, stable identities,
     governance, migration gates, and performance baseline; CI rejects catalog drift
   - P1 completed exact-artifact one-use trust, delegated inert preview,
@@ -128,24 +128,25 @@ This is the entry point for project memory.
     typed Protocol V2 invocation, lifecycle rollback, active-runtime visibility,
     a permission-filtered/redacted HTTP catalog, durable pre-execution audit, and
     stable localized errors. Exact publication swaps are fenced before and during
-    invocation. The row remains open pending frozen kind-specific placement,
-    distinct props/result schemas, real admin-shell consumers, and a reference
-    admin plugin; do not credit the HTTP catalog as full production completion.
-  - P8 is 15/18 (83%). Immutable 23-page compiler snapshots, sealed typed
+    invocation. Frozen exact placements, distinct props/result schemas, typed
+    frontend clients, sidebar navigation, and the first real admin-shell outlet
+    are committed. The row remains open pending specialized list/action
+    consumers and an independent reference admin plugin.
+  - P8 is 16/18 (89%). Immutable 23-page compiler snapshots, sealed typed
     frontend output, public/admin skin isolation, install-time safety,
     four-level fallback, exact publication, all-catalog zero-I/O proof, and
-    crawler/JavaScript-disabled SSR evidence are accepted
+    crawler/JavaScript-disabled SSR evidence, and the production API/Nitro
+    restart plus concurrent exact-activation exit are accepted
   - The P8 Page ViewModel row is deliberately open: production construction
-    still leaves most page-specific product fields empty. Plugin business-data
-    contract preservation and an exact API/Nitro restart plus concurrent
-    activation exit also remain open
+    still leaves most page-specific product fields empty. Exact plugin
+    business-data contract preservation across theme overrides also remains open
   - Exact theme activation now binds a visible target/current preview tuple,
     atomically replaces durable Page approvals, repairs stale bindings, and
     exposes process-local revisions. Migration 020 persists desired/node/ack
     convergence evidence. LISTEN reconnect, missed-notification polling, node
     acknowledgement, and two-node exact-artifact convergence are verified
-  - P9 is 1/16 (6%). `a805cbe01` freezes 119 active public/admin Core component
-    identities in a generated neutral `ComponentCatalog`, with explicit
+  - P9 is 1/16 (6%). The generated neutral `ComponentCatalog` now contains 120
+    active public/admin Core component identities, with explicit
     page/component kind, ownership, contract, exact lookup, immutable copies,
     and collision/drift tests
   - Manifest V3 component targets now pair `targetId` with

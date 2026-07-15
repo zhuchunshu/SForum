@@ -792,7 +792,7 @@ template while retaining Schema fallback fields.
 
 ## V3 P8 theme runtime checkpoint
 
-- P8 is 15/18. The immutable compiler/runtime covers all 23 catalog identities,
+- P8 is 16/18. The immutable compiler/runtime covers all 23 catalog identities,
   four-level exact fallback, typed HTML/island/SEO output, install-time template
   safety, public/admin skin isolation, exact visible activation, and multi-node
   durable convergence.
@@ -802,10 +802,13 @@ template while retaining Schema fallback fields.
 - The Page Registry demo add page renders its compiled L1 template and a
   defaulted Host navigation island in SSR, hydration, Baiduspider, and a real
   JavaScript-disabled browser.
+- Commit `3e771b149` proves an exact theme switch survives real API and Nitro
+  restarts, a concurrent exact-activation race produces one CAS winner and one
+  stale-preview loser, and the winner survives a second restart. Startup builtin
+  synchronization no longer resets a valid selected uploaded theme.
 - The Page ViewModel row remains open: 23 typed schemas exist, but production
   construction still populates mostly base/form fields rather than each page's
-  business data. Plugin business-contract preservation and an exact API/Nitro
-  restart plus concurrent activation exit also remain open.
+  business data. Plugin business-contract preservation also remains open.
 
 ## V3 P9 stable component identity checkpoint
 

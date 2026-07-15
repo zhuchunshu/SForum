@@ -604,7 +604,7 @@ query, and identity workflows without replacing whole routes.
 - [x] Compile/execute performance and memory benchmark for small/large templates.
 - [x] XSS, URL context, missing values, recursion, excessive output, unsafe
       helper, invalid partial, digest change, and fallback.
-- [ ] Theme switch survives API/Nitro restart and concurrent activation.
+- [x] Theme switch survives API/Nitro restart and concurrent activation.
 - [x] `curl` with Baiduspider and JavaScript-disabled browser receives title,
       content, links, pagination, canonical, robots, hreflang, and JSON-LD.
 - [x] With JavaScript disabled, body, lists, comments, and pagination remain

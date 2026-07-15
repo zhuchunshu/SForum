@@ -24,7 +24,7 @@ scaffolding, or demo-only code cannot satisfy a runtime exit criterion.
 | P5 Database/commands | 8% | 71% | 5.65% |
 | P6 Routes/middleware | 10% | 67% | 6.67% |
 | P7 Workflow/admin/query/identity | 10% | 50% | 5.00% |
-| P8 Theme compiler/runtime | 8% | 83% | 6.67% |
+| P8 Theme compiler/runtime | 8% | 89% | 7.11% |
 | P9 Components/assets/L2 | 8% | 6% | 0.50% |
 | P10 Content/media/data | 8% | 0% | 0% |
 | P11 Platform services | 6% | 0% | 0% |
@@ -111,6 +111,26 @@ phase percentage.
   failing plugin exactly once (`failed`, then `skipped`).
 
 ## Last Durable Checkpoint
+
+### 2026-07-15 P8 Production Restart And Concurrent Activation Checkpoint
+
+- Overall remains **55%** after flooring. P8 advances to **89% (16 of 18
+  rows)** and earns **7.11%** of its 8% weight.
+- `3e771b149` fixes startup synchronization so a valid selected uploaded theme
+  survives builtin discovery. Fallback to the default now occurs only when no
+  theme is active or the active builtin was removed from the release.
+- `TestThemeSwitchSurvivesProductionAPIAndNitroRestartAndConcurrentActivation`
+  builds and starts the real API and Nitro applications against a fresh
+  PostgreSQL database, switches exact artifacts, restarts both processes,
+  races two exact CAS activations, verifies one winner and one stale preview,
+  and restarts both processes again to prove the winner persists.
+- The self-contained production exit passed in 203.78 seconds. Browser QA
+  independently confirmed the winning Nocturne artifact and skin marker,
+  absence of a blocking overlay, and working menu navigation. The only console
+  diagnostic was the expected canonical-base warning from the isolated port.
+- The two remaining P8 rows are complete page-specific production ViewModel
+  population and exact plugin business-data contract preservation across theme
+  presentation overrides.
 
 ### 2026-07-15 P9 Stable Component Identity Checkpoint
 

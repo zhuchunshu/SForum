@@ -2,8 +2,8 @@
 
 ## Changed
 
-- Weighted V3 is 54%. P5/P6/P7/P8 remain parallel; P6 is 12/18, P7 is
-  11/22, and P8 is 15/18.
+- Weighted V3 is 55%. P5/P6/P7/P8 remain parallel; P6 is 12/18, P7 is
+  11/22, and P8 is 16/18.
 - P6 now has real-process multipart, SSE, WebSocket, disconnect cancellation,
   and bounded backpressure evidence through Fiber, Registry, Dispatcher,
   Manager admission, Protocol V2 gRPC, and the plugin SDK.
@@ -35,11 +35,13 @@
   mandatory durable attempt.
 - P8 now has the exact compiled four-level fallback, durable convergence,
   all-catalog zero-I/O proof, and crawler/JavaScript-disabled SSR evidence.
-  Page-specific production ViewModels, plugin business-data preservation, and
-  exact API/Nitro restart plus concurrent activation remain open.
+  A self-contained production API/Nitro restart and concurrent exact-activation
+  exit is accepted. Page-specific production ViewModels and plugin
+  business-data preservation remain open.
 
 ## Commits
 
+- `3e771b149 fix(themes): preserve exact activation across restarts`
 - `ae4ca62fd feat(themes): add exact runtime fallback chain`
 - `476ca7aca feat(routes): bind exact extension guard policy`
 - `5b96b58f2 feat(routes): authorize static option and public guards`
@@ -146,6 +148,9 @@
 - P8 publication passed isolated PostgreSQL activation, compensation,
   concurrency, node lease/ack/retry, LISTEN reconnect, and two-node convergence;
   full Go tests, focused race, vet, and build also passed.
+- P8 production restart passed the fresh-build real API/Nitro E2E in 203.78
+  seconds, including exact switch persistence, one-winner concurrent CAS, and a
+  second full restart. Browser QA confirmed the Nocturne artifact/skin and menu.
 - P5 runtime leases passed real PostgreSQL source/target overlap, heartbeat,
   drain, exact session termination, retained target access, core-view-only
   login, additive raw-core access, focused repetition, full Extensions tests,
@@ -173,8 +178,7 @@
   only after checking the current shared tree.
 - P7: Admin Surface production consumers remain active; provider browser QA
   awaits login.
-- P8: Page-specific ViewModels, plugin data preservation, and restart/concurrent
-  activation evidence remain open.
+- P8: Page-specific ViewModels and exact plugin data preservation remain open.
 - Preserve these groups and stage only one coherent owner at a time.
 
 ## Next
@@ -186,12 +190,10 @@
    already frozen.
 2. Populate production page-specific P8 ViewModels and prove theme overrides
    preserve each plugin's versioned business-data contract.
-3. Run the exact API/Nitro restart plus concurrent theme-activation exit test.
-4. Continue P5 with signed actor delegation and concrete transactional Host
+3. Continue P5 with signed actor delegation and concrete transactional Host
    Commands, then provider-neutral entitlement persistence.
-5. Continue P7 Admin Surfaces with frozen kind-specific placement, distinct
-   props/result schemas, concrete admin-shell consumers, actor/idempotency for
-   mutations, and a reference plugin; then continue Query/Identity. Repair the
+4. Continue P7 Admin Surfaces with specialized list/action consumers and an
+   independent reference plugin; then continue Query/Identity. Repair the
    nested builtin-plugin Goldmark/go-redis `go.sum` gaps and rerun their full
    module gates; rerun provider UI QA after Chrome login.
 
