@@ -4,10 +4,11 @@ This is the entry point for project memory.
 
 ## Latest Handoff
 
-- **2026-07-16 Trusted Plugin And Theme Platform V3 P6/P7/P8/P9 active (overall 62%)**
+- **2026-07-16 Trusted Plugin And Theme Platform V3 P6/P7/P8/P9 active (overall 63%)**
   - Decision: `knowledge/decisions/2026-07-13-trusted-plugin-theme-platform-v3.md`
   - Task book: `knowledge/plans/2026-07-13-trusted-plugin-theme-platform-v3.md`
-  - Active checkpoint: `knowledge/sessions/2026-07-16-trusted-plugin-theme-platform-v3-asset-checkpoint.md`
+  - Active checkpoint: `knowledge/sessions/2026-07-16-trusted-plugin-theme-platform-v3-route-inspector-ledger.md`
+  - Prior asset checkpoint: `knowledge/sessions/2026-07-16-trusted-plugin-theme-platform-v3-asset-checkpoint.md`
   - Prior handoff: `knowledge/sessions/2026-07-16-trusted-plugin-theme-platform-v3-p8-p9-progress.md`
   - P5 closure: `knowledge/sessions/2026-07-16-trusted-plugin-theme-platform-v3-p5-closure.md`
   - Prior P6-P9 handoff: `knowledge/sessions/2026-07-15-trusted-plugin-theme-platform-v3-p6-p8-progress.md`
@@ -88,7 +89,7 @@ This is the entry point for project memory.
     composition, and concurrent idempotent replay. The production entitlement
     Host Command now proves eight-way replay, payload/revision conflict,
     revoke/replay, and actorless delegation rejection through real PostgreSQL
-  - P6 is active at 13/18 (72%). All 230 core routes have stable generated
+  - P6 is active at 14/18 (78%). All 230 core routes have stable generated
     identities; immutable exact route snapshots, arbitrary declared paths,
     explicit replace-provider selection/conflict UI, Safe Mode filtering, and
     strict OpenAPI collision/reference rejection are accepted
@@ -102,6 +103,9 @@ This is the entry point for project memory.
   - The production Fiber Dispatcher uses exact lifecycle Registry/Runtime
     admission while pure Core routes bypass buffering. The permissioned Route
     Inspector shares a bounded redacted trace ring with the Dispatcher
+  - The complete Route Inspector row is accepted. Its production API and dense
+    bilingual admin UI expose exact chain, provider, guard, contract, fallback,
+    conflict, timing, and commit-state evidence without retaining request data
   - Host-observed `net/http/httptrace` evidence now fences fallback: only a
     pristine safe-method transport failure may use declared Core/not-found
     fallback; accepted requests, partial responses, crashes, timeouts,

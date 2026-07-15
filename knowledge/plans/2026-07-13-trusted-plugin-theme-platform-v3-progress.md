@@ -1,7 +1,7 @@
 # Trusted Plugin And Theme Platform V3 Progress Ledger
 
 Date: 2026-07-16
-Overall progress: **62%**
+Overall progress: **63%**
 Active phase: **P9 - Components/assets/L2 (25% accepted; CSP and composition exits remain open)**
 
 This ledger is the durable percentage and context-compaction checkpoint for the
@@ -22,7 +22,7 @@ scaffolding, or demo-only code cannot satisfy a runtime exit criterion.
 | P3 Host API v2 | 8% | 100% | 8% |
 | P4 Lifecycle/dependencies | 7% | 100% | 7% |
 | P5 Database/commands | 8% | 100% | 8% |
-| P6 Routes/middleware | 10% | 72% | 7.22% |
+| P6 Routes/middleware | 10% | 78% | 7.78% |
 | P7 Workflow/admin/query/identity | 10% | 64% | 6.36% |
 | P8 Theme compiler/runtime | 8% | 100% | 8% |
 | P9 Components/assets/L2 | 8% | 25% | 2.00% |
@@ -111,6 +111,55 @@ phase percentage.
   failing plugin exactly once (`failed`, then `skipped`).
 
 ## Last Durable Checkpoint
+
+### 2026-07-16 P6 Route Inspector Ledger Correction
+
+- Overall advances to **63%** after flooring. P6 advances to **14/18 (78%)**
+  and earns **7.78%** of its 10% weight. P7 remains **14/22 (64%)**, P8
+  remains complete, and P9 remains **4/16 (25%)**.
+- Exact earned weight is `39 + 10*(14/18) + 10*(14/22) + 8 + 8*(4/16)` =
+  `63.1414`; the displayed total is the floor, **63%**.
+- This is an accounting correction backed by already committed production
+  evidence, not credit for a disconnected foundation. The progress history
+  accepted the production Inspector in `3b017173c` and `61da559d5`: one shared
+  bounded trace ring reports exact chain, provider, guard, contract, fallback,
+  timing, outcome, and commit state through the permissioned HTTP endpoint.
+  `0c9fc5cbc` subsequently added the complete bilingual admin UI and its typed,
+  fail-closed response parser.
+- Fresh verification passed `go test ./app/Support/Routes
+  ./app/Http/Controllers/Extensions -count=1` with an isolated Go cache,
+  `bun test apps/web/tests/adminRouteInspector.test.ts` (14 tests), and all
+  1,879 modular OpenAPI references.
+- P6 still has four open rows: complete action semantics, inherited plus
+  custom/raw guards, alias/redirect SEO/canonical integration, and the full
+  route action/locale/request/authority/transport/failure matrix.
+- A read-only Grok P12 audit confirmed that P12 remains uncredited. Its first
+  production packet should generalize the proven theme desired/node/ack model
+  to plugin runtime convergence while reusing, not duplicating, lifecycle CAS
+  and migration-once evidence. Wakeup transport and canary semantics remain
+  product decisions and are not silently selected here.
+
+Dirty ownership at this checkpoint:
+
+- `apps/api/app/Http/route_dispatcher.go` and
+  `apps/api/app/Http/route_request_authority_matrix_test.go` belong to the P6
+  request-authority task.
+- `apps/api/app/Support/QueryRegistry/` belongs to the P7 production-wiring
+  task and remains uncredited until lifecycle/bootstrap/Host execution closes.
+- `apps/api/Dockerfile` and `apps/api/cmd/sforum/test_extension_test.go` belong
+  to the active extension packaging task.
+- `apps/api/app/Models/PageViewModels/source_test.go` and the content-policy
+  manifest remain unrelated/user-owned and must not be staged with V3 docs.
+
+Exact resume command:
+
+```bash
+git status --short
+```
+
+Then review and land each owned code slice separately. Queue Grok P10/P11/P13
+audits one at a time because the external endpoint rejected excess concurrent
+requests; never treat a rate-limited partial report as implementation evidence.
 
 ### 2026-07-16 P7 SDK And P9 Asset Lifecycle Closure
 

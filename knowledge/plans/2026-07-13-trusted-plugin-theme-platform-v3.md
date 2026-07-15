@@ -499,7 +499,7 @@ blocking implement the authoritative row without retaining a second alias.
 - [ ] Add route aliases/redirect SEO status/canonical integration.
 - [x] Add modular plugin OpenAPI fragments, validation, aggregation, permissions,
       rate-limit, idempotency, and generated-client metadata.
-- [ ] Add Route Inspector with chain, provider, guard, timing, fallback, and
+- [x] Add Route Inspector with chain, provider, guard, timing, fallback, and
       contract details.
 
 ### Tests
