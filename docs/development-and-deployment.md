@@ -331,6 +331,11 @@ Important production variables:
 - `REDIS_PASSWORD`
 - `MEILI_MASTER_KEY`
 - `SESSION_HASH_SECRET` (session signing secret; must be a high-entropy random value in production)
+- `SFORUM_V3_TRUST_CHALLENGES=true` (requires one-use, actor-bound,
+  exact-artifact `super_admin` confirmation before uploaded executable code can
+  run; production defaults to enabled after the P1 gate)
+- `SFORUM_V3_TRUST_CHALLENGE_TTL=5m` (maximum lifetime of the one-use
+  confirmation challenge)
 - `CSRF_TRUSTED_ORIGINS` (comma-separated public site origins trusted by the
   CSRF middleware, e.g. `https://forum.example.com`; supports
   `https://*.example.com` wildcard subdomains. When the API runs behind the

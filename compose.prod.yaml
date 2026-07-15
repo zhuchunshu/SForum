@@ -23,11 +23,14 @@ services:
       target: api
     environment:
       APP_URL: ${APP_URL:-https://forum.example.com}
+      SFORUM_V3_TRUST_CHALLENGES: ${SFORUM_V3_TRUST_CHALLENGES:-true}
     restart: unless-stopped
 
   worker:
     build:
       target: worker
+    environment:
+      SFORUM_V3_TRUST_CHALLENGES: ${SFORUM_V3_TRUST_CHALLENGES:-true}
     restart: unless-stopped
 
   web:

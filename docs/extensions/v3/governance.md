@@ -67,13 +67,15 @@ an explicit compatibility alias and migration record.
 
 ## Migration Feature Gates
 
-New V3 registries remain default-off until their phase gate passes. These are
+New V3 registries remain default-off until their phase gate passes. A completed
+phase may switch its production default on while retaining an explicit
+compatibility override. These are
 Host migration controls, not plugin-visible product settings. The implementing
 phase may expose an operator diagnostic, but extensions cannot enable a gate.
 
 | Gate | Default | Owner phase |
 | --- | --- | --- |
-| `SFORUM_V3_TRUST_CHALLENGES` | off | P1 |
+| `SFORUM_V3_TRUST_CHALLENGES` | production on; other environments off | P1 (passed) |
 | `SFORUM_V3_MANIFEST` | off | P2 |
 | `SFORUM_V3_HOST_API` | off | P3 |
 | `SFORUM_V3_LIFECYCLE` | off | P4 |

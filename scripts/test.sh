@@ -19,6 +19,9 @@ ruby scripts/validate-openapi-refs.rb
 echo "Running staged extension management contract validation..."
 node tests/validate-staged-extension-contracts.js
 
+echo "Running V3 production trust deployment validation..."
+node tests/validate-v3-production-trust.mjs
+
 if [ -d apps/web/node_modules ]; then
   echo "Running Nuxt typecheck..."
   (cd apps/web && bun run typecheck)

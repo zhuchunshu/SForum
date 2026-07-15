@@ -101,6 +101,25 @@ func TestLoadParsesV3TrustChallengeGate(t *testing.T) {
 	}
 }
 
+func TestLoadDefaultsV3TrustChallengesByEnvironment(t *testing.T) {
+	t.Setenv("APP_ENV", "development")
+	t.Setenv("SFORUM_V3_TRUST_CHALLENGES", "")
+	if cfg := Load(); cfg.V3TrustChallenges {
+		t.Fatal("expected development V3 trust challenges to remain opt-in")
+	}
+
+	t.Setenv("APP_ENV", "production")
+	setValidProductionSecrets(t)
+	if cfg := Load(); !cfg.V3TrustChallenges {
+		t.Fatal("expected production V3 trust challenges to default on after the P1 gate")
+	}
+
+	t.Setenv("SFORUM_V3_TRUST_CHALLENGES", "false")
+	if cfg := Load(); cfg.V3TrustChallenges {
+		t.Fatal("expected an explicit compatibility override to disable V3 trust challenges")
+	}
+}
+
 func TestLoadParsesSafeMode(t *testing.T) {
 	t.Setenv("APP_ENV", "test")
 	t.Setenv("SFORUM_SAFE_MODE", "1")
