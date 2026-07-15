@@ -25,10 +25,11 @@ type PublishedRouteSchemaArtifact struct {
 }
 
 type routeSchemaPublicationSnapshot struct {
-	revision  uint64
-	catalog   *RouteSchemaCatalog
-	aggregate Snapshot
-	artifacts []Artifact
+	revision          uint64
+	catalog           *RouteSchemaCatalog
+	aggregate         Snapshot
+	operationPolicies map[string]routes.RouteExecutionPolicy
+	artifacts         []Artifact
 }
 
 // RouteSchemaPublicationSnapshot is detached inspection data plus a private
@@ -45,11 +46,12 @@ type RouteSchemaPublicationSnapshot struct {
 // PreparedRouteSchemaPublication is compiled off-snapshot and can be published
 // only by its owner after the lifecycle transaction reaches its publication fence.
 type PreparedRouteSchemaPublication struct {
-	owner        *RouteSchemaPublication
-	baseRevision uint64
-	catalog      *RouteSchemaCatalog
-	aggregate    Snapshot
-	artifacts    []Artifact
+	owner             *RouteSchemaPublication
+	baseRevision      uint64
+	catalog           *RouteSchemaCatalog
+	aggregate         Snapshot
+	operationPolicies map[string]routes.RouteExecutionPolicy
+	artifacts         []Artifact
 }
 
 func (p *PreparedRouteSchemaPublication) CatalogRevision() string {
@@ -99,7 +101,9 @@ func newRouteSchemaPublication(core []CoreOperation, publishContracts bool) (*Ro
 			return nil, err
 		}
 	}
-	owner.snapshot.Store(&routeSchemaPublicationSnapshot{catalog: catalog, aggregate: aggregate})
+	owner.snapshot.Store(&routeSchemaPublicationSnapshot{
+		catalog: catalog, aggregate: aggregate, operationPolicies: routeOperationPolicyIndex(aggregate),
+	})
 	return owner, nil
 }
 
@@ -124,11 +128,12 @@ func (p *RouteSchemaPublication) Prepare(artifacts []Artifact) (*PreparedRouteSc
 		}
 	}
 	return &PreparedRouteSchemaPublication{
-		owner:        p,
-		baseRevision: baseRevision,
-		catalog:      catalog,
-		aggregate:    aggregate,
-		artifacts:    frozen,
+		owner:             p,
+		baseRevision:      baseRevision,
+		catalog:           catalog,
+		aggregate:         aggregate,
+		operationPolicies: routeOperationPolicyIndex(aggregate),
+		artifacts:         frozen,
 	}, nil
 }
 
@@ -231,11 +236,12 @@ func (p *RouteSchemaPublication) prepareExtensionReplacement(
 		}
 	}
 	return &PreparedRouteSchemaPublication{
-		owner:        p,
-		baseRevision: expectedRevision,
-		catalog:      catalog,
-		aggregate:    aggregate,
-		artifacts:    frozen,
+		owner:             p,
+		baseRevision:      expectedRevision,
+		catalog:           catalog,
+		aggregate:         aggregate,
+		operationPolicies: routeOperationPolicyIndex(aggregate),
+		artifacts:         frozen,
 	}, nil
 }
 
@@ -266,10 +272,11 @@ func (p *RouteSchemaPublication) PublishPrepared(
 		)
 	}
 	next := &routeSchemaPublicationSnapshot{
-		revision:  current.revision + 1,
-		catalog:   prepared.catalog,
-		aggregate: prepared.aggregate,
-		artifacts: prepared.artifacts,
+		revision:          current.revision + 1,
+		catalog:           prepared.catalog,
+		aggregate:         prepared.aggregate,
+		operationPolicies: prepared.operationPolicies,
+		artifacts:         prepared.artifacts,
 	}
 	p.snapshot.Store(next)
 	return p.publicationSnapshot(next), nil
@@ -291,10 +298,11 @@ func (p *RouteSchemaPublication) Restore(
 		)
 	}
 	next := &routeSchemaPublicationSnapshot{
-		revision:  current.revision + 1,
-		catalog:   snapshot.source.catalog,
-		aggregate: snapshot.source.aggregate,
-		artifacts: snapshot.source.artifacts,
+		revision:          current.revision + 1,
+		catalog:           snapshot.source.catalog,
+		aggregate:         snapshot.source.aggregate,
+		operationPolicies: snapshot.source.operationPolicies,
+		artifacts:         snapshot.source.artifacts,
 	}
 	p.snapshot.Store(next)
 	return p.publicationSnapshot(next), nil
@@ -346,6 +354,65 @@ func (p *RouteSchemaPublication) ContractSnapshot() PublishedContractSnapshot {
 		GeneratedClientOperations: source.aggregate.GeneratedClientOperations(),
 	}
 }
+
+// ResolveRouteExecutionPolicy returns policy facts from the same immutable
+// aggregate revision that owns the exact artifact contract.
+func (p *RouteSchemaPublication) ResolveRouteExecutionPolicy(
+	step routes.RouteExecutionStep,
+) (routes.RouteExecutionPolicy, error) {
+	if p == nil || !p.publishContracts || step.Provider.Kind != routes.ProviderPlugin {
+		return routes.RouteExecutionPolicy{}, routes.ErrRoutePolicyNotFound
+	}
+	artifact := step.Provider.Artifact
+	policy, exists := p.loadSnapshot().operationPolicies[routeOperationPolicyKey(
+		artifact.ExtensionID,
+		artifact.ExtensionVersion,
+		artifact.PackageDigest,
+		step.RouteID,
+		step.ContractVersion,
+		step.Method,
+	)]
+	if !exists {
+		return routes.RouteExecutionPolicy{}, routes.ErrRoutePolicyNotFound
+	}
+	return policy, nil
+}
+
+func routeOperationPolicyIndex(snapshot Snapshot) map[string]routes.RouteExecutionPolicy {
+	operations := snapshot.GeneratedClientOperations()
+	if len(operations) == 0 {
+		return nil
+	}
+	result := make(map[string]routes.RouteExecutionPolicy, len(operations))
+	for _, operation := range operations {
+		result[routeOperationPolicyKey(
+			operation.ExtensionID,
+			operation.ExtensionVersion,
+			operation.PackageDigest,
+			operation.RouteID,
+			operation.ContractVersion,
+			operation.Method,
+		)] = routes.RouteExecutionPolicy{
+			RateLimit: operation.RateLimit, Idempotency: operation.Idempotency,
+			IdempotencyRequired: operation.IdempotencyRequired,
+		}
+	}
+	return result
+}
+
+func routeOperationPolicyKey(
+	extensionID string,
+	extensionVersion string,
+	packageDigest string,
+	routeID string,
+	contractVersion string,
+	method string,
+) string {
+	return extensionID + "\x00" + extensionVersion + "\x00" + packageDigest + "\x00" +
+		routeID + "\x00" + contractVersion + "\x00" + method
+}
+
+var _ routes.RoutePolicyResolver = (*RouteSchemaPublication)(nil)
 
 func (p *RouteSchemaPublication) ValidateRouteSchema(
 	ctx context.Context,
