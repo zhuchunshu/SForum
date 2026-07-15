@@ -129,7 +129,8 @@ function updateEditorPreview(payload: EditorPreviewPayload) {
 </script>
 
 <template>
-  <main class="sf-component-page">
+  <SFPageOutlet page="dev.components">
+    <main class="sf-component-page">
     <div class="sf-component-page__shell">
       <header class="sf-component-page__header">
         <div>
@@ -573,5 +574,6 @@ function updateEditorPreview(payload: EditorPreviewPayload) {
         </div>
       </div>
     </div>
-  </main>
+    </main>
+  </SFPageOutlet>
 </template>

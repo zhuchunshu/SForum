@@ -30,7 +30,9 @@ describe('SFPageOutlet catalog wiring', () => {
     ['app/pages/reset-password.vue', 'auth.reset_password'],
     ['app/pages/terms.vue', 'site.terms'],
     ['app/pages/privacy.vue', 'site.privacy'],
-    ['app/pages/guidelines.vue', 'site.guidelines']
+    ['app/pages/guidelines.vue', 'site.guidelines'],
+    ['app/error.vue', 'system.not_found'],
+    ['app/pages/components.vue', 'dev.components']
   ]
 
   for (const [file, pageId] of catalogPages) {
@@ -70,5 +72,11 @@ describe('SFPageOutlet catalog wiring', () => {
     const src = read('app/pages/[...sfRegistryPage].vue')
     expect(src).toContain('/pages/resolve-path')
     expect(src).toContain('createError')
+  })
+
+  it('keeps non-404 failures outside the replaceable not-found surface', () => {
+    const src = read('app/error.vue')
+    expect(src).toContain('v-if="isNotFound"')
+    expect(src).toContain('<SFErrorPageContent v-else')
   })
 })

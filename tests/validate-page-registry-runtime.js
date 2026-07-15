@@ -90,6 +90,13 @@ function validateOfflineContracts() {
   assertIncludes(index, 'SFPageOutlet', 'home uses SFPageOutlet')
   assertIncludes(index, 'forum.home', 'home page id')
 
+  const errorPage = read('apps/web/app/error.vue')
+  assertIncludes(errorPage, 'page="system.not_found"', '404 must resolve through the not-found catalog surface')
+  assertIncludes(errorPage, 'v-if="isNotFound"', 'non-404 Host failures must not use the not-found provider')
+
+  const componentsPage = read('apps/web/app/pages/components.vue')
+  assertIncludes(componentsPage, 'page="dev.components"', 'dev component catalog must have a Page Registry outlet')
+
   // API: DataSchema must flow through ResolvedPage → LoadForResolved
   const catalog = read('apps/api/app/Support/Pages/catalog.go')
   assertIncludes(catalog, 'DataSchema', 'ResolvedPage must include DataSchema field')
