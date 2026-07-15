@@ -58,7 +58,9 @@ function validateOfflineContracts() {
   // Host page outlet + dynamic add route
   const outlet = read('apps/web/app/components/SFPageOutlet.vue')
   assertIncludes(outlet, 'SFPageOutlet', 'SFPageOutlet component')
-  assertIncludes(outlet, '/pages/resolve?id=', 'outlet must resolve by page id')
+  assertIncludes(outlet, "new URLSearchParams({ id: props.page, path: route.path })", 'outlet must resolve by page id and current path')
+  assertNotIncludes(outlet, 'CONSTRAINED_PAGES', 'protected pages must resolve through Registry')
+  assertIncludes(outlet, '<slot />', 'protected templates must receive the Host page slot')
   assertIncludes(outlet, 'loaderData', 'outlet must type loaderData from SSR')
 
   const catchAll = read('apps/web/app/pages/[...sfRegistryPage].vue')
@@ -77,6 +79,8 @@ function validateOfflineContracts() {
   const template = read('apps/web/app/components/SFThemeTemplate.vue')
   assertIncludes(template, 'loaderData', 'template consumes SSR loaderData')
   assertIncludes(template, '禁止客户端再请求插件 route', 'template must document no client plugin fetch')
+  assertIncludes(template, "'identity.component.login_form': HostPageIsland", 'login replacement must preserve the Host form')
+  assertIncludes(template, "'forum.component.topic_composer': HostPageIsland", 'topic replacement must preserve the Host composer')
   // L2 closed: no dynamic import() of remote/package widgets in this component
   assert.ok(!/\bimport\s*\(/.test(template), 'L2 dynamic import must stay closed in SFThemeTemplate')
   assertNotIncludes(template, 'SFExtensionWidget', 'L2 widget island must not mount')

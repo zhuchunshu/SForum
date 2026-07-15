@@ -41,11 +41,15 @@ describe('SFPageOutlet catalog wiring', () => {
     })
   }
 
-  it('forces constrained pages to core provider', () => {
-    const src = read('app/components/SFPageOutlet.vue')
-    expect(src).toContain('CONSTRAINED_PAGES')
-    expect(src).toContain('auth.login')
-    expect(src).toContain('isConstrained')
+  it('resolves protected pages and supplies the core page as a Host island slot', () => {
+    const outlet = read('app/components/SFPageOutlet.vue')
+    const template = read('app/components/SFThemeTemplate.vue')
+    expect(outlet).not.toContain('CONSTRAINED_PAGES')
+    expect(outlet).not.toContain('isConstrained')
+    expect(outlet).toContain('<slot />')
+    expect(template).toContain("'identity.component.login_form': HostPageIsland")
+    expect(template).toContain("'forum.component.topic_composer': HostPageIsland")
+    expect(template).toContain('slots.default?.()')
   })
 
   it('binds core theme resolution to the current path and query', () => {

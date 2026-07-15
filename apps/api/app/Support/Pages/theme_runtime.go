@@ -761,10 +761,17 @@ func themeAssetBindings(skin ActiveSkinPublic) map[string]string {
 
 func productionThemeIslandBindings() map[string]themecompiler.IslandBinding {
 	return map[string]themecompiler.IslandBinding{
-		"sf-home-page":       {ComponentID: "forum.component.home_page"},
-		"sf-navbar":          {ComponentID: "navigation.component.navbar"},
-		"sf-footer":          {ComponentID: "navigation.component.footer"},
-		"sf-home-navigation": {ComponentID: "navigation.component.home"},
+		"sf-home-page":         {ComponentID: "forum.component.home_page"},
+		"sf-navbar":            {ComponentID: "navigation.component.navbar"},
+		"sf-footer":            {ComponentID: "navigation.component.footer"},
+		"sf-home-navigation":   {ComponentID: "navigation.component.home"},
+		"sf-topic-composer":    {ComponentID: "forum.component.topic_composer"},
+		"sf-profile-settings":  {ComponentID: "profile.component.settings_form"},
+		"sf-security-settings": {ComponentID: "identity.component.security_settings"},
+		"sf-login-form":        {ComponentID: "identity.component.login_form"},
+		"sf-register-form":     {ComponentID: "identity.component.register_form"},
+		"sf-recovery-request":  {ComponentID: "identity.component.recovery_request_form"},
+		"sf-recovery-confirm":  {ComponentID: "identity.component.recovery_confirm_form"},
 	}
 }
 

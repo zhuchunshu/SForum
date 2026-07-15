@@ -23,15 +23,7 @@ func TestAllCatalogThemeRendersPerformNoFilesystemIOAfterCompilation(t *testing.
 		"auth.forgot_password":    "sf-recovery-request",
 		"auth.reset_password":     "sf-recovery-confirm",
 	}
-	islands := map[string]themecompiler.IslandBinding{
-		"sf-topic-composer":    {ComponentID: "forum.component.topic_composer"},
-		"sf-profile-settings":  {ComponentID: "profile.component.settings_form"},
-		"sf-security-settings": {ComponentID: "identity.component.security_settings"},
-		"sf-login-form":        {ComponentID: "identity.component.login_form"},
-		"sf-register-form":     {ComponentID: "identity.component.register_form"},
-		"sf-recovery-request":  {ComponentID: "identity.component.recovery_request_form"},
-		"sf-recovery-confirm":  {ComponentID: "identity.component.recovery_confirm_form"},
-	}
+	islands := productionThemeIslandBindings()
 	files := fstest.MapFS{}
 	bindings := make(map[string]themecompiler.PageTemplateBinding, len(Catalog()))
 	for _, page := range Catalog() {

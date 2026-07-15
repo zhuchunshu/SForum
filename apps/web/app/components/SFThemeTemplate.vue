@@ -14,19 +14,42 @@ const props = defineProps<{
 }>()
 
 const { t } = useI18n()
+const slots = useSlots()
+
+// 受保护表单岛只决定核心页面在主题 HTML 中的位置，不接收凭证或会话 props。
+const HostPageIsland = defineComponent({
+  name: 'SFHostPageIsland',
+  setup() {
+    return () => slots.default?.() ?? []
+  }
+})
 
 // 该映射与 ThemeRuntimeSnapshot 的 reviewed Component Registry 对齐；L2 不在此表。
 const islandComponents: Record<string, Component> = {
   'forum.component.home_page': resolveComponent('SFHomePage') as Component,
   'navigation.component.navbar': resolveComponent('SFNavbar') as Component,
   'navigation.component.footer': resolveComponent('SFFooter') as Component,
-  'navigation.component.home': resolveComponent('SFHomeNavigation') as Component
+  'navigation.component.home': resolveComponent('SFHomeNavigation') as Component,
+  'forum.component.topic_composer': HostPageIsland,
+  'profile.component.settings_form': HostPageIsland,
+  'identity.component.security_settings': HostPageIsland,
+  'identity.component.login_form': HostPageIsland,
+  'identity.component.register_form': HostPageIsland,
+  'identity.component.recovery_request_form': HostPageIsland,
+  'identity.component.recovery_confirm_form': HostPageIsland
 }
 const legacyIslandBindings = {
   'sf-home-page': { componentId: 'forum.component.home_page' },
   'sf-navbar': { componentId: 'navigation.component.navbar' },
   'sf-footer': { componentId: 'navigation.component.footer' },
-  'sf-home-navigation': { componentId: 'navigation.component.home' }
+  'sf-home-navigation': { componentId: 'navigation.component.home' },
+  'sf-topic-composer': { componentId: 'forum.component.topic_composer' },
+  'sf-profile-settings': { componentId: 'profile.component.settings_form' },
+  'sf-security-settings': { componentId: 'identity.component.security_settings' },
+  'sf-login-form': { componentId: 'identity.component.login_form' },
+  'sf-register-form': { componentId: 'identity.component.register_form' },
+  'sf-recovery-request': { componentId: 'identity.component.recovery_request_form' },
+  'sf-recovery-confirm': { componentId: 'identity.component.recovery_confirm_form' }
 } as const
 const allowedComponents = new Set(Object.keys(islandComponents))
 
