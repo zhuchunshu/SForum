@@ -211,17 +211,21 @@ func verifiedProtocolV2ActorDelegation(claims *protocolV2ActorDelegationClaims) 
 func normalizeProtocolV2ActorDelegationRequest(request ProtocolV2ActorDelegationRequest) (ProtocolV2ActorDelegationRequest, error) {
 	request.CommandID = strings.TrimSpace(request.CommandID)
 	request.CommandVersion = strings.TrimSpace(request.CommandVersion)
-	if request.ActorUserID <= 0 || request.Runtime == nil ||
-		strings.TrimSpace(request.Runtime.GetExtensionId()) == "" || strings.TrimSpace(request.Runtime.GetExtensionVersion()) == "" ||
-		!protocolV2SHA256Hex(request.Runtime.GetArtifactDigest()) || strings.TrimSpace(request.Runtime.GetTrustGrantId()) == "" ||
-		request.Runtime.GetRuntimeEpoch() == 0 || request.Runtime.GetRuntimeEpoch() > math.MaxInt64 ||
-		strings.TrimSpace(request.Runtime.GetInstanceId()) == "" || len(request.Runtime.GetInstanceId()) > 512 ||
-		request.CommandID == "" || len(request.CommandID) > 200 || request.CommandVersion == "" || len(request.CommandVersion) > 64 ||
-		!validProtocolV2CommandIdempotencyKey(request.IdempotencyKey) {
+	if !validProtocolV2ActorDelegationBinding(request.ActorUserID, request.Runtime, request.IdempotencyKey) ||
+		request.CommandID == "" || len(request.CommandID) > 200 || request.CommandVersion == "" || len(request.CommandVersion) > 64 {
 		return ProtocolV2ActorDelegationRequest{}, ErrProtocolV2ActorDelegationInvalid
 	}
 	request.Runtime = cloneProtocolV2ExtensionIdentity(request.Runtime)
 	return request, nil
+}
+
+func validProtocolV2ActorDelegationBinding(actorUserID int64, runtime *protocolv2.ExtensionIdentity, idempotencyKey string) bool {
+	return actorUserID > 0 && runtime != nil &&
+		strings.TrimSpace(runtime.GetExtensionId()) != "" && strings.TrimSpace(runtime.GetExtensionVersion()) != "" &&
+		protocolV2SHA256Hex(runtime.GetArtifactDigest()) && strings.TrimSpace(runtime.GetTrustGrantId()) != "" &&
+		runtime.GetRuntimeEpoch() > 0 && runtime.GetRuntimeEpoch() <= math.MaxInt64 &&
+		strings.TrimSpace(runtime.GetInstanceId()) != "" && len(runtime.GetInstanceId()) <= 512 &&
+		validProtocolV2CommandIdempotencyKey(idempotencyKey)
 }
 
 func validateProtocolV2ActorDelegationClaims(

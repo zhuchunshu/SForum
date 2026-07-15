@@ -171,6 +171,21 @@ func (g *Gateway) ProtocolV2ActorDelegationIssuer() ProtocolV2ActorDelegationIss
 	return g.commands.delegations
 }
 
+// IssueProtocolV2ActorDelegations derives command scopes from the immutable
+// Host catalog instead of duplicating them in a route, controller, or manifest.
+func (g *Gateway) IssueProtocolV2ActorDelegations(
+	ctx context.Context,
+	request ProtocolV2ActorDelegationBundleRequest,
+) ([]ProtocolV2ActorDelegationGrant, error) {
+	if g == nil {
+		return nil, ErrProtocolV2ActorDelegationInvalid
+	}
+	g.mu.RLock()
+	commands := g.commands
+	g.mu.RUnlock()
+	return commands.issueProtocolV2ActorDelegations(ctx, request)
+}
+
 // NewGateway 创建未启动的网关；Start 后才监听。
 func NewGateway(service *Service) *Gateway {
 	return &Gateway{
