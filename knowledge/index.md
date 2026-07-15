@@ -174,7 +174,7 @@ This is the entry point for project memory.
     exposes process-local revisions. Migration 020 persists desired/node/ack
     convergence evidence. LISTEN reconnect, missed-notification polling, node
     acknowledgement, and two-node exact-artifact convergence are verified
-  - P9 is 4/16 (25%). The generated neutral `ComponentCatalog` contains 120
+  - P9 is 4/16 (25%). The generated neutral `ComponentCatalog` contains 121
     active public/admin Core component identities, with explicit
     page/component kind, ownership, contract, exact lookup, immutable copies,
     and collision/drift tests
