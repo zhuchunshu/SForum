@@ -574,7 +574,7 @@ query, and identity workflows without replacing whole routes.
 
 ### Tasks
 
-- [ ] Define versioned Page ViewModels for every catalog page, including actor/
+- [x] Define versioned Page ViewModels for every catalog page, including actor/
       permission state, route params, pagination, SEO, structured data, and
       safe rich-content fields, navigation trees, breadcrumbs, and region data.
 - [x] Implement Theme Compiler around `html/template` with restricted FuncMap,
@@ -611,10 +611,10 @@ query, and identity workflows without replacing whole routes.
       complete across the home, list, topic, profile, and plugin-page catalog.
 - [x] No theme disk I/O or provider DB query on the hot request path.
 
-The Page ViewModel row remains open after the 2026-07-15 audit. All 23 typed
-schemas and base projections exist, but production `BuildCorePageViewModel`
-still leaves most page-specific product fields empty. Schema presence alone is
-not complete product-data acceptance.
+The Page ViewModel row closed on 2026-07-16 after all 23 catalog contracts used
+real product projections and the isolated production API/Nitro matrix proved
+SSR, restart, concurrent activation, and JavaScript-disabled output. Schema
+presence alone was not credited before that production evidence passed.
 
 Exact plugin business-contract preservation was accepted in `cd1573d5a`.
 Lifecycle publication freezes one digest-bound plugin DTO/schema, theme

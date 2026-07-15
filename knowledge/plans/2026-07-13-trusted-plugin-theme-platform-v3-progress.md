@@ -1,8 +1,8 @@
 # Trusted Plugin And Theme Platform V3 Progress Ledger
 
-Date: 2026-07-15
-Overall progress: **57%**
-Active phase: **P5 - Database/commands closure (71%, 12 of 17 rows)**
+Date: 2026-07-16
+Overall progress: **58%**
+Active phase: **P9 - Components/assets/L2 (6% accepted; implementation ahead of accepted production exits)**
 
 This ledger is the durable percentage and context-compaction checkpoint for the
 V3 program. Update it before context compression, at every phase boundary, and
@@ -24,7 +24,7 @@ scaffolding, or demo-only code cannot satisfy a runtime exit criterion.
 | P5 Database/commands | 8% | 71% | 5.65% |
 | P6 Routes/middleware | 10% | 72% | 7.22% |
 | P7 Workflow/admin/query/identity | 10% | 59% | 5.91% |
-| P8 Theme compiler/runtime | 8% | 94% | 7.56% |
+| P8 Theme compiler/runtime | 8% | 100% | 8% |
 | P9 Components/assets/L2 | 8% | 6% | 0.50% |
 | P10 Content/media/data | 8% | 0% | 0% |
 | P11 Platform services | 6% | 0% | 0% |
@@ -1536,3 +1536,26 @@ phase percentage.
 - Next P5 work is the production entitlement Host Command binding, followed by
   the remaining concrete commands, physical exact-artifact raw-core grants, and
   their complete atomicity/compatibility evidence.
+
+## 2026-07-16 P8 Closure And P9 Runtime Checkpoint
+
+- Overall advances to **58%** after flooring. P8 is **18/18 (100%)** and earns
+  its full 8% weight. P9 remains **1/16 (6%) accepted** until production exits
+  close; its committed foundations do not yet justify crediting whole rows.
+- P8 passed the isolated fresh API/Nitro production matrix with three restarts,
+  exact theme switching, one concurrent winner, final recovery, all 23 product
+  Page ViewModels, JavaScript-disabled catalog output, and no residual process
+  or port 3000 interference.
+- `d64e9177b` and `57d1c2958` add atomic Component Registry lifecycle restore,
+  exact Host package identity, Safe Mode clearing, and one shared production
+  registry instance.
+- `867bdc6c3` preserves zero-challenge buildless L0/L1 theme activation while
+  requiring the actor-bound one-use exact-artifact flow for executable themes.
+- `92969a5f8` implements the package-local public L2 browser runtime with
+  immutable native ESM/CSS, digest checks, exact leases, cleanup, quarantine,
+  SSR fallback, and bounded failure timeouts. Full Web **353/353**, typecheck,
+  Page Registry offline validation, and the production build passed.
+- Resume from
+  `knowledge/sessions/2026-07-16-trusted-plugin-theme-platform-v3-p8-p9-progress.md`.
+  Do not enable the production L2 default before the upload-to-revoke E2E,
+  Component Registry descriptor admission, and scoped CSP response policy pass.

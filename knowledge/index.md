@@ -4,10 +4,11 @@ This is the entry point for project memory.
 
 ## Latest Handoff
 
-- **2026-07-15 Trusted Plugin And Theme Platform V3 P6/P7/P8/P9 active (overall 57%)**
+- **2026-07-16 Trusted Plugin And Theme Platform V3 P6/P7/P8/P9 active (overall 58%)**
   - Decision: `knowledge/decisions/2026-07-13-trusted-plugin-theme-platform-v3.md`
   - Task book: `knowledge/plans/2026-07-13-trusted-plugin-theme-platform-v3.md`
-  - Active handoff: `knowledge/sessions/2026-07-15-trusted-plugin-theme-platform-v3-p6-p8-progress.md`
+  - Active handoff: `knowledge/sessions/2026-07-16-trusted-plugin-theme-platform-v3-p8-p9-progress.md`
+  - Prior P6-P9 handoff: `knowledge/sessions/2026-07-15-trusted-plugin-theme-platform-v3-p6-p8-progress.md`
   - P8 handoff: `knowledge/sessions/2026-07-15-trusted-plugin-theme-platform-v3-p8-crawler-hotpath.md`
   - P8/P9 production checkpoint:
     `knowledge/sessions/2026-07-15-trusted-plugin-theme-platform-v3-p8-p9-production-checkpoint.md`
@@ -16,7 +17,7 @@ This is the entry point for project memory.
   - P0 catalogs and governance: `docs/extensions/v3/`
   - Decision contains the authoritative 27-row template comparison, 72-row
     plugin comparison, detailed architecture mind map, and boundary checklist
-  - P0 governance now tracks 99-row traceability, 227 routes, 120 UI surfaces,
+  - P0 governance now tracks 99-row traceability, 230 routes, 121 UI surfaces,
     33 admin surfaces, 19-module Extension Surface Matrix, stable identities,
     governance, migration gates, and performance baseline; CI rejects catalog drift
   - P1 completed exact-artifact one-use trust, delegated inert preview,
