@@ -24,6 +24,7 @@ services:
     environment:
       APP_URL: ${APP_URL:-https://forum.example.com}
       SFORUM_V3_TRUST_CHALLENGES: ${SFORUM_V3_TRUST_CHALLENGES:-true}
+      SFORUM_V3_PUBLIC_L2: ${SFORUM_V3_PUBLIC_L2:-false}
     restart: unless-stopped
 
   worker:

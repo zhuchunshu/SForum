@@ -120,6 +120,25 @@ func TestLoadDefaultsV3TrustChallengesByEnvironment(t *testing.T) {
 	}
 }
 
+func TestLoadDefaultsPublicL2ByEnvironment(t *testing.T) {
+	t.Setenv("APP_ENV", "development")
+	t.Setenv("SFORUM_V3_PUBLIC_L2", "")
+	if cfg := Load(); cfg.V3PublicL2 {
+		t.Fatal("expected development public L2 to remain disabled by default")
+	}
+
+	t.Setenv("APP_ENV", "production")
+	setValidProductionSecrets(t)
+	if cfg := Load(); cfg.V3PublicL2 {
+		t.Fatal("expected production public L2 to remain disabled before the P9 production gate")
+	}
+
+	t.Setenv("SFORUM_V3_PUBLIC_L2", "true")
+	if cfg := Load(); !cfg.V3PublicL2 {
+		t.Fatal("expected explicit public L2 opt-in to enable the migration slice")
+	}
+}
+
 func TestLoadParsesSafeMode(t *testing.T) {
 	t.Setenv("APP_ENV", "test")
 	t.Setenv("SFORUM_SAFE_MODE", "1")

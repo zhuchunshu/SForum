@@ -70,6 +70,7 @@ services:
       BUILTIN_EXTENSION_ROOT: /app/extensions/builtin
       SFORUM_V3_TRUST_CHALLENGES: ${SFORUM_V3_TRUST_CHALLENGES:-false}
       SFORUM_V3_TRUST_CHALLENGE_TTL: ${SFORUM_V3_TRUST_CHALLENGE_TTL:-5m}
+      SFORUM_V3_PUBLIC_L2: ${SFORUM_V3_PUBLIC_L2:-false}
     volumes:
       - attachment_uploads:/app/storage/app/attachments
       - extension_packages:/var/lib/sforum/extensions

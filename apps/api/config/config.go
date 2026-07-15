@@ -64,6 +64,8 @@ type Config struct {
 	SafeMode             bool
 	// V3TrustChallenges 在生产默认开启；非生产仍可显式开启以验证迁移流程。
 	V3TrustChallenges bool
+	// V3PublicL2 允许浏览器加载已授权精确制品中的预构建公开 ESM；Safe Mode 始终覆盖此开关。
+	V3PublicL2        bool
 	TrustChallengeTTL time.Duration
 	MeiliHost         string
 	MeiliMasterKey    string
@@ -174,6 +176,7 @@ func Load() Config {
 		BuiltinExtensionRoot:          env("BUILTIN_EXTENSION_ROOT", "../../extensions/builtin"),
 		SafeMode:                      envBool("SFORUM_SAFE_MODE", false),
 		V3TrustChallenges:             envBool("SFORUM_V3_TRUST_CHALLENGES", isProd),
+		V3PublicL2:                    envBool("SFORUM_V3_PUBLIC_L2", false),
 		TrustChallengeTTL:             envDuration("SFORUM_V3_TRUST_CHALLENGE_TTL", 5*time.Minute),
 		MeiliHost:                     env("MEILI_HOST", "http://meilisearch:7700"),
 		MeiliMasterKey:                env("MEILI_MASTER_KEY", "sforum-dev-meili-key"),
