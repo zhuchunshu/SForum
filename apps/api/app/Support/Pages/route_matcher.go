@@ -2,8 +2,10 @@ package pages
 
 import (
 	"fmt"
+	"net/url"
 	"sort"
 	"strings"
+	"unicode/utf8"
 )
 
 // 路由段类型（signature 用类型，不保留参数名）。
@@ -225,14 +227,26 @@ func matchSegments(segs []routeSegment, parts []string) (map[string]string, bool
 			if pi >= len(parts) || parts[pi] == "" {
 				return nil, false
 			}
-			params[seg.value] = parts[pi]
+			value, ok := decodeRouteParamPart(parts[pi], false)
+			if !ok {
+				return nil, false
+			}
+			params[seg.value] = value
 			si++
 			pi++
 		case segCatchAll:
 			if pi >= len(parts) {
 				return nil, false
 			}
-			params[seg.value] = strings.Join(parts[pi:], "/")
+			decoded := make([]string, 0, len(parts)-pi)
+			for _, part := range parts[pi:] {
+				value, ok := decodeRouteParamPart(part, true)
+				if !ok {
+					return nil, false
+				}
+				decoded = append(decoded, value)
+			}
+			params[seg.value] = strings.Join(decoded, "/")
 			si++
 			pi = len(parts)
 		default:
@@ -240,6 +254,14 @@ func matchSegments(segs []routeSegment, parts []string) (map[string]string, bool
 		}
 	}
 	return params, pi == len(parts) && si == len(segs)
+}
+
+func decodeRouteParamPart(value string, allowSlash bool) (string, bool) {
+	decoded, err := url.PathUnescape(value)
+	if err != nil || !utf8.ValidString(decoded) || (!allowSlash && strings.Contains(decoded, "/")) {
+		return "", false
+	}
+	return decoded, true
 }
 
 // SortCompiledRoutes 静态优先、参数次之、catch-all 最后；同分按 pattern 字典序保证稳定。
