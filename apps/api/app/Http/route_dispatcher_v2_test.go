@@ -25,6 +25,7 @@ func TestBufferedRouteStepInvokerSelectsV2WithOneAdmission(t *testing.T) {
 	if runtime.request.RouteID != "demo.route" || runtime.request.ContractVersion != "demo.route@1" ||
 		runtime.request.PathParameters["id"] != "41" || runtime.request.QueryParameters["page"] != "2" ||
 		runtime.request.Body["title"] != "hello" || runtime.request.Actor.UserID != 42 ||
+		runtime.request.IdempotencyKey != "route-request-42" ||
 		!reflect.DeepEqual(runtime.request.Actor.PermissionKeys, []string{"*", "topics.write"}) {
 		t.Fatalf("request = %#v", runtime.request)
 	}
@@ -58,6 +59,9 @@ func TestBufferedRouteStepInvokerV2RejectsAmbiguousOrUntypedInput(t *testing.T) 
 		{"JSON array", func(input *routes.RouteInvocation) { input.Request.Body = []byte(`[1,2]`) }},
 		{"JSON scalar", func(input *routes.RouteInvocation) { input.Request.Body = []byte(`true`) }},
 		{"body without schema", func(input *routes.RouteInvocation) { input.Step.RequestSchema = "" }},
+		{"repeated idempotency key", func(input *routes.RouteInvocation) {
+			input.Request.Headers["Idempotency-Key"] = []string{"one", "two"}
+		}},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -170,8 +174,11 @@ func routeDispatcherV2Invocation(commit *routes.RouteCommitObserver) routes.Rout
 		},
 		Request: routes.DispatchRequest{
 			Method: stdhttp.MethodPost, Path: "/demo/41", Query: "page=2",
-			Headers: stdhttp.Header{"Content-Type": {"application/json"}, "X-Test": {"value"}, "X-SForum-Forged": {"bad"}},
-			Body:    []byte(`{"title":"hello"}`), Params: map[string]string{"id": "41"},
+			Headers: stdhttp.Header{
+				"Content-Type": {"application/json"}, "Idempotency-Key": {"route-request-42"},
+				"X-Test": {"value"}, "X-SForum-Forged": {"bad"},
+			},
+			Body: []byte(`{"title":"hello"}`), Params: map[string]string{"id": "41"},
 			ActorID: 42, Authenticated: true, Permissions: map[string]bool{"topics.write": true, "*": true, "ignored": false},
 		},
 	}

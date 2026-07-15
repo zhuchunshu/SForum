@@ -10,8 +10,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
+	moderation "github.com/zhuchunshu/sforum/apps/api/app/Models/Moderation"
+	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
 	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
+	hostapi "github.com/zhuchunshu/sforum/apps/api/app/Support/HostAPI"
+	supportjobs "github.com/zhuchunshu/sforum/apps/api/app/Support/Jobs"
 	pluginv2sdk "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2"
 	pluginwire "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/plugin/v2"
 	protocolwire "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/protocol/v2"
@@ -50,6 +56,52 @@ func TestProtocolV2RouteAcrossRealSubprocessAndManagerAdmission(t *testing.T) {
 	}
 	if after, err := manager.InspectRuntimeInstance(snapshot.Identity); err != nil || after.Admission.ActiveTotal != 0 {
 		t.Fatalf("admission after call = %#v, %v", after, err)
+	}
+}
+
+func TestProtocolV2RouteDeliversHostSignedDelegationAcrossRealBroker(t *testing.T) {
+	pool := new(pgxpool.Pool)
+	authority, err := hostapi.NewProtocolV2ActorDelegationAuthority()
+	if err != nil {
+		t.Fatal(err)
+	}
+	commandRuntime, err := hostapi.NewPostgresProtocolV2CommandRuntime(hostapi.PostgresProtocolV2CommandRuntimeConfig{
+		Pool: pool, ActorDelegations: authority, Jobs: new(supportjobs.Dispatcher),
+		Moderation: moderation.NewPostgresStore(pool), AttachmentStatuses: protocolV2RouteAttachmentMutator{},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	gateway := hostapi.NewGateway(hostapi.New(hostapi.Config{}))
+	if err := gateway.BindProtocolV2CommandRuntime(commandRuntime); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = gateway.Close() })
+
+	extension := protocolV2RouteExtension(t)
+	starter := extensionsruntime.NewProtocolStarter(extensionsruntime.ProtocolStarterConfig{
+		HostAPI: gateway,
+		Trust:   staticRuntimeTrust{identity: extensions.RuntimeTrustIdentity{TrustGrantID: "41", ImpactDigest: "impact-41"}},
+	})
+	manager := extensionsruntime.NewManager(extensionsruntime.ManagerConfig{Starter: starter})
+	if err := manager.Start(context.Background(), extension); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = manager.Stop(context.Background(), extension) })
+	snapshot, lease, err := manager.AcquireActiveRuntimeCall(context.Background(), extension.ID, extensionsruntime.RuntimeCallRoute)
+	if err != nil {
+		t.Fatal(err)
+	}
+	request := protocolV2RouteE2ERequest()
+	request.Actor = extensionsruntime.NewProtocolV2RouteActor(42, true, map[string]bool{"user.manage": true})
+	request.IdempotencyKey = "real-route-request-42"
+	response, err := manager.InvokeRouteInstance(lease.Context, snapshot.Identity, request)
+	lease.Release()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if response.Body["delegatedPlan"] != true || response.Body["delegationCount"] != float64(1) {
+		t.Fatalf("delegated response = %#v", response)
 	}
 }
 
@@ -141,7 +193,7 @@ func TestProtocolV2RouteHelperProcess(t *testing.T) {
 
 type protocolV2RouteE2EServer struct{ *pluginv2sdk.Server }
 
-func (s *protocolV2RouteE2EServer) InvokeRoute(_ context.Context, request *pluginwire.RouteRequest) (*pluginwire.RouteResponse, error) {
+func (s *protocolV2RouteE2EServer) InvokeRoute(callCtx context.Context, request *pluginwire.RouteRequest) (*pluginwire.RouteResponse, error) {
 	ctx := request.GetContext()
 	if request.GetRouteId() == "runtime.v2.guard.owner" {
 		status := http.StatusNoContent
@@ -167,8 +219,39 @@ func (s *protocolV2RouteE2EServer) InvokeRoute(_ context.Context, request *plugi
 		}, nil
 	}
 	input := request.GetBody().GetValue().AsMap()
+	delegatedPlan := false
+	if len(ctx.GetHostCommandDelegations()) > 0 {
+		host, err := s.Host()
+		if err != nil {
+			return nil, err
+		}
+		value, err := structpb.NewStruct(map[string]any{"userId": "99", "status": "disabled"})
+		if err != nil {
+			return nil, err
+		}
+		command, err := host.DelegatedCommandRequest(ctx,
+			hostapi.CommandIdentityUserStatusSetID, hostapi.CommandIdentityUserStatusSetVersion,
+			&protocolwire.TypedDocument{
+				SchemaId:      hostapi.CommandIdentityUserStatusInputSchemaID,
+				SchemaVersion: hostapi.CommandIdentityUserStatusSchemaVersion, Value: value,
+			},
+		)
+		if err != nil {
+			return nil, err
+		}
+		command.ExpectedRevision = "0"
+		plan, err := host.Commands.Plan(callCtx, command)
+		if err != nil {
+			return nil, err
+		}
+		if plan.GetError() != nil || plan.GetPlanId() == "" {
+			return nil, errors.New("Host rejected the real actor delegation")
+		}
+		delegatedPlan = true
+	}
 	value, err := structpb.NewStruct(map[string]any{
 		"instance": ctx.GetExtension().GetInstanceId(), "actor": ctx.GetActor().GetUserId(), "title": input["title"],
+		"delegatedPlan": delegatedPlan, "delegationCount": len(ctx.GetHostCommandDelegations()),
 	})
 	if err != nil {
 		return nil, err
@@ -178,6 +261,17 @@ func (s *protocolV2RouteE2EServer) InvokeRoute(_ context.Context, request *plugi
 		Headers: []*protocolwire.Header{{Name: "X-Route-E2E", Values: []string{"ok"}}},
 		Body:    &protocolwire.TypedDocument{SchemaId: "runtime.v2.route.response", SchemaVersion: "1", Value: value},
 	}, nil
+}
+
+type protocolV2RouteAttachmentMutator struct{}
+
+func (protocolV2RouteAttachmentMutator) MutateProtocolV2AttachmentStatus(
+	context.Context,
+	pgx.Tx,
+	int64,
+	string,
+) (hostapi.ProtocolV2AttachmentStatusResult, error) {
+	return hostapi.ProtocolV2AttachmentStatusResult{}, errors.New("route delegation fixture does not execute attachment commands")
 }
 
 func protocolV2RouteResponseContext(request *protocolwire.RequestContext) *protocolwire.ResponseContext {
@@ -197,6 +291,13 @@ func protocolV2RouteExtension(t *testing.T) extensions.Extension {
 	}
 	extension.Manifest.Events = nil
 	extension.Manifest.Services = nil
+	extension.Manifest.Database = &extensions.ManifestDatabase{
+		ContractVersion: extension.ID + ".database@1",
+		Grants:          []string{extensionmanifest.DatabaseGrantHostCommands},
+		Retention: extensionmanifest.ManifestRetention{
+			OnDisable: "retain", OnUninstall: "retain",
+		},
+	}
 	extension.Manifest.Guards = []extensions.ManifestGuard{{
 		ID: "runtime.v2.guard.owner", ContractVersion: "runtime.v2.guard.owner@1", Kind: "custom",
 		Entry: "backend/guard", Digest: strings.Repeat("c", 64),

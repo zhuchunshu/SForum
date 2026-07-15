@@ -13,6 +13,7 @@ import (
 
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
 	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
+	hostapi "github.com/zhuchunshu/sforum/apps/api/app/Support/HostAPI"
 	pluginwire "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/plugin/v2"
 	protocolwire "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/protocol/v2"
 	"google.golang.org/grpc"
@@ -45,11 +46,17 @@ func TestProtocolV2RouteStreamCarriesExactContextAndBoundedChunks(t *testing.T) 
 			StatusCode: http.StatusCreated, Headers: []*protocolwire.Header{{Name: "X-Stream", Values: []string{"done"}}},
 		}}})
 	})
+	issuer := &recordingProtocolV2ActorDelegationIssuer{grants: []hostapi.ProtocolV2ActorDelegationGrant{{
+		CommandID: "sforum.stream.write", CommandVersion: "1", IdempotencyKey: "stream-request-42", Token: "stream-token",
+	}}}
+	client.delegations = issuer
+	client.hostCommands = true
 	stream, err := client.OpenRouteStreamContext(context.Background(), ProtocolV2RouteStreamRequest{
 		RouteID: "demo.stream", ContractVersion: "demo.stream@1", Method: http.MethodPost,
 		Path: "/stream?part=1", Mode: extensionmanifest.RouteModeStream,
-		Headers: http.Header{"X-Test": {"one", "two"}},
-		Actor:   NewProtocolV2RouteActor(42, true, map[string]bool{"stream.write": true}),
+		Headers:        http.Header{"X-Test": {"one", "two"}},
+		Actor:          NewProtocolV2RouteActor(42, true, map[string]bool{"stream.write": true}),
+		IdempotencyKey: "stream-request-42",
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -74,6 +81,9 @@ func TestProtocolV2RouteStreamCarriesExactContextAndBoundedChunks(t *testing.T) 
 	}
 	if receivedOpen.GetRouteId() != "demo.stream" || receivedOpen.GetContractVersion() != "demo.stream@1" ||
 		receivedOpen.GetPath() != "/stream?part=1" || receivedOpen.GetContext().GetActor().GetUserId() != 42 ||
+		receivedOpen.GetContext().GetIdempotencyKey() != "stream-request-42" ||
+		len(receivedOpen.GetContext().GetHostCommandDelegations()) != 1 ||
+		receivedOpen.GetContext().GetHostCommandDelegations()[0].GetToken() != "stream-token" || issuer.calls != 1 ||
 		!reflect.DeepEqual(receivedOpen.GetContext().GetActor().GetPermissionKeys(), []string{"stream.write"}) ||
 		len(receivedOpen.GetHeaders()) != 1 {
 		t.Fatalf("open=%#v", receivedOpen)

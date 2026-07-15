@@ -38,6 +38,10 @@ func (i *BufferedRouteStepInvoker) OpenStream(
 	if err != nil {
 		return routes.RouteStreamStart{}, err
 	}
+	idempotencyKey, err := exactProtocolV2RouteIdempotencyKey(input.Request.Headers)
+	if err != nil {
+		return routes.RouteStreamStart{}, err
+	}
 	if !snapshot.Active || snapshot.Identity != identity || snapshot.ExtensionVersion != artifact.ExtensionVersion ||
 		snapshot.ArtifactDigest != artifact.PackageDigest || strings.TrimSpace(snapshot.Target.BaseURL) != "" {
 		return routes.RouteStreamStart{}, ErrRouteRuntimeArtifact
@@ -61,7 +65,7 @@ func (i *BufferedRouteStepInvoker) OpenStream(
 		Method: input.Request.Method, Path: input.Request.Path, Headers: headers,
 		PathParameters: input.Request.Params, QueryParameters: query,
 		RequestSchema: input.Step.RequestSchema, ResponseSchema: input.Step.ResponseSchema,
-		Actor: actor,
+		Actor: actor, IdempotencyKey: idempotencyKey,
 	})
 	if err != nil {
 		lease.Release()
@@ -78,7 +82,8 @@ func (i *BufferedRouteStepInvoker) OpenStream(
 	stream, err := runtime.OpenRouteStreamInstance(lease.Context, identity, extensionsruntime.ProtocolV2RouteStreamRequest{
 		RouteID: input.Step.RouteID, ContractVersion: input.Step.ContractVersion,
 		Method: input.Request.Method, Path: requestTarget, Mode: input.Step.Mode,
-		Headers: headers, Actor: actor, Timeout: routeStreamTimeout(input.Step.TimeoutMS),
+		Headers: headers, Actor: actor, IdempotencyKey: idempotencyKey,
+		Timeout: routeStreamTimeout(input.Step.TimeoutMS),
 	})
 	if err != nil {
 		lease.Release()

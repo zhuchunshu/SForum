@@ -36,6 +36,7 @@ type ProtocolV2RouteStreamRequest struct {
 	Mode            string
 	Headers         http.Header
 	Actor           *ProtocolV2RouteActor
+	IdempotencyKey  string
 	CorrelationID   string
 	Timeout         time.Duration
 }
@@ -86,11 +87,10 @@ func (c *protocolV2Client) OpenRouteStreamContext(
 		timeout = DefaultProtocolV2RouteStreamTimeout
 	}
 	ctx, cancel := protocolV2Deadline(parent, timeout)
-	requestContext := c.requestContext(ctx, input.CorrelationID)
-	if input.Actor != nil {
-		requestContext.Actor = &protocolwire.Actor{
-			UserId: input.Actor.UserID, PermissionKeys: append([]string(nil), input.Actor.PermissionKeys...),
-		}
+	requestContext, err := c.invocationRequestContext(ctx, input.CorrelationID, input.Actor, input.IdempotencyKey)
+	if err != nil {
+		cancel()
+		return nil, err
 	}
 	raw, err := c.client.StreamRoute(ctx)
 	if err == nil {
@@ -120,6 +120,9 @@ func validateProtocolV2RouteStreamRequest(input ProtocolV2RouteStreamRequest) er
 	}
 	if input.Actor != nil && input.Actor.UserID <= 0 {
 		return fmt.Errorf("%w: authenticated actor id is invalid", ErrProtocolV2RouteStreamInvalid)
+	}
+	if input.IdempotencyKey != "" && !validProtocolV2InvocationIdempotencyKey(input.IdempotencyKey) {
+		return fmt.Errorf("%w: idempotency key is invalid", ErrProtocolV2RouteStreamInvalid)
 	}
 	return nil
 }

@@ -11,6 +11,7 @@ import (
 
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
 	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
+	hostapi "github.com/zhuchunshu/sforum/apps/api/app/Support/HostAPI"
 	pluginwire "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/plugin/v2"
 	protocolwire "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/protocol/v2"
 	"google.golang.org/grpc"
@@ -56,6 +57,87 @@ func TestProtocolV2RouteCarriesExactTypedRequestAndHostActor(t *testing.T) {
 	if client.requestContext(context.Background(), "ordinary").GetActor() != nil ||
 		NewProtocolV2RouteActor(42, false, map[string]bool{"*": true}) != nil {
 		t.Fatal("ordinary or anonymous context acquired actor authority")
+	}
+}
+
+func TestProtocolV2RouteCarriesCatalogIssuedActorDelegations(t *testing.T) {
+	var received *pluginwire.RouteRequest
+	client := newProtocolV2RouteTestClient(t, "runtime-1", func(_ context.Context, request *pluginwire.RouteRequest) (*pluginwire.RouteResponse, error) {
+		received = request
+		return protocolV2RouteTestResponse(request, map[string]any{"ok": true}), nil
+	})
+	issuer := &recordingProtocolV2ActorDelegationIssuer{grants: []hostapi.ProtocolV2ActorDelegationGrant{
+		{CommandID: "sforum.user.status", CommandVersion: "1", IdempotencyKey: "route-request-42", Token: "signed-token"},
+	}}
+	client.delegations = issuer
+	client.hostCommands = true
+	request := protocolV2RouteTestRequest()
+	request.Actor = NewProtocolV2RouteActor(42, true, map[string]bool{"user.manage": true})
+	request.IdempotencyKey = "route-request-42"
+	if _, err := client.InvokeRouteContext(context.Background(), request); err != nil {
+		t.Fatal(err)
+	}
+	if issuer.calls != 1 || issuer.request.ActorUserID != 42 || issuer.request.IdempotencyKey != request.IdempotencyKey ||
+		issuer.request.Runtime.GetInstanceId() != client.identity.GetInstanceId() ||
+		!reflect.DeepEqual(issuer.request.PermissionKeys, []string{"user.manage"}) {
+		t.Fatalf("issuer request = %#v", issuer.request)
+	}
+	delegations := received.GetContext().GetHostCommandDelegations()
+	if received.GetContext().GetIdempotencyKey() != request.IdempotencyKey || len(delegations) != 1 ||
+		delegations[0].GetCommandId() != "sforum.user.status" || delegations[0].GetToken() != "signed-token" {
+		t.Fatalf("route context = %#v", received.GetContext())
+	}
+
+	issuer.calls = 0
+	request.Actor = nil
+	if _, err := client.InvokeRouteContext(context.Background(), request); err != nil {
+		t.Fatal(err)
+	}
+	if issuer.calls != 0 {
+		t.Fatal("anonymous invocation acquired an actor delegation")
+	}
+	request.Actor = NewProtocolV2RouteActor(42, true, map[string]bool{"user.manage": true})
+	client.hostCommands = false
+	if _, err := client.InvokeRouteContext(context.Background(), request); err != nil {
+		t.Fatal(err)
+	}
+	if issuer.calls != 0 || len(received.GetContext().GetHostCommandDelegations()) != 0 {
+		t.Fatal("artifact without host_commands acquired an actor delegation")
+	}
+}
+
+func TestProtocolV2RouteRejectsUnavailableOrMalformedActorDelegations(t *testing.T) {
+	request := protocolV2RouteTestRequest()
+	request.Actor = NewProtocolV2RouteActor(42, true, map[string]bool{"user.manage": true})
+	request.IdempotencyKey = "route-request-42"
+	for _, test := range []struct {
+		name   string
+		issuer hostapi.ProtocolV2ActorDelegationBundleIssuer
+	}{
+		{name: "issuer unavailable"},
+		{name: "wrong key", issuer: &recordingProtocolV2ActorDelegationIssuer{grants: []hostapi.ProtocolV2ActorDelegationGrant{{
+			CommandID: "sforum.user.status", CommandVersion: "1", IdempotencyKey: "other", Token: "signed-token",
+		}}}},
+		{name: "duplicate command", issuer: &recordingProtocolV2ActorDelegationIssuer{grants: []hostapi.ProtocolV2ActorDelegationGrant{
+			{CommandID: "sforum.user.status", CommandVersion: "1", IdempotencyKey: "route-request-42", Token: "signed-one"},
+			{CommandID: "sforum.user.status", CommandVersion: "1", IdempotencyKey: "route-request-42", Token: "signed-two"},
+		}}},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			called := false
+			client := newProtocolV2RouteTestClient(t, "runtime-1", func(_ context.Context, request *pluginwire.RouteRequest) (*pluginwire.RouteResponse, error) {
+				called = true
+				return protocolV2RouteTestResponse(request, map[string]any{"ok": true}), nil
+			})
+			client.delegations = test.issuer
+			client.hostCommands = true
+			if _, err := client.InvokeRouteContext(context.Background(), request); !errors.Is(err, ErrProtocolV2ActorDelegationUnavailable) {
+				t.Fatalf("error = %v", err)
+			}
+			if called {
+				t.Fatal("malformed delegation reached the plugin")
+			}
+		})
 	}
 }
 
@@ -174,6 +256,22 @@ func TestProtocolV2FrozenRouteMatchesHeadAndGlobalMiddleware(t *testing.T) {
 type protocolV2RouteTestServer struct {
 	pluginwire.UnimplementedPluginRuntimeServiceServer
 	invoke func(context.Context, *pluginwire.RouteRequest) (*pluginwire.RouteResponse, error)
+}
+
+type recordingProtocolV2ActorDelegationIssuer struct {
+	request hostapi.ProtocolV2ActorDelegationBundleRequest
+	grants  []hostapi.ProtocolV2ActorDelegationGrant
+	err     error
+	calls   int
+}
+
+func (i *recordingProtocolV2ActorDelegationIssuer) IssueProtocolV2ActorDelegations(
+	_ context.Context,
+	request hostapi.ProtocolV2ActorDelegationBundleRequest,
+) ([]hostapi.ProtocolV2ActorDelegationGrant, error) {
+	i.calls++
+	i.request = request
+	return append([]hostapi.ProtocolV2ActorDelegationGrant(nil), i.grants...), i.err
 }
 
 func (s *protocolV2RouteTestServer) InvokeRoute(ctx context.Context, request *pluginwire.RouteRequest) (*pluginwire.RouteResponse, error) {

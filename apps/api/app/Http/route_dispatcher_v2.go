@@ -35,6 +35,10 @@ func (i *BufferedRouteStepInvoker) invokeProtocolV2(
 	}
 	headers := make(stdhttp.Header)
 	copyRouteRequestHeaders(headers, input.Request.Headers)
+	idempotencyKey, err := exactProtocolV2RouteIdempotencyKey(input.Request.Headers)
+	if err != nil {
+		return routes.RouteInvocationResult{}, err
+	}
 	evidence := &routeTransportEvidence{commit: input.Commit}
 	// A unary gRPC error cannot prove that the plugin did not receive the call.
 	// Fence fallback before dispatch so a crash cannot create a second writer.
@@ -48,6 +52,7 @@ func (i *BufferedRouteStepInvoker) invokeProtocolV2(
 		Actor: extensionsruntime.NewProtocolV2RouteActor(
 			input.Request.ActorID, input.Request.Authenticated, input.Request.Permissions,
 		),
+		IdempotencyKey: idempotencyKey,
 	})
 	if err != nil {
 		return evidence.result(), err
@@ -76,6 +81,18 @@ func (i *BufferedRouteStepInvoker) invokeProtocolV2(
 	result := evidence.result()
 	result.Response = &value
 	return result, nil
+}
+
+func exactProtocolV2RouteIdempotencyKey(headers stdhttp.Header) (string, error) {
+	values := headers.Values("Idempotency-Key")
+	switch len(values) {
+	case 0:
+		return "", nil
+	case 1:
+		return values[0], nil
+	default:
+		return "", fmt.Errorf("%w: exactly one Idempotency-Key is allowed", ErrRouteRuntimeTarget)
+	}
 }
 
 func exactProtocolV2RouteQuery(raw string) (map[string]string, error) {

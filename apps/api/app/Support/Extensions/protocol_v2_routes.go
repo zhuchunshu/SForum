@@ -62,6 +62,7 @@ type ProtocolV2RouteRequest struct {
 	Body            map[string]any
 	BodyPresent     bool
 	Actor           *ProtocolV2RouteActor
+	IdempotencyKey  string
 	CorrelationID   string
 	Timeout         time.Duration
 }
@@ -95,12 +96,9 @@ func (c *protocolV2Client) InvokeRouteContext(parent context.Context, input Prot
 	ctx, cancel := protocolV2Deadline(parent, timeout)
 	defer cancel()
 
-	requestContext := c.requestContext(ctx, input.CorrelationID)
-	if input.Actor != nil {
-		requestContext.Actor = &protocolv2.Actor{
-			UserId:         input.Actor.UserID,
-			PermissionKeys: append([]string(nil), input.Actor.PermissionKeys...),
-		}
+	requestContext, err := c.invocationRequestContext(ctx, input.CorrelationID, input.Actor, input.IdempotencyKey)
+	if err != nil {
+		return ProtocolV2RouteResponse{}, err
 	}
 	var body *protocolv2.TypedDocument
 	if input.BodyPresent {
@@ -172,6 +170,9 @@ func validateProtocolV2RouteRequest(input ProtocolV2RouteRequest) error {
 	}
 	if input.Actor != nil && input.Actor.UserID <= 0 {
 		return fmt.Errorf("%w: authenticated actor id is invalid", ErrProtocolV2RouteInvalid)
+	}
+	if input.IdempotencyKey != "" && !validProtocolV2InvocationIdempotencyKey(input.IdempotencyKey) {
+		return fmt.Errorf("%w: idempotency key is invalid", ErrProtocolV2RouteInvalid)
 	}
 	return nil
 }

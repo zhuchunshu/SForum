@@ -18,6 +18,8 @@ import (
 	"github.com/hashicorp/go-plugin"
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Capabilities"
+	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
+	hostapi "github.com/zhuchunshu/sforum/apps/api/app/Support/HostAPI"
 	supportjobs "github.com/zhuchunshu/sforum/apps/api/app/Support/Jobs"
 	pluginv2 "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/plugin/v2"
 	protocolv2 "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/protocol/v2"
@@ -59,6 +61,8 @@ type protocolV2ClientConfig struct {
 	token         []byte
 	instance      string
 	hostAPI       ProtocolV2HostRegistrar
+	delegations   hostapi.ProtocolV2ActorDelegationBundleIssuer
+	hostCommands  bool
 	hostBrokerID  uint32
 }
 
@@ -79,6 +83,8 @@ type protocolV2Client struct {
 	token         []byte
 	instance      string
 	hostBrokerID  uint32
+	delegations   hostapi.ProtocolV2ActorDelegationBundleIssuer
+	hostCommands  bool
 	serviceMu     sync.RWMutex
 	services      []*protocolv2.ServiceDescriptor
 	sequence      atomic.Uint64
@@ -114,6 +120,7 @@ func newProtocolV2Client(client pluginv2.PluginRuntimeServiceClient, config prot
 		guards:        cloneProtocolV2Guards(config.guards),
 		lifecycle:     cloneManifestLifecycle(config.lifecycle),
 		token:         append([]byte(nil), config.token...), instance: config.instance, hostBrokerID: config.hostBrokerID,
+		delegations: config.delegations, hostCommands: config.hostCommands,
 	}
 }
 
@@ -236,6 +243,8 @@ func (s *ProtocolStarter) protocolV2ClientConfig(
 		token:         token,
 		instance:      instanceID,
 		hostAPI:       protocolV2HostRegistrarFor(s.hostAPI),
+		delegations:   protocolV2ActorDelegationBundleIssuerFor(s.hostAPI),
+		hostCommands:  extensionmanifest.HasDatabaseGrant(extension.Manifest.Database, extensionmanifest.DatabaseGrantHostCommands),
 	}, nil
 }
 
@@ -295,6 +304,14 @@ func protocolV2HostRegistrarFor(registrar HostAPIRegistrar) ProtocolV2HostRegist
 		return nil
 	}
 	result, _ := registrar.(ProtocolV2HostRegistrar)
+	return result
+}
+
+func protocolV2ActorDelegationBundleIssuerFor(registrar HostAPIRegistrar) hostapi.ProtocolV2ActorDelegationBundleIssuer {
+	if registrar == nil {
+		return nil
+	}
+	result, _ := registrar.(hostapi.ProtocolV2ActorDelegationBundleIssuer)
 	return result
 }
 
