@@ -584,6 +584,45 @@ func TestServiceSyncBuiltinsStoresImmutableSnapshotIdentity(t *testing.T) {
 	}
 }
 
+func TestServiceSyncBuiltinsPreservesSelectedUploadedThemeAcrossRestart(t *testing.T) {
+	builtinRoot := t.TempDir()
+	themeRoot := filepath.Join(builtinRoot, "themes", "sforum-default")
+	defaultTheme := protectedBuiltinExtension(DefaultThemeID, TypeTheme)
+	if err := os.MkdirAll(themeRoot, 0o755); err != nil {
+		t.Fatalf("create builtin theme root: %v", err)
+	}
+	if err := writeManifest(themeRoot, defaultTheme.Manifest); err != nil {
+		t.Fatalf("write builtin theme manifest: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(themeRoot, "theme.json"), []byte(`{"pages":[]}`), 0o644); err != nil {
+		t.Fatalf("write builtin theme contract: %v", err)
+	}
+
+	selected := Extension{
+		ID: "operator.theme", Name: "Operator Theme", Version: "2.0.0", Type: TypeTheme,
+		Status: StatusEnabled, Source: SourceUploaded, PackageDigest: strings.Repeat("a", 64),
+		Manifest: Manifest{
+			ID: "operator.theme", Name: "Operator Theme", Version: "2.0.0",
+			Type: TypeTheme, SForumVersion: "^1.0.0",
+		},
+	}
+	store := &fakeExtensionStore{
+		items: map[string]Extension{selected.ID: selected}, activeThemeID: selected.ID,
+	}
+	service := NewServiceWithBuiltins(store, t.TempDir(), builtinRoot)
+
+	if _, err := service.SyncBuiltins(context.Background()); err != nil {
+		t.Fatalf("SyncBuiltins returned error: %v", err)
+	}
+	active, err := store.ActiveTheme(context.Background())
+	if err != nil || active.ID != selected.ID || store.activeThemeID != selected.ID {
+		t.Fatalf("selected theme changed during restart sync: active=%#v activeID=%q err=%v", active, store.activeThemeID, err)
+	}
+	if store.themePublicationRevision != 0 {
+		t.Fatalf("restart sync published an unexpected activation revision: %d", store.themePublicationRevision)
+	}
+}
+
 func TestServiceInstallArchiveValidatesRuntimeManifestDeclarations(t *testing.T) {
 	service := NewService(&fakeExtensionStore{}, t.TempDir())
 	actor := extensionManager()

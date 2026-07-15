@@ -125,6 +125,63 @@ func TestPostgresThemeRuntimeWatchersConvergeWithListenAndMissedNotificationPoll
 	}
 }
 
+func TestPostgresThemeRuntimeWatcherAppliesApprovedCoreReplacement(t *testing.T) {
+	fixture := newThemePublicationPGFixture(t, "approved-watcher")
+	defaultTheme := saveExactWatcherTheme(t, fixture, DefaultThemeID, "1.0.0", "/default")
+	current := fixture.activeTheme()
+	if _, err := fixture.store.ActivateThemeExact(
+		fixture.ctx, defaultTheme.ID, exactThemeActivationInput(current, defaultTheme, 72, false),
+	); err != nil {
+		t.Fatal(err)
+	}
+
+	registryStore := pages.NewPostgresStore(fixture.pool)
+	registry := pages.NewRegistry(registryStore)
+	if err := registry.RestoreBindings(fixture.ctx); err != nil {
+		t.Fatal(err)
+	}
+	runtimeRegistry := pages.NewThemeRuntimeRegistry()
+	adapter := NewPageRegistryAdapter(registry).WithThemeRuntime(runtimeRegistry, "SForum", []string{"zh-CN"})
+	service := NewServiceWithOptions(
+		fixture.store, t.TempDir(), "", LocalRuntimeManager{}, WithPageRegistry(adapter),
+	)
+	identity := ThemeRuntimeNodeIdentity{NodeID: "api-approved", BootID: "boot-approved"}
+	watcher, err := NewThemeRuntimeWatcher(fixture.store, service, nil, ThemeRuntimeWatcherConfig{
+		Identity: identity, LeaseDuration: time.Second, HeartbeatInterval: 100 * time.Millisecond,
+		PollInterval: 25 * time.Millisecond,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := watcher.Initialize(fixture.ctx); err != nil {
+		t.Fatalf("initialize approved watcher: %v", err)
+	}
+
+	actorID := fixture.addUser("approved-watcher")
+	target := saveExactWatcherTheme(t, fixture, fixture.prefix+".approved", "2.0.0", "/approved")
+	input := exactThemeActivationInput(defaultTheme, target, actorID, true)
+	activation, err := fixture.store.ActivateThemeExact(fixture.ctx, target.ID, input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := watcher.ReconcileOnce(fixture.ctx); err != nil {
+		t.Fatalf("apply approved publication: %v", err)
+	}
+	if !themeWatcherApplied(fixture, identity, activation.Publication.Revision) ||
+		!themeRuntimeArtifactIs(runtimeRegistry, target.ID, target.Version, target.PackageDigest) {
+		t.Fatal("approved exact runtime did not converge")
+	}
+	resolved, err := registry.Resolve(fixture.ctx, "forum.home")
+	if err != nil || resolved.Provider != target.ID || resolved.PackageDigest != target.PackageDigest {
+		t.Fatalf("approved provider=%#v err=%v", resolved, err)
+	}
+	binding, ok, err := registryStore.GetBinding(fixture.ctx, "forum.home")
+	if err != nil || !ok || binding.ExtensionID != target.ID || binding.ApprovedBy != actorID ||
+		binding.PackageDigest != target.PackageDigest {
+		t.Fatalf("approved binding=%#v ok=%t err=%v", binding, ok, err)
+	}
+}
+
 func saveExactWatcherTheme(
 	t *testing.T,
 	fixture *themePublicationPGFixture,

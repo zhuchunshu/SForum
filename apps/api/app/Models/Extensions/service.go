@@ -446,8 +446,19 @@ func (s *Service) SyncBuiltins(ctx context.Context) ([]Extension, error) {
 			return nil, err
 		}
 	}
-	if _, err := s.EnsureDefaultThemeActive(ctx); err != nil && !errors.Is(err, ErrExtensionNotFound) {
-		return nil, err
+	activeTheme, activeThemeErr := s.store.ActiveTheme(ctx)
+	switch {
+	case errors.Is(activeThemeErr, ErrExtensionNotFound):
+		if _, err := s.EnsureDefaultThemeActive(ctx); err != nil && !errors.Is(err, ErrExtensionNotFound) {
+			return nil, err
+		}
+	case activeThemeErr != nil:
+		return nil, activeThemeErr
+	case activeTheme.Source == SourceBuiltin && !activeBuiltinIDs[activeTheme.ID]:
+		// 仅当活动内置主题已经从发行包移除时回退默认主题；有效的运营选择必须跨重启保留。
+		if _, err := s.EnsureDefaultThemeActive(ctx); err != nil && !errors.Is(err, ErrExtensionNotFound) {
+			return nil, err
+		}
 	}
 	// 第一轮会保留仍活动但已从内置目录移除的主题；发布默认主题修复后再安全清理。
 	if len(activeBuiltinIDs) > 0 {
