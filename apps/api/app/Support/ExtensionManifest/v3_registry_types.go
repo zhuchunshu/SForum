@@ -53,16 +53,17 @@ type ManifestSchedule struct {
 }
 
 type ManifestComponent struct {
-	ID               string `json:"id"`
-	ContractVersion  string `json:"contractVersion"`
-	Action           string `json:"action"`
-	TargetID         string `json:"targetId,omitempty"`
-	Priority         int    `json:"priority,omitempty"`
-	SSRTemplate      string `json:"ssrTemplate,omitempty"`
-	L2Component      string `json:"l2Component,omitempty"`
-	PropsSchema      string `json:"propsSchema,omitempty"`
-	ResultSchema     string `json:"resultSchema,omitempty"`
-	ThemeOverrideKey string `json:"themeOverrideKey,omitempty"`
+	ID                    string `json:"id"`
+	ContractVersion       string `json:"contractVersion"`
+	Action                string `json:"action"`
+	TargetID              string `json:"targetId,omitempty"`
+	TargetContractVersion string `json:"targetContractVersion,omitempty"`
+	Priority              int    `json:"priority,omitempty"`
+	SSRTemplate           string `json:"ssrTemplate,omitempty"`
+	L2Component           string `json:"l2Component,omitempty"`
+	PropsSchema           string `json:"propsSchema,omitempty"`
+	ResultSchema          string `json:"resultSchema,omitempty"`
+	ThemeOverrideKey      string `json:"themeOverrideKey,omitempty"`
 }
 
 type ManifestTemplate struct {

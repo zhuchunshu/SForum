@@ -150,6 +150,7 @@ func normalizeV3Manifest(manifest *Manifest) {
 		item.ContractVersion = strings.TrimSpace(item.ContractVersion)
 		item.Action = strings.ToLower(strings.TrimSpace(item.Action))
 		item.TargetID = NormalizeID(item.TargetID)
+		item.TargetContractVersion = strings.TrimSpace(item.TargetContractVersion)
 		item.SSRTemplate = NormalizeID(item.SSRTemplate)
 		item.L2Component = NormalizeID(item.L2Component)
 		item.PropsSchema = strings.TrimSpace(item.PropsSchema)

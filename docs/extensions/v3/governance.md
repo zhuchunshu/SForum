@@ -14,10 +14,11 @@ Go route registration DSL is a small set of explicit Fiber `Group` and HTTP
 method calls, while current Go catalogs already generate events, providers,
 contributions, capabilities, and schedules. The catalog generator therefore
 uses Node's maintained standard `fs`/`path` APIs and a deliberately narrow
-registration parser, then fails CI on drift. Adding Babel, a Go AST bridge, or a
-new schema library would add dependency and license/security maintenance without
-improving the frozen P0 contract. Runtime Manifest V3 validation remains a P2
-JSON Schema responsibility, and Protocol v2 remains a P3 Protobuf responsibility.
+registration parser, plus Git history for append-only retired-ID enforcement,
+then fails CI on drift. Adding Babel, a Go AST bridge, or a new schema library
+would add dependency and license/security maintenance without improving the
+frozen P0 contract. Runtime Manifest V3 validation remains a P2 JSON Schema
+responsibility, and Protocol v2 remains a P3 Protobuf responsibility.
 
 ## Stable Identity Rules
 
@@ -50,7 +51,15 @@ Rules:
 5. Aliases and redirects point to a stable target ID; they do not create a
    second hidden identity for the same behavior.
 6. A removed ID remains reserved through the published LTS and deprecation
-   window. Reuse for unrelated behavior is forbidden.
+   window. Reuse for unrelated behavior is forbidden. UI removals retain a
+   `retired` identity row and append an exact ID/contract tombstone; catalog
+   validation compares that ledger with reachable full Git history. The
+   `docs/extensions/v3/catalog-retired-identities.json` ledger path is
+   immutable so history cannot be lost through a rename.
+7. Component target declarations bind both `targetId` and
+   `targetContractVersion`. Core targets must match the active Host catalog
+   exactly; cross-plugin targets are exact-resolved when the Component Registry
+   composes the package graph.
 
 The generated route and UI catalogs are the initial mapping. P2/P6/P9 may move
 the mapping into runtime registries, but must preserve these identities or add

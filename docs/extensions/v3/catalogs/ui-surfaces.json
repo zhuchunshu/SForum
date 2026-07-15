@@ -3,1011 +3,1264 @@
     "id": "core.component.admin.sfadmin_executable_trust_impact",
     "contractVersion": "sforum.component.admin.sfadmin_executable_trust_impact@1",
     "kind": "component",
-    "scope": "admin",
     "source": "apps/web/app/components/SFAdminExecutableTrustImpact.vue",
+    "owners": [
+      "admin"
+    ],
     "targetRegistry": "P7/P9 Admin and Component Registries"
   },
   {
     "id": "core.component.admin.sfadmin_extension_enable_dialog",
     "contractVersion": "sforum.component.admin.sfadmin_extension_enable_dialog@1",
     "kind": "component",
-    "scope": "admin",
     "source": "apps/web/app/components/SFAdminExtensionEnableDialog.vue",
+    "owners": [
+      "admin"
+    ],
     "targetRegistry": "P7/P9 Admin and Component Registries"
   },
   {
     "id": "core.component.admin.sfadmin_extension_lifecycle_dialog",
     "contractVersion": "sforum.component.admin.sfadmin_extension_lifecycle_dialog@1",
     "kind": "component",
-    "scope": "admin",
     "source": "apps/web/app/components/SFAdminExtensionLifecycleDialog.vue",
+    "owners": [
+      "admin"
+    ],
     "targetRegistry": "P7/P9 Admin and Component Registries"
   },
   {
     "id": "core.component.admin.sfadmin_extension_store_shelf",
     "contractVersion": "sforum.component.admin.sfadmin_extension_store_shelf@1",
     "kind": "component",
-    "scope": "admin",
     "source": "apps/web/app/components/admin/SFAdminExtensionStoreShelf.vue",
+    "owners": [
+      "admin"
+    ],
     "targetRegistry": "P7/P9 Admin and Component Registries"
   },
   {
     "id": "core.component.admin.sfadmin_extension_uninstall_dialog",
     "contractVersion": "sforum.component.admin.sfadmin_extension_uninstall_dialog@1",
     "kind": "component",
-    "scope": "admin",
     "source": "apps/web/app/components/SFAdminExtensionUninstallDialog.vue",
+    "owners": [
+      "admin"
+    ],
     "targetRegistry": "P7/P9 Admin and Component Registries"
   },
   {
     "id": "core.component.admin.sfadmin_footer",
     "contractVersion": "sforum.component.admin.sfadmin_footer@1",
     "kind": "component",
-    "scope": "admin",
     "source": "apps/web/app/components/SFAdminFooter.vue",
+    "owners": [
+      "admin"
+    ],
     "targetRegistry": "P7/P9 Admin and Component Registries"
   },
   {
     "id": "core.component.admin.sfadmin_form_footer",
     "contractVersion": "sforum.component.admin.sfadmin_form_footer@1",
     "kind": "component",
-    "scope": "admin",
     "source": "apps/web/app/components/SFAdminFormFooter.vue",
+    "owners": [
+      "admin"
+    ],
     "targetRegistry": "P7/P9 Admin and Component Registries"
   },
   {
     "id": "core.component.admin.sfadmin_frontend_trust_panel",
     "contractVersion": "sforum.component.admin.sfadmin_frontend_trust_panel@1",
     "kind": "component",
-    "scope": "admin",
     "source": "apps/web/app/components/SFAdminFrontendTrustPanel.vue",
+    "owners": [
+      "admin"
+    ],
     "targetRegistry": "P7/P9 Admin and Component Registries"
   },
   {
     "id": "core.component.admin.sfadmin_overview_trend_trio",
     "contractVersion": "sforum.component.admin.sfadmin_overview_trend_trio@1",
     "kind": "component",
-    "scope": "admin",
     "source": "apps/web/app/components/admin/SFAdminOverviewTrendTrio.vue",
+    "owners": [
+      "admin"
+    ],
     "targetRegistry": "P7/P9 Admin and Component Registries"
   },
   {
     "id": "core.component.admin.sfadmin_site_chrome_panel",
     "contractVersion": "sforum.component.admin.sfadmin_site_chrome_panel@1",
     "kind": "component",
-    "scope": "admin",
     "source": "apps/web/app/components/admin/SFAdminSiteChromePanel.vue",
+    "owners": [
+      "admin"
+    ],
     "targetRegistry": "P7/P9 Admin and Component Registries"
   },
   {
     "id": "core.component.admin.sfextension_settings_actions",
     "contractVersion": "sforum.component.admin.sfextension_settings_actions@1",
     "kind": "component",
-    "scope": "admin",
     "source": "apps/web/app/components/extensions/settings/SFExtensionSettingsActions.vue",
+    "owners": [
+      "admin"
+    ],
     "targetRegistry": "P7/P9 Admin and Component Registries"
   },
   {
     "id": "core.component.admin.sfextension_settings_callout",
     "contractVersion": "sforum.component.admin.sfextension_settings_callout@1",
     "kind": "component",
-    "scope": "admin",
     "source": "apps/web/app/components/extensions/settings/SFExtensionSettingsCallout.vue",
+    "owners": [
+      "admin"
+    ],
     "targetRegistry": "P7/P9 Admin and Component Registries"
   },
   {
     "id": "core.component.admin.sfextension_settings_field",
     "contractVersion": "sforum.component.admin.sfextension_settings_field@1",
     "kind": "component",
-    "scope": "admin",
     "source": "apps/web/app/components/extensions/settings/SFExtensionSettingsField.vue",
+    "owners": [
+      "admin"
+    ],
     "targetRegistry": "P7/P9 Admin and Component Registries"
   },
   {
     "id": "core.component.admin.sfextension_settings_group",
     "contractVersion": "sforum.component.admin.sfextension_settings_group@1",
     "kind": "component",
-    "scope": "admin",
     "source": "apps/web/app/components/extensions/settings/SFExtensionSettingsGroup.vue",
+    "owners": [
+      "admin"
+    ],
     "targetRegistry": "P7/P9 Admin and Component Registries"
   },
   {
     "id": "core.component.admin.sfextension_settings_renderer",
     "contractVersion": "sforum.component.admin.sfextension_settings_renderer@1",
     "kind": "component",
-    "scope": "admin",
     "source": "apps/web/app/components/extensions/settings/SFExtensionSettingsRenderer.vue",
+    "owners": [
+      "admin"
+    ],
     "targetRegistry": "P7/P9 Admin and Component Registries"
   },
   {
     "id": "core.component.admin.sfseocontent_types",
     "contractVersion": "sforum.component.admin.sfseocontent_types@1",
     "kind": "component",
-    "scope": "admin",
     "source": "apps/web/app/components/admin/seo/SFSEOContentTypes.vue",
+    "owners": [
+      "admin"
+    ],
     "targetRegistry": "P7/P9 Admin and Component Registries"
   },
   {
     "id": "core.component.admin.sfseoimage_picker",
     "contractVersion": "sforum.component.admin.sfseoimage_picker@1",
     "kind": "component",
-    "scope": "admin",
     "source": "apps/web/app/components/admin/seo/SFSEOImagePicker.vue",
+    "owners": [
+      "admin"
+    ],
     "targetRegistry": "P7/P9 Admin and Component Registries"
   },
   {
     "id": "core.component.admin.sfseosearch_appearance",
     "contractVersion": "sforum.component.admin.sfseosearch_appearance@1",
     "kind": "component",
-    "scope": "admin",
     "source": "apps/web/app/components/admin/seo/SFSEOSearchAppearance.vue",
+    "owners": [
+      "admin"
+    ],
     "targetRegistry": "P7/P9 Admin and Component Registries"
   },
   {
     "id": "core.component.admin.sftrusted_settings_component",
     "contractVersion": "sforum.component.admin.sftrusted_settings_component@1",
     "kind": "component",
-    "scope": "admin",
     "source": "apps/web/app/components/extensions/settings/SFTrustedSettingsComponent.vue",
+    "owners": [
+      "admin"
+    ],
     "targetRegistry": "P7/P9 Admin and Component Registries"
   },
   {
     "id": "core.component.page.admin",
     "contractVersion": "sforum.component.page.admin@1",
     "kind": "page",
-    "scope": "admin",
     "route": "/admin",
     "source": "apps/web/app/pages/admin/index.vue",
+    "owners": [
+      "admin"
+    ],
     "targetRegistry": "P7 Admin Surface Registry"
   },
   {
     "id": "core.component.page.admin.attachments",
     "contractVersion": "sforum.component.page.admin.attachments@1",
     "kind": "page",
-    "scope": "admin",
     "route": "/admin/attachments",
     "source": "apps/web/app/pages/admin/attachments.vue",
+    "owners": [
+      "admin"
+    ],
     "targetRegistry": "P7 Admin Surface Registry"
   },
   {
     "id": "core.component.page.admin.database",
     "contractVersion": "sforum.component.page.admin.database@1",
     "kind": "page",
-    "scope": "admin",
     "route": "/admin/database",
     "source": "apps/web/app/pages/admin/database.vue",
+    "owners": [
+      "admin"
+    ],
     "targetRegistry": "P7 Admin Surface Registry"
   },
   {
     "id": "core.component.page.admin.entity.meta",
     "contractVersion": "sforum.component.page.admin.entity.meta@1",
     "kind": "page",
-    "scope": "admin",
     "route": "/admin/entity-meta",
     "source": "apps/web/app/pages/admin/entity-meta.vue",
+    "owners": [
+      "admin"
+    ],
     "targetRegistry": "P7 Admin Surface Registry"
   },
   {
     "id": "core.component.page.admin.extensions",
     "contractVersion": "sforum.component.page.admin.extensions@1",
     "kind": "page",
-    "scope": "admin",
     "route": "/admin/extensions",
     "source": "apps/web/app/pages/admin/extensions/index.vue",
+    "owners": [
+      "admin"
+    ],
     "targetRegistry": "P7 Admin Surface Registry"
   },
   {
     "id": "core.component.page.admin.extensions.contributions",
     "contractVersion": "sforum.component.page.admin.extensions.contributions@1",
     "kind": "page",
-    "scope": "admin",
     "route": "/admin/extensions/contributions",
     "source": "apps/web/app/pages/admin/extensions/contributions.vue",
+    "owners": [
+      "admin"
+    ],
     "targetRegistry": "P7 Admin Surface Registry"
   },
   {
     "id": "core.component.page.admin.extensions.events",
     "contractVersion": "sforum.component.page.admin.extensions.events@1",
     "kind": "page",
-    "scope": "admin",
     "route": "/admin/extensions/events",
     "source": "apps/web/app/pages/admin/extensions/events.vue",
+    "owners": [
+      "admin"
+    ],
     "targetRegistry": "P7 Admin Surface Registry"
   },
   {
     "id": "core.component.page.admin.extensions.extension.id.pages.page.path",
     "contractVersion": "sforum.component.page.admin.extensions.extension.id.pages.page.path@1",
     "kind": "page",
-    "scope": "admin",
     "route": "/admin/extensions/:extensionId/pages/:pagePath*",
     "source": "apps/web/app/pages/admin/extensions/[extensionId]/pages/[...pagePath].vue",
+    "owners": [
+      "admin"
+    ],
     "targetRegistry": "P7 Admin Surface Registry"
   },
   {
     "id": "core.component.page.admin.extensions.pages",
     "contractVersion": "sforum.component.page.admin.extensions.pages@1",
     "kind": "page",
-    "scope": "admin",
     "route": "/admin/extensions/pages",
     "source": "apps/web/app/pages/admin/extensions/pages.vue",
+    "owners": [
+      "admin"
+    ],
     "targetRegistry": "P7 Admin Surface Registry"
   },
   {
     "id": "core.component.page.admin.extensions.plugins",
     "contractVersion": "sforum.component.page.admin.extensions.plugins@1",
     "kind": "page",
-    "scope": "admin",
     "route": "/admin/extensions/plugins",
     "source": "apps/web/app/pages/admin/extensions/plugins.vue",
+    "owners": [
+      "admin"
+    ],
     "targetRegistry": "P7 Admin Surface Registry"
   },
   {
     "id": "core.component.page.admin.extensions.provider.slots",
     "contractVersion": "sforum.component.page.admin.extensions.provider.slots@1",
     "kind": "page",
-    "scope": "admin",
     "route": "/admin/extensions/provider-slots",
     "source": "apps/web/app/pages/admin/extensions/provider-slots.vue",
+    "owners": [
+      "admin"
+    ],
     "targetRegistry": "P7 Admin Surface Registry"
   },
   {
     "id": "core.component.page.admin.extensions.route.providers",
     "contractVersion": "sforum.component.page.admin.extensions.route.providers@1",
     "kind": "page",
-    "scope": "admin",
     "route": "/admin/extensions/route-providers",
     "source": "apps/web/app/pages/admin/extensions/route-providers.vue",
+    "owners": [
+      "admin"
+    ],
     "targetRegistry": "P7 Admin Surface Registry"
   },
   {
     "id": "core.component.page.admin.extensions.settings",
     "contractVersion": "sforum.component.page.admin.extensions.settings@1",
     "kind": "page",
-    "scope": "admin",
     "route": "/admin/extensions/settings",
     "source": "apps/web/app/pages/admin/extensions/settings.vue",
+    "owners": [
+      "admin"
+    ],
     "targetRegistry": "P7 Admin Surface Registry"
   },
   {
     "id": "core.component.page.admin.extensions.store",
     "contractVersion": "sforum.component.page.admin.extensions.store@1",
     "kind": "page",
-    "scope": "admin",
     "route": "/admin/extensions/store",
     "source": "apps/web/app/pages/admin/extensions/store/index.vue",
+    "owners": [
+      "admin"
+    ],
     "targetRegistry": "P7 Admin Surface Registry"
   },
   {
     "id": "core.component.page.admin.extensions.store.plugins",
     "contractVersion": "sforum.component.page.admin.extensions.store.plugins@1",
     "kind": "page",
-    "scope": "admin",
     "route": "/admin/extensions/store/plugins",
     "source": "apps/web/app/pages/admin/extensions/store/plugins.vue",
+    "owners": [
+      "admin"
+    ],
     "targetRegistry": "P7 Admin Surface Registry"
   },
   {
     "id": "core.component.page.admin.extensions.store.themes",
     "contractVersion": "sforum.component.page.admin.extensions.store.themes@1",
     "kind": "page",
-    "scope": "admin",
     "route": "/admin/extensions/store/themes",
     "source": "apps/web/app/pages/admin/extensions/store/themes.vue",
+    "owners": [
+      "admin"
+    ],
     "targetRegistry": "P7 Admin Surface Registry"
   },
   {
     "id": "core.component.page.admin.extensions.themes",
     "contractVersion": "sforum.component.page.admin.extensions.themes@1",
     "kind": "page",
-    "scope": "admin",
     "route": "/admin/extensions/themes",
     "source": "apps/web/app/pages/admin/extensions/themes.vue",
+    "owners": [
+      "admin"
+    ],
     "targetRegistry": "P7 Admin Surface Registry"
   },
   {
     "id": "core.component.page.admin.forum.categories",
     "contractVersion": "sforum.component.page.admin.forum.categories@1",
     "kind": "page",
-    "scope": "admin",
     "route": "/admin/forum/categories",
     "source": "apps/web/app/pages/admin/forum/categories.vue",
+    "owners": [
+      "admin"
+    ],
     "targetRegistry": "P7 Admin Surface Registry"
   },
   {
     "id": "core.component.page.admin.forum.settings",
     "contractVersion": "sforum.component.page.admin.forum.settings@1",
     "kind": "page",
-    "scope": "admin",
     "route": "/admin/forum/settings",
     "source": "apps/web/app/pages/admin/forum/settings.vue",
+    "owners": [
+      "admin"
+    ],
     "targetRegistry": "P7 Admin Surface Registry"
   },
   {
     "id": "core.component.page.admin.forum.tags",
     "contractVersion": "sforum.component.page.admin.forum.tags@1",
     "kind": "page",
-    "scope": "admin",
     "route": "/admin/forum/tags",
     "source": "apps/web/app/pages/admin/forum/tags.vue",
+    "owners": [
+      "admin"
+    ],
     "targetRegistry": "P7 Admin Surface Registry"
   },
   {
     "id": "core.component.page.admin.jobs",
     "contractVersion": "sforum.component.page.admin.jobs@1",
     "kind": "page",
-    "scope": "admin",
     "route": "/admin/jobs",
     "source": "apps/web/app/pages/admin/jobs.vue",
+    "owners": [
+      "admin"
+    ],
     "targetRegistry": "P7 Admin Surface Registry"
   },
   {
     "id": "core.component.page.admin.moderation",
     "contractVersion": "sforum.component.page.admin.moderation@1",
     "kind": "page",
-    "scope": "admin",
     "route": "/admin/moderation",
     "source": "apps/web/app/pages/admin/moderation.vue",
+    "owners": [
+      "admin"
+    ],
     "targetRegistry": "P7 Admin Surface Registry"
   },
   {
     "id": "core.component.page.admin.permissions",
     "contractVersion": "sforum.component.page.admin.permissions@1",
     "kind": "page",
-    "scope": "admin",
     "route": "/admin/permissions",
     "source": "apps/web/app/pages/admin/permissions.vue",
+    "owners": [
+      "admin"
+    ],
     "targetRegistry": "P7 Admin Surface Registry"
   },
   {
     "id": "core.component.page.admin.personalization",
     "contractVersion": "sforum.component.page.admin.personalization@1",
     "kind": "page",
-    "scope": "admin",
     "route": "/admin/personalization",
     "source": "apps/web/app/pages/admin/personalization.vue",
+    "owners": [
+      "admin"
+    ],
     "targetRegistry": "P7 Admin Surface Registry"
   },
   {
     "id": "core.component.page.admin.roles",
     "contractVersion": "sforum.component.page.admin.roles@1",
     "kind": "page",
-    "scope": "admin",
     "route": "/admin/roles",
     "source": "apps/web/app/pages/admin/roles.vue",
+    "owners": [
+      "admin"
+    ],
     "targetRegistry": "P7 Admin Surface Registry"
   },
   {
     "id": "core.component.page.admin.schedules",
     "contractVersion": "sforum.component.page.admin.schedules@1",
     "kind": "page",
-    "scope": "admin",
     "route": "/admin/schedules",
     "source": "apps/web/app/pages/admin/schedules.vue",
+    "owners": [
+      "admin"
+    ],
     "targetRegistry": "P7 Admin Surface Registry"
   },
   {
     "id": "core.component.page.admin.search",
     "contractVersion": "sforum.component.page.admin.search@1",
     "kind": "page",
-    "scope": "admin",
     "route": "/admin/search",
     "source": "apps/web/app/pages/admin/search.vue",
+    "owners": [
+      "admin"
+    ],
     "targetRegistry": "P7 Admin Surface Registry"
   },
   {
     "id": "core.component.page.admin.seo",
     "contractVersion": "sforum.component.page.admin.seo@1",
     "kind": "page",
-    "scope": "admin",
     "route": "/admin/seo",
     "source": "apps/web/app/pages/admin/seo.vue",
+    "owners": [
+      "admin"
+    ],
     "targetRegistry": "P7 Admin Surface Registry"
   },
   {
     "id": "core.component.page.admin.settings",
     "contractVersion": "sforum.component.page.admin.settings@1",
     "kind": "page",
-    "scope": "admin",
     "route": "/admin/settings",
     "source": "apps/web/app/pages/admin/settings/index.vue",
+    "owners": [
+      "admin"
+    ],
     "targetRegistry": "P7 Admin Surface Registry"
   },
   {
     "id": "core.component.page.admin.settings.avatar",
     "contractVersion": "sforum.component.page.admin.settings.avatar@1",
     "kind": "page",
-    "scope": "admin",
     "route": "/admin/settings/avatar",
     "source": "apps/web/app/pages/admin/settings/avatar.vue",
+    "owners": [
+      "admin"
+    ],
     "targetRegistry": "P7 Admin Surface Registry"
   },
   {
     "id": "core.component.page.admin.settings.features",
     "contractVersion": "sforum.component.page.admin.settings.features@1",
     "kind": "page",
-    "scope": "admin",
     "route": "/admin/settings/features",
     "source": "apps/web/app/pages/admin/settings/features.vue",
+    "owners": [
+      "admin"
+    ],
     "targetRegistry": "P7 Admin Surface Registry"
   },
   {
     "id": "core.component.page.admin.settings.mail",
     "contractVersion": "sforum.component.page.admin.settings.mail@1",
     "kind": "page",
-    "scope": "admin",
     "route": "/admin/settings/mail",
     "source": "apps/web/app/pages/admin/settings/mail.vue",
+    "owners": [
+      "admin"
+    ],
     "targetRegistry": "P7 Admin Surface Registry"
   },
   {
     "id": "core.component.page.admin.site.chrome",
     "contractVersion": "sforum.component.page.admin.site.chrome@1",
     "kind": "page",
-    "scope": "admin",
     "route": "/admin/site-chrome",
     "source": "apps/web/app/pages/admin/site-chrome.vue",
+    "owners": [
+      "admin"
+    ],
     "targetRegistry": "P7 Admin Surface Registry"
   },
   {
     "id": "core.component.page.admin.users",
     "contractVersion": "sforum.component.page.admin.users@1",
     "kind": "page",
-    "scope": "admin",
     "route": "/admin/users",
     "source": "apps/web/app/pages/admin/users.vue",
+    "owners": [
+      "admin"
+    ],
     "targetRegistry": "P7 Admin Surface Registry"
   },
   {
     "id": "core.component.page.admin.webhooks",
     "contractVersion": "sforum.component.page.admin.webhooks@1",
     "kind": "page",
-    "scope": "admin",
     "route": "/admin/webhooks",
     "source": "apps/web/app/pages/admin/webhooks.vue",
+    "owners": [
+      "admin"
+    ],
     "targetRegistry": "P7 Admin Surface Registry"
   },
   {
     "id": "core.component.page.auth.forgot_password",
     "contractVersion": "sforum.component.page.auth.forgot_password@1",
     "kind": "page",
-    "scope": "public",
     "route": "/forgot-password",
     "source": "apps/web/app/pages/forgot-password.vue",
+    "owners": [
+      "public"
+    ],
     "targetRegistry": "P9 Component Registry"
   },
   {
     "id": "core.component.page.auth.login",
     "contractVersion": "sforum.component.page.auth.login@1",
     "kind": "page",
-    "scope": "public",
     "route": "/login",
     "source": "apps/web/app/pages/login.vue",
+    "owners": [
+      "public"
+    ],
     "targetRegistry": "P9 Component Registry"
   },
   {
     "id": "core.component.page.auth.register",
     "contractVersion": "sforum.component.page.auth.register@1",
     "kind": "page",
-    "scope": "public",
     "route": "/register",
     "source": "apps/web/app/pages/register.vue",
+    "owners": [
+      "public"
+    ],
     "targetRegistry": "P9 Component Registry"
   },
   {
     "id": "core.component.page.auth.reset_password",
     "contractVersion": "sforum.component.page.auth.reset_password@1",
     "kind": "page",
-    "scope": "public",
     "route": "/reset-password",
     "source": "apps/web/app/pages/reset-password.vue",
+    "owners": [
+      "public"
+    ],
     "targetRegistry": "P9 Component Registry"
   },
   {
     "id": "core.component.page.dev.components",
     "contractVersion": "sforum.component.page.dev.components@1",
     "kind": "page",
-    "scope": "public",
     "route": "/components",
     "source": "apps/web/app/pages/components.vue",
+    "owners": [
+      "public"
+    ],
     "targetRegistry": "P9 Component Registry"
   },
   {
     "id": "core.component.page.forum.category.index",
     "contractVersion": "sforum.component.page.forum.category.index@1",
     "kind": "page",
-    "scope": "public",
     "route": "/categories",
     "source": "apps/web/app/pages/categories/index.vue",
+    "owners": [
+      "public"
+    ],
     "targetRegistry": "P9 Component Registry"
   },
   {
     "id": "core.component.page.forum.category.show",
     "contractVersion": "sforum.component.page.forum.category.show@1",
     "kind": "page",
-    "scope": "public",
     "route": "/c/:categorySlug",
     "source": "apps/web/app/pages/c/[categorySlug].vue",
+    "owners": [
+      "public"
+    ],
     "targetRegistry": "P9 Component Registry"
   },
   {
     "id": "core.component.page.forum.home",
     "contractVersion": "sforum.component.page.forum.home@1",
     "kind": "page",
-    "scope": "public",
     "route": "/",
     "source": "apps/web/app/pages/index.vue",
+    "owners": [
+      "public"
+    ],
     "targetRegistry": "P9 Component Registry"
   },
   {
     "id": "core.component.page.forum.my.content_review",
     "contractVersion": "sforum.component.page.forum.my.content_review@1",
     "kind": "page",
-    "scope": "public",
     "route": "/my/content-review",
     "source": "apps/web/app/pages/my/content-review.vue",
+    "owners": [
+      "public"
+    ],
     "targetRegistry": "P9 Component Registry"
   },
   {
     "id": "core.component.page.forum.my.home",
     "contractVersion": "sforum.component.page.forum.my.home@1",
     "kind": "page",
-    "scope": "public",
     "route": "/my",
     "source": "apps/web/app/pages/my/index.vue",
+    "owners": [
+      "public"
+    ],
     "targetRegistry": "P9 Component Registry"
   },
   {
     "id": "core.component.page.forum.notifications",
     "contractVersion": "sforum.component.page.forum.notifications@1",
     "kind": "page",
-    "scope": "public",
     "route": "/notifications",
     "source": "apps/web/app/pages/notifications.vue",
+    "owners": [
+      "public"
+    ],
     "targetRegistry": "P9 Component Registry"
   },
   {
     "id": "core.component.page.forum.profile.show",
     "contractVersion": "sforum.component.page.forum.profile.show@1",
     "kind": "page",
-    "scope": "public",
     "route": "/u/:username",
     "source": "apps/web/app/pages/u/[username].vue",
+    "owners": [
+      "public"
+    ],
     "targetRegistry": "P9 Component Registry"
   },
   {
     "id": "core.component.page.forum.settings.profile",
     "contractVersion": "sforum.component.page.forum.settings.profile@1",
     "kind": "page",
-    "scope": "public",
     "route": "/settings/profile",
     "source": "apps/web/app/pages/settings/profile.vue",
+    "owners": [
+      "public"
+    ],
     "targetRegistry": "P9 Component Registry"
   },
   {
     "id": "core.component.page.forum.settings.security",
     "contractVersion": "sforum.component.page.forum.settings.security@1",
     "kind": "page",
-    "scope": "public",
     "route": "/settings/security",
     "source": "apps/web/app/pages/settings/security.vue",
+    "owners": [
+      "public"
+    ],
     "targetRegistry": "P9 Component Registry"
   },
   {
     "id": "core.component.page.forum.tag.index",
     "contractVersion": "sforum.component.page.forum.tag.index@1",
     "kind": "page",
-    "scope": "public",
     "route": "/tags",
     "source": "apps/web/app/pages/tags/index.vue",
+    "owners": [
+      "public"
+    ],
     "targetRegistry": "P9 Component Registry"
   },
   {
     "id": "core.component.page.forum.tag.show",
     "contractVersion": "sforum.component.page.forum.tag.show@1",
     "kind": "page",
-    "scope": "public",
     "route": "/tags/:tagSlug",
     "source": "apps/web/app/pages/tags/[tagSlug].vue",
+    "owners": [
+      "public"
+    ],
     "targetRegistry": "P9 Component Registry"
   },
   {
     "id": "core.component.page.forum.topic.create",
     "contractVersion": "sforum.component.page.forum.topic.create@1",
     "kind": "page",
-    "scope": "public",
     "route": "/topics/new",
     "source": "apps/web/app/pages/topics/new.vue",
+    "owners": [
+      "public"
+    ],
     "targetRegistry": "P9 Component Registry"
   },
   {
     "id": "core.component.page.forum.topic.show",
     "contractVersion": "sforum.component.page.forum.topic.show@1",
     "kind": "page",
-    "scope": "public",
     "route": "/t/:path*",
     "source": "apps/web/app/pages/t/[...path].vue",
+    "owners": [
+      "public"
+    ],
     "targetRegistry": "P9 Component Registry"
   },
   {
     "id": "core.component.page.moderation.review",
     "contractVersion": "sforum.component.page.moderation.review@1",
     "kind": "page",
-    "scope": "public",
     "route": "/moderation",
     "source": "apps/web/app/pages/moderation/index.vue",
+    "owners": [
+      "public"
+    ],
     "targetRegistry": "P9 Component Registry"
   },
   {
     "id": "core.component.page.sf.registry.page",
     "contractVersion": "sforum.component.page.sf.registry.page@1",
     "kind": "page",
-    "scope": "public",
     "route": "/:sfRegistryPage*",
     "source": "apps/web/app/pages/[...sfRegistryPage].vue",
+    "owners": [
+      "public"
+    ],
     "targetRegistry": "P9 Component Registry"
   },
   {
     "id": "core.component.page.site.guidelines",
     "contractVersion": "sforum.component.page.site.guidelines@1",
     "kind": "page",
-    "scope": "public",
     "route": "/guidelines",
     "source": "apps/web/app/pages/guidelines.vue",
+    "owners": [
+      "public"
+    ],
     "targetRegistry": "P9 Component Registry"
   },
   {
     "id": "core.component.page.site.privacy",
     "contractVersion": "sforum.component.page.site.privacy@1",
     "kind": "page",
-    "scope": "public",
     "route": "/privacy",
     "source": "apps/web/app/pages/privacy.vue",
+    "owners": [
+      "public"
+    ],
     "targetRegistry": "P9 Component Registry"
   },
   {
     "id": "core.component.page.site.terms",
     "contractVersion": "sforum.component.page.site.terms@1",
     "kind": "page",
-    "scope": "public",
     "route": "/terms",
     "source": "apps/web/app/pages/terms.vue",
+    "owners": [
+      "public"
+    ],
     "targetRegistry": "P9 Component Registry"
   },
   {
     "id": "core.component.page.x.path",
     "contractVersion": "sforum.component.page.x.path@1",
     "kind": "page",
-    "scope": "public",
     "route": "/x/:path*",
     "source": "apps/web/app/pages/x/[...path].vue",
+    "owners": [
+      "public"
+    ],
     "targetRegistry": "P9 Component Registry"
   },
   {
     "id": "core.component.shared.author_content_review_status",
     "contractVersion": "sforum.component.shared.author_content_review_status@1",
     "kind": "component",
-    "scope": "shared",
     "source": "apps/web/app/components/moderation/AuthorContentReviewStatus.vue",
+    "owners": [
+      "public"
+    ],
     "targetRegistry": "P9 Component Registry"
   },
   {
     "id": "core.component.shared.moderation_context_panel",
     "contractVersion": "sforum.component.shared.moderation_context_panel@1",
     "kind": "component",
-    "scope": "shared",
     "source": "apps/web/app/components/moderation/ModerationContextPanel.vue",
+    "owners": [
+      "public"
+    ],
     "targetRegistry": "P9 Component Registry"
   },
   {
     "id": "core.component.shared.moderation_decision_table",
     "contractVersion": "sforum.component.shared.moderation_decision_table@1",
     "kind": "component",
-    "scope": "shared",
     "source": "apps/web/app/components/moderation/ModerationDecisionTable.vue",
-    "targetRegistry": "P9 Component Registry"
+    "owners": [
+      "public",
+      "admin"
+    ],
+    "targetRegistry": "P7/P9 Admin and Component Registries"
   },
   {
     "id": "core.component.shared.moderation_queue_item",
     "contractVersion": "sforum.component.shared.moderation_queue_item@1",
     "kind": "component",
-    "scope": "shared",
     "source": "apps/web/app/components/moderation/ModerationQueueItem.vue",
+    "owners": [
+      "public"
+    ],
     "targetRegistry": "P9 Component Registry"
   },
   {
     "id": "core.component.shared.moderation_settings_form",
     "contractVersion": "sforum.component.shared.moderation_settings_form@1",
     "kind": "component",
-    "scope": "shared",
     "source": "apps/web/app/components/moderation/ModerationSettingsForm.vue",
-    "targetRegistry": "P9 Component Registry"
+    "owners": [
+      "admin"
+    ],
+    "targetRegistry": "P7/P9 Admin and Component Registries"
   },
   {
     "id": "core.component.shared.sfalert",
     "contractVersion": "sforum.component.shared.sfalert@1",
     "kind": "component",
-    "scope": "shared",
     "source": "apps/web/app/components/SFAlert.vue",
-    "targetRegistry": "P9 Component Registry"
+    "owners": [
+      "public",
+      "admin"
+    ],
+    "targetRegistry": "P7/P9 Admin and Component Registries"
   },
   {
     "id": "core.component.shared.sfannouncement_banner",
     "contractVersion": "sforum.component.shared.sfannouncement_banner@1",
     "kind": "component",
-    "scope": "shared",
     "source": "apps/web/app/components/SFAnnouncementBanner.vue",
+    "owners": [
+      "public"
+    ],
     "targetRegistry": "P9 Component Registry"
   },
   {
     "id": "core.component.shared.sfapi_connection_modal",
     "contractVersion": "sforum.component.shared.sfapi_connection_modal@1",
     "kind": "component",
-    "scope": "shared",
     "source": "apps/web/app/components/SFApiConnectionModal.vue",
-    "targetRegistry": "P9 Component Registry"
+    "owners": [
+      "public",
+      "admin"
+    ],
+    "targetRegistry": "P7/P9 Admin and Component Registries"
   },
   {
     "id": "core.component.shared.sfavatar",
     "contractVersion": "sforum.component.shared.sfavatar@1",
     "kind": "component",
-    "scope": "shared",
     "source": "apps/web/app/components/SFAvatar.vue",
-    "targetRegistry": "P9 Component Registry"
+    "owners": [
+      "public",
+      "admin"
+    ],
+    "targetRegistry": "P7/P9 Admin and Component Registries"
   },
   {
     "id": "core.component.shared.sfbadge",
     "contractVersion": "sforum.component.shared.sfbadge@1",
     "kind": "component",
-    "scope": "shared",
     "source": "apps/web/app/components/SFBadge.vue",
-    "targetRegistry": "P9 Component Registry"
+    "owners": [
+      "public",
+      "admin"
+    ],
+    "targetRegistry": "P7/P9 Admin and Component Registries"
   },
   {
     "id": "core.component.shared.sfbutton",
     "contractVersion": "sforum.component.shared.sfbutton@1",
     "kind": "component",
-    "scope": "shared",
     "source": "apps/web/app/components/SFButton.vue",
-    "targetRegistry": "P9 Component Registry"
+    "owners": [
+      "public",
+      "admin"
+    ],
+    "targetRegistry": "P7/P9 Admin and Component Registries"
   },
   {
     "id": "core.component.shared.sfcard",
     "contractVersion": "sforum.component.shared.sfcard@1",
     "kind": "component",
-    "scope": "shared",
     "source": "apps/web/app/components/SFCard.vue",
-    "targetRegistry": "P9 Component Registry"
+    "owners": [
+      "public",
+      "admin"
+    ],
+    "targetRegistry": "P7/P9 Admin and Component Registries"
   },
   {
     "id": "core.component.shared.sfcomment",
     "contractVersion": "sforum.component.shared.sfcomment@1",
     "kind": "component",
-    "scope": "shared",
     "source": "apps/web/app/components/SFComment.vue",
+    "owners": [
+      "public"
+    ],
     "targetRegistry": "P9 Component Registry"
   },
   {
     "id": "core.component.shared.sfcomment_stream_controls",
     "contractVersion": "sforum.component.shared.sfcomment_stream_controls@1",
     "kind": "component",
-    "scope": "shared",
     "source": "apps/web/app/components/SFCommentStreamControls.vue",
+    "owners": [
+      "public"
+    ],
     "targetRegistry": "P9 Component Registry"
   },
   {
     "id": "core.component.shared.sfeditor",
     "contractVersion": "sforum.component.shared.sfeditor@1",
     "kind": "component",
-    "scope": "shared",
     "source": "apps/web/app/components/SFEditor.vue",
+    "owners": [
+      "public"
+    ],
     "targetRegistry": "P9 Component Registry"
   },
   {
     "id": "core.component.shared.sfempty_state",
     "contractVersion": "sforum.component.shared.sfempty_state@1",
     "kind": "component",
-    "scope": "shared",
     "source": "apps/web/app/components/SFEmptyState.vue",
-    "targetRegistry": "P9 Component Registry"
+    "owners": [
+      "public",
+      "admin"
+    ],
+    "targetRegistry": "P7/P9 Admin and Component Registries"
   },
   {
     "id": "core.component.shared.sfextension_widget",
     "contractVersion": "sforum.component.shared.sfextension_widget@1",
     "kind": "component",
-    "scope": "shared",
     "source": "apps/web/app/components/SFExtensionWidget.vue",
+    "owners": [
+      "public"
+    ],
     "targetRegistry": "P9 Component Registry"
   },
   {
     "id": "core.component.shared.sffeed_row",
     "contractVersion": "sforum.component.shared.sffeed_row@1",
     "kind": "component",
-    "scope": "shared",
     "source": "apps/web/app/components/SFFeedRow.vue",
+    "owners": [
+      "public"
+    ],
     "targetRegistry": "P9 Component Registry"
   },
   {
     "id": "core.component.shared.sffooter",
     "contractVersion": "sforum.component.shared.sffooter@1",
     "kind": "component",
-    "scope": "shared",
     "source": "apps/web/app/components/SFFooter.vue",
+    "owners": [
+      "public"
+    ],
     "targetRegistry": "P9 Component Registry"
   },
   {
     "id": "core.component.shared.sfhome_navigation",
     "contractVersion": "sforum.component.shared.sfhome_navigation@1",
     "kind": "component",
-    "scope": "shared",
     "source": "apps/web/app/components/SFHomeNavigation.vue",
+    "owners": [
+      "public"
+    ],
     "targetRegistry": "P9 Component Registry"
   },
   {
     "id": "core.component.shared.sfhome_page",
     "contractVersion": "sforum.component.shared.sfhome_page@1",
     "kind": "component",
-    "scope": "shared",
     "source": "apps/web/app/components/SFHomePage.vue",
+    "owners": [
+      "public"
+    ],
     "targetRegistry": "P9 Component Registry"
   },
   {
     "id": "core.component.shared.sfhome_right_rail",
     "contractVersion": "sforum.component.shared.sfhome_right_rail@1",
     "kind": "component",
-    "scope": "shared",
     "source": "apps/web/app/components/SFHomeRightRail.vue",
+    "owners": [
+      "public"
+    ],
     "targetRegistry": "P9 Component Registry"
   },
   {
     "id": "core.component.shared.sfhome_topic_row",
     "contractVersion": "sforum.component.shared.sfhome_topic_row@1",
     "kind": "component",
-    "scope": "shared",
     "source": "apps/web/app/components/SFHomeTopicRow.vue",
+    "owners": [
+      "public"
+    ],
     "targetRegistry": "P9 Component Registry"
   },
   {
     "id": "core.component.shared.sficon_picker",
     "contractVersion": "sforum.component.shared.sficon_picker@1",
     "kind": "component",
-    "scope": "shared",
     "source": "apps/web/app/components/SFIconPicker.vue",
-    "targetRegistry": "P9 Component Registry"
+    "owners": [
+      "admin"
+    ],
+    "targetRegistry": "P7/P9 Admin and Component Registries"
   },
   {
     "id": "core.component.shared.sfinput",
     "contractVersion": "sforum.component.shared.sfinput@1",
     "kind": "component",
-    "scope": "shared",
     "source": "apps/web/app/components/SFInput.vue",
-    "targetRegistry": "P9 Component Registry"
+    "owners": [
+      "public",
+      "admin"
+    ],
+    "targetRegistry": "P7/P9 Admin and Component Registries"
   },
   {
     "id": "core.component.shared.sfnavbar",
     "contractVersion": "sforum.component.shared.sfnavbar@1",
     "kind": "component",
-    "scope": "shared",
     "source": "apps/web/app/components/SFNavbar.vue",
+    "owners": [
+      "public"
+    ],
     "targetRegistry": "P9 Component Registry"
   },
   {
     "id": "core.component.shared.sfpage_outlet",
     "contractVersion": "sforum.component.shared.sfpage_outlet@1",
     "kind": "component",
-    "scope": "shared",
     "source": "apps/web/app/components/SFPageOutlet.vue",
+    "owners": [
+      "public"
+    ],
     "targetRegistry": "P9 Component Registry"
   },
   {
     "id": "core.component.shared.sfpagination",
     "contractVersion": "sforum.component.shared.sfpagination@1",
     "kind": "component",
-    "scope": "shared",
     "source": "apps/web/app/components/SFPagination.vue",
-    "targetRegistry": "P9 Component Registry"
+    "owners": [
+      "public",
+      "admin"
+    ],
+    "targetRegistry": "P7/P9 Admin and Component Registries"
   },
   {
     "id": "core.component.shared.sfprogress",
     "contractVersion": "sforum.component.shared.sfprogress@1",
     "kind": "component",
-    "scope": "shared",
     "source": "apps/web/app/components/SFProgress.vue",
-    "targetRegistry": "P9 Component Registry"
+    "owners": [
+      "public",
+      "admin"
+    ],
+    "targetRegistry": "P7/P9 Admin and Component Registries"
   },
   {
     "id": "core.component.shared.sfreport_dialog",
     "contractVersion": "sforum.component.shared.sfreport_dialog@1",
     "kind": "component",
-    "scope": "shared",
     "source": "apps/web/app/components/SFReportDialog.vue",
+    "owners": [
+      "public"
+    ],
     "targetRegistry": "P9 Component Registry"
   },
   {
     "id": "core.component.shared.sfsearch",
     "contractVersion": "sforum.component.shared.sfsearch@1",
     "kind": "component",
-    "scope": "shared",
     "source": "apps/web/app/components/SFSearch.vue",
+    "owners": [
+      "public"
+    ],
     "targetRegistry": "P9 Component Registry"
   },
   {
     "id": "core.component.shared.sfskeleton",
     "contractVersion": "sforum.component.shared.sfskeleton@1",
     "kind": "component",
-    "scope": "shared",
     "source": "apps/web/app/components/SFSkeleton.vue",
-    "targetRegistry": "P9 Component Registry"
+    "owners": [
+      "public",
+      "admin"
+    ],
+    "targetRegistry": "P7/P9 Admin and Component Registries"
   },
   {
     "id": "core.component.shared.sftabs",
     "contractVersion": "sforum.component.shared.sftabs@1",
     "kind": "component",
-    "scope": "shared",
     "source": "apps/web/app/components/SFTabs.vue",
-    "targetRegistry": "P9 Component Registry"
+    "owners": [
+      "public",
+      "admin"
+    ],
+    "targetRegistry": "P7/P9 Admin and Component Registries"
   },
   {
     "id": "core.component.shared.sftheme_template",
     "contractVersion": "sforum.component.shared.sftheme_template@1",
     "kind": "component",
-    "scope": "shared",
     "source": "apps/web/app/components/SFThemeTemplate.vue",
+    "owners": [
+      "public"
+    ],
     "targetRegistry": "P9 Component Registry"
   },
   {
     "id": "core.component.shared.sftoast",
     "contractVersion": "sforum.component.shared.sftoast@1",
     "kind": "component",
-    "scope": "shared",
     "source": "apps/web/app/components/SFToast.vue",
-    "targetRegistry": "P9 Component Registry"
+    "owners": [
+      "public",
+      "admin"
+    ],
+    "targetRegistry": "P7/P9 Admin and Component Registries"
   },
   {
     "id": "core.component.shared.sftoggle",
     "contractVersion": "sforum.component.shared.sftoggle@1",
     "kind": "component",
-    "scope": "shared",
     "source": "apps/web/app/components/SFToggle.vue",
-    "targetRegistry": "P9 Component Registry"
+    "owners": [
+      "public",
+      "admin"
+    ],
+    "targetRegistry": "P7/P9 Admin and Component Registries"
   },
   {
     "id": "core.component.shared.sftopic_action_menu",
     "contractVersion": "sforum.component.shared.sftopic_action_menu@1",
     "kind": "component",
-    "scope": "shared",
     "source": "apps/web/app/components/SFTopicActionMenu.vue",
+    "owners": [
+      "public"
+    ],
     "targetRegistry": "P9 Component Registry"
   },
   {
     "id": "core.component.shared.sftopic_editor",
     "contractVersion": "sforum.component.shared.sftopic_editor@1",
     "kind": "component",
-    "scope": "shared",
     "source": "apps/web/app/components/SFTopicEditor.vue",
+    "owners": [
+      "public"
+    ],
     "targetRegistry": "P9 Component Registry"
   },
   {
     "id": "core.component.shared.sftopic_heading",
     "contractVersion": "sforum.component.shared.sftopic_heading@1",
     "kind": "component",
-    "scope": "shared",
     "source": "apps/web/app/components/SFTopicHeading.vue",
+    "owners": [
+      "public"
+    ],
     "targetRegistry": "P9 Component Registry"
   },
   {
     "id": "core.component.shared.sftopic_progress_rail",
     "contractVersion": "sforum.component.shared.sftopic_progress_rail@1",
     "kind": "component",
-    "scope": "shared",
     "source": "apps/web/app/components/SFTopicProgressRail.vue",
+    "owners": [
+      "public"
+    ],
     "targetRegistry": "P9 Component Registry"
   },
   {
     "id": "core.component.shared.sftopic_side_card",
     "contractVersion": "sforum.component.shared.sftopic_side_card@1",
     "kind": "component",
-    "scope": "shared",
     "source": "apps/web/app/components/SFTopicSideCard.vue",
+    "owners": [
+      "public"
+    ],
     "targetRegistry": "P9 Component Registry"
   }
 ]

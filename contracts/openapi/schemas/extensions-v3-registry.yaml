@@ -29,12 +29,20 @@ ExtensionManifestComponent:
       type: string
       enum: [add, before, after, wrap, replace, hide, filter_props, filter_result]
     targetId: { type: string }
+    targetContractVersion:
+      type: string
+      description: Required with targetId; Core targets must exactly match the Host catalog contract.
     priority: { type: integer }
     ssrTemplate: { type: string }
     l2Component: { type: string }
     propsSchema: { type: string }
     resultSchema: { type: string }
     themeOverrideKey: { type: string }
+  allOf:
+    - if: { required: [targetId] }
+      then: { required: [targetContractVersion] }
+    - if: { required: [targetContractVersion] }
+      then: { required: [targetId] }
 ExtensionManifestTemplate:
   type: object
   required: [id, contractVersion, action, path, digest, viewModelSchema]

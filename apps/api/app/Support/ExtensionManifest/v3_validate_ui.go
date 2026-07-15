@@ -1,6 +1,10 @@
 package extensionmanifest
 
-import "strings"
+import (
+	"strings"
+
+	componentcatalog "github.com/zhuchunshu/sforum/apps/api/app/Support/ComponentCatalog"
+)
 
 func (v *v3Validator) validateUIAndPackage() error {
 	packageFiles := map[string]ManifestPackageFile{}
@@ -125,6 +129,9 @@ func (v *v3Validator) validateUIAndPackage() error {
 			return err
 		}
 		if !validComponentAction(component.Action) || component.Action != ComponentActionAdd && component.TargetID == "" {
+			return ErrInvalidManifest
+		}
+		if !validComponentTarget(component.TargetID, component.TargetContractVersion, v.manifest.Type) {
 			return ErrInvalidManifest
 		}
 		if component.Action != ComponentActionHide && !validSchemaRef(component.PropsSchema) {
@@ -285,4 +292,21 @@ func validComponentAction(value string) bool {
 	default:
 		return false
 	}
+}
+
+func validComponentTarget(targetID string, targetContractVersion string, manifestType string) bool {
+	if targetID == "" {
+		return targetContractVersion == ""
+	}
+	if !manifestIDPattern.MatchString(targetID) || !contractVersionPattern.MatchString(targetContractVersion) {
+		return false
+	}
+	if !strings.HasPrefix(targetID, "core.") {
+		return true
+	}
+	if !strings.HasPrefix(targetID, "core.component.") {
+		return false
+	}
+	target, found := componentcatalog.FindCoreComponent(targetID)
+	return found && target.ContractVersion == targetContractVersion && (manifestType != TypeTheme || target.OwnedBy(componentcatalog.OwnerPublic))
 }

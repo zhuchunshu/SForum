@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs'
+import { spawnSync } from 'node:child_process'
 import { dirname, extname, join, relative, resolve } from 'node:path'
 import { buildTraceability } from './traceability.mjs'
 import { currentBackendSurfaces, extensionSurfaceMatrix, matrixFamilies } from './surfaces.mjs'
@@ -9,7 +10,17 @@ const root = resolve(import.meta.dirname, '../..')
 const check = process.argv.includes('--check')
 const bootstrapIdentities = process.argv.includes('--bootstrap-identities')
 const outputs = new Map()
-const identitiesPath = 'docs/extensions/v3/catalog-identities.json'
+const identitiesArgument = process.argv.find(argument => argument.startsWith('--identities='))
+const identitiesPath = identitiesArgument?.slice('--identities='.length) || 'docs/extensions/v3/catalog-identities.json'
+const retiredIdentitiesArgument = process.argv.find(argument => argument.startsWith('--retired-identities='))
+const retiredIdentitiesPath = retiredIdentitiesArgument?.slice('--retired-identities='.length) || 'docs/extensions/v3/catalog-retired-identities.json'
+const retiredCatalogArgument = process.argv.find(argument => argument.startsWith('--retired-catalog='))
+const retiredCatalogPath = retiredCatalogArgument?.slice('--retired-catalog='.length) || 'docs/extensions/v3/catalogs/ui-retired-identities.json'
+const retiredHistoryRootArgument = process.argv.find(argument => argument.startsWith('--retired-history-root='))
+const retiredHistoryRoot = retiredHistoryRootArgument?.slice('--retired-history-root='.length) || root
+const enforceRetiredHistory = !retiredIdentitiesArgument || Boolean(retiredHistoryRootArgument)
+const coreComponentIDPattern = /^core\.component\.[a-z0-9][a-z0-9._-]*$/
+const componentContractPattern = /^sforum\.component\.[a-z0-9][a-z0-9._-]*@[1-9][0-9]*$/
 
 function read(path) {
   return readFileSync(resolve(root, path), 'utf8')
@@ -296,25 +307,24 @@ function discoverUISurfaces() {
   const pageIDs = pageCatalogMap()
   const pages = walk('apps/web/app/pages', '.vue').map(source => {
     const route = routeFromPage(source)
-    const scope = source.includes('/pages/admin/') ? 'admin' : 'public'
+    const discoveredOwner = source.includes('/pages/admin/') ? 'admin' : 'public'
     const knownPageID = pageIDs.get(source)
     const name = knownPageID ? knownPageID : snake(route.replace(/^\//, '') || 'home').replaceAll('_', '.')
     return {
       id: `core.component.page.${name}`,
       contractVersion: `sforum.component.page.${name}@1`,
-      kind: 'page', scope, route, source,
-      targetRegistry: scope === 'admin' ? 'P7 Admin Surface Registry' : 'P9 Component Registry'
+      kind: 'page', discoveredOwner, route, source
     }
   })
   const components = walk('apps/web/app/components', '.vue').map(source => {
     const filename = source.split('/').at(-1).replace(/\.vue$/, '')
-    const scope = source.includes('/components/admin/') || source.includes('/components/extensions/settings/') || filename.startsWith('SFAdmin') ? 'admin' : 'shared'
+    const discoveredOwner = source.includes('/components/admin/') || source.includes('/components/extensions/settings/') || filename.startsWith('SFAdmin') ? 'admin' : ''
+    const namespace = discoveredOwner || 'shared'
     const name = snake(filename)
     return {
-      id: `core.component.${scope}.${name}`,
-      contractVersion: `sforum.component.${scope}.${name}@1`,
-      kind: 'component', scope, source,
-      targetRegistry: scope === 'admin' ? 'P7/P9 Admin and Component Registries' : 'P9 Component Registry'
+      id: `core.component.${namespace}.${name}`,
+      contractVersion: `sforum.component.${namespace}.${name}@1`,
+      kind: 'component', discoveredOwner, source
     }
   })
   return [...pages, ...components].sort((a, b) => a.id.localeCompare(b.id))
@@ -322,10 +332,159 @@ function discoverUISurfaces() {
 
 function stableIdentityDocument(routes, ui) {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     routes: routes.map(({ id, contractVersion, method, path }) => ({ id, contractVersion, method, path })),
-    ui: ui.map(({ id, contractVersion, source }) => ({ id, contractVersion, source }))
+    ui: ui.map(({ id, contractVersion, kind, discoveredOwner, source }) => ({
+      id,
+      contractVersion,
+      kind,
+      // Empty ownership is deliberate: newly discovered shared components need human review.
+      owners: discoveredOwner ? [discoveredOwner] : [],
+      state: 'active',
+      source
+    }))
   }
+}
+
+function reviewedIdentityMap(items, key, label) {
+  if (!Array.isArray(items)) throw new Error(`stable identity map ${label} must be an array`)
+  const result = new Map()
+  for (const item of items) {
+    const value = key(item)
+    if (!value) throw new Error(`stable identity map ${label} contains an empty identity`)
+    if (result.has(value)) throw new Error(`stable identity map ${label} contains duplicate ${value}`)
+    result.set(value, item)
+  }
+  return result
+}
+
+function loadHistoricalRetiredUI(ledgerAbsolute) {
+  if (!enforceRetiredHistory) return []
+  const historyRoot = resolve(retiredHistoryRoot)
+  const ledgerPath = relative(historyRoot, ledgerAbsolute)
+  if (ledgerPath.startsWith('..') || ledgerPath === '') {
+    throw new Error(`retired identity ledger is outside history root: ${ledgerAbsolute}`)
+  }
+  const shallow = spawnSync('git', ['rev-parse', '--is-shallow-repository'], { cwd: historyRoot, encoding: 'utf8' })
+  if (shallow.status !== 0) throw new Error('retired identity append-only validation requires a Git worktree')
+  if (shallow.stdout.trim() === 'true') {
+    throw new Error('retired identity append-only validation requires full Git history; fetch the shallow clone before checking catalogs')
+  }
+  const renames = spawnSync('git', ['log', '--format=', '--name-status', '--follow', '--find-renames', '--', ledgerPath], { cwd: historyRoot, encoding: 'utf8' })
+  if (renames.status !== 0) throw new Error(renames.stderr || 'cannot inspect retired identity ledger renames')
+  if (/^R[0-9]+\t/m.test(renames.stdout)) {
+    throw new Error(`retired identity ledger path is immutable and was renamed: ${ledgerPath}`)
+  }
+  const log = spawnSync('git', ['log', '--format=%H', '--', ledgerPath], { cwd: historyRoot, encoding: 'utf8' })
+  if (log.status !== 0) throw new Error(log.stderr || 'cannot read retired identity history')
+
+  const byID = new Map()
+  const byContract = new Map()
+  for (const revision of log.stdout.trim().split('\n').filter(Boolean)) {
+    const shown = spawnSync('git', ['show', `${revision}:${ledgerPath}`], { cwd: historyRoot, encoding: 'utf8' })
+    if (shown.status !== 0) {
+      throw new Error(`immutable retired identity ledger is unreadable at revision ${revision}: ${ledgerPath}`)
+    }
+    const document = JSON.parse(shown.stdout)
+    if (document.schemaVersion !== 1 || !Array.isArray(document.ui)) {
+      throw new Error(`revision ${revision} has an invalid retired identity ledger`)
+    }
+    for (const item of document.ui) {
+      if (!coreComponentIDPattern.test(item.id) || !componentContractPattern.test(item.contractVersion)) {
+        throw new Error(`revision ${revision} has an invalid retired identity ${item.id}`)
+      }
+      const priorID = byID.get(item.id)
+      const priorContract = byContract.get(item.contractVersion)
+      if (priorID && priorID.contractVersion !== item.contractVersion || priorContract && priorContract.id !== item.id) {
+        throw new Error(`retired identity history conflicts at ${item.id} / ${item.contractVersion}`)
+      }
+      byID.set(item.id, item)
+      byContract.set(item.contractVersion, item)
+    }
+  }
+  return [...byID.values()]
+}
+
+function validateStableIdentities(identities, retiredIdentities, historicalRetiredUI) {
+  if (identities.schemaVersion !== 2) throw new Error('unsupported V3 catalog identity schema')
+  if (retiredIdentities.schemaVersion !== 1 || !Array.isArray(retiredIdentities.ui)) {
+    throw new Error('unsupported V3 retired catalog identity schema')
+  }
+
+  const routeMap = reviewedIdentityMap(identities.routes, item => `${item.method} ${item.path}`, 'route method/path')
+  reviewedIdentityMap(identities.routes, item => item.id, 'route ids')
+  reviewedIdentityMap(identities.routes, item => item.contractVersion, 'route contracts')
+  reviewedIdentityMap(identities.ui, item => item.id, 'UI ids')
+  reviewedIdentityMap(identities.ui, item => item.contractVersion, 'UI contracts')
+  const activeUI = identities.ui.filter(item => item.state === 'active')
+  const retiredUI = identities.ui.filter(item => item.state === 'retired')
+  const uiMap = reviewedIdentityMap(activeUI, item => item.source, 'active UI sources')
+  const retiredUIByID = reviewedIdentityMap(retiredUI, item => item.id, 'retired UI ids')
+  const tombstonesByID = reviewedIdentityMap(retiredIdentities.ui, item => item.id, 'retired UI tombstone ids')
+  const tombstonesByContract = reviewedIdentityMap(retiredIdentities.ui, item => item.contractVersion, 'retired UI tombstone contracts')
+
+  for (const item of identities.ui) {
+    if (!coreComponentIDPattern.test(item.id)) {
+      throw new Error(`stable UI identity has invalid id ${item.id}`)
+    }
+    if (!componentContractPattern.test(item.contractVersion)) {
+      throw new Error(`stable UI identity ${item.id} has invalid contract ${item.contractVersion}`)
+    }
+    if (!['active', 'retired'].includes(item.state)) {
+      throw new Error(`stable UI identity ${item.id} has invalid state ${item.state}`)
+    }
+    if (!['page', 'component'].includes(item.kind)) {
+      throw new Error(`stable UI identity ${item.id} has invalid kind ${item.kind}`)
+    }
+    if (!Array.isArray(item.owners) || item.owners.length === 0) {
+      throw new Error(`stable UI identity ${item.id} needs explicit public/admin ownership`)
+    }
+    const owners = ['public', 'admin'].filter(owner => item.owners.includes(owner))
+    if (owners.length !== item.owners.length || owners.some((owner, index) => owner !== item.owners[index])) {
+      throw new Error(`stable UI identity ${item.id} has invalid or non-canonical owners`)
+    }
+    if (item.kind === 'page' && item.owners.length !== 1) {
+      throw new Error(`stable page identity ${item.id} must have exactly one owner`)
+    }
+    if (item.state === 'active' && (typeof item.source !== 'string' || item.source === '')) {
+      throw new Error(`active stable UI identity ${item.id} needs a source`)
+    }
+    if (item.state === 'retired' && item.source !== undefined && (typeof item.source !== 'string' || item.source === '')) {
+      throw new Error(`retired stable UI identity ${item.id} has an invalid historical source`)
+    }
+  }
+  for (const tombstone of retiredIdentities.ui) {
+    if (!coreComponentIDPattern.test(tombstone.id) || !componentContractPattern.test(tombstone.contractVersion)) {
+      throw new Error(`retired UI tombstone has invalid identity ${tombstone.id} / ${tombstone.contractVersion}`)
+    }
+  }
+  for (const historical of historicalRetiredUI) {
+    const current = tombstonesByID.get(historical.id)
+    if (!current || current.contractVersion !== historical.contractVersion) {
+      throw new Error(`append-only retired UI tombstone was deleted or changed: ${historical.id} / ${historical.contractVersion}`)
+    }
+  }
+  for (const item of activeUI) {
+    if (tombstonesByID.has(item.id)) {
+      throw new Error(`active UI identity ${item.id} reuses a retired id`)
+    }
+    if (tombstonesByContract.has(item.contractVersion)) {
+      throw new Error(`active UI identity ${item.id} reuses retired contract ${item.contractVersion}`)
+    }
+  }
+  for (const item of retiredUI) {
+    const tombstone = tombstonesByID.get(item.id)
+    if (!tombstone || tombstone.contractVersion !== item.contractVersion) {
+      throw new Error(`retired UI identity ${item.id} needs an exact append-only tombstone`)
+    }
+  }
+  for (const tombstone of retiredIdentities.ui) {
+    const item = retiredUIByID.get(tombstone.id)
+    if (!item || item.contractVersion !== tombstone.contractVersion) {
+      throw new Error(`retired UI tombstone ${tombstone.id} is missing its retired identity row`)
+    }
+  }
+  return { routeMap, uiMap }
 }
 
 function applyStableIdentities(routes, ui) {
@@ -338,9 +497,13 @@ function applyStableIdentities(routes, ui) {
     writeFileSync(absolute, `${JSON.stringify(stableIdentityDocument(routes, ui), null, 2)}\n`)
   }
   const identities = JSON.parse(readFileSync(absolute, 'utf8'))
-  if (identities.schemaVersion !== 1) throw new Error('unsupported V3 catalog identity schema')
-  const routeMap = new Map(identities.routes.map(item => [`${item.method} ${item.path}`, item]))
-  const uiMap = new Map(identities.ui.map(item => [item.source, item]))
+  const retiredAbsolute = resolve(root, retiredIdentitiesPath)
+  if (!existsSync(retiredAbsolute)) {
+    throw new Error(`missing reviewed retired identity ledger: ${retiredIdentitiesPath}`)
+  }
+  const retiredIdentities = JSON.parse(readFileSync(retiredAbsolute, 'utf8'))
+  const historicalRetiredUI = loadHistoricalRetiredUI(retiredAbsolute)
+  const { routeMap, uiMap } = validateStableIdentities(identities, retiredIdentities, historicalRetiredUI)
   const seenRoutes = new Set()
   const seenUI = new Set()
   for (const route of routes) {
@@ -354,8 +517,21 @@ function applyStableIdentities(routes, ui) {
   for (const item of ui) {
     const identity = uiMap.get(item.source)
     if (!identity) throw new Error(`new or moved UI surface needs a reviewed stable identity mapping: ${item.source}`)
+    if (identity.kind !== item.kind) {
+      throw new Error(`stable UI identity kind drift for ${item.source}: reviewed ${identity.kind}, discovered ${item.kind}`)
+    }
+    if (item.discoveredOwner && !identity.owners.includes(item.discoveredOwner)) {
+      throw new Error(`stable UI identity ownership drift for ${item.source}: discovered ${item.discoveredOwner}, reviewed ${identity.owners.join(',')}`)
+    }
     item.id = identity.id
     item.contractVersion = identity.contractVersion
+    item.owners = [...identity.owners]
+    item.targetRegistry = item.kind === 'page' && item.owners[0] === 'admin'
+      ? 'P7 Admin Surface Registry'
+      : item.owners.includes('admin')
+        ? 'P7/P9 Admin and Component Registries'
+        : 'P9 Component Registry'
+    delete item.discoveredOwner
     seenUI.add(item.source)
   }
   const staleRoutes = [...routeMap.keys()].filter(key => !seenRoutes.has(key))
@@ -363,6 +539,7 @@ function applyStableIdentities(routes, ui) {
   if (staleRoutes.length || staleUI.length) {
     throw new Error(`stable identity map contains removed sources; preserve ids through an explicit move or record deprecation:\n${[...staleRoutes, ...staleUI].map(value => `- ${value}`).join('\n')}`)
   }
+  return retiredIdentities
 }
 
 function tableFirstColumn(path) {
@@ -455,9 +632,37 @@ function renderGoRouteCatalog(routes) {
 }
 
 function renderUISurfaces(items) {
-  const lines = ['# UI Surface Catalog', '', '<!-- Generated by scripts/v3-catalog/generate.mjs. -->', '', '| Stable ID | Contract | Kind | Scope | Route | Source | V3 registry |', '| --- | --- | --- | --- | --- | --- | --- |']
-  for (const item of items) lines.push(`| \`${item.id}\` | \`${item.contractVersion}\` | ${item.kind} | ${item.scope} | ${item.route ? `\`${item.route}\`` : '—'} | \`${item.source}\` | ${item.targetRegistry} |`)
+  const lines = [
+    '# UI Surface Catalog',
+    '',
+    '<!-- Generated by scripts/v3-catalog/generate.mjs. -->',
+    '',
+    'Only active identities are listed. Retired IDs and contracts remain reserved in `../catalog-identities.json` and the append-only `../catalog-retired-identities.json` ledger through their LTS/deprecation window.',
+    'Manifest V3 component targets declare both `targetId` and `targetContractVersion`; Core targets must match this catalog exactly.',
+    '',
+    '| Stable ID | Contract | Kind | Owners | Route | Source | V3 registry |',
+    '| --- | --- | --- | --- | --- | --- | --- |'
+  ]
+  for (const item of items) lines.push(`| \`${item.id}\` | \`${item.contractVersion}\` | ${item.kind} | ${item.owners.map(owner => `\`${owner}\``).join(', ')} | ${item.route ? `\`${item.route}\`` : '—'} | \`${item.source}\` | ${item.targetRegistry} |`)
   return `${lines.join('\n')}\n`
+}
+
+function renderGoComponentCatalog(items) {
+  const kindConstant = { page: 'KindPage', component: 'KindComponent' }
+  const ownerConstant = { public: 'OwnerPublic', admin: 'OwnerAdmin' }
+  const lines = [
+    '// Code generated by scripts/v3-catalog/generate.mjs. DO NOT EDIT.',
+    '',
+    'package componentcatalog',
+    '',
+    'var generatedCoreComponentCatalog = [...]CoreComponent{'
+  ]
+  for (const item of items) {
+    const owners = item.owners.map(owner => ownerConstant[owner]).join(', ')
+    lines.push(`\t{ID: ${JSON.stringify(item.id)}, ContractVersion: ${JSON.stringify(item.contractVersion)}, Kind: ${kindConstant[item.kind]}, Owners: []Owner{${owners}}, Route: ${JSON.stringify(item.route || '')}, Source: ${JSON.stringify(item.source)}},`)
+  }
+  lines.push('}', '')
+  return lines.join('\n')
 }
 
 function renderMatrix(matrix) {
@@ -491,7 +696,7 @@ function renderAdmin(items) {
 const traceability = buildTraceability(parseAuthoritativeRows())
 const routes = discoverRoutes()
 const ui = discoverUISurfaces()
-applyStableIdentities(routes, ui)
+const retiredIdentities = applyStableIdentities(routes, ui)
 const backend = buildBackendInventory()
 const admin = buildAdminInventory()
 
@@ -501,6 +706,8 @@ put('docs/extensions/v3/catalogs/routes.md', renderRoutes(routes))
 put('apps/api/app/Support/Routes/core_catalog_gen.go', renderGoRouteCatalog(routes))
 json('docs/extensions/v3/catalogs/ui-surfaces.json', ui)
 put('docs/extensions/v3/catalogs/ui-surfaces.md', renderUISurfaces(ui))
+json(retiredCatalogPath, retiredIdentities)
+put('apps/api/app/Support/ComponentCatalog/core_catalog_gen.go', renderGoComponentCatalog(ui))
 json('docs/extensions/v3/catalogs/backend-surfaces.json', backend)
 put('docs/extensions/v3/catalogs/backend-surfaces.md', renderBackend(backend))
 json('docs/extensions/v3/extension-surface-matrix.json', extensionSurfaceMatrix)

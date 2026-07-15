@@ -349,13 +349,18 @@
           "contractVersion": { "$ref": "#/$defs/contract" },
           "action": { "enum": ["add", "before", "after", "wrap", "replace", "hide", "filter_props", "filter_result"] },
           "targetId": { "$ref": "#/$defs/id" },
+          "targetContractVersion": { "$ref": "#/$defs/contract" },
           "priority": { "type": "integer" },
           "ssrTemplate": { "type": "string" },
           "l2Component": { "type": "string" },
           "propsSchema": { "type": "string" },
           "resultSchema": { "type": "string" },
           "themeOverrideKey": { "type": "string" }
-        }
+        },
+        "allOf": [
+          { "if": { "required": ["targetId"] }, "then": { "required": ["targetContractVersion"] } },
+          { "if": { "required": ["targetContractVersion"] }, "then": { "required": ["targetId"] } }
+        ]
       }
     },
     "templates": {

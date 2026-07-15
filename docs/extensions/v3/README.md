@@ -34,7 +34,18 @@ content/data surface, and WordPress-equivalent admin surface marker.
 ordinary generated output: source moves must update its route/source locator
 while retaining the published ID and contract unless a reviewed versioned
 replacement/deprecation is intended. The generator rejects missing and stale
-mappings.
+mappings. UI rows also freeze their `kind`, explicit public/admin `owners`, and
+`state`. When a UI surface is removed, change its row to `retired` rather than
+deleting it, and append the exact ID/contract pair to the separately reviewed
+`catalog-retired-identities.json` tombstone ledger. Retired rows leave the
+active generated catalogs while the append-only ledger makes accidental row
+deletion or ID/contract reuse fail generation through the LTS/deprecation
+window. The append-only check scans reachable Git history, so catalog generation
+and checks require a full (non-shallow) clone. The
+`catalog-retired-identities.json` path is itself immutable; do not rename or
+relocate the ledger. Manifest V3 component targets bind both the stable
+`targetId` and `targetContractVersion`; Core targets must exactly match the
+active Host catalog.
 
 Regenerate after changing a cataloged source:
 
