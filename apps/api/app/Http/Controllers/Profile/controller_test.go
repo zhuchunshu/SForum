@@ -44,6 +44,37 @@ func TestControllerPublicProfileRead(t *testing.T) {
 	}
 }
 
+func TestControllerPublicProfileRequiresLoginBeforeLoadingData(t *testing.T) {
+	app, _, store := newProfileTestAppWithPolicy(profileForumReadPolicy{guestRead: "login_required", ok: true})
+	resp := performProfileRequest(t, app, nethttp.MethodGet, "/api/v1/profiles/alice", nil, nil)
+	if resp.StatusCode != nethttp.StatusUnauthorized {
+		t.Fatalf("expected 401 without login, got %d", resp.StatusCode)
+	}
+	if store.publicProfileCalls != 0 {
+		t.Fatalf("profile data loaded before guest-read authorization: calls=%d", store.publicProfileCalls)
+	}
+
+	cookie := loginProfileUser(t, app, 7)
+	resp = performProfileRequest(t, app, nethttp.MethodGet, "/api/v1/profiles/alice", nil, cookie)
+	if resp.StatusCode != nethttp.StatusOK {
+		t.Fatalf("expected 200 with login, got %d", resp.StatusCode)
+	}
+	if store.publicProfileCalls != 1 {
+		t.Fatalf("expected one authorized profile load, got %d", store.publicProfileCalls)
+	}
+}
+
+func TestControllerPublicProfileFailsClosedWithoutPolicySnapshot(t *testing.T) {
+	app, _, store := newProfileTestAppWithPolicy(profileForumReadPolicy{})
+	resp := performProfileRequest(t, app, nethttp.MethodGet, "/api/v1/profiles/alice", nil, nil)
+	if resp.StatusCode != nethttp.StatusServiceUnavailable {
+		t.Fatalf("expected 503 without policy snapshot, got %d", resp.StatusCode)
+	}
+	if store.publicProfileCalls != 0 {
+		t.Fatalf("profile data loaded without policy snapshot: calls=%d", store.publicProfileCalls)
+	}
+}
+
 func TestControllerMyProfileRequiresLogin(t *testing.T) {
 	app, _, _ := newProfileTestApp()
 	resp := performProfileRequest(t, app, nethttp.MethodGet, "/api/v1/profile", nil, nil)
@@ -107,6 +138,10 @@ func TestControllerUploadAvatarRequiresAttachmentUploadPermission(t *testing.T) 
 }
 
 func newProfileTestApp() (*fiber.App, *authsession.Manager, *profileFakeStore) {
+	return newProfileTestAppWithPolicy(profileForumReadPolicy{guestRead: "public", ok: true})
+}
+
+func newProfileTestAppWithPolicy(policy profileForumReadPolicy) (*fiber.App, *authsession.Manager, *profileFakeStore) {
 	manager := authsession.NewManager(session.NewStore(), authsession.Config{HashSecret: "test-secret"})
 	users := profileFakeActors{actors: map[int64]identity.Actor{
 		7: {ID: 7, Status: identity.UserStatusActive, Permissions: map[string]bool{}},
@@ -116,7 +151,7 @@ func newProfileTestApp() (*fiber.App, *authsession.Manager, *profileFakeStore) {
 		profile: profile.Profile{UserID: 7, Bio: "hello"},
 		stats:   profile.ProfileStats{TopicCount: 3, CommentCount: 12},
 	}
-	controller := NewController(profile.NewService(store), users, manager)
+	controller := NewController(profile.NewService(store), users, manager, policy)
 	loginProvider := profileRouteProviderFunc(func(api fiber.Router) {
 		api.Post("/test-login/:id", func(c fiber.Ctx) error {
 			userID, err := strconv.ParseInt(c.Params("id"), 10, 64)
@@ -131,6 +166,18 @@ func newProfileTestApp() (*fiber.App, *authsession.Manager, *profileFakeStore) {
 		RouteProviders: []apphttp.RouteProvider{controller, loginProvider},
 	})
 	return app, manager, store
+}
+
+type profileForumReadPolicy struct {
+	guestRead string
+	ok        bool
+}
+
+func (p profileForumReadPolicy) ForumReadPolicySnapshot() (string, string, uint64, bool) {
+	if !p.ok {
+		return "", "", 0, false
+	}
+	return p.guestRead, "hidden", 1, true
 }
 
 func loginProfileUser(t *testing.T, app *fiber.App, userID int64) *nethttp.Cookie {
@@ -213,11 +260,12 @@ type profileRouteProviderFunc func(api fiber.Router)
 func (f profileRouteProviderFunc) RegisterRoutes(api fiber.Router) { f(api) }
 
 type profileFakeStore struct {
-	user     profile.UserProfileSummary
-	profile  profile.Profile
-	stats    profile.ProfileStats
-	recent   []forum.TopicSummary
-	upserted profile.Profile
+	user               profile.UserProfileSummary
+	profile            profile.Profile
+	stats              profile.ProfileStats
+	recent             []forum.TopicSummary
+	upserted           profile.Profile
+	publicProfileCalls int
 }
 
 func (s *profileFakeStore) GetProfile(context.Context, int64) (profile.Profile, error) {
@@ -240,6 +288,7 @@ func (s *profileFakeStore) GetAvatarAttachment(context.Context, int64) (profile.
 }
 
 func (s *profileFakeStore) GetUserSummaryByUsername(context.Context, string) (profile.UserProfileSummary, error) {
+	s.publicProfileCalls++
 	return s.user, nil
 }
 

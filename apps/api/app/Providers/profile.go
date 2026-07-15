@@ -15,9 +15,9 @@ type ProfileProvider struct {
 	controller *profilecontroller.Controller
 }
 
-func NewProfileProvider(store profile.Store, users identity.ActorStore, sessions *authsession.Manager) *ProfileProvider {
+func NewProfileProvider(store profile.Store, users identity.ActorStore, sessions *authsession.Manager, optionsService *options.Service) *ProfileProvider {
 	return &ProfileProvider{
-		controller: profilecontroller.NewController(profile.NewService(store), users, sessions),
+		controller: profilecontroller.NewController(profile.NewService(store), users, sessions, optionsService),
 	}
 }
 
@@ -32,7 +32,7 @@ func NewProfileProviderWithAvatarAndTabs(store profile.Store, users identity.Act
 		service.WithProfileTabs(tabs)
 	}
 	return &ProfileProvider{
-		controller: profilecontroller.NewController(service, users, sessions),
+		controller: profilecontroller.NewController(service, users, sessions, optionsService),
 	}
 }
 

@@ -8,19 +8,25 @@ import (
 
 	apphttp "github.com/zhuchunshu/sforum/apps/api/app/Http"
 	attachments "github.com/zhuchunshu/sforum/apps/api/app/Models/Attachments"
+	forum "github.com/zhuchunshu/sforum/apps/api/app/Models/Forum"
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
 	profile "github.com/zhuchunshu/sforum/apps/api/app/Models/Profile"
 	authsession "github.com/zhuchunshu/sforum/apps/api/app/Support/AuthSession"
 )
 
 type Controller struct {
-	service  *profile.Service
-	users    identity.ActorStore
-	sessions *authsession.Manager
+	service         *profile.Service
+	users           identity.ActorStore
+	sessions        *authsession.Manager
+	forumReadPolicy ForumReadPolicySnapshot
 }
 
-func NewController(service *profile.Service, users identity.ActorStore, sessions *authsession.Manager) *Controller {
-	return &Controller{service: service, users: users, sessions: sessions}
+type ForumReadPolicySnapshot interface {
+	ForumReadPolicySnapshot() (guestRead string, softDeleteVisibility string, revision uint64, ok bool)
+}
+
+func NewController(service *profile.Service, users identity.ActorStore, sessions *authsession.Manager, forumReadPolicy ForumReadPolicySnapshot) *Controller {
+	return &Controller{service: service, users: users, sessions: sessions, forumReadPolicy: forumReadPolicy}
 }
 
 // updateProfileRequest 所有字段可选（指针）；nil 表示不改。
@@ -33,12 +39,41 @@ type updateProfileRequest struct {
 }
 
 func (h *Controller) publicProfile(c fiber.Ctx) error {
+	if err := h.requireGuestRead(c); err != nil {
+		return err
+	}
 	username := c.Params("username")
 	data, err := h.service.GetPublicProfile(c.Context(), username)
 	if err != nil {
 		return mapProfileError(err)
 	}
 	return apphttp.OK(c, data)
+}
+
+// 公开资料包含最近主题，必须与论坛游客阅读策略保持同一边界。
+func (h *Controller) requireGuestRead(c fiber.Ctx) error {
+	if h.forumReadPolicy == nil {
+		return fiber.NewError(fiber.StatusServiceUnavailable, "service.not_ready")
+	}
+	guestRead, _, revision, ok := h.forumReadPolicy.ForumReadPolicySnapshot()
+	if !ok || revision == 0 {
+		return fiber.NewError(fiber.StatusServiceUnavailable, "service.not_ready")
+	}
+	switch guestRead {
+	case "public":
+		return nil
+	case "login_required":
+		_, authenticated, err := apphttp.ResolveUserID(c, h.sessions)
+		if err != nil {
+			return err
+		}
+		if !authenticated {
+			return fiber.NewError(fiber.StatusUnauthorized, forum.CodeGuestLoginRequired)
+		}
+		return nil
+	default:
+		return fiber.NewError(fiber.StatusServiceUnavailable, "service.not_ready")
+	}
 }
 
 func (h *Controller) myProfile(c fiber.Ctx) error {
