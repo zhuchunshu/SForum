@@ -13,6 +13,10 @@ import (
 
 func TestProtocolV2EntitlementCommandPlansProviderNeutralGrant(t *testing.T) {
 	definition := newProtocolV2EntitlementCommandDefinition(nil)
+	// 权益命令是 actorless service authority：后台/插件服务调用，不接受 actor delegation。
+	if definition.ActorMode != protocolV2CommandActorService || len(definition.RequiredPermissions) != 0 {
+		t.Fatalf("entitlement actor mode = %q permissions=%#v", definition.ActorMode, definition.RequiredPermissions)
+	}
 	request := protocolV2EntitlementCommandRequest(t, map[string]any{
 		"action":    "grant",
 		"subject":   map[string]any{"type": "user", "id": "42"},

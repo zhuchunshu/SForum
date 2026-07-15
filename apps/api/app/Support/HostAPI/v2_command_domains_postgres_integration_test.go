@@ -2,10 +2,12 @@ package hostapi
 
 import (
 	"fmt"
+	"sync"
 	"testing"
 	"time"
 
 	hostv2 "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/host/v2"
+	"google.golang.org/protobuf/proto"
 )
 
 type postgresDomainCommandExercise struct {
@@ -167,6 +169,121 @@ func TestPostgresProtocolV2SixDomainCommandsAllowedDeniedReplayAndRollback(t *te
 			},
 		})
 	})
+}
+
+// 权益 Host Command 的完整原子性出口：并发同键回放、指纹冲突、expected-revision
+// CAS、revoke 提交，以及 actorless 拒绝 actor delegation。
+func TestPostgresProtocolV2EntitlementCommandConcurrentRevisionAndRevoke(t *testing.T) {
+	h := newPostgresDomainCommandHarness(t)
+	spec := postgresDomainCommandSpec{
+		ID: CommandEntitlementsMutateID, Version: CommandEntitlementsMutateVersion,
+		InputSchema: CommandEntitlementsMutationInputSchemaID, SchemaVersion: CommandEntitlementsMutationSchemaVersion,
+	}
+	validFrom := time.Now().UTC().Add(-time.Minute).Format(time.RFC3339Nano)
+	subject := "entitlement-concurrent-subject"
+	grantKey := "entitlement-concurrent-grant"
+	grantInput := postgresDomainEntitlementInput(subject, validFrom)
+
+	// actorless 服务命令不得携带 Host-signed actor delegation。
+	actorRequest := h.request(t, h.identity, spec, "entitlement-actor-token", grantInput, "", postgresDomainCommandActorID)
+	actorResult, err := h.execute(h.identity, actorRequest)
+	assertPostgresDomainCommandResult(t, actorResult, err, hostv2.CommandState_COMMAND_STATE_REJECTED, "host.command_actor_delegation_unexpected")
+	assertPostgresDomainEntitlement(t, h, subject, 0)
+	assertPostgresDomainCommandEvidence(t, h, "entitlement-actor-token", 0, 0)
+
+	request := h.request(t, h.identity, spec, grantKey, grantInput, "", 0)
+	const workers = 8
+	start := make(chan struct{})
+	results := make([]*hostv2.CommandResult, workers)
+	errorsByWorker := make([]error, workers)
+	var wait sync.WaitGroup
+	for index := range results {
+		wait.Add(1)
+		go func(index int) {
+			defer wait.Done()
+			<-start
+			results[index], errorsByWorker[index] = h.execute(
+				h.identity, proto.Clone(request).(*hostv2.CommandRequest),
+			)
+		}(index)
+	}
+	close(start)
+	wait.Wait()
+
+	states := map[hostv2.CommandState]int{}
+	var committed *hostv2.CommandResult
+	for index, workerErr := range errorsByWorker {
+		if workerErr != nil {
+			t.Fatalf("worker %d: %v", index, workerErr)
+		}
+		states[results[index].GetState()]++
+		if results[index].GetState() == hostv2.CommandState_COMMAND_STATE_COMMITTED {
+			committed = results[index]
+		}
+	}
+	if states[hostv2.CommandState_COMMAND_STATE_COMMITTED] != 1 ||
+		states[hostv2.CommandState_COMMAND_STATE_REPLAYED] != workers-1 {
+		t.Fatalf("concurrent entitlement states = %#v", states)
+	}
+	if committed == nil {
+		t.Fatal("expected one committed entitlement grant")
+	}
+	assertPostgresDomainEntitlement(t, h, subject, 1)
+	assertPostgresDomainCommandEvidence(t, h, grantKey, 1, 0)
+	entitlementID, revision := postgresDomainEntitlementIdentity(t, committed)
+	if entitlementID == "" || revision != "1" {
+		t.Fatalf("grant identity = %s@%s", entitlementID, revision)
+	}
+
+	// 同键但主体变更必须冲突，且不得产生第二行事实/回执。
+	conflictInput := postgresDomainEntitlementInput(subject+"-changed", validFrom)
+	conflictRequest := h.request(t, h.identity, spec, grantKey, conflictInput, "", 0)
+	conflict, err := h.execute(h.identity, conflictRequest)
+	assertPostgresDomainCommandResult(t, conflict, err, hostv2.CommandState_COMMAND_STATE_ROLLED_BACK, "host.command_idempotency_conflict")
+	assertPostgresDomainEntitlement(t, h, subject, 1)
+	assertPostgresDomainEntitlement(t, h, subject+"-changed", 0)
+	assertPostgresDomainCommandEvidence(t, h, grantKey, 1, 0)
+
+	// expected-revision 冲突 fail closed：事实保持 active，无额外 event/receipt。
+	staleKey := "entitlement-stale-revision"
+	staleRequest := h.request(t, h.identity, spec, staleKey, map[string]any{
+		"action": "revoke", "entitlementId": entitlementID,
+	}, "999", 0)
+	stale, err := h.execute(h.identity, staleRequest)
+	assertPostgresDomainCommandResult(t, stale, err, hostv2.CommandState_COMMAND_STATE_ROLLED_BACK, "host.entitlement_revision_conflict")
+	assertPostgresDomainEntitlementStatus(t, h, entitlementID, "active", 1)
+	assertPostgresDomainCommandEvidence(t, h, staleKey, 0, 0)
+	if events := h.count(t, `SELECT count(*) FROM entitlement_events WHERE entitlement_id = $1::bigint`, entitlementID); events != 1 {
+		t.Fatalf("stale revision events = %d, want 1", events)
+	}
+
+	// 正确 revision 的 revoke 与 Host receipt/audit 同事务提交。
+	revokeKey := "entitlement-revoke"
+	revokeRequest := h.request(t, h.identity, spec, revokeKey, map[string]any{
+		"action": "revoke", "entitlementId": entitlementID,
+	}, revision, 0)
+	revoked, err := h.execute(h.identity, revokeRequest)
+	assertPostgresDomainCommandResult(t, revoked, err, hostv2.CommandState_COMMAND_STATE_COMMITTED, "")
+	assertPostgresDomainEntitlementStatus(t, h, entitlementID, "revoked", 2)
+	assertPostgresDomainCommandEvidence(t, h, revokeKey, 1, 0)
+	if events := h.count(t, `SELECT count(*) FROM entitlement_events WHERE entitlement_id = $1::bigint`, entitlementID); events != 2 {
+		t.Fatalf("revoke events = %d, want 2", events)
+	}
+
+	// 同键 revoke 精确回放，不产生第二份事实。
+	replayRevoke := h.request(t, h.identity, spec, revokeKey, map[string]any{
+		"action": "revoke", "entitlementId": entitlementID,
+	}, revision, 0)
+	replayed, err := h.execute(h.identity, replayRevoke)
+	assertPostgresDomainCommandResult(t, replayed, err, hostv2.CommandState_COMMAND_STATE_REPLAYED, "")
+	if replayed.GetTransactionId() != revoked.GetTransactionId() {
+		t.Fatalf("revoke replay transaction = %q, want %q", replayed.GetTransactionId(), revoked.GetTransactionId())
+	}
+	assertPostgresDomainEntitlementStatus(t, h, entitlementID, "revoked", 2)
+	assertPostgresDomainCommandEvidence(t, h, revokeKey, 1, 0)
+	if events := h.count(t, `SELECT count(*) FROM entitlement_events WHERE entitlement_id = $1::bigint`, entitlementID); events != 2 {
+		t.Fatalf("replayed revoke events = %d, want 2", events)
+	}
 }
 
 func exercisePostgresDomainCommand(t *testing.T, h *postgresDomainCommandHarness, exercise postgresDomainCommandExercise) {
@@ -421,6 +538,37 @@ func assertPostgresDomainEntitlement(t *testing.T, h *postgresDomainCommandHarne
 		WHERE entitlements.subject_id = $1
 	`, subjectID); got != count {
 		t.Fatalf("entitlement events for %s = %d, want %d", subjectID, got, count)
+	}
+}
+
+func postgresDomainEntitlementIdentity(t *testing.T, result *hostv2.CommandResult) (id, revision string) {
+	t.Helper()
+	values := result.GetOutput().GetValue().AsMap()
+	entitlement, _ := values["entitlement"].(map[string]any)
+	if entitlement == nil {
+		t.Fatalf("missing entitlement output: %#v", values)
+	}
+	id, _ = entitlement["id"].(string)
+	revision, _ = entitlement["revision"].(string)
+	return id, revision
+}
+
+func assertPostgresDomainEntitlementStatus(
+	t *testing.T,
+	h *postgresDomainCommandHarness,
+	entitlementID, status string,
+	revision int,
+) {
+	t.Helper()
+	var gotStatus string
+	var gotRevision int
+	if err := h.pool.QueryRow(h.ctx, `
+		SELECT status, revision FROM entitlements WHERE id = $1::bigint
+	`, entitlementID).Scan(&gotStatus, &gotRevision); err != nil {
+		t.Fatal(err)
+	}
+	if gotStatus != status || gotRevision != revision {
+		t.Fatalf("entitlement %s = %s@%d, want %s@%d", entitlementID, gotStatus, gotRevision, status, revision)
 	}
 }
 
