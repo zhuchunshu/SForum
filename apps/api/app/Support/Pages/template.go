@@ -25,12 +25,14 @@ const (
 	MaxTemplateRender = 2 * time.Second
 )
 
-// 允许的宿主岛标签（仅映射到已注册的 SF 组件；不含可执行 L2）。
+// 允许的宿主岛标签仅映射到已注册的 SF 组件。sf-extension-widget
+// 本身不执行包代码；后续 ThemeCompiler 仍会强制 exact 组件身份。
 var allowedHostIslands = map[string]struct{}{
-	"sf-home-page":       {},
-	"sf-navbar":          {},
-	"sf-footer":          {},
-	"sf-home-navigation": {},
+	"sf-home-page":        {},
+	"sf-navbar":           {},
+	"sf-footer":           {},
+	"sf-home-navigation":  {},
+	"sf-extension-widget": {},
 }
 
 // 允许的普通 HTML 标签（无 script/style/svg/math/iframe/form/object/embed）。
@@ -51,6 +53,7 @@ var (
 	// 宿主岛安全属性名
 	safeIslandAttrName = regexp.MustCompile(`^[a-z][a-z0-9-]{0,31}$`)
 	safeIslandAttrVal  = regexp.MustCompile(`^[a-zA-Z0-9_.:/@#-]{0,128}$`)
+	publicL2IslandID   = regexp.MustCompile(`^[a-z0-9][a-z0-9._-]{1,120}$`)
 )
 
 // 占位必须是 bluemonday allowlist 内的元素；HTML 注释会被剥离。
@@ -267,16 +270,16 @@ func extractAndPlaceholderIslands(src string) (string, []string, error) {
 			}
 			inner = src[endOpen : endOpen+idx]
 			end = endOpen + idx + len(closeTag)
-			// 岛内不得嵌套 HTML（仅允许空白）
-			if strings.TrimSpace(inner) != "" {
-				return "", nil, fmt.Errorf("pages: host island %q must be empty", tag)
-			}
 		}
-		safeAttrs, err := sanitizeIslandAttrs(attrRaw)
+		safeAttrs, err := sanitizeIslandAttrs(tag, attrRaw)
 		if err != nil {
 			return "", nil, err
 		}
-		serialized := serializeIsland(tag, safeAttrs)
+		safeInner, err := sanitizeIslandInner(tag, inner)
+		if err != nil {
+			return "", nil, err
+		}
+		serialized := serializeIsland(tag, safeAttrs, safeInner)
 		idx := len(islands)
 		islands = append(islands, serialized)
 		b.WriteString(fmt.Sprintf("%s%d%s", islandPlaceholderPrefix, idx, islandPlaceholderSuffix))
@@ -285,11 +288,8 @@ func extractAndPlaceholderIslands(src string) (string, []string, error) {
 	return b.String(), islands, nil
 }
 
-func sanitizeIslandAttrs(attrRaw string) (map[string]string, error) {
+func sanitizeIslandAttrs(tag, attrRaw string) (map[string]string, error) {
 	out := map[string]string{}
-	if strings.TrimSpace(attrRaw) == "" {
-		return out, nil
-	}
 	attrRe := regexp.MustCompile(`([a-zA-Z0-9:-]+)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))`)
 	matches := attrRe.FindAllStringSubmatch(attrRaw, -1)
 	if len(matches) > MaxTemplateAttrs {
@@ -297,6 +297,10 @@ func sanitizeIslandAttrs(attrRaw string) (map[string]string, error) {
 	}
 	allowedKeys := map[string]struct{}{
 		"name": {}, "page": {}, "variant": {}, "class": {}, "id": {},
+	}
+	if tag == "sf-extension-widget" {
+		allowedKeys["extension-id"] = struct{}{}
+		allowedKeys["component-id"] = struct{}{}
 	}
 	for _, am := range matches {
 		key := strings.ToLower(am[1])
@@ -321,10 +325,32 @@ func sanitizeIslandAttrs(attrRaw string) (map[string]string, error) {
 		}
 		out[key] = val
 	}
+	if tag == "sf-extension-widget" {
+		extensionID, extensionOK := out["extension-id"]
+		componentID, componentOK := out["component-id"]
+		if !extensionOK || !componentOK || !publicL2IslandID.MatchString(extensionID) ||
+			!publicL2IslandID.MatchString(componentID) || !strings.HasPrefix(componentID, extensionID+".") {
+			return nil, fmt.Errorf("pages: public L2 host island requires exact component identity")
+		}
+	}
 	return out, nil
 }
 
-func serializeIsland(tag string, attrs map[string]string) string {
+func sanitizeIslandInner(tag, inner string) (string, error) {
+	if strings.TrimSpace(inner) == "" {
+		return "", nil
+	}
+	if tag != "sf-extension-widget" {
+		return "", fmt.Errorf("pages: host island %q must be empty", tag)
+	}
+	if tplAnyIslandOpen.MatchString(inner) {
+		return "", fmt.Errorf("pages: public L2 fallback cannot contain a host island")
+	}
+	// 仅 SSR fallback 可以包含普通 allowlist HTML；可执行入口和身份仍来自 Host descriptor。
+	return themeTemplatePolicy().Sanitize(inner), nil
+}
+
+func serializeIsland(tag string, attrs map[string]string, inner string) string {
 	var b strings.Builder
 	b.WriteByte('<')
 	b.WriteString(tag)
@@ -348,7 +374,9 @@ func serializeIsland(tag string, attrs map[string]string) string {
 		b.WriteString(html.EscapeString(attrs[k]))
 		b.WriteByte('"')
 	}
-	b.WriteString("></")
+	b.WriteByte('>')
+	b.WriteString(inner)
+	b.WriteString("</")
 	b.WriteString(tag)
 	b.WriteByte('>')
 	return b.String()
@@ -451,7 +479,7 @@ func ExtractHostIslands(sanitized string) []TemplateSegment {
 		}
 		if !isClose {
 			if _, ok := allowedHostIslands[tag]; ok {
-				attrs, _ := sanitizeIslandAttrs(attrRaw)
+				attrs, _ := sanitizeIslandAttrs(tag, attrRaw)
 				out = append(out, TemplateSegment{Type: "island", Tag: tag, Attrs: attrs})
 			}
 		}

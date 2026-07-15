@@ -106,6 +106,45 @@ func TestValidateTemplateAllowsSafeLayout(t *testing.T) {
 	}
 }
 
+func TestValidateTemplateAllowsExactPublicL2IslandWithSanitizedFallback(t *testing.T) {
+	src := `<main><sf-extension-widget extension-id="demo.public" component-id="demo.public.component.card"><article data-runtime-only="removed">Primary <strong>SSR fallback</strong></article></sf-extension-widget><sf-home-page></sf-home-page></main>`
+	if err := ValidateTemplate(src); err != nil {
+		t.Fatal(err)
+	}
+	clean, err := SanitizeTemplateHTML(src)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, expected := range []string{
+		`<sf-extension-widget component-id="demo.public.component.card" extension-id="demo.public">`,
+		`<article>Primary <strong>SSR fallback</strong></article>`,
+		`</sf-extension-widget>`,
+	} {
+		if !strings.Contains(clean, expected) {
+			t.Fatalf("sanitized public L2 fallback missing %q: %s", expected, clean)
+		}
+	}
+	if strings.Contains(clean, "data-runtime-only") {
+		t.Fatalf("unreviewed fallback attribute survived: %s", clean)
+	}
+}
+
+func TestValidateTemplateRejectsUnsafePublicL2IslandContracts(t *testing.T) {
+	cases := []string{
+		`<sf-extension-widget></sf-extension-widget>`,
+		`<sf-extension-widget extension-id="demo.public"></sf-extension-widget>`,
+		`<sf-extension-widget component-id="demo.public.component.card"></sf-extension-widget>`,
+		`<sf-extension-widget extension-id="demo.public" component-id="other.component.card"></sf-extension-widget>`,
+		`<sf-extension-widget extension-id="demo.public" component-id="demo.public.component.card" entry="frontend/card.mjs"></sf-extension-widget>`,
+		`<sf-extension-widget extension-id="demo.public" component-id="demo.public.component.card"><sf-home-page></sf-home-page></sf-extension-widget>`,
+	}
+	for _, src := range cases {
+		if err := ValidateTemplate(src); err == nil {
+			t.Fatalf("expected public L2 island rejection for %q", src)
+		}
+	}
+}
+
 func TestExtractHostIslands(t *testing.T) {
 	src, err := SanitizeTemplateHTML(`<div>Hi</div><sf-home-page name="x"></sf-home-page><p>end</p>`)
 	if err != nil {
