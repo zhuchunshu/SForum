@@ -4,10 +4,11 @@ This is the entry point for project memory.
 
 ## Latest Handoff
 
-- **2026-07-16 Trusted Plugin And Theme Platform V3 P6/P7/P8/P9 active (overall 58%)**
+- **2026-07-16 Trusted Plugin And Theme Platform V3 P6/P7/P8/P9 active (overall 61%)**
   - Decision: `knowledge/decisions/2026-07-13-trusted-plugin-theme-platform-v3.md`
   - Task book: `knowledge/plans/2026-07-13-trusted-plugin-theme-platform-v3.md`
   - Active handoff: `knowledge/sessions/2026-07-16-trusted-plugin-theme-platform-v3-p8-p9-progress.md`
+  - P5 closure: `knowledge/sessions/2026-07-16-trusted-plugin-theme-platform-v3-p5-closure.md`
   - Prior P6-P9 handoff: `knowledge/sessions/2026-07-15-trusted-plugin-theme-platform-v3-p6-p8-progress.md`
   - P8 handoff: `knowledge/sessions/2026-07-15-trusted-plugin-theme-platform-v3-p8-crawler-hotpath.md`
   - P8/P9 production checkpoint:
@@ -63,28 +64,29 @@ This is the entry point for project memory.
   - Preserve/export/complete removal, repeated uninstall, failure recovery,
     retry/skip/forced controls, audit retention, and exact route/job/schedule
     drain are verified; authenticated desktop/mobile browser QA is green
-  - P5 is 12/17 (71%). Reuse the already-landed Database Registry, scoped roles,
-    exact migration engine, and uninstall disposition instead of rebuilding them
+  - P5 is complete at 17/17 (100%). Reuse the Database Registry, scoped runtime
+    lease roles, exact migration engine, Host Query/Command runtime, physical
+    raw-core ACLs, and uninstall disposition instead of rebuilding them
   - P5 now has exact read-only migration preflight, cross-process migration-once
     proof, runtime connection/time budgets, stable `sforum_core_v1` views,
     durable Host Command receipts/PostgreSQL backend, and a production-bound
     stable Host Query catalog
   - Manifest V3 now declares exact-artifact `own_schema` database operation
     catalogs with non-inline SQL files, typed parameters/results, package digest
-    binding, and HostAPI-aligned row/size/timeout limits; production catalog
-    loading remains in progress
+    binding, HostAPI-aligned row/size/timeout limits, and production catalog
+    loading before broker registration
   - Exact trust UI now discloses database authority, compatibility, backup and
     retention, migration digest, and transaction risk; authenticated admin plus
     desktop/390px production-component QA passed without overflow or app errors
-  - P5 product boundaries are frozen: additive grants with cumulative legacy
+  - P5 product boundaries are implemented: additive grants with cumulative legacy
     mapping, per-runtime lease roles, short-lived Host-signed actor delegation,
-    and a provider-neutral entitlement minimum; the five open implementation
-    rows may proceed without another product confirmation
+    and a provider-neutral entitlement minimum
   - Provider-neutral entitlement persistence is implemented with additive
     tables, append-only audit evidence, active/revoked/expired lifecycle,
     resource/capability scopes, effective-window checks, transaction-aware
-    composition, and concurrent idempotent replay. P5 remains 12/17 until the
-    production entitlement Host Command and the other open row exits are wired
+    composition, and concurrent idempotent replay. The production entitlement
+    Host Command now proves eight-way replay, payload/revision conflict,
+    revoke/replay, and actorless delegation rejection through real PostgreSQL
   - P6 is active at 13/18 (72%). All 227 core routes have stable generated
     identities; immutable exact route snapshots, arbitrary declared paths,
     explicit replace-provider selection/conflict UI, Safe Mode filtering, and

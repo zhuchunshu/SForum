@@ -1,7 +1,7 @@
 # Trusted Plugin And Theme Platform V3 Progress Ledger
 
 Date: 2026-07-16
-Overall progress: **58%**
+Overall progress: **61%**
 Active phase: **P9 - Components/assets/L2 (12% accepted; implementation ahead of accepted production exits)**
 
 This ledger is the durable percentage and context-compaction checkpoint for the
@@ -21,7 +21,7 @@ scaffolding, or demo-only code cannot satisfy a runtime exit criterion.
 | P2 Manifest/contracts | 7% | 100% | 7% |
 | P3 Host API v2 | 8% | 100% | 8% |
 | P4 Lifecycle/dependencies | 7% | 100% | 7% |
-| P5 Database/commands | 8% | 71% | 5.65% |
+| P5 Database/commands | 8% | 100% | 8% |
 | P6 Routes/middleware | 10% | 72% | 7.22% |
 | P7 Workflow/admin/query/identity | 10% | 59% | 5.91% |
 | P8 Theme compiler/runtime | 8% | 100% | 8% |
@@ -111,6 +111,31 @@ phase percentage.
   failing plugin exactly once (`failed`, then `skipped`).
 
 ## Last Durable Checkpoint
+
+### 2026-07-16 P5 Database And Host Command Closure
+
+- Overall advances to **61%** after flooring. P5 reaches **17/17 (100%)** and
+  earns its full 8% weight; the five open checkboxes were stale accounting, not
+  missing production implementations.
+- Host-owned `sforum_core_v1` views, the immutable Host Query catalog, and six
+  production Host Commands cover identity, topic visibility, entity metadata,
+  moderation, provider-neutral entitlement, and attachment workflows before
+  any plugin broker starts in API, embedded worker, and standalone worker.
+- Exact per-runtime database lease roles implement the approved additive
+  `own_schema`, `core_views`, `host_commands`, `raw_core`, and `kernel` powers.
+  Physical `raw_core` ACLs allow disclosed Core DML while denying DDL,
+  ownership, role inheritance, River internals, arbitrary functions, PUBLIC
+  escape, and foreign-owned objects. Source/target overlap and exact fenced
+  revoke preserve rolling upgrades.
+- `7c00a7fff` adds the final entitlement Host Command production evidence:
+  eight-way same-key replay, changed-payload conflict, expected-revision
+  rejection, revoke commit/replay, and actor-delegation rejection for actorless
+  service authority.
+- Real PostgreSQL Host Command, raw-core, compatibility, entitlement repository,
+  migration-once, policy, idempotency, audit, receipt, storage-failure, and
+  rollback gates pass in isolated schemas. Risk disclosure passed desktop and
+  390px acceptance. See
+  `knowledge/sessions/2026-07-16-trusted-plugin-theme-platform-v3-p5-closure.md`.
 
 ### 2026-07-16 P9 Buildless Public L2 Production Exit
 

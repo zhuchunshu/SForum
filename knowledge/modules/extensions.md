@@ -1,6 +1,6 @@
 # Extensions Module
 
-## Accepted V3 Target (P0-P4 Complete, P5 Active)
+## Accepted V3 Target (P0-P5 Complete)
 
 The accepted target, including the canonical 99-row comparison and detailed
 architecture mind map, is documented in
@@ -691,7 +691,7 @@ template while retaining Schema fallback fields.
   compatibility checks, signature/trust metadata, marketplace metadata, local
   debugging, packaging, SDK docs, and example plugins.
 
-## V3 P5 database platform checkpoint
+## V3 P5 database platform (complete)
 
 - The PostgreSQL Database Registry owns deterministic schema/role names,
   credential rotation/revocation, exact `search_path`, eight-connection budgets,
@@ -707,8 +707,10 @@ template while retaining Schema fallback fields.
   bounded cursor pagination, and read-only PostgreSQL transactions.
 - Transactional Host Commands now have server-attested exact scope, a durable
   receipt ledger, transaction-scoped idempotency locking, audit insertion, and
-  replay in the same PostgreSQL transaction as domain writes. Concrete domain
-  definitions and bootstrap binding wait on actor/entitlement product contracts.
+  replay in the same PostgreSQL transaction as domain writes. Six immutable
+  production definitions cover identity, topic visibility, entity metadata,
+  moderation, provider-neutral entitlement, and attachment workflows. API,
+  embedded worker, and standalone worker bind the catalog before plugin brokers.
 - Exact trust review prominently shows database authority, core compatibility,
   backup/retention, migration digests, and transaction policy before execution.
 - The core migrator blocks before Goose when an enabled exact-trusted
@@ -725,6 +727,11 @@ template while retaining Schema fallback fields.
   `database.authority` enum expands cumulatively for compatibility; new
   manifests declare an exact grant set. Direct credentials use per-runtime
   lease roles so rolling source and target runtimes coexist until exact drain.
+- Exact `raw_core` runtime leases apply physical PostgreSQL ACLs for disclosed
+  Core DML while rejecting DDL, ownership, role inheritance, River internals,
+  arbitrary function execution, PUBLIC escape, and foreign-owned objects.
+  Durable CAS fences, heartbeat/drain/reaper cleanup, and kernel-owner
+  reconciliation prevent stale source authority from surviving an upgrade.
 - Actor-scoped Host Commands use short-lived Host-signed delegation from a core
   route/admin invocation. The provider-neutral entitlement minimum contains
   subject, resource/capability, lifecycle state, source, validity, idempotency,
@@ -735,6 +742,10 @@ template while retaining Schema fallback fields.
   append-only lifecycle evidence, and same-transaction `audit_events` writes.
   Every mutation also has a `pgx.Tx` entry point so a Host Command can compose
   it with other domain writes without opening raw Core database authority.
+- P5 closed at 17/17 after real PostgreSQL tests covered migration once,
+  source/target lease overlap, raw-core allowed/denied operations, compatibility
+  blocking, all six Host Command domains, policy/idempotency/audit/receipt/
+  storage rollback, and entitlement concurrent replay/revision/revoke behavior.
 
 ## V3 P7 provider management checkpoint
 

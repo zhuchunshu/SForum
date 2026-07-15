@@ -2,7 +2,8 @@
 
 ## Progress
 
-- Overall weighted progress is **58%** after P8 reached **18/18 (100%)**.
+- Overall weighted progress is **61%** after P5 and P8 reached **100%**.
+- P5 is **17/17 (100%)**; see the dedicated 2026-07-16 P5 closure handoff.
 - P9 is **2/16 (12%) accepted** after the package-local public L2 production
   exit. Several
   implementation slices are ahead of the accepted percentage and must not be

@@ -429,11 +429,11 @@ flowchart LR
       migration histories.
 - [x] Support plugin-owned transactions through v2 DB service or direct scoped
       connection.
-- [ ] Publish stable read-only core views and typed Host Query/Command APIs.
-- [ ] Implement the first transactional Host Commands for user/content/meta,
+- [x] Publish stable read-only core views and typed Host Query/Command APIs.
+- [x] Implement the first transactional Host Commands for user/content/meta,
       moderation, entitlement, and attachment workflows so raw core DB access is
       an escape hatch rather than the normal integration path.
-- [ ] Implement exact-artifact `database.core.full` grants for raw core access.
+- [x] Implement exact-artifact `database.core.full` grants for raw core access.
 - [x] Block incompatible core upgrades using declared schema compatibility.
 - [x] Add backup/export guidance before destructive migrations.
 - [x] Integrate uninstall plan and Host fallback cleanup for schemas, roles, and
@@ -460,9 +460,9 @@ The operator approved all recommended P5 defaults on 2026-07-15:
 - [x] Concurrent migration, checksum drift, lock recovery, transaction rollback,
       non-transactional DDL warning, credential revoke, and uninstall retention.
 - [x] Own-schema plugin cannot access core without authority.
-- [ ] Raw-authority plugin can perform the disclosed operations and causes the
+- [x] Raw-authority plugin can perform the disclosed operations and causes the
       expected compatibility warning/block.
-- [ ] Transactional Host Command commits all declared steps or rolls all of them
+- [x] Transactional Host Command commits all declared steps or rolls all of them
       back after policy, validation, idempotency, or storage failure.
 - [x] Multi-process/multi-node migration-once tests.
 
@@ -470,6 +470,11 @@ The operator approved all recommended P5 defaults on 2026-07-15:
 
 - Disable new DB grants, revoke credentials, and retain schemas. Never drop
   plugin data as an automated rollback.
+
+P5 closed at **17/17** on 2026-07-16. The approved additive Manifest V3 name
+for the high-risk `database.core.full` capability is `raw_core`; exact runtime
+lease identity, physical PostgreSQL ACLs, trust disclosure, and compatibility
+blocking implement the authoritative row without retaining a second alias.
 
 ## P6 - Full Route And Middleware Registry V1
 
