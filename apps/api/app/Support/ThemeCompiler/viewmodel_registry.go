@@ -13,6 +13,7 @@ import (
 
 var schemaVersionPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9._-]*@[1-9][0-9]*$`)
 var viewModelIDPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9._-]*$`)
+var routeParamNamePattern = regexp.MustCompile(`^[a-z][A-Za-z0-9]*$`)
 
 type registeredPageViewModel struct {
 	descriptor PageViewModelSchema
@@ -339,7 +340,10 @@ func validateViewerState(viewer PageViewerState) error {
 func validateRouteParams(params []RouteParam) error {
 	seen := make(map[string]struct{}, len(params))
 	for _, param := range params {
-		if !viewModelIDPattern.MatchString(param.Name) || sensitiveViewModelName(param.Name) {
+		// Catalog paths use camelCase parameters (categorySlug/tagSlug). Route
+		// parameters have their own identifier grammar rather than component-id
+		// syntax; sensitive names remain forbidden.
+		if !routeParamNamePattern.MatchString(param.Name) || sensitiveViewModelName(param.Name) {
 			return fmt.Errorf("%w: invalid route parameter", ErrInvalidViewModel)
 		}
 		if _, exists := seen[param.Name]; exists {

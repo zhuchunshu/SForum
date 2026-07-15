@@ -178,6 +178,16 @@ func TestPageViewModelRegistryValidatesViewerProjectionAndSchema(t *testing.T) {
 	}
 
 	model = validHomeViewModel()
+	model.Base.Route.Params = []RouteParam{{Name: "categorySlug", Value: "support"}}
+	if _, err := registry.Bind("forum.home", "sforum.page.home@1", viewModelThemeDigest, model); err != nil {
+		t.Fatalf("catalog camelCase route parameter rejected: %v", err)
+	}
+	model.Base.Route.Params = []RouteParam{{Name: "category_slug", Value: "support"}}
+	if _, err := registry.Bind("forum.home", "sforum.page.home@1", viewModelThemeDigest, model); !errors.Is(err, ErrInvalidViewModel) {
+		t.Fatalf("non-catalog route parameter grammar error = %v", err)
+	}
+
+	model = validHomeViewModel()
 	model.Base.SchemaVersion = "sforum.page.home@2"
 	if _, err := registry.Bind("forum.home", "sforum.page.home@1", viewModelThemeDigest, model); !errors.Is(err, ErrViewModelSchema) {
 		t.Fatalf("embedded schema error = %v", err)
