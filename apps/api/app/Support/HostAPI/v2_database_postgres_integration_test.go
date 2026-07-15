@@ -21,9 +21,9 @@ import (
 )
 
 func TestPostgresProtocolV2DatabaseRuntimeExactTransactionsAndRevocation(t *testing.T) {
-	databaseURL := strings.TrimSpace(os.Getenv("DATABASE_URL"))
+	databaseURL := strings.TrimSpace(os.Getenv("SFORUM_TEST_DATABASE_URL"))
 	if databaseURL == "" {
-		t.Skip("DATABASE_URL is required for DatabaseService integration test")
+		t.Skip("SFORUM_TEST_DATABASE_URL is required for the destructive DatabaseService integration test")
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 40*time.Second)
 	defer cancel()
@@ -44,6 +44,11 @@ func TestPostgresProtocolV2DatabaseRuntimeExactTransactionsAndRevocation(t *test
 	if err != nil {
 		t.Fatal(err)
 	}
+	// Register cleanup before provisioning. Every later assertion may fail after
+	// cluster roles or durable authority rows have already been created.
+	t.Cleanup(func() {
+		cleanupDatabaseServiceArtifact(t, pool, artifact, identifiers)
+	})
 	registry := extensionsruntime.NewPostgresExtensionDatabaseRegistry(pool, nil)
 	if _, err := registry.ProvisionOwnSchema(ctx, extensionsruntime.ExtensionDatabaseGrantRequest{
 		Artifact: artifact, ActorUserID: 701, AuditEventID: 801,
@@ -51,9 +56,6 @@ func TestPostgresProtocolV2DatabaseRuntimeExactTransactionsAndRevocation(t *test
 		t.Fatalf("provision exact own-schema grant: %v", err)
 	}
 	installDatabaseServiceTable(t, ctx, pool, identifiers)
-	t.Cleanup(func() {
-		cleanupDatabaseServiceArtifact(t, pool, artifact, identifiers)
-	})
 
 	identity := &protocolv2.ExtensionIdentity{
 		ExtensionId: extensionID, ExtensionVersion: version, ArtifactDigest: digest,
@@ -217,18 +219,30 @@ func cleanupDatabaseServiceArtifact(t *testing.T, pool *pgxpool.Pool, artifact e
 	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
-	_, _ = pool.Exec(ctx, `DELETE FROM extension_host_command_receipts WHERE extension_id = $1`, artifact.ExtensionID)
-	_, _ = pool.Exec(ctx, `DELETE FROM extension_database_credentials WHERE extension_id = $1`, artifact.ExtensionID)
-	_, _ = pool.Exec(ctx, `DELETE FROM extension_database_grants WHERE extension_id = $1`, artifact.ExtensionID)
-	_, _ = pool.Exec(ctx, `DROP SCHEMA IF EXISTS `+pgx.Identifier{identifiers.Schema}.Sanitize()+` CASCADE`)
-	_, _ = pool.Exec(ctx, `REVOKE `+pgx.Identifier{identifiers.OwnerRole}.Sanitize()+` FROM `+pgx.Identifier{identifiers.RuntimeRole}.Sanitize())
-	_, _ = pool.Exec(ctx, `DROP ROLE IF EXISTS `+pgx.Identifier{identifiers.RuntimeRole}.Sanitize())
-	_, _ = pool.Exec(ctx, `DROP ROLE IF EXISTS `+pgx.Identifier{identifiers.OwnerRole}.Sanitize())
-	_, _ = pool.Exec(ctx, `DELETE FROM extension_database_resources WHERE extension_id = $1`, artifact.ExtensionID)
-	_, _ = pool.Exec(ctx, `DELETE FROM extension_trust_grants WHERE extension_id = $1`, artifact.ExtensionID)
-	_, _ = pool.Exec(ctx, `UPDATE extensions SET active_version_id = NULL WHERE id = $1`, artifact.ExtensionID)
-	_, _ = pool.Exec(ctx, `DELETE FROM extensions WHERE id = $1`, artifact.ExtensionID)
-	_, _ = pool.Exec(ctx, `DELETE FROM audit_events WHERE metadata #>> '{extensionId}' = $1`, artifact.ExtensionID)
+	exec := func(label, query string, arguments ...any) {
+		t.Helper()
+		if _, err := pool.Exec(ctx, query, arguments...); err != nil {
+			t.Errorf("cleanup DatabaseService fixture %s: %v", label, err)
+		}
+	}
+	exec("command actor delegations", `DELETE FROM extension_host_command_actor_delegation_consumptions WHERE extension_id = $1`, artifact.ExtensionID)
+	exec("command receipts", `DELETE FROM extension_host_command_receipts WHERE extension_id = $1`, artifact.ExtensionID)
+	exec("runtime leases", `DELETE FROM extension_database_runtime_leases WHERE extension_id = $1`, artifact.ExtensionID)
+	exec("credentials", `DELETE FROM extension_database_credentials WHERE extension_id = $1`, artifact.ExtensionID)
+	exec("grant powers", `
+		DELETE FROM extension_database_grant_powers
+		WHERE grant_id IN (SELECT id FROM extension_database_grants WHERE extension_id = $1)
+	`, artifact.ExtensionID)
+	exec("grants", `DELETE FROM extension_database_grants WHERE extension_id = $1`, artifact.ExtensionID)
+	exec("schema", `DROP SCHEMA IF EXISTS `+pgx.Identifier{identifiers.Schema}.Sanitize()+` CASCADE`)
+	exec("role membership", `REVOKE `+pgx.Identifier{identifiers.OwnerRole}.Sanitize()+` FROM `+pgx.Identifier{identifiers.RuntimeRole}.Sanitize())
+	exec("runtime role", `DROP ROLE IF EXISTS `+pgx.Identifier{identifiers.RuntimeRole}.Sanitize())
+	exec("owner role", `DROP ROLE IF EXISTS `+pgx.Identifier{identifiers.OwnerRole}.Sanitize())
+	exec("resources", `DELETE FROM extension_database_resources WHERE extension_id = $1`, artifact.ExtensionID)
+	exec("trust grants", `DELETE FROM extension_trust_grants WHERE extension_id = $1`, artifact.ExtensionID)
+	exec("active version", `UPDATE extensions SET active_version_id = NULL WHERE id = $1`, artifact.ExtensionID)
+	exec("extension", `DELETE FROM extensions WHERE id = $1`, artifact.ExtensionID)
+	exec("audit", `DELETE FROM audit_events WHERE metadata #>> '{extensionId}' = $1`, artifact.ExtensionID)
 }
 
 func databaseServiceContext(t *testing.T, identity *protocolv2.ExtensionIdentity, requestID string) *protocolv2.RequestContext {
