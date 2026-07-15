@@ -5,6 +5,7 @@
 package idempotency
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -44,6 +45,9 @@ type Backend interface {
 	SetNX(ctx context.Context, key string, value []byte, ttl time.Duration) (bool, error)
 	Set(ctx context.Context, key string, value []byte, ttl time.Duration) error
 	Delete(ctx context.Context, keys ...string) error
+	// CompareAndSwap 只允许当前 lease 完成或释放自己的 pending 记录。
+	// replacement 为 nil 时删除；否则以 ttl 写入新值。
+	CompareAndSwap(ctx context.Context, key string, expected, replacement []byte, ttl time.Duration) (bool, error)
 }
 
 // Store 在 Backend 之上编码业务记录。
@@ -202,4 +206,23 @@ func (b *MemoryBackend) Delete(_ context.Context, keys ...string) error {
 		delete(b.items, key)
 	}
 	return nil
+}
+
+func (b *MemoryBackend) CompareAndSwap(_ context.Context, key string, expected, replacement []byte, ttl time.Duration) (bool, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	entry, ok := b.items[key]
+	if !ok || time.Now().After(entry.expiresAt) || !bytes.Equal(entry.value, expected) {
+		if ok && time.Now().After(entry.expiresAt) {
+			delete(b.items, key)
+		}
+		return false, nil
+	}
+	if replacement == nil {
+		delete(b.items, key)
+		return true, nil
+	}
+	stored := append([]byte(nil), replacement...)
+	b.items[key] = memoryEntry{value: stored, expiresAt: time.Now().Add(ttl)}
+	return true, nil
 }
