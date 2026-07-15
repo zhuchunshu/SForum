@@ -102,6 +102,7 @@ Manifest V3 component targets declare both `targetId` and `targetContractVersion
 | `core.component.shared.sfcomment_stream_controls` | `sforum.component.shared.sfcomment_stream_controls@1` | component | `public` | — | `apps/web/app/components/SFCommentStreamControls.vue` | P9 Component Registry |
 | `core.component.shared.sfeditor` | `sforum.component.shared.sfeditor@1` | component | `public` | — | `apps/web/app/components/SFEditor.vue` | P9 Component Registry |
 | `core.component.shared.sfempty_state` | `sforum.component.shared.sfempty_state@1` | component | `public`, `admin` | — | `apps/web/app/components/SFEmptyState.vue` | P7/P9 Admin and Component Registries |
+| `core.component.shared.sferror_page_content` | `sforum.component.shared.sferror_page_content@1` | component | `public` | — | `apps/web/app/components/SFErrorPageContent.vue` | P9 Component Registry |
 | `core.component.shared.sfextension_widget` | `sforum.component.shared.sfextension_widget@1` | component | `public` | — | `apps/web/app/components/SFExtensionWidget.vue` | P9 Component Registry |
 | `core.component.shared.sffeed_row` | `sforum.component.shared.sffeed_row@1` | component | `public` | — | `apps/web/app/components/SFFeedRow.vue` | P9 Component Registry |
 | `core.component.shared.sffooter` | `sforum.component.shared.sffooter@1` | component | `public` | — | `apps/web/app/components/SFFooter.vue` | P9 Component Registry |

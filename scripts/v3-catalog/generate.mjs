@@ -117,6 +117,7 @@ function routePolicy(route) {
   const { handler, method, module, path } = route
   if (path === '/api/v1/health' || path === '/api/v1/ready') return ['public', 'host liveness/readiness; non-overridable recovery prerequisite']
   if (path === '/api/v1/extensions/:extensionId/*') return ['declared', 'enabled plugin route declaration and manifest access policy']
+  if (path.startsWith('/api/v1/extensions/runtime/')) return ['public', 'exact public frontend artifact trust, digest, and live runtime policy']
   if (path === '/api/v1/admin/extensions/:id/frontend/confirmation' && method === 'POST') return ['super_admin', 'active super_admin challenge issuance']
   if (path === '/api/v1/admin/extensions/:id/frontend/trust' && method === 'POST') return ['super_admin', 'active super_admin plus actor-bound exact frontend artifact confirmation']
   if (path === '/api/v1/admin/extensions/:id/frontend/trust' && method === 'DELETE') return ['super_admin', 'active super_admin trust revocation']
@@ -195,6 +196,7 @@ const reviewedGuardPolicies = new Map([
   ['active super_admin trust revocation', { kind: 'super_admin' }],
   ['host liveness/readiness; non-overridable recovery prerequisite', { kind: 'public' }],
   ['public read contract', { kind: 'public' }],
+  ['exact public frontend artifact trust, digest, and live runtime policy', { kind: 'public' }],
   ['current browser session', { kind: 'login' }],
 
   ['attachment.upload plus upload/media policy', { kind: 'contextual', permissions: ['attachment.upload'], evaluatorId: 'core.guard.attachments.upload' }],

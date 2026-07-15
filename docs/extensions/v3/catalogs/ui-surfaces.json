@@ -1017,6 +1017,16 @@
     "targetRegistry": "P7/P9 Admin and Component Registries"
   },
   {
+    "id": "core.component.shared.sferror_page_content",
+    "contractVersion": "sforum.component.shared.sferror_page_content@1",
+    "kind": "component",
+    "source": "apps/web/app/components/SFErrorPageContent.vue",
+    "owners": [
+      "public"
+    ],
+    "targetRegistry": "P9 Component Registry"
+  },
+  {
     "id": "core.component.shared.sfextension_widget",
     "contractVersion": "sforum.component.shared.sfextension_widget@1",
     "kind": "component",

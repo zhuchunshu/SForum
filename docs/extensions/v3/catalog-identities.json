@@ -980,6 +980,18 @@
       "path": "/api/v1/extensions/:extensionId/*"
     },
     {
+      "id": "core.route.extensions.public_frontend_asset",
+      "contractVersion": "sforum.route.extensions.public_frontend_asset@1",
+      "method": "GET",
+      "path": "/api/v1/extensions/runtime/:extensionId/assets/:packageDigest/:digest/:handle"
+    },
+    {
+      "id": "core.route.extensions.public_frontend_component",
+      "contractVersion": "sforum.route.extensions.public_frontend_component@1",
+      "method": "GET",
+      "path": "/api/v1/extensions/runtime/:extensionId/components/:componentId"
+    },
+    {
       "id": "core.route.system.health",
       "contractVersion": "sforum.route.system.health@1",
       "method": "GET",
@@ -2322,6 +2334,16 @@
       ],
       "state": "active",
       "source": "apps/web/app/components/SFEmptyState.vue"
+    },
+    {
+      "id": "core.component.shared.sferror_page_content",
+      "contractVersion": "sforum.component.shared.sferror_page_content@1",
+      "kind": "component",
+      "owners": [
+        "public"
+      ],
+      "state": "active",
+      "source": "apps/web/app/components/SFErrorPageContent.vue"
     },
     {
       "id": "core.component.shared.sfextension_widget",
