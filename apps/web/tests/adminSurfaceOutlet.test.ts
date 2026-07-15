@@ -6,6 +6,7 @@ const source = (path: string) => readFileSync(new URL(path, import.meta.url), 'u
 describe('admin surface outlet', () => {
   test('mounts exact placement consumers and permission-filtered navigation in the admin shell', () => {
     const layout = source('../app/layouts/admin.vue')
+    expect(layout).toContain("import SFAdminSurfaceOutlet from '~/components/admin/SFAdminSurfaceOutlet.vue'")
     expect(layout).toContain("adminSurfaces.list(undefined, 'navigation')")
     expect(layout).toContain('adminSurfacePlacementPageId(surface.placementId)')
     expect(layout).toContain('<SFAdminSurfaceOutlet :page-id="currentAdminPageId" />')
@@ -14,7 +15,11 @@ describe('admin surface outlet', () => {
   test('renders only normalized descriptors and binds mutations to exact command contracts', () => {
     const outlet = source('../app/components/admin/SFAdminSurfaceOutlet.vue')
     const client = source('../app/composables/useAdminSurfaces.ts')
+    const users = source('../app/pages/admin/users.vue')
+    expect(users).toContain("import SFAdminSurfaceOutlet from '~/components/admin/SFAdminSurfaceOutlet.vue'")
     expect(outlet).toContain('normalizeAdminSurfaceOutput(result.output)')
+    expect(outlet).toContain('server: false')
+    expect(outlet).toContain('mounted && placement && (pending || error || hasContent)')
     expect(outlet).toContain("surface.action === 'add'")
     expect(outlet).toContain("surface.operation === 'query'")
     expect(outlet).toContain("candidate.operation === 'command'")

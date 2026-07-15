@@ -22,13 +22,12 @@ type SurfaceOutletData = {
   failures: Array<{ id: string, label: string, message: string }>
 }
 
-const defaultKinds: AdminSurfaceKind[] = ['notice', 'dashboard', 'form', 'importer', 'exporter']
 const props = withDefaults(defineProps<{
   pageId: string
   kinds?: AdminSurfaceKind[]
   context?: Record<string, unknown>
 }>(), {
-  kinds: () => [...defaultKinds],
+  kinds: (): AdminSurfaceKind[] => ['notice', 'dashboard', 'form', 'importer', 'exporter'],
   context: () => ({})
 })
 const emit = defineEmits<{ refresh: [] }>()
@@ -43,6 +42,12 @@ const contextKey = computed(() => JSON.stringify(props.context))
 const kindsKey = computed(() => [...props.kinds].sort().join(','))
 const busySurfaceId = ref('')
 const formValues = reactive<Record<string, Record<string, AdminSurfacePrimitive>>>(Object.create(null))
+const mounted = ref(false)
+
+onMounted(() => {
+  // 查询仅在客户端执行；挂载后再展示 loading，避免 SSR 空节点与 hydration 首帧不一致。
+  mounted.value = true
+})
 
 const asyncKey = computed(() => `admin-surfaces:${placement.value?.id || 'none'}:${kindsKey.value}`)
 const { data, pending, error, refresh } = await useAsyncData<SurfaceOutletData>(
@@ -50,6 +55,8 @@ const { data, pending, error, refresh } = await useAsyncData<SurfaceOutletData>(
   async () => loadSurfaces(),
   {
     default: () => ({ revision: 0, surfaces: [], resolved: [], failures: [] }),
+    // Surface 查询通过带输入契约的 POST 调用；留到客户端执行，确保先取得 double-submit CSRF。
+    server: false,
     watch: [contextKey]
   }
 )
@@ -204,7 +211,7 @@ function displayValue(value: AdminSurfacePrimitive) {
 </script>
 
 <template>
-  <div v-if="placement && (pending || error || hasContent)" class="mb-5 flex min-w-0 flex-col gap-4" data-testid="admin-surface-outlet">
+  <div v-if="mounted && placement && (pending || error || hasContent)" class="mb-5 flex min-w-0 flex-col gap-4" data-testid="admin-surface-outlet">
     <div v-if="pending && !hasContent" class="rounded-md border border-slate-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
       <SFSkeleton :lines="2" />
     </div>
