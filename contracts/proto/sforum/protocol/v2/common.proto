@@ -67,6 +67,18 @@ message RequestContext {
   ExtensionIdentity extension = 6;
   repeated AuthorityGrant granted_authority = 7;
   string idempotency_key = 8;
+  // Present only on an authenticated Host route/admin invocation. Each token
+  // is bound to this exact actor, runtime, artifact, command, and key.
+  repeated HostCommandDelegation host_command_delegations = 9;
+}
+
+// HostCommandDelegation is a short-lived Host-signed capability delivered to
+// one exact plugin invocation. It never replaces Execute-time policy checks.
+message HostCommandDelegation {
+  string command_id = 1;
+  string command_version = 2;
+  string idempotency_key = 3;
+  string token = 4;
 }
 
 // ResponseContext correlates a response with the authoritative runtime.

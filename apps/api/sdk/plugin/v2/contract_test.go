@@ -54,7 +54,9 @@ func TestGeneratedServiceCatalog(t *testing.T) {
 
 func TestRequiredEnvelopeAndCommandFields(t *testing.T) {
 	assertFields(t, "sforum.protocol.v2.RequestContext",
-		"request_id", "trace", "actor", "locale", "deadline", "extension", "granted_authority", "idempotency_key")
+		"request_id", "trace", "actor", "locale", "deadline", "extension", "granted_authority", "idempotency_key", "host_command_delegations")
+	assertFields(t, "sforum.protocol.v2.HostCommandDelegation",
+		"command_id", "command_version", "idempotency_key", "token")
 	assertFields(t, "sforum.protocol.v2.ExtensionIdentity",
 		"extension_id", "extension_version", "artifact_digest", "trust_grant_id", "runtime_epoch", "instance_id")
 	assertFields(t, "sforum.protocol.v2.TypedDocument", "schema_id", "schema_version", "value")
