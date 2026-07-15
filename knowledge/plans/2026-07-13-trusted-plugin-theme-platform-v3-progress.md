@@ -2,7 +2,7 @@
 
 Date: 2026-07-16
 Overall progress: **58%**
-Active phase: **P9 - Components/assets/L2 (6% accepted; implementation ahead of accepted production exits)**
+Active phase: **P9 - Components/assets/L2 (12% accepted; implementation ahead of accepted production exits)**
 
 This ledger is the durable percentage and context-compaction checkpoint for the
 V3 program. Update it before context compression, at every phase boundary, and
@@ -25,7 +25,7 @@ scaffolding, or demo-only code cannot satisfy a runtime exit criterion.
 | P6 Routes/middleware | 10% | 72% | 7.22% |
 | P7 Workflow/admin/query/identity | 10% | 59% | 5.91% |
 | P8 Theme compiler/runtime | 8% | 100% | 8% |
-| P9 Components/assets/L2 | 8% | 6% | 0.50% |
+| P9 Components/assets/L2 | 8% | 12% | 1.00% |
 | P10 Content/media/data | 8% | 0% | 0% |
 | P11 Platform services | 6% | 0% | 0% |
 | P12 Operations/ecosystem | 6% | 0% | 0% |
@@ -111,6 +111,29 @@ phase percentage.
   failing plugin exactly once (`failed`, then `skipped`).
 
 ## Last Durable Checkpoint
+
+### 2026-07-16 P9 Buildless Public L2 Production Exit
+
+- Overall remains **58%** after flooring. P9 advances to **12% (2 of 16
+  rows)** and earns **1.00%** of its 8% weight.
+- `b081898c5`, `d8d6d5205`, and `bf49c2aa9` bind generated L2 entries to exact
+  contracts, require exact Asset Registry publications, and publish exact
+  Component Registry theme transitions. A manifest declaration alone no longer
+  admits stale, hidden, losing, or dependency-invalid browser code.
+- `b164b30bd` preserves Host L1 output when an extension render fails, while
+  `c0e2fa855` adds the author-prebuilt fixture with no `package.json` or
+  package-local build command.
+- `86d112ef5` proves the isolated production chain from an inert admin ZIP
+  upload through actor/artifact-bound trust and activation, immediate descriptor
+  availability without API restart, Nitro SSR fallback, native ESM relative
+  chunk and nested CSS loading, browser interaction, API/Nitro restart,
+  trust revocation, descriptor denial, DOM unmount, and stylesheet lease
+  cleanup. The opt-in production test passed in **238.30 seconds** and left no
+  test processes behind.
+- Fixture `extension validate` and `extension test`, 29 focused Web emergency
+  tests, Nuxt typecheck, and the focused Go public L2 tests passed. Public L2
+  remains default-off until Asset lifecycle publication, scoped SSR CSP, and
+  the remaining P9 composition/inspection exits close.
 
 ### 2026-07-15 P7 Admin Surface Production Closure
 
@@ -1540,8 +1563,8 @@ phase percentage.
 ## 2026-07-16 P8 Closure And P9 Runtime Checkpoint
 
 - Overall advances to **58%** after flooring. P8 is **18/18 (100%)** and earns
-  its full 8% weight. P9 remains **1/16 (6%) accepted** until production exits
-  close; its committed foundations do not yet justify crediting whole rows.
+  its full 8% weight. P9 was **1/16 (6%) accepted** at this checkpoint; see the
+  newer P9 buildless public L2 production exit above.
 - P8 passed the isolated fresh API/Nitro production matrix with three restarts,
   exact theme switching, one concurrent winner, final recovery, all 23 product
   Page ViewModels, JavaScript-disabled catalog output, and no residual process

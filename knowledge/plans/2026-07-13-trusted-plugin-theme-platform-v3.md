@@ -645,7 +645,7 @@ falls back without changing plugin business or numeric semantics.
       data contract.
 - [ ] Build Asset Registry for handles, dependencies, versions, modules,
       loading strategy, integrity, CSP, scope, deduplication, and cleanup.
-- [ ] Implement package-local prebuilt public L2 ESM/CSS mount/unmount contract.
+- [x] Implement package-local prebuilt public L2 ESM/CSS mount/unmount contract.
 - [ ] Reuse exact-digest confirmation, immutable asset delivery, error boundary,
       cleanup, quarantine, and SSR/L1 fallback principles from admin components.
 - [ ] Allow trusted component code to run with current browser authority and

@@ -142,15 +142,15 @@ This is the entry point for project memory.
     frontend clients, sidebar navigation, and the first real admin-shell outlet
     are committed. The row remains open pending specialized list/action
     consumers and an independent reference admin plugin.
-  - P8 is 17/18 (94%). Immutable 23-page compiler snapshots, sealed typed
+  - P8 is 18/18 (100%). Immutable 23-page compiler snapshots, sealed typed
     frontend output, public/admin skin isolation, install-time safety,
     four-level fallback, exact publication, all-catalog zero-I/O proof, and
     crawler/JavaScript-disabled SSR evidence, and the production API/Nitro
     restart plus concurrent exact-activation exit are accepted
-  - The P8 Page ViewModel row remains open only for the clean production/browser
-    acceptance gate. Service-backed product fields, all 23 frontend outlets,
-    protected Host islands, private-cache boundaries, catalog features,
-    guest-read policy, Unicode params, and SEO canonicals are now implemented
+  - The P8 Page ViewModel production/browser acceptance gate passed with all 23
+    frontend outlets, service-backed product fields, protected Host islands,
+    private-cache boundaries, catalog features, guest-read policy, Unicode
+    params, SEO canonicals, restart, and concurrent activation evidence
   - `cd1573d5a` seals exact plugin Page ViewModels across lifecycle publication,
     theme overrides, fallback, and restart. Theme presentation cannot change the
     plugin schema or numeric business semantics, and invalid payloads fail back
@@ -160,7 +160,7 @@ This is the entry point for project memory.
     exposes process-local revisions. Migration 020 persists desired/node/ack
     convergence evidence. LISTEN reconnect, missed-notification polling, node
     acknowledgement, and two-node exact-artifact convergence are verified
-  - P9 is 1/16 (6%). The generated neutral `ComponentCatalog` now contains 120
+  - P9 is 2/16 (12%). The generated neutral `ComponentCatalog` contains 120
     active public/admin Core component identities, with explicit
     page/component kind, ownership, contract, exact lookup, immutable copies,
     and collision/drift tests
@@ -170,6 +170,11 @@ This is the entry point for project memory.
     cannot target admin-only Core surfaces, and other reserved `core.*` families
     fail closed. Retired identities remain reserved through an immutable-path,
     full-history tombstone ledger and generated reservation catalog
+  - Package-local public L2 is accepted in production: an author-prebuilt theme
+    with no package-local build command survives inert ZIP upload, exact actor/
+    artifact trust, immediate activation, native relative ESM/CSS loading,
+    browser interaction, API/Nitro restart, trust revoke, unmount, and complete
+    stylesheet cleanup while retaining the Host SSR/L1 fallback
 
 - **2026-07-13 Legacy Web Release/runtime frontend builds removed**
   - Decision: `knowledge/decisions/2026-07-13-remove-legacy-web-release.md`
