@@ -120,6 +120,10 @@ func (h *Controller) invokeAdminSurface(c fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusUnprocessableEntity, CodeAdminSurfaceInvalid)
 	}
 	body.ContractVersion = strings.TrimSpace(body.ContractVersion)
+	idempotencyKey := c.Get("Idempotency-Key")
+	if err := extensionsruntime.ValidateProtocolV2InvocationIdempotencyKey(idempotencyKey); err != nil {
+		return fiber.NewError(fiber.StatusUnprocessableEntity, CodeAdminSurfaceInvalid)
+	}
 	metadata := map[string]any{
 		"surfaceId": contract.ID, "contractVersion": contract.ContractVersion,
 		"extensionId": contract.ExtensionID, "extensionVersion": contract.ExtensionVersion,
@@ -146,6 +150,7 @@ func (h *Controller) invokeAdminSurface(c fiber.Ctx) error {
 	}()
 	result, err := h.adminSurfaces.InvokeAdminSurface(c.Context(), extensionsruntime.AdminSurfaceInvocation{
 		ExpectedContract: contract, ContractVersion: body.ContractVersion, Input: body.Input,
+		Actor: adminSurfaceInvocationActor(actor), IdempotencyKey: idempotencyKey,
 	})
 	if err != nil {
 		return mapAdminSurfaceError(err)
@@ -154,6 +159,17 @@ func (h *Controller) invokeAdminSurface(c fiber.Ctx) error {
 	return apphttp.OK(c, AdminSurfaceInvocationView{
 		Surface: adminSurfaceView(result.Contract), Output: result.Output,
 	})
+}
+
+func adminSurfaceInvocationActor(actor identity.Actor) *extensionsruntime.ProtocolV2InvocationActor {
+	permissions := make(map[string]bool, len(actor.Permissions)+1)
+	for key, allowed := range actor.Permissions {
+		permissions[key] = allowed
+	}
+	if actor.IsSuperAdmin() {
+		permissions["*"] = true
+	}
+	return extensionsruntime.NewProtocolV2InvocationActor(actor.ID, actor.IsActive(), permissions)
 }
 
 func (h *Controller) adminSurfaceActor(c fiber.Ctx) (identity.Actor, error) {
@@ -193,6 +209,10 @@ func mapAdminSurfaceError(err error) error {
 		return fiber.NewError(fiber.StatusNotFound, CodeAdminSurfaceNotFound)
 	case errors.Is(err, extensionsruntime.ErrAdminSurfaceRegistryInvalid):
 		return fiber.NewError(fiber.StatusUnprocessableEntity, CodeAdminSurfaceInvalid)
+	case errors.Is(err, extensionsruntime.ErrProtocolV2ActorDelegationInvalid):
+		return fiber.NewError(fiber.StatusUnprocessableEntity, CodeAdminSurfaceInvalid)
+	case errors.Is(err, extensionsruntime.ErrProtocolV2ActorDelegationUnavailable):
+		return fiber.NewError(fiber.StatusServiceUnavailable, CodeAdminSurfaceUnavailable)
 	case errors.Is(err, extensionsruntime.ErrAdminSurfaceRuntimeStale):
 		return fiber.NewError(fiber.StatusConflict, CodeAdminSurfaceStale)
 	case errors.Is(err, extensionsruntime.ErrAdminSurfaceNotInvokable):

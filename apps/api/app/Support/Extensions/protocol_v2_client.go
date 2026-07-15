@@ -532,6 +532,8 @@ func (c *protocolV2Client) invokeAdminSurface(
 	parent context.Context,
 	contract AdminSurfaceContract,
 	input map[string]any,
+	actor *ProtocolV2InvocationActor,
+	idempotencyKey string,
 ) (map[string]any, error) {
 	if c == nil || c.client == nil || c.identity == nil || parent == nil {
 		return nil, extensions.ErrRuntimeUnavailable
@@ -554,8 +556,12 @@ func (c *protocolV2Client) invokeAdminSurface(
 	}
 	ctx, cancel := protocolV2Deadline(parent, DefaultProtocolV2RequestTimeout)
 	defer cancel()
+	requestContext, err := c.invocationRequestContext(ctx, contract.ID, actor, idempotencyKey)
+	if err != nil {
+		return nil, err
+	}
 	response, err := c.client.InvokeHook(ctx, &pluginv2.HookRequest{
-		Context: c.requestContext(ctx, contract.ID), HookId: contract.ID,
+		Context: requestContext, HookId: contract.ID,
 		HookName: contract.Handler, HookKind: "admin_surface", ContractVersion: contract.ContractVersion,
 		DeliveryId: contract.ID, Payload: document,
 	})

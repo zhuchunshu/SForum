@@ -10,6 +10,8 @@ func (s *ProtocolStarter) InvokeAdminSurface(
 	identity RuntimeInstanceIdentity,
 	contract AdminSurfaceContract,
 	input map[string]any,
+	actor *ProtocolV2InvocationActor,
+	idempotencyKey string,
 ) (map[string]any, error) {
 	if s == nil || ctx == nil {
 		return nil, ErrAdminSurfaceRegistryInvalid
@@ -47,7 +49,7 @@ func (s *ProtocolStarter) InvokeAdminSurface(
 	}(); err != nil {
 		return nil, err
 	}
-	return v2.invokeAdminSurface(ctx, contract, input)
+	return v2.invokeAdminSurface(ctx, contract, input, actor, idempotencyKey)
 }
 
 var _ adminSurfaceRuntime = (*ProtocolStarter)(nil)

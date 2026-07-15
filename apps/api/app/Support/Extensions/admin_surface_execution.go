@@ -18,6 +18,8 @@ type AdminSurfaceInvocation struct {
 	ExpectedContract AdminSurfaceContract
 	ContractVersion  string
 	Input            map[string]any
+	Actor            *ProtocolV2InvocationActor
+	IdempotencyKey   string
 }
 
 type AdminSurfaceInvocationResult struct {
@@ -31,6 +33,8 @@ type adminSurfaceRuntime interface {
 		RuntimeInstanceIdentity,
 		AdminSurfaceContract,
 		map[string]any,
+		*ProtocolV2InvocationActor,
+		string,
 	) (map[string]any, error)
 }
 
@@ -76,7 +80,9 @@ func (m *Manager) InvokeAdminSurface(
 	if err != nil {
 		return AdminSurfaceInvocationResult{}, fmt.Errorf("clone admin surface props: %w", err)
 	}
-	output, err := runtime.InvokeAdminSurface(lease.Context, identity, contract, props)
+	output, err := runtime.InvokeAdminSurface(
+		lease.Context, identity, contract, props, input.Actor, input.IdempotencyKey,
+	)
 	if err != nil {
 		return AdminSurfaceInvocationResult{}, err
 	}

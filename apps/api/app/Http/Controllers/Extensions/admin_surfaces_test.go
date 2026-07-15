@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"strconv"
 	"strings"
 	"testing"
@@ -113,9 +114,15 @@ func TestAdminSurfaceHTTPEnforcesDeclarationAndAuditsExactInvocation(t *testing.
 		}
 		response.Body.Close()
 	}
+	response = performAdminSurfaceJSONRequest(t, app, path, privileged,
+		`{"contractVersion":"fixture.admin.surface.protected@1","input":{"title":"Invalid key"}}`, "has whitespace")
+	if response.StatusCode != http.StatusUnprocessableEntity || runtime.calls != 0 || len(auditor.events) != 0 {
+		t.Fatalf("invalid key status=%d calls=%d audits=%#v body=%s", response.StatusCode, runtime.calls, auditor.events, responseBody(t, response))
+	}
+	response.Body.Close()
 
-	response = performExtensionJSONRequest(t, app, http.MethodPost, path, privileged,
-		`{"contractVersion":"fixture.admin.surface.protected@1","input":{"title":"SForum"}}`)
+	response = performAdminSurfaceJSONRequest(t, app, path, privileged,
+		`{"contractVersion":"fixture.admin.surface.protected@1","input":{"title":"SForum"}}`, "admin-surface-request-2")
 	if response.StatusCode != http.StatusOK {
 		t.Fatalf("invoke status=%d body=%s", response.StatusCode, responseBody(t, response))
 	}
@@ -126,6 +133,11 @@ func TestAdminSurfaceHTTPEnforcesDeclarationAndAuditsExactInvocation(t *testing.
 	response.Body.Close()
 	if runtime.calls != 1 || result.Data.Surface.ID != "fixture.admin.surface.protected" || result.Data.Output["title"] != "Rendered" {
 		t.Fatalf("calls=%d result=%#v", runtime.calls, result.Data)
+	}
+	if runtime.input.Actor == nil || runtime.input.Actor.UserID != 2 ||
+		!reflect.DeepEqual(runtime.input.Actor.PermissionKeys, []string{identity.PermissionAdminAccess, adminSurfaceTestPermission}) ||
+		runtime.input.IdempotencyKey != "admin-surface-request-2" {
+		t.Fatalf("runtime invocation = %#v", runtime.input)
 	}
 	if len(auditor.events) != 2 || auditor.events[0].Action != audit.ActionExtensionAdminSurface ||
 		auditor.events[0].ActorUserID != 2 || auditor.events[0].Metadata["status"] != "attempted" ||
@@ -160,6 +172,8 @@ func TestMapAdminSurfaceErrorMapsTypedRuntimeFailures(t *testing.T) {
 		{name: "grpc invalid", err: status.Error(codes.InvalidArgument, "invalid"), wantStatus: http.StatusUnprocessableEntity, wantCode: CodeAdminSurfaceInvalid},
 		{name: "grpc conflict", err: status.Error(codes.Aborted, "conflict"), wantStatus: http.StatusConflict, wantCode: CodeAdminSurfaceStale},
 		{name: "grpc unavailable", err: status.Error(codes.Unavailable, "unavailable"), wantStatus: http.StatusServiceUnavailable, wantCode: CodeAdminSurfaceUnavailable},
+		{name: "delegation invalid", err: extensionsruntime.ErrProtocolV2ActorDelegationInvalid, wantStatus: http.StatusUnprocessableEntity, wantCode: CodeAdminSurfaceInvalid},
+		{name: "delegation unavailable", err: extensionsruntime.ErrProtocolV2ActorDelegationUnavailable, wantStatus: http.StatusServiceUnavailable, wantCode: CodeAdminSurfaceUnavailable},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -228,6 +242,7 @@ type adminSurfaceControllerRuntime struct {
 	snapshot  extensionsruntime.AdminSurfaceRegistrySnapshot
 	contracts map[string]extensionsruntime.AdminSurfaceContract
 	calls     int
+	input     extensionsruntime.AdminSurfaceInvocation
 }
 
 func newAdminSurfaceControllerRuntime() *adminSurfaceControllerRuntime {
@@ -279,9 +294,32 @@ func (r *adminSurfaceControllerRuntime) InvokeAdminSurface(
 		return extensionsruntime.AdminSurfaceInvocationResult{}, extensionsruntime.ErrAdminSurfaceRuntimeStale
 	}
 	r.calls++
+	r.input = input
 	return extensionsruntime.AdminSurfaceInvocationResult{
 		Contract: contract, Output: map[string]any{"title": "Rendered"},
 	}, nil
+}
+
+func performAdminSurfaceJSONRequest(
+	t *testing.T,
+	app *fiber.App,
+	path string,
+	cookie *http.Cookie,
+	body string,
+	idempotencyKey string,
+) *http.Response {
+	t.Helper()
+	request := httptest.NewRequest(http.MethodPost, path, strings.NewReader(body))
+	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("Idempotency-Key", idempotencyKey)
+	if cookie != nil {
+		request.AddCookie(cookie)
+	}
+	response, err := app.Test(request)
+	if err != nil {
+		t.Fatalf("POST %s failed: %v", path, err)
+	}
+	return response
 }
 
 func adminSurfaceControllerContract(id, kind, action, targetID, permission string) extensionsruntime.AdminSurfaceContract {

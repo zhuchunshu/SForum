@@ -23,16 +23,17 @@ var (
 	ErrProtocolV2RouteStream      = errors.New("protocol v2 route requires the streaming transport")
 )
 
-// ProtocolV2RouteActor is Host-authored request authority. It is intentionally
-// separate from plugin output, which can never add actor or permission data.
-type ProtocolV2RouteActor struct {
+// ProtocolV2InvocationActor is Host-authored request authority shared by route
+// and admin invocations. Plugin output can never add actor or permission data.
+type ProtocolV2InvocationActor struct {
 	UserID         int64
 	PermissionKeys []string
 }
 
-// NewProtocolV2RouteActor converts an authenticated Host dispatch snapshot to
-// the wire actor. Anonymous and inactive actors are represented by nil.
-func NewProtocolV2RouteActor(userID int64, authenticated bool, permissions map[string]bool) *ProtocolV2RouteActor {
+// ProtocolV2RouteActor preserves the route transport API name.
+type ProtocolV2RouteActor = ProtocolV2InvocationActor
+
+func NewProtocolV2InvocationActor(userID int64, authenticated bool, permissions map[string]bool) *ProtocolV2InvocationActor {
 	if !authenticated || userID <= 0 {
 		return nil
 	}
@@ -44,7 +45,13 @@ func NewProtocolV2RouteActor(userID int64, authenticated bool, permissions map[s
 		}
 	}
 	sort.Strings(keys)
-	return &ProtocolV2RouteActor{UserID: userID, PermissionKeys: keys}
+	return &ProtocolV2InvocationActor{UserID: userID, PermissionKeys: keys}
+}
+
+// NewProtocolV2RouteActor converts an authenticated Host dispatch snapshot to
+// the wire actor. Anonymous and inactive actors are represented by nil.
+func NewProtocolV2RouteActor(userID int64, authenticated bool, permissions map[string]bool) *ProtocolV2RouteActor {
+	return NewProtocolV2InvocationActor(userID, authenticated, permissions)
 }
 
 // ProtocolV2RouteRequest is transport-neutral and binds one unary call to the

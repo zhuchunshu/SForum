@@ -10,6 +10,7 @@ import (
 	"time"
 
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
+	hostapi "github.com/zhuchunshu/sforum/apps/api/app/Support/HostAPI"
 	pluginwire "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/plugin/v2"
 	protocolwire "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/protocol/v2"
 	"google.golang.org/grpc"
@@ -37,8 +38,16 @@ func (s *adminSurfaceRuntimeServer) InvokeHook(
 func TestProtocolV2AdminSurfaceCarriesExactTypedContract(t *testing.T) {
 	server := &adminSurfaceRuntimeServer{}
 	client := adminSurfaceProtocolClient(t, server)
+	client.hostCommands = true
+	issuer := &recordingProtocolV2ActorDelegationIssuer{grants: []hostapi.ProtocolV2ActorDelegationGrant{{
+		CommandID: "sforum.admin.write", CommandVersion: "1", IdempotencyKey: "admin-request-42", Token: "admin-token",
+	}}}
+	client.delegations = issuer
 	contract := adminSurfaceRuntimeContract()
-	output, err := client.invokeAdminSurface(context.Background(), contract, map[string]any{"title": "SForum"})
+	output, err := client.invokeAdminSurface(
+		context.Background(), contract, map[string]any{"title": "SForum"},
+		NewProtocolV2RouteActor(42, true, map[string]bool{"admin.write": true}), "admin-request-42",
+	)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -47,12 +56,17 @@ func TestProtocolV2AdminSurfaceCarriesExactTypedContract(t *testing.T) {
 		request.GetHookName() != contract.Handler || request.GetHookKind() != "admin_surface" ||
 		request.GetPayload().GetSchemaId() != "demo.admin.surface.props" ||
 		request.GetPayload().GetSchemaVersion() != "1" || request.GetPayload().GetValue().AsMap()["title"] != "SForum" ||
+		request.GetContext().GetActor().GetUserId() != 42 || request.GetContext().GetIdempotencyKey() != "admin-request-42" ||
+		len(request.GetContext().GetHostCommandDelegations()) != 1 ||
+		request.GetContext().GetHostCommandDelegations()[0].GetToken() != "admin-token" ||
+		issuer.calls != 1 || issuer.request.Runtime.GetInstanceId() != contract.InstanceID ||
+		!reflect.DeepEqual(issuer.request.PermissionKeys, []string{"admin.write"}) ||
 		output["title"] != "Rendered" {
 		t.Fatalf("request=%#v output=%#v", request, output)
 	}
 	stale := contract
 	stale.Handler = "admin.changed"
-	if _, err := client.invokeAdminSurface(context.Background(), stale, map[string]any{}); !errors.Is(err, ErrAdminSurfaceRuntimeStale) {
+	if _, err := client.invokeAdminSurface(context.Background(), stale, map[string]any{}, nil, ""); !errors.Is(err, ErrAdminSurfaceRuntimeStale) {
 		t.Fatalf("stale surface = %v", err)
 	}
 }
@@ -62,6 +76,8 @@ type adminSurfaceStarterStub struct {
 	calls      int
 	input      map[string]any
 	contract   AdminSurfaceContract
+	actor      *ProtocolV2InvocationActor
+	key        string
 }
 
 type blockingAdminSurfaceStarter struct {
@@ -87,6 +103,8 @@ func (s *blockingAdminSurfaceStarter) InvokeAdminSurface(
 	identity RuntimeInstanceIdentity,
 	_ AdminSurfaceContract,
 	_ map[string]any,
+	_ *ProtocolV2InvocationActor,
+	_ string,
 ) (map[string]any, error) {
 	s.entered <- identity
 	if identity.InstanceID == "runtime-old" {
@@ -110,10 +128,14 @@ func (s *adminSurfaceStarterStub) InvokeAdminSurface(
 	_ RuntimeInstanceIdentity,
 	contract AdminSurfaceContract,
 	input map[string]any,
+	actor *ProtocolV2InvocationActor,
+	idempotencyKey string,
 ) (map[string]any, error) {
 	s.calls++
 	s.contract = contract
 	s.input = input
+	s.actor = actor
+	s.key = idempotencyKey
 	input["title"] = "mutated by plugin"
 	return map[string]any{"title": "Rendered"}, nil
 }
@@ -139,10 +161,14 @@ func TestManagerAdminSurfaceValidatesDocumentsAndExactRuntimeAdmission(t *testin
 	input := map[string]any{"title": "SForum"}
 	result, err := manager.InvokeAdminSurface(context.Background(), AdminSurfaceInvocation{
 		ExpectedContract: contract, ContractVersion: extension.Manifest.AdminSurfaces[0].ContractVersion, Input: input,
+		Actor: NewProtocolV2RouteActor(42, true, map[string]bool{"admin.write": true}), IdempotencyKey: "admin-request-42",
 	})
 	if err != nil || result.Output["title"] != "Rendered" || starter.calls != 1 ||
 		!reflect.DeepEqual(input, map[string]any{"title": "SForum"}) || starter.contract.InstanceID != starter.instanceID {
 		t.Fatalf("result=%#v calls=%d input=%#v contract=%#v err=%v", result, starter.calls, input, starter.contract, err)
+	}
+	if starter.actor == nil || starter.actor.UserID != 42 || starter.key != "admin-request-42" {
+		t.Fatalf("actor=%#v key=%q", starter.actor, starter.key)
 	}
 	if _, err := manager.InvokeAdminSurface(context.Background(), AdminSurfaceInvocation{
 		ExpectedContract: contract, ContractVersion: extension.Manifest.AdminSurfaces[0].ContractVersion,

@@ -113,15 +113,19 @@ func TestProtocolV2RouteRejectsUnavailableOrMalformedActorDelegations(t *testing
 	for _, test := range []struct {
 		name   string
 		issuer hostapi.ProtocolV2ActorDelegationBundleIssuer
+		want   error
 	}{
-		{name: "issuer unavailable"},
+		{name: "issuer unavailable", want: ErrProtocolV2ActorDelegationUnavailable},
+		{name: "issuer failure", issuer: &recordingProtocolV2ActorDelegationIssuer{
+			err: errors.New("signing key unavailable"),
+		}, want: ErrProtocolV2ActorDelegationUnavailable},
 		{name: "wrong key", issuer: &recordingProtocolV2ActorDelegationIssuer{grants: []hostapi.ProtocolV2ActorDelegationGrant{{
 			CommandID: "sforum.user.status", CommandVersion: "1", IdempotencyKey: "other", Token: "signed-token",
-		}}}},
+		}}}, want: ErrProtocolV2ActorDelegationInvalid},
 		{name: "duplicate command", issuer: &recordingProtocolV2ActorDelegationIssuer{grants: []hostapi.ProtocolV2ActorDelegationGrant{
 			{CommandID: "sforum.user.status", CommandVersion: "1", IdempotencyKey: "route-request-42", Token: "signed-one"},
 			{CommandID: "sforum.user.status", CommandVersion: "1", IdempotencyKey: "route-request-42", Token: "signed-two"},
-		}}},
+		}}, want: ErrProtocolV2ActorDelegationInvalid},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			called := false
@@ -131,7 +135,7 @@ func TestProtocolV2RouteRejectsUnavailableOrMalformedActorDelegations(t *testing
 			})
 			client.delegations = test.issuer
 			client.hostCommands = true
-			if _, err := client.InvokeRouteContext(context.Background(), request); !errors.Is(err, ErrProtocolV2ActorDelegationUnavailable) {
+			if _, err := client.InvokeRouteContext(context.Background(), request); !errors.Is(err, test.want) {
 				t.Fatalf("error = %v", err)
 			}
 			if called {
