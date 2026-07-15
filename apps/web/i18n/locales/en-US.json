@@ -270,6 +270,17 @@
       "footerCopyright": "© {year} SForum. All rights reserved.",
       "footerProductSummary": "Official open-source forum framework"
     },
+    "surfaces": {
+      "loadFailed": "An admin extension could not be loaded.",
+      "invalidResult": "The extension returned an invalid result.",
+      "completed": "{label} completed",
+      "failed": "{label} failed",
+      "submit": "Submit",
+      "open": "Open",
+      "emptyValue": "Not set",
+      "yes": "Yes",
+      "no": "No"
+    },
     "nav": {
       "dashboard": "Dashboard",
       "personalization": "Personalization",

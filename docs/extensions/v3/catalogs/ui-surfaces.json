@@ -100,6 +100,16 @@
     "targetRegistry": "P7/P9 Admin and Component Registries"
   },
   {
+    "id": "core.component.admin.sfadmin_surface_outlet",
+    "contractVersion": "sforum.component.admin.sfadmin_surface_outlet@1",
+    "kind": "component",
+    "source": "apps/web/app/components/admin/SFAdminSurfaceOutlet.vue",
+    "owners": [
+      "admin"
+    ],
+    "targetRegistry": "P7/P9 Admin and Component Registries"
+  },
+  {
     "id": "core.component.admin.sfextension_settings_actions",
     "contractVersion": "sforum.component.admin.sfextension_settings_actions@1",
     "kind": "component",

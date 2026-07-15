@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import {
   adminSurfaceIdempotencyKey,
+  adminSurfacePlacementPageId,
   normalizeAdminSurfaceOutput,
   resolveAdminSurfacePlacement
 } from '../app/utils/adminSurfaces'
@@ -18,6 +19,8 @@ describe('admin surface consumers', () => {
       route: '/admin/extensions/:extensionId/pages/:pagePath*'
     })
     expect(resolveAdminSurfacePlacement('/missing')).toBeUndefined()
+    expect(adminSurfacePlacementPageId('core.component.page.admin.users')).toBe('/users')
+    expect(adminSurfacePlacementPageId('core.component.page.admin.extensions.extension.id.pages.page.path')).toBeUndefined()
   })
 
   test('keeps only bounded Host-rendered result descriptors', () => {
@@ -26,6 +29,7 @@ describe('admin surface consumers', () => {
       tone: 'warning',
       icon: 'i-lucide-shield-alert',
       pageId: '/users',
+      commandSurfaceId: 'fixture.admin.surface.submit',
       items: [{ label: 'Score', value: 7 }],
       cells: { '42': 'trusted', '<script>': 'blocked' },
       options: [{ label: 'All', value: 'all' }],
@@ -40,6 +44,7 @@ describe('admin surface consumers', () => {
       tone: 'warning',
       icon: 'i-lucide-shield-alert',
       pageId: '/users',
+      commandSurfaceId: 'fixture.admin.surface.submit',
       items: [{ label: 'Score', value: 7 }],
       cells: { '42': 'trusted' },
       options: [{ label: 'All', value: 'all' }],

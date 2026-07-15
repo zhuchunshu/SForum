@@ -1444,6 +1444,16 @@
       "source": "apps/web/app/components/admin/SFAdminOverviewTrendTrio.vue"
     },
     {
+      "id": "core.component.admin.sfadmin_surface_outlet",
+      "contractVersion": "sforum.component.admin.sfadmin_surface_outlet@1",
+      "kind": "component",
+      "owners": [
+        "admin"
+      ],
+      "state": "active",
+      "source": "apps/web/app/components/admin/SFAdminSurfaceOutlet.vue"
+    },
+    {
       "id": "core.component.admin.sfadmin_site_chrome_panel",
       "contractVersion": "sforum.component.admin.sfadmin_site_chrome_panel@1",
       "kind": "component",

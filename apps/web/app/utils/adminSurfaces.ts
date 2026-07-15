@@ -75,6 +75,7 @@ export type AdminSurfaceViewModel = {
   tone: AdminSurfaceTone
   icon?: string
   pageId?: string
+  commandSurfaceId?: string
   items: Array<{ label: string, value: AdminSurfacePrimitive }>
   cells: Record<string, AdminSurfacePrimitive>
   options: AdminSurfaceOption[]
@@ -87,6 +88,7 @@ export type AdminSurfaceViewModel = {
 
 const iconPattern = /^i-(?:lucide|tabler)-[a-z0-9]+(?:-[a-z0-9]+)*$/
 const fieldKeyPattern = /^[a-z0-9][a-z0-9._-]{0,79}$/
+const surfaceIdPattern = /^[a-z0-9][a-z0-9._-]{1,160}$/
 const tones = new Set<AdminSurfaceTone>(['neutral', 'primary', 'success', 'warning', 'error'])
 const fieldTypes = new Set<AdminSurfaceField['type']>(['text', 'textarea', 'number', 'boolean', 'select'])
 
@@ -96,6 +98,12 @@ export function resolveAdminSurfacePlacement(pageId: string): AdminSurfacePlacem
   if (exact) return exact
 
   return adminSurfacePlacements.find(item => routePatternMatches(item.route, normalized))
+}
+
+export function adminSurfacePlacementPageId(placementId?: string) {
+  const placement = adminSurfacePlacements.find(item => item.id === placementId)
+  if (!placement || placement.route.includes(':')) return undefined
+  return placement.route === '/admin' ? '/' : placement.route.replace(/^\/admin/, '') || '/'
 }
 
 export function normalizeAdminSurfaceOutput(output: unknown): AdminSurfaceViewModel | null {
@@ -113,6 +121,7 @@ export function normalizeAdminSurfaceOutput(output: unknown): AdminSurfaceViewMo
     tone,
     icon: iconPattern.test(icon || '') ? icon : undefined,
     pageId,
+    commandSurfaceId: safeSurfaceId(output.commandSurfaceId),
     items: normalizeItems(output.items),
     cells: normalizePrimitiveRecord(output.cells, 1000),
     options: normalizeOptions(output.options),
@@ -123,7 +132,8 @@ export function normalizeAdminSurfaceOutput(output: unknown): AdminSurfaceViewMo
     download: normalizeDownload(output.download)
   }
   if (result.title === undefined && result.description === undefined && result.message === undefined && result.value === undefined &&
-    result.icon === undefined && result.pageId === undefined && result.items.length === 0 && Object.keys(result.cells).length === 0 &&
+    result.icon === undefined && result.pageId === undefined && result.commandSurfaceId === undefined &&
+    result.items.length === 0 && Object.keys(result.cells).length === 0 &&
     result.options.length === 0 && result.visibleResourceIds.length === 0 && result.fields.length === 0 &&
     Object.keys(result.values).length === 0 && !result.refresh && result.download === undefined) {
     return null
@@ -198,6 +208,11 @@ function safeAdminPageId(value: unknown) {
     return undefined
   }
   return pageId
+}
+
+function safeSurfaceId(value: unknown) {
+  const id = boundedString(value, 160)
+  return id && surfaceIdPattern.test(id) ? id : undefined
 }
 
 function normalizeItems(value: unknown) {

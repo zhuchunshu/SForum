@@ -14,6 +14,11 @@ import {
 import { useAdminRoutes } from '~/composables/useAdminRoutes'
 import { type AdminTab, useAdminTabs } from '~/composables/useAdminTabs'
 import type { AdminExtensionNavigationItem } from '~/utils/adminExtensions'
+import {
+  adminSurfaceKindIcon,
+  adminSurfacePlacementPageId,
+  type AdminSurfaceContract
+} from '~/utils/adminSurfaces'
 
 type SidebarNavigationItem = {
   label: string
@@ -39,6 +44,15 @@ const { data: extensionNavigation } = await useAsyncData<AdminExtensionNavigatio
     ? request<AdminExtensionNavigationItem[]>('/admin/extensions/navigation')
     : Promise.resolve([]),
   { default: (): AdminExtensionNavigationItem[] => [] }
+)
+const adminSurfaces = useAdminSurfaces()
+const { data: surfaceNavigation } = await useAsyncData<AdminSurfaceContract[]>(
+  'admin-surface-navigation',
+  async () => {
+    const catalog = await adminSurfaces.list(undefined, 'navigation')
+    return catalog.surfaces.filter(surface => surface.action === 'add' && Boolean(adminSurfacePlacementPageId(surface.placementId)))
+  },
+  { default: (): AdminSurfaceContract[] => [] }
 )
 
 // 引入多页签状态与主题模式
@@ -152,6 +166,7 @@ function buildNavigationItem(entry: AdminNavigationEntry, currentAdminPageId: st
 
     if (entry.labelKey === 'admin.nav.extensions') {
       children.push(...buildExtensionNavigationItems(currentAdminPageId))
+      children.push(...buildAdminSurfaceNavigationItems(currentAdminPageId))
     }
 
     if (children.length === 0) {
@@ -186,6 +201,20 @@ function buildNavigationItem(entry: AdminNavigationEntry, currentAdminPageId: st
     active: isAdminNavigationEntryActive(entry, currentAdminPageId),
     ...(badgeKey ? { badge: t(badgeKey) } : {})
   }
+}
+
+function buildAdminSurfaceNavigationItems(currentAdminPageId: string): SidebarNavigationItem[] {
+  return (surfaceNavigation.value || []).flatMap((surface) => {
+    const pageId = adminSurfacePlacementPageId(surface.placementId)
+    if (!pageId) return []
+    return [{
+      label: surface.label,
+      icon: adminSurfaceKindIcon(surface.kind),
+      to: adminRoutes.path(pageId),
+      value: `admin-surface:${surface.id}`,
+      active: currentAdminPageId === pageId
+    }]
+  })
 }
 
 function buildExtensionNavigationItems(currentAdminPageId: string): SidebarNavigationItem[] {
@@ -486,6 +515,7 @@ async function signOut() {
       -->
       <div class="flex min-h-0 flex-1 flex-col overflow-y-auto bg-[var(--bg-admin-app)] p-4 sm:p-6">
         <div class="sforum-admin-page min-w-0 w-full">
+          <SFAdminSurfaceOutlet :page-id="currentAdminPageId" />
           <slot />
         </div>
         <SFAdminFooter />

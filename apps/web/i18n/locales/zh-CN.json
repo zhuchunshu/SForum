@@ -270,6 +270,17 @@
       "footerCopyright": "© {year} SForum",
       "footerProductSummary": "高性能模块化开源论坛框架"
     },
+    "surfaces": {
+      "loadFailed": "管理端扩展加载失败。",
+      "invalidResult": "扩展返回了无效结果。",
+      "completed": "{label} 已完成",
+      "failed": "{label} 执行失败",
+      "submit": "提交",
+      "open": "打开",
+      "emptyValue": "未设置",
+      "yes": "是",
+      "no": "否"
+    },
     "nav": {
       "dashboard": "仪表盘",
       "personalization": "个性化设置",
