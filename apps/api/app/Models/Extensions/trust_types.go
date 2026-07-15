@@ -139,6 +139,8 @@ type TrustGrant struct {
 	RevokedAt        *time.Time `json:"revokedAt,omitempty"`
 	RevokedByUserID  int64      `json:"revokedByUserId,omitempty"`
 	RevocationReason string     `json:"revocationReason,omitempty"`
+	// created 仅供同包内的激活补偿判断；不得成为 HTTP/SDK 契约。
+	created bool
 }
 
 // RuntimeTrustIdentity binds a subprocess handshake to the live P1 grant.

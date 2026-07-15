@@ -262,6 +262,8 @@ type ThemeActivationInput struct {
 	CurrentThemeID      string `json:"currentThemeId"`
 	CurrentThemeVersion string `json:"currentThemeVersion"`
 	CurrentThemeDigest  string `json:"currentThemeDigest"`
+	// ConfirmationToken 是上传主题包含 L2/其他可执行声明时的一次性 exact-artifact token。
+	ConfirmationToken string `json:"confirmationToken,omitempty"`
 	// ApproveCoreReplacements is an explicit approval from the exact visible
 	// preview. It is effective only for a super_admin actor.
 	ApproveCoreReplacements bool  `json:"approveCoreReplacements"`

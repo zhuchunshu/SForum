@@ -847,11 +847,14 @@ func refreshTrustPackageIdentity(t *testing.T, extension *Extension) {
 }
 
 type memoryExecutableTrustStore struct {
-	mu        sync.Mutex
-	now       func() time.Time
-	challenge TrustChallengeRecord
-	consumed  bool
-	grants    map[TrustIdentity]bool
+	mu              sync.Mutex
+	now             func() time.Time
+	challenge       TrustChallengeRecord
+	consumed        bool
+	nextGrantID     int64
+	grants          map[TrustIdentity]TrustGrant
+	revokedGrantIDs map[int64]bool
+	revokeGrantErr  error
 }
 
 func (s *memoryExecutableTrustStore) CreateChallenge(_ context.Context, input TrustChallengeRecord) error {
@@ -865,19 +868,18 @@ func (s *memoryExecutableTrustStore) CreateChallenge(_ context.Context, input Tr
 func (s *memoryExecutableTrustStore) HasLiveGrant(_ context.Context, identity TrustIdentity) (bool, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return s.grants[identity], nil
+	_, granted := s.grants[identity]
+	return granted, nil
 }
 
 func (s *memoryExecutableTrustStore) LiveGrant(_ context.Context, identity TrustIdentity) (TrustGrant, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if !s.grants[identity] {
+	grant, granted := s.grants[identity]
+	if !granted {
 		return TrustGrant{}, ErrTrustGrantNotFound
 	}
-	return TrustGrant{
-		ID: 1, ExtensionID: identity.ExtensionID, ExtensionVersion: identity.ExtensionVersion,
-		PackageDigest: identity.PackageDigest, Action: identity.Action, ImpactDigest: identity.ImpactDigest,
-	}, nil
+	return grant, nil
 }
 
 func (s *memoryExecutableTrustStore) ConsumeChallenge(_ context.Context, input TrustConsumeInput) (TrustGrant, error) {
@@ -901,18 +903,61 @@ func (s *memoryExecutableTrustStore) ConsumeChallenge(_ context.Context, input T
 	}
 	s.consumed = true
 	if s.grants == nil {
-		s.grants = map[TrustIdentity]bool{}
+		s.grants = map[TrustIdentity]TrustGrant{}
 	}
-	s.grants[input.Identity] = true
-	return TrustGrant{ID: 1, ExtensionID: input.Identity.ExtensionID, ImpactDigest: input.Identity.ImpactDigest}, nil
+	if grant, granted := s.grants[input.Identity]; granted {
+		return grant, nil
+	}
+	s.nextGrantID++
+	grant := TrustGrant{
+		ID: s.nextGrantID, ExtensionID: input.Identity.ExtensionID,
+		ExtensionVersion: input.Identity.ExtensionVersion, PackageDigest: input.Identity.PackageDigest,
+		Action: input.Identity.Action, ImpactDigest: input.Identity.ImpactDigest,
+		GrantedByUserID: input.ActorUserID, GrantedAt: now, created: true,
+	}
+	s.grants[input.Identity] = grant
+	return grant, nil
+}
+
+func (s *memoryExecutableTrustStore) revokeExactGrant(
+	_ context.Context,
+	grant TrustGrant,
+	_ int64,
+	_ string,
+) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.revokeGrantErr != nil {
+		return s.revokeGrantErr
+	}
+	for identity, live := range s.grants {
+		if live.ID == grant.ID && live.ExtensionID == grant.ExtensionID &&
+			live.ExtensionVersion == grant.ExtensionVersion && live.PackageDigest == grant.PackageDigest &&
+			live.Action == grant.Action && live.ImpactDigest == grant.ImpactDigest {
+			delete(s.grants, identity)
+			if s.revokedGrantIDs == nil {
+				s.revokedGrantIDs = map[int64]bool{}
+			}
+			s.revokedGrantIDs[live.ID] = true
+			return nil
+		}
+	}
+	if s.revokedGrantIDs[grant.ID] {
+		return nil
+	}
+	return ErrTrustGrantNotFound
 }
 
 func (s *memoryExecutableTrustStore) RevokeAll(_ context.Context, extensionID string, _ int64, _ string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	for identity := range s.grants {
+	for identity, grant := range s.grants {
 		if identity.ExtensionID == extensionID {
 			delete(s.grants, identity)
+			if s.revokedGrantIDs == nil {
+				s.revokedGrantIDs = map[int64]bool{}
+			}
+			s.revokedGrantIDs[grant.ID] = true
 		}
 	}
 	return nil

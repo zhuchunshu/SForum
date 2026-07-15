@@ -1920,6 +1920,9 @@ type fakeExtensionStore struct {
 	enabledID                string
 	disabledID               string
 	activeThemeID            string
+	activateThemeExactCalls  int
+	activateThemeExactErr    error
+	afterActivateThemeExact  func()
 	themePublicationRevision int64
 	latestThemePublication   ThemeRuntimePublication
 	themeApprovalBy          map[string]int64
@@ -2151,6 +2154,10 @@ func (s *fakeExtensionStore) setActiveTheme(id string) (Extension, error) {
 }
 
 func (s *fakeExtensionStore) ActivateThemeExact(ctx context.Context, id string, expected ThemeActivationInput) (ThemeActivationResult, error) {
+	s.activateThemeExactCalls++
+	if s.activateThemeExactErr != nil {
+		return ThemeActivationResult{}, s.activateThemeExactErr
+	}
 	target, ok := s.items[id]
 	if !ok {
 		return ThemeActivationResult{}, ErrExtensionNotFound
@@ -2185,6 +2192,11 @@ func (s *fakeExtensionStore) ActivateThemeExact(ctx context.Context, id string, 
 		CoreReplacementsApproved:       expected.ApproveCoreReplacements,
 		ActorUserID:                    expected.ActorUserID, Reason: ThemeRuntimePublicationActivation,
 	})
+	if s.afterActivateThemeExact != nil {
+		after := s.afterActivateThemeExact
+		s.afterActivateThemeExact = nil
+		after()
+	}
 	return ThemeActivationResult{Extension: item, Publication: publication}, nil
 }
 

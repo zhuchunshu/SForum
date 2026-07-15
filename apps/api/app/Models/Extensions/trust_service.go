@@ -32,6 +32,18 @@ type ExecutableTrustService struct {
 	random     io.Reader
 }
 
+// executableTrustGrantReceipt 只在 Host 激活事务内部流转。普通调用者仍只看到
+// ConfirmEnable 的 error 契约，不能按 grant id 主动撤销授权。
+type executableTrustGrantReceipt struct {
+	grant   TrustGrant
+	impact  TrustImpact
+	created bool
+}
+
+type executableTrustGrantRevoker interface {
+	revokeExactGrant(context.Context, TrustGrant, int64, string) error
+}
+
 func NewExecutableTrustService(extensions FrontendExtensionReader, store ExecutableTrustStore) *ExecutableTrustService {
 	return &ExecutableTrustService{
 		extensions: extensions,
@@ -55,22 +67,36 @@ func (s *ExecutableTrustService) WithTTL(ttl time.Duration) *ExecutableTrustServ
 }
 
 func (s *ExecutableTrustService) Impact(ctx context.Context, actor identity.Actor, extensionID string) (TrustImpact, error) {
+	_, impact, err := s.reviewImpact(ctx, actor, extensionID)
+	return impact, err
+}
+
+func (s *ExecutableTrustService) reviewImpact(
+	ctx context.Context,
+	actor identity.Actor,
+	extensionID string,
+) (Extension, TrustImpact, error) {
 	extension, err := s.extension(ctx, extensionID)
 	if err != nil {
-		return TrustImpact{}, err
+		return Extension{}, TrustImpact{}, err
 	}
 	if !canViewExtensions(actor) && !canManagePlugins(actor) && !canManageThemes(actor) {
-		return TrustImpact{}, identity.ErrPermissionDenied
+		return Extension{}, TrustImpact{}, identity.ErrPermissionDenied
 	}
-	return buildTrustImpact(trustReviewArtifact(extension), TrustActionEnable)
+	extension = trustReviewArtifact(extension)
+	impact, err := buildTrustImpact(extension, TrustActionEnable)
+	if err != nil {
+		return Extension{}, TrustImpact{}, err
+	}
+	return extension, impact, nil
 }
 
 func (s *ExecutableTrustService) Status(ctx context.Context, actor identity.Actor, extensionID string) (ExecutableTrustStatus, error) {
-	impact, err := s.Impact(ctx, actor, extensionID)
+	extension, impact, err := s.reviewImpact(ctx, actor, extensionID)
 	if err != nil {
 		return ExecutableTrustStatus{}, err
 	}
-	required := impact.Source == SourceUploaded && (len(impact.Binaries) > 0 || len(impact.Components) > 0 || len(impact.Migrations) > 0)
+	required := RequiresExecutableTrust(extension)
 	trusted := !required
 	if required {
 		trusted, err = s.hasLiveGrant(ctx, impact)
@@ -156,37 +182,66 @@ func (s *ExecutableTrustService) Challenge(ctx context.Context, actor identity.A
 
 // ConfirmEnable 对同一摘要的已授权重启直接放行；新授权必须原子消费挑战。
 func (s *ExecutableTrustService) ConfirmEnable(ctx context.Context, actor identity.Actor, extension Extension, token string) error {
+	_, err := s.confirmEnable(ctx, actor, extension, token)
+	return err
+}
+
+func (s *ExecutableTrustService) confirmEnable(
+	ctx context.Context,
+	actor identity.Actor,
+	extension Extension,
+	token string,
+) (executableTrustGrantReceipt, error) {
 	if !RequiresExecutableTrust(extension) {
-		return nil
+		return executableTrustGrantReceipt{}, nil
 	}
 	impact, err := buildTrustImpact(extension, TrustActionEnable)
 	if err != nil {
-		return err
+		return executableTrustGrantReceipt{}, err
 	}
 	identityKey := trustIdentity(impact)
 	granted, err := s.store.HasLiveGrant(ctx, identityKey)
 	if err != nil {
-		return err
+		return executableTrustGrantReceipt{}, err
 	}
 	if granted {
-		return nil
+		return executableTrustGrantReceipt{impact: impact}, nil
 	}
 	if strings.TrimSpace(token) == "" {
-		return ErrTrustChallengeRequired
+		return executableTrustGrantReceipt{}, ErrTrustChallengeRequired
 	}
 	if !actor.IsSuperAdmin() {
-		return identity.ErrPermissionDenied
+		return executableTrustGrantReceipt{}, identity.ErrPermissionDenied
 	}
 	grant, err := s.store.ConsumeChallenge(ctx, TrustConsumeInput{
 		TokenHash: tokenHash(strings.TrimSpace(token)), ActorUserID: actor.ID, Identity: identityKey,
 	})
 	if err != nil {
 		s.appendAudit(ctx, actor, audit.ActionExtensionTrustDenied, impact, err)
-		return err
+		return executableTrustGrantReceipt{}, err
 	}
 	s.appendAudit(ctx, actor, audit.ActionExtensionTrustGrant, impact, nil)
-	_ = grant
-	return nil
+	return executableTrustGrantReceipt{grant: grant, impact: impact, created: grant.created}, nil
+}
+
+func (s *ExecutableTrustService) compensateEnable(
+	ctx context.Context,
+	actor identity.Actor,
+	receipt executableTrustGrantReceipt,
+	reason string,
+) error {
+	if !receipt.created {
+		return nil
+	}
+	revoker, ok := s.store.(executableTrustGrantRevoker)
+	if !ok {
+		err := errors.New("extensions: exact executable trust compensation unavailable")
+		s.appendCompensationAudit(ctx, actor, receipt, reason, err)
+		return err
+	}
+	err := revoker.revokeExactGrant(ctx, receipt.grant, actor.ID, strings.TrimSpace(reason))
+	s.appendCompensationAudit(ctx, actor, receipt, reason, err)
+	return err
 }
 
 func (s *ExecutableTrustService) RevokeAllForExtension(ctx context.Context, extensionID string, actorUserID int64, reason string) error {
@@ -244,6 +299,37 @@ func (s *ExecutableTrustService) appendAudit(ctx context.Context, actor identity
 		metadata["reason"] = trustErrorCode(denied)
 	}
 	_ = s.auditor.Append(ctx, audit.Event{ActorUserID: actor.ID, Action: action, Metadata: metadata})
+}
+
+func (s *ExecutableTrustService) appendCompensationAudit(
+	ctx context.Context,
+	actor identity.Actor,
+	receipt executableTrustGrantReceipt,
+	reason string,
+	compensationErr error,
+) {
+	if s == nil || s.auditor == nil {
+		return
+	}
+	metadata := map[string]any{
+		"extensionId":        receipt.impact.ExtensionID,
+		"version":            receipt.impact.ExtensionVersion,
+		"packageDigest":      receipt.impact.PackageDigest,
+		"impactDigest":       receipt.impact.Digest,
+		"action":             receipt.impact.Action,
+		"grantId":            receipt.grant.ID,
+		"compensation":       true,
+		"compensationReason": strings.TrimSpace(reason),
+		"succeeded":          compensationErr == nil,
+	}
+	if compensationErr != nil {
+		metadata["error"] = compensationErr.Error()
+	}
+	_ = s.auditor.Append(ctx, audit.Event{
+		ActorUserID: actor.ID,
+		Action:      audit.ActionExtensionTrustRevoke,
+		Metadata:    metadata,
+	})
 }
 
 func RequiresExecutableTrust(extension Extension) bool {

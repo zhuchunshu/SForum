@@ -13,6 +13,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"time"
 
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Audit"
@@ -23,7 +24,10 @@ import (
 	extensionpackage "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionPackage"
 )
 
-const maxArchiveBytes = 50 * 1024 * 1024
+const (
+	maxArchiveBytes               = 50 * 1024 * 1024
+	themeTrustCompensationTimeout = 5 * time.Second
+)
 
 type Service struct {
 	themeActivationMu sync.Mutex
@@ -1038,6 +1042,19 @@ func (s *Service) activateTheme(
 		}
 	}
 
+	// 所有静态预检完成后、任何 DB/Registry 切换前消费一次性 exact-artifact
+	// challenge。普通 L0/L1 主题不请求可执行权限，因此继续零确认激活。
+	var trustReceipt executableTrustGrantReceipt
+	if s.trustChallengesEnabled && RequiresExecutableTrust(activationTarget) {
+		if s.executableTrust == nil {
+			return Extension{}, ErrTrustChallengeRequired
+		}
+		trustReceipt, err = s.executableTrust.confirmEnable(ctx, actor, activationTarget, input.ConfirmationToken)
+		if err != nil {
+			return Extension{}, err
+		}
+	}
+
 	// 2) DB 事务切换活动主题（store.ActivateTheme 内部事务；同主题再激活也幂等写状态）。
 	var active Extension
 	var activationPublication ThemeRuntimePublication
@@ -1054,7 +1071,25 @@ func (s *Service) activateTheme(
 		activationPublication = result.Publication
 	}
 	if err != nil {
-		return Extension{}, err
+		return Extension{}, s.compensateThemeActivationTrust(ctx, actor, trustReceipt, activationTarget, previous, err)
+	}
+
+	// 多节点下，另一个失败请求可能在本节点等待 DB CAS 时精确撤销了新 grant。
+	// Registry 发布前再次确认 live identity；丢失授权时立即回滚 DB，绝不导入 L2。
+	if s.trustChallengesEnabled && RequiresExecutableTrust(active) {
+		trusted, trustErr := s.executableTrust.TrustedArtifact(ctx, active)
+		if trustErr != nil || !trusted {
+			if trustErr == nil {
+				trustErr = ErrTrustGrantNotFound
+			}
+			failure := fmt.Errorf("theme executable trust lost before publication: %w", trustErr)
+			if _, rollbackErr := s.store.CompensateThemeActivation(ctx, activationPublication, previous); rollbackErr != nil {
+				failure = errors.Join(failure, fmt.Errorf("theme activation compensation failed: %w", rollbackErr))
+			}
+			return Extension{}, s.compensateThemeActivationTrust(
+				ctx, actor, trustReceipt, activationTarget, previous, failure,
+			)
+		}
 	}
 
 	// 3) 事务成功后原子替换 Registry（ReplaceThemeContributions：新旧同路径允许）。
@@ -1067,14 +1102,17 @@ func (s *Service) activateTheme(
 			registerErr = s.pageRegistry.RegisterThemePackageReplacing(ctx, active, prevThemeID)
 		}
 		if registerErr != nil {
+			failure := fmt.Errorf("%w: registry register failed: %v", ErrBuildFailed, registerErr)
 			if _, rollbackErr := s.store.CompensateThemeActivation(ctx, activationPublication, previous); rollbackErr != nil {
+				failure = errors.Join(failure, fmt.Errorf("theme activation compensation failed: %w", rollbackErr))
 				_, _ = s.store.CreateEvent(ctx, EventInput{
 					ExtensionID: active.ID, ActorUserID: actor.ID, Action: EventEnableFailed,
-					Message: "theme activation compensation failed: " + rollbackErr.Error(),
+					Message: failure.Error(),
 				})
-				return Extension{}, fmt.Errorf("%w: registry register failed: %v; compensation failed: %v", ErrBuildFailed, registerErr, rollbackErr)
 			}
-			return Extension{}, fmt.Errorf("%w: registry register failed: %v", ErrBuildFailed, registerErr)
+			return Extension{}, s.compensateThemeActivationTrust(
+				ctx, actor, trustReceipt, activationTarget, previous, failure,
+			)
 		}
 	}
 
@@ -1093,6 +1131,46 @@ func (s *Service) activateTheme(
 		"publicationRevision":      activationPublication.Revision,
 	})
 	return active, nil
+}
+
+func (s *Service) compensateThemeActivationTrust(
+	ctx context.Context,
+	actor identity.Actor,
+	receipt executableTrustGrantReceipt,
+	activationTarget Extension,
+	previous *Extension,
+	activationErr error,
+) error {
+	if !receipt.created || s.executableTrust == nil {
+		return activationErr
+	}
+	base := ctx
+	if base == nil {
+		base = context.Background()
+	} else {
+		base = context.WithoutCancel(base)
+	}
+	compensationCtx, cancel := context.WithTimeout(base, themeTrustCompensationTimeout)
+	defer cancel()
+	// 如果另一个节点已经成功激活同一 exact artifact，本次 grant 已被正式采用，
+	// 失败请求不能再把它当作孤儿授权撤销。激活前本来就是同一制品时不适用。
+	previousWasTarget := previous != nil && sameThemeExactArtifact(*previous, activationTarget)
+	if !previousWasTarget {
+		if active, err := s.store.ActiveTheme(compensationCtx); err == nil && sameThemeExactArtifact(active, activationTarget) {
+			return activationErr
+		}
+	}
+	if err := s.executableTrust.compensateEnable(compensationCtx, actor, receipt, "theme_activation_failed"); err != nil {
+		combined := errors.Join(activationErr, fmt.Errorf("compensate exact executable trust grant: %w", err))
+		s.recordEnableFailure(compensationCtx, actor, receipt.impact.ExtensionID, combined)
+		return combined
+	}
+	return activationErr
+}
+
+func sameThemeExactArtifact(left, right Extension) bool {
+	return left.ID == right.ID && left.Type == TypeTheme && right.Type == TypeTheme &&
+		left.Version == right.Version && strings.EqualFold(left.PackageDigest, right.PackageDigest)
 }
 
 func themeIDOrEmpty(e *Extension) string {

@@ -61,32 +61,38 @@ func TestPostgresExecutableTrustStoreConsumesChallengeOnce(t *testing.T) {
 	}
 
 	input := TrustConsumeInput{TokenHash: strings.Repeat("c", 64), ActorUserID: actorID, Identity: identity}
-	results := make(chan error, 2)
+	type consumeResult struct {
+		grant TrustGrant
+		err   error
+	}
+	results := make(chan consumeResult, 2)
 	var wait sync.WaitGroup
 	for range 2 {
 		wait.Add(1)
 		go func() {
 			defer wait.Done()
-			_, err := store.ConsumeChallenge(ctx, input)
-			results <- err
+			grant, err := store.ConsumeChallenge(ctx, input)
+			results <- consumeResult{grant: grant, err: err}
 		}()
 	}
 	wait.Wait()
 	close(results)
 	succeeded := 0
 	replayed := 0
-	for err := range results {
+	var createdGrant TrustGrant
+	for result := range results {
 		switch {
-		case err == nil:
+		case result.err == nil:
 			succeeded++
-		case errors.Is(err, ErrTrustChallengeReplayed):
+			createdGrant = result.grant
+		case errors.Is(result.err, ErrTrustChallengeReplayed):
 			replayed++
 		default:
-			t.Fatalf("unexpected consume result: %v", err)
+			t.Fatalf("unexpected consume result: %v", result.err)
 		}
 	}
-	if succeeded != 1 || replayed != 1 {
-		t.Fatalf("consume results succeeded=%d replayed=%d", succeeded, replayed)
+	if succeeded != 1 || replayed != 1 || !createdGrant.created {
+		t.Fatalf("consume results succeeded=%d replayed=%d grant=%#v", succeeded, replayed, createdGrant)
 	}
 	granted, err := store.HasLiveGrant(ctx, identity)
 	if err != nil || !granted {
@@ -95,6 +101,45 @@ func TestPostgresExecutableTrustStoreConsumesChallengeOnce(t *testing.T) {
 	liveGrant, err := store.LiveGrant(ctx, identity)
 	if err != nil || liveGrant.ID <= 0 || liveGrant.RevokedAt != nil || liveGrant.RevokedByUserID != 0 {
 		t.Fatalf("loaded live grant=%#v err=%v", liveGrant, err)
+	}
+	mismatched := createdGrant
+	mismatched.ImpactDigest = strings.Repeat("d", 64)
+	if err := store.revokeExactGrant(ctx, mismatched, actorID, "wrong_identity"); !errors.Is(err, ErrTrustGrantNotFound) {
+		t.Fatalf("mismatched exact revoke error=%v", err)
+	}
+	if granted, err := store.HasLiveGrant(ctx, identity); err != nil || !granted {
+		t.Fatalf("mismatched revoke changed live grant=%t err=%v", granted, err)
+	}
+	if err := store.revokeExactGrant(ctx, createdGrant, actorID, "activation_failed"); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.revokeExactGrant(ctx, createdGrant, actorID, "activation_failed_replay"); err != nil {
+		t.Fatalf("exact revoke must be idempotent: %v", err)
+	}
+	granted, err = store.HasLiveGrant(ctx, identity)
+	if err != nil || granted {
+		t.Fatalf("exact revoked grant=%v err=%v", granted, err)
+	}
+
+	// 重新授权后保留 RevokeAll 的生产覆盖。
+	secondTokenHash := strings.Repeat("e", 64)
+	if err := store.CreateChallenge(ctx, TrustChallengeRecord{
+		TokenHash: secondTokenHash, ActorUserID: actorID, Identity: identity,
+		ArtifactDigests: map[string]string{"package": identity.PackageDigest},
+		Impact: TrustImpact{
+			SchemaVersion: TrustImpactSchemaV1, Action: TrustActionEnable,
+			ExtensionID: extensionID, ExtensionVersion: identity.ExtensionVersion,
+			PackageDigest: identity.PackageDigest, ArtifactDigests: map[string]string{"package": identity.PackageDigest},
+			Digest: identity.ImpactDigest,
+		},
+		ExpiresAt: time.Now().UTC().Add(time.Minute),
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.ConsumeChallenge(ctx, TrustConsumeInput{
+		TokenHash: secondTokenHash, ActorUserID: actorID, Identity: identity,
+	}); err != nil {
+		t.Fatal(err)
 	}
 	if err := store.RevokeAll(ctx, extensionID, actorID, "integration_test"); err != nil {
 		t.Fatal(err)
