@@ -2,8 +2,8 @@
 
 ## Changed
 
-- Weighted V3 is 56%. P5/P6/P7/P8 remain parallel; P6 is 13/18, P7 is
-  11/22, and P8 is 17/18.
+- Weighted V3 is 57%. P5/P6/P7/P8/P9 remain parallel; P6 is 13/18, P7 is
+  13/22, P8 is 17/18, and P9 is 1/16.
 - P6 now closes the OpenAPI policy row: validated operations derive exact
   security/permission, Host client-IP rate-limit, and optional required-replay
   metadata. Production required replay uses a 24-hour CAS-fenced ledger,
@@ -42,6 +42,15 @@
   Publication swaps cannot redirect an audited call or invalidate an admitted
   old call's frozen output validator. Terminal audit is best-effort after the
   mandatory durable attempt.
+- P7 Admin Surfaces now also have complete production consumption across the
+  twelve manifest kinds and concrete navigation/dashboard/list/filter/row/bulk/
+  form/notice/editor/detail/import/export placements. The independent reference
+  plugin passed upload, exact trust, Protocol V2 execution, restart restore,
+  actor denial, idempotent mutation, export, desktop, and 390px acceptance.
+- Production deployment now enables completed P1 exact-artifact trust by
+  default for bare production processes and for both Compose API/worker
+  services. Development remains opt-in and an explicit compatibility override
+  remains available.
 - P8 now has the exact compiled four-level fallback, durable convergence,
   all-catalog zero-I/O proof, and crawler/JavaScript-disabled SSR evidence.
   A self-contained production API/Nitro restart and concurrent exact-activation
@@ -50,6 +59,12 @@
 
 ## Commits
 
+- `de333a405 fix(admin): stabilize admin surface outlet rendering`
+- `367731bd7 test(admin): add full surface reference plugin`
+- `7f1f34bf0 docs(admin): refresh user surface catalog`
+- `5c76cbca8 feat(admin): consume list and user surfaces`
+- `3bc8ea6e5 feat(admin): consume placed admin surfaces`
+- `51dc43d59 feat(extensions): enable exact trust in production`
 - `cd1573d5a feat(themes): preserve plugin business contracts`
 - `a30c8f757 fix(openapi): normalize exact manifest comparisons`
 - `2344a580c feat(idempotency): add fenced required route replay`
@@ -160,6 +175,14 @@
   Routes, and Localization packages; focused runtime/HTTP race; vet; build;
   1,841 OpenAPI refs across 45 files; and the 225-route catalog drift gate.
   Deterministic regressions cover both exact-artifact publication races.
+- P7 production consumption passed all 320 Web tests, focused outlet tests,
+  Nuxt typecheck, and the production build. Browser QA covered editor command,
+  export download, ordinary-member 403, hydration, desktop, and 390px detail
+  layouts without overflow.
+- Production trust deployment passed Go config/bootstrap tests, the static
+  deployment drift validator, and merged development plus production Compose
+  parsing; production resolves the gate to `true` with a five-minute TTL in
+  both API and worker services.
 - P8 fallback passed focused Pages/Extensions/Controller tests, race, vet,
   build, and ThemeCompiler allocation checks before commit.
 - P8 exact-preview backend, OpenAPI, admin typecheck/locales, and the additive
@@ -200,25 +223,22 @@
 - P5 owns only the dirty database runtime-lease/kernel-recovery and migrator
   files. Its two P1 exits are durable two-stage credential revocation and
   migration-time reconciliation of legitimate ledger-backed kernel owners.
-- P7 owns only the four dirty Web Admin Surface consumer files. The reference
-  plugin upload, exact trust, Protocol V2 runtime, main list/action placements,
-  and restart restore passed; detail editor/export/denied/mobile/browser exits
-  and the Web production gates remain.
-- P8 has no dirty source after `cd1573d5a`; only page-specific Core ViewModel
-  population remains open.
+- P7 Admin Surface production consumption is committed at `de333a405`; Query,
+  Identity/Permission, Auth/Profile, automation authority, and generated SDK
+  rows remain.
+- P8 now owns only page-specific Core ViewModel production population. P9 owns
+  the separate Asset Registry/public L2 slice.
 - Do not stage the content-policy manifest, `.playwright-cli/`, or
   `.playwright-p8-nojs.json` with any of these slices.
 
 ## Next
 
-1. Finish P7 detail editor/export/denied/mobile browser QA, then run all Web
-   tests, Nuxt typecheck, and production build before committing its four files.
-2. Finish P5 two-stage durable revoke and physical kernel-owner reconciliation.
+1. Finish P5 two-stage durable revoke and physical kernel-owner reconciliation.
    Run the real non-super PostgreSQL restart/overlap/pending/forged/drift matrix,
    then commit those two contracts separately.
-3. Resume P6 action/SEO and remaining failure-matrix work, and start P9
+2. Resume P6 action/SEO and remaining failure-matrix work, and continue P9
    Navigation/Region plus Component Registry on non-overlapping files.
-4. Populate all production page-specific P8 Core ViewModels while P9 proceeds.
+3. Populate all production page-specific P8 Core ViewModels while P9 proceeds.
 
 ## P5 Entitlement Persistence Continuation
 

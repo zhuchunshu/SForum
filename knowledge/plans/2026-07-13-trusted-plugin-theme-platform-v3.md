@@ -530,7 +530,7 @@ query, and identity workflows without replacing whole routes.
       versioned payloads.
 - [x] Add Plugin Command Registry to the `sforum` CLI with namespace/conflict
       rules and trust checks.
-- [ ] Implement Admin Surface Registry for navigation, dashboards, lists,
+- [x] Implement Admin Surface Registry for navigation, dashboards, lists,
       columns, filters, row/bulk actions, forms, notices, editor panels, detail
       regions, importers, and exporters with typed props/results.
 - [ ] Implement Query Registry with typed query plans, fields, relations,
@@ -550,7 +550,7 @@ query, and identity workflows without replacing whole routes.
 ### Tests
 
 - [x] Plugin A defines a hook/service/provider; Plugin B consumes it.
-- [ ] Reference admin plugin contributes navigation, dashboard, list column,
+- [x] Reference admin plugin contributes navigation, dashboard, list column,
       filter, row/bulk action, editor panel, notice, importer, and exporter.
 - [ ] Query plugins compose filters/sorts without bypassing permission checks,
       exceeding cost limits, corrupting pagination, or poisoning cache keys.

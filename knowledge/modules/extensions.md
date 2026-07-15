@@ -781,7 +781,7 @@ template while retaining Schema fallback fields.
 
 ## V3 P7 Admin Surface checkpoint
 
-- P7 remains 11/22. The immutable Admin Surface Registry publishes declarations
+- P7 is 13/22. The immutable Admin Surface Registry publishes declarations
   for all twelve V3 kinds to exact active runtime instances, restores/removes
   them through lifecycle snapshots, and invokes typed Protocol V2 handlers under
   exact admission with one frozen validator for both input and output.
@@ -795,11 +795,12 @@ template while retaining Schema fallback fields.
 - The invocation boundary fences both publication races: an audit for an old
   contract cannot execute the replacement instance, and an admitted old call
   continues to validate against its original schema after a concurrent upgrade.
-- This is not complete production consumption. Manifest V3 still needs frozen
-  kind-specific layout/placement and distinct props/result schemas; the admin
-  shell needs concrete list/form/dashboard/editor/detail/import/export consumers
-  with actor/idempotency propagation for mutations; and an independent reference
-  admin plugin must exercise the complete surface family.
+- Production consumption freezes kind-specific placement plus distinct input and
+  output schemas, then renders concrete navigation, dashboard, list column,
+  filter, row/bulk action, form, notice, editor/detail, importer, and exporter
+  consumers with actor/idempotency propagation for mutations. An independent
+  uploaded reference plugin exercises the complete family through exact trust,
+  Protocol V2, restart restoration, permission denial, desktop, and mobile flows.
 
 ## V3 P8 theme runtime checkpoint
 

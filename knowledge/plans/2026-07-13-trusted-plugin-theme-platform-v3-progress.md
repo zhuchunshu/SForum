@@ -1,7 +1,7 @@
 # Trusted Plugin And Theme Platform V3 Progress Ledger
 
 Date: 2026-07-15
-Overall progress: **56%**
+Overall progress: **57%**
 Active phase: **P5 - Database/commands closure (71%, 12 of 17 rows)**
 
 This ledger is the durable percentage and context-compaction checkpoint for the
@@ -23,7 +23,7 @@ scaffolding, or demo-only code cannot satisfy a runtime exit criterion.
 | P4 Lifecycle/dependencies | 7% | 100% | 7% |
 | P5 Database/commands | 8% | 71% | 5.65% |
 | P6 Routes/middleware | 10% | 72% | 7.22% |
-| P7 Workflow/admin/query/identity | 10% | 50% | 5.00% |
+| P7 Workflow/admin/query/identity | 10% | 59% | 5.91% |
 | P8 Theme compiler/runtime | 8% | 94% | 7.56% |
 | P9 Components/assets/L2 | 8% | 6% | 0.50% |
 | P10 Content/media/data | 8% | 0% | 0% |
@@ -111,6 +111,24 @@ phase percentage.
   failing plugin exactly once (`failed`, then `skipped`).
 
 ## Last Durable Checkpoint
+
+### 2026-07-15 P7 Admin Surface Production Closure
+
+- Overall advances to **57%** after flooring. P7 advances to **59% (13 of 22
+  rows)** and earns **5.91%** of its 10% weight.
+- `3dff78a05`, `00470c41e`, `8ee782c78`, `3bc8ea6e5`, `5c76cbca8`,
+  `7f1f34bf0`, `367731bd7`, and `de333a405` close both the production Admin
+  Surface Registry task and its independent full-family reference-plugin exit.
+- Exact active-artifact publication, placement-specific schemas, permission-
+  filtered discovery, Protocol V2 query/command invocation, actor and
+  idempotency propagation, durable pre-call audit, lifecycle rollback/restart,
+  and list/form/dashboard/editor/detail/import/export consumers are wired.
+- Browser acceptance covered editor mutation, export download, authoritative
+  ordinary-member denial, desktop and 390px layouts, and hydration. All 320 Web
+  tests, focused tests, Nuxt typecheck, and the production build passed.
+- `51dc43d59` separately makes the completed P1 exact-artifact trust boundary
+  production-default for bare processes and Compose API/worker deployments;
+  development remains opt-in and the compatibility override is retained.
 
 ### 2026-07-15 P8 Plugin Business-Contract Preservation Checkpoint
 
