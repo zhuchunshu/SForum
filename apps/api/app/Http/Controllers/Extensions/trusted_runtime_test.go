@@ -3,6 +3,7 @@ package extensionscontroller
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"log/slog"
 	"net/http"
 	"testing"
@@ -84,6 +85,71 @@ func TestTrustedRuntimeControllerServesOnlyImmutableAdminAssets(t *testing.T) {
 	}
 }
 
+func TestTrustedRuntimeControllerServesPublicL2DescriptorAndImmutableAssetsWithoutSession(t *testing.T) {
+	digest := "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	fileDigest := "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+	frontend := &fakeTrustedFrontendHTTPService{
+		publicComponent: extensions.PublicFrontendComponent{
+			SchemaVersion: extensions.PublicFrontendSchemaV1, APIVersion: extensions.PublicFrontendAPIVersion,
+			ExtensionID: "demo.plugin", ComponentID: "demo.plugin.component.card", PackageDigest: digest,
+		},
+		publicAsset: extensions.FrontendAsset{
+			Body: []byte("export const apiVersion = 1\n"), ContentType: "application/javascript; charset=utf-8",
+			ETag: `"` + fileDigest + `"`, Digest: fileDigest, Integrity: "sha256-test",
+		},
+	}
+	app, _ := newTrustedRuntimeTestApp(t, frontend)
+	componentPath := "/api/v1/extensions/runtime/demo.plugin/components/demo.plugin.component.card"
+	resp := performExtensionRequest(t, app, http.MethodGet, componentPath, nil)
+	if resp.StatusCode != http.StatusOK || resp.Header.Get("Cache-Control") != "no-store" {
+		t.Fatalf("public descriptor: status=%d headers=%v", resp.StatusCode, resp.Header)
+	}
+	var envelope struct {
+		Data extensions.PublicFrontendComponent `json:"data"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&envelope); err != nil {
+		t.Fatal(err)
+	}
+	resp.Body.Close()
+	if envelope.Data.ComponentID != "demo.plugin.component.card" || envelope.Data.SchemaVersion != extensions.PublicFrontendSchemaV1 {
+		t.Fatalf("descriptor=%#v", envelope.Data)
+	}
+
+	assetPath := "/api/v1/extensions/runtime/demo.plugin/assets/" + digest + "/" + fileDigest + "/demo.plugin.component.card.l2.entry"
+	resp = performExtensionRequest(t, app, http.MethodGet, assetPath, nil)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("public asset: status=%d", resp.StatusCode)
+	}
+	defer resp.Body.Close()
+	var body bytes.Buffer
+	_, _ = body.ReadFrom(resp.Body)
+	if body.String() != "export const apiVersion = 1\n" ||
+		resp.Header.Get("Cache-Control") != "public, max-age=31536000, immutable" ||
+		resp.Header.Get("X-SForum-Asset-Digest") != fileDigest ||
+		resp.Header.Get("X-SForum-Asset-Integrity") != "sha256-test" ||
+		resp.Header.Get("Cross-Origin-Resource-Policy") != "same-origin" {
+		t.Fatalf("public asset headers=%v body=%q", resp.Header, body.String())
+	}
+}
+
+func TestTrustedRuntimeControllerHidesInvalidOrRevokedPublicL2(t *testing.T) {
+	digest := "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	frontend := &fakeTrustedFrontendHTTPService{publicErr: extensions.ErrPublicFrontendUnavailable}
+	app, _ := newTrustedRuntimeTestApp(t, frontend)
+	paths := []string{
+		"/api/v1/extensions/runtime/demo.plugin/components/demo.plugin.component.card",
+		"/api/v1/extensions/runtime/demo.plugin/assets/not-a-digest/" + digest + "/demo.plugin.asset",
+		"/api/v1/extensions/runtime/demo.plugin/assets/" + digest + "/" + digest + "/demo.plugin.asset",
+	}
+	for _, path := range paths {
+		resp := performExtensionRequest(t, app, http.MethodGet, path, nil)
+		resp.Body.Close()
+		if resp.StatusCode != http.StatusNotFound {
+			t.Fatalf("%s: expected hidden 404, got %d", path, resp.StatusCode)
+		}
+	}
+}
+
 func newTrustedRuntimeTestApp(t *testing.T, frontend TrustedFrontendService) (*fiber.App, *authsession.Manager) {
 	t.Helper()
 	manager := authsession.NewManager(session.NewStore(), authsession.Config{HashSecret: "test-secret"})
@@ -111,11 +177,14 @@ func newTrustedRuntimeTestApp(t *testing.T, frontend TrustedFrontendService) (*f
 }
 
 type fakeTrustedFrontendHTTPService struct {
-	status    extensions.FrontendStatus
-	grant     extensions.FrontendStatus
-	revoke    extensions.FrontendStatus
-	asset     extensions.FrontendAsset
-	challenge extensions.FrontendTrustChallenge
+	status          extensions.FrontendStatus
+	grant           extensions.FrontendStatus
+	revoke          extensions.FrontendStatus
+	asset           extensions.FrontendAsset
+	challenge       extensions.FrontendTrustChallenge
+	publicComponent extensions.PublicFrontendComponent
+	publicAsset     extensions.FrontendAsset
+	publicErr       error
 }
 
 func (s *fakeTrustedFrontendHTTPService) Asset(context.Context, identity.Actor, string, string, string) (extensions.FrontendAsset, error) {
@@ -145,4 +214,12 @@ func (s *fakeTrustedFrontendHTTPService) Revoke(_ context.Context, actor identit
 		return extensions.FrontendStatus{}, identity.ErrPermissionDenied
 	}
 	return s.revoke, nil
+}
+
+func (s *fakeTrustedFrontendHTTPService) PublicComponent(context.Context, string, string) (extensions.PublicFrontendComponent, error) {
+	return s.publicComponent, s.publicErr
+}
+
+func (s *fakeTrustedFrontendHTTPService) PublicAsset(context.Context, string, string, string, string) (extensions.FrontendAsset, error) {
+	return s.publicAsset, s.publicErr
 }

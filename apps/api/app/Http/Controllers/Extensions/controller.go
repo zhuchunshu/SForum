@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"strconv"
+	"strings"
 
 	"github.com/gofiber/fiber/v3"
 
@@ -18,6 +19,17 @@ import (
 )
 
 const maxUploadedArchiveBytes = 60 * 1024 * 1024
+
+const (
+	PublicFrontendHeaderExtensionID      = "X-SForum-Public-Extension-ID"
+	PublicFrontendHeaderExtensionVersion = "X-SForum-Public-Extension-Version"
+	PublicFrontendHeaderPackageDigest    = "X-SForum-Public-Package-Digest"
+	PublicFrontendHeaderImpactDigest     = "X-SForum-Public-Impact-Digest"
+	PublicFrontendHeaderComponentID      = "X-SForum-Public-Component-ID"
+	CodePublicFrontendBridgeStale        = "extension.public_frontend_bridge_stale"
+)
+
+var ErrPublicFrontendBridgeStale = errors.New("extensions: public frontend bridge identity is stale")
 
 type Controller struct {
 	service         *extensions.Service
@@ -54,10 +66,24 @@ type TrustedFrontendChallengeService interface {
 	Challenge(context.Context, identity.Actor, string) (extensions.FrontendTrustChallenge, error)
 }
 
+type PublicFrontendRuntimeService interface {
+	PublicComponent(context.Context, string, string) (extensions.PublicFrontendComponent, error)
+	PublicAsset(context.Context, string, string, string, string) (extensions.FrontendAsset, error)
+}
+
 type ProxyInput struct {
-	Matched  extensions.MatchedRoute
-	Actor    identity.Actor
-	HasActor bool
+	Matched             extensions.MatchedRoute
+	Actor               identity.Actor
+	HasActor            bool
+	PublicFrontendExact *PublicFrontendBridgeIdentity
+}
+
+type PublicFrontendBridgeIdentity struct {
+	ExtensionID      string
+	ExtensionVersion string
+	PackageDigest    string
+	ImpactDigest     string
+	ComponentID      string
 }
 
 type RouteGateway interface {
@@ -480,10 +506,19 @@ func queryInt(c fiber.Ctx, name string, fallback int) int {
 }
 
 func (h *Controller) proxyExtensionRoute(c fiber.Ctx) error {
+	exact, err := h.publicFrontendBridgeIdentity(c)
+	if err != nil {
+		return mapExtensionError(err)
+	}
 	routePath := "/" + c.Params("*")
 	matched, err := h.service.MatchRoute(c.Context(), c.Params("extensionId"), c.Method(), routePath)
 	if err != nil {
 		return mapExtensionError(err)
+	}
+	if exact != nil && (matched.Extension.ID != exact.ExtensionID ||
+		matched.Extension.Version != exact.ExtensionVersion ||
+		matched.Extension.PackageDigest != exact.PackageDigest) {
+		return mapExtensionError(ErrPublicFrontendBridgeStale)
 	}
 	actor, hasActor, err := h.optionalActor(c)
 	if err != nil {
@@ -509,10 +544,44 @@ func (h *Controller) proxyExtensionRoute(c fiber.Ctx) error {
 	if h.gateway == nil {
 		return fiber.NewError(fiber.StatusServiceUnavailable, extensions.CodeRuntimeUnavailable)
 	}
-	if err := h.gateway.Proxy(c, ProxyInput{Matched: matched, Actor: actor, HasActor: hasActor}); err != nil {
+	if err := h.gateway.Proxy(c, ProxyInput{
+		Matched: matched, Actor: actor, HasActor: hasActor, PublicFrontendExact: exact,
+	}); err != nil {
 		return mapExtensionError(err)
 	}
 	return nil
+}
+
+func (h *Controller) publicFrontendBridgeIdentity(c fiber.Ctx) (*PublicFrontendBridgeIdentity, error) {
+	identity := PublicFrontendBridgeIdentity{
+		ExtensionID:      strings.TrimSpace(c.Get(PublicFrontendHeaderExtensionID)),
+		ExtensionVersion: strings.TrimSpace(c.Get(PublicFrontendHeaderExtensionVersion)),
+		PackageDigest:    strings.TrimSpace(c.Get(PublicFrontendHeaderPackageDigest)),
+		ImpactDigest:     strings.TrimSpace(c.Get(PublicFrontendHeaderImpactDigest)),
+		ComponentID:      strings.TrimSpace(c.Get(PublicFrontendHeaderComponentID)),
+	}
+	if identity == (PublicFrontendBridgeIdentity{}) {
+		return nil, nil
+	}
+	if identity.ExtensionID == "" || identity.ExtensionVersion == "" || identity.ComponentID == "" ||
+		!frontendDigestPattern.MatchString(identity.PackageDigest) ||
+		!frontendDigestPattern.MatchString(identity.ImpactDigest) ||
+		identity.ExtensionID != c.Params("extensionId") {
+		return nil, ErrPublicFrontendBridgeStale
+	}
+	runtime, ok := h.frontend.(PublicFrontendRuntimeService)
+	if h.frontend == nil || !ok {
+		return nil, ErrPublicFrontendBridgeStale
+	}
+	descriptor, err := runtime.PublicComponent(c.Context(), identity.ExtensionID, identity.ComponentID)
+	if err != nil || descriptor.ExtensionID != identity.ExtensionID ||
+		descriptor.ExtensionVersion != identity.ExtensionVersion ||
+		descriptor.PackageDigest != identity.PackageDigest ||
+		descriptor.ImpactDigest != identity.ImpactDigest ||
+		descriptor.ComponentID != identity.ComponentID {
+		return nil, ErrPublicFrontendBridgeStale
+	}
+	return &identity, nil
 }
 
 func (h *Controller) actor(c fiber.Ctx) (identity.Actor, error) {
@@ -535,6 +604,8 @@ func mapExtensionError(err error) error {
 		return mapped
 	}
 	switch {
+	case errors.Is(err, ErrPublicFrontendBridgeStale):
+		return fiber.NewError(fiber.StatusPreconditionFailed, CodePublicFrontendBridgeStale)
 	case errors.Is(err, identity.ErrPermissionDenied):
 		return fiber.NewError(fiber.StatusForbidden, "permission.denied")
 	case errors.Is(err, extensions.ErrUntrustedBackendRestricted):

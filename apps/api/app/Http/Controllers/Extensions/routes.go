@@ -5,6 +5,8 @@ import "github.com/gofiber/fiber/v3"
 func (h *Controller) RegisterRoutes(api fiber.Router) {
 	// 前台：当前激活主题的非 secret 设置（主题 layer 消费）。
 	api.Get("/site/active-theme/settings", h.publicActiveThemeSettings)
+	api.Get("/extensions/runtime/:extensionId/components/:componentId", h.publicFrontendComponent)
+	api.Get("/extensions/runtime/:extensionId/assets/:packageDigest/:digest/:handle", h.publicFrontendAsset)
 
 	api.Get("/admin/admin-surfaces", h.listAdminSurfaces)
 	api.Post("/admin/admin-surfaces/:surfaceId/invoke", h.invokeAdminSurface)

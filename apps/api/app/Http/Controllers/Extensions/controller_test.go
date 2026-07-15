@@ -7,6 +7,7 @@ import (
 	"errors"
 	"io"
 	"log/slog"
+	"maps"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -382,6 +383,86 @@ func TestControllerProxiesOnlyDeclaredPluginRoutesAfterHostAuthorization(t *test
 	resp = performExtensionRequest(t, app, http.MethodGet, "/api/v1/extensions/demo.plugin/missing", managerCookie)
 	if resp.StatusCode != http.StatusNotFound {
 		t.Fatalf("expected undeclared path 404, got %d", resp.StatusCode)
+	}
+}
+
+func TestControllerRejectsStalePublicFrontendBridgeBeforeRuntimeDispatch(t *testing.T) {
+	manager := authsession.NewManager(session.NewStore(), authsession.Config{HashSecret: "test-secret"})
+	packageDigest := strings.Repeat("a", 64)
+	impactDigest := strings.Repeat("b", 64)
+	componentID := "demo.plugin.component.card"
+	plugin := extensions.Extension{
+		ID: "demo.plugin", Name: "Demo Plugin", Version: "1.0.0",
+		Type: extensions.TypePlugin, Status: extensions.StatusEnabled,
+		PackageDigest: packageDigest,
+		Manifest: extensions.Manifest{
+			ID: "demo.plugin", Name: "Demo Plugin", Version: "1.0.0", Type: extensions.TypePlugin,
+			Routes: []extensions.ManifestRoute{{Path: "/hello", Methods: []string{"GET"}, Access: extensions.RouteAccessPublic}},
+		},
+	}
+	store := &controllerFakeStore{items: map[string]extensions.Extension{plugin.ID: plugin}}
+	gateway := &controllerRecordingGateway{}
+	frontend := &fakeTrustedFrontendHTTPService{publicComponent: extensions.PublicFrontendComponent{
+		ExtensionID: plugin.ID, ExtensionVersion: plugin.Version,
+		PackageDigest: packageDigest, ImpactDigest: impactDigest, ComponentID: componentID,
+	}}
+	controller := NewControllerWithGateway(
+		extensions.NewService(store, t.TempDir()), controllerActors{actors: map[int64]identity.Actor{}}, manager, gateway,
+	).WithTrustedRuntime(frontend)
+	app := apphttp.NewApp(config.Config{
+		AppName: "SForum", AppEnv: "test", CSRFEnabled: false,
+		AppLocale: "zh-CN", SupportedLocales: []string{"zh-CN", "en-US"},
+	}, slog.Default(), apphttp.Dependencies{RouteProviders: []apphttp.RouteProvider{controller}})
+
+	request := func(headers map[string]string) *http.Response {
+		t.Helper()
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/extensions/demo.plugin/hello", nil)
+		for name, value := range headers {
+			req.Header.Set(name, value)
+		}
+		response, err := app.Test(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return response
+	}
+	exactHeaders := map[string]string{
+		PublicFrontendHeaderExtensionID: plugin.ID, PublicFrontendHeaderExtensionVersion: plugin.Version,
+		PublicFrontendHeaderPackageDigest: packageDigest, PublicFrontendHeaderImpactDigest: impactDigest,
+		PublicFrontendHeaderComponentID: componentID,
+	}
+	response := request(exactHeaders)
+	response.Body.Close()
+	if response.StatusCode != http.StatusOK || gateway.calls != 1 || gateway.exact == nil ||
+		gateway.exact.ImpactDigest != impactDigest {
+		t.Fatalf("exact bridge status=%d calls=%d identity=%#v", response.StatusCode, gateway.calls, gateway.exact)
+	}
+
+	for name, stale := range map[string]string{
+		PublicFrontendHeaderExtensionVersion: "2.0.0",
+		PublicFrontendHeaderPackageDigest:    strings.Repeat("c", 64),
+		PublicFrontendHeaderImpactDigest:     strings.Repeat("d", 64),
+	} {
+		headers := maps.Clone(exactHeaders)
+		headers[name] = stale
+		response = request(headers)
+		response.Body.Close()
+		if response.StatusCode != http.StatusPreconditionFailed || gateway.calls != 1 {
+			t.Fatalf("stale %s status=%d calls=%d", name, response.StatusCode, gateway.calls)
+		}
+	}
+
+	frontend.publicErr = extensions.ErrPublicFrontendUnavailable
+	response = request(exactHeaders)
+	response.Body.Close()
+	if response.StatusCode != http.StatusPreconditionFailed || gateway.calls != 1 {
+		t.Fatalf("revoked bridge status=%d calls=%d", response.StatusCode, gateway.calls)
+	}
+	frontend.publicErr = nil
+	response = request(nil)
+	response.Body.Close()
+	if response.StatusCode != http.StatusOK || gateway.calls != 2 {
+		t.Fatalf("legacy route status=%d calls=%d", response.StatusCode, gateway.calls)
 	}
 }
 
@@ -767,6 +848,18 @@ func (f extensionRouteProviderFunc) RegisterRoutes(api fiber.Router) {
 type controllerFakeGateway struct{}
 
 func (controllerFakeGateway) Proxy(c fiber.Ctx, input ProxyInput) error {
+	c.Status(http.StatusOK)
+	return c.SendString("plugin-ok")
+}
+
+type controllerRecordingGateway struct {
+	calls int
+	exact *PublicFrontendBridgeIdentity
+}
+
+func (g *controllerRecordingGateway) Proxy(c fiber.Ctx, input ProxyInput) error {
+	g.calls++
+	g.exact = input.PublicFrontendExact
 	c.Status(http.StatusOK)
 	return c.SendString("plugin-ok")
 }
