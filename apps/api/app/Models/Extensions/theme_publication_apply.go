@@ -3,13 +3,14 @@ package extensions
 import (
 	"context"
 	"errors"
+	"fmt"
 )
 
 var ErrThemeRuntimeApplyFailed = errors.New("extensions: theme runtime publication apply failed")
 
-// ApplyThemeRuntimePublication converges only process-local Page/ThemeRuntime
-// state. The desired database state and publication row were committed by the
-// activation transaction before this method runs.
+// ApplyThemeRuntimePublication converges process-local Page/ThemeRuntime and
+// Component Registry state. The desired database state and publication row
+// were committed by the activation transaction before this method runs.
 func (s *Service) ApplyThemeRuntimePublication(ctx context.Context, publication ThemeRuntimePublication) error {
 	if s == nil || ctx == nil || s.pageRegistry == nil || !validThemeRuntimePublication(publication) {
 		return ErrThemeRuntimeApplyFailed
@@ -21,7 +22,19 @@ func (s *Service) ApplyThemeRuntimePublication(ctx context.Context, publication 
 	if err != nil {
 		return errors.Join(ErrThemeRuntimeApplyFailed, err)
 	}
+	source, err := s.themePublicationSource(ctx, publication)
+	if err != nil {
+		return errors.Join(ErrThemeRuntimeApplyFailed, err)
+	}
 	if publication.DesiredState == ThemeRuntimePublicationNone {
+		if s.componentRegistry != nil {
+			if err := s.componentRegistry.ValidateThemeTransition(nil, source); err != nil {
+				return errors.Join(ErrThemeRuntimeApplyFailed, err)
+			}
+			if err := s.componentRegistry.PublishThemeTransition(nil, source, publication.Revision); err != nil {
+				return errors.Join(ErrThemeRuntimeApplyFailed, err)
+			}
+		}
 		for _, item := range items {
 			if item.Type == TypeTheme {
 				s.pageRegistry.ClearExtension(item.ID)
@@ -38,6 +51,14 @@ func (s *Service) ApplyThemeRuntimePublication(ctx context.Context, publication 
 	if err := s.verifyExtension(ctx, target); err != nil {
 		return errors.Join(ErrThemeRuntimeApplyFailed, err)
 	}
+	if err := s.pageRegistry.PreflightThemePackage(ctx, target, publication.SourceThemeID); err != nil {
+		return errors.Join(ErrThemeRuntimeApplyFailed, err)
+	}
+	if s.componentRegistry != nil {
+		if err := s.componentRegistry.ValidateThemeTransition(&target, source); err != nil {
+			return errors.Join(ErrThemeRuntimeApplyFailed, err)
+		}
+	}
 	if target.ID != DefaultThemeID {
 		defaultTheme, defaultErr := s.store.Get(ctx, DefaultThemeID)
 		if defaultErr != nil {
@@ -47,13 +68,12 @@ func (s *Service) ApplyThemeRuntimePublication(ctx context.Context, publication 
 			return errors.Join(ErrThemeRuntimeApplyFailed, defaultErr)
 		}
 	}
-	for _, item := range items {
-		if item.Type == TypeTheme && item.ID != target.ID && item.ID != publication.SourceThemeID {
-			s.pageRegistry.ClearExtension(item.ID)
+	componentPublished := false
+	if s.componentRegistry != nil {
+		if err := s.componentRegistry.PublishThemeTransition(&target, source, publication.Revision); err != nil {
+			return errors.Join(ErrThemeRuntimeApplyFailed, err)
 		}
-	}
-	if err := s.pageRegistry.PreflightThemePackage(ctx, target, publication.SourceThemeID); err != nil {
-		return errors.Join(ErrThemeRuntimeApplyFailed, err)
+		componentPublished = true
 	}
 	if publication.CoreReplacementsApproved {
 		err = s.pageRegistry.RegisterThemePackageReplacingApproved(
@@ -63,7 +83,63 @@ func (s *Service) ApplyThemeRuntimePublication(ctx context.Context, publication 
 		err = s.pageRegistry.RegisterThemePackageReplacing(ctx, target, publication.SourceThemeID)
 	}
 	if err != nil {
+		if componentPublished {
+			if rollbackErr := s.componentRegistry.RollbackThemeTransition(
+				source, &target, publication.Revision,
+			); rollbackErr != nil {
+				err = errors.Join(err, fmt.Errorf("restore source component publication: %w", rollbackErr))
+			}
+		}
 		return errors.Join(ErrThemeRuntimeApplyFailed, err)
 	}
+	for _, item := range items {
+		if item.Type == TypeTheme && item.ID != target.ID && item.ID != publication.SourceThemeID {
+			s.pageRegistry.ClearExtension(item.ID)
+		}
+	}
 	return nil
+}
+
+func (s *Service) themePublicationSource(
+	ctx context.Context,
+	publication ThemeRuntimePublication,
+) (*Extension, error) {
+	if publication.SourceThemeID == "" {
+		return nil, nil
+	}
+	expected := Extension{
+		ID: publication.SourceThemeID, Type: TypeTheme,
+		Version: publication.SourceThemeVersion, PackageDigest: publication.SourcePackageDigest,
+	}
+	base, err := s.store.Get(ctx, publication.SourceThemeID)
+	if errors.Is(err, ErrExtensionNotFound) {
+		// The inactive source package may already be uninstalled on a fresh
+		// node. Its durable exact tuple remains sufficient to fence a stale
+		// process-local publication; no source package code is loaded here.
+		return &expected, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	if sameThemeExactArtifact(base, expected) {
+		value := base
+		return &value, nil
+	}
+	versions, ok := s.store.(ExactExtensionVersionRepository)
+	if !ok {
+		return nil, ErrThemePublicationConflict
+	}
+	version, err := versions.GetExtensionVersion(ctx, ExactExtensionVersionInput{
+		ExtensionID:   publication.SourceThemeID,
+		Version:       publication.SourceThemeVersion,
+		PackageDigest: publication.SourcePackageDigest,
+	})
+	if err != nil {
+		return nil, err
+	}
+	exact := extensionFromExactVersion(base, version)
+	if !sameThemeExactArtifact(exact, expected) {
+		return nil, ErrThemePublicationConflict
+	}
+	return &exact, nil
 }

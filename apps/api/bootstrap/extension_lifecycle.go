@@ -195,7 +195,8 @@ func newProductionLifecycleStack(config productionLifecycleStackConfig) (*produc
 
 func (s *productionLifecycleStack) bindService(service *extensions.Service) error {
 	if s == nil || service == nil || s.Coordinator == nil || s.StaticPreflight == nil ||
-		s.Repository == nil || s.CleanupFinalizer == nil || s.RouteProviders == nil || s.ProviderSlots == nil {
+		s.Repository == nil || s.CleanupFinalizer == nil || s.RouteProviders == nil || s.ProviderSlots == nil ||
+		s.ComponentRegistry == nil {
 		return errProductionLifecycleDependency
 	}
 	extensions.WithLifecycleCoordinator(s.Coordinator, s.StaticPreflight, s.Repository)(service)
@@ -203,6 +204,7 @@ func (s *productionLifecycleStack) bindService(service *extensions.Service) erro
 	extensions.WithLifecycleCleanupFinalizer(adaptLifecycleCleanupFinalizer(s.CleanupFinalizer))(service)
 	extensions.WithRouteProviderSelectionInvalidator(s.RouteProviders)(service)
 	extensions.WithProviderSlotSelectionInvalidator(s.ProviderSlots)(service)
+	extensions.WithComponentRegistry(s.ComponentRegistry)(service)
 	return nil
 }
 

@@ -283,12 +283,16 @@ func TestProductionLifecycleStackBindsV2AndInspectionOptions(t *testing.T) {
 	value := reflect.ValueOf(service).Elem()
 	for _, field := range []string{
 		"lifecycleCoordinator", "lifecyclePreflight", "lifecycleAuthority", "lifecycleInspector",
-		"lifecycleFinalizer",
+		"lifecycleFinalizer", "componentRegistry",
 	} {
 		binding := value.FieldByName(field)
 		if !binding.IsValid() || binding.IsNil() {
 			t.Fatalf("Service option %q was not wired", field)
 		}
+	}
+	componentBinding := value.FieldByName("componentRegistry")
+	if componentBinding.Elem().Pointer() != reflect.ValueOf(stack.ComponentRegistry).Pointer() {
+		t.Fatal("theme activation service did not receive the shared production Component Registry")
 	}
 }
 

@@ -50,8 +50,9 @@ type Service struct {
 	// providerSlotSelections 撤销 contract owner/candidate 的精确服务选择。
 	providerSlotSelections ProviderSlotSelectionInvalidator
 	// pageRegistry 运行时主题页面贡献（L0/L1）；nil 时跳过注册。
-	pageRegistry    PageRegistry
-	settingsActions SettingsActionRuntime
+	pageRegistry      PageRegistry
+	componentRegistry ComponentRegistry
+	settingsActions   SettingsActionRuntime
 	// executableTrust 在 V3 P1 开关开启时取代 confirmCapabilities 布尔确认。
 	executableTrust        *ExecutableTrustService
 	trustChallengesEnabled bool
@@ -82,6 +83,15 @@ type PageRegistry interface {
 	RegisterPluginPackage(ctx context.Context, extension Extension) error
 	// ClearExtension 禁用/卸载/切换时撤销贡献。
 	ClearExtension(extensionID string)
+}
+
+// ComponentRegistry 是主题同步激活所需的最小声明式边界。
+// 实现必须使用 Host 的 exact package runtime identity，并且原子地
+// 将新主题发布与旧主题撤销放在同一个快照中。
+type ComponentRegistry interface {
+	ValidateThemeTransition(target, source *Extension) error
+	PublishThemeTransition(target, source *Extension, publicationRevision int64) error
+	RollbackThemeTransition(target, source *Extension, publicationRevision int64) error
 }
 
 // FeatureFlagSource 返回 requiresFeatures 中当前关闭的 key。
@@ -129,6 +139,13 @@ func WithProviderSlotSelectionInvalidator(invalidator ProviderSlotSelectionInval
 func WithPageRegistry(registry PageRegistry) ServiceOption {
 	return func(s *Service) {
 		s.pageRegistry = registry
+	}
+}
+
+// WithComponentRegistry 注入与公开 L2 admission 共享的 Component Registry。
+func WithComponentRegistry(registry ComponentRegistry) ServiceOption {
+	return func(s *Service) {
+		s.componentRegistry = registry
 	}
 }
 
@@ -1041,6 +1058,14 @@ func (s *Service) activateTheme(
 			return Extension{}, wrapped
 		}
 	}
+	if s.componentRegistry != nil {
+		target := activationTarget
+		if err := s.componentRegistry.ValidateThemeTransition(&target, previous); err != nil {
+			wrapped := fmt.Errorf("%w: component registry preflight failed: %v", ErrBuildFailed, err)
+			s.recordEnableFailure(ctx, actor, extension.ID, wrapped)
+			return Extension{}, wrapped
+		}
+	}
 
 	// 所有静态预检完成后、任何 DB/Registry 切换前消费一次性 exact-artifact
 	// challenge。普通 L0/L1 主题不请求可执行权限，因此继续零确认激活。
@@ -1083,8 +1108,16 @@ func (s *Service) activateTheme(
 				trustErr = ErrTrustGrantNotFound
 			}
 			failure := fmt.Errorf("theme executable trust lost before publication: %w", trustErr)
-			if _, rollbackErr := s.store.CompensateThemeActivation(ctx, activationPublication, previous); rollbackErr != nil {
+			rollback, rollbackErr := s.store.CompensateThemeActivation(ctx, activationPublication, previous)
+			if rollbackErr != nil {
 				failure = errors.Join(failure, fmt.Errorf("theme activation compensation failed: %w", rollbackErr))
+			} else if s.componentRegistry != nil {
+				failedTarget := active
+				if componentErr := s.componentRegistry.PublishThemeTransition(
+					previous, &failedTarget, rollback.Publication.Revision,
+				); componentErr != nil {
+					failure = errors.Join(failure, fmt.Errorf("component registry compensation failed: %w", componentErr))
+				}
 			}
 			return Extension{}, s.compensateThemeActivationTrust(
 				ctx, actor, trustReceipt, activationTarget, previous, failure,
@@ -1092,8 +1125,21 @@ func (s *Service) activateTheme(
 		}
 	}
 
-	// 3) 事务成功后原子替换 Registry（ReplaceThemeContributions：新旧同路径允许）。
-	//    失败则回滚 DB 活动主题并恢复旧 Registry。
+	// 3) 先原子替换 Component Registry，再发布 Page/ThemeRuntime。
+	//    Component 失败时 Page 尚未切换；Page 失败时则按 exact
+	//    target 反向恢复 Component，两条路径都使用 DB CAS 补偿。
+	if s.componentRegistry != nil {
+		target := active
+		if publishErr := s.componentRegistry.PublishThemeTransition(
+			&target, previous, activationPublication.Revision,
+		); publishErr != nil {
+			failure := fmt.Errorf("%w: component registry register failed: %v", ErrBuildFailed, publishErr)
+			return Extension{}, s.compensateCommittedThemeActivation(
+				ctx, actor, trustReceipt, activationTarget, active, previous, activationPublication, failure,
+			)
+		}
+	}
+
 	if s.pageRegistry != nil {
 		var registerErr error
 		if input.ApproveCoreReplacements {
@@ -1103,15 +1149,8 @@ func (s *Service) activateTheme(
 		}
 		if registerErr != nil {
 			failure := fmt.Errorf("%w: registry register failed: %v", ErrBuildFailed, registerErr)
-			if _, rollbackErr := s.store.CompensateThemeActivation(ctx, activationPublication, previous); rollbackErr != nil {
-				failure = errors.Join(failure, fmt.Errorf("theme activation compensation failed: %w", rollbackErr))
-				_, _ = s.store.CreateEvent(ctx, EventInput{
-					ExtensionID: active.ID, ActorUserID: actor.ID, Action: EventEnableFailed,
-					Message: failure.Error(),
-				})
-			}
-			return Extension{}, s.compensateThemeActivationTrust(
-				ctx, actor, trustReceipt, activationTarget, previous, failure,
+			return Extension{}, s.compensateCommittedThemeActivation(
+				ctx, actor, trustReceipt, activationTarget, active, previous, activationPublication, failure,
 			)
 		}
 	}
@@ -1131,6 +1170,38 @@ func (s *Service) activateTheme(
 		"publicationRevision":      activationPublication.Revision,
 	})
 	return active, nil
+}
+
+func (s *Service) compensateCommittedThemeActivation(
+	ctx context.Context,
+	actor identity.Actor,
+	trustReceipt executableTrustGrantReceipt,
+	activationTarget Extension,
+	active Extension,
+	previous *Extension,
+	publication ThemeRuntimePublication,
+	failure error,
+) error {
+	rollback, rollbackErr := s.store.CompensateThemeActivation(ctx, publication, previous)
+	var componentRollbackErr error
+	if rollbackErr != nil {
+		failure = errors.Join(failure, fmt.Errorf("theme activation compensation failed: %w", rollbackErr))
+	} else if s.componentRegistry != nil {
+		failedTarget := active
+		componentRollbackErr = s.componentRegistry.PublishThemeTransition(
+			previous, &failedTarget, rollback.Publication.Revision,
+		)
+		if componentRollbackErr != nil {
+			failure = errors.Join(failure, fmt.Errorf("component registry compensation failed: %w", componentRollbackErr))
+		}
+	}
+	if rollbackErr != nil || componentRollbackErr != nil {
+		_, _ = s.store.CreateEvent(ctx, EventInput{
+			ExtensionID: active.ID, ActorUserID: actor.ID, Action: EventEnableFailed,
+			Message: failure.Error(),
+		})
+	}
+	return s.compensateThemeActivationTrust(ctx, actor, trustReceipt, activationTarget, previous, failure)
 }
 
 func (s *Service) compensateThemeActivationTrust(

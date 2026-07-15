@@ -131,8 +131,11 @@ type componentRegistryState struct {
 // off to the side and readers observe either the old or the new exact-runtime
 // snapshot, never a partially removed target or modifier chain.
 type ComponentRegistry struct {
-	mu    sync.Mutex
-	state atomic.Pointer[componentRegistryState]
+	mu                               sync.Mutex
+	state                            atomic.Pointer[componentRegistryState]
+	themePublicationRevision         int64
+	themePreviousPublicationRevision int64
+	themePreviousRegistrations       map[string]componentRuntimeRegistration
 }
 
 func NewComponentRegistry() *ComponentRegistry {
