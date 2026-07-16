@@ -66,6 +66,12 @@ func TestProtocolV2HostUnaryAuthBindsExactRuntime(t *testing.T) {
 				CommandId: "sforum.demo", CommandVersion: "1", IdempotencyKey: "request-42", Token: "reflected",
 			}}
 		}, code: codes.PermissionDenied},
+		{name: "reflected query delegation", token: token, mutate: func(request *protocolv2.HealthRequest) {
+			request.Context.HostQueryDelegations = []*protocolv2.HostQueryDelegation{{
+				QueryId: "sforum.demo", ContractVersion: "sforum.demo@1",
+				PlanVersion: "sforum.demo.plan@1", Token: "reflected",
+			}}
+		}, code: codes.PermissionDenied},
 		{name: "expired deadline", token: token, mutate: func(request *protocolv2.HealthRequest) {
 			request.Context.Deadline = timestamppb.New(time.Now().Add(-time.Second))
 		}, code: codes.DeadlineExceeded},

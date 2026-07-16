@@ -167,7 +167,7 @@ func validateProtocolV2HostContext(ctx *protocolv2.RequestContext, binding proto
 	if ctx.GetActor() != nil {
 		return status.Error(codes.PermissionDenied, "protocol v2 actor context is not host-attested")
 	}
-	if len(ctx.GetHostCommandDelegations()) != 0 {
+	if len(ctx.GetHostCommandDelegations()) != 0 || len(ctx.GetHostQueryDelegations()) != 0 {
 		return status.Error(codes.PermissionDenied, "protocol v2 actor delegations are Host-to-plugin only")
 	}
 	deadline := ctx.GetDeadline()
