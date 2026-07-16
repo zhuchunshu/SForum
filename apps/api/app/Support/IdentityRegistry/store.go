@@ -2,6 +2,7 @@ package identityregistry
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"sort"
 	"strings"
@@ -55,11 +56,32 @@ type DurableDeclarationTip struct {
 	CreatedAt          time.Time `json:"createdAt"`
 }
 
+// DurableRootPublicationTip is the append-only exact publication graph for one
+// plugin. It complements leaf ownership rows so session policies, risk hooks,
+// and root-only Identity declarations remain provable after restart.
+// PublicationJSON is canonical declarative material and excludes the ephemeral
+// RuntimeInstanceID; startup validates the current runtime binding separately.
+type DurableRootPublicationTip struct {
+	OwnerExtensionID   string          `json:"ownerExtensionId"`
+	Revision           int64           `json:"revision"`
+	RegistryState      string          `json:"registryState"`
+	ExtensionVersionID int64           `json:"extensionVersionId"`
+	ExtensionVersion   string          `json:"extensionVersion"`
+	PackageDigest      string          `json:"packageDigest"`
+	SchemaVersion      string          `json:"schemaVersion"`
+	PublicationDigest  string          `json:"publicationDigest"`
+	PublicationJSON    json.RawMessage `json:"publicationJson"`
+	ActorUserID        int64           `json:"actorUserId"`
+	AuditEventID       int64           `json:"auditEventId"`
+	CreatedAt          time.Time       `json:"createdAt"`
+}
+
 // DurableState is the restart material for ownership history plus latest tips.
 // Owners and Tips are always sorted deterministically by the store.
 type DurableState struct {
-	Owners []DurableOwner          `json:"owners"`
-	Tips   []DurableDeclarationTip `json:"tips"`
+	Owners   []DurableOwner              `json:"owners"`
+	Tips     []DurableDeclarationTip     `json:"tips"`
+	RootTips []DurableRootPublicationTip `json:"rootTips"`
 }
 
 // RoleSuggestion is a Host-reviewable permission-to-role recommendation.
@@ -140,6 +162,19 @@ type DecideRoleSuggestionInput struct {
 	ActorUserID      int64
 }
 
+// ReconcilePublicationInput binds one durable lifecycle transition to the
+// exact source/target artifacts admitted by the Host coordinator. Desired is
+// nil when the transition retires every active declaration for the extension.
+// Startup restoration is read-only and uses LoadDurableState instead.
+type ReconcilePublicationInput struct {
+	ExtensionID   string
+	AllowedSource *Artifact
+	AllowedTarget *Artifact
+	Desired       *Publication
+	ActorUserID   int64
+	AuditEventID  int64
+}
+
 type roleSuggestionAuditMetadata struct {
 	SuggestionID                int64  `json:"suggestionId"`
 	PermissionKey               string `json:"permissionKey"`
@@ -182,10 +217,21 @@ type Store interface {
 	DecideRoleSuggestion(ctx context.Context, input DecideRoleSuggestionInput) (RoleSuggestion, error)
 }
 
+// PublicationStore is deliberately separate from Store. Lifecycle publication
+// writes durable declaration history, while Store remains the Host review
+// boundary used by existing role-suggestion services and their test doubles.
+type PublicationStore interface {
+	Reconcile(ctx context.Context, input ReconcilePublicationInput) (DurableState, error)
+	LoadDurableState(ctx context.Context) (DurableState, error)
+}
+
 // DurableStateToTombstones converts durable ownership into in-process tombstones.
 // Owner rows without a matching declaration tip/contract fail closed so restart
 // restore never silently drops permanent ownership.
 func DurableStateToTombstones(state DurableState) ([]Tombstone, error) {
+	if _, err := durableRootPublications(state); err != nil {
+		return nil, err
+	}
 	owners := make(map[string]DurableOwner, len(state.Owners))
 	for _, raw := range state.Owners {
 		owner := raw

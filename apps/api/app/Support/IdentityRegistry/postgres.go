@@ -45,75 +45,15 @@ func (s *PostgresStore) LoadDurableState(ctx context.Context) (DurableState, err
 	}
 	defer func() { _ = tx.Rollback(context.Background()) }()
 
-	ownerRows, err := tx.Query(ctx, `
-			SELECT identity_kind, stable_id, owner_extension_id, claimed_at
-			FROM extension_identity_registry_owners
-			ORDER BY identity_kind ASC, stable_id ASC
-		`)
+	state, err := loadDurableStateFrom(ctx, tx)
 	if err != nil {
-		return DurableState{}, mapStoreError(err)
+		return DurableState{}, err
 	}
-	defer ownerRows.Close()
-
-	owners := make([]DurableOwner, 0)
-	for ownerRows.Next() {
-		var owner DurableOwner
-		if scanErr := ownerRows.Scan(
-			&owner.IdentityKind, &owner.StableID, &owner.OwnerExtensionID, &owner.ClaimedAt,
-		); scanErr != nil {
-			return DurableState{}, mapStoreError(scanErr)
-		}
-		owners = append(owners, owner)
-	}
-	if err := ownerRows.Err(); err != nil {
-		ownerRows.Close()
-		return DurableState{}, mapStoreError(err)
-	}
-	ownerRows.Close()
-
-	tipRows, err := tx.Query(ctx, `
-			SELECT DISTINCT ON (identity_kind, stable_id)
-			identity_kind, stable_id, owner_extension_id, revision, registry_state,
-			extension_version_id, extension_version, package_digest, contract_version,
-			declaration_digest, actor_user_id, audit_event_id, created_at
-		FROM extension_identity_registry_declarations
-		ORDER BY identity_kind ASC, stable_id ASC, revision DESC
-	`)
-	if err != nil {
-		return DurableState{}, mapStoreError(err)
-	}
-	defer tipRows.Close()
-
-	tips := make([]DurableDeclarationTip, 0)
-	for tipRows.Next() {
-		var tip DurableDeclarationTip
-		var actorUserID, auditEventID *int64
-		if scanErr := tipRows.Scan(
-			&tip.IdentityKind, &tip.StableID, &tip.OwnerExtensionID, &tip.Revision,
-			&tip.RegistryState, &tip.ExtensionVersionID, &tip.ExtensionVersion,
-			&tip.PackageDigest, &tip.ContractVersion, &tip.DeclarationDigest,
-			&actorUserID, &auditEventID, &tip.CreatedAt,
-		); scanErr != nil {
-			return DurableState{}, mapStoreError(scanErr)
-		}
-		if actorUserID != nil {
-			tip.ActorUserID = *actorUserID
-		}
-		if auditEventID != nil {
-			tip.AuditEventID = *auditEventID
-		}
-		tips = append(tips, tip)
-	}
-	if err := tipRows.Err(); err != nil {
-		tipRows.Close()
-		return DurableState{}, mapStoreError(err)
-	}
-	tipRows.Close()
 
 	if err := tx.Commit(ctx); err != nil {
 		return DurableState{}, mapStoreError(err)
 	}
-	return DurableState{Owners: owners, Tips: tips}, nil
+	return state, nil
 }
 
 func (s *PostgresStore) ListRoleSuggestions(
