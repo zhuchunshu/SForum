@@ -11,6 +11,7 @@ import (
 
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
 	assetregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/AssetRegistry"
+	cacheregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/CacheRegistry"
 	extensionopenapi "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionOpenAPI"
 	hostapi "github.com/zhuchunshu/sforum/apps/api/app/Support/HostAPI"
 	pages "github.com/zhuchunshu/sforum/apps/api/app/Support/Pages"
@@ -74,6 +75,7 @@ type LifecycleRegistryBoundaryConfig struct {
 	Services       *hostapi.ServiceRegistry
 	Components     *ComponentRegistry
 	Assets         *assetregistry.Registry
+	Caches         *cacheregistry.Registry
 	Queries        *queryregistry.Registry
 	AssetAuthority LifecycleAssetAuthority
 	AssetAdmission LifecycleAssetAdmission
@@ -95,6 +97,7 @@ type PostgresLifecycleBoundaryRegistries struct {
 	services       *hostapi.ServiceRegistry
 	components     *ComponentRegistry
 	assets         *assetregistry.Registry
+	caches         *cacheregistry.Registry
 	queries        *queryregistry.Registry
 	assetAuthority LifecycleAssetAuthority
 	assetAdmission LifecycleAssetAdmission
@@ -117,12 +120,16 @@ func NewPostgresLifecycleBoundaryRegistries(config LifecycleRegistryBoundaryConf
 		services:       config.Services,
 		components:     components,
 		assets:         config.Assets,
+		caches:         config.Caches,
 		queries:        config.Queries,
 		assetAuthority: config.AssetAuthority,
 		assetAdmission: config.AssetAdmission,
 	}
 	if boundary.queries == nil {
 		boundary.queries = queryregistry.New()
+	}
+	if boundary.caches == nil {
+		boundary.caches = cacheregistry.New()
 	}
 	if config.Manager != nil {
 		boundary.hooks = config.Manager.HookBus()
@@ -145,6 +152,14 @@ func NewPostgresLifecycleBoundaryRegistries(config LifecycleRegistryBoundaryConf
 	}
 	if boundary.queries != nil && boundary.manager != nil {
 		boundary.queries.WithPluginAdmission(func(artifact queryregistry.Artifact) bool {
+			identity := RuntimeInstanceIdentity{ExtensionID: artifact.ExtensionID, InstanceID: artifact.RuntimeInstanceID}
+			snapshot, err := boundary.manager.InspectRuntimeInstance(identity)
+			return err == nil && snapshot.ExtensionVersion == artifact.ExtensionVersion &&
+				snapshot.ArtifactDigest == artifact.PackageDigest && boundary.manager.RuntimeInstanceAvailable(identity)
+		})
+	}
+	if boundary.caches != nil && boundary.manager != nil {
+		boundary.caches.WithPluginAdmission(func(artifact cacheregistry.Artifact) bool {
 			identity := RuntimeInstanceIdentity{ExtensionID: artifact.ExtensionID, InstanceID: artifact.RuntimeInstanceID}
 			snapshot, err := boundary.manager.InspectRuntimeInstance(identity)
 			return err == nil && snapshot.ExtensionVersion == artifact.ExtensionVersion &&
@@ -180,6 +195,9 @@ func (b *PostgresLifecycleBoundaryRegistries) RestoreRoutePublications(
 		return fmt.Errorf("restore component registry publication: %w", err)
 	}
 	if err := b.restoreQueryPublications(ctx, items, safeMode); err != nil {
+		return err
+	}
+	if err := b.restoreCachePublications(ctx, items, safeMode); err != nil {
 		return err
 	}
 	if err := b.restoreAssetPublications(ctx, items, safeMode); err != nil {
@@ -366,6 +384,9 @@ func (b *PostgresLifecycleBoundaryRegistries) validatePreparedLifecycleRegistrie
 	if err := b.validateQueryTransition(source, target); err != nil {
 		return err
 	}
+	if err := b.validateCacheTransition(source, target); err != nil {
+		return err
+	}
 	for _, material := range []*lifecycleRegistryMaterial{source, target} {
 		if material == nil {
 			continue
@@ -447,7 +468,7 @@ func (b *PostgresLifecycleBoundaryRegistries) PrepareLifecycleRegistryPublicatio
 func (b *PostgresLifecycleBoundaryRegistries) validateDependencies(ctx context.Context) error {
 	if b == nil || ctx == nil || b.repository == nil || b.manager == nil || b.hooks == nil ||
 		b.pages == nil || b.routes == nil || b.routeSchemas == nil || b.services == nil || b.components == nil ||
-		b.queries == nil ||
+		b.queries == nil || b.caches == nil ||
 		(b.assets != nil && (b.assetAuthority == nil || b.assetAdmission == nil)) {
 		return ErrLifecycleRegistryPublicationUnavailable
 	}
@@ -461,6 +482,7 @@ type lifecycleRegistryMaterial struct {
 	routes            routes.PluginRouteSet
 	routeSchema       extensionopenapi.Artifact
 	assetPublication  *assetregistry.Publication
+	cachePublication  *cacheregistry.Publication
 	queryPublication  *queryregistry.Publication
 	assetAdmitted     bool
 	digest            string
@@ -542,6 +564,11 @@ func buildLifecycleRegistryMaterial(
 		return lifecycleRegistryMaterial{}, err
 	}
 	material.queryPublication = queryPublication
+	cachePublication, err := buildLifecycleCachePublication(extension, binding)
+	if err != nil {
+		return lifecycleRegistryMaterial{}, err
+	}
+	material.cachePublication = cachePublication
 	if err := refreshLifecycleRegistryMaterialDigest(&material); err != nil {
 		return lifecycleRegistryMaterial{}, err
 	}
@@ -682,6 +709,9 @@ func (b *PostgresLifecycleBoundaryRegistries) reconcileLocalRegistries(
 		return err
 	}
 	if err := b.reconcileQueries(request.TargetExtension.ID, source, target, desired); err != nil {
+		return err
+	}
+	if err := b.reconcileCaches(ctx, request.TargetExtension.ID, source, target, desired); err != nil {
 		return err
 	}
 	if err := b.applyAssetPlan(ctx, assetPlan, phase); err != nil {

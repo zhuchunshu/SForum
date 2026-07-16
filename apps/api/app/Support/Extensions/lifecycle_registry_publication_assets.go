@@ -15,6 +15,7 @@ import (
 
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
 	assetregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/AssetRegistry"
+	cacheregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/CacheRegistry"
 	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
 	pages "github.com/zhuchunshu/sforum/apps/api/app/Support/Pages"
 	queryregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/QueryRegistry"
@@ -37,6 +38,7 @@ type lifecycleRegistryDigestDocument struct {
 	Asset              *assetregistry.Publication    `json:"asset,omitempty"`
 	AssetAdmitted      bool                          `json:"assetAdmitted,omitempty"`
 	Query              *queryregistry.Publication    `json:"query,omitempty"`
+	Cache              *cacheregistry.Publication    `json:"cache,omitempty"`
 	ProductionFamilies []string                      `json:"productionFamilies"`
 	FoundationFamilies []string                      `json:"foundationFamilies"`
 }
@@ -53,6 +55,7 @@ func refreshLifecycleRegistryMaterialDigest(material *lifecycleRegistryMaterial)
 	material.compatibleDigests = nil
 	material.digest = legacyDigest
 	assetDigest := ""
+	queryDigest := ""
 	if material.assetPublication != nil {
 		assetDigest, err = encodeLifecycleRegistryMaterialDigest(material, true, false)
 		if err != nil {
@@ -63,7 +66,8 @@ func refreshLifecycleRegistryMaterialDigest(material *lifecycleRegistryMaterial)
 		material.compatibleDigests = []string{legacyDigest}
 	}
 	if material.queryPublication != nil {
-		queryDigest, queryErr := encodeLifecycleRegistryMaterialDigest(
+		var queryErr error
+		queryDigest, queryErr = encodeLifecycleRegistryMaterialDigest(
 			material, material.assetPublication != nil, true,
 		)
 		if queryErr != nil {
@@ -76,6 +80,25 @@ func refreshLifecycleRegistryMaterialDigest(material *lifecycleRegistryMaterial)
 			material.compatibleDigests = append(material.compatibleDigests, assetDigest)
 		}
 	}
+	if material.cachePublication != nil {
+		// @4 is additive, while a process may resume a row prepared by any of
+		// the prior encoders that could actually have selected this exact family
+		// set. A cache-only material was @1 before @4, so impossible @2/@3 digests
+		// must not become recovery aliases merely because they can be recomputed.
+		cacheDigest, cacheErr := encodeLifecycleRegistryMaterialDigestV4(material)
+		if cacheErr != nil {
+			return cacheErr
+		}
+		material.digest = cacheDigest
+		material.legacyDigest = legacyDigest
+		material.compatibleDigests = []string{legacyDigest}
+		if assetDigest != "" && assetDigest != legacyDigest {
+			material.compatibleDigests = append(material.compatibleDigests, assetDigest)
+		}
+		if queryDigest != "" && queryDigest != legacyDigest && queryDigest != assetDigest {
+			material.compatibleDigests = append(material.compatibleDigests, queryDigest)
+		}
+	}
 	return nil
 }
 
@@ -83,6 +106,19 @@ func encodeLifecycleRegistryMaterialDigest(
 	material *lifecycleRegistryMaterial,
 	includeAsset bool,
 	includeQuery bool,
+) (string, error) {
+	return encodeLifecycleRegistryMaterialDigestVersion(material, includeAsset, includeQuery, false)
+}
+
+func encodeLifecycleRegistryMaterialDigestV4(material *lifecycleRegistryMaterial) (string, error) {
+	return encodeLifecycleRegistryMaterialDigestVersion(material, true, true, true)
+}
+
+func encodeLifecycleRegistryMaterialDigestVersion(
+	material *lifecycleRegistryMaterial,
+	includeAsset bool,
+	includeQuery bool,
+	includeCache bool,
 ) (string, error) {
 	extension := material.extension
 	binding := material.binding
@@ -112,10 +148,18 @@ func encodeLifecycleRegistryMaterialDigest(
 			productionFamilies = append(productionFamilies, "queries.v1")
 		}
 	}
+	var cache *cacheregistry.Publication
+	if includeCache {
+		schema = "sforum.lifecycle.registry-plan@4"
+		cache = material.cachePublication
+		if cache != nil {
+			productionFamilies = append(productionFamilies, "caches.v1")
+		}
+	}
 	// @1 remains byte-for-byte compatible with pre-P9 in-flight rows. New
 	// asset-bearing operations persist @2. Query-bearing operations persist @3;
-	// @1/@2 are accepted only as explicit recovery aliases computed from the
-	// same exact source/target material.
+	// cache-bearing operations persist @4. Earlier versions are accepted only
+	// as explicit recovery aliases computed from the same exact material.
 	document := lifecycleRegistryDigestDocument{
 		Schema: schema, ExtensionID: extension.ID,
 		ExtensionVersion: extension.Version, PackageDigest: extension.PackageDigest,
@@ -127,6 +171,7 @@ func encodeLifecycleRegistryMaterialDigest(
 		Pages:              append([]pages.PageContribution(nil), material.pages...), Routes: material.routes,
 		Asset: asset, AssetAdmitted: assetAdmitted,
 		Query:              query,
+		Cache:              cache,
 		ProductionFamilies: productionFamilies,
 		FoundationFamilies: []string{"routes.v1-foundation"},
 	}

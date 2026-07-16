@@ -571,9 +571,14 @@ func TestLifecycleRegistryDigestCompatibilityIsExplicitAndBounded(t *testing.T) 
 	if !validLifecycleRegistryPrepareInput(input) {
 		t.Fatal("two bounded schema-generation aliases were rejected")
 	}
-	input.CompatibleTargetDigests = []string{legacyTarget, secondLegacyTarget, strings.Repeat("f", 64)}
+	thirdLegacyTarget := strings.Repeat("f", 64)
+	input.CompatibleTargetDigests = []string{legacyTarget, secondLegacyTarget, thirdLegacyTarget}
+	if !validLifecycleRegistryPrepareInput(input) {
+		t.Fatal("three bounded @1/@2/@3 schema aliases were rejected")
+	}
+	input.CompatibleTargetDigests = append(input.CompatibleTargetDigests, strings.Repeat("0", 64))
 	if validLifecycleRegistryPrepareInput(input) {
-		t.Fatal("more than two compatibility aliases widened the durable fence")
+		t.Fatal("more than three compatibility aliases widened the durable fence")
 	}
 	input.CompatibleTargetDigests = []string{legacyTarget, legacyTarget}
 	if validLifecycleRegistryPrepareInput(input) {
