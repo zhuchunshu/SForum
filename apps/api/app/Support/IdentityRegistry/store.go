@@ -25,6 +25,7 @@ const (
 var (
 	ErrStale          = errors.New("identity registry durable tip is stale")
 	ErrTargetConflict = errors.New("identity registry role suggestion target is unavailable")
+	ErrUnauthorized   = errors.New("identity registry role suggestion actor is unauthorized")
 )
 
 // DurableOwner is one permanent ownership tombstone row. It never grants authority.
@@ -61,26 +62,36 @@ type DurableState struct {
 	Tips   []DurableDeclarationTip `json:"tips"`
 }
 
-// RoleSuggestion is a Host-reviewable permission→role recommendation. Approving
-// it records review evidence only; Host role management remains the sole
-// authority that may write role_permissions.
+// RoleSuggestion is a Host-reviewable permission-to-role recommendation.
+// Install and enable only create pending rows. An active Host role manager may
+// explicitly approve one, which adds this one mapping without replacing any
+// existing role permissions. ApprovalState records Host review; Applied records
+// whether immutable grant evidence exists. Legacy 028 approved rows stay
+// Applied=false until an explicit apply with expected revision 2.
 type RoleSuggestion struct {
-	ID                        int64      `json:"id"`
-	PermissionKey             string     `json:"permissionKey"`
-	OwnerExtensionID          string     `json:"ownerExtensionId"`
-	ExtensionVersionID        int64      `json:"extensionVersionId"`
-	ExtensionVersion          string     `json:"extensionVersion"`
-	PackageDigest             string     `json:"packageDigest"`
-	PermissionContractVersion string     `json:"permissionContractVersion"`
-	DeclarationDigest         string     `json:"declarationDigest"`
-	RoleKey                   string     `json:"roleKey"`
-	ApprovalState             string     `json:"approvalState"`
-	Revision                  int64      `json:"revision"`
-	DecidedByUserID           int64      `json:"decidedByUserId,omitempty"`
-	DecisionAuditEventID      int64      `json:"decisionAuditEventId,omitempty"`
-	DecidedAt                 *time.Time `json:"decidedAt,omitempty"`
-	CreatedAt                 time.Time  `json:"createdAt"`
-	UpdatedAt                 time.Time  `json:"updatedAt"`
+	ID                        int64  `json:"id"`
+	PermissionKey             string `json:"permissionKey"`
+	OwnerExtensionID          string `json:"ownerExtensionId"`
+	ExtensionVersionID        int64  `json:"extensionVersionId"`
+	ExtensionVersion          string `json:"extensionVersion"`
+	PackageDigest             string `json:"packageDigest"`
+	PermissionContractVersion string `json:"permissionContractVersion"`
+	DeclarationDigest         string `json:"declarationDigest"`
+	RoleKey                   string `json:"roleKey"`
+	ApprovalState             string `json:"approvalState"`
+	// Applied is true only when extension_permission_role_grants has evidence.
+	// Approved without Applied means review-only (legacy) and must not be shown
+	// as an authority grant.
+	Applied              bool       `json:"applied"`
+	Revision             int64      `json:"revision"`
+	DecidedByUserID      int64      `json:"decidedByUserId,omitempty"`
+	DecisionAuditEventID int64      `json:"decisionAuditEventId,omitempty"`
+	DecidedAt            *time.Time `json:"decidedAt,omitempty"`
+	AppliedByUserID      int64      `json:"appliedByUserId,omitempty"`
+	AppliedAuditEventID  int64      `json:"appliedAuditEventId,omitempty"`
+	AppliedAt            *time.Time `json:"appliedAt,omitempty"`
+	CreatedAt            time.Time  `json:"createdAt"`
+	UpdatedAt            time.Time  `json:"updatedAt"`
 }
 
 // RoleSuggestionFilter selects a bounded, deterministic page of suggestions.
@@ -93,6 +104,32 @@ type RoleSuggestionFilter struct {
 	Limit            int
 }
 
+// RoleSuggestionPageInput requests one stable keyset page. Cursor is opaque and
+// bound to the normalized filters; callers cannot reuse it under another view.
+type RoleSuggestionPageInput struct {
+	Filter RoleSuggestionFilter
+	Cursor string
+}
+
+// RoleSuggestionPage carries a high-water-bounded page. Rows inserted after the
+// first page are intentionally deferred to a fresh traversal.
+type RoleSuggestionPage struct {
+	Items      []RoleSuggestion `json:"items"`
+	NextCursor string           `json:"nextCursor,omitempty"`
+}
+
+const roleSuggestionCursorVersion = 1
+
+type roleSuggestionCursor struct {
+	Version          int    `json:"version"`
+	AfterID          int64  `json:"afterId"`
+	HighWaterID      int64  `json:"highWaterId"`
+	ApprovalState    string `json:"approvalState,omitempty"`
+	RoleKey          string `json:"roleKey,omitempty"`
+	PermissionKey    string `json:"permissionKey,omitempty"`
+	OwnerExtensionID string `json:"ownerExtensionId,omitempty"`
+}
+
 // DecideRoleSuggestionInput is the Host CAS decision for one pending suggestion.
 // The repository inserts the actor-bound audit_events row itself; callers must
 // not supply a pre-allocated audit id.
@@ -103,9 +140,44 @@ type DecideRoleSuggestionInput struct {
 	ActorUserID      int64
 }
 
+type roleSuggestionAuditMetadata struct {
+	SuggestionID                int64  `json:"suggestionId"`
+	PermissionKey               string `json:"permissionKey"`
+	OwnerExtensionID            string `json:"ownerExtensionId"`
+	ExtensionVersionID          int64  `json:"extensionVersionId"`
+	ExtensionVersion            string `json:"extensionVersion"`
+	PackageDigest               string `json:"packageDigest"`
+	PermissionContractVersion   string `json:"permissionContractVersion"`
+	DeclarationDigest           string `json:"declarationDigest"`
+	RoleKey                     string `json:"roleKey"`
+	ExpectedRevision            int64  `json:"expectedRevision"`
+	ApprovalState               string `json:"approvalState"`
+	PermissionCatalogRegistered bool   `json:"permissionCatalogRegistered"`
+	RolePermissionAdded         bool   `json:"rolePermissionAdded"`
+	RoleGrantApplied            bool   `json:"roleGrantApplied"`
+}
+
+type roleSuggestionAuditEvidence struct {
+	SuggestionID                int64  `json:"suggestionId"`
+	PermissionKey               string `json:"permissionKey"`
+	OwnerExtensionID            string `json:"ownerExtensionId"`
+	ExtensionVersionID          int64  `json:"extensionVersionId"`
+	ExtensionVersion            string `json:"extensionVersion"`
+	PackageDigest               string `json:"packageDigest"`
+	PermissionContractVersion   string `json:"permissionContractVersion"`
+	DeclarationDigest           string `json:"declarationDigest"`
+	RoleKey                     string `json:"roleKey"`
+	ExpectedRevision            int64  `json:"expectedRevision"`
+	ApprovalState               string `json:"approvalState"`
+	PermissionCatalogRegistered *bool  `json:"permissionCatalogRegistered"`
+	RolePermissionAdded         *bool  `json:"rolePermissionAdded"`
+	RoleGrantApplied            *bool  `json:"roleGrantApplied"`
+}
+
 // Store is the durable Identity Registry repository boundary.
 type Store interface {
 	LoadDurableState(ctx context.Context) (DurableState, error)
+	ListRoleSuggestionPage(ctx context.Context, input RoleSuggestionPageInput) (RoleSuggestionPage, error)
 	ListRoleSuggestions(ctx context.Context, filter RoleSuggestionFilter) ([]RoleSuggestion, error)
 	DecideRoleSuggestion(ctx context.Context, input DecideRoleSuggestionInput) (RoleSuggestion, error)
 }

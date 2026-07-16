@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"reflect"
-	"slices"
 	"testing"
 
 	identityregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/IdentityRegistry"
@@ -51,11 +50,14 @@ func TestIdentityRegistryRoleSuggestionsRequireActiveRoleManager(t *testing.T) {
 			if _, err := service.ListRoleSuggestions(context.Background(), test.actor, identityregistry.RoleSuggestionFilter{}); !errors.Is(err, ErrPermissionDenied) {
 				t.Fatalf("ListRoleSuggestions error = %v, want ErrPermissionDenied", err)
 			}
+			if _, err := service.ListRoleSuggestionPage(context.Background(), test.actor, identityregistry.RoleSuggestionPageInput{}); !errors.Is(err, ErrPermissionDenied) {
+				t.Fatalf("ListRoleSuggestionPage error = %v, want ErrPermissionDenied", err)
+			}
 			if _, err := service.DecideRoleSuggestion(context.Background(), test.actor, RoleSuggestionDecisionInput{}); !errors.Is(err, ErrPermissionDenied) {
 				t.Fatalf("DecideRoleSuggestion error = %v, want ErrPermissionDenied", err)
 			}
-			if store.listCalls != 0 || store.decideCalls != 0 {
-				t.Fatalf("denied actor reached registry store: list=%d decide=%d", store.listCalls, store.decideCalls)
+			if store.listCalls != 0 || store.pageCalls != 0 || store.decideCalls != 0 {
+				t.Fatalf("denied actor reached registry store: list=%d page=%d decide=%d", store.listCalls, store.pageCalls, store.decideCalls)
 			}
 		})
 	}
@@ -70,6 +72,9 @@ func TestIdentityRegistryRoleSuggestionsFailClosedWhenUnconfigured(t *testing.T)
 	if _, err := service.ListRoleSuggestions(context.Background(), actor, identityregistry.RoleSuggestionFilter{}); !errors.Is(err, ErrIdentityRegistryUnavailable) {
 		t.Fatalf("ListRoleSuggestions error = %v, want ErrIdentityRegistryUnavailable", err)
 	}
+	if _, err := service.ListRoleSuggestionPage(context.Background(), actor, identityregistry.RoleSuggestionPageInput{}); !errors.Is(err, ErrIdentityRegistryUnavailable) {
+		t.Fatalf("ListRoleSuggestionPage error = %v, want ErrIdentityRegistryUnavailable", err)
+	}
 	if _, err := service.DecideRoleSuggestion(context.Background(), actor, RoleSuggestionDecisionInput{}); !errors.Is(err, ErrIdentityRegistryUnavailable) {
 		t.Fatalf("DecideRoleSuggestion error = %v, want ErrIdentityRegistryUnavailable", err)
 	}
@@ -77,6 +82,9 @@ func TestIdentityRegistryRoleSuggestionsFailClosedWhenUnconfigured(t *testing.T)
 	var nilService *Service
 	if _, err := nilService.ListRoleSuggestions(context.Background(), actor, identityregistry.RoleSuggestionFilter{}); !errors.Is(err, ErrIdentityRegistryUnavailable) {
 		t.Fatalf("nil Service ListRoleSuggestions error = %v, want ErrIdentityRegistryUnavailable", err)
+	}
+	if _, err := nilService.ListRoleSuggestionPage(context.Background(), actor, identityregistry.RoleSuggestionPageInput{}); !errors.Is(err, ErrIdentityRegistryUnavailable) {
+		t.Fatalf("nil Service ListRoleSuggestionPage error = %v, want ErrIdentityRegistryUnavailable", err)
 	}
 	if _, err := nilService.DecideRoleSuggestion(context.Background(), actor, RoleSuggestionDecisionInput{}); !errors.Is(err, ErrIdentityRegistryUnavailable) {
 		t.Fatalf("nil Service DecideRoleSuggestion error = %v, want ErrIdentityRegistryUnavailable", err)
@@ -96,6 +104,7 @@ func TestListRoleSuggestionsPassesFilterAndRepositoryErrorThrough(t *testing.T) 
 	wantResult := []identityregistry.RoleSuggestion{{
 		ID:            31,
 		ApprovalState: identityregistry.RoleSuggestionApproved,
+		Applied:       true,
 		Revision:      2,
 	}}
 	store := &fakeIdentityRegistryStore{listResult: wantResult}
@@ -119,6 +128,32 @@ func TestListRoleSuggestionsPassesFilterAndRepositoryErrorThrough(t *testing.T) 
 	}
 }
 
+func TestListRoleSuggestionPagePassesOpaqueCursorThrough(t *testing.T) {
+	t.Parallel()
+
+	wantInput := identityregistry.RoleSuggestionPageInput{
+		Filter: identityregistry.RoleSuggestionFilter{
+			ApprovalState: identityregistry.RoleSuggestionPending,
+			Limit:         25,
+		},
+		Cursor: "opaque-cursor",
+	}
+	wantPage := identityregistry.RoleSuggestionPage{
+		Items:      []identityregistry.RoleSuggestion{{ID: 77}},
+		NextCursor: "next-cursor",
+	}
+	store := &fakeIdentityRegistryStore{pageResult: wantPage}
+	service := (&Service{}).WithIdentityRegistryStore(store)
+
+	got, err := service.ListRoleSuggestionPage(context.Background(), roleManagerActor(8), wantInput)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(got, wantPage) || !reflect.DeepEqual(store.pageInput, wantInput) {
+		t.Fatalf("page=%#v input=%#v, want page=%#v input=%#v", got, store.pageInput, wantPage, wantInput)
+	}
+}
+
 func TestDecideRoleSuggestionBindsActorAndPreservesCAS(t *testing.T) {
 	t.Parallel()
 
@@ -126,6 +161,7 @@ func TestDecideRoleSuggestionBindsActorAndPreservesCAS(t *testing.T) {
 		decideResult: identityregistry.RoleSuggestion{
 			ID:            41,
 			ApprovalState: identityregistry.RoleSuggestionApproved,
+			Applied:       true,
 			Revision:      6,
 		},
 	}
@@ -170,31 +206,18 @@ func TestDecideRoleSuggestionPreservesRepositorySentinel(t *testing.T) {
 	}
 }
 
-func TestRoleSuggestionApprovalCannotGrantPermissions(t *testing.T) {
+func TestDecideRoleSuggestionMapsRepositoryAuthorizationFailure(t *testing.T) {
 	t.Parallel()
 
-	service, coreStore := newTestService(t)
-	before := slices.Clone(coreStore.rolePerms[2])
-	registryStore := &fakeIdentityRegistryStore{
-		decideResult: identityregistry.RoleSuggestion{
-			ID:            51,
-			RoleKey:       RoleMember,
-			PermissionKey: "plugin.example.export",
-			ApprovalState: identityregistry.RoleSuggestionApproved,
-			Revision:      2,
-		},
-	}
-	service.WithIdentityRegistryStore(registryStore)
-
+	service := (&Service{}).WithIdentityRegistryStore(&fakeIdentityRegistryStore{
+		decideErr: identityregistry.ErrUnauthorized,
+	})
 	if _, err := service.DecideRoleSuggestion(context.Background(), roleManagerActor(1), RoleSuggestionDecisionInput{
 		ID:               51,
 		ExpectedRevision: 1,
 		ApprovalState:    identityregistry.RoleSuggestionApproved,
-	}); err != nil {
-		t.Fatalf("DecideRoleSuggestion returned error: %v", err)
-	}
-	if !slices.Equal(coreStore.rolePerms[2], before) {
-		t.Fatalf("approval changed member permissions: before=%v after=%v", before, coreStore.rolePerms[2])
+	}); !errors.Is(err, ErrPermissionDenied) {
+		t.Fatalf("DecideRoleSuggestion error=%v, want ErrPermissionDenied", err)
 	}
 
 	typeOfInput := reflect.TypeOf(RoleSuggestionDecisionInput{})
@@ -218,6 +241,10 @@ type fakeIdentityRegistryStore struct {
 	listFilter   identityregistry.RoleSuggestionFilter
 	listResult   []identityregistry.RoleSuggestion
 	listErr      error
+	pageCalls    int
+	pageInput    identityregistry.RoleSuggestionPageInput
+	pageResult   identityregistry.RoleSuggestionPage
+	pageErr      error
 	decideCalls  int
 	decideInput  identityregistry.DecideRoleSuggestionInput
 	decideResult identityregistry.RoleSuggestion
@@ -232,6 +259,12 @@ func (s *fakeIdentityRegistryStore) ListRoleSuggestions(_ context.Context, filte
 	s.listCalls++
 	s.listFilter = filter
 	return s.listResult, s.listErr
+}
+
+func (s *fakeIdentityRegistryStore) ListRoleSuggestionPage(_ context.Context, input identityregistry.RoleSuggestionPageInput) (identityregistry.RoleSuggestionPage, error) {
+	s.pageCalls++
+	s.pageInput = input
+	return s.pageResult, s.pageErr
 }
 
 func (s *fakeIdentityRegistryStore) DecideRoleSuggestion(_ context.Context, input identityregistry.DecideRoleSuggestionInput) (identityregistry.RoleSuggestion, error) {
