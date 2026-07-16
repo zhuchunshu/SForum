@@ -14,15 +14,16 @@ Last updated: 2026-07-17
 
 ## Current Subtask
 
-- **Startup recovery before returning to P6:** real API boot now passes the
-  lifecycle-operation genesis fence, optional Lifecycle V2 process staging,
-  and mixed Protocol V1/V2 runtime convergence. It currently stops at legacy
-  Identity Registry adoption for an enabled exact plugin that predates the
-  durable identity ledgers.
-- Add migration `202607170034` to upgrade databases that applied the pre-commit
-  shape of migration 029, then adopt only an entirely untracked exact enabled
-  identity publication from locked live trust-grant/audit evidence. Partial,
-  revoked, stale, Safe Mode, or conflicting history must remain fail-closed.
+- **Startup recovery is closed:** migration 034 repaired the legacy role-
+  approval schema, exact evidence-bound Identity adoption completed, and the
+  real API now remains serving with the embedded worker.
+- The final startup failure was correctly detected by the P8 exact-artifact
+  Registry fence but caused by a P12 ownership gap: historical `SaveBuiltin`
+  advanced enabled builtin plugin `active_version_id` values without advancing
+  the immutable runtime full-set. Commit `b2ea70227` makes builtin plugin sync
+  publish only that Host-owned exact enable/upgrade under the shared producer
+  lock. It preserves unrelated immutable members and never re-adds a missing
+  member removed by disable or trust revocation.
 - The independent P6 authority/replay slice is now committed through exact
   request-authority transport, remote-execution replay fencing, unsafe `after`
   response preservation, durable audit evidence, and process-local exact
@@ -31,6 +32,17 @@ Last updated: 2026-07-17
 
 ## Recent Verified Commits
 
+- `508efeac0 fix(extensions): skip page fence without contributions`
+- `457d25047 fix(extensions): retire revoked protocol v1 runtimes`
+- `b2ea70227 fix(extensions): publish builtin runtime upgrades`
+- `80766cc31 feat(api): bind identity adoption verifier`
+- `7fc0fefe8 feat(extensions): restore trusted legacy identity publications`
+- `2c8923ecf feat(identity): adopt trusted legacy publications`
+- `774358466 test(identity): isolate registry postgres fixtures`
+- `1b23f3462 fix(identity): distinguish missing durable publication`
+- `6b288b489 feat(extensions): validate stored trust impact`
+- `14dea1a29 feat(extensions): publish runtime trust revocation`
+- `23682fb91 fix(identity): repair drifted role approval schema`
 - `a645ac594 feat(routes): audit and quarantine committed modifier failures`
 - `365cd0df6 feat(extensions): quarantine exact runtime incidents`
 - `70dd7fb7c feat(routes): preserve unsafe response after modifier failure`
@@ -87,11 +99,33 @@ Last updated: 2026-07-17
   checks passed for `cc4ce473f`.
 - A real API launch progressed beyond the original open-lifecycle failure, the
   Protocol V2-without-Lifecycle validation failure, and both exact Protocol V1
-  members. It next failed closed on missing durable Identity Registry history
-  for `sforum.admin-surface-reference`.
+  members. Identity adoption then converged `sforum.admin-surface-reference`.
+- The next failure, `startup page runtime for sforum.content-policy is not
+  exact and available`, was an aggregate Registry-restore label around the P8
+  exact page/runtime fence. PostgreSQL showed runtime publication revision 1
+  still named old builtin digests while `SyncBuiltins` had advanced three
+  active versions. The P8 fence was retained unchanged.
+- `b2ea70227` covers normal A-to-B builtin sync, the already-active-B/stale-
+  publication-A recovery shape, API/worker concurrency, non-resurrection,
+  unrelated third-party preservation, new builtins, declaration-only plugins,
+  and no-publication genesis against real PostgreSQL. Focused normal/race,
+  full Models/Extensions, and `go build ./...` pass.
+- Two controlled real launches on port 18080 reached the Fiber listener and
+  embedded worker; `/api/v1/health` and `/api/v1/ready` both returned 200.
+  The current local revision 2 has four members and every published version ID
+  and package digest exactly matches its active artifact.
+- `508efeac0` narrows the page/runtime fence to plugins with real page
+  contributions. Backend-only plugins no longer fail Host startup merely
+  because their runtime is drained, while a page contributor with a non-exact
+  or unavailable runtime still fails closed before page or ThemeRuntime
+  publication. Focused normal/race and the full Extensions suite pass.
+- A post-`508efeac0` controlled launch on port 18081 reached the Fiber listener
+  with the embedded worker; both health endpoints returned 200 before a normal
+  signal shutdown.
 - Read-only DB inspection proved zero open lifecycle operations; the three old
   `publication.integration.*` rows are terminal `cancelled`. Runtime genesis
-  revision 1 remains immutable with four exact members.
+  revision 1 remains immutable historical evidence; revision 2 is the current
+  exact four-member full-set.
 - Provider-slot, lifecycle journal, and lifecycle jobs isolation passed against
   a uniquely created and dropped PostgreSQL test database. Lifecycle jobs also
   passed focused normal/race tests; `SFORUM_TEST_DATABASE_URL` is now mandatory.
@@ -173,29 +207,23 @@ Last updated: 2026-07-17
   `sforum-seo-reference` fixture, and its fixture index entry.
 - The P12 migration-proof implementation/tests are committed in `fea430020` and
   are no longer dirty ownership.
-- Identity startup diagnostics/adoption work belongs to the active startup
-  recovery slice under `Support/IdentityRegistry` and
-  `lifecycle_registry_publication_identity*`; do not mix it with P6 authority.
-- Migration 034 is an independent additive schema-compatibility commit and must
-  land before Identity legacy adoption. Never edit already-applied migration 029.
+- Migration 034 and Identity legacy adoption are committed; never edit the
+  already-applied migration 029 or mix later Identity work into P6 authority.
 - `docs/extensions/catalogs/manifest-v3.md`, the V3 ADR edit, and every other
   unstaged file remain outside the current commit until independently reviewed.
 
 ## Exact Next Steps
 
-1. Finish/apply additive migration 034 and evidence-bound Identity legacy
-   adoption; rerun API startup until it
-   stays serving and revision 1 receives a complete node acknowledgement.
-2. Validate WebSocket version/key before any guard/runtime RPC, then wire exact
-   trust revoke/drain with allowed plus
-   denied, drift, redirect, invalid-WebSocket, and race tests.
-3. Implement RFC 6901 mutable-field enforcement and close every route action,
+1. Finish the exact trust revoke/drain, Protocol V1 removal, and WebSocket
+   admission slice with allowed, denied, drift, redirect, invalid-WebSocket,
+   and race tests.
+2. Implement RFC 6901 mutable-field enforcement and close every route action,
    priority, conflict, timeout, crash, multipart/stream, and unsafe matrix row.
-4. Land route alias/redirect 301/308 canonical ownership and SEO only in
+3. Land route alias/redirect 301/308 canonical ownership and SEO only in
    independently reviewed contract/transport/Host-policy/
    bootstrap/reference slices; do not credit the SEO row before SSR, sitemap,
    revoke/failure, and Inspector evidence is production-complete.
-5. Add full-set/staged-publication quarantine concurrency coverage. Current
+4. Add full-set/staged-publication quarantine concurrency coverage. Current
    quarantine is intentionally node/process-local; cross-node or restart
    persistence requires an explicit durable incident/clear contract rather
    than overloading lifecycle publication reasons.
