@@ -15,6 +15,7 @@ import (
 	hostapi "github.com/zhuchunshu/sforum/apps/api/app/Support/HostAPI"
 	supportjobs "github.com/zhuchunshu/sforum/apps/api/app/Support/Jobs"
 	pages "github.com/zhuchunshu/sforum/apps/api/app/Support/Pages"
+	queryregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/QueryRegistry"
 	routes "github.com/zhuchunshu/sforum/apps/api/app/Support/Routes"
 )
 
@@ -56,6 +57,7 @@ type productionLifecycleStack struct {
 	RouteSchemas       *extensionopenapi.RouteSchemaPublication
 	ComponentRegistry  *extensionsruntime.ComponentRegistry
 	AssetRegistry      *assetregistry.Registry
+	QueryRegistry      *queryregistry.Registry
 	RouteProviders     *routes.ProviderSelectionAPI
 	ProviderSlots      *extensionsruntime.ProviderSlotSelectionAPI
 	RegistryRepository *extensionsruntime.PostgresLifecycleRegistryPublicationRepository
@@ -147,6 +149,9 @@ func newProductionLifecycleStack(config productionLifecycleStackConfig) (*produc
 	componentRegistry := extensionsruntime.NewComponentRegistry()
 	// 全进程唯一 Asset Registry：生命周期恢复/发布与 FrontendService 请求读取共享。
 	assetRegistry := assetregistry.New()
+	// Query Registry 与生命周期发布共享同一不可变快照；生产环境在 Host
+	// 明确注入成本策略前只开放发布和检查，计划生成保持 fail-closed。
+	queryRegistry := queryregistry.New()
 	routeProviders := routes.NewProviderSelectionAPI(
 		routeRegistry,
 		routes.NewPostgresProviderSelectionStore(config.Pool),
@@ -164,7 +169,7 @@ func newProductionLifecycleStack(config productionLifecycleStackConfig) (*produc
 			Repository: registryRepository, Manager: config.Runtime, Pages: config.Pages,
 			ThemeRuntime: config.ThemeRuntime, PageSiteName: config.PageSiteName, PageLocales: config.PageLocales,
 			Routes: routeRegistry, RouteSchemas: routeSchemas, Services: config.Services,
-			Components: componentRegistry, Assets: assetRegistry,
+			Components: componentRegistry, Assets: assetRegistry, Queries: queryRegistry,
 			AssetAuthority: assetAuthority, AssetAdmission: config.Trust,
 		},
 	)
@@ -189,7 +194,7 @@ func newProductionLifecycleStack(config productionLifecycleStackConfig) (*produc
 		MigrationEngine: config.MigrationEngine, Migrations: migrations,
 		Schedules: schedules, JobStore: jobStore, JobCoordinator: jobCoordinator, Jobs: jobs,
 		RouteRegistry: routeRegistry, RouteSchemas: routeSchemas, ComponentRegistry: componentRegistry,
-		AssetRegistry: assetRegistry, RouteProviders: routeProviders,
+		AssetRegistry: assetRegistry, QueryRegistry: queryRegistry, RouteProviders: routeProviders,
 		ProviderSlots:      providerSlots,
 		RegistryRepository: registryRepository, Registries: registries,
 		State: state, PublicationJournal: journal, Cleanup: cleanup,
@@ -202,7 +207,7 @@ func newProductionLifecycleStack(config productionLifecycleStackConfig) (*produc
 func (s *productionLifecycleStack) bindService(service *extensions.Service) error {
 	if s == nil || service == nil || s.Coordinator == nil || s.StaticPreflight == nil ||
 		s.Repository == nil || s.CleanupFinalizer == nil || s.RouteProviders == nil || s.ProviderSlots == nil ||
-		s.ComponentRegistry == nil || s.AssetRegistry == nil {
+		s.ComponentRegistry == nil || s.AssetRegistry == nil || s.QueryRegistry == nil || s.Registries == nil {
 		return errProductionLifecycleDependency
 	}
 	extensions.WithLifecycleCoordinator(s.Coordinator, s.StaticPreflight, s.Repository)(service)
@@ -211,6 +216,7 @@ func (s *productionLifecycleStack) bindService(service *extensions.Service) erro
 	extensions.WithRouteProviderSelectionInvalidator(s.RouteProviders)(service)
 	extensions.WithProviderSlotSelectionInvalidator(s.ProviderSlots)(service)
 	extensions.WithComponentRegistry(s.ComponentRegistry)(service)
+	service.BindRuntimeQueryPublications(s.Registries)
 	return nil
 }
 

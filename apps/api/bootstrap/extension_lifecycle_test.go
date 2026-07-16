@@ -107,6 +107,7 @@ func TestProductionLifecycleStackConstructsEveryRequiredDependency(t *testing.T)
 		"route schemas":       stack.RouteSchemas != nil,
 		"component registry":  stack.ComponentRegistry != nil,
 		"asset registry":      stack.AssetRegistry != nil,
+		"query registry":      stack.QueryRegistry != nil,
 		"route providers":     stack.RouteProviders != nil,
 		"registry repository": stack.RegistryRepository != nil, "registries": stack.Registries != nil,
 		"state": stack.State != nil, "journal": stack.PublicationJournal != nil,
@@ -128,6 +129,9 @@ func TestProductionLifecycleStackConstructsEveryRequiredDependency(t *testing.T)
 	}
 	if stack.Registries.AssetRegistry() != stack.AssetRegistry {
 		t.Fatal("lifecycle boundary and production stack use different Asset Registry instances")
+	}
+	if stack.Registries.QueryRegistry() != stack.QueryRegistry {
+		t.Fatal("lifecycle boundary and production stack use different Query Registry instances")
 	}
 	snapshot := stack.RouteRegistry.Snapshot()
 	if snapshot.Revision != 1 || snapshot.SafeMode || len(snapshot.Routes) != len(routes.CoreRouteCatalog()) ||
@@ -287,7 +291,7 @@ func TestProductionLifecycleStackBindsV2AndInspectionOptions(t *testing.T) {
 	value := reflect.ValueOf(service).Elem()
 	for _, field := range []string{
 		"lifecycleCoordinator", "lifecyclePreflight", "lifecycleAuthority", "lifecycleInspector",
-		"lifecycleFinalizer", "componentRegistry",
+		"lifecycleFinalizer", "componentRegistry", "queryPublications",
 	} {
 		binding := value.FieldByName(field)
 		if !binding.IsValid() || binding.IsNil() {
@@ -297,6 +301,10 @@ func TestProductionLifecycleStackBindsV2AndInspectionOptions(t *testing.T) {
 	componentBinding := value.FieldByName("componentRegistry")
 	if componentBinding.Elem().Pointer() != reflect.ValueOf(stack.ComponentRegistry).Pointer() {
 		t.Fatal("theme activation service did not receive the shared production Component Registry")
+	}
+	queryBinding := value.FieldByName("queryPublications")
+	if queryBinding.Elem().Pointer() != reflect.ValueOf(stack.Registries).Pointer() {
+		t.Fatal("extension service did not receive the production runtime Query publication boundary")
 	}
 	if assetBinding := value.FieldByName("assetRegistry"); !assetBinding.IsValid() || !assetBinding.IsNil() {
 		t.Fatal("lifecycle bind exposed Asset Registry before authoritative startup restore")
