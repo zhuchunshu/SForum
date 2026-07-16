@@ -186,6 +186,21 @@ func validCoreArtifactSeal(artifact Artifact) bool {
 	return artifact.Core && artifact.coreSeal != [32]byte{} && artifact.coreSeal == coreArtifactSeal(artifact)
 }
 
+// IsHostCoreArtifact lets Host adapters distinguish a Registry-issued Core
+// identity from a caller-constructed Core flag without exposing seal material.
+func IsHostCoreArtifact(artifact Artifact) bool {
+	normalized, err := normalizeArtifact(artifact)
+	return err == nil && normalized.Core && validCoreArtifactSeal(normalized)
+}
+
+// IsExactArtifact reports whether an Artifact is already in the canonical,
+// validated form emitted by Registry snapshots. Host adapters use it to reject
+// caller-constructed identities before consulting a runtime backend.
+func IsExactArtifact(artifact Artifact) bool {
+	normalized, err := normalizeArtifact(artifact)
+	return err == nil && normalized == artifact
+}
+
 func normalizeDeclaration(artifact Artifact, input Declaration) (Declaration, error) {
 	input.ID = strings.ToLower(strings.TrimSpace(input.ID))
 	input.ContractVersion = strings.TrimSpace(input.ContractVersion)

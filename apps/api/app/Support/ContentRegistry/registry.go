@@ -12,9 +12,9 @@ import (
 // compose off to the side; concurrent readers observe the previous or next
 // snapshot, never a half-removed declaration or partial Safe Mode filter.
 //
-// This package is declaration storage and inspection only. It does not invoke
-// handlers, parse documents, select renderers, run migrations, or invent
-// permission/composition/L2 semantics beyond frozen ManifestContent fields.
+// Registry itself owns declaration storage and inspection only. Executor
+// consumes these snapshots through explicit Host-authored bindings; it does not
+// reinterpret Host binding fields as frozen ManifestContent authority.
 type Registry struct {
 	mu    sync.Mutex
 	state atomic.Pointer[registryState]

@@ -43,8 +43,8 @@ type Artifact struct {
 }
 
 // Declaration is the frozen ManifestContent surface. Handler/Renderer/
-// Migration remain opaque references; this registry does not invoke them,
-// parse content, compose pipelines, or execute migrations.
+// Migration remain opaque publication references. Executor binds providers to
+// an exact active declaration without adding fields to this frozen shape.
 type Declaration struct {
 	ID              string `json:"id"`
 	ContractVersion string `json:"contractVersion"`
