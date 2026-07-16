@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	stdhttp "net/http"
 	"net/url"
 	"strings"
 	"time"
@@ -18,7 +19,7 @@ import (
 
 const routeWebSocketControlTimeout = 2 * time.Second
 
-func serveRouteWebSocket(c fiber.Ctx, dispatch *routes.RouteStreamDispatch) error {
+func serveRouteWebSocket(c fiber.Ctx, dispatch *routes.RouteStreamDispatch, hostHeaders stdhttp.Header) error {
 	if c == nil || dispatch == nil || !validRouteWebSocketUpgrade(c) {
 		return fiber.NewError(fiber.StatusUpgradeRequired, "extensions.websocket_upgrade_required")
 	}
@@ -39,6 +40,7 @@ func serveRouteWebSocket(c fiber.Ctx, dispatch *routes.RouteStreamDispatch) erro
 			c.Response().Header.Add(name, value)
 		}
 	}
+	restoreHostRouteResponseHeaders(c, hostHeaders)
 	upgrader := websocket.FastHTTPUpgrader{}
 	if err := upgrader.Upgrade(c.RequestCtx(), func(connection *websocket.Conn) {
 		dispatch.ResponseStarted()

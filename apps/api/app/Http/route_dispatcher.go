@@ -289,13 +289,16 @@ func routeDispatcherMiddleware(dispatcher *routes.Dispatcher, actors RouteActorL
 				return err
 			}
 		}
+		// CSRF/request-id/session 等 Host authority 已在 Dispatcher 前写入响应
+		// 头。插件响应仍经过 allowlist；这里只恢复进入执行前的 Host 值。
+		hostHeaders := hostRouteMiddlewareResponseHeaders(c)
 		request := routeDispatchRequestMetadata(c, actor)
 		prepared, err := dispatcher.PrepareStream(c.Context(), request)
 		if err != nil {
 			return mapRouteDispatchError(err)
 		}
 		if prepared.Handled {
-			return serveRouteStream(c, prepared.Dispatch)
+			return serveRouteStream(c, prepared.Dispatch, hostHeaders)
 		}
 		request.Body = append([]byte(nil), c.Body()...)
 		core := &fiberCoreRouteInvoker{ctx: c}
@@ -306,7 +309,7 @@ func routeDispatcherMiddleware(dispatcher *routes.Dispatcher, actors RouteActorL
 		if !result.Handled {
 			return c.Next()
 		}
-		writeRouteDispatchResponse(c, result.Response)
+		writeRouteDispatchResponse(c, result.Response, hostHeaders)
 		return nil
 	}
 }
@@ -378,12 +381,12 @@ func routeDispatchRequestMetadata(c fiber.Ctx, actor identity.Actor) routes.Disp
 	}
 }
 
-func serveRouteStream(c fiber.Ctx, dispatch *routes.RouteStreamDispatch) error {
+func serveRouteStream(c fiber.Ctx, dispatch *routes.RouteStreamDispatch, hostHeaders stdhttp.Header) error {
 	if dispatch == nil {
 		return mapRouteDispatchError(routes.ErrDispatchTransport)
 	}
 	if dispatch.Step().Mode == extensionmanifest.RouteModeWebSocket {
-		return serveRouteWebSocket(c, dispatch)
+		return serveRouteWebSocket(c, dispatch, hostHeaders)
 	}
 	start, err := dispatch.Open(c.Context())
 	if err != nil {
@@ -410,6 +413,7 @@ func serveRouteStream(c fiber.Ctx, dispatch *routes.RouteStreamDispatch) error {
 			c.Response().Header.Add(name, value)
 		}
 	}
+	restoreHostRouteResponseHeaders(c, hostHeaders)
 	dispatch.ResponseStarted()
 	return c.SendStreamWriter(func(writer *bufio.Writer) {
 		streamRouteResponse(writer, start.Session, dispatch)
@@ -499,7 +503,7 @@ func applyRouteDispatchRequest(c fiber.Ctx, request routes.DispatchRequest) {
 	c.Request().SetBodyRaw(append([]byte(nil), request.Body...))
 }
 
-func writeRouteDispatchResponse(c fiber.Ctx, response routes.DispatchResponse) {
+func writeRouteDispatchResponse(c fiber.Ctx, response routes.DispatchResponse, hostHeaders stdhttp.Header) {
 	c.Response().Reset()
 	c.Status(response.Status)
 	for name, values := range response.Headers {
@@ -507,7 +511,32 @@ func writeRouteDispatchResponse(c fiber.Ctx, response routes.DispatchResponse) {
 			c.Response().Header.Add(name, value)
 		}
 	}
+	restoreHostRouteResponseHeaders(c, hostHeaders)
 	c.Response().SetBodyRaw(append([]byte(nil), response.Body...))
+}
+
+func restoreHostRouteResponseHeaders(c fiber.Ctx, headers stdhttp.Header) {
+	for name, values := range headers {
+		if !strings.EqualFold(name, fiber.HeaderVary) {
+			c.Response().Header.Del(name)
+		}
+		for _, value := range values {
+			c.Response().Header.Add(name, value)
+		}
+	}
+}
+
+func hostRouteMiddlewareResponseHeaders(c fiber.Ctx) stdhttp.Header {
+	result := make(stdhttp.Header)
+	for name, values := range fasthttpResponseHeaders(c) {
+		switch strings.ToLower(strings.TrimSpace(name)) {
+		case "set-cookie", "vary", "x-request-id":
+			for _, value := range values {
+				result.Add(name, value)
+			}
+		}
+	}
+	return result
 }
 
 func fasthttpRequestHeaders(c fiber.Ctx) stdhttp.Header {
