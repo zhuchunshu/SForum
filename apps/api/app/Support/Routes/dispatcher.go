@@ -207,7 +207,7 @@ func (d *Dispatcher) Dispatch(ctx context.Context, request DispatchRequest, core
 	var committingStarted time.Time
 	for index, step := range chain {
 		started := time.Now()
-		authority, err := d.authorize(ctx, plan, index, step, request, InvocationStageExecute, commit)
+		authority, err := d.authorize(ctx, plan, index, step, request, response, InvocationStageExecute, commit)
 		if err != nil {
 			d.appendTrace(plan, index, step, RouteTraceDenied, started, commit.State())
 			return DispatchResult{}, err
@@ -330,7 +330,7 @@ func (d *Dispatcher) authorizeReplay(
 		if step.Provider.Kind != ProviderPlugin {
 			continue
 		}
-		if _, err := d.authorize(ctx, plan, index, step, request, InvocationStageExecute, nil); err != nil {
+		if _, err := d.authorize(ctx, plan, index, step, request, nil, InvocationStageExecute, nil); err != nil {
 			d.appendTrace(plan, index, step, RouteTraceDenied, time.Now(), RouteCommitPristine)
 			return err
 		}
@@ -372,6 +372,7 @@ func (d *Dispatcher) authorize(
 	stepIndex int,
 	step RouteExecutionStep,
 	request DispatchRequest,
+	response *DispatchResponse,
 	stage InvocationStage,
 	commit *RouteCommitObserver,
 ) (routeInvocationAuthority, error) {
@@ -402,7 +403,7 @@ func (d *Dispatcher) authorize(
 	if err != nil {
 		return routeInvocationAuthority{}, fmt.Errorf("%w: %w", ErrDispatchDenied, err)
 	}
-	authority, valid := newRouteInvocationAuthority(plan, stepIndex, step, request, authorization, stage, commit)
+	authority, valid := newRouteInvocationAuthority(plan, stepIndex, step, request, response, authorization, stage, commit)
 	if !valid {
 		return routeInvocationAuthority{}, fmt.Errorf("%w: invalid guard authorization proof", ErrDispatchDenied)
 	}

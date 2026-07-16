@@ -59,7 +59,9 @@ func TestP6RoutePermissionCSRFLocaleQueryAndBodyMatrix(t *testing.T) {
 		t.Fatalf("allowed status=%d body=%q runtime=%d schemas=%d/%d", status, body, harness.runtime.routeCalls,
 			harness.schemas.requestCalls, harness.schemas.responseCalls)
 	}
-	assertP6RouteMatrixRuntimeRequest(t, harness.runtime.routeRequest)
+	assertP6RouteMatrixRuntimeRequest(t, harness.runtime.routeRequest, extensionsruntime.ProtocolV2RequestAuthority{
+		Mode: extensionsruntime.ProtocolV2RequestAuthorityFiltered, GuardKind: extensionsruntime.ProtocolV2RequestGuardHost,
+	})
 }
 
 func TestP6RouteCustomGuardOwnsPolicyAndFailsClosed(t *testing.T) {
@@ -73,7 +75,9 @@ func TestP6RouteCustomGuardOwnsPolicyAndFailsClosed(t *testing.T) {
 			harness.runtime.guardCalls, harness.runtime.routeCalls, harness.runtime.events)
 	}
 	assertP6RouteMatrixGuardRequest(t, harness.runtime.guardRequest)
-	assertP6RouteMatrixRuntimeRequest(t, harness.runtime.routeRequest)
+	assertP6RouteMatrixRuntimeRequest(t, harness.runtime.routeRequest, extensionsruntime.ProtocolV2RequestAuthority{
+		Mode: extensionsruntime.ProtocolV2RequestAuthorityFiltered, GuardKind: extensionsruntime.ProtocolV2RequestGuardCustom,
+	})
 
 	status, _ = p6RouteMatrixDo(t, harness.app, p6RouteMatrixRequest(`{"title":"hello"}`, "deny=1", "opaque-csrf"))
 	if status != stdhttp.StatusForbidden || harness.runtime.guardCalls != 2 || harness.runtime.routeCalls != 1 {
@@ -87,7 +91,7 @@ func TestP6RouteCustomGuardOwnsPolicyAndFailsClosed(t *testing.T) {
 	}
 }
 
-func TestP6RouteRawRequestDeclarationRequiresExactTrustAndKeepsCredentialsClosed(t *testing.T) {
+func TestP6RouteRawRequestDeclarationRequiresExactTrustAndForwardsCredentials(t *testing.T) {
 	harness := newP6RouteRequestHarness(t, extensionmanifest.GuardCoreRaw, "", false)
 	harness.actor = p6RouteMatrixActor(true)
 
@@ -95,9 +99,11 @@ func TestP6RouteRawRequestDeclarationRequiresExactTrustAndKeepsCredentialsClosed
 	if status != stdhttp.StatusCreated || harness.runtime.guardCalls != 0 || harness.runtime.routeCalls != 1 {
 		t.Fatalf("raw allow status=%d guard=%d route=%d", status, harness.runtime.guardCalls, harness.runtime.routeCalls)
 	}
-	assertP6RouteMatrixRuntimeRequest(t, harness.runtime.routeRequest)
+	assertP6RouteMatrixRuntimeRequest(t, harness.runtime.routeRequest, extensionsruntime.ProtocolV2RequestAuthority{
+		Mode: extensionsruntime.ProtocolV2RequestAuthorityRaw, GuardKind: extensionsruntime.ProtocolV2RequestGuardRawRequest,
+	})
 
-	// raw_request 只确认 exact trusted handler 自行拥有授权策略；当前合同不转发浏览器凭据。
+	// raw_request 是单独声明的高风险权限，只对 exact trusted artifact 转发浏览器凭据。
 	harness.policy.lookup.Entry.CurrentArtifactTrusted = false
 	status, _ = p6RouteMatrixDo(t, harness.app, p6RouteMatrixRequest(`{"title":"hello"}`, "view=full", "opaque-csrf"))
 	if status != stdhttp.StatusForbidden || harness.runtime.guardCalls != 0 || harness.runtime.routeCalls != 1 {
@@ -227,17 +233,21 @@ func p6RouteMatrixDo(t *testing.T, app *fiber.App, request *stdhttp.Request) (in
 	return response.StatusCode, string(body)
 }
 
-func assertP6RouteMatrixRuntimeRequest(t *testing.T, request extensionsruntime.ProtocolV2RouteRequest) {
+func assertP6RouteMatrixRuntimeRequest(
+	t *testing.T,
+	request extensionsruntime.ProtocolV2RouteRequest,
+	authority extensionsruntime.ProtocolV2RequestAuthority,
+) {
 	t.Helper()
 	if request.RouteID != "p6.matrix.route" || request.ContractVersion != "p6.matrix.route@1" ||
 		request.Method != stdhttp.MethodPost || request.Path != "/api/v1/zh-CN/p6/41" ||
 		request.PathParameters["locale"] != "zh-CN" || request.PathParameters["id"] != "41" ||
 		request.QueryParameters["view"] != "full" || request.Body["title"] != "hello" ||
-		request.Actor == nil || request.Actor.UserID != 42 ||
+		request.Authority != authority || request.Actor == nil || request.Actor.UserID != 42 ||
 		!reflect.DeepEqual(request.Actor.PermissionKeys, []string{p6RouteMatrixPermission}) {
 		t.Fatalf("runtime request=%#v", request)
 	}
-	assertP6RouteMatrixHeaders(t, request.Headers)
+	assertP6RouteMatrixHeaders(t, request.Headers, authority.Mode == extensionsruntime.ProtocolV2RequestAuthorityRaw)
 }
 
 func assertP6RouteMatrixGuardRequest(t *testing.T, request extensionsruntime.ProtocolV2GuardRequest) {
@@ -245,18 +255,28 @@ func assertP6RouteMatrixGuardRequest(t *testing.T, request extensionsruntime.Pro
 	if request.GuardID != "p6.matrix.owner" || request.RouteID != "p6.matrix.route" ||
 		request.PathParameters["locale"] != "zh-CN" || request.PathParameters["id"] != "41" ||
 		request.QueryParameters["view"] != "full" || request.Body["title"] != "hello" ||
+		request.Authority != (extensionsruntime.ProtocolV2RequestAuthority{
+			Mode: extensionsruntime.ProtocolV2RequestAuthorityFiltered, GuardKind: extensionsruntime.ProtocolV2RequestGuardCustom,
+		}) ||
 		request.Actor == nil || request.Actor.UserID != 42 {
 		t.Fatalf("guard request=%#v", request)
 	}
-	assertP6RouteMatrixHeaders(t, request.Headers)
+	assertP6RouteMatrixHeaders(t, request.Headers, false)
 }
 
-func assertP6RouteMatrixHeaders(t *testing.T, headers stdhttp.Header) {
+func assertP6RouteMatrixHeaders(t *testing.T, headers stdhttp.Header, raw bool) {
 	t.Helper()
 	if headers.Get("X-Trace-ID") != "trace-p6" || headers.Get("Accept-Language") != "zh-CN" ||
-		headers.Get("Cookie") != "" || headers.Get("Authorization") != "" ||
 		headers.Get("X-Csrf-Token") != "" || headers.Get("X-SForum-Forged") != "" {
-		t.Fatalf("filtered headers=%#v", headers)
+		t.Fatalf("projected headers=%#v", headers)
+	}
+	if raw {
+		if headers.Get("Authorization") != "Bearer browser-secret" ||
+			!strings.Contains(headers.Get("Cookie"), "session=browser-secret") {
+			t.Fatalf("raw credentials were not forwarded: %#v", headers)
+		}
+	} else if headers.Get("Cookie") != "" || headers.Get("Authorization") != "" {
+		t.Fatalf("filtered credentials survived: %#v", headers)
 	}
 }
 

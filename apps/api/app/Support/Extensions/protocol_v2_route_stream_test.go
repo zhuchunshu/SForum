@@ -54,6 +54,7 @@ func TestProtocolV2RouteStreamCarriesExactContextAndBoundedChunks(t *testing.T) 
 	stream, err := client.OpenRouteStreamContext(context.Background(), ProtocolV2RouteStreamRequest{
 		RouteID: "demo.stream", ContractVersion: "demo.stream@1", Method: http.MethodPost,
 		Path: "/stream?part=1", Mode: extensionmanifest.RouteModeStream,
+		Authority:      protocolV2FilteredHostRequestAuthority(),
 		Headers:        http.Header{"X-Test": {"one", "two"}},
 		Actor:          NewProtocolV2RouteActor(42, true, map[string]bool{"stream.write": true}),
 		IdempotencyKey: "stream-request-42",
@@ -81,6 +82,8 @@ func TestProtocolV2RouteStreamCarriesExactContextAndBoundedChunks(t *testing.T) 
 	}
 	if receivedOpen.GetRouteId() != "demo.stream" || receivedOpen.GetContractVersion() != "demo.stream@1" ||
 		receivedOpen.GetPath() != "/stream?part=1" || receivedOpen.GetContext().GetActor().GetUserId() != 42 ||
+		receivedOpen.GetRequestAuthorityMode() != pluginwire.RouteRequestAuthorityMode_ROUTE_REQUEST_AUTHORITY_MODE_FILTERED ||
+		receivedOpen.GetGuardKind() != pluginwire.RouteGuardKind_ROUTE_GUARD_KIND_HOST ||
 		receivedOpen.GetContext().GetIdempotencyKey() != "stream-request-42" ||
 		len(receivedOpen.GetContext().GetHostCommandDelegations()) != 1 ||
 		receivedOpen.GetContext().GetHostCommandDelegations()[0].GetToken() != "stream-token" || issuer.calls != 1 ||
@@ -105,7 +108,8 @@ func TestProtocolV2RouteStreamRejectsDriftAndMalformedPeerFrames(t *testing.T) {
 	})
 	base := ProtocolV2RouteStreamRequest{
 		RouteID: "demo.stream", ContractVersion: "demo.stream@1", Method: http.MethodPost,
-		Path: "/stream", Mode: extensionmanifest.RouteModeStream, Timeout: time.Second,
+		Path: "/stream", Mode: extensionmanifest.RouteModeStream,
+		Authority: protocolV2FilteredHostRequestAuthority(), Timeout: time.Second,
 	}
 	for name, mutate := range map[string]func(*ProtocolV2RouteStreamRequest){
 		"route":    func(value *ProtocolV2RouteStreamRequest) { value.RouteID = "other" },
@@ -144,7 +148,8 @@ func TestProtocolV2RouteStreamPropagatesCancellationAndBoundsRequests(t *testing
 	ctx, cancel := context.WithCancel(context.Background())
 	stream, err := client.OpenRouteStreamContext(ctx, ProtocolV2RouteStreamRequest{
 		RouteID: "demo.stream", ContractVersion: "demo.stream@1", Method: http.MethodPost,
-		Path: "/stream", Mode: extensionmanifest.RouteModeStream, Timeout: time.Second,
+		Path: "/stream", Mode: extensionmanifest.RouteModeStream,
+		Authority: protocolV2FilteredHostRequestAuthority(), Timeout: time.Second,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -193,7 +198,8 @@ func newProtocolV2RouteStreamTestClient(
 		},
 		instance: "runtime-1",
 		routes: []extensions.ManifestRoute{{
-			ID: "demo.stream", ContractVersion: "demo.stream@1", Methods: []string{http.MethodPost}, Mode: extensionmanifest.RouteModeStream,
+			ID: "demo.stream", ContractVersion: "demo.stream@1", Methods: []string{http.MethodPost},
+			Mode: extensionmanifest.RouteModeStream, Guard: extensionmanifest.GuardCorePublic,
 		}},
 	})
 }

@@ -3,16 +3,19 @@ package http
 import (
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"sync/atomic"
 	"testing"
+
+	routes "github.com/zhuchunshu/sforum/apps/api/app/Support/Routes"
 )
 
 func TestCopyRouteRequestHeadersStripsSensitiveAndConnectionNamedHeaders(t *testing.T) {
 	source := http.Header{
 		"Accept-Language":     {"zh-CN"},
-		"Authorization":       {"Bearer browser-secret"},
+		"Authorization":       {"Bearer browser-secret", "Bearer second"},
 		"Connection":          {"keep-alive, X-Hop-Secret"},
-		"Cookie":              {"session=browser-secret"},
+		"Cookie":              {"session=browser-secret", "preference=second"},
 		"Host":                {"forum.example.com"},
 		"Proxy-Authorization": {"Basic proxy-secret"},
 		"Proxy-Connection":    {"keep-alive"},
@@ -21,20 +24,42 @@ func TestCopyRouteRequestHeadersStripsSensitiveAndConnectionNamedHeaders(t *test
 		"X-SForum-Forged":     {"forged"},
 		"X-Trace-ID":          {"trace-1"},
 	}
-	target := make(http.Header)
-
-	copyRouteRequestHeaders(target, source)
-
-	if target.Get("Accept-Language") != "zh-CN" || target.Get("X-Trace-ID") != "trace-1" {
-		t.Fatalf("ordinary headers were removed: %#v", target)
-	}
-	for _, name := range []string{
-		"Authorization", "Connection", "Cookie", "Host", "Proxy-Authorization", "Proxy-Connection",
-		"X-Csrf-Token", "X-Hop-Secret", "X-SForum-Forged",
+	for _, test := range []struct {
+		name      string
+		authority routes.ResolvedRequestAuthority
+		raw       bool
+	}{
+		{name: "filtered", authority: routes.ResolvedRequestAuthority{
+			Mode: routes.RequestAuthorityFiltered, GuardKind: routes.RequestGuardHost,
+		}},
+		{name: "raw", authority: routes.ResolvedRequestAuthority{
+			Mode: routes.RequestAuthorityRaw, GuardKind: routes.RequestGuardRawRequest,
+		}, raw: true},
 	} {
-		if values := target.Values(name); len(values) != 0 {
-			t.Fatalf("blocked header %s survived: %#v", name, values)
-		}
+		t.Run(test.name, func(t *testing.T) {
+			target := make(http.Header)
+			if err := copyRouteRequestHeaders(target, source, test.authority); err != nil {
+				t.Fatal(err)
+			}
+			if target.Get("Accept-Language") != "zh-CN" || target.Get("X-Trace-ID") != "trace-1" {
+				t.Fatalf("ordinary headers were removed: %#v", target)
+			}
+			for _, name := range []string{
+				"Connection", "Host", "Proxy-Authorization", "Proxy-Connection", "X-Csrf-Token",
+				"X-Hop-Secret", "X-SForum-Forged",
+			} {
+				if values := target.Values(name); len(values) != 0 {
+					t.Fatalf("blocked header %s survived: %#v", name, values)
+				}
+			}
+			for _, name := range []string{"Authorization", "Cookie"} {
+				if got := target.Values(name); test.raw && !reflect.DeepEqual(got, source.Values(name)) {
+					t.Fatalf("raw header %s = %#v", name, got)
+				} else if !test.raw && len(got) != 0 {
+					t.Fatalf("filtered header %s survived: %#v", name, got)
+				}
+			}
+		})
 	}
 }
 

@@ -206,6 +206,10 @@ func (i *BufferedRouteStepInvoker) Invoke(ctx context.Context, input routes.Rout
 	if i == nil || i.Runtime == nil || i.Client == nil || ctx == nil || input.Step.Provider.Kind != routes.ProviderPlugin {
 		return routes.RouteInvocationResult{}, routes.ErrDispatchTransport
 	}
+	authority, ok := input.RequestAuthority()
+	if !ok {
+		return routes.RouteInvocationResult{}, ErrRouteRuntimeTarget
+	}
 	artifact := input.Step.Provider.Artifact
 	identity := extensionsruntime.RuntimeInstanceIdentity{
 		ExtensionID: artifact.ExtensionID, InstanceID: artifact.RuntimeInstanceID,
@@ -224,7 +228,7 @@ func (i *BufferedRouteStepInvoker) Invoke(ctx context.Context, input routes.Rout
 			return routes.RouteInvocationResult{}, err
 		}
 		defer lease.Release()
-		return i.invokeProtocolV2(lease.Context, identity, input)
+		return i.invokeProtocolV2(lease.Context, identity, input, authority)
 	}
 	target, err := exactLoopbackRouteURL(snapshot.Target.BaseURL, input.Request.Path, input.Request.Query)
 	if err != nil {
@@ -240,7 +244,9 @@ func (i *BufferedRouteStepInvoker) Invoke(ctx context.Context, input routes.Rout
 	if err != nil {
 		return routes.RouteInvocationResult{}, err
 	}
-	copyRouteRequestHeaders(request.Header, input.Request.Headers)
+	if err := copyRouteRequestHeaders(request.Header, input.Request.Headers, authority); err != nil {
+		return routes.RouteInvocationResult{}, err
+	}
 	request.Header.Set("X-SForum-Extension-ID", artifact.ExtensionID)
 	request.Header.Set("X-SForum-Route-ID", input.Step.RouteID)
 	request.Header.Set("X-SForum-Route-Contract", input.Step.ContractVersion)
@@ -582,19 +588,26 @@ func exactLoopbackRouteURL(base, path, query string) (string, error) {
 	return target.String(), nil
 }
 
-func copyRouteRequestHeaders(target, source stdhttp.Header) {
+func copyRouteRequestHeaders(
+	target, source stdhttp.Header,
+	authority routes.ResolvedRequestAuthority,
+) error {
+	if _, err := protocolV2RequestAuthority(authority); err != nil {
+		return err
+	}
 	connectionHeaders := routeConnectionHeaderTokens(source)
 	for name, values := range source {
-		if !routeRequestHeaderAllowed(name, connectionHeaders) {
+		if !routeRequestHeaderAllowed(name, connectionHeaders, rawRouteRequestAuthority(authority)) {
 			continue
 		}
 		for _, value := range values {
 			target.Add(name, value)
 		}
 	}
+	return nil
 }
 
-func routeRequestHeaderAllowed(name string, connectionHeaders map[string]struct{}) bool {
+func routeRequestHeaderAllowed(name string, connectionHeaders map[string]struct{}, raw bool) bool {
 	canonical := strings.ToLower(strings.TrimSpace(name))
 	if strings.HasPrefix(canonical, "x-sforum-") {
 		return false
@@ -603,10 +616,12 @@ func routeRequestHeaderAllowed(name string, connectionHeaders map[string]struct{
 		return false
 	}
 	switch canonical {
-	case "", "host", "content-length", "cookie", "authorization", "proxy-authorization",
+	case "", "host", "content-length", "proxy-authorization",
 		"x-csrf-token", "connection", "keep-alive", "proxy-authenticate", "proxy-connection",
 		"te", "trailer", "transfer-encoding", "upgrade":
 		return false
+	case "cookie", "authorization":
+		return raw
 	default:
 		return true
 	}

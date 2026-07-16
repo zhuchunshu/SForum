@@ -1,0 +1,196 @@
+package extensionsruntime
+
+import (
+	"errors"
+	"fmt"
+	"net/http"
+	"strings"
+
+	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
+	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
+	pluginv2 "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/plugin/v2"
+	"golang.org/x/net/http/httpguts"
+)
+
+var ErrProtocolV2RequestAuthorityInvalid = errors.New("protocol v2 request authority is invalid")
+
+type ProtocolV2RequestAuthorityMode string
+
+const (
+	ProtocolV2RequestAuthorityFiltered ProtocolV2RequestAuthorityMode = "filtered"
+	ProtocolV2RequestAuthorityRaw      ProtocolV2RequestAuthorityMode = "raw"
+)
+
+type ProtocolV2RequestGuardKind string
+
+const (
+	ProtocolV2RequestGuardHost       ProtocolV2RequestGuardKind = "host"
+	ProtocolV2RequestGuardCustom     ProtocolV2RequestGuardKind = "custom"
+	ProtocolV2RequestGuardRawRequest ProtocolV2RequestGuardKind = "raw_request"
+)
+
+type ProtocolV2RequestAuthority struct {
+	Mode      ProtocolV2RequestAuthorityMode
+	GuardKind ProtocolV2RequestGuardKind
+}
+
+func validateProtocolV2RequestAuthority(authority ProtocolV2RequestAuthority) error {
+	switch authority.Mode {
+	case ProtocolV2RequestAuthorityFiltered, ProtocolV2RequestAuthorityRaw:
+	default:
+		return ErrProtocolV2RequestAuthorityInvalid
+	}
+	switch authority.GuardKind {
+	case ProtocolV2RequestGuardHost, ProtocolV2RequestGuardCustom, ProtocolV2RequestGuardRawRequest:
+	default:
+		return ErrProtocolV2RequestAuthorityInvalid
+	}
+	if authority.Mode == ProtocolV2RequestAuthorityRaw && authority.GuardKind != ProtocolV2RequestGuardRawRequest ||
+		authority.Mode != ProtocolV2RequestAuthorityRaw && authority.GuardKind == ProtocolV2RequestGuardRawRequest {
+		return ErrProtocolV2RequestAuthorityInvalid
+	}
+	return nil
+}
+
+func (c *protocolV2Client) validateFrozenRouteAuthority(
+	route extensions.ManifestRoute,
+	authority ProtocolV2RequestAuthority,
+) error {
+	if err := validateProtocolV2RequestAuthority(authority); err != nil {
+		return err
+	}
+	expected, err := c.frozenRouteAuthority(route)
+	if err != nil || authority != expected {
+		return ErrProtocolV2RequestAuthorityInvalid
+	}
+	return nil
+}
+
+func (c *protocolV2Client) frozenRouteAuthority(
+	route extensions.ManifestRoute,
+) (ProtocolV2RequestAuthority, error) {
+	switch route.Guard {
+	case extensionmanifest.GuardCorePublic, extensionmanifest.GuardCoreLogin,
+		extensionmanifest.GuardCorePermission, extensionmanifest.GuardCoreGuest,
+		extensionmanifest.GuardCoreInherit:
+		return ProtocolV2RequestAuthority{
+			Mode: ProtocolV2RequestAuthorityFiltered, GuardKind: ProtocolV2RequestGuardHost,
+		}, nil
+	case extensionmanifest.GuardCoreRaw:
+		return ProtocolV2RequestAuthority{
+			Mode: ProtocolV2RequestAuthorityRaw, GuardKind: ProtocolV2RequestGuardRawRequest,
+		}, nil
+	}
+	var matched *extensions.ManifestGuard
+	for index := range c.guards {
+		candidate := &c.guards[index]
+		if candidate.ID != route.Guard {
+			continue
+		}
+		if matched != nil {
+			return ProtocolV2RequestAuthority{}, ErrProtocolV2RequestAuthorityInvalid
+		}
+		matched = candidate
+	}
+	if matched == nil {
+		return ProtocolV2RequestAuthority{}, ErrProtocolV2RequestAuthorityInvalid
+	}
+	switch matched.Kind {
+	case "custom":
+		return ProtocolV2RequestAuthority{
+			Mode: ProtocolV2RequestAuthorityFiltered, GuardKind: ProtocolV2RequestGuardCustom,
+		}, nil
+	case "raw_request":
+		return ProtocolV2RequestAuthority{
+			Mode: ProtocolV2RequestAuthorityRaw, GuardKind: ProtocolV2RequestGuardRawRequest,
+		}, nil
+	default:
+		return ProtocolV2RequestAuthority{}, ErrProtocolV2RequestAuthorityInvalid
+	}
+}
+
+func protocolV2AuthorizedRequestHeaders(
+	source http.Header,
+	authority ProtocolV2RequestAuthority,
+) (http.Header, error) {
+	if err := validateProtocolV2RequestAuthority(authority); err != nil {
+		return nil, err
+	}
+	connectionHeaders := protocolV2ConnectionHeaderTokens(source)
+	result := make(http.Header)
+	for name, values := range source {
+		canonical := strings.ToLower(strings.TrimSpace(name))
+		if !httpguts.ValidHeaderFieldName(name) {
+			return nil, ErrProtocolV2RequestAuthorityInvalid
+		}
+		if strings.HasPrefix(canonical, "x-sforum-") || protocolV2RequestHeaderBlocked(canonical, connectionHeaders) {
+			continue
+		}
+		if (canonical == "cookie" || canonical == "authorization") && authority.Mode != ProtocolV2RequestAuthorityRaw {
+			continue
+		}
+		for _, value := range values {
+			if !httpguts.ValidHeaderFieldValue(value) {
+				return nil, ErrProtocolV2RequestAuthorityInvalid
+			}
+			result.Add(name, value)
+		}
+	}
+	return result, nil
+}
+
+func protocolV2RequestHeaderBlocked(canonical string, connectionHeaders map[string]struct{}) bool {
+	if _, blocked := connectionHeaders[canonical]; blocked {
+		return true
+	}
+	switch canonical {
+	case "", "host", "content-length", "proxy-authorization", "x-csrf-token",
+		"connection", "keep-alive", "proxy-authenticate", "proxy-connection",
+		"te", "trailer", "transfer-encoding", "upgrade":
+		return true
+	default:
+		return false
+	}
+}
+
+func protocolV2ConnectionHeaderTokens(headers http.Header) map[string]struct{} {
+	blocked := make(map[string]struct{})
+	for _, value := range headers.Values("Connection") {
+		for _, token := range strings.Split(value, ",") {
+			if canonical := strings.ToLower(strings.TrimSpace(token)); canonical != "" {
+				blocked[canonical] = struct{}{}
+			}
+		}
+	}
+	return blocked
+}
+
+func protocolV2WireRequestAuthority(
+	authority ProtocolV2RequestAuthority,
+) (pluginv2.RouteRequestAuthorityMode, pluginv2.RouteGuardKind, error) {
+	if err := validateProtocolV2RequestAuthority(authority); err != nil {
+		return pluginv2.RouteRequestAuthorityMode_ROUTE_REQUEST_AUTHORITY_MODE_UNSPECIFIED,
+			pluginv2.RouteGuardKind_ROUTE_GUARD_KIND_UNSPECIFIED, err
+	}
+	mode := pluginv2.RouteRequestAuthorityMode_ROUTE_REQUEST_AUTHORITY_MODE_FILTERED
+	if authority.Mode == ProtocolV2RequestAuthorityRaw {
+		mode = pluginv2.RouteRequestAuthorityMode_ROUTE_REQUEST_AUTHORITY_MODE_RAW
+	}
+	var guardKind pluginv2.RouteGuardKind
+	switch authority.GuardKind {
+	case ProtocolV2RequestGuardHost:
+		guardKind = pluginv2.RouteGuardKind_ROUTE_GUARD_KIND_HOST
+	case ProtocolV2RequestGuardCustom:
+		guardKind = pluginv2.RouteGuardKind_ROUTE_GUARD_KIND_CUSTOM
+	case ProtocolV2RequestGuardRawRequest:
+		guardKind = pluginv2.RouteGuardKind_ROUTE_GUARD_KIND_RAW_REQUEST
+	default:
+		return pluginv2.RouteRequestAuthorityMode_ROUTE_REQUEST_AUTHORITY_MODE_UNSPECIFIED,
+			pluginv2.RouteGuardKind_ROUTE_GUARD_KIND_UNSPECIFIED, ErrProtocolV2RequestAuthorityInvalid
+	}
+	return mode, guardKind, nil
+}
+
+func wrapProtocolV2AuthorityError(owner error, err error) error {
+	return fmt.Errorf("%w: %w", owner, err)
+}

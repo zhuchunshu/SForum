@@ -105,7 +105,8 @@ func (s *managerRouteStreamStarter) OpenRouteStreamInstance(
 func protocolV2ManagerRouteStreamRequest() ProtocolV2RouteStreamRequest {
 	return ProtocolV2RouteStreamRequest{
 		RouteID: "demo.stream", ContractVersion: "demo.stream@1", Method: http.MethodPost,
-		Path: "/stream", Mode: extensionmanifest.RouteModeStream, Timeout: time.Second,
+		Path: "/stream", Mode: extensionmanifest.RouteModeStream,
+		Authority: protocolV2FilteredHostRequestAuthority(), Timeout: time.Second,
 	}
 }
 

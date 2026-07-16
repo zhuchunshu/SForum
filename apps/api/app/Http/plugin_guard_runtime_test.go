@@ -27,6 +27,7 @@ func TestRuntimePluginRouteGuardEvaluatorInvokesExactSanitizedGuard(t *testing.T
 	}
 	if err := evaluator.EvaluatePluginGuard(context.Background(), routes.PluginGuardEvaluation{
 		PlanRevision: plan.Revision(), RequestMethod: plan.Method(), RequestPath: plan.Path(), Step: step, Request: request,
+		Authority: resolvedPluginGuardTestAuthority(step),
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -58,6 +59,7 @@ func TestRuntimePluginRouteGuardEvaluatorMapsDeniedAndRuntimeFailure(t *testing.
 			runtime.invokeErr = test.err
 			err := NewRuntimePluginRouteGuardEvaluator(runtime, policy).EvaluatePluginGuard(context.Background(), routes.PluginGuardEvaluation{
 				PlanRevision: plan.Revision(), RequestMethod: plan.Method(), RequestPath: plan.Path(), Step: step, Request: request,
+				Authority: resolvedPluginGuardTestAuthority(step),
 			})
 			if !errors.Is(err, test.want) || runtime.invokeCalls != 1 {
 				t.Fatalf("error = %v, calls = %d", err, runtime.invokeCalls)
@@ -93,6 +95,7 @@ func TestRuntimePluginRouteGuardEvaluatorFailsClosedOnTrustDrift(t *testing.T) {
 			runtime := newTestPluginGuardRuntime(t, step)
 			err := NewRuntimePluginRouteGuardEvaluator(runtime, policy).EvaluatePluginGuard(context.Background(), routes.PluginGuardEvaluation{
 				PlanRevision: plan.Revision(), RequestMethod: plan.Method(), RequestPath: plan.Path(), Step: step, Request: request,
+				Authority: resolvedPluginGuardTestAuthority(step),
 			})
 			if !errors.Is(err, routes.ErrCoreGuardEvaluatorUnavailable) || runtime.invokeCalls != 0 {
 				t.Fatalf("error = %v, calls = %d", err, runtime.invokeCalls)
@@ -107,11 +110,19 @@ func TestRuntimePluginRouteGuardEvaluatorConfirmsRawAuthorityWithoutCredentials(
 	runtime := newTestPluginGuardRuntime(t, step)
 	err := NewRuntimePluginRouteGuardEvaluator(runtime, policy).EvaluatePluginGuard(context.Background(), routes.PluginGuardEvaluation{
 		PlanRevision: plan.Revision(), RequestMethod: plan.Method(), RequestPath: plan.Path(), Step: step,
-		Request: routes.DispatchRequest{Method: plan.Method(), Path: plan.Path(), Params: plan.Params()},
+		Authority: resolvedPluginGuardTestAuthority(step),
+		Request:   routes.DispatchRequest{Method: plan.Method(), Path: plan.Path(), Params: plan.Params()},
 	})
 	if err != nil || runtime.inspectCalls != 0 || runtime.invokeCalls != 0 {
 		t.Fatalf("raw authority error = %v, runtime = %#v", err, runtime)
 	}
+}
+
+func resolvedPluginGuardTestAuthority(step routes.RouteExecutionStep) routes.ResolvedRequestAuthority {
+	if step.Guard == "core.guard.raw_request" || step.PluginGuard.Kind == "raw_request" {
+		return routes.ResolvedRequestAuthority{Mode: routes.RequestAuthorityRaw, GuardKind: routes.RequestGuardRawRequest}
+	}
+	return routes.ResolvedRequestAuthority{Mode: routes.RequestAuthorityFiltered, GuardKind: routes.RequestGuardCustom}
 }
 
 func exactPluginGuardLookup(step routes.RouteExecutionStep) extensions.GuardPolicyLookup {

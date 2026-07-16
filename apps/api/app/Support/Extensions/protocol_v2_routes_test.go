@@ -30,7 +30,8 @@ func TestProtocolV2RouteCarriesExactTypedRequestAndHostActor(t *testing.T) {
 	})
 	response, err := client.InvokeRouteContext(context.Background(), ProtocolV2RouteRequest{
 		RouteID: "demo.route", ContractVersion: "demo.route@1", Method: http.MethodPost, Path: "/demo/41",
-		Headers: http.Header{"X-Test": {"one", "two"}}, PathParameters: map[string]string{"id": "41"},
+		Authority: protocolV2FilteredHostRequestAuthority(),
+		Headers:   http.Header{"X-Test": {"one", "two"}}, PathParameters: map[string]string{"id": "41"},
 		QueryParameters: map[string]string{"page": "2"}, RequestSchema: "demo.request@1", ResponseSchema: "demo.response@1",
 		Body: map[string]any{"title": "hello"}, BodyPresent: true,
 		Actor:         NewProtocolV2RouteActor(42, true, map[string]bool{"topics.write": true, "ignored": false, "*": true}),
@@ -41,6 +42,8 @@ func TestProtocolV2RouteCarriesExactTypedRequestAndHostActor(t *testing.T) {
 	}
 	if received.GetRouteId() != "demo.route" || received.GetContractVersion() != "demo.route@1" ||
 		received.GetMethod() != http.MethodPost || received.GetPath() != "/demo/41" ||
+		received.GetRequestAuthorityMode() != pluginwire.RouteRequestAuthorityMode_ROUTE_REQUEST_AUTHORITY_MODE_FILTERED ||
+		received.GetGuardKind() != pluginwire.RouteGuardKind_ROUTE_GUARD_KIND_HOST ||
 		received.GetPathParameters()["id"] != "41" || received.GetQueryParameters()["page"] != "2" ||
 		received.GetBody().GetSchemaId() != "demo.request" || received.GetBody().GetSchemaVersion() != "1" ||
 		received.GetBody().GetValue().AsMap()["title"] != "hello" {
@@ -239,13 +242,13 @@ func TestProtocolV2RouteCreatesUniqueTraceWithoutCallerCorrelation(t *testing.T)
 
 func TestProtocolV2FrozenRouteMatchesHeadAndGlobalMiddleware(t *testing.T) {
 	client := &protocolV2Client{routes: []extensions.ManifestRoute{
-		{ID: "demo.get", ContractVersion: "demo.get@1", Methods: []string{http.MethodGet}, Mode: extensionmanifest.RouteModeHTTP},
-		{ID: "demo.sse", ContractVersion: "demo.sse@1", Methods: []string{http.MethodGet}, Mode: extensionmanifest.RouteModeSSE},
-		{ID: "demo.global", ContractVersion: "demo.global@1", Action: extensionmanifest.RouteActionGlobalMiddleware},
+		{ID: "demo.get", ContractVersion: "demo.get@1", Methods: []string{http.MethodGet}, Mode: extensionmanifest.RouteModeHTTP, Guard: extensionmanifest.GuardCorePublic},
+		{ID: "demo.sse", ContractVersion: "demo.sse@1", Methods: []string{http.MethodGet}, Mode: extensionmanifest.RouteModeSSE, Guard: extensionmanifest.GuardCorePublic},
+		{ID: "demo.global", ContractVersion: "demo.global@1", Action: extensionmanifest.RouteActionGlobalMiddleware, Guard: extensionmanifest.GuardCorePublic},
 	}}
 	for _, request := range []ProtocolV2RouteRequest{
-		{RouteID: "demo.get", ContractVersion: "demo.get@1", Method: http.MethodHead},
-		{RouteID: "demo.global", ContractVersion: "demo.global@1", Method: http.MethodDelete},
+		{RouteID: "demo.get", ContractVersion: "demo.get@1", Method: http.MethodHead, Authority: protocolV2FilteredHostRequestAuthority()},
+		{RouteID: "demo.global", ContractVersion: "demo.global@1", Method: http.MethodDelete, Authority: protocolV2FilteredHostRequestAuthority()},
 	} {
 		if err := client.validateFrozenRoute(request); err != nil {
 			t.Fatalf("request %#v: %v", request, err)
@@ -253,11 +256,13 @@ func TestProtocolV2FrozenRouteMatchesHeadAndGlobalMiddleware(t *testing.T) {
 	}
 	if err := client.validateFrozenRoute(ProtocolV2RouteRequest{
 		RouteID: "demo.get", ContractVersion: "demo.get@1", Method: http.MethodPost,
+		Authority: protocolV2FilteredHostRequestAuthority(),
 	}); !errors.Is(err, ErrProtocolV2RouteInvalid) {
 		t.Fatalf("POST error = %v", err)
 	}
 	if err := client.validateFrozenRoute(ProtocolV2RouteRequest{
 		RouteID: "demo.sse", ContractVersion: "demo.sse@1", Method: http.MethodHead,
+		Authority: protocolV2FilteredHostRequestAuthority(),
 	}); !errors.Is(err, ErrProtocolV2RouteInvalid) {
 		t.Fatalf("SSE HEAD error = %v", err)
 	}
@@ -315,7 +320,7 @@ func newProtocolV2RouteTestClient(
 		identity: identity, instance: instanceID,
 		routes: []extensions.ManifestRoute{{
 			ID: "demo.route", ContractVersion: "demo.route@1", Methods: []string{http.MethodGet, http.MethodPost},
-			RequestSchema: "demo.request@1", ResponseSchema: "demo.response@1",
+			Guard: extensionmanifest.GuardCorePublic, RequestSchema: "demo.request@1", ResponseSchema: "demo.response@1",
 		}},
 	})
 }
@@ -323,6 +328,7 @@ func newProtocolV2RouteTestClient(
 func protocolV2RouteTestRequest() ProtocolV2RouteRequest {
 	return ProtocolV2RouteRequest{
 		RouteID: "demo.route", ContractVersion: "demo.route@1", Method: http.MethodGet, Path: "/demo",
+		Authority:     protocolV2FilteredHostRequestAuthority(),
 		RequestSchema: "demo.request@1", ResponseSchema: "demo.response@1", Timeout: time.Second,
 	}
 }

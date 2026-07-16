@@ -38,11 +38,16 @@ func (e *RuntimePluginRouteGuardEvaluator) EvaluatePluginGuard(
 	}
 	step := evaluation.Step
 	artifact := step.Provider.Artifact
+	wireAuthority, err := protocolV2RequestAuthority(evaluation.Authority)
+	if err != nil {
+		return routes.ErrCoreGuardEvaluatorUnavailable
+	}
+	rawAuthority := evaluation.Authority.Mode == routes.RequestAuthorityRaw
 	lookup, ok := e.policy.Lookup(artifact.ExtensionID)
-	if !ok || !lookup.Found || lookup.SafeMode || lookup.Entry.ExtensionID != artifact.ExtensionID ||
+	if !ok || lookup.Revision == 0 || !lookup.Found || lookup.SafeMode || lookup.Entry.ExtensionID != artifact.ExtensionID ||
 		lookup.Entry.ExtensionType != extensions.TypePlugin || lookup.Entry.Status != extensions.StatusEnabled ||
 		lookup.Entry.Version != artifact.ExtensionVersion || lookup.Entry.PackageDigest != artifact.PackageDigest ||
-		lookup.Entry.CurrentTrustRequired && !lookup.Entry.CurrentArtifactTrusted {
+		(lookup.Entry.CurrentTrustRequired || rawAuthority) && !lookup.Entry.CurrentArtifactTrusted {
 		return routes.ErrCoreGuardEvaluatorUnavailable
 	}
 	// core.guard.raw_request confirms that this exact trusted handler owns policy.
@@ -72,7 +77,9 @@ func (e *RuntimePluginRouteGuardEvaluator) EvaluatePluginGuard(
 		return routes.ErrCoreGuardEvaluatorUnavailable
 	}
 	headers := make(stdhttp.Header)
-	copyRouteRequestHeaders(headers, evaluation.Request.Headers)
+	if err := copyRouteRequestHeaders(headers, evaluation.Request.Headers, evaluation.Authority); err != nil {
+		return routes.ErrCoreGuardEvaluatorUnavailable
+	}
 	timeout := 3 * time.Second
 	if step.TimeoutMS > 0 {
 		timeout = time.Duration(step.TimeoutMS) * time.Millisecond
@@ -83,6 +90,7 @@ func (e *RuntimePluginRouteGuardEvaluator) EvaluatePluginGuard(
 		Method: evaluation.RequestMethod, Path: evaluation.RequestPath, Headers: headers,
 		PathParameters: evaluation.Request.Params, QueryParameters: query,
 		RequestSchema: step.RequestSchema, Body: body, BodyPresent: present,
+		Authority: wireAuthority,
 		Actor: extensionsruntime.NewProtocolV2RouteActor(
 			evaluation.Request.ActorID, evaluation.Request.Authenticated, evaluation.Request.Permissions,
 		),

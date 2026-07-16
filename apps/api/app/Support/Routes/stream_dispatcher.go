@@ -143,7 +143,7 @@ func (d *RouteStreamDispatch) Open(ctx context.Context) (RouteStreamStart, error
 	d.opened = true
 	d.mu.Unlock()
 	authority, err := d.dispatcher.authorize(
-		ctx, d.plan, d.index, d.step, d.request, InvocationStageExecute, d.commit,
+		ctx, d.plan, d.index, d.step, d.request, nil, InvocationStageExecute, d.commit,
 	)
 	if err != nil {
 		d.mu.Lock()

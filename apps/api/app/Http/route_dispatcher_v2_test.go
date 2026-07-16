@@ -14,8 +14,8 @@ import (
 func TestBufferedRouteStepInvokerSelectsV2WithOneAdmission(t *testing.T) {
 	runtime := newRouteDispatcherV2Runtime(t)
 	invoker := NewBufferedRouteStepInvoker(runtime)
-	commit := routes.NewRouteCommitObserver()
-	result, err := invoker.Invoke(context.Background(), routeDispatcherV2Invocation(commit))
+	input := routeDispatcherV2Invocation(t)
+	result, err := invoker.Invoke(context.Background(), input)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -42,8 +42,9 @@ func TestBufferedRouteStepInvokerSelectsV2WithOneAdmission(t *testing.T) {
 func TestBufferedRouteStepInvokerV2FencesFallbackBeforeRemoteError(t *testing.T) {
 	runtime := newRouteDispatcherV2Runtime(t)
 	runtime.err = errors.New("plugin crashed after receiving request")
-	commit := routes.NewRouteCommitObserver()
-	result, err := NewBufferedRouteStepInvoker(runtime).Invoke(context.Background(), routeDispatcherV2Invocation(commit))
+	input := routeDispatcherV2Invocation(t)
+	commit := input.Commit
+	result, err := NewBufferedRouteStepInvoker(runtime).Invoke(context.Background(), input)
 	if err == nil || !result.SideEffectStarted || result.ResponseStarted || commit.State() != routes.RouteCommitSideEffectStarted {
 		t.Fatalf("result=%#v commit=%s err=%v", result, commit.State(), err)
 	}
@@ -66,7 +67,7 @@ func TestBufferedRouteStepInvokerV2RejectsAmbiguousOrUntypedInput(t *testing.T) 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			runtime := newRouteDispatcherV2Runtime(t)
-			input := routeDispatcherV2Invocation(routes.NewRouteCommitObserver())
+			input := routeDispatcherV2Invocation(t)
 			test.mutate(&input)
 			if _, err := NewBufferedRouteStepInvoker(runtime).Invoke(context.Background(), input); !errors.Is(err, ErrRouteRuntimeTarget) {
 				t.Fatalf("error = %v", err)
@@ -83,7 +84,7 @@ func TestBufferedRouteStepInvokerV2EnforcesResponseLimit(t *testing.T) {
 	runtime.response.Body = map[string]any{"value": "too large"}
 	invoker := NewBufferedRouteStepInvoker(runtime)
 	invoker.ResponseLimit = 4
-	if _, err := invoker.Invoke(context.Background(), routeDispatcherV2Invocation(routes.NewRouteCommitObserver())); !errors.Is(err, ErrRouteResponseTooLarge) {
+	if _, err := invoker.Invoke(context.Background(), routeDispatcherV2Invocation(t)); !errors.Is(err, ErrRouteResponseTooLarge) {
 		t.Fatalf("error = %v", err)
 	}
 }
@@ -94,7 +95,7 @@ func TestBufferedRouteStepInvokerV2RejectsStreamPreflight(t *testing.T) {
 	runtime.response.BodyPresent = false
 	runtime.response.StreamFollows = true
 	result, err := NewBufferedRouteStepInvoker(runtime).Invoke(
-		context.Background(), routeDispatcherV2Invocation(routes.NewRouteCommitObserver()),
+		context.Background(), routeDispatcherV2Invocation(t),
 	)
 	if !errors.Is(err, ErrRouteRuntimeTarget) || !result.SideEffectStarted || result.ResponseStarted {
 		t.Fatalf("result=%#v err=%v", result, err)
@@ -113,7 +114,8 @@ type routeDispatcherV2Runtime struct {
 
 func newRouteDispatcherV2Runtime(t *testing.T) *routeDispatcherV2Runtime {
 	t.Helper()
-	identity := extensionsruntime.RuntimeInstanceIdentity{ExtensionID: "demo.plugin", InstanceID: "runtime-1"}
+	artifact := routeDispatcherArtifact("demo", 'a')
+	identity := extensionsruntime.RuntimeInstanceIdentity{ExtensionID: artifact.ExtensionID, InstanceID: artifact.RuntimeInstanceID}
 	gate, err := extensionsruntime.NewRuntimeAdmissionGate(identity)
 	if err != nil {
 		t.Fatal(err)
@@ -121,7 +123,7 @@ func newRouteDispatcherV2Runtime(t *testing.T) *routeDispatcherV2Runtime {
 	return &routeDispatcherV2Runtime{
 		gate: gate,
 		snapshot: extensionsruntime.RuntimeInstanceSnapshot{
-			Identity: identity, ExtensionVersion: "1.0.0", ArtifactDigest: "digest-v1",
+			Identity: identity, ExtensionVersion: artifact.ExtensionVersion, ArtifactDigest: artifact.PackageDigest,
 			Target: extensionsruntime.RouteTarget{InstanceID: identity.InstanceID}, Active: true,
 		},
 		response: extensionsruntime.ProtocolV2RouteResponse{
@@ -162,26 +164,23 @@ func (r *routeDispatcherV2Runtime) InvokeRouteInstance(
 	return r.response, r.err
 }
 
-func routeDispatcherV2Invocation(commit *routes.RouteCommitObserver) routes.RouteInvocation {
-	return routes.RouteInvocation{
-		PlanRevision: 7, StepIndex: 2, Commit: commit,
-		Step: routes.RouteExecutionStep{
-			RouteID: "demo.route", ContractVersion: "demo.route@1",
-			RequestSchema: "demo.request@1", ResponseSchema: "demo.response@1",
-			Provider: routes.Provider{Kind: routes.ProviderPlugin, Artifact: routes.PluginArtifact{
-				ExtensionID: "demo.plugin", ExtensionVersion: "1.0.0", PackageDigest: "digest-v1", RuntimeInstanceID: "runtime-1",
-			}},
+func routeDispatcherV2Invocation(t *testing.T) routes.RouteInvocation {
+	t.Helper()
+	artifact := routeDispatcherArtifact("demo", 'a')
+	declaration := routeDispatcherManifestRoute(
+		"demo.route", "add", "/demo/:id", stdhttp.MethodPost,
+	)
+	declaration.RequestSchema = "demo.request@1"
+	declaration.ResponseSchema = "demo.response@1"
+	return captureAuthorizedRouteInvocation(t, artifact, declaration, routes.DispatchRequest{
+		Method: stdhttp.MethodPost, Path: "/demo/41", Query: "page=2",
+		Headers: stdhttp.Header{
+			"Content-Type": {"application/json"}, "Idempotency-Key": {"route-request-42"},
+			"X-Test": {"value"}, "X-SForum-Forged": {"bad"},
 		},
-		Request: routes.DispatchRequest{
-			Method: stdhttp.MethodPost, Path: "/demo/41", Query: "page=2",
-			Headers: stdhttp.Header{
-				"Content-Type": {"application/json"}, "Idempotency-Key": {"route-request-42"},
-				"X-Test": {"value"}, "X-SForum-Forged": {"bad"},
-			},
-			Body: []byte(`{"title":"hello"}`), Params: map[string]string{"id": "41"},
-			ActorID: 42, Authenticated: true, Permissions: map[string]bool{"topics.write": true, "*": true, "ignored": false},
-		},
-	}
+		Body:    []byte(`{"title":"hello"}`),
+		ActorID: 42, Authenticated: true, Permissions: map[string]bool{"topics.write": true, "*": true, "ignored": false},
+	})
 }
 
 var _ ExactRouteRuntime = (*routeDispatcherV2Runtime)(nil)

@@ -20,6 +20,7 @@ func (i *BufferedRouteStepInvoker) invokeProtocolV2(
 	ctx context.Context,
 	identity extensionsruntime.RuntimeInstanceIdentity,
 	input routes.RouteInvocation,
+	authority routes.ResolvedRequestAuthority,
 ) (routes.RouteInvocationResult, error) {
 	runtime, ok := i.Runtime.(exactRouteV2Runtime)
 	if !ok {
@@ -34,7 +35,13 @@ func (i *BufferedRouteStepInvoker) invokeProtocolV2(
 		return routes.RouteInvocationResult{}, err
 	}
 	headers := make(stdhttp.Header)
-	copyRouteRequestHeaders(headers, input.Request.Headers)
+	if err := copyRouteRequestHeaders(headers, input.Request.Headers, authority); err != nil {
+		return routes.RouteInvocationResult{}, err
+	}
+	wireAuthority, err := protocolV2RequestAuthority(authority)
+	if err != nil {
+		return routes.RouteInvocationResult{}, err
+	}
 	idempotencyKey, err := exactProtocolV2RouteIdempotencyKey(input.Request.Headers)
 	if err != nil {
 		return routes.RouteInvocationResult{}, err
@@ -49,6 +56,7 @@ func (i *BufferedRouteStepInvoker) invokeProtocolV2(
 		PathParameters: input.Request.Params, QueryParameters: query,
 		RequestSchema: input.Step.RequestSchema, ResponseSchema: input.Step.ResponseSchema,
 		Body: body, BodyPresent: present,
+		Authority: wireAuthority,
 		Actor: extensionsruntime.NewProtocolV2RouteActor(
 			input.Request.ActorID, input.Request.Authenticated, input.Request.Permissions,
 		),

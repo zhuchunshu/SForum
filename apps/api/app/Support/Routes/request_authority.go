@@ -44,14 +44,16 @@ type ResolvedRequestAuthority struct {
 }
 
 type routeInvocationAuthority struct {
-	authorization RouteGuardAuthorization
-	planRevision  uint64
-	stepIndex     int
-	step          RouteExecutionStep
-	stage         InvocationStage
-	commit        *RouteCommitObserver
-	requestDigest [sha256.Size]byte
-	issued        bool
+	authorization   RouteGuardAuthorization
+	planRevision    uint64
+	stepIndex       int
+	step            RouteExecutionStep
+	stage           InvocationStage
+	commit          *RouteCommitObserver
+	requestDigest   [sha256.Size]byte
+	responseDigest  [sha256.Size]byte
+	responsePresent bool
+	issued          bool
 }
 
 func (i RouteInvocation) RequestAuthority() (ResolvedRequestAuthority, bool) {
@@ -65,6 +67,10 @@ func (i RouteInvocation) RequestAuthority() (ResolvedRequestAuthority, bool) {
 	}
 	digest := routeAuthorityRequestDigest(i.Request)
 	if digest != stamp.requestDigest || digest != stamp.authorization.requestDigest {
+		return ResolvedRequestAuthority{}, false
+	}
+	responseDigest, responsePresent := routeAuthorityResponseDigest(i.Response)
+	if responsePresent != stamp.responsePresent || responseDigest != stamp.responseDigest {
 		return ResolvedRequestAuthority{}, false
 	}
 	expectedKind, ok := routeRequestGuardKind(i.Step)
@@ -126,6 +132,7 @@ func newRouteInvocationAuthority(
 	stepIndex int,
 	step RouteExecutionStep,
 	request DispatchRequest,
+	response *DispatchResponse,
 	authorization RouteGuardAuthorization,
 	stage InvocationStage,
 	commit *RouteCommitObserver,
@@ -142,11 +149,13 @@ func newRouteInvocationAuthority(
 		authorization.mode != RequestAuthorityRaw && guardKind == RequestGuardRawRequest {
 		return routeInvocationAuthority{}, false
 	}
+	responseDigest, responsePresent := routeAuthorityResponseDigest(response)
 	return routeInvocationAuthority{
 		authorization: authorization, planRevision: plan.Revision(), stepIndex: stepIndex,
 		step:  cloneRouteExecutionSteps([]RouteExecutionStep{step})[0],
 		stage: stage, commit: commit,
-		requestDigest: routeAuthorityRequestDigest(request), issued: true,
+		requestDigest:  routeAuthorityRequestDigest(request),
+		responseDigest: responseDigest, responsePresent: responsePresent, issued: true,
 	}, true
 }
 
@@ -220,10 +229,7 @@ func routeAuthorityRequestDigest(request DispatchRequest) [sha256.Size]byte {
 		}
 		return leftCanonical < rightCanonical
 	})
-	headers := make([]routeAuthorityHeader, 0, len(headerNames))
-	for _, name := range headerNames {
-		headers = append(headers, routeAuthorityHeader{Name: name, Values: append([]string(nil), request.Headers[name]...)})
-	}
+	headers := sortedRouteAuthorityHeaders(request.Headers, headerNames)
 	params := sortedRouteAuthorityEntries(request.Params)
 	permissionKeys := make([]string, 0, len(request.Permissions))
 	for key := range request.Permissions {
@@ -253,6 +259,40 @@ func routeAuthorityRequestDigest(request DispatchRequest) [sha256.Size]byte {
 		Permissions: permissions, ClientIP: request.ClientIP,
 	})
 	return sha256.Sum256(payload)
+}
+
+func routeAuthorityResponseDigest(response *DispatchResponse) ([sha256.Size]byte, bool) {
+	if response == nil {
+		return [sha256.Size]byte{}, false
+	}
+	headerNames := make([]string, 0, len(response.Headers))
+	for name := range response.Headers {
+		headerNames = append(headerNames, name)
+	}
+	sort.Slice(headerNames, func(left, right int) bool {
+		leftCanonical, rightCanonical := strings.ToLower(headerNames[left]), strings.ToLower(headerNames[right])
+		if leftCanonical == rightCanonical {
+			return headerNames[left] < headerNames[right]
+		}
+		return leftCanonical < rightCanonical
+	})
+	payload, _ := json.Marshal(struct {
+		Status  int                    `json:"status"`
+		Headers []routeAuthorityHeader `json:"headers"`
+		Body    []byte                 `json:"body"`
+	}{
+		Status: response.Status, Headers: sortedRouteAuthorityHeaders(response.Headers, headerNames),
+		Body: append([]byte(nil), response.Body...),
+	})
+	return sha256.Sum256(payload), true
+}
+
+func sortedRouteAuthorityHeaders(values map[string][]string, names []string) []routeAuthorityHeader {
+	result := make([]routeAuthorityHeader, 0, len(names))
+	for _, name := range names {
+		result = append(result, routeAuthorityHeader{Name: name, Values: append([]string(nil), values[name]...)})
+	}
+	return result
 }
 
 func sortedRouteAuthorityEntries(values map[string]string) []routeAuthorityEntry {

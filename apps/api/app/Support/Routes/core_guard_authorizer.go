@@ -35,6 +35,7 @@ type PluginGuardEvaluation struct {
 	RequestPath   string
 	Step          RouteExecutionStep
 	Request       DispatchRequest
+	Authority     ResolvedRequestAuthority
 }
 
 type PluginGuardEvaluator interface {
@@ -168,7 +169,7 @@ func (a CoreGuardAuthorizer) AuthorizeRoute(
 	if !exactRouteExecutionStepAt(plan, stepIndex, step) {
 		return RouteGuardAuthorization{}, ErrCoreGuardEvaluatorUnavailable
 	}
-	if err := a.authorize(ctx, plan, step, request); err != nil {
+	if err := a.authorize(ctx, plan, stepIndex, step, request); err != nil {
 		return RouteGuardAuthorization{}, err
 	}
 	authorization, ok := authorizedRouteGuardAuthorization(plan, stepIndex, step, request)
@@ -181,6 +182,7 @@ func (a CoreGuardAuthorizer) AuthorizeRoute(
 func (a CoreGuardAuthorizer) authorize(
 	ctx context.Context,
 	plan RouteExecutionPlan,
+	stepIndex int,
 	step RouteExecutionStep,
 	request DispatchRequest,
 ) error {
@@ -205,28 +207,34 @@ func (a CoreGuardAuthorizer) authorize(
 	case extensionmanifest.GuardCoreInherit:
 		return a.authorizeInherited(ctx, plan, step, request)
 	default:
-		return a.authorizePluginGuard(ctx, plan, step, request)
+		return a.authorizePluginGuard(ctx, plan, stepIndex, step, request)
 	}
 }
 
 func (a CoreGuardAuthorizer) authorizePluginGuard(
 	ctx context.Context,
 	plan RouteExecutionPlan,
+	stepIndex int,
 	step RouteExecutionStep,
 	request DispatchRequest,
 ) error {
 	if a.PluginGuards == nil || !validPluginGuardBinding(step) {
 		return ErrCoreGuardEvaluatorUnavailable
 	}
+	authorization, ok := authorizedRouteGuardAuthorization(plan, stepIndex, step, request)
+	if !ok {
+		return ErrCoreGuardEvaluatorUnavailable
+	}
 	return a.PluginGuards.EvaluatePluginGuard(ctx, PluginGuardEvaluation{
 		PlanRevision: plan.Revision(), RequestMethod: plan.Method(), RequestPath: plan.Path(),
 		Step: cloneRouteExecutionSteps([]RouteExecutionStep{step})[0], Request: cloneDispatchRequest(request),
+		Authority: ResolvedRequestAuthority{Mode: authorization.mode, GuardKind: authorization.guardKind},
 	})
 }
 
 func validPluginGuardBinding(step RouteExecutionStep) bool {
 	if step.Guard == extensionmanifest.GuardCoreRaw {
-		return step.PluginGuard.ID == ""
+		return equalPluginGuardBinding(step.PluginGuard, PluginGuardBinding{})
 	}
 	return step.PluginGuard.ID == step.Guard && step.PluginGuard.ContractVersion != "" &&
 		(step.PluginGuard.Kind == "custom" || step.PluginGuard.Kind == "raw_request") &&

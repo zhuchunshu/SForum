@@ -257,18 +257,23 @@ func TestDispatcherLegacyGuardCannotAuthorizeRawRequest(t *testing.T) {
 }
 
 func TestRouteInvocationAuthorityRejectsExactBindingDrift(t *testing.T) {
-	step := dispatchPluginStep(RoutePhaseHandler, "demo.route.bound_raw", extensionmanifest.RouteActionAdd)
+	step := dispatchPluginStep(RoutePhaseAfter, "demo.route.bound_raw", extensionmanifest.RouteActionAfter)
 	step.Guard = extensionmanifest.GuardCoreRaw
 	request := DispatchRequest{
 		Method: "POST", Path: "/authority", Headers: http.Header{"Cookie": {"session=secret"}},
 		Body: []byte(`{"ok":true}`), ActorID: 42, Authenticated: true,
 	}
-	plan := dispatchPlan(request.Method, request.Path, nil, []RouteExecutionStep{step}, 0)
+	plan := dispatchPlan(request.Method, request.Path, nil, []RouteExecutionStep{
+		dispatchCoreStep("core.route.authority"), step,
+	}, 0)
 	dispatcher := NewDispatcher(DispatcherConfig{
 		Plans: dispatchPlanResolver{plan: plan}, Guard: &dispatchAuthorityGuard{}, Schemas: &dispatchSchemas{},
 		Steps: &dispatchStepInvoker{invoke: func(_ context.Context, input RouteInvocation) (RouteInvocationResult, error) {
 			if !input.RawRequestAuthorized() {
 				t.Fatal("exact invocation lost raw authority")
+			}
+			if input.Response == nil {
+				t.Fatal("after invocation response is nil")
 			}
 			mutations := []func(*RouteInvocation){
 				func(value *RouteInvocation) { value.PlanRevision++ },
@@ -279,21 +284,34 @@ func TestRouteInvocationAuthorityRejectsExactBindingDrift(t *testing.T) {
 				func(value *RouteInvocation) { value.Step.Provider.Artifact.PackageDigest = strings.Repeat("d", 64) },
 				func(value *RouteInvocation) { value.Request.Path += "/forged" },
 				func(value *RouteInvocation) { value.Request.Headers.Set("Cookie", "session=forged") },
+				func(value *RouteInvocation) { value.Response = nil },
+				func(value *RouteInvocation) { value.Response.Status++ },
+				func(value *RouteInvocation) { value.Response.Headers.Set("X-Forged", "yes") },
+				func(value *RouteInvocation) { value.Response.Body = []byte("forged") },
 			}
 			for index, mutate := range mutations {
 				forged := input
 				forged.Step = cloneRouteExecutionSteps([]RouteExecutionStep{input.Step})[0]
 				forged.Request = cloneDispatchRequest(input.Request)
+				if input.Response != nil {
+					response := cloneDispatchResponse(*input.Response)
+					forged.Response = &response
+				}
 				mutate(&forged)
 				if forged.RawRequestAuthorized() {
 					t.Fatalf("mutation %d retained raw authority", index)
 				}
 			}
-			response := DispatchResponse{Status: http.StatusNoContent}
+			response := cloneDispatchResponse(*input.Response)
 			return RouteInvocationResult{Response: &response}, nil
 		}},
 	})
-	if _, err := dispatcher.Dispatch(context.Background(), request, nil); err != nil {
+	core := &dispatchCoreInvoker{invoke: func(context.Context, RouteExecutionStep, DispatchRequest) (DispatchResponse, error) {
+		return DispatchResponse{
+			Status: http.StatusCreated, Headers: http.Header{"Content-Type": {"application/json"}}, Body: []byte(`{"source":"core"}`),
+		}, nil
+	}}
+	if _, err := dispatcher.Dispatch(context.Background(), request, core); err != nil {
 		t.Fatal(err)
 	}
 }

@@ -68,6 +68,7 @@ type ProtocolV2RouteRequest struct {
 	ResponseSchema  string
 	Body            map[string]any
 	BodyPresent     bool
+	Authority       ProtocolV2RequestAuthority
 	Actor           *ProtocolV2RouteActor
 	IdempotencyKey  string
 	CorrelationID   string
@@ -96,6 +97,14 @@ func (c *protocolV2Client) InvokeRouteContext(parent context.Context, input Prot
 	if err := c.validateFrozenRoute(input); err != nil {
 		return ProtocolV2RouteResponse{}, err
 	}
+	requestHeaders, err := protocolV2AuthorizedRequestHeaders(input.Headers, input.Authority)
+	if err != nil {
+		return ProtocolV2RouteResponse{}, wrapProtocolV2AuthorityError(ErrProtocolV2RouteInvalid, err)
+	}
+	authorityMode, guardKind, err := protocolV2WireRequestAuthority(input.Authority)
+	if err != nil {
+		return ProtocolV2RouteResponse{}, wrapProtocolV2AuthorityError(ErrProtocolV2RouteInvalid, err)
+	}
 	timeout := input.Timeout
 	if timeout <= 0 {
 		timeout = DefaultProtocolV2RequestTimeout
@@ -120,7 +129,8 @@ func (c *protocolV2Client) InvokeRouteContext(parent context.Context, input Prot
 	}
 	response, err := c.client.InvokeRoute(ctx, &pluginv2.RouteRequest{
 		Context: requestContext, RouteId: input.RouteID, ContractVersion: input.ContractVersion,
-		Method: input.Method, Path: input.Path, Headers: protocolV2RouteHeaders(input.Headers),
+		Method: input.Method, Path: input.Path, Headers: protocolV2RouteHeaders(requestHeaders),
+		RequestAuthorityMode: authorityMode, GuardKind: guardKind,
 		PathParameters:  cloneProtocolV2RouteParameters(input.PathParameters),
 		QueryParameters: cloneProtocolV2RouteParameters(input.QueryParameters), Body: body,
 	})
@@ -181,6 +191,9 @@ func validateProtocolV2RouteRequest(input ProtocolV2RouteRequest) error {
 	if input.IdempotencyKey != "" && !validProtocolV2InvocationIdempotencyKey(input.IdempotencyKey) {
 		return fmt.Errorf("%w: idempotency key is invalid", ErrProtocolV2RouteInvalid)
 	}
+	if err := validateProtocolV2RequestAuthority(input.Authority); err != nil {
+		return wrapProtocolV2AuthorityError(ErrProtocolV2RouteInvalid, err)
+	}
 	return nil
 }
 
@@ -191,11 +204,17 @@ func (c *protocolV2Client) validateFrozenRoute(input ProtocolV2RouteRequest) err
 			continue
 		}
 		if route.Action == extensionmanifest.RouteActionGlobalMiddleware && len(route.Methods) == 0 {
+			if err := c.validateFrozenRouteAuthority(route, input.Authority); err != nil {
+				return wrapProtocolV2AuthorityError(ErrProtocolV2RouteInvalid, err)
+			}
 			return nil
 		}
 		for _, method := range route.Methods {
 			if method == "*" || strings.EqualFold(method, input.Method) ||
 				route.Mode == extensionmanifest.RouteModeHTTP && strings.EqualFold(input.Method, http.MethodHead) && strings.EqualFold(method, http.MethodGet) {
+				if err := c.validateFrozenRouteAuthority(route, input.Authority); err != nil {
+					return wrapProtocolV2AuthorityError(ErrProtocolV2RouteInvalid, err)
+				}
 				return nil
 			}
 		}

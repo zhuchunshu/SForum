@@ -35,6 +35,7 @@ type ProtocolV2RouteStreamRequest struct {
 	Path            string
 	Mode            string
 	Headers         http.Header
+	Authority       ProtocolV2RequestAuthority
 	Actor           *ProtocolV2RouteActor
 	IdempotencyKey  string
 	CorrelationID   string
@@ -82,6 +83,14 @@ func (c *protocolV2Client) OpenRouteStreamContext(
 	if err := c.validateFrozenRouteStream(input); err != nil {
 		return nil, err
 	}
+	headers, err := protocolV2AuthorizedRequestHeaders(input.Headers, input.Authority)
+	if err != nil {
+		return nil, wrapProtocolV2AuthorityError(ErrProtocolV2RouteStreamInvalid, err)
+	}
+	authorityMode, guardKind, err := protocolV2WireRequestAuthority(input.Authority)
+	if err != nil {
+		return nil, wrapProtocolV2AuthorityError(ErrProtocolV2RouteStreamInvalid, err)
+	}
 	timeout := input.Timeout
 	if timeout <= 0 {
 		timeout = DefaultProtocolV2RouteStreamTimeout
@@ -96,7 +105,8 @@ func (c *protocolV2Client) OpenRouteStreamContext(
 	if err == nil {
 		err = raw.Send(&pluginwire.RouteStreamFrame{Frame: &pluginwire.RouteStreamFrame_Open{Open: &pluginwire.RouteStreamOpen{
 			Context: requestContext, RouteId: input.RouteID, ContractVersion: input.ContractVersion,
-			Method: input.Method, Path: input.Path, Headers: protocolV2RouteHeaders(input.Headers),
+			Method: input.Method, Path: input.Path, Headers: protocolV2RouteHeaders(headers),
+			RequestAuthorityMode: authorityMode, GuardKind: guardKind,
 		}}})
 	}
 	if err != nil {
@@ -124,6 +134,9 @@ func validateProtocolV2RouteStreamRequest(input ProtocolV2RouteStreamRequest) er
 	if input.IdempotencyKey != "" && !validProtocolV2InvocationIdempotencyKey(input.IdempotencyKey) {
 		return fmt.Errorf("%w: idempotency key is invalid", ErrProtocolV2RouteStreamInvalid)
 	}
+	if err := validateProtocolV2RequestAuthority(input.Authority); err != nil {
+		return wrapProtocolV2AuthorityError(ErrProtocolV2RouteStreamInvalid, err)
+	}
 	return nil
 }
 
@@ -144,6 +157,9 @@ func (c *protocolV2Client) validateFrozenRouteStream(input ProtocolV2RouteStream
 		}
 		for _, method := range route.Methods {
 			if method == "*" || strings.EqualFold(method, input.Method) {
+				if err := c.validateFrozenRouteAuthority(route, input.Authority); err != nil {
+					return wrapProtocolV2AuthorityError(ErrProtocolV2RouteStreamInvalid, err)
+				}
 				return nil
 			}
 		}

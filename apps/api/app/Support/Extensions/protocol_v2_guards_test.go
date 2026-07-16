@@ -34,6 +34,8 @@ func TestProtocolV2CustomGuardInvokesExactFrozenContract(t *testing.T) {
 	}
 	if received == nil || received.GetRouteId() != request.GuardID ||
 		received.GetContractVersion() != request.GuardContractVersion || received.GetMethod() != request.Method ||
+		received.GetRequestAuthorityMode() != pluginwire.RouteRequestAuthorityMode_ROUTE_REQUEST_AUTHORITY_MODE_FILTERED ||
+		received.GetGuardKind() != pluginwire.RouteGuardKind_ROUTE_GUARD_KIND_CUSTOM ||
 		received.GetPath() != request.Path || received.GetPathParameters()["topic"] != "41" ||
 		received.GetQueryParameters()["preview"] != "1" || received.GetContext().GetActor().GetUserId() != 42 ||
 		received.GetBody().GetSchemaId() != "demo.request" || received.GetBody().GetSchemaVersion() != "1" {
@@ -141,7 +143,8 @@ func protocolV2GuardTestRequest() ProtocolV2GuardRequest {
 	return ProtocolV2GuardRequest{
 		GuardID: "demo.guard.owner", GuardContractVersion: "demo.guard.owner@1",
 		RouteID: "demo.route", RouteContractVersion: "demo.route@1",
-		Method: http.MethodPost, Path: "/demo", RequestSchema: "demo.request@1", Timeout: time.Second,
+		Authority: protocolV2FilteredCustomRequestAuthority(),
+		Method:    http.MethodPost, Path: "/demo", RequestSchema: "demo.request@1", Timeout: time.Second,
 	}
 }
 

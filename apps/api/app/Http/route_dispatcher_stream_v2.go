@@ -26,6 +26,10 @@ func (i *BufferedRouteStepInvoker) OpenStream(
 	if i == nil || i.Runtime == nil || ctx == nil || input.Step.Provider.Kind != routes.ProviderPlugin {
 		return routes.RouteStreamStart{}, routes.ErrDispatchTransport
 	}
+	authority, ok := input.RequestAuthority()
+	if !ok {
+		return routes.RouteStreamStart{}, ErrRouteRuntimeTarget
+	}
 	runtime, ok := i.Runtime.(exactRouteV2StreamRuntime)
 	if !ok {
 		return routes.RouteStreamStart{}, ErrRouteRuntimeTarget
@@ -56,7 +60,15 @@ func (i *BufferedRouteStepInvoker) OpenStream(
 		return routes.RouteStreamStart{}, err
 	}
 	headers := make(stdhttp.Header)
-	copyRouteRequestHeaders(headers, input.Request.Headers)
+	if err := copyRouteRequestHeaders(headers, input.Request.Headers, authority); err != nil {
+		lease.Release()
+		return routes.RouteStreamStart{}, err
+	}
+	wireAuthority, err := protocolV2RequestAuthority(authority)
+	if err != nil {
+		lease.Release()
+		return routes.RouteStreamStart{}, err
+	}
 	actor := extensionsruntime.NewProtocolV2RouteActor(
 		input.Request.ActorID, input.Request.Authenticated, input.Request.Permissions,
 	)
@@ -65,7 +77,7 @@ func (i *BufferedRouteStepInvoker) OpenStream(
 		Method: input.Request.Method, Path: input.Request.Path, Headers: headers,
 		PathParameters: input.Request.Params, QueryParameters: query,
 		RequestSchema: input.Step.RequestSchema, ResponseSchema: input.Step.ResponseSchema,
-		Actor: actor, IdempotencyKey: idempotencyKey,
+		Authority: wireAuthority, Actor: actor, IdempotencyKey: idempotencyKey,
 	})
 	if err != nil {
 		lease.Release()
@@ -82,7 +94,7 @@ func (i *BufferedRouteStepInvoker) OpenStream(
 	stream, err := runtime.OpenRouteStreamInstance(lease.Context, identity, extensionsruntime.ProtocolV2RouteStreamRequest{
 		RouteID: input.Step.RouteID, ContractVersion: input.Step.ContractVersion,
 		Method: input.Request.Method, Path: requestTarget, Mode: input.Step.Mode,
-		Headers: headers, Actor: actor, IdempotencyKey: idempotencyKey,
+		Headers: headers, Authority: wireAuthority, Actor: actor, IdempotencyKey: idempotencyKey,
 		Timeout: routeStreamTimeout(input.Step.TimeoutMS),
 	})
 	if err != nil {

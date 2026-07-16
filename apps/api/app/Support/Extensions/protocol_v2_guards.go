@@ -19,8 +19,8 @@ var (
 )
 
 // ProtocolV2GuardRequest binds a custom guard to one exact frozen route. The
-// request headers have already passed the Host credential filter; raw browser
-// credentials are a separate authority and are never inferred here.
+// request headers are projected only after the exact frozen guard and explicit
+// Host authority agree.
 type ProtocolV2GuardRequest struct {
 	GuardID              string
 	GuardContractVersion string
@@ -34,6 +34,7 @@ type ProtocolV2GuardRequest struct {
 	RequestSchema        string
 	Body                 map[string]any
 	BodyPresent          bool
+	Authority            ProtocolV2RequestAuthority
 	Actor                *ProtocolV2RouteActor
 	CorrelationID        string
 	Timeout              time.Duration
@@ -75,9 +76,13 @@ func (c *protocolV2Client) InvokeGuardContext(parent context.Context, input Prot
 			return fmt.Errorf("%w: %v", ErrProtocolV2GuardInvalid, err)
 		}
 	}
-	headers, err := protocolV2GuardHeaders(input.Headers)
+	headers, err := protocolV2GuardHeaders(input.Headers, input.Authority)
 	if err != nil {
-		return err
+		return wrapProtocolV2AuthorityError(ErrProtocolV2GuardInvalid, err)
+	}
+	authorityMode, guardKind, err := protocolV2WireRequestAuthority(input.Authority)
+	if err != nil {
+		return wrapProtocolV2AuthorityError(ErrProtocolV2GuardInvalid, err)
 	}
 	headers.Set("X-SForum-Guard-Route-ID", route.ID)
 	headers.Set("X-SForum-Guard-Route-Contract", route.ContractVersion)
@@ -85,6 +90,7 @@ func (c *protocolV2Client) InvokeGuardContext(parent context.Context, input Prot
 	response, err := c.client.InvokeRoute(ctx, &pluginv2.RouteRequest{
 		Context: requestContext, RouteId: guard.ID, ContractVersion: guard.ContractVersion,
 		Method: input.Method, Path: input.Path, Headers: protocolV2RouteHeaders(headers),
+		RequestAuthorityMode: authorityMode, GuardKind: guardKind,
 		PathParameters:  cloneProtocolV2RouteParameters(input.PathParameters),
 		QueryParameters: cloneProtocolV2RouteParameters(input.QueryParameters), Body: body,
 	})
@@ -152,6 +158,10 @@ func (c *protocolV2Client) validateFrozenGuard(
 	if route == nil {
 		return extensions.ManifestGuard{}, extensions.ManifestRoute{}, ErrProtocolV2GuardInvalid
 	}
+	expected, err := c.frozenRouteAuthority(*route)
+	if err != nil || input.Authority != expected {
+		return extensions.ManifestGuard{}, extensions.ManifestRoute{}, ErrProtocolV2GuardInvalid
+	}
 	return *guard, *route, nil
 }
 
@@ -168,22 +178,20 @@ func protocolV2RouteMethodMatches(route extensions.ManifestRoute, method string)
 	return false
 }
 
-func protocolV2GuardHeaders(source http.Header) (http.Header, error) {
-	result := make(http.Header)
-	for name, values := range source {
+func protocolV2GuardHeaders(source http.Header, authority ProtocolV2RequestAuthority) (http.Header, error) {
+	if err := validateProtocolV2RequestAuthority(authority); err != nil {
+		return nil, err
+	}
+	for name := range source {
 		canonical := strings.ToLower(strings.TrimSpace(name))
 		if strings.HasPrefix(canonical, "x-sforum-") {
 			return nil, fmt.Errorf("%w: reserved guard header", ErrProtocolV2GuardInvalid)
 		}
-		switch canonical {
-		case "", "cookie", "authorization", "proxy-authorization":
-			return nil, fmt.Errorf("%w: request credentials require separate raw authority", ErrProtocolV2GuardInvalid)
-		}
-		for _, value := range values {
-			result.Add(name, value)
+		if authority.Mode != ProtocolV2RequestAuthorityRaw && (canonical == "cookie" || canonical == "authorization") {
+			return nil, fmt.Errorf("%w: request credentials require raw authority", ErrProtocolV2GuardInvalid)
 		}
 	}
-	return result, nil
+	return protocolV2AuthorizedRequestHeaders(source, authority)
 }
 
 func cloneProtocolV2Guards(values []extensions.ManifestGuard) []extensions.ManifestGuard {

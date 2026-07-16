@@ -161,6 +161,9 @@ func TestProtocolV2CustomGuardAcrossRealSubprocessAndManagerAdmission(t *testing
 		RouteID: "runtime.v2.route.echo", RouteContractVersion: "runtime.v2.route.echo@1",
 		Method: http.MethodPost, Path: "/runtime/41", PathParameters: map[string]string{"id": "41"},
 		RequestSchema: "runtime.v2.route.request@1", Body: map[string]any{"title": "guarded"}, BodyPresent: true,
+		Authority: extensionsruntime.ProtocolV2RequestAuthority{
+			Mode: extensionsruntime.ProtocolV2RequestAuthorityFiltered, GuardKind: extensionsruntime.ProtocolV2RequestGuardCustom,
+		},
 		Actor: extensionsruntime.NewProtocolV2RouteActor(42, true, map[string]bool{"topics.write": true}), Timeout: 3 * time.Second,
 	}
 	err = manager.InvokeGuardInstance(lease.Context, snapshot.Identity, request)
@@ -316,6 +319,9 @@ func protocolV2RouteE2ERequest() extensionsruntime.ProtocolV2RouteRequest {
 		Method: http.MethodPost, Path: "/runtime/41", PathParameters: map[string]string{"id": "41"},
 		QueryParameters: map[string]string{"page": "2"}, RequestSchema: "runtime.v2.route.request@1",
 		ResponseSchema: "runtime.v2.route.response@1", Body: map[string]any{"title": "hello"}, BodyPresent: true,
+		Authority: extensionsruntime.ProtocolV2RequestAuthority{
+			Mode: extensionsruntime.ProtocolV2RequestAuthorityFiltered, GuardKind: extensionsruntime.ProtocolV2RequestGuardCustom,
+		},
 		Actor: extensionsruntime.NewProtocolV2RouteActor(42, true, map[string]bool{"topics.write": true}), Timeout: 3 * time.Second,
 	}
 }

@@ -309,18 +309,24 @@ func TestRouteDispatcherHostFenceControlsCoreFallbackFromObservedTransport(t *te
 func TestBufferedRouteStepInvokerRejectsStaleArtifactAndNonLoopback(t *testing.T) {
 	artifact := routeDispatcherArtifact("runtime.demo", 'c')
 	runtime, server := newRouteDispatcherRuntime(t, artifact)
-	step := routes.RouteExecutionStep{
-		Provider: routes.Provider{Kind: routes.ProviderPlugin, Artifact: artifact}, Mode: extensionmanifest.RouteModeHTTP,
-		RouteID: "runtime.demo.route", ContractVersion: "runtime.demo.route@1", Handler: "route.handle",
-	}
-	input := routes.RouteInvocation{Step: step, Request: routes.DispatchRequest{Method: "GET", Path: "/api/v1/demo"}}
+	declaration := routeDispatcherManifestRoute(
+		"runtime.demo.route", extensionmanifest.RouteActionAdd, "/api/v1/demo", stdhttp.MethodGet,
+	)
+	input := captureAuthorizedRouteInvocation(t, artifact, declaration, routes.DispatchRequest{
+		Method: stdhttp.MethodGet, Path: "/api/v1/demo",
+	})
 	invoker := NewBufferedRouteStepInvoker(runtime)
 
-	stale := input
-	stale.Step.Provider.Artifact.PackageDigest = strings.Repeat("d", 64)
-	if _, err := invoker.Invoke(context.Background(), stale); !errors.Is(err, ErrRouteRuntimeArtifact) {
-		t.Fatalf("stale err=%v", err)
+	tampered := input
+	tampered.Step.Provider.Artifact.PackageDigest = strings.Repeat("d", 64)
+	if _, err := invoker.Invoke(context.Background(), tampered); !errors.Is(err, ErrRouteRuntimeTarget) {
+		t.Fatalf("tampered invocation err=%v", err)
 	}
+	runtime.snapshot.ArtifactDigest = strings.Repeat("d", 64)
+	if _, err := invoker.Invoke(context.Background(), input); !errors.Is(err, ErrRouteRuntimeArtifact) {
+		t.Fatalf("stale runtime err=%v", err)
+	}
+	runtime.snapshot.ArtifactDigest = artifact.PackageDigest
 	runtime.snapshot.Target.BaseURL = "https://example.com"
 	if _, err := invoker.Invoke(context.Background(), input); !errors.Is(err, ErrRouteRuntimeTarget) {
 		t.Fatalf("target err=%v", err)
@@ -330,10 +336,6 @@ func TestBufferedRouteStepInvokerRejectsStaleArtifactAndNonLoopback(t *testing.T
 
 func TestBufferedRouteStepInvokerUsesHostObservedCommitEvidence(t *testing.T) {
 	artifact := routeDispatcherArtifact("evidence.demo", 'f')
-	step := routes.RouteExecutionStep{
-		Provider: routes.Provider{Kind: routes.ProviderPlugin, Artifact: artifact}, Mode: extensionmanifest.RouteModeHTTP,
-		RouteID: "evidence.demo.route", ContractVersion: "evidence.demo.route@1", Handler: "route.handle",
-	}
 
 	t.Run("successful exchange ignores plugin false header", func(t *testing.T) {
 		runtime, server := newRouteDispatcherRuntime(t, artifact)
@@ -341,10 +343,9 @@ func TestBufferedRouteStepInvokerUsesHostObservedCommitEvidence(t *testing.T) {
 			writer.Header().Set("X-SForum-Side-Effect-Started", "false")
 			_, _ = writer.Write([]byte("ok"))
 		})
-		observer := routes.NewRouteCommitObserver()
-		result, err := NewBufferedRouteStepInvoker(runtime).Invoke(context.Background(), routes.RouteInvocation{
-			Step: step, Commit: observer, Request: routes.DispatchRequest{Method: "GET", Path: "/evidence"},
-		})
+		input := capturePublicHTTPRouteInvocation(t, artifact, "evidence.demo.route", "/evidence")
+		observer := input.Commit
+		result, err := NewBufferedRouteStepInvoker(runtime).Invoke(context.Background(), input)
 		if err != nil || !result.SideEffectStarted || !result.ResponseStarted || observer.State() != routes.RouteCommitResponseStarted {
 			t.Fatalf("result=%#v state=%q err=%v", result, observer.State(), err)
 		}
@@ -353,10 +354,9 @@ func TestBufferedRouteStepInvokerUsesHostObservedCommitEvidence(t *testing.T) {
 	t.Run("dial failure stays pristine", func(t *testing.T) {
 		runtime, server := newRouteDispatcherRuntime(t, artifact)
 		server.Close()
-		observer := routes.NewRouteCommitObserver()
-		result, err := NewBufferedRouteStepInvoker(runtime).Invoke(context.Background(), routes.RouteInvocation{
-			Step: step, Commit: observer, Request: routes.DispatchRequest{Method: "GET", Path: "/evidence"},
-		})
+		input := capturePublicHTTPRouteInvocation(t, artifact, "evidence.demo.route", "/evidence")
+		observer := input.Commit
+		result, err := NewBufferedRouteStepInvoker(runtime).Invoke(context.Background(), input)
 		if err == nil || result.SideEffectStarted || result.ResponseStarted || observer.State() != routes.RouteCommitPristine {
 			t.Fatalf("result=%#v state=%q err=%v", result, observer.State(), err)
 		}
@@ -365,20 +365,15 @@ func TestBufferedRouteStepInvokerUsesHostObservedCommitEvidence(t *testing.T) {
 
 func TestBufferedRouteStepInvokerFencesCrashPartialResponseAndCancellation(t *testing.T) {
 	artifact := routeDispatcherArtifact("transport.fence", 'd')
-	step := routes.RouteExecutionStep{
-		Provider: routes.Provider{Kind: routes.ProviderPlugin, Artifact: artifact}, Mode: extensionmanifest.RouteModeHTTP,
-		RouteID: "transport.fence.route", ContractVersion: "transport.fence.route@1", Handler: "route.handle",
-	}
 
 	t.Run("runtime accepts request then crashes", func(t *testing.T) {
 		runtime, server := newRouteDispatcherRuntime(t, artifact)
 		server.Config.Handler = stdhttp.HandlerFunc(func(writer stdhttp.ResponseWriter, _ *stdhttp.Request) {
 			closeRouteRuntimeConnection(t, writer)
 		})
-		observer := routes.NewRouteCommitObserver()
-		result, err := NewBufferedRouteStepInvoker(runtime).Invoke(context.Background(), routes.RouteInvocation{
-			Step: step, Commit: observer, Request: routes.DispatchRequest{Method: "GET", Path: "/crash"},
-		})
+		input := capturePublicHTTPRouteInvocation(t, artifact, "transport.fence.route", "/crash")
+		observer := input.Commit
+		result, err := NewBufferedRouteStepInvoker(runtime).Invoke(context.Background(), input)
 		if err == nil || !result.SideEffectStarted || result.ResponseStarted || observer.State() != routes.RouteCommitSideEffectStarted {
 			t.Fatalf("result=%#v state=%q err=%v", result, observer.State(), err)
 		}
@@ -393,10 +388,9 @@ func TestBufferedRouteStepInvokerFencesCrashPartialResponseAndCancellation(t *te
 			writer.(stdhttp.Flusher).Flush()
 			closeRouteRuntimeConnection(t, writer)
 		})
-		observer := routes.NewRouteCommitObserver()
-		result, err := NewBufferedRouteStepInvoker(runtime).Invoke(context.Background(), routes.RouteInvocation{
-			Step: step, Commit: observer, Request: routes.DispatchRequest{Method: "GET", Path: "/partial"},
-		})
+		input := capturePublicHTTPRouteInvocation(t, artifact, "transport.fence.route", "/partial")
+		observer := input.Commit
+		result, err := NewBufferedRouteStepInvoker(runtime).Invoke(context.Background(), input)
 		if err == nil || !result.SideEffectStarted || !result.ResponseStarted || observer.State() != routes.RouteCommitResponseStarted {
 			t.Fatalf("result=%#v state=%q err=%v", result, observer.State(), err)
 		}
@@ -411,10 +405,9 @@ func TestBufferedRouteStepInvokerFencesCrashPartialResponseAndCancellation(t *te
 		})
 		ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
 		defer cancel()
-		observer := routes.NewRouteCommitObserver()
-		result, err := NewBufferedRouteStepInvoker(runtime).Invoke(ctx, routes.RouteInvocation{
-			Step: step, Commit: observer, Request: routes.DispatchRequest{Method: "GET", Path: "/cancel"},
-		})
+		input := capturePublicHTTPRouteInvocation(t, artifact, "transport.fence.route", "/cancel")
+		observer := input.Commit
+		result, err := NewBufferedRouteStepInvoker(runtime).Invoke(ctx, input)
 		if err == nil || !result.SideEffectStarted || result.ResponseStarted || observer.State() != routes.RouteCommitSideEffectStarted {
 			t.Fatalf("result=%#v state=%q err=%v", result, observer.State(), err)
 		}
@@ -492,6 +485,67 @@ type routeRegistryPlanResolver struct{ registry *routes.Registry }
 
 func (r routeRegistryPlanResolver) BuildExecutionPlan(_ context.Context, method, path string) (routes.RouteExecutionPlan, error) {
 	return r.registry.BuildExecutionPlan(method, path)
+}
+
+var errRouteInvocationCaptured = errors.New("route invocation captured")
+
+type routeInvocationCapture struct {
+	invocation routes.RouteInvocation
+	calls      int
+}
+
+func (c *routeInvocationCapture) SupportsMode(string) bool { return true }
+
+func (c *routeInvocationCapture) Invoke(
+	_ context.Context,
+	invocation routes.RouteInvocation,
+) (routes.RouteInvocationResult, error) {
+	c.calls++
+	c.invocation = invocation
+	return routes.RouteInvocationResult{}, errRouteInvocationCaptured
+}
+
+func captureAuthorizedRouteInvocation(
+	t *testing.T,
+	artifact routes.PluginArtifact,
+	declaration extensionmanifest.ManifestRoute,
+	request routes.DispatchRequest,
+) routes.RouteInvocation {
+	t.Helper()
+	registry := routes.NewRegistry()
+	if _, err := registry.Publish(routes.Publication{Plugins: []routes.PluginRouteSet{{
+		Artifact: artifact, Routes: []extensionmanifest.ManifestRoute{declaration},
+	}}}); err != nil {
+		t.Fatal(err)
+	}
+	capture := &routeInvocationCapture{}
+	dispatcher := routes.NewDispatcher(routes.DispatcherConfig{
+		Plans: routeRegistryPlanResolver{registry: registry}, Steps: capture,
+		Guard: NewProductionRouteGuardAuthorizer(), Schemas: CatalogRouteSchemaValidator{Catalog: acceptRouteSchemaCatalog{}},
+	})
+	if _, err := dispatcher.Dispatch(context.Background(), request, nil); !errors.Is(err, errRouteInvocationCaptured) {
+		t.Fatalf("capture route invocation: %v", err)
+	}
+	if capture.calls != 1 || capture.invocation.Commit == nil {
+		t.Fatalf("captured route invocation calls=%d invocation=%#v", capture.calls, capture.invocation)
+	}
+	if _, ok := capture.invocation.RequestAuthority(); !ok {
+		t.Fatal("dispatcher did not bind request authority to the captured invocation")
+	}
+	return capture.invocation
+}
+
+func capturePublicHTTPRouteInvocation(
+	t *testing.T,
+	artifact routes.PluginArtifact,
+	routeID string,
+	path string,
+) routes.RouteInvocation {
+	t.Helper()
+	declaration := routeDispatcherManifestRoute(routeID, extensionmanifest.RouteActionAdd, path, stdhttp.MethodGet)
+	return captureAuthorizedRouteInvocation(t, artifact, declaration, routes.DispatchRequest{
+		Method: stdhttp.MethodGet, Path: path,
+	})
 }
 
 type acceptRouteSchemaCatalog struct{}
