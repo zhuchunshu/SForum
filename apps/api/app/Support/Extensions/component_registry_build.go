@@ -98,6 +98,9 @@ func buildComponentRegistryState(
 			break
 		}
 	}
+	if err := validateComponentCompositionGraph(all, active, DefaultComponentCompositionMaxDepth); err != nil {
+		return nil, err
+	}
 
 	for _, id := range contributionIDs {
 		if !active[id] {

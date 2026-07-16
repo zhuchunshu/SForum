@@ -47,6 +47,8 @@ func compileComponentContribution(
 func validateComponentDeclaration(extension extensions.Extension, declaration extensions.ManifestComponent) error {
 	if !strings.HasPrefix(declaration.ID, extension.ID+".") || strings.TrimSpace(declaration.ContractVersion) == "" ||
 		!validComponentRegistryAction(declaration.Action) ||
+		extension.Type == extensions.TypeTheme && (declaration.Action == extensionmanifest.ComponentActionFilterProps ||
+			declaration.Action == extensionmanifest.ComponentActionFilterResult) ||
 		(declaration.TargetID == "") != (declaration.TargetContractVersion == "") ||
 		declaration.Action != extensionmanifest.ComponentActionAdd && declaration.TargetID == "" ||
 		declaration.Action != extensionmanifest.ComponentActionHide && strings.TrimSpace(declaration.PropsSchema) == "" ||

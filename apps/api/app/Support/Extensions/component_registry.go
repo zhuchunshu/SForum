@@ -21,6 +21,7 @@ var (
 	ErrComponentRegistryTargetNotFound   = errors.New("component registry target is not found")
 	ErrComponentRegistryProviderNotFound = errors.New("component registry replace provider is not found")
 	ErrComponentRegistryRevisionConflict = errors.New("component registry revision conflict")
+	ErrComponentRegistrySafeMode         = errors.New("component registry publication is disabled by Safe Mode")
 )
 
 type ComponentContribution struct {
@@ -73,6 +74,7 @@ type ComponentProviderConflict struct {
 
 type ComponentRegistrySnapshot struct {
 	Revision      uint64                       `json:"revision"`
+	SafeMode      bool                         `json:"safeMode"`
 	Targets       []ComponentTarget            `json:"targets"`
 	Contributions []ComponentContribution      `json:"contributions"`
 	Conflicts     []ComponentProviderConflict  `json:"conflicts"`
@@ -117,6 +119,7 @@ type componentRuntimeRegistration struct {
 
 type componentRegistryState struct {
 	revision              uint64
+	safeMode              bool
 	registrations         map[string]componentRuntimeRegistration
 	targetsByID           map[string]ComponentTarget
 	contributionsByID     map[string]ComponentContribution
@@ -161,6 +164,9 @@ func (r *ComponentRegistry) replaceRuntime(
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	current := r.load()
+	if current.safeMode {
+		return ErrComponentRegistrySafeMode
+	}
 	registrations := cloneComponentRegistrations(current.registrations)
 	if previous, found := registrations[extension.ID]; found {
 		if currentAllowed != nil && !currentAllowed(previous) {
@@ -199,6 +205,9 @@ func (r *ComponentRegistry) ReplaceAll(snapshots []ComponentRuntimeSnapshot) err
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	current := r.load()
+	if current.safeMode {
+		return ErrComponentRegistrySafeMode
+	}
 	registrations := make(map[string]componentRuntimeRegistration, len(snapshots))
 	for _, snapshot := range snapshots {
 		extension := snapshot.Extension
@@ -233,20 +242,44 @@ func (r *ComponentRegistry) ReplaceAll(snapshots []ComponentRuntimeSnapshot) err
 // requiring an executable backend. Safe Mode atomically removes all extension
 // registrations while retaining the Host-owned Core target catalog.
 func (r *ComponentRegistry) RestoreRuntimes(items []extensions.Extension, safeMode bool) error {
+	if r == nil {
+		return ErrComponentRegistryInvalid
+	}
+	if safeMode {
+		return r.enterSafeMode()
+	}
 	snapshots := make([]ComponentRuntimeSnapshot, 0, len(items))
-	if !safeMode {
-		for _, item := range items {
-			if item.Status != extensions.StatusEnabled || item.Manifest.ManifestVersion != 3 ||
-				(item.Type != extensions.TypePlugin && item.Type != extensions.TypeTheme) ||
-				len(item.Manifest.Components) == 0 {
-				continue
-			}
-			snapshots = append(snapshots, ComponentRuntimeSnapshot{
-				Extension: item, InstanceID: componentPackageRuntimeInstanceID(item),
-			})
+	for _, item := range items {
+		if item.Status != extensions.StatusEnabled || item.Manifest.ManifestVersion != 3 ||
+			(item.Type != extensions.TypePlugin && item.Type != extensions.TypeTheme) ||
+			len(item.Manifest.Components) == 0 {
+			continue
 		}
+		snapshots = append(snapshots, ComponentRuntimeSnapshot{
+			Extension: item, InstanceID: componentPackageRuntimeInstanceID(item),
+		})
 	}
 	return r.ReplaceAll(snapshots)
+}
+
+// enterSafeMode is intentionally sticky for this process. Leaving Safe Mode
+// requires constructing a fresh Registry during a clean Host restart; an
+// extension or delayed watcher cannot republish into the recovery process.
+func (r *ComponentRegistry) enterSafeMode() error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	current := r.load()
+	if current.safeMode {
+		return nil
+	}
+	next := emptyComponentRegistryState()
+	next.revision = current.revision + 1
+	next.safeMode = true
+	r.themePublicationRevision = 0
+	r.themePreviousPublicationRevision = 0
+	r.themePreviousRegistrations = nil
+	r.state.Store(next)
+	return nil
 }
 
 func (r *ComponentRegistry) RuntimeSnapshot(extensionID string) (ComponentRuntimeSnapshot, bool) {
@@ -287,6 +320,9 @@ func (r *ComponentRegistry) RemoveRuntime(extensionID, instanceID string) (bool,
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	current := r.load()
+	if current.safeMode {
+		return false, nil
+	}
 	registration, found := current.registrations[strings.TrimSpace(extensionID)]
 	if !found {
 		return false, nil
@@ -304,6 +340,10 @@ func (r *ComponentRegistry) RemoveRuntime(extensionID, instanceID string) (bool,
 	return true, nil
 }
 
+// SelectReplaceProvider applies an exact, revision-fenced in-memory selection.
+// The admin/lifecycle owner must separately authorize the actor and durably
+// audit the decision before calling this leaf; the Registry does not invent a
+// second persistence or permission model.
 func (r *ComponentRegistry) SelectReplaceProvider(
 	request SelectComponentProviderRequest,
 ) (ComponentProviderSelection, error) {
@@ -319,6 +359,9 @@ func (r *ComponentRegistry) SelectReplaceProvider(
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	current := r.load()
+	if current.safeMode {
+		return ComponentProviderSelection{}, ErrComponentRegistrySafeMode
+	}
 	if current.revision != request.ExpectedRevision {
 		return ComponentProviderSelection{}, ErrComponentRegistryRevisionConflict
 	}
@@ -360,6 +403,9 @@ func (r *ComponentRegistry) ResetReplaceProvider(request ResetComponentProviderR
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	current := r.load()
+	if current.safeMode {
+		return false, ErrComponentRegistrySafeMode
+	}
 	if current.revision != request.ExpectedRevision {
 		return false, ErrComponentRegistryRevisionConflict
 	}
@@ -398,6 +444,9 @@ func (r *ComponentRegistry) AdmitPublicComponent(
 		return false
 	}
 	state := r.load()
+	if state.safeMode {
+		return false
+	}
 	registration, registered := state.registrations[extension.ID]
 	if !registered || !componentRuntimeRegistrationMatches(
 		registration,
@@ -474,7 +523,7 @@ func (r *ComponentRegistry) resolveRuntimePlan(targetID, contractVersion string)
 
 func (r *ComponentRegistry) Snapshot() ComponentRegistrySnapshot {
 	state := r.load()
-	snapshot := ComponentRegistrySnapshot{Revision: state.revision}
+	snapshot := ComponentRegistrySnapshot{Revision: state.revision, SafeMode: state.safeMode}
 	for _, target := range state.targetsByID {
 		snapshot.Targets = append(snapshot.Targets, cloneComponentTarget(target))
 	}

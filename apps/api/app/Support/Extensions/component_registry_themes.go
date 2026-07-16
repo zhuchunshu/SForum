@@ -64,6 +64,9 @@ func (r *ComponentRegistry) transitionTheme(
 		return ErrComponentRegistryRevisionConflict
 	}
 	current := r.load()
+	if current.safeMode {
+		return ErrComponentRegistrySafeMode
+	}
 	registrations := cloneComponentRegistrations(current.registrations)
 	for extensionID, registration := range registrations {
 		if registration.extension.Type != extensions.TypeTheme {
