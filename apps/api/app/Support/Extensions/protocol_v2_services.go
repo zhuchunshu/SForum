@@ -20,6 +20,8 @@ import (
 type protocolV2ServiceRegistry interface {
 	ReplaceProtocolV2Services(string, []hostapi.ServiceRegistration) error
 	PublishProtocolV2ServiceRuntime(hostapi.ServiceRuntimePublication) error
+	PrepareProtocolV2ServiceRuntimeSet([]hostapi.ServiceRuntimePublication) (*hostapi.ServiceRuntimeSetTransaction, error)
+	ProtocolV2ServiceRuntimeSetMatches([]hostapi.ServiceRuntimePublication) (bool, error)
 	UnregisterProtocolV2Services(string)
 	UnregisterProtocolV2ServiceInstance(string, string) bool
 }

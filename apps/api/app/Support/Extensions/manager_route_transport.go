@@ -57,7 +57,10 @@ func (s *ProtocolStarter) InvokeRouteInstance(
 	// retaining this mutex across gRPC would serialize every route for a plugin.
 	var v2 *protocolV2Client
 	if err := func() error {
-		unlock := s.lockExtensionLifecycle(identity.ExtensionID)
+		unlock, err := s.lockExtensionLifecycleContext(ctx, identity.ExtensionID)
+		if err != nil {
+			return err
+		}
 		defer unlock()
 		instance := s.protocolInstance(identity)
 		if instance == nil {

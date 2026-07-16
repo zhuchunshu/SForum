@@ -23,7 +23,10 @@ func (s *ProtocolStarter) InvokePluginCommand(
 	}
 	var v2 *protocolV2Client
 	if err := func() error {
-		unlock := s.lockExtensionLifecycle(identity.ExtensionID)
+		unlock, err := s.lockExtensionLifecycleContext(ctx, identity.ExtensionID)
+		if err != nil {
+			return err
+		}
 		defer unlock()
 		instance := s.protocolInstance(identity)
 		if instance == nil {

@@ -7,6 +7,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sort"
+	"sync"
 	"time"
 
 	"github.com/hashicorp/go-plugin"
@@ -59,6 +61,55 @@ type StagedRuntimeStarter interface {
 	DiscardInstance(context.Context, RuntimeInstanceIdentity) error
 }
 
+// StagedRuntimeSetStarter publishes the complete desired V2 process set at
+// one ProtocolStarter and ServiceRegistry linearization boundary.
+type StagedRuntimeSetStarter interface {
+	StagedRuntimeStarter
+	PublishInstanceSet(context.Context, []RuntimeInstanceIdentity) ([]ProtocolRuntimeInstanceSnapshot, *ProtocolRuntimeSetLease, error)
+	RuntimeInstanceSetVisible(context.Context, []RuntimeInstanceIdentity) bool
+}
+
+// ProtocolRuntimeSetLease keeps ProtocolStarter membership and the HostAPI
+// service writer fence continuous across an aggregate Manager commit/rollback.
+type ProtocolRuntimeSetLease struct {
+	mu      sync.Mutex
+	closed  bool
+	release func()
+	restore func(context.Context, []RuntimeInstanceIdentity) ([]ProtocolRuntimeInstanceSnapshot, error)
+}
+
+func (l *ProtocolRuntimeSetLease) Release() {
+	if l == nil {
+		return
+	}
+	l.mu.Lock()
+	if l.closed {
+		l.mu.Unlock()
+		return
+	}
+	l.closed = true
+	release := l.release
+	l.mu.Unlock()
+	if release != nil {
+		release()
+	}
+}
+
+func (l *ProtocolRuntimeSetLease) Restore(
+	ctx context.Context,
+	identities []RuntimeInstanceIdentity,
+) ([]ProtocolRuntimeInstanceSnapshot, error) {
+	if l == nil || ctx == nil {
+		return nil, ErrRuntimeAdmissionInvalid
+	}
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if l.closed || l.restore == nil {
+		return nil, ErrProtocolInstanceNotReady
+	}
+	return l.restore(ctx, identities)
+}
+
 type protocolRuntimeInstance struct {
 	identity         RuntimeInstanceIdentity
 	extensionVersion string
@@ -85,7 +136,15 @@ func (s *ProtocolStarter) Start(ctx context.Context, extension extensions.Extens
 	if s == nil {
 		return RouteTarget{}, extensions.ErrRuntimeUnavailable
 	}
-	unlock := s.lockExtensionLifecycle(extension.ID)
+	unlockSet, err := s.lockRuntimeSetTransition(ctx)
+	if err != nil {
+		return RouteTarget{}, err
+	}
+	defer unlockSet()
+	unlock, err := s.lockExtensionLifecycleContext(ctx, extension.ID)
+	if err != nil {
+		return RouteTarget{}, err
+	}
 	defer unlock()
 	version := manifestProtocolVersion(extension)
 	if s.protocolTransitionBlockedLocked(extension.ID, version) {
@@ -102,7 +161,10 @@ func (s *ProtocolStarter) StartInstance(ctx context.Context, extension extension
 	if manifestProtocolVersion(extension) != 2 {
 		return RouteTarget{}, ErrProtocolInstanceUnsupported
 	}
-	unlock := s.lockExtensionLifecycle(extension.ID)
+	unlock, err := s.lockExtensionLifecycleContext(ctx, extension.ID)
+	if err != nil {
+		return RouteTarget{}, err
+	}
 	defer unlock()
 	if s.protocolTransitionBlockedLocked(extension.ID, 2) {
 		return RouteTarget{}, ErrProtocolInstanceTransitionBlocked
@@ -136,16 +198,44 @@ func (s *ProtocolStarter) HealthInstance(ctx context.Context, identity RuntimeIn
 	if err != nil {
 		return PluginHealth{}, err
 	}
-	unlock := s.lockExtensionLifecycle(identity.ExtensionID)
+	unlock, err := s.lockExtensionLifecycleContext(ctx, identity.ExtensionID)
+	if err != nil {
+		return PluginHealth{}, err
+	}
 	defer unlock()
 	instance := s.protocolInstance(identity)
 	if instance == nil {
 		return PluginHealth{}, protocolInstanceNotFound(identity)
 	}
+	if instance.protocolVersion == 1 {
+		return s.healthProtocolV1InstanceLocked(instance)
+	}
 	if instance.protocolVersion != 2 {
 		return PluginHealth{}, ErrProtocolInstanceUnsupported
 	}
 	return s.healthProtocolInstanceLocked(ctx, instance)
+}
+
+func (s *ProtocolStarter) healthProtocolV1InstanceLocked(instance *protocolRuntimeInstance) (PluginHealth, error) {
+	if instance == nil || instance.client == nil || instance.client.Exited() {
+		return PluginHealth{}, ErrProtocolInstanceUnhealthy
+	}
+	health, err := instance.protocol.Health()
+	healthOK := err == nil && health.OK
+	s.mu.Lock()
+	if current := s.runtimeInstanceLocked(instance.identity); current == instance {
+		current.healthy = healthOK
+		current.ready = healthOK
+		current.readinessChecked = false
+	}
+	s.mu.Unlock()
+	if err != nil {
+		return health, fmt.Errorf("%w: %v", ErrProtocolInstanceUnhealthy, err)
+	}
+	if !health.OK {
+		return health, ErrProtocolInstanceUnhealthy
+	}
+	return health, nil
 }
 
 // PublishInstance 健康检查后原子替换 V2 Service Registry，再切换活动 transport 指针。
@@ -158,7 +248,15 @@ func (s *ProtocolStarter) PublishInstance(ctx context.Context, identity RuntimeI
 	if err != nil {
 		return ProtocolRuntimeInstanceSnapshot{}, err
 	}
-	unlock := s.lockExtensionLifecycle(identity.ExtensionID)
+	unlockSet, err := s.lockRuntimeSetTransition(ctx)
+	if err != nil {
+		return ProtocolRuntimeInstanceSnapshot{}, err
+	}
+	defer unlockSet()
+	unlock, err := s.lockExtensionLifecycleContext(ctx, identity.ExtensionID)
+	if err != nil {
+		return ProtocolRuntimeInstanceSnapshot{}, err
+	}
 	defer unlock()
 	instance := s.protocolInstance(identity)
 	if instance == nil {
@@ -170,8 +268,412 @@ func (s *ProtocolStarter) PublishInstance(ctx context.Context, identity RuntimeI
 	return s.publishProtocolInstanceLocked(ctx, identity, true)
 }
 
+// PublishInstanceSet validates and publishes exactly identities. Service
+// discovery/dependency readers and ProtocolStarter pointer readers can observe
+// only the complete previous set or the complete desired set.
+func (s *ProtocolStarter) PublishInstanceSet(
+	ctx context.Context,
+	identities []RuntimeInstanceIdentity,
+) ([]ProtocolRuntimeInstanceSnapshot, *ProtocolRuntimeSetLease, error) {
+	if s == nil {
+		return nil, nil, extensions.ErrRuntimeUnavailable
+	}
+	if ctx == nil {
+		return nil, nil, ErrRuntimeAdmissionInvalid
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, nil, err
+	}
+	desired, err := normalizeProtocolRuntimeInstanceSet(identities)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	unlockSet, err := s.lockRuntimeSetTransition(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	releaseSet := true
+	defer func() {
+		if releaseSet {
+			unlockSet()
+		}
+	}()
+
+	// Lock every desired and currently active owner in stable order. The set
+	// mutex prevents active membership drift while locks are acquired.
+	s.mu.Lock()
+	extensionIDs := make(map[string]struct{}, len(desired)+len(s.activeRuntimeInstances))
+	for extensionID := range s.activeRuntimeInstances {
+		extensionIDs[extensionID] = struct{}{}
+	}
+	s.mu.Unlock()
+	for _, identity := range desired {
+		extensionIDs[identity.ExtensionID] = struct{}{}
+	}
+	lockedIDs := make([]string, 0, len(extensionIDs))
+	for extensionID := range extensionIDs {
+		lockedIDs = append(lockedIDs, extensionID)
+	}
+	sort.Strings(lockedIDs)
+	unlockers := make([]func(), 0, len(lockedIDs))
+	for _, extensionID := range lockedIDs {
+		unlock, lockErr := s.lockExtensionLifecycleContext(ctx, extensionID)
+		if lockErr != nil {
+			for index := len(unlockers) - 1; index >= 0; index-- {
+				unlockers[index]()
+			}
+			return nil, nil, lockErr
+		}
+		unlockers = append(unlockers, unlock)
+	}
+	defer func() {
+		for index := len(unlockers) - 1; index >= 0; index-- {
+			unlockers[index]()
+		}
+	}()
+
+	s.mu.Lock()
+	instances := make([]*protocolRuntimeInstance, 0, len(desired))
+	publications := make([]hostapi.ServiceRuntimePublication, 0, len(desired))
+	for extensionID, instanceID := range s.activeRuntimeInstances {
+		instance := s.runtimeInstances[extensionID][instanceID]
+		if instance == nil || (instance.protocolVersion != 1 && instance.protocolVersion != 2) {
+			s.mu.Unlock()
+			return nil, nil, ErrProtocolInstanceTransitionBlocked
+		}
+	}
+	for _, identity := range desired {
+		instance := s.runtimeInstanceLocked(identity)
+		if instance == nil {
+			s.mu.Unlock()
+			return nil, nil, protocolInstanceNotFound(identity)
+		}
+		if instance.protocolVersion != 1 && instance.protocolVersion != 2 {
+			s.mu.Unlock()
+			return nil, nil, ErrProtocolInstanceUnsupported
+		}
+		if instance.client == nil || instance.client.Exited() || !instance.healthy {
+			s.mu.Unlock()
+			return nil, nil, ErrProtocolInstanceUnhealthy
+		}
+		if !instance.ready || (instance.protocolVersion == 2 && !instance.readinessChecked) {
+			s.mu.Unlock()
+			return nil, nil, ErrProtocolInstanceNotReady
+		}
+		instances = append(instances, instance)
+		if instance.protocolVersion == 2 {
+			publications = append(publications, instance.serviceRuntime)
+		}
+	}
+	s.mu.Unlock()
+
+	registry := protocolV2ServiceRegistryFor(s.hostAPI)
+	var serviceSet *hostapi.ServiceRuntimeSetTransaction
+	if registry == nil {
+		for _, instance := range instances {
+			if len(instance.registrations) > 0 {
+				return nil, nil, fmt.Errorf("protocol v2 service registry is not configured")
+			}
+		}
+	} else {
+		serviceSet, err = registry.PrepareProtocolV2ServiceRuntimeSet(publications)
+		if err != nil {
+			return nil, nil, fmt.Errorf("prepare protocol v2 service runtime set: %w", err)
+		}
+		defer serviceSet.Abort()
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, nil, err
+	}
+
+	// All ProtocolStarter set writers share the set-transition barrier. Keep s.mu held across
+	// the ServiceRegistry linearization point so pointer readers cannot observe
+	// a service graph whose complete active transport set is still old.
+	s.mu.Lock()
+	type publicationState struct {
+		published     bool
+		everPublished bool
+	}
+	previousStates := make(map[*protocolRuntimeInstance]publicationState, len(instances)+len(s.activeRuntimeInstances))
+	rememberState := func(instance *protocolRuntimeInstance) {
+		if instance == nil {
+			return
+		}
+		if _, exists := previousStates[instance]; !exists {
+			previousStates[instance] = publicationState{published: instance.published, everPublished: instance.everPublished}
+		}
+	}
+	previousActive := s.activeRuntimeInstances
+	previousClients := s.clients
+	previousProtocols := s.protocols
+	desiredByExtension := make(map[string]*protocolRuntimeInstance, len(instances))
+	for _, instance := range instances {
+		rememberState(instance)
+		desiredByExtension[instance.identity.ExtensionID] = instance
+	}
+	for extensionID, instanceID := range s.activeRuntimeInstances {
+		if desiredInstance := desiredByExtension[extensionID]; desiredInstance != nil && desiredInstance.identity.InstanceID == instanceID {
+			continue
+		}
+		if previous := s.runtimeInstances[extensionID][instanceID]; previous != nil {
+			rememberState(previous)
+			previous.published = false
+		}
+	}
+	nextActive := make(map[string]string, len(instances))
+	nextClients := make(map[string]*plugin.Client, len(instances))
+	nextProtocols := make(map[string]PluginProtocol, len(instances))
+	snapshots := make([]ProtocolRuntimeInstanceSnapshot, 0, len(instances))
+	for _, instance := range instances {
+		if previousID := s.activeRuntimeInstances[instance.identity.ExtensionID]; previousID != "" && previousID != instance.identity.InstanceID {
+			if previous := s.runtimeInstances[instance.identity.ExtensionID][previousID]; previous != nil {
+				rememberState(previous)
+				previous.published = false
+			}
+		}
+		instance.published = true
+		instance.everPublished = true
+		nextActive[instance.identity.ExtensionID] = instance.identity.InstanceID
+		nextClients[instance.identity.ExtensionID] = instance.client
+		nextProtocols[instance.identity.ExtensionID] = instance.protocol
+		snapshots = append(snapshots, protocolRuntimeSnapshot(instance))
+	}
+	s.activeRuntimeInstances = nextActive
+	s.clients = nextClients
+	s.protocols = nextProtocols
+	var serviceLease *hostapi.ServiceRuntimeSetLease
+	if serviceSet != nil {
+		serviceLease, err = serviceSet.CommitAndAcquireContext(ctx)
+		if err != nil {
+			s.activeRuntimeInstances = previousActive
+			s.clients = previousClients
+			s.protocols = previousProtocols
+			for instance, state := range previousStates {
+				instance.published = state.published
+				instance.everPublished = state.everPublished
+			}
+			s.mu.Unlock()
+			return nil, nil, fmt.Errorf("publish protocol v2 service runtime set: %w", err)
+		}
+	}
+	s.mu.Unlock()
+	releaseSet = false
+	lease := &ProtocolRuntimeSetLease{
+		release: func() {
+			serviceLease.Release()
+			unlockSet()
+		},
+	}
+	lease.restore = func(restoreCtx context.Context, restoreIdentities []RuntimeInstanceIdentity) ([]ProtocolRuntimeInstanceSnapshot, error) {
+		return s.restoreRuntimeInstanceSetUnderLease(restoreCtx, serviceLease, restoreIdentities)
+	}
+	return snapshots, lease, nil
+}
+
+// restoreRuntimeInstanceSetUnderLease assumes the set-transition token and the
+// ServiceRegistry writer fence returned by PublishInstanceSet are still held.
+func (s *ProtocolStarter) restoreRuntimeInstanceSetUnderLease(
+	ctx context.Context,
+	serviceLease *hostapi.ServiceRuntimeSetLease,
+	identities []RuntimeInstanceIdentity,
+) ([]ProtocolRuntimeInstanceSnapshot, error) {
+	if s == nil || ctx == nil {
+		return nil, ErrRuntimeAdmissionInvalid
+	}
+	desired, err := normalizeProtocolRuntimeInstanceSet(identities)
+	if err != nil {
+		return nil, err
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
+	s.mu.Lock()
+	extensionIDs := make(map[string]struct{}, len(desired)+len(s.activeRuntimeInstances))
+	for extensionID := range s.activeRuntimeInstances {
+		extensionIDs[extensionID] = struct{}{}
+	}
+	s.mu.Unlock()
+	for _, identity := range desired {
+		extensionIDs[identity.ExtensionID] = struct{}{}
+	}
+	lockedIDs := make([]string, 0, len(extensionIDs))
+	for extensionID := range extensionIDs {
+		lockedIDs = append(lockedIDs, extensionID)
+	}
+	sort.Strings(lockedIDs)
+	unlockers := make([]func(), 0, len(lockedIDs))
+	for _, extensionID := range lockedIDs {
+		unlock, lockErr := s.lockExtensionLifecycleContext(ctx, extensionID)
+		if lockErr != nil {
+			for index := len(unlockers) - 1; index >= 0; index-- {
+				unlockers[index]()
+			}
+			return nil, lockErr
+		}
+		unlockers = append(unlockers, unlock)
+	}
+	defer func() {
+		for index := len(unlockers) - 1; index >= 0; index-- {
+			unlockers[index]()
+		}
+	}()
+
+	s.mu.Lock()
+	instances := make([]*protocolRuntimeInstance, 0, len(desired))
+	publications := make([]hostapi.ServiceRuntimePublication, 0, len(desired))
+	for _, identity := range desired {
+		instance := s.runtimeInstanceLocked(identity)
+		if instance == nil {
+			s.mu.Unlock()
+			return nil, protocolInstanceNotFound(identity)
+		}
+		if instance.protocolVersion != 1 && instance.protocolVersion != 2 {
+			s.mu.Unlock()
+			return nil, ErrProtocolInstanceUnsupported
+		}
+		instances = append(instances, instance)
+		if instance.protocolVersion == 2 {
+			publications = append(publications, instance.serviceRuntime)
+		}
+	}
+	s.mu.Unlock()
+	for _, instance := range instances {
+		var err error
+		if instance.protocolVersion == 1 {
+			_, err = s.healthProtocolV1InstanceLocked(instance)
+		} else {
+			_, err = s.healthProtocolInstanceLocked(ctx, instance)
+		}
+		if err != nil {
+			return nil, err
+		}
+	}
+	if serviceLease == nil {
+		for _, publication := range publications {
+			if len(publication.Registrations) > 0 {
+				return nil, fmt.Errorf("protocol v2 service registry lease is not configured")
+			}
+		}
+	}
+
+	s.mu.Lock()
+	type publicationState struct {
+		published     bool
+		everPublished bool
+	}
+	previousStates := make(map[*protocolRuntimeInstance]publicationState, len(instances)+len(s.activeRuntimeInstances))
+	rememberState := func(instance *protocolRuntimeInstance) {
+		if instance == nil {
+			return
+		}
+		if _, exists := previousStates[instance]; !exists {
+			previousStates[instance] = publicationState{published: instance.published, everPublished: instance.everPublished}
+		}
+	}
+	previousActive := s.activeRuntimeInstances
+	previousClients := s.clients
+	previousProtocols := s.protocols
+	desiredByExtension := make(map[string]*protocolRuntimeInstance, len(instances))
+	for _, instance := range instances {
+		if instance.client == nil || instance.client.Exited() || !instance.healthy || !instance.ready {
+			s.mu.Unlock()
+			return nil, ErrProtocolInstanceNotReady
+		}
+		rememberState(instance)
+		desiredByExtension[instance.identity.ExtensionID] = instance
+	}
+	for extensionID, instanceID := range s.activeRuntimeInstances {
+		if desiredInstance := desiredByExtension[extensionID]; desiredInstance != nil && desiredInstance.identity.InstanceID == instanceID {
+			continue
+		}
+		if previous := s.runtimeInstances[extensionID][instanceID]; previous != nil {
+			rememberState(previous)
+			previous.published = false
+		}
+	}
+	nextActive := make(map[string]string, len(instances))
+	nextClients := make(map[string]*plugin.Client, len(instances))
+	nextProtocols := make(map[string]PluginProtocol, len(instances))
+	snapshots := make([]ProtocolRuntimeInstanceSnapshot, 0, len(instances))
+	for _, instance := range instances {
+		instance.published = true
+		instance.everPublished = true
+		nextActive[instance.identity.ExtensionID] = instance.identity.InstanceID
+		nextClients[instance.identity.ExtensionID] = instance.client
+		nextProtocols[instance.identity.ExtensionID] = instance.protocol
+		snapshots = append(snapshots, protocolRuntimeSnapshot(instance))
+	}
+	s.activeRuntimeInstances = nextActive
+	s.clients = nextClients
+	s.protocols = nextProtocols
+	if serviceLease != nil {
+		if err := serviceLease.ReplaceRuntimeSet(publications); err != nil {
+			s.activeRuntimeInstances = previousActive
+			s.clients = previousClients
+			s.protocols = previousProtocols
+			for instance, state := range previousStates {
+				instance.published = state.published
+				instance.everPublished = state.everPublished
+			}
+			s.mu.Unlock()
+			return nil, fmt.Errorf("restore protocol v2 service runtime set: %w", err)
+		}
+	}
+	s.mu.Unlock()
+	return snapshots, nil
+}
+
+// RuntimeInstanceSetVisible checks both active process pointers and the exact
+// Protocol V2 service/dependency snapshot for idempotent full-set replay.
+func (s *ProtocolStarter) RuntimeInstanceSetVisible(ctx context.Context, identities []RuntimeInstanceIdentity) bool {
+	if s == nil || ctx == nil {
+		return false
+	}
+	desired, err := normalizeProtocolRuntimeInstanceSet(identities)
+	if err != nil {
+		return false
+	}
+	unlockSet, err := s.lockRuntimeSetTransition(ctx)
+	if err != nil {
+		return false
+	}
+	defer unlockSet()
+
+	s.mu.Lock()
+	if len(s.activeRuntimeInstances) != len(desired) {
+		s.mu.Unlock()
+		return false
+	}
+	publications := make([]hostapi.ServiceRuntimePublication, 0, len(desired))
+	for _, identity := range desired {
+		instance := s.runtimeInstanceLocked(identity)
+		if instance == nil || !instance.published || (instance.protocolVersion != 1 && instance.protocolVersion != 2) ||
+			s.activeRuntimeInstances[identity.ExtensionID] != identity.InstanceID {
+			s.mu.Unlock()
+			return false
+		}
+		if instance.protocolVersion == 2 {
+			publications = append(publications, instance.serviceRuntime)
+		}
+	}
+	s.mu.Unlock()
+	registry := protocolV2ServiceRegistryFor(s.hostAPI)
+	if registry == nil {
+		for _, publication := range publications {
+			if len(publication.Registrations) > 0 {
+				return false
+			}
+		}
+		return true
+	}
+	matches, err := registry.ProtocolV2ServiceRuntimeSetMatches(publications)
+	return err == nil && matches
+}
+
 // StopInstance 停止任意 staged/published/retained V2 exact process。
-func (s *ProtocolStarter) StopInstance(_ context.Context, identity RuntimeInstanceIdentity) error {
+func (s *ProtocolStarter) StopInstance(ctx context.Context, identity RuntimeInstanceIdentity) error {
 	if s == nil {
 		return extensions.ErrRuntimeUnavailable
 	}
@@ -179,13 +681,24 @@ func (s *ProtocolStarter) StopInstance(_ context.Context, identity RuntimeInstan
 	if err != nil {
 		return err
 	}
-	unlock := s.lockExtensionLifecycle(identity.ExtensionID)
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	unlockSet, err := s.lockRuntimeSetTransition(ctx)
+	if err != nil {
+		return err
+	}
+	defer unlockSet()
+	unlock, err := s.lockExtensionLifecycleContext(ctx, identity.ExtensionID)
+	if err != nil {
+		return err
+	}
 	defer unlock()
 	return s.stopProtocolInstanceLocked(identity, false)
 }
 
 // DiscardInstance 只销毁从未发布的 V2 候选，不能误删活动或 rollback 保留实例。
-func (s *ProtocolStarter) DiscardInstance(_ context.Context, identity RuntimeInstanceIdentity) error {
+func (s *ProtocolStarter) DiscardInstance(ctx context.Context, identity RuntimeInstanceIdentity) error {
 	if s == nil {
 		return extensions.ErrRuntimeUnavailable
 	}
@@ -193,7 +706,13 @@ func (s *ProtocolStarter) DiscardInstance(_ context.Context, identity RuntimeIns
 	if err != nil {
 		return err
 	}
-	unlock := s.lockExtensionLifecycle(identity.ExtensionID)
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	unlock, err := s.lockExtensionLifecycleContext(ctx, identity.ExtensionID)
+	if err != nil {
+		return err
+	}
 	defer unlock()
 	instance := s.protocolInstance(identity)
 	if instance == nil {
@@ -509,6 +1028,26 @@ func protocolRuntimeSnapshot(instance *protocolRuntimeInstance) ProtocolRuntimeI
 	}
 }
 
+func normalizeProtocolRuntimeInstanceSet(identities []RuntimeInstanceIdentity) ([]RuntimeInstanceIdentity, error) {
+	result := make([]RuntimeInstanceIdentity, 0, len(identities))
+	seen := make(map[string]struct{}, len(identities))
+	for _, identity := range identities {
+		normalized, err := normalizeRuntimeInstanceIdentity(identity)
+		if err != nil {
+			return nil, err
+		}
+		if _, exists := seen[normalized.ExtensionID]; exists {
+			return nil, fmt.Errorf("%w: runtime set declares extension %q more than once", ErrRuntimeInstanceConflict, normalized.ExtensionID)
+		}
+		seen[normalized.ExtensionID] = struct{}{}
+		result = append(result, normalized)
+	}
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].ExtensionID < result[j].ExtensionID
+	})
+	return result, nil
+}
+
 func manifestProtocolVersion(extension extensions.Extension) int {
 	if extension.Manifest.Backend.ProtocolVersion == 0 {
 		return 1
@@ -534,3 +1073,4 @@ func protocolRuntimeManifestDigest(manifest extensions.Manifest) (string, error)
 }
 
 var _ StagedRuntimeStarter = (*ProtocolStarter)(nil)
+var _ StagedRuntimeSetStarter = (*ProtocolStarter)(nil)

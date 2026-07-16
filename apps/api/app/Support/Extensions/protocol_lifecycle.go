@@ -177,7 +177,10 @@ func (s *ProtocolStarter) RunLifecycleInstance(
 	if err != nil {
 		return LifecycleRunResult{}, err
 	}
-	unlock := s.lockExtensionLifecycle(identity.ExtensionID)
+	unlock, err := s.lockExtensionLifecycleContext(ctx, identity.ExtensionID)
+	if err != nil {
+		return LifecycleRunResult{}, err
+	}
 	defer unlock()
 	instance := s.protocolInstance(identity)
 	if instance == nil {

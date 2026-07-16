@@ -5,9 +5,11 @@ import (
 	"errors"
 	"sync"
 	"testing"
+	"time"
 
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
 	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
+	hostapi "github.com/zhuchunshu/sforum/apps/api/app/Support/HostAPI"
 	protocolwire "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/protocol/v2"
 )
 
@@ -135,6 +137,317 @@ func TestProtocolV2StagesPublishesRollsBackAndStopsExactInstances(t *testing.T) 
 	}
 	if err := starter.DiscardInstance(context.Background(), second); !errors.Is(err, extensionsruntime.ErrProtocolInstancePublished) {
 		t.Fatalf("published discard error = %v", err)
+	}
+}
+
+func TestProtocolV2PublishesAndRollsBackCompleteInstanceSet(t *testing.T) {
+	extensionA := protocolV2RuntimeSetExtension(t, "runtime.set.a")
+	extensionB := protocolV2RuntimeSetExtension(t, "runtime.set.b")
+	gateway, _ := newProtocolV2HostGateway()
+	t.Cleanup(func() { _ = gateway.Close() })
+	starter := extensionsruntime.NewProtocolStarter(extensionsruntime.ProtocolStarterConfig{
+		Trust: staticRuntimeTrust{identity: extensions.RuntimeTrustIdentity{
+			TrustGrantID: "runtime-set-grant", ImpactDigest: "runtime-set-impact",
+		}},
+		HostAPI: gateway,
+	})
+	t.Cleanup(func() {
+		_ = starter.Stop(context.Background(), extensionB)
+		_ = starter.Stop(context.Background(), extensionA)
+	})
+
+	oldA := startProtocolV2RuntimeSetInstance(t, starter, extensionA, true)
+	oldB := startProtocolV2RuntimeSetInstance(t, starter, extensionB, true)
+	registry := gateway.ProtocolV2ServiceRegistry()
+	revision := registry.Revision()
+	assertProtocolV2RuntimeSetOwners(t, registry, oldA, oldB)
+
+	newA := startProtocolV2RuntimeSetInstance(t, starter, extensionA, false)
+	newB := startProtocolV2RuntimeSetInstance(t, starter, extensionB, false)
+	if _, err := starter.HealthInstance(context.Background(), newA); err != nil {
+		t.Fatalf("health new a: %v", err)
+	}
+	if _, err := starter.HealthInstance(context.Background(), newB); err != nil {
+		t.Fatalf("health new b: %v", err)
+	}
+	published, releasePublished, err := starter.PublishInstanceSet(context.Background(), []extensionsruntime.RuntimeInstanceIdentity{newB, newA})
+	if err != nil || len(published) != 2 {
+		t.Fatalf("publish complete set = %#v, %v", published, err)
+	}
+	releasePublished.Release()
+	if registry.Revision() != revision+1 {
+		t.Fatalf("complete set revision = %d, want %d", registry.Revision(), revision+1)
+	}
+	assertProtocolV2RuntimeSetOwners(t, registry, newA, newB)
+	if !starter.RuntimeInstanceSetVisible(context.Background(), []extensionsruntime.RuntimeInstanceIdentity{newB, newA}) {
+		t.Fatal("complete protocol/service set is not visible")
+	}
+	assertProtocolInstanceState(t, starter, oldA, extensionsruntime.ProtocolRuntimeRetained)
+	assertProtocolInstanceState(t, starter, oldB, extensionsruntime.ProtocolRuntimeRetained)
+	if !gateway.UnregisterProtocolV2ServiceInstance(newA.ExtensionID, newA.InstanceID) {
+		t.Fatal("remove one exact service owner")
+	}
+	if starter.RuntimeInstanceSetVisible(context.Background(), []extensionsruntime.RuntimeInstanceIdentity{newA, newB}) {
+		t.Fatal("compensated service graph reported as a visible complete set")
+	}
+	_, releaseRepair, err := starter.PublishInstanceSet(context.Background(), []extensionsruntime.RuntimeInstanceIdentity{newA, newB})
+	if err != nil {
+		t.Fatalf("repair complete set: %v", err)
+	}
+	releaseRepair.Release()
+	if !starter.RuntimeInstanceSetVisible(context.Background(), []extensionsruntime.RuntimeInstanceIdentity{newA, newB}) {
+		t.Fatal("complete-set republish did not repair service graph")
+	}
+
+	rolledBack, releaseRollback, err := starter.PublishInstanceSet(context.Background(), []extensionsruntime.RuntimeInstanceIdentity{oldA, oldB})
+	if err != nil || len(rolledBack) != 2 {
+		t.Fatalf("rollback complete set = %#v, %v", rolledBack, err)
+	}
+	releaseRollback.Release()
+	if registry.Revision() != revision+4 {
+		t.Fatalf("rollback set revision = %d, want %d", registry.Revision(), revision+4)
+	}
+	assertProtocolV2RuntimeSetOwners(t, registry, oldA, oldB)
+	assertProtocolInstanceState(t, starter, newA, extensionsruntime.ProtocolRuntimeRetained)
+	assertProtocolInstanceState(t, starter, newB, extensionsruntime.ProtocolRuntimeRetained)
+}
+
+func TestProtocolV2InstanceSetFailureLeavesCompleteOldGraph(t *testing.T) {
+	extensionA := protocolV2RuntimeSetExtension(t, "runtime.failure.a")
+	extensionB := protocolV2RuntimeSetExtension(t, "runtime.failure.b")
+	gateway, _ := newProtocolV2HostGateway()
+	t.Cleanup(func() { _ = gateway.Close() })
+	starter := extensionsruntime.NewProtocolStarter(extensionsruntime.ProtocolStarterConfig{
+		Trust: staticRuntimeTrust{identity: extensions.RuntimeTrustIdentity{
+			TrustGrantID: "runtime-set-grant", ImpactDigest: "runtime-set-impact",
+		}},
+		HostAPI: gateway,
+	})
+	t.Cleanup(func() {
+		_ = starter.Stop(context.Background(), extensionB)
+		_ = starter.Stop(context.Background(), extensionA)
+	})
+
+	oldA := startProtocolV2RuntimeSetInstance(t, starter, extensionA, true)
+	oldB := startProtocolV2RuntimeSetInstance(t, starter, extensionB, true)
+	newA := startProtocolV2RuntimeSetInstance(t, starter, extensionA, false)
+	newB := startProtocolV2RuntimeSetInstance(t, starter, extensionB, false)
+	if _, err := starter.HealthInstance(context.Background(), newA); err != nil {
+		t.Fatalf("health new a: %v", err)
+	}
+	registry := gateway.ProtocolV2ServiceRegistry()
+	revision := registry.Revision()
+	_, releaseFailed, err := starter.PublishInstanceSet(context.Background(), []extensionsruntime.RuntimeInstanceIdentity{newA, newB})
+	if releaseFailed != nil {
+		releaseFailed.Release()
+	}
+	if !errors.Is(err, extensionsruntime.ErrProtocolInstanceNotReady) {
+		t.Fatalf("unready complete-set error = %v", err)
+	}
+	if registry.Revision() != revision {
+		t.Fatalf("failed complete set advanced revision: %d -> %d", revision, registry.Revision())
+	}
+	assertProtocolV2RuntimeSetOwners(t, registry, oldA, oldB)
+	assertProtocolInstanceState(t, starter, newA, extensionsruntime.ProtocolRuntimeStaged)
+	assertProtocolInstanceState(t, starter, newB, extensionsruntime.ProtocolRuntimeStaged)
+}
+
+func TestProtocolV2RuntimeSetLeaseKeepsQueuedRawWriterOutOfRollback(t *testing.T) {
+	extensionA := protocolV2RuntimeSetExtension(t, "runtime.lease.a")
+	extensionB := protocolV2RuntimeSetExtension(t, "runtime.lease.b")
+	gateway, _ := newProtocolV2HostGateway()
+	t.Cleanup(func() { _ = gateway.Close() })
+	starter := extensionsruntime.NewProtocolStarter(extensionsruntime.ProtocolStarterConfig{
+		Trust: staticRuntimeTrust{identity: extensions.RuntimeTrustIdentity{
+			TrustGrantID: "runtime-set-grant", ImpactDigest: "runtime-set-impact",
+		}},
+		HostAPI: gateway,
+	})
+	t.Cleanup(func() {
+		_ = starter.Stop(context.Background(), extensionB)
+		_ = starter.Stop(context.Background(), extensionA)
+	})
+
+	oldA := startProtocolV2RuntimeSetInstance(t, starter, extensionA, true)
+	oldB := startProtocolV2RuntimeSetInstance(t, starter, extensionB, true)
+	newA := startProtocolV2RuntimeSetInstance(t, starter, extensionA, false)
+	newB := startProtocolV2RuntimeSetInstance(t, starter, extensionB, false)
+	if _, err := starter.HealthInstance(context.Background(), newA); err != nil {
+		t.Fatalf("health new a: %v", err)
+	}
+	if _, err := starter.HealthInstance(context.Background(), newB); err != nil {
+		t.Fatalf("health new b: %v", err)
+	}
+
+	registry := gateway.ProtocolV2ServiceRegistry()
+	published, lease, err := starter.PublishInstanceSet(context.Background(), []extensionsruntime.RuntimeInstanceIdentity{newA, newB})
+	if err != nil || len(published) != 2 || lease == nil {
+		t.Fatalf("publish forward set = %#v lease=%v err=%v", published, lease != nil, err)
+	}
+	defer lease.Release()
+	assertProtocolV2RuntimeSetOwners(t, registry, newA, newB)
+
+	rawSet := protocolV2RawWriterSet(t, registry, "runtime.raw.writer")
+	rawStarted := make(chan struct{})
+	rawDone := make(chan error, 1)
+	go func() {
+		close(rawStarted)
+		rawDone <- registry.ReplaceRuntimeSet(rawSet)
+	}()
+	<-rawStarted
+	select {
+	case err := <-rawDone:
+		t.Fatalf("raw writer crossed forward lease before rollback: %v", err)
+	case <-time.After(20 * time.Millisecond):
+	}
+
+	restored, err := lease.Restore(context.Background(), []extensionsruntime.RuntimeInstanceIdentity{oldA, oldB})
+	if err != nil || len(restored) != 2 {
+		t.Fatalf("restore old set under forward lease = %#v, %v", restored, err)
+	}
+	assertProtocolV2RuntimeSetOwners(t, registry, oldA, oldB)
+	assertProtocolInstanceState(t, starter, oldA, extensionsruntime.ProtocolRuntimePublished)
+	assertProtocolInstanceState(t, starter, oldB, extensionsruntime.ProtocolRuntimePublished)
+	select {
+	case err := <-rawDone:
+		t.Fatalf("raw writer crossed continuous lease during rollback: %v", err)
+	default:
+	}
+
+	lease.Release()
+	if err := <-rawDone; !errors.Is(err, hostapi.ErrServiceRuntimeSetConflict) {
+		t.Fatalf("queued raw writer after rollback error = %v", err)
+	}
+	assertProtocolV2RuntimeSetOwners(t, registry, oldA, oldB)
+}
+
+func TestProtocolV2RuntimeSetWriterWaitCancellationReleasesPointerReaders(t *testing.T) {
+	extensionA := protocolV2RuntimeSetExtension(t, "runtime.cancel.a")
+	extensionB := protocolV2RuntimeSetExtension(t, "runtime.cancel.b")
+	gateway, _ := newProtocolV2HostGateway()
+	t.Cleanup(func() { _ = gateway.Close() })
+	starter := extensionsruntime.NewProtocolStarter(extensionsruntime.ProtocolStarterConfig{
+		Trust: staticRuntimeTrust{identity: extensions.RuntimeTrustIdentity{
+			TrustGrantID: "runtime-set-grant", ImpactDigest: "runtime-set-impact",
+		}},
+		HostAPI: gateway,
+	})
+	t.Cleanup(func() {
+		_ = starter.Stop(context.Background(), extensionB)
+		_ = starter.Stop(context.Background(), extensionA)
+	})
+
+	oldA := startProtocolV2RuntimeSetInstance(t, starter, extensionA, true)
+	oldB := startProtocolV2RuntimeSetInstance(t, starter, extensionB, true)
+	newA := startProtocolV2RuntimeSetInstance(t, starter, extensionA, false)
+	newB := startProtocolV2RuntimeSetInstance(t, starter, extensionB, false)
+	if _, err := starter.HealthInstance(context.Background(), newA); err != nil {
+		t.Fatalf("health new a: %v", err)
+	}
+	if _, err := starter.HealthInstance(context.Background(), newB); err != nil {
+		t.Fatalf("health new b: %v", err)
+	}
+
+	registry := gateway.ProtocolV2ServiceRegistry()
+	rawTransaction, err := registry.PrepareRuntimeSet(protocolV2RawWriterSet(t, registry, "runtime.cancel.writer"))
+	if err != nil {
+		t.Fatalf("prepare blocking raw set: %v", err)
+	}
+	rawLease, err := rawTransaction.CommitAndAcquire()
+	if err != nil {
+		t.Fatalf("publish blocking raw set: %v", err)
+	}
+	defer rawLease.Release()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
+	defer cancel()
+	if _, lease, err := starter.PublishInstanceSet(ctx, []extensionsruntime.RuntimeInstanceIdentity{newA, newB}); !errors.Is(err, context.DeadlineExceeded) || lease != nil {
+		if lease != nil {
+			lease.Release()
+		}
+		t.Fatalf("queued production publish = lease:%v err:%v", lease != nil, err)
+	}
+
+	readerDone := make(chan error, 1)
+	go func() {
+		_, err := starter.InspectInstance(oldA)
+		readerDone <- err
+	}()
+	select {
+	case err := <-readerDone:
+		if err != nil {
+			t.Fatalf("old pointer after cancellation: %v", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("canceled service writer wait retained ProtocolStarter pointer lock")
+	}
+
+	rawLease.Release()
+	repaired, repairLease, err := starter.PublishInstanceSet(context.Background(), []extensionsruntime.RuntimeInstanceIdentity{oldA, oldB})
+	if err != nil || len(repaired) != 2 || repairLease == nil {
+		t.Fatalf("repair old production set = %#v lease=%v err=%v", repaired, repairLease != nil, err)
+	}
+	repairLease.Release()
+	assertProtocolV2RuntimeSetOwners(t, registry, oldA, oldB)
+}
+
+func protocolV2RawWriterSet(t *testing.T, registry *hostapi.ServiceRegistry, extensionID string) []hostapi.ServiceRuntimePublication {
+	t.Helper()
+	resolved, err := registry.ResolveExact("runtime.v2.service.echo", "1.0.0")
+	if err != nil {
+		t.Fatalf("resolve raw writer provider: %v", err)
+	}
+	rawRegistration := resolved.Winner
+	rawRegistration.ExtensionID = extensionID
+	rawRegistration.InstanceID = extensionID + "-instance"
+	return []hostapi.ServiceRuntimePublication{{
+		ExtensionID: extensionID, ExtensionVersion: "1.0.0",
+		ArtifactDigest: extensionID + "-digest", TrustGrantID: extensionID + "-grant",
+		RuntimeEpoch: 1, InstanceID: rawRegistration.InstanceID,
+		Registrations: []hostapi.ServiceRegistration{rawRegistration},
+	}}
+}
+
+func protocolV2RuntimeSetExtension(t *testing.T, extensionID string) extensions.Extension {
+	t.Helper()
+	extension := protocolV2TestExtension(t, "v2")
+	extension.ID = extensionID
+	extension.Name = extensionID
+	extension.Manifest.ID = extensionID
+	return extension
+}
+
+func startProtocolV2RuntimeSetInstance(
+	t *testing.T,
+	starter *extensionsruntime.ProtocolStarter,
+	extension extensions.Extension,
+	publish bool,
+) extensionsruntime.RuntimeInstanceIdentity {
+	t.Helper()
+	var target extensionsruntime.RouteTarget
+	var err error
+	if publish {
+		target, err = starter.Start(context.Background(), extension)
+	} else {
+		target, err = starter.StartInstance(context.Background(), extension)
+	}
+	if err != nil {
+		t.Fatalf("start %s publish=%v: %v", extension.ID, publish, err)
+	}
+	return extensionsruntime.RuntimeInstanceIdentity{ExtensionID: extension.ID, InstanceID: target.InstanceID}
+}
+
+func assertProtocolV2RuntimeSetOwners(
+	t *testing.T,
+	registry *hostapi.ServiceRegistry,
+	want ...extensionsruntime.RuntimeInstanceIdentity,
+) {
+	t.Helper()
+	for _, identity := range want {
+		snapshot, ok, err := registry.ExtensionSnapshot(identity.ExtensionID)
+		if err != nil || !ok || snapshot.InstanceID != identity.InstanceID {
+			t.Fatalf("service owner %s = %#v, %v", identity.ExtensionID, snapshot, err)
+		}
 	}
 }
 

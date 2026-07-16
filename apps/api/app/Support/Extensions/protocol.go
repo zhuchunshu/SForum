@@ -72,13 +72,14 @@ type ProtocolStarterConfig struct {
 
 type ProtocolStarter struct {
 	mu                     sync.Mutex
+	runtimeSetTransition   chan struct{}
 	clients                map[string]*plugin.Client
 	protocols              map[string]PluginProtocol
 	runtimeInstances       map[string]map[string]*protocolRuntimeInstance
 	activeRuntimeInstances map[string]string
 	telemetry              map[string]*protocolTelemetry
 	lifecycleMu            sync.Mutex
-	lifecycle              map[string]*sync.Mutex
+	lifecycle              map[string]chan struct{}
 	settings               PluginSettings
 	hostAPI                HostAPIRegistrar
 	trust                  RuntimeTrustSource
@@ -203,13 +204,16 @@ func NewProtocolStarter(config ProtocolStarterConfig) *ProtocolStarter {
 	if operationTimeout <= 0 {
 		operationTimeout = RecommendedProtocolDatabaseLeaseOperationTimeout
 	}
+	runtimeSetTransition := make(chan struct{}, 1)
+	runtimeSetTransition <- struct{}{}
 	return &ProtocolStarter{
+		runtimeSetTransition:   runtimeSetTransition,
 		clients:                map[string]*plugin.Client{},
 		protocols:              map[string]PluginProtocol{},
 		runtimeInstances:       map[string]map[string]*protocolRuntimeInstance{},
 		activeRuntimeInstances: map[string]string{},
 		telemetry:              map[string]*protocolTelemetry{},
-		lifecycle:              map[string]*sync.Mutex{},
+		lifecycle:              map[string]chan struct{}{},
 		settings:               config.Settings,
 		hostAPI:                config.HostAPI,
 		trust:                  config.Trust,
@@ -518,11 +522,22 @@ func pluginSettingEnvName(key string) string {
 	return value.String()
 }
 
-func (s *ProtocolStarter) Stop(_ context.Context, extension extensions.Extension) error {
+func (s *ProtocolStarter) Stop(ctx context.Context, extension extensions.Extension) error {
 	if s == nil {
 		return nil
 	}
-	unlock := s.lockExtensionLifecycle(extension.ID)
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	unlockSet, err := s.lockRuntimeSetTransition(ctx)
+	if err != nil {
+		return err
+	}
+	defer unlockSet()
+	unlock, err := s.lockExtensionLifecycleContext(ctx, extension.ID)
+	if err != nil {
+		return err
+	}
 	defer unlock()
 	s.mu.Lock()
 	instances := make([]RuntimeInstanceIdentity, 0, len(s.runtimeInstances[extension.ID]))
@@ -553,18 +568,54 @@ func (s *ProtocolStarter) ExecutePluginJob(ctx context.Context, invocation suppo
 }
 
 func (s *ProtocolStarter) lockExtensionLifecycle(extensionID string) func() {
+	unlock, _ := s.lockExtensionLifecycleContext(context.Background(), extensionID)
+	return unlock
+}
+
+func (s *ProtocolStarter) lockExtensionLifecycleContext(ctx context.Context, extensionID string) (func(), error) {
+	if s == nil || ctx == nil {
+		return nil, ErrRuntimeAdmissionInvalid
+	}
 	s.lifecycleMu.Lock()
 	if s.lifecycle == nil {
-		s.lifecycle = map[string]*sync.Mutex{}
+		s.lifecycle = map[string]chan struct{}{}
 	}
 	lock := s.lifecycle[extensionID]
 	if lock == nil {
-		lock = &sync.Mutex{}
+		lock = make(chan struct{}, 1)
+		lock <- struct{}{}
 		s.lifecycle[extensionID] = lock
 	}
 	s.lifecycleMu.Unlock()
-	lock.Lock()
-	return lock.Unlock
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	case <-lock:
+		if err := ctx.Err(); err != nil {
+			lock <- struct{}{}
+			return nil, err
+		}
+		return func() { lock <- struct{}{} }, nil
+	}
+}
+
+func (s *ProtocolStarter) lockRuntimeSetTransition(ctx context.Context) (func(), error) {
+	if s == nil || ctx == nil || s.runtimeSetTransition == nil {
+		return nil, ErrRuntimeAdmissionInvalid
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	case <-s.runtimeSetTransition:
+		if err := ctx.Err(); err != nil {
+			s.runtimeSetTransition <- struct{}{}
+			return nil, err
+		}
+		return func() { s.runtimeSetTransition <- struct{}{} }, nil
+	}
 }
 
 func (s *ProtocolStarter) watchClientExit(identity RuntimeInstanceIdentity, protocolVersion int, protocol PluginProtocol, client *plugin.Client) {
@@ -574,6 +625,11 @@ func (s *ProtocolStarter) watchClientExit(identity RuntimeInstanceIdentity, prot
 		<-ticker.C
 	}
 
+	unlockSet, err := s.lockRuntimeSetTransition(context.Background())
+	if err != nil {
+		return
+	}
+	defer unlockSet()
 	unlock := s.lockExtensionLifecycle(identity.ExtensionID)
 	defer unlock()
 	s.mu.Lock()
