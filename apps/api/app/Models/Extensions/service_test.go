@@ -51,10 +51,10 @@ func TestServiceInstallArchiveRequiresExtensionManagePermission(t *testing.T) {
 
 	_, err := service.InstallArchive(context.Background(), actor, ArchiveInput{
 		FileName: "sample.zip",
-		Data:     extensionArchive(t, validManifest("demo.plugin", TypePlugin)),
+		Data:     []byte("not a zip"),
 	})
 	if !errors.Is(err, identity.ErrPermissionDenied) {
-		t.Fatalf("expected permission denied, got %v", err)
+		t.Fatalf("expected permission denied before archive parsing, got %v", err)
 	}
 }
 
@@ -384,7 +384,8 @@ func TestServiceInstallArchiveAllowsThemeSettingsAndAdminPages(t *testing.T) {
 
 func TestServiceInstallArchiveRejectsUnsafeThemeTemplateBeforeStore(t *testing.T) {
 	store := &fakeExtensionStore{}
-	service := NewService(store, t.TempDir())
+	root := t.TempDir()
+	service := NewService(store, root)
 
 	_, err := service.InstallArchive(context.Background(), extensionManager(), ArchiveInput{
 		FileName: "unsafe-theme.zip",
@@ -399,6 +400,7 @@ func TestServiceInstallArchiveRejectsUnsafeThemeTemplateBeforeStore(t *testing.T
 	if store.saved.ID != "" || len(store.items) != 0 {
 		t.Fatalf("unsafe theme reached Store: saved=%#v items=%#v", store.saved, store.items)
 	}
+	assertNoPublishedSnapshot(t, root, "unsafe.theme", "1.0.0")
 }
 
 func TestServiceListsContributionPointsAndEffectiveContributions(t *testing.T) {

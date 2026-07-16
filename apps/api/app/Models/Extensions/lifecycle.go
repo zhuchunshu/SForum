@@ -42,7 +42,8 @@ func (s *Service) InstallArchive(ctx context.Context, actor identity.Actor, inpu
 // InstallOrUpgradeArchive 返回完整升级元数据（F2.4）。
 // V3 静态上传只保存不可变候选；活动 runtime、状态、信任和 provider 选择均保持不变。
 func (s *Service) InstallOrUpgradeArchive(ctx context.Context, actor identity.Actor, input ArchiveInput) (InstallResult, error) {
-	if !canManagePlugins(actor) {
+	// 上传前先挡住无扩展管理权限的调用者；包类型只能在有界静态解析后确定。
+	if !canManagePlugins(actor) && !canManageThemes(actor) {
 		return InstallResult{}, identity.ErrPermissionDenied
 	}
 	if len(input.Data) == 0 || len(input.Data) > maxArchiveBytes {
@@ -55,6 +56,18 @@ func (s *Service) InstallOrUpgradeArchive(ctx context.Context, actor identity.Ac
 	}
 	if err := validateManifest(manifest); err != nil {
 		return InstallResult{}, err
+	}
+	switch manifest.Type {
+	case TypePlugin:
+		if !canManagePlugins(actor) {
+			return InstallResult{}, identity.ErrPermissionDenied
+		}
+	case TypeTheme:
+		if !canManageThemes(actor) {
+			return InstallResult{}, identity.ErrPermissionDenied
+		}
+	default:
+		return InstallResult{}, ErrInvalidManifest
 	}
 	if manifest.ID == DefaultThemeID {
 		return InstallResult{}, ErrInvalidManifest
@@ -76,6 +89,8 @@ func (s *Service) InstallOrUpgradeArchive(ctx context.Context, actor identity.Ac
 		if existing.Source == SourceBuiltin || existing.IsSystem {
 			return InstallResult{}, ErrNotDeletable
 		}
+	} else if !errors.Is(getErr, ErrExtensionNotFound) {
+		return InstallResult{}, getErr
 	}
 
 	manifestJSON, err := json.Marshal(manifest)
@@ -90,7 +105,7 @@ func (s *Service) InstallOrUpgradeArchive(ctx context.Context, actor identity.Ac
 			Body: file.body,
 		})
 	}
-	snapshot, err := extensionpackage.SnapshotUploaded(s.extensionRoot, manifestJSON, packageFiles)
+	ownedSnapshot, err := extensionpackage.SnapshotUploadedOwned(s.extensionRoot, manifestJSON, packageFiles)
 	if err != nil {
 		switch {
 		case errors.Is(err, extensionpackage.ErrInvalidManifest):
@@ -102,17 +117,20 @@ func (s *Service) InstallOrUpgradeArchive(ctx context.Context, actor identity.Ac
 		}
 		return InstallResult{}, err
 	}
+	defer ownedSnapshot.Release()
+	snapshot := ownedSnapshot.Snapshot
 	if manifest.Type == TypeTheme {
 		// 上传安装仍是惰性的，但所有 L1 模板必须在进入权威 Store 前完成
 		// 静态安全检查、受限 AST 校验和 html/template 上下文编译。
 		if err := themecompiler.NewCompiler(themecompiler.Limits{}).PreflightFS(os.DirFS(snapshot.Root)); err != nil {
-			return InstallResult{}, fmt.Errorf("%w: theme template preflight: %w", ErrInvalidManifest, err)
+			installErr := fmt.Errorf("%w: theme template preflight: %w", ErrInvalidManifest, err)
+			return InstallResult{}, errors.Join(installErr, s.discardUnreferencedUploadedSnapshot(ctx, ownedSnapshot))
 		}
 	}
 
 	adminFrontendDigest, err := ComputeAdminFrontendDigest(manifest, snapshot.Root)
 	if err != nil {
-		return InstallResult{}, ErrInvalidManifest
+		return InstallResult{}, errors.Join(ErrInvalidManifest, s.discardUnreferencedUploadedSnapshot(ctx, ownedSnapshot))
 	}
 	installed, err := s.store.SaveInstalled(ctx, SaveInstalledInput{
 		Manifest:            manifest,
@@ -121,8 +139,11 @@ func (s *Service) InstallOrUpgradeArchive(ctx context.Context, actor identity.Ac
 		AdminFrontendDigest: adminFrontendDigest,
 	})
 	if err != nil {
+		// SaveInstalled may have committed before returning an error (for example,
+		// a failed post-commit reload). Retain the bytes for later reconciliation.
 		return InstallResult{}, err
 	}
+	_ = ownedSnapshot.Release()
 
 	result := InstallResult{
 		Extension:         s.decorateRuntime(ctx, installed),
@@ -171,6 +192,46 @@ func (s *Service) InstallOrUpgradeArchive(ctx context.Context, actor identity.Ac
 		})
 	}
 	return result, nil
+}
+
+// discardUnreferencedUploadedSnapshot runs while the per-digest lock is held.
+// Any Store uncertainty or active/staged reference retains the immutable bytes.
+func (s *Service) discardUnreferencedUploadedSnapshot(ctx context.Context, snapshot *extensionpackage.OwnedSnapshot) error {
+	if snapshot == nil || !snapshot.Created() {
+		return nil
+	}
+	if store, ok := s.store.(interface {
+		PackagePathReferenced(context.Context, string) (bool, error)
+	}); ok {
+		referenced, err := store.PackagePathReferenced(ctx, snapshot.Root)
+		if err != nil || referenced {
+			return nil
+		}
+		if err := snapshot.RemoveIfCreated(); err != nil {
+			return fmt.Errorf("discard unreferenced uploaded snapshot: %w", err)
+		}
+		return nil
+	}
+	items, err := s.store.List(ctx)
+	if err != nil {
+		return nil
+	}
+	for _, item := range items {
+		if samePackagePath(item.PackagePath, snapshot.Root) ||
+			(item.StagedVersion != nil && samePackagePath(item.StagedVersion.PackagePath, snapshot.Root)) {
+			return nil
+		}
+	}
+	if err := snapshot.RemoveIfCreated(); err != nil {
+		return fmt.Errorf("discard unreferenced uploaded snapshot: %w", err)
+	}
+	return nil
+}
+
+func samePackagePath(left string, right string) bool {
+	left = strings.TrimSpace(left)
+	right = strings.TrimSpace(right)
+	return left != "" && right != "" && filepath.Clean(left) == filepath.Clean(right)
 }
 
 func (s *Service) Uninstall(ctx context.Context, actor identity.Actor, id string, input UninstallInput) error {

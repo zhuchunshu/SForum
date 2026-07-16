@@ -27,6 +27,7 @@ import (
 
 const (
 	maxArchiveBytes               = 50 * 1024 * 1024
+	maxArchiveEntries             = 4096
 	themeTrustCompensationTimeout = 5 * time.Second
 )
 
@@ -1719,6 +1720,10 @@ type archiveFile struct {
 func readArchive(data []byte) (Manifest, []archiveFile, error) {
 	reader, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
 	if err != nil {
+		return Manifest{}, nil, ErrInvalidArchive
+	}
+	// 中央目录本身也会占内存；目录条目同样计数，避免空文件/目录绕过字节上限。
+	if len(reader.File) > maxArchiveEntries {
 		return Manifest{}, nil, ErrInvalidArchive
 	}
 
