@@ -21,13 +21,15 @@ import (
 var (
 	ErrHostUnavailable                = errors.New("protocol v2 host broker is unavailable")
 	ErrHostActorDelegationUnavailable = errors.New("protocol v2 actor delegation is unavailable")
+	ErrHostQueryDelegationUnavailable = errors.New("protocol v2 query delegation is unavailable")
 )
 
 const (
-	HostQueryOwnSettingsID       = "sforum.extensions.settings.own"
-	HostQueryOwnSettingsVersion  = "1"
-	HostQueryOwnSettingsSchemaID = "sforum.extensions.settings.own.result"
-	HostQueryOwnSettingsSchemaV1 = "1"
+	HostQueryOwnSettingsID        = "sforum.extensions.settings.own"
+	HostQueryOwnSettingsVersion   = "1"
+	HostQueryOwnSettingsSchemaID  = "sforum.extensions.settings.own.result"
+	HostQueryOwnSettingsSchemaV1  = "1"
+	HostQueryFilterValueSchemaRef = "sforum.query.filter.value@1"
 )
 
 // Host exposes the generated Host API v2 clients on the runtime-scoped broker.
@@ -116,9 +118,10 @@ func (h *Host) RequestContext(parent *protocolwire.RequestContext) *protocolwire
 	result.Actor = nil
 	result.Extension = cloneIdentity(h.identity)
 	result.GrantedAuthority = cloneAuthority(h.authority)
-	// Delegation tokens are consumed only by DelegatedCommandRequest and must
-	// not be copied onto arbitrary plugin-to-Host calls.
+	// Delegation tokens are consumed only by the matching delegated request
+	// helper and must not be copied onto arbitrary plugin-to-Host calls.
 	result.HostCommandDelegations = nil
+	result.HostQueryDelegations = nil
 	if result.Locale == "" {
 		result.Locale = "und"
 	}
@@ -127,6 +130,51 @@ func (h *Host) RequestContext(parent *protocolwire.RequestContext) *protocolwire
 		result.Deadline = timestamppb.New(maximum)
 	}
 	return result
+}
+
+// DelegatedQueryRequest selects one exact Host-issued Query Registry token.
+// Callers may add fields, relations, filters, sorts, and pagination to the
+// returned request; actor/runtime authority remains sealed by the token.
+func (h *Host) DelegatedQueryRequest(
+	parent *protocolwire.RequestContext,
+	queryID string,
+	contractVersion string,
+	planVersion string,
+) (*hostwire.QueryRequest, error) {
+	queryID = strings.TrimSpace(queryID)
+	contractVersion = strings.TrimSpace(contractVersion)
+	planVersion = strings.TrimSpace(planVersion)
+	if h == nil || parent == nil || queryID == "" || contractVersion == "" || planVersion == "" {
+		return nil, ErrHostQueryDelegationUnavailable
+	}
+	var matched *protocolwire.HostQueryDelegation
+	for _, delegation := range parent.GetHostQueryDelegations() {
+		if delegation == nil || delegation.GetQueryId() != queryID ||
+			delegation.GetContractVersion() != contractVersion || delegation.GetPlanVersion() != planVersion {
+			continue
+		}
+		if matched != nil {
+			return nil, ErrHostQueryDelegationUnavailable
+		}
+		matched = delegation
+	}
+	if matched == nil || strings.TrimSpace(matched.GetToken()) == "" ||
+		strings.TrimSpace(matched.GetResultSchemaId()) == "" || strings.TrimSpace(matched.GetResultSchemaVersion()) == "" {
+		return nil, ErrHostQueryDelegationUnavailable
+	}
+	return &hostwire.QueryRequest{
+		Context: h.RequestContext(parent), QueryId: queryID,
+		ContractVersion: contractVersion, PlanVersion: planVersion,
+		ResultSchemaId: matched.GetResultSchemaId(), ResultSchemaVersion: matched.GetResultSchemaVersion(),
+		Scope: matched.GetScope(), ActorDelegation: matched.GetToken(),
+	}, nil
+}
+
+// NewHostQueryFilterValue creates the only generic filter document accepted by
+// the Query Registry outlet. The active query declaration still allowlists the
+// field and provider-specific Host mapping validates the string value.
+func NewHostQueryFilterValue(value string) (*protocolwire.TypedDocument, error) {
+	return NewTypedDocument(HostQueryFilterValueSchemaRef, map[string]any{"value": value})
 }
 
 // DelegatedCommandRequest binds the one matching Host-issued token and
