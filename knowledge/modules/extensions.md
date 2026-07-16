@@ -870,6 +870,18 @@ template while retaining Schema fallback fields.
 - This does not close P12 staged/canary rollout, migration-once rolling
   activation, multi-node upgrade/rollback tests, compatibility, marketplace,
   observability, privacy, or developer-workflow rows.
+- **Builtin plugin SaveBuiltin desired-set (narrow):** plugin `SaveBuiltin`
+  acquires `pluginRuntimeDesiredSetLock` before extension row locks. With no
+  publication it only advances active and leaves genesis to
+  `EnsureInitialPluginRuntimePublication`. With an existing full-set it never
+  reprojects all enabled plugins; it preserves unrelated members and never
+  resurrects a missing member (trust-revocation / disable). Upgrade source is
+  the latest immutable publication member (exact `extension_versions` row it
+  names), not mutable `active_version_id`, so a prior unsafe SyncBuiltins that
+  already set active=B while publication still holds A still appends actorless
+  A→B upgrade. Member already equal to target is idempotent; only a newly
+  inserted executable builtin enable-adds. Themes and EnsureInitial one-shot
+  genesis are unchanged.
 
 ## V3 P9 stable component identity checkpoint
 
