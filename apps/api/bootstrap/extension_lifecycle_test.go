@@ -18,6 +18,7 @@ import (
 	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
 	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
 	hostapi "github.com/zhuchunshu/sforum/apps/api/app/Support/HostAPI"
+	identityregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/IdentityRegistry"
 	pages "github.com/zhuchunshu/sforum/apps/api/app/Support/Pages"
 	queryregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/QueryRegistry"
 	routes "github.com/zhuchunshu/sforum/apps/api/app/Support/Routes"
@@ -69,6 +70,19 @@ func (lifecycleDatabaseDisposition) ApplyLifecycleDataDisposition(
 	return extensionsruntime.ExtensionDatabaseDispositionReceipt{}, nil
 }
 
+type bootstrapIdentityPublicationStore struct{}
+
+func (bootstrapIdentityPublicationStore) Reconcile(
+	context.Context,
+	identityregistry.ReconcilePublicationInput,
+) (identityregistry.DurableState, error) {
+	return identityregistry.DurableState{}, nil
+}
+
+func (bootstrapIdentityPublicationStore) LoadDurableState(context.Context) (identityregistry.DurableState, error) {
+	return identityregistry.DurableState{}, nil
+}
+
 func newBootstrapLifecycleStack(t *testing.T) (*productionLifecycleStack, *extensionsruntime.Manager, *extensions.PostgresStore) {
 	return newBootstrapLifecycleStackWithSafeMode(t, false)
 }
@@ -87,8 +101,8 @@ func newBootstrapLifecycleStackWithSafeMode(
 	stack, err := newProductionLifecycleStack(productionLifecycleStackConfig{
 		Pool: pool, Store: store, Features: lifecycleFeatureFacts{}, Trust: trust,
 		Runtime: manager, Pages: pages.NewRegistry(nil), Services: hostapi.NewServiceRegistry(),
-		Caches: cacheregistry.New(),
-		River:  lifecycleRiverClient{}, MigrationEngine: lifecycleMigrationEngine{},
+		Caches: cacheregistry.New(), IdentityStore: bootstrapIdentityPublicationStore{},
+		River: lifecycleRiverClient{}, MigrationEngine: lifecycleMigrationEngine{},
 		ExtensionRoot: t.TempDir(), Database: lifecycleDatabaseDisposition{}, SafeMode: safeMode,
 	})
 	if err != nil {
@@ -111,6 +125,8 @@ func TestProductionLifecycleStackConstructsEveryRequiredDependency(t *testing.T)
 		"component registry":  stack.ComponentRegistry != nil,
 		"asset registry":      stack.AssetRegistry != nil,
 		"cache registry":      stack.CacheRegistry != nil,
+		"identity registry":   stack.IdentityRegistry != nil,
+		"identity store":      stack.IdentityStore != nil,
 		"query registry":      stack.QueryRegistry != nil,
 		"query core catalog":  stack.QueryCoreCatalog != nil,
 		"route providers":     stack.RouteProviders != nil,
@@ -140,6 +156,9 @@ func TestProductionLifecycleStackConstructsEveryRequiredDependency(t *testing.T)
 	}
 	if stack.Registries.CacheRegistry() != stack.CacheRegistry {
 		t.Fatal("lifecycle boundary and production stack use different Cache Registry instances")
+	}
+	if stack.Registries.IdentityRegistry() != stack.IdentityRegistry {
+		t.Fatal("lifecycle boundary and production stack use different Identity Registry instances")
 	}
 	snapshot := stack.RouteRegistry.Snapshot()
 	if snapshot.Revision != 1 || snapshot.SafeMode || len(snapshot.Routes) != len(routes.CoreRouteCatalog()) ||

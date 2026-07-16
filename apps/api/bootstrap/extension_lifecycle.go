@@ -14,6 +14,7 @@ import (
 	extensionopenapi "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionOpenAPI"
 	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
 	hostapi "github.com/zhuchunshu/sforum/apps/api/app/Support/HostAPI"
+	identityregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/IdentityRegistry"
 	supportjobs "github.com/zhuchunshu/sforum/apps/api/app/Support/Jobs"
 	pages "github.com/zhuchunshu/sforum/apps/api/app/Support/Pages"
 	queryregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/QueryRegistry"
@@ -23,17 +24,20 @@ import (
 var errProductionLifecycleDependency = errors.New("bootstrap: production extension lifecycle dependency unavailable")
 
 type productionLifecycleStackConfig struct {
-	Pool            *pgxpool.Pool
-	Store           *extensions.PostgresStore
-	Features        extensions.FeatureFlagSource
-	Trust           *extensions.ExecutableTrustService
-	Runtime         *extensionsruntime.Manager
-	Pages           *pages.Registry
-	ThemeRuntime    *pages.ThemeRuntimeRegistry
-	PageSiteName    string
-	PageLocales     []string
-	Services        *hostapi.ServiceRegistry
-	Caches          *cacheregistry.Registry
+	Pool         *pgxpool.Pool
+	Store        *extensions.PostgresStore
+	Features     extensions.FeatureFlagSource
+	Trust        *extensions.ExecutableTrustService
+	Runtime      *extensionsruntime.Manager
+	Pages        *pages.Registry
+	ThemeRuntime *pages.ThemeRuntimeRegistry
+	PageSiteName string
+	PageLocales  []string
+	Services     *hostapi.ServiceRegistry
+	Caches       *cacheregistry.Registry
+	// IdentityStore is a test seam. Production leaves it nil and always gets a
+	// PostgreSQL-backed append-only publication store from Pool.
+	IdentityStore   identityregistry.PublicationStore
 	River           hostapi.PluginJobLifecycleRiverClient
 	ExtensionRoot   string
 	MigrationEngine extensionsruntime.LifecycleMigrationEngine
@@ -60,6 +64,8 @@ type productionLifecycleStack struct {
 	ComponentRegistry *extensionsruntime.ComponentRegistry
 	AssetRegistry     *assetregistry.Registry
 	CacheRegistry     *cacheregistry.Registry
+	IdentityRegistry  *identityregistry.Registry
+	IdentityStore     identityregistry.PublicationStore
 	// QueryRegistry 与 QueryCoreCatalog 在进程启动时一次性构造；不得每请求重建，
 	// 也不得从 mutable Store 再生成 Core publication。
 	QueryRegistry      *queryregistry.Registry
@@ -176,6 +182,13 @@ func newProductionLifecycleStack(config productionLifecycleStackConfig) (*produc
 			return nil, fmt.Errorf("%w: enter query registry safe mode: %v", errProductionLifecycleDependency, err)
 		}
 	}
+	// Identity root policy and permanent leaf ownership must converge from the
+	// durable PostgreSQL ledger before the process-local graph becomes visible.
+	identityRegistry := identityregistry.New()
+	identityStore := config.IdentityStore
+	if identityStore == nil {
+		identityStore = identityregistry.NewPostgresStore(config.Pool)
+	}
 	routeProviders := routes.NewProviderSelectionAPI(
 		routeRegistry,
 		routes.NewPostgresProviderSelectionStore(config.Pool),
@@ -194,6 +207,7 @@ func newProductionLifecycleStack(config productionLifecycleStackConfig) (*produc
 			ThemeRuntime: config.ThemeRuntime, PageSiteName: config.PageSiteName, PageLocales: config.PageLocales,
 			Routes: routeRegistry, RouteSchemas: routeSchemas, Services: config.Services,
 			Components: componentRegistry, Assets: assetRegistry, Caches: cacheRegistry, Queries: queryRegistry,
+			Identity: identityRegistry, IdentityStore: identityStore,
 			AssetAuthority: assetAuthority, AssetAdmission: config.Trust,
 		},
 	)
@@ -219,6 +233,7 @@ func newProductionLifecycleStack(config productionLifecycleStackConfig) (*produc
 		Schedules: schedules, JobStore: jobStore, JobCoordinator: jobCoordinator, Jobs: jobs,
 		RouteRegistry: routeRegistry, RouteSchemas: routeSchemas, ComponentRegistry: componentRegistry,
 		AssetRegistry: assetRegistry, CacheRegistry: cacheRegistry,
+		IdentityRegistry: identityRegistry, IdentityStore: identityStore,
 		QueryRegistry: queryRegistry, QueryCoreCatalog: queryCoreCatalog,
 		RouteProviders:     routeProviders,
 		ProviderSlots:      providerSlots,
@@ -234,7 +249,7 @@ func (s *productionLifecycleStack) bindService(service *extensions.Service) erro
 	if s == nil || service == nil || s.Coordinator == nil || s.StaticPreflight == nil ||
 		s.Repository == nil || s.CleanupFinalizer == nil || s.RouteProviders == nil || s.ProviderSlots == nil ||
 		s.ComponentRegistry == nil || s.AssetRegistry == nil || s.CacheRegistry == nil || s.QueryRegistry == nil ||
-		s.QueryCoreCatalog == nil || s.Registries == nil {
+		s.QueryCoreCatalog == nil || s.IdentityRegistry == nil || s.IdentityStore == nil || s.Registries == nil {
 		return errProductionLifecycleDependency
 	}
 	extensions.WithLifecycleCoordinator(s.Coordinator, s.StaticPreflight, s.Repository)(service)
