@@ -200,6 +200,8 @@ type PermissionClaim struct {
 // implementation is required for every non-public plan; policy fingerprints and
 // caller-supplied permission strings alone never authorize.
 type PermissionRecheck interface {
+	// For the login policy this callback must revalidate current Host session
+	// authority; Authenticated is only the request projection checked alongside it.
 	AuthorizeQuery(ctx context.Context, claim PermissionClaim) error
 }
 

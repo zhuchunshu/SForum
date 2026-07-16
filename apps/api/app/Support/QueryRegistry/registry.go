@@ -15,6 +15,7 @@ type Registry struct {
 	mu          sync.Mutex
 	state       atomic.Pointer[registryState]
 	costPolicy  CostPolicy
+	cursorCodec CursorCodec
 	admissionMu sync.RWMutex
 	admission   func(Artifact) bool
 }
@@ -27,6 +28,14 @@ type Option func(*Registry)
 func WithCostPolicy(policy CostPolicy) Option {
 	return func(registry *Registry) {
 		registry.costPolicy = policy
+	}
+}
+
+// WithCursorCodec installs the Host-owned authenticated cursor codec. Cursor
+// continuation remains fail-closed when no codec is configured.
+func WithCursorCodec(codec CursorCodec) Option {
+	return func(registry *Registry) {
+		registry.cursorCodec = codec
 	}
 }
 
@@ -60,7 +69,7 @@ func (r *Registry) artifactAdmitted(artifact Artifact) bool {
 	if validCoreArtifactSeal(artifact) {
 		return true
 	}
-	if r == nil {
+	if r == nil || r.load().safeMode {
 		return false
 	}
 	r.admissionMu.RLock()

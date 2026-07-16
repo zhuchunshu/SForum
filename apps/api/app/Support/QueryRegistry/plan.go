@@ -83,12 +83,26 @@ func (r *Registry) Plan(ctx context.Context, request PlanRequest) (QueryPlan, er
 		(actorFingerprint == "" || policyFingerprint == "") {
 		return QueryPlan{}, fmt.Errorf("%w: non-public queries require Host actor and policy fingerprints", ErrDenied)
 	}
+	var cursor CursorClaims
+	if pagination.Mode == PaginationCursor && pagination.Cursor != "" {
+		cursor, err = r.decodeCursorForPlan(
+			state, contribution, pagination, actorFingerprint, policyFingerprint, locale, scope,
+		)
+		if err != nil {
+			return QueryPlan{}, err
+		}
+		pagination.Offset = cursor.Offset
+		pagination.Limit = cursor.Limit
+	}
 
 	// Shape digest excludes cursor offset so the same query shape keeps a stable
 	// identity across pages; cursor validation still binds query/plan/shape.
 	shapeDigest := planShapeDigest(contribution, fields, relations, filters, sorts, PaginationPlan{
 		Mode: pagination.Mode, Limit: pagination.Limit,
 	})
+	if cursor.ShapeDigest != "" && cursor.ShapeDigest != shapeDigest {
+		return QueryPlan{}, ErrCursorInvalid
+	}
 	providers := buildProviders(contribution, fields, relations, filters, sorts)
 	cost, err := r.estimateCost(contribution, fields, relations, filters, sorts, pagination, request.MaxCost)
 	if err != nil {
@@ -349,16 +363,13 @@ func selectPagination(mode string, request PaginationRequest) (PaginationPlan, e
 		if offset != 0 {
 			return PaginationPlan{}, ErrInvalid
 		}
-		if cursor != "" {
-			return PaginationPlan{}, fmt.Errorf("%w: cursor continuation encoding belongs to the Host executor", ErrContractInsufficient)
-		}
-		if limit == 0 {
+		if limit == 0 && cursor == "" {
 			limit = defaultPageLimit
 		}
-		if limit < 1 || limit > maximumPageLimit {
+		if limit < 0 || limit > maximumPageLimit || (cursor == "" && limit < 1) {
 			return PaginationPlan{}, ErrInvalid
 		}
-		return PaginationPlan{Mode: PaginationCursor, Limit: limit}, nil
+		return PaginationPlan{Mode: PaginationCursor, Limit: limit, Cursor: cursor}, nil
 	default:
 		return PaginationPlan{}, ErrInvalid
 	}
@@ -434,12 +445,27 @@ func (r *Registry) validatePlanForRelease(
 	if err != nil || scope != plan.Scope {
 		return ErrArtifactConflict
 	}
-	paginationRequest := PaginationRequest{
-		Offset: plan.Pagination.Offset, Limit: plan.Pagination.Limit, Cursor: plan.Pagination.Cursor,
+	paginationRequest := PaginationRequest{Limit: plan.Pagination.Limit, Cursor: plan.Pagination.Cursor}
+	if plan.Pagination.Mode != PaginationCursor {
+		paginationRequest.Offset = plan.Pagination.Offset
 	}
 	normalizedPagination, err := selectPagination(contribution.Pagination, paginationRequest)
 	if err != nil {
 		return ErrArtifactConflict
+	}
+	if normalizedPagination.Mode == PaginationCursor && normalizedPagination.Cursor != "" {
+		claims, cursorErr := r.decodeCursorForPlan(
+			state, contribution, normalizedPagination, plan.ActorFingerprint, plan.PolicyFingerprint,
+			plan.Locale, plan.Scope,
+		)
+		if cursorErr != nil {
+			return ErrArtifactConflict
+		}
+		if claims.ShapeDigest != plan.ShapeDigest {
+			return ErrArtifactConflict
+		}
+		normalizedPagination.Offset = claims.Offset
+		normalizedPagination.Limit = claims.Limit
 	}
 	shapeDigest := planShapeDigest(contribution, fields, relations, filters, sorts, PaginationPlan{
 		Mode: normalizedPagination.Mode, Limit: normalizedPagination.Limit,
