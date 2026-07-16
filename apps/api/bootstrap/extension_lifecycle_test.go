@@ -87,6 +87,52 @@ func newBootstrapLifecycleStack(t *testing.T) (*productionLifecycleStack, *exten
 	return newBootstrapLifecycleStackWithSafeMode(t, false)
 }
 
+func TestProductionLifecycleStackDefaultIdentityStoreBindsTrustImpactValidator(t *testing.T) {
+	pool := &pgxpool.Pool{}
+	store := extensions.NewPostgresStore(pool)
+	trust := extensions.NewExecutableTrustService(store, extensions.NewPostgresExecutableTrustStore(pool))
+	manager := extensionsruntime.NewManager(extensionsruntime.ManagerConfig{
+		Starter: extensionsruntime.NewProtocolStarter(extensionsruntime.ProtocolStarterConfig{}),
+	})
+	// Leave IdentityStore nil so production constructs the default PostgreSQL store.
+	stack, err := newProductionLifecycleStack(productionLifecycleStackConfig{
+		Pool: pool, Store: store, Features: lifecycleFeatureFacts{}, Trust: trust,
+		Runtime: manager, Pages: pages.NewRegistry(nil), Services: hostapi.NewServiceRegistry(),
+		Caches: cacheregistry.New(), River: lifecycleRiverClient{},
+		MigrationEngine: lifecycleMigrationEngine{}, ExtensionRoot: t.TempDir(),
+		Database: lifecycleDatabaseDisposition{},
+	})
+	if err != nil {
+		t.Fatalf("new production lifecycle stack: %v", err)
+	}
+	postgresStore, ok := stack.IdentityStore.(*identityregistry.PostgresStore)
+	if !ok || postgresStore == nil {
+		t.Fatalf("default IdentityStore type=%T want *identityregistry.PostgresStore", stack.IdentityStore)
+	}
+	if !postgresStore.HasStoredTrustImpactValidator() {
+		t.Fatal("production default IdentityStore must bind ValidateStoredTrustImpact")
+	}
+	if identityregistry.NewPostgresStore(pool).HasStoredTrustImpactValidator() {
+		t.Fatal("ordinary NewPostgresStore must remain adoption-fail-closed")
+	}
+
+	// Injected test seams stay untouched (no forced Postgres adopter).
+	seam := bootstrapIdentityPublicationStore{}
+	seamStack, err := newProductionLifecycleStack(productionLifecycleStackConfig{
+		Pool: pool, Store: store, Features: lifecycleFeatureFacts{}, Trust: trust,
+		Runtime: manager, Pages: pages.NewRegistry(nil), Services: hostapi.NewServiceRegistry(),
+		Caches: cacheregistry.New(), IdentityStore: seam, River: lifecycleRiverClient{},
+		MigrationEngine: lifecycleMigrationEngine{}, ExtensionRoot: t.TempDir(),
+		Database: lifecycleDatabaseDisposition{},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := seamStack.IdentityStore.(bootstrapIdentityPublicationStore); !ok {
+		t.Fatalf("injected IdentityStore replaced: %T", seamStack.IdentityStore)
+	}
+}
+
 func newBootstrapLifecycleStackWithSafeMode(
 	t *testing.T,
 	safeMode bool,

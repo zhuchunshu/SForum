@@ -35,8 +35,9 @@ type productionLifecycleStackConfig struct {
 	PageLocales  []string
 	Services     *hostapi.ServiceRegistry
 	Caches       *cacheregistry.Registry
-	// IdentityStore is a test seam. Production leaves it nil and always gets a
-	// PostgreSQL-backed append-only publication store from Pool.
+	// IdentityStore is a test seam. Production leaves it nil and constructs a
+	// PostgreSQL store with extensions.ValidateStoredTrustImpact so legacy
+	// adoption has an explicit instance-scoped integrity dependency.
 	IdentityStore   identityregistry.PublicationStore
 	River           hostapi.PluginJobLifecycleRiverClient
 	ExtensionRoot   string
@@ -184,10 +185,15 @@ func newProductionLifecycleStack(config productionLifecycleStackConfig) (*produc
 	}
 	// Identity root policy and permanent leaf ownership must converge from the
 	// durable PostgreSQL ledger before the process-local graph becomes visible.
+	// Default PostgreSQL store binds the production TrustImpact digest verifier
+	// so legacy adoption cannot run under a package-global or unset integrity path.
+	// Test seams that supply IdentityStore keep their injected double unchanged.
 	identityRegistry := identityregistry.New()
 	identityStore := config.IdentityStore
 	if identityStore == nil {
-		identityStore = identityregistry.NewPostgresStore(config.Pool)
+		identityStore = identityregistry.NewPostgresStoreWithStoredTrustImpactValidator(
+			config.Pool, extensions.ValidateStoredTrustImpact,
+		)
 	}
 	routeProviders := routes.NewProviderSelectionAPI(
 		routeRegistry,
