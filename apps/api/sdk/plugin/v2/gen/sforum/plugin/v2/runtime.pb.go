@@ -23,20 +23,127 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// RouteRequestAuthorityMode records the Host-issued request authority carried
+// by one exact Route Registry step. Unspecified is never valid for dispatch.
+type RouteRequestAuthorityMode int32
+
+const (
+	RouteRequestAuthorityMode_ROUTE_REQUEST_AUTHORITY_MODE_UNSPECIFIED RouteRequestAuthorityMode = 0
+	RouteRequestAuthorityMode_ROUTE_REQUEST_AUTHORITY_MODE_FILTERED    RouteRequestAuthorityMode = 1
+	RouteRequestAuthorityMode_ROUTE_REQUEST_AUTHORITY_MODE_RAW         RouteRequestAuthorityMode = 2
+)
+
+// Enum value maps for RouteRequestAuthorityMode.
+var (
+	RouteRequestAuthorityMode_name = map[int32]string{
+		0: "ROUTE_REQUEST_AUTHORITY_MODE_UNSPECIFIED",
+		1: "ROUTE_REQUEST_AUTHORITY_MODE_FILTERED",
+		2: "ROUTE_REQUEST_AUTHORITY_MODE_RAW",
+	}
+	RouteRequestAuthorityMode_value = map[string]int32{
+		"ROUTE_REQUEST_AUTHORITY_MODE_UNSPECIFIED": 0,
+		"ROUTE_REQUEST_AUTHORITY_MODE_FILTERED":    1,
+		"ROUTE_REQUEST_AUTHORITY_MODE_RAW":         2,
+	}
+)
+
+func (x RouteRequestAuthorityMode) Enum() *RouteRequestAuthorityMode {
+	p := new(RouteRequestAuthorityMode)
+	*p = x
+	return p
+}
+
+func (x RouteRequestAuthorityMode) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (RouteRequestAuthorityMode) Descriptor() protoreflect.EnumDescriptor {
+	return file_sforum_plugin_v2_runtime_proto_enumTypes[0].Descriptor()
+}
+
+func (RouteRequestAuthorityMode) Type() protoreflect.EnumType {
+	return &file_sforum_plugin_v2_runtime_proto_enumTypes[0]
+}
+
+func (x RouteRequestAuthorityMode) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use RouteRequestAuthorityMode.Descriptor instead.
+func (RouteRequestAuthorityMode) EnumDescriptor() ([]byte, []int) {
+	return file_sforum_plugin_v2_runtime_proto_rawDescGZIP(), []int{0}
+}
+
+// RouteGuardKind binds the authority mode to the Host-frozen route and guard
+// declaration. Core raw_request uses RAW_REQUEST rather than HOST.
+type RouteGuardKind int32
+
+const (
+	RouteGuardKind_ROUTE_GUARD_KIND_UNSPECIFIED RouteGuardKind = 0
+	RouteGuardKind_ROUTE_GUARD_KIND_HOST        RouteGuardKind = 1
+	RouteGuardKind_ROUTE_GUARD_KIND_CUSTOM      RouteGuardKind = 2
+	RouteGuardKind_ROUTE_GUARD_KIND_RAW_REQUEST RouteGuardKind = 3
+)
+
+// Enum value maps for RouteGuardKind.
+var (
+	RouteGuardKind_name = map[int32]string{
+		0: "ROUTE_GUARD_KIND_UNSPECIFIED",
+		1: "ROUTE_GUARD_KIND_HOST",
+		2: "ROUTE_GUARD_KIND_CUSTOM",
+		3: "ROUTE_GUARD_KIND_RAW_REQUEST",
+	}
+	RouteGuardKind_value = map[string]int32{
+		"ROUTE_GUARD_KIND_UNSPECIFIED": 0,
+		"ROUTE_GUARD_KIND_HOST":        1,
+		"ROUTE_GUARD_KIND_CUSTOM":      2,
+		"ROUTE_GUARD_KIND_RAW_REQUEST": 3,
+	}
+)
+
+func (x RouteGuardKind) Enum() *RouteGuardKind {
+	p := new(RouteGuardKind)
+	*p = x
+	return p
+}
+
+func (x RouteGuardKind) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (RouteGuardKind) Descriptor() protoreflect.EnumDescriptor {
+	return file_sforum_plugin_v2_runtime_proto_enumTypes[1].Descriptor()
+}
+
+func (RouteGuardKind) Type() protoreflect.EnumType {
+	return &file_sforum_plugin_v2_runtime_proto_enumTypes[1]
+}
+
+func (x RouteGuardKind) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use RouteGuardKind.Descriptor instead.
+func (RouteGuardKind) EnumDescriptor() ([]byte, []int) {
+	return file_sforum_plugin_v2_runtime_proto_rawDescGZIP(), []int{1}
+}
+
 // RouteRequest invokes one immutable Route Registry binding.
 type RouteRequest struct {
-	state           protoimpl.MessageState `protogen:"open.v1"`
-	Context         *v2.RequestContext     `protobuf:"bytes,1,opt,name=context,proto3" json:"context,omitempty"`
-	RouteId         string                 `protobuf:"bytes,2,opt,name=route_id,json=routeId,proto3" json:"route_id,omitempty"`
-	ContractVersion string                 `protobuf:"bytes,3,opt,name=contract_version,json=contractVersion,proto3" json:"contract_version,omitempty"`
-	Method          string                 `protobuf:"bytes,4,opt,name=method,proto3" json:"method,omitempty"`
-	Path            string                 `protobuf:"bytes,5,opt,name=path,proto3" json:"path,omitempty"`
-	Headers         []*v2.Header           `protobuf:"bytes,6,rep,name=headers,proto3" json:"headers,omitempty"`
-	PathParameters  map[string]string      `protobuf:"bytes,7,rep,name=path_parameters,json=pathParameters,proto3" json:"path_parameters,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	QueryParameters map[string]string      `protobuf:"bytes,8,rep,name=query_parameters,json=queryParameters,proto3" json:"query_parameters,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	Body            *v2.TypedDocument      `protobuf:"bytes,9,opt,name=body,proto3" json:"body,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	state                protoimpl.MessageState    `protogen:"open.v1"`
+	Context              *v2.RequestContext        `protobuf:"bytes,1,opt,name=context,proto3" json:"context,omitempty"`
+	RouteId              string                    `protobuf:"bytes,2,opt,name=route_id,json=routeId,proto3" json:"route_id,omitempty"`
+	ContractVersion      string                    `protobuf:"bytes,3,opt,name=contract_version,json=contractVersion,proto3" json:"contract_version,omitempty"`
+	Method               string                    `protobuf:"bytes,4,opt,name=method,proto3" json:"method,omitempty"`
+	Path                 string                    `protobuf:"bytes,5,opt,name=path,proto3" json:"path,omitempty"`
+	Headers              []*v2.Header              `protobuf:"bytes,6,rep,name=headers,proto3" json:"headers,omitempty"`
+	PathParameters       map[string]string         `protobuf:"bytes,7,rep,name=path_parameters,json=pathParameters,proto3" json:"path_parameters,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	QueryParameters      map[string]string         `protobuf:"bytes,8,rep,name=query_parameters,json=queryParameters,proto3" json:"query_parameters,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Body                 *v2.TypedDocument         `protobuf:"bytes,9,opt,name=body,proto3" json:"body,omitempty"`
+	RequestAuthorityMode RouteRequestAuthorityMode `protobuf:"varint,10,opt,name=request_authority_mode,json=requestAuthorityMode,proto3,enum=sforum.plugin.v2.RouteRequestAuthorityMode" json:"request_authority_mode,omitempty"`
+	GuardKind            RouteGuardKind            `protobuf:"varint,11,opt,name=guard_kind,json=guardKind,proto3,enum=sforum.plugin.v2.RouteGuardKind" json:"guard_kind,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
 }
 
 func (x *RouteRequest) Reset() {
@@ -132,6 +239,20 @@ func (x *RouteRequest) GetBody() *v2.TypedDocument {
 	return nil
 }
 
+func (x *RouteRequest) GetRequestAuthorityMode() RouteRequestAuthorityMode {
+	if x != nil {
+		return x.RequestAuthorityMode
+	}
+	return RouteRequestAuthorityMode_ROUTE_REQUEST_AUTHORITY_MODE_UNSPECIFIED
+}
+
+func (x *RouteRequest) GetGuardKind() RouteGuardKind {
+	if x != nil {
+		return x.GuardKind
+	}
+	return RouteGuardKind_ROUTE_GUARD_KIND_UNSPECIFIED
+}
+
 // RouteResponse is contract-bound and may opt into a separate stream.
 type RouteResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -219,15 +340,17 @@ func (x *RouteResponse) GetError() *v2.ErrorDetail {
 
 // RouteStreamOpen must be the first frame in a route stream.
 type RouteStreamOpen struct {
-	state           protoimpl.MessageState `protogen:"open.v1"`
-	Context         *v2.RequestContext     `protobuf:"bytes,1,opt,name=context,proto3" json:"context,omitempty"`
-	RouteId         string                 `protobuf:"bytes,2,opt,name=route_id,json=routeId,proto3" json:"route_id,omitempty"`
-	ContractVersion string                 `protobuf:"bytes,3,opt,name=contract_version,json=contractVersion,proto3" json:"contract_version,omitempty"`
-	Method          string                 `protobuf:"bytes,4,opt,name=method,proto3" json:"method,omitempty"`
-	Path            string                 `protobuf:"bytes,5,opt,name=path,proto3" json:"path,omitempty"`
-	Headers         []*v2.Header           `protobuf:"bytes,6,rep,name=headers,proto3" json:"headers,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	state                protoimpl.MessageState    `protogen:"open.v1"`
+	Context              *v2.RequestContext        `protobuf:"bytes,1,opt,name=context,proto3" json:"context,omitempty"`
+	RouteId              string                    `protobuf:"bytes,2,opt,name=route_id,json=routeId,proto3" json:"route_id,omitempty"`
+	ContractVersion      string                    `protobuf:"bytes,3,opt,name=contract_version,json=contractVersion,proto3" json:"contract_version,omitempty"`
+	Method               string                    `protobuf:"bytes,4,opt,name=method,proto3" json:"method,omitempty"`
+	Path                 string                    `protobuf:"bytes,5,opt,name=path,proto3" json:"path,omitempty"`
+	Headers              []*v2.Header              `protobuf:"bytes,6,rep,name=headers,proto3" json:"headers,omitempty"`
+	RequestAuthorityMode RouteRequestAuthorityMode `protobuf:"varint,7,opt,name=request_authority_mode,json=requestAuthorityMode,proto3,enum=sforum.plugin.v2.RouteRequestAuthorityMode" json:"request_authority_mode,omitempty"`
+	GuardKind            RouteGuardKind            `protobuf:"varint,8,opt,name=guard_kind,json=guardKind,proto3,enum=sforum.plugin.v2.RouteGuardKind" json:"guard_kind,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
 }
 
 func (x *RouteStreamOpen) Reset() {
@@ -300,6 +423,20 @@ func (x *RouteStreamOpen) GetHeaders() []*v2.Header {
 		return x.Headers
 	}
 	return nil
+}
+
+func (x *RouteStreamOpen) GetRequestAuthorityMode() RouteRequestAuthorityMode {
+	if x != nil {
+		return x.RequestAuthorityMode
+	}
+	return RouteRequestAuthorityMode_ROUTE_REQUEST_AUTHORITY_MODE_UNSPECIFIED
+}
+
+func (x *RouteStreamOpen) GetGuardKind() RouteGuardKind {
+	if x != nil {
+		return x.GuardKind
+	}
+	return RouteGuardKind_ROUTE_GUARD_KIND_UNSPECIFIED
 }
 
 // RouteStreamClose terminates one direction of a route stream.
@@ -1595,7 +1732,7 @@ var File_sforum_plugin_v2_runtime_proto protoreflect.FileDescriptor
 
 const file_sforum_plugin_v2_runtime_proto_rawDesc = "" +
 	"\n" +
-	"\x1esforum/plugin/v2/runtime.proto\x12\x10sforum.plugin.v2\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fsforum/protocol/v2/common.proto\x1a sforum/protocol/v2/control.proto\"\xef\x04\n" +
+	"\x1esforum/plugin/v2/runtime.proto\x12\x10sforum.plugin.v2\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fsforum/protocol/v2/common.proto\x1a sforum/protocol/v2/control.proto\"\x93\x06\n" +
 	"\fRouteRequest\x12<\n" +
 	"\acontext\x18\x01 \x01(\v2\".sforum.protocol.v2.RequestContextR\acontext\x12\x19\n" +
 	"\broute_id\x18\x02 \x01(\tR\arouteId\x12)\n" +
@@ -1605,7 +1742,11 @@ const file_sforum_plugin_v2_runtime_proto_rawDesc = "" +
 	"\aheaders\x18\x06 \x03(\v2\x1a.sforum.protocol.v2.HeaderR\aheaders\x12[\n" +
 	"\x0fpath_parameters\x18\a \x03(\v22.sforum.plugin.v2.RouteRequest.PathParametersEntryR\x0epathParameters\x12^\n" +
 	"\x10query_parameters\x18\b \x03(\v23.sforum.plugin.v2.RouteRequest.QueryParametersEntryR\x0fqueryParameters\x125\n" +
-	"\x04body\x18\t \x01(\v2!.sforum.protocol.v2.TypedDocumentR\x04body\x1aA\n" +
+	"\x04body\x18\t \x01(\v2!.sforum.protocol.v2.TypedDocumentR\x04body\x12a\n" +
+	"\x16request_authority_mode\x18\n" +
+	" \x01(\x0e2+.sforum.plugin.v2.RouteRequestAuthorityModeR\x14requestAuthorityMode\x12?\n" +
+	"\n" +
+	"guard_kind\x18\v \x01(\x0e2 .sforum.plugin.v2.RouteGuardKindR\tguardKind\x1aA\n" +
 	"\x13PathParametersEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1aB\n" +
@@ -1619,14 +1760,17 @@ const file_sforum_plugin_v2_runtime_proto_rawDesc = "" +
 	"\aheaders\x18\x03 \x03(\v2\x1a.sforum.protocol.v2.HeaderR\aheaders\x125\n" +
 	"\x04body\x18\x04 \x01(\v2!.sforum.protocol.v2.TypedDocumentR\x04body\x12%\n" +
 	"\x0estream_follows\x18\x05 \x01(\bR\rstreamFollows\x125\n" +
-	"\x05error\x18\x06 \x01(\v2\x1f.sforum.protocol.v2.ErrorDetailR\x05error\"\xf7\x01\n" +
+	"\x05error\x18\x06 \x01(\v2\x1f.sforum.protocol.v2.ErrorDetailR\x05error\"\x9b\x03\n" +
 	"\x0fRouteStreamOpen\x12<\n" +
 	"\acontext\x18\x01 \x01(\v2\".sforum.protocol.v2.RequestContextR\acontext\x12\x19\n" +
 	"\broute_id\x18\x02 \x01(\tR\arouteId\x12)\n" +
 	"\x10contract_version\x18\x03 \x01(\tR\x0fcontractVersion\x12\x16\n" +
 	"\x06method\x18\x04 \x01(\tR\x06method\x12\x12\n" +
 	"\x04path\x18\x05 \x01(\tR\x04path\x124\n" +
-	"\aheaders\x18\x06 \x03(\v2\x1a.sforum.protocol.v2.HeaderR\aheaders\"\xa0\x01\n" +
+	"\aheaders\x18\x06 \x03(\v2\x1a.sforum.protocol.v2.HeaderR\aheaders\x12a\n" +
+	"\x16request_authority_mode\x18\a \x01(\x0e2+.sforum.plugin.v2.RouteRequestAuthorityModeR\x14requestAuthorityMode\x12?\n" +
+	"\n" +
+	"guard_kind\x18\b \x01(\x0e2 .sforum.plugin.v2.RouteGuardKindR\tguardKind\"\xa0\x01\n" +
 	"\x10RouteStreamClose\x12\x1f\n" +
 	"\vstatus_code\x18\x01 \x01(\rR\n" +
 	"statusCode\x124\n" +
@@ -1727,7 +1871,16 @@ const file_sforum_plugin_v2_runtime_proto_rawDesc = "" +
 	"\x04open\x18\x01 \x01(\v2#.sforum.plugin.v2.ServiceStreamOpenH\x00R\x04open\x12=\n" +
 	"\amessage\x18\x02 \x01(\v2!.sforum.protocol.v2.TypedDocumentH\x00R\amessage\x127\n" +
 	"\x05error\x18\x03 \x01(\v2\x1f.sforum.protocol.v2.ErrorDetailH\x00R\x05errorB\a\n" +
-	"\x05frame2\x8f\t\n" +
+	"\x05frame*\x9a\x01\n" +
+	"\x19RouteRequestAuthorityMode\x12,\n" +
+	"(ROUTE_REQUEST_AUTHORITY_MODE_UNSPECIFIED\x10\x00\x12)\n" +
+	"%ROUTE_REQUEST_AUTHORITY_MODE_FILTERED\x10\x01\x12$\n" +
+	" ROUTE_REQUEST_AUTHORITY_MODE_RAW\x10\x02*\x8c\x01\n" +
+	"\x0eRouteGuardKind\x12 \n" +
+	"\x1cROUTE_GUARD_KIND_UNSPECIFIED\x10\x00\x12\x19\n" +
+	"\x15ROUTE_GUARD_KIND_HOST\x10\x01\x12\x1b\n" +
+	"\x17ROUTE_GUARD_KIND_CUSTOM\x10\x02\x12 \n" +
+	"\x1cROUTE_GUARD_KIND_RAW_REQUEST\x10\x032\x8f\t\n" +
 	"\x14PluginRuntimeService\x12X\n" +
 	"\tHandshake\x12$.sforum.protocol.v2.HandshakeRequest\x1a%.sforum.protocol.v2.HandshakeResponse\x12O\n" +
 	"\x06Health\x12!.sforum.protocol.v2.HealthRequest\x1a\".sforum.protocol.v2.HealthResponse\x12X\n" +
@@ -1757,126 +1910,133 @@ func file_sforum_plugin_v2_runtime_proto_rawDescGZIP() []byte {
 	return file_sforum_plugin_v2_runtime_proto_rawDescData
 }
 
+var file_sforum_plugin_v2_runtime_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
 var file_sforum_plugin_v2_runtime_proto_msgTypes = make([]protoimpl.MessageInfo, 21)
 var file_sforum_plugin_v2_runtime_proto_goTypes = []any{
-	(*RouteRequest)(nil),              // 0: sforum.plugin.v2.RouteRequest
-	(*RouteResponse)(nil),             // 1: sforum.plugin.v2.RouteResponse
-	(*RouteStreamOpen)(nil),           // 2: sforum.plugin.v2.RouteStreamOpen
-	(*RouteStreamClose)(nil),          // 3: sforum.plugin.v2.RouteStreamClose
-	(*RouteStreamFrame)(nil),          // 4: sforum.plugin.v2.RouteStreamFrame
-	(*HookRequest)(nil),               // 5: sforum.plugin.v2.HookRequest
-	(*HookResponse)(nil),              // 6: sforum.plugin.v2.HookResponse
-	(*JobRequest)(nil),                // 7: sforum.plugin.v2.JobRequest
-	(*CommandInvocationRequest)(nil),  // 8: sforum.plugin.v2.CommandInvocationRequest
-	(*CommandInvocationResponse)(nil), // 9: sforum.plugin.v2.CommandInvocationResponse
-	(*ProviderCallRequest)(nil),       // 10: sforum.plugin.v2.ProviderCallRequest
-	(*ProviderCallResponse)(nil),      // 11: sforum.plugin.v2.ProviderCallResponse
-	(*FileOpen)(nil),                  // 12: sforum.plugin.v2.FileOpen
-	(*FileClose)(nil),                 // 13: sforum.plugin.v2.FileClose
-	(*FileFrame)(nil),                 // 14: sforum.plugin.v2.FileFrame
-	(*ServiceRequest)(nil),            // 15: sforum.plugin.v2.ServiceRequest
-	(*ServiceResponse)(nil),           // 16: sforum.plugin.v2.ServiceResponse
-	(*ServiceStreamOpen)(nil),         // 17: sforum.plugin.v2.ServiceStreamOpen
-	(*ServiceStreamFrame)(nil),        // 18: sforum.plugin.v2.ServiceStreamFrame
-	nil,                               // 19: sforum.plugin.v2.RouteRequest.PathParametersEntry
-	nil,                               // 20: sforum.plugin.v2.RouteRequest.QueryParametersEntry
-	(*v2.RequestContext)(nil),         // 21: sforum.protocol.v2.RequestContext
-	(*v2.Header)(nil),                 // 22: sforum.protocol.v2.Header
-	(*v2.TypedDocument)(nil),          // 23: sforum.protocol.v2.TypedDocument
-	(*v2.ResponseContext)(nil),        // 24: sforum.protocol.v2.ResponseContext
-	(*v2.ErrorDetail)(nil),            // 25: sforum.protocol.v2.ErrorDetail
-	(*v2.DataChunk)(nil),              // 26: sforum.protocol.v2.DataChunk
-	(*durationpb.Duration)(nil),       // 27: google.protobuf.Duration
-	(*v2.HandshakeRequest)(nil),       // 28: sforum.protocol.v2.HandshakeRequest
-	(*v2.HealthRequest)(nil),          // 29: sforum.protocol.v2.HealthRequest
-	(*v2.ReadinessRequest)(nil),       // 30: sforum.protocol.v2.ReadinessRequest
-	(*v2.LifecycleRequest)(nil),       // 31: sforum.protocol.v2.LifecycleRequest
-	(*v2.HandshakeResponse)(nil),      // 32: sforum.protocol.v2.HandshakeResponse
-	(*v2.HealthResponse)(nil),         // 33: sforum.protocol.v2.HealthResponse
-	(*v2.ReadinessResponse)(nil),      // 34: sforum.protocol.v2.ReadinessResponse
-	(*v2.ProgressUpdate)(nil),         // 35: sforum.protocol.v2.ProgressUpdate
+	(RouteRequestAuthorityMode)(0),    // 0: sforum.plugin.v2.RouteRequestAuthorityMode
+	(RouteGuardKind)(0),               // 1: sforum.plugin.v2.RouteGuardKind
+	(*RouteRequest)(nil),              // 2: sforum.plugin.v2.RouteRequest
+	(*RouteResponse)(nil),             // 3: sforum.plugin.v2.RouteResponse
+	(*RouteStreamOpen)(nil),           // 4: sforum.plugin.v2.RouteStreamOpen
+	(*RouteStreamClose)(nil),          // 5: sforum.plugin.v2.RouteStreamClose
+	(*RouteStreamFrame)(nil),          // 6: sforum.plugin.v2.RouteStreamFrame
+	(*HookRequest)(nil),               // 7: sforum.plugin.v2.HookRequest
+	(*HookResponse)(nil),              // 8: sforum.plugin.v2.HookResponse
+	(*JobRequest)(nil),                // 9: sforum.plugin.v2.JobRequest
+	(*CommandInvocationRequest)(nil),  // 10: sforum.plugin.v2.CommandInvocationRequest
+	(*CommandInvocationResponse)(nil), // 11: sforum.plugin.v2.CommandInvocationResponse
+	(*ProviderCallRequest)(nil),       // 12: sforum.plugin.v2.ProviderCallRequest
+	(*ProviderCallResponse)(nil),      // 13: sforum.plugin.v2.ProviderCallResponse
+	(*FileOpen)(nil),                  // 14: sforum.plugin.v2.FileOpen
+	(*FileClose)(nil),                 // 15: sforum.plugin.v2.FileClose
+	(*FileFrame)(nil),                 // 16: sforum.plugin.v2.FileFrame
+	(*ServiceRequest)(nil),            // 17: sforum.plugin.v2.ServiceRequest
+	(*ServiceResponse)(nil),           // 18: sforum.plugin.v2.ServiceResponse
+	(*ServiceStreamOpen)(nil),         // 19: sforum.plugin.v2.ServiceStreamOpen
+	(*ServiceStreamFrame)(nil),        // 20: sforum.plugin.v2.ServiceStreamFrame
+	nil,                               // 21: sforum.plugin.v2.RouteRequest.PathParametersEntry
+	nil,                               // 22: sforum.plugin.v2.RouteRequest.QueryParametersEntry
+	(*v2.RequestContext)(nil),         // 23: sforum.protocol.v2.RequestContext
+	(*v2.Header)(nil),                 // 24: sforum.protocol.v2.Header
+	(*v2.TypedDocument)(nil),          // 25: sforum.protocol.v2.TypedDocument
+	(*v2.ResponseContext)(nil),        // 26: sforum.protocol.v2.ResponseContext
+	(*v2.ErrorDetail)(nil),            // 27: sforum.protocol.v2.ErrorDetail
+	(*v2.DataChunk)(nil),              // 28: sforum.protocol.v2.DataChunk
+	(*durationpb.Duration)(nil),       // 29: google.protobuf.Duration
+	(*v2.HandshakeRequest)(nil),       // 30: sforum.protocol.v2.HandshakeRequest
+	(*v2.HealthRequest)(nil),          // 31: sforum.protocol.v2.HealthRequest
+	(*v2.ReadinessRequest)(nil),       // 32: sforum.protocol.v2.ReadinessRequest
+	(*v2.LifecycleRequest)(nil),       // 33: sforum.protocol.v2.LifecycleRequest
+	(*v2.HandshakeResponse)(nil),      // 34: sforum.protocol.v2.HandshakeResponse
+	(*v2.HealthResponse)(nil),         // 35: sforum.protocol.v2.HealthResponse
+	(*v2.ReadinessResponse)(nil),      // 36: sforum.protocol.v2.ReadinessResponse
+	(*v2.ProgressUpdate)(nil),         // 37: sforum.protocol.v2.ProgressUpdate
 }
 var file_sforum_plugin_v2_runtime_proto_depIdxs = []int32{
-	21, // 0: sforum.plugin.v2.RouteRequest.context:type_name -> sforum.protocol.v2.RequestContext
-	22, // 1: sforum.plugin.v2.RouteRequest.headers:type_name -> sforum.protocol.v2.Header
-	19, // 2: sforum.plugin.v2.RouteRequest.path_parameters:type_name -> sforum.plugin.v2.RouteRequest.PathParametersEntry
-	20, // 3: sforum.plugin.v2.RouteRequest.query_parameters:type_name -> sforum.plugin.v2.RouteRequest.QueryParametersEntry
-	23, // 4: sforum.plugin.v2.RouteRequest.body:type_name -> sforum.protocol.v2.TypedDocument
-	24, // 5: sforum.plugin.v2.RouteResponse.context:type_name -> sforum.protocol.v2.ResponseContext
-	22, // 6: sforum.plugin.v2.RouteResponse.headers:type_name -> sforum.protocol.v2.Header
-	23, // 7: sforum.plugin.v2.RouteResponse.body:type_name -> sforum.protocol.v2.TypedDocument
-	25, // 8: sforum.plugin.v2.RouteResponse.error:type_name -> sforum.protocol.v2.ErrorDetail
-	21, // 9: sforum.plugin.v2.RouteStreamOpen.context:type_name -> sforum.protocol.v2.RequestContext
-	22, // 10: sforum.plugin.v2.RouteStreamOpen.headers:type_name -> sforum.protocol.v2.Header
-	22, // 11: sforum.plugin.v2.RouteStreamClose.headers:type_name -> sforum.protocol.v2.Header
-	25, // 12: sforum.plugin.v2.RouteStreamClose.error:type_name -> sforum.protocol.v2.ErrorDetail
-	2,  // 13: sforum.plugin.v2.RouteStreamFrame.open:type_name -> sforum.plugin.v2.RouteStreamOpen
-	26, // 14: sforum.plugin.v2.RouteStreamFrame.chunk:type_name -> sforum.protocol.v2.DataChunk
-	3,  // 15: sforum.plugin.v2.RouteStreamFrame.close:type_name -> sforum.plugin.v2.RouteStreamClose
-	21, // 16: sforum.plugin.v2.HookRequest.context:type_name -> sforum.protocol.v2.RequestContext
-	23, // 17: sforum.plugin.v2.HookRequest.payload:type_name -> sforum.protocol.v2.TypedDocument
-	24, // 18: sforum.plugin.v2.HookResponse.context:type_name -> sforum.protocol.v2.ResponseContext
-	23, // 19: sforum.plugin.v2.HookResponse.result:type_name -> sforum.protocol.v2.TypedDocument
-	23, // 20: sforum.plugin.v2.HookResponse.patch:type_name -> sforum.protocol.v2.TypedDocument
-	25, // 21: sforum.plugin.v2.HookResponse.error:type_name -> sforum.protocol.v2.ErrorDetail
-	21, // 22: sforum.plugin.v2.JobRequest.context:type_name -> sforum.protocol.v2.RequestContext
-	23, // 23: sforum.plugin.v2.JobRequest.payload:type_name -> sforum.protocol.v2.TypedDocument
-	21, // 24: sforum.plugin.v2.CommandInvocationRequest.context:type_name -> sforum.protocol.v2.RequestContext
-	23, // 25: sforum.plugin.v2.CommandInvocationRequest.input:type_name -> sforum.protocol.v2.TypedDocument
-	24, // 26: sforum.plugin.v2.CommandInvocationResponse.context:type_name -> sforum.protocol.v2.ResponseContext
-	23, // 27: sforum.plugin.v2.CommandInvocationResponse.result:type_name -> sforum.protocol.v2.TypedDocument
-	25, // 28: sforum.plugin.v2.CommandInvocationResponse.error:type_name -> sforum.protocol.v2.ErrorDetail
-	21, // 29: sforum.plugin.v2.ProviderCallRequest.context:type_name -> sforum.protocol.v2.RequestContext
-	23, // 30: sforum.plugin.v2.ProviderCallRequest.input:type_name -> sforum.protocol.v2.TypedDocument
-	24, // 31: sforum.plugin.v2.ProviderCallResponse.context:type_name -> sforum.protocol.v2.ResponseContext
-	23, // 32: sforum.plugin.v2.ProviderCallResponse.output:type_name -> sforum.protocol.v2.TypedDocument
-	25, // 33: sforum.plugin.v2.ProviderCallResponse.error:type_name -> sforum.protocol.v2.ErrorDetail
-	21, // 34: sforum.plugin.v2.FileOpen.context:type_name -> sforum.protocol.v2.RequestContext
-	25, // 35: sforum.plugin.v2.FileClose.error:type_name -> sforum.protocol.v2.ErrorDetail
-	12, // 36: sforum.plugin.v2.FileFrame.open:type_name -> sforum.plugin.v2.FileOpen
-	26, // 37: sforum.plugin.v2.FileFrame.chunk:type_name -> sforum.protocol.v2.DataChunk
-	13, // 38: sforum.plugin.v2.FileFrame.close:type_name -> sforum.plugin.v2.FileClose
-	21, // 39: sforum.plugin.v2.ServiceRequest.context:type_name -> sforum.protocol.v2.RequestContext
-	23, // 40: sforum.plugin.v2.ServiceRequest.input:type_name -> sforum.protocol.v2.TypedDocument
-	24, // 41: sforum.plugin.v2.ServiceResponse.context:type_name -> sforum.protocol.v2.ResponseContext
-	23, // 42: sforum.plugin.v2.ServiceResponse.output:type_name -> sforum.protocol.v2.TypedDocument
-	25, // 43: sforum.plugin.v2.ServiceResponse.error:type_name -> sforum.protocol.v2.ErrorDetail
-	21, // 44: sforum.plugin.v2.ServiceStreamOpen.context:type_name -> sforum.protocol.v2.RequestContext
-	27, // 45: sforum.plugin.v2.ServiceStreamOpen.idle_timeout:type_name -> google.protobuf.Duration
-	17, // 46: sforum.plugin.v2.ServiceStreamFrame.open:type_name -> sforum.plugin.v2.ServiceStreamOpen
-	23, // 47: sforum.plugin.v2.ServiceStreamFrame.message:type_name -> sforum.protocol.v2.TypedDocument
-	25, // 48: sforum.plugin.v2.ServiceStreamFrame.error:type_name -> sforum.protocol.v2.ErrorDetail
-	28, // 49: sforum.plugin.v2.PluginRuntimeService.Handshake:input_type -> sforum.protocol.v2.HandshakeRequest
-	29, // 50: sforum.plugin.v2.PluginRuntimeService.Health:input_type -> sforum.protocol.v2.HealthRequest
-	30, // 51: sforum.plugin.v2.PluginRuntimeService.Readiness:input_type -> sforum.protocol.v2.ReadinessRequest
-	31, // 52: sforum.plugin.v2.PluginRuntimeService.RunLifecycle:input_type -> sforum.protocol.v2.LifecycleRequest
-	0,  // 53: sforum.plugin.v2.PluginRuntimeService.InvokeRoute:input_type -> sforum.plugin.v2.RouteRequest
-	4,  // 54: sforum.plugin.v2.PluginRuntimeService.StreamRoute:input_type -> sforum.plugin.v2.RouteStreamFrame
-	5,  // 55: sforum.plugin.v2.PluginRuntimeService.InvokeHook:input_type -> sforum.plugin.v2.HookRequest
-	7,  // 56: sforum.plugin.v2.PluginRuntimeService.ExecuteJob:input_type -> sforum.plugin.v2.JobRequest
-	8,  // 57: sforum.plugin.v2.PluginRuntimeService.InvokeCommand:input_type -> sforum.plugin.v2.CommandInvocationRequest
-	10, // 58: sforum.plugin.v2.PluginRuntimeService.ProviderCall:input_type -> sforum.plugin.v2.ProviderCallRequest
-	14, // 59: sforum.plugin.v2.PluginRuntimeService.TransferFile:input_type -> sforum.plugin.v2.FileFrame
-	15, // 60: sforum.plugin.v2.PluginRuntimeService.InvokeService:input_type -> sforum.plugin.v2.ServiceRequest
-	18, // 61: sforum.plugin.v2.PluginRuntimeService.StreamService:input_type -> sforum.plugin.v2.ServiceStreamFrame
-	32, // 62: sforum.plugin.v2.PluginRuntimeService.Handshake:output_type -> sforum.protocol.v2.HandshakeResponse
-	33, // 63: sforum.plugin.v2.PluginRuntimeService.Health:output_type -> sforum.protocol.v2.HealthResponse
-	34, // 64: sforum.plugin.v2.PluginRuntimeService.Readiness:output_type -> sforum.protocol.v2.ReadinessResponse
-	35, // 65: sforum.plugin.v2.PluginRuntimeService.RunLifecycle:output_type -> sforum.protocol.v2.ProgressUpdate
-	1,  // 66: sforum.plugin.v2.PluginRuntimeService.InvokeRoute:output_type -> sforum.plugin.v2.RouteResponse
-	4,  // 67: sforum.plugin.v2.PluginRuntimeService.StreamRoute:output_type -> sforum.plugin.v2.RouteStreamFrame
-	6,  // 68: sforum.plugin.v2.PluginRuntimeService.InvokeHook:output_type -> sforum.plugin.v2.HookResponse
-	35, // 69: sforum.plugin.v2.PluginRuntimeService.ExecuteJob:output_type -> sforum.protocol.v2.ProgressUpdate
-	9,  // 70: sforum.plugin.v2.PluginRuntimeService.InvokeCommand:output_type -> sforum.plugin.v2.CommandInvocationResponse
-	11, // 71: sforum.plugin.v2.PluginRuntimeService.ProviderCall:output_type -> sforum.plugin.v2.ProviderCallResponse
-	14, // 72: sforum.plugin.v2.PluginRuntimeService.TransferFile:output_type -> sforum.plugin.v2.FileFrame
-	16, // 73: sforum.plugin.v2.PluginRuntimeService.InvokeService:output_type -> sforum.plugin.v2.ServiceResponse
-	18, // 74: sforum.plugin.v2.PluginRuntimeService.StreamService:output_type -> sforum.plugin.v2.ServiceStreamFrame
-	62, // [62:75] is the sub-list for method output_type
-	49, // [49:62] is the sub-list for method input_type
-	49, // [49:49] is the sub-list for extension type_name
-	49, // [49:49] is the sub-list for extension extendee
-	0,  // [0:49] is the sub-list for field type_name
+	23, // 0: sforum.plugin.v2.RouteRequest.context:type_name -> sforum.protocol.v2.RequestContext
+	24, // 1: sforum.plugin.v2.RouteRequest.headers:type_name -> sforum.protocol.v2.Header
+	21, // 2: sforum.plugin.v2.RouteRequest.path_parameters:type_name -> sforum.plugin.v2.RouteRequest.PathParametersEntry
+	22, // 3: sforum.plugin.v2.RouteRequest.query_parameters:type_name -> sforum.plugin.v2.RouteRequest.QueryParametersEntry
+	25, // 4: sforum.plugin.v2.RouteRequest.body:type_name -> sforum.protocol.v2.TypedDocument
+	0,  // 5: sforum.plugin.v2.RouteRequest.request_authority_mode:type_name -> sforum.plugin.v2.RouteRequestAuthorityMode
+	1,  // 6: sforum.plugin.v2.RouteRequest.guard_kind:type_name -> sforum.plugin.v2.RouteGuardKind
+	26, // 7: sforum.plugin.v2.RouteResponse.context:type_name -> sforum.protocol.v2.ResponseContext
+	24, // 8: sforum.plugin.v2.RouteResponse.headers:type_name -> sforum.protocol.v2.Header
+	25, // 9: sforum.plugin.v2.RouteResponse.body:type_name -> sforum.protocol.v2.TypedDocument
+	27, // 10: sforum.plugin.v2.RouteResponse.error:type_name -> sforum.protocol.v2.ErrorDetail
+	23, // 11: sforum.plugin.v2.RouteStreamOpen.context:type_name -> sforum.protocol.v2.RequestContext
+	24, // 12: sforum.plugin.v2.RouteStreamOpen.headers:type_name -> sforum.protocol.v2.Header
+	0,  // 13: sforum.plugin.v2.RouteStreamOpen.request_authority_mode:type_name -> sforum.plugin.v2.RouteRequestAuthorityMode
+	1,  // 14: sforum.plugin.v2.RouteStreamOpen.guard_kind:type_name -> sforum.plugin.v2.RouteGuardKind
+	24, // 15: sforum.plugin.v2.RouteStreamClose.headers:type_name -> sforum.protocol.v2.Header
+	27, // 16: sforum.plugin.v2.RouteStreamClose.error:type_name -> sforum.protocol.v2.ErrorDetail
+	4,  // 17: sforum.plugin.v2.RouteStreamFrame.open:type_name -> sforum.plugin.v2.RouteStreamOpen
+	28, // 18: sforum.plugin.v2.RouteStreamFrame.chunk:type_name -> sforum.protocol.v2.DataChunk
+	5,  // 19: sforum.plugin.v2.RouteStreamFrame.close:type_name -> sforum.plugin.v2.RouteStreamClose
+	23, // 20: sforum.plugin.v2.HookRequest.context:type_name -> sforum.protocol.v2.RequestContext
+	25, // 21: sforum.plugin.v2.HookRequest.payload:type_name -> sforum.protocol.v2.TypedDocument
+	26, // 22: sforum.plugin.v2.HookResponse.context:type_name -> sforum.protocol.v2.ResponseContext
+	25, // 23: sforum.plugin.v2.HookResponse.result:type_name -> sforum.protocol.v2.TypedDocument
+	25, // 24: sforum.plugin.v2.HookResponse.patch:type_name -> sforum.protocol.v2.TypedDocument
+	27, // 25: sforum.plugin.v2.HookResponse.error:type_name -> sforum.protocol.v2.ErrorDetail
+	23, // 26: sforum.plugin.v2.JobRequest.context:type_name -> sforum.protocol.v2.RequestContext
+	25, // 27: sforum.plugin.v2.JobRequest.payload:type_name -> sforum.protocol.v2.TypedDocument
+	23, // 28: sforum.plugin.v2.CommandInvocationRequest.context:type_name -> sforum.protocol.v2.RequestContext
+	25, // 29: sforum.plugin.v2.CommandInvocationRequest.input:type_name -> sforum.protocol.v2.TypedDocument
+	26, // 30: sforum.plugin.v2.CommandInvocationResponse.context:type_name -> sforum.protocol.v2.ResponseContext
+	25, // 31: sforum.plugin.v2.CommandInvocationResponse.result:type_name -> sforum.protocol.v2.TypedDocument
+	27, // 32: sforum.plugin.v2.CommandInvocationResponse.error:type_name -> sforum.protocol.v2.ErrorDetail
+	23, // 33: sforum.plugin.v2.ProviderCallRequest.context:type_name -> sforum.protocol.v2.RequestContext
+	25, // 34: sforum.plugin.v2.ProviderCallRequest.input:type_name -> sforum.protocol.v2.TypedDocument
+	26, // 35: sforum.plugin.v2.ProviderCallResponse.context:type_name -> sforum.protocol.v2.ResponseContext
+	25, // 36: sforum.plugin.v2.ProviderCallResponse.output:type_name -> sforum.protocol.v2.TypedDocument
+	27, // 37: sforum.plugin.v2.ProviderCallResponse.error:type_name -> sforum.protocol.v2.ErrorDetail
+	23, // 38: sforum.plugin.v2.FileOpen.context:type_name -> sforum.protocol.v2.RequestContext
+	27, // 39: sforum.plugin.v2.FileClose.error:type_name -> sforum.protocol.v2.ErrorDetail
+	14, // 40: sforum.plugin.v2.FileFrame.open:type_name -> sforum.plugin.v2.FileOpen
+	28, // 41: sforum.plugin.v2.FileFrame.chunk:type_name -> sforum.protocol.v2.DataChunk
+	15, // 42: sforum.plugin.v2.FileFrame.close:type_name -> sforum.plugin.v2.FileClose
+	23, // 43: sforum.plugin.v2.ServiceRequest.context:type_name -> sforum.protocol.v2.RequestContext
+	25, // 44: sforum.plugin.v2.ServiceRequest.input:type_name -> sforum.protocol.v2.TypedDocument
+	26, // 45: sforum.plugin.v2.ServiceResponse.context:type_name -> sforum.protocol.v2.ResponseContext
+	25, // 46: sforum.plugin.v2.ServiceResponse.output:type_name -> sforum.protocol.v2.TypedDocument
+	27, // 47: sforum.plugin.v2.ServiceResponse.error:type_name -> sforum.protocol.v2.ErrorDetail
+	23, // 48: sforum.plugin.v2.ServiceStreamOpen.context:type_name -> sforum.protocol.v2.RequestContext
+	29, // 49: sforum.plugin.v2.ServiceStreamOpen.idle_timeout:type_name -> google.protobuf.Duration
+	19, // 50: sforum.plugin.v2.ServiceStreamFrame.open:type_name -> sforum.plugin.v2.ServiceStreamOpen
+	25, // 51: sforum.plugin.v2.ServiceStreamFrame.message:type_name -> sforum.protocol.v2.TypedDocument
+	27, // 52: sforum.plugin.v2.ServiceStreamFrame.error:type_name -> sforum.protocol.v2.ErrorDetail
+	30, // 53: sforum.plugin.v2.PluginRuntimeService.Handshake:input_type -> sforum.protocol.v2.HandshakeRequest
+	31, // 54: sforum.plugin.v2.PluginRuntimeService.Health:input_type -> sforum.protocol.v2.HealthRequest
+	32, // 55: sforum.plugin.v2.PluginRuntimeService.Readiness:input_type -> sforum.protocol.v2.ReadinessRequest
+	33, // 56: sforum.plugin.v2.PluginRuntimeService.RunLifecycle:input_type -> sforum.protocol.v2.LifecycleRequest
+	2,  // 57: sforum.plugin.v2.PluginRuntimeService.InvokeRoute:input_type -> sforum.plugin.v2.RouteRequest
+	6,  // 58: sforum.plugin.v2.PluginRuntimeService.StreamRoute:input_type -> sforum.plugin.v2.RouteStreamFrame
+	7,  // 59: sforum.plugin.v2.PluginRuntimeService.InvokeHook:input_type -> sforum.plugin.v2.HookRequest
+	9,  // 60: sforum.plugin.v2.PluginRuntimeService.ExecuteJob:input_type -> sforum.plugin.v2.JobRequest
+	10, // 61: sforum.plugin.v2.PluginRuntimeService.InvokeCommand:input_type -> sforum.plugin.v2.CommandInvocationRequest
+	12, // 62: sforum.plugin.v2.PluginRuntimeService.ProviderCall:input_type -> sforum.plugin.v2.ProviderCallRequest
+	16, // 63: sforum.plugin.v2.PluginRuntimeService.TransferFile:input_type -> sforum.plugin.v2.FileFrame
+	17, // 64: sforum.plugin.v2.PluginRuntimeService.InvokeService:input_type -> sforum.plugin.v2.ServiceRequest
+	20, // 65: sforum.plugin.v2.PluginRuntimeService.StreamService:input_type -> sforum.plugin.v2.ServiceStreamFrame
+	34, // 66: sforum.plugin.v2.PluginRuntimeService.Handshake:output_type -> sforum.protocol.v2.HandshakeResponse
+	35, // 67: sforum.plugin.v2.PluginRuntimeService.Health:output_type -> sforum.protocol.v2.HealthResponse
+	36, // 68: sforum.plugin.v2.PluginRuntimeService.Readiness:output_type -> sforum.protocol.v2.ReadinessResponse
+	37, // 69: sforum.plugin.v2.PluginRuntimeService.RunLifecycle:output_type -> sforum.protocol.v2.ProgressUpdate
+	3,  // 70: sforum.plugin.v2.PluginRuntimeService.InvokeRoute:output_type -> sforum.plugin.v2.RouteResponse
+	6,  // 71: sforum.plugin.v2.PluginRuntimeService.StreamRoute:output_type -> sforum.plugin.v2.RouteStreamFrame
+	8,  // 72: sforum.plugin.v2.PluginRuntimeService.InvokeHook:output_type -> sforum.plugin.v2.HookResponse
+	37, // 73: sforum.plugin.v2.PluginRuntimeService.ExecuteJob:output_type -> sforum.protocol.v2.ProgressUpdate
+	11, // 74: sforum.plugin.v2.PluginRuntimeService.InvokeCommand:output_type -> sforum.plugin.v2.CommandInvocationResponse
+	13, // 75: sforum.plugin.v2.PluginRuntimeService.ProviderCall:output_type -> sforum.plugin.v2.ProviderCallResponse
+	16, // 76: sforum.plugin.v2.PluginRuntimeService.TransferFile:output_type -> sforum.plugin.v2.FileFrame
+	18, // 77: sforum.plugin.v2.PluginRuntimeService.InvokeService:output_type -> sforum.plugin.v2.ServiceResponse
+	20, // 78: sforum.plugin.v2.PluginRuntimeService.StreamService:output_type -> sforum.plugin.v2.ServiceStreamFrame
+	66, // [66:79] is the sub-list for method output_type
+	53, // [53:66] is the sub-list for method input_type
+	53, // [53:53] is the sub-list for extension type_name
+	53, // [53:53] is the sub-list for extension extendee
+	0,  // [0:53] is the sub-list for field type_name
 }
 
 func init() { file_sforum_plugin_v2_runtime_proto_init() }
@@ -1904,13 +2064,14 @@ func file_sforum_plugin_v2_runtime_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_sforum_plugin_v2_runtime_proto_rawDesc), len(file_sforum_plugin_v2_runtime_proto_rawDesc)),
-			NumEnums:      0,
+			NumEnums:      2,
 			NumMessages:   21,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
 		GoTypes:           file_sforum_plugin_v2_runtime_proto_goTypes,
 		DependencyIndexes: file_sforum_plugin_v2_runtime_proto_depIdxs,
+		EnumInfos:         file_sforum_plugin_v2_runtime_proto_enumTypes,
 		MessageInfos:      file_sforum_plugin_v2_runtime_proto_msgTypes,
 	}.Build()
 	File_sforum_plugin_v2_runtime_proto = out.File

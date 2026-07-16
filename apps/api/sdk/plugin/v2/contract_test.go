@@ -77,6 +77,15 @@ func TestRequiredEnvelopeAndCommandFields(t *testing.T) {
 	assertFields(t, "sforum.plugin.v2.CommandInvocationRequest",
 		"context", "command_id", "contract_version", "handler", "input")
 	assertFields(t, "sforum.plugin.v2.CommandInvocationResponse", "context", "result", "error")
+	assertFields(t, "sforum.plugin.v2.RouteRequest",
+		"context", "route_id", "contract_version", "method", "path", "headers", "path_parameters",
+		"query_parameters", "body", "request_authority_mode", "guard_kind")
+	assertFields(t, "sforum.plugin.v2.RouteStreamOpen",
+		"context", "route_id", "contract_version", "method", "path", "headers", "request_authority_mode", "guard_kind")
+	assertEnumValues(t, "sforum.plugin.v2.RouteRequestAuthorityMode",
+		"ROUTE_REQUEST_AUTHORITY_MODE_UNSPECIFIED", "ROUTE_REQUEST_AUTHORITY_MODE_FILTERED", "ROUTE_REQUEST_AUTHORITY_MODE_RAW")
+	assertEnumValues(t, "sforum.plugin.v2.RouteGuardKind",
+		"ROUTE_GUARD_KIND_UNSPECIFIED", "ROUTE_GUARD_KIND_HOST", "ROUTE_GUARD_KIND_CUSTOM", "ROUTE_GUARD_KIND_RAW_REQUEST")
 }
 
 func TestStreamingModesRemainExplicit(t *testing.T) {
@@ -120,6 +129,28 @@ func assertFields(t *testing.T, messageName string, names ...protoreflect.Name) 
 	for _, name := range names {
 		if message.Fields().ByName(name) == nil {
 			t.Errorf("%s missing field %s", messageName, name)
+		}
+	}
+}
+
+func assertEnumValues(t *testing.T, enumName string, names ...protoreflect.Name) {
+	t.Helper()
+	descriptor, err := protoregistry.GlobalFiles.FindDescriptorByName(protoreflect.FullName(enumName))
+	if err != nil {
+		t.Fatalf("enum %s: %v", enumName, err)
+	}
+	enum, ok := descriptor.(protoreflect.EnumDescriptor)
+	if !ok {
+		t.Fatalf("descriptor %s is not an enum", enumName)
+	}
+	values := enum.Values()
+	if values.Len() != len(names) {
+		t.Fatalf("enum %s has %d values, want %d", enumName, values.Len(), len(names))
+	}
+	for index, name := range names {
+		if values.Get(index).Name() != name || values.Get(index).Number() != protoreflect.EnumNumber(index) {
+			t.Fatalf("enum %s value %d = %s/%d, want %s/%d", enumName, index,
+				values.Get(index).Name(), values.Get(index).Number(), name, index)
 		}
 	}
 }

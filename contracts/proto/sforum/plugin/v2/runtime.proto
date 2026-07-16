@@ -25,6 +25,23 @@ service PluginRuntimeService {
   rpc StreamService(stream ServiceStreamFrame) returns (stream ServiceStreamFrame);
 }
 
+// RouteRequestAuthorityMode records the Host-issued request authority carried
+// by one exact Route Registry step. Unspecified is never valid for dispatch.
+enum RouteRequestAuthorityMode {
+  ROUTE_REQUEST_AUTHORITY_MODE_UNSPECIFIED = 0;
+  ROUTE_REQUEST_AUTHORITY_MODE_FILTERED = 1;
+  ROUTE_REQUEST_AUTHORITY_MODE_RAW = 2;
+}
+
+// RouteGuardKind binds the authority mode to the Host-frozen route and guard
+// declaration. Core raw_request uses RAW_REQUEST rather than HOST.
+enum RouteGuardKind {
+  ROUTE_GUARD_KIND_UNSPECIFIED = 0;
+  ROUTE_GUARD_KIND_HOST = 1;
+  ROUTE_GUARD_KIND_CUSTOM = 2;
+  ROUTE_GUARD_KIND_RAW_REQUEST = 3;
+}
+
 // RouteRequest invokes one immutable Route Registry binding.
 message RouteRequest {
   sforum.protocol.v2.RequestContext context = 1;
@@ -36,6 +53,8 @@ message RouteRequest {
   map<string, string> path_parameters = 7;
   map<string, string> query_parameters = 8;
   sforum.protocol.v2.TypedDocument body = 9;
+  RouteRequestAuthorityMode request_authority_mode = 10;
+  RouteGuardKind guard_kind = 11;
 }
 
 // RouteResponse is contract-bound and may opt into a separate stream.
@@ -56,6 +75,8 @@ message RouteStreamOpen {
   string method = 4;
   string path = 5;
   repeated sforum.protocol.v2.Header headers = 6;
+  RouteRequestAuthorityMode request_authority_mode = 7;
+  RouteGuardKind guard_kind = 8;
 }
 
 // RouteStreamClose terminates one direction of a route stream.
