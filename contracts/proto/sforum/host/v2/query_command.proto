@@ -29,6 +29,15 @@ message QueryRequest {
   sforum.protocol.v2.PageRequest page = 7;
   string result_schema_id = 8;
   string result_schema_version = 9;
+  // Query Registry requests require all three exact contract identities.
+  // Stable P5 compatibility queries may omit contract_version.
+  string contract_version = 10;
+  repeated string relations = 11;
+  string scope = 12;
+  // actor_delegation is a one-use Host-signed capability. RequestContext.actor
+  // remains untrusted and must be absent on plugin-to-Host Query Registry calls.
+  string actor_delegation = 13;
+  uint64 offset = 14;
 }
 
 // QueryFilter contains one operator validated by the registered query plan.
@@ -44,12 +53,18 @@ message QuerySort {
   bool descending = 2;
 }
 
-// QueryRow is one schema-bound result row.
+// QueryRow is one schema-bound value, error, or terminal metadata frame.
 message QueryRow {
   sforum.protocol.v2.ResponseContext context = 1;
   uint64 sequence = 2;
   sforum.protocol.v2.TypedDocument value = 3;
   sforum.protocol.v2.ErrorDetail error = 4;
+  // Query Registry streams finish with one metadata-only terminal frame whose
+  // sequence follows the last value row (or is one for an empty result).
+  // Stable P5 compatibility streams retain their original row-only behavior.
+  sforum.protocol.v2.PageInfo page = 5;
+  uint64 next_offset = 6;
+  bool final = 7;
 }
 
 // QueryResponse returns bounded rows and cursor state.
@@ -58,6 +73,7 @@ message QueryResponse {
   repeated sforum.protocol.v2.TypedDocument rows = 2;
   sforum.protocol.v2.PageInfo page = 3;
   sforum.protocol.v2.ErrorDetail error = 4;
+  uint64 next_offset = 5;
 }
 
 // CommandRequest identifies one transactional, versioned Host Command.

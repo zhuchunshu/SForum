@@ -90,8 +90,17 @@ type QueryRequest struct {
 	Page                *v2.PageRequest        `protobuf:"bytes,7,opt,name=page,proto3" json:"page,omitempty"`
 	ResultSchemaId      string                 `protobuf:"bytes,8,opt,name=result_schema_id,json=resultSchemaId,proto3" json:"result_schema_id,omitempty"`
 	ResultSchemaVersion string                 `protobuf:"bytes,9,opt,name=result_schema_version,json=resultSchemaVersion,proto3" json:"result_schema_version,omitempty"`
-	unknownFields       protoimpl.UnknownFields
-	sizeCache           protoimpl.SizeCache
+	// Query Registry requests require all three exact contract identities.
+	// Stable P5 compatibility queries may omit contract_version.
+	ContractVersion string   `protobuf:"bytes,10,opt,name=contract_version,json=contractVersion,proto3" json:"contract_version,omitempty"`
+	Relations       []string `protobuf:"bytes,11,rep,name=relations,proto3" json:"relations,omitempty"`
+	Scope           string   `protobuf:"bytes,12,opt,name=scope,proto3" json:"scope,omitempty"`
+	// actor_delegation is a one-use Host-signed capability. RequestContext.actor
+	// remains untrusted and must be absent on plugin-to-Host Query Registry calls.
+	ActorDelegation string `protobuf:"bytes,13,opt,name=actor_delegation,json=actorDelegation,proto3" json:"actor_delegation,omitempty"`
+	Offset          uint64 `protobuf:"varint,14,opt,name=offset,proto3" json:"offset,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *QueryRequest) Reset() {
@@ -185,6 +194,41 @@ func (x *QueryRequest) GetResultSchemaVersion() string {
 		return x.ResultSchemaVersion
 	}
 	return ""
+}
+
+func (x *QueryRequest) GetContractVersion() string {
+	if x != nil {
+		return x.ContractVersion
+	}
+	return ""
+}
+
+func (x *QueryRequest) GetRelations() []string {
+	if x != nil {
+		return x.Relations
+	}
+	return nil
+}
+
+func (x *QueryRequest) GetScope() string {
+	if x != nil {
+		return x.Scope
+	}
+	return ""
+}
+
+func (x *QueryRequest) GetActorDelegation() string {
+	if x != nil {
+		return x.ActorDelegation
+	}
+	return ""
+}
+
+func (x *QueryRequest) GetOffset() uint64 {
+	if x != nil {
+		return x.Offset
+	}
+	return 0
 }
 
 // QueryFilter contains one operator validated by the registered query plan.
@@ -301,13 +345,19 @@ func (x *QuerySort) GetDescending() bool {
 	return false
 }
 
-// QueryRow is one schema-bound result row.
+// QueryRow is one schema-bound value, error, or terminal metadata frame.
 type QueryRow struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Context       *v2.ResponseContext    `protobuf:"bytes,1,opt,name=context,proto3" json:"context,omitempty"`
-	Sequence      uint64                 `protobuf:"varint,2,opt,name=sequence,proto3" json:"sequence,omitempty"`
-	Value         *v2.TypedDocument      `protobuf:"bytes,3,opt,name=value,proto3" json:"value,omitempty"`
-	Error         *v2.ErrorDetail        `protobuf:"bytes,4,opt,name=error,proto3" json:"error,omitempty"`
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	Context  *v2.ResponseContext    `protobuf:"bytes,1,opt,name=context,proto3" json:"context,omitempty"`
+	Sequence uint64                 `protobuf:"varint,2,opt,name=sequence,proto3" json:"sequence,omitempty"`
+	Value    *v2.TypedDocument      `protobuf:"bytes,3,opt,name=value,proto3" json:"value,omitempty"`
+	Error    *v2.ErrorDetail        `protobuf:"bytes,4,opt,name=error,proto3" json:"error,omitempty"`
+	// Query Registry streams finish with one metadata-only terminal frame whose
+	// sequence follows the last value row (or is one for an empty result).
+	// Stable P5 compatibility streams retain their original row-only behavior.
+	Page          *v2.PageInfo `protobuf:"bytes,5,opt,name=page,proto3" json:"page,omitempty"`
+	NextOffset    uint64       `protobuf:"varint,6,opt,name=next_offset,json=nextOffset,proto3" json:"next_offset,omitempty"`
+	Final         bool         `protobuf:"varint,7,opt,name=final,proto3" json:"final,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -370,6 +420,27 @@ func (x *QueryRow) GetError() *v2.ErrorDetail {
 	return nil
 }
 
+func (x *QueryRow) GetPage() *v2.PageInfo {
+	if x != nil {
+		return x.Page
+	}
+	return nil
+}
+
+func (x *QueryRow) GetNextOffset() uint64 {
+	if x != nil {
+		return x.NextOffset
+	}
+	return 0
+}
+
+func (x *QueryRow) GetFinal() bool {
+	if x != nil {
+		return x.Final
+	}
+	return false
+}
+
 // QueryResponse returns bounded rows and cursor state.
 type QueryResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -377,6 +448,7 @@ type QueryResponse struct {
 	Rows          []*v2.TypedDocument    `protobuf:"bytes,2,rep,name=rows,proto3" json:"rows,omitempty"`
 	Page          *v2.PageInfo           `protobuf:"bytes,3,opt,name=page,proto3" json:"page,omitempty"`
 	Error         *v2.ErrorDetail        `protobuf:"bytes,4,opt,name=error,proto3" json:"error,omitempty"`
+	NextOffset    uint64                 `protobuf:"varint,5,opt,name=next_offset,json=nextOffset,proto3" json:"next_offset,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -437,6 +509,13 @@ func (x *QueryResponse) GetError() *v2.ErrorDetail {
 		return x.Error
 	}
 	return nil
+}
+
+func (x *QueryResponse) GetNextOffset() uint64 {
+	if x != nil {
+		return x.NextOffset
+	}
+	return 0
 }
 
 // CommandRequest identifies one transactional, versioned Host Command.
@@ -894,7 +973,7 @@ var File_sforum_host_v2_query_command_proto protoreflect.FileDescriptor
 
 const file_sforum_host_v2_query_command_proto_rawDesc = "" +
 	"\n" +
-	"\"sforum/host/v2/query_command.proto\x12\x0esforum.host.v2\x1a\x1fsforum/protocol/v2/common.proto\"\x9d\x03\n" +
+	"\"sforum/host/v2/query_command.proto\x12\x0esforum.host.v2\x1a\x1fsforum/protocol/v2/common.proto\"\xbf\x04\n" +
 	"\fQueryRequest\x12<\n" +
 	"\acontext\x18\x01 \x01(\v2\".sforum.protocol.v2.RequestContextR\acontext\x12\x19\n" +
 	"\bquery_id\x18\x02 \x01(\tR\aqueryId\x12!\n" +
@@ -904,7 +983,13 @@ const file_sforum_host_v2_query_command_proto_rawDesc = "" +
 	"\x05sorts\x18\x06 \x03(\v2\x19.sforum.host.v2.QuerySortR\x05sorts\x123\n" +
 	"\x04page\x18\a \x01(\v2\x1f.sforum.protocol.v2.PageRequestR\x04page\x12(\n" +
 	"\x10result_schema_id\x18\b \x01(\tR\x0eresultSchemaId\x122\n" +
-	"\x15result_schema_version\x18\t \x01(\tR\x13resultSchemaVersion\"x\n" +
+	"\x15result_schema_version\x18\t \x01(\tR\x13resultSchemaVersion\x12)\n" +
+	"\x10contract_version\x18\n" +
+	" \x01(\tR\x0fcontractVersion\x12\x1c\n" +
+	"\trelations\x18\v \x03(\tR\trelations\x12\x14\n" +
+	"\x05scope\x18\f \x01(\tR\x05scope\x12)\n" +
+	"\x10actor_delegation\x18\r \x01(\tR\x0factorDelegation\x12\x16\n" +
+	"\x06offset\x18\x0e \x01(\x04R\x06offset\"x\n" +
 	"\vQueryFilter\x12\x14\n" +
 	"\x05field\x18\x01 \x01(\tR\x05field\x12\x1a\n" +
 	"\boperator\x18\x02 \x01(\tR\boperator\x127\n" +
@@ -913,17 +998,23 @@ const file_sforum_host_v2_query_command_proto_rawDesc = "" +
 	"\x05field\x18\x01 \x01(\tR\x05field\x12\x1e\n" +
 	"\n" +
 	"descending\x18\x02 \x01(\bR\n" +
-	"descending\"\xd5\x01\n" +
+	"descending\"\xbe\x02\n" +
 	"\bQueryRow\x12=\n" +
 	"\acontext\x18\x01 \x01(\v2#.sforum.protocol.v2.ResponseContextR\acontext\x12\x1a\n" +
 	"\bsequence\x18\x02 \x01(\x04R\bsequence\x127\n" +
 	"\x05value\x18\x03 \x01(\v2!.sforum.protocol.v2.TypedDocumentR\x05value\x125\n" +
-	"\x05error\x18\x04 \x01(\v2\x1f.sforum.protocol.v2.ErrorDetailR\x05error\"\xee\x01\n" +
+	"\x05error\x18\x04 \x01(\v2\x1f.sforum.protocol.v2.ErrorDetailR\x05error\x120\n" +
+	"\x04page\x18\x05 \x01(\v2\x1c.sforum.protocol.v2.PageInfoR\x04page\x12\x1f\n" +
+	"\vnext_offset\x18\x06 \x01(\x04R\n" +
+	"nextOffset\x12\x14\n" +
+	"\x05final\x18\a \x01(\bR\x05final\"\x8f\x02\n" +
 	"\rQueryResponse\x12=\n" +
 	"\acontext\x18\x01 \x01(\v2#.sforum.protocol.v2.ResponseContextR\acontext\x125\n" +
 	"\x04rows\x18\x02 \x03(\v2!.sforum.protocol.v2.TypedDocumentR\x04rows\x120\n" +
 	"\x04page\x18\x03 \x01(\v2\x1c.sforum.protocol.v2.PageInfoR\x04page\x125\n" +
-	"\x05error\x18\x04 \x01(\v2\x1f.sforum.protocol.v2.ErrorDetailR\x05error\"\xe9\x02\n" +
+	"\x05error\x18\x04 \x01(\v2\x1f.sforum.protocol.v2.ErrorDetailR\x05error\x12\x1f\n" +
+	"\vnext_offset\x18\x05 \x01(\x04R\n" +
+	"nextOffset\"\xe9\x02\n" +
 	"\x0eCommandRequest\x12<\n" +
 	"\acontext\x18\x01 \x01(\v2\".sforum.protocol.v2.RequestContextR\acontext\x12\x1d\n" +
 	"\n" +
@@ -1024,34 +1115,35 @@ var file_sforum_host_v2_query_command_proto_depIdxs = []int32{
 	14, // 5: sforum.host.v2.QueryRow.context:type_name -> sforum.protocol.v2.ResponseContext
 	13, // 6: sforum.host.v2.QueryRow.value:type_name -> sforum.protocol.v2.TypedDocument
 	15, // 7: sforum.host.v2.QueryRow.error:type_name -> sforum.protocol.v2.ErrorDetail
-	14, // 8: sforum.host.v2.QueryResponse.context:type_name -> sforum.protocol.v2.ResponseContext
-	13, // 9: sforum.host.v2.QueryResponse.rows:type_name -> sforum.protocol.v2.TypedDocument
-	16, // 10: sforum.host.v2.QueryResponse.page:type_name -> sforum.protocol.v2.PageInfo
-	15, // 11: sforum.host.v2.QueryResponse.error:type_name -> sforum.protocol.v2.ErrorDetail
-	11, // 12: sforum.host.v2.CommandRequest.context:type_name -> sforum.protocol.v2.RequestContext
-	13, // 13: sforum.host.v2.CommandRequest.input:type_name -> sforum.protocol.v2.TypedDocument
-	14, // 14: sforum.host.v2.CommandPlan.context:type_name -> sforum.protocol.v2.ResponseContext
-	7,  // 15: sforum.host.v2.CommandPlan.policy:type_name -> sforum.host.v2.PolicyDecision
-	8,  // 16: sforum.host.v2.CommandPlan.impact:type_name -> sforum.host.v2.ImpactItem
-	13, // 17: sforum.host.v2.CommandPlan.projected_result:type_name -> sforum.protocol.v2.TypedDocument
-	15, // 18: sforum.host.v2.CommandPlan.error:type_name -> sforum.protocol.v2.ErrorDetail
-	14, // 19: sforum.host.v2.CommandResult.context:type_name -> sforum.protocol.v2.ResponseContext
-	0,  // 20: sforum.host.v2.CommandResult.state:type_name -> sforum.host.v2.CommandState
-	13, // 21: sforum.host.v2.CommandResult.output:type_name -> sforum.protocol.v2.TypedDocument
-	15, // 22: sforum.host.v2.CommandResult.error:type_name -> sforum.protocol.v2.ErrorDetail
-	1,  // 23: sforum.host.v2.HostQueryService.Execute:input_type -> sforum.host.v2.QueryRequest
-	1,  // 24: sforum.host.v2.HostQueryService.Stream:input_type -> sforum.host.v2.QueryRequest
-	6,  // 25: sforum.host.v2.HostCommandService.Plan:input_type -> sforum.host.v2.CommandRequest
-	6,  // 26: sforum.host.v2.HostCommandService.Execute:input_type -> sforum.host.v2.CommandRequest
-	5,  // 27: sforum.host.v2.HostQueryService.Execute:output_type -> sforum.host.v2.QueryResponse
-	4,  // 28: sforum.host.v2.HostQueryService.Stream:output_type -> sforum.host.v2.QueryRow
-	9,  // 29: sforum.host.v2.HostCommandService.Plan:output_type -> sforum.host.v2.CommandPlan
-	10, // 30: sforum.host.v2.HostCommandService.Execute:output_type -> sforum.host.v2.CommandResult
-	27, // [27:31] is the sub-list for method output_type
-	23, // [23:27] is the sub-list for method input_type
-	23, // [23:23] is the sub-list for extension type_name
-	23, // [23:23] is the sub-list for extension extendee
-	0,  // [0:23] is the sub-list for field type_name
+	16, // 8: sforum.host.v2.QueryRow.page:type_name -> sforum.protocol.v2.PageInfo
+	14, // 9: sforum.host.v2.QueryResponse.context:type_name -> sforum.protocol.v2.ResponseContext
+	13, // 10: sforum.host.v2.QueryResponse.rows:type_name -> sforum.protocol.v2.TypedDocument
+	16, // 11: sforum.host.v2.QueryResponse.page:type_name -> sforum.protocol.v2.PageInfo
+	15, // 12: sforum.host.v2.QueryResponse.error:type_name -> sforum.protocol.v2.ErrorDetail
+	11, // 13: sforum.host.v2.CommandRequest.context:type_name -> sforum.protocol.v2.RequestContext
+	13, // 14: sforum.host.v2.CommandRequest.input:type_name -> sforum.protocol.v2.TypedDocument
+	14, // 15: sforum.host.v2.CommandPlan.context:type_name -> sforum.protocol.v2.ResponseContext
+	7,  // 16: sforum.host.v2.CommandPlan.policy:type_name -> sforum.host.v2.PolicyDecision
+	8,  // 17: sforum.host.v2.CommandPlan.impact:type_name -> sforum.host.v2.ImpactItem
+	13, // 18: sforum.host.v2.CommandPlan.projected_result:type_name -> sforum.protocol.v2.TypedDocument
+	15, // 19: sforum.host.v2.CommandPlan.error:type_name -> sforum.protocol.v2.ErrorDetail
+	14, // 20: sforum.host.v2.CommandResult.context:type_name -> sforum.protocol.v2.ResponseContext
+	0,  // 21: sforum.host.v2.CommandResult.state:type_name -> sforum.host.v2.CommandState
+	13, // 22: sforum.host.v2.CommandResult.output:type_name -> sforum.protocol.v2.TypedDocument
+	15, // 23: sforum.host.v2.CommandResult.error:type_name -> sforum.protocol.v2.ErrorDetail
+	1,  // 24: sforum.host.v2.HostQueryService.Execute:input_type -> sforum.host.v2.QueryRequest
+	1,  // 25: sforum.host.v2.HostQueryService.Stream:input_type -> sforum.host.v2.QueryRequest
+	6,  // 26: sforum.host.v2.HostCommandService.Plan:input_type -> sforum.host.v2.CommandRequest
+	6,  // 27: sforum.host.v2.HostCommandService.Execute:input_type -> sforum.host.v2.CommandRequest
+	5,  // 28: sforum.host.v2.HostQueryService.Execute:output_type -> sforum.host.v2.QueryResponse
+	4,  // 29: sforum.host.v2.HostQueryService.Stream:output_type -> sforum.host.v2.QueryRow
+	9,  // 30: sforum.host.v2.HostCommandService.Plan:output_type -> sforum.host.v2.CommandPlan
+	10, // 31: sforum.host.v2.HostCommandService.Execute:output_type -> sforum.host.v2.CommandResult
+	28, // [28:32] is the sub-list for method output_type
+	24, // [24:28] is the sub-list for method input_type
+	24, // [24:24] is the sub-list for extension type_name
+	24, // [24:24] is the sub-list for extension extendee
+	0,  // [0:24] is the sub-list for field type_name
 }
 
 func init() { file_sforum_host_v2_query_command_proto_init() }

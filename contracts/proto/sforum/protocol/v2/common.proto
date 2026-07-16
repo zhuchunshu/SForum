@@ -70,6 +70,9 @@ message RequestContext {
   // Present only on an authenticated Host route/admin invocation. Each token
   // is bound to this exact actor, runtime, artifact, command, and key.
   repeated HostCommandDelegation host_command_delegations = 9;
+  // Present only on an authenticated Host route/admin invocation. Query tokens
+  // are one-use and bound to the exact actor, runtime, artifact, and contract.
+  repeated HostQueryDelegation host_query_delegations = 10;
 }
 
 // HostCommandDelegation is a short-lived Host-signed capability delivered to
@@ -79,6 +82,18 @@ message HostCommandDelegation {
   string command_version = 2;
   string idempotency_key = 3;
   string token = 4;
+}
+
+// HostQueryDelegation carries one Host-derived actor capability to an exact
+// Query Registry contract. Plugins cannot construct or substitute this token.
+message HostQueryDelegation {
+  string query_id = 1;
+  string contract_version = 2;
+  string plan_version = 3;
+  string result_schema_id = 4;
+  string result_schema_version = 5;
+  string scope = 6;
+  string token = 7;
 }
 
 // ResponseContext correlates a response with the authoritative runtime.

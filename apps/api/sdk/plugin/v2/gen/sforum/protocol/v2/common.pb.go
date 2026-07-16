@@ -506,8 +506,11 @@ type RequestContext struct {
 	// Present only on an authenticated Host route/admin invocation. Each token
 	// is bound to this exact actor, runtime, artifact, command, and key.
 	HostCommandDelegations []*HostCommandDelegation `protobuf:"bytes,9,rep,name=host_command_delegations,json=hostCommandDelegations,proto3" json:"host_command_delegations,omitempty"`
-	unknownFields          protoimpl.UnknownFields
-	sizeCache              protoimpl.SizeCache
+	// Present only on an authenticated Host route/admin invocation. Query tokens
+	// are one-use and bound to the exact actor, runtime, artifact, and contract.
+	HostQueryDelegations []*HostQueryDelegation `protobuf:"bytes,10,rep,name=host_query_delegations,json=hostQueryDelegations,proto3" json:"host_query_delegations,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
 }
 
 func (x *RequestContext) Reset() {
@@ -603,6 +606,13 @@ func (x *RequestContext) GetHostCommandDelegations() []*HostCommandDelegation {
 	return nil
 }
 
+func (x *RequestContext) GetHostQueryDelegations() []*HostQueryDelegation {
+	if x != nil {
+		return x.HostQueryDelegations
+	}
+	return nil
+}
+
 // HostCommandDelegation is a short-lived Host-signed capability delivered to
 // one exact plugin invocation. It never replaces Execute-time policy checks.
 type HostCommandDelegation struct {
@@ -673,6 +683,100 @@ func (x *HostCommandDelegation) GetToken() string {
 	return ""
 }
 
+// HostQueryDelegation carries one Host-derived actor capability to an exact
+// Query Registry contract. Plugins cannot construct or substitute this token.
+type HostQueryDelegation struct {
+	state               protoimpl.MessageState `protogen:"open.v1"`
+	QueryId             string                 `protobuf:"bytes,1,opt,name=query_id,json=queryId,proto3" json:"query_id,omitempty"`
+	ContractVersion     string                 `protobuf:"bytes,2,opt,name=contract_version,json=contractVersion,proto3" json:"contract_version,omitempty"`
+	PlanVersion         string                 `protobuf:"bytes,3,opt,name=plan_version,json=planVersion,proto3" json:"plan_version,omitempty"`
+	ResultSchemaId      string                 `protobuf:"bytes,4,opt,name=result_schema_id,json=resultSchemaId,proto3" json:"result_schema_id,omitempty"`
+	ResultSchemaVersion string                 `protobuf:"bytes,5,opt,name=result_schema_version,json=resultSchemaVersion,proto3" json:"result_schema_version,omitempty"`
+	Scope               string                 `protobuf:"bytes,6,opt,name=scope,proto3" json:"scope,omitempty"`
+	Token               string                 `protobuf:"bytes,7,opt,name=token,proto3" json:"token,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
+}
+
+func (x *HostQueryDelegation) Reset() {
+	*x = HostQueryDelegation{}
+	mi := &file_sforum_protocol_v2_common_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *HostQueryDelegation) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*HostQueryDelegation) ProtoMessage() {}
+
+func (x *HostQueryDelegation) ProtoReflect() protoreflect.Message {
+	mi := &file_sforum_protocol_v2_common_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use HostQueryDelegation.ProtoReflect.Descriptor instead.
+func (*HostQueryDelegation) Descriptor() ([]byte, []int) {
+	return file_sforum_protocol_v2_common_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *HostQueryDelegation) GetQueryId() string {
+	if x != nil {
+		return x.QueryId
+	}
+	return ""
+}
+
+func (x *HostQueryDelegation) GetContractVersion() string {
+	if x != nil {
+		return x.ContractVersion
+	}
+	return ""
+}
+
+func (x *HostQueryDelegation) GetPlanVersion() string {
+	if x != nil {
+		return x.PlanVersion
+	}
+	return ""
+}
+
+func (x *HostQueryDelegation) GetResultSchemaId() string {
+	if x != nil {
+		return x.ResultSchemaId
+	}
+	return ""
+}
+
+func (x *HostQueryDelegation) GetResultSchemaVersion() string {
+	if x != nil {
+		return x.ResultSchemaVersion
+	}
+	return ""
+}
+
+func (x *HostQueryDelegation) GetScope() string {
+	if x != nil {
+		return x.Scope
+	}
+	return ""
+}
+
+func (x *HostQueryDelegation) GetToken() string {
+	if x != nil {
+		return x.Token
+	}
+	return ""
+}
+
 // ResponseContext correlates a response with the authoritative runtime.
 type ResponseContext struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -686,7 +790,7 @@ type ResponseContext struct {
 
 func (x *ResponseContext) Reset() {
 	*x = ResponseContext{}
-	mi := &file_sforum_protocol_v2_common_proto_msgTypes[6]
+	mi := &file_sforum_protocol_v2_common_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -698,7 +802,7 @@ func (x *ResponseContext) String() string {
 func (*ResponseContext) ProtoMessage() {}
 
 func (x *ResponseContext) ProtoReflect() protoreflect.Message {
-	mi := &file_sforum_protocol_v2_common_proto_msgTypes[6]
+	mi := &file_sforum_protocol_v2_common_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -711,7 +815,7 @@ func (x *ResponseContext) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResponseContext.ProtoReflect.Descriptor instead.
 func (*ResponseContext) Descriptor() ([]byte, []int) {
-	return file_sforum_protocol_v2_common_proto_rawDescGZIP(), []int{6}
+	return file_sforum_protocol_v2_common_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *ResponseContext) GetRequestId() string {
@@ -757,7 +861,7 @@ type ErrorDetail struct {
 
 func (x *ErrorDetail) Reset() {
 	*x = ErrorDetail{}
-	mi := &file_sforum_protocol_v2_common_proto_msgTypes[7]
+	mi := &file_sforum_protocol_v2_common_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -769,7 +873,7 @@ func (x *ErrorDetail) String() string {
 func (*ErrorDetail) ProtoMessage() {}
 
 func (x *ErrorDetail) ProtoReflect() protoreflect.Message {
-	mi := &file_sforum_protocol_v2_common_proto_msgTypes[7]
+	mi := &file_sforum_protocol_v2_common_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -782,7 +886,7 @@ func (x *ErrorDetail) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ErrorDetail.ProtoReflect.Descriptor instead.
 func (*ErrorDetail) Descriptor() ([]byte, []int) {
-	return file_sforum_protocol_v2_common_proto_rawDescGZIP(), []int{7}
+	return file_sforum_protocol_v2_common_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *ErrorDetail) GetCode() ErrorCode {
@@ -839,7 +943,7 @@ type TypedDocument struct {
 
 func (x *TypedDocument) Reset() {
 	*x = TypedDocument{}
-	mi := &file_sforum_protocol_v2_common_proto_msgTypes[8]
+	mi := &file_sforum_protocol_v2_common_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -851,7 +955,7 @@ func (x *TypedDocument) String() string {
 func (*TypedDocument) ProtoMessage() {}
 
 func (x *TypedDocument) ProtoReflect() protoreflect.Message {
-	mi := &file_sforum_protocol_v2_common_proto_msgTypes[8]
+	mi := &file_sforum_protocol_v2_common_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -864,7 +968,7 @@ func (x *TypedDocument) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TypedDocument.ProtoReflect.Descriptor instead.
 func (*TypedDocument) Descriptor() ([]byte, []int) {
-	return file_sforum_protocol_v2_common_proto_rawDescGZIP(), []int{8}
+	return file_sforum_protocol_v2_common_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *TypedDocument) GetSchemaId() string {
@@ -899,7 +1003,7 @@ type PageRequest struct {
 
 func (x *PageRequest) Reset() {
 	*x = PageRequest{}
-	mi := &file_sforum_protocol_v2_common_proto_msgTypes[9]
+	mi := &file_sforum_protocol_v2_common_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -911,7 +1015,7 @@ func (x *PageRequest) String() string {
 func (*PageRequest) ProtoMessage() {}
 
 func (x *PageRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_sforum_protocol_v2_common_proto_msgTypes[9]
+	mi := &file_sforum_protocol_v2_common_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -924,7 +1028,7 @@ func (x *PageRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PageRequest.ProtoReflect.Descriptor instead.
 func (*PageRequest) Descriptor() ([]byte, []int) {
-	return file_sforum_protocol_v2_common_proto_rawDescGZIP(), []int{9}
+	return file_sforum_protocol_v2_common_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *PageRequest) GetLimit() uint32 {
@@ -952,7 +1056,7 @@ type PageInfo struct {
 
 func (x *PageInfo) Reset() {
 	*x = PageInfo{}
-	mi := &file_sforum_protocol_v2_common_proto_msgTypes[10]
+	mi := &file_sforum_protocol_v2_common_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -964,7 +1068,7 @@ func (x *PageInfo) String() string {
 func (*PageInfo) ProtoMessage() {}
 
 func (x *PageInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_sforum_protocol_v2_common_proto_msgTypes[10]
+	mi := &file_sforum_protocol_v2_common_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -977,7 +1081,7 @@ func (x *PageInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PageInfo.ProtoReflect.Descriptor instead.
 func (*PageInfo) Descriptor() ([]byte, []int) {
-	return file_sforum_protocol_v2_common_proto_rawDescGZIP(), []int{10}
+	return file_sforum_protocol_v2_common_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *PageInfo) GetNextCursor() string {
@@ -1007,7 +1111,7 @@ type DataChunk struct {
 
 func (x *DataChunk) Reset() {
 	*x = DataChunk{}
-	mi := &file_sforum_protocol_v2_common_proto_msgTypes[11]
+	mi := &file_sforum_protocol_v2_common_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1019,7 +1123,7 @@ func (x *DataChunk) String() string {
 func (*DataChunk) ProtoMessage() {}
 
 func (x *DataChunk) ProtoReflect() protoreflect.Message {
-	mi := &file_sforum_protocol_v2_common_proto_msgTypes[11]
+	mi := &file_sforum_protocol_v2_common_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1032,7 +1136,7 @@ func (x *DataChunk) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DataChunk.ProtoReflect.Descriptor instead.
 func (*DataChunk) Descriptor() ([]byte, []int) {
-	return file_sforum_protocol_v2_common_proto_rawDescGZIP(), []int{11}
+	return file_sforum_protocol_v2_common_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *DataChunk) GetSequence() uint64 {
@@ -1074,7 +1178,7 @@ type Header struct {
 
 func (x *Header) Reset() {
 	*x = Header{}
-	mi := &file_sforum_protocol_v2_common_proto_msgTypes[12]
+	mi := &file_sforum_protocol_v2_common_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1086,7 +1190,7 @@ func (x *Header) String() string {
 func (*Header) ProtoMessage() {}
 
 func (x *Header) ProtoReflect() protoreflect.Message {
-	mi := &file_sforum_protocol_v2_common_proto_msgTypes[12]
+	mi := &file_sforum_protocol_v2_common_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1099,7 +1203,7 @@ func (x *Header) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Header.ProtoReflect.Descriptor instead.
 func (*Header) Descriptor() ([]byte, []int) {
-	return file_sforum_protocol_v2_common_proto_rawDescGZIP(), []int{12}
+	return file_sforum_protocol_v2_common_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *Header) GetName() string {
@@ -1151,7 +1255,7 @@ const file_sforum_protocol_v2_common_proto_rawDesc = "" +
 	"\vtraceparent\x18\x03 \x01(\tR\vtraceparent\x12\x1e\n" +
 	"\n" +
 	"tracestate\x18\x04 \x01(\tR\n" +
-	"tracestate\"\x8c\x04\n" +
+	"tracestate\"\xeb\x04\n" +
 	"\x0eRequestContext\x12\x1d\n" +
 	"\n" +
 	"request_id\x18\x01 \x01(\tR\trequestId\x126\n" +
@@ -1162,13 +1266,23 @@ const file_sforum_protocol_v2_common_proto_rawDesc = "" +
 	"\textension\x18\x06 \x01(\v2%.sforum.protocol.v2.ExtensionIdentityR\textension\x12O\n" +
 	"\x11granted_authority\x18\a \x03(\v2\".sforum.protocol.v2.AuthorityGrantR\x10grantedAuthority\x12'\n" +
 	"\x0fidempotency_key\x18\b \x01(\tR\x0eidempotencyKey\x12c\n" +
-	"\x18host_command_delegations\x18\t \x03(\v2).sforum.protocol.v2.HostCommandDelegationR\x16hostCommandDelegations\"\x9e\x01\n" +
+	"\x18host_command_delegations\x18\t \x03(\v2).sforum.protocol.v2.HostCommandDelegationR\x16hostCommandDelegations\x12]\n" +
+	"\x16host_query_delegations\x18\n" +
+	" \x03(\v2'.sforum.protocol.v2.HostQueryDelegationR\x14hostQueryDelegations\"\x9e\x01\n" +
 	"\x15HostCommandDelegation\x12\x1d\n" +
 	"\n" +
 	"command_id\x18\x01 \x01(\tR\tcommandId\x12'\n" +
 	"\x0fcommand_version\x18\x02 \x01(\tR\x0ecommandVersion\x12'\n" +
 	"\x0fidempotency_key\x18\x03 \x01(\tR\x0eidempotencyKey\x12\x14\n" +
-	"\x05token\x18\x04 \x01(\tR\x05token\"\xea\x01\n" +
+	"\x05token\x18\x04 \x01(\tR\x05token\"\x88\x02\n" +
+	"\x13HostQueryDelegation\x12\x19\n" +
+	"\bquery_id\x18\x01 \x01(\tR\aqueryId\x12)\n" +
+	"\x10contract_version\x18\x02 \x01(\tR\x0fcontractVersion\x12!\n" +
+	"\fplan_version\x18\x03 \x01(\tR\vplanVersion\x12(\n" +
+	"\x10result_schema_id\x18\x04 \x01(\tR\x0eresultSchemaId\x122\n" +
+	"\x15result_schema_version\x18\x05 \x01(\tR\x13resultSchemaVersion\x12\x14\n" +
+	"\x05scope\x18\x06 \x01(\tR\x05scope\x12\x14\n" +
+	"\x05token\x18\a \x01(\tR\x05token\"\xea\x01\n" +
 	"\x0fResponseContext\x12\x1d\n" +
 	"\n" +
 	"request_id\x18\x01 \x01(\tR\trequestId\x126\n" +
@@ -1243,7 +1357,7 @@ func file_sforum_protocol_v2_common_proto_rawDescGZIP() []byte {
 }
 
 var file_sforum_protocol_v2_common_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_sforum_protocol_v2_common_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
+var file_sforum_protocol_v2_common_proto_msgTypes = make([]protoimpl.MessageInfo, 15)
 var file_sforum_protocol_v2_common_proto_goTypes = []any{
 	(RiskTier)(0),                 // 0: sforum.protocol.v2.RiskTier
 	(ErrorCode)(0),                // 1: sforum.protocol.v2.ErrorCode
@@ -1253,37 +1367,39 @@ var file_sforum_protocol_v2_common_proto_goTypes = []any{
 	(*TraceContext)(nil),          // 5: sforum.protocol.v2.TraceContext
 	(*RequestContext)(nil),        // 6: sforum.protocol.v2.RequestContext
 	(*HostCommandDelegation)(nil), // 7: sforum.protocol.v2.HostCommandDelegation
-	(*ResponseContext)(nil),       // 8: sforum.protocol.v2.ResponseContext
-	(*ErrorDetail)(nil),           // 9: sforum.protocol.v2.ErrorDetail
-	(*TypedDocument)(nil),         // 10: sforum.protocol.v2.TypedDocument
-	(*PageRequest)(nil),           // 11: sforum.protocol.v2.PageRequest
-	(*PageInfo)(nil),              // 12: sforum.protocol.v2.PageInfo
-	(*DataChunk)(nil),             // 13: sforum.protocol.v2.DataChunk
-	(*Header)(nil),                // 14: sforum.protocol.v2.Header
-	nil,                           // 15: sforum.protocol.v2.ErrorDetail.MetadataEntry
-	(*timestamppb.Timestamp)(nil), // 16: google.protobuf.Timestamp
-	(*structpb.Struct)(nil),       // 17: google.protobuf.Struct
+	(*HostQueryDelegation)(nil),   // 8: sforum.protocol.v2.HostQueryDelegation
+	(*ResponseContext)(nil),       // 9: sforum.protocol.v2.ResponseContext
+	(*ErrorDetail)(nil),           // 10: sforum.protocol.v2.ErrorDetail
+	(*TypedDocument)(nil),         // 11: sforum.protocol.v2.TypedDocument
+	(*PageRequest)(nil),           // 12: sforum.protocol.v2.PageRequest
+	(*PageInfo)(nil),              // 13: sforum.protocol.v2.PageInfo
+	(*DataChunk)(nil),             // 14: sforum.protocol.v2.DataChunk
+	(*Header)(nil),                // 15: sforum.protocol.v2.Header
+	nil,                           // 16: sforum.protocol.v2.ErrorDetail.MetadataEntry
+	(*timestamppb.Timestamp)(nil), // 17: google.protobuf.Timestamp
+	(*structpb.Struct)(nil),       // 18: google.protobuf.Struct
 }
 var file_sforum_protocol_v2_common_proto_depIdxs = []int32{
 	0,  // 0: sforum.protocol.v2.AuthorityGrant.risk_tier:type_name -> sforum.protocol.v2.RiskTier
 	5,  // 1: sforum.protocol.v2.RequestContext.trace:type_name -> sforum.protocol.v2.TraceContext
 	2,  // 2: sforum.protocol.v2.RequestContext.actor:type_name -> sforum.protocol.v2.Actor
-	16, // 3: sforum.protocol.v2.RequestContext.deadline:type_name -> google.protobuf.Timestamp
+	17, // 3: sforum.protocol.v2.RequestContext.deadline:type_name -> google.protobuf.Timestamp
 	3,  // 4: sforum.protocol.v2.RequestContext.extension:type_name -> sforum.protocol.v2.ExtensionIdentity
 	4,  // 5: sforum.protocol.v2.RequestContext.granted_authority:type_name -> sforum.protocol.v2.AuthorityGrant
 	7,  // 6: sforum.protocol.v2.RequestContext.host_command_delegations:type_name -> sforum.protocol.v2.HostCommandDelegation
-	5,  // 7: sforum.protocol.v2.ResponseContext.trace:type_name -> sforum.protocol.v2.TraceContext
-	16, // 8: sforum.protocol.v2.ResponseContext.server_time:type_name -> google.protobuf.Timestamp
-	3,  // 9: sforum.protocol.v2.ResponseContext.extension:type_name -> sforum.protocol.v2.ExtensionIdentity
-	1,  // 10: sforum.protocol.v2.ErrorDetail.code:type_name -> sforum.protocol.v2.ErrorCode
-	16, // 11: sforum.protocol.v2.ErrorDetail.retry_after:type_name -> google.protobuf.Timestamp
-	15, // 12: sforum.protocol.v2.ErrorDetail.metadata:type_name -> sforum.protocol.v2.ErrorDetail.MetadataEntry
-	17, // 13: sforum.protocol.v2.TypedDocument.value:type_name -> google.protobuf.Struct
-	14, // [14:14] is the sub-list for method output_type
-	14, // [14:14] is the sub-list for method input_type
-	14, // [14:14] is the sub-list for extension type_name
-	14, // [14:14] is the sub-list for extension extendee
-	0,  // [0:14] is the sub-list for field type_name
+	8,  // 7: sforum.protocol.v2.RequestContext.host_query_delegations:type_name -> sforum.protocol.v2.HostQueryDelegation
+	5,  // 8: sforum.protocol.v2.ResponseContext.trace:type_name -> sforum.protocol.v2.TraceContext
+	17, // 9: sforum.protocol.v2.ResponseContext.server_time:type_name -> google.protobuf.Timestamp
+	3,  // 10: sforum.protocol.v2.ResponseContext.extension:type_name -> sforum.protocol.v2.ExtensionIdentity
+	1,  // 11: sforum.protocol.v2.ErrorDetail.code:type_name -> sforum.protocol.v2.ErrorCode
+	17, // 12: sforum.protocol.v2.ErrorDetail.retry_after:type_name -> google.protobuf.Timestamp
+	16, // 13: sforum.protocol.v2.ErrorDetail.metadata:type_name -> sforum.protocol.v2.ErrorDetail.MetadataEntry
+	18, // 14: sforum.protocol.v2.TypedDocument.value:type_name -> google.protobuf.Struct
+	15, // [15:15] is the sub-list for method output_type
+	15, // [15:15] is the sub-list for method input_type
+	15, // [15:15] is the sub-list for extension type_name
+	15, // [15:15] is the sub-list for extension extendee
+	0,  // [0:15] is the sub-list for field type_name
 }
 
 func init() { file_sforum_protocol_v2_common_proto_init() }
@@ -1297,7 +1413,7 @@ func file_sforum_protocol_v2_common_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_sforum_protocol_v2_common_proto_rawDesc), len(file_sforum_protocol_v2_common_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   14,
+			NumMessages:   15,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

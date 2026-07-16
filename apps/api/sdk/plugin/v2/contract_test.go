@@ -54,9 +54,11 @@ func TestGeneratedServiceCatalog(t *testing.T) {
 
 func TestRequiredEnvelopeAndCommandFields(t *testing.T) {
 	assertFields(t, "sforum.protocol.v2.RequestContext",
-		"request_id", "trace", "actor", "locale", "deadline", "extension", "granted_authority", "idempotency_key", "host_command_delegations")
+		"request_id", "trace", "actor", "locale", "deadline", "extension", "granted_authority", "idempotency_key", "host_command_delegations", "host_query_delegations")
 	assertFields(t, "sforum.protocol.v2.HostCommandDelegation",
 		"command_id", "command_version", "idempotency_key", "token")
+	assertFields(t, "sforum.protocol.v2.HostQueryDelegation",
+		"query_id", "contract_version", "plan_version", "result_schema_id", "result_schema_version", "scope", "token")
 	assertFields(t, "sforum.protocol.v2.ExtensionIdentity",
 		"extension_id", "extension_version", "artifact_digest", "trust_grant_id", "runtime_epoch", "instance_id")
 	assertFields(t, "sforum.protocol.v2.TypedDocument", "schema_id", "schema_version", "value")
@@ -66,6 +68,10 @@ func TestRequiredEnvelopeAndCommandFields(t *testing.T) {
 		"context", "action", "plan_version", "step_id", "checkpoint", "input", "dry_run", "forced")
 	assertFields(t, "sforum.host.v2.CommandRequest",
 		"context", "command_id", "command_version", "idempotency_key", "dry_run", "expected_revision", "input", "actor_delegation")
+	assertFields(t, "sforum.host.v2.QueryRequest",
+		"context", "query_id", "plan_version", "fields", "filters", "sorts", "page", "result_schema_id", "result_schema_version", "contract_version", "relations", "scope", "actor_delegation", "offset")
+	assertFields(t, "sforum.host.v2.QueryResponse", "context", "rows", "page", "error", "next_offset")
+	assertFields(t, "sforum.host.v2.QueryRow", "context", "sequence", "value", "error", "page", "next_offset", "final")
 	assertFields(t, "sforum.host.v2.CommandResult",
 		"context", "state", "transaction_id", "audit_event_id", "committed_revision", "output", "error")
 	assertFields(t, "sforum.plugin.v2.CommandInvocationRequest",
