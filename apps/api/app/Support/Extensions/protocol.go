@@ -175,6 +175,28 @@ type VersionedProviderResponse struct {
 	Output map[string]any
 }
 
+const (
+	ProtocolV2SEOProviderSlot      = "sforum.seo"
+	ProtocolV2SEOProviderOperation = "apply"
+	ProtocolV2SEORequestSchema     = "sforum.seo.apply.request@1"
+	ProtocolV2SEOResponseSchema    = "sforum.seo.apply.response@1"
+)
+
+// VersionedSEORequest reuses the Protocol V2 ProviderCall transport while
+// freezing dispatch to one exact Manifest SEO declaration. Input and output
+// remain typed documents; plugins never receive raw request/session authority.
+type VersionedSEORequest struct {
+	DeclarationID   string
+	ContractVersion string
+	Handler         string
+	Timeout         time.Duration
+	Input           map[string]any
+}
+
+type VersionedSEOResponse struct {
+	Output map[string]any
+}
+
 type MailProviderRequest struct {
 	DeliveryID    string
 	CorrelationID string
@@ -735,6 +757,22 @@ func (s *ProtocolStarter) InvokeVersionedProvider(
 		return VersionedProviderResponse{}, fmt.Errorf("versioned provider requires Protocol V2")
 	}
 	return client.InvokeVersionedProvider(ctx, input)
+}
+
+func (s *ProtocolStarter) InvokeVersionedSEO(
+	ctx context.Context,
+	extension extensions.Extension,
+	input VersionedSEORequest,
+) (VersionedSEOResponse, error) {
+	s.mu.Lock()
+	protocol := s.protocols[extension.ID]
+	s.recordProtocolCallLocked(extension.ID)
+	s.mu.Unlock()
+	client, ok := protocol.(*protocolV2Client)
+	if !ok {
+		return VersionedSEOResponse{}, fmt.Errorf("versioned SEO provider requires Protocol V2")
+	}
+	return client.InvokeVersionedSEO(ctx, input)
 }
 
 func protocolHookResult(ctx context.Context, response PluginHookResponse, err error) HookResult {

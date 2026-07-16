@@ -52,6 +52,7 @@ type protocolV2ClientConfig struct {
 	events        []extensions.ManifestEvent
 	hooks         []extensions.ManifestHook
 	providers     []extensions.ManifestProvider
+	seo           []extensions.ManifestSEO
 	jobs          []extensions.ManifestJob
 	commands      []extensions.ManifestCommand
 	adminSurfaces []extensions.ManifestAdminSurface
@@ -74,6 +75,7 @@ type protocolV2Client struct {
 	events        []extensions.ManifestEvent
 	hooks         []extensions.ManifestHook
 	providers     []extensions.ManifestProvider
+	seo           []extensions.ManifestSEO
 	jobs          []extensions.ManifestJob
 	commands      []extensions.ManifestCommand
 	adminSurfaces []extensions.ManifestAdminSurface
@@ -113,6 +115,7 @@ func newProtocolV2Client(client pluginv2.PluginRuntimeServiceClient, config prot
 		client: client, identity: cloneV2Identity(config.identity), authority: cloneV2Authority(config.authority),
 		events: append([]extensions.ManifestEvent(nil), config.events...), hooks: cloneManifestHooks(config.hooks),
 		providers:     append([]extensions.ManifestProvider(nil), config.providers...),
+		seo:           append([]extensions.ManifestSEO(nil), config.seo...),
 		jobs:          append([]extensions.ManifestJob(nil), config.jobs...),
 		commands:      append([]extensions.ManifestCommand(nil), config.commands...),
 		adminSurfaces: append([]extensions.ManifestAdminSurface(nil), config.adminSurfaces...),
@@ -234,6 +237,7 @@ func (s *ProtocolStarter) protocolV2ClientConfig(
 		events:        append([]extensions.ManifestEvent(nil), extension.Manifest.Events...),
 		hooks:         cloneManifestHooks(extension.Manifest.Hooks),
 		providers:     append([]extensions.ManifestProvider(nil), extension.Manifest.Providers...),
+		seo:           append([]extensions.ManifestSEO(nil), extension.Manifest.SEO...),
 		jobs:          append([]extensions.ManifestJob(nil), extension.Manifest.Jobs...),
 		commands:      append([]extensions.ManifestCommand(nil), extension.Manifest.Commands...),
 		adminSurfaces: append([]extensions.ManifestAdminSurface(nil), extension.Manifest.AdminSurfaces...),
@@ -813,6 +817,59 @@ func (c *protocolV2Client) InvokeVersionedProvider(
 		return VersionedProviderResponse{}, err
 	}
 	return VersionedProviderResponse{Output: protocolV2Values(response.GetOutput())}, nil
+}
+
+func (c *protocolV2Client) InvokeVersionedSEO(
+	parent context.Context,
+	input VersionedSEORequest,
+) (VersionedSEOResponse, error) {
+	if c == nil || c.client == nil || c.identity == nil || parent == nil {
+		return VersionedSEOResponse{}, extensions.ErrRuntimeUnavailable
+	}
+	var declaration *extensions.ManifestSEO
+	for index := range c.seo {
+		candidate := &c.seo[index]
+		if candidate.ID == input.DeclarationID && candidate.ContractVersion == input.ContractVersion &&
+			candidate.Handler == input.Handler {
+			declaration = candidate
+			break
+		}
+	}
+	if declaration == nil {
+		return VersionedSEOResponse{}, fmt.Errorf("protocol v2 SEO declaration %q is not frozen", input.DeclarationID)
+	}
+	declaredTimeout := time.Duration(declaration.TimeoutMS) * time.Millisecond
+	if input.Timeout != declaredTimeout || declaredTimeout <= 0 || declaredTimeout > DefaultProtocolV2RequestTimeout {
+		return VersionedSEOResponse{}, fmt.Errorf("protocol v2 SEO declaration %q timeout drifted", input.DeclarationID)
+	}
+	requestSchemaID, requestSchemaVersion, err := protocolV2SchemaRef(ProtocolV2SEORequestSchema)
+	if err != nil {
+		return VersionedSEOResponse{}, err
+	}
+	document, err := protocolV2Document(requestSchemaID, requestSchemaVersion, input.Input)
+	if err != nil {
+		return VersionedSEOResponse{}, err
+	}
+	ctx, cancel := protocolV2Deadline(parent, declaredTimeout)
+	defer cancel()
+	response, err := c.client.ProviderCall(ctx, &pluginv2.ProviderCallRequest{
+		Context: c.requestContext(ctx, input.DeclarationID),
+		SlotId:  ProtocolV2SEOProviderSlot, Operation: ProtocolV2SEOProviderOperation,
+		ContractVersion: input.ContractVersion, DeclarationId: input.DeclarationID, Input: document,
+	})
+	if err != nil {
+		if ctx.Err() != nil {
+			return VersionedSEOResponse{}, ctx.Err()
+		}
+		return VersionedSEOResponse{}, err
+	}
+	if err := protocolV2Error(response.GetError()); err != nil {
+		return VersionedSEOResponse{}, err
+	}
+	if err := validateProtocolV2DocumentRef(response.GetOutput(), ProtocolV2SEOResponseSchema, "SEO provider output"); err != nil {
+		return VersionedSEOResponse{}, err
+	}
+	return VersionedSEOResponse{Output: protocolV2Values(response.GetOutput())}, nil
 }
 
 func (c *protocolV2Client) providerCall(slot, operation string, input map[string]any) (*pluginv2.ProviderCallResponse, error) {

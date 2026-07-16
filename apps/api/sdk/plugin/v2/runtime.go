@@ -35,6 +35,7 @@ type Server struct {
 	serviceRegistry  *ServiceRegistry
 	hookRegistry     *HookRegistry
 	providerRegistry *ProviderRegistry
+	seoRegistry      *SEORegistry
 	commandRegistry  *CommandRegistry
 	jobRegistry      *JobRegistry
 	streams          RuntimeStreams
@@ -114,6 +115,17 @@ func (s *Server) WithProviderRegistry(registry *ProviderRegistry) *Server {
 	s.mu.Lock()
 	if !s.started {
 		s.providerRegistry = registry
+	}
+	s.mu.Unlock()
+	return s
+}
+
+// WithSEORegistry enables typed SEO dispatch over the existing ProviderCall
+// RPC. It does not grant raw head, HTML, request, actor, or session access.
+func (s *Server) WithSEORegistry(registry *SEORegistry) *Server {
+	s.mu.Lock()
+	if !s.started {
+		s.seoRegistry = registry
 	}
 	s.mu.Unlock()
 	return s
@@ -268,17 +280,24 @@ func (s *Server) InvokeHook(ctx context.Context, request *pluginwire.HookRequest
 
 func (s *Server) ProviderCall(ctx context.Context, request *pluginwire.ProviderCallRequest) (*pluginwire.ProviderCallResponse, error) {
 	s.mu.RLock()
-	registry := s.providerRegistry
+	providerRegistry := s.providerRegistry
+	seoRegistry := s.seoRegistry
 	s.mu.RUnlock()
-	if registry == nil {
-		return s.UnimplementedPluginRuntimeServiceServer.ProviderCall(ctx, request)
-	}
 	if detail := s.validateRuntimeContext(request.GetContext()); detail != nil {
 		return &pluginwire.ProviderCallResponse{
 			Context: responseContext(request.GetContext(), s.nowTime()), Error: detail,
 		}, nil
 	}
-	return registry.ProviderCall(ctx, request)
+	if request.GetSlotId() == extensionsruntime.ProtocolV2SEOProviderSlot {
+		if seoRegistry == nil {
+			return s.UnimplementedPluginRuntimeServiceServer.ProviderCall(ctx, request)
+		}
+		return seoRegistry.ProviderCall(ctx, request)
+	}
+	if providerRegistry == nil {
+		return s.UnimplementedPluginRuntimeServiceServer.ProviderCall(ctx, request)
+	}
+	return providerRegistry.ProviderCall(ctx, request)
 }
 
 func (s *Server) InvokeCommand(ctx context.Context, request *pluginwire.CommandInvocationRequest) (*pluginwire.CommandInvocationResponse, error) {
