@@ -187,7 +187,14 @@ func NewBufferedRouteStepInvoker(runtime ExactRouteRuntime) *BufferedRouteStepIn
 	transport := stdhttp.DefaultTransport.(*stdhttp.Transport).Clone()
 	transport.Proxy = nil
 	return &BufferedRouteStepInvoker{
-		Runtime: runtime, Client: &stdhttp.Client{Transport: transport}, ResponseLimit: defaultRouteResponseLimit,
+		Runtime: runtime,
+		Client: &stdhttp.Client{
+			Transport: transport,
+			CheckRedirect: func(*stdhttp.Request, []*stdhttp.Request) error {
+				return stdhttp.ErrUseLastResponse
+			},
+		},
+		ResponseLimit: defaultRouteResponseLimit,
 	}
 }
 
@@ -576,8 +583,9 @@ func exactLoopbackRouteURL(base, path, query string) (string, error) {
 }
 
 func copyRouteRequestHeaders(target, source stdhttp.Header) {
+	connectionHeaders := routeConnectionHeaderTokens(source)
 	for name, values := range source {
-		if !routeRequestHeaderAllowed(name) {
+		if !routeRequestHeaderAllowed(name, connectionHeaders) {
 			continue
 		}
 		for _, value := range values {
@@ -586,17 +594,34 @@ func copyRouteRequestHeaders(target, source stdhttp.Header) {
 	}
 }
 
-func routeRequestHeaderAllowed(name string) bool {
-	if strings.HasPrefix(strings.ToLower(strings.TrimSpace(name)), "x-sforum-") {
+func routeRequestHeaderAllowed(name string, connectionHeaders map[string]struct{}) bool {
+	canonical := strings.ToLower(strings.TrimSpace(name))
+	if strings.HasPrefix(canonical, "x-sforum-") {
 		return false
 	}
-	switch strings.ToLower(strings.TrimSpace(name)) {
+	if _, blocked := connectionHeaders[canonical]; blocked {
+		return false
+	}
+	switch canonical {
 	case "", "host", "content-length", "cookie", "authorization", "proxy-authorization",
-		"x-csrf-token", "connection", "keep-alive", "proxy-authenticate", "te", "trailer", "transfer-encoding", "upgrade":
+		"x-csrf-token", "connection", "keep-alive", "proxy-authenticate", "proxy-connection",
+		"te", "trailer", "transfer-encoding", "upgrade":
 		return false
 	default:
 		return true
 	}
+}
+
+func routeConnectionHeaderTokens(headers stdhttp.Header) map[string]struct{} {
+	blocked := make(map[string]struct{})
+	for _, value := range headers.Values("Connection") {
+		for _, token := range strings.Split(value, ",") {
+			if canonical := strings.ToLower(strings.TrimSpace(token)); canonical != "" {
+				blocked[canonical] = struct{}{}
+			}
+		}
+	}
+	return blocked
 }
 
 func filteredRouteResponseHeaders(source stdhttp.Header) stdhttp.Header {

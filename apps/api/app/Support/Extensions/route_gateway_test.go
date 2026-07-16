@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -92,6 +93,37 @@ func TestRouteGatewayProxiesRequestAndTrustedHeaders(t *testing.T) {
 	}
 }
 
+func TestRouteGatewayDoesNotFollowRedirects(t *testing.T) {
+	var destinationCalls atomic.Int32
+	destination := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+		destinationCalls.Add(1)
+	}))
+	defer destination.Close()
+	source := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
+		writer.Header().Set("Location", destination.URL)
+		writer.WriteHeader(http.StatusPermanentRedirect)
+	}))
+	defer source.Close()
+
+	request := fasthttp.AcquireRequest()
+	response := fasthttp.AcquireResponse()
+	defer fasthttp.ReleaseRequest(request)
+	defer fasthttp.ReleaseResponse(response)
+	request.Header.SetMethod(fasthttp.MethodGet)
+	request.SetRequestURI("/redirect")
+
+	err := NewRouteGateway().Proxy(&ProxyInput{
+		Request: request, Response: response, ExtensionID: "demo.plugin",
+		TargetBase: source.URL, TargetPath: "/redirect", Timeout: time.Second,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if response.StatusCode() != http.StatusPermanentRedirect || destinationCalls.Load() != 0 {
+		t.Fatalf("status=%d destinationCalls=%d", response.StatusCode(), destinationCalls.Load())
+	}
+}
+
 // TestRouteGatewayStripsSpoofableClientHeaders 客户端伪造的身份/鉴权头不得转发到插件。
 func TestRouteGatewayStripsSpoofableClientHeaders(t *testing.T) {
 	var (
@@ -102,6 +134,7 @@ func TestRouteGatewayStripsSpoofableClientHeaders(t *testing.T) {
 		gotCookie      string
 		gotCSRF        string
 		gotForged      string
+		gotHop         string
 		gotTrace       string
 	)
 	server := fasthttp.Server{Handler: func(ctx *fasthttp.RequestCtx) {
@@ -112,6 +145,7 @@ func TestRouteGatewayStripsSpoofableClientHeaders(t *testing.T) {
 		gotCookie = string(ctx.Request.Header.Peek("Cookie"))
 		gotCSRF = string(ctx.Request.Header.Peek("X-Csrf-Token"))
 		gotForged = string(ctx.Request.Header.Peek("X-SForum-Forged"))
+		gotHop = string(ctx.Request.Header.Peek("X-Hop-Secret"))
 		gotTrace = string(ctx.Request.Header.Peek("X-Trace-ID"))
 		ctx.SetStatusCode(fasthttp.StatusOK)
 	}}
@@ -132,6 +166,8 @@ func TestRouteGatewayStripsSpoofableClientHeaders(t *testing.T) {
 	req.Header.Set("X-SForum-Extension-ID", "spoofed.plugin")
 	req.Header.Set("X-SForum-Locale", "spoofed-locale")
 	req.Header.Set("X-SForum-Forged", "spoofed-authority")
+	req.Header.Set("Connection", "keep-alive, X-Hop-Secret")
+	req.Header.Set("X-Hop-Secret", "hop-secret")
 	req.Header.Set("Authorization", "Bearer stolen-token")
 	req.Header.Set("Cookie", "sforum_session=evil")
 	req.Header.Set("X-Csrf-Token", "double-submit-secret")
@@ -171,6 +207,9 @@ func TestRouteGatewayStripsSpoofableClientHeaders(t *testing.T) {
 	}
 	if gotForged != "" {
 		t.Fatalf("client-spoofed X-SForum authority must not reach plugin, got %q", gotForged)
+	}
+	if gotHop != "" {
+		t.Fatalf("Connection-named hop header must not reach plugin, got %q", gotHop)
 	}
 	if gotTrace != "trace-41" {
 		t.Fatalf("ordinary request header was lost, trace=%q", gotTrace)

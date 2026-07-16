@@ -19,7 +19,12 @@ func NewRouteGateway() *RouteGateway {
 	transport := http.DefaultTransport.(*http.Transport).Clone()
 	// 插件路由只允许直连握手校验过的 loopback target，不继承部署代理。
 	transport.Proxy = nil
-	return &RouteGateway{client: &http.Client{Transport: transport}}
+	return &RouteGateway{client: &http.Client{
+		Transport: transport,
+		CheckRedirect: func(*http.Request, []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+	}}
 }
 
 func (g *RouteGateway) Proxy(input *ProxyInput) error {
@@ -51,9 +56,10 @@ func (g *RouteGateway) Proxy(input *ProxyInput) error {
 	if err != nil {
 		return err
 	}
+	connectionHeaders := routeConnectionHeaderTokens(input.Request.Header.PeekAll("Connection"))
 	input.Request.Header.VisitAll(func(key, value []byte) {
 		name := string(key)
-		if routeRequestHeaderAllowed(name) {
+		if routeRequestHeaderAllowed(name, connectionHeaders) {
 			request.Header.Add(name, string(value))
 		}
 	})
@@ -87,19 +93,34 @@ func (g *RouteGateway) Proxy(input *ProxyInput) error {
 	return nil
 }
 
-func routeRequestHeaderAllowed(name string) bool {
+func routeRequestHeaderAllowed(name string, connectionHeaders map[string]struct{}) bool {
 	canonical := strings.ToLower(strings.TrimSpace(name))
 	if strings.HasPrefix(canonical, "x-sforum-") {
+		return false
+	}
+	if _, blocked := connectionHeaders[canonical]; blocked {
 		return false
 	}
 	switch canonical {
 	case "", "host", "content-length", "cookie", "authorization", "proxy-authorization",
 		"x-api-key", "x-auth-token", "x-csrf-token", "connection", "keep-alive", "proxy-authenticate",
-		"te", "trailer", "transfer-encoding", "upgrade":
+		"proxy-connection", "te", "trailer", "transfer-encoding", "upgrade":
 		return false
 	default:
 		return true
 	}
+}
+
+func routeConnectionHeaderTokens(values [][]byte) map[string]struct{} {
+	blocked := make(map[string]struct{})
+	for _, value := range values {
+		for _, token := range strings.Split(string(value), ",") {
+			if canonical := strings.ToLower(strings.TrimSpace(token)); canonical != "" {
+				blocked[canonical] = struct{}{}
+			}
+		}
+	}
+	return blocked
 }
 
 func routeResponseHeaderAllowed(name string) bool {
