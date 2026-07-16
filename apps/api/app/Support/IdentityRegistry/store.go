@@ -225,6 +225,19 @@ type PublicationStore interface {
 	LoadDurableState(ctx context.Context) (DurableState, error)
 }
 
+// LegacyPublicationAdopter is an optional, narrowly scoped capability for a
+// one-time startup adoption of pre-feature enabled plugins that never wrote
+// durable Identity Registry history. Normal ValidateDurablePublication remains
+// strict: empty durable history is never generally acceptable.
+//
+// Implementations must adopt the full missing batch in one all-or-none
+// transaction and fail closed unless every evidence lock proves each enabled
+// exact artifact still has live trust-grant + matching trust audit + full
+// TrustImpact integrity. Stores without this capability stay ErrNotFound.
+type LegacyPublicationAdopter interface {
+	AdoptLegacyPublications(ctx context.Context, publications []Publication) (DurableState, error)
+}
+
 // DurableStateToTombstones converts durable ownership into in-process tombstones.
 // Owner rows without a matching declaration tip/contract fail closed so restart
 // restore never silently drops permanent ownership.

@@ -15,8 +15,13 @@ import (
 
 // PostgresStore persists Identity Registry ownership tips and role suggestions.
 // Approval consumes the catalog and adds one mapping plus immutable evidence.
+//
+// trustImpactValidator is required only for LegacyPublicationAdopter. Ordinary
+// Store/PublicationStore paths ignore it. NewPostgresStore leaves it nil so
+// legacy adoption fails closed unless production or tests inject a verifier.
 type PostgresStore struct {
-	pool *pgxpool.Pool
+	pool                 *pgxpool.Pool
+	trustImpactValidator StoredTrustImpactValidator
 }
 
 const (
@@ -24,8 +29,29 @@ const (
 	roleSuggestionCommitReadbackTimeout = 2 * time.Second
 )
 
+// NewPostgresStore constructs the ordinary Identity Registry repository.
+// Legacy adoption is unavailable until a store is built with
+// NewPostgresStoreWithStoredTrustImpactValidator.
 func NewPostgresStore(pool *pgxpool.Pool) *PostgresStore {
 	return &PostgresStore{pool: pool}
+}
+
+// NewPostgresStoreWithStoredTrustImpactValidator constructs a repository that
+// may adopt pre-feature enabled plugins. validator must be the production
+// Models/Extensions.ValidateStoredTrustImpact (or an equivalent test double);
+// a nil validator keeps adoption fail-closed.
+func NewPostgresStoreWithStoredTrustImpactValidator(
+	pool *pgxpool.Pool,
+	validator StoredTrustImpactValidator,
+) *PostgresStore {
+	return &PostgresStore{pool: pool, trustImpactValidator: validator}
+}
+
+// HasStoredTrustImpactValidator reports whether this instance can perform
+// legacy adoption. Ordinary NewPostgresStore returns false; production
+// lifecycle wiring and tests use this probe without exposing the function.
+func (s *PostgresStore) HasStoredTrustImpactValidator() bool {
+	return s != nil && s.trustImpactValidator != nil
 }
 
 func (s *PostgresStore) LoadDurableState(ctx context.Context) (DurableState, error) {
