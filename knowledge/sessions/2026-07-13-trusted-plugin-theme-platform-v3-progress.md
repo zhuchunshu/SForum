@@ -25,6 +25,7 @@ Last updated: 2026-07-17
 
 ## Recent Verified Commits
 
+- `c5c7b089c fix(routes): harden loopback request forwarding`
 - `fea430020 fix(extensions): gate runtime publication on migration proof`
 - `d20d88097 docs(extensions): record cache SDK closure`
 - `ba4ebc50c feat(sdk): harden cache helpers`
@@ -64,6 +65,12 @@ Last updated: 2026-07-17
   against PostgreSQL, `go vet ./app/Support/Extensions`, Models/Extensions and
   bootstrap tests, `go build ./...`, and focused overlap tests repeated under
   the race detector.
+- P6 loopback forwarding now refuses every HTTP redirect in both the Route
+  Registry invoker and the legacy namespaced gateway, strips standard and
+  `Connection`-named hop-by-hop headers, and keeps browser credentials,
+  CSRF material, and Host-reserved headers closed. The complete `app/Http` and
+  `app/Support/Extensions` normal suites, focused race tests, both-package vet,
+  formatting, and staged diff checks passed for `c5c7b089c`.
 
 ## Accepted Decisions And Assumptions
 
@@ -94,14 +101,11 @@ Last updated: 2026-07-17
 
 ## Exact Next Steps
 
-1. Commit this P12 ledger/module update separately from implementation.
-2. Trace the production Guard authorizer, Dispatcher, loopback, Protocol V2,
-   stream, WebSocket, and trust-revoke paths before editing P6 raw authority.
-3. Add the private per-step authority result and credential-filter helpers first,
+1. Add the private per-step authority result and credential-filter helpers first,
    preserving compatibility for existing GuardAuthorizer implementations.
-4. Wire exact revoke/drain and unary/loopback/stream defenses with allowed plus
+2. Wire exact revoke/drain and unary/loopback/stream defenses with allowed plus
    denied, drift, redirect, invalid-WebSocket, and race tests.
-5. Continue mutable-field/action semantics after raw authority; land SEO only in
+3. Continue mutable-field/action semantics after raw authority; land SEO only in
    independently reviewed contract/transport/Host-policy/
    bootstrap/reference slices; do not credit the SEO row before SSR, sitemap,
    revoke/failure, and Inspector evidence is production-complete.
