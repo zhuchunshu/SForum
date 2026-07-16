@@ -484,7 +484,7 @@ blocking implement the authoritative row without retaining a second alias.
 
 - [x] Inventory/register stable ids and versions for every core route.
 - [x] Implement immutable route snapshots and deterministic specificity/priority.
-- [x] Remove the `/extensions/{id}/*` target restriction and support any declared
+- [ ] Remove the `/extensions/{id}/*` target restriction and support any declared
       public, admin, or API path and HTTP method by stable route id.
 - [ ] Implement `add`, `alias`, `redirect`, `rewrite`, `before`, `after`,
       `filter`, `wrap`, `replace`, and global middleware.
@@ -492,7 +492,7 @@ blocking implement the authoritative row without retaining a second alias.
       cancellation, and backpressure through the proxy/runtime.
 - [ ] Default to inherited core guards; implement separately confirmed custom
       guard/raw request authority.
-- [x] Validate request/response/filter schemas and explicit mutable fields.
+- [ ] Validate request/response/filter schemas and explicit mutable fields.
 - [x] Add explicit provider selection and conflict UI for replace providers.
 - [x] Define safe GET fallback and fail-closed unsafe method behavior.
 - [x] Prevent fallback after headers/body/plugin side effects begin.

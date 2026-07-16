@@ -1,7 +1,7 @@
 # Trusted Plugin And Theme Platform V3 Progress Ledger
 
 Date: 2026-07-16
-Overall progress: **63%**
+Overall progress: **62%**
 Active phase: **P9 - Components/assets/L2 (25% accepted; CSP and composition exits remain open)**
 
 This ledger is the durable percentage and context-compaction checkpoint for the
@@ -22,7 +22,7 @@ scaffolding, or demo-only code cannot satisfy a runtime exit criterion.
 | P3 Host API v2 | 8% | 100% | 8% |
 | P4 Lifecycle/dependencies | 7% | 100% | 7% |
 | P5 Database/commands | 8% | 100% | 8% |
-| P6 Routes/middleware | 10% | 78% | 7.78% |
+| P6 Routes/middleware | 10% | 67% | 6.67% |
 | P7 Workflow/admin/query/identity | 10% | 64% | 6.36% |
 | P8 Theme compiler/runtime | 8% | 100% | 8% |
 | P9 Components/assets/L2 | 8% | 25% | 2.00% |
@@ -111,6 +111,43 @@ phase percentage.
   failing plugin exactly once (`failed`, then `skipped`).
 
 ## Last Durable Checkpoint
+
+### 2026-07-16 P6 Production Credit Correction
+
+- Exact weighted progress is `62.0303%`; displayed progress is **62%** and the
+  user-facing progress bar may show **62.0%**. P6 is **12/18**, P7 **14/22**,
+  P8 **18/18**, and P9 **4/16**.
+- The exact formula is
+  `39 + 10*(12/18) + 10*(14/22) + 8 + 8*(4/16) = 62.0303`.
+- Two previously checked P6 rows were reopened after a production-path audit.
+  `app/Http/server.go` mounts `routeDispatcherMiddleware` only on the
+  `/api/v1` Fiber group, so Registry declarations for arbitrary public/admin
+  root paths cannot reach the production dispatcher. Unit tests that install
+  the middleware directly on a test app do not prove the real topology.
+- Route request/response schema validation exists, but the route Manifest,
+  Registry, Protocol V2 request, and OpenAPI contract have no declaration-bound
+  mutable-field policy. `Support/Routes/route_matrix_test.go` explicitly records
+  mutable fields as an open semantic boundary.
+- Historical Route Inspector credit remains valid. The correction removes only
+  the arbitrary-path and explicit-mutable-field rows; it does not rewrite the
+  evidence of the commits that originally accepted the Inspector.
+- P6 now has six open rows: arbitrary production path mounting, complete action
+  semantics, inherited/custom/raw authority, explicit mutable fields,
+  alias/redirect SEO/canonical integration, and the complete route matrix.
+
+Dirty ownership remains family-scoped. Never stage the user-owned
+`apps/api/app/Models/PageViewModels/source_test.go` or
+`extensions/builtin/plugins/sforum-content-policy/sforum.extension.json`.
+
+Exact resume command:
+
+```bash
+git status --short
+```
+
+Then land the already-running P12 and Query slices independently before shared
+Protocol edits, and repair the two reopened P6 rows with production HTTP and
+contract tests.
 
 ### 2026-07-16 Query/Identity/P12 Candidate Checkpoint
 
