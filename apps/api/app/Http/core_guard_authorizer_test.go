@@ -70,10 +70,11 @@ func TestProductionRouteGuardAuthorizerRunsExplicitContextualAdapters(t *testing
 			}, permissions: []string{identity.PermissionAttachmentUpload},
 		},
 		{
-			name: "topic own edit remains closed", descriptor: routes.CoreGuardDescriptor{
+			// own 权限需要冻结路由上的 topicID 与权威所有权证明；无资源上下文时 fail-closed。
+			name: "topic own edit without resource fails closed", descriptor: routes.CoreGuardDescriptor{
 				Kind: routes.CoreGuardContextual, Permissions: []string{identity.PermissionTopicEditOwn, identity.PermissionTopicEditAny},
 				EvaluatorID: "core.guard.forum.topic_edit",
-			}, permissions: []string{identity.PermissionTopicEditOwn}, want: ErrRoutePermissionDenied,
+			}, permissions: []string{identity.PermissionTopicEditOwn}, want: ErrRouteGuardUnavailable,
 		},
 		{
 			name: "topic global edit", descriptor: routes.CoreGuardDescriptor{

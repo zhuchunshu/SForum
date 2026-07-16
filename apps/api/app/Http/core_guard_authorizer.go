@@ -79,6 +79,7 @@ type ProductionRouteGuardPolicies struct {
 	EntityMetaValues  EntityMetaValueGuardPolicy
 	AttachmentReads   AttachmentReadGuardPolicy
 	ForumComments     ForumCommentCreateGuardPolicy
+	ForumResources    ForumResourceGuardPolicy
 	PluginGuards      routes.PluginGuardEvaluator
 }
 
@@ -134,13 +135,13 @@ func productionCoreGuardEvaluatorRegistrationsWithPolicies(policies ProductionRo
 		productionCoreGuardEvaluator("core.guard.entity_meta.read", entityMetaReadGuardEvaluator(policies.EntityMetaValues)),
 		productionCoreGuardEvaluator("core.guard.entity_meta.write", entityMetaWriteGuardEvaluator(policies.EntityMetaValues)),
 		productionCoreGuardEvaluator("core.guard.forum.author_review", requireAuthenticatedCoreGuardActor),
-		productionCoreGuardEvaluator("core.guard.forum.comment_write", requireForumCommentGlobalAuthority),
+		productionCoreGuardEvaluator("core.guard.forum.comment_write", forumCommentWriteGuardEvaluator(policies.ForumResources)),
 		productionCoreGuardEvaluator("core.guard.forum.comment_create", forumCommentCreateGuardEvaluator(policies.ForumComments)),
 		productionCoreGuardEvaluator("core.guard.forum.read", forumReadGuardEvaluator(policies.ForumRead)),
 		productionCoreGuardEvaluator("core.guard.forum.settings", requireForumSettingsAuthority),
 		productionCoreGuardEvaluator("core.guard.forum.topic_create", requireDeclaredCoreGuardPermission),
-		productionCoreGuardEvaluator("core.guard.forum.topic_delete", requireForumTopicGlobalAuthority),
-		productionCoreGuardEvaluator("core.guard.forum.topic_edit", requireForumTopicGlobalAuthority),
+		productionCoreGuardEvaluator("core.guard.forum.topic_delete", forumTopicDeleteGuardEvaluator(policies.ForumResources)),
+		productionCoreGuardEvaluator("core.guard.forum.topic_edit", forumTopicEditGuardEvaluator(policies.ForumResources)),
 		productionCoreGuardEvaluator("core.guard.forum.topic_lock", requireDeclaredCoreGuardPermission),
 		productionCoreGuardEvaluator("core.guard.forum.topic_state", requireDeclaredCoreGuardPermission),
 		productionCoreGuardEvaluator("core.guard.identity.admin", identityAdminGuardEvaluator(policies.IdentityAdmins)),
@@ -1038,28 +1039,6 @@ func requireCookieCredentialAuthority(ctx context.Context, evaluation routes.Cor
 		return routes.ErrCoreGuardPermissionDenied
 	}
 	return nil
-}
-
-func requireForumTopicGlobalAuthority(_ context.Context, evaluation routes.CoreGuardEvaluation) error {
-	switch evaluation.Descriptor.RouteID {
-	case "core.route.forum.update_topic":
-		return requireCoreGuardPermission(evaluation, identity.PermissionTopicEditAny)
-	case "core.route.forum.delete_topic":
-		return requireCoreGuardPermission(evaluation, identity.PermissionTopicDeleteAny)
-	default:
-		return routes.ErrCoreGuardEvaluatorUnavailable
-	}
-}
-
-func requireForumCommentGlobalAuthority(_ context.Context, evaluation routes.CoreGuardEvaluation) error {
-	switch evaluation.Descriptor.RouteID {
-	case "core.route.forum.update_comment":
-		return requireCoreGuardPermission(evaluation, identity.PermissionPostEditAny)
-	case "core.route.forum.delete_comment":
-		return requireCoreGuardPermission(evaluation, identity.PermissionPostDeleteAny)
-	default:
-		return routes.ErrCoreGuardEvaluatorUnavailable
-	}
 }
 
 func requireCoreGuardPermission(evaluation routes.CoreGuardEvaluation, permissions ...string) error {
