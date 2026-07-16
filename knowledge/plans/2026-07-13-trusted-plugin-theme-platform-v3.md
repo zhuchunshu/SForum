@@ -484,7 +484,7 @@ blocking implement the authoritative row without retaining a second alias.
 
 - [x] Inventory/register stable ids and versions for every core route.
 - [x] Implement immutable route snapshots and deterministic specificity/priority.
-- [ ] Remove the `/extensions/{id}/*` target restriction and support any declared
+- [x] Remove the `/extensions/{id}/*` target restriction and support any declared
       public, admin, or API path and HTTP method by stable route id.
 - [ ] Implement `add`, `alias`, `redirect`, `rewrite`, `before`, `after`,
       `filter`, `wrap`, `replace`, and global middleware.

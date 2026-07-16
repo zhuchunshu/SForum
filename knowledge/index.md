@@ -4,10 +4,12 @@ This is the entry point for project memory.
 
 ## Latest Handoff
 
-- **2026-07-16 Trusted Plugin And Theme Platform V3 P6/P7/P8/P9 active (overall 62%)**
+- **2026-07-16 Trusted Plugin And Theme Platform V3 P6/P7/P8/P9 active (overall 62.6%)**
   - Decision: `knowledge/decisions/2026-07-13-trusted-plugin-theme-platform-v3.md`
   - Task book: `knowledge/plans/2026-07-13-trusted-plugin-theme-platform-v3.md`
-  - Active checkpoint: `knowledge/sessions/2026-07-16-trusted-plugin-theme-platform-v3-p6-credit-correction.md`
+  - Active checkpoint: `knowledge/sessions/2026-07-16-trusted-plugin-theme-platform-v3-p6-websocket-ingress.md`
+  - Prior P6 correction:
+    `knowledge/sessions/2026-07-16-trusted-plugin-theme-platform-v3-p6-credit-correction.md`
   - Prior identity/producer checkpoint:
     `knowledge/sessions/2026-07-16-trusted-plugin-theme-platform-v3-identity-producer-checkpoint.md`
   - Prior route checkpoint: `knowledge/sessions/2026-07-16-trusted-plugin-theme-platform-v3-route-inspector-ledger.md`
@@ -92,12 +94,12 @@ This is the entry point for project memory.
     composition, and concurrent idempotent replay. The production entitlement
     Host Command now proves eight-way replay, payload/revision conflict,
     revoke/replay, and actorless delegation rejection through real PostgreSQL
-  - P6 is active at 12/18 (67%). All 230 core routes have stable generated
+  - P6 is active at 13/18 (72%). All 230 core routes have stable generated
     identities; immutable exact route snapshots, explicit replace-provider
     selection/conflict UI, Safe Mode filtering, and strict OpenAPI
-    collision/reference rejection are accepted. Arbitrary public/admin path
-    mounting and declaration-bound mutable fields were reopened after the
-    production dispatcher audit found that their prior credit was premature
+    collision/reference rejection are accepted. Arbitrary public/admin/API
+    paths and WebSocket Upgrade now reach the production Host dispatcher;
+    declaration-bound mutable fields remain open after the production audit.
   - Exact OpenAPI operations now derive Host-owned permission/security,
     `host.ip_write@1` rate-limit, and `required.24h@1` replay metadata. Required
     replay is production-wired through a 24-hour CAS-fenced Redis ledger,

@@ -112,6 +112,40 @@ phase percentage.
 
 ## Last Durable Checkpoint
 
+### 2026-07-16 P6 Production WebSocket Ingress
+
+- Exact weighted progress is `62.5859%`; displayed progress is **62.6%**. P6 is
+  **13/18**, P7 **14/22**, P8 **18/18**, and P9 **4/16**.
+- The exact formula is
+  `39 + 10*(13/18) + 10*(14/22) + 8 + 8*(4/16) = 62.5859`.
+- `1144a78dc`, `e22844ecb`, and `d2704ef38` close the arbitrary-path row and
+  restore the production transport evidence: public, admin, and API Registry
+  paths reach the Go dispatcher; ordinary HTTP streams through Nuxt; real
+  WebSocket Upgrade requests route from Caddy to the loopback Host API while
+  preserving Host, Origin, Cookie, Authorization, and Upgrade authority.
+- Unknown WebSocket paths fail closed before bearer, actor, or plugin runtime
+  admission. `vite-hmr` remains Host-owned and stays on the Nuxt upstream.
+- Independent gates passed the complete `app/Http` package, focused race tests,
+  Nuxt proxy tests, the production proxy validator, Caddy 2.11.3 validation,
+  Compose expansion, and shell syntax checks. `9bbf4fdbc` separately removed a
+  flaky order assumption from the Host `Vary` authority regression.
+- P6 now has five open rows: complete action semantics, inherited/custom/raw
+  authority, explicit mutable fields, alias/redirect SEO integration, and the
+  complete route/locale/request/authority/transport/failure matrix.
+
+Dirty ownership remains family-scoped. Never stage the user-owned
+`apps/api/app/Models/PageViewModels/source_test.go` or
+`extensions/builtin/plugins/sforum-content-policy/sforum.extension.json`.
+
+Exact resume command:
+
+```bash
+git status --short
+```
+
+Then land Component, Cache, Content, SEO, Media, and Query as independently
+reviewed slices before production lifecycle/bootstrap composition.
+
 ### 2026-07-16 P6 Production Credit Correction
 
 - Exact weighted progress is `62.0303%`; displayed progress is **62%** and the
