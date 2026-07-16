@@ -71,15 +71,54 @@ type HostCacheInspectionMetrics struct {
 	P95DurationMicros     uint64 `json:"p95DurationMicros"`
 }
 
+// HostCacheInspectionRegistrySnapshot is a redacted Registry disclosure. It
+// deliberately has no field capable of carrying cache tag names.
+type HostCacheInspectionRegistrySnapshot struct {
+	SchemaVersion string                            `json:"schemaVersion"`
+	Revision      uint64                            `json:"revision"`
+	Digest        string                            `json:"digest"`
+	SafeMode      bool                              `json:"safeMode"`
+	Publications  []HostCacheInspectionPublication  `json:"publications"`
+	Caches        []HostCacheInspectionContribution `json:"caches"`
+}
+
+type HostCacheInspectionArtifact struct {
+	ExtensionID       string `json:"extensionId"`
+	ExtensionVersion  string `json:"extensionVersion"`
+	PackageDigest     string `json:"packageDigest"`
+	VersionID         int64  `json:"versionId,omitempty"`
+	RuntimeInstanceID string `json:"runtimeInstanceId,omitempty"`
+	Core              bool   `json:"core,omitempty"`
+}
+
+type HostCacheInspectionDeclaration struct {
+	ID              string   `json:"id"`
+	ContractVersion string   `json:"contractVersion"`
+	Namespace       string   `json:"namespace"`
+	Policy          string   `json:"policy"`
+	Provider        string   `json:"provider,omitempty"`
+	Invalidators    []string `json:"invalidators,omitempty"`
+}
+
+type HostCacheInspectionPublication struct {
+	Artifact HostCacheInspectionArtifact      `json:"artifact"`
+	Caches   []HostCacheInspectionDeclaration `json:"caches"`
+}
+
+type HostCacheInspectionContribution struct {
+	HostCacheInspectionDeclaration
+	Artifact HostCacheInspectionArtifact `json:"artifact"`
+}
+
 type HostCacheInspectionSnapshot struct {
-	SchemaVersion   string                       `json:"schemaVersion"`
-	Registry        cacheregistry.Snapshot       `json:"registry"`
-	RetainedFrom    uint64                       `json:"retainedFromSequence,omitempty"`
-	RetainedThrough uint64                       `json:"retainedThroughSequence,omitempty"`
-	Metrics         HostCacheInspectionMetrics   `json:"metrics"`
-	Operations      []HostCacheInspectionMetrics `json:"operations"`
-	Traces          []HostCacheInspectionTrace   `json:"traces"`
-	Invalidations   []HostCacheInspectionTrace   `json:"invalidations"`
+	SchemaVersion   string                              `json:"schemaVersion"`
+	Registry        HostCacheInspectionRegistrySnapshot `json:"registry"`
+	RetainedFrom    uint64                              `json:"retainedFromSequence,omitempty"`
+	RetainedThrough uint64                              `json:"retainedThroughSequence,omitempty"`
+	Metrics         HostCacheInspectionMetrics          `json:"metrics"`
+	Operations      []HostCacheInspectionMetrics        `json:"operations"`
+	Traces          []HostCacheInspectionTrace          `json:"traces"`
+	Invalidations   []HostCacheInspectionTrace          `json:"invalidations"`
 }
 
 // Inspect returns a revision-consistent Registry and trace snapshot. Traces are
@@ -116,7 +155,7 @@ func buildHostCacheInspection(
 ) HostCacheInspectionSnapshot {
 	result := HostCacheInspectionSnapshot{
 		SchemaVersion: HostCacheInspectorSchemaVersion,
-		Registry:      registry,
+		Registry:      hostCacheInspectionRegistrySnapshot(registry),
 		Metrics:       aggregateHostCacheInspectionMetrics("", traces),
 		Operations:    []HostCacheInspectionMetrics{},
 		Traces:        []HostCacheInspectionTrace{}, Invalidations: []HostCacheInspectionTrace{},
@@ -148,6 +187,49 @@ func buildHostCacheInspection(
 		}
 	}
 	return result
+}
+
+func hostCacheInspectionRegistrySnapshot(snapshot cacheregistry.Snapshot) HostCacheInspectionRegistrySnapshot {
+	view := HostCacheInspectionRegistrySnapshot{
+		SchemaVersion: snapshot.SchemaVersion, Revision: snapshot.Revision,
+		Digest: snapshot.Digest, SafeMode: snapshot.SafeMode,
+		Publications: make([]HostCacheInspectionPublication, 0, len(snapshot.Publications)),
+		Caches:       make([]HostCacheInspectionContribution, 0, len(snapshot.Caches)),
+	}
+	for _, publication := range snapshot.Publications {
+		item := HostCacheInspectionPublication{
+			Artifact: hostCacheInspectionArtifact(publication.Artifact),
+			Caches:   make([]HostCacheInspectionDeclaration, 0, len(publication.Caches)),
+		}
+		for _, declaration := range publication.Caches {
+			item.Caches = append(item.Caches, hostCacheInspectionDeclaration(declaration))
+		}
+		view.Publications = append(view.Publications, item)
+	}
+	for _, contribution := range snapshot.Caches {
+		view.Caches = append(view.Caches, HostCacheInspectionContribution{
+			HostCacheInspectionDeclaration: hostCacheInspectionDeclaration(contribution.Declaration),
+			Artifact:                       hostCacheInspectionArtifact(contribution.Artifact),
+		})
+	}
+	return view
+}
+
+func hostCacheInspectionArtifact(artifact cacheregistry.Artifact) HostCacheInspectionArtifact {
+	return HostCacheInspectionArtifact{
+		ExtensionID: artifact.ExtensionID, ExtensionVersion: artifact.ExtensionVersion,
+		PackageDigest: artifact.PackageDigest, VersionID: artifact.VersionID,
+		RuntimeInstanceID: artifact.RuntimeInstanceID, Core: artifact.Core,
+	}
+}
+
+func hostCacheInspectionDeclaration(declaration cacheregistry.Declaration) HostCacheInspectionDeclaration {
+	return HostCacheInspectionDeclaration{
+		ID: declaration.ID, ContractVersion: declaration.ContractVersion,
+		Namespace: declaration.Namespace, Policy: declaration.Policy,
+		Provider:     declaration.Provider,
+		Invalidators: append([]string(nil), declaration.Invalidators...),
+	}
 }
 
 func aggregateHostCacheInspectionMetrics(

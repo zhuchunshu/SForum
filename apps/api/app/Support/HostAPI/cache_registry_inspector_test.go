@@ -1,6 +1,7 @@
 package hostapi
 
 import (
+	"encoding/json"
 	"errors"
 	"strings"
 	"sync"
@@ -51,6 +52,13 @@ func TestHostCacheInspectorReturnsRevisionMetricsAndInvalidationAudit(t *testing
 	if invalidation.TagDigest != strings.Repeat("a", 64) || invalidation.TagCount != 2 ||
 		invalidation.InvalidatorID != "forum.topic.updated" || invalidation.Affected != 7 {
 		t.Fatalf("invalidation audit = %#v", invalidation)
+	}
+	encoded, err := json.Marshal(snapshot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(encoded), `"tags"`) || strings.Contains(string(encoded), "core.inspect.secret_tag") {
+		t.Fatalf("Inspector leaked Registry tag names: %s", encoded)
 	}
 }
 
@@ -128,6 +136,7 @@ func hostCacheInspectionRegistry(t *testing.T) *cacheregistry.Registry {
 		Caches: []cacheregistry.Declaration{{
 			ID: "core.inspect.items", ContractVersion: "core.inspect.items@1",
 			Namespace: "core.inspect.items", Policy: cacheregistry.PolicyPublic,
+			Tags: []string{"core.inspect.secret_tag"},
 		}},
 	}); err != nil {
 		t.Fatal(err)
