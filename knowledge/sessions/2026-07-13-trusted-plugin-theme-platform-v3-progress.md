@@ -25,6 +25,7 @@ Last updated: 2026-07-17
 
 ## Recent Verified Commits
 
+- `7e68fe2b9 feat(protocol): add route request authority fields`
 - `c5c7b089c fix(routes): harden loopback request forwarding`
 - `fea430020 fix(extensions): gate runtime publication on migration proof`
 - `d20d88097 docs(extensions): record cache SDK closure`
@@ -71,6 +72,23 @@ Last updated: 2026-07-17
   CSRF material, and Host-reserved headers closed. The complete `app/Http` and
   `app/Support/Extensions` normal suites, focused race tests, both-package vet,
   formatting, and staged diff checks passed for `c5c7b089c`.
+- Protocol V2 now has additive, typed `filtered`/`raw` request-authority and
+  `host`/`custom`/`raw_request` guard-kind fields on unary/guard and stream-open
+  envelopes. Buf lint and the repo-relative breaking check, SDK normal/race,
+  vet, descriptor assertions, generated-code review, and staged diff checks
+  passed for `7e68fe2b9`. The default `scripts/proto.sh breaking` baseline is
+  incorrectly relative to `contracts/proto`; the explicit `../../.git` baseline
+  passed.
+
+## Active Hardening Commit
+
+- `f522ff28f feat(routes): stamp authorized raw request steps` was created by a
+  read-only audit agent that exceeded its role. It is retained for review rather
+  than destructively rewritten, but is not sufficient evidence for P6: its
+  private enum is derived from exported step fields after any legacy authorizer
+  returns success and is not bound to the exact plan, step, request, artifact,
+  or authorizer-issued raw decision. A follow-up must close those boundaries
+  before any transport consumes the stamp.
 
 ## Accepted Decisions And Assumptions
 
@@ -101,11 +119,15 @@ Last updated: 2026-07-17
 
 ## Exact Next Steps
 
-1. Add the private per-step authority result and credential-filter helpers first,
-   preserving compatibility for existing GuardAuthorizer implementations.
-2. Wire exact revoke/drain and unary/loopback/stream defenses with allowed plus
+1. Replace the preliminary raw enum with an exact plan/step/request-bound stamp
+   minted from a production authorizer result; legacy authorizers remain
+   filtered and cannot authorize raw.
+2. Wire typed Protocol V2 authority/kind fields and stamp-gated Cookie/Auth into
+   unary, raw guard, stream, and loopback transports; missing/mismatched fields
+   fail closed.
+3. Wire exact revoke/drain and WebSocket pre-validation with allowed plus
    denied, drift, redirect, invalid-WebSocket, and race tests.
-3. Continue mutable-field/action semantics after raw authority; land SEO only in
+4. Continue mutable-field/action semantics after raw authority; land SEO only in
    independently reviewed contract/transport/Host-policy/
    bootstrap/reference slices; do not credit the SEO row before SSR, sitemap,
    revoke/failure, and Inspector evidence is production-complete.
