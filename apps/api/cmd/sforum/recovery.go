@@ -6,12 +6,15 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"slices"
 	"strings"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/spf13/cobra"
 
+	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
 	postgres "github.com/zhuchunshu/sforum/apps/api/app/Support/Postgres"
 )
 
@@ -172,21 +175,35 @@ func (s *postgresRecoveryRepository) Disable(ctx context.Context, extensionID st
 	if err != nil {
 		return recoveryExtension{}, fmt.Errorf("begin extension recovery disable: %w", err)
 	}
-	defer tx.Rollback(ctx)
-	item, err := scanRecoveryExtension(tx.QueryRow(ctx, recoveryExtensionSelectSQL()+` WHERE extensions.id = $1 FOR UPDATE OF extensions`, extensionID))
-	if errors.Is(err, pgx.ErrNoRows) {
-		return recoveryExtension{}, errRecoveryExtensionNotFound
-	}
+	defer func() { _ = tx.Rollback(context.Background()) }()
+	var item recoveryExtension
+	publication, err := extensions.PublishPluginRuntimeRecoveryTx(ctx, tx, func() ([]string, error) {
+		var scanErr error
+		item, scanErr = scanRecoveryExtension(tx.QueryRow(
+			ctx,
+			recoveryExtensionSelectSQL()+` WHERE extensions.id = $1 FOR UPDATE OF extensions`,
+			extensionID,
+		))
+		if errors.Is(scanErr, pgx.ErrNoRows) {
+			return nil, errRecoveryExtensionNotFound
+		}
+		if scanErr != nil {
+			return nil, scanErr
+		}
+		if item.Source == "builtin" || item.IsSystem {
+			return nil, errRecoveryProtected
+		}
+		if err := disableRecoveryExtensions(ctx, tx, []recoveryExtension{item}, "disable_one"); err != nil {
+			return nil, err
+		}
+		return []string{item.ID}, nil
+	})
 	if err != nil {
 		return recoveryExtension{}, err
 	}
-	if item.Source == "builtin" || item.IsSystem {
-		return recoveryExtension{}, errRecoveryProtected
-	}
-	if err := disableRecoveryExtensions(ctx, tx, []recoveryExtension{item}, "disable_one"); err != nil {
-		return recoveryExtension{}, err
-	}
-	if err := tx.Commit(ctx); err != nil {
+	if err := commitRecoveryPublication(
+		ctx, tx, extensions.NewPostgresStore(s.pool), publication,
+	); err != nil {
 		return recoveryExtension{}, fmt.Errorf("commit extension recovery disable: %w", err)
 	}
 	item.Status = "disabled"
@@ -198,38 +215,96 @@ func (s *postgresRecoveryRepository) DisableAllThirdParty(ctx context.Context) (
 	if err != nil {
 		return nil, fmt.Errorf("begin extension recovery disable all: %w", err)
 	}
-	defer tx.Rollback(ctx)
-	rows, err := tx.Query(ctx, recoveryExtensionSelectSQL()+`
-		WHERE extensions.source <> 'builtin' AND extensions.is_system = false
-		ORDER BY extensions.id FOR UPDATE OF extensions
-	`)
-	if err != nil {
-		return nil, fmt.Errorf("list third-party extensions for recovery: %w", err)
-	}
+	defer func() { _ = tx.Rollback(context.Background()) }()
 	items := []recoveryExtension{}
-	for rows.Next() {
-		item, scanErr := scanRecoveryExtension(rows)
-		if scanErr != nil {
-			rows.Close()
-			return nil, scanErr
+	publication, err := extensions.PublishPluginRuntimeRecoveryTx(ctx, tx, func() ([]string, error) {
+		rows, queryErr := tx.Query(ctx, recoveryExtensionSelectSQL()+`
+			WHERE extensions.source <> 'builtin' AND extensions.is_system = false
+			ORDER BY extensions.id FOR UPDATE OF extensions
+		`)
+		if queryErr != nil {
+			return nil, fmt.Errorf("list third-party extensions for recovery: %w", queryErr)
 		}
-		items = append(items, item)
-	}
-	if err := rows.Err(); err != nil {
+		defer rows.Close()
+		for rows.Next() {
+			item, scanErr := scanRecoveryExtension(rows)
+			if scanErr != nil {
+				return nil, scanErr
+			}
+			items = append(items, item)
+		}
+		if err := rows.Err(); err != nil {
+			return nil, err
+		}
 		rows.Close()
+		if err := disableRecoveryExtensions(ctx, tx, items, "disable_all"); err != nil {
+			return nil, err
+		}
+		ids := make([]string, 0, len(items))
+		for _, item := range items {
+			ids = append(ids, item.ID)
+		}
+		return ids, nil
+	})
+	if err != nil {
 		return nil, err
 	}
-	rows.Close()
-	if err := disableRecoveryExtensions(ctx, tx, items, "disable_all"); err != nil {
-		return nil, err
-	}
-	if err := tx.Commit(ctx); err != nil {
+	if err := commitRecoveryPublication(
+		ctx, tx, extensions.NewPostgresStore(s.pool), publication,
+	); err != nil {
 		return nil, fmt.Errorf("commit extension recovery disable all: %w", err)
 	}
 	for index := range items {
 		items[index].Status = "disabled"
 	}
 	return items, nil
+}
+
+func commitRecoveryPublication(
+	ctx context.Context,
+	tx recoveryCommitter,
+	reader recoveryPublicationReader,
+	expected extensions.PluginRuntimePublication,
+) error {
+	if err := tx.Commit(ctx); err != nil {
+		commitErr := err
+		// A transport failure can leave COMMIT outcome unknown. The immutable
+		// revision is transaction-local evidence that every recovery write won.
+		verifyCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+		defer cancel()
+		stored, verifyErr := reader.PluginRuntimePublicationByRevision(verifyCtx, expected.Revision)
+		if verifyErr == nil && sameRecoveryPublication(stored, expected) {
+			return nil
+		}
+		if verifyErr == nil {
+			verifyErr = errors.New("committed recovery publication differs from expected evidence")
+		} else {
+			verifyErr = fmt.Errorf("verify recovery publication commit: %w", verifyErr)
+		}
+		return errors.Join(commitErr, verifyErr)
+	}
+	return nil
+}
+
+type recoveryCommitter interface {
+	Commit(context.Context) error
+}
+
+type recoveryPublicationReader interface {
+	PluginRuntimePublicationByRevision(
+		context.Context,
+		int64,
+	) (extensions.PluginRuntimePublication, error)
+}
+
+func sameRecoveryPublication(left, right extensions.PluginRuntimePublication) bool {
+	return left.Revision == right.Revision &&
+		left.MemberCount == right.MemberCount &&
+		left.MembersDigest == right.MembersDigest &&
+		left.Reason == right.Reason &&
+		left.ActorUserID == right.ActorUserID &&
+		left.CreatedAt.Equal(right.CreatedAt) &&
+		slices.Equal(left.Members, right.Members)
 }
 
 func disableRecoveryExtensions(ctx context.Context, tx pgx.Tx, items []recoveryExtension, mode string) error {
