@@ -6,12 +6,16 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/redis/go-redis/v9"
+	"google.golang.org/grpc"
+
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Crypto"
 	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
 	hostapi "github.com/zhuchunshu/sforum/apps/api/app/Support/HostAPI"
 	supportjobs "github.com/zhuchunshu/sforum/apps/api/app/Support/Jobs"
 	"github.com/zhuchunshu/sforum/apps/api/config"
+	hostv2 "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/host/v2"
 )
 
 func TestWorkerStartStopAllowNilClient(t *testing.T) {
@@ -209,7 +213,7 @@ func TestStandaloneWorkerRuntimeUsesCipherServiceSettings(t *testing.T) {
 	runtime, gateway, err := buildStandaloneWorkerExtensionRuntime(
 		context.Background(), config.Config{ExtensionRoot: t.TempDir()},
 		recordingDatabaseBinderFactory(nil), newRecordingCommandRuntimeBinder(nil),
-		store, cipher, nil, nil,
+		store, cipher, nil, nil, "", nil, nil,
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -234,7 +238,7 @@ func TestStandaloneWorkerSafeModeReconcilesNoExtensions(t *testing.T) {
 	}
 	built, gateway, err := buildStandaloneWorkerExtensionRuntime(context.Background(), config.Config{
 		SafeMode: true, ExtensionRoot: t.TempDir(),
-	}, recordingDatabaseBinderFactory(nil), newRecordingCommandRuntimeBinder(nil), store, nil, nil, nil)
+	}, recordingDatabaseBinderFactory(nil), newRecordingCommandRuntimeBinder(nil), store, nil, nil, nil, "", nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -268,7 +272,7 @@ func TestStandaloneWorkerBindsDatabaseCatalogBeforeReconcile(t *testing.T) {
 	built, gateway, err := buildStandaloneWorkerExtensionRuntime(
 		context.Background(), config.Config{ExtensionRoot: t.TempDir()},
 		recordingDatabaseBinderFactory(binder), newRecordingCommandRuntimeBinder(commandBinder),
-		store, nil, nil, nil,
+		store, nil, nil, nil, "", nil, nil,
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -277,6 +281,65 @@ func TestStandaloneWorkerBindsDatabaseCatalogBeforeReconcile(t *testing.T) {
 	built.Close(context.Background())
 	if len(runtime.reconciledItems) != 1 || runtime.reconciledItems[0].ID != plugin.ID {
 		t.Fatalf("reconciled items = %#v", runtime.reconciledItems)
+	}
+}
+
+func TestStandaloneWorkerRegistersHostCacheBeforeReturningRuntime(t *testing.T) {
+	client := redis.NewClient(&redis.Options{Addr: "127.0.0.1:1"})
+	t.Cleanup(func() { _ = client.Close() })
+	item := runtimeSettingsExtension("worker.cache.bootstrap")
+	item.Status = extensions.StatusDisabled
+	store := &bootstrapExtensionSettingsStore{item: item}
+
+	runtime, closer, err := buildStandaloneWorkerExtensionRuntime(
+		context.Background(),
+		config.Config{DatabaseURL: "postgres://db/sforum", ExtensionRoot: t.TempDir()},
+		recordingDatabaseBinderFactory(nil), newRecordingCommandRuntimeBinder(nil),
+		store, nil, nil, nil, validHostCacheInstallationID, client, nil,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		runtime.Close(context.Background())
+		_ = closer.Close()
+	})
+	gateway, ok := closer.(*hostapi.Gateway)
+	if !ok {
+		t.Fatalf("standalone gateway = %T", closer)
+	}
+	server := grpc.NewServer()
+	gateway.RegisterProtocolV2(server)
+	if _, found := server.GetServiceInfo()[hostv2.CacheService_ServiceDesc.ServiceName]; !found {
+		t.Fatalf("standalone Protocol V2 services = %#v", server.GetServiceInfo())
+	}
+}
+
+func TestStandaloneWorkerHostCacheRejectsNonProductionRuntime(t *testing.T) {
+	original := newStandaloneWorkerRuntimeManager
+	defer func() { newStandaloneWorkerRuntimeManager = original }()
+	newStandaloneWorkerRuntimeManager = func(
+		extensions.Store,
+		extensionsruntime.HostAPIRegistrar,
+		extensionsruntime.PluginSettings,
+		extensionsruntime.RuntimeTrustSource,
+		extensionsruntime.RuntimeDatabaseLeaseRegistry,
+	) workerExtensionRuntime {
+		return &countingWorkerRuntime{}
+	}
+	client := redis.NewClient(&redis.Options{Addr: "127.0.0.1:1"})
+	t.Cleanup(func() { _ = client.Close() })
+	_, gateway, err := buildStandaloneWorkerExtensionRuntime(
+		context.Background(),
+		config.Config{DatabaseURL: "postgres://db/sforum", ExtensionRoot: t.TempDir()},
+		recordingDatabaseBinderFactory(nil), newRecordingCommandRuntimeBinder(nil),
+		&bootstrapExtensionSettingsStore{}, nil, nil, nil, validHostCacheInstallationID, client, nil,
+	)
+	if err == nil || !strings.Contains(err.Error(), "exact production runtime Manager") {
+		t.Fatalf("non-production runtime error = %v", err)
+	}
+	if gateway != nil {
+		t.Fatal("failed standalone Host Cache returned a live Gateway")
 	}
 }
 

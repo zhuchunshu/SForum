@@ -10,6 +10,7 @@ import (
 	"sync"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/redis/go-redis/v9"
 	"github.com/riverqueue/river"
 
 	attachmentjobs "github.com/zhuchunshu/sforum/apps/api/app/Jobs/Attachments"
@@ -28,11 +29,13 @@ import (
 	options "github.com/zhuchunshu/sforum/apps/api/app/Models/Options"
 	webhooks "github.com/zhuchunshu/sforum/apps/api/app/Models/Webhooks"
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Audit"
+	cacheregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/CacheRegistry"
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Crypto"
 	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
 	health "github.com/zhuchunshu/sforum/apps/api/app/Support/Health"
 	hostapi "github.com/zhuchunshu/sforum/apps/api/app/Support/HostAPI"
 	humanverify "github.com/zhuchunshu/sforum/apps/api/app/Support/HumanVerify"
+	installationidentity "github.com/zhuchunshu/sforum/apps/api/app/Support/InstallationIdentity"
 	supportjobs "github.com/zhuchunshu/sforum/apps/api/app/Support/Jobs"
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Postgres"
 	"github.com/zhuchunshu/sforum/apps/api/config"
@@ -65,6 +68,10 @@ type workerExtensionRuntime interface {
 type workerRuntimeDeps struct {
 	ExtensionRuntime workerExtensionRuntime
 	PluginSchedules  *supportjobs.PluginScheduleAdmissionRegistry
+	// HostCacheRedis is shared by standalone Host Cache and worker heartbeat.
+	// Embed mode leaves it nil because the API-owned Gateway is already bound.
+	HostCacheRedis          *redis.Client
+	HostCacheInstallationID string
 	// OwnsRuntime 为 true 时 Worker.Close 关闭 runtime（及自建的 Host API gateway）。
 	// 注入共享 runtime 时必须为 false，由 API shutdown 负责 Close。
 	OwnsRuntime bool
@@ -138,6 +145,9 @@ func buildStandaloneWorkerExtensionRuntime(
 	cipher *crypto.OptionCipher,
 	trust extensionsruntime.RuntimeTrustSource,
 	databaseLeases extensionsruntime.RuntimeDatabaseLeaseRegistry,
+	cacheInstallationID string,
+	cacheClient *redis.Client,
+	logger *slog.Logger,
 	coordinators ...*extensions.ActivationCoordinator,
 ) (workerExtensionRuntime, hostAPIGatewayCloser, error) {
 	service := extensions.NewServiceWithBuiltins(store, cfg.ExtensionRoot, cfg.BuiltinExtensionRoot)
@@ -166,6 +176,29 @@ func buildStandaloneWorkerExtensionRuntime(
 	}
 	databaseBinder := databaseBinderFactory(workerHostGateway)
 	managedRuntime := newStandaloneWorkerRuntimeManager(store, workerHostGateway, service, trust, databaseLeases)
+	var cachePublications *extensionsruntime.PostgresLifecycleBoundaryRegistries
+	if cacheClient != nil {
+		manager, ok := managedRuntime.(*extensionsruntime.Manager)
+		if !ok || manager == nil {
+			managedRuntime.Close(ctx)
+			_ = workerHostGateway.Close()
+			return nil, nil, fmt.Errorf("worker Host Cache requires the exact production runtime Manager")
+		}
+		admission := newPluginServiceProviderAdmission(manager)
+		workerHostAPI.BindServiceProviderAdmission(admission)
+		cacheRegistry := cacheregistry.New()
+		if _, err := bindProductionHostCache(
+			cacheInstallationID, logger, cacheClient, cacheRegistry, admission, workerHostGateway,
+		); err != nil {
+			managedRuntime.Close(ctx)
+			_ = workerHostGateway.Close()
+			return nil, nil, fmt.Errorf("bind worker Host Cache runtime: %w", err)
+		}
+		cachePublications = extensionsruntime.NewPostgresLifecycleBoundaryRegistries(
+			extensionsruntime.LifecycleRegistryBoundaryConfig{Manager: manager, Caches: cacheRegistry},
+		)
+		extensions.WithRuntimeCachePublications(cachePublications)(service)
+	}
 	if err := bindProtocolV2ProviderBroker(workerHostGateway, managedRuntime); err != nil {
 		managedRuntime.Close(ctx)
 		_ = workerHostGateway.Close()
@@ -204,6 +237,13 @@ func buildStandaloneWorkerExtensionRuntime(
 	} else {
 		managedRuntime.Reconcile(ctx, items)
 	}
+	if cachePublications != nil {
+		if err := cachePublications.RestoreCachePublications(ctx, items, cfg.SafeMode); err != nil {
+			managedRuntime.Close(ctx)
+			_ = workerHostGateway.Close()
+			return nil, nil, fmt.Errorf("restore worker Cache Registry publications: %w", err)
+		}
+	}
 	return managedRuntime, workerHostGateway, nil
 }
 
@@ -222,10 +262,29 @@ func NewWorker(ctx context.Context, cfg config.Config, logger *slog.Logger) (*Wo
 	if err != nil {
 		return nil, fmt.Errorf("postgres setup failed: %w", err)
 	}
-
-	// 独立 worker：自建 runtime，OwnsRuntime 由 newWorkerWithPool 在 nil inject 时设为 true。
-	worker, err := newWorkerWithPool(cfg, pool, logger, workerRuntimeDeps{})
+	hostInstallationID, err := installationidentity.NewPostgresRepository(pool).Ensure(ctx)
 	if err != nil {
+		pool.Close()
+		return nil, fmt.Errorf("ensure worker Host installation identity: %w", err)
+	}
+
+	// Host Cache 与心跳复用一个 worker-owned Redis client；必须在首个插件
+	// broker 注册前创建并传入 standalone runtime builder。
+	redisClient := humanverify.NewRedisClient(cfg.RedisAddr, cfg.RedisPassword, humanverify.RedisClientOptions{
+		PoolSize:        cfg.RedisPoolSize,
+		MinIdleConns:    cfg.RedisMinIdleConns,
+		DialTimeout:     cfg.RedisDialTimeout,
+		ReadTimeout:     cfg.RedisReadTimeout,
+		WriteTimeout:    cfg.RedisWriteTimeout,
+		ConnMaxIdleTime: cfg.RedisConnMaxIdleTime,
+		ConnMaxLifetime: cfg.RedisConnMaxLifetime,
+	})
+	// 独立 worker：自建 runtime，OwnsRuntime 由 newWorkerWithPool 在 nil inject 时设为 true。
+	worker, err := newWorkerWithPool(cfg, pool, logger, workerRuntimeDeps{
+		HostCacheRedis: redisClient, HostCacheInstallationID: hostInstallationID,
+	})
+	if err != nil {
+		_ = redisClient.Close()
 		pool.Close()
 		return nil, err
 	}
@@ -240,15 +299,6 @@ func NewWorker(ctx context.Context, cfg config.Config, logger *slog.Logger) (*Wo
 
 	// 独立 worker 进程发布心跳，供 API overview / 运维判断 stale。
 	// 嵌入 API 的 worker 由 bootstrap.NewAPI 发布，避免双写无妨但这里只在独立进程路径启用。
-	redisClient := humanverify.NewRedisClient(cfg.RedisAddr, cfg.RedisPassword, humanverify.RedisClientOptions{
-		PoolSize:        cfg.RedisPoolSize,
-		MinIdleConns:    cfg.RedisMinIdleConns,
-		DialTimeout:     cfg.RedisDialTimeout,
-		ReadTimeout:     cfg.RedisReadTimeout,
-		WriteTimeout:    cfg.RedisWriteTimeout,
-		ConnMaxIdleTime: cfg.RedisConnMaxIdleTime,
-		ConnMaxLifetime: cfg.RedisConnMaxLifetime,
-	})
 	heartbeatStore := health.NewRedisHeartbeatStore(redisClient)
 	heartbeatCtx, heartbeatCancel := context.WithCancel(context.Background())
 	go (&health.Publisher{Store: heartbeatStore}).Run(heartbeatCtx)
@@ -256,11 +306,11 @@ func NewWorker(ctx context.Context, cfg config.Config, logger *slog.Logger) (*Wo
 	runtimeClose := worker.close
 	worker.close = func() {
 		heartbeatCancel()
-		if err := redisClient.Close(); err != nil && logger != nil {
-			logger.Warn("worker heartbeat redis close failed", "error", err)
-		}
 		if runtimeClose != nil {
 			runtimeClose()
+		}
+		if err := redisClient.Close(); err != nil && logger != nil {
+			logger.Warn("worker shared redis close failed", "error", err)
 		}
 		pool.Close()
 	}
@@ -321,12 +371,30 @@ func newWorkerWithPool(cfg config.Config, pool *pgxpool.Pool, logger *slog.Logge
 				moderation.NewPostgresStore(pool),
 				attachments.NewPostgresStore(pool),
 			),
-			extensionStore, optionCipher, runtimeTrust, databaseLeaseRegistry, activation,
+			extensionStore, optionCipher, runtimeTrust, databaseLeaseRegistry,
+			deps.HostCacheInstallationID, deps.HostCacheRedis, logger, activation,
 		)
 	})
 	if err != nil {
 		return nil, err
 	}
+	var closeOwnedRuntime func()
+	if ownsRuntime {
+		closeOwnedRuntime = func() {
+			if extensionRuntime != nil {
+				extensionRuntime.Close(context.Background())
+			}
+			if hostGateway != nil {
+				_ = hostGateway.Close()
+			}
+		}
+	}
+	runtimeOwnershipTransferred := false
+	defer func() {
+		if !runtimeOwnershipTransferred && closeOwnedRuntime != nil {
+			closeOwnedRuntime()
+		}
+	}()
 	if runtime, ok := extensionRuntime.(interface {
 		BindProviderSlotSelections(extensionsruntime.ProviderSlotSelectionStore)
 	}); ok {
@@ -441,7 +509,10 @@ func newWorkerWithPool(cfg config.Config, pool *pgxpool.Pool, logger *slog.Logge
 	}
 
 	if registry.IsEmpty() {
-		return &Worker{Schedules: scheduleRegistry, PluginSchedules: pluginSchedules}, nil
+		runtimeOwnershipTransferred = true
+		return &Worker{
+			Schedules: scheduleRegistry, PluginSchedules: pluginSchedules, close: closeOwnedRuntime,
+		}, nil
 	}
 
 	workers, err := registry.Build()
@@ -466,23 +537,12 @@ func newWorkerWithPool(cfg config.Config, pool *pgxpool.Pool, logger *slog.Logge
 	}
 
 	// 仅 worker 拥有 runtime 时关闭；embed 注入路径由 API 在 River stop 之后关闭。
-	var closeFn func()
-	if ownsRuntime {
-		closeFn = func() {
-			if extensionRuntime != nil {
-				extensionRuntime.Close(context.Background())
-			}
-			if hostGateway != nil {
-				_ = hostGateway.Close()
-			}
-		}
-	}
-
+	runtimeOwnershipTransferred = true
 	return &Worker{
 		Client:          client,
 		Schedules:       scheduleRegistry,
 		PluginSchedules: pluginSchedules,
-		close:           closeFn,
+		close:           closeOwnedRuntime,
 	}, nil
 }
 
