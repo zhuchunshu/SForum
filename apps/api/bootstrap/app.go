@@ -496,25 +496,6 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 	} else if err := extensionService.RestoreActiveThemeRegistry(ctx); err != nil {
 		logger.Warn("restore active theme page registry failed", "error", err)
 	}
-	var themeRuntimeWatcher *extensions.ThemeRuntimeWatcher
-	if !cfg.SafeMode {
-		themeRuntimeWatcher, err = newAPIThemeRuntimeWatcher(extensionStore, extensionService, logger)
-		if err == nil {
-			err = themeRuntimeWatcher.Initialize(ctx)
-		}
-		if err != nil {
-			if stopErr := supportjobs.Stop(ctx, jobClient); stopErr != nil {
-				logger.Warn("job dispatcher stop failed", "error", stopErr)
-			}
-			extensionRuntime.Close(ctx)
-			sharedRedisClient.Close()
-			if closeErr := redisStorage.Close(); closeErr != nil {
-				logger.Warn("redis session storage close failed", "error", closeErr)
-			}
-			pool.Close()
-			return nil, fmt.Errorf("initialize theme runtime watcher failed: %w", err)
-		}
-	}
 	legacyMailValues, err := optionsService.InternalValues(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("load legacy mail options: %w", err)
@@ -800,6 +781,43 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		BearerTokens: httpserver.TokenServiceAdapter{Service: apiTokenService},
 		Auditor:      auditWriter,
 	})
+	var themeRuntimeWatcher *apiThemeRuntimeWatcherRuntime
+	themeRuntimeStopTimeout := normalizedPluginRuntimeCoordinatorStopTimeout(cfg.WorkerShutdownTimeout)
+	stopThemeRuntimeWatcher := func() {
+		if themeRuntimeWatcher == nil {
+			return
+		}
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), themeRuntimeStopTimeout)
+		defer cancel()
+		if stopErr := themeRuntimeWatcher.Stop(shutdownCtx); stopErr != nil && logger != nil {
+			logger.Warn("theme runtime watcher stop failed", "error", stopErr)
+		}
+	}
+	themeRuntimeHandedOff := false
+	defer func() {
+		if !themeRuntimeHandedOff {
+			stopThemeRuntimeWatcher()
+		}
+	}()
+	if !cfg.SafeMode {
+		themeRuntimeWatcher, err = startAPIThemeRuntimeWatcher(
+			ctx, extensionStore, extensionService, logger, themeRuntimeStopTimeout,
+		)
+		if err != nil {
+			stopPluginRuntimeCoordinator()
+			if stopErr := supportjobs.Stop(ctx, jobClient); stopErr != nil {
+				logger.Warn("job dispatcher stop failed", "error", stopErr)
+			}
+			closePluginRuntime()
+			_ = hostAPIGateway.Close()
+			sharedRedisClient.Close()
+			if closeErr := redisStorage.Close(); closeErr != nil {
+				logger.Warn("redis session storage close failed", "error", closeErr)
+			}
+			pool.Close()
+			return nil, fmt.Errorf("start theme runtime watcher failed: %w", err)
+		}
+	}
 
 	// Worker 心跳：嵌入 worker 时由 API 进程发布；独立 worker 在 NewWorker 内发布。
 	// 未嵌入时 overview 仍可读独立 worker 写入的同一 Redis key。
@@ -815,6 +833,7 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 			OwnsRuntime:      false,
 		})
 		if err != nil {
+			stopThemeRuntimeWatcher()
 			heartbeatCancel()
 			stopPluginRuntimeCoordinator()
 			if stopErr := supportjobs.Stop(ctx, jobClient); stopErr != nil {
@@ -829,6 +848,7 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 			return nil, fmt.Errorf("embedded worker setup failed: %w", err)
 		}
 		if err := embeddedWorker.Start(ctx); err != nil {
+			stopThemeRuntimeWatcher()
 			heartbeatCancel()
 			embeddedWorker.Close()
 			stopPluginRuntimeCoordinator()
@@ -870,27 +890,21 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 			}
 		}
 	}()
-	themeRuntimeWatcherCtx, themeRuntimeWatcherCancel := context.WithCancel(context.Background())
-	var themeRuntimeWatcherWait sync.WaitGroup
-	if themeRuntimeWatcher != nil {
-		themeRuntimeWatcherWait.Add(1)
-		go func() {
-			defer themeRuntimeWatcherWait.Done()
-			if err := themeRuntimeWatcher.Run(themeRuntimeWatcherCtx); err != nil {
-				logger.Error("theme runtime watcher stopped", "error", err)
-			}
-		}()
-	}
 	pluginRuntimeFailures, pluginRuntimeMonitorDone := superviseAPIPluginRuntimeCoordinator(
 		pluginRuntimeCoordinator,
 		closePluginRuntime,
 	)
+	apiRuntimeFailures, stopAPIRuntimeFailureMerge := mergeAPIRuntimeFailureSources(
+		pluginRuntimeFailures,
+		themeRuntimeWatcher.Failures(),
+	)
 
-	return &API{
+	api := &API{
 		App:      app,
 		Addr:     apiAddress(cfg),
-		failures: pluginRuntimeFailures,
+		failures: apiRuntimeFailures,
 		close: func() {
+			stopAPIRuntimeFailureMerge()
 			stopPluginRuntimeCoordinator()
 			if pluginRuntimeMonitorDone != nil {
 				waitCtx, cancel := context.WithTimeout(context.Background(), pluginRuntimeStopTimeout)
@@ -903,8 +917,7 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 				}
 				cancel()
 			}
-			themeRuntimeWatcherCancel()
-			themeRuntimeWatcherWait.Wait()
+			stopThemeRuntimeWatcher()
 			databaseLeaseReaperCancel()
 			databaseLeaseReaperWait.Wait()
 			extensionGuardPolicyCancel()
@@ -932,7 +945,17 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 			}
 			pool.Close()
 		},
-	}, nil
+	}
+	select {
+	case runtimeErr, ok := <-apiRuntimeFailures:
+		if ok && runtimeErr != nil {
+			api.Close()
+			return nil, fmt.Errorf("API runtime failed during startup: %w", runtimeErr)
+		}
+	default:
+	}
+	themeRuntimeHandedOff = true
+	return api, nil
 }
 
 func secureSessionID() string {

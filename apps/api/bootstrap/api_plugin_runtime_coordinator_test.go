@@ -44,3 +44,64 @@ func TestAPIRuntimeCoordinatorSupervisorSafeModeHasNoFailureSource(t *testing.T)
 		t.Fatalf("Safe Mode supervisor channels = %#v, %#v", failures, done)
 	}
 }
+
+func TestMergeAPIRuntimeFailureSourcesReportsTerminalFailure(t *testing.T) {
+	closed := make(chan error)
+	source := make(chan error, 1)
+	merged, cancel := mergeAPIRuntimeFailureSources(closed, source)
+	t.Cleanup(cancel)
+	close(closed)
+	source <- errWorkerRuntimeCoordinatorTerminalTest
+
+	select {
+	case runtimeErr, ok := <-merged:
+		if !ok || !errors.Is(runtimeErr, errWorkerRuntimeCoordinatorTerminalTest) {
+			t.Fatalf("merged runtime failure=%v open=%t", runtimeErr, ok)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for merged runtime failure")
+	}
+	select {
+	case _, ok := <-merged:
+		if ok {
+			t.Fatal("merged failure source remained open after terminal failure")
+		}
+	case <-time.After(time.Second):
+		t.Fatal("merged failure source did not close")
+	}
+}
+
+func TestMergeAPIRuntimeFailureSourcesHandlesConcurrentShutdown(t *testing.T) {
+	const sourceCount = 64
+	sources := make([]<-chan error, 0, sourceCount)
+	writable := make([]chan error, 0, sourceCount)
+	for range sourceCount {
+		source := make(chan error, 1)
+		writable = append(writable, source)
+		sources = append(sources, source)
+	}
+	merged, cancel := mergeAPIRuntimeFailureSources(sources...)
+	for index, source := range writable {
+		if index == sourceCount/2 {
+			source <- errWorkerRuntimeCoordinatorTerminalTest
+		}
+		close(source)
+	}
+	select {
+	case runtimeErr, ok := <-merged:
+		if !ok || !errors.Is(runtimeErr, errWorkerRuntimeCoordinatorTerminalTest) {
+			t.Fatalf("concurrent merged failure=%v open=%t", runtimeErr, ok)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for concurrent merged failure")
+	}
+	cancel()
+}
+
+func TestMergeAPIRuntimeFailureSourcesWithoutSourcesIsInactive(t *testing.T) {
+	merged, cancel := mergeAPIRuntimeFailureSources(nil, nil)
+	defer cancel()
+	if merged != nil {
+		t.Fatalf("inactive merge returned failure source %#v", merged)
+	}
+}

@@ -92,11 +92,11 @@ func runAPILifecycle(ctx context.Context, logger *slog.Logger, api apiLifecycle)
 		}
 	case runtimeErr, ok := <-api.Failures():
 		if !ok || runtimeErr == nil {
-			runtimeErr = errors.New("plugin runtime coordinator stopped without a terminal error")
+			runtimeErr = errors.New("api runtime supervision stopped without a terminal error")
 		}
-		terminalErr = fmt.Errorf("plugin runtime coordinator terminal failure: %w", runtimeErr)
+		terminalErr = fmt.Errorf("api runtime terminal failure: %w", runtimeErr)
 		if logger != nil {
-			logger.Error("plugin runtime authorization lost; draining HTTP", "error", runtimeErr)
+			logger.Error("api runtime authority lost; draining HTTP", "error", runtimeErr)
 		}
 	case listenErr := <-listenErrors:
 		listenStopped = true
