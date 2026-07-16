@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -55,6 +56,32 @@ func (s *PostgresStore) Get(ctx context.Context, id string) (Extension, error) {
 		return Extension{}, err
 	}
 	return item, nil
+}
+
+// PackagePathReferenced checks every durable package owner, not only the
+// active/staged projections returned by List. Cleanup uncertainty must retain.
+func (s *PostgresStore) PackagePathReferenced(ctx context.Context, packagePath string) (bool, error) {
+	packagePath = strings.TrimSpace(packagePath)
+	if packagePath == "" {
+		return false, nil
+	}
+	var referenced bool
+	err := s.pool.QueryRow(ctx, `
+		SELECT EXISTS (
+			SELECT 1
+			FROM extension_versions
+			WHERE package_path = $1
+			UNION ALL
+			SELECT 1
+			FROM extension_lifecycle_cleanup_records
+			WHERE physical_package_present
+			  AND (retained_package_path = $1 OR target_package_path = $1)
+		)
+	`, packagePath).Scan(&referenced)
+	if err != nil {
+		return false, fmt.Errorf("check extension package reference: %w", err)
+	}
+	return referenced, nil
 }
 
 func (s *PostgresStore) GetMailProviderExtension(ctx context.Context, id string) (Extension, error) {
@@ -161,10 +188,16 @@ func (s *PostgresStore) SaveInstalled(ctx context.Context, input SaveInstalledIn
 			return Extension{}, fmt.Errorf("stage extension version: %w", err)
 		}
 	}
+	installed, err := scanExtension(tx.QueryRow(ctx, extensionSelectSQL()+`
+		WHERE extensions.id = $1
+	`, input.Manifest.ID))
+	if err != nil {
+		return Extension{}, fmt.Errorf("load installed extension before commit: %w", err)
+	}
 	if err := tx.Commit(ctx); err != nil {
 		return Extension{}, fmt.Errorf("commit extension install: %w", err)
 	}
-	return s.Get(ctx, input.Manifest.ID)
+	return installed, nil
 }
 
 func (s *PostgresStore) SaveBuiltin(ctx context.Context, input SaveBuiltinInput) (Extension, error) {
