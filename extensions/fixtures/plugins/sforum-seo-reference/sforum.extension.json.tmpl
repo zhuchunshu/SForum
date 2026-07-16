@@ -1,0 +1,42 @@
+{
+  "manifestVersion": 3,
+  "id": "sforum.seo-reference",
+  "name": "SForum SEO Reference",
+  "description": "Protocol V2 reference plugin for controlled server-rendered SEO title filtering.",
+  "url": "https://github.com/zhuchunshu/sforum",
+  "author": {
+    "name": "SForum",
+    "url": "https://github.com/zhuchunshu/sforum"
+  },
+  "version": "1.0.0",
+  "type": "plugin",
+  "sforumVersion": ">=0.1.0",
+  "capabilities": ["host.api"],
+  "backend": {
+    "entry": "backend/plugin",
+    "rpc": "hashicorp-go-plugin",
+    "protocolVersion": 2,
+    "hostApiVersion": "sforum.host@2",
+    "digest": "__BACKEND_DIGEST__"
+  },
+  "seo": [
+    {
+      "id": "sforum.seo-reference.title",
+      "contractVersion": "sforum.seo-reference.title@1",
+      "scope": "core.page.topic",
+      "kind": "title",
+      "action": "filter",
+      "handler": "sforum.seo-reference.title",
+      "failurePolicy": "fallback",
+      "timeoutMs": 500
+    }
+  ],
+  "packageFiles": [
+    {
+      "id": "sforum.seo-reference.file.backend",
+      "kind": "executable",
+      "path": "backend/plugin",
+      "digest": "__BACKEND_DIGEST__"
+    }
+  ]
+}

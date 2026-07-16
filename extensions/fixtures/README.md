@@ -12,6 +12,7 @@ and must remain reproducible from a fresh clone.
 | `plugins/sforum-contract-events` | Manifest-only events + `forum.topic.actions` contribution |
 | `plugins/sforum-contract-schedules` | Manifest-only reminder that schedules stay host-owned |
 | `plugins/sforum-prebuilt-settings` | Digest-trusted, author-prebuilt admin settings ESM/CSS |
+| `plugins/sforum-seo-reference` | Protocol V2 SEO Registry transport, Host-policy fallback, and trace attribution |
 | `themes/sforum-schema-theme` | Buildless schema settings and theme manifest validation |
 | `themes/sforum-public-l2-e2e-theme` | Production upload/trust/mount/restart/revoke test for author-prebuilt public ESM/CSS |
 
