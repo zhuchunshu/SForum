@@ -25,7 +25,8 @@ func maintenanceMiddleware(optionsService *options.Service) fiber.Handler {
 		}
 		path := c.Path()
 		// 认证与后台管理在维护期间仍需可用，否则无法关闭维护模式。
-		if strings.HasPrefix(path, "/api/v1/auth/") || strings.HasPrefix(path, "/api/v1/admin/") {
+		if strings.HasPrefix(path, "/api/v1/auth/") || strings.HasPrefix(path, "/api/v1/admin/") ||
+			path == "/admin" || strings.HasPrefix(path, "/admin/") {
 			return c.Next()
 		}
 		// 入站 webhook 由外部系统回调，维护模式不阻断（F3.3）。

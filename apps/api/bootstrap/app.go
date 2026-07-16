@@ -703,6 +703,7 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 
 	app := httpserver.NewApp(cfg, logger, httpserver.Dependencies{
 		RouteProviders:  []httpserver.RouteProvider{identityProvider, notificationsProvider, mailProvider, adminOverviewProvider, forumProvider, profileProvider, moderationProvider, optionsProvider, siteChromeProvider, attachmentsProvider, seoProvider, databaseProvider, jobsProvider, extensionsProvider, webhooksProvider, entityMetaProvider, pagesProvider},
+		RoutePlans:      lifecycleStack.RouteProviders,
 		RouteDispatcher: routeDispatcher,
 		RouteActors: func(c fiber.Ctx) (identity.Actor, error) {
 			return httpserver.OptionalActor(c, authSessions, identityStore)

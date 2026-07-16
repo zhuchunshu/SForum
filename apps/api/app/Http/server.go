@@ -41,6 +41,9 @@ type ReadyEvaluator func(ctx context.Context) health.ReadyReport
 
 type Dependencies struct {
 	RouteProviders []RouteProvider
+	// RoutePlans 与 Dispatcher 共享同一个 production resolver，只做无副作用
+	// 入口分类，使任意 public/admin 路径能进入正确的 Host middleware 链。
+	RoutePlans routes.PlanResolver
 	// RouteDispatcher 在硬编码 core provider 前消费不可变 Route Registry plan。
 	// nil 保持旧路由行为，便于独立测试与回滚。
 	RouteDispatcher *routes.Dispatcher
@@ -103,10 +106,11 @@ func NewApp(cfg config.Config, logger *slog.Logger, deps Dependencies) *fiber.Ap
 	app.Use(recover.New())
 	// 响应压缩：根据 Accept-Encoding 自动 brotli/gzip，降低带宽占用。
 	app.Use(compress.New(compress.Config{Level: compress.Level(cfg.CompressLevel)}))
+	app.Use(routeRegistryIngressMiddleware(deps.RoutePlans))
 	// 写接口限流：跳过 GET/HEAD/OPTIONS，按 IP 限制单位时间内的写操作次数。
 	// Storage 注入时为分布式限流（多实例共享），否则退化为进程内存限流。
 	if cfg.LimiterWriteMax > 0 && cfg.LimiterWindow > 0 {
-		app.Use(limiter.New(limiter.Config{
+		app.Use(routeRegistryManagedOnly(limiter.New(limiter.Config{
 			Storage:    deps.Storage,
 			Max:        cfg.LimiterWriteMax,
 			Expiration: cfg.LimiterWindow,
@@ -118,29 +122,28 @@ func NewApp(cfg config.Config, logger *slog.Logger, deps Dependencies) *fiber.Ap
 				}
 				return false
 			},
-		}))
+		})))
 	}
-	app.Use(localeMiddleware(cfg, deps.Options))
+	app.Use(routeRegistryManagedOnly(localeMiddleware(cfg, deps.Options)))
 	// 维护模式：拦截非管理员的写操作；GET 健康检查与登录/注册/web-options 仍可用。
-	app.Use(maintenanceMiddleware(deps.Options))
+	app.Use(routeRegistryManagedOnly(maintenanceMiddleware(deps.Options)))
+	registerRouteRegistryMiddleware(app, cfg, deps)
 
 	registerRoutes(app, cfg, deps)
 
 	return app
 }
 
-func registerRoutes(app *fiber.App, cfg config.Config, deps Dependencies) {
-	api := app.Group("/api/v1")
-
+func registerRouteRegistryMiddleware(app *fiber.App, cfg config.Config, deps Dependencies) {
 	// CSRF 防护：double-submit cookie + Origin/Referer 校验，保护所有 unsafe 方法。
-	// 注册在 /api/v1 group 上，使 GET（如 /auth/session）也能种下可读的 csrf_ cookie，
-	// 供 SPA 读取后随 unsafe 请求回传 X-Csrf-Token header。
+	// 仅对 /api/v1 或已由 Registry plan 命中的任意路径启用；未知 Nuxt
+	// 请求不能被 CSRF/Bearer 提前截获。
 	// TrustedOrigins 必须包含公开站点 origin：API 在反向代理后看到的 Host 是内部地址，
 	// 而 Origin 是公开站点，二者不匹配会被默认拒绝。默认从 APP_URL 派生。
 	// CSRF 防护仅在配置启用时生效；测试场景通过 CSRF_ENABLED=false 显式关闭，
 	// 避免每个测试请求都要携带 token。生产默认启用。
 	if cfg.CSRFEnabled {
-		api.Use(csrf.New(csrf.Config{
+		app.Use(routeRegistryManagedOnly(csrf.New(csrf.Config{
 			Storage:        deps.Storage,
 			CookieSameSite: fiber.CookieSameSiteLaxMode,
 			// 与 session cookie 共用 Secure 判定，避免 staging HTTPS 下 csrf_ 仍可明文读取。
@@ -152,24 +155,27 @@ func registerRoutes(app *fiber.App, cfg config.Config, deps Dependencies) {
 			// 入站 webhook / Bearer PAT 由非浏览器客户端调用，无 CSRF cookie。
 			Next: func(c fiber.Ctx) bool {
 				path := c.Path()
-				if strings.HasPrefix(path, "/api/v1/webhooks/inbound/") ||
-					strings.HasPrefix(path, "/webhooks/inbound/") {
+				if strings.HasPrefix(path, "/api/v1/webhooks/inbound/") {
 					return true
 				}
 				// PAT：Authorization Bearer sft_... 跳过 CSRF（F3.4）。
 				authz := c.Get("Authorization")
 				return strings.HasPrefix(authz, "Bearer sft_")
 			},
-		}))
+		})))
 	}
 
 	// F3.4：Bearer PAT 鉴权（在路由前解析，供各 controller 读取 context）。
 	if deps.BearerTokens != nil {
-		api.Use(bearerMiddleware(deps.BearerTokens, deps.Auditor))
+		app.Use(routeRegistryManagedOnly(bearerMiddleware(deps.BearerTokens, deps.Auditor)))
 	}
 	if deps.RouteDispatcher != nil {
-		api.Use(routeDispatcherMiddleware(deps.RouteDispatcher, deps.RouteActors))
+		app.Use(routeRegistryManagedOnly(routeDispatcherMiddleware(deps.RouteDispatcher, deps.RouteActors)))
 	}
+}
+
+func registerRoutes(app *fiber.App, cfg config.Config, deps Dependencies) {
+	api := app.Group("/api/v1")
 
 	for _, provider := range deps.RouteProviders {
 		if provider != nil {
