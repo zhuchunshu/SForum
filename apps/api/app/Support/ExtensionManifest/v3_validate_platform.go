@@ -34,7 +34,7 @@ func (v *v3Validator) validatePlatform() error {
 
 func (v *v3Validator) validateDatabaseAndCache() error {
 	if database := v.manifest.Database; database != nil {
-		if !contractVersionPattern.MatchString(database.ContractVersion) {
+		if !validContractVersion(database.ContractVersion) {
 			return ErrInvalidManifest
 		}
 		grants := DatabaseGrants(database)
@@ -221,7 +221,7 @@ func (v *v3Validator) validateServicesCommandsAdminAndQueries() error {
 		if err := v.versionedID(query.ID, query.ContractVersion, "query"); err != nil {
 			return err
 		}
-		if query.Entity == "" || !contractVersionPattern.MatchString(query.PlanVersion) || len(query.Fields) == 0 || !validSchemaRef(query.ResultSchema) || query.PermissionPolicy == "" {
+		if query.Entity == "" || !validContractVersion(query.PlanVersion) || len(query.Fields) == 0 || !validSchemaRef(query.ResultSchema) || query.PermissionPolicy == "" {
 			return ErrInvalidManifest
 		}
 		switch query.Pagination {
@@ -262,7 +262,7 @@ func (v *v3Validator) validateIdentityAndPermissions() error {
 	if identity == nil {
 		return nil
 	}
-	if !contractVersionPattern.MatchString(identity.ContractVersion) {
+	if !validContractVersion(identity.ContractVersion) {
 		return ErrInvalidManifest
 	}
 	if identity.SessionPolicy != "" && identity.SessionPolicy != "core.session.default" &&
@@ -392,7 +392,7 @@ func (v *v3Validator) validateDependenciesAndLifecycle() error {
 	if lifecycle == nil {
 		return nil
 	}
-	if v.manifest.Backend.Entry == "" || !contractVersionPattern.MatchString(lifecycle.ContractVersion) {
+	if v.manifest.Backend.Entry == "" || !validContractVersion(lifecycle.ContractVersion) {
 		return ErrInvalidManifest
 	}
 	for _, operation := range []*ManifestLifecycleOperation{lifecycle.Install, lifecycle.Enable, lifecycle.Disable, lifecycle.Upgrade, lifecycle.Rollback, lifecycle.Uninstall} {

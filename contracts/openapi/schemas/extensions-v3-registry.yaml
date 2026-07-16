@@ -79,16 +79,52 @@ ExtensionManifestAsset:
 ExtensionManifestContent:
   type: object
   required: [id, contractVersion, kind, schema]
+  anyOf:
+  - required: [handler]
+  - required: [renderer]
   properties:
-    id: { type: string }
-    contractVersion: { type: string }
+    id:
+      type: string
+      maxLength: 81
+      pattern: '^[a-z0-9][a-z0-9._-]{1,80}$'
+    contractVersion:
+      type: string
+      maxLength: 256
+      pattern: '^[a-z0-9][a-z0-9._-]*@[1-9][0-9]*$'
     kind:
       type: string
       enum: [block, shortcode, embed, node, mark, render_filter, sanitizer]
-    handler: { type: string }
-    schema: { type: string }
-    renderer: { type: string }
-    migration: { type: string }
+    handler:
+      type: string
+      minLength: 1
+      maxLength: 256
+      description: Requires an executable backend entry.
+      allOf:
+      - not: { pattern: '://' }
+      - not: { pattern: '\.\.' }
+      - not: { pattern: '[\x00-\x1f\x7f]' }
+    schema:
+      type: string
+      minLength: 1
+      maxLength: 256
+      anyOf:
+      - pattern: '^[a-z0-9][a-z0-9._-]*@[1-9][0-9]*$'
+      - allOf:
+        - pattern: '^[^/].*\.json$'
+        - not: { pattern: '(^|/)\.\.(/|$)' }
+        - not: { pattern: '(^|/)\.(/|$)' }
+        - not: { pattern: '//' }
+        - not: { pattern: '\\' }
+    renderer:
+      type: string
+      minLength: 2
+      maxLength: 81
+      pattern: '^[a-z0-9][a-z0-9._-]{1,80}$'
+    migration:
+      type: string
+      minLength: 2
+      maxLength: 81
+      pattern: '^[a-z0-9][a-z0-9._-]{1,80}$'
 ExtensionManifestDatabase:
   type: object
   required: [contractVersion, backup, retention]

@@ -198,6 +198,7 @@ func (v *v3Validator) validateUIAndPackage() error {
 		}
 		if !validSchemaRef(content.Schema) ||
 			(content.Handler != "" && !validHandler(content.Handler)) ||
+			(content.Handler != "" && v.manifest.Backend.Entry == "") ||
 			content.Handler == "" && content.Renderer == "" {
 			return ErrInvalidManifest
 		}
@@ -367,7 +368,7 @@ func (v *v3Validator) allLocalSchemasDeclared(files map[string]ManifestPackageFi
 		}
 	}
 	for _, ref := range refs {
-		if ref == "" || contractVersionPattern.MatchString(ref) {
+		if ref == "" || validContractVersion(ref) {
 			continue
 		}
 		if file, exists := files[ref]; !exists || file.Kind != "schema" {
@@ -408,7 +409,7 @@ func validComponentTarget(targetID string, targetContractVersion string, manifes
 	if targetID == "" {
 		return targetContractVersion == ""
 	}
-	if !manifestIDPattern.MatchString(targetID) || !contractVersionPattern.MatchString(targetContractVersion) {
+	if !manifestIDPattern.MatchString(targetID) || !validContractVersion(targetContractVersion) {
 		return false
 	}
 	if !strings.HasPrefix(targetID, "core.") {
@@ -422,7 +423,7 @@ func validComponentTarget(targetID string, targetContractVersion string, manifes
 }
 
 func validAdminSurfacePlacement(targetID string, targetContractVersion string) bool {
-	if !manifestIDPattern.MatchString(targetID) || !contractVersionPattern.MatchString(targetContractVersion) {
+	if !manifestIDPattern.MatchString(targetID) || !validContractVersion(targetContractVersion) {
 		return false
 	}
 	target, found := componentcatalog.FindCoreComponent(targetID)

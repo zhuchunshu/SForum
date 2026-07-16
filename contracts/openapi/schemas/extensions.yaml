@@ -740,6 +740,7 @@ ExtensionManifest:
         "$ref": "./extensions-v3-registry.yaml#/ExtensionManifestAsset"
     content:
       type: array
+      maxItems: 512
       items:
         "$ref": "./extensions-v3-registry.yaml#/ExtensionManifestContent"
     database:
@@ -2148,6 +2149,7 @@ ExecutableTrustImpact:
         "$ref": "./extensions-v3-registry.yaml#/ExtensionManifestAsset"
     content:
       type: array
+      maxItems: 512
       items:
         "$ref": "./extensions-v3-registry.yaml#/ExtensionManifestContent"
     database:

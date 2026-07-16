@@ -56,18 +56,82 @@
     "packageFiles": { "$ref": "#/$defs/packageFiles" },
     "includes": { "$ref": "#/$defs/includes" }
   },
+  "allOf": [
+    {
+      "if": {
+        "required": ["content"],
+        "properties": {
+          "content": {
+            "type": "array",
+            "contains": {
+              "required": ["handler"],
+              "properties": {
+                "handler": { "$ref": "#/$defs/handler" }
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "required": ["backend"],
+        "properties": {
+          "backend": {
+            "type": "object",
+            "required": ["entry"],
+            "properties": {
+              "entry": { "type": "string", "minLength": 1 }
+            }
+          }
+        }
+      }
+    }
+  ],
   "$defs": {
     "nonEmpty": { "type": "string", "minLength": 1 },
     "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]{1,80}$" },
-    "contract": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]*@[1-9][0-9]*$" },
+    "contract": { "type": "string", "maxLength": 256, "pattern": "^[a-z0-9][a-z0-9._-]*@[1-9][0-9]*$" },
     "digest": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
     "path": { "type": "string", "minLength": 1, "pattern": "^[^/].*$" },
     "schemaRef": {
       "type": "string",
       "minLength": 1,
+      "maxLength": 256,
+      "allOf": [
+        { "not": { "pattern": "[\\x00]" } }
+      ],
       "anyOf": [
         { "pattern": "^[a-z0-9][a-z0-9._-]*@[1-9][0-9]*$" },
-        { "pattern": "^[^/].*\\.json$" }
+        {
+          "allOf": [
+            { "pattern": "^[^/].*\\.json$" },
+            { "not": { "pattern": "(^|/)\\.\\.(/|$)" } },
+            { "not": { "pattern": "(^|/)\\.(/|$)" } },
+            { "not": { "pattern": "//" } },
+            { "not": { "pattern": "\\\\" } }
+          ]
+        }
+      ]
+    },
+    "handler": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256,
+      "allOf": [
+        { "not": { "pattern": "://" } },
+        { "not": { "pattern": "\\.\\." } },
+        { "not": { "pattern": "[\\x00-\\x1f\\x7f]" } }
+      ]
+    },
+    "optionalHandler": {
+      "anyOf": [
+        { "const": "" },
+        { "$ref": "#/$defs/handler" }
+      ]
+    },
+    "optionalSchemaRef": {
+      "anyOf": [
+        { "const": "" },
+        { "$ref": "#/$defs/schemaRef" }
       ]
     },
     "stringArray": {
@@ -180,9 +244,9 @@
           "fallback": { "enum": ["closed", "not_found", "readonly_core"] },
           "mode": { "enum": ["http", "sse", "websocket", "stream", "multipart"] },
           "destination": { "type": "string" },
-          "handler": { "type": "string" },
-          "requestSchema": { "type": "string" },
-          "responseSchema": { "type": "string" },
+          "handler": { "$ref": "#/$defs/optionalHandler" },
+          "requestSchema": { "$ref": "#/$defs/optionalSchemaRef" },
+          "responseSchema": { "$ref": "#/$defs/optionalSchemaRef" },
           "timeoutMs": { "type": "integer", "minimum": 0 }
         }
       }
@@ -215,9 +279,9 @@
           "name": { "$ref": "#/$defs/id" },
           "kind": { "enum": ["action", "filter", "observe"] },
           "targetId": { "$ref": "#/$defs/id" },
-          "handler": { "$ref": "#/$defs/nonEmpty" },
+          "handler": { "$ref": "#/$defs/handler" },
           "inputSchema": { "$ref": "#/$defs/schemaRef" },
-          "resultSchema": { "type": "string" },
+          "resultSchema": { "$ref": "#/$defs/optionalSchemaRef" },
           "priority": { "type": "integer" },
           "execution": { "enum": ["sync", "async"] },
           "failurePolicy": { "enum": ["fail_closed", "fail_open"] },
@@ -237,9 +301,9 @@
           "contractVersion": { "$ref": "#/$defs/contract" },
           "name": { "$ref": "#/$defs/id" },
           "kind": { "enum": ["observe", "filter"] },
-          "handler": { "$ref": "#/$defs/nonEmpty" },
+          "handler": { "$ref": "#/$defs/handler" },
           "inputSchema": { "$ref": "#/$defs/schemaRef" },
-          "resultSchema": { "type": "string" },
+          "resultSchema": { "$ref": "#/$defs/optionalSchemaRef" },
           "priority": { "type": "integer" },
           "timeoutMs": { "type": "integer", "minimum": 0 }
         }
@@ -255,7 +319,7 @@
           "id": { "$ref": "#/$defs/id" },
           "contractVersion": { "$ref": "#/$defs/contract" },
           "name": { "$ref": "#/$defs/id" },
-          "handler": { "$ref": "#/$defs/nonEmpty" },
+          "handler": { "$ref": "#/$defs/handler" },
           "payloadSchema": { "$ref": "#/$defs/schemaRef" },
           "retryPolicy": { "enum": ["none", "bounded", "exponential"] },
           "maxAttempts": { "type": "integer", "minimum": 1, "maximum": 25 },
@@ -291,9 +355,9 @@
           "slot": { "$ref": "#/$defs/id" },
           "targetId": { "$ref": "#/$defs/id" },
           "label": { "$ref": "#/$defs/nonEmpty" },
-          "handler": { "$ref": "#/$defs/nonEmpty" },
-          "requestSchema": { "type": "string" },
-          "responseSchema": { "type": "string" },
+          "handler": { "$ref": "#/$defs/handler" },
+          "requestSchema": { "$ref": "#/$defs/optionalSchemaRef" },
+          "responseSchema": { "$ref": "#/$defs/optionalSchemaRef" },
           "fallback": { "enum": ["next", "closed"] },
           "priority": { "type": "integer" },
           "timeoutMs": { "type": "integer", "minimum": 0 }
@@ -353,8 +417,8 @@
           "priority": { "type": "integer" },
           "ssrTemplate": { "type": "string" },
           "l2Component": { "type": "string" },
-          "propsSchema": { "type": "string" },
-          "resultSchema": { "type": "string" },
+          "propsSchema": { "$ref": "#/$defs/optionalSchemaRef" },
+          "resultSchema": { "$ref": "#/$defs/optionalSchemaRef" },
           "themeOverrideKey": { "type": "string" }
         },
         "allOf": [
@@ -404,6 +468,7 @@
     },
     "content": {
       "type": ["array", "null"],
+      "maxItems": 512,
       "items": {
         "type": "object",
         "additionalProperties": false,
@@ -412,11 +477,21 @@
           "id": { "$ref": "#/$defs/id" },
           "contractVersion": { "$ref": "#/$defs/contract" },
           "kind": { "enum": ["block", "shortcode", "embed", "node", "mark", "render_filter", "sanitizer"] },
-          "handler": { "type": "string" },
+          "handler": { "$ref": "#/$defs/optionalHandler" },
           "schema": { "$ref": "#/$defs/schemaRef" },
-          "renderer": { "type": "string" },
-          "migration": { "type": "string" }
-        }
+          "renderer": { "$ref": "#/$defs/id" },
+          "migration": { "$ref": "#/$defs/id" }
+        },
+        "anyOf": [
+          {
+            "required": ["handler"],
+            "properties": { "handler": { "$ref": "#/$defs/handler" } }
+          },
+          {
+            "required": ["renderer"],
+            "properties": { "renderer": { "$ref": "#/$defs/id" } }
+          }
+        ]
       }
     },
     "database": {
@@ -560,7 +635,7 @@
           "contractVersion": { "$ref": "#/$defs/contract" },
           "action": { "enum": ["add", "before", "after", "wrap", "replace"] },
           "targetId": { "$ref": "#/$defs/id" },
-          "handler": { "$ref": "#/$defs/nonEmpty" },
+          "handler": { "$ref": "#/$defs/handler" },
           "requestSchema": { "$ref": "#/$defs/schemaRef" },
           "responseSchema": { "$ref": "#/$defs/schemaRef" },
           "priority": { "type": "integer" }
@@ -576,7 +651,7 @@
         "properties": {
           "id": { "$ref": "#/$defs/id" },
           "contractVersion": { "$ref": "#/$defs/contract" },
-          "handler": { "$ref": "#/$defs/nonEmpty" },
+          "handler": { "$ref": "#/$defs/handler" },
           "permission": { "type": "string" },
           "inputSchema": { "$ref": "#/$defs/schemaRef" },
           "resultSchema": { "$ref": "#/$defs/schemaRef" },
@@ -601,7 +676,7 @@
           "placementId": { "$ref": "#/$defs/id" },
           "placementContractVersion": { "$ref": "#/$defs/contract" },
           "label": { "$ref": "#/$defs/nonEmpty" },
-          "handler": { "type": "string" },
+          "handler": { "$ref": "#/$defs/optionalHandler" },
           "propsSchema": { "$ref": "#/$defs/schemaRef" },
           "resultSchema": { "$ref": "#/$defs/schemaRef" },
           "operation": { "enum": ["query", "command"] },
@@ -676,7 +751,7 @@
               }
             }
           },
-          "handler": { "$ref": "#/$defs/nonEmpty" },
+          "handler": { "$ref": "#/$defs/handler" },
           "permission": { "type": "string" },
           "priority": { "type": "integer" }
         }
@@ -750,7 +825,7 @@
               "id": { "$ref": "#/$defs/id" },
               "contractVersion": { "$ref": "#/$defs/contract" },
               "kind": { "enum": ["auth", "profile", "recovery", "session", "risk"] },
-              "handler": { "$ref": "#/$defs/nonEmpty" },
+              "handler": { "$ref": "#/$defs/handler" },
               "priority": { "type": "integer" }
             }
           }
@@ -792,8 +867,8 @@
       "additionalProperties": false,
       "required": ["plan", "execute", "progressSchema", "checkpointSchema"],
       "properties": {
-        "plan": { "$ref": "#/$defs/nonEmpty" },
-        "execute": { "$ref": "#/$defs/nonEmpty" },
+        "plan": { "$ref": "#/$defs/handler" },
+        "execute": { "$ref": "#/$defs/handler" },
         "progressSchema": { "$ref": "#/$defs/schemaRef" },
         "checkpointSchema": { "$ref": "#/$defs/schemaRef" }
       }

@@ -46,7 +46,7 @@ func validateV3Manifest(manifest Manifest) error {
 
 func (v *v3Validator) versionedID(id string, contractVersion string, family string) error {
 	if !manifestIDPattern.MatchString(id) || !strings.HasPrefix(id, v.manifest.ID+".") ||
-		len(contractVersion) > ContractVersionMaximumLength || !contractVersionPattern.MatchString(contractVersion) {
+		!validContractVersion(contractVersion) {
 		return ErrInvalidManifest
 	}
 	if _, duplicate := v.ids[id]; duplicate {
@@ -69,7 +69,7 @@ func (v *v3Validator) validateBackendAndMigrations() error {
 		if backend.ProtocolVersion < 1 || backend.ProtocolVersion > 2 {
 			return ErrInvalidManifest
 		}
-		if backend.ProtocolVersion == 2 && !contractVersionPattern.MatchString(backend.HostAPIVersion) {
+		if backend.ProtocolVersion == 2 && !validContractVersion(backend.HostAPIVersion) {
 			return ErrInvalidManifest
 		}
 	}
@@ -373,10 +373,14 @@ func validSchemaRef(value string) bool {
 	if value == "" || len(value) > SchemaReferenceMaximumLength {
 		return false
 	}
-	if contractVersionPattern.MatchString(value) {
+	if validContractVersion(value) {
 		return true
 	}
 	return validPackagePath(value) && strings.HasSuffix(value, ".json")
+}
+
+func validContractVersion(value string) bool {
+	return len(value) <= ContractVersionMaximumLength && contractVersionPattern.MatchString(value)
 }
 
 func validHandler(value string) bool {
