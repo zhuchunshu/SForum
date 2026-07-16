@@ -1,4 +1,6 @@
-import { getQuery, proxyRequest } from 'h3'
+import { getQuery } from 'h3'
+
+import { proxyRouteRequest } from '../../../utils/pluginRouteProxy'
 
 export default defineEventHandler((event) => {
   const pathParam = event.context.params?.path
@@ -20,5 +22,5 @@ export default defineEventHandler((event) => {
     }
   }
 
-  return proxyRequest(event, target.toString())
+  return proxyRouteRequest(event, target)
 })
