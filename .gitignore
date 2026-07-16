@@ -53,6 +53,9 @@ apps/web/node_modules/
 .nitro/
 dist/
 coverage/
+# Prebuilt extension fixtures are source inputs for build-free runtime tests.
+!extensions/fixtures/**/dist/
+!extensions/fixtures/**/dist/**
 apps/web/.nuxt/
 apps/web/.nuxt-build/
 apps/web/.nuxt-typecheck/
