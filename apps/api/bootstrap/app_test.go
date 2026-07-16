@@ -40,6 +40,21 @@ func TestAPICloseRunsCleanupOnce(t *testing.T) {
 	}
 }
 
+func TestAPIFailuresExposeOnlyConfiguredCoordinatorChannel(t *testing.T) {
+	if failures := (*API)(nil).Failures(); failures != nil {
+		t.Fatalf("nil API failures = %#v", failures)
+	}
+	if failures := (&API{}).Failures(); failures != nil {
+		t.Fatalf("API without coordinator failures = %#v", failures)
+	}
+
+	configured := make(chan error, 1)
+	api := &API{failures: configured}
+	if api.Failures() != configured {
+		t.Fatal("API did not expose its exact coordinator failure channel")
+	}
+}
+
 func TestShouldEmbedWorkerInAPIRequiresConfigFlag(t *testing.T) {
 	if !shouldEmbedWorkerInAPI(config.Config{EmbedWorkerInAPI: true}) {
 		t.Fatal("expected embedded worker to start when config flag is enabled")

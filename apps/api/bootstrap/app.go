@@ -60,6 +60,7 @@ type API struct {
 
 	closeOnce sync.Once
 	close     func()
+	failures  <-chan error
 }
 
 type extensionRuntime interface {
@@ -521,24 +522,58 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 	if err := notifications.NewPostgresStore(pool).AdoptLegacyMail(ctx, legacyMailValues); err != nil {
 		return nil, fmt.Errorf("adopt legacy mail settings: %w", err)
 	}
-	reconciledExtensions, err := reconcileAPIExtensionRuntime(ctx, cfg.SafeMode, extensionStore, extensionRuntime)
+	var pluginRuntimeCoordinator *pluginRuntimeCoordinatorRuntime
+	pluginRuntimeStopTimeout := normalizedPluginRuntimeCoordinatorStopTimeout(cfg.WorkerShutdownTimeout)
+	stopPluginRuntimeCoordinator := func() {
+		if pluginRuntimeCoordinator == nil {
+			return
+		}
+		if stopErr := pluginRuntimeCoordinator.Stop(context.Background()); stopErr != nil && logger != nil {
+			logger.Warn("plugin runtime coordinator stop failed", "error", stopErr)
+		}
+	}
+	var closePluginRuntimeOnce sync.Once
+	closePluginRuntime := func() {
+		closePluginRuntimeOnce.Do(func() {
+			shutdownCtx, cancel := context.WithTimeout(context.Background(), pluginRuntimeStopTimeout)
+			defer cancel()
+			extensionRuntime.Close(shutdownCtx)
+		})
+	}
+	var reconciledExtensions []extensions.Extension
+	if cfg.SafeMode {
+		reconciledExtensions, err = reconcileAPIExtensionRuntime(ctx, true, extensionStore, extensionRuntime)
+	} else {
+		pluginRuntimeCoordinator, err = startPluginRuntimeCoordinator(ctx, pluginRuntimeCoordinatorBootstrapConfig{
+			ProcessRole: extensions.PluginRuntimeProcessAPI,
+			Store:       extensionStore,
+			Manager:     lifecycleRuntime,
+			Logger:      logger,
+			StopTimeout: cfg.WorkerShutdownTimeout,
+		})
+		if err == nil {
+			reconciledExtensions, err = extensionStore.List(ctx)
+		}
+	}
 	if err != nil {
+		stopPluginRuntimeCoordinator()
 		if stopErr := supportjobs.Stop(ctx, jobClient); stopErr != nil {
 			logger.Warn("job dispatcher stop failed", "error", stopErr)
 		}
-		extensionRuntime.Close(ctx)
+		closePluginRuntime()
 		sharedRedisClient.Close()
 		if closeErr := redisStorage.Close(); closeErr != nil {
 			logger.Warn("redis session storage close failed", "error", closeErr)
 		}
 		pool.Close()
-		return nil, fmt.Errorf("list extensions for runtime reconciliation failed: %w", err)
+		return nil, fmt.Errorf("start exact plugin runtime reconciliation failed: %w", err)
 	}
 	if err := lifecycleStack.Registries.RestoreRoutePublications(ctx, reconciledExtensions, cfg.SafeMode); err != nil {
+		stopPluginRuntimeCoordinator()
 		if stopErr := supportjobs.Stop(ctx, jobClient); stopErr != nil {
 			logger.Warn("job dispatcher stop failed", "error", stopErr)
 		}
-		extensionRuntime.Close(ctx)
+		closePluginRuntime()
 		sharedRedisClient.Close()
 		if closeErr := redisStorage.Close(); closeErr != nil {
 			logger.Warn("redis session storage close failed", "error", closeErr)
@@ -549,10 +584,11 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 	if err := lifecycleStack.bindAssetRegistryConsumers(
 		extensionService, frontendService, executableTrustService,
 	); err != nil {
+		stopPluginRuntimeCoordinator()
 		if stopErr := supportjobs.Stop(ctx, jobClient); stopErr != nil {
 			logger.Warn("job dispatcher stop failed", "error", stopErr)
 		}
-		extensionRuntime.Close(ctx)
+		closePluginRuntime()
 		sharedRedisClient.Close()
 		if closeErr := redisStorage.Close(); closeErr != nil {
 			logger.Warn("redis session storage close failed", "error", closeErr)
@@ -712,10 +748,11 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		},
 	)
 	if err := extensionGuardPolicy.Refresh(ctx); err != nil {
+		stopPluginRuntimeCoordinator()
 		if stopErr := supportjobs.Stop(ctx, jobClient); stopErr != nil {
 			logger.Warn("job dispatcher stop failed", "error", stopErr)
 		}
-		extensionRuntime.Close(ctx)
+		closePluginRuntime()
 		sharedRedisClient.Close()
 		if closeErr := redisStorage.Close(); closeErr != nil {
 			logger.Warn("redis session storage close failed", "error", closeErr)
@@ -779,10 +816,11 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		})
 		if err != nil {
 			heartbeatCancel()
+			stopPluginRuntimeCoordinator()
 			if stopErr := supportjobs.Stop(ctx, jobClient); stopErr != nil {
 				logger.Warn("job dispatcher stop failed", "error", stopErr)
 			}
-			extensionRuntime.Close(ctx)
+			closePluginRuntime()
 			sharedRedisClient.Close()
 			if closeErr := redisStorage.Close(); closeErr != nil {
 				logger.Warn("redis session storage close failed", "error", closeErr)
@@ -793,10 +831,11 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		if err := embeddedWorker.Start(ctx); err != nil {
 			heartbeatCancel()
 			embeddedWorker.Close()
+			stopPluginRuntimeCoordinator()
 			if stopErr := supportjobs.Stop(ctx, jobClient); stopErr != nil {
 				logger.Warn("job dispatcher stop failed", "error", stopErr)
 			}
-			extensionRuntime.Close(ctx)
+			closePluginRuntime()
 			sharedRedisClient.Close()
 			if closeErr := redisStorage.Close(); closeErr != nil {
 				logger.Warn("redis session storage close failed", "error", closeErr)
@@ -842,11 +881,28 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 			}
 		}()
 	}
+	pluginRuntimeFailures, pluginRuntimeMonitorDone := superviseAPIPluginRuntimeCoordinator(
+		pluginRuntimeCoordinator,
+		closePluginRuntime,
+	)
 
 	return &API{
-		App:  app,
-		Addr: apiAddress(cfg),
+		App:      app,
+		Addr:     apiAddress(cfg),
+		failures: pluginRuntimeFailures,
 		close: func() {
+			stopPluginRuntimeCoordinator()
+			if pluginRuntimeMonitorDone != nil {
+				waitCtx, cancel := context.WithTimeout(context.Background(), pluginRuntimeStopTimeout)
+				select {
+				case <-pluginRuntimeMonitorDone:
+				case <-waitCtx.Done():
+					if logger != nil {
+						logger.Warn("plugin runtime coordinator monitor stop timed out", "error", waitCtx.Err())
+					}
+				}
+				cancel()
+			}
 			themeRuntimeWatcherCancel()
 			themeRuntimeWatcherWait.Wait()
 			databaseLeaseReaperCancel()
@@ -865,7 +921,7 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 			if err := supportjobs.Stop(context.Background(), jobClient); err != nil {
 				logger.Warn("job dispatcher stop failed", "error", err)
 			}
-			extensionRuntime.Close(context.Background())
+			closePluginRuntime()
 			_ = hostAPIGateway.Close()
 			if err := redisStorage.Close(); err != nil {
 				logger.Warn("redis session storage close failed", "error", err)
@@ -901,6 +957,15 @@ func (api *API) Close() {
 			api.close()
 		}
 	})
+}
+
+// Failures reports terminal host-owned runtime failures that require process
+// termination. Safe Mode and test instances without a coordinator return nil.
+func (api *API) Failures() <-chan error {
+	if api == nil {
+		return nil
+	}
+	return api.failures
 }
 
 // identityPermissionAdapter 将 identity store 接到 Host API 权限检查。
