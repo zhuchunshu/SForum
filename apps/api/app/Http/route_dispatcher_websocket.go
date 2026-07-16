@@ -2,6 +2,7 @@ package http
 
 import (
 	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"io"
@@ -55,8 +56,19 @@ func serveRouteWebSocket(c fiber.Ctx, dispatch *routes.RouteStreamDispatch, host
 }
 
 func validRouteWebSocketUpgrade(c fiber.Ctx) bool {
-	if c == nil || c.Method() != fiber.MethodGet || !websocket.FastHTTPIsWebSocketUpgrade(c.RequestCtx()) ||
-		strings.TrimSpace(c.Get("Sec-WebSocket-Key")) == "" || !strings.Contains(c.Get("Sec-WebSocket-Version"), "13") {
+	if c == nil || c.Method() != fiber.MethodGet || !websocket.FastHTTPIsWebSocketUpgrade(c.RequestCtx()) {
+		return false
+	}
+	versions := c.Request().Header.PeekAll("Sec-WebSocket-Version")
+	if len(versions) != 1 || strings.TrimSpace(string(versions[0])) != "13" {
+		return false
+	}
+	keys := c.Request().Header.PeekAll("Sec-WebSocket-Key")
+	if len(keys) != 1 {
+		return false
+	}
+	nonce, err := base64.StdEncoding.Strict().DecodeString(strings.TrimSpace(string(keys[0])))
+	if err != nil || len(nonce) != 16 {
 		return false
 	}
 	origin := strings.TrimSpace(c.Get("Origin"))

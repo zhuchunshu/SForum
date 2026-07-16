@@ -201,22 +201,73 @@ func TestRouteDispatcherRejectsMalformedWebSocketBeforeRuntime(t *testing.T) {
 	})
 	app := fiber.New()
 	app.Use(routeDispatcherMiddleware(dispatcher, nil))
-	plain := httptest.NewRequest(stdhttp.MethodGet, "/socket-invalid", nil)
-	crossOrigin := httptest.NewRequest(stdhttp.MethodGet, "/socket-invalid", nil)
-	crossOrigin.Header.Set("Connection", "Upgrade")
-	crossOrigin.Header.Set("Upgrade", "websocket")
-	crossOrigin.Header.Set("Sec-WebSocket-Key", "dGhlIHNhbXBsZSBub25jZQ==")
-	crossOrigin.Header.Set("Sec-WebSocket-Version", "13")
-	crossOrigin.Header.Set("Origin", "https://evil.example")
-	for _, request := range []*stdhttp.Request{plain, crossOrigin} {
-		response, err := app.Test(request)
-		if err != nil {
-			t.Fatal(err)
-		}
-		response.Body.Close()
-		if response.StatusCode != fiber.StatusUpgradeRequired || invoker.openCalls.Load() != 0 || guard.calls.Load() != 0 {
-			t.Fatalf("status=%d openCalls=%d guardCalls=%d", response.StatusCode, invoker.openCalls.Load(), guard.calls.Load())
-		}
+	validUpgrade := func() *stdhttp.Request {
+		request := httptest.NewRequest(stdhttp.MethodGet, "/socket-invalid", nil)
+		request.Header.Set("Connection", "Upgrade")
+		request.Header.Set("Upgrade", "websocket")
+		request.Header.Set("Sec-WebSocket-Key", "dGhlIHNhbXBsZSBub25jZQ==")
+		request.Header.Set("Sec-WebSocket-Version", "13")
+		return request
+	}
+	tests := []struct {
+		name    string
+		request func() *stdhttp.Request
+	}{
+		{name: "plain request", request: func() *stdhttp.Request {
+			return httptest.NewRequest(stdhttp.MethodGet, "/socket-invalid", nil)
+		}},
+		{name: "cross origin", request: func() *stdhttp.Request {
+			request := validUpgrade()
+			request.Header.Set("Origin", "https://evil.example")
+			return request
+		}},
+		{name: "version substring", request: func() *stdhttp.Request {
+			request := validUpgrade()
+			request.Header.Set("Sec-WebSocket-Version", "113")
+			return request
+		}},
+		{name: "version list", request: func() *stdhttp.Request {
+			request := validUpgrade()
+			request.Header.Set("Sec-WebSocket-Version", "13, 12")
+			return request
+		}},
+		{name: "duplicate version", request: func() *stdhttp.Request {
+			request := validUpgrade()
+			request.Header.Add("Sec-WebSocket-Version", "13")
+			return request
+		}},
+		{name: "malformed key", request: func() *stdhttp.Request {
+			request := validUpgrade()
+			request.Header.Set("Sec-WebSocket-Key", "not-base64")
+			return request
+		}},
+		{name: "key list", request: func() *stdhttp.Request {
+			request := validUpgrade()
+			request.Header.Set("Sec-WebSocket-Key", "dGhlIHNhbXBsZSBub25jZQ==, dGhlIHNhbXBsZSBub25jZQ==")
+			return request
+		}},
+		{name: "wrong nonce length", request: func() *stdhttp.Request {
+			request := validUpgrade()
+			request.Header.Set("Sec-WebSocket-Key", "YWJj")
+			return request
+		}},
+		{name: "duplicate key", request: func() *stdhttp.Request {
+			request := validUpgrade()
+			request.Header.Add("Sec-WebSocket-Key", "dGhlIHNhbXBsZSBub25jZQ==")
+			return request
+		}},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			response, err := app.Test(test.request())
+			if err != nil {
+				t.Fatal(err)
+			}
+			response.Body.Close()
+			if response.StatusCode != fiber.StatusUpgradeRequired || invoker.openCalls.Load() != 0 || guard.calls.Load() != 0 {
+				t.Fatalf("status=%d openCalls=%d guardCalls=%d", response.StatusCode, invoker.openCalls.Load(), guard.calls.Load())
+			}
+		})
 	}
 }
 
