@@ -855,6 +855,18 @@ template while retaining Schema fallback fields.
   admission, serializes with any in-flight activation, restores the protected
   default, and only then reaches the API failure channel. API shutdown is bounded
   and drains HTTP before shared Redis/PostgreSQL resources close.
+- `fea430020` closes a publication safety gap without claiming the full second
+  P12 row. Install, upgrade, and rollback now rebuild the canonical exact
+  migration plan and lock its durable `target_ready` proof in the same
+  transaction before publishing a target runtime revision. Missing, failed,
+  malformed, or drifted proofs leave the source revision and publication marker
+  untouched; enable and deactivate operations remain outside this migration gate.
+- Real PostgreSQL evidence covers eight concurrent migration reconcilers, one SQL
+  execution, proof-row lock overlap with eight publication committers, atomic
+  marker/revision binding, failed migration, plan drift, and replay through a new
+  connection pool. Full install/rollback multi-node acknowledgement and every
+  runtime-publication producer still need end-to-end evidence before P12 task 2
+  can close.
 - This does not close P12 staged/canary rollout, migration-once rolling
   activation, multi-node upgrade/rollback tests, compatibility, marketplace,
   observability, privacy, or developer-workflow rows.

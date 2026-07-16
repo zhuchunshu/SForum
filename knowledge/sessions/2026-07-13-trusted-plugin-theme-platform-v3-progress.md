@@ -14,15 +14,19 @@ Last updated: 2026-07-17
 
 ## Current Subtask
 
-- **P12 migration-proof activation fence:** make runtime publication verify the
-  current lifecycle operation's exact durable `target_ready` migration proof in
-  the same PostgreSQL transaction before install/upgrade/rollback activation.
-- Keep enable/deactivate behavior unchanged, rebuild the canonical migration
-  plan instead of trusting caller input, and preserve every unrelated dirty SEO,
-  P6, fixture, ADR, and user-owned file.
+- **P6 raw-request authority:** forward Cookie/Authorization only after the
+  Dispatcher has issued a private per-step authority stamp from an active exact-
+  artifact `raw_request` guard. Ordinary, inherited, and custom routes remain
+  credential-filtered.
+- The implementation must synchronously close stale authority on trust revoke,
+  reject transport flag/manifest drift, disable loopback redirects, remove
+  dynamic `Connection` headers, and validate WebSocket origin/handshake before
+  any raw guard RPC.
 
 ## Recent Verified Commits
 
+- `fea430020 fix(extensions): gate runtime publication on migration proof`
+- `d20d88097 docs(extensions): record cache SDK closure`
 - `ba4ebc50c feat(sdk): harden cache helpers`
 - `d76531e48 feat(protocol): expose cache get revisions`
 - `fec013ce4 feat(api): bind durable identity registry`
@@ -56,6 +60,10 @@ Last updated: 2026-07-17
 - The post-fix normal/race/vet, formatting, and staged-diff checks passed.
   Independent `grok-4.5` review exited successfully with no final blocker; its
   intermediate guesses were checked against the code rather than trusted.
+- The P12 gate passed the full `app/Support/Extensions` normal and race suites
+  against PostgreSQL, `go vet ./app/Support/Extensions`, Models/Extensions and
+  bootstrap tests, `go build ./...`, and focused overlap tests repeated under
+  the race detector.
 
 ## Accepted Decisions And Assumptions
 
@@ -79,21 +87,22 @@ Last updated: 2026-07-17
 - The uncommitted SEO family is separate from Cache and includes
   `Support/SEORegistry`, SEO Protocol/SDK/runtime/bootstrap files, the
   `sforum-seo-reference` fixture, and its fixture index entry.
-- `apps/api/app/Support/Extensions/lifecycle_migration_runtime_activation_postgres_integration_test.go`
-  is separate P12 migration-proof evidence.
+- The P12 migration-proof implementation/tests are committed in `fea430020` and
+  are no longer dirty ownership.
 - `docs/extensions/catalogs/manifest-v3.md`, the V3 ADR edit, and every other
-  unstaged file remain outside the Cache commit until independently reviewed.
+  unstaged file remain outside the current commit until independently reviewed.
 
 ## Exact Next Steps
 
-1. Commit this task-book/ledger/index update separately from implementation.
-2. Reproduce the real PostgreSQL migration-proof activation failure and inspect
-   the exact publication transaction plus canonical migration-plan APIs.
-3. Implement and test the same-transaction proof fence for install, upgrade,
-   and rollback without blocking enable/deactivate.
-4. Return to the remaining P6 action/raw-authority/mutable-field/redirect matrix
-   while P10 attachment-source and P9 production wiring audits remain read-only.
-5. Land SEO only in independently reviewed contract/transport/Host-policy/
+1. Commit this P12 ledger/module update separately from implementation.
+2. Trace the production Guard authorizer, Dispatcher, loopback, Protocol V2,
+   stream, WebSocket, and trust-revoke paths before editing P6 raw authority.
+3. Add the private per-step authority result and credential-filter helpers first,
+   preserving compatibility for existing GuardAuthorizer implementations.
+4. Wire exact revoke/drain and unary/loopback/stream defenses with allowed plus
+   denied, drift, redirect, invalid-WebSocket, and race tests.
+5. Continue mutable-field/action semantics after raw authority; land SEO only in
+   independently reviewed contract/transport/Host-policy/
    bootstrap/reference slices; do not credit the SEO row before SSR, sitemap,
    revoke/failure, and Inspector evidence is production-complete.
 
@@ -102,13 +111,15 @@ Last updated: 2026-07-17
 - Reverting `ba4ebc50c` removes only Cache convenience helpers; the committed
   Protocol V2 and Host CacheService contracts remain additive and usable
   directly.
+- Reverting `fea430020` removes the publication proof fence and its tests but
+  does not roll back migration tables, proofs, or runtime publication history.
 - Protocol v1 compatibility remains present until P13 removal gates pass.
 - Safe Mode remains Host-owned and filters third-party Registry publications.
 - No database migration, feature-flag default, legacy deletion, push, tag, PR,
-  branch, or worktree change belongs to the current P12 subtask.
+  branch, or worktree change belongs to the current P6 subtask.
 
 ## Open Questions
 
-- None for the current P12 migration-proof boundary. The fence enforces the
-  already accepted migration-before-runtime rule and does not select a new
-  product policy.
+- None for the current P6 boundary. The user accepted all recommended P6
+  choices, including exact-artifact raw authority and continued filtering for
+  every non-raw route.

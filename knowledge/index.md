@@ -189,6 +189,12 @@ This is the entry point for project memory.
     per-node acknowledgements, terminal default fallback, and API HTTP drain are
     production-wired. Later P12 rollout, marketplace, LTS, observability, and DX
     rows remain open.
+  - `fea430020` adds a same-transaction migration-proof fence before normal
+    install/upgrade/rollback runtime publication. Missing, failed, malformed, or
+    drifted exact-plan proofs cannot switch the desired runtime; real PostgreSQL
+    migration-once, proof-lock overlap, failed SQL, atomic binding, and new-pool
+    replay pass. P12 remains **1/22** until all producers and multi-node
+    install/rollback acknowledgement paths have complete evidence.
   - P8 is 18/18 (100%). Immutable 23-page compiler snapshots, sealed typed
     frontend output, public/admin skin isolation, install-time safety,
     four-level fallback, exact publication, all-catalog zero-I/O proof, and

@@ -125,6 +125,22 @@ or treated as expired only after the complete V3 goal is achieved.
 
 ## Last Durable Checkpoint
 
+### 2026-07-17 P12 Migration Publication Proof Fence
+
+- Exact weighted progress remains `63.2336%`; displayed progress remains
+  **63.2%**. P12 stays **1/22** because this safety fix does not yet prove the
+  full multi-node install/upgrade/rollback row across every producer.
+- `fea430020` makes install, upgrade, and rollback runtime publication load and
+  lock the current operation's canonical exact-plan `target_ready` proof in the
+  same transaction before desired-runtime publication and marker binding.
+  Missing, failed, malformed, or drifted proof evidence fails closed with the
+  retryable lifecycle migration error; enable/deactivate remain compatible.
+- Real PostgreSQL tests prove eight-way migration-once, a proof-row lock overlap
+  with eight committers, atomic source/target revision behavior, failed SQL,
+  plan drift, and new-pool replay. The whole Extensions package normal/race,
+  vet, Models/bootstrap tests, `go build ./...`, diff checks, Codex review, and
+  a bounded read-only `grok-4.5` review passed.
+
 ### 2026-07-17 P11 Cache SDK Closure
 
 - Exact weighted progress is `63.2336%`; displayed progress is **63.2%**.
