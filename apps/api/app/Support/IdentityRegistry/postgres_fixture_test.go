@@ -30,12 +30,11 @@ type identityRegistryStoreFixture struct {
 
 func newIdentityRegistryStoreFixture(t *testing.T) *identityRegistryStoreFixture {
 	t.Helper()
+	// Never fall back to the normal/dev DATABASE_URL: identity fixtures create
+	// private schemas and extension rows that must stay off the operator DB.
 	databaseURL := strings.TrimSpace(os.Getenv("SFORUM_TEST_DATABASE_URL"))
 	if databaseURL == "" {
-		databaseURL = strings.TrimSpace(os.Getenv("DATABASE_URL"))
-	}
-	if databaseURL == "" {
-		t.Skip("SFORUM_TEST_DATABASE_URL or DATABASE_URL is required")
+		t.Skip("SFORUM_TEST_DATABASE_URL is required")
 	}
 
 	ctx := context.Background()
