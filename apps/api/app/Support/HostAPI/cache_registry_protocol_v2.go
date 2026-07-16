@@ -14,18 +14,19 @@ import (
 )
 
 // ProtocolV2CacheServiceServer exposes declaration-bound cache operations to an
-// exact broker-attested runtime. Remember and lock leases remain in-process
-// until their cross-RPC ownership protocol is frozen.
+// exact broker-attested runtime. Cross-RPC lock tokens are opaque Host handles;
+// backend owner tokens and executable callbacks never cross the broker.
 type ProtocolV2CacheServiceServer struct {
 	hostv2.UnimplementedCacheServiceServer
 	service *HostCacheService
+	leases  *protocolV2CacheLeaseRegistry
 }
 
 func NewProtocolV2CacheServiceServer(service *HostCacheService) (*ProtocolV2CacheServiceServer, error) {
 	if service == nil {
 		return nil, ErrHostCacheInvalid
 	}
-	return &ProtocolV2CacheServiceServer{service: service}, nil
+	return &ProtocolV2CacheServiceServer{service: service, leases: newProtocolV2CacheLeaseRegistry()}, nil
 }
 
 func (s *ProtocolV2CacheServiceServer) Get(
@@ -261,6 +262,10 @@ func protocolV2CacheFailure(err error) *protocolv2.ErrorDetail {
 		detail.Code = protocolv2.ErrorCode_ERROR_CODE_FAILED_PRECONDITION
 		detail.Reason = "host.cache_value_invalid"
 		detail.Message = "The cached value does not satisfy the requested schema."
+	case errors.Is(err, ErrHostCacheLockNotOwned):
+		detail.Code = protocolv2.ErrorCode_ERROR_CODE_FAILED_PRECONDITION
+		detail.Reason = "host.cache_lock_not_owned"
+		detail.Message = "The cache lock expired, was consumed, or belongs to another caller."
 	case errors.Is(err, ErrHostCacheProviderUnavailable), errors.Is(err, ErrHostCacheProviderInvalid):
 		detail.Code = protocolv2.ErrorCode_ERROR_CODE_UNAVAILABLE
 		detail.Reason = "host.cache_provider_unavailable"
