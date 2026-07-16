@@ -779,6 +779,11 @@ template while retaining Schema fallback fields.
   bytes, SSE media type/events, WebSocket subprotocol/echo, and admission release
   after client disconnect. Composed non-buffered before/after/filter/wrap chains
   remain fail closed until their product semantics are frozen.
+- Production Caddy sends only real WebSocket Upgrade requests directly to the
+  loopback Host API ingress because Nitro's HTTP proxy does not bridge Upgrade.
+  It preserves Host/Origin/session authority, excludes the Host-owned
+  `vite-hmr` subprotocol, and leaves ordinary HTTP on Nuxt. Unknown and Safe
+  Mode WebSocket paths fail closed in Fiber without a Nuxt fallback.
 - Plugin CLI commands are Manifest-declared and published in an immutable,
   revisioned exact-artifact Registry. Namespace/conflict checks happen before
   selection; execution rechecks live trust, Safe Mode, command contract,

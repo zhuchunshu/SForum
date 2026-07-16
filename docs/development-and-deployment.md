@@ -12,9 +12,9 @@ target workflow and the current first implementation slice.
 - Production deployment uses Docker Compose and a high-interaction `deploy.sh`
   script.
 - `deploy.sh` supports both English and Chinese prompts.
-- Only the `web` service publishes a host port, and it binds to
-  `127.0.0.1:${WEB_PORT}`. Other services communicate only on the Docker
-  Compose network.
+- Production publishes `web` plus a dedicated API WebSocket ingress, both on
+  loopback. General HTTP uses `127.0.0.1:${WEB_PORT}`; a Host reverse proxy may
+  send only WebSocket Upgrade requests to `127.0.0.1:${API_PORT}`.
 - Application runtime defaults to Simplified Chinese (`zh-CN`) and declares
   supported product locales explicitly.
 - Production operations should be understandable for a small team without
@@ -51,7 +51,7 @@ evolve as the app gains real migrations, releases, and backups.
 
 `deploy/caddy/Caddyfile` is an optional host-level reverse proxy example. It is
 not used as a default Docker Compose service because the Compose stack should
-publish only `web`.
+keep both public entrypoints on loopback and leave TLS ownership to the Host.
 
 ## Local Development
 
@@ -164,7 +164,7 @@ The one-shot migration container still uses Compose DNS internally:
 
 `WEB_PORT`, `POSTGRES_PORT`, `REDIS_PORT`, `MEILI_PORT`,
 `MAILPIT_SMTP_PORT`, and `MAILPIT_UI_PORT` are configurable in `.env`.
-Production Compose keeps only the web entry point published.
+Production additionally uses `API_PORT` for its loopback-only WebSocket ingress.
 
 ## Production Deployment
 
@@ -177,10 +177,10 @@ Primary command:
 Production should use Docker Compose with pinned image tags or locally built
 release images.
 
-The Compose stack should publish only the `web` service to
-`127.0.0.1:${WEB_PORT}`. If the site needs public TLS or a public domain, run a
-host-level reverse proxy outside this Compose stack and point it at that
-loopback web port.
+The Compose stack publishes Nuxt at `127.0.0.1:${WEB_PORT}` and the Host API at
+`127.0.0.1:${API_PORT}`. Both are loopback-only. A host-level reverse proxy
+owns public TLS, sends ordinary HTTP to Nuxt, and sends WebSocket Upgrade
+requests directly to the Host API.
 
 Recommended Compose command for deploy:
 
@@ -190,9 +190,10 @@ docker compose -f compose.yaml -f compose.prod.yaml up -d --build
 
 ### Production Services
 
-- `web`: Nuxt production server, the only service with a host port. It proxies
-  same-origin `/api/v1/*` traffic to the API over the Compose network.
-- `api`: Fiber production API.
+- `web`: Nuxt production server. It proxies same-origin HTTP `/api/v1/*`
+  traffic to the API over the Compose network.
+- `api`: Fiber production API. Its additional host mapping is loopback-only and
+  reserved for WebSocket Upgrade traffic from the host reverse proxy.
 - `worker`: background worker.
 - `postgres`: PostgreSQL with a persistent named volume or host-mounted data
   directory.
@@ -211,12 +212,27 @@ Optional later services:
 Use same-origin routing in production:
 
 - `/` routes to `web`.
-- `/api/v1/*` is received by `web` and proxied internally to `api:8080`.
+- Ordinary `/api/v1/*` HTTP is received by `web` and proxied internally to
+  `api:8080`.
+- WebSocket Upgrade requests, including arbitrary declared plugin paths, route
+  directly to `127.0.0.1:${API_PORT}`. Caddy preserves Host, Origin, cookies,
+  authorization, and Upgrade headers so Fiber remains authoritative.
+- Vite's `vite-hmr` WebSocket subprotocol remains on the Nuxt upstream.
+- Unknown WebSocket paths fail closed at Fiber and never fall back to Nuxt.
 - Health endpoints remain accessible to the proxy and deploy script.
+
+When client IP affects guards, audit, or plugin behavior, enable `TRUST_PROXY`
+and set `TRUSTED_PROXIES` to the effective Caddy/Docker gateway IP or CIDR.
+Do not use a universal trust range; the API container's peer is not necessarily
+`127.0.0.1` even though the published Host port is loopback-only.
+
+The host Caddy service must receive `APP_DOMAIN`, `WEB_PORT`, and `API_PORT`
+from the production environment. The committed defaults for the two loopback
+upstreams are `3000` and `18080`.
 
 The Docker Compose stack should not publish a separate proxy service. A public
 reverse proxy, if used, should live on the host or in another explicitly managed
-network boundary and forward to `127.0.0.1:${WEB_PORT}`.
+network boundary. See `deploy/caddy/Caddyfile` for the two loopback upstreams.
 
 ## `deploy.sh` Interaction Design
 
@@ -266,7 +282,8 @@ Before deploy or update:
 
 - Docker is installed and running.
 - Docker Compose plugin is available.
-- `WEB_PORT` is free or already owned by this deployment on `127.0.0.1`.
+- `WEB_PORT` and `API_PORT` are free or already owned by this deployment on
+  `127.0.0.1`.
 - `.env.production` exists and required secrets are set.
 - Domain DNS appears to point to the host when TLS is enabled.
 - Available disk space is above a configured threshold.
@@ -321,6 +338,7 @@ Important production variables:
 - `APP_URL` (first-run fallback for runtime `site.url`)
 - `MIGRATE_ON_STARTUP=true`
 - `WEB_PORT`
+- `API_PORT` (loopback-only Host API ingress for WebSocket Upgrade requests)
 - `NUXT_PUBLIC_API_BASE_URL=/api/v1`
 - `NUXT_API_INTERNAL_BASE_URL=http://api:8080/api/v1`
 - `APP_LOCALE=zh-CN` (first-run fallback for runtime default locale)

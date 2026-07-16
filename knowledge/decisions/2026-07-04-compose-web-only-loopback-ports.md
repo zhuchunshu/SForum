@@ -42,3 +42,21 @@ Development now runs the frontend and API as host processes. To support that
 loop, `compose.dev.yaml` publishes PostgreSQL, Redis, Meilisearch, and Mailpit
 to loopback-only host ports. This is a development-only exception; production
 Compose still publishes only the web entry point.
+
+## Update 2026-07-16: V3 P6 WebSocket Ingress Exception
+
+Trusted Route Registry WebSocket handlers must receive the original HTTP
+Upgrade, but Nitro's HTTP `sendProxy` path does not bridge that transport.
+Production therefore has one narrow exception to the web-only rule:
+
+- `api` publishes `127.0.0.1:${API_PORT}:8080` for a host reverse proxy;
+- ordinary HTTP and `/api/v1/*` still enter through Nuxt on `WEB_PORT`;
+- only WebSocket Upgrade requests bypass Nuxt and enter Fiber directly;
+- the edge preserves Host, Origin, cookies, authorization, and Upgrade headers;
+- unknown WebSocket paths fail closed in Fiber and do not fall back to Nuxt;
+- PostgreSQL, Redis, Meilisearch, workers, and other internal services remain
+  unpublished in production.
+
+This exception is loopback-only and does not create a second browser origin.
+Operators must configure the API trusted-proxy policy for the effective
+Caddy/Docker peer when forwarded client IP is authoritative.
