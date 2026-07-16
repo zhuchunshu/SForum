@@ -42,22 +42,25 @@ type productionLifecycleStackConfig struct {
 // productionLifecycleStack 保留组装后的具体实例，避免 lifecycle 的不同边界
 // 意外各自创建 Manager、journal 或 schedule admission registry。
 type productionLifecycleStack struct {
-	Repository         *extensions.PostgresLifecycleRepository
-	RuntimeManager     *extensionsruntime.Manager
-	Runtime            *extensionsruntime.ExactLifecycleCoordinatorRuntimeAdapter
-	Preflight          *extensionsruntime.ProductionLifecycleBoundaryPreflight
-	StaticPreflight    extensions.LifecycleStaticPreflight
-	MigrationEngine    extensionsruntime.LifecycleMigrationEngine
-	Migrations         *extensionsruntime.ProductionLifecycleBoundaryMigrations
-	Schedules          *supportjobs.PluginScheduleAdmissionRegistry
-	JobStore           *hostapi.PostgresPluginJobLifecycleStore
-	JobCoordinator     *hostapi.PluginJobLifecycleCoordinator
-	Jobs               *extensionsruntime.PostgresLifecycleBoundaryJobs
-	RouteRegistry      *routes.Registry
-	RouteSchemas       *extensionopenapi.RouteSchemaPublication
-	ComponentRegistry  *extensionsruntime.ComponentRegistry
-	AssetRegistry      *assetregistry.Registry
+	Repository        *extensions.PostgresLifecycleRepository
+	RuntimeManager    *extensionsruntime.Manager
+	Runtime           *extensionsruntime.ExactLifecycleCoordinatorRuntimeAdapter
+	Preflight         *extensionsruntime.ProductionLifecycleBoundaryPreflight
+	StaticPreflight   extensions.LifecycleStaticPreflight
+	MigrationEngine   extensionsruntime.LifecycleMigrationEngine
+	Migrations        *extensionsruntime.ProductionLifecycleBoundaryMigrations
+	Schedules         *supportjobs.PluginScheduleAdmissionRegistry
+	JobStore          *hostapi.PostgresPluginJobLifecycleStore
+	JobCoordinator    *hostapi.PluginJobLifecycleCoordinator
+	Jobs              *extensionsruntime.PostgresLifecycleBoundaryJobs
+	RouteRegistry     *routes.Registry
+	RouteSchemas      *extensionopenapi.RouteSchemaPublication
+	ComponentRegistry *extensionsruntime.ComponentRegistry
+	AssetRegistry     *assetregistry.Registry
+	// QueryRegistry 与 QueryCoreCatalog 在进程启动时一次性构造；不得每请求重建，
+	// 也不得从 mutable Store 再生成 Core publication。
 	QueryRegistry      *queryregistry.Registry
+	QueryCoreCatalog   *hostapi.QueryRegistryCoreCatalog
 	RouteProviders     *routes.ProviderSelectionAPI
 	ProviderSlots      *extensionsruntime.ProviderSlotSelectionAPI
 	RegistryRepository *extensionsruntime.PostgresLifecycleRegistryPublicationRepository
@@ -149,9 +152,20 @@ func newProductionLifecycleStack(config productionLifecycleStackConfig) (*produc
 	componentRegistry := extensionsruntime.NewComponentRegistry()
 	// 全进程唯一 Asset Registry：生命周期恢复/发布与 FrontendService 请求读取共享。
 	assetRegistry := assetregistry.New()
-	// Query Registry 与生命周期发布共享同一不可变快照；生产环境在 Host
-	// 明确注入成本策略前只开放发布和检查，计划生成保持 fail-closed。
-	queryRegistry := queryregistry.New()
+	// Query Core catalog/cost policy 在进程启动首个 snapshot 密封发布：推荐
+	// cost max 500、hard max 2000；空 Options 不发明 cursor secret，offset 语义保持。
+	// 生命周期 restore/Safe Mode 通过 coreLifecycleQueryPublications 保留这份 Core。
+	queryRegistry, queryCoreCatalog, err := hostapi.NewQueryRegistryCoreRegistry(hostapi.QueryRegistryCoreOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("%w: create core query registry: %v", errProductionLifecycleDependency, err)
+	}
+	if config.SafeMode {
+		// Safe Mode 从首个 snapshot 起过滤第三方，但不得删除或改写已密封 Core artifact。
+		snapshot := queryRegistry.Snapshot()
+		if _, err := queryRegistry.ReplaceAllIfRevision(snapshot.Revision, snapshot.Publications, true); err != nil {
+			return nil, fmt.Errorf("%w: enter query registry safe mode: %v", errProductionLifecycleDependency, err)
+		}
+	}
 	routeProviders := routes.NewProviderSelectionAPI(
 		routeRegistry,
 		routes.NewPostgresProviderSelectionStore(config.Pool),
@@ -194,7 +208,8 @@ func newProductionLifecycleStack(config productionLifecycleStackConfig) (*produc
 		MigrationEngine: config.MigrationEngine, Migrations: migrations,
 		Schedules: schedules, JobStore: jobStore, JobCoordinator: jobCoordinator, Jobs: jobs,
 		RouteRegistry: routeRegistry, RouteSchemas: routeSchemas, ComponentRegistry: componentRegistry,
-		AssetRegistry: assetRegistry, QueryRegistry: queryRegistry, RouteProviders: routeProviders,
+		AssetRegistry: assetRegistry, QueryRegistry: queryRegistry, QueryCoreCatalog: queryCoreCatalog,
+		RouteProviders:     routeProviders,
 		ProviderSlots:      providerSlots,
 		RegistryRepository: registryRepository, Registries: registries,
 		State: state, PublicationJournal: journal, Cleanup: cleanup,
@@ -207,7 +222,8 @@ func newProductionLifecycleStack(config productionLifecycleStackConfig) (*produc
 func (s *productionLifecycleStack) bindService(service *extensions.Service) error {
 	if s == nil || service == nil || s.Coordinator == nil || s.StaticPreflight == nil ||
 		s.Repository == nil || s.CleanupFinalizer == nil || s.RouteProviders == nil || s.ProviderSlots == nil ||
-		s.ComponentRegistry == nil || s.AssetRegistry == nil || s.QueryRegistry == nil || s.Registries == nil {
+		s.ComponentRegistry == nil || s.AssetRegistry == nil || s.QueryRegistry == nil ||
+		s.QueryCoreCatalog == nil || s.Registries == nil {
 		return errProductionLifecycleDependency
 	}
 	extensions.WithLifecycleCoordinator(s.Coordinator, s.StaticPreflight, s.Repository)(service)

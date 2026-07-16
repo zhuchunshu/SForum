@@ -18,6 +18,7 @@ import (
 	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
 	hostapi "github.com/zhuchunshu/sforum/apps/api/app/Support/HostAPI"
 	pages "github.com/zhuchunshu/sforum/apps/api/app/Support/Pages"
+	queryregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/QueryRegistry"
 	routes "github.com/zhuchunshu/sforum/apps/api/app/Support/Routes"
 )
 
@@ -108,6 +109,7 @@ func TestProductionLifecycleStackConstructsEveryRequiredDependency(t *testing.T)
 		"component registry":  stack.ComponentRegistry != nil,
 		"asset registry":      stack.AssetRegistry != nil,
 		"query registry":      stack.QueryRegistry != nil,
+		"query core catalog":  stack.QueryCoreCatalog != nil,
 		"route providers":     stack.RouteProviders != nil,
 		"registry repository": stack.RegistryRepository != nil, "registries": stack.Registries != nil,
 		"state": stack.State != nil, "journal": stack.PublicationJournal != nil,
@@ -166,6 +168,7 @@ func TestProductionLifecycleStackConstructsEveryRequiredDependency(t *testing.T)
 
 func TestProductionLifecycleStackRestoresComponentsThroughSharedRegistry(t *testing.T) {
 	stack, _, _ := newBootstrapLifecycleStack(t)
+	coreArtifact := stack.QueryCoreCatalog.Artifact()
 	extension := bootstrapLifecycleComponentExtension(t, "bootstrap.component.normal")
 	if err := stack.Registries.RestoreRoutePublications(
 		context.Background(), []extensions.Extension{extension}, false,
@@ -180,10 +183,145 @@ func TestProductionLifecycleStackRestoresComponentsThroughSharedRegistry(t *test
 	if snapshot := stack.ComponentRegistry.Snapshot(); snapshot.Revision != 1 || len(snapshot.Contributions) != 1 {
 		t.Fatalf("restored production component snapshot = %#v", snapshot)
 	}
+	// restore 不得删除或篡改进程启动密封的 Core Query artifact。
+	assertProductionLifecycleCoreQueryPreserved(t, stack, coreArtifact, false)
+}
+
+func TestProductionLifecycleStackPublishesSealedCoreQueryCatalog(t *testing.T) {
+	stack, _, _ := newBootstrapLifecycleStack(t)
+	if stack.QueryCoreCatalog == nil || stack.QueryRegistry == nil {
+		t.Fatal("production stack missing Query Core catalog or registry")
+	}
+	if stack.Registries.QueryRegistry() != stack.QueryRegistry {
+		t.Fatal("shared Query Registry pointer must equal Registries.QueryRegistry")
+	}
+	// 推荐默认 cost max 500；空 Options 不发明 cursor secret。
+	if stack.QueryCoreCatalog.CostMaximum() != 500 || stack.QueryCoreCatalog.CostPolicy() == nil {
+		t.Fatalf("core cost defaults = max %d policy %v",
+			stack.QueryCoreCatalog.CostMaximum(), stack.QueryCoreCatalog.CostPolicy() != nil)
+	}
+
+	artifact := stack.QueryCoreCatalog.Artifact()
+	if !artifact.Core || artifact.ExtensionID != hostapi.QueryRegistryCoreExtensionID {
+		t.Fatalf("core artifact = %#v", artifact)
+	}
+	publication, found := stack.QueryRegistry.SnapshotPublication(hostapi.QueryRegistryCoreExtensionID)
+	if !found || publication.Artifact != artifact || len(publication.Queries) != 4 {
+		t.Fatalf("core publication = %#v found=%t", publication, found)
+	}
+	snapshot := stack.QueryRegistry.Snapshot()
+	if snapshot.Revision == 0 || snapshot.SafeMode || len(snapshot.Publications) != 1 || len(snapshot.Queries) != 4 {
+		t.Fatalf("startup query snapshot = %#v", snapshot)
+	}
+
+	want := map[string]struct {
+		pagination string
+	}{
+		"core.query.safe_user.by_id":                {pagination: queryregistry.PaginationNone},
+		"core.query.public_topics.list":             {pagination: queryregistry.PaginationOffset},
+		"core.query.public_topic.by_id":             {pagination: queryregistry.PaginationNone},
+		"core.query.public_attachment.by_public_id": {pagination: queryregistry.PaginationNone},
+	}
+	for queryID, expect := range want {
+		resolved, err := stack.QueryRegistry.Resolve(queryID)
+		if err != nil {
+			t.Fatalf("resolve %s: %v", queryID, err)
+		}
+		if resolved.Artifact != artifact ||
+			resolved.PermissionPolicy != queryregistry.PermissionPolicyPublic ||
+			resolved.Pagination != expect.pagination {
+			t.Fatalf("resolved %s = %#v", queryID, resolved)
+		}
+		// 尚无 entity-event invalidator：CacheTags 必须保持空，避免虚假缓存命中。
+		if resolved.CacheTags != nil && len(resolved.CacheTags) != 0 {
+			t.Fatalf("cache tags must stay empty for %s: %#v", queryID, resolved.CacheTags)
+		}
+	}
+
+	// cost policy 必须实际可 plan；caller MaxCost 只能收紧，不得抬高 site maximum。
+	listPlan, err := stack.QueryRegistry.Plan(context.Background(), queryregistry.PlanRequest{
+		QueryID:    "core.query.public_topics.list",
+		Fields:     []string{"id", "title"},
+		Filters:    []queryregistry.FilterValue{{Field: "category_id", Value: "1"}},
+		Sorts:      []queryregistry.SortValue{{Field: "last_activity_at", Descending: true}},
+		Pagination: queryregistry.PaginationRequest{Limit: 2},
+	})
+	if err != nil {
+		t.Fatalf("plan list core query: %v", err)
+	}
+	if listPlan.Pagination.Mode != queryregistry.PaginationOffset ||
+		listPlan.Cost.Maximum != 500 || listPlan.Cost.Units <= 0 ||
+		listPlan.Query.PermissionPolicy != queryregistry.PermissionPolicyPublic {
+		t.Fatalf("list plan = %#v", listPlan)
+	}
+	raised, err := stack.QueryRegistry.Plan(context.Background(), queryregistry.PlanRequest{
+		QueryID:    "core.query.public_topics.list",
+		Fields:     []string{"id", "title"},
+		Pagination: queryregistry.PaginationRequest{Limit: 1},
+		MaxCost:    2000,
+	})
+	if err != nil || raised.Cost.Maximum != 500 {
+		t.Fatalf("caller raised cost maximum = %#v err=%v", raised, err)
+	}
+	capped, err := stack.QueryRegistry.Plan(context.Background(), queryregistry.PlanRequest{
+		QueryID:    "core.query.public_topics.list",
+		Fields:     []string{"id"},
+		Pagination: queryregistry.PaginationRequest{Limit: 1},
+		MaxCost:    12,
+	})
+	if err != nil || capped.Cost.Maximum != 12 {
+		t.Fatalf("caller lowered cost maximum = %#v err=%v", capped, err)
+	}
+	single, err := stack.QueryRegistry.Plan(context.Background(), queryregistry.PlanRequest{
+		QueryID: "core.query.safe_user.by_id",
+		Fields:  []string{"id", "username"},
+		Filters: []queryregistry.FilterValue{{Field: "id", Value: "1"}},
+	})
+	if err != nil || single.Pagination.Mode != queryregistry.PaginationNone {
+		t.Fatalf("single plan = %#v err=%v", single, err)
+	}
+	// offset 语义保持：列表声明不得接受 cursor payload。
+	if _, err := stack.QueryRegistry.Plan(context.Background(), queryregistry.PlanRequest{
+		QueryID:    "core.query.public_topics.list",
+		Pagination: queryregistry.PaginationRequest{Limit: 2, Cursor: "not-a-cursor"},
+	}); err == nil {
+		t.Fatal("offset list query accepted cursor payload")
+	}
+}
+
+func assertProductionLifecycleCoreQueryPreserved(
+	t *testing.T,
+	stack *productionLifecycleStack,
+	wantArtifact queryregistry.Artifact,
+	safeMode bool,
+) {
+	t.Helper()
+	publication, found := stack.QueryRegistry.SnapshotPublication(hostapi.QueryRegistryCoreExtensionID)
+	if !found || publication.Artifact != wantArtifact || len(publication.Queries) != 4 {
+		t.Fatalf("core query publication after restore = %#v found=%t want=%#v", publication, found, wantArtifact)
+	}
+	if stack.QueryCoreCatalog.Artifact() != wantArtifact {
+		t.Fatalf("stack catalog artifact drifted after restore: %#v", stack.QueryCoreCatalog.Artifact())
+	}
+	snapshot := stack.QueryRegistry.Snapshot()
+	if snapshot.SafeMode != safeMode {
+		t.Fatalf("query safe mode after restore = %t want %t", snapshot.SafeMode, safeMode)
+	}
+	for _, item := range snapshot.Publications {
+		if !item.Artifact.Core {
+			t.Fatalf("third-party query publication leaked after restore: %#v", item.Artifact)
+		}
+	}
+	if safeMode && len(snapshot.Publications) != 1 {
+		t.Fatalf("safe mode query publications = %#v", snapshot.Publications)
+	}
 }
 
 func TestProductionLifecycleStackSafeModeKeepsHostRoutesAndSkipsThirdParty(t *testing.T) {
 	stack, _, _ := newBootstrapLifecycleStackWithSafeMode(t, true)
+	coreArtifact := stack.QueryCoreCatalog.Artifact()
+	// Safe Mode 进程首个 Query snapshot 必须已保留四条 Core queries。
+	assertProductionLifecycleCoreQueryPreserved(t, stack, coreArtifact, true)
 	component := bootstrapLifecycleComponentExtension(t, "bootstrap.component.safe-mode")
 	if err := stack.ComponentRegistry.ReplaceRuntime(component, "pre-safe-mode-component"); err != nil {
 		t.Fatalf("seed pre-Safe-Mode component: %v", err)
@@ -198,6 +336,16 @@ func TestProductionLifecycleStackSafeModeKeepsHostRoutesAndSkipsThirdParty(t *te
 	}
 	if componentSnapshot := stack.ComponentRegistry.Snapshot(); componentSnapshot.Revision != 2 || len(componentSnapshot.Contributions) != 0 {
 		t.Fatalf("Safe Mode component snapshot = %#v", componentSnapshot)
+	}
+	// Safe Mode restore 过滤第三方后仍保留同一 Core Query artifact，不得删除/篡改。
+	assertProductionLifecycleCoreQueryPreserved(t, stack, coreArtifact, true)
+	// Core queries 在 Safe Mode 下仍可 plan（Host cost policy 已在启动时注入）。
+	if plan, err := stack.QueryRegistry.Plan(context.Background(), queryregistry.PlanRequest{
+		QueryID: "core.query.public_topic.by_id",
+		Fields:  []string{"id", "title"},
+		Filters: []queryregistry.FilterValue{{Field: "id", Value: "1"}},
+	}); err != nil || plan.Cost.Maximum != 500 || plan.Pagination.Mode != queryregistry.PaginationNone {
+		t.Fatalf("safe-mode core plan = %#v err=%v", plan, err)
 	}
 	publication := stack.RouteRegistry.PublicationSnapshot().Publication
 	publication.Plugins = []routes.PluginRouteSet{{
@@ -233,6 +381,22 @@ func TestProductionLifecycleStackSafeModeKeepsHostRoutesAndSkipsThirdParty(t *te
 			t.Fatalf("safe-mode Host route %s = %#v, %v", path, match, err)
 		}
 	}
+	// Safe Mode 下第三方 Query 发布必须被 Registry 拒绝；Core 仍可 inspect。
+	if _, err := stack.QueryRegistry.Publish(queryregistry.Publication{
+		Artifact: queryregistry.Artifact{
+			ExtensionID: "third.party.query", ExtensionVersion: "1.0.0",
+			PackageDigest: strings.Repeat("b", 64), VersionID: 1, RuntimeInstanceID: "query-safe-mode",
+		},
+		Queries: []queryregistry.QueryDeclaration{{
+			ID: "third.party.query.items", ContractVersion: "third.party.query.items@1",
+			Entity: "third.party.item", PlanVersion: "third.party.query.items.plan@1",
+			Fields: []string{"id"}, Pagination: queryregistry.PaginationNone,
+			ResultSchema: "third.party.query.items.result@1", PermissionPolicy: queryregistry.PermissionPolicyPublic,
+		}},
+	}); !errors.Is(err, queryregistry.ErrSafeMode) {
+		t.Fatalf("safe mode accepted third-party query publication: %v", err)
+	}
+	assertProductionLifecycleCoreQueryPreserved(t, stack, coreArtifact, true)
 }
 
 func bootstrapLifecycleComponentExtension(t *testing.T, id string) extensions.Extension {
