@@ -51,13 +51,15 @@ type HookBusConfig struct {
 }
 
 type HookBus struct {
-	mu            sync.RWMutex
-	invoker       HookInvoker
-	plugins       map[string]hookRuntimeRegistration
-	registry      *VersionedHookRegistry
-	providerSlots *VersionedProviderSlotRegistry
-	commands      *PluginCommandRegistry
-	adminSurfaces *AdminSurfaceRegistry
+	mu                            sync.RWMutex
+	runtimeSetGeneration          uint64
+	runtimeSetPublicationRevision int64
+	invoker                       HookInvoker
+	plugins                       map[string]hookRuntimeRegistration
+	registry                      *VersionedHookRegistry
+	providerSlots                 *VersionedProviderSlotRegistry
+	commands                      *PluginCommandRegistry
+	adminSurfaces                 *AdminSurfaceRegistry
 }
 
 type hookRuntimeRegistration struct {
@@ -72,12 +74,34 @@ type HookRuntimeSnapshot struct {
 	InstanceID string
 }
 
+// RuntimeRegistryGenerationSnapshot is one outer-lock observation of every
+// Manager-owned HookBus registry family. Individual registries stay available
+// for compatibility, while coordinators and inspectors can pin one generation.
+type RuntimeRegistryGenerationSnapshot struct {
+	Generation           uint64
+	PublicationRevision  int64
+	RuntimeMembers       []RuntimeInstanceIdentity
+	HookMembers          []RuntimeInstanceIdentity
+	ProviderMembers      []RuntimeInstanceIdentity
+	CommandMembers       []RuntimeInstanceIdentity
+	AdminSurfaceMembers  []RuntimeInstanceIdentity
+	HookRevision         uint64
+	ProviderRevision     uint64
+	CommandRevision      uint64
+	AdminSurfaceRevision uint64
+}
+
 func NewHookBus(config HookBusConfig) *HookBus {
-	return &HookBus{
+	bus := &HookBus{
 		invoker: config.Invoker, plugins: map[string]hookRuntimeRegistration{},
 		registry: NewVersionedHookRegistry(), providerSlots: NewVersionedProviderSlotRegistry(),
 		commands: NewPluginCommandRegistry(), adminSurfaces: NewAdminSurfaceRegistry(),
 	}
+	bus.registry.generationBarrier = &bus.mu
+	bus.providerSlots.generationBarrier = &bus.mu
+	bus.commands.generationBarrier = &bus.mu
+	bus.adminSurfaces.generationBarrier = &bus.mu
+	return bus
 }
 
 func (b *HookBus) Register(extension extensions.Extension) {
@@ -94,9 +118,12 @@ func (b *HookBus) RegisterRuntime(extension extensions.Extension, instanceID str
 	if extension.Type != extensions.TypePlugin {
 		return nil
 	}
-	b.mu.RLock()
+	// HookBus.mu is the outer transaction lock for every runtime registry
+	// family. Full-set publication uses the same order, so a delayed single-
+	// runtime Register cannot overwrite only plugins after a desired-set commit.
+	b.mu.Lock()
+	defer b.mu.Unlock()
 	previous, hadPrevious := b.plugins[extension.ID]
-	b.mu.RUnlock()
 	if publishesVersionedHookSnapshot(extension, instanceID) {
 		if err := b.providerSlots.ReplaceRuntime(extension, instanceID); err != nil {
 			return err
@@ -132,9 +159,9 @@ func (b *HookBus) RegisterRuntime(extension extensions.Extension, instanceID str
 			return err
 		}
 	}
-	b.mu.Lock()
 	b.plugins[extension.ID] = hookRuntimeRegistration{extension: cloneHookExtension(extension), instanceID: instanceID}
-	b.mu.Unlock()
+	b.runtimeSetGeneration++
+	b.runtimeSetPublicationRevision = 0
 	return nil
 }
 
@@ -199,6 +226,8 @@ func (b *HookBus) unregisterRuntime(extensionID, instanceID string) (bool, error
 		}
 	}
 	delete(b.plugins, extensionID)
+	b.runtimeSetGeneration++
+	b.runtimeSetPublicationRevision = 0
 	return true, nil
 }
 
@@ -247,6 +276,59 @@ func (b *HookBus) RuntimeSnapshot(extensionID string) (HookRuntimeSnapshot, bool
 		return HookRuntimeSnapshot{}, false
 	}
 	return HookRuntimeSnapshot{Extension: current.extension, InstanceID: current.instanceID}, true
+}
+
+// RuntimeRegistryGeneration returns one coherent cross-family observation.
+// Every production HookBus writer owns b.mu for its whole multi-registry
+// transaction, so this method never exposes an in-progress family swap.
+func (b *HookBus) RuntimeRegistryGeneration() RuntimeRegistryGenerationSnapshot {
+	if b == nil {
+		return RuntimeRegistryGenerationSnapshot{}
+	}
+	b.mu.RLock()
+	defer b.mu.RUnlock()
+	hooks := b.registry.load()
+	providers := b.providerSlots.load()
+	commands := b.commands.load()
+	admin := b.adminSurfaces.load()
+	snapshot := RuntimeRegistryGenerationSnapshot{
+		Generation: b.runtimeSetGeneration, PublicationRevision: b.runtimeSetPublicationRevision,
+		HookRevision: hooks.revision, ProviderRevision: providers.revision,
+		CommandRevision: commands.revision, AdminSurfaceRevision: admin.revision,
+		RuntimeMembers:      runtimeRegistrationIdentities(b.plugins),
+		HookMembers:         runtimeRegistrationIdentities(hooks.extensions),
+		ProviderMembers:     runtimeRegistrationIdentities(providers.extensions),
+		CommandMembers:      commandRegistrationIdentities(commands.registrations),
+		AdminSurfaceMembers: adminSurfaceRegistrationIdentities(admin.registrations),
+	}
+	return snapshot
+}
+
+func runtimeRegistrationIdentities(registrations map[string]hookRuntimeRegistration) []RuntimeInstanceIdentity {
+	identities := make([]RuntimeInstanceIdentity, 0, len(registrations))
+	for extensionID, registration := range registrations {
+		identities = append(identities, RuntimeInstanceIdentity{ExtensionID: extensionID, InstanceID: registration.instanceID})
+	}
+	sort.Slice(identities, func(i, j int) bool { return identities[i].ExtensionID < identities[j].ExtensionID })
+	return identities
+}
+
+func commandRegistrationIdentities(registrations map[string]pluginCommandRuntimeRegistration) []RuntimeInstanceIdentity {
+	identities := make([]RuntimeInstanceIdentity, 0, len(registrations))
+	for extensionID, registration := range registrations {
+		identities = append(identities, RuntimeInstanceIdentity{ExtensionID: extensionID, InstanceID: registration.instanceID})
+	}
+	sort.Slice(identities, func(i, j int) bool { return identities[i].ExtensionID < identities[j].ExtensionID })
+	return identities
+}
+
+func adminSurfaceRegistrationIdentities(registrations map[string]adminSurfaceRuntimeRegistration) []RuntimeInstanceIdentity {
+	identities := make([]RuntimeInstanceIdentity, 0, len(registrations))
+	for extensionID, registration := range registrations {
+		identities = append(identities, RuntimeInstanceIdentity{ExtensionID: extensionID, InstanceID: registration.instanceID})
+	}
+	sort.Slice(identities, func(i, j int) bool { return identities[i].ExtensionID < identities[j].ExtensionID })
+	return identities
 }
 
 func hasVersionedPluginHooks(extension extensions.Extension) bool {

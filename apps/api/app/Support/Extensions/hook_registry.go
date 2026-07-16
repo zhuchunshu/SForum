@@ -68,8 +68,9 @@ type versionedHookRegistryState struct {
 // VersionedHookRegistry publishes one immutable, exact-runtime hook graph.
 // Readers never observe a provider without all of its listeners or vice versa.
 type VersionedHookRegistry struct {
-	mu    sync.Mutex
-	state atomic.Pointer[versionedHookRegistryState]
+	mu                sync.Mutex
+	generationBarrier *sync.RWMutex
+	state             atomic.Pointer[versionedHookRegistryState]
 }
 
 func NewVersionedHookRegistry() *VersionedHookRegistry {
@@ -161,6 +162,8 @@ func (r *VersionedHookRegistry) RemoveRuntime(extensionID, instanceID string) (b
 }
 
 func (r *VersionedHookRegistry) Resolve(id, contractVersion string) (VersionedHookContract, []VersionedHookListener, error) {
+	unlock := r.lockGenerationRead()
+	defer unlock()
 	state := r.load()
 	contract, ok := state.contractsByID[strings.TrimSpace(id)]
 	if !ok {
@@ -175,6 +178,8 @@ func (r *VersionedHookRegistry) Resolve(id, contractVersion string) (VersionedHo
 }
 
 func (r *VersionedHookRegistry) Snapshot() VersionedHookRegistrySnapshot {
+	unlock := r.lockGenerationRead()
+	defer unlock()
 	state := r.load()
 	snapshot := VersionedHookRegistrySnapshot{Revision: state.revision}
 	for _, contract := range state.contractsByID {
@@ -189,6 +194,14 @@ func (r *VersionedHookRegistry) Snapshot() VersionedHookRegistrySnapshot {
 		return hookListenerBefore(snapshot.Listeners[i], snapshot.Listeners[j])
 	})
 	return snapshot
+}
+
+func (r *VersionedHookRegistry) lockGenerationRead() func() {
+	if r == nil || r.generationBarrier == nil {
+		return func() {}
+	}
+	r.generationBarrier.RLock()
+	return r.generationBarrier.RUnlock
 }
 
 func (r *VersionedHookRegistry) load() *versionedHookRegistryState {

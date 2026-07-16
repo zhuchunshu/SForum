@@ -68,8 +68,9 @@ type adminSurfaceRegistryState struct {
 // to exact runtime instances. Rendering and handler invocation consume only a
 // snapshot, so an upgrade cannot mutate contracts underneath an admin request.
 type AdminSurfaceRegistry struct {
-	mu    sync.Mutex
-	state atomic.Pointer[adminSurfaceRegistryState]
+	mu                sync.Mutex
+	generationBarrier *sync.RWMutex
+	state             atomic.Pointer[adminSurfaceRegistryState]
 }
 
 func NewAdminSurfaceRegistry() *AdminSurfaceRegistry {
@@ -180,6 +181,8 @@ func (r *AdminSurfaceRegistry) Resolve(id string) (AdminSurfaceContract, error) 
 // snapshot so an admitted call never re-reads a replacement publication while
 // validating its result.
 func (r *AdminSurfaceRegistry) resolveRuntimeContract(id string) (AdminSurfaceContract, error) {
+	unlock := r.lockGenerationRead()
+	defer unlock()
 	contract, ok := r.load().surfaces[strings.TrimSpace(id)]
 	if !ok {
 		return AdminSurfaceContract{}, ErrAdminSurfaceNotFound
@@ -201,6 +204,8 @@ func (r *AdminSurfaceRegistry) ValidateDocument(contract AdminSurfaceContract, d
 }
 
 func (r *AdminSurfaceRegistry) validateDocument(contract AdminSurfaceContract, document map[string]any, props bool) error {
+	unlock := r.lockGenerationRead()
+	defer unlock()
 	if contract.propsValidator == nil && contract.resultValidator == nil {
 		stored, ok := r.load().surfaces[contract.ID]
 		if !ok || !sameAdminSurfaceRuntimeContract(stored, contract) {
@@ -235,6 +240,8 @@ func sameAdminSurfaceRuntimeContract(left, right AdminSurfaceContract) bool {
 }
 
 func (r *AdminSurfaceRegistry) Snapshot(kind string) AdminSurfaceRegistrySnapshot {
+	unlock := r.lockGenerationRead()
+	defer unlock()
 	state := r.load()
 	result := AdminSurfaceRegistrySnapshot{Revision: state.revision}
 	for _, surface := range state.surfaces {
@@ -247,6 +254,14 @@ func (r *AdminSurfaceRegistry) Snapshot(kind string) AdminSurfaceRegistrySnapsho
 		return adminSurfaceBefore(result.Surfaces[i], result.Surfaces[j])
 	})
 	return result
+}
+
+func (r *AdminSurfaceRegistry) lockGenerationRead() func() {
+	if r == nil || r.generationBarrier == nil {
+		return func() {}
+	}
+	r.generationBarrier.RLock()
+	return r.generationBarrier.RUnlock
 }
 
 func (r *AdminSurfaceRegistry) load() *adminSurfaceRegistryState {

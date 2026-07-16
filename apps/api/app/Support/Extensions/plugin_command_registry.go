@@ -59,8 +59,9 @@ type pluginCommandRegistryState struct {
 // PluginCommandRegistry publishes one immutable command namespace across all
 // exact protocol-v2 runtime instances.
 type PluginCommandRegistry struct {
-	mu    sync.Mutex
-	state atomic.Pointer[pluginCommandRegistryState]
+	mu                sync.Mutex
+	generationBarrier *sync.RWMutex
+	state             atomic.Pointer[pluginCommandRegistryState]
 }
 
 func NewPluginCommandRegistry() *PluginCommandRegistry {
@@ -156,6 +157,8 @@ func (r *PluginCommandRegistry) RemoveRuntime(extensionID, instanceID string) (b
 }
 
 func (r *PluginCommandRegistry) Resolve(id string, safeMode bool) (PluginCommandContract, error) {
+	unlock := r.lockGenerationRead()
+	defer unlock()
 	contract, ok := r.load().commands[strings.TrimSpace(id)]
 	if !ok {
 		return PluginCommandContract{}, ErrPluginCommandNotFound
@@ -185,6 +188,8 @@ func validatePluginCommandDocument(validator providerDocumentValidator, document
 }
 
 func (r *PluginCommandRegistry) Snapshot() PluginCommandRegistrySnapshot {
+	unlock := r.lockGenerationRead()
+	defer unlock()
 	state := r.load()
 	result := PluginCommandRegistrySnapshot{Revision: state.revision, Commands: make([]PluginCommandContract, 0, len(state.commands))}
 	for _, command := range state.commands {
@@ -194,6 +199,14 @@ func (r *PluginCommandRegistry) Snapshot() PluginCommandRegistrySnapshot {
 	}
 	sort.Slice(result.Commands, func(i, j int) bool { return result.Commands[i].ID < result.Commands[j].ID })
 	return result
+}
+
+func (r *PluginCommandRegistry) lockGenerationRead() func() {
+	if r == nil || r.generationBarrier == nil {
+		return func() {}
+	}
+	r.generationBarrier.RLock()
+	return r.generationBarrier.RUnlock
 }
 
 func (r *PluginCommandRegistry) load() *pluginCommandRegistryState {

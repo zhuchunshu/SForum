@@ -107,6 +107,15 @@ func (m *Manager) AcquireRuntimeCall(ctx context.Context, identity RuntimeInstan
 }
 
 func (m *Manager) BeginDrain(identity RuntimeInstanceIdentity) (RuntimeAdmissionSnapshot, error) {
+	unlock, err := m.lockRuntimeSetTransition(context.Background())
+	if err != nil {
+		return RuntimeAdmissionSnapshot{}, err
+	}
+	defer unlock()
+	return m.beginDrainRuntimeSetLocked(identity)
+}
+
+func (m *Manager) beginDrainRuntimeSetLocked(identity RuntimeInstanceIdentity) (RuntimeAdmissionSnapshot, error) {
 	identity, err := normalizeRuntimeInstanceIdentity(identity)
 	if err != nil {
 		return RuntimeAdmissionSnapshot{}, err
@@ -124,6 +133,15 @@ func (m *Manager) BeginDrain(identity RuntimeInstanceIdentity) (RuntimeAdmission
 
 // ResumeRuntimeInstance 只重开仍为活动指针的 exact instance，候选发布失败时可恢复旧版本。
 func (m *Manager) ResumeRuntimeInstance(identity RuntimeInstanceIdentity) (RuntimeAdmissionSnapshot, error) {
+	unlock, err := m.lockRuntimeSetTransition(context.Background())
+	if err != nil {
+		return RuntimeAdmissionSnapshot{}, err
+	}
+	defer unlock()
+	return m.resumeRuntimeInstanceRuntimeSetLocked(identity)
+}
+
+func (m *Manager) resumeRuntimeInstanceRuntimeSetLocked(identity RuntimeInstanceIdentity) (RuntimeAdmissionSnapshot, error) {
 	identity, err := normalizeRuntimeInstanceIdentity(identity)
 	if err != nil {
 		return RuntimeAdmissionSnapshot{}, err
@@ -160,6 +178,15 @@ func (m *Manager) WaitDrain(ctx context.Context, identity RuntimeInstanceIdentit
 }
 
 func (m *Manager) ForceDrain(identity RuntimeInstanceIdentity, cause error) (RuntimeAdmissionSnapshot, error) {
+	unlock, err := m.lockRuntimeSetTransition(context.Background())
+	if err != nil {
+		return RuntimeAdmissionSnapshot{}, err
+	}
+	defer unlock()
+	return m.forceDrainRuntimeSetLocked(identity, cause)
+}
+
+func (m *Manager) forceDrainRuntimeSetLocked(identity RuntimeInstanceIdentity, cause error) (RuntimeAdmissionSnapshot, error) {
 	identity, err := normalizeRuntimeInstanceIdentity(identity)
 	if err != nil {
 		return RuntimeAdmissionSnapshot{}, err
@@ -230,6 +257,15 @@ func (m *Manager) ActiveRuntimeInstance(extensionID string) (RuntimeInstanceSnap
 
 // RemoveRuntimeInstance 只删除已停用且完全 idle 的精确实例；不会回退到当前活动实例。
 func (m *Manager) RemoveRuntimeInstance(identity RuntimeInstanceIdentity) error {
+	unlock, err := m.lockRuntimeSetTransition(context.Background())
+	if err != nil {
+		return err
+	}
+	defer unlock()
+	return m.removeRuntimeInstanceRuntimeSetLocked(identity)
+}
+
+func (m *Manager) removeRuntimeInstanceRuntimeSetLocked(identity RuntimeInstanceIdentity) error {
 	identity, err := normalizeRuntimeInstanceIdentity(identity)
 	if err != nil {
 		return err
@@ -381,6 +417,25 @@ func (m *Manager) lockRuntimeLifecycle(extensionID string) func() {
 	m.runtimeLifecycleMu.Unlock()
 	lock.Lock()
 	return lock.Unlock
+}
+
+func (m *Manager) lockRuntimeSetTransition(ctx context.Context) (func(), error) {
+	if m == nil || ctx == nil || m.runtimeSetTransition == nil {
+		return nil, ErrRuntimeAdmissionInvalid
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	case <-m.runtimeSetTransition:
+		if err := ctx.Err(); err != nil {
+			m.runtimeSetTransition <- struct{}{}
+			return nil, err
+		}
+		return func() { m.runtimeSetTransition <- struct{}{} }, nil
+	}
 }
 
 func normalizeRuntimeInstanceIdentity(identity RuntimeInstanceIdentity) (RuntimeInstanceIdentity, error) {

@@ -39,23 +39,24 @@ type ManagerConfig struct {
 }
 
 type Manager struct {
-	mu                 sync.RWMutex
-	starter            Starter
-	statuses           map[string]extensions.RuntimeStatus
-	targets            map[string]RouteTarget
-	running            map[string]extensions.Extension
-	runtimeInstances   map[string]map[string]*managedRuntimeInstance
-	activeInstances    map[string]string
-	runtimeLifecycleMu sync.Mutex
-	runtimeLifecycle   map[string]*sync.Mutex
-	hooks              *HookBus
-	deliveryStore      DeliveryStore
-	dispatcher         EventDispatcher
-	resilience         *resilienceHub
-	activation         *extensions.ActivationCoordinator
-	bootID             string
-	startPreparer      func(context.Context, extensions.Extension) error
-	providerSelections *ProviderSlotSelectionAPI
+	mu                   sync.RWMutex
+	runtimeSetTransition chan struct{}
+	starter              Starter
+	statuses             map[string]extensions.RuntimeStatus
+	targets              map[string]RouteTarget
+	running              map[string]extensions.Extension
+	runtimeInstances     map[string]map[string]*managedRuntimeInstance
+	activeInstances      map[string]string
+	runtimeLifecycleMu   sync.Mutex
+	runtimeLifecycle     map[string]*sync.Mutex
+	hooks                *HookBus
+	deliveryStore        DeliveryStore
+	dispatcher           EventDispatcher
+	resilience           *resilienceHub
+	activation           *extensions.ActivationCoordinator
+	bootID               string
+	startPreparer        func(context.Context, extensions.Extension) error
+	providerSelections   *ProviderSlotSelectionAPI
 }
 
 // BindProviderSlotSelections attaches the durable exact-artifact choice to the
@@ -128,20 +129,23 @@ func NewManager(config ManagerConfig) *Manager {
 	if config.Activation != nil && bootID == "" {
 		bootID = extensions.NewActivationBootID()
 	}
+	runtimeSetTransition := make(chan struct{}, 1)
+	runtimeSetTransition <- struct{}{}
 	return &Manager{
-		starter:          starter,
-		statuses:         map[string]extensions.RuntimeStatus{},
-		targets:          map[string]RouteTarget{},
-		running:          map[string]extensions.Extension{},
-		runtimeInstances: map[string]map[string]*managedRuntimeInstance{},
-		activeInstances:  map[string]string{},
-		runtimeLifecycle: map[string]*sync.Mutex{},
-		hooks:            hooks,
-		deliveryStore:    config.DeliveryStore,
-		dispatcher:       config.Dispatcher,
-		resilience:       newResilienceHub(config.Resilience),
-		activation:       config.Activation,
-		bootID:           bootID,
+		runtimeSetTransition: runtimeSetTransition,
+		starter:              starter,
+		statuses:             map[string]extensions.RuntimeStatus{},
+		targets:              map[string]RouteTarget{},
+		running:              map[string]extensions.Extension{},
+		runtimeInstances:     map[string]map[string]*managedRuntimeInstance{},
+		activeInstances:      map[string]string{},
+		runtimeLifecycle:     map[string]*sync.Mutex{},
+		hooks:                hooks,
+		deliveryStore:        config.DeliveryStore,
+		dispatcher:           config.Dispatcher,
+		resilience:           newResilienceHub(config.Resilience),
+		activation:           config.Activation,
+		bootID:               bootID,
 	}
 }
 
@@ -170,6 +174,17 @@ func (m *Manager) Check(_ context.Context, extension extensions.Extension) error
 }
 
 func (m *Manager) Start(ctx context.Context, extension extensions.Extension) error {
+	unlock, err := m.lockRuntimeSetTransition(ctx)
+	if err != nil {
+		return err
+	}
+	defer unlock()
+	return m.startRuntimeSetLocked(ctx, extension)
+}
+
+// startRuntimeSetLocked requires the Manager-wide runtime-set transition lock.
+// Aggregate lifecycle operations use it instead of re-entering the outer lock.
+func (m *Manager) startRuntimeSetLocked(ctx context.Context, extension extensions.Extension) error {
 	unlock := m.lockRuntimeLifecycle(extension.ID)
 	defer unlock()
 
@@ -241,6 +256,16 @@ func (m *Manager) Start(ctx context.Context, extension extensions.Extension) err
 }
 
 func (m *Manager) Stop(ctx context.Context, extension extensions.Extension) error {
+	unlock, err := m.lockRuntimeSetTransition(ctx)
+	if err != nil {
+		return err
+	}
+	defer unlock()
+	return m.stopRuntimeSetLocked(ctx, extension)
+}
+
+// stopRuntimeSetLocked requires the Manager-wide runtime-set transition lock.
+func (m *Manager) stopRuntimeSetLocked(ctx context.Context, extension extensions.Extension) error {
 	unlock := m.lockRuntimeLifecycle(extension.ID)
 	defer unlock()
 
@@ -389,6 +414,15 @@ func (m *Manager) ExecutePluginJob(ctx context.Context, invocation supportjobs.P
 }
 
 func (m *Manager) RefreshMailProvider(ctx context.Context, extensionID string) error {
+	unlock, err := m.lockRuntimeSetTransition(ctx)
+	if err != nil {
+		return err
+	}
+	defer unlock()
+	return m.refreshMailProviderRuntimeSetLocked(ctx, extensionID)
+}
+
+func (m *Manager) refreshMailProviderRuntimeSetLocked(ctx context.Context, extensionID string) error {
 	m.mu.RLock()
 	extension, ok := m.running[extensionID]
 	m.mu.RUnlock()
@@ -403,7 +437,17 @@ func (m *Manager) RefreshMailProvider(ctx context.Context, extensionID string) e
 }
 
 func (m *Manager) Reconcile(ctx context.Context, items []extensions.Extension) {
+	unlock, err := m.lockRuntimeSetTransition(ctx)
+	if err != nil {
+		return
+	}
+	defer unlock()
+	m.reconcileRuntimeSetLocked(ctx, items)
+}
+
+func (m *Manager) reconcileRuntimeSetLocked(ctx context.Context, items []extensions.Extension) {
 	enabled := map[string]extensions.Extension{}
+	runtime := runtimeSetLockedManager{manager: m}
 	for _, item := range items {
 		if item.Type == extensions.TypePlugin && item.Status == extensions.StatusEnabled && item.Manifest.Backend.Entry != "" {
 			if m.activation != nil {
@@ -419,9 +463,9 @@ func (m *Manager) Reconcile(ctx context.Context, items []extensions.Extension) {
 			}
 			enabled[item.ID] = item
 			if m.activation != nil {
-				_ = m.activation.Start(ctx, m, item, extensions.ActivationTriggerStartup, 0, m.bootID)
+				_ = m.activation.Start(ctx, runtime, item, extensions.ActivationTriggerStartup, 0, m.bootID)
 			} else {
-				_ = m.Start(ctx, item)
+				_ = m.startRuntimeSetLocked(ctx, item)
 			}
 		}
 	}
@@ -434,11 +478,20 @@ func (m *Manager) Reconcile(ctx context.Context, items []extensions.Extension) {
 	}
 	m.mu.RUnlock()
 	for _, item := range running {
-		_ = m.Stop(ctx, item)
+		_ = m.stopRuntimeSetLocked(ctx, item)
 	}
 }
 
 func (m *Manager) Close(ctx context.Context) {
+	unlock, err := m.lockRuntimeSetTransition(ctx)
+	if err != nil {
+		return
+	}
+	defer unlock()
+	m.closeRuntimeSetLocked(ctx)
+}
+
+func (m *Manager) closeRuntimeSetLocked(ctx context.Context) {
 	m.mu.RLock()
 	running := make([]extensions.Extension, 0, len(m.running))
 	for _, item := range m.running {
@@ -446,8 +499,34 @@ func (m *Manager) Close(ctx context.Context) {
 	}
 	m.mu.RUnlock()
 	for _, item := range running {
-		_ = m.Stop(ctx, item)
+		_ = m.stopRuntimeSetLocked(ctx, item)
 	}
+}
+
+// runtimeSetLockedManager preserves ActivationCoordinator's RuntimeManager
+// contract while the aggregate caller already owns runtimeSetTransition.
+type runtimeSetLockedManager struct {
+	manager *Manager
+}
+
+func (m runtimeSetLockedManager) Check(ctx context.Context, extension extensions.Extension) error {
+	return m.manager.Check(ctx, extension)
+}
+
+func (m runtimeSetLockedManager) Start(ctx context.Context, extension extensions.Extension) error {
+	return m.manager.startRuntimeSetLocked(ctx, extension)
+}
+
+func (m runtimeSetLockedManager) Stop(ctx context.Context, extension extensions.Extension) error {
+	return m.manager.stopRuntimeSetLocked(ctx, extension)
+}
+
+func (m runtimeSetLockedManager) Status(ctx context.Context, extension extensions.Extension) extensions.RuntimeStatus {
+	return m.manager.Status(ctx, extension)
+}
+
+func (m runtimeSetLockedManager) EmitHook(ctx context.Context, name string, payload map[string]any) {
+	m.manager.EmitHook(ctx, name, payload)
 }
 
 func (m *Manager) EmitHook(ctx context.Context, name string, payload map[string]any) {

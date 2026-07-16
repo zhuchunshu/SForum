@@ -14,6 +14,15 @@ import (
 // StageRuntimeInstance starts one inert Protocol V2 process and retains its
 // Manager admission gate without changing the active runtime pointer.
 func (m *Manager) StageRuntimeInstance(ctx context.Context, extension extensions.Extension) (RuntimeInstanceSnapshot, error) {
+	unlock, err := m.lockRuntimeSetTransition(ctx)
+	if err != nil {
+		return RuntimeInstanceSnapshot{}, err
+	}
+	defer unlock()
+	return m.stageRuntimeInstanceRuntimeSetLocked(ctx, extension)
+}
+
+func (m *Manager) stageRuntimeInstanceRuntimeSetLocked(ctx context.Context, extension extensions.Extension) (RuntimeInstanceSnapshot, error) {
 	if m == nil || ctx == nil {
 		return RuntimeInstanceSnapshot{}, ErrRuntimeAdmissionInvalid
 	}
@@ -127,7 +136,12 @@ func (m *Manager) HealthRuntimeInstance(ctx context.Context, identity RuntimeIns
 // The tiny cross-registry window is fail-closed because service/job admission
 // still resolves the drained old Manager pointer until this method commits.
 func (m *Manager) PublishRuntimeInstance(ctx context.Context, identity RuntimeInstanceIdentity) (RuntimeInstanceSnapshot, error) {
-	return m.publishRuntimeInstance(ctx, identity, false)
+	unlock, err := m.lockRuntimeSetTransition(ctx)
+	if err != nil {
+		return RuntimeInstanceSnapshot{}, err
+	}
+	defer unlock()
+	return m.publishRuntimeInstanceRuntimeSetLocked(ctx, identity, false)
 }
 
 // PublishDrainedRuntimeInstance selects the exact process in ProtocolStarter
@@ -135,10 +149,15 @@ func (m *Manager) PublishRuntimeInstance(ctx context.Context, identity RuntimeIn
 // lifecycle publication opens it only after durable state and every registry
 // snapshot have committed.
 func (m *Manager) PublishDrainedRuntimeInstance(ctx context.Context, identity RuntimeInstanceIdentity) (RuntimeInstanceSnapshot, error) {
-	return m.publishRuntimeInstance(ctx, identity, true)
+	unlock, err := m.lockRuntimeSetTransition(ctx)
+	if err != nil {
+		return RuntimeInstanceSnapshot{}, err
+	}
+	defer unlock()
+	return m.publishRuntimeInstanceRuntimeSetLocked(ctx, identity, true)
 }
 
-func (m *Manager) publishRuntimeInstance(
+func (m *Manager) publishRuntimeInstanceRuntimeSetLocked(
 	ctx context.Context,
 	identity RuntimeInstanceIdentity,
 	keepDraining bool,
@@ -332,15 +351,25 @@ func (m *Manager) resetRuntimePublicationTransition(
 // StopRuntimeInstance stops one exact V2 process after its gate is drained and
 // idle. Stopping a retained instance cannot clear the active replacement.
 func (m *Manager) StopRuntimeInstance(ctx context.Context, identity RuntimeInstanceIdentity) error {
-	return m.removeManagedProtocolRuntime(ctx, identity, false)
+	unlock, err := m.lockRuntimeSetTransition(ctx)
+	if err != nil {
+		return err
+	}
+	defer unlock()
+	return m.removeManagedProtocolRuntimeSetLocked(ctx, identity, false)
 }
 
 // DiscardRuntimeInstance destroys only an unpublished inactive candidate.
 func (m *Manager) DiscardRuntimeInstance(ctx context.Context, identity RuntimeInstanceIdentity) error {
-	return m.removeManagedProtocolRuntime(ctx, identity, true)
+	unlock, err := m.lockRuntimeSetTransition(ctx)
+	if err != nil {
+		return err
+	}
+	defer unlock()
+	return m.removeManagedProtocolRuntimeSetLocked(ctx, identity, true)
 }
 
-func (m *Manager) removeManagedProtocolRuntime(ctx context.Context, identity RuntimeInstanceIdentity, discard bool) error {
+func (m *Manager) removeManagedProtocolRuntimeSetLocked(ctx context.Context, identity RuntimeInstanceIdentity, discard bool) error {
 	if m == nil || ctx == nil {
 		return ErrRuntimeAdmissionInvalid
 	}

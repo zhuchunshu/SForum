@@ -75,8 +75,9 @@ type providerSlotRegistryState struct {
 }
 
 type VersionedProviderSlotRegistry struct {
-	mu    sync.Mutex
-	state atomic.Pointer[providerSlotRegistryState]
+	mu                sync.Mutex
+	generationBarrier *sync.RWMutex
+	state             atomic.Pointer[providerSlotRegistryState]
 }
 
 func NewVersionedProviderSlotRegistry() *VersionedProviderSlotRegistry {
@@ -178,6 +179,8 @@ func (r *VersionedProviderSlotRegistry) Discover(
 	caller ProviderSlotCaller,
 	id, contractVersion string,
 ) (ProviderSlotResolution, error) {
+	unlock := r.lockGenerationRead()
+	defer unlock()
 	state := r.load()
 	contract, ok := state.contractsByID[strings.TrimSpace(id)]
 	if !ok {
@@ -201,6 +204,8 @@ func (r *VersionedProviderSlotRegistry) Discover(
 }
 
 func (r *VersionedProviderSlotRegistry) Snapshot() ProviderSlotRegistrySnapshot {
+	unlock := r.lockGenerationRead()
+	defer unlock()
 	state := r.load()
 	result := ProviderSlotRegistrySnapshot{Revision: state.revision}
 	for _, contract := range state.contractsByID {
@@ -215,6 +220,14 @@ func (r *VersionedProviderSlotRegistry) Snapshot() ProviderSlotRegistrySnapshot 
 		return providerCandidateBefore(result.Candidates[i], result.Candidates[j])
 	})
 	return result
+}
+
+func (r *VersionedProviderSlotRegistry) lockGenerationRead() func() {
+	if r == nil || r.generationBarrier == nil {
+		return func() {}
+	}
+	r.generationBarrier.RLock()
+	return r.generationBarrier.RUnlock
 }
 
 func (r *VersionedProviderSlotRegistry) load() *providerSlotRegistryState {
