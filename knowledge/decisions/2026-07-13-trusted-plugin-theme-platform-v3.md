@@ -323,6 +323,18 @@ mindmap
 - Five independent reference plugins must prove SEO, identity, custom content,
   media, and commerce/workflow extension without modifying core product code.
 
+### P6 route composition policy freeze (2026-07-16)
+
+The operator accepted every recommended P6 boundary. Route action request and
+response mutation uses explicit RFC 6901 JSON Pointer allowlists. Higher-priority
+`wrap` contributions are outermost. When an unsafe `after` contribution fails
+after a response is committed, the Host preserves that committed response and
+records audit/quarantine evidence instead of attempting an invalid fallback.
+Redirects default to `308`; only `301` and `308` are accepted. Raw credentials
+or session material may cross the plugin boundary only under an exact-artifact
+`raw_request` grant. These rules are product contracts, not implementation
+defaults, and changes require a new explicit decision.
+
 ## Decision
 
 ### 1. Use an explicit full-trust model for executable extensions
