@@ -138,6 +138,10 @@ func TestDockerBuildsProtectedBuiltinBackendsAndValidatesV3Digest(t *testing.T) 
 	if count := strings.Count(text, linuxBuild); count < 3 {
 		t.Errorf("Dockerfile builds only %d protected builtin Linux backends, want at least 3", count)
 	}
+	const builtinCopy = "COPY --from=build --chown=sforum:sforum /app/extensions/builtin /app/extensions/builtin"
+	if count := strings.Count(text, builtinCopy); count != 2 {
+		t.Errorf("Dockerfile copies protected builtins into %d final images, want api and worker", count)
+	}
 	for _, required := range []string{
 		"cd /app/extensions/builtin/plugins/sforum-smtp/backend",
 		"cd /app/extensions/builtin/plugins/sforum-content-policy/backend",
