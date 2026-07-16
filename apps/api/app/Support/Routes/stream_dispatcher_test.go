@@ -91,11 +91,14 @@ func TestStreamDispatcherFailsClosedWithoutGuard(t *testing.T) {
 	if _, err := registry.Publish(Publication{Plugins: []PluginRouteSet{{Artifact: artifact, Routes: []extensionmanifest.ManifestRoute{stream}}}}); err != nil {
 		t.Fatal(err)
 	}
-	_, err := NewDispatcher(DispatcherConfig{Plans: streamRegistryResolver{registry}}).PrepareStream(
+	prepared, err := NewDispatcher(DispatcherConfig{Plans: streamRegistryResolver{registry}}).PrepareStream(
 		context.Background(), DispatchRequest{Method: "GET", Path: "/denied"},
 	)
-	if !errors.Is(err, ErrDispatchDenied) {
-		t.Fatalf("guard error=%v", err)
+	if err != nil || prepared.Dispatch == nil {
+		t.Fatalf("prepared=%#v error=%v", prepared, err)
+	}
+	if _, err := prepared.Dispatch.Open(context.Background()); !errors.Is(err, ErrDispatchDenied) {
+		t.Fatalf("open guard error=%v", err)
 	}
 }
 
@@ -144,10 +147,16 @@ func TestStreamDispatcherPreservesAuthorizedRawRequestStamp(t *testing.T) {
 	if err != nil || start.Session == nil || !invoker.raw {
 		t.Fatalf("start=%#v raw=%v error=%v", start, invoker.raw, err)
 	}
+	if _, err := prepared.Dispatch.Open(context.Background()); !errors.Is(err, ErrDispatchAlreadyCommitted) || invoker.calls != 1 {
+		t.Fatalf("second open error=%v calls=%d", err, invoker.calls)
+	}
 	start.Session.Cancel()
 }
 
-type authorityStreamInvoker struct{ raw bool }
+type authorityStreamInvoker struct {
+	raw   bool
+	calls int
+}
 
 func (*authorityStreamInvoker) SupportsMode(string) bool { return false }
 
@@ -156,6 +165,7 @@ func (*authorityStreamInvoker) Invoke(context.Context, RouteInvocation) (RouteIn
 }
 
 func (i *authorityStreamInvoker) OpenStream(_ context.Context, input RouteInvocation) (RouteStreamStart, error) {
+	i.calls++
 	i.raw = input.RawRequestAuthorized()
 	return RouteStreamStart{
 		Response: DispatchResponse{Status: http.StatusOK}, Session: authorityStreamSession{},
@@ -174,6 +184,20 @@ type allowStreamGuard struct{}
 
 func (allowStreamGuard) Authorize(context.Context, RouteExecutionPlan, RouteExecutionStep, DispatchRequest) error {
 	return nil
+}
+
+func (allowStreamGuard) AuthorizeRoute(
+	_ context.Context,
+	plan RouteExecutionPlan,
+	stepIndex int,
+	step RouteExecutionStep,
+	request DispatchRequest,
+) (RouteGuardAuthorization, error) {
+	authorization, ok := authorizedRouteGuardAuthorization(plan, stepIndex, step, request)
+	if !ok {
+		return RouteGuardAuthorization{}, ErrCoreGuardEvaluatorUnavailable
+	}
+	return authorization, nil
 }
 
 type streamRegistryResolver struct{ registry *Registry }

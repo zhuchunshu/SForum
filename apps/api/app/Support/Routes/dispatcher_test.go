@@ -217,9 +217,10 @@ func TestDispatcherIssuesRawAuthorityOnlyAfterExactStepAuthorization(t *testing.
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			invoked := false
-			dispatcher := dispatchTestDispatcher(
-				dispatchPlan("POST", "/authority", nil, []RouteExecutionStep{test.step}, 0),
-				&dispatchStepInvoker{invoke: func(_ context.Context, input RouteInvocation) (RouteInvocationResult, error) {
+			plan := dispatchPlan("POST", "/authority", nil, []RouteExecutionStep{test.step}, 0)
+			dispatcher := NewDispatcher(DispatcherConfig{
+				Plans: dispatchPlanResolver{plan: plan}, Guard: &dispatchAuthorityGuard{}, Schemas: &dispatchSchemas{},
+				Steps: &dispatchStepInvoker{invoke: func(_ context.Context, input RouteInvocation) (RouteInvocationResult, error) {
 					invoked = true
 					if input.RawRequestAuthorized() != test.raw {
 						t.Fatalf("raw authority = %v, want %v", input.RawRequestAuthorized(), test.raw)
@@ -227,7 +228,7 @@ func TestDispatcherIssuesRawAuthorityOnlyAfterExactStepAuthorization(t *testing.
 					response := DispatchResponse{Status: http.StatusNoContent}
 					return RouteInvocationResult{Response: &response}, nil
 				}},
-			)
+			})
 			result, err := dispatcher.Dispatch(
 				context.Background(), DispatchRequest{Method: "POST", Path: "/authority"}, nil,
 			)
@@ -235,6 +236,65 @@ func TestDispatcherIssuesRawAuthorityOnlyAfterExactStepAuthorization(t *testing.
 				t.Fatalf("result=%#v invoked=%v err=%v", result, invoked, err)
 			}
 		})
+	}
+}
+
+func TestDispatcherLegacyGuardCannotAuthorizeRawRequest(t *testing.T) {
+	step := dispatchPluginStep(RoutePhaseHandler, "demo.route.legacy_raw", extensionmanifest.RouteActionAdd)
+	step.Guard = extensionmanifest.GuardCoreRaw
+	dispatcher := NewDispatcher(DispatcherConfig{
+		Plans: dispatchPlanResolver{plan: dispatchPlan("POST", "/authority", nil, []RouteExecutionStep{step}, 0)},
+		Steps: &dispatchStepInvoker{invoke: func(context.Context, RouteInvocation) (RouteInvocationResult, error) {
+			t.Fatal("legacy guard minted raw authority")
+			return RouteInvocationResult{}, nil
+		}},
+		Guard: &dispatchGuard{}, Schemas: &dispatchSchemas{},
+	})
+	_, err := dispatcher.Dispatch(context.Background(), DispatchRequest{Method: "POST", Path: "/authority"}, nil)
+	if !errors.Is(err, ErrDispatchDenied) {
+		t.Fatalf("error = %v", err)
+	}
+}
+
+func TestRouteInvocationAuthorityRejectsExactBindingDrift(t *testing.T) {
+	step := dispatchPluginStep(RoutePhaseHandler, "demo.route.bound_raw", extensionmanifest.RouteActionAdd)
+	step.Guard = extensionmanifest.GuardCoreRaw
+	request := DispatchRequest{
+		Method: "POST", Path: "/authority", Headers: http.Header{"Cookie": {"session=secret"}},
+		Body: []byte(`{"ok":true}`), ActorID: 42, Authenticated: true,
+	}
+	plan := dispatchPlan(request.Method, request.Path, nil, []RouteExecutionStep{step}, 0)
+	dispatcher := NewDispatcher(DispatcherConfig{
+		Plans: dispatchPlanResolver{plan: plan}, Guard: &dispatchAuthorityGuard{}, Schemas: &dispatchSchemas{},
+		Steps: &dispatchStepInvoker{invoke: func(_ context.Context, input RouteInvocation) (RouteInvocationResult, error) {
+			if !input.RawRequestAuthorized() {
+				t.Fatal("exact invocation lost raw authority")
+			}
+			mutations := []func(*RouteInvocation){
+				func(value *RouteInvocation) { value.PlanRevision++ },
+				func(value *RouteInvocation) { value.StepIndex++ },
+				func(value *RouteInvocation) { value.Stage = InvocationStage("forged") },
+				func(value *RouteInvocation) { value.Commit = NewRouteCommitObserver() },
+				func(value *RouteInvocation) { value.Step.RouteID += ".forged" },
+				func(value *RouteInvocation) { value.Step.Provider.Artifact.PackageDigest = strings.Repeat("d", 64) },
+				func(value *RouteInvocation) { value.Request.Path += "/forged" },
+				func(value *RouteInvocation) { value.Request.Headers.Set("Cookie", "session=forged") },
+			}
+			for index, mutate := range mutations {
+				forged := input
+				forged.Step = cloneRouteExecutionSteps([]RouteExecutionStep{input.Step})[0]
+				forged.Request = cloneDispatchRequest(input.Request)
+				mutate(&forged)
+				if forged.RawRequestAuthorized() {
+					t.Fatalf("mutation %d retained raw authority", index)
+				}
+			}
+			response := DispatchResponse{Status: http.StatusNoContent}
+			return RouteInvocationResult{Response: &response}, nil
+		}},
+	})
+	if _, err := dispatcher.Dispatch(context.Background(), request, nil); err != nil {
+		t.Fatal(err)
 	}
 }
 
@@ -339,6 +399,43 @@ func (i *dispatchStepInvoker) Invoke(ctx context.Context, input RouteInvocation)
 type dispatchGuard struct {
 	calls int
 	err   error
+}
+
+type dispatchAuthorityGuard struct {
+	calls int
+	err   error
+}
+
+func (g *dispatchAuthorityGuard) AuthorizeRoute(
+	_ context.Context,
+	plan RouteExecutionPlan,
+	stepIndex int,
+	step RouteExecutionStep,
+	request DispatchRequest,
+) (RouteGuardAuthorization, error) {
+	g.calls++
+	if g.err != nil {
+		return RouteGuardAuthorization{}, g.err
+	}
+	authorization, ok := authorizedRouteGuardAuthorization(plan, stepIndex, step, request)
+	if !ok {
+		return RouteGuardAuthorization{}, ErrCoreGuardEvaluatorUnavailable
+	}
+	return authorization, nil
+}
+
+func (g *dispatchAuthorityGuard) Authorize(
+	ctx context.Context,
+	plan RouteExecutionPlan,
+	step RouteExecutionStep,
+	request DispatchRequest,
+) error {
+	stepIndex, ok := uniqueRouteExecutionStepIndex(plan, step)
+	if !ok {
+		return ErrCoreGuardEvaluatorUnavailable
+	}
+	_, err := g.AuthorizeRoute(ctx, plan, stepIndex, step, request)
+	return err
 }
 
 func (g *dispatchGuard) Authorize(context.Context, RouteExecutionPlan, RouteExecutionStep, DispatchRequest) error {

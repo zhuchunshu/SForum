@@ -134,9 +134,10 @@ func TestRouteDispatcherBridgesWebSocketMessagesAndDisconnect(t *testing.T) {
 		},
 		Session: session,
 	}}
+	guard := &countingRouteGuard{}
 	dispatcher := routes.NewDispatcher(routes.DispatcherConfig{
 		Plans: routeRegistryPlanResolver{registry: registry}, Steps: invoker,
-		Guard: HostRouteGuardAuthorizer{}, Trace: traces,
+		Guard: guard, Trace: traces,
 	})
 	app := fiber.New()
 	app.Use(routeDispatcherMiddleware(dispatcher, nil))
@@ -176,6 +177,9 @@ func TestRouteDispatcherBridgesWebSocketMessagesAndDisconnect(t *testing.T) {
 	if invoker.openCalls.Load() != 1 || string(session.received) != "hello" {
 		t.Fatalf("openCalls=%d received=%q", invoker.openCalls.Load(), session.received)
 	}
+	if guard.calls.Load() != 1 {
+		t.Fatalf("guard calls=%d", guard.calls.Load())
+	}
 	records := traces.RouteTraces(8)
 	if len(records) != 2 || records[0].Outcome != routes.RouteTraceSucceeded || records[1].Outcome != routes.RouteTraceCommitted {
 		t.Fatalf("traces=%#v", records)
@@ -191,8 +195,9 @@ func TestRouteDispatcherRejectsMalformedWebSocketBeforeRuntime(t *testing.T) {
 		t.Fatal(err)
 	}
 	invoker := &streamHTTPTestInvoker{}
+	guard := &countingRouteGuard{}
 	dispatcher := routes.NewDispatcher(routes.DispatcherConfig{
-		Plans: routeRegistryPlanResolver{registry: registry}, Steps: invoker, Guard: HostRouteGuardAuthorizer{},
+		Plans: routeRegistryPlanResolver{registry: registry}, Steps: invoker, Guard: guard,
 	})
 	app := fiber.New()
 	app.Use(routeDispatcherMiddleware(dispatcher, nil))
@@ -209,10 +214,36 @@ func TestRouteDispatcherRejectsMalformedWebSocketBeforeRuntime(t *testing.T) {
 			t.Fatal(err)
 		}
 		response.Body.Close()
-		if response.StatusCode != fiber.StatusUpgradeRequired || invoker.openCalls.Load() != 0 {
-			t.Fatalf("status=%d openCalls=%d", response.StatusCode, invoker.openCalls.Load())
+		if response.StatusCode != fiber.StatusUpgradeRequired || invoker.openCalls.Load() != 0 || guard.calls.Load() != 0 {
+			t.Fatalf("status=%d openCalls=%d guardCalls=%d", response.StatusCode, invoker.openCalls.Load(), guard.calls.Load())
 		}
 	}
+}
+
+type countingRouteGuard struct {
+	calls atomic.Int32
+	inner routes.CoreGuardAuthorizer
+}
+
+func (g *countingRouteGuard) Authorize(
+	ctx context.Context,
+	plan routes.RouteExecutionPlan,
+	step routes.RouteExecutionStep,
+	request routes.DispatchRequest,
+) error {
+	g.calls.Add(1)
+	return g.inner.Authorize(ctx, plan, step, request)
+}
+
+func (g *countingRouteGuard) AuthorizeRoute(
+	ctx context.Context,
+	plan routes.RouteExecutionPlan,
+	stepIndex int,
+	step routes.RouteExecutionStep,
+	request routes.DispatchRequest,
+) (routes.RouteGuardAuthorization, error) {
+	g.calls.Add(1)
+	return g.inner.AuthorizeRoute(ctx, plan, stepIndex, step, request)
 }
 
 type streamHTTPTestInvoker struct {

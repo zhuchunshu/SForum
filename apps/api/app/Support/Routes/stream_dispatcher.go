@@ -23,10 +23,10 @@ type RouteStreamDispatch struct {
 	step       RouteExecutionStep
 	request    DispatchRequest
 	commit     *RouteCommitObserver
-	authority  routeInvocationAuthority
 	started    time.Time
 
 	mu              sync.Mutex
+	opened          bool
 	requestStarted  bool
 	responseStarted bool
 	finished        bool
@@ -111,13 +111,9 @@ func (d *Dispatcher) PrepareStream(ctx context.Context, request DispatchRequest)
 	request.Headers = cloneHTTPHeader(request.Headers)
 	request.Body = nil
 	request.Permissions = cloneDispatchPermissions(request.Permissions)
-	if err := d.authorize(ctx, plan, terminal, request); err != nil {
-		d.appendTrace(plan, 0, terminal, RouteTraceDenied, time.Now(), RouteCommitPristine)
-		return RouteStreamPreparation{}, err
-	}
 	return RouteStreamPreparation{Handled: true, Dispatch: &RouteStreamDispatch{
 		dispatcher: d, plan: plan, step: terminal, request: request,
-		commit: NewRouteCommitObserver(), authority: authorizedRouteInvocationAuthority(terminal), started: time.Now(),
+		commit: NewRouteCommitObserver(), started: time.Now(),
 	}}, nil
 }
 
@@ -139,6 +135,23 @@ func (d *RouteStreamDispatch) Open(ctx context.Context) (RouteStreamStart, error
 	if d == nil || d.dispatcher == nil || ctx == nil {
 		return RouteStreamStart{}, ErrDispatchInvalid
 	}
+	d.mu.Lock()
+	if d.opened || d.finished {
+		d.mu.Unlock()
+		return RouteStreamStart{}, ErrDispatchAlreadyCommitted
+	}
+	d.opened = true
+	d.mu.Unlock()
+	authority, err := d.dispatcher.authorize(
+		ctx, d.plan, d.index, d.step, d.request, InvocationStageExecute, d.commit,
+	)
+	if err != nil {
+		d.mu.Lock()
+		d.finished = true
+		d.mu.Unlock()
+		d.dispatcher.appendTrace(d.plan, d.index, d.step, RouteTraceDenied, d.started, d.commit.State())
+		return RouteStreamStart{}, err
+	}
 	invoker, ok := d.dispatcher.steps.(StreamingStepInvoker)
 	if !ok {
 		d.Fail()
@@ -148,7 +161,7 @@ func (d *RouteStreamDispatch) Open(ctx context.Context) (RouteStreamStart, error
 	result, err := invoker.OpenStream(ctx, RouteInvocation{
 		PlanRevision: d.plan.Revision(), StepIndex: d.index, Step: d.step,
 		Stage: InvocationStageExecute, Request: cloneDispatchRequest(d.request), Commit: d.commit,
-		authority: d.authority,
+		authority: authority,
 	})
 	if err != nil {
 		d.Fail()

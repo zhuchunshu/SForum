@@ -100,11 +100,31 @@ func (a ProductionRouteGuardAuthorizer) Authorize(
 	step routes.RouteExecutionStep,
 	request routes.DispatchRequest,
 ) error {
-	// Params 由不可变执行计划解析，不能接受上游中间件伪造的资源身份。
 	if !maps.Equal(request.Params, plan.Params()) {
 		return ErrRouteGuardUnavailable
 	}
-	err := a.authorizer.Authorize(ctx, plan, step, request)
+	return productionRouteGuardError(a.authorizer.Authorize(ctx, plan, step, request))
+}
+
+func (a ProductionRouteGuardAuthorizer) AuthorizeRoute(
+	ctx context.Context,
+	plan routes.RouteExecutionPlan,
+	stepIndex int,
+	step routes.RouteExecutionStep,
+	request routes.DispatchRequest,
+) (routes.RouteGuardAuthorization, error) {
+	// Params 由不可变执行计划解析，不能接受上游中间件伪造的资源身份。
+	if !maps.Equal(request.Params, plan.Params()) {
+		return routes.RouteGuardAuthorization{}, ErrRouteGuardUnavailable
+	}
+	authorization, err := a.authorizer.AuthorizeRoute(ctx, plan, stepIndex, step, request)
+	if err = productionRouteGuardError(err); err != nil {
+		return routes.RouteGuardAuthorization{}, err
+	}
+	return authorization, nil
+}
+
+func productionRouteGuardError(err error) error {
 	switch {
 	case err == nil:
 		return nil

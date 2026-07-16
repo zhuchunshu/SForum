@@ -150,6 +150,40 @@ func (a CoreGuardAuthorizer) Authorize(
 	step RouteExecutionStep,
 	request DispatchRequest,
 ) error {
+	stepIndex, ok := uniqueRouteExecutionStepIndex(plan, step)
+	if !ok {
+		return ErrCoreGuardEvaluatorUnavailable
+	}
+	_, err := a.AuthorizeRoute(ctx, plan, stepIndex, step, request)
+	return err
+}
+
+func (a CoreGuardAuthorizer) AuthorizeRoute(
+	ctx context.Context,
+	plan RouteExecutionPlan,
+	stepIndex int,
+	step RouteExecutionStep,
+	request DispatchRequest,
+) (RouteGuardAuthorization, error) {
+	if !exactRouteExecutionStepAt(plan, stepIndex, step) {
+		return RouteGuardAuthorization{}, ErrCoreGuardEvaluatorUnavailable
+	}
+	if err := a.authorize(ctx, plan, step, request); err != nil {
+		return RouteGuardAuthorization{}, err
+	}
+	authorization, ok := authorizedRouteGuardAuthorization(plan, stepIndex, step, request)
+	if !ok {
+		return RouteGuardAuthorization{}, ErrCoreGuardEvaluatorUnavailable
+	}
+	return authorization, nil
+}
+
+func (a CoreGuardAuthorizer) authorize(
+	ctx context.Context,
+	plan RouteExecutionPlan,
+	step RouteExecutionStep,
+	request DispatchRequest,
+) error {
 	if ctx == nil {
 		return ErrCoreGuardEvaluatorUnavailable
 	}

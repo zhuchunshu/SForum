@@ -75,20 +75,6 @@ type RouteInvocation struct {
 	authority    routeInvocationAuthority
 }
 
-type routeInvocationAuthority uint8
-
-const (
-	routeInvocationAuthorityFiltered routeInvocationAuthority = iota
-	routeInvocationAuthorityRaw
-)
-
-// RawRequestAuthorized is true only for the exact step whose Guard completed
-// raw_request authorization. Callers cannot construct the private stamp from
-// exported Manifest or Registry fields.
-func (i RouteInvocation) RawRequestAuthorized() bool {
-	return i.authority == routeInvocationAuthorityRaw
-}
-
 type RouteInvocationResult struct {
 	Request           *DispatchRequest
 	Response          *DispatchResponse
@@ -221,11 +207,11 @@ func (d *Dispatcher) Dispatch(ctx context.Context, request DispatchRequest, core
 	var committingStarted time.Time
 	for index, step := range chain {
 		started := time.Now()
-		if err := d.authorize(ctx, plan, step, request); err != nil {
+		authority, err := d.authorize(ctx, plan, index, step, request, InvocationStageExecute, commit)
+		if err != nil {
 			d.appendTrace(plan, index, step, RouteTraceDenied, started, commit.State())
 			return DispatchResult{}, err
 		}
-		authority := authorizedRouteInvocationAuthority(step)
 		if d.schemas == nil && step.RequestSchema != "" {
 			d.appendTrace(plan, index, step, RouteTraceSchemaRejected, started, commit.State())
 			return DispatchResult{}, fmt.Errorf("%w: request validator is unavailable", ErrDispatchSchema)
@@ -344,7 +330,7 @@ func (d *Dispatcher) authorizeReplay(
 		if step.Provider.Kind != ProviderPlugin {
 			continue
 		}
-		if err := d.authorize(ctx, plan, step, request); err != nil {
+		if _, err := d.authorize(ctx, plan, index, step, request, InvocationStageExecute, nil); err != nil {
 			d.appendTrace(plan, index, step, RouteTraceDenied, time.Now(), RouteCommitPristine)
 			return err
 		}
@@ -380,17 +366,47 @@ func dispatchPlanHasPluginStep(chain []RouteExecutionStep) bool {
 	return false
 }
 
-func (d *Dispatcher) authorize(ctx context.Context, plan RouteExecutionPlan, step RouteExecutionStep, request DispatchRequest) error {
+func (d *Dispatcher) authorize(
+	ctx context.Context,
+	plan RouteExecutionPlan,
+	stepIndex int,
+	step RouteExecutionStep,
+	request DispatchRequest,
+	stage InvocationStage,
+	commit *RouteCommitObserver,
+) (routeInvocationAuthority, error) {
 	if step.Provider.Kind == ProviderCore {
-		return nil
+		return routeInvocationAuthority{}, nil
 	}
 	if d.guard == nil {
-		return fmt.Errorf("%w: guard evaluator is unavailable", ErrDispatchDenied)
+		return routeInvocationAuthority{}, fmt.Errorf("%w: guard evaluator is unavailable", ErrDispatchDenied)
 	}
-	if err := d.guard.Authorize(ctx, plan, step, request); err != nil {
-		return fmt.Errorf("%w: %w", ErrDispatchDenied, err)
+	var (
+		authorization RouteGuardAuthorization
+		err           error
+	)
+	if typed, ok := d.guard.(interface {
+		AuthorizeRoute(context.Context, RouteExecutionPlan, int, RouteExecutionStep, DispatchRequest) (RouteGuardAuthorization, error)
+	}); ok {
+		authorization, err = typed.AuthorizeRoute(ctx, plan, stepIndex, step, request)
+	} else {
+		err = d.guard.Authorize(ctx, plan, step, request)
+		if err == nil {
+			var valid bool
+			authorization, valid = legacyFilteredRouteGuardAuthorization(plan, stepIndex, step, request)
+			if !valid {
+				err = ErrDispatchDenied
+			}
+		}
 	}
-	return nil
+	if err != nil {
+		return routeInvocationAuthority{}, fmt.Errorf("%w: %w", ErrDispatchDenied, err)
+	}
+	authority, valid := newRouteInvocationAuthority(plan, stepIndex, step, request, authorization, stage, commit)
+	if !valid {
+		return routeInvocationAuthority{}, fmt.Errorf("%w: invalid guard authorization proof", ErrDispatchDenied)
+	}
+	return authority, nil
 }
 
 func (d *Dispatcher) invokePlugin(
@@ -425,16 +441,6 @@ func (d *Dispatcher) invokePlugin(
 		return result, fmt.Errorf("%w: %w", ErrDispatchTransport, err)
 	}
 	return result, nil
-}
-
-func authorizedRouteInvocationAuthority(step RouteExecutionStep) routeInvocationAuthority {
-	if step.Provider.Kind != ProviderPlugin || !validPluginGuardBinding(step) {
-		return routeInvocationAuthorityFiltered
-	}
-	if step.Guard == extensionmanifest.GuardCoreRaw || step.PluginGuard.Kind == "raw_request" {
-		return routeInvocationAuthorityRaw
-	}
-	return routeInvocationAuthorityFiltered
 }
 
 func (d *Dispatcher) fallback(
