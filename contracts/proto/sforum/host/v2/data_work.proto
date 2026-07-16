@@ -20,6 +20,7 @@ service CacheService {
   rpc Get(CacheGetRequest) returns (CacheGetResponse);
   rpc Set(CacheSetRequest) returns (CacheSetResponse);
   rpc Delete(CacheDeleteRequest) returns (CacheDeleteResponse);
+  rpc Increment(CacheIncrementRequest) returns (CacheIncrementResponse);
   rpc InvalidateTags(CacheInvalidateRequest) returns (CacheInvalidateResponse);
 }
 
@@ -114,6 +115,20 @@ message CacheDeleteRequest {
 message CacheDeleteResponse {
   sforum.protocol.v2.ResponseContext context = 1;
   bool deleted = 2;
+  sforum.protocol.v2.ErrorDetail error = 3;
+}
+
+message CacheIncrementRequest {
+  sforum.protocol.v2.RequestContext context = 1;
+  string namespace = 2;
+  string key = 3;
+  sint64 delta = 4;
+  google.protobuf.Duration ttl = 5;
+}
+
+message CacheIncrementResponse {
+  sforum.protocol.v2.ResponseContext context = 1;
+  int64 value = 2;
   sforum.protocol.v2.ErrorDetail error = 3;
 }
 

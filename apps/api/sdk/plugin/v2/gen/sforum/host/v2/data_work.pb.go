@@ -803,6 +803,142 @@ func (x *CacheDeleteResponse) GetError() *v2.ErrorDetail {
 	return nil
 }
 
+type CacheIncrementRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Context       *v2.RequestContext     `protobuf:"bytes,1,opt,name=context,proto3" json:"context,omitempty"`
+	Namespace     string                 `protobuf:"bytes,2,opt,name=namespace,proto3" json:"namespace,omitempty"`
+	Key           string                 `protobuf:"bytes,3,opt,name=key,proto3" json:"key,omitempty"`
+	Delta         int64                  `protobuf:"zigzag64,4,opt,name=delta,proto3" json:"delta,omitempty"`
+	Ttl           *durationpb.Duration   `protobuf:"bytes,5,opt,name=ttl,proto3" json:"ttl,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CacheIncrementRequest) Reset() {
+	*x = CacheIncrementRequest{}
+	mi := &file_sforum_host_v2_data_work_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CacheIncrementRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CacheIncrementRequest) ProtoMessage() {}
+
+func (x *CacheIncrementRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_sforum_host_v2_data_work_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CacheIncrementRequest.ProtoReflect.Descriptor instead.
+func (*CacheIncrementRequest) Descriptor() ([]byte, []int) {
+	return file_sforum_host_v2_data_work_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *CacheIncrementRequest) GetContext() *v2.RequestContext {
+	if x != nil {
+		return x.Context
+	}
+	return nil
+}
+
+func (x *CacheIncrementRequest) GetNamespace() string {
+	if x != nil {
+		return x.Namespace
+	}
+	return ""
+}
+
+func (x *CacheIncrementRequest) GetKey() string {
+	if x != nil {
+		return x.Key
+	}
+	return ""
+}
+
+func (x *CacheIncrementRequest) GetDelta() int64 {
+	if x != nil {
+		return x.Delta
+	}
+	return 0
+}
+
+func (x *CacheIncrementRequest) GetTtl() *durationpb.Duration {
+	if x != nil {
+		return x.Ttl
+	}
+	return nil
+}
+
+type CacheIncrementResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Context       *v2.ResponseContext    `protobuf:"bytes,1,opt,name=context,proto3" json:"context,omitempty"`
+	Value         int64                  `protobuf:"varint,2,opt,name=value,proto3" json:"value,omitempty"`
+	Error         *v2.ErrorDetail        `protobuf:"bytes,3,opt,name=error,proto3" json:"error,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CacheIncrementResponse) Reset() {
+	*x = CacheIncrementResponse{}
+	mi := &file_sforum_host_v2_data_work_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CacheIncrementResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CacheIncrementResponse) ProtoMessage() {}
+
+func (x *CacheIncrementResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_sforum_host_v2_data_work_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CacheIncrementResponse.ProtoReflect.Descriptor instead.
+func (*CacheIncrementResponse) Descriptor() ([]byte, []int) {
+	return file_sforum_host_v2_data_work_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *CacheIncrementResponse) GetContext() *v2.ResponseContext {
+	if x != nil {
+		return x.Context
+	}
+	return nil
+}
+
+func (x *CacheIncrementResponse) GetValue() int64 {
+	if x != nil {
+		return x.Value
+	}
+	return 0
+}
+
+func (x *CacheIncrementResponse) GetError() *v2.ErrorDetail {
+	if x != nil {
+		return x.Error
+	}
+	return nil
+}
+
 type CacheInvalidateRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Context       *v2.RequestContext     `protobuf:"bytes,1,opt,name=context,proto3" json:"context,omitempty"`
@@ -814,7 +950,7 @@ type CacheInvalidateRequest struct {
 
 func (x *CacheInvalidateRequest) Reset() {
 	*x = CacheInvalidateRequest{}
-	mi := &file_sforum_host_v2_data_work_proto_msgTypes[11]
+	mi := &file_sforum_host_v2_data_work_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -826,7 +962,7 @@ func (x *CacheInvalidateRequest) String() string {
 func (*CacheInvalidateRequest) ProtoMessage() {}
 
 func (x *CacheInvalidateRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_sforum_host_v2_data_work_proto_msgTypes[11]
+	mi := &file_sforum_host_v2_data_work_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -839,7 +975,7 @@ func (x *CacheInvalidateRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CacheInvalidateRequest.ProtoReflect.Descriptor instead.
 func (*CacheInvalidateRequest) Descriptor() ([]byte, []int) {
-	return file_sforum_host_v2_data_work_proto_rawDescGZIP(), []int{11}
+	return file_sforum_host_v2_data_work_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *CacheInvalidateRequest) GetContext() *v2.RequestContext {
@@ -874,7 +1010,7 @@ type CacheInvalidateResponse struct {
 
 func (x *CacheInvalidateResponse) Reset() {
 	*x = CacheInvalidateResponse{}
-	mi := &file_sforum_host_v2_data_work_proto_msgTypes[12]
+	mi := &file_sforum_host_v2_data_work_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -886,7 +1022,7 @@ func (x *CacheInvalidateResponse) String() string {
 func (*CacheInvalidateResponse) ProtoMessage() {}
 
 func (x *CacheInvalidateResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_sforum_host_v2_data_work_proto_msgTypes[12]
+	mi := &file_sforum_host_v2_data_work_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -899,7 +1035,7 @@ func (x *CacheInvalidateResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CacheInvalidateResponse.ProtoReflect.Descriptor instead.
 func (*CacheInvalidateResponse) Descriptor() ([]byte, []int) {
-	return file_sforum_host_v2_data_work_proto_rawDescGZIP(), []int{12}
+	return file_sforum_host_v2_data_work_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *CacheInvalidateResponse) GetContext() *v2.ResponseContext {
@@ -937,7 +1073,7 @@ type JobEnqueueRequest struct {
 
 func (x *JobEnqueueRequest) Reset() {
 	*x = JobEnqueueRequest{}
-	mi := &file_sforum_host_v2_data_work_proto_msgTypes[13]
+	mi := &file_sforum_host_v2_data_work_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -949,7 +1085,7 @@ func (x *JobEnqueueRequest) String() string {
 func (*JobEnqueueRequest) ProtoMessage() {}
 
 func (x *JobEnqueueRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_sforum_host_v2_data_work_proto_msgTypes[13]
+	mi := &file_sforum_host_v2_data_work_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -962,7 +1098,7 @@ func (x *JobEnqueueRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use JobEnqueueRequest.ProtoReflect.Descriptor instead.
 func (*JobEnqueueRequest) Descriptor() ([]byte, []int) {
-	return file_sforum_host_v2_data_work_proto_rawDescGZIP(), []int{13}
+	return file_sforum_host_v2_data_work_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *JobEnqueueRequest) GetContext() *v2.RequestContext {
@@ -1019,7 +1155,7 @@ type JobEnqueueResponse struct {
 
 func (x *JobEnqueueResponse) Reset() {
 	*x = JobEnqueueResponse{}
-	mi := &file_sforum_host_v2_data_work_proto_msgTypes[14]
+	mi := &file_sforum_host_v2_data_work_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1031,7 +1167,7 @@ func (x *JobEnqueueResponse) String() string {
 func (*JobEnqueueResponse) ProtoMessage() {}
 
 func (x *JobEnqueueResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_sforum_host_v2_data_work_proto_msgTypes[14]
+	mi := &file_sforum_host_v2_data_work_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1044,7 +1180,7 @@ func (x *JobEnqueueResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use JobEnqueueResponse.ProtoReflect.Descriptor instead.
 func (*JobEnqueueResponse) Descriptor() ([]byte, []int) {
-	return file_sforum_host_v2_data_work_proto_rawDescGZIP(), []int{14}
+	return file_sforum_host_v2_data_work_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *JobEnqueueResponse) GetContext() *v2.ResponseContext {
@@ -1086,7 +1222,7 @@ type JobCancelRequest struct {
 
 func (x *JobCancelRequest) Reset() {
 	*x = JobCancelRequest{}
-	mi := &file_sforum_host_v2_data_work_proto_msgTypes[15]
+	mi := &file_sforum_host_v2_data_work_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1098,7 +1234,7 @@ func (x *JobCancelRequest) String() string {
 func (*JobCancelRequest) ProtoMessage() {}
 
 func (x *JobCancelRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_sforum_host_v2_data_work_proto_msgTypes[15]
+	mi := &file_sforum_host_v2_data_work_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1111,7 +1247,7 @@ func (x *JobCancelRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use JobCancelRequest.ProtoReflect.Descriptor instead.
 func (*JobCancelRequest) Descriptor() ([]byte, []int) {
-	return file_sforum_host_v2_data_work_proto_rawDescGZIP(), []int{15}
+	return file_sforum_host_v2_data_work_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *JobCancelRequest) GetContext() *v2.RequestContext {
@@ -1146,7 +1282,7 @@ type JobCancelResponse struct {
 
 func (x *JobCancelResponse) Reset() {
 	*x = JobCancelResponse{}
-	mi := &file_sforum_host_v2_data_work_proto_msgTypes[16]
+	mi := &file_sforum_host_v2_data_work_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1158,7 +1294,7 @@ func (x *JobCancelResponse) String() string {
 func (*JobCancelResponse) ProtoMessage() {}
 
 func (x *JobCancelResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_sforum_host_v2_data_work_proto_msgTypes[16]
+	mi := &file_sforum_host_v2_data_work_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1171,7 +1307,7 @@ func (x *JobCancelResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use JobCancelResponse.ProtoReflect.Descriptor instead.
 func (*JobCancelResponse) Descriptor() ([]byte, []int) {
-	return file_sforum_host_v2_data_work_proto_rawDescGZIP(), []int{16}
+	return file_sforum_host_v2_data_work_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *JobCancelResponse) GetContext() *v2.ResponseContext {
@@ -1206,7 +1342,7 @@ type JobWatchRequest struct {
 
 func (x *JobWatchRequest) Reset() {
 	*x = JobWatchRequest{}
-	mi := &file_sforum_host_v2_data_work_proto_msgTypes[17]
+	mi := &file_sforum_host_v2_data_work_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1218,7 +1354,7 @@ func (x *JobWatchRequest) String() string {
 func (*JobWatchRequest) ProtoMessage() {}
 
 func (x *JobWatchRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_sforum_host_v2_data_work_proto_msgTypes[17]
+	mi := &file_sforum_host_v2_data_work_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1231,7 +1367,7 @@ func (x *JobWatchRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use JobWatchRequest.ProtoReflect.Descriptor instead.
 func (*JobWatchRequest) Descriptor() ([]byte, []int) {
-	return file_sforum_host_v2_data_work_proto_rawDescGZIP(), []int{17}
+	return file_sforum_host_v2_data_work_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *JobWatchRequest) GetContext() *v2.RequestContext {
@@ -1265,7 +1401,7 @@ type ScheduleListRequest struct {
 
 func (x *ScheduleListRequest) Reset() {
 	*x = ScheduleListRequest{}
-	mi := &file_sforum_host_v2_data_work_proto_msgTypes[18]
+	mi := &file_sforum_host_v2_data_work_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1277,7 +1413,7 @@ func (x *ScheduleListRequest) String() string {
 func (*ScheduleListRequest) ProtoMessage() {}
 
 func (x *ScheduleListRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_sforum_host_v2_data_work_proto_msgTypes[18]
+	mi := &file_sforum_host_v2_data_work_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1290,7 +1426,7 @@ func (x *ScheduleListRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ScheduleListRequest.ProtoReflect.Descriptor instead.
 func (*ScheduleListRequest) Descriptor() ([]byte, []int) {
-	return file_sforum_host_v2_data_work_proto_rawDescGZIP(), []int{18}
+	return file_sforum_host_v2_data_work_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *ScheduleListRequest) GetContext() *v2.RequestContext {
@@ -1319,7 +1455,7 @@ type ScheduleDescriptor struct {
 
 func (x *ScheduleDescriptor) Reset() {
 	*x = ScheduleDescriptor{}
-	mi := &file_sforum_host_v2_data_work_proto_msgTypes[19]
+	mi := &file_sforum_host_v2_data_work_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1331,7 +1467,7 @@ func (x *ScheduleDescriptor) String() string {
 func (*ScheduleDescriptor) ProtoMessage() {}
 
 func (x *ScheduleDescriptor) ProtoReflect() protoreflect.Message {
-	mi := &file_sforum_host_v2_data_work_proto_msgTypes[19]
+	mi := &file_sforum_host_v2_data_work_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1344,7 +1480,7 @@ func (x *ScheduleDescriptor) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ScheduleDescriptor.ProtoReflect.Descriptor instead.
 func (*ScheduleDescriptor) Descriptor() ([]byte, []int) {
-	return file_sforum_host_v2_data_work_proto_rawDescGZIP(), []int{19}
+	return file_sforum_host_v2_data_work_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *ScheduleDescriptor) GetScheduleId() string {
@@ -1387,7 +1523,7 @@ type ScheduleListResponse struct {
 
 func (x *ScheduleListResponse) Reset() {
 	*x = ScheduleListResponse{}
-	mi := &file_sforum_host_v2_data_work_proto_msgTypes[20]
+	mi := &file_sforum_host_v2_data_work_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1399,7 +1535,7 @@ func (x *ScheduleListResponse) String() string {
 func (*ScheduleListResponse) ProtoMessage() {}
 
 func (x *ScheduleListResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_sforum_host_v2_data_work_proto_msgTypes[20]
+	mi := &file_sforum_host_v2_data_work_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1412,7 +1548,7 @@ func (x *ScheduleListResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ScheduleListResponse.ProtoReflect.Descriptor instead.
 func (*ScheduleListResponse) Descriptor() ([]byte, []int) {
-	return file_sforum_host_v2_data_work_proto_rawDescGZIP(), []int{20}
+	return file_sforum_host_v2_data_work_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *ScheduleListResponse) GetContext() *v2.ResponseContext {
@@ -1454,7 +1590,7 @@ type ScheduleTriggerRequest struct {
 
 func (x *ScheduleTriggerRequest) Reset() {
 	*x = ScheduleTriggerRequest{}
-	mi := &file_sforum_host_v2_data_work_proto_msgTypes[21]
+	mi := &file_sforum_host_v2_data_work_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1466,7 +1602,7 @@ func (x *ScheduleTriggerRequest) String() string {
 func (*ScheduleTriggerRequest) ProtoMessage() {}
 
 func (x *ScheduleTriggerRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_sforum_host_v2_data_work_proto_msgTypes[21]
+	mi := &file_sforum_host_v2_data_work_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1479,7 +1615,7 @@ func (x *ScheduleTriggerRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ScheduleTriggerRequest.ProtoReflect.Descriptor instead.
 func (*ScheduleTriggerRequest) Descriptor() ([]byte, []int) {
-	return file_sforum_host_v2_data_work_proto_rawDescGZIP(), []int{21}
+	return file_sforum_host_v2_data_work_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *ScheduleTriggerRequest) GetContext() *v2.RequestContext {
@@ -1514,7 +1650,7 @@ type ScheduleTriggerResponse struct {
 
 func (x *ScheduleTriggerResponse) Reset() {
 	*x = ScheduleTriggerResponse{}
-	mi := &file_sforum_host_v2_data_work_proto_msgTypes[22]
+	mi := &file_sforum_host_v2_data_work_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1526,7 +1662,7 @@ func (x *ScheduleTriggerResponse) String() string {
 func (*ScheduleTriggerResponse) ProtoMessage() {}
 
 func (x *ScheduleTriggerResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_sforum_host_v2_data_work_proto_msgTypes[22]
+	mi := &file_sforum_host_v2_data_work_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1539,7 +1675,7 @@ func (x *ScheduleTriggerResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ScheduleTriggerResponse.ProtoReflect.Descriptor instead.
 func (*ScheduleTriggerResponse) Descriptor() ([]byte, []int) {
-	return file_sforum_host_v2_data_work_proto_rawDescGZIP(), []int{22}
+	return file_sforum_host_v2_data_work_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *ScheduleTriggerResponse) GetContext() *v2.ResponseContext {
@@ -1630,6 +1766,16 @@ const file_sforum_host_v2_data_work_proto_rawDesc = "" +
 	"\x13CacheDeleteResponse\x12=\n" +
 	"\acontext\x18\x01 \x01(\v2#.sforum.protocol.v2.ResponseContextR\acontext\x12\x18\n" +
 	"\adeleted\x18\x02 \x01(\bR\adeleted\x125\n" +
+	"\x05error\x18\x03 \x01(\v2\x1f.sforum.protocol.v2.ErrorDetailR\x05error\"\xc8\x01\n" +
+	"\x15CacheIncrementRequest\x12<\n" +
+	"\acontext\x18\x01 \x01(\v2\".sforum.protocol.v2.RequestContextR\acontext\x12\x1c\n" +
+	"\tnamespace\x18\x02 \x01(\tR\tnamespace\x12\x10\n" +
+	"\x03key\x18\x03 \x01(\tR\x03key\x12\x14\n" +
+	"\x05delta\x18\x04 \x01(\x12R\x05delta\x12+\n" +
+	"\x03ttl\x18\x05 \x01(\v2\x19.google.protobuf.DurationR\x03ttl\"\xa4\x01\n" +
+	"\x16CacheIncrementResponse\x12=\n" +
+	"\acontext\x18\x01 \x01(\v2#.sforum.protocol.v2.ResponseContextR\acontext\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\x03R\x05value\x125\n" +
 	"\x05error\x18\x03 \x01(\v2\x1f.sforum.protocol.v2.ErrorDetailR\x05error\"\x88\x01\n" +
 	"\x16CacheInvalidateRequest\x12<\n" +
 	"\acontext\x18\x01 \x01(\v2\".sforum.protocol.v2.RequestContextR\acontext\x12\x1c\n" +
@@ -1691,11 +1837,12 @@ const file_sforum_host_v2_data_work_proto_rawDesc = "" +
 	"\x0fDatabaseService\x12T\n" +
 	"\x05Query\x12$.sforum.host.v2.DatabaseQueryRequest\x1a%.sforum.host.v2.DatabaseQueryResponse\x12Z\n" +
 	"\aExecute\x12&.sforum.host.v2.DatabaseExecuteRequest\x1a'.sforum.host.v2.DatabaseExecuteResponse\x12R\n" +
-	"\vStreamQuery\x12$.sforum.host.v2.DatabaseQueryRequest\x1a\x1b.sforum.host.v2.DatabaseRow0\x012\xd8\x02\n" +
+	"\vStreamQuery\x12$.sforum.host.v2.DatabaseQueryRequest\x1a\x1b.sforum.host.v2.DatabaseRow0\x012\xb4\x03\n" +
 	"\fCacheService\x12H\n" +
 	"\x03Get\x12\x1f.sforum.host.v2.CacheGetRequest\x1a .sforum.host.v2.CacheGetResponse\x12H\n" +
 	"\x03Set\x12\x1f.sforum.host.v2.CacheSetRequest\x1a .sforum.host.v2.CacheSetResponse\x12Q\n" +
-	"\x06Delete\x12\".sforum.host.v2.CacheDeleteRequest\x1a#.sforum.host.v2.CacheDeleteResponse\x12a\n" +
+	"\x06Delete\x12\".sforum.host.v2.CacheDeleteRequest\x1a#.sforum.host.v2.CacheDeleteResponse\x12Z\n" +
+	"\tIncrement\x12%.sforum.host.v2.CacheIncrementRequest\x1a&.sforum.host.v2.CacheIncrementResponse\x12a\n" +
 	"\x0eInvalidateTags\x12&.sforum.host.v2.CacheInvalidateRequest\x1a'.sforum.host.v2.CacheInvalidateResponse2\xfd\x01\n" +
 	"\n" +
 	"JobService\x12P\n" +
@@ -1718,7 +1865,7 @@ func file_sforum_host_v2_data_work_proto_rawDescGZIP() []byte {
 	return file_sforum_host_v2_data_work_proto_rawDescData
 }
 
-var file_sforum_host_v2_data_work_proto_msgTypes = make([]protoimpl.MessageInfo, 23)
+var file_sforum_host_v2_data_work_proto_msgTypes = make([]protoimpl.MessageInfo, 25)
 var file_sforum_host_v2_data_work_proto_goTypes = []any{
 	(*DatabaseQueryRequest)(nil),    // 0: sforum.host.v2.DatabaseQueryRequest
 	(*DatabaseRow)(nil),             // 1: sforum.host.v2.DatabaseRow
@@ -1731,105 +1878,113 @@ var file_sforum_host_v2_data_work_proto_goTypes = []any{
 	(*CacheSetResponse)(nil),        // 8: sforum.host.v2.CacheSetResponse
 	(*CacheDeleteRequest)(nil),      // 9: sforum.host.v2.CacheDeleteRequest
 	(*CacheDeleteResponse)(nil),     // 10: sforum.host.v2.CacheDeleteResponse
-	(*CacheInvalidateRequest)(nil),  // 11: sforum.host.v2.CacheInvalidateRequest
-	(*CacheInvalidateResponse)(nil), // 12: sforum.host.v2.CacheInvalidateResponse
-	(*JobEnqueueRequest)(nil),       // 13: sforum.host.v2.JobEnqueueRequest
-	(*JobEnqueueResponse)(nil),      // 14: sforum.host.v2.JobEnqueueResponse
-	(*JobCancelRequest)(nil),        // 15: sforum.host.v2.JobCancelRequest
-	(*JobCancelResponse)(nil),       // 16: sforum.host.v2.JobCancelResponse
-	(*JobWatchRequest)(nil),         // 17: sforum.host.v2.JobWatchRequest
-	(*ScheduleListRequest)(nil),     // 18: sforum.host.v2.ScheduleListRequest
-	(*ScheduleDescriptor)(nil),      // 19: sforum.host.v2.ScheduleDescriptor
-	(*ScheduleListResponse)(nil),    // 20: sforum.host.v2.ScheduleListResponse
-	(*ScheduleTriggerRequest)(nil),  // 21: sforum.host.v2.ScheduleTriggerRequest
-	(*ScheduleTriggerResponse)(nil), // 22: sforum.host.v2.ScheduleTriggerResponse
-	(*v2.RequestContext)(nil),       // 23: sforum.protocol.v2.RequestContext
-	(*v2.TypedDocument)(nil),        // 24: sforum.protocol.v2.TypedDocument
-	(*v2.PageRequest)(nil),          // 25: sforum.protocol.v2.PageRequest
-	(*v2.ResponseContext)(nil),      // 26: sforum.protocol.v2.ResponseContext
-	(*v2.ErrorDetail)(nil),          // 27: sforum.protocol.v2.ErrorDetail
-	(*v2.PageInfo)(nil),             // 28: sforum.protocol.v2.PageInfo
-	(*durationpb.Duration)(nil),     // 29: google.protobuf.Duration
-	(*v2.ProgressUpdate)(nil),       // 30: sforum.protocol.v2.ProgressUpdate
+	(*CacheIncrementRequest)(nil),   // 11: sforum.host.v2.CacheIncrementRequest
+	(*CacheIncrementResponse)(nil),  // 12: sforum.host.v2.CacheIncrementResponse
+	(*CacheInvalidateRequest)(nil),  // 13: sforum.host.v2.CacheInvalidateRequest
+	(*CacheInvalidateResponse)(nil), // 14: sforum.host.v2.CacheInvalidateResponse
+	(*JobEnqueueRequest)(nil),       // 15: sforum.host.v2.JobEnqueueRequest
+	(*JobEnqueueResponse)(nil),      // 16: sforum.host.v2.JobEnqueueResponse
+	(*JobCancelRequest)(nil),        // 17: sforum.host.v2.JobCancelRequest
+	(*JobCancelResponse)(nil),       // 18: sforum.host.v2.JobCancelResponse
+	(*JobWatchRequest)(nil),         // 19: sforum.host.v2.JobWatchRequest
+	(*ScheduleListRequest)(nil),     // 20: sforum.host.v2.ScheduleListRequest
+	(*ScheduleDescriptor)(nil),      // 21: sforum.host.v2.ScheduleDescriptor
+	(*ScheduleListResponse)(nil),    // 22: sforum.host.v2.ScheduleListResponse
+	(*ScheduleTriggerRequest)(nil),  // 23: sforum.host.v2.ScheduleTriggerRequest
+	(*ScheduleTriggerResponse)(nil), // 24: sforum.host.v2.ScheduleTriggerResponse
+	(*v2.RequestContext)(nil),       // 25: sforum.protocol.v2.RequestContext
+	(*v2.TypedDocument)(nil),        // 26: sforum.protocol.v2.TypedDocument
+	(*v2.PageRequest)(nil),          // 27: sforum.protocol.v2.PageRequest
+	(*v2.ResponseContext)(nil),      // 28: sforum.protocol.v2.ResponseContext
+	(*v2.ErrorDetail)(nil),          // 29: sforum.protocol.v2.ErrorDetail
+	(*v2.PageInfo)(nil),             // 30: sforum.protocol.v2.PageInfo
+	(*durationpb.Duration)(nil),     // 31: google.protobuf.Duration
+	(*v2.ProgressUpdate)(nil),       // 32: sforum.protocol.v2.ProgressUpdate
 }
 var file_sforum_host_v2_data_work_proto_depIdxs = []int32{
-	23, // 0: sforum.host.v2.DatabaseQueryRequest.context:type_name -> sforum.protocol.v2.RequestContext
-	24, // 1: sforum.host.v2.DatabaseQueryRequest.parameters:type_name -> sforum.protocol.v2.TypedDocument
-	25, // 2: sforum.host.v2.DatabaseQueryRequest.page:type_name -> sforum.protocol.v2.PageRequest
-	26, // 3: sforum.host.v2.DatabaseRow.context:type_name -> sforum.protocol.v2.ResponseContext
-	24, // 4: sforum.host.v2.DatabaseRow.value:type_name -> sforum.protocol.v2.TypedDocument
-	27, // 5: sforum.host.v2.DatabaseRow.error:type_name -> sforum.protocol.v2.ErrorDetail
-	26, // 6: sforum.host.v2.DatabaseQueryResponse.context:type_name -> sforum.protocol.v2.ResponseContext
-	24, // 7: sforum.host.v2.DatabaseQueryResponse.rows:type_name -> sforum.protocol.v2.TypedDocument
-	28, // 8: sforum.host.v2.DatabaseQueryResponse.page:type_name -> sforum.protocol.v2.PageInfo
-	27, // 9: sforum.host.v2.DatabaseQueryResponse.error:type_name -> sforum.protocol.v2.ErrorDetail
-	23, // 10: sforum.host.v2.DatabaseExecuteRequest.context:type_name -> sforum.protocol.v2.RequestContext
-	24, // 11: sforum.host.v2.DatabaseExecuteRequest.parameters:type_name -> sforum.protocol.v2.TypedDocument
-	26, // 12: sforum.host.v2.DatabaseExecuteResponse.context:type_name -> sforum.protocol.v2.ResponseContext
-	24, // 13: sforum.host.v2.DatabaseExecuteResponse.result:type_name -> sforum.protocol.v2.TypedDocument
-	27, // 14: sforum.host.v2.DatabaseExecuteResponse.error:type_name -> sforum.protocol.v2.ErrorDetail
-	23, // 15: sforum.host.v2.CacheGetRequest.context:type_name -> sforum.protocol.v2.RequestContext
-	26, // 16: sforum.host.v2.CacheGetResponse.context:type_name -> sforum.protocol.v2.ResponseContext
-	24, // 17: sforum.host.v2.CacheGetResponse.value:type_name -> sforum.protocol.v2.TypedDocument
-	27, // 18: sforum.host.v2.CacheGetResponse.error:type_name -> sforum.protocol.v2.ErrorDetail
-	23, // 19: sforum.host.v2.CacheSetRequest.context:type_name -> sforum.protocol.v2.RequestContext
-	24, // 20: sforum.host.v2.CacheSetRequest.value:type_name -> sforum.protocol.v2.TypedDocument
-	29, // 21: sforum.host.v2.CacheSetRequest.ttl:type_name -> google.protobuf.Duration
-	26, // 22: sforum.host.v2.CacheSetResponse.context:type_name -> sforum.protocol.v2.ResponseContext
-	27, // 23: sforum.host.v2.CacheSetResponse.error:type_name -> sforum.protocol.v2.ErrorDetail
-	23, // 24: sforum.host.v2.CacheDeleteRequest.context:type_name -> sforum.protocol.v2.RequestContext
-	26, // 25: sforum.host.v2.CacheDeleteResponse.context:type_name -> sforum.protocol.v2.ResponseContext
-	27, // 26: sforum.host.v2.CacheDeleteResponse.error:type_name -> sforum.protocol.v2.ErrorDetail
-	23, // 27: sforum.host.v2.CacheInvalidateRequest.context:type_name -> sforum.protocol.v2.RequestContext
-	26, // 28: sforum.host.v2.CacheInvalidateResponse.context:type_name -> sforum.protocol.v2.ResponseContext
-	27, // 29: sforum.host.v2.CacheInvalidateResponse.error:type_name -> sforum.protocol.v2.ErrorDetail
-	23, // 30: sforum.host.v2.JobEnqueueRequest.context:type_name -> sforum.protocol.v2.RequestContext
-	24, // 31: sforum.host.v2.JobEnqueueRequest.payload:type_name -> sforum.protocol.v2.TypedDocument
-	29, // 32: sforum.host.v2.JobEnqueueRequest.delay:type_name -> google.protobuf.Duration
-	26, // 33: sforum.host.v2.JobEnqueueResponse.context:type_name -> sforum.protocol.v2.ResponseContext
-	27, // 34: sforum.host.v2.JobEnqueueResponse.error:type_name -> sforum.protocol.v2.ErrorDetail
-	23, // 35: sforum.host.v2.JobCancelRequest.context:type_name -> sforum.protocol.v2.RequestContext
-	26, // 36: sforum.host.v2.JobCancelResponse.context:type_name -> sforum.protocol.v2.ResponseContext
-	27, // 37: sforum.host.v2.JobCancelResponse.error:type_name -> sforum.protocol.v2.ErrorDetail
-	23, // 38: sforum.host.v2.JobWatchRequest.context:type_name -> sforum.protocol.v2.RequestContext
-	23, // 39: sforum.host.v2.ScheduleListRequest.context:type_name -> sforum.protocol.v2.RequestContext
-	25, // 40: sforum.host.v2.ScheduleListRequest.page:type_name -> sforum.protocol.v2.PageRequest
-	26, // 41: sforum.host.v2.ScheduleListResponse.context:type_name -> sforum.protocol.v2.ResponseContext
-	19, // 42: sforum.host.v2.ScheduleListResponse.schedules:type_name -> sforum.host.v2.ScheduleDescriptor
-	28, // 43: sforum.host.v2.ScheduleListResponse.page:type_name -> sforum.protocol.v2.PageInfo
-	27, // 44: sforum.host.v2.ScheduleListResponse.error:type_name -> sforum.protocol.v2.ErrorDetail
-	23, // 45: sforum.host.v2.ScheduleTriggerRequest.context:type_name -> sforum.protocol.v2.RequestContext
-	26, // 46: sforum.host.v2.ScheduleTriggerResponse.context:type_name -> sforum.protocol.v2.ResponseContext
-	27, // 47: sforum.host.v2.ScheduleTriggerResponse.error:type_name -> sforum.protocol.v2.ErrorDetail
-	0,  // 48: sforum.host.v2.DatabaseService.Query:input_type -> sforum.host.v2.DatabaseQueryRequest
-	3,  // 49: sforum.host.v2.DatabaseService.Execute:input_type -> sforum.host.v2.DatabaseExecuteRequest
-	0,  // 50: sforum.host.v2.DatabaseService.StreamQuery:input_type -> sforum.host.v2.DatabaseQueryRequest
-	5,  // 51: sforum.host.v2.CacheService.Get:input_type -> sforum.host.v2.CacheGetRequest
-	7,  // 52: sforum.host.v2.CacheService.Set:input_type -> sforum.host.v2.CacheSetRequest
-	9,  // 53: sforum.host.v2.CacheService.Delete:input_type -> sforum.host.v2.CacheDeleteRequest
-	11, // 54: sforum.host.v2.CacheService.InvalidateTags:input_type -> sforum.host.v2.CacheInvalidateRequest
-	13, // 55: sforum.host.v2.JobService.Enqueue:input_type -> sforum.host.v2.JobEnqueueRequest
-	15, // 56: sforum.host.v2.JobService.Cancel:input_type -> sforum.host.v2.JobCancelRequest
-	17, // 57: sforum.host.v2.JobService.Watch:input_type -> sforum.host.v2.JobWatchRequest
-	18, // 58: sforum.host.v2.ScheduleService.List:input_type -> sforum.host.v2.ScheduleListRequest
-	21, // 59: sforum.host.v2.ScheduleService.Trigger:input_type -> sforum.host.v2.ScheduleTriggerRequest
-	2,  // 60: sforum.host.v2.DatabaseService.Query:output_type -> sforum.host.v2.DatabaseQueryResponse
-	4,  // 61: sforum.host.v2.DatabaseService.Execute:output_type -> sforum.host.v2.DatabaseExecuteResponse
-	1,  // 62: sforum.host.v2.DatabaseService.StreamQuery:output_type -> sforum.host.v2.DatabaseRow
-	6,  // 63: sforum.host.v2.CacheService.Get:output_type -> sforum.host.v2.CacheGetResponse
-	8,  // 64: sforum.host.v2.CacheService.Set:output_type -> sforum.host.v2.CacheSetResponse
-	10, // 65: sforum.host.v2.CacheService.Delete:output_type -> sforum.host.v2.CacheDeleteResponse
-	12, // 66: sforum.host.v2.CacheService.InvalidateTags:output_type -> sforum.host.v2.CacheInvalidateResponse
-	14, // 67: sforum.host.v2.JobService.Enqueue:output_type -> sforum.host.v2.JobEnqueueResponse
-	16, // 68: sforum.host.v2.JobService.Cancel:output_type -> sforum.host.v2.JobCancelResponse
-	30, // 69: sforum.host.v2.JobService.Watch:output_type -> sforum.protocol.v2.ProgressUpdate
-	20, // 70: sforum.host.v2.ScheduleService.List:output_type -> sforum.host.v2.ScheduleListResponse
-	22, // 71: sforum.host.v2.ScheduleService.Trigger:output_type -> sforum.host.v2.ScheduleTriggerResponse
-	60, // [60:72] is the sub-list for method output_type
-	48, // [48:60] is the sub-list for method input_type
-	48, // [48:48] is the sub-list for extension type_name
-	48, // [48:48] is the sub-list for extension extendee
-	0,  // [0:48] is the sub-list for field type_name
+	25, // 0: sforum.host.v2.DatabaseQueryRequest.context:type_name -> sforum.protocol.v2.RequestContext
+	26, // 1: sforum.host.v2.DatabaseQueryRequest.parameters:type_name -> sforum.protocol.v2.TypedDocument
+	27, // 2: sforum.host.v2.DatabaseQueryRequest.page:type_name -> sforum.protocol.v2.PageRequest
+	28, // 3: sforum.host.v2.DatabaseRow.context:type_name -> sforum.protocol.v2.ResponseContext
+	26, // 4: sforum.host.v2.DatabaseRow.value:type_name -> sforum.protocol.v2.TypedDocument
+	29, // 5: sforum.host.v2.DatabaseRow.error:type_name -> sforum.protocol.v2.ErrorDetail
+	28, // 6: sforum.host.v2.DatabaseQueryResponse.context:type_name -> sforum.protocol.v2.ResponseContext
+	26, // 7: sforum.host.v2.DatabaseQueryResponse.rows:type_name -> sforum.protocol.v2.TypedDocument
+	30, // 8: sforum.host.v2.DatabaseQueryResponse.page:type_name -> sforum.protocol.v2.PageInfo
+	29, // 9: sforum.host.v2.DatabaseQueryResponse.error:type_name -> sforum.protocol.v2.ErrorDetail
+	25, // 10: sforum.host.v2.DatabaseExecuteRequest.context:type_name -> sforum.protocol.v2.RequestContext
+	26, // 11: sforum.host.v2.DatabaseExecuteRequest.parameters:type_name -> sforum.protocol.v2.TypedDocument
+	28, // 12: sforum.host.v2.DatabaseExecuteResponse.context:type_name -> sforum.protocol.v2.ResponseContext
+	26, // 13: sforum.host.v2.DatabaseExecuteResponse.result:type_name -> sforum.protocol.v2.TypedDocument
+	29, // 14: sforum.host.v2.DatabaseExecuteResponse.error:type_name -> sforum.protocol.v2.ErrorDetail
+	25, // 15: sforum.host.v2.CacheGetRequest.context:type_name -> sforum.protocol.v2.RequestContext
+	28, // 16: sforum.host.v2.CacheGetResponse.context:type_name -> sforum.protocol.v2.ResponseContext
+	26, // 17: sforum.host.v2.CacheGetResponse.value:type_name -> sforum.protocol.v2.TypedDocument
+	29, // 18: sforum.host.v2.CacheGetResponse.error:type_name -> sforum.protocol.v2.ErrorDetail
+	25, // 19: sforum.host.v2.CacheSetRequest.context:type_name -> sforum.protocol.v2.RequestContext
+	26, // 20: sforum.host.v2.CacheSetRequest.value:type_name -> sforum.protocol.v2.TypedDocument
+	31, // 21: sforum.host.v2.CacheSetRequest.ttl:type_name -> google.protobuf.Duration
+	28, // 22: sforum.host.v2.CacheSetResponse.context:type_name -> sforum.protocol.v2.ResponseContext
+	29, // 23: sforum.host.v2.CacheSetResponse.error:type_name -> sforum.protocol.v2.ErrorDetail
+	25, // 24: sforum.host.v2.CacheDeleteRequest.context:type_name -> sforum.protocol.v2.RequestContext
+	28, // 25: sforum.host.v2.CacheDeleteResponse.context:type_name -> sforum.protocol.v2.ResponseContext
+	29, // 26: sforum.host.v2.CacheDeleteResponse.error:type_name -> sforum.protocol.v2.ErrorDetail
+	25, // 27: sforum.host.v2.CacheIncrementRequest.context:type_name -> sforum.protocol.v2.RequestContext
+	31, // 28: sforum.host.v2.CacheIncrementRequest.ttl:type_name -> google.protobuf.Duration
+	28, // 29: sforum.host.v2.CacheIncrementResponse.context:type_name -> sforum.protocol.v2.ResponseContext
+	29, // 30: sforum.host.v2.CacheIncrementResponse.error:type_name -> sforum.protocol.v2.ErrorDetail
+	25, // 31: sforum.host.v2.CacheInvalidateRequest.context:type_name -> sforum.protocol.v2.RequestContext
+	28, // 32: sforum.host.v2.CacheInvalidateResponse.context:type_name -> sforum.protocol.v2.ResponseContext
+	29, // 33: sforum.host.v2.CacheInvalidateResponse.error:type_name -> sforum.protocol.v2.ErrorDetail
+	25, // 34: sforum.host.v2.JobEnqueueRequest.context:type_name -> sforum.protocol.v2.RequestContext
+	26, // 35: sforum.host.v2.JobEnqueueRequest.payload:type_name -> sforum.protocol.v2.TypedDocument
+	31, // 36: sforum.host.v2.JobEnqueueRequest.delay:type_name -> google.protobuf.Duration
+	28, // 37: sforum.host.v2.JobEnqueueResponse.context:type_name -> sforum.protocol.v2.ResponseContext
+	29, // 38: sforum.host.v2.JobEnqueueResponse.error:type_name -> sforum.protocol.v2.ErrorDetail
+	25, // 39: sforum.host.v2.JobCancelRequest.context:type_name -> sforum.protocol.v2.RequestContext
+	28, // 40: sforum.host.v2.JobCancelResponse.context:type_name -> sforum.protocol.v2.ResponseContext
+	29, // 41: sforum.host.v2.JobCancelResponse.error:type_name -> sforum.protocol.v2.ErrorDetail
+	25, // 42: sforum.host.v2.JobWatchRequest.context:type_name -> sforum.protocol.v2.RequestContext
+	25, // 43: sforum.host.v2.ScheduleListRequest.context:type_name -> sforum.protocol.v2.RequestContext
+	27, // 44: sforum.host.v2.ScheduleListRequest.page:type_name -> sforum.protocol.v2.PageRequest
+	28, // 45: sforum.host.v2.ScheduleListResponse.context:type_name -> sforum.protocol.v2.ResponseContext
+	21, // 46: sforum.host.v2.ScheduleListResponse.schedules:type_name -> sforum.host.v2.ScheduleDescriptor
+	30, // 47: sforum.host.v2.ScheduleListResponse.page:type_name -> sforum.protocol.v2.PageInfo
+	29, // 48: sforum.host.v2.ScheduleListResponse.error:type_name -> sforum.protocol.v2.ErrorDetail
+	25, // 49: sforum.host.v2.ScheduleTriggerRequest.context:type_name -> sforum.protocol.v2.RequestContext
+	28, // 50: sforum.host.v2.ScheduleTriggerResponse.context:type_name -> sforum.protocol.v2.ResponseContext
+	29, // 51: sforum.host.v2.ScheduleTriggerResponse.error:type_name -> sforum.protocol.v2.ErrorDetail
+	0,  // 52: sforum.host.v2.DatabaseService.Query:input_type -> sforum.host.v2.DatabaseQueryRequest
+	3,  // 53: sforum.host.v2.DatabaseService.Execute:input_type -> sforum.host.v2.DatabaseExecuteRequest
+	0,  // 54: sforum.host.v2.DatabaseService.StreamQuery:input_type -> sforum.host.v2.DatabaseQueryRequest
+	5,  // 55: sforum.host.v2.CacheService.Get:input_type -> sforum.host.v2.CacheGetRequest
+	7,  // 56: sforum.host.v2.CacheService.Set:input_type -> sforum.host.v2.CacheSetRequest
+	9,  // 57: sforum.host.v2.CacheService.Delete:input_type -> sforum.host.v2.CacheDeleteRequest
+	11, // 58: sforum.host.v2.CacheService.Increment:input_type -> sforum.host.v2.CacheIncrementRequest
+	13, // 59: sforum.host.v2.CacheService.InvalidateTags:input_type -> sforum.host.v2.CacheInvalidateRequest
+	15, // 60: sforum.host.v2.JobService.Enqueue:input_type -> sforum.host.v2.JobEnqueueRequest
+	17, // 61: sforum.host.v2.JobService.Cancel:input_type -> sforum.host.v2.JobCancelRequest
+	19, // 62: sforum.host.v2.JobService.Watch:input_type -> sforum.host.v2.JobWatchRequest
+	20, // 63: sforum.host.v2.ScheduleService.List:input_type -> sforum.host.v2.ScheduleListRequest
+	23, // 64: sforum.host.v2.ScheduleService.Trigger:input_type -> sforum.host.v2.ScheduleTriggerRequest
+	2,  // 65: sforum.host.v2.DatabaseService.Query:output_type -> sforum.host.v2.DatabaseQueryResponse
+	4,  // 66: sforum.host.v2.DatabaseService.Execute:output_type -> sforum.host.v2.DatabaseExecuteResponse
+	1,  // 67: sforum.host.v2.DatabaseService.StreamQuery:output_type -> sforum.host.v2.DatabaseRow
+	6,  // 68: sforum.host.v2.CacheService.Get:output_type -> sforum.host.v2.CacheGetResponse
+	8,  // 69: sforum.host.v2.CacheService.Set:output_type -> sforum.host.v2.CacheSetResponse
+	10, // 70: sforum.host.v2.CacheService.Delete:output_type -> sforum.host.v2.CacheDeleteResponse
+	12, // 71: sforum.host.v2.CacheService.Increment:output_type -> sforum.host.v2.CacheIncrementResponse
+	14, // 72: sforum.host.v2.CacheService.InvalidateTags:output_type -> sforum.host.v2.CacheInvalidateResponse
+	16, // 73: sforum.host.v2.JobService.Enqueue:output_type -> sforum.host.v2.JobEnqueueResponse
+	18, // 74: sforum.host.v2.JobService.Cancel:output_type -> sforum.host.v2.JobCancelResponse
+	32, // 75: sforum.host.v2.JobService.Watch:output_type -> sforum.protocol.v2.ProgressUpdate
+	22, // 76: sforum.host.v2.ScheduleService.List:output_type -> sforum.host.v2.ScheduleListResponse
+	24, // 77: sforum.host.v2.ScheduleService.Trigger:output_type -> sforum.host.v2.ScheduleTriggerResponse
+	65, // [65:78] is the sub-list for method output_type
+	52, // [52:65] is the sub-list for method input_type
+	52, // [52:52] is the sub-list for extension type_name
+	52, // [52:52] is the sub-list for extension extendee
+	0,  // [0:52] is the sub-list for field type_name
 }
 
 func init() { file_sforum_host_v2_data_work_proto_init() }
@@ -1843,7 +1998,7 @@ func file_sforum_host_v2_data_work_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_sforum_host_v2_data_work_proto_rawDesc), len(file_sforum_host_v2_data_work_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   23,
+			NumMessages:   25,
 			NumExtensions: 0,
 			NumServices:   4,
 		},

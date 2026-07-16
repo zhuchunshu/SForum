@@ -209,6 +209,7 @@ const (
 	CacheService_Get_FullMethodName            = "/sforum.host.v2.CacheService/Get"
 	CacheService_Set_FullMethodName            = "/sforum.host.v2.CacheService/Set"
 	CacheService_Delete_FullMethodName         = "/sforum.host.v2.CacheService/Delete"
+	CacheService_Increment_FullMethodName      = "/sforum.host.v2.CacheService/Increment"
 	CacheService_InvalidateTags_FullMethodName = "/sforum.host.v2.CacheService/InvalidateTags"
 )
 
@@ -221,6 +222,7 @@ type CacheServiceClient interface {
 	Get(ctx context.Context, in *CacheGetRequest, opts ...grpc.CallOption) (*CacheGetResponse, error)
 	Set(ctx context.Context, in *CacheSetRequest, opts ...grpc.CallOption) (*CacheSetResponse, error)
 	Delete(ctx context.Context, in *CacheDeleteRequest, opts ...grpc.CallOption) (*CacheDeleteResponse, error)
+	Increment(ctx context.Context, in *CacheIncrementRequest, opts ...grpc.CallOption) (*CacheIncrementResponse, error)
 	InvalidateTags(ctx context.Context, in *CacheInvalidateRequest, opts ...grpc.CallOption) (*CacheInvalidateResponse, error)
 }
 
@@ -262,6 +264,16 @@ func (c *cacheServiceClient) Delete(ctx context.Context, in *CacheDeleteRequest,
 	return out, nil
 }
 
+func (c *cacheServiceClient) Increment(ctx context.Context, in *CacheIncrementRequest, opts ...grpc.CallOption) (*CacheIncrementResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CacheIncrementResponse)
+	err := c.cc.Invoke(ctx, CacheService_Increment_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *cacheServiceClient) InvalidateTags(ctx context.Context, in *CacheInvalidateRequest, opts ...grpc.CallOption) (*CacheInvalidateResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(CacheInvalidateResponse)
@@ -281,6 +293,7 @@ type CacheServiceServer interface {
 	Get(context.Context, *CacheGetRequest) (*CacheGetResponse, error)
 	Set(context.Context, *CacheSetRequest) (*CacheSetResponse, error)
 	Delete(context.Context, *CacheDeleteRequest) (*CacheDeleteResponse, error)
+	Increment(context.Context, *CacheIncrementRequest) (*CacheIncrementResponse, error)
 	InvalidateTags(context.Context, *CacheInvalidateRequest) (*CacheInvalidateResponse, error)
 	mustEmbedUnimplementedCacheServiceServer()
 }
@@ -300,6 +313,9 @@ func (UnimplementedCacheServiceServer) Set(context.Context, *CacheSetRequest) (*
 }
 func (UnimplementedCacheServiceServer) Delete(context.Context, *CacheDeleteRequest) (*CacheDeleteResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method Delete not implemented")
+}
+func (UnimplementedCacheServiceServer) Increment(context.Context, *CacheIncrementRequest) (*CacheIncrementResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method Increment not implemented")
 }
 func (UnimplementedCacheServiceServer) InvalidateTags(context.Context, *CacheInvalidateRequest) (*CacheInvalidateResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method InvalidateTags not implemented")
@@ -379,6 +395,24 @@ func _CacheService_Delete_Handler(srv interface{}, ctx context.Context, dec func
 	return interceptor(ctx, in, info, handler)
 }
 
+func _CacheService_Increment_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CacheIncrementRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(CacheServiceServer).Increment(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: CacheService_Increment_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(CacheServiceServer).Increment(ctx, req.(*CacheIncrementRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _CacheService_InvalidateTags_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(CacheInvalidateRequest)
 	if err := dec(in); err != nil {
@@ -415,6 +449,10 @@ var CacheService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Delete",
 			Handler:    _CacheService_Delete_Handler,
+		},
+		{
+			MethodName: "Increment",
+			Handler:    _CacheService_Increment_Handler,
 		},
 		{
 			MethodName: "InvalidateTags",

@@ -57,6 +57,42 @@ func TestProtocolV2CacheServiceUsesAttestedRuntimeAndCurrentContract(t *testing.
 	}
 }
 
+func TestProtocolV2CacheServiceIncrementUsesExactNamespaceAndTTL(t *testing.T) {
+	fixture := newHostCacheTestFixture(t, "protocol-counter.cache", "public", "")
+	server, err := NewProtocolV2CacheServiceServer(fixture.service)
+	if err != nil {
+		t.Fatal(err)
+	}
+	identity := &protocolv2.ExtensionIdentity{
+		ExtensionId: fixture.artifact.ExtensionID, ExtensionVersion: fixture.artifact.ExtensionVersion,
+		ArtifactDigest: fixture.artifact.PackageDigest, InstanceId: fixture.artifact.RuntimeInstanceID,
+	}
+	requestContext := &protocolv2.RequestContext{RequestId: "cache-increment", Extension: identity, Locale: "zh-CN"}
+	ctx := ContextWithProtocolV2RuntimeIdentity(context.Background(), identity)
+
+	first, err := server.Increment(ctx, &hostv2.CacheIncrementRequest{
+		Context: requestContext, Namespace: fixture.cache.Namespace, Key: "views:42",
+		Delta: 2, Ttl: durationpb.New(time.Minute),
+	})
+	if err != nil || first.GetError() != nil || first.GetValue() != 2 {
+		t.Fatalf("first increment=%#v err=%v", first, err)
+	}
+	second, err := server.Increment(ctx, &hostv2.CacheIncrementRequest{
+		Context: requestContext, Namespace: fixture.cache.Namespace, Key: "views:42",
+		Delta: -1, Ttl: durationpb.New(time.Minute),
+	})
+	if err != nil || second.GetError() != nil || second.GetValue() != 1 {
+		t.Fatalf("second increment=%#v err=%v", second, err)
+	}
+
+	invalid, err := server.Increment(ctx, &hostv2.CacheIncrementRequest{
+		Context: requestContext, Namespace: fixture.cache.Namespace, Key: "views:42",
+	})
+	if err != nil || invalid.GetError().GetReason() != "host.cache_request_invalid" {
+		t.Fatalf("invalid increment=%#v err=%v", invalid, err)
+	}
+}
+
 func TestProtocolV2CacheServiceFailsClosedWithoutActorScopeContract(t *testing.T) {
 	fixture := newHostCacheTestFixture(t, "actor-protocol.cache", "actor", "")
 	server, err := NewProtocolV2CacheServiceServer(fixture.service)

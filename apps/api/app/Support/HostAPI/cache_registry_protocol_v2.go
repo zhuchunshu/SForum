@@ -13,9 +13,9 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-// ProtocolV2CacheServiceServer implements the currently generated cache RPCs.
-// Increment, Remember, and locks remain in-process only because data_work.proto
-// has no messages or methods for those semantics.
+// ProtocolV2CacheServiceServer exposes declaration-bound cache operations to an
+// exact broker-attested runtime. Remember and lock leases remain in-process
+// until their cross-RPC ownership protocol is frozen.
 type ProtocolV2CacheServiceServer struct {
 	hostv2.UnimplementedCacheServiceServer
 	service *HostCacheService
@@ -121,6 +121,34 @@ func (s *ProtocolV2CacheServiceServer) Delete(
 		return response, nil
 	}
 	response.Deleted = deleted
+	return response, nil
+}
+
+func (s *ProtocolV2CacheServiceServer) Increment(
+	ctx context.Context,
+	request *hostv2.CacheIncrementRequest,
+) (*hostv2.CacheIncrementResponse, error) {
+	identity, caller, detail := protocolV2CacheCaller(ctx, request.GetContext())
+	response := &hostv2.CacheIncrementResponse{Context: protocolV2CacheResponseContext(request.GetContext(), identity)}
+	if detail != nil {
+		response.Error = detail
+		return response, nil
+	}
+	if request.GetTtl() == nil || request.GetTtl().CheckValid() != nil {
+		response.Error = protocolV2CacheFailure(ErrHostCacheInvalid)
+		return response, nil
+	}
+	value, err := s.service.Increment(ctx, HostCacheIncrementRequest{
+		HostCacheRequestBase: protocolV2CacheRequestBase(caller, request.GetContext(), request.GetNamespace()),
+		Key:                  request.GetKey(),
+		Delta:                request.GetDelta(),
+		TTL:                  request.GetTtl().AsDuration(),
+	})
+	if err != nil {
+		response.Error = protocolV2CacheFailure(err)
+		return response, nil
+	}
+	response.Value = value
 	return response, nil
 }
 
