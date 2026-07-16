@@ -32,12 +32,13 @@ const (
 )
 
 type Service struct {
-	themeActivationMu  sync.Mutex
-	assetPublicationMu sync.Mutex
-	store              Store
-	extensionRoot      string
-	builtinRoot        string
-	runtime            RuntimeManager
+	themeActivationMu       sync.Mutex
+	themeRuntimeUnavailable bool
+	assetPublicationMu      sync.Mutex
+	store                   Store
+	extensionRoot           string
+	builtinRoot             string
+	runtime                 RuntimeManager
 	// auditor 写入宿主 audit_events（F1.4）；与 extension_events 互补。
 	auditor audit.Writer
 	// trustRevoker 升级时吊销前端信任（F2.4）。
@@ -1173,6 +1174,9 @@ func (s *Service) activateTheme(
 	// required for cross-node convergence.
 	s.themeActivationMu.Lock()
 	defer s.themeActivationMu.Unlock()
+	if s.themeRuntimeUnavailable {
+		return Extension{}, ErrThemeRuntimeUnavailable
+	}
 	s.assetPublicationMu.Lock()
 	defer s.assetPublicationMu.Unlock()
 	assetBefore := s.captureAssetPublicationSnapshot()
@@ -1559,6 +1563,28 @@ func (s *Service) RestoreActiveThemeRegistry(ctx context.Context) error {
 // RestoreSafeModeThemeRegistry 忽略数据库 desired theme 与全部插件贡献，只加载受保护默认主题。
 func (s *Service) RestoreSafeModeThemeRegistry(ctx context.Context) error {
 	if s == nil || (s.pageRegistry == nil && s.assetRegistry == nil) {
+		return nil
+	}
+	s.themeActivationMu.Lock()
+	defer s.themeActivationMu.Unlock()
+	return s.restoreSafeModeThemeRegistry(ctx)
+}
+
+// FailClosedThemeRuntime permanently closes theme mutation admission for this
+// process before installing the protected default. A healthy process restart is
+// required to reopen admission after durable watcher ownership is lost.
+func (s *Service) FailClosedThemeRuntime(ctx context.Context) error {
+	if s == nil {
+		return nil
+	}
+	s.themeActivationMu.Lock()
+	defer s.themeActivationMu.Unlock()
+	s.themeRuntimeUnavailable = true
+	return s.restoreSafeModeThemeRegistry(ctx)
+}
+
+func (s *Service) restoreSafeModeThemeRegistry(ctx context.Context) error {
+	if s.pageRegistry == nil && s.assetRegistry == nil {
 		return nil
 	}
 	s.assetPublicationMu.Lock()

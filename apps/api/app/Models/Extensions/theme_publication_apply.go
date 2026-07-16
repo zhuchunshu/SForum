@@ -17,6 +17,9 @@ func (s *Service) ApplyThemeRuntimePublication(ctx context.Context, publication 
 	}
 	s.themeActivationMu.Lock()
 	defer s.themeActivationMu.Unlock()
+	if s.themeRuntimeUnavailable {
+		return errors.Join(ErrThemeRuntimeApplyFailed, ErrThemeRuntimeUnavailable)
+	}
 	s.assetPublicationMu.Lock()
 	defer s.assetPublicationMu.Unlock()
 	assetBefore := s.captureAssetPublicationSnapshot()
