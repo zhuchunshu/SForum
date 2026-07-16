@@ -46,3 +46,33 @@ func TestProtocolExtensionLifecycleWaitHonorsCallerContext(t *testing.T) {
 	}
 	reacquired()
 }
+
+func TestProtocolRuntimeSetLeaseFinalValidationIsFencedAndCancellable(t *testing.T) {
+	want := []RuntimeInstanceIdentity{{ExtensionID: "lease.plugin", InstanceID: "runtime-1"}}
+	called := 0
+	lease := &ProtocolRuntimeSetLease{
+		release: func() {},
+		validate: func(ctx context.Context, identities []RuntimeInstanceIdentity) error {
+			called++
+			if err := ctx.Err(); err != nil {
+				return err
+			}
+			if len(identities) != 1 || identities[0] != want[0] {
+				return ErrProtocolInstanceNotReady
+			}
+			return nil
+		},
+	}
+	if err := lease.Validate(context.Background(), want); err != nil || called != 1 {
+		t.Fatalf("validate live lease error=%v called=%d", err, called)
+	}
+	canceled, cancel := context.WithCancel(context.Background())
+	cancel()
+	if err := lease.Validate(canceled, want); !errors.Is(err, context.Canceled) || called != 2 {
+		t.Fatalf("validate canceled lease error=%v called=%d", err, called)
+	}
+	lease.Release()
+	if err := lease.Validate(context.Background(), want); !errors.Is(err, ErrProtocolInstanceNotReady) || called != 2 {
+		t.Fatalf("validate released lease error=%v called=%d", err, called)
+	}
+}

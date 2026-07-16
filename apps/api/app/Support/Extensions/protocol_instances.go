@@ -72,10 +72,26 @@ type StagedRuntimeSetStarter interface {
 // ProtocolRuntimeSetLease keeps ProtocolStarter membership and the HostAPI
 // service writer fence continuous across an aggregate Manager commit/rollback.
 type ProtocolRuntimeSetLease struct {
-	mu      sync.Mutex
-	closed  bool
-	release func()
-	restore func(context.Context, []RuntimeInstanceIdentity) ([]ProtocolRuntimeInstanceSnapshot, error)
+	mu       sync.Mutex
+	closed   bool
+	release  func()
+	restore  func(context.Context, []RuntimeInstanceIdentity) ([]ProtocolRuntimeInstanceSnapshot, error)
+	validate func(context.Context, []RuntimeInstanceIdentity) error
+}
+
+// Validate proves that the complete published process set is still the exact
+// live set while the ProtocolStarter and ServiceRegistry writer fences remain
+// held. It is the final candidate fence immediately before Manager commit.
+func (l *ProtocolRuntimeSetLease) Validate(ctx context.Context, identities []RuntimeInstanceIdentity) error {
+	if l == nil || ctx == nil {
+		return ErrRuntimeAdmissionInvalid
+	}
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if l.closed || l.validate == nil {
+		return ErrProtocolInstanceNotReady
+	}
+	return l.validate(ctx, identities)
 }
 
 func (l *ProtocolRuntimeSetLease) Release() {
@@ -468,7 +484,41 @@ func (s *ProtocolStarter) PublishInstanceSet(
 	lease.restore = func(restoreCtx context.Context, restoreIdentities []RuntimeInstanceIdentity) ([]ProtocolRuntimeInstanceSnapshot, error) {
 		return s.restoreRuntimeInstanceSetUnderLease(restoreCtx, serviceLease, restoreIdentities)
 	}
+	lease.validate = func(validateCtx context.Context, validateIdentities []RuntimeInstanceIdentity) error {
+		return s.validateRuntimeInstanceSetUnderLease(validateCtx, validateIdentities)
+	}
 	return snapshots, lease, nil
+}
+
+func (s *ProtocolStarter) validateRuntimeInstanceSetUnderLease(
+	ctx context.Context,
+	identities []RuntimeInstanceIdentity,
+) error {
+	if s == nil || ctx == nil {
+		return ErrRuntimeAdmissionInvalid
+	}
+	desired, err := normalizeProtocolRuntimeInstanceSet(identities)
+	if err != nil {
+		return err
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if len(s.activeRuntimeInstances) != len(desired) {
+		return ErrProtocolInstanceNotReady
+	}
+	for _, identity := range desired {
+		instance := s.runtimeInstanceLocked(identity)
+		if instance == nil || s.activeRuntimeInstances[identity.ExtensionID] != identity.InstanceID ||
+			!instance.published || instance.client == nil || instance.client.Exited() ||
+			!instance.healthy || !instance.ready ||
+			(instance.protocolVersion == 2 && !instance.readinessChecked) {
+			return fmt.Errorf("%w: %s/%s", ErrProtocolInstanceNotReady, identity.ExtensionID, identity.InstanceID)
+		}
+	}
+	return nil
 }
 
 // restoreRuntimeInstanceSetUnderLease assumes the set-transition token and the
