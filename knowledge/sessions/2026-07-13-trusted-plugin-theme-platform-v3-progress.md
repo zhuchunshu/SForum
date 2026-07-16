@@ -14,17 +14,20 @@ Last updated: 2026-07-17
 
 ## Current Subtask
 
-- **P6 raw-request authority:** forward Cookie/Authorization only after the
-  Dispatcher has issued a private per-step authority stamp from an active exact-
-  artifact `raw_request` guard. Ordinary, inherited, and custom routes remain
-  credential-filtered.
-- The implementation must synchronously close stale authority on trust revoke,
-  reject transport flag/manifest drift, disable loopback redirects, remove
-  dynamic `Connection` headers, and validate WebSocket origin/handshake before
-  any raw guard RPC.
+- **Startup recovery before returning to P6:** real API boot now passes the
+  lifecycle-operation genesis fence, optional Lifecycle V2 process staging,
+  and mixed Protocol V1/V2 runtime convergence. It currently stops at legacy
+  Identity Registry adoption for an enabled exact plugin that predates the
+  durable identity ledgers.
+- Add migration `202607170034` to upgrade databases that applied the pre-commit
+  shape of migration 029, then adopt only an entirely untracked exact enabled
+  identity publication from locked live trust-grant/audit evidence. Partial,
+  revoked, stale, Safe Mode, or conflicting history must remain fail-closed.
 
 ## Recent Verified Commits
 
+- `0c4f42c84 test(extensions): isolate postgres integration fixtures`
+- `cc4ce473f fix(runtime): converge mixed protocol startup set`
 - `1f2c2e81a fix(routes): bind raw authority to exact dispatch`
 - `7e68fe2b9 feat(protocol): add route request authority fields`
 - `c5c7b089c fix(routes): harden loopback request forwarding`
@@ -44,6 +47,19 @@ Last updated: 2026-07-17
 
 ## Verification
 
+- Mixed Protocol startup focused normal/race tests, bootstrap normal/race,
+  `go vet ./app/Support/Extensions ./bootstrap`, formatting, and staged diff
+  checks passed for `cc4ce473f`.
+- A real API launch progressed beyond the original open-lifecycle failure, the
+  Protocol V2-without-Lifecycle validation failure, and both exact Protocol V1
+  members. It next failed closed on missing durable Identity Registry history
+  for `sforum.admin-surface-reference`.
+- Read-only DB inspection proved zero open lifecycle operations; the three old
+  `publication.integration.*` rows are terminal `cancelled`. Runtime genesis
+  revision 1 remains immutable with four exact members.
+- Provider-slot, lifecycle journal, and lifecycle jobs isolation passed against
+  a uniquely created and dropped PostgreSQL test database. Lifecycle jobs also
+  passed focused normal/race tests; `SFORUM_TEST_DATABASE_URL` is now mandatory.
 - `cd apps/api && go test ./sdk/plugin/v2 -count=1` passed.
 - `cd apps/api && go test -race ./sdk/plugin/v2 -count=1` passed.
 - `cd apps/api && go vet ./sdk/plugin/v2` passed.
@@ -122,19 +138,27 @@ Last updated: 2026-07-17
   `sforum-seo-reference` fixture, and its fixture index entry.
 - The P12 migration-proof implementation/tests are committed in `fea430020` and
   are no longer dirty ownership.
+- Identity startup diagnostics/adoption work belongs to the active startup
+  recovery slice under `Support/IdentityRegistry` and
+  `lifecycle_registry_publication_identity*`; do not mix it with P6 authority.
+- Migration 034 is an independent additive schema-compatibility commit and must
+  land before Identity legacy adoption. Never edit already-applied migration 029.
 - `docs/extensions/catalogs/manifest-v3.md`, the V3 ADR edit, and every other
   unstaged file remain outside the current commit until independently reviewed.
 
 ## Exact Next Steps
 
-1. Wire typed Protocol V2 authority/kind fields and stamp-gated Cookie/Auth into
-   unary, raw guard, stream, and loopback transports; missing/mismatched fields
-   fail closed.
-2. Wire exact revoke/drain with allowed plus
+1. Land and apply additive migration 034 for the pre-commit migration-029
+   permission-catalog/grant schema, with fresh/current and drifted upgrade tests.
+2. Land evidence-bound Identity legacy adoption; rerun API startup until it
+   stays serving and revision 1 receives a complete node acknowledgement.
+3. Resume typed Protocol V2 authority/kind fixture and wire closure; validate
+   WebSocket version/key before any guard/runtime RPC.
+4. Wire exact revoke/drain with allowed plus
    denied, drift, redirect, invalid-WebSocket, and race tests.
-3. Preserve required-idempotency pending state after any remote execution
+5. Preserve required-idempotency pending state after any remote execution
    evidence; an unsafe crash/timeout must never become a second writer on retry.
-4. Continue mutable-field/action semantics after raw authority; land SEO only in
+6. Continue mutable-field/action semantics after raw authority; land SEO only in
    independently reviewed contract/transport/Host-policy/
    bootstrap/reference slices; do not credit the SEO row before SSR, sitemap,
    revoke/failure, and Inspector evidence is production-complete.
