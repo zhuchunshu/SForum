@@ -67,6 +67,7 @@ type Service struct {
 	lifecyclePreflight     LifecycleStaticPreflight
 	lifecycleAuthority     LifecycleAuthorityRepository
 	lifecycleFinalizer     LifecycleCleanupFinalizer
+	queryPublications      RuntimeQueryPublicationBoundary
 }
 
 // PageRegistry 主题/插件页面贡献注册（避免 extensions 直接依赖 pages 包实现细节）。
@@ -844,6 +845,10 @@ func (s *Service) Enable(ctx context.Context, actor identity.Actor, id string, i
 		return s.enableLifecycleV2(ctx, actor, extension, input)
 	}
 	defer s.assetPublicationMu.Unlock()
+	hasRuntimeQueries := len(extension.Manifest.Queries) > 0
+	if hasRuntimeQueries && s.queryPublications == nil {
+		return Extension{}, ErrRuntimeQueryPublicationUnavailable
+	}
 	assetBefore := s.captureAssetPublicationSnapshot()
 	if err := s.validateExtensionAssetPublication(ctx, assetBefore, extension); err != nil {
 		s.recordEnableFailure(ctx, actor, extension.ID, err)
@@ -914,18 +919,34 @@ func (s *Service) Enable(ctx context.Context, actor identity.Actor, id string, i
 			return Extension{}, fmt.Errorf("%w: %v", ErrRuntimeFailed, startErr)
 		}
 	}
+	var queryMutation RuntimeQueryPublicationMutation
+	if hasRuntimeQueries {
+		queryMutation, err = s.queryPublications.PublishRuntimeQueries(ctx, enabled)
+		if err != nil || queryMutation == nil {
+			if err == nil {
+				err = ErrRuntimeQueryPublicationUnavailable
+			}
+			failure := s.compensateLegacyQueryEnable(ctx, enabled, assetMutation, queryMutation, err)
+			s.recordEnableFailure(ctx, actor, enabled.ID, failure)
+			return Extension{}, errors.Join(ErrRuntimeFailed, fmt.Errorf("publish runtime queries: %w", failure))
+		}
+	}
 	// 插件 enable：注册页面贡献（add/replace 候选）；replace 仍需 super_admin 批准。
 	if enabled.Type == TypePlugin && s.pageRegistry != nil {
 		if err := s.pageRegistry.RegisterPluginPackage(ctx, enabled); err != nil {
 			// 页面贡献失败不静默：回滚 enable，避免半启用状态
-			if s.runtime != nil {
-				_ = s.runtime.Stop(ctx, enabled)
+			if hasRuntimeQueries {
+				err = s.compensateLegacyQueryEnable(ctx, enabled, assetMutation, queryMutation, err)
+			} else {
+				if s.runtime != nil {
+					_ = s.runtime.Stop(ctx, enabled)
+				}
+				_, _ = s.store.Disable(ctx, enabled.ID)
+				if rollbackErr := s.rollbackExactAssetMutation(assetMutation); rollbackErr != nil {
+					err = errors.Join(err, fmt.Errorf("restore asset publication after page failure: %w", rollbackErr))
+				}
 			}
-			_, _ = s.store.Disable(ctx, enabled.ID)
 			s.pageRegistry.ClearExtension(enabled.ID)
-			if rollbackErr := s.rollbackExactAssetMutation(assetMutation); rollbackErr != nil {
-				err = errors.Join(err, fmt.Errorf("restore asset publication after page failure: %w", rollbackErr))
-			}
 			s.recordEnableFailure(ctx, actor, enabled.ID, err)
 			return Extension{}, fmt.Errorf("%w: page contributions: %v", ErrPreflightFailed, err)
 		}
@@ -973,28 +994,50 @@ func (s *Service) DisableWithInput(ctx context.Context, actor identity.Actor, id
 		return s.disableLifecycleV2(ctx, actor, extension, input)
 	}
 	defer s.assetPublicationMu.Unlock()
+	hasRuntimeQueries := len(extension.Manifest.Queries) > 0
+	if hasRuntimeQueries && s.queryPublications == nil {
+		return Extension{}, ErrRuntimeQueryPublicationUnavailable
+	}
 	assetBefore := s.captureAssetPublicationSnapshot()
 	assetMutation, err := s.quarantineExactAssetPublication(ctx, assetBefore, extension)
 	if err != nil {
 		return Extension{}, fmt.Errorf("remove exact asset publication: %w", err)
 	}
-	// F2.4：先 drain runtime（停进程、清 provider），再改 DB 状态。
-	if err := s.drainPluginRuntime(ctx, extension); err != nil {
-		if rollbackErr := s.rollbackExactAssetMutation(assetMutation); rollbackErr != nil {
-			return Extension{}, errors.Join(err, fmt.Errorf("restore asset publication after drain failure: %w", rollbackErr))
+	var disabled Extension
+	if hasRuntimeQueries {
+		queryMutation, quarantineErr := s.queryPublications.QuarantineRuntimeQueries(ctx, extension)
+		if quarantineErr != nil || queryMutation == nil {
+			if quarantineErr == nil {
+				quarantineErr = ErrRuntimeQueryPublicationUnavailable
+			}
+			if restoreErr := s.rollbackExactAssetMutation(assetMutation); restoreErr != nil {
+				quarantineErr = errors.Join(quarantineErr, fmt.Errorf("restore asset publication: %w", restoreErr))
+			}
+			return Extension{}, quarantineErr
 		}
-		return Extension{}, err
-	}
-	// 立即撤销页面贡献，使 replace 绑定在 Resolve 时回退 core。
-	if s.pageRegistry != nil {
-		s.pageRegistry.ClearExtension(extension.ID)
-	}
-	disabled, err := s.store.Disable(ctx, extension.ID)
-	if err != nil {
-		if restoreErr := s.rollbackExactAssetMutation(assetMutation); restoreErr != nil {
-			return Extension{}, errors.Join(err, fmt.Errorf("restore asset publication after disable failure: %w", restoreErr))
+		disabled, err = s.disableLegacyQueryPlugin(ctx, extension, assetMutation, queryMutation)
+		if err != nil {
+			return Extension{}, err
 		}
-		return Extension{}, err
+	} else {
+		// F2.4：无 Query 的 legacy 插件完整保留原有 drain 顺序。
+		if err := s.drainPluginRuntime(ctx, extension); err != nil {
+			if rollbackErr := s.rollbackExactAssetMutation(assetMutation); rollbackErr != nil {
+				return Extension{}, errors.Join(err, fmt.Errorf("restore asset publication after drain failure: %w", rollbackErr))
+			}
+			return Extension{}, err
+		}
+		// 立即撤销页面贡献，使 replace 绑定在 Resolve 时回退 core。
+		if s.pageRegistry != nil {
+			s.pageRegistry.ClearExtension(extension.ID)
+		}
+		disabled, err = s.store.Disable(ctx, extension.ID)
+		if err != nil {
+			if restoreErr := s.rollbackExactAssetMutation(assetMutation); restoreErr != nil {
+				return Extension{}, errors.Join(err, fmt.Errorf("restore asset publication after disable failure: %w", restoreErr))
+			}
+			return Extension{}, err
+		}
 	}
 	_, _ = s.store.CreateEvent(ctx, EventInput{
 		ExtensionID: disabled.ID,
