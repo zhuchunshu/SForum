@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
@@ -34,11 +35,16 @@ type ManagerPluginRuntimeFullSetApplier struct {
 	manager      *Manager
 	inventory    PluginRuntimeFullSetInventory
 	drainTimeout time.Duration
+
+	// initialProtocolV1Compatibility 仅 bootstrap 首轮 full-set 允许 cold-start exact V1。
+	// 成功 Apply 返回 applied evidence 后单调关闭；失败重试仍可再次 cold-start。
+	initialProtocolV1Compatibility atomic.Bool
 }
 
 var _ extensions.PluginRuntimeFullSetApplier = (*ManagerPluginRuntimeFullSetApplier)(nil)
 
-// NewManagerPluginRuntimeFullSetApplier 构造生产 full-set 适配器。
+// NewManagerPluginRuntimeFullSetApplier 构造普通 full-set 适配器。
+// 缺少可复用 Protocol V1 时 fail-closed，不会 cold-start 任何 V1 进程。
 func NewManagerPluginRuntimeFullSetApplier(
 	manager *Manager,
 	inventory PluginRuntimeFullSetInventory,
@@ -51,12 +57,27 @@ func NewManagerPluginRuntimeFullSetApplier(
 	}, nil
 }
 
+// NewInitialBootstrapManagerPluginRuntimeFullSetApplier 构造 production bootstrap
+// 专用 full-set 适配器。仅首轮成功 Apply 前允许在单 barrier 内 cold-start
+// publication 中的 exact Protocol V1 成员；成功后单调关闭该窗口。
+func NewInitialBootstrapManagerPluginRuntimeFullSetApplier(
+	manager *Manager,
+	inventory PluginRuntimeFullSetInventory,
+) (*ManagerPluginRuntimeFullSetApplier, error) {
+	applier, err := NewManagerPluginRuntimeFullSetApplier(manager, inventory)
+	if err != nil {
+		return nil, err
+	}
+	applier.initialProtocolV1Compatibility.Store(true)
+	return applier, nil
+}
+
 // ApplyPluginRuntimeFullSet 将 Manager 收敛到 publication 描述的完整 exact 集合。
 // 成功时返回完整 applied evidence（含 node-local runtime instance id）。
 func (a *ManagerPluginRuntimeFullSetApplier) ApplyPluginRuntimeFullSet(
 	ctx context.Context,
 	publication extensions.PluginRuntimePublication,
-) ([]extensions.PluginRuntimeAppliedMember, error) {
+) (applied []extensions.PluginRuntimeAppliedMember, err error) {
 	if a == nil || a.manager == nil || a.inventory == nil || ctx == nil {
 		return nil, ErrPluginRuntimeFullSetInvalid
 	}
@@ -78,6 +99,29 @@ func (a *ManagerPluginRuntimeFullSetApplier) ApplyPluginRuntimeFullSet(
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
+
+	// 本轮 Apply 新启动的 V1 必须在任意后续失败时回滚；已存在 exact 复用不在账本内。
+	// 启动循环失败时也保留账本，由本 defer 唯一执行逆序回滚（禁止内层二次 stop）。
+	var startedThisApply []initialProtocolV1StartedMember
+	defer func() {
+		if err == nil {
+			// 仅在成功返回 applied evidence 后关闭初始兼容窗口。
+			a.disarmInitialProtocolV1Compatibility()
+			return
+		}
+		if len(startedThisApply) == 0 {
+			return
+		}
+		err = errors.Join(err, a.rollbackInitialProtocolV1Starts(startedThisApply))
+	}()
+
+	// INITIAL-BOOTSTRAP-ONLY：解析 exact publication 且持有单 barrier 之后、
+	// build plan 之前，按需 cold-start missing exact V1（从不预启动 V2）。
+	startedThisApply, err = a.startInitialProtocolV1CompatibilityLocked(ctx, desired)
+	if err != nil {
+		return nil, err
+	}
+
 	plan, err := a.buildPluginRuntimeFullSetPlan(publication.Revision, desired)
 	if err != nil {
 		return nil, err

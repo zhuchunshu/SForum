@@ -487,16 +487,17 @@ func validateManagedProtocolSnapshot(
 	return nil
 }
 
+// validateManagedStagedExtension admits an exact Protocol V2 process artifact
+// for staged runtime / full-set apply. Lifecycle V2 is optional here; lifecycle
+// coordinators and protocol lifecycle invokers enforce declarations separately.
 func validateManagedStagedExtension(extension extensions.Extension) error {
 	if extension.ID == "" || extension.ID != strings.TrimSpace(extension.ID) ||
 		extension.Version == "" || extension.Version != strings.TrimSpace(extension.Version) ||
 		extension.PackageDigest == "" || extension.PackageDigest != strings.TrimSpace(extension.PackageDigest) ||
 		extension.Type != extensions.TypePlugin || extension.Manifest.ID != extension.ID ||
 		extension.Manifest.Version != extension.Version || extension.Manifest.Type != extensions.TypePlugin ||
-		extension.Manifest.Backend.ProtocolVersion != 2 || extension.Manifest.Lifecycle == nil ||
-		strings.TrimSpace(extension.Manifest.Lifecycle.ContractVersion) == "" ||
-		strings.TrimSpace(extension.Manifest.Lifecycle.ContractVersion) != extension.Manifest.Lifecycle.ContractVersion {
-		return fmt.Errorf("%w: exact Protocol V2 lifecycle artifact is required", ErrRuntimeAdmissionInvalid)
+		extension.Manifest.Backend.ProtocolVersion != 2 {
+		return fmt.Errorf("%w: exact Protocol V2 process artifact is required", ErrRuntimeAdmissionInvalid)
 	}
 	return nil
 }

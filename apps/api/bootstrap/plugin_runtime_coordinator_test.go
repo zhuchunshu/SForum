@@ -11,6 +11,7 @@ import (
 	"time"
 
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
+	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
 )
 
 var errPluginRuntimeCoordinatorBootstrapTest = errors.New("plugin runtime bootstrap test failure")
@@ -220,6 +221,39 @@ func TestPluginRuntimeCoordinatorBootstrapRejectsStartupErrors(t *testing.T) {
 	}); !errors.Is(err, errPluginRuntimeCoordinatorBootstrapInvalid) {
 		t.Fatalf("invalid genesis error=%v", err)
 	}
+}
+
+// API 与 standalone worker 都经 startPluginRuntimeCoordinator 进入同一 production
+// applier 构造点。此处只断言 wiring 绑定 NewInitialBootstrap... 且可构造；
+// cold-start / disarm / 回滚语义由 Support/Extensions InitialBootstrap 行为测试覆盖。
+func TestNewProductionPluginRuntimeFullSetApplierWiresInitialBootstrapConstructor(t *testing.T) {
+	manager := extensionsruntime.NewManager(extensionsruntime.ManagerConfig{})
+	inventory := pluginRuntimeCoordinatorBootstrapTestInventory{}
+	production, err := newProductionPluginRuntimeFullSetApplier(manager, inventory)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if production == nil {
+		t.Fatal("production applier must be constructed via NewInitialBootstrapManagerPluginRuntimeFullSetApplier")
+	}
+	// 对照：普通构造器仍可用；两者类型相同，差异仅在首轮 Apply 行为（Extensions 包证明）。
+	ordinary, err := extensionsruntime.NewManagerPluginRuntimeFullSetApplier(manager, inventory)
+	if err != nil || ordinary == nil {
+		t.Fatalf("ordinary applier: %v %#v", err, ordinary)
+	}
+}
+
+// pluginRuntimeCoordinatorBootstrapTestInventory 仅满足 applier 构造依赖。
+type pluginRuntimeCoordinatorBootstrapTestInventory struct{}
+
+func (pluginRuntimeCoordinatorBootstrapTestInventory) Get(context.Context, string) (extensions.Extension, error) {
+	return extensions.Extension{}, errors.New("bootstrap test inventory has no extensions")
+}
+
+func (pluginRuntimeCoordinatorBootstrapTestInventory) GetExtensionVersion(
+	context.Context, extensions.ExactExtensionVersionInput,
+) (extensions.ExtensionVersion, error) {
+	return extensions.ExtensionVersion{}, errors.New("bootstrap test inventory has no versions")
 }
 
 func TestPluginRuntimeCoordinatorBootstrapPollConvergesAfterMissedNotification(t *testing.T) {

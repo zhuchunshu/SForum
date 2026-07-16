@@ -288,6 +288,114 @@ func TestManagerHealthRejectsFrozenManifestDrift(t *testing.T) {
 	}
 }
 
+// Protocol V2 process staging must not require optional Lifecycle V2 declarations.
+// Genesis plugins such as sforum.admin-surface-reference are valid process plugins
+// without lifecycle actions.
+func TestManagerStagesProtocolV2ProcessWithoutLifecycle(t *testing.T) {
+	extension := managerStagedExtension("process.no-lifecycle", "1.0.0", "digest-process")
+	extension.Manifest.Lifecycle = nil
+	if err := validateManagedStagedExtension(extension); err != nil {
+		t.Fatalf("validate without lifecycle: %v", err)
+	}
+
+	starter := newManagerStagedStarter()
+	manager := NewManager(ManagerConfig{Starter: starter})
+	staged, err := manager.StageRuntimeInstance(context.Background(), extension)
+	if err != nil {
+		t.Fatalf("stage Protocol V2 without lifecycle: %v", err)
+	}
+	t.Cleanup(func() { _ = manager.DiscardRuntimeInstance(context.Background(), staged.Identity) })
+	if staged.Active || staged.ExtensionVersion != "1.0.0" || staged.ArtifactDigest != "digest-process" {
+		t.Fatalf("staged snapshot = %#v", staged)
+	}
+	if _, err := manager.HealthRuntimeInstance(context.Background(), staged.Identity); err != nil {
+		t.Fatalf("health Protocol V2 without lifecycle: %v", err)
+	}
+}
+
+func TestValidateManagedStagedExtensionRejectsMalformedOrNonV2(t *testing.T) {
+	valid := managerStagedExtension("process.valid", "1.0.0", "digest-valid")
+	valid.Manifest.Lifecycle = nil
+	if err := validateManagedStagedExtension(valid); err != nil {
+		t.Fatalf("valid process artifact rejected: %v", err)
+	}
+
+	tests := map[string]func(extensions.Extension) extensions.Extension{
+		"protocol v1": func(extension extensions.Extension) extensions.Extension {
+			extension.Manifest.Backend.ProtocolVersion = 1
+			return extension
+		},
+		"empty protocol": func(extension extensions.Extension) extensions.Extension {
+			extension.Manifest.Backend.ProtocolVersion = 0
+			return extension
+		},
+		"id mismatch": func(extension extensions.Extension) extensions.Extension {
+			extension.Manifest.ID = "other.id"
+			return extension
+		},
+		"version mismatch": func(extension extensions.Extension) extensions.Extension {
+			extension.Manifest.Version = "9.9.9"
+			return extension
+		},
+		"empty digest": func(extension extensions.Extension) extensions.Extension {
+			extension.PackageDigest = ""
+			return extension
+		},
+		"theme type": func(extension extensions.Extension) extensions.Extension {
+			extension.Type = extensions.TypeTheme
+			extension.Manifest.Type = extensions.TypeTheme
+			return extension
+		},
+		"whitespace id": func(extension extensions.Extension) extensions.Extension {
+			extension.ID = " process.valid "
+			extension.Manifest.ID = " process.valid "
+			return extension
+		},
+	}
+	for name, mutate := range tests {
+		t.Run(name, func(t *testing.T) {
+			if err := validateManagedStagedExtension(mutate(valid)); !errors.Is(err, ErrRuntimeAdmissionInvalid) {
+				t.Fatalf("error = %v", err)
+			}
+		})
+	}
+}
+
+// Lifecycle paths remain fail-closed when Manifest.lifecycle is omitted.
+func TestLifecycleCallRejectsProtocolV2ProcessWithoutLifecycleBeforeRemote(t *testing.T) {
+	if _, _, _, err := lifecycleOperationContract(nil, LifecycleActionEnable); !errors.Is(err, ErrInvalidLifecycleRun) {
+		t.Fatalf("nil lifecycle contract error = %v", err)
+	}
+
+	request := exactCoordinatorTestRequest(
+		t, extensions.LifecycleMachineEnable, extensions.LifecycleMachineEnableAction, 2, extensions.LifecycleRuntimeTarget,
+	)
+	// Exact process plugin without optional lifecycle declaration.
+	request.TargetExtension.Manifest.Lifecycle = nil
+	request.Extension.Manifest.Lifecycle = nil
+	runnerCalls := 0
+	adapter := &ExactLifecycleCoordinatorRuntimeAdapter{
+		admission: exactLifecycleCoordinatorAdmissionFunc(func(
+			context.Context, RuntimeInstanceIdentity, RuntimeCallClass,
+		) (*RuntimeAdmissionLease, error) {
+			t.Fatal("lifecycle admission must not run without a declared lifecycle contract")
+			return nil, nil
+		}),
+		runner: exactLifecycleCoordinatorRunnerFunc(func(
+			context.Context, RuntimeInstanceIdentity, extensions.Extension, LifecycleInvocation,
+		) (LifecycleRunResult, error) {
+			runnerCalls++
+			return LifecycleRunResult{}, nil
+		}),
+	}
+	if _, err := adapter.RunLifecycleAction(context.Background(), request, nil); !errors.Is(err, ErrInvalidLifecycleRun) {
+		t.Fatalf("lifecycle call without declaration = %v", err)
+	}
+	if runnerCalls != 0 {
+		t.Fatalf("remote lifecycle runner calls = %d", runnerCalls)
+	}
+}
+
 type managerStagedStarter struct {
 	mu        sync.Mutex
 	next      int
