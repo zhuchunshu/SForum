@@ -10,6 +10,7 @@ import (
 	"time"
 
 	appevents "github.com/zhuchunshu/sforum/apps/api/app/Support/Events"
+	identityregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/IdentityRegistry"
 )
 
 type Service struct {
@@ -23,6 +24,7 @@ type Service struct {
 	// loginLockout 可选；缺省时不锁定。
 	loginLockout       LoginLockoutStore
 	loginLockoutPolicy LoginLockoutPolicyResolver
+	identityRegistry   identityregistry.Store
 }
 
 func NewService(store Store) *Service {
