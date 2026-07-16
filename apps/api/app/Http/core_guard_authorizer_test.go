@@ -809,6 +809,19 @@ func TestProductionExtensionPolicyClosesExactArtifactCatalogRoutes(t *testing.T)
 	if covered != 12 || len(expected) != 0 {
 		t.Fatalf("covered=%d missing=%#v", covered, expected)
 	}
+	for _, route := range routes.CoreRouteCatalog() {
+		if route.ID != "core.route.extensions.install" {
+			continue
+		}
+		plan, step := productionExtensionPolicyGuardPlan(t, route, entry)
+		themeManager := productionGuardRequest(identity.PermissionExtensionThemeManage)
+		themeManager.Method, themeManager.Path, themeManager.Params = plan.Method(), plan.Path(), plan.Params()
+		if err := authorizer.Authorize(context.Background(), plan, step, themeManager); err != nil {
+			t.Fatalf("theme manager inert upload guard error = %v", err)
+		}
+		return
+	}
+	t.Fatal("install route missing from Core catalog")
 }
 
 func TestProductionExtensionPolicyEnforcesTypeTrustSafeModeAndDrift(t *testing.T) {

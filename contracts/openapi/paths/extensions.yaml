@@ -327,7 +327,10 @@ adminExtensions:
       upgrade transaction activates that exact artifact. Theme ZIPs contain
       theme.json plus static assets and never trigger a Nuxt build. Themes cannot
       declare plugin runtime capabilities. New installs are not automatically
-      enabled or activated.
+      enabled or activated. Plugin archives require extension.plugin.manage;
+      theme archives require extension.theme.manage. The Host authorizes either
+      permission before bounded static parsing, then rechecks the parsed manifest
+      type before storing any package bytes.
     operationId: installAdminExtension
     requestBody:
       required: true

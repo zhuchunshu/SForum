@@ -344,6 +344,7 @@ func extensionsMutationGuardEvaluator(policy ExtensionGuardPolicy) routes.CoreGu
 			}
 			return requireCoreGuardPermission(evaluation,
 				identity.PermissionExtensionPluginManage,
+				identity.PermissionExtensionThemeManage,
 				identity.PermissionExtensionManage,
 			)
 		}
