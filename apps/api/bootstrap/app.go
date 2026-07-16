@@ -741,6 +741,27 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		pool.Close()
 		return nil, fmt.Errorf("refresh extension guard policy failed: %w", err)
 	}
+	routeFailureRecorder, err := httpserver.NewRouteFailureRecorder(lifecycleStack.RuntimeManager, auditWriter, logger)
+	if err != nil {
+		stopPluginRuntimeCoordinator()
+		if stopErr := supportjobs.Stop(ctx, jobClient); stopErr != nil {
+			logger.Warn("job dispatcher stop failed", "error", stopErr)
+		}
+		closePluginRuntime()
+		sharedRedisClient.Close()
+		if closeErr := redisStorage.Close(); closeErr != nil {
+			logger.Warn("redis session storage close failed", "error", closeErr)
+		}
+		pool.Close()
+		return nil, fmt.Errorf("create route failure recorder: %w", err)
+	}
+	closeRouteFailureRecorder := func() {
+		closeCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		defer cancel()
+		if closeErr := routeFailureRecorder.Close(closeCtx); closeErr != nil && logger != nil {
+			logger.Warn("route failure recorder stop timed out", "error", closeErr)
+		}
+	}
 	// P6 buffered HTTP dispatcher consumes the durable provider selection before
 	// Fiber's hardcoded core providers. Declared schemas remain fail-closed until
 	// their exact package catalog is production-published.
@@ -766,6 +787,7 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		Trace:       routeTraceRing,
 		Policies:    lifecycleStack.RouteSchemas,
 		Idempotency: httpserver.NewRequiredRouteIdempotency(idempotencyStore),
+		Failures:    routeFailureRecorder,
 	})
 
 	app := httpserver.NewApp(cfg, logger, httpserver.Dependencies{
@@ -804,6 +826,7 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 			ctx, extensionStore, extensionService, logger, themeRuntimeStopTimeout,
 		)
 		if err != nil {
+			closeRouteFailureRecorder()
 			stopPluginRuntimeCoordinator()
 			if stopErr := supportjobs.Stop(ctx, jobClient); stopErr != nil {
 				logger.Warn("job dispatcher stop failed", "error", stopErr)
@@ -833,6 +856,7 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 			OwnsRuntime:      false,
 		})
 		if err != nil {
+			closeRouteFailureRecorder()
 			stopThemeRuntimeWatcher()
 			heartbeatCancel()
 			stopPluginRuntimeCoordinator()
@@ -848,6 +872,7 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 			return nil, fmt.Errorf("embedded worker setup failed: %w", err)
 		}
 		if err := embeddedWorker.Start(ctx); err != nil {
+			closeRouteFailureRecorder()
 			stopThemeRuntimeWatcher()
 			heartbeatCancel()
 			embeddedWorker.Close()
@@ -904,6 +929,7 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		Addr:     apiAddress(cfg),
 		failures: apiRuntimeFailures,
 		close: func() {
+			closeRouteFailureRecorder()
 			stopAPIRuntimeFailureMerge()
 			stopPluginRuntimeCoordinator()
 			if pluginRuntimeMonitorDone != nil {

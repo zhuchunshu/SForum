@@ -19,11 +19,12 @@ func TestDispatcherPreservesUnsafeResponseAndRecordsCommittedAfterFailure(t *tes
 		requestErr   error
 		transportErr error
 		responseErr  error
+		observed     bool
 	}{
 		{name: "guard denied", code: RouteFailureGuardDenied, outcome: RouteTraceDenied, guardErr: errors.New("denied")},
 		{name: "request schema rejected", code: RouteFailureRequestSchemaRejected, outcome: RouteTraceSchemaRejected, requestErr: errors.New("request rejected")},
-		{name: "transport failed", code: RouteFailureTransportFailed, outcome: RouteTraceTransportFailed, transportErr: errors.New("runtime crashed")},
-		{name: "response schema rejected", code: RouteFailureResponseSchemaRejected, outcome: RouteTraceSchemaRejected, responseErr: errors.New("response rejected")},
+		{name: "transport failed", code: RouteFailureTransportFailed, outcome: RouteTraceTransportFailed, transportErr: errors.New("runtime crashed"), observed: true},
+		{name: "response schema rejected", code: RouteFailureResponseSchemaRejected, outcome: RouteTraceSchemaRejected, responseErr: errors.New("response rejected"), observed: true},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -78,6 +79,7 @@ func TestDispatcherPreservesUnsafeResponseAndRecordsCommittedAfterFailure(t *tes
 			if event.FailureCode != test.code || event.StepIndex != 1 || event.Phase != RoutePhaseAfter ||
 				event.Action != extensionmanifest.RouteActionAfter || event.RouteID != after.RouteID ||
 				event.ContractVersion != after.ContractVersion || event.Method != "POST" ||
+				event.RuntimeExecutionObserved != test.observed ||
 				event.ActorID != 42 || event.ResponseStatus != http.StatusCreated ||
 				event.CommitState != RouteCommitFinal || event.Artifact != after.Provider.Artifact {
 				t.Fatalf("failure event=%#v", event)

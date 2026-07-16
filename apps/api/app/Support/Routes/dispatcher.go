@@ -213,7 +213,7 @@ func (d *Dispatcher) Dispatch(ctx context.Context, request DispatchRequest, core
 		authority, err := d.authorize(ctx, plan, index, step, request, response, InvocationStageExecute, commit)
 		if err != nil {
 			d.appendTrace(plan, index, step, RouteTraceDenied, started, commit.State())
-			if event := d.committedAfterFailure(plan, index, step, request, response, RouteFailureGuardDenied); event != nil {
+			if event := d.committedAfterFailure(plan, index, step, request, response, RouteFailureGuardDenied, false); event != nil {
 				committedAfterFailure, committingStep, committingStarted = event, index, started
 				break
 			}
@@ -221,7 +221,7 @@ func (d *Dispatcher) Dispatch(ctx context.Context, request DispatchRequest, core
 		}
 		if d.schemas == nil && step.RequestSchema != "" {
 			d.appendTrace(plan, index, step, RouteTraceSchemaRejected, started, commit.State())
-			if event := d.committedAfterFailure(plan, index, step, request, response, RouteFailureRequestSchemaRejected); event != nil {
+			if event := d.committedAfterFailure(plan, index, step, request, response, RouteFailureRequestSchemaRejected, false); event != nil {
 				committedAfterFailure, committingStep, committingStarted = event, index, started
 				break
 			}
@@ -230,7 +230,7 @@ func (d *Dispatcher) Dispatch(ctx context.Context, request DispatchRequest, core
 		if d.schemas != nil && step.RequestSchema != "" {
 			if err := d.schemas.ValidateRequest(ctx, step, request); err != nil {
 				d.appendTrace(plan, index, step, RouteTraceSchemaRejected, started, commit.State())
-				if event := d.committedAfterFailure(plan, index, step, request, response, RouteFailureRequestSchemaRejected); event != nil {
+				if event := d.committedAfterFailure(plan, index, step, request, response, RouteFailureRequestSchemaRejected, false); event != nil {
 					committedAfterFailure, committingStep, committingStarted = event, index, started
 					break
 				}
@@ -265,7 +265,8 @@ func (d *Dispatcher) Dispatch(ctx context.Context, request DispatchRequest, core
 					commit.ResponseStarted()
 				}
 				d.appendTrace(plan, index, step, RouteTraceTransportFailed, started, commit.State())
-				if event := d.committedAfterFailure(plan, index, step, request, response, RouteFailureTransportFailed); event != nil {
+				observed := invocation.SideEffectStarted || invocation.ResponseStarted
+				if event := d.committedAfterFailure(plan, index, step, request, response, RouteFailureTransportFailed, observed); event != nil {
 					committedAfterFailure, committingStep, committingStarted = event, index, started
 					break
 				}
@@ -303,7 +304,7 @@ func (d *Dispatcher) Dispatch(ctx context.Context, request DispatchRequest, core
 			value := cloneDispatchResponse(*invocation.Response)
 			if d.schemas == nil && step.ResponseSchema != "" {
 				d.appendTrace(plan, index, step, RouteTraceSchemaRejected, started, commit.State())
-				if event := d.committedAfterFailure(plan, index, step, request, response, RouteFailureResponseSchemaRejected); event != nil {
+				if event := d.committedAfterFailure(plan, index, step, request, response, RouteFailureResponseSchemaRejected, true); event != nil {
 					committedAfterFailure, committingStep, committingStarted = event, index, started
 					break
 				}
@@ -312,7 +313,7 @@ func (d *Dispatcher) Dispatch(ctx context.Context, request DispatchRequest, core
 			if d.schemas != nil && step.ResponseSchema != "" {
 				if err := d.schemas.ValidateResponse(ctx, step, request, value); err != nil {
 					d.appendTrace(plan, index, step, RouteTraceSchemaRejected, started, commit.State())
-					if event := d.committedAfterFailure(plan, index, step, request, response, RouteFailureResponseSchemaRejected); event != nil {
+					if event := d.committedAfterFailure(plan, index, step, request, response, RouteFailureResponseSchemaRejected, true); event != nil {
 						committedAfterFailure, committingStep, committingStarted = event, index, started
 						break
 					}
@@ -358,6 +359,7 @@ func (d *Dispatcher) committedAfterFailure(
 	request DispatchRequest,
 	response *DispatchResponse,
 	code RouteFailureCode,
+	runtimeExecutionObserved bool,
 ) *RouteCommittedAfterFailure {
 	if d == nil || d.failures == nil || !plan.UnsafeMethod() || response == nil ||
 		step.Provider.Kind != ProviderPlugin || step.Phase != RoutePhaseAfter {
@@ -366,7 +368,8 @@ func (d *Dispatcher) committedAfterFailure(
 	return &RouteCommittedAfterFailure{
 		Revision: plan.Revision(), StepIndex: stepIndex, Phase: step.Phase, Action: step.Action,
 		RouteID: step.RouteID, ContractVersion: step.ContractVersion, Method: plan.Method(),
-		PathSignature: routeStepPathSignature(step), FailureCode: code, ActorID: request.ActorID,
+		PathSignature: routeStepPathSignature(step), FailureCode: code,
+		RuntimeExecutionObserved: runtimeExecutionObserved, ActorID: request.ActorID,
 		ResponseStatus: response.Status, Artifact: step.Provider.Artifact,
 	}
 }

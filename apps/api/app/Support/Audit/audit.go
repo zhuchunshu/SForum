@@ -46,11 +46,12 @@ const (
 	ActionPageRestoreCore    = "pages.restore_core"
 	ActionPageConflictSelect = "pages.conflict_select"
 
-	ActionRouteProviderSelect = "routes.provider_select"
-	ActionRouteProviderReset  = "routes.provider_reset"
-	ActionProviderSlotSelect  = "providers.slot_select"
-	ActionProviderSlotReset   = "providers.slot_reset"
-	ActionProviderSlotProbe   = "providers.slot_probe"
+	ActionRouteProviderSelect        = "routes.provider_select"
+	ActionRouteProviderReset         = "routes.provider_reset"
+	ActionRouteCommittedAfterFailure = "routes.committed_after_failure"
+	ActionProviderSlotSelect         = "providers.slot_select"
+	ActionProviderSlotReset          = "providers.slot_reset"
+	ActionProviderSlotProbe          = "providers.slot_probe"
 
 	// RecommendedRetentionDays 审计日志推荐保留天数（清理 job 默认）。
 	RecommendedRetentionDays = 90
