@@ -81,6 +81,9 @@ func TestMessageLocalizesSiteChromeAndRecentAdminCodes(t *testing.T) {
 		"extensions.admin_surface_not_invokable": {"该管理端界面扩展未声明可调用的类型化处理器。", "This Admin Surface does not declare an invokable typed handler."},
 		"extensions.admin_surface_stale":         {"管理端界面扩展契约或操作状态已变化，请刷新后重试。", "The Admin Surface contract or operation state has changed. Refresh and try again."},
 		"extensions.admin_surface_unavailable":   {"管理端界面扩展运行时暂时不可用，请稍后重试。", "The Admin Surface runtime is temporarily unavailable. Please try again later."},
+		"extensions.cache_inspector_invalid":     {"缓存检查请求不正确，limit 必须是 1 到 200 之间的整数。", "The cache inspection request is invalid. Limit must be an integer from 1 to 200."},
+		"extensions.cache_inspector_conflict":    {"缓存注册表在检查期间发生变化，请刷新后重试。", "The cache registry changed during inspection. Refresh and try again."},
+		"extensions.cache_inspector_unavailable": {"缓存检查服务暂时不可用，请稍后重试。", "Cache inspection is temporarily unavailable. Please try again later."},
 	}
 	for key, want := range cases {
 		if got := Message("zh-CN", key); got != want[0] {

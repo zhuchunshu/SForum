@@ -13,7 +13,9 @@ import (
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Audit"
 	authsession "github.com/zhuchunshu/sforum/apps/api/app/Support/AuthSession"
+	cacheregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/CacheRegistry"
 	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
+	hostapi "github.com/zhuchunshu/sforum/apps/api/app/Support/HostAPI"
 	routes "github.com/zhuchunshu/sforum/apps/api/app/Support/Routes"
 )
 
@@ -88,6 +90,16 @@ func (p *ExtensionsProvider) WithProviderSlotSelection(
 func (p *ExtensionsProvider) WithRouteInspector(inspector *routes.Inspector) *ExtensionsProvider {
 	if p != nil && p.controller != nil {
 		p.controller.WithRouteInspector(inspector)
+	}
+	return p
+}
+
+func (p *ExtensionsProvider) WithCacheInspector(
+	registry *cacheregistry.Registry,
+	inspector *hostapi.HostCacheInspector,
+) *ExtensionsProvider {
+	if p != nil && p.controller != nil {
+		p.controller.WithCacheInspector(registry, inspector)
 	}
 	return p
 }

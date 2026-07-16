@@ -233,6 +233,7 @@ func requireExtensionsReadAuthority(_ context.Context, evaluation routes.CoreGua
 		"core.route.extensions.navigation",
 		"core.route.extensions.inspect_provider_slots",
 		"core.route.extensions.provider_slot_events",
+		"core.route.extensions.inspect_cache",
 		"core.route.extensions.inspect_route",
 		"core.route.extensions.openapi_aggregate",
 		"core.route.extensions.generated_client_metadata",

@@ -669,6 +669,7 @@ func TestProductionExtensionsReadGuardPartitionsCatalogByProvablePolicy(t *testi
 		"core.route.extensions.navigation":                {method: "GET", supported: true, permissions: viewer},
 		"core.route.extensions.inspect_provider_slots":    {method: "GET", supported: true, permissions: viewer},
 		"core.route.extensions.provider_slot_events":      {method: "GET", supported: true, permissions: viewer},
+		"core.route.extensions.inspect_cache":             {method: "GET", supported: true, permissions: viewer},
 		"core.route.extensions.inspect_route":             {method: "GET", supported: true, permissions: viewer},
 		"core.route.extensions.openapi_aggregate":         {method: "GET", supported: true, permissions: viewer},
 		"core.route.extensions.generated_client_metadata": {method: "GET", supported: true, permissions: viewer},

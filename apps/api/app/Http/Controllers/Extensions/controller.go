@@ -14,7 +14,9 @@ import (
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Audit"
 	authsession "github.com/zhuchunshu/sforum/apps/api/app/Support/AuthSession"
+	cacheregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/CacheRegistry"
 	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
+	hostapi "github.com/zhuchunshu/sforum/apps/api/app/Support/HostAPI"
 	routes "github.com/zhuchunshu/sforum/apps/api/app/Support/Routes"
 )
 
@@ -39,6 +41,8 @@ type Controller struct {
 	gateway         RouteGateway
 	routeProviders  *routes.ProviderSelectionAPI
 	routeInspector  *routes.Inspector
+	cacheRegistry   *cacheregistry.Registry
+	cacheInspect    func(*cacheregistry.Registry, int) (hostapi.HostCacheInspectionSnapshot, error)
 	routeContracts  RouteContractCatalog
 	routeAuditor    audit.IDWriter
 	providerSlots   *extensionsruntime.ProviderSlotSelectionAPI
@@ -125,6 +129,18 @@ func (h *Controller) WithRouteProviderSelection(
 
 func (h *Controller) WithRouteInspector(inspector *routes.Inspector) *Controller {
 	h.routeInspector = inspector
+	return h
+}
+
+func (h *Controller) WithCacheInspector(
+	registry *cacheregistry.Registry,
+	inspector *hostapi.HostCacheInspector,
+) *Controller {
+	h.cacheRegistry = registry
+	h.cacheInspect = nil
+	if inspector != nil {
+		h.cacheInspect = inspector.Inspect
+	}
 	return h
 }
 
