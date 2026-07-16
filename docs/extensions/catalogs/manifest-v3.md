@@ -58,6 +58,7 @@ cd apps/api && go run ./cmd/sforum extension docs generate --check
 | `requiresFeatures` | array \| null | no | no |
 | `routes` | array \| null | no | yes |
 | `schedules` | array \| null | no | yes |
+| `seo` | array \| null | no | yes |
 | `services` | array \| null | no | yes |
 | `settings` | array \| object | no | yes |
 | `sforumVersion` | string | yes | no |
