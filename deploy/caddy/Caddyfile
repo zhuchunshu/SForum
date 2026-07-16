@@ -13,11 +13,27 @@
 		Referrer-Policy "strict-origin-when-cross-origin"
 	}
 
-	# 反代到 Nuxt：Caddy 默认会维护 X-Forwarded-For / X-Forwarded-Proto。
-	# 若前面还有 Cloudflare 等 CDN，请在 API 的 TRUSTED_PROXIES 中列入 Caddy
-	# 所在网段（以及 CDN 出口），以便 clientip 剥掉代理链拿到真实客户端 IP。
-	reverse_proxy 127.0.0.1:{$WEB_PORT:3000} {
-		header_up X-Real-IP {remote_host}
-		header_up X-Forwarded-Proto {scheme}
+	# Nitro 的 HTTP sendProxy 不接管 Upgrade。生产 WebSocket 直接进入 Host
+	# API，仍由 Go route ingress、Host guards、Safe Mode 和 Dispatcher 授权。
+	# vite-hmr 是 Host 保留的开发子协议，继续交给 Nuxt，避免本配置用于本地
+	# 调试时截断 HMR。未知 Upgrade 由 Go 返回 404，不回落到 Nuxt。
+	route {
+		@host_api_websocket {
+			header_regexp connection_upgrade Connection (?i)(^|.*,\s*)upgrade(\s*,.*|$)
+			header_regexp websocket_upgrade Upgrade (?i)^websocket$
+			not header Sec-WebSocket-Protocol *vite-hmr*
+		}
+
+		reverse_proxy @host_api_websocket 127.0.0.1:{$API_PORT:18080} {
+			# Caddy 默认保留原始 Host、Origin、Cookie、Authorization 和 Upgrade；
+			# 不在这里重写这些 Host authority 输入。
+			header_up X-Real-IP {remote_host}
+		}
+
+		# 普通 HTTP 和 Nuxt HMR 仍走 Web。若前面还有 Cloudflare 等 CDN，请在
+		# API 的 TRUSTED_PROXIES 中列入 Caddy 所在网段（以及 CDN 出口）。
+		reverse_proxy 127.0.0.1:{$WEB_PORT:3000} {
+			header_up X-Real-IP {remote_host}
+		}
 	}
 }

@@ -129,6 +129,29 @@ func TestNewAppUnknownNuxtPathBypassesRegistryAuthority(t *testing.T) {
 	}
 }
 
+func TestNewAppUnknownWebSocketPathFailsClosedBeforeHostAuthority(t *testing.T) {
+	harness := newArbitraryRouteHarness(t, false, true)
+	auth := &arbitraryRouteRejectingBearer{}
+	harness.app = newArbitraryRouteApp(harness, auth)
+
+	request := httptest.NewRequest(stdhttp.MethodGet, "/socket/not-declared", nil)
+	request.Header.Set("Connection", "keep-alive, Upgrade")
+	request.Header.Set("Upgrade", "websocket")
+	request.Header.Set("Sec-WebSocket-Key", "dGhlIHNhbXBsZSBub25jZQ==")
+	request.Header.Set("Sec-WebSocket-Version", "13")
+	request.Header.Set("Origin", "http://example.com")
+	response, err := harness.app.Test(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	response.Body.Close()
+	if response.StatusCode != stdhttp.StatusNotFound || auth.calls.Load() != 0 ||
+		harness.actorCalls.Load() != 0 || harness.routeCalls.Load() != 0 {
+		t.Fatalf("status=%d bearer=%d actors=%d runtime=%d", response.StatusCode,
+			auth.calls.Load(), harness.actorCalls.Load(), harness.routeCalls.Load())
+	}
+}
+
 func TestNewAppArbitraryRouteAuthenticatesBearerBeforeLoadingActor(t *testing.T) {
 	harness := newArbitraryRouteHarness(t, false, true)
 	auth := &arbitraryRouteAcceptingBearer{}

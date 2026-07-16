@@ -73,7 +73,7 @@ t() {
       preflight) echo "Running preflight checks..." ;;
       no_docker) echo "Docker is required." ;;
       no_compose) echo "Docker Compose plugin is required." ;;
-      invalid_public_api_base) echo "NUXT_PUBLIC_API_BASE_URL must be /api/v1 so only the web service needs a host port." ;;
+      invalid_public_api_base) echo "NUXT_PUBLIC_API_BASE_URL must be /api/v1 so ordinary API traffic stays same-origin through Nuxt." ;;
       backup_first) echo "Creating backup before deploy..." ;;
       migrations_running) echo "Running database migrations..." ;;
       rollback_later) echo "Rollback metadata is not available yet. This will be enabled when release image tags are introduced." ;;
@@ -103,7 +103,7 @@ t() {
       preflight) echo "正在执行预检..." ;;
       no_docker) echo "需要先安装 Docker。" ;;
       no_compose) echo "需要 Docker Compose 插件。" ;;
-      invalid_public_api_base) echo "NUXT_PUBLIC_API_BASE_URL 必须是 /api/v1，这样只有 web 服务需要宿主机端口。" ;;
+      invalid_public_api_base) echo "NUXT_PUBLIC_API_BASE_URL 必须是 /api/v1，确保普通 API 流量继续同源经过 Nuxt。" ;;
       backup_first) echo "部署前正在创建备份..." ;;
       migrations_running) echo "正在运行数据库迁移..." ;;
       rollback_later) echo "暂未记录可回滚版本；引入发布镜像标签后会启用。" ;;

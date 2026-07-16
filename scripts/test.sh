@@ -22,6 +22,9 @@ node tests/validate-staged-extension-contracts.js
 echo "Running V3 production trust deployment validation..."
 node tests/validate-v3-production-trust.mjs
 
+echo "Running production WebSocket proxy validation..."
+node tests/validate-production-websocket-proxy.mjs
+
 if [ -d apps/web/node_modules ]; then
   echo "Running Nuxt typecheck..."
   (cd apps/web && bun run typecheck)

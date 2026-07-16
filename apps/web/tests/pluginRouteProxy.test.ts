@@ -90,7 +90,19 @@ describe('trusted plugin arbitrary-route proxy', () => {
     expect(proxyUtility).toContain("duplex: hasRequestBody ? 'half' : undefined")
 
     const caddy = source('../../../deploy/caddy/Caddyfile')
-    expect(caddy).toContain('reverse_proxy 127.0.0.1:{$WEB_PORT:3000}')
+    const websocketProxy = 'reverse_proxy @host_api_websocket 127.0.0.1:{$API_PORT:18080}'
+    const webProxy = 'reverse_proxy 127.0.0.1:{$WEB_PORT:3000}'
+    expect(caddy).toContain('header_regexp connection_upgrade Connection (?i)(^|.*,\\s*)upgrade(\\s*,.*|$)')
+    expect(caddy).toContain('header_regexp websocket_upgrade Upgrade (?i)^websocket$')
+    expect(caddy).toContain('not header Sec-WebSocket-Protocol *vite-hmr*')
+    expect(caddy).toContain(websocketProxy)
+    expect(caddy).toContain(webProxy)
+    expect(caddy.indexOf(websocketProxy)).toBeLessThan(caddy.indexOf(webProxy))
+    expect(caddy).not.toMatch(/header_up\s+(?:Host|Origin|Cookie|Authorization|Sec-WebSocket-\S+)/i)
+
+    const productionCompose = source('../../../compose.prod.yaml')
+    expect(productionCompose).toContain('- "127.0.0.1:${API_PORT:-18080}:8080"')
+    expect(source('../../../.env.production.example')).toContain('API_PORT=18080')
   })
 
   test('proxies matched unsafe bodies and leaves explicit misses to Nuxt', async () => {
