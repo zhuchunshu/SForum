@@ -101,6 +101,7 @@ type Manifest struct {
 	Content               []ManifestContent              `json:"content,omitempty"`
 	Database              *ManifestDatabase              `json:"database,omitempty"`
 	Cache                 []ManifestCache                `json:"cache,omitempty"`
+	SEO                   []ManifestSEO                  `json:"seo,omitempty"`
 	Services              []ManifestService              `json:"services,omitempty"`
 	Commands              []ManifestCommand              `json:"commands,omitempty"`
 	AdminSurfaces         []ManifestAdminSurface         `json:"adminSurfaces,omitempty"`
@@ -929,7 +930,7 @@ func isThemeManifestSupported(manifest Manifest) bool {
 	}
 	if EffectiveManifestVersion(manifest) == ManifestVersionV3 {
 		if len(manifest.Guards) != 0 || len(manifest.Schedules) != 0 ||
-			len(manifest.Content) != 0 || manifest.Database != nil || len(manifest.Cache) != 0 ||
+			len(manifest.Content) != 0 || manifest.Database != nil || len(manifest.Cache) != 0 || len(manifest.SEO) != 0 ||
 			len(manifest.Services) != 0 || len(manifest.Commands) != 0 ||
 			len(manifest.AdminSurfaces) != 0 || len(manifest.Queries) != 0 ||
 			manifest.Identity != nil || len(manifest.PermissionDefinitions) != 0 ||

@@ -30,6 +30,9 @@ func applyV3Includes(manifest *Manifest, includes ManifestIncludes, pkg PackageF
 	if err := applyListInclude(includes.Cache, pkg, "cache", &manifest.Cache); err != nil {
 		return err
 	}
+	if err := applyListInclude(includes.SEO, pkg, "seo", &manifest.SEO); err != nil {
+		return err
+	}
 	if err := applyListInclude(includes.Services, pkg, "services", &manifest.Services); err != nil {
 		return err
 	}

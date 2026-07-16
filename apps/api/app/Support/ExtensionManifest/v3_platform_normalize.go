@@ -39,6 +39,19 @@ func normalizeV3Platform(manifest *Manifest) {
 		item.Policy = strings.ToLower(strings.TrimSpace(item.Policy))
 		item.Provider = NormalizeID(item.Provider)
 	}
+	for index := range manifest.SEO {
+		item := &manifest.SEO[index]
+		item.ID = NormalizeID(item.ID)
+		item.ContractVersion = strings.TrimSpace(item.ContractVersion)
+		item.Scope = NormalizeID(item.Scope)
+		item.Kind = strings.ToLower(strings.TrimSpace(item.Kind))
+		item.Action = strings.ToLower(strings.TrimSpace(item.Action))
+		item.Handler = NormalizeID(item.Handler)
+		item.FailurePolicy = strings.ToLower(strings.TrimSpace(item.FailurePolicy))
+		if item.TimeoutMS == 0 {
+			item.TimeoutMS = ManifestSEODefaultTimeoutMS
+		}
+	}
 	for index := range manifest.Services {
 		item := &manifest.Services[index]
 		item.ID = NormalizeID(item.ID)

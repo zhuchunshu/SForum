@@ -41,6 +41,7 @@
     "content": { "$ref": "#/$defs/content" },
     "database": { "$ref": "#/$defs/database" },
     "cache": { "$ref": "#/$defs/cache" },
+    "seo": { "$ref": "#/$defs/seo" },
     "services": { "$ref": "#/$defs/services" },
     "commands": { "$ref": "#/$defs/commands" },
     "adminSurfaces": { "$ref": "#/$defs/adminSurfaces" },
@@ -70,6 +71,26 @@
               }
             }
           }
+        }
+      },
+      "then": {
+        "required": ["backend"],
+        "properties": {
+          "backend": {
+            "type": "object",
+            "required": ["entry"],
+            "properties": {
+              "entry": { "type": "string", "minLength": 1 }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "required": ["seo"],
+        "properties": {
+          "seo": { "type": "array", "minItems": 1 }
         }
       },
       "then": {
@@ -624,6 +645,31 @@
         }
       }
     },
+    "seo": {
+      "type": ["array", "null"],
+      "maxItems": 512,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "contractVersion", "scope", "kind", "action", "handler", "failurePolicy"],
+        "properties": {
+          "id": { "$ref": "#/$defs/id" },
+          "contractVersion": { "$ref": "#/$defs/contract" },
+          "scope": {
+            "anyOf": [
+              { "const": "global" },
+              { "$ref": "#/$defs/id" }
+            ]
+          },
+          "kind": { "enum": ["title", "meta", "canonical", "robots", "hreflang", "sitemap", "jsonld"] },
+          "action": { "enum": ["add", "filter", "replace"] },
+          "handler": { "$ref": "#/$defs/handler" },
+          "priority": { "type": "integer", "minimum": -1000000, "maximum": 1000000 },
+          "failurePolicy": { "enum": ["fail_closed", "fallback"] },
+          "timeoutMs": { "type": "integer", "minimum": 1, "maximum": 5000, "default": 500 }
+        }
+      }
+    },
     "services": {
       "type": ["array", "null"],
       "items": {
@@ -934,6 +980,7 @@
         "content": { "$ref": "#/$defs/include" },
         "database": { "$ref": "#/$defs/include" },
         "cache": { "$ref": "#/$defs/include" },
+        "seo": { "$ref": "#/$defs/include" },
         "services": { "$ref": "#/$defs/include" },
         "commands": { "$ref": "#/$defs/include" },
         "adminSurfaces": { "$ref": "#/$defs/include" },

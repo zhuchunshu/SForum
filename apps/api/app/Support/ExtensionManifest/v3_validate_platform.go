@@ -11,10 +11,17 @@ const (
 	manifestDatabaseMaximumTimeoutMS       = 5000
 	manifestIdentityMaximumRoleSuggestions = 64
 	manifestIdentityMaximumRiskHooks       = 128
+	ManifestSEOMaximumDeclarations         = 512
+	ManifestSEODefaultTimeoutMS            = 500
+	ManifestSEOMaximumTimeoutMS            = 5000
+	ManifestSEOMaximumPriority             = 1_000_000
 )
 
 func (v *v3Validator) validatePlatform() error {
 	if err := v.validateDatabaseAndCache(); err != nil {
+		return err
+	}
+	if err := v.validateSEO(); err != nil {
 		return err
 	}
 	if err := v.validateServicesCommandsAdminAndQueries(); err != nil {
@@ -28,6 +35,47 @@ func (v *v3Validator) validatePlatform() error {
 	}
 	if err := v.validateDependenciesAndLifecycle(); err != nil {
 		return err
+	}
+	return nil
+}
+
+func (v *v3Validator) validateSEO() error {
+	if len(v.manifest.SEO) == 0 {
+		return nil
+	}
+	// Every SEO declaration names an executable provider. Themes and inert/V1
+	// packages cannot publish a declaration that the Host cannot call exactly.
+	if v.manifest.Type != TypePlugin || strings.TrimSpace(v.manifest.Backend.Entry) == "" ||
+		v.manifest.Backend.ProtocolVersion != 2 || len(v.manifest.SEO) > ManifestSEOMaximumDeclarations {
+		return ErrInvalidManifest
+	}
+	for _, declaration := range v.manifest.SEO {
+		if err := v.versionedID(declaration.ID, declaration.ContractVersion, "seo"); err != nil {
+			return err
+		}
+		if declaration.ContractVersion != declaration.ID+"@1" ||
+			(declaration.Scope != "global" && !manifestIDPattern.MatchString(declaration.Scope)) ||
+			!manifestIDPattern.MatchString(declaration.Handler) ||
+			!strings.HasPrefix(declaration.Handler, v.manifest.ID+".") ||
+			declaration.Priority < -ManifestSEOMaximumPriority || declaration.Priority > ManifestSEOMaximumPriority ||
+			declaration.TimeoutMS <= 0 || declaration.TimeoutMS > ManifestSEOMaximumTimeoutMS {
+			return ErrInvalidManifest
+		}
+		switch declaration.Kind {
+		case "title", "meta", "canonical", "robots", "hreflang", "sitemap", "jsonld":
+		default:
+			return ErrInvalidManifest
+		}
+		switch declaration.Action {
+		case "add", "filter", "replace":
+		default:
+			return ErrInvalidManifest
+		}
+		switch declaration.FailurePolicy {
+		case "fail_closed", "fallback":
+		default:
+			return ErrInvalidManifest
+		}
 	}
 	return nil
 }

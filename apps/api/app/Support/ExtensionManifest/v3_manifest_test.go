@@ -134,7 +134,7 @@ func TestManifestV3LoadsEveryShardedDeclaration(t *testing.T) {
 	}
 	fields := []string{
 		"guards", "schedules", "components", "templates", "assets", "content",
-		"database", "cache", "services", "commands", "adminSurfaces", "queries",
+		"database", "cache", "seo", "services", "commands", "adminSurfaces", "queries",
 		"identity", "permissionDefinitions", "media", "navigation", "regions",
 		"dependencies", "lifecycle", "openapi", "packageFiles",
 	}
@@ -298,6 +298,11 @@ func completeV3Manifest() Manifest {
 	manifest.Cache = []ManifestCache{{
 		ID: "demo.v3.cache.results", ContractVersion: "demo.v3.cache.results@1",
 		Namespace: "demo.v3.results", Policy: "actor", Tags: []string{"demo.v3.cache.tag"}, Invalidators: []string{"demo.v3.cache.invalidate"},
+	}}
+	manifest.SEO = []ManifestSEO{{
+		ID: "demo.v3.seo.topic-title", ContractVersion: "demo.v3.seo.topic-title@1",
+		Scope: "core.page.topic", Kind: "title", Action: "filter", Handler: "demo.v3.seo.topic-title",
+		Priority: 100, FailurePolicy: "fallback", TimeoutMS: 500,
 	}}
 	manifest.Services = []ManifestService{{
 		ID: "demo.v3.service.lookup", ContractVersion: "demo.v3.service.lookup@1", Action: "add",

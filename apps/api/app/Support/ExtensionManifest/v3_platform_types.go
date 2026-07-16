@@ -64,6 +64,21 @@ type ManifestCache struct {
 	Invalidators    []string `json:"invalidators,omitempty"`
 }
 
+// ManifestSEO mirrors sforum.seo-registry@1. Scope is a stable Host page or
+// route id (or "global"); executable output remains constrained by the typed
+// SEO document and the non-overridable Host final policy.
+type ManifestSEO struct {
+	ID              string `json:"id"`
+	ContractVersion string `json:"contractVersion"`
+	Scope           string `json:"scope"`
+	Kind            string `json:"kind"`
+	Action          string `json:"action"`
+	Handler         string `json:"handler"`
+	Priority        int    `json:"priority,omitempty"`
+	FailurePolicy   string `json:"failurePolicy"`
+	TimeoutMS       int    `json:"timeoutMs,omitempty"`
+}
+
 type ManifestAdminSurface struct {
 	ID                       string `json:"id"`
 	ContractVersion          string `json:"contractVersion"`

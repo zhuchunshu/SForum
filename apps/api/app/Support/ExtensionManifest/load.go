@@ -33,6 +33,7 @@ type ManifestIncludes struct {
 	Content               json.RawMessage `json:"content,omitempty"`
 	Database              json.RawMessage `json:"database,omitempty"`
 	Cache                 json.RawMessage `json:"cache,omitempty"`
+	SEO                   json.RawMessage `json:"seo,omitempty"`
 	Services              json.RawMessage `json:"services,omitempty"`
 	Commands              json.RawMessage `json:"commands,omitempty"`
 	AdminSurfaces         json.RawMessage `json:"adminSurfaces,omitempty"`
