@@ -25,6 +25,7 @@ Last updated: 2026-07-17
 
 ## Recent Verified Commits
 
+- `1f2c2e81a fix(routes): bind raw authority to exact dispatch`
 - `7e68fe2b9 feat(protocol): add route request authority fields`
 - `c5c7b089c fix(routes): harden loopback request forwarding`
 - `fea430020 fix(extensions): gate runtime publication on migration proof`
@@ -87,8 +88,15 @@ Last updated: 2026-07-17
   than destructively rewritten, but is not sufficient evidence for P6: its
   private enum is derived from exported step fields after any legacy authorizer
   returns success and is not bound to the exact plan, step, request, artifact,
-  or authorizer-issued raw decision. A follow-up must close those boundaries
-  before any transport consumes the stamp.
+  or authorizer-issued raw decision. `1f2c2e81a` closes those boundaries without
+  rewriting history: only the production typed authorizer can return an opaque
+  raw proof; legacy authorizers remain filtered; the Dispatcher seals revision,
+  index, full step/artifact/guard, request, stage, and commit identity.
+- Stream authorization now occurs once at `Open`, so malformed or cross-origin
+  WebSocket requests stop before guard/preflight RPC and a prepared dispatch
+  cannot be replayed after trust drift. Full Routes/Http normal tests, full
+  Routes race, focused authority/WebSocket Http race, both-package vet,
+  formatting, and staged diff checks passed for `1f2c2e81a`.
 
 ## Accepted Decisions And Assumptions
 
@@ -119,14 +127,13 @@ Last updated: 2026-07-17
 
 ## Exact Next Steps
 
-1. Replace the preliminary raw enum with an exact plan/step/request-bound stamp
-   minted from a production authorizer result; legacy authorizers remain
-   filtered and cannot authorize raw.
-2. Wire typed Protocol V2 authority/kind fields and stamp-gated Cookie/Auth into
+1. Wire typed Protocol V2 authority/kind fields and stamp-gated Cookie/Auth into
    unary, raw guard, stream, and loopback transports; missing/mismatched fields
    fail closed.
-3. Wire exact revoke/drain and WebSocket pre-validation with allowed plus
+2. Wire exact revoke/drain with allowed plus
    denied, drift, redirect, invalid-WebSocket, and race tests.
+3. Preserve required-idempotency pending state after any remote execution
+   evidence; an unsafe crash/timeout must never become a second writer on retry.
 4. Continue mutable-field/action semantics after raw authority; land SEO only in
    independently reviewed contract/transport/Host-policy/
    bootstrap/reference slices; do not credit the SEO row before SSR, sitemap,
