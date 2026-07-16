@@ -313,10 +313,11 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 			hostapi.WithProtocolV2DatabaseTraceSink(hostapi.NewSlogDatabaseTraceSink(logger)),
 		},
 	}
+	queryTraceSink := hostapi.NewSlogQueryTraceSink(logger)
 	queryAuthority := hostapi.NewPostgresProtocolV2QueryAuthorityResolver(pool)
 	queryRuntime, err := hostapi.NewPostgresProtocolV2QueryRuntime(
 		pool, queryAuthority,
-		hostapi.WithProtocolV2QueryTraceSink(hostapi.NewSlogQueryTraceSink(logger)),
+		hostapi.WithProtocolV2QueryTraceSink(queryTraceSink),
 	)
 	if err == nil {
 		err = hostAPIGateway.BindProtocolV2QueryRuntime(queryRuntime)
@@ -431,6 +432,29 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		}
 		pool.Close()
 		return nil, fmt.Errorf("bind extension lifecycle service failed: %w", err)
+	}
+	// Query Registry 必须在首个插件 broker 注册前绑定。它复用 lifecycle
+	// stack 的不可变 Core snapshot，并让 caller/provider 都经过 exact-runtime gate。
+	if _, err := bindProductionQueryRegistry(
+		lifecycleStack.QueryRegistry,
+		lifecycleStack.QueryCoreCatalog,
+		queryRuntime,
+		identityStore,
+		lifecycleRuntime,
+		hostAPIGateway,
+		queryTraceSink,
+	); err != nil {
+		if stopErr := supportjobs.Stop(ctx, jobClient); stopErr != nil {
+			logger.Warn("job dispatcher stop failed", "error", stopErr)
+		}
+		extensionRuntime.Close(ctx)
+		_ = hostAPIGateway.Close()
+		sharedRedisClient.Close()
+		if closeErr := redisStorage.Close(); closeErr != nil {
+			logger.Warn("redis session storage close failed", "error", closeErr)
+		}
+		pool.Close()
+		return nil, fmt.Errorf("Query Registry production setup failed: %w", err)
 	}
 	// 把已构造的 extensionService 接到 Host API 能力/权限解析（避免循环构造）。
 	hostAPIService.BindCapabilitySource(extensionService)
