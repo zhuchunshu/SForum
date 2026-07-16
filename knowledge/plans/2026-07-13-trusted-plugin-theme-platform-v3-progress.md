@@ -73,6 +73,19 @@ handoff, run the focused gate, and commit the checkpoint first. Every progress
 update to the user must include the displayed overall percentage and active
 phase percentage.
 
+## Execution Acceleration Policy
+
+Until V3 P0-P13 and every final gate are complete, the user explicitly requires
+the primary agent to keep useful Codex sub-agent slots occupied and to delegate
+additional bounded work to Codex CLI and Grok Build whenever tasks can proceed
+independently. Token cost is not a constraint. Codex CLI uses `gpt-5.6-sol`
+with `high` or stronger reasoning; Grok Build uses `grok-4.5` unless a smaller
+task has a justified faster model. Every delegated task must have an exact goal,
+file scope, constraints, and verification commands; delegates must not stage or
+commit, and the primary agent must inspect their diffs and tests before accepting
+work. This policy remains active across context compression and should be removed
+or treated as expired only after the complete V3 goal is achieved.
+
 ## Completed P1 Evidence
 
 - Added additive trust-recovery persistence, including one-use challenge
