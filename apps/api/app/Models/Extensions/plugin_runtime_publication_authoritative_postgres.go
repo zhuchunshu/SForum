@@ -99,36 +99,48 @@ func (s *PostgresStore) finalizePluginRuntimeProducerResult(
 	operationErr error,
 ) (PluginRuntimePublication, error) {
 	destroyed, releaseErr := releasePluginRuntimeProducerConnection(ctx, connection, sessionLocked)
-	if releaseErr != nil {
-		if operationErr == nil {
-			return PluginRuntimePublication{}, releaseErr
-		}
-		return PluginRuntimePublication{}, errors.Join(operationErr, releaseErr)
-	}
-
 	var commitUnknown *pluginRuntimePublicationCommitUnknown
 	if errors.As(operationErr, &commitUnknown) {
+		if releaseErr != nil && !destroyed {
+			return PluginRuntimePublication{}, errors.Join(operationErr, releaseErr)
+		}
 		// Producer session 必须先回到池或被物理销毁，MaxConns=1 时精确
-		// revision 回读才能取得连接并判定不确定 COMMIT。
-		return s.recoverAuthoritativePluginRuntimePublication(ctx, publication, commitUnknown.cause)
+		// revision 回读才能取得连接并判定不确定 COMMIT。Hijack 后的物理
+		// 连接即使 Close 报错也不会回池；pgx v5.10 仍会关闭底层 net.Conn，
+		// 因此 session lock fail-closed，可以安全地从替代连接回读。
+		recovered, recoveryErr := s.recoverAuthoritativePluginRuntimePublication(
+			ctx, publication, commitUnknown.cause,
+		)
+		if recoveryErr == nil {
+			return recovered, nil
+		}
+		return PluginRuntimePublication{}, errors.Join(recoveryErr, releaseErr)
 	}
 	if operationErr != nil {
+		if releaseErr != nil {
+			return PluginRuntimePublication{}, errors.Join(operationErr, releaseErr)
+		}
 		return PluginRuntimePublication{}, operationErr
 	}
-	if !destroyed {
-		return publication, nil
-	}
-
-	// Unlock 的结果不确定时，物理连接已被销毁，不会把 session lock
-	// 带回连接池。成功结果仍须从替代连接按精确 revision 回读后才可返回。
-	stored, verifyErr := s.readExactAuthoritativePluginRuntimePublication(ctx, publication)
-	if verifyErr != nil {
-		return PluginRuntimePublication{}, fmt.Errorf(
-			"verify authoritative plugin runtime publication after producer session destroy: %w",
-			verifyErr,
+	if destroyed {
+		// Unlock 的结果不确定时，物理连接已被销毁，不会把 session lock
+		// 带回连接池。成功结果仍须从替代连接按精确 revision 回读后才可返回。
+		stored, verifyErr := s.readExactAuthoritativePluginRuntimePublication(ctx, publication)
+		if verifyErr == nil {
+			return stored, nil
+		}
+		return PluginRuntimePublication{}, errors.Join(
+			fmt.Errorf(
+				"verify authoritative plugin runtime publication after producer session destroy: %w",
+				verifyErr,
+			),
+			releaseErr,
 		)
 	}
-	return stored, nil
+	if releaseErr != nil {
+		return PluginRuntimePublication{}, releaseErr
+	}
+	return publication, nil
 }
 
 func releasePluginRuntimeProducerConnection(
@@ -239,9 +251,6 @@ func (s *PostgresStore) recoverAuthoritativePluginRuntimePublication(
 	stored, err := s.readExactAuthoritativePluginRuntimePublication(ctx, expected)
 	if err == nil {
 		return stored, nil
-	}
-	if errors.Is(err, ErrPluginRuntimePublicationNotFound) {
-		return PluginRuntimePublication{}, commitErr
 	}
 	return PluginRuntimePublication{}, errors.Join(
 		commitErr,

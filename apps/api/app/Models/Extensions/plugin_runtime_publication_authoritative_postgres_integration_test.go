@@ -5,8 +5,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -432,6 +434,95 @@ func TestFinalizePluginRuntimeProducerResultRecoversWithSingleConnection(t *test
 			}
 			if acquired := pool.Stat().AcquiredConns(); acquired != 0 {
 				t.Fatalf("producer connection remained acquired: %d", acquired)
+			}
+		})
+	}
+}
+
+type pluginRuntimeCloseErrorConn struct {
+	net.Conn
+	err              error
+	underlyingClosed *atomic.Bool
+}
+
+func (c *pluginRuntimeCloseErrorConn) Close() error {
+	underlyingErr := c.Conn.Close()
+	c.underlyingClosed.Store(true)
+	return errors.Join(underlyingErr, c.err)
+}
+
+func TestFinalizePluginRuntimeProducerResultRecoversAfterDestroyedCloseError(t *testing.T) {
+	fixture := newPluginRuntimePublicationPGFixture(t, "authoritative_close_error")
+	stored, err := fixture.store.publishPluginRuntimePublication(
+		fixture.ctx, PluginRuntimePublicationStartupReconcile, 0, nil,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, test := range []struct {
+		name     string
+		expected PluginRuntimePublication
+		found    bool
+	}{
+		{name: "exact revision committed", expected: stored, found: true},
+		{name: "exact revision absent", expected: func() PluginRuntimePublication {
+			missing := stored
+			missing.Revision++
+			return missing
+		}()},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			config := fixture.pool.Config().Copy()
+			config.MinConns = 0
+			config.MaxConns = 1
+			originalDial := config.ConnConfig.DialFunc
+			closeErr := errors.New("injected producer connection close error")
+			var dialCount atomic.Int32
+			var underlyingClosed atomic.Bool
+			config.ConnConfig.DialFunc = func(ctx context.Context, network, address string) (net.Conn, error) {
+				connection, dialErr := originalDial(ctx, network, address)
+				if dialErr == nil && dialCount.Add(1) == 1 {
+					return &pluginRuntimeCloseErrorConn{
+						Conn: connection, err: closeErr, underlyingClosed: &underlyingClosed,
+					}, nil
+				}
+				return connection, dialErr
+			}
+			pool, err := pgxpool.NewWithConfig(fixture.ctx, config)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer pool.Close()
+
+			producer, err := pool.Acquire(fixture.ctx)
+			if err != nil {
+				t.Fatal(err)
+			}
+			commitErr := errors.New("ambiguous commit transport")
+			recovered, err := NewPostgresStore(pool).finalizePluginRuntimeProducerResult(
+				fixture.ctx,
+				producer,
+				true,
+				test.expected,
+				&pluginRuntimePublicationCommitUnknown{cause: commitErr},
+			)
+			if test.found {
+				if err != nil || !samePluginRuntimePublication(recovered, stored) {
+					t.Fatalf("recovered=%+v error=%v", recovered, err)
+				}
+			} else if err == nil || !errors.Is(err, commitErr) ||
+				!errors.Is(err, closeErr) || !errors.Is(err, ErrPluginRuntimePublicationNotFound) {
+				t.Fatalf("missing recovery error=%v", err)
+			}
+			if acquired := pool.Stat().AcquiredConns(); acquired != 0 {
+				t.Fatalf("producer connection remained acquired: %d", acquired)
+			}
+			if !underlyingClosed.Load() {
+				t.Fatal("producer wrapper returned its close sentinel before closing the underlying connection")
+			}
+			if got := dialCount.Load(); got < 2 {
+				t.Fatalf("exact recovery did not use a replacement physical connection: dials=%d", got)
 			}
 		})
 	}
