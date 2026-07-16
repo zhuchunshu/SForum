@@ -17,6 +17,7 @@ import (
 	assetregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/AssetRegistry"
 	cacheregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/CacheRegistry"
 	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
+	identityregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/IdentityRegistry"
 	pages "github.com/zhuchunshu/sforum/apps/api/app/Support/Pages"
 	queryregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/QueryRegistry"
 	routes "github.com/zhuchunshu/sforum/apps/api/app/Support/Routes"
@@ -41,6 +42,7 @@ type lifecycleRegistryDigestDocument struct {
 	Query              *queryregistry.Publication    `json:"query,omitempty"`
 	Cache              *cacheregistry.Publication    `json:"cache,omitempty"`
 	SEO                *seoregistry.Publication      `json:"seo,omitempty"`
+	Identity           *identityregistry.Publication `json:"identity,omitempty"`
 	ProductionFamilies []string                      `json:"productionFamilies"`
 	FoundationFamilies []string                      `json:"foundationFamilies"`
 }
@@ -114,6 +116,19 @@ func refreshLifecycleRegistryMaterialDigest(material *lifecycleRegistryMaterial)
 		material.legacyDigest = legacyDigest
 		material.compatibleDigests = appendLifecycleCompatibleDigest(priorAliases, priorDigest, seoDigest)
 	}
+	if material.identityPublication != nil {
+		// Identity is additive @6. Keep only digests emitted by the exact prior
+		// family set; plugins without Identity continue to emit their old bytes.
+		priorDigest := material.digest
+		priorAliases := append([]string(nil), material.compatibleDigests...)
+		identityDigest, identityErr := encodeLifecycleRegistryMaterialDigestV6(material)
+		if identityErr != nil {
+			return identityErr
+		}
+		material.digest = identityDigest
+		material.legacyDigest = legacyDigest
+		material.compatibleDigests = appendLifecycleCompatibleDigest(priorAliases, priorDigest, identityDigest)
+	}
 	return nil
 }
 
@@ -134,15 +149,19 @@ func encodeLifecycleRegistryMaterialDigest(
 	includeAsset bool,
 	includeQuery bool,
 ) (string, error) {
-	return encodeLifecycleRegistryMaterialDigestVersion(material, includeAsset, includeQuery, false, false)
+	return encodeLifecycleRegistryMaterialDigestVersion(material, includeAsset, includeQuery, false, false, false)
 }
 
 func encodeLifecycleRegistryMaterialDigestV4(material *lifecycleRegistryMaterial) (string, error) {
-	return encodeLifecycleRegistryMaterialDigestVersion(material, true, true, true, false)
+	return encodeLifecycleRegistryMaterialDigestVersion(material, true, true, true, false, false)
 }
 
 func encodeLifecycleRegistryMaterialDigestV5(material *lifecycleRegistryMaterial) (string, error) {
-	return encodeLifecycleRegistryMaterialDigestVersion(material, true, true, true, true)
+	return encodeLifecycleRegistryMaterialDigestVersion(material, true, true, true, true, false)
+}
+
+func encodeLifecycleRegistryMaterialDigestV6(material *lifecycleRegistryMaterial) (string, error) {
+	return encodeLifecycleRegistryMaterialDigestVersion(material, true, true, true, true, true)
 }
 
 func encodeLifecycleRegistryMaterialDigestVersion(
@@ -151,6 +170,7 @@ func encodeLifecycleRegistryMaterialDigestVersion(
 	includeQuery bool,
 	includeCache bool,
 	includeSEO bool,
+	includeIdentity bool,
 ) (string, error) {
 	extension := material.extension
 	binding := material.binding
@@ -196,6 +216,14 @@ func encodeLifecycleRegistryMaterialDigestVersion(
 			productionFamilies = append(productionFamilies, "seo.v1")
 		}
 	}
+	var identity *identityregistry.Publication
+	if includeIdentity {
+		schema = "sforum.lifecycle.registry-plan@6"
+		identity = material.identityPublication
+		if identity != nil {
+			productionFamilies = append(productionFamilies, "identity.v1")
+		}
+	}
 	// @1 remains byte-for-byte compatible with pre-P9 in-flight rows. New
 	// asset-bearing operations persist @2. Query-bearing operations persist @3;
 	// cache-bearing operations persist @4 and SEO-bearing operations persist @5.
@@ -214,6 +242,7 @@ func encodeLifecycleRegistryMaterialDigestVersion(
 		Query:              query,
 		Cache:              cache,
 		SEO:                seo,
+		Identity:           identity,
 		ProductionFamilies: productionFamilies,
 		FoundationFamilies: []string{"routes.v1-foundation"},
 	}

@@ -14,6 +14,7 @@ import (
 	cacheregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/CacheRegistry"
 	extensionopenapi "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionOpenAPI"
 	hostapi "github.com/zhuchunshu/sforum/apps/api/app/Support/HostAPI"
+	identityregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/IdentityRegistry"
 	pages "github.com/zhuchunshu/sforum/apps/api/app/Support/Pages"
 	queryregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/QueryRegistry"
 	routes "github.com/zhuchunshu/sforum/apps/api/app/Support/Routes"
@@ -79,6 +80,8 @@ type LifecycleRegistryBoundaryConfig struct {
 	Caches         *cacheregistry.Registry
 	Queries        *queryregistry.Registry
 	SEO            *seoregistry.Registry
+	Identity       *identityregistry.Registry
+	IdentityStore  identityregistry.PublicationStore
 	AssetAuthority LifecycleAssetAuthority
 	AssetAdmission LifecycleAssetAdmission
 }
@@ -102,6 +105,9 @@ type PostgresLifecycleBoundaryRegistries struct {
 	caches         *cacheregistry.Registry
 	queries        *queryregistry.Registry
 	seo            *seoregistry.Registry
+	identity       *identityregistry.Registry
+	identityStore  identityregistry.PublicationStore
+	identitySet    bool
 	assetAuthority LifecycleAssetAuthority
 	assetAdmission LifecycleAssetAdmission
 }
@@ -126,6 +132,9 @@ func NewPostgresLifecycleBoundaryRegistries(config LifecycleRegistryBoundaryConf
 		caches:         config.Caches,
 		queries:        config.Queries,
 		seo:            config.SEO,
+		identity:       config.Identity,
+		identityStore:  config.IdentityStore,
+		identitySet:    config.Identity != nil || config.IdentityStore != nil,
 		assetAuthority: config.AssetAuthority,
 		assetAdmission: config.AssetAdmission,
 	}
@@ -183,6 +192,13 @@ func (b *PostgresLifecycleBoundaryRegistries) ComponentRegistry() *ComponentRegi
 	return b.components
 }
 
+func (b *PostgresLifecycleBoundaryRegistries) IdentityRegistry() *identityregistry.Registry {
+	if b == nil {
+		return nil
+	}
+	return b.identity
+}
+
 // RestoreRoutePublications rebuilds process-local immutable catalogs from the
 // exact runtime instances that survived startup reconciliation. Safe Mode owns
 // deliberately empty extension schema/component/asset catalogs and core-only
@@ -200,6 +216,9 @@ func (b *PostgresLifecycleBoundaryRegistries) RestoreRoutePublications(
 	}
 	if err := b.components.RestoreRuntimes(items, safeMode); err != nil {
 		return fmt.Errorf("restore component registry publication: %w", err)
+	}
+	if err := b.restoreIdentityPublications(ctx, items, safeMode); err != nil {
+		return err
 	}
 	if err := b.restoreQueryPublications(ctx, items, safeMode); err != nil {
 		return err
@@ -400,6 +419,9 @@ func (b *PostgresLifecycleBoundaryRegistries) validatePreparedLifecycleRegistrie
 	if err := b.validateSEOTransition(source, target); err != nil {
 		return err
 	}
+	if err := b.validateIdentityTransition(source, target); err != nil {
+		return err
+	}
 	for _, material := range []*lifecycleRegistryMaterial{source, target} {
 		if material == nil {
 			continue
@@ -482,6 +504,7 @@ func (b *PostgresLifecycleBoundaryRegistries) validateDependencies(ctx context.C
 	if b == nil || ctx == nil || b.repository == nil || b.manager == nil || b.hooks == nil ||
 		b.pages == nil || b.routes == nil || b.routeSchemas == nil || b.services == nil || b.components == nil ||
 		b.queries == nil || b.caches == nil || b.seo == nil ||
+		(b.identitySet && (b.identity == nil || b.identityStore == nil)) ||
 		(b.assets != nil && (b.assetAuthority == nil || b.assetAdmission == nil)) {
 		return ErrLifecycleRegistryPublicationUnavailable
 	}
@@ -489,19 +512,20 @@ func (b *PostgresLifecycleBoundaryRegistries) validateDependencies(ctx context.C
 }
 
 type lifecycleRegistryMaterial struct {
-	extension         extensions.Extension
-	binding           extensions.LifecycleRuntimeBinding
-	pages             []pages.PageContribution
-	routes            routes.PluginRouteSet
-	routeSchema       extensionopenapi.Artifact
-	assetPublication  *assetregistry.Publication
-	cachePublication  *cacheregistry.Publication
-	queryPublication  *queryregistry.Publication
-	seoPublication    *seoregistry.Publication
-	assetAdmitted     bool
-	digest            string
-	legacyDigest      string
-	compatibleDigests []string
+	extension           extensions.Extension
+	binding             extensions.LifecycleRuntimeBinding
+	pages               []pages.PageContribution
+	routes              routes.PluginRouteSet
+	routeSchema         extensionopenapi.Artifact
+	assetPublication    *assetregistry.Publication
+	cachePublication    *cacheregistry.Publication
+	queryPublication    *queryregistry.Publication
+	seoPublication      *seoregistry.Publication
+	identityPublication *identityregistry.Publication
+	assetAdmitted       bool
+	digest              string
+	legacyDigest        string
+	compatibleDigests   []string
 }
 
 func (b *PostgresLifecycleBoundaryRegistries) prepareMaterial(
@@ -586,6 +610,11 @@ func buildLifecycleRegistryMaterial(
 		return lifecycleRegistryMaterial{}, err
 	}
 	material.cachePublication = cachePublication
+	identityPublication, err := buildLifecycleIdentityPublication(extension, binding)
+	if err != nil {
+		return lifecycleRegistryMaterial{}, err
+	}
+	material.identityPublication = identityPublication
 	if err := refreshLifecycleRegistryMaterialDigest(&material); err != nil {
 		return lifecycleRegistryMaterial{}, err
 	}
@@ -721,6 +750,9 @@ func (b *PostgresLifecycleBoundaryRegistries) reconcileLocalRegistries(
 			!snapshot.Admission.Draining || snapshot.Admission.ActiveTotal != 0 {
 			return fmt.Errorf("%w: target runtime is not published and drained", ErrLifecycleRegistryPublicationConflict)
 		}
+	}
+	if err := b.reconcileIdentity(ctx, request, source, target, desired); err != nil {
+		return err
 	}
 	if err := b.reconcileComponents(request.TargetExtension.ID, source, target, desired); err != nil {
 		return err
