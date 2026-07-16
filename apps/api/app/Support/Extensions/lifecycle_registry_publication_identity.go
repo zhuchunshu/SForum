@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"sort"
 	"strings"
 
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
@@ -114,14 +115,18 @@ func (b *PostgresLifecycleBoundaryRegistries) restoreIdentityPublications(
 	if err != nil {
 		return wrapLifecycleIdentityError("load durable identity registry", err)
 	}
-	tombstones, err := identityregistry.DurableStateToTombstones(durable)
-	if err != nil {
-		return wrapLifecycleIdentityError("restore durable identity ownership", err)
-	}
 
 	pluginPublications := make([]identityregistry.Publication, 0, len(items))
 	validatedPublications := make([]identityregistry.Publication, 0, len(items))
 	if !safeMode {
+		// Build every expected enabled publication first so adoption never
+		// publishes a partial in-memory graph while other owners are still missing.
+		type expectedIdentityPublication struct {
+			extensionID string
+			publication identityregistry.Publication
+			suppressed  bool
+		}
+		expected := make([]expectedIdentityPublication, 0, len(items))
 		for _, item := range items {
 			if err := ctx.Err(); err != nil {
 				return err
@@ -134,43 +139,98 @@ func (b *PostgresLifecycleBoundaryRegistries) restoreIdentityPublications(
 				ExtensionID: item.ID, ExtensionVersion: item.Version,
 				PackageDigest: item.PackageDigest, VersionID: item.ActiveVersionID,
 			}
+			suppressed := false
 			if manifestIdentityRequiresRuntime(item.Manifest.Identity) {
 				runtime, runtimeErr := b.manager.ActiveRuntimeInstance(item.ID)
 				if runtimeErr != nil {
 					// Validate the durable declaration even while boot-loop suppression
 					// keeps its executable process surface closed.
 					binding.RuntimeInstanceID = "durable-restore-validation"
-					publication, buildErr := buildLifecycleIdentityPublication(item, binding)
-					if buildErr != nil || publication == nil {
-						return fmt.Errorf("restore identity registry for %s: %w", item.ID, buildErr)
-					}
-					if validateErr := identityregistry.ValidateDurablePublication(durable, *publication); validateErr != nil {
-						return wrapLifecycleIdentityError("validate suppressed durable identity publication", validateErr)
-					}
-					validatedPublications = append(validatedPublications, *publication)
-					continue
-				}
-				if !runtimeInstanceMatchesExtension(runtime, item) || !b.manager.RuntimeInstanceAvailable(runtime.Identity) {
+					suppressed = true
+				} else if !runtimeInstanceMatchesExtension(runtime, item) ||
+					!b.manager.RuntimeInstanceAvailable(runtime.Identity) {
 					return fmt.Errorf("%w: startup identity runtime for %s is not exact and available",
 						ErrLifecycleRegistryPublicationConflict, item.ID)
+				} else {
+					binding.RuntimeInstanceID = runtime.Identity.InstanceID
 				}
-				binding.RuntimeInstanceID = runtime.Identity.InstanceID
 			}
 			publication, buildErr := buildLifecycleIdentityPublication(item, binding)
-			if buildErr != nil {
+			if buildErr != nil || publication == nil {
 				return fmt.Errorf("restore identity registry for %s: %w", item.ID, buildErr)
 			}
-			if publication != nil {
-				if validateErr := identityregistry.ValidateDurablePublication(durable, *publication); validateErr != nil {
-					return wrapLifecycleIdentityError("validate durable identity publication", validateErr)
+			expected = append(expected, expectedIdentityPublication{
+				extensionID: item.ID, publication: *publication, suppressed: suppressed,
+			})
+		}
+		// Stable order matches the adopter batch lock order (extension id).
+		sort.Slice(expected, func(i, j int) bool {
+			return expected[i].extensionID < expected[j].extensionID
+		})
+
+		// Safe Mode never reaches this branch. Normal mode may adopt only on
+		// ErrNotFound (missing root/history), never on conflict/stale/partial shapes.
+		// Collect every missing publication first, then invoke the adopter ONCE.
+		adopter, hasAdopter := b.identityStore.(identityregistry.LegacyPublicationAdopter)
+		missing := make([]identityregistry.Publication, 0)
+		for _, item := range expected {
+			if err := ctx.Err(); err != nil {
+				return err
+			}
+			validateErr := identityregistry.ValidateDurablePublication(durable, item.publication)
+			if validateErr != nil {
+				if !errors.Is(validateErr, identityregistry.ErrNotFound) {
+					action := "validate durable identity publication for " + item.extensionID
+					if item.suppressed {
+						action = "validate suppressed durable identity publication for " + item.extensionID
+					}
+					// Keep the owner id in the wrapped error so pre-upgrade enabled
+					// plugins without durable identity history are operator-actionable.
+					return wrapLifecycleIdentityError(action, validateErr)
 				}
-				validatedPublications = append(validatedPublications, *publication)
-				pluginPublications = append(pluginPublications, *publication)
+				if !hasAdopter {
+					action := "validate durable identity publication for " + item.extensionID
+					if item.suppressed {
+						action = "validate suppressed durable identity publication for " + item.extensionID
+					}
+					return wrapLifecycleIdentityError(action, validateErr)
+				}
+				missing = append(missing, item.publication)
+			}
+			validatedPublications = append(validatedPublications, item.publication)
+			if !item.suppressed {
+				pluginPublications = append(pluginPublications, item.publication)
 			}
 		}
-		if err := identityregistry.ValidateDurablePublicationSet(durable, validatedPublications); err != nil {
+		if len(missing) > 0 {
+			if _, adoptErr := adopter.AdoptLegacyPublications(ctx, missing); adoptErr != nil {
+				owners := make([]string, 0, len(missing))
+				for _, publication := range missing {
+					owners = append(owners, publication.Artifact.ExtensionID)
+				}
+				return wrapLifecycleIdentityError(
+					"adopt legacy durable identity publications for "+strings.Join(owners, ","), adoptErr,
+				)
+			}
+			// Prefer a fresh read after the adopter commits so concurrent
+			// startup nodes observe the same durable tip set.
+			reloaded, reloadErr := b.identityStore.LoadDurableState(ctx)
+			if reloadErr != nil {
+				return wrapLifecycleIdentityError("reload durable identity registry after adoption", reloadErr)
+			}
+			durable = reloaded
+			// Re-validate the full expected set before any in-memory publish.
+			if revalidateErr := identityregistry.ValidateDurablePublicationSet(durable, validatedPublications); revalidateErr != nil {
+				return wrapLifecycleIdentityError("validate adopted durable identity publication set", revalidateErr)
+			}
+		} else if err := identityregistry.ValidateDurablePublicationSet(durable, validatedPublications); err != nil {
 			return wrapLifecycleIdentityError("validate durable identity publication set", err)
 		}
+	}
+
+	tombstones, err := identityregistry.DurableStateToTombstones(durable)
+	if err != nil {
+		return wrapLifecycleIdentityError("restore durable identity ownership", err)
 	}
 
 	for attempts := 0; attempts < 16; attempts++ {

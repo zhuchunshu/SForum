@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"reflect"
 	"strings"
 	"sync"
@@ -229,6 +230,221 @@ func TestLifecycleIdentityRootOnlyRestartRejectsOrphanActivePublication(t *testi
 	if snapshot := restarted.identity.Snapshot(); len(snapshot.Publications) != 0 {
 		t.Fatalf("retired root-only snapshot=%#v", snapshot)
 	}
+}
+
+// Mirrors the normal-dev DB startup blocker: an enabled permission-only fixture
+// (sforum.admin-surface-reference) with empty identity registry ledgers.
+// Stores without LegacyPublicationAdopter stay fail-closed on ErrNotFound.
+func TestLifecycleIdentityRestoreRejectsPermissionOnlyAdminSurfaceWithoutDurable(t *testing.T) {
+	extension := adminSurfaceReferencePermissionOnlyExtension(5866)
+	extension.Status = extensions.StatusEnabled
+	store := &memoryIdentityPublicationStore{}
+	boundary := &PostgresLifecycleBoundaryRegistries{
+		identity: identityregistry.New(), identityStore: store, identitySet: true,
+	}
+	err := boundary.restoreIdentityPublications(t.Context(), []extensions.Extension{extension}, false)
+	if !errors.Is(err, identityregistry.ErrNotFound) {
+		t.Fatalf("missing durable restore error=%v", err)
+	}
+	if !strings.Contains(err.Error(), "sforum.admin-surface-reference") {
+		t.Fatalf("restore error must name the owner extension: %v", err)
+	}
+	if !strings.Contains(err.Error(), "validate durable identity publication for sforum.admin-surface-reference") {
+		t.Fatalf("restore error must keep the action context: %v", err)
+	}
+	if snapshot := boundary.identity.Snapshot(); snapshot.Revision != 0 || len(snapshot.Publications) != 0 {
+		t.Fatalf("failed restore must not publish process graph: %#v", snapshot)
+	}
+
+	// Allowed path: reconcile first (as lifecycle enable does), then restart restore.
+	publication, err := buildLifecycleIdentityPublication(extension, extensions.LifecycleRuntimeBinding{})
+	if err != nil || publication == nil || publication.Identity != nil || len(publication.Permissions) != 1 {
+		t.Fatalf("permission-only publication=%#v err=%v", publication, err)
+	}
+	material := &lifecycleRegistryMaterial{extension: extension, identityPublication: publication}
+	request := LifecycleBoundaryRequest{TargetExtension: extension, ActorUserID: 49, AuditEventID: 89}
+	if err := boundary.reconcileIdentity(t.Context(), request, nil, material, material); err != nil {
+		t.Fatal(err)
+	}
+	restarted := &PostgresLifecycleBoundaryRegistries{
+		identity: identityregistry.New(), identityStore: store, identitySet: true,
+	}
+	if err := restarted.restoreIdentityPublications(t.Context(), []extensions.Extension{extension}, false); err != nil {
+		t.Fatalf("permission-only restart after reconcile: %v", err)
+	}
+	if snapshot := restarted.identity.Snapshot(); len(snapshot.Publications) != 1 ||
+		snapshot.Publications[0].Artifact.ExtensionID != extension.ID ||
+		len(snapshot.Publications[0].Permissions) != 1 {
+		t.Fatalf("permission-only restart snapshot=%#v", snapshot)
+	}
+}
+
+func TestLifecycleIdentityRestoreAdoptsLegacyOnErrNotFoundOnly(t *testing.T) {
+	extension := adminSurfaceReferencePermissionOnlyExtension(5866)
+	extension.Status = extensions.StatusEnabled
+	store := &memoryLegacyAdoptingIdentityStore{}
+	boundary := &PostgresLifecycleBoundaryRegistries{
+		identity: identityregistry.New(), identityStore: store, identitySet: true,
+	}
+	if err := boundary.restoreIdentityPublications(t.Context(), []extensions.Extension{extension}, false); err != nil {
+		t.Fatalf("legacy adopt restore: %v", err)
+	}
+	if store.adoptCalls != 1 || store.lastBatch != 1 {
+		t.Fatalf("adopt calls=%d batch=%d want calls=1 batch=1", store.adoptCalls, store.lastBatch)
+	}
+	if snapshot := boundary.identity.Snapshot(); len(snapshot.Publications) != 1 ||
+		snapshot.Publications[0].Artifact.ExtensionID != extension.ID {
+		t.Fatalf("adopted process graph=%#v", snapshot)
+	}
+
+	// Safe Mode must never adopt third-party publications.
+	safeStore := &memoryLegacyAdoptingIdentityStore{}
+	safeBoundary := &PostgresLifecycleBoundaryRegistries{
+		identity: identityregistry.New(), identityStore: safeStore, identitySet: true,
+	}
+	if err := safeBoundary.restoreIdentityPublications(t.Context(), []extensions.Extension{extension}, true); err != nil {
+		t.Fatalf("safe mode restore: %v", err)
+	}
+	if safeStore.adoptCalls != 0 {
+		t.Fatalf("safe mode must not adopt: calls=%d", safeStore.adoptCalls)
+	}
+	if snapshot := safeBoundary.identity.Snapshot(); len(snapshot.Publications) != 0 {
+		t.Fatalf("safe mode process graph=%#v", snapshot)
+	}
+
+	// Non-ErrNotFound validation failures must not invoke the adopter.
+	publication, err := buildLifecycleIdentityPublication(extension, extensions.LifecycleRuntimeBinding{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	foreign := *publication
+	foreign.Artifact.PackageDigest = strings.Repeat("f", 64)
+	conflictRoot, err := identityregistryDesiredRootForTest(t, foreign)
+	if err != nil {
+		t.Fatal(err)
+	}
+	conflictStore := &memoryLegacyAdoptingIdentityStore{
+		memoryIdentityPublicationStore: memoryIdentityPublicationStore{
+			state: identityregistry.DurableState{RootTips: []identityregistry.DurableRootPublicationTip{conflictRoot}},
+		},
+	}
+	conflictBoundary := &PostgresLifecycleBoundaryRegistries{
+		identity: identityregistry.New(), identityStore: conflictStore, identitySet: true,
+	}
+	err = conflictBoundary.restoreIdentityPublications(t.Context(), []extensions.Extension{extension}, false)
+	if !errors.Is(err, ErrLifecycleRegistryPublicationConflict) ||
+		!strings.Contains(err.Error(), identityregistry.ErrArtifactConflict.Error()) {
+		t.Fatalf("artifact conflict restore error=%v", err)
+	}
+	if conflictStore.adoptCalls != 0 {
+		t.Fatalf("adopter must not run on ErrArtifactConflict: calls=%d", conflictStore.adoptCalls)
+	}
+}
+
+func TestLifecycleIdentityRestoreAdoptsLegacyBatchOnce(t *testing.T) {
+	first := adminSurfaceReferencePermissionOnlyExtension(5866)
+	first.Status = extensions.StatusEnabled
+	second := adminSurfaceReferencePermissionOnlyExtension(5867)
+	second.ID = "sforum.legacy-batch-second"
+	second.Manifest.ID = second.ID
+	second.ActiveVersionID = 5867
+	second.PackageDigest = "91b964f80707b257f6f401faffb07fe0f0a6aa6b5833a6fab0cedaab77b3324f"
+	second.Status = extensions.StatusEnabled
+	second.Manifest.PermissionDefinitions = []extensions.ManifestPermissionDefinition{{
+		Key: second.ID + ".manage", ContractVersion: second.ID + ".permission.manage@1",
+		Label: "Second", Description: "Second", RecommendedRoles: []string{"administrator"},
+		AssignmentPolicy: "host",
+	}}
+
+	store := &memoryLegacyAdoptingIdentityStore{}
+	boundary := &PostgresLifecycleBoundaryRegistries{
+		identity: identityregistry.New(), identityStore: store, identitySet: true,
+	}
+	if err := boundary.restoreIdentityPublications(t.Context(), []extensions.Extension{second, first}, false); err != nil {
+		t.Fatalf("batch legacy adopt restore: %v", err)
+	}
+	if store.adoptCalls != 1 || store.lastBatch != 2 {
+		t.Fatalf("adopt calls=%d batch=%d want calls=1 batch=2", store.adoptCalls, store.lastBatch)
+	}
+	if snapshot := boundary.identity.Snapshot(); len(snapshot.Publications) != 2 {
+		t.Fatalf("batch process graph=%#v", snapshot)
+	}
+
+	// Stores without adopter stay fail-closed with zero process graph.
+	noAdopter := &memoryIdentityPublicationStore{}
+	noBoundary := &PostgresLifecycleBoundaryRegistries{
+		identity: identityregistry.New(), identityStore: noAdopter, identitySet: true,
+	}
+	err := noBoundary.restoreIdentityPublications(t.Context(), []extensions.Extension{first}, false)
+	if !errors.Is(err, identityregistry.ErrNotFound) {
+		t.Fatalf("no adopter error=%v", err)
+	}
+	if snapshot := noBoundary.identity.Snapshot(); len(snapshot.Publications) != 0 {
+		t.Fatalf("no adopter must not publish: %#v", snapshot)
+	}
+}
+
+type memoryLegacyAdoptingIdentityStore struct {
+	memoryIdentityPublicationStore
+	adoptCalls int
+	adoptErr   error
+	lastBatch  int
+}
+
+func (s *memoryLegacyAdoptingIdentityStore) AdoptLegacyPublications(
+	_ context.Context,
+	publications []identityregistry.Publication,
+) (identityregistry.DurableState, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.adoptCalls++
+	s.lastBatch = len(publications)
+	if s.adoptErr != nil {
+		return identityregistry.DurableState{}, s.adoptErr
+	}
+	if s.failure != nil {
+		return identityregistry.DurableState{}, s.failure
+	}
+	for _, publication := range publications {
+		s.state = reconcileMemoryIdentityState(s.state, identityregistry.ReconcilePublicationInput{
+			ExtensionID: publication.Artifact.ExtensionID, AllowedTarget: &publication.Artifact,
+			Desired: &publication, ActorUserID: 549, AuditEventID: 962,
+		})
+	}
+	return cloneMemoryIdentityState(s.state), nil
+}
+
+func identityregistryDesiredRootForTest(
+	t *testing.T,
+	publication identityregistry.Publication,
+) (identityregistry.DurableRootPublicationTip, error) {
+	t.Helper()
+	state := reconcileMemoryIdentityState(identityregistry.DurableState{}, identityregistry.ReconcilePublicationInput{
+		ExtensionID: publication.Artifact.ExtensionID, AllowedTarget: &publication.Artifact,
+		Desired: &publication, ActorUserID: 1, AuditEventID: 1,
+	})
+	if len(state.RootTips) != 1 {
+		return identityregistry.DurableRootPublicationTip{}, fmt.Errorf("root tips=%d", len(state.RootTips))
+	}
+	return state.RootTips[0], nil
+}
+
+var _ identityregistry.LegacyPublicationAdopter = (*memoryLegacyAdoptingIdentityStore)(nil)
+
+func adminSurfaceReferencePermissionOnlyExtension(versionID int64) extensions.Extension {
+	const id = "sforum.admin-surface-reference"
+	extension := extensions.Extension{
+		ID: id, Type: extensions.TypePlugin, Version: "1.0.0", ActiveVersionID: versionID,
+		PackageDigest: "81b964f80707b257f6f401faffb07fe0f0a6aa6b5833a6fab0cedaab77b3324f",
+	}
+	extension.Manifest = extensions.Manifest{ID: id, Type: extensions.TypePlugin, Version: "1.0.0"}
+	extension.Manifest.PermissionDefinitions = []extensions.ManifestPermissionDefinition{{
+		Key: id + ".manage", ContractVersion: id + ".permission.manage@1",
+		Label:            "Use admin surface reference",
+		Description:      "View and invoke the reference plugin's admin surfaces.",
+		RecommendedRoles: []string{"administrator"}, AssignmentPolicy: "host",
+	}}
+	return extension
 }
 
 func TestLifecycleIdentityRestartSafeModeAndConditionalDependencies(t *testing.T) {
@@ -462,14 +678,17 @@ func reconcileMemoryIdentityState(
 	for _, tip := range tips {
 		result.Tips = append(result.Tips, tip)
 	}
-	if len(rootTips) > 0 {
-		latest := rootTips[0]
-		for _, tip := range rootTips[1:] {
-			if tip.OwnerExtensionID == input.ExtensionID && tip.Revision > latest.Revision {
-				latest = tip
-			}
+	// Keep the latest root tip per owner so multi-plugin batch adoption does not
+	// drop sibling history when reconciling one extension at a time.
+	latestByOwner := make(map[string]identityregistry.DurableRootPublicationTip, len(rootTips))
+	for _, tip := range rootTips {
+		current, found := latestByOwner[tip.OwnerExtensionID]
+		if !found || tip.Revision > current.Revision {
+			latestByOwner[tip.OwnerExtensionID] = tip
 		}
-		result.RootTips = []identityregistry.DurableRootPublicationTip{latest}
+	}
+	for _, tip := range latestByOwner {
+		result.RootTips = append(result.RootTips, tip)
 	}
 	return result
 }
