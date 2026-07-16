@@ -23,9 +23,20 @@ Last updated: 2026-07-17
   shape of migration 029, then adopt only an entirely untracked exact enabled
   identity publication from locked live trust-grant/audit evidence. Partial,
   revoked, stale, Safe Mode, or conflicting history must remain fail-closed.
+- The independent P6 authority/replay slice is now committed through exact
+  request-authority transport, remote-execution replay fencing, unsafe `after`
+  response preservation, durable audit evidence, and process-local exact
+  runtime quarantine. P6 remains 13/18 until the complete action/mutation,
+  revoke/WebSocket, canonical SEO, and production-matrix exit rows close.
 
 ## Recent Verified Commits
 
+- `a645ac594 feat(routes): audit and quarantine committed modifier failures`
+- `365cd0df6 feat(extensions): quarantine exact runtime incidents`
+- `70dd7fb7c feat(routes): preserve unsafe response after modifier failure`
+- `b3a521e05 fix(routes): preserve replay lease after observed execution`
+- `c7cf50c97 fix(routes): enforce exact request authority end to end`
+- `2bebc8cae docs(extensions): record startup recovery`
 - `0c4f42c84 test(extensions): isolate postgres integration fixtures`
 - `cc4ce473f fix(runtime): converge mixed protocol startup set`
 - `1f2c2e81a fix(routes): bind raw authority to exact dispatch`
@@ -47,6 +58,30 @@ Last updated: 2026-07-17
 
 ## Verification
 
+- Exact request authority now binds the plan revision, step index, full
+  contribution/artifact/guard, request, prior response, invocation stage, and
+  commit observer. HTTP, Protocol V2 unary/guard/stream, raw credential, and
+  forged fixture matrices pass full Routes/Http/Extensions tests, focused race,
+  and vet.
+- Required replay now retains the 24-hour pending lease after any observed
+  remote execution, including transport failure and response-schema rejection;
+  `Finalize` cannot erase late execution evidence. Pre-dispatch failures still
+  abort safely, and completion failure remains pending.
+- Unsafe committed `after` failures preserve the exact prior response, stop
+  later contributions, emit redacted structured evidence, and complete/replay
+  deterministic 2xx responses. Guard/request-schema failures are audit-only;
+  only observed transport failures and response-schema failures quarantine the
+  exact version/digest/instance.
+- Exact runtime quarantine is monotonic, does not wait for runtime-set or
+  lifecycle transition locks, preserves existing leases, permits lifecycle
+  cleanup, rejects every ordinary acquisition and Resume/rollback, keeps the
+  first stable cause, and never falls back to an active replacement.
+- The production recorder synchronously closes exact admission and sends audit
+  writes through one bounded worker/queue. Queue pressure never skips
+  quarantine, canceled request contexts do not discard audit, and shutdown is
+  bounded before PostgreSQL/runtime close. Routes, Http, Audit, Extensions, and
+  bootstrap full tests, focused race tests, vet, formatting, and staged diff
+  checks passed.
 - Mixed Protocol startup focused normal/race tests, bootstrap normal/race,
   `go vet ./app/Support/Extensions ./bootstrap`, formatting, and staged diff
   checks passed for `cc4ce473f`.
@@ -148,20 +183,22 @@ Last updated: 2026-07-17
 
 ## Exact Next Steps
 
-1. Land and apply additive migration 034 for the pre-commit migration-029
-   permission-catalog/grant schema, with fresh/current and drifted upgrade tests.
-2. Land evidence-bound Identity legacy adoption; rerun API startup until it
+1. Finish/apply additive migration 034 and evidence-bound Identity legacy
+   adoption; rerun API startup until it
    stays serving and revision 1 receives a complete node acknowledgement.
-3. Resume typed Protocol V2 authority/kind fixture and wire closure; validate
-   WebSocket version/key before any guard/runtime RPC.
-4. Wire exact revoke/drain with allowed plus
+2. Validate WebSocket version/key before any guard/runtime RPC, then wire exact
+   trust revoke/drain with allowed plus
    denied, drift, redirect, invalid-WebSocket, and race tests.
-5. Preserve required-idempotency pending state after any remote execution
-   evidence; an unsafe crash/timeout must never become a second writer on retry.
-6. Continue mutable-field/action semantics after raw authority; land SEO only in
+3. Implement RFC 6901 mutable-field enforcement and close every route action,
+   priority, conflict, timeout, crash, multipart/stream, and unsafe matrix row.
+4. Land route alias/redirect 301/308 canonical ownership and SEO only in
    independently reviewed contract/transport/Host-policy/
    bootstrap/reference slices; do not credit the SEO row before SSR, sitemap,
    revoke/failure, and Inspector evidence is production-complete.
+5. Add full-set/staged-publication quarantine concurrency coverage. Current
+   quarantine is intentionally node/process-local; cross-node or restart
+   persistence requires an explicit durable incident/clear contract rather
+   than overloading lifecycle publication reasons.
 
 ## Rollback, Flags, And Compatibility
 

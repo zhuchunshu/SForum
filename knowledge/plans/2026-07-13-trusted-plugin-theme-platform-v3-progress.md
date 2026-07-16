@@ -125,6 +125,46 @@ or treated as expired only after the complete V3 goal is achieved.
 
 ## Last Durable Checkpoint
 
+### 2026-07-17 P6 Exact Authority, Replay, And Failure Evidence
+
+- Exact weighted progress remains `63.2336%`; displayed progress remains
+  **63.2%**. P6 remains **13/18** because this closes critical production
+  boundaries inside open rows but does not yet prove the full route-action,
+  RFC 6901 mutation, revoke/WebSocket, canonical SEO, or complete behavior
+  matrix exits.
+- `c7cf50c97` carries Host-issued filtered/raw authority through HTTP and
+  Protocol V2 unary/guard/stream, binds it to the exact plan/step/request/prior
+  response/artifact, forwards credentials only for exact `raw_request`, and
+  rejects forged direct invocations.
+- `b3a521e05` makes remote execution evidence monotonic across `Finalize` and
+  prevents required-idempotency Abort after an observed call, transport crash,
+  or response-schema rejection.
+- `70dd7fb7c` preserves the prior response when an unsafe plugin `after`
+  contribution fails, stops later modifiers, emits a stable payload-free event,
+  and completes deterministic 2xx replay.
+- `365cd0df6` adds exact version/digest/instance quarantine without waiting for
+  runtime-set/lifecycle locks. Existing calls finish, cleanup remains available,
+  ordinary admission closes, and Resume/full-set rollback cannot reopen the
+  exact gate.
+- `a645ac594` production-wires a bounded audit recorder and stable
+  `routes.committed_after_failure` evidence. Guard/request-schema failures and
+  unobserved Host transport failures do not quarantine; observed transport and
+  response-schema failures do. Queue pressure cannot skip quarantine, and
+  shutdown is bounded before runtime/PostgreSQL close.
+- Full Routes, Http, Audit, Extensions, and bootstrap tests passed, along with
+  focused race suites, vet, formatting, and staged-diff checks. The exact
+  quarantine state is intentionally process/node-local; durable cross-node or
+  restart persistence remains an explicit open contract.
+
+Exact resume command:
+
+```bash
+cd apps/api && go test ./app/Support/Routes ./app/Http ./app/Support/Extensions ./bootstrap
+```
+
+Then finish Identity startup adoption, strict WebSocket/revoke closure, RFC 6901
+route mutation/action semantics, canonical redirect SEO, and the full P6 matrix.
+
 ### 2026-07-17 P12 Migration Publication Proof Fence
 
 - Exact weighted progress remains `63.2336%`; displayed progress remains
