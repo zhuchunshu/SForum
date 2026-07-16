@@ -436,14 +436,24 @@ func TestLifecycleBoundaryJobsPlansDeclaredMigrationForOlderQueuedArtifact(t *te
 }
 
 func attachLifecycleJobManifest(extension *extensions.Extension) {
+	// job/schedule id 必须带 extension id 前缀，否则 v3 Validate 拒绝；
+	// CommitLifecyclePublication 会经 exactPluginRuntimeTransitionArtifact 校验完整 manifest。
+	// policy 字段留空，由 Normalize 填推荐默认，与 River 行 contract 的 zero→default 语义一致。
+	jobID := extension.ID + ".job.demo"
+	scheduleID := extension.ID + ".schedule.demo"
 	extension.Manifest.Jobs = []extensions.ManifestJob{{
-		ID: "demo.job", ContractVersion: "demo.job@1", Name: "demo.sync",
+		ID: jobID, ContractVersion: "demo.job@1", Name: "demo.sync",
 		Handler: "jobs.demo", PayloadSchema: "demo.payload@1", RetryPolicy: "bounded",
 	}}
 	extension.Manifest.Schedules = []extensions.ManifestSchedule{{
-		ID: "demo.schedule", ContractVersion: "demo.schedule@1", JobID: "demo.job",
+		ID: scheduleID, ContractVersion: "demo.schedule@1", JobID: jobID,
 		Cron: "0 * * * *", Timezone: "UTC",
 	}}
+}
+
+// lifecycleJobDemoScheduleID 与 attachLifecycleJobManifest 写入的 schedule id 一致。
+func lifecycleJobDemoScheduleID(extension extensions.Extension) string {
+	return extension.ID + ".schedule.demo"
 }
 
 func lifecycleBoundaryJobRow(

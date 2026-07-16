@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"os"
 	"strings"
 	"sync"
 	"testing"
@@ -251,6 +250,7 @@ type lifecyclePublicationIntegration struct {
 	journal     *PostgresLifecycleBoundaryPublicationJournal
 	request     LifecycleBoundaryRequest
 	extensionID string
+	schema      string
 }
 
 func newLifecyclePublicationIntegration(
@@ -261,10 +261,18 @@ func newLifecyclePublicationIntegration(
 	return fixture.ctx, fixture.pool, fixture.journal, fixture.request, fixture.extensionID
 }
 
+func TestLifecyclePublicationIntegrationRequiresExplicitTestDatabaseURL(t *testing.T) {
+	t.Setenv("SFORUM_TEST_DATABASE_URL", "")
+	t.Setenv("DATABASE_URL", "postgres://should-never-be-used/for-integration")
+	if url, ok := requireSforumTestDatabaseURL(); ok || url != "" {
+		t.Fatalf("setup must refuse without SFORUM_TEST_DATABASE_URL; got url=%q ok=%v", url, ok)
+	}
+}
+
 func newLifecyclePublicationIntegrationFixture(t *testing.T) *lifecyclePublicationIntegration {
 	t.Helper()
-	databaseURL := strings.TrimSpace(os.Getenv("SFORUM_TEST_DATABASE_URL"))
-	if databaseURL == "" {
+	databaseURL, ok := requireSforumTestDatabaseURL()
+	if !ok {
 		t.Skip("SFORUM_TEST_DATABASE_URL is not set")
 	}
 	ctx := context.Background()
@@ -272,6 +280,7 @@ func newLifecyclePublicationIntegrationFixture(t *testing.T) *lifecyclePublicati
 	if err != nil {
 		t.Fatal(err)
 	}
+	// 唯一 schema 前缀避免 -count 重跑时截断冲突；操作行也使用带时间戳 extension id。
 	schema := fmt.Sprintf("lpj_%d", time.Now().UnixNano())
 	quotedSchema := pgx.Identifier{schema}.Sanitize()
 	if _, err := admin.Exec(ctx, "CREATE SCHEMA "+quotedSchema); err != nil {
@@ -280,14 +289,22 @@ func newLifecyclePublicationIntegrationFixture(t *testing.T) *lifecyclePublicati
 	}
 	var pool *pgxpool.Pool
 	var db *sql.DB
+	// Cleanup 顺序必须先关 pool/db（释放 search_path 连接），再 DROP SCHEMA。
+	// 不在 cleanup 前 defer pool.Close；DROP 失败必须可见，不能静默忽略。
 	t.Cleanup(func() {
 		if pool != nil {
 			pool.Close()
+			pool = nil
 		}
 		if db != nil {
-			_ = db.Close()
+			if err := db.Close(); err != nil {
+				t.Errorf("close lifecycle publication migration db: %v", err)
+			}
+			db = nil
 		}
-		_, _ = admin.Exec(context.Background(), "DROP SCHEMA IF EXISTS "+quotedSchema+" CASCADE")
+		if _, err := admin.Exec(context.Background(), "DROP SCHEMA IF EXISTS "+quotedSchema+" CASCADE"); err != nil {
+			t.Errorf("drop lifecycle publication private schema %s: %v", schema, err)
+		}
 		admin.Close()
 	})
 
@@ -337,9 +354,16 @@ func newLifecyclePublicationIntegrationFixture(t *testing.T) *lifecyclePublicati
 	if err != nil {
 		t.Fatal(err)
 	}
+	// 含 job/registry publications：jobs 与 registry 集成测试复用本 fixture，
+	// 避免 search_path 回落到 public 宿主表。
+	// 202607140004 将 host.gate 加入 lifecycle_action check；jobs 等 fixture
+	// 会写入 host.gate step，缺少该迁移会在 setup 阶段 SQLSTATE 23514 失败。
 	for _, version := range []int64{
 		202607140001,
+		202607140004,
 		202607140007,
+		202607140010,
+		202607140011,
 		202607160027,
 		202607160030,
 		202607160031,
@@ -364,8 +388,23 @@ func newLifecyclePublicationIntegrationFixture(t *testing.T) *lifecyclePublicati
 		t.Fatal(err)
 	}
 
+	// 确认 lifecycle 账本在私有 schema，失败路径也不会把 planned 操作写进宿主 public。
+	var operationsNamespace string
+	if err := pool.QueryRow(ctx, `
+		SELECT n.nspname
+		FROM pg_class c
+		JOIN pg_namespace n ON n.oid = c.relnamespace
+		WHERE c.relname = 'extension_lifecycle_operations'
+		  AND n.nspname = current_schema()
+	`).Scan(&operationsNamespace); err != nil {
+		t.Fatalf("lifecycle operations table is not in private schema: %v", err)
+	}
+	if operationsNamespace != schema {
+		t.Fatalf("lifecycle operations schema = %q, want %q", operationsNamespace, schema)
+	}
+
 	request := lifecyclePublicationTestRequest(t, extensions.LifecycleMachineEnable, 5)
-	const extensionID = "publication.integration"
+	extensionID := fmt.Sprintf("publication.integration.%d", time.Now().UnixNano())
 	request.TargetExtension.ID = extensionID
 	request.TargetExtension.Manifest.ID = extensionID
 	request.TargetExtension.Manifest.PackageFiles[0].ID = extensionID + ".backend"
@@ -379,6 +418,9 @@ func newLifecyclePublicationIntegrationFixture(t *testing.T) *lifecyclePublicati
 	manifest, err := json.Marshal(request.TargetExtension.Manifest)
 	if err != nil {
 		t.Fatal(err)
+	}
+	if len(manifest) == 0 || string(manifest) == "null" || string(manifest) == "{}" {
+		t.Fatal("enabled publication fixture requires a non-empty exact manifest")
 	}
 	tx, err := pool.Begin(ctx)
 	if err != nil {
@@ -423,7 +465,7 @@ func newLifecyclePublicationIntegrationFixture(t *testing.T) *lifecyclePublicati
 	return &lifecyclePublicationIntegration{
 		ctx: ctx, pool: pool,
 		journal: NewPostgresLifecycleBoundaryPublicationJournal(pool),
-		request: request, extensionID: extensionID,
+		request: request, extensionID: extensionID, schema: schema,
 	}
 }
 
