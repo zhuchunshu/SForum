@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"unicode/utf8"
 
 	semver "github.com/Masterminds/semver/v3"
 )
@@ -18,12 +19,18 @@ const (
 	maxDependenciesPerPublication = 256
 	maxKindFilters                = 16
 	maxPriority                   = 1_000_000
+	maxTargetDepth                = 16
+	maxLocalesPerDeclaration      = 32
+	maxRuntimeInstanceIDLength    = 160
+	maxNavigationHrefRunes        = 2048
 )
 
 var (
 	idPattern       = regexp.MustCompile(`^[a-z0-9][a-z0-9._-]{1,120}$`)
 	digestPattern   = regexp.MustCompile(`^[0-9a-f]{64}$`)
 	contractPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9._-]*@[1-9][0-9]*$`)
+	localePattern   = regexp.MustCompile(`^[a-zA-Z]{2,8}([_-][a-zA-Z0-9]{1,8})*$`)
+	opaquePattern   = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._:-]*$`)
 )
 
 func normalizePublications(input []Publication) ([]Publication, error) {
@@ -105,14 +112,46 @@ func normalizeArtifact(input Artifact) (Artifact, error) {
 	input.ExtensionVersion = strings.TrimSpace(input.ExtensionVersion)
 	input.PackageDigest = normalizeDigest(input.PackageDigest)
 	input.ImpactDigest = normalizeDigest(input.ImpactDigest)
+	input.RuntimeInstanceID = strings.TrimSpace(input.RuntimeInstanceID)
+	isCoreNamespace := strings.HasPrefix(input.ExtensionID, "core.")
+	isTrustedCore := validCoreArtifactSeal(input)
 	if !idPattern.MatchString(input.ExtensionID) || !digestPattern.MatchString(input.PackageDigest) ||
-		!digestPattern.MatchString(input.ImpactDigest) || input.Core != strings.HasPrefix(input.ExtensionID, "core.") {
+		!digestPattern.MatchString(input.ImpactDigest) || input.ExtensionID == "core" {
 		return Artifact{}, ErrInvalid
 	}
 	if _, err := semver.StrictNewVersion(input.ExtensionVersion); err != nil {
 		return Artifact{}, ErrInvalid
 	}
+	if input.Core {
+		if !isCoreNamespace || !isTrustedCore || input.VersionID != 0 || input.RuntimeInstanceID != "" {
+			return Artifact{}, ErrInvalid
+		}
+	} else if input.coreSeal != [32]byte{} || isCoreNamespace || input.VersionID <= 0 ||
+		len(input.RuntimeInstanceID) > maxRuntimeInstanceIDLength || !opaquePattern.MatchString(input.RuntimeInstanceID) {
+		return Artifact{}, ErrInvalid
+	}
 	return input, nil
+}
+
+// NewCoreArtifact is the Host-only construction boundary for core navigation
+// catalogs. Callers must pass Host-owned constants, never extension input.
+func NewCoreArtifact(extensionID, extensionVersion, packageDigest, impactDigest string) (Artifact, error) {
+	artifact := Artifact{
+		ExtensionID: strings.ToLower(strings.TrimSpace(extensionID)), ExtensionVersion: strings.TrimSpace(extensionVersion),
+		PackageDigest: normalizeDigest(packageDigest), ImpactDigest: normalizeDigest(impactDigest), Core: true,
+	}
+	artifact.coreSeal = coreArtifactSeal(artifact)
+	return normalizeArtifact(artifact)
+}
+
+func coreArtifactSeal(artifact Artifact) [32]byte {
+	material := SchemaVersion + "\x00core-artifact\x00" + artifact.ExtensionID + "\x00" +
+		artifact.ExtensionVersion + "\x00" + artifact.PackageDigest + "\x00" + artifact.ImpactDigest
+	return sha256.Sum256([]byte(material))
+}
+
+func validCoreArtifactSeal(artifact Artifact) bool {
+	return artifact.Core && artifact.coreSeal != [32]byte{} && artifact.coreSeal == coreArtifactSeal(artifact)
 }
 
 func normalizeDependency(input Dependency) (Dependency, error) {
@@ -150,15 +189,24 @@ func normalizeNavigation(artifact Artifact, input NavigationDeclaration) (Naviga
 	input.Action = strings.ToLower(strings.TrimSpace(input.Action))
 	input.TargetID = strings.ToLower(strings.TrimSpace(input.TargetID))
 	input.Label = strings.TrimSpace(input.Label)
+	labels, err := normalizeLabels(input.Labels)
+	if err != nil {
+		return NavigationDeclaration{}, err
+	}
+	input.Labels = labels
 	input.Href = strings.TrimSpace(input.Href)
 	input.Permission = strings.ToLower(strings.TrimSpace(input.Permission))
+	input.Visibility = normalizeVisibilityPolicy(input.Visibility)
+	input.Handler = strings.ToLower(strings.TrimSpace(input.Handler))
 	if !validContributionIdentity(artifact, input.ID, input.ContractVersion) || !validAction(input.Action) ||
-		!validNavigationKind(input.Kind) || input.Label == "" || len(input.Label) > 256 || input.Order < 0 ||
+		!validNavigationKind(input.Kind) || !validLabelSet(input.Label, input.Labels) || input.Order < 0 ||
 		input.Order > 1_000_000 || input.Priority < -maxPriority || input.Priority > maxPriority ||
 		(input.Action != ActionAdd && input.TargetID == "") ||
 		(input.TargetID != "" && !idPattern.MatchString(input.TargetID)) ||
 		(input.Permission != "" && !idPattern.MatchString(input.Permission)) ||
-		(input.Href != "" && !safeHostLinkPath(input.Href)) {
+		!validVisibilityPolicy(input.Visibility) ||
+		(input.Handler != "" && (!idPattern.MatchString(input.Handler) || !strings.HasPrefix(input.Handler, artifact.ExtensionID+"."))) ||
+		(input.Href != "" && (utf8.RuneCountInString(input.Href) > maxNavigationHrefRunes || !safeHostLinkPath(input.Href))) {
 		return NavigationDeclaration{}, ErrInvalid
 	}
 	return input, nil
@@ -171,23 +219,121 @@ func normalizeRegion(artifact Artifact, input RegionDeclaration) (RegionDeclarat
 	input.TargetID = strings.ToLower(strings.TrimSpace(input.TargetID))
 	input.Kind = strings.ToLower(strings.TrimSpace(input.Kind))
 	input.Label = strings.TrimSpace(input.Label)
+	labels, err := normalizeLabels(input.Labels)
+	if err != nil {
+		return RegionDeclaration{}, err
+	}
+	input.Labels = labels
+	input.Permission = strings.ToLower(strings.TrimSpace(input.Permission))
+	input.Visibility = normalizeVisibilityPolicy(input.Visibility)
+	input.Handler = strings.ToLower(strings.TrimSpace(input.Handler))
 	if !validContributionIdentity(artifact, input.ID, input.ContractVersion) || !validAction(input.Action) ||
-		!validRegionKind(input.Kind) || input.Label == "" || len(input.Label) > 256 || input.Order < 0 ||
+		!validRegionKind(input.Kind) || !validLabelSet(input.Label, input.Labels) || input.Order < 0 ||
 		input.Order > 1_000_000 || input.Priority < -maxPriority || input.Priority > maxPriority ||
 		(input.Action != ActionAdd && input.TargetID == "") ||
-		(input.TargetID != "" && !idPattern.MatchString(input.TargetID)) {
+		(input.TargetID != "" && !idPattern.MatchString(input.TargetID)) ||
+		(input.Permission != "" && !idPattern.MatchString(input.Permission)) ||
+		!validVisibilityPolicy(input.Visibility) ||
+		(input.Handler != "" && (!idPattern.MatchString(input.Handler) || !strings.HasPrefix(input.Handler, artifact.ExtensionID+"."))) {
 		return RegionDeclaration{}, ErrInvalid
 	}
 	return input, nil
 }
 
-func computeGraphDigest(publications []Publication) string {
+func computeGraphDigest(publications []Publication, safeMode bool, selections []ProviderSelection) string {
 	if publications == nil {
 		publications = []Publication{}
 	}
-	body, _ := json.Marshal(publications)
+	if selections == nil {
+		selections = []ProviderSelection{}
+	}
+	body, _ := json.Marshal(struct {
+		SchemaVersion string              `json:"schemaVersion"`
+		SafeMode      bool                `json:"safeMode"`
+		Publications  []Publication       `json:"publications"`
+		Selections    []ProviderSelection `json:"selections"`
+	}{SchemaVersion: SchemaVersion, SafeMode: safeMode, Publications: publications, Selections: selections})
 	sum := sha256.Sum256(body)
 	return hex.EncodeToString(sum[:])
+}
+
+func normalizeLabels(input map[string]string) (map[string]string, error) {
+	if len(input) > maxLocalesPerDeclaration {
+		return nil, ErrInvalid
+	}
+	if len(input) == 0 {
+		return nil, nil
+	}
+	result := make(map[string]string, len(input))
+	for rawLocale, rawLabel := range input {
+		locale, err := normalizeLocale(rawLocale)
+		label := strings.TrimSpace(rawLabel)
+		if err != nil || label == "" || len(label) > 1024 || len([]rune(label)) > 256 {
+			return nil, ErrInvalid
+		}
+		if _, duplicate := result[locale]; duplicate {
+			return nil, ErrInvalid
+		}
+		result[locale] = label
+	}
+	return result, nil
+}
+
+func normalizeLocale(value string) (string, error) {
+	value = strings.TrimSpace(strings.ReplaceAll(value, "_", "-"))
+	if value == "" {
+		return "zh-CN", nil
+	}
+	if len(value) > 64 || !localePattern.MatchString(value) {
+		return "", ErrInvalid
+	}
+	parts := strings.Split(value, "-")
+	parts[0] = strings.ToLower(parts[0])
+	for index := 1; index < len(parts); index++ {
+		if len(parts[index]) == 2 || len(parts[index]) == 3 {
+			parts[index] = strings.ToUpper(parts[index])
+		} else {
+			parts[index] = strings.ToLower(parts[index])
+		}
+	}
+	return strings.Join(parts, "-"), nil
+}
+
+func localizedLabel(label string, labels map[string]string, locale string) string {
+	if value := labels[locale]; value != "" {
+		return value
+	}
+	language := strings.Split(locale, "-")[0]
+	keys := make([]string, 0, len(labels))
+	for key := range labels {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	for _, key := range keys {
+		if strings.Split(key, "-")[0] == language {
+			return labels[key]
+		}
+	}
+	if label == "" && len(keys) > 0 {
+		return labels[keys[0]]
+	}
+	return label
+}
+
+func validLabelSet(label string, labels map[string]string) bool {
+	return (label != "" || len(labels) > 0) && len(label) <= 1024 && len([]rune(label)) <= 256
+}
+
+func normalizeVisibilityPolicy(value string) string {
+	value = strings.ToLower(strings.TrimSpace(value))
+	if value == "" {
+		return VisibilityPublic
+	}
+	return value
+}
+
+func validVisibilityPolicy(value string) bool {
+	return value == VisibilityPublic || value == VisibilityAnonymous || value == VisibilityAuthenticated
 }
 
 func normalizeDigest(value string) string {
@@ -246,5 +392,11 @@ func artifactBefore(left, right Artifact) bool {
 	if left.PackageDigest != right.PackageDigest {
 		return left.PackageDigest < right.PackageDigest
 	}
-	return left.ImpactDigest < right.ImpactDigest
+	if left.ImpactDigest != right.ImpactDigest {
+		return left.ImpactDigest < right.ImpactDigest
+	}
+	if left.VersionID != right.VersionID {
+		return left.VersionID < right.VersionID
+	}
+	return left.RuntimeInstanceID < right.RuntimeInstanceID
 }

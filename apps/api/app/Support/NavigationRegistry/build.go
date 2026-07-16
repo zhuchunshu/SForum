@@ -8,15 +8,16 @@ import (
 
 func emptyState() *registryState {
 	return &registryState{
-		digest: computeGraphDigest(nil), publications: map[string]Publication{},
+		digest: computeGraphDigest(nil, false, nil), publications: map[string]Publication{},
 		navigation: map[string]NavigationContribution{}, regions: map[string]RegionContribution{},
 		navigationTargets: map[string]NavigationContribution{}, regionTargets: map[string]RegionContribution{},
 		navigationByTarget: map[string][]NavigationContribution{}, regionsByTarget: map[string][]RegionContribution{},
+		providerSelections: map[string]ProviderSelection{},
 	}
 }
 
-func buildState(revision uint64, input []Publication) (*registryState, error) {
-	publications, err := normalizePublications(input)
+func buildState(revision uint64, input []Publication, safeMode bool, selections map[string]ProviderSelection) (*registryState, error) {
+	publications, err := normalizePublications(filterSafeModeInput(input, safeMode))
 	if err != nil {
 		return nil, err
 	}
@@ -27,7 +28,7 @@ func buildState(revision uint64, input []Publication) (*registryState, error) {
 
 	state := emptyState()
 	state.revision = revision
-	state.digest = computeGraphDigest(publications)
+	state.safeMode = safeMode
 	for _, publication := range publications {
 		state.publications[publication.Artifact.ExtensionID] = clonePublication(publication)
 	}
@@ -96,6 +97,9 @@ func buildState(revision uint64, input []Publication) (*registryState, error) {
 	if err := validateTargetCycles(state, activeNavigation, activeRegions); err != nil {
 		return nil, err
 	}
+	if err := validateTargetDepth(state, activeNavigation, activeRegions); err != nil {
+		return nil, err
+	}
 
 	state.navigationTargets = map[string]NavigationContribution{}
 	state.regionTargets = map[string]RegionContribution{}
@@ -131,7 +135,22 @@ func buildState(revision uint64, input []Publication) (*registryState, error) {
 			return regionProviderBefore(state.regionsByTarget[targetID][i], state.regionsByTarget[targetID][j])
 		})
 	}
+	state.providerSelections = retainValidSelections(state, selections)
+	state.digest = computeGraphDigest(sortedPublications(state.publications), safeMode, sortedProviderSelections(state.providerSelections))
 	return state, nil
+}
+
+func filterSafeModeInput(input []Publication, safeMode bool) []Publication {
+	if !safeMode {
+		return input
+	}
+	result := make([]Publication, 0, len(input))
+	for _, publication := range input {
+		if validCoreArtifactSeal(publication.Artifact) {
+			result = append(result, publication)
+		}
+	}
+	return result
 }
 
 func validateNavigationTarget(
@@ -299,6 +318,30 @@ func validateTargetCycles(state *registryState, activeNavigation, activeRegions 
 	for id := range edges {
 		if visit(id) {
 			return fmt.Errorf("%w: target cycle includes %s", ErrDependency, id)
+		}
+	}
+	return nil
+}
+
+func validateTargetDepth(state *registryState, activeNavigation, activeRegions map[string]bool) error {
+	parents := map[string]string{}
+	for id, target := range state.navigationTargets {
+		if activeNavigation[id] {
+			parents[id] = target.TargetID
+		}
+	}
+	for id, target := range state.regionTargets {
+		if activeRegions[id] {
+			parents[id] = target.TargetID
+		}
+	}
+	for id := range parents {
+		depth := 0
+		for current := id; current != ""; current = parents[current] {
+			depth++
+			if depth > maxTargetDepth {
+				return fmt.Errorf("%w: target depth exceeds %d at %s", ErrLimitExceeded, maxTargetDepth, id)
+			}
 		}
 	}
 	return nil

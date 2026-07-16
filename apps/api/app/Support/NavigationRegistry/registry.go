@@ -10,6 +10,7 @@ import (
 type registryState struct {
 	revision uint64
 	digest   string
+	safeMode bool
 
 	publications map[string]Publication
 	navigation   map[string]NavigationContribution
@@ -19,6 +20,7 @@ type registryState struct {
 	regionTargets      map[string]RegionContribution
 	navigationByTarget map[string][]NavigationContribution
 	regionsByTarget    map[string][]RegionContribution
+	providerSelections map[string]ProviderSelection
 }
 
 // Registry publishes a complete immutable navigation/region graph. Writers
@@ -60,6 +62,9 @@ func (r *Registry) publish(expected *Artifact, publication Publication) (uint64,
 	if r == nil {
 		return 0, ErrInvalid
 	}
+	if current := r.load(); current.safeMode && !validCoreArtifactSeal(publication.Artifact) {
+		return current.revision, ErrSafeMode
+	}
 	normalized, err := normalizePublication(publication)
 	if err != nil {
 		return r.load().revision, err
@@ -68,6 +73,9 @@ func (r *Registry) publish(expected *Artifact, publication Publication) (uint64,
 	defer r.mu.Unlock()
 
 	current := r.load()
+	if current.safeMode && !normalized.Artifact.Core {
+		return current.revision, ErrSafeMode
+	}
 	active, found := current.publications[normalized.Artifact.ExtensionID]
 	if expected != nil {
 		if expected.ExtensionID != normalized.Artifact.ExtensionID || !found || active.Artifact != *expected {
@@ -82,7 +90,7 @@ func (r *Registry) publish(expected *Artifact, publication Publication) (uint64,
 	}
 	publications := clonePublicationMap(current.publications)
 	publications[normalized.Artifact.ExtensionID] = normalized
-	next, err := buildState(current.revision+1, publicationValues(publications))
+	next, err := buildState(current.revision+1, publicationValues(publications), current.safeMode, current.providerSelections)
 	if err != nil {
 		return current.revision, err
 	}
@@ -106,11 +114,30 @@ func (r *Registry) ReplaceAll(publications []Publication) (uint64, error) {
 // revision is still current. Exact-artifact declarations are immutable; a
 // revision-fenced batch may add, remove, upgrade, or roll back artifacts.
 func (r *Registry) ReplaceAllIfRevision(expectedRevision uint64, publications []Publication) (uint64, error) {
+	return r.replaceAllIfRevision(expectedRevision, publications, false)
+}
+
+// ReplaceAllWithSafeMode is the startup/recovery path. Third-party input is
+// filtered before declaration validation so corrupt packages cannot block Host
+// recovery. Exiting Safe Mode requires the authoritative caller to republish
+// the complete desired graph.
+func (r *Registry) ReplaceAllWithSafeMode(publications []Publication, safeMode bool) (uint64, error) {
+	if r == nil {
+		return 0, ErrInvalid
+	}
+	return r.replaceAllIfRevision(r.load().revision, publications, safeMode)
+}
+
+func (r *Registry) ReplaceAllWithSafeModeIfRevision(expectedRevision uint64, publications []Publication, safeMode bool) (uint64, error) {
+	return r.replaceAllIfRevision(expectedRevision, publications, safeMode)
+}
+
+func (r *Registry) replaceAllIfRevision(expectedRevision uint64, publications []Publication, safeMode bool) (uint64, error) {
 	if r == nil {
 		return 0, ErrInvalid
 	}
 	// 完整图先在锁外构建，锁内只做 revision CAS、artifact 漂移校验和一次发布。
-	next, err := buildState(0, publications)
+	next, err := buildState(0, publications, safeMode, r.load().providerSelections)
 	if err != nil {
 		return r.load().revision, err
 	}
@@ -123,7 +150,8 @@ func (r *Registry) ReplaceAllIfRevision(expectedRevision uint64, publications []
 	if err := validateExactPublicationReplay(current.publications, next.publications); err != nil {
 		return current.revision, err
 	}
-	if equalPublicationMaps(current.publications, next.publications) {
+	if equalPublicationMaps(current.publications, next.publications) && current.safeMode == next.safeMode &&
+		reflect.DeepEqual(current.providerSelections, next.providerSelections) {
 		return current.revision, nil
 	}
 	next.revision = current.revision + 1
@@ -153,7 +181,7 @@ func (r *Registry) Remove(artifact Artifact) (uint64, bool, error) {
 	}
 	publications := clonePublicationMap(current.publications)
 	delete(publications, normalized.ExtensionID)
-	next, err := buildState(current.revision+1, publicationValues(publications))
+	next, err := buildState(current.revision+1, publicationValues(publications), current.safeMode, current.providerSelections)
 	if err != nil {
 		return current.revision, false, err
 	}
@@ -188,14 +216,14 @@ func (r *Registry) Revision() uint64 {
 
 func (r *Registry) CacheState() CacheState {
 	state := r.load()
-	return CacheState{Revision: state.revision, Digest: state.digest}
+	return CacheState{Revision: state.revision, Digest: state.digest, SafeMode: state.safeMode}
 }
 
 // CacheInvalidated lets callers fence a cached resolution with both the local
 // monotonic revision and restart-stable graph digest.
 func (r *Registry) CacheInvalidated(previous CacheState) bool {
 	current := r.CacheState()
-	return previous.Revision != current.Revision || previous.Digest != current.Digest
+	return previous.Revision != current.Revision || previous.Digest != current.Digest || previous.SafeMode != current.SafeMode
 }
 
 func (r *Registry) Snapshot() Snapshot {
@@ -214,5 +242,5 @@ func (r *Registry) load() *registryState {
 
 func (r *Registry) String() string {
 	state := r.load()
-	return fmt.Sprintf("NavigationRegistry(revision=%d,digest=%s)", state.revision, state.digest)
+	return fmt.Sprintf("NavigationRegistry(revision=%d,digest=%s,safeMode=%t)", state.revision, state.digest, state.safeMode)
 }

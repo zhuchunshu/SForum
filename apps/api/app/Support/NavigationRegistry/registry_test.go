@@ -554,8 +554,16 @@ func publication(id string, core bool, digest rune) Publication {
 
 func artifact(id string, core bool, digest rune) Artifact {
 	value := strings.Repeat(string(digest), 64)
+	if core {
+		artifact, err := NewCoreArtifact(id, "1.0.0", value, value)
+		if err == nil {
+			return artifact
+		}
+		return Artifact{ExtensionID: id, ExtensionVersion: "1.0.0", PackageDigest: value, ImpactDigest: value, Core: true}
+	}
 	return Artifact{
-		ExtensionID: id, ExtensionVersion: "1.0.0", PackageDigest: value, ImpactDigest: value, Core: core,
+		ExtensionID: id, ExtensionVersion: "1.0.0", PackageDigest: value, ImpactDigest: value,
+		VersionID: 1, RuntimeInstanceID: "runtime-" + string(digest),
 	}
 }
 

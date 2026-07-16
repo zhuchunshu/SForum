@@ -16,6 +16,10 @@ type visibilityState struct {
 }
 
 func (r *Registry) ResolveNavigation(request NavigationResolveRequest) (NavigationResolution, error) {
+	return r.resolveNavigation(request, false)
+}
+
+func (r *Registry) resolveNavigation(request NavigationResolveRequest, deferRuntimeHides bool) (NavigationResolution, error) {
 	if r == nil {
 		return NavigationResolution{}, ErrInvalid
 	}
@@ -27,10 +31,14 @@ func (r *Registry) ResolveNavigation(request NavigationResolveRequest) (Navigati
 	if err != nil {
 		return NavigationResolution{}, err
 	}
+	locale, err := normalizeLocale(request.Locale)
+	if err != nil {
+		return NavigationResolution{}, err
+	}
 	state := r.load()
 	result := NavigationResolution{
-		SchemaVersion: SchemaVersion, Revision: state.revision, Digest: state.digest,
-		CacheKey: resolutionCacheKey(state, "navigation", kinds, visibility.canonical),
+		SchemaVersion: SchemaVersion, Revision: state.revision, Digest: state.digest, SafeMode: state.safeMode, Locale: locale,
+		CacheKey: resolutionCacheKey(state, "navigation", locale, kinds, visibility.canonical),
 	}
 	visibleMemo := map[string]bool{}
 	checking := map[string]bool{}
@@ -38,13 +46,16 @@ func (r *Registry) ResolveNavigation(request NavigationResolveRequest) (Navigati
 		if len(kinds) > 0 && !stringSliceContains(kinds, target.Kind) {
 			continue
 		}
-		if !navigationTargetVisible(state, target.ID, visibility, visibleMemo, checking) {
+		if !navigationTargetVisible(state, target.ID, visibility, visibleMemo, checking, deferRuntimeHides) {
 			continue
 		}
 		plan := NavigationTargetPlan{Target: target, ParentID: target.TargetID, Provider: target}
 		hadReplace := false
 		for _, contribution := range state.navigationByTarget[target.ID] {
 			if contribution.Action == ActionHide {
+				if deferRuntimeHides && !contribution.Artifact.Core && navigationContributionVisible(contribution, visibility, true) {
+					plan.hides = append(plan.hides, contribution)
+				}
 				continue
 			}
 			if contribution.Action == ActionReplace {
@@ -66,17 +77,30 @@ func (r *Registry) ResolveNavigation(request NavigationResolveRequest) (Navigati
 				plan.Filters = append(plan.Filters, contribution)
 			}
 		}
-		if len(plan.ReplaceCandidates) > 0 {
+		if selection, selected := selectedProvider(state, ProviderFamilyNavigation, target.ID); selected {
+			plan.SelectionConfigured = true
+			if candidate, visible := selectedNavigationCandidate(selection, plan.ReplaceCandidates); visible {
+				plan.Provider = candidate
+				plan.SelectedProvider = true
+			} else {
+				plan.UsingFallback = hadReplace
+			}
+		} else if len(plan.ReplaceCandidates) > 0 {
 			plan.Provider = plan.ReplaceCandidates[0]
 		} else {
 			plan.UsingFallback = hadReplace
 		}
 		result.Targets = append(result.Targets, plan)
 	}
+	localizeNavigationResolution(&result, locale)
 	return cloneNavigationResolution(result), nil
 }
 
 func (r *Registry) ResolveRegions(request RegionResolveRequest) (RegionResolution, error) {
+	return r.resolveRegions(request, false)
+}
+
+func (r *Registry) resolveRegions(request RegionResolveRequest, deferRuntimeHides bool) (RegionResolution, error) {
 	if r == nil {
 		return RegionResolution{}, ErrInvalid
 	}
@@ -88,10 +112,14 @@ func (r *Registry) ResolveRegions(request RegionResolveRequest) (RegionResolutio
 	if err != nil {
 		return RegionResolution{}, err
 	}
+	locale, err := normalizeLocale(request.Locale)
+	if err != nil {
+		return RegionResolution{}, err
+	}
 	state := r.load()
 	result := RegionResolution{
-		SchemaVersion: SchemaVersion, Revision: state.revision, Digest: state.digest,
-		CacheKey: resolutionCacheKey(state, "regions", kinds, visibility.canonical),
+		SchemaVersion: SchemaVersion, Revision: state.revision, Digest: state.digest, SafeMode: state.safeMode, Locale: locale,
+		CacheKey: resolutionCacheKey(state, "regions", locale, kinds, visibility.canonical),
 	}
 	visibleMemo := map[string]bool{}
 	checking := map[string]bool{}
@@ -99,13 +127,16 @@ func (r *Registry) ResolveRegions(request RegionResolveRequest) (RegionResolutio
 		if len(kinds) > 0 && !stringSliceContains(kinds, target.Kind) {
 			continue
 		}
-		if !regionTargetVisible(state, target.ID, visibility, visibleMemo, checking) {
+		if !regionTargetVisible(state, target.ID, visibility, visibleMemo, checking, deferRuntimeHides) {
 			continue
 		}
 		plan := RegionTargetPlan{Target: target, ParentID: target.TargetID, Provider: target}
 		hadReplace := false
 		for _, contribution := range state.regionsByTarget[target.ID] {
 			if contribution.Action == ActionHide {
+				if deferRuntimeHides && !contribution.Artifact.Core && regionContributionVisible(contribution, visibility, true) {
+					plan.hides = append(plan.hides, contribution)
+				}
 				continue
 			}
 			if contribution.Action == ActionReplace {
@@ -127,14 +158,49 @@ func (r *Registry) ResolveRegions(request RegionResolveRequest) (RegionResolutio
 				plan.Filters = append(plan.Filters, contribution)
 			}
 		}
-		if len(plan.ReplaceCandidates) > 0 {
+		if selection, selected := selectedProvider(state, ProviderFamilyRegion, target.ID); selected {
+			plan.SelectionConfigured = true
+			if candidate, visible := selectedRegionCandidate(selection, plan.ReplaceCandidates); visible {
+				plan.Provider = candidate
+				plan.SelectedProvider = true
+			} else {
+				plan.UsingFallback = hadReplace
+			}
+		} else if len(plan.ReplaceCandidates) > 0 {
 			plan.Provider = plan.ReplaceCandidates[0]
 		} else {
 			plan.UsingFallback = hadReplace
 		}
 		result.Targets = append(result.Targets, plan)
 	}
+	localizeRegionResolution(&result, locale)
 	return cloneRegionResolution(result), nil
+}
+
+func localizeNavigationResolution(result *NavigationResolution, locale string) {
+	for index := range result.Targets {
+		plan := &result.Targets[index]
+		plan.Target.Label = localizedLabel(plan.Target.Label, plan.Target.Labels, locale)
+		plan.Provider.Label = localizedLabel(plan.Provider.Label, plan.Provider.Labels, locale)
+		for _, values := range [][]NavigationContribution{plan.ReplaceCandidates, plan.Before, plan.After, plan.Wrap, plan.Filters} {
+			for candidate := range values {
+				values[candidate].Label = localizedLabel(values[candidate].Label, values[candidate].Labels, locale)
+			}
+		}
+	}
+}
+
+func localizeRegionResolution(result *RegionResolution, locale string) {
+	for index := range result.Targets {
+		plan := &result.Targets[index]
+		plan.Target.Label = localizedLabel(plan.Target.Label, plan.Target.Labels, locale)
+		plan.Provider.Label = localizedLabel(plan.Provider.Label, plan.Provider.Labels, locale)
+		for _, values := range [][]RegionContribution{plan.ReplaceCandidates, plan.Before, plan.After, plan.Wrap, plan.Filters} {
+			for candidate := range values {
+				values[candidate].Label = localizedLabel(values[candidate].Label, values[candidate].Labels, locale)
+			}
+		}
+	}
 }
 
 func navigationTargetVisible(
@@ -142,6 +208,7 @@ func navigationTargetVisible(
 	targetID string,
 	visibility visibilityState,
 	memo, checking map[string]bool,
+	deferRuntimeHides bool,
 ) bool {
 	if value, found := memo[targetID]; found {
 		return value
@@ -154,7 +221,8 @@ func navigationTargetVisible(
 	visible := found && navigationContributionVisible(target, visibility, true)
 	if visible {
 		for _, contribution := range state.navigationByTarget[targetID] {
-			if contribution.Action == ActionHide && navigationContributionVisible(contribution, visibility, true) {
+			if contribution.Action == ActionHide && (!deferRuntimeHides || contribution.Artifact.Core) &&
+				navigationContributionVisible(contribution, visibility, true) {
 				visible = false
 				break
 			}
@@ -162,9 +230,9 @@ func navigationTargetVisible(
 	}
 	if visible && target.TargetID != "" {
 		if _, parentIsNavigation := state.navigationTargets[target.TargetID]; parentIsNavigation {
-			visible = navigationTargetVisible(state, target.TargetID, visibility, memo, checking)
+			visible = navigationTargetVisible(state, target.TargetID, visibility, memo, checking, deferRuntimeHides)
 		} else {
-			visible = regionTargetVisible(state, target.TargetID, visibility, map[string]bool{}, map[string]bool{})
+			visible = regionTargetVisible(state, target.TargetID, visibility, map[string]bool{}, map[string]bool{}, deferRuntimeHides)
 		}
 	}
 	delete(checking, targetID)
@@ -177,6 +245,7 @@ func regionTargetVisible(
 	targetID string,
 	visibility visibilityState,
 	memo, checking map[string]bool,
+	deferRuntimeHides bool,
 ) bool {
 	if value, found := memo[targetID]; found {
 		return value
@@ -189,14 +258,15 @@ func regionTargetVisible(
 	visible := found && regionContributionVisible(target, visibility, true)
 	if visible {
 		for _, contribution := range state.regionsByTarget[targetID] {
-			if contribution.Action == ActionHide && regionContributionVisible(contribution, visibility, true) {
+			if contribution.Action == ActionHide && (!deferRuntimeHides || contribution.Artifact.Core) &&
+				regionContributionVisible(contribution, visibility, true) {
 				visible = false
 				break
 			}
 		}
 	}
 	if visible && target.TargetID != "" {
-		visible = regionTargetVisible(state, target.TargetID, visibility, memo, checking)
+		visible = regionTargetVisible(state, target.TargetID, visibility, memo, checking, deferRuntimeHides)
 	}
 	delete(checking, targetID)
 	memo[targetID] = visible
@@ -207,12 +277,15 @@ func navigationContributionVisible(contribution NavigationContribution, visibili
 	if visibility.hidden[contribution.ID] || provider && visibility.disabled[providerRefKey(contribution.ID, contribution.Artifact)] {
 		return false
 	}
-	return contribution.Permission == "" || visibility.permissions[contribution.Permission]
+	return actorVisibilityAllows(contribution.Visibility, visibility.canonical.Authenticated) &&
+		(contribution.Permission == "" || visibility.permissions[contribution.Permission])
 }
 
 func regionContributionVisible(contribution RegionContribution, visibility visibilityState, provider bool) bool {
 	return !visibility.hidden[contribution.ID] &&
-		(!provider || !visibility.disabled[providerRefKey(contribution.ID, contribution.Artifact)])
+		(!provider || !visibility.disabled[providerRefKey(contribution.ID, contribution.Artifact)]) &&
+		actorVisibilityAllows(contribution.Visibility, visibility.canonical.Authenticated) &&
+		(contribution.Permission == "" || visibility.permissions[contribution.Permission])
 }
 
 func normalizeVisibility(input VisibilityInput) (visibilityState, error) {
@@ -230,8 +303,19 @@ func normalizeVisibility(input VisibilityInput) (visibilityState, error) {
 	}
 	return visibilityState{
 		permissions: sliceSet(permissions), hidden: sliceSet(hidden), disabled: disabledSet,
-		canonical: VisibilityInput{Permissions: permissions, HiddenIDs: hidden, DisabledProviders: disabled},
+		canonical: VisibilityInput{Authenticated: input.Authenticated, Permissions: permissions, HiddenIDs: hidden, DisabledProviders: disabled},
 	}, nil
+}
+
+func actorVisibilityAllows(policy string, authenticated bool) bool {
+	switch policy {
+	case VisibilityAnonymous:
+		return !authenticated
+	case VisibilityAuthenticated:
+		return authenticated
+	default:
+		return true
+	}
 }
 
 func normalizeProviderRefs(input []ProviderRef) ([]ProviderRef, map[string]bool, error) {
@@ -302,7 +386,7 @@ func normalizeIDList(input []string) ([]string, error) {
 	return result, nil
 }
 
-func resolutionCacheKey(state *registryState, family string, kinds []string, visibility VisibilityInput) string {
+func resolutionCacheKey(state *registryState, family, locale string, kinds []string, visibility VisibilityInput) string {
 	var value strings.Builder
 	value.WriteString(SchemaVersion)
 	value.WriteByte(0)
@@ -311,6 +395,10 @@ func resolutionCacheKey(state *registryState, family string, kinds []string, vis
 	value.WriteString(state.digest)
 	value.WriteByte(0)
 	value.WriteString(family)
+	value.WriteByte(0)
+	value.WriteString(locale)
+	value.WriteByte(0)
+	value.WriteString(strconv.FormatBool(visibility.Authenticated))
 	for _, list := range [][]string{kinds, visibility.Permissions, visibility.HiddenIDs} {
 		value.WriteByte(0)
 		value.WriteString(strings.Join(list, "\x1f"))
@@ -326,7 +414,8 @@ func resolutionCacheKey(state *registryState, family string, kinds []string, vis
 
 func providerRefKey(contributionID string, artifact Artifact) string {
 	return contributionID + "\x00" + artifact.ExtensionID + "\x00" + artifact.ExtensionVersion + "\x00" +
-		artifact.PackageDigest + "\x00" + artifact.ImpactDigest + "\x00" + strconv.FormatBool(artifact.Core)
+		artifact.PackageDigest + "\x00" + artifact.ImpactDigest + "\x00" + strconv.FormatInt(artifact.VersionID, 10) + "\x00" +
+		artifact.RuntimeInstanceID + "\x00" + strconv.FormatBool(artifact.Core)
 }
 
 func sliceSet(values []string) map[string]bool {
