@@ -26,10 +26,12 @@ type Gateway struct {
 	commands                  *protocolV2CommandEngine
 	queries                   *protocolV2QueryEngine
 	database                  *protocolV2DatabaseEngine
+	cache                     *ProtocolV2CacheServiceServer
 	providers                 ProtocolV2ProviderBroker
 	protocolV2CommandsFrozen  bool
 	protocolV2QueriesFrozen   bool
 	protocolV2DatabaseFrozen  bool
+	protocolV2CacheFrozen     bool
 	protocolV2ProvidersFrozen bool
 	server                    *http.Server
 	ln                        net.Listener
@@ -49,13 +51,34 @@ func (g *Gateway) RegisterProtocolV2(server grpc.ServiceRegistrar) {
 	commands := g.commands
 	queries := g.queries
 	database := g.database
+	cache := g.cache
 	providers := g.providers
 	g.protocolV2CommandsFrozen = true
 	g.protocolV2QueriesFrozen = true
 	g.protocolV2DatabaseFrozen = true
+	g.protocolV2CacheFrozen = true
 	g.protocolV2ProvidersFrozen = true
 	g.mu.Unlock()
-	registerProtocolV2(server, service, services, commands, queries, database, providers)
+	registerProtocolV2(server, service, services, commands, queries, database, cache, providers)
+}
+
+// BindProtocolV2CacheService installs the production cache boundary before any
+// plugin broker is registered. Each broker retains this exact server pointer
+// for its lifetime; changing cache contracts requires a new Gateway boot.
+func (g *Gateway) BindProtocolV2CacheService(server *ProtocolV2CacheServiceServer) error {
+	if g == nil || server == nil || server.service == nil {
+		return fmt.Errorf("hostapi: protocol v2 cache service is required")
+	}
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	if g.protocolV2CacheFrozen {
+		return fmt.Errorf("hostapi: protocol v2 cache service is frozen until the next Gateway boot")
+	}
+	if g.cache != nil {
+		return fmt.Errorf("hostapi: protocol v2 cache service is already bound")
+	}
+	g.cache = server
+	return nil
 }
 
 func (g *Gateway) BindProtocolV2ProviderBroker(provider ProtocolV2ProviderBroker) error {

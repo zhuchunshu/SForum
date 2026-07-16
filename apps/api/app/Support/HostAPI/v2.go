@@ -35,7 +35,16 @@ type protocolV2Core struct {
 	providers ProtocolV2ProviderBroker
 }
 
-func registerProtocolV2(server grpc.ServiceRegistrar, service *Service, services *ServiceRegistry, commands *protocolV2CommandEngine, queries *protocolV2QueryEngine, database *protocolV2DatabaseEngine, providers ProtocolV2ProviderBroker) {
+func registerProtocolV2(
+	server grpc.ServiceRegistrar,
+	service *Service,
+	services *ServiceRegistry,
+	commands *protocolV2CommandEngine,
+	queries *protocolV2QueryEngine,
+	database *protocolV2DatabaseEngine,
+	cache *ProtocolV2CacheServiceServer,
+	providers ProtocolV2ProviderBroker,
+) {
 	core := &protocolV2Core{service: service, services: services, commands: commands, queries: queries, database: database, providers: providers}
 	hostv2.RegisterHostQueryServiceServer(server, &protocolV2QueryServer{core: core})
 	hostv2.RegisterHostCommandServiceServer(server, &protocolV2CommandServer{core: core})
@@ -45,6 +54,9 @@ func registerProtocolV2(server grpc.ServiceRegistrar, service *Service, services
 	hostv2.RegisterJobServiceServer(server, &protocolV2JobServer{core: core})
 	hostv2.RegisterAuditServiceServer(server, &protocolV2AuditServer{core: core})
 	hostv2.RegisterServiceDiscoveryServiceServer(server, &protocolV2ServiceDiscoveryServer{core: core})
+	if cache != nil {
+		hostv2.RegisterCacheServiceServer(server, cache)
+	}
 }
 
 func (c *protocolV2Core) call(ctx context.Context, requestContext *protocolv2.RequestContext, method string, payload map[string]any) Response {
