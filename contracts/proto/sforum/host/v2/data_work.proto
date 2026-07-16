@@ -93,6 +93,7 @@ message CacheGetResponse {
   bool found = 2;
   sforum.protocol.v2.TypedDocument value = 3;
   sforum.protocol.v2.ErrorDetail error = 4;
+  string revision = 5;
 }
 
 message CacheSetRequest {

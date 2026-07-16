@@ -121,7 +121,7 @@ func TestProtocolV2CacheLockRenewsAndAtomicallyStoresOnce(t *testing.T) {
 		Context: h.requestContext, Namespace: h.fixture.cache.Namespace, Key: "post:42",
 		ValueSchemaId: h.fixture.schema.ID, ValueSchemaVersion: h.fixture.schema.Version,
 	})
-	if err != nil || get.GetError() != nil || !get.GetFound() ||
+	if err != nil || get.GetError() != nil || !get.GetFound() || get.GetRevision() != committed.GetRevision() ||
 		get.GetValue().GetValue().AsMap()["title"] != "atomic" {
 		t.Fatalf("get = %#v, %v", get, err)
 	}

@@ -42,7 +42,8 @@ func TestProtocolV2CacheServiceUsesAttestedRuntimeAndCurrentContract(t *testing.
 		Context: requestContext, Namespace: fixture.cache.Namespace, Key: "post:42",
 		ValueSchemaId: fixture.schema.ID, ValueSchemaVersion: fixture.schema.Version,
 	})
-	if err != nil || get.GetError() != nil || !get.GetFound() || get.GetValue().GetValue().AsMap()["title"] != "cached" {
+	if err != nil || get.GetError() != nil || !get.GetFound() || get.GetRevision() != set.GetRevision() ||
+		get.GetValue().GetValue().AsMap()["title"] != "cached" {
 		t.Fatalf("get=%#v err=%v", get, err)
 	}
 

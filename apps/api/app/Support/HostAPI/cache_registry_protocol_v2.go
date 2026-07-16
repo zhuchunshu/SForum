@@ -62,6 +62,7 @@ func (s *ProtocolV2CacheServiceServer) Get(
 		return response, nil
 	}
 	response.Found = true
+	response.Revision = result.Revision
 	response.Value = &protocolv2.TypedDocument{
 		SchemaId: request.GetValueSchemaId(), SchemaVersion: request.GetValueSchemaVersion(), Value: value,
 	}

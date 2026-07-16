@@ -470,6 +470,7 @@ type CacheGetResponse struct {
 	Found         bool                   `protobuf:"varint,2,opt,name=found,proto3" json:"found,omitempty"`
 	Value         *v2.TypedDocument      `protobuf:"bytes,3,opt,name=value,proto3" json:"value,omitempty"`
 	Error         *v2.ErrorDetail        `protobuf:"bytes,4,opt,name=error,proto3" json:"error,omitempty"`
+	Revision      string                 `protobuf:"bytes,5,opt,name=revision,proto3" json:"revision,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -530,6 +531,13 @@ func (x *CacheGetResponse) GetError() *v2.ErrorDetail {
 		return x.Error
 	}
 	return nil
+}
+
+func (x *CacheGetResponse) GetRevision() string {
+	if x != nil {
+		return x.Revision
+	}
+	return ""
 }
 
 type CacheSetRequest struct {
@@ -2320,12 +2328,13 @@ const file_sforum_host_v2_data_work_proto_rawDesc = "" +
 	"\tnamespace\x18\x02 \x01(\tR\tnamespace\x12\x10\n" +
 	"\x03key\x18\x03 \x01(\tR\x03key\x12&\n" +
 	"\x0fvalue_schema_id\x18\x04 \x01(\tR\rvalueSchemaId\x120\n" +
-	"\x14value_schema_version\x18\x05 \x01(\tR\x12valueSchemaVersion\"\xd7\x01\n" +
+	"\x14value_schema_version\x18\x05 \x01(\tR\x12valueSchemaVersion\"\xf3\x01\n" +
 	"\x10CacheGetResponse\x12=\n" +
 	"\acontext\x18\x01 \x01(\v2#.sforum.protocol.v2.ResponseContextR\acontext\x12\x14\n" +
 	"\x05found\x18\x02 \x01(\bR\x05found\x127\n" +
 	"\x05value\x18\x03 \x01(\v2!.sforum.protocol.v2.TypedDocumentR\x05value\x125\n" +
-	"\x05error\x18\x04 \x01(\v2\x1f.sforum.protocol.v2.ErrorDetailR\x05error\"\xa6\x02\n" +
+	"\x05error\x18\x04 \x01(\v2\x1f.sforum.protocol.v2.ErrorDetailR\x05error\x12\x1a\n" +
+	"\brevision\x18\x05 \x01(\tR\brevision\"\xa6\x02\n" +
 	"\x0fCacheSetRequest\x12<\n" +
 	"\acontext\x18\x01 \x01(\v2\".sforum.protocol.v2.RequestContextR\acontext\x12\x1c\n" +
 	"\tnamespace\x18\x02 \x01(\tR\tnamespace\x12\x10\n" +

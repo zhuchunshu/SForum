@@ -15,6 +15,10 @@ func TestCacheIncrementProtocolContract(t *testing.T) {
 	assertFields(t, "sforum.host.v2.CacheIncrementResponse", "context", "value", "error")
 }
 
+func TestCacheGetProtocolContract(t *testing.T) {
+	assertFields(t, "sforum.host.v2.CacheGetResponse", "context", "found", "value", "error", "revision")
+}
+
 func TestCacheLockProtocolContract(t *testing.T) {
 	for _, methodName := range []protoreflect.FullName{
 		"sforum.host.v2.CacheService.AcquireLock",
