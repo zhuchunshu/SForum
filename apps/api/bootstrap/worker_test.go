@@ -3,6 +3,7 @@ package bootstrap
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"strings"
 	"testing"
 
@@ -136,11 +137,11 @@ func TestResolveWorkerExtensionRuntimeInjectedSkipsStandalone(t *testing.T) {
 	injected := &countingWorkerRuntime{}
 	standaloneBuilds := 0
 
-	runtime, gateway, owns, err := resolveWorkerExtensionRuntime(
+	runtime, gateway, coordinator, owns, err := resolveWorkerExtensionRuntime(
 		workerRuntimeDeps{ExtensionRuntime: injected, OwnsRuntime: false},
-		func() (workerExtensionRuntime, hostAPIGatewayCloser, error) {
+		func() (workerExtensionRuntime, hostAPIGatewayCloser, *pluginRuntimeCoordinatorRuntime, error) {
 			standaloneBuilds++
-			return &countingWorkerRuntime{}, &noopHostGateway{}, nil
+			return &countingWorkerRuntime{}, &noopHostGateway{}, nil, nil
 		},
 	)
 	if err != nil {
@@ -151,6 +152,9 @@ func TestResolveWorkerExtensionRuntimeInjectedSkipsStandalone(t *testing.T) {
 	}
 	if gateway != nil {
 		t.Fatal("expected no host gateway when runtime is injected")
+	}
+	if coordinator != nil {
+		t.Fatal("embedded worker must not own a plugin runtime coordinator")
 	}
 	if owns {
 		t.Fatal("expected OwnsRuntime=false for injected runtime")
@@ -166,11 +170,11 @@ func TestResolveWorkerExtensionRuntimeStandaloneOwns(t *testing.T) {
 	gw := &noopHostGateway{}
 	standaloneBuilds := 0
 
-	runtime, gateway, owns, err := resolveWorkerExtensionRuntime(
+	runtime, gateway, coordinator, owns, err := resolveWorkerExtensionRuntime(
 		workerRuntimeDeps{},
-		func() (workerExtensionRuntime, hostAPIGatewayCloser, error) {
+		func() (workerExtensionRuntime, hostAPIGatewayCloser, *pluginRuntimeCoordinatorRuntime, error) {
 			standaloneBuilds++
-			return standalone, gw, nil
+			return standalone, gw, newInactivePluginRuntimeCoordinatorRuntime(), nil
 		},
 	)
 	if err != nil {
@@ -181,6 +185,9 @@ func TestResolveWorkerExtensionRuntimeStandaloneOwns(t *testing.T) {
 	}
 	if gateway != gw {
 		t.Fatal("expected standalone host gateway")
+	}
+	if coordinator == nil {
+		t.Fatal("expected standalone coordinator handle")
 	}
 	if !owns {
 		t.Fatal("expected OwnsRuntime=true for standalone")
@@ -193,6 +200,7 @@ func TestResolveWorkerExtensionRuntimeStandaloneOwns(t *testing.T) {
 func TestStandaloneWorkerRuntimeUsesCipherServiceSettings(t *testing.T) {
 	original := newStandaloneWorkerRuntimeManager
 	defer func() { newStandaloneWorkerRuntimeManager = original }()
+	stubStandaloneWorkerRuntimeCoordinator(t, nil)
 
 	cipher, _ := crypto.NewOptionCipher(strings.Repeat("b", 64))
 	enc, _ := cipher.Encrypt("worker-secret")
@@ -210,7 +218,7 @@ func TestStandaloneWorkerRuntimeUsesCipherServiceSettings(t *testing.T) {
 		}
 		return &countingWorkerRuntime{}
 	}
-	runtime, gateway, err := buildStandaloneWorkerExtensionRuntime(
+	runtime, gateway, coordinator, err := buildStandaloneWorkerExtensionRuntime(
 		context.Background(), config.Config{ExtensionRoot: t.TempDir()},
 		recordingDatabaseBinderFactory(nil), newRecordingCommandRuntimeBinder(nil),
 		store, cipher, nil, nil, "", nil, nil,
@@ -219,6 +227,7 @@ func TestStandaloneWorkerRuntimeUsesCipherServiceSettings(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer gateway.Close()
+	defer coordinator.Stop(context.Background())
 	runtime.Close(context.Background())
 	if got["token"] != "worker-secret" {
 		t.Fatalf("standalone worker runtime received %#v", got)
@@ -236,20 +245,21 @@ func TestStandaloneWorkerSafeModeReconcilesNoExtensions(t *testing.T) {
 	newStandaloneWorkerRuntimeManager = func(_ extensions.Store, _ extensionsruntime.HostAPIRegistrar, _ extensionsruntime.PluginSettings, _ extensionsruntime.RuntimeTrustSource, _ extensionsruntime.RuntimeDatabaseLeaseRegistry) workerExtensionRuntime {
 		return runtime
 	}
-	built, gateway, err := buildStandaloneWorkerExtensionRuntime(context.Background(), config.Config{
+	built, gateway, coordinator, err := buildStandaloneWorkerExtensionRuntime(context.Background(), config.Config{
 		SafeMode: true, ExtensionRoot: t.TempDir(),
 	}, recordingDatabaseBinderFactory(nil), newRecordingCommandRuntimeBinder(nil), store, nil, nil, nil, "", nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer gateway.Close()
+	defer coordinator.Stop(context.Background())
 	built.Close(context.Background())
 	if len(runtime.reconciledItems) != 0 {
 		t.Fatalf("safe worker reconciled extensions: %#v", runtime.reconciledItems)
 	}
 }
 
-func TestStandaloneWorkerBindsDatabaseCatalogBeforeReconcile(t *testing.T) {
+func TestStandaloneWorkerBindsDatabaseCatalogBeforeCoordinator(t *testing.T) {
 	original := newStandaloneWorkerRuntimeManager
 	defer func() { newStandaloneWorkerRuntimeManager = original }()
 
@@ -258,18 +268,20 @@ func TestStandaloneWorkerBindsDatabaseCatalogBeforeReconcile(t *testing.T) {
 	runtime := &countingWorkerRuntime{}
 	binder := &recordingDatabaseCatalogBinder{}
 	commandBinder := &recordingCommandRuntimeBinder{}
-	newStandaloneWorkerRuntimeManager = func(_ extensions.Store, _ extensionsruntime.HostAPIRegistrar, _ extensionsruntime.PluginSettings, _ extensionsruntime.RuntimeTrustSource, _ extensionsruntime.RuntimeDatabaseLeaseRegistry) workerExtensionRuntime {
-		runtime.onReconcile = func() {
-			if binder.bindCalls != 1 || len(binder.bound.queries) != 1 || len(binder.bound.executes) != 1 {
-				t.Fatalf("database catalog was not bound before Reconcile: %#v", binder)
-			}
-			if commandBinder.bindCalls != 1 {
-				t.Fatalf("Host Command catalog was not bound before Reconcile: %#v", commandBinder)
-			}
+	coordinatorStarts := 0
+	stubStandaloneWorkerRuntimeCoordinator(t, func() {
+		coordinatorStarts++
+		if binder.bindCalls != 1 || len(binder.bound.queries) != 1 || len(binder.bound.executes) != 1 {
+			t.Fatalf("database catalog was not bound before coordinator: %#v", binder)
 		}
+		if commandBinder.bindCalls != 1 {
+			t.Fatalf("Host Command catalog was not bound before coordinator: %#v", commandBinder)
+		}
+	})
+	newStandaloneWorkerRuntimeManager = func(_ extensions.Store, _ extensionsruntime.HostAPIRegistrar, _ extensionsruntime.PluginSettings, _ extensionsruntime.RuntimeTrustSource, _ extensionsruntime.RuntimeDatabaseLeaseRegistry) workerExtensionRuntime {
 		return runtime
 	}
-	built, gateway, err := buildStandaloneWorkerExtensionRuntime(
+	built, gateway, coordinator, err := buildStandaloneWorkerExtensionRuntime(
 		context.Background(), config.Config{ExtensionRoot: t.TempDir()},
 		recordingDatabaseBinderFactory(binder), newRecordingCommandRuntimeBinder(commandBinder),
 		store, nil, nil, nil, "", nil, nil,
@@ -278,20 +290,25 @@ func TestStandaloneWorkerBindsDatabaseCatalogBeforeReconcile(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer gateway.Close()
+	defer coordinator.Stop(context.Background())
 	built.Close(context.Background())
-	if len(runtime.reconciledItems) != 1 || runtime.reconciledItems[0].ID != plugin.ID {
-		t.Fatalf("reconciled items = %#v", runtime.reconciledItems)
+	if coordinatorStarts != 1 {
+		t.Fatalf("coordinator starts = %d", coordinatorStarts)
+	}
+	if len(runtime.reconciledItems) != 0 {
+		t.Fatalf("standalone worker must not use direct Reconcile: %#v", runtime.reconciledItems)
 	}
 }
 
 func TestStandaloneWorkerRegistersHostCacheBeforeReturningRuntime(t *testing.T) {
+	stubStandaloneWorkerRuntimeCoordinator(t, nil)
 	client := redis.NewClient(&redis.Options{Addr: "127.0.0.1:1"})
 	t.Cleanup(func() { _ = client.Close() })
 	item := runtimeSettingsExtension("worker.cache.bootstrap")
 	item.Status = extensions.StatusDisabled
 	store := &bootstrapExtensionSettingsStore{item: item}
 
-	runtime, closer, err := buildStandaloneWorkerExtensionRuntime(
+	runtime, closer, coordinator, err := buildStandaloneWorkerExtensionRuntime(
 		context.Background(),
 		config.Config{DatabaseURL: "postgres://db/sforum", ExtensionRoot: t.TempDir()},
 		recordingDatabaseBinderFactory(nil), newRecordingCommandRuntimeBinder(nil),
@@ -301,6 +318,7 @@ func TestStandaloneWorkerRegistersHostCacheBeforeReturningRuntime(t *testing.T) 
 		t.Fatal(err)
 	}
 	t.Cleanup(func() {
+		_ = coordinator.Stop(context.Background())
 		runtime.Close(context.Background())
 		_ = closer.Close()
 	})
@@ -329,7 +347,7 @@ func TestStandaloneWorkerHostCacheRejectsNonProductionRuntime(t *testing.T) {
 	}
 	client := redis.NewClient(&redis.Options{Addr: "127.0.0.1:1"})
 	t.Cleanup(func() { _ = client.Close() })
-	_, gateway, err := buildStandaloneWorkerExtensionRuntime(
+	_, gateway, _, err := buildStandaloneWorkerExtensionRuntime(
 		context.Background(),
 		config.Config{DatabaseURL: "postgres://db/sforum", ExtensionRoot: t.TempDir()},
 		recordingDatabaseBinderFactory(nil), newRecordingCommandRuntimeBinder(nil),
@@ -348,6 +366,24 @@ func recordingDatabaseBinderFactory(binder *recordingDatabaseCatalogBinder) prot
 		binder = &recordingDatabaseCatalogBinder{}
 	}
 	return func(*hostapi.Gateway) protocolV2DatabaseCatalogBinder { return binder }
+}
+
+func stubStandaloneWorkerRuntimeCoordinator(t *testing.T, onStart func()) {
+	t.Helper()
+	original := startStandaloneWorkerRuntimeCoordinator
+	startStandaloneWorkerRuntimeCoordinator = func(
+		context.Context,
+		config.Config,
+		extensions.Store,
+		workerExtensionRuntime,
+		*slog.Logger,
+	) (*pluginRuntimeCoordinatorRuntime, error) {
+		if onStart != nil {
+			onStart()
+		}
+		return newInactivePluginRuntimeCoordinatorRuntime(), nil
+	}
+	t.Cleanup(func() { startStandaloneWorkerRuntimeCoordinator = original })
 }
 
 type recordingCommandRuntimeBinder struct {
@@ -385,12 +421,12 @@ func TestEmbedSharedRuntimeSingleStart(t *testing.T) {
 	}
 
 	// Embed 路径：注入同一 manager，resolve 不得触发二次 build/Reconcile。
-	runtime, _, owns, err := resolveWorkerExtensionRuntime(
+	runtime, _, coordinator, owns, err := resolveWorkerExtensionRuntime(
 		workerRuntimeDeps{ExtensionRuntime: manager, OwnsRuntime: false},
-		func() (workerExtensionRuntime, hostAPIGatewayCloser, error) {
+		func() (workerExtensionRuntime, hostAPIGatewayCloser, *pluginRuntimeCoordinatorRuntime, error) {
 			// 若被调用，会再 NewManager+Reconcile，导致第二次 Start。
 			t.Fatal("standalone builder must not run when runtime is injected")
-			return nil, nil, nil
+			return nil, nil, nil, nil
 		},
 	)
 	if err != nil {
@@ -398,6 +434,9 @@ func TestEmbedSharedRuntimeSingleStart(t *testing.T) {
 	}
 	if owns {
 		t.Fatal("embed must not own shared runtime")
+	}
+	if coordinator != nil {
+		t.Fatal("embed must not create a plugin runtime coordinator")
 	}
 	// 注入后 worker 侧不应再 Reconcile；Start 仍为 1。
 	if starter.starts["sforum.smtp"] != 1 {

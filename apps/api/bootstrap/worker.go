@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
@@ -46,6 +47,9 @@ type Worker struct {
 	// Schedules 是宿主 schedule catalog（含元数据）；River PeriodicJobs 由其 Build 得到。
 	Schedules       *supportjobs.ScheduleRegistry
 	PluginSchedules *supportjobs.PluginScheduleAdmissionRegistry
+	// failures 只承载独立 worker 所拥有的插件运行时 coordinator 终止错误。
+	// embed 与 Safe Mode 不创建 coordinator，因此保持 nil，避免伪造故障源。
+	failures <-chan error
 
 	closeOnce sync.Once
 	close     func()
@@ -68,6 +72,9 @@ type workerExtensionRuntime interface {
 type workerRuntimeDeps struct {
 	ExtensionRuntime workerExtensionRuntime
 	PluginSchedules  *supportjobs.PluginScheduleAdmissionRegistry
+	// BootstrapContext 仅供独立 worker 等待首轮 durable convergence；embed
+	// 路径复用 API runtime，不读取该字段。
+	BootstrapContext context.Context
 	// HostCacheRedis is shared by standalone Host Cache and worker heartbeat.
 	// Embed mode leaves it nil because the API-owned Gateway is already bound.
 	HostCacheRedis          *redis.Client
@@ -80,6 +87,155 @@ type workerRuntimeDeps struct {
 // hostAPIGatewayCloser 仅用于 worker 自建 Host API 时的关闭钩子。
 type hostAPIGatewayCloser interface {
 	Close() error
+}
+
+type standaloneWorkerRuntimeCoordinatorStarter func(
+	context.Context,
+	config.Config,
+	extensions.Store,
+	workerExtensionRuntime,
+	*slog.Logger,
+) (*pluginRuntimeCoordinatorRuntime, error)
+
+// startStandaloneWorkerRuntimeCoordinator 保留泛型 Store/runtime 形状仅为
+// bootstrap 单测注入；生产路径必须收窄为 PostgresStore + Manager，且只通过
+// 现有 exact full-set coordinator 启动插件。
+var startStandaloneWorkerRuntimeCoordinator standaloneWorkerRuntimeCoordinatorStarter = func(
+	ctx context.Context,
+	cfg config.Config,
+	store extensions.Store,
+	runtime workerExtensionRuntime,
+	logger *slog.Logger,
+) (*pluginRuntimeCoordinatorRuntime, error) {
+	coordinatorConfig := pluginRuntimeCoordinatorBootstrapConfig{
+		SafeMode:    cfg.SafeMode,
+		ProcessRole: extensions.PluginRuntimeProcessWorker,
+		Logger:      logger,
+		StopTimeout: cfg.WorkerShutdownTimeout,
+	}
+	// Safe Mode 必须在具体依赖断言前返回，确保测试和恢复启动都不会触发
+	// hostname、genesis、节点注册、LISTEN 或插件进程。
+	if cfg.SafeMode {
+		return startPluginRuntimeCoordinator(ctx, coordinatorConfig)
+	}
+	postgresStore, storeOK := store.(*extensions.PostgresStore)
+	manager, runtimeOK := runtime.(*extensionsruntime.Manager)
+	if !storeOK || postgresStore == nil || !runtimeOK || manager == nil {
+		return nil, fmt.Errorf("standalone worker plugin runtime coordinator requires PostgresStore and production Manager")
+	}
+	coordinatorConfig.Store = postgresStore
+	coordinatorConfig.Manager = manager
+	return startPluginRuntimeCoordinator(ctx, coordinatorConfig)
+}
+
+// workerRuntimeOwner enforces the standalone shutdown order. A terminal
+// coordinator failure closes Manager admission immediately, while River and
+// the Gateway remain available for the command-level graceful shutdown path.
+type workerRuntimeOwner struct {
+	runtime     workerExtensionRuntime
+	gateway     hostAPIGatewayCloser
+	coordinator *pluginRuntimeCoordinatorRuntime
+	logger      *slog.Logger
+	stopTimeout time.Duration
+	failures    chan error
+
+	runtimeCloseOnce sync.Once
+	gatewayCloseOnce sync.Once
+	closeOnce        sync.Once
+}
+
+func newWorkerRuntimeOwner(
+	runtime workerExtensionRuntime,
+	gateway hostAPIGatewayCloser,
+	coordinator *pluginRuntimeCoordinatorRuntime,
+	logger *slog.Logger,
+	stopTimeout time.Duration,
+) *workerRuntimeOwner {
+	owner := &workerRuntimeOwner{
+		runtime: runtime, gateway: gateway, coordinator: coordinator, logger: logger,
+		stopTimeout: normalizedPluginRuntimeCoordinatorStopTimeout(stopTimeout),
+	}
+	if coordinator != nil && coordinator.Active() {
+		owner.failures = make(chan error, 1)
+		go owner.monitorCoordinator()
+	}
+	return owner
+}
+
+func (owner *workerRuntimeOwner) monitorCoordinator() {
+	defer close(owner.failures)
+	err, ok := <-owner.coordinator.Failures()
+	if !ok || err == nil {
+		return
+	}
+	// lease/heartbeat 已失效时，继续保留任何可调用插件都会伪造授权。
+	// 先关 Manager admission，再通知命令层停止 River 并退出。
+	owner.closeRuntime()
+	owner.failures <- err
+}
+
+func (owner *workerRuntimeOwner) startupError() error {
+	if owner == nil || owner.coordinator == nil || !owner.coordinator.Active() {
+		return nil
+	}
+	select {
+	case <-owner.coordinator.Done():
+		if err := owner.coordinator.Err(); err != nil {
+			return fmt.Errorf("standalone worker plugin runtime coordinator stopped during bootstrap: %w", err)
+		}
+		return errPluginRuntimeCoordinatorStoppedBeforeReady
+	default:
+		return nil
+	}
+}
+
+func (owner *workerRuntimeOwner) closeRuntime() {
+	if owner == nil {
+		return
+	}
+	owner.runtimeCloseOnce.Do(func() {
+		if owner.runtime == nil {
+			return
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), owner.stopTimeout)
+		defer cancel()
+		owner.runtime.Close(ctx)
+	})
+}
+
+func (owner *workerRuntimeOwner) closeGateway() {
+	if owner == nil {
+		return
+	}
+	owner.gatewayCloseOnce.Do(func() {
+		if owner.gateway != nil {
+			_ = owner.gateway.Close()
+		}
+	})
+}
+
+func (owner *workerRuntimeOwner) Close() {
+	if owner == nil {
+		return
+	}
+	owner.closeOnce.Do(func() {
+		if owner.coordinator != nil {
+			ctx, cancel := context.WithTimeout(context.Background(), owner.stopTimeout)
+			if err := owner.coordinator.Stop(ctx); err != nil && owner.logger != nil {
+				owner.logger.Warn("standalone worker plugin runtime coordinator stop failed", "error", err)
+			}
+			cancel()
+		}
+		owner.closeRuntime()
+		owner.closeGateway()
+	})
+}
+
+func (owner *workerRuntimeOwner) Failures() <-chan error {
+	if owner == nil {
+		return nil
+	}
+	return owner.failures
 }
 
 type pluginJobRuntimeResolver struct {
@@ -149,7 +305,7 @@ func buildStandaloneWorkerExtensionRuntime(
 	cacheClient *redis.Client,
 	logger *slog.Logger,
 	coordinators ...*extensions.ActivationCoordinator,
-) (workerExtensionRuntime, hostAPIGatewayCloser, error) {
+) (workerExtensionRuntime, hostAPIGatewayCloser, *pluginRuntimeCoordinatorRuntime, error) {
 	service := extensions.NewServiceWithBuiltins(store, cfg.ExtensionRoot, cfg.BuiltinExtensionRoot)
 	extensions.WithCipher(cipher)(service)
 	extensions.WithSafeMode(cfg.SafeMode)(service)
@@ -164,15 +320,15 @@ func buildStandaloneWorkerExtensionRuntime(
 	workerHostGateway := hostapi.NewGateway(workerHostAPI)
 	if commandBinder == nil {
 		_ = workerHostGateway.Close()
-		return nil, nil, fmt.Errorf("worker Host Command runtime binder is required")
+		return nil, nil, nil, fmt.Errorf("worker Host Command runtime binder is required")
 	}
 	if err := commandBinder(workerHostGateway); err != nil {
 		_ = workerHostGateway.Close()
-		return nil, nil, fmt.Errorf("bind worker Host Command runtime: %w", err)
+		return nil, nil, nil, fmt.Errorf("bind worker Host Command runtime: %w", err)
 	}
 	if databaseBinderFactory == nil {
 		_ = workerHostGateway.Close()
-		return nil, nil, fmt.Errorf("worker DatabaseService catalog binder is required")
+		return nil, nil, nil, fmt.Errorf("worker DatabaseService catalog binder is required")
 	}
 	databaseBinder := databaseBinderFactory(workerHostGateway)
 	managedRuntime := newStandaloneWorkerRuntimeManager(store, workerHostGateway, service, trust, databaseLeases)
@@ -182,7 +338,7 @@ func buildStandaloneWorkerExtensionRuntime(
 		if !ok || manager == nil {
 			managedRuntime.Close(ctx)
 			_ = workerHostGateway.Close()
-			return nil, nil, fmt.Errorf("worker Host Cache requires the exact production runtime Manager")
+			return nil, nil, nil, fmt.Errorf("worker Host Cache requires the exact production runtime Manager")
 		}
 		admission := newPluginServiceProviderAdmission(manager)
 		workerHostAPI.BindServiceProviderAdmission(admission)
@@ -192,7 +348,7 @@ func buildStandaloneWorkerExtensionRuntime(
 		); err != nil {
 			managedRuntime.Close(ctx)
 			_ = workerHostGateway.Close()
-			return nil, nil, fmt.Errorf("bind worker Host Cache runtime: %w", err)
+			return nil, nil, nil, fmt.Errorf("bind worker Host Cache runtime: %w", err)
 		}
 		cachePublications = extensionsruntime.NewPostgresLifecycleBoundaryRegistries(
 			extensionsruntime.LifecycleRegistryBoundaryConfig{Manager: manager, Caches: cacheRegistry},
@@ -202,7 +358,7 @@ func buildStandaloneWorkerExtensionRuntime(
 	if err := bindProtocolV2ProviderBroker(workerHostGateway, managedRuntime); err != nil {
 		managedRuntime.Close(ctx)
 		_ = workerHostGateway.Close()
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	if runtime, ok := managedRuntime.(interface {
 		SetStartPreparer(func(context.Context, extensions.Extension) error)
@@ -218,33 +374,53 @@ func buildStandaloneWorkerExtensionRuntime(
 	if _, err := service.SyncBuiltins(ctx); err != nil {
 		managedRuntime.Close(ctx)
 		_ = workerHostGateway.Close()
-		return nil, nil, fmt.Errorf("sync worker builtin extensions: %w", err)
+		return nil, nil, nil, fmt.Errorf("sync worker builtin extensions: %w", err)
 	}
 	items, err := store.List(ctx)
 	if err != nil {
 		managedRuntime.Close(ctx)
 		_ = workerHostGateway.Close()
-		return nil, nil, fmt.Errorf("list worker extensions: %w", err)
+		return nil, nil, nil, fmt.Errorf("list worker extensions: %w", err)
 	}
 	// 独立 worker 同样会启动插件 broker，必须先绑定同一份精确 SQL catalog。
 	if err := bindProtocolV2DatabaseRuntime(databaseBinder, items, cfg.SafeMode); err != nil {
 		managedRuntime.Close(ctx)
 		_ = workerHostGateway.Close()
-		return nil, nil, fmt.Errorf("bind worker DatabaseService runtime: %w", err)
+		return nil, nil, nil, fmt.Errorf("bind worker DatabaseService runtime: %w", err)
 	}
-	if cfg.SafeMode {
-		managedRuntime.Reconcile(ctx, nil)
-	} else {
-		managedRuntime.Reconcile(ctx, items)
+	cleanupRuntime := func(coordinator *pluginRuntimeCoordinatorRuntime) {
+		timeout := normalizedPluginRuntimeCoordinatorStopTimeout(cfg.WorkerShutdownTimeout)
+		if coordinator != nil {
+			stopCtx, cancel := context.WithTimeout(context.Background(), timeout)
+			_ = coordinator.Stop(stopCtx)
+			cancel()
+		}
+		// coordinator 超时不得耗尽 Manager 的关闭预算；使用独立 context
+		// 确保启动失败仍会关闭 process-local admission。
+		runtimeCtx, cancel := context.WithTimeout(context.Background(), timeout)
+		managedRuntime.Close(runtimeCtx)
+		cancel()
+		_ = workerHostGateway.Close()
+	}
+	coordinator, err := startStandaloneWorkerRuntimeCoordinator(ctx, cfg, store, managedRuntime, logger)
+	if err != nil {
+		cleanupRuntime(nil)
+		return nil, nil, nil, fmt.Errorf("start standalone worker plugin runtime coordinator: %w", err)
+	}
+	// Registry 恢复必须读取首轮 convergence 之后的元数据，不能复用启动
+	// coordinator 前的快照，否则并发 publication 可能留下陈旧 Cache 目录。
+	reconciledItems, err := store.List(ctx)
+	if err != nil {
+		cleanupRuntime(coordinator)
+		return nil, nil, nil, fmt.Errorf("reload worker extensions after runtime convergence: %w", err)
 	}
 	if cachePublications != nil {
-		if err := cachePublications.RestoreCachePublications(ctx, items, cfg.SafeMode); err != nil {
-			managedRuntime.Close(ctx)
-			_ = workerHostGateway.Close()
-			return nil, nil, fmt.Errorf("restore worker Cache Registry publications: %w", err)
+		if err := cachePublications.RestoreCachePublications(ctx, reconciledItems, cfg.SafeMode); err != nil {
+			cleanupRuntime(coordinator)
+			return nil, nil, nil, fmt.Errorf("restore worker Cache Registry publications: %w", err)
 		}
 	}
-	return managedRuntime, workerHostGateway, nil
+	return managedRuntime, workerHostGateway, coordinator, nil
 }
 
 func NewWorker(ctx context.Context, cfg config.Config, logger *slog.Logger) (*Worker, error) {
@@ -281,7 +457,8 @@ func NewWorker(ctx context.Context, cfg config.Config, logger *slog.Logger) (*Wo
 	})
 	// 独立 worker：自建 runtime，OwnsRuntime 由 newWorkerWithPool 在 nil inject 时设为 true。
 	worker, err := newWorkerWithPool(cfg, pool, logger, workerRuntimeDeps{
-		HostCacheRedis: redisClient, HostCacheInstallationID: hostInstallationID,
+		BootstrapContext: ctx,
+		HostCacheRedis:   redisClient, HostCacheInstallationID: hostInstallationID,
 	})
 	if err != nil {
 		_ = redisClient.Close()
@@ -321,16 +498,16 @@ func NewWorker(ctx context.Context, cfg config.Config, logger *slog.Logger) (*Wo
 // 注入时 ownsRuntime=false 且不调用 buildStandalone（因此不会二次 Reconcile/Start）。
 func resolveWorkerExtensionRuntime(
 	deps workerRuntimeDeps,
-	buildStandalone func() (workerExtensionRuntime, hostAPIGatewayCloser, error),
-) (workerExtensionRuntime, hostAPIGatewayCloser, bool, error) {
+	buildStandalone func() (workerExtensionRuntime, hostAPIGatewayCloser, *pluginRuntimeCoordinatorRuntime, error),
+) (workerExtensionRuntime, hostAPIGatewayCloser, *pluginRuntimeCoordinatorRuntime, bool, error) {
 	if deps.ExtensionRuntime != nil {
-		return deps.ExtensionRuntime, nil, false, nil
+		return deps.ExtensionRuntime, nil, nil, false, nil
 	}
-	runtime, gateway, err := buildStandalone()
+	runtime, gateway, coordinator, err := buildStandalone()
 	if err != nil {
-		return nil, nil, false, err
+		return nil, nil, nil, false, err
 	}
-	return runtime, gateway, true, nil
+	return runtime, gateway, coordinator, true, nil
 }
 
 func newWorkerWithPool(cfg config.Config, pool *pgxpool.Pool, logger *slog.Logger, deps workerRuntimeDeps) (*Worker, error) {
@@ -354,14 +531,18 @@ func newWorkerWithPool(cfg config.Config, pool *pgxpool.Pool, logger *slog.Logge
 		return nil, fmt.Errorf("create worker option cipher: %w", err)
 	}
 
-	extensionRuntime, hostGateway, ownsRuntime, err := resolveWorkerExtensionRuntime(deps, func() (workerExtensionRuntime, hostAPIGatewayCloser, error) {
+	bootstrapCtx := deps.BootstrapContext
+	if bootstrapCtx == nil {
+		bootstrapCtx = context.Background()
+	}
+	extensionRuntime, hostGateway, runtimeCoordinator, ownsRuntime, err := resolveWorkerExtensionRuntime(deps, func() (workerExtensionRuntime, hostAPIGatewayCloser, *pluginRuntimeCoordinatorRuntime, error) {
 		activation := extensions.NewActivationCoordinator(extensionStore).WithAuditor(audit.NewPostgresWriter(pool))
 		commandJobClient, commandErr := supportjobs.NewInsertOnlyClient(pool, supportjobs.FromAppConfig(cfg))
 		if commandErr != nil {
-			return nil, nil, fmt.Errorf("worker Host Command dispatcher setup failed: %w", commandErr)
+			return nil, nil, nil, fmt.Errorf("worker Host Command dispatcher setup failed: %w", commandErr)
 		}
 		return buildStandaloneWorkerExtensionRuntime(
-			context.Background(), cfg,
+			bootstrapCtx, cfg,
 			postgresProtocolV2DatabaseCatalogBinderFactory(
 				pool, hostapi.WithProtocolV2DatabaseTraceSink(hostapi.NewSlogDatabaseTraceSink(logger)),
 			),
@@ -378,21 +559,16 @@ func newWorkerWithPool(cfg config.Config, pool *pgxpool.Pool, logger *slog.Logge
 	if err != nil {
 		return nil, err
 	}
-	var closeOwnedRuntime func()
+	var runtimeOwner *workerRuntimeOwner
 	if ownsRuntime {
-		closeOwnedRuntime = func() {
-			if extensionRuntime != nil {
-				extensionRuntime.Close(context.Background())
-			}
-			if hostGateway != nil {
-				_ = hostGateway.Close()
-			}
-		}
+		runtimeOwner = newWorkerRuntimeOwner(
+			extensionRuntime, hostGateway, runtimeCoordinator, logger, cfg.WorkerShutdownTimeout,
+		)
 	}
 	runtimeOwnershipTransferred := false
 	defer func() {
-		if !runtimeOwnershipTransferred && closeOwnedRuntime != nil {
-			closeOwnedRuntime()
+		if !runtimeOwnershipTransferred && runtimeOwner != nil {
+			runtimeOwner.Close()
 		}
 	}()
 	if runtime, ok := extensionRuntime.(interface {
@@ -509,9 +685,13 @@ func newWorkerWithPool(cfg config.Config, pool *pgxpool.Pool, logger *slog.Logge
 	}
 
 	if registry.IsEmpty() {
+		if err := runtimeOwner.startupError(); err != nil {
+			return nil, err
+		}
 		runtimeOwnershipTransferred = true
 		return &Worker{
-			Schedules: scheduleRegistry, PluginSchedules: pluginSchedules, close: closeOwnedRuntime,
+			Schedules: scheduleRegistry, PluginSchedules: pluginSchedules,
+			failures: runtimeOwner.Failures(), close: runtimeOwner.Close,
 		}, nil
 	}
 
@@ -535,6 +715,9 @@ func newWorkerWithPool(cfg config.Config, pool *pgxpool.Pool, logger *slog.Logge
 			return nil, fmt.Errorf("publish standalone plugin schedules: %w", err)
 		}
 	}
+	if err := runtimeOwner.startupError(); err != nil {
+		return nil, err
+	}
 
 	// 仅 worker 拥有 runtime 时关闭；embed 注入路径由 API 在 River stop 之后关闭。
 	runtimeOwnershipTransferred = true
@@ -542,7 +725,8 @@ func newWorkerWithPool(cfg config.Config, pool *pgxpool.Pool, logger *slog.Logge
 		Client:          client,
 		Schedules:       scheduleRegistry,
 		PluginSchedules: pluginSchedules,
-		close:           closeOwnedRuntime,
+		failures:        runtimeOwner.Failures(),
+		close:           runtimeOwner.Close,
 	}, nil
 }
 
@@ -604,6 +788,16 @@ func (w *Worker) Start(ctx context.Context) error {
 
 func (w *Worker) Stop(ctx context.Context) error {
 	return supportjobs.Stop(ctx, w.Client)
+}
+
+// Failures reports terminal failures from the standalone plugin runtime
+// coordinator. It is nil for embedded workers and Safe Mode, so callers may
+// include it directly in a select without creating a false shutdown signal.
+func (w *Worker) Failures() <-chan error {
+	if w == nil {
+		return nil
+	}
+	return w.failures
 }
 
 func (w *Worker) Close() {
