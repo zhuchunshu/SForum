@@ -376,7 +376,7 @@ func (s *HostCacheService) resolveProviders(
 		Candidates: []HostCacheProviderCandidate{{ProviderID: HostCacheCoreProviderID, Core: true, Backend: s.core}},
 	}
 	// Safe Mode is Host-owned and always bypasses executable provider code.
-	if request.SafeMode || request.DeclaredProvider == "" {
+	if request.SafeMode || request.DeclaredProvider == "" || request.DeclaredProvider == HostCacheCoreProviderID {
 		return core, false, nil
 	}
 	if s.resolver == nil {

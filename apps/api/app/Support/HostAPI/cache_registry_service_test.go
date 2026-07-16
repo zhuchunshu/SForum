@@ -650,6 +650,20 @@ func TestHostCacheReleaseWithCanceledCallerStillCleansExactToken(t *testing.T) {
 	}
 }
 
+func TestHostCacheExplicitCoreProviderUsesHostBackendWithoutResolver(t *testing.T) {
+	fixture := newHostCacheTestFixture(
+		t, "explicit-core.cache", cacheregistry.PolicyPublic, HostCacheCoreProviderID,
+	)
+	revision, err := fixture.service.Set(context.Background(), HostCacheSetRequest{
+		HostCacheRequestBase: fixture.base, Key: "core", Schema: fixture.schema,
+		Value: []byte(`{"provider":"core"}`), TTL: time.Minute,
+	})
+	if err != nil || revision == "" || len(fixture.backend.observedKeys()) != 1 {
+		t.Fatalf("explicit Core provider revision=%q keys=%v error=%v",
+			revision, fixture.backend.observedKeys(), err)
+	}
+}
+
 func TestHostCacheProviderFallbackFailsClosedSafeModeAndStaleRuntime(t *testing.T) {
 	fixture := newHostCacheTestFixture(t, "provider.cache", cacheregistry.PolicyPublic, "provider.cache.selected")
 	failing := newFakeHostCacheBackend()
