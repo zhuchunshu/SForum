@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"os"
 	"os/signal"
@@ -19,41 +20,107 @@ func main() {
 		Level: cfg.LogLevel,
 	}))
 
-	ctx := context.Background()
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	if err := runAPI(ctx, cfg, logger); err != nil {
+		logger.Error("api stopped with failure", "error", err)
+		os.Exit(1)
+	}
+}
+
+const apiShutdownTimeout = 10 * time.Second
+
+type apiLifecycle interface {
+	Listen() error
+	Shutdown(context.Context) error
+	Failures() <-chan error
+	Close()
+}
+
+type productionAPILifecycle struct {
+	api    *bootstrap.API
+	cfg    config.Config
+	logger *slog.Logger
+}
+
+func (lifecycle *productionAPILifecycle) Listen() error {
+	if lifecycle.logger != nil {
+		lifecycle.logger.Info(
+			"starting api server", "addr", lifecycle.api.Addr,
+			"env", lifecycle.cfg.AppEnv, "locale", lifecycle.cfg.AppLocale,
+		)
+	}
+	// air 热重载存在新旧进程端口交接窗口；对 EADDRINUSE 做短暂重试。
+	return listenWithAddrInUseRetry(lifecycle.api.App, lifecycle.api.Addr, lifecycle.logger)
+}
+
+func (lifecycle *productionAPILifecycle) Shutdown(ctx context.Context) error {
+	return lifecycle.api.App.ShutdownWithContext(ctx)
+}
+
+func (lifecycle *productionAPILifecycle) Failures() <-chan error {
+	return lifecycle.api.Failures()
+}
+
+func (lifecycle *productionAPILifecycle) Close() {
+	lifecycle.api.Close()
+}
+
+func runAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 	api, err := bootstrap.NewAPI(ctx, cfg, logger)
 	if err != nil {
-		logger.Error("api bootstrap failed", "error", err)
-		os.Exit(1)
+		return fmt.Errorf("api bootstrap: %w", err)
+	}
+	return runAPILifecycle(ctx, logger, &productionAPILifecycle{api: api, cfg: cfg, logger: logger})
+}
+
+func runAPILifecycle(ctx context.Context, logger *slog.Logger, api apiLifecycle) error {
+	if ctx == nil || api == nil {
+		return errors.New("api lifecycle is not configured")
 	}
 	defer api.Close()
 
-	errCh := make(chan error, 1)
+	listenErrors := make(chan error, 1)
+	go func() { listenErrors <- api.Listen() }()
 
-	go func() {
-		logger.Info("starting api server", "addr", api.Addr, "env", cfg.AppEnv, "locale", cfg.AppLocale)
-		// air 热重载存在新旧进程端口交接窗口；对 EADDRINUSE 做短暂重试。
-		errCh <- listenWithAddrInUseRetry(api.App, api.Addr, logger)
-	}()
-
-	stopCh := make(chan os.Signal, 1)
-	signal.Notify(stopCh, os.Interrupt, syscall.SIGTERM)
-
+	var terminalErr error
+	listenStopped := false
 	select {
-	case sig := <-stopCh:
-		logger.Info("shutting down api server", "signal", sig.String())
-	case err := <-errCh:
-		if err != nil && !errors.Is(err, context.Canceled) {
-			logger.Error("api server stopped unexpectedly", "error", err)
-			os.Exit(1)
+	case <-ctx.Done():
+		if logger != nil {
+			logger.Info("shutting down api server", "reason", "signal")
 		}
-		return
+	case runtimeErr, ok := <-api.Failures():
+		if !ok || runtimeErr == nil {
+			runtimeErr = errors.New("plugin runtime coordinator stopped without a terminal error")
+		}
+		terminalErr = fmt.Errorf("plugin runtime coordinator terminal failure: %w", runtimeErr)
+		if logger != nil {
+			logger.Error("plugin runtime authorization lost; draining HTTP", "error", runtimeErr)
+		}
+	case listenErr := <-listenErrors:
+		listenStopped = true
+		if listenErr != nil && !errors.Is(listenErr, context.Canceled) {
+			terminalErr = fmt.Errorf("api listen: %w", listenErr)
+		}
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	if err := api.App.ShutdownWithContext(ctx); err != nil {
-		logger.Error("api server shutdown failed", "error", err)
-		os.Exit(1)
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), apiShutdownTimeout)
+	shutdownErr := api.Shutdown(shutdownCtx)
+	if !listenStopped {
+		select {
+		case <-listenErrors:
+		case <-shutdownCtx.Done():
+			if shutdownErr == nil {
+				shutdownErr = shutdownCtx.Err()
+			}
+		}
 	}
+	cancel()
+	// main 的 os.Exit 不执行 defer；先显式释放 coordinator/Manager/Redis/PG。
+	api.Close()
+	if shutdownErr != nil {
+		shutdownErr = fmt.Errorf("api shutdown: %w", shutdownErr)
+	}
+	return errors.Join(terminalErr, shutdownErr)
 }
