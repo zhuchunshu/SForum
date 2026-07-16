@@ -10,6 +10,7 @@ import (
 
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
 	assetregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/AssetRegistry"
+	cacheregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/CacheRegistry"
 	extensionopenapi "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionOpenAPI"
 	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
 	hostapi "github.com/zhuchunshu/sforum/apps/api/app/Support/HostAPI"
@@ -32,6 +33,7 @@ type productionLifecycleStackConfig struct {
 	PageSiteName    string
 	PageLocales     []string
 	Services        *hostapi.ServiceRegistry
+	Caches          *cacheregistry.Registry
 	River           hostapi.PluginJobLifecycleRiverClient
 	ExtensionRoot   string
 	MigrationEngine extensionsruntime.LifecycleMigrationEngine
@@ -57,6 +59,7 @@ type productionLifecycleStack struct {
 	RouteSchemas      *extensionopenapi.RouteSchemaPublication
 	ComponentRegistry *extensionsruntime.ComponentRegistry
 	AssetRegistry     *assetregistry.Registry
+	CacheRegistry     *cacheregistry.Registry
 	// QueryRegistry 与 QueryCoreCatalog 在进程启动时一次性构造；不得每请求重建，
 	// 也不得从 mutable Store 再生成 Core publication。
 	QueryRegistry      *queryregistry.Registry
@@ -86,7 +89,7 @@ func requireProductionExtensionRuntime(runtime extensionRuntime) (*extensionsrun
 
 func newProductionLifecycleStack(config productionLifecycleStackConfig) (*productionLifecycleStack, error) {
 	if config.Pool == nil || config.Store == nil || config.Features == nil || config.Trust == nil ||
-		config.Runtime == nil || config.Pages == nil || config.Services == nil || config.River == nil ||
+		config.Runtime == nil || config.Pages == nil || config.Services == nil || config.Caches == nil || config.River == nil ||
 		strings.TrimSpace(config.ExtensionRoot) == "" || config.MigrationEngine == nil || config.Database == nil {
 		return nil, errProductionLifecycleDependency
 	}
@@ -152,6 +155,13 @@ func newProductionLifecycleStack(config productionLifecycleStackConfig) (*produc
 	componentRegistry := extensionsruntime.NewComponentRegistry()
 	// 全进程唯一 Asset Registry：生命周期恢复/发布与 FrontendService 请求读取共享。
 	assetRegistry := assetregistry.New()
+	cacheRegistry := config.Caches
+	if config.SafeMode {
+		snapshot := cacheRegistry.Snapshot()
+		if _, err := cacheRegistry.ReplaceAllIfRevision(snapshot.Revision, snapshot.Publications, true); err != nil {
+			return nil, fmt.Errorf("%w: enter cache registry safe mode: %v", errProductionLifecycleDependency, err)
+		}
+	}
 	// Query Core catalog/cost policy 在进程启动首个 snapshot 密封发布：推荐
 	// cost max 500、hard max 2000；空 Options 不发明 cursor secret，offset 语义保持。
 	// 生命周期 restore/Safe Mode 通过 coreLifecycleQueryPublications 保留这份 Core。
@@ -183,7 +193,7 @@ func newProductionLifecycleStack(config productionLifecycleStackConfig) (*produc
 			Repository: registryRepository, Manager: config.Runtime, Pages: config.Pages,
 			ThemeRuntime: config.ThemeRuntime, PageSiteName: config.PageSiteName, PageLocales: config.PageLocales,
 			Routes: routeRegistry, RouteSchemas: routeSchemas, Services: config.Services,
-			Components: componentRegistry, Assets: assetRegistry, Queries: queryRegistry,
+			Components: componentRegistry, Assets: assetRegistry, Caches: cacheRegistry, Queries: queryRegistry,
 			AssetAuthority: assetAuthority, AssetAdmission: config.Trust,
 		},
 	)
@@ -208,7 +218,8 @@ func newProductionLifecycleStack(config productionLifecycleStackConfig) (*produc
 		MigrationEngine: config.MigrationEngine, Migrations: migrations,
 		Schedules: schedules, JobStore: jobStore, JobCoordinator: jobCoordinator, Jobs: jobs,
 		RouteRegistry: routeRegistry, RouteSchemas: routeSchemas, ComponentRegistry: componentRegistry,
-		AssetRegistry: assetRegistry, QueryRegistry: queryRegistry, QueryCoreCatalog: queryCoreCatalog,
+		AssetRegistry: assetRegistry, CacheRegistry: cacheRegistry,
+		QueryRegistry: queryRegistry, QueryCoreCatalog: queryCoreCatalog,
 		RouteProviders:     routeProviders,
 		ProviderSlots:      providerSlots,
 		RegistryRepository: registryRepository, Registries: registries,
@@ -222,7 +233,7 @@ func newProductionLifecycleStack(config productionLifecycleStackConfig) (*produc
 func (s *productionLifecycleStack) bindService(service *extensions.Service) error {
 	if s == nil || service == nil || s.Coordinator == nil || s.StaticPreflight == nil ||
 		s.Repository == nil || s.CleanupFinalizer == nil || s.RouteProviders == nil || s.ProviderSlots == nil ||
-		s.ComponentRegistry == nil || s.AssetRegistry == nil || s.QueryRegistry == nil ||
+		s.ComponentRegistry == nil || s.AssetRegistry == nil || s.CacheRegistry == nil || s.QueryRegistry == nil ||
 		s.QueryCoreCatalog == nil || s.Registries == nil {
 		return errProductionLifecycleDependency
 	}
@@ -233,6 +244,7 @@ func (s *productionLifecycleStack) bindService(service *extensions.Service) erro
 	extensions.WithProviderSlotSelectionInvalidator(s.ProviderSlots)(service)
 	extensions.WithComponentRegistry(s.ComponentRegistry)(service)
 	service.BindRuntimeQueryPublications(s.Registries)
+	extensions.WithRuntimeCachePublications(s.Registries)(service)
 	return nil
 }
 

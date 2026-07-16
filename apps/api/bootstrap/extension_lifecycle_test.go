@@ -13,6 +13,7 @@ import (
 	"github.com/riverqueue/river/rivertype"
 
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
+	cacheregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/CacheRegistry"
 	componentcatalog "github.com/zhuchunshu/sforum/apps/api/app/Support/ComponentCatalog"
 	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
 	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
@@ -86,7 +87,8 @@ func newBootstrapLifecycleStackWithSafeMode(
 	stack, err := newProductionLifecycleStack(productionLifecycleStackConfig{
 		Pool: pool, Store: store, Features: lifecycleFeatureFacts{}, Trust: trust,
 		Runtime: manager, Pages: pages.NewRegistry(nil), Services: hostapi.NewServiceRegistry(),
-		River: lifecycleRiverClient{}, MigrationEngine: lifecycleMigrationEngine{},
+		Caches: cacheregistry.New(),
+		River:  lifecycleRiverClient{}, MigrationEngine: lifecycleMigrationEngine{},
 		ExtensionRoot: t.TempDir(), Database: lifecycleDatabaseDisposition{}, SafeMode: safeMode,
 	})
 	if err != nil {
@@ -108,6 +110,7 @@ func TestProductionLifecycleStackConstructsEveryRequiredDependency(t *testing.T)
 		"route schemas":       stack.RouteSchemas != nil,
 		"component registry":  stack.ComponentRegistry != nil,
 		"asset registry":      stack.AssetRegistry != nil,
+		"cache registry":      stack.CacheRegistry != nil,
 		"query registry":      stack.QueryRegistry != nil,
 		"query core catalog":  stack.QueryCoreCatalog != nil,
 		"route providers":     stack.RouteProviders != nil,
@@ -134,6 +137,9 @@ func TestProductionLifecycleStackConstructsEveryRequiredDependency(t *testing.T)
 	}
 	if stack.Registries.QueryRegistry() != stack.QueryRegistry {
 		t.Fatal("lifecycle boundary and production stack use different Query Registry instances")
+	}
+	if stack.Registries.CacheRegistry() != stack.CacheRegistry {
+		t.Fatal("lifecycle boundary and production stack use different Cache Registry instances")
 	}
 	snapshot := stack.RouteRegistry.Snapshot()
 	if snapshot.Revision != 1 || snapshot.SafeMode || len(snapshot.Routes) != len(routes.CoreRouteCatalog()) ||
@@ -319,6 +325,9 @@ func assertProductionLifecycleCoreQueryPreserved(
 
 func TestProductionLifecycleStackSafeModeKeepsHostRoutesAndSkipsThirdParty(t *testing.T) {
 	stack, _, _ := newBootstrapLifecycleStackWithSafeMode(t, true)
+	if cacheSnapshot := stack.CacheRegistry.Snapshot(); !cacheSnapshot.SafeMode || len(cacheSnapshot.Publications) != 0 {
+		t.Fatalf("initial Safe Mode Cache snapshot = %#v", cacheSnapshot)
+	}
 	coreArtifact := stack.QueryCoreCatalog.Artifact()
 	// Safe Mode 进程首个 Query snapshot 必须已保留四条 Core queries。
 	assertProductionLifecycleCoreQueryPreserved(t, stack, coreArtifact, true)
@@ -437,7 +446,8 @@ func TestProductionLifecycleStackFailsClosedWithoutExactManager(t *testing.T) {
 			extensions.NewPostgresExecutableTrustStore(pool),
 		),
 		Runtime: manager, Pages: pages.NewRegistry(nil), Services: hostapi.NewServiceRegistry(),
-		River: lifecycleRiverClient{}, MigrationEngine: lifecycleMigrationEngine{},
+		Caches: cacheregistry.New(),
+		River:  lifecycleRiverClient{}, MigrationEngine: lifecycleMigrationEngine{},
 		ExtensionRoot: t.TempDir(), Database: lifecycleDatabaseDisposition{},
 	})
 	if !errors.Is(err, errProductionLifecycleDependency) {
@@ -455,7 +465,7 @@ func TestProductionLifecycleStackBindsV2AndInspectionOptions(t *testing.T) {
 	value := reflect.ValueOf(service).Elem()
 	for _, field := range []string{
 		"lifecycleCoordinator", "lifecyclePreflight", "lifecycleAuthority", "lifecycleInspector",
-		"lifecycleFinalizer", "componentRegistry", "queryPublications",
+		"lifecycleFinalizer", "componentRegistry", "queryPublications", "cachePublications",
 	} {
 		binding := value.FieldByName(field)
 		if !binding.IsValid() || binding.IsNil() {
@@ -469,6 +479,10 @@ func TestProductionLifecycleStackBindsV2AndInspectionOptions(t *testing.T) {
 	queryBinding := value.FieldByName("queryPublications")
 	if queryBinding.Elem().Pointer() != reflect.ValueOf(stack.Registries).Pointer() {
 		t.Fatal("extension service did not receive the production runtime Query publication boundary")
+	}
+	cacheBinding := value.FieldByName("cachePublications")
+	if cacheBinding.Elem().Pointer() != reflect.ValueOf(stack.Registries).Pointer() {
+		t.Fatal("extension service did not receive the production runtime Cache publication boundary")
 	}
 	if assetBinding := value.FieldByName("assetRegistry"); !assetBinding.IsValid() || !assetBinding.IsNil() {
 		t.Fatal("lifecycle bind exposed Asset Registry before authoritative startup restore")

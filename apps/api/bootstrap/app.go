@@ -36,6 +36,7 @@ import (
 	authsession "github.com/zhuchunshu/sforum/apps/api/app/Support/AuthSession"
 	avatar "github.com/zhuchunshu/sforum/apps/api/app/Support/Avatar"
 	cache "github.com/zhuchunshu/sforum/apps/api/app/Support/Cache"
+	cacheregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/CacheRegistry"
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Crypto"
 	appevents "github.com/zhuchunshu/sforum/apps/api/app/Support/Events"
 	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
@@ -43,6 +44,7 @@ import (
 	hostapi "github.com/zhuchunshu/sforum/apps/api/app/Support/HostAPI"
 	humanverify "github.com/zhuchunshu/sforum/apps/api/app/Support/HumanVerify"
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Idempotency"
+	installationidentity "github.com/zhuchunshu/sforum/apps/api/app/Support/InstallationIdentity"
 	supportjobs "github.com/zhuchunshu/sforum/apps/api/app/Support/Jobs"
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Pages"
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Postgres"
@@ -136,6 +138,11 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 	); err != nil {
 		pool.Close()
 		return nil, fmt.Errorf("reap expired extension database runtime leases: %w", err)
+	}
+	hostInstallationID, err := installationidentity.NewPostgresRepository(pool).Ensure(ctx)
+	if err != nil {
+		pool.Close()
+		return nil, fmt.Errorf("ensure Host installation identity: %w", err)
 	}
 
 	redisStorage, err := redisplatform.NewStorage(cfg.RedisAddr, cfg.RedisPassword)
@@ -349,7 +356,8 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		runtime.SetStartPreparer(protocolV2DatabaseStartPreparer(extensionStore, databaseCatalogBinder, cfg.SafeMode))
 	}
 	hostAPIService.BindPluginJobAdmission(newPluginJobEnqueueAdmission(extensionRuntime))
-	hostAPIService.BindServiceProviderAdmission(newPluginServiceProviderAdmission(extensionRuntime))
+	serviceAdmission := newPluginServiceProviderAdmission(extensionRuntime)
+	hostAPIService.BindServiceProviderAdmission(serviceAdmission)
 	lifecycleRuntime, err := requireProductionExtensionRuntime(extensionRuntime)
 	if err != nil {
 		if stopErr := supportjobs.Stop(ctx, jobClient); stopErr != nil {
@@ -362,6 +370,22 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		}
 		pool.Close()
 		return nil, err
+	}
+	hostCacheRuntime, err := bindProductionHostCache(
+		hostInstallationID, logger, sharedRedisClient, cacheregistry.New(), serviceAdmission, hostAPIGateway,
+	)
+	if err != nil {
+		if stopErr := supportjobs.Stop(ctx, jobClient); stopErr != nil {
+			logger.Warn("job dispatcher stop failed", "error", stopErr)
+		}
+		extensionRuntime.Close(ctx)
+		_ = hostAPIGateway.Close()
+		sharedRedisClient.Close()
+		if closeErr := redisStorage.Close(); closeErr != nil {
+			logger.Warn("redis session storage close failed", "error", closeErr)
+		}
+		pool.Close()
+		return nil, fmt.Errorf("Host Cache runtime setup failed: %w", err)
 	}
 	if err := bindProtocolV2ProviderBroker(hostAPIGateway, lifecycleRuntime); err != nil {
 		extensionRuntime.Close(ctx)
@@ -379,7 +403,7 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		Pool: pool, Store: extensionStore, Features: optionsService,
 		Trust: executableTrustService, Runtime: lifecycleRuntime, Pages: pageRegistry,
 		ThemeRuntime: themeRuntime, PageSiteName: themeSiteName, PageLocales: cfg.SupportedLocales,
-		Services: hostAPIGateway.ProtocolV2ServiceRegistry(), River: jobClient,
+		Services: hostAPIGateway.ProtocolV2ServiceRegistry(), Caches: hostCacheRuntime.Registry, River: jobClient,
 		ExtensionRoot: cfg.ExtensionRoot, MigrationEngine: lifecycleMigrationEngine,
 		Database: lifecycleDatabaseDisposition, SafeMode: cfg.SafeMode,
 	})

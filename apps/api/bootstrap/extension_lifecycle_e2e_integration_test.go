@@ -18,6 +18,7 @@ import (
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
 	audit "github.com/zhuchunshu/sforum/apps/api/app/Support/Audit"
+	cacheregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/CacheRegistry"
 	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
 	extensionpackage "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionPackage"
 	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
@@ -201,7 +202,8 @@ func newProductionLifecycleE2EFixture(
 	stack, err := newProductionLifecycleStack(productionLifecycleStackConfig{
 		Pool: pool, Store: store, Features: lifecycleFeatureFacts{}, Trust: trust,
 		Runtime: manager, Pages: pageRegistry, Services: hostapi.NewServiceRegistry(),
-		River: lifecycleRiverClient{}, ExtensionRoot: extensionRoot,
+		Caches: cacheregistry.New(),
+		River:  lifecycleRiverClient{}, ExtensionRoot: extensionRoot,
 		MigrationEngine: extensionsruntime.NewPostgresLifecycleMigrationEngine(pool, nil),
 		Database:        extensionsruntime.NewPostgresExtensionDatabaseDisposition(pool),
 	})
