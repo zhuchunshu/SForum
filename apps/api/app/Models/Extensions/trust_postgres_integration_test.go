@@ -136,13 +136,27 @@ func TestPostgresExecutableTrustStoreConsumesChallengeOnce(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := store.ConsumeChallenge(ctx, TrustConsumeInput{
-		TokenHash: secondTokenHash, ActorUserID: actorID, Identity: identity,
-	}); err != nil {
-		t.Fatal(err)
+	startRace := make(chan struct{})
+	consumeDone := make(chan error, 1)
+	revokeDone := make(chan error, 1)
+	go func() {
+		<-startRace
+		_, err := store.ConsumeChallenge(ctx, TrustConsumeInput{
+			TokenHash: secondTokenHash, ActorUserID: actorID, Identity: identity,
+		})
+		consumeDone <- err
+	}()
+	go func() {
+		<-startRace
+		revokeDone <- store.RevokeAll(ctx, extensionID, actorID, "integration_test")
+	}()
+	close(startRace)
+	consumeErr := <-consumeDone
+	if consumeErr != nil && !errors.Is(consumeErr, ErrTrustChallengeStale) {
+		t.Fatalf("concurrent consume error=%v", consumeErr)
 	}
-	if err := store.RevokeAll(ctx, extensionID, actorID, "integration_test"); err != nil {
-		t.Fatal(err)
+	if err := <-revokeDone; err != nil {
+		t.Fatalf("concurrent revoke error=%v", err)
 	}
 	granted, err = store.HasLiveGrant(ctx, identity)
 	if err != nil || granted {

@@ -91,9 +91,95 @@ func TestDurablePublicationSetRejectsOrphanActiveLeafWithoutRoot(t *testing.T) {
 	if err := ValidateDurablePublicationSet(state, nil); !errors.Is(err, ErrArtifactConflict) {
 		t.Fatalf("orphan active leaf error=%v", err)
 	}
-	if err := ValidateDurablePublication(state, publication); !errors.Is(err, ErrInvalid) {
+	if err := ValidateDurablePublication(state, publication); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("leaf-only publication proof error=%v", err)
 	}
+}
+
+// Reproduces the exact normal-dev startup shape that blocks restore:
+// sforum.admin-surface-reference is enabled with one Host-assigned permission,
+// but extension_identity_registry_* has no durable root/leaf history.
+func TestDurablePublicationRejectsPermissionOnlyAdminSurfaceWithoutRoot(t *testing.T) {
+	publication := adminSurfaceReferencePermissionOnlyPublication(5866)
+	if err := ValidateDurablePublication(DurableState{}, publication); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("empty durable for permission-only admin-surface error=%v", err)
+	}
+	if err := ValidateDurablePublicationSet(DurableState{}, []Publication{publication}); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("empty durable set for permission-only admin-surface error=%v", err)
+	}
+
+	state := durableStateForPublication(t, publication, 41, 81)
+	if err := ValidateDurablePublication(state, publication); err != nil {
+		t.Fatalf("complete durable permission-only admin-surface: %v", err)
+	}
+	if err := ValidateDurablePublicationSet(state, []Publication{publication}); err != nil {
+		t.Fatalf("complete durable set permission-only admin-surface: %v", err)
+	}
+
+	// Drifted permission label must not reuse the same durable root tip.
+	drift := publication
+	drift.Permissions = append([]PermissionDefinition(nil), publication.Permissions...)
+	drift.Permissions[0].Label = "changed label"
+	if err := ValidateDurablePublication(state, drift); !errors.Is(err, ErrArtifactConflict) {
+		t.Fatalf("permission-only root drift error=%v", err)
+	}
+
+	// Orphan active durable root without a matching enabled publication fails closed.
+	if err := ValidateDurablePublicationSet(state, nil); !errors.Is(err, ErrArtifactConflict) {
+		t.Fatalf("orphan permission-only root error=%v", err)
+	}
+}
+
+func adminSurfaceReferencePermissionOnlyPublication(versionID int64) Publication {
+	return Publication{
+		Artifact: Artifact{
+			ExtensionID:      "sforum.admin-surface-reference",
+			ExtensionVersion: "1.0.0",
+			PackageDigest:    "81b964f80707b257f6f401faffb07fe0f0a6aa6b5833a6fab0cedaab77b3324f",
+			VersionID:        versionID,
+		},
+		Permissions: []PermissionDefinition{{
+			Key:              "sforum.admin-surface-reference.manage",
+			ContractVersion:  "sforum.admin-surface-reference.permission.manage@1",
+			Label:            "Use admin surface reference",
+			Description:      "View and invoke the reference plugin's admin surfaces.",
+			RecommendedRoles: []string{"administrator"},
+			AssignmentPolicy: "host",
+		}},
+	}
+}
+
+func durableStateForPublication(t *testing.T, publication Publication, actorUserID, auditEventID int64) DurableState {
+	t.Helper()
+	desiredRoot, err := desiredDurableRootPublication(&publication)
+	if err != nil {
+		t.Fatal(err)
+	}
+	desiredRoot.tip.ActorUserID = actorUserID
+	desiredRoot.tip.AuditEventID = auditEventID
+	desiredLeaves, err := desiredDurableDeclarations(&publication)
+	if err != nil {
+		t.Fatal(err)
+	}
+	state := DurableState{RootTips: []DurableRootPublicationTip{desiredRoot.tip}}
+	for _, declaration := range desiredLeaves {
+		state.Owners = append(state.Owners, DurableOwner{
+			IdentityKind: declaration.kind, StableID: declaration.stableID,
+			OwnerExtensionID: publication.Artifact.ExtensionID,
+		})
+		state.Tips = append(state.Tips, DurableDeclarationTip{
+			IdentityKind: declaration.kind, StableID: declaration.stableID,
+			OwnerExtensionID: publication.Artifact.ExtensionID,
+			Revision:         1, RegistryState: RegistryStateActive,
+			ExtensionVersionID: publication.Artifact.VersionID,
+			ExtensionVersion:   publication.Artifact.ExtensionVersion,
+			PackageDigest:      publication.Artifact.PackageDigest,
+			ContractVersion:    declaration.contractVersion,
+			DeclarationDigest:  declaration.digest,
+			ActorUserID:        actorUserID, AuditEventID: auditEventID,
+		})
+	}
+	return state
 }
 
 func durableRootTestPublication(runtimeID string) Publication {

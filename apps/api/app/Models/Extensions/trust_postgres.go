@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -14,6 +15,8 @@ import (
 type PostgresExecutableTrustStore struct {
 	pool *pgxpool.Pool
 }
+
+const executableTrustExtensionLockNamespace = "sforum:executable-trust:"
 
 func NewPostgresExecutableTrustStore(pool *pgxpool.Pool) *PostgresExecutableTrustStore {
 	return &PostgresExecutableTrustStore{pool: pool}
@@ -33,6 +36,9 @@ func (s *PostgresExecutableTrustStore) CreateChallenge(ctx context.Context, inpu
 		return fmt.Errorf("begin trust challenge: %w", err)
 	}
 	defer tx.Rollback(ctx)
+	if err := lockExecutableTrustExtension(ctx, tx, input.Identity.ExtensionID); err != nil {
+		return err
+	}
 	if _, err := tx.Exec(ctx, `
 		UPDATE extension_trust_challenges
 		SET invalidated_at = now(), invalidation_reason = 'superseded'
@@ -108,6 +114,9 @@ func (s *PostgresExecutableTrustStore) ConsumeChallenge(ctx context.Context, inp
 		return TrustGrant{}, fmt.Errorf("begin consume trust challenge: %w", err)
 	}
 	defer tx.Rollback(ctx)
+	if err := lockExecutableTrustExtension(ctx, tx, input.Identity.ExtensionID); err != nil {
+		return TrustGrant{}, err
+	}
 
 	var (
 		challengeID                         int64
@@ -252,6 +261,9 @@ func (s *PostgresExecutableTrustStore) RevokeAll(ctx context.Context, extensionI
 		return fmt.Errorf("begin revoke executable trust: %w", err)
 	}
 	defer tx.Rollback(ctx)
+	if err := lockExecutableTrustExtension(ctx, tx, extensionID); err != nil {
+		return err
+	}
 	if _, err := tx.Exec(ctx, `
 		UPDATE extension_trust_grants
 		SET revoked_at = now(), revoked_by_user_id = $2, revocation_reason = $3
@@ -266,8 +278,22 @@ func (s *PostgresExecutableTrustStore) RevokeAll(ctx context.Context, extensionI
 	`, extensionID, reason); err != nil {
 		return fmt.Errorf("invalidate executable trust challenges: %w", err)
 	}
+	if _, _, err := PublishPluginRuntimeTrustRevocationTx(ctx, tx, extensionID, actorUserID); err != nil {
+		return fmt.Errorf("publish executable trust runtime revocation: %w", err)
+	}
 	if err := tx.Commit(ctx); err != nil {
 		return fmt.Errorf("commit revoke executable trust: %w", err)
+	}
+	return nil
+}
+
+func lockExecutableTrustExtension(ctx context.Context, tx pgx.Tx, extensionID string) error {
+	if ctx == nil || tx == nil || extensionID == "" || extensionID != strings.TrimSpace(extensionID) {
+		return ErrTrustChallengeInvalid
+	}
+	key := executableTrustExtensionLockNamespace + fmt.Sprintf("%d:%s", len([]byte(extensionID)), extensionID)
+	if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1, 0))`, key); err != nil {
+		return fmt.Errorf("lock executable trust extension: %w", err)
 	}
 	return nil
 }

@@ -9,7 +9,7 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-func TestPublishPluginRuntimeTrustRevocationTxRemovesExactMemberAndAlwaysAdvances(t *testing.T) {
+func TestPublishPluginRuntimeTrustRevocationTxRemovesExactMemberAndSkipsAbsent(t *testing.T) {
 	fixture := newPluginRuntimePublicationPGFixture(t, "trust_revoke")
 	revoked := transitionFixturePlugin(
 		t, "fixture.plugin", 101, "1.0.0", strings.Repeat("b", 64), "backend/plugin",
@@ -29,14 +29,14 @@ func TestPublishPluginRuntimeTrustRevocationTxRemovesExactMemberAndAlwaysAdvance
 	if err != nil {
 		t.Fatal(err)
 	}
-	publication, err := PublishPluginRuntimeTrustRevocationTx(
+	publication, published, err := PublishPluginRuntimeTrustRevocationTx(
 		fixture.ctx, tx, revoked.ID, 17,
 	)
 	if err != nil {
 		_ = tx.Rollback(fixture.ctx)
 		t.Fatal(err)
 	}
-	if publication.Revision <= seed.Revision || publication.Reason != PluginRuntimePublicationRecovery || publication.ActorUserID != 17 {
+	if !published || publication.Revision <= seed.Revision || publication.Reason != PluginRuntimePublicationRecovery || publication.ActorUserID != 17 {
 		_ = tx.Rollback(fixture.ctx)
 		t.Fatalf("trust revoke publication=%+v", publication)
 	}
@@ -45,27 +45,27 @@ func TestPublishPluginRuntimeTrustRevocationTxRemovesExactMemberAndAlwaysAdvance
 		t.Fatal(err)
 	}
 
-	// Idempotent replay still advances the immutable revision and emits NOTIFY
-	// after commit, even though the revoked member is already absent.
+	// Idempotent replay does not perturb the global full-set after the exact
+	// member is already absent.
 	tx, err = fixture.pool.Begin(fixture.ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
-	replayed, err := PublishPluginRuntimeTrustRevocationTx(
+	replayed, published, err := PublishPluginRuntimeTrustRevocationTx(
 		fixture.ctx, tx, revoked.ID, 18,
 	)
 	if err != nil {
 		_ = tx.Rollback(fixture.ctx)
 		t.Fatal(err)
 	}
-	if replayed.Revision <= publication.Revision || replayed.MembersDigest != publication.MembersDigest || replayed.ActorUserID != 18 {
+	if published || replayed.Revision != 0 {
 		_ = tx.Rollback(fixture.ctx)
 		t.Fatalf("replayed trust revoke=%+v prior=%+v", replayed, publication)
 	}
 	if err := tx.Commit(fixture.ctx); err != nil {
 		t.Fatal(err)
 	}
-	assertPluginRuntimePublicationCount(t, fixture, 3)
+	assertPluginRuntimePublicationCount(t, fixture, 2)
 }
 
 func TestPublishPluginRuntimeTrustRevocationTxRejectsMissingAuthorityAndIsolation(t *testing.T) {
@@ -74,9 +74,9 @@ func TestPublishPluginRuntimeTrustRevocationTxRejectsMissingAuthorityAndIsolatio
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := PublishPluginRuntimeTrustRevocationTx(fixture.ctx, tx, "missing.plugin", 1); !errors.Is(err, ErrPluginRuntimePublicationNotFound) {
+	if publication, published, err := PublishPluginRuntimeTrustRevocationTx(fixture.ctx, tx, "missing.plugin", 1); err != nil || published || publication.Revision != 0 {
 		_ = tx.Rollback(fixture.ctx)
-		t.Fatalf("missing latest error=%v", err)
+		t.Fatalf("missing latest publication=%+v published=%t error=%v", publication, published, err)
 	}
 	if err := tx.Rollback(fixture.ctx); err != nil && !errors.Is(err, pgx.ErrTxClosed) {
 		t.Fatal(err)
@@ -89,7 +89,7 @@ func TestPublishPluginRuntimeTrustRevocationTxRejectsMissingAuthorityAndIsolatio
 				t.Fatal(err)
 			}
 			defer func() { _ = tx.Rollback(context.Background()) }()
-			if _, err := PublishPluginRuntimeTrustRevocationTx(fixture.ctx, tx, "missing.plugin", 1); !errors.Is(err, ErrPluginRuntimePublicationConflict) {
+			if _, _, err := PublishPluginRuntimeTrustRevocationTx(fixture.ctx, tx, "missing.plugin", 1); !errors.Is(err, ErrPluginRuntimePublicationConflict) {
 				t.Fatalf("isolation=%q error=%v", isolation, err)
 			}
 		})

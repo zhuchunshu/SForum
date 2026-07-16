@@ -157,7 +157,9 @@ func validateDurableRootPublication(
 	}
 	root, found := roots[normalized.Artifact.ExtensionID]
 	if !found {
-		return Publication{}, ErrInvalid
+		// Missing root is not a shape error: startup saw an enabled identity
+		// surface without any durable Host publication history for that owner.
+		return Publication{}, ErrNotFound
 	}
 	if root.tip.RegistryState != RegistryStateActive {
 		return Publication{}, ErrStale

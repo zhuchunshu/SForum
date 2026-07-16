@@ -4,8 +4,8 @@ import "strings"
 
 // TransitionPluginRuntimeTrustRevocationMembers removes every executable
 // member owned by one revoked extension while preserving the exact unrelated
-// desired set. The caller still publishes an unchanged set when the member is
-// already absent so connected nodes receive a durable wake revision.
+// desired set. The PostgreSQL producer decides whether an already absent
+// member needs a new revision.
 func TransitionPluginRuntimeTrustRevocationMembers(
 	latest []PluginRuntimeMember,
 	extensionID string,
