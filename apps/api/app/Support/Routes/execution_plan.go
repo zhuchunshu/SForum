@@ -133,7 +133,7 @@ func (r *Registry) BuildExecutionPlan(method, requestPath string) (RouteExecutio
 	if err != nil {
 		return RouteExecutionPlan{}, err
 	}
-	return buildRouteExecutionPlanView(planningView(snapshot), match, method, requestPath)
+	return buildRouteExecutionPlanView(r.executionPlanningView(snapshot), match, method, requestPath)
 }
 
 // buildRouteExecutionPlan also accepts an already selected Match. This is kept
@@ -166,7 +166,7 @@ func buildRouteExecutionPlanView(
 		return RouteExecutionPlan{}, fmt.Errorf("%w: terminal route is unresolved or ambiguous", ErrInvalidExecutionPlan)
 	}
 	terminal := match.Route
-	if !terminalExecutionAction(terminal.Action) || !routeMethodMatches(terminal, method) ||
+	if !terminalExecutionAction(terminal.Action) || !routeMethodMatches(terminal, method) || !snapshot.routeAdmitted(terminal) ||
 		!routeInExecutionSnapshot(snapshot.routes, terminal) {
 		return RouteExecutionPlan{}, fmt.Errorf("%w: terminal route is not in the resolved snapshot", ErrInvalidExecutionPlan)
 	}
@@ -199,7 +199,8 @@ func buildRouteExecutionPlanView(
 			return RouteExecutionPlan{}, fmt.Errorf("%w: duplicate route contribution", ErrInvalidExecutionPlan)
 		}
 		seen = append(seen, contribution)
-		if !routeInExecutionSnapshot(snapshot.routes, contribution) || contribution.Provider.Kind != ProviderPlugin ||
+		if !routeInExecutionSnapshot(snapshot.routes, contribution) || !snapshot.routeAdmitted(contribution) ||
+			contribution.Provider.Kind != ProviderPlugin ||
 			snapshot.safeMode || !routeMethodMatches(contribution, method) && contribution.Action != extensionmanifest.RouteActionGlobalMiddleware {
 			return RouteExecutionPlan{}, fmt.Errorf("%w: contribution is not active in the resolved snapshot", ErrInvalidExecutionPlan)
 		}
@@ -279,7 +280,11 @@ func buildRouteExecutionPlanView(
 
 func validateExecutionTerminal(snapshot planningSnapshot, terminal Route, method, requestPath string) error {
 	for _, conflict := range snapshot.conflicts {
-		if !conflictContainsExecutionRoute(conflict, terminal) || !methodsOverlap(conflict.Method, method) {
+		if !methodsOverlap(conflict.Method, method) ||
+			!activeConflictContainsExecutionRoute(snapshot, conflict, terminal) {
+			continue
+		}
+		if activeConflictCandidateCount(snapshot, conflict) < 2 {
 			continue
 		}
 		if conflict.Kind != ConflictProviderSelection || terminal.Action != extensionmanifest.RouteActionReplace {
@@ -297,6 +302,9 @@ func validateExecutionTerminal(snapshot planningSnapshot, terminal Route, method
 	for _, route := range snapshot.routes {
 		if route.Action == extensionmanifest.RouteActionReplace && route.TargetID == terminal.TargetID &&
 			routeMethodMatches(route, method) {
+			if !snapshot.routeAdmitted(route) {
+				continue
+			}
 			compiled, err := compileRoutePath(route.Path)
 			if err == nil {
 				if _, ok := compiled.match(requestPath); ok {
@@ -305,7 +313,9 @@ func validateExecutionTerminal(snapshot planningSnapshot, terminal Route, method
 			}
 		}
 		if addressableAction(route.Action) && route.ID == terminal.TargetID && routeMethodMatches(route, method) {
-			targetFound = true
+			if snapshot.routeAdmitted(route) {
+				targetFound = true
+			}
 		}
 	}
 	if !targetFound || replacements != 1 {
@@ -449,9 +459,19 @@ func routeInExecutionSnapshot(routes []Route, wanted Route) bool {
 	return false
 }
 
-func conflictContainsExecutionRoute(conflict Conflict, wanted Route) bool {
+func activeConflictCandidateCount(snapshot planningSnapshot, conflict Conflict) int {
+	count := 0
 	for _, route := range conflict.Candidates {
-		if equalRoute(route, wanted) {
+		if snapshot.routeAdmitted(route) {
+			count++
+		}
+	}
+	return count
+}
+
+func activeConflictContainsExecutionRoute(snapshot planningSnapshot, conflict Conflict, wanted Route) bool {
+	for _, route := range conflict.Candidates {
+		if equalRoute(route, wanted) && snapshot.routeAdmitted(route) {
 			return true
 		}
 	}

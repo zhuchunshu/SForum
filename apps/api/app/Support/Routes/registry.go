@@ -155,6 +155,7 @@ type planningSnapshot struct {
 	safeMode  bool
 	routes    []Route
 	conflicts []Conflict
+	admit     func(Route) bool
 }
 
 // Registry keeps readers lock-free while complete candidate sets are validated off-snapshot.
@@ -501,6 +502,20 @@ func planningView(snapshot *registrySnapshot) planningSnapshot {
 		revision: snapshot.revision, safeMode: snapshot.safeMode,
 		routes: snapshot.routeValues, conflicts: snapshot.conflicts,
 	}
+}
+
+// executionPlanningView keeps the immutable catalog zero-copy and evaluates
+// exact-runtime admission only for candidates touched by one request plan.
+func (r *Registry) executionPlanningView(snapshot *registrySnapshot) planningSnapshot {
+	view := planningView(snapshot)
+	if r != nil {
+		view.admit = r.routeAdmitted
+	}
+	return view
+}
+
+func (s planningSnapshot) routeAdmitted(route Route) bool {
+	return route.Provider.Kind == ProviderCore || s.admit == nil || s.admit(route)
 }
 
 func publicPlanningView(snapshot Snapshot) planningSnapshot {

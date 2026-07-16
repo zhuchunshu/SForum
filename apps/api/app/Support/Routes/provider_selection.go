@@ -118,6 +118,9 @@ func (a *ProviderSelectionAPI) Select(ctx context.Context, request SelectProvide
 	if err != nil {
 		return ProviderSelection{}, err
 	}
+	if !a.registry.routeAdmitted(candidate) {
+		return ProviderSelection{}, ErrProviderSelectionStale
+	}
 	request.ProviderRouteID = candidate.ID
 	request.ProviderContractVersion = candidate.ContractVersion
 	request.ProviderArtifact = candidate.Provider.Artifact
@@ -170,7 +173,8 @@ func (a *ProviderSelectionAPI) Conflicts(ctx context.Context) ([]ProviderSelecti
 		switch {
 		case err == nil:
 			item.Selection = &selection
-			if live, liveErr := a.store.Selected(ctx, key); liveErr == nil && providerSelectionMatchesConflict(live, conflict) {
+			if live, liveErr := a.store.Selected(ctx, key); liveErr == nil &&
+				providerSelectionMatchesConflict(live, conflict, a.registry.routeAdmitted) {
 				item.SelectionStatus = "selected"
 			} else if liveErr == nil || errors.Is(liveErr, ErrProviderSelectionStale) || errors.Is(liveErr, ErrProviderSelectionNotFound) {
 				item.SelectionStatus = "stale"
@@ -186,7 +190,7 @@ func (a *ProviderSelectionAPI) Conflicts(ctx context.Context) ([]ProviderSelecti
 	return result, nil
 }
 
-func providerSelectionMatchesConflict(selection ProviderSelection, conflict Conflict) bool {
+func providerSelectionMatchesConflict(selection ProviderSelection, conflict Conflict, admitted func(Route) bool) bool {
 	for _, candidate := range conflict.Candidates {
 		if candidate.Action == extensionmanifest.RouteActionReplace &&
 			candidate.ID == selection.ProviderRouteID &&
@@ -195,7 +199,7 @@ func providerSelectionMatchesConflict(selection ProviderSelection, conflict Conf
 			candidate.Provider.Artifact.ExtensionID == selection.ProviderExtensionID &&
 			candidate.Provider.Artifact.ExtensionVersion == selection.ProviderExtensionVersion &&
 			candidate.Provider.Artifact.PackageDigest == selection.ProviderPackageDigest {
-			return true
+			return admitted == nil || admitted(candidate)
 		}
 	}
 	return false
@@ -243,7 +247,7 @@ func (a *ProviderSelectionAPI) resolveForPlanning(
 	if err == nil || !errors.Is(err, ErrAmbiguousRoute) {
 		return snapshot, match, err
 	}
-	view := planningView(snapshot)
+	view := a.registry.executionPlanningView(snapshot)
 	if view.revision != match.Revision {
 		return nil, Match{}, ErrRevisionConflict
 	}
@@ -273,7 +277,7 @@ func (a *ProviderSelectionAPI) BuildExecutionPlan(ctx context.Context, method, r
 	if err != nil {
 		return RouteExecutionPlan{}, err
 	}
-	return buildRouteExecutionPlanView(planningView(snapshot), match, method, requestPath)
+	return buildRouteExecutionPlanView(a.registry.executionPlanningView(snapshot), match, method, requestPath)
 }
 
 func exactReplacementCandidate(snapshot Snapshot, request SelectProviderRequest) (Route, error) {
@@ -313,7 +317,7 @@ func providerSelectionKeyForMatchView(snapshot planningSnapshot, match Match, me
 	}
 	for _, conflict := range snapshot.conflicts {
 		if conflict.Kind != ConflictProviderSelection || !methodsOverlap(conflict.Method, method) ||
-			!sameRouteCandidateSet(conflict.Candidates, match.Candidates) {
+			!sameActiveRouteCandidateSet(snapshot, conflict.Candidates, match.Candidates) {
 			continue
 		}
 		for _, route := range conflict.Candidates {
@@ -402,10 +406,15 @@ func matchingContributions(snapshot planningSnapshot, targetID, method, requestP
 			continue
 		}
 		if route.Action == extensionmanifest.RouteActionGlobalMiddleware {
-			result = append(result, route)
+			if snapshot.routeAdmitted(route) {
+				result = append(result, route)
+			}
 			continue
 		}
 		if !compositionAction(route.Action) || route.TargetID != targetID || !routeMethodMatches(route, method) {
+			continue
+		}
+		if !snapshot.routeAdmitted(route) {
 			continue
 		}
 		compiled, err := compileRoutePath(route.Path)
@@ -419,23 +428,30 @@ func matchingContributions(snapshot planningSnapshot, targetID, method, requestP
 	return result
 }
 
-func sameRouteCandidateSet(left, right []Route) bool {
-	if len(left) != len(right) {
+func sameActiveRouteCandidateSet(snapshot planningSnapshot, left, right []Route) bool {
+	active := 0
+	for _, candidate := range left {
+		if snapshot.routeAdmitted(candidate) {
+			active++
+		}
+	}
+	if active != len(right) {
 		return false
 	}
-	remaining := append([]Route(nil), right...)
 	for _, candidate := range left {
-		found := -1
-		for index := range remaining {
-			if equalRoute(remaining[index], candidate) {
-				found = index
+		if !snapshot.routeAdmitted(candidate) {
+			continue
+		}
+		found := false
+		for _, wanted := range right {
+			if equalRoute(candidate, wanted) {
+				found = true
 				break
 			}
 		}
-		if found < 0 {
+		if !found {
 			return false
 		}
-		remaining = append(remaining[:found], remaining[found+1:]...)
 	}
 	return true
 }
