@@ -9,10 +9,11 @@ import (
 )
 
 var (
-	ErrRuntimeAdmissionInvalid  = errors.New("extension runtime admission is invalid")
-	ErrRuntimeAdmissionDraining = errors.New("extension runtime is draining")
-	ErrRuntimeAdmissionForced   = errors.New("extension runtime admission was force-cancelled")
-	ErrRuntimeAdmissionBusy     = errors.New("extension runtime lifecycle cleanup is still active")
+	ErrRuntimeAdmissionInvalid     = errors.New("extension runtime admission is invalid")
+	ErrRuntimeAdmissionDraining    = errors.New("extension runtime is draining")
+	ErrRuntimeAdmissionQuarantined = errors.New("extension runtime admission is quarantined")
+	ErrRuntimeAdmissionForced      = errors.New("extension runtime admission was force-cancelled")
+	ErrRuntimeAdmissionBusy        = errors.New("extension runtime lifecycle cleanup is still active")
 )
 
 // RuntimeCallClass 区分 drain 时需要独立观测的调用来源。
@@ -41,25 +42,29 @@ type RuntimeInstanceIdentity struct {
 
 // RuntimeAdmissionSnapshot 是某一时刻仍在执行的调用快照。
 type RuntimeAdmissionSnapshot struct {
-	Identity      RuntimeInstanceIdentity
-	Draining      bool
-	Forced        bool
-	ForceCause    error
-	ActiveTotal   int
-	ActiveByClass map[RuntimeCallClass]int
+	Identity        RuntimeInstanceIdentity
+	Draining        bool
+	Quarantined     bool
+	QuarantineCause error
+	Forced          bool
+	ForceCause      error
+	ActiveTotal     int
+	ActiveByClass   map[RuntimeCallClass]int
 }
 
 // RuntimeAdmissionGate 在进程真正停止前关闭新入口并等待已获准调用退出。
 type RuntimeAdmissionGate struct {
 	identity RuntimeInstanceIdentity
 
-	mu         sync.Mutex
-	draining   bool
-	forced     bool
-	forceCause error
-	nextID     uint64
-	active     map[uint64]runtimeAdmissionCall
-	idle       chan struct{}
+	mu              sync.Mutex
+	draining        bool
+	quarantined     bool
+	quarantineCause error
+	forced          bool
+	forceCause      error
+	nextID          uint64
+	active          map[uint64]runtimeAdmissionCall
+	idle            chan struct{}
 }
 
 type runtimeAdmissionCall struct {
@@ -115,6 +120,11 @@ func (g *RuntimeAdmissionGate) Acquire(parent context.Context, class RuntimeCall
 		g.mu.Unlock()
 		return nil, err
 	}
+	if g.quarantined && class != RuntimeCallLifecycleCleanup {
+		err := runtimeAdmissionQuarantinedError(g.quarantineCause)
+		g.mu.Unlock()
+		return nil, err
+	}
 	if g.draining && class != RuntimeCallLifecycleCleanup {
 		g.mu.Unlock()
 		return nil, ErrRuntimeAdmissionDraining
@@ -135,6 +145,26 @@ func (g *RuntimeAdmissionGate) Acquire(parent context.Context, class RuntimeCall
 		id:      id,
 		cancel:  cancel,
 	}, nil
+}
+
+// Quarantine closes ordinary admission permanently for this exact gate while
+// allowing existing leases and lifecycle cleanup to finish normally.
+func (g *RuntimeAdmissionGate) Quarantine(cause error) RuntimeAdmissionSnapshot {
+	if g == nil {
+		return RuntimeAdmissionSnapshot{}
+	}
+	if cause == nil {
+		cause = ErrRuntimeAdmissionQuarantined
+	}
+	g.mu.Lock()
+	if !g.quarantined {
+		g.quarantined = true
+		g.quarantineCause = cause
+	}
+	g.draining = true
+	snapshot := g.snapshotLocked()
+	g.mu.Unlock()
+	return snapshot
 }
 
 // BeginDrain 与 Acquire 使用同一把锁；返回后不会再放行 ordinary 调用。
@@ -158,6 +188,9 @@ func (g *RuntimeAdmissionGate) Resume() (RuntimeAdmissionSnapshot, error) {
 	defer g.mu.Unlock()
 	if g.forced {
 		return g.snapshotLocked(), runtimeAdmissionForcedError(g.forceCause)
+	}
+	if g.quarantined {
+		return g.snapshotLocked(), runtimeAdmissionQuarantinedError(g.quarantineCause)
 	}
 	for _, call := range g.active {
 		if call.class == RuntimeCallLifecycleCleanup {
@@ -255,13 +288,22 @@ func (g *RuntimeAdmissionGate) snapshotLocked() RuntimeAdmissionSnapshot {
 		byClass[call.class]++
 	}
 	return RuntimeAdmissionSnapshot{
-		Identity:      g.identity,
-		Draining:      g.draining,
-		Forced:        g.forced,
-		ForceCause:    g.forceCause,
-		ActiveTotal:   len(g.active),
-		ActiveByClass: byClass,
+		Identity:        g.identity,
+		Draining:        g.draining,
+		Quarantined:     g.quarantined,
+		QuarantineCause: g.quarantineCause,
+		Forced:          g.forced,
+		ForceCause:      g.forceCause,
+		ActiveTotal:     len(g.active),
+		ActiveByClass:   byClass,
 	}
+}
+
+func runtimeAdmissionQuarantinedError(cause error) error {
+	if cause == nil || errors.Is(cause, ErrRuntimeAdmissionQuarantined) {
+		return ErrRuntimeAdmissionQuarantined
+	}
+	return errors.Join(ErrRuntimeAdmissionQuarantined, cause)
 }
 
 func runtimeAdmissionForcedError(cause error) error {

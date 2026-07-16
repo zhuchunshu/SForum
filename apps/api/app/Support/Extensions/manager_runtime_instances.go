@@ -39,6 +39,14 @@ type RuntimeInstanceSnapshot struct {
 	Admission        RuntimeAdmissionSnapshot
 }
 
+// RuntimeInstanceArtifactIdentity binds an incident to one exact process and
+// immutable package so a stale event can never quarantine a replacement.
+type RuntimeInstanceArtifactIdentity struct {
+	RuntimeInstanceIdentity
+	ExtensionVersion string
+	ArtifactDigest   string
+}
+
 // AcquireActiveRuntimeCall 在线性化边界内捕获活动实例并取得普通调用 lease。
 // 返回的 target 与 lease 始终属于同一个 exact instance，调用方必须 Release。
 func (m *Manager) AcquireActiveRuntimeCall(ctx context.Context, extensionID string, class RuntimeCallClass) (RuntimeInstanceSnapshot, *RuntimeAdmissionLease, error) {
@@ -113,6 +121,37 @@ func (m *Manager) BeginDrain(identity RuntimeInstanceIdentity) (RuntimeAdmission
 	}
 	defer unlock()
 	return m.beginDrainRuntimeSetLocked(identity)
+}
+
+// QuarantineRuntimeInstance deliberately bypasses runtime-set and lifecycle
+// transition locks. Its only lock order is Manager -> exact gate, so an
+// incident can close admission promptly even while publication is blocked.
+func (m *Manager) QuarantineRuntimeInstance(
+	exact RuntimeInstanceArtifactIdentity,
+	cause error,
+) (RuntimeAdmissionSnapshot, error) {
+	if m == nil {
+		return RuntimeAdmissionSnapshot{}, ErrRuntimeAdmissionInvalid
+	}
+	identity, err := normalizeRuntimeInstanceIdentity(exact.RuntimeInstanceIdentity)
+	if err != nil {
+		return RuntimeAdmissionSnapshot{}, err
+	}
+	version := strings.TrimSpace(exact.ExtensionVersion)
+	digest := strings.TrimSpace(exact.ArtifactDigest)
+	if version == "" || digest == "" {
+		return RuntimeAdmissionSnapshot{}, ErrRuntimeAdmissionInvalid
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	instance, err := m.runtimeInstanceLocked(identity)
+	if err != nil {
+		return RuntimeAdmissionSnapshot{}, err
+	}
+	if instance.extensionVersion != version || instance.artifactDigest != digest {
+		return instance.gate.Snapshot(), fmt.Errorf("%w: %s/%s artifact drifted", ErrRuntimeInstanceConflict, identity.ExtensionID, identity.InstanceID)
+	}
+	return instance.gate.Quarantine(cause), nil
 }
 
 func (m *Manager) beginDrainRuntimeSetLocked(identity RuntimeInstanceIdentity) (RuntimeAdmissionSnapshot, error) {
