@@ -23,6 +23,14 @@ func (s *protocolV2QueryServer) Execute(ctx context.Context, request *hostv2.Que
 			}
 			return s.core.queries.execute(ctx, request), nil
 		}
+		if isProtocolV2QueryRegistryRequest(request) {
+			if s == nil || s.core == nil || s.core.queryRegistry == nil {
+				response := &hostv2.QueryResponse{Context: protocolV2ResponseContext(request.GetContext()), Page: &protocolv2.PageInfo{}}
+				response.Error = queryRegistryProtocolV2Error(ErrProtocolV2QueryRegistryUnavailable)
+				return response, nil
+			}
+			return s.core.queryRegistry.execute(ctx, request), nil
+		}
 		response := &hostv2.QueryResponse{Context: protocolV2ResponseContext(request.GetContext())}
 		response.Error = protocolV2Unsupported("host.query_unsupported", "The query id or plan version is not supported.")
 		return response, nil
@@ -37,8 +45,9 @@ func (s *protocolV2QueryServer) Execute(ctx context.Context, request *hostv2.Que
 		response.Error = protocolV2Unsupported("host.query_schema_mismatch", "The requested result schema is not supported.")
 		return response, nil
 	}
-	if len(request.GetFilters()) > 0 || len(request.GetSorts()) > 0 || request.GetPage().GetCursor() != "" {
-		response.Error = protocolV2Unsupported("host.query_shape_unsupported", "Own-settings compatibility query does not support filters, sorts, or cursors.")
+	if len(request.GetFilters()) > 0 || len(request.GetSorts()) > 0 || request.GetPage().GetCursor() != "" ||
+		request.GetOffset() != 0 || hasProtocolV2QueryRegistryContractFields(request) {
+		response.Error = protocolV2Unsupported("host.query_shape_unsupported", "Own-settings compatibility query does not support filters, sorts, pagination, or Query Registry contract fields.")
 		return response, nil
 	}
 	result := s.core.call(ctx, request.GetContext(), MethodGetSettings, nil)
@@ -66,18 +75,38 @@ func (s *protocolV2QueryServer) Execute(ctx context.Context, request *hostv2.Que
 	return response, nil
 }
 
+func hasProtocolV2QueryRegistryContractFields(request *hostv2.QueryRequest) bool {
+	return request.GetContractVersion() != "" || len(request.GetRelations()) > 0 ||
+		request.GetScope() != "" || request.GetActorDelegation() != ""
+}
+
+func isProtocolV2QueryRegistryRequest(request *hostv2.QueryRequest) bool {
+	return request.GetContractVersion() != "" || request.GetActorDelegation() != ""
+}
+
 func (s *protocolV2QueryServer) Stream(request *hostv2.QueryRequest, stream grpc.ServerStreamingServer[hostv2.QueryRow]) error {
 	response, err := s.Execute(stream.Context(), request)
 	if err != nil {
 		return err
 	}
 	if response.GetError() != nil {
-		return stream.Send(&hostv2.QueryRow{Context: response.GetContext(), Error: response.GetError()})
+		row := &hostv2.QueryRow{Context: response.GetContext(), Error: response.GetError()}
+		if isProtocolV2QueryRegistryRequest(request) {
+			row.Sequence = 1
+			row.Final = true
+		}
+		return stream.Send(row)
 	}
 	for index, row := range response.GetRows() {
 		if err := stream.Send(&hostv2.QueryRow{Context: response.GetContext(), Sequence: uint64(index + 1), Value: row}); err != nil {
 			return err
 		}
+	}
+	if isProtocolV2QueryRegistryRequest(request) {
+		return stream.Send(&hostv2.QueryRow{
+			Context: response.GetContext(), Sequence: uint64(len(response.GetRows()) + 1),
+			Page: response.GetPage(), NextOffset: response.GetNextOffset(), Final: true,
+		})
 	}
 	return nil
 }

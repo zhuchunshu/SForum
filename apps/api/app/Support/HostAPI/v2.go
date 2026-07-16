@@ -27,12 +27,13 @@ const (
 )
 
 type protocolV2Core struct {
-	service   *Service
-	services  *ServiceRegistry
-	commands  *protocolV2CommandEngine
-	queries   *protocolV2QueryEngine
-	database  *protocolV2DatabaseEngine
-	providers ProtocolV2ProviderBroker
+	service       *Service
+	services      *ServiceRegistry
+	commands      *protocolV2CommandEngine
+	queries       *protocolV2QueryEngine
+	queryRegistry *ProtocolV2QueryRegistryService
+	database      *protocolV2DatabaseEngine
+	providers     ProtocolV2ProviderBroker
 }
 
 func registerProtocolV2(
@@ -41,11 +42,15 @@ func registerProtocolV2(
 	services *ServiceRegistry,
 	commands *protocolV2CommandEngine,
 	queries *protocolV2QueryEngine,
+	queryRegistry *ProtocolV2QueryRegistryService,
 	database *protocolV2DatabaseEngine,
 	cache *ProtocolV2CacheServiceServer,
 	providers ProtocolV2ProviderBroker,
 ) {
-	core := &protocolV2Core{service: service, services: services, commands: commands, queries: queries, database: database, providers: providers}
+	core := &protocolV2Core{
+		service: service, services: services, commands: commands, queries: queries,
+		queryRegistry: queryRegistry, database: database, providers: providers,
+	}
 	hostv2.RegisterHostQueryServiceServer(server, &protocolV2QueryServer{core: core})
 	hostv2.RegisterHostCommandServiceServer(server, &protocolV2CommandServer{core: core})
 	hostv2.RegisterDatabaseServiceServer(server, &protocolV2DatabaseServer{engine: core.database})

@@ -77,6 +77,12 @@ func buildProtocolV2QueryPlan(
 	definition protocolV2QueryDefinition,
 	request *hostv2.QueryRequest,
 ) (protocolV2QueryPlan, *protocolv2.ErrorDetail) {
+	if request.GetOffset() != 0 {
+		return protocolV2QueryPlan{}, queryInvalid("host.query_page_invalid", "Stable Host Queries use their signed cursor and do not accept a raw offset.")
+	}
+	if hasProtocolV2QueryRegistryContractFields(request) {
+		return protocolV2QueryPlan{}, queryInvalid("host.query_shape_unsupported", "Stable Host Queries do not accept Query Registry contract fields.")
+	}
 	if (request.GetResultSchemaId() != "" && request.GetResultSchemaId() != definition.ResultSchemaID) ||
 		(request.GetResultSchemaVersion() != "" && request.GetResultSchemaVersion() != definition.ResultSchemaVersion) {
 		return protocolV2QueryPlan{}, queryInvalid("host.query_schema_mismatch", "The requested result schema is not supported.")

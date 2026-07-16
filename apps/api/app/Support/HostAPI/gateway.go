@@ -20,23 +20,25 @@ import (
 // Gateway 在 loopback 上暴露 Host API，供插件子进程调用（F2.2）。
 // 每个已启动插件持有独立 token；请求必须带 X-SForum-Extension-Id 与 Bearer token。
 type Gateway struct {
-	mu                        sync.RWMutex
-	service                   *Service
-	services                  *ServiceRegistry
-	commands                  *protocolV2CommandEngine
-	queries                   *protocolV2QueryEngine
-	database                  *protocolV2DatabaseEngine
-	cache                     *ProtocolV2CacheServiceServer
-	providers                 ProtocolV2ProviderBroker
-	protocolV2CommandsFrozen  bool
-	protocolV2QueriesFrozen   bool
-	protocolV2DatabaseFrozen  bool
-	protocolV2CacheFrozen     bool
-	protocolV2ProvidersFrozen bool
-	server                    *http.Server
-	ln                        net.Listener
-	baseURL                   string
-	tokens                    map[string]string // extensionID → token
+	mu                            sync.RWMutex
+	service                       *Service
+	services                      *ServiceRegistry
+	commands                      *protocolV2CommandEngine
+	queries                       *protocolV2QueryEngine
+	queryRegistry                 *ProtocolV2QueryRegistryService
+	database                      *protocolV2DatabaseEngine
+	cache                         *ProtocolV2CacheServiceServer
+	providers                     ProtocolV2ProviderBroker
+	protocolV2CommandsFrozen      bool
+	protocolV2QueriesFrozen       bool
+	protocolV2QueryRegistryFrozen bool
+	protocolV2DatabaseFrozen      bool
+	protocolV2CacheFrozen         bool
+	protocolV2ProvidersFrozen     bool
+	server                        *http.Server
+	ln                            net.Listener
+	baseURL                       string
+	tokens                        map[string]string // extensionID → token
 }
 
 // RegisterProtocolV2 exposes typed Host services only on the caller's
@@ -50,16 +52,18 @@ func (g *Gateway) RegisterProtocolV2(server grpc.ServiceRegistrar) {
 	services := g.services
 	commands := g.commands
 	queries := g.queries
+	queryRegistry := g.queryRegistry
 	database := g.database
 	cache := g.cache
 	providers := g.providers
 	g.protocolV2CommandsFrozen = true
 	g.protocolV2QueriesFrozen = true
+	g.protocolV2QueryRegistryFrozen = true
 	g.protocolV2DatabaseFrozen = true
 	g.protocolV2CacheFrozen = true
 	g.protocolV2ProvidersFrozen = true
 	g.mu.Unlock()
-	registerProtocolV2(server, service, services, commands, queries, database, cache, providers)
+	registerProtocolV2(server, service, services, commands, queries, queryRegistry, database, cache, providers)
 }
 
 // BindProtocolV2CacheService installs the production cache boundary before any
@@ -154,6 +158,46 @@ func (g *Gateway) BindProtocolV2QueryRuntime(runtime ProtocolV2QueryRuntime) err
 	}
 	g.queries = runtime.queryEngine()
 	return nil
+}
+
+// BindProtocolV2QueryRegistryService installs the actor-delegated Query
+// Registry outlet exactly once. Broker registration freezes the pointer for the
+// Gateway lifetime; bootstrap must construct the complete execution runtime
+// before binding it.
+func (g *Gateway) BindProtocolV2QueryRegistryService(service *ProtocolV2QueryRegistryService) error {
+	if g == nil || service == nil || service.registry == nil || service.execution == nil ||
+		!service.execution.BoundToRegistry(service.registry) || service.actors == nil ||
+		service.callerAdmission == nil || service.delegations == nil {
+		return fmt.Errorf("hostapi: protocol v2 Query Registry service is required")
+	}
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	if g.protocolV2QueryRegistryFrozen {
+		return fmt.Errorf("hostapi: protocol v2 Query Registry service is frozen until the next Gateway boot")
+	}
+	if g.queryRegistry != nil {
+		return fmt.Errorf("hostapi: protocol v2 Query Registry service is already bound")
+	}
+	g.queryRegistry = service
+	return nil
+}
+
+// IssueProtocolV2QueryActorDelegation exposes only the Host-side issuer. The
+// signed token is delivered to one plugin invocation and can be consumed once.
+func (g *Gateway) IssueProtocolV2QueryActorDelegation(
+	ctx context.Context,
+	request ProtocolV2QueryActorDelegationRequest,
+) (ProtocolV2QueryActorDelegationGrant, error) {
+	if g == nil {
+		return ProtocolV2QueryActorDelegationGrant{}, ErrProtocolV2QueryDelegationInvalid
+	}
+	g.mu.RLock()
+	service := g.queryRegistry
+	g.mu.RUnlock()
+	if service == nil {
+		return ProtocolV2QueryActorDelegationGrant{}, ErrProtocolV2QueryDelegationInvalid
+	}
+	return service.IssueProtocolV2QueryActorDelegation(ctx, request)
 }
 
 // BindProtocolV2CommandRuntime installs one immutable Host-owned command
