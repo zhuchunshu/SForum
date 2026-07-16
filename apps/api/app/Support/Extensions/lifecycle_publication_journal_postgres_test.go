@@ -1,6 +1,7 @@
 package extensionsruntime
 
 import (
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -104,6 +105,64 @@ func TestLifecyclePublicationJournalMapsFrozenRuntimeTransition(t *testing.T) {
 			if transition.Target.Manifest.Lifecycle.ContractVersion == "mutated.lifecycle@9" ||
 				transition.ActorUserID != actorUserID {
 				t.Fatal("transition changed with caller request")
+			}
+		})
+	}
+}
+
+func TestLifecycleMigrationModeForPublication(t *testing.T) {
+	tests := []struct {
+		name        string
+		operation   extensions.LifecycleMachineOperation
+		publication LifecycleBoundaryPublicationMode
+		wantMode    LifecycleBoundaryMigrationMode
+		wantProof   bool
+	}{
+		{"install activate", extensions.LifecycleMachineInstall, LifecycleBoundaryActivate, LifecycleBoundaryMigrationInstall, true},
+		{"upgrade activate", extensions.LifecycleMachineUpgrade, LifecycleBoundaryActivate, LifecycleBoundaryMigrationUpgrade, true},
+		{"rollback activate", extensions.LifecycleMachineRollback, LifecycleBoundaryActivate, LifecycleBoundaryMigrationRollback, true},
+		{"enable activate", extensions.LifecycleMachineEnable, LifecycleBoundaryActivate, "", false},
+		{"disable deactivate", extensions.LifecycleMachineDisable, LifecycleBoundaryDeactivate, "", false},
+		{"uninstall deactivate", extensions.LifecycleMachineUninstall, LifecycleBoundaryDeactivate, "", false},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			mode, required := lifecycleMigrationModeForPublication(test.operation, test.publication)
+			if mode != test.wantMode || required != test.wantProof {
+				t.Fatalf("migration mode = %q, %v want %q, %v", mode, required, test.wantMode, test.wantProof)
+			}
+		})
+	}
+}
+
+func TestLifecycleMigrationPublicationProofReadyRequiresExactDurableEvidence(t *testing.T) {
+	valid := lifecycleMigrationProofRecord{
+		FirstAttempt: 1, LastAttempt: 1,
+		Status: lifecycleMigrationStatusTargetReady, TargetReady: true,
+		ProofKind:   sql.NullString{String: lifecycleMigrationProofP5, Valid: true},
+		ProofID:     sql.NullString{String: "p5-proof:exact", Valid: true},
+		ProofDigest: sql.NullString{String: strings.Repeat("a", 64), Valid: true},
+	}
+	if !lifecycleMigrationPublicationProofReady(valid) {
+		t.Fatal("exact target-ready proof was rejected")
+	}
+	tests := map[string]func(*lifecycleMigrationProofRecord){
+		"not ready":     func(proof *lifecycleMigrationProofRecord) { proof.TargetReady = false },
+		"wrong status":  func(proof *lifecycleMigrationProofRecord) { proof.Status = lifecycleMigrationStatusBlocked },
+		"attempt range": func(proof *lifecycleMigrationProofRecord) { proof.FirstAttempt = 2 },
+		"unknown kind":  func(proof *lifecycleMigrationProofRecord) { proof.ProofKind.String = "external" },
+		"missing kind":  func(proof *lifecycleMigrationProofRecord) { proof.ProofKind.Valid = false },
+		"invalid id":    func(proof *lifecycleMigrationProofRecord) { proof.ProofID.String = "bad proof" },
+		"invalid digest": func(proof *lifecycleMigrationProofRecord) {
+			proof.ProofDigest.String = strings.Repeat("A", 64)
+		},
+	}
+	for name, mutate := range tests {
+		t.Run(name, func(t *testing.T) {
+			proof := valid
+			mutate(&proof)
+			if lifecycleMigrationPublicationProofReady(proof) {
+				t.Fatalf("invalid proof accepted: %#v", proof)
 			}
 		})
 	}

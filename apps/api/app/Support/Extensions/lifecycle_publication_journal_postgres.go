@@ -210,6 +210,9 @@ func (j *PostgresLifecycleBoundaryPublicationJournal) CommitLifecyclePublication
 		}
 		return nil
 	}
+	if err := requireLifecycleMigrationPublicationProof(ctx, tx, request, mode); err != nil {
+		return err
+	}
 	transition, err := lifecyclePluginRuntimePublicationTransition(request, mode)
 	if err != nil {
 		return err
@@ -244,6 +247,78 @@ func (j *PostgresLifecycleBoundaryPublicationJournal) CommitLifecyclePublication
 		return fmt.Errorf("commit lifecycle publication marker: %w", err)
 	}
 	return nil
+}
+
+func requireLifecycleMigrationPublicationProof(
+	ctx context.Context,
+	tx pgx.Tx,
+	request LifecycleBoundaryRequest,
+	publicationMode LifecycleBoundaryPublicationMode,
+) error {
+	migrationMode, required := lifecycleMigrationModeForPublication(request.Operation, publicationMode)
+	if !required {
+		return nil
+	}
+	plan, err := lifecycleMigrationPlanFor(request, migrationMode, false)
+	if err != nil {
+		return err
+	}
+	proof, err := loadLifecycleMigrationProof(ctx, tx, plan.OperationID, plan.Mode, true)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return lifecycleMigrationPublicationBlockedError()
+	}
+	if err != nil {
+		return mapLifecycleMigrationProofError("load lifecycle migration proof for publication", err)
+	}
+	if !proof.matches(plan) {
+		return ErrLifecycleMigrationsConflict
+	}
+	if !lifecycleMigrationPublicationProofReady(proof) {
+		return lifecycleMigrationPublicationBlockedError()
+	}
+	return nil
+}
+
+func lifecycleMigrationModeForPublication(
+	operation extensions.LifecycleMachineOperation,
+	publicationMode LifecycleBoundaryPublicationMode,
+) (LifecycleBoundaryMigrationMode, bool) {
+	if publicationMode != LifecycleBoundaryActivate {
+		return "", false
+	}
+	switch operation {
+	case extensions.LifecycleMachineInstall:
+		return LifecycleBoundaryMigrationInstall, true
+	case extensions.LifecycleMachineUpgrade:
+		return LifecycleBoundaryMigrationUpgrade, true
+	case extensions.LifecycleMachineRollback:
+		return LifecycleBoundaryMigrationRollback, true
+	default:
+		return "", false
+	}
+}
+
+func lifecycleMigrationPublicationProofReady(proof lifecycleMigrationProofRecord) bool {
+	if proof.Status != lifecycleMigrationStatusTargetReady || !proof.TargetReady ||
+		proof.FirstAttempt <= 0 || proof.LastAttempt < proof.FirstAttempt ||
+		!proof.ProofKind.Valid || !proof.ProofID.Valid || !proof.ProofDigest.Valid ||
+		!validLifecycleMigrationProofID(proof.ProofID.String) ||
+		!validLifecycleCleanupDigest(proof.ProofDigest.String) {
+		return false
+	}
+	switch proof.ProofKind.String {
+	case lifecycleMigrationProofHostNoop, lifecycleMigrationProofP5, lifecycleMigrationProofReused:
+		return true
+	default:
+		return false
+	}
+}
+
+func lifecycleMigrationPublicationBlockedError() error {
+	return lifecycleMigrationBlockedError{
+		reason: "lifecycle.migration_proof_required",
+		detail: "exact migration plan is not target-ready",
+	}
 }
 
 func lifecyclePluginRuntimePublicationTransition(
