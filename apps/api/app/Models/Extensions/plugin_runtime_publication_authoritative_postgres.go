@@ -22,27 +22,22 @@ const (
 	pluginRuntimePublicationUnlock = 5 * time.Second
 )
 
-// PluginRuntimeDesiredSetPublisher is the Host-owned producer boundary. A
-// caller supplies audit evidence, never desired members assembled in memory.
-type PluginRuntimeDesiredSetPublisher interface {
-	PublishAuthoritativePluginRuntimeSet(
-		context.Context,
-		PluginRuntimePublicationReason,
-		int64,
-	) (PluginRuntimePublication, error)
+// InitialPluginRuntimePublicationEnsurer imports the legacy mutable runtime set
+// at most once. Later desired-set changes belong exclusively to lifecycle
+// publication transitions.
+type InitialPluginRuntimePublicationEnsurer interface {
+	EnsureInitialPluginRuntimePublication(context.Context) (PluginRuntimePublication, error)
 }
 
-// PublishAuthoritativePluginRuntimeSet snapshots the complete database-owned
-// executable plugin set. The outer session lock is acquired before opening the
-// serializable transaction so a waiter cannot inherit a stale transaction
-// snapshot while blocked on the transaction-scoped advisory lock.
-func (s *PostgresStore) PublishAuthoritativePluginRuntimeSet(
+// EnsureInitialPluginRuntimePublication performs the one-time genesis import
+// from legacy mutable extension rows. The outer session lock is acquired before
+// opening the serializable transaction so a waiter cannot inherit a stale
+// transaction snapshot while blocked on the transaction-scoped advisory lock.
+// Safe Mode is enforced by callers by not invoking this method.
+func (s *PostgresStore) EnsureInitialPluginRuntimePublication(
 	ctx context.Context,
-	reason PluginRuntimePublicationReason,
-	actorUserID int64,
 ) (publication PluginRuntimePublication, returnErr error) {
-	if s == nil || s.pool == nil || ctx == nil || actorUserID < 0 ||
-		!validPluginRuntimePublicationReason(reason) {
+	if s == nil || s.pool == nil || ctx == nil {
 		return PluginRuntimePublication{}, ErrPluginRuntimePublicationConflict
 	}
 
@@ -67,9 +62,7 @@ func (s *PostgresStore) PublishAuthoritativePluginRuntimeSet(
 
 	var lastRetryErr error
 	for attempt := 0; attempt < pluginRuntimePublicationTries; attempt++ {
-		publication, err := s.publishAuthoritativePluginRuntimeSetOnce(
-			ctx, connection.Conn(), reason, actorUserID,
-		)
+		publication, err := s.ensureInitialPluginRuntimePublicationOnce(ctx, connection.Conn())
 		if !retryablePluginRuntimePublicationError(err) {
 			return publication, err
 		}
@@ -182,11 +175,9 @@ func releasePluginRuntimeProducerConnection(
 	)
 }
 
-func (s *PostgresStore) publishAuthoritativePluginRuntimeSetOnce(
+func (s *PostgresStore) ensureInitialPluginRuntimePublicationOnce(
 	ctx context.Context,
 	connection *pgx.Conn,
-	reason PluginRuntimePublicationReason,
-	actorUserID int64,
 ) (PluginRuntimePublication, error) {
 	tx, err := connection.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.Serializable})
 	if err != nil {
@@ -201,24 +192,44 @@ func (s *PostgresStore) publishAuthoritativePluginRuntimeSetOnce(
 	`, pluginRuntimeDesiredSetLock); err != nil {
 		return PluginRuntimePublication{}, err
 	}
-	members, err := loadAuthoritativePluginRuntimeMembers(ctx, tx)
-	if err != nil {
-		return PluginRuntimePublication{}, err
-	}
-
 	latest, err := loadPluginRuntimePublication(
 		ctx,
 		tx,
 		pluginRuntimePublicationSelect+` ORDER BY revision DESC LIMIT 1`,
 	)
 	switch {
-	case err == nil && pluginRuntimePublicationHasMembers(latest, members):
+	case err == nil:
+		// 任意历史 revision 都已经建立 immutable authority。这里必须在
+		// lifecycle/mutable 查询前短路，重启不得用 legacy rows 重写它。
 		return s.commitAuthoritativePluginRuntimePublication(ctx, tx, latest)
 	case err != nil && !errors.Is(err, ErrPluginRuntimePublicationNotFound):
 		return PluginRuntimePublication{}, fmt.Errorf("load latest plugin runtime publication: %w", err)
 	}
 
-	publication, err := insertPluginRuntimePublication(ctx, tx, reason, actorUserID, members)
+	var lifecycleOpen bool
+	if err := tx.QueryRow(ctx, `
+		SELECT EXISTS (
+			SELECT 1
+			FROM extension_lifecycle_operations
+			WHERE completed_at IS NULL
+		)
+	`).Scan(&lifecycleOpen); err != nil {
+		return PluginRuntimePublication{}, fmt.Errorf("inspect open extension lifecycle operations: %w", err)
+	}
+	if lifecycleOpen {
+		return PluginRuntimePublication{}, fmt.Errorf(
+			"%w: initial plugin runtime publication waits for lifecycle completion",
+			ErrLifecycleOperationInProgress,
+		)
+	}
+
+	members, err := loadLegacyInitialPluginRuntimeMembers(ctx, tx)
+	if err != nil {
+		return PluginRuntimePublication{}, err
+	}
+	publication, err := insertPluginRuntimePublication(
+		ctx, tx, PluginRuntimePublicationStartupReconcile, 0, members,
+	)
 	if err != nil {
 		return PluginRuntimePublication{}, err
 	}
@@ -280,7 +291,7 @@ func (s *PostgresStore) readExactAuthoritativePluginRuntimePublication(
 	return PluginRuntimePublication{}, err
 }
 
-func loadAuthoritativePluginRuntimeMembers(
+func loadLegacyInitialPluginRuntimeMembers(
 	ctx context.Context,
 	tx pgx.Tx,
 ) ([]PluginRuntimeMember, error) {
@@ -395,27 +406,10 @@ func loadAuthoritativePluginRuntimeMembers(
 	return members, nil
 }
 
-func pluginRuntimePublicationHasMembers(
-	publication PluginRuntimePublication,
-	members []PluginRuntimeMember,
-) bool {
-	canonical, digest, err := canonicalPluginRuntimeMembers(members)
-	if err != nil || publication.MemberCount != len(canonical) ||
-		publication.MembersDigest != digest || len(publication.Members) != len(canonical) {
-		return false
-	}
-	for index := range canonical {
-		if publication.Members[index] != canonical[index] {
-			return false
-		}
-	}
-	return true
-}
-
 func retryablePluginRuntimePublicationError(err error) bool {
 	var postgresError *pgconn.PgError
 	return errors.As(err, &postgresError) &&
 		(postgresError.Code == "40001" || postgresError.Code == "40P01")
 }
 
-var _ PluginRuntimeDesiredSetPublisher = (*PostgresStore)(nil)
+var _ InitialPluginRuntimePublicationEnsurer = (*PostgresStore)(nil)

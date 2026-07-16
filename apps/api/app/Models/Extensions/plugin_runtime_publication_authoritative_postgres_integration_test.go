@@ -29,121 +29,71 @@ func TestRetryablePluginRuntimePublicationError(t *testing.T) {
 	}
 }
 
-func TestPublishAuthoritativePluginRuntimeSetSeedsAndReusesEmptyRevision(t *testing.T) {
-	fixture := newPluginRuntimePublicationPGFixture(t, "authoritative_empty")
-
-	seed, err := fixture.store.PublishAuthoritativePluginRuntimeSet(
-		fixture.ctx, PluginRuntimePublicationStartupReconcile, 0,
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if seed.Revision != 1 || seed.MemberCount != 0 || len(seed.Members) != 0 ||
-		seed.Reason != PluginRuntimePublicationStartupReconcile || seed.ActorUserID != 0 {
-		t.Fatalf("unexpected empty seed: %+v", seed)
-	}
-
-	replayed, err := fixture.store.PublishAuthoritativePluginRuntimeSet(
-		fixture.ctx, PluginRuntimePublicationRecovery, 71,
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !samePluginRuntimePublication(replayed, seed) {
-		t.Fatalf("same desired set appended or rewrote evidence: seed=%+v replay=%+v", seed, replayed)
-	}
-	assertPluginRuntimePublicationCount(t, fixture, 1)
-}
-
-func TestPublishAuthoritativePluginRuntimeSetTracksCompleteExecutableSet(t *testing.T) {
-	fixture := newPluginRuntimePublicationPGFixture(t, "authoritative_changes")
-	seed, err := fixture.store.PublishAuthoritativePluginRuntimeSet(
-		fixture.ctx, PluginRuntimePublicationStartupReconcile, 0,
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	setPluginRuntimeFixtureVersion(t, fixture, "fixture.plugin", 101, StatusEnabled,
-		runtimeManifestBody(t, "fixture.plugin", "1.0.0", TypePlugin, "backend/plugin"))
-	enabled, err := fixture.store.PublishAuthoritativePluginRuntimeSet(
-		fixture.ctx, PluginRuntimePublicationEnable, 41,
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
-	assertPluginRuntimePublicationMembers(t, enabled, fixture.firstMember())
-	if enabled.Revision <= seed.Revision || enabled.Reason != PluginRuntimePublicationEnable || enabled.ActorUserID != 41 {
-		t.Fatalf("enable evidence mismatch: %+v", enabled)
-	}
-
-	replayed, err := fixture.store.PublishAuthoritativePluginRuntimeSet(
-		fixture.ctx, PluginRuntimePublicationStartupReconcile, 0,
-	)
-	if err != nil || !samePluginRuntimePublication(replayed, enabled) {
-		t.Fatalf("startup replay replaced lifecycle evidence: publication=%+v err=%v", replayed, err)
-	}
-
-	upgradeManifest := runtimeManifestBody(t, "fixture.plugin", "1.1.0", TypePlugin, "backend/plugin")
-	if _, err := fixture.pool.Exec(fixture.ctx, `
-		INSERT INTO extension_versions (id, extension_id, version, package_digest, manifest)
-		VALUES (104, 'fixture.plugin', '1.1.0', repeat('e', 64), $1::jsonb)
-	`, string(upgradeManifest)); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := fixture.pool.Exec(fixture.ctx, `
-		UPDATE extensions SET active_version_id = 104 WHERE id = 'fixture.plugin'
-	`); err != nil {
-		t.Fatal(err)
-	}
-	upgraded, err := fixture.store.PublishAuthoritativePluginRuntimeSet(
-		fixture.ctx, PluginRuntimePublicationUpgrade, 42,
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
-	assertPluginRuntimePublicationMembers(t, upgraded, PluginRuntimeMember{
-		ExtensionID: "fixture.plugin", ExtensionVersionID: 104,
-		ExtensionVersion: "1.1.0", PackageDigest: strings.Repeat("e", 64),
-	})
-
-	setPluginRuntimeFixtureVersion(t, fixture, "second.plugin", 102, StatusEnabled,
-		runtimeManifestBody(t, "second.plugin", "2.0.0", TypePlugin, "backend/plugin"))
-	multiple, err := fixture.store.PublishAuthoritativePluginRuntimeSet(
-		fixture.ctx, PluginRuntimePublicationEnable, 43,
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
-	assertPluginRuntimePublicationMembers(t, multiple,
-		PluginRuntimeMember{
-			ExtensionID: "fixture.plugin", ExtensionVersionID: 104,
-			ExtensionVersion: "1.1.0", PackageDigest: strings.Repeat("e", 64),
+func TestEnsureInitialPluginRuntimePublicationExactlyOnceAcrossRestart(t *testing.T) {
+	for _, test := range []struct {
+		name    string
+		members []PluginRuntimeMember
+		setup   func(*testing.T, *pluginRuntimePublicationPGFixture)
+	}{
+		{name: "empty"},
+		{
+			name: "non-empty",
+			members: []PluginRuntimeMember{{
+				ExtensionID: "fixture.plugin", ExtensionVersionID: 101,
+				ExtensionVersion: "1.0.0", PackageDigest: strings.Repeat("b", 64),
+			}},
+			setup: func(t *testing.T, fixture *pluginRuntimePublicationPGFixture) {
+				setPluginRuntimeFixtureVersion(t, fixture, "fixture.plugin", 101, StatusEnabled,
+					runtimeManifestBody(t, "fixture.plugin", "1.0.0", TypePlugin, "backend/plugin"))
+			},
 		},
-		fixture.secondMember(),
-	)
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			fixture := newInitialPluginRuntimePublicationPGFixture(
+				t, "initial_once_"+strings.ReplaceAll(test.name, "-", "_"),
+			)
+			if test.setup != nil {
+				test.setup(t, fixture)
+			}
 
-	if _, err := fixture.pool.Exec(fixture.ctx, `
-		UPDATE extensions SET status = 'disabled' WHERE id = 'fixture.plugin'
-	`); err != nil {
-		t.Fatal(err)
-	}
-	disabled, err := fixture.store.PublishAuthoritativePluginRuntimeSet(
-		fixture.ctx, PluginRuntimePublicationDisable, 44,
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
-	assertPluginRuntimePublicationMembers(t, disabled, fixture.secondMember())
+			initial, err := fixture.store.EnsureInitialPluginRuntimePublication(fixture.ctx)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if initial.Revision != 1 || initial.Reason != PluginRuntimePublicationStartupReconcile ||
+				initial.ActorUserID != 0 {
+				t.Fatalf("unexpected initial publication: %+v", initial)
+			}
+			assertPluginRuntimePublicationMembers(t, initial, test.members...)
+			var actorIsNull bool
+			if err := fixture.pool.QueryRow(fixture.ctx, `
+				SELECT actor_user_id IS NULL
+				FROM plugin_runtime_publications
+				WHERE revision = $1
+			`, initial.Revision).Scan(&actorIsNull); err != nil || !actorIsNull {
+				t.Fatalf("genesis actor null=%t error=%v", actorIsNull, err)
+			}
 
-	latest, err := fixture.store.LatestPluginRuntimePublication(fixture.ctx)
-	if err != nil || !samePluginRuntimePublication(latest, disabled) {
-		t.Fatalf("latest publication does not equal final database state: latest=%+v err=%v", latest, err)
+			// ACCESS EXCLUSIVE makes any accidental legacy extensions scan block.
+			// Existing immutable history must return without touching those rows.
+			assertInitialPluginRuntimeReplayWithoutMutableRead(t, fixture, initial)
+			restartedPool, err := pgxpool.NewWithConfig(fixture.ctx, fixture.pool.Config().Copy())
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer restartedPool.Close()
+			restarted := NewPostgresStore(restartedPool)
+			replayed, err := restarted.EnsureInitialPluginRuntimePublication(fixture.ctx)
+			if err != nil || !samePluginRuntimePublication(replayed, initial) {
+				t.Fatalf("restart replay=%+v error=%v", replayed, err)
+			}
+			assertPluginRuntimePublicationCount(t, fixture, 1)
+		})
 	}
 }
 
-func TestPublishAuthoritativePluginRuntimeSetExcludesStaticPluginsAndThemes(t *testing.T) {
-	fixture := newPluginRuntimePublicationPGFixture(t, "authoritative_exclusions")
+func TestEnsureInitialPluginRuntimePublicationImportsOnlyExecutablePlugins(t *testing.T) {
+	fixture := newInitialPluginRuntimePublicationPGFixture(t, "initial_exclusions")
 	setPluginRuntimeFixtureVersion(t, fixture, "fixture.plugin", 101, StatusEnabled,
 		runtimeManifestBody(t, "fixture.plugin", "1.0.0", TypePlugin, "backend/plugin"))
 	setPluginRuntimeFixtureVersion(t, fixture, "second.plugin", 102, StatusEnabled,
@@ -151,16 +101,17 @@ func TestPublishAuthoritativePluginRuntimeSetExcludesStaticPluginsAndThemes(t *t
 	setPluginRuntimeFixtureVersion(t, fixture, "fixture.theme", 103, StatusEnabled,
 		runtimeManifestBody(t, "fixture.theme", "1.0.0", TypeTheme, ""))
 
-	publication, err := fixture.store.PublishAuthoritativePluginRuntimeSet(
-		fixture.ctx, PluginRuntimePublicationStartupReconcile, 0,
-	)
+	publication, err := fixture.store.EnsureInitialPluginRuntimePublication(fixture.ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
 	assertPluginRuntimePublicationMembers(t, publication, fixture.firstMember())
+	if publication.Reason != PluginRuntimePublicationStartupReconcile || publication.ActorUserID != 0 {
+		t.Fatalf("unexpected genesis evidence: %+v", publication)
+	}
 }
 
-func TestPublishAuthoritativePluginRuntimeSetRejectsInvalidActiveProjection(t *testing.T) {
+func TestEnsureInitialPluginRuntimePublicationRejectsInvalidLegacyProjection(t *testing.T) {
 	tests := []struct {
 		name  string
 		setup func(*testing.T, *pluginRuntimePublicationPGFixture)
@@ -208,11 +159,9 @@ func TestPublishAuthoritativePluginRuntimeSetRejectsInvalidActiveProjection(t *t
 
 	for index, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			fixture := newPluginRuntimePublicationPGFixture(t, fmt.Sprintf("authoritative_invalid_%d", index))
+			fixture := newInitialPluginRuntimePublicationPGFixture(t, fmt.Sprintf("initial_invalid_%d", index))
 			test.setup(t, fixture)
-			_, err := fixture.store.PublishAuthoritativePluginRuntimeSet(
-				fixture.ctx, PluginRuntimePublicationStartupReconcile, 0,
-			)
+			_, err := fixture.store.EnsureInitialPluginRuntimePublication(fixture.ctx)
 			if !errors.Is(err, ErrPluginRuntimePublicationConflict) {
 				t.Fatalf("expected fail-closed conflict, got %v", err)
 			}
@@ -221,32 +170,75 @@ func TestPublishAuthoritativePluginRuntimeSetRejectsInvalidActiveProjection(t *t
 	}
 }
 
-func TestPublishAuthoritativePluginRuntimeSetConcurrentProducersConverge(t *testing.T) {
-	fixture := newPluginRuntimePublicationPGFixture(t, "authoritative_concurrent")
+func TestEnsureInitialPluginRuntimePublicationBlocksForOpenLifecycle(t *testing.T) {
+	fixture := newInitialPluginRuntimePublicationPGFixture(t, "initial_open_lifecycle")
+	if _, err := fixture.pool.Exec(fixture.ctx, `
+		INSERT INTO extension_lifecycle_operations (completed_at) VALUES (NULL)
+	`); err != nil {
+		t.Fatal(err)
+	}
+
+	mutableLock, err := fixture.pool.Begin(fixture.ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := mutableLock.Exec(fixture.ctx, `LOCK TABLE extensions IN ACCESS EXCLUSIVE MODE`); err != nil {
+		_ = mutableLock.Rollback(fixture.ctx)
+		t.Fatal(err)
+	}
+	ensureCtx, cancelEnsure := context.WithTimeout(fixture.ctx, 2*time.Second)
+	defer cancelEnsure()
+	_, ensureErr := fixture.store.EnsureInitialPluginRuntimePublication(ensureCtx)
+	if rollbackErr := mutableLock.Rollback(fixture.ctx); rollbackErr != nil {
+		t.Fatal(rollbackErr)
+	}
+	if !errors.Is(ensureErr, ErrLifecycleOperationInProgress) {
+		t.Fatalf("open lifecycle error=%v", ensureErr)
+	}
+	assertPluginRuntimePublicationCount(t, fixture, 0)
+
+	if _, err := fixture.pool.Exec(fixture.ctx, `
+		UPDATE extension_lifecycle_operations SET completed_at = statement_timestamp()
+	`); err != nil {
+		t.Fatal(err)
+	}
+	publication, err := fixture.store.EnsureInitialPluginRuntimePublication(fixture.ctx)
+	if err != nil || publication.Revision != 1 {
+		t.Fatalf("retry publication=%+v error=%v", publication, err)
+	}
+	assertPluginRuntimePublicationMembers(t, publication)
+}
+
+func TestEnsureInitialPluginRuntimePublicationConcurrentAPIWorkerGenesis(t *testing.T) {
+	fixture := newInitialPluginRuntimePublicationPGFixture(t, "initial_concurrent")
 	setPluginRuntimeFixtureVersion(t, fixture, "fixture.plugin", 101, StatusEnabled,
 		runtimeManifestBody(t, "fixture.plugin", "1.0.0", TypePlugin, "backend/plugin"))
 	setPluginRuntimeFixtureVersion(t, fixture, "second.plugin", 102, StatusEnabled,
 		runtimeManifestBody(t, "second.plugin", "2.0.0", TypePlugin, "backend/plugin"))
+	workerPool, err := pgxpool.NewWithConfig(fixture.ctx, fixture.pool.Config().Copy())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer workerPool.Close()
+	producers := []*PostgresStore{fixture.store, NewPostgresStore(workerPool)}
 
-	const producers = 16
-	results := make(chan PluginRuntimePublication, producers)
-	errorsFound := make(chan error, producers)
+	const producerCount = 16
+	results := make(chan PluginRuntimePublication, producerCount)
+	errorsFound := make(chan error, producerCount)
 	publishCtx, cancelPublish := context.WithTimeout(fixture.ctx, 10*time.Second)
 	defer cancelPublish()
 	var wait sync.WaitGroup
-	for index := 0; index < producers; index++ {
+	for index := 0; index < producerCount; index++ {
 		wait.Add(1)
-		go func() {
+		go func(store *PostgresStore) {
 			defer wait.Done()
-			publication, err := fixture.store.PublishAuthoritativePluginRuntimeSet(
-				publishCtx, PluginRuntimePublicationStartupReconcile, 0,
-			)
+			publication, err := store.EnsureInitialPluginRuntimePublication(publishCtx)
 			if err != nil {
 				errorsFound <- err
 				return
 			}
 			results <- publication
-		}()
+		}(producers[index%len(producers)])
 	}
 	done := make(chan struct{})
 	go func() {
@@ -273,7 +265,136 @@ func TestPublishAuthoritativePluginRuntimeSetConcurrentProducersConverge(t *test
 	assertPluginRuntimePublicationCount(t, fixture, 1)
 }
 
-func TestLoadAuthoritativePluginRuntimeMembersLocksCompleteProjection(t *testing.T) {
+func TestEnsureInitialPluginRuntimePublicationDoesNotOverwriteLifecycleTransition(t *testing.T) {
+	fixture := newInitialPluginRuntimePublicationPGFixture(t, "initial_transition_race")
+	target := transitionFixturePlugin(
+		t, "fixture.plugin", 101, "1.0.0", strings.Repeat("b", 64), "backend/plugin",
+	)
+	if _, err := fixture.pool.Exec(fixture.ctx, `
+		UPDATE extension_versions SET manifest = $1::jsonb WHERE id = 101
+	`, string(runtimeManifestBody(t, "fixture.plugin", "1.0.0", TypePlugin, "backend/plugin"))); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := fixture.pool.Exec(fixture.ctx, `
+		UPDATE extensions SET status = 'enabled', active_version_id = NULL WHERE id = 'fixture.plugin'
+	`); err != nil {
+		t.Fatal(err)
+	}
+
+	transitionTx, err := fixture.pool.Begin(fixture.ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = transitionTx.Rollback(context.Background()) }()
+	var transitionPID int32
+	if err := transitionTx.QueryRow(fixture.ctx, `SELECT pg_backend_pid()`).Scan(&transitionPID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := transitionTx.Exec(fixture.ctx, `
+		SELECT pg_advisory_xact_lock(hashtextextended($1, 0))
+	`, pluginRuntimeDesiredSetLock); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := transitionTx.Exec(fixture.ctx, `
+		INSERT INTO extension_lifecycle_operations (completed_at) VALUES (NULL)
+	`); err != nil {
+		t.Fatal(err)
+	}
+
+	type ensureResult struct {
+		publication PluginRuntimePublication
+		err         error
+	}
+	result := make(chan ensureResult, 1)
+	go func() {
+		publication, ensureErr := fixture.store.EnsureInitialPluginRuntimePublication(fixture.ctx)
+		result <- ensureResult{publication: publication, err: ensureErr}
+	}()
+	waitForPluginRuntimeAdvisoryLockWaiter(t, fixture, transitionPID)
+
+	transition, err := PublishPluginRuntimePublicationTransitionTx(
+		fixture.ctx, transitionTx, PluginRuntimePublicationTransition{
+			Target: target, Activate: true,
+			Reason: PluginRuntimePublicationEnable, ActorUserID: 99,
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := transitionTx.Commit(fixture.ctx); err != nil {
+		t.Fatal(err)
+	}
+
+	select {
+	case ensured := <-result:
+		if ensured.err != nil || !samePluginRuntimePublication(ensured.publication, transition) {
+			t.Fatalf("initial ensure overwrote transition: ensured=%+v transition=%+v error=%v",
+				ensured.publication, transition, ensured.err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("initial ensure did not resume after lifecycle transition")
+	}
+	assertPluginRuntimePublicationCount(t, fixture, 1)
+}
+
+func TestEnsureInitialPluginRuntimePublicationRollsBackPostgresErrors(t *testing.T) {
+	t.Run("lifecycle inspection", func(t *testing.T) {
+		fixture := newInitialPluginRuntimePublicationPGFixture(t, "initial_lifecycle_pg_error")
+		if _, err := fixture.pool.Exec(fixture.ctx, `
+			ALTER TABLE extension_lifecycle_operations RENAME TO unavailable_lifecycle_operations;
+			CREATE VIEW extension_lifecycle_operations AS SELECT 1::bigint AS id
+		`); err != nil {
+			t.Fatal(err)
+		}
+		_, err := fixture.store.EnsureInitialPluginRuntimePublication(fixture.ctx)
+		var postgresErr *pgconn.PgError
+		if !errors.As(err, &postgresErr) || postgresErr.Code != "42703" {
+			t.Fatalf("lifecycle PostgreSQL error=%v", err)
+		}
+		assertPluginRuntimePublicationCount(t, fixture, 0)
+	})
+
+	t.Run("member insert", func(t *testing.T) {
+		fixture := newInitialPluginRuntimePublicationPGFixture(t, "initial_insert_rollback")
+		setPluginRuntimeFixtureVersion(t, fixture, "fixture.plugin", 101, StatusEnabled,
+			runtimeManifestBody(t, "fixture.plugin", "1.0.0", TypePlugin, "backend/plugin"))
+		if _, err := fixture.pool.Exec(fixture.ctx, `
+			CREATE FUNCTION reject_initial_plugin_runtime_member() RETURNS trigger
+			LANGUAGE plpgsql AS $$
+			BEGIN
+				RAISE EXCEPTION 'injected initial member failure' USING ERRCODE = 'XX000';
+			END;
+			$$;
+			CREATE TRIGGER reject_initial_plugin_runtime_member
+			BEFORE INSERT ON plugin_runtime_publication_members
+			FOR EACH ROW EXECUTE FUNCTION reject_initial_plugin_runtime_member()
+		`); err != nil {
+			t.Fatal(err)
+		}
+		_, err := fixture.store.EnsureInitialPluginRuntimePublication(fixture.ctx)
+		var postgresErr *pgconn.PgError
+		if !errors.As(err, &postgresErr) || postgresErr.Code != "XX000" {
+			t.Fatalf("member PostgreSQL error=%v", err)
+		}
+		assertPluginRuntimePublicationCount(t, fixture, 0)
+
+		if _, err := fixture.pool.Exec(fixture.ctx, `
+			DROP TRIGGER reject_initial_plugin_runtime_member ON plugin_runtime_publication_members;
+			DROP FUNCTION reject_initial_plugin_runtime_member()
+		`); err != nil {
+			t.Fatal(err)
+		}
+		publication, err := fixture.store.EnsureInitialPluginRuntimePublication(fixture.ctx)
+		if err != nil || publication.Revision != 2 {
+			// PostgreSQL sequences are non-transactional; the rolled-back attempt consumed revision 1.
+			t.Fatalf("retry publication=%+v error=%v", publication, err)
+		}
+		assertPluginRuntimePublicationMembers(t, publication, fixture.firstMember())
+		assertPluginRuntimePublicationCount(t, fixture, 1)
+	})
+}
+
+func TestLoadLegacyInitialPluginRuntimeMembersLocksCompleteProjection(t *testing.T) {
 	tests := []struct {
 		name   string
 		update string
@@ -292,7 +413,7 @@ func TestLoadAuthoritativePluginRuntimeMembersLocksCompleteProjection(t *testing
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			fixture := newPluginRuntimePublicationPGFixture(t, "authoritative_projection_lock")
+			fixture := newInitialPluginRuntimePublicationPGFixture(t, "initial_projection_lock")
 			setPluginRuntimeFixtureVersion(t, fixture, "fixture.plugin", 101, StatusEnabled,
 				runtimeManifestBody(t, "fixture.plugin", "1.0.0", TypePlugin, "backend/plugin"))
 
@@ -300,7 +421,7 @@ func TestLoadAuthoritativePluginRuntimeMembersLocksCompleteProjection(t *testing
 			if err != nil {
 				t.Fatal(err)
 			}
-			members, err := loadAuthoritativePluginRuntimeMembers(fixture.ctx, tx)
+			members, err := loadLegacyInitialPluginRuntimeMembers(fixture.ctx, tx)
 			if err != nil || len(members) != 1 || members[0] != fixture.firstMember() {
 				_ = tx.Rollback(fixture.ctx)
 				t.Fatalf("members=%+v error=%v", members, err)
@@ -528,8 +649,8 @@ func TestFinalizePluginRuntimeProducerResultRecoversAfterDestroyedCloseError(t *
 	}
 }
 
-func TestPublishAuthoritativePluginRuntimeSetCancelWhileWaitingDestroysSession(t *testing.T) {
-	fixture := newPluginRuntimePublicationPGFixture(t, "authoritative_cancel_lock")
+func TestEnsureInitialPluginRuntimePublicationCancelWhileWaitingDestroysSession(t *testing.T) {
+	fixture := newInitialPluginRuntimePublicationPGFixture(t, "initial_cancel_lock")
 	blocker, err := fixture.pool.Acquire(fixture.ctx)
 	if err != nil {
 		t.Fatal(err)
@@ -557,9 +678,7 @@ func TestPublishAuthoritativePluginRuntimeSetCancelWhileWaitingDestroysSession(t
 	publishCtx, cancelPublish := context.WithCancel(fixture.ctx)
 	result := make(chan error, 1)
 	go func() {
-		_, publishErr := fixture.store.PublishAuthoritativePluginRuntimeSet(
-			publishCtx, PluginRuntimePublicationStartupReconcile, 0,
-		)
+		_, publishErr := fixture.store.EnsureInitialPluginRuntimePublication(publishCtx)
 		result <- publishErr
 	}()
 
@@ -693,6 +812,85 @@ func setPluginRuntimeFixtureVersion(
 	`, versionID, extensionID, status); err != nil {
 		t.Fatal(err)
 	}
+}
+
+func newInitialPluginRuntimePublicationPGFixture(
+	t *testing.T,
+	label string,
+) *pluginRuntimePublicationPGFixture {
+	t.Helper()
+	fixture := newPluginRuntimePublicationPGFixture(t, label)
+	if _, err := fixture.pool.Exec(fixture.ctx, `
+		CREATE TABLE extension_lifecycle_operations (
+			id BIGSERIAL PRIMARY KEY,
+			completed_at TIMESTAMPTZ
+		)
+	`); err != nil {
+		t.Fatal(err)
+	}
+	return fixture
+}
+
+func assertInitialPluginRuntimeReplayWithoutMutableRead(
+	t *testing.T,
+	fixture *pluginRuntimePublicationPGFixture,
+	expected PluginRuntimePublication,
+) {
+	t.Helper()
+	mutableLock, err := fixture.pool.Begin(fixture.ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := mutableLock.Exec(fixture.ctx, `LOCK TABLE extensions IN ACCESS EXCLUSIVE MODE`); err != nil {
+		_ = mutableLock.Rollback(fixture.ctx)
+		t.Fatal(err)
+	}
+	replayCtx, cancelReplay := context.WithTimeout(fixture.ctx, 2*time.Second)
+	defer cancelReplay()
+	replayed, replayErr := fixture.store.EnsureInitialPluginRuntimePublication(replayCtx)
+	if rollbackErr := mutableLock.Rollback(fixture.ctx); rollbackErr != nil {
+		t.Fatal(rollbackErr)
+	}
+	if replayErr != nil || !samePluginRuntimePublication(replayed, expected) {
+		t.Fatalf("existing revision read mutable state: replay=%+v error=%v", replayed, replayErr)
+	}
+}
+
+func waitForPluginRuntimeAdvisoryLockWaiter(
+	t *testing.T,
+	fixture *pluginRuntimePublicationPGFixture,
+	blockerPID int32,
+) {
+	t.Helper()
+	deadline := time.Now().Add(3 * time.Second)
+	for time.Now().Before(deadline) {
+		var waitingPID int32
+		err := fixture.pool.QueryRow(fixture.ctx, `
+			SELECT waiter.pid
+			FROM pg_locks AS held
+			JOIN pg_locks AS waiter
+			  ON waiter.locktype = held.locktype
+			 AND waiter.database IS NOT DISTINCT FROM held.database
+			 AND waiter.classid IS NOT DISTINCT FROM held.classid
+			 AND waiter.objid IS NOT DISTINCT FROM held.objid
+			 AND waiter.objsubid IS NOT DISTINCT FROM held.objsubid
+			JOIN pg_stat_activity AS activity ON activity.pid = waiter.pid
+			WHERE held.pid = $1
+			  AND held.locktype = 'advisory'
+			  AND held.granted
+			  AND NOT waiter.granted
+			  AND activity.application_name = $2
+			LIMIT 1
+		`, blockerPID, fixture.schema).Scan(&waitingPID)
+		if err == nil && waitingPID != 0 {
+			return
+		}
+		if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+			t.Fatal(err)
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Fatal("initial producer never blocked on the lifecycle advisory lock")
 }
 
 func assertPluginRuntimePublicationMembers(
