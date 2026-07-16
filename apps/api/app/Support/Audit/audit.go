@@ -82,6 +82,13 @@ type Cleaner interface {
 	DeleteOlderThan(ctx context.Context, keepDays int) (int64, error)
 }
 
+// CleanupResult keeps authority-retention exceptions observable without
+// breaking the existing Cleaner interface used by the River worker.
+type CleanupResult struct {
+	Deleted  int64
+	Retained int64
+}
+
 // PostgresWriter 直接写入 identity 的 audit_events 表。
 type PostgresWriter struct {
 	Pool *pgxpool.Pool
@@ -137,18 +144,77 @@ func (w *PostgresWriter) AppendReturningID(ctx context.Context, event Event) (in
 
 // DeleteOlderThan 删除 created_at 早于 keepDays 的审计行。keepDays<=0 时使用推荐值。
 func (w *PostgresWriter) DeleteOlderThan(ctx context.Context, keepDays int) (int64, error) {
+	result, err := w.CleanupOlderThan(ctx, keepDays)
+	return result.Deleted, err
+}
+
+// CleanupOlderThan removes ordinary expired events while retaining audit rows
+// that still authorize an Identity role decision or permission catalog entry.
+// Candidate rows are locked with SKIP LOCKED: an in-flight authority binding
+// retains its audit instead of making the whole cleanup batch fail.
+func (w *PostgresWriter) CleanupOlderThan(ctx context.Context, keepDays int) (CleanupResult, error) {
 	if w == nil || w.Pool == nil {
-		return 0, fmt.Errorf("audit writer is not configured")
+		return CleanupResult{}, fmt.Errorf("audit writer is not configured")
 	}
 	if keepDays <= 0 {
 		keepDays = RecommendedRetentionDays
 	}
 	cutoff := time.Now().UTC().AddDate(0, 0, -keepDays)
-	tag, err := w.Pool.Exec(ctx, `DELETE FROM audit_events WHERE created_at < $1`, cutoff)
-	if err != nil {
-		return 0, fmt.Errorf("delete old audit events: %w", err)
+	var permissionCatalogExists bool
+	if err := w.Pool.QueryRow(ctx, `
+		SELECT to_regclass('extension_permission_catalog') IS NOT NULL
+	`).Scan(&permissionCatalogExists); err != nil {
+		return CleanupResult{}, fmt.Errorf("inspect audit authority retention tables: %w", err)
 	}
-	return tag.RowsAffected(), nil
+
+	// The catalog table arrives in the additive Identity approval migration. The
+	// pre-migration branch keeps this compatibility layer deployable first; once
+	// present, both durable references are excluded explicitly.
+	catalogRetention := ""
+	if permissionCatalogExists {
+		catalogRetention = `
+			  AND NOT EXISTS (
+				SELECT 1
+				FROM extension_permission_catalog AS catalog
+				WHERE catalog.registered_audit_event_id = event.id
+			  )`
+	}
+	cleanupQuery := `
+		WITH eligible AS MATERIALIZED (
+			SELECT count(*)::bigint AS total
+			FROM audit_events
+			WHERE created_at < $1
+		), candidates AS MATERIALIZED (
+			SELECT id
+			FROM audit_events
+			WHERE created_at < $1
+			ORDER BY id
+			FOR UPDATE SKIP LOCKED
+		), deleted AS (
+			DELETE FROM audit_events AS event
+			USING candidates
+			WHERE event.id = candidates.id
+			  AND NOT EXISTS (
+				SELECT 1
+				FROM extension_permission_role_suggestions AS suggestion
+				WHERE suggestion.decision_audit_event_id = event.id
+			  )
+	` + catalogRetention + `
+			RETURNING event.id
+		)
+		SELECT
+		  (SELECT count(*)::bigint FROM deleted),
+		  GREATEST(
+			(SELECT total FROM eligible) - (SELECT count(*)::bigint FROM deleted),
+			0
+		  )
+	`
+	var result CleanupResult
+	err := w.Pool.QueryRow(ctx, cleanupQuery, cutoff).Scan(&result.Deleted, &result.Retained)
+	if err != nil {
+		return CleanupResult{}, fmt.Errorf("delete old audit events: %w", err)
+	}
+	return result, nil
 }
 
 // NoopWriter 测试与未装配场景。
