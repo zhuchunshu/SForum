@@ -1,0 +1,276 @@
+package identityregistry
+
+import (
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
+	"fmt"
+	"regexp"
+	"slices"
+	"sort"
+	"strings"
+
+	semver "github.com/Masterminds/semver/v3"
+)
+
+const (
+	maxPublications            = 512
+	maxPermissionsTotal        = 4096
+	maxUserFieldsTotal         = 4096
+	maxProvidersTotal          = 4096
+	maxPermissions             = 512
+	maxUserFields              = 256
+	maxProviders               = 128
+	maxRecommendedRoles        = 64
+	maxRiskHooks               = 128
+	maxRuntimeInstanceIDLength = 512
+)
+
+var (
+	idPattern       = regexp.MustCompile(`^[a-z0-9][a-z0-9._-]{1,120}$`)
+	contractPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9._-]*@[1-9][0-9]*$`)
+	digestPattern   = regexp.MustCompile(`^[0-9a-f]{64}$`)
+)
+
+func NewCoreArtifact(extensionID, extensionVersion, packageDigest string) (Artifact, error) {
+	artifact := Artifact{
+		ExtensionID: strings.ToLower(strings.TrimSpace(extensionID)), ExtensionVersion: strings.TrimSpace(extensionVersion),
+		PackageDigest: strings.ToLower(strings.TrimSpace(packageDigest)), Core: true,
+	}
+	if !strings.HasPrefix(artifact.ExtensionID, "core.") || !idPattern.MatchString(artifact.ExtensionID) ||
+		!strictSemVer(artifact.ExtensionVersion) || !digestPattern.MatchString(artifact.PackageDigest) {
+		return Artifact{}, ErrInvalid
+	}
+	artifact.coreSeal = coreArtifactSeal(artifact)
+	return artifact, nil
+}
+
+func normalizeArtifact(input Artifact) (Artifact, error) {
+	input.ExtensionID = strings.ToLower(strings.TrimSpace(input.ExtensionID))
+	input.ExtensionVersion = strings.TrimSpace(input.ExtensionVersion)
+	input.PackageDigest = strings.ToLower(strings.TrimSpace(input.PackageDigest))
+	input.RuntimeInstanceID = strings.TrimSpace(input.RuntimeInstanceID)
+	if !idPattern.MatchString(input.ExtensionID) || !strictSemVer(input.ExtensionVersion) ||
+		!digestPattern.MatchString(input.PackageDigest) {
+		return Artifact{}, ErrInvalid
+	}
+	if input.Core {
+		if !strings.HasPrefix(input.ExtensionID, "core.") || input.VersionID != 0 || input.RuntimeInstanceID != "" ||
+			input.coreSeal != coreArtifactSeal(input) {
+			return Artifact{}, ErrInvalid
+		}
+	} else if input.VersionID <= 0 || input.coreSeal != ([32]byte{}) || strings.HasPrefix(input.ExtensionID, "core.") ||
+		len(input.RuntimeInstanceID) > maxRuntimeInstanceIDLength {
+		return Artifact{}, ErrInvalid
+	}
+	return input, nil
+}
+
+func strictSemVer(value string) bool {
+	_, err := semver.StrictNewVersion(value)
+	return err == nil
+}
+
+func coreArtifactSeal(artifact Artifact) [32]byte {
+	return sha256.Sum256([]byte("sforum.identity-registry.core\x00" + artifact.ExtensionID + "\x00" + artifact.ExtensionVersion + "\x00" + artifact.PackageDigest))
+}
+
+func normalizePublication(input Publication) (Publication, error) {
+	artifact, err := normalizeArtifact(input.Artifact)
+	if err != nil || len(input.Permissions) > maxPermissions {
+		return Publication{}, ErrInvalid
+	}
+	result := Publication{Artifact: artifact}
+	permissionKeys := make(map[string]struct{}, len(input.Permissions))
+	for _, permission := range input.Permissions {
+		normalized, normalizeErr := normalizePermission(artifact, permission)
+		if normalizeErr != nil {
+			return Publication{}, normalizeErr
+		}
+		if _, duplicate := permissionKeys[normalized.Key]; duplicate {
+			return Publication{}, ErrConflict
+		}
+		permissionKeys[normalized.Key] = struct{}{}
+		result.Permissions = append(result.Permissions, normalized)
+	}
+	sort.Slice(result.Permissions, func(i, j int) bool { return result.Permissions[i].Key < result.Permissions[j].Key })
+	if input.Identity != nil {
+		identity, normalizeErr := normalizeIdentity(artifact, *input.Identity, permissionKeys)
+		if normalizeErr != nil {
+			return Publication{}, normalizeErr
+		}
+		result.Identity = &identity
+	}
+	return result, nil
+}
+
+func normalizePermission(artifact Artifact, input PermissionDefinition) (PermissionDefinition, error) {
+	input.Key = strings.ToLower(strings.TrimSpace(input.Key))
+	input.ContractVersion = strings.TrimSpace(input.ContractVersion)
+	input.Label = strings.TrimSpace(input.Label)
+	input.Description = strings.TrimSpace(input.Description)
+	input.AssignmentPolicy = strings.ToLower(strings.TrimSpace(input.AssignmentPolicy))
+	if !ownedID(artifact, input.Key) || !contractPattern.MatchString(input.ContractVersion) ||
+		input.Label == "" || input.Description == "" || input.AssignmentPolicy != "host" ||
+		len(input.RecommendedRoles) > maxRecommendedRoles {
+		return PermissionDefinition{}, ErrInvalid
+	}
+	roles := make([]string, 0, len(input.RecommendedRoles))
+	seen := map[string]struct{}{}
+	for _, role := range input.RecommendedRoles {
+		role = strings.ToLower(strings.TrimSpace(role))
+		// super_admin is an invariant, not a recommendation target. The Host
+		// already grants it all permissions in policy code.
+		if !idPattern.MatchString(role) || role == "super_admin" {
+			return PermissionDefinition{}, ErrInvalid
+		}
+		if _, duplicate := seen[role]; duplicate {
+			return PermissionDefinition{}, ErrInvalid
+		}
+		seen[role] = struct{}{}
+		roles = append(roles, role)
+	}
+	sort.Strings(roles)
+	input.RecommendedRoles = roles
+	return input, nil
+}
+
+func normalizeIdentity(artifact Artifact, input IdentityDeclaration, permissions map[string]struct{}) (IdentityDeclaration, error) {
+	input.ContractVersion = strings.TrimSpace(input.ContractVersion)
+	input.SessionPolicy = strings.ToLower(strings.TrimSpace(input.SessionPolicy))
+	if !contractPattern.MatchString(input.ContractVersion) || len(input.UserFields) > maxUserFields ||
+		len(input.Providers) > maxProviders || len(input.RiskHooks) > maxRiskHooks {
+		return IdentityDeclaration{}, ErrInvalid
+	}
+	if input.SessionPolicy != "" && input.SessionPolicy != "core.session.default" && !ownedID(artifact, input.SessionPolicy) {
+		return IdentityDeclaration{}, ErrInvalid
+	}
+	result := IdentityDeclaration{ContractVersion: input.ContractVersion, SessionPolicy: input.SessionPolicy}
+	fieldIDs := map[string]struct{}{}
+	for _, field := range input.UserFields {
+		field.ID = strings.ToLower(strings.TrimSpace(field.ID))
+		field.ContractVersion = strings.TrimSpace(field.ContractVersion)
+		field.Type = strings.ToLower(strings.TrimSpace(field.Type))
+		field.Schema = strings.TrimSpace(field.Schema)
+		field.ReadPermission = strings.ToLower(strings.TrimSpace(field.ReadPermission))
+		field.WritePermission = strings.ToLower(strings.TrimSpace(field.WritePermission))
+		if !ownedID(artifact, field.ID) || !contractPattern.MatchString(field.ContractVersion) ||
+			!contractPattern.MatchString(field.Schema) || !validFieldType(field.Type) ||
+			!declaredPermission(field.ReadPermission, permissions) || !declaredPermission(field.WritePermission, permissions) {
+			return IdentityDeclaration{}, ErrInvalid
+		}
+		if _, duplicate := fieldIDs[field.ID]; duplicate {
+			return IdentityDeclaration{}, ErrConflict
+		}
+		fieldIDs[field.ID] = struct{}{}
+		result.UserFields = append(result.UserFields, field)
+	}
+	providerIDs := map[string]struct{}{}
+	for _, provider := range input.Providers {
+		provider.ID = strings.ToLower(strings.TrimSpace(provider.ID))
+		provider.ContractVersion = strings.TrimSpace(provider.ContractVersion)
+		provider.Kind = strings.ToLower(strings.TrimSpace(provider.Kind))
+		provider.Handler = strings.TrimSpace(provider.Handler)
+		if !ownedID(artifact, provider.ID) || !contractPattern.MatchString(provider.ContractVersion) ||
+			!validProviderKind(provider.Kind) || !validHandler(provider.Handler) {
+			return IdentityDeclaration{}, ErrInvalid
+		}
+		if _, duplicate := providerIDs[provider.ID]; duplicate {
+			return IdentityDeclaration{}, ErrConflict
+		}
+		providerIDs[provider.ID] = struct{}{}
+		result.Providers = append(result.Providers, provider)
+	}
+	riskHooks := make([]string, 0, len(input.RiskHooks))
+	seenHooks := map[string]struct{}{}
+	for _, hook := range input.RiskHooks {
+		hook = strings.ToLower(strings.TrimSpace(hook))
+		if !ownedID(artifact, hook) {
+			return IdentityDeclaration{}, ErrInvalid
+		}
+		if _, duplicate := seenHooks[hook]; duplicate {
+			return IdentityDeclaration{}, ErrInvalid
+		}
+		seenHooks[hook] = struct{}{}
+		riskHooks = append(riskHooks, hook)
+	}
+	sort.Slice(result.UserFields, func(i, j int) bool { return result.UserFields[i].ID < result.UserFields[j].ID })
+	sort.Slice(result.Providers, func(i, j int) bool {
+		if result.Providers[i].Kind != result.Providers[j].Kind {
+			return result.Providers[i].Kind < result.Providers[j].Kind
+		}
+		if result.Providers[i].Priority != result.Providers[j].Priority {
+			return result.Providers[i].Priority > result.Providers[j].Priority
+		}
+		return result.Providers[i].ID < result.Providers[j].ID
+	})
+	sort.Strings(riskHooks)
+	result.RiskHooks = riskHooks
+	requiresRuntime := len(result.Providers) > 0 || len(result.RiskHooks) > 0 ||
+		result.SessionPolicy != "" && result.SessionPolicy != "core.session.default"
+	if !artifact.Core && requiresRuntime && artifact.RuntimeInstanceID == "" {
+		return IdentityDeclaration{}, ErrInvalid
+	}
+	return result, nil
+}
+
+func normalizeTombstone(input Tombstone) (Tombstone, error) {
+	input.Kind = strings.ToLower(strings.TrimSpace(input.Kind))
+	input.ID = strings.ToLower(strings.TrimSpace(input.ID))
+	input.ContractVersion = strings.TrimSpace(input.ContractVersion)
+	input.OwnerExtensionID = strings.ToLower(strings.TrimSpace(input.OwnerExtensionID))
+	if !validTombstoneKind(input.Kind) || !idPattern.MatchString(input.ID) ||
+		!contractPattern.MatchString(input.ContractVersion) || !idPattern.MatchString(input.OwnerExtensionID) ||
+		!strings.HasPrefix(input.ID, input.OwnerExtensionID+".") {
+		return Tombstone{}, ErrInvalid
+	}
+	return input, nil
+}
+
+func ownedID(artifact Artifact, id string) bool {
+	if !idPattern.MatchString(id) {
+		return false
+	}
+	return strings.HasPrefix(id, artifact.ExtensionID+".")
+}
+
+func declaredPermission(permission string, permissions map[string]struct{}) bool {
+	if permission == "" {
+		return true
+	}
+	_, ok := permissions[permission]
+	return ok
+}
+
+func validFieldType(value string) bool {
+	return slices.Contains([]string{"string", "number", "boolean", "object", "array"}, value)
+}
+
+func validProviderKind(value string) bool {
+	return slices.Contains([]string{ProviderKindAuth, ProviderKindProfile, ProviderKindRecovery, ProviderKindSession, ProviderKindRisk}, value)
+}
+
+func validHandler(value string) bool {
+	return value != "" && len(value) <= 256 && !strings.Contains(value, "://") && !strings.Contains(value, "..")
+}
+
+func validTombstoneKind(value string) bool {
+	return slices.Contains([]string{TombstoneKindPermission, TombstoneKindUserField, TombstoneKindProvider}, value)
+}
+
+func publicationDigest(snapshot Snapshot) string {
+	stable := snapshot
+	stable.Revision = 0
+	stable.Digest = ""
+	raw, _ := json.Marshal(stable)
+	sum := sha256.Sum256(raw)
+	return hex.EncodeToString(sum[:])
+}
+
+func tombstoneKey(value Tombstone) string {
+	return value.Kind + "\x00" + value.ID + "\x00" + value.ContractVersion
+}
+
+func ownershipKey(kind, id string) string {
+	return fmt.Sprintf("%s\x00%s", kind, id)
+}
