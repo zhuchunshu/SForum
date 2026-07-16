@@ -128,6 +128,14 @@ useSeoMeta({
         {{ t('admin.nav.extensionRouteInspector') }}
       </UButton>
       <UButton
+        icon="i-lucide-database-zap"
+        color="neutral"
+        variant="subtle"
+        :to="adminRoutes.path('/extensions/cache-inspector')"
+      >
+        {{ t('admin.nav.extensionCacheInspector') }}
+      </UButton>
+      <UButton
         icon="i-lucide-waypoints"
         color="neutral"
         variant="subtle"
