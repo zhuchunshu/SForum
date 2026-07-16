@@ -255,6 +255,17 @@
     "targetRegistry": "P7 Admin Surface Registry"
   },
   {
+    "id": "core.component.page.admin.extensions.cache.inspector",
+    "contractVersion": "sforum.component.page.admin.extensions.cache.inspector@1",
+    "kind": "page",
+    "route": "/admin/extensions/cache-inspector",
+    "source": "apps/web/app/pages/admin/extensions/cache-inspector.vue",
+    "owners": [
+      "admin"
+    ],
+    "targetRegistry": "P7 Admin Surface Registry"
+  },
+  {
     "id": "core.component.page.admin.extensions.contributions",
     "contractVersion": "sforum.component.page.admin.extensions.contributions@1",
     "kind": "page",
@@ -315,6 +326,17 @@
     "kind": "page",
     "route": "/admin/extensions/provider-slots",
     "source": "apps/web/app/pages/admin/extensions/provider-slots.vue",
+    "owners": [
+      "admin"
+    ],
+    "targetRegistry": "P7 Admin Surface Registry"
+  },
+  {
+    "id": "core.component.page.admin.extensions.route.inspector",
+    "contractVersion": "sforum.component.page.admin.extensions.route.inspector@1",
+    "kind": "page",
+    "route": "/admin/extensions/route-inspector",
+    "source": "apps/web/app/pages/admin/extensions/route-inspector.vue",
     "owners": [
       "admin"
     ],

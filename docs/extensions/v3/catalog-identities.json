@@ -326,6 +326,12 @@
       "path": "/api/v1/admin/extensions/route-inspector"
     },
     {
+      "id": "core.route.extensions.inspect_cache",
+      "contractVersion": "sforum.route.extensions.inspect_cache@1",
+      "method": "GET",
+      "path": "/api/v1/admin/extensions/cache-inspector"
+    },
+    {
       "id": "core.route.extensions.openapi_aggregate",
       "contractVersion": "sforum.route.extensions.openapi_aggregate@1",
       "method": "GET",
@@ -1692,6 +1698,26 @@
       ],
       "state": "active",
       "source": "apps/web/app/pages/admin/extensions/route-providers.vue"
+    },
+    {
+      "id": "core.component.page.admin.extensions.route.inspector",
+      "contractVersion": "sforum.component.page.admin.extensions.route.inspector@1",
+      "kind": "page",
+      "owners": [
+        "admin"
+      ],
+      "state": "active",
+      "source": "apps/web/app/pages/admin/extensions/route-inspector.vue"
+    },
+    {
+      "id": "core.component.page.admin.extensions.cache.inspector",
+      "contractVersion": "sforum.component.page.admin.extensions.cache.inspector@1",
+      "kind": "page",
+      "owners": [
+        "admin"
+      ],
+      "state": "active",
+      "source": "apps/web/app/pages/admin/extensions/cache-inspector.vue"
     },
     {
       "id": "core.component.page.admin.extensions.provider.slots",

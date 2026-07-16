@@ -548,7 +548,12 @@ function tableFirstColumn(path) {
   const lines = read(path).split('\n')
   const start = lines.findIndex(line => line.startsWith('| ') && line.includes('|'))
   if (start < 0) return []
-  return lines.slice(start + 2).filter(line => line.startsWith('| ')).map(line => line.split('|')[1].trim().replaceAll('`', ''))
+  const values = []
+  for (const line of lines.slice(start + 2)) {
+    if (!line.startsWith('| ')) break
+    values.push(line.split('|')[1].trim().replaceAll('`', ''))
+  }
+  return values
 }
 
 function discoverJobKinds() {

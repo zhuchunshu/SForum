@@ -8,12 +8,14 @@
 | `core.admin.page.database` | `apps/web/app/pages/admin/database.vue` | yes | no | yes | yes | yes | no | no | yes | yes | no | yes | yes | yes |
 | `core.admin.page.entity_meta` | `apps/web/app/pages/admin/entity-meta.vue` | yes | no | yes | no | yes | no | no | yes | yes | no | no | yes | no |
 | `core.admin.page.extensions_extension_id_pages_page_path` | `apps/web/app/pages/admin/extensions/[extensionId]/pages/[...pagePath].vue` | yes | no | yes | no | no | yes | no | no | yes | no | no | yes | no |
+| `core.admin.page.extensions_cache_inspector` | `apps/web/app/pages/admin/extensions/cache-inspector.vue` | yes | no | yes | no | no | no | no | yes | yes | no | no | yes | no |
 | `core.admin.page.extensions_contributions` | `apps/web/app/pages/admin/extensions/contributions.vue` | yes | no | yes | no | no | no | no | yes | yes | no | no | yes | no |
 | `core.admin.page.extensions_events` | `apps/web/app/pages/admin/extensions/events.vue` | yes | no | yes | no | yes | no | no | yes | yes | no | no | yes | no |
 | `core.admin.page.extensions` | `apps/web/app/pages/admin/extensions/index.vue` | yes | no | yes | no | no | yes | no | yes | yes | no | yes | yes | no |
 | `core.admin.page.extensions_pages` | `apps/web/app/pages/admin/extensions/pages.vue` | yes | no | yes | no | no | yes | no | yes | yes | no | no | yes | no |
 | `core.admin.page.extensions_plugins` | `apps/web/app/pages/admin/extensions/plugins.vue` | yes | no | yes | no | yes | no | no | yes | yes | no | no | yes | no |
 | `core.admin.page.extensions_provider_slots` | `apps/web/app/pages/admin/extensions/provider-slots.vue` | yes | no | yes | no | yes | no | no | yes | yes | no | no | yes | no |
+| `core.admin.page.extensions_route_inspector` | `apps/web/app/pages/admin/extensions/route-inspector.vue` | yes | no | yes | no | yes | no | no | yes | no | no | no | yes | no |
 | `core.admin.page.extensions_route_providers` | `apps/web/app/pages/admin/extensions/route-providers.vue` | yes | no | yes | no | yes | no | no | yes | yes | no | no | yes | no |
 | `core.admin.page.extensions_settings` | `apps/web/app/pages/admin/extensions/settings.vue` | yes | no | yes | no | no | no | no | no | yes | no | no | yes | no |
 | `core.admin.page.extensions_store` | `apps/web/app/pages/admin/extensions/store/index.vue` | yes | no | no | no | no | no | no | no | no | no | no | no | no |
