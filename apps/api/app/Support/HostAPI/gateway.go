@@ -215,6 +215,42 @@ func (g *Gateway) PublishProtocolV2ServiceRuntime(publication ServiceRuntimePubl
 	return registry.ReplaceRuntime(publication)
 }
 
+// PrepareProtocolV2ServiceRuntimeSet validates a complete desired runtime
+// graph without changing reader visibility. Commit publishes the graph once.
+func (g *Gateway) PrepareProtocolV2ServiceRuntimeSet(publications []ServiceRuntimePublication) (*ServiceRuntimeSetTransaction, error) {
+	registry := g.ProtocolV2ServiceRegistry()
+	if registry == nil {
+		return nil, fmt.Errorf("hostapi gateway is nil")
+	}
+	return registry.PrepareRuntimeSet(publications)
+}
+
+// ProtocolV2ServiceRuntimeSetMatches verifies exact complete-set visibility
+// without incrementing discovery revisions.
+func (g *Gateway) ProtocolV2ServiceRuntimeSetMatches(publications []ServiceRuntimePublication) (bool, error) {
+	registry := g.ProtocolV2ServiceRegistry()
+	if registry == nil {
+		return false, fmt.Errorf("hostapi gateway is nil")
+	}
+	return registry.RuntimeSetMatches(publications)
+}
+
+// AcquireProtocolV2ServiceRuntimeSet pins a verified complete graph against
+// lifecycle writers until the caller releases the lease.
+func (g *Gateway) AcquireProtocolV2ServiceRuntimeSet(publications []ServiceRuntimePublication) (*ServiceRuntimeSetLease, error) {
+	return g.AcquireProtocolV2ServiceRuntimeSetContext(context.Background(), publications)
+}
+
+// AcquireProtocolV2ServiceRuntimeSetContext is the cancellable form used by
+// coordinated runtime-set transitions.
+func (g *Gateway) AcquireProtocolV2ServiceRuntimeSetContext(ctx context.Context, publications []ServiceRuntimePublication) (*ServiceRuntimeSetLease, error) {
+	registry := g.ProtocolV2ServiceRegistry()
+	if registry == nil {
+		return nil, fmt.Errorf("hostapi gateway is nil")
+	}
+	return registry.AcquireRuntimeSetContext(ctx, publications)
+}
+
 // UnregisterProtocolV2Services removes all services owned by one runtime.
 func (g *Gateway) UnregisterProtocolV2Services(extensionID string) {
 	if registry := g.ProtocolV2ServiceRegistry(); registry != nil {
