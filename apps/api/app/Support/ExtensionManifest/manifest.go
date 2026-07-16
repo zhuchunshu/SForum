@@ -40,6 +40,13 @@ const (
 	PluginJobDefaultRetryDelaySeconds   = 30
 	PluginJobMaximumRetryDelaySeconds   = 3600
 	PluginCommandMaximumTimeoutMS       = 5000
+
+	// Manifest V3 的稳定标识、引用和单族声明上限也由运行时 Registry 复用。
+	// 预检与发布必须接受/拒绝同一份包，不能把边界分散成两套漂移的常量。
+	ManifestIDMaximumLength       = 81
+	HandlerReferenceMaximumLength = 256
+	SchemaReferenceMaximumLength  = 256
+	ContentDeclarationsMaximum    = 512
 )
 
 var (

@@ -369,6 +369,9 @@ func validPackagePath(value string) bool {
 
 func validSchemaRef(value string) bool {
 	value = strings.TrimSpace(value)
+	if value == "" || len(value) > SchemaReferenceMaximumLength {
+		return false
+	}
 	if contractVersionPattern.MatchString(value) {
 		return true
 	}
@@ -377,7 +380,16 @@ func validSchemaRef(value string) bool {
 
 func validHandler(value string) bool {
 	value = strings.TrimSpace(value)
-	return value != "" && !strings.Contains(value, "://") && !strings.Contains(value, "..")
+	if value == "" || len(value) > HandlerReferenceMaximumLength ||
+		strings.Contains(value, "://") || strings.Contains(value, "..") {
+		return false
+	}
+	for _, char := range value {
+		if char < 0x20 || char == 0x7f {
+			return false
+		}
+	}
+	return true
 }
 
 func knownOrNamespacedContract(extensionID string, value string, known bool) bool {

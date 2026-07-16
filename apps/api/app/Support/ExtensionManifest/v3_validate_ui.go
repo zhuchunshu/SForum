@@ -10,6 +10,9 @@ import (
 )
 
 func (v *v3Validator) validateUIAndPackage() error {
+	if len(v.manifest.Content) > ContentDeclarationsMaximum {
+		return ErrInvalidManifest
+	}
 	packageFiles := map[string]ManifestPackageFile{}
 	packagePaths := map[string]ManifestPackageFile{}
 	targetedSchemas := map[string]string{}
@@ -193,7 +196,9 @@ func (v *v3Validator) validateUIAndPackage() error {
 		default:
 			return ErrInvalidManifest
 		}
-		if !validSchemaRef(content.Schema) || content.Handler == "" && content.Renderer == "" {
+		if !validSchemaRef(content.Schema) ||
+			(content.Handler != "" && !validHandler(content.Handler)) ||
+			content.Handler == "" && content.Renderer == "" {
 			return ErrInvalidManifest
 		}
 		if content.Renderer != "" {
