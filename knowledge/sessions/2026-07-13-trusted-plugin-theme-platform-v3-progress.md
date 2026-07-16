@@ -29,9 +29,21 @@ Last updated: 2026-07-17
   response preservation, durable audit evidence, and process-local exact
   runtime quarantine. P6 remains 13/18 until the complete action/mutation,
   revoke/WebSocket, canonical SEO, and production-matrix exit rows close.
+- The P11 SEO production path now has Host-final policy, exact-runtime provider
+  resolution, Protocol V2 execution/SDK transport, lifecycle Registry binding,
+  and a real subprocess reference fixture. This is verified groundwork only:
+  P11/P13 receive no additional row credit until the complete SEO kinds,
+  sitemap/route/query/cache/admin/SSR-without-JavaScript/uninstall and failure
+  matrices pass.
 
 ## Recent Verified Commits
 
+- `5df41f67e docs(extensions): list SEO manifest family`
+- `7237dfc2b feat(seo): bind lifecycle registry runtime`
+- `b183c3aee test(seo): add protocol v2 reference plugin`
+- `35fccd29a feat(seo): add protocol v2 execution bridge`
+- `92bc0c474 feat(seo): resolve exact runtime providers`
+- `1b8109127 feat(seo): enforce host final policy`
 - `508efeac0 fix(extensions): skip page fence without contributions`
 - `457d25047 fix(extensions): retire revoked protocol v1 runtimes`
 - `b2ea70227 fix(extensions): publish builtin runtime upgrades`
@@ -122,6 +134,11 @@ Last updated: 2026-07-17
 - A post-`508efeac0` controlled launch on port 18081 reached the Fiber listener
   with the embedded worker; both health endpoints returned 200 before a normal
   signal shutdown.
+- The real `sforum-seo-reference` Protocol V2 subprocess built from committed
+  source, applied its exact-runtime title filter, preserved the Core document on
+  provider failure, and fell back when the runtime stopped. Focused
+  `Support/Extensions`, SDK SEO, bootstrap SEO/lifecycle tests and commit
+  whitespace checks all pass for the six SEO commits above.
 - Read-only DB inspection proved zero open lifecycle operations; the three old
   `publication.integration.*` rows are terminal `cancelled`. Runtime genesis
   revision 1 remains immutable historical evidence; revision 2 is the current
