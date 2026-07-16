@@ -782,7 +782,7 @@ therefore stays production-default off.
 
 ### Tasks
 
-- [ ] Persist desired/active extension and theme revisions with per-node
+- [x] Persist desired/active extension and theme revisions with per-node
       acknowledgement and startup reconciliation.
 - [ ] Ensure migrations execute once before rolling runtime activation.
 - [ ] Add staged/canary activation, health gate, drain, atomic snapshot switch,

@@ -838,6 +838,27 @@ template while retaining Schema fallback fields.
   construction still populates mostly base/form fields rather than each page's
   business data. Plugin business-contract preservation also remains open.
 
+## V3 P12 runtime ownership checkpoint
+
+- `04b159441`, `873e48248`, and `d46fd3597` close the first P12 production
+  row for desired/active plugin and theme revisions, per-node acknowledgements,
+  and startup reconciliation.
+- An upgraded database with an active theme but an empty publication ledger now
+  creates one exact genesis under the same transaction advisory lock as theme
+  activation. Concurrent producers, activation races, approval preservation,
+  invalid state, and ambiguous commit recovery have real PostgreSQL evidence.
+- Theme heartbeat is independent from apply and has its own deadline. Ownership
+  uncertainty cancels in-flight apply, acknowledgement lease loss is terminal,
+  and initial readiness waits until publications committed during apply are also
+  applied and acknowledged.
+- Terminal Theme failure permanently closes process-local theme mutation
+  admission, serializes with any in-flight activation, restores the protected
+  default, and only then reaches the API failure channel. API shutdown is bounded
+  and drains HTTP before shared Redis/PostgreSQL resources close.
+- This does not close P12 staged/canary rollout, migration-once rolling
+  activation, multi-node upgrade/rollback tests, compatibility, marketplace,
+  observability, privacy, or developer-workflow rows.
+
 ## V3 P9 stable component identity checkpoint
 
 - P9 is 1/16. Commit `a805cbe01` adds the neutral, standard-library-only

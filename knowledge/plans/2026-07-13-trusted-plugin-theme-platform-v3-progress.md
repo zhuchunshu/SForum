@@ -1,7 +1,7 @@
 # Trusted Plugin And Theme Platform V3 Progress Ledger
 
 Date: 2026-07-16
-Overall progress: **62.6%**
+Overall progress: **62.9%**
 Active phase: **P6/P7/P9 accepted work plus P10-P12 production closure slices**
 
 This ledger is the durable percentage and context-compaction checkpoint for the
@@ -28,7 +28,7 @@ scaffolding, or demo-only code cannot satisfy a runtime exit criterion.
 | P9 Components/assets/L2 | 8% | 25% | 2.00% |
 | P10 Content/media/data | 8% | 0% | 0% |
 | P11 Platform services | 6% | 0% | 0% |
-| P12 Operations/ecosystem | 6% | 0% | 0% |
+| P12 Operations/ecosystem | 6% | 5% | 0.27% |
 | P13 References/removal/final gates | 5% | 0% | 0% |
 
 Displayed overall progress is the floor of earned weighted progress until the
@@ -124,6 +124,53 @@ or treated as expired only after the complete V3 goal is achieved.
   failing plugin exactly once (`failed`, then `skipped`).
 
 ## Last Durable Checkpoint
+
+### 2026-07-16 P12 Theme And Plugin Runtime Ownership Closure
+
+- Exact weighted progress is `62.8586%`; displayed progress is **62.9%**.
+  P6 remains **13/18**, P7 **14/22**, P8 **18/18**, P9 **4/16**, and
+  P12 now earns its first production row (**1/22**). The previously checked
+  broken-system-extension recovery test remains P1 evidence and is not counted
+  twice in the weighted ledger.
+- `04b159441` creates an exact immutable Theme genesis when an upgraded database
+  has a valid active theme but no desired-state publication. It shares the
+  activation advisory lock, preserves approval evidence, recovers ambiguous
+  commits by exact revision, and rejects invalid mutable state. Real PostgreSQL
+  normal/race tests cover 32 concurrent producers and activation races.
+- `873e48248` makes Theme node ownership fail closed: heartbeat runs independently
+  with a deadline, cancels in-flight apply on ownership uncertainty, catches up
+  every revision committed during initial apply before readiness, validates
+  applying/applied acknowledgements, and closes process-local theme mutation
+  admission before restoring the protected default.
+- `d46fd3597` removes double initialization and gives the API process bounded,
+  supervised Theme ownership. Theme and plugin terminal failures share one API
+  failure source; fallback completes before failure publication, startup rejects
+  an already-dead runtime, and HTTP drains before Redis/PostgreSQL close.
+- Focused Models/bootstrap/cmd normal and race, vet, `go build ./...`, three real
+  PostgreSQL convergence runs, and a real PostgreSQL race run passed. This closes
+  only P12 task 1. Staged/canary rollout, migration-once rolling activation, the
+  full multi-node upgrade/rollback test row, and all later P12 work remain open.
+
+Dirty ownership at this checkpoint:
+
+- Identity owns migration `202607160033`, IdentityRegistry root/leaf publication,
+  Extensions lifecycle wiring, and its PostgreSQL tests. Do not stage it with
+  Theme or Cache work.
+- Cache owns Protocol V2/Host/SDK work, including hard Remember bounds, opaque
+  token redaction/cleanup, hit revisions, and ergonomic helpers.
+- `docs/extensions/catalogs/manifest-v3.md` belongs to the pending Identity/SEO
+  generated-doc synchronization commit.
+- Never stage `apps/api/app/Models/PageViewModels/source_test.go` or
+  `extensions/builtin/plugins/sforum-content-policy/sforum.extension.json`.
+
+Exact resume command:
+
+```bash
+git status --short
+```
+
+Then finish Identity root durability and production bootstrap, repair the Cache
+SDK review findings, and continue the SEO provider-to-Host-policy vertical.
 
 ### 2026-07-16 Query/P12/SEO Production-Slice Checkpoint
 
