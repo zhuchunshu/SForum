@@ -7,7 +7,9 @@ This is the entry point for project memory.
 - **2026-07-16 Trusted Plugin And Theme Platform V3 P6/P7/P8/P9 active (overall 62.6%)**
   - Decision: `knowledge/decisions/2026-07-13-trusted-plugin-theme-platform-v3.md`
   - Task book: `knowledge/plans/2026-07-13-trusted-plugin-theme-platform-v3.md`
-  - Active checkpoint: `knowledge/sessions/2026-07-16-trusted-plugin-theme-platform-v3-p6-websocket-ingress.md`
+  - Active checkpoint: `knowledge/sessions/2026-07-16-trusted-plugin-theme-platform-v3-query-p12-seo-checkpoint.md`
+  - Prior P6 WebSocket checkpoint:
+    `knowledge/sessions/2026-07-16-trusted-plugin-theme-platform-v3-p6-websocket-ingress.md`
   - Prior P6 correction:
     `knowledge/sessions/2026-07-16-trusted-plugin-theme-platform-v3-p6-credit-correction.md`
   - Prior identity/producer checkpoint:
@@ -163,6 +165,18 @@ This is the entry point for project memory.
     and an independent uploaded reference admin plugin are committed and
     accepted. Query, Identity/Permission, Auth/Profile, and automation
     authority remain open.
+  - Query now has one-use actor/runtime/query/revision-bound Protocol V2
+    delegation, a typed Host outlet, and Go SDK helpers. It remains uncredited
+    until production bootstrap binds live identity permission rechecks and exact
+    active-runtime admission; plugin handler/result-filter transport is still
+    absent from the frozen Manifest contract.
+  - P11 SEO now has strict Manifest/OpenAPI declarations, exact trust impact,
+    lifecycle plan `@5`, and startup/Safe Mode Registry publication. Provider
+    transport, Host final policy, SSR/sitemap consumers, Inspector, and reference
+    failure evidence remain open, so P11 receives no task-row credit yet.
+  - P12 legacy enable/disable and CLI recovery now append transaction-scoped
+    immutable plugin runtime full sets. Production coordinator/theme-watcher
+    ownership and node application remain open, so P12 remains uncredited.
   - P8 is 18/18 (100%). Immutable 23-page compiler snapshots, sealed typed
     frontend output, public/admin skin isolation, install-time safety,
     four-level fallback, exact publication, all-catalog zero-I/O proof, and

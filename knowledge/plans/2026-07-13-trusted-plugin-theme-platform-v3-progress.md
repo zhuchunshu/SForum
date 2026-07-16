@@ -1,8 +1,8 @@
 # Trusted Plugin And Theme Platform V3 Progress Ledger
 
 Date: 2026-07-16
-Overall progress: **62%**
-Active phase: **P9 - Components/assets/L2 (25% accepted; CSP and composition exits remain open)**
+Overall progress: **62.6%**
+Active phase: **P6/P7/P9 accepted work plus P10-P12 production closure slices**
 
 This ledger is the durable percentage and context-compaction checkpoint for the
 V3 program. Update it before context compression, at every phase boundary, and
@@ -22,7 +22,7 @@ scaffolding, or demo-only code cannot satisfy a runtime exit criterion.
 | P3 Host API v2 | 8% | 100% | 8% |
 | P4 Lifecycle/dependencies | 7% | 100% | 7% |
 | P5 Database/commands | 8% | 100% | 8% |
-| P6 Routes/middleware | 10% | 67% | 6.67% |
+| P6 Routes/middleware | 10% | 72% | 7.22% |
 | P7 Workflow/admin/query/identity | 10% | 64% | 6.36% |
 | P8 Theme compiler/runtime | 8% | 100% | 8% |
 | P9 Components/assets/L2 | 8% | 25% | 2.00% |
@@ -124,6 +124,64 @@ or treated as expired only after the complete V3 goal is achieved.
   failing plugin exactly once (`failed`, then `skipped`).
 
 ## Last Durable Checkpoint
+
+### 2026-07-16 Query/P12/SEO Production-Slice Checkpoint
+
+- Exact weighted progress remains `62.5859%`; displayed progress remains
+  **62.6%**. P6 is **13/18**, P7 **14/22**, P8 **18/18**, and P9 **4/16**.
+  P10-P13 remain uncredited because none of their open production rows is yet
+  complete end to end.
+- `0815d2bce`, `7a8401e47`, and `4127c1c4b` make legacy Service enable/disable
+  and out-of-band CLI recovery publish one transaction-scoped immutable plugin
+  runtime desired full-set. Exact genesis, actor/reason evidence, lock order,
+  malformed-package recovery, concurrent commands, rollback, and uncertain
+  COMMIT readback passed real PostgreSQL and race tests. P12 remains open:
+  `startPluginRuntimeCoordinator` and the API theme watcher still lack complete
+  production ownership/application evidence.
+- `1b8a8064e` prevents drained Route providers and modifiers from reappearing in
+  selected plans or blocking Core fallback. It does not close the P6 action row:
+  real Protocol V2 `filter`, `after`, and `wrap` semantics still require frozen
+  mutable-field, nesting, response, failure, redirect, and canonical rules.
+- `776b9e089`, `a873e3a59`, `81e8f732d`, and `f83d10b6b` add query actor wire
+  delegation, an actor/runtime/query/revision-bound one-use Query Registry Host
+  outlet, SDK helpers, and fail-closed reflected-token rejection. Normal/race/
+  vet passed for HostAPI, QueryRegistry, SDK, and the broker. P7 Query remains
+  uncredited until API bootstrap binds the outlet to live RBAC and exact active
+  runtime admission; the frozen Manifest still has no plugin query handler or
+  declared result-filter transport.
+- `e5df1fcf8`, `f1dfd7efc`, and `1c6dcd10b` add strict SEO Manifest declarations,
+  exact trust impact, lifecycle plan `@5`, startup/Safe Mode publication, and
+  OpenAPI schemas. SEO Registry, Extensions normal/race/vet, Manifest repetition,
+  Models, and all 1,900 OpenAPI references passed. The last commit also contains
+  the lifecycle files because a delegate committed the shared staged index;
+  content is verified, but the commit message is narrower than its file set.
+  P11 SEO remains open without provider transport, Host final policy, Core SEO
+  baseline, SSR/sitemap/JavaScript-disabled consumers, Inspector, and reference
+  failure evidence.
+- The strict P10-P13 audit keeps P10 at 0/15, P11 at 0/16, and P13 fully open.
+  The fastest real production exits are Query bootstrap, P12 plugin/theme
+  convergence ownership, then the SEO provider-to-SSR vertical. Do not start
+  legacy deletion before those dependencies close.
+
+Dirty ownership at this checkpoint:
+
+- Query production wiring may edit focused bootstrap files only and must not
+  invent plugin query handler/result-filter/relation semantics.
+- `apps/api/app/Models/PageViewModels/source_test.go` and
+  `extensions/builtin/plugins/sforum-content-policy/sforum.extension.json` are
+  unrelated/user-owned and must never be staged.
+- External Grok/Codex CLI repository delegation remains blocked by the managed
+  private-repository disclosure policy. Do not retry or bypass it; keep local
+  Codex slots on bounded tasks.
+
+Exact resume command:
+
+```bash
+git status --short --branch
+```
+
+Then review Query production wiring, run bootstrap normal/race/vet, and commit
+it independently before starting the P12 convergence `app.go` changes.
 
 ### 2026-07-16 P6 Production WebSocket Ingress
 
