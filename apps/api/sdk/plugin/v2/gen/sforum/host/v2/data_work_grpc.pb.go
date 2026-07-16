@@ -206,11 +206,15 @@ var DatabaseService_ServiceDesc = grpc.ServiceDesc{
 }
 
 const (
-	CacheService_Get_FullMethodName            = "/sforum.host.v2.CacheService/Get"
-	CacheService_Set_FullMethodName            = "/sforum.host.v2.CacheService/Set"
-	CacheService_Delete_FullMethodName         = "/sforum.host.v2.CacheService/Delete"
-	CacheService_Increment_FullMethodName      = "/sforum.host.v2.CacheService/Increment"
-	CacheService_InvalidateTags_FullMethodName = "/sforum.host.v2.CacheService/InvalidateTags"
+	CacheService_Get_FullMethodName               = "/sforum.host.v2.CacheService/Get"
+	CacheService_Set_FullMethodName               = "/sforum.host.v2.CacheService/Set"
+	CacheService_Delete_FullMethodName            = "/sforum.host.v2.CacheService/Delete"
+	CacheService_Increment_FullMethodName         = "/sforum.host.v2.CacheService/Increment"
+	CacheService_InvalidateTags_FullMethodName    = "/sforum.host.v2.CacheService/InvalidateTags"
+	CacheService_AcquireLock_FullMethodName       = "/sforum.host.v2.CacheService/AcquireLock"
+	CacheService_RenewLock_FullMethodName         = "/sforum.host.v2.CacheService/RenewLock"
+	CacheService_ReleaseLock_FullMethodName       = "/sforum.host.v2.CacheService/ReleaseLock"
+	CacheService_SetAndReleaseLock_FullMethodName = "/sforum.host.v2.CacheService/SetAndReleaseLock"
 )
 
 // CacheServiceClient is the client API for CacheService service.
@@ -224,6 +228,10 @@ type CacheServiceClient interface {
 	Delete(ctx context.Context, in *CacheDeleteRequest, opts ...grpc.CallOption) (*CacheDeleteResponse, error)
 	Increment(ctx context.Context, in *CacheIncrementRequest, opts ...grpc.CallOption) (*CacheIncrementResponse, error)
 	InvalidateTags(ctx context.Context, in *CacheInvalidateRequest, opts ...grpc.CallOption) (*CacheInvalidateResponse, error)
+	AcquireLock(ctx context.Context, in *CacheLockAcquireRequest, opts ...grpc.CallOption) (*CacheLockAcquireResponse, error)
+	RenewLock(ctx context.Context, in *CacheLockRenewRequest, opts ...grpc.CallOption) (*CacheLockRenewResponse, error)
+	ReleaseLock(ctx context.Context, in *CacheLockReleaseRequest, opts ...grpc.CallOption) (*CacheLockReleaseResponse, error)
+	SetAndReleaseLock(ctx context.Context, in *CacheSetAndReleaseLockRequest, opts ...grpc.CallOption) (*CacheSetAndReleaseLockResponse, error)
 }
 
 type cacheServiceClient struct {
@@ -284,6 +292,46 @@ func (c *cacheServiceClient) InvalidateTags(ctx context.Context, in *CacheInvali
 	return out, nil
 }
 
+func (c *cacheServiceClient) AcquireLock(ctx context.Context, in *CacheLockAcquireRequest, opts ...grpc.CallOption) (*CacheLockAcquireResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CacheLockAcquireResponse)
+	err := c.cc.Invoke(ctx, CacheService_AcquireLock_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *cacheServiceClient) RenewLock(ctx context.Context, in *CacheLockRenewRequest, opts ...grpc.CallOption) (*CacheLockRenewResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CacheLockRenewResponse)
+	err := c.cc.Invoke(ctx, CacheService_RenewLock_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *cacheServiceClient) ReleaseLock(ctx context.Context, in *CacheLockReleaseRequest, opts ...grpc.CallOption) (*CacheLockReleaseResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CacheLockReleaseResponse)
+	err := c.cc.Invoke(ctx, CacheService_ReleaseLock_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *cacheServiceClient) SetAndReleaseLock(ctx context.Context, in *CacheSetAndReleaseLockRequest, opts ...grpc.CallOption) (*CacheSetAndReleaseLockResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CacheSetAndReleaseLockResponse)
+	err := c.cc.Invoke(ctx, CacheService_SetAndReleaseLock_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // CacheServiceServer is the server API for CacheService service.
 // All implementations must embed UnimplementedCacheServiceServer
 // for forward compatibility.
@@ -295,6 +343,10 @@ type CacheServiceServer interface {
 	Delete(context.Context, *CacheDeleteRequest) (*CacheDeleteResponse, error)
 	Increment(context.Context, *CacheIncrementRequest) (*CacheIncrementResponse, error)
 	InvalidateTags(context.Context, *CacheInvalidateRequest) (*CacheInvalidateResponse, error)
+	AcquireLock(context.Context, *CacheLockAcquireRequest) (*CacheLockAcquireResponse, error)
+	RenewLock(context.Context, *CacheLockRenewRequest) (*CacheLockRenewResponse, error)
+	ReleaseLock(context.Context, *CacheLockReleaseRequest) (*CacheLockReleaseResponse, error)
+	SetAndReleaseLock(context.Context, *CacheSetAndReleaseLockRequest) (*CacheSetAndReleaseLockResponse, error)
 	mustEmbedUnimplementedCacheServiceServer()
 }
 
@@ -319,6 +371,18 @@ func (UnimplementedCacheServiceServer) Increment(context.Context, *CacheIncremen
 }
 func (UnimplementedCacheServiceServer) InvalidateTags(context.Context, *CacheInvalidateRequest) (*CacheInvalidateResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method InvalidateTags not implemented")
+}
+func (UnimplementedCacheServiceServer) AcquireLock(context.Context, *CacheLockAcquireRequest) (*CacheLockAcquireResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method AcquireLock not implemented")
+}
+func (UnimplementedCacheServiceServer) RenewLock(context.Context, *CacheLockRenewRequest) (*CacheLockRenewResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method RenewLock not implemented")
+}
+func (UnimplementedCacheServiceServer) ReleaseLock(context.Context, *CacheLockReleaseRequest) (*CacheLockReleaseResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ReleaseLock not implemented")
+}
+func (UnimplementedCacheServiceServer) SetAndReleaseLock(context.Context, *CacheSetAndReleaseLockRequest) (*CacheSetAndReleaseLockResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method SetAndReleaseLock not implemented")
 }
 func (UnimplementedCacheServiceServer) mustEmbedUnimplementedCacheServiceServer() {}
 func (UnimplementedCacheServiceServer) testEmbeddedByValue()                      {}
@@ -431,6 +495,78 @@ func _CacheService_InvalidateTags_Handler(srv interface{}, ctx context.Context, 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _CacheService_AcquireLock_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CacheLockAcquireRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(CacheServiceServer).AcquireLock(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: CacheService_AcquireLock_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(CacheServiceServer).AcquireLock(ctx, req.(*CacheLockAcquireRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _CacheService_RenewLock_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CacheLockRenewRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(CacheServiceServer).RenewLock(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: CacheService_RenewLock_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(CacheServiceServer).RenewLock(ctx, req.(*CacheLockRenewRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _CacheService_ReleaseLock_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CacheLockReleaseRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(CacheServiceServer).ReleaseLock(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: CacheService_ReleaseLock_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(CacheServiceServer).ReleaseLock(ctx, req.(*CacheLockReleaseRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _CacheService_SetAndReleaseLock_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CacheSetAndReleaseLockRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(CacheServiceServer).SetAndReleaseLock(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: CacheService_SetAndReleaseLock_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(CacheServiceServer).SetAndReleaseLock(ctx, req.(*CacheSetAndReleaseLockRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // CacheService_ServiceDesc is the grpc.ServiceDesc for CacheService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -457,6 +593,22 @@ var CacheService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "InvalidateTags",
 			Handler:    _CacheService_InvalidateTags_Handler,
+		},
+		{
+			MethodName: "AcquireLock",
+			Handler:    _CacheService_AcquireLock_Handler,
+		},
+		{
+			MethodName: "RenewLock",
+			Handler:    _CacheService_RenewLock_Handler,
+		},
+		{
+			MethodName: "ReleaseLock",
+			Handler:    _CacheService_ReleaseLock_Handler,
+		},
+		{
+			MethodName: "SetAndReleaseLock",
+			Handler:    _CacheService_SetAndReleaseLock_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

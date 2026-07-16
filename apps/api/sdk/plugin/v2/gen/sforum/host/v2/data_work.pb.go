@@ -11,6 +11,7 @@ import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	durationpb "google.golang.org/protobuf/types/known/durationpb"
+	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
@@ -1699,11 +1700,589 @@ func (x *ScheduleTriggerResponse) GetError() *v2.ErrorDetail {
 	return nil
 }
 
+// Lock tokens are opaque, one-runtime capabilities. The Host binds each token
+// to the broker-attested artifact, namespace, locale segment, and logical key.
+type CacheLockAcquireRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Context       *v2.RequestContext     `protobuf:"bytes,1,opt,name=context,proto3" json:"context,omitempty"`
+	Namespace     string                 `protobuf:"bytes,2,opt,name=namespace,proto3" json:"namespace,omitempty"`
+	Key           string                 `protobuf:"bytes,3,opt,name=key,proto3" json:"key,omitempty"`
+	Ttl           *durationpb.Duration   `protobuf:"bytes,4,opt,name=ttl,proto3" json:"ttl,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CacheLockAcquireRequest) Reset() {
+	*x = CacheLockAcquireRequest{}
+	mi := &file_sforum_host_v2_data_work_proto_msgTypes[25]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CacheLockAcquireRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CacheLockAcquireRequest) ProtoMessage() {}
+
+func (x *CacheLockAcquireRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_sforum_host_v2_data_work_proto_msgTypes[25]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CacheLockAcquireRequest.ProtoReflect.Descriptor instead.
+func (*CacheLockAcquireRequest) Descriptor() ([]byte, []int) {
+	return file_sforum_host_v2_data_work_proto_rawDescGZIP(), []int{25}
+}
+
+func (x *CacheLockAcquireRequest) GetContext() *v2.RequestContext {
+	if x != nil {
+		return x.Context
+	}
+	return nil
+}
+
+func (x *CacheLockAcquireRequest) GetNamespace() string {
+	if x != nil {
+		return x.Namespace
+	}
+	return ""
+}
+
+func (x *CacheLockAcquireRequest) GetKey() string {
+	if x != nil {
+		return x.Key
+	}
+	return ""
+}
+
+func (x *CacheLockAcquireRequest) GetTtl() *durationpb.Duration {
+	if x != nil {
+		return x.Ttl
+	}
+	return nil
+}
+
+type CacheLockAcquireResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Context       *v2.ResponseContext    `protobuf:"bytes,1,opt,name=context,proto3" json:"context,omitempty"`
+	Acquired      bool                   `protobuf:"varint,2,opt,name=acquired,proto3" json:"acquired,omitempty"`
+	LeaseToken    string                 `protobuf:"bytes,3,opt,name=lease_token,json=leaseToken,proto3" json:"lease_token,omitempty"`
+	ExpiresAt     *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
+	Error         *v2.ErrorDetail        `protobuf:"bytes,5,opt,name=error,proto3" json:"error,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CacheLockAcquireResponse) Reset() {
+	*x = CacheLockAcquireResponse{}
+	mi := &file_sforum_host_v2_data_work_proto_msgTypes[26]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CacheLockAcquireResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CacheLockAcquireResponse) ProtoMessage() {}
+
+func (x *CacheLockAcquireResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_sforum_host_v2_data_work_proto_msgTypes[26]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CacheLockAcquireResponse.ProtoReflect.Descriptor instead.
+func (*CacheLockAcquireResponse) Descriptor() ([]byte, []int) {
+	return file_sforum_host_v2_data_work_proto_rawDescGZIP(), []int{26}
+}
+
+func (x *CacheLockAcquireResponse) GetContext() *v2.ResponseContext {
+	if x != nil {
+		return x.Context
+	}
+	return nil
+}
+
+func (x *CacheLockAcquireResponse) GetAcquired() bool {
+	if x != nil {
+		return x.Acquired
+	}
+	return false
+}
+
+func (x *CacheLockAcquireResponse) GetLeaseToken() string {
+	if x != nil {
+		return x.LeaseToken
+	}
+	return ""
+}
+
+func (x *CacheLockAcquireResponse) GetExpiresAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ExpiresAt
+	}
+	return nil
+}
+
+func (x *CacheLockAcquireResponse) GetError() *v2.ErrorDetail {
+	if x != nil {
+		return x.Error
+	}
+	return nil
+}
+
+type CacheLockRenewRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Context       *v2.RequestContext     `protobuf:"bytes,1,opt,name=context,proto3" json:"context,omitempty"`
+	Namespace     string                 `protobuf:"bytes,2,opt,name=namespace,proto3" json:"namespace,omitempty"`
+	Key           string                 `protobuf:"bytes,3,opt,name=key,proto3" json:"key,omitempty"`
+	LeaseToken    string                 `protobuf:"bytes,4,opt,name=lease_token,json=leaseToken,proto3" json:"lease_token,omitempty"`
+	Ttl           *durationpb.Duration   `protobuf:"bytes,5,opt,name=ttl,proto3" json:"ttl,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CacheLockRenewRequest) Reset() {
+	*x = CacheLockRenewRequest{}
+	mi := &file_sforum_host_v2_data_work_proto_msgTypes[27]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CacheLockRenewRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CacheLockRenewRequest) ProtoMessage() {}
+
+func (x *CacheLockRenewRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_sforum_host_v2_data_work_proto_msgTypes[27]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CacheLockRenewRequest.ProtoReflect.Descriptor instead.
+func (*CacheLockRenewRequest) Descriptor() ([]byte, []int) {
+	return file_sforum_host_v2_data_work_proto_rawDescGZIP(), []int{27}
+}
+
+func (x *CacheLockRenewRequest) GetContext() *v2.RequestContext {
+	if x != nil {
+		return x.Context
+	}
+	return nil
+}
+
+func (x *CacheLockRenewRequest) GetNamespace() string {
+	if x != nil {
+		return x.Namespace
+	}
+	return ""
+}
+
+func (x *CacheLockRenewRequest) GetKey() string {
+	if x != nil {
+		return x.Key
+	}
+	return ""
+}
+
+func (x *CacheLockRenewRequest) GetLeaseToken() string {
+	if x != nil {
+		return x.LeaseToken
+	}
+	return ""
+}
+
+func (x *CacheLockRenewRequest) GetTtl() *durationpb.Duration {
+	if x != nil {
+		return x.Ttl
+	}
+	return nil
+}
+
+type CacheLockRenewResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Context       *v2.ResponseContext    `protobuf:"bytes,1,opt,name=context,proto3" json:"context,omitempty"`
+	Renewed       bool                   `protobuf:"varint,2,opt,name=renewed,proto3" json:"renewed,omitempty"`
+	ExpiresAt     *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
+	Error         *v2.ErrorDetail        `protobuf:"bytes,4,opt,name=error,proto3" json:"error,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CacheLockRenewResponse) Reset() {
+	*x = CacheLockRenewResponse{}
+	mi := &file_sforum_host_v2_data_work_proto_msgTypes[28]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CacheLockRenewResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CacheLockRenewResponse) ProtoMessage() {}
+
+func (x *CacheLockRenewResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_sforum_host_v2_data_work_proto_msgTypes[28]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CacheLockRenewResponse.ProtoReflect.Descriptor instead.
+func (*CacheLockRenewResponse) Descriptor() ([]byte, []int) {
+	return file_sforum_host_v2_data_work_proto_rawDescGZIP(), []int{28}
+}
+
+func (x *CacheLockRenewResponse) GetContext() *v2.ResponseContext {
+	if x != nil {
+		return x.Context
+	}
+	return nil
+}
+
+func (x *CacheLockRenewResponse) GetRenewed() bool {
+	if x != nil {
+		return x.Renewed
+	}
+	return false
+}
+
+func (x *CacheLockRenewResponse) GetExpiresAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ExpiresAt
+	}
+	return nil
+}
+
+func (x *CacheLockRenewResponse) GetError() *v2.ErrorDetail {
+	if x != nil {
+		return x.Error
+	}
+	return nil
+}
+
+type CacheLockReleaseRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Context       *v2.RequestContext     `protobuf:"bytes,1,opt,name=context,proto3" json:"context,omitempty"`
+	Namespace     string                 `protobuf:"bytes,2,opt,name=namespace,proto3" json:"namespace,omitempty"`
+	Key           string                 `protobuf:"bytes,3,opt,name=key,proto3" json:"key,omitempty"`
+	LeaseToken    string                 `protobuf:"bytes,4,opt,name=lease_token,json=leaseToken,proto3" json:"lease_token,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CacheLockReleaseRequest) Reset() {
+	*x = CacheLockReleaseRequest{}
+	mi := &file_sforum_host_v2_data_work_proto_msgTypes[29]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CacheLockReleaseRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CacheLockReleaseRequest) ProtoMessage() {}
+
+func (x *CacheLockReleaseRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_sforum_host_v2_data_work_proto_msgTypes[29]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CacheLockReleaseRequest.ProtoReflect.Descriptor instead.
+func (*CacheLockReleaseRequest) Descriptor() ([]byte, []int) {
+	return file_sforum_host_v2_data_work_proto_rawDescGZIP(), []int{29}
+}
+
+func (x *CacheLockReleaseRequest) GetContext() *v2.RequestContext {
+	if x != nil {
+		return x.Context
+	}
+	return nil
+}
+
+func (x *CacheLockReleaseRequest) GetNamespace() string {
+	if x != nil {
+		return x.Namespace
+	}
+	return ""
+}
+
+func (x *CacheLockReleaseRequest) GetKey() string {
+	if x != nil {
+		return x.Key
+	}
+	return ""
+}
+
+func (x *CacheLockReleaseRequest) GetLeaseToken() string {
+	if x != nil {
+		return x.LeaseToken
+	}
+	return ""
+}
+
+type CacheLockReleaseResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Context       *v2.ResponseContext    `protobuf:"bytes,1,opt,name=context,proto3" json:"context,omitempty"`
+	Released      bool                   `protobuf:"varint,2,opt,name=released,proto3" json:"released,omitempty"`
+	Error         *v2.ErrorDetail        `protobuf:"bytes,3,opt,name=error,proto3" json:"error,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CacheLockReleaseResponse) Reset() {
+	*x = CacheLockReleaseResponse{}
+	mi := &file_sforum_host_v2_data_work_proto_msgTypes[30]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CacheLockReleaseResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CacheLockReleaseResponse) ProtoMessage() {}
+
+func (x *CacheLockReleaseResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_sforum_host_v2_data_work_proto_msgTypes[30]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CacheLockReleaseResponse.ProtoReflect.Descriptor instead.
+func (*CacheLockReleaseResponse) Descriptor() ([]byte, []int) {
+	return file_sforum_host_v2_data_work_proto_rawDescGZIP(), []int{30}
+}
+
+func (x *CacheLockReleaseResponse) GetContext() *v2.ResponseContext {
+	if x != nil {
+		return x.Context
+	}
+	return nil
+}
+
+func (x *CacheLockReleaseResponse) GetReleased() bool {
+	if x != nil {
+		return x.Released
+	}
+	return false
+}
+
+func (x *CacheLockReleaseResponse) GetError() *v2.ErrorDetail {
+	if x != nil {
+		return x.Error
+	}
+	return nil
+}
+
+type CacheSetAndReleaseLockRequest struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	Context          *v2.RequestContext     `protobuf:"bytes,1,opt,name=context,proto3" json:"context,omitempty"`
+	Namespace        string                 `protobuf:"bytes,2,opt,name=namespace,proto3" json:"namespace,omitempty"`
+	Key              string                 `protobuf:"bytes,3,opt,name=key,proto3" json:"key,omitempty"`
+	LeaseToken       string                 `protobuf:"bytes,4,opt,name=lease_token,json=leaseToken,proto3" json:"lease_token,omitempty"`
+	Value            *v2.TypedDocument      `protobuf:"bytes,5,opt,name=value,proto3" json:"value,omitempty"`
+	Ttl              *durationpb.Duration   `protobuf:"bytes,6,opt,name=ttl,proto3" json:"ttl,omitempty"`
+	Tags             []string               `protobuf:"bytes,7,rep,name=tags,proto3" json:"tags,omitempty"`
+	ExpectedRevision string                 `protobuf:"bytes,8,opt,name=expected_revision,json=expectedRevision,proto3" json:"expected_revision,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *CacheSetAndReleaseLockRequest) Reset() {
+	*x = CacheSetAndReleaseLockRequest{}
+	mi := &file_sforum_host_v2_data_work_proto_msgTypes[31]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CacheSetAndReleaseLockRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CacheSetAndReleaseLockRequest) ProtoMessage() {}
+
+func (x *CacheSetAndReleaseLockRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_sforum_host_v2_data_work_proto_msgTypes[31]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CacheSetAndReleaseLockRequest.ProtoReflect.Descriptor instead.
+func (*CacheSetAndReleaseLockRequest) Descriptor() ([]byte, []int) {
+	return file_sforum_host_v2_data_work_proto_rawDescGZIP(), []int{31}
+}
+
+func (x *CacheSetAndReleaseLockRequest) GetContext() *v2.RequestContext {
+	if x != nil {
+		return x.Context
+	}
+	return nil
+}
+
+func (x *CacheSetAndReleaseLockRequest) GetNamespace() string {
+	if x != nil {
+		return x.Namespace
+	}
+	return ""
+}
+
+func (x *CacheSetAndReleaseLockRequest) GetKey() string {
+	if x != nil {
+		return x.Key
+	}
+	return ""
+}
+
+func (x *CacheSetAndReleaseLockRequest) GetLeaseToken() string {
+	if x != nil {
+		return x.LeaseToken
+	}
+	return ""
+}
+
+func (x *CacheSetAndReleaseLockRequest) GetValue() *v2.TypedDocument {
+	if x != nil {
+		return x.Value
+	}
+	return nil
+}
+
+func (x *CacheSetAndReleaseLockRequest) GetTtl() *durationpb.Duration {
+	if x != nil {
+		return x.Ttl
+	}
+	return nil
+}
+
+func (x *CacheSetAndReleaseLockRequest) GetTags() []string {
+	if x != nil {
+		return x.Tags
+	}
+	return nil
+}
+
+func (x *CacheSetAndReleaseLockRequest) GetExpectedRevision() string {
+	if x != nil {
+		return x.ExpectedRevision
+	}
+	return ""
+}
+
+type CacheSetAndReleaseLockResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Context       *v2.ResponseContext    `protobuf:"bytes,1,opt,name=context,proto3" json:"context,omitempty"`
+	Revision      string                 `protobuf:"bytes,2,opt,name=revision,proto3" json:"revision,omitempty"`
+	Error         *v2.ErrorDetail        `protobuf:"bytes,3,opt,name=error,proto3" json:"error,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CacheSetAndReleaseLockResponse) Reset() {
+	*x = CacheSetAndReleaseLockResponse{}
+	mi := &file_sforum_host_v2_data_work_proto_msgTypes[32]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CacheSetAndReleaseLockResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CacheSetAndReleaseLockResponse) ProtoMessage() {}
+
+func (x *CacheSetAndReleaseLockResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_sforum_host_v2_data_work_proto_msgTypes[32]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CacheSetAndReleaseLockResponse.ProtoReflect.Descriptor instead.
+func (*CacheSetAndReleaseLockResponse) Descriptor() ([]byte, []int) {
+	return file_sforum_host_v2_data_work_proto_rawDescGZIP(), []int{32}
+}
+
+func (x *CacheSetAndReleaseLockResponse) GetContext() *v2.ResponseContext {
+	if x != nil {
+		return x.Context
+	}
+	return nil
+}
+
+func (x *CacheSetAndReleaseLockResponse) GetRevision() string {
+	if x != nil {
+		return x.Revision
+	}
+	return ""
+}
+
+func (x *CacheSetAndReleaseLockResponse) GetError() *v2.ErrorDetail {
+	if x != nil {
+		return x.Error
+	}
+	return nil
+}
+
 var File_sforum_host_v2_data_work_proto protoreflect.FileDescriptor
 
 const file_sforum_host_v2_data_work_proto_rawDesc = "" +
 	"\n" +
-	"\x1esforum/host/v2/data_work.proto\x12\x0esforum.host.v2\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fsforum/protocol/v2/common.proto\x1a sforum/protocol/v2/control.proto\"\xc6\x02\n" +
+	"\x1esforum/host/v2/data_work.proto\x12\x0esforum.host.v2\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1fsforum/protocol/v2/common.proto\x1a sforum/protocol/v2/control.proto\"\xc6\x02\n" +
 	"\x14DatabaseQueryRequest\x12<\n" +
 	"\acontext\x18\x01 \x01(\v2\".sforum.protocol.v2.RequestContextR\acontext\x12!\n" +
 	"\foperation_id\x18\x02 \x01(\tR\voperationId\x12+\n" +
@@ -1833,17 +2412,71 @@ const file_sforum_host_v2_data_work_proto_rawDesc = "" +
 	"\x17ScheduleTriggerResponse\x12=\n" +
 	"\acontext\x18\x01 \x01(\v2#.sforum.protocol.v2.ResponseContextR\acontext\x12\x15\n" +
 	"\x06job_id\x18\x02 \x01(\tR\x05jobId\x125\n" +
+	"\x05error\x18\x03 \x01(\v2\x1f.sforum.protocol.v2.ErrorDetailR\x05error\"\xb4\x01\n" +
+	"\x17CacheLockAcquireRequest\x12<\n" +
+	"\acontext\x18\x01 \x01(\v2\".sforum.protocol.v2.RequestContextR\acontext\x12\x1c\n" +
+	"\tnamespace\x18\x02 \x01(\tR\tnamespace\x12\x10\n" +
+	"\x03key\x18\x03 \x01(\tR\x03key\x12+\n" +
+	"\x03ttl\x18\x04 \x01(\v2\x19.google.protobuf.DurationR\x03ttl\"\x88\x02\n" +
+	"\x18CacheLockAcquireResponse\x12=\n" +
+	"\acontext\x18\x01 \x01(\v2#.sforum.protocol.v2.ResponseContextR\acontext\x12\x1a\n" +
+	"\bacquired\x18\x02 \x01(\bR\bacquired\x12\x1f\n" +
+	"\vlease_token\x18\x03 \x01(\tR\n" +
+	"leaseToken\x129\n" +
+	"\n" +
+	"expires_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\x125\n" +
+	"\x05error\x18\x05 \x01(\v2\x1f.sforum.protocol.v2.ErrorDetailR\x05error\"\xd3\x01\n" +
+	"\x15CacheLockRenewRequest\x12<\n" +
+	"\acontext\x18\x01 \x01(\v2\".sforum.protocol.v2.RequestContextR\acontext\x12\x1c\n" +
+	"\tnamespace\x18\x02 \x01(\tR\tnamespace\x12\x10\n" +
+	"\x03key\x18\x03 \x01(\tR\x03key\x12\x1f\n" +
+	"\vlease_token\x18\x04 \x01(\tR\n" +
+	"leaseToken\x12+\n" +
+	"\x03ttl\x18\x05 \x01(\v2\x19.google.protobuf.DurationR\x03ttl\"\xe3\x01\n" +
+	"\x16CacheLockRenewResponse\x12=\n" +
+	"\acontext\x18\x01 \x01(\v2#.sforum.protocol.v2.ResponseContextR\acontext\x12\x18\n" +
+	"\arenewed\x18\x02 \x01(\bR\arenewed\x129\n" +
+	"\n" +
+	"expires_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\x125\n" +
+	"\x05error\x18\x04 \x01(\v2\x1f.sforum.protocol.v2.ErrorDetailR\x05error\"\xa8\x01\n" +
+	"\x17CacheLockReleaseRequest\x12<\n" +
+	"\acontext\x18\x01 \x01(\v2\".sforum.protocol.v2.RequestContextR\acontext\x12\x1c\n" +
+	"\tnamespace\x18\x02 \x01(\tR\tnamespace\x12\x10\n" +
+	"\x03key\x18\x03 \x01(\tR\x03key\x12\x1f\n" +
+	"\vlease_token\x18\x04 \x01(\tR\n" +
+	"leaseToken\"\xac\x01\n" +
+	"\x18CacheLockReleaseResponse\x12=\n" +
+	"\acontext\x18\x01 \x01(\v2#.sforum.protocol.v2.ResponseContextR\acontext\x12\x1a\n" +
+	"\breleased\x18\x02 \x01(\bR\breleased\x125\n" +
+	"\x05error\x18\x03 \x01(\v2\x1f.sforum.protocol.v2.ErrorDetailR\x05error\"\xd5\x02\n" +
+	"\x1dCacheSetAndReleaseLockRequest\x12<\n" +
+	"\acontext\x18\x01 \x01(\v2\".sforum.protocol.v2.RequestContextR\acontext\x12\x1c\n" +
+	"\tnamespace\x18\x02 \x01(\tR\tnamespace\x12\x10\n" +
+	"\x03key\x18\x03 \x01(\tR\x03key\x12\x1f\n" +
+	"\vlease_token\x18\x04 \x01(\tR\n" +
+	"leaseToken\x127\n" +
+	"\x05value\x18\x05 \x01(\v2!.sforum.protocol.v2.TypedDocumentR\x05value\x12+\n" +
+	"\x03ttl\x18\x06 \x01(\v2\x19.google.protobuf.DurationR\x03ttl\x12\x12\n" +
+	"\x04tags\x18\a \x03(\tR\x04tags\x12+\n" +
+	"\x11expected_revision\x18\b \x01(\tR\x10expectedRevision\"\xb2\x01\n" +
+	"\x1eCacheSetAndReleaseLockResponse\x12=\n" +
+	"\acontext\x18\x01 \x01(\v2#.sforum.protocol.v2.ResponseContextR\acontext\x12\x1a\n" +
+	"\brevision\x18\x02 \x01(\tR\brevision\x125\n" +
 	"\x05error\x18\x03 \x01(\v2\x1f.sforum.protocol.v2.ErrorDetailR\x05error2\x97\x02\n" +
 	"\x0fDatabaseService\x12T\n" +
 	"\x05Query\x12$.sforum.host.v2.DatabaseQueryRequest\x1a%.sforum.host.v2.DatabaseQueryResponse\x12Z\n" +
 	"\aExecute\x12&.sforum.host.v2.DatabaseExecuteRequest\x1a'.sforum.host.v2.DatabaseExecuteResponse\x12R\n" +
-	"\vStreamQuery\x12$.sforum.host.v2.DatabaseQueryRequest\x1a\x1b.sforum.host.v2.DatabaseRow0\x012\xb4\x03\n" +
+	"\vStreamQuery\x12$.sforum.host.v2.DatabaseQueryRequest\x1a\x1b.sforum.host.v2.DatabaseRow0\x012\xc8\x06\n" +
 	"\fCacheService\x12H\n" +
 	"\x03Get\x12\x1f.sforum.host.v2.CacheGetRequest\x1a .sforum.host.v2.CacheGetResponse\x12H\n" +
 	"\x03Set\x12\x1f.sforum.host.v2.CacheSetRequest\x1a .sforum.host.v2.CacheSetResponse\x12Q\n" +
 	"\x06Delete\x12\".sforum.host.v2.CacheDeleteRequest\x1a#.sforum.host.v2.CacheDeleteResponse\x12Z\n" +
 	"\tIncrement\x12%.sforum.host.v2.CacheIncrementRequest\x1a&.sforum.host.v2.CacheIncrementResponse\x12a\n" +
-	"\x0eInvalidateTags\x12&.sforum.host.v2.CacheInvalidateRequest\x1a'.sforum.host.v2.CacheInvalidateResponse2\xfd\x01\n" +
+	"\x0eInvalidateTags\x12&.sforum.host.v2.CacheInvalidateRequest\x1a'.sforum.host.v2.CacheInvalidateResponse\x12`\n" +
+	"\vAcquireLock\x12'.sforum.host.v2.CacheLockAcquireRequest\x1a(.sforum.host.v2.CacheLockAcquireResponse\x12Z\n" +
+	"\tRenewLock\x12%.sforum.host.v2.CacheLockRenewRequest\x1a&.sforum.host.v2.CacheLockRenewResponse\x12`\n" +
+	"\vReleaseLock\x12'.sforum.host.v2.CacheLockReleaseRequest\x1a(.sforum.host.v2.CacheLockReleaseResponse\x12r\n" +
+	"\x11SetAndReleaseLock\x12-.sforum.host.v2.CacheSetAndReleaseLockRequest\x1a..sforum.host.v2.CacheSetAndReleaseLockResponse2\xfd\x01\n" +
 	"\n" +
 	"JobService\x12P\n" +
 	"\aEnqueue\x12!.sforum.host.v2.JobEnqueueRequest\x1a\".sforum.host.v2.JobEnqueueResponse\x12M\n" +
@@ -1865,126 +2498,161 @@ func file_sforum_host_v2_data_work_proto_rawDescGZIP() []byte {
 	return file_sforum_host_v2_data_work_proto_rawDescData
 }
 
-var file_sforum_host_v2_data_work_proto_msgTypes = make([]protoimpl.MessageInfo, 25)
+var file_sforum_host_v2_data_work_proto_msgTypes = make([]protoimpl.MessageInfo, 33)
 var file_sforum_host_v2_data_work_proto_goTypes = []any{
-	(*DatabaseQueryRequest)(nil),    // 0: sforum.host.v2.DatabaseQueryRequest
-	(*DatabaseRow)(nil),             // 1: sforum.host.v2.DatabaseRow
-	(*DatabaseQueryResponse)(nil),   // 2: sforum.host.v2.DatabaseQueryResponse
-	(*DatabaseExecuteRequest)(nil),  // 3: sforum.host.v2.DatabaseExecuteRequest
-	(*DatabaseExecuteResponse)(nil), // 4: sforum.host.v2.DatabaseExecuteResponse
-	(*CacheGetRequest)(nil),         // 5: sforum.host.v2.CacheGetRequest
-	(*CacheGetResponse)(nil),        // 6: sforum.host.v2.CacheGetResponse
-	(*CacheSetRequest)(nil),         // 7: sforum.host.v2.CacheSetRequest
-	(*CacheSetResponse)(nil),        // 8: sforum.host.v2.CacheSetResponse
-	(*CacheDeleteRequest)(nil),      // 9: sforum.host.v2.CacheDeleteRequest
-	(*CacheDeleteResponse)(nil),     // 10: sforum.host.v2.CacheDeleteResponse
-	(*CacheIncrementRequest)(nil),   // 11: sforum.host.v2.CacheIncrementRequest
-	(*CacheIncrementResponse)(nil),  // 12: sforum.host.v2.CacheIncrementResponse
-	(*CacheInvalidateRequest)(nil),  // 13: sforum.host.v2.CacheInvalidateRequest
-	(*CacheInvalidateResponse)(nil), // 14: sforum.host.v2.CacheInvalidateResponse
-	(*JobEnqueueRequest)(nil),       // 15: sforum.host.v2.JobEnqueueRequest
-	(*JobEnqueueResponse)(nil),      // 16: sforum.host.v2.JobEnqueueResponse
-	(*JobCancelRequest)(nil),        // 17: sforum.host.v2.JobCancelRequest
-	(*JobCancelResponse)(nil),       // 18: sforum.host.v2.JobCancelResponse
-	(*JobWatchRequest)(nil),         // 19: sforum.host.v2.JobWatchRequest
-	(*ScheduleListRequest)(nil),     // 20: sforum.host.v2.ScheduleListRequest
-	(*ScheduleDescriptor)(nil),      // 21: sforum.host.v2.ScheduleDescriptor
-	(*ScheduleListResponse)(nil),    // 22: sforum.host.v2.ScheduleListResponse
-	(*ScheduleTriggerRequest)(nil),  // 23: sforum.host.v2.ScheduleTriggerRequest
-	(*ScheduleTriggerResponse)(nil), // 24: sforum.host.v2.ScheduleTriggerResponse
-	(*v2.RequestContext)(nil),       // 25: sforum.protocol.v2.RequestContext
-	(*v2.TypedDocument)(nil),        // 26: sforum.protocol.v2.TypedDocument
-	(*v2.PageRequest)(nil),          // 27: sforum.protocol.v2.PageRequest
-	(*v2.ResponseContext)(nil),      // 28: sforum.protocol.v2.ResponseContext
-	(*v2.ErrorDetail)(nil),          // 29: sforum.protocol.v2.ErrorDetail
-	(*v2.PageInfo)(nil),             // 30: sforum.protocol.v2.PageInfo
-	(*durationpb.Duration)(nil),     // 31: google.protobuf.Duration
-	(*v2.ProgressUpdate)(nil),       // 32: sforum.protocol.v2.ProgressUpdate
+	(*DatabaseQueryRequest)(nil),           // 0: sforum.host.v2.DatabaseQueryRequest
+	(*DatabaseRow)(nil),                    // 1: sforum.host.v2.DatabaseRow
+	(*DatabaseQueryResponse)(nil),          // 2: sforum.host.v2.DatabaseQueryResponse
+	(*DatabaseExecuteRequest)(nil),         // 3: sforum.host.v2.DatabaseExecuteRequest
+	(*DatabaseExecuteResponse)(nil),        // 4: sforum.host.v2.DatabaseExecuteResponse
+	(*CacheGetRequest)(nil),                // 5: sforum.host.v2.CacheGetRequest
+	(*CacheGetResponse)(nil),               // 6: sforum.host.v2.CacheGetResponse
+	(*CacheSetRequest)(nil),                // 7: sforum.host.v2.CacheSetRequest
+	(*CacheSetResponse)(nil),               // 8: sforum.host.v2.CacheSetResponse
+	(*CacheDeleteRequest)(nil),             // 9: sforum.host.v2.CacheDeleteRequest
+	(*CacheDeleteResponse)(nil),            // 10: sforum.host.v2.CacheDeleteResponse
+	(*CacheIncrementRequest)(nil),          // 11: sforum.host.v2.CacheIncrementRequest
+	(*CacheIncrementResponse)(nil),         // 12: sforum.host.v2.CacheIncrementResponse
+	(*CacheInvalidateRequest)(nil),         // 13: sforum.host.v2.CacheInvalidateRequest
+	(*CacheInvalidateResponse)(nil),        // 14: sforum.host.v2.CacheInvalidateResponse
+	(*JobEnqueueRequest)(nil),              // 15: sforum.host.v2.JobEnqueueRequest
+	(*JobEnqueueResponse)(nil),             // 16: sforum.host.v2.JobEnqueueResponse
+	(*JobCancelRequest)(nil),               // 17: sforum.host.v2.JobCancelRequest
+	(*JobCancelResponse)(nil),              // 18: sforum.host.v2.JobCancelResponse
+	(*JobWatchRequest)(nil),                // 19: sforum.host.v2.JobWatchRequest
+	(*ScheduleListRequest)(nil),            // 20: sforum.host.v2.ScheduleListRequest
+	(*ScheduleDescriptor)(nil),             // 21: sforum.host.v2.ScheduleDescriptor
+	(*ScheduleListResponse)(nil),           // 22: sforum.host.v2.ScheduleListResponse
+	(*ScheduleTriggerRequest)(nil),         // 23: sforum.host.v2.ScheduleTriggerRequest
+	(*ScheduleTriggerResponse)(nil),        // 24: sforum.host.v2.ScheduleTriggerResponse
+	(*CacheLockAcquireRequest)(nil),        // 25: sforum.host.v2.CacheLockAcquireRequest
+	(*CacheLockAcquireResponse)(nil),       // 26: sforum.host.v2.CacheLockAcquireResponse
+	(*CacheLockRenewRequest)(nil),          // 27: sforum.host.v2.CacheLockRenewRequest
+	(*CacheLockRenewResponse)(nil),         // 28: sforum.host.v2.CacheLockRenewResponse
+	(*CacheLockReleaseRequest)(nil),        // 29: sforum.host.v2.CacheLockReleaseRequest
+	(*CacheLockReleaseResponse)(nil),       // 30: sforum.host.v2.CacheLockReleaseResponse
+	(*CacheSetAndReleaseLockRequest)(nil),  // 31: sforum.host.v2.CacheSetAndReleaseLockRequest
+	(*CacheSetAndReleaseLockResponse)(nil), // 32: sforum.host.v2.CacheSetAndReleaseLockResponse
+	(*v2.RequestContext)(nil),              // 33: sforum.protocol.v2.RequestContext
+	(*v2.TypedDocument)(nil),               // 34: sforum.protocol.v2.TypedDocument
+	(*v2.PageRequest)(nil),                 // 35: sforum.protocol.v2.PageRequest
+	(*v2.ResponseContext)(nil),             // 36: sforum.protocol.v2.ResponseContext
+	(*v2.ErrorDetail)(nil),                 // 37: sforum.protocol.v2.ErrorDetail
+	(*v2.PageInfo)(nil),                    // 38: sforum.protocol.v2.PageInfo
+	(*durationpb.Duration)(nil),            // 39: google.protobuf.Duration
+	(*timestamppb.Timestamp)(nil),          // 40: google.protobuf.Timestamp
+	(*v2.ProgressUpdate)(nil),              // 41: sforum.protocol.v2.ProgressUpdate
 }
 var file_sforum_host_v2_data_work_proto_depIdxs = []int32{
-	25, // 0: sforum.host.v2.DatabaseQueryRequest.context:type_name -> sforum.protocol.v2.RequestContext
-	26, // 1: sforum.host.v2.DatabaseQueryRequest.parameters:type_name -> sforum.protocol.v2.TypedDocument
-	27, // 2: sforum.host.v2.DatabaseQueryRequest.page:type_name -> sforum.protocol.v2.PageRequest
-	28, // 3: sforum.host.v2.DatabaseRow.context:type_name -> sforum.protocol.v2.ResponseContext
-	26, // 4: sforum.host.v2.DatabaseRow.value:type_name -> sforum.protocol.v2.TypedDocument
-	29, // 5: sforum.host.v2.DatabaseRow.error:type_name -> sforum.protocol.v2.ErrorDetail
-	28, // 6: sforum.host.v2.DatabaseQueryResponse.context:type_name -> sforum.protocol.v2.ResponseContext
-	26, // 7: sforum.host.v2.DatabaseQueryResponse.rows:type_name -> sforum.protocol.v2.TypedDocument
-	30, // 8: sforum.host.v2.DatabaseQueryResponse.page:type_name -> sforum.protocol.v2.PageInfo
-	29, // 9: sforum.host.v2.DatabaseQueryResponse.error:type_name -> sforum.protocol.v2.ErrorDetail
-	25, // 10: sforum.host.v2.DatabaseExecuteRequest.context:type_name -> sforum.protocol.v2.RequestContext
-	26, // 11: sforum.host.v2.DatabaseExecuteRequest.parameters:type_name -> sforum.protocol.v2.TypedDocument
-	28, // 12: sforum.host.v2.DatabaseExecuteResponse.context:type_name -> sforum.protocol.v2.ResponseContext
-	26, // 13: sforum.host.v2.DatabaseExecuteResponse.result:type_name -> sforum.protocol.v2.TypedDocument
-	29, // 14: sforum.host.v2.DatabaseExecuteResponse.error:type_name -> sforum.protocol.v2.ErrorDetail
-	25, // 15: sforum.host.v2.CacheGetRequest.context:type_name -> sforum.protocol.v2.RequestContext
-	28, // 16: sforum.host.v2.CacheGetResponse.context:type_name -> sforum.protocol.v2.ResponseContext
-	26, // 17: sforum.host.v2.CacheGetResponse.value:type_name -> sforum.protocol.v2.TypedDocument
-	29, // 18: sforum.host.v2.CacheGetResponse.error:type_name -> sforum.protocol.v2.ErrorDetail
-	25, // 19: sforum.host.v2.CacheSetRequest.context:type_name -> sforum.protocol.v2.RequestContext
-	26, // 20: sforum.host.v2.CacheSetRequest.value:type_name -> sforum.protocol.v2.TypedDocument
-	31, // 21: sforum.host.v2.CacheSetRequest.ttl:type_name -> google.protobuf.Duration
-	28, // 22: sforum.host.v2.CacheSetResponse.context:type_name -> sforum.protocol.v2.ResponseContext
-	29, // 23: sforum.host.v2.CacheSetResponse.error:type_name -> sforum.protocol.v2.ErrorDetail
-	25, // 24: sforum.host.v2.CacheDeleteRequest.context:type_name -> sforum.protocol.v2.RequestContext
-	28, // 25: sforum.host.v2.CacheDeleteResponse.context:type_name -> sforum.protocol.v2.ResponseContext
-	29, // 26: sforum.host.v2.CacheDeleteResponse.error:type_name -> sforum.protocol.v2.ErrorDetail
-	25, // 27: sforum.host.v2.CacheIncrementRequest.context:type_name -> sforum.protocol.v2.RequestContext
-	31, // 28: sforum.host.v2.CacheIncrementRequest.ttl:type_name -> google.protobuf.Duration
-	28, // 29: sforum.host.v2.CacheIncrementResponse.context:type_name -> sforum.protocol.v2.ResponseContext
-	29, // 30: sforum.host.v2.CacheIncrementResponse.error:type_name -> sforum.protocol.v2.ErrorDetail
-	25, // 31: sforum.host.v2.CacheInvalidateRequest.context:type_name -> sforum.protocol.v2.RequestContext
-	28, // 32: sforum.host.v2.CacheInvalidateResponse.context:type_name -> sforum.protocol.v2.ResponseContext
-	29, // 33: sforum.host.v2.CacheInvalidateResponse.error:type_name -> sforum.protocol.v2.ErrorDetail
-	25, // 34: sforum.host.v2.JobEnqueueRequest.context:type_name -> sforum.protocol.v2.RequestContext
-	26, // 35: sforum.host.v2.JobEnqueueRequest.payload:type_name -> sforum.protocol.v2.TypedDocument
-	31, // 36: sforum.host.v2.JobEnqueueRequest.delay:type_name -> google.protobuf.Duration
-	28, // 37: sforum.host.v2.JobEnqueueResponse.context:type_name -> sforum.protocol.v2.ResponseContext
-	29, // 38: sforum.host.v2.JobEnqueueResponse.error:type_name -> sforum.protocol.v2.ErrorDetail
-	25, // 39: sforum.host.v2.JobCancelRequest.context:type_name -> sforum.protocol.v2.RequestContext
-	28, // 40: sforum.host.v2.JobCancelResponse.context:type_name -> sforum.protocol.v2.ResponseContext
-	29, // 41: sforum.host.v2.JobCancelResponse.error:type_name -> sforum.protocol.v2.ErrorDetail
-	25, // 42: sforum.host.v2.JobWatchRequest.context:type_name -> sforum.protocol.v2.RequestContext
-	25, // 43: sforum.host.v2.ScheduleListRequest.context:type_name -> sforum.protocol.v2.RequestContext
-	27, // 44: sforum.host.v2.ScheduleListRequest.page:type_name -> sforum.protocol.v2.PageRequest
-	28, // 45: sforum.host.v2.ScheduleListResponse.context:type_name -> sforum.protocol.v2.ResponseContext
+	33, // 0: sforum.host.v2.DatabaseQueryRequest.context:type_name -> sforum.protocol.v2.RequestContext
+	34, // 1: sforum.host.v2.DatabaseQueryRequest.parameters:type_name -> sforum.protocol.v2.TypedDocument
+	35, // 2: sforum.host.v2.DatabaseQueryRequest.page:type_name -> sforum.protocol.v2.PageRequest
+	36, // 3: sforum.host.v2.DatabaseRow.context:type_name -> sforum.protocol.v2.ResponseContext
+	34, // 4: sforum.host.v2.DatabaseRow.value:type_name -> sforum.protocol.v2.TypedDocument
+	37, // 5: sforum.host.v2.DatabaseRow.error:type_name -> sforum.protocol.v2.ErrorDetail
+	36, // 6: sforum.host.v2.DatabaseQueryResponse.context:type_name -> sforum.protocol.v2.ResponseContext
+	34, // 7: sforum.host.v2.DatabaseQueryResponse.rows:type_name -> sforum.protocol.v2.TypedDocument
+	38, // 8: sforum.host.v2.DatabaseQueryResponse.page:type_name -> sforum.protocol.v2.PageInfo
+	37, // 9: sforum.host.v2.DatabaseQueryResponse.error:type_name -> sforum.protocol.v2.ErrorDetail
+	33, // 10: sforum.host.v2.DatabaseExecuteRequest.context:type_name -> sforum.protocol.v2.RequestContext
+	34, // 11: sforum.host.v2.DatabaseExecuteRequest.parameters:type_name -> sforum.protocol.v2.TypedDocument
+	36, // 12: sforum.host.v2.DatabaseExecuteResponse.context:type_name -> sforum.protocol.v2.ResponseContext
+	34, // 13: sforum.host.v2.DatabaseExecuteResponse.result:type_name -> sforum.protocol.v2.TypedDocument
+	37, // 14: sforum.host.v2.DatabaseExecuteResponse.error:type_name -> sforum.protocol.v2.ErrorDetail
+	33, // 15: sforum.host.v2.CacheGetRequest.context:type_name -> sforum.protocol.v2.RequestContext
+	36, // 16: sforum.host.v2.CacheGetResponse.context:type_name -> sforum.protocol.v2.ResponseContext
+	34, // 17: sforum.host.v2.CacheGetResponse.value:type_name -> sforum.protocol.v2.TypedDocument
+	37, // 18: sforum.host.v2.CacheGetResponse.error:type_name -> sforum.protocol.v2.ErrorDetail
+	33, // 19: sforum.host.v2.CacheSetRequest.context:type_name -> sforum.protocol.v2.RequestContext
+	34, // 20: sforum.host.v2.CacheSetRequest.value:type_name -> sforum.protocol.v2.TypedDocument
+	39, // 21: sforum.host.v2.CacheSetRequest.ttl:type_name -> google.protobuf.Duration
+	36, // 22: sforum.host.v2.CacheSetResponse.context:type_name -> sforum.protocol.v2.ResponseContext
+	37, // 23: sforum.host.v2.CacheSetResponse.error:type_name -> sforum.protocol.v2.ErrorDetail
+	33, // 24: sforum.host.v2.CacheDeleteRequest.context:type_name -> sforum.protocol.v2.RequestContext
+	36, // 25: sforum.host.v2.CacheDeleteResponse.context:type_name -> sforum.protocol.v2.ResponseContext
+	37, // 26: sforum.host.v2.CacheDeleteResponse.error:type_name -> sforum.protocol.v2.ErrorDetail
+	33, // 27: sforum.host.v2.CacheIncrementRequest.context:type_name -> sforum.protocol.v2.RequestContext
+	39, // 28: sforum.host.v2.CacheIncrementRequest.ttl:type_name -> google.protobuf.Duration
+	36, // 29: sforum.host.v2.CacheIncrementResponse.context:type_name -> sforum.protocol.v2.ResponseContext
+	37, // 30: sforum.host.v2.CacheIncrementResponse.error:type_name -> sforum.protocol.v2.ErrorDetail
+	33, // 31: sforum.host.v2.CacheInvalidateRequest.context:type_name -> sforum.protocol.v2.RequestContext
+	36, // 32: sforum.host.v2.CacheInvalidateResponse.context:type_name -> sforum.protocol.v2.ResponseContext
+	37, // 33: sforum.host.v2.CacheInvalidateResponse.error:type_name -> sforum.protocol.v2.ErrorDetail
+	33, // 34: sforum.host.v2.JobEnqueueRequest.context:type_name -> sforum.protocol.v2.RequestContext
+	34, // 35: sforum.host.v2.JobEnqueueRequest.payload:type_name -> sforum.protocol.v2.TypedDocument
+	39, // 36: sforum.host.v2.JobEnqueueRequest.delay:type_name -> google.protobuf.Duration
+	36, // 37: sforum.host.v2.JobEnqueueResponse.context:type_name -> sforum.protocol.v2.ResponseContext
+	37, // 38: sforum.host.v2.JobEnqueueResponse.error:type_name -> sforum.protocol.v2.ErrorDetail
+	33, // 39: sforum.host.v2.JobCancelRequest.context:type_name -> sforum.protocol.v2.RequestContext
+	36, // 40: sforum.host.v2.JobCancelResponse.context:type_name -> sforum.protocol.v2.ResponseContext
+	37, // 41: sforum.host.v2.JobCancelResponse.error:type_name -> sforum.protocol.v2.ErrorDetail
+	33, // 42: sforum.host.v2.JobWatchRequest.context:type_name -> sforum.protocol.v2.RequestContext
+	33, // 43: sforum.host.v2.ScheduleListRequest.context:type_name -> sforum.protocol.v2.RequestContext
+	35, // 44: sforum.host.v2.ScheduleListRequest.page:type_name -> sforum.protocol.v2.PageRequest
+	36, // 45: sforum.host.v2.ScheduleListResponse.context:type_name -> sforum.protocol.v2.ResponseContext
 	21, // 46: sforum.host.v2.ScheduleListResponse.schedules:type_name -> sforum.host.v2.ScheduleDescriptor
-	30, // 47: sforum.host.v2.ScheduleListResponse.page:type_name -> sforum.protocol.v2.PageInfo
-	29, // 48: sforum.host.v2.ScheduleListResponse.error:type_name -> sforum.protocol.v2.ErrorDetail
-	25, // 49: sforum.host.v2.ScheduleTriggerRequest.context:type_name -> sforum.protocol.v2.RequestContext
-	28, // 50: sforum.host.v2.ScheduleTriggerResponse.context:type_name -> sforum.protocol.v2.ResponseContext
-	29, // 51: sforum.host.v2.ScheduleTriggerResponse.error:type_name -> sforum.protocol.v2.ErrorDetail
-	0,  // 52: sforum.host.v2.DatabaseService.Query:input_type -> sforum.host.v2.DatabaseQueryRequest
-	3,  // 53: sforum.host.v2.DatabaseService.Execute:input_type -> sforum.host.v2.DatabaseExecuteRequest
-	0,  // 54: sforum.host.v2.DatabaseService.StreamQuery:input_type -> sforum.host.v2.DatabaseQueryRequest
-	5,  // 55: sforum.host.v2.CacheService.Get:input_type -> sforum.host.v2.CacheGetRequest
-	7,  // 56: sforum.host.v2.CacheService.Set:input_type -> sforum.host.v2.CacheSetRequest
-	9,  // 57: sforum.host.v2.CacheService.Delete:input_type -> sforum.host.v2.CacheDeleteRequest
-	11, // 58: sforum.host.v2.CacheService.Increment:input_type -> sforum.host.v2.CacheIncrementRequest
-	13, // 59: sforum.host.v2.CacheService.InvalidateTags:input_type -> sforum.host.v2.CacheInvalidateRequest
-	15, // 60: sforum.host.v2.JobService.Enqueue:input_type -> sforum.host.v2.JobEnqueueRequest
-	17, // 61: sforum.host.v2.JobService.Cancel:input_type -> sforum.host.v2.JobCancelRequest
-	19, // 62: sforum.host.v2.JobService.Watch:input_type -> sforum.host.v2.JobWatchRequest
-	20, // 63: sforum.host.v2.ScheduleService.List:input_type -> sforum.host.v2.ScheduleListRequest
-	23, // 64: sforum.host.v2.ScheduleService.Trigger:input_type -> sforum.host.v2.ScheduleTriggerRequest
-	2,  // 65: sforum.host.v2.DatabaseService.Query:output_type -> sforum.host.v2.DatabaseQueryResponse
-	4,  // 66: sforum.host.v2.DatabaseService.Execute:output_type -> sforum.host.v2.DatabaseExecuteResponse
-	1,  // 67: sforum.host.v2.DatabaseService.StreamQuery:output_type -> sforum.host.v2.DatabaseRow
-	6,  // 68: sforum.host.v2.CacheService.Get:output_type -> sforum.host.v2.CacheGetResponse
-	8,  // 69: sforum.host.v2.CacheService.Set:output_type -> sforum.host.v2.CacheSetResponse
-	10, // 70: sforum.host.v2.CacheService.Delete:output_type -> sforum.host.v2.CacheDeleteResponse
-	12, // 71: sforum.host.v2.CacheService.Increment:output_type -> sforum.host.v2.CacheIncrementResponse
-	14, // 72: sforum.host.v2.CacheService.InvalidateTags:output_type -> sforum.host.v2.CacheInvalidateResponse
-	16, // 73: sforum.host.v2.JobService.Enqueue:output_type -> sforum.host.v2.JobEnqueueResponse
-	18, // 74: sforum.host.v2.JobService.Cancel:output_type -> sforum.host.v2.JobCancelResponse
-	32, // 75: sforum.host.v2.JobService.Watch:output_type -> sforum.protocol.v2.ProgressUpdate
-	22, // 76: sforum.host.v2.ScheduleService.List:output_type -> sforum.host.v2.ScheduleListResponse
-	24, // 77: sforum.host.v2.ScheduleService.Trigger:output_type -> sforum.host.v2.ScheduleTriggerResponse
-	65, // [65:78] is the sub-list for method output_type
-	52, // [52:65] is the sub-list for method input_type
-	52, // [52:52] is the sub-list for extension type_name
-	52, // [52:52] is the sub-list for extension extendee
-	0,  // [0:52] is the sub-list for field type_name
+	38, // 47: sforum.host.v2.ScheduleListResponse.page:type_name -> sforum.protocol.v2.PageInfo
+	37, // 48: sforum.host.v2.ScheduleListResponse.error:type_name -> sforum.protocol.v2.ErrorDetail
+	33, // 49: sforum.host.v2.ScheduleTriggerRequest.context:type_name -> sforum.protocol.v2.RequestContext
+	36, // 50: sforum.host.v2.ScheduleTriggerResponse.context:type_name -> sforum.protocol.v2.ResponseContext
+	37, // 51: sforum.host.v2.ScheduleTriggerResponse.error:type_name -> sforum.protocol.v2.ErrorDetail
+	33, // 52: sforum.host.v2.CacheLockAcquireRequest.context:type_name -> sforum.protocol.v2.RequestContext
+	39, // 53: sforum.host.v2.CacheLockAcquireRequest.ttl:type_name -> google.protobuf.Duration
+	36, // 54: sforum.host.v2.CacheLockAcquireResponse.context:type_name -> sforum.protocol.v2.ResponseContext
+	40, // 55: sforum.host.v2.CacheLockAcquireResponse.expires_at:type_name -> google.protobuf.Timestamp
+	37, // 56: sforum.host.v2.CacheLockAcquireResponse.error:type_name -> sforum.protocol.v2.ErrorDetail
+	33, // 57: sforum.host.v2.CacheLockRenewRequest.context:type_name -> sforum.protocol.v2.RequestContext
+	39, // 58: sforum.host.v2.CacheLockRenewRequest.ttl:type_name -> google.protobuf.Duration
+	36, // 59: sforum.host.v2.CacheLockRenewResponse.context:type_name -> sforum.protocol.v2.ResponseContext
+	40, // 60: sforum.host.v2.CacheLockRenewResponse.expires_at:type_name -> google.protobuf.Timestamp
+	37, // 61: sforum.host.v2.CacheLockRenewResponse.error:type_name -> sforum.protocol.v2.ErrorDetail
+	33, // 62: sforum.host.v2.CacheLockReleaseRequest.context:type_name -> sforum.protocol.v2.RequestContext
+	36, // 63: sforum.host.v2.CacheLockReleaseResponse.context:type_name -> sforum.protocol.v2.ResponseContext
+	37, // 64: sforum.host.v2.CacheLockReleaseResponse.error:type_name -> sforum.protocol.v2.ErrorDetail
+	33, // 65: sforum.host.v2.CacheSetAndReleaseLockRequest.context:type_name -> sforum.protocol.v2.RequestContext
+	34, // 66: sforum.host.v2.CacheSetAndReleaseLockRequest.value:type_name -> sforum.protocol.v2.TypedDocument
+	39, // 67: sforum.host.v2.CacheSetAndReleaseLockRequest.ttl:type_name -> google.protobuf.Duration
+	36, // 68: sforum.host.v2.CacheSetAndReleaseLockResponse.context:type_name -> sforum.protocol.v2.ResponseContext
+	37, // 69: sforum.host.v2.CacheSetAndReleaseLockResponse.error:type_name -> sforum.protocol.v2.ErrorDetail
+	0,  // 70: sforum.host.v2.DatabaseService.Query:input_type -> sforum.host.v2.DatabaseQueryRequest
+	3,  // 71: sforum.host.v2.DatabaseService.Execute:input_type -> sforum.host.v2.DatabaseExecuteRequest
+	0,  // 72: sforum.host.v2.DatabaseService.StreamQuery:input_type -> sforum.host.v2.DatabaseQueryRequest
+	5,  // 73: sforum.host.v2.CacheService.Get:input_type -> sforum.host.v2.CacheGetRequest
+	7,  // 74: sforum.host.v2.CacheService.Set:input_type -> sforum.host.v2.CacheSetRequest
+	9,  // 75: sforum.host.v2.CacheService.Delete:input_type -> sforum.host.v2.CacheDeleteRequest
+	11, // 76: sforum.host.v2.CacheService.Increment:input_type -> sforum.host.v2.CacheIncrementRequest
+	13, // 77: sforum.host.v2.CacheService.InvalidateTags:input_type -> sforum.host.v2.CacheInvalidateRequest
+	25, // 78: sforum.host.v2.CacheService.AcquireLock:input_type -> sforum.host.v2.CacheLockAcquireRequest
+	27, // 79: sforum.host.v2.CacheService.RenewLock:input_type -> sforum.host.v2.CacheLockRenewRequest
+	29, // 80: sforum.host.v2.CacheService.ReleaseLock:input_type -> sforum.host.v2.CacheLockReleaseRequest
+	31, // 81: sforum.host.v2.CacheService.SetAndReleaseLock:input_type -> sforum.host.v2.CacheSetAndReleaseLockRequest
+	15, // 82: sforum.host.v2.JobService.Enqueue:input_type -> sforum.host.v2.JobEnqueueRequest
+	17, // 83: sforum.host.v2.JobService.Cancel:input_type -> sforum.host.v2.JobCancelRequest
+	19, // 84: sforum.host.v2.JobService.Watch:input_type -> sforum.host.v2.JobWatchRequest
+	20, // 85: sforum.host.v2.ScheduleService.List:input_type -> sforum.host.v2.ScheduleListRequest
+	23, // 86: sforum.host.v2.ScheduleService.Trigger:input_type -> sforum.host.v2.ScheduleTriggerRequest
+	2,  // 87: sforum.host.v2.DatabaseService.Query:output_type -> sforum.host.v2.DatabaseQueryResponse
+	4,  // 88: sforum.host.v2.DatabaseService.Execute:output_type -> sforum.host.v2.DatabaseExecuteResponse
+	1,  // 89: sforum.host.v2.DatabaseService.StreamQuery:output_type -> sforum.host.v2.DatabaseRow
+	6,  // 90: sforum.host.v2.CacheService.Get:output_type -> sforum.host.v2.CacheGetResponse
+	8,  // 91: sforum.host.v2.CacheService.Set:output_type -> sforum.host.v2.CacheSetResponse
+	10, // 92: sforum.host.v2.CacheService.Delete:output_type -> sforum.host.v2.CacheDeleteResponse
+	12, // 93: sforum.host.v2.CacheService.Increment:output_type -> sforum.host.v2.CacheIncrementResponse
+	14, // 94: sforum.host.v2.CacheService.InvalidateTags:output_type -> sforum.host.v2.CacheInvalidateResponse
+	26, // 95: sforum.host.v2.CacheService.AcquireLock:output_type -> sforum.host.v2.CacheLockAcquireResponse
+	28, // 96: sforum.host.v2.CacheService.RenewLock:output_type -> sforum.host.v2.CacheLockRenewResponse
+	30, // 97: sforum.host.v2.CacheService.ReleaseLock:output_type -> sforum.host.v2.CacheLockReleaseResponse
+	32, // 98: sforum.host.v2.CacheService.SetAndReleaseLock:output_type -> sforum.host.v2.CacheSetAndReleaseLockResponse
+	16, // 99: sforum.host.v2.JobService.Enqueue:output_type -> sforum.host.v2.JobEnqueueResponse
+	18, // 100: sforum.host.v2.JobService.Cancel:output_type -> sforum.host.v2.JobCancelResponse
+	41, // 101: sforum.host.v2.JobService.Watch:output_type -> sforum.protocol.v2.ProgressUpdate
+	22, // 102: sforum.host.v2.ScheduleService.List:output_type -> sforum.host.v2.ScheduleListResponse
+	24, // 103: sforum.host.v2.ScheduleService.Trigger:output_type -> sforum.host.v2.ScheduleTriggerResponse
+	87, // [87:104] is the sub-list for method output_type
+	70, // [70:87] is the sub-list for method input_type
+	70, // [70:70] is the sub-list for extension type_name
+	70, // [70:70] is the sub-list for extension extendee
+	0,  // [0:70] is the sub-list for field type_name
 }
 
 func init() { file_sforum_host_v2_data_work_proto_init() }
@@ -1998,7 +2666,7 @@ func file_sforum_host_v2_data_work_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_sforum_host_v2_data_work_proto_rawDesc), len(file_sforum_host_v2_data_work_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   25,
+			NumMessages:   33,
 			NumExtensions: 0,
 			NumServices:   4,
 		},

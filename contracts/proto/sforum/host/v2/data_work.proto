@@ -3,6 +3,7 @@ syntax = "proto3";
 package sforum.host.v2;
 
 import "google/protobuf/duration.proto";
+import "google/protobuf/timestamp.proto";
 import "sforum/protocol/v2/common.proto";
 import "sforum/protocol/v2/control.proto";
 
@@ -22,6 +23,10 @@ service CacheService {
   rpc Delete(CacheDeleteRequest) returns (CacheDeleteResponse);
   rpc Increment(CacheIncrementRequest) returns (CacheIncrementResponse);
   rpc InvalidateTags(CacheInvalidateRequest) returns (CacheInvalidateResponse);
+  rpc AcquireLock(CacheLockAcquireRequest) returns (CacheLockAcquireResponse);
+  rpc RenewLock(CacheLockRenewRequest) returns (CacheLockRenewResponse);
+  rpc ReleaseLock(CacheLockReleaseRequest) returns (CacheLockReleaseResponse);
+  rpc SetAndReleaseLock(CacheSetAndReleaseLockRequest) returns (CacheSetAndReleaseLockResponse);
 }
 
 // JobService enqueues and observes declared durable jobs.
@@ -206,5 +211,67 @@ message ScheduleTriggerRequest {
 message ScheduleTriggerResponse {
   sforum.protocol.v2.ResponseContext context = 1;
   string job_id = 2;
+  sforum.protocol.v2.ErrorDetail error = 3;
+}
+
+// Lock tokens are opaque, one-runtime capabilities. The Host binds each token
+// to the broker-attested artifact, namespace, locale segment, and logical key.
+message CacheLockAcquireRequest {
+  sforum.protocol.v2.RequestContext context = 1;
+  string namespace = 2;
+  string key = 3;
+  google.protobuf.Duration ttl = 4;
+}
+
+message CacheLockAcquireResponse {
+  sforum.protocol.v2.ResponseContext context = 1;
+  bool acquired = 2;
+  string lease_token = 3;
+  google.protobuf.Timestamp expires_at = 4;
+  sforum.protocol.v2.ErrorDetail error = 5;
+}
+
+message CacheLockRenewRequest {
+  sforum.protocol.v2.RequestContext context = 1;
+  string namespace = 2;
+  string key = 3;
+  string lease_token = 4;
+  google.protobuf.Duration ttl = 5;
+}
+
+message CacheLockRenewResponse {
+  sforum.protocol.v2.ResponseContext context = 1;
+  bool renewed = 2;
+  google.protobuf.Timestamp expires_at = 3;
+  sforum.protocol.v2.ErrorDetail error = 4;
+}
+
+message CacheLockReleaseRequest {
+  sforum.protocol.v2.RequestContext context = 1;
+  string namespace = 2;
+  string key = 3;
+  string lease_token = 4;
+}
+
+message CacheLockReleaseResponse {
+  sforum.protocol.v2.ResponseContext context = 1;
+  bool released = 2;
+  sforum.protocol.v2.ErrorDetail error = 3;
+}
+
+message CacheSetAndReleaseLockRequest {
+  sforum.protocol.v2.RequestContext context = 1;
+  string namespace = 2;
+  string key = 3;
+  string lease_token = 4;
+  sforum.protocol.v2.TypedDocument value = 5;
+  google.protobuf.Duration ttl = 6;
+  repeated string tags = 7;
+  string expected_revision = 8;
+}
+
+message CacheSetAndReleaseLockResponse {
+  sforum.protocol.v2.ResponseContext context = 1;
+  string revision = 2;
   sforum.protocol.v2.ErrorDetail error = 3;
 }
