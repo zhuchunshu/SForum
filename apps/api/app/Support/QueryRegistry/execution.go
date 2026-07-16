@@ -243,15 +243,23 @@ func (r *ExecutionRuntime) applyResultFilters(
 	filters []preparedResultFilter,
 	trace *ExecutionTrace,
 ) ([]QueryRow, error) {
+	// Frozen QueryDeclaration has no result-filter cost units. Do not synthesize
+	// plugin pricing: bound the representable JSON work here and re-estimate the
+	// immutable query-plan cost at every callback fence below.
+	budget, err := newResultFilterJSONBudget(r.maxResultBytes)
+	if err != nil {
+		return nil, err
+	}
 	current := rows
 	for _, prepared := range filters {
 		registration := prepared.registration
 		started := time.Now()
-		candidate, filterErr := r.invokeResultFilter(ctx, plan, permission, current, registration, trace)
+		candidate, filterErr := r.invokeResultFilter(ctx, plan, permission, current, registration, budget, trace)
 		if filterErr != nil {
 			hostFailure := ctx.Err() != nil || errors.Is(filterErr, ErrDenied) ||
 				errors.Is(filterErr, ErrArtifactConflict) || errors.Is(filterErr, ErrRevisionConflict) ||
 				errors.Is(filterErr, ErrArtifactUnavailable) || errors.Is(filterErr, ErrContractInsufficient) ||
+				errors.Is(filterErr, ErrResultTooLarge) || errors.Is(filterErr, ErrCostExceeded) ||
 				errors.Is(filterErr, ErrInvalid) || errors.Is(filterErr, ErrExecutionInvalid)
 			outcome := ResultFilterTraceFailed
 			if registration.FailurePolicy == ResultFilterFailOpen && !hostFailure {
@@ -293,13 +301,17 @@ func (r *ExecutionRuntime) invokeResultFilter(
 	permission PermissionInput,
 	current []QueryRow,
 	registration ResultFilterRegistration,
+	budget *resultJSONBudget,
 	trace *ExecutionTrace,
 ) ([]QueryRow, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	trace.Stage = "filter_admission"
 	if err := r.registry.requireArtifactAdmitted(registration.Artifact); err != nil {
 		return nil, errors.Join(ErrDependencyDenied, err)
 	}
-	inputRows, _, err := cloneRowsBounded(current, r.maxResultBytes)
+	inputRows, _, err := cloneRowsBoundedWithBudget(current, r.maxResultBytes, budget)
 	if err != nil {
 		return nil, err
 	}
@@ -312,6 +324,10 @@ func (r *ExecutionRuntime) invokeResultFilter(
 		cancel()
 		return nil, err
 	}
+	if err := r.registry.requireArtifactAdmitted(registration.Artifact); err != nil {
+		cancel()
+		return nil, errors.Join(ErrDependencyDenied, err)
+	}
 	candidateResult, filterErr := registration.Filter.FilterQueryResult(filterCtx, ResultFilterRequest{
 		Plan: cloneQueryPlan(plan), Rows: inputRows,
 	})
@@ -320,24 +336,51 @@ func (r *ExecutionRuntime) invokeResultFilter(
 	if filterErr == nil && filterContextErr != nil {
 		filterErr = filterContextErr
 	}
-	if filterErr == nil {
-		filterErr = r.registry.requireArtifactAdmitted(registration.Artifact)
+	// Callback failure policy never controls Host authority. Recheck the exact
+	// filter artifact, immutable plan/cost, and live permission even when the
+	// plugin returned an ordinary error that would otherwise be fail-open.
+	if fenceErr := r.recheckAfterResultFilterCallback(ctx, plan, permission, registration.Artifact); fenceErr != nil {
+		return nil, fenceErr
 	}
 	var candidate []QueryRow
 	if filterErr == nil {
-		candidate, _, filterErr = cloneRowsBounded(candidateResult.Rows, r.maxResultBytes)
+		candidate, _, filterErr = cloneRowsBoundedWithBudget(candidateResult.Rows, r.maxResultBytes, budget)
 	}
 	if filterErr == nil {
 		filterErr = preserveFilterCardinalityAndOrder(current, candidate, registration.IdentityFields)
 	}
 	if filterErr == nil {
 		trace.Stage = "filter_schema"
-		filterErr = r.validateRows(ctx, plan, candidate)
+		filterErr = r.validateRowsWithBudget(ctx, plan, candidate, budget)
 	}
-	if filterErr == nil {
-		filterErr = r.registry.RecheckBeforeRelease(ctx, plan, permission)
+	// Output cloning and schema validation are Host callbacks/work too. A filter's
+	// fail-open policy cannot hide authority drift that occurs during those steps.
+	if fenceErr := r.recheckAfterResultFilterCallback(ctx, plan, permission, registration.Artifact); fenceErr != nil {
+		return nil, fenceErr
 	}
 	return candidate, filterErr
+}
+
+func (r *ExecutionRuntime) recheckAfterResultFilterCallback(
+	ctx context.Context,
+	plan QueryPlan,
+	permission PermissionInput,
+	artifact Artifact,
+) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if err := r.registry.requireArtifactAdmitted(artifact); err != nil {
+		return errors.Join(ErrDependencyDenied, err)
+	}
+	if err := r.registry.RecheckBeforeRelease(ctx, plan, permission); err != nil {
+		return err
+	}
+	// The permission/cost callback above may itself race a filter drain.
+	if err := r.registry.requireArtifactAdmitted(artifact); err != nil {
+		return errors.Join(ErrDependencyDenied, err)
+	}
+	return ctx.Err()
 }
 
 func selectedIdentityFields(fields, identities []string) bool {

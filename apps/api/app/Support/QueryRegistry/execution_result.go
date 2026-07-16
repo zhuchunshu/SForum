@@ -20,11 +20,25 @@ import (
 const resultCacheSchemaVersion = "sforum.query-result-cache@1"
 
 func cloneRowsBounded(rows []QueryRow, maximumBytes int) ([]QueryRow, int, error) {
+	return cloneRowsBoundedWithBudget(rows, maximumBytes, nil)
+}
+
+func cloneRowsBoundedWithBudget(
+	rows []QueryRow,
+	maximumBytes int,
+	cumulative *resultJSONBudget,
+) ([]QueryRow, int, error) {
 	if len(rows) > maximumExecutionRows {
 		return nil, 0, ErrResultTooLarge
 	}
-	if err := preflightRowsBounded(rows, maximumBytes); err != nil {
+	measure, err := measureRowsBounded(rows, maximumBytes)
+	if err != nil {
 		return nil, 0, err
+	}
+	if cumulative != nil {
+		if err := cumulative.consumeMeasure(measure); err != nil {
+			return nil, 0, err
+		}
 	}
 	body, err := json.Marshal(rows)
 	if err != nil {
@@ -50,6 +64,15 @@ func cloneRowsBounded(rows []QueryRow, maximumBytes int) ([]QueryRow, int, error
 }
 
 func (r *ExecutionRuntime) validateRows(ctx context.Context, plan QueryPlan, rows []QueryRow) error {
+	return r.validateRowsWithBudget(ctx, plan, rows, nil)
+}
+
+func (r *ExecutionRuntime) validateRowsWithBudget(
+	ctx context.Context,
+	plan QueryPlan,
+	rows []QueryRow,
+	cumulative *resultJSONBudget,
+) error {
 	if r == nil || r.schemas == nil || len(rows) > maximumExecutionRows {
 		return ErrResultInvalid
 	}
@@ -85,7 +108,7 @@ func (r *ExecutionRuntime) validateRows(ctx context.Context, plan QueryPlan, row
 			ShapeDigest: plan.ShapeDigest, Artifact: plan.Query.Artifact,
 			Fields: slices.Clone(plan.Fields), Relations: slices.Clone(plan.Relations), RowIndex: index,
 		}
-		validatorRows, _, err := cloneRowsBounded([]QueryRow{row}, r.maxResultBytes)
+		validatorRows, _, err := cloneRowsBoundedWithBudget([]QueryRow{row}, r.maxResultBytes, cumulative)
 		if err != nil {
 			return err
 		}

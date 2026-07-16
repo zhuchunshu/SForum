@@ -3,6 +3,7 @@ package queryregistry
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -109,6 +110,48 @@ func TestExecutionConcurrentCursorCodecIsDeterministicAndRaceFree(t *testing.T) 
 			}
 		}()
 	}
+	group.Wait()
+	select {
+	case err := <-errorsCh:
+		t.Fatal(err)
+	default:
+	}
+}
+
+func TestExecutionConcurrentResultFilterBudgetsAreRequestLocal(t *testing.T) {
+	artifact := publication("plugin.concurrent-filter-budget", false, 'b').Artifact
+	filters := executionBudgetFilters(artifact, 4, ResultFilterFailClosed, func(_ context.Context, request ResultFilterRequest, _ int) (ResultFilterResult, error) {
+		return ResultFilterResult{Rows: request.Rows}, nil
+	})
+	provider := ExecutableProviderFunc(func(context.Context, ProviderExecutionRequest) (ProviderExecutionResult, error) {
+		return ProviderExecutionResult{Rows: []QueryRow{{"id": "1", "title": strings.Repeat("x", 64)}}}, nil
+	})
+	runtime, _ := executionTestRuntime(t, PaginationNone, PermissionPolicyPublic, provider, filters, func(config *ExecutionConfig) {
+		config.MaxResultBytes = 1024
+		config.Registry.WithPluginAdmission(func(candidate Artifact) bool { return candidate == artifact })
+	})
+
+	start := make(chan struct{})
+	errorsCh := make(chan error, 1)
+	var group sync.WaitGroup
+	for worker := 0; worker < 16; worker++ {
+		group.Add(1)
+		go func() {
+			defer group.Done()
+			<-start
+			for iteration := 0; iteration < 25; iteration++ {
+				result, err := runtime.Execute(context.Background(), PlanRequest{QueryID: "core.execute.items"})
+				if err != nil || len(result.Rows) != 1 || result.Rows[0]["title"] != strings.Repeat("x", 64) {
+					select {
+					case errorsCh <- fmt.Errorf("iteration %d: result=%#v err=%v", iteration, result, err):
+					default:
+					}
+					return
+				}
+			}
+		}()
+	}
+	close(start)
 	group.Wait()
 	select {
 	case err := <-errorsCh:

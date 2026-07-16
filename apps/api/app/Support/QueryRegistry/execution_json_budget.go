@@ -12,19 +12,77 @@ import (
 const (
 	maximumResultJSONDepth = 64
 	maximumResultJSONNodes = 1 << 20
+	// One filter boundary needs at most three complete JSON traversals: detached
+	// input, detached output, and the Host schema-validator copy. The allowance is
+	// shared by the whole chain, so adding filters cannot reset any traversal.
+	resultFilterBudgetDocuments = 3
 )
 
 type resultJSONBudget struct {
 	remaining int
 	nodes     int
+	maxNodes  int
+}
+
+type resultJSONMeasure struct {
+	bytes int
+	nodes int
 }
 
 // preflightRowsBounded conservatively counts the canonical JSON tree before
 // encoding/json allocates a second complete result buffer. Custom marshalers
 // are rejected because their output cannot be bounded from the value graph.
 func preflightRowsBounded(rows []QueryRow, maximumBytes int) error {
-	budget := &resultJSONBudget{remaining: maximumBytes}
-	return budget.walk(reflect.ValueOf(rows), 0)
+	_, err := measureRowsBounded(rows, maximumBytes)
+	return err
+}
+
+func measureRowsBounded(rows []QueryRow, maximumBytes int) (resultJSONMeasure, error) {
+	if maximumBytes < 1 {
+		return resultJSONMeasure{}, ErrResultTooLarge
+	}
+	budget := &resultJSONBudget{
+		remaining: maximumBytes,
+		maxNodes:  resultJSONNodeLimit(maximumBytes),
+	}
+	if err := budget.walk(reflect.ValueOf(rows), 0); err != nil {
+		return resultJSONMeasure{}, err
+	}
+	return resultJSONMeasure{bytes: maximumBytes - budget.remaining, nodes: budget.nodes}, nil
+}
+
+func newResultFilterJSONBudget(maximumBytes int) (*resultJSONBudget, error) {
+	maximumInt := int(^uint(0) >> 1)
+	if maximumBytes < 1 || maximumBytes > maximumInt/resultFilterBudgetDocuments {
+		return nil, ErrExecutionInvalid
+	}
+	maxNodes := resultJSONNodeLimit(maximumBytes)
+	if maxNodes > maximumInt/resultFilterBudgetDocuments {
+		return nil, ErrExecutionInvalid
+	}
+	return &resultJSONBudget{
+		remaining: maximumBytes * resultFilterBudgetDocuments,
+		maxNodes:  maxNodes * resultFilterBudgetDocuments,
+	}, nil
+}
+
+func resultJSONNodeLimit(maximumBytes int) int {
+	if maximumBytes < maximumResultJSONNodes {
+		return maximumBytes
+	}
+	return maximumResultJSONNodes
+}
+
+func (b *resultJSONBudget) consumeMeasure(measure resultJSONMeasure) error {
+	if b == nil || measure.bytes < 0 || measure.nodes < 0 || b.maxNodes < 1 ||
+		measure.nodes > b.maxNodes-b.nodes {
+		return fmt.Errorf("%w: cumulative result-filter node count exceeds Host bounds", ErrResultTooLarge)
+	}
+	if err := b.consume(measure.bytes); err != nil {
+		return fmt.Errorf("%w: cumulative result-filter bytes exceed Host bounds", ErrResultTooLarge)
+	}
+	b.nodes += measure.nodes
+	return nil
 }
 
 func (b *resultJSONBudget) walk(value reflect.Value, depth int) error {
@@ -32,7 +90,7 @@ func (b *resultJSONBudget) walk(value reflect.Value, depth int) error {
 		return fmt.Errorf("%w: result nesting exceeds Host bounds", ErrResultTooLarge)
 	}
 	b.nodes++
-	if b.nodes > maximumResultJSONNodes {
+	if b.nodes > b.maxNodes {
 		return fmt.Errorf("%w: result node count exceeds Host bounds", ErrResultTooLarge)
 	}
 	if !value.IsValid() {
