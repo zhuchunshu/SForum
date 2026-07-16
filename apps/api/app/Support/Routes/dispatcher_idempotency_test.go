@@ -169,10 +169,12 @@ type dispatchIdempotencyLease struct {
 	abortCalls    int
 	completeErr   error
 	abortErr      error
+	completed     DispatchResponse
 }
 
-func (l *dispatchIdempotencyLease) Complete(context.Context, DispatchResponse) error {
+func (l *dispatchIdempotencyLease) Complete(_ context.Context, response DispatchResponse) error {
 	l.completeCalls++
+	l.completed = cloneDispatchResponse(response)
 	return l.completeErr
 }
 

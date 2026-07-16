@@ -112,6 +112,7 @@ type DispatcherConfig struct {
 	Trace          RouteTraceSink
 	Policies       RoutePolicyResolver
 	Idempotency    RouteIdempotencyController
+	Failures       RouteFailureSink
 	DefaultTimeout time.Duration
 }
 
@@ -123,6 +124,7 @@ type Dispatcher struct {
 	trace          RouteTraceSink
 	policies       RoutePolicyResolver
 	idempotency    RouteIdempotencyController
+	failures       RouteFailureSink
 	defaultTimeout time.Duration
 }
 
@@ -134,7 +136,7 @@ func NewDispatcher(config DispatcherConfig) *Dispatcher {
 	return &Dispatcher{
 		plans: config.Plans, steps: config.Steps, guard: config.Guard,
 		schemas: config.Schemas, trace: config.Trace, policies: config.Policies,
-		idempotency: config.Idempotency, defaultTimeout: timeout,
+		idempotency: config.Idempotency, failures: config.Failures, defaultTimeout: timeout,
 	}
 }
 
@@ -205,20 +207,33 @@ func (d *Dispatcher) Dispatch(ctx context.Context, request DispatchRequest, core
 	var response *DispatchResponse
 	committingStep := -1
 	var committingStarted time.Time
+	var committedAfterFailure *RouteCommittedAfterFailure
 	for index, step := range chain {
 		started := time.Now()
 		authority, err := d.authorize(ctx, plan, index, step, request, response, InvocationStageExecute, commit)
 		if err != nil {
 			d.appendTrace(plan, index, step, RouteTraceDenied, started, commit.State())
+			if event := d.committedAfterFailure(plan, index, step, request, response, RouteFailureGuardDenied); event != nil {
+				committedAfterFailure, committingStep, committingStarted = event, index, started
+				break
+			}
 			return DispatchResult{}, err
 		}
 		if d.schemas == nil && step.RequestSchema != "" {
 			d.appendTrace(plan, index, step, RouteTraceSchemaRejected, started, commit.State())
+			if event := d.committedAfterFailure(plan, index, step, request, response, RouteFailureRequestSchemaRejected); event != nil {
+				committedAfterFailure, committingStep, committingStarted = event, index, started
+				break
+			}
 			return DispatchResult{}, fmt.Errorf("%w: request validator is unavailable", ErrDispatchSchema)
 		}
 		if d.schemas != nil && step.RequestSchema != "" {
 			if err := d.schemas.ValidateRequest(ctx, step, request); err != nil {
 				d.appendTrace(plan, index, step, RouteTraceSchemaRejected, started, commit.State())
+				if event := d.committedAfterFailure(plan, index, step, request, response, RouteFailureRequestSchemaRejected); event != nil {
+					committedAfterFailure, committingStep, committingStarted = event, index, started
+					break
+				}
 				return DispatchResult{}, fmt.Errorf("%w: %v", ErrDispatchSchema, err)
 			}
 		}
@@ -250,6 +265,10 @@ func (d *Dispatcher) Dispatch(ctx context.Context, request DispatchRequest, core
 					commit.ResponseStarted()
 				}
 				d.appendTrace(plan, index, step, RouteTraceTransportFailed, started, commit.State())
+				if event := d.committedAfterFailure(plan, index, step, request, response, RouteFailureTransportFailed); event != nil {
+					committedAfterFailure, committingStep, committingStarted = event, index, started
+					break
+				}
 				fallback, fallbackErr := d.fallback(ctx, plan, index, step, request, core, commit)
 				if fallbackErr != nil {
 					return DispatchResult{}, fallbackErr
@@ -284,11 +303,19 @@ func (d *Dispatcher) Dispatch(ctx context.Context, request DispatchRequest, core
 			value := cloneDispatchResponse(*invocation.Response)
 			if d.schemas == nil && step.ResponseSchema != "" {
 				d.appendTrace(plan, index, step, RouteTraceSchemaRejected, started, commit.State())
+				if event := d.committedAfterFailure(plan, index, step, request, response, RouteFailureResponseSchemaRejected); event != nil {
+					committedAfterFailure, committingStep, committingStarted = event, index, started
+					break
+				}
 				return DispatchResult{}, fmt.Errorf("%w: response validator is unavailable", ErrDispatchSchema)
 			}
 			if d.schemas != nil && step.ResponseSchema != "" {
 				if err := d.schemas.ValidateResponse(ctx, step, request, value); err != nil {
 					d.appendTrace(plan, index, step, RouteTraceSchemaRejected, started, commit.State())
+					if event := d.committedAfterFailure(plan, index, step, request, response, RouteFailureResponseSchemaRejected); event != nil {
+						committedAfterFailure, committingStep, committingStarted = event, index, started
+						break
+					}
 					return DispatchResult{}, fmt.Errorf("%w: %v", ErrDispatchSchema, err)
 				}
 			}
@@ -309,6 +336,10 @@ func (d *Dispatcher) Dispatch(ctx context.Context, request DispatchRequest, core
 	if committingStep >= 0 {
 		d.appendTrace(plan, committingStep, chain[committingStep], RouteTraceCommitted, committingStarted, commit.State())
 	}
+	if committedAfterFailure != nil {
+		committedAfterFailure.CommitState = commit.State()
+		d.failures.RecordCommittedAfterFailure(ctx, *committedAfterFailure)
+	}
 	if idempotencyLease != nil && response.Status >= http.StatusOK && response.Status < http.StatusMultipleChoices {
 		// Complete 失败时保留 pending；客户端只能得到 fail-closed unavailable，
 		// 不能在未知持久化结果后再次执行插件副作用。
@@ -318,6 +349,26 @@ func (d *Dispatcher) Dispatch(ctx context.Context, request DispatchRequest, core
 		}
 	}
 	return DispatchResult{Handled: true, Response: cloneDispatchResponse(*response)}, nil
+}
+
+func (d *Dispatcher) committedAfterFailure(
+	plan RouteExecutionPlan,
+	stepIndex int,
+	step RouteExecutionStep,
+	request DispatchRequest,
+	response *DispatchResponse,
+	code RouteFailureCode,
+) *RouteCommittedAfterFailure {
+	if d == nil || d.failures == nil || !plan.UnsafeMethod() || response == nil ||
+		step.Provider.Kind != ProviderPlugin || step.Phase != RoutePhaseAfter {
+		return nil
+	}
+	return &RouteCommittedAfterFailure{
+		Revision: plan.Revision(), StepIndex: stepIndex, Phase: step.Phase, Action: step.Action,
+		RouteID: step.RouteID, ContractVersion: step.ContractVersion, Method: plan.Method(),
+		PathSignature: routeStepPathSignature(step), FailureCode: code, ActorID: request.ActorID,
+		ResponseStatus: response.Status, Artifact: step.Provider.Artifact,
+	}
 }
 
 func (d *Dispatcher) authorizeReplay(
