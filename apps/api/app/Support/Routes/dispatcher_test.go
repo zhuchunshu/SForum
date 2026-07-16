@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"reflect"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -180,6 +181,78 @@ func TestDispatcherFailsClosedForGuardAndSchema(t *testing.T) {
 			t.Fatalf("err=%v", err)
 		}
 	})
+}
+
+func TestDispatcherIssuesRawAuthorityOnlyAfterExactStepAuthorization(t *testing.T) {
+	tests := []struct {
+		name string
+		step RouteExecutionStep
+		raw  bool
+	}{
+		{name: "ordinary", step: dispatchPluginStep(RoutePhaseHandler, "demo.route.ordinary", extensionmanifest.RouteActionAdd)},
+		{name: "direct raw", step: func() RouteExecutionStep {
+			step := dispatchPluginStep(RoutePhaseHandler, "demo.route.raw", extensionmanifest.RouteActionAdd)
+			step.Guard = extensionmanifest.GuardCoreRaw
+			return step
+		}(), raw: true},
+		{name: "declared raw guard", step: func() RouteExecutionStep {
+			step := dispatchPluginStep(RoutePhaseHandler, "demo.route.declared_raw", extensionmanifest.RouteActionAdd)
+			step.Guard = "demo.route.raw_guard"
+			step.PluginGuard = PluginGuardBinding{
+				ID: step.Guard, ContractVersion: step.Guard + "@1", Kind: "raw_request",
+				Entry: "backend/raw_guard", Digest: strings.Repeat("b", 64),
+			}
+			return step
+		}(), raw: true},
+		{name: "custom guard", step: func() RouteExecutionStep {
+			step := dispatchPluginStep(RoutePhaseHandler, "demo.route.custom", extensionmanifest.RouteActionAdd)
+			step.Guard = "demo.route.custom_guard"
+			step.PluginGuard = PluginGuardBinding{
+				ID: step.Guard, ContractVersion: step.Guard + "@1", Kind: "custom",
+				Entry: "backend/custom_guard", Digest: strings.Repeat("c", 64),
+			}
+			return step
+		}()},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			invoked := false
+			dispatcher := dispatchTestDispatcher(
+				dispatchPlan("POST", "/authority", nil, []RouteExecutionStep{test.step}, 0),
+				&dispatchStepInvoker{invoke: func(_ context.Context, input RouteInvocation) (RouteInvocationResult, error) {
+					invoked = true
+					if input.RawRequestAuthorized() != test.raw {
+						t.Fatalf("raw authority = %v, want %v", input.RawRequestAuthorized(), test.raw)
+					}
+					response := DispatchResponse{Status: http.StatusNoContent}
+					return RouteInvocationResult{Response: &response}, nil
+				}},
+			)
+			result, err := dispatcher.Dispatch(
+				context.Background(), DispatchRequest{Method: "POST", Path: "/authority"}, nil,
+			)
+			if err != nil || !result.Handled || !invoked {
+				t.Fatalf("result=%#v invoked=%v err=%v", result, invoked, err)
+			}
+		})
+	}
+}
+
+func TestDispatcherDoesNotIssueAuthorityWhenGuardDenies(t *testing.T) {
+	step := dispatchPluginStep(RoutePhaseHandler, "demo.route.raw_denied", extensionmanifest.RouteActionAdd)
+	step.Guard = extensionmanifest.GuardCoreRaw
+	dispatcher := NewDispatcher(DispatcherConfig{
+		Plans: dispatchPlanResolver{plan: dispatchPlan("POST", "/authority", nil, []RouteExecutionStep{step}, 0)},
+		Steps: &dispatchStepInvoker{invoke: func(context.Context, RouteInvocation) (RouteInvocationResult, error) {
+			t.Fatal("denied raw step reached the transport")
+			return RouteInvocationResult{}, nil
+		}},
+		Guard: &dispatchGuard{err: errors.New("denied")}, Schemas: &dispatchSchemas{},
+	})
+	_, err := dispatcher.Dispatch(context.Background(), DispatchRequest{Method: "POST", Path: "/authority"}, nil)
+	if !errors.Is(err, ErrDispatchDenied) {
+		t.Fatalf("error = %v", err)
+	}
 }
 
 func TestDispatcherPropagatesTimeoutAndCallerCancellation(t *testing.T) {

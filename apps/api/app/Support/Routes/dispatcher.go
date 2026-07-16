@@ -72,6 +72,21 @@ type RouteInvocation struct {
 	Request      DispatchRequest
 	Response     *DispatchResponse
 	Commit       *RouteCommitObserver
+	authority    routeInvocationAuthority
+}
+
+type routeInvocationAuthority uint8
+
+const (
+	routeInvocationAuthorityFiltered routeInvocationAuthority = iota
+	routeInvocationAuthorityRaw
+)
+
+// RawRequestAuthorized is true only for the exact step whose Guard completed
+// raw_request authorization. Callers cannot construct the private stamp from
+// exported Manifest or Registry fields.
+func (i RouteInvocation) RawRequestAuthorized() bool {
+	return i.authority == routeInvocationAuthorityRaw
 }
 
 type RouteInvocationResult struct {
@@ -210,6 +225,7 @@ func (d *Dispatcher) Dispatch(ctx context.Context, request DispatchRequest, core
 			d.appendTrace(plan, index, step, RouteTraceDenied, started, commit.State())
 			return DispatchResult{}, err
 		}
+		authority := authorizedRouteInvocationAuthority(step)
 		if d.schemas == nil && step.RequestSchema != "" {
 			d.appendTrace(plan, index, step, RouteTraceSchemaRejected, started, commit.State())
 			return DispatchResult{}, fmt.Errorf("%w: request validator is unavailable", ErrDispatchSchema)
@@ -237,7 +253,7 @@ func (d *Dispatcher) Dispatch(ctx context.Context, request DispatchRequest, core
 		} else if step.Phase == RoutePhaseHandler && step.Action == extensionmanifest.RouteActionRedirect {
 			invocation.Response = &DispatchResponse{Status: http.StatusPermanentRedirect, Headers: http.Header{"Location": []string{step.Destination}}}
 		} else {
-			invocation, err = d.invokePlugin(ctx, plan, index, step, request, response, commit)
+			invocation, err = d.invokePlugin(ctx, plan, index, step, request, response, commit, authority)
 			if err != nil {
 				// Transport errors may arrive after a remote side effect or response began.
 				// Advance the fence before evaluating any safe-method fallback.
@@ -385,6 +401,7 @@ func (d *Dispatcher) invokePlugin(
 	request DispatchRequest,
 	response *DispatchResponse,
 	commit *RouteCommitObserver,
+	authority routeInvocationAuthority,
 ) (RouteInvocationResult, error) {
 	if d.steps == nil || !d.steps.SupportsMode(step.Mode) {
 		return RouteInvocationResult{}, fmt.Errorf("%w: mode %q", ErrDispatchTransport, step.Mode)
@@ -402,12 +419,22 @@ func (d *Dispatcher) invokePlugin(
 	}
 	result, err := d.steps.Invoke(callCtx, RouteInvocation{
 		PlanRevision: plan.Revision(), StepIndex: index, Step: step, Stage: InvocationStageExecute,
-		Request: cloneDispatchRequest(request), Response: current, Commit: commit,
+		Request: cloneDispatchRequest(request), Response: current, Commit: commit, authority: authority,
 	})
 	if err != nil {
 		return result, fmt.Errorf("%w: %w", ErrDispatchTransport, err)
 	}
 	return result, nil
+}
+
+func authorizedRouteInvocationAuthority(step RouteExecutionStep) routeInvocationAuthority {
+	if step.Provider.Kind != ProviderPlugin || !validPluginGuardBinding(step) {
+		return routeInvocationAuthorityFiltered
+	}
+	if step.Guard == extensionmanifest.GuardCoreRaw || step.PluginGuard.Kind == "raw_request" {
+		return routeInvocationAuthorityRaw
+	}
+	return routeInvocationAuthorityFiltered
 }
 
 func (d *Dispatcher) fallback(

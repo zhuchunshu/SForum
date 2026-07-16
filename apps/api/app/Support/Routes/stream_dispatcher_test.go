@@ -3,6 +3,8 @@ package routes
 import (
 	"context"
 	"errors"
+	"io"
+	"net/http"
 	"testing"
 
 	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
@@ -118,6 +120,55 @@ func TestStreamDispatcherRejectsPublishedRequiredIdempotencyPolicy(t *testing.T)
 		t.Fatalf("prepared=%#v error=%v", prepared, err)
 	}
 }
+
+func TestStreamDispatcherPreservesAuthorizedRawRequestStamp(t *testing.T) {
+	registry := NewRegistry()
+	artifact := routeArtifact("stream.raw", "1.0.0", 'a')
+	stream := pluginRoute("stream.raw.events", "/raw-events", 0, "GET")
+	stream.Mode = extensionmanifest.RouteModeSSE
+	stream.Guard = extensionmanifest.GuardCoreRaw
+	if _, err := registry.Publish(Publication{Plugins: []PluginRouteSet{{Artifact: artifact, Routes: []extensionmanifest.ManifestRoute{stream}}}}); err != nil {
+		t.Fatal(err)
+	}
+	invoker := &authorityStreamInvoker{}
+	dispatcher := NewDispatcher(DispatcherConfig{
+		Plans: streamRegistryResolver{registry}, Guard: allowStreamGuard{}, Steps: invoker,
+	})
+	prepared, err := dispatcher.PrepareStream(
+		context.Background(), DispatchRequest{Method: "GET", Path: "/raw-events"},
+	)
+	if err != nil || prepared.Dispatch == nil {
+		t.Fatalf("prepared=%#v error=%v", prepared, err)
+	}
+	start, err := prepared.Dispatch.Open(context.Background())
+	if err != nil || start.Session == nil || !invoker.raw {
+		t.Fatalf("start=%#v raw=%v error=%v", start, invoker.raw, err)
+	}
+	start.Session.Cancel()
+}
+
+type authorityStreamInvoker struct{ raw bool }
+
+func (*authorityStreamInvoker) SupportsMode(string) bool { return false }
+
+func (*authorityStreamInvoker) Invoke(context.Context, RouteInvocation) (RouteInvocationResult, error) {
+	return RouteInvocationResult{}, ErrDispatchTransport
+}
+
+func (i *authorityStreamInvoker) OpenStream(_ context.Context, input RouteInvocation) (RouteStreamStart, error) {
+	i.raw = input.RawRequestAuthorized()
+	return RouteStreamStart{
+		Response: DispatchResponse{Status: http.StatusOK}, Session: authorityStreamSession{},
+	}, nil
+}
+
+type authorityStreamSession struct{}
+
+func (authorityStreamSession) Send([]byte, bool) error            { return nil }
+func (authorityStreamSession) CloseRequest() error                { return nil }
+func (authorityStreamSession) Recv() (RouteStreamChunk, error)    { return RouteStreamChunk{}, io.EOF }
+func (authorityStreamSession) Response() (DispatchResponse, bool) { return DispatchResponse{}, false }
+func (authorityStreamSession) Cancel()                            {}
 
 type allowStreamGuard struct{}
 

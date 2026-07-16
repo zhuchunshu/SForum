@@ -23,6 +23,7 @@ type RouteStreamDispatch struct {
 	step       RouteExecutionStep
 	request    DispatchRequest
 	commit     *RouteCommitObserver
+	authority  routeInvocationAuthority
 	started    time.Time
 
 	mu              sync.Mutex
@@ -116,7 +117,7 @@ func (d *Dispatcher) PrepareStream(ctx context.Context, request DispatchRequest)
 	}
 	return RouteStreamPreparation{Handled: true, Dispatch: &RouteStreamDispatch{
 		dispatcher: d, plan: plan, step: terminal, request: request,
-		commit: NewRouteCommitObserver(), started: time.Now(),
+		commit: NewRouteCommitObserver(), authority: authorizedRouteInvocationAuthority(terminal), started: time.Now(),
 	}}, nil
 }
 
@@ -147,6 +148,7 @@ func (d *RouteStreamDispatch) Open(ctx context.Context) (RouteStreamStart, error
 	result, err := invoker.OpenStream(ctx, RouteInvocation{
 		PlanRevision: d.plan.Revision(), StepIndex: d.index, Step: d.step,
 		Stage: InvocationStageExecute, Request: cloneDispatchRequest(d.request), Commit: d.commit,
+		authority: d.authority,
 	})
 	if err != nil {
 		d.Fail()
