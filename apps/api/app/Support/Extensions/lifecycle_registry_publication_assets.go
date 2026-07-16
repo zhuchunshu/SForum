@@ -17,6 +17,7 @@ import (
 	assetregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/AssetRegistry"
 	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
 	pages "github.com/zhuchunshu/sforum/apps/api/app/Support/Pages"
+	queryregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/QueryRegistry"
 	routes "github.com/zhuchunshu/sforum/apps/api/app/Support/Routes"
 )
 
@@ -35,6 +36,7 @@ type lifecycleRegistryDigestDocument struct {
 	Routes             routes.PluginRouteSet         `json:"routes"`
 	Asset              *assetregistry.Publication    `json:"asset,omitempty"`
 	AssetAdmitted      bool                          `json:"assetAdmitted,omitempty"`
+	Query              *queryregistry.Publication    `json:"query,omitempty"`
 	ProductionFamilies []string                      `json:"productionFamilies"`
 	FoundationFamilies []string                      `json:"foundationFamilies"`
 }
@@ -43,25 +45,45 @@ func refreshLifecycleRegistryMaterialDigest(material *lifecycleRegistryMaterial)
 	if material == nil {
 		return ErrLifecycleRegistryPublicationInvalid
 	}
-	legacyDigest, err := encodeLifecycleRegistryMaterialDigest(material, false)
+	legacyDigest, err := encodeLifecycleRegistryMaterialDigest(material, false, false)
 	if err != nil {
 		return err
 	}
 	material.legacyDigest = ""
+	material.compatibleDigests = nil
 	material.digest = legacyDigest
-	if material.assetPublication == nil {
-		return nil
+	assetDigest := ""
+	if material.assetPublication != nil {
+		assetDigest, err = encodeLifecycleRegistryMaterialDigest(material, true, false)
+		if err != nil {
+			return err
+		}
+		material.digest = assetDigest
+		material.legacyDigest = legacyDigest
+		material.compatibleDigests = []string{legacyDigest}
 	}
-	currentDigest, err := encodeLifecycleRegistryMaterialDigest(material, true)
-	if err != nil {
-		return err
+	if material.queryPublication != nil {
+		queryDigest, queryErr := encodeLifecycleRegistryMaterialDigest(
+			material, material.assetPublication != nil, true,
+		)
+		if queryErr != nil {
+			return queryErr
+		}
+		material.digest = queryDigest
+		material.legacyDigest = legacyDigest
+		material.compatibleDigests = []string{legacyDigest}
+		if assetDigest != "" && assetDigest != legacyDigest {
+			material.compatibleDigests = append(material.compatibleDigests, assetDigest)
+		}
 	}
-	material.digest = currentDigest
-	material.legacyDigest = legacyDigest
 	return nil
 }
 
-func encodeLifecycleRegistryMaterialDigest(material *lifecycleRegistryMaterial, includeAsset bool) (string, error) {
+func encodeLifecycleRegistryMaterialDigest(
+	material *lifecycleRegistryMaterial,
+	includeAsset bool,
+	includeQuery bool,
+) (string, error) {
 	extension := material.extension
 	binding := material.binding
 	productionFamilies := []string{"hooks.v1", "pages.runtime", "services.v2"}
@@ -82,9 +104,18 @@ func encodeLifecycleRegistryMaterialDigest(material *lifecycleRegistryMaterial, 
 		asset = material.assetPublication
 		assetAdmitted = material.assetAdmitted
 	}
+	var query *queryregistry.Publication
+	if includeQuery {
+		schema = "sforum.lifecycle.registry-plan@3"
+		query = material.queryPublication
+		if query != nil {
+			productionFamilies = append(productionFamilies, "queries.v1")
+		}
+	}
 	// @1 remains byte-for-byte compatible with pre-P9 in-flight rows. New
-	// asset-bearing operations persist @2; @1 is accepted only as an explicit
-	// recovery alias computed from the same exact source/target material.
+	// asset-bearing operations persist @2. Query-bearing operations persist @3;
+	// @1/@2 are accepted only as explicit recovery aliases computed from the
+	// same exact source/target material.
 	document := lifecycleRegistryDigestDocument{
 		Schema: schema, ExtensionID: extension.ID,
 		ExtensionVersion: extension.Version, PackageDigest: extension.PackageDigest,
@@ -95,6 +126,7 @@ func encodeLifecycleRegistryMaterialDigest(material *lifecycleRegistryMaterial, 
 		Services:           append([]extensions.ManifestService(nil), extension.Manifest.Services...),
 		Pages:              append([]pages.PageContribution(nil), material.pages...), Routes: material.routes,
 		Asset: asset, AssetAdmitted: assetAdmitted,
+		Query:              query,
 		ProductionFamilies: productionFamilies,
 		FoundationFamilies: []string{"routes.v1-foundation"},
 	}

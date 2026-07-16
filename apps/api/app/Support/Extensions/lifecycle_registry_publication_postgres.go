@@ -198,13 +198,18 @@ func validLifecycleRegistryPrepareInput(input PrepareLifecycleRegistryPublicatio
 }
 
 func validLifecycleRegistryCompatibleDigests(values []string, primary string) bool {
-	if len(values) > 1 {
+	if len(values) > 2 {
 		return false
 	}
+	seen := make(map[string]struct{}, len(values))
 	for _, value := range values {
 		if !validLifecycleCleanupDigest(value) || value == primary {
 			return false
 		}
+		if _, duplicate := seen[value]; duplicate {
+			return false
+		}
+		seen[value] = struct{}{}
 	}
 	return true
 }

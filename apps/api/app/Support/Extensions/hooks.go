@@ -269,7 +269,8 @@ func hasVersionedProviderSlots(extension extensions.Extension) bool {
 
 func hasVersionedRuntimeContracts(extension extensions.Extension) bool {
 	return hasVersionedPluginHooks(extension) || hasVersionedProviderSlots(extension) ||
-		len(extension.Manifest.Commands) > 0 || len(extension.Manifest.AdminSurfaces) > 0
+		len(extension.Manifest.Commands) > 0 || len(extension.Manifest.AdminSurfaces) > 0 ||
+		len(extension.Manifest.Queries) > 0
 }
 
 func publishesVersionedHookSnapshot(extension extensions.Extension, instanceID string) bool {
