@@ -103,6 +103,9 @@ func normalizeV3Platform(manifest *Manifest) {
 	if manifest.Identity != nil {
 		manifest.Identity.ContractVersion = strings.TrimSpace(manifest.Identity.ContractVersion)
 		manifest.Identity.SessionPolicy = NormalizeID(manifest.Identity.SessionPolicy)
+		for index := range manifest.Identity.RiskHooks {
+			manifest.Identity.RiskHooks[index] = NormalizeID(manifest.Identity.RiskHooks[index])
+		}
 		for index := range manifest.Identity.UserFields {
 			item := &manifest.Identity.UserFields[index]
 			item.ID = NormalizeID(item.ID)
@@ -127,6 +130,9 @@ func normalizeV3Platform(manifest *Manifest) {
 		item.Label = strings.TrimSpace(item.Label)
 		item.Description = strings.TrimSpace(item.Description)
 		item.AssignmentPolicy = strings.ToLower(strings.TrimSpace(item.AssignmentPolicy))
+		for roleIndex := range item.RecommendedRoles {
+			item.RecommendedRoles[roleIndex] = NormalizeID(item.RecommendedRoles[roleIndex])
+		}
 	}
 	for index := range manifest.Media {
 		item := &manifest.Media[index]

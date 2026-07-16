@@ -3,12 +3,14 @@ package extensionmanifest
 import "strings"
 
 const (
-	manifestDatabaseMaximumParameters    = 32
-	manifestDatabaseMaximumColumns       = 64
-	manifestDatabaseMaximumParameterSize = 64 << 10
-	manifestDatabaseMaximumRows          = 1000
-	manifestDatabaseMaximumAffectedRows  = 10_000
-	manifestDatabaseMaximumTimeoutMS     = 5000
+	manifestDatabaseMaximumParameters      = 32
+	manifestDatabaseMaximumColumns         = 64
+	manifestDatabaseMaximumParameterSize   = 64 << 10
+	manifestDatabaseMaximumRows            = 1000
+	manifestDatabaseMaximumAffectedRows    = 10_000
+	manifestDatabaseMaximumTimeoutMS       = 5000
+	manifestIdentityMaximumRoleSuggestions = 64
+	manifestIdentityMaximumRiskHooks       = 128
 )
 
 func (v *v3Validator) validatePlatform() error {
@@ -242,10 +244,15 @@ func (v *v3Validator) validateIdentityAndPermissions() error {
 		if permission.Label == "" || permission.Description == "" || permission.AssignmentPolicy != "host" {
 			return ErrInvalidManifest
 		}
+		if len(permission.RecommendedRoles) > manifestIdentityMaximumRoleSuggestions {
+			return ErrInvalidManifest
+		}
 		seenRoles := map[string]bool{}
 		for _, role := range permission.RecommendedRoles {
 			role = NormalizeID(role)
-			if role == "" || seenRoles[role] {
+			// super_admin 在 Host policy 中始终拥有全部权限，不是插件可建议的
+			// 普通角色映射目标；保留这个边界也避免 UI 把建议误读成授权。
+			if !manifestIDPattern.MatchString(role) || role == "super_admin" || seenRoles[role] {
 				return ErrInvalidManifest
 			}
 			seenRoles[role] = true
@@ -257,6 +264,20 @@ func (v *v3Validator) validateIdentityAndPermissions() error {
 	}
 	if !contractVersionPattern.MatchString(identity.ContractVersion) {
 		return ErrInvalidManifest
+	}
+	if identity.SessionPolicy != "" && identity.SessionPolicy != "core.session.default" &&
+		!strings.HasPrefix(identity.SessionPolicy, v.manifest.ID+".") {
+		return ErrInvalidManifest
+	}
+	if len(identity.RiskHooks) > manifestIdentityMaximumRiskHooks {
+		return ErrInvalidManifest
+	}
+	seenRiskHooks := map[string]bool{}
+	for _, hook := range identity.RiskHooks {
+		if !manifestIDPattern.MatchString(hook) || !strings.HasPrefix(hook, v.manifest.ID+".") || seenRiskHooks[hook] {
+			return ErrInvalidManifest
+		}
+		seenRiskHooks[hook] = true
 	}
 	for _, field := range identity.UserFields {
 		if err := v.versionedID(field.ID, field.ContractVersion, "identity_field"); err != nil {
