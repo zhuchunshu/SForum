@@ -1,0 +1,500 @@
+package bootstrap
+
+import (
+	"context"
+	"errors"
+	"reflect"
+	"strings"
+	"sync"
+	"sync/atomic"
+	"testing"
+	"time"
+
+	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
+)
+
+var errPluginRuntimeCoordinatorBootstrapTest = errors.New("plugin runtime bootstrap test failure")
+
+type pluginRuntimeCoordinatorBootstrapTestEnsurer struct {
+	publication extensions.PluginRuntimePublication
+	err         error
+	calls       atomic.Int32
+}
+
+func (ensurer *pluginRuntimeCoordinatorBootstrapTestEnsurer) EnsureInitialPluginRuntimePublication(
+	ctx context.Context,
+) (extensions.PluginRuntimePublication, error) {
+	ensurer.calls.Add(1)
+	if err := ctx.Err(); err != nil {
+		return extensions.PluginRuntimePublication{}, err
+	}
+	if ensurer.err != nil {
+		return extensions.PluginRuntimePublication{}, ensurer.err
+	}
+	return ensurer.publication, nil
+}
+
+type pluginRuntimeCoordinatorBootstrapTestRunner func(context.Context) error
+
+func (runner pluginRuntimeCoordinatorBootstrapTestRunner) Run(ctx context.Context) error {
+	return runner(ctx)
+}
+
+type pluginRuntimeCoordinatorBootstrapStartResult struct {
+	runtime *pluginRuntimeCoordinatorRuntime
+	err     error
+}
+
+func TestPluginRuntimeCoordinatorBootstrapWaitsForDurableConvergence(t *testing.T) {
+	ensurer := newPluginRuntimeCoordinatorBootstrapTestEnsurer()
+	identity := pluginRuntimeCoordinatorBootstrapTestIdentity("wait", extensions.PluginRuntimeProcessAPI)
+	entered := make(chan struct{})
+	converge := make(chan struct{})
+	runnerDone := make(chan struct{})
+	result := make(chan pluginRuntimeCoordinatorBootstrapStartResult, 1)
+	go func() {
+		runtime, err := launchPluginRuntimeCoordinator(t.Context(), pluginRuntimeCoordinatorLaunchConfig{
+			Identity: identity,
+			Ensurer:  ensurer,
+			Build: func(
+				got extensions.PluginRuntimeNodeIdentity,
+				onReady func(),
+				_ func(error),
+			) (pluginRuntimeCoordinatorRunner, error) {
+				if got != identity {
+					return nil, errPluginRuntimeCoordinatorBootstrapTest
+				}
+				return pluginRuntimeCoordinatorBootstrapTestRunner(func(ctx context.Context) error {
+					defer close(runnerDone)
+					close(entered)
+					select {
+					case <-ctx.Done():
+						return nil
+					case <-converge:
+						onReady()
+					}
+					<-ctx.Done()
+					return nil
+				}), nil
+			},
+		})
+		result <- pluginRuntimeCoordinatorBootstrapStartResult{runtime: runtime, err: err}
+	}()
+
+	waitPluginRuntimeCoordinatorBootstrapSignal(t, entered)
+	select {
+	case premature := <-result:
+		t.Fatalf("bootstrap returned before durable convergence: %#v", premature)
+	default:
+	}
+	close(converge)
+	started := waitPluginRuntimeCoordinatorBootstrapStart(t, result)
+	if started.err != nil || started.runtime == nil || !started.runtime.Active() ||
+		started.runtime.Identity() != identity || ensurer.calls.Load() != 1 {
+		t.Fatalf("runtime=%#v err=%v ensure calls=%d", started.runtime, started.err, ensurer.calls.Load())
+	}
+	if err := started.runtime.Stop(t.Context()); err != nil {
+		t.Fatalf("stop: %v", err)
+	}
+	waitPluginRuntimeCoordinatorBootstrapSignal(t, runnerDone)
+	if err, ok := <-started.runtime.Failures(); ok || err != nil {
+		t.Fatalf("normal stop failure=%v open=%v", err, ok)
+	}
+}
+
+func TestPluginRuntimeCoordinatorBootstrapSafeModeDoesNotSeedOrStart(t *testing.T) {
+	for _, start := range []func() (*pluginRuntimeCoordinatorRuntime, error){
+		func() (*pluginRuntimeCoordinatorRuntime, error) {
+			return startPluginRuntimeCoordinator(t.Context(), pluginRuntimeCoordinatorBootstrapConfig{SafeMode: true})
+		},
+		func() (*pluginRuntimeCoordinatorRuntime, error) {
+			return launchPluginRuntimeCoordinator(t.Context(), pluginRuntimeCoordinatorLaunchConfig{SafeMode: true})
+		},
+	} {
+		runtime, err := start()
+		if err != nil || runtime == nil || runtime.Active() || runtime.Identity() != (extensions.PluginRuntimeNodeIdentity{}) {
+			t.Fatalf("safe runtime=%#v err=%v", runtime, err)
+		}
+		for range 3 {
+			if err := runtime.Stop(t.Context()); err != nil {
+				t.Fatalf("safe repeated stop: %v", err)
+			}
+		}
+		select {
+		case <-runtime.Done():
+		default:
+			t.Fatal("safe mode runtime is not already stopped")
+		}
+		if err, ok := <-runtime.Failures(); ok || err != nil {
+			t.Fatalf("safe mode failure=%v open=%v", err, ok)
+		}
+	}
+}
+
+func TestPluginRuntimeCoordinatorBootstrapRejectsStartupErrors(t *testing.T) {
+	identity := pluginRuntimeCoordinatorBootstrapTestIdentity("errors", extensions.PluginRuntimeProcessWorker)
+	tests := []struct {
+		name       string
+		ensurer    *pluginRuntimeCoordinatorBootstrapTestEnsurer
+		build      pluginRuntimeCoordinatorBuilder
+		want       error
+		buildCalls int32
+	}{
+		{
+			name: "genesis",
+			ensurer: &pluginRuntimeCoordinatorBootstrapTestEnsurer{
+				publication: pluginRuntimeCoordinatorBootstrapTestPublication(),
+				err:         errPluginRuntimeCoordinatorBootstrapTest,
+			},
+			build: func(extensions.PluginRuntimeNodeIdentity, func(), func(error)) (pluginRuntimeCoordinatorRunner, error) {
+				t.Fatal("builder ran after genesis failure")
+				return nil, nil
+			},
+			want: errPluginRuntimeCoordinatorBootstrapTest,
+		},
+		{
+			name:    "builder",
+			ensurer: newPluginRuntimeCoordinatorBootstrapTestEnsurer(),
+			build: func(extensions.PluginRuntimeNodeIdentity, func(), func(error)) (pluginRuntimeCoordinatorRunner, error) {
+				return nil, errPluginRuntimeCoordinatorBootstrapTest
+			},
+			want:       errPluginRuntimeCoordinatorBootstrapTest,
+			buildCalls: 1,
+		},
+		{
+			name:    "run",
+			ensurer: newPluginRuntimeCoordinatorBootstrapTestEnsurer(),
+			build: func(extensions.PluginRuntimeNodeIdentity, func(), func(error)) (pluginRuntimeCoordinatorRunner, error) {
+				return pluginRuntimeCoordinatorBootstrapTestRunner(func(context.Context) error {
+					return errPluginRuntimeCoordinatorBootstrapTest
+				}), nil
+			},
+			want:       errPluginRuntimeCoordinatorBootstrapTest,
+			buildCalls: 1,
+		},
+		{
+			name:    "initial reconciliation",
+			ensurer: newPluginRuntimeCoordinatorBootstrapTestEnsurer(),
+			build: func(_ extensions.PluginRuntimeNodeIdentity, _ func(), onError func(error)) (pluginRuntimeCoordinatorRunner, error) {
+				return pluginRuntimeCoordinatorBootstrapTestRunner(func(ctx context.Context) error {
+					onError(errPluginRuntimeCoordinatorBootstrapTest)
+					<-ctx.Done()
+					return nil
+				}), nil
+			},
+			want:       errPluginRuntimeCoordinatorBootstrapTest,
+			buildCalls: 1,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			var calls atomic.Int32
+			build := test.build
+			_, err := launchPluginRuntimeCoordinator(t.Context(), pluginRuntimeCoordinatorLaunchConfig{
+				Identity: identity,
+				Ensurer:  test.ensurer,
+				Build: func(identity extensions.PluginRuntimeNodeIdentity, ready func(), failed func(error)) (pluginRuntimeCoordinatorRunner, error) {
+					calls.Add(1)
+					return build(identity, ready, failed)
+				},
+				StopTimeout: time.Second,
+			})
+			if !errors.Is(err, test.want) {
+				t.Fatalf("error=%v want=%v", err, test.want)
+			}
+			if calls.Load() != test.buildCalls || test.ensurer.calls.Load() != 1 {
+				t.Fatalf("build calls=%d want=%d ensure calls=%d", calls.Load(), test.buildCalls, test.ensurer.calls.Load())
+			}
+		})
+	}
+
+	invalidGenesis := newPluginRuntimeCoordinatorBootstrapTestEnsurer()
+	invalidGenesis.publication.Revision = 0
+	if _, err := launchPluginRuntimeCoordinator(t.Context(), pluginRuntimeCoordinatorLaunchConfig{
+		Identity: identity,
+		Ensurer:  invalidGenesis,
+		Build: func(extensions.PluginRuntimeNodeIdentity, func(), func(error)) (pluginRuntimeCoordinatorRunner, error) {
+			t.Fatal("builder ran for invalid genesis")
+			return nil, nil
+		},
+	}); !errors.Is(err, errPluginRuntimeCoordinatorBootstrapInvalid) {
+		t.Fatalf("invalid genesis error=%v", err)
+	}
+}
+
+func TestPluginRuntimeCoordinatorBootstrapPollConvergesAfterMissedNotification(t *testing.T) {
+	identity := pluginRuntimeCoordinatorBootstrapTestIdentity("missed-notify", extensions.PluginRuntimeProcessAPI)
+	ensurer := newPluginRuntimeCoordinatorBootstrapTestEnsurer()
+	runnerStarted := make(chan struct{})
+	var durableRevision atomic.Int64
+	result := make(chan pluginRuntimeCoordinatorBootstrapStartResult, 1)
+	go func() {
+		runtime, err := launchPluginRuntimeCoordinator(t.Context(), pluginRuntimeCoordinatorLaunchConfig{
+			Identity: identity,
+			Ensurer:  ensurer,
+			Build: func(_ extensions.PluginRuntimeNodeIdentity, onReady func(), _ func(error)) (pluginRuntimeCoordinatorRunner, error) {
+				return pluginRuntimeCoordinatorBootstrapTestRunner(func(ctx context.Context) error {
+					close(runnerStarted)
+					ticker := time.NewTicker(time.Millisecond)
+					defer ticker.Stop()
+					for {
+						select {
+						case <-ctx.Done():
+							return nil
+						case <-ticker.C:
+							if durableRevision.Load() == 2 {
+								onReady()
+								<-ctx.Done()
+								return nil
+							}
+						}
+					}
+				}), nil
+			},
+		})
+		result <- pluginRuntimeCoordinatorBootstrapStartResult{runtime: runtime, err: err}
+	}()
+	waitPluginRuntimeCoordinatorBootstrapSignal(t, runnerStarted)
+	// No wake is emitted. Only the coordinator's durable poll observes this.
+	durableRevision.Store(2)
+	started := waitPluginRuntimeCoordinatorBootstrapStart(t, result)
+	if started.err != nil || started.runtime == nil {
+		t.Fatalf("runtime=%#v err=%v", started.runtime, started.err)
+	}
+	if err := started.runtime.Stop(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestPluginRuntimeCoordinatorBootstrapCancellationBeforeReadyStopsRunner(t *testing.T) {
+	identity := pluginRuntimeCoordinatorBootstrapTestIdentity("cancel", extensions.PluginRuntimeProcessWorker)
+	ensurer := newPluginRuntimeCoordinatorBootstrapTestEnsurer()
+	runnerStarted := make(chan struct{})
+	runnerDone := make(chan struct{})
+	startCtx, cancelStart := context.WithCancel(t.Context())
+	result := make(chan pluginRuntimeCoordinatorBootstrapStartResult, 1)
+	go func() {
+		runtime, err := launchPluginRuntimeCoordinator(startCtx, pluginRuntimeCoordinatorLaunchConfig{
+			Identity: identity,
+			Ensurer:  ensurer,
+			Build: func(extensions.PluginRuntimeNodeIdentity, func(), func(error)) (pluginRuntimeCoordinatorRunner, error) {
+				return pluginRuntimeCoordinatorBootstrapTestRunner(func(ctx context.Context) error {
+					defer close(runnerDone)
+					close(runnerStarted)
+					<-ctx.Done()
+					return ctx.Err()
+				}), nil
+			},
+			StopTimeout: time.Second,
+		})
+		result <- pluginRuntimeCoordinatorBootstrapStartResult{runtime: runtime, err: err}
+	}()
+	waitPluginRuntimeCoordinatorBootstrapSignal(t, runnerStarted)
+	cancelStart()
+	started := waitPluginRuntimeCoordinatorBootstrapStart(t, result)
+	if started.runtime != nil || !errors.Is(started.err, context.Canceled) {
+		t.Fatalf("runtime=%#v err=%v", started.runtime, started.err)
+	}
+	waitPluginRuntimeCoordinatorBootstrapSignal(t, runnerDone)
+}
+
+func TestPluginRuntimeCoordinatorBootstrapHeartbeatLossSignalsFailClosed(t *testing.T) {
+	identity := pluginRuntimeCoordinatorBootstrapTestIdentity("heartbeat", extensions.PluginRuntimeProcessAPI)
+	leaseLost := make(chan struct{})
+	runtime, err := launchPluginRuntimeCoordinator(t.Context(), pluginRuntimeCoordinatorLaunchConfig{
+		Identity: identity,
+		Ensurer:  newPluginRuntimeCoordinatorBootstrapTestEnsurer(),
+		Build: func(_ extensions.PluginRuntimeNodeIdentity, onReady func(), _ func(error)) (pluginRuntimeCoordinatorRunner, error) {
+			return pluginRuntimeCoordinatorBootstrapTestRunner(func(context.Context) error {
+				onReady()
+				<-leaseLost
+				return extensions.ErrPluginRuntimeNodeLeaseLost
+			}), nil
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	close(leaseLost)
+	select {
+	case failure, ok := <-runtime.Failures():
+		if !ok || !errors.Is(failure, extensions.ErrPluginRuntimeNodeLeaseLost) {
+			t.Fatalf("failure=%v open=%v", failure, ok)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("heartbeat lease loss did not emit fail-closed signal")
+	}
+	waitPluginRuntimeCoordinatorBootstrapSignal(t, runtime.Done())
+	if !errors.Is(runtime.Err(), extensions.ErrPluginRuntimeNodeLeaseLost) {
+		t.Fatalf("terminal error=%v", runtime.Err())
+	}
+	if err := runtime.Stop(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestPluginRuntimeCoordinatorBootstrapIdentitySeparatesAPIWorkerAndBoots(t *testing.T) {
+	hostname := "  " + strings.Repeat("production-node-", 20) + "  "
+	firstBoot := extensions.NewActivationBootID()
+	secondBoot := extensions.NewActivationBootID()
+	api, err := newPluginRuntimeCoordinatorIdentity(hostname, extensions.PluginRuntimeProcessAPI, firstBoot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	worker, err := newPluginRuntimeCoordinatorIdentity(hostname, extensions.PluginRuntimeProcessWorker, secondBoot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if api.NodeID == "" || len([]byte(api.NodeID)) > 128 || api.NodeID != worker.NodeID ||
+		api.ProcessRole != extensions.PluginRuntimeProcessAPI ||
+		worker.ProcessRole != extensions.PluginRuntimeProcessWorker ||
+		api.BootID == worker.BootID || api.BootID != firstBoot || worker.BootID != secondBoot {
+		t.Fatalf("api=%#v worker=%#v", api, worker)
+	}
+	if _, err := newPluginRuntimeCoordinatorIdentity(" ", extensions.PluginRuntimeProcessAPI, firstBoot); !errors.Is(err, errPluginRuntimeCoordinatorBootstrapInvalid) {
+		t.Fatalf("blank host error=%v", err)
+	}
+	if _, err := newPluginRuntimeCoordinatorIdentity("node", "unknown", firstBoot); !errors.Is(err, errPluginRuntimeCoordinatorBootstrapInvalid) {
+		t.Fatalf("invalid role error=%v", err)
+	}
+}
+
+func TestPluginRuntimeCoordinatorBootstrapStopIsBoundedAndIdempotent(t *testing.T) {
+	identity := pluginRuntimeCoordinatorBootstrapTestIdentity("bounded-stop", extensions.PluginRuntimeProcessWorker)
+	cancelled := make(chan struct{})
+	release := make(chan struct{})
+	runtime, err := launchPluginRuntimeCoordinator(t.Context(), pluginRuntimeCoordinatorLaunchConfig{
+		Identity: identity,
+		Ensurer:  newPluginRuntimeCoordinatorBootstrapTestEnsurer(),
+		Build: func(_ extensions.PluginRuntimeNodeIdentity, onReady func(), _ func(error)) (pluginRuntimeCoordinatorRunner, error) {
+			return pluginRuntimeCoordinatorBootstrapTestRunner(func(ctx context.Context) error {
+				onReady()
+				<-ctx.Done()
+				close(cancelled)
+				<-release
+				return nil
+			}), nil
+		},
+		StopTimeout: 10 * time.Millisecond,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stopErr := runtime.Stop(t.Context()); !errors.Is(stopErr, context.DeadlineExceeded) {
+		t.Fatalf("bounded stop error=%v", stopErr)
+	}
+	waitPluginRuntimeCoordinatorBootstrapSignal(t, cancelled)
+	close(release)
+	waitPluginRuntimeCoordinatorBootstrapSignal(t, runtime.Done())
+	for range 4 {
+		if stopErr := runtime.Stop(t.Context()); stopErr != nil {
+			t.Fatalf("idempotent stop error=%v", stopErr)
+		}
+	}
+}
+
+func TestPluginRuntimeCoordinatorBootstrapConcurrentStopHasNoLeak(t *testing.T) {
+	identity := pluginRuntimeCoordinatorBootstrapTestIdentity("race-stop", extensions.PluginRuntimeProcessAPI)
+	runnerDone := make(chan struct{})
+	runtime, err := launchPluginRuntimeCoordinator(t.Context(), pluginRuntimeCoordinatorLaunchConfig{
+		Identity: identity,
+		Ensurer:  newPluginRuntimeCoordinatorBootstrapTestEnsurer(),
+		Build: func(_ extensions.PluginRuntimeNodeIdentity, onReady func(), _ func(error)) (pluginRuntimeCoordinatorRunner, error) {
+			return pluginRuntimeCoordinatorBootstrapTestRunner(func(ctx context.Context) error {
+				defer close(runnerDone)
+				onReady()
+				<-ctx.Done()
+				return nil
+			}), nil
+		},
+		StopTimeout: time.Second,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	const callers = 64
+	var wait sync.WaitGroup
+	wait.Add(callers)
+	errorsCh := make(chan error, callers)
+	identities := make(chan extensions.PluginRuntimeNodeIdentity, callers)
+	for range callers {
+		go func() {
+			defer wait.Done()
+			identities <- runtime.Identity()
+			errorsCh <- runtime.Stop(t.Context())
+		}()
+	}
+	wait.Wait()
+	close(errorsCh)
+	close(identities)
+	for stopErr := range errorsCh {
+		if stopErr != nil {
+			t.Fatalf("concurrent stop error=%v", stopErr)
+		}
+	}
+	for got := range identities {
+		if !reflect.DeepEqual(got, identity) {
+			t.Fatalf("identity drift=%#v want=%#v", got, identity)
+		}
+	}
+	waitPluginRuntimeCoordinatorBootstrapSignal(t, runnerDone)
+	waitPluginRuntimeCoordinatorBootstrapSignal(t, runtime.Done())
+	if err, ok := <-runtime.Failures(); ok || err != nil {
+		t.Fatalf("normal concurrent stop failure=%v open=%v", err, ok)
+	}
+}
+
+func newPluginRuntimeCoordinatorBootstrapTestEnsurer() *pluginRuntimeCoordinatorBootstrapTestEnsurer {
+	return &pluginRuntimeCoordinatorBootstrapTestEnsurer{
+		publication: pluginRuntimeCoordinatorBootstrapTestPublication(),
+	}
+}
+
+func pluginRuntimeCoordinatorBootstrapTestPublication() extensions.PluginRuntimePublication {
+	digest, err := extensions.PluginRuntimeMembersDigest(nil)
+	if err != nil {
+		panic(err)
+	}
+	return extensions.PluginRuntimePublication{
+		Revision: 1, MemberCount: 0, MembersDigest: digest,
+		Reason:    extensions.PluginRuntimePublicationStartupReconcile,
+		CreatedAt: time.Now().UTC(),
+	}
+}
+
+func pluginRuntimeCoordinatorBootstrapTestIdentity(
+	label string,
+	role extensions.PluginRuntimeProcessRole,
+) extensions.PluginRuntimeNodeIdentity {
+	identity, err := newPluginRuntimeCoordinatorIdentity(
+		"test-node-"+label, role, extensions.NewActivationBootID(),
+	)
+	if err != nil {
+		panic(err)
+	}
+	return identity
+}
+
+func waitPluginRuntimeCoordinatorBootstrapStart(
+	t *testing.T,
+	result <-chan pluginRuntimeCoordinatorBootstrapStartResult,
+) pluginRuntimeCoordinatorBootstrapStartResult {
+	t.Helper()
+	select {
+	case started := <-result:
+		return started
+	case <-time.After(2 * time.Second):
+		t.Fatal("plugin runtime coordinator bootstrap did not return")
+		return pluginRuntimeCoordinatorBootstrapStartResult{}
+	}
+}
+
+func waitPluginRuntimeCoordinatorBootstrapSignal(t *testing.T, signal <-chan struct{}) {
+	t.Helper()
+	select {
+	case <-signal:
+	case <-time.After(2 * time.Second):
+		t.Fatal("plugin runtime coordinator bootstrap signal timed out")
+	}
+}
