@@ -32,7 +32,7 @@ func (s *PostgresStore) PublishPluginRuntimePublication(
 	if err != nil {
 		return PluginRuntimePublication{}, fmt.Errorf("begin plugin runtime publication: %w", err)
 	}
-	defer tx.Rollback(ctx)
+	defer func() { _ = tx.Rollback(context.Background()) }()
 
 	publication := PluginRuntimePublication{
 		MemberCount: len(canonical), MembersDigest: digest, Members: canonical,
@@ -170,11 +170,11 @@ func mapPluginRuntimePostgresError(err error, fallback error) error {
 		return err
 	}
 	if strings.Contains(pgErr.Message, "live node lease") {
-		return ErrPluginRuntimeNodeLeaseLost
+		return fmt.Errorf("%w: %w", ErrPluginRuntimeNodeLeaseLost, err)
 	}
 	switch pgErr.Code {
 	case "P0001", "23503", "23505", "23514":
-		return fallback
+		return fmt.Errorf("%w: %w", fallback, err)
 	default:
 		return err
 	}

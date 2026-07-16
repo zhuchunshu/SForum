@@ -82,7 +82,7 @@ func TestPostgresPluginRuntimePublicationFullSetRoundTrip(t *testing.T) {
 	}
 	if _, err := fixture.store.PublishPluginRuntimePublication(
 		fixture.ctx, PluginRuntimePublicationEnable, 1, []PluginRuntimeMember{fixture.themeMember()},
-	); !errors.Is(err, ErrPluginRuntimePublicationConflict) {
+	); !errors.Is(err, ErrPluginRuntimePublicationConflict) || !strings.Contains(err.Error(), "must be a plugin") {
 		t.Fatalf("theme publication error=%v", err)
 	}
 }
@@ -261,6 +261,9 @@ func TestPostgresPluginRuntimeExpiredBootCannotResume(t *testing.T) {
 	}
 	if _, err := fixture.store.HeartbeatPluginRuntimeNode(fixture.ctx, identity, time.Minute); !errors.Is(err, ErrPluginRuntimeNodeLeaseLost) {
 		t.Fatalf("expired heartbeat error=%v", err)
+	}
+	if _, err := fixture.store.GetPluginRuntimeNode(fixture.ctx, identity); !errors.Is(err, ErrPluginRuntimeNodeLeaseLost) {
+		t.Fatalf("expired get error=%v", err)
 	}
 	if _, err := fixture.store.RegisterPluginRuntimeNode(fixture.ctx, identity, time.Minute); !errors.Is(err, ErrPluginRuntimeNodeLeaseLost) {
 		t.Fatalf("expired boot resurrection error=%v", err)

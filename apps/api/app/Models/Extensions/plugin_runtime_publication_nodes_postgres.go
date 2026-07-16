@@ -76,6 +76,7 @@ func (s *PostgresStore) GetPluginRuntimeNode(
 		       first_seen_at, last_seen_at, lease_expires_at
 		FROM plugin_runtime_nodes
 		WHERE node_id = $1 AND process_role = $2 AND boot_id = $3
+		  AND lease_expires_at > statement_timestamp()
 	`, identity.NodeID, identity.ProcessRole, identity.BootID))
 	if errors.Is(err, pgx.ErrNoRows) {
 		return PluginRuntimeNode{}, ErrPluginRuntimeNodeLeaseLost
@@ -96,7 +97,7 @@ func (s *PostgresStore) BeginPluginRuntimePublicationApply(
 	if err != nil {
 		return PluginRuntimePublicationAck{}, fmt.Errorf("begin plugin runtime acknowledgement: %w", err)
 	}
-	defer tx.Rollback(ctx)
+	defer func() { _ = tx.Rollback(context.Background()) }()
 	node, err := lockLivePluginRuntimeNode(ctx, tx, identity)
 	if err != nil {
 		return PluginRuntimePublicationAck{}, err
@@ -173,7 +174,7 @@ func (s *PostgresStore) CompletePluginRuntimePublicationApply(
 	if err != nil {
 		return PluginRuntimePublicationAck{}, fmt.Errorf("begin complete plugin runtime acknowledgement: %w", err)
 	}
-	defer tx.Rollback(ctx)
+	defer func() { _ = tx.Rollback(context.Background()) }()
 	node, err := lockLivePluginRuntimeNode(ctx, tx, identity)
 	if err != nil {
 		return PluginRuntimePublicationAck{}, err
@@ -274,7 +275,7 @@ func (s *PostgresStore) FailPluginRuntimePublicationApply(
 	if err != nil {
 		return PluginRuntimePublicationAck{}, fmt.Errorf("begin failed plugin runtime acknowledgement: %w", err)
 	}
-	defer tx.Rollback(ctx)
+	defer func() { _ = tx.Rollback(context.Background()) }()
 	if _, err := lockLivePluginRuntimeNode(ctx, tx, identity); err != nil {
 		return PluginRuntimePublicationAck{}, err
 	}
