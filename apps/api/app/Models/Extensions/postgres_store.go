@@ -212,6 +212,24 @@ func (s *PostgresStore) SaveBuiltin(ctx context.Context, input SaveBuiltinInput)
 	}
 	defer tx.Rollback(ctx)
 
+	// Plugin builtin 同步可能追加 desired full-set revision。必须先拿
+	// pluginRuntimeDesiredSetLock，再锁 extensions 行，保持与 lifecycle /
+	// trust-revocation / genesis 相同的全局生产者锁序。
+	isPlugin := input.Manifest.Type == TypePlugin
+	var latestPublication PluginRuntimePublication
+	var hasPublication bool
+	if isPlugin {
+		loaded, loadErr := lockLatestPluginRuntimePublication(ctx, tx)
+		switch {
+		case loadErr == nil:
+			latestPublication, hasPublication = loaded, true
+		case errors.Is(loadErr, ErrPluginRuntimePublicationNotFound):
+			// 尚无 genesis：只更新 active，完整 full-set 由后续 EnsureInitial 投影。
+		default:
+			return Extension{}, fmt.Errorf("load latest plugin runtime publication: %w", loadErr)
+		}
+	}
+
 	initialStatus := StatusEnabled
 	if input.Manifest.Type == TypeTheme {
 		// 新内置主题必须经由 ActivateTheme 发布 desired revision，不能在同步时静默生效。
@@ -277,6 +295,27 @@ func (s *PostgresStore) SaveBuiltin(ctx context.Context, input SaveBuiltinInput)
 	`, input.Manifest.ID, versionID); err != nil {
 		return Extension{}, fmt.Errorf("activate inert builtin extension version: %w", err)
 	}
+
+	// 已有 immutable full-set 时，仅对当前 plugin builtin 做精确 enable/upgrade。
+	// upgrade source 取 latest publication 成员，不读 mutable active：旧旁路
+	// 可能已把 active 推到 B 而 publication 仍停在 A，必须仍能 A→B 修复。
+	// 不重投影全部 enabled 行，避免把 trust-revocation 已摘除的成员复活。
+	if isPlugin && hasPublication {
+		target := Extension{
+			ID: input.Manifest.ID, Name: input.Manifest.Name, Type: TypePlugin,
+			Status: StatusEnabled, Version: input.Manifest.Version,
+			ActiveVersionID: versionID, PackageDigest: input.PackageDigest,
+			PackagePath: input.PackagePath, AdminFrontendDigest: input.AdminFrontendDigest,
+			Manifest: extensionmanifest.Normalize(input.Manifest),
+		}
+		if err := publishBuiltinPluginRuntimeSync(ctx, tx, builtinPluginRuntimeSync{
+			Created: created, Status: storedStatus, Latest: latestPublication,
+			Target: target,
+		}); err != nil {
+			return Extension{}, err
+		}
+	}
+
 	if err := tx.Commit(ctx); err != nil {
 		return Extension{}, fmt.Errorf("commit builtin extension sync: %w", err)
 	}
