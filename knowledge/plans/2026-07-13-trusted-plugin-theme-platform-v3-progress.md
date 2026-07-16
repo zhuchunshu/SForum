@@ -112,6 +112,41 @@ phase percentage.
 
 ## Last Durable Checkpoint
 
+### 2026-07-16 Query/Identity/P12 Candidate Checkpoint
+
+- Exact weighted progress remains `63.1414%`; displayed progress remains
+  **63%**. P6 is **14/18**, P7 **14/22**, P8 **18/18**, and P9 **4/16**.
+- `78c5564fb` and `eec809599` commit the Identity Manifest safety boundary and
+  immutable Identity Registry leaf. They add no P7 credit before lifecycle,
+  durable ownership, Host mapping approval, EntityMeta integration, provider
+  execution, Inspector, and reference evidence close.
+- Query lifecycle publication, the P12 plugin runtime publication migration,
+  and the untracked Cache Registry remain under review. A scoped external task
+  may create `Support/ContentRegistry`; it remains uncredited declaration code.
+- P12 review rejects duplicate source/lifecycle/trust/protocol/migration fields
+  but requires monotonic applied revisions, live leases, plugin-only members,
+  applied-set digest verification, and expanded PostgreSQL behavior tests.
+- P10/P11 audits confirm both phases remain at zero. P13 deletion/reference
+  work remains dependency-blocked. `extensions/fixtures` contains tracked source
+  fixtures and must not be globally ignored.
+
+Dirty ownership at this checkpoint:
+
+- Query owns its Models/Support/bootstrap lifecycle publication files.
+- P12 owns migration `202607160027` and its two tests.
+- Cache and Content candidates own only their new Registry directories.
+- `apps/api/app/Models/PageViewModels/source_test.go` and the content-policy
+  Manifest remain unrelated/user-owned and must never enter V3 commits.
+
+Exact resume command:
+
+```bash
+git status --short
+```
+
+Then finish Query lifecycle, review P12 constraints, and land each coherent
+slice separately before starting shared lifecycle edits for Identity.
+
 ### 2026-07-16 P6 Route Inspector Ledger Correction
 
 - Overall advances to **63%** after flooring. P6 advances to **14/18 (78%)**

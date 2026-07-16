@@ -7,7 +7,8 @@ This is the entry point for project memory.
 - **2026-07-16 Trusted Plugin And Theme Platform V3 P6/P7/P8/P9 active (overall 63%)**
   - Decision: `knowledge/decisions/2026-07-13-trusted-plugin-theme-platform-v3.md`
   - Task book: `knowledge/plans/2026-07-13-trusted-plugin-theme-platform-v3.md`
-  - Active checkpoint: `knowledge/sessions/2026-07-16-trusted-plugin-theme-platform-v3-route-inspector-ledger.md`
+  - Active checkpoint: `knowledge/sessions/2026-07-16-trusted-plugin-theme-platform-v3-query-identity-p12-checkpoint.md`
+  - Prior route checkpoint: `knowledge/sessions/2026-07-16-trusted-plugin-theme-platform-v3-route-inspector-ledger.md`
   - Prior asset checkpoint: `knowledge/sessions/2026-07-16-trusted-plugin-theme-platform-v3-asset-checkpoint.md`
   - Prior handoff: `knowledge/sessions/2026-07-16-trusted-plugin-theme-platform-v3-p8-p9-progress.md`
   - P5 closure: `knowledge/sessions/2026-07-16-trusted-plugin-theme-platform-v3-p5-closure.md`
