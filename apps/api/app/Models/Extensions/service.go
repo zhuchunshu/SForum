@@ -905,7 +905,7 @@ func (s *Service) Enable(ctx context.Context, actor identity.Actor, id string, i
 		s.recordEnableFailure(ctx, actor, extension.ID, err)
 		return Extension{}, fmt.Errorf("%w: asset registry publication failed: %v", ErrPreflightFailed, err)
 	}
-	enabled, err := s.store.Enable(ctx, extension.ID, extension.Type)
+	enabled, err := s.enableLegacyPluginState(ctx, extension, actor.ID)
 	if err != nil {
 		if rollbackErr := s.rollbackExactAssetMutation(assetMutation); rollbackErr != nil {
 			return Extension{}, errors.Join(err, fmt.Errorf("restore asset publication after enable failure: %w", rollbackErr))
@@ -920,12 +920,17 @@ func (s *Service) Enable(ctx context.Context, actor identity.Actor, id string, i
 			startErr = s.runtime.Start(ctx, enabled)
 		}
 		if startErr != nil {
-			_, _ = s.store.Disable(ctx, enabled.ID)
+			if _, disableErr := s.disableLegacyPluginState(ctx, enabled, actor.ID); disableErr != nil {
+				startErr = errors.Join(
+					startErr,
+					fmt.Errorf("publish compensating plugin runtime disable: %w", disableErr),
+				)
+			}
 			if rollbackErr := s.rollbackExactAssetMutation(assetMutation); rollbackErr != nil {
 				startErr = errors.Join(startErr, fmt.Errorf("restore asset publication after runtime failure: %w", rollbackErr))
 			}
 			s.recordEnableFailure(ctx, actor, enabled.ID, startErr)
-			return Extension{}, fmt.Errorf("%w: %v", ErrRuntimeFailed, startErr)
+			return Extension{}, errors.Join(ErrRuntimeFailed, startErr)
 		}
 	}
 	var queryMutation RuntimeQueryPublicationMutation
@@ -935,7 +940,7 @@ func (s *Service) Enable(ctx context.Context, actor identity.Actor, id string, i
 			if err == nil {
 				err = ErrRuntimeQueryPublicationUnavailable
 			}
-			failure := s.compensateLegacyQueryEnable(ctx, enabled, assetMutation, queryMutation, err)
+			failure := s.compensateLegacyQueryEnable(ctx, enabled, assetMutation, queryMutation, actor.ID, err)
 			s.recordEnableFailure(ctx, actor, enabled.ID, failure)
 			return Extension{}, errors.Join(ErrRuntimeFailed, fmt.Errorf("publish runtime queries: %w", failure))
 		}
@@ -948,7 +953,7 @@ func (s *Service) Enable(ctx context.Context, actor identity.Actor, id string, i
 				err = ErrRuntimeCachePublicationUnavailable
 			}
 			failure := s.compensateLegacyCacheEnable(
-				ctx, enabled, assetMutation, queryMutation, cacheMutation, err,
+				ctx, enabled, assetMutation, queryMutation, cacheMutation, actor.ID, err,
 			)
 			s.recordEnableFailure(ctx, actor, enabled.ID, failure)
 			return Extension{}, errors.Join(ErrRuntimeFailed, fmt.Errorf("publish runtime caches: %w", failure))
@@ -960,15 +965,20 @@ func (s *Service) Enable(ctx context.Context, actor identity.Actor, id string, i
 			// 页面贡献失败不静默：回滚 enable，避免半启用状态
 			if hasRuntimeCaches {
 				err = s.compensateLegacyCacheEnable(
-					ctx, enabled, assetMutation, queryMutation, cacheMutation, err,
+					ctx, enabled, assetMutation, queryMutation, cacheMutation, actor.ID, err,
 				)
 			} else if hasRuntimeQueries {
-				err = s.compensateLegacyQueryEnable(ctx, enabled, assetMutation, queryMutation, err)
+				err = s.compensateLegacyQueryEnable(ctx, enabled, assetMutation, queryMutation, actor.ID, err)
 			} else {
 				if s.runtime != nil {
 					_ = s.runtime.Stop(ctx, enabled)
 				}
-				_, _ = s.store.Disable(ctx, enabled.ID)
+				if _, disableErr := s.disableLegacyPluginState(ctx, enabled, actor.ID); disableErr != nil {
+					err = errors.Join(
+						err,
+						fmt.Errorf("publish compensating plugin runtime disable: %w", disableErr),
+					)
+				}
 				if rollbackErr := s.rollbackExactAssetMutation(assetMutation); rollbackErr != nil {
 					err = errors.Join(err, fmt.Errorf("restore asset publication after page failure: %w", rollbackErr))
 				}
@@ -1061,13 +1071,13 @@ func (s *Service) DisableWithInput(ctx context.Context, actor identity.Actor, id
 	}
 	if hasRuntimeCaches {
 		disabled, err = s.disableLegacyCachePlugin(
-			ctx, extension, assetMutation, queryMutation, cacheMutation,
+			ctx, extension, assetMutation, queryMutation, cacheMutation, actor.ID,
 		)
 		if err != nil {
 			return Extension{}, err
 		}
 	} else if hasRuntimeQueries {
-		disabled, err = s.disableLegacyQueryPlugin(ctx, extension, assetMutation, queryMutation)
+		disabled, err = s.disableLegacyQueryPlugin(ctx, extension, assetMutation, queryMutation, actor.ID)
 		if err != nil {
 			return Extension{}, err
 		}
@@ -1083,7 +1093,7 @@ func (s *Service) DisableWithInput(ctx context.Context, actor identity.Actor, id
 		if s.pageRegistry != nil {
 			s.pageRegistry.ClearExtension(extension.ID)
 		}
-		disabled, err = s.store.Disable(ctx, extension.ID)
+		disabled, err = s.disableLegacyPluginState(ctx, extension, actor.ID)
 		if err != nil {
 			if restoreErr := s.rollbackExactAssetMutation(assetMutation); restoreErr != nil {
 				return Extension{}, errors.Join(err, fmt.Errorf("restore asset publication after disable failure: %w", restoreErr))

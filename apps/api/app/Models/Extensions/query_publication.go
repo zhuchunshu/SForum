@@ -40,6 +40,7 @@ func (s *Service) compensateLegacyQueryEnable(
 	enabled Extension,
 	assetMutation exactAssetMutation,
 	queryMutation RuntimeQueryPublicationMutation,
+	actorUserID int64,
 	cause error,
 ) error {
 	errs := []error{cause}
@@ -54,7 +55,7 @@ func (s *Service) compensateLegacyQueryEnable(
 			errs = append(errs, fmt.Errorf("stop runtime: %w", err))
 		}
 	}
-	if _, err := s.store.Disable(ctx, enabled.ID); err != nil {
+	if _, err := s.disableLegacyPluginState(ctx, enabled, actorUserID); err != nil {
 		errs = append(errs, fmt.Errorf("disable extension: %w", err))
 	}
 	if err := s.rollbackExactAssetMutation(assetMutation); err != nil {
@@ -68,6 +69,7 @@ func (s *Service) disableLegacyQueryPlugin(
 	extension Extension,
 	assetMutation exactAssetMutation,
 	queryMutation RuntimeQueryPublicationMutation,
+	actorUserID int64,
 ) (Extension, error) {
 	if queryMutation == nil {
 		return Extension{}, ErrRuntimeQueryPublicationUnavailable
@@ -78,7 +80,7 @@ func (s *Service) disableLegacyQueryPlugin(
 	if err := s.clearPluginProviderSelections(ctx, extension.ID); err != nil {
 		return Extension{}, s.compensateLegacyQueryDisable(assetMutation, queryMutation, err)
 	}
-	disabled, err := s.store.Disable(ctx, extension.ID)
+	disabled, err := s.disableLegacyPluginState(ctx, extension, actorUserID)
 	if err != nil {
 		return Extension{}, s.compensateLegacyQueryDisable(assetMutation, queryMutation, err)
 	}
