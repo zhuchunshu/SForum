@@ -1,0 +1,173 @@
+CacheInspectorArtifact:
+  type: object
+  additionalProperties: false
+  required: [extensionId, extensionVersion, packageDigest]
+  properties:
+    extensionId: { type: string }
+    extensionVersion: { type: string }
+    packageDigest: { type: string }
+    versionId: { type: integer, format: int64, minimum: 1 }
+    runtimeInstanceId: { type: string }
+    core: { type: boolean }
+
+CacheInspectorDeclaration:
+  type: object
+  additionalProperties: false
+  description: Cache declaration metadata with tag names deliberately omitted.
+  required: [id, contractVersion, namespace, policy]
+  properties:
+    id: { type: string }
+    contractVersion: { type: string }
+    namespace: { type: string }
+    policy: { type: string, enum: [private, actor, permission, public] }
+    provider: { type: string }
+    invalidators:
+      type: array
+      items: { type: string }
+
+CacheInspectorPublication:
+  type: object
+  additionalProperties: false
+  required: [artifact, caches]
+  properties:
+    artifact: { "$ref": "#/CacheInspectorArtifact" }
+    caches:
+      type: array
+      items: { "$ref": "#/CacheInspectorDeclaration" }
+
+CacheInspectorContribution:
+  type: object
+  additionalProperties: false
+  description: Active cache declaration and its exact artifact owner; tag names are omitted.
+  required: [id, contractVersion, namespace, policy, artifact]
+  properties:
+    id: { type: string }
+    contractVersion: { type: string }
+    namespace: { type: string }
+    policy: { type: string, enum: [private, actor, permission, public] }
+    provider: { type: string }
+    invalidators:
+      type: array
+      items: { type: string }
+    artifact: { "$ref": "#/CacheInspectorArtifact" }
+
+CacheInspectorRegistrySnapshot:
+  type: object
+  additionalProperties: false
+  required: [schemaVersion, revision, digest, safeMode, publications, caches]
+  properties:
+    schemaVersion: { type: string, enum: [sforum.cache-registry@1] }
+    revision: { type: integer, format: int64, minimum: 0 }
+    digest: { type: string }
+    safeMode: { type: boolean }
+    publications:
+      type: array
+      items: { "$ref": "#/CacheInspectorPublication" }
+    caches:
+      type: array
+      items: { "$ref": "#/CacheInspectorContribution" }
+
+CacheInspectorMetrics:
+  type: object
+  additionalProperties: false
+  required:
+  - samples
+  - hits
+  - misses
+  - allowed
+  - denied
+  - stale
+  - conflicts
+  - errors
+  - canceled
+  - deadlines
+  - slow
+  - affected
+  - totalDurationMicros
+  - averageDurationMicros
+  - p95DurationMicros
+  properties:
+    operation: { type: string }
+    samples: { type: integer, format: int64, minimum: 0 }
+    hits: { type: integer, format: int64, minimum: 0 }
+    misses: { type: integer, format: int64, minimum: 0 }
+    allowed: { type: integer, format: int64, minimum: 0 }
+    denied: { type: integer, format: int64, minimum: 0 }
+    stale: { type: integer, format: int64, minimum: 0 }
+    conflicts: { type: integer, format: int64, minimum: 0 }
+    errors: { type: integer, format: int64, minimum: 0 }
+    canceled: { type: integer, format: int64, minimum: 0 }
+    deadlines: { type: integer, format: int64, minimum: 0 }
+    slow: { type: integer, format: int64, minimum: 0 }
+    affected: { type: integer, format: int64, minimum: 0 }
+    totalDurationMicros: { type: integer, format: int64, minimum: 0 }
+    averageDurationMicros: { type: integer, format: int64, minimum: 0 }
+    p95DurationMicros: { type: integer, format: int64, minimum: 0 }
+
+CacheInspectorTrace:
+  type: object
+  additionalProperties: false
+  description: >-
+    Bounded Host-owned attribution only. Cache keys, values, tag names, lock
+    tokens, request payloads, and error strings are never retained.
+  required: [sequence, registryCurrent, operation, outcome, durationMicros]
+  properties:
+    sequence: { type: integer, format: int64, minimum: 1 }
+    extensionId: { type: string }
+    extensionVersion: { type: string }
+    artifactDigest: { type: string }
+    runtimeInstanceId: { type: string }
+    versionId: { type: integer, format: int64, minimum: 1 }
+    cacheId: { type: string }
+    contractVersion: { type: string }
+    registryRevision: { type: integer, format: int64, minimum: 1 }
+    registryCurrent: { type: boolean }
+    providerRevision: { type: integer, format: int64, minimum: 1 }
+    providerId: { type: string }
+    providerExtension: { type: string }
+    providerArtifact: { type: string }
+    providerRuntime: { type: string }
+    providerVersionId: { type: integer, format: int64, minimum: 1 }
+    operation: { type: string }
+    tagDigest: { type: string }
+    tagCount: { type: integer, minimum: 1 }
+    invalidatorId: { type: string }
+    outcome:
+      type: string
+      enum: [hit, miss, allowed, denied, stale, conflict, error, cancel, deadline]
+    durationMicros: { type: integer, format: int64, minimum: 0 }
+    attempts: { type: integer, minimum: 1 }
+    hit: { type: boolean }
+    affected: { type: integer, format: int64, minimum: 1 }
+    slow: { type: boolean }
+
+CacheInspectorSnapshot:
+  type: object
+  additionalProperties: false
+  required: [schemaVersion, registry, metrics, operations, traces, invalidations]
+  properties:
+    schemaVersion: { type: string, enum: [sforum.cache-inspector@1] }
+    registry: { "$ref": "#/CacheInspectorRegistrySnapshot" }
+    retainedFromSequence: { type: integer, format: int64, minimum: 1 }
+    retainedThroughSequence: { type: integer, format: int64, minimum: 1 }
+    metrics: { "$ref": "#/CacheInspectorMetrics" }
+    operations:
+      type: array
+      items: { "$ref": "#/CacheInspectorMetrics" }
+    traces:
+      type: array
+      maxItems: 200
+      items: { "$ref": "#/CacheInspectorTrace" }
+    invalidations:
+      type: array
+      maxItems: 200
+      items: { "$ref": "#/CacheInspectorTrace" }
+
+ApiResponseCacheInspectorSnapshot:
+  type: object
+  additionalProperties: false
+  required: [code, message, data]
+  properties:
+    code: { type: integer }
+    message: { type: string }
+    data: { "$ref": "#/CacheInspectorSnapshot" }

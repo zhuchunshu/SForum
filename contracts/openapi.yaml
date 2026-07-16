@@ -345,6 +345,8 @@ paths:
     "$ref": "./openapi/paths/extensions.yaml#/adminExtensionRouteProviderReset"
   "/admin/extensions/route-inspector":
     "$ref": "./openapi/paths/extension-route-inspector.yaml#/adminExtensionRouteInspector"
+  "/admin/extensions/cache-inspector":
+    "$ref": "./openapi/paths/extension-cache-inspector.yaml#/adminExtensionCacheInspector"
   "/admin/extensions/openapi/aggregate":
     "$ref": "./openapi/paths/extension-route-contracts.yaml#/adminExtensionOpenAPIAggregate"
   "/admin/extensions/openapi/generated-client":
