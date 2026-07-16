@@ -69,6 +69,7 @@ type Service struct {
 	lifecycleAuthority     LifecycleAuthorityRepository
 	lifecycleFinalizer     LifecycleCleanupFinalizer
 	queryPublications      RuntimeQueryPublicationBoundary
+	cachePublications      RuntimeCachePublicationBoundary
 }
 
 // PageRegistry 主题/插件页面贡献注册（避免 extensions 直接依赖 pages 包实现细节）。
@@ -192,6 +193,12 @@ func WithRuntimeManager(runtime RuntimeManager) ServiceOption {
 			}
 		}
 	}
+}
+
+// WithRuntimeCachePublications injects the shared Host Cache Registry boundary.
+// A nil boundary preserves the legacy behavior until production bootstrap binds it.
+func WithRuntimeCachePublications(boundary RuntimeCachePublicationBoundary) ServiceOption {
+	return func(s *Service) { s.cachePublications = boundary }
 }
 
 func WithSettingsActionRuntime(runtime SettingsActionRuntime) ServiceOption {
@@ -847,6 +854,7 @@ func (s *Service) Enable(ctx context.Context, actor identity.Actor, id string, i
 	}
 	defer s.assetPublicationMu.Unlock()
 	hasRuntimeQueries := len(extension.Manifest.Queries) > 0
+	hasRuntimeCaches := len(extension.Manifest.Cache) > 0 && s.cachePublications != nil
 	if hasRuntimeQueries && s.queryPublications == nil {
 		return Extension{}, ErrRuntimeQueryPublicationUnavailable
 	}
@@ -932,11 +940,29 @@ func (s *Service) Enable(ctx context.Context, actor identity.Actor, id string, i
 			return Extension{}, errors.Join(ErrRuntimeFailed, fmt.Errorf("publish runtime queries: %w", failure))
 		}
 	}
+	var cacheMutation RuntimeCachePublicationMutation
+	if hasRuntimeCaches {
+		cacheMutation, err = s.cachePublications.PublishRuntimeCaches(ctx, enabled)
+		if err != nil || cacheMutation == nil {
+			if err == nil {
+				err = ErrRuntimeCachePublicationUnavailable
+			}
+			failure := s.compensateLegacyCacheEnable(
+				ctx, enabled, assetMutation, queryMutation, cacheMutation, err,
+			)
+			s.recordEnableFailure(ctx, actor, enabled.ID, failure)
+			return Extension{}, errors.Join(ErrRuntimeFailed, fmt.Errorf("publish runtime caches: %w", failure))
+		}
+	}
 	// 插件 enable：注册页面贡献（add/replace 候选）；replace 仍需 super_admin 批准。
 	if enabled.Type == TypePlugin && s.pageRegistry != nil {
 		if err := s.pageRegistry.RegisterPluginPackage(ctx, enabled); err != nil {
 			// 页面贡献失败不静默：回滚 enable，避免半启用状态
-			if hasRuntimeQueries {
+			if hasRuntimeCaches {
+				err = s.compensateLegacyCacheEnable(
+					ctx, enabled, assetMutation, queryMutation, cacheMutation, err,
+				)
+			} else if hasRuntimeQueries {
 				err = s.compensateLegacyQueryEnable(ctx, enabled, assetMutation, queryMutation, err)
 			} else {
 				if s.runtime != nil {
@@ -996,6 +1022,7 @@ func (s *Service) DisableWithInput(ctx context.Context, actor identity.Actor, id
 	}
 	defer s.assetPublicationMu.Unlock()
 	hasRuntimeQueries := len(extension.Manifest.Queries) > 0
+	hasRuntimeCaches := len(extension.Manifest.Cache) > 0 && s.cachePublications != nil
 	if hasRuntimeQueries && s.queryPublications == nil {
 		return Extension{}, ErrRuntimeQueryPublicationUnavailable
 	}
@@ -1005,8 +1032,10 @@ func (s *Service) DisableWithInput(ctx context.Context, actor identity.Actor, id
 		return Extension{}, fmt.Errorf("remove exact asset publication: %w", err)
 	}
 	var disabled Extension
+	var queryMutation RuntimeQueryPublicationMutation
 	if hasRuntimeQueries {
-		queryMutation, quarantineErr := s.queryPublications.QuarantineRuntimeQueries(ctx, extension)
+		var quarantineErr error
+		queryMutation, quarantineErr = s.queryPublications.QuarantineRuntimeQueries(ctx, extension)
 		if quarantineErr != nil || queryMutation == nil {
 			if quarantineErr == nil {
 				quarantineErr = ErrRuntimeQueryPublicationUnavailable
@@ -1016,12 +1045,34 @@ func (s *Service) DisableWithInput(ctx context.Context, actor identity.Actor, id
 			}
 			return Extension{}, quarantineErr
 		}
+	}
+	var cacheMutation RuntimeCachePublicationMutation
+	if hasRuntimeCaches {
+		var quarantineErr error
+		cacheMutation, quarantineErr = s.cachePublications.QuarantineRuntimeCaches(ctx, extension)
+		if quarantineErr != nil || cacheMutation == nil {
+			if quarantineErr == nil {
+				quarantineErr = ErrRuntimeCachePublicationUnavailable
+			}
+			return Extension{}, s.compensateLegacyCacheDisable(
+				assetMutation, queryMutation, cacheMutation, quarantineErr,
+			)
+		}
+	}
+	if hasRuntimeCaches {
+		disabled, err = s.disableLegacyCachePlugin(
+			ctx, extension, assetMutation, queryMutation, cacheMutation,
+		)
+		if err != nil {
+			return Extension{}, err
+		}
+	} else if hasRuntimeQueries {
 		disabled, err = s.disableLegacyQueryPlugin(ctx, extension, assetMutation, queryMutation)
 		if err != nil {
 			return Extension{}, err
 		}
 	} else {
-		// F2.4：无 Query 的 legacy 插件完整保留原有 drain 顺序。
+		// F2.4：未绑定 Query/Cache publication 的 legacy 插件保留原有 drain 顺序。
 		if err := s.drainPluginRuntime(ctx, extension); err != nil {
 			if rollbackErr := s.rollbackExactAssetMutation(assetMutation); rollbackErr != nil {
 				return Extension{}, errors.Join(err, fmt.Errorf("restore asset publication after drain failure: %w", rollbackErr))
