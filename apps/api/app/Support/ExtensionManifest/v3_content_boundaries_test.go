@@ -26,6 +26,9 @@ func TestManifestV3ContentPublicationBoundaries(t *testing.T) {
 		{name: "schema path contains nul", mutate: func(manifest *Manifest) {
 			manifest.Content[0].Schema = "schemas/content\x00.json"
 		}},
+		{name: "contract version too long", mutate: func(manifest *Manifest) {
+			manifest.Content[0].ContractVersion = strings.Repeat("c", ContractVersionMaximumLength) + "@1"
+		}},
 	}
 
 	for _, test := range tests {

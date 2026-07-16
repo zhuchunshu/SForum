@@ -45,7 +45,8 @@ func validateV3Manifest(manifest Manifest) error {
 }
 
 func (v *v3Validator) versionedID(id string, contractVersion string, family string) error {
-	if !manifestIDPattern.MatchString(id) || !strings.HasPrefix(id, v.manifest.ID+".") || !contractVersionPattern.MatchString(contractVersion) {
+	if !manifestIDPattern.MatchString(id) || !strings.HasPrefix(id, v.manifest.ID+".") ||
+		len(contractVersion) > ContractVersionMaximumLength || !contractVersionPattern.MatchString(contractVersion) {
 		return ErrInvalidManifest
 	}
 	if _, duplicate := v.ids[id]; duplicate {
