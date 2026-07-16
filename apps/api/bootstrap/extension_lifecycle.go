@@ -19,6 +19,7 @@ import (
 	pages "github.com/zhuchunshu/sforum/apps/api/app/Support/Pages"
 	queryregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/QueryRegistry"
 	routes "github.com/zhuchunshu/sforum/apps/api/app/Support/Routes"
+	seoregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/SEORegistry"
 )
 
 var errProductionLifecycleDependency = errors.New("bootstrap: production extension lifecycle dependency unavailable")
@@ -71,6 +72,7 @@ type productionLifecycleStack struct {
 	// 也不得从 mutable Store 再生成 Core publication。
 	QueryRegistry      *queryregistry.Registry
 	QueryCoreCatalog   *hostapi.QueryRegistryCoreCatalog
+	SEORegistry        *seoregistry.Registry
 	RouteProviders     *routes.ProviderSelectionAPI
 	ProviderSlots      *extensionsruntime.ProviderSlotSelectionAPI
 	RegistryRepository *extensionsruntime.PostgresLifecycleRegistryPublicationRepository
@@ -183,6 +185,13 @@ func newProductionLifecycleStack(config productionLifecycleStackConfig) (*produc
 			return nil, fmt.Errorf("%w: enter query registry safe mode: %v", errProductionLifecycleDependency, err)
 		}
 	}
+	seoRegistry := seoregistry.New()
+	if config.SafeMode {
+		snapshot := seoRegistry.Snapshot()
+		if _, err := seoRegistry.ReplaceAllIfRevision(snapshot.Revision, snapshot.Publications, true); err != nil {
+			return nil, fmt.Errorf("%w: enter SEO registry safe mode: %v", errProductionLifecycleDependency, err)
+		}
+	}
 	// Identity root policy and permanent leaf ownership must converge from the
 	// durable PostgreSQL ledger before the process-local graph becomes visible.
 	// Default PostgreSQL store binds the production TrustImpact digest verifier
@@ -213,7 +222,7 @@ func newProductionLifecycleStack(config productionLifecycleStackConfig) (*produc
 			ThemeRuntime: config.ThemeRuntime, PageSiteName: config.PageSiteName, PageLocales: config.PageLocales,
 			Routes: routeRegistry, RouteSchemas: routeSchemas, Services: config.Services,
 			Components: componentRegistry, Assets: assetRegistry, Caches: cacheRegistry, Queries: queryRegistry,
-			Identity: identityRegistry, IdentityStore: identityStore,
+			SEO: seoRegistry, Identity: identityRegistry, IdentityStore: identityStore,
 			AssetAuthority: assetAuthority, AssetAdmission: config.Trust,
 		},
 	)
@@ -241,6 +250,7 @@ func newProductionLifecycleStack(config productionLifecycleStackConfig) (*produc
 		AssetRegistry: assetRegistry, CacheRegistry: cacheRegistry,
 		IdentityRegistry: identityRegistry, IdentityStore: identityStore,
 		QueryRegistry: queryRegistry, QueryCoreCatalog: queryCoreCatalog,
+		SEORegistry:        seoRegistry,
 		RouteProviders:     routeProviders,
 		ProviderSlots:      providerSlots,
 		RegistryRepository: registryRepository, Registries: registries,
@@ -255,7 +265,8 @@ func (s *productionLifecycleStack) bindService(service *extensions.Service) erro
 	if s == nil || service == nil || s.Coordinator == nil || s.StaticPreflight == nil ||
 		s.Repository == nil || s.CleanupFinalizer == nil || s.RouteProviders == nil || s.ProviderSlots == nil ||
 		s.ComponentRegistry == nil || s.AssetRegistry == nil || s.CacheRegistry == nil || s.QueryRegistry == nil ||
-		s.QueryCoreCatalog == nil || s.IdentityRegistry == nil || s.IdentityStore == nil || s.Registries == nil {
+		s.QueryCoreCatalog == nil || s.SEORegistry == nil || s.IdentityRegistry == nil || s.IdentityStore == nil ||
+		s.Registries == nil {
 		return errProductionLifecycleDependency
 	}
 	extensions.WithLifecycleCoordinator(s.Coordinator, s.StaticPreflight, s.Repository)(service)
