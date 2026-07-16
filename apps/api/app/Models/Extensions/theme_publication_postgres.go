@@ -19,6 +19,8 @@ type themePublicationTuple struct {
 	Digest    string
 }
 
+const themeRuntimeActivationLockKey = "sforum.theme.activation.v1"
+
 func (t themePublicationTuple) matches(id, version, digest string) bool {
 	return t.ID == id && t.Version == version && strings.EqualFold(t.Digest, digest)
 }
@@ -40,7 +42,7 @@ func (s *PostgresStore) activateThemePublished(
 		return ThemeActivationResult{}, fmt.Errorf("begin theme activation publication: %w", err)
 	}
 	defer tx.Rollback(ctx)
-	if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtext('sforum.theme.activation.v1'))`); err != nil {
+	if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtext($1))`, themeRuntimeActivationLockKey); err != nil {
 		return ThemeActivationResult{}, fmt.Errorf("lock theme activation publication: %w", err)
 	}
 
@@ -124,7 +126,7 @@ func (s *PostgresStore) CompensateThemeActivation(
 		return ThemeActivationResult{}, fmt.Errorf("begin theme activation compensation: %w", err)
 	}
 	defer tx.Rollback(ctx)
-	if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtext('sforum.theme.activation.v1'))`); err != nil {
+	if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtext($1))`, themeRuntimeActivationLockKey); err != nil {
 		return ThemeActivationResult{}, fmt.Errorf("lock theme activation compensation: %w", err)
 	}
 	latest, err := loadLatestThemeRuntimePublication(ctx, tx, true)

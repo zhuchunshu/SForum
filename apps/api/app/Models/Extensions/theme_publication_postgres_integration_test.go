@@ -466,6 +466,18 @@ type themePublicationPGFixture struct {
 }
 
 func newThemePublicationPGFixture(t *testing.T, label string) *themePublicationPGFixture {
+	return newThemePublicationPGFixtureWithInitialPublication(t, label, true)
+}
+
+func newThemePublicationPGFixtureWithoutPublication(t *testing.T, label string) *themePublicationPGFixture {
+	return newThemePublicationPGFixtureWithInitialPublication(t, label, false)
+}
+
+func newThemePublicationPGFixtureWithInitialPublication(
+	t *testing.T,
+	label string,
+	publishInitial bool,
+) *themePublicationPGFixture {
 	t.Helper()
 	databaseURL := strings.TrimSpace(os.Getenv("SFORUM_TEST_DATABASE_URL"))
 	if databaseURL == "" {
@@ -569,8 +581,15 @@ func newThemePublicationPGFixture(t *testing.T, label string) *themePublicationP
 	keepAdmin = true
 	t.Cleanup(fixture.cleanup)
 	base := fixture.saveTheme("base", "1.0.0", strings.Repeat("0", 64))
-	if _, err := fixture.store.ActivateTheme(ctx, base.ID); err != nil {
-		t.Fatal(err)
+	if publishInitial {
+		if _, err := fixture.store.ActivateTheme(ctx, base.ID); err != nil {
+			t.Fatal(err)
+		}
+	} else if command, err := fixture.pool.Exec(ctx, `
+		UPDATE extensions SET status = 'enabled', updated_at = statement_timestamp()
+		WHERE id = $1 AND type = 'theme' AND active_version_id = $2
+	`, base.ID, base.ActiveVersionID); err != nil || command.RowsAffected() != 1 {
+		t.Fatalf("prepare legacy active theme: rows=%d error=%v", command.RowsAffected(), err)
 	}
 	return fixture
 }
