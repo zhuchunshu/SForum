@@ -328,6 +328,20 @@ func (s *pluginRuntimeFullSetStarter) StopInstance(ctx context.Context, identity
 	return s.inner.StopInstance(ctx, identity)
 }
 
+func (s *pluginRuntimeFullSetStarter) StopRetainedInstance(ctx context.Context, identity RuntimeInstanceIdentity) error {
+	snapshot, err := s.inner.InspectInstance(identity)
+	if err != nil {
+		return err
+	}
+	if snapshot.State != ProtocolRuntimeRetained {
+		return ErrProtocolInstancePublished
+	}
+	if snapshot.ProtocolVersion == 1 {
+		s.legacyStopCount.Add(1)
+	}
+	return s.StopInstance(ctx, identity)
+}
+
 func (s *pluginRuntimeFullSetStarter) DiscardInstance(ctx context.Context, identity RuntimeInstanceIdentity) error {
 	return s.inner.DiscardInstance(ctx, identity)
 }
@@ -401,6 +415,66 @@ func TestPluginRuntimeFullSetKeepsProtocolV1AndV2LTSMembersTogether(t *testing.T
 	}
 	if !starter.RuntimeInstanceSetVisible(context.Background(), []RuntimeInstanceIdentity{legacyActive.Identity, currentActive.Identity}) {
 		t.Fatal("Protocol V1 and V2 members were not visible in one complete LTS set")
+	}
+}
+
+func TestPluginRuntimeFullSetRemovesExactProtocolV1AfterDurableRevocation(t *testing.T) {
+	starter := newPluginRuntimeFullSetStarter()
+	manager := NewManager(ManagerConfig{Starter: starter})
+	inventory := newPluginRuntimeFullSetTestInventory()
+	legacy := inventory.seed(t, "revoke.protocol.v1", 11, "1.0.0", "revoke-protocol-v1")
+	current := inventory.seed(t, "revoke.protocol.v2", 12, "2.0.0", "revoke-protocol-v2")
+	markPluginRuntimeFullSetProtocolV1(t, inventory, legacy.ID, legacy.Version, "revoke-protocol-v1")
+	legacyExact := pluginRuntimeExactExtension(
+		inventory.extensions[legacy.ID],
+		inventory.versions[inventory.versionKey(legacy.ID, legacy.Version, pluginRuntimeFullSetDigest("revoke-protocol-v1"))],
+		inventory.member(legacy.ID, 11, legacy.Version, "revoke-protocol-v1"),
+	)
+	if err := manager.Start(context.Background(), legacyExact); err != nil {
+		t.Fatalf("start Protocol V1 compatibility runtime: %v", err)
+	}
+	legacyActive, err := manager.ActiveRuntimeInstance(legacy.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	applier := mustNewPluginRuntimeFullSetApplier(t, manager, inventory)
+	if _, err := applier.ApplyPluginRuntimeFullSet(context.Background(), inventory.publication(
+		extensions.PluginRuntimePublicationEnable,
+		inventory.member(legacy.ID, 11, legacy.Version, "revoke-protocol-v1"),
+		inventory.member(current.ID, 12, current.Version, "revoke-protocol-v2"),
+	)); err != nil {
+		t.Fatalf("publish mixed LTS set: %v", err)
+	}
+	currentActive, err := manager.ActiveRuntimeInstance(current.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	applied, err := applier.ApplyPluginRuntimeFullSet(context.Background(), inventory.publication(
+		extensions.PluginRuntimePublicationRecovery,
+		inventory.member(current.ID, 12, current.Version, "revoke-protocol-v2"),
+	))
+	if err != nil {
+		t.Fatalf("remove revoked Protocol V1 member: %v", err)
+	}
+	if len(applied) != 1 || applied[0].ExtensionID != current.ID || applied[0].RuntimeInstanceID != currentActive.Identity.InstanceID {
+		t.Fatalf("applied set = %#v", applied)
+	}
+	if _, err := manager.ActiveRuntimeInstance(legacy.ID); !errors.Is(err, ErrRuntimeInstanceNotFound) {
+		t.Fatalf("revoked Protocol V1 still active: %v", err)
+	}
+	if _, err := manager.InspectRuntimeInstance(legacyActive.Identity); !errors.Is(err, ErrRuntimeInstanceNotFound) {
+		t.Fatalf("revoked Protocol V1 manager instance retained: %v", err)
+	}
+	if _, err := starter.InspectInstance(legacyActive.Identity); !errors.Is(err, ErrRuntimeInstanceNotFound) {
+		t.Fatalf("revoked Protocol V1 process retained: %v", err)
+	}
+	if starter.legacyStopCount.Load() != 1 {
+		t.Fatalf("Protocol V1 exact stops = %d want 1", starter.legacyStopCount.Load())
+	}
+	if !starter.RuntimeInstanceSetVisible(context.Background(), []RuntimeInstanceIdentity{currentActive.Identity}) {
+		t.Fatal("remaining Protocol V2 member is not the complete visible set")
 	}
 }
 

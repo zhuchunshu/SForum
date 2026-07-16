@@ -74,14 +74,25 @@ func TestProtocolV1BuiltInCompatibilityPackages(t *testing.T) {
 			if target.BaseURL != "" {
 				t.Fatalf("provider package exposed unexpected route target %q", target.BaseURL)
 			}
+			identity := extensionsruntime.RuntimeInstanceIdentity{
+				ExtensionID: extension.ID, InstanceID: target.InstanceID,
+			}
 
 			exercise(t, ctx, starter, extension)
 			telemetry := starter.ProtocolTelemetry(extension.ID)
 			if telemetry.ProtocolVersion != 1 || telemetry.Transport != "net/rpc" || !telemetry.Deprecated || telemetry.StartCount != 1 || telemetry.CallCount == 0 {
 				t.Fatalf("unexpected v1 telemetry: %#v", telemetry)
 			}
-			if err := starter.Stop(context.Background(), extension); err != nil {
-				t.Fatalf("stop built-in package: %v", err)
+			if err := starter.StopRetainedInstance(context.Background(), identity); !errors.Is(err, extensionsruntime.ErrProtocolInstancePublished) {
+				t.Fatalf("active Protocol V1 retained-stop error = %v", err)
+			}
+			published, lease, err := starter.PublishInstanceSet(context.Background(), nil)
+			if err != nil || len(published) != 0 || lease == nil {
+				t.Fatalf("remove Protocol V1 from complete set = %#v lease=%v err=%v", published, lease, err)
+			}
+			lease.Release()
+			if err := starter.StopRetainedInstance(context.Background(), identity); err != nil {
+				t.Fatalf("stop retained built-in package: %v", err)
 			}
 			started = false
 			if _, err := starter.ProviderProbe(ctx, extension.ID, extensionsruntime.ProviderProbeRequest{}); !errors.Is(err, extensions.ErrRuntimeUnavailable) {

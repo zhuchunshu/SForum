@@ -452,9 +452,6 @@ func (a *ManagerPluginRuntimeFullSetApplier) buildPluginRuntimeFullSetPlan(
 		if err != nil {
 			return nil, err
 		}
-		if manifestProtocolVersion(instance.extension) != 2 {
-			return nil, fmt.Errorf("%w: Protocol V1 runtime %s requires explicit legacy removal", ErrProtocolInstanceTransitionBlocked, extensionID)
-		}
 		plan.removals = append(plan.removals, pluginRuntimeFullSetRemoval{
 			identity:  identity,
 			extension: instance.extension,

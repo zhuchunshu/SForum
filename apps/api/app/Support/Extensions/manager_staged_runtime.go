@@ -418,7 +418,14 @@ func (m *Manager) removeManagedProtocolRuntimeSetLocked(ctx context.Context, ide
 			return err
 		}
 	}
-	if discard {
+	if !discard && manifestProtocolVersion(extension) == 1 {
+		stopper, ok := m.starter.(RetainedRuntimeStopper)
+		if !ok {
+			err = ErrProtocolInstanceUnsupported
+		} else {
+			err = stopper.StopRetainedInstance(ctx, identity)
+		}
+	} else if discard {
 		err = starter.DiscardInstance(ctx, identity)
 	} else {
 		err = starter.StopInstance(ctx, identity)

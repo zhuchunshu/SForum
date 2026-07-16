@@ -61,6 +61,13 @@ type StagedRuntimeStarter interface {
 	DiscardInstance(context.Context, RuntimeInstanceIdentity) error
 }
 
+// RetainedRuntimeStopper 只回收已经从完整活动集合退役的 exact process。
+// Protocol V1 不支持 staged replacement，但 trust revoke/disable 仍必须能在
+// full-set 已原子摘除其 transport 后按 instance identity 完成进程清理。
+type RetainedRuntimeStopper interface {
+	StopRetainedInstance(context.Context, RuntimeInstanceIdentity) error
+}
+
 // StagedRuntimeSetStarter publishes the complete desired V2 process set at
 // one ProtocolStarter and ServiceRegistry linearization boundary.
 type StagedRuntimeSetStarter interface {
@@ -745,6 +752,50 @@ func (s *ProtocolStarter) StopInstance(ctx context.Context, identity RuntimeInst
 	}
 	defer unlock()
 	return s.stopProtocolInstanceLocked(identity, false)
+}
+
+// StopRetainedInstance stops one exact V1/V2 process only after complete-set
+// publication has made it unreachable. It cannot stop an active or staged
+// candidate and therefore does not widen Protocol V1 replacement semantics.
+func (s *ProtocolStarter) StopRetainedInstance(ctx context.Context, identity RuntimeInstanceIdentity) error {
+	if s == nil {
+		return extensions.ErrRuntimeUnavailable
+	}
+	identity, err := normalizeRuntimeInstanceIdentity(identity)
+	if err != nil {
+		return err
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	unlockSet, err := s.lockRuntimeSetTransition(ctx)
+	if err != nil {
+		return err
+	}
+	defer unlockSet()
+	unlock, err := s.lockExtensionLifecycleContext(ctx, identity.ExtensionID)
+	if err != nil {
+		return err
+	}
+	defer unlock()
+
+	s.mu.Lock()
+	instance := s.runtimeInstanceLocked(identity)
+	if instance == nil {
+		s.mu.Unlock()
+		return protocolInstanceNotFound(identity)
+	}
+	active := s.activeRuntimeInstances[identity.ExtensionID] == identity.InstanceID
+	retained := instance.everPublished && !instance.published && !active
+	supported := instance.protocolVersion == 1 || instance.protocolVersion == 2
+	s.mu.Unlock()
+	if !supported {
+		return ErrProtocolInstanceUnsupported
+	}
+	if !retained {
+		return fmt.Errorf("%w: %s/%s is not retained", ErrProtocolInstancePublished, identity.ExtensionID, identity.InstanceID)
+	}
+	return s.stopProtocolInstanceLocked(identity, true)
 }
 
 // DiscardInstance 只销毁从未发布的 V2 候选，不能误删活动或 rollback 保留实例。
