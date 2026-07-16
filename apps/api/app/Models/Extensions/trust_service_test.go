@@ -365,7 +365,7 @@ func TestManifestV3TrustImpactIncludesEveryDeclarationAndExecutableDigest(t *tes
 	}
 	if len(impact.GuardDeclarations) != 1 || len(impact.MigrationDeclarations) != 1 || len(impact.Schedules) != 1 ||
 		len(impact.RegistryComponents) != 1 || len(impact.Templates) != 1 || len(impact.Assets) != 1 || len(impact.Content) != 1 ||
-		impact.Database == nil || len(impact.Cache) != 1 || len(impact.Services) != 1 || len(impact.Commands) != 1 ||
+		impact.Database == nil || len(impact.Cache) != 1 || len(impact.SEO) != 1 || len(impact.Services) != 1 || len(impact.Commands) != 1 ||
 		len(impact.AdminSurfaces) != 1 || len(impact.Queries) != 1 || impact.Identity == nil || len(impact.PermissionDefinitions) != 1 ||
 		len(impact.Media) != 1 || len(impact.Navigation) != 1 || len(impact.Regions) != 1 || len(impact.Dependencies) != 1 ||
 		impact.Lifecycle == nil || len(impact.OpenAPI) != 1 || len(impact.PackageFiles) != 7 {
@@ -434,6 +434,7 @@ func TestManifestV3EveryDeclarationInvalidatesCanonicalTrustImpact(t *testing.T)
 		{name: "content", change: func(impact *TrustImpact) { impact.Content = nil }},
 		{name: "database", change: func(impact *TrustImpact) { impact.Database = nil }},
 		{name: "cache", change: func(impact *TrustImpact) { impact.Cache = nil }},
+		{name: "seo", change: func(impact *TrustImpact) { impact.SEO = nil }},
 		{name: "service", change: func(impact *TrustImpact) { impact.Services = nil }},
 		{name: "command", change: func(impact *TrustImpact) { impact.Commands = nil }},
 		{name: "admin surface", change: func(impact *TrustImpact) { impact.AdminSurfaces = nil }},
@@ -460,6 +461,22 @@ func TestManifestV3EveryDeclarationInvalidatesCanonicalTrustImpact(t *testing.T)
 				t.Fatalf("%s change did not invalidate impact digest", test.name)
 			}
 		})
+	}
+}
+
+func TestEmptySEOFamilyPreservesPreSEOTrustDigestShape(t *testing.T) {
+	impact, err := buildTrustImpact(exactTrustExtension(t, "demo.pre-seo"), TrustActionEnable)
+	if err != nil {
+		t.Fatal(err)
+	}
+	changed := impact
+	changed.SEO = []ManifestSEO{}
+	digest, err := canonicalTrustImpactDigest(changed)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if digest != impact.Digest {
+		t.Fatal("empty additive SEO family invalidated a package that could not declare SEO")
 	}
 }
 
@@ -708,6 +725,11 @@ func completeV3TrustExtension(t *testing.T, id string) Extension {
 	}
 	item.Manifest.Cache = []ManifestCache{{
 		ID: id + ".cache.results", ContractVersion: id + ".cache.results@1", Namespace: id + ".results", Policy: "actor",
+	}}
+	item.Manifest.SEO = []ManifestSEO{{
+		ID: id + ".seo.topic-title", ContractVersion: id + ".seo.topic-title@1",
+		Scope: "core.page.topic", Kind: "title", Action: "filter", Handler: id + ".seo.topic-title",
+		FailurePolicy: "fallback", TimeoutMS: 500,
 	}}
 	item.Manifest.Services = []ManifestService{{
 		ID: id + ".service.lookup", ContractVersion: id + ".service.lookup@1", Action: "add", Handler: "service.lookup",

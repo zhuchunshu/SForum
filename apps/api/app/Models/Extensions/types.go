@@ -160,6 +160,7 @@ type ManifestAsset = extensionmanifest.ManifestAsset
 type ManifestContent = extensionmanifest.ManifestContent
 type ManifestDatabase = extensionmanifest.ManifestDatabase
 type ManifestCache = extensionmanifest.ManifestCache
+type ManifestSEO = extensionmanifest.ManifestSEO
 type ManifestService = extensionmanifest.ManifestService
 type ManifestCommand = extensionmanifest.ManifestCommand
 type ManifestAdminSurface = extensionmanifest.ManifestAdminSurface

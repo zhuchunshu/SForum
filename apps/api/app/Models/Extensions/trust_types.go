@@ -93,6 +93,7 @@ type TrustImpact struct {
 	Content               []ManifestContent              `json:"content"`
 	Database              *ManifestDatabase              `json:"database"`
 	Cache                 []ManifestCache                `json:"cache"`
+	SEO                   []ManifestSEO                  `json:"seo,omitempty"`
 	Services              []ManifestService              `json:"services"`
 	Commands              []ManifestCommand              `json:"commands"`
 	AdminSurfaces         []ManifestAdminSurface         `json:"adminSurfaces"`
