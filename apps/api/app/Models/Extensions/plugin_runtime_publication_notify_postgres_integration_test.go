@@ -34,7 +34,7 @@ func TestPostgresPluginRuntimeNotificationWakesDurablePoll(t *testing.T) {
 	// commit-time NOTIFY 被观察到。
 	waitPluginRuntimeWake(t, wakes, errorsSeen)
 
-	publication, err := fixture.store.PublishPluginRuntimePublication(
+	publication, err := fixture.store.publishPluginRuntimePublication(
 		fixture.ctx, PluginRuntimePublicationStartupReconcile, 0, nil,
 	)
 	if err != nil {
@@ -82,7 +82,7 @@ func TestPostgresPluginRuntimeNotificationReconnectReloadsMissedPublication(t *t
 	waitPluginRuntimeDisconnect(t, errorsSeen)
 
 	// reconnectDelay keeps the listener offline while this revision commits.
-	publication, err := fixture.store.PublishPluginRuntimePublication(
+	publication, err := fixture.store.publishPluginRuntimePublication(
 		fixture.ctx, PluginRuntimePublicationStartupReconcile, 0, nil,
 	)
 	if err != nil {

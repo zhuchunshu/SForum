@@ -23,7 +23,7 @@ func TestPostgresPluginRuntimePublicationFullSetRoundTrip(t *testing.T) {
 	}
 
 	members := []PluginRuntimeMember{fixture.secondMember(), fixture.firstMember()}
-	publication, err := fixture.store.PublishPluginRuntimePublication(
+	publication, err := fixture.store.publishPluginRuntimePublication(
 		fixture.ctx, PluginRuntimePublicationStartupReconcile, 42, members,
 	)
 	if err != nil {
@@ -64,7 +64,7 @@ func TestPostgresPluginRuntimePublicationFullSetRoundTrip(t *testing.T) {
 		t.Fatalf("Go digest=%s SQL digest=%s", publication.MembersDigest, sqlDigest)
 	}
 
-	empty, err := fixture.store.PublishPluginRuntimePublication(
+	empty, err := fixture.store.publishPluginRuntimePublication(
 		fixture.ctx, PluginRuntimePublicationRecovery, 0, nil,
 	)
 	if err != nil {
@@ -80,7 +80,7 @@ func TestPostgresPluginRuntimePublicationFullSetRoundTrip(t *testing.T) {
 	if _, err := fixture.store.PluginRuntimePublicationByRevision(fixture.ctx, empty.Revision+1000); !errors.Is(err, ErrPluginRuntimePublicationNotFound) {
 		t.Fatalf("missing revision error=%v", err)
 	}
-	if _, err := fixture.store.PublishPluginRuntimePublication(
+	if _, err := fixture.store.publishPluginRuntimePublication(
 		fixture.ctx, PluginRuntimePublicationEnable, 1, []PluginRuntimeMember{fixture.themeMember()},
 	); !errors.Is(err, ErrPluginRuntimePublicationConflict) || !strings.Contains(err.Error(), "must be a plugin") {
 		t.Fatalf("theme publication error=%v", err)
@@ -89,7 +89,7 @@ func TestPostgresPluginRuntimePublicationFullSetRoundTrip(t *testing.T) {
 
 func TestPostgresPluginRuntimeNodeApplyCASAndWorkerRetry(t *testing.T) {
 	fixture := newPluginRuntimePublicationPGFixture(t, "node-cas")
-	publication, err := fixture.store.PublishPluginRuntimePublication(
+	publication, err := fixture.store.publishPluginRuntimePublication(
 		fixture.ctx, PluginRuntimePublicationEnable, 7, []PluginRuntimeMember{fixture.firstMember()},
 	)
 	if err != nil {
@@ -200,7 +200,7 @@ func TestPostgresPluginRuntimeNodeApplyCASAndWorkerRetry(t *testing.T) {
 		t.Fatalf("applied replay error=%v", err)
 	}
 
-	empty, err := fixture.store.PublishPluginRuntimePublication(
+	empty, err := fixture.store.publishPluginRuntimePublication(
 		fixture.ctx, PluginRuntimePublicationRecovery, 0, nil,
 	)
 	if err != nil {
@@ -237,7 +237,7 @@ func TestPostgresPluginRuntimeNodeApplyCASAndWorkerRetry(t *testing.T) {
 
 func TestPostgresPluginRuntimeExpiredBootCannotResume(t *testing.T) {
 	fixture := newPluginRuntimePublicationPGFixture(t, "expired")
-	publication, err := fixture.store.PublishPluginRuntimePublication(
+	publication, err := fixture.store.publishPluginRuntimePublication(
 		fixture.ctx, PluginRuntimePublicationStartupReconcile, 0, nil,
 	)
 	if err != nil {
@@ -299,7 +299,9 @@ func newPluginRuntimePublicationPGFixture(t *testing.T, label string) *pluginRun
 	if err != nil {
 		t.Fatal(err)
 	}
-	schema := fmt.Sprintf("plugin_runtime_publication_%s_%d", label, time.Now().UnixNano())
+	// PostgreSQL 会把标识符截断到 63 字节；唯一部分必须放在前面，避免
+	// 长 label 在 -count 重跑时把尾部时间戳截掉并复用旧 schema。
+	schema := fmt.Sprintf("prp_%d_%s", time.Now().UnixNano(), label)
 	quotedSchema := pgx.Identifier{schema}.Sanitize()
 	if _, err := admin.Exec(ctx, "CREATE SCHEMA "+quotedSchema); err != nil {
 		admin.Close()
@@ -322,14 +324,20 @@ func newPluginRuntimePublicationPGFixture(t *testing.T, label string) *pluginRun
 	if _, err := db.ExecContext(ctx, `
 		CREATE TABLE extensions (
 			id TEXT PRIMARY KEY,
-			type TEXT NOT NULL
+			type TEXT NOT NULL,
+			status TEXT NOT NULL DEFAULT 'installed',
+			active_version_id BIGINT
 		);
 		CREATE TABLE extension_versions (
 			id BIGINT PRIMARY KEY,
 			extension_id TEXT NOT NULL REFERENCES extensions(id) ON DELETE CASCADE,
 			version TEXT NOT NULL,
-			package_digest TEXT NOT NULL
+			package_digest TEXT NOT NULL,
+			manifest JSONB NOT NULL DEFAULT '{}'::jsonb
 		);
+		ALTER TABLE extensions
+			ADD CONSTRAINT extensions_active_version_fk
+			FOREIGN KEY (active_version_id) REFERENCES extension_versions(id) ON DELETE SET NULL;
 		INSERT INTO extensions (id, type) VALUES
 			('fixture.plugin', 'plugin'),
 			('second.plugin', 'plugin'),
@@ -375,6 +383,7 @@ func newPluginRuntimePublicationPGFixture(t *testing.T, label string) *pluginRun
 		t.Fatal(err)
 	}
 	poolConfig.ConnConfig.RuntimeParams["search_path"] = schema + ",public"
+	poolConfig.ConnConfig.RuntimeParams["application_name"] = schema
 	pool, err := pgxpool.NewWithConfig(ctx, poolConfig)
 	if err != nil {
 		removeSchema()

@@ -15,25 +15,17 @@ const pluginRuntimePublicationSelect = `
 	SELECT revision, member_count, members_digest, reason, actor_user_id, created_at
 	FROM plugin_runtime_publications`
 
-func (s *PostgresStore) PublishPluginRuntimePublication(
+func insertPluginRuntimePublication(
 	ctx context.Context,
+	tx pgx.Tx,
 	reason PluginRuntimePublicationReason,
 	actorUserID int64,
 	members []PluginRuntimeMember,
 ) (PluginRuntimePublication, error) {
-	if s == nil || s.pool == nil || ctx == nil || actorUserID < 0 || !validPluginRuntimePublicationReason(reason) {
-		return PluginRuntimePublication{}, ErrPluginRuntimePublicationConflict
-	}
 	canonical, digest, err := canonicalPluginRuntimeMembers(members)
 	if err != nil {
 		return PluginRuntimePublication{}, ErrPluginRuntimePublicationConflict
 	}
-	tx, err := s.pool.Begin(ctx)
-	if err != nil {
-		return PluginRuntimePublication{}, fmt.Errorf("begin plugin runtime publication: %w", err)
-	}
-	defer func() { _ = tx.Rollback(context.Background()) }()
-
 	publication := PluginRuntimePublication{
 		MemberCount: len(canonical), MembersDigest: digest, Members: canonical,
 		Reason: reason, ActorUserID: actorUserID,
@@ -64,12 +56,6 @@ func (s *PostgresStore) PublishPluginRuntimePublication(
 				mapPluginRuntimePostgresError(err, ErrPluginRuntimePublicationConflict),
 			)
 		}
-	}
-	if err := tx.Commit(ctx); err != nil {
-		return PluginRuntimePublication{}, fmt.Errorf(
-			"commit plugin runtime publication: %w",
-			mapPluginRuntimePostgresError(err, ErrPluginRuntimePublicationConflict),
-		)
 	}
 	return publication, nil
 }

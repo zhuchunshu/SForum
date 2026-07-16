@@ -80,31 +80,6 @@ func (r *pluginRuntimeCoordinatorTestRepository) seedNode(
 	r.registered = true
 }
 
-func (r *pluginRuntimeCoordinatorTestRepository) PublishPluginRuntimePublication(
-	ctx context.Context,
-	reason PluginRuntimePublicationReason,
-	actorUserID int64,
-	members []PluginRuntimeMember,
-) (PluginRuntimePublication, error) {
-	if err := ctx.Err(); err != nil {
-		return PluginRuntimePublication{}, err
-	}
-	canonical, digest, err := canonicalPluginRuntimeMembers(members)
-	if err != nil {
-		return PluginRuntimePublication{}, err
-	}
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	revision := r.latest + 1
-	publication := PluginRuntimePublication{
-		Revision: revision, MemberCount: len(canonical), MembersDigest: digest,
-		Members: canonical, Reason: reason, ActorUserID: actorUserID, CreatedAt: time.Now().UTC(),
-	}
-	r.publications[revision] = clonePluginRuntimePublication(publication)
-	r.latest = revision
-	return publication, nil
-}
-
 func (r *pluginRuntimeCoordinatorTestRepository) LatestPluginRuntimePublication(
 	ctx context.Context,
 ) (PluginRuntimePublication, error) {

@@ -46,12 +46,6 @@ type PluginRuntimePublication struct {
 }
 
 type PluginRuntimePublicationRepository interface {
-	PublishPluginRuntimePublication(
-		context.Context,
-		PluginRuntimePublicationReason,
-		int64,
-		[]PluginRuntimeMember,
-	) (PluginRuntimePublication, error)
 	LatestPluginRuntimePublication(context.Context) (PluginRuntimePublication, error)
 	PluginRuntimePublicationByRevision(context.Context, int64) (PluginRuntimePublication, error)
 }
