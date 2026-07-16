@@ -167,6 +167,7 @@ func (d *Dispatcher) Dispatch(ctx context.Context, request DispatchRequest, core
 	request.Body = append([]byte(nil), request.Body...)
 	request.Permissions = cloneDispatchPermissions(request.Permissions)
 
+	commit := NewRouteCommitObserver()
 	var idempotencyLease RouteIdempotencyLease
 	preservePending := false
 	terminal := plan.Terminal()
@@ -194,14 +195,13 @@ func (d *Dispatcher) Dispatch(ctx context.Context, request DispatchRequest, core
 				return DispatchResult{}, ErrDispatchIdempotencyUnavailable
 			}
 			defer func() {
-				if !preservePending {
+				if !preservePending && !commit.ExecutionObserved() {
 					_ = idempotencyLease.Abort(ctx)
 				}
 			}()
 		}
 	}
 
-	commit := NewRouteCommitObserver()
 	var response *DispatchResponse
 	committingStep := -1
 	var committingStarted time.Time
@@ -480,8 +480,9 @@ func (d *Dispatcher) fallback(
 // RouteCommitObserver is concurrency-safe because future streaming transports
 // may report response and side-effect commits from independent goroutines.
 type RouteCommitObserver struct {
-	mu    sync.Mutex
-	state RouteExecutionCommitState
+	mu                sync.Mutex
+	state             RouteExecutionCommitState
+	executionObserved bool
 }
 
 func NewRouteCommitObserver() *RouteCommitObserver {
@@ -505,6 +506,18 @@ func (o *RouteCommitObserver) SideEffectStarted() bool {
 	return o.advance(RouteCommitSideEffectStarted)
 }
 
+// ExecutionObserved is monotonic and survives Finalize. Required-idempotency
+// leases use it to distinguish a safe pre-dispatch failure from an unknown
+// remote outcome that must remain pending.
+func (o *RouteCommitObserver) ExecutionObserved() bool {
+	if o == nil {
+		return false
+	}
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	return o.executionObserved
+}
+
 func (o *RouteCommitObserver) Finalize() bool {
 	if o == nil {
 		return false
@@ -524,6 +537,8 @@ func (o *RouteCommitObserver) advance(next RouteExecutionCommitState) bool {
 	}
 	o.mu.Lock()
 	defer o.mu.Unlock()
+	// Evidence can race with Finalize; record it before inspecting terminal state.
+	o.executionObserved = true
 	if o.state == RouteCommitSideEffectStarted && next == RouteCommitResponseStarted {
 		o.state = next
 		return true

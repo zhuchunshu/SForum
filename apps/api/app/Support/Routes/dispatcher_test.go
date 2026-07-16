@@ -382,11 +382,19 @@ func TestRouteCommitObserverIsSingleFinalizerAndNeverReturnsToPristine(t *testin
 	go func() { defer wait.Done(); observer.ResponseStarted() }()
 	go func() { defer wait.Done(); observer.SideEffectStarted() }()
 	wait.Wait()
-	if observer.State() != RouteCommitResponseStarted {
+	if observer.State() != RouteCommitResponseStarted || !observer.ExecutionObserved() {
 		t.Fatalf("state=%q", observer.State())
 	}
 	if !observer.Finalize() || observer.Finalize() || observer.State() != RouteCommitFinal {
 		t.Fatalf("final state=%q", observer.State())
+	}
+
+	finalizedFirst := NewRouteCommitObserver()
+	if !finalizedFirst.Finalize() || finalizedFirst.ExecutionObserved() {
+		t.Fatalf("unexpected pristine finalization: state=%q observed=%t", finalizedFirst.State(), finalizedFirst.ExecutionObserved())
+	}
+	if finalizedFirst.SideEffectStarted() || !finalizedFirst.ExecutionObserved() || finalizedFirst.State() != RouteCommitFinal {
+		t.Fatalf("late evidence was lost: state=%q observed=%t", finalizedFirst.State(), finalizedFirst.ExecutionObserved())
 	}
 }
 

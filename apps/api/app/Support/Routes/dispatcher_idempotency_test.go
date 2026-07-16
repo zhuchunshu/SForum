@@ -78,6 +78,45 @@ func TestDispatcherAbortsFailedExecutionButPreservesUnknownCompletion(t *testing
 		}
 	})
 
+	t.Run("observed transport failure keeps pending", func(t *testing.T) {
+		lease := &dispatchIdempotencyLease{}
+		dispatcher := NewDispatcher(DispatcherConfig{
+			Plans: dispatchPlanResolver{plan: dispatchPlan("POST", "/custom", nil, []RouteExecutionStep{step}, 0)},
+			Steps: &dispatchStepInvoker{invoke: func(context.Context, RouteInvocation) (RouteInvocationResult, error) {
+				return RouteInvocationResult{SideEffectStarted: true}, errors.New("plugin failed after dispatch")
+			}},
+			Guard: &dispatchGuard{}, Schemas: &dispatchSchemas{}, Policies: policy,
+			Idempotency: &dispatchIdempotencyController{lease: lease},
+		})
+		if _, err := dispatcher.Dispatch(context.Background(), DispatchRequest{Method: "POST", Path: "/custom"}, nil); !errors.Is(err, ErrDispatchTransport) {
+			t.Fatalf("error = %v", err)
+		}
+		if lease.abortCalls != 0 || lease.completeCalls != 0 {
+			t.Fatalf("lease = %#v", lease)
+		}
+	})
+
+	t.Run("response schema rejection keeps pending", func(t *testing.T) {
+		lease := &dispatchIdempotencyLease{}
+		responseStep := step
+		responseStep.RequestSchema = ""
+		response := DispatchResponse{Status: http.StatusOK, Body: []byte(`{"ok":true}`)}
+		dispatcher := NewDispatcher(DispatcherConfig{
+			Plans: dispatchPlanResolver{plan: dispatchPlan("POST", "/custom", nil, []RouteExecutionStep{responseStep}, 0)},
+			Steps: &dispatchStepInvoker{invoke: func(context.Context, RouteInvocation) (RouteInvocationResult, error) {
+				return RouteInvocationResult{Response: &response, ResponseStarted: true}, nil
+			}},
+			Guard: &dispatchGuard{}, Schemas: &dispatchSchemas{err: errors.New("response rejected")}, Policies: policy,
+			Idempotency: &dispatchIdempotencyController{lease: lease},
+		})
+		if _, err := dispatcher.Dispatch(context.Background(), DispatchRequest{Method: "POST", Path: "/custom"}, nil); !errors.Is(err, ErrDispatchSchema) {
+			t.Fatalf("error = %v", err)
+		}
+		if lease.abortCalls != 0 || lease.completeCalls != 0 {
+			t.Fatalf("lease = %#v", lease)
+		}
+	})
+
 	t.Run("completion failure keeps pending", func(t *testing.T) {
 		lease := &dispatchIdempotencyLease{completeErr: errors.New("redis unavailable")}
 		response := DispatchResponse{Status: http.StatusOK}
