@@ -182,6 +182,20 @@ ExtensionManifestCache:
     invalidators:
       type: array
       items: { type: string }
+ExtensionManifestSEO:
+  type: object
+  description: Typed executable contribution to sforum.seo-registry@1; Host final SEO policy remains authoritative.
+  required: [id, contractVersion, scope, kind, action, handler, failurePolicy]
+  properties:
+    id: { type: string }
+    contractVersion: { type: string }
+    scope: { type: string, description: Stable page/route id or global. }
+    kind: { type: string, enum: [title, meta, canonical, robots, hreflang, sitemap, jsonld] }
+    action: { type: string, enum: [add, filter, replace] }
+    handler: { type: string }
+    priority: { type: integer, minimum: -1000000, maximum: 1000000 }
+    failurePolicy: { type: string, enum: [fail_closed, fallback] }
+    timeoutMs: { type: integer, minimum: 1, maximum: 5000, default: 500 }
 ExtensionManifestService:
   type: object
   required: [id, contractVersion, action, handler, requestSchema, responseSchema]
@@ -284,6 +298,7 @@ ExtensionManifestIncludes:
     content: { "$ref": "#/ExtensionManifestInclude" }
     database: { "$ref": "#/ExtensionManifestInclude" }
     cache: { "$ref": "#/ExtensionManifestInclude" }
+    seo: { "$ref": "#/ExtensionManifestInclude" }
     services: { "$ref": "#/ExtensionManifestInclude" }
     commands: { "$ref": "#/ExtensionManifestInclude" }
     adminSurfaces: { "$ref": "#/ExtensionManifestInclude" }

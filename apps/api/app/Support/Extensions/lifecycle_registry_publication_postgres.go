@@ -198,8 +198,8 @@ func validLifecycleRegistryPrepareInput(input PrepareLifecycleRegistryPublicatio
 }
 
 func validLifecycleRegistryCompatibleDigests(values []string, primary string) bool {
-	// Cache Registry plan @4 may resume any exact @1/@2/@3 material digest.
-	if len(values) > 3 {
+	// SEO Registry plan @5 may resume any exact @1/@2/@3/@4 material digest.
+	if len(values) > 4 {
 		return false
 	}
 	seen := make(map[string]struct{}, len(values))

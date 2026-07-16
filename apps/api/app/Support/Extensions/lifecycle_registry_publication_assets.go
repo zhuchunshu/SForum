@@ -20,6 +20,7 @@ import (
 	pages "github.com/zhuchunshu/sforum/apps/api/app/Support/Pages"
 	queryregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/QueryRegistry"
 	routes "github.com/zhuchunshu/sforum/apps/api/app/Support/Routes"
+	seoregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/SEORegistry"
 )
 
 type lifecycleRegistryDigestDocument struct {
@@ -39,6 +40,7 @@ type lifecycleRegistryDigestDocument struct {
 	AssetAdmitted      bool                          `json:"assetAdmitted,omitempty"`
 	Query              *queryregistry.Publication    `json:"query,omitempty"`
 	Cache              *cacheregistry.Publication    `json:"cache,omitempty"`
+	SEO                *seoregistry.Publication      `json:"seo,omitempty"`
 	ProductionFamilies []string                      `json:"productionFamilies"`
 	FoundationFamilies []string                      `json:"foundationFamilies"`
 }
@@ -99,7 +101,32 @@ func refreshLifecycleRegistryMaterialDigest(material *lifecycleRegistryMaterial)
 			material.compatibleDigests = append(material.compatibleDigests, queryDigest)
 		}
 	}
+	if material.seoPublication != nil {
+		// SEO is the @5 additive family. Only digests emitted by an encoder that
+		// could see this exact prior family set are valid recovery aliases.
+		priorDigest := material.digest
+		priorAliases := append([]string(nil), material.compatibleDigests...)
+		seoDigest, seoErr := encodeLifecycleRegistryMaterialDigestV5(material)
+		if seoErr != nil {
+			return seoErr
+		}
+		material.digest = seoDigest
+		material.legacyDigest = legacyDigest
+		material.compatibleDigests = appendLifecycleCompatibleDigest(priorAliases, priorDigest, seoDigest)
+	}
 	return nil
+}
+
+func appendLifecycleCompatibleDigest(values []string, candidate, primary string) []string {
+	if candidate == "" || candidate == primary {
+		return values
+	}
+	for _, value := range values {
+		if value == candidate {
+			return values
+		}
+	}
+	return append(values, candidate)
 }
 
 func encodeLifecycleRegistryMaterialDigest(
@@ -107,11 +134,15 @@ func encodeLifecycleRegistryMaterialDigest(
 	includeAsset bool,
 	includeQuery bool,
 ) (string, error) {
-	return encodeLifecycleRegistryMaterialDigestVersion(material, includeAsset, includeQuery, false)
+	return encodeLifecycleRegistryMaterialDigestVersion(material, includeAsset, includeQuery, false, false)
 }
 
 func encodeLifecycleRegistryMaterialDigestV4(material *lifecycleRegistryMaterial) (string, error) {
-	return encodeLifecycleRegistryMaterialDigestVersion(material, true, true, true)
+	return encodeLifecycleRegistryMaterialDigestVersion(material, true, true, true, false)
+}
+
+func encodeLifecycleRegistryMaterialDigestV5(material *lifecycleRegistryMaterial) (string, error) {
+	return encodeLifecycleRegistryMaterialDigestVersion(material, true, true, true, true)
 }
 
 func encodeLifecycleRegistryMaterialDigestVersion(
@@ -119,6 +150,7 @@ func encodeLifecycleRegistryMaterialDigestVersion(
 	includeAsset bool,
 	includeQuery bool,
 	includeCache bool,
+	includeSEO bool,
 ) (string, error) {
 	extension := material.extension
 	binding := material.binding
@@ -156,10 +188,19 @@ func encodeLifecycleRegistryMaterialDigestVersion(
 			productionFamilies = append(productionFamilies, "caches.v1")
 		}
 	}
+	var seo *seoregistry.Publication
+	if includeSEO {
+		schema = "sforum.lifecycle.registry-plan@5"
+		seo = material.seoPublication
+		if seo != nil {
+			productionFamilies = append(productionFamilies, "seo.v1")
+		}
+	}
 	// @1 remains byte-for-byte compatible with pre-P9 in-flight rows. New
 	// asset-bearing operations persist @2. Query-bearing operations persist @3;
-	// cache-bearing operations persist @4. Earlier versions are accepted only
-	// as explicit recovery aliases computed from the same exact material.
+	// cache-bearing operations persist @4 and SEO-bearing operations persist @5.
+	// Earlier versions are accepted only as explicit recovery aliases computed
+	// from the same exact material.
 	document := lifecycleRegistryDigestDocument{
 		Schema: schema, ExtensionID: extension.ID,
 		ExtensionVersion: extension.Version, PackageDigest: extension.PackageDigest,
@@ -172,6 +213,7 @@ func encodeLifecycleRegistryMaterialDigestVersion(
 		Asset: asset, AssetAdmitted: assetAdmitted,
 		Query:              query,
 		Cache:              cache,
+		SEO:                seo,
 		ProductionFamilies: productionFamilies,
 		FoundationFamilies: []string{"routes.v1-foundation"},
 	}

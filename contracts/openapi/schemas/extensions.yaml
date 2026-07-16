@@ -749,6 +749,11 @@ ExtensionManifest:
       type: array
       items:
         "$ref": "./extensions-v3-registry.yaml#/ExtensionManifestCache"
+    seo:
+      type: array
+      maxItems: 512
+      items:
+        "$ref": "./extensions-v3-registry.yaml#/ExtensionManifestSEO"
     services:
       type: array
       items:
@@ -2160,6 +2165,11 @@ ExecutableTrustImpact:
       type: array
       items:
         "$ref": "./extensions-v3-registry.yaml#/ExtensionManifestCache"
+    seo:
+      type: array
+      maxItems: 512
+      items:
+        "$ref": "./extensions-v3-registry.yaml#/ExtensionManifestSEO"
     services:
       type: array
       items:

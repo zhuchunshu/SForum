@@ -17,6 +17,7 @@ import (
 	pages "github.com/zhuchunshu/sforum/apps/api/app/Support/Pages"
 	queryregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/QueryRegistry"
 	routes "github.com/zhuchunshu/sforum/apps/api/app/Support/Routes"
+	seoregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/SEORegistry"
 )
 
 var (
@@ -77,6 +78,7 @@ type LifecycleRegistryBoundaryConfig struct {
 	Assets         *assetregistry.Registry
 	Caches         *cacheregistry.Registry
 	Queries        *queryregistry.Registry
+	SEO            *seoregistry.Registry
 	AssetAuthority LifecycleAssetAuthority
 	AssetAdmission LifecycleAssetAdmission
 }
@@ -99,6 +101,7 @@ type PostgresLifecycleBoundaryRegistries struct {
 	assets         *assetregistry.Registry
 	caches         *cacheregistry.Registry
 	queries        *queryregistry.Registry
+	seo            *seoregistry.Registry
 	assetAuthority LifecycleAssetAuthority
 	assetAdmission LifecycleAssetAdmission
 }
@@ -122,6 +125,7 @@ func NewPostgresLifecycleBoundaryRegistries(config LifecycleRegistryBoundaryConf
 		assets:         config.Assets,
 		caches:         config.Caches,
 		queries:        config.Queries,
+		seo:            config.SEO,
 		assetAuthority: config.AssetAuthority,
 		assetAdmission: config.AssetAdmission,
 	}
@@ -130,6 +134,9 @@ func NewPostgresLifecycleBoundaryRegistries(config LifecycleRegistryBoundaryConf
 	}
 	if boundary.caches == nil {
 		boundary.caches = cacheregistry.New()
+	}
+	if boundary.seo == nil {
+		boundary.seo = seoregistry.New()
 	}
 	if config.Manager != nil {
 		boundary.hooks = config.Manager.HookBus()
@@ -198,6 +205,9 @@ func (b *PostgresLifecycleBoundaryRegistries) RestoreRoutePublications(
 		return err
 	}
 	if err := b.restoreCachePublications(ctx, items, safeMode); err != nil {
+		return err
+	}
+	if err := b.restoreSEOPublications(ctx, items, safeMode); err != nil {
 		return err
 	}
 	if err := b.restoreAssetPublications(ctx, items, safeMode); err != nil {
@@ -387,6 +397,9 @@ func (b *PostgresLifecycleBoundaryRegistries) validatePreparedLifecycleRegistrie
 	if err := b.validateCacheTransition(source, target); err != nil {
 		return err
 	}
+	if err := b.validateSEOTransition(source, target); err != nil {
+		return err
+	}
 	for _, material := range []*lifecycleRegistryMaterial{source, target} {
 		if material == nil {
 			continue
@@ -468,7 +481,7 @@ func (b *PostgresLifecycleBoundaryRegistries) PrepareLifecycleRegistryPublicatio
 func (b *PostgresLifecycleBoundaryRegistries) validateDependencies(ctx context.Context) error {
 	if b == nil || ctx == nil || b.repository == nil || b.manager == nil || b.hooks == nil ||
 		b.pages == nil || b.routes == nil || b.routeSchemas == nil || b.services == nil || b.components == nil ||
-		b.queries == nil || b.caches == nil ||
+		b.queries == nil || b.caches == nil || b.seo == nil ||
 		(b.assets != nil && (b.assetAuthority == nil || b.assetAdmission == nil)) {
 		return ErrLifecycleRegistryPublicationUnavailable
 	}
@@ -484,6 +497,7 @@ type lifecycleRegistryMaterial struct {
 	assetPublication  *assetregistry.Publication
 	cachePublication  *cacheregistry.Publication
 	queryPublication  *queryregistry.Publication
+	seoPublication    *seoregistry.Publication
 	assetAdmitted     bool
 	digest            string
 	legacyDigest      string
@@ -522,6 +536,9 @@ func (b *PostgresLifecycleBoundaryRegistries) prepareMaterial(
 		target = &value
 	}
 	if err := b.freezeAssetMaterials(ctx, request, source, target); err != nil {
+		return lifecyclePublicationFence{}, nil, nil, err
+	}
+	if err := b.freezeSEOMaterials(ctx, request, source, target); err != nil {
 		return lifecyclePublicationFence{}, nil, nil, err
 	}
 	return fence, source, target, nil
@@ -712,6 +729,9 @@ func (b *PostgresLifecycleBoundaryRegistries) reconcileLocalRegistries(
 		return err
 	}
 	if err := b.reconcileCaches(ctx, request.TargetExtension.ID, source, target, desired); err != nil {
+		return err
+	}
+	if err := b.reconcileSEO(ctx, request.TargetExtension.ID, source, target, desired); err != nil {
 		return err
 	}
 	if err := b.applyAssetPlan(ctx, assetPlan, phase); err != nil {
