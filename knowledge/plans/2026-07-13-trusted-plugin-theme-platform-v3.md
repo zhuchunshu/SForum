@@ -738,7 +738,7 @@ therefore stays production-default off.
 
 ### Tasks
 
-- [ ] Implement namespaced cache get/set/delete/increment/remember/tags/locks.
+- [x] Implement namespaced cache get/set/delete/increment/remember/tags/locks.
 - [ ] Implement cache provider selection plus route/page key, TTL, bypass,
       no-store, invalidation, and entity-event filters.
 - [ ] Add cache inspector, hit/miss/latency metrics, tag invalidation audit, and
@@ -775,6 +775,14 @@ therefore stays production-default off.
 
 - Restore core cache/SEO/file/HTTP providers and preserve plugin namespaces for
   later retry or uninstall plan.
+
+The first Cache task closed in `ba4ebc50c`. The production Host service and
+Protocol V2 broker already own exact-runtime namespaces, providers, tags,
+distributed leases, inspection, and failure fencing; the Go SDK now exposes
+typed CRUD, CAS revisions, bounded cross-process `remember`, lease renewal, and
+atomic set-and-release without leaking opaque lease capabilities. Provider
+policy, inspector, and failure-matrix work remains tracked by the following
+Cache task and test rows rather than being counted twice here.
 
 ## P12 - Multi-Node, Compatibility, Marketplace, Observability, And DX
 

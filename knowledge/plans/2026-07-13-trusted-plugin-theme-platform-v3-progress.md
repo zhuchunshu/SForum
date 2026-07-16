@@ -1,7 +1,7 @@
 # Trusted Plugin And Theme Platform V3 Progress Ledger
 
-Date: 2026-07-16
-Overall progress: **62.9%**
+Date: 2026-07-17
+Overall progress: **63.2%**
 Active phase: **P6/P7/P9 accepted work plus P10-P12 production closure slices**
 
 This ledger is the durable percentage and context-compaction checkpoint for the
@@ -27,7 +27,7 @@ scaffolding, or demo-only code cannot satisfy a runtime exit criterion.
 | P8 Theme compiler/runtime | 8% | 100% | 8% |
 | P9 Components/assets/L2 | 8% | 25% | 2.00% |
 | P10 Content/media/data | 8% | 0% | 0% |
-| P11 Platform services | 6% | 0% | 0% |
+| P11 Platform services | 6% | 6% | 0.38% |
 | P12 Operations/ecosystem | 6% | 5% | 0.27% |
 | P13 References/removal/final gates | 5% | 0% | 0% |
 
@@ -124,6 +124,23 @@ or treated as expired only after the complete V3 goal is achieved.
   failing plugin exactly once (`failed`, then `skipped`).
 
 ## Last Durable Checkpoint
+
+### 2026-07-17 P11 Cache SDK Closure
+
+- Exact weighted progress is `63.2336%`; displayed progress is **63.2%**.
+  P11 earns its first verified row (**1/16**) while P6 remains **13/18**, P7
+  **14/22**, P8 **18/18**, P9 **4/16**, and P12 **1/22**.
+- `ba4ebc50c` adds typed namespaced Cache SDK operations, opaque CAS revisions,
+  tag invalidation, cross-RPC lease helpers, and a distributed `remember` path
+  that double-checks after acquisition, renews while loading, cancels at exact
+  lease expiry, and commits through atomic set-and-release.
+- Focused SDK and Host Cache normal/race tests, SDK vet, formatting, staged diff
+  checks, and an independent `grok-4.5` read-only audit passed. The external
+  audit's final result reported no blocker; its intermediate speculation was
+  not accepted without matching local code and test evidence.
+- This closes only P11's first Cache task. Cache provider policy/filters,
+  inspector metrics/revision awareness, the full failure test row, and every
+  other P11 service remain open.
 
 ### 2026-07-16 P12 Theme And Plugin Runtime Ownership Closure
 

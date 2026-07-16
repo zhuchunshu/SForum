@@ -4,29 +4,26 @@ Last updated: 2026-07-17
 
 ## Progress
 
-- Verified weighted baseline: **62.8586%** (display **62.9%**).
+- Verified weighted progress: **63.2336%** (display **63.2%**).
 - Phase counts: P0-P5 and P8 complete; P6 **13/18**, P7 **14/22**,
-  P8 **18/18**, P9 **4/16**, and P12 **1/22**. P10, P11, and P13 have no
-  credited authoritative row yet.
+  P8 **18/18**, P9 **4/16**, P11 **1/16**, and P12 **1/22**. P10 and P13
+  have no credited authoritative row yet.
 - Completion remains unproven until all 99 target rows, 14 accepted boundaries,
   five reference-plugin classes, 24 Program Definition of Done rows, and final
   gates pass.
 
 ## Current Subtask
 
-- **P11 Cache SDK closure:** review and commit the typed plugin helpers for
-  namespaced get/set/delete/increment/tag invalidation, cross-RPC locks, and
-  distributed `remember` without widening the already committed Host contract.
-- The Cache implementation commit is limited to:
-  - `apps/api/sdk/plugin/v2/cache.go`
-  - `apps/api/sdk/plugin/v2/cache_operations.go`
-  - `apps/api/sdk/plugin/v2/cache_test.go`
-- Do not credit the P11 Cache task row until the SDK audit confirms the existing
-  production Host service, provider policy, inspector, failure matrix, and the
-  new helpers together prove the complete row.
+- **P12 migration-proof activation fence:** make runtime publication verify the
+  current lifecycle operation's exact durable `target_ready` migration proof in
+  the same PostgreSQL transaction before install/upgrade/rollback activation.
+- Keep enable/deactivate behavior unchanged, rebuild the canonical migration
+  plan instead of trusting caller input, and preserve every unrelated dirty SEO,
+  P6, fixture, ADR, and user-owned file.
 
 ## Recent Verified Commits
 
+- `ba4ebc50c feat(sdk): harden cache helpers`
 - `d76531e48 feat(protocol): expose cache get revisions`
 - `fec013ce4 feat(api): bind durable identity registry`
 - `deba95e06 feat(identity): publish registry lifecycle snapshots`
@@ -43,7 +40,11 @@ Last updated: 2026-07-17
 - `cd apps/api && go test ./sdk/plugin/v2 -count=1` passed.
 - `cd apps/api && go test -race ./sdk/plugin/v2 -count=1` passed.
 - `cd apps/api && go vet ./sdk/plugin/v2` passed.
-- `gofmt -d` for the three staged Cache SDK files produced no diff.
+- `cd apps/api && go test ./app/Support/HostAPI ./sdk/plugin/v2 -count=1`
+  passed.
+- `cd apps/api && go test -race ./app/Support/HostAPI ./sdk/plugin/v2 -count=1`
+  passed.
+- `gofmt -d` for the four staged Cache SDK files produced no diff.
 - `git diff --cached --check` passed.
 - Independent audit found that a blocked Renew RPC could outlive a 100ms lease,
   allowing the old loader to overlap a replacement owner. The SDK now bounds
@@ -52,8 +53,9 @@ Last updated: 2026-07-17
 - Cleanup now refreshes the wire deadline, invalid Acquire responses release a
   returned opaque token, remote error messages are discarded, and conditional
   write conflicts plus lease consumption have focused tests.
-- The post-fix normal/race/vet, formatting, and worktree diff checks pass. One
-  final staged-diff review remains before commit.
+- The post-fix normal/race/vet, formatting, and staged-diff checks passed.
+  Independent `grok-4.5` review exited successfully with no final blocker; its
+  intermediate guesses were checked against the code rather than trusted.
 
 ## Accepted Decisions And Assumptions
 
@@ -84,25 +86,29 @@ Last updated: 2026-07-17
 
 ## Exact Next Steps
 
-1. Stage the post-audit versions of only the three Cache SDK files and review
-   the complete staged diff.
-2. Rerun staged diff check plus focused normal/race/vet if the index differs.
-3. Commit only the three Cache SDK files as `feat(sdk): harden cache helpers`.
-4. Update this ledger with the resulting hash and exact progress; commit that
-   documentation separately.
-5. Review and land SEO in contract/transport/Host-policy/bootstrap/reference
-   slices, then implement the remaining P6 matrix.
+1. Commit this task-book/ledger/index update separately from implementation.
+2. Reproduce the real PostgreSQL migration-proof activation failure and inspect
+   the exact publication transaction plus canonical migration-plan APIs.
+3. Implement and test the same-transaction proof fence for install, upgrade,
+   and rollback without blocking enable/deactivate.
+4. Return to the remaining P6 action/raw-authority/mutable-field/redirect matrix
+   while P10 attachment-source and P9 production wiring audits remain read-only.
+5. Land SEO only in independently reviewed contract/transport/Host-policy/
+   bootstrap/reference slices; do not credit the SEO row before SSR, sitemap,
+   revoke/failure, and Inspector evidence is production-complete.
 
 ## Rollback, Flags, And Compatibility
 
-- Cache SDK rollback removes only convenience helpers; the committed Protocol
-  V2 and Host CacheService contracts remain additive and usable directly.
+- Reverting `ba4ebc50c` removes only Cache convenience helpers; the committed
+  Protocol V2 and Host CacheService contracts remain additive and usable
+  directly.
 - Protocol v1 compatibility remains present until P13 removal gates pass.
 - Safe Mode remains Host-owned and filters third-party Registry publications.
 - No database migration, feature-flag default, legacy deletion, push, tag, PR,
-  branch, or worktree change belongs to the current Cache subtask.
+  branch, or worktree change belongs to the current P12 subtask.
 
 ## Open Questions
 
-- None for the current Cache SDK boundary. Any audit finding that changes Host
-  product semantics must be checked against the V3 ADR before implementation.
+- None for the current P12 migration-proof boundary. The fence enforces the
+  already accepted migration-before-runtime rule and does not select a new
+  product policy.

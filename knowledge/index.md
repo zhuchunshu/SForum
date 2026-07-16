@@ -4,9 +4,11 @@ This is the entry point for project memory.
 
 ## Latest Handoff
 
-- **2026-07-16 Trusted Plugin And Theme Platform V3 P6/P7/P8/P9/P12 active (overall 62.9%)**
+- **2026-07-17 Trusted Plugin And Theme Platform V3 P6/P7/P9/P10/P11/P12 active (overall 63.2%)**
   - Decision: `knowledge/decisions/2026-07-13-trusted-plugin-theme-platform-v3.md`
   - Task book: `knowledge/plans/2026-07-13-trusted-plugin-theme-platform-v3.md`
+  - Current durable checkpoint:
+    `knowledge/sessions/2026-07-13-trusted-plugin-theme-platform-v3-progress.md`
   - Active checkpoint: `knowledge/sessions/2026-07-16-trusted-plugin-theme-platform-v3-runtime-ownership-checkpoint.md`
   - Prior Query/P12/SEO checkpoint:
     `knowledge/sessions/2026-07-16-trusted-plugin-theme-platform-v3-query-p12-seo-checkpoint.md`
@@ -172,6 +174,11 @@ This is the entry point for project memory.
     until production bootstrap binds live identity permission rechecks and exact
     active-runtime admission; plugin handler/result-filter transport is still
     absent from the frozen Manifest contract.
+  - P11 is **1/16**. `ba4ebc50c` closes the first Cache task with typed SDK
+    get/set/delete/increment/tag operations, opaque CAS revisions, bounded
+    cross-RPC leases, and distributed `remember`. Exact lease expiry cancels
+    blocked owners, post-acquire reads are fenced, and atomic commits cannot
+    outlive the lease; focused SDK/Host normal and race tests plus vet pass.
   - P11 SEO now has strict Manifest/OpenAPI declarations, exact trust impact,
     lifecycle plan `@5`, and startup/Safe Mode Registry publication. Provider
     transport, Host final policy, SSR/sitemap consumers, Inspector, and reference
