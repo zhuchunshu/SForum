@@ -96,9 +96,34 @@ func TestPostgresAuditCleanupSkipsConcurrentAuthorityBinding(t *testing.T) {
 	}
 }
 
+func TestPostgresAuditCleanupRetainsLegacyGrantOnlyApplyEvidence(t *testing.T) {
+	fixture := newAuditRetentionFixture(t)
+	decisionAuditID := fixture.seedEvent(t, 60*24*time.Hour)
+	appliedAuditID := fixture.seedEvent(t, 60*24*time.Hour)
+	fixture.seedEvent(t, 60*24*time.Hour)
+
+	suggestionID := fixture.protectBySuggestion(t, decisionAuditID)
+	fixture.protectByGrant(t, suggestionID, appliedAuditID)
+
+	result, err := fixture.writer.CleanupOlderThan(fixture.ctx, 30)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Deleted != 1 || result.Retained != 2 || fixture.countEvents(t) != 2 {
+		t.Fatalf("legacy grant cleanup result=%#v events=%d", result, fixture.countEvents(t))
+	}
+	deleted, err := fixture.writer.DeleteOlderThan(fixture.ctx, 30)
+	if err != nil || deleted != 0 {
+		t.Fatalf("legacy cleaner deleted=%d error=%v", deleted, err)
+	}
+}
+
 func TestPostgresAuditCleanupWorksBeforePermissionCatalogMigration(t *testing.T) {
 	fixture := newAuditRetentionFixture(t)
-	if _, err := fixture.pool.Exec(fixture.ctx, `DROP TABLE extension_permission_catalog`); err != nil {
+	if _, err := fixture.pool.Exec(fixture.ctx, `
+		DROP TABLE extension_permission_role_grants;
+		DROP TABLE extension_permission_catalog;
+	`); err != nil {
 		t.Fatal(err)
 	}
 	protectedID := fixture.seedEvent(t, 60*24*time.Hour)
@@ -171,6 +196,12 @@ func newAuditRetentionFixture(t *testing.T) *auditRetentionFixture {
 			permission_key TEXT PRIMARY KEY,
 			registered_audit_event_id BIGINT NOT NULL REFERENCES audit_events(id) ON DELETE RESTRICT
 		);
+		CREATE TABLE extension_permission_role_grants (
+			suggestion_id BIGINT PRIMARY KEY
+				REFERENCES extension_permission_role_suggestions(id) ON DELETE RESTRICT,
+			applied_audit_event_id BIGINT NOT NULL
+				REFERENCES audit_events(id) ON DELETE RESTRICT
+		);
 	`); err != nil {
 		pool.Close()
 		_, _ = admin.Exec(ctx, "DROP SCHEMA IF EXISTS "+quoted+" CASCADE")
@@ -198,14 +229,17 @@ func (f *auditRetentionFixture) seedEvent(t *testing.T, age time.Duration) int64
 	return id
 }
 
-func (f *auditRetentionFixture) protectBySuggestion(t *testing.T, auditID int64) {
+func (f *auditRetentionFixture) protectBySuggestion(t *testing.T, auditID int64) int64 {
 	t.Helper()
-	if _, err := f.pool.Exec(f.ctx, `
+	var suggestionID int64
+	if err := f.pool.QueryRow(f.ctx, `
 		INSERT INTO extension_permission_role_suggestions (decision_audit_event_id)
 		VALUES ($1)
-	`, auditID); err != nil {
+		RETURNING id
+	`, auditID).Scan(&suggestionID); err != nil {
 		t.Fatal(err)
 	}
+	return suggestionID
 }
 
 func (f *auditRetentionFixture) protectByCatalog(t *testing.T, auditID int64) {
@@ -214,6 +248,16 @@ func (f *auditRetentionFixture) protectByCatalog(t *testing.T, auditID int64) {
 		INSERT INTO extension_permission_catalog (permission_key, registered_audit_event_id)
 		VALUES ($1, $2)
 	`, fmt.Sprintf("fixture.permission.%d", auditID), auditID); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func (f *auditRetentionFixture) protectByGrant(t *testing.T, suggestionID, auditID int64) {
+	t.Helper()
+	if _, err := f.pool.Exec(f.ctx, `
+		INSERT INTO extension_permission_role_grants (suggestion_id, applied_audit_event_id)
+		VALUES ($1, $2)
+	`, suggestionID, auditID); err != nil {
 		t.Fatal(err)
 	}
 }

@@ -149,7 +149,8 @@ func (w *PostgresWriter) DeleteOlderThan(ctx context.Context, keepDays int) (int
 }
 
 // CleanupOlderThan removes ordinary expired events while retaining audit rows
-// that still authorize an Identity role decision or permission catalog entry.
+// that still authorize an Identity role decision, applied grant, or permission
+// catalog entry.
 // Candidate rows are locked with SKIP LOCKED: an in-flight authority binding
 // retains its audit instead of making the whole cleanup batch fail.
 func (w *PostgresWriter) CleanupOlderThan(ctx context.Context, keepDays int) (CleanupResult, error) {
@@ -160,16 +161,18 @@ func (w *PostgresWriter) CleanupOlderThan(ctx context.Context, keepDays int) (Cl
 		keepDays = RecommendedRetentionDays
 	}
 	cutoff := time.Now().UTC().AddDate(0, 0, -keepDays)
-	var permissionCatalogExists bool
+	var permissionCatalogExists, roleGrantsExists bool
 	if err := w.Pool.QueryRow(ctx, `
-		SELECT to_regclass('extension_permission_catalog') IS NOT NULL
-	`).Scan(&permissionCatalogExists); err != nil {
+		SELECT
+		  to_regclass('extension_permission_catalog') IS NOT NULL,
+		  to_regclass('extension_permission_role_grants') IS NOT NULL
+	`).Scan(&permissionCatalogExists, &roleGrantsExists); err != nil {
 		return CleanupResult{}, fmt.Errorf("inspect audit authority retention tables: %w", err)
 	}
 
-	// The catalog table arrives in the additive Identity approval migration. The
-	// pre-migration branch keeps this compatibility layer deployable first; once
-	// present, both durable references are excluded explicitly.
+	// Catalog and grant evidence arrive in the additive Identity approval
+	// migration. Independent probes keep this compatibility layer deployable
+	// before that migration and safe during rollback/recovery.
 	catalogRetention := ""
 	if permissionCatalogExists {
 		catalogRetention = `
@@ -177,6 +180,15 @@ func (w *PostgresWriter) CleanupOlderThan(ctx context.Context, keepDays int) (Cl
 				SELECT 1
 				FROM extension_permission_catalog AS catalog
 				WHERE catalog.registered_audit_event_id = event.id
+			  )`
+	}
+	grantRetention := ""
+	if roleGrantsExists {
+		grantRetention = `
+			  AND NOT EXISTS (
+				SELECT 1
+				FROM extension_permission_role_grants AS role_grant
+				WHERE role_grant.applied_audit_event_id = event.id
 			  )`
 	}
 	cleanupQuery := `
@@ -199,7 +211,7 @@ func (w *PostgresWriter) CleanupOlderThan(ctx context.Context, keepDays int) (Cl
 				FROM extension_permission_role_suggestions AS suggestion
 				WHERE suggestion.decision_audit_event_id = event.id
 			  )
-	` + catalogRetention + `
+	` + catalogRetention + grantRetention + `
 			RETURNING event.id
 		)
 		SELECT
