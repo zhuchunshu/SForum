@@ -157,6 +157,99 @@ func TestLifecyclePageRuntimeBootReplacesLegacyArtifactWithExactCompiledRuntime(
 	}
 }
 
+// 无页面贡献的后端插件即使 active runtime 已 drain，也不得在 page restore
+// 上 fail-closed，且不得发布任何 page 贡献。
+func TestLifecyclePageRestoreSkipsBackendPluginWithoutPageContributions(t *testing.T) {
+	ctx := context.Background()
+	extension := lifecycleBackendOnlyPluginExtension(t, "plugin.backend-only")
+	manager := NewManager(ManagerConfig{Starter: newManagerStagedStarter()})
+	if err := manager.Start(ctx, extension); err != nil {
+		t.Fatal(err)
+	}
+	active, err := manager.ActiveRuntimeInstance(extension.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !manager.RuntimeInstanceAvailable(active.Identity) {
+		t.Fatal("fresh active runtime must be available before drain")
+	}
+	if _, err := manager.BeginDrain(active.Identity); err != nil {
+		t.Fatal(err)
+	}
+	if manager.RuntimeInstanceAvailable(active.Identity) {
+		t.Fatal("drained runtime must be unavailable")
+	}
+
+	pageRegistry := pages.NewRegistry(nil)
+	themeRuntime := pages.NewThemeRuntimeRegistry()
+	boundary := NewPostgresLifecycleBoundaryRegistries(LifecycleRegistryBoundaryConfig{
+		Manager: manager, Pages: pageRegistry, ThemeRuntime: themeRuntime,
+		PageSiteName: "SForum", PageLocales: []string{"zh-CN"},
+	})
+	if err := boundary.restoreExactPluginPagePublications(ctx, []extensions.Extension{extension}, false); err != nil {
+		t.Fatalf("backend-only plugin must not fail page restore: %v", err)
+	}
+	if _, ok := pageRegistry.ResolveAddedPath("/business-article"); ok {
+		t.Fatal("backend-only plugin published a page contribution")
+	}
+	if themeRuntime.Claims(extension.ID, "", "") {
+		t.Fatal("backend-only plugin staged ThemeRuntime without pages")
+	}
+	// 确认包确实无页面贡献（回归守卫：fixture 本身不得带 theme.json pages）。
+	pkg, err := pages.LoadThemePackage(extensions.PackageContentRoot(extension))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := pages.ContributionsFromTheme(extension.ID, extension.Version, extension.PackageDigest, pkg); len(got) != 0 {
+		t.Fatalf("fixture must have zero page contributions, got %#v", got)
+	}
+}
+
+// 真实页面贡献者在 runtime draining/unavailable 时仍必须在任何 page/runtime
+// 发布之前 fail-closed。
+func TestLifecyclePageRestoreFailClosedWhenPageContributorRuntimeUnavailable(t *testing.T) {
+	ctx := context.Background()
+	extension := lifecycleBootPluginBusinessExtension(t)
+	manager := NewManager(ManagerConfig{Starter: newManagerStagedStarter()})
+	if err := manager.Start(ctx, extension); err != nil {
+		t.Fatal(err)
+	}
+	active, err := manager.ActiveRuntimeInstance(extension.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := manager.BeginDrain(active.Identity); err != nil {
+		t.Fatal(err)
+	}
+	if manager.RuntimeInstanceAvailable(active.Identity) {
+		t.Fatal("drained page contributor runtime must be unavailable")
+	}
+
+	pageRegistry := pages.NewRegistry(nil)
+	themeRuntime := pages.NewThemeRuntimeRegistry()
+	boundary := NewPostgresLifecycleBoundaryRegistries(LifecycleRegistryBoundaryConfig{
+		Manager: manager, Pages: pageRegistry, ThemeRuntime: themeRuntime,
+		PageSiteName: "SForum", PageLocales: []string{"zh-CN"},
+	})
+	err = boundary.restoreExactPluginPagePublications(ctx, []extensions.Extension{extension}, false)
+	if !errors.Is(err, ErrLifecycleRegistryPublicationConflict) {
+		t.Fatalf("page contributor unavailable error=%v", err)
+	}
+	if !strings.Contains(err.Error(), "startup page runtime") {
+		t.Fatalf("error must name page runtime fence: %v", err)
+	}
+	if _, ok := pageRegistry.ResolveAddedPath("/business-article"); ok {
+		t.Fatal("unavailable page contributor published a page")
+	}
+	exactArtifact := pages.RuntimeArtifact{
+		ExtensionID: extension.ID, ExtensionVersion: extension.Version,
+		PackageDigest: extension.PackageDigest, RuntimeInstanceID: active.Identity.InstanceID,
+	}
+	if _, ok := themeRuntime.Resolve(exactArtifact, "plugin.business-page.article", "plugin.business-page.article"); ok {
+		t.Fatal("unavailable page contributor staged ThemeRuntime before fail-closed")
+	}
+}
+
 func TestLifecyclePageRuntimeFailedPublicationRemovesStagedTarget(t *testing.T) {
 	ctx := context.Background()
 	pageRegistry := pages.NewRegistry(nil)
@@ -251,6 +344,43 @@ func lifecycleBootPluginBusinessExtension(t *testing.T) extensions.Extension {
 	}
 	writeLifecyclePageRuntimeFile(t, extension.PackagePath, extensionmanifest.ManifestFileName, string(manifestBody))
 	extension.PackageDigest, err = extensionpackage.DigestTree(extension.PackagePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return extension
+}
+
+// lifecycleBackendOnlyPluginExtension 构造有 Protocol V2 backend、无 theme.json
+// 页面贡献的启用插件，模拟 sforum.content-policy 一类纯后端包。
+func lifecycleBackendOnlyPluginExtension(t *testing.T, extensionID string) extensions.Extension {
+	t.Helper()
+	root := t.TempDir()
+	backendBody := []byte("backend-only-runtime")
+	backendDigest := sha256.Sum256(backendBody)
+	backendDigestValue := hex.EncodeToString(backendDigest[:])
+	writeLifecyclePageRuntimeFile(t, root, "bin/plugin", string(backendBody))
+	extension := extensions.Extension{
+		ID: extensionID, Version: "1.1.0", Type: extensions.TypePlugin, Status: extensions.StatusEnabled,
+		PackagePath: root, ActiveVersionID: 1, Name: "Backend Only",
+		Manifest: extensions.Manifest{
+			ManifestVersion: extensionmanifest.ManifestVersionV3,
+			ID:              extensionID, Name: "Backend Only", Version: "1.1.0",
+			Type: extensions.TypePlugin, SForumVersion: "^1.0.0",
+			Backend: extensions.ManifestBackend{
+				Entry: "bin/plugin", RPC: "hashicorp-go-plugin", ProtocolVersion: 2,
+				Digest: backendDigestValue, HostAPIVersion: "sforum.host@2",
+			},
+			PackageFiles: []extensions.ManifestPackageFile{{
+				ID: extensionID + ".file.backend", Kind: "executable", Path: "bin/plugin", Digest: backendDigestValue,
+			}},
+		},
+	}
+	manifestBody, err := json.Marshal(extension.Manifest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeLifecyclePageRuntimeFile(t, root, extensionmanifest.ManifestFileName, string(manifestBody))
+	extension.PackageDigest, err = extensionpackage.DigestTree(root)
 	if err != nil {
 		t.Fatal(err)
 	}

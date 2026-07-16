@@ -295,13 +295,8 @@ func (b *PostgresLifecycleBoundaryRegistries) restoreExactPluginPagePublications
 			strings.TrimSpace(item.Manifest.Backend.Entry) == "" {
 			continue
 		}
-		runtime, err := b.manager.ActiveRuntimeInstance(item.ID)
-		if err != nil {
-			continue
-		}
-		if !runtimeInstanceMatchesExtension(runtime, item) || !b.manager.RuntimeInstanceAvailable(runtime.Identity) {
-			return fmt.Errorf("%w: startup page runtime for %s is not exact and available", ErrLifecycleRegistryPublicationConflict, item.ID)
-		}
+		// 先加载 inert 包并派生页面贡献：无 theme.json / 无 pages 的后端插件
+		// （如 sforum.content-policy）不得因 page-only exact fence 阻断 Host 启动。
 		pkg, err := pages.LoadThemePackage(extensions.PackageContentRoot(item))
 		if err != nil {
 			return fmt.Errorf("restore plugin page package for %s: %w", item.ID, err)
@@ -309,6 +304,14 @@ func (b *PostgresLifecycleBoundaryRegistries) restoreExactPluginPagePublications
 		contributions := pages.ContributionsFromTheme(item.ID, item.Version, item.PackageDigest, pkg)
 		if len(contributions) == 0 {
 			continue
+		}
+		// 仅当存在真实页面贡献时才要求 exact artifact + RuntimeInstanceAvailable。
+		runtime, err := b.manager.ActiveRuntimeInstance(item.ID)
+		if err != nil {
+			continue
+		}
+		if !runtimeInstanceMatchesExtension(runtime, item) || !b.manager.RuntimeInstanceAvailable(runtime.Identity) {
+			return fmt.Errorf("%w: startup page runtime for %s is not exact and available", ErrLifecycleRegistryPublicationConflict, item.ID)
 		}
 		binding := extensions.LifecycleRuntimeBinding{
 			ExtensionID: item.ID, ExtensionVersion: item.Version, PackageDigest: item.PackageDigest,
