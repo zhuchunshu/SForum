@@ -41,27 +41,7 @@ func PublishPluginRuntimePublicationTransitionTx(
 			return PluginRuntimePublication{}, err
 		}
 	}
-	var isolation string
-	if err := tx.QueryRow(ctx, `SHOW transaction_isolation`).Scan(&isolation); err != nil {
-		return PluginRuntimePublication{}, fmt.Errorf("read plugin runtime transition isolation: %w", err)
-	}
-	// READ COMMITTED 在等待 xact lock 后会为下一条语句取得新快照；更强的
-	// snapshot isolation 反而可能继续读取等待前的旧 full-set。
-	if strings.TrimSpace(strings.ToLower(isolation)) != "read committed" {
-		return PluginRuntimePublication{}, ErrPluginRuntimePublicationConflict
-	}
-
-	if _, err := tx.Exec(ctx, `
-		SELECT pg_advisory_xact_lock(hashtextextended($1, 0))
-	`, pluginRuntimeDesiredSetLock); err != nil {
-		return PluginRuntimePublication{}, fmt.Errorf("lock plugin runtime desired set: %w", err)
-	}
-
-	latest, err := loadPluginRuntimePublication(
-		ctx,
-		tx,
-		pluginRuntimePublicationSelect+` ORDER BY revision DESC LIMIT 1`,
-	)
+	latest, err := lockLatestPluginRuntimePublication(ctx, tx)
 	var latestMembers []PluginRuntimeMember
 	switch {
 	case err == nil:
@@ -81,5 +61,29 @@ func PublishPluginRuntimePublicationTransitionTx(
 	// 以便节点 wakeup 后恢复声明型 Registry；重试幂等归 journal 绑定层。
 	return insertPluginRuntimePublication(
 		ctx, tx, transition.Reason, transition.ActorUserID, nextMembers,
+	)
+}
+
+// lockLatestPluginRuntimePublication 为所有 desired full-set 生产者固定同一
+// 隔离级别、锁顺序与等待后的新快照语义。
+func lockLatestPluginRuntimePublication(ctx context.Context, tx pgx.Tx) (PluginRuntimePublication, error) {
+	var isolation string
+	if err := tx.QueryRow(ctx, `SHOW transaction_isolation`).Scan(&isolation); err != nil {
+		return PluginRuntimePublication{}, fmt.Errorf("read plugin runtime transition isolation: %w", err)
+	}
+	// READ COMMITTED 在等待 xact lock 后会为下一条语句取得新快照；更强的
+	// snapshot isolation 反而可能继续读取等待前的旧 full-set。
+	if strings.TrimSpace(strings.ToLower(isolation)) != "read committed" {
+		return PluginRuntimePublication{}, ErrPluginRuntimePublicationConflict
+	}
+	if _, err := tx.Exec(ctx, `
+		SELECT pg_advisory_xact_lock(hashtextextended($1, 0))
+	`, pluginRuntimeDesiredSetLock); err != nil {
+		return PluginRuntimePublication{}, fmt.Errorf("lock plugin runtime desired set: %w", err)
+	}
+	return loadPluginRuntimePublication(
+		ctx,
+		tx,
+		pluginRuntimePublicationSelect+` ORDER BY revision DESC LIMIT 1`,
 	)
 }
