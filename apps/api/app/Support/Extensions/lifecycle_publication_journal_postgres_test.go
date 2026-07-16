@@ -10,6 +10,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
+	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
 )
 
 func TestLifecyclePublicationFenceAcceptsEveryPublicationOperation(t *testing.T) {
@@ -43,6 +44,66 @@ func TestLifecyclePublicationFenceAcceptsEveryPublicationOperation(t *testing.T)
 			}
 			if test.mode == LifecycleBoundaryDeactivate && !fence.Source.Present {
 				t.Fatal("deactivation source artifact was not retained")
+			}
+		})
+	}
+}
+
+func TestLifecyclePublicationJournalMapsFrozenRuntimeTransition(t *testing.T) {
+	tests := []struct {
+		operation extensions.LifecycleMachineOperation
+		position  int
+		mode      LifecycleBoundaryPublicationMode
+		reason    extensions.PluginRuntimePublicationReason
+	}{
+		{extensions.LifecycleMachineInstall, 8, LifecycleBoundaryActivate, extensions.PluginRuntimePublicationEnable},
+		{extensions.LifecycleMachineEnable, 5, LifecycleBoundaryActivate, extensions.PluginRuntimePublicationEnable},
+		{extensions.LifecycleMachineUpgrade, 8, LifecycleBoundaryActivate, extensions.PluginRuntimePublicationUpgrade},
+		{extensions.LifecycleMachineRollback, 6, LifecycleBoundaryActivate, extensions.PluginRuntimePublicationRollback},
+		{extensions.LifecycleMachineDisable, 3, LifecycleBoundaryDeactivate, extensions.PluginRuntimePublicationDisable},
+		{extensions.LifecycleMachineUninstall, 3, LifecycleBoundaryDeactivate, extensions.PluginRuntimePublicationUninstall},
+	}
+	for _, test := range tests {
+		t.Run(string(test.operation), func(t *testing.T) {
+			request := lifecyclePublicationTestRequest(t, test.operation, test.position)
+			actorUserID := request.ActorUserID
+			transition, err := lifecyclePluginRuntimePublicationTransition(request, test.mode)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if transition.Reason != test.reason ||
+				transition.Activate != (test.mode == LifecycleBoundaryActivate) ||
+				transition.ActorUserID != actorUserID ||
+				transition.Target.ID != request.TargetExtension.ID ||
+				transition.Target.ActiveVersionID != request.TargetExtension.ActiveVersionID ||
+				transition.Target.PackageDigest != request.TargetExtension.PackageDigest {
+				t.Fatalf("transition = %#v", transition)
+			}
+			if transition.Target.Manifest.Lifecycle == request.TargetExtension.Manifest.Lifecycle {
+				t.Fatal("target lifecycle manifest was not frozen")
+			}
+			if request.SourceExtension == nil {
+				if transition.Source != nil {
+					t.Fatalf("unexpected source = %#v", transition.Source)
+				}
+			} else {
+				if transition.Source == nil || transition.Source == request.SourceExtension ||
+					transition.Source.Manifest.Lifecycle == request.SourceExtension.Manifest.Lifecycle ||
+					transition.Source.ID != request.SourceExtension.ID ||
+					transition.Source.ActiveVersionID != request.SourceExtension.ActiveVersionID ||
+					transition.Source.PackageDigest != request.SourceExtension.PackageDigest {
+					t.Fatalf("source = %#v", transition.Source)
+				}
+				request.SourceExtension.Manifest.Lifecycle.ContractVersion = "mutated.lifecycle@9"
+				if transition.Source.Manifest.Lifecycle.ContractVersion == "mutated.lifecycle@9" {
+					t.Fatal("source transition changed with caller manifest")
+				}
+			}
+			request.TargetExtension.Manifest.Lifecycle.ContractVersion = "mutated.lifecycle@9"
+			request.ActorUserID++
+			if transition.Target.Manifest.Lifecycle.ContractVersion == "mutated.lifecycle@9" ||
+				transition.ActorUserID != actorUserID {
+				t.Fatal("transition changed with caller request")
 			}
 		})
 	}
@@ -162,6 +223,31 @@ func lifecyclePublicationTestRequest(
 ) LifecycleBoundaryRequest {
 	t.Helper()
 	gate := lifecycleHostTestRequest(t, operation, position)
+	makeManifestValid := func(extension *extensions.Extension) {
+		extension.Name = "Lifecycle Publication Fixture"
+		extension.Status = extensions.StatusEnabled
+		extension.Manifest.Name = extension.Name
+		extension.Manifest.Description = "Exact lifecycle publication fixture."
+		extension.Manifest.URL = "https://example.com/lifecycle-publication"
+		extension.Manifest.Author = extensions.ManifestAuthor{Name: "SForum"}
+		extension.Manifest.SForumVersion = "^1.0.0"
+		extension.Manifest.Backend = extensions.ManifestBackend{
+			Entry: "backend/plugin", RPC: "hashicorp-go-plugin", ProtocolVersion: 2,
+			Digest: extension.PackageDigest, HostAPIVersion: "sforum.host@2",
+		}
+		extension.Manifest.PackageFiles = []extensions.ManifestPackageFile{{
+			ID: extension.ID + ".backend", Kind: "executable",
+			Path: extension.Manifest.Backend.Entry, Digest: extension.PackageDigest,
+		}}
+		if err := extensionmanifest.Validate(extension.Manifest); err != nil {
+			t.Fatalf("fixture manifest %s: %v", extension.Version, err)
+		}
+	}
+	makeManifestValid(&gate.TargetExtension)
+	gate.Extension = gate.TargetExtension
+	if gate.SourceExtension != nil {
+		makeManifestValid(gate.SourceExtension)
+	}
 	gate.ActionResults = make(map[extensions.LifecycleMachineAction]json.RawMessage)
 	for _, action := range lifecycleBoundaryAllowedActions(operation, position) {
 		gate.ActionResults[action] = json.RawMessage(fmt.Sprintf(`{"action":%q}`, action))

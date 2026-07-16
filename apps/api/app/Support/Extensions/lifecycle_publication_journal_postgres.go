@@ -210,10 +210,19 @@ func (j *PostgresLifecycleBoundaryPublicationJournal) CommitLifecyclePublication
 		}
 		return nil
 	}
+	transition, err := lifecyclePluginRuntimePublicationTransition(request, mode)
+	if err != nil {
+		return err
+	}
+	publication, err := extensions.PublishPluginRuntimePublicationTransitionTx(ctx, tx, transition)
+	if err != nil {
+		return fmt.Errorf("publish lifecycle plugin runtime revision: %w", err)
+	}
 	tag, err := tx.Exec(ctx, `
 		UPDATE extension_lifecycle_publications
 		SET commit_marker = TRUE,
 		    committed_attempt = $2,
+		    plugin_runtime_publication_revision = $4,
 		    committed_at = statement_timestamp(),
 		    revision = revision + 1,
 		    updated_at = statement_timestamp()
@@ -221,7 +230,8 @@ func (j *PostgresLifecycleBoundaryPublicationJournal) CommitLifecyclePublication
 		  AND revision = $3
 		  AND last_attempt = $2
 		  AND commit_marker = FALSE
-	`, record.ID, fence.Attempt, record.Revision)
+		  AND plugin_runtime_publication_revision IS NULL
+	`, record.ID, fence.Attempt, record.Revision, publication.Revision)
 	if err != nil {
 		return fmt.Errorf("write lifecycle publication commit marker: %w", err)
 	}
@@ -234,6 +244,54 @@ func (j *PostgresLifecycleBoundaryPublicationJournal) CommitLifecyclePublication
 		return fmt.Errorf("commit lifecycle publication marker: %w", err)
 	}
 	return nil
+}
+
+func lifecyclePluginRuntimePublicationTransition(
+	request LifecycleBoundaryRequest,
+	mode LifecycleBoundaryPublicationMode,
+) (extensions.PluginRuntimePublicationTransition, error) {
+	if !lifecyclePublicationOperationMode(request.Operation, mode) {
+		return extensions.PluginRuntimePublicationTransition{}, ErrLifecyclePublicationJournalInvalid
+	}
+
+	var reason extensions.PluginRuntimePublicationReason
+	switch request.Operation {
+	case extensions.LifecycleMachineInstall, extensions.LifecycleMachineEnable:
+		reason = extensions.PluginRuntimePublicationEnable
+	case extensions.LifecycleMachineUpgrade:
+		reason = extensions.PluginRuntimePublicationUpgrade
+	case extensions.LifecycleMachineRollback:
+		reason = extensions.PluginRuntimePublicationRollback
+	case extensions.LifecycleMachineDisable:
+		reason = extensions.PluginRuntimePublicationDisable
+	case extensions.LifecycleMachineUninstall:
+		reason = extensions.PluginRuntimePublicationUninstall
+	default:
+		return extensions.PluginRuntimePublicationTransition{}, ErrLifecyclePublicationJournalInvalid
+	}
+
+	target, err := cloneManagedRuntimeExtension(request.TargetExtension)
+	if err != nil {
+		return extensions.PluginRuntimePublicationTransition{}, fmt.Errorf(
+			"%w: freeze target runtime artifact: %v", ErrLifecyclePublicationJournalInvalid, err,
+		)
+	}
+	transition := extensions.PluginRuntimePublicationTransition{
+		Target:      target,
+		Activate:    mode == LifecycleBoundaryActivate,
+		Reason:      reason,
+		ActorUserID: request.ActorUserID,
+	}
+	if request.SourceExtension != nil {
+		source, cloneErr := cloneManagedRuntimeExtension(*request.SourceExtension)
+		if cloneErr != nil {
+			return extensions.PluginRuntimePublicationTransition{}, fmt.Errorf(
+				"%w: freeze source runtime artifact: %v", ErrLifecyclePublicationJournalInvalid, cloneErr,
+			)
+		}
+		transition.Source = &source
+	}
+	return transition, nil
 }
 
 type lifecyclePublicationArtifact struct {
@@ -292,13 +350,14 @@ type lifecyclePublicationFence struct {
 }
 
 type lifecyclePublicationRecord struct {
-	ID            int64
-	Fence         lifecyclePublicationFence
-	FirstAttempt  int
-	LastAttempt   int
-	CommitAttempt sql.NullInt64
-	CommitMarker  bool
-	Revision      int64
+	ID                               int64
+	Fence                            lifecyclePublicationFence
+	FirstAttempt                     int
+	LastAttempt                      int
+	CommitAttempt                    sql.NullInt64
+	CommitMarker                     bool
+	PluginRuntimePublicationRevision sql.NullInt64
+	Revision                         int64
 }
 
 func (r lifecyclePublicationRecord) matches(fence lifecyclePublicationFence) bool {
@@ -436,7 +495,8 @@ func loadLifecyclePublication(
 		       source_version_id, source_runtime_instance_id,
 		       target_extension_id, target_extension_version, target_package_digest,
 		       target_version_id, target_runtime_instance_id,
-		       first_attempt, last_attempt, committed_attempt, commit_marker, revision
+		       first_attempt, last_attempt, committed_attempt, commit_marker,
+		       plugin_runtime_publication_revision, revision
 		FROM extension_lifecycle_publications
 		WHERE operation_id = $1 AND step_id = $2 AND publication_mode = $3
 	`
@@ -453,7 +513,8 @@ func loadLifecyclePublication(
 		&record.Fence.Target.ExtensionID, &record.Fence.Target.ExtensionVersion,
 		&record.Fence.Target.PackageDigest, &record.Fence.Target.VersionID,
 		&record.Fence.Target.RuntimeInstanceID, &record.FirstAttempt, &record.LastAttempt,
-		&record.CommitAttempt, &record.CommitMarker, &record.Revision,
+		&record.CommitAttempt, &record.CommitMarker, &record.PluginRuntimePublicationRevision,
+		&record.Revision,
 	)
 	if err != nil {
 		return lifecyclePublicationRecord{}, err
