@@ -264,6 +264,22 @@ type ProviderBinding struct {
 	Provider        Provider
 }
 
+// ProviderResolver resolves one exact Registry contribution to its executable
+// transport binding. Production uses a Manager-backed resolver so lifecycle
+// snapshot swaps do not leave a startup-only callback catalog behind.
+type ProviderResolver interface {
+	ResolveSEOProvider(context.Context, Contribution) (ProviderBinding, error)
+}
+
+type ProviderResolverFunc func(context.Context, Contribution) (ProviderBinding, error)
+
+func (f ProviderResolverFunc) ResolveSEOProvider(ctx context.Context, contribution Contribution) (ProviderBinding, error) {
+	if f == nil {
+		return ProviderBinding{}, ErrProviderUnavailable
+	}
+	return f(ctx, cloneContribution(contribution))
+}
+
 // AdmissionLease must represent the exact Artifact passed to AcquireSEOExecution.
 // Context cancellation is the Host drain signal; Release ends the lease.
 type AdmissionLease interface {
@@ -311,6 +327,7 @@ type ExecutionConfig struct {
 	Admission    ExecutionAdmission
 	FinalPolicy  FinalPolicy
 	Providers    []ProviderBinding
+	Resolver     ProviderResolver
 	Timeout      time.Duration
 	MaximumBytes int
 	Trace        ExecutionTraceSink

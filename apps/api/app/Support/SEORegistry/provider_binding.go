@@ -1,11 +1,43 @@
 package seoregistry
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
 	"strings"
 )
+
+type staticProviderResolver struct {
+	bindings map[providerBindingIdentity]ProviderBinding
+}
+
+func newStaticProviderResolver(bindings []ProviderBinding) (ProviderResolver, error) {
+	result := &staticProviderResolver{bindings: make(map[providerBindingIdentity]ProviderBinding, len(bindings))}
+	for _, raw := range bindings {
+		binding, err := normalizeProviderBinding(raw)
+		if err != nil {
+			return nil, err
+		}
+		key := providerBindingKey(binding.ContributionID, binding.Artifact)
+		if _, duplicate := result.bindings[key]; duplicate {
+			return nil, fmt.Errorf("%w: duplicate provider binding %s", ErrExecutionInvalid, binding.ContributionID)
+		}
+		result.bindings[key] = binding
+	}
+	return result, nil
+}
+
+func (r *staticProviderResolver) ResolveSEOProvider(_ context.Context, contribution Contribution) (ProviderBinding, error) {
+	if r == nil {
+		return ProviderBinding{}, ErrProviderUnavailable
+	}
+	binding, found := r.bindings[providerBindingKey(contribution.ID, contribution.Artifact)]
+	if !found || !bindingMatchesContribution(binding, contribution) {
+		return ProviderBinding{}, ErrProviderUnavailable
+	}
+	return binding, nil
+}
 
 func normalizeProviderBinding(input ProviderBinding) (ProviderBinding, error) {
 	input.ContributionID = strings.ToLower(strings.TrimSpace(input.ContributionID))

@@ -14,7 +14,7 @@ type ExecutionRuntime struct {
 	registry     *Registry
 	admission    ExecutionAdmission
 	finalPolicy  FinalPolicy
-	providers    map[providerBindingIdentity]ProviderBinding
+	resolver     ProviderResolver
 	timeout      time.Duration
 	maximumBytes int
 	trace        ExecutionTraceSink
@@ -40,20 +40,19 @@ func NewExecutionRuntime(config ExecutionConfig) (*ExecutionRuntime, error) {
 	if timeout < time.Millisecond || timeout > maximumExecutionTimeout || maximumBytes < 1024 || maximumBytes > maximumOutputBytes {
 		return nil, ErrExecutionInvalid
 	}
-	providers := make(map[providerBindingIdentity]ProviderBinding, len(config.Providers))
-	for _, raw := range config.Providers {
-		binding, err := normalizeProviderBinding(raw)
+	if config.Resolver != nil && len(config.Providers) > 0 {
+		return nil, ErrExecutionInvalid
+	}
+	resolver := config.Resolver
+	if resolver == nil {
+		var err error
+		resolver, err = newStaticProviderResolver(config.Providers)
 		if err != nil {
 			return nil, err
 		}
-		key := providerBindingKey(binding.ContributionID, binding.Artifact)
-		if _, duplicate := providers[key]; duplicate {
-			return nil, fmt.Errorf("%w: duplicate provider binding %s", ErrExecutionInvalid, binding.ContributionID)
-		}
-		providers[key] = binding
 	}
 	return &ExecutionRuntime{
-		registry: config.Registry, admission: config.Admission, finalPolicy: config.FinalPolicy, providers: providers,
+		registry: config.Registry, admission: config.Admission, finalPolicy: config.FinalPolicy, resolver: resolver,
 		timeout: timeout, maximumBytes: maximumBytes, trace: config.Trace,
 	}, nil
 }
@@ -91,6 +90,13 @@ func (r *ExecutionRuntime) Execute(ctx context.Context, request ExecuteRequest) 
 	trace.Revision, trace.SnapshotDigest = state.revision, state.digest
 	contributions := cloneContributions(contributionsForScope(state, scope))
 	if len(contributions) == 0 {
+		trace.Stage = "release_fence"
+		if err := r.finalFence(
+			executionCtx, state, scope, base, base,
+			map[Artifact]AdmissionLease{}, map[Artifact]struct{}{},
+		); err != nil {
+			return ExecuteResult{}, err
+		}
 		return ExecuteResult{
 			SchemaVersion: SchemaVersion, Revision: state.revision, Digest: state.digest, Document: cloneDocument(base),
 		}, nil
@@ -200,8 +206,12 @@ func (r *ExecutionRuntime) acquireExecutionSet(
 	bindings := make(map[string]ProviderBinding, len(contributions))
 	artifacts := make(map[Artifact]struct{})
 	for _, contribution := range contributions {
-		binding, found := r.providers[providerBindingKey(contribution.ID, contribution.Artifact)]
-		if !found || !bindingMatchesContribution(binding, contribution) {
+		binding, resolveErr := r.resolver.ResolveSEOProvider(ctx, contribution)
+		if resolveErr != nil {
+			continue
+		}
+		binding, normalizeErr := normalizeProviderBinding(binding)
+		if normalizeErr != nil || !bindingMatchesContribution(binding, contribution) {
 			continue
 		}
 		bindings[contribution.ID] = binding
@@ -467,8 +477,9 @@ func (r *ExecutionRuntime) Inspect(scope string) (RuntimeInspection, error) {
 	}
 	result := RuntimeInspection{Scope: inspection, Providers: make([]ProviderInspection, 0, len(inspection.Contributions))}
 	for _, contribution := range inspection.Contributions {
-		binding, found := r.providers[providerBindingKey(contribution.ID, contribution.Artifact)]
-		bound := found && bindingMatchesContribution(binding, contribution)
+		binding, resolveErr := r.resolver.ResolveSEOProvider(context.Background(), contribution)
+		binding, normalizeErr := normalizeProviderBinding(binding)
+		bound := resolveErr == nil && normalizeErr == nil && bindingMatchesContribution(binding, contribution)
 		provider := ProviderInspection{Contribution: cloneContribution(contribution), Bound: bound}
 		if bound {
 			provider.ProviderDigest = binding.ProviderDigest
