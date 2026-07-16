@@ -26,6 +26,7 @@ var announcementStyles = []string{StyleInfo, StyleSuccess, StyleWarning, StyleDa
 type Service struct {
 	store        Store
 	extensionNav ExtensionNavItemProvider
+	navigation   *navigationRegistryConfig
 }
 
 func NewService(store Store) *Service {

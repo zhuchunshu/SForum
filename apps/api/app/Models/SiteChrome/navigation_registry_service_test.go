@@ -1,0 +1,247 @@
+package sitechrome
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"strings"
+	"testing"
+
+	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
+	navigationregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/NavigationRegistry"
+)
+
+func TestSiteChromeNavigationSafeDefaultAndLocaleCacheIsolation(t *testing.T) {
+	store := newFakeStore()
+	service := NewService(store)
+	if _, err := service.CreateNavItem(t.Context(), manageActor(), CreateNavItemInput{
+		LabelZhCN: "文档", LabelEnUS: "Docs", Href: "/docs", Position: 10, Enabled: true, OpenInNewTab: true,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	zh, err := service.ComposePublicNavigation(t.Context(), identity.Actor{}, "zh-CN")
+	if err != nil {
+		t.Fatal(err)
+	}
+	en, err := service.ComposePublicNavigation(t.Context(), identity.Actor{}, "en_US")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(zh.Menus) != 1 || len(zh.Menus[0].Children) != 1 || zh.Menus[0].Children[0].Label != "文档" ||
+		len(en.Menus) != 1 || en.Menus[0].Children[0].Label != "Docs" || zh.CacheKey == en.CacheKey ||
+		zh.Revision != 0 || en.Locale != "en-US" || zh.Menus[0].Children[0].Attributes["open-in-new-tab"] != "true" {
+		t.Fatalf("safe locale defaults zh=%#v en=%#v", zh, en)
+	}
+	if service.NavigationInspector() != nil {
+		t.Fatal("unconfigured service exposed an inspector")
+	}
+	items, err := service.ListPublicNavItems(t.Context())
+	if err != nil || len(items) != 1 {
+		t.Fatalf("legacy public behavior changed: %#v err=%v", items, err)
+	}
+}
+
+func TestSiteChromeNavigationRegistryPermissionLocaleRegionsAndCacheInvalidation(t *testing.T) {
+	store := newFakeStore()
+	service := NewService(store)
+	created, err := service.CreateNavItem(t.Context(), manageActor(), CreateNavItemInput{
+		LabelZhCN: "首页", LabelEnUS: "Home", Href: "/", Position: 5, Enabled: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	registry := navigationregistry.New()
+	service.WithNavigationRegistry(registry)
+	if service.navigation == nil || service.navigation.err != nil {
+		t.Fatalf("registry configuration=%#v", service.navigation)
+	}
+	runtime := &siteChromeRuntime{}
+	service.WithNavigationRuntime(runtime, runtime)
+
+	plugin := siteChromePublication("plugin.chrome", 'a')
+	item := navigationregistry.NavigationDeclaration{
+		ID: "plugin.chrome.item.private", ContractVersion: "plugin.chrome.item.private@1",
+		Kind: navigationregistry.NavigationKindItem, Action: navigationregistry.ActionAdd,
+		TargetID: navigationregistry.CorePrimaryMenuID, Label: "Private",
+		Labels: map[string]string{"zh-CN": "私有", "en-US": "Private"}, Href: "/private",
+		Permission: "forum.private", Visibility: navigationregistry.VisibilityAuthenticated, Order: 10,
+	}
+	plugin.Navigation = []navigationregistry.NavigationDeclaration{item}
+	plugin.Regions = []navigationregistry.RegionDeclaration{{
+		ID: "plugin.chrome.region.content", ContractVersion: "plugin.chrome.region.content@1",
+		Kind: navigationregistry.RegionKindContent, Action: navigationregistry.ActionAdd,
+		Label: "Content", Multiple: true,
+	}}
+	if _, err := registry.Publish(plugin); err != nil {
+		t.Fatal(err)
+	}
+
+	denied, err := service.ComposePublicNavigation(t.Context(), identity.Actor{}, "en-US")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(denied.Menus) != 1 || hasChromeNode(denied.Menus[0].Children, item.ID) {
+		t.Fatalf("guest saw protected item: %#v", denied.Menus)
+	}
+	actor := identity.Actor{
+		ID: 42, Status: identity.UserStatusActive, Permissions: map[string]bool{"forum.private": true},
+	}
+	allowed, err := service.ComposePublicNavigation(t.Context(), actor, "en-US")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(allowed.Menus) != 1 || len(allowed.Menus[0].Children) != 2 ||
+		!hasChromeNode(allowed.Menus[0].Children, item.ID) || denied.CacheKey == allowed.CacheKey {
+		t.Fatalf("allowed composition=%#v", allowed)
+	}
+	zh, err := service.ComposePublicNavigation(t.Context(), actor, "zh-CN")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if node := chromeNodeByID(zh.Menus[0].Children, item.ID); node == nil || node.Label != "私有" || zh.CacheKey == allowed.CacheKey {
+		t.Fatalf("localized plugin item=%#v", zh)
+	}
+	if len(allowed.Breadcrumbs) != 1 || len(allowed.Headers) != 1 || len(allowed.Footers) != 1 ||
+		len(allowed.Sidebars) != 1 || len(allowed.Regions.Menus) != 1 || len(allowed.Regions.Headers) != 1 ||
+		len(allowed.Regions.Footers) != 1 || len(allowed.Regions.Sidebars) != 1 || len(allowed.Regions.Widgets) != 1 ||
+		len(allowed.Regions.Content) != 1 {
+		t.Fatalf("incomplete view-model families=%#v", allowed)
+	}
+
+	updatedLabel := "Start"
+	if _, err := service.UpdateNavItem(t.Context(), manageActor(), UpdateNavItemInput{ID: created.ID, LabelEnUS: &updatedLabel}); err != nil {
+		t.Fatal(err)
+	}
+	contentChanged, err := service.ComposePublicNavigation(t.Context(), actor, "en-US")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if contentChanged.Revision != allowed.Revision || contentChanged.CacheKey == allowed.CacheKey ||
+		contentChanged.Menus[0].Children[0].Label != "Start" {
+		t.Fatalf("content digest cache evidence before=%#v after=%#v", allowed, contentChanged)
+	}
+
+	second := siteChromePublication("plugin.chrome.second", 'b')
+	second.Navigation = []navigationregistry.NavigationDeclaration{{
+		ID: "plugin.chrome.second.item.public", ContractVersion: "plugin.chrome.second.item.public@1",
+		Kind: navigationregistry.NavigationKindItem, Action: navigationregistry.ActionAdd,
+		TargetID: navigationregistry.CorePrimaryMenuID, Label: "Second", Href: "/second", Order: 20,
+	}}
+	beforeState := registry.CacheState()
+	if _, err := registry.Publish(second); err != nil {
+		t.Fatal(err)
+	}
+	graphChanged, err := service.ComposePublicNavigation(t.Context(), actor, "en-US")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !registry.CacheInvalidated(beforeState) || graphChanged.Revision == contentChanged.Revision ||
+		graphChanged.Digest == contentChanged.Digest || graphChanged.CacheKey == contentChanged.CacheKey {
+		t.Fatalf("graph cache evidence before=%#v after=%#v", contentChanged, graphChanged)
+	}
+	body, _ := json.Marshal(graphChanged)
+	if strings.Contains(string(body), plugin.Artifact.PackageDigest) || strings.Contains(string(body), plugin.Artifact.RuntimeInstanceID) {
+		t.Fatalf("public view leaked exact artifact attribution: %s", body)
+	}
+	inspection, err := service.NavigationInspector().Inspect(item.ID, 32)
+	if err != nil || len(inspection.Traces) == 0 || inspection.Traces[0].Artifact.ExtensionID == "" {
+		t.Fatalf("inspector attribution=%#v err=%v", inspection, err)
+	}
+}
+
+func TestSiteChromeSelectedReplaceFailsClosedButOptionalRuntimeFallsBack(t *testing.T) {
+	service := NewService(newFakeStore())
+	registry := navigationregistry.New()
+	service.WithNavigationRegistry(registry)
+	runtime := &siteChromeRuntime{unavailable: map[string]bool{}}
+	service.WithNavigationRuntime(runtime, runtime)
+	plugin := siteChromePublication("plugin.replace", 'c')
+	replace := navigationregistry.NavigationDeclaration{
+		ID: "plugin.replace.header.main", ContractVersion: "plugin.replace.header.main@1",
+		Kind: navigationregistry.NavigationKindHeader, Action: navigationregistry.ActionReplace,
+		TargetID: navigationregistry.CoreHeaderNavigationID, Label: "Replacement", Handler: "plugin.replace.render.header",
+	}
+	plugin.Navigation = []navigationregistry.NavigationDeclaration{replace}
+	if _, err := registry.Publish(plugin); err != nil {
+		t.Fatal(err)
+	}
+	runtime.renderError = errors.New("crash")
+	optional, err := service.ComposePublicNavigation(t.Context(), identity.Actor{}, "en-US")
+	if err != nil || len(optional.Headers) != 1 || optional.Headers[0].Label != "Header" {
+		t.Fatalf("optional fallback=%#v err=%v", optional, err)
+	}
+	if _, err := registry.SelectProvider(navigationregistry.SelectProviderRequest{
+		ExpectedRevision: registry.Revision(), Family: navigationregistry.ProviderFamilyNavigation,
+		TargetID: navigationregistry.CoreHeaderNavigationID,
+		Provider: navigationregistry.ProviderRef{ContributionID: replace.ID, Artifact: plugin.Artifact},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.ComposePublicNavigation(t.Context(), identity.Actor{}, "en-US"); !errors.Is(err, navigationregistry.ErrTrustedReplace) {
+		t.Fatalf("selected replacement did not fail closed: %v", err)
+	}
+}
+
+type siteChromeRuntime struct {
+	unavailable map[string]bool
+	renderError error
+}
+
+func (r *siteChromeRuntime) Available(artifact navigationregistry.Artifact) bool {
+	return r == nil || !r.unavailable[siteChromeArtifactKey(artifact)]
+}
+
+func (r *siteChromeRuntime) Acquire(ctx context.Context, artifact navigationregistry.Artifact) (navigationregistry.RuntimeLease, error) {
+	if !r.Available(artifact) {
+		return nil, navigationregistry.ErrRuntimeUnavailable
+	}
+	return siteChromeLease{ctx: ctx, runtimeID: artifact.RuntimeInstanceID}, nil
+}
+
+func (r *siteChromeRuntime) RenderNavigation(context.Context, navigationregistry.RuntimeInvocation) (navigationregistry.RuntimeOutput, error) {
+	if r.renderError != nil {
+		return navigationregistry.RuntimeOutput{}, r.renderError
+	}
+	return navigationregistry.RuntimeOutput{}, nil
+}
+
+func (r *siteChromeRuntime) RenderRegion(context.Context, navigationregistry.RuntimeInvocation) (navigationregistry.RuntimeOutput, error) {
+	if r.renderError != nil {
+		return navigationregistry.RuntimeOutput{}, r.renderError
+	}
+	return navigationregistry.RuntimeOutput{}, nil
+}
+
+type siteChromeLease struct {
+	ctx       context.Context
+	runtimeID string
+}
+
+func (l siteChromeLease) Context() context.Context  { return l.ctx }
+func (l siteChromeLease) RuntimeInstanceID() string { return l.runtimeID }
+func (siteChromeLease) Release()                    {}
+
+func siteChromePublication(id string, digest rune) navigationregistry.Publication {
+	value := strings.Repeat(string(digest), 64)
+	return navigationregistry.Publication{Artifact: navigationregistry.Artifact{
+		ExtensionID: id, ExtensionVersion: "1.0.0", PackageDigest: value, ImpactDigest: value,
+		VersionID: 1, RuntimeInstanceID: "runtime-" + string(digest),
+	}}
+}
+
+func siteChromeArtifactKey(artifact navigationregistry.Artifact) string {
+	return artifact.ExtensionID + "\x00" + artifact.PackageDigest + "\x00" + artifact.RuntimeInstanceID
+}
+
+func hasChromeNode(items []ChromeNodeViewModel, id string) bool {
+	return chromeNodeByID(items, id) != nil
+}
+
+func chromeNodeByID(items []ChromeNodeViewModel, id string) *ChromeNodeViewModel {
+	for index := range items {
+		if items[index].ID == id {
+			return &items[index]
+		}
+	}
+	return nil
+}
