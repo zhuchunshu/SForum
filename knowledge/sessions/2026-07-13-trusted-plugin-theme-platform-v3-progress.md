@@ -14,6 +14,32 @@ Last updated: 2026-07-17
 
 ## Current Subtask
 
+### 2026-07-17 P6 Plugin Response Authority Checkpoint
+
+- Verified weighted progress remains **63.2336%** (display **63.2%**); P6
+  remains **13/18**.
+- `f0913227d fix(routes): centralize plugin response header policy` replaces
+  the divergent legacy and Registry terminal filters with one Routes-owned
+  policy. Both paths now remove `Set-Cookie`, `Link`,
+  `Idempotency-Replayed`, every `X-SForum-*` field, `Proxy-Connection`, the
+  standard hop-by-hop family, and every header nominated by any
+  case-insensitive `Connection` field. `Location` and ordinary plugin metadata
+  remain available to complete `add`/`replace` terminal responses.
+- The shared contract passed fifty focused repetitions. Legacy RouteGateway,
+  production Provider, and new buffered/stream consumers passed twenty focused
+  repetitions; all four packages passed focused race five times and vet.
+  gofmt, staged review, and diff checks were clean before commit.
+- The pending stage/mutation draft in `docs/extensions/host-api-v2.md`
+  distinguishes Host-owned mutation fields from complete terminal response
+  fields: modifiers cannot patch `Location` or `Link`, terminal `add`/`replace`
+  may return `Location`, and every plugin terminal/streaming `Link` remains
+  stripped. That mixed draft stays uncommitted until its own contract slice.
+- This closes a P6 compatibility/security blocker but does not independently
+  earn a row. Remaining blockers for the current batch are the statically legal
+  but runtime-unusable required-idempotency plus mutable-request combination,
+  direct repeated-query evidence for custom/raw guards and streaming, and the
+  still-uncommitted HTTP/Dispatcher action and failure matrices.
+
 ### 2026-07-17 P6 Legacy Route Proxy Link Checkpoint
 
 - Verified weighted progress remains **63.2336%** (display **63.2%**); P6
