@@ -49,6 +49,7 @@ type RouteExecutionStep struct {
 	Permission            string
 	Mode                  string
 	Destination           string
+	StatusCode            int
 	TargetPath            string
 	Handler               string
 	RequestSchema         string
@@ -366,7 +367,8 @@ func routeExecutionStep(phase RouteExecutionPhase, route Route, descriptor CoreG
 		Phase: phase, Action: route.Action, RouteID: route.ID, ContractVersion: route.ContractVersion,
 		TargetID: route.TargetID, Path: route.Path, Method: route.Method, Provider: route.Provider,
 		Guard: route.Guard, Access: routeExecutionAccess(route.Guard, route.Provider.Kind),
-		Permission: route.Permission, Mode: route.Mode, Destination: route.Destination, Handler: route.Handler,
+		Permission: route.Permission, Mode: route.Mode, Destination: route.Destination, StatusCode: route.StatusCode,
+		Handler:       route.Handler,
 		RequestSchema: route.RequestSchema, ResponseSchema: route.ResponseSchema,
 		MutableRequestFields:  append([]string(nil), route.MutableRequestFields...),
 		MutableResponseFields: append([]string(nil), route.MutableResponseFields...),

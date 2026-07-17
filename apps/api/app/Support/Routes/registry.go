@@ -84,6 +84,7 @@ type Route struct {
 	Fallback              string
 	Mode                  string
 	Destination           string
+	StatusCode            int
 	Handler               string
 	RequestSchema         string
 	ResponseSchema        string
@@ -130,7 +131,7 @@ func equalRoute(left, right Route) bool {
 		left.Action == right.Action && left.TargetID == right.TargetID && left.Path == right.Path &&
 		left.Method == right.Method && left.Guard == right.Guard && left.Permission == right.Permission &&
 		left.Priority == right.Priority && left.Fallback == right.Fallback && left.Mode == right.Mode &&
-		left.Destination == right.Destination && left.Handler == right.Handler &&
+		left.Destination == right.Destination && left.StatusCode == right.StatusCode && left.Handler == right.Handler &&
 		left.RequestSchema == right.RequestSchema && left.ResponseSchema == right.ResponseSchema &&
 		slices.Equal(left.MutableRequestFields, right.MutableRequestFields) &&
 		slices.Equal(left.MutableResponseFields, right.MutableResponseFields) &&

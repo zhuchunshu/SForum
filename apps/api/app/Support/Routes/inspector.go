@@ -39,6 +39,7 @@ type InspectorStep struct {
 	Permission            string              `json:"permission,omitempty"`
 	Handler               string              `json:"handler,omitempty"`
 	Destination           string              `json:"destination,omitempty"`
+	StatusCode            int                 `json:"statusCode,omitempty"`
 	RequestSchema         string              `json:"requestSchema,omitempty"`
 	ResponseSchema        string              `json:"responseSchema,omitempty"`
 	MutableRequestFields  []string            `json:"mutableRequestFields,omitempty"`
@@ -251,7 +252,7 @@ func inspectorExecutionStep(index int, step RouteExecutionStep, signature string
 		ContractVersion: step.ContractVersion, TargetRouteID: step.TargetID,
 		Method: step.Method, Path: step.Path, PathSignature: signature,
 		Provider: inspectorProvider(step.Provider), Guard: step.Guard, Access: step.Access,
-		Permission: step.Permission, Handler: step.Handler, Destination: step.Destination,
+		Permission: step.Permission, Handler: step.Handler, Destination: step.Destination, StatusCode: step.StatusCode,
 		RequestSchema: step.RequestSchema, ResponseSchema: step.ResponseSchema,
 		MutableRequestFields:  append([]string(nil), step.MutableRequestFields...),
 		MutableResponseFields: append([]string(nil), step.MutableResponseFields...),

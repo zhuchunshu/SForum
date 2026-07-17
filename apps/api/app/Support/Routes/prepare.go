@@ -48,6 +48,9 @@ func preparePluginRoute(
 	declaration extensionmanifest.ManifestRoute,
 	guardBindings map[string]PluginGuardBinding,
 ) ([]preparedRoute, error) {
+	if declaration.Action == extensionmanifest.RouteActionRedirect && declaration.StatusCode == 0 {
+		declaration.StatusCode = extensionmanifest.RouteRedirectStatusDefault
+	}
 	if !routeIDPattern.MatchString(declaration.ID) || !strings.HasPrefix(declaration.ID, artifact.ExtensionID+".") ||
 		!contractPattern.MatchString(declaration.ContractVersion) || !validAction(declaration.Action) ||
 		!validRouteMode(declaration.Mode) || !validFallback(declaration.Fallback) || declaration.TimeoutMS < 0 {
@@ -109,7 +112,8 @@ func routeFromManifest(
 		ID: value.ID, ContractVersion: value.ContractVersion, Action: value.Action, TargetID: value.TargetID,
 		Path: value.Path, Method: method, Guard: value.Guard, Permission: value.Permission,
 		Priority: value.Priority, Fallback: value.Fallback, Mode: value.Mode, Destination: value.Destination,
-		Handler: value.Handler, RequestSchema: value.RequestSchema, ResponseSchema: value.ResponseSchema,
+		StatusCode: value.StatusCode,
+		Handler:    value.Handler, RequestSchema: value.RequestSchema, ResponseSchema: value.ResponseSchema,
 		MutableRequestFields:  append([]string(nil), value.MutableRequestFields...),
 		MutableResponseFields: append([]string(nil), value.MutableResponseFields...),
 		TimeoutMS:             value.TimeoutMS, PathSignature: signature,
@@ -172,7 +176,10 @@ func validatePluginRouteContract(artifact PluginArtifact, route extensionmanifes
 		if _, err := compileRoutePath(route.Destination); err != nil {
 			return fmt.Errorf("%w: invalid redirect destination", ErrInvalidRoute)
 		}
-	} else if route.Destination != "" {
+		if route.StatusCode != 301 && route.StatusCode != extensionmanifest.RouteRedirectStatusDefault {
+			return fmt.Errorf("%w: invalid redirect status", ErrInvalidRoute)
+		}
+	} else if route.Destination != "" || route.StatusCode != 0 {
 		return fmt.Errorf("%w: action %q cannot declare a destination", ErrInvalidRoute, route.Action)
 	}
 	return nil

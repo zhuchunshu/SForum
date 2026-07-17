@@ -252,7 +252,7 @@ func (d *Dispatcher) Dispatch(ctx context.Context, request DispatchRequest, core
 			}
 			invocation.Response = &value
 		} else if step.Phase == RoutePhaseHandler && step.Action == extensionmanifest.RouteActionRedirect {
-			invocation.Response = &DispatchResponse{Status: http.StatusPermanentRedirect, Headers: http.Header{"Location": []string{step.Destination}}}
+			invocation.Response = &DispatchResponse{Status: step.StatusCode, Headers: http.Header{"Location": []string{step.Destination}}}
 		} else {
 			invocation, err = d.invokePlugin(ctx, plan, index, step, request, response, commit, authority)
 			if err != nil {

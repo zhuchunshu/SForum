@@ -319,7 +319,8 @@ func equalCoreGuardExecutionStep(left, right RouteExecutionStep) bool {
 		left.ContractVersion == right.ContractVersion && left.TargetID == right.TargetID && left.Path == right.Path &&
 		left.Method == right.Method && left.Provider == right.Provider && left.Guard == right.Guard &&
 		left.Access == right.Access && left.Permission == right.Permission && left.Mode == right.Mode &&
-		left.Destination == right.Destination && left.TargetPath == right.TargetPath && left.Handler == right.Handler &&
+		left.Destination == right.Destination && left.StatusCode == right.StatusCode &&
+		left.TargetPath == right.TargetPath && left.Handler == right.Handler &&
 		left.RequestSchema == right.RequestSchema && left.ResponseSchema == right.ResponseSchema &&
 		slices.Equal(left.MutableRequestFields, right.MutableRequestFields) &&
 		slices.Equal(left.MutableResponseFields, right.MutableResponseFields) &&

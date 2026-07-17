@@ -55,6 +55,7 @@ RouteInspectorStep:
     permission: { type: string }
     handler: { type: string }
     destination: { type: string }
+    statusCode: { type: integer, enum: [301, 308] }
     requestSchema: { type: string }
     responseSchema: { type: string }
     mutableRequestFields:
