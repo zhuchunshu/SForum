@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'bun:test'
+import { compileTemplate, parse } from '@vue/compiler-sfc'
 
 const renderer = await Bun.file(new URL('../app/components/extensions/settings/SFExtensionSettingsRenderer.vue', import.meta.url)).text()
 const group = await Bun.file(new URL('../app/components/extensions/settings/SFExtensionSettingsGroup.vue', import.meta.url)).text()
@@ -45,7 +46,38 @@ describe('SFExtensionSettingsRenderer buildless contract', () => {
     expect(adminLayout).not.toContain('SFAdminReleaseNotice')
     expect(dynamicPage).toContain('dynamicTabHydrated.value = true')
     expect(dynamicPage).toContain('if (dynamicTabHydrated.value)')
-    expect(dynamicPage).toContain('settingsDataKey')
+    expect(dynamicPage).toContain('admin-extension-settings:${extensionId.value}:${currentPagePath.value}:${locale.value}')
     expect(dynamicPage).toContain('await useAsyncData<AdminExtensionSettings | null>')
+    expect(dynamicPage).toContain('lazy: true')
+    expect(dynamicPage).not.toContain('default: () => null')
+  })
+
+  test('does not compile the settings renderer branch into a native template element', () => {
+    const filename = 'app/pages/admin/extensions/[extensionId]/pages/[...pagePath].vue'
+    const { descriptor } = parse(dynamicPage, { filename })
+    const compiled = compileTemplate({
+      source: descriptor.template?.content || '',
+      filename,
+      id: 'admin-extension-dynamic-page'
+    })
+
+    expect(compiled.errors).toEqual([])
+    const settingsBranch = descriptor.template?.ast.children.find(child => child.type === 1
+      && child.tag === 'div'
+      && child.props.some(prop => prop.type === 7
+        && prop.name === 'else-if'
+        && prop.exp?.type === 4
+        && prop.exp.content === 'isSettingsView'))
+    expect(settingsBranch?.type).toBe(1)
+    if (!settingsBranch || settingsBranch.type !== 1) return
+
+    const rendererBranches = settingsBranch.children.filter(child => child.type === 1
+      && (child.tag === 'SFTrustedSettingsComponent' || child.tag === 'SFExtensionSettingsRenderer'))
+    expect(rendererBranches.map(child => child.type === 1 ? child.tag : '')).toEqual([
+      'SFTrustedSettingsComponent',
+      'SFExtensionSettingsRenderer'
+    ])
+    expect(rendererBranches[0]?.type === 1 && rendererBranches[0].props.some(prop => prop.type === 7 && prop.name === 'if')).toBeTrue()
+    expect(rendererBranches[1]?.type === 1 && rendererBranches[1].props.some(prop => prop.type === 7 && prop.name === 'else')).toBeTrue()
   })
 })

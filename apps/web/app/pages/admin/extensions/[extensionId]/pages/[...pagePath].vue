@@ -63,7 +63,7 @@ const dynamicTabHydrated = ref(false)
 
 // Settings Document 必须进入 Nuxt payload；普通 async watcher 会让 SSR 先拿到数据、
 // 客户端水合时仍为 null，从而把完整表单和 loading 节点错配。
-const settingsDataKey = computed(() => `admin-extension-settings:${extensionId.value}:${locale.value}`)
+const settingsDataKey = computed(() => `admin-extension-settings:${extensionId.value}:${currentPagePath.value}:${locale.value}`)
 const {
   data: settings,
   pending: loadingSettings,
@@ -78,7 +78,7 @@ const {
     return await request<AdminExtensionSettings>(`/admin/extensions/${extensionId.value}/settings`)
   },
   {
-    default: () => null,
+    lazy: true,
     watch: [isSettingsView]
   }
 )
@@ -308,44 +308,42 @@ async function executeSettingsAction(action: AdminExtensionSettingsAction) {
     </div>
 
     <!-- 宿主通用表单：字段标签/说明来自 API 已按 locale 解析的 settings -->
-    <template>
-      <SFTrustedSettingsComponent
-        v-if="extension && settings && hasPrebuiltSettingsComponent"
-        :extension="extension"
-        :settings="settings"
-        :context="settingsComponentContext"
-      >
-        <template #fallback>
-          <SFExtensionSettingsRenderer
-            :settings="settings"
-            :values="formValues"
-            :loading="loadingSettings"
-            :saving="savingSettings"
-            :recommended-applied="recommendedApplied"
-            :action-loading="actionLoading"
-            :action-results="actionResults"
-            @update="updateSettingValue"
-            @save="saveSettings"
-            @reset="resetSettings"
-            @action="executeSettingsAction"
-          />
-        </template>
-      </SFTrustedSettingsComponent>
-      <SFExtensionSettingsRenderer
-        v-else
-        :settings="settings"
-        :values="formValues"
-        :loading="loadingSettings"
-        :saving="savingSettings"
-        :recommended-applied="recommendedApplied"
-        :action-loading="actionLoading"
-        :action-results="actionResults"
-        @update="updateSettingValue"
-        @save="saveSettings"
-        @reset="resetSettings"
-        @action="executeSettingsAction"
-      />
-    </template>
+    <SFTrustedSettingsComponent
+      v-if="extension && settings && hasPrebuiltSettingsComponent"
+      :extension="extension"
+      :settings="settings"
+      :context="settingsComponentContext"
+    >
+      <template #fallback>
+        <SFExtensionSettingsRenderer
+          :settings="settings"
+          :values="formValues"
+          :loading="loadingSettings"
+          :saving="savingSettings"
+          :recommended-applied="recommendedApplied"
+          :action-loading="actionLoading"
+          :action-results="actionResults"
+          @update="updateSettingValue"
+          @save="saveSettings"
+          @reset="resetSettings"
+          @action="executeSettingsAction"
+        />
+      </template>
+    </SFTrustedSettingsComponent>
+    <SFExtensionSettingsRenderer
+      v-else
+      :settings="settings || null"
+      :values="formValues"
+      :loading="loadingSettings"
+      :saving="savingSettings"
+      :recommended-applied="recommendedApplied"
+      :action-loading="actionLoading"
+      :action-results="actionResults"
+      @update="updateSettingValue"
+      @save="saveSettings"
+      @reset="resetSettings"
+      @action="executeSettingsAction"
+    />
   </div>
 
   <div v-else class="grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
