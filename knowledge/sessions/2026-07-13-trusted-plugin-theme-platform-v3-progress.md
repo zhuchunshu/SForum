@@ -14,6 +14,47 @@ Last updated: 2026-07-17
 
 ## Current Subtask
 
+### 2026-07-17 P6 Lifecycle Route Policy Publication Checkpoint
+
+- Verified weighted progress remains **64.3447%** (display **64.3%**); this
+  closes a correctness dependency of already-credited P6 route work and does
+  not independently earn another authoritative row.
+- `b6eb63afd feat(extensions): bind lifecycle route policies` serializes startup
+  and lifecycle Registry publication, binds every Route policy from the live
+  Route Schema snapshot, rebuilds bindings on each CAS retry, freezes the exact
+  runtime identity, compensates Schema publication when Route publication
+  fails, and keeps Safe Mode policy authority nil.
+- Composed lifecycle tests cross real Manager admission for startup, enable,
+  upgrade, true rollback, disable, and uninstall. Required replay proves
+  `host.ip_write@1` plus `required.24h@1`; concurrency tests cover unrelated CAS
+  writers, live-schema rebinding, cancellation after lock acquisition, and
+  failure compensation.
+- Focused lifecycle tests, the complete Extensions normal/race suites,
+  Extensions vet, and two `git archive HEAD` clean-source verification runs
+  passed before commit. The implementation has no dependency on the separate
+  uncommitted HTTP replay or stream drafts.
+
+### 2026-07-17 Extension Settings Hydration Checkpoint
+
+- `a0f461c0b fix(web): render extension settings without hydration mismatch`
+  fixes the user-visible plugin/theme settings pane that left the admin shell
+  visible while the form area remained blank for many seconds.
+- The exact cause was an unqualified wrapper `<template>` compiled as a native
+  `HTMLTemplateElement`: SSR flattened its children while client hydration
+  placed them in `template.content`, producing `section` versus `div` and parent
+  children mismatches. The trusted component and Schema renderer are now direct
+  adjacent `v-if`/`v-else` branches.
+- Settings async identity now includes extension id, normalized page path, and
+  locale. Lazy client navigation exposes the existing loading state instead of
+  suspending the complete page, and an absent payload stays undefined so Nuxt
+  can fetch rather than treating a default null as hydrated success.
+- The focused Bun settings suites passed **13/13**, Nuxt typecheck passed, and
+  real logged-in Chrome validation passed direct and SPA navigation for both
+  `sforum.content-policy` and `sforum.default-theme`. Both forms rendered, cold
+  theme navigation showed an explicit loading state, and new browser console
+  warnings/errors were empty. This regression fix does not change the 99-row
+  score.
+
 ### 2026-07-17 P6 Bidirectional Staged Modifier Checkpoint
 
 - Verified weighted progress is **64.3447%** (display **64.3%**); P6 advances
@@ -473,16 +514,23 @@ Last updated: 2026-07-17
 
 ## Exact Next Steps
 
-1. Finish the exact trust revoke/drain, Protocol V1 removal, and WebSocket
-   admission slice with allowed, denied, drift, redirect, invalid-WebSocket,
-   and race tests.
-2. Implement RFC 6901 mutable-field enforcement and close every route action,
-   priority, conflict, timeout, crash, multipart/stream, and unsafe matrix row.
+1. Land the Bound replay digest `@2` compatibility slice and production HTTP
+   adapter with wrong-key, mutable-request, terminal-commit, and legacy `@1`
+   fail-closed evidence. Keep it separate from Identity and stream drafts.
+2. Finish the exact custom/raw guard, trust revoke/drain, Protocol V1 fence, and
+   WebSocket admission slice with allowed, denied, drift, redirect,
+   invalid-WebSocket, cancellation, and race tests.
 3. Land route alias/redirect 301/308 canonical ownership and SEO only in
    independently reviewed contract/transport/Host-policy/
    bootstrap/reference slices; do not credit the SEO row before SSR, sitemap,
    revoke/failure, and Inspector evidence is production-complete.
-4. Add full-set/staged-publication quarantine concurrency coverage. Current
+4. Close the remaining full route behavior matrix across every action,
+   priority/conflict order, locale/query/body, permission/CSRF, stream,
+   disconnect, timeout, crash, multipart, and unsafe committed response; only
+   then credit P6 from **15/18** to **18/18**.
+5. Land the already-tested disabled missing-package startup recovery as its own
+   P4 compatibility fix, then add full-set/staged-publication quarantine
+   concurrency coverage. Current
    quarantine is intentionally node/process-local; cross-node or restart
    persistence requires an explicit durable incident/clear contract rather
    than overloading lifecycle publication reasons.
