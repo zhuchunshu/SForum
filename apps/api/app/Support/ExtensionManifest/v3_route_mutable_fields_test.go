@@ -94,6 +94,42 @@ func TestManifestV3OnlyTerminalHandlersAllowNonHTTPModes(t *testing.T) {
 	}
 }
 
+func TestManifestV3OpaqueRouteSchemasAreOptionalDocumentation(t *testing.T) {
+	for _, test := range []struct {
+		mode   string
+		method string
+	}{
+		{mode: RouteModeSSE, method: "GET"},
+		{mode: RouteModeWebSocket, method: "GET"},
+		{mode: RouteModeStream, method: "POST"},
+		{mode: RouteModeMultipart, method: "POST"},
+	} {
+		t.Run(test.mode, func(t *testing.T) {
+			manifest := completeV3Manifest()
+			route := &manifest.Routes[0]
+			route.Mode = test.mode
+			route.Methods = []string{test.method}
+			route.RequestSchema = ""
+			route.ResponseSchema = ""
+			if err := Validate(manifest); err != nil {
+				t.Fatalf("opaque %s route required a JSON schema: %v", test.mode, err)
+			}
+
+			route.ResponseSchema = "not a schema ref"
+			if err := Validate(manifest); err == nil {
+				t.Fatal("invalid optional response schema accepted")
+			}
+		})
+	}
+
+	manifest := completeV3Manifest()
+	manifest.Routes[0].RequestSchema = ""
+	manifest.Routes[0].ResponseSchema = ""
+	if err := Validate(manifest); err == nil {
+		t.Fatal("HTTP write route accepted missing Host-validated schemas")
+	}
+}
+
 func TestManifestV3RouteMutableFieldsRejectRootAndInvalidPointers(t *testing.T) {
 	// RFC 6901 用空字符串表示整个文档；字段级最小权限 allowlist 明确禁止该 root pointer。
 	for _, pointer := range []string{"", "body", "#/body", "/body/~", "/body/~2", "/body/~~0"} {

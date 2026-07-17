@@ -191,7 +191,14 @@ func (v *v3Validator) validateGuardsAndRoutes() error {
 		if !validFallback(route.Fallback) {
 			return ErrInvalidManifest
 		}
-		if routeNeedsSchemas(route.Action) {
+		if route.RequestSchema != "" && !validSchemaRef(route.RequestSchema) ||
+			route.ResponseSchema != "" && !validSchemaRef(route.ResponseSchema) {
+			return ErrInvalidManifest
+		}
+		// Non-HTTP route bodies are opaque Protocol V2 chunks. Legacy schema refs
+		// remain valid documentation metadata, but only HTTP bodies are Host-
+		// validated JSON documents and therefore require these declarations.
+		if route.Mode == RouteModeHTTP && routeNeedsSchemas(route.Action) {
 			if !validSchemaRef(route.ResponseSchema) || (hasUnsafeMethod(route.Methods) && !validSchemaRef(route.RequestSchema)) {
 				return ErrInvalidManifest
 			}
