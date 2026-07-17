@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
 
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
 	assetregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/AssetRegistry"
@@ -90,6 +91,7 @@ type LifecycleRegistryBoundaryConfig struct {
 // Protocol-v2 Service Registry, Page, Route, Component, and Asset registries,
 // plus the exact package schema publication consumed by the Route dispatcher.
 type PostgresLifecycleBoundaryRegistries struct {
+	publicationMu  sync.Mutex
 	repository     LifecycleRegistryPublicationRepository
 	manager        *Manager
 	hooks          *HookBus
@@ -98,6 +100,7 @@ type PostgresLifecycleBoundaryRegistries struct {
 	pageSiteName   string
 	pageLocales    []string
 	routes         *routes.Registry
+	routePublisher lifecycleRoutePublicationCAS
 	routeSchemas   *extensionopenapi.RouteSchemaPublication
 	services       *hostapi.ServiceRegistry
 	components     *ComponentRegistry
@@ -125,6 +128,7 @@ func NewPostgresLifecycleBoundaryRegistries(config LifecycleRegistryBoundaryConf
 		pageSiteName:   config.PageSiteName,
 		pageLocales:    append([]string(nil), config.PageLocales...),
 		routes:         config.Routes,
+		routePublisher: config.Routes,
 		routeSchemas:   config.RouteSchemas,
 		services:       config.Services,
 		components:     components,
@@ -214,6 +218,11 @@ func (b *PostgresLifecycleBoundaryRegistries) RestoreRoutePublications(
 	if err := ctx.Err(); err != nil {
 		return err
 	}
+	b.publicationMu.Lock()
+	defer b.publicationMu.Unlock()
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	if err := b.components.RestoreRuntimes(items, safeMode); err != nil {
 		return fmt.Errorf("restore component registry publication: %w", err)
 	}
@@ -265,21 +274,7 @@ func (b *PostgresLifecycleBoundaryRegistries) RestoreRoutePublications(
 			schemaArtifacts = append(schemaArtifacts, material.routeSchema)
 		}
 	}
-	if _, err := b.routeSchemas.Publish(schemaArtifacts); err != nil {
-		return fmt.Errorf("restore route schema publication: %w", err)
-	}
-	for attempts := 0; attempts < 16; attempts++ {
-		snapshot := b.routes.PublicationSnapshot()
-		publication := snapshot.Publication
-		publication.SafeMode = safeMode
-		publication.Plugins = append([]routes.PluginRouteSet(nil), pluginRoutes...)
-		if _, err := b.routes.PublishIfRevision(publication, snapshot.Revision); err == nil {
-			return nil
-		} else if !errors.Is(err, routes.ErrRevisionConflict) {
-			return fmt.Errorf("restore route registry publication: %w", err)
-		}
-	}
-	return routes.ErrRevisionConflict
+	return b.restoreRoutePolicyPublications(ctx, pluginRoutes, schemaArtifacts, safeMode)
 }
 
 func (b *PostgresLifecycleBoundaryRegistries) restoreExactPluginPagePublications(
@@ -456,14 +451,8 @@ func (b *PostgresLifecycleBoundaryRegistries) validatePreparedLifecycleRegistrie
 				return fmt.Errorf("validate plugin page runtime: %w", err)
 			}
 		}
-		if err := b.validateRouteMaterial(*material); err != nil {
-			return err
-		}
-		if err := b.validateRouteSchemaMaterial(*material, source, target); err != nil {
-			return err
-		}
 	}
-	return nil
+	return b.validateLifecycleRoutePolicyStates(source, target)
 }
 
 func (b *PostgresLifecycleBoundaryRegistries) PrepareLifecycleRegistryPublication(
@@ -505,7 +494,7 @@ func (b *PostgresLifecycleBoundaryRegistries) PrepareLifecycleRegistryPublicatio
 
 func (b *PostgresLifecycleBoundaryRegistries) validateDependencies(ctx context.Context) error {
 	if b == nil || ctx == nil || b.repository == nil || b.manager == nil || b.hooks == nil ||
-		b.pages == nil || b.routes == nil || b.routeSchemas == nil || b.services == nil || b.components == nil ||
+		b.pages == nil || b.routes == nil || b.routePublisher == nil || b.routeSchemas == nil || b.services == nil || b.components == nil ||
 		b.queries == nil || b.caches == nil || b.seo == nil ||
 		(b.identitySet && (b.identity == nil || b.identityStore == nil)) ||
 		(b.assets != nil && (b.assetAuthority == nil || b.assetAdmission == nil)) {
@@ -655,37 +644,6 @@ func (b *PostgresLifecycleBoundaryRegistries) validateRuntimeMaterial(material l
 	return nil
 }
 
-func (b *PostgresLifecycleBoundaryRegistries) validateRouteMaterial(material lifecycleRegistryMaterial) error {
-	snapshot := b.routes.PublicationSnapshot()
-	plugins := make([]routes.PluginRouteSet, 0, len(snapshot.Publication.Plugins)+1)
-	for _, plugin := range snapshot.Publication.Plugins {
-		if plugin.Artifact.ExtensionID != material.extension.ID {
-			plugins = append(plugins, plugin)
-		}
-	}
-	snapshot.Publication.Plugins = append(plugins, material.routes)
-	publication := snapshot.Publication
-	_, err := routes.NewRegistry().Publish(publication)
-	if err != nil {
-		return fmt.Errorf("validate route registry foundation: %w", err)
-	}
-	return nil
-}
-
-func (b *PostgresLifecycleBoundaryRegistries) validateRouteSchemaMaterial(
-	material lifecycleRegistryMaterial,
-	source, target *lifecycleRegistryMaterial,
-) error {
-	if err := b.routeSchemas.ValidateExtensionReplacement(
-		material.extension.ID,
-		&material.routeSchema,
-		lifecycleRouteSchemaAllowedArtifacts(source, target),
-	); err != nil {
-		return fmt.Errorf("validate route schema publication: %w", err)
-	}
-	return nil
-}
-
 type postgresLifecycleRegistryTransaction struct {
 	boundary  *PostgresLifecycleBoundaryRegistries
 	ref       LifecycleRegistryPublicationRef
@@ -746,6 +704,14 @@ func (b *PostgresLifecycleBoundaryRegistries) reconcileLocalRegistries(
 	if err := ctx.Err(); err != nil {
 		return err
 	}
+	b.publicationMu.Lock()
+	defer b.publicationMu.Unlock()
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if err := b.validateLifecycleRoutePolicyState(request.TargetExtension.ID, desired, source, target); err != nil {
+		return err
+	}
 	if phase == LifecycleRegistryPublicationTarget && desired != nil {
 		identity := RuntimeInstanceIdentity{ExtensionID: desired.extension.ID, InstanceID: desired.binding.RuntimeInstanceID}
 		snapshot, err := b.manager.ActiveRuntimeInstance(desired.extension.ID)
@@ -775,10 +741,9 @@ func (b *PostgresLifecycleBoundaryRegistries) reconcileLocalRegistries(
 	if err := b.reconcileServices(request.TargetExtension.ID, source, target, desired, phase); err != nil {
 		return err
 	}
-	if err := b.reconcileRouteSchemas(ctx, request.TargetExtension.ID, source, target, desired); err != nil {
-		return err
-	}
-	if err := b.reconcileRoutes(ctx, request.TargetExtension.ID, source, target, desired); err != nil {
+	if err := b.reconcileRoutePolicyPublications(
+		ctx, request.TargetExtension.ID, source, target, desired,
+	); err != nil {
 		return err
 	}
 	if err := b.reconcilePages(ctx, request.TargetExtension.ID, source, target, desired); err != nil {
@@ -800,11 +765,11 @@ func (b *PostgresLifecycleBoundaryRegistries) reconcileRouteSchemas(
 	ctx context.Context,
 	extensionID string,
 	source, target, desired *lifecycleRegistryMaterial,
-) error {
+) (lifecycleRouteSchemaChange, error) {
 	allowed := lifecycleRouteSchemaAllowedArtifacts(source, target)
 	for attempts := 0; attempts < 16; attempts++ {
 		if err := ctx.Err(); err != nil {
-			return err
+			return lifecycleRouteSchemaChange{}, err
 		}
 		snapshot := b.routeSchemas.PublicationSnapshot()
 		var desiredArtifact *extensionopenapi.Artifact
@@ -812,23 +777,25 @@ func (b *PostgresLifecycleBoundaryRegistries) reconcileRouteSchemas(
 			value := desired.routeSchema
 			desiredArtifact = &value
 			if routeSchemaSnapshotHasExactArtifact(snapshot, value) {
-				return nil
+				return lifecycleRouteSchemaChange{}, nil
 			}
 		} else if !routeSchemaSnapshotHasExtension(snapshot, extensionID) {
-			return nil
+			return lifecycleRouteSchemaChange{}, nil
 		}
-		if _, err := b.routeSchemas.ReplaceExtensionIfRevision(
+		if published, err := b.routeSchemas.ReplaceExtensionIfRevision(
 			extensionID, desiredArtifact, allowed, snapshot.Revision,
 		); err == nil {
-			return nil
+			return lifecycleRouteSchemaChange{before: snapshot, published: published, changed: true}, nil
 		} else if !errors.Is(err, extensionopenapi.ErrRouteSchemaRevisionConflict) {
 			if errors.Is(err, extensionopenapi.ErrRouteSchemaArtifactConflict) {
-				return fmt.Errorf("%w: route schema exact artifact", ErrLifecycleRegistryPublicationConflict)
+				return lifecycleRouteSchemaChange{}, fmt.Errorf(
+					"%w: route schema exact artifact", ErrLifecycleRegistryPublicationConflict,
+				)
 			}
-			return err
+			return lifecycleRouteSchemaChange{}, err
 		}
 	}
-	return extensionopenapi.ErrRouteSchemaRevisionConflict
+	return lifecycleRouteSchemaChange{}, extensionopenapi.ErrRouteSchemaRevisionConflict
 }
 
 func lifecycleRouteSchemaAllowedArtifacts(
@@ -950,27 +917,14 @@ func (b *PostgresLifecycleBoundaryRegistries) reconcileRoutes(
 	extensionID string,
 	source, target, desired *lifecycleRegistryMaterial,
 ) error {
-	for attempts := 0; attempts < 16; attempts++ {
-		if err := ctx.Err(); err != nil {
-			return err
-		}
-		snapshot := b.routes.PublicationSnapshot()
+	return b.publishBoundRoutePublication(ctx, func(publication routes.Publication) (routes.Publication, error) {
 		var desiredSet *routes.PluginRouteSet
 		if desired != nil {
 			value := desired.routes
 			desiredSet = &value
 		}
-		publication, err := replaceLifecycleRouteSet(snapshot.Publication, extensionID, desiredSet, source, target)
-		if err != nil {
-			return err
-		}
-		if _, err := b.routes.PublishIfRevision(publication, snapshot.Revision); err == nil {
-			return nil
-		} else if !errors.Is(err, routes.ErrRevisionConflict) {
-			return err
-		}
-	}
-	return routes.ErrRevisionConflict
+		return replaceLifecycleRouteSet(publication, extensionID, desiredSet, source, target)
+	})
 }
 
 func replaceLifecycleRouteSet(
