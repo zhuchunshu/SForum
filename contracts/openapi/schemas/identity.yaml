@@ -52,6 +52,156 @@ ApiResponseRoleList:
       type: array
       items:
         "$ref": "#/Role"
+RoleSuggestion:
+  type: object
+  allOf:
+  - if:
+      properties:
+        approvalState:
+          enum:
+          - pending
+          - rejected
+      required:
+      - approvalState
+    then:
+      properties:
+        applied:
+          const: false
+  required:
+  - id
+  - permissionKey
+  - ownerExtensionId
+  - extensionVersionId
+  - extensionVersion
+  - packageDigest
+  - permissionContractVersion
+  - declarationDigest
+  - roleKey
+  - approvalState
+  - applied
+  - revision
+  - createdAt
+  - updatedAt
+  properties:
+    id:
+      type: integer
+      format: int64
+      minimum: 1
+    permissionKey:
+      type: string
+    ownerExtensionId:
+      type: string
+    extensionVersionId:
+      type: integer
+      format: int64
+      minimum: 1
+    extensionVersion:
+      type: string
+    packageDigest:
+      type: string
+      pattern: '^[a-f0-9]{64}$'
+    permissionContractVersion:
+      type: string
+    declarationDigest:
+      type: string
+      pattern: '^[a-f0-9]{64}$'
+    roleKey:
+      type: string
+    approvalState:
+      type: string
+      enum:
+      - pending
+      - approved
+      - rejected
+    applied:
+      type: boolean
+      description: True only when immutable Host grant evidence exists.
+    revision:
+      type: integer
+      format: int64
+      minimum: 1
+    decidedByUserId:
+      type: integer
+      format: int64
+      minimum: 1
+    decisionAuditEventId:
+      type: integer
+      format: int64
+      minimum: 1
+    decidedAt:
+      type: string
+      format: date-time
+    appliedByUserId:
+      type: integer
+      format: int64
+      minimum: 1
+    appliedAuditEventId:
+      type: integer
+      format: int64
+      minimum: 1
+    appliedAt:
+      type: string
+      format: date-time
+    createdAt:
+      type: string
+      format: date-time
+    updatedAt:
+      type: string
+      format: date-time
+RoleSuggestionPage:
+  type: object
+  required:
+  - items
+  properties:
+    items:
+      type: array
+      maxItems: 100
+      items:
+        "$ref": "#/RoleSuggestion"
+    nextCursor:
+      type: string
+RoleSuggestionDecisionInput:
+  type: object
+  additionalProperties: false
+  required:
+  - expectedRevision
+  - approvalState
+  properties:
+    expectedRevision:
+      type: integer
+      format: int64
+      minimum: 1
+    approvalState:
+      type: string
+      enum:
+      - approved
+      - rejected
+ApiResponseRoleSuggestion:
+  type: object
+  required:
+  - code
+  - message
+  - data
+  properties:
+    code:
+      type: integer
+    message:
+      type: string
+    data:
+      "$ref": "#/RoleSuggestion"
+ApiResponseRoleSuggestionPage:
+  type: object
+  required:
+  - code
+  - message
+  - data
+  properties:
+    code:
+      type: integer
+    message:
+      type: string
+    data:
+      "$ref": "#/RoleSuggestionPage"
 ApiResponsePermissionList:
   type: object
   required:

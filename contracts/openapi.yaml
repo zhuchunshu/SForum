@@ -203,6 +203,10 @@ paths:
     "$ref": "./openapi/paths/identity.yaml#/permissionMatrix"
   "/roles":
     "$ref": "./openapi/paths/identity.yaml#/roles"
+  "/roles/suggestions":
+    "$ref": "./openapi/paths/identity.yaml#/roleSuggestions"
+  "/roles/suggestions/{suggestionID}/decision":
+    "$ref": "./openapi/paths/identity.yaml#/roleSuggestionDecision"
   "/roles/{roleKey}":
     "$ref": "./openapi/paths/identity.yaml#/roleByKey"
   "/roles/{roleKey}/permissions":
@@ -418,6 +422,16 @@ paths:
   "/extensions/{extensionID}/{pluginPath}":
     "$ref": "./openapi/paths/extensions.yaml#/extensionPluginRoute"
 components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: sforum_session
+      description: Host browser session cookie used for browser-session authority.
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: SForum personal access token (`sft_...`) with Host-bounded permission scopes.
   parameters:
     RoleKey:
       "$ref": "./openapi/components/parameters.yaml#/RoleKey"

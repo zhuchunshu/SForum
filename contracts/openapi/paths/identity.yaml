@@ -259,6 +259,114 @@ roles:
         "$ref": "../components/responses.yaml#/Conflict"
       '422':
         "$ref": "../components/responses.yaml#/UnprocessableEntity"
+roleSuggestions:
+  get:
+    summary: List extension permission role suggestions
+    description: |
+      Returns Host-reviewable permission recommendations from exact active
+      extension artifacts. This endpoint accepts only a browser session cookie
+      from an active actor with `role.manage`; personal access tokens are not
+      review authority. Installation and enablement never approve a suggestion.
+    operationId: listExtensionRoleSuggestions
+    security:
+    - cookieAuth: []
+    parameters:
+    - name: approvalState
+      in: query
+      schema:
+        type: string
+        enum:
+        - pending
+        - approved
+        - rejected
+    - name: roleKey
+      in: query
+      schema:
+        type: string
+    - name: permissionKey
+      in: query
+      schema:
+        type: string
+    - name: ownerExtensionId
+      in: query
+      schema:
+        type: string
+    - name: cursor
+      in: query
+      description: Opaque keyset cursor bound to the normalized filters.
+      schema:
+        type: string
+    - name: limit
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 50
+    responses:
+      '200':
+        description: Stable page of permission role suggestions.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/identity.yaml#/ApiResponseRoleSuggestionPage"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '422':
+        "$ref": "../components/responses.yaml#/UnprocessableEntity"
+      '503':
+        "$ref": "../components/responses.yaml#/ServiceUnavailable"
+roleSuggestionDecision:
+  post:
+    summary: Approve or reject one extension permission role suggestion
+    description: |
+      Performs one actor-bound Host decision with optimistic concurrency.
+      Approval adds only the declared permission mapping to the target role and
+      records immutable grant and audit evidence in the same transaction.
+      Rejection grants nothing. The repository rechecks the live actor,
+      permission catalog, exact active extension artifact, and target role.
+    operationId: decideExtensionRoleSuggestion
+    security:
+    - cookieAuth: []
+    parameters:
+    - name: suggestionID
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+        minimum: 1
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            "$ref": "../schemas/identity.yaml#/RoleSuggestionDecisionInput"
+    responses:
+      '200':
+        description: Durable Host decision and grant status.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/identity.yaml#/ApiResponseRoleSuggestion"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '404':
+        "$ref": "../components/responses.yaml#/NotFound"
+      '409':
+        description: The revision, exact artifact, permission catalog, or target role changed; refresh before retrying.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/common.yaml#/ApiErrorResponse"
+      '422':
+        "$ref": "../components/responses.yaml#/UnprocessableEntity"
+      '503':
+        "$ref": "../components/responses.yaml#/ServiceUnavailable"
 roleByKey:
   patch:
     summary: Update a role alias and description
