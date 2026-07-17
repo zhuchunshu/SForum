@@ -8,6 +8,7 @@ require (
 	github.com/altcha-org/altcha-lib-go/v2 v2.0.0-20260512100103-f14102c7e9bd
 	github.com/charmbracelet/huh v1.0.0
 	github.com/disintegration/imaging v1.6.2
+	github.com/evanphx/json-patch/v5 v5.9.11
 	github.com/fasthttp/websocket v1.5.12
 	github.com/gofiber/fiber/v3 v3.0.0-rc.3
 	github.com/gofiber/storage/redis/v3 v3.5.0
