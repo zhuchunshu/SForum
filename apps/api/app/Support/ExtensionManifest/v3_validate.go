@@ -124,6 +124,9 @@ func (v *v3Validator) validateGuardsAndRoutes() error {
 		if !validRouteAction(route.Action) || !validRouteMode(route.Mode) || !guards[route.Guard] || route.TimeoutMS < 0 {
 			return ErrInvalidManifest
 		}
+		if route.Action != RouteActionAdd && route.Action != RouteActionReplace && route.Mode != RouteModeHTTP {
+			return ErrInvalidManifest
+		}
 		if !ValidRouteMutableFields(route, rawRequestGuards[route.Guard]) {
 			return ErrInvalidManifest
 		}

@@ -11,6 +11,10 @@ import (
 // static Host-owned field policy. Runtime code must additionally reject header
 // names nominated by the current Connection header.
 func ValidRouteMutableFields(route ManifestRoute, rawRequestAuthority bool) bool {
+	if routeMutablePointerListTargetsBody(route.MutableRequestFields) && !validSchemaRef(route.RequestSchema) ||
+		routeMutablePointerListTargetsBody(route.MutableResponseFields) && !validSchemaRef(route.ResponseSchema) {
+		return false
+	}
 	if len(route.MutableRequestFields) > 0 {
 		switch route.Action {
 		case RouteActionGlobalMiddleware, RouteActionBefore, RouteActionFilter, RouteActionWrap:
@@ -28,6 +32,16 @@ func ValidRouteMutableFields(route ManifestRoute, rawRequestAuthority bool) bool
 	return validRouteMutablePointerList(route.MutableRequestFields, func(value string) bool {
 		return ValidRouteMutableRequestPointer(value, rawRequestAuthority)
 	}) && validRouteMutablePointerList(route.MutableResponseFields, ValidRouteMutableResponsePointer)
+}
+
+func routeMutablePointerListTargetsBody(values []string) bool {
+	for _, value := range values {
+		tokens, ok := routeMutablePointerTokens(value)
+		if ok && len(tokens) > 0 && tokens[0] == "body" {
+			return true
+		}
+	}
+	return false
 }
 
 func validRouteMutablePointerList(values []string, valid func(string) bool) bool {

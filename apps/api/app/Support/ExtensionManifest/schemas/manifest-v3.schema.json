@@ -350,6 +350,53 @@
                 "mutableResponseFields": { "maxItems": 0 }
               }
             }
+          },
+          {
+            "if": {
+              "properties": {
+                "mutableRequestFields": {
+                  "type": "array",
+                  "contains": { "type": "string", "pattern": "^/body($|/)" }
+                }
+              },
+              "required": ["mutableRequestFields"]
+            },
+            "then": {
+              "properties": {
+                "requestSchema": { "$ref": "#/$defs/schemaRef" }
+              },
+              "required": ["requestSchema"]
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "mutableResponseFields": {
+                  "type": "array",
+                  "contains": { "type": "string", "pattern": "^/body($|/)" }
+                }
+              },
+              "required": ["mutableResponseFields"]
+            },
+            "then": {
+              "properties": {
+                "responseSchema": { "$ref": "#/$defs/schemaRef" }
+              },
+              "required": ["responseSchema"]
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "action": { "not": { "enum": ["add", "replace"] } }
+              },
+              "required": ["action"]
+            },
+            "then": {
+              "properties": {
+                "mode": { "const": "http" }
+              }
+            }
           }
         ]
       }

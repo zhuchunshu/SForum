@@ -59,6 +59,41 @@ func TestManifestV3RouteMutableFieldsNormalizeBeforeDuplicateCheck(t *testing.T)
 	}
 }
 
+func TestManifestV3RouteBodyMutationRequiresMatchingSchema(t *testing.T) {
+	requestBody := mutableRouteManifest(RouteActionBefore)
+	requestBody.Routes[0].MutableRequestFields = []string{"/body/title"}
+	requestBody.Routes[0].RequestSchema = ""
+	assertMutableRouteRejected(t, requestBody)
+
+	responseBody := mutableRouteManifest(RouteActionAfter)
+	responseBody.Routes[0].MutableResponseFields = []string{"/body/title"}
+	responseBody.Routes[0].ResponseSchema = ""
+	assertMutableRouteRejected(t, responseBody)
+
+	requestMetadata := mutableRouteManifest(RouteActionBefore)
+	requestMetadata.Routes[0].MutableRequestFields = []string{"/query/tag", "/headers/x-trace"}
+	requestMetadata.Routes[0].RequestSchema = ""
+	assertMutableRouteAccepted(t, requestMetadata)
+
+	responseMetadata := mutableRouteManifest(RouteActionAfter)
+	responseMetadata.Routes[0].MutableResponseFields = []string{"/status", "/headers/cache-control"}
+	responseMetadata.Routes[0].ResponseSchema = ""
+	assertMutableRouteAccepted(t, responseMetadata)
+}
+
+func TestManifestV3OnlyTerminalHandlersAllowNonHTTPModes(t *testing.T) {
+	for _, action := range []string{
+		RouteActionAlias, RouteActionRedirect, RouteActionRewrite, RouteActionBefore,
+		RouteActionAfter, RouteActionFilter, RouteActionWrap, RouteActionGlobalMiddleware,
+	} {
+		t.Run(action, func(t *testing.T) {
+			manifest := mutableRouteManifest(action)
+			manifest.Routes[0].Mode = RouteModeSSE
+			assertMutableRouteRejected(t, manifest)
+		})
+	}
+}
+
 func TestManifestV3RouteMutableFieldsRejectRootAndInvalidPointers(t *testing.T) {
 	// RFC 6901 用空字符串表示整个文档；字段级最小权限 allowlist 明确禁止该 root pointer。
 	for _, pointer := range []string{"", "body", "#/body", "/body/~", "/body/~2", "/body/~~0"} {
