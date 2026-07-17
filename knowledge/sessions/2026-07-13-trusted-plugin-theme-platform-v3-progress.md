@@ -32,6 +32,28 @@ Last updated: 2026-07-18
   blockers, then continue the remaining P7 Query/Identity/Auth surfaces and P9
   public component policy without crediting partial drafts.
 
+### 2026-07-18 Core Execution Fence Checkpoint
+
+- Verified weighted progress remains **64.7992%** (display **64.7%**); P6 stays
+  **15/18** because this closes a retry-safety defect inside already-credited
+  unsafe route and required-replay behavior.
+- `c685a875c fix(routes): fence observed core execution` gives direct Core and
+  `readonly_core` fallback calls one shared commit-evidence boundary. A context
+  canceled before delivery remains pristine and may abort its unused replay
+  lease. Once Core delivery can no longer be disproved, side-effect evidence is
+  monotonic; a successful captured response advances response evidence.
+- Unsafe POST alias/rewrite tests prove successful replay does not invoke Core
+  twice, Core error/500 and cancellation after delivery leave the exact replay
+  pending, and a retry returns in-progress without another Core call. Focused
+  tests passed 50 repetitions and 10 race repetitions. An isolated exact-index
+  clone passed the complete Routes normal/race suites, Routes vet, and
+  `go build ./...`; the independent canonical redirect hunk remained unstaged.
+- Exact resume point: preserve and complete an already-valid response when the
+  caller cancels during response-stage authorization/plugin/schema handling or
+  replay completion, without misclassifying the caller as a runtime incident.
+  Then close Stream V2 total budget, automatic lease release, non-HTTP schema,
+  incident source, and real subprocess correlation.
+
 ### 2026-07-18 Required Replay Response Checkpoint
 
 - Verified weighted progress remains **64.3447%** (display **64.3%**); P6 stays

@@ -155,6 +155,24 @@ or treated as expired only after the complete V3 goal is achieved.
   exact CAS allowed/denied/conflict/evidence behavior is covered at the API and
   composable boundaries.
 
+### 2026-07-18 Core Execution Observation Fence
+
+- Exact weighted progress remains `64.7992%`; displayed progress remains
+  **64.7%**. `c685a875c fix(routes): fence observed core execution` closes an
+  unsafe retry defect inside the already-credited P6 route/replay rows.
+- Direct Core alias/rewrite execution and `readonly_core` fallback now share a
+  pre-delivery cancellation check plus monotonic side-effect/response evidence.
+  An unused canceled request may abort; once Core delivery is possible, error,
+  500, or cancellation leaves required replay pending instead of authorizing a
+  second Core writer.
+- POST alias/rewrite success, replay, error, 500, cancellation-before-delivery,
+  and cancellation-after-delivery are covered. Focused tests passed 50 normal
+  and 10 race repetitions; an isolated exact-index clone passed full Routes
+  normal/race, vet, and `go build ./...`.
+- Next: detach completion of an already-valid response from caller cancellation
+  without hiding runtime incidents, then finish the Stream V2 deadline, lease,
+  schema, incident-source, and real-process correlation matrix.
+
 ### 2026-07-18 Required Replay Final-Response Closure
 
 - Exact weighted progress remains `64.3447%`; displayed progress remains
