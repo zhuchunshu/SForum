@@ -14,6 +14,27 @@ Last updated: 2026-07-17
 
 ## Current Subtask
 
+### 2026-07-17 P6 Stream Evidence Commit
+
+- Verified weighted progress remains **64.3447%** (display **64.3%**); P6 stays
+  **15/18** because this corrects production evidence inside already-credited
+  streamed transport work rather than closing a remaining authoritative row.
+- `78ecad557 fix(routes): preserve stream execution evidence` landed as an
+  isolated four-file commit. Exact immutable terminal selection, `add`/`replace`
+  fencing, composed-plan rejection, custom/raw guard failure classification,
+  mode-exact status checks, pristine pre-admission cancellation, and observed-
+  execution cancellation evidence are now joined to the Protocol V2 preflight
+  adapter in one buildable dependency set.
+- A clean-HEAD archive passed full Routes/Http normal and race suites plus vet.
+  Focused cancellation tests passed 50 ordinary and 10 race repetitions. The
+  real index retained only the separate P7 role-suggestion candidate after the
+  commit; user-owned fixture files were not staged.
+- Exact resume point: finish the isolated required-replay response-policy review,
+  then close stream preflight timeout/schema evidence and review the real
+  WebSocket trust-revoke test. In parallel, remediate and retest the P7 role-
+  suggestion UI and continue the P9 public frontend policy slice. Do not credit
+  progress until a complete authoritative row passes its production exit.
+
 ### 2026-07-17 Extension Settings Performance Checkpoint
 
 - Verified weighted progress remains **64.3447%** (display **64.3%**). This is

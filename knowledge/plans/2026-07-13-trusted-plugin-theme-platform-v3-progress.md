@@ -125,6 +125,33 @@ or treated as expired only after the complete V3 goal is achieved.
 
 ## Last Durable Checkpoint
 
+### 2026-07-17 P6 Exact Stream Execution Evidence
+
+- Exact weighted progress remains `64.3447%`; displayed progress remains
+  **64.3%**. This hardens already-credited streamed transport behavior and does
+  not independently close one of the three remaining P6 rows.
+- `78ecad557 fix(routes): preserve stream execution evidence` restricts the
+  non-buffered Dispatcher to the immutable terminal and exact plugin `add` or
+  `replace` handler, rejects composed/drifted stream plans, classifies remote
+  custom/raw guard failures correctly, and applies mode-exact terminal status
+  validation. Caller cancellation before remote execution remains payload-free
+  and pristine; cancellation or failure after observed execution remains a
+  transport failure with `side_effect_started` evidence.
+- The Protocol V2 adapter now requires a commit observer, checks the acquired
+  lease context immediately before the remote preflight, and advances the
+  execution fence before a preflight whose delivery cannot be disproved. This
+  dependency landed atomically with removal of the old premature unconditional
+  `RequestStarted` mark.
+- A clean `git archive HEAD` plus only the four-file staged patch passed the
+  complete Routes and Http normal/race suites and both-package vet. The focused
+  caller-cancellation matrix passed 50 normal and 10 race repetitions before
+  commit; the committed diff passed `git show --check`.
+- Stream route-timeout enforcement across the unary preflight, Host validation
+  semantics for required non-HTTP response schemas, and real SDK correlation
+  evidence remain part of the final P6 behavior-matrix exit. Required replay
+  response revalidation is under a separate isolated review. P7 role-suggestion
+  UI and P9 public frontend policy drafts remain outside this commit.
+
 ### 2026-07-17 P6 Bidirectional Staged Modifier Closure
 
 - Exact weighted progress is `64.3447%`; displayed progress is **64.3%**.
