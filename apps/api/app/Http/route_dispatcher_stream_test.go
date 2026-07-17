@@ -548,6 +548,69 @@ func hasRouteTraceOutcome(records []routes.RouteTraceRecord, outcome routes.Rout
 	return false
 }
 
+func TestRouteDispatcherInvalidWebSocketPreflightFailsBeforeLifetimeDone(t *testing.T) {
+	// Drive the exact post-Open adapter order used by serveRouteWebSocket for an
+	// invalid preflight (unsolicited subprotocol): Fail then Cancel, with Done
+	// still open when the fail trace is published.
+	registry := routes.NewRegistry()
+	artifact := routeDispatcherArtifact("stream.websocket.preflight-order", 'a')
+	declaration := routeDispatcherManifestRoute(
+		"stream.websocket.preflight-order.socket", extensionmanifest.RouteActionAdd, "/socket-preflight-order", "GET",
+	)
+	declaration.Mode = extensionmanifest.RouteModeWebSocket
+	if _, err := registry.Publish(routes.Publication{Plugins: []routes.PluginRouteSet{{
+		Artifact: artifact, Routes: []extensionmanifest.ManifestRoute{declaration},
+	}}}); err != nil {
+		t.Fatal(err)
+	}
+	traces := routes.NewRouteTraceRing(8)
+	probe := &streamLifetimeOrderProbe{inner: traces}
+	dispatcher := routes.NewDispatcher(routes.DispatcherConfig{
+		Plans: routeRegistryPlanResolver{registry: registry},
+		Steps: &streamHTTPTestInvoker{start: routes.RouteStreamStart{
+			// Open accepts 101; subprotocol mismatch is the post-Open fail path.
+			Response: routes.DispatchResponse{
+				Status:  fiber.StatusSwitchingProtocols,
+				Headers: stdhttp.Header{"Sec-WebSocket-Protocol": {"unsolicited.v1"}},
+			},
+			Session: &streamHTTPTestSession{},
+		}},
+		Guard: HostRouteGuardAuthorizer{}, Trace: probe,
+	})
+	prepared, err := dispatcher.PrepareStream(
+		context.Background(), routes.DispatchRequest{Method: stdhttp.MethodGet, Path: "/socket-preflight-order"},
+	)
+	if err != nil || prepared.Dispatch == nil {
+		t.Fatalf("prepared=%#v err=%v", prepared, err)
+	}
+	start, err := prepared.Dispatch.Open(context.Background())
+	if err != nil || start.Session == nil {
+		t.Fatalf("open=%#v err=%v", start, err)
+	}
+	source, ok := start.Session.(routes.RouteStreamLifetimeSource)
+	if !ok {
+		t.Fatal("Open did not bind a lifetime source")
+	}
+	probe.done = source.Done()
+	// Exact serveRouteWebSocket invalid-preflight order.
+	prepared.Dispatch.Fail()
+	start.Session.Cancel()
+	if !probe.failWhileOpen.Load() {
+		t.Fatal("invalid WebSocket preflight Fail published after lifetime Done closed")
+	}
+	if probe.failAfterDone.Load() {
+		t.Fatal("invalid WebSocket preflight Fail published after lifetime Done closed")
+	}
+	select {
+	case <-source.Done():
+	case <-time.After(time.Second):
+		t.Fatal("lifetime Done was not closed after Cancel")
+	}
+	if !hasRouteTraceOutcome(traces.RouteTraces(0), routes.RouteTraceTransportFailed) {
+		t.Fatalf("missing fail trace: %#v", traces.RouteTraces(0))
+	}
+}
+
 func TestRouteDispatcherRejectsMalformedWebSocketBeforeRuntime(t *testing.T) {
 	registry := routes.NewRegistry()
 	artifact := routeDispatcherArtifact("stream.websocket.invalid", 'd')
