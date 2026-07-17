@@ -100,12 +100,15 @@ This is the entry point for project memory.
     composition, and concurrent idempotent replay. The production entitlement
     Host Command now proves eight-way replay, payload/revision conflict,
     revoke/replay, and actorless delegation rejection through real PostgreSQL
-  - P6 is active at 13/18 (72%). All 230 core routes have stable generated
+  - P6 is active at 15/18 (83%). All 230 core routes have stable generated
     identities; immutable exact route snapshots, explicit replace-provider
     selection/conflict UI, Safe Mode filtering, and strict OpenAPI
     collision/reference rejection are accepted. Arbitrary public/admin/API
-    paths and WebSocket Upgrade now reach the production Host dispatcher;
-    declaration-bound mutable fields remain open after the production audit.
+    paths and WebSocket Upgrade now reach the production Host dispatcher. The
+    complete accepted action family now runs through deterministic request,
+    handler, and response stages; declaration-bound request/response patches
+    are Host-applied and immediately schema-revalidated. Custom/raw guard
+    revoke-WebSocket, route SEO, and the complete behavior matrix remain open.
   - Exact OpenAPI operations now derive Host-owned permission/security,
     `host.ip_write@1` rate-limit, and `required.24h@1` replay metadata. Required
     replay is production-wired through a 24-hour CAS-fenced Redis ledger,

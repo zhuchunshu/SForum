@@ -1,7 +1,7 @@
 # Trusted Plugin And Theme Platform V3 Progress Ledger
 
 Date: 2026-07-17
-Overall progress: **63.2%**
+Overall progress: **64.3%**
 Active phase: **P6/P7/P9 accepted work plus P10-P12 production closure slices**
 
 This ledger is the durable percentage and context-compaction checkpoint for the
@@ -22,7 +22,7 @@ scaffolding, or demo-only code cannot satisfy a runtime exit criterion.
 | P3 Host API v2 | 8% | 100% | 8% |
 | P4 Lifecycle/dependencies | 7% | 100% | 7% |
 | P5 Database/commands | 8% | 100% | 8% |
-| P6 Routes/middleware | 10% | 72% | 7.22% |
+| P6 Routes/middleware | 10% | 83% | 8.33% |
 | P7 Workflow/admin/query/identity | 10% | 64% | 6.36% |
 | P8 Theme compiler/runtime | 8% | 100% | 8% |
 | P9 Components/assets/L2 | 8% | 25% | 2.00% |
@@ -124,6 +124,34 @@ or treated as expired only after the complete V3 goal is achieved.
   failing plugin exactly once (`failed`, then `skipped`).
 
 ## Last Durable Checkpoint
+
+### 2026-07-17 P6 Bidirectional Staged Modifier Closure
+
+- Exact weighted progress is `64.3447%`; displayed progress is **64.3%**.
+  P6 advances from **13/18** to **15/18** after closing the complete accepted
+  route-action family and request/response/filter schema plus explicit mutable-
+  field rows.
+- `5da58f160` executes global/before/filter/wrap request stages in deterministic
+  priority order, the selected Core or plugin handler, and wrap/filter/after
+  response stages in reverse composition order. Protocol V2 carries exact
+  action/stage, ordered repeated query values, bounded RFC 6901 patches, typed
+  guard failures, and Host-proven params authority; Protocol V1 modifiers fail
+  before runtime admission.
+- `d55f027a6` proves a request patch is immediately revalidated against the
+  same exact route schema. A rejected patched body returns 422, skips every
+  later modifier and Core, drains the exact runtime lease, emits one redacted
+  request-stage `schema_rejected` trace, and does not misuse the response-stage
+  committed-after failure contract.
+- The exact implementation index passed full Routes, Http, Extensions, and
+  bootstrap tests; Routes/Http race tests; four-package vet; `go build ./...`;
+  real subprocess repeated-query verification; and the production Dispatcher
+  benchmark. The schema revalidation proof additionally passed 50 focused
+  repetitions, 10 race repetitions, full Http, and vet.
+- Required replay with request mutation remains fail-closed before `Begin`.
+  The next production slice must freeze exact required-idempotency policy into
+  the immutable Route snapshot and execution plan, prove 64-reader publication
+  atomicity, then switch HTTP to Bound replay with wrong-key evidence. Custom/
+  raw guard revoke-WebSocket, route SEO, and the complete P6 matrix remain open.
 
 ### 2026-07-17 P6 Trust Revocation And Guard Closure In Progress
 

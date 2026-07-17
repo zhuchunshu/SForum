@@ -4,8 +4,8 @@ Last updated: 2026-07-17
 
 ## Progress
 
-- Verified weighted progress: **63.2336%** (display **63.2%**).
-- Phase counts: P0-P5 and P8 complete; P6 **13/18**, P7 **14/22**,
+- Verified weighted progress: **64.3447%** (display **64.3%**).
+- Phase counts: P0-P5 and P8 complete; P6 **15/18**, P7 **14/22**,
   P8 **18/18**, P9 **4/16**, P11 **1/16**, and P12 **1/22**. P10 and P13
   have no credited authoritative row yet.
 - Completion remains unproven until all 99 target rows, 14 accepted boundaries,
@@ -13,6 +13,33 @@ Last updated: 2026-07-17
   gates pass.
 
 ## Current Subtask
+
+### 2026-07-17 P6 Bidirectional Staged Modifier Checkpoint
+
+- Verified weighted progress is **64.3447%** (display **64.3%**); P6 advances
+  to **15/18**. Only committed and verified evidence is credited.
+- `5da58f160 feat(routes): execute bidirectional staged modifiers` closes the
+  accepted route-action and explicit mutable-field/schema rows. It lands the
+  staged request/handler/response sequence, bounded request and response patch
+  application, immediate schema revalidation, exact Protocol V2 stage/action
+  bridge, lossless repeated-query propagation, Host-issued params proof,
+  Protocol V1 modifier fence, stage-aware traces/failures, and the production
+  action/guard/failure matrices.
+- Its exact index passed full Routes, Http, Extensions, and bootstrap tests;
+  Routes/Http race tests; four-package vet; `go build ./...`; a real subprocess
+  repeated-query test; and the production Dispatcher benchmark.
+- `d55f027a6 test(routes): prove request patch schema revalidation` adds the
+  missing negative production proof: the first modifier changes a valid string
+  to JSON number `42`, the same schema rejects it on the second validation, the
+  second modifier and Core never run, the exact runtime lease drains, and one
+  payload-free request-stage trace records `schema_rejected` after remote
+  execution. It passed 50 focused repetitions, 10 race repetitions, full Http,
+  and vet.
+- Current exact next step: bind required-idempotency policy into the same
+  immutable Routes snapshot and execution plan, prove a 64-reader publication
+  matrix, then land the production Bound replay adapter and wrong-key fail-
+  closed tests. Do not stage the parallel Identity, stream/WebSocket, SEO,
+  public frontend, or user-owned fixture drafts with that slice.
 
 ### 2026-07-17 P6 Bound Replay And Terminal Status Checkpoint
 
