@@ -1,12 +1,16 @@
 package extensionmanifest
 
 import (
+	"strconv"
 	"strings"
 
 	"golang.org/x/net/http/httpguts"
 )
 
-func validRouteMutableFields(route ManifestRoute, rawRequestAuthority bool) bool {
+// ValidRouteMutableFields validates action direction, pointer shape, and the
+// static Host-owned field policy. Runtime code must additionally reject header
+// names nominated by the current Connection header.
+func ValidRouteMutableFields(route ManifestRoute, rawRequestAuthority bool) bool {
 	if len(route.MutableRequestFields) > 0 {
 		switch route.Action {
 		case RouteActionGlobalMiddleware, RouteActionBefore, RouteActionFilter, RouteActionWrap:
@@ -98,7 +102,8 @@ func routeMutableArrayIndex(value string) bool {
 			return false
 		}
 	}
-	return true
+	_, err := strconv.ParseUint(value, 10, 31)
+	return err == nil
 }
 
 func validRFC6901Pointer(value string) bool {

@@ -63,6 +63,10 @@ func preparePluginRoute(
 	if err != nil {
 		return nil, err
 	}
+	rawRequestAuthority := declaration.Guard == extensionmanifest.GuardCoreRaw || guardBinding.Kind == "raw_request"
+	if !extensionmanifest.ValidRouteMutableFields(declaration, rawRequestAuthority) {
+		return nil, fmt.Errorf("%w: invalid mutable route fields", ErrInvalidRoute)
+	}
 	if declaration.Action == extensionmanifest.RouteActionGlobalMiddleware {
 		if declaration.Path != "" || declaration.TargetID != "" || len(declaration.Methods) != 0 {
 			return nil, fmt.Errorf("%w: invalid global middleware declaration", ErrInvalidRoute)
@@ -162,9 +166,6 @@ func validatePluginRouteContract(artifact PluginArtifact, route extensionmanifes
 	if route.Guard == extensionmanifest.GuardCorePermission && !routeIDPattern.MatchString(route.Permission) {
 		return fmt.Errorf("%w: permission guard requires a permission", ErrInvalidRoute)
 	}
-	if !validRouteMutableFields(route) {
-		return fmt.Errorf("%w: invalid mutable route fields", ErrInvalidRoute)
-	}
 	if routeNeedsHandler(route.Action) && !validRouteHandler(route.Handler) {
 		return fmt.Errorf("%w: action %q requires a handler", ErrInvalidRoute, route.Action)
 	}
@@ -190,53 +191,6 @@ func validatePluginRouteContract(artifact PluginArtifact, route extensionmanifes
 		return fmt.Errorf("%w: action %q cannot declare redirect output", ErrInvalidRoute, route.Action)
 	}
 	return nil
-}
-
-func validRouteMutableFields(route extensionmanifest.ManifestRoute) bool {
-	if len(route.MutableRequestFields) > 0 {
-		switch route.Action {
-		case extensionmanifest.RouteActionGlobalMiddleware, extensionmanifest.RouteActionBefore,
-			extensionmanifest.RouteActionFilter, extensionmanifest.RouteActionWrap:
-		default:
-			return false
-		}
-	}
-	if len(route.MutableResponseFields) > 0 {
-		switch route.Action {
-		case extensionmanifest.RouteActionFilter, extensionmanifest.RouteActionWrap, extensionmanifest.RouteActionAfter:
-		default:
-			return false
-		}
-	}
-	return validRouteRFC6901Pointers(route.MutableRequestFields) && validRouteRFC6901Pointers(route.MutableResponseFields)
-}
-
-func validRouteRFC6901Pointers(values []string) bool {
-	if len(values) > extensionmanifest.RouteMutableFieldsMaximumCount {
-		return false
-	}
-	seen := make(map[string]struct{}, len(values))
-	for _, value := range values {
-		if value == "" || len(value) > extensionmanifest.RouteMutableFieldMaximumBytes ||
-			value != strings.TrimSpace(value) || value[0] != '/' ||
-			strings.Count(value, "/") > extensionmanifest.RouteMutableFieldMaximumTokens {
-			return false
-		}
-		for index := 1; index < len(value); index++ {
-			if value[index] != '~' {
-				continue
-			}
-			index++
-			if index >= len(value) || value[index] != '0' && value[index] != '1' {
-				return false
-			}
-		}
-		if _, duplicate := seen[value]; duplicate {
-			return false
-		}
-		seen[value] = struct{}{}
-	}
-	return true
 }
 
 func protectedHostRoute(route extensionmanifest.ManifestRoute) bool {

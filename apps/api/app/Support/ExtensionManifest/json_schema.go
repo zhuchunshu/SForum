@@ -12,8 +12,8 @@ import (
 )
 
 const (
-	manifestV3SchemaURL                    = "https://sforum.dev/schemas/extensions/manifest-v3.schema.json"
-	routeMutableRequestPointerSchemaFormat = "sforum-route-mutable-request-pointer"
+	manifestV3SchemaURL                     = "https://sforum.dev/schemas/extensions/manifest-v3.schema.json"
+	routeMutableRequestPointerSchemaFormat  = "sforum-route-mutable-request-pointer"
 	routeMutableResponsePointerSchemaFormat = "sforum-route-mutable-response-pointer"
 )
 

@@ -19,8 +19,8 @@ func TestRouteMutableFieldsPropagateThroughImmutableSnapshotsAndPlans(t *testing
 	before := modifierRoute("mutable.contract.before", target.ID, target.Path, extensionmanifest.RouteActionBefore, "GET", 80)
 	before.MutableRequestFields = []string{"/body/title"}
 	filter := modifierRoute("mutable.contract.filter", target.ID, target.Path, extensionmanifest.RouteActionFilter, "GET", 70)
-	filter.MutableRequestFields = []string{"/headers/x~1trace"}
-	filter.MutableResponseFields = []string{"/headers/cache~1control"}
+	filter.MutableRequestFields = []string{"/headers/x-trace"}
+	filter.MutableResponseFields = []string{"/headers/cache-control"}
 	wrap := modifierRoute("mutable.contract.wrap", target.ID, target.Path, extensionmanifest.RouteActionWrap, "GET", 60)
 	wrap.MutableRequestFields = []string{"/params/id"}
 	wrap.MutableResponseFields = []string{"/body"}
@@ -42,7 +42,7 @@ func TestRouteMutableFieldsPropagateThroughImmutableSnapshotsAndPlans(t *testing
 	snapshot := registry.Snapshot()
 	filterRoute := executionRouteByID(t, snapshot, "mutable.contract.filter")
 	filterRoute.MutableRequestFields[0] = "/snapshot-mutated"
-	assertMutableRouteFields(t, registry.Snapshot(), "mutable.contract.filter", []string{"/headers/x~1trace"}, []string{"/headers/cache~1control"})
+	assertMutableRouteFields(t, registry.Snapshot(), "mutable.contract.filter", []string{"/headers/x-trace"}, []string{"/headers/cache-control"})
 
 	changed := cloneRoute(executionRouteByID(t, registry.Snapshot(), "mutable.contract.filter"))
 	changed.MutableResponseFields[0] = "/changed"
@@ -80,7 +80,7 @@ func TestRouteMutableFieldsPropagateThroughImmutableSnapshotsAndPlans(t *testing
 	}{
 		"mutable.contract.global": {[]string{"/query"}, nil},
 		"mutable.contract.before": {[]string{"/body/title"}, nil},
-		"mutable.contract.filter": {[]string{"/headers/x~1trace"}, []string{"/headers/cache~1control"}},
+		"mutable.contract.filter": {[]string{"/headers/x-trace"}, []string{"/headers/cache-control"}},
 		"mutable.contract.wrap":   {[]string{"/params/id"}, []string{"/body"}},
 		"mutable.contract.after":  {nil, []string{"/status"}},
 	}
@@ -116,16 +116,34 @@ func TestRegistryRejectsInvalidRouteMutableFields(t *testing.T) {
 		{"empty pointer", func(route *extensionmanifest.ManifestRoute) { route.MutableRequestFields = []string{""} }},
 		{"missing slash", func(route *extensionmanifest.ManifestRoute) { route.MutableRequestFields = []string{"body"} }},
 		{"invalid escape", func(route *extensionmanifest.ManifestRoute) { route.MutableRequestFields = []string{"/body/~2"} }},
+		{"invalid request root", func(route *extensionmanifest.ManifestRoute) { route.MutableRequestFields = []string{"/status"} }},
+		{"invalid query shape", func(route *extensionmanifest.ManifestRoute) {
+			route.MutableRequestFields = []string{"/query/tag/0/child"}
+		}},
+		{"invalid params shape", func(route *extensionmanifest.ManifestRoute) {
+			route.MutableRequestFields = []string{"/params/id/child"}
+		}},
+		{"non canonical header", func(route *extensionmanifest.ManifestRoute) { route.MutableRequestFields = []string{"/headers/X-Test"} }},
+		{"host request header", func(route *extensionmanifest.ManifestRoute) {
+			route.MutableRequestFields = []string{"/headers/idempotency-key"}
+		}},
+		{"filtered credential header", func(route *extensionmanifest.ManifestRoute) {
+			route.MutableRequestFields = []string{"/headers/authorization"}
+		}},
+		{"invalid response status child", func(route *extensionmanifest.ManifestRoute) { route.MutableResponseFields = []string{"/status/code"} }},
+		{"host response header", func(route *extensionmanifest.ManifestRoute) {
+			route.MutableResponseFields = []string{"/headers/location"}
+		}},
 		{"duplicate", func(route *extensionmanifest.ManifestRoute) { route.MutableRequestFields = []string{"/body", "/body"} }},
 		{"non canonical whitespace", func(route *extensionmanifest.ManifestRoute) { route.MutableRequestFields = []string{" /body "} }},
 		{"pointer count", func(route *extensionmanifest.ManifestRoute) {
 			route.MutableRequestFields = registryMutableFieldPointers("over", extensionmanifest.RouteMutableFieldsMaximumCount+1)
 		}},
 		{"pointer bytes", func(route *extensionmanifest.ManifestRoute) {
-			route.MutableRequestFields = []string{"/" + strings.Repeat("a", extensionmanifest.RouteMutableFieldMaximumBytes)}
+			route.MutableRequestFields = []string{"/body/" + strings.Repeat("a", extensionmanifest.RouteMutableFieldMaximumBytes-len("/body/")+1)}
 		}},
 		{"reference tokens", func(route *extensionmanifest.ManifestRoute) {
-			route.MutableRequestFields = []string{strings.Repeat("/token", extensionmanifest.RouteMutableFieldMaximumTokens+1)}
+			route.MutableRequestFields = []string{"/body" + strings.Repeat("/token", extensionmanifest.RouteMutableFieldMaximumTokens)}
 		}},
 		{"request action", func(route *extensionmanifest.ManifestRoute) {
 			route.Action = extensionmanifest.RouteActionAfter
@@ -164,8 +182,8 @@ func TestRegistryAcceptsExactRouteMutableFieldBudgets(t *testing.T) {
 	route := modifierRoute("mutable.budget.filter", target.ID, target.Path, extensionmanifest.RouteActionFilter, "GET", 10)
 	route.MutableRequestFields = registryMutableFieldPointers("request", extensionmanifest.RouteMutableFieldsMaximumCount)
 	route.MutableResponseFields = registryMutableFieldPointers("response", extensionmanifest.RouteMutableFieldsMaximumCount)
-	route.MutableRequestFields[0] = "/" + strings.Repeat("a", extensionmanifest.RouteMutableFieldMaximumBytes-1)
-	route.MutableResponseFields[0] = strings.Repeat("/token", extensionmanifest.RouteMutableFieldMaximumTokens)
+	route.MutableRequestFields[0] = "/body/" + strings.Repeat("a", extensionmanifest.RouteMutableFieldMaximumBytes-len("/body/"))
+	route.MutableResponseFields[0] = "/body" + strings.Repeat("/token", extensionmanifest.RouteMutableFieldMaximumTokens-1)
 	if _, err := registry.Publish(Publication{
 		Core:    []CoreRoute{target},
 		Plugins: []PluginRouteSet{{Artifact: artifact, Routes: []extensionmanifest.ManifestRoute{route}}},
@@ -174,10 +192,55 @@ func TestRegistryAcceptsExactRouteMutableFieldBudgets(t *testing.T) {
 	}
 }
 
+func TestRegistryMutableCredentialsRequireExactRawGuardBinding(t *testing.T) {
+	artifact := routeArtifact("mutable.credentials", "1.0.0", 'd')
+	target := coreRoute("core.route.mutable.credentials", "POST", "/mutable-credentials")
+	base := modifierRoute(
+		"mutable.credentials.filter", target.ID, target.Path,
+		extensionmanifest.RouteActionFilter, "POST", 10,
+	)
+	base.MutableRequestFields = []string{"/headers/authorization"}
+
+	coreRaw := base
+	coreRaw.Guard = extensionmanifest.GuardCoreRaw
+	if _, err := NewRegistry().Publish(Publication{
+		Core: []CoreRoute{target}, Plugins: []PluginRouteSet{{Artifact: artifact, Routes: []extensionmanifest.ManifestRoute{coreRaw}}},
+	}); err != nil {
+		t.Fatalf("core raw_request guard rejected credential allowlist: %v", err)
+	}
+
+	customRaw := base
+	customRaw.Guard = "mutable.credentials.guard.raw"
+	rawGuard := pluginGuard(customRaw.Guard, "raw_request")
+	snapshot, err := NewRegistry().Publish(Publication{
+		Core: []CoreRoute{target}, Plugins: []PluginRouteSet{{
+			Artifact: artifact, Routes: []extensionmanifest.ManifestRoute{customRaw}, Guards: []extensionmanifest.ManifestGuard{rawGuard},
+		}},
+	})
+	if err != nil {
+		t.Fatalf("exact custom raw_request guard rejected credential allowlist: %v", err)
+	}
+	if got := executionRouteByID(t, snapshot, customRaw.ID).PluginGuard.Kind; got != "raw_request" {
+		t.Fatalf("frozen custom guard kind = %q", got)
+	}
+
+	filtered := base
+	filtered.Guard = "mutable.credentials.guard.filtered"
+	_, err = NewRegistry().Publish(Publication{
+		Core: []CoreRoute{target}, Plugins: []PluginRouteSet{{
+			Artifact: artifact, Routes: []extensionmanifest.ManifestRoute{filtered},
+			Guards: []extensionmanifest.ManifestGuard{pluginGuard(filtered.Guard, "custom")},
+		}},
+	})
+	if !errors.Is(err, ErrInvalidRoute) {
+		t.Fatalf("custom filtered guard credential allowlist error = %v", err)
+	}
+}
+
 func registryMutableFieldPointers(prefix string, count int) []string {
 	values := make([]string, count)
 	for index := range values {
-		values[index] = fmt.Sprintf("/%s/%d", prefix, index)
+		values[index] = fmt.Sprintf("/body/%s-%d", prefix, index)
 	}
 	return values
 }

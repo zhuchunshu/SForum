@@ -89,7 +89,7 @@ func TestRouteMutablePointerDocumentsRejectImpossibleAndHostOwnedPaths(t *testin
 		}
 	}
 	for _, pointer := range []string{
-		"/status", "/query/tag/0/child", "/query/tag/01", "/params/id/child", "/headers", "/headers/X-Trace",
+		"/status", "/query/tag/0/child", "/query/tag/01", "/query/tag/999999999999999999999", "/params/id/child", "/headers", "/headers/X-Trace",
 		"/headers/x-trace/0/child", "/headers/idempotency-key", "/headers/cookie",
 	} {
 		if ValidRouteMutableRequestPointer(pointer, false) {
@@ -131,6 +131,29 @@ func TestRouteMutablePointerDocumentsRejectImpossibleAndHostOwnedPaths(t *testin
 			manifest.Routes[0].MutableResponseFields = []string{test.pointer}
 		}
 		assertMutableRouteRejected(t, manifest)
+	}
+}
+
+func TestManifestV3RouteMutableCredentialsRequireRawRequestGuard(t *testing.T) {
+	for _, header := range []string{"authorization", "cookie", "x-api-key", "x-auth-token"} {
+		t.Run(header, func(t *testing.T) {
+			filtered := mutableRouteManifest(RouteActionFilter)
+			filtered.Routes[0].MutableRequestFields = []string{"/headers/" + header}
+			if err := Validate(filtered); err == nil {
+				t.Fatal("filtered guard accepted a credential mutation declaration")
+			}
+
+			coreRaw := mutableRouteManifest(RouteActionFilter)
+			coreRaw.Routes[0].Guard = GuardCoreRaw
+			coreRaw.Routes[0].MutableRequestFields = []string{"/headers/" + header}
+			assertMutableRouteAccepted(t, coreRaw)
+
+			customRaw := mutableRouteManifest(RouteActionFilter)
+			customRaw.Routes[0].Guard = customRaw.Guards[0].ID
+			customRaw.Guards[0].Kind = "raw_request"
+			customRaw.Routes[0].MutableRequestFields = []string{"/headers/" + header}
+			assertMutableRouteAccepted(t, customRaw)
+		})
 	}
 }
 
