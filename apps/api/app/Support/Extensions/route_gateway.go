@@ -9,6 +9,8 @@ import (
 	"net/url"
 	"strings"
 	"time"
+
+	routes "github.com/zhuchunshu/sforum/apps/api/app/Support/Routes"
 )
 
 type RouteGateway struct {
@@ -81,10 +83,7 @@ func (g *RouteGateway) Proxy(input *ProxyInput) error {
 	}
 	input.Response.Reset()
 	input.Response.SetStatusCode(response.StatusCode)
-	for name, values := range response.Header {
-		if !routeResponseHeaderAllowed(name) {
-			continue
-		}
+	for name, values := range routes.FilterPluginResponseHeaders(response.Header) {
 		for _, value := range values {
 			input.Response.Header.Add(name, value)
 		}
@@ -121,13 +120,4 @@ func routeConnectionHeaderTokens(values [][]byte) map[string]struct{} {
 		}
 	}
 	return blocked
-}
-
-func routeResponseHeaderAllowed(name string) bool {
-	switch strings.ToLower(strings.TrimSpace(name)) {
-	case "", "content-length", "connection", "keep-alive", "link", "proxy-authenticate", "proxy-authorization", "te", "trailer", "transfer-encoding", "upgrade":
-		return false
-	default:
-		return true
-	}
 }

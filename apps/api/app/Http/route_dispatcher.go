@@ -666,22 +666,7 @@ func routeConnectionHeaderTokens(headers stdhttp.Header) map[string]struct{} {
 }
 
 func filteredRouteResponseHeaders(source stdhttp.Header) stdhttp.Header {
-	result := make(stdhttp.Header)
-	for name, values := range source {
-		canonical := strings.ToLower(strings.TrimSpace(name))
-		if strings.HasPrefix(canonical, "x-sforum-") {
-			continue
-		}
-		switch canonical {
-		case "", "content-length", "connection", "keep-alive", "proxy-authenticate", "proxy-authorization",
-			"set-cookie", "idempotency-replayed", "te", "trailer", "transfer-encoding", "upgrade":
-			continue
-		}
-		for _, value := range values {
-			result.Add(name, value)
-		}
-	}
-	return result
+	return routes.FilterPluginResponseHeaders(source)
 }
 
 func mapRouteDispatchError(err error) error {

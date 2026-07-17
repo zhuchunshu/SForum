@@ -126,11 +126,6 @@ func TestRouteGatewayStripsPluginLinkResponseHeaders(t *testing.T) {
 		len(response.Header.PeekAll("Link")) != 0 || string(response.Header.Peek("X-Plugin-Metadata")) != "kept" {
 		t.Fatalf("status=%d headers=%v body=%q", response.StatusCode(), &response.Header, response.Body())
 	}
-	for _, name := range []string{"Link", "link", "lInK"} {
-		if routeResponseHeaderAllowed(name) {
-			t.Fatalf("reserved response header %q accepted", name)
-		}
-	}
 }
 
 func TestRouteGatewayDoesNotFollowRedirects(t *testing.T) {
