@@ -14,6 +14,40 @@ Last updated: 2026-07-17
 
 ## Current Subtask
 
+### 2026-07-17 P6 Bound Mutable Replay Checkpoint
+
+- Verified weighted progress remains **64.3447%** (display **64.3%**). This
+  completes the production dependency of already-credited route mutation and
+  idempotency work; it does not independently close one of the three remaining
+  P6 rows.
+- `091b3632b feat(routes): bind mutable requests to required replay` switches
+  production required-route idempotency to the encrypted Bound/V3 store. The
+  fingerprint binds the immutable plan, frozen execution policy, exact artifact
+  semantics, ordered query values, content type, body, and original request
+  digest while deliberately excluding live credentials and process-local
+  runtime instance ids.
+- Unsafe HTTP request modifiers now produce a bounded encrypted transcript for
+  every request stage. Replay evaluates current guards and request schemas,
+  reapplies only Host-validated RFC 6902 operations under current allowlists,
+  and never invokes a modifier or terminal plugin a second time. Credential-
+  mutating plans, missing/wrong ciphers, permission revocation, transcript/
+  schema drift, malformed queries, oversized metadata, and aggregate transcript
+  overflow fail closed before returning a stored response or invoking the
+  handler.
+- Same-artifact runtime restart remains replay-compatible; response-only V1
+  records remain readable for a single-step, single-valued-query plan. V1
+  mutable records fail closed, and reordered repeated query values no longer
+  borrow a legacy sorted fingerprint.
+- Focused Routes/HTTP/Idempotency tests passed five repetitions; focused Routes
+  and HTTP race tests passed three repetitions. A clean `git archive HEAD` plus
+  only the 12-file replay patch at `/tmp/sforum-bound-replay.ddoIZq` passed the
+  complete Idempotency, Routes, HTTP, and bootstrap suites, four-package vet,
+  and `go build ./...`.
+- The untracked `required_replay_publication*.go` pair is a dead duplicate of
+  the committed immutable policy binder and must not be staged. Stream,
+  WebSocket, canonical redirect, Identity UI, and bootstrap cleanup drafts were
+  excluded and preserved.
+
 ### 2026-07-17 P4 Disabled Missing-Package Recovery Checkpoint
 
 - `b6a93e959 fix(extensions): allow disabled missing-package recovery` restores
@@ -529,12 +563,12 @@ Last updated: 2026-07-17
 
 ## Exact Next Steps
 
-1. Land the Bound replay digest `@2` compatibility slice and production HTTP
-   adapter with wrong-key, mutable-request, terminal-commit, and legacy `@1`
-   fail-closed evidence. Keep it separate from Identity and stream drafts.
-2. Finish the exact custom/raw guard, trust revoke/drain, Protocol V1 fence, and
+1. Finish the exact custom/raw guard, trust revoke/drain, Protocol V1 fence, and
    WebSocket admission slice with allowed, denied, drift, redirect,
    invalid-WebSocket, cancellation, and race tests.
+2. Fix WebSocket close arbitration so a client-side normal Close cannot commit
+   before the plugin response pump produces a valid terminal 101; propagate
+   `CloseRequest` failures and keep caller cancellation payload-free.
 3. Land route alias/redirect 301/308 canonical ownership and SEO only in
    independently reviewed contract/transport/Host-policy/
    bootstrap/reference slices; do not credit the SEO row before SSR, sitemap,
@@ -543,9 +577,7 @@ Last updated: 2026-07-17
    priority/conflict order, locale/query/body, permission/CSRF, stream,
    disconnect, timeout, crash, multipart, and unsafe committed response; only
    then credit P6 from **15/18** to **18/18**.
-5. Land the already-tested disabled missing-package startup recovery as its own
-   P4 compatibility fix, then add full-set/staged-publication quarantine
-   concurrency coverage. Current
+5. Add full-set/staged-publication quarantine concurrency coverage. Current
    quarantine is intentionally node/process-local; cross-node or restart
    persistence requires an explicit durable incident/clear contract rather
    than overloading lifecycle publication reasons.
