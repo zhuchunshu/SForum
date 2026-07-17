@@ -79,13 +79,35 @@ func TestRequiredEnvelopeAndCommandFields(t *testing.T) {
 	assertFields(t, "sforum.plugin.v2.CommandInvocationResponse", "context", "result", "error")
 	assertFields(t, "sforum.plugin.v2.RouteRequest",
 		"context", "route_id", "contract_version", "method", "path", "headers", "path_parameters",
-		"query_parameters", "body", "request_authority_mode", "guard_kind")
+		"query_parameters", "body", "request_authority_mode", "guard_kind", "route_action", "invocation_stage",
+		"mutable_request_fields", "mutable_response_fields", "prior_response")
+	assertFields(t, "sforum.plugin.v2.RouteResponse",
+		"context", "status_code", "headers", "body", "stream_follows", "error", "request_patch", "response_patch")
+	assertFields(t, "sforum.plugin.v2.RoutePatchOperation", "kind", "path", "value")
+	assertFields(t, "sforum.plugin.v2.RouteResponseDocument", "status_code", "headers", "body")
 	assertFields(t, "sforum.plugin.v2.RouteStreamOpen",
 		"context", "route_id", "contract_version", "method", "path", "headers", "request_authority_mode", "guard_kind")
 	assertEnumValues(t, "sforum.plugin.v2.RouteRequestAuthorityMode",
 		"ROUTE_REQUEST_AUTHORITY_MODE_UNSPECIFIED", "ROUTE_REQUEST_AUTHORITY_MODE_FILTERED", "ROUTE_REQUEST_AUTHORITY_MODE_RAW")
 	assertEnumValues(t, "sforum.plugin.v2.RouteGuardKind",
 		"ROUTE_GUARD_KIND_UNSPECIFIED", "ROUTE_GUARD_KIND_HOST", "ROUTE_GUARD_KIND_CUSTOM", "ROUTE_GUARD_KIND_RAW_REQUEST")
+	assertEnumValues(t, "sforum.plugin.v2.RouteInvocationStage",
+		"ROUTE_INVOCATION_STAGE_UNSPECIFIED", "ROUTE_INVOCATION_STAGE_HANDLER", "ROUTE_INVOCATION_STAGE_REQUEST", "ROUTE_INVOCATION_STAGE_RESPONSE")
+	assertEnumValues(t, "sforum.plugin.v2.RoutePatchOperationKind",
+		"ROUTE_PATCH_OPERATION_KIND_UNSPECIFIED", "ROUTE_PATCH_OPERATION_KIND_ADD", "ROUTE_PATCH_OPERATION_KIND_REPLACE", "ROUTE_PATCH_OPERATION_KIND_REMOVE")
+	assertFieldNumbers(t, "sforum.plugin.v2.RouteRequest", map[protoreflect.Name]protoreflect.FieldNumber{
+		"route_action": 12, "invocation_stage": 13, "mutable_request_fields": 14,
+		"mutable_response_fields": 15, "prior_response": 16,
+	})
+	assertFieldNumbers(t, "sforum.plugin.v2.RouteResponse", map[protoreflect.Name]protoreflect.FieldNumber{
+		"request_patch": 7, "response_patch": 8,
+	})
+	assertFieldNumbers(t, "sforum.plugin.v2.RoutePatchOperation", map[protoreflect.Name]protoreflect.FieldNumber{
+		"kind": 1, "path": 2, "value": 3,
+	})
+	assertFieldNumbers(t, "sforum.plugin.v2.RouteResponseDocument", map[protoreflect.Name]protoreflect.FieldNumber{
+		"status_code": 1, "headers": 2, "body": 3,
+	})
 }
 
 func TestStreamingModesRemainExplicit(t *testing.T) {
@@ -129,6 +151,28 @@ func assertFields(t *testing.T, messageName string, names ...protoreflect.Name) 
 	for _, name := range names {
 		if message.Fields().ByName(name) == nil {
 			t.Errorf("%s missing field %s", messageName, name)
+		}
+	}
+}
+
+func assertFieldNumbers(t *testing.T, messageName string, numbers map[protoreflect.Name]protoreflect.FieldNumber) {
+	t.Helper()
+	descriptor, err := protoregistry.GlobalFiles.FindDescriptorByName(protoreflect.FullName(messageName))
+	if err != nil {
+		t.Fatalf("find message %s: %v", messageName, err)
+	}
+	message, ok := descriptor.(protoreflect.MessageDescriptor)
+	if !ok {
+		t.Fatalf("%s is %T, want message", messageName, descriptor)
+	}
+	for name, want := range numbers {
+		field := message.Fields().ByName(name)
+		if field == nil {
+			t.Errorf("%s missing field %s", messageName, name)
+			continue
+		}
+		if field.Number() != want {
+			t.Errorf("%s.%s field number = %d, want %d", messageName, name, field.Number(), want)
 		}
 	}
 }

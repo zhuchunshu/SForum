@@ -3,6 +3,7 @@ syntax = "proto3";
 package sforum.plugin.v2;
 
 import "google/protobuf/duration.proto";
+import "google/protobuf/struct.proto";
 import "sforum/protocol/v2/common.proto";
 import "sforum/protocol/v2/control.proto";
 
@@ -55,6 +56,11 @@ message RouteRequest {
   sforum.protocol.v2.TypedDocument body = 9;
   RouteRequestAuthorityMode request_authority_mode = 10;
   RouteGuardKind guard_kind = 11;
+  string route_action = 12;
+  RouteInvocationStage invocation_stage = 13;
+  repeated string mutable_request_fields = 14;
+  repeated string mutable_response_fields = 15;
+  RouteResponseDocument prior_response = 16;
 }
 
 // RouteResponse is contract-bound and may opt into a separate stream.
@@ -65,6 +71,11 @@ message RouteResponse {
   sforum.protocol.v2.TypedDocument body = 4;
   bool stream_follows = 5;
   sforum.protocol.v2.ErrorDetail error = 6;
+  // Ordered RFC 6902 add/replace/remove subsets. Every path must exactly match
+  // the corresponding Host-frozen RFC 6901 allowlist; the Host validates and
+  // applies each operation authoritatively.
+  repeated RoutePatchOperation request_patch = 7;
+  repeated RoutePatchOperation response_patch = 8;
 }
 
 // RouteStreamOpen must be the first frame in a route stream.
@@ -219,4 +230,38 @@ message ServiceStreamFrame {
     sforum.protocol.v2.TypedDocument message = 2;
     sforum.protocol.v2.ErrorDetail error = 3;
   }
+}
+
+// RouteInvocationStage identifies which Host-owned route execution stage is
+// invoking the plugin. Unspecified is never valid for dispatch.
+enum RouteInvocationStage {
+  ROUTE_INVOCATION_STAGE_UNSPECIFIED = 0;
+  ROUTE_INVOCATION_STAGE_HANDLER = 1;
+  ROUTE_INVOCATION_STAGE_REQUEST = 2;
+  ROUTE_INVOCATION_STAGE_RESPONSE = 3;
+}
+
+// RoutePatchOperationKind is the supported RFC 6902 operation subset.
+enum RoutePatchOperationKind {
+  ROUTE_PATCH_OPERATION_KIND_UNSPECIFIED = 0;
+  ROUTE_PATCH_OPERATION_KIND_ADD = 1;
+  ROUTE_PATCH_OPERATION_KIND_REPLACE = 2;
+  ROUTE_PATCH_OPERATION_KIND_REMOVE = 3;
+}
+
+// RoutePatchOperation is one operation in an ordered RFC 6902
+// add/replace/remove patch. Path must exactly match a Host-frozen RFC 6901
+// allowlist entry; the Host remains authoritative for validation and apply.
+message RoutePatchOperation {
+  RoutePatchOperationKind kind = 1;
+  string path = 2;
+  google.protobuf.Value value = 3;
+}
+
+// RouteResponseDocument is the response visible at a response-stage route
+// invocation. It remains subject to the Host-frozen response contract.
+message RouteResponseDocument {
+  uint32 status_code = 1;
+  repeated sforum.protocol.v2.Header headers = 2;
+  sforum.protocol.v2.TypedDocument body = 3;
 }
