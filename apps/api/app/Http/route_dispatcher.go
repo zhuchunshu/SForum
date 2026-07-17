@@ -413,8 +413,9 @@ func serveRouteStream(c fiber.Ctx, dispatch *routes.RouteStreamDispatch, hostHea
 		return mapRouteDispatchError(err)
 	}
 	if err := validateRouteStreamPreflight(dispatch.Step().Mode, start.Response); err != nil {
-		start.Session.Cancel()
+		// Fail before Cancel so the transport trace lands before lifetime Done.
 		dispatch.Fail()
+		start.Session.Cancel()
 		return mapRouteDispatchError(err)
 	}
 	requestBody := c.Request().BodyStream()
@@ -422,8 +423,8 @@ func serveRouteStream(c fiber.Ctx, dispatch *routes.RouteStreamDispatch, hostHea
 		requestBody = bytes.NewReader(c.Body())
 	}
 	if err := pumpRouteStreamRequest(requestBody, start.Session); err != nil {
-		start.Session.Cancel()
 		dispatch.Fail()
+		start.Session.Cancel()
 		return mapRouteDispatchError(fmt.Errorf("%w: %w", routes.ErrDispatchTransport, err))
 	}
 	c.Response().Reset()
@@ -482,6 +483,9 @@ func streamRouteResponse(writer *bufio.Writer, session routes.RouteStreamSession
 		}
 		return
 	}
+	// Cancel only after Complete/StreamFailed so lifetime Done cannot race ahead
+	// of the Host commit/fail trace.
+	defer session.Cancel()
 	for {
 		chunk, err := session.Recv()
 		if errors.Is(err, io.EOF) {
@@ -493,7 +497,6 @@ func streamRouteResponse(writer *bufio.Writer, session routes.RouteStreamSession
 			return
 		}
 		if err != nil {
-			session.Cancel()
 			_ = dispatch.StreamFailed(err)
 			return
 		}
@@ -501,12 +504,10 @@ func streamRouteResponse(writer *bufio.Writer, session routes.RouteStreamSession
 			continue
 		}
 		if _, err := writer.Write(chunk.Data); err != nil {
-			session.Cancel()
 			_ = dispatch.StreamFailed(err)
 			return
 		}
 		if err := writer.Flush(); err != nil {
-			session.Cancel()
 			_ = dispatch.StreamFailed(err)
 			return
 		}

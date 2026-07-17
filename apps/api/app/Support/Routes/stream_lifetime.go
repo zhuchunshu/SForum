@@ -3,7 +3,6 @@ package routes
 import (
 	"context"
 	"errors"
-	"io"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -205,50 +204,14 @@ func bindRouteStreamLifetime(
 }
 
 func (s *routeStreamLifetimeSession) watch() {
-	var innerDone <-chan struct{}
-	var source RouteStreamLifetimeSource
-	if value, ok := s.inner.(RouteStreamLifetimeSource); ok {
-		source = value
-		innerDone = source.Done()
-	}
-	if innerDone == nil {
-		<-s.lifetime.Context().Done()
-		cause := context.Cause(s.lifetime.Context())
-		if !s.finished.Load() {
-			s.inner.Cancel()
-		}
-		s.finishLifetime(cause)
+	// Host budget / caller cancel only propagates into the inner session so Recv
+	// unblocks. Outer Done stays open until adapters Complete/StreamFailed and
+	// then Cancel — never close Done from Recv or inner terminal alone.
+	<-s.lifetime.Context().Done()
+	if s.finished.Load() || s.inner == nil {
 		return
 	}
-	select {
-	case <-s.lifetime.Context().Done():
-		// Host budget / caller cancel: ask inner to release, then wait so a typed
-		// inner cause is not erased and a late cancel cannot wipe a terminal win.
-		lifetimeCause := context.Cause(s.lifetime.Context())
-		if !s.finished.Load() {
-			s.inner.Cancel()
-		}
-		<-innerDone
-		if source != nil {
-			if source.Cause() == nil {
-				// Terminal won the atomic race; budget/caller arrived too late.
-				s.finishLifetime(nil)
-				return
-			}
-			if lifetimeCause != nil {
-				s.finishLifetime(lifetimeCause)
-				return
-			}
-			s.finishLifetime(source.Cause())
-			return
-		}
-		s.finishLifetime(lifetimeCause)
-		return
-	case <-innerDone:
-		// Normal EOF, transport failure, or ForceCancel completed on the inner session.
-		s.finishLifetime(source.Cause())
-		return
-	}
+	s.inner.Cancel()
 }
 
 func (s *routeStreamLifetimeSession) Send(data []byte, final bool) error {
@@ -269,15 +232,9 @@ func (s *routeStreamLifetimeSession) Recv() (RouteStreamChunk, error) {
 	if s == nil || s.inner == nil {
 		return RouteStreamChunk{}, ErrDispatchTransport
 	}
-	chunk, err := s.inner.Recv()
-	switch {
-	case errors.Is(err, io.EOF):
-		s.finishLifetime(nil)
-	case err != nil:
-		// Preserve the exact cancel/transport cause for outer observers.
-		s.finishLifetime(err)
-	}
-	return chunk, err
+	// Do not close outer Done here. Adapters must StreamFailed/Complete first,
+	// then Cancel, so commit/fail traces publish before session completion.
+	return s.inner.Recv()
 }
 
 func (s *routeStreamLifetimeSession) Response() (DispatchResponse, bool) {
