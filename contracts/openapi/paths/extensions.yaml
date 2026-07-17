@@ -713,6 +713,41 @@ adminExtensionContributions:
         "$ref": "../components/responses.yaml#/Unauthorized"
       '403':
         "$ref": "../components/responses.yaml#/Forbidden"
+adminExtensionPageBootstrap:
+  get:
+    summary: Bootstrap one extension admin page
+    description: >-
+      Resolves an arbitrary manifest-declared admin page and, only when that
+      exact declaration uses the settings view, returns its localized masked
+      Settings Document in the same response. Unknown page paths return the
+      extension with null page and settings fields so the Host can render its
+      normal not-found state. The path text itself never implies a settings
+      view, and no extension runtime code is started.
+    operationId: getAdminExtensionPageBootstrap
+    parameters:
+    - "$ref": "../components/parameters.yaml#/ExtensionID"
+    - name: path
+      in: query
+      required: true
+      description: Normalized in-admin page path such as /settings or any declared custom path.
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 512
+        pattern: '^/'
+    responses:
+      '200':
+        description: Exact extension plus the resolved page and optional settings model.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/extensions.yaml#/ApiResponseExtensionPageBootstrap"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '404':
+        "$ref": "../components/responses.yaml#/NotFound"
 adminExtensionSettings:
   get:
     summary: Read extension settings

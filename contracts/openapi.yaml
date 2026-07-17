@@ -395,6 +395,8 @@ paths:
     "$ref": "./openapi/paths/extensions.yaml#/adminExtensionMigrations"
   "/admin/extensions/{extensionID}/migrations/apply":
     "$ref": "./openapi/paths/extensions.yaml#/adminExtensionMigrationsApply"
+  "/admin/extensions/{extensionID}/page-bootstrap":
+    "$ref": "./openapi/paths/extensions.yaml#/adminExtensionPageBootstrap"
   "/admin/extensions/{extensionID}/settings":
     "$ref": "./openapi/paths/extensions.yaml#/adminExtensionSettings"
   "/admin/extensions/{extensionID}/settings/reset":
@@ -565,6 +567,8 @@ components:
       "$ref": "./openapi/schemas/extensions.yaml#/ApiResponseExtensionEventDeliveryList"
     ApiResponseExtensionNavigationList:
       "$ref": "./openapi/schemas/extensions.yaml#/ApiResponseExtensionNavigationList"
+    ApiResponseExtensionPageBootstrap:
+      "$ref": "./openapi/schemas/extensions.yaml#/ApiResponseExtensionPageBootstrap"
     ApiResponseExtensionSettings:
       "$ref": "./openapi/schemas/extensions.yaml#/ApiResponseExtensionSettings"
     PublicActiveThemeSettings:
@@ -643,6 +647,8 @@ components:
       "$ref": "./openapi/schemas/extensions.yaml#/Extension"
     ExtensionAdminNavigationItem:
       "$ref": "./openapi/schemas/extensions.yaml#/ExtensionAdminNavigationItem"
+    ExtensionPageBootstrap:
+      "$ref": "./openapi/schemas/extensions.yaml#/ExtensionPageBootstrap"
     ExtensionSettings:
       "$ref": "./openapi/schemas/extensions.yaml#/ExtensionSettings"
     ExtensionSettingValue:

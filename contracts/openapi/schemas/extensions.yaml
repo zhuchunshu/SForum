@@ -127,6 +127,19 @@ ApiResponseExtensionNavigationList:
       type: array
       items:
         "$ref": "#/ExtensionAdminNavigationItem"
+ApiResponseExtensionPageBootstrap:
+  type: object
+  required:
+  - code
+  - message
+  - data
+  properties:
+    code:
+      type: integer
+    message:
+      type: string
+    data:
+      "$ref": "#/ExtensionPageBootstrap"
 ApiResponseContributionPointDefinitionList:
   type: object
   required:
@@ -1657,6 +1670,25 @@ ExtensionSettings:
       type: array
       items:
         "$ref": "#/ExtensionSettingsAction"
+ExtensionPageBootstrap:
+  type: object
+  required:
+  - extension
+  - page
+  - settings
+  properties:
+    extension:
+      "$ref": "#/Extension"
+    page:
+      description: Exact normalized manifest page, or null when the path is undeclared.
+      nullable: true
+      allOf:
+      - "$ref": "#/ExtensionManifestAdminPage"
+    settings:
+      description: Localized masked settings only for a declared settings view; otherwise null.
+      nullable: true
+      allOf:
+      - "$ref": "#/ExtensionSettings"
 ExtensionSettingsRenderer:
   type: object
   required: [mode, layout, source, fallback]
