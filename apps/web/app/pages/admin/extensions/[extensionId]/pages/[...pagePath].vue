@@ -36,15 +36,27 @@ const extensionId = computed(() => {
 })
 const currentPagePath = computed(() => normalizeExtensionPagePath(route.params.pagePath as string[] | string | undefined))
 
-// 与插件列表共用同一缓存：启用/轮询结果会立刻反映到本页，避免「已启用仍显示禁用」。
+// 从插件/主题列表进入时复用刚取得的目录项；直达详情页才请求精确扩展，
+// 避免一次 SPA 导航重复取详情，也避免 SSR 把完整 manifest 目录写入 payload。
+const { data: cachedExtensions } = useNuxtData<AdminExtension[]>('admin-extensions')
+const extensionDataKey = computed(() => `admin-extension:${extensionId.value}`)
 const {
   data: extensions,
   pending,
   error,
   refresh
-} = await useAsyncData<AdminExtension[]>('admin-extensions', () => request<AdminExtension[]>('/admin/extensions'), {
-  default: (): AdminExtension[] => []
-})
+} = await useAsyncData<AdminExtension[]>(
+  extensionDataKey,
+  async () => {
+    const cached = cachedExtensions.value?.find(item => item.id === extensionId.value)
+    if (cached) return [cached]
+    return await request<AdminExtension[]>(`/admin/extensions?id=${encodeURIComponent(extensionId.value)}`)
+  },
+  {
+    default: (): AdminExtension[] => [],
+    deep: false
+  }
+)
 
 const extension = computed(() => extensions.value.find(item => item.id === extensionId.value))
 const extensionDisplay = computed(() => extension.value ? extensionLocalizedDisplay(extension.value, locale.value) : null)
@@ -61,8 +73,8 @@ const isSettingsView = computed(() => adminPage.value?.view === 'settings')
 const isExtensionActive = computed(() => extension.value?.status === 'enabled')
 const dynamicTabHydrated = ref(false)
 
-// Settings Document 必须进入 Nuxt payload；普通 async watcher 会让 SSR 先拿到数据、
-// 客户端水合时仍为 null，从而把完整表单和 loading 节点错配。
+// SSR 仍把 Settings Document 写入 payload；客户端冷导航则先显示明确 loading，
+// 不用让整个内容区等待设置请求完成。
 const settingsDataKey = computed(() => `admin-extension-settings:${extensionId.value}:${currentPagePath.value}:${locale.value}`)
 const {
   data: settings,
@@ -78,16 +90,17 @@ const {
     return await request<AdminExtensionSettings>(`/admin/extensions/${extensionId.value}/settings`)
   },
   {
+    deep: false,
     lazy: true,
     watch: [isSettingsView]
   }
 )
 
-// 进入本页时若列表可能陈旧（从其它标签切来），主动拉一次最新状态。
+// 首次 setup 已取得当前扩展的精确详情；挂载后重复 refresh 会重新置 pending，
+// 让刚完成水合的设置表单被卸载再挂载。需要最新状态时保留页面上的显式刷新入口。
 onMounted(() => {
   dynamicTabHydrated.value = true
   syncDynamicExtensionTab()
-  void refresh()
 })
 
 const recommendedApplied = computed(() => {

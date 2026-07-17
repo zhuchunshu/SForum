@@ -46,10 +46,17 @@ describe('SFExtensionSettingsRenderer buildless contract', () => {
     expect(adminLayout).not.toContain('SFAdminReleaseNotice')
     expect(dynamicPage).toContain('dynamicTabHydrated.value = true')
     expect(dynamicPage).toContain('if (dynamicTabHydrated.value)')
+    expect(dynamicPage).toContain("useNuxtData<AdminExtension[]>('admin-extensions')")
+    expect(dynamicPage).toContain('cachedExtensions.value?.find(item => item.id === extensionId.value)')
+    expect(dynamicPage).toContain('admin-extension:${extensionId.value}')
+    expect(dynamicPage).toContain('/admin/extensions?id=${encodeURIComponent(extensionId.value)}')
+    expect(dynamicPage).not.toContain("request<AdminExtension[]>('/admin/extensions')")
     expect(dynamicPage).toContain('admin-extension-settings:${extensionId.value}:${currentPagePath.value}:${locale.value}')
     expect(dynamicPage).toContain('await useAsyncData<AdminExtensionSettings | null>')
+    expect(dynamicPage.match(/deep: false/g)?.length).toBe(2)
     expect(dynamicPage).toContain('lazy: true')
     expect(dynamicPage).not.toContain('default: () => null')
+    expect(dynamicPage).not.toContain('void refresh()')
   })
 
   test('does not compile the settings renderer branch into a native template element', () => {
