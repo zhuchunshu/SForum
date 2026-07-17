@@ -1110,6 +1110,26 @@ ExtensionManifestRoute:
       type: string
     responseSchema:
       type: string
+    mutableRequestFields:
+      type: array
+      description: Exact RFC 6901 allowlist into query string arrays, string params, lowercase allowed headers, or typed JSON body. Credential headers require raw_request authority.
+      maxItems: 64
+      uniqueItems: true
+      items:
+        type: string
+        minLength: 1
+        maxLength: 256
+        pattern: '^/([^~/]|~[01])*(/([^~/]|~[01])*){0,31}$'
+    mutableResponseFields:
+      type: array
+      description: Exact RFC 6901 allowlist into status, lowercase allowed headers, or typed JSON body. Host-owned Location is never mutable.
+      maxItems: 64
+      uniqueItems: true
+      items:
+        type: string
+        minLength: 1
+        maxLength: 256
+        pattern: '^/([^~/]|~[01])*(/([^~/]|~[01])*){0,31}$'
     timeoutMs:
       type: integer
       minimum: 0

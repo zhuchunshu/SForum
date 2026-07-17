@@ -14,10 +14,10 @@ func TestManifestV3RouteMutableFieldsAllowedActions(t *testing.T) {
 		request  []string
 		response []string
 	}{
-		{RouteActionGlobalMiddleware, []string{"/query", "/headers/x~1trace"}, nil},
+		{RouteActionGlobalMiddleware, []string{"/query", "/headers/x-trace"}, nil},
 		{RouteActionBefore, []string{"/body/title"}, nil},
-		{RouteActionFilter, []string{"/body", "/params/~0debug"}, []string{"/status", "/headers/cache~1control"}},
-		{RouteActionWrap, []string{"/"}, []string{"/body/items/0"}},
+		{RouteActionFilter, []string{"/body", "/params/~0debug"}, []string{"/status", "/headers/cache-control"}},
+		{RouteActionWrap, []string{"/body"}, []string{"/body/items/0"}},
 		{RouteActionAfter, nil, []string{"/body/summary"}},
 	}
 	for _, test := range tests {
@@ -41,10 +41,10 @@ func TestManifestV3RouteMutableFieldsAllowedActions(t *testing.T) {
 
 func TestManifestV3RouteMutableFieldsNormalizeBeforeDuplicateCheck(t *testing.T) {
 	manifest := mutableRouteManifest(RouteActionFilter)
-	manifest.Routes[0].MutableRequestFields = []string{" /body/title ", "\t/headers/x~1trace\n"}
+	manifest.Routes[0].MutableRequestFields = []string{" /body/title ", "\t/headers/x-trace\n"}
 	manifest.Routes[0].MutableResponseFields = []string{" /status "}
 	normalized := Normalize(manifest)
-	if !reflect.DeepEqual(normalized.Routes[0].MutableRequestFields, []string{"/body/title", "/headers/x~1trace"}) ||
+	if !reflect.DeepEqual(normalized.Routes[0].MutableRequestFields, []string{"/body/title", "/headers/x-trace"}) ||
 		!reflect.DeepEqual(normalized.Routes[0].MutableResponseFields, []string{"/status"}) {
 		t.Fatalf("normalized mutable fields = %#v / %#v", normalized.Routes[0].MutableRequestFields, normalized.Routes[0].MutableResponseFields)
 	}
@@ -79,12 +79,67 @@ func TestManifestV3RouteMutableFieldsRejectRootAndInvalidPointers(t *testing.T) 
 	}
 }
 
+func TestRouteMutablePointerDocumentsRejectImpossibleAndHostOwnedPaths(t *testing.T) {
+	for _, pointer := range []string{
+		"/query", "/query/tag", "/query/tag/0", "/query/tag/-", "/params", "/params/id",
+		"/headers/x-trace", "/headers/x-trace/0", "/body", "/body/a~1b",
+	} {
+		if !ValidRouteMutableRequestPointer(pointer, false) {
+			t.Errorf("valid request pointer rejected: %q", pointer)
+		}
+	}
+	for _, pointer := range []string{
+		"/status", "/query/tag/0/child", "/query/tag/01", "/params/id/child", "/headers", "/headers/X-Trace",
+		"/headers/x-trace/0/child", "/headers/idempotency-key", "/headers/cookie",
+	} {
+		if ValidRouteMutableRequestPointer(pointer, false) {
+			t.Errorf("invalid request pointer accepted: %q", pointer)
+		}
+	}
+	if !ValidRouteMutableRequestPointer("/headers/cookie", true) {
+		t.Fatal("raw_request authority should admit its explicitly declared credential header")
+	}
+
+	for _, pointer := range []string{
+		"/status", "/headers/cache-control", "/headers/cache-control/0", "/headers/cache-control/-", "/body", "/body/summary",
+	} {
+		if !ValidRouteMutableResponsePointer(pointer) {
+			t.Errorf("valid response pointer rejected: %q", pointer)
+		}
+	}
+	for _, pointer := range []string{
+		"/status/code", "/headers", "/headers/Location", "/headers/location", "/headers/cache-control/01",
+		"/headers/cache-control/0/child", "/headers/set-cookie", "/query",
+	} {
+		if ValidRouteMutableResponsePointer(pointer) {
+			t.Errorf("invalid response pointer accepted: %q", pointer)
+		}
+	}
+	for _, test := range []struct {
+		direction string
+		pointer   string
+	}{
+		{direction: "request", pointer: "/query/tag/0/child"},
+		{direction: "request", pointer: "/headers/X-Trace"},
+		{direction: "response", pointer: "/status/code"},
+		{direction: "response", pointer: "/headers/location"},
+	} {
+		manifest := mutableRouteManifest(RouteActionFilter)
+		if test.direction == "request" {
+			manifest.Routes[0].MutableRequestFields = []string{test.pointer}
+		} else {
+			manifest.Routes[0].MutableResponseFields = []string{test.pointer}
+		}
+		assertMutableRouteRejected(t, manifest)
+	}
+}
+
 func TestManifestV3RouteMutableFieldBudgets(t *testing.T) {
 	exact := mutableRouteManifest(RouteActionFilter)
 	exact.Routes[0].MutableRequestFields = routeMutableFieldPointers("request", RouteMutableFieldsMaximumCount)
 	exact.Routes[0].MutableResponseFields = routeMutableFieldPointers("response", RouteMutableFieldsMaximumCount)
-	exact.Routes[0].MutableRequestFields[0] = "/" + strings.Repeat("a", RouteMutableFieldMaximumBytes-1)
-	exact.Routes[0].MutableResponseFields[0] = strings.Repeat("/token", RouteMutableFieldMaximumTokens)
+	exact.Routes[0].MutableRequestFields[0] = "/body/" + strings.Repeat("a", RouteMutableFieldMaximumBytes-len("/body/"))
+	exact.Routes[0].MutableResponseFields[0] = "/body" + strings.Repeat("/token", RouteMutableFieldMaximumTokens-1)
 	assertMutableRouteAccepted(t, exact)
 
 	tests := []struct {
@@ -92,8 +147,8 @@ func TestManifestV3RouteMutableFieldBudgets(t *testing.T) {
 		fields []string
 	}{
 		{"pointer count", routeMutableFieldPointers("over", RouteMutableFieldsMaximumCount+1)},
-		{"pointer bytes", []string{"/" + strings.Repeat("a", RouteMutableFieldMaximumBytes)}},
-		{"reference tokens", []string{strings.Repeat("/token", RouteMutableFieldMaximumTokens+1)}},
+		{"pointer bytes", []string{"/body/" + strings.Repeat("a", RouteMutableFieldMaximumBytes-len("/body/")+1)}},
+		{"reference tokens", []string{"/body" + strings.Repeat("/token", RouteMutableFieldMaximumTokens)}},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -106,14 +161,14 @@ func TestManifestV3RouteMutableFieldBudgets(t *testing.T) {
 
 func TestManifestV3RouteMutableFieldBudgetUsesUTF8Bytes(t *testing.T) {
 	exact := mutableRouteManifest(RouteActionFilter)
-	exact.Routes[0].MutableRequestFields = []string{"/" + strings.Repeat("界", 85)}
+	exact.Routes[0].MutableRequestFields = []string{"/body/a" + strings.Repeat("界", 83)}
 	if got := len(exact.Routes[0].MutableRequestFields[0]); got != RouteMutableFieldMaximumBytes {
 		t.Fatalf("exact UTF-8 pointer bytes = %d, want %d", got, RouteMutableFieldMaximumBytes)
 	}
 	assertMutableRouteAccepted(t, exact)
 
 	over := mutableRouteManifest(RouteActionFilter)
-	over.Routes[0].MutableRequestFields = []string{"/" + strings.Repeat("界", 86)}
+	over.Routes[0].MutableRequestFields = []string{"/body/a" + strings.Repeat("界", 84)}
 	if got := len([]rune(over.Routes[0].MutableRequestFields[0])); got >= RouteMutableFieldMaximumBytes {
 		t.Fatalf("test pointer rune count = %d, want below JSON Schema maxLength", got)
 	}
@@ -198,7 +253,7 @@ func assertMutableRouteAccepted(t *testing.T, manifest Manifest) {
 func routeMutableFieldPointers(prefix string, count int) []string {
 	values := make([]string, count)
 	for index := range values {
-		values[index] = fmt.Sprintf("/%s/%d", prefix, index)
+		values[index] = fmt.Sprintf("/body/%s%d", prefix, index)
 	}
 	return values
 }

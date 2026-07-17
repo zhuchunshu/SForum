@@ -12,8 +12,9 @@ import (
 )
 
 const (
-	manifestV3SchemaURL             = "https://sforum.dev/schemas/extensions/manifest-v3.schema.json"
-	routeMutablePointerSchemaFormat = "sforum-route-mutable-pointer"
+	manifestV3SchemaURL                    = "https://sforum.dev/schemas/extensions/manifest-v3.schema.json"
+	routeMutableRequestPointerSchemaFormat = "sforum-route-mutable-request-pointer"
+	routeMutableResponsePointerSchemaFormat = "sforum-route-mutable-response-pointer"
 )
 
 //go:embed schemas/manifest-v3.schema.json
@@ -58,13 +59,23 @@ func compiledManifestSchema(fragment string) (*jsonschema.Schema, error) {
 		compiler := jsonschema.NewCompiler()
 		compiler.DefaultDraft(jsonschema.Draft2020)
 		compiler.RegisterFormat(&jsonschema.Format{
-			Name: routeMutablePointerSchemaFormat,
+			Name: routeMutableRequestPointerSchemaFormat,
 			Validate: func(value any) error {
 				pointer, ok := value.(string)
-				if !ok || validRFC6901Pointer(pointer) {
+				if !ok || ValidRouteMutableRequestPointer(pointer, true) {
 					return nil
 				}
-				return jsonschema.LocalizableError("must be a non-root RFC 6901 pointer within the route mutation budget")
+				return jsonschema.LocalizableError("must target the route request mutation document within the RFC 6901 budget")
+			},
+		})
+		compiler.RegisterFormat(&jsonschema.Format{
+			Name: routeMutableResponsePointerSchemaFormat,
+			Validate: func(value any) error {
+				pointer, ok := value.(string)
+				if !ok || ValidRouteMutableResponsePointer(pointer) {
+					return nil
+				}
+				return jsonschema.LocalizableError("must target the route response mutation document within the RFC 6901 budget")
 			},
 		})
 		compiler.AssertFormat()

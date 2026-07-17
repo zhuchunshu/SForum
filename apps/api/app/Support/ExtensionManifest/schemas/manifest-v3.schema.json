@@ -160,13 +160,26 @@
       "items": { "type": "string" },
       "uniqueItems": true
     },
-    "jsonPointerArray": {
+    "jsonRequestPointerArray": {
       "type": ["array", "null"],
-      "description": "Field-level least-privilege allowlist of non-root RFC 6901 JSON Pointers. The empty document-root pointer is deliberately forbidden. Each list allows at most 64 pointers; each pointer allows at most 256 bytes and 32 reference tokens.",
+      "description": "Field-level least-privilege allowlist into the Host request document: query values are string arrays, params are strings, headers use lowercase canonical names, and body is typed JSON. The document root is forbidden.",
       "maxItems": 64,
       "items": {
         "type": "string",
-        "format": "sforum-route-mutable-pointer",
+        "format": "sforum-route-mutable-request-pointer",
+        "minLength": 1,
+        "maxLength": 256,
+        "pattern": "^/([^~/]|~[01])*(/([^~/]|~[01])*){0,31}$"
+      },
+      "uniqueItems": true
+    },
+    "jsonResponsePointerArray": {
+      "type": ["array", "null"],
+      "description": "Field-level least-privilege allowlist into the Host response document: exact status, lowercase canonical headers, or typed JSON body. The document root is forbidden.",
+      "maxItems": 64,
+      "items": {
+        "type": "string",
+        "format": "sforum-route-mutable-response-pointer",
         "minLength": 1,
         "maxLength": 256,
         "pattern": "^/([^~/]|~[01])*(/([^~/]|~[01])*){0,31}$"
@@ -282,8 +295,8 @@
           "handler": { "$ref": "#/$defs/optionalHandler" },
           "requestSchema": { "$ref": "#/$defs/optionalSchemaRef" },
           "responseSchema": { "$ref": "#/$defs/optionalSchemaRef" },
-          "mutableRequestFields": { "$ref": "#/$defs/jsonPointerArray" },
-          "mutableResponseFields": { "$ref": "#/$defs/jsonPointerArray" },
+          "mutableRequestFields": { "$ref": "#/$defs/jsonRequestPointerArray" },
+          "mutableResponseFields": { "$ref": "#/$defs/jsonResponsePointerArray" },
           "timeoutMs": { "type": "integer", "minimum": 0 }
         },
         "allOf": [
