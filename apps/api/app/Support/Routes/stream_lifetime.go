@@ -25,6 +25,12 @@ type RouteStreamLifetimeSource interface {
 	Cause() error
 }
 
+// RouteStreamCauseCanceler preserves the exact Host cancellation reason when
+// the parent lifetime wins before the runtime lease context observes it.
+type RouteStreamCauseCanceler interface {
+	CancelWithCause(error)
+}
+
 type routeStreamOpenLifetime struct {
 	caller       context.Context
 	ctx          context.Context
@@ -204,14 +210,31 @@ func bindRouteStreamLifetime(
 }
 
 func (s *routeStreamLifetimeSession) watch() {
-	// Host budget / caller cancel only propagates into the inner session so Recv
-	// unblocks. Outer Done stays open until adapters Complete/StreamFailed and
-	// then Cancel — never close Done from Recv or inner terminal alone.
-	<-s.lifetime.Context().Done()
-	if s.finished.Load() || s.inner == nil {
+	if s == nil || s.inner == nil || s.lifetime == nil {
 		return
 	}
-	s.inner.Cancel()
+	source, ok := s.inner.(RouteStreamLifetimeSource)
+	if !ok {
+		<-s.lifetime.Context().Done()
+		if !s.finished.Load() {
+			cancelRouteStreamWithCause(s.inner, context.Cause(s.lifetime.Context()))
+		}
+		s.lifetime.close(context.Cause(s.lifetime.Context()))
+		return
+	}
+
+	// Inner completion (including ForceCancel without a pending Recv) releases
+	// the timer/caller callback. Public Done remains adapter-owned so trace and
+	// commit/failure publication still precede visible session completion.
+	select {
+	case <-s.lifetime.Context().Done():
+		if !s.finished.Load() {
+			cancelRouteStreamWithCause(s.inner, context.Cause(s.lifetime.Context()))
+		}
+		<-source.Done()
+	case <-source.Done():
+	}
+	s.lifetime.close(source.Cause())
 }
 
 func (s *routeStreamLifetimeSession) Send(data []byte, final bool) error {
@@ -248,27 +271,45 @@ func (s *routeStreamLifetimeSession) Cancel() {
 	if s == nil {
 		return
 	}
-	if s.inner != nil {
-		s.inner.Cancel()
+	cause := error(context.Canceled)
+	if s.lifetime != nil {
+		if value := context.Cause(s.lifetime.Context()); value != nil {
+			cause = value
+		}
 	}
+	s.CancelWithCause(cause)
+}
+
+func (s *routeStreamLifetimeSession) CancelWithCause(cause error) {
+	if s == nil {
+		return
+	}
+	if cause == nil {
+		cause = context.Canceled
+	}
+	cancelRouteStreamWithCause(s.inner, cause)
 	if source, ok := s.inner.(RouteStreamLifetimeSource); ok {
-		// Wait for wire/lease ownership to finish so Cause reflects the atomic winner.
+		// The inner atomic winner is authoritative. A late caller/budget cancel
+		// cannot rewrite a terminal or ForceCancel result.
 		<-source.Done()
-		if source.Cause() == nil {
-			// Terminal already won; do not invent a generic cancel cause.
-			s.finishLifetime(nil)
-			return
-		}
-		if s.lifetime != nil {
-			if lifetimeCause := context.Cause(s.lifetime.Context()); lifetimeCause != nil {
-				s.finishLifetime(lifetimeCause)
-				return
-			}
-		}
 		s.finishLifetime(source.Cause())
 		return
 	}
-	s.finishLifetime(context.Canceled)
+	s.finishLifetime(cause)
+}
+
+func cancelRouteStreamWithCause(session RouteStreamSession, cause error) {
+	if session == nil {
+		return
+	}
+	if cause == nil {
+		cause = context.Canceled
+	}
+	if canceler, ok := session.(RouteStreamCauseCanceler); ok {
+		canceler.CancelWithCause(cause)
+		return
+	}
+	session.Cancel()
 }
 
 func (s *routeStreamLifetimeSession) DetachCaller() error {
@@ -316,3 +357,4 @@ func (s *routeStreamLifetimeSession) finishLifetime(cause error) {
 var _ RouteStreamSession = (*routeStreamLifetimeSession)(nil)
 var _ RouteStreamCallerDetacher = (*routeStreamLifetimeSession)(nil)
 var _ RouteStreamLifetimeSource = (*routeStreamLifetimeSession)(nil)
+var _ RouteStreamCauseCanceler = (*routeStreamLifetimeSession)(nil)

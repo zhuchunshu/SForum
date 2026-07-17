@@ -305,8 +305,12 @@ func (s *routeV2StreamSession) Response() (routes.DispatchResponse, bool) {
 }
 
 func (s *routeV2StreamSession) Cancel() {
+	s.CancelWithCause(nil)
+}
+
+func (s *routeV2StreamSession) CancelWithCause(cause error) {
 	if s != nil {
-		s.completeCancel(nil)
+		s.completeCancel(cause)
 	}
 }
 
@@ -420,3 +424,4 @@ func (s *routeV2StreamSession) completeCancel(cause error) {
 var _ routes.StreamingStepInvoker = (*BufferedRouteStepInvoker)(nil)
 var _ routes.RouteStreamSession = (*routeV2StreamSession)(nil)
 var _ routes.RouteStreamLifetimeSource = (*routeV2StreamSession)(nil)
+var _ routes.RouteStreamCauseCanceler = (*routeV2StreamSession)(nil)
