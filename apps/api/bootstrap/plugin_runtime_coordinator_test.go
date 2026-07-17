@@ -246,6 +246,12 @@ func TestNewProductionPluginRuntimeFullSetApplierWiresInitialBootstrapConstructo
 // pluginRuntimeCoordinatorBootstrapTestInventory 仅满足 applier 构造依赖。
 type pluginRuntimeCoordinatorBootstrapTestInventory struct{}
 
+func (pluginRuntimeCoordinatorBootstrapTestInventory) LatestPluginRuntimePublication(
+	context.Context,
+) (extensions.PluginRuntimePublication, error) {
+	return extensions.PluginRuntimePublication{}, extensions.ErrPluginRuntimePublicationNotFound
+}
+
 func (pluginRuntimeCoordinatorBootstrapTestInventory) Get(context.Context, string) (extensions.Extension, error) {
 	return extensions.Extension{}, errors.New("bootstrap test inventory has no extensions")
 }

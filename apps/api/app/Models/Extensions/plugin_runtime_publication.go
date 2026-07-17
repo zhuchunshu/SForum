@@ -26,6 +26,10 @@ const (
 var (
 	ErrPluginRuntimePublicationNotFound = errors.New("extensions: plugin runtime publication not found")
 	ErrPluginRuntimePublicationConflict = errors.New("extensions: plugin runtime publication conflict")
+	// ErrPluginRuntimePublicationSuperseded 表示请求 revision 已被 durable 或
+	// process-local revision 超越。Coordinator 必须重读 durable latest，且仅在
+	// 确有更新 revision 时立即追赶；process-ahead 情况走正常轮询退避。
+	ErrPluginRuntimePublicationSuperseded = errors.New("extensions: plugin runtime publication superseded")
 )
 
 type PluginRuntimeMember struct {

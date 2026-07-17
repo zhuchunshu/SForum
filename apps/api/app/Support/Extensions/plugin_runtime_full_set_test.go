@@ -487,6 +487,10 @@ func TestPluginRuntimeFullSetConcurrentRevisionsSerialized(t *testing.T) {
 		inventory.publication(extensions.PluginRuntimePublicationUpgrade, inventory.member(ext.ID, 2, "2.0.0", "serial-v2")),
 		inventory.publication(extensions.PluginRuntimePublicationUpgrade, inventory.member(ext.ID, 3, "3.0.0", "serial-v3")),
 	}
+	for index := range pubs {
+		pubs[index].Revision = int64(index + 1)
+	}
+	inventory.setLatest(pubs[len(pubs)-1])
 	var wg sync.WaitGroup
 	errs := make(chan error, len(pubs))
 	for _, pub := range pubs {
@@ -500,10 +504,18 @@ func TestPluginRuntimeFullSetConcurrentRevisionsSerialized(t *testing.T) {
 	}
 	wg.Wait()
 	close(errs)
+	superseded := 0
 	for err := range errs {
+		if errors.Is(err, extensions.ErrPluginRuntimePublicationSuperseded) {
+			superseded++
+			continue
+		}
 		if err != nil {
 			t.Fatal(err)
 		}
+	}
+	if superseded != 2 {
+		t.Fatalf("superseded applies=%d want=2", superseded)
 	}
 	if got := starter.maxInFlightStarts.Load(); got != 1 {
 		t.Fatalf("overlapping staged starts under full-set lock: max=%d", got)
@@ -512,12 +524,65 @@ func TestPluginRuntimeFullSetConcurrentRevisionsSerialized(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	switch activeSnap.ExtensionVersion {
-	case "1.0.0", "2.0.0", "3.0.0":
-	default:
-		t.Fatalf("unexpected version %#v", activeSnap)
+	if activeSnap.ExtensionVersion != "3.0.0" {
+		t.Fatalf("latest publication did not win: %#v", activeSnap)
 	}
 	assertActiveCallable(t, manager, ext.ID, activeSnap.Identity)
+}
+
+func TestPluginRuntimeFullSetRejectsDurableRevisionOlderThanProcess(t *testing.T) {
+	starter := newPluginRuntimeFullSetStarter()
+	manager := NewManager(ManagerConfig{Starter: starter})
+	inventory := newPluginRuntimeFullSetTestInventory()
+	ext := inventory.seed(t, "nonregressive.plugin", 1, "1.0.0", "nonregressive-v1")
+	inventory.seed(t, ext.ID, 2, "2.0.0", "nonregressive-v2")
+	applier := mustNewPluginRuntimeFullSetApplier(t, manager, inventory)
+
+	first := inventory.publication(
+		extensions.PluginRuntimePublicationEnable,
+		inventory.member(ext.ID, 1, "1.0.0", "nonregressive-v1"),
+	)
+	first.Revision = 1
+	inventory.setLatest(first)
+	if _, err := applier.ApplyPluginRuntimeFullSet(t.Context(), first); err != nil {
+		t.Fatal(err)
+	}
+	second := inventory.publication(
+		extensions.PluginRuntimePublicationUpgrade,
+		inventory.member(ext.ID, 2, "2.0.0", "nonregressive-v2"),
+	)
+	second.Revision = 2
+	inventory.setLatest(second)
+	if _, err := applier.ApplyPluginRuntimeFullSet(t.Context(), second); err != nil {
+		t.Fatal(err)
+	}
+	before, err := manager.ActiveRuntimeInstance(ext.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	startsBefore := starter.startCount()
+
+	// Model a stale/restored durable source: Latest agrees with the requested
+	// R1, while this process has already atomically published R2.
+	inventory.setLatest(first)
+	if _, err := applier.ApplyPluginRuntimeFullSet(t.Context(), first); !errors.Is(err, extensions.ErrPluginRuntimePublicationSuperseded) {
+		t.Fatalf("older durable revision error=%v", err)
+	}
+	after, err := manager.ActiveRuntimeInstance(ext.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if after.Identity != before.Identity || after.ExtensionVersion != "2.0.0" ||
+		after.ArtifactDigest != inventory.member(ext.ID, 2, "2.0.0", "nonregressive-v2").PackageDigest {
+		t.Fatalf("older durable revision changed process state: before=%#v after=%#v", before, after)
+	}
+	if starter.startCount() != startsBefore {
+		t.Fatalf("older durable revision started code: before=%d after=%d", startsBefore, starter.startCount())
+	}
+	if generation := manager.HookBus().RuntimeRegistryGeneration(); generation.PublicationRevision != second.Revision {
+		t.Fatalf("process publication revision regressed: %#v", generation)
+	}
+	assertActiveCallable(t, manager, ext.ID, after.Identity)
 }
 
 func TestPluginRuntimeFullSetNoMixedCallableObservation(t *testing.T) {
@@ -848,9 +913,12 @@ func pluginRuntimeFullSetDigest(label string) string {
 }
 
 type pluginRuntimeFullSetTestInventory struct {
-	mu         sync.Mutex
-	extensions map[string]extensions.Extension
-	versions   map[string]extensions.ExtensionVersion
+	mu              sync.Mutex
+	extensions      map[string]extensions.Extension
+	versions        map[string]extensions.ExtensionVersion
+	latest          extensions.PluginRuntimePublication
+	afterGetVersion func()
+	onLatest        func()
 }
 
 func newPluginRuntimeFullSetTestInventory() *pluginRuntimeFullSetTestInventory {
@@ -952,7 +1020,7 @@ func (i *pluginRuntimeFullSetTestInventory) publication(
 	if err != nil {
 		panic(err)
 	}
-	return extensions.PluginRuntimePublication{
+	publication := extensions.PluginRuntimePublication{
 		Revision:      1,
 		MemberCount:   len(cloned),
 		MembersDigest: digest,
@@ -960,6 +1028,40 @@ func (i *pluginRuntimeFullSetTestInventory) publication(
 		Reason:        reason,
 		CreatedAt:     time.Unix(1_700_000_000, 0).UTC(),
 	}
+	i.setLatest(publication)
+	return publication
+}
+
+func (i *pluginRuntimeFullSetTestInventory) setLatest(publication extensions.PluginRuntimePublication) {
+	i.mu.Lock()
+	defer i.mu.Unlock()
+	i.latest = publication
+	i.latest.Members = append([]extensions.PluginRuntimeMember(nil), publication.Members...)
+}
+
+func (i *pluginRuntimeFullSetTestInventory) setReadHooks(afterGetVersion, onLatest func()) {
+	i.mu.Lock()
+	i.afterGetVersion = afterGetVersion
+	i.onLatest = onLatest
+	i.mu.Unlock()
+}
+
+func (i *pluginRuntimeFullSetTestInventory) LatestPluginRuntimePublication(
+	_ context.Context,
+) (extensions.PluginRuntimePublication, error) {
+	i.mu.Lock()
+	onLatest := i.onLatest
+	if i.latest.Revision <= 0 {
+		i.mu.Unlock()
+		return extensions.PluginRuntimePublication{}, extensions.ErrPluginRuntimePublicationNotFound
+	}
+	latest := i.latest
+	latest.Members = append([]extensions.PluginRuntimeMember(nil), i.latest.Members...)
+	i.mu.Unlock()
+	if onLatest != nil {
+		onLatest()
+	}
+	return latest, nil
 }
 
 func (i *pluginRuntimeFullSetTestInventory) Get(_ context.Context, extensionID string) (extensions.Extension, error) {
@@ -977,10 +1079,14 @@ func (i *pluginRuntimeFullSetTestInventory) GetExtensionVersion(
 	input extensions.ExactExtensionVersionInput,
 ) (extensions.ExtensionVersion, error) {
 	i.mu.Lock()
-	defer i.mu.Unlock()
 	version, ok := i.versions[i.versionKey(input.ExtensionID, input.Version, input.PackageDigest)]
+	afterGetVersion := i.afterGetVersion
+	i.mu.Unlock()
 	if !ok {
 		return extensions.ExtensionVersion{}, extensions.ErrExtensionVersionNotFound
+	}
+	if afterGetVersion != nil {
+		afterGetVersion()
 	}
 	return version, nil
 }

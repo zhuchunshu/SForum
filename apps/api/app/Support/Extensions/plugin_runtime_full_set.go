@@ -27,6 +27,7 @@ const RecommendedPluginRuntimeFullSetDrainTimeout = 30 * time.Second
 type PluginRuntimeFullSetInventory interface {
 	Get(context.Context, string) (extensions.Extension, error)
 	GetExtensionVersion(context.Context, extensions.ExactExtensionVersionInput) (extensions.ExtensionVersion, error)
+	LatestPluginRuntimePublication(context.Context) (extensions.PluginRuntimePublication, error)
 }
 
 // ManagerPluginRuntimeFullSetApplier 是 process-local 的 PluginRuntimeFullSetApplier。
@@ -99,6 +100,15 @@ func (a *ManagerPluginRuntimeFullSetApplier) ApplyPluginRuntimeFullSet(
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
+	// A revoke holds this same Manager barrier through its durable R+1 commit.
+	// Any older coordinator waiter must therefore re-read Latest after waking;
+	// otherwise it could reopen the just-revoked member before observing R+1.
+	if err := a.requireLatestPluginRuntimePublication(ctx, publication); err != nil {
+		return nil, err
+	}
+	if err := a.requireNonRegressivePluginRuntimePublication(publication.Revision); err != nil {
+		return nil, err
+	}
 
 	// 本轮 Apply 新启动的 V1 必须在任意后续失败时回滚；已存在 exact 复用不在账本内。
 	// 启动循环失败时也保留账本，由本 defer 唯一执行逆序回滚（禁止内层二次 stop）。
@@ -129,7 +139,6 @@ func (a *ManagerPluginRuntimeFullSetApplier) ApplyPluginRuntimeFullSet(
 	if err := a.recheckReusedPluginRuntimes(ctx, plan); err != nil {
 		return nil, err
 	}
-
 	// 正常的歧义重试是只读校验：允许复用实例继续承载任意数量的在途请求。
 	if plan.needsOnlyCommit() && a.pluginRuntimeFullSetVisible(ctx, plan) {
 		return plan.appliedMembers(), nil
@@ -178,6 +187,43 @@ func (a *ManagerPluginRuntimeFullSetApplier) ApplyPluginRuntimeFullSet(
 	// 不会遗留 fail-closed hook，也不会篡改已提交的 applied evidence。
 	a.cleanupPluginRuntimeFullSet(plan)
 	return plan.appliedMembers(), nil
+}
+
+func (a *ManagerPluginRuntimeFullSetApplier) requireLatestPluginRuntimePublication(
+	ctx context.Context,
+	requested extensions.PluginRuntimePublication,
+) error {
+	latest, err := a.inventory.LatestPluginRuntimePublication(ctx)
+	if err != nil {
+		return fmt.Errorf("load latest plugin runtime publication before apply: %w", err)
+	}
+	if latest.Revision != requested.Revision || latest.MemberCount != requested.MemberCount ||
+		latest.MembersDigest != requested.MembersDigest || latest.Reason != requested.Reason ||
+		latest.ActorUserID != requested.ActorUserID {
+		return fmt.Errorf(
+			"%w: requested revision %d, current revision %d",
+			extensions.ErrPluginRuntimePublicationSuperseded, requested.Revision, latest.Revision,
+		)
+	}
+	return nil
+}
+
+func (a *ManagerPluginRuntimeFullSetApplier) requireNonRegressivePluginRuntimePublication(
+	requestedRevision int64,
+) error {
+	if a == nil || a.manager == nil || a.manager.hooks == nil || requestedRevision <= 0 {
+		return ErrPluginRuntimeFullSetInvalid
+	}
+	a.manager.hooks.mu.RLock()
+	appliedRevision := a.manager.hooks.runtimeSetPublicationRevision
+	a.manager.hooks.mu.RUnlock()
+	if requestedRevision < appliedRevision {
+		return fmt.Errorf(
+			"%w: requested revision %d is older than process revision %d",
+			extensions.ErrPluginRuntimePublicationSuperseded, requestedRevision, appliedRevision,
+		)
+	}
+	return nil
 }
 
 type pluginRuntimeFullSetDesired struct {
