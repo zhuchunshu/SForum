@@ -146,13 +146,14 @@ describe('route inspector snapshot parser', () => {
       ['null', null],
       ['root pointer', ['']],
       ['relative pointer', ['body/title']],
+      ['trailing whitespace', ['/body/title ']],
       ['invalid escape', ['/body/~2title']],
       ['trailing escape', ['/body/title~']],
       ['duplicate', ['/body/title', '/body/title']],
       ['non-string member', ['/body/title', 7]],
       ['too many fields', Array.from({ length: 65 }, (_, index) => `/field-${index}`)],
       ['too many tokens', [`/${Array.from({ length: 33 }, () => 'field').join('/')}`]],
-      ['too many UTF-8 bytes', [`/${'界'.repeat(86)}`]]
+      ['too many UTF-8 bytes', [`/${'界'.repeat(85)}a`]]
     ]
 
     for (const [name, value] of invalidLists) {
@@ -162,6 +163,53 @@ describe('route inspector snapshot parser', () => {
         })), `${name}: ${field}`).toBeNull()
       }
     }
+  })
+
+  test('rejects non-empty mutable field allowlists outside their action matrix', () => {
+    const invalidActions: Array<[string, 'mutableRequestFields' | 'mutableResponseFields']> = [
+      ['after', 'mutableRequestFields'],
+      ['before', 'mutableResponseFields'],
+      ['global_middleware', 'mutableResponseFields'],
+      ['handler', 'mutableRequestFields'],
+      ['handler', 'mutableResponseFields'],
+      ['add', 'mutableRequestFields'],
+      ['add', 'mutableResponseFields'],
+      ['replace', 'mutableRequestFields'],
+      ['replace', 'mutableResponseFields'],
+      ['alias', 'mutableRequestFields'],
+      ['alias', 'mutableResponseFields'],
+      ['redirect', 'mutableRequestFields'],
+      ['redirect', 'mutableResponseFields'],
+      ['rewrite', 'mutableRequestFields'],
+      ['rewrite', 'mutableResponseFields']
+    ]
+
+    for (const [action, field] of invalidActions) {
+      expect(parseRouteInspectorSnapshot(validSnapshot({
+        chain: [coreStep({ action, [field]: ['/body/title'] })]
+      })), `${action}: ${field}`).toBeNull()
+    }
+
+    for (const action of ['global_middleware', 'before', 'filter', 'wrap']) {
+      expect(parseRouteInspectorSnapshot(validSnapshot({
+        chain: [coreStep({ action, mutableRequestFields: ['/body/title'] })]
+      })), `${action}: mutableRequestFields`).not.toBeNull()
+    }
+    for (const action of ['filter', 'wrap', 'after']) {
+      expect(parseRouteInspectorSnapshot(validSnapshot({
+        chain: [coreStep({ action, mutableResponseFields: ['/payload/title'] })]
+      })), `${action}: mutableResponseFields`).not.toBeNull()
+    }
+
+    const empty = parseRouteInspectorSnapshot(validSnapshot({
+      chain: [coreStep({
+        action: 'add',
+        mutableRequestFields: [],
+        mutableResponseFields: []
+      })]
+    }))
+    expect(empty?.chain[0]?.mutableRequestFields).toEqual([])
+    expect(empty?.chain[0]?.mutableResponseFields).toEqual([])
   })
 
   test('parses a resolved snapshot with chain, provider, conflict, and redacted traces', () => {

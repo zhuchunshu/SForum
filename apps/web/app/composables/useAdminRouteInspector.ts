@@ -159,6 +159,8 @@ const MUTABLE_FIELD_MAX_COUNT = 64
 const MUTABLE_FIELD_MAX_BYTES = 256
 const MUTABLE_FIELD_MAX_TOKENS = 32
 const UTF8_ENCODER = new TextEncoder()
+const MUTABLE_REQUEST_ACTIONS = new Set<string>(['global_middleware', 'before', 'filter', 'wrap'])
+const MUTABLE_RESPONSE_ACTIONS = new Set<string>(['filter', 'wrap', 'after'])
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
@@ -188,7 +190,11 @@ function asBoolean(value: unknown): boolean | undefined {
 }
 
 function validMutableFieldPointer(value: string): boolean {
-  if (!value.startsWith('/') || UTF8_ENCODER.encode(value).byteLength > MUTABLE_FIELD_MAX_BYTES) {
+  if (
+    value !== value.trim()
+    || !value.startsWith('/')
+    || UTF8_ENCODER.encode(value).byteLength > MUTABLE_FIELD_MAX_BYTES
+  ) {
     return false
   }
   let tokens = 1
@@ -370,6 +376,8 @@ function parseStep(value: unknown): RouteInspectorStep | undefined {
   const mutableRequestFields = parseMutableFieldList(value.mutableRequestFields)
   const mutableResponseFields = parseMutableFieldList(value.mutableResponseFields)
   if (mutableRequestFields === null || mutableResponseFields === null) return undefined
+  if (mutableRequestFields?.length && !MUTABLE_REQUEST_ACTIONS.has(action)) return undefined
+  if (mutableResponseFields?.length && !MUTABLE_RESPONSE_ACTIONS.has(action)) return undefined
   let pluginGuard: RouteInspectorPluginGuard | undefined
   if (value.pluginGuard !== undefined) {
     pluginGuard = parsePluginGuard(value.pluginGuard)
