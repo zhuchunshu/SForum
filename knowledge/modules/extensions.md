@@ -122,11 +122,11 @@ The 2026-07-18 response-cancellation hardening preserves and persists the last
 valid response after a caller disconnects during response-stage processing.
 Final Schema validation, committed-failure audit, and required-replay completion
 run on a bounded context detached from that caller; runtime-owned failures still
-remain inspectable. P6 is conservatively **13/18** after production review:
-stream lifetime/lease authority and non-HTTP evidence remain incomplete, and
-response modifiers must still be prevented from reintroducing Host-owned
-canonical `Link` metadata before the streamed-transport and mutable-field rows
-can be credited again.
+remain inspectable. P6 is conservatively **14/18** after production review.
+Plugin terminal responses and response modifiers cannot author `Link`; Core and
+Host canonical policy retain that metadata authority, so the mutable-field row
+is credited again. Stream lifetime/lease authority and non-HTTP evidence remain
+incomplete, keeping the streamed-transport row open.
 
 ## Purpose
 

@@ -492,7 +492,7 @@ blocking implement the authoritative row without retaining a second alias.
       cancellation, and backpressure through the proxy/runtime.
 - [ ] Default to inherited core guards; implement separately confirmed custom
       guard/raw request authority.
-- [ ] Validate request/response/filter schemas and explicit mutable fields.
+- [x] Validate request/response/filter schemas and explicit mutable fields.
 - [x] Add explicit provider selection and conflict UI for replace providers.
 - [x] Define safe GET fallback and fail-closed unsafe method behavior.
 - [x] Prevent fallback after headers/body/plugin side effects begin.

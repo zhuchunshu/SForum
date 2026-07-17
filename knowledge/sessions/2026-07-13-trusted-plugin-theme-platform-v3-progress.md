@@ -4,8 +4,8 @@ Last updated: 2026-07-18
 
 ## Progress
 
-- Verified weighted progress: **63.2336%** (display **63.2%**).
-- Phase counts: P0-P5 and P8 complete; P6 **13/18**, P7 **14/22**,
+- Verified weighted progress: **63.7892%** (display **63.8%**).
+- Phase counts: P0-P5 and P8 complete; P6 **14/18**, P7 **14/22**,
   P8 **18/18**, P9 **4/16**, P11 **1/16**, and P12 **1/22**. P10 and P13
   have no credited authoritative row yet.
 - Completion remains unproven until all 99 target rows, 14 accepted boundaries,
@@ -13,6 +13,28 @@ Last updated: 2026-07-18
   gates pass.
 
 ## Current Subtask
+
+### 2026-07-18 Host-Owned Link Response Authority Checkpoint
+
+- Verified weighted progress advances to **63.7892%** (display **63.8%**);
+  P6 is **14/18** after the Schema/explicit mutable-field row reclosed.
+- `00c627301 fix(routes): reserve link response authority` rejects
+  `/headers/link` in Manifest V3 and runtime response-patch allowlists. Plugin
+  terminal responses over legacy HTTP and Protocol V2 lose every `Link`
+  relation, including canonical, preload, and pagination, while a Core route may
+  still emit Host-owned relations. OpenAPI now states that both `Location` and
+  `Link` are outside plugin response-mutation authority.
+- Focused Manifest/Routes/Http tests passed **100/100/50** repetitions and the
+  joined race gate passed five repetitions. A standalone clone containing only
+  the six-file staged patch passed complete Manifest/Routes/Http normal and race
+  suites, three-package vet, `go build ./...`, OpenAPI validation (**1932 refs / 49
+  files**), and diff checks. Redirect canonical, status-code, query, and Host API
+  documentation drafts remained unstaged.
+- Exact resume point: repair Stream V2 total budget and lifecycle-owned session
+  cancellation without breaking the 24-hour compatibility default or WebSocket
+  post-upgrade boundary. In parallel, revise the rejected custom-guard and P7
+  candidates from their independent audits, then close redirect SEO and the full
+  P6 behavior matrix.
 
 ### 2026-07-18 Response Cancellation And Credit Audit Checkpoint
 
