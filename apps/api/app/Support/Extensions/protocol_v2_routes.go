@@ -227,6 +227,8 @@ func cloneProtocolV2Routes(values []extensions.ManifestRoute) []extensions.Manif
 	copy(result, values)
 	for index := range result {
 		result[index].Methods = append([]string(nil), values[index].Methods...)
+		result[index].MutableRequestFields = append([]string(nil), values[index].MutableRequestFields...)
+		result[index].MutableResponseFields = append([]string(nil), values[index].MutableResponseFields...)
 	}
 	return result
 }

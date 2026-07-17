@@ -268,6 +268,35 @@ func TestProtocolV2FrozenRouteMatchesHeadAndGlobalMiddleware(t *testing.T) {
 	}
 }
 
+func TestProtocolV2RouteDeclarationSnapshotClonesMutableFields(t *testing.T) {
+	routes := []extensions.ManifestRoute{{
+		ID: "demo.filter", ContractVersion: "demo.filter@1", Action: extensionmanifest.RouteActionFilter,
+		Methods: []string{http.MethodGet}, MutableRequestFields: []string{"/query"},
+		MutableResponseFields: []string{"/headers/cache~1control"},
+	}}
+	snapshot := cloneProtocolV2Routes(routes)
+	client := newProtocolV2Client(nil, protocolV2ClientConfig{routes: routes})
+
+	routes[0].Methods[0] = http.MethodPost
+	routes[0].MutableRequestFields[0] = "/caller-mutated"
+	routes[0].MutableResponseFields[0] = "/caller-mutated"
+	assertProtocolV2RouteMutableFields(t, snapshot[0])
+	assertProtocolV2RouteMutableFields(t, client.routes[0])
+
+	snapshot[0].MutableRequestFields[0] = "/snapshot-mutated"
+	snapshot[0].MutableResponseFields[0] = "/snapshot-mutated"
+	assertProtocolV2RouteMutableFields(t, client.routes[0])
+}
+
+func assertProtocolV2RouteMutableFields(t *testing.T, route extensions.ManifestRoute) {
+	t.Helper()
+	if !reflect.DeepEqual(route.Methods, []string{http.MethodGet}) ||
+		!reflect.DeepEqual(route.MutableRequestFields, []string{"/query"}) ||
+		!reflect.DeepEqual(route.MutableResponseFields, []string{"/headers/cache~1control"}) {
+		t.Fatalf("frozen route declaration = %#v", route)
+	}
+}
+
 type protocolV2RouteTestServer struct {
 	pluginwire.UnimplementedPluginRuntimeServiceServer
 	invoke func(context.Context, *pluginwire.RouteRequest) (*pluginwire.RouteResponse, error)
