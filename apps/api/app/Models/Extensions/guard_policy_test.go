@@ -3,6 +3,7 @@ package extensions
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"sync"
 	"testing"
@@ -102,6 +103,47 @@ func TestGuardPolicyCatalogSkipsOnlyInvalidDisabledArtifacts(t *testing.T) {
 	source.set([]Extension{valid, invalidDisabled}, nil)
 	if err := catalog.Refresh(context.Background()); !errors.Is(err, errGuardPolicyArtifactInvalid) {
 		t.Fatalf("enabled invalid artifact error = %v", err)
+	}
+}
+
+func TestGuardPolicyCatalogSkipsMissingDisabledPackageButFailsClosedWhenEnabled(t *testing.T) {
+	missing := guardPolicyFixture("guard.missing", TypePlugin, strings.Repeat("b", 64))
+	missing.Status = StatusDisabled
+	missing.Source = SourceUploaded
+	missing.IsSystem = false
+	missing.IsDeletable = true
+	missing.Manifest.Backend.Entry = "backend/plugin"
+	source := &guardPolicySourceStub{items: []Extension{missing}}
+	catalog := NewGuardPolicyCatalog(
+		source,
+		guardPolicyTrustErrorStub{err: fmt.Errorf("verify exact package: %w", ErrFrontendPackageChanged)},
+		nil,
+		GuardPolicyConfig{TTL: time.Minute},
+	)
+	if err := catalog.Refresh(context.Background()); err != nil {
+		t.Fatalf("disabled missing package blocked recovery refresh: %v", err)
+	}
+	if lookup, ok := catalog.Lookup(missing.ID); !ok || lookup.Found {
+		t.Fatalf("disabled missing package was published: lookup=%#v ok=%v", lookup, ok)
+	}
+
+	missing.Status = StatusEnabled
+	source.set([]Extension{missing}, nil)
+	if err := catalog.Refresh(context.Background()); !errors.Is(err, ErrFrontendPackageChanged) {
+		t.Fatalf("enabled missing package error = %v", err)
+	}
+
+	trustUnavailable := errors.New("trust database unavailable")
+	missing.Status = StatusDisabled
+	source.set([]Extension{missing}, nil)
+	closed := NewGuardPolicyCatalog(
+		source,
+		guardPolicyTrustErrorStub{err: trustUnavailable},
+		nil,
+		GuardPolicyConfig{TTL: time.Minute},
+	)
+	if err := closed.Refresh(context.Background()); !errors.Is(err, trustUnavailable) {
+		t.Fatalf("disabled trust source failure was hidden: %v", err)
 	}
 }
 
@@ -683,6 +725,14 @@ type guardPolicyTrustStub struct {
 	mu      sync.Mutex
 	trusted map[string]bool
 	calls   int
+}
+
+type guardPolicyTrustErrorStub struct {
+	err error
+}
+
+func (s guardPolicyTrustErrorStub) TrustedArtifact(context.Context, Extension) (bool, error) {
+	return false, s.err
 }
 
 type blockingGuardPolicyTrustStub struct {

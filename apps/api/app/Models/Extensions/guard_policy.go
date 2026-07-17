@@ -164,7 +164,8 @@ func (c *GuardPolicyCatalog) Refresh(ctx context.Context) error {
 		if err != nil {
 			// Out-of-band disable must recover boot even when the retained artifact
 			// cannot be decoded. Other failures still fail closed.
-			if extension.Status == StatusDisabled && errors.Is(err, errGuardPolicyArtifactInvalid) {
+			if extension.Status == StatusDisabled &&
+				(errors.Is(err, errGuardPolicyArtifactInvalid) || errors.Is(err, ErrFrontendPackageChanged)) {
 				continue
 			}
 			return err
