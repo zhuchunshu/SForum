@@ -36,8 +36,9 @@ func serveRouteWebSocket(c fiber.Ctx, dispatch *routes.RouteStreamDispatch, host
 		return mapRouteDispatchError(err)
 	}
 	if start.Response.Status != fiber.StatusSwitchingProtocols || !validRouteWebSocketSubprotocol(c, start.Response.Headers.Get("Sec-WebSocket-Protocol")) {
-		start.Session.Cancel()
+		// Fail before Cancel so the transport trace lands before lifetime Done.
 		dispatch.Fail()
+		start.Session.Cancel()
 		return mapRouteDispatchError(fmt.Errorf("%w: invalid websocket preflight", routes.ErrDispatchTransport))
 	}
 	c.Response().Reset()
