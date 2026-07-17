@@ -1121,8 +1121,10 @@ ExtensionManifestRoute:
       type: string
     requestSchema:
       type: string
+      description: Required for structured HTTP request documents; optional documentation metadata for opaque non-HTTP payloads.
     responseSchema:
       type: string
+      description: Required for structured HTTP responses; optional documentation metadata for opaque non-HTTP payloads.
     mutableRequestFields:
       type: array
       description: Exact RFC 6901 allowlist into query string arrays, string params, lowercase allowed headers, or typed JSON body. Credential headers require raw_request authority.

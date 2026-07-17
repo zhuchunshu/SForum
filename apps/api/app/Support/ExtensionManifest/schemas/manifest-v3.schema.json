@@ -293,8 +293,14 @@
           "destination": { "type": "string" },
           "statusCode": { "enum": [301, 308], "default": 308 },
           "handler": { "$ref": "#/$defs/optionalHandler" },
-          "requestSchema": { "$ref": "#/$defs/optionalSchemaRef" },
-          "responseSchema": { "$ref": "#/$defs/optionalSchemaRef" },
+          "requestSchema": {
+            "$ref": "#/$defs/optionalSchemaRef",
+            "description": "Required for unsafe HTTP request documents. Optional compatibility metadata for opaque non-HTTP payloads; the Host does not validate stream chunks against it."
+          },
+          "responseSchema": {
+            "$ref": "#/$defs/optionalSchemaRef",
+            "description": "Required for structured HTTP responses. Optional compatibility metadata for opaque non-HTTP payloads; the Host does not validate stream chunks against it."
+          },
           "mutableRequestFields": { "$ref": "#/$defs/jsonRequestPointerArray" },
           "mutableResponseFields": { "$ref": "#/$defs/jsonResponsePointerArray" },
           "timeoutMs": { "type": "integer", "minimum": 0 }
