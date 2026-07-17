@@ -134,12 +134,17 @@ func TestRouteDispatcherBridgesWebSocketMessagesAndDisconnect(t *testing.T) {
 		},
 		Session: session,
 	}}
-	guard := &countingRouteGuard{}
+	contextKey := routeWebSocketRequestContextKey{}
+	guard := &countingRouteGuard{contextKey: contextKey, contextValue: "request-bound"}
 	dispatcher := routes.NewDispatcher(routes.DispatcherConfig{
 		Plans: routeRegistryPlanResolver{registry: registry}, Steps: invoker,
 		Guard: guard, Trace: traces,
 	})
 	app := fiber.New()
+	app.Use(func(c fiber.Ctx) error {
+		c.SetContext(context.WithValue(c.Context(), contextKey, "request-bound"))
+		return c.Next()
+	})
 	app.Use(routeDispatcherMiddleware(dispatcher, nil))
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
@@ -272,8 +277,19 @@ func TestRouteDispatcherRejectsMalformedWebSocketBeforeRuntime(t *testing.T) {
 }
 
 type countingRouteGuard struct {
-	calls atomic.Int32
-	inner routes.CoreGuardAuthorizer
+	calls        atomic.Int32
+	inner        routes.CoreGuardAuthorizer
+	contextKey   any
+	contextValue any
+}
+
+type routeWebSocketRequestContextKey struct{}
+
+func (g *countingRouteGuard) validateContext(ctx context.Context) error {
+	if g.contextKey != nil && ctx.Value(g.contextKey) != g.contextValue {
+		return errors.New("route guard lost the request context")
+	}
+	return nil
 }
 
 func (g *countingRouteGuard) Authorize(
@@ -283,6 +299,9 @@ func (g *countingRouteGuard) Authorize(
 	request routes.DispatchRequest,
 ) error {
 	g.calls.Add(1)
+	if err := g.validateContext(ctx); err != nil {
+		return err
+	}
 	return g.inner.Authorize(ctx, plan, step, request)
 }
 
@@ -294,6 +313,9 @@ func (g *countingRouteGuard) AuthorizeRoute(
 	request routes.DispatchRequest,
 ) (routes.RouteGuardAuthorization, error) {
 	g.calls.Add(1)
+	if err := g.validateContext(ctx); err != nil {
+		return routes.RouteGuardAuthorization{}, err
+	}
 	return g.inner.AuthorizeRoute(ctx, plan, stepIndex, step, request)
 }
 

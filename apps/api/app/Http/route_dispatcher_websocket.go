@@ -1,7 +1,6 @@
 package http
 
 import (
-	"context"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -24,9 +23,10 @@ func serveRouteWebSocket(c fiber.Ctx, dispatch *routes.RouteStreamDispatch, host
 	if c == nil || dispatch == nil || !validRouteWebSocketUpgrade(c) {
 		return fiber.NewError(fiber.StatusUpgradeRequired, "extensions.websocket_upgrade_required")
 	}
-	// The hijacked connection outlives Fiber's pooled request context. Actor,
-	// permissions, headers, and params were already detached by PrepareStream.
-	start, err := dispatch.Open(context.Background())
+	// Guard evaluation and runtime preflight happen before hijacking, so they must
+	// still observe request cancellation. The bridge below owns the longer-lived
+	// connection only after the upgrade succeeds.
+	start, err := dispatch.Open(c.Context())
 	if err != nil {
 		return mapRouteDispatchError(err)
 	}
