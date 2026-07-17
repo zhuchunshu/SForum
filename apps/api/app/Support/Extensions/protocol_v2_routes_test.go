@@ -233,6 +233,8 @@ func TestProtocolV2RouteFailsClosedOnResponseDrift(t *testing.T) {
 		{"invalid time", func(response *pluginwire.RouteResponse) { response.Context.ServerTime = nil }, ErrProtocolV2RouteInvalid},
 		{"wrong schema", func(response *pluginwire.RouteResponse) { response.Body.SchemaVersion = "2" }, ErrProtocolV2RouteInvalid},
 		{"stream with body", func(response *pluginwire.RouteResponse) { response.StreamFollows = true }, ErrProtocolV2RouteInvalid},
+		{"informational terminal", func(response *pluginwire.RouteResponse) { response.StatusCode = http.StatusEarlyHints }, ErrProtocolV2RouteInvalid},
+		{"switching protocols without stream", func(response *pluginwire.RouteResponse) { response.StatusCode = http.StatusSwitchingProtocols }, ErrProtocolV2RouteInvalid},
 		{"invalid header name", func(response *pluginwire.RouteResponse) { response.Headers[0].Name = "Bad\r\nName" }, ErrProtocolV2RouteInvalid},
 		{"invalid header value", func(response *pluginwire.RouteResponse) { response.Headers[0].Values[0] = "bad\r\nvalue" }, ErrProtocolV2RouteInvalid},
 		{"handler patch", func(response *pluginwire.RouteResponse) {
@@ -261,6 +263,33 @@ func TestProtocolV2RouteFailsClosedOnResponseDrift(t *testing.T) {
 			}
 			if !errors.Is(err, test.want) {
 				t.Fatalf("error = %v, want %v", err, test.want)
+			}
+		})
+	}
+}
+
+func TestProtocolV2TerminalStatusAllowsOnlyWebSocketInformationalResponse(t *testing.T) {
+	for _, test := range []struct {
+		name          string
+		status        int
+		streamFollows bool
+		valid         bool
+	}{
+		{name: "ordinary terminal", status: http.StatusOK, valid: true},
+		{name: "websocket upgrade", status: http.StatusSwitchingProtocols, streamFollows: true, valid: true},
+		{name: "switching without stream", status: http.StatusSwitchingProtocols},
+		{name: "continue with stream", status: http.StatusContinue, streamFollows: true},
+		{name: "early hints with stream", status: http.StatusEarlyHints, streamFollows: true},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			_, err := protocolV2RouteTerminalResponse(&pluginwire.RouteResponse{
+				StatusCode: uint32(test.status), StreamFollows: test.streamFollows,
+			}, "")
+			if test.valid && err != nil {
+				t.Fatal(err)
+			}
+			if !test.valid && !errors.Is(err, ErrProtocolV2RouteInvalid) {
+				t.Fatalf("status=%d stream=%t error=%v", test.status, test.streamFollows, err)
 			}
 		})
 	}

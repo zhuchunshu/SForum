@@ -275,7 +275,7 @@ func validProtocolV2RouteChunkChecksum(chunk *protocolwire.DataChunk) bool {
 }
 
 func (s *ProtocolV2RouteStream) captureResponseClose(closeFrame *pluginwire.RouteStreamClose) error {
-	if closeFrame == nil || closeFrame.GetStatusCode() < 100 || closeFrame.GetStatusCode() > 599 {
+	if closeFrame == nil || !validProtocolV2TerminalStatus(int(closeFrame.GetStatusCode()), true) {
 		return ErrProtocolV2RouteStreamInvalid
 	}
 	headers, err := protocolV2RouteHTTPHeaders(closeFrame.GetHeaders())

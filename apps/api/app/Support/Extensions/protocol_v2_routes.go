@@ -235,7 +235,7 @@ func protocolV2RouteTerminalResponse(response *pluginv2.RouteResponse, responseS
 		return ProtocolV2RouteResponse{}, fmt.Errorf("%w: handler response cannot include patches", ErrProtocolV2RouteInvalid)
 	}
 	status := int(response.GetStatusCode())
-	if status < 100 || status > 599 {
+	if !validProtocolV2TerminalStatus(status, response.GetStreamFollows()) {
 		return ProtocolV2RouteResponse{}, fmt.Errorf("%w: invalid response status %d", ErrProtocolV2RouteInvalid, status)
 	}
 	if response.GetStreamFollows() && response.GetBody() != nil {
@@ -356,7 +356,7 @@ func protocolV2ResponseStageRouteAction(action string) bool {
 }
 
 func validateProtocolV2PriorRouteResponse(document *ProtocolV2RouteResponseDocument, responseSchema string) error {
-	if document.StatusCode < 100 || document.StatusCode > 599 {
+	if !validProtocolV2TerminalStatus(document.StatusCode, false) {
 		return fmt.Errorf("%w: invalid prior response status %d", ErrProtocolV2RouteInvalid, document.StatusCode)
 	}
 	if _, err := protocolV2RouteHTTPHeaders(protocolV2RouteHeaders(document.Headers)); err != nil {
@@ -366,6 +366,13 @@ func validateProtocolV2PriorRouteResponse(document *ProtocolV2RouteResponseDocum
 		return fmt.Errorf("%w: typed prior response body requires a schema", ErrProtocolV2RouteInvalid)
 	}
 	return nil
+}
+
+func validProtocolV2TerminalStatus(status int, allowSwitchingProtocols bool) bool {
+	if allowSwitchingProtocols && status == http.StatusSwitchingProtocols {
+		return true
+	}
+	return status >= http.StatusOK && status <= 599
 }
 
 func protocolV2WireRouteInvocationStage(stage ProtocolV2RouteInvocationStage) pluginv2.RouteInvocationStage {

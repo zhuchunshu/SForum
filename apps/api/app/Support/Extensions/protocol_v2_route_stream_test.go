@@ -135,6 +135,27 @@ func TestProtocolV2RouteStreamRejectsDriftAndMalformedPeerFrames(t *testing.T) {
 	}
 }
 
+func TestProtocolV2RouteStreamCloseRejectsInformationalStatusesExceptUpgrade(t *testing.T) {
+	for _, test := range []struct {
+		status int
+		valid  bool
+	}{
+		{status: http.StatusContinue},
+		{status: http.StatusEarlyHints},
+		{status: http.StatusSwitchingProtocols, valid: true},
+		{status: http.StatusOK, valid: true},
+	} {
+		stream := &ProtocolV2RouteStream{}
+		err := stream.captureResponseClose(&pluginwire.RouteStreamClose{StatusCode: uint32(test.status)})
+		if test.valid && err != nil {
+			t.Fatalf("status=%d error=%v", test.status, err)
+		}
+		if !test.valid && !errors.Is(err, ErrProtocolV2RouteStreamInvalid) {
+			t.Fatalf("status=%d error=%v", test.status, err)
+		}
+	}
+}
+
 func TestProtocolV2RouteStreamPropagatesCancellationAndBoundsRequests(t *testing.T) {
 	accepted := make(chan struct{})
 	client := newProtocolV2RouteStreamTestClient(t, func(stream grpc.BidiStreamingServer[pluginwire.RouteStreamFrame, pluginwire.RouteStreamFrame]) error {
