@@ -317,10 +317,11 @@ func TestStreamDispatcherCallerCancellationAfterObservedExecutionFailsClosed(t *
 				step := streamPluginGuardStep("stream.observed_canceled."+action+"."+guardKind, action, raw)
 				ctx, cancel := context.WithCancel(context.Background())
 				invoker := &observedCanceledStreamInvoker{cancel: cancel}
+				streamFailures := &recordingRouteStreamFailureSink{}
 				traces := NewRouteTraceRing(4)
 				dispatcher := NewDispatcher(DispatcherConfig{
 					Plans: dispatchPlanResolver{plan: dispatchPlan(http.MethodGet, "/observed-canceled", nil, []RouteExecutionStep{step}, 0)},
-					Guard: allowStreamGuard{}, Steps: invoker, Trace: traces,
+					Guard: allowStreamGuard{}, Steps: invoker, Trace: traces, StreamFailures: streamFailures,
 				})
 				prepared, err := dispatcher.PrepareStream(
 					context.Background(), DispatchRequest{Method: http.MethodGet, Path: "/observed-canceled"},
@@ -333,7 +334,7 @@ func TestStreamDispatcherCallerCancellationAfterObservedExecutionFailsClosed(t *
 				records := traces.RouteTraces(0)
 				if !errors.Is(err, context.Canceled) || !errors.Is(err, ErrDispatchTransport) || invoker.calls != 1 ||
 					len(records) != 1 || records[0].Outcome != RouteTraceTransportFailed ||
-					records[0].CommitState != RouteCommitSideEffectStarted {
+					records[0].CommitState != RouteCommitSideEffectStarted || len(streamFailures.snapshot()) != 0 {
 					t.Fatalf("error=%v invocations=%d traces=%#v", err, invoker.calls, records)
 				}
 			})

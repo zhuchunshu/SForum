@@ -28,7 +28,9 @@ type RouteStreamDispatch struct {
 	opened          bool
 	requestStarted  bool
 	responseStarted bool
+	responseStatus  int
 	finished        bool
+	failureRecorded bool
 }
 
 type RouteStreamPreparation struct {
@@ -184,6 +186,7 @@ func (d *RouteStreamDispatch) Open(ctx context.Context) (RouteStreamStart, error
 	if err != nil {
 		return d.finishStreamOpenError(ctx, lifetime, err, false)
 	}
+	d.setResponseStatus(result.Response.Status)
 	if err := lifetime.Context().Err(); err != nil {
 		if result.Session != nil {
 			result.Session.Cancel()
@@ -194,8 +197,9 @@ func (d *RouteStreamDispatch) Open(ctx context.Context) (RouteStreamStart, error
 		if result.Session != nil {
 			result.Session.Cancel()
 		}
-		return d.finishStreamOpenError(
+		return d.finishStreamOpenErrorAs(
 			ctx, lifetime, fmt.Errorf("%w: invalid streaming preflight", ErrDispatchTransport), false,
+			RouteStreamFailureInvalidPreflight,
 		)
 	}
 	if ctx.Err() != nil {
@@ -227,18 +231,38 @@ func (d *RouteStreamDispatch) finishStreamOpenError(
 	err error,
 	guardFailure bool,
 ) (RouteStreamStart, error) {
+	return d.finishStreamOpenErrorAs(
+		caller, lifetime, err, guardFailure, RouteStreamFailureRuntimeTransport,
+	)
+}
+
+func (d *RouteStreamDispatch) finishStreamOpenErrorAs(
+	caller context.Context,
+	lifetime *routeStreamOpenLifetime,
+	err error,
+	guardFailure bool,
+	failureClass RouteStreamFailureClass,
+) (RouteStreamStart, error) {
 	if err == nil {
 		err = ErrDispatchTransport
 	}
 	cause := context.Cause(lifetime.Context())
 	callerErr := caller.Err()
 	if errors.Is(cause, ErrRouteStreamBudgetExceeded) || errors.Is(err, ErrRouteStreamBudgetExceeded) {
-		d.Fail()
+		d.failStream(RouteStreamFailureHostBudget, true)
 		return RouteStreamStart{}, fmt.Errorf("%w: %w", ErrDispatchTransport, ErrRouteStreamBudgetExceeded)
 	}
-	if callerErr != nil && !d.commit.ExecutionObserved() && routeStreamCallerCausedFailure(err, cause, callerErr) {
-		d.finishWithoutTrace()
-		return RouteStreamStart{}, callerErr
+	callerCaused := callerErr != nil && routeStreamCallerCausedFailure(err, cause, callerErr)
+	if callerCaused {
+		if !d.commit.ExecutionObserved() {
+			d.finishWithoutTrace()
+			return RouteStreamStart{}, callerErr
+		}
+		d.failStream("", false)
+		if !errors.Is(err, ErrDispatchTransport) {
+			err = fmt.Errorf("%w: %w", ErrDispatchTransport, err)
+		}
+		return RouteStreamStart{}, err
 	}
 	if guardFailure {
 		d.finishWithoutTrace()
@@ -246,11 +270,20 @@ func (d *RouteStreamDispatch) finishStreamOpenError(
 		d.dispatcher.appendTrace(d.plan, d.index, d.step, InvocationStageHandler, outcome, d.started, d.commit.State())
 		return RouteStreamStart{}, err
 	}
-	d.Fail()
+	d.failStream(failureClass, true)
 	if !errors.Is(err, ErrDispatchTransport) {
 		err = fmt.Errorf("%w: %w", ErrDispatchTransport, err)
 	}
 	return RouteStreamStart{}, err
+}
+
+func (d *RouteStreamDispatch) setResponseStatus(status int) {
+	if d == nil {
+		return
+	}
+	d.mu.Lock()
+	d.responseStatus = status
+	d.mu.Unlock()
 }
 
 func routeStreamCallerCausedFailure(err, cause, callerErr error) bool {
@@ -297,21 +330,83 @@ func (d *RouteStreamDispatch) StreamFailed(err error) error {
 	if err == nil || errors.Is(err, io.EOF) {
 		return nil
 	}
-	d.Fail()
+	if errors.Is(err, context.Canceled) && !errors.Is(err, ErrRouteStreamBudgetExceeded) {
+		d.failStream("", false)
+		return fmt.Errorf("%w: %w", ErrDispatchTransport, err)
+	}
+	class := RouteStreamFailureRuntimeTransport
+	if errors.Is(err, ErrRouteStreamBudgetExceeded) {
+		class = RouteStreamFailureHostBudget
+	}
+	d.failStream(class, true)
+	return fmt.Errorf("%w: %w", ErrDispatchTransport, err)
+}
+
+func (d *RouteStreamDispatch) StreamFailedAs(class RouteStreamFailureClass, err error) error {
+	if err == nil || errors.Is(err, io.EOF) {
+		return nil
+	}
+	if !ValidRouteStreamFailureClass(class) {
+		d.failStream("", false)
+		return fmt.Errorf("%w: invalid stream failure class", ErrDispatchInvalid)
+	}
+	d.failStream(class, true)
+	return fmt.Errorf("%w: %w", ErrDispatchTransport, err)
+}
+
+// StreamAborted publishes the transport trace without attributing a plugin
+// incident. Caller disconnects, Host writer failures, and lifecycle ForceDrain
+// use this path.
+func (d *RouteStreamDispatch) StreamAborted(err error) error {
+	if err == nil || errors.Is(err, io.EOF) {
+		return nil
+	}
+	d.failStream("", false)
 	return fmt.Errorf("%w: %w", ErrDispatchTransport, err)
 }
 
 func (d *RouteStreamDispatch) Fail() {
+	d.failStream("", false)
+}
+
+func (d *RouteStreamDispatch) failStream(class RouteStreamFailureClass, record bool) {
 	if d == nil {
 		return
 	}
 	d.mu.Lock()
-	defer d.mu.Unlock()
 	if d.finished {
+		d.mu.Unlock()
 		return
 	}
 	d.finished = true
-	d.dispatcher.appendTrace(d.plan, d.index, d.step, InvocationStageHandler, RouteTraceTransportFailed, d.started, d.commit.State())
+	commitState := d.commit.State()
+	responseStatus := d.responseStatus
+	shouldRecord := record && !d.failureRecorded && d.dispatcher.streamFailures != nil &&
+		d.commit.ExecutionObserved() && ValidRouteStreamFailureClass(class)
+	if shouldRecord {
+		d.failureRecorded = true
+	}
+	d.mu.Unlock()
+
+	d.dispatcher.appendTrace(
+		d.plan, d.index, d.step, InvocationStageHandler,
+		RouteTraceTransportFailed, d.started, commitState,
+	)
+	if !shouldRecord {
+		return
+	}
+	event := RouteStreamFailure{
+		Revision: d.plan.Revision(), StepIndex: d.index, Phase: d.step.Phase,
+		InvocationStage: InvocationStageHandler, Action: d.step.Action, Mode: d.step.Mode,
+		RouteID: d.step.RouteID, ContractVersion: d.step.ContractVersion,
+		Method: d.plan.Method(), PathSignature: routeStepPathSignature(d.step),
+		FailureCode: RouteFailureTransportFailed, CauseClass: class,
+		RuntimeExecutionObserved: true, ActorID: d.request.ActorID,
+		ResponseStatus: responseStatus, CommitState: commitState, Artifact: d.step.Provider.Artifact,
+	}
+	if ValidRouteStreamFailure(event) {
+		d.dispatcher.streamFailures.RecordStreamFailure(context.Background(), event)
+	}
 }
 
 func (d *RouteStreamDispatch) Complete() error {
