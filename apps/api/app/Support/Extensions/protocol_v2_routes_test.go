@@ -311,6 +311,20 @@ func TestProtocolV2RouteAcceptsAuthenticatedStreamPreflight(t *testing.T) {
 	}
 }
 
+func TestProtocolV2StreamPreflightSkipsResponseSchemaBodyValidation(t *testing.T) {
+	// Opaque stream boundary: declared responseSchema is catalog identity only.
+	// StreamFollows preflight must not require or validate a TypedDocument body.
+	response, err := protocolV2RouteTerminalResponse(&pluginwire.RouteResponse{
+		StatusCode: http.StatusOK, StreamFollows: true,
+	}, "demo.stream.response@1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !response.StreamFollows || response.BodyPresent || response.StatusCode != http.StatusOK {
+		t.Fatalf("stream preflight=%#v", response)
+	}
+}
+
 func TestProtocolV2RoutePropagatesCallerCancellation(t *testing.T) {
 	client := newProtocolV2RouteTestClient(t, "runtime-1", func(ctx context.Context, _ *pluginwire.RouteRequest) (*pluginwire.RouteResponse, error) {
 		<-ctx.Done()
