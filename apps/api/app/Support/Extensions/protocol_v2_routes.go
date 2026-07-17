@@ -242,8 +242,9 @@ func protocolV2RouteTerminalResponse(response *pluginv2.RouteResponse, responseS
 		return ProtocolV2RouteResponse{}, fmt.Errorf("%w: streaming response cannot include a buffered body", ErrProtocolV2RouteInvalid)
 	}
 	if response.GetStreamFollows() {
-		// The declared response schema applies to the stream representation; the
-		// unary preflight authenticates status and headers only.
+		// Stream routes carry opaque DataChunk bytes only. Unary preflight checks
+		// status/headers; Host never validates chunk payloads against responseSchema.
+		// Manifest responseSchema remains catalog/OpenAPI identity for non-http modes.
 	} else if responseSchema == "" {
 		if response.GetBody() != nil {
 			return ProtocolV2RouteResponse{}, fmt.Errorf("%w: undeclared response body", ErrProtocolV2RouteInvalid)
