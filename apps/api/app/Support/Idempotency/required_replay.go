@@ -28,6 +28,7 @@ const (
 	requiredReplaySchemaV2           = "sforum.required-route-replay@2"
 	requiredReplaySchemaV3           = "sforum.required-route-replay@3"
 	requiredReplayPayloadSchemaV1    = "sforum.required-route-replay-payload@1"
+	requiredReplayPayloadSchemaV2    = "sforum.required-route-replay-payload@2"
 	requiredReplayPending            = "pending"
 	requiredReplayCompleted          = "completed"
 )
@@ -59,11 +60,21 @@ type RequiredReplayBinding struct {
 }
 
 type RequiredReplayResponse struct {
-	Status        int                          `json:"status"`
-	Headers       http.Header                  `json:"headers,omitempty"`
-	Body          []byte                       `json:"body,omitempty"`
-	CanonicalPath string                       `json:"canonicalPath,omitempty"`
-	Authorization *RequiredReplayAuthorization `json:"-"`
+	Status                int                             `json:"status"`
+	Headers               http.Header                     `json:"headers,omitempty"`
+	Body                  []byte                          `json:"body,omitempty"`
+	CanonicalPath         string                          `json:"canonicalPath,omitempty"`
+	ResponseContractKnown bool                            `json:"responseContractKnown,omitempty"`
+	ResponseContract      *RequiredReplayResponseContract `json:"responseContract,omitempty"`
+	Authorization         *RequiredReplayAuthorization    `json:"-"`
+}
+
+type RequiredReplayResponseContract struct {
+	StepIndex       int    `json:"stepIndex"`
+	InvocationStage string `json:"invocationStage"`
+	RouteID         string `json:"routeId"`
+	ContractVersion string `json:"contractVersion"`
+	ResponseSchema  string `json:"responseSchema"`
 }
 
 type RequiredReplayAuthorization struct {
@@ -293,6 +304,9 @@ func (s *Store) newRequiredReplayCompleted(
 	}
 	switch pending.Schema {
 	case requiredReplaySchemaV2:
+		if response.ResponseContractKnown || response.ResponseContract != nil {
+			return requiredReplayRecord{}, ErrRequiredReplayInvalid
+		}
 		completed.Response = storedResponse
 		if response.Authorization == nil {
 			return completed, nil
@@ -315,7 +329,7 @@ func (s *Store) newRequiredReplayCompleted(
 		}
 		completed.PlanDigest = pending.PlanDigest
 		payload, err := json.Marshal(requiredReplayPayload{
-			Schema: requiredReplayPayloadSchemaV1, PlanDigest: pending.PlanDigest, Response: storedResponse,
+			Schema: requiredReplayPayloadSchemaV2, PlanDigest: pending.PlanDigest, Response: storedResponse,
 			Authorization: cloneRequiredReplayAuthorization(response.Authorization),
 		})
 		if err != nil || len(payload) == 0 || len(payload) > MaxRequiredReplayPayload {
@@ -412,11 +426,19 @@ func (s *Store) requiredReplayResponseV3(
 		return nil, errors.Join(ErrRequiredReplayUnavailable, err)
 	}
 	var payload requiredReplayPayload
-	if json.Unmarshal(plaintext, &payload) != nil || payload.Schema != requiredReplayPayloadSchemaV1 ||
-		payload.PlanDigest != record.PlanDigest ||
+	if json.Unmarshal(plaintext, &payload) != nil || payload.PlanDigest != record.PlanDigest ||
 		validateRequiredReplayResponsePointer(payload.Response) != nil ||
 		validateRequiredReplayAuthorization(payload.Authorization) != nil ||
 		payload.Authorization != nil && payload.Authorization.PlanDigest != record.PlanDigest {
+		return nil, ErrRequiredReplayUnavailable
+	}
+	switch payload.Schema {
+	case requiredReplayPayloadSchemaV1:
+		if payload.Response.ResponseContractKnown || payload.Response.ResponseContract != nil {
+			return nil, ErrRequiredReplayUnavailable
+		}
+	case requiredReplayPayloadSchemaV2:
+	default:
 		return nil, ErrRequiredReplayUnavailable
 	}
 	response := cloneRequiredReplayResponse(payload.Response)
@@ -550,7 +572,35 @@ func validateRequiredReplayResponse(response RequiredReplayResponse) error {
 			return fmt.Errorf("%w: response headers exceed %d bytes", ErrRequiredReplayInvalid, MaxRequiredReplayHeaders)
 		}
 	}
+	if err := validateRequiredReplayResponseContract(response.ResponseContractKnown, response.ResponseContract); err != nil {
+		return err
+	}
 	return validateRequiredReplayAuthorization(response.Authorization)
+}
+
+func validateRequiredReplayResponseContract(
+	known bool,
+	contract *RequiredReplayResponseContract,
+) error {
+	if !known {
+		if contract != nil {
+			return ErrRequiredReplayInvalid
+		}
+		return nil
+	}
+	if contract == nil {
+		return nil
+	}
+	if contract.StepIndex < 0 || contract.StepIndex > 65535 ||
+		(contract.InvocationStage != "handler" && contract.InvocationStage != "response") {
+		return ErrRequiredReplayInvalid
+	}
+	for _, value := range []string{contract.RouteID, contract.ContractVersion, contract.ResponseSchema} {
+		if value == "" || value != strings.TrimSpace(value) || len(value) > 512 {
+			return ErrRequiredReplayInvalid
+		}
+	}
+	return nil
 }
 
 func validateRequiredReplayAuthorization(value *RequiredReplayAuthorization) error {
@@ -612,9 +662,20 @@ func cloneRequiredReplayResponse(response *RequiredReplayResponse) *RequiredRepl
 	}
 	return &RequiredReplayResponse{
 		Status: response.Status, Headers: response.Headers.Clone(), Body: append([]byte(nil), response.Body...),
-		CanonicalPath: response.CanonicalPath,
-		Authorization: cloneRequiredReplayAuthorization(response.Authorization),
+		CanonicalPath: response.CanonicalPath, ResponseContractKnown: response.ResponseContractKnown,
+		ResponseContract: cloneRequiredReplayResponseContract(response.ResponseContract),
+		Authorization:    cloneRequiredReplayAuthorization(response.Authorization),
 	}
+}
+
+func cloneRequiredReplayResponseContract(
+	value *RequiredReplayResponseContract,
+) *RequiredReplayResponseContract {
+	if value == nil {
+		return nil
+	}
+	clone := *value
+	return &clone
 }
 
 func cloneRequiredReplayAuthorization(value *RequiredReplayAuthorization) *RequiredReplayAuthorization {

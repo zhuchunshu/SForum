@@ -120,11 +120,77 @@ func TestDispatcherFirstExecutionAndReplayUseSameFinalResponseContract(t *testin
 		t.Fatalf("failure event=%#v", event)
 	}
 
-	controller.replay = &RouteIdempotencyReplay{Response: cloneDispatchResponse(lease.completed.Response)}
+	controller.replay = &RouteIdempotencyReplay{
+		Response:              cloneDispatchResponse(lease.completed.Response),
+		ResponseContractKnown: lease.completed.ResponseContractKnown,
+		ResponseContract:      cloneRouteReplayResponseContract(lease.completed.ResponseContract),
+	}
 	second, err := dispatcher.Dispatch(context.Background(), request, nil)
 	if err != nil || !second.Handled || !reflect.DeepEqual(second.Response, first.Response) ||
 		pluginCalls != 2 || controller.calls != 2 || len(sink.events) != 1 {
 		t.Fatalf("second=%#v first=%#v error=%v plugin calls=%d controller=%#v events=%#v", second, first, err, pluginCalls, controller, sink.events)
+	}
+}
+
+func TestDispatcherReplayUsesPersistedEffectiveContractAfterLaterPreflightRejection(t *testing.T) {
+	handler := dispatchPluginStep(RoutePhaseHandler, "demo.route.effective_contract_handler", extensionmanifest.RouteActionAdd)
+	after := dispatchPluginStep(RoutePhaseAfter, "demo.route.effective_contract_after", extensionmanifest.RouteActionAfter)
+	plan := dispatchPlan("POST", "/effective-contract", nil, []RouteExecutionStep{handler, after}, 0)
+	lease := &dispatchIdempotencyLease{}
+	controller := &dispatchIdempotencyController{lease: lease}
+	schemas := &dispatcherReplayResponseSchemas{rejectRouteID: after.RouteID}
+	sink := &recordingRouteFailureSink{}
+	pluginCalls := 0
+	dispatcher := NewDispatcher(DispatcherConfig{
+		Plans: dispatchPlanResolver{plan: plan},
+		Steps: &dispatchStepInvoker{invoke: func(_ context.Context, input RouteInvocation) (RouteInvocationResult, error) {
+			pluginCalls++
+			if input.Stage != InvocationStageHandler {
+				t.Fatal("response modifier ran after its input contract was rejected")
+			}
+			response := DispatchResponse{
+				Status: http.StatusCreated, Headers: http.Header{"Content-Type": {"application/json"}},
+				Body: []byte(`{"created":true}`),
+			}
+			return RouteInvocationResult{Response: &response, SideEffectStarted: true, ResponseStarted: true}, nil
+		}},
+		Guard: &dispatchGuard{}, Schemas: schemas, Failures: sink,
+		Policies: dispatchPolicyResolver{policy: RouteExecutionPolicy{
+			Idempotency: "required.24h@1", IdempotencyRequired: true,
+		}},
+		Idempotency: controller,
+	})
+	request := DispatchRequest{Method: "POST", Path: "/effective-contract"}
+
+	first, err := dispatcher.Dispatch(context.Background(), request, nil)
+	if err != nil || !first.Handled || first.Response.Status != http.StatusCreated ||
+		pluginCalls != 1 || lease.completeCalls != 1 || len(sink.events) != 1 {
+		t.Fatalf("first=%#v error=%v plugin calls=%d lease=%#v events=%#v", first, err, pluginCalls, lease, sink.events)
+	}
+	contract := lease.completed.ResponseContract
+	if !lease.completed.ResponseContractKnown || contract == nil ||
+		contract.StepIndex != 0 || contract.InvocationStage != InvocationStageHandler ||
+		contract.RouteID != handler.RouteID || contract.ResponseSchema != handler.ResponseSchema {
+		t.Fatalf("effective response contract=%#v known=%t", contract, lease.completed.ResponseContractKnown)
+	}
+
+	controller.replay = &RouteIdempotencyReplay{
+		Response:              cloneDispatchResponse(lease.completed.Response),
+		ResponseContractKnown: true,
+		ResponseContract:      cloneRouteReplayResponseContract(contract),
+	}
+	second, err := dispatcher.Dispatch(context.Background(), request, nil)
+	if err != nil || !second.Handled || !reflect.DeepEqual(second.Response, first.Response) ||
+		pluginCalls != 1 || controller.calls != 2 || len(sink.events) != 1 {
+		t.Fatalf("second=%#v first=%#v error=%v calls=%d controller=%#v events=%#v", second, first, err, pluginCalls, controller, sink.events)
+	}
+
+	controller.replay.ResponseContract = newRouteReplayResponseContract(
+		routeInvocationExecution{index: 1, stage: InvocationStageResponse}, after,
+	)
+	if result, replayErr := dispatcher.Dispatch(context.Background(), request, nil); result.Handled ||
+		!errors.Is(replayErr, ErrDispatchIdempotencyUnavailable) || pluginCalls != 1 {
+		t.Fatalf("forged provenance result=%#v error=%v plugin calls=%d", result, replayErr, pluginCalls)
 	}
 }
 
