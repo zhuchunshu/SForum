@@ -620,19 +620,31 @@ func routeRequestHeaderAllowed(name string, connectionHeaders map[string]struct{
 		"x-csrf-token", "connection", "keep-alive", "proxy-authenticate", "proxy-connection",
 		"te", "trailer", "transfer-encoding", "upgrade":
 		return false
-	case "cookie", "authorization":
-		return raw
 	default:
+		return !routeRequestCredentialHeader(canonical) || raw
+	}
+}
+
+func routeRequestCredentialHeader(canonical string) bool {
+	switch canonical {
+	case "cookie", "authorization", "x-api-key", "x-auth-token":
 		return true
+	default:
+		return false
 	}
 }
 
 func routeConnectionHeaderTokens(headers stdhttp.Header) map[string]struct{} {
 	blocked := make(map[string]struct{})
-	for _, value := range headers.Values("Connection") {
-		for _, token := range strings.Split(value, ",") {
-			if canonical := strings.ToLower(strings.TrimSpace(token)); canonical != "" {
-				blocked[canonical] = struct{}{}
+	for name, values := range headers {
+		if !strings.EqualFold(strings.TrimSpace(name), "Connection") {
+			continue
+		}
+		for _, value := range values {
+			for _, token := range strings.Split(value, ",") {
+				if canonical := strings.ToLower(strings.TrimSpace(token)); canonical != "" {
+					blocked[canonical] = struct{}{}
+				}
 			}
 		}
 	}

@@ -21,7 +21,9 @@ func TestRuntimePluginRouteGuardEvaluatorInvokesExactSanitizedGuard(t *testing.T
 		Method: plan.Method(), Path: plan.Path(), Query: "preview=1", Params: plan.Params(),
 		Headers: stdhttp.Header{
 			"X-Request-ID": []string{"request-41"}, "Cookie": []string{"session=secret"},
-			"Authorization": []string{"Bearer secret"}, "X-SForum-Forged": []string{"forged"},
+			"Authorization": []string{"Bearer secret"}, "X-API-Key": []string{"api-key-secret"},
+			"X-Auth-Token": []string{"auth-token-secret"}, "connection": []string{"X-Guard-Hop"},
+			"X-Guard-Hop": []string{"hop-secret"}, "X-SForum-Forged": []string{"forged"},
 		},
 		ActorID: 42, Authenticated: true, Permissions: map[string]bool{"topic.read": true},
 	}
@@ -37,7 +39,9 @@ func TestRuntimePluginRouteGuardEvaluatorInvokesExactSanitizedGuard(t *testing.T
 		runtime.request.RouteID != step.RouteID || runtime.request.RouteContractVersion != step.ContractVersion ||
 		runtime.request.QueryParameters["preview"] != "1" || runtime.request.Actor.UserID != 42 ||
 		runtime.request.Headers.Get("X-Request-ID") != "request-41" || runtime.request.Headers.Get("Cookie") != "" ||
-		runtime.request.Headers.Get("Authorization") != "" || runtime.request.Headers.Get("X-SForum-Forged") != "" {
+		runtime.request.Headers.Get("Authorization") != "" || runtime.request.Headers.Get("X-API-Key") != "" ||
+		runtime.request.Headers.Get("X-Auth-Token") != "" || runtime.request.Headers.Get("X-Guard-Hop") != "" ||
+		runtime.request.Headers.Get("X-SForum-Forged") != "" {
 		t.Fatalf("runtime guard = %#v", runtime)
 	}
 }

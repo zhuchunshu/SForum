@@ -15,14 +15,20 @@ func TestCopyRouteRequestHeadersStripsSensitiveAndConnectionNamedHeaders(t *test
 		"Accept-Language":     {"zh-CN"},
 		"Authorization":       {"Bearer browser-secret", "Bearer second"},
 		"Connection":          {"keep-alive, X-Hop-Secret"},
+		"connection":          {"X-Lower-Hop"},
+		"CONNECTION":          {"X-Upper-Hop"},
 		"Cookie":              {"session=browser-secret", "preference=second"},
 		"Host":                {"forum.example.com"},
 		"Proxy-Authorization": {"Basic proxy-secret"},
 		"Proxy-Connection":    {"keep-alive"},
+		"X-Api-Key":           {"api-key-secret", "api-key-second"},
+		"X-Auth-Token":        {"auth-token-secret", "auth-token-second"},
 		"X-Csrf-Token":        {"csrf-secret"},
 		"X-Hop-Secret":        {"hop-secret"},
+		"X-Lower-Hop":         {"lower-hop-secret"},
 		"X-SForum-Forged":     {"forged"},
 		"X-Trace-ID":          {"trace-1"},
+		"X-Upper-Hop":         {"upper-hop-secret"},
 	}
 	for _, test := range []struct {
 		name      string
@@ -46,13 +52,13 @@ func TestCopyRouteRequestHeadersStripsSensitiveAndConnectionNamedHeaders(t *test
 			}
 			for _, name := range []string{
 				"Connection", "Host", "Proxy-Authorization", "Proxy-Connection", "X-Csrf-Token",
-				"X-Hop-Secret", "X-SForum-Forged",
+				"X-Hop-Secret", "X-Lower-Hop", "X-SForum-Forged", "X-Upper-Hop",
 			} {
 				if values := target.Values(name); len(values) != 0 {
 					t.Fatalf("blocked header %s survived: %#v", name, values)
 				}
 			}
-			for _, name := range []string{"Authorization", "Cookie"} {
+			for _, name := range []string{"Authorization", "Cookie", "X-API-Key", "X-Auth-Token"} {
 				if got := target.Values(name); test.raw && !reflect.DeepEqual(got, source.Values(name)) {
 					t.Fatalf("raw header %s = %#v", name, got)
 				} else if !test.raw && len(got) != 0 {

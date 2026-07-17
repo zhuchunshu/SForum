@@ -208,6 +208,8 @@ func p6RouteMatrixRequest(body, query, csrfToken string) *stdhttp.Request {
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("Accept-Language", "zh-CN")
 	request.Header.Set("Authorization", "Bearer browser-secret")
+	request.Header.Set("X-API-Key", "api-key-secret")
+	request.Header.Set("X-Auth-Token", "auth-token-secret")
 	request.Header.Set("X-Trace-ID", "trace-p6")
 	request.Header.Set("X-SForum-Forged", "forged")
 	request.Header.Set("Origin", "https://forum.example.com")
@@ -272,11 +274,16 @@ func assertP6RouteMatrixHeaders(t *testing.T, headers stdhttp.Header, raw bool) 
 	}
 	if raw {
 		if headers.Get("Authorization") != "Bearer browser-secret" ||
-			!strings.Contains(headers.Get("Cookie"), "session=browser-secret") {
+			!strings.Contains(headers.Get("Cookie"), "session=browser-secret") ||
+			headers.Get("X-API-Key") != "api-key-secret" || headers.Get("X-Auth-Token") != "auth-token-secret" {
 			t.Fatalf("raw credentials were not forwarded: %#v", headers)
 		}
-	} else if headers.Get("Cookie") != "" || headers.Get("Authorization") != "" {
-		t.Fatalf("filtered credentials survived: %#v", headers)
+	} else {
+		for _, name := range []string{"Cookie", "Authorization", "X-API-Key", "X-Auth-Token"} {
+			if values := headers.Values(name); len(values) != 0 {
+				t.Fatalf("filtered credential %s survived: %#v", name, values)
+			}
+		}
 	}
 }
 

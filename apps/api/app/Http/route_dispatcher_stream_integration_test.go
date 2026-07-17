@@ -130,7 +130,12 @@ func TestRouteStreamAcrossFiberManagerAndRealProtocolV2Process(t *testing.T) {
 
 	t.Run("WebSocket", func(t *testing.T) {
 		dialer := websocket.Dialer{HandshakeTimeout: 5 * time.Second, Subprotocols: []string{"sforum.stream.v1"}}
-		connection, response, err := dialer.Dial("ws://"+listener.Addr().String()+"/socket", nil)
+		headers := make(stdhttp.Header)
+		headers.Set("Cookie", "session=websocket-secret")
+		headers.Set("Authorization", "Bearer websocket-secret")
+		headers.Set("X-API-Key", "websocket-api-key")
+		headers.Set("X-Auth-Token", "websocket-auth-token")
+		connection, response, err := dialer.Dial("ws://"+listener.Addr().String()+"/socket", headers)
 		if err != nil {
 			t.Fatalf("dial response=%v err=%v", response, err)
 		}
@@ -197,6 +202,9 @@ func (s *routeStreamE2EServer) InvokeRoute(_ context.Context, request *pluginwir
 	case "runtime.stream.events", "runtime.stream.disconnect":
 		headers = append(headers, &protocolwire.Header{Name: "Content-Type", Values: []string{"text/event-stream"}})
 	case "runtime.stream.websocket":
+		if header := routeStreamE2EForwardedCredential(request.GetHeaders()); header != "" {
+			return nil, fmt.Errorf("filtered WebSocket preflight forwarded credential %s", header)
+		}
 		status = stdhttp.StatusSwitchingProtocols
 		headers = append(headers, &protocolwire.Header{Name: "Sec-WebSocket-Protocol", Values: []string{"sforum.stream.v1"}})
 	default:
@@ -244,6 +252,9 @@ func routeStreamE2EHandler(stream *pluginv2sdk.RouteStream) error {
 		}
 		return stream.Close(&pluginwire.RouteStreamClose{StatusCode: stdhttp.StatusOK})
 	case "runtime.stream.websocket":
+		if header := routeStreamE2EForwardedCredential(stream.Open().GetHeaders()); header != "" {
+			return fmt.Errorf("filtered WebSocket open forwarded credential %s", header)
+		}
 		chunk, err := stream.Recv()
 		if err != nil {
 			return err
@@ -265,6 +276,16 @@ func routeStreamE2EHandler(stream *pluginv2sdk.RouteStream) error {
 	default:
 		return fmt.Errorf("unknown stream route")
 	}
+}
+
+func routeStreamE2EForwardedCredential(headers []*protocolwire.Header) string {
+	for _, header := range headers {
+		switch strings.ToLower(strings.TrimSpace(header.GetName())) {
+		case "cookie", "authorization", "x-api-key", "x-auth-token":
+			return header.GetName()
+		}
+	}
+	return ""
 }
 
 func routeStreamE2EResponseContext(request *protocolwire.RequestContext) *protocolwire.ResponseContext {
