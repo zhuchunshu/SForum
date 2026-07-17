@@ -352,7 +352,7 @@ dispatchSequence:
 				d.appendTrace(plan, index, step, stage, RouteTraceTransportFailed, started, commit.State())
 				return DispatchResult{}, fmt.Errorf("%w: core handler is unavailable", ErrDispatchTransport)
 			}
-			value, callErr := core.InvokeCore(ctx, step, request)
+			value, callErr := invokeCoreWithCommitEvidence(ctx, step, request, core, commit)
 			if callErr != nil {
 				d.appendTrace(plan, index, step, stage, RouteTraceTransportFailed, started, commit.State())
 				return DispatchResult{}, callErr
@@ -986,7 +986,7 @@ func (d *Dispatcher) fallback(
 		if core == nil {
 			return nil, fmt.Errorf("%w: readonly core fallback is unavailable", ErrDispatchTransport)
 		}
-		value, err := core.InvokeCore(ctx, step, request)
+		value, err := invokeCoreWithCommitEvidence(ctx, step, request, core, commit)
 		if err != nil {
 			return nil, err
 		}
@@ -994,6 +994,26 @@ func (d *Dispatcher) fallback(
 	default:
 		return nil, nil
 	}
+}
+
+func invokeCoreWithCommitEvidence(
+	ctx context.Context,
+	step RouteExecutionStep,
+	request DispatchRequest,
+	core CoreInvoker,
+	commit *RouteCommitObserver,
+) (DispatchResponse, error) {
+	if err := ctx.Err(); err != nil {
+		return DispatchResponse{}, err
+	}
+	// Core 写操作一旦交付就不能证明没有发生副作用；重放租约必须保持 pending。
+	commit.SideEffectStarted()
+	response, err := core.InvokeCore(ctx, step, request)
+	if err != nil {
+		return DispatchResponse{}, err
+	}
+	commit.ResponseStarted()
+	return response, nil
 }
 
 // RouteCommitObserver is concurrency-safe because future streaming transports
