@@ -142,6 +142,31 @@ func TestManagerExactStopAndDiscardNeverRemoveReplacement(t *testing.T) {
 	}
 }
 
+func TestManagerStopsDrainedRuntimeAfterRegistryDeactivation(t *testing.T) {
+	starter := newManagerStagedStarter()
+	manager := NewManager(ManagerConfig{Starter: starter})
+	extension := managerStagedExtension("deactivated.staged", "1.0.0", "digest-1")
+	if err := manager.Start(t.Context(), extension); err != nil {
+		t.Fatal(err)
+	}
+	active, err := manager.ActiveRuntimeInstance(extension.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := manager.BeginDrain(active.Identity); err != nil {
+		t.Fatal(err)
+	}
+	if !manager.HookBus().UnregisterRuntime(extension.ID, active.Identity.InstanceID) {
+		t.Fatal("deactivation did not close the exact hook registry")
+	}
+	if err := manager.StopRuntimeInstance(t.Context(), active.Identity); err != nil {
+		t.Fatalf("stop retained runtime after registry deactivation: %v", err)
+	}
+	if _, err := manager.ActiveRuntimeInstance(extension.ID); !errors.Is(err, ErrRuntimeInstanceNotFound) {
+		t.Fatalf("stopped runtime remained active: %v", err)
+	}
+}
+
 func TestManagerDiscardedInitialCandidateReturnsToStoppedStatus(t *testing.T) {
 	starter := newManagerStagedStarter()
 	manager := NewManager(ManagerConfig{Starter: starter})

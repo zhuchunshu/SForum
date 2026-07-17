@@ -235,7 +235,13 @@ func (b *HookBus) validateUnregisterRuntime(extension extensions.Extension, inst
 	b.mu.RLock()
 	current, ok := b.plugins[extension.ID]
 	b.mu.RUnlock()
-	if !ok || current.instanceID != instanceID {
+	// Deactivation removes registries before uninstall hooks finish and the
+	// retained exact process is stopped. An absent registration is already
+	// fail-closed; only a registration owned by another instance is a conflict.
+	if !ok {
+		return nil
+	}
+	if current.instanceID != instanceID {
 		if publishesVersionedHookSnapshot(extension, instanceID) {
 			return fmt.Errorf("%w: exact hook runtime %s/%s is not published", ErrHookRegistryConflict, extension.ID, instanceID)
 		}
