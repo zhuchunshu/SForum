@@ -293,8 +293,10 @@ func TestStreamDispatcherCallerCancellationBeforeRuntimeAdmissionHasNoFailureEvi
 				}
 
 				_, err = prepared.Dispatch.Open(ctx)
+				// Host open context absorbs caller cancel after guard and before the
+				// streaming invoker, so runtime admission never starts.
 				if !errors.Is(err, context.Canceled) || errors.Is(err, ErrDispatchDenied) ||
-					errors.Is(err, ErrDispatchTransport) || invoker.calls != 1 ||
+					errors.Is(err, ErrDispatchTransport) || invoker.calls != 0 ||
 					prepared.Dispatch.commit.ExecutionObserved() || len(traces.RouteTraces(0)) != 0 || len(sink.events) != 0 {
 					t.Fatalf("error=%v invocations=%d observed=%t traces=%#v incidents=%#v",
 						err, invoker.calls, prepared.Dispatch.commit.ExecutionObserved(), traces.RouteTraces(0), sink.events)

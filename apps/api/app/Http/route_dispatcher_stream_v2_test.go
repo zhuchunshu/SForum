@@ -7,7 +7,10 @@ import (
 	stdhttp "net/http"
 	"reflect"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/gofiber/fiber/v3"
 
@@ -199,6 +202,87 @@ func TestRouteV2StreamSessionCancelsOnTransportFailureOrStatusDrift(t *testing.T
 	}
 }
 
+func TestRouteV2StreamSessionCapturesForceCancelCauseBeforeLeaseRelease(t *testing.T) {
+	gate, err := extensionsruntime.NewRuntimeAdmissionGate(extensionsruntime.RuntimeInstanceIdentity{
+		ExtensionID: "stream.force", InstanceID: "instance-1",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	lease, err := gate.Acquire(context.Background(), extensionsruntime.RuntimeCallRoute)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wire := &fakeRouteV2WireStream{blockRecv: make(chan struct{})}
+	session := newRouteV2StreamSession(wire, lease, stdhttp.StatusOK)
+	session.arm(lease.Context)
+	forceCause := errors.New("trust revoked")
+	gate.ForceCancel(forceCause)
+	select {
+	case <-session.Done():
+	case <-time.After(time.Second):
+		t.Fatal("ForceCancel did not finish the stream session")
+	}
+	if !errors.Is(session.Cause(), forceCause) {
+		t.Fatalf("cause=%v want force cause", session.Cause())
+	}
+	if !wire.cancelled {
+		t.Fatal("ForceCancel did not cancel the wire stream")
+	}
+	if _, ok := session.Response(); ok {
+		t.Fatal("ForceCancel published a terminal Response")
+	}
+	// Lease release is single-flight; a second ForceCancel path must not panic.
+	session.Cancel()
+	if !errors.Is(session.Cause(), forceCause) {
+		t.Fatalf("second cancel overwrote cause=%v", session.Cause())
+	}
+}
+
+func TestRouteV2StreamSessionTerminalAndCancelRaceIsAtomic(t *testing.T) {
+	for i := 0; i < 64; i++ {
+		wire := &fakeRouteV2WireStream{
+			response: extensionsruntime.ProtocolV2RouteStreamResponse{StatusCode: stdhttp.StatusOK},
+		}
+		session := newRouteV2StreamSession(wire, nil, stdhttp.StatusOK)
+		var wg sync.WaitGroup
+		var sawEOF, sawCancel atomic.Bool
+		wg.Add(2)
+		go func() {
+			defer wg.Done()
+			_, err := session.Recv()
+			if errors.Is(err, io.EOF) {
+				sawEOF.Store(true)
+			} else if err != nil {
+				sawCancel.Store(true)
+			}
+		}()
+		go func() {
+			defer wg.Done()
+			session.Cancel()
+		}()
+		wg.Wait()
+		response, ok := session.Response()
+		if sawEOF.Load() {
+			if !ok || response.Status != stdhttp.StatusOK || wire.cancelled {
+				t.Fatalf("terminal winner invalid: ok=%t response=%#v cancelled=%t", ok, response, wire.cancelled)
+			}
+		} else {
+			if ok {
+				t.Fatal("cancel winner published Response")
+			}
+			if !wire.cancelled {
+				t.Fatal("cancel winner did not cancel wire")
+			}
+		}
+		select {
+		case <-session.Done():
+		default:
+			t.Fatal("Done not closed after terminal/cancel race")
+		}
+	}
+}
+
 func TestRouteV2StreamSessionAbsorbsCloseErrorOnlyAfterExpectedTerminal(t *testing.T) {
 	closeErr := errors.New("request stream already closed")
 	for _, test := range []struct {
@@ -229,6 +313,7 @@ type fakeRouteV2WireStream struct {
 	requestClosed bool
 	cancelled     bool
 	closeErr      error
+	blockRecv     chan struct{}
 }
 
 func (s *fakeRouteV2WireStream) Send(data []byte, _ bool) error {
@@ -242,6 +327,9 @@ func (s *fakeRouteV2WireStream) CloseRequest() error {
 }
 
 func (s *fakeRouteV2WireStream) Recv() (extensionsruntime.ProtocolV2RouteStreamChunk, error) {
+	if s.blockRecv != nil {
+		<-s.blockRecv
+	}
 	if s.recvErr != nil {
 		return extensionsruntime.ProtocolV2RouteStreamChunk{}, s.recvErr
 	}
