@@ -61,6 +61,28 @@ func TestRouteV2StreamSessionCancelsOnTransportFailureOrStatusDrift(t *testing.T
 	}
 }
 
+func TestRouteV2StreamSessionAbsorbsCloseErrorOnlyAfterExpectedTerminal(t *testing.T) {
+	closeErr := errors.New("request stream already closed")
+	for _, test := range []struct {
+		name     string
+		response extensionsruntime.ProtocolV2RouteStreamResponse
+		wantErr  bool
+	}{
+		{name: "expected terminal", response: extensionsruntime.ProtocolV2RouteStreamResponse{StatusCode: stdhttp.StatusSwitchingProtocols}},
+		{name: "status drift", response: extensionsruntime.ProtocolV2RouteStreamResponse{StatusCode: stdhttp.StatusOK}, wantErr: true},
+		{name: "missing terminal", wantErr: true},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			wire := &fakeRouteV2WireStream{response: test.response, closeErr: closeErr}
+			session := &routeV2StreamSession{stream: wire, expectedStatus: stdhttp.StatusSwitchingProtocols}
+			err := session.CloseRequest()
+			if !wire.requestClosed || test.wantErr != errors.Is(err, closeErr) {
+				t.Fatalf("requestClosed=%t error=%v", wire.requestClosed, err)
+			}
+		})
+	}
+}
+
 type fakeRouteV2WireStream struct {
 	chunks        []extensionsruntime.ProtocolV2RouteStreamChunk
 	response      extensionsruntime.ProtocolV2RouteStreamResponse
@@ -68,6 +90,7 @@ type fakeRouteV2WireStream struct {
 	sent          []byte
 	requestClosed bool
 	cancelled     bool
+	closeErr      error
 }
 
 func (s *fakeRouteV2WireStream) Send(data []byte, _ bool) error {
@@ -77,7 +100,7 @@ func (s *fakeRouteV2WireStream) Send(data []byte, _ bool) error {
 
 func (s *fakeRouteV2WireStream) CloseRequest() error {
 	s.requestClosed = true
-	return nil
+	return s.closeErr
 }
 
 func (s *fakeRouteV2WireStream) Recv() (extensionsruntime.ProtocolV2RouteStreamChunk, error) {

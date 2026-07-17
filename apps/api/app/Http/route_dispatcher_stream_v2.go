@@ -149,7 +149,17 @@ func (s *routeV2StreamSession) CloseRequest() error {
 	if s == nil || s.stream == nil {
 		return routes.ErrDispatchTransport
 	}
-	return s.stream.CloseRequest()
+	err := s.stream.CloseRequest()
+	if err == nil {
+		return nil
+	}
+	// The peer terminal cancels the underlying gRPC context. A request-side
+	// cleanup error after that exact terminal cannot rewrite a committed stream.
+	terminal, ok := s.stream.Response()
+	if ok && terminal.StatusCode == s.expectedStatus {
+		return nil
+	}
+	return err
 }
 
 func (s *routeV2StreamSession) Recv() (routes.RouteStreamChunk, error) {
