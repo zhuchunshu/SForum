@@ -182,6 +182,32 @@ func TestRedirectOutputRemainsHostOwnedAfterModifier(t *testing.T) {
 	}
 }
 
+func TestRedirectCanonicalDisappearsWithPluginSnapshot(t *testing.T) {
+	registry := NewRegistry()
+	artifact := routeArtifact("redirect.snapshot", "1.0.0", 'b')
+	redirect := redirectStatusRoute("redirect.snapshot.route.old", http.StatusPermanentRedirect)
+	if _, err := registry.Publish(Publication{Plugins: []PluginRouteSet{{
+		Artifact: artifact, Routes: []extensionmanifest.ManifestRoute{redirect},
+	}}}); err != nil {
+		t.Fatal(err)
+	}
+	dispatcher := NewDispatcher(DispatcherConfig{
+		Plans: matrixPlanResolver{registry: registry}, Guard: &dispatchGuard{}, Schemas: &dispatchSchemas{},
+	})
+	result, err := dispatcher.Dispatch(context.Background(), DispatchRequest{Method: http.MethodGet, Path: "/old"}, nil)
+	if err != nil || !result.Handled || result.Response.CanonicalPath != "/new" {
+		t.Fatalf("active redirect = %#v, %v", result, err)
+	}
+
+	if _, err := registry.Publish(Publication{SafeMode: true}); err != nil {
+		t.Fatal(err)
+	}
+	result, err = dispatcher.Dispatch(context.Background(), DispatchRequest{Method: http.MethodGet, Path: "/old"}, nil)
+	if err != nil || result.Handled || result.Response.CanonicalPath != "" || result.Response.Headers.Get("Location") != "" {
+		t.Fatalf("removed redirect = %#v, %v", result, err)
+	}
+}
+
 func TestStableRedirectTargetFailsClosedForIncompatibleAmbiguousAndPluginTargets(t *testing.T) {
 	artifact := routeArtifact("redirect.plan", "1.0.0", 'e')
 	t.Run("incompatible parameters", func(t *testing.T) {

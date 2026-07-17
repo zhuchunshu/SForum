@@ -91,12 +91,35 @@ func TestRouteDispatcherInternallyExecutesAliasAndRewriteTargets(t *testing.T) {
 
 func TestRouteDispatcherWritesHostOwnedRedirectCanonical(t *testing.T) {
 	for _, test := range []struct {
-		name   string
-		id     string
-		status int
+		name        string
+		id          string
+		status      int
+		path        string
+		requestPath string
+		destination string
+		want        string
+		stable      bool
 	}{
-		{name: "301", id: "status301", status: stdhttp.StatusMovedPermanently},
-		{name: "308", id: "status308", status: stdhttp.StatusPermanentRedirect},
+		{
+			name: "stable 301", id: "stable301", status: stdhttp.StatusMovedPermanently,
+			path: "/legacy-redirect/:id", requestPath: "/legacy-redirect/%E4%B8%BB%E9%A2%98?page=2",
+			want: "/canonical/%E4%B8%BB%E9%A2%98", stable: true,
+		},
+		{
+			name: "stable 308", id: "stable308", status: stdhttp.StatusPermanentRedirect,
+			path: "/legacy-redirect/:id", requestPath: "/legacy-redirect/41?page=2",
+			want: "/canonical/41", stable: true,
+		},
+		{
+			name: "literal 301", id: "literal301", status: stdhttp.StatusMovedPermanently,
+			path: "/literal-redirect-301", requestPath: "/literal-redirect-301?ignored=yes",
+			destination: "/canonical/中文", want: "/canonical/%E4%B8%AD%E6%96%87",
+		},
+		{
+			name: "literal 308", id: "literal308", status: stdhttp.StatusPermanentRedirect,
+			path: "/literal-redirect-308", requestPath: "/literal-redirect-308?ignored=yes",
+			destination: "/canonical/literal", want: "/canonical/literal",
+		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			registry := routes.NewRegistry()
@@ -104,14 +127,24 @@ func TestRouteDispatcherWritesHostOwnedRedirectCanonical(t *testing.T) {
 				ExtensionID: "dispatch.redirect." + test.id, ExtensionVersion: "1.0.0",
 				PackageDigest: strings.Repeat("c", 64), RuntimeInstanceID: "runtime-" + test.id,
 			}
-			target := routeMappingCoreRoute("core.route.mapping.redirect."+test.id, stdhttp.MethodGet, "/canonical/:topicID")
+			var core []routes.CoreRoute
+			targetID := ""
+			if test.stable {
+				target := routeMappingCoreRoute("core.route.mapping.redirect."+test.id, stdhttp.MethodGet, "/canonical/:topicID")
+				core = []routes.CoreRoute{target}
+				targetID = target.ID
+			}
 			redirect := routeMappingPluginRoute(
 				artifact.ExtensionID+".route.legacy", extensionmanifest.RouteActionRedirect,
-				target.ID, "/legacy-redirect/:id", stdhttp.MethodGet,
+				targetID, test.path, stdhttp.MethodGet,
 			)
 			redirect.StatusCode = test.status
+			if !test.stable {
+				redirect.Guard = extensionmanifest.GuardCorePublic
+				redirect.Destination = test.destination
+			}
 			if _, err := registry.Publish(routes.Publication{
-				Core:    []routes.CoreRoute{target},
+				Core:    core,
 				Plugins: []routes.PluginRouteSet{{Artifact: artifact, Routes: []extensionmanifest.ManifestRoute{redirect}}},
 			}); err != nil {
 				t.Fatal(err)
@@ -123,16 +156,16 @@ func TestRouteDispatcherWritesHostOwnedRedirectCanonical(t *testing.T) {
 			app := fiber.New()
 			app.Use(routeDispatcherMiddleware(dispatcher, nil))
 
-			response, err := app.Test(httptest.NewRequest(
-				stdhttp.MethodGet, "/legacy-redirect/41?page=2", nil,
-			))
-			if err != nil {
-				t.Fatal(err)
-			}
-			response.Body.Close()
-			if response.StatusCode != test.status || response.Header.Get(fiber.HeaderLocation) != "/canonical/41" ||
-				response.Header.Get(fiber.HeaderLink) != "</canonical/41>; rel=\"canonical\"" {
-				t.Fatalf("redirect status = %d, headers = %v", response.StatusCode, response.Header)
+			for _, method := range []string{stdhttp.MethodGet, stdhttp.MethodHead} {
+				response, err := app.Test(httptest.NewRequest(method, test.requestPath, nil))
+				if err != nil {
+					t.Fatal(err)
+				}
+				response.Body.Close()
+				if response.StatusCode != test.status || response.Header.Get(fiber.HeaderLocation) != test.want ||
+					response.Header.Get(fiber.HeaderLink) != "<"+test.want+">; rel=\"canonical\"" {
+					t.Fatalf("%s redirect status = %d, headers = %v", method, response.StatusCode, response.Header)
+				}
 			}
 		})
 	}
