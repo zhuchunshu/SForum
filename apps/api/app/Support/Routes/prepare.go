@@ -76,11 +76,14 @@ func preparePluginRoute(
 	if err != nil {
 		return nil, err
 	}
-	if targetsExisting(declaration.Action) && !routeIDPattern.MatchString(declaration.TargetID) {
+	if routeTargetsDeclaredTarget(declaration.Action, declaration.TargetID) && !routeIDPattern.MatchString(declaration.TargetID) {
 		return nil, fmt.Errorf("%w: target route is required", ErrInvalidRoute)
 	}
-	if !targetsExisting(declaration.Action) && declaration.TargetID != "" {
+	if !routeTargetsDeclaredTarget(declaration.Action, declaration.TargetID) && declaration.TargetID != "" {
 		return nil, fmt.Errorf("%w: action %q cannot target another route", ErrInvalidRoute, declaration.Action)
+	}
+	if declaration.TargetID != "" && declaration.TargetID == declaration.ID {
+		return nil, fmt.Errorf("%w: route cannot target itself", ErrInvalidRoute)
 	}
 	items := make([]preparedRoute, 0, len(declaration.Methods))
 	methodSeen := make(map[string]struct{}, len(declaration.Methods))
@@ -153,7 +156,7 @@ func validatePluginRouteContract(artifact PluginArtifact, route extensionmanifes
 	if !validRouteGuard(artifact.ExtensionID, route.Guard) {
 		return fmt.Errorf("%w: invalid guard %q", ErrInvalidRoute, route.Guard)
 	}
-	if route.Guard == extensionmanifest.GuardCoreInherit && !targetsExisting(route.Action) {
+	if route.Guard == extensionmanifest.GuardCoreInherit && !routeTargetsDeclaredTarget(route.Action, route.TargetID) {
 		return fmt.Errorf("%w: inherited guard requires a target route", ErrInvalidRoute)
 	}
 	if route.Guard == extensionmanifest.GuardCorePermission && !routeIDPattern.MatchString(route.Permission) {
@@ -173,8 +176,12 @@ func validatePluginRouteContract(artifact PluginArtifact, route extensionmanifes
 		}
 	}
 	if route.Action == extensionmanifest.RouteActionRedirect {
-		if _, err := compileRoutePath(route.Destination); err != nil {
-			return fmt.Errorf("%w: invalid redirect destination", ErrInvalidRoute)
+		if route.TargetID != "" {
+			if route.Destination != "" {
+				return fmt.Errorf("%w: redirect target is ambiguous", ErrInvalidRoute)
+			}
+		} else if _, err := compileRoutePath(route.Destination); err != nil {
+			return fmt.Errorf("%w: invalid legacy redirect destination", ErrInvalidRoute)
 		}
 		if route.StatusCode != 301 && route.StatusCode != extensionmanifest.RouteRedirectStatusDefault {
 			return fmt.Errorf("%w: invalid redirect status", ErrInvalidRoute)
@@ -321,8 +328,9 @@ func validateTargets(routes []preparedRoute) error {
 			bases[item.route.ID] = append(bases[item.route.ID], item)
 		}
 	}
+	graph := make(map[string][]string)
 	for _, item := range routes {
-		if !targetsExisting(item.route.Action) {
+		if !routeTargetsDeclaredTarget(item.route.Action, item.route.TargetID) {
 			continue
 		}
 		matched := false
@@ -331,6 +339,7 @@ func validateTargets(routes []preparedRoute) error {
 				continue
 			}
 			if item.route.Action != extensionmanifest.RouteActionAlias &&
+				item.route.Action != extensionmanifest.RouteActionRedirect &&
 				item.route.Action != extensionmanifest.RouteActionRewrite &&
 				item.path.signature != target.path.signature {
 				continue
@@ -341,8 +350,43 @@ func validateTargets(routes []preparedRoute) error {
 		if !matched {
 			return fmt.Errorf("%w: route %q has unknown or incompatible target %q", ErrInvalidRoute, item.route.ID, item.route.TargetID)
 		}
+		graph[item.route.ID] = append(graph[item.route.ID], item.route.TargetID)
+	}
+	if routeTargetGraphHasCycle(graph) {
+		return fmt.Errorf("%w: route target graph contains a cycle", ErrInvalidRoute)
 	}
 	return nil
+}
+
+func routeTargetGraphHasCycle(graph map[string][]string) bool {
+	const (
+		visiting uint8 = iota + 1
+		visited
+	)
+	state := make(map[string]uint8, len(graph))
+	var visit func(string) bool
+	visit = func(id string) bool {
+		switch state[id] {
+		case visiting:
+			return true
+		case visited:
+			return false
+		}
+		state[id] = visiting
+		for _, targetID := range graph[id] {
+			if visit(targetID) {
+				return true
+			}
+		}
+		state[id] = visited
+		return false
+	}
+	for id := range graph {
+		if visit(id) {
+			return true
+		}
+	}
+	return false
 }
 
 func validMethod(method string) bool {
@@ -409,6 +453,10 @@ func compositionAction(action string) bool {
 func targetsExisting(action string) bool {
 	return action == extensionmanifest.RouteActionAlias || action == extensionmanifest.RouteActionRewrite ||
 		compositionAction(action) || action == extensionmanifest.RouteActionReplace
+}
+
+func routeTargetsDeclaredTarget(action, targetID string) bool {
+	return targetsExisting(action) || action == extensionmanifest.RouteActionRedirect && targetID != ""
 }
 
 func routeMethodMatches(route Route, requestMethod string) bool {

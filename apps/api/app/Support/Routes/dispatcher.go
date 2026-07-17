@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 	"sync"
 	"time"
@@ -252,7 +253,11 @@ func (d *Dispatcher) Dispatch(ctx context.Context, request DispatchRequest, core
 			}
 			invocation.Response = &value
 		} else if step.Phase == RoutePhaseHandler && step.Action == extensionmanifest.RouteActionRedirect {
-			invocation.Response = &DispatchResponse{Status: step.StatusCode, Headers: http.Header{"Location": []string{step.Destination}}}
+			location, locationErr := routeRedirectLocation(step)
+			if locationErr != nil {
+				return DispatchResult{}, locationErr
+			}
+			invocation.Response = &DispatchResponse{Status: step.StatusCode, Headers: http.Header{"Location": []string{location}}}
 		} else {
 			invocation, err = d.invokePlugin(ctx, plan, index, step, request, response, commit, authority)
 			if err != nil {
@@ -350,6 +355,21 @@ func (d *Dispatcher) Dispatch(ctx context.Context, request DispatchRequest, core
 		}
 	}
 	return DispatchResult{Handled: true, Response: cloneDispatchResponse(*response)}, nil
+}
+
+func routeRedirectLocation(step RouteExecutionStep) (string, error) {
+	location := step.Destination
+	if step.TargetID != "" {
+		location = step.TargetPath
+	}
+	if location == "" || !strings.HasPrefix(location, "/") || strings.HasPrefix(location, "//") || strings.ContainsAny(location, "?#\r\n") {
+		return "", fmt.Errorf("%w: redirect target path is invalid", ErrInvalidExecutionPlan)
+	}
+	parsed, err := url.ParseRequestURI(location)
+	if err != nil || parsed.IsAbs() || parsed.Host != "" || parsed.RawQuery != "" || parsed.Fragment != "" {
+		return "", fmt.Errorf("%w: redirect target path is invalid", ErrInvalidExecutionPlan)
+	}
+	return parsed.EscapedPath(), nil
 }
 
 func (d *Dispatcher) committedAfterFailure(

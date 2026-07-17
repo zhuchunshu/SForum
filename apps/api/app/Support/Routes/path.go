@@ -204,7 +204,7 @@ func dynamicPathSegmentKinds(path compiledPath) []segmentKind {
 
 func materializeTargetRoutePath(source, target compiledPath, params map[string]string) (string, error) {
 	if !routePathParametersCompatible(source, target) {
-		return "", fmt.Errorf("%w: alias/rewrite path parameters are incompatible", ErrInvalidExecutionPlan)
+		return "", fmt.Errorf("%w: route mapping path parameters are incompatible", ErrInvalidExecutionPlan)
 	}
 	values := make([]string, 0, source.parameterCount)
 	for _, segment := range source.segments {
@@ -213,7 +213,7 @@ func materializeTargetRoutePath(source, target compiledPath, params map[string]s
 		}
 		value, ok := params[segment.value]
 		if !ok || value == "" || segment.kind == segmentParam && strings.Contains(value, "/") {
-			return "", fmt.Errorf("%w: alias/rewrite path parameter is unavailable", ErrInvalidExecutionPlan)
+			return "", fmt.Errorf("%w: route mapping path parameter is unavailable", ErrInvalidExecutionPlan)
 		}
 		values = append(values, value)
 	}

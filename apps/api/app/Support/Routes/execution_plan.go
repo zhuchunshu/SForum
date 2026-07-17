@@ -255,21 +255,20 @@ func buildRouteExecutionPlanView(
 	if err != nil {
 		return RouteExecutionPlan{}, err
 	}
-	if terminal.Action == extensionmanifest.RouteActionAlias || terminal.Action == extensionmanifest.RouteActionRewrite {
+	if (terminal.Action == extensionmanifest.RouteActionAlias || terminal.Action == extensionmanifest.RouteActionRedirect ||
+		terminal.Action == extensionmanifest.RouteActionRewrite) && terminal.TargetID != "" {
 		target, targetErr := resolveInheritedCoreRoute(snapshot, terminal, method)
 		if targetErr != nil {
 			return RouteExecutionPlan{}, targetErr
 		}
 		sourcePath, sourceErr := compileRoutePath(terminal.Path)
 		targetPath, targetCompileErr := compileRoutePath(target.Path)
-		if sourceErr != nil || targetCompileErr != nil {
-			return RouteExecutionPlan{}, fmt.Errorf("%w: alias/rewrite target path is invalid", ErrInvalidExecutionPlan)
+		if sourceErr != nil || targetCompileErr != nil || !routePathParametersCompatible(sourcePath, targetPath) {
+			return RouteExecutionPlan{}, fmt.Errorf("%w: route mapping target path is invalid", ErrInvalidExecutionPlan)
 		}
-		if routePathParametersCompatible(sourcePath, targetPath) {
-			terminalStep.TargetPath, err = materializeTargetRoutePath(sourcePath, targetPath, params)
-			if err != nil {
-				return RouteExecutionPlan{}, err
-			}
+		terminalStep.TargetPath, err = materializeTargetRoutePath(sourcePath, targetPath, params)
+		if err != nil {
+			return RouteExecutionPlan{}, err
 		}
 	}
 	chain = append(chain, terminalStep)

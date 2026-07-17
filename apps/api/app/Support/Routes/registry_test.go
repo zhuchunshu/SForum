@@ -686,7 +686,7 @@ func TestRegistryRejectsNonSemverArtifactVersion(t *testing.T) {
 	}
 }
 
-func TestRegistryRetainsIncompatibleAliasRewriteForFailClosedPlanning(t *testing.T) {
+func TestRegistryPublishesButPlanningRejectsIncompatibleAliasRewrite(t *testing.T) {
 	artifact := routeArtifact("mapping.invalid", "1.0.0", 'a')
 	target := coreRoute("core.route.mapping.invalid", "GET", "/target/:id")
 	for _, action := range []string{extensionmanifest.RouteActionAlias, extensionmanifest.RouteActionRewrite} {
@@ -700,8 +700,8 @@ func TestRegistryRetainsIncompatibleAliasRewriteForFailClosedPlanning(t *testing
 			t.Fatalf("action %s error = %v, revision = %d", action, err, registry.Revision())
 		}
 		plan, err := registry.BuildExecutionPlan("GET", route.Path)
-		if err != nil || plan.Terminal().TargetPath != "" {
-			t.Fatalf("action %s fail-closed target = %q, %v", action, plan.Terminal().TargetPath, err)
+		if !errors.Is(err, ErrInvalidExecutionPlan) || plan.Valid() {
+			t.Fatalf("action %s invalid plan = %#v, %v", action, plan, err)
 		}
 	}
 }
