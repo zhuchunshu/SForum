@@ -47,9 +47,10 @@ const (
 )
 
 type DispatchResponse struct {
-	Status  int
-	Headers http.Header
-	Body    []byte
+	Status        int
+	Headers       http.Header
+	Body          []byte
+	CanonicalPath string
 }
 
 type DispatchResult struct {
@@ -335,6 +336,12 @@ func (d *Dispatcher) Dispatch(ctx context.Context, request DispatchRequest, core
 	}
 	if response == nil {
 		return DispatchResult{}, fmt.Errorf("%w: chain produced no response", ErrDispatchTransport)
+	}
+	switch terminal.Action {
+	case extensionmanifest.RouteActionAlias:
+		response.CanonicalPath = terminal.TargetPath
+	case extensionmanifest.RouteActionRewrite:
+		response.CanonicalPath = plan.Path()
 	}
 	if !commit.Finalize() {
 		return DispatchResult{}, ErrDispatchAlreadyCommitted

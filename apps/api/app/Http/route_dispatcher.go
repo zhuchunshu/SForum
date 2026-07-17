@@ -525,7 +525,21 @@ func writeRouteDispatchResponse(c fiber.Ctx, response routes.DispatchResponse, h
 		}
 	}
 	restoreHostRouteResponseHeaders(c, hostHeaders)
+	if canonical, ok := routeCanonicalLinkPath(response.CanonicalPath); ok {
+		c.Response().Header.Set(fiber.HeaderLink, "<"+canonical+">; rel=\"canonical\"")
+	}
 	c.Response().SetBodyRaw(append([]byte(nil), response.Body...))
+}
+
+func routeCanonicalLinkPath(path string) (string, bool) {
+	if path == "" || !strings.HasPrefix(path, "/") || strings.HasPrefix(path, "//") || strings.ContainsAny(path, "?#\r\n") {
+		return "", false
+	}
+	parsed, err := url.ParseRequestURI(path)
+	if err != nil || parsed.IsAbs() || parsed.Host != "" || parsed.RawQuery != "" || parsed.Fragment != "" {
+		return "", false
+	}
+	return parsed.EscapedPath(), true
 }
 
 func restoreHostRouteResponseHeaders(c fiber.Ctx, headers stdhttp.Header) {
