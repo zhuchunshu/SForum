@@ -12,6 +12,7 @@ require (
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/clbanning/mxj v1.8.4 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
+	github.com/evanphx/json-patch/v5 v5.9.11 // indirect
 	github.com/fatih/color v1.13.0 // indirect
 	github.com/gofiber/fiber/v3 v3.0.0-rc.3 // indirect
 	github.com/gofiber/schema v1.6.0 // indirect
