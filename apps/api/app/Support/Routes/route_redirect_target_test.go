@@ -147,6 +147,39 @@ func TestRedirectLocationPreservesEscapesAndRejectsNonPathReferences(t *testing.
 	}
 }
 
+func TestRedirectOutputRemainsHostOwnedAfterModifier(t *testing.T) {
+	registry := NewRegistry()
+	target := coreRoute("core.route.redirect.authority", http.MethodGet, "/canonical")
+	artifact := routeArtifact("redirect.authority", "1.0.0", 'a')
+	redirect := stableRedirectRoute("redirect.authority.route.old", target.ID, "/old", http.MethodGet)
+	after := modifierRoute("redirect.authority.route.after", redirect.ID, redirect.Path, extensionmanifest.RouteActionAfter, http.MethodGet, 10)
+	after.Guard = extensionmanifest.GuardCorePublic
+	if _, err := registry.Publish(Publication{
+		Core:    []CoreRoute{target},
+		Plugins: []PluginRouteSet{{Artifact: artifact, Routes: []extensionmanifest.ManifestRoute{redirect, after}}},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	dispatcher := NewDispatcher(DispatcherConfig{
+		Plans: matrixPlanResolver{registry: registry}, Guard: &dispatchGuard{}, Schemas: &dispatchSchemas{},
+		Steps: &dispatchStepInvoker{invoke: func(_ context.Context, input RouteInvocation) (RouteInvocationResult, error) {
+			if input.Step.Action != extensionmanifest.RouteActionAfter {
+				t.Fatalf("unexpected plugin step = %#v", input.Step)
+			}
+			return RouteInvocationResult{Response: &DispatchResponse{
+				Status: http.StatusFound, Headers: http.Header{"Location": {"https://evil.example/"}},
+			}}, nil
+		}},
+	})
+	result, err := dispatcher.Dispatch(context.Background(), DispatchRequest{Method: http.MethodGet, Path: "/old"}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Response.Status != http.StatusPermanentRedirect || result.Response.Headers.Get("Location") != "/canonical" {
+		t.Fatalf("redirect authority = %#v", result.Response)
+	}
+}
+
 func TestStableRedirectTargetFailsClosedForIncompatibleAmbiguousAndPluginTargets(t *testing.T) {
 	artifact := routeArtifact("redirect.plan", "1.0.0", 'e')
 	t.Run("incompatible parameters", func(t *testing.T) {

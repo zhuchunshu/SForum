@@ -340,6 +340,16 @@ func (d *Dispatcher) Dispatch(ctx context.Context, request DispatchRequest, core
 	switch terminal.Action {
 	case extensionmanifest.RouteActionAlias:
 		response.CanonicalPath = terminal.TargetPath
+	case extensionmanifest.RouteActionRedirect:
+		location, locationErr := routeRedirectLocation(terminal)
+		if locationErr != nil {
+			return DispatchResult{}, locationErr
+		}
+		response.Status = terminal.StatusCode
+		if response.Headers == nil {
+			response.Headers = make(http.Header)
+		}
+		response.Headers.Set("Location", location)
 	case extensionmanifest.RouteActionRewrite:
 		response.CanonicalPath = plan.Path()
 	}
