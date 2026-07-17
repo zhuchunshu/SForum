@@ -238,6 +238,60 @@ func TestRouteMutationDistinguishesJSONNullFromRemovedBody(t *testing.T) {
 	}
 }
 
+func TestRouteRequestMutationRootRemoveClearsMaps(t *testing.T) {
+	request := DispatchRequest{Query: "tag=one&tag=two", Params: map[string]string{"id": "7"}, Body: []byte(`{"title":"before"}`)}
+	operations := []RoutePatchOperation{
+		{Kind: RoutePatchRemove, Path: "/query"},
+		{Kind: RoutePatchRemove, Path: "/params"},
+		{Kind: RoutePatchRemove, Path: "/body"},
+	}
+	result, err := applyRouteRequestPatch(request, operations, routePatchPaths(operations), false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Query != "" || len(result.Params) != 0 || result.Params == nil || len(result.Body) != 0 {
+		t.Fatalf("root remove result = %#v", result)
+	}
+	if request.Query == "" || request.Params["id"] != "7" || len(request.Body) == 0 {
+		t.Fatalf("root remove mutated source = %#v", request)
+	}
+
+	status := RoutePatchOperation{Kind: RoutePatchRemove, Path: "/status"}
+	if _, err := applyRouteResponsePatch(
+		DispatchResponse{Status: http.StatusOK}, []RoutePatchOperation{status}, []string{status.Path},
+	); !errors.Is(err, ErrRouteMutation) {
+		t.Fatalf("removed status error = %v", err)
+	}
+}
+
+func TestRouteMutationPreservesLargeJSONNumbers(t *testing.T) {
+	const number = `9007199254740993123456789`
+	request := DispatchRequest{Body: []byte(`{"source":` + number + `}`)}
+	operation := RoutePatchOperation{Kind: RoutePatchAdd, Path: "/body/copied", Value: json.RawMessage(number)}
+	result, err := applyRouteRequestPatch(request, []RoutePatchOperation{operation}, []string{operation.Path}, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := string(result.Body); got != `{"copied":`+number+`,"source":`+number+`}` && got != `{"source":`+number+`,"copied":`+number+`}` {
+		t.Fatalf("large-number body = %s", got)
+	}
+}
+
+func TestRouteMutationRejectsMalformedSourceHeadersAtomically(t *testing.T) {
+	operation := RoutePatchOperation{Kind: RoutePatchAdd, Path: "/headers/x-test", Value: routePatchValue(t, []string{"ok"})}
+	for _, name := range []string{"", "   ", " x-invalid", "bad header"} {
+		t.Run(fmt.Sprintf("%q", name), func(t *testing.T) {
+			source := DispatchRequest{Headers: http.Header{name: {"untouched"}}}
+			if _, err := applyRouteRequestPatch(source, []RoutePatchOperation{operation}, []string{operation.Path}, false); !errors.Is(err, ErrRouteMutation) {
+				t.Fatalf("malformed source header error = %v", err)
+			}
+			if source.Headers[name][0] != "untouched" {
+				t.Fatalf("malformed source header mutated = %#v", source.Headers)
+			}
+		})
+	}
+}
+
 func TestRouteResponseMutationRejectsHostAndHopHeaders(t *testing.T) {
 	response := DispatchResponse{Status: http.StatusOK, Headers: http.Header{
 		"Connection": {"X-Dynamic-Hop"}, "X-Dynamic-Hop": {"secret"},

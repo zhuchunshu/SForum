@@ -89,25 +89,31 @@ func applyRouteRequestPatch(
 	}
 	result := cloneDispatchRequest(current)
 	if touched["query"] {
-		query, err := routeMutationStringSliceMap(candidate["query"])
-		if err != nil {
-			return DispatchRequest{}, fmt.Errorf("%w: request query must map names to string arrays", ErrRouteMutation)
+		result.Query = ""
+		if value, exists := candidate["query"]; exists {
+			query, err := routeMutationStringSliceMap(value)
+			if err != nil {
+				return DispatchRequest{}, fmt.Errorf("%w: request query must map names to string arrays", ErrRouteMutation)
+			}
+			values := make(url.Values, len(query))
+			for key, items := range query {
+				values[key] = append([]string(nil), items...)
+			}
+			result.Query = values.Encode()
 		}
-		values := make(url.Values, len(query))
-		for key, items := range query {
-			values[key] = append([]string(nil), items...)
-		}
-		result.Query = values.Encode()
 		if len(result.Query) > routeMutationMetadataMaximumBytes {
 			return DispatchRequest{}, fmt.Errorf("%w: request query exceeds its budget", ErrRouteMutation)
 		}
 	}
 	if touched["params"] {
-		params, err := routeMutationStringMap(candidate["params"])
-		if err != nil {
-			return DispatchRequest{}, fmt.Errorf("%w: request params must be a string map", ErrRouteMutation)
+		result.Params = map[string]string{}
+		if value, exists := candidate["params"]; exists {
+			params, err := routeMutationStringMap(value)
+			if err != nil {
+				return DispatchRequest{}, fmt.Errorf("%w: request params must be a string map", ErrRouteMutation)
+			}
+			result.Params = params
 		}
-		result.Params = params
 	}
 	if touched["headers"] {
 		headers, err := routeMutationHTTPHeaders(candidate["headers"])
@@ -390,10 +396,11 @@ func routeMutationHeaderDocument(headers http.Header) (map[string]any, error) {
 	result := make(map[string]any, len(headers))
 	size := 0
 	for name, values := range headers {
-		canonical := strings.ToLower(strings.TrimSpace(name))
-		if canonical == "" {
-			continue
+		trimmed := strings.TrimSpace(name)
+		if trimmed == "" || trimmed != name || !httpguts.ValidHeaderFieldName(trimmed) {
+			return nil, ErrRouteMutation
 		}
+		canonical := strings.ToLower(trimmed)
 		size += len(canonical)
 		if size > routeMutationMetadataMaximumBytes {
 			return nil, ErrRouteMutation
