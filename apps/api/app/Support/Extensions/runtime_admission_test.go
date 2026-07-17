@@ -80,7 +80,8 @@ func TestRuntimeAdmissionGateForceCancelsInflightAndClosesCleanup(t *testing.T) 
 		case <-time.After(time.Second):
 			t.Fatal("forced call context was not cancelled")
 		}
-		if !errors.Is(context.Cause(lease.Context), cause) {
+		if !errors.Is(context.Cause(lease.Context), cause) ||
+			!errors.Is(context.Cause(lease.Context), ErrRuntimeAdmissionForced) {
 			t.Fatalf("context cause = %v", context.Cause(lease.Context))
 		}
 	}

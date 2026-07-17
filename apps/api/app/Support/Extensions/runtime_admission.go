@@ -246,7 +246,9 @@ func (g *RuntimeAdmissionGate) ForceCancel(cause error) RuntimeAdmissionSnapshot
 	g.mu.Unlock()
 
 	for _, cancel := range cancels {
-		cancel(g.forceCause)
+		// 在保留原始 cause 的同时携带稳定 Host 分类，调用方才能把生命周期
+		// ForceDrain 与插件 transport crash 区分开，避免错误 quarantine。
+		cancel(runtimeAdmissionForcedError(g.forceCause))
 	}
 	return snapshot
 }
