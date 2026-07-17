@@ -571,14 +571,32 @@ func exactCoordinatorTestExtension(id, version, digest, contract string, version
 		ID: id, Version: version, Type: extensions.TypePlugin, Source: extensions.SourceUploaded,
 		PackageDigest: digest, ActiveVersionID: versionID,
 		Manifest: extensions.Manifest{
-			ManifestVersion: 3, ID: id, Version: version, Type: extensions.TypePlugin,
-			Backend: extensions.ManifestBackend{ProtocolVersion: 2, HostAPIVersion: "sforum.host@2"},
+			ManifestVersion: 3, ID: id, Name: "Lifecycle fixture",
+			Description: "Exact lifecycle runtime fixture.", URL: "https://example.test/lifecycle-fixture",
+			Author: extensions.ManifestAuthor{Name: "SForum"}, Version: version,
+			Type: extensions.TypePlugin, SForumVersion: "^1.0.0",
+			Backend: extensions.ManifestBackend{
+				Entry: "backend/plugin", RPC: "hashicorp-go-plugin", ProtocolVersion: 2,
+				Digest: digest, HostAPIVersion: "sforum.host@2",
+			},
+			PackageFiles: []extensions.ManifestPackageFile{{
+				ID: id + ".file.backend", Kind: "executable", Path: "backend/plugin", Digest: digest,
+			}},
 			Lifecycle: &extensions.ManifestLifecycle{
 				ContractVersion: contract,
 				Install:         operation(), Enable: operation(), Disable: operation(), Upgrade: operation(),
 				Rollback: operation(), Uninstall: operation(),
 			},
 		},
+	}
+}
+
+func TestExactCoordinatorFixtureUsesValidManifest(t *testing.T) {
+	fixture := exactCoordinatorTestExtension(
+		"fixture.lifecycle", "1.0.0", strings.Repeat("a", 64), "fixture.lifecycle@1", 1,
+	)
+	if err := extensionmanifest.Validate(fixture.Manifest); err != nil {
+		t.Fatalf("exact lifecycle fixture manifest: %v", err)
 	}
 }
 
