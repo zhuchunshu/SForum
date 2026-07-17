@@ -21,6 +21,132 @@ func TestManifestV3CompleteApplicationPlugin(t *testing.T) {
 	}
 }
 
+func TestManifestV3TargetRoutesDefaultToInheritedGuard(t *testing.T) {
+	targetManifest := func(action string) Manifest {
+		manifest := completeV3Manifest()
+		route := &manifest.Routes[0]
+		route.Action = action
+		route.TargetID = "core.route.demo.target"
+		route.Guard = ""
+		route.Access = ""
+		route.Destination = ""
+		switch action {
+		case RouteActionAlias, RouteActionRewrite:
+			route.Handler = ""
+			route.RequestSchema = ""
+			route.ResponseSchema = ""
+		case RouteActionBefore, RouteActionAfter:
+			route.RequestSchema = ""
+			route.ResponseSchema = ""
+		}
+		return manifest
+	}
+
+	for _, action := range []string{
+		RouteActionAlias, RouteActionRewrite, RouteActionBefore, RouteActionAfter,
+		RouteActionFilter, RouteActionWrap, RouteActionReplace,
+	} {
+		t.Run(action, func(t *testing.T) {
+			manifest := targetManifest(action)
+			normalized := Normalize(manifest)
+			if normalized.Routes[0].Guard != GuardCoreInherit {
+				t.Fatalf("normalized guard = %q", normalized.Routes[0].Guard)
+			}
+			if err := Validate(manifest); err != nil {
+				t.Fatalf("target route should inherit its guard: %v", err)
+			}
+		})
+	}
+
+	for _, guard := range []string{"demo.v3.guard.owner", GuardCoreRaw} {
+		t.Run("explicit "+guard, func(t *testing.T) {
+			manifest := targetManifest(RouteActionReplace)
+			manifest.Routes[0].Guard = guard
+			if normalized := Normalize(manifest).Routes[0].Guard; normalized != guard {
+				t.Fatalf("explicit guard normalized to %q", normalized)
+			}
+			if err := Validate(manifest); err != nil {
+				t.Fatalf("explicit guard should remain valid: %v", err)
+			}
+		})
+	}
+}
+
+func TestManifestV3NoTargetRouteRequiresExplicitGuardOrAccess(t *testing.T) {
+	noTargetManifest := func(action string) Manifest {
+		manifest := completeV3Manifest()
+		route := &manifest.Routes[0]
+		route.Action = action
+		route.TargetID = ""
+		route.Guard = GuardCoreLogin
+		route.Access = ""
+		route.Destination = ""
+		switch action {
+		case RouteActionRedirect:
+			route.Destination = "/api/v3/demo-new"
+			route.Handler = ""
+			route.RequestSchema = ""
+			route.ResponseSchema = ""
+		case RouteActionGlobalMiddleware:
+			route.Path = ""
+			route.Methods = nil
+		}
+		return manifest
+	}
+
+	for _, action := range []string{RouteActionAdd, RouteActionRedirect, RouteActionGlobalMiddleware} {
+		t.Run(action, func(t *testing.T) {
+			manifest := noTargetManifest(action)
+			if err := Validate(manifest); err != nil {
+				t.Fatalf("explicit guard baseline should validate: %v", err)
+			}
+			manifest.Routes[0].Guard = ""
+			if guard := Normalize(manifest).Routes[0].Guard; guard != "" {
+				t.Fatalf("no-target route silently acquired guard %q", guard)
+			}
+			if err := Validate(manifest); err == nil {
+				t.Fatal("no-target route without guard/access must fail closed")
+			}
+		})
+	}
+
+	for _, test := range []struct {
+		access     string
+		permission string
+		guard      string
+	}{
+		{access: RouteAccessPublic, guard: GuardCorePublic},
+		{access: RouteAccessLogin, guard: GuardCoreLogin},
+		{access: RouteAccessPermission, permission: "demo.v3.manage", guard: GuardCorePermission},
+	} {
+		t.Run("access "+test.access, func(t *testing.T) {
+			manifest := noTargetManifest(RouteActionAdd)
+			manifest.Routes[0].Guard = ""
+			manifest.Routes[0].Access = test.access
+			manifest.Routes[0].Permission = test.permission
+			if guard := Normalize(manifest).Routes[0].Guard; guard != test.guard {
+				t.Fatalf("access guard = %q, want %q", guard, test.guard)
+			}
+			if err := Validate(manifest); err != nil {
+				t.Fatalf("explicit access should validate: %v", err)
+			}
+		})
+	}
+
+	invalid := noTargetManifest(RouteActionAdd)
+	invalid.Routes[0].Guard = ""
+	invalid.Routes[0].Access = "anonymous"
+	if err := Validate(invalid); err == nil {
+		t.Fatal("unknown access must not supply an implicit guard")
+	}
+	conflict := noTargetManifest(RouteActionAdd)
+	conflict.Routes[0].Guard = GuardCorePublic
+	conflict.Routes[0].Access = RouteAccessLogin
+	if err := Validate(conflict); err == nil {
+		t.Fatal("conflicting explicit guard and access must be rejected")
+	}
+}
+
 func TestManifestV3JobPolicyDefaultsAreDeterministic(t *testing.T) {
 	manifest := completeV3Manifest()
 	manifest.Jobs[0].MaxAttempts = 0

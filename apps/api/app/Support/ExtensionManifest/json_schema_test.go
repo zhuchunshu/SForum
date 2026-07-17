@@ -50,6 +50,48 @@ func TestManifestV3JSONSchemaRejectsUnknownFields(t *testing.T) {
 	}
 }
 
+func TestManifestV3JSONSchemaAllowsOnlySafeOmittedRouteGuards(t *testing.T) {
+	target := completeV3Manifest()
+	target.Routes[0].Action = RouteActionReplace
+	target.Routes[0].TargetID = "core.route.demo.target"
+	target.Routes[0].Guard = ""
+	body, err := json.Marshal(target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := ValidateV3JSONSchema(body); err != nil {
+		t.Fatalf("target route should allow omitted guard: %v", err)
+	}
+
+	add := completeV3Manifest()
+	add.Routes[0].Guard = ""
+	body, err = json.Marshal(add)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := ValidateV3JSONSchema(body); err == nil {
+		t.Fatal("add route without guard/access must fail schema validation")
+	}
+
+	add.Routes[0].Access = RouteAccessLogin
+	body, err = json.Marshal(add)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := ValidateV3JSONSchema(body); err != nil {
+		t.Fatalf("add route with explicit access should validate: %v", err)
+	}
+
+	add.Routes[0].Access = "anonymous"
+	body, err = json.Marshal(add)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := ValidateV3JSONSchema(body); err == nil {
+		t.Fatal("unknown route access must fail schema validation")
+	}
+}
+
 func TestLoadManifestV3RunsSchemaBeforeNormalization(t *testing.T) {
 	manifest := completeV3Manifest()
 	body, err := json.Marshal(manifest)

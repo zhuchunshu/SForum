@@ -250,7 +250,7 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["id", "contractVersion", "action", "path", "methods", "guard", "fallback", "mode"],
+        "required": ["id", "contractVersion", "action", "path", "methods", "fallback", "mode"],
         "properties": {
           "id": { "$ref": "#/$defs/id" },
           "contractVersion": { "$ref": "#/$defs/contract" },
@@ -258,7 +258,7 @@
           "targetId": { "$ref": "#/$defs/id" },
           "path": { "type": "string" },
           "methods": { "$ref": "#/$defs/stringArray" },
-          "access": { "type": "string" },
+          "access": { "enum": ["public", "login", "permission"] },
           "permission": { "type": "string" },
           "guard": { "$ref": "#/$defs/id" },
           "priority": { "type": "integer" },
@@ -269,7 +269,23 @@
           "requestSchema": { "$ref": "#/$defs/optionalSchemaRef" },
           "responseSchema": { "$ref": "#/$defs/optionalSchemaRef" },
           "timeoutMs": { "type": "integer", "minimum": 0 }
-        }
+        },
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "action": { "enum": ["alias", "rewrite", "before", "after", "filter", "wrap", "replace"] }
+              },
+              "required": ["action"]
+            },
+            "else": {
+              "anyOf": [
+                { "required": ["guard"] },
+                { "required": ["access"] }
+              ]
+            }
+          }
+        ]
       }
     },
     "guards": {

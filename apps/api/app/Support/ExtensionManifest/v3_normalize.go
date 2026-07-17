@@ -24,13 +24,10 @@ func normalizeV3Manifest(manifest *Manifest) {
 		item.TargetID = NormalizeID(item.TargetID)
 		item.Guard = NormalizeID(item.Guard)
 		if item.Guard == "" {
-			switch item.Access {
-			case RouteAccessPublic:
-				item.Guard = GuardCorePublic
-			case RouteAccessPermission:
-				item.Guard = GuardCorePermission
-			default:
-				item.Guard = GuardCoreLogin
+			if guard, ok := coreGuardForRouteAccess(item.Access); ok {
+				item.Guard = guard
+			} else if item.Access == "" && routeTargetsExisting(item.Action) {
+				item.Guard = GuardCoreInherit
 			}
 		}
 		item.Fallback = strings.ToLower(strings.TrimSpace(item.Fallback))
@@ -198,6 +195,19 @@ func normalizeV3Manifest(manifest *Manifest) {
 		item.Migration = NormalizeID(item.Migration)
 	}
 	normalizeV3Platform(manifest)
+}
+
+func coreGuardForRouteAccess(access string) (string, bool) {
+	switch access {
+	case RouteAccessPublic:
+		return GuardCorePublic, true
+	case RouteAccessLogin:
+		return GuardCoreLogin, true
+	case RouteAccessPermission:
+		return GuardCorePermission, true
+	default:
+		return "", false
+	}
 }
 
 func normalizeDigest(value string) string {

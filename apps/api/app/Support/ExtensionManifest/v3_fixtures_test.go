@@ -80,6 +80,18 @@ func TestManifestV3AuthoritativeFixtures(t *testing.T) {
 			t.Fatalf("full route fixture missing action %s", action)
 		}
 	}
+	for _, action := range []string{RouteActionAlias, RouteActionRewrite, RouteActionBefore, RouteActionAfter, RouteActionFilter, RouteActionWrap} {
+		for _, route := range routes {
+			if route.Action == action && route.Guard != GuardCoreInherit {
+				t.Fatalf("target action %s normalized guard = %q", action, route.Guard)
+			}
+		}
+	}
+	for _, route := range routes {
+		if route.Action == RouteActionReplace && route.Guard != GuardCoreRaw {
+			t.Fatalf("explicit raw replacement guard = %q", route.Guard)
+		}
+	}
 	for _, mode := range []string{RouteModeHTTP, RouteModeSSE, RouteModeWebSocket, RouteModeStream, RouteModeMultipart} {
 		if !modes[mode] {
 			t.Fatalf("full route fixture missing mode %s", mode)

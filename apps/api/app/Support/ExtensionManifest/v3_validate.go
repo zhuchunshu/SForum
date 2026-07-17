@@ -122,6 +122,12 @@ func (v *v3Validator) validateGuardsAndRoutes() error {
 		if !validRouteAction(route.Action) || !validRouteMode(route.Mode) || !guards[route.Guard] || route.TimeoutMS < 0 {
 			return ErrInvalidManifest
 		}
+		if route.Access != "" {
+			guard, ok := coreGuardForRouteAccess(route.Access)
+			if !ok || route.Guard != guard {
+				return ErrInvalidManifest
+			}
+		}
 		if route.Guard == GuardCorePermission && (route.Permission == "" || !manifestHasPermission(v.manifest, route.Permission)) {
 			return ErrInvalidManifest
 		}
