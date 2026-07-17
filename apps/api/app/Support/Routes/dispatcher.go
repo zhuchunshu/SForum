@@ -197,12 +197,12 @@ func (d *Dispatcher) Dispatch(ctx context.Context, request DispatchRequest, core
 	var idempotencyLease RouteIdempotencyLease
 	preservePending := false
 	terminal := plan.Terminal()
-	if terminal.Provider.Kind == ProviderPlugin && d.policies != nil {
-		policy, policyErr := d.policies.ResolveRouteExecutionPolicy(terminal)
-		if policyErr != nil && !errors.Is(policyErr, ErrRoutePolicyNotFound) {
+	if terminal.Provider.Kind == ProviderPlugin {
+		policy, policyExists, policyErr := resolvePlanRouteExecutionPolicy(plan, terminal, d.policies)
+		if policyErr != nil {
 			return DispatchResult{}, fmt.Errorf("%w: %v", ErrDispatchIdempotencyUnavailable, policyErr)
 		}
-		if policyErr == nil && policy.IdempotencyRequired {
+		if policyExists && policy.IdempotencyRequired {
 			if terminal.Mode != extensionmanifest.RouteModeHTTP || d.idempotency == nil {
 				return DispatchResult{}, ErrDispatchIdempotencyUnavailable
 			}

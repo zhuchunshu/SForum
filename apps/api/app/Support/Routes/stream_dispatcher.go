@@ -92,17 +92,15 @@ func (d *Dispatcher) PrepareStream(ctx context.Context, request DispatchRequest)
 	if terminal.Provider.Kind != ProviderPlugin || terminal.Phase != RoutePhaseHandler {
 		return RouteStreamPreparation{}, fmt.Errorf("%w: stream terminal is not an exact plugin handler", ErrDispatchTransport)
 	}
-	if d.policies != nil {
-		policy, policyErr := d.policies.ResolveRouteExecutionPolicy(terminal)
-		if policyErr != nil && !errors.Is(policyErr, ErrRoutePolicyNotFound) {
-			return RouteStreamPreparation{}, fmt.Errorf("%w: %v", ErrDispatchIdempotencyUnavailable, policyErr)
-		}
-		if policyErr == nil && policy.IdempotencyRequired {
-			// Streaming, SSE, WebSocket, and multipart responses cannot be replayed
-			// as one bounded response. Static validation rejects this combination;
-			// keep the runtime boundary closed if publication ever drifts.
-			return RouteStreamPreparation{}, ErrDispatchIdempotencyUnavailable
-		}
+	policy, policyExists, policyErr := resolvePlanRouteExecutionPolicy(plan, terminal, d.policies)
+	if policyErr != nil {
+		return RouteStreamPreparation{}, fmt.Errorf("%w: %v", ErrDispatchIdempotencyUnavailable, policyErr)
+	}
+	if policyExists && policy.IdempotencyRequired {
+		// Streaming, SSE, WebSocket, and multipart responses cannot be replayed
+		// as one bounded response. Static validation rejects this combination;
+		// keep the runtime boundary closed if publication ever drifts.
+		return RouteStreamPreparation{}, ErrDispatchIdempotencyUnavailable
 	}
 	if len(chain) != 1 {
 		return RouteStreamPreparation{}, fmt.Errorf("%w: composed stream chains are not available", ErrDispatchTransport)
