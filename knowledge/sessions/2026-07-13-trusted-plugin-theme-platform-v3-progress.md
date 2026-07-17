@@ -14,6 +14,24 @@ Last updated: 2026-07-18
 
 ## Current Subtask
 
+### 2026-07-18 Stream Correlation Checkpoint
+
+- Verified weighted progress remains **64.3447%** (display **64.3%**); P6 stays
+  **15/18** because total lifetime, non-HTTP Schema, incident, and joined matrix
+  evidence are still open.
+- `4c582422b fix(routes): bind stream preflight correlation` restricts stream
+  invocation to exact handler-stage `add`/`replace`, validates mode-specific
+  status before opening the wire, preserves repeated query order and empty
+  values, and binds unary preflight plus `StreamRoute` to one fresh correlation.
+  The real go-plugin subprocess now rejects an empty or mismatched trace id.
+- A standalone five-file clone passed complete Extensions/Routes/Http normal
+  tests, Routes/Http race, five real-subprocess repetitions under race, three-
+  package vet, `go build ./...`, and diff checks.
+- Exact resume point: add one Host-owned total stream budget and one session
+  lifetime owner that releases on normal EOF, caller cancellation, budget,
+  ForceCancel, and WebSocket completion without retaining a 24-hour timer or
+  racing post-upgrade caller detachment.
+
 ### 2026-07-18 Route Redirect Canonical Checkpoint
 
 - Verified weighted progress advances to **64.3447%** (display **64.3%**);
