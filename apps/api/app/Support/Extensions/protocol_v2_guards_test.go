@@ -22,7 +22,13 @@ func TestProtocolV2CustomGuardInvokesExactFrozenContract(t *testing.T) {
 		return protocolV2GuardTestResponse(request, http.StatusNoContent), nil
 	})
 	request := protocolV2GuardTestRequest()
-	request.Headers = http.Header{"X-Request-ID": []string{"request-41"}}
+	request.Headers = http.Header{
+		"X-Request-ID": {"request-41"},
+		"Cookie":       {"session=secret"}, "Authorization": {"Bearer secret"},
+		"X-API-Key": {"api-key-secret"}, "X-Auth-Token": {"auth-token-secret"},
+		"connection": {"X-Guard-Lower-Hop"}, "CONNECTION": {"X-Guard-Upper-Hop"},
+		"X-Guard-Lower-Hop": {"lower-secret"}, "X-Guard-Upper-Hop": {"upper-secret"},
+	}
 	request.PathParameters = map[string]string{"topic": "41"}
 	request.QueryParameters = map[string]string{"preview": "1"}
 	request.Body = map[string]any{"title": "hello"}
@@ -47,6 +53,8 @@ func TestProtocolV2CustomGuardInvokesExactFrozenContract(t *testing.T) {
 		headers.Get("X-SForum-Guard-Kind") != "custom" || headers.Get("X-Request-ID") != "request-41" {
 		t.Fatalf("guard headers = %#v, %v", headers, err)
 	}
+	assertProtocolV2CredentialHeaders(t, headers, request.Headers, false)
+	assertProtocolV2BlockedHeaders(t, headers, "Connection", "X-Guard-Lower-Hop", "X-Guard-Upper-Hop")
 }
 
 func TestProtocolV2CustomGuardMapsDenyAndRejectsMutation(t *testing.T) {
@@ -87,7 +95,7 @@ func TestProtocolV2CustomGuardMapsDenyAndRejectsMutation(t *testing.T) {
 	}
 }
 
-func TestProtocolV2CustomGuardRejectsForgedBindingAndCredentials(t *testing.T) {
+func TestProtocolV2CustomGuardRejectsForgedBindingAndReservedHeaders(t *testing.T) {
 	client := protocolV2GuardTestClient(t, func(_ context.Context, request *pluginwire.RouteRequest) (*pluginwire.RouteResponse, error) {
 		return protocolV2GuardTestResponse(request, http.StatusNoContent), nil
 	})
@@ -101,12 +109,6 @@ func TestProtocolV2CustomGuardRejectsForgedBindingAndCredentials(t *testing.T) {
 		{name: "route contract", mutate: func(request *ProtocolV2GuardRequest) { request.RouteContractVersion = "demo.route@2" }},
 		{name: "method", mutate: func(request *ProtocolV2GuardRequest) { request.Method = http.MethodDelete }},
 		{name: "schema", mutate: func(request *ProtocolV2GuardRequest) { request.RequestSchema = "demo.other@1" }},
-		{name: "cookie", mutate: func(request *ProtocolV2GuardRequest) {
-			request.Headers = http.Header{"Cookie": []string{"session=secret"}}
-		}},
-		{name: "authorization", mutate: func(request *ProtocolV2GuardRequest) {
-			request.Headers = http.Header{"Authorization": []string{"Bearer secret"}}
-		}},
 		{name: "reserved header", mutate: func(request *ProtocolV2GuardRequest) {
 			request.Headers = http.Header{"X-SForum-Actor-ID": []string{"42"}}
 		}},

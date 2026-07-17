@@ -187,9 +187,6 @@ func protocolV2GuardHeaders(source http.Header, authority ProtocolV2RequestAutho
 		if strings.HasPrefix(canonical, "x-sforum-") {
 			return nil, fmt.Errorf("%w: reserved guard header", ErrProtocolV2GuardInvalid)
 		}
-		if authority.Mode != ProtocolV2RequestAuthorityRaw && (canonical == "cookie" || canonical == "authorization") {
-			return nil, fmt.Errorf("%w: request credentials require raw authority", ErrProtocolV2GuardInvalid)
-		}
 	}
 	return protocolV2AuthorizedRequestHeaders(source, authority)
 }

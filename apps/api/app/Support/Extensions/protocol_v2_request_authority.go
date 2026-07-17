@@ -126,7 +126,7 @@ func protocolV2AuthorizedRequestHeaders(
 		if strings.HasPrefix(canonical, "x-sforum-") || protocolV2RequestHeaderBlocked(canonical, connectionHeaders) {
 			continue
 		}
-		if (canonical == "cookie" || canonical == "authorization") && authority.Mode != ProtocolV2RequestAuthorityRaw {
+		if protocolV2RequestCredentialHeader(canonical) && authority.Mode != ProtocolV2RequestAuthorityRaw {
 			continue
 		}
 		for _, value := range values {
@@ -137,6 +137,15 @@ func protocolV2AuthorizedRequestHeaders(
 		}
 	}
 	return result, nil
+}
+
+func protocolV2RequestCredentialHeader(canonical string) bool {
+	switch canonical {
+	case "cookie", "authorization", "x-api-key", "x-auth-token":
+		return true
+	default:
+		return false
+	}
 }
 
 func protocolV2RequestHeaderBlocked(canonical string, connectionHeaders map[string]struct{}) bool {
@@ -155,10 +164,15 @@ func protocolV2RequestHeaderBlocked(canonical string, connectionHeaders map[stri
 
 func protocolV2ConnectionHeaderTokens(headers http.Header) map[string]struct{} {
 	blocked := make(map[string]struct{})
-	for _, value := range headers.Values("Connection") {
-		for _, token := range strings.Split(value, ",") {
-			if canonical := strings.ToLower(strings.TrimSpace(token)); canonical != "" {
-				blocked[canonical] = struct{}{}
+	for name, values := range headers {
+		if !strings.EqualFold(strings.TrimSpace(name), "Connection") {
+			continue
+		}
+		for _, value := range values {
+			for _, token := range strings.Split(value, ",") {
+				if canonical := strings.ToLower(strings.TrimSpace(token)); canonical != "" {
+					blocked[canonical] = struct{}{}
+				}
 			}
 		}
 	}

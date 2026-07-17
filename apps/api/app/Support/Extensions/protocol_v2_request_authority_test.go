@@ -29,17 +29,18 @@ func TestProtocolV2RawAuthorityRequiresExactFrozenRoute(t *testing.T) {
 	request.Headers = http.Header{
 		"Cookie":        {"session=one", "preferences=two"},
 		"Authorization": {"Bearer one", "Bearer two"},
+		"X-Api-Key":     {"api-key-one", "api-key-two"},
+		"X-Auth-Token":  {"auth-token-one", "auth-token-two"},
 		"X-Test":        {"one", "two"},
 	}
 	if _, err := client.InvokeRouteContext(context.Background(), request); err != nil {
 		t.Fatal(err)
 	}
 	headers, err := protocolV2RouteHTTPHeaders(received.GetHeaders())
-	if err != nil || !reflect.DeepEqual(headers.Values("Cookie"), request.Headers.Values("Cookie")) ||
-		!reflect.DeepEqual(headers.Values("Authorization"), request.Headers.Values("Authorization")) ||
-		!reflect.DeepEqual(headers.Values("X-Test"), request.Headers.Values("X-Test")) {
+	if err != nil || !reflect.DeepEqual(headers.Values("X-Test"), request.Headers.Values("X-Test")) {
 		t.Fatalf("raw headers=%#v error=%v", headers, err)
 	}
+	assertProtocolV2CredentialHeaders(t, headers, request.Headers, true)
 
 	request.Authority = protocolV2FilteredHostRequestAuthority()
 	if _, err := client.InvokeRouteContext(context.Background(), request); !errors.Is(err, ErrProtocolV2RouteInvalid) || calls != 1 {
@@ -50,6 +51,16 @@ func TestProtocolV2RawAuthorityRequiresExactFrozenRoute(t *testing.T) {
 	if _, err := client.InvokeRouteContext(context.Background(), request); !errors.Is(err, ErrProtocolV2RouteInvalid) || calls != 1 {
 		t.Fatalf("raw escalation error=%v calls=%d", err, calls)
 	}
+	request.Authority = protocolV2FilteredHostRequestAuthority()
+	received = nil
+	if _, err := client.InvokeRouteContext(context.Background(), request); err != nil || calls != 2 {
+		t.Fatalf("filtered route error=%v calls=%d", err, calls)
+	}
+	headers, err = protocolV2RouteHTTPHeaders(received.GetHeaders())
+	if err != nil || !reflect.DeepEqual(headers.Values("X-Test"), request.Headers.Values("X-Test")) {
+		t.Fatalf("filtered headers=%#v error=%v", headers, err)
+	}
+	assertProtocolV2CredentialHeaders(t, headers, request.Headers, false)
 }
 
 func TestProtocolV2RawAuthorityRequiresExactFrozenGuard(t *testing.T) {
@@ -68,15 +79,16 @@ func TestProtocolV2RawAuthorityRequiresExactFrozenGuard(t *testing.T) {
 	request.Authority = protocolV2RawRequestAuthority()
 	request.Headers = http.Header{
 		"Cookie": {"session=one", "session=two"}, "Authorization": {"Bearer raw"},
+		"X-Api-Key": {"guard-api-key"}, "X-Auth-Token": {"guard-auth-token"},
 	}
 	if err := client.InvokeGuardContext(context.Background(), request); err != nil {
 		t.Fatal(err)
 	}
 	headers, err := protocolV2RouteHTTPHeaders(received.GetHeaders())
-	if err != nil || !reflect.DeepEqual(headers.Values("Cookie"), request.Headers.Values("Cookie")) ||
-		headers.Get("Authorization") != "Bearer raw" || headers.Get("X-SForum-Guard-Kind") != "raw_request" {
+	if err != nil || headers.Get("X-SForum-Guard-Kind") != "raw_request" {
 		t.Fatalf("raw guard headers=%#v error=%v", headers, err)
 	}
+	assertProtocolV2CredentialHeaders(t, headers, request.Headers, true)
 
 	request.Authority = protocolV2FilteredCustomRequestAuthority()
 	if err := client.InvokeGuardContext(context.Background(), request); !errors.Is(err, ErrProtocolV2GuardInvalid) || calls != 1 {
@@ -87,6 +99,20 @@ func TestProtocolV2RawAuthorityRequiresExactFrozenGuard(t *testing.T) {
 	if err := client.InvokeGuardContext(context.Background(), request); !errors.Is(err, ErrProtocolV2GuardInvalid) || calls != 1 {
 		t.Fatalf("guard escalation error=%v calls=%d", err, calls)
 	}
+	request.Authority = protocolV2FilteredCustomRequestAuthority()
+	request.Headers = http.Header{
+		"Cookie": {"filtered-session"}, "Authorization": {"Bearer filtered"},
+		"X-Api-Key": {"filtered-api-key"}, "X-Auth-Token": {"filtered-auth-token"}, "X-Test": {"guard-visible"},
+	}
+	received = nil
+	if err := client.InvokeGuardContext(context.Background(), request); err != nil || calls != 2 {
+		t.Fatalf("filtered guard error=%v calls=%d", err, calls)
+	}
+	headers, err = protocolV2RouteHTTPHeaders(received.GetHeaders())
+	if err != nil || headers.Get("X-Test") != "guard-visible" || headers.Get("X-SForum-Guard-Kind") != "custom" {
+		t.Fatalf("filtered guard headers=%#v error=%v", headers, err)
+	}
+	assertProtocolV2CredentialHeaders(t, headers, request.Headers, false)
 }
 
 func TestProtocolV2RequestAuthorityStripsHostMetadataBeforeRPC(t *testing.T) {
@@ -110,7 +136,11 @@ func TestProtocolV2RequestAuthorityStripsHostMetadataBeforeRPC(t *testing.T) {
 		"X-SForum-Actor-ID":   {"42"},
 		"Transfer-Encoding":   {"chunked"},
 		"Connection":          {"X-Private-Hop"},
+		"connection":          {"X-Lower-Hop"},
+		"CONNECTION":          {"X-Upper-Hop"},
 		"X-Private-Hop":       {"secret"},
+		"X-Lower-Hop":         {"lower-secret"},
+		"X-Upper-Hop":         {"upper-secret"},
 		"X-Keep":              {"one", "two"},
 	}
 	if _, err := client.InvokeRouteContext(context.Background(), request); err != nil {
@@ -122,7 +152,7 @@ func TestProtocolV2RequestAuthorityStripsHostMetadataBeforeRPC(t *testing.T) {
 	}
 	for _, name := range []string{
 		"Host", "Content-Length", "Proxy-Authorization", "Proxy-Connection", "X-Csrf-Token",
-		"X-SForum-Actor-ID", "Transfer-Encoding", "Connection", "X-Private-Hop",
+		"X-SForum-Actor-ID", "Transfer-Encoding", "Connection", "X-Private-Hop", "X-Lower-Hop", "X-Upper-Hop",
 	} {
 		if values := headers.Values(name); len(values) != 0 {
 			t.Fatalf("blocked header %s survived: %#v", name, values)
@@ -149,22 +179,86 @@ func TestProtocolV2RawAuthorityIsPreservedForRouteStreams(t *testing.T) {
 		Authority: protocolV2RawRequestAuthority(),
 		Headers: http.Header{
 			"Cookie": {"session=stream"}, "Authorization": {"Bearer stream"},
+			"X-Api-Key": {"stream-api-key"}, "X-Auth-Token": {"stream-auth-token"}, "X-Test": {"stream-visible"},
+			"connection": {"X-Stream-Lower-Hop"}, "CONNECTION": {"X-Stream-Upper-Hop"},
+			"X-Stream-Lower-Hop": {"lower-secret"}, "X-Stream-Upper-Hop": {"upper-secret"},
 		},
 	}
 	stream, err := client.OpenRouteStreamContext(context.Background(), request)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer stream.Cancel()
 	open := <-opens
 	headers, err := protocolV2RouteHTTPHeaders(open.GetHeaders())
-	if err != nil || headers.Get("Cookie") != "session=stream" || headers.Get("Authorization") != "Bearer stream" {
+	if err != nil || headers.Get("X-Test") != "stream-visible" {
 		t.Fatalf("stream headers=%#v error=%v", headers, err)
 	}
+	assertProtocolV2CredentialHeaders(t, headers, request.Headers, true)
+	assertProtocolV2BlockedHeaders(t, headers, "Connection", "X-Stream-Lower-Hop", "X-Stream-Upper-Hop")
+	stream.Cancel()
 
 	request.Authority = protocolV2FilteredHostRequestAuthority()
 	if _, err := client.OpenRouteStreamContext(context.Background(), request); !errors.Is(err, ErrProtocolV2RouteStreamInvalid) {
 		t.Fatalf("stream downgrade error=%v", err)
+	}
+	client.routes[0].Guard = extensionmanifest.GuardCorePublic
+	stream, err = client.OpenRouteStreamContext(context.Background(), request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	open = <-opens
+	headers, err = protocolV2RouteHTTPHeaders(open.GetHeaders())
+	if err != nil || headers.Get("X-Test") != "stream-visible" {
+		t.Fatalf("filtered stream headers=%#v error=%v", headers, err)
+	}
+	assertProtocolV2CredentialHeaders(t, headers, request.Headers, false)
+	assertProtocolV2BlockedHeaders(t, headers, "Connection", "X-Stream-Lower-Hop", "X-Stream-Upper-Hop")
+	stream.Cancel()
+
+	client.routes[0].Mode = extensionmanifest.RouteModeWebSocket
+	request.Mode = extensionmanifest.RouteModeWebSocket
+	request.Headers.Set("Host", "internal.example")
+	request.Headers.Set("Connection", "Upgrade")
+	request.Headers.Set("Upgrade", "websocket")
+	request.Headers.Set("Proxy-Authorization", "Basic proxy-secret")
+	request.Headers.Set("X-CSRF-Token", "csrf-secret")
+	request.Headers.Set("X-SForum-Forged", "forged")
+	stream, err = client.OpenRouteStreamContext(context.Background(), request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer stream.Cancel()
+	open = <-opens
+	headers, err = protocolV2RouteHTTPHeaders(open.GetHeaders())
+	if err != nil || headers.Get("X-Test") != "stream-visible" {
+		t.Fatalf("filtered websocket headers=%#v error=%v", headers, err)
+	}
+	assertProtocolV2CredentialHeaders(t, headers, request.Headers, false)
+	assertProtocolV2BlockedHeaders(t, headers,
+		"Host", "Connection", "Upgrade", "Proxy-Authorization", "X-CSRF-Token", "X-SForum-Forged",
+		"X-Stream-Lower-Hop", "X-Stream-Upper-Hop",
+	)
+}
+
+func assertProtocolV2BlockedHeaders(t *testing.T, headers http.Header, names ...string) {
+	t.Helper()
+	for _, name := range names {
+		if values := headers.Values(name); len(values) != 0 {
+			t.Fatalf("blocked header %s survived: %#v", name, values)
+		}
+	}
+}
+
+func assertProtocolV2CredentialHeaders(t *testing.T, headers, source http.Header, raw bool) {
+	t.Helper()
+	for _, name := range []string{"Cookie", "Authorization", "X-API-Key", "X-Auth-Token"} {
+		got := headers.Values(name)
+		if raw && !reflect.DeepEqual(got, source.Values(name)) {
+			t.Fatalf("raw credential %s=%#v, want %#v", name, got, source.Values(name))
+		}
+		if !raw && len(got) != 0 {
+			t.Fatalf("filtered credential %s survived: %#v", name, got)
+		}
 	}
 }
 
