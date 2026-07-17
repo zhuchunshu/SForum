@@ -132,6 +132,7 @@ type DispatcherConfig struct {
 	Policies       RoutePolicyResolver
 	Idempotency    RouteIdempotencyController
 	Failures       RouteFailureSink
+	StreamFailures RouteStreamFailureSink
 	DefaultTimeout time.Duration
 }
 
@@ -144,6 +145,7 @@ type Dispatcher struct {
 	policies       RoutePolicyResolver
 	idempotency    RouteIdempotencyController
 	failures       RouteFailureSink
+	streamFailures RouteStreamFailureSink
 	defaultTimeout time.Duration
 }
 
@@ -152,10 +154,15 @@ func NewDispatcher(config DispatcherConfig) *Dispatcher {
 	if timeout <= 0 {
 		timeout = 3 * time.Second
 	}
+	streamFailures := config.StreamFailures
+	if streamFailures == nil {
+		streamFailures, _ = config.Failures.(RouteStreamFailureSink)
+	}
 	return &Dispatcher{
 		plans: config.Plans, steps: config.Steps, guard: config.Guard,
 		schemas: config.Schemas, trace: config.Trace, policies: config.Policies,
-		idempotency: config.Idempotency, failures: config.Failures, defaultTimeout: timeout,
+		idempotency: config.Idempotency, failures: config.Failures,
+		streamFailures: streamFailures, defaultTimeout: timeout,
 	}
 }
 
