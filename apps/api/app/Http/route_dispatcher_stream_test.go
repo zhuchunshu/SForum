@@ -60,8 +60,9 @@ func TestRouteDispatcherStreamsSSEThroughFiberAndCommitsTrace(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// Successful streams still Cancel after Complete so Host budget/lease release.
 	if response.StatusCode != stdhttp.StatusOK || response.Header.Get("Content-Type") != "text/event-stream" ||
-		string(body) != "data: one\n\ndata: two\n\n" || !session.requestClosed || session.cancelled {
+		string(body) != "data: one\n\ndata: two\n\n" || !session.requestClosed || !session.cancelled {
 		t.Fatalf("status=%d headers=%v body=%q session=%#v", response.StatusCode, response.Header, body, session)
 	}
 	records := traces.RouteTraces(8)
@@ -112,6 +113,104 @@ func TestStreamRouteResponseCancelsOnRuntimeFailure(t *testing.T) {
 	records := traces.RouteTraces(8)
 	if len(records) != 2 || records[1].Outcome != routes.RouteTraceTransportFailed {
 		t.Fatalf("traces=%#v", records)
+	}
+}
+
+func TestStreamRouteResponsePublishesFailTraceBeforeLifetimeDone(t *testing.T) {
+	registry := routes.NewRegistry()
+	artifact := routeDispatcherArtifact("stream.fail-order", 'f')
+	declaration := routeDispatcherManifestRoute("stream.fail-order.body", extensionmanifest.RouteActionAdd, "/fail-order", "GET")
+	declaration.Mode = extensionmanifest.RouteModeStream
+	if _, err := registry.Publish(routes.Publication{Plugins: []routes.PluginRouteSet{{Artifact: artifact, Routes: []extensionmanifest.ManifestRoute{declaration}}}}); err != nil {
+		t.Fatal(err)
+	}
+	inner := &streamHTTPTestSession{recvErr: errors.New("runtime crashed")}
+	traces := routes.NewRouteTraceRing(8)
+	probe := &streamLifetimeOrderProbe{inner: traces}
+	dispatcher := routes.NewDispatcher(routes.DispatcherConfig{
+		Plans: routeRegistryPlanResolver{registry: registry}, Steps: &streamHTTPTestInvoker{start: routes.RouteStreamStart{
+			Response: routes.DispatchResponse{Status: stdhttp.StatusOK}, Session: inner,
+		}}, Guard: HostRouteGuardAuthorizer{}, Trace: probe,
+	})
+	prepared, err := dispatcher.PrepareStream(context.Background(), routes.DispatchRequest{Method: "GET", Path: "/fail-order"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	start, err := prepared.Dispatch.Open(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	source, ok := start.Session.(routes.RouteStreamLifetimeSource)
+	if !ok {
+		t.Fatal("Open did not bind a lifetime source")
+	}
+	probe.done = source.Done()
+	prepared.Dispatch.ResponseStarted()
+	streamRouteResponse(bufio.NewWriter(bytes.NewBuffer(nil)), start.Session, prepared.Dispatch)
+	if !probe.failWhileOpen.Load() {
+		t.Fatal("transport-fail trace was not observed while lifetime Done was still open")
+	}
+	if probe.failAfterDone.Load() {
+		t.Fatal("transport-fail trace published after lifetime Done closed")
+	}
+	select {
+	case <-source.Done():
+	case <-time.After(time.Second):
+		t.Fatal("lifetime Done was not closed after adapter Cancel")
+	}
+	records := traces.RouteTraces(0)
+	if !hasRouteTraceOutcome(records, routes.RouteTraceTransportFailed) {
+		t.Fatalf("missing fail trace: %#v", records)
+	}
+}
+
+func TestStreamRouteResponsePublishesCommitTraceBeforeLifetimeDone(t *testing.T) {
+	registry := routes.NewRegistry()
+	artifact := routeDispatcherArtifact("stream.commit-order", 'c')
+	declaration := routeDispatcherManifestRoute("stream.commit-order.body", extensionmanifest.RouteActionAdd, "/commit-order", "GET")
+	declaration.Mode = extensionmanifest.RouteModeStream
+	if _, err := registry.Publish(routes.Publication{Plugins: []routes.PluginRouteSet{{Artifact: artifact, Routes: []extensionmanifest.ManifestRoute{declaration}}}}); err != nil {
+		t.Fatal(err)
+	}
+	inner := &streamHTTPTestSession{
+		chunks:   []routes.RouteStreamChunk{{Data: []byte("ok"), Final: true}},
+		response: routes.DispatchResponse{Status: stdhttp.StatusOK},
+	}
+	traces := routes.NewRouteTraceRing(8)
+	probe := &streamLifetimeOrderProbe{inner: traces}
+	dispatcher := routes.NewDispatcher(routes.DispatcherConfig{
+		Plans: routeRegistryPlanResolver{registry: registry}, Steps: &streamHTTPTestInvoker{start: routes.RouteStreamStart{
+			Response: routes.DispatchResponse{Status: stdhttp.StatusOK}, Session: inner,
+		}}, Guard: HostRouteGuardAuthorizer{}, Trace: probe,
+	})
+	prepared, err := dispatcher.PrepareStream(context.Background(), routes.DispatchRequest{Method: "GET", Path: "/commit-order"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	start, err := prepared.Dispatch.Open(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	source, ok := start.Session.(routes.RouteStreamLifetimeSource)
+	if !ok {
+		t.Fatal("Open did not bind a lifetime source")
+	}
+	probe.done = source.Done()
+	prepared.Dispatch.ResponseStarted()
+	streamRouteResponse(bufio.NewWriter(bytes.NewBuffer(nil)), start.Session, prepared.Dispatch)
+	if !probe.commitWhileOpen.Load() {
+		t.Fatal("commit trace was not observed while lifetime Done was still open")
+	}
+	if probe.commitAfterDone.Load() {
+		t.Fatal("commit trace published after lifetime Done closed")
+	}
+	select {
+	case <-source.Done():
+	case <-time.After(time.Second):
+		t.Fatal("lifetime Done was not closed after adapter Cancel")
+	}
+	if !hasRouteTraceOutcome(traces.RouteTraces(0), routes.RouteTraceCommitted) {
+		t.Fatalf("missing commit trace: %#v", traces.RouteTraces(0))
 	}
 }
 
@@ -638,9 +737,48 @@ func (s *streamHTTPTestSession) Response() (routes.DispatchResponse, bool) {
 
 func (s *streamHTTPTestSession) Cancel() { s.cancelled = true }
 
+// streamLifetimeOrderProbe records whether commit/fail traces land while Done is open.
+type streamLifetimeOrderProbe struct {
+	inner           *routes.RouteTraceRing
+	done            <-chan struct{}
+	failWhileOpen   atomic.Bool
+	failAfterDone   atomic.Bool
+	commitWhileOpen atomic.Bool
+	commitAfterDone atomic.Bool
+}
+
+func (p *streamLifetimeOrderProbe) AppendRouteTrace(event routes.RouteTraceEvent) {
+	if p == nil {
+		return
+	}
+	if p.inner != nil {
+		p.inner.AppendRouteTrace(event)
+	}
+	if p.done == nil {
+		return
+	}
+	select {
+	case <-p.done:
+		switch event.Outcome {
+		case routes.RouteTraceTransportFailed:
+			p.failAfterDone.Store(true)
+		case routes.RouteTraceCommitted:
+			p.commitAfterDone.Store(true)
+		}
+	default:
+		switch event.Outcome {
+		case routes.RouteTraceTransportFailed:
+			p.failWhileOpen.Store(true)
+		case routes.RouteTraceCommitted:
+			p.commitWhileOpen.Store(true)
+		}
+	}
+}
+
 var _ routes.StepInvoker = (*streamHTTPTestInvoker)(nil)
 var _ routes.StreamingStepInvoker = (*streamHTTPTestInvoker)(nil)
 var _ routes.RouteStreamSession = (*streamHTTPTestSession)(nil)
+var _ routes.RouteTraceSink = (*streamLifetimeOrderProbe)(nil)
 
 type webSocketEchoSession struct {
 	messages  chan []byte

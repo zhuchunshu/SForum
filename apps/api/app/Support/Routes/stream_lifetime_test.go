@@ -78,14 +78,22 @@ func TestStreamDispatcherHostBudgetCoversGuardPreflightOpenAndStream(t *testing.
 	if !errors.Is(err, ErrRouteStreamBudgetExceeded) && !errors.Is(err, context.DeadlineExceeded) && !errors.Is(err, context.Canceled) {
 		t.Fatalf("recv after budget err=%v", err)
 	}
-	if source, ok := start.Session.(RouteStreamLifetimeSource); ok {
-		select {
-		case <-source.Done():
-		case <-time.After(time.Second):
-			t.Fatal("lifetime Done was not closed after budget")
-		}
+	source, ok := start.Session.(RouteStreamLifetimeSource)
+	if !ok {
+		t.Fatal("bound session missing lifetime source")
+	}
+	// Recv after budget must not close Done; adapter Cancel does.
+	select {
+	case <-source.Done():
+		t.Fatal("budget Recv closed Done before adapter Cancel")
+	default:
 	}
 	start.Session.Cancel()
+	select {
+	case <-source.Done():
+	case <-time.After(time.Second):
+		t.Fatal("lifetime Done was not closed after Cancel")
+	}
 }
 
 func TestStreamDispatcherHostBudgetTimeoutFailsClosed(t *testing.T) {
@@ -136,13 +144,18 @@ func TestStreamLifetimeDetachCallerStopsRequestCancel(t *testing.T) {
 	if err := lifetime.Context().Err(); err != nil {
 		t.Fatalf("lifetime context after detach cancel=%v", err)
 	}
-	// Host budget / ForceCancel-style cancel on the open context still works.
+	// Host budget still terminates after detach; adapters Cancel after Fail.
 	lifetime.cancelOpen(ErrRouteStreamBudgetExceeded)
-	inner.recv <- recvResult{err: context.Canceled}
+	select {
+	case <-lifetime.Context().Done():
+	case <-time.After(time.Second):
+		t.Fatal("budget did not cancel the open context after detach")
+	}
+	session.Cancel()
 	select {
 	case <-session.(RouteStreamLifetimeSource).Done():
 	case <-time.After(time.Second):
-		t.Fatal("budget cancel after detach did not finish lifetime")
+		t.Fatal("Cancel after budget did not finish lifetime")
 	}
 	if cause := session.(RouteStreamLifetimeSource).Cause(); !errors.Is(cause, ErrRouteStreamBudgetExceeded) &&
 		!errors.Is(cause, context.Canceled) {
@@ -218,13 +231,46 @@ func TestStreamLifetimeOuterDoesNotEraseInnerTypedCause(t *testing.T) {
 		t.Fatalf("recv err=%v", err)
 	}
 	source := session.(RouteStreamLifetimeSource)
+	// Recv must not close Done; adapters Fail then Cancel first.
+	select {
+	case <-source.Done():
+		t.Fatal("Recv closed lifetime Done before adapter Cancel")
+	default:
+	}
+	session.Cancel()
 	select {
 	case <-source.Done():
 	case <-time.After(time.Second):
-		t.Fatal("Done not closed")
+		t.Fatal("Done not closed after Cancel")
 	}
 	if !errors.Is(source.Cause(), typed) {
 		t.Fatalf("outer cause=%v want typed transport cause", source.Cause())
+	}
+}
+
+func TestStreamLifetimeRecvDoesNotCloseDoneBeforeCancel(t *testing.T) {
+	lifetime := newRouteStreamOpenLifetime(context.Background(), time.Hour)
+	inner := &lifetimeInnerSession{
+		recv: make(chan recvResult, 1), hasResp: true,
+		response: DispatchResponse{Status: http.StatusOK},
+	}
+	session := bindRouteStreamLifetime(inner, lifetime)
+	source := session.(RouteStreamLifetimeSource)
+	inner.recv <- recvResult{err: io.EOF}
+	_, err := session.Recv()
+	if !errors.Is(err, io.EOF) {
+		t.Fatalf("recv err=%v", err)
+	}
+	select {
+	case <-source.Done():
+		t.Fatal("EOF Recv closed Done before Complete/Cancel")
+	case <-time.After(20 * time.Millisecond):
+	}
+	session.Cancel()
+	select {
+	case <-source.Done():
+	case <-time.After(time.Second):
+		t.Fatal("Cancel did not close Done after EOF")
 	}
 }
 
@@ -373,6 +419,8 @@ var _ RouteStreamSession = (*lifetimeInnerSession)(nil)
 var _ RouteStreamLifetimeSource = (*lifetimeInnerSession)(nil)
 
 // racingInnerSession lets terminal EOF and Cancel race on one session.
+// State and cause are decided under one lock so a terminal winner cannot be
+// observed with a cancel cause (or the reverse).
 type racingInnerSession struct {
 	mu       sync.Mutex
 	state    int // 0 active, 1 terminal, 2 canceled
@@ -387,23 +435,25 @@ func (s *racingInnerSession) CloseRequest() error     { return nil }
 
 func (s *racingInnerSession) Recv() (RouteStreamChunk, error) {
 	s.mu.Lock()
-	if s.state == 2 {
+	switch s.state {
+	case 2:
 		cause := s.cause
 		s.mu.Unlock()
 		if cause == nil {
 			cause = context.Canceled
 		}
 		return RouteStreamChunk{}, cause
-	}
-	if s.state == 1 {
+	case 1:
 		s.mu.Unlock()
 		return RouteStreamChunk{}, io.EOF
+	default:
+		s.state = 1
+		s.response = DispatchResponse{Status: http.StatusOK}
+		s.cause = nil
+		s.mu.Unlock()
+		s.publishDone()
+		return RouteStreamChunk{}, io.EOF
 	}
-	s.state = 1
-	s.response = DispatchResponse{Status: http.StatusOK}
-	s.mu.Unlock()
-	s.finish(nil)
-	return RouteStreamChunk{}, io.EOF
 }
 
 func (s *racingInnerSession) Response() (DispatchResponse, bool) {
@@ -423,7 +473,7 @@ func (s *racingInnerSession) Cancel() {
 		s.response = DispatchResponse{}
 	}
 	s.mu.Unlock()
-	s.finish(context.Canceled)
+	s.publishDone()
 }
 
 func (s *racingInnerSession) Done() <-chan struct{} {
@@ -442,12 +492,9 @@ func (s *racingInnerSession) Cause() error {
 	return s.cause
 }
 
-func (s *racingInnerSession) finish(cause error) {
+func (s *racingInnerSession) publishDone() {
 	s.once.Do(func() {
 		s.mu.Lock()
-		if s.cause == nil {
-			s.cause = cause
-		}
 		if s.done == nil {
 			s.done = make(chan struct{})
 		}
