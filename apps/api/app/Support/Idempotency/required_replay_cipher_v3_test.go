@@ -90,6 +90,14 @@ func TestRequiredReplayCipherV3BindsCompleteContextAndUsesUniqueNonces(t *testin
 	); !errors.Is(err, ErrRequiredReplayCipherInvalid) {
 		t.Fatalf("oversized V3 plaintext error = %v", err)
 	}
+	encodedLimit := base64.RawURLEncoding.EncodedLen(
+		MaxRequiredReplayPayload + cipherA.payloadAEAD.NonceSize() + cipherA.payloadAEAD.Overhead(),
+	)
+	if _, err := cipherA.DecryptReplay(
+		storageKey, fingerprint, planDigest, strings.Repeat("A", encodedLimit+1),
+	); !errors.Is(err, ErrRequiredReplayCipherInvalid) {
+		t.Fatalf("oversized V3 ciphertext error = %v", err)
+	}
 }
 
 func TestRequiredReplayV3RejectsCiphertextSubstitutionAndMalformedPayload(t *testing.T) {
@@ -163,6 +171,9 @@ func TestRequiredReplayV3RejectsCiphertextSubstitutionAndMalformedPayload(t *tes
 
 	wrongPlan := binding
 	wrongPlan.PlanDigest = strings.Repeat("7", 64)
+	if err := json.Unmarshal(rawB, &recordB); err != nil {
+		t.Fatal(err)
+	}
 	recordB.PlanDigest = wrongPlan.PlanDigest
 	wrongPlanRecord, err := json.Marshal(recordB)
 	if err != nil {
@@ -178,5 +189,4 @@ func TestRequiredReplayV3RejectsCiphertextSubstitutionAndMalformedPayload(t *tes
 		t.Fatalf("wrong-plan replay = %#v, %v", replay, err)
 	}
 
-	_ = rawB
 }

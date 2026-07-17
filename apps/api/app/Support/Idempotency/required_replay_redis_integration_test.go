@@ -1,6 +1,7 @@
 package idempotency
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -72,6 +73,23 @@ func TestRequiredReplayRedisBackendIntegration(t *testing.T) {
 		ttl, err := client.PTTL(ctx, fullKey).Result()
 		if err != nil || ttl > DefaultTTL || ttl < DefaultTTL-2*time.Minute {
 			t.Fatalf("Redis replay PTTL=%s error=%v", ttl, err)
+		}
+		wrongCipher, err := NewRequiredReplayCipher(strings.Repeat("0b", 32))
+		if err != nil {
+			t.Fatal(err)
+		}
+		wrongStore := NewStore(NewRedisBackend(client), DefaultTTL).WithRequiredReplayCipher(wrongCipher)
+		if _, replay, err := wrongStore.BeginRequiredReplayBound(ctx, scope, key, binding); replay != nil ||
+			!errors.Is(err, ErrRequiredReplayUnavailable) || !errors.Is(err, ErrRequiredReplayCipherInvalid) {
+			t.Fatalf("wrong-key Redis replay=%#v error=%v", replay, err)
+		}
+		afterWrongKey, err := client.Get(ctx, fullKey).Bytes()
+		if err != nil || !bytes.Equal(afterWrongKey, raw) {
+			t.Fatalf("wrong-key Redis replay changed bytes: error=%v", err)
+		}
+		afterWrongKeyTTL, err := client.PTTL(ctx, fullKey).Result()
+		if err != nil || afterWrongKeyTTL > ttl {
+			t.Fatalf("wrong-key Redis replay refreshed PTTL: before=%s after=%s error=%v", ttl, afterWrongKeyTTL, err)
 		}
 
 		_, first, err := store.BeginRequiredReplayBound(ctx, scope, key, binding)
