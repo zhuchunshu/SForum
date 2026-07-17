@@ -173,7 +173,11 @@ func TestRouteDispatcherBridgesWebSocketMessagesAndDisconnect(t *testing.T) {
 	if err != nil || messageType != websocket.BinaryMessage || string(payload) != "hello" {
 		t.Fatalf("messageType=%d payload=%q err=%v", messageType, payload, err)
 	}
-	_ = connection.Close()
+	_, _, err = connection.ReadMessage()
+	var closeError *websocket.CloseError
+	if !errors.As(err, &closeError) || closeError.Code != websocket.CloseNormalClosure {
+		t.Fatalf("websocket terminal error=%v", err)
+	}
 	select {
 	case <-session.done:
 	case <-time.After(2 * time.Second):
@@ -189,6 +193,260 @@ func TestRouteDispatcherBridgesWebSocketMessagesAndDisconnect(t *testing.T) {
 	if len(records) != 2 || records[0].Outcome != routes.RouteTraceSucceeded || records[1].Outcome != routes.RouteTraceCommitted {
 		t.Fatalf("traces=%#v", records)
 	}
+}
+
+func TestRouteDispatcherWaitsForWebSocketResponseTerminalAfterClientClose(t *testing.T) {
+	session := newWebSocketTerminalBarrierSession()
+	t.Cleanup(session.cleanup)
+	traces := routes.NewRouteTraceRing(8)
+	connection := dialRouteWebSocketTerminalTest(t, session, traces)
+
+	if err := connection.WriteControl(
+		websocket.CloseMessage,
+		websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""),
+		time.Now().Add(time.Second),
+	); err != nil {
+		t.Fatal(err)
+	}
+	waitRouteWebSocketSignal(t, session.requestClosed, "request close")
+	assertNoRouteTraceOutcome(t, traces.RouteTraces(0), routes.RouteTraceCommitted)
+	select {
+	case <-session.done:
+		t.Fatal("normal request close cancelled the session before the response terminal")
+	default:
+	}
+
+	session.release()
+	waitRouteWebSocketSignal(t, session.done, "response failure cancellation")
+	waitRouteWebSocketSignal(t, session.recvExited, "response pump exit")
+	records := traces.RouteTraces(0)
+	assertNoRouteTraceOutcome(t, records, routes.RouteTraceCommitted)
+	if !hasRouteTraceOutcome(records, routes.RouteTraceTransportFailed) {
+		t.Fatalf("response failure was not recorded: %#v", records)
+	}
+}
+
+func TestRouteDispatcherFailsWebSocketWhenClosingPluginRequestFails(t *testing.T) {
+	session := newWebSocketTerminalBarrierSession()
+	t.Cleanup(session.cleanup)
+	session.closeRequestErr = errors.New("plugin request close failed")
+	traces := routes.NewRouteTraceRing(8)
+	connection := dialRouteWebSocketTerminalTest(t, session, traces)
+
+	if err := connection.WriteControl(
+		websocket.CloseMessage,
+		websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""),
+		time.Now().Add(time.Second),
+	); err != nil {
+		t.Fatal(err)
+	}
+	waitRouteWebSocketSignal(t, session.requestClosed, "request close")
+	waitRouteWebSocketSignal(t, session.done, "request close failure cancellation")
+	waitRouteWebSocketSignal(t, session.recvExited, "response pump exit")
+	records := traces.RouteTraces(0)
+	assertNoRouteTraceOutcome(t, records, routes.RouteTraceCommitted)
+	if !hasRouteTraceOutcome(records, routes.RouteTraceTransportFailed) {
+		t.Fatalf("request close failure was not recorded: %#v", records)
+	}
+}
+
+func TestRouteDispatcherCommitsWebSocketAfterRequestCloseAndResponseTerminal(t *testing.T) {
+	session := newWebSocketTerminalBarrierSession()
+	t.Cleanup(session.cleanup)
+	session.recvErr = io.EOF
+	session.response = routes.DispatchResponse{Status: fiber.StatusSwitchingProtocols}
+	traces := routes.NewRouteTraceRing(8)
+	connection := dialRouteWebSocketTerminalTest(t, session, traces)
+
+	if err := connection.WriteControl(
+		websocket.CloseMessage,
+		websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""),
+		time.Now().Add(time.Second),
+	); err != nil {
+		t.Fatal(err)
+	}
+	waitRouteWebSocketSignal(t, session.requestClosed, "request close")
+	assertNoRouteTraceOutcome(t, traces.RouteTraces(0), routes.RouteTraceCommitted)
+	session.release()
+	_, _, err := connection.ReadMessage()
+	var closeError *websocket.CloseError
+	if !errors.As(err, &closeError) || closeError.Code != websocket.CloseNormalClosure {
+		t.Fatalf("websocket terminal error=%v", err)
+	}
+	waitRouteWebSocketSignal(t, session.done, "successful terminal cancellation")
+	waitRouteWebSocketSignal(t, session.recvExited, "response pump exit")
+	records := traces.RouteTraces(0)
+	if !hasRouteTraceOutcome(records, routes.RouteTraceCommitted) ||
+		hasRouteTraceOutcome(records, routes.RouteTraceTransportFailed) {
+		t.Fatalf("terminal traces=%#v", records)
+	}
+}
+
+func TestAwaitRouteWebSocketTerminalRequiresPluginResponseAfterNormalRequestClose(t *testing.T) {
+	type terminalResult struct {
+		pump  routeWebSocketPumpResult
+		drain bool
+	}
+	results := make(chan routeWebSocketPumpResult)
+	resolved := make(chan terminalResult, 1)
+	go func() {
+		pump, drain := awaitRouteWebSocketTerminal(results, time.Second)
+		resolved <- terminalResult{pump: pump, drain: drain}
+	}()
+
+	results <- routeWebSocketPumpResult{direction: "request", normal: true}
+	select {
+	case terminal := <-resolved:
+		t.Fatalf("request close became authoritative terminal: %#v", terminal)
+	default:
+	}
+	responseErr := errors.New("plugin response failed")
+	select {
+	case results <- routeWebSocketPumpResult{direction: "response", err: responseErr}:
+	case <-time.After(time.Second):
+		t.Fatal("terminal resolver did not wait for the plugin response")
+	}
+	select {
+	case terminal := <-resolved:
+		if terminal.pump.direction != "response" || terminal.pump.normal ||
+			!errors.Is(terminal.pump.err, responseErr) || terminal.drain {
+			t.Fatalf("terminal=%#v", terminal)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("terminal resolver did not return the plugin response failure")
+	}
+}
+
+func TestAwaitRouteWebSocketTerminalBoundsMissingPluginResponse(t *testing.T) {
+	type terminalResult struct {
+		pump  routeWebSocketPumpResult
+		drain bool
+	}
+	results := make(chan routeWebSocketPumpResult)
+	resolved := make(chan terminalResult, 1)
+	go func() {
+		pump, drain := awaitRouteWebSocketTerminal(results, 0)
+		resolved <- terminalResult{pump: pump, drain: drain}
+	}()
+	results <- routeWebSocketPumpResult{direction: "request", normal: true}
+	select {
+	case terminal := <-resolved:
+		if terminal.pump.direction != "response" || terminal.pump.normal ||
+			terminal.pump.err == nil || !terminal.drain {
+			t.Fatalf("terminal=%#v", terminal)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("missing plugin response was not bounded")
+	}
+}
+
+func TestRouteWebSocketResponseTerminalGraceIsHostBounded(t *testing.T) {
+	if routeWebSocketResponseTerminalGrace != 2*time.Second ||
+		routeWebSocketResponseTerminalGrace >= extensionsruntime.DefaultProtocolV2RouteStreamTimeout {
+		t.Fatalf("terminal grace=%s", routeWebSocketResponseTerminalGrace)
+	}
+}
+
+func TestAwaitRouteWebSocketTerminalPreservesResponseBeforeCloseCleanupError(t *testing.T) {
+	results := make(chan routeWebSocketPumpResult, 2)
+	closeErr := errors.New("plugin request close failed")
+	results <- routeWebSocketPumpResult{direction: "response", normal: true}
+	results <- routeWebSocketPumpResult{direction: "request", err: closeErr}
+
+	terminal, drain := awaitRouteWebSocketTerminal(results, time.Second)
+	if terminal.direction != "response" || !terminal.normal || terminal.err != nil || !drain {
+		t.Fatalf("terminal=%#v drain=%t", terminal, drain)
+	}
+	drained := <-results
+	if drained.direction != "request" || !errors.Is(drained.err, closeErr) {
+		t.Fatalf("drained=%#v", drained)
+	}
+}
+
+func TestRouteWebSocketPumpFailureNeverLeavesEOFFenceOpen(t *testing.T) {
+	for _, err := range []error{nil, io.EOF} {
+		if failure := routeWebSocketPumpFailure(err); !errors.Is(failure, routes.ErrDispatchTransport) {
+			t.Fatalf("input=%v failure=%v", err, failure)
+		}
+	}
+	sentinel := errors.New("request failed")
+	if failure := routeWebSocketPumpFailure(sentinel); !errors.Is(failure, sentinel) {
+		t.Fatalf("failure=%v", failure)
+	}
+}
+
+func dialRouteWebSocketTerminalTest(
+	t *testing.T,
+	session routes.RouteStreamSession,
+	traces *routes.RouteTraceRing,
+) *websocket.Conn {
+	t.Helper()
+	registry := routes.NewRegistry()
+	artifact := routeDispatcherArtifact("stream.websocket.terminal", 'e')
+	declaration := routeDispatcherManifestRoute(
+		"stream.websocket.terminal.handler", extensionmanifest.RouteActionAdd, "/socket-terminal", stdhttp.MethodGet,
+	)
+	declaration.Mode = extensionmanifest.RouteModeWebSocket
+	if _, err := registry.Publish(routes.Publication{Plugins: []routes.PluginRouteSet{{
+		Artifact: artifact, Routes: []extensionmanifest.ManifestRoute{declaration},
+	}}}); err != nil {
+		t.Fatal(err)
+	}
+	dispatcher := routes.NewDispatcher(routes.DispatcherConfig{
+		Plans: routeRegistryPlanResolver{registry: registry},
+		Steps: &streamHTTPTestInvoker{start: routes.RouteStreamStart{
+			Response: routes.DispatchResponse{Status: fiber.StatusSwitchingProtocols},
+			Session:  session,
+		}},
+		Guard: HostRouteGuardAuthorizer{},
+		Trace: traces,
+	})
+	app := fiber.New()
+	app.Use(routeDispatcherMiddleware(dispatcher, nil))
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	serverDone := make(chan error, 1)
+	go func() { serverDone <- app.Listener(listener) }()
+	t.Cleanup(func() {
+		_ = app.Shutdown()
+		_ = listener.Close()
+		<-serverDone
+	})
+	connection, response, err := websocket.DefaultDialer.Dial(
+		"ws://"+listener.Addr().String()+"/socket-terminal", nil,
+	)
+	if err != nil {
+		t.Fatalf("dial status=%v err=%v", response, err)
+	}
+	t.Cleanup(func() { _ = connection.Close() })
+	return connection
+}
+
+func waitRouteWebSocketSignal(t *testing.T, signal <-chan struct{}, name string) {
+	t.Helper()
+	select {
+	case <-signal:
+	case <-time.After(2 * time.Second):
+		t.Fatalf("timed out waiting for %s", name)
+	}
+}
+
+func assertNoRouteTraceOutcome(t *testing.T, records []routes.RouteTraceRecord, outcome routes.RouteTraceOutcome) {
+	t.Helper()
+	if hasRouteTraceOutcome(records, outcome) {
+		t.Fatalf("unexpected %s trace: %#v", outcome, records)
+	}
+}
+
+func hasRouteTraceOutcome(records []routes.RouteTraceRecord, outcome routes.RouteTraceOutcome) bool {
+	for _, record := range records {
+		if record.Outcome == outcome {
+			return true
+		}
+	}
+	return false
 }
 
 func TestRouteDispatcherRejectsMalformedWebSocketBeforeRuntime(t *testing.T) {
@@ -423,3 +681,67 @@ func (s *webSocketEchoSession) Cancel() {
 }
 
 var _ routes.RouteStreamSession = (*webSocketEchoSession)(nil)
+
+type webSocketTerminalBarrierSession struct {
+	requestClosed   chan struct{}
+	releaseResponse chan struct{}
+	recvExited      chan struct{}
+	done            chan struct{}
+	requestOnce     sync.Once
+	releaseOnce     sync.Once
+	recvOnce        sync.Once
+	doneOnce        sync.Once
+	closeRequestErr error
+	recvErr         error
+	response        routes.DispatchResponse
+	terminal        atomic.Bool
+}
+
+func newWebSocketTerminalBarrierSession() *webSocketTerminalBarrierSession {
+	return &webSocketTerminalBarrierSession{
+		requestClosed:   make(chan struct{}),
+		releaseResponse: make(chan struct{}),
+		recvExited:      make(chan struct{}),
+		done:            make(chan struct{}),
+		recvErr:         errors.New("plugin response failed"),
+	}
+}
+
+func (*webSocketTerminalBarrierSession) Send([]byte, bool) error { return nil }
+
+func (s *webSocketTerminalBarrierSession) CloseRequest() error {
+	s.requestOnce.Do(func() { close(s.requestClosed) })
+	return s.closeRequestErr
+}
+
+func (s *webSocketTerminalBarrierSession) Recv() (routes.RouteStreamChunk, error) {
+	defer s.recvOnce.Do(func() { close(s.recvExited) })
+	select {
+	case <-s.releaseResponse:
+		if errors.Is(s.recvErr, io.EOF) {
+			s.terminal.Store(true)
+		}
+		return routes.RouteStreamChunk{}, s.recvErr
+	case <-s.done:
+		return routes.RouteStreamChunk{}, context.Canceled
+	}
+}
+
+func (s *webSocketTerminalBarrierSession) Response() (routes.DispatchResponse, bool) {
+	return s.response, s.terminal.Load()
+}
+
+func (s *webSocketTerminalBarrierSession) Cancel() {
+	s.doneOnce.Do(func() { close(s.done) })
+}
+
+func (s *webSocketTerminalBarrierSession) release() {
+	s.releaseOnce.Do(func() { close(s.releaseResponse) })
+}
+
+func (s *webSocketTerminalBarrierSession) cleanup() {
+	s.release()
+	s.Cancel()
+}
+
+var _ routes.RouteStreamSession = (*webSocketTerminalBarrierSession)(nil)

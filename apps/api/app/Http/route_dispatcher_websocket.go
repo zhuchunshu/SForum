@@ -17,7 +17,12 @@ import (
 	routes "github.com/zhuchunshu/sforum/apps/api/app/Support/Routes"
 )
 
-const routeWebSocketControlTimeout = 2 * time.Second
+const (
+	routeWebSocketControlTimeout = 2 * time.Second
+	// A peer Close ends the WebSocket, so it gets a short Host-owned terminal
+	// grace instead of retaining the ordinary long-lived route deadline.
+	routeWebSocketResponseTerminalGrace = 2 * time.Second
+)
 
 func serveRouteWebSocket(c fiber.Ctx, dispatch *routes.RouteStreamDispatch, hostHeaders stdhttp.Header) error {
 	if c == nil || dispatch == nil || !validRouteWebSocketUpgrade(c) {
@@ -112,17 +117,65 @@ func bridgeRouteWebSocket(connection *websocket.Conn, session routes.RouteStream
 	go func() { results <- pumpWebSocketRequests(connection, session) }()
 	go func() { results <- pumpWebSocketResponses(connection, session) }()
 
-	first := <-results
-	if first.normal {
+	terminal, drainOppositePump := awaitRouteWebSocketTerminal(results, routeWebSocketResponseTerminalGrace)
+	if terminal.direction == "response" && terminal.normal {
 		_ = dispatch.Complete()
 	} else {
-		_ = dispatch.StreamFailed(first.err)
+		_ = dispatch.StreamFailed(routeWebSocketPumpFailure(terminal.err))
 	}
 	session.Cancel()
 	_ = connection.Close()
 	// Closing both transports unblocks the opposite pump before this hijacked
 	// handler releases the exact runtime admission lease.
-	<-results
+	if drainOppositePump {
+		<-results
+	}
+}
+
+func awaitRouteWebSocketTerminal(
+	results <-chan routeWebSocketPumpResult,
+	timeout time.Duration,
+) (routeWebSocketPumpResult, bool) {
+	first := <-results
+	if !validRouteWebSocketPumpResult(first) || !first.normal {
+		return first, true
+	}
+	if first.direction == "response" {
+		// A validated response terminal is authoritative. Cancel/drain may make a
+		// later request-side CloseRequest fail, but cleanup cannot rewrite commit.
+		return first, true
+	}
+	// A normal client Close only half-closes plugin input. It cannot retain the
+	// ordinary 24-hour stream lease while waiting for a missing plugin terminal.
+	if timeout <= 0 {
+		return routeWebSocketPumpResult{direction: "response", err: fmt.Errorf("websocket close terminal timed out")}, true
+	}
+	timer := time.NewTimer(timeout)
+	defer timer.Stop()
+	select {
+	case second := <-results:
+		if !validRouteWebSocketPumpResult(second) || !second.normal || second.direction != "response" {
+			if second.normal {
+				second.normal = false
+				second.err = routes.ErrDispatchTransport
+			}
+			return second, false
+		}
+		return second, false
+	case <-timer.C:
+		return routeWebSocketPumpResult{direction: "response", err: fmt.Errorf("websocket close terminal timed out")}, true
+	}
+}
+
+func validRouteWebSocketPumpResult(result routeWebSocketPumpResult) bool {
+	return result.direction == "request" || result.direction == "response"
+}
+
+func routeWebSocketPumpFailure(err error) error {
+	if err == nil || errors.Is(err, io.EOF) {
+		return routes.ErrDispatchTransport
+	}
+	return err
 }
 
 func pumpWebSocketRequests(connection *websocket.Conn, session routes.RouteStreamSession) routeWebSocketPumpResult {
@@ -133,7 +186,9 @@ func pumpWebSocketRequests(connection *websocket.Conn, session routes.RouteStrea
 			normal := errors.As(err, &closeError) &&
 				(closeError.Code == websocket.CloseNormalClosure || closeError.Code == websocket.CloseGoingAway)
 			if normal {
-				_ = session.CloseRequest()
+				if closeErr := session.CloseRequest(); closeErr != nil {
+					return routeWebSocketPumpResult{direction: "request", err: closeErr}
+				}
 			}
 			return routeWebSocketPumpResult{direction: "request", normal: normal, err: err}
 		}
@@ -160,7 +215,13 @@ func pumpWebSocketResponses(connection *websocket.Conn, session routes.RouteStre
 				return routeWebSocketPumpResult{direction: "response", err: routes.ErrDispatchTransport}
 			}
 			deadline := time.Now().Add(routeWebSocketControlTimeout)
-			_ = connection.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""), deadline)
+			if err := connection.WriteControl(
+				websocket.CloseMessage,
+				websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""),
+				deadline,
+			); err != nil && !errors.Is(err, websocket.ErrCloseSent) {
+				return routeWebSocketPumpResult{direction: "response", err: err}
+			}
 			return routeWebSocketPumpResult{direction: "response", normal: true}
 		}
 		if err != nil {
