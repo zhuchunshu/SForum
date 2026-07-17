@@ -110,6 +110,7 @@ type requiredReplayPayload struct {
 	Authorization *RequiredReplayAuthorization `json:"authorization,omitempty"`
 }
 
+// BeginRequiredReplay 保留 V2 调用兼容；新的 Route 调用必须改用带 plan digest 的 Bound 入口。
 func (s *Store) BeginRequiredReplay(
 	ctx context.Context,
 	scope RequiredReplayScope,
@@ -162,7 +163,7 @@ func (s *Store) beginRequiredReplay(
 			if decodeErr != nil {
 				return RequiredReplayLease{}, nil, errors.Join(ErrRequiredReplayUnavailable, decodeErr)
 			}
-			legacyCompatible := record.Schema == requiredReplaySchemaV1 &&
+			legacyCompatible := requiredReplayLegacyFingerprintCompatible(record) &&
 				requiredReplayFingerprintCompatible(record.Fingerprint, binding.CompatibleFingerprints)
 			if record.Fingerprint != binding.Fingerprint && !legacyCompatible {
 				return RequiredReplayLease{}, nil, ErrRequiredReplayFingerprintConflict
@@ -347,8 +348,8 @@ func decodeRequiredReplayRecord(raw []byte) (requiredReplayRecord, error) {
 	case requiredReplayPending:
 		if len(record.LeaseToken) != 32 || record.Response != nil ||
 			record.AuthorizationCiphertext != "" || record.PayloadCiphertext != "" ||
-			record.Schema == requiredReplaySchemaV3 && !validRequiredReplayFingerprint(record.PlanDigest) ||
-			record.Schema != requiredReplaySchemaV3 && record.PlanDigest != "" {
+			(record.Schema == requiredReplaySchemaV3 && !validRequiredReplayFingerprint(record.PlanDigest)) ||
+			(record.Schema != requiredReplaySchemaV3 && record.PlanDigest != "") {
 			return requiredReplayRecord{}, ErrRequiredReplayUnavailable
 		}
 	case requiredReplayCompleted:
@@ -495,6 +496,14 @@ func requiredReplayFingerprintCompatible(value string, compatible []string) bool
 		}
 	}
 	return false
+}
+
+func requiredReplayLegacyFingerprintCompatible(record requiredReplayRecord) bool {
+	if record.Schema == requiredReplaySchemaV1 {
+		return true
+	}
+	return record.Schema == requiredReplaySchemaV2 && record.PlanDigest == "" &&
+		record.AuthorizationCiphertext == ""
 }
 
 func validateRequiredReplayResponsePointer(response *RequiredReplayResponse) error {
