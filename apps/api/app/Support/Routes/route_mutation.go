@@ -531,7 +531,7 @@ func routeMutationStatus(value any) (int, error) {
 	default:
 		return 0, ErrRouteMutation
 	}
-	if status < 100 || status > 599 {
+	if !ValidTerminalResponseStatus(extensionmanifest.RouteModeHTTP, int(status)) {
 		return 0, ErrRouteMutation
 	}
 	return int(status), nil
