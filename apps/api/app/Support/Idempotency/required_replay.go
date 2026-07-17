@@ -163,7 +163,7 @@ func (s *Store) beginRequiredReplay(
 			if decodeErr != nil {
 				return RequiredReplayLease{}, nil, errors.Join(ErrRequiredReplayUnavailable, decodeErr)
 			}
-			legacyCompatible := requiredReplayLegacyFingerprintCompatible(record) &&
+			legacyCompatible := requiredReplayLegacyFingerprintCompatible(record, writeSchema) &&
 				requiredReplayFingerprintCompatible(record.Fingerprint, binding.CompatibleFingerprints)
 			if record.Fingerprint != binding.Fingerprint && !legacyCompatible {
 				return RequiredReplayLease{}, nil, ErrRequiredReplayFingerprintConflict
@@ -498,11 +498,14 @@ func requiredReplayFingerprintCompatible(value string, compatible []string) bool
 	return false
 }
 
-func requiredReplayLegacyFingerprintCompatible(record requiredReplayRecord) bool {
+func requiredReplayLegacyFingerprintCompatible(record requiredReplayRecord, writeSchema string) bool {
 	if record.Schema == requiredReplaySchemaV1 {
 		return true
 	}
-	return record.Schema == requiredReplaySchemaV2 && record.PlanDigest == "" &&
+	// V2 rolling fingerprints are a one-way migration bridge for Bound/V3
+	// callers. The deprecated V2 writer may still read an exact V2 record, but
+	// must not expand its identity through caller-supplied aliases.
+	return writeSchema == requiredReplaySchemaV3 && record.Schema == requiredReplaySchemaV2 && record.PlanDigest == "" &&
 		record.AuthorizationCiphertext == ""
 }
 

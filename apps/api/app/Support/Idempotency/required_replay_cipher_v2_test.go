@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 	"testing"
@@ -453,6 +454,58 @@ func TestRequiredReplayV2LegacyWriterRemainsAvailableUntilBoundCallerCutover(t *
 		t.Context(), scope, "legacy-reader-v3", fingerprint,
 	); replay != nil || !errors.Is(err, ErrRequiredReplayUnavailable) {
 		t.Fatalf("legacy API accepted V3 replay = %#v, %v", replay, err)
+	}
+}
+
+func TestRequiredReplayFingerprintCompatibilityIsWriterBound(t *testing.T) {
+	scope := requiredReplayTestScope("actor:77:bearer")
+	currentFingerprint := strings.Repeat("a", 64)
+	legacyFingerprint := strings.Repeat("b", 64)
+	tests := []struct {
+		name       string
+		record     requiredReplayRecord
+		wantReplay bool
+	}{
+		{
+			name: "V1 remains compatible",
+			record: requiredReplayRecord{
+				Schema: requiredReplaySchemaV1, State: requiredReplayCompleted, Fingerprint: legacyFingerprint,
+				Response: &RequiredReplayResponse{Status: http.StatusOK, Body: []byte("legacy-v1")},
+			},
+			wantReplay: true,
+		},
+		{
+			name: "V2 pending cannot borrow an alias through the legacy writer",
+			record: requiredReplayRecord{
+				Schema: requiredReplaySchemaV2, State: requiredReplayPending, Fingerprint: legacyFingerprint,
+				LeaseToken: strings.Repeat("1", 32),
+			},
+		},
+		{
+			name: "V2 completed cannot borrow an alias through the legacy writer",
+			record: requiredReplayRecord{
+				Schema: requiredReplaySchemaV2, State: requiredReplayCompleted, Fingerprint: legacyFingerprint,
+				Response: &RequiredReplayResponse{Status: http.StatusOK, Body: []byte("legacy-v2")},
+			},
+		},
+	}
+	for index, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			key := fmt.Sprintf("writer-bound-%d", index)
+			_, store := requiredReplayV2SeedRecord(t, scope, key, test.record)
+			_, replay, err := store.BeginRequiredReplay(
+				t.Context(), scope, key, currentFingerprint, legacyFingerprint,
+			)
+			if test.wantReplay {
+				if err != nil || replay == nil || string(replay.Body) != "legacy-v1" {
+					t.Fatalf("V1 compatibility replay = %#v, %v", replay, err)
+				}
+				return
+			}
+			if replay != nil || !errors.Is(err, ErrRequiredReplayFingerprintConflict) {
+				t.Fatalf("legacy writer borrowed V2 alias: replay=%#v error=%v", replay, err)
+			}
+		})
 	}
 }
 
