@@ -34,6 +34,56 @@ Last updated: 2026-07-18
   total deadline, automatic lease release, non-HTTP schema boundary, durable
   incident source, and real subprocess correlation evidence.
 
+### 2026-07-18 Extension Settings One-Request Bootstrap Checkpoint
+
+- Verified weighted progress remains **64.3447%** (display **64.3%**). This is
+  a committed performance/correctness follow-up for the already-credited
+  extension settings surface and earns no new authoritative row yet.
+- `ec97c1d3a feat(extensions): add admin page bootstrap` adds
+  `GET /api/v1/admin/extensions/:id/page-bootstrap?path=<manifest-page>` and a
+  stable route identity `core.route.extensions.page_bootstrap@1`. `Store.Get`
+  runs once; only a manifest declaration whose `view` is `settings` reads and
+  returns localized masked settings; about/unknown pages return explicit nulls;
+  URL text never implies page type; GET does not start extension runtime code.
+  Metadata requires `extension.view`, while matching plugin/theme/mail settings
+  managers may configure their declared settings page without an accidental
+  reverse dependency on `extension.view`.
+- `12cab0dc0 feat(openapi): document extension page bootstrap` adds the modular
+  path and nullable response contract. Exact patch staging excluded the
+  independent Host-owned `Link` description hunk. `bf2516e22 feat(web): consume
+  extension page bootstrap` replaces the detail-then-settings waterfall with
+  one lazy request. A request-start key binds extension, path, and locale so
+  Nuxt reactive-key seeding cannot display or write a previous extension's
+  settings while a new request is pending. The list cache may paint the title
+  and declared shell immediately; the Host bootstrap remains authoritative.
+- Authenticated Chrome desktop evidence reported the page's own warm metric at
+  about **217ms** from the default-theme list to the first field (previously
+  about **897ms**), **826ms** for SMTP settings (previously about **1.30s**),
+  and **314ms** for SMTP-to-theme tab switching. The switched page contained
+  one theme field and zero stale SMTP fields. Warm full reload was about
+  **1.39s**; a **5.54s** cold reload followed an HMR compile and is not a stable
+  production measurement. Theme and SMTP forms, about, unknown-page null state,
+  tabs, unchanged-value save plus success toast, overlay absence, and fresh
+  console warning/error absence passed. The Browser Chrome backend ignored its
+  requested 390x844 override and stayed 1920px wide, so authenticated mobile
+  visual evidence remains explicitly unproven rather than being claimed.
+- API health was about **3-7ms** and unauthenticated bootstrap rejection about
+  **5.6ms**. Four leftover Air watchers were competing for port 8081; three
+  Codex-owned duplicates were stopped and one healthy watcher retained. This
+  explains the earlier 2.9s/502 restart samples and prevents further duplicate
+  hot-reload churn without touching the user's port 3000 frontend.
+- Focused Extensions model/controller tests, complete Models/Controller/Http/
+  Routes tests, relevant race tests, four-package vet, Bun settings/prebuilt
+  tests (**9/9**), Nuxt typecheck, OpenAPI validation (**1932 refs / 49 files**),
+  V3 catalog drift (**15 files**), and diff checks passed. Independent Grok
+  reviews found no remaining page-bootstrap blocker and confirmed the exact
+  dirty-worktree split. The Core Route Catalog now has **234** reviewed routes.
+- Exact resume point: finish a clean-HEAD archive verification and this docs
+  checkpoint, then return to P6 required replay/Core execution fencing and the
+  remaining Stream V2 total-budget, automatic lease release, typed schema,
+  incident-source, and real subprocess correlation evidence. Mobile/no-JS
+  frontend gates remain required at the later shared/P13 browser gate.
+
 ### 2026-07-17 P6 Stream Evidence Commit
 
 - Verified weighted progress remains **64.3447%** (display **64.3%**); P6 stays
