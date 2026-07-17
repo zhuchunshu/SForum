@@ -30,8 +30,13 @@ func TestRequiredReplayRedisBackendIntegration(t *testing.T) {
 		key := "redis-roundtrip-" + unique
 		fullKey := requiredReplayRedisCleanKey(t, client, store, scope, key)
 		fingerprint := strings.Repeat("a", 64)
+		binding := requiredReplayV3TestBinding(fingerprint)
+		binding.PlanDigest = strings.Repeat("d", 64)
 		secret := "redis-mutation-secret-" + unique
-		lease, replay, err := store.BeginRequiredReplay(ctx, scope, key, fingerprint)
+		bodySecret := "redis-response-body-secret-" + unique
+		headerSecret := "redis-response-header-secret-" + unique
+		canonicalSecret := "/redis/canonical-secret-" + unique
+		lease, replay, err := store.BeginRequiredReplayBound(ctx, scope, key, binding)
 		if err != nil || replay != nil || lease.storageKey == "" {
 			t.Fatalf("begin: lease=%#v replay=%#v error=%v", lease, replay, err)
 		}
@@ -39,10 +44,10 @@ func TestRequiredReplayRedisBackendIntegration(t *testing.T) {
 			Status: http.StatusCreated,
 			Headers: http.Header{
 				"Content-Type": {"application/json"},
-				"X-Result":     {"redis"},
+				"X-Result":     {headerSecret},
 			},
-			Body:          []byte(`{"created":true}`),
-			CanonicalPath: "/redis/integration",
+			Body:          []byte(bodySecret),
+			CanonicalPath: canonicalSecret,
 			Authorization: requiredReplayRedisAuthorization(secret),
 		}
 		if err := store.CompleteRequiredReplay(ctx, lease, response); err != nil {
@@ -54,30 +59,31 @@ func TestRequiredReplayRedisBackendIntegration(t *testing.T) {
 			t.Fatal(err)
 		}
 		for _, plaintext := range []string{
-			secret, "requestMutations", "beforeDigest", "afterDigest", "sforum.route-replay-authorization@1",
+			secret, bodySecret, headerSecret, canonicalSecret, "requestMutations", "beforeDigest", "afterDigest",
+			"sforum.route-replay-authorization@1", `"response"`, `"authorizationCiphertext"`,
 		} {
 			if strings.Contains(string(raw), plaintext) {
 				t.Fatalf("Redis record contains mutation plaintext %q: %s", plaintext, raw)
 			}
 		}
-		if !strings.Contains(string(raw), `"authorizationCiphertext"`) {
-			t.Fatalf("Redis record has no encrypted transcript: %s", raw)
+		if !strings.Contains(string(raw), `"payloadCiphertext"`) {
+			t.Fatalf("Redis record has no encrypted payload: %s", raw)
 		}
 		ttl, err := client.PTTL(ctx, fullKey).Result()
 		if err != nil || ttl > DefaultTTL || ttl < DefaultTTL-2*time.Minute {
 			t.Fatalf("Redis replay PTTL=%s error=%v", ttl, err)
 		}
 
-		_, first, err := store.BeginRequiredReplay(ctx, scope, key, fingerprint)
-		if err != nil || !requiredReplayRedisResponseMatches(first, secret, `{"created":true}`) {
+		_, first, err := store.BeginRequiredReplayBound(ctx, scope, key, binding)
+		if err != nil || !requiredReplayRedisResponseMatches(first, secret, bodySecret) {
 			t.Fatalf("first replay=%#v error=%v", first, err)
 		}
 		first.Body[0] = '!'
 		first.Headers.Set("X-Result", "mutated")
 		first.Authorization.RequestMutations[0].Operations[0].Value[1] = 'X'
-		_, detached, err := store.BeginRequiredReplay(ctx, scope, key, fingerprint)
-		if err != nil || !requiredReplayRedisResponseMatches(detached, secret, `{"created":true}`) ||
-			detached.Headers.Get("X-Result") != "redis" {
+		_, detached, err := store.BeginRequiredReplayBound(ctx, scope, key, binding)
+		if err != nil || !requiredReplayRedisResponseMatches(detached, secret, bodySecret) ||
+			detached.Headers.Get("X-Result") != headerSecret || detached.CanonicalPath != canonicalSecret {
 			t.Fatalf("detached replay=%#v error=%v", detached, err)
 		}
 	})
@@ -86,14 +92,14 @@ func TestRequiredReplayRedisBackendIntegration(t *testing.T) {
 		key := "redis-cas-" + unique
 		requiredReplayRedisCleanKey(t, client, store, scope, key)
 		fingerprint := strings.Repeat("b", 64)
-		stale, _, err := store.BeginRequiredReplay(ctx, scope, key, fingerprint)
+		stale, _, err := store.BeginRequiredReplayBound(ctx, scope, key, requiredReplayV3TestBinding(fingerprint))
 		if err != nil {
 			t.Fatal(err)
 		}
 		if err := store.AbortRequiredReplay(ctx, stale); err != nil {
 			t.Fatal(err)
 		}
-		owner, _, err := store.BeginRequiredReplay(ctx, scope, key, fingerprint)
+		owner, _, err := store.BeginRequiredReplayBound(ctx, scope, key, requiredReplayV3TestBinding(fingerprint))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -101,7 +107,9 @@ func TestRequiredReplayRedisBackendIntegration(t *testing.T) {
 		if err := store.AbortRequiredReplay(ctx, stale); err != nil {
 			t.Fatal(err)
 		}
-		if _, _, err := store.BeginRequiredReplay(ctx, scope, key, fingerprint); !errors.Is(err, ErrRequiredReplayInProgress) {
+		if _, _, err := store.BeginRequiredReplayBound(
+			ctx, scope, key, requiredReplayV3TestBinding(fingerprint),
+		); !errors.Is(err, ErrRequiredReplayInProgress) {
 			t.Fatalf("stale abort removed replacement owner: %v", err)
 		}
 		if err := store.CompleteRequiredReplay(ctx, stale, RequiredReplayResponse{
@@ -114,7 +122,7 @@ func TestRequiredReplayRedisBackendIntegration(t *testing.T) {
 		}); err != nil {
 			t.Fatal(err)
 		}
-		_, replay, err := store.BeginRequiredReplay(ctx, scope, key, fingerprint)
+		_, replay, err := store.BeginRequiredReplayBound(ctx, scope, key, requiredReplayV3TestBinding(fingerprint))
 		if err != nil || replay == nil || string(replay.Body) != "owner" {
 			t.Fatalf("owner replay=%#v error=%v", replay, err)
 		}
@@ -125,8 +133,10 @@ func TestRequiredReplayRedisBackendIntegration(t *testing.T) {
 		key := "redis-concurrent-" + unique
 		requiredReplayRedisCleanKey(t, client, store, scope, key)
 		fingerprint := strings.Repeat("c", 64)
+		binding := requiredReplayV3TestBinding(fingerprint)
+		binding.PlanDigest = strings.Repeat("d", 64)
 		secret := "redis-concurrent-secret-" + unique
-		results := requiredReplayRedisConcurrentBegin(ctx, store, scope, key, fingerprint, callers)
+		results := requiredReplayRedisConcurrentBegin(ctx, store, scope, key, binding, callers)
 		winners := make([]RequiredReplayLease, 0, 1)
 		inProgress := 0
 		for _, result := range results {
@@ -151,7 +161,7 @@ func TestRequiredReplayRedisBackendIntegration(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		replays := requiredReplayRedisConcurrentBegin(ctx, store, scope, key, fingerprint, callers)
+		replays := requiredReplayRedisConcurrentBegin(ctx, store, scope, key, binding, callers)
 		for index, result := range replays {
 			if result.err != nil || result.lease.storageKey != "" ||
 				!requiredReplayRedisResponseMatches(result.replay, secret, `{"winner":true}`) ||
@@ -163,7 +173,7 @@ func TestRequiredReplayRedisBackendIntegration(t *testing.T) {
 			result.replay.Headers.Set("X-Result", strconv.Itoa(index))
 			result.replay.Authorization.RequestMutations[0].Operations[0].Value[1] = byte('A' + index%26)
 		}
-		_, finalReplay, err := store.BeginRequiredReplay(ctx, scope, key, fingerprint)
+		_, finalReplay, err := store.BeginRequiredReplayBound(ctx, scope, key, binding)
 		if err != nil || !requiredReplayRedisResponseMatches(finalReplay, secret, `{"winner":true}`) ||
 			finalReplay.Headers.Get("X-Result") != "winner" {
 			t.Fatalf("final detached replay=%#v error=%v", finalReplay, err)
@@ -181,7 +191,8 @@ func requiredReplayRedisConcurrentBegin(
 	ctx context.Context,
 	store *Store,
 	scope RequiredReplayScope,
-	key, fingerprint string,
+	key string,
+	binding RequiredReplayBinding,
 	callers int,
 ) []requiredReplayRedisBeginResult {
 	start := make(chan struct{})
@@ -192,7 +203,9 @@ func requiredReplayRedisConcurrentBegin(
 		go func() {
 			defer wait.Done()
 			<-start
-			lease, replay, err := store.BeginRequiredReplay(ctx, scope, key, fingerprint)
+			lease, replay, err := store.BeginRequiredReplayBound(
+				ctx, scope, key, binding,
+			)
 			results <- requiredReplayRedisBeginResult{lease: lease, replay: replay, err: err}
 		}()
 	}

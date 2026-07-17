@@ -98,6 +98,16 @@ func TestRequiredReplayCipherV2RejectsMissingAndInvalidKeys(t *testing.T) {
 			); !errors.Is(err, ErrRequiredReplayCipherInvalid) {
 				t.Fatalf("decrypt error = %v", err)
 			}
+			if _, err := cipher.EncryptReplay(
+				"storage", strings.Repeat("a", 64), strings.Repeat("b", 64), []byte("secret"),
+			); !errors.Is(err, ErrRequiredReplayCipherInvalid) {
+				t.Fatalf("encrypt replay error = %v", err)
+			}
+			if _, err := cipher.DecryptReplay(
+				"storage", strings.Repeat("a", 64), strings.Repeat("b", 64), "ciphertext",
+			); !errors.Is(err, ErrRequiredReplayCipherInvalid) {
+				t.Fatalf("decrypt replay error = %v", err)
+			}
 		})
 	}
 	for _, key := range []string{"not-hex", strings.Repeat("01", 31), strings.Repeat("01", 33)} {
@@ -107,22 +117,27 @@ func TestRequiredReplayCipherV2RejectsMissingAndInvalidKeys(t *testing.T) {
 	}
 }
 
-func TestRequiredReplayV2EncryptsMutationTranscriptAndDetachesReplay(t *testing.T) {
+func TestRequiredReplayV3EncryptsCompleteResponseAndDetachesReplay(t *testing.T) {
 	backend := NewMemoryBackend()
 	store := NewStore(backend, DefaultTTL).WithRequiredReplayCipher(requiredReplayV2TestCipher(t, "03"))
 	scope := requiredReplayTestScope("actor:72:bearer")
 	fingerprint := strings.Repeat("a", 64)
 	secret := "mutation-secret-must-not-reach-redis"
-	lease, replay, err := store.BeginRequiredReplay(t.Context(), scope, "encrypted-transcript", fingerprint)
+	body := `{"created":"response-body-secret-must-not-reach-redis"}`
+	headerValue := "response-header-secret-must-not-reach-redis"
+	canonicalPath := "/created/canonical-secret-must-not-reach-redis"
+	lease, replay, err := store.BeginRequiredReplayBound(
+		t.Context(), scope, "encrypted-transcript", requiredReplayV3TestBinding(fingerprint),
+	)
 	if err != nil || replay != nil {
 		t.Fatalf("begin: lease=%#v replay=%#v error=%v", lease, replay, err)
 	}
 	authorization := requiredReplayV2TestAuthorization(secret)
 	response := RequiredReplayResponse{
 		Status:        http.StatusCreated,
-		Headers:       http.Header{"Content-Type": {"application/json"}},
-		Body:          []byte(`{"created":true}`),
-		CanonicalPath: "/created/72",
+		Headers:       http.Header{"Content-Type": {"application/json"}, "X-Private-Result": {headerValue}},
+		Body:          []byte(body),
+		CanonicalPath: canonicalPath,
 		Authorization: authorization,
 	}
 	if err := store.CompleteRequiredReplay(t.Context(), lease, response); err != nil {
@@ -130,46 +145,58 @@ func TestRequiredReplayV2EncryptsMutationTranscriptAndDetachesReplay(t *testing.
 	}
 
 	raw := requiredReplayV2StoredBytes(t, store, backend, lease.storageKey)
-	for _, forbidden := range []string{secret, "requestMutations", "beforeDigest", "afterDigest", "sforum.route-replay-authorization@1"} {
+	for _, forbidden := range []string{
+		secret, body, headerValue, canonicalPath, "requestMutations", "beforeDigest", "afterDigest",
+		"sforum.route-replay-authorization@1", `"response"`, `"authorizationCiphertext"`,
+	} {
 		if bytes.Contains(raw, []byte(forbidden)) {
-			t.Fatalf("raw replay record contains transcript plaintext %q: %s", forbidden, raw)
+			t.Fatalf("raw replay record contains payload plaintext %q: %s", forbidden, raw)
 		}
 	}
-	if !bytes.Contains(raw, []byte(`"authorizationCiphertext"`)) {
-		t.Fatalf("raw replay record has no encrypted transcript: %s", raw)
+	if !bytes.Contains(raw, []byte(`"payloadCiphertext"`)) {
+		t.Fatalf("raw replay record has no encrypted payload: %s", raw)
 	}
 	var record requiredReplayRecord
-	if err := json.Unmarshal(raw, &record); err != nil || record.Schema != requiredReplaySchemaV2 ||
-		record.AuthorizationCiphertext == "" || record.PlanDigest != authorization.PlanDigest ||
-		record.Response == nil || record.Response.Authorization != nil {
+	if err := json.Unmarshal(raw, &record); err != nil || record.Schema != requiredReplaySchemaV3 ||
+		record.PayloadCiphertext == "" || record.AuthorizationCiphertext != "" ||
+		record.PlanDigest != authorization.PlanDigest ||
+		record.Response != nil {
 		t.Fatalf("stored record = %#v, %v", record, err)
 	}
 
 	// Mutating caller-owned values after completion must not alter the stored record.
 	response.Body[0] = '!'
 	authorization.RequestMutations[0].Operations[0].Value[1] = 'X'
-	_, first, err := store.BeginRequiredReplay(t.Context(), scope, "encrypted-transcript", fingerprint)
-	if err != nil || first == nil || first.Authorization == nil || string(first.Body) != `{"created":true}` ||
+	_, first, err := store.BeginRequiredReplayBound(
+		t.Context(), scope, "encrypted-transcript", requiredReplayV3TestBinding(fingerprint),
+	)
+	if err != nil || first == nil || first.Authorization == nil || string(first.Body) != body ||
+		first.Headers.Get("X-Private-Result") != headerValue || first.CanonicalPath != canonicalPath ||
 		string(first.Authorization.RequestMutations[0].Operations[0].Value) != `"`+secret+`"` {
 		t.Fatalf("first replay = %#v, %v", first, err)
 	}
 	first.Body[0] = '?'
 	first.Headers.Set("Content-Type", "mutated")
 	first.Authorization.RequestMutations[0].Operations[0].Value[1] = 'Y'
-	_, detached, err := store.BeginRequiredReplay(t.Context(), scope, "encrypted-transcript", fingerprint)
-	if err != nil || detached == nil || detached.Authorization == nil || string(detached.Body) != `{"created":true}` ||
+	_, detached, err := store.BeginRequiredReplayBound(
+		t.Context(), scope, "encrypted-transcript", requiredReplayV3TestBinding(fingerprint),
+	)
+	if err != nil || detached == nil || detached.Authorization == nil || string(detached.Body) != body ||
 		detached.Headers.Get("Content-Type") != "application/json" ||
+		detached.Headers.Get("X-Private-Result") != headerValue || detached.CanonicalPath != canonicalPath ||
 		string(detached.Authorization.RequestMutations[0].Operations[0].Value) != `"`+secret+`"` {
 		t.Fatalf("detached replay = %#v, %v", detached, err)
 	}
 }
 
-func TestRequiredReplayV2WrongKeyFailsClosedWithoutReplacingRecord(t *testing.T) {
+func TestRequiredReplayV3WrongKeyFailsClosedWithoutReplacingRecord(t *testing.T) {
 	backend := NewMemoryBackend()
 	right := NewStore(backend, DefaultTTL).WithRequiredReplayCipher(requiredReplayV2TestCipher(t, "04"))
 	scope := requiredReplayTestScope("actor:73:cookie")
 	fingerprint := strings.Repeat("b", 64)
-	lease, _, err := right.BeginRequiredReplay(t.Context(), scope, "rotation", fingerprint)
+	lease, _, err := right.BeginRequiredReplayBound(
+		t.Context(), scope, "rotation", requiredReplayV3TestBinding(fingerprint),
+	)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -183,8 +210,8 @@ func TestRequiredReplayV2WrongKeyFailsClosedWithoutReplacingRecord(t *testing.T)
 	beforeExpiry := backend.items[fullKey].expiresAt
 
 	wrong := NewStore(backend, DefaultTTL).WithRequiredReplayCipher(requiredReplayV2TestCipher(t, "05"))
-	if _, replay, err := wrong.BeginRequiredReplay(
-		t.Context(), scope, "rotation", fingerprint,
+	if _, replay, err := wrong.BeginRequiredReplayBound(
+		t.Context(), scope, "rotation", requiredReplayV3TestBinding(fingerprint),
 	); replay != nil || !errors.Is(err, ErrRequiredReplayUnavailable) || !errors.Is(err, ErrRequiredReplayCipherInvalid) {
 		t.Fatalf("wrong-key replay = %#v, %v", replay, err)
 	}
@@ -192,8 +219,8 @@ func TestRequiredReplayV2WrongKeyFailsClosedWithoutReplacingRecord(t *testing.T)
 	if !bytes.Equal(entry.value, before) || !entry.expiresAt.Equal(beforeExpiry) {
 		t.Fatal("wrong-key replay replaced or refreshed the durable record")
 	}
-	if _, replay, err := right.BeginRequiredReplay(
-		t.Context(), scope, "rotation", fingerprint,
+	if _, replay, err := right.BeginRequiredReplayBound(
+		t.Context(), scope, "rotation", requiredReplayV3TestBinding(fingerprint),
 	); err != nil || replay == nil || replay.Authorization == nil {
 		t.Fatalf("right-key replay after failed rotation = %#v, %v", replay, err)
 	}
@@ -210,8 +237,8 @@ func TestRequiredReplayV1V2PendingAndCompletedCompatibility(t *testing.T) {
 			Fingerprint: legacyFingerprint, LeaseToken: strings.Repeat("1", 32),
 		})
 		_ = backend
-		if _, _, err := store.BeginRequiredReplay(
-			t.Context(), scope, "v1-pending", currentFingerprint, legacyFingerprint,
+		if _, _, err := store.BeginRequiredReplayBound(
+			t.Context(), scope, "v1-pending", requiredReplayV3TestBinding(currentFingerprint, legacyFingerprint),
 		); !errors.Is(err, ErrRequiredReplayInProgress) {
 			t.Fatalf("V1 pending error = %v", err)
 		}
@@ -222,8 +249,8 @@ func TestRequiredReplayV1V2PendingAndCompletedCompatibility(t *testing.T) {
 			Schema: requiredReplaySchemaV2, State: requiredReplayPending,
 			Fingerprint: currentFingerprint, LeaseToken: strings.Repeat("2", 32),
 		})
-		if _, _, err := store.BeginRequiredReplay(
-			t.Context(), scope, "v2-pending", currentFingerprint,
+		if _, _, err := store.BeginRequiredReplayBound(
+			t.Context(), scope, "v2-pending", requiredReplayV3TestBinding(currentFingerprint),
 		); !errors.Is(err, ErrRequiredReplayInProgress) {
 			t.Fatalf("V2 pending error = %v", err)
 		}
@@ -234,8 +261,8 @@ func TestRequiredReplayV1V2PendingAndCompletedCompatibility(t *testing.T) {
 			Schema: requiredReplaySchemaV1, State: requiredReplayCompleted, Fingerprint: legacyFingerprint,
 			Response: &RequiredReplayResponse{Status: http.StatusCreated, Body: []byte("legacy")},
 		})
-		_, replay, err := store.BeginRequiredReplay(
-			t.Context(), scope, "v1-completed", currentFingerprint, legacyFingerprint,
+		_, replay, err := store.BeginRequiredReplayBound(
+			t.Context(), scope, "v1-completed", requiredReplayV3TestBinding(currentFingerprint, legacyFingerprint),
 		)
 		if err != nil || replay == nil || string(replay.Body) != "legacy" || replay.Authorization != nil {
 			t.Fatalf("V1 replay = %#v, %v", replay, err)
@@ -247,9 +274,42 @@ func TestRequiredReplayV1V2PendingAndCompletedCompatibility(t *testing.T) {
 			Schema: requiredReplaySchemaV2, State: requiredReplayCompleted, Fingerprint: currentFingerprint,
 			Response: &RequiredReplayResponse{Status: http.StatusOK, Body: []byte("current")},
 		})
-		_, replay, err := store.BeginRequiredReplay(t.Context(), scope, "v2-completed", currentFingerprint)
+		_, replay, err := store.BeginRequiredReplayBound(
+			t.Context(), scope, "v2-completed", requiredReplayV3TestBinding(currentFingerprint),
+		)
 		if err != nil || replay == nil || string(replay.Body) != "current" || replay.Authorization != nil {
 			t.Fatalf("V2 replay = %#v, %v", replay, err)
+		}
+	})
+
+	t.Run("V2 completed encrypted transcript remains compatible", func(t *testing.T) {
+		cipher := requiredReplayV2TestCipher(t, "0b")
+		key := "v2-encrypted"
+		storageKey, err := requiredReplayStorageKey(scope, key)
+		if err != nil {
+			t.Fatal(err)
+		}
+		authorization := requiredReplayV2TestAuthorization("v2-compatibility-secret")
+		plaintext, err := json.Marshal(authorization)
+		if err != nil {
+			t.Fatal(err)
+		}
+		ciphertext, err := cipher.Encrypt(storageKey, currentFingerprint, authorization.PlanDigest, plaintext)
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, store := requiredReplayV2SeedRecord(t, scope, key, requiredReplayRecord{
+			Schema: requiredReplaySchemaV2, State: requiredReplayCompleted, Fingerprint: currentFingerprint,
+			Response:   &RequiredReplayResponse{Status: http.StatusOK, Body: []byte("v2-response")},
+			PlanDigest: authorization.PlanDigest, AuthorizationCiphertext: ciphertext,
+		})
+		store.WithRequiredReplayCipher(cipher)
+		_, replay, err := store.BeginRequiredReplayBound(
+			t.Context(), scope, key, requiredReplayV3TestBinding(currentFingerprint),
+		)
+		if err != nil || replay == nil || replay.Authorization == nil || string(replay.Body) != "v2-response" ||
+			string(replay.Authorization.RequestMutations[0].Operations[0].Value) != `"v2-compatibility-secret"` {
+			t.Fatalf("V2 encrypted replay = %#v, %v", replay, err)
 		}
 	})
 
@@ -258,8 +318,8 @@ func TestRequiredReplayV1V2PendingAndCompletedCompatibility(t *testing.T) {
 			Schema: requiredReplaySchemaV2, State: requiredReplayCompleted, Fingerprint: legacyFingerprint,
 			Response: &RequiredReplayResponse{Status: http.StatusOK, Body: []byte("wrong-version")},
 		})
-		_, replay, err := store.BeginRequiredReplay(
-			t.Context(), scope, "v2-legacy-fingerprint", currentFingerprint, legacyFingerprint,
+		_, replay, err := store.BeginRequiredReplayBound(
+			t.Context(), scope, "v2-legacy-fingerprint", requiredReplayV3TestBinding(currentFingerprint, legacyFingerprint),
 		)
 		if replay != nil || !errors.Is(err, ErrRequiredReplayFingerprintConflict) {
 			t.Fatalf("V2 record used V1 compatibility: replay=%#v error=%v", replay, err)
@@ -282,6 +342,27 @@ func TestRequiredReplayV1V2PendingAndCompletedCompatibility(t *testing.T) {
 		{name: "V2 ciphertext without plan", record: requiredReplayRecord{
 			Schema: requiredReplaySchemaV2, State: requiredReplayCompleted, Fingerprint: currentFingerprint,
 			Response: &RequiredReplayResponse{Status: http.StatusOK}, AuthorizationCiphertext: "ciphertext",
+		}},
+		{name: "V2 payload ciphertext", record: requiredReplayRecord{
+			Schema: requiredReplaySchemaV2, State: requiredReplayCompleted, Fingerprint: currentFingerprint,
+			Response: &RequiredReplayResponse{Status: http.StatusOK}, PayloadCiphertext: "ciphertext",
+		}},
+		{name: "V3 plaintext response", record: requiredReplayRecord{
+			Schema: requiredReplaySchemaV3, State: requiredReplayCompleted, Fingerprint: currentFingerprint,
+			PlanDigest: strings.Repeat("e", 64), Response: &RequiredReplayResponse{Status: http.StatusOK},
+			PayloadCiphertext: "ciphertext",
+		}},
+		{name: "V3 legacy ciphertext fields", record: requiredReplayRecord{
+			Schema: requiredReplaySchemaV3, State: requiredReplayCompleted, Fingerprint: currentFingerprint,
+			PlanDigest: strings.Repeat("e", 64), AuthorizationCiphertext: "legacy", PayloadCiphertext: "ciphertext",
+		}},
+		{name: "V3 missing payload", record: requiredReplayRecord{
+			Schema: requiredReplaySchemaV3, State: requiredReplayCompleted, Fingerprint: currentFingerprint,
+			PlanDigest: strings.Repeat("e", 64),
+		}},
+		{name: "V3 pending with payload", record: requiredReplayRecord{
+			Schema: requiredReplaySchemaV3, State: requiredReplayPending, Fingerprint: currentFingerprint,
+			PlanDigest: strings.Repeat("e", 64), LeaseToken: strings.Repeat("3", 32), PayloadCiphertext: "ciphertext",
 		}},
 	}
 	for _, test := range invalid {
@@ -331,32 +412,27 @@ func TestRequiredReplayV2CompletionFailuresPreservePending(t *testing.T) {
 	scope := requiredReplayTestScope("actor:75:cookie")
 	fingerprint := strings.Repeat("f", 64)
 
-	t.Run("missing cipher fails before CAS", func(t *testing.T) {
+	t.Run("missing cipher never acquires a new record", func(t *testing.T) {
 		backend := &requiredReplayV2CASBackend{MemoryBackend: NewMemoryBackend()}
 		store := NewStore(backend, DefaultTTL)
-		lease, _, err := store.BeginRequiredReplay(t.Context(), scope, "missing-cipher", fingerprint)
-		if err != nil {
-			t.Fatal(err)
+		lease, replay, err := store.BeginRequiredReplayBound(
+			t.Context(), scope, "missing-cipher", requiredReplayV3TestBinding(fingerprint),
+		)
+		if lease.storageKey != "" || replay != nil || !errors.Is(err, ErrRequiredReplayUnavailable) ||
+			!errors.Is(err, ErrRequiredReplayCipherInvalid) {
+			t.Fatalf("begin result: lease=%#v replay=%#v error=%v", lease, replay, err)
 		}
-		if err := store.CompleteRequiredReplay(t.Context(), lease, RequiredReplayResponse{
-			Status: http.StatusOK, Authorization: requiredReplayV2TestAuthorization("missing-cipher-secret"),
-		}); !errors.Is(err, ErrRequiredReplayUnavailable) || !errors.Is(err, ErrRequiredReplayCipherInvalid) {
-			t.Fatalf("completion error = %v", err)
-		}
-		if backend.casCalls != 0 {
-			t.Fatalf("missing cipher reached CAS %d times", backend.casCalls)
-		}
-		if _, _, err := store.BeginRequiredReplay(
-			t.Context(), scope, "missing-cipher", fingerprint,
-		); !errors.Is(err, ErrRequiredReplayInProgress) {
-			t.Fatalf("missing-cipher completion released pending: %v", err)
+		if backend.casCalls != 0 || len(backend.items) != 0 {
+			t.Fatalf("missing cipher mutated storage: CAS=%d items=%d", backend.casCalls, len(backend.items))
 		}
 	})
 
 	t.Run("CAS error preserves pending", func(t *testing.T) {
 		backend := &requiredReplayV2CASBackend{MemoryBackend: NewMemoryBackend(), casErr: errors.New("redis unavailable")}
 		store := NewStore(backend, DefaultTTL).WithRequiredReplayCipher(requiredReplayV2TestCipher(t, "06"))
-		lease, _, err := store.BeginRequiredReplay(t.Context(), scope, "cas-error", fingerprint)
+		lease, _, err := store.BeginRequiredReplayBound(
+			t.Context(), scope, "cas-error", requiredReplayV3TestBinding(fingerprint),
+		)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -368,8 +444,8 @@ func TestRequiredReplayV2CompletionFailuresPreservePending(t *testing.T) {
 		if backend.casCalls != 1 {
 			t.Fatalf("CAS calls = %d", backend.casCalls)
 		}
-		if _, _, err := store.BeginRequiredReplay(
-			t.Context(), scope, "cas-error", fingerprint,
+		if _, _, err := store.BeginRequiredReplayBound(
+			t.Context(), scope, "cas-error", requiredReplayV3TestBinding(fingerprint),
 		); !errors.Is(err, ErrRequiredReplayInProgress) {
 			t.Fatalf("CAS error released pending: %v", err)
 		}
@@ -378,7 +454,9 @@ func TestRequiredReplayV2CompletionFailuresPreservePending(t *testing.T) {
 	t.Run("CAS loss preserves the replacement owner", func(t *testing.T) {
 		backend := &requiredReplayV2CASBackend{MemoryBackend: NewMemoryBackend(), casLost: true}
 		store := NewStore(backend, DefaultTTL).WithRequiredReplayCipher(requiredReplayV2TestCipher(t, "07"))
-		lease, _, err := store.BeginRequiredReplay(t.Context(), scope, "cas-lost", fingerprint)
+		lease, _, err := store.BeginRequiredReplayBound(
+			t.Context(), scope, "cas-lost", requiredReplayV3TestBinding(fingerprint),
+		)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -387,8 +465,8 @@ func TestRequiredReplayV2CompletionFailuresPreservePending(t *testing.T) {
 		}); !errors.Is(err, ErrRequiredReplayLeaseLost) {
 			t.Fatalf("completion error = %v", err)
 		}
-		if _, _, err := store.BeginRequiredReplay(
-			t.Context(), scope, "cas-lost", fingerprint,
+		if _, _, err := store.BeginRequiredReplayBound(
+			t.Context(), scope, "cas-lost", requiredReplayV3TestBinding(fingerprint),
 		); !errors.Is(err, ErrRequiredReplayInProgress) {
 			t.Fatalf("CAS loss released pending: %v", err)
 		}
@@ -438,6 +516,13 @@ func requiredReplayV2TestAuthorization(secret string) *RequiredReplayAuthorizati
 				Kind: "replace", Path: "/body/private", Value: json.RawMessage(`"` + secret + `"`),
 			}},
 		}},
+	}
+}
+
+func requiredReplayV3TestBinding(fingerprint string, compatible ...string) RequiredReplayBinding {
+	return RequiredReplayBinding{
+		Fingerprint: fingerprint, PlanDigest: strings.Repeat("a", 64),
+		CompatibleFingerprints: append([]string(nil), compatible...),
 	}
 }
 

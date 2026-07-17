@@ -16,16 +16,20 @@ import (
 )
 
 const (
-	RequiredReplayPolicy           = "required.24h@1"
-	MaxRequiredReplayBody          = 8 << 20
-	MaxRequiredReplayHeaders       = 64 << 10
-	MaxRequiredReplayEvidence      = 8 << 20
-	MaxRequiredReplayRecord        = 24 << 20
-	MaxRequiredReplayCanonicalPath = 8 << 10
-	requiredReplaySchemaV1         = "sforum.required-route-replay@1"
-	requiredReplaySchemaV2         = "sforum.required-route-replay@2"
-	requiredReplayPending          = "pending"
-	requiredReplayCompleted        = "completed"
+	RequiredReplayPolicy             = "required.24h@1"
+	MaxRequiredReplayBody            = 8 << 20
+	MaxRequiredReplayHeaders         = 64 << 10
+	MaxRequiredReplayEvidence        = 8 << 20
+	MaxRequiredReplayRecord          = 24 << 20
+	MaxRequiredReplayPayload         = 22 << 20
+	MaxRequiredReplayEncryptedRecord = 32 << 20
+	MaxRequiredReplayCanonicalPath   = 8 << 10
+	requiredReplaySchemaV1           = "sforum.required-route-replay@1"
+	requiredReplaySchemaV2           = "sforum.required-route-replay@2"
+	requiredReplaySchemaV3           = "sforum.required-route-replay@3"
+	requiredReplayPayloadSchemaV1    = "sforum.required-route-replay-payload@1"
+	requiredReplayPending            = "pending"
+	requiredReplayCompleted          = "completed"
 )
 
 var (
@@ -46,6 +50,12 @@ type RequiredReplayScope struct {
 	RouteID          string `json:"routeId"`
 	ContractVersion  string `json:"contractVersion"`
 	Method           string `json:"method"`
+}
+
+type RequiredReplayBinding struct {
+	Fingerprint            string
+	PlanDigest             string
+	CompatibleFingerprints []string
 }
 
 type RequiredReplayResponse struct {
@@ -90,6 +100,14 @@ type requiredReplayRecord struct {
 	Response                *RequiredReplayResponse `json:"response,omitempty"`
 	PlanDigest              string                  `json:"planDigest,omitempty"`
 	AuthorizationCiphertext string                  `json:"authorizationCiphertext,omitempty"`
+	PayloadCiphertext       string                  `json:"payloadCiphertext,omitempty"`
+}
+
+type requiredReplayPayload struct {
+	Schema        string                       `json:"schema"`
+	PlanDigest    string                       `json:"planDigest"`
+	Response      *RequiredReplayResponse      `json:"response"`
+	Authorization *RequiredReplayAuthorization `json:"authorization,omitempty"`
 }
 
 func (s *Store) BeginRequiredReplay(
@@ -99,12 +117,35 @@ func (s *Store) BeginRequiredReplay(
 	fingerprint string,
 	compatibleFingerprints ...string,
 ) (RequiredReplayLease, *RequiredReplayResponse, error) {
+	return s.beginRequiredReplay(ctx, scope, key, RequiredReplayBinding{
+		Fingerprint: fingerprint, CompatibleFingerprints: compatibleFingerprints,
+	}, requiredReplaySchemaV2)
+}
+
+func (s *Store) BeginRequiredReplayBound(
+	ctx context.Context,
+	scope RequiredReplayScope,
+	key string,
+	binding RequiredReplayBinding,
+) (RequiredReplayLease, *RequiredReplayResponse, error) {
+	return s.beginRequiredReplay(ctx, scope, key, binding, requiredReplaySchemaV3)
+}
+
+func (s *Store) beginRequiredReplay(
+	ctx context.Context,
+	scope RequiredReplayScope,
+	key string,
+	binding RequiredReplayBinding,
+	writeSchema string,
+) (RequiredReplayLease, *RequiredReplayResponse, error) {
 	if s == nil || s.backend == nil {
 		return RequiredReplayLease{}, nil, ErrRequiredReplayUnavailable
 	}
 	if ctx == nil || !validRequiredReplayScope(scope) ||
-		!validRequiredReplayKey(key) || !validRequiredReplayFingerprint(fingerprint) ||
-		!validRequiredReplayCompatibleFingerprints(compatibleFingerprints) {
+		!validRequiredReplayKey(key) || !validRequiredReplayFingerprint(binding.Fingerprint) ||
+		writeSchema == requiredReplaySchemaV3 && !validRequiredReplayFingerprint(binding.PlanDigest) ||
+		writeSchema != requiredReplaySchemaV3 && binding.PlanDigest != "" ||
+		!validRequiredReplayCompatibleFingerprints(binding.CompatibleFingerprints) {
 		return RequiredReplayLease{}, nil, ErrRequiredReplayInvalid
 	}
 	storageKey, err := requiredReplayStorageKey(scope, key)
@@ -122,8 +163,14 @@ func (s *Store) BeginRequiredReplay(
 				return RequiredReplayLease{}, nil, errors.Join(ErrRequiredReplayUnavailable, decodeErr)
 			}
 			legacyCompatible := record.Schema == requiredReplaySchemaV1 &&
-				requiredReplayFingerprintCompatible(record.Fingerprint, compatibleFingerprints)
-			if record.Fingerprint != fingerprint && !legacyCompatible {
+				requiredReplayFingerprintCompatible(record.Fingerprint, binding.CompatibleFingerprints)
+			if record.Fingerprint != binding.Fingerprint && !legacyCompatible {
+				return RequiredReplayLease{}, nil, ErrRequiredReplayFingerprintConflict
+			}
+			if record.Schema == requiredReplaySchemaV3 && writeSchema != requiredReplaySchemaV3 {
+				return RequiredReplayLease{}, nil, ErrRequiredReplayUnavailable
+			}
+			if record.Schema == requiredReplaySchemaV3 && record.PlanDigest != binding.PlanDigest {
 				return RequiredReplayLease{}, nil, ErrRequiredReplayFingerprintConflict
 			}
 			switch record.State {
@@ -139,7 +186,16 @@ func (s *Store) BeginRequiredReplay(
 				return RequiredReplayLease{}, nil, ErrRequiredReplayUnavailable
 			}
 		}
-		pending, marshalErr := newRequiredReplayPending(fingerprint)
+		if writeSchema == requiredReplaySchemaV3 && !s.replayCipher.Enabled() {
+			// 先允许读取历史 V1/V2 response-only 记录；没有现存记录时，
+			// 缺少密钥必须在 SetNX 和任何插件执行前失败，绝不新增明文回放。
+			return RequiredReplayLease{}, nil, errors.Join(
+				ErrRequiredReplayUnavailable, ErrRequiredReplayCipherInvalid,
+			)
+		}
+		pending, marshalErr := s.newRequiredReplayPending(
+			binding.Fingerprint, binding.PlanDigest, writeSchema,
+		)
 		if marshalErr != nil {
 			return RequiredReplayLease{}, nil, errors.Join(ErrRequiredReplayUnavailable, marshalErr)
 		}
@@ -170,30 +226,19 @@ func (s *Store) CompleteRequiredReplay(
 	if err != nil || pending.State != requiredReplayPending {
 		return ErrRequiredReplayInvalid
 	}
-	storedResponse := cloneRequiredReplayResponse(&response)
-	storedResponse.Authorization = nil
-	completed := requiredReplayRecord{
-		Schema: pending.Schema, State: requiredReplayCompleted,
-		Fingerprint: pending.Fingerprint, Response: storedResponse,
-	}
-	if response.Authorization != nil {
-		plaintext, marshalErr := json.Marshal(response.Authorization)
-		if marshalErr != nil || len(plaintext) > MaxRequiredReplayEvidence {
-			return ErrRequiredReplayInvalid
-		}
-		completed.PlanDigest = response.Authorization.PlanDigest
-		completed.AuthorizationCiphertext, err = s.replayCipher.Encrypt(
-			lease.storageKey, pending.Fingerprint, completed.PlanDigest, plaintext,
-		)
-		if err != nil {
-			return errors.Join(ErrRequiredReplayUnavailable, err)
-		}
+	completed, err := s.newRequiredReplayCompleted(lease.storageKey, pending, response)
+	if err != nil {
+		return err
 	}
 	replacement, err := json.Marshal(completed)
 	if err != nil {
 		return errors.Join(ErrRequiredReplayUnavailable, err)
 	}
-	if len(replacement) > MaxRequiredReplayRecord {
+	recordLimit := MaxRequiredReplayRecord
+	if completed.Schema == requiredReplaySchemaV3 {
+		recordLimit = MaxRequiredReplayEncryptedRecord
+	}
+	if len(replacement) > recordLimit {
 		return ErrRequiredReplayInvalid
 	}
 	swapped, err := s.backend.CompareAndSwap(
@@ -222,39 +267,106 @@ func (s *Store) AbortRequiredReplay(ctx context.Context, lease RequiredReplayLea
 	return nil
 }
 
-func newRequiredReplayPending(fingerprint string) ([]byte, error) {
+func (s *Store) newRequiredReplayPending(fingerprint, planDigest, schema string) ([]byte, error) {
 	token := make([]byte, 16)
 	if _, err := rand.Read(token); err != nil {
 		return nil, err
 	}
 	return json.Marshal(requiredReplayRecord{
-		// V2 pending makes old binaries fail closed during a rolling deployment;
-		// the Redis key and public required.24h@1 policy remain unchanged.
-		Schema: requiredReplaySchemaV2, State: requiredReplayPending,
-		Fingerprint: fingerprint, LeaseToken: hex.EncodeToString(token),
+		// Older binaries reject V3 pending rows, so they cannot complete a bound
+		// lease as a plaintext V1/V2 response during a rolling deployment.
+		Schema: schema, State: requiredReplayPending,
+		Fingerprint: fingerprint, PlanDigest: planDigest, LeaseToken: hex.EncodeToString(token),
 	})
+}
+
+func (s *Store) newRequiredReplayCompleted(
+	storageKey string,
+	pending requiredReplayRecord,
+	response RequiredReplayResponse,
+) (requiredReplayRecord, error) {
+	storedResponse := cloneRequiredReplayResponse(&response)
+	storedResponse.Authorization = nil
+	completed := requiredReplayRecord{
+		Schema: pending.Schema, State: requiredReplayCompleted, Fingerprint: pending.Fingerprint,
+	}
+	switch pending.Schema {
+	case requiredReplaySchemaV2:
+		completed.Response = storedResponse
+		if response.Authorization == nil {
+			return completed, nil
+		}
+		plaintext, err := json.Marshal(response.Authorization)
+		if err != nil || len(plaintext) > MaxRequiredReplayEvidence {
+			return requiredReplayRecord{}, ErrRequiredReplayInvalid
+		}
+		completed.PlanDigest = response.Authorization.PlanDigest
+		completed.AuthorizationCiphertext, err = s.replayCipher.Encrypt(
+			storageKey, pending.Fingerprint, completed.PlanDigest, plaintext,
+		)
+		if err != nil {
+			return requiredReplayRecord{}, errors.Join(ErrRequiredReplayUnavailable, err)
+		}
+		return completed, nil
+	case requiredReplaySchemaV3:
+		if response.Authorization != nil && response.Authorization.PlanDigest != pending.PlanDigest {
+			return requiredReplayRecord{}, ErrRequiredReplayInvalid
+		}
+		completed.PlanDigest = pending.PlanDigest
+		payload, err := json.Marshal(requiredReplayPayload{
+			Schema: requiredReplayPayloadSchemaV1, PlanDigest: pending.PlanDigest, Response: storedResponse,
+			Authorization: cloneRequiredReplayAuthorization(response.Authorization),
+		})
+		if err != nil || len(payload) == 0 || len(payload) > MaxRequiredReplayPayload {
+			return requiredReplayRecord{}, ErrRequiredReplayInvalid
+		}
+		completed.PayloadCiphertext, err = s.replayCipher.EncryptReplay(
+			storageKey, pending.Fingerprint, pending.PlanDigest, payload,
+		)
+		if err != nil {
+			return requiredReplayRecord{}, errors.Join(ErrRequiredReplayUnavailable, err)
+		}
+		return completed, nil
+	default:
+		return requiredReplayRecord{}, ErrRequiredReplayInvalid
+	}
 }
 
 func decodeRequiredReplayRecord(raw []byte) (requiredReplayRecord, error) {
 	var record requiredReplayRecord
-	if len(raw) == 0 || len(raw) > MaxRequiredReplayRecord || json.Unmarshal(raw, &record) != nil ||
-		(record.Schema != requiredReplaySchemaV1 && record.Schema != requiredReplaySchemaV2) ||
+	if len(raw) == 0 || len(raw) > MaxRequiredReplayEncryptedRecord || json.Unmarshal(raw, &record) != nil ||
+		(record.Schema != requiredReplaySchemaV1 && record.Schema != requiredReplaySchemaV2 &&
+			record.Schema != requiredReplaySchemaV3) ||
 		!validRequiredReplayFingerprint(record.Fingerprint) {
+		return requiredReplayRecord{}, ErrRequiredReplayUnavailable
+	}
+	if record.Schema != requiredReplaySchemaV3 && len(raw) > MaxRequiredReplayRecord {
 		return requiredReplayRecord{}, ErrRequiredReplayUnavailable
 	}
 	switch record.State {
 	case requiredReplayPending:
-		if len(record.LeaseToken) != 32 || record.Response != nil || record.PlanDigest != "" ||
-			record.AuthorizationCiphertext != "" {
+		if len(record.LeaseToken) != 32 || record.Response != nil ||
+			record.AuthorizationCiphertext != "" || record.PayloadCiphertext != "" ||
+			record.Schema == requiredReplaySchemaV3 && !validRequiredReplayFingerprint(record.PlanDigest) ||
+			record.Schema != requiredReplaySchemaV3 && record.PlanDigest != "" {
 			return requiredReplayRecord{}, ErrRequiredReplayUnavailable
 		}
 	case requiredReplayCompleted:
-		if record.LeaseToken != "" || validateRequiredReplayResponsePointer(record.Response) != nil ||
-			record.Schema == requiredReplaySchemaV1 &&
-				(record.PlanDigest != "" || record.AuthorizationCiphertext != "") ||
-			(record.PlanDigest == "") != (record.AuthorizationCiphertext == "") ||
-			record.PlanDigest != "" && !validRequiredReplayFingerprint(record.PlanDigest) {
-			return requiredReplayRecord{}, ErrRequiredReplayUnavailable
+		switch record.Schema {
+		case requiredReplaySchemaV1, requiredReplaySchemaV2:
+			if record.LeaseToken != "" || record.PayloadCiphertext != "" ||
+				validateRequiredReplayResponsePointer(record.Response) != nil ||
+				record.Schema == requiredReplaySchemaV1 &&
+					(record.PlanDigest != "" || record.AuthorizationCiphertext != "") ||
+				(record.PlanDigest == "") != (record.AuthorizationCiphertext == "") ||
+				record.PlanDigest != "" && !validRequiredReplayFingerprint(record.PlanDigest) {
+				return requiredReplayRecord{}, ErrRequiredReplayUnavailable
+			}
+		case requiredReplaySchemaV3:
+			if record.LeaseToken != "" || record.Response != nil || !validRequiredReplayFingerprint(record.PlanDigest) ||
+				record.AuthorizationCiphertext != "" || record.PayloadCiphertext == "" {
+				return requiredReplayRecord{}, ErrRequiredReplayUnavailable
+			}
 		}
 	default:
 		return requiredReplayRecord{}, ErrRequiredReplayUnavailable
@@ -266,6 +378,9 @@ func (s *Store) requiredReplayResponse(
 	storageKey string,
 	record requiredReplayRecord,
 ) (*RequiredReplayResponse, error) {
+	if record.Schema == requiredReplaySchemaV3 {
+		return s.requiredReplayResponseV3(storageKey, record)
+	}
 	response := cloneRequiredReplayResponse(record.Response)
 	if record.AuthorizationCiphertext == "" {
 		return response, nil
@@ -282,6 +397,29 @@ func (s *Store) requiredReplayResponse(
 		return nil, ErrRequiredReplayUnavailable
 	}
 	response.Authorization = cloneRequiredReplayAuthorization(&authorization)
+	return response, nil
+}
+
+func (s *Store) requiredReplayResponseV3(
+	storageKey string,
+	record requiredReplayRecord,
+) (*RequiredReplayResponse, error) {
+	plaintext, err := s.replayCipher.DecryptReplay(
+		storageKey, record.Fingerprint, record.PlanDigest, record.PayloadCiphertext,
+	)
+	if err != nil {
+		return nil, errors.Join(ErrRequiredReplayUnavailable, err)
+	}
+	var payload requiredReplayPayload
+	if json.Unmarshal(plaintext, &payload) != nil || payload.Schema != requiredReplayPayloadSchemaV1 ||
+		payload.PlanDigest != record.PlanDigest ||
+		validateRequiredReplayResponsePointer(payload.Response) != nil ||
+		validateRequiredReplayAuthorization(payload.Authorization) != nil ||
+		payload.Authorization != nil && payload.Authorization.PlanDigest != record.PlanDigest {
+		return nil, ErrRequiredReplayUnavailable
+	}
+	response := cloneRequiredReplayResponse(payload.Response)
+	response.Authorization = cloneRequiredReplayAuthorization(payload.Authorization)
 	return response, nil
 }
 

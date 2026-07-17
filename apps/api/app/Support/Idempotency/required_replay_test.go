@@ -9,17 +9,23 @@ import (
 
 func TestRequiredReplayAcquiresConflictsAndReplaysDetachedResponse(t *testing.T) {
 	backend := NewMemoryBackend()
-	store := NewStore(backend, DefaultTTL)
+	store := newRequiredReplayTestStore(t, backend)
 	scope := requiredReplayTestScope("actor:42:bearer")
 	fingerprint := strings.Repeat("a", 64)
-	lease, replay, err := store.BeginRequiredReplay(t.Context(), scope, "request-42", fingerprint)
+	lease, replay, err := store.BeginRequiredReplayBound(
+		t.Context(), scope, "request-42", requiredReplayV3TestBinding(fingerprint),
+	)
 	if err != nil || replay != nil || lease.storageKey == "" {
 		t.Fatalf("first begin: lease=%#v replay=%#v err=%v", lease, replay, err)
 	}
-	if _, _, err := store.BeginRequiredReplay(t.Context(), scope, "request-42", fingerprint); !errors.Is(err, ErrRequiredReplayInProgress) {
+	if _, _, err := store.BeginRequiredReplayBound(
+		t.Context(), scope, "request-42", requiredReplayV3TestBinding(fingerprint),
+	); !errors.Is(err, ErrRequiredReplayInProgress) {
 		t.Fatalf("in-flight error = %v", err)
 	}
-	if _, _, err := store.BeginRequiredReplay(t.Context(), scope, "request-42", strings.Repeat("b", 64)); !errors.Is(err, ErrRequiredReplayFingerprintConflict) {
+	if _, _, err := store.BeginRequiredReplayBound(
+		t.Context(), scope, "request-42", requiredReplayV3TestBinding(strings.Repeat("b", 64)),
+	); !errors.Is(err, ErrRequiredReplayFingerprintConflict) {
 		t.Fatalf("fingerprint error = %v", err)
 	}
 	want := RequiredReplayResponse{
@@ -28,13 +34,17 @@ func TestRequiredReplayAcquiresConflictsAndReplaysDetachedResponse(t *testing.T)
 	if err := store.CompleteRequiredReplay(t.Context(), lease, want); err != nil {
 		t.Fatal(err)
 	}
-	_, replay, err = store.BeginRequiredReplay(t.Context(), scope, "request-42", fingerprint)
+	_, replay, err = store.BeginRequiredReplayBound(
+		t.Context(), scope, "request-42", requiredReplayV3TestBinding(fingerprint),
+	)
 	if err != nil || replay == nil || replay.Status != want.Status || string(replay.Body) != string(want.Body) {
 		t.Fatalf("replay=%#v err=%v", replay, err)
 	}
 	replay.Body[0] = '!'
 	replay.Headers.Set("Content-Type", "mutated")
-	_, detached, err := store.BeginRequiredReplay(t.Context(), scope, "request-42", fingerprint)
+	_, detached, err := store.BeginRequiredReplayBound(
+		t.Context(), scope, "request-42", requiredReplayV3TestBinding(fingerprint),
+	)
 	if err != nil || string(detached.Body) != string(want.Body) || detached.Headers.Get("Content-Type") != "application/json" {
 		t.Fatal("replay response escaped by reference")
 	}
@@ -42,7 +52,7 @@ func TestRequiredReplayAcquiresConflictsAndReplaysDetachedResponse(t *testing.T)
 
 func TestRequiredReplayScopesDoNotCrossActorsCredentialsOrAnonymousClients(t *testing.T) {
 	backend := NewMemoryBackend()
-	store := NewStore(backend, DefaultTTL)
+	store := newRequiredReplayTestStore(t, backend)
 	fingerprint := strings.Repeat("c", 64)
 	scopes := []RequiredReplayScope{
 		requiredReplayTestScope("actor:42:cookie"),
@@ -52,7 +62,9 @@ func TestRequiredReplayScopesDoNotCrossActorsCredentialsOrAnonymousClients(t *te
 	}
 	keys := make(map[string]bool, len(scopes))
 	for _, scope := range scopes {
-		lease, replay, err := store.BeginRequiredReplay(t.Context(), scope, "private-key", fingerprint)
+		lease, replay, err := store.BeginRequiredReplayBound(
+			t.Context(), scope, "private-key", requiredReplayV3TestBinding(fingerprint),
+		)
 		if err != nil || replay != nil || keys[lease.storageKey] {
 			t.Fatalf("scope %q: lease=%#v replay=%#v err=%v", scope.ActorScope, lease, replay, err)
 		}
@@ -67,17 +79,21 @@ func TestRequiredReplayScopesDoNotCrossActorsCredentialsOrAnonymousClients(t *te
 }
 
 func TestRequiredReplayAbortAndCompletionAreLeaseFenced(t *testing.T) {
-	store := NewStore(NewMemoryBackend(), DefaultTTL)
+	store := newRequiredReplayTestStore(t, NewMemoryBackend())
 	scope := requiredReplayTestScope("actor:7:cookie")
 	fingerprint := strings.Repeat("d", 64)
-	lease, _, err := store.BeginRequiredReplay(t.Context(), scope, "retry", fingerprint)
+	lease, _, err := store.BeginRequiredReplayBound(
+		t.Context(), scope, "retry", requiredReplayV3TestBinding(fingerprint),
+	)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if err := store.AbortRequiredReplay(t.Context(), lease); err != nil {
 		t.Fatal(err)
 	}
-	replacement, _, err := store.BeginRequiredReplay(t.Context(), scope, "retry", fingerprint)
+	replacement, _, err := store.BeginRequiredReplayBound(
+		t.Context(), scope, "retry", requiredReplayV3TestBinding(fingerprint),
+	)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -90,14 +106,18 @@ func TestRequiredReplayAbortAndCompletionAreLeaseFenced(t *testing.T) {
 }
 
 func TestRequiredReplayRejectsInvalidKeysAndOversizedResponses(t *testing.T) {
-	store := NewStore(NewMemoryBackend(), DefaultTTL)
+	store := newRequiredReplayTestStore(t, NewMemoryBackend())
 	scope := requiredReplayTestScope("actor:9:cookie")
 	for _, key := range []string{"", "has space", strings.Repeat("x", MaxKeyLength+1)} {
-		if _, _, err := store.BeginRequiredReplay(t.Context(), scope, key, strings.Repeat("e", 64)); !errors.Is(err, ErrRequiredReplayInvalid) {
+		if _, _, err := store.BeginRequiredReplayBound(
+			t.Context(), scope, key, requiredReplayV3TestBinding(strings.Repeat("e", 64)),
+		); !errors.Is(err, ErrRequiredReplayInvalid) {
 			t.Fatalf("key %q error = %v", key, err)
 		}
 	}
-	lease, _, err := store.BeginRequiredReplay(t.Context(), scope, "large", strings.Repeat("f", 64))
+	lease, _, err := store.BeginRequiredReplayBound(
+		t.Context(), scope, "large", requiredReplayV3TestBinding(strings.Repeat("f", 64)),
+	)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -106,15 +126,18 @@ func TestRequiredReplayRejectsInvalidKeysAndOversizedResponses(t *testing.T) {
 	}); !errors.Is(err, ErrRequiredReplayInvalid) {
 		t.Fatalf("oversized response error = %v", err)
 	}
-	if _, _, err := store.BeginRequiredReplay(t.Context(), scope, "large", strings.Repeat("f", 64)); !errors.Is(err, ErrRequiredReplayInProgress) {
+	if _, _, err := store.BeginRequiredReplayBound(
+		t.Context(), scope, "large", requiredReplayV3TestBinding(strings.Repeat("f", 64)),
+	); !errors.Is(err, ErrRequiredReplayInProgress) {
 		t.Fatalf("oversized completion released lease: %v", err)
 	}
 }
 
 func TestRequiredReplayFailsClosedWithoutRedis(t *testing.T) {
 	store := NewStore(NewRedisBackend(nil), DefaultTTL)
-	_, _, err := store.BeginRequiredReplay(
-		t.Context(), requiredReplayTestScope("actor:11:bearer"), "required", strings.Repeat("a", 64),
+	_, _, err := store.BeginRequiredReplayBound(
+		t.Context(), requiredReplayTestScope("actor:11:bearer"), "required",
+		requiredReplayV3TestBinding(strings.Repeat("a", 64)),
 	)
 	if !errors.Is(err, ErrRequiredReplayUnavailable) {
 		t.Fatalf("unavailable Redis error = %v", err)
@@ -127,4 +150,9 @@ func requiredReplayTestScope(actorScope string) RequiredReplayScope {
 		PackageDigest: strings.Repeat("a", 64), RouteID: "demo.plugin.create",
 		ContractVersion: "demo.plugin.create@1", Method: http.MethodPost,
 	}
+}
+
+func newRequiredReplayTestStore(t *testing.T, backend Backend) *Store {
+	t.Helper()
+	return NewStore(backend, DefaultTTL).WithRequiredReplayCipher(requiredReplayV2TestCipher(t, "0c"))
 }
