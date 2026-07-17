@@ -113,6 +113,89 @@ func TestRouteSchemaCatalogRejectsNonJSONOperationMediaSchemas(t *testing.T) {
 	}
 }
 
+func TestRouteSchemaCatalogExcludesOpaqueStreamPayloadValidators(t *testing.T) {
+	tests := []struct {
+		name           string
+		mode           string
+		method         string
+		requestSchema  string
+		requestMedia   string
+		responseMedia  string
+		responseStatus string
+	}{
+		{name: "sse", mode: extensionmanifest.RouteModeSSE, method: "GET", responseMedia: "text/event-stream", responseStatus: "200"},
+		{name: "websocket", mode: extensionmanifest.RouteModeWebSocket, method: "GET", responseMedia: "application/octet-stream", responseStatus: "101"},
+		{name: "stream", mode: extensionmanifest.RouteModeStream, method: "GET", responseMedia: "application/octet-stream", responseStatus: "200"},
+		{name: "multipart", mode: extensionmanifest.RouteModeMultipart, method: "POST", requestSchema: "opaque.multipart.request@1", requestMedia: "multipart/form-data", responseMedia: "application/octet-stream", responseStatus: "200"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			options := defaultFixtureOptions("opaque." + test.name)
+			options.mode = test.mode
+			options.method = test.method
+			options.requestSchema = test.requestSchema
+			document := fixtureDocument(options)
+			if test.requestMedia != "" {
+				document = strings.Replace(document, "application/json:", test.requestMedia+":", 1)
+			}
+			document = strings.Replace(document, "application/json:", test.responseMedia+":", 1)
+			document = strings.Replace(document, `"200":`, `"`+test.responseStatus+`":`, 1)
+			options.document = document
+			fixture := buildFixture(t, options)
+
+			catalog, err := BuildRouteSchemaCatalog(BuildInput{Artifacts: []Artifact{fixture}})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if bindings := catalog.Bindings(); len(bindings) != 0 {
+				t.Fatalf("opaque %s published JSON validators: %#v", test.mode, bindings)
+			}
+
+			aggregate, err := Build(BuildInput{Artifacts: []Artifact{fixture}})
+			if err != nil {
+				t.Fatal(err)
+			}
+			operations := aggregate.GeneratedClientOperations()
+			if len(operations) != 1 || operations[0].Mode != test.mode ||
+				operations[0].StreamContract != StreamContractOpaqueBytesV1 ||
+				operations[0].PayloadValidation != PayloadValidationPluginOwned {
+				t.Fatalf("opaque generated operation = %#v", operations)
+			}
+		})
+	}
+}
+
+func TestOpaqueStreamOpenAPIContentDoesNotRequireManifestJSONSchemaID(t *testing.T) {
+	options := defaultFixtureOptions("opaque.schema-less")
+	options.mode = extensionmanifest.RouteModeStream
+	options.responseSchema = ""
+	options.document = strings.Replace(
+		fixtureDocument(options),
+		"          description: ok\n",
+		"          description: ok\n          content:\n            application/octet-stream:\n              schema:\n                $ref: 'schemas/common.json#/Catalog'\n",
+		1,
+	)
+	fixture := buildFixture(t, options)
+
+	catalog, err := BuildRouteSchemaCatalog(BuildInput{Artifacts: []Artifact{fixture}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(catalog.Bindings()) != 0 {
+		t.Fatalf("schema-less opaque stream published JSON bindings: %#v", catalog.Bindings())
+	}
+	aggregate, err := Build(BuildInput{Artifacts: []Artifact{fixture}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	operations := aggregate.GeneratedClientOperations()
+	if len(operations) != 1 || operations[0].ResponseSchema != "" ||
+		operations[0].StreamContract != StreamContractOpaqueBytesV1 ||
+		operations[0].PayloadValidation != PayloadValidationPluginOwned {
+		t.Fatalf("schema-less opaque generated operation = %#v", operations)
+	}
+}
+
 func TestRouteSchemaCatalogValidatesStructuredJSONMedia(t *testing.T) {
 	options := defaultFixtureOptions("schema.problem-json")
 	options.document = strings.Replace(

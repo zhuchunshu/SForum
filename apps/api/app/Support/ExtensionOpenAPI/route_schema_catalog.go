@@ -141,13 +141,16 @@ func BuildRouteSchemaCatalog(input BuildInput) (*RouteSchemaCatalog, error) {
 	ambiguousOperationFallbacks := make(map[string]bool)
 	operationIDs := make(map[string]string)
 	operationActions := make(map[string]string)
+	operationModes := make(map[string]string)
 	for _, artifactInput := range input.Artifacts {
 		artifact := routes.PluginArtifact{
 			ExtensionID: artifactInput.ExtensionID, ExtensionVersion: artifactInput.Version, PackageDigest: artifactInput.PackageDigest,
 		}
 		for _, route := range artifactInput.Manifest.Routes {
 			for _, method := range route.Methods {
-				operationActions[routeSchemaOperationKey(artifact, route.ID, method, route.ContractVersion)] = route.Action
+				key := routeSchemaOperationKey(artifact, route.ID, method, route.ContractVersion)
+				operationActions[key] = route.Action
+				operationModes[key] = route.Mode
 			}
 		}
 	}
@@ -165,6 +168,11 @@ func BuildRouteSchemaCatalog(input BuildInput) (*RouteSchemaCatalog, error) {
 			return nil, fmt.Errorf("%w: operation %s route action", ErrRouteSchemaCatalogInvalid, operation.OperationID)
 		}
 		operationIDs[operationKey] = operation.OperationID
+		if operationModes[operationKey] != extensionmanifest.RouteModeHTTP {
+			// Non-HTTP bodies are opaque Protocol V2 chunks. Their OpenAPI media
+			// contracts remain public metadata but cannot become JSON validators.
+			continue
+		}
 		if operation.RequestSchema != "" {
 			candidates, err := aggregateRequestSchemas(root, operationValue)
 			if err != nil {
@@ -205,6 +213,9 @@ func BuildRouteSchemaCatalog(input BuildInput) (*RouteSchemaCatalog, error) {
 			return nil, err
 		}
 		for _, route := range artifactInput.Manifest.Routes {
+			if route.Mode != extensionmanifest.RouteModeHTTP {
+				continue
+			}
 			methods := append([]string(nil), route.Methods...)
 			if route.Action == extensionmanifest.RouteActionGlobalMiddleware {
 				methods = []string{"*"}

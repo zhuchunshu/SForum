@@ -24,6 +24,8 @@ const (
 	PolicyDisabled               = "disabled"
 	PolicyRateLimitIPWrite       = "host.ip_write@1"
 	PolicyIdempotencyRequired24h = "required.24h@1"
+	StreamContractOpaqueBytesV1  = "sforum.route.opaque_bytes@1"
+	PayloadValidationPluginOwned = "plugin_owned"
 )
 
 // Artifact is an immutable package snapshot. Host route policies are derived
@@ -85,6 +87,8 @@ type GeneratedOperation struct {
 	Permission              string `json:"permission,omitempty"`
 	RequestSchema           string `json:"requestSchema,omitempty"`
 	ResponseSchema          string `json:"responseSchema,omitempty"`
+	StreamContract          string `json:"streamContract,omitempty"`
+	PayloadValidation       string `json:"payloadValidation,omitempty"`
 	RateLimit               string `json:"rateLimit"`
 	Idempotency             string `json:"idempotency"`
 	IdempotencyRequired     bool   `json:"idempotencyRequired"`

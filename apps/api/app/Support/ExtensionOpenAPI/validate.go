@@ -132,8 +132,8 @@ func validateOperation(
 		{extContractVersion, route.route.ContractVersion, true},
 		{extGuard, route.route.Guard, true},
 		{extPermission, route.route.Permission, route.route.Permission != ""},
-		{extRequestSchema, route.route.RequestSchema, route.route.RequestSchema != ""},
-		{extResponseSchema, route.route.ResponseSchema, route.route.ResponseSchema != ""},
+		{extRequestSchema, route.route.RequestSchema, route.route.Mode == extensionmanifest.RouteModeHTTP && route.route.RequestSchema != ""},
+		{extResponseSchema, route.route.ResponseSchema, route.route.Mode == extensionmanifest.RouteModeHTTP && route.route.ResponseSchema != ""},
 	}
 	if requirePolicies {
 		if derivedPolicy {
@@ -190,11 +190,13 @@ func validateOperation(
 	if err != nil {
 		return GeneratedOperation{}, routeContract{}, fmt.Errorf("%w: operation %s request body: %w", ErrInvalidDocument, operationID, err)
 	}
-	if route.route.RequestSchema != "" && (!hasRequestBody || !requestHasSchema) || route.route.RequestSchema == "" && hasRequestBody {
-		return GeneratedOperation{}, routeContract{}, fmt.Errorf("%w: operation %s request body disagrees with route schema", ErrContractMismatch, operationID)
-	}
-	if route.route.ResponseSchema != "" && !responseHasSchema {
-		return GeneratedOperation{}, routeContract{}, fmt.Errorf("%w: operation %s response body disagrees with route schema", ErrContractMismatch, operationID)
+	if route.route.Mode == extensionmanifest.RouteModeHTTP {
+		if route.route.RequestSchema != "" && (!hasRequestBody || !requestHasSchema) || route.route.RequestSchema == "" && hasRequestBody {
+			return GeneratedOperation{}, routeContract{}, fmt.Errorf("%w: operation %s request body disagrees with route schema", ErrContractMismatch, operationID)
+		}
+		if route.route.ResponseSchema != "" && !responseHasSchema {
+			return GeneratedOperation{}, routeContract{}, fmt.Errorf("%w: operation %s response body disagrees with route schema", ErrContractMismatch, operationID)
+		}
 	}
 	generated := GeneratedOperation{
 		OperationID: operationID, RouteID: route.route.ID, ContractVersion: route.route.ContractVersion,
@@ -204,6 +206,10 @@ func validateOperation(
 		RateLimit: route.policy.RateLimit, Idempotency: route.policy.Idempotency, Security: route.policy.Security,
 		ExtensionID: identity.ExtensionID, ExtensionVersion: identity.ExtensionVersion,
 		PackageDigest: identity.PackageDigest, FragmentID: identity.FragmentID, Namespace: identity.Namespace,
+	}
+	if route.route.Mode != extensionmanifest.RouteModeHTTP {
+		generated.StreamContract = StreamContractOpaqueBytesV1
+		generated.PayloadValidation = PayloadValidationPluginOwned
 	}
 	if route.policy.RateLimit != PolicyDisabled {
 		generated.RateLimitScope = "client_ip"

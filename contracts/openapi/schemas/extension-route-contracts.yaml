@@ -73,6 +73,14 @@ ExtensionGeneratedClientOperation:
     permission: { type: string, minLength: 1 }
     requestSchema: { type: string, minLength: 1 }
     responseSchema: { type: string, minLength: 1 }
+    streamContract:
+      type: string
+      const: sforum.route.opaque_bytes@1
+      description: Present for non-HTTP routes whose chunks use the Host opaque-byte transport contract.
+    payloadValidation:
+      type: string
+      const: plugin_owned
+      description: Non-HTTP payload bytes are not JSON-Schema-validated by the Host.
     rateLimit: { type: string, enum: [disabled, 'host.ip_write@1'] }
     rateLimitScope: { type: string, enum: [client_ip] }
     idempotency: { type: string, enum: [disabled, 'required.24h@1'] }
