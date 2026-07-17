@@ -49,11 +49,25 @@ func serveRouteWebSocket(c fiber.Ctx, dispatch *routes.RouteStreamDispatch, host
 	restoreHostRouteResponseHeaders(c, hostHeaders)
 	upgrader := websocket.FastHTTPUpgrader{}
 	if err := upgrader.Upgrade(c.RequestCtx(), func(connection *websocket.Conn) {
+		// ResponseStarted publishes the success trace before any later cancel path
+		// can race session completion visibility.
 		dispatch.ResponseStarted()
+		// Detach only after a successful Upgrade so request cancel no longer kills
+		// the stream; Host budget and ForceCancel remain authoritative.
+		if detacher, ok := start.Session.(routes.RouteStreamCallerDetacher); ok {
+			if detachErr := detacher.DetachCaller(); detachErr != nil {
+				// Fail before Cancel so the transport trace lands before Done.
+				_ = dispatch.StreamFailed(detachErr)
+				start.Session.Cancel()
+				_ = connection.Close()
+				return
+			}
+		}
 		bridgeRouteWebSocket(connection, start.Session, dispatch)
 	}); err != nil {
-		start.Session.Cancel()
+		// Fail before Cancel: trace must be visible before session completion.
 		dispatch.Fail()
+		start.Session.Cancel()
 		// FastHTTPUpgrader has already authored the exact handshake error.
 		return nil
 	}

@@ -140,45 +140,121 @@ func (d *RouteStreamDispatch) Open(ctx context.Context) (RouteStreamStart, error
 	}
 	d.opened = true
 	d.mu.Unlock()
+	lifetime := newRouteStreamOpenLifetime(ctx, d.streamBudgetDuration())
+	attached := false
+	defer func() {
+		if !attached {
+			// Prefer the exact open-context cause (budget/caller) over a blank cancel.
+			cause := context.Cause(lifetime.Context())
+			if cause == nil {
+				cause = context.Canceled
+			}
+			lifetime.close(cause)
+		}
+	}()
 	authority, err := d.dispatcher.authorize(
-		ctx, d.plan, d.index, d.step, d.request, nil, InvocationStageHandler, d.commit,
+		lifetime.Context(), d.plan, d.index, d.step, d.request, nil, InvocationStageHandler, d.commit,
 	)
 	if err != nil {
-		d.finishWithoutTrace()
-		if ctxErr := ctx.Err(); ctxErr != nil && errors.Is(err, ctxErr) {
-			return RouteStreamStart{}, ctxErr
-		}
-		outcome, _, _ := classifyRouteGuardFailure(err)
-		d.dispatcher.appendTrace(d.plan, d.index, d.step, InvocationStageHandler, outcome, d.started, d.commit.State())
-		return RouteStreamStart{}, err
+		return d.finishStreamOpenError(ctx, lifetime, err, true)
+	}
+	// Propagate an already-canceled caller into the Host open context before the
+	// next stage so budget and caller causes stay distinguishable.
+	if ctx.Err() != nil {
+		lifetime.cancelFromCaller()
+	}
+	if err := lifetime.Context().Err(); err != nil {
+		return d.finishStreamOpenError(ctx, lifetime, err, false)
 	}
 	invoker, ok := d.dispatcher.steps.(StreamingStepInvoker)
 	if !ok {
-		d.Fail()
-		return RouteStreamStart{}, fmt.Errorf("%w: streaming step invoker is unavailable", ErrDispatchTransport)
+		return d.finishStreamOpenError(
+			ctx, lifetime,
+			fmt.Errorf("%w: streaming step invoker is unavailable", ErrDispatchTransport), false,
+		)
 	}
-	result, err := invoker.OpenStream(ctx, RouteInvocation{
+	result, err := invoker.OpenStream(lifetime.Context(), RouteInvocation{
 		PlanRevision: d.plan.Revision(), StepIndex: d.index, Step: d.step,
 		Stage: InvocationStageHandler, Request: cloneDispatchRequest(d.request), Commit: d.commit,
 		authority: authority,
 	})
+	if ctx.Err() != nil {
+		lifetime.cancelFromCaller()
+	}
 	if err != nil {
-		if ctxErr := ctx.Err(); ctxErr != nil && errors.Is(err, ctxErr) && !d.commit.ExecutionObserved() {
-			d.finishWithoutTrace()
-			return RouteStreamStart{}, ctxErr
+		return d.finishStreamOpenError(ctx, lifetime, err, false)
+	}
+	if err := lifetime.Context().Err(); err != nil {
+		if result.Session != nil {
+			result.Session.Cancel()
 		}
-		d.Fail()
-		return RouteStreamStart{}, fmt.Errorf("%w: %w", ErrDispatchTransport, err)
+		return d.finishStreamOpenError(ctx, lifetime, err, false)
 	}
 	if result.Session == nil || !ValidTerminalResponseStatus(d.step.Mode, result.Response.Status) || len(result.Response.Body) != 0 {
 		if result.Session != nil {
 			result.Session.Cancel()
 		}
-		d.Fail()
-		return RouteStreamStart{}, fmt.Errorf("%w: invalid streaming preflight", ErrDispatchTransport)
+		return d.finishStreamOpenError(
+			ctx, lifetime, fmt.Errorf("%w: invalid streaming preflight", ErrDispatchTransport), false,
+		)
+	}
+	if ctx.Err() != nil {
+		lifetime.cancelFromCaller()
+	}
+	if err := lifetime.Context().Err(); err != nil {
+		result.Session.Cancel()
+		return d.finishStreamOpenError(ctx, lifetime, err, false)
 	}
 	result.Response.Headers = cloneHTTPHeader(result.Response.Headers)
+	result.Session = bindRouteStreamLifetime(result.Session, lifetime)
+	if result.Session == nil {
+		return d.finishStreamOpenError(ctx, lifetime, ErrDispatchTransport, false)
+	}
+	attached = true
 	return result, nil
+}
+
+func (d *RouteStreamDispatch) streamBudgetDuration() time.Duration {
+	if d != nil && d.step.TimeoutMS > 0 {
+		return time.Duration(d.step.TimeoutMS) * time.Millisecond
+	}
+	return routeStreamDefaultBudget
+}
+
+func (d *RouteStreamDispatch) finishStreamOpenError(
+	caller context.Context,
+	lifetime *routeStreamOpenLifetime,
+	err error,
+	guardFailure bool,
+) (RouteStreamStart, error) {
+	if err == nil {
+		err = ErrDispatchTransport
+	}
+	cause := context.Cause(lifetime.Context())
+	callerErr := caller.Err()
+	if errors.Is(cause, ErrRouteStreamBudgetExceeded) || errors.Is(err, ErrRouteStreamBudgetExceeded) {
+		d.Fail()
+		return RouteStreamStart{}, fmt.Errorf("%w: %w", ErrDispatchTransport, ErrRouteStreamBudgetExceeded)
+	}
+	if callerErr != nil && !d.commit.ExecutionObserved() && routeStreamCallerCausedFailure(err, cause, callerErr) {
+		d.finishWithoutTrace()
+		return RouteStreamStart{}, callerErr
+	}
+	if guardFailure {
+		d.finishWithoutTrace()
+		outcome, _, _ := classifyRouteGuardFailure(err)
+		d.dispatcher.appendTrace(d.plan, d.index, d.step, InvocationStageHandler, outcome, d.started, d.commit.State())
+		return RouteStreamStart{}, err
+	}
+	d.Fail()
+	if !errors.Is(err, ErrDispatchTransport) {
+		err = fmt.Errorf("%w: %w", ErrDispatchTransport, err)
+	}
+	return RouteStreamStart{}, err
+}
+
+func routeStreamCallerCausedFailure(err, cause, callerErr error) bool {
+	return callerErr != nil && (errors.Is(err, callerErr) || errors.Is(cause, callerErr))
 }
 
 func (d *RouteStreamDispatch) finishWithoutTrace() {
