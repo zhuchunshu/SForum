@@ -263,12 +263,18 @@ func buildRouteExecutionPlanView(
 		}
 		sourcePath, sourceErr := compileRoutePath(terminal.Path)
 		targetPath, targetCompileErr := compileRoutePath(target.Path)
-		if sourceErr != nil || targetCompileErr != nil || !routePathParametersCompatible(sourcePath, targetPath) {
+		if sourceErr != nil || targetCompileErr != nil {
 			return RouteExecutionPlan{}, fmt.Errorf("%w: route mapping target path is invalid", ErrInvalidExecutionPlan)
 		}
-		terminalStep.TargetPath, err = materializeTargetRoutePath(sourcePath, targetPath, params)
-		if err != nil {
-			return RouteExecutionPlan{}, err
+		if !routePathParametersCompatible(sourcePath, targetPath) {
+			if terminal.Action == extensionmanifest.RouteActionRedirect {
+				return RouteExecutionPlan{}, fmt.Errorf("%w: redirect target path is incompatible", ErrInvalidExecutionPlan)
+			}
+		} else {
+			terminalStep.TargetPath, err = materializeTargetRoutePath(sourcePath, targetPath, params)
+			if err != nil {
+				return RouteExecutionPlan{}, err
+			}
 		}
 	}
 	chain = append(chain, terminalStep)
