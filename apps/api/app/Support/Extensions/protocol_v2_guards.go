@@ -11,12 +11,88 @@ import (
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
 	pluginv2 "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/plugin/v2"
 	protocolv2 "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/protocol/v2"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 var (
-	ErrProtocolV2GuardInvalid = errors.New("protocol v2 guard invocation is invalid")
-	ErrProtocolV2GuardDenied  = errors.New("protocol v2 guard denied the request")
+	ErrProtocolV2GuardInvalid       = errors.New("protocol v2 guard invocation is invalid")
+	ErrProtocolV2GuardDenied        = errors.New("protocol v2 guard denied the request")
+	ErrProtocolV2GuardRuntimeFailed = errors.New("protocol v2 guard runtime failed")
 )
+
+type ProtocolV2GuardFailureKind string
+
+const (
+	ProtocolV2GuardFailureDenied   ProtocolV2GuardFailureKind = "denied"
+	ProtocolV2GuardFailureCrash    ProtocolV2GuardFailureKind = "crash"
+	ProtocolV2GuardFailureTimeout  ProtocolV2GuardFailureKind = "timeout"
+	ProtocolV2GuardFailureProtocol ProtocolV2GuardFailureKind = "protocol"
+	ProtocolV2GuardFailureCanceled ProtocolV2GuardFailureKind = "canceled"
+)
+
+// ProtocolV2GuardCallFailure is created only after InvokeRoute has been called.
+// Error text is deliberately detached from plugin-controlled error details.
+type ProtocolV2GuardCallFailure struct {
+	kind  ProtocolV2GuardFailureKind
+	cause error
+}
+
+func NewProtocolV2GuardCallFailure(kind ProtocolV2GuardFailureKind, cause error) *ProtocolV2GuardCallFailure {
+	switch kind {
+	case ProtocolV2GuardFailureDenied:
+		cause = ErrProtocolV2GuardDenied
+	case ProtocolV2GuardFailureTimeout:
+		cause = errors.Join(ErrProtocolV2GuardRuntimeFailed, context.DeadlineExceeded)
+	case ProtocolV2GuardFailureProtocol:
+		cause = ErrProtocolV2GuardInvalid
+	case ProtocolV2GuardFailureCanceled:
+		cause = context.Canceled
+	case ProtocolV2GuardFailureCrash:
+		// gRPC status details are plugin-controlled. Keep only the Host sentinel so
+		// future errors.Unwrap logging cannot disclose a plugin reason.
+		cause = ErrProtocolV2GuardRuntimeFailed
+	default:
+		cause = ErrProtocolV2GuardRuntimeFailed
+	}
+	return &ProtocolV2GuardCallFailure{kind: kind, cause: cause}
+}
+
+func (e *ProtocolV2GuardCallFailure) Kind() ProtocolV2GuardFailureKind {
+	if e == nil {
+		return ""
+	}
+	return e.kind
+}
+
+func (e *ProtocolV2GuardCallFailure) RuntimeExecutionObserved() bool { return e != nil }
+
+func (e *ProtocolV2GuardCallFailure) Error() string {
+	if e == nil {
+		return ""
+	}
+	switch e.kind {
+	case ProtocolV2GuardFailureDenied:
+		return "protocol v2 guard denied the request"
+	case ProtocolV2GuardFailureCrash:
+		return "protocol v2 guard runtime failed"
+	case ProtocolV2GuardFailureTimeout:
+		return "protocol v2 guard runtime timed out"
+	case ProtocolV2GuardFailureProtocol:
+		return "protocol v2 guard returned an invalid response"
+	case ProtocolV2GuardFailureCanceled:
+		return "protocol v2 guard invocation was canceled"
+	default:
+		return "protocol v2 guard invocation failed"
+	}
+}
+
+func (e *ProtocolV2GuardCallFailure) Unwrap() error {
+	if e == nil {
+		return nil
+	}
+	return e.cause
+}
 
 // ProtocolV2GuardRequest binds a custom guard to one exact frozen route. The
 // request headers are projected only after the exact frozen guard and explicit
@@ -95,27 +171,31 @@ func (c *protocolV2Client) InvokeGuardContext(parent context.Context, input Prot
 		QueryParameters: cloneProtocolV2RouteParameters(input.QueryParameters), Body: body,
 	})
 	if err != nil {
-		if ctx.Err() != nil {
-			return ctx.Err()
+		switch {
+		case errors.Is(ctx.Err(), context.DeadlineExceeded), status.Code(err) == codes.DeadlineExceeded:
+			return NewProtocolV2GuardCallFailure(ProtocolV2GuardFailureTimeout, err)
+		case errors.Is(ctx.Err(), context.Canceled), status.Code(err) == codes.Canceled:
+			return NewProtocolV2GuardCallFailure(ProtocolV2GuardFailureCanceled, err)
+		default:
+			return NewProtocolV2GuardCallFailure(ProtocolV2GuardFailureCrash, err)
 		}
-		return err
 	}
 	if err := validateProtocolV2RouteResponseContext(response.GetContext(), requestContext); err != nil {
-		return fmt.Errorf("%w: %v", ErrProtocolV2GuardInvalid, err)
+		return NewProtocolV2GuardCallFailure(ProtocolV2GuardFailureProtocol, err)
 	}
 	if err := protocolV2Error(response.GetError()); err != nil {
-		return err
+		return NewProtocolV2GuardCallFailure(ProtocolV2GuardFailureProtocol, nil)
 	}
 	if response.GetStreamFollows() || response.GetBody() != nil || len(response.GetHeaders()) != 0 {
-		return fmt.Errorf("%w: guard responses cannot mutate the request or response", ErrProtocolV2GuardInvalid)
+		return NewProtocolV2GuardCallFailure(ProtocolV2GuardFailureProtocol, nil)
 	}
 	switch int(response.GetStatusCode()) {
 	case http.StatusNoContent:
 		return nil
 	case http.StatusUnauthorized, http.StatusForbidden:
-		return ErrProtocolV2GuardDenied
+		return NewProtocolV2GuardCallFailure(ProtocolV2GuardFailureDenied, nil)
 	default:
-		return fmt.Errorf("%w: invalid guard status %d", ErrProtocolV2GuardInvalid, response.GetStatusCode())
+		return NewProtocolV2GuardCallFailure(ProtocolV2GuardFailureProtocol, nil)
 	}
 }
 

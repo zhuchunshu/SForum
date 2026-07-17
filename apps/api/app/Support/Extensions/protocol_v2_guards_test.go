@@ -4,12 +4,15 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
 	pluginwire "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/plugin/v2"
 	protocolwire "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/protocol/v2"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -64,6 +67,8 @@ func TestProtocolV2CustomGuardMapsDenyAndRejectsMutation(t *testing.T) {
 		})
 		if err := client.InvokeGuardContext(context.Background(), protocolV2GuardTestRequest()); !errors.Is(err, ErrProtocolV2GuardDenied) {
 			t.Fatalf("status %d error = %v", status, err)
+		} else {
+			assertProtocolV2GuardCallFailure(t, err, ProtocolV2GuardFailureDenied)
 		}
 	}
 
@@ -90,6 +95,62 @@ func TestProtocolV2CustomGuardMapsDenyAndRejectsMutation(t *testing.T) {
 			})
 			if err := client.InvokeGuardContext(context.Background(), protocolV2GuardTestRequest()); !errors.Is(err, ErrProtocolV2GuardInvalid) {
 				t.Fatalf("error = %v", err)
+			} else {
+				assertProtocolV2GuardCallFailure(t, err, ProtocolV2GuardFailureProtocol)
+			}
+		})
+	}
+}
+
+func TestProtocolV2GuardCallFailureClassifiesPostRPCWithoutLeakingPluginText(t *testing.T) {
+	const secret = "plugin-reason-secret"
+	tests := []struct {
+		name   string
+		invoke func(context.Context, *pluginwire.RouteRequest) (*pluginwire.RouteResponse, error)
+		kind   ProtocolV2GuardFailureKind
+		compat error
+	}{
+		{
+			name: "crash", kind: ProtocolV2GuardFailureCrash, compat: ErrProtocolV2GuardRuntimeFailed,
+			invoke: func(context.Context, *pluginwire.RouteRequest) (*pluginwire.RouteResponse, error) {
+				return nil, status.Error(codes.Unavailable, secret)
+			},
+		},
+		{
+			name: "timeout", kind: ProtocolV2GuardFailureTimeout, compat: context.DeadlineExceeded,
+			invoke: func(ctx context.Context, _ *pluginwire.RouteRequest) (*pluginwire.RouteResponse, error) {
+				<-ctx.Done()
+				return nil, ctx.Err()
+			},
+		},
+		{
+			name: "canceled", kind: ProtocolV2GuardFailureCanceled, compat: context.Canceled,
+			invoke: func(context.Context, *pluginwire.RouteRequest) (*pluginwire.RouteResponse, error) {
+				return nil, status.Error(codes.Canceled, secret)
+			},
+		},
+		{
+			name: "protocol", kind: ProtocolV2GuardFailureProtocol, compat: ErrProtocolV2GuardInvalid,
+			invoke: func(_ context.Context, request *pluginwire.RouteRequest) (*pluginwire.RouteResponse, error) {
+				response := protocolV2GuardTestResponse(request, http.StatusNoContent)
+				response.Error = &protocolwire.ErrorDetail{
+					Code: protocolwire.ErrorCode_ERROR_CODE_INTERNAL, Reason: secret, Message: secret,
+				}
+				return response, nil
+			},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			client := protocolV2GuardTestClient(t, test.invoke)
+			request := protocolV2GuardTestRequest()
+			if test.kind == ProtocolV2GuardFailureTimeout {
+				request.Timeout = 10 * time.Millisecond
+			}
+			err := client.InvokeGuardContext(context.Background(), request)
+			assertProtocolV2GuardCallFailure(t, err, test.kind)
+			if !errors.Is(err, test.compat) || strings.Contains(err.Error(), secret) {
+				t.Fatalf("kind=%q error=%v", test.kind, err)
 			}
 		})
 	}
@@ -119,8 +180,21 @@ func TestProtocolV2CustomGuardRejectsForgedBindingAndReservedHeaders(t *testing.
 			test.mutate(&request)
 			if err := client.InvokeGuardContext(context.Background(), request); !errors.Is(err, ErrProtocolV2GuardInvalid) {
 				t.Fatalf("error = %v", err)
+			} else {
+				var callFailure *ProtocolV2GuardCallFailure
+				if errors.As(err, &callFailure) {
+					t.Fatalf("pre-RPC rejection claimed runtime execution: %#v", callFailure)
+				}
 			}
 		})
+	}
+}
+
+func assertProtocolV2GuardCallFailure(t *testing.T, err error, kind ProtocolV2GuardFailureKind) {
+	t.Helper()
+	var failure *ProtocolV2GuardCallFailure
+	if !errors.As(err, &failure) || failure.Kind() != kind || !failure.RuntimeExecutionObserved() {
+		t.Fatalf("guard call failure kind=%q error=%#v", kind, err)
 	}
 }
 
