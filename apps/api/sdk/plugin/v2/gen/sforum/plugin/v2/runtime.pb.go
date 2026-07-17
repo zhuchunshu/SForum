@@ -678,7 +678,11 @@ func (x *RouteStreamClose) GetError() *v2.ErrorDetail {
 	return nil
 }
 
-// RouteStreamFrame supports HTTP bodies, SSE, WebSocket, and multipart flows.
+// RouteStreamFrame carries open/chunk/close for HTTP stream, SSE, WebSocket, and
+// multipart transports. Chunk payloads are opaque application bytes (DataChunk);
+// Host validates size, sequence, optional checksum, and mode preflight only.
+// Plugins own SSE event text, WebSocket message framing, and multipart wire layout.
+// There is no mode-specific JSON envelope on this frame today.
 type RouteStreamFrame struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Types that are valid to be assigned to Frame:

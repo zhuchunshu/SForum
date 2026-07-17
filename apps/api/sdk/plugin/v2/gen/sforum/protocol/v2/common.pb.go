@@ -1098,7 +1098,9 @@ func (x *PageInfo) GetHasMore() bool {
 	return false
 }
 
-// DataChunk is the bounded binary unit used by streaming file and HTTP APIs.
+// DataChunk is the bounded opaque binary unit for route streams, file transfer,
+// and Host HTTP stream APIs. data is application-owned framing (SSE text, binary
+// blobs, multipart wire, etc.); Host does not JSON-Schema-validate chunk bytes.
 type DataChunk struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Sequence      uint64                 `protobuf:"varint,1,opt,name=sequence,proto3" json:"sequence,omitempty"`
