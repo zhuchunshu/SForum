@@ -1,13 +1,151 @@
 package http
 
 import (
+	"context"
 	"errors"
 	"io"
 	stdhttp "net/http"
+	"reflect"
+	"strings"
 	"testing"
 
+	"github.com/gofiber/fiber/v3"
+
+	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
 	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
+	routes "github.com/zhuchunshu/sforum/apps/api/app/Support/Routes"
 )
+
+func TestRouteV2StreamPreAdmissionCancellationStaysPristine(t *testing.T) {
+	dispatcher, runtime, traces := routeV2StreamTestDispatcher(t)
+	prepared, err := dispatcher.PrepareStream(
+		context.Background(), routes.DispatchRequest{Method: stdhttp.MethodGet, Path: "/stream-v2"},
+	)
+	if err != nil || prepared.Dispatch == nil {
+		t.Fatalf("prepared=%#v error=%v", prepared, err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	_, err = prepared.Dispatch.Open(ctx)
+	if !errors.Is(err, context.Canceled) || errors.Is(err, routes.ErrDispatchTransport) ||
+		runtime.calls != 0 || runtime.streamOpenCalls != 0 || len(traces.RouteTraces(0)) != 0 {
+		t.Fatalf("error=%v routeCalls=%d streamCalls=%d traces=%#v",
+			err, runtime.calls, runtime.streamOpenCalls, traces.RouteTraces(0))
+	}
+}
+
+func TestRouteV2StreamPreflightFailureRecordsObservedExecution(t *testing.T) {
+	dispatcher, runtime, traces := routeV2StreamTestDispatcher(t)
+	runtime.err = errors.New("runtime crashed after preflight dispatch")
+	prepared, err := dispatcher.PrepareStream(
+		context.Background(), routes.DispatchRequest{Method: stdhttp.MethodGet, Path: "/stream-v2"},
+	)
+	if err != nil || prepared.Dispatch == nil {
+		t.Fatalf("prepared=%#v error=%v", prepared, err)
+	}
+
+	_, err = prepared.Dispatch.Open(context.Background())
+	records := traces.RouteTraces(0)
+	if !errors.Is(err, routes.ErrDispatchTransport) || runtime.calls != 1 || runtime.streamOpenCalls != 0 ||
+		len(records) != 1 || records[0].Outcome != routes.RouteTraceTransportFailed ||
+		records[0].CommitState != routes.RouteCommitSideEffectStarted {
+		t.Fatalf("error=%v routeCalls=%d streamCalls=%d traces=%#v", err, runtime.calls, runtime.streamOpenCalls, records)
+	}
+}
+
+func TestRouteV2StreamSharesCorrelationAndPreservesExactQuery(t *testing.T) {
+	dispatcher, runtime, _ := routeV2StreamTestDispatcher(t)
+	const rawQuery = "tag=one&tag=&tag=a%2Bb&page=2"
+	open := func() string {
+		prepared, err := dispatcher.PrepareStream(context.Background(), routes.DispatchRequest{
+			Method: stdhttp.MethodGet, Path: "/stream-v2", Query: rawQuery,
+		})
+		if err != nil || prepared.Dispatch == nil {
+			t.Fatalf("prepared=%#v error=%v", prepared, err)
+		}
+		if _, err := prepared.Dispatch.Open(context.Background()); !errors.Is(err, routes.ErrDispatchTransport) {
+			t.Fatalf("open error=%v", err)
+		}
+		if runtime.request.CorrelationID == "" || runtime.request.CorrelationID != runtime.streamRequest.CorrelationID {
+			t.Fatalf("correlation preflight=%q stream=%q", runtime.request.CorrelationID, runtime.streamRequest.CorrelationID)
+		}
+		if !strings.HasPrefix(runtime.request.CorrelationID, "route_") ||
+			runtime.request.QueryParameters["tag"] != "one" ||
+			!reflect.DeepEqual(runtime.request.QueryParameterValues["tag"], []string{"one", "", "a+b"}) ||
+			runtime.streamRequest.Path != "/stream-v2?"+rawQuery {
+			t.Fatalf("preflight=%#v stream=%#v", runtime.request, runtime.streamRequest)
+		}
+		return runtime.request.CorrelationID
+	}
+	first := open()
+	if second := open(); second == first {
+		t.Fatalf("separate stream admissions reused correlation %q", first)
+	}
+}
+
+func TestRouteV2StreamRejectsNonUpgradeInformationalPreflight(t *testing.T) {
+	for _, status := range []int{stdhttp.StatusContinue, stdhttp.StatusEarlyHints, stdhttp.StatusOK} {
+		t.Run(stdhttp.StatusText(status), func(t *testing.T) {
+			dispatcher, runtime, _ := routeV2StreamTestDispatcher(t)
+			runtime.response = extensionsruntime.ProtocolV2RouteResponse{StatusCode: status, StreamFollows: true}
+			prepared, err := dispatcher.PrepareStream(context.Background(), routes.DispatchRequest{
+				Method: stdhttp.MethodGet, Path: "/stream-v2",
+			})
+			if err != nil || prepared.Dispatch == nil {
+				t.Fatalf("prepared=%#v error=%v", prepared, err)
+			}
+			if _, err := prepared.Dispatch.Open(context.Background()); !errors.Is(err, routes.ErrDispatchTransport) {
+				t.Fatalf("status=%d error=%v", status, err)
+			}
+			if runtime.calls != 1 || runtime.streamOpenCalls != 0 {
+				t.Fatalf("status=%d routeCalls=%d streamCalls=%d", status, runtime.calls, runtime.streamOpenCalls)
+			}
+		})
+	}
+}
+
+func routeV2StreamTestDispatcher(
+	t *testing.T,
+) (*routes.Dispatcher, *routeDispatcherV2StreamRuntime, *routes.RouteTraceRing) {
+	t.Helper()
+	artifact := routeDispatcherArtifact("stream-v2", 'a')
+	declaration := routeDispatcherManifestRoute(
+		"stream-v2.route", extensionmanifest.RouteActionAdd, "/stream-v2", stdhttp.MethodGet,
+	)
+	declaration.Mode = extensionmanifest.RouteModeWebSocket
+	registry := routes.NewRegistry()
+	if _, err := registry.Publish(routes.Publication{Plugins: []routes.PluginRouteSet{{
+		Artifact: artifact, Routes: []extensionmanifest.ManifestRoute{declaration},
+	}}}); err != nil {
+		t.Fatal(err)
+	}
+	runtime := &routeDispatcherV2StreamRuntime{routeDispatcherV2Runtime: newRouteDispatcherV2RuntimeForArtifact(t, artifact)}
+	runtime.response = extensionsruntime.ProtocolV2RouteResponse{
+		StatusCode: fiber.StatusSwitchingProtocols, StreamFollows: true,
+	}
+	traces := routes.NewRouteTraceRing(8)
+	return routes.NewDispatcher(routes.DispatcherConfig{
+		Plans: routeRegistryPlanResolver{registry: registry}, Steps: NewBufferedRouteStepInvoker(runtime),
+		Guard: HostRouteGuardAuthorizer{}, Trace: traces,
+	}), runtime, traces
+}
+
+type routeDispatcherV2StreamRuntime struct {
+	*routeDispatcherV2Runtime
+	streamOpenCalls int
+	streamRequest   extensionsruntime.ProtocolV2RouteStreamRequest
+}
+
+func (r *routeDispatcherV2StreamRuntime) OpenRouteStreamInstance(
+	_ context.Context,
+	_ extensionsruntime.RuntimeInstanceIdentity,
+	request extensionsruntime.ProtocolV2RouteStreamRequest,
+) (*extensionsruntime.ProtocolV2RouteStream, error) {
+	r.streamOpenCalls++
+	r.streamRequest = request
+	return nil, errors.New("stream open is not expected")
+}
 
 func TestRouteV2StreamSessionCopiesChunksAndAcceptsBoundTerminal(t *testing.T) {
 	wire := &fakeRouteV2WireStream{

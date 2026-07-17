@@ -27,7 +27,7 @@ func (i *BufferedRouteStepInvoker) invokeProtocolV2(
 	if !ok {
 		return routes.RouteInvocationResult{}, ErrRouteRuntimeTarget
 	}
-	query, queryValues, err := exactProtocolV2RouteQueryValues(input.Request.Query)
+	query, queryValues, err := exactProtocolV2RouteQuery(input.Request.Query)
 	if err != nil {
 		return routes.RouteInvocationResult{}, err
 	}
@@ -156,20 +156,7 @@ func exactProtocolV2RouteIdempotencyKey(headers stdhttp.Header) (string, error) 
 	}
 }
 
-func exactProtocolV2RouteQuery(raw string) (map[string]string, error) {
-	legacy, values, err := exactProtocolV2RouteQueryValues(raw)
-	if err != nil {
-		return nil, err
-	}
-	for key, items := range values {
-		if len(items) != 1 {
-			return nil, fmt.Errorf("%w: repeated query parameter %q", ErrRouteRuntimeTarget, key)
-		}
-	}
-	return legacy, nil
-}
-
-func exactProtocolV2RouteQueryValues(raw string) (map[string]string, map[string][]string, error) {
+func exactProtocolV2RouteQuery(raw string) (map[string]string, map[string][]string, error) {
 	if raw == "" {
 		return nil, nil, nil
 	}

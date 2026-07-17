@@ -2,6 +2,8 @@ package http
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -10,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
 	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
 	routes "github.com/zhuchunshu/sforum/apps/api/app/Support/Routes"
 )
@@ -25,6 +28,10 @@ func (i *BufferedRouteStepInvoker) OpenStream(
 ) (routes.RouteStreamStart, error) {
 	if i == nil || i.Runtime == nil || ctx == nil || input.Commit == nil || input.Step.Provider.Kind != routes.ProviderPlugin {
 		return routes.RouteStreamStart{}, routes.ErrDispatchTransport
+	}
+	if input.Stage != routes.InvocationStageHandler ||
+		input.Step.Action != extensionmanifest.RouteActionAdd && input.Step.Action != extensionmanifest.RouteActionReplace {
+		return routes.RouteStreamStart{}, ErrRouteRuntimeTarget
 	}
 	authority, ok := input.RequestAuthority()
 	if !ok {
@@ -54,7 +61,7 @@ func (i *BufferedRouteStepInvoker) OpenStream(
 	if err != nil {
 		return routes.RouteStreamStart{}, err
 	}
-	query, err := exactProtocolV2RouteQuery(input.Request.Query)
+	query, queryValues, err := exactProtocolV2RouteQuery(input.Request.Query)
 	if err != nil {
 		lease.Release()
 		return routes.RouteStreamStart{}, err
@@ -72,6 +79,11 @@ func (i *BufferedRouteStepInvoker) OpenStream(
 	actor := extensionsruntime.NewProtocolV2RouteActor(
 		input.Request.ActorID, input.Request.Authenticated, input.Request.Permissions,
 	)
+	correlationID, err := newRouteStreamCorrelationID()
+	if err != nil {
+		lease.Release()
+		return routes.RouteStreamStart{}, err
+	}
 	if err := lease.Context.Err(); err != nil {
 		lease.Release()
 		return routes.RouteStreamStart{}, err
@@ -83,15 +95,16 @@ func (i *BufferedRouteStepInvoker) OpenStream(
 		RouteID: input.Step.RouteID, ContractVersion: input.Step.ContractVersion,
 		RouteAction: input.Step.Action, InvocationStage: extensionsruntime.ProtocolV2RouteInvocationStageHandler,
 		Method: input.Request.Method, Path: input.Request.Path, Headers: headers,
-		PathParameters: input.Request.Params, QueryParameters: query,
+		PathParameters: input.Request.Params, QueryParameters: query, QueryParameterValues: queryValues,
 		RequestSchema: input.Step.RequestSchema, ResponseSchema: input.Step.ResponseSchema,
-		Authority: wireAuthority, Actor: actor, IdempotencyKey: idempotencyKey,
+		Authority: wireAuthority, Actor: actor, IdempotencyKey: idempotencyKey, CorrelationID: correlationID,
 	})
 	if err != nil {
 		lease.Release()
 		return routes.RouteStreamStart{}, err
 	}
-	if !preflight.StreamFollows || preflight.BodyPresent {
+	if !routes.ValidTerminalResponseStatus(input.Step.Mode, preflight.StatusCode) ||
+		!preflight.StreamFollows || preflight.BodyPresent {
 		lease.Release()
 		return routes.RouteStreamStart{}, fmt.Errorf("%w: runtime did not accept a streamed response", ErrRouteRuntimeTarget)
 	}
@@ -103,7 +116,8 @@ func (i *BufferedRouteStepInvoker) OpenStream(
 		RouteID: input.Step.RouteID, ContractVersion: input.Step.ContractVersion,
 		Method: input.Request.Method, Path: requestTarget, Mode: input.Step.Mode,
 		Headers: headers, Authority: wireAuthority, Actor: actor, IdempotencyKey: idempotencyKey,
-		Timeout: routeStreamTimeout(input.Step.TimeoutMS),
+		CorrelationID: correlationID,
+		Timeout:       routeStreamTimeout(input.Step.TimeoutMS),
 	})
 	if err != nil {
 		lease.Release()
@@ -118,6 +132,14 @@ func (i *BufferedRouteStepInvoker) OpenStream(
 		},
 		Session: session,
 	}, nil
+}
+
+func newRouteStreamCorrelationID() (string, error) {
+	var value [16]byte
+	if _, err := rand.Read(value[:]); err != nil {
+		return "", err
+	}
+	return "route_" + hex.EncodeToString(value[:]), nil
 }
 
 func routeStreamTimeout(timeoutMS int) time.Duration {

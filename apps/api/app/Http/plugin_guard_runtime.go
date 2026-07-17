@@ -68,7 +68,7 @@ func (e *RuntimePluginRouteGuardEvaluator) EvaluatePluginGuard(
 		return preInvocationPluginGuardFailure(err)
 	}
 	defer lease.Release()
-	query, queryValues, err := exactProtocolV2RouteQueryValues(evaluation.Request.Query)
+	query, queryValues, err := exactProtocolV2RouteQuery(evaluation.Request.Query)
 	if err != nil {
 		return preInvocationPluginGuardFailure(err)
 	}

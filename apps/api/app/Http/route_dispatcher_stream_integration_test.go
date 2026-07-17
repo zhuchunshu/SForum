@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -30,6 +31,8 @@ import (
 )
 
 const routeStreamE2EHelperEnv = "route-stream-http-e2e"
+
+var routeStreamE2ECorrelations sync.Map
 
 func TestRouteStreamAcrossFiberManagerAndRealProtocolV2Process(t *testing.T) {
 	extension := routeStreamE2EExtension(t)
@@ -194,6 +197,11 @@ func TestRouteStreamHTTPHelperProcess(t *testing.T) {
 type routeStreamE2EServer struct{ *pluginv2sdk.Server }
 
 func (s *routeStreamE2EServer) InvokeRoute(_ context.Context, request *pluginwire.RouteRequest) (*pluginwire.RouteResponse, error) {
+	traceID := request.GetContext().GetTrace().GetTraceId()
+	if traceID == "" {
+		return nil, fmt.Errorf("stream preflight trace id is empty")
+	}
+	routeStreamE2ECorrelations.Store(traceID, request.GetRouteId())
 	status := uint32(stdhttp.StatusOK)
 	headers := []*protocolwire.Header{}
 	switch request.GetRouteId() {
@@ -220,7 +228,13 @@ func (s *routeStreamE2EServer) InvokeRoute(_ context.Context, request *pluginwir
 }
 
 func routeStreamE2EHandler(stream *pluginv2sdk.RouteStream) error {
-	switch stream.Open().GetRouteId() {
+	routeID := stream.Open().GetRouteId()
+	streamTrace := stream.Open().GetContext().GetTrace().GetTraceId()
+	preflightRoute, ok := routeStreamE2ECorrelations.LoadAndDelete(streamTrace)
+	if !ok || streamTrace == "" || preflightRoute != routeID {
+		return fmt.Errorf("stream correlation mismatch: preflight=%v stream=%q route=%q", preflightRoute, streamTrace, routeID)
+	}
+	switch routeID {
 	case "runtime.stream.upload":
 		total, maximum := 0, 0
 		for {
