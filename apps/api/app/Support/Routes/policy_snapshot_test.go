@@ -254,13 +254,29 @@ func TestRegistryRejectsRequiredReplayCredentialMutatingContributions(t *testing
 func TestRoutePolicyAndExecutionPlanPublishAtomicallyTo64Readers(t *testing.T) {
 	registry := NewRegistry()
 	providers := NewProviderSelectionAPI(registry, newMemoryProviderSelectionStore())
-	first := policySnapshotPublication("1.0.0", 'a', "policy.atomic.route@1", RouteExecutionPolicy{
+	first := selectedPolicySnapshotPublication("runtime-policy-a", RouteExecutionPolicy{
 		RateLimit: "host.ip_write@1", Idempotency: "disabled",
 	})
-	second := policySnapshotPublication("2.0.0", 'b', "policy.atomic.route@2", RouteExecutionPolicy{
+	second := selectedPolicySnapshotPublication("runtime-policy-b", RouteExecutionPolicy{
 		RateLimit: "host.ip_write@1", Idempotency: "required.24h@1", IdempotencyRequired: true,
 	})
 	if _, err := registry.Publish(first); err != nil {
+		t.Fatal(err)
+	}
+	conflicts, err := providers.Conflicts(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(conflicts) != 1 || conflicts[0].SelectionStatus != "unselected" {
+		t.Fatalf("provider conflicts=%#v", conflicts)
+	}
+	selectedRoute := first.Plugins[0].Routes[0]
+	if _, err := providers.Select(t.Context(), SelectProviderRequest{
+		Key: conflicts[0].Key, ProviderRouteID: selectedRoute.ID,
+		ProviderContractVersion: selectedRoute.ContractVersion,
+		ProviderArtifact:        first.Plugins[0].Artifact,
+		ActorUserID:             7, AuditEventID: 17,
+	}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -283,16 +299,16 @@ func TestRoutePolicyAndExecutionPlanPublishAtomicallyTo64Readers(t *testing.T) {
 		if !ok {
 			return fmt.Errorf("revision %d has no bound policy", plan.Revision())
 		}
-		switch plan.Terminal().ContractVersion {
-		case "policy.atomic.route@1":
+		switch plan.Terminal().Provider.Artifact.RuntimeInstanceID {
+		case "runtime-policy-a":
 			firstSeen.Add(1)
 			if policy != first.Policies[0].Policy {
-				return fmt.Errorf("v1 plan observed policy %#v", policy)
+				return fmt.Errorf("runtime A plan observed policy %#v", policy)
 			}
-		case "policy.atomic.route@2":
+		case "runtime-policy-b":
 			secondSeen.Add(1)
 			if policy != second.Policies[0].Policy {
-				return fmt.Errorf("v2 plan observed policy %#v", policy)
+				return fmt.Errorf("runtime B plan observed policy %#v", policy)
 			}
 		default:
 			return fmt.Errorf("unknown terminal %#v", plan.Terminal())
@@ -305,15 +321,6 @@ func TestRoutePolicyAndExecutionPlanPublishAtomicallyTo64Readers(t *testing.T) {
 			defer workers.Done()
 			<-start
 			for attempt := 0; attempt < 500 && !failed.Load(); attempt++ {
-				plan, err := registry.BuildExecutionPlan("POST", "/policy-atomic")
-				if err != nil {
-					report(err)
-					return
-				}
-				if err := verify(plan); err != nil {
-					report(err)
-					return
-				}
 				selected, err := providers.BuildExecutionPlan(context.Background(), "POST", "/policy-atomic")
 				if err != nil {
 					report(err)
@@ -349,6 +356,24 @@ func TestRoutePolicyAndExecutionPlanPublishAtomicallyTo64Readers(t *testing.T) {
 	}
 	if firstSeen.Load() == 0 || secondSeen.Load() == 0 {
 		t.Fatalf("readers missed a revision: first=%d second=%d", firstSeen.Load(), secondSeen.Load())
+	}
+}
+
+func selectedPolicySnapshotPublication(runtimeInstanceID string, policy RouteExecutionPolicy) Publication {
+	target := coreRoute("core.route.policy.atomic", "POST", "/policy-atomic")
+	artifact := routeArtifact("policy.atomic", "1.0.0", 'a')
+	artifact.RuntimeInstanceID = runtimeInstanceID
+	replacement := modifierRoute(
+		"policy.atomic.route", target.ID, target.Path,
+		extensionmanifest.RouteActionReplace, target.Method, 100,
+	)
+	return Publication{
+		Core:    []CoreRoute{target},
+		Plugins: []PluginRouteSet{{Artifact: artifact, Routes: []extensionmanifest.ManifestRoute{replacement}}},
+		Policies: []RoutePolicyBinding{{
+			Artifact: artifact, RouteID: replacement.ID, ContractVersion: replacement.ContractVersion,
+			Method: target.Method, Policy: policy,
+		}},
 	}
 }
 
