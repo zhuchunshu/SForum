@@ -512,6 +512,14 @@ type ExtensionSettings struct {
 	Actions          []ExtensionSettingsAction  `json:"actions,omitempty"`
 }
 
+// AdminPageBootstrap 管理端扩展页一次请求所需的 extension + 匹配页 + 可选设置。
+// page/settings 刻意不用 omitempty，缺失时 JSON 显式 null，供前端 not-found UI 使用。
+type AdminPageBootstrap struct {
+	Extension Extension          `json:"extension"`
+	Page      *ManifestAdminPage `json:"page"`
+	Settings  *ExtensionSettings `json:"settings"`
+}
+
 // PublicActiveThemeSettings 当前激活主题的非 secret 运行时设置（前台可读）。
 type PublicActiveThemeSettings struct {
 	ThemeID  string            `json:"themeId"`

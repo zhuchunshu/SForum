@@ -46,6 +46,7 @@ func (h *Controller) RegisterRoutes(api fiber.Router) {
 	api.Post("/admin/extensions/:id/lifecycle/:operationID/recovery", h.recoverLifecycleOperation)
 	api.Get("/admin/extensions/:id/migrations", h.listMigrations)
 	api.Post("/admin/extensions/:id/migrations/apply", h.applyMigrations)
+	api.Get("/admin/extensions/:id/page-bootstrap", h.pageBootstrap)
 	api.Get("/admin/extensions/:id/settings", h.settings)
 	api.Put("/admin/extensions/:id/settings", h.updateSettings)
 	api.Post("/admin/extensions/:id/settings/reset", h.resetSettings)

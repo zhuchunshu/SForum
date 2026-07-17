@@ -679,6 +679,7 @@ func TestProductionExtensionsReadGuardPartitionsCatalogByProvablePolicy(t *testi
 
 		"core.route.extensions.frontend_status": {method: "GET"},
 		"core.route.extensions.frontend_asset":  {method: "GET"},
+		"core.route.extensions.page_bootstrap":  {method: "GET"},
 		"core.route.extensions.settings":        {method: "GET"},
 	}
 	var catalog []routes.CoreRoute

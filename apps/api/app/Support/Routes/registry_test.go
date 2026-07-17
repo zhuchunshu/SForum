@@ -484,7 +484,7 @@ func assertResolvedGuardPermission(t *testing.T, registry *Registry, want string
 
 func TestCoreRouteCatalogHasExactReviewedGuardParity(t *testing.T) {
 	catalog := CoreRouteCatalog()
-	if len(catalog) != 233 {
+	if len(catalog) != 234 {
 		t.Fatalf("generated core route count = %d", len(catalog))
 	}
 	kinds := make(map[CoreGuardKind]int)

@@ -673,6 +673,48 @@ func (s *Service) Settings(ctx context.Context, actor identity.Actor, extensionI
 	return resolveExtensionSettings(extension, values, locale), nil
 }
 
+// AdminPageBootstrap 一次加载扩展详情页：store.Get 仅一次；未知 path 不报错，page/settings 为 null。
+// 仅当匹配页 View 声明为 settings 时才加载掩码设置，不根据 path 文本推断。
+func (s *Service) AdminPageBootstrap(ctx context.Context, actor identity.Actor, extensionID, pagePath, locale string) (AdminPageBootstrap, error) {
+	// Settings 管理权限不反向继承 extension.view；先允许潜在设置管理员进入精确
+	// 扩展判定，普通/未知页面仍在下方严格要求只读目录权限。
+	if !canViewExtensions(actor) && !canManagePlugins(actor) && !canManageThemes(actor) && !actor.Can(identity.PermissionSettingsMailManage) {
+		return AdminPageBootstrap{}, identity.ErrPermissionDenied
+	}
+	extension, err := s.store.Get(ctx, normalizeID(extensionID))
+	if err != nil {
+		return AdminPageBootstrap{}, err
+	}
+	extension = s.decorateRuntime(ctx, extension)
+	result := AdminPageBootstrap{Extension: extension}
+
+	want := normalizeRoutePath(pagePath)
+	for _, page := range normalizedAdminPages(extension.Manifest) {
+		if page.Path != want {
+			continue
+		}
+		matched := page
+		result.Page = &matched
+		break
+	}
+	if result.Page == nil || result.Page.View != "settings" {
+		if !canViewExtensions(actor) {
+			return AdminPageBootstrap{}, identity.ErrPermissionDenied
+		}
+		return result, nil
+	}
+	if !canManageExtensionSettings(actor, extension) {
+		return AdminPageBootstrap{}, identity.ErrPermissionDenied
+	}
+	values, err := s.listDecryptedSettings(ctx, extension)
+	if err != nil {
+		return AdminPageBootstrap{}, err
+	}
+	settings := resolveExtensionSettings(extension, values, locale)
+	result.Settings = &settings
+	return result, nil
+}
+
 func (s *Service) UpdateSettings(ctx context.Context, actor identity.Actor, extensionID string, input UpdateSettingsInput, locale string) (ExtensionSettings, error) {
 	extension, err := s.store.Get(ctx, normalizeID(extensionID))
 	if err != nil {

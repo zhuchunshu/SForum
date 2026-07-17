@@ -1256,6 +1256,184 @@ func TestServiceDetailLoadsOnlyExactExtensionAndDecoratesRuntimeStatus(t *testin
 	}
 }
 
+func TestServiceAdminPageBootstrapResolvesPagesAndSettingsByDeclaredView(t *testing.T) {
+	item := installedExtension("bootstrap.plugin", TypePlugin, ManifestBackend{Entry: "backend/plugin"})
+	item.Status = StatusEnabled
+	item.Manifest.Admin = ManifestAdmin{
+		Pages: []ManifestAdminPage{
+			// 任意声明路径，不依赖 /settings 字面量。
+			{Path: "/ops/config", Label: "Ops Config", View: "settings", Icon: "i-lucide-sliders", Order: 20},
+			{Path: "/ops/dashboard", Label: "Ops Dashboard", View: "about", Order: 10, Menu: true},
+		},
+	}
+	item.Manifest.Settings = []ManifestSetting{
+		{
+			Key: "demo.title",
+			Label: LocalizedText{
+				Default:  "Title",
+				ByLocale: map[string]string{"zh-CN": "标题", "en-US": "Title EN"},
+			},
+			Type:    "text",
+			Default: "Hello",
+		},
+		{Key: "demo.token", Label: LocalizedText{Default: "Token"}, Type: "secret", Default: ""},
+	}
+	store := &fakeExtensionStore{
+		items: map[string]Extension{item.ID: item},
+		settings: map[string]map[string]string{
+			item.ID: {"demo.title": "Stored", "demo.token": "super-secret"},
+		},
+	}
+	runtime := &fakeRuntimeManager{statuses: map[string]RuntimeStatus{
+		item.ID: {State: RuntimeRunning, RouteCount: 1},
+	}}
+	service := NewServiceWithRuntime(store, t.TempDir(), runtime)
+	manager := extensionManager()
+
+	settingsBootstrap, err := service.AdminPageBootstrap(context.Background(), manager, item.ID, "ops/config", "zh-CN")
+	if err != nil {
+		t.Fatalf("settings path bootstrap: %v", err)
+	}
+	if store.getCalls.Load() != 1 {
+		t.Fatalf("expected single store.Get, got %d", store.getCalls.Load())
+	}
+	if settingsBootstrap.Extension.ID != item.ID || settingsBootstrap.Extension.Runtime == nil || settingsBootstrap.Extension.Runtime.State != RuntimeRunning {
+		t.Fatalf("expected decorated extension, got %#v", settingsBootstrap.Extension)
+	}
+	if settingsBootstrap.Page == nil || settingsBootstrap.Page.Path != "/ops/config" || settingsBootstrap.Page.View != "settings" || settingsBootstrap.Page.Icon != "i-lucide-sliders" {
+		t.Fatalf("expected normalized settings page, got %#v", settingsBootstrap.Page)
+	}
+	if settingsBootstrap.Settings == nil {
+		t.Fatal("settings page must include settings payload")
+	}
+	if settingsBootstrap.Settings.ExtensionID != item.ID || settingValue(*settingsBootstrap.Settings, "demo.title") != "Stored" {
+		t.Fatalf("unexpected settings values: %#v", settingsBootstrap.Settings)
+	}
+	if settingsBootstrap.Settings.Items[0].Label != "标题" {
+		t.Fatalf("expected zh-CN localized label, got %q", settingsBootstrap.Settings.Items[0].Label)
+	}
+	if settingValue(*settingsBootstrap.Settings, "demo.token") != "" || !settingsBootstrap.Settings.Items[1].SecretSet {
+		t.Fatalf("secret must be masked with secretSet: %#v", settingsBootstrap.Settings.Items[1])
+	}
+	if store.listSettingsCalls.Load() != 1 {
+		t.Fatalf("settings page must read settings once, got %d", store.listSettingsCalls.Load())
+	}
+
+	// 再次调用：about 与未知 path 不加载 settings。
+	aboutBootstrap, err := service.AdminPageBootstrap(context.Background(), manager, item.ID, "/about", "zh-CN")
+	if err != nil {
+		t.Fatalf("about bootstrap: %v", err)
+	}
+	if aboutBootstrap.Page == nil || aboutBootstrap.Page.Path != "/about" || aboutBootstrap.Page.View != "about" {
+		t.Fatalf("expected host /about page, got %#v", aboutBootstrap.Page)
+	}
+	if aboutBootstrap.Settings != nil {
+		t.Fatalf("about must not load settings: %#v", aboutBootstrap.Settings)
+	}
+
+	unknownBootstrap, err := service.AdminPageBootstrap(context.Background(), manager, item.ID, "/missing", "zh-CN")
+	if err != nil {
+		t.Fatalf("unknown path must not be an error: %v", err)
+	}
+	if unknownBootstrap.Page != nil || unknownBootstrap.Settings != nil {
+		t.Fatalf("unknown path should return null page/settings: page=%#v settings=%#v", unknownBootstrap.Page, unknownBootstrap.Settings)
+	}
+	if unknownBootstrap.Extension.ID != item.ID {
+		t.Fatalf("unknown path still returns extension: %#v", unknownBootstrap.Extension)
+	}
+	if store.listSettingsCalls.Load() != 1 {
+		t.Fatalf("about/unknown pages must not read settings, got %d calls", store.listSettingsCalls.Load())
+	}
+
+	// 仅 extension.view：about 可读，settings 页拒绝。
+	viewer := identity.Actor{
+		ID:     8,
+		Status: identity.UserStatusActive,
+		Permissions: map[string]bool{
+			identity.PermissionExtensionView: true,
+		},
+	}
+	viewAbout, err := service.AdminPageBootstrap(context.Background(), viewer, item.ID, "/about", "zh-CN")
+	if err != nil {
+		t.Fatalf("viewer about must be allowed: %v", err)
+	}
+	if viewAbout.Page == nil || viewAbout.Page.View != "about" || viewAbout.Settings != nil {
+		t.Fatalf("viewer about payload unexpected: %#v", viewAbout)
+	}
+	_, err = service.AdminPageBootstrap(context.Background(), viewer, item.ID, "/ops/config", "zh-CN")
+	if !errors.Is(err, identity.ErrPermissionDenied) {
+		t.Fatalf("viewer settings path must deny, got %v", err)
+	}
+	if store.listSettingsCalls.Load() != 1 {
+		t.Fatalf("denied settings page must not read settings, got %d calls", store.listSettingsCalls.Load())
+	}
+
+	// 路径声明 view=about 时即便路径含 settings 字样也不加载设置。
+	item.Manifest.Admin.Pages = append(item.Manifest.Admin.Pages, ManifestAdminPage{
+		Path: "/legacy-settings-name", Label: "Legacy", View: "about",
+	})
+	store.items[item.ID] = item
+	namedAbout, err := service.AdminPageBootstrap(context.Background(), manager, item.ID, "/legacy-settings-name", "zh-CN")
+	if err != nil {
+		t.Fatalf("path-name about: %v", err)
+	}
+	if namedAbout.Page == nil || namedAbout.Page.View != "about" || namedAbout.Settings != nil {
+		t.Fatalf("must not infer settings from path text: %#v", namedAbout)
+	}
+}
+
+func TestServiceAdminPageBootstrapAllowsMatchingSettingsManagersWithoutView(t *testing.T) {
+	tests := []struct {
+		name       string
+		kind       string
+		permission string
+		mail       bool
+	}{
+		{name: "plugin manager", kind: TypePlugin, permission: identity.PermissionExtensionPluginManage},
+		{name: "theme manager", kind: TypeTheme, permission: identity.PermissionExtensionThemeManage},
+		{name: "mail manager", kind: TypePlugin, permission: identity.PermissionSettingsMailManage, mail: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			item := installedExtension("bootstrap."+strings.ReplaceAll(tt.name, " ", "-"), tt.kind, ManifestBackend{})
+			item.Manifest.Admin = ManifestAdmin{Pages: []ManifestAdminPage{
+				{Path: "/settings", Label: "Settings", View: "settings"},
+				{Path: "/about", Label: "About", View: "about"},
+			}}
+			item.Manifest.Settings = []ManifestSetting{{Key: "demo.enabled", Label: LocalizedText{Default: "Enabled"}, Type: "boolean", Default: "true"}}
+			if tt.mail {
+				item.Manifest.Providers = []ManifestProvider{{Slot: "mail.provider", Label: "Mail"}}
+			}
+			store := &fakeExtensionStore{items: map[string]Extension{item.ID: item}}
+			service := NewService(store, t.TempDir())
+			actor := identity.Actor{
+				ID: 42, Status: identity.UserStatusActive,
+				Permissions: map[string]bool{tt.permission: true},
+			}
+
+			bootstrap, err := service.AdminPageBootstrap(context.Background(), actor, item.ID, "/settings", "zh-CN")
+			if err != nil {
+				t.Fatalf("matching settings manager denied: %v", err)
+			}
+			if bootstrap.Settings == nil || bootstrap.Page == nil || bootstrap.Page.View != "settings" {
+				t.Fatalf("unexpected settings bootstrap: %#v", bootstrap)
+			}
+			if store.getCalls.Load() != 1 || store.listSettingsCalls.Load() != 1 {
+				t.Fatalf("settings bootstrap calls: get=%d settings=%d", store.getCalls.Load(), store.listSettingsCalls.Load())
+			}
+
+			_, err = service.AdminPageBootstrap(context.Background(), actor, item.ID, "/about", "zh-CN")
+			if !errors.Is(err, identity.ErrPermissionDenied) {
+				t.Fatalf("manage-only actor must not read metadata page, got %v", err)
+			}
+			if store.listSettingsCalls.Load() != 1 {
+				t.Fatalf("metadata denial must not read settings, got %d", store.listSettingsCalls.Load())
+			}
+		})
+	}
+}
+
 func TestServiceEmitsPluginLifecycleHooks(t *testing.T) {
 	store := &fakeExtensionStore{items: map[string]Extension{
 		"demo.plugin": withInstalledPackage(t, installedExtension("demo.plugin", TypePlugin, ManifestBackend{Entry: "backend/plugin"})),
@@ -1983,6 +2161,7 @@ type fakeExtensionStore struct {
 	items                    map[string]Extension
 	listCalls                atomic.Int64
 	getCalls                 atomic.Int64
+	listSettingsCalls        atomic.Int64
 	saved                    Extension
 	nextVersionID            int64
 	enabledID                string
@@ -2362,6 +2541,7 @@ func (s *fakeExtensionStore) ListEvents(context.Context, string, int) ([]Extensi
 }
 
 func (s *fakeExtensionStore) ListSettings(_ context.Context, extensionID string) (map[string]string, error) {
+	s.listSettingsCalls.Add(1)
 	if s.settings == nil {
 		return map[string]string{}, nil
 	}

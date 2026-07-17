@@ -468,6 +468,18 @@ func (h *Controller) publicActiveThemeSettings(c fiber.Ctx) error {
 	return apphttp.OK(c, settings)
 }
 
+func (h *Controller) pageBootstrap(c fiber.Ctx) error {
+	actor, err := h.actor(c)
+	if err != nil {
+		return err
+	}
+	result, err := h.service.AdminPageBootstrap(c.Context(), actor, c.Params("id"), c.Query("path"), apphttp.Locale(c))
+	if err != nil {
+		return mapExtensionError(err)
+	}
+	return apphttp.OK(c, result)
+}
+
 func (h *Controller) settings(c fiber.Ctx) error {
 	actor, err := h.actor(c)
 	if err != nil {

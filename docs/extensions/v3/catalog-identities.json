@@ -248,6 +248,12 @@
       "path": "/api/v1/admin/extensions/:id/migrations/apply"
     },
     {
+      "id": "core.route.extensions.page_bootstrap",
+      "contractVersion": "sforum.route.extensions.page_bootstrap@1",
+      "method": "GET",
+      "path": "/api/v1/admin/extensions/:id/page-bootstrap"
+    },
+    {
       "id": "core.route.extensions.settings",
       "contractVersion": "sforum.route.extensions.settings@1",
       "method": "GET",

@@ -276,6 +276,167 @@ func TestControllerListsAndEnablesExtensionsForManager(t *testing.T) {
 	}
 }
 
+func TestControllerAdminPageBootstrapReturnsExtensionPageAndSettings(t *testing.T) {
+	manager := authsession.NewManager(session.NewStore(), authsession.Config{HashSecret: "test-secret"})
+	users := controllerActors{actors: map[int64]identity.Actor{
+		1: {
+			ID:     1,
+			Status: identity.UserStatusActive,
+			Permissions: map[string]bool{
+				identity.PermissionExtensionManage: true,
+			},
+		},
+		2: {
+			ID:     2,
+			Status: identity.UserStatusActive,
+			Permissions: map[string]bool{
+				identity.PermissionExtensionView: true,
+			},
+		},
+		3: {
+			ID:     3,
+			Status: identity.UserStatusActive,
+			Permissions: map[string]bool{
+				identity.PermissionExtensionPluginManage: true,
+			},
+		},
+	}}
+	plugin := extensions.Extension{
+		ID: "bootstrap.plugin", Name: "Bootstrap Plugin", Version: "1.0.0",
+		Type: extensions.TypePlugin, Status: extensions.StatusEnabled, Source: extensions.SourceUploaded,
+		Manifest: extensions.Manifest{
+			ID: "bootstrap.plugin", Name: "Bootstrap Plugin", Version: "1.0.0", Type: extensions.TypePlugin,
+			SForumVersion: "^1.0.0",
+			Admin: extensions.ManifestAdmin{
+				Pages: []extensions.ManifestAdminPage{
+					{Path: "/ops/config", Label: "Ops Config", View: "settings", Icon: "i-lucide-sliders", Order: 20},
+					{Path: "/ops/dashboard", Label: "Ops Dashboard", View: "about", Order: 10, Menu: true},
+				},
+			},
+			Settings: []extensions.ManifestSetting{
+				{
+					Key: "demo.title",
+					Label: extensionmanifest.LocalizedText{
+						Default:  "Title",
+						ByLocale: map[string]string{"zh-CN": "标题", "en-US": "Title EN"},
+					},
+					Type: "text", Default: "Hello",
+				},
+				{Key: "demo.token", Label: extensionmanifest.LocalizedText{Default: "Token"}, Type: "secret"},
+			},
+		},
+	}
+	plugin.PackagePath = controllerInstalledPackage(t, plugin.Manifest)
+	store := &controllerFakeStore{
+		items: map[string]extensions.Extension{plugin.ID: plugin},
+		settings: map[string]map[string]string{
+			plugin.ID: {"demo.title": "Stored", "demo.token": "super-secret"},
+		},
+	}
+	controller := NewController(extensions.NewService(store, t.TempDir()), users, manager)
+	loginProvider := extensionRouteProviderFunc(func(api fiber.Router) {
+		api.Post("/test-login/:id", func(c fiber.Ctx) error {
+			var id int64 = 1
+			switch c.Params("id") {
+			case "2":
+				id = 2
+			case "3":
+				id = 3
+			}
+			_, err := manager.Start(c, id)
+			return err
+		})
+	})
+	app := apphttp.NewApp(config.Config{
+		AppName: "SForum", AppEnv: "test", CSRFEnabled: false,
+		AppLocale: "zh-CN", SupportedLocales: []string{"zh-CN", "en-US"},
+	}, slog.Default(), apphttp.Dependencies{RouteProviders: []apphttp.RouteProvider{controller, loginProvider}})
+
+	managerCookie := loginExtensionUser(t, app, manager, 1)
+	resp := performExtensionRequest(t, app, http.MethodGet, "/api/v1/admin/extensions/bootstrap.plugin/page-bootstrap?path=/ops/config", managerCookie)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200 page-bootstrap settings, got %d body=%s", resp.StatusCode, responseBody(t, resp))
+	}
+	var settingsBody testEnvelope[extensions.AdminPageBootstrap]
+	if err := json.NewDecoder(resp.Body).Decode(&settingsBody); err != nil {
+		t.Fatalf("decode settings bootstrap: %v", err)
+	}
+	resp.Body.Close()
+	if settingsBody.Data.Extension.ID != plugin.ID {
+		t.Fatalf("extension id=%q", settingsBody.Data.Extension.ID)
+	}
+	if settingsBody.Data.Page == nil || settingsBody.Data.Page.Path != "/ops/config" || settingsBody.Data.Page.View != "settings" {
+		t.Fatalf("unexpected page: %#v", settingsBody.Data.Page)
+	}
+	if settingsBody.Data.Settings == nil || controllerSettingValue(*settingsBody.Data.Settings, "demo.title") != "Stored" {
+		t.Fatalf("unexpected settings: %#v", settingsBody.Data.Settings)
+	}
+	if settingsBody.Data.Settings.Items[0].Label != "标题" {
+		t.Fatalf("expected localized label, got %q", settingsBody.Data.Settings.Items[0].Label)
+	}
+	if controllerSettingValue(*settingsBody.Data.Settings, "demo.token") != "" {
+		t.Fatalf("secret must stay masked: %#v", settingsBody.Data.Settings)
+	}
+
+	// 显式 null：用原始 JSON 断言 page/settings 缺失时不是 omit。
+	resp = performExtensionRequest(t, app, http.MethodGet, "/api/v1/admin/extensions/bootstrap.plugin/page-bootstrap?path=/about", managerCookie)
+	rawAbout := responseBody(t, resp)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200 about bootstrap, got %d body=%s", resp.StatusCode, rawAbout)
+	}
+	var aboutBody testEnvelope[extensions.AdminPageBootstrap]
+	if err := json.Unmarshal([]byte(rawAbout), &aboutBody); err != nil {
+		t.Fatalf("decode about bootstrap: %v", err)
+	}
+	if aboutBody.Data.Page == nil || aboutBody.Data.Page.Path != "/about" || aboutBody.Data.Page.View != "about" {
+		t.Fatalf("expected /about page, got %#v", aboutBody.Data.Page)
+	}
+	if aboutBody.Data.Settings != nil {
+		t.Fatalf("about settings must be null: %#v", aboutBody.Data.Settings)
+	}
+	if !strings.Contains(rawAbout, `"settings":null`) {
+		t.Fatalf("about response must encode settings as null: %s", rawAbout)
+	}
+
+	resp = performExtensionRequest(t, app, http.MethodGet, "/api/v1/admin/extensions/bootstrap.plugin/page-bootstrap?path=/missing", managerCookie)
+	rawUnknown := responseBody(t, resp)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200 unknown bootstrap, got %d body=%s", resp.StatusCode, rawUnknown)
+	}
+	if !strings.Contains(rawUnknown, `"page":null`) || !strings.Contains(rawUnknown, `"settings":null`) {
+		t.Fatalf("unknown path must encode page/settings null: %s", rawUnknown)
+	}
+	var unknownBody testEnvelope[extensions.AdminPageBootstrap]
+	if err := json.Unmarshal([]byte(rawUnknown), &unknownBody); err != nil {
+		t.Fatalf("decode unknown bootstrap: %v", err)
+	}
+	if unknownBody.Data.Extension.ID != plugin.ID || unknownBody.Data.Page != nil || unknownBody.Data.Settings != nil {
+		t.Fatalf("unexpected unknown payload: %#v", unknownBody.Data)
+	}
+
+	viewerCookie := loginExtensionUser(t, app, manager, 2)
+	resp = performExtensionRequest(t, app, http.MethodGet, "/api/v1/admin/extensions/bootstrap.plugin/page-bootstrap?path=/about", viewerCookie)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("viewer about must remain allowed, got %d", resp.StatusCode)
+	}
+	resp.Body.Close()
+	resp = performExtensionRequest(t, app, http.MethodGet, "/api/v1/admin/extensions/bootstrap.plugin/page-bootstrap?path=/ops/config", viewerCookie)
+	if resp.StatusCode != http.StatusForbidden {
+		t.Fatalf("viewer settings path must be forbidden, got %d body=%s", resp.StatusCode, responseBody(t, resp))
+	}
+
+	pluginManagerCookie := loginExtensionUser(t, app, manager, 3)
+	resp = performExtensionRequest(t, app, http.MethodGet, "/api/v1/admin/extensions/bootstrap.plugin/page-bootstrap?path=/ops/config", pluginManagerCookie)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("plugin manager settings path must be allowed, got %d body=%s", resp.StatusCode, responseBody(t, resp))
+	}
+	resp.Body.Close()
+	resp = performExtensionRequest(t, app, http.MethodGet, "/api/v1/admin/extensions/bootstrap.plugin/page-bootstrap?path=/about", pluginManagerCookie)
+	if resp.StatusCode != http.StatusForbidden {
+		t.Fatalf("plugin manager without extension.view must not read about, got %d body=%s", resp.StatusCode, responseBody(t, resp))
+	}
+}
+
 func TestControllerListsNavigationAndManagesExtensionSettings(t *testing.T) {
 	app, manager, store := newExtensionTestApp(t)
 	cookie := loginExtensionUser(t, app, manager, 1)

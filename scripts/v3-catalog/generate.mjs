@@ -121,6 +121,7 @@ function routePolicy(route) {
   if (path === '/api/v1/admin/extensions/:id/frontend/confirmation' && method === 'POST') return ['super_admin', 'active super_admin challenge issuance']
   if (path === '/api/v1/admin/extensions/:id/frontend/trust' && method === 'POST') return ['super_admin', 'active super_admin plus actor-bound exact frontend artifact confirmation']
   if (path === '/api/v1/admin/extensions/:id/frontend/trust' && method === 'DELETE') return ['super_admin', 'active super_admin trust revocation']
+  if (path === '/api/v1/admin/extensions/:id/page-bootstrap') return ['permission', 'extension.view for metadata pages; matching plugin/theme settings manage permission for declared settings views']
   if (path.startsWith('/api/v1/admin/extensions')) return ['permission', method === 'GET' ? 'extension.view or matching manage permission' : 'extension.plugin.manage or extension.theme.manage; operation-specific service policy']
   if (path.startsWith('/api/v1/admin/pages')) return ['permission', 'extension.view for inspection; theme/plugin manage and super_admin approval where required']
   if (path.startsWith('/api/v1/admin/attachment-settings')) return ['permission', 'attachment.settings.manage']
@@ -206,6 +207,7 @@ const reviewedGuardPolicies = new Map([
   ['enabled plugin route declaration and manifest access policy', { kind: 'contextual', evaluatorId: 'core.guard.extensions.declared_route' }],
   ['entity ownership plus field definition write policy', { kind: 'contextual', evaluatorId: 'core.guard.entity_meta.write' }],
   ['extension.plugin.manage or extension.theme.manage; operation-specific service policy', { kind: 'contextual', evaluatorId: 'core.guard.extensions.mutation' }],
+  ['extension.view for metadata pages; matching plugin/theme settings manage permission for declared settings views', { kind: 'contextual', evaluatorId: 'core.guard.extensions.read' }],
   ['extension.view for inspection; theme/plugin manage and super_admin approval where required', { kind: 'contextual', evaluatorId: 'core.guard.pages.admin' }],
   ['extension.view or matching manage permission', { kind: 'contextual', evaluatorId: 'core.guard.extensions.read' }],
   ['active cookie session with role.manage; PAT denied; Host explicit decision', { kind: 'contextual', evaluatorId: 'core.guard.identity.admin' }],
