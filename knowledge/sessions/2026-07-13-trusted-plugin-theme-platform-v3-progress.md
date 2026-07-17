@@ -14,6 +14,37 @@ Last updated: 2026-07-17
 
 ## Current Subtask
 
+### 2026-07-17 Extension Settings Performance Checkpoint
+
+- Verified weighted progress remains **64.3447%** (display **64.3%**). This is
+  a user-visible correctness/performance repair for already-credited extension
+  administration and does not close another authoritative row.
+- `5b4b147ec feat(extensions): add exact catalog filtering` gives direct detail
+  loads an exact `GET /api/v1/admin/extensions?id=...` path backed by
+  `Store.Get`, rather than loading and decorating the complete catalog.
+- `6ed44a86c fix(web): speed extension settings rendering` reuses the existing
+  `admin-extensions` item when an operator enters from the plugin/theme list,
+  falls back to the exact endpoint for direct loads, keeps Settings Document
+  client navigation lazy with an explicit loading state, uses shallow async
+  data, and removes the unconditional mounted refresh that unmounted and
+  remounted the just-hydrated form.
+- The page deliberately does not infer `view=settings` from the URL or issue an
+  unconditional parallel settings request: Manifest V3 permits arbitrary admin
+  page paths, including non-menu pages, so the exact extension declaration
+  remains the authority. A future one-request page-bootstrap endpoint is the
+  safe route if this remaining dependency ever needs removal.
+- Focused Bun settings/prebuilt suites passed **9/9**, Nuxt typecheck and diff
+  checks passed, and authenticated Chrome verification covered direct plugin
+  load, theme-list navigation, tab interaction, full form rendering, and new
+  console warnings/errors. Warm theme rendering reported about **835ms**; the
+  SMTP direct reload returned in about **1.66s** on the Nuxt dev server. Cold
+  Vite compilation remains development tooling cost rather than a slow Go
+  handler; independent service measurements put exact detail at about 4-5ms
+  and settings at about 5-29ms.
+- Reverting `6ed44a86c` restores the shared full-catalog page load and mounted
+  refresh without changing extension state, settings, trust, migrations, or
+  package artifacts.
+
 ### 2026-07-17 P6 Bound Mutable Replay Checkpoint
 
 - Verified weighted progress remains **64.3447%** (display **64.3%**). This
@@ -369,6 +400,10 @@ Last updated: 2026-07-17
 
 ## Recent Verified Commits
 
+- `6ed44a86c fix(web): speed extension settings rendering`
+- `f65c89a8f fix(routes): preserve terminal websocket cleanup`
+- `9d2bcb56e fix(routes): require websocket response terminal`
+- `5b4b147ec feat(extensions): add exact catalog filtering`
 - `94fd2f074 feat(protocol): preserve repeated route query values`
 - `5df41f67e docs(extensions): list SEO manifest family`
 - `7237dfc2b feat(seo): bind lifecycle registry runtime`
@@ -563,21 +598,26 @@ Last updated: 2026-07-17
 
 ## Exact Next Steps
 
-1. Finish the exact custom/raw guard, trust revoke/drain, Protocol V1 fence, and
-   WebSocket admission slice with allowed, denied, drift, redirect,
-   invalid-WebSocket, cancellation, and race tests.
-2. Fix WebSocket close arbitration so a client-side normal Close cannot commit
-   before the plugin response pump produces a valid terminal 101; propagate
-   `CloseRequest` failures and keep caller cancellation payload-free.
-3. Land route alias/redirect 301/308 canonical ownership and SEO only in
+1. Finish Stream V2 pre-admission, correlation, repeated-query, request and
+   response schema enforcement, backpressure, disconnect, and terminal cleanup
+   as independently reviewable commits with normal/race/production evidence.
+2. Before returning a required replay record, revalidate the stored response
+   against the current response schema and current plugin-response header
+   policy. Strip stale reserved/hop-by-hop/plugin headers while preserving only
+   Host-added replay/canonical metadata, and prove failure closes before output.
+3. When Core or a plugin response already exists, treat caller cancellation as
+   post-writer evidence: preserve/finalize the exact response and required
+   replay, record a payload-free audit failure, and do not misclassify it as a
+   plugin transport incident or quarantine the artifact.
+4. Land route alias/redirect 301/308 canonical ownership and SEO only in
    independently reviewed contract/transport/Host-policy/
    bootstrap/reference slices; do not credit the SEO row before SSR, sitemap,
    revoke/failure, and Inspector evidence is production-complete.
-4. Close the remaining full route behavior matrix across every action,
+5. Close the remaining full route behavior matrix across every action,
    priority/conflict order, locale/query/body, permission/CSRF, stream,
    disconnect, timeout, crash, multipart, and unsafe committed response; only
    then credit P6 from **15/18** to **18/18**.
-5. Add full-set/staged-publication quarantine concurrency coverage. Current
+6. Add full-set/staged-publication quarantine concurrency coverage. Current
    quarantine is intentionally node/process-local; cross-node or restart
    persistence requires an explicit durable incident/clear contract rather
    than overloading lifecycle publication reasons.
