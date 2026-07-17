@@ -55,7 +55,7 @@ func TestP6RoutePermissionCSRFLocaleQueryAndBodyMatrix(t *testing.T) {
 	token = harness.csrfToken(t)
 	status, body := p6RouteMatrixDo(t, harness.app, p6RouteMatrixRequest(`{"title":"hello"}`, "view=full", token))
 	if status != stdhttp.StatusCreated || body != `{"ok":true}` || harness.runtime.routeCalls != 1 ||
-		harness.schemas.requestCalls != 2 || harness.schemas.responseCalls != 1 {
+		harness.schemas.requestCalls != 2 || harness.schemas.responseCalls != 2 {
 		t.Fatalf("allowed status=%d body=%q runtime=%d schemas=%d/%d", status, body, harness.runtime.routeCalls,
 			harness.schemas.requestCalls, harness.schemas.responseCalls)
 	}

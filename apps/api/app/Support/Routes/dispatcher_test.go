@@ -65,7 +65,9 @@ func TestDispatcherExecutesBufferedChainInPlanOrder(t *testing.T) {
 	if !result.Handled || result.Response.Status != http.StatusOK || result.Response.Headers.Get("X-After") != "yes" || !reflect.DeepEqual(order, wantOrder) {
 		t.Fatalf("result=%#v order=%#v", result, order)
 	}
-	if guard.calls != 7 || schemas.requestCalls != 7 || schemas.responseCalls != 4 {
+	// The final payload is validated once more against the last applicable
+	// response contract before the Dispatcher finalizes it.
+	if guard.calls != 7 || schemas.requestCalls != 7 || schemas.responseCalls != 5 {
 		t.Fatalf("guard=%d request schemas=%d response schemas=%d", guard.calls, schemas.requestCalls, schemas.responseCalls)
 	}
 }

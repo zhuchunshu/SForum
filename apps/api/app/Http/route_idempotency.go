@@ -81,7 +81,9 @@ func (r *RequiredRouteIdempotency) Begin(
 		}
 	}
 	if replay != nil {
-		headers := replay.Headers.Clone()
+		// 历史记录也必须经过当前插件响应头策略；Host 证据随后重建，
+		// canonical Link 则只从结构化 CanonicalPath 生成。
+		headers := routes.FilterPluginResponseHeaders(replay.Headers)
 		headers.Set(idempotency.ReplayedHeader, "true")
 		return nil, &routes.RouteIdempotencyReplay{
 			Response: routes.DispatchResponse{

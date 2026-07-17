@@ -64,6 +64,8 @@ type DispatchResult struct {
 	Response DispatchResponse
 }
 
+const routeIdempotencyReplayedHeader = "Idempotency-Replayed"
+
 type InvocationStage string
 
 const (
@@ -233,8 +235,12 @@ func (d *Dispatcher) Dispatch(ctx context.Context, request DispatchRequest, core
 				if mutableReplay && replay.Authorization == nil || !mutableReplay && replay.Authorization != nil {
 					return DispatchResult{}, ErrDispatchIdempotencyUnavailable
 				}
+				validationResponse := cloneDispatchResponse(replay.Response)
+				// 这是 Host 在验证完成后返回给客户端的传输证据，不能参与
+				// 当前 guard 或响应 Schema 的授权输入。
+				validationResponse.Headers.Del(routeIdempotencyReplayedHeader)
 				if err := d.authorizeReplay(
-					ctx, plan, request, &replay.Response, replay.Authorization, replayBinding,
+					ctx, plan, request, &validationResponse, replay.Authorization, replayBinding,
 				); err != nil {
 					return DispatchResult{}, err
 				}
@@ -261,6 +267,9 @@ func (d *Dispatcher) Dispatch(ctx context.Context, request DispatchRequest, core
 	if err != nil {
 		return DispatchResult{}, err
 	}
+	var finalResponseContract routeInvocationExecution
+	hasFinalResponseContract := false
+	var finalResponseCheckpoint *DispatchResponse
 dispatchSequence:
 	for _, execution := range sequence {
 		index, stage := execution.index, execution.stage
@@ -328,6 +337,10 @@ dispatchSequence:
 					}
 					return DispatchResult{}, fmt.Errorf("%w: %v", ErrDispatchSchema, err)
 				}
+				if hasFinalResponseContract && execution == finalResponseContract {
+					value := cloneDispatchResponse(*response)
+					finalResponseCheckpoint = &value
+				}
 			}
 		}
 
@@ -377,6 +390,10 @@ dispatchSequence:
 				}
 				if fallback != nil {
 					response = fallback
+					// The fallback owns this response; a plugin contract that never
+					// produced it is not an applicable final-response contract.
+					hasFinalResponseContract = false
+					finalResponseCheckpoint = nil
 					if idempotencyLease != nil && mutableReplay && stage == InvocationStageRequest {
 						replayMutations, err = appendRouteReplayRequestMutation(replayBinding, replayMutations, RouteReplayRequestMutation{
 							StepIndex: index, BeforeDigest: mutationBeforeDigest, AfterDigest: mutationBeforeDigest,
@@ -516,6 +533,12 @@ dispatchSequence:
 			}
 			response = &value
 		}
+		if stage != InvocationStageRequest && strings.TrimSpace(step.ResponseSchema) != "" && response != nil {
+			finalResponseContract = execution
+			hasFinalResponseContract = true
+			value := cloneDispatchResponse(*response)
+			finalResponseCheckpoint = &value
+		}
 		if stage == InvocationStageRequest && pairedResponseStageAction(step.Action) {
 			responseEligible[index] = true
 		}
@@ -528,6 +551,32 @@ dispatchSequence:
 	}
 	if response == nil {
 		return DispatchResult{}, fmt.Errorf("%w: chain produced no response", ErrDispatchTransport)
+	}
+	if hasFinalResponseContract && committedAfterFailure == nil {
+		if d.schemas == nil {
+			return DispatchResult{}, fmt.Errorf("%w: response validator is unavailable", ErrDispatchSchema)
+		}
+		contractStep := chain[finalResponseContract.index]
+		if err := d.schemas.ValidateResponse(ctx, contractStep, request, *response); err != nil {
+			// A schema-less response modifier may only preserve the most recent
+			// declared response contract. Unsafe routes retain the last response
+			// that passed that contract and record the exact failing modifier.
+			if finalResponseCheckpoint != nil && committingStep >= 0 {
+				checkpoint := cloneDispatchResponse(*finalResponseCheckpoint)
+				d.appendTrace(plan, committingStep, chain[committingStep], committingStage, RouteTraceSchemaRejected, committingStarted, commit.State())
+				if event := d.committedAfterFailure(
+					plan, committingStep, chain[committingStep], committingStage, request,
+					&checkpoint, RouteFailureResponseSchemaRejected, true,
+				); event != nil {
+					committedAfterFailure = event
+					response = &checkpoint
+				} else {
+					return DispatchResult{}, fmt.Errorf("%w: %v", ErrDispatchSchema, err)
+				}
+			} else {
+				return DispatchResult{}, fmt.Errorf("%w: %v", ErrDispatchSchema, err)
+			}
+		}
 	}
 	switch terminal.Action {
 	case extensionmanifest.RouteActionAlias:
@@ -623,6 +672,11 @@ func (d *Dispatcher) authorizeReplay(
 	authorization *RouteReplayAuthorization,
 	binding RouteReplayBinding,
 ) error {
+	terminal := plan.Terminal()
+	if response == nil || response.Status < http.StatusOK || response.Status >= http.StatusMultipleChoices ||
+		!ValidTerminalResponseStatus(terminal.Mode, response.Status) {
+		return ErrDispatchIdempotencyUnavailable
+	}
 	sequence, err := bufferedRouteInvocationSequence(plan)
 	if err != nil {
 		return err
@@ -631,6 +685,7 @@ func (d *Dispatcher) authorizeReplay(
 	if authorization != nil && !routeReplayAuthorizationMatchesPlan(authorization, binding, sequence) {
 		return ErrDispatchIdempotencyUnavailable
 	}
+	finalResponseContract, hasFinalResponseContract := lastRouteResponseContract(sequence, chain)
 	mutationIndex := 0
 	for _, execution := range sequence {
 		index, stage := execution.index, execution.stage
@@ -693,7 +748,30 @@ func (d *Dispatcher) authorizeReplay(
 	if authorization != nil && mutationIndex != len(authorization.RequestMutations) {
 		return ErrDispatchIdempotencyUnavailable
 	}
+	if hasFinalResponseContract {
+		if d.schemas == nil {
+			return ErrDispatchIdempotencyUnavailable
+		}
+		if err := d.schemas.ValidateResponse(ctx, chain[finalResponseContract.index], request, *response); err != nil {
+			return ErrDispatchIdempotencyUnavailable
+		}
+	}
 	return nil
+}
+
+func lastRouteResponseContract(
+	sequence []routeInvocationExecution,
+	chain []RouteExecutionStep,
+) (routeInvocationExecution, bool) {
+	for index := len(sequence) - 1; index >= 0; index-- {
+		execution := sequence[index]
+		if execution.stage != InvocationStageRequest &&
+			execution.index >= 0 && execution.index < len(chain) &&
+			strings.TrimSpace(chain[execution.index].ResponseSchema) != "" {
+			return execution, true
+		}
+	}
+	return routeInvocationExecution{}, false
 }
 
 func classifyRouteGuardFailure(err error) (RouteTraceOutcome, RouteFailureCode, bool) {
