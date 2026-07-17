@@ -34,6 +34,14 @@ Last updated: 2026-07-17
 - Host mutation focused tests passed twenty repetitions; focused race passed
   five repetitions; full Routes and ExtensionManifest normal/race plus both-
   package vet and staged diff checks passed before the commit.
+- `f45f28eed feat(routes): bind mutable fields to exact guards` removes the
+  Registry's divergent generic-pointer validator. Publication now reuses the
+  Manifest policy only after resolving the exact custom guard binding, so only
+  `core.guard.raw_request` or an exact package `raw_request` guard can declare
+  credential fields; forged status/header shapes and oversized array indices
+  fail before the immutable snapshot advances.
+- The Registry/Manifest policy slice passed full normal tests, twenty focused
+  repetitions, five focused race repetitions, vet, and staged diff checks.
 - Active uncommitted slices are intentionally separate: Registry publication
   must reuse the Manifest validator after freezing the exact guard binding;
   Protocol V2 request/response patch mapping and repeated-query wire support
