@@ -14,6 +14,37 @@ Last updated: 2026-07-18
 
 ## Current Subtask
 
+### 2026-07-18 Custom/Raw Guard Production-Chain Checkpoint
+
+- Verified weighted progress remains **64.3447%** (display **64.3%**); P6 stays
+  **15/18**. Stream lifetime is closed; custom/raw guard **production-chain**
+  evidence is now committed, but the custom/raw row is still not credited until
+  the joined full P6 behavior matrix and non-HTTP Schema freeze land with it.
+- `1fc9226a1 test(routes): cover custom and raw guard production chain` proves:
+  1. Fiber + Registry + `ProductionRouteGuardAuthorizer` +
+     `RuntimePluginRouteGuardEvaluator` + real Protocol V2 go-plugin subprocess
+     for declared `custom` allow/deny and `raw_request` credential forwarding.
+  2. Trust revoke (`CurrentArtifactTrusted=false`) fail-closed: no further plugin
+     invoke for custom or raw; status BadGateway; admission ActiveTotal 0.
+  3. WebSocket custom guard runs only at Open preflight (deny → 403, no lease);
+     post-upgrade multi-message traffic does not increase Protocol CallCount;
+     trust revoke after open blocks new handshakes without further invokes.
+  4. Legacy `HostRouteGuardAuthorizer` on Fiber cannot mint raw for
+     `core.guard.raw_request` (403 Forbidden, CallCount unchanged).
+- Focused gates: production-chain tests **20** normal + **10** race; `go vet`
+  `./app/Http`; `git diff --check`. No sleep/assertion weakening.
+- Stream lifetime closure commits (prior checkpoint): `26493c35a`/`6c95b748e`/
+  `740962396`/`595dad2b1`/`fd05b0816`/`280a0d31b`/`093a39e2b`/`8be353344`.
+- Exact resume point: join and close the **full P6 behavior matrix** across every
+  action, priority/conflict, locale/query/body, permission/CSRF, custom guard,
+  stream, disconnect, timeout, crash, multipart, and unsafe committed response
+  (prefer extending `route_matrix_test.go`, `route_request_authority_matrix_test.go`,
+  `route_failure_matrix_test.go`). Then resolve non-HTTP Schema product option
+  (opaque / mode envelopes / JSON stream) before any framing implementation.
+  Do **not** raise P6 above 15/18 until matrix + Schema product freeze are
+  production-proven together with this guard evidence.
+
+
 ### 2026-07-18 Stream Lifetime Closure Checkpoint
 
 - Verified weighted progress remains **64.3447%** (display **64.3%**); P6 stays
@@ -909,7 +940,7 @@ Last updated: 2026-07-18
 - Unowned dirty / untracked inventory after stream lifetime commits (do not
   stage unless a later subtask proves ownership):
   - `apps/api/app/Http/route_action_v2_fiber_integration_test.go`
-  - `apps/api/app/Http/route_websocket_trust_revoke_integration_test.go` (??)
+  - `apps/api/app/Http/route_websocket_trust_revoke_integration_test.go` (??; unowned)
   - `apps/api/app/Models/Extensions/public_frontend_policy.go` (??)
   - `apps/api/app/Models/Extensions/public_frontend_policy_test.go` (??)
   - `apps/api/app/Support/Extensions/admin_surface_reference_plugin_integration_test.go`
@@ -963,36 +994,38 @@ Already present (unit/integration, not full credit alone):
 - Dispatcher raw stamp sealing (`1f2c2e81a`) and stream raw stamp preservation.
 - Plugin guard request/response failure matrices in Routes.
 
-Still required before the custom/raw guard row can close:
+Production-chain evidence now committed in `1fc9226a1` (see Current Subtask).
+The four previously open requirements are covered by
+`route_guard_production_chain_integration_test.go`. The custom/raw **row** is
+still not credited until the joined full P6 behavior matrix and non-HTTP Schema
+freeze close with it; do not raise P6 on this evidence alone.
 
-1. Real Protocol V2 go-plugin subprocess invoking a declared `custom` and
-   `raw_request` guard through Fiber/Dispatcher (not only fake runtime).
-2. Trust revoke mid-request: no further invoke; no credential leak; exact
-   unavailable classification without false quarantine on caller cancel.
-3. WebSocket/stream path: custom/raw guard runs only at `Open` preflight; post-
-   upgrade caller detach must not re-run guard; ForceCancel/trust revoke still
-   terminates.
-4. Joined evidence that legacy authorizers cannot mint raw authority on the
-   production Fiber stack (not only pure Dispatcher unit tests).
+Remaining before any P6 score increase:
+
+1. Full joined behavior matrix across actions/priority/locale/CSRF/guard/stream/
+   disconnect/timeout/crash/multipart/unsafe committed response.
+2. Non-HTTP Schema product freeze (opaque / mode envelopes / JSON stream) with
+   Manifest + Protocol V2 + Host + docs + tests, or an explicit accepted opaque
+   boundary decision.
 
 ## Exact Next Steps
 
-1. Close custom/raw guard production-chain evidence (real subprocess + Fiber +
-   trust revoke + stream Open-only guard + legacy authorizer cannot mint raw).
-   Keep implementation/tests/docs in separate commits; never stage unowned dirty
-   files listed above.
-2. Join and close the full P6 behavior matrix across every action, priority/
+1. Join and close the full P6 behavior matrix across every action, priority/
    conflict, locale/query/body, permission/CSRF, custom guard, stream,
    disconnect, timeout, crash, multipart, and unsafe committed response. Prefer
    extending existing `route_matrix_test.go`,
    `route_request_authority_matrix_test.go`, and
    `route_failure_matrix_test.go` rather than inventing a parallel harness.
-3. Resolve non-HTTP Schema product option (opaque / mode envelopes / JSON
+2. Resolve non-HTTP Schema product option (opaque / mode envelopes / JSON
    stream) before any framing implementation; record the freeze in
-   `knowledge/decisions/` and contracts.
-4. Only after 1–3 are production-proven, credit P6 from **15/18** toward
-   **18/18** and recompute weighted progress. Do not raise progress on stream
-   lifetime alone.
+   `knowledge/decisions/` and contracts. Do not claim Schema complete with only
+   raw `DataChunk` bytes.
+3. Only after matrix + Schema product freeze are production-proven together with
+   the committed custom/raw production-chain and stream lifetime evidence, credit
+   P6 from **15/18** toward **18/18** and recompute weighted progress. Do not
+   raise progress on partial evidence.
+4. Keep implementation/tests/docs in separate commits; never stage unowned dirty
+   files listed under Dirty Worktree Ownership.
 5. Add full-set/staged-publication quarantine concurrency coverage. Current
    quarantine is intentionally node/process-local; cross-node or restart
    persistence requires an explicit durable incident/clear contract rather

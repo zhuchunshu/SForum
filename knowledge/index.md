@@ -14,8 +14,9 @@ This is the entry point for project memory.
     cancellation now preserves and completes the last valid replay response;
     Host-owned `Link` authority and redirect canonical integration are closed.
     Stream total budget/lifetime ownership is committed
-    (`26493c35a`/`6c95b748e`); non-HTTP Schema, custom/raw guard production-chain
-    evidence, and the complete P6 behavior matrix remain open.
+    (`26493c35a`/`6c95b748e`/`280a0d31b`); custom/raw guard production-chain
+    evidence is committed (`1fc9226a1`) but not yet scored; non-HTTP Schema and
+    the complete P6 behavior matrix remain open. P6 stays **15/18**.
   - Active checkpoint: `knowledge/sessions/2026-07-16-trusted-plugin-theme-platform-v3-runtime-ownership-checkpoint.md`
   - Prior Query/P12/SEO checkpoint:
     `knowledge/sessions/2026-07-16-trusted-plugin-theme-platform-v3-query-p12-seo-checkpoint.md`
