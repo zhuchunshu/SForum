@@ -14,6 +14,21 @@ Last updated: 2026-07-17
 
 ## Current Subtask
 
+### 2026-07-17 P4 Disabled Missing-Package Recovery Checkpoint
+
+- `b6a93e959 fix(extensions): allow disabled missing-package recovery` restores
+  out-of-band boot recovery when an operator has disabled an uploaded extension
+  whose retained executable package is now missing or drifted. The disabled
+  artifact is omitted from the immutable Guard Policy Catalog and receives no
+  request authority.
+- The same package error still fails closed for an enabled extension, and an
+  unrelated trust/database source failure still aborts refresh even when the
+  extension is disabled. Focused tests passed 20 repetitions, race tests passed
+  5 repetitions, and the complete Models/Extensions suite plus vet passed.
+- This is a P4 compatibility correction and does not add a newly credited V3
+  row. Reverting the commit restores the stricter startup failure without
+  changing stored extensions, grants, migrations, or package files.
+
 ### 2026-07-17 P6 Lifecycle Route Policy Publication Checkpoint
 
 - Verified weighted progress remains **64.3447%** (display **64.3%**); this
