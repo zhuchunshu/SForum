@@ -9,6 +9,7 @@ import {
   normalizeExtensionPagePath,
   recommendedExtensionSettingValues,
   type AdminExtension,
+  type AdminExtensionPageBootstrap,
   type AdminExtensionSettings,
   type AdminExtensionSettingsAction,
   type AdminExtensionSettingsActionResult
@@ -36,31 +37,62 @@ const extensionId = computed(() => {
 })
 const currentPagePath = computed(() => normalizeExtensionPagePath(route.params.pagePath as string[] | string | undefined))
 
-// 从插件/主题列表进入时复用刚取得的目录项；直达详情页才请求精确扩展，
-// 避免一次 SPA 导航重复取详情，也避免 SSR 把完整 manifest 目录写入 payload。
+type AdminExtensionPageState = {
+  requestKey: string
+  bootstrap: AdminExtensionPageBootstrap
+}
+
+// 列表缓存只负责让 SPA 导航立即显示标题；Host bootstrap 仍是页面类型和
+// Settings Document 的最终权威，避免按 URL 猜测任意 manifest 页面。
 const { data: cachedExtensions } = useNuxtData<AdminExtension[]>('admin-extensions')
-const extensionDataKey = computed(() => `admin-extension:${extensionId.value}`)
+const cachedExtension = computed(() => cachedExtensions.value?.find(item => item.id === extensionId.value))
+const pageDataKey = computed(() => `admin-extension-page-bootstrap:${extensionId.value}:${currentPagePath.value}:${locale.value}`)
 const {
-  data: extensions,
-  pending,
+  data: pageState,
+  pending: loadingPage,
   error,
   refresh
-} = await useAsyncData<AdminExtension[]>(
-  extensionDataKey,
+} = await useAsyncData<AdminExtensionPageState>(
+  pageDataKey,
   async () => {
-    const cached = cachedExtensions.value?.find(item => item.id === extensionId.value)
-    if (cached) return [cached]
-    return await request<AdminExtension[]>(`/admin/extensions?id=${encodeURIComponent(extensionId.value)}`)
+    const requestKey = pageDataKey.value
+    const requestedExtensionId = extensionId.value
+    const requestedPagePath = currentPagePath.value
+    const bootstrap = await request<AdminExtensionPageBootstrap>(
+      `/admin/extensions/${encodeURIComponent(requestedExtensionId)}/page-bootstrap?path=${encodeURIComponent(requestedPagePath)}`
+    )
+    return { requestKey, bootstrap }
   },
   {
-    default: (): AdminExtension[] => [],
-    deep: false
+    deep: false,
+    lazy: true
   }
 )
 
-const extension = computed(() => extensions.value.find(item => item.id === extensionId.value))
+// Nuxt 会把 reactive key 的旧数据暂存到新 key。用请求启动时的精确 key
+// 拒绝跨扩展、跨页面或跨 locale 的旧 bootstrap，避免错误设置表单闪现。
+const pageBootstrap = computed<AdminExtensionPageBootstrap | undefined>({
+  get: () => pageState.value?.requestKey === pageDataKey.value ? pageState.value.bootstrap : undefined,
+  set: (next) => {
+    const current = pageState.value
+    if (!next || !current || current.requestKey !== pageDataKey.value) return
+    pageState.value = { ...current, bootstrap: next }
+  }
+})
+
+const extension = computed(() => pageBootstrap.value?.extension || cachedExtension.value)
 const extensionDisplay = computed(() => extension.value ? extensionLocalizedDisplay(extension.value, locale.value) : null)
-const adminPage = computed(() => extension.value ? findExtensionAdminPage(extension.value, currentPagePath.value, locale.value) : undefined)
+const adminPage = computed(() => {
+  if (pageBootstrap.value) {
+    if (!pageBootstrap.value.page) return undefined
+    return findExtensionAdminPage(pageBootstrap.value.extension, currentPagePath.value, locale.value)
+      || pageBootstrap.value.page
+  }
+  return cachedExtension.value
+    ? findExtensionAdminPage(cachedExtension.value, currentPagePath.value, locale.value)
+    : undefined
+})
+const pending = computed(() => loadingPage.value && !extension.value)
 const formValues = reactive<Record<string, string>>({})
 const savingSettings = ref(false)
 const actionLoading = reactive<Record<string, boolean>>({})
@@ -73,31 +105,19 @@ const isSettingsView = computed(() => adminPage.value?.view === 'settings')
 const isExtensionActive = computed(() => extension.value?.status === 'enabled')
 const dynamicTabHydrated = ref(false)
 
-// SSR 仍把 Settings Document 写入 payload；客户端冷导航则先显示明确 loading，
-// 不用让整个内容区等待设置请求完成。
-const settingsDataKey = computed(() => `admin-extension-settings:${extensionId.value}:${currentPagePath.value}:${locale.value}`)
-const {
-  data: settings,
-  pending: loadingSettings,
-  error: settingsError,
-  refresh: refreshSettings
-} = await useAsyncData<AdminExtensionSettings | null>(
-  settingsDataKey,
-  async () => {
-    if (!extensionId.value || !isSettingsView.value) {
-      return null
+const loadingSettings = computed(() => loadingPage.value)
+const settingsError = error
+const settings = computed<AdminExtensionSettings | undefined>({
+  get: () => pageBootstrap.value?.settings || undefined,
+  set: (next) => {
+    if (pageBootstrap.value) {
+      pageBootstrap.value = { ...pageBootstrap.value, settings: next || null }
     }
-    return await request<AdminExtensionSettings>(`/admin/extensions/${extensionId.value}/settings`)
-  },
-  {
-    deep: false,
-    lazy: true,
-    watch: [isSettingsView]
   }
-)
+})
 
-// 首次 setup 已取得当前扩展的精确详情；挂载后重复 refresh 会重新置 pending，
-// 让刚完成水合的设置表单被卸载再挂载。需要最新状态时保留页面上的显式刷新入口。
+// SSR payload 或客户端 lazy 请求负责初次 bootstrap；挂载后不再无条件 refresh，
+// 避免刚完成水合的设置表单被卸载再挂载。需要最新状态时使用显式刷新入口。
 onMounted(() => {
   dynamicTabHydrated.value = true
   syncDynamicExtensionTab()
@@ -169,7 +189,7 @@ watch(settingsError, (current) => {
 })
 
 async function loadSettings() {
-  await refreshSettings()
+  await refresh()
 }
 
 async function saveSettings() {

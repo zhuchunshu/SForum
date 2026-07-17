@@ -284,6 +284,12 @@ export type AdminExtension = {
   updatedAt: string
 }
 
+export type AdminExtensionPageBootstrap = {
+  extension: AdminExtension
+  page: AdminExtensionAdminPage | null
+  settings: AdminExtensionSettings | null
+}
+
 export type AdminLifecycleRemovalMode = 'preserve' | 'export_then_remove' | 'complete_removal'
 export const RECOMMENDED_LIFECYCLE_REMOVAL_MODE: AdminLifecycleRemovalMode = 'preserve'
 export type AdminLifecycleRecoveryDecision = 'retry' | 'skip_step'
