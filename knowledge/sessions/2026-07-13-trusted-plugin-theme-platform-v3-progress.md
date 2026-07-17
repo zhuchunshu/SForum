@@ -1008,6 +1008,46 @@ Remaining before any P6 score increase:
    Manifest + Protocol V2 + Host + docs + tests, or an explicit accepted opaque
    boundary decision.
 
+
+## P6 Behavior Matrix Evidence Inventory (2026-07-18)
+
+Honest inventory only. **Do not credit the matrix row or raise P6** until every
+cell below has production-path evidence in one joined regression suite and the
+non-HTTP Schema product freeze is decided.
+
+| Cell | Status | Primary evidence |
+| --- | --- | --- |
+| Action terminals add/alias/redirect/rewrite | present (Registry/Plan) | `Support/Routes/route_matrix_test.go` |
+| before/after/filter/wrap/replace/global | present | `route_matrix_test.go`, staged modifier tests |
+| Priority order / conflict selection | present | `route_matrix_test.go` |
+| Locale path + query/body | present (Fiber) | `route_request_authority_matrix_test.go` |
+| Permission + CSRF | present (Fiber) | `route_request_authority_matrix_test.go` |
+| Custom guard allow/deny/crash (fake runtime) | present (Fiber) | `route_request_authority_matrix_test.go` |
+| Custom/raw production chain (real Protocol V2) | present (Fiber+subprocess) | `route_guard_production_chain_integration_test.go` (`1fc9226a1`) |
+| Raw credential + trust revoke | present | production-chain + authority matrix |
+| Legacy authorizer cannot mint raw | present (Fiber) | production-chain HostRouteGuardAuthorizer test |
+| Stream multipart/SSE/WebSocket/disconnect | present (real subprocess) | `route_dispatcher_stream_integration_test.go` |
+| Stream lifetime budget/cancel/ForceCancel | present | `stream_lifetime_test.go` + Http stream tests |
+| WebSocket Open-only custom guard | present | production-chain WS test |
+| Protocol V2 crash/timeout (Fiber) | present | `route_failure_matrix_test.go` |
+| Guard failure classification matrix | present | `dispatcher_guard_failure_matrix_test.go` |
+| Unsafe no-second-writer | present | `route_matrix_test.go` |
+| Safe mode bypass | present | `route_matrix_test.go` + stream safe-mode tests |
+| Non-HTTP Schema framing/validation | **open** | `DataChunk` raw bytes only; product options recorded |
+| Joined single-suite matrix across all cells | **open** | cells exist separately; not yet one joined gate |
+| Durable incident source for all stream failures | partial | failure sink matrices; not fully joined to stream |
+
+### Exact matrix exit criteria still open
+
+1. One joined regression (or explicitly named suite list in CI) that runs every
+   cell above without skipping race/count gates.
+2. Non-HTTP Schema product decision recorded in `knowledge/decisions/` and wired
+   or explicitly accepted as opaque-bytes boundary across Manifest, Protocol V2,
+   Host, docs, and tests.
+3. Only then check the plan book rows for streamed transport, custom/raw, and
+   the tests matrix, raise P6 from **15/18**, and recompute weighted progress.
+
+
 ## Exact Next Steps
 
 1. Join and close the full P6 behavior matrix across every action, priority/
