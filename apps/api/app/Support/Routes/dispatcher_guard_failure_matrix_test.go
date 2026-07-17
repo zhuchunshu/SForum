@@ -210,20 +210,22 @@ func TestDispatcherPluginGuardUnsafeResponseCallerCancellationDoesNotRecordIncid
 			extensionmanifest.RouteActionAfter,
 		} {
 			t.Run(variant.name+"/"+action, func(t *testing.T) {
-				plan, failing, _ := dispatcherGuardFailureResponsePlan(action, variant.raw)
+				plan, failing, next := dispatcherGuardFailureResponsePlan(action, variant.raw)
 				failAt := 1
+				wantNextCalls := 0
 				if action != extensionmanifest.RouteActionAfter {
 					failAt = 2
+					wantNextCalls = 1
 				}
+				ctx, cancel := context.WithCancel(context.Background())
 				guard := &dispatcherGuardFailureAuthorizer{
 					failureRouteID: failing.RouteID, failAt: failAt,
 					failure: NewPluginGuardFailure(PluginGuardFailureCanceled, true),
+					cancel:  cancel,
 				}
 				invoker := &dispatcherGuardFailureInvoker{t: t, verifyAuthority: true, wantRaw: variant.raw}
 				sink := &recordingRouteFailureSink{}
-				ctx, cancel := context.WithCancel(context.Background())
 				core := &dispatchCoreInvoker{invoke: func(context.Context, RouteExecutionStep, DispatchRequest) (DispatchResponse, error) {
-					cancel()
 					return dispatcherGuardFailurePriorResponse(), nil
 				}}
 				dispatcher := NewDispatcher(DispatcherConfig{
@@ -234,11 +236,17 @@ func TestDispatcherPluginGuardUnsafeResponseCallerCancellationDoesNotRecordIncid
 				result, err := dispatcher.Dispatch(ctx, DispatchRequest{
 					Method: http.MethodPost, Path: "/guard-response-canceled",
 				}, core)
-				if !errors.Is(err, context.Canceled) || errors.Is(err, ErrDispatchDenied) || errors.Is(err, ErrDispatchTransport) {
-					t.Fatalf("caller cancellation error=%v", err)
+				if err != nil || !result.Handled || !reflect.DeepEqual(result.Response, dispatcherGuardFailurePriorResponse()) ||
+					core.calls != 1 || len(sink.events) != 0 {
+					t.Fatalf("result=%#v error=%v core=%d incidents=%#v", result, err, core.calls, sink.events)
 				}
-				if result.Handled || core.calls != 1 || len(sink.events) != 0 {
-					t.Fatalf("result=%#v core=%d incidents=%#v", result, core.calls, sink.events)
+				if ctx.Err() == nil || guard.calls[failing.RouteID] != failAt || guard.calls[next.RouteID] != wantNextCalls {
+					t.Fatalf("context=%v guard calls=%#v", ctx.Err(), guard.calls)
+				}
+				for _, call := range invoker.calls {
+					if call.stage == InvocationStageResponse {
+						t.Fatalf("caller-canceled guard reached response transport: %#v", invoker.calls)
+					}
 				}
 			})
 		}
@@ -334,6 +342,7 @@ type dispatcherGuardFailureAuthorizer struct {
 	failureRouteID string
 	failAt         int
 	failure        error
+	cancel         context.CancelFunc
 	calls          map[string]int
 }
 
@@ -353,6 +362,9 @@ func (g *dispatcherGuardFailureAuthorizer) AuthorizeRoute(
 		return RouteGuardAuthorization{}, ErrCoreGuardEvaluatorUnavailable
 	}
 	if step.RouteID == g.failureRouteID && g.calls[step.RouteID] == g.failAt {
+		if g.cancel != nil {
+			g.cancel()
+		}
 		return RouteGuardAuthorization{}, g.failure
 	}
 	return authorization, nil

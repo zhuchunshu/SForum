@@ -275,6 +275,10 @@ dispatchSequence:
 	for _, execution := range sequence {
 		index, stage := execution.index, execution.stage
 		step := chain[index]
+		stopAfterResponse := false
+		if ctx.Err() != nil && response != nil {
+			break dispatchSequence
+		}
 		if stage == InvocationStageResponse && pairedResponseStageAction(step.Action) && !responseEligible[index] {
 			continue
 		}
@@ -282,8 +286,11 @@ dispatchSequence:
 		mutationBeforeDigest := ""
 		authority, err := d.authorize(ctx, plan, index, step, request, response, stage, commit)
 		if err != nil {
-			if ctxErr := ctx.Err(); ctxErr != nil && errors.Is(err, ctxErr) {
-				return DispatchResult{}, ctxErr
+			if callerErr, canceled := routeObservedCallerCancellation(err); canceled {
+				if stage == InvocationStageResponse && response != nil {
+					break dispatchSequence
+				}
+				return DispatchResult{}, callerErr
 			}
 			outcome, code, observed := classifyRouteGuardFailure(err)
 			d.appendTrace(plan, index, step, stage, outcome, started, commit.State())
@@ -303,6 +310,9 @@ dispatchSequence:
 		}
 		if d.schemas != nil && step.RequestSchema != "" {
 			if err := d.schemas.ValidateRequest(ctx, step, request); err != nil {
+				if preserveRouteResponseOnCallerCancellation(ctx, err, stage, response) {
+					break dispatchSequence
+				}
 				d.appendTrace(plan, index, step, stage, RouteTraceSchemaRejected, started, commit.State())
 				if event := d.committedAfterFailure(plan, index, step, stage, request, response, RouteFailureRequestSchemaRejected, false); event != nil {
 					committedAfterFailure, committingStep, committingStarted = event, index, started
@@ -331,6 +341,9 @@ dispatchSequence:
 			}
 			if d.schemas != nil && step.ResponseSchema != "" {
 				if err := d.schemas.ValidateResponse(ctx, step, request, *response); err != nil {
+					if preserveRouteResponseOnCallerCancellation(ctx, err, stage, response) {
+						break dispatchSequence
+					}
 					d.appendTrace(plan, index, step, stage, RouteTraceSchemaRejected, started, commit.State())
 					if event := d.committedAfterFailure(plan, index, step, stage, request, response, RouteFailureResponseSchemaRejected, false); event != nil {
 						committedAfterFailure, committingStep, committingStarted = event, index, started
@@ -374,6 +387,9 @@ dispatchSequence:
 				}
 				if invocation.ResponseStarted {
 					commit.ResponseStarted()
+				}
+				if preserveRouteResponseOnObservedCallerCancellation(err, stage, response) {
+					break dispatchSequence
 				}
 				d.appendTrace(plan, index, step, stage, RouteTraceTransportFailed, started, commit.State())
 				observed := invocation.SideEffectStarted || invocation.ResponseStarted
@@ -496,13 +512,20 @@ dispatchSequence:
 				return DispatchResult{}, fmt.Errorf("%w: response validator is unavailable", ErrDispatchSchema)
 			}
 			if d.schemas != nil && step.ResponseSchema != "" {
-				if err := d.schemas.ValidateResponse(ctx, step, request, value); err != nil {
+				validationErr := d.schemas.ValidateResponse(ctx, step, request, value)
+				if routeCallerCancellation(ctx, validationErr) {
+					validationCtx, cancelValidation := routeResponseFinalizationContext(ctx, d.defaultTimeout)
+					validationErr = d.schemas.ValidateResponse(validationCtx, step, request, value)
+					cancelValidation()
+					stopAfterResponse = validationErr == nil
+				}
+				if validationErr != nil {
 					d.appendTrace(plan, index, step, stage, RouteTraceSchemaRejected, started, commit.State())
 					if event := d.committedAfterFailure(plan, index, step, stage, request, response, RouteFailureResponseSchemaRejected, true); event != nil {
 						committedAfterFailure, committingStep, committingStarted = event, index, started
 						break dispatchSequence
 					}
-					return DispatchResult{}, fmt.Errorf("%w: %v", ErrDispatchSchema, err)
+					return DispatchResult{}, fmt.Errorf("%w: %v", ErrDispatchSchema, validationErr)
 				}
 			}
 			response = &value
@@ -524,6 +547,9 @@ dispatchSequence:
 			}
 			if d.schemas != nil && step.ResponseSchema != "" {
 				if err := d.schemas.ValidateResponse(ctx, step, request, value); err != nil {
+					if preserveRouteResponseOnCallerCancellation(ctx, err, stage, response) {
+						break dispatchSequence
+					}
 					d.appendTrace(plan, index, step, stage, RouteTraceSchemaRejected, started, commit.State())
 					if event := d.committedAfterFailure(plan, index, step, stage, request, response, RouteFailureResponseSchemaRejected, true); event != nil {
 						committedAfterFailure, committingStep, committingStarted = event, index, started
@@ -549,16 +575,21 @@ dispatchSequence:
 			committingStarted = started
 			committingStage = stage
 		}
+		if stopAfterResponse || response != nil && ctx.Err() != nil {
+			break dispatchSequence
+		}
 	}
 	if response == nil {
 		return DispatchResult{}, fmt.Errorf("%w: chain produced no response", ErrDispatchTransport)
 	}
+	finalizationCtx, cancelFinalization := routeResponseFinalizationContext(ctx, d.defaultTimeout)
+	defer cancelFinalization()
 	if hasFinalResponseContract && committedAfterFailure == nil {
 		if d.schemas == nil {
 			return DispatchResult{}, fmt.Errorf("%w: response validator is unavailable", ErrDispatchSchema)
 		}
 		contractStep := chain[finalResponseContract.index]
-		if err := d.schemas.ValidateResponse(ctx, contractStep, request, *response); err != nil {
+		if err := d.schemas.ValidateResponse(finalizationCtx, contractStep, request, *response); err != nil {
 			// A schema-less response modifier may only preserve the most recent
 			// declared response contract. Unsafe routes retain the last response
 			// that passed that contract and record the exact failing modifier.
@@ -606,7 +637,7 @@ dispatchSequence:
 	}
 	if committedAfterFailure != nil {
 		committedAfterFailure.CommitState = commit.State()
-		d.failures.RecordCommittedAfterFailure(ctx, *committedAfterFailure)
+		d.failures.RecordCommittedAfterFailure(finalizationCtx, *committedAfterFailure)
 	}
 	if idempotencyLease != nil && response.Status >= http.StatusOK && response.Status < http.StatusMultipleChoices {
 		// Complete 失败时保留 pending；客户端只能得到 fail-closed unavailable，
@@ -627,7 +658,7 @@ dispatchSequence:
 				return DispatchResult{}, ErrDispatchIdempotencyUnavailable
 			}
 		}
-		if err := idempotencyLease.Complete(ctx, completion); err != nil {
+		if err := idempotencyLease.Complete(finalizationCtx, completion); err != nil {
 			return DispatchResult{}, fmt.Errorf("%w: %v", ErrDispatchIdempotencyUnavailable, err)
 		}
 	}
@@ -913,7 +944,7 @@ func (d *Dispatcher) authorize(
 	}
 	if err != nil {
 		if ctxErr := ctx.Err(); ctxErr != nil && errors.Is(err, ctxErr) {
-			return routeInvocationAuthority{}, ctxErr
+			return routeInvocationAuthority{}, newRouteObservedCallerCancellation(ctxErr)
 		}
 		var pluginFailure *PluginGuardFailure
 		if errors.As(err, &pluginFailure) && pluginFailure.Kind() != PluginGuardFailureDenied {
@@ -958,6 +989,9 @@ func (d *Dispatcher) invokePlugin(
 		Request: cloneDispatchRequest(request), Response: current, Commit: commit, authority: authority,
 	})
 	if err != nil {
+		if stage == InvocationStageResponse && response != nil && routeCallerCancellation(ctx, err) {
+			return result, newRouteObservedCallerCancellation(ctx.Err())
+		}
 		return result, fmt.Errorf("%w: %w", ErrDispatchTransport, err)
 	}
 	return result, nil
