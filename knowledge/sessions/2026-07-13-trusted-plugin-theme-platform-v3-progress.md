@@ -4,8 +4,8 @@ Last updated: 2026-07-18
 
 ## Progress
 
-- Verified weighted progress: **66.0114%** (display **66.0%**).
-- Phase counts: P0-P5, **P6**, and P8 complete; P6 **18/18**, P7 **14/22**,
+- Verified weighted progress: **64.9003%** (display **64.9%**).
+- Phase counts: P0-P5 and P8 complete; P6 **16/18**, P7 **14/22**,
   P8 **18/18**, P9 **4/16**, P11 **1/16**, and P12 **1/22**. P10 and P13
   have no credited authoritative row yet.
 - Completion remains unproven until all 99 target rows, 14 accepted boundaries,
@@ -14,23 +14,22 @@ Last updated: 2026-07-18
 
 ## Current Subtask
 
-### 2026-07-18 P6 Closure Checkpoint (18/18)
+### 2026-07-18 P6 Closure Credit Correction (16/18)
 
-- Verified weighted progress advances to **66.0114%** (display **66.0%**); P6
-  closes at **18/18** after three co-dependent rows land together:
-  1. **Streamed transport** — lifetime/budget/cancel already committed; non-HTTP
-     Schema frozen as **opaque DataChunk** (`34faf15ec` decision;
-     `61aa96406`/`c08fbc7ca`/`6d3f42e5b` proto+Host honesty).
-  2. **Custom/raw guards** — production-chain Fiber + real Protocol V2 evidence
-     (`1fc9226a1`) co-credited with the joined matrix and Schema freeze.
-  3. **Joined behavior matrix** — named gates
-     `TestP6JoinedBehaviorMatrix` (Http) and `TestP6JoinedRouteMatrix` (Routes)
-     compose existing production-path suites (`fd9024af2`); race count=3 green.
-- Residual hardening (not a plan-book row): durable stream incident source fully
-  joined to every stream failure path remains optional follow-up.
-- Exact resume point: P7 remaining Query/Identity/Admin surfaces and P9 public
-  component policy; do not reopen P6 without a new product decision that
-  replaces the opaque stream boundary.
+- Review rejects the earlier **18/18** claim and records verified weighted
+  progress at **64.9003%** (display **64.9%**). The custom/raw guard row is
+  credited from its Fiber + real Protocol V2 production chain (`1fc9226a1`).
+- The opaque DataChunk boundary (`34faf15ec`, refined by
+  `f70dcd1a8`/`ad6899efd`/`7d6f49977`) and exact lifetime-cause fixes
+  (`566398b70`/`ee3490cdf`) are retained evidence, but do not close the stream
+  row without durable failure persistence and real generic-stream/backpressure
+  coverage.
+- The named wrappers in `fd9024af2` do not yet close the full matrix: durable
+  incident, production ForceCancel/terminal paths, generic stream, and bounded
+  backpressure must be joined into the gates.
+- Exact resume point: finish the durable payload-free route incident path,
+  generic `mode=stream` fixture, bounded backpressure evidence, and joined
+  matrix. Only then restore P6 to **18/18** and continue P7.
 
 
 ### 2026-07-18 Stream Preflight Real-Path Order Checkpoint
@@ -1071,18 +1070,17 @@ non-HTTP Schema product freeze is decided.
 | Unsafe no-second-writer | present | `route_matrix_test.go` |
 | Safe mode bypass | present | `route_matrix_test.go` + stream safe-mode tests |
 | Non-HTTP Schema framing/validation | **frozen opaque** | decision `2026-07-18-route-stream-opaque-bytes.md` |
-| Joined single-suite matrix across all cells | **closed** | `TestP6JoinedBehaviorMatrix` + `TestP6JoinedRouteMatrix` |
+| Joined single-suite matrix across all cells | **open** | named wrappers exist but omit durable incident, generic stream/backpressure, and production terminal paths |
 | Durable incident source for all stream failures | partial | failure sink matrices; not fully joined to stream |
 
 ### Exact matrix exit criteria still open
 
-1. One joined regression (or explicitly named suite list in CI) that runs every
-   cell above without skipping race/count gates.
-2. Non-HTTP Schema product decision recorded in `knowledge/decisions/` and wired
-   or explicitly accepted as opaque-bytes boundary across Manifest, Protocol V2,
-   Host, docs, and tests.
-3. Only then check the plan book rows for streamed transport, custom/raw, and
-   the tests matrix, raise P6 from **15/18**, and recompute weighted progress.
+1. Persist payload-free incidents for runtime crash, Host budget, and invalid
+   preflight while excluding caller disconnect, normal close, and ForceDrain.
+2. Add a real generic `mode=stream` fixture and bounded backpressure evidence.
+3. Join those paths plus production ForceCancel/terminal behavior into the
+   named normal/race gates. Then check the streamed-transport and tests-matrix
+   rows, raise P6 from **16/18**, and recompute weighted progress.
 
 
 ## Exact Next Steps

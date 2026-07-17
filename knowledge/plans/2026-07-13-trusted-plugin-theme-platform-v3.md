@@ -488,7 +488,7 @@ blocking implement the authoritative row without retaining a second alias.
       public, admin, or API path and HTTP method by stable route id.
 - [x] Implement `add`, `alias`, `redirect`, `rewrite`, `before`, `after`,
       `filter`, `wrap`, `replace`, and global middleware.
-- [x] Support HTTP request/response, multipart upload, streaming, SSE, WebSocket,
+- [ ] Support HTTP request/response, multipart upload, streaming, SSE, WebSocket,
       cancellation, and backpressure through the proxy/runtime.
 - [x] Default to inherited core guards; implement separately confirmed custom
       guard/raw request authority.
@@ -504,7 +504,7 @@ blocking implement the authoritative row without retaining a second alias.
 
 ### Tests
 
-- [x] Every route action, priority order, conflict, locale path, query/body,
+- [ ] Every route action, priority order, conflict, locale path, query/body,
       permission, CSRF, custom guard, stream, disconnect, timeout, and crash.
 - [x] Unsafe replacement failure never executes core as a second writer.
 - [x] Safe mode bypasses all third-party route snapshots.

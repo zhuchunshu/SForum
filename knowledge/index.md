@@ -4,16 +4,18 @@ This is the entry point for project memory.
 
 ## Latest Handoff
 
-- **2026-07-18 Trusted Plugin And Theme Platform V3 P6 closed; P7/P9/P10–P12 active (overall 66.0%)**
+- **2026-07-18 Trusted Plugin And Theme Platform V3 P6/P7/P9/P10–P12 active (overall 64.9%)**
   - Decision: `knowledge/decisions/2026-07-13-trusted-plugin-theme-platform-v3.md`
   - Stream Schema freeze: `knowledge/decisions/2026-07-18-route-stream-opaque-bytes.md`
   - Task book: `knowledge/plans/2026-07-13-trusted-plugin-theme-platform-v3.md`
   - Current durable checkpoint:
     `knowledge/sessions/2026-07-13-trusted-plugin-theme-platform-v3-progress.md`
-  - P6 is **18/18** (weighted progress **66.0114%**, display **66.0%**). Stream
-    lifetime, custom/raw production-chain (`1fc9226a1`), joined matrix gates
-    (`fd9024af2`), and opaque non-HTTP Schema freeze (`34faf15ec`) closed the
-    three remaining P6 rows together. P7 remains **14/22**.
+  - P6 is **16/18** (weighted progress **64.9003%**, display **64.9%**).
+    Custom/raw production-chain evidence (`1fc9226a1`) is accepted. The opaque
+    non-HTTP Schema boundary and exact lifetime causes are committed, but the
+    streamed-transport and joined behavior-matrix rows remain open for durable
+    incident, generic-stream/backpressure, and complete production-path gates.
+    P7 remains **14/22** pending an independent credit audit.
   - Active checkpoint: `knowledge/sessions/2026-07-16-trusted-plugin-theme-platform-v3-runtime-ownership-checkpoint.md`
   - Prior Query/P12/SEO checkpoint:
     `knowledge/sessions/2026-07-16-trusted-plugin-theme-platform-v3-query-p12-seo-checkpoint.md`
@@ -105,13 +107,15 @@ This is the entry point for project memory.
     composition, and concurrent idempotent replay. The production entitlement
     Host Command now proves eight-way replay, payload/revision conflict,
     revoke/replay, and actorless delegation rejection through real PostgreSQL
-  - P6 is complete at 18/18 (100%). All 230 core routes have stable generated
+  - P6 is active at 16/18 (89%). All 230 core routes have stable generated
     identities; immutable exact route snapshots, explicit replace-provider
     selection/conflict UI, Safe Mode filtering, and strict OpenAPI
     collision/reference rejection are accepted. Arbitrary public/admin/API
-    paths and WebSocket Upgrade reach the production Host dispatcher. Stream
-    lifetime, custom/raw production-chain, joined behavior matrix gates, and
-    the opaque non-HTTP Schema freeze close the remaining P6 rows.
+    paths and WebSocket Upgrade reach the production Host dispatcher. Exact
+    stream lifetime causes, custom/raw production-chain evidence, and the
+    opaque non-HTTP Schema freeze are committed. Durable stream incidents,
+    generic-stream/backpressure evidence, and the complete joined production
+    behavior matrix remain open.
   - Exact OpenAPI operations now derive Host-owned permission/security,
     `host.ip_write@1` rate-limit, and `required.24h@1` replay metadata. Required
     replay is production-wired through a 24-hour CAS-fenced Redis ledger,
