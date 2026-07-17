@@ -7,8 +7,93 @@ import (
 
 	"github.com/gofiber/fiber/v3"
 
+	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
 	routes "github.com/zhuchunshu/sforum/apps/api/app/Support/Routes"
 )
+
+func TestPluginRouteLinkHeadersDoNotReachFiber(t *testing.T) {
+	registry := routes.NewRegistry()
+	artifact := routeDispatcherArtifact("canonical.plugin", 'a')
+	declaration := routeDispatcherManifestRoute(
+		"canonical.plugin.route", extensionmanifest.RouteActionAdd, "/plugin-link", stdhttp.MethodGet,
+	)
+	if _, err := registry.Publish(routes.Publication{Plugins: []routes.PluginRouteSet{{
+		Artifact: artifact, Routes: []extensionmanifest.ManifestRoute{declaration},
+	}}}); err != nil {
+		t.Fatal(err)
+	}
+	runtime, server := newRouteDispatcherRuntime(t, artifact)
+	server.Config.Handler = stdhttp.HandlerFunc(func(writer stdhttp.ResponseWriter, _ *stdhttp.Request) {
+		writer.Header().Set("Content-Type", "application/json")
+		writer.Header().Set("X-Plugin-Metadata", "kept")
+		for _, value := range []string{
+			"<https://evil.example/>; rel=\"canonical\"",
+			"</asset.js>; rel=\"preload canonical\"",
+			"</page/2?value=a,b>; REL=Canonical; title=\"quoted, comma\"",
+			"</next>; rel=\"next\"",
+		} {
+			writer.Header().Add("Link", value)
+		}
+		writer.WriteHeader(stdhttp.StatusOK)
+		_, _ = writer.Write([]byte(`{"ok":true}`))
+	})
+	dispatcher := routes.NewDispatcher(routes.DispatcherConfig{
+		Plans: routeRegistryPlanResolver{registry: registry}, Steps: NewBufferedRouteStepInvoker(runtime),
+		Guard: HostRouteGuardAuthorizer{}, Schemas: CatalogRouteSchemaValidator{Catalog: acceptRouteSchemaCatalog{}},
+	})
+	app := fiber.New()
+	app.Use(routeDispatcherMiddleware(dispatcher, nil))
+
+	response, err := app.Test(httptest.NewRequest(stdhttp.MethodGet, "/plugin-link", nil))
+	if err != nil {
+		t.Fatal(err)
+	}
+	response.Body.Close()
+	if response.StatusCode != stdhttp.StatusOK || len(response.Header.Values("Link")) != 0 ||
+		response.Header.Get("X-Plugin-Metadata") != "kept" {
+		t.Fatalf("status=%d headers=%v", response.StatusCode, response.Header)
+	}
+}
+
+func TestCoreRouteLinkHeaderRemainsAvailable(t *testing.T) {
+	registry := routes.NewRegistry()
+	if _, err := registry.Publish(routes.Publication{Core: []routes.CoreRoute{{
+		ID: "core.route.canonical.link", ContractVersion: "sforum.route.canonical.link@1",
+		Method: stdhttp.MethodGet, Path: "/core-link",
+	}}}); err != nil {
+		t.Fatal(err)
+	}
+	dispatcher := routes.NewDispatcher(routes.DispatcherConfig{Plans: routeRegistryPlanResolver{registry: registry}})
+	app := fiber.New()
+	app.Use(routeDispatcherMiddleware(dispatcher, nil))
+	app.Get("/core-link", func(c fiber.Ctx) error {
+		c.Set("Link", "</page/2>; rel=\"next\"")
+		return c.SendStatus(stdhttp.StatusNoContent)
+	})
+
+	response, err := app.Test(httptest.NewRequest(stdhttp.MethodGet, "/core-link", nil))
+	if err != nil {
+		t.Fatal(err)
+	}
+	response.Body.Close()
+	if response.StatusCode != stdhttp.StatusNoContent || response.Header.Get("Link") != "</page/2>; rel=\"next\"" {
+		t.Fatalf("status=%d headers=%v", response.StatusCode, response.Header)
+	}
+}
+
+func TestFilteredRouteResponseHeadersReserveLinkForHost(t *testing.T) {
+	filtered := filteredRouteResponseHeaders(stdhttp.Header{
+		"Link": {
+			"<https://evil.example/>; rel=\"canonical\"",
+			"</asset.js>; rel=\"preload\"",
+			"</next?value=a,b>; rel=\"next\"; title=\"quoted, comma\"",
+		},
+		"Cache-Control": {"private"},
+	})
+	if len(filtered.Values("Link")) != 0 || filtered.Get("Cache-Control") != "private" {
+		t.Fatalf("filtered headers=%v", filtered)
+	}
+}
 
 func TestWriteRouteDispatchResponseEnforcesHostCanonicalLink(t *testing.T) {
 	app := fiber.New()

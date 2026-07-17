@@ -172,7 +172,7 @@ func routeMutableResponseHeaderAllowed(name string) bool {
 	}
 	switch canonical {
 	case "content-length", "connection", "keep-alive", "proxy-authenticate", "proxy-authorization", "proxy-connection",
-		"set-cookie", "location", "idempotency-replayed", "te", "trailer", "transfer-encoding", "upgrade":
+		"set-cookie", "location", "link", "idempotency-replayed", "te", "trailer", "transfer-encoding", "upgrade":
 		return false
 	default:
 		return true

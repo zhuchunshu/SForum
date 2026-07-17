@@ -144,7 +144,7 @@ func TestRouteMutablePointerDocumentsRejectImpossibleAndHostOwnedPaths(t *testin
 	}
 	for _, pointer := range []string{
 		"/status/code", "/headers", "/headers/Location", "/headers/location", "/headers/cache-control/01",
-		"/headers/cache-control/0/child", "/headers/set-cookie", "/query",
+		"/headers/cache-control/0/child", "/headers/set-cookie", "/headers/link", "/query",
 	} {
 		if ValidRouteMutableResponsePointer(pointer) {
 			t.Errorf("invalid response pointer accepted: %q", pointer)

@@ -33,7 +33,8 @@ func TestBufferedRouteStepInvokerSelectsV2WithOneAdmission(t *testing.T) {
 	}
 	if result.Response == nil || result.Response.Status != stdhttp.StatusCreated || string(result.Response.Body) != `{"ok":true}` ||
 		result.Response.Headers.Get("X-Result") != "ok" || result.Response.Headers.Get("X-SForum-Actor-ID") != "" ||
-		result.Response.Headers.Get("Set-Cookie") != "" || !result.SideEffectStarted || !result.ResponseStarted {
+		result.Response.Headers.Get("Set-Cookie") != "" || result.Response.Headers.Get("Link") != "" ||
+		!result.SideEffectStarted || !result.ResponseStarted {
 		t.Fatalf("result = %#v", result)
 	}
 	if snapshot := runtime.gate.Snapshot(); snapshot.ActiveTotal != 0 {
@@ -194,6 +195,7 @@ func newRouteDispatcherV2RuntimeForArtifact(t *testing.T, artifact routes.Plugin
 			StatusCode: stdhttp.StatusCreated,
 			Headers: stdhttp.Header{
 				"X-Result": {"ok"}, "X-SForum-Actor-ID": {"forged"}, "Set-Cookie": {"forged=1"},
+				"Link": {"<https://evil.example/>; rel=\"canonical\"", "</asset.js>; rel=\"preload\""},
 			},
 			Body: map[string]any{"ok": true}, BodyPresent: true,
 		},

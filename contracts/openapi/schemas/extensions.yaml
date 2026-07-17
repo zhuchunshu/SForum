@@ -1135,7 +1135,7 @@ ExtensionManifestRoute:
         pattern: '^/([^~/]|~[01])*(/([^~/]|~[01])*){0,31}$'
     mutableResponseFields:
       type: array
-      description: Exact RFC 6901 allowlist into status, lowercase allowed headers, or typed JSON body. Host-owned Location is never mutable.
+      description: Exact RFC 6901 allowlist into status, lowercase allowed headers, or typed JSON body. Host-owned Location and Link are never mutable.
       maxItems: 64
       uniqueItems: true
       items:

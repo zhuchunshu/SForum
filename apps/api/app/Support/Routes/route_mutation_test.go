@@ -169,7 +169,7 @@ func TestRouteMutationRejectsImpossibleOrHostOwnedPointerShapes(t *testing.T) {
 	response := DispatchResponse{Status: http.StatusOK, Headers: http.Header{"Cache-Control": {"private"}}, Body: []byte(`{}`)}
 	responsePaths := []string{
 		"/status/code", "/headers/Location", "/headers/location", "/headers/cache-control/01",
-		"/headers/cache-control/0/child", "/headers/set-cookie",
+		"/headers/cache-control/0/child", "/headers/set-cookie", "/headers/link",
 	}
 	for _, path := range responsePaths {
 		t.Run("response "+path, func(t *testing.T) {
@@ -298,7 +298,7 @@ func TestRouteResponseMutationRejectsHostAndHopHeaders(t *testing.T) {
 	}, Body: []byte(`{}`)}
 	for _, name := range []string{
 		"set-cookie", "content-length", "connection", "proxy-connection", "x-dynamic-hop", "idempotency-replayed",
-		"location", "x-sforum-forged", "Proxy-Connection", "X-Test", " x-test",
+		"location", "link", "x-sforum-forged", "Proxy-Connection", "X-Test", " x-test",
 	} {
 		path := "/headers/" + name
 		operation := RoutePatchOperation{Kind: RoutePatchAdd, Path: path, Value: routePatchValue(t, []string{"forged"})}
