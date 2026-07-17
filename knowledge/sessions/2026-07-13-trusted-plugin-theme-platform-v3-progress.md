@@ -74,15 +74,27 @@ Last updated: 2026-07-18
   hot-reload churn without touching the user's port 3000 frontend.
 - Focused Extensions model/controller tests, complete Models/Controller/Http/
   Routes tests, relevant race tests, four-package vet, Bun settings/prebuilt
-  tests (**9/9**), Nuxt typecheck, OpenAPI validation (**1932 refs / 49 files**),
-  V3 catalog drift (**15 files**), and diff checks passed. Independent Grok
-  reviews found no remaining page-bootstrap blocker and confirmed the exact
-  dirty-worktree split. The Core Route Catalog now has **234** reviewed routes.
-- Exact resume point: finish a clean-HEAD archive verification and this docs
-  checkpoint, then return to P6 required replay/Core execution fencing and the
-  remaining Stream V2 total-budget, automatic lease release, typed schema,
-  incident-source, and real subprocess correlation evidence. Mobile/no-JS
-  frontend gates remain required at the later shared/P13 browser gate.
+  tests (**13/13**), Nuxt typecheck and production build, OpenAPI validation
+  (**1932 refs / 49 files**), and diff checks passed from a clean
+  `bf2516e22` archive. A full-history isolated clone exposed the one remaining
+  gate defect: the P0 validator still expected 233 routes after the new route
+  was generated. `6bf02611f test(extensions): track page bootstrap route count`
+  updates that reviewed invariant; the complete validator now passes with
+  **234 routes, 123 UI surfaces, and 99 traceability rows**.
+- The first full-history catalog attempt incorrectly pointed an archive at the
+  repository `GIT_DIR`; the validator's intentional temporary commit then
+  changed local Git metadata and created `c1d0564bc`. Configuration was
+  restored, and `a6936de2f` explicitly reverted the fixture commit to the exact
+  `60d16ae88` tree without reset, checkout, clean, or loss of existing dirty
+  work. Future catalog isolation must use a standalone local clone and must not
+  inherit the source repository's `GIT_DIR`/`GIT_WORK_TREE`.
+- Independent reviews found no remaining page-bootstrap blocker and confirmed
+  the exact dirty-worktree split. The settings checkpoint is fully verified;
+  the exact resume point is P6 unsafe Core execution observation and
+  post-response cancellation, followed by Stream V2 total-budget, automatic
+  lease release, typed schema, incident-source, and real subprocess correlation
+  evidence. Mobile/no-JS frontend gates remain required at the later shared/P13
+  browser gate.
 
 ### 2026-07-17 P6 Stream Evidence Commit
 
