@@ -67,6 +67,7 @@ type PluginRouteSet struct {
 type Publication struct {
 	Core     []CoreRoute
 	Plugins  []PluginRouteSet
+	Policies []RoutePolicyBinding
 	SafeMode bool
 }
 
@@ -111,6 +112,7 @@ type Snapshot struct {
 	SafeMode  bool
 	Routes    []Route
 	Conflicts []Conflict
+	Policies  []RoutePolicyBinding
 }
 
 type PublicationSnapshot struct {
@@ -151,17 +153,20 @@ type registrySnapshot struct {
 	routes      []preparedRoute
 	routeValues []Route
 	conflicts   []Conflict
+	policies    []RoutePolicyBinding
+	policyIndex map[string]RouteExecutionPolicy
 	publication Publication
 }
 
 // planningSnapshot is an internal read-only view of one atomic registry
 // revision. Its slices must never escape through a public API.
 type planningSnapshot struct {
-	revision  uint64
-	safeMode  bool
-	routes    []Route
-	conflicts []Conflict
-	admit     func(Route) bool
+	revision    uint64
+	safeMode    bool
+	routes      []Route
+	conflicts   []Conflict
+	policyIndex map[string]RouteExecutionPolicy
+	admit       func(Route) bool
 }
 
 // Registry keeps readers lock-free while complete candidate sets are validated off-snapshot.
@@ -413,13 +418,19 @@ func preparePublication(input Publication) (*registrySnapshot, error) {
 	for index := range prepared {
 		routeValues[index] = prepared[index].route
 	}
+	policies, policyIndex, err := prepareRoutePolicyBindings(routeValues, input.Policies, input.SafeMode)
+	if err != nil {
+		return nil, err
+	}
 	publication := clonePublication(input)
 	if input.SafeMode {
 		publication.Plugins = nil
+		publication.Policies = nil
 	}
 	return &registrySnapshot{
 		safeMode: input.SafeMode, routes: prepared, routeValues: routeValues,
-		conflicts: inspectConflicts(prepared), publication: publication,
+		conflicts: inspectConflicts(prepared), policies: policies, policyIndex: policyIndex,
+		publication: publication,
 	}, nil
 }
 
@@ -497,6 +508,7 @@ func snapshotView(snapshot *registrySnapshot) Snapshot {
 	view := Snapshot{Revision: snapshot.revision, SafeMode: snapshot.safeMode}
 	view.Routes = cloneRoutes(snapshot.routeValues)
 	view.Conflicts = cloneConflicts(snapshot.conflicts)
+	view.Policies = cloneRoutePolicyBindings(snapshot.policies)
 	return view
 }
 
@@ -506,7 +518,7 @@ func planningView(snapshot *registrySnapshot) planningSnapshot {
 	}
 	return planningSnapshot{
 		revision: snapshot.revision, safeMode: snapshot.safeMode,
-		routes: snapshot.routeValues, conflicts: snapshot.conflicts,
+		routes: snapshot.routeValues, conflicts: snapshot.conflicts, policyIndex: snapshot.policyIndex,
 	}
 }
 
@@ -528,6 +540,7 @@ func publicPlanningView(snapshot Snapshot) planningSnapshot {
 	return planningSnapshot{
 		revision: snapshot.Revision, safeMode: snapshot.SafeMode,
 		routes: snapshot.Routes, conflicts: snapshot.Conflicts,
+		policyIndex: indexRoutePolicyBindings(snapshot.Policies),
 	}
 }
 
@@ -596,5 +609,6 @@ func clonePublication(value Publication) Publication {
 			)
 		}
 	}
+	result.Policies = cloneRoutePolicyBindings(value.Policies)
 	return result
 }

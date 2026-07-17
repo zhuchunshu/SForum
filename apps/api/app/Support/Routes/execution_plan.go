@@ -73,6 +73,8 @@ type RouteExecutionPlan struct {
 	unsafeMethod  bool
 	terminalIndex int
 	chain         []RouteExecutionStep
+	policy        RouteExecutionPolicy
+	policyBound   bool
 }
 
 func (p RouteExecutionPlan) Revision() uint64   { return p.revision }
@@ -92,6 +94,11 @@ func (p RouteExecutionPlan) Params() map[string]string {
 
 func (p RouteExecutionPlan) Chain() []RouteExecutionStep {
 	return cloneRouteExecutionSteps(p.chain)
+}
+
+// ExecutionPolicy returns the Host policy frozen with this exact route plan.
+func (p RouteExecutionPlan) ExecutionPolicy() (RouteExecutionPolicy, bool) {
+	return p.policy, p.policyBound
 }
 
 func (p RouteExecutionPlan) Terminal() RouteExecutionStep {
@@ -281,10 +288,12 @@ func buildRouteExecutionPlanView(
 	if err := appendPhase(RoutePhaseAfter); err != nil {
 		return RouteExecutionPlan{}, err
 	}
+	policy, policyBound := snapshot.routePolicy(terminal)
 	return RouteExecutionPlan{
 		revision: snapshot.revision, method: method, path: normalizedPath,
 		params: cloneRouteExecutionParams(params), unsafeMethod: method != "GET" && method != "HEAD",
 		terminalIndex: terminalIndex, chain: cloneRouteExecutionSteps(chain),
+		policy: policy, policyBound: policyBound,
 	}, nil
 }
 
