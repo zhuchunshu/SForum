@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"strings"
 	"testing"
 
 	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
@@ -33,9 +34,9 @@ func TestDispatcherCompletesRequiredIdempotencyAroundFirstExecution(t *testing.T
 func TestDispatcherReauthorizesReplayWithoutCallingPlugin(t *testing.T) {
 	step := dispatchPluginStep(RoutePhaseHandler, "demo.route.create", extensionmanifest.RouteActionAdd)
 	guard := &dispatchGuard{}
-	replay := &dispatchIdempotencyController{replay: &DispatchResponse{
+	replay := &dispatchIdempotencyController{replay: &RouteIdempotencyReplay{Response: DispatchResponse{
 		Status: http.StatusCreated, Body: []byte(`{"id":42}`),
-	}}
+	}}}
 	invoker := &dispatchStepInvoker{invoke: func(context.Context, RouteInvocation) (RouteInvocationResult, error) {
 		t.Fatal("replay invoked plugin")
 		return RouteInvocationResult{}, nil
@@ -54,6 +55,113 @@ func TestDispatcherReauthorizesReplayWithoutCallingPlugin(t *testing.T) {
 	guard.err = errors.New("permission revoked")
 	if _, err := dispatcher.Dispatch(context.Background(), DispatchRequest{Method: "POST", Path: "/custom"}, nil); !errors.Is(err, ErrDispatchDenied) {
 		t.Fatalf("revoked replay error = %v", err)
+	}
+}
+
+func TestDispatcherRejectsRequiredIdempotencyWithMutableRequestPlanBeforeBegin(t *testing.T) {
+	before := dispatchPluginStep(RoutePhaseBefore, "demo.route.idempotent_before", extensionmanifest.RouteActionBefore)
+	before.MutableRequestFields = []string{"/query/tag"}
+	handler := dispatchPluginStep(RoutePhaseHandler, "demo.route.idempotent_handler", extensionmanifest.RouteActionAdd)
+	controller := &dispatchIdempotencyController{lease: &dispatchIdempotencyLease{}}
+	guard := &dispatchGuard{}
+	dispatcher := NewDispatcher(DispatcherConfig{
+		Plans: dispatchPlanResolver{plan: dispatchPlan("POST", "/custom", nil, []RouteExecutionStep{before, handler}, 1)},
+		Steps: &dispatchStepInvoker{invoke: func(context.Context, RouteInvocation) (RouteInvocationResult, error) {
+			t.Fatal("mutable idempotent plan invoked plugin")
+			return RouteInvocationResult{}, nil
+		}},
+		Guard: guard, Schemas: &dispatchSchemas{},
+		Policies:    dispatchPolicyResolver{policy: RouteExecutionPolicy{IdempotencyRequired: true}},
+		Idempotency: controller,
+	})
+	if _, err := dispatcher.Dispatch(context.Background(), DispatchRequest{Method: "POST", Path: "/custom"}, nil); !errors.Is(err, ErrDispatchIdempotencyUnavailable) {
+		t.Fatalf("error=%v", err)
+	}
+	if controller.calls != 0 || guard.calls != 0 {
+		t.Fatalf("idempotency begin=%d guard=%d", controller.calls, guard.calls)
+	}
+}
+
+func TestDispatcherRejectsMalformedRequiredReplayRequestBeforeBegin(t *testing.T) {
+	step := dispatchPluginStep(RoutePhaseHandler, "demo.route.idempotent_invalid", extensionmanifest.RouteActionAdd)
+	for _, test := range []struct {
+		name    string
+		request DispatchRequest
+	}{
+		{
+			name:    "malformed query",
+			request: DispatchRequest{Method: "POST", Path: "/invalid-replay", Query: "%"},
+		},
+		{
+			name: "oversized connection metadata",
+			request: DispatchRequest{
+				Method: "POST", Path: "/invalid-replay",
+				Headers: http.Header{"Connection": {strings.Repeat("x", routeMutationMetadataMaximumBytes+1)}},
+			},
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			controller := &dispatchIdempotencyController{lease: &dispatchIdempotencyLease{}}
+			guard := &dispatchGuard{}
+			dispatcher := NewDispatcher(DispatcherConfig{
+				Plans: dispatchPlanResolver{plan: dispatchPlan("POST", "/invalid-replay", nil, []RouteExecutionStep{step}, 0)},
+				Steps: &dispatchStepInvoker{invoke: func(context.Context, RouteInvocation) (RouteInvocationResult, error) {
+					t.Fatal("invalid replay request invoked plugin")
+					return RouteInvocationResult{}, nil
+				}},
+				Guard: guard, Schemas: &dispatchSchemas{},
+				Policies:    dispatchPolicyResolver{policy: RouteExecutionPolicy{IdempotencyRequired: true}},
+				Idempotency: controller,
+			})
+
+			if result, err := dispatcher.Dispatch(context.Background(), test.request, nil); result.Handled ||
+				!errors.Is(err, ErrDispatchIdempotencyKeyInvalid) || controller.calls != 0 || guard.calls != 0 {
+				t.Fatalf("result=%#v error=%v controller=%d guard=%d", result, err, controller.calls, guard.calls)
+			}
+		})
+	}
+}
+
+func TestDispatcherAbortsRequiredIdempotencyWhenPluginGuardFailsBeforeHandler(t *testing.T) {
+	for _, variant := range dispatcherGuardFailureVariants {
+		for _, failure := range []struct {
+			name    string
+			kind    PluginGuardFailureKind
+			wantErr error
+		}{
+			{name: "denied", kind: PluginGuardFailureDenied, wantErr: ErrDispatchDenied},
+			{name: "crash", kind: PluginGuardFailureCrash, wantErr: ErrDispatchTransport},
+			{name: "timeout", kind: PluginGuardFailureTimeout, wantErr: ErrDispatchTransport},
+		} {
+			t.Run(variant.name+"/"+failure.name, func(t *testing.T) {
+				step := dispatcherGuardFailureStep(
+					RoutePhaseHandler, "demo.route.idempotent_guard_failure", extensionmanifest.RouteActionAdd, variant.raw,
+				)
+				lease := &dispatchIdempotencyLease{}
+				guard := &dispatcherGuardFailureAuthorizer{
+					failureRouteID: step.RouteID, failAt: 1,
+					failure: NewPluginGuardFailure(failure.kind, true),
+				}
+				dispatcher := NewDispatcher(DispatcherConfig{
+					Plans: dispatchPlanResolver{plan: dispatchPlan("POST", "/idempotent-guard", nil, []RouteExecutionStep{step}, 0)},
+					Steps: &dispatchStepInvoker{invoke: func(context.Context, RouteInvocation) (RouteInvocationResult, error) {
+						t.Fatal("guard failure reached route handler")
+						return RouteInvocationResult{}, nil
+					}},
+					Guard: guard, Schemas: &dispatchSchemas{},
+					Policies:    dispatchPolicyResolver{policy: RouteExecutionPolicy{IdempotencyRequired: true}},
+					Idempotency: &dispatchIdempotencyController{lease: lease},
+				})
+
+				result, err := dispatcher.Dispatch(
+					context.Background(), DispatchRequest{Method: "POST", Path: "/idempotent-guard"}, nil,
+				)
+				if !errors.Is(err, failure.wantErr) || result.Handled ||
+					lease.abortCalls != 1 || lease.completeCalls != 0 {
+					t.Fatalf("result=%#v lease=%#v error=%v", result, lease, err)
+				}
+			})
+		}
 	}
 }
 
@@ -147,10 +255,11 @@ func (r dispatchPolicyResolver) ResolveRouteExecutionPolicy(RouteExecutionStep) 
 }
 
 type dispatchIdempotencyController struct {
-	lease  RouteIdempotencyLease
-	replay *DispatchResponse
-	err    error
-	calls  int
+	lease                   RouteIdempotencyLease
+	replay                  *RouteIdempotencyReplay
+	err                     error
+	calls                   int
+	mutationReplayAvailable bool
 }
 
 func (c *dispatchIdempotencyController) Begin(
@@ -159,9 +268,13 @@ func (c *dispatchIdempotencyController) Begin(
 	RouteExecutionStep,
 	RouteExecutionPolicy,
 	DispatchRequest,
-) (RouteIdempotencyLease, *DispatchResponse, error) {
+) (RouteIdempotencyLease, *RouteIdempotencyReplay, error) {
 	c.calls++
 	return c.lease, c.replay, c.err
+}
+
+func (c *dispatchIdempotencyController) MutationReplayAvailable() bool {
+	return c != nil && c.mutationReplayAvailable
 }
 
 type dispatchIdempotencyLease struct {
@@ -169,12 +282,15 @@ type dispatchIdempotencyLease struct {
 	abortCalls    int
 	completeErr   error
 	abortErr      error
-	completed     DispatchResponse
+	completed     RouteIdempotencyCompletion
 }
 
-func (l *dispatchIdempotencyLease) Complete(_ context.Context, response DispatchResponse) error {
+func (l *dispatchIdempotencyLease) Complete(_ context.Context, completion RouteIdempotencyCompletion) error {
 	l.completeCalls++
-	l.completed = cloneDispatchResponse(response)
+	l.completed = RouteIdempotencyCompletion{
+		Response:      cloneDispatchResponse(completion.Response),
+		Authorization: cloneRouteReplayAuthorization(completion.Authorization),
+	}
 	return l.completeErr
 }
 

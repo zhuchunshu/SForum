@@ -196,6 +196,9 @@ func (d *Dispatcher) Dispatch(ctx context.Context, request DispatchRequest, core
 	commit := NewRouteCommitObserver()
 	var idempotencyLease RouteIdempotencyLease
 	preservePending := false
+	mutableReplay := routeChainHasMutableRequestFields(chain)
+	var replayBinding RouteReplayBinding
+	var replayMutations []RouteReplayRequestMutation
 	terminal := plan.Terminal()
 	if terminal.Provider.Kind == ProviderPlugin {
 		policy, policyExists, policyErr := resolvePlanRouteExecutionPolicy(plan, terminal, d.policies)
@@ -206,21 +209,36 @@ func (d *Dispatcher) Dispatch(ctx context.Context, request DispatchRequest, core
 			if terminal.Mode != extensionmanifest.RouteModeHTTP || d.idempotency == nil {
 				return DispatchResult{}, ErrDispatchIdempotencyUnavailable
 			}
-			// Until mutation evidence is durably bound to replay, a required-idempotency
-			// route must fail before Begin rather than execute a modifier twice.
-			if routeChainHasMutableRequestFields(chain) {
+			if routeChainHasCredentialMutableRequestFields(chain) {
+				// Credential patches cannot be persisted and replaying the modifier would
+				// violate the no-second-execution contract.
 				return DispatchResult{}, ErrDispatchIdempotencyUnavailable
 			}
-			var replay *DispatchResponse
+			if mutableReplay {
+				capability, ok := d.idempotency.(RouteMutationReplayCapability)
+				if !ok || !capability.MutationReplayAvailable() {
+					return DispatchResult{}, ErrDispatchIdempotencyUnavailable
+				}
+			}
+			replayBinding, err = BuildRouteReplayBinding(plan, request)
+			if err != nil {
+				return DispatchResult{}, ErrDispatchIdempotencyKeyInvalid
+			}
+			var replay *RouteIdempotencyReplay
 			idempotencyLease, replay, err = d.idempotency.Begin(ctx, plan, terminal, policy, request)
 			if err != nil {
 				return DispatchResult{}, err
 			}
 			if replay != nil {
-				if err := d.authorizeReplay(ctx, plan, request, replay); err != nil {
+				if mutableReplay && replay.Authorization == nil || !mutableReplay && replay.Authorization != nil {
+					return DispatchResult{}, ErrDispatchIdempotencyUnavailable
+				}
+				if err := d.authorizeReplay(
+					ctx, plan, request, &replay.Response, replay.Authorization, replayBinding,
+				); err != nil {
 					return DispatchResult{}, err
 				}
-				return DispatchResult{Handled: true, Response: cloneDispatchResponse(*replay)}, nil
+				return DispatchResult{Handled: true, Response: cloneDispatchResponse(replay.Response)}, nil
 			}
 			if idempotencyLease == nil {
 				return DispatchResult{}, ErrDispatchIdempotencyUnavailable
@@ -251,6 +269,7 @@ dispatchSequence:
 			continue
 		}
 		started := time.Now()
+		mutationBeforeDigest := ""
 		authority, err := d.authorize(ctx, plan, index, step, request, response, stage, commit)
 		if err != nil {
 			if ctxErr := ctx.Err(); ctxErr != nil && errors.Is(err, ctxErr) {
@@ -280,6 +299,12 @@ dispatchSequence:
 					break dispatchSequence
 				}
 				return DispatchResult{}, fmt.Errorf("%w: %v", ErrDispatchSchema, err)
+			}
+		}
+		if idempotencyLease != nil && mutableReplay && stage == InvocationStageRequest {
+			mutationBeforeDigest, err = routeReplayRequestDigest(request)
+			if err != nil {
+				return DispatchResult{}, ErrDispatchIdempotencyUnavailable
 			}
 		}
 		if stage == InvocationStageResponse {
@@ -352,6 +377,14 @@ dispatchSequence:
 				}
 				if fallback != nil {
 					response = fallback
+					if idempotencyLease != nil && mutableReplay && stage == InvocationStageRequest {
+						replayMutations, err = appendRouteReplayRequestMutation(replayBinding, replayMutations, RouteReplayRequestMutation{
+							StepIndex: index, BeforeDigest: mutationBeforeDigest, AfterDigest: mutationBeforeDigest,
+						})
+						if err != nil {
+							return DispatchResult{}, ErrDispatchIdempotencyUnavailable
+						}
+					}
 					d.appendTrace(plan, index, step, stage, RouteTraceFallbackUsed, started, commit.State())
 					committingStep = index
 					committingStarted = started
@@ -359,6 +392,14 @@ dispatchSequence:
 					break dispatchSequence
 				}
 				if stage == InvocationStageRequest && plan.AllowsFallback(index, commit.State()) {
+					if idempotencyLease != nil && mutableReplay {
+						replayMutations, err = appendRouteReplayRequestMutation(replayBinding, replayMutations, RouteReplayRequestMutation{
+							StepIndex: index, BeforeDigest: mutationBeforeDigest, AfterDigest: mutationBeforeDigest,
+						})
+						if err != nil {
+							return DispatchResult{}, ErrDispatchIdempotencyUnavailable
+						}
+					}
 					d.appendTrace(plan, index, step, stage, RouteTraceFallbackUsed, started, commit.State())
 					committingStep = index
 					committingStarted = started
@@ -385,7 +426,9 @@ dispatchSequence:
 		}
 		switch stage {
 		case InvocationStageRequest:
-			if len(invocation.RequestPatch) != 0 {
+			// Required replay records every request stage, including an empty patch.
+			// Run the same post-schema boundary on first execution and replay.
+			if len(invocation.RequestPatch) != 0 || idempotencyLease != nil && mutableReplay {
 				if planTerminalUsesFrozenPathParams(plan) && routeRequestPatchMutatesParams(invocation.RequestPatch) {
 					d.appendTrace(plan, index, step, stage, RouteTraceSchemaRejected, started, commit.State())
 					return DispatchResult{}, fmt.Errorf("%w: core-bound route params cannot be mutated after route selection", ErrDispatchSchema)
@@ -410,6 +453,19 @@ dispatchSequence:
 					}
 				}
 				request = value
+			}
+			if idempotencyLease != nil && mutableReplay {
+				afterDigest, digestErr := routeReplayRequestDigest(request)
+				if digestErr != nil {
+					return DispatchResult{}, ErrDispatchIdempotencyUnavailable
+				}
+				replayMutations, err = appendRouteReplayRequestMutation(replayBinding, replayMutations, RouteReplayRequestMutation{
+					StepIndex: index, BeforeDigest: mutationBeforeDigest, AfterDigest: afterDigest,
+					Operations: cloneRoutePatchOperations(invocation.RequestPatch),
+				})
+				if err != nil {
+					return DispatchResult{}, ErrDispatchIdempotencyUnavailable
+				}
 			}
 		case InvocationStageHandler:
 			value := cloneDispatchResponse(*invocation.Response)
@@ -506,7 +562,15 @@ dispatchSequence:
 		// Complete 失败时保留 pending；客户端只能得到 fail-closed unavailable，
 		// 不能在未知持久化结果后再次执行插件副作用。
 		preservePending = true
-		if err := idempotencyLease.Complete(ctx, *response); err != nil {
+		completion := RouteIdempotencyCompletion{Response: cloneDispatchResponse(*response)}
+		if mutableReplay {
+			completion.Authorization, err = newRouteReplayAuthorization(replayBinding, replayMutations)
+			if err != nil || completion.Authorization == nil ||
+				!routeReplayAuthorizationMatchesPlan(completion.Authorization, replayBinding, sequence) {
+				return DispatchResult{}, ErrDispatchIdempotencyUnavailable
+			}
+		}
+		if err := idempotencyLease.Complete(ctx, completion); err != nil {
 			return DispatchResult{}, fmt.Errorf("%w: %v", ErrDispatchIdempotencyUnavailable, err)
 		}
 	}
@@ -556,12 +620,18 @@ func (d *Dispatcher) authorizeReplay(
 	plan RouteExecutionPlan,
 	request DispatchRequest,
 	response *DispatchResponse,
+	authorization *RouteReplayAuthorization,
+	binding RouteReplayBinding,
 ) error {
 	sequence, err := bufferedRouteInvocationSequence(plan)
 	if err != nil {
 		return err
 	}
 	chain := plan.Chain()
+	if authorization != nil && !routeReplayAuthorizationMatchesPlan(authorization, binding, sequence) {
+		return ErrDispatchIdempotencyUnavailable
+	}
+	mutationIndex := 0
 	for _, execution := range sequence {
 		index, stage := execution.index, execution.stage
 		step := chain[index]
@@ -573,7 +643,7 @@ func (d *Dispatcher) authorizeReplay(
 			value := cloneDispatchResponse(*response)
 			prior = &value
 		}
-		_, err := d.authorize(ctx, plan, index, step, request, prior, stage, nil)
+		authority, err := d.authorize(ctx, plan, index, step, request, prior, stage, nil)
 		if err != nil {
 			if ctxErr := ctx.Err(); ctxErr != nil && errors.Is(err, ctxErr) {
 				return ctxErr
@@ -582,6 +652,46 @@ func (d *Dispatcher) authorizeReplay(
 			d.appendTrace(plan, index, step, stage, outcome, time.Now(), RouteCommitPristine)
 			return err
 		}
+		if d.schemas == nil && step.RequestSchema != "" {
+			return ErrDispatchIdempotencyUnavailable
+		}
+		if d.schemas != nil && step.RequestSchema != "" {
+			if err := d.schemas.ValidateRequest(ctx, step, request); err != nil {
+				return ErrDispatchIdempotencyUnavailable
+			}
+		}
+		if stage != InvocationStageRequest || authorization == nil {
+			continue
+		}
+		mutation := authorization.RequestMutations[mutationIndex]
+		mutationIndex++
+		beforeDigest, digestErr := routeReplayRequestDigest(request)
+		if digestErr != nil || beforeDigest != mutation.BeforeDigest ||
+			planTerminalUsesFrozenPathParams(plan) && routeRequestPatchMutatesParams(mutation.Operations) {
+			return ErrDispatchIdempotencyUnavailable
+		}
+		value, patchErr := applyRouteRequestPatch(
+			request, mutation.Operations, step.MutableRequestFields, rawMutationAuthority(authority),
+		)
+		if patchErr != nil {
+			return ErrDispatchIdempotencyUnavailable
+		}
+		if routeRequestPatchMutatesParams(mutation.Operations) {
+			value.hostMutatedParams = true
+		}
+		if d.schemas != nil && step.RequestSchema != "" {
+			if err := d.schemas.ValidateRequest(ctx, step, value); err != nil {
+				return ErrDispatchIdempotencyUnavailable
+			}
+		}
+		afterDigest, digestErr := routeReplayRequestDigest(value)
+		if digestErr != nil || afterDigest != mutation.AfterDigest {
+			return ErrDispatchIdempotencyUnavailable
+		}
+		request = value
+	}
+	if authorization != nil && mutationIndex != len(authorization.RequestMutations) {
+		return ErrDispatchIdempotencyUnavailable
 	}
 	return nil
 }

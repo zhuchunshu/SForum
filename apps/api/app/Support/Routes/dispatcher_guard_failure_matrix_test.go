@@ -285,10 +285,9 @@ func TestDispatcherPluginGuardReplayReauthorizationFailureClassification(t *test
 			invoker := &dispatcherGuardFailureInvoker{t: t}
 			traces := NewRouteTraceRing(8)
 			sink := &recordingRouteFailureSink{}
-			replayResponse := DispatchResponse{
+			replay := &dispatchIdempotencyController{replay: &RouteIdempotencyReplay{Response: DispatchResponse{
 				Status: http.StatusCreated, Headers: http.Header{"X-Replay": {"exact"}}, Body: []byte(`{"id":42}`),
-			}
-			replay := &dispatchIdempotencyController{replay: &replayResponse}
+			}}}
 			dispatcher := NewDispatcher(DispatcherConfig{
 				Plans: dispatchPlanResolver{plan: dispatchPlan(
 					http.MethodPost, "/guard-replay", nil, []RouteExecutionStep{step}, 0,

@@ -37,8 +37,8 @@ func TestRequiredRouteReplayCanonicalizesRequestsAndRejectsConflicts(t *testing.
 	first.Body.Close()
 
 	replayed := requiredReplayRequest(t, app, requiredReplayRequestInput{
-		KeyValues: []string{"request-42"}, Query: "a=0&b=2&a=1",
-		ContentType: "application/json;charset=UTF-8", Body: `{"name":"first"}`,
+		KeyValues: []string{"request-42"}, Query: "a=1&a=0&b=2",
+		ContentType: "Application/JSON; Charset=UTF-8", Body: `{"name":"first"}`,
 	})
 	if replayed.StatusCode != stdhttp.StatusCreated || replayed.Header.Get(idempotency.ReplayedHeader) != "true" || calls.Load() != 1 {
 		t.Fatalf("replay status=%d replayed=%q calls=%d", replayed.StatusCode, replayed.Header.Get(idempotency.ReplayedHeader), calls.Load())
@@ -46,9 +46,10 @@ func TestRequiredRouteReplayCanonicalizesRequestsAndRejectsConflicts(t *testing.
 	replayed.Body.Close()
 
 	conflicts := []requiredReplayRequestInput{
-		{KeyValues: []string{"request-42"}, Query: "a=0&b=3&a=1", ContentType: "application/json;charset=UTF-8", Body: `{"name":"first"}`},
-		{KeyValues: []string{"request-42"}, Query: "a=0&b=2&a=1", ContentType: "application/json;charset=UTF-8", Body: `{"name":"changed"}`},
-		{KeyValues: []string{"request-42"}, Query: "a=0&b=2&a=1", ContentType: "application/merge-patch+json", Body: `{"name":"first"}`},
+		{KeyValues: []string{"request-42"}, Query: "a=0&a=1&b=2", ContentType: "Application/JSON; Charset=UTF-8", Body: `{"name":"first"}`},
+		{KeyValues: []string{"request-42"}, Query: "a=1&a=0&b=3", ContentType: "Application/JSON; Charset=UTF-8", Body: `{"name":"first"}`},
+		{KeyValues: []string{"request-42"}, Query: "a=1&a=0&b=2", ContentType: "Application/JSON; Charset=UTF-8", Body: `{"name":"changed"}`},
+		{KeyValues: []string{"request-42"}, Query: "a=1&a=0&b=2", ContentType: "application/merge-patch+json", Body: `{"name":"first"}`},
 	}
 	for index, input := range conflicts {
 		response := requiredReplayRequest(t, app, input)
@@ -311,7 +312,11 @@ func newRequiredReplayRouteApp(t *testing.T, options requiredReplayRouteOptions)
 		writer.WriteHeader(stdhttp.StatusCreated)
 		_, _ = writer.Write([]byte(`{"created":true}`))
 	})
-	store := idempotency.NewStore(options.backend, idempotency.DefaultTTL)
+	cipher, err := idempotency.NewRequiredReplayCipher(strings.Repeat("0d", 32))
+	if err != nil {
+		t.Fatal(err)
+	}
+	store := idempotency.NewStore(options.backend, idempotency.DefaultTTL).WithRequiredReplayCipher(cipher)
 	dispatcher := routes.NewDispatcher(routes.DispatcherConfig{
 		Plans: routeRegistryPlanResolver{registry: registry}, Steps: NewBufferedRouteStepInvoker(runtime),
 		Guard: HostRouteGuardAuthorizer{}, Schemas: CatalogRouteSchemaValidator{Catalog: acceptRouteSchemaCatalog{}},

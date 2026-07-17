@@ -172,6 +172,10 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 	if err != nil {
 		return nil, fmt.Errorf("create option cipher: %w", err)
 	}
+	requiredReplayCipher, err := idempotency.NewRequiredReplayCipher(cfg.OptionEncryptionKey)
+	if err != nil {
+		return nil, fmt.Errorf("create required replay cipher: %w", err)
+	}
 	auditWriter := audit.NewPostgresWriter(pool)
 	if cfg.SafeMode {
 		if err := auditWriter.Append(ctx, audit.Event{
@@ -696,7 +700,9 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 	reindexManager := search.NewReindexManager(forumStore, search.NewPostgresReindexStore(pool), jobDispatcher)
 
 	// F3.2：发帖/评论写路径可选 Idempotency-Key；存储复用 shared Redis。
-	idempotencyStore := idempotency.NewStore(idempotency.NewRedisBackend(sharedRedisClient), idempotency.DefaultTTL)
+	idempotencyStore := idempotency.NewStore(
+		idempotency.NewRedisBackend(sharedRedisClient), idempotency.DefaultTTL,
+	).WithRequiredReplayCipher(requiredReplayCipher)
 	forumProvider := providers.NewForumProviderWithPublicContributions(
 		forumCachedStore,
 		optionsService,

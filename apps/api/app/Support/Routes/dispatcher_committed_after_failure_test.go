@@ -161,8 +161,10 @@ func TestDispatcherCompletesAndReplaysUnsafeResponseAfterCommittedAfterFailure(t
 		lease.completeCalls != 1 || lease.abortCalls != 0 || calls != 2 || len(sink.events) != 1 {
 		t.Fatalf("first=%#v lease=%#v calls=%d events=%#v err=%v", first, lease, calls, sink.events, err)
 	}
-	replay := cloneDispatchResponse(lease.completed)
-	controller.replay = &replay
+	controller.replay = &RouteIdempotencyReplay{
+		Response:      cloneDispatchResponse(lease.completed.Response),
+		Authorization: cloneRouteReplayAuthorization(lease.completed.Authorization),
+	}
 	second, err := dispatcher.Dispatch(context.Background(), request, nil)
 	if err != nil || !reflect.DeepEqual(second, first) || calls != 2 || len(sink.events) != 1 || controller.calls != 2 {
 		t.Fatalf("second=%#v first=%#v calls=%d events=%#v controller=%#v err=%v", second, first, calls, sink.events, controller, err)

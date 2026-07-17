@@ -29,13 +29,17 @@ func NewRequiredRouteIdempotency(store *idempotency.Store) *RequiredRouteIdempot
 	return &RequiredRouteIdempotency{store: store}
 }
 
+func (r *RequiredRouteIdempotency) MutationReplayAvailable() bool {
+	return r != nil && r.store != nil && r.store.RequiredReplayCipherEnabled()
+}
+
 func (r *RequiredRouteIdempotency) Begin(
 	ctx context.Context,
-	_ routes.RouteExecutionPlan,
+	plan routes.RouteExecutionPlan,
 	step routes.RouteExecutionStep,
 	policy routes.RouteExecutionPolicy,
 	request routes.DispatchRequest,
-) (routes.RouteIdempotencyLease, *routes.DispatchResponse, error) {
+) (routes.RouteIdempotencyLease, *routes.RouteIdempotencyReplay, error) {
 	if r == nil || r.store == nil || ctx == nil || !policy.IdempotencyRequired ||
 		step.Provider.Kind != routes.ProviderPlugin {
 		return nil, nil, routes.ErrDispatchIdempotencyUnavailable
@@ -48,16 +52,22 @@ func (r *RequiredRouteIdempotency) Begin(
 	if err != nil {
 		return nil, nil, err
 	}
-	fingerprint, err := routeReplayFingerprint(request)
+	fingerprint, legacyFingerprint, planDigest, err := routeReplayFingerprints(plan, request)
 	if err != nil {
 		return nil, nil, routes.ErrDispatchIdempotencyKeyInvalid
 	}
+	compatible := []string(nil)
+	if routeReplayLegacyFingerprintCompatible(plan, request.Query) {
+		compatible = append(compatible, legacyFingerprint)
+	}
 	artifact := step.Provider.Artifact
-	lease, replay, err := r.store.BeginRequiredReplay(ctx, idempotency.RequiredReplayScope{
+	lease, replay, err := r.store.BeginRequiredReplayBound(ctx, idempotency.RequiredReplayScope{
 		ActorScope: actorScope, ExtensionID: artifact.ExtensionID,
 		ExtensionVersion: artifact.ExtensionVersion, PackageDigest: artifact.PackageDigest,
 		RouteID: step.RouteID, ContractVersion: step.ContractVersion, Method: request.Method,
-	}, values[0], fingerprint)
+	}, values[0], idempotency.RequiredReplayBinding{
+		Fingerprint: fingerprint, PlanDigest: planDigest, CompatibleFingerprints: compatible,
+	})
 	if err != nil {
 		switch {
 		case errors.Is(err, idempotency.ErrRequiredReplayInvalid):
@@ -73,8 +83,12 @@ func (r *RequiredRouteIdempotency) Begin(
 	if replay != nil {
 		headers := replay.Headers.Clone()
 		headers.Set(idempotency.ReplayedHeader, "true")
-		return nil, &routes.DispatchResponse{
-			Status: replay.Status, Headers: headers, Body: append([]byte(nil), replay.Body...),
+		return nil, &routes.RouteIdempotencyReplay{
+			Response: routes.DispatchResponse{
+				Status: replay.Status, Headers: headers, Body: append([]byte(nil), replay.Body...),
+				CanonicalPath: replay.CanonicalPath,
+			},
+			Authorization: routeReplayAuthorizationFromStored(replay.Authorization),
 		}, nil
 	}
 	return &requiredRouteIdempotencyLease{store: r.store, lease: lease}, nil, nil
@@ -85,16 +99,22 @@ type requiredRouteIdempotencyLease struct {
 	lease idempotency.RequiredReplayLease
 }
 
-func (l *requiredRouteIdempotencyLease) Complete(ctx context.Context, response routes.DispatchResponse) error {
+func (l *requiredRouteIdempotencyLease) Complete(
+	ctx context.Context,
+	completion routes.RouteIdempotencyCompletion,
+) error {
 	if l == nil || l.store == nil {
 		return routes.ErrDispatchIdempotencyUnavailable
 	}
 	cleanupCtx, cancel := routeIdempotencyCleanupContext(ctx)
 	defer cancel()
-	headers := response.Headers.Clone()
+	headers := completion.Response.Headers.Clone()
 	headers.Del(idempotency.ReplayedHeader)
 	return l.store.CompleteRequiredReplay(cleanupCtx, l.lease, idempotency.RequiredReplayResponse{
-		Status: response.Status, Headers: headers, Body: append([]byte(nil), response.Body...),
+		Status: completion.Response.Status, Headers: headers,
+		Body:          append([]byte(nil), completion.Response.Body...),
+		CanonicalPath: completion.Response.CanonicalPath,
+		Authorization: routeReplayAuthorizationForStorage(completion.Authorization),
 	})
 }
 
@@ -133,8 +153,55 @@ func routeReplayActorScope(request routes.DispatchRequest) (string, error) {
 	return "anonymous:" + hex.EncodeToString(digest[:]), nil
 }
 
-func routeReplayFingerprint(request routes.DispatchRequest) (string, error) {
+func routeReplayFingerprints(plan routes.RouteExecutionPlan, request routes.DispatchRequest) (string, string, string, error) {
 	query, err := canonicalRouteReplayQuery(request.Query)
+	if err != nil {
+		return "", "", "", err
+	}
+	contentType, err := canonicalRouteReplayContentType(request.Headers)
+	if err != nil {
+		return "", "", "", err
+	}
+	binding, err := routes.BuildRouteReplayBinding(plan, request)
+	if err != nil {
+		return "", "", "", err
+	}
+	document, err := json.Marshal(struct {
+		Schema      string `json:"schema"`
+		Method      string `json:"method"`
+		Path        string `json:"path"`
+		Query       string `json:"query"`
+		ContentType string `json:"contentType"`
+		Body        []byte `json:"body"`
+		PlanDigest  string `json:"planDigest"`
+		BaseDigest  string `json:"baseDigest"`
+	}{
+		Schema: "sforum.required-route-fingerprint@2",
+		Method: request.Method, Path: request.Path, Query: query,
+		ContentType: contentType, Body: request.Body,
+		PlanDigest: binding.PlanDigest, BaseDigest: binding.BaseDigest,
+	})
+	if err != nil {
+		return "", "", "", err
+	}
+	digest := sha256.Sum256(document)
+	legacy, err := routeReplayLegacyFingerprint(request)
+	if err != nil {
+		return "", "", "", err
+	}
+	return hex.EncodeToString(digest[:]), legacy, binding.PlanDigest, nil
+}
+
+func canonicalRouteReplayQuery(raw string) (string, error) {
+	values, err := url.ParseQuery(raw)
+	if err != nil {
+		return "", err
+	}
+	return values.Encode(), nil
+}
+
+func routeReplayLegacyFingerprint(request routes.DispatchRequest) (string, error) {
+	query, err := canonicalLegacyRouteReplayQuery(request.Query)
 	if err != nil {
 		return "", err
 	}
@@ -159,7 +226,7 @@ func routeReplayFingerprint(request routes.DispatchRequest) (string, error) {
 	return hex.EncodeToString(digest[:]), nil
 }
 
-func canonicalRouteReplayQuery(raw string) (string, error) {
+func canonicalLegacyRouteReplayQuery(raw string) (string, error) {
 	values, err := url.ParseQuery(raw)
 	if err != nil {
 		return "", err
@@ -168,6 +235,71 @@ func canonicalRouteReplayQuery(raw string) (string, error) {
 		sort.Strings(values[key])
 	}
 	return values.Encode(), nil
+}
+
+func routeReplayLegacyFingerprintCompatible(plan routes.RouteExecutionPlan, rawQuery string) bool {
+	if len(plan.Chain()) != 1 {
+		return false
+	}
+	values, err := url.ParseQuery(rawQuery)
+	if err != nil {
+		return false
+	}
+	for _, items := range values {
+		if len(items) > 1 {
+			return false
+		}
+	}
+	return true
+}
+
+func routeReplayAuthorizationForStorage(
+	value *routes.RouteReplayAuthorization,
+) *idempotency.RequiredReplayAuthorization {
+	if value == nil {
+		return nil
+	}
+	result := &idempotency.RequiredReplayAuthorization{
+		Schema: value.Schema, PlanDigest: value.PlanDigest, BaseDigest: value.BaseDigest,
+		RequestMutations: make([]idempotency.RequiredReplayRequestMutation, len(value.RequestMutations)),
+	}
+	for index, mutation := range value.RequestMutations {
+		result.RequestMutations[index].StepIndex = mutation.StepIndex
+		result.RequestMutations[index].BeforeDigest = mutation.BeforeDigest
+		result.RequestMutations[index].AfterDigest = mutation.AfterDigest
+		result.RequestMutations[index].Operations = make([]idempotency.RequiredReplayPatchOperation, len(mutation.Operations))
+		for operationIndex, operation := range mutation.Operations {
+			result.RequestMutations[index].Operations[operationIndex] = idempotency.RequiredReplayPatchOperation{
+				Kind: string(operation.Kind), Path: operation.Path, Value: append([]byte(nil), operation.Value...),
+			}
+		}
+	}
+	return result
+}
+
+func routeReplayAuthorizationFromStored(
+	value *idempotency.RequiredReplayAuthorization,
+) *routes.RouteReplayAuthorization {
+	if value == nil {
+		return nil
+	}
+	result := &routes.RouteReplayAuthorization{
+		Schema: value.Schema, PlanDigest: value.PlanDigest, BaseDigest: value.BaseDigest,
+		RequestMutations: make([]routes.RouteReplayRequestMutation, len(value.RequestMutations)),
+	}
+	for index, mutation := range value.RequestMutations {
+		result.RequestMutations[index].StepIndex = mutation.StepIndex
+		result.RequestMutations[index].BeforeDigest = mutation.BeforeDigest
+		result.RequestMutations[index].AfterDigest = mutation.AfterDigest
+		result.RequestMutations[index].Operations = make([]routes.RoutePatchOperation, len(mutation.Operations))
+		for operationIndex, operation := range mutation.Operations {
+			result.RequestMutations[index].Operations[operationIndex] = routes.RoutePatchOperation{
+				Kind: routes.RoutePatchOperationKind(operation.Kind), Path: operation.Path,
+				Value: append([]byte(nil), operation.Value...),
+			}
+		}
+	}
+	return result
 }
 
 func canonicalRouteReplayContentType(headers stdhttp.Header) (string, error) {
@@ -187,3 +319,4 @@ func canonicalRouteReplayContentType(headers stdhttp.Header) (string, error) {
 
 var _ routes.RouteIdempotencyController = (*RequiredRouteIdempotency)(nil)
 var _ routes.RouteIdempotencyLease = (*requiredRouteIdempotencyLease)(nil)
+var _ routes.RouteMutationReplayCapability = (*RequiredRouteIdempotency)(nil)
