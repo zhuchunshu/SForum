@@ -32,6 +32,7 @@ type pluginRuntimeCoordinatorTestRepository struct {
 	completeErrors      int
 	completeCommits     bool
 	completeError       error
+	failError           error
 
 	registeredSignal chan struct{}
 	heartbeatSignal  chan struct{}
@@ -286,6 +287,9 @@ func (r *pluginRuntimeCoordinatorTestRepository) FailPluginRuntimePublicationApp
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.failCalls++
+	if r.failError != nil {
+		return PluginRuntimePublicationAck{}, r.failError
+	}
 	ack, found := r.acks[publicationRevision]
 	if !found || ack.PluginRuntimeNodeIdentity != identity ||
 		ack.Status != PluginRuntimeAckApplying || ack.Revision != expectedAckRevision {

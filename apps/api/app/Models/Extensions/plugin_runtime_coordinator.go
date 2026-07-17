@@ -279,7 +279,25 @@ func (c *PluginRuntimeCoordinator) reconcileOnce(ctx context.Context) error {
 			}
 		}
 		if applyErr != nil {
-			return c.recordPluginRuntimeApplyFailure(ctx, publication, ack, applyErr)
+			failureRecorded, recordedErr := c.recordPluginRuntimeApplyFailure(ctx, publication, ack, applyErr)
+			if failureRecorded && errors.Is(applyErr, ErrPluginRuntimePublicationSuperseded) {
+				// Superseded also covers a process whose applied revision is ahead of
+				// durable state. Only a genuinely newer durable full set may bypass the
+				// normal poll/backoff path; otherwise an immediate retry would spin on
+				// the same revision and write unbounded failed acknowledgements.
+				latest, latestErr := c.repository.LatestPluginRuntimePublication(ctx)
+				if latestErr != nil {
+					return errors.Join(recordedErr, fmt.Errorf("verify superseding plugin runtime publication: %w", latestErr))
+				}
+				latest, latestErr = normalizedPluginRuntimePublication(latest)
+				if latestErr != nil {
+					return errors.Join(recordedErr, fmt.Errorf("%w: invalid superseding durable publication", ErrPluginRuntimeCoordinatorInvalid))
+				}
+				if latest.Revision > publication.Revision {
+					continue
+				}
+			}
+			return recordedErr
 		}
 		if err := ctx.Err(); err != nil {
 			return err
@@ -382,9 +400,9 @@ func (c *PluginRuntimeCoordinator) recordPluginRuntimeApplyFailure(
 	publication PluginRuntimePublication,
 	ack PluginRuntimePublicationAck,
 	cause error,
-) error {
+) (bool, error) {
 	if err := ctx.Err(); err != nil {
-		return err
+		return false, err
 	}
 	failed, failErr := c.repository.FailPluginRuntimePublicationApply(
 		ctx,
@@ -398,15 +416,15 @@ func (c *PluginRuntimeCoordinator) recordPluginRuntimeApplyFailure(
 		publication.Revision, ack.AttemptCount, cause,
 	)
 	if failErr != nil {
-		return errors.Join(
+		return false, errors.Join(
 			applyErr,
 			fmt.Errorf("record plugin runtime revision %d failure: %w", publication.Revision, failErr),
 		)
 	}
 	if !validPluginRuntimeFailedAck(failed, ack, publication.Revision) {
-		return errors.Join(applyErr, ErrPluginRuntimeCoordinatorInvalid)
+		return false, errors.Join(applyErr, ErrPluginRuntimeCoordinatorInvalid)
 	}
-	return applyErr
+	return true, applyErr
 }
 
 func (c *PluginRuntimeCoordinator) report(err error) {

@@ -70,6 +70,137 @@ func TestPluginRuntimeCoordinatorStartupPollConvergesAPIAndWorker(t *testing.T) 
 	}
 }
 
+func TestPluginRuntimeCoordinatorSupersededApplyContinuesToLatest(t *testing.T) {
+	identity := uniquePluginRuntimeCoordinatorTestIdentity("superseded", PluginRuntimeProcessAPI)
+	repository := newPluginRuntimeCoordinatorTestRepository()
+	first := pluginRuntimeCoordinatorPublicationFixture(1, []PluginRuntimeMember{
+		pluginRuntimeCoordinatorMemberFixture("superseded.plugin", 1, "a"),
+	})
+	latest := pluginRuntimeCoordinatorPublicationFixture(2, nil)
+	repository.addPublication(first)
+	applier := &pluginRuntimeCoordinatorTestApplier{apply: func(
+		_ context.Context,
+		publication PluginRuntimePublication,
+		call int,
+	) ([]PluginRuntimeAppliedMember, error) {
+		if call == 1 {
+			repository.addPublication(latest)
+			return nil, ErrPluginRuntimePublicationSuperseded
+		}
+		return pluginRuntimeCoordinatorAppliedFixture(publication), nil
+	}}
+	config := pluginRuntimeCoordinatorConfigFixture(identity)
+	config.PollInterval = time.Hour
+	coordinator, err := NewPluginRuntimeCoordinator(repository, applier, nil, config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	runCtx, stop := context.WithCancel(t.Context())
+	result := make(chan error, 1)
+	go func() { result <- coordinator.Run(runCtx) }()
+	waitCtx, cancel := context.WithTimeout(t.Context(), 2*time.Second)
+	defer cancel()
+	if err := waitPluginRuntimeCoordinatorRevision(waitCtx, repository.appliedSignal, latest.Revision); err != nil {
+		t.Fatal(err)
+	}
+	stop()
+	if err := assertPluginRuntimeCoordinatorRunStopped(waitCtx, result); err != nil {
+		t.Fatal(err)
+	}
+	snapshot := repository.snapshot()
+	if snapshot.node.LastAppliedRevision != latest.Revision || snapshot.failCalls != 1 ||
+		snapshot.completeCalls != 1 || snapshot.beginCalls != 2 {
+		t.Fatalf("repository=%#v", snapshot)
+	}
+	calls, maxActive := applier.snapshot()
+	if !reflect.DeepEqual(calls, []int64{first.Revision, latest.Revision}) || maxActive != 1 {
+		t.Fatalf("calls=%v maxActive=%d", calls, maxActive)
+	}
+}
+
+func TestPluginRuntimeCoordinatorSupersededApplyDoesNotHideFailureAckError(t *testing.T) {
+	identity := uniquePluginRuntimeCoordinatorTestIdentity("superseded-fail-ack", PluginRuntimeProcessAPI)
+	repository := newPluginRuntimeCoordinatorTestRepository()
+	first := pluginRuntimeCoordinatorPublicationFixture(1, []PluginRuntimeMember{
+		pluginRuntimeCoordinatorMemberFixture("superseded-fail.plugin", 1, "a"),
+	})
+	latest := pluginRuntimeCoordinatorPublicationFixture(2, nil)
+	repository.addPublication(first)
+	failErr := errors.New("persist failed acknowledgement")
+	repository.failError = failErr
+	applier := &pluginRuntimeCoordinatorTestApplier{apply: func(
+		_ context.Context,
+		_ PluginRuntimePublication,
+		call int,
+	) ([]PluginRuntimeAppliedMember, error) {
+		if call == 1 {
+			repository.addPublication(latest)
+			return nil, ErrPluginRuntimePublicationSuperseded
+		}
+		t.Fatalf("latest publication applied after failure ack error")
+		return nil, nil
+	}}
+	repository.seedNode(identity, 0, time.Minute)
+	coordinator, err := NewPluginRuntimeCoordinator(
+		repository, applier, nil, pluginRuntimeCoordinatorConfigFixture(identity),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = coordinator.reconcileOnce(t.Context())
+	if !errors.Is(err, failErr) || !errors.Is(err, ErrPluginRuntimePublicationSuperseded) {
+		t.Fatalf("reconcile error=%v", err)
+	}
+	snapshot := repository.snapshot()
+	if snapshot.failCalls != 1 || snapshot.completeCalls != 0 || snapshot.node.LastAppliedRevision != 0 {
+		t.Fatalf("repository=%#v", snapshot)
+	}
+	calls, _ := applier.snapshot()
+	if !reflect.DeepEqual(calls, []int64{first.Revision}) {
+		t.Fatalf("applier calls=%v", calls)
+	}
+}
+
+func TestPluginRuntimeCoordinatorProcessAheadDoesNotRetrySameDurableRevision(t *testing.T) {
+	identity := uniquePluginRuntimeCoordinatorTestIdentity("process-ahead", PluginRuntimeProcessAPI)
+	repository := newPluginRuntimeCoordinatorTestRepository()
+	publication := pluginRuntimeCoordinatorPublicationFixture(1, []PluginRuntimeMember{
+		pluginRuntimeCoordinatorMemberFixture("process-ahead.plugin", 1, "a"),
+	})
+	repository.addPublication(publication)
+	unexpectedRetry := errors.New("process-ahead publication retried immediately")
+	applier := &pluginRuntimeCoordinatorTestApplier{apply: func(
+		_ context.Context,
+		_ PluginRuntimePublication,
+		call int,
+	) ([]PluginRuntimeAppliedMember, error) {
+		if call == 1 {
+			return nil, ErrPluginRuntimePublicationSuperseded
+		}
+		return nil, unexpectedRetry
+	}}
+	repository.seedNode(identity, 0, time.Minute)
+	coordinator, err := NewPluginRuntimeCoordinator(
+		repository, applier, nil, pluginRuntimeCoordinatorConfigFixture(identity),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = coordinator.reconcileOnce(t.Context())
+	if !errors.Is(err, ErrPluginRuntimePublicationSuperseded) || errors.Is(err, unexpectedRetry) {
+		t.Fatalf("reconcile error=%v", err)
+	}
+	snapshot := repository.snapshot()
+	if snapshot.beginCalls != 1 || snapshot.failCalls != 1 || snapshot.completeCalls != 0 ||
+		snapshot.node.LastAppliedRevision != 0 {
+		t.Fatalf("repository=%#v", snapshot)
+	}
+	calls, _ := applier.snapshot()
+	if !reflect.DeepEqual(calls, []int64{publication.Revision}) {
+		t.Fatalf("applier calls=%v", calls)
+	}
+}
+
 func TestPluginRuntimeCoordinatorReadyWaitsForSuccessfulCatchUp(t *testing.T) {
 	identity := uniquePluginRuntimeCoordinatorTestIdentity("ready-retry", PluginRuntimeProcessAPI)
 	repository := newPluginRuntimeCoordinatorTestRepository()
