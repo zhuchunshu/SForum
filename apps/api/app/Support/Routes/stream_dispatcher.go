@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net/http"
 	"strings"
 	"sync"
 	"time"
@@ -85,11 +84,15 @@ func (d *Dispatcher) PrepareStream(ctx context.Context, request DispatchRequest)
 	if !dispatchPlanHasPluginStep(chain) {
 		return RouteStreamPreparation{}, nil
 	}
-	terminal := chain[len(chain)-1]
+	terminal := plan.Terminal()
 	if terminal.Mode == extensionmanifest.RouteModeHTTP {
 		return RouteStreamPreparation{}, nil
 	}
-	if terminal.Provider.Kind != ProviderPlugin || terminal.Phase != RoutePhaseHandler {
+	if len(chain) != 1 {
+		return RouteStreamPreparation{}, fmt.Errorf("%w: composed stream chains are not available", ErrDispatchTransport)
+	}
+	if terminal.Provider.Kind != ProviderPlugin || terminal.Phase != RoutePhaseHandler ||
+		terminal.Action != extensionmanifest.RouteActionAdd && terminal.Action != extensionmanifest.RouteActionReplace {
 		return RouteStreamPreparation{}, fmt.Errorf("%w: stream terminal is not an exact plugin handler", ErrDispatchTransport)
 	}
 	policy, policyExists, policyErr := resolvePlanRouteExecutionPolicy(plan, terminal, d.policies)
@@ -101,9 +104,6 @@ func (d *Dispatcher) PrepareStream(ctx context.Context, request DispatchRequest)
 		// as one bounded response. Static validation rejects this combination;
 		// keep the runtime boundary closed if publication ever drifts.
 		return RouteStreamPreparation{}, ErrDispatchIdempotencyUnavailable
-	}
-	if len(chain) != 1 {
-		return RouteStreamPreparation{}, fmt.Errorf("%w: composed stream chains are not available", ErrDispatchTransport)
 	}
 	request.Params = plan.Params()
 	request.Headers = cloneHTTPHeader(request.Headers)
@@ -144,10 +144,12 @@ func (d *RouteStreamDispatch) Open(ctx context.Context) (RouteStreamStart, error
 		ctx, d.plan, d.index, d.step, d.request, nil, InvocationStageHandler, d.commit,
 	)
 	if err != nil {
-		d.mu.Lock()
-		d.finished = true
-		d.mu.Unlock()
-		d.dispatcher.appendTrace(d.plan, d.index, d.step, InvocationStageHandler, RouteTraceDenied, d.started, d.commit.State())
+		d.finishWithoutTrace()
+		if ctxErr := ctx.Err(); ctxErr != nil && errors.Is(err, ctxErr) {
+			return RouteStreamStart{}, ctxErr
+		}
+		outcome, _, _ := classifyRouteGuardFailure(err)
+		d.dispatcher.appendTrace(d.plan, d.index, d.step, InvocationStageHandler, outcome, d.started, d.commit.State())
 		return RouteStreamStart{}, err
 	}
 	invoker, ok := d.dispatcher.steps.(StreamingStepInvoker)
@@ -155,17 +157,20 @@ func (d *RouteStreamDispatch) Open(ctx context.Context) (RouteStreamStart, error
 		d.Fail()
 		return RouteStreamStart{}, fmt.Errorf("%w: streaming step invoker is unavailable", ErrDispatchTransport)
 	}
-	d.RequestStarted()
 	result, err := invoker.OpenStream(ctx, RouteInvocation{
 		PlanRevision: d.plan.Revision(), StepIndex: d.index, Step: d.step,
 		Stage: InvocationStageHandler, Request: cloneDispatchRequest(d.request), Commit: d.commit,
 		authority: authority,
 	})
 	if err != nil {
+		if ctxErr := ctx.Err(); ctxErr != nil && errors.Is(err, ctxErr) && !d.commit.ExecutionObserved() {
+			d.finishWithoutTrace()
+			return RouteStreamStart{}, ctxErr
+		}
 		d.Fail()
 		return RouteStreamStart{}, fmt.Errorf("%w: %w", ErrDispatchTransport, err)
 	}
-	if result.Session == nil || result.Response.Status < http.StatusContinue || result.Response.Status > 599 || len(result.Response.Body) != 0 {
+	if result.Session == nil || !ValidTerminalResponseStatus(d.step.Mode, result.Response.Status) || len(result.Response.Body) != 0 {
 		if result.Session != nil {
 			result.Session.Cancel()
 		}
@@ -174,6 +179,15 @@ func (d *RouteStreamDispatch) Open(ctx context.Context) (RouteStreamStart, error
 	}
 	result.Response.Headers = cloneHTTPHeader(result.Response.Headers)
 	return result, nil
+}
+
+func (d *RouteStreamDispatch) finishWithoutTrace() {
+	if d == nil {
+		return
+	}
+	d.mu.Lock()
+	d.finished = true
+	d.mu.Unlock()
 }
 
 func (d *RouteStreamDispatch) RequestStarted() {

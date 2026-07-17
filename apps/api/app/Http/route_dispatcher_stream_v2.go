@@ -23,7 +23,7 @@ func (i *BufferedRouteStepInvoker) OpenStream(
 	ctx context.Context,
 	input routes.RouteInvocation,
 ) (routes.RouteStreamStart, error) {
-	if i == nil || i.Runtime == nil || ctx == nil || input.Step.Provider.Kind != routes.ProviderPlugin {
+	if i == nil || i.Runtime == nil || ctx == nil || input.Commit == nil || input.Step.Provider.Kind != routes.ProviderPlugin {
 		return routes.RouteStreamStart{}, routes.ErrDispatchTransport
 	}
 	authority, ok := input.RequestAuthority()
@@ -72,6 +72,13 @@ func (i *BufferedRouteStepInvoker) OpenStream(
 	actor := extensionsruntime.NewProtocolV2RouteActor(
 		input.Request.ActorID, input.Request.Authenticated, input.Request.Permissions,
 	)
+	if err := lease.Context.Err(); err != nil {
+		lease.Release()
+		return routes.RouteStreamStart{}, err
+	}
+	// Admission and all local validation completed. From this point a failed
+	// unary preflight cannot prove that the plugin handler did not execute.
+	input.Commit.SideEffectStarted()
 	preflight, err := runtime.InvokeRouteInstance(lease.Context, identity, extensionsruntime.ProtocolV2RouteRequest{
 		RouteID: input.Step.RouteID, ContractVersion: input.Step.ContractVersion,
 		RouteAction: input.Step.Action, InvocationStage: extensionsruntime.ProtocolV2RouteInvocationStageHandler,

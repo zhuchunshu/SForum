@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"strings"
 	"testing"
 
 	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
@@ -98,6 +99,58 @@ func TestStreamDispatcherBypassesCoreAndBufferedPlansAndFailsClosedOnComposition
 	}
 }
 
+func TestRegistryRejectsNonHTTPModifierMappingAndGlobalModes(t *testing.T) {
+	artifact := routeArtifact("stream.contract", "1.0.0", 'f')
+	target := coreRoute("core.route.stream.contract", "GET", "/stream-contract")
+	modifier := modifierRoute(
+		"stream.contract.before", target.ID, target.Path, extensionmanifest.RouteActionBefore, "GET", 1,
+	)
+	mapping := stableMappingRoute(
+		"stream.contract.alias", target.ID, "/stream-contract-alias", extensionmanifest.RouteActionAlias,
+	)
+	global := executionGlobalRoute("stream.contract.global", 1)
+	for _, declaration := range []extensionmanifest.ManifestRoute{modifier, mapping, global} {
+		declaration.Mode = extensionmanifest.RouteModeSSE
+		registry := NewRegistry()
+		if _, err := registry.Publish(Publication{
+			Core: []CoreRoute{target}, Plugins: []PluginRouteSet{{Artifact: artifact, Routes: []extensionmanifest.ManifestRoute{declaration}}},
+		}); !errors.Is(err, ErrInvalidRoute) || registry.Revision() != 0 {
+			t.Fatalf("action=%s revision=%d error=%v", declaration.Action, registry.Revision(), err)
+		}
+	}
+}
+
+func TestStreamDispatcherRejectsDriftedTrailingModifierAndTerminalAction(t *testing.T) {
+	handler := dispatchPluginStep(RoutePhaseHandler, "stream.drifted.handler", extensionmanifest.RouteActionAdd)
+	handler.Mode = extensionmanifest.RouteModeSSE
+	after := dispatchPluginStep(RoutePhaseAfter, "stream.drifted.after", extensionmanifest.RouteActionAfter)
+	invalidHandler := handler
+	invalidHandler.RouteID = "stream.drifted.invalid_handler"
+	invalidHandler.ContractVersion = invalidHandler.RouteID + "@1"
+	invalidHandler.Action = extensionmanifest.RouteActionBefore
+
+	for _, test := range []struct {
+		name     string
+		steps    []RouteExecutionStep
+		terminal int
+	}{
+		{name: "trailing response modifier", steps: []RouteExecutionStep{handler, after}, terminal: 0},
+		{name: "invalid terminal action", steps: []RouteExecutionStep{invalidHandler}, terminal: 0},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			dispatcher := NewDispatcher(DispatcherConfig{Plans: dispatchPlanResolver{plan: dispatchPlan(
+				"GET", "/drifted-stream", nil, test.steps, test.terminal,
+			)}})
+			prepared, err := dispatcher.PrepareStream(
+				context.Background(), DispatchRequest{Method: "GET", Path: "/drifted-stream"},
+			)
+			if prepared.Handled || !errors.Is(err, ErrDispatchTransport) {
+				t.Fatalf("prepared=%#v error=%v", prepared, err)
+			}
+		})
+	}
+}
+
 func TestStreamDispatcherFailsClosedWithoutGuard(t *testing.T) {
 	registry := NewRegistry()
 	artifact := routeArtifact("stream.denied", "1.0.0", 'd')
@@ -114,6 +167,175 @@ func TestStreamDispatcherFailsClosedWithoutGuard(t *testing.T) {
 	}
 	if _, err := prepared.Dispatch.Open(context.Background()); !errors.Is(err, ErrDispatchDenied) {
 		t.Fatalf("open guard error=%v", err)
+	}
+}
+
+func TestStreamDispatcherClassifiesPluginGuardFailures(t *testing.T) {
+	failures := []struct {
+		name     string
+		kind     PluginGuardFailureKind
+		observed bool
+		wantErr  error
+		outcome  RouteTraceOutcome
+	}{
+		{name: "denied", kind: PluginGuardFailureDenied, observed: true, wantErr: ErrDispatchDenied, outcome: RouteTraceDenied},
+		{name: "unavailable", kind: PluginGuardFailureUnavailable, wantErr: ErrDispatchTransport, outcome: RouteTraceTransportFailed},
+		{name: "crash", kind: PluginGuardFailureCrash, observed: true, wantErr: ErrDispatchTransport, outcome: RouteTraceTransportFailed},
+		{name: "timeout", kind: PluginGuardFailureTimeout, observed: true, wantErr: ErrDispatchTransport, outcome: RouteTraceTransportFailed},
+		{name: "protocol", kind: PluginGuardFailureProtocol, observed: true, wantErr: ErrDispatchTransport, outcome: RouteTraceTransportFailed},
+		{name: "runtime canceled", kind: PluginGuardFailureCanceled, observed: true, wantErr: ErrDispatchTransport, outcome: RouteTraceTransportFailed},
+	}
+	for _, action := range []string{extensionmanifest.RouteActionAdd, extensionmanifest.RouteActionReplace} {
+		for _, raw := range []bool{false, true} {
+			guardKind := "custom"
+			if raw {
+				guardKind = "raw_request"
+			}
+			for _, failure := range failures {
+				t.Run(action+"/"+guardKind+"/"+failure.name, func(t *testing.T) {
+					step := streamPluginGuardStep("stream.guard_failure."+action+"."+guardKind, action, raw)
+					guard := &streamFailureGuard{failure: NewPluginGuardFailure(failure.kind, failure.observed)}
+					invoker := &authorityStreamInvoker{}
+					traces := NewRouteTraceRing(4)
+					sink := &recordingRouteFailureSink{}
+					dispatcher := NewDispatcher(DispatcherConfig{
+						Plans: dispatchPlanResolver{plan: dispatchPlan(http.MethodGet, "/guard-stream", nil, []RouteExecutionStep{step}, 0)},
+						Guard: guard, Steps: invoker, Trace: traces, Failures: sink,
+					})
+					prepared, err := dispatcher.PrepareStream(
+						context.Background(), DispatchRequest{Method: http.MethodGet, Path: "/guard-stream"},
+					)
+					if err != nil || prepared.Dispatch == nil {
+						t.Fatalf("prepared=%#v error=%v", prepared, err)
+					}
+
+					_, err = prepared.Dispatch.Open(context.Background())
+					if !errors.Is(err, failure.wantErr) || invoker.calls != 0 || len(sink.events) != 0 ||
+						prepared.Dispatch.commit.ExecutionObserved() {
+						t.Fatalf("error=%v invocations=%d observed=%t", err, invoker.calls, prepared.Dispatch.commit.ExecutionObserved())
+					}
+					records := traces.RouteTraces(0)
+					if len(records) != 1 || records[0].Outcome != failure.outcome ||
+						records[0].InvocationStage != InvocationStageHandler ||
+						records[0].CommitState != RouteCommitPristine || records[0].RouteID != step.RouteID {
+						t.Fatalf("traces=%#v", records)
+					}
+					if _, secondErr := prepared.Dispatch.Open(context.Background()); !errors.Is(secondErr, ErrDispatchAlreadyCommitted) || len(traces.RouteTraces(0)) != 1 {
+						t.Fatalf("second open error=%v traces=%#v", secondErr, traces.RouteTraces(0))
+					}
+				})
+			}
+		}
+	}
+}
+
+func TestStreamDispatcherCallerCancellationHasNoFailureEvidence(t *testing.T) {
+	for _, raw := range []bool{false, true} {
+		guardKind := "custom"
+		if raw {
+			guardKind = "raw_request"
+		}
+		t.Run(guardKind, func(t *testing.T) {
+			step := streamPluginGuardStep(
+				"stream.guard_canceled."+guardKind, extensionmanifest.RouteActionAdd, raw,
+			)
+			guard := &streamFailureGuard{failure: NewPluginGuardFailure(PluginGuardFailureCanceled, true)}
+			invoker := &authorityStreamInvoker{}
+			traces := NewRouteTraceRing(4)
+			sink := &recordingRouteFailureSink{}
+			dispatcher := NewDispatcher(DispatcherConfig{
+				Plans: dispatchPlanResolver{plan: dispatchPlan(http.MethodGet, "/guard-canceled", nil, []RouteExecutionStep{step}, 0)},
+				Guard: guard, Steps: invoker, Trace: traces, Failures: sink,
+			})
+			prepared, err := dispatcher.PrepareStream(
+				context.Background(), DispatchRequest{Method: http.MethodGet, Path: "/guard-canceled"},
+			)
+			if err != nil || prepared.Dispatch == nil {
+				t.Fatalf("prepared=%#v error=%v", prepared, err)
+			}
+			ctx, cancel := context.WithCancel(context.Background())
+			cancel()
+
+			_, err = prepared.Dispatch.Open(ctx)
+			if !errors.Is(err, context.Canceled) || errors.Is(err, ErrDispatchDenied) ||
+				errors.Is(err, ErrDispatchTransport) || invoker.calls != 0 ||
+				prepared.Dispatch.commit.ExecutionObserved() || len(traces.RouteTraces(0)) != 0 || len(sink.events) != 0 {
+				t.Fatalf("error=%v invocations=%d observed=%t traces=%#v",
+					err, invoker.calls, prepared.Dispatch.commit.ExecutionObserved(), traces.RouteTraces(0))
+			}
+		})
+	}
+}
+
+func TestStreamDispatcherCallerCancellationBeforeRuntimeAdmissionHasNoFailureEvidence(t *testing.T) {
+	for _, action := range []string{extensionmanifest.RouteActionAdd, extensionmanifest.RouteActionReplace} {
+		for _, raw := range []bool{false, true} {
+			guardKind := "custom"
+			if raw {
+				guardKind = "raw_request"
+			}
+			t.Run(action+"/"+guardKind, func(t *testing.T) {
+				step := streamPluginGuardStep("stream.pre_admission_canceled."+action+"."+guardKind, action, raw)
+				ctx, cancel := context.WithCancel(context.Background())
+				guard := &cancelingStreamGuard{cancel: cancel}
+				invoker := &preAdmissionCanceledStreamInvoker{t: t}
+				traces := NewRouteTraceRing(4)
+				sink := &recordingRouteFailureSink{}
+				dispatcher := NewDispatcher(DispatcherConfig{
+					Plans: dispatchPlanResolver{plan: dispatchPlan(http.MethodGet, "/pre-admission-canceled", nil, []RouteExecutionStep{step}, 0)},
+					Guard: guard, Steps: invoker, Trace: traces, Failures: sink,
+				})
+				prepared, err := dispatcher.PrepareStream(
+					context.Background(), DispatchRequest{Method: http.MethodGet, Path: "/pre-admission-canceled"},
+				)
+				if err != nil || prepared.Dispatch == nil {
+					t.Fatalf("prepared=%#v error=%v", prepared, err)
+				}
+
+				_, err = prepared.Dispatch.Open(ctx)
+				if !errors.Is(err, context.Canceled) || errors.Is(err, ErrDispatchDenied) ||
+					errors.Is(err, ErrDispatchTransport) || invoker.calls != 1 ||
+					prepared.Dispatch.commit.ExecutionObserved() || len(traces.RouteTraces(0)) != 0 || len(sink.events) != 0 {
+					t.Fatalf("error=%v invocations=%d observed=%t traces=%#v incidents=%#v",
+						err, invoker.calls, prepared.Dispatch.commit.ExecutionObserved(), traces.RouteTraces(0), sink.events)
+				}
+			})
+		}
+	}
+}
+
+func TestStreamDispatcherCallerCancellationAfterObservedExecutionFailsClosed(t *testing.T) {
+	for _, action := range []string{extensionmanifest.RouteActionAdd, extensionmanifest.RouteActionReplace} {
+		for _, raw := range []bool{false, true} {
+			guardKind := "custom"
+			if raw {
+				guardKind = "raw_request"
+			}
+			t.Run(action+"/"+guardKind, func(t *testing.T) {
+				step := streamPluginGuardStep("stream.observed_canceled."+action+"."+guardKind, action, raw)
+				ctx, cancel := context.WithCancel(context.Background())
+				invoker := &observedCanceledStreamInvoker{cancel: cancel}
+				traces := NewRouteTraceRing(4)
+				dispatcher := NewDispatcher(DispatcherConfig{
+					Plans: dispatchPlanResolver{plan: dispatchPlan(http.MethodGet, "/observed-canceled", nil, []RouteExecutionStep{step}, 0)},
+					Guard: allowStreamGuard{}, Steps: invoker, Trace: traces,
+				})
+				prepared, err := dispatcher.PrepareStream(
+					context.Background(), DispatchRequest{Method: http.MethodGet, Path: "/observed-canceled"},
+				)
+				if err != nil || prepared.Dispatch == nil {
+					t.Fatalf("prepared=%#v error=%v", prepared, err)
+				}
+
+				_, err = prepared.Dispatch.Open(ctx)
+				records := traces.RouteTraces(0)
+				if !errors.Is(err, context.Canceled) || !errors.Is(err, ErrDispatchTransport) || invoker.calls != 1 ||
+					len(records) != 1 || records[0].Outcome != RouteTraceTransportFailed ||
+					records[0].CommitState != RouteCommitSideEffectStarted {
+					t.Fatalf("error=%v invocations=%d traces=%#v", err, invoker.calls, records)
+				}
+			})
+		}
 	}
 }
 
@@ -171,6 +393,110 @@ func TestStreamDispatcherPreservesAuthorizedRawRequestStamp(t *testing.T) {
 type authorityStreamInvoker struct {
 	raw   bool
 	calls int
+}
+
+type streamFailureGuard struct {
+	failure error
+}
+
+type cancelingStreamGuard struct {
+	allowStreamGuard
+	cancel context.CancelFunc
+}
+
+func (g *cancelingStreamGuard) AuthorizeRoute(
+	_ context.Context,
+	plan RouteExecutionPlan,
+	stepIndex int,
+	step RouteExecutionStep,
+	request DispatchRequest,
+) (RouteGuardAuthorization, error) {
+	authorization, ok := authorizedRouteGuardAuthorization(plan, stepIndex, step, request)
+	if !ok {
+		return RouteGuardAuthorization{}, ErrCoreGuardEvaluatorUnavailable
+	}
+	g.cancel()
+	return authorization, nil
+}
+
+type preAdmissionCanceledStreamInvoker struct {
+	t     *testing.T
+	calls int
+}
+
+type observedCanceledStreamInvoker struct {
+	cancel context.CancelFunc
+	calls  int
+}
+
+func (*preAdmissionCanceledStreamInvoker) SupportsMode(string) bool { return false }
+
+func (*preAdmissionCanceledStreamInvoker) Invoke(context.Context, RouteInvocation) (RouteInvocationResult, error) {
+	return RouteInvocationResult{}, ErrDispatchTransport
+}
+
+func (i *preAdmissionCanceledStreamInvoker) OpenStream(ctx context.Context, input RouteInvocation) (RouteStreamStart, error) {
+	i.calls++
+	if !errors.Is(ctx.Err(), context.Canceled) || input.Commit == nil || input.Commit.ExecutionObserved() {
+		i.t.Fatalf("context=%v commit=%#v", ctx.Err(), input.Commit)
+	}
+	return RouteStreamStart{}, ctx.Err()
+}
+
+func (*observedCanceledStreamInvoker) SupportsMode(string) bool { return false }
+
+func (*observedCanceledStreamInvoker) Invoke(context.Context, RouteInvocation) (RouteInvocationResult, error) {
+	return RouteInvocationResult{}, ErrDispatchTransport
+}
+
+func (i *observedCanceledStreamInvoker) OpenStream(ctx context.Context, input RouteInvocation) (RouteStreamStart, error) {
+	i.calls++
+	input.Commit.SideEffectStarted()
+	i.cancel()
+	return RouteStreamStart{}, ctx.Err()
+}
+
+func (g *streamFailureGuard) AuthorizeRoute(
+	_ context.Context,
+	plan RouteExecutionPlan,
+	stepIndex int,
+	step RouteExecutionStep,
+	request DispatchRequest,
+) (RouteGuardAuthorization, error) {
+	authorization, ok := authorizedRouteGuardAuthorization(plan, stepIndex, step, request)
+	if !ok {
+		return RouteGuardAuthorization{}, ErrCoreGuardEvaluatorUnavailable
+	}
+	return authorization, g.failure
+}
+
+func (g *streamFailureGuard) Authorize(
+	ctx context.Context,
+	plan RouteExecutionPlan,
+	step RouteExecutionStep,
+	request DispatchRequest,
+) error {
+	stepIndex, ok := uniqueRouteExecutionStepIndex(plan, step)
+	if !ok {
+		return ErrCoreGuardEvaluatorUnavailable
+	}
+	_, err := g.AuthorizeRoute(ctx, plan, stepIndex, step, request)
+	return err
+}
+
+func streamPluginGuardStep(id, action string, raw bool) RouteExecutionStep {
+	step := dispatchPluginStep(RoutePhaseHandler, id, action)
+	step.Mode = extensionmanifest.RouteModeWebSocket
+	kind, suffix := "custom", "custom"
+	if raw {
+		kind, suffix = "raw_request", "raw"
+	}
+	step.Guard = id + "." + suffix
+	step.PluginGuard = PluginGuardBinding{
+		ID: step.Guard, ContractVersion: step.Guard + "@1", Kind: kind,
+		Entry: "backend/" + suffix, Digest: strings.Repeat("c", 64),
+	}
+	return step
 }
 
 func (*authorityStreamInvoker) SupportsMode(string) bool { return false }
