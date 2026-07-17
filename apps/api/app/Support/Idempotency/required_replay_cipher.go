@@ -126,9 +126,7 @@ func (c *RequiredReplayCipher) EncryptReplay(
 		return "", fmt.Errorf("%w: read nonce", ErrRequiredReplayCipherInvalid)
 	}
 	sealed := c.payloadAEAD.Seal(
-		nonce, nonce, plaintext, requiredReplayPayloadCipherAAD(
-			requiredReplayPayloadSchemaV2, storageKey, fingerprint, planDigest,
-		),
+		nonce, nonce, plaintext, requiredReplayPayloadCipherAAD(storageKey, fingerprint, planDigest),
 	)
 	return base64.RawURLEncoding.EncodeToString(sealed), nil
 }
@@ -149,21 +147,18 @@ func (c *RequiredReplayCipher) DecryptReplay(
 		return nil, ErrRequiredReplayCipherInvalid
 	}
 	nonce, ciphertext := raw[:c.payloadAEAD.NonceSize()], raw[c.payloadAEAD.NonceSize():]
-	for _, schema := range []string{requiredReplayPayloadSchemaV2, requiredReplayPayloadSchemaV1} {
-		plaintext, openErr := c.payloadAEAD.Open(
-			nil, nonce, ciphertext,
-			requiredReplayPayloadCipherAAD(schema, storageKey, fingerprint, planDigest),
-		)
-		if openErr == nil && len(plaintext) > 0 && len(plaintext) <= MaxRequiredReplayPayload {
-			return plaintext, nil
-		}
+	plaintext, err := c.payloadAEAD.Open(
+		nil, nonce, ciphertext, requiredReplayPayloadCipherAAD(storageKey, fingerprint, planDigest),
+	)
+	if err != nil || len(plaintext) == 0 || len(plaintext) > MaxRequiredReplayPayload {
+		return nil, ErrRequiredReplayCipherInvalid
 	}
-	return nil, ErrRequiredReplayCipherInvalid
+	return plaintext, nil
 }
 
-func requiredReplayPayloadCipherAAD(schema, storageKey, fingerprint, planDigest string) []byte {
+func requiredReplayPayloadCipherAAD(storageKey, fingerprint, planDigest string) []byte {
 	return []byte(
-		requiredReplaySchemaV3 + "\x00" + schema + "\x00" + storageKey + "\x00" +
+		requiredReplaySchemaV3 + "\x00" + requiredReplayPayloadSchemaV1 + "\x00" + storageKey + "\x00" +
 			fingerprint + "\x00" + planDigest,
 	)
 }

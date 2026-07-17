@@ -30,11 +30,6 @@ func TestRequiredReplayAcquiresConflictsAndReplaysDetachedResponse(t *testing.T)
 	}
 	want := RequiredReplayResponse{
 		Status: http.StatusCreated, Headers: http.Header{"Content-Type": {"application/json"}}, Body: []byte(`{"id":42}`),
-		ResponseContractKnown: true,
-		ResponseContract: &RequiredReplayResponseContract{
-			StepIndex: 2, InvocationStage: "handler", RouteID: "demo.plugin.create",
-			ContractVersion: "demo.plugin.create@1", ResponseSchema: "demo.plugin.create.response@1",
-		},
 	}
 	if err := store.CompleteRequiredReplay(t.Context(), lease, want); err != nil {
 		t.Fatal(err)
@@ -42,19 +37,15 @@ func TestRequiredReplayAcquiresConflictsAndReplaysDetachedResponse(t *testing.T)
 	_, replay, err = store.BeginRequiredReplayBound(
 		t.Context(), scope, "request-42", requiredReplayV3TestBinding(fingerprint),
 	)
-	if err != nil || replay == nil || replay.Status != want.Status || string(replay.Body) != string(want.Body) ||
-		!replay.ResponseContractKnown || replay.ResponseContract == nil ||
-		replay.ResponseContract.RouteID != want.ResponseContract.RouteID {
+	if err != nil || replay == nil || replay.Status != want.Status || string(replay.Body) != string(want.Body) {
 		t.Fatalf("replay=%#v err=%v", replay, err)
 	}
 	replay.Body[0] = '!'
 	replay.Headers.Set("Content-Type", "mutated")
-	replay.ResponseContract.RouteID = "mutated"
 	_, detached, err := store.BeginRequiredReplayBound(
 		t.Context(), scope, "request-42", requiredReplayV3TestBinding(fingerprint),
 	)
-	if err != nil || string(detached.Body) != string(want.Body) || detached.Headers.Get("Content-Type") != "application/json" ||
-		detached.ResponseContract == nil || detached.ResponseContract.RouteID != want.ResponseContract.RouteID {
+	if err != nil || string(detached.Body) != string(want.Body) || detached.Headers.Get("Content-Type") != "application/json" {
 		t.Fatal("replay response escaped by reference")
 	}
 }
@@ -139,45 +130,6 @@ func TestRequiredReplayRejectsInvalidKeysAndOversizedResponses(t *testing.T) {
 		t.Context(), scope, "large", requiredReplayV3TestBinding(strings.Repeat("f", 64)),
 	); !errors.Is(err, ErrRequiredReplayInProgress) {
 		t.Fatalf("oversized completion released lease: %v", err)
-	}
-}
-
-func TestRequiredReplayRejectsInvalidResponseContractEvidence(t *testing.T) {
-	valid := func() RequiredReplayResponse {
-		return RequiredReplayResponse{
-			Status: http.StatusOK, ResponseContractKnown: true,
-			ResponseContract: &RequiredReplayResponseContract{
-				StepIndex: 1, InvocationStage: "response", RouteID: "demo.route.after",
-				ContractVersion: "demo.route.after@1", ResponseSchema: "demo.route.after.response@1",
-			},
-		}
-	}
-	if err := validateRequiredReplayResponse(valid()); err != nil {
-		t.Fatalf("valid response contract rejected: %v", err)
-	}
-	explicitNone := valid()
-	explicitNone.ResponseContract = nil
-	if err := validateRequiredReplayResponse(explicitNone); err != nil {
-		t.Fatalf("explicit no-contract evidence rejected: %v", err)
-	}
-
-	for _, test := range []struct {
-		name   string
-		mutate func(*RequiredReplayResponse)
-	}{
-		{name: "unknown with evidence", mutate: func(value *RequiredReplayResponse) { value.ResponseContractKnown = false }},
-		{name: "negative index", mutate: func(value *RequiredReplayResponse) { value.ResponseContract.StepIndex = -1 }},
-		{name: "invalid stage", mutate: func(value *RequiredReplayResponse) { value.ResponseContract.InvocationStage = "request" }},
-		{name: "empty route", mutate: func(value *RequiredReplayResponse) { value.ResponseContract.RouteID = "" }},
-		{name: "padded schema", mutate: func(value *RequiredReplayResponse) { value.ResponseContract.ResponseSchema += " " }},
-	} {
-		t.Run(test.name, func(t *testing.T) {
-			value := valid()
-			test.mutate(&value)
-			if err := validateRequiredReplayResponse(value); !errors.Is(err, ErrRequiredReplayInvalid) {
-				t.Fatalf("error=%v response=%#v", err, value)
-			}
-		})
 	}
 }
 

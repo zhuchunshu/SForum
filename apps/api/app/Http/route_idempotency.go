@@ -90,9 +90,7 @@ func (r *RequiredRouteIdempotency) Begin(
 				Status: replay.Status, Headers: headers, Body: append([]byte(nil), replay.Body...),
 				CanonicalPath: replay.CanonicalPath,
 			},
-			Authorization:         routeReplayAuthorizationFromStored(replay.Authorization),
-			ResponseContractKnown: replay.ResponseContractKnown,
-			ResponseContract:      routeReplayResponseContractFromStored(replay.ResponseContract),
+			Authorization: routeReplayAuthorizationFromStored(replay.Authorization),
 		}, nil
 	}
 	return &requiredRouteIdempotencyLease{store: r.store, lease: lease}, nil, nil
@@ -116,11 +114,9 @@ func (l *requiredRouteIdempotencyLease) Complete(
 	headers.Del(idempotency.ReplayedHeader)
 	return l.store.CompleteRequiredReplay(cleanupCtx, l.lease, idempotency.RequiredReplayResponse{
 		Status: completion.Response.Status, Headers: headers,
-		Body:                  append([]byte(nil), completion.Response.Body...),
-		CanonicalPath:         completion.Response.CanonicalPath,
-		ResponseContractKnown: completion.ResponseContractKnown,
-		ResponseContract:      routeReplayResponseContractForStorage(completion.ResponseContract),
-		Authorization:         routeReplayAuthorizationForStorage(completion.Authorization),
+		Body:          append([]byte(nil), completion.Response.Body...),
+		CanonicalPath: completion.Response.CanonicalPath,
+		Authorization: routeReplayAuthorizationForStorage(completion.Authorization),
 	})
 }
 
@@ -306,32 +302,6 @@ func routeReplayAuthorizationFromStored(
 		}
 	}
 	return result
-}
-
-func routeReplayResponseContractForStorage(
-	value *routes.RouteReplayResponseContract,
-) *idempotency.RequiredReplayResponseContract {
-	if value == nil {
-		return nil
-	}
-	return &idempotency.RequiredReplayResponseContract{
-		StepIndex: value.StepIndex, InvocationStage: string(value.InvocationStage),
-		RouteID: value.RouteID, ContractVersion: value.ContractVersion,
-		ResponseSchema: value.ResponseSchema,
-	}
-}
-
-func routeReplayResponseContractFromStored(
-	value *idempotency.RequiredReplayResponseContract,
-) *routes.RouteReplayResponseContract {
-	if value == nil {
-		return nil
-	}
-	return &routes.RouteReplayResponseContract{
-		StepIndex: value.StepIndex, InvocationStage: routes.InvocationStage(value.InvocationStage),
-		RouteID: value.RouteID, ContractVersion: value.ContractVersion,
-		ResponseSchema: value.ResponseSchema,
-	}
 }
 
 func canonicalRouteReplayContentType(headers stdhttp.Header) (string, error) {

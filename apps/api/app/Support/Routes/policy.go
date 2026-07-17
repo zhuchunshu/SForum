@@ -41,37 +41,14 @@ type RouteReplayBinding struct {
 	BaseDigest string
 }
 
-// RouteReplayResponseContract records the contract that actually governed the
-// persisted response. A later response stage may be declared in the immutable
-// plan yet never become applicable because its pre-invocation validation failed.
-type RouteReplayResponseContract struct {
-	StepIndex       int
-	InvocationStage InvocationStage
-	RouteID         string
-	ContractVersion string
-	ResponseSchema  string
-}
-
 type RouteIdempotencyReplay struct {
-	Response              DispatchResponse
-	Authorization         *RouteReplayAuthorization
-	ResponseContractKnown bool
-	ResponseContract      *RouteReplayResponseContract
+	Response      DispatchResponse
+	Authorization *RouteReplayAuthorization
 }
 
 type RouteIdempotencyCompletion struct {
-	Response              DispatchResponse
-	Authorization         *RouteReplayAuthorization
-	ResponseContractKnown bool
-	ResponseContract      *RouteReplayResponseContract
-}
-
-func cloneRouteReplayResponseContract(value *RouteReplayResponseContract) *RouteReplayResponseContract {
-	if value == nil {
-		return nil
-	}
-	clone := *value
-	return &clone
+	Response      DispatchResponse
+	Authorization *RouteReplayAuthorization
 }
 
 type RouteIdempotencyLease interface {

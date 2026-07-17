@@ -11,23 +11,6 @@ import (
 	routes "github.com/zhuchunshu/sforum/apps/api/app/Support/Routes"
 )
 
-func TestRouteReplayResponseContractStorageRoundTrip(t *testing.T) {
-	want := &routes.RouteReplayResponseContract{
-		StepIndex: 3, InvocationStage: routes.InvocationStageResponse,
-		RouteID: "demo.route.after", ContractVersion: "demo.route.after@1",
-		ResponseSchema: "demo.route.after.response@1",
-	}
-	stored := routeReplayResponseContractForStorage(want)
-	got := routeReplayResponseContractFromStored(stored)
-	if !reflect.DeepEqual(got, want) || stored == nil {
-		t.Fatalf("round trip=%#v stored=%#v want=%#v", got, stored, want)
-	}
-	stored.RouteID = "mutated"
-	if want.RouteID != "demo.route.after" {
-		t.Fatalf("storage conversion retained caller pointer: %#v", want)
-	}
-}
-
 func TestRequiredRouteReplayReappliesCurrentResponseHeaderPolicy(t *testing.T) {
 	const key = "legacy-header-policy"
 	registry := routes.NewRegistry()
