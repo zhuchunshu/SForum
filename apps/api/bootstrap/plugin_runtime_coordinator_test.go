@@ -3,6 +3,7 @@ package bootstrap
 import (
 	"context"
 	"errors"
+	"fmt"
 	"reflect"
 	"strings"
 	"sync"
@@ -19,15 +20,27 @@ var errPluginRuntimeCoordinatorBootstrapTest = errors.New("plugin runtime bootst
 type pluginRuntimeCoordinatorBootstrapTestEnsurer struct {
 	publication extensions.PluginRuntimePublication
 	err         error
-	calls       atomic.Int32
+	// errs 按调用次序返回；用尽后回落到 err / publication。nil 条目表示该次成功。
+	errs   []error
+	calls  atomic.Int32
+	onCall func(call int32)
 }
 
 func (ensurer *pluginRuntimeCoordinatorBootstrapTestEnsurer) EnsureInitialPluginRuntimePublication(
 	ctx context.Context,
 ) (extensions.PluginRuntimePublication, error) {
-	ensurer.calls.Add(1)
+	call := ensurer.calls.Add(1)
+	if ensurer.onCall != nil {
+		ensurer.onCall(call)
+	}
 	if err := ctx.Err(); err != nil {
 		return extensions.PluginRuntimePublication{}, err
+	}
+	if int(call) <= len(ensurer.errs) {
+		if err := ensurer.errs[call-1]; err != nil {
+			return extensions.PluginRuntimePublication{}, err
+		}
+		return ensurer.publication, nil
 	}
 	if ensurer.err != nil {
 		return extensions.PluginRuntimePublication{}, ensurer.err
@@ -129,6 +142,101 @@ func TestPluginRuntimeCoordinatorBootstrapSafeModeDoesNotSeedOrStart(t *testing.
 		if err, ok := <-runtime.Failures(); ok || err != nil {
 			t.Fatalf("safe mode failure=%v open=%v", err, ok)
 		}
+	}
+}
+
+func TestPluginRuntimeCoordinatorBootstrapRetriesLifecycleInProgressThenSucceeds(t *testing.T) {
+	identity := pluginRuntimeCoordinatorBootstrapTestIdentity("genesis-retry-ok", extensions.PluginRuntimeProcessAPI)
+	inProgress := fmt.Errorf(
+		"%w: initial plugin runtime publication waits for lifecycle completion",
+		extensions.ErrLifecycleOperationInProgress,
+	)
+	ensurer := &pluginRuntimeCoordinatorBootstrapTestEnsurer{
+		publication: pluginRuntimeCoordinatorBootstrapTestPublication(),
+		errs:        []error{inProgress, nil},
+	}
+	var buildCalls atomic.Int32
+	runtime, err := launchPluginRuntimeCoordinator(t.Context(), pluginRuntimeCoordinatorLaunchConfig{
+		Identity: identity,
+		Ensurer:  ensurer,
+		Build: func(_ extensions.PluginRuntimeNodeIdentity, onReady func(), _ func(error)) (pluginRuntimeCoordinatorRunner, error) {
+			buildCalls.Add(1)
+			return pluginRuntimeCoordinatorBootstrapTestRunner(func(ctx context.Context) error {
+				onReady()
+				<-ctx.Done()
+				return nil
+			}), nil
+		},
+		// 注入极小重试间隔；截止仅作上界，成功路径由 errs 序列驱动。
+		GenesisWaitTimeout:   time.Second,
+		GenesisRetryInterval: time.Millisecond,
+		StopTimeout:          time.Second,
+	})
+	if err != nil || runtime == nil || !runtime.Active() {
+		t.Fatalf("runtime=%#v err=%v ensure calls=%d", runtime, err, ensurer.calls.Load())
+	}
+	if ensurer.calls.Load() != 2 || buildCalls.Load() != 1 {
+		t.Fatalf("ensure calls=%d build calls=%d", ensurer.calls.Load(), buildCalls.Load())
+	}
+	if stopErr := runtime.Stop(t.Context()); stopErr != nil {
+		t.Fatalf("stop: %v", stopErr)
+	}
+}
+
+func TestPluginRuntimeCoordinatorBootstrapLifecycleInProgressHitsBound(t *testing.T) {
+	identity := pluginRuntimeCoordinatorBootstrapTestIdentity("genesis-retry-bound", extensions.PluginRuntimeProcessWorker)
+	ensurer := &pluginRuntimeCoordinatorBootstrapTestEnsurer{
+		publication: pluginRuntimeCoordinatorBootstrapTestPublication(),
+		err:         extensions.ErrLifecycleOperationInProgress,
+	}
+	var buildCalls atomic.Int32
+	// 1ns 截止：首次 in-progress 返回后 remaining 已耗尽，无需 sleep 即可触顶。
+	_, err := launchPluginRuntimeCoordinator(t.Context(), pluginRuntimeCoordinatorLaunchConfig{
+		Identity: identity,
+		Ensurer:  ensurer,
+		Build: func(extensions.PluginRuntimeNodeIdentity, func(), func(error)) (pluginRuntimeCoordinatorRunner, error) {
+			buildCalls.Add(1)
+			t.Fatal("builder must not run before genesis succeeds")
+			return nil, nil
+		},
+		GenesisWaitTimeout:   time.Nanosecond,
+		GenesisRetryInterval: time.Hour,
+	})
+	if !errors.Is(err, extensions.ErrLifecycleOperationInProgress) {
+		t.Fatalf("error=%v want ErrLifecycleOperationInProgress", err)
+	}
+	if ensurer.calls.Load() < 1 || buildCalls.Load() != 0 {
+		t.Fatalf("ensure calls=%d build calls=%d", ensurer.calls.Load(), buildCalls.Load())
+	}
+}
+
+func TestPluginRuntimeCoordinatorBootstrapNonRetryableGenesisErrorIsImmediate(t *testing.T) {
+	identity := pluginRuntimeCoordinatorBootstrapTestIdentity("genesis-no-retry", extensions.PluginRuntimeProcessAPI)
+	ensurer := &pluginRuntimeCoordinatorBootstrapTestEnsurer{
+		publication: pluginRuntimeCoordinatorBootstrapTestPublication(),
+		err:         errPluginRuntimeCoordinatorBootstrapTest,
+	}
+	var buildCalls atomic.Int32
+	// 故意配置较长 wait，证明非 in-progress 错误不会进入重试。
+	_, err := launchPluginRuntimeCoordinator(t.Context(), pluginRuntimeCoordinatorLaunchConfig{
+		Identity: identity,
+		Ensurer:  ensurer,
+		Build: func(extensions.PluginRuntimeNodeIdentity, func(), func(error)) (pluginRuntimeCoordinatorRunner, error) {
+			buildCalls.Add(1)
+			t.Fatal("builder must not run after non-retryable genesis failure")
+			return nil, nil
+		},
+		GenesisWaitTimeout:   30 * time.Second,
+		GenesisRetryInterval: time.Millisecond,
+	})
+	if !errors.Is(err, errPluginRuntimeCoordinatorBootstrapTest) {
+		t.Fatalf("error=%v want=%v", err, errPluginRuntimeCoordinatorBootstrapTest)
+	}
+	if ensurer.calls.Load() != 1 || buildCalls.Load() != 0 {
+		t.Fatalf("ensure calls=%d build calls=%d", ensurer.calls.Load(), buildCalls.Load())
+	}
+	if errors.Is(err, extensions.ErrLifecycleOperationInProgress) {
+		t.Fatalf("non-retryable error must not carry lifecycle in-progress: %v", err)
 	}
 }
 

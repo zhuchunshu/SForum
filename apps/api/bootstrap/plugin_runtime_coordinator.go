@@ -17,7 +17,13 @@ import (
 	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
 )
 
-const defaultPluginRuntimeCoordinatorStopTimeout = 10 * time.Second
+const (
+	defaultPluginRuntimeCoordinatorStopTimeout = 10 * time.Second
+	// 启动时若 lifecycle 操作尚未结束，genesis ensure 可短暂重试；超时后仍
+	// fail-closed，绝不跳过开放中的 lifecycle 行。
+	defaultPluginRuntimeCoordinatorGenesisWaitTimeout   = 30 * time.Second
+	defaultPluginRuntimeCoordinatorGenesisRetryInterval = 200 * time.Millisecond
+)
 
 var (
 	errPluginRuntimeCoordinatorBootstrapInvalid   = errors.New("bootstrap: plugin runtime coordinator is invalid")
@@ -55,6 +61,11 @@ type pluginRuntimeCoordinatorLaunchConfig struct {
 	Ensurer     extensions.InitialPluginRuntimePublicationEnsurer
 	Build       pluginRuntimeCoordinatorBuilder
 	StopTimeout time.Duration
+	// GenesisWaitTimeout 限制 ErrLifecycleOperationInProgress 的重试总时长；
+	// <=0 时使用生产默认（约 30s）。测试可注入极小值做确定性截止。
+	GenesisWaitTimeout time.Duration
+	// GenesisRetryInterval 是两次 genesis ensure 之间的等待；<=0 用生产默认。
+	GenesisRetryInterval time.Duration
 }
 
 // pluginRuntimeCoordinatorRuntime owns the coordinator goroutine. Failures is
@@ -173,12 +184,10 @@ func launchPluginRuntimeCoordinator(
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
-	publication, err := config.Ensurer.EnsureInitialPluginRuntimePublication(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("ensure initial plugin runtime publication: %w", err)
-	}
-	if !validPluginRuntimeCoordinatorGenesis(publication) {
-		return nil, fmt.Errorf("%w: genesis publication is not exact", errPluginRuntimeCoordinatorBootstrapInvalid)
+	// Immutable genesis 必须先成功：builder/runner 不得在 fence 通过前启动。
+	// 仅对 ErrLifecycleOperationInProgress 做有界、可取消重试；其它错误立即失败。
+	if _, err := ensurePluginRuntimeCoordinatorGenesis(ctx, config); err != nil {
+		return nil, err
 	}
 	if err := ctx.Err(); err != nil {
 		return nil, err
@@ -380,6 +389,78 @@ func normalizedPluginRuntimeCoordinatorStopTimeout(value time.Duration) time.Dur
 		return defaultPluginRuntimeCoordinatorStopTimeout
 	}
 	return value
+}
+
+func normalizedPluginRuntimeCoordinatorGenesisWaitTimeout(value time.Duration) time.Duration {
+	if value <= 0 {
+		return defaultPluginRuntimeCoordinatorGenesisWaitTimeout
+	}
+	return value
+}
+
+func normalizedPluginRuntimeCoordinatorGenesisRetryInterval(value time.Duration) time.Duration {
+	if value <= 0 {
+		return defaultPluginRuntimeCoordinatorGenesisRetryInterval
+	}
+	return value
+}
+
+// ensurePluginRuntimeCoordinatorGenesis 在启动 builder/runner 之前完成 immutable
+// genesis ensure。仅 lifecycle in-progress 可在 waitTimeout 内按 interval 重试。
+func ensurePluginRuntimeCoordinatorGenesis(
+	ctx context.Context,
+	config pluginRuntimeCoordinatorLaunchConfig,
+) (extensions.PluginRuntimePublication, error) {
+	if ctx == nil || config.Ensurer == nil {
+		return extensions.PluginRuntimePublication{}, errPluginRuntimeCoordinatorBootstrapInvalid
+	}
+	waitTimeout := normalizedPluginRuntimeCoordinatorGenesisWaitTimeout(config.GenesisWaitTimeout)
+	retryInterval := normalizedPluginRuntimeCoordinatorGenesisRetryInterval(config.GenesisRetryInterval)
+	deadline := time.Now().Add(waitTimeout)
+
+	var lastInProgress error
+	for {
+		if err := ctx.Err(); err != nil {
+			return extensions.PluginRuntimePublication{}, err
+		}
+
+		publication, err := config.Ensurer.EnsureInitialPluginRuntimePublication(ctx)
+		if err == nil {
+			if !validPluginRuntimeCoordinatorGenesis(publication) {
+				return extensions.PluginRuntimePublication{}, fmt.Errorf(
+					"%w: genesis publication is not exact",
+					errPluginRuntimeCoordinatorBootstrapInvalid,
+				)
+			}
+			return publication, nil
+		}
+		if !errors.Is(err, extensions.ErrLifecycleOperationInProgress) {
+			return extensions.PluginRuntimePublication{}, fmt.Errorf(
+				"ensure initial plugin runtime publication: %w", err,
+			)
+		}
+		lastInProgress = err
+
+		remaining := time.Until(deadline)
+		if remaining <= 0 {
+			return extensions.PluginRuntimePublication{}, fmt.Errorf(
+				"ensure initial plugin runtime publication: %w", lastInProgress,
+			)
+		}
+		wait := retryInterval
+		if wait > remaining {
+			wait = remaining
+		}
+		timer := time.NewTimer(wait)
+		select {
+		case <-ctx.Done():
+			if !timer.Stop() {
+				<-timer.C
+			}
+			return extensions.PluginRuntimePublication{}, ctx.Err()
+		case <-timer.C:
+		}
+	}
 }
 
 func validPluginRuntimeCoordinatorGenesis(publication extensions.PluginRuntimePublication) bool {
