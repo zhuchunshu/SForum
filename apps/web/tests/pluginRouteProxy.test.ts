@@ -115,9 +115,17 @@ describe('trusted plugin arbitrary-route proxy', () => {
           response.end()
           return
         }
-        const matched = url.pathname === '/plugin/echo'
+        const matched = ['/plugin/echo', '/plugin/redirect301', '/plugin/redirect308'].includes(url.pathname)
         response.statusCode = matched ? 204 : 404
         response.setHeader(INTERNAL_ROUTE_RESULT_HEADER, matched ? INTERNAL_ROUTE_MATCH : INTERNAL_ROUTE_MISS)
+        response.end()
+        return
+      }
+
+      if (url.pathname === '/plugin/redirect301' || url.pathname === '/plugin/redirect308') {
+        response.statusCode = url.pathname.endsWith('301') ? 301 : 308
+        response.setHeader('Location', '/plugin/canonical-target')
+        response.setHeader('Link', '</plugin/canonical-target>; rel="canonical"')
         response.end()
         return
       }
@@ -162,6 +170,14 @@ describe('trusted plugin arbitrary-route proxy', () => {
       expect(actualRequests).toEqual([{
         method: 'POST', body: 'streamed-body', authorization: 'Bearer sft_real', probe: undefined
       }])
+
+      for (const status of [301, 308]) {
+        const redirectResponse = await fetch(`${webURL}/plugin/redirect${status}`, { redirect: 'manual' })
+        expect(redirectResponse.status).toBe(status)
+        expect(redirectResponse.headers.get('location')).toBe('/plugin/canonical-target')
+        expect(redirectResponse.headers.get('link')).toBe('</plugin/canonical-target>; rel="canonical"')
+      }
+      expect(actualRequests).toHaveLength(1)
 
       const hostResponse = await fetch(`${webURL}/host-page`)
       expect(hostResponse.status).toBe(200)

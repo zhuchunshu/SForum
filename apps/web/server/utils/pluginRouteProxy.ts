@@ -87,6 +87,7 @@ export function proxyRouteRequest(event: H3Event, target: URL) {
     sendStream: true,
     fetchOptions: {
       method: event.method,
+      redirect: 'manual',
       body: hasRequestBody ? getRequestWebStream(event) : undefined,
       duplex: hasRequestBody ? 'half' : undefined
     }
