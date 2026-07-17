@@ -728,6 +728,9 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 			SafeMode: cfg.SafeMode, TrustChallengesEnabled: cfg.V3TrustChallenges,
 		},
 	)
+	executableTrustService.WithRevocationSink(extensionsruntime.NewExecutableTrustRevocationFence(
+		lifecycleStack.RuntimeManager, extensionGuardPolicy,
+	))
 	if err := extensionGuardPolicy.Refresh(ctx); err != nil {
 		stopPluginRuntimeCoordinator()
 		if stopErr := supportjobs.Stop(ctx, jobClient); stopErr != nil {
