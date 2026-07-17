@@ -27,10 +27,18 @@ type ExecutableTrustService struct {
 	extensions   FrontendExtensionReader
 	store        ExecutableTrustStore
 	auditor      audit.Writer
+	revocations  ExecutableTrustRevocationSink
 	ttl          time.Duration
 	now          func() time.Time
 	random       io.Reader
 	publicAssets *assetregistry.Registry
+}
+
+// ExecutableTrustRevocationSink owns the process-local linearization fence for
+// one durable revoke. The callback must run before exact runtime/policy closure,
+// while replacement publication is still blocked.
+type ExecutableTrustRevocationSink interface {
+	RevokeExecutableTrust(context.Context, string, string, func(context.Context) error) error
 }
 
 // executableTrustGrantReceipt 只在 Host 激活事务内部流转。普通调用者仍只看到
@@ -71,6 +79,13 @@ func (s *ExecutableTrustService) WithTTL(ttl time.Duration) *ExecutableTrustServ
 func (s *ExecutableTrustService) WithPublicAssetRegistry(registry *assetregistry.Registry) *ExecutableTrustService {
 	if s != nil && registry != nil {
 		s.publicAssets = registry
+	}
+	return s
+}
+
+func (s *ExecutableTrustService) WithRevocationSink(sink ExecutableTrustRevocationSink) *ExecutableTrustService {
+	if s != nil && sink != nil {
+		s.revocations = sink
 	}
 	return s
 }
@@ -341,12 +356,18 @@ func (s *ExecutableTrustService) RevokeAllForExtension(ctx context.Context, exte
 		return nil
 	}
 	extensionID = normalizeID(extensionID)
-	// 安全吊销：先捕获 exact artifact，再 DB revoke，最后隔离 captured（而非当前）制品。
-	captured, found := s.capturePublicAssetArtifact(extensionID)
-	if err := s.store.RevokeAll(ctx, extensionID, actorUserID, strings.TrimSpace(reason)); err != nil {
+	reason = strings.TrimSpace(reason)
+	if s.extensions == nil {
+		return ErrTrustChallengeInvalid
+	}
+	extension, err := s.extensions.Get(ctx, extensionID)
+	if err == nil && extension.Source != SourceUploaded {
+		return nil
+	}
+	if err != nil && !errors.Is(err, ErrExtensionNotFound) {
 		return err
 	}
-	return s.quarantineCapturedPublicAsset(captured, found)
+	return s.revokeExecutableTrust(ctx, extensionID, actorUserID, reason)
 }
 
 func (s *ExecutableTrustService) Revoke(ctx context.Context, actor identity.Actor, extensionID string) (ExecutableTrustStatus, error) {
@@ -357,12 +378,9 @@ func (s *ExecutableTrustService) Revoke(ctx context.Context, actor identity.Acto
 	if err != nil {
 		return ExecutableTrustStatus{}, err
 	}
-	captured, found := s.capturePublicAssetArtifact(extension.ID)
-	if err := s.store.RevokeAll(ctx, extension.ID, actor.ID, "operator_revoked"); err != nil {
-		return ExecutableTrustStatus{}, err
-	}
-	if err := s.quarantineCapturedPublicAsset(captured, found); err != nil {
-		return ExecutableTrustStatus{}, err
+	var revokeErr error
+	if extension.Source == SourceUploaded {
+		revokeErr = s.revokeExecutableTrust(ctx, extension.ID, actor.ID, "operator_revoked")
 	}
 	extension = trustReviewArtifact(extension)
 	impact, err := buildTrustImpact(extension, TrustActionEnable)
@@ -375,8 +393,38 @@ func (s *ExecutableTrustService) Revoke(ctx context.Context, actor identity.Acto
 			ManifestContract: extensionmanifest.ManifestContract(extension.Manifest),
 		}
 	}
-	s.appendAudit(ctx, actor, audit.ActionExtensionTrustRevoke, impact, nil)
-	return ExecutableTrustStatus{Impact: impact, TrustRequired: RequiresExecutableTrust(extension), Trusted: false}, nil
+	s.appendRevokeAudit(ctx, actor, impact, revokeErr)
+	if revokeErr != nil {
+		return ExecutableTrustStatus{}, revokeErr
+	}
+	required := RequiresExecutableTrust(extension)
+	return ExecutableTrustStatus{Impact: impact, TrustRequired: required, Trusted: !required}, nil
+}
+
+func (s *ExecutableTrustService) revokeExecutableTrust(
+	ctx context.Context,
+	extensionID string,
+	actorUserID int64,
+	reason string,
+) error {
+	var assetErr error
+	durable := func(revokeCtx context.Context) error {
+		// Capture under the runtime-set fence so the local asset identity matches
+		// the durable revoke order. Exact CAS preserves a later reauthorization.
+		captured, found := s.capturePublicAssetArtifact(extensionID)
+		revokeErr := s.store.RevokeAll(revokeCtx, extensionID, actorUserID, reason)
+		if revokeErr == nil || errors.Is(revokeErr, ErrTrustRevocationCommitUnknown) {
+			assetErr = s.quarantineCapturedPublicAsset(captured, found)
+		}
+		return revokeErr
+	}
+	if s.revocations != nil {
+		return errors.Join(
+			s.revocations.RevokeExecutableTrust(ctx, extensionID, reason, durable),
+			assetErr,
+		)
+	}
+	return errors.Join(durable(ctx), assetErr)
 }
 
 func (s *ExecutableTrustService) extension(ctx context.Context, extensionID string) (Extension, error) {
@@ -426,6 +474,40 @@ func (s *ExecutableTrustService) appendCompensationAudit(
 	}
 	if compensationErr != nil {
 		metadata["error"] = compensationErr.Error()
+	}
+	_ = s.auditor.Append(ctx, audit.Event{
+		ActorUserID: actor.ID,
+		Action:      audit.ActionExtensionTrustRevoke,
+		Metadata:    metadata,
+	})
+}
+
+func (s *ExecutableTrustService) appendRevokeAudit(
+	ctx context.Context,
+	actor identity.Actor,
+	impact TrustImpact,
+	revokeErr error,
+) {
+	if s == nil || s.auditor == nil {
+		return
+	}
+	outcome := "succeeded"
+	if errors.Is(revokeErr, ErrTrustRevocationCommitUnknown) {
+		outcome = "unknown"
+	} else if revokeErr != nil {
+		outcome = "failed"
+	}
+	metadata := map[string]any{
+		"extensionId":   impact.ExtensionID,
+		"version":       impact.ExtensionVersion,
+		"packageDigest": impact.PackageDigest,
+		"impactDigest":  impact.Digest,
+		"action":        impact.Action,
+		"succeeded":     revokeErr == nil,
+		"outcome":       outcome,
+	}
+	if revokeErr != nil {
+		metadata["error"] = revokeErr.Error()
 	}
 	_ = s.auditor.Append(ctx, audit.Event{
 		ActorUserID: actor.ID,

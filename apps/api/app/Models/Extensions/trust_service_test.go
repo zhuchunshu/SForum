@@ -184,6 +184,119 @@ func TestExecutableTrustAuditsChallengeDeniedGrantAndRevoke(t *testing.T) {
 	}
 }
 
+func TestExecutableTrustRevokeClosesOnlyTrustRequiredRuntime(t *testing.T) {
+	uploaded := exactTrustExtension(t, "demo.runtime-revoke")
+	builtin := exactTrustExtension(t, "demo.runtime-builtin")
+	builtin.Source = SourceBuiltin
+	inert := exactTrustExtension(t, "demo.runtime-inert")
+	inert.Manifest.Backend = ManifestBackend{}
+	inert.Manifest.Migrations = nil
+	if RequiresExecutableTrust(inert) {
+		t.Fatal("inert regression fixture unexpectedly requires current executable trust")
+	}
+	store := &fakeExtensionStore{items: map[string]Extension{
+		uploaded.ID: uploaded,
+		builtin.ID:  builtin,
+		inert.ID:    inert,
+	}}
+	sink := &recordingExecutableTrustRevocationSink{}
+	trustStore := &memoryExecutableTrustStore{}
+	service := NewExecutableTrustService(store, trustStore).WithRevocationSink(sink)
+	actor := extensionManager()
+
+	if _, err := service.Revoke(context.Background(), actor, uploaded.ID); err != nil {
+		t.Fatal(err)
+	}
+	if len(sink.calls) != 1 || sink.calls[0] != uploaded.ID+":operator_revoked" {
+		t.Fatalf("runtime revoke calls=%#v", sink.calls)
+	}
+	if _, err := service.Revoke(context.Background(), actor, builtin.ID); err != nil {
+		t.Fatal(err)
+	}
+	if len(sink.calls) != 1 {
+		t.Fatalf("builtin trust root was quarantined: %#v", sink.calls)
+	}
+	if err := service.RevokeAllForExtension(context.Background(), builtin.ID, actor.ID, "builtin_cleanup"); err != nil {
+		t.Fatal(err)
+	}
+	if len(sink.calls) != 1 || trustStore.revokeAllCalls != 1 {
+		t.Fatalf("builtin full revoke crossed trust domain: calls=%#v durable=%d", sink.calls, trustStore.revokeAllCalls)
+	}
+	if err := service.RevokeAllForExtension(context.Background(), inert.ID, actor.ID, "historical_cleanup"); err != nil {
+		t.Fatal(err)
+	}
+	if len(sink.calls) != 2 || sink.calls[1] != inert.ID+":historical_cleanup" {
+		t.Fatalf("historical uploaded grant cleanup was skipped: %#v", sink.calls)
+	}
+
+	sink.err = errors.New("runtime fence failed")
+	if err := service.RevokeAllForExtension(context.Background(), uploaded.ID, actor.ID, "package_changed"); !errors.Is(err, sink.err) {
+		t.Fatalf("runtime fence error=%v", err)
+	}
+}
+
+func TestExecutableTrustRevokeAuditsUnknownAndLocalClosureFailure(t *testing.T) {
+	extension := exactTrustExtension(t, "demo.revoke-audit-failure")
+	store := &fakeExtensionStore{items: map[string]Extension{extension.ID: extension}}
+	actor := extensionManager()
+	for _, test := range []struct {
+		name       string
+		durableErr error
+		localErr   error
+		outcome    string
+	}{
+		{
+			name: "unknown commit", durableErr: errors.Join(
+				ErrTrustRevocationCommitUnknown, errors.New("commit response lost"),
+			), outcome: "unknown",
+		},
+		{name: "local closure", localErr: errors.New("runtime closure failed"), outcome: "failed"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			auditor := &recordingAuditor{}
+			trustStore := &memoryExecutableTrustStore{revokeAllErr: test.durableErr}
+			sink := &recordingExecutableTrustRevocationSink{afterErr: test.localErr}
+			service := NewExecutableTrustService(store, trustStore).
+				WithAuditor(auditor).
+				WithRevocationSink(sink)
+			_, err := service.Revoke(t.Context(), actor, extension.ID)
+			if test.durableErr != nil && !errors.Is(err, test.durableErr) {
+				t.Fatalf("revoke error=%v missing durable=%v", err, test.durableErr)
+			}
+			if test.localErr != nil && !errors.Is(err, test.localErr) {
+				t.Fatalf("revoke error=%v missing local=%v", err, test.localErr)
+			}
+			var event *audit.Event
+			for index := range auditor.events {
+				if auditor.events[index].Action == audit.ActionExtensionTrustRevoke {
+					event = &auditor.events[index]
+				}
+			}
+			if event == nil || event.Metadata["outcome"] != test.outcome || event.Metadata["succeeded"] != false {
+				t.Fatalf("revoke audit=%#v", event)
+			}
+		})
+	}
+}
+
+func TestExecutableTrustRevokeAllCleansUpWithoutArtifactLookup(t *testing.T) {
+	trustStore := &memoryExecutableTrustStore{}
+	sink := &recordingExecutableTrustRevocationSink{}
+	service := NewExecutableTrustService(&fakeExtensionStore{items: map[string]Extension{}}, trustStore).
+		WithRevocationSink(sink)
+	err := service.RevokeAllForExtension(context.Background(), "missing.runtime", 1, "package_changed")
+	if err != nil {
+		t.Fatalf("orphan trust cleanup error=%v", err)
+	}
+	if trustStore.revokeAllCalls != 1 || sink.durableCalls != 1 ||
+		len(sink.calls) != 1 || sink.calls[0] != "missing.runtime:package_changed" {
+		t.Fatalf(
+			"orphan cleanup durable=%d sink durable=%d calls=%#v",
+			trustStore.revokeAllCalls, sink.durableCalls, sink.calls,
+		)
+	}
+}
+
 func TestExecutableTrustChallengeRejectsExpiredAndChangedImpact(t *testing.T) {
 	extension := exactTrustExtension(t, "demo.expiring")
 	extensions := &fakeExtensionStore{items: map[string]Extension{extension.ID: extension}}
@@ -877,6 +990,8 @@ type memoryExecutableTrustStore struct {
 	grants          map[TrustIdentity]TrustGrant
 	revokedGrantIDs map[int64]bool
 	revokeGrantErr  error
+	revokeAllErr    error
+	revokeAllCalls  int
 }
 
 func (s *memoryExecutableTrustStore) CreateChallenge(_ context.Context, input TrustChallengeRecord) error {
@@ -973,6 +1088,7 @@ func (s *memoryExecutableTrustStore) revokeExactGrant(
 func (s *memoryExecutableTrustStore) RevokeAll(_ context.Context, extensionID string, _ int64, _ string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	s.revokeAllCalls++
 	for identity, grant := range s.grants {
 		if identity.ExtensionID == extensionID {
 			delete(s.grants, identity)
@@ -982,12 +1098,38 @@ func (s *memoryExecutableTrustStore) RevokeAll(_ context.Context, extensionID st
 			s.revokedGrantIDs[grant.ID] = true
 		}
 	}
-	return nil
+	return s.revokeAllErr
 }
 
 type countingRuntimeManager struct {
 	checks int
 	starts int
+}
+
+type recordingExecutableTrustRevocationSink struct {
+	calls        []string
+	durableCalls int
+	err          error
+	afterErr     error
+	afterDurable func(error)
+}
+
+func (s *recordingExecutableTrustRevocationSink) RevokeExecutableTrust(
+	ctx context.Context,
+	extensionID string,
+	reason string,
+	durable func(context.Context) error,
+) error {
+	s.calls = append(s.calls, extensionID+":"+reason)
+	if s.err != nil {
+		return s.err
+	}
+	s.durableCalls++
+	durableErr := durable(ctx)
+	if s.afterDurable != nil {
+		s.afterDurable(durableErr)
+	}
+	return errors.Join(durableErr, s.afterErr)
 }
 
 func (m *countingRuntimeManager) Check(context.Context, Extension) error {

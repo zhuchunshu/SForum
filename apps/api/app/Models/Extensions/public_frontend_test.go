@@ -279,6 +279,34 @@ func TestPublicFrontendRevocationDisableSafeModeAndByteDriftFailClosed(t *testin
 	}
 }
 
+func TestPublicFrontendUnknownRevokeCommitQuarantinesBeforeFenceReturns(t *testing.T) {
+	extension := publicFrontendFixture(t)
+	reader := &fakeFrontendExtensionReader{item: extension}
+	commitErr := errors.New("commit response lost")
+	store := &memoryExecutableTrustStore{revokeAllErr: errors.Join(ErrTrustRevocationCommitUnknown, commitErr)}
+	trust := NewExecutableTrustService(reader, store)
+	service := newAdmittedPublicFrontendService(reader, trust)
+	trust.WithPublicAssetRegistry(service.publicAssets)
+	grantPublicFrontend(t, trust, extension)
+	publishTrustedPublicAssets(t, service, extension)
+	sink := &recordingExecutableTrustRevocationSink{afterDurable: func(err error) {
+		if !errors.Is(err, ErrTrustRevocationCommitUnknown) {
+			t.Fatalf("durable error=%v", err)
+		}
+		if _, found := service.publicAssets.SnapshotPublication(extension.ID); found {
+			t.Fatal("unknown commit left public assets open inside runtime fence")
+		}
+	}}
+	trust.WithRevocationSink(sink)
+	err := trust.RevokeAllForExtension(t.Context(), extension.ID, 1, "unknown-commit")
+	if !errors.Is(err, ErrTrustRevocationCommitUnknown) || !errors.Is(err, commitErr) {
+		t.Fatalf("unknown revoke result=%v", err)
+	}
+	if _, found := service.publicAssets.SnapshotPublication(extension.ID); found {
+		t.Fatal("unknown commit republished public assets")
+	}
+}
+
 func TestPublicFrontendRequestPathDoesNotListOrRebuildRegistry(t *testing.T) {
 	extension := publicFrontendFixture(t)
 	reader := &countingFrontendExtensionReader{item: extension}
