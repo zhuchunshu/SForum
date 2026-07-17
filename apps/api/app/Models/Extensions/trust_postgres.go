@@ -9,14 +9,21 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type PostgresExecutableTrustStore struct {
-	pool *pgxpool.Pool
+	pool            *pgxpool.Pool
+	commitRevokeAll func(context.Context, pgx.Tx) error
 }
 
-const executableTrustExtensionLockNamespace = "sforum:executable-trust:"
+const (
+	executableTrustExtensionLockNamespace = "sforum:executable-trust:"
+	executableTrustCommitReadbackTimeout  = 5 * time.Second
+)
+
+var errTrustRevocationCommitNotVerified = errors.New("extensions: executable trust revocation commit was not verified")
 
 func NewPostgresExecutableTrustStore(pool *pgxpool.Pool) *PostgresExecutableTrustStore {
 	return &PostgresExecutableTrustStore{pool: pool}
@@ -267,6 +274,9 @@ func (s *PostgresExecutableTrustStore) revokeExactGrant(
 }
 
 func (s *PostgresExecutableTrustStore) RevokeAll(ctx context.Context, extensionID string, actorUserID int64, reason string) error {
+	if s == nil || s.pool == nil || ctx == nil {
+		return ErrTrustChallengeInvalid
+	}
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return fmt.Errorf("begin revoke executable trust: %w", err)
@@ -274,6 +284,14 @@ func (s *PostgresExecutableTrustStore) RevokeAll(ctx context.Context, extensionI
 	defer tx.Rollback(ctx)
 	if err := LockExecutableTrustExtensionTx(ctx, tx, extensionID); err != nil {
 		return err
+	}
+	var hasGrantHistory bool
+	if err := tx.QueryRow(ctx, `
+		SELECT EXISTS (
+			SELECT 1 FROM extension_trust_grants WHERE extension_id = $1
+		)
+	`, extensionID).Scan(&hasGrantHistory); err != nil {
+		return fmt.Errorf("inspect executable trust grant history: %w", err)
 	}
 	if _, err := tx.Exec(ctx, `
 		UPDATE extension_trust_grants
@@ -289,13 +307,140 @@ func (s *PostgresExecutableTrustStore) RevokeAll(ctx context.Context, extensionI
 	`, extensionID, reason); err != nil {
 		return fmt.Errorf("invalidate executable trust challenges: %w", err)
 	}
-	if _, _, err := PublishPluginRuntimeTrustRevocationTx(ctx, tx, extensionID, actorUserID); err != nil {
-		return fmt.Errorf("publish executable trust runtime revocation: %w", err)
+	// 有任一 grant 历史后，即使 live 行已在上次未知结果中撤销，也必须重放
+	// desired full-set removal；从未进入可执行信任域的 builtin 不能被误删。
+	expectedRemovalRevision := int64(0)
+	if hasGrantHistory {
+		publication, published, err := PublishPluginRuntimeTrustRevocationTx(ctx, tx, extensionID, actorUserID)
+		if err != nil {
+			return fmt.Errorf("publish executable trust runtime revocation: %w", err)
+		}
+		if published {
+			expectedRemovalRevision = publication.Revision
+		}
 	}
-	if err := tx.Commit(ctx); err != nil {
-		return fmt.Errorf("commit revoke executable trust: %w", err)
+	commit := tx.Commit
+	if s.commitRevokeAll != nil {
+		commit = func(commitCtx context.Context) error {
+			return s.commitRevokeAll(commitCtx, tx)
+		}
+	}
+	if err := commit(ctx); err != nil {
+		return s.resolveExecutableTrustRevocationCommit(
+			ctx,
+			executableTrustRevocationExpectation{
+				extensionID: extensionID, hasGrantHistory: hasGrantHistory,
+				expectedRemovalRevision: expectedRemovalRevision,
+			},
+			err,
+		)
 	}
 	return nil
+}
+
+type executableTrustRevocationExpectation struct {
+	extensionID             string
+	hasGrantHistory         bool
+	expectedRemovalRevision int64
+}
+
+func (s *PostgresExecutableTrustStore) resolveExecutableTrustRevocationCommit(
+	ctx context.Context,
+	expectation executableTrustRevocationExpectation,
+	commitErr error,
+) error {
+	wrapped := fmt.Errorf("commit revoke executable trust: %w", commitErr)
+	if executableTrustRevocationCommitDefinitelyFailed(commitErr) {
+		return wrapped
+	}
+	verified, verificationErr := s.verifyExecutableTrustRevocationCommit(ctx, expectation)
+	if verificationErr == nil && verified {
+		return nil
+	}
+	if verificationErr != nil {
+		return &TrustRevocationCommitUnknownError{
+			commitErr: wrapped, verificationErr: verificationErr,
+		}
+	}
+	verificationErr = errTrustRevocationCommitNotVerified
+	return &TrustRevocationCommitUnknownError{
+		commitErr: wrapped, verificationErr: verificationErr,
+	}
+}
+
+func executableTrustRevocationCommitDefinitelyFailed(commitErr error) bool {
+	if errors.Is(commitErr, pgx.ErrTxCommitRollback) || pgconn.SafeToRetry(commitErr) {
+		return true
+	}
+	var postgresErr *pgconn.PgError
+	if !errors.As(commitErr, &postgresErr) {
+		return false
+	}
+	// Class 40 means PostgreSQL aborted the transaction, except 40003 whose
+	// completion is explicitly unknown. Connection exception 08007 is likewise
+	// ambiguous, and unrelated server errors do not prove that COMMIT rolled back.
+	return strings.HasPrefix(postgresErr.Code, "40") && postgresErr.Code != "40003"
+}
+
+func (s *PostgresExecutableTrustStore) verifyExecutableTrustRevocationCommit(
+	ctx context.Context,
+	expectation executableTrustRevocationExpectation,
+) (bool, error) {
+	if s == nil || s.pool == nil || ctx == nil || expectation.extensionID == "" ||
+		expectation.extensionID != strings.TrimSpace(expectation.extensionID) ||
+		expectation.expectedRemovalRevision < 0 {
+		return false, ErrTrustChallengeInvalid
+	}
+	readbackCtx, cancel := context.WithTimeout(
+		context.WithoutCancel(ctx), executableTrustCommitReadbackTimeout,
+	)
+	defer cancel()
+	tx, err := s.pool.BeginTx(readbackCtx, pgx.TxOptions{
+		IsoLevel: pgx.RepeatableRead, AccessMode: pgx.ReadOnly,
+	})
+	if err != nil {
+		return false, fmt.Errorf("begin executable trust revocation commit readback: %w", err)
+	}
+	defer func() { _ = tx.Rollback(readbackCtx) }()
+
+	var liveGrant, openChallenge bool
+	if err := tx.QueryRow(readbackCtx, `
+		SELECT
+			EXISTS (
+				SELECT 1 FROM extension_trust_grants
+				WHERE extension_id = $1 AND revoked_at IS NULL
+			),
+			EXISTS (
+				SELECT 1 FROM extension_trust_challenges
+				WHERE extension_id = $1 AND consumed_at IS NULL AND invalidated_at IS NULL
+			)
+	`, expectation.extensionID).Scan(&liveGrant, &openChallenge); err != nil {
+		return false, fmt.Errorf("read executable trust revocation commit state: %w", err)
+	}
+	if liveGrant || openChallenge {
+		return false, nil
+	}
+	if !expectation.hasGrantHistory {
+		return true, nil
+	}
+	latest, err := loadPluginRuntimePublication(
+		readbackCtx,
+		tx,
+		pluginRuntimePublicationSelect+` ORDER BY revision DESC LIMIT 1`,
+	)
+	if errors.Is(err, ErrPluginRuntimePublicationNotFound) && expectation.expectedRemovalRevision == 0 {
+		return true, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("read executable trust runtime removal publication: %w", err)
+	}
+	if latest.Revision < expectation.expectedRemovalRevision {
+		return false, nil
+	}
+	if _, found := pluginRuntimeMemberForExtension(latest.Members, expectation.extensionID); found {
+		return false, nil
+	}
+	return true, nil
 }
 
 // LockExecutableTrustExtensionTx serializes grant/challenge changes with the

@@ -3,6 +3,7 @@ package extensions
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 )
 
@@ -27,7 +28,32 @@ var (
 	ErrTrustChallengeStale    = errors.New("extensions: trust challenge stale")
 	ErrTrustNotRequired       = errors.New("extensions: executable trust not required")
 	ErrTrustGrantNotFound     = errors.New("extensions: executable trust grant not found")
+	// ErrTrustRevocationCommitUnknown means PostgreSQL did not prove whether the
+	// revoke COMMIT took effect. Callers must keep exact local execution closed.
+	ErrTrustRevocationCommitUnknown = errors.New("extensions: executable trust revocation commit outcome is unknown")
 )
+
+// TrustRevocationCommitUnknownError preserves both the COMMIT transport error
+// and the failed/inconclusive readback. Callers use the type or sentinel to
+// distinguish durable uncertainty from a transaction known not to have committed.
+type TrustRevocationCommitUnknownError struct {
+	commitErr       error
+	verificationErr error
+}
+
+func (e *TrustRevocationCommitUnknownError) Error() string {
+	if e == nil {
+		return ErrTrustRevocationCommitUnknown.Error()
+	}
+	return fmt.Sprintf("%s: %v; verification: %v", ErrTrustRevocationCommitUnknown, e.commitErr, e.verificationErr)
+}
+
+func (e *TrustRevocationCommitUnknownError) Unwrap() []error {
+	if e == nil {
+		return []error{ErrTrustRevocationCommitUnknown}
+	}
+	return []error{ErrTrustRevocationCommitUnknown, e.commitErr, e.verificationErr}
+}
 
 type TrustArtifact struct {
 	Kind   string `json:"kind"`
