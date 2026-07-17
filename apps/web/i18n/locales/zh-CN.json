@@ -1569,7 +1569,46 @@
       "templateApplied": "已套用「{name}」权限模板。",
       "empty": "还没有可显示的用户组。",
       "loadFailed": "用户组加载失败。",
-      "noDescription": "暂无说明"
+      "noDescription": "暂无说明",
+      "suggestions": {
+        "title": "扩展权限审批",
+        "intro": "扩展只能建议角色映射，安装或启用不会自动授权。批准后只会向指定用户组添加这一项权限。",
+        "filterLabel": "审批状态",
+        "filters": {
+          "pending": "待审批",
+          "approved": "已批准",
+          "rejected": "已拒绝",
+          "all": "全部记录"
+        },
+        "refresh": "刷新权限审批",
+        "loading": "正在加载权限审批记录...",
+        "loadFailed": "权限审批记录加载失败。",
+        "decisionFailed": "审批结果保存失败。",
+        "evidenceMissing": "宿主未返回完整的审批证据，请刷新后再继续。",
+        "empty": "当前状态下没有权限审批记录。",
+        "loadMore": "加载更多",
+        "approve": "批准",
+        "reject": "拒绝",
+        "apply": "应用已批准映射",
+        "cancel": "取消",
+        "confirmApprove": "确认批准",
+        "approveTitle": "批准这项权限映射？",
+        "applyTitle": "应用这项历史已批准映射？",
+        "rejectTitle": "拒绝这项权限映射？",
+        "approveDescription": "这会把扩展 {extension} 的 {permission} 添加到 {role} 用户组，不会授予其他权限。",
+        "rejectDescription": "这会拒绝扩展 {extension} 向 {role} 用户组建议的 {permission}，不会授予任何权限。",
+        "approvedToast": "权限映射已批准并应用。",
+        "rejectedToast": "权限映射已拒绝。",
+        "stale": "该扩展制品已不再处于活动状态，请刷新列表后重新审批。",
+        "revisionConflict": "审批记录在打开后已发生变化，请刷新后重试。",
+        "targetUnavailable": "目标用户组或权限目录已不可用。",
+        "status": {
+          "pending": "待审批",
+          "rejected": "已拒绝",
+          "applied": "已批准并应用",
+          "reviewOnly": "已批准，尚未应用"
+        }
+      }
     },
     "roleCatalog": {
       "moderator": {

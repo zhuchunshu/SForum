@@ -104,6 +104,20 @@ const groupedPermissions = computed(() => {
 })
 
 const permissionEditingLocked = computed(() => selectedRole.value?.key === 'super_admin')
+const ROLE_TEMPLATE_NONE_VALUE = '__none__'
+
+function selectedRoleFormEdits() {
+  const role = selectedRole.value
+  if (!role || editingNew.value) return null
+  const currentPermissions = [...formPermissionKeys.value].sort()
+  const savedPermissions = [...role.permissionKeys].sort()
+  return {
+    alias: formAlias.value !== role.alias,
+    description: formDescription.value !== role.description,
+    permissions: currentPermissions.length !== savedPermissions.length ||
+      currentPermissions.some((key, index) => key !== savedPermissions[index])
+  }
+}
 
 const selectedTitle = computed(() => {
   if (editingNew.value) {
@@ -117,7 +131,7 @@ const roleTemplates = computed(() => ROLE_TEMPLATE_DEFINITIONS)
 const templateSelectItems = computed(() => [
   {
     label: t('admin.roles.templateNone'),
-    value: ''
+    value: ROLE_TEMPLATE_NONE_VALUE
   },
   ...roleTemplates.value.map(template => ({
     label: t(template.aliasKey),
@@ -143,7 +157,40 @@ useSeoMeta({
   title: t('admin.roles.metaTitle')
 })
 
-async function loadData() {
+const {
+  selectedFilter: roleSuggestionFilter,
+  suggestions: roleSuggestions,
+  nextCursor: roleSuggestionNextCursor,
+  loading: roleSuggestionsLoading,
+  loadingMore: roleSuggestionsLoadingMore,
+  loadError: roleSuggestionsLoadError,
+  decisionOpen: roleSuggestionDecisionOpen,
+  pendingDecision: pendingRoleSuggestionDecision,
+  deciding: roleSuggestionDeciding,
+  decisionError: roleSuggestionDecisionError,
+  filterItems: roleSuggestionFilterItems,
+  confirmationTitle: roleSuggestionConfirmationTitle,
+  confirmationDescription: roleSuggestionConfirmationDescription,
+  confirmationAction: roleSuggestionConfirmationAction,
+  loadSuggestions,
+  openDecision: openRoleSuggestionDecision,
+  closeDecision: closeRoleSuggestionDecision,
+  submitDecision: submitRoleSuggestionDecision,
+  statusColor: roleSuggestionStatusColor,
+  statusLabel: roleSuggestionStatusLabel,
+  shortDigest: shortRoleSuggestionDigest,
+  formatDate: formatRoleSuggestionDate
+} = useRoleSuggestions(async (suggestion) => {
+  await loadData({
+    preserveUnsavedForm: true,
+    appliedPermission: { roleKey: suggestion.roleKey, permissionKey: suggestion.permissionKey }
+  })
+})
+
+async function loadData(options: {
+  preserveUnsavedForm?: boolean
+  appliedPermission?: { roleKey: string, permissionKey: string }
+} = {}) {
   pending.value = true
   errorMessage.value = ''
   try {
@@ -151,12 +198,32 @@ async function loadData() {
       request<Role[]>('/roles'),
       request<Permission[]>('/permissions')
     ])
+    const edits = options.preserveUnsavedForm ? selectedRoleFormEdits() : null
     roles.value = roleItems
     permissions.value = permissionItems
     if (selectedRole.value) {
       const refreshed = roleItems.find(role => role.key === selectedRole.value?.key)
       if (refreshed) {
-        selectRole(refreshed)
+        if (edits && (edits.alias || edits.description || edits.permissions)) {
+          // 逐字段采纳 Host 权威数据，避免覆盖操作员真正修改过的输入。
+          selectedRole.value = refreshed
+          formKey.value = refreshed.key
+          if (!edits.alias) formAlias.value = refreshed.alias
+          if (!edits.description) formDescription.value = refreshed.description
+          if (!edits.permissions) {
+            formPermissionKeys.value = [...refreshed.permissionKeys]
+            selectedTemplateKey.value = ''
+          } else if (
+            options.appliedPermission?.roleKey === refreshed.key &&
+            refreshed.permissionKeys.includes(options.appliedPermission.permissionKey) &&
+            !formPermissionKeys.value.includes(options.appliedPermission.permissionKey)
+          ) {
+            // 刚批准的 Host 授权必须并入旧草稿，避免后续保存把它无意撤销。
+            formPermissionKeys.value = [...formPermissionKeys.value, options.appliedPermission.permissionKey]
+          }
+        } else {
+          selectRole(refreshed)
+        }
       }
     }
   } catch (error) {
@@ -212,7 +279,7 @@ function applyRoleTemplate(template: RoleTemplateDefinition, options?: { fillIde
 }
 
 function onTemplateSelect(value: string | undefined) {
-  const key = `${value || ''}`.trim()
+  const key = value === ROLE_TEMPLATE_NONE_VALUE ? '' : `${value || ''}`.trim()
   selectedTemplateKey.value = key
   if (!key) {
     return
@@ -350,7 +417,7 @@ async function deleteRole() {
           leading-icon="i-lucide-refresh-cw"
           :loading="pending"
           class="border-slate-200 dark:border-zinc-700"
-          @click="loadData"
+          @click="loadData()"
         >
           {{ t('admin.roles.refresh') }}
         </UButton>
@@ -367,6 +434,185 @@ async function deleteRole() {
       </div>
     </template>
   </UDashboardToolbar>
+
+  <section class="mb-6 border-y border-slate-200 py-5 dark:border-zinc-800">
+    <div class="mb-4 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+      <div class="min-w-0">
+        <div class="flex items-center gap-2">
+          <UIcon name="i-lucide-shield-check" class="size-5 text-[var(--sf-accent)] dark:text-[var(--sf-accent-dark)]" />
+          <h3 class="text-base font-semibold text-slate-950 dark:text-zinc-50">
+            {{ t('admin.roles.suggestions.title') }}
+          </h3>
+          <UBadge color="neutral" variant="soft">
+            {{ roleSuggestions.length }}
+          </UBadge>
+        </div>
+        <p class="mt-1 max-w-3xl text-sm text-slate-500 dark:text-zinc-400">
+          {{ t('admin.roles.suggestions.intro') }}
+        </p>
+      </div>
+      <div class="flex flex-wrap items-center gap-2">
+        <USelect
+          v-model="roleSuggestionFilter"
+          :items="roleSuggestionFilterItems"
+          value-key="value"
+          class="w-44"
+          :aria-label="t('admin.roles.suggestions.filterLabel')"
+        />
+        <UButton
+          color="neutral"
+          variant="outline"
+          icon="i-lucide-refresh-cw"
+          :loading="roleSuggestionsLoading"
+          :aria-label="t('admin.roles.suggestions.refresh')"
+          :title="t('admin.roles.suggestions.refresh')"
+          @click="loadSuggestions(true)"
+        />
+      </div>
+    </div>
+
+    <UAlert
+      v-if="roleSuggestionsLoadError"
+      color="error"
+      variant="soft"
+      icon="i-lucide-triangle-alert"
+      :title="roleSuggestionsLoadError"
+      class="mb-4"
+    />
+
+    <div
+      v-if="roleSuggestionsLoading"
+      class="flex min-h-28 items-center justify-center border border-slate-200 bg-slate-50 text-sm text-slate-500 dark:border-zinc-800 dark:bg-zinc-950/40 dark:text-zinc-400"
+    >
+      <UIcon name="i-lucide-loader-circle" class="mr-2 size-4 animate-spin" />
+      {{ t('admin.roles.suggestions.loading') }}
+    </div>
+    <div
+      v-else-if="!roleSuggestions.length"
+      class="flex min-h-28 flex-col items-center justify-center border border-dashed border-slate-300 px-4 text-center dark:border-zinc-700"
+    >
+      <UIcon name="i-lucide-inbox" class="mb-2 size-5 text-slate-400 dark:text-zinc-500" />
+      <p class="text-sm text-slate-500 dark:text-zinc-400">
+        {{ t('admin.roles.suggestions.empty') }}
+      </p>
+    </div>
+    <div v-else class="border border-slate-200 dark:border-zinc-800">
+      <article
+        v-for="suggestion in roleSuggestions"
+        :key="suggestion.id"
+        class="grid gap-3 border-b border-slate-200 p-4 last:border-b-0 dark:border-zinc-800 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center"
+      >
+        <div class="min-w-0">
+          <div class="flex flex-wrap items-center gap-2">
+            <code class="break-all text-sm font-semibold text-slate-950 dark:text-zinc-50">{{ suggestion.permissionKey }}</code>
+            <UIcon name="i-lucide-arrow-right" class="size-4 shrink-0 text-slate-400" />
+            <UBadge color="info" variant="soft" class="font-mono">
+              {{ suggestion.roleKey }}
+            </UBadge>
+            <UBadge :color="roleSuggestionStatusColor(suggestion)" variant="soft">
+              {{ roleSuggestionStatusLabel(suggestion) }}
+            </UBadge>
+          </div>
+          <div class="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500 dark:text-zinc-400">
+            <span class="inline-flex min-w-0 items-center gap-1">
+              <UIcon name="i-lucide-blocks" class="size-3.5 shrink-0" />
+              <span class="break-all">{{ suggestion.ownerExtensionId }}@{{ suggestion.extensionVersion }}</span>
+            </span>
+            <span class="inline-flex items-center gap-1 font-mono" :title="suggestion.packageDigest">
+              <UIcon name="i-lucide-fingerprint" class="size-3.5" />
+              {{ shortRoleSuggestionDigest(suggestion.packageDigest) }}
+            </span>
+            <span class="inline-flex items-center gap-1">
+              <UIcon name="i-lucide-clock-3" class="size-3.5" />
+              {{ formatRoleSuggestionDate(suggestion.createdAt) }}
+            </span>
+          </div>
+        </div>
+        <div class="flex flex-wrap items-center gap-2 lg:justify-end">
+          <template v-if="suggestion.approvalState === 'pending'">
+            <UButton
+              color="neutral"
+              variant="outline"
+              leading-icon="i-lucide-x"
+              :disabled="roleSuggestionDeciding"
+              @click="openRoleSuggestionDecision(suggestion, 'rejected')"
+            >
+              {{ t('admin.roles.suggestions.reject') }}
+            </UButton>
+            <UButton
+              color="primary"
+              leading-icon="i-lucide-shield-check"
+              :disabled="roleSuggestionDeciding"
+              @click="openRoleSuggestionDecision(suggestion, 'approved')"
+            >
+              {{ t('admin.roles.suggestions.approve') }}
+            </UButton>
+          </template>
+          <UButton
+            v-else-if="suggestion.approvalState === 'approved' && !suggestion.applied"
+            color="primary"
+            leading-icon="i-lucide-shield-plus"
+            :disabled="roleSuggestionDeciding"
+            @click="openRoleSuggestionDecision(suggestion, 'approved')"
+          >
+            {{ t('admin.roles.suggestions.apply') }}
+          </UButton>
+        </div>
+      </article>
+    </div>
+
+    <div v-if="roleSuggestionNextCursor" class="mt-4 flex justify-center">
+      <UButton
+        color="neutral"
+        variant="outline"
+        leading-icon="i-lucide-chevrons-down"
+        :loading="roleSuggestionsLoadingMore"
+        @click="loadSuggestions(false)"
+      >
+        {{ t('admin.roles.suggestions.loadMore') }}
+      </UButton>
+    </div>
+
+    <div
+      v-if="roleSuggestionDecisionOpen"
+      class="mt-4 space-y-4 border border-[var(--sf-accent-soft-border)] bg-[var(--sf-accent-soft)] p-4 dark:bg-zinc-950/60"
+    >
+      <div class="flex items-start gap-3">
+        <UIcon
+          :name="pendingRoleSuggestionDecision?.state === 'rejected' ? 'i-lucide-circle-x' : 'i-lucide-shield-alert'"
+          class="mt-0.5 size-5 shrink-0 text-[var(--sf-accent)] dark:text-[var(--sf-accent-dark)]"
+        />
+        <div class="min-w-0">
+          <h3 class="text-base font-semibold text-slate-950 dark:text-zinc-50">
+            {{ roleSuggestionConfirmationTitle }}
+          </h3>
+          <p class="mt-1 text-sm text-slate-600 dark:text-zinc-300">
+            {{ roleSuggestionConfirmationDescription }}
+          </p>
+        </div>
+      </div>
+      <UAlert
+        v-if="roleSuggestionDecisionError"
+        color="error"
+        variant="soft"
+        icon="i-lucide-triangle-alert"
+        :title="roleSuggestionDecisionError"
+      />
+      <div class="flex justify-end gap-2">
+        <UButton color="neutral" variant="ghost" :disabled="roleSuggestionDeciding" @click="closeRoleSuggestionDecision">
+          {{ t('admin.roles.suggestions.cancel') }}
+        </UButton>
+        <UButton
+          :color="pendingRoleSuggestionDecision?.state === 'rejected' ? 'error' : 'primary'"
+          :leading-icon="pendingRoleSuggestionDecision?.state === 'rejected' ? 'i-lucide-x' : 'i-lucide-shield-check'"
+          :loading="roleSuggestionDeciding"
+          @click="submitRoleSuggestionDecision"
+        >
+          {{ roleSuggestionConfirmationAction }}
+        </UButton>
+      </div>
+    </div>
+  </section>
 
   <div class="grid gap-4 xl:grid-cols-[minmax(0,1fr)_420px]">
     <div class="flex flex-col gap-4">
@@ -503,7 +749,7 @@ async function deleteRole() {
           </div>
           <UFormField :label="t('admin.roles.templateSelect')" name="role-template">
             <USelect
-              :model-value="selectedTemplateKey"
+              :model-value="selectedTemplateKey || ROLE_TEMPLATE_NONE_VALUE"
               :items="templateSelectItems"
               value-key="value"
               class="w-full"

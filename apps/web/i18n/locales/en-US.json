@@ -1569,7 +1569,46 @@
       "templateApplied": "Applied the “{name}” permission template.",
       "empty": "No user groups to show yet.",
       "loadFailed": "User groups could not be loaded.",
-      "noDescription": "No description"
+      "noDescription": "No description",
+      "suggestions": {
+        "title": "Extension permission reviews",
+        "intro": "Extensions can only recommend role mappings. Installing or enabling an extension never grants them. Approval adds this permission only to the named group.",
+        "filterLabel": "Review state",
+        "filters": {
+          "pending": "Pending",
+          "approved": "Approved",
+          "rejected": "Rejected",
+          "all": "All reviews"
+        },
+        "refresh": "Refresh permission reviews",
+        "loading": "Loading permission reviews...",
+        "loadFailed": "Permission reviews could not be loaded.",
+        "decisionFailed": "The review decision could not be saved.",
+        "evidenceMissing": "The Host did not return complete decision evidence. Refresh before continuing.",
+        "empty": "No permission reviews match this state.",
+        "loadMore": "Load more",
+        "approve": "Approve",
+        "reject": "Reject",
+        "apply": "Apply approved mapping",
+        "cancel": "Cancel",
+        "confirmApprove": "Confirm approval",
+        "approveTitle": "Approve this permission mapping?",
+        "applyTitle": "Apply this previously approved mapping?",
+        "rejectTitle": "Reject this permission mapping?",
+        "approveDescription": "This adds {permission} from {extension} to the {role} group. No other permission is granted.",
+        "rejectDescription": "This rejects {permission} from {extension} for the {role} group and grants nothing.",
+        "approvedToast": "Permission mapping approved and applied.",
+        "rejectedToast": "Permission mapping rejected.",
+        "stale": "This extension artifact is no longer active. Refresh the list before reviewing it.",
+        "revisionConflict": "This review changed while it was open. Refresh before trying again.",
+        "targetUnavailable": "The target group or permission catalog is no longer available.",
+        "status": {
+          "pending": "Pending",
+          "rejected": "Rejected",
+          "applied": "Approved and applied",
+          "reviewOnly": "Approved, not applied"
+        }
+      }
     },
     "roleCatalog": {
       "moderator": {
