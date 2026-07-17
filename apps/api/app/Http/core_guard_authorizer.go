@@ -100,7 +100,7 @@ func (a ProductionRouteGuardAuthorizer) Authorize(
 	step routes.RouteExecutionStep,
 	request routes.DispatchRequest,
 ) error {
-	if !maps.Equal(request.Params, plan.Params()) {
+	if !maps.Equal(request.Params, plan.Params()) && !request.HostMutatedParams() {
 		return ErrRouteGuardUnavailable
 	}
 	return productionRouteGuardError(a.authorizer.Authorize(ctx, plan, step, request))
@@ -114,7 +114,7 @@ func (a ProductionRouteGuardAuthorizer) AuthorizeRoute(
 	request routes.DispatchRequest,
 ) (routes.RouteGuardAuthorization, error) {
 	// Params 由不可变执行计划解析，不能接受上游中间件伪造的资源身份。
-	if !maps.Equal(request.Params, plan.Params()) {
+	if !maps.Equal(request.Params, plan.Params()) && !request.HostMutatedParams() {
 		return routes.RouteGuardAuthorization{}, ErrRouteGuardUnavailable
 	}
 	authorization, err := a.authorizer.AuthorizeRoute(ctx, plan, stepIndex, step, request)
@@ -125,6 +125,13 @@ func (a ProductionRouteGuardAuthorizer) AuthorizeRoute(
 }
 
 func productionRouteGuardError(err error) error {
+	var pluginFailure *routes.PluginGuardFailure
+	if errors.As(err, &pluginFailure) {
+		if pluginFailure.Kind() == routes.PluginGuardFailureDenied {
+			return errors.Join(ErrRoutePermissionDenied, pluginFailure)
+		}
+		return errors.Join(ErrRouteGuardUnavailable, pluginFailure)
+	}
 	switch {
 	case err == nil:
 		return nil

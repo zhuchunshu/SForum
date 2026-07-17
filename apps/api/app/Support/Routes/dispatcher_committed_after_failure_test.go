@@ -31,6 +31,7 @@ func TestDispatcherPreservesUnsafeResponseAndRecordsCommittedAfterFailure(t *tes
 			coreStep := dispatchCoreStep("core.route.committed")
 			after := dispatchPluginStep(RoutePhaseAfter, "demo.route.after_failure", extensionmanifest.RouteActionAfter)
 			next := dispatchPluginStep(RoutePhaseAfter, "demo.route.after_never", extensionmanifest.RouteActionAfter)
+			after.MutableResponseFields = []string{"/status"}
 			if test.responseErr != nil {
 				after.RequestSchema = ""
 			}
@@ -45,13 +46,15 @@ func TestDispatcherPreservesUnsafeResponseAndRecordsCommittedAfterFailure(t *tes
 				if test.transportErr != nil {
 					return RouteInvocationResult{SideEffectStarted: true}, test.transportErr
 				}
-				response := DispatchResponse{Status: http.StatusAccepted, Body: []byte(`{"forged":true}`)}
-				return RouteInvocationResult{Response: &response, ResponseStarted: true}, nil
+				return RouteInvocationResult{ResponsePatch: []RoutePatchOperation{{
+					Kind: RoutePatchReplace, Path: "/status", Value: []byte(`202`),
+				}}}, nil
 			}}
 			sink := &recordingRouteFailureSink{}
 			traces := NewRouteTraceRing(8)
 			dispatcher := NewDispatcher(DispatcherConfig{
-				Plans: dispatchPlanResolver{plan: dispatchPlan("POST", "/committed", nil, []RouteExecutionStep{coreStep, after, next}, 0)},
+				// after chains are stored high-to-low and unwind low-to-high.
+				Plans: dispatchPlanResolver{plan: dispatchPlan("POST", "/committed", nil, []RouteExecutionStep{coreStep, next, after}, 0)},
 				Steps: invoker, Guard: guard, Schemas: schemas, Trace: traces, Failures: sink,
 			})
 			original := DispatchResponse{
@@ -76,7 +79,7 @@ func TestDispatcherPreservesUnsafeResponseAndRecordsCommittedAfterFailure(t *tes
 				t.Fatalf("failure events=%#v", sink.events)
 			}
 			event := sink.events[0]
-			if event.FailureCode != test.code || event.StepIndex != 1 || event.Phase != RoutePhaseAfter ||
+			if event.FailureCode != test.code || event.StepIndex != 2 || event.Phase != RoutePhaseAfter ||
 				event.Action != extensionmanifest.RouteActionAfter || event.RouteID != after.RouteID ||
 				event.ContractVersion != after.ContractVersion || event.Method != "POST" ||
 				event.RuntimeExecutionObserved != test.observed ||
@@ -94,29 +97,38 @@ func TestDispatcherPreservesUnsafeResponseAndRecordsCommittedAfterFailure(t *tes
 
 func TestDispatcherDoesNotPreserveAfterFailureOutsideExplicitUnsafeBoundary(t *testing.T) {
 	for _, test := range []struct {
-		name   string
-		method string
-		sink   RouteFailureSink
+		name          string
+		method        string
+		sink          RouteFailureSink
+		wantCoreCalls int
+		wantStepCalls int
 	}{
-		{name: "safe method", method: "GET", sink: &recordingRouteFailureSink{}},
+		{name: "safe method", method: "GET", sink: &recordingRouteFailureSink{}, wantCoreCalls: 1, wantStepCalls: 1},
 		{name: "missing sink", method: "POST"},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			coreStep := dispatchCoreStep("core.route.closed")
 			after := dispatchPluginStep(RoutePhaseAfter, "demo.route.closed_after", extensionmanifest.RouteActionAfter)
+			stepCalls := 0
+			coreCalls := 0
 			dispatcher := NewDispatcher(DispatcherConfig{
 				Plans: dispatchPlanResolver{plan: dispatchPlan(test.method, "/closed", nil, []RouteExecutionStep{coreStep, after}, 0)},
 				Steps: &dispatchStepInvoker{invoke: func(context.Context, RouteInvocation) (RouteInvocationResult, error) {
+					stepCalls++
 					return RouteInvocationResult{SideEffectStarted: true}, errors.New("after failed")
 				}},
 				Guard: &committedAfterGuard{}, Schemas: &committedAfterSchemas{}, Failures: test.sink,
 			})
 			_, err := dispatcher.Dispatch(context.Background(), DispatchRequest{Method: test.method, Path: "/closed"},
 				&dispatchCoreInvoker{invoke: func(context.Context, RouteExecutionStep, DispatchRequest) (DispatchResponse, error) {
+					coreCalls++
 					return DispatchResponse{Status: http.StatusOK}, nil
 				}})
 			if !errors.Is(err, ErrDispatchTransport) {
 				t.Fatalf("error=%v", err)
+			}
+			if coreCalls != test.wantCoreCalls || stepCalls != test.wantStepCalls {
+				t.Fatalf("core calls=%d step calls=%d", coreCalls, stepCalls)
 			}
 		})
 	}
@@ -149,7 +161,8 @@ func TestDispatcherCompletesAndReplaysUnsafeResponseAfterCommittedAfterFailure(t
 		lease.completeCalls != 1 || lease.abortCalls != 0 || calls != 2 || len(sink.events) != 1 {
 		t.Fatalf("first=%#v lease=%#v calls=%d events=%#v err=%v", first, lease, calls, sink.events, err)
 	}
-	controller.replay = &lease.completed
+	replay := cloneDispatchResponse(lease.completed)
+	controller.replay = &replay
 	second, err := dispatcher.Dispatch(context.Background(), request, nil)
 	if err != nil || !reflect.DeepEqual(second, first) || calls != 2 || len(sink.events) != 1 || controller.calls != 2 {
 		t.Fatalf("second=%#v first=%#v calls=%d events=%#v controller=%#v err=%v", second, first, calls, sink.events, controller, err)
@@ -166,8 +179,9 @@ func (g *committedAfterGuard) Authorize(_ context.Context, _ RouteExecutionPlan,
 }
 
 type committedAfterSchemas struct {
-	requestErr  error
-	responseErr error
+	requestErr    error
+	responseErr   error
+	responseCalls int
 }
 
 func (s *committedAfterSchemas) ValidateRequest(_ context.Context, step RouteExecutionStep, _ DispatchRequest) error {
@@ -179,7 +193,10 @@ func (s *committedAfterSchemas) ValidateRequest(_ context.Context, step RouteExe
 
 func (s *committedAfterSchemas) ValidateResponse(_ context.Context, step RouteExecutionStep, _ DispatchRequest, _ DispatchResponse) error {
 	if step.Phase == RoutePhaseAfter {
-		return s.responseErr
+		s.responseCalls++
+		if s.responseCalls > 1 {
+			return s.responseErr
+		}
 	}
 	return nil
 }

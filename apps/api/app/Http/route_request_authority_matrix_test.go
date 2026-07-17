@@ -86,7 +86,7 @@ func TestP6RouteCustomGuardOwnsPolicyAndFailsClosed(t *testing.T) {
 
 	harness.runtime.guardErr = errors.New("guard runtime crashed")
 	status, _ = p6RouteMatrixDo(t, harness.app, p6RouteMatrixRequest(`{"title":"hello"}`, "view=full", "opaque-csrf"))
-	if status != stdhttp.StatusForbidden || harness.runtime.guardCalls != 3 || harness.runtime.routeCalls != 1 {
+	if status != stdhttp.StatusBadGateway || harness.runtime.guardCalls != 3 || harness.runtime.routeCalls != 1 {
 		t.Fatalf("custom crash status=%d guard=%d route=%d", status, harness.runtime.guardCalls, harness.runtime.routeCalls)
 	}
 }
@@ -106,7 +106,7 @@ func TestP6RouteRawRequestDeclarationRequiresExactTrustAndForwardsCredentials(t 
 	// raw_request 是单独声明的高风险权限，只对 exact trusted artifact 转发浏览器凭据。
 	harness.policy.lookup.Entry.CurrentArtifactTrusted = false
 	status, _ = p6RouteMatrixDo(t, harness.app, p6RouteMatrixRequest(`{"title":"hello"}`, "view=full", "opaque-csrf"))
-	if status != stdhttp.StatusForbidden || harness.runtime.guardCalls != 0 || harness.runtime.routeCalls != 1 {
+	if status != stdhttp.StatusBadGateway || harness.runtime.guardCalls != 0 || harness.runtime.routeCalls != 1 {
 		t.Fatalf("raw trust drift status=%d guard=%d route=%d", status, harness.runtime.guardCalls, harness.runtime.routeCalls)
 	}
 }

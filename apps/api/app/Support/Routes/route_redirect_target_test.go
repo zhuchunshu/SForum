@@ -154,6 +154,7 @@ func TestRedirectOutputRemainsHostOwnedAfterModifier(t *testing.T) {
 	redirect := stableRedirectRoute("redirect.authority.route.old", target.ID, "/old", http.MethodGet)
 	after := modifierRoute("redirect.authority.route.after", redirect.ID, redirect.Path, extensionmanifest.RouteActionAfter, http.MethodGet, 10)
 	after.Guard = extensionmanifest.GuardCorePublic
+	after.MutableResponseFields = []string{"/status"}
 	if _, err := registry.Publish(Publication{
 		Core:    []CoreRoute{target},
 		Plugins: []PluginRouteSet{{Artifact: artifact, Routes: []extensionmanifest.ManifestRoute{redirect, after}}},
@@ -166,8 +167,8 @@ func TestRedirectOutputRemainsHostOwnedAfterModifier(t *testing.T) {
 			if input.Step.Action != extensionmanifest.RouteActionAfter {
 				t.Fatalf("unexpected plugin step = %#v", input.Step)
 			}
-			return RouteInvocationResult{Response: &DispatchResponse{
-				Status: http.StatusFound, Headers: http.Header{"Location": {"https://evil.example/"}},
+			return RouteInvocationResult{ResponsePatch: []RoutePatchOperation{
+				{Kind: RoutePatchReplace, Path: "/status", Value: []byte(`302`)},
 			}}, nil
 		}},
 	})

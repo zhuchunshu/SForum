@@ -2,6 +2,7 @@ package routes
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"reflect"
@@ -10,9 +11,10 @@ import (
 	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
 )
 
-// P6 路由动作矩阵（只读回归）：仅钉住生产已实现的 Registry/Plan/Dispatcher
-// 行为。不冻结可变字段、wrap 同优先级、after fail-closed、redirect SEO/canonical、
-// raw session/header authority 或组合 stream middleware 等仍开放的语义。
+// P6 路由动作矩阵（只读回归）：钉住生产已实现的 Registry/Plan/Dispatcher
+// 行为，并冻结可变字段候选逐层传递及高优先级 wrap 最外层语义。完整 after
+// fail-closed、redirect SEO/canonical、raw session/header authority 或组合 stream
+// middleware 等语义由各自专项矩阵覆盖。
 
 func TestP6RouteActionMatrixTerminals(t *testing.T) {
 	registry := NewRegistry()
@@ -122,7 +124,7 @@ func TestP6RouteActionMatrixTerminals(t *testing.T) {
 
 func TestP6RouteModifierAndGlobalChainSelection(t *testing.T) {
 	// before/after/filter/wrap 与 global middleware 均按声明进入链，并按不同 priority 降序排列。
-	// 同 priority 的 wrap 次序不在本矩阵内声明（避免冻结仍开放的 tie 语义）。
+	// wrap 高优先级在请求侧先进入、响应侧后退出，因此是最外层；filter/after 响应候选低到高传递。
 	registry := NewRegistry()
 	artifact := routeArtifact("matrix.chain", "1.0.0", 'b')
 	targetID := "core.route.matrix.topic"
@@ -137,6 +139,18 @@ func TestP6RouteModifierAndGlobalChainSelection(t *testing.T) {
 	wrapLow := modifierRoute("matrix.chain.wrap_low", targetID, targetPath, extensionmanifest.RouteActionWrap, "GET", 15)
 	afterHigh := modifierRoute("matrix.chain.after_high", targetID, targetPath, extensionmanifest.RouteActionAfter, "GET", 50)
 	afterLow := modifierRoute("matrix.chain.after_low", targetID, targetPath, extensionmanifest.RouteActionAfter, "GET", 5)
+	requestContributions := []*extensionmanifest.ManifestRoute{
+		&globalHigh, &globalLow, &beforeHigh, &beforeLow, &filterHigh, &filterLow, &wrapHigh, &wrapLow,
+	}
+	for _, contribution := range requestContributions {
+		contribution.MutableRequestFields = []string{"/body/requestMarkers"}
+	}
+	responseContributions := []*extensionmanifest.ManifestRoute{
+		&filterHigh, &filterLow, &wrapHigh, &wrapLow, &afterHigh, &afterLow,
+	}
+	for _, contribution := range responseContributions {
+		contribution.MutableResponseFields = []string{"/body/responseMarkers"}
+	}
 	// 另一目标的 filter/wrap 不得进入本请求链。
 	otherFilter := modifierRoute("matrix.chain.other_filter", "core.route.matrix.other", "/matrix/other", extensionmanifest.RouteActionFilter, "GET", 100)
 	otherWrap := modifierRoute("matrix.chain.other_wrap", "core.route.matrix.other", "/matrix/other", extensionmanifest.RouteActionWrap, "GET", 100)
@@ -192,41 +206,271 @@ func TestP6RouteModifierAndGlobalChainSelection(t *testing.T) {
 		t.Fatalf("terminal=%#v", plan.Terminal())
 	}
 
-	// Dispatcher 按计划相位顺序调用插件步骤，after 可见 handler 响应。
-	order := make([]string, 0, len(chain))
+	// Dispatcher request 侧高到低进入，wrap/filter/after response 侧低到高展开。
+	// 每个贡献都写入不同 marker，并由下一层断言收到上一层已接受的 JSON 候选；
+	// 因而这里同时证明数据流方向，而不只是记录调用顺序。
+	order := make([]string, 0, len(chain)*2)
+	requestMarker := map[string]string{
+		globalHigh.ID: "global-high", globalLow.ID: "global-low",
+		beforeHigh.ID: "before-high", beforeLow.ID: "before-low",
+		filterHigh.ID: "filter-high-request", filterLow.ID: "filter-low-request",
+		wrapHigh.ID: "wrap-high-request", wrapLow.ID: "wrap-low-request",
+	}
+	requestBefore := map[string][]string{
+		globalHigh.ID: {"client"},
+		globalLow.ID:  {"client", "global-high"},
+		beforeHigh.ID: {"client", "global-high", "global-low"},
+		beforeLow.ID:  {"client", "global-high", "global-low", "before-high"},
+		filterHigh.ID: {"client", "global-high", "global-low", "before-high", "before-low"},
+		filterLow.ID: {
+			"client", "global-high", "global-low", "before-high", "before-low", "filter-high-request",
+		},
+		wrapHigh.ID: {
+			"client", "global-high", "global-low", "before-high", "before-low",
+			"filter-high-request", "filter-low-request",
+		},
+		wrapLow.ID: {
+			"client", "global-high", "global-low", "before-high", "before-low",
+			"filter-high-request", "filter-low-request", "wrap-high-request",
+		},
+	}
+	responseMarker := map[string]string{
+		wrapLow.ID: "wrap-low", wrapHigh.ID: "wrap-high",
+		filterLow.ID: "filter-low", filterHigh.ID: "filter-high",
+		afterLow.ID: "after-low", afterHigh.ID: "after-high",
+	}
+	responseBefore := map[string][]string{
+		wrapLow.ID:  {"core"},
+		wrapHigh.ID: {"core", "wrap-low"},
+		filterLow.ID: {
+			"core", "wrap-low", "wrap-high",
+		},
+		filterHigh.ID: {
+			"core", "wrap-low", "wrap-high", "filter-low",
+		},
+		afterLow.ID: {
+			"core", "wrap-low", "wrap-high", "filter-low", "filter-high",
+		},
+		afterHigh.ID: {
+			"core", "wrap-low", "wrap-high", "filter-low", "filter-high", "after-low",
+		},
+	}
 	invoker := &dispatchStepInvoker{invoke: func(_ context.Context, input RouteInvocation) (RouteInvocationResult, error) {
-		order = append(order, string(input.Step.Phase)+":"+input.Step.RouteID)
-		if input.Step.Phase == RoutePhaseAfter {
-			if input.Response == nil || string(input.Response.Body) != "core-body" {
-				t.Fatalf("after response = %#v", input.Response)
+		order = append(order, string(input.Step.Phase)+":"+input.Step.RouteID+":"+string(input.Stage))
+		switch input.Stage {
+		case InvocationStageRequest:
+			marker, ok := requestMarker[input.Step.RouteID]
+			if !ok {
+				t.Fatalf("unexpected request-stage route %q", input.Step.RouteID)
 			}
-			value := cloneDispatchResponse(*input.Response)
-			value.Headers.Set("X-Matrix-After", "1")
-			return RouteInvocationResult{Response: &value}, nil
+			want := requestBefore[input.Step.RouteID]
+			if got := matrixRouteBodyMarkers(t, input.Request.Body, "requestMarkers"); !reflect.DeepEqual(got, want) {
+				t.Fatalf("request candidate for %s = %#v want=%#v", input.Step.RouteID, got, want)
+			}
+			candidate := append(append([]string(nil), want...), marker)
+			return RouteInvocationResult{RequestPatch: []RoutePatchOperation{{
+				Kind: RoutePatchReplace, Path: "/body/requestMarkers", Value: routePatchValue(t, candidate),
+			}}}, nil
+		case InvocationStageResponse:
+			marker, ok := responseMarker[input.Step.RouteID]
+			if !ok || input.Response == nil {
+				t.Fatalf("unexpected response-stage input for %q: %#v", input.Step.RouteID, input.Response)
+			}
+			want := responseBefore[input.Step.RouteID]
+			if got := matrixRouteBodyMarkers(t, input.Response.Body, "responseMarkers"); !reflect.DeepEqual(got, want) {
+				t.Fatalf("response candidate for %s = %#v want=%#v", input.Step.RouteID, got, want)
+			}
+			candidate := append(append([]string(nil), want...), marker)
+			return RouteInvocationResult{ResponsePatch: []RoutePatchOperation{{
+				Kind: RoutePatchReplace, Path: "/body/responseMarkers", Value: routePatchValue(t, candidate),
+			}}}, nil
+		default:
+			t.Fatalf("plugin contribution %q invoked at stage %q", input.Step.RouteID, input.Stage)
 		}
 		return RouteInvocationResult{}, nil
 	}}
-	core := &dispatchCoreInvoker{invoke: func(_ context.Context, step RouteExecutionStep, _ DispatchRequest) (DispatchResponse, error) {
-		order = append(order, string(step.Phase)+":"+step.RouteID)
-		return DispatchResponse{Status: http.StatusOK, Body: []byte("core-body")}, nil
+	core := &dispatchCoreInvoker{invoke: func(_ context.Context, step RouteExecutionStep, request DispatchRequest) (DispatchResponse, error) {
+		order = append(order, string(step.Phase)+":"+step.RouteID+":"+string(InvocationStageHandler))
+		want := append(append([]string(nil), requestBefore[wrapLow.ID]...), requestMarker[wrapLow.ID])
+		if got := matrixRouteBodyMarkers(t, request.Body, "requestMarkers"); !reflect.DeepEqual(got, want) {
+			t.Fatalf("core request candidate = %#v want=%#v", got, want)
+		}
+		return DispatchResponse{Status: http.StatusOK, Body: []byte(`{"responseMarkers":["core"]}`)}, nil
 	}}
 	dispatcher := NewDispatcher(DispatcherConfig{
 		Plans: matrixPlanResolver{registry: registry}, Steps: invoker, Guard: &dispatchGuard{}, Schemas: &dispatchSchemas{},
 	})
-	result, err := dispatcher.Dispatch(context.Background(), DispatchRequest{Method: "GET", Path: "/matrix/topics/welcome"}, core)
-	if err != nil || !result.Handled || result.Response.Headers.Get("X-Matrix-After") != "1" {
+	result, err := dispatcher.Dispatch(context.Background(), DispatchRequest{
+		Method: "GET", Path: "/matrix/topics/welcome", Body: []byte(`{"requestMarkers":["client"]}`),
+	}, core)
+	if err != nil || !result.Handled {
 		t.Fatalf("result=%#v err=%v", result, err)
 	}
+	wantResponseMarkers := append(append([]string(nil), responseBefore[afterHigh.ID]...), responseMarker[afterHigh.ID])
+	if got := matrixRouteBodyMarkers(t, result.Response.Body, "responseMarkers"); !reflect.DeepEqual(got, wantResponseMarkers) {
+		t.Fatalf("final response markers=%#v want=%#v", got, wantResponseMarkers)
+	}
 	wantOrder := []string{
-		"global:matrix.chain.global_high", "global:matrix.chain.global_low",
-		"before:matrix.chain.before_high", "before:matrix.chain.before_low",
-		"filter:matrix.chain.filter_high", "filter:matrix.chain.filter_low",
-		"wrap:matrix.chain.wrap_high", "wrap:matrix.chain.wrap_low",
-		"handler:" + targetID,
-		"after:matrix.chain.after_high", "after:matrix.chain.after_low",
+		"global:matrix.chain.global_high:request", "global:matrix.chain.global_low:request",
+		"before:matrix.chain.before_high:request", "before:matrix.chain.before_low:request",
+		"filter:matrix.chain.filter_high:request", "filter:matrix.chain.filter_low:request",
+		"wrap:matrix.chain.wrap_high:request", "wrap:matrix.chain.wrap_low:request",
+		"handler:" + targetID + ":handler",
+		"wrap:matrix.chain.wrap_low:response", "wrap:matrix.chain.wrap_high:response",
+		"filter:matrix.chain.filter_low:response", "filter:matrix.chain.filter_high:response",
+		"after:matrix.chain.after_low:response", "after:matrix.chain.after_high:response",
 	}
 	if !reflect.DeepEqual(order, wantOrder) {
 		t.Fatalf("order=%#v want=%#v", order, wantOrder)
+	}
+}
+
+func matrixRouteBodyMarkers(t *testing.T, body []byte, field string) []string {
+	t.Helper()
+	var document map[string]json.RawMessage
+	if err := json.Unmarshal(body, &document); err != nil {
+		t.Fatalf("decode %s body %q: %v", field, body, err)
+	}
+	if len(document) != 1 {
+		t.Fatalf("%s body has unexpected fields: %s", field, body)
+	}
+	raw, ok := document[field]
+	if !ok {
+		t.Fatalf("%s body is missing marker field: %s", field, body)
+	}
+	var markers []string
+	if err := json.Unmarshal(raw, &markers); err != nil || markers == nil {
+		t.Fatalf("decode %s markers %q: %#v err=%v", field, raw, markers, err)
+	}
+	return markers
+}
+
+// TestP6RouteSamePriorityOrderingPermutations 钉住合法 Registry 发布下同优先级、
+// 同相位 contribution 的确定性次序：Plugins 与各插件 Routes 输入顺序变化不得改变
+// BuildExecutionPlan 产出的有序 contribution ID。
+func TestP6RouteSamePriorityOrderingPermutations(t *testing.T) {
+	targetID := "core.route.matrix.order"
+	targetPath := "/matrix/order/:id"
+	const priority = 40
+
+	type pluginRoutes struct {
+		artifact PluginArtifact
+		ids      []string
+	}
+	// 多 artifact、同 priority 的 before；route ID 必须落在 artifact.ExtensionID 前缀下。
+	// 期望最终仅按 route ID 升序（priority 相同），与 Plugins/Routes 输入次序无关。
+	defs := []pluginRoutes{
+		{routeArtifact("matrix.order.plugin.b", "1.0.0", 'b'), []string{
+			"matrix.order.plugin.b.bravo", "matrix.order.plugin.b.delta",
+		}},
+		{routeArtifact("matrix.order.plugin.a", "1.0.0", 'a'), []string{"matrix.order.plugin.a.alpha"}},
+		{routeArtifact("matrix.order.plugin.c", "1.0.0", 'c'), []string{"matrix.order.plugin.c.charlie"}},
+	}
+	wantContribIDs := []string{
+		"matrix.order.plugin.a.alpha",
+		"matrix.order.plugin.b.bravo",
+		"matrix.order.plugin.b.delta",
+		"matrix.order.plugin.c.charlie",
+	}
+
+	// 若干 Plugins 顺序与 per-plugin Routes 顺序置换；均须产出相同有序 ID。
+	permutations := [][]pluginRoutes{
+		defs,
+		{defs[2], defs[0], defs[1]},
+		{defs[1], defs[2], defs[0]},
+		{
+			{defs[0].artifact, []string{defs[0].ids[1], defs[0].ids[0]}},
+			defs[2],
+			defs[1],
+		},
+		{
+			{defs[2].artifact, append([]string(nil), defs[2].ids...)},
+			{defs[0].artifact, []string{defs[0].ids[1], defs[0].ids[0]}},
+			{defs[1].artifact, append([]string(nil), defs[1].ids...)},
+		},
+	}
+
+	var baseline []string
+	for index, perm := range permutations {
+		plugins := make([]PluginRouteSet, 0, len(perm))
+		for _, item := range perm {
+			routes := make([]extensionmanifest.ManifestRoute, 0, len(item.ids))
+			for _, id := range item.ids {
+				routes = append(routes, modifierRoute(
+					id, targetID, targetPath, extensionmanifest.RouteActionBefore, "GET", priority,
+				))
+			}
+			plugins = append(plugins, PluginRouteSet{Artifact: item.artifact, Routes: routes})
+		}
+
+		registry := NewRegistry()
+		if _, err := registry.Publish(Publication{
+			Core:    []CoreRoute{coreRoute(targetID, "GET", targetPath)},
+			Plugins: plugins,
+		}); err != nil {
+			t.Fatalf("perm %d publish: %v", index, err)
+		}
+		plan, err := registry.BuildExecutionPlan("GET", "/matrix/order/7")
+		if err != nil {
+			t.Fatalf("perm %d plan: %v", index, err)
+		}
+
+		got := make([]string, 0, len(wantContribIDs))
+		for _, step := range plan.Chain() {
+			if step.Phase == RoutePhaseBefore {
+				got = append(got, step.RouteID)
+			}
+		}
+		if index == 0 {
+			if !reflect.DeepEqual(got, wantContribIDs) {
+				t.Fatalf("baseline contrib ids=%#v want=%#v", got, wantContribIDs)
+			}
+			baseline = got
+			continue
+		}
+		if !reflect.DeepEqual(got, baseline) {
+			t.Fatalf("perm %d contrib ids=%#v baseline=%#v", index, got, baseline)
+		}
+	}
+}
+
+// TestP6RoutePriorityTieBreakOrder 用合成 Route 直接证明 sortExecutionRoutes
+// 的完整 tie-break：priority 降序 → route ID 升序 → contract version 升序 →
+// artifact extension ID 升序 → runtime instance ID 升序。
+// 更深键位不通过非法 Registry 发布制造（合法 publication 下不可达或不独立）。
+func TestP6RoutePriorityTieBreakOrder(t *testing.T) {
+	mk := func(priority int, id, contractVersion, extensionID, runtimeInstanceID string) Route {
+		return Route{
+			ID: id, ContractVersion: contractVersion, Priority: priority,
+			Provider: Provider{Kind: ProviderPlugin, Artifact: PluginArtifact{
+				ExtensionID: extensionID, RuntimeInstanceID: runtimeInstanceID,
+			}},
+		}
+	}
+
+	// 故意打乱，覆盖每一层比较键。
+	routes := []Route{
+		mk(10, "b", "v1", "ext.a", "rt-1"),
+		mk(30, "z", "v9", "ext.z", "rt-9"),
+		mk(10, "a", "v2", "ext.b", "rt-2"),
+		mk(10, "a", "v1", "ext.c", "rt-3"),
+		mk(10, "a", "v1", "ext.b", "rt-5"),
+		mk(10, "a", "v1", "ext.b", "rt-4"),
+		mk(20, "m", "v1", "ext.m", "rt-1"),
+	}
+	sortExecutionRoutes(routes)
+
+	want := []Route{
+		mk(30, "z", "v9", "ext.z", "rt-9"),
+		mk(20, "m", "v1", "ext.m", "rt-1"),
+		mk(10, "a", "v1", "ext.b", "rt-4"),
+		mk(10, "a", "v1", "ext.b", "rt-5"),
+		mk(10, "a", "v1", "ext.c", "rt-3"),
+		mk(10, "a", "v2", "ext.b", "rt-2"),
+		mk(10, "b", "v1", "ext.a", "rt-1"),
+	}
+	if !reflect.DeepEqual(routes, want) {
+		t.Fatalf("sorted=%#v want=%#v", routes, want)
 	}
 }
 

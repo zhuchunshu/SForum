@@ -26,18 +26,24 @@ var (
 )
 
 type DispatchRequest struct {
-	Method           string
-	Path             string
-	Query            string
-	Headers          http.Header
-	Body             []byte
-	Params           map[string]string
-	ActorID          int64
-	Authenticated    bool
-	CredentialSource DispatchCredentialSource
-	Permissions      map[string]bool
-	ClientIP         string
+	Method            string
+	Path              string
+	Query             string
+	Headers           http.Header
+	Body              []byte
+	Params            map[string]string
+	ActorID           int64
+	Authenticated     bool
+	CredentialSource  DispatchCredentialSource
+	Permissions       map[string]bool
+	ClientIP          string
+	hostMutatedParams bool
 }
+
+// HostMutatedParams reports whether the Dispatcher applied an exact published
+// route-params mutation operation through the Host Mutation Engine.
+// The proof bit is deliberately unexported so HTTP callers cannot manufacture it.
+func (r DispatchRequest) HostMutatedParams() bool { return r.hostMutatedParams }
 
 type DispatchCredentialSource string
 
@@ -87,6 +93,8 @@ type RouteInvocation struct {
 type RouteInvocationResult struct {
 	Request           *DispatchRequest
 	Response          *DispatchResponse
+	RequestPatch      []RoutePatchOperation
+	ResponsePatch     []RoutePatchOperation
 	ResponseStarted   bool
 	SideEffectStarted bool
 }
@@ -173,7 +181,14 @@ func (d *Dispatcher) Dispatch(ctx context.Context, request DispatchRequest, core
 		// would silently turn downloads, streams, and protocol upgrades into buffers.
 		return DispatchResult{}, nil
 	}
+	if plan.UnsafeMethod() && routeChainHasResponseModifiers(chain) && d.failures == nil {
+		// Unsafe response modifiers may fail only after the handler has written.
+		// Without the Host-owned audit/quarantine sink, executing the writer would
+		// leave retries able to create a second writer with no durable incident.
+		return DispatchResult{}, fmt.Errorf("%w: unsafe response modifiers require a failure recorder", ErrDispatchTransport)
+	}
 	request.Params = plan.Params()
+	request.hostMutatedParams = false
 	request.Headers = cloneHTTPHeader(request.Headers)
 	request.Body = append([]byte(nil), request.Body...)
 	request.Permissions = cloneDispatchPermissions(request.Permissions)
@@ -191,13 +206,18 @@ func (d *Dispatcher) Dispatch(ctx context.Context, request DispatchRequest, core
 			if terminal.Mode != extensionmanifest.RouteModeHTTP || d.idempotency == nil {
 				return DispatchResult{}, ErrDispatchIdempotencyUnavailable
 			}
+			// Until mutation evidence is durably bound to replay, a required-idempotency
+			// route must fail before Begin rather than execute a modifier twice.
+			if routeChainHasMutableRequestFields(chain) {
+				return DispatchResult{}, ErrDispatchIdempotencyUnavailable
+			}
 			var replay *DispatchResponse
 			idempotencyLease, replay, err = d.idempotency.Begin(ctx, plan, terminal, policy, request)
 			if err != nil {
 				return DispatchResult{}, err
 			}
 			if replay != nil {
-				if err := d.authorizeReplay(ctx, plan, chain, request); err != nil {
+				if err := d.authorizeReplay(ctx, plan, request, replay); err != nil {
 					return DispatchResult{}, err
 				}
 				return DispatchResult{Handled: true, Response: cloneDispatchResponse(*replay)}, nil
@@ -216,58 +236,97 @@ func (d *Dispatcher) Dispatch(ctx context.Context, request DispatchRequest, core
 	var response *DispatchResponse
 	committingStep := -1
 	var committingStarted time.Time
+	var committingStage InvocationStage
 	var committedAfterFailure *RouteCommittedAfterFailure
-	for index, step := range chain {
+	responseEligible := make([]bool, len(chain))
+	sequence, err := bufferedRouteInvocationSequence(plan)
+	if err != nil {
+		return DispatchResult{}, err
+	}
+dispatchSequence:
+	for _, execution := range sequence {
+		index, stage := execution.index, execution.stage
+		step := chain[index]
+		if stage == InvocationStageResponse && pairedResponseStageAction(step.Action) && !responseEligible[index] {
+			continue
+		}
 		started := time.Now()
-		authority, err := d.authorize(ctx, plan, index, step, request, response, InvocationStageExecute, commit)
+		authority, err := d.authorize(ctx, plan, index, step, request, response, stage, commit)
 		if err != nil {
-			d.appendTrace(plan, index, step, RouteTraceDenied, started, commit.State())
-			if event := d.committedAfterFailure(plan, index, step, request, response, RouteFailureGuardDenied, false); event != nil {
+			if ctxErr := ctx.Err(); ctxErr != nil && errors.Is(err, ctxErr) {
+				return DispatchResult{}, ctxErr
+			}
+			outcome, code, observed := classifyRouteGuardFailure(err)
+			d.appendTrace(plan, index, step, stage, outcome, started, commit.State())
+			if event := d.committedAfterFailure(plan, index, step, stage, request, response, code, observed); event != nil {
 				committedAfterFailure, committingStep, committingStarted = event, index, started
-				break
+				break dispatchSequence
 			}
 			return DispatchResult{}, err
 		}
 		if d.schemas == nil && step.RequestSchema != "" {
-			d.appendTrace(plan, index, step, RouteTraceSchemaRejected, started, commit.State())
-			if event := d.committedAfterFailure(plan, index, step, request, response, RouteFailureRequestSchemaRejected, false); event != nil {
+			d.appendTrace(plan, index, step, stage, RouteTraceSchemaRejected, started, commit.State())
+			if event := d.committedAfterFailure(plan, index, step, stage, request, response, RouteFailureRequestSchemaRejected, false); event != nil {
 				committedAfterFailure, committingStep, committingStarted = event, index, started
-				break
+				break dispatchSequence
 			}
 			return DispatchResult{}, fmt.Errorf("%w: request validator is unavailable", ErrDispatchSchema)
 		}
 		if d.schemas != nil && step.RequestSchema != "" {
 			if err := d.schemas.ValidateRequest(ctx, step, request); err != nil {
-				d.appendTrace(plan, index, step, RouteTraceSchemaRejected, started, commit.State())
-				if event := d.committedAfterFailure(plan, index, step, request, response, RouteFailureRequestSchemaRejected, false); event != nil {
+				d.appendTrace(plan, index, step, stage, RouteTraceSchemaRejected, started, commit.State())
+				if event := d.committedAfterFailure(plan, index, step, stage, request, response, RouteFailureRequestSchemaRejected, false); event != nil {
 					committedAfterFailure, committingStep, committingStarted = event, index, started
-					break
+					break dispatchSequence
 				}
 				return DispatchResult{}, fmt.Errorf("%w: %v", ErrDispatchSchema, err)
 			}
 		}
+		if stage == InvocationStageResponse {
+			if response == nil {
+				return DispatchResult{}, fmt.Errorf("%w: response stage has no prior response", ErrDispatchTransport)
+			}
+			if d.schemas == nil && step.ResponseSchema != "" {
+				d.appendTrace(plan, index, step, stage, RouteTraceSchemaRejected, started, commit.State())
+				if event := d.committedAfterFailure(plan, index, step, stage, request, response, RouteFailureResponseSchemaRejected, false); event != nil {
+					committedAfterFailure, committingStep, committingStarted = event, index, started
+					break dispatchSequence
+				}
+				return DispatchResult{}, fmt.Errorf("%w: response validator is unavailable", ErrDispatchSchema)
+			}
+			if d.schemas != nil && step.ResponseSchema != "" {
+				if err := d.schemas.ValidateResponse(ctx, step, request, *response); err != nil {
+					d.appendTrace(plan, index, step, stage, RouteTraceSchemaRejected, started, commit.State())
+					if event := d.committedAfterFailure(plan, index, step, stage, request, response, RouteFailureResponseSchemaRejected, false); event != nil {
+						committedAfterFailure, committingStep, committingStarted = event, index, started
+						break dispatchSequence
+					}
+					return DispatchResult{}, fmt.Errorf("%w: %v", ErrDispatchSchema, err)
+				}
+			}
+		}
 
 		var invocation RouteInvocationResult
-		if step.Phase == RoutePhaseHandler && step.Provider.Kind == ProviderCore ||
-			step.Phase == RoutePhaseHandler && (step.Action == extensionmanifest.RouteActionAlias || step.Action == extensionmanifest.RouteActionRewrite) {
+		if stage == InvocationStageHandler && step.Provider.Kind == ProviderCore ||
+			stage == InvocationStageHandler && (step.Action == extensionmanifest.RouteActionAlias || step.Action == extensionmanifest.RouteActionRewrite) {
 			if core == nil {
-				d.appendTrace(plan, index, step, RouteTraceTransportFailed, started, commit.State())
+				d.appendTrace(plan, index, step, stage, RouteTraceTransportFailed, started, commit.State())
 				return DispatchResult{}, fmt.Errorf("%w: core handler is unavailable", ErrDispatchTransport)
 			}
 			value, callErr := core.InvokeCore(ctx, step, request)
 			if callErr != nil {
-				d.appendTrace(plan, index, step, RouteTraceTransportFailed, started, commit.State())
+				d.appendTrace(plan, index, step, stage, RouteTraceTransportFailed, started, commit.State())
 				return DispatchResult{}, callErr
 			}
 			invocation.Response = &value
-		} else if step.Phase == RoutePhaseHandler && step.Action == extensionmanifest.RouteActionRedirect {
+		} else if stage == InvocationStageHandler && step.Action == extensionmanifest.RouteActionRedirect {
 			location, locationErr := routeRedirectLocation(step)
 			if locationErr != nil {
 				return DispatchResult{}, locationErr
 			}
 			invocation.Response = &DispatchResponse{Status: step.StatusCode, Headers: http.Header{"Location": []string{location}}}
 		} else {
-			invocation, err = d.invokePlugin(ctx, plan, index, step, request, response, commit, authority)
+			invocation, err = d.invokePlugin(ctx, plan, index, step, stage, request, response, commit, authority)
 			if err != nil {
 				// Transport errors may arrive after a remote side effect or response began.
 				// Advance the fence before evaluating any safe-method fallback.
@@ -277,27 +336,33 @@ func (d *Dispatcher) Dispatch(ctx context.Context, request DispatchRequest, core
 				if invocation.ResponseStarted {
 					commit.ResponseStarted()
 				}
-				d.appendTrace(plan, index, step, RouteTraceTransportFailed, started, commit.State())
+				d.appendTrace(plan, index, step, stage, RouteTraceTransportFailed, started, commit.State())
 				observed := invocation.SideEffectStarted || invocation.ResponseStarted
-				if event := d.committedAfterFailure(plan, index, step, request, response, RouteFailureTransportFailed, observed); event != nil {
+				if event := d.committedAfterFailure(plan, index, step, stage, request, response, RouteFailureTransportFailed, observed); event != nil {
 					committedAfterFailure, committingStep, committingStarted = event, index, started
-					break
+					break dispatchSequence
 				}
-				fallback, fallbackErr := d.fallback(ctx, plan, index, step, request, core, commit)
+				var fallback *DispatchResponse
+				var fallbackErr error
+				if stage != InvocationStageResponse {
+					fallback, fallbackErr = d.fallback(ctx, plan, index, step, request, core, commit)
+				}
 				if fallbackErr != nil {
 					return DispatchResult{}, fallbackErr
 				}
 				if fallback != nil {
 					response = fallback
-					d.appendTrace(plan, index, step, RouteTraceFallbackUsed, started, commit.State())
+					d.appendTrace(plan, index, step, stage, RouteTraceFallbackUsed, started, commit.State())
 					committingStep = index
 					committingStarted = started
-					break
+					committingStage = stage
+					break dispatchSequence
 				}
-				if plan.AllowsFallback(index, commit.State()) && step.Phase != RoutePhaseHandler {
-					d.appendTrace(plan, index, step, RouteTraceFallbackUsed, started, commit.State())
+				if stage == InvocationStageRequest && plan.AllowsFallback(index, commit.State()) {
+					d.appendTrace(plan, index, step, stage, RouteTraceFallbackUsed, started, commit.State())
 					committingStep = index
 					committingStarted = started
+					committingStage = stage
 					continue
 				}
 				return DispatchResult{}, err
@@ -310,35 +375,99 @@ func (d *Dispatcher) Dispatch(ctx context.Context, request DispatchRequest, core
 		if invocation.ResponseStarted {
 			commit.ResponseStarted()
 		}
-		if invocation.Request != nil {
-			request = cloneDispatchRequest(*invocation.Request)
+		if err := validateRouteInvocationResult(stage, invocation); err != nil {
+			d.appendTrace(plan, index, step, stage, RouteTraceSchemaRejected, started, commit.State())
+			if event := d.committedAfterFailure(plan, index, step, stage, request, response, RouteFailureResponseSchemaRejected, true); event != nil {
+				committedAfterFailure, committingStep, committingStarted = event, index, started
+				break dispatchSequence
+			}
+			return DispatchResult{}, err
 		}
-		if invocation.Response != nil {
+		switch stage {
+		case InvocationStageRequest:
+			if len(invocation.RequestPatch) != 0 {
+				if planTerminalUsesFrozenPathParams(plan) && routeRequestPatchMutatesParams(invocation.RequestPatch) {
+					d.appendTrace(plan, index, step, stage, RouteTraceSchemaRejected, started, commit.State())
+					return DispatchResult{}, fmt.Errorf("%w: core-bound route params cannot be mutated after route selection", ErrDispatchSchema)
+				}
+				value, patchErr := applyRouteRequestPatch(
+					request, invocation.RequestPatch, step.MutableRequestFields, rawMutationAuthority(authority),
+				)
+				if patchErr != nil {
+					d.appendTrace(plan, index, step, stage, RouteTraceSchemaRejected, started, commit.State())
+					return DispatchResult{}, fmt.Errorf("%w: %v", ErrDispatchSchema, patchErr)
+				}
+				if routeRequestPatchMutatesParams(invocation.RequestPatch) {
+					value.hostMutatedParams = true
+				}
+				if d.schemas == nil && step.RequestSchema != "" {
+					return DispatchResult{}, fmt.Errorf("%w: request validator is unavailable", ErrDispatchSchema)
+				}
+				if d.schemas != nil && step.RequestSchema != "" {
+					if err := d.schemas.ValidateRequest(ctx, step, value); err != nil {
+						d.appendTrace(plan, index, step, stage, RouteTraceSchemaRejected, started, commit.State())
+						return DispatchResult{}, fmt.Errorf("%w: %v", ErrDispatchSchema, err)
+					}
+				}
+				request = value
+			}
+		case InvocationStageHandler:
 			value := cloneDispatchResponse(*invocation.Response)
 			if d.schemas == nil && step.ResponseSchema != "" {
-				d.appendTrace(plan, index, step, RouteTraceSchemaRejected, started, commit.State())
-				if event := d.committedAfterFailure(plan, index, step, request, response, RouteFailureResponseSchemaRejected, true); event != nil {
+				d.appendTrace(plan, index, step, stage, RouteTraceSchemaRejected, started, commit.State())
+				if event := d.committedAfterFailure(plan, index, step, stage, request, response, RouteFailureResponseSchemaRejected, true); event != nil {
 					committedAfterFailure, committingStep, committingStarted = event, index, started
-					break
+					break dispatchSequence
 				}
 				return DispatchResult{}, fmt.Errorf("%w: response validator is unavailable", ErrDispatchSchema)
 			}
 			if d.schemas != nil && step.ResponseSchema != "" {
 				if err := d.schemas.ValidateResponse(ctx, step, request, value); err != nil {
-					d.appendTrace(plan, index, step, RouteTraceSchemaRejected, started, commit.State())
-					if event := d.committedAfterFailure(plan, index, step, request, response, RouteFailureResponseSchemaRejected, true); event != nil {
+					d.appendTrace(plan, index, step, stage, RouteTraceSchemaRejected, started, commit.State())
+					if event := d.committedAfterFailure(plan, index, step, stage, request, response, RouteFailureResponseSchemaRejected, true); event != nil {
 						committedAfterFailure, committingStep, committingStarted = event, index, started
-						break
+						break dispatchSequence
+					}
+					return DispatchResult{}, fmt.Errorf("%w: %v", ErrDispatchSchema, err)
+				}
+			}
+			response = &value
+		case InvocationStageResponse:
+			if len(invocation.ResponsePatch) == 0 {
+				break
+			}
+			value, patchErr := applyRouteResponsePatch(*response, invocation.ResponsePatch, step.MutableResponseFields)
+			if patchErr != nil {
+				d.appendTrace(plan, index, step, stage, RouteTraceSchemaRejected, started, commit.State())
+				if event := d.committedAfterFailure(plan, index, step, stage, request, response, RouteFailureResponseSchemaRejected, true); event != nil {
+					committedAfterFailure, committingStep, committingStarted = event, index, started
+					break dispatchSequence
+				}
+				return DispatchResult{}, fmt.Errorf("%w: %v", ErrDispatchSchema, patchErr)
+			}
+			if d.schemas == nil && step.ResponseSchema != "" {
+				return DispatchResult{}, fmt.Errorf("%w: response validator is unavailable", ErrDispatchSchema)
+			}
+			if d.schemas != nil && step.ResponseSchema != "" {
+				if err := d.schemas.ValidateResponse(ctx, step, request, value); err != nil {
+					d.appendTrace(plan, index, step, stage, RouteTraceSchemaRejected, started, commit.State())
+					if event := d.committedAfterFailure(plan, index, step, stage, request, response, RouteFailureResponseSchemaRejected, true); event != nil {
+						committedAfterFailure, committingStep, committingStarted = event, index, started
+						break dispatchSequence
 					}
 					return DispatchResult{}, fmt.Errorf("%w: %v", ErrDispatchSchema, err)
 				}
 			}
 			response = &value
 		}
+		if stage == InvocationStageRequest && pairedResponseStageAction(step.Action) {
+			responseEligible[index] = true
+		}
 		if step.Provider.Kind == ProviderPlugin {
-			d.appendTrace(plan, index, step, RouteTraceSucceeded, started, commit.State())
+			d.appendTrace(plan, index, step, stage, RouteTraceSucceeded, started, commit.State())
 			committingStep = index
 			committingStarted = started
+			committingStage = stage
 		}
 	}
 	if response == nil {
@@ -364,7 +493,10 @@ func (d *Dispatcher) Dispatch(ctx context.Context, request DispatchRequest, core
 		return DispatchResult{}, ErrDispatchAlreadyCommitted
 	}
 	if committingStep >= 0 {
-		d.appendTrace(plan, committingStep, chain[committingStep], RouteTraceCommitted, committingStarted, commit.State())
+		if committedAfterFailure != nil {
+			committingStage = committedAfterFailure.InvocationStage
+		}
+		d.appendTrace(plan, committingStep, chain[committingStep], committingStage, RouteTraceCommitted, committingStarted, commit.State())
 	}
 	if committedAfterFailure != nil {
 		committedAfterFailure.CommitState = commit.State()
@@ -400,17 +532,18 @@ func (d *Dispatcher) committedAfterFailure(
 	plan RouteExecutionPlan,
 	stepIndex int,
 	step RouteExecutionStep,
+	stage InvocationStage,
 	request DispatchRequest,
 	response *DispatchResponse,
 	code RouteFailureCode,
 	runtimeExecutionObserved bool,
 ) *RouteCommittedAfterFailure {
 	if d == nil || d.failures == nil || !plan.UnsafeMethod() || response == nil ||
-		step.Provider.Kind != ProviderPlugin || step.Phase != RoutePhaseAfter {
+		step.Provider.Kind != ProviderPlugin || stage != InvocationStageResponse || !responseStageAction(step.Action) {
 		return nil
 	}
 	return &RouteCommittedAfterFailure{
-		Revision: plan.Revision(), StepIndex: stepIndex, Phase: step.Phase, Action: step.Action,
+		Revision: plan.Revision(), StepIndex: stepIndex, Phase: step.Phase, InvocationStage: stage, Action: step.Action,
 		RouteID: step.RouteID, ContractVersion: step.ContractVersion, Method: plan.Method(),
 		PathSignature: routeStepPathSignature(step), FailureCode: code,
 		RuntimeExecutionObserved: runtimeExecutionObserved, ActorID: request.ActorID,
@@ -421,25 +554,54 @@ func (d *Dispatcher) committedAfterFailure(
 func (d *Dispatcher) authorizeReplay(
 	ctx context.Context,
 	plan RouteExecutionPlan,
-	chain []RouteExecutionStep,
 	request DispatchRequest,
+	response *DispatchResponse,
 ) error {
-	for index, step := range chain {
+	sequence, err := bufferedRouteInvocationSequence(plan)
+	if err != nil {
+		return err
+	}
+	chain := plan.Chain()
+	for _, execution := range sequence {
+		index, stage := execution.index, execution.stage
+		step := chain[index]
 		if step.Provider.Kind != ProviderPlugin {
 			continue
 		}
-		if _, err := d.authorize(ctx, plan, index, step, request, nil, InvocationStageExecute, nil); err != nil {
-			d.appendTrace(plan, index, step, RouteTraceDenied, time.Now(), RouteCommitPristine)
+		var prior *DispatchResponse
+		if stage == InvocationStageResponse && response != nil {
+			value := cloneDispatchResponse(*response)
+			prior = &value
+		}
+		_, err := d.authorize(ctx, plan, index, step, request, prior, stage, nil)
+		if err != nil {
+			if ctxErr := ctx.Err(); ctxErr != nil && errors.Is(err, ctxErr) {
+				return ctxErr
+			}
+			outcome, _, _ := classifyRouteGuardFailure(err)
+			d.appendTrace(plan, index, step, stage, outcome, time.Now(), RouteCommitPristine)
 			return err
 		}
 	}
 	return nil
 }
 
+func classifyRouteGuardFailure(err error) (RouteTraceOutcome, RouteFailureCode, bool) {
+	var pluginFailure *PluginGuardFailure
+	if errors.As(err, &pluginFailure) {
+		if pluginFailure.Kind() != PluginGuardFailureDenied {
+			return RouteTraceTransportFailed, RouteFailureTransportFailed, pluginFailure.RuntimeExecutionObserved()
+		}
+		return RouteTraceDenied, RouteFailureGuardDenied, pluginFailure.RuntimeExecutionObserved()
+	}
+	return RouteTraceDenied, RouteFailureGuardDenied, false
+}
+
 func (d *Dispatcher) appendTrace(
 	plan RouteExecutionPlan,
 	index int,
 	step RouteExecutionStep,
+	stage InvocationStage,
 	outcome RouteTraceOutcome,
 	started time.Time,
 	state RouteExecutionCommitState,
@@ -448,7 +610,7 @@ func (d *Dispatcher) appendTrace(
 		return
 	}
 	d.trace.AppendRouteTrace(RouteTraceEvent{
-		Revision: plan.Revision(), StepIndex: index, Phase: step.Phase, Action: step.Action,
+		Revision: plan.Revision(), StepIndex: index, Phase: step.Phase, InvocationStage: stage, Action: step.Action,
 		RouteID: step.RouteID, ContractVersion: step.ContractVersion, Method: plan.Method(),
 		PathSignature: routeStepPathSignature(step), Mode: step.Mode, Fallback: step.Fallback,
 		Outcome: outcome, Duration: time.Since(started), CommitState: state, Provider: step.Provider,
@@ -499,6 +661,13 @@ func (d *Dispatcher) authorize(
 		}
 	}
 	if err != nil {
+		if ctxErr := ctx.Err(); ctxErr != nil && errors.Is(err, ctxErr) {
+			return routeInvocationAuthority{}, ctxErr
+		}
+		var pluginFailure *PluginGuardFailure
+		if errors.As(err, &pluginFailure) && pluginFailure.Kind() != PluginGuardFailureDenied {
+			return routeInvocationAuthority{}, fmt.Errorf("%w: %w", ErrDispatchTransport, err)
+		}
 		return routeInvocationAuthority{}, fmt.Errorf("%w: %w", ErrDispatchDenied, err)
 	}
 	authority, valid := newRouteInvocationAuthority(plan, stepIndex, step, request, response, authorization, stage, commit)
@@ -513,6 +682,7 @@ func (d *Dispatcher) invokePlugin(
 	plan RouteExecutionPlan,
 	index int,
 	step RouteExecutionStep,
+	stage InvocationStage,
 	request DispatchRequest,
 	response *DispatchResponse,
 	commit *RouteCommitObserver,
@@ -533,7 +703,7 @@ func (d *Dispatcher) invokePlugin(
 		current = &value
 	}
 	result, err := d.steps.Invoke(callCtx, RouteInvocation{
-		PlanRevision: plan.Revision(), StepIndex: index, Step: step, Stage: InvocationStageExecute,
+		PlanRevision: plan.Revision(), StepIndex: index, Step: step, Stage: stage,
 		Request: cloneDispatchRequest(request), Response: current, Commit: commit, authority: authority,
 	})
 	if err != nil {

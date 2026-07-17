@@ -143,13 +143,13 @@ func (d *RouteStreamDispatch) Open(ctx context.Context) (RouteStreamStart, error
 	d.opened = true
 	d.mu.Unlock()
 	authority, err := d.dispatcher.authorize(
-		ctx, d.plan, d.index, d.step, d.request, nil, InvocationStageExecute, d.commit,
+		ctx, d.plan, d.index, d.step, d.request, nil, InvocationStageHandler, d.commit,
 	)
 	if err != nil {
 		d.mu.Lock()
 		d.finished = true
 		d.mu.Unlock()
-		d.dispatcher.appendTrace(d.plan, d.index, d.step, RouteTraceDenied, d.started, d.commit.State())
+		d.dispatcher.appendTrace(d.plan, d.index, d.step, InvocationStageHandler, RouteTraceDenied, d.started, d.commit.State())
 		return RouteStreamStart{}, err
 	}
 	invoker, ok := d.dispatcher.steps.(StreamingStepInvoker)
@@ -160,7 +160,7 @@ func (d *RouteStreamDispatch) Open(ctx context.Context) (RouteStreamStart, error
 	d.RequestStarted()
 	result, err := invoker.OpenStream(ctx, RouteInvocation{
 		PlanRevision: d.plan.Revision(), StepIndex: d.index, Step: d.step,
-		Stage: InvocationStageExecute, Request: cloneDispatchRequest(d.request), Commit: d.commit,
+		Stage: InvocationStageHandler, Request: cloneDispatchRequest(d.request), Commit: d.commit,
 		authority: authority,
 	})
 	if err != nil {
@@ -202,7 +202,7 @@ func (d *RouteStreamDispatch) ResponseStarted() {
 	}
 	d.responseStarted = true
 	d.commit.ResponseStarted()
-	d.dispatcher.appendTrace(d.plan, d.index, d.step, RouteTraceSucceeded, d.started, d.commit.State())
+	d.dispatcher.appendTrace(d.plan, d.index, d.step, InvocationStageHandler, RouteTraceSucceeded, d.started, d.commit.State())
 }
 
 func (d *RouteStreamDispatch) StreamFailed(err error) error {
@@ -223,7 +223,7 @@ func (d *RouteStreamDispatch) Fail() {
 		return
 	}
 	d.finished = true
-	d.dispatcher.appendTrace(d.plan, d.index, d.step, RouteTraceTransportFailed, d.started, d.commit.State())
+	d.dispatcher.appendTrace(d.plan, d.index, d.step, InvocationStageHandler, RouteTraceTransportFailed, d.started, d.commit.State())
 }
 
 func (d *RouteStreamDispatch) Complete() error {
@@ -236,6 +236,6 @@ func (d *RouteStreamDispatch) Complete() error {
 		return ErrDispatchAlreadyCommitted
 	}
 	d.finished = true
-	d.dispatcher.appendTrace(d.plan, d.index, d.step, RouteTraceCommitted, d.started, d.commit.State())
+	d.dispatcher.appendTrace(d.plan, d.index, d.step, InvocationStageHandler, RouteTraceCommitted, d.started, d.commit.State())
 	return nil
 }

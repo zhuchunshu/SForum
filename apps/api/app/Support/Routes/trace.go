@@ -25,6 +25,7 @@ type RouteTraceEvent struct {
 	Revision        uint64
 	StepIndex       int
 	Phase           RouteExecutionPhase
+	InvocationStage InvocationStage
 	Action          string
 	RouteID         string
 	ContractVersion string
@@ -44,6 +45,7 @@ type RouteTraceRecord struct {
 	Revision        uint64                    `json:"revision"`
 	StepIndex       int                       `json:"stepIndex"`
 	Phase           RouteExecutionPhase       `json:"phase"`
+	InvocationStage InvocationStage           `json:"invocationStage"`
 	Action          string                    `json:"action"`
 	RouteID         string                    `json:"routeId"`
 	ContractVersion string                    `json:"contractVersion"`
@@ -95,7 +97,7 @@ func (r *RouteTraceRing) AppendRouteTrace(event RouteTraceEvent) {
 	r.next++
 	record := RouteTraceRecord{
 		Sequence: r.next, ObservedAt: time.Now().UTC(), Revision: event.Revision,
-		StepIndex: event.StepIndex, Phase: event.Phase, Action: event.Action,
+		StepIndex: event.StepIndex, Phase: event.Phase, InvocationStage: event.InvocationStage, Action: event.Action,
 		RouteID: event.RouteID, ContractVersion: event.ContractVersion,
 		Method: event.Method, PathSignature: event.PathSignature, Mode: event.Mode,
 		Fallback: event.Fallback, Outcome: event.Outcome, DurationMicros: event.Duration.Microseconds(),
@@ -139,6 +141,7 @@ func validRouteTraceEvent(event RouteTraceEvent) bool {
 		!contractPattern.MatchString(event.ContractVersion) || !validMethod(event.Method) ||
 		event.Method == "*" || event.Duration < 0 || event.Duration > 24*time.Hour ||
 		!validTraceOutcome(event.Outcome) || !validTracePhase(event.Phase) ||
+		!ValidInvocationStageForStep(event.Phase, event.Action, event.InvocationStage) ||
 		!validTraceCommitState(event.CommitState) {
 		return false
 	}

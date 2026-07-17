@@ -205,8 +205,12 @@ func TestRouteTraceRingIsBoundedConcurrentDetachedAndPayloadFree(t *testing.T) {
 	records := ring.RouteTraces(10)
 	if len(records) != 2 || records[0].Sequence != 2 || records[1].Sequence != 3 ||
 		records[0].StepIndex != 1 || records[1].Provider.Artifact == nil ||
-		*records[1].Provider.Artifact != artifact {
+		records[1].InvocationStage != InvocationStageHandler || *records[1].Provider.Artifact != artifact {
 		t.Fatalf("bounded trace records = %#v", records)
+	}
+	body, err := json.Marshal(records[0])
+	if err != nil || !strings.Contains(string(body), `"invocationStage":"handler"`) {
+		t.Fatalf("trace JSON stage = %s, %v", body, err)
 	}
 	records[1].Provider.Artifact.ExtensionID = "mutated"
 	if ring.RouteTraces(1)[0].Provider.Artifact.ExtensionID != artifact.ExtensionID {
@@ -215,8 +219,20 @@ func TestRouteTraceRingIsBoundedConcurrentDetachedAndPayloadFree(t *testing.T) {
 	invalid := inspectorTraceEvent(artifact, "trace.exact.route", "GET", "/s:trace")
 	invalid.Provider.Artifact.PackageDigest = "forged"
 	ring.AppendRouteTrace(invalid)
+	missingStage := inspectorTraceEvent(artifact, "trace.exact.route", "GET", "/s:trace")
+	missingStage.InvocationStage = ""
+	ring.AppendRouteTrace(missingStage)
+	forgedStage := inspectorTraceEvent(artifact, "trace.exact.route", "GET", "/s:trace")
+	forgedStage.InvocationStage = InvocationStage("forged")
+	ring.AppendRouteTrace(forgedStage)
+	mismatchedStage := inspectorTraceEvent(artifact, "trace.exact.route", "GET", "/s:trace")
+	mismatchedStage.InvocationStage = InvocationStageRequest
+	ring.AppendRouteTrace(mismatchedStage)
+	mismatchedAction := inspectorTraceEvent(artifact, "trace.exact.route", "GET", "/s:trace")
+	mismatchedAction.Action = "after"
+	ring.AppendRouteTrace(mismatchedAction)
 	if ring.RouteTraces(10)[1].Sequence != 3 {
-		t.Fatal("invalid exact attribution entered trace ring")
+		t.Fatal("invalid exact attribution or phase/action/stage tuple entered trace ring")
 	}
 
 	concurrent := NewRouteTraceRing(64)
@@ -337,7 +353,8 @@ func inspectorBefore(id, targetID string) extensionmanifest.ManifestRoute {
 func inspectorTraceEvent(artifact PluginArtifact, routeID, method, signature string) RouteTraceEvent {
 	return RouteTraceEvent{
 		Revision: 1, StepIndex: 1, Phase: RoutePhaseHandler, Action: extensionmanifest.RouteActionReplace,
-		RouteID: routeID, ContractVersion: routeID + "@1", Method: method,
+		InvocationStage: InvocationStageHandler,
+		RouteID:         routeID, ContractVersion: routeID + "@1", Method: method,
 		PathSignature: signature, Mode: extensionmanifest.RouteModeHTTP, Fallback: "closed",
 		Outcome: RouteTraceSucceeded, Duration: time.Millisecond, CommitState: RouteCommitFinal,
 		Provider: Provider{Kind: ProviderPlugin, Artifact: artifact},

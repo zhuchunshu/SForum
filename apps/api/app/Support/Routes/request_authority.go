@@ -241,22 +241,23 @@ func routeAuthorityRequestDigest(request DispatchRequest) [sha256.Size]byte {
 		permissions = append(permissions, routeAuthorityPermission{Key: key, Allowed: request.Permissions[key]})
 	}
 	payload, _ := json.Marshal(struct {
-		Method           string                     `json:"method"`
-		Path             string                     `json:"path"`
-		Query            string                     `json:"query"`
-		Headers          []routeAuthorityHeader     `json:"headers"`
-		Body             []byte                     `json:"body"`
-		Params           []routeAuthorityEntry      `json:"params"`
-		ActorID          int64                      `json:"actorId"`
-		Authenticated    bool                       `json:"authenticated"`
-		CredentialSource DispatchCredentialSource   `json:"credentialSource"`
-		Permissions      []routeAuthorityPermission `json:"permissions"`
-		ClientIP         string                     `json:"clientIp"`
+		Method            string                     `json:"method"`
+		Path              string                     `json:"path"`
+		Query             string                     `json:"query"`
+		Headers           []routeAuthorityHeader     `json:"headers"`
+		Body              []byte                     `json:"body"`
+		Params            []routeAuthorityEntry      `json:"params"`
+		ActorID           int64                      `json:"actorId"`
+		Authenticated     bool                       `json:"authenticated"`
+		CredentialSource  DispatchCredentialSource   `json:"credentialSource"`
+		Permissions       []routeAuthorityPermission `json:"permissions"`
+		ClientIP          string                     `json:"clientIp"`
+		HostMutatedParams bool                       `json:"hostMutatedParams"`
 	}{
 		Method: request.Method, Path: request.Path, Query: request.Query, Headers: headers,
 		Body: append([]byte(nil), request.Body...), Params: params, ActorID: request.ActorID,
 		Authenticated: request.Authenticated, CredentialSource: request.CredentialSource,
-		Permissions: permissions, ClientIP: request.ClientIP,
+		Permissions: permissions, ClientIP: request.ClientIP, HostMutatedParams: request.hostMutatedParams,
 	})
 	return sha256.Sum256(payload)
 }

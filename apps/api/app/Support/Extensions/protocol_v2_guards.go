@@ -107,6 +107,7 @@ type ProtocolV2GuardRequest struct {
 	Headers              http.Header
 	PathParameters       map[string]string
 	QueryParameters      map[string]string
+	QueryParameterValues map[string][]string
 	RequestSchema        string
 	Body                 map[string]any
 	BodyPresent          bool
@@ -160,6 +161,12 @@ func (c *protocolV2Client) InvokeGuardContext(parent context.Context, input Prot
 	if err != nil {
 		return wrapProtocolV2AuthorityError(ErrProtocolV2GuardInvalid, err)
 	}
+	queryParameters, queryParameterValues, err := protocolV2RouteQueryParameters(
+		input.QueryParameters, input.QueryParameterValues,
+	)
+	if err != nil {
+		return fmt.Errorf("%w: invalid query parameters", ErrProtocolV2GuardInvalid)
+	}
 	headers.Set("X-SForum-Guard-Route-ID", route.ID)
 	headers.Set("X-SForum-Guard-Route-Contract", route.ContractVersion)
 	headers.Set("X-SForum-Guard-Kind", guard.Kind)
@@ -168,7 +175,7 @@ func (c *protocolV2Client) InvokeGuardContext(parent context.Context, input Prot
 		Method: input.Method, Path: input.Path, Headers: protocolV2RouteHeaders(headers),
 		RequestAuthorityMode: authorityMode, GuardKind: guardKind,
 		PathParameters:  cloneProtocolV2RouteParameters(input.PathParameters),
-		QueryParameters: cloneProtocolV2RouteParameters(input.QueryParameters), Body: body,
+		QueryParameters: queryParameters, QueryParameterValues: queryParameterValues, Body: body,
 	})
 	if err != nil {
 		switch {
@@ -207,6 +214,9 @@ func (c *protocolV2Client) validateFrozenGuard(
 		strings.TrimSpace(input.Method) == "" || !strings.HasPrefix(input.Path, "/") ||
 		input.BodyPresent && strings.TrimSpace(input.RequestSchema) == "" ||
 		input.Actor != nil && input.Actor.UserID <= 0 {
+		return extensions.ManifestGuard{}, extensions.ManifestRoute{}, ErrProtocolV2GuardInvalid
+	}
+	if _, _, err := protocolV2RouteQueryParameters(input.QueryParameters, input.QueryParameterValues); err != nil {
 		return extensions.ManifestGuard{}, extensions.ManifestRoute{}, ErrProtocolV2GuardInvalid
 	}
 	var guard *extensions.ManifestGuard

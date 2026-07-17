@@ -27,6 +27,7 @@ func TestRouteFailureRecorderQuarantinesOnlyRuntimeIncidentsAndAuditsDetachedMet
 		routeFailureRecorderEvent(routes.RouteFailureRequestSchemaRejected, false),
 		routeFailureRecorderEvent(routes.RouteFailureTransportFailed, false),
 		routeFailureRecorderEvent(routes.RouteFailureTransportFailed, true),
+		routeFailureRecorderEvent(routes.RouteFailureResponseSchemaRejected, false),
 		routeFailureRecorderEvent(routes.RouteFailureResponseSchemaRejected, true),
 	}
 	cancelled, cancel := context.WithCancel(context.Background())
@@ -65,10 +66,13 @@ func TestRouteFailureRecorderQuarantinesOnlyRuntimeIncidentsAndAuditsDetachedMet
 	if len(audits) != len(events) {
 		t.Fatalf("audits=%#v", audits)
 	}
-	wantQuarantine := []string{"not_required", "not_required", "execution_not_observed", "quarantined", "quarantined"}
+	wantQuarantine := []string{
+		"not_required", "not_required", "execution_not_observed", "quarantined", "not_required", "quarantined",
+	}
 	for index, recorded := range audits {
 		if recorded.Action != audit.ActionRouteCommittedAfterFailure || recorded.ActorUserID != 42 ||
 			recorded.Metadata["failureCode"] != events[index].FailureCode ||
+			recorded.Metadata["invocationStage"] != routes.InvocationStageResponse ||
 			recorded.Metadata["quarantineResult"] != wantQuarantine[index] ||
 			recorded.Metadata["packageDigest"] != strings.Repeat("a", 64) {
 			t.Fatalf("audit[%d]=%#v", index, recorded)
@@ -78,6 +82,42 @@ func TestRouteFailureRecorderQuarantinesOnlyRuntimeIncidentsAndAuditsDetachedMet
 				t.Fatalf("audit metadata contains %q: %#v", forbidden, recorded.Metadata)
 			}
 		}
+	}
+}
+
+func TestRouteFailureRecorderRejectsMissingInvalidOrMismatchedInvocationStage(t *testing.T) {
+	runtime := &recordingRouteIncidentRuntime{}
+	auditor := &recordingRouteFailureAuditor{}
+	recorder, err := newRouteFailureRecorder(runtime, auditor, discardRouteFailureLogger(), 2, time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, stage := range []routes.InvocationStage{"", "forged"} {
+		event := routeFailureRecorderEvent(routes.RouteFailureTransportFailed, true)
+		event.InvocationStage = stage
+		recorder.RecordCommittedAfterFailure(context.Background(), event)
+	}
+	for _, stage := range []routes.InvocationStage{routes.InvocationStageRequest, routes.InvocationStageHandler} {
+		event := routeFailureRecorderEvent(routes.RouteFailureTransportFailed, true)
+		event.InvocationStage = stage
+		recorder.RecordCommittedAfterFailure(context.Background(), event)
+	}
+	mismatched := routeFailureRecorderEvent(routes.RouteFailureTransportFailed, true)
+	mismatched.Phase = routes.RoutePhaseBefore
+	recorder.RecordCommittedAfterFailure(context.Background(), mismatched)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	if err := recorder.Close(ctx); err != nil {
+		t.Fatal(err)
+	}
+	runtime.mu.Lock()
+	quarantineCalls := len(runtime.calls)
+	runtime.mu.Unlock()
+	auditor.mu.Lock()
+	auditCalls := len(auditor.events)
+	auditor.mu.Unlock()
+	if quarantineCalls != 0 || auditCalls != 0 || recorder.Dropped() != 0 {
+		t.Fatalf("invalid stage reached recorder: quarantines=%d audits=%d dropped=%d", quarantineCalls, auditCalls, recorder.Dropped())
 	}
 }
 
@@ -145,7 +185,8 @@ func routeFailureRecorderEvent(
 	observed bool,
 ) routes.RouteCommittedAfterFailure {
 	return routes.RouteCommittedAfterFailure{
-		Revision: 7, StepIndex: 2, Phase: routes.RoutePhaseAfter, Action: "after",
+		Revision: 7, StepIndex: 2, Phase: routes.RoutePhaseAfter,
+		InvocationStage: routes.InvocationStageResponse, Action: "after",
 		RouteID: "failure.plugin.after", ContractVersion: "failure.plugin.after@1",
 		Method: "POST", PathSignature: "/s:failure", FailureCode: code,
 		RuntimeExecutionObserved: observed, ActorID: 42, ResponseStatus: 201,

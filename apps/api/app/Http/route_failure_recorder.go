@@ -81,6 +81,10 @@ func (r *RouteFailureRecorder) RecordCommittedAfterFailure(
 	if r == nil {
 		return
 	}
+	if event.InvocationStage != routes.InvocationStageResponse ||
+		!routes.ValidInvocationStageForStep(event.Phase, event.Action, event.InvocationStage) {
+		return
+	}
 	r.enqueueMu.RLock()
 	defer r.enqueueMu.RUnlock()
 	if r.closed {
@@ -185,7 +189,7 @@ func (r *RouteFailureRecorder) appendAudit(item recordedRouteFailure) {
 		Action:      audit.ActionRouteCommittedAfterFailure,
 		Metadata: map[string]any{
 			"revision": event.Revision, "stepIndex": event.StepIndex,
-			"phase": event.Phase, "action": event.Action,
+			"phase": event.Phase, "invocationStage": event.InvocationStage, "action": event.Action,
 			"routeId": event.RouteID, "contractVersion": event.ContractVersion,
 			"method": event.Method, "pathSignature": event.PathSignature,
 			"failureCode": event.FailureCode, "runtimeExecutionObserved": event.RuntimeExecutionObserved,
@@ -206,8 +210,9 @@ func (r *RouteFailureRecorder) appendAudit(item recordedRouteFailure) {
 }
 
 func routeFailureRequiresQuarantine(event routes.RouteCommittedAfterFailure) bool {
-	return event.FailureCode == routes.RouteFailureResponseSchemaRejected ||
-		event.FailureCode == routes.RouteFailureTransportFailed && event.RuntimeExecutionObserved
+	return event.RuntimeExecutionObserved &&
+		(event.FailureCode == routes.RouteFailureResponseSchemaRejected ||
+			event.FailureCode == routes.RouteFailureTransportFailed)
 }
 
 var _ routes.RouteFailureSink = (*RouteFailureRecorder)(nil)

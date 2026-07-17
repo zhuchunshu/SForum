@@ -23,7 +23,9 @@ func TestBufferedRouteStepInvokerSelectsV2WithOneAdmission(t *testing.T) {
 		t.Fatalf("calls=%d activeCalls=%d", runtime.calls, runtime.activeCalls)
 	}
 	if runtime.request.RouteID != "demo.route" || runtime.request.ContractVersion != "demo.route@1" ||
+		runtime.request.RouteAction != "add" || runtime.request.InvocationStage != extensionsruntime.ProtocolV2RouteInvocationStageHandler ||
 		runtime.request.PathParameters["id"] != "41" || runtime.request.QueryParameters["page"] != "2" ||
+		!reflect.DeepEqual(runtime.request.QueryParameterValues["page"], []string{"2"}) ||
 		runtime.request.Body["title"] != "hello" || runtime.request.Actor.UserID != 42 ||
 		runtime.request.IdempotencyKey != "route-request-42" ||
 		!reflect.DeepEqual(runtime.request.Actor.PermissionKeys, []string{"*", "topics.write"}) {
@@ -55,7 +57,6 @@ func TestBufferedRouteStepInvokerV2RejectsAmbiguousOrUntypedInput(t *testing.T) 
 		name   string
 		mutate func(*routes.RouteInvocation)
 	}{
-		{"repeated query", func(input *routes.RouteInvocation) { input.Request.Query = "page=1&page=2" }},
 		{"malformed JSON", func(input *routes.RouteInvocation) { input.Request.Body = []byte(`{"title":`) }},
 		{"JSON array", func(input *routes.RouteInvocation) { input.Request.Body = []byte(`[1,2]`) }},
 		{"JSON scalar", func(input *routes.RouteInvocation) { input.Request.Body = []byte(`true`) }},
@@ -76,6 +77,19 @@ func TestBufferedRouteStepInvokerV2RejectsAmbiguousOrUntypedInput(t *testing.T) 
 				t.Fatalf("remote called %d times", runtime.calls)
 			}
 		})
+	}
+}
+
+func TestBufferedRouteStepInvokerV2PreservesRepeatedAndEmptyQueryValues(t *testing.T) {
+	runtime := newRouteDispatcherV2Runtime(t)
+	input := routeDispatcherV2InvocationWithQuery(t, "tag=one&tag=&tag=two&page=2")
+	if _, err := NewBufferedRouteStepInvoker(runtime).Invoke(context.Background(), input); err != nil {
+		t.Fatal(err)
+	}
+	if runtime.request.QueryParameters["tag"] != "one" ||
+		!reflect.DeepEqual(runtime.request.QueryParameterValues["tag"], []string{"one", "", "two"}) ||
+		!reflect.DeepEqual(runtime.request.QueryParameterValues["page"], []string{"2"}) {
+		t.Fatalf("query projection = %#v / %#v", runtime.request.QueryParameters, runtime.request.QueryParameterValues)
 	}
 }
 
@@ -102,6 +116,51 @@ func TestBufferedRouteStepInvokerV2RejectsStreamPreflight(t *testing.T) {
 	}
 }
 
+func TestProtocolV2BridgeResponseShapeIsStageExact(t *testing.T) {
+	patch := []extensionsruntime.ProtocolV2RoutePatchOperation{{
+		Kind: extensionsruntime.ProtocolV2RoutePatchReplace, Path: "/status", Value: []byte(`204`),
+	}}
+	valid := []struct {
+		stage    routes.InvocationStage
+		response extensionsruntime.ProtocolV2RouteResponse
+	}{
+		{stage: routes.InvocationStageRequest, response: extensionsruntime.ProtocolV2RouteResponse{RequestPatch: patch}},
+		{stage: routes.InvocationStageResponse, response: extensionsruntime.ProtocolV2RouteResponse{ResponsePatch: patch}},
+		{stage: routes.InvocationStageHandler, response: extensionsruntime.ProtocolV2RouteResponse{StatusCode: stdhttp.StatusNoContent}},
+	}
+	for _, test := range valid {
+		if err := validateProtocolV2BridgeResponse(test.stage, test.response); err != nil {
+			t.Fatalf("valid %s response rejected: %v", test.stage, err)
+		}
+	}
+
+	invalid := []struct {
+		name     string
+		stage    routes.InvocationStage
+		response extensionsruntime.ProtocolV2RouteResponse
+	}{
+		{name: "request terminal", stage: routes.InvocationStageRequest, response: extensionsruntime.ProtocolV2RouteResponse{StatusCode: 200}},
+		{name: "request reverse patch", stage: routes.InvocationStageRequest, response: extensionsruntime.ProtocolV2RouteResponse{ResponsePatch: patch}},
+		{name: "response terminal", stage: routes.InvocationStageResponse, response: extensionsruntime.ProtocolV2RouteResponse{Headers: stdhttp.Header{"X-Test": {"forged"}}}},
+		{name: "response reverse patch", stage: routes.InvocationStageResponse, response: extensionsruntime.ProtocolV2RouteResponse{RequestPatch: patch}},
+		{name: "handler request patch", stage: routes.InvocationStageHandler, response: extensionsruntime.ProtocolV2RouteResponse{StatusCode: 200, RequestPatch: patch}},
+		{name: "handler response patch", stage: routes.InvocationStageHandler, response: extensionsruntime.ProtocolV2RouteResponse{StatusCode: 200, ResponsePatch: patch}},
+		{name: "handler invalid status", stage: routes.InvocationStageHandler, response: extensionsruntime.ProtocolV2RouteResponse{StatusCode: 99}},
+		{name: "handler continue", stage: routes.InvocationStageHandler, response: extensionsruntime.ProtocolV2RouteResponse{StatusCode: stdhttp.StatusContinue}},
+		{name: "handler switching protocols", stage: routes.InvocationStageHandler, response: extensionsruntime.ProtocolV2RouteResponse{StatusCode: stdhttp.StatusSwitchingProtocols}},
+		{name: "handler early hints", stage: routes.InvocationStageHandler, response: extensionsruntime.ProtocolV2RouteResponse{StatusCode: stdhttp.StatusEarlyHints}},
+		{name: "handler body presence drift", stage: routes.InvocationStageHandler, response: extensionsruntime.ProtocolV2RouteResponse{StatusCode: 200, Body: map[string]any{"ok": true}}},
+		{name: "unknown stage", stage: routes.InvocationStage("forged"), response: extensionsruntime.ProtocolV2RouteResponse{}},
+	}
+	for _, test := range invalid {
+		t.Run(test.name, func(t *testing.T) {
+			if err := validateProtocolV2BridgeResponse(test.stage, test.response); !errors.Is(err, ErrRouteRuntimeTarget) {
+				t.Fatalf("error=%v", err)
+			}
+		})
+	}
+}
+
 type routeDispatcherV2Runtime struct {
 	snapshot    extensionsruntime.RuntimeInstanceSnapshot
 	gate        *extensionsruntime.RuntimeAdmissionGate
@@ -115,6 +174,11 @@ type routeDispatcherV2Runtime struct {
 func newRouteDispatcherV2Runtime(t *testing.T) *routeDispatcherV2Runtime {
 	t.Helper()
 	artifact := routeDispatcherArtifact("demo", 'a')
+	return newRouteDispatcherV2RuntimeForArtifact(t, artifact)
+}
+
+func newRouteDispatcherV2RuntimeForArtifact(t *testing.T, artifact routes.PluginArtifact) *routeDispatcherV2Runtime {
+	t.Helper()
 	identity := extensionsruntime.RuntimeInstanceIdentity{ExtensionID: artifact.ExtensionID, InstanceID: artifact.RuntimeInstanceID}
 	gate, err := extensionsruntime.NewRuntimeAdmissionGate(identity)
 	if err != nil {
@@ -161,10 +225,18 @@ func (r *routeDispatcherV2Runtime) InvokeRouteInstance(
 	r.calls++
 	r.activeCalls = r.gate.Snapshot().ActiveTotal
 	r.request = request
+	if request.InvocationStage != extensionsruntime.ProtocolV2RouteInvocationStageHandler {
+		return extensionsruntime.ProtocolV2RouteResponse{}, r.err
+	}
 	return r.response, r.err
 }
 
 func routeDispatcherV2Invocation(t *testing.T) routes.RouteInvocation {
+	t.Helper()
+	return routeDispatcherV2InvocationWithQuery(t, "page=2")
+}
+
+func routeDispatcherV2InvocationWithQuery(t *testing.T, query string) routes.RouteInvocation {
 	t.Helper()
 	artifact := routeDispatcherArtifact("demo", 'a')
 	declaration := routeDispatcherManifestRoute(
@@ -173,7 +245,7 @@ func routeDispatcherV2Invocation(t *testing.T) routes.RouteInvocation {
 	declaration.RequestSchema = "demo.request@1"
 	declaration.ResponseSchema = "demo.response@1"
 	return captureAuthorizedRouteInvocation(t, artifact, declaration, routes.DispatchRequest{
-		Method: stdhttp.MethodPost, Path: "/demo/41", Query: "page=2",
+		Method: stdhttp.MethodPost, Path: "/demo/41", Query: query,
 		Headers: stdhttp.Header{
 			"Content-Type": {"application/json"}, "Idempotency-Key": {"route-request-42"},
 			"X-Test": {"value"}, "X-SForum-Forged": {"bad"},

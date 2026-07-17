@@ -9,7 +9,6 @@ import (
 	stdhttp "net/http"
 	"net/http/httptest"
 	"strings"
-	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -96,15 +95,7 @@ func TestRouteDispatcherMiddlewareRunsBeforeCoreAndLetsUnknownRoutesContinue(t *
 	}); err != nil {
 		t.Fatal(err)
 	}
-	runtime, target := newRouteDispatcherRuntime(t, artifact)
-	var phasesMu sync.Mutex
-	phases := []string{}
-	target.Config.Handler = stdhttp.HandlerFunc(func(writer stdhttp.ResponseWriter, request *stdhttp.Request) {
-		phasesMu.Lock()
-		phases = append(phases, request.Header.Get("X-SForum-Route-Phase"))
-		phasesMu.Unlock()
-		writer.WriteHeader(stdhttp.StatusNoContent)
-	})
+	runtime := newRouteDispatcherV2RuntimeForArtifact(t, artifact)
 	dispatcher := routes.NewDispatcher(routes.DispatcherConfig{
 		Plans: routeRegistryPlanResolver{registry: registry}, Steps: NewBufferedRouteStepInvoker(runtime),
 		Guard: HostRouteGuardAuthorizer{}, Schemas: CatalogRouteSchemaValidator{Catalog: acceptRouteSchemaCatalog{}},
@@ -123,11 +114,10 @@ func TestRouteDispatcherMiddlewareRunsBeforeCoreAndLetsUnknownRoutesContinue(t *
 	if response.StatusCode != stdhttp.StatusOK || string(body) != "core" || provider.coreCalls != 1 {
 		t.Fatalf("status=%d body=%q coreCalls=%d", response.StatusCode, body, provider.coreCalls)
 	}
-	phasesMu.Lock()
-	if len(phases) != 1 || phases[0] != string(routes.RoutePhaseBefore) {
-		t.Fatalf("phases=%#v", phases)
+	if runtime.calls != 1 || runtime.request.RouteID != before.ID ||
+		runtime.request.InvocationStage != extensionsruntime.ProtocolV2RouteInvocationStageRequest {
+		t.Fatalf("runtime calls=%d request=%#v", runtime.calls, runtime.request)
 	}
-	phasesMu.Unlock()
 
 	response, err = app.Test(httptest.NewRequest(stdhttp.MethodGet, "/api/v1/untracked", nil))
 	if err != nil {

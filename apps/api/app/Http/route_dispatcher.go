@@ -230,6 +230,13 @@ func (i *BufferedRouteStepInvoker) Invoke(ctx context.Context, input routes.Rout
 		defer lease.Release()
 		return i.invokeProtocolV2(lease.Context, identity, input, authority)
 	}
+	if input.Stage != routes.InvocationStageHandler ||
+		input.Step.Action != extensionmanifest.RouteActionAdd && input.Step.Action != extensionmanifest.RouteActionReplace {
+		// Protocol V1 cannot express bounded request/response patches. Keep its
+		// namespaced handler compatibility, but never treat a full HTTP response as
+		// a modifier result.
+		return routes.RouteInvocationResult{}, ErrRouteRuntimeTarget
+	}
 	target, err := exactLoopbackRouteURL(snapshot.Target.BaseURL, input.Request.Path, input.Request.Query)
 	if err != nil {
 		return routes.RouteInvocationResult{}, err
@@ -513,6 +520,7 @@ func applyRouteDispatchRequest(c fiber.Ctx, request routes.DispatchRequest) {
 			c.Request().Header.Add(name, value)
 		}
 	}
+	c.Request().URI().SetQueryString(request.Query)
 	c.Request().SetBodyRaw(append([]byte(nil), request.Body...))
 }
 

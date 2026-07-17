@@ -22,21 +22,22 @@ func TestDispatcherExecutesBufferedChainInPlanOrder(t *testing.T) {
 		dispatchCoreStep("core.route.topic.show"),
 		dispatchPluginStep(RoutePhaseAfter, "demo.route.after", extensionmanifest.RouteActionAfter),
 	}
-	order := make([]string, 0, len(steps))
+	steps[5].MutableResponseFields = []string{"/headers/x-after"}
+	order := make([]string, 0, len(steps)+2)
 	invoker := &dispatchStepInvoker{invoke: func(_ context.Context, input RouteInvocation) (RouteInvocationResult, error) {
-		order = append(order, string(input.Step.Phase)+":"+input.Step.RouteID)
-		if input.Step.Phase == RoutePhaseAfter {
+		order = append(order, string(input.Step.Phase)+":"+input.Step.RouteID+":"+string(input.Stage))
+		if input.Step.Phase == RoutePhaseAfter && input.Stage == InvocationStageResponse {
 			if input.Response == nil || string(input.Response.Body) != `{"source":"core"}` {
 				t.Fatalf("after response = %#v", input.Response)
 			}
-			value := cloneDispatchResponse(*input.Response)
-			value.Headers.Set("X-After", "yes")
-			return RouteInvocationResult{Response: &value}, nil
+			return RouteInvocationResult{ResponsePatch: []RoutePatchOperation{{
+				Kind: RoutePatchAdd, Path: "/headers/x-after", Value: []byte(`["yes"]`),
+			}}}, nil
 		}
 		return RouteInvocationResult{}, nil
 	}}
 	core := &dispatchCoreInvoker{invoke: func(_ context.Context, step RouteExecutionStep, request DispatchRequest) (DispatchResponse, error) {
-		order = append(order, string(step.Phase)+":"+step.RouteID)
+		order = append(order, string(step.Phase)+":"+step.RouteID+":"+string(InvocationStageHandler))
 		if request.Params["id"] != "42" || request.Headers.Get("X-Test") != "present" {
 			t.Fatalf("core request = %#v", request)
 		}
@@ -56,13 +57,15 @@ func TestDispatcherExecutesBufferedChainInPlanOrder(t *testing.T) {
 		t.Fatal(err)
 	}
 	wantOrder := []string{
-		"global:demo.route.global", "before:demo.route.before", "filter:demo.route.filter",
-		"wrap:demo.route.wrap", "handler:core.route.topic.show", "after:demo.route.after",
+		"global:demo.route.global:request", "before:demo.route.before:request",
+		"filter:demo.route.filter:request", "wrap:demo.route.wrap:request",
+		"handler:core.route.topic.show:handler", "wrap:demo.route.wrap:response",
+		"filter:demo.route.filter:response", "after:demo.route.after:response",
 	}
 	if !result.Handled || result.Response.Status != http.StatusOK || result.Response.Headers.Get("X-After") != "yes" || !reflect.DeepEqual(order, wantOrder) {
 		t.Fatalf("result=%#v order=%#v", result, order)
 	}
-	if guard.calls != 5 || schemas.requestCalls != 5 || schemas.responseCalls != 1 {
+	if guard.calls != 7 || schemas.requestCalls != 7 || schemas.responseCalls != 4 {
 		t.Fatalf("guard=%d request schemas=%d response schemas=%d", guard.calls, schemas.requestCalls, schemas.responseCalls)
 	}
 }
@@ -99,6 +102,102 @@ func TestDispatcherSafeFallbackRequiresPristineGETOrHEAD(t *testing.T) {
 			result, err := dispatcher.Dispatch(context.Background(), DispatchRequest{Method: method, Path: "/resource"}, core)
 			if err != nil || !result.Handled || string(result.Response.Body) != "core" || core.calls != 1 {
 				t.Fatalf("result=%#v core=%d err=%v", result, core.calls, err)
+			}
+		})
+	}
+}
+
+func TestDispatcherSkipsPairedResponseStageWhenRequestStageFallsBack(t *testing.T) {
+	for _, action := range []string{extensionmanifest.RouteActionFilter, extensionmanifest.RouteActionWrap} {
+		t.Run(action, func(t *testing.T) {
+			modifier := dispatchPluginStep(RoutePhaseFilter, "demo.route."+action, action)
+			if action == extensionmanifest.RouteActionWrap {
+				modifier.Phase = RoutePhaseWrap
+			}
+			modifier.Fallback = "readonly_core"
+			coreStep := dispatchCoreStep("core.route.fallback")
+			requestCalls := 0
+			responseCalls := 0
+			core := &dispatchCoreInvoker{invoke: func(context.Context, RouteExecutionStep, DispatchRequest) (DispatchResponse, error) {
+				return DispatchResponse{Status: http.StatusOK, Body: []byte("core")}, nil
+			}}
+			dispatcher := NewDispatcher(DispatcherConfig{
+				Plans: dispatchPlanResolver{plan: dispatchPlan("GET", "/fallback", nil, []RouteExecutionStep{modifier, coreStep}, 1)},
+				Steps: &dispatchStepInvoker{invoke: func(_ context.Context, input RouteInvocation) (RouteInvocationResult, error) {
+					switch input.Stage {
+					case InvocationStageRequest:
+						requestCalls++
+						return RouteInvocationResult{}, errors.New("modifier unavailable")
+					case InvocationStageResponse:
+						responseCalls++
+						t.Fatal("response half executed after request half fallback")
+					}
+					return RouteInvocationResult{}, nil
+				}},
+				Guard: &dispatchGuard{}, Schemas: &dispatchSchemas{},
+			})
+			result, err := dispatcher.Dispatch(context.Background(), DispatchRequest{Method: "GET", Path: "/fallback"}, core)
+			if err != nil || string(result.Response.Body) != "core" || requestCalls != 1 || responseCalls != 0 || core.calls != 1 {
+				t.Fatalf("result=%#v request=%d response=%d core=%d err=%v", result, requestCalls, responseCalls, core.calls, err)
+			}
+		})
+	}
+}
+
+func TestDispatcherRejectsMutableBodyWithoutMatchingSchemaBeforeInvocation(t *testing.T) {
+	before := dispatchPluginStep(RoutePhaseBefore, "demo.route.request_body_without_schema", extensionmanifest.RouteActionBefore)
+	before.MutableRequestFields, before.RequestSchema = []string{"/body/title"}, ""
+	after := dispatchPluginStep(RoutePhaseAfter, "demo.route.response_body_without_schema", extensionmanifest.RouteActionAfter)
+	after.MutableResponseFields, after.ResponseSchema = []string{"/body/title"}, ""
+	coreStep := dispatchCoreStep("core.route.body")
+	for _, test := range []struct {
+		name     string
+		steps    []RouteExecutionStep
+		terminal int
+	}{
+		{name: "request", steps: []RouteExecutionStep{before, coreStep}, terminal: 1},
+		{name: "response", steps: []RouteExecutionStep{coreStep, after}, terminal: 0},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			core := &dispatchCoreInvoker{}
+			dispatcher := NewDispatcher(DispatcherConfig{
+				Plans: dispatchPlanResolver{plan: dispatchPlan("GET", "/body", nil, test.steps, test.terminal)},
+				Steps: &dispatchStepInvoker{invoke: func(context.Context, RouteInvocation) (RouteInvocationResult, error) {
+					t.Fatal("schema-less body mutation invoked plugin")
+					return RouteInvocationResult{}, nil
+				}}, Guard: &dispatchGuard{}, Schemas: &dispatchSchemas{},
+			})
+			if _, err := dispatcher.Dispatch(context.Background(), DispatchRequest{Method: "GET", Path: "/body"}, core); !errors.Is(err, ErrInvalidExecutionPlan) || core.calls != 0 {
+				t.Fatalf("core=%d error=%v", core.calls, err)
+			}
+		})
+	}
+}
+
+func TestDispatcherRejectsDriftedPhaseActionTopology(t *testing.T) {
+	core := dispatchCoreStep("core.route.topology")
+	for _, test := range []struct {
+		name     string
+		steps    []RouteExecutionStep
+		terminal int
+	}{
+		{name: "before phase with wrap action", steps: []RouteExecutionStep{
+			dispatchPluginStep(RoutePhaseBefore, "demo.route.drifted_before", extensionmanifest.RouteActionWrap), core,
+		}, terminal: 1},
+		{name: "after phase with wrap action", steps: []RouteExecutionStep{
+			core, dispatchPluginStep(RoutePhaseAfter, "demo.route.drifted_after", extensionmanifest.RouteActionWrap),
+		}, terminal: 0},
+		{name: "handler phase with before action", steps: []RouteExecutionStep{
+			dispatchPluginStep(RoutePhaseHandler, "demo.route.drifted_handler", extensionmanifest.RouteActionBefore),
+		}, terminal: 0},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			dispatcher := NewDispatcher(DispatcherConfig{
+				Plans: dispatchPlanResolver{plan: dispatchPlan("GET", "/topology", nil, test.steps, test.terminal)},
+				Steps: &dispatchStepInvoker{}, Guard: &dispatchGuard{}, Schemas: &dispatchSchemas{},
+			})
+			if _, err := dispatcher.Dispatch(context.Background(), DispatchRequest{Method: "GET", Path: "/topology"}, &dispatchCoreInvoker{}); !errors.Is(err, ErrInvalidExecutionPlan) {
+				t.Fatalf("error=%v", err)
 			}
 		})
 	}
@@ -268,6 +367,7 @@ func TestRouteInvocationAuthorityRejectsExactBindingDrift(t *testing.T) {
 	}, 0)
 	dispatcher := NewDispatcher(DispatcherConfig{
 		Plans: dispatchPlanResolver{plan: plan}, Guard: &dispatchAuthorityGuard{}, Schemas: &dispatchSchemas{},
+		Failures: &recordingRouteFailureSink{},
 		Steps: &dispatchStepInvoker{invoke: func(_ context.Context, input RouteInvocation) (RouteInvocationResult, error) {
 			if !input.RawRequestAuthorized() {
 				t.Fatal("exact invocation lost raw authority")
@@ -284,6 +384,7 @@ func TestRouteInvocationAuthorityRejectsExactBindingDrift(t *testing.T) {
 				func(value *RouteInvocation) { value.Step.Provider.Artifact.PackageDigest = strings.Repeat("d", 64) },
 				func(value *RouteInvocation) { value.Request.Path += "/forged" },
 				func(value *RouteInvocation) { value.Request.Headers.Set("Cookie", "session=forged") },
+				func(value *RouteInvocation) { value.Request.hostMutatedParams = true },
 				func(value *RouteInvocation) { value.Response = nil },
 				func(value *RouteInvocation) { value.Response.Status++ },
 				func(value *RouteInvocation) { value.Response.Headers.Set("X-Forged", "yes") },
@@ -302,8 +403,7 @@ func TestRouteInvocationAuthorityRejectsExactBindingDrift(t *testing.T) {
 					t.Fatalf("mutation %d retained raw authority", index)
 				}
 			}
-			response := cloneDispatchResponse(*input.Response)
-			return RouteInvocationResult{Response: &response}, nil
+			return RouteInvocationResult{}, nil
 		}},
 	})
 	core := &dispatchCoreInvoker{invoke: func(context.Context, RouteExecutionStep, DispatchRequest) (DispatchResponse, error) {

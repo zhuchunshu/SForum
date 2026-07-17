@@ -508,7 +508,6 @@ type benchmarkRouteRuntime struct {
 
 func newV3BenchmarkRuntime(tb testing.TB, artifact routes.PluginArtifact) *benchmarkRouteRuntime {
 	tb.Helper()
-	server := newV3BenchmarkServer(tb)
 	identity := extensionsruntime.RuntimeInstanceIdentity{
 		ExtensionID: artifact.ExtensionID, InstanceID: artifact.RuntimeInstanceID,
 	}
@@ -520,7 +519,7 @@ func newV3BenchmarkRuntime(tb testing.TB, artifact routes.PluginArtifact) *bench
 		gate: gate,
 		snapshot: extensionsruntime.RuntimeInstanceSnapshot{
 			Identity: identity, ExtensionVersion: artifact.ExtensionVersion, ArtifactDigest: artifact.PackageDigest,
-			Target: extensionsruntime.RouteTarget{BaseURL: server.URL, InstanceID: artifact.RuntimeInstanceID}, Active: true,
+			Target: extensionsruntime.RouteTarget{InstanceID: artifact.RuntimeInstanceID}, Active: true,
 		},
 	}
 }
@@ -553,6 +552,24 @@ func (r *benchmarkRouteRuntime) AcquireRuntimeCall(
 		return nil, extensionsruntime.ErrRuntimeInstanceNotActive
 	}
 	return r.gate.Acquire(ctx, class)
+}
+
+func (r *benchmarkRouteRuntime) InvokeRouteInstance(
+	_ context.Context,
+	identity extensionsruntime.RuntimeInstanceIdentity,
+	request extensionsruntime.ProtocolV2RouteRequest,
+) (extensionsruntime.ProtocolV2RouteResponse, error) {
+	if r == nil || identity != r.snapshot.Identity {
+		return extensionsruntime.ProtocolV2RouteResponse{}, extensionsruntime.ErrRuntimeInstanceNotFound
+	}
+	if request.InvocationStage != extensionsruntime.ProtocolV2RouteInvocationStageHandler {
+		return extensionsruntime.ProtocolV2RouteResponse{}, nil
+	}
+	return extensionsruntime.ProtocolV2RouteResponse{
+		StatusCode: stdhttp.StatusOK,
+		Headers:    stdhttp.Header{"Content-Type": []string{"application/json"}},
+		Body:       map[string]any{"ok": true}, BodyPresent: true,
+	}, nil
 }
 
 type benchmarkRouteSelectionStore struct {

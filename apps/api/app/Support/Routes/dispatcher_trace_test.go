@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"testing"
 	"time"
+
+	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
 )
 
 func TestDispatcherTraceOutcomes(t *testing.T) {
@@ -196,7 +198,20 @@ func (s *traceSchemas) ValidateResponse(context.Context, RouteExecutionStep, Dis
 }
 
 func dispatchTraceStep(phase RouteExecutionPhase, id string) RouteExecutionStep {
-	step := dispatchPluginStep(phase, id, "add")
+	action := extensionmanifest.RouteActionAdd
+	switch phase {
+	case RoutePhaseGlobal:
+		action = extensionmanifest.RouteActionGlobalMiddleware
+	case RoutePhaseBefore:
+		action = extensionmanifest.RouteActionBefore
+	case RoutePhaseFilter:
+		action = extensionmanifest.RouteActionFilter
+	case RoutePhaseWrap:
+		action = extensionmanifest.RouteActionWrap
+	case RoutePhaseAfter:
+		action = extensionmanifest.RouteActionAfter
+	}
+	step := dispatchPluginStep(phase, id, action)
 	step.Path = "/trace"
 	step.Method = "GET"
 	return step

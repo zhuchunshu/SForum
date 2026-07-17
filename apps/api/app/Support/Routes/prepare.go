@@ -160,6 +160,10 @@ func validatePluginRouteContract(artifact PluginArtifact, route extensionmanifes
 	if !validRouteGuard(artifact.ExtensionID, route.Guard) {
 		return fmt.Errorf("%w: invalid guard %q", ErrInvalidRoute, route.Guard)
 	}
+	if route.Action != extensionmanifest.RouteActionAdd && route.Action != extensionmanifest.RouteActionReplace &&
+		route.Mode != extensionmanifest.RouteModeHTTP {
+		return fmt.Errorf("%w: action %q only supports buffered HTTP", ErrInvalidRoute, route.Action)
+	}
 	if route.Guard == extensionmanifest.GuardCoreInherit && !routeTargetsDeclaredTarget(route.Action, route.TargetID) {
 		return fmt.Errorf("%w: inherited guard requires a target route", ErrInvalidRoute)
 	}
