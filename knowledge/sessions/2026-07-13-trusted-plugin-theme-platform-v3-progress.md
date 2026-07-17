@@ -4,8 +4,8 @@ Last updated: 2026-07-18
 
 ## Progress
 
-- Verified weighted progress: **64.7992%** (display **64.7%**).
-- Phase counts: P0-P5 and P8 complete; P6 **15/18**, P7 **15/22**,
+- Verified weighted progress: **63.2336%** (display **63.2%**).
+- Phase counts: P0-P5 and P8 complete; P6 **13/18**, P7 **14/22**,
   P8 **18/18**, P9 **4/16**, P11 **1/16**, and P12 **1/22**. P10 and P13
   have no credited authoritative row yet.
 - Completion remains unproven until all 99 target rows, 14 accepted boundaries,
@@ -14,10 +14,49 @@ Last updated: 2026-07-18
 
 ## Current Subtask
 
+### 2026-07-18 Response Cancellation And Credit Audit Checkpoint
+
+- Verified weighted progress is **63.2336%** (display **63.2%**). The P7
+  Host-owned role-mapping row returns to open until exact decision evidence and
+  dirty-draft fencing land. P6 returns to **13/18**: the streamed-transport row
+  remains open for one total budget, lease-owned cancellation, non-HTTP Schema,
+  durable incident source, and real subprocess correlation; the mutable-field
+  row remains open until a response modifier cannot reintroduce Host-owned
+  canonical `Link` metadata. The task book checkboxes now match this strict
+  production exit rather than provisional unit evidence.
+- `19e6ef357 fix(routes): complete replay after caller cancellation` preserves
+  the last valid response when its caller disconnects during response-stage
+  guard, request/response Schema, plugin transport, patch validation, final
+  validation, incident persistence, or required-replay completion. Remaining
+  modifiers stop, final Schema/audit/replay work uses a bounded detached
+  context, and an invalid schema-less mutation rolls back to its last validated
+  checkpoint before persistence.
+- Caller cancellation does not create a runtime incident. A runtime-owned
+  cancel/timeout while the parent remains active, or a distinguishable crash
+  concurrent with caller cancellation, still records the exact incident. When
+  the parent and transport return the same cancellation sentinel concurrently,
+  caller cause wins: Protocol V2 and legacy HTTP erase the original transport
+  source at that boundary, and treating it as a runtime fault would permit false
+  quarantine. Exact attribution would require a future cross-layer typed
+  failure provenance or a non-quarantine ambiguous audit event.
+- Focused response/guard tests passed **100** normal and **20** race
+  repetitions. Real required-replay backend CAS tests cover cancellation before,
+  during, and after apply. Complete Routes/Http normal and race suites, two-package
+  vet, and `go build ./...` passed both in the shared worktree and in a standalone
+  clone containing only the staged patch. The independent redirect canonical
+  hunk remained unstaged.
+- Exact resume point: close the Host-owned `Link` mutable-field gap, then repair
+  Stream V2 without losing lifecycle `ForceCancel`, the 24-hour zero-timeout
+  compatibility default, or the WebSocket post-upgrade detach boundary. Review
+  the isolated custom-guard and P7 role-suggestion candidates before copying any
+  hunk, then close redirect SEO and the complete P6 behavior matrix.
+
 ### 2026-07-18 P7 Role Suggestion UI Checkpoint
 
-- Verified weighted progress advances to **64.7992%** (display **64.7%**); P7
-  is now **15/22** after the Host-owned role-assignment row closed.
+- This provisional **64.7992%** / P7 **15/22** checkpoint was superseded by the
+  response-cancellation credit audit above. The backend boundary remains valid,
+  but the row stays open until the exact-evidence and dirty-draft UI defects are
+  fixed and reverified.
 - `4adcba492` adds exact-CAS approve/reject/apply review to the existing roles
   administration screen. Install/enable cannot grant permissions; incomplete
   evidence, denial, stale artifacts, revision conflicts, and missing targets

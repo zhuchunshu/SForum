@@ -118,6 +118,16 @@ can read the immutable aggregate and generated-client metadata through separate
 admin endpoints; streaming modes reject required replay both statically and at
 runtime.
 
+The 2026-07-18 response-cancellation hardening preserves and persists the last
+valid response after a caller disconnects during response-stage processing.
+Final Schema validation, committed-failure audit, and required-replay completion
+run on a bounded context detached from that caller; runtime-owned failures still
+remain inspectable. P6 is conservatively **13/18** after production review:
+stream lifetime/lease authority and non-HTTP evidence remain incomplete, and
+response modifiers must still be prevented from reintroducing Host-owned
+canonical `Link` metadata before the streamed-transport and mutable-field rows
+can be credited again.
+
 ## Purpose
 
 Owns installable plugins and themes for SForum. Plugins are multi-enable

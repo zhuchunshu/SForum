@@ -488,11 +488,11 @@ blocking implement the authoritative row without retaining a second alias.
       public, admin, or API path and HTTP method by stable route id.
 - [x] Implement `add`, `alias`, `redirect`, `rewrite`, `before`, `after`,
       `filter`, `wrap`, `replace`, and global middleware.
-- [x] Support HTTP request/response, multipart upload, streaming, SSE, WebSocket,
+- [ ] Support HTTP request/response, multipart upload, streaming, SSE, WebSocket,
       cancellation, and backpressure through the proxy/runtime.
 - [ ] Default to inherited core guards; implement separately confirmed custom
       guard/raw request authority.
-- [x] Validate request/response/filter schemas and explicit mutable fields.
+- [ ] Validate request/response/filter schemas and explicit mutable fields.
 - [x] Add explicit provider selection and conflict UI for replace providers.
 - [x] Define safe GET fallback and fail-closed unsafe method behavior.
 - [x] Prevent fallback after headers/body/plugin side effects begin.
@@ -547,7 +547,7 @@ query, and identity workflows without replacing whole routes.
 - [ ] Implement Auth/Profile Provider surfaces for registration, login, account
       recovery, profile sections, account management, and external identity
       linking without exposing raw session cookies as authority by default.
-- [x] Keep permission assignment Host-owned: install/enable previews declared
+- [ ] Keep permission assignment Host-owned: install/enable previews declared
       capabilities but never grants them silently; admins approve role mappings.
 - [ ] Add extension read/call/manage authority for trusted automation plugins.
 - [x] Generate hook/service/provider/job/schedule/command docs and SDK clients.

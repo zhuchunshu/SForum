@@ -4,11 +4,16 @@ This is the entry point for project memory.
 
 ## Latest Handoff
 
-- **2026-07-17 Trusted Plugin And Theme Platform V3 P6/P7/P9/P10/P11/P12 active (overall 63.2%)**
+- **2026-07-18 Trusted Plugin And Theme Platform V3 P6/P7/P9/P10/P11/P12 active (overall 63.2%)**
   - Decision: `knowledge/decisions/2026-07-13-trusted-plugin-theme-platform-v3.md`
   - Task book: `knowledge/plans/2026-07-13-trusted-plugin-theme-platform-v3.md`
   - Current durable checkpoint:
     `knowledge/sessions/2026-07-13-trusted-plugin-theme-platform-v3-progress.md`
+  - 2026-07-18 strict credit audit: P6 is **13/18**, P7 is **14/22**, and
+    verified weighted progress is **63.2336%**. Response-stage caller
+    cancellation now preserves and completes the last valid replay response;
+    Stream lifetime, canonical mutable fields, P7 exact evidence, guard/SEO,
+    and the complete P6 behavior matrix remain open.
   - Active checkpoint: `knowledge/sessions/2026-07-16-trusted-plugin-theme-platform-v3-runtime-ownership-checkpoint.md`
   - Prior Query/P12/SEO checkpoint:
     `knowledge/sessions/2026-07-16-trusted-plugin-theme-platform-v3-query-p12-seo-checkpoint.md`
