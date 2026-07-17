@@ -19,6 +19,13 @@ Last updated: 2026-07-17
 - Verified weighted progress remains **63.2336%** (display **63.2%**); P6
   remains **13/18** until production Dispatcher application, immediate schema
   revalidation, true wrap ordering, and the complete action/failure matrix pass.
+- `94fd2f074 feat(protocol): preserve repeated route query values` adds the
+  additive Protocol V2 field 17 representation with stable key ordering and
+  ordered multi-values while retaining legacy field 8 as the first value. The
+  generated descriptor and SDK tests pin both field numbers. Buf lint, the
+  repository-relative breaking check, regeneration, SDK normal/race, vet, and
+  independent Grok review passed. This earns no P6 row before the production
+  HTTP producer sends both representations and the Dispatcher applies them.
 - `f9749a12d feat(extensions): constrain route mutation paths` freezes the
   direction-specific synthetic request/response documents, exact RFC 6901
   allowlists, raw-request credential rule, impossible-shape rejection, and
@@ -51,8 +58,10 @@ Last updated: 2026-07-17
 - Active uncommitted slices are intentionally separate: Registry publication
   must reuse the Manifest validator after freezing the exact guard binding;
   Protocol V2 request/response patch mapping and repeated-query wire support
-  remain agent-owned; Dispatcher application and schema revalidation remain
-  the main-thread next step; P7 role suggestions are a separate identity slice.
+  remain agent-owned; its new required action/stage inputs currently expose the
+  still-unwired production HTTP producer and therefore must land together with
+  that bridge. Dispatcher application and schema revalidation remain the
+  main-thread next step; P7 role suggestions are a separate identity slice.
 - Never stage the user-owned `apps/api/app/Models/PageViewModels/source_test.go`
   or `extensions/builtin/plugins/sforum-content-policy/sforum.extension.json`.
   Protocol V1 compatibility, Safe Mode, prior snapshots, and CLI recovery stay
@@ -136,6 +145,7 @@ Last updated: 2026-07-17
 
 ## Recent Verified Commits
 
+- `94fd2f074 feat(protocol): preserve repeated route query values`
 - `5df41f67e docs(extensions): list SEO manifest family`
 - `7237dfc2b feat(seo): bind lifecycle registry runtime`
 - `b183c3aee test(seo): add protocol v2 reference plugin`
