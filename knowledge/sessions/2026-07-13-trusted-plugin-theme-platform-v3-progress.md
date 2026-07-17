@@ -14,6 +14,24 @@ Last updated: 2026-07-18
 
 ## Current Subtask
 
+### 2026-07-18 Stream Preflight Real-Path Order Checkpoint
+
+- Verified weighted progress remains **64.3447%** (display **64.3%**); P6 stays
+  **15/18**.
+- `280a0d31b` already inverted invalid WebSocket preflight to Fail-then-Cancel.
+- `5187c01f8 test(routes): drive WebSocket preflight Fail order on Fiber` replaces
+  the mirrored Fail/Cancel unit order with the real Fiber `serveRouteWebSocket`
+  path: Open returns 101 + unsolicited subprotocol via canonical `Header.Set`,
+  client offers no protocol, adapter must Fail (transport-fail trace) before
+  `Session.Cancel`. Map-literal headers were rejected because `Header.Get` misses
+  non-canonical keys and would skip validation (`selected == ""`).
+- Focused + package gates re-run green including race; evidence under implementer
+  scratch `stream-focused.log` / `stream-package.log`.
+- Custom/raw production-chain evidence remains committed (`1fc9226a1`); matrix
+  inventory remains open for a joined suite; non-HTTP Schema gap remains open.
+  Do not raise P6.
+
+
 ### 2026-07-18 Custom/Raw Guard Production-Chain Checkpoint
 
 - Verified weighted progress remains **64.3447%** (display **64.3%**); P6 stays
