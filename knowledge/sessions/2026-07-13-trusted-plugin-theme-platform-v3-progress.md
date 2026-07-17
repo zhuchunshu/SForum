@@ -14,6 +14,27 @@ Last updated: 2026-07-17
 
 ## Current Subtask
 
+### 2026-07-17 P6 Legacy Route Proxy Link Checkpoint
+
+- Verified weighted progress remains **63.2336%** (display **63.2%**); P6
+  remains **13/18**.
+- `85b8d79f7 fix(extensions): reserve Link on legacy route proxy` closes the
+  P13-retained namespaced V1 proxy bypass around the Host-final canonical
+  policy. The complete plugin `Link` response header is now removed
+  case-insensitively while status, body, and unrelated allowed headers remain
+  intact.
+- A real loopback RouteGateway test covers canonical, preload, pagination,
+  mixed relation, quoted-comma, and multi-value forms. A separate Fiber test
+  crosses the production Provider adapter, exact route admission lease, and
+  legacy gateway. Both focused tests passed twenty repetitions; both packages
+  passed focused race five times, full normal tests, vet, gofmt, and diff
+  checks.
+- The compatibility audit also found that the legacy and Registry terminal
+  filters still diverge for Host session/replay/reserved metadata and dynamic
+  hop-by-hop headers. The next independent safety slice must centralize that
+  output policy and prove parity before P6 can close; this Link-only checkpoint
+  earns no row by itself.
+
 ### 2026-07-17 P6 Protocol V2 Guard Failure Checkpoint
 
 - Verified weighted progress remains **63.2336%** (display **63.2%**); P6
