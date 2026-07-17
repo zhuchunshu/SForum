@@ -14,6 +14,45 @@ Last updated: 2026-07-18
 
 ## Current Subtask
 
+### 2026-07-18 Stream Lifetime Closure Checkpoint
+
+- Verified weighted progress remains **64.3447%** (display **64.3%**); P6 stays
+  **15/18**. Stream total budget and lifecycle ownership are now committed end
+  to end, including the invalid WebSocket preflight Fail-before-Cancel order.
+- Lifetime ownership commits:
+  - `26493c35a fix(routes): own stream budget and cancel lifetime`
+  - `6c95b748e test(routes): cover stream lifetime budget and cancel races`
+  - `740962396 fix(routes): publish stream traces before lifetime Done`
+  - `595dad2b1 test(routes): assert stream traces precede lifetime Done`
+  - `fd05b0816 docs(routes): record stream Done-before-trace fix`
+  - `280a0d31b fix(routes): fail WebSocket preflight before lifetime Cancel`
+  - `093a39e2b test(routes): assert WebSocket preflight fails before Done`
+- Contract held: one Host total budget covers guard, unary preflight, stream
+  open, and the full session (`TimeoutMS == 0` → 24h). Outer lifetime owns
+  budget timer, caller callback, and WebSocket detach; inner
+  `routeV2StreamSession` owns wire cancel and lease release. Active / terminal /
+  canceled race is atomic; only terminal publishes Response; cancel preserves
+  typed cause; lease cause is captured before `RuntimeAdmissionLease.Release()`.
+  Adapters Fail/Complete/StreamFailed before Cancel so traces precede Done.
+  Invalid WebSocket preflight now matches Upgrade and detach-error order.
+- Focused gates after the preflight order fix: Routes `TestStreamDispatcher`
+  **100** normal + **20** race; Http `TestRouteV2Stream|TestRouteDispatcher.*WebSocket`
+  **100** normal + **20** race; Fiber real Protocol V2 stream race **10**;
+  complete `./app/Support/Routes ./app/Http` normal + race; both-package vet;
+  `go build ./...`; `git diff --check` on staged files. No sleep or weakened
+  assertions.
+- Still open for the streamed-transport row: non-HTTP Schema framing/validation
+  product freeze, durable incident source where still open, and the joined full
+  P6 behavior matrix. Custom/raw guard production-chain evidence remains open
+  and is the immediate next task.
+- Exact resume point: audit and close custom/raw guard **production-chain**
+  evidence (Fiber + real Protocol V2 guard invoke + trust revoke + raw
+  credential boundary + stream Open-only guard), then the complete P6 behavior
+  matrix. Do not claim non-HTTP Schema complete until SSE/WebSocket/multipart/
+  arbitrary stream JSON framing and Host validation are frozen across manifest,
+  Protocol V2, Host, docs, and tests (`DataChunk` remains raw bytes only).
+
+
 ### 2026-07-18 Stream Lifetime Checkpoint
 
 - Verified weighted progress remains **64.3447%** (display **64.3%**); P6 stays
