@@ -14,6 +14,59 @@ Last updated: 2026-07-17
 
 ## Current Subtask
 
+### 2026-07-17 P6 Trust Revocation And Guard Closure Checkpoint
+
+- Verified weighted progress remains **63.2336%** (display **63.2%**); P6
+  remains **13/18**. The current safety work does not earn a row until omitted
+  target guards inherit the exact Core guard and the real WebSocket revoke /
+  reauthorization matrix passes end to end.
+- Durable revoke now removes the exact runtime member in the same PostgreSQL
+  transaction as grant/challenge revocation, performs bounded COMMIT readback,
+  treats SQLSTATE `08007`/`40003` and inconclusive transport failures as typed
+  unknown outcomes, and preserves builtin/no-grant-history members.
+- The initiating process holds the Manager runtime-set barrier across durable
+  revoke, drains old admission, captures GuardPolicy even after TTL expiry,
+  and fail-closes runtime, public assets, and current/review/staged policy on
+  success or unknown COMMIT. Grant-generation tombstones prevent an old live
+  grant from being republished while allowing an explicit new grant id.
+- Full-set apply rechecks durable latest after the Manager barrier and rejects
+  process regression. The coordinator immediately follows only a genuinely
+  newer durable revision; `latest == requested < applied` returns to normal
+  poll/backoff instead of writing unbounded failed acknowledgements.
+- Filtered route/guard transport strips `Cookie`, `Authorization`,
+  `X-API-Key`, and `X-Auth-Token`; dynamic `Connection` tokens are collected
+  from every case-insensitive header-map key. Raw authority remains bound to
+  the exact frozen artifact/route/guard. Protocol V2 SEO now maps gRPC
+  deadline/cancellation status before consulting the asynchronously updated
+  caller context.
+- The shared exact lifecycle fixture is now a valid Manifest V3 executable
+  plugin. Lifecycle-state PostgreSQL tests run in a unique private schema with
+  the real lifecycle/runtime migrations and drop it with `CASCADE`; the one
+  failed exploratory `state.publication.enable.*` public row was identified,
+  deleted, and verified absent. No `lsp_*` schema remains.
+- Completed gates: full Models/Extensions normal and race; full
+  Support/Extensions; full Http; focused trust/revoke/full-set/coordinator and
+  credential normal/race; real PostgreSQL `08007`, COMMIT readback, lifecycle
+  state normal/race; Manifest full normal/race; SEO deadline 500 repetitions
+  and focused race 100 repetitions; vet and `git diff --check`.
+- Pending before the first implementation commit: finish the deterministic
+  PostgreSQL advisory-lock waiter proof, finish the real TCP WebSocket
+  revoke/R+2 test, run sequential Models/Extensions, Support/Extensions,
+  Http, and bootstrap gates with `SFORUM_TEST_DATABASE_URL`, then review and
+  stage each contract independently.
+- Planned commit order: target-route guard inheritance; Protocol and Host
+  credential filtering; lifecycle fixtures; retained-runtime stop; full-set
+  and coordinator non-regression; serialized/ambiguous durable trust revoke;
+  final live-grant publication check; GuardPolicy capture/tombstones; trust
+  service and local runtime fence; SEO cancellation; bootstrap trust and SEO
+  bindings; final docs checkpoint.
+- Never stage the user-owned
+  `apps/api/app/Models/PageViewModels/source_test.go` or
+  `extensions/builtin/plugins/sforum-content-policy/sforum.extension.json`.
+  There is no new migration or destructive rollback. Runtime publication and
+  Registry histories remain additive/immutable; rollback is the previous
+  process snapshot plus the existing Safe Mode and CLI recovery path.
+
 - **Startup recovery is closed:** migration 034 repaired the legacy role-
   approval schema, exact evidence-bound Identity adoption completed, and the
   real API now remains serving with the embedded worker.

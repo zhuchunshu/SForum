@@ -125,6 +125,24 @@ or treated as expired only after the complete V3 goal is achieved.
 
 ## Last Durable Checkpoint
 
+### 2026-07-17 P6 Trust Revocation And Guard Closure In Progress
+
+- Exact weighted progress remains `63.2336%`; displayed progress remains
+  **63.2%**, and P6 remains **13/18**. Durable/local trust revocation,
+  process-ahead convergence, four-credential filtering, lifecycle fixture
+  isolation, omitted target-guard inheritance, and SEO cancellation fixes are
+  implemented or under final integration verification, but no authoritative
+  P6 row is credited early.
+- Full Models normal/race, full Support and Http, focused real-PostgreSQL
+  unknown-COMMIT/lifecycle-state tests, Manifest normal/race, focused
+  coordinator/credential/revoke race tests, vet, repetition, and diff checks
+  pass. The exact resume point is the real TCP WebSocket revoke/R+2 proof,
+  deterministic advisory-lock waiter proof, sequential package/bootstrap
+  gates, scoped diff review, and fine-grained commits.
+- The exact dirty-file grouping, rollback state, user-owned exclusions, and
+  commit sequence are recorded in
+  `knowledge/sessions/2026-07-13-trusted-plugin-theme-platform-v3-progress.md`.
+
 ### 2026-07-17 P6 Exact Authority, Replay, And Failure Evidence
 
 - Exact weighted progress remains `63.2336%`; displayed progress remains
