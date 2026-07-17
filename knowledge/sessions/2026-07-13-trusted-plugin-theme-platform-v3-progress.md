@@ -32,9 +32,16 @@ Last updated: 2026-07-18
   shared budget, pre/post-execution caller cancel, Host budget timeout,
   ForceCancel cause, terminal-vs-cancel race, DetachCaller independence, and
   outer typed-cause preservation.
+- `740962396 fix(routes): publish stream traces before lifetime Done` stops
+  outer Recv/budget watch from closing Done. HTTP `streamRouteResponse` always
+  Complete/StreamFailed then Cancel (defer), so commit/fail traces land before
+  session completion is visible. WebSocket already used that adapter order.
+- `595dad2b1 test(routes): assert stream traces precede lifetime Done` probes
+  commit and transport-fail traces while Done is still open on the real
+  `streamRouteResponse` path.
 - Focused gates: Routes stream tests **100** normal + **20** race; Http
-  `TestRouteV2Stream|TestRouteDispatcher.*WebSocket` **100** normal + **20**
-  race; `TestRouteStreamAcrossFiberManagerAndRealProtocolV2Process` **10** race;
+  stream/WebSocket/response-order **100** normal + **20** race;
+  `TestRouteStreamAcrossFiberManagerAndRealProtocolV2Process` **10** race;
   complete `./app/Support/Routes ./app/Http` normal + race; both-package vet;
   `go build ./...`; `git diff --check`. No sleep/assertion-weakening workarounds.
 - Exact resume point: audit and close custom/raw guard **production-chain**
