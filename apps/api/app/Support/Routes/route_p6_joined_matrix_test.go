@@ -26,6 +26,8 @@ func TestP6JoinedRouteMatrix(t *testing.T) {
 	t.Run("stream_host_budget_covers_lifecycle", TestStreamDispatcherHostBudgetCoversGuardPreflightOpenAndStream)
 	t.Run("stream_host_budget_timeout", TestStreamDispatcherHostBudgetTimeoutFailsClosed)
 	t.Run("stream_detach_caller", TestStreamLifetimeDetachCallerStopsRequestCancel)
+	t.Run("stream_inner_completion_releases_resources", TestStreamLifetimeInnerCompletionReleasesResourcesBeforeAdapterCancel)
+	t.Run("stream_exact_host_cancel_cause", TestStreamLifetimePropagatesExactHostCauseToInner)
 	t.Run("stream_caller_cancel_before_open", TestStreamLifetimeCallerCancelBeforeOpenHasNoInvoker)
 	t.Run("stream_terminal_wins_over_cancel", TestStreamLifetimeTerminalWinsOverConcurrentCancel)
 	t.Run("stream_outer_preserves_inner_cause", TestStreamLifetimeOuterDoesNotEraseInnerTypedCause)

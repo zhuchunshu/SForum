@@ -3,6 +3,7 @@ package http
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"mime/multipart"
@@ -77,8 +78,10 @@ func TestRouteStreamAcrossFiberManagerAndRealProtocolV2Process(t *testing.T) {
 		<-serverDone
 	})
 	baseHTTP := "http://" + listener.Addr().String()
+	minimumTraces := 0
 
 	t.Run("multipart bounded upload", func(t *testing.T) {
+		minimumTraces += 2
 		var body bytes.Buffer
 		writer := multipart.NewWriter(&body)
 		part, err := writer.CreateFormFile("upload", "payload.bin")
@@ -116,6 +119,7 @@ func TestRouteStreamAcrossFiberManagerAndRealProtocolV2Process(t *testing.T) {
 	})
 
 	t.Run("SSE", func(t *testing.T) {
+		minimumTraces += 2
 		response, err := (&stdhttp.Client{Timeout: 10 * time.Second}).Get(baseHTTP + "/events")
 		if err != nil {
 			t.Fatal(err)
@@ -132,6 +136,7 @@ func TestRouteStreamAcrossFiberManagerAndRealProtocolV2Process(t *testing.T) {
 	})
 
 	t.Run("WebSocket", func(t *testing.T) {
+		minimumTraces += 2
 		dialer := websocket.Dialer{HandshakeTimeout: 5 * time.Second, Subprotocols: []string{"sforum.stream.v1"}}
 		headers := make(stdhttp.Header)
 		headers.Set("Cookie", "session=websocket-secret")
@@ -153,6 +158,7 @@ func TestRouteStreamAcrossFiberManagerAndRealProtocolV2Process(t *testing.T) {
 	})
 
 	t.Run("disconnect cancels exact runtime admission", func(t *testing.T) {
+		minimumTraces += 2
 		response, err := (&stdhttp.Client{}).Get(baseHTTP + "/disconnect")
 		if err != nil {
 			t.Fatal(err)
@@ -178,7 +184,58 @@ func TestRouteStreamAcrossFiberManagerAndRealProtocolV2Process(t *testing.T) {
 		}
 	})
 
-	if records := traces.RouteTraces(32); len(records) < 8 {
+	t.Run("force drain releases bound lifetime without recv", func(t *testing.T) {
+		minimumTraces++
+		prepared, err := dispatcher.PrepareStream(context.Background(), routes.DispatchRequest{
+			Method: stdhttp.MethodGet, Path: "/disconnect",
+		})
+		if err != nil || prepared.Dispatch == nil {
+			t.Fatalf("prepared=%#v err=%v", prepared, err)
+		}
+		start, err := prepared.Dispatch.Open(context.Background())
+		if err != nil || start.Session == nil {
+			t.Fatalf("start=%#v err=%v", start, err)
+		}
+		source, ok := start.Session.(routes.RouteStreamLifetimeSource)
+		if !ok {
+			t.Fatal("bound production stream has no lifetime source")
+		}
+		forceCause := fmt.Errorf("trusted route force drain")
+		if _, err := manager.ForceDrain(runtime.Identity, forceCause); err != nil {
+			t.Fatal(err)
+		}
+		deadline := time.Now().Add(5 * time.Second)
+		for {
+			snapshot, inspectErr := manager.InspectRuntimeInstance(runtime.Identity)
+			if inspectErr != nil {
+				t.Fatal(inspectErr)
+			}
+			if snapshot.Admission.ActiveTotal == 0 {
+				break
+			}
+			if time.Now().After(deadline) {
+				t.Fatalf("forced stream admission did not drain: %#v", snapshot.Admission)
+			}
+			time.Sleep(10 * time.Millisecond)
+		}
+		select {
+		case <-source.Done():
+			t.Fatal("inner ForceDrain published outer Done before adapter trace")
+		default:
+		}
+		_ = prepared.Dispatch.StreamFailed(forceCause)
+		start.Session.Cancel()
+		select {
+		case <-source.Done():
+		case <-time.After(time.Second):
+			t.Fatal("adapter Cancel did not publish forced stream Done")
+		}
+		if !errors.Is(source.Cause(), forceCause) {
+			t.Fatalf("bound force cause=%v want %v", source.Cause(), forceCause)
+		}
+	})
+
+	if records := traces.RouteTraces(32); len(records) < minimumTraces {
 		t.Fatalf("real stream traces=%#v", records)
 	}
 }

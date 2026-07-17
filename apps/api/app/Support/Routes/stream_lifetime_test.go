@@ -75,7 +75,7 @@ func TestStreamDispatcherHostBudgetCoversGuardPreflightOpenAndStream(t *testing.
 		t.Fatalf("stream context cause=%v", context.Cause(streamCtx))
 	}
 	_, err = start.Session.Recv()
-	if !errors.Is(err, ErrRouteStreamBudgetExceeded) && !errors.Is(err, context.DeadlineExceeded) && !errors.Is(err, context.Canceled) {
+	if !errors.Is(err, ErrRouteStreamBudgetExceeded) {
 		t.Fatalf("recv after budget err=%v", err)
 	}
 	source, ok := start.Session.(RouteStreamLifetimeSource)
@@ -157,9 +157,79 @@ func TestStreamLifetimeDetachCallerStopsRequestCancel(t *testing.T) {
 	case <-time.After(time.Second):
 		t.Fatal("Cancel after budget did not finish lifetime")
 	}
-	if cause := session.(RouteStreamLifetimeSource).Cause(); !errors.Is(cause, ErrRouteStreamBudgetExceeded) &&
-		!errors.Is(cause, context.Canceled) {
+	if cause := session.(RouteStreamLifetimeSource).Cause(); !errors.Is(cause, ErrRouteStreamBudgetExceeded) {
 		t.Fatalf("cause after budget=%v", cause)
+	}
+}
+
+func TestStreamLifetimeInnerCompletionReleasesResourcesBeforeAdapterCancel(t *testing.T) {
+	caller, cancelCaller := context.WithCancel(context.Background())
+	lifetime := newRouteStreamOpenLifetime(caller, time.Hour)
+	forceCause := errors.New("exact runtime force cancel")
+	inner := &lifetimeInnerSession{recv: make(chan recvResult)}
+	session := bindRouteStreamLifetime(inner, lifetime)
+	source := session.(RouteStreamLifetimeSource)
+
+	inner.finish(forceCause)
+	select {
+	case <-lifetime.Context().Done():
+	case <-time.After(time.Second):
+		t.Fatal("inner completion did not release the outer timer/caller lifetime")
+	}
+	select {
+	case <-source.Done():
+		t.Fatal("inner completion published public Done before adapter Cancel")
+	default:
+	}
+	cancelCaller()
+	session.Cancel()
+	select {
+	case <-source.Done():
+	case <-time.After(time.Second):
+		t.Fatal("adapter Cancel did not publish public Done")
+	}
+	if !errors.Is(source.Cause(), forceCause) {
+		t.Fatalf("late caller cancellation replaced force cause: %v", source.Cause())
+	}
+}
+
+func TestStreamLifetimePropagatesExactHostCauseToInner(t *testing.T) {
+	for _, test := range []struct {
+		name   string
+		cancel func(*routeStreamOpenLifetime, context.CancelCauseFunc, error)
+	}{
+		{name: "caller", cancel: func(_ *routeStreamOpenLifetime, cancel context.CancelCauseFunc, cause error) { cancel(cause) }},
+		{name: "budget", cancel: func(lifetime *routeStreamOpenLifetime, _ context.CancelCauseFunc, cause error) {
+			lifetime.cancelOpen(cause)
+		}},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			caller, cancelCaller := context.WithCancelCause(context.Background())
+			lifetime := newRouteStreamOpenLifetime(caller, time.Hour)
+			inner := &lifetimeInnerSession{recv: make(chan recvResult)}
+			session := bindRouteStreamLifetime(inner, lifetime)
+			source := session.(RouteStreamLifetimeSource)
+			cause := errors.New("exact " + test.name + " cancel")
+
+			test.cancel(lifetime, cancelCaller, cause)
+			select {
+			case <-inner.Done():
+			case <-time.After(time.Second):
+				t.Fatal("Host cancellation did not finish inner session")
+			}
+			if !errors.Is(inner.Cause(), cause) {
+				t.Fatalf("inner cause=%v want %v", inner.Cause(), cause)
+			}
+			select {
+			case <-source.Done():
+				t.Fatal("Host cancellation published public Done before adapter Cancel")
+			default:
+			}
+			session.Cancel()
+			if !errors.Is(source.Cause(), cause) {
+				t.Fatalf("outer cause=%v want %v", source.Cause(), cause)
+			}
+		})
 	}
 }
 
@@ -381,7 +451,14 @@ func (s *lifetimeInnerSession) Response() (DispatchResponse, bool) {
 }
 
 func (s *lifetimeInnerSession) Cancel() {
-	s.finish(context.Canceled)
+	s.CancelWithCause(context.Canceled)
+}
+
+func (s *lifetimeInnerSession) CancelWithCause(cause error) {
+	if cause == nil {
+		cause = context.Canceled
+	}
+	s.finish(cause)
 }
 
 func (s *lifetimeInnerSession) Done() <-chan struct{} {
@@ -417,6 +494,7 @@ func (s *lifetimeInnerSession) finish(cause error) {
 
 var _ RouteStreamSession = (*lifetimeInnerSession)(nil)
 var _ RouteStreamLifetimeSource = (*lifetimeInnerSession)(nil)
+var _ RouteStreamCauseCanceler = (*lifetimeInnerSession)(nil)
 
 // racingInnerSession lets terminal EOF and Cancel race on one session.
 // State and cause are decided under one lock so a terminal winner cannot be
@@ -466,10 +544,17 @@ func (s *racingInnerSession) Response() (DispatchResponse, bool) {
 }
 
 func (s *racingInnerSession) Cancel() {
+	s.CancelWithCause(context.Canceled)
+}
+
+func (s *racingInnerSession) CancelWithCause(cause error) {
+	if cause == nil {
+		cause = context.Canceled
+	}
 	s.mu.Lock()
 	if s.state == 0 {
 		s.state = 2
-		s.cause = context.Canceled
+		s.cause = cause
 		s.response = DispatchResponse{}
 	}
 	s.mu.Unlock()
@@ -506,3 +591,4 @@ func (s *racingInnerSession) publishDone() {
 
 var _ RouteStreamSession = (*racingInnerSession)(nil)
 var _ RouteStreamLifetimeSource = (*racingInnerSession)(nil)
+var _ RouteStreamCauseCanceler = (*racingInnerSession)(nil)
