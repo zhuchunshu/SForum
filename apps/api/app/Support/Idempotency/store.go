@@ -52,9 +52,21 @@ type Backend interface {
 
 // Store 在 Backend 之上编码业务记录。
 type Store struct {
-	backend Backend
-	ttl     time.Duration
-	prefix  string
+	backend      Backend
+	ttl          time.Duration
+	prefix       string
+	replayCipher *RequiredReplayCipher
+}
+
+func (s *Store) WithRequiredReplayCipher(cipher *RequiredReplayCipher) *Store {
+	if s != nil {
+		s.replayCipher = cipher
+	}
+	return s
+}
+
+func (s *Store) RequiredReplayCipherEnabled() bool {
+	return s != nil && s.replayCipher.Enabled()
 }
 
 func NewStore(backend Backend, ttl time.Duration) *Store {
