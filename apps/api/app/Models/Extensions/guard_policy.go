@@ -255,17 +255,33 @@ func (c *GuardPolicyCatalog) Lookup(extensionID string) (GuardPolicyLookup, bool
 // the exact pre-revoke artifact that must be fenced. Refresh publication stays
 // paused until the caller either releases or invalidates this capture.
 func (c *GuardPolicyCatalog) CaptureExecutableTrustExact(extensionID string) (GuardPolicyEntry, bool) {
+	return c.CaptureExecutableTrustExactWithFallback(
+		extensionID,
+		GuardPolicyEntry{ExtensionID: normalizeID(extensionID)},
+	)
+}
+
+// CaptureExecutableTrustExactWithFallback uses a caller-held runtime artifact
+// when the policy snapshot has not observed the extension yet. The fallback is
+// stored as the capture token too, so rollback release and unknown-outcome
+// tombstones operate on the same exact value.
+func (c *GuardPolicyCatalog) CaptureExecutableTrustExactWithFallback(
+	extensionID string,
+	fallback GuardPolicyEntry,
+) (GuardPolicyEntry, bool) {
 	if c == nil {
 		return GuardPolicyEntry{}, false
 	}
 	id := normalizeID(extensionID)
-	if id == "" || id != extensionID {
+	if id == "" || id != extensionID || fallback.ExtensionID != id ||
+		(fallback.CurrentTrustRequired &&
+			(strings.TrimSpace(fallback.Version) == "" || strings.TrimSpace(fallback.PackageDigest) == "")) {
 		return GuardPolicyEntry{}, false
 	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.publicationEpoch++
-	captured := GuardPolicyEntry{ExtensionID: id}
+	captured := fallback
 	found := false
 	if c.snapshot != nil {
 		if entry, ok := c.snapshot.entries[id]; ok && entry.ExtensionID == extensionID {

@@ -548,6 +548,49 @@ func TestGuardPolicyCatalogUnknownGenerationStaysClosedUntilDurableNegative(t *t
 	}
 }
 
+func TestGuardPolicyCatalogMissingSnapshotUsesRuntimeFallbackTombstone(t *testing.T) {
+	plugin := guardPolicyFixture("guard.missing-fallback", TypePlugin, strings.Repeat("a", 64))
+	plugin.Source, plugin.IsSystem, plugin.IsDeletable = SourceUploaded, false, true
+	plugin.Manifest.Backend.Entry = "bin/plugin"
+	trust := &guardPolicyGenerationTrustStub{grantID: "41"}
+	catalog := NewGuardPolicyCatalog(
+		&guardPolicySourceStub{items: []Extension{plugin}}, trust, nil,
+		GuardPolicyConfig{TrustChallengesEnabled: true, TTL: time.Minute},
+	)
+	fallback := GuardPolicyEntry{
+		ExtensionID: plugin.ID, Version: plugin.Version, PackageDigest: plugin.PackageDigest,
+		CurrentTrustRequired: true, CurrentArtifactTrusted: true,
+	}
+	captured, found := catalog.CaptureExecutableTrustExactWithFallback(plugin.ID, fallback)
+	if found || captured != fallback {
+		t.Fatalf("fallback capture=%#v found=%t", captured, found)
+	}
+	if catalog.InvalidateExecutableTrustExact(plugin.ID, captured) {
+		t.Fatal("missing snapshot unexpectedly published an invalidation revision")
+	}
+	if err := catalog.Refresh(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	oldGrant, ok := catalog.Lookup(plugin.ID)
+	if !ok || oldGrant.Entry.CurrentArtifactTrusted {
+		t.Fatalf("runtime fallback reopened old grant: %#v ok=%t", oldGrant, ok)
+	}
+
+	trust.setGrant("")
+	if err := catalog.Refresh(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	trust.setGrant("42")
+	if err := catalog.Refresh(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	reauthorized, ok := catalog.Lookup(plugin.ID)
+	if !ok || !reauthorized.Entry.CurrentArtifactTrusted ||
+		reauthorized.Entry.currentTrustGrantID != "42" {
+		t.Fatalf("fallback tombstone did not resolve: %#v ok=%t", reauthorized, ok)
+	}
+}
+
 func TestGuardPolicyCatalogFreezesOnlySimpleDeclaredRouteGuards(t *testing.T) {
 	plugin := guardPolicyFixture("guard.plugin", TypePlugin, strings.Repeat("a", 64))
 	plugin.Manifest.Routes = []ManifestRoute{
