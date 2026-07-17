@@ -59,6 +59,17 @@ type pluginRuntimeCoordinatorBootstrapStartResult struct {
 	err     error
 }
 
+type pluginRuntimeCoordinatorBootstrapWaitContext struct {
+	context.Context
+	entered chan struct{}
+	once    sync.Once
+}
+
+func (ctx *pluginRuntimeCoordinatorBootstrapWaitContext) Done() <-chan struct{} {
+	ctx.once.Do(func() { close(ctx.entered) })
+	return ctx.Context.Done()
+}
+
 func TestPluginRuntimeCoordinatorBootstrapWaitsForDurableConvergence(t *testing.T) {
 	ensurer := newPluginRuntimeCoordinatorBootstrapTestEnsurer()
 	identity := pluginRuntimeCoordinatorBootstrapTestIdentity("wait", extensions.PluginRuntimeProcessAPI)
@@ -207,6 +218,54 @@ func TestPluginRuntimeCoordinatorBootstrapLifecycleInProgressHitsBound(t *testin
 	}
 	if ensurer.calls.Load() < 1 || buildCalls.Load() != 0 {
 		t.Fatalf("ensure calls=%d build calls=%d", ensurer.calls.Load(), buildCalls.Load())
+	}
+}
+
+func TestPluginRuntimeCoordinatorBootstrapLifecycleWaitHonorsCancellation(t *testing.T) {
+	identity := pluginRuntimeCoordinatorBootstrapTestIdentity("genesis-retry-cancel", extensions.PluginRuntimeProcessAPI)
+	ensurer := &pluginRuntimeCoordinatorBootstrapTestEnsurer{
+		err: extensions.ErrLifecycleOperationInProgress,
+	}
+	var buildCalls atomic.Int32
+	var runnerCalls atomic.Int32
+	baseCtx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	waitEntered := make(chan struct{})
+	ctx := &pluginRuntimeCoordinatorBootstrapWaitContext{
+		Context: baseCtx,
+		entered: waitEntered,
+	}
+	result := make(chan pluginRuntimeCoordinatorBootstrapStartResult, 1)
+	go func() {
+		runtime, err := launchPluginRuntimeCoordinator(ctx, pluginRuntimeCoordinatorLaunchConfig{
+			Identity: identity,
+			Ensurer:  ensurer,
+			Build: func(extensions.PluginRuntimeNodeIdentity, func(), func(error)) (pluginRuntimeCoordinatorRunner, error) {
+				buildCalls.Add(1)
+				return pluginRuntimeCoordinatorBootstrapTestRunner(func(context.Context) error {
+					runnerCalls.Add(1)
+					return nil
+				}), nil
+			},
+			// 长截止与重试间隔确保返回只能由父 context 取消触发。
+			GenesisWaitTimeout:   time.Hour,
+			GenesisRetryInterval: time.Hour,
+		})
+		result <- pluginRuntimeCoordinatorBootstrapStartResult{runtime: runtime, err: err}
+	}()
+
+	// Done() 首次被求值时，in-progress 已返回且 retry timer 已创建。
+	waitPluginRuntimeCoordinatorBootstrapSignal(t, waitEntered)
+	cancel()
+	started := waitPluginRuntimeCoordinatorBootstrapStart(t, result)
+	if !errors.Is(started.err, context.Canceled) || started.runtime != nil {
+		t.Fatalf("runtime=%#v error=%v want context.Canceled", started.runtime, started.err)
+	}
+	if ensurer.calls.Load() != 1 || buildCalls.Load() != 0 || runnerCalls.Load() != 0 {
+		t.Fatalf(
+			"ensure calls=%d build calls=%d runner calls=%d",
+			ensurer.calls.Load(), buildCalls.Load(), runnerCalls.Load(),
+		)
 	}
 }
 
