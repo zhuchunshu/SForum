@@ -36,15 +36,18 @@ type GuardPolicyEntry struct {
 	LifecycleV2             bool
 	CurrentTrustRequired    bool
 	CurrentArtifactTrusted  bool
+	currentTrustGrantID     string
 	ReviewVersion           string
 	ReviewPackageDigest     string
 	ReviewTrustRequired     bool
 	ReviewArtifactTrusted   bool
+	reviewTrustGrantID      string
 	HasStagedArtifact       bool
 	StagedVersion           string
 	StagedPackageDigest     string
 	StagedTrustRequired     bool
 	StagedArtifactTrusted   bool
+	stagedTrustGrantID      string
 	IsSystem                bool
 	IsDeletable             bool
 }
@@ -81,6 +84,10 @@ type guardPolicyExecutableTrust interface {
 	TrustedArtifact(context.Context, Extension) (bool, error)
 }
 
+type guardPolicyExecutableTrustIdentity interface {
+	RuntimeIdentity(context.Context, Extension) (RuntimeTrustIdentity, error)
+}
+
 type GuardPolicyConfig struct {
 	SafeMode               bool
 	TrustChallengesEnabled bool
@@ -94,6 +101,13 @@ type guardPolicySnapshot struct {
 	revision       uint64
 }
 
+type guardPolicyArtifactTrustKey struct {
+	extensionID   string
+	version       string
+	packageDigest string
+	trustGrantID  string
+}
+
 // GuardPolicyCatalog 在后台冻结扩展类型、制品和信任状态。Lookup 只读内存，
 // 不得在 HTTP Guard 热路径触发 PostgreSQL 或文件系统访问。
 type GuardPolicyCatalog struct {
@@ -105,6 +119,14 @@ type GuardPolicyCatalog struct {
 	mu       sync.RWMutex
 	snapshot *guardPolicySnapshot
 	revision uint64
+	// publicationEpoch fences refresh work that read trust before an in-memory
+	// revocation. It changes even when no usable snapshot is currently present.
+	publicationEpoch uint64
+	// pendingRevocations blocks publication between the pre-durable exact capture
+	// and its explicit completion. Tombstones keep an ambiguous old grant closed
+	// until PostgreSQL reports it absent or a newer exact grant generation exists.
+	pendingRevocations map[string]GuardPolicyEntry
+	revokedArtifacts   map[guardPolicyArtifactTrustKey]struct{}
 }
 
 func NewGuardPolicyCatalog(
@@ -119,6 +141,8 @@ func NewGuardPolicyCatalog(
 	return &GuardPolicyCatalog{
 		extensions: extensions, executableTrust: executableTrust,
 		frontendTrust: frontendTrust, config: config,
+		pendingRevocations: make(map[string]GuardPolicyEntry),
+		revokedArtifacts:   make(map[guardPolicyArtifactTrustKey]struct{}),
 	}
 }
 
@@ -126,6 +150,9 @@ func (c *GuardPolicyCatalog) Refresh(ctx context.Context) error {
 	if c == nil || c.extensions == nil || ctx == nil {
 		return errors.New("extensions: guard policy source is unavailable")
 	}
+	c.mu.RLock()
+	publicationEpoch := c.publicationEpoch
+	c.mu.RUnlock()
 	items, err := c.extensions.List(ctx)
 	if err != nil {
 		return err
@@ -150,6 +177,11 @@ func (c *GuardPolicyCatalog) Refresh(ctx context.Context) error {
 	}
 
 	c.mu.Lock()
+	if c.publicationEpoch != publicationEpoch || len(c.pendingRevocations) != 0 {
+		c.mu.Unlock()
+		return nil
+	}
+	c.applyExecutableTrustTombstonesLocked(entries)
 	c.revision++
 	c.snapshot = &guardPolicySnapshot{
 		entries: entries, declaredRoutes: declaredRoutes,
@@ -218,6 +250,255 @@ func (c *GuardPolicyCatalog) Lookup(extensionID string) (GuardPolicyLookup, bool
 	}, true
 }
 
+// CaptureExecutableTrustExact starts the process-local half of a durable
+// revocation. It deliberately ignores snapshot TTL: an expired entry is still
+// the exact pre-revoke artifact that must be fenced. Refresh publication stays
+// paused until the caller either releases or invalidates this capture.
+func (c *GuardPolicyCatalog) CaptureExecutableTrustExact(extensionID string) (GuardPolicyEntry, bool) {
+	if c == nil {
+		return GuardPolicyEntry{}, false
+	}
+	id := normalizeID(extensionID)
+	if id == "" || id != extensionID {
+		return GuardPolicyEntry{}, false
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.publicationEpoch++
+	captured := GuardPolicyEntry{ExtensionID: id}
+	found := false
+	if c.snapshot != nil {
+		if entry, ok := c.snapshot.entries[id]; ok && entry.ExtensionID == extensionID {
+			captured, found = entry, true
+		}
+	}
+	if c.pendingRevocations == nil {
+		c.pendingRevocations = make(map[string]GuardPolicyEntry)
+	}
+	c.pendingRevocations[id] = captured
+	return captured, found
+}
+
+// ReleaseExecutableTrustCaptureExact ends a capture after PostgreSQL proved
+// that COMMIT did not take effect. Exact comparison prevents stale cleanup from
+// releasing a newer capture for the same extension.
+func (c *GuardPolicyCatalog) ReleaseExecutableTrustCaptureExact(
+	extensionID string,
+	captured GuardPolicyEntry,
+) bool {
+	if c == nil {
+		return false
+	}
+	id := normalizeID(extensionID)
+	if id == "" || id != extensionID || captured.ExtensionID != extensionID {
+		return false
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	pending, found := c.pendingRevocations[id]
+	if !found || pending != captured {
+		return false
+	}
+	delete(c.pendingRevocations, id)
+	c.publicationEpoch++
+	return true
+}
+
+// InvalidateExecutableTrustExact publishes a new in-memory revision without
+// I/O. Each current/review/staged slot is closed only when it still names the
+// artifact captured before the durable revoke; a concurrent reauthorization
+// may therefore publish a new exact artifact without being erased by stale work.
+func (c *GuardPolicyCatalog) InvalidateExecutableTrustExact(
+	extensionID string,
+	captured GuardPolicyEntry,
+) bool {
+	if c == nil {
+		return false
+	}
+	id := normalizeID(extensionID)
+	if id == "" || id != extensionID || captured.ExtensionID != extensionID {
+		return false
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.publicationEpoch++
+	if pending, found := c.pendingRevocations[id]; found && pending == captured {
+		delete(c.pendingRevocations, id)
+	}
+	c.rememberExecutableTrustRevocationLocked(captured)
+	if c.snapshot == nil {
+		return false
+	}
+	entry, found := c.snapshot.entries[id]
+	if !found {
+		return false
+	}
+	changed := false
+	if captured.CurrentTrustRequired && entry.CurrentTrustRequired && sameGuardPolicyTrustIdentity(
+		captured.Version, captured.PackageDigest, captured.currentTrustGrantID,
+		entry.Version, entry.PackageDigest, entry.currentTrustGrantID,
+	) {
+		if entry.CurrentArtifactTrusted {
+			entry.CurrentArtifactTrusted = false
+			changed = true
+		}
+		if c.config.TrustChallengesEnabled && entry.FrontendArtifactTrusted {
+			entry.FrontendArtifactTrusted = false
+			changed = true
+		}
+	}
+	if captured.ReviewTrustRequired && entry.ReviewTrustRequired && sameGuardPolicyTrustIdentity(
+		captured.ReviewVersion, captured.ReviewPackageDigest, captured.reviewTrustGrantID,
+		entry.ReviewVersion, entry.ReviewPackageDigest, entry.reviewTrustGrantID,
+	) &&
+		entry.ReviewArtifactTrusted {
+		entry.ReviewArtifactTrusted = false
+		changed = true
+	}
+	if captured.HasStagedArtifact && captured.StagedTrustRequired &&
+		entry.HasStagedArtifact && entry.StagedTrustRequired && sameGuardPolicyTrustIdentity(
+		captured.StagedVersion, captured.StagedPackageDigest, captured.stagedTrustGrantID,
+		entry.StagedVersion, entry.StagedPackageDigest, entry.stagedTrustGrantID,
+	) &&
+		entry.StagedArtifactTrusted {
+		entry.StagedArtifactTrusted = false
+		changed = true
+	}
+	if !changed {
+		return false
+	}
+	entries := make(map[string]GuardPolicyEntry, len(c.snapshot.entries))
+	for key, value := range c.snapshot.entries {
+		entries[key] = value
+	}
+	entries[id] = entry
+	c.revision++
+	c.snapshot = &guardPolicySnapshot{
+		entries: entries, declaredRoutes: c.snapshot.declaredRoutes,
+		expiresAt: c.snapshot.expiresAt, revision: c.revision,
+	}
+	return true
+}
+
+func sameGuardPolicyTrustIdentity(
+	capturedVersion string,
+	capturedDigest string,
+	capturedGrantID string,
+	currentVersion string,
+	currentDigest string,
+	currentGrantID string,
+) bool {
+	if capturedVersion != currentVersion || capturedDigest != currentDigest {
+		return false
+	}
+	// Older/custom trust readers expose only the artifact tuple. Production
+	// readers expose grant IDs so a same-artifact reauthorization is distinguishable.
+	return capturedGrantID == "" || currentGrantID == "" || capturedGrantID == currentGrantID
+}
+
+func (c *GuardPolicyCatalog) rememberExecutableTrustRevocationLocked(captured GuardPolicyEntry) {
+	if c.revokedArtifacts == nil {
+		c.revokedArtifacts = make(map[guardPolicyArtifactTrustKey]struct{})
+	}
+	remember := func(required bool, version, digest, grantID string) {
+		if !required || strings.TrimSpace(version) == "" || strings.TrimSpace(digest) == "" {
+			return
+		}
+		c.revokedArtifacts[guardPolicyArtifactTrustKey{
+			extensionID: captured.ExtensionID, version: version,
+			packageDigest: digest, trustGrantID: grantID,
+		}] = struct{}{}
+	}
+	remember(captured.CurrentTrustRequired, captured.Version, captured.PackageDigest, captured.currentTrustGrantID)
+	remember(captured.ReviewTrustRequired, captured.ReviewVersion, captured.ReviewPackageDigest, captured.reviewTrustGrantID)
+	if captured.HasStagedArtifact {
+		remember(captured.StagedTrustRequired, captured.StagedVersion, captured.StagedPackageDigest, captured.stagedTrustGrantID)
+	}
+}
+
+func (c *GuardPolicyCatalog) applyExecutableTrustTombstonesLocked(entries map[string]GuardPolicyEntry) {
+	if len(c.revokedArtifacts) == 0 {
+		return
+	}
+	for id, entry := range entries {
+		if entry.CurrentTrustRequired {
+			entry.CurrentArtifactTrusted = c.applyExecutableTrustTombstoneLocked(
+				id, entry.Version, entry.PackageDigest, entry.currentTrustGrantID,
+				entry.CurrentArtifactTrusted,
+			)
+			if c.config.TrustChallengesEnabled && !entry.CurrentArtifactTrusted {
+				entry.FrontendArtifactTrusted = false
+			}
+		}
+		if entry.ReviewTrustRequired {
+			entry.ReviewArtifactTrusted = c.applyExecutableTrustTombstoneLocked(
+				id, entry.ReviewVersion, entry.ReviewPackageDigest, entry.reviewTrustGrantID,
+				entry.ReviewArtifactTrusted,
+			)
+		}
+		if entry.HasStagedArtifact && entry.StagedTrustRequired {
+			entry.StagedArtifactTrusted = c.applyExecutableTrustTombstoneLocked(
+				id, entry.StagedVersion, entry.StagedPackageDigest, entry.stagedTrustGrantID,
+				entry.StagedArtifactTrusted,
+			)
+		}
+		entries[id] = entry
+	}
+}
+
+func (c *GuardPolicyCatalog) applyExecutableTrustTombstoneLocked(
+	extensionID string,
+	version string,
+	digest string,
+	grantID string,
+	trusted bool,
+) bool {
+	sameArtifact := func(key guardPolicyArtifactTrustKey) bool {
+		return key.extensionID == extensionID && key.version == version && key.packageDigest == digest
+	}
+	if !trusted {
+		// A durable negative read resolves both known and ambiguous COMMIT outcomes.
+		for key := range c.revokedArtifacts {
+			if sameArtifact(key) {
+				delete(c.revokedArtifacts, key)
+			}
+		}
+		return false
+	}
+	exact := guardPolicyArtifactTrustKey{
+		extensionID: extensionID, version: version, packageDigest: digest, trustGrantID: grantID,
+	}
+	for key := range c.revokedArtifacts {
+		if sameArtifact(key) && key.trustGrantID == "" {
+			// Capture may precede the refresh that learns the live grant generation.
+			// An unknown generation is therefore a wildcard, not evidence that any
+			// subsequently observed non-empty ID is a new authorization. Only a
+			// durable negative read above may resolve this ambiguity.
+			return false
+		}
+	}
+	if _, revoked := c.revokedArtifacts[exact]; revoked {
+		return false
+	}
+	if grantID == "" {
+		// Without a source generation, fail closed against every tombstone for the
+		// same artifact. Production uses grant IDs and does not take this fallback.
+		for key := range c.revokedArtifacts {
+			if sameArtifact(key) {
+				return false
+			}
+		}
+		return true
+	}
+	// A different live grant ID is an explicit same-artifact reauthorization.
+	for key := range c.revokedArtifacts {
+		if sameArtifact(key) {
+			delete(c.revokedArtifacts, key)
+		}
+	}
+	return true
+}
+
 func (c *GuardPolicyCatalog) RunRefresh(ctx context.Context, interval time.Duration) {
 	if c == nil || ctx == nil {
 		return
@@ -246,14 +527,15 @@ func (c *GuardPolicyCatalog) freezeEntry(ctx context.Context, extension Extensio
 		return GuardPolicyEntry{}, fmt.Errorf("%w %q", errGuardPolicyArtifactInvalid, extension.ID)
 	}
 
-	currentTrusted, err := c.artifactTrusted(ctx, extension)
+	currentTrusted, currentTrustGrantID, err := c.artifactTrusted(ctx, extension)
 	if err != nil {
 		return GuardPolicyEntry{}, fmt.Errorf("extensions: resolve current guard trust for %s: %w", extension.ID, err)
 	}
 	review := trustReviewArtifact(extension)
 	reviewTrusted := currentTrusted
+	reviewTrustGrantID := currentTrustGrantID
 	if review.Version != extension.Version || review.PackageDigest != extension.PackageDigest {
-		reviewTrusted, err = c.artifactTrusted(ctx, review)
+		reviewTrusted, reviewTrustGrantID, err = c.artifactTrusted(ctx, review)
 		if err != nil {
 			return GuardPolicyEntry{}, fmt.Errorf("extensions: resolve review guard trust for %s: %w", extension.ID, err)
 		}
@@ -274,14 +556,17 @@ func (c *GuardPolicyCatalog) freezeEntry(ctx context.Context, extension Extensio
 		HasMailProvider:         manifestHasProvider(extension.Manifest, "mail.provider"),
 		HasExecutableBackend:    hasExecutableBackend(extension.Manifest), LifecycleV2: usesLifecycleV2(extension),
 		CurrentTrustRequired: RequiresExecutableTrust(extension), CurrentArtifactTrusted: currentTrusted,
-		ReviewVersion: review.Version, ReviewPackageDigest: review.PackageDigest,
+		currentTrustGrantID: currentTrustGrantID,
+		ReviewVersion:       review.Version, ReviewPackageDigest: review.PackageDigest,
 		ReviewTrustRequired: RequiresExecutableTrust(review), ReviewArtifactTrusted: reviewTrusted,
-		IsSystem: extension.IsSystem, IsDeletable: extension.IsDeletable,
+		reviewTrustGrantID: reviewTrustGrantID,
+		IsSystem:           extension.IsSystem, IsDeletable: extension.IsDeletable,
 	}
 	if staged, ok := extension.StagedArtifact(); ok {
 		stagedTrusted := reviewTrusted
+		stagedTrustGrantID := reviewTrustGrantID
 		if staged.Version != review.Version || staged.PackageDigest != review.PackageDigest {
-			stagedTrusted, err = c.artifactTrusted(ctx, staged)
+			stagedTrusted, stagedTrustGrantID, err = c.artifactTrusted(ctx, staged)
 			if err != nil {
 				return GuardPolicyEntry{}, fmt.Errorf("extensions: resolve staged guard trust for %s: %w", extension.ID, err)
 			}
@@ -291,18 +576,33 @@ func (c *GuardPolicyCatalog) freezeEntry(ctx context.Context, extension Extensio
 		entry.StagedPackageDigest = staged.PackageDigest
 		entry.StagedTrustRequired = RequiresExecutableTrust(staged)
 		entry.StagedArtifactTrusted = stagedTrusted
+		entry.stagedTrustGrantID = stagedTrustGrantID
 	}
 	return entry, nil
 }
 
-func (c *GuardPolicyCatalog) artifactTrusted(ctx context.Context, extension Extension) (bool, error) {
+func (c *GuardPolicyCatalog) artifactTrusted(ctx context.Context, extension Extension) (bool, string, error) {
 	if !RequiresExecutableTrust(extension) {
-		return true, nil
+		return true, "", nil
 	}
 	if c.executableTrust == nil {
-		return false, errors.New("executable trust source is unavailable")
+		return false, "", errors.New("executable trust source is unavailable")
 	}
-	return c.executableTrust.TrustedArtifact(ctx, extension)
+	if source, ok := c.executableTrust.(guardPolicyExecutableTrustIdentity); ok {
+		identity, err := source.RuntimeIdentity(ctx, extension)
+		if errors.Is(err, ErrTrustGrantNotFound) {
+			return false, "", nil
+		}
+		if err != nil {
+			return false, "", err
+		}
+		if strings.TrimSpace(identity.TrustGrantID) == "" {
+			return false, "", errors.New("executable trust source returned an empty grant identity")
+		}
+		return true, identity.TrustGrantID, nil
+	}
+	trusted, err := c.executableTrust.TrustedArtifact(ctx, extension)
+	return trusted, "", err
 }
 
 func manifestHasProvider(manifest Manifest, slot string) bool {
