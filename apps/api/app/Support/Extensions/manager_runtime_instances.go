@@ -18,6 +18,7 @@ var (
 	ErrRuntimeInstanceBusy       = errors.New("extension runtime instance still has active calls")
 	ErrRuntimeInstanceConflict   = errors.New("extension runtime instance already exists")
 	ErrRuntimeInstanceNotDrained = errors.New("extension runtime instance must be drained before transition")
+	ErrRuntimeTrustRevoked       = errors.New("extension executable trust was revoked")
 )
 
 type managedRuntimeInstance struct {
