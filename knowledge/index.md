@@ -4,19 +4,16 @@ This is the entry point for project memory.
 
 ## Latest Handoff
 
-- **2026-07-18 Trusted Plugin And Theme Platform V3 P6/P7/P9/P10/P11/P12 active (overall 64.3%)**
+- **2026-07-18 Trusted Plugin And Theme Platform V3 P6 closed; P7/P9/P10–P12 active (overall 66.0%)**
   - Decision: `knowledge/decisions/2026-07-13-trusted-plugin-theme-platform-v3.md`
+  - Stream Schema freeze: `knowledge/decisions/2026-07-18-route-stream-opaque-bytes.md`
   - Task book: `knowledge/plans/2026-07-13-trusted-plugin-theme-platform-v3.md`
   - Current durable checkpoint:
     `knowledge/sessions/2026-07-13-trusted-plugin-theme-platform-v3-progress.md`
-  - 2026-07-18 strict credit audit and recovery: P6 is **15/18**, P7 is
-    **14/22**, and verified weighted progress is **64.3447%**. Response-stage caller
-    cancellation now preserves and completes the last valid replay response;
-    Host-owned `Link` authority and redirect canonical integration are closed.
-    Stream total budget/lifetime ownership is committed
-    (`26493c35a`/`6c95b748e`/`280a0d31b`); custom/raw guard production-chain
-    evidence is committed (`1fc9226a1`) but not yet scored; non-HTTP Schema and
-    the complete P6 behavior matrix remain open. P6 stays **15/18**.
+  - P6 is **18/18** (weighted progress **66.0114%**, display **66.0%**). Stream
+    lifetime, custom/raw production-chain (`1fc9226a1`), joined matrix gates
+    (`fd9024af2`), and opaque non-HTTP Schema freeze (`34faf15ec`) closed the
+    three remaining P6 rows together. P7 remains **14/22**.
   - Active checkpoint: `knowledge/sessions/2026-07-16-trusted-plugin-theme-platform-v3-runtime-ownership-checkpoint.md`
   - Prior Query/P12/SEO checkpoint:
     `knowledge/sessions/2026-07-16-trusted-plugin-theme-platform-v3-query-p12-seo-checkpoint.md`
@@ -108,15 +105,13 @@ This is the entry point for project memory.
     composition, and concurrent idempotent replay. The production entitlement
     Host Command now proves eight-way replay, payload/revision conflict,
     revoke/replay, and actorless delegation rejection through real PostgreSQL
-  - P6 is active at 15/18 (83%). All 230 core routes have stable generated
+  - P6 is complete at 18/18 (100%). All 230 core routes have stable generated
     identities; immutable exact route snapshots, explicit replace-provider
     selection/conflict UI, Safe Mode filtering, and strict OpenAPI
     collision/reference rejection are accepted. Arbitrary public/admin/API
-    paths and WebSocket Upgrade now reach the production Host dispatcher. The
-    complete accepted action family now runs through deterministic request,
-    handler, and response stages; declaration-bound request/response patches
-    are Host-applied and immediately schema-revalidated. Custom/raw guard
-    revoke-WebSocket and the complete behavior matrix remain open.
+    paths and WebSocket Upgrade reach the production Host dispatcher. Stream
+    lifetime, custom/raw production-chain, joined behavior matrix gates, and
+    the opaque non-HTTP Schema freeze close the remaining P6 rows.
   - Exact OpenAPI operations now derive Host-owned permission/security,
     `host.ip_write@1` rate-limit, and `required.24h@1` replay metadata. Required
     replay is production-wired through a 24-hour CAS-fenced Redis ledger,

@@ -4,8 +4,8 @@ Last updated: 2026-07-18
 
 ## Progress
 
-- Verified weighted progress: **64.3447%** (display **64.3%**).
-- Phase counts: P0-P5 and P8 complete; P6 **15/18**, P7 **14/22**,
+- Verified weighted progress: **66.0114%** (display **66.0%**).
+- Phase counts: P0-P5, **P6**, and P8 complete; P6 **18/18**, P7 **14/22**,
   P8 **18/18**, P9 **4/16**, P11 **1/16**, and P12 **1/22**. P10 and P13
   have no credited authoritative row yet.
 - Completion remains unproven until all 99 target rows, 14 accepted boundaries,
@@ -13,6 +13,25 @@ Last updated: 2026-07-18
   gates pass.
 
 ## Current Subtask
+
+### 2026-07-18 P6 Closure Checkpoint (18/18)
+
+- Verified weighted progress advances to **66.0114%** (display **66.0%**); P6
+  closes at **18/18** after three co-dependent rows land together:
+  1. **Streamed transport** — lifetime/budget/cancel already committed; non-HTTP
+     Schema frozen as **opaque DataChunk** (`34faf15ec` decision;
+     `61aa96406`/`c08fbc7ca`/`6d3f42e5b` proto+Host honesty).
+  2. **Custom/raw guards** — production-chain Fiber + real Protocol V2 evidence
+     (`1fc9226a1`) co-credited with the joined matrix and Schema freeze.
+  3. **Joined behavior matrix** — named gates
+     `TestP6JoinedBehaviorMatrix` (Http) and `TestP6JoinedRouteMatrix` (Routes)
+     compose existing production-path suites (`fd9024af2`); race count=3 green.
+- Residual hardening (not a plan-book row): durable stream incident source fully
+  joined to every stream failure path remains optional follow-up.
+- Exact resume point: P7 remaining Query/Identity/Admin surfaces and P9 public
+  component policy; do not reopen P6 without a new product decision that
+  replaces the opaque stream boundary.
+
 
 ### 2026-07-18 Stream Preflight Real-Path Order Checkpoint
 
@@ -1051,8 +1070,8 @@ non-HTTP Schema product freeze is decided.
 | Guard failure classification matrix | present | `dispatcher_guard_failure_matrix_test.go` |
 | Unsafe no-second-writer | present | `route_matrix_test.go` |
 | Safe mode bypass | present | `route_matrix_test.go` + stream safe-mode tests |
-| Non-HTTP Schema framing/validation | **open** | `DataChunk` raw bytes only; product options recorded |
-| Joined single-suite matrix across all cells | **open** | cells exist separately; not yet one joined gate |
+| Non-HTTP Schema framing/validation | **frozen opaque** | decision `2026-07-18-route-stream-opaque-bytes.md` |
+| Joined single-suite matrix across all cells | **closed** | `TestP6JoinedBehaviorMatrix` + `TestP6JoinedRouteMatrix` |
 | Durable incident source for all stream failures | partial | failure sink matrices; not fully joined to stream |
 
 ### Exact matrix exit criteria still open
