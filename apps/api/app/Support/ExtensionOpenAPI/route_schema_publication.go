@@ -174,11 +174,22 @@ func (p *RouteSchemaPublication) ValidateExtensionReplacement(
 	desired *Artifact,
 	allowed []PublishedRouteSchemaArtifact,
 ) error {
-	if p == nil {
-		return ErrRouteSchemaPublicationInvalid
-	}
-	_, err := p.prepareExtensionReplacement(extensionID, desired, allowed, p.Revision())
+	_, err := p.PrepareExtensionReplacement(extensionID, desired, allowed)
 	return err
+}
+
+// PrepareExtensionReplacement exposes the exact off-snapshot candidate used by
+// lifecycle validation. Callers can join its route policies with another
+// prepared Registry before either owner advances its immutable snapshot.
+func (p *RouteSchemaPublication) PrepareExtensionReplacement(
+	extensionID string,
+	desired *Artifact,
+	allowed []PublishedRouteSchemaArtifact,
+) (*PreparedRouteSchemaPublication, error) {
+	if p == nil {
+		return nil, ErrRouteSchemaPublicationInvalid
+	}
+	return p.prepareExtensionReplacement(extensionID, desired, allowed, p.Revision())
 }
 
 func (p *RouteSchemaPublication) prepareExtensionReplacement(
@@ -363,8 +374,27 @@ func (p *RouteSchemaPublication) ResolveRouteExecutionPolicy(
 	if p == nil || !p.publishContracts || step.Provider.Kind != routes.ProviderPlugin {
 		return routes.RouteExecutionPolicy{}, routes.ErrRoutePolicyNotFound
 	}
+	return resolveRouteExecutionPolicy(p.loadSnapshot().operationPolicies, step)
+}
+
+// ResolveRouteExecutionPolicy lets lifecycle validation inspect the compiled
+// candidate without publishing it. The candidate remains owner-bound and
+// immutable, just like the live policy snapshot.
+func (p *PreparedRouteSchemaPublication) ResolveRouteExecutionPolicy(
+	step routes.RouteExecutionStep,
+) (routes.RouteExecutionPolicy, error) {
+	if p == nil || p.owner == nil || !p.owner.publishContracts || step.Provider.Kind != routes.ProviderPlugin {
+		return routes.RouteExecutionPolicy{}, routes.ErrRoutePolicyNotFound
+	}
+	return resolveRouteExecutionPolicy(p.operationPolicies, step)
+}
+
+func resolveRouteExecutionPolicy(
+	policies map[string]routes.RouteExecutionPolicy,
+	step routes.RouteExecutionStep,
+) (routes.RouteExecutionPolicy, error) {
 	artifact := step.Provider.Artifact
-	policy, exists := p.loadSnapshot().operationPolicies[routeOperationPolicyKey(
+	policy, exists := policies[routeOperationPolicyKey(
 		artifact.ExtensionID,
 		artifact.ExtensionVersion,
 		artifact.PackageDigest,
@@ -413,6 +443,7 @@ func routeOperationPolicyKey(
 }
 
 var _ routes.RoutePolicyResolver = (*RouteSchemaPublication)(nil)
+var _ routes.RoutePolicyResolver = (*PreparedRouteSchemaPublication)(nil)
 
 func (p *RouteSchemaPublication) ValidateRouteSchema(
 	ctx context.Context,
