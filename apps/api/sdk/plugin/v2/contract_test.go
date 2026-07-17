@@ -83,7 +83,7 @@ func TestRequiredEnvelopeAndCommandFields(t *testing.T) {
 		"mutable_request_fields", "mutable_response_fields", "prior_response")
 	assertFields(t, "sforum.plugin.v2.RouteResponse",
 		"context", "status_code", "headers", "body", "stream_follows", "error", "request_patch", "response_patch")
-	assertFields(t, "sforum.plugin.v2.RoutePatchOperation", "kind", "path", "value")
+	assertFields(t, "sforum.plugin.v2.RoutePatchOperation", "kind", "path", "value", "value_json")
 	assertFields(t, "sforum.plugin.v2.RouteResponseDocument", "status_code", "headers", "body")
 	assertFields(t, "sforum.plugin.v2.RouteStreamOpen",
 		"context", "route_id", "contract_version", "method", "path", "headers", "request_authority_mode", "guard_kind")
@@ -103,7 +103,7 @@ func TestRequiredEnvelopeAndCommandFields(t *testing.T) {
 		"request_patch": 7, "response_patch": 8,
 	})
 	assertFieldNumbers(t, "sforum.plugin.v2.RoutePatchOperation", map[protoreflect.Name]protoreflect.FieldNumber{
-		"kind": 1, "path": 2, "value": 3,
+		"kind": 1, "path": 2, "value": 3, "value_json": 4,
 	})
 	assertFieldNumbers(t, "sforum.plugin.v2.RouteResponseDocument", map[protoreflect.Name]protoreflect.FieldNumber{
 		"status_code": 1, "headers": 2, "body": 3,

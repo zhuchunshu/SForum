@@ -255,7 +255,12 @@ enum RoutePatchOperationKind {
 message RoutePatchOperation {
   RoutePatchOperationKind kind = 1;
   string path = 2;
-  google.protobuf.Value value = 3;
+  // Deprecated because google.protobuf.Value stores numbers as IEEE-754
+  // doubles and cannot preserve arbitrary JSON integer lexemes.
+  google.protobuf.Value value = 3 [deprecated = true];
+  // Lossless canonical JSON. Add/replace require one complete JSON value;
+  // remove requires this field to be empty. The Host validates before apply.
+  bytes value_json = 4;
 }
 
 // RouteResponseDocument is the response visible at a response-stage route

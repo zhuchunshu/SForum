@@ -1899,10 +1899,17 @@ func (*ServiceStreamFrame_Error) isServiceStreamFrame_Frame() {}
 // add/replace/remove patch. Path must exactly match a Host-frozen RFC 6901
 // allowlist entry; the Host remains authoritative for validation and apply.
 type RoutePatchOperation struct {
-	state         protoimpl.MessageState  `protogen:"open.v1"`
-	Kind          RoutePatchOperationKind `protobuf:"varint,1,opt,name=kind,proto3,enum=sforum.plugin.v2.RoutePatchOperationKind" json:"kind,omitempty"`
-	Path          string                  `protobuf:"bytes,2,opt,name=path,proto3" json:"path,omitempty"`
-	Value         *structpb.Value         `protobuf:"bytes,3,opt,name=value,proto3" json:"value,omitempty"`
+	state protoimpl.MessageState  `protogen:"open.v1"`
+	Kind  RoutePatchOperationKind `protobuf:"varint,1,opt,name=kind,proto3,enum=sforum.plugin.v2.RoutePatchOperationKind" json:"kind,omitempty"`
+	Path  string                  `protobuf:"bytes,2,opt,name=path,proto3" json:"path,omitempty"`
+	// Deprecated because google.protobuf.Value stores numbers as IEEE-754
+	// doubles and cannot preserve arbitrary JSON integer lexemes.
+	//
+	// Deprecated: Marked as deprecated in sforum/plugin/v2/runtime.proto.
+	Value *structpb.Value `protobuf:"bytes,3,opt,name=value,proto3" json:"value,omitempty"`
+	// Lossless canonical JSON. Add/replace require one complete JSON value;
+	// remove requires this field to be empty. The Host validates before apply.
+	ValueJson     []byte `protobuf:"bytes,4,opt,name=value_json,json=valueJson,proto3" json:"value_json,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1951,9 +1958,17 @@ func (x *RoutePatchOperation) GetPath() string {
 	return ""
 }
 
+// Deprecated: Marked as deprecated in sforum/plugin/v2/runtime.proto.
 func (x *RoutePatchOperation) GetValue() *structpb.Value {
 	if x != nil {
 		return x.Value
+	}
+	return nil
+}
+
+func (x *RoutePatchOperation) GetValueJson() []byte {
+	if x != nil {
+		return x.ValueJson
 	}
 	return nil
 }
@@ -2170,11 +2185,13 @@ const file_sforum_plugin_v2_runtime_proto_rawDesc = "" +
 	"\x04open\x18\x01 \x01(\v2#.sforum.plugin.v2.ServiceStreamOpenH\x00R\x04open\x12=\n" +
 	"\amessage\x18\x02 \x01(\v2!.sforum.protocol.v2.TypedDocumentH\x00R\amessage\x127\n" +
 	"\x05error\x18\x03 \x01(\v2\x1f.sforum.protocol.v2.ErrorDetailH\x00R\x05errorB\a\n" +
-	"\x05frame\"\x96\x01\n" +
+	"\x05frame\"\xb9\x01\n" +
 	"\x13RoutePatchOperation\x12=\n" +
 	"\x04kind\x18\x01 \x01(\x0e2).sforum.plugin.v2.RoutePatchOperationKindR\x04kind\x12\x12\n" +
-	"\x04path\x18\x02 \x01(\tR\x04path\x12,\n" +
-	"\x05value\x18\x03 \x01(\v2\x16.google.protobuf.ValueR\x05value\"\xa5\x01\n" +
+	"\x04path\x18\x02 \x01(\tR\x04path\x120\n" +
+	"\x05value\x18\x03 \x01(\v2\x16.google.protobuf.ValueB\x02\x18\x01R\x05value\x12\x1d\n" +
+	"\n" +
+	"value_json\x18\x04 \x01(\fR\tvalueJson\"\xa5\x01\n" +
 	"\x15RouteResponseDocument\x12\x1f\n" +
 	"\vstatus_code\x18\x01 \x01(\rR\n" +
 	"statusCode\x124\n" +
