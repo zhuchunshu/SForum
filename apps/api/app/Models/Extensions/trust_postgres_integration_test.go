@@ -110,7 +110,48 @@ func TestPostgresExecutableTrustStoreConsumesChallengeOnce(t *testing.T) {
 	if granted, err := store.HasLiveGrant(ctx, identity); err != nil || !granted {
 		t.Fatalf("mismatched revoke changed live grant=%t err=%v", granted, err)
 	}
-	if err := store.revokeExactGrant(ctx, createdGrant, actorID, "activation_failed"); err != nil {
+	// An activation publication holds this extension advisory lock from its
+	// final live-grant check through commit. Compensation revoke must wait rather
+	// than flipping revoked_at inside that proof window.
+	activationTx, err := pool.Begin(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := LockExecutableTrustExtensionTx(ctx, activationTx, extensionID); err != nil {
+		_ = activationTx.Rollback(ctx)
+		t.Fatal(err)
+	}
+	defer activationTx.Rollback(context.Background())
+	var activationPID int32
+	if err := activationTx.QueryRow(ctx, `SELECT pg_backend_pid()`).Scan(&activationPID); err != nil {
+		t.Fatal(err)
+	}
+	waiterApplicationName := "sforum_trust_revoke_waiter_" + suffix
+	waiterConfig, err := pgxpool.ParseConfig(databaseURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	waiterConfig.ConnConfig.RuntimeParams["application_name"] = waiterApplicationName
+	waiterConfig.MaxConns = 1
+	waiterPool, err := pgxpool.NewWithConfig(ctx, waiterConfig)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer waiterPool.Close()
+	waiterStore := NewPostgresExecutableTrustStore(waiterPool)
+	revokeCtx, cancelRevoke := context.WithCancel(ctx)
+	defer cancelRevoke()
+	exactRevokeDone := make(chan error, 1)
+	go func() {
+		exactRevokeDone <- waiterStore.revokeExactGrant(revokeCtx, createdGrant, actorID, "activation_failed")
+	}()
+	waitForExecutableTrustAdvisoryLockWaiter(
+		t, ctx, pool, activationPID, waiterApplicationName, exactRevokeDone,
+	)
+	if err := activationTx.Commit(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if err := <-exactRevokeDone; err != nil {
 		t.Fatal(err)
 	}
 	if err := store.revokeExactGrant(ctx, createdGrant, actorID, "activation_failed_replay"); err != nil {
@@ -161,6 +202,56 @@ func TestPostgresExecutableTrustStoreConsumesChallengeOnce(t *testing.T) {
 	granted, err = store.HasLiveGrant(ctx, identity)
 	if err != nil || granted {
 		t.Fatalf("revoked grant=%v err=%v", granted, err)
+	}
+}
+
+func waitForExecutableTrustAdvisoryLockWaiter(
+	t *testing.T,
+	ctx context.Context,
+	observer *pgxpool.Pool,
+	blockerPID int32,
+	applicationName string,
+	result <-chan error,
+) {
+	t.Helper()
+	waitCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+	ticker := time.NewTicker(10 * time.Millisecond)
+	defer ticker.Stop()
+
+	for {
+		var waiting bool
+		if err := observer.QueryRow(waitCtx, `
+			SELECT EXISTS (
+				SELECT 1
+				FROM pg_locks AS held
+				JOIN pg_locks AS waiter
+				  ON waiter.locktype = held.locktype
+				 AND waiter.database IS NOT DISTINCT FROM held.database
+				 AND waiter.classid IS NOT DISTINCT FROM held.classid
+				 AND waiter.objid IS NOT DISTINCT FROM held.objid
+				 AND waiter.objsubid IS NOT DISTINCT FROM held.objsubid
+				JOIN pg_stat_activity AS activity ON activity.pid = waiter.pid
+				WHERE held.pid = $1
+				  AND held.locktype = 'advisory'
+				  AND held.granted
+				  AND NOT waiter.granted
+				  AND activity.application_name = $2
+				  AND $1 = ANY(pg_blocking_pids(waiter.pid))
+			)
+		`, blockerPID, applicationName).Scan(&waiting); err != nil {
+			t.Fatalf("inspect exact revoke advisory-lock waiter: %v", err)
+		}
+		if waiting {
+			return
+		}
+		select {
+		case err := <-result:
+			t.Fatalf("exact revoke returned before reaching the advisory lock: %v", err)
+		case <-waitCtx.Done():
+			t.Fatalf("exact revoke did not reach the advisory lock: %v", waitCtx.Err())
+		case <-ticker.C:
+		}
 	}
 }
 

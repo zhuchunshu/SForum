@@ -36,7 +36,7 @@ func (s *PostgresExecutableTrustStore) CreateChallenge(ctx context.Context, inpu
 		return fmt.Errorf("begin trust challenge: %w", err)
 	}
 	defer tx.Rollback(ctx)
-	if err := lockExecutableTrustExtension(ctx, tx, input.Identity.ExtensionID); err != nil {
+	if err := LockExecutableTrustExtensionTx(ctx, tx, input.Identity.ExtensionID); err != nil {
 		return err
 	}
 	if _, err := tx.Exec(ctx, `
@@ -114,7 +114,7 @@ func (s *PostgresExecutableTrustStore) ConsumeChallenge(ctx context.Context, inp
 		return TrustGrant{}, fmt.Errorf("begin consume trust challenge: %w", err)
 	}
 	defer tx.Rollback(ctx)
-	if err := lockExecutableTrustExtension(ctx, tx, input.Identity.ExtensionID); err != nil {
+	if err := LockExecutableTrustExtensionTx(ctx, tx, input.Identity.ExtensionID); err != nil {
 		return TrustGrant{}, err
 	}
 
@@ -224,7 +224,15 @@ func (s *PostgresExecutableTrustStore) revokeExactGrant(
 	actorUserID int64,
 	reason string,
 ) error {
-	command, err := s.pool.Exec(ctx, `
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("begin exact executable trust revocation: %w", err)
+	}
+	defer tx.Rollback(ctx)
+	if err := LockExecutableTrustExtensionTx(ctx, tx, grant.ExtensionID); err != nil {
+		return err
+	}
+	command, err := tx.Exec(ctx, `
 		UPDATE extension_trust_grants
 		SET revoked_at = now(), revoked_by_user_id = $7, revocation_reason = $8
 		WHERE id = $1 AND extension_id = $2 AND extension_version = $3
@@ -236,10 +244,13 @@ func (s *PostgresExecutableTrustStore) revokeExactGrant(
 		return fmt.Errorf("revoke exact executable trust grant: %w", err)
 	}
 	if command.RowsAffected() == 1 {
+		if err := tx.Commit(ctx); err != nil {
+			return fmt.Errorf("commit exact executable trust revocation: %w", err)
+		}
 		return nil
 	}
 	var revoked bool
-	err = s.pool.QueryRow(ctx, `
+	err = tx.QueryRow(ctx, `
 		SELECT revoked_at IS NOT NULL
 		FROM extension_trust_grants
 		WHERE id = $1 AND extension_id = $2 AND extension_version = $3
@@ -261,7 +272,7 @@ func (s *PostgresExecutableTrustStore) RevokeAll(ctx context.Context, extensionI
 		return fmt.Errorf("begin revoke executable trust: %w", err)
 	}
 	defer tx.Rollback(ctx)
-	if err := lockExecutableTrustExtension(ctx, tx, extensionID); err != nil {
+	if err := LockExecutableTrustExtensionTx(ctx, tx, extensionID); err != nil {
 		return err
 	}
 	if _, err := tx.Exec(ctx, `
@@ -287,7 +298,10 @@ func (s *PostgresExecutableTrustStore) RevokeAll(ctx context.Context, extensionI
 	return nil
 }
 
-func lockExecutableTrustExtension(ctx context.Context, tx pgx.Tx, extensionID string) error {
+// LockExecutableTrustExtensionTx serializes grant/challenge changes with the
+// final runtime-publication trust check. Callers must acquire this fence before
+// the plugin desired-set lock.
+func LockExecutableTrustExtensionTx(ctx context.Context, tx pgx.Tx, extensionID string) error {
 	if ctx == nil || tx == nil || extensionID == "" || extensionID != strings.TrimSpace(extensionID) {
 		return ErrTrustChallengeInvalid
 	}
