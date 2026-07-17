@@ -14,6 +14,30 @@ Last updated: 2026-07-17
 
 ## Current Subtask
 
+### 2026-07-17 P6 Protocol V2 Guard Failure Checkpoint
+
+- Verified weighted progress remains **63.2336%** (display **63.2%**); P6
+  remains **13/18** until the complete custom/raw guard, action, mutation,
+  cancellation, and production failure matrices pass.
+- `7eed8d0d2 feat(protocol): classify plugin guard call failures` adds a typed,
+  redacted post-RPC failure contract for deny, crash, timeout, protocol, and
+  cancellation outcomes. Pre-RPC binding/authority/schema rejection cannot
+  claim runtime execution, while Manager wrapping preserves the typed evidence
+  without retaining plugin-controlled error text.
+- Focused Protocol V2 and Manager tests passed twenty repetitions; focused race
+  passed five repetitions; `go vet ./app/Support/Extensions`, staged diff
+  review, and both diff checks passed before the implementation commit.
+- This producer-first compatibility commit does not change the P6 score. The
+  next atomic slice maps the typed Protocol evidence into the HTTP guard
+  adapter, then the Dispatcher slice must prove request/response-stage caller
+  cancellation, idempotency abort/complete boundaries, trace/quarantine
+  classification, and custom/raw guard failure matrices before receiving any
+  row credit.
+- The legacy namespaced RouteGateway `Link` bypass has a separate reviewed
+  three-file fix waiting for its own commit. Repeated-query wire production,
+  params authority, canonical response policy, Identity role suggestions, and
+  the user-owned fixture edits remain intentionally outside this checkpoint.
+
 ### 2026-07-17 P6 Bounded Route Mutation Engine Checkpoint
 
 - Verified weighted progress remains **63.2336%** (display **63.2%**); P6
