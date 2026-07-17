@@ -44,6 +44,7 @@ import (
 	hostapi "github.com/zhuchunshu/sforum/apps/api/app/Support/HostAPI"
 	humanverify "github.com/zhuchunshu/sforum/apps/api/app/Support/HumanVerify"
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Idempotency"
+	identityregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/IdentityRegistry"
 	installationidentity "github.com/zhuchunshu/sforum/apps/api/app/Support/InstallationIdentity"
 	supportjobs "github.com/zhuchunshu/sforum/apps/api/app/Support/Jobs"
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Pages"
@@ -453,6 +454,20 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		pool.Close()
 		return nil, fmt.Errorf("extension lifecycle setup failed: %w", err)
 	}
+	identityReviewStore, ok := lifecycleStack.IdentityStore.(identityregistry.Store)
+	if !ok {
+		if stopErr := supportjobs.Stop(ctx, jobClient); stopErr != nil {
+			logger.Warn("job dispatcher stop failed", "error", stopErr)
+		}
+		extensionRuntime.Close(ctx)
+		_ = hostAPIGateway.Close()
+		sharedRedisClient.Close()
+		if closeErr := redisStorage.Close(); closeErr != nil {
+			logger.Warn("redis session storage close failed", "error", closeErr)
+		}
+		pool.Close()
+		return nil, fmt.Errorf("extension lifecycle identity store does not expose Host review operations")
+	}
 	frontendService.WithPublicComponentAdmission(lifecycleStack.ComponentRegistry)
 	if err := lifecycleStack.bindService(extensionService); err != nil {
 		if stopErr := supportjobs.Stop(ctx, jobClient); stopErr != nil {
@@ -655,6 +670,7 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 	apiTokenService := apitokens.NewService(apiTokenStore, identityStore).WithAuditor(auditWriter)
 
 	identityProvider := providers.NewIdentityProviderWithPasswordResetAndLockout(identityStore, authSessions, humanVerifier, eventPublisher, passwordResetService, mailOutbox, optionsService, loginLockout).
+		WithIdentityRegistryStore(identityReviewStore).
 		WithAPITokens(apiTokenService)
 	notificationsProvider := providers.NewNotificationsProvider(notificationStore, identityStore, authSessions)
 	mailProvider := providers.NewMailProvider(extensionStore, notificationStore, extensionsruntime.NewMailProviderRegistry(extensionStore), identityStore, authSessions, optionsService)

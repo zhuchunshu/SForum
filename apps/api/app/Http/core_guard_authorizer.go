@@ -964,7 +964,7 @@ func forumRuntimeSettingsPresent(input forumSettingsGuardInput) bool {
 		input.SoftDeleteVisibility != nil || input.MentionsEnabled != nil || input.MentionsMaxPerPost != nil
 }
 
-func requireIdentityAdminAuthority(_ context.Context, evaluation routes.CoreGuardEvaluation) error {
+func requireIdentityAdminAuthority(ctx context.Context, evaluation routes.CoreGuardEvaluation) error {
 	switch evaluation.Descriptor.RouteID {
 	case "core.route.identity.list_permissions", "core.route.identity.permission_matrix":
 		return requireCoreGuardPermission(evaluation,
@@ -976,6 +976,12 @@ func requireIdentityAdminAuthority(_ context.Context, evaluation routes.CoreGuar
 	case "core.route.identity.list_roles",
 		"core.route.identity.create_role",
 		"core.route.identity.update_role":
+		return requireCoreGuardPermission(evaluation, identity.PermissionRoleManage)
+	case "core.route.identity.list_role_suggestions",
+		"core.route.identity.decide_role_suggestion":
+		if err := requireCookieCredentialAuthority(ctx, evaluation); err != nil {
+			return err
+		}
 		return requireCoreGuardPermission(evaluation, identity.PermissionRoleManage)
 	case "core.route.identity.list_users", "core.route.identity.get_user":
 		// user.manage 是 user.view 的兼容父权限；生产会话通常已展开，

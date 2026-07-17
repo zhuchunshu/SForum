@@ -1575,6 +1575,7 @@ func TestProductionIdentityAdminGuardPartitionsCatalogByProvablePolicy(t *testin
 		method      string
 		permissions []string
 		body        string
+		cookieOnly  bool
 		supported   bool
 	}
 	expected := map[string]expectedRoute{
@@ -1589,8 +1590,14 @@ func TestProductionIdentityAdminGuardPartitionsCatalogByProvablePolicy(t *testin
 		"core.route.identity.list_roles":  {method: "GET", supported: true, permissions: []string{identity.PermissionRoleManage}},
 		"core.route.identity.create_role": {method: "POST", supported: true, permissions: []string{identity.PermissionRoleManage}},
 		"core.route.identity.update_role": {method: "PATCH", supported: true, permissions: []string{identity.PermissionRoleManage}},
-		"core.route.identity.list_users":  {method: "GET", supported: true, permissions: []string{identity.PermissionUserView, identity.PermissionUserManage}},
-		"core.route.identity.get_user":    {method: "GET", supported: true, permissions: []string{identity.PermissionUserView, identity.PermissionUserManage}},
+		"core.route.identity.list_role_suggestions": {
+			method: "GET", supported: true, cookieOnly: true, permissions: []string{identity.PermissionRoleManage},
+		},
+		"core.route.identity.decide_role_suggestion": {
+			method: "POST", supported: true, cookieOnly: true, permissions: []string{identity.PermissionRoleManage},
+		},
+		"core.route.identity.list_users": {method: "GET", supported: true, permissions: []string{identity.PermissionUserView, identity.PermissionUserManage}},
+		"core.route.identity.get_user":   {method: "GET", supported: true, permissions: []string{identity.PermissionUserView, identity.PermissionUserManage}},
 
 		"core.route.identity.delete_role":                       {method: "DELETE", supported: true, permissions: []string{identity.PermissionRoleManage}},
 		"core.route.identity.replace_role_permissions":          {method: "PUT", supported: true, permissions: []string{identity.PermissionRoleManage}, body: `{"permissions":["post.create"]}`},
@@ -1637,6 +1644,9 @@ func TestProductionIdentityAdminGuardPartitionsCatalogByProvablePolicy(t *testin
 		for _, permission := range want.permissions {
 			allowed := productionGuardRequest(permission)
 			allowed.Method, allowed.Path, allowed.Params, allowed.Body = plan.Method(), plan.Path(), plan.Params(), []byte(want.body)
+			if want.cookieOnly {
+				allowed.CredentialSource = routes.DispatchCredentialCookie
+			}
 			if err := authorizer.Authorize(context.Background(), plan, step, allowed); err != nil {
 				t.Fatalf("%s permission %s error = %v", route.ID, permission, err)
 			}
@@ -1655,6 +1665,9 @@ func TestProductionIdentityAdminGuardPartitionsCatalogByProvablePolicy(t *testin
 
 		allowed := productionGuardRequest(want.permissions[0])
 		allowed.Method, allowed.Path, allowed.Params, allowed.Body = plan.Method(), plan.Path(), plan.Params(), []byte(want.body)
+		if want.cookieOnly {
+			allowed.CredentialSource = routes.DispatchCredentialCookie
+		}
 		forgedStep := step
 		forgedStep.RouteID += ".forged"
 		if err := authorizer.Authorize(context.Background(), plan, forgedStep, allowed); !errors.Is(err, ErrRouteGuardUnavailable) {
@@ -1664,6 +1677,13 @@ func TestProductionIdentityAdminGuardPartitionsCatalogByProvablePolicy(t *testin
 		forgedRequest.Path += "/forged"
 		if err := authorizer.Authorize(context.Background(), plan, step, forgedRequest); !errors.Is(err, ErrRouteGuardUnavailable) {
 			t.Fatalf("%s forged request error = %v", route.ID, err)
+		}
+		if want.cookieOnly {
+			bearer := allowed
+			bearer.CredentialSource = routes.DispatchCredentialBearer
+			if err := authorizer.Authorize(context.Background(), plan, step, bearer); !errors.Is(err, ErrRoutePermissionDenied) {
+				t.Fatalf("%s bearer credential error = %v", route.ID, err)
+			}
 		}
 	}
 	if len(expected) != 0 {

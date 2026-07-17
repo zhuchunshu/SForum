@@ -1166,6 +1166,18 @@
       "path": "/api/v1/roles"
     },
     {
+      "id": "core.route.identity.list_role_suggestions",
+      "contractVersion": "sforum.route.identity.list_role_suggestions@1",
+      "method": "GET",
+      "path": "/api/v1/roles/suggestions"
+    },
+    {
+      "id": "core.route.identity.decide_role_suggestion",
+      "contractVersion": "sforum.route.identity.decide_role_suggestion@1",
+      "method": "POST",
+      "path": "/api/v1/roles/suggestions/:suggestionID/decision"
+    },
+    {
       "id": "core.route.identity.delete_role",
       "contractVersion": "sforum.route.identity.delete_role@1",
       "method": "DELETE",

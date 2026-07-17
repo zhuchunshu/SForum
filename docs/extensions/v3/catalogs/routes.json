@@ -3366,6 +3366,38 @@
     }
   },
   {
+    "id": "core.route.identity.list_role_suggestions",
+    "contractVersion": "sforum.route.identity.list_role_suggestions@1",
+    "module": "identity",
+    "handler": "listRoleSuggestions",
+    "method": "GET",
+    "path": "/api/v1/roles/suggestions",
+    "source": "apps/api/app/Http/Controllers/Identity/routes.go:55",
+    "access": "permission",
+    "policy": "active cookie session with role.manage; PAT denied; Host explicit decision",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.identity.admin"
+    }
+  },
+  {
+    "id": "core.route.identity.decide_role_suggestion",
+    "contractVersion": "sforum.route.identity.decide_role_suggestion@1",
+    "module": "identity",
+    "handler": "decideRoleSuggestion",
+    "method": "POST",
+    "path": "/api/v1/roles/suggestions/:suggestionID/decision",
+    "source": "apps/api/app/Http/Controllers/Identity/routes.go:56",
+    "access": "permission",
+    "policy": "active cookie session with role.manage; PAT denied; Host explicit decision",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.identity.admin"
+    }
+  },
+  {
     "id": "core.route.forum.search",
     "contractVersion": "sforum.route.forum.search@1",
     "module": "forum",

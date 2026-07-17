@@ -50,4 +50,8 @@ func (h *Controller) RegisterRoutes(api fiber.Router) {
 	api.Post("/users/:userID/sessions/revoke", h.adminRevokeUserSessions)
 	// 管理员清空目标用户相关真实 IP（user.manage；隐私合规）。
 	api.Post("/users/:userID/client-ips/clear", h.adminClearUserClientIPs)
+
+	// 插件只提交建议；角色授权必须由 role.manage 管理员通过浏览器会话显式审批。
+	api.Get("/roles/suggestions", h.listRoleSuggestions)
+	api.Post("/roles/suggestions/:suggestionID/decision", h.decideRoleSuggestion)
 }

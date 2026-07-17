@@ -143,6 +143,7 @@ function routePolicy(route) {
   if (path.startsWith('/api/v1/admin/web-options')) return ['permission', 'option-owner permission dispatch']
   if (path === '/api/v1/admin/overview') return ['permission', 'admin.access']
   if (path.startsWith('/api/v1/admin/admin-surfaces')) return ['permission', 'admin.access']
+  if (path.startsWith('/api/v1/roles/suggestions')) return ['permission', 'active cookie session with role.manage; PAT denied; Host explicit decision']
   if (/^\/api\/v1\/(permissions|roles|users)(\/|$)/.test(path)) return ['permission', 'identity service route-specific user.view/user.manage/role.manage/user.ban policy']
   if (path.startsWith('/api/v1/auth/sessions') || path.startsWith('/api/v1/auth/tokens')) return ['login', 'current active actor; token/session ownership']
   if (path === '/api/v1/auth/logout' || path === '/api/v1/auth/session') return ['login', 'current browser session']
@@ -207,6 +208,7 @@ const reviewedGuardPolicies = new Map([
   ['extension.plugin.manage or extension.theme.manage; operation-specific service policy', { kind: 'contextual', evaluatorId: 'core.guard.extensions.mutation' }],
   ['extension.view for inspection; theme/plugin manage and super_admin approval where required', { kind: 'contextual', evaluatorId: 'core.guard.pages.admin' }],
   ['extension.view or matching manage permission', { kind: 'contextual', evaluatorId: 'core.guard.extensions.read' }],
+  ['active cookie session with role.manage; PAT denied; Host explicit decision', { kind: 'contextual', evaluatorId: 'core.guard.identity.admin' }],
   ['identity service route-specific user.view/user.manage/role.manage/user.ban policy', { kind: 'contextual', evaluatorId: 'core.guard.identity.admin' }],
   ['moderation.review; moderation.view_ip controls sensitive fields', { kind: 'contextual', permissions: ['moderation.review'], evaluatorId: 'core.guard.moderation.review' }],
   ['option-owner permission dispatch', { kind: 'contextual', evaluatorId: 'core.guard.options.owner' }],

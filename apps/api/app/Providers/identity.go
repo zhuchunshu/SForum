@@ -13,6 +13,7 @@ import (
 	authsession "github.com/zhuchunshu/sforum/apps/api/app/Support/AuthSession"
 	appevents "github.com/zhuchunshu/sforum/apps/api/app/Support/Events"
 	humanverify "github.com/zhuchunshu/sforum/apps/api/app/Support/HumanVerify"
+	identityregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/IdentityRegistry"
 )
 
 type IdentityProvider struct {
@@ -79,6 +80,15 @@ type optionsResolver interface {
 func (p *IdentityProvider) WithAPITokens(tokens *apitokens.Service) *IdentityProvider {
 	if p != nil && p.controller != nil {
 		p.controller.WithAPITokens(tokens)
+	}
+	return p
+}
+
+// WithIdentityRegistryStore enables Host-owned permission recommendation
+// review without exposing repository mutation methods to extensions.
+func (p *IdentityProvider) WithIdentityRegistryStore(store identityregistry.Store) *IdentityProvider {
+	if p != nil && p.controller != nil {
+		p.controller.WithIdentityRegistryStore(store)
 	}
 	return p
 }
