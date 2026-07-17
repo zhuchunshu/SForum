@@ -858,6 +858,12 @@ func (c *protocolV2Client) InvokeVersionedSEO(
 		ContractVersion: input.ContractVersion, DeclarationId: input.DeclarationID, Input: document,
 	})
 	if err != nil {
+		switch status.Code(err) {
+		case codes.DeadlineExceeded:
+			return VersionedSEOResponse{}, context.DeadlineExceeded
+		case codes.Canceled:
+			return VersionedSEOResponse{}, context.Canceled
+		}
 		if ctx.Err() != nil {
 			return VersionedSEOResponse{}, ctx.Err()
 		}

@@ -11,7 +11,9 @@ import (
 	pluginwire "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/plugin/v2"
 	protocolwire "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/protocol/v2"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/status"
 	"google.golang.org/grpc/test/bufconn"
 	"google.golang.org/protobuf/types/known/structpb"
 )
@@ -73,6 +75,35 @@ func TestProtocolV2SEOPropagatesProviderDeadline(t *testing.T) {
 	})
 	if !errors.Is(err, context.DeadlineExceeded) {
 		t.Fatalf("SEO timeout error=%v", err)
+	}
+}
+
+func TestProtocolV2SEOMapsProviderCancellationStatus(t *testing.T) {
+	declaration := extensions.ManifestSEO{
+		ID: "plugin.seo.reference.title", ContractVersion: "plugin.seo.reference.title@1",
+		Scope: "core.page.topic", Kind: "title", Action: "filter",
+		Handler: "plugin.seo.reference.title", FailurePolicy: "fallback", TimeoutMS: 500,
+	}
+	for _, test := range []struct {
+		name string
+		code codes.Code
+		want error
+	}{
+		{name: "deadline", code: codes.DeadlineExceeded, want: context.DeadlineExceeded},
+		{name: "canceled", code: codes.Canceled, want: context.Canceled},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			client := newProtocolV2SEOTestClient(t, declaration, func(context.Context, *pluginwire.ProviderCallRequest) (*pluginwire.ProviderCallResponse, error) {
+				return nil, status.Error(test.code, "provider stopped")
+			})
+			_, err := client.InvokeVersionedSEO(context.Background(), VersionedSEORequest{
+				DeclarationID: declaration.ID, ContractVersion: declaration.ContractVersion,
+				Handler: declaration.Handler, Timeout: 500 * time.Millisecond,
+			})
+			if !errors.Is(err, test.want) {
+				t.Fatalf("SEO %s error=%v", test.name, err)
+			}
+		})
 	}
 }
 
