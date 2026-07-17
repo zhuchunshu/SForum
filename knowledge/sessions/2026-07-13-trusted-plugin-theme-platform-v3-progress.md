@@ -14,6 +14,36 @@ Last updated: 2026-07-18
 
 ## Current Subtask
 
+### 2026-07-18 Stream Lifetime Checkpoint
+
+- Verified weighted progress remains **64.3447%** (display **64.3%**); P6 stays
+  **15/18**. Stream total budget and lifecycle ownership are committed, but the
+  streamed-transport row still needs non-HTTP Schema framing/validation, durable
+  incident source closure where still open, and the joined full-route behavior
+  matrix. Custom/raw guard production-chain evidence is also still open.
+- `26493c35a fix(routes): own stream budget and cancel lifetime` adds one Host
+  total budget over guard, unary preflight, stream open, and the full session
+  (`TimeoutMS == 0` → 24h). Outer lifetime owns budget timer, caller callback,
+  and WebSocket detach; inner `routeV2StreamSession` owns wire cancel and lease
+  release with active/terminal/canceled atomic race, cause capture before
+  `RuntimeAdmissionLease.Release()`, Fail-before-Cancel adapter order, and
+  typed-cause preservation on outer wait.
+- `6c95b748e test(routes): cover stream lifetime budget and cancel races` covers
+  shared budget, pre/post-execution caller cancel, Host budget timeout,
+  ForceCancel cause, terminal-vs-cancel race, DetachCaller independence, and
+  outer typed-cause preservation.
+- Focused gates: Routes stream tests **100** normal + **20** race; Http
+  `TestRouteV2Stream|TestRouteDispatcher.*WebSocket` **100** normal + **20**
+  race; `TestRouteStreamAcrossFiberManagerAndRealProtocolV2Process` **10** race;
+  complete `./app/Support/Routes ./app/Http` normal + race; both-package vet;
+  `go build ./...`; `git diff --check`. No sleep/assertion-weakening workarounds.
+- Exact resume point: audit and close custom/raw guard **production-chain**
+  evidence (Fiber + real Protocol V2 guard invoke + trust revoke + raw
+  credential boundary), then the complete P6 behavior matrix. Do not claim
+  non-HTTP Schema complete until SSE/WebSocket/multipart/arbitrary stream JSON
+  framing and Host validation are frozen across manifest, Protocol V2, Host,
+  docs, and tests (current `DataChunk` is raw bytes only).
+
 ### 2026-07-18 Stream Correlation Checkpoint
 
 - Verified weighted progress remains **64.3447%** (display **64.3%**); P6 stays
@@ -830,6 +860,21 @@ Last updated: 2026-07-18
 - Never stage these user-owned files:
   - `apps/api/app/Models/PageViewModels/source_test.go`
   - `extensions/builtin/plugins/sforum-content-policy/sforum.extension.json`
+- Unowned dirty / untracked inventory after stream lifetime commits (do not
+  stage unless a later subtask proves ownership):
+  - `apps/api/app/Http/route_action_v2_fiber_integration_test.go`
+  - `apps/api/app/Http/route_websocket_trust_revoke_integration_test.go` (??)
+  - `apps/api/app/Models/Extensions/public_frontend_policy.go` (??)
+  - `apps/api/app/Models/Extensions/public_frontend_policy_test.go` (??)
+  - `apps/api/app/Support/Extensions/admin_surface_reference_plugin_integration_test.go`
+  - `apps/api/app/Support/Extensions/protocol_v1_builtins_integration_test.go`
+  - `apps/api/app/Support/Routes/route_mutation_test.go`
+  - `apps/api/bootstrap/app.go`
+  - `apps/api/go.mod`
+  - `apps/web/**` route-inspector / public-extension drafts
+  - `contracts/openapi/schemas/extension-route-inspector.yaml`
+  - `docs/extensions/host-api-v2.md`
+  - `knowledge/decisions/2026-07-13-trusted-plugin-theme-platform-v3.md`
 - The uncommitted SEO family is separate from Cache and includes
   `Support/SEORegistry`, SEO Protocol/SDK/runtime/bootstrap files, the
   `sforum-seo-reference` fixture, and its fixture index entry.
@@ -840,28 +885,69 @@ Last updated: 2026-07-18
 - `docs/extensions/catalogs/manifest-v3.md`, the V3 ADR edit, and every other
   unstaged file remain outside the current commit until independently reviewed.
 
+## Non-HTTP Schema Gap (explicit product options)
+
+`RouteStreamFrame` currently carries only `DataChunk` raw bytes
+(`contracts/proto/sforum/plugin/v2/runtime.proto`). There is **no frozen**
+JSON framing/validation contract for SSE event fields, WebSocket text/binary
+message schema, multipart part headers/boundaries, or arbitrary stream
+documents. Options before any implementation:
+
+1. **Opaque bytes only (status quo):** Host validates size/backpressure only;
+   plugins own framing; Manifest cannot declare stream response Schema for
+   non-HTTP modes. Document this as the supported boundary.
+2. **Mode-specific frame envelopes:** add versioned protobuf oneofs
+   (`SseEvent`, `WebSocketMessage`, `MultipartPart`) selected by route mode;
+   Host validates envelope shape; body payload remains optional Schema-bound
+   JSON/bytes.
+3. **Single JSON document stream:** each chunk is one Schema-validated JSON
+   value; unsuitable for binary WebSocket/multipart without base64 cost.
+
+Do **not** credit non-HTTP Schema or raise P6 until one option is chosen and
+wired through Manifest V3, Protocol V2, Host validation, docs, and tests.
+
+## Custom/raw Guard Production Evidence Audit
+
+Already present (unit/integration, not full credit alone):
+
+- Production evaluator: `RuntimePluginRouteGuardEvaluator` bound in
+  `bootstrap/app.go` via lifecycle runtime manager + extension guard policy.
+- Trust/safe-mode/digest fail-closed matrix in `plugin_guard_runtime_test.go`.
+- Raw credential forwarding matrix in `route_request_authority_matrix_test.go`.
+- Dispatcher raw stamp sealing (`1f2c2e81a`) and stream raw stamp preservation.
+- Plugin guard request/response failure matrices in Routes.
+
+Still required before the custom/raw guard row can close:
+
+1. Real Protocol V2 go-plugin subprocess invoking a declared `custom` and
+   `raw_request` guard through Fiber/Dispatcher (not only fake runtime).
+2. Trust revoke mid-request: no further invoke; no credential leak; exact
+   unavailable classification without false quarantine on caller cancel.
+3. WebSocket/stream path: custom/raw guard runs only at `Open` preflight; post-
+   upgrade caller detach must not re-run guard; ForceCancel/trust revoke still
+   terminates.
+4. Joined evidence that legacy authorizers cannot mint raw authority on the
+   production Fiber stack (not only pure Dispatcher unit tests).
+
 ## Exact Next Steps
 
-1. Finish Stream V2 pre-admission, correlation, repeated-query, request and
-   response schema enforcement, backpressure, disconnect, and terminal cleanup
-   as independently reviewable commits with normal/race/production evidence.
-2. Before returning a required replay record, revalidate the stored response
-   against the current response schema and current plugin-response header
-   policy. Strip stale reserved/hop-by-hop/plugin headers while preserving only
-   Host-added replay/canonical metadata, and prove failure closes before output.
-3. When Core or a plugin response already exists, treat caller cancellation as
-   post-writer evidence: preserve/finalize the exact response and required
-   replay, record a payload-free audit failure, and do not misclassify it as a
-   plugin transport incident or quarantine the artifact.
-4. Land route alias/redirect 301/308 canonical ownership and SEO only in
-   independently reviewed contract/transport/Host-policy/
-   bootstrap/reference slices; do not credit the SEO row before SSR, sitemap,
-   revoke/failure, and Inspector evidence is production-complete.
-5. Close the remaining full route behavior matrix across every action,
-   priority/conflict order, locale/query/body, permission/CSRF, stream,
-   disconnect, timeout, crash, multipart, and unsafe committed response; only
-   then credit P6 from **15/18** to **18/18**.
-6. Add full-set/staged-publication quarantine concurrency coverage. Current
+1. Close custom/raw guard production-chain evidence (real subprocess + Fiber +
+   trust revoke + stream Open-only guard + legacy authorizer cannot mint raw).
+   Keep implementation/tests/docs in separate commits; never stage unowned dirty
+   files listed above.
+2. Join and close the full P6 behavior matrix across every action, priority/
+   conflict, locale/query/body, permission/CSRF, custom guard, stream,
+   disconnect, timeout, crash, multipart, and unsafe committed response. Prefer
+   extending existing `route_matrix_test.go`,
+   `route_request_authority_matrix_test.go`, and
+   `route_failure_matrix_test.go` rather than inventing a parallel harness.
+3. Resolve non-HTTP Schema product option (opaque / mode envelopes / JSON
+   stream) before any framing implementation; record the freeze in
+   `knowledge/decisions/` and contracts.
+4. Only after 1–3 are production-proven, credit P6 from **15/18** toward
+   **18/18** and recompute weighted progress. Do not raise progress on stream
+   lifetime alone.
+5. Add full-set/staged-publication quarantine concurrency coverage. Current
    quarantine is intentionally node/process-local; cross-node or restart
    persistence requires an explicit durable incident/clear contract rather
    than overloading lifecycle publication reasons.

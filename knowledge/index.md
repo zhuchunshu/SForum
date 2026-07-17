@@ -13,8 +13,9 @@ This is the entry point for project memory.
     **14/22**, and verified weighted progress is **64.3447%**. Response-stage caller
     cancellation now preserves and completes the last valid replay response;
     Host-owned `Link` authority and redirect canonical integration are closed.
-    Stream lifetime, P7 exact evidence, custom/raw guards, and the complete P6
-    behavior matrix remain open.
+    Stream total budget/lifetime ownership is committed
+    (`26493c35a`/`6c95b748e`); non-HTTP Schema, custom/raw guard production-chain
+    evidence, and the complete P6 behavior matrix remain open.
   - Active checkpoint: `knowledge/sessions/2026-07-16-trusted-plugin-theme-platform-v3-runtime-ownership-checkpoint.md`
   - Prior Query/P12/SEO checkpoint:
     `knowledge/sessions/2026-07-16-trusted-plugin-theme-platform-v3-query-p12-seo-checkpoint.md`
