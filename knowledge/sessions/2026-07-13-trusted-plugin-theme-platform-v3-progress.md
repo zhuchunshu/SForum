@@ -14,6 +14,42 @@ Last updated: 2026-07-17
 
 ## Current Subtask
 
+### 2026-07-17 P6 Bound Replay And Terminal Status Checkpoint
+
+- Verified weighted progress remains **63.2336%** (display **63.2%**); P6
+  remains **13/18** because the production Dispatcher mutation and joint route-
+  policy snapshot rows are not closed yet.
+- `dc3e08b52 fix(idempotency): bind rolling aliases to v3 callers` keeps V1
+  compatibility and exact V2 legacy reads, but permits a V2 rolling fingerprint
+  alias only for the Bound/V3 migration reader. The deprecated V2 writer can no
+  longer expand its record identity through caller-supplied aliases.
+- `e430135e5 fix(protocol): reject informational route terminals` rejects every
+  Protocol V2 terminal 1xx response except the exact streamed WebSocket 101
+  upgrade. Unary terminal, prior-response, and stream-close validation share the
+  same rule.
+- `d9ab64673 fix(routes): reject informational response terminals` adds the
+  Host mode-exact terminal-status contract and applies it to RFC 6901 response
+  status mutation. HTTP, multipart, SSE, and ordinary streams require 200-599;
+  WebSocket requires exactly 101.
+- Idempotency focused compatibility tests passed 50 normal and 10 race
+  repetitions; its complete normal/race suites and vet passed. Protocol status
+  tests passed 50 normal and 10 race repetitions plus vet. Routes status tests
+  passed 100 normal and 20 race repetitions plus vet. Formatting, staged diff
+  review, and whitespace checks were clean for all three commits.
+- The current dirty Bound adapter is not yet credited. It must switch the
+  production HTTP controller from `BeginRequiredReplay` to
+  `BeginRequiredReplayBound`, add wrong-key HTTP evidence, and land with the
+  complete Routes staged-mutation dependency closure.
+- Independent review found that lifecycle writers serialize Route and Route
+  Schema publication, but request readers can still observe a route snapshot
+  and required-idempotency policy snapshot from different revisions. The
+  accepted implementation direction is to freeze exact route policies into the
+  immutable Routes Registry snapshot and copy the selected policy into the
+  execution plan; a writer-only mutex is not sufficient evidence.
+- Exact next order: land the staged Dispatcher/Protocol V2 HTTP bridge in
+  buildable slices; add response-only and mutable wrong-key fail-closed tests;
+  then add plan-bound policy publication with a 64-reader concurrency matrix.
+
 ### 2026-07-17 P6 Plugin Response Authority Checkpoint
 
 - Verified weighted progress remains **63.2336%** (display **63.2%**); P6
