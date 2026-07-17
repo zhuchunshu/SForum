@@ -549,9 +549,10 @@ func hasRouteTraceOutcome(records []routes.RouteTraceRecord, outcome routes.Rout
 }
 
 func TestRouteDispatcherInvalidWebSocketPreflightFailsBeforeLifetimeDone(t *testing.T) {
-	// Drive the exact post-Open adapter order used by serveRouteWebSocket for an
-	// invalid preflight (unsolicited subprotocol): Fail then Cancel, with Done
-	// still open when the fail trace is published.
+	// Drive the real Fiber serveRouteWebSocket path: Open returns 101 with an
+	// unsolicited subprotocol the client never offered. The adapter must Fail
+	// (transport-fail trace) before Cancel so the fail evidence is visible while
+	// the session is still open.
 	registry := routes.NewRegistry()
 	artifact := routeDispatcherArtifact("stream.websocket.preflight-order", 'a')
 	declaration := routeDispatcherManifestRoute(
@@ -563,48 +564,61 @@ func TestRouteDispatcherInvalidWebSocketPreflightFailsBeforeLifetimeDone(t *test
 	}}}); err != nil {
 		t.Fatal(err)
 	}
+	session := &webSocketPreflightOrderSession{}
 	traces := routes.NewRouteTraceRing(8)
-	probe := &streamLifetimeOrderProbe{inner: traces}
+	probe := &webSocketPreflightOrderProbe{inner: traces, session: session}
+	// Use Header.Set so keys are canonical; map literals break Header.Get and would
+	// skip subprotocol validation (selected == "" is treated as no selection).
+	preflightHeaders := make(stdhttp.Header)
+	preflightHeaders.Set("Sec-WebSocket-Protocol", "unsolicited.v1")
+	invoker := &streamHTTPTestInvoker{start: routes.RouteStreamStart{
+		Response: routes.DispatchResponse{
+			Status:  fiber.StatusSwitchingProtocols,
+			Headers: preflightHeaders,
+		},
+		Session: session,
+	}}
 	dispatcher := routes.NewDispatcher(routes.DispatcherConfig{
-		Plans: routeRegistryPlanResolver{registry: registry},
-		Steps: &streamHTTPTestInvoker{start: routes.RouteStreamStart{
-			// Open accepts 101; subprotocol mismatch is the post-Open fail path.
-			Response: routes.DispatchResponse{
-				Status:  fiber.StatusSwitchingProtocols,
-				Headers: stdhttp.Header{"Sec-WebSocket-Protocol": {"unsolicited.v1"}},
-			},
-			Session: &streamHTTPTestSession{},
-		}},
+		Plans: routeRegistryPlanResolver{registry: registry}, Steps: invoker,
 		Guard: HostRouteGuardAuthorizer{}, Trace: probe,
 	})
-	prepared, err := dispatcher.PrepareStream(
-		context.Background(), routes.DispatchRequest{Method: stdhttp.MethodGet, Path: "/socket-preflight-order"},
-	)
-	if err != nil || prepared.Dispatch == nil {
-		t.Fatalf("prepared=%#v err=%v", prepared, err)
+	app := fiber.New()
+	app.Use(routeDispatcherMiddleware(dispatcher, nil))
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
 	}
-	start, err := prepared.Dispatch.Open(context.Background())
-	if err != nil || start.Session == nil {
-		t.Fatalf("open=%#v err=%v", start, err)
+	serverDone := make(chan error, 1)
+	go func() { serverDone <- app.Listener(listener) }()
+	t.Cleanup(func() {
+		_ = app.Shutdown()
+		_ = listener.Close()
+		<-serverDone
+	})
+
+	// Client offers no subprotocol; server selects unsolicited.v1 → invalid preflight.
+	dialer := websocket.Dialer{HandshakeTimeout: 2 * time.Second}
+	connection, response, dialErr := dialer.Dial("ws://"+listener.Addr().String()+"/socket-preflight-order", nil)
+	if response != nil && response.Body != nil {
+		_ = response.Body.Close()
 	}
-	source, ok := start.Session.(routes.RouteStreamLifetimeSource)
-	if !ok {
-		t.Fatal("Open did not bind a lifetime source")
+	if connection != nil {
+		_ = connection.Close()
 	}
-	probe.done = source.Done()
-	// Exact serveRouteWebSocket invalid-preflight order.
-	prepared.Dispatch.Fail()
-	start.Session.Cancel()
-	if !probe.failWhileOpen.Load() {
-		t.Fatal("invalid WebSocket preflight Fail published after lifetime Done closed")
+	if dialErr == nil {
+		t.Fatal("invalid WebSocket preflight unexpectedly upgraded")
 	}
-	if probe.failAfterDone.Load() {
-		t.Fatal("invalid WebSocket preflight Fail published after lifetime Done closed")
+	if invoker.openCalls.Load() != 1 {
+		t.Fatalf("openCalls=%d", invoker.openCalls.Load())
 	}
-	select {
-	case <-source.Done():
-	case <-time.After(time.Second):
-		t.Fatal("lifetime Done was not closed after Cancel")
+	if !probe.failBeforeCancel.Load() {
+		t.Fatal("transport-fail trace was not published before Session.Cancel on serveRouteWebSocket")
+	}
+	if probe.failAfterCancel.Load() {
+		t.Fatal("transport-fail trace published after Session.Cancel closed the lifetime")
+	}
+	if !session.cancelled.Load() {
+		t.Fatal("invalid preflight did not Cancel the stream session")
 	}
 	if !hasRouteTraceOutcome(traces.RouteTraces(0), routes.RouteTraceTransportFailed) {
 		t.Fatalf("missing fail trace: %#v", traces.RouteTraces(0))
@@ -799,6 +813,48 @@ func (s *streamHTTPTestSession) Response() (routes.DispatchResponse, bool) {
 }
 
 func (s *streamHTTPTestSession) Cancel() { s.cancelled = true }
+
+// webSocketPreflightOrderSession records Cancel so the real serveRouteWebSocket
+// path can prove Fail publishes the transport-fail trace first.
+type webSocketPreflightOrderSession struct {
+	streamHTTPTestSession
+	cancelled atomic.Bool
+}
+
+func (s *webSocketPreflightOrderSession) Cancel() {
+	if s == nil {
+		return
+	}
+	s.cancelled.Store(true)
+	s.streamHTTPTestSession.Cancel()
+}
+
+// webSocketPreflightOrderProbe observes whether the fail trace lands before Cancel.
+type webSocketPreflightOrderProbe struct {
+	inner            *routes.RouteTraceRing
+	session          *webSocketPreflightOrderSession
+	failBeforeCancel atomic.Bool
+	failAfterCancel  atomic.Bool
+}
+
+func (p *webSocketPreflightOrderProbe) AppendRouteTrace(event routes.RouteTraceEvent) {
+	if p == nil {
+		return
+	}
+	if p.inner != nil {
+		p.inner.AppendRouteTrace(event)
+	}
+	if event.Outcome != routes.RouteTraceTransportFailed || p.session == nil {
+		return
+	}
+	if p.session.cancelled.Load() {
+		p.failAfterCancel.Store(true)
+		return
+	}
+	p.failBeforeCancel.Store(true)
+}
+
+var _ routes.RouteTraceSink = (*webSocketPreflightOrderProbe)(nil)
 
 // streamLifetimeOrderProbe records whether commit/fail traces land while Done is open.
 type streamLifetimeOrderProbe struct {
