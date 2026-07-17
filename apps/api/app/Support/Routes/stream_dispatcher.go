@@ -121,7 +121,7 @@ func (d *RouteStreamDispatch) Step() RouteExecutionStep {
 	if d == nil {
 		return RouteExecutionStep{}
 	}
-	return d.step
+	return cloneRouteExecutionSteps([]RouteExecutionStep{d.step})[0]
 }
 
 func (d *RouteStreamDispatch) Request() DispatchRequest {

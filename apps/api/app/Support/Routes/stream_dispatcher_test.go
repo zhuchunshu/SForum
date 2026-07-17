@@ -51,6 +51,21 @@ func TestStreamDispatcherPreparesExactTerminalAndPublishesCommitTrace(t *testing
 	}
 }
 
+func TestRouteStreamDispatchStepIsDetached(t *testing.T) {
+	dispatch := &RouteStreamDispatch{step: RouteExecutionStep{
+		MutableRequestFields:  []string{"/query"},
+		MutableResponseFields: []string{"/status"},
+	}}
+	step := dispatch.Step()
+	step.MutableRequestFields[0] = "/caller-request"
+	step.MutableResponseFields[0] = "/caller-response"
+
+	again := dispatch.Step()
+	if again.MutableRequestFields[0] != "/query" || again.MutableResponseFields[0] != "/status" {
+		t.Fatalf("stream step leaked mutable field slices: %#v", again)
+	}
+}
+
 func TestStreamDispatcherBypassesCoreAndBufferedPlansAndFailsClosedOnComposition(t *testing.T) {
 	registry := NewRegistry()
 	core := coreRoute("core.route.stream.bypass", "GET", "/core")

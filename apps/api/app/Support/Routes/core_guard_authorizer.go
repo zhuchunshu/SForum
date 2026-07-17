@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 
@@ -320,6 +321,8 @@ func equalCoreGuardExecutionStep(left, right RouteExecutionStep) bool {
 		left.Access == right.Access && left.Permission == right.Permission && left.Mode == right.Mode &&
 		left.Destination == right.Destination && left.TargetPath == right.TargetPath && left.Handler == right.Handler &&
 		left.RequestSchema == right.RequestSchema && left.ResponseSchema == right.ResponseSchema &&
+		slices.Equal(left.MutableRequestFields, right.MutableRequestFields) &&
+		slices.Equal(left.MutableResponseFields, right.MutableResponseFields) &&
 		left.TimeoutMS == right.TimeoutMS && left.Fallback == right.Fallback && left.Priority == right.Priority &&
 		equalCoreGuardDescriptor(left.CoreGuard, right.CoreGuard) &&
 		equalPluginGuardBinding(left.PluginGuard, right.PluginGuard)

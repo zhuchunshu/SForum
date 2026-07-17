@@ -24,28 +24,30 @@ type InspectorProvider struct {
 }
 
 type InspectorStep struct {
-	Index           int                 `json:"index"`
-	Phase           RouteExecutionPhase `json:"phase"`
-	Action          string              `json:"action"`
-	RouteID         string              `json:"routeId"`
-	ContractVersion string              `json:"contractVersion"`
-	TargetRouteID   string              `json:"targetRouteId,omitempty"`
-	Method          string              `json:"method"`
-	Path            string              `json:"path"`
-	PathSignature   string              `json:"pathSignature"`
-	Provider        InspectorProvider   `json:"provider"`
-	Guard           string              `json:"guard"`
-	Access          string              `json:"access"`
-	Permission      string              `json:"permission,omitempty"`
-	Handler         string              `json:"handler,omitempty"`
-	Destination     string              `json:"destination,omitempty"`
-	RequestSchema   string              `json:"requestSchema,omitempty"`
-	ResponseSchema  string              `json:"responseSchema,omitempty"`
-	Mode            string              `json:"mode"`
-	Fallback        string              `json:"fallback"`
-	TimeoutMS       int                 `json:"timeoutMs"`
-	Priority        int                 `json:"priority"`
-	PluginGuard     *PluginGuardBinding `json:"pluginGuard,omitempty"`
+	Index                 int                 `json:"index"`
+	Phase                 RouteExecutionPhase `json:"phase"`
+	Action                string              `json:"action"`
+	RouteID               string              `json:"routeId"`
+	ContractVersion       string              `json:"contractVersion"`
+	TargetRouteID         string              `json:"targetRouteId,omitempty"`
+	Method                string              `json:"method"`
+	Path                  string              `json:"path"`
+	PathSignature         string              `json:"pathSignature"`
+	Provider              InspectorProvider   `json:"provider"`
+	Guard                 string              `json:"guard"`
+	Access                string              `json:"access"`
+	Permission            string              `json:"permission,omitempty"`
+	Handler               string              `json:"handler,omitempty"`
+	Destination           string              `json:"destination,omitempty"`
+	RequestSchema         string              `json:"requestSchema,omitempty"`
+	ResponseSchema        string              `json:"responseSchema,omitempty"`
+	MutableRequestFields  []string            `json:"mutableRequestFields,omitempty"`
+	MutableResponseFields []string            `json:"mutableResponseFields,omitempty"`
+	Mode                  string              `json:"mode"`
+	Fallback              string              `json:"fallback"`
+	TimeoutMS             int                 `json:"timeoutMs"`
+	Priority              int                 `json:"priority"`
+	PluginGuard           *PluginGuardBinding `json:"pluginGuard,omitempty"`
 }
 
 type InspectorConflict struct {
@@ -251,7 +253,9 @@ func inspectorExecutionStep(index int, step RouteExecutionStep, signature string
 		Provider: inspectorProvider(step.Provider), Guard: step.Guard, Access: step.Access,
 		Permission: step.Permission, Handler: step.Handler, Destination: step.Destination,
 		RequestSchema: step.RequestSchema, ResponseSchema: step.ResponseSchema,
-		Mode: step.Mode, Fallback: step.Fallback, TimeoutMS: step.TimeoutMS, Priority: step.Priority,
+		MutableRequestFields:  append([]string(nil), step.MutableRequestFields...),
+		MutableResponseFields: append([]string(nil), step.MutableResponseFields...),
+		Mode:                  step.Mode, Fallback: step.Fallback, TimeoutMS: step.TimeoutMS, Priority: step.Priority,
 	}
 	if step.PluginGuard.ID != "" {
 		binding := clonePluginGuardBinding(step.PluginGuard)

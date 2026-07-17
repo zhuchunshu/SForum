@@ -3,6 +3,7 @@ package routes
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -71,26 +72,28 @@ type Publication struct {
 
 // Route is method-expanded so matching and conflict inspection share one identity.
 type Route struct {
-	ID              string
-	ContractVersion string
-	Action          string
-	TargetID        string
-	Path            string
-	Method          string
-	Guard           string
-	Permission      string
-	Priority        int
-	Fallback        string
-	Mode            string
-	Destination     string
-	Handler         string
-	RequestSchema   string
-	ResponseSchema  string
-	TimeoutMS       int
-	PathSignature   string
-	Provider        Provider
-	CoreGuard       CoreGuardDescriptor
-	PluginGuard     PluginGuardBinding
+	ID                    string
+	ContractVersion       string
+	Action                string
+	TargetID              string
+	Path                  string
+	Method                string
+	Guard                 string
+	Permission            string
+	Priority              int
+	Fallback              string
+	Mode                  string
+	Destination           string
+	Handler               string
+	RequestSchema         string
+	ResponseSchema        string
+	MutableRequestFields  []string
+	MutableResponseFields []string
+	TimeoutMS             int
+	PathSignature         string
+	Provider              Provider
+	CoreGuard             CoreGuardDescriptor
+	PluginGuard           PluginGuardBinding
 }
 
 type Conflict struct {
@@ -129,6 +132,8 @@ func equalRoute(left, right Route) bool {
 		left.Priority == right.Priority && left.Fallback == right.Fallback && left.Mode == right.Mode &&
 		left.Destination == right.Destination && left.Handler == right.Handler &&
 		left.RequestSchema == right.RequestSchema && left.ResponseSchema == right.ResponseSchema &&
+		slices.Equal(left.MutableRequestFields, right.MutableRequestFields) &&
+		slices.Equal(left.MutableResponseFields, right.MutableResponseFields) &&
 		left.TimeoutMS == right.TimeoutMS && left.PathSignature == right.PathSignature &&
 		left.Provider == right.Provider && equalCoreGuardDescriptor(left.CoreGuard, right.CoreGuard) &&
 		equalPluginGuardBinding(left.PluginGuard, right.PluginGuard)
@@ -526,6 +531,8 @@ func publicPlanningView(snapshot Snapshot) planningSnapshot {
 }
 
 func cloneRoute(value Route) Route {
+	value.MutableRequestFields = append([]string(nil), value.MutableRequestFields...)
+	value.MutableResponseFields = append([]string(nil), value.MutableResponseFields...)
 	value.CoreGuard = cloneCoreGuardDescriptor(value.CoreGuard)
 	value.PluginGuard = clonePluginGuardBinding(value.PluginGuard)
 	return value
@@ -574,6 +581,12 @@ func clonePublication(value Publication) Publication {
 		for routeIndex := range result.Plugins[index].Routes {
 			result.Plugins[index].Routes[routeIndex].Methods = append(
 				[]string(nil), plugin.Routes[routeIndex].Methods...,
+			)
+			result.Plugins[index].Routes[routeIndex].MutableRequestFields = append(
+				[]string(nil), plugin.Routes[routeIndex].MutableRequestFields...,
+			)
+			result.Plugins[index].Routes[routeIndex].MutableResponseFields = append(
+				[]string(nil), plugin.Routes[routeIndex].MutableResponseFields...,
 			)
 		}
 		for guardIndex := range result.Plugins[index].Guards {

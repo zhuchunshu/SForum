@@ -36,28 +36,30 @@ const (
 )
 
 type RouteExecutionStep struct {
-	Phase           RouteExecutionPhase
-	Action          string
-	RouteID         string
-	ContractVersion string
-	TargetID        string
-	Path            string
-	Method          string
-	Provider        Provider
-	Guard           string
-	Access          string
-	Permission      string
-	Mode            string
-	Destination     string
-	TargetPath      string
-	Handler         string
-	RequestSchema   string
-	ResponseSchema  string
-	TimeoutMS       int
-	Fallback        string
-	Priority        int
-	CoreGuard       CoreGuardDescriptor
-	PluginGuard     PluginGuardBinding
+	Phase                 RouteExecutionPhase
+	Action                string
+	RouteID               string
+	ContractVersion       string
+	TargetID              string
+	Path                  string
+	Method                string
+	Provider              Provider
+	Guard                 string
+	Access                string
+	Permission            string
+	Mode                  string
+	Destination           string
+	TargetPath            string
+	Handler               string
+	RequestSchema         string
+	ResponseSchema        string
+	MutableRequestFields  []string
+	MutableResponseFields []string
+	TimeoutMS             int
+	Fallback              string
+	Priority              int
+	CoreGuard             CoreGuardDescriptor
+	PluginGuard           PluginGuardBinding
 }
 
 // RouteExecutionPlan contains data only. Building it never invokes a handler,
@@ -96,6 +98,8 @@ func (p RouteExecutionPlan) Terminal() RouteExecutionStep {
 		return RouteExecutionStep{}
 	}
 	step := p.chain[p.terminalIndex]
+	step.MutableRequestFields = append([]string(nil), step.MutableRequestFields...)
+	step.MutableResponseFields = append([]string(nil), step.MutableResponseFields...)
 	step.CoreGuard = cloneCoreGuardDescriptor(step.CoreGuard)
 	step.PluginGuard = clonePluginGuardBinding(step.PluginGuard)
 	return step
@@ -364,7 +368,9 @@ func routeExecutionStep(phase RouteExecutionPhase, route Route, descriptor CoreG
 		Guard: route.Guard, Access: routeExecutionAccess(route.Guard, route.Provider.Kind),
 		Permission: route.Permission, Mode: route.Mode, Destination: route.Destination, Handler: route.Handler,
 		RequestSchema: route.RequestSchema, ResponseSchema: route.ResponseSchema,
-		TimeoutMS: route.TimeoutMS, Fallback: route.Fallback, Priority: route.Priority,
+		MutableRequestFields:  append([]string(nil), route.MutableRequestFields...),
+		MutableResponseFields: append([]string(nil), route.MutableResponseFields...),
+		TimeoutMS:             route.TimeoutMS, Fallback: route.Fallback, Priority: route.Priority,
 		CoreGuard: cloneCoreGuardDescriptor(descriptor), PluginGuard: clonePluginGuardBinding(route.PluginGuard),
 	}
 }
@@ -504,6 +510,8 @@ func equalRouteExecutionParams(left, right map[string]string) bool {
 func cloneRouteExecutionSteps(source []RouteExecutionStep) []RouteExecutionStep {
 	result := append([]RouteExecutionStep(nil), source...)
 	for index := range result {
+		result[index].MutableRequestFields = append([]string(nil), result[index].MutableRequestFields...)
+		result[index].MutableResponseFields = append([]string(nil), result[index].MutableResponseFields...)
 		result[index].CoreGuard = cloneCoreGuardDescriptor(result[index].CoreGuard)
 		result[index].PluginGuard = clonePluginGuardBinding(result[index].PluginGuard)
 	}
