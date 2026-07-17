@@ -122,6 +122,9 @@ func (v *v3Validator) validateGuardsAndRoutes() error {
 		if !validRouteAction(route.Action) || !validRouteMode(route.Mode) || !guards[route.Guard] || route.TimeoutMS < 0 {
 			return ErrInvalidManifest
 		}
+		if !validRouteMutableFields(route) {
+			return ErrInvalidManifest
+		}
 		if route.Access != "" {
 			guard, ok := coreGuardForRouteAccess(route.Access)
 			if !ok || route.Guard != guard {
@@ -340,7 +343,9 @@ func hasV3Declarations(manifest Manifest) bool {
 		}
 	}
 	for _, item := range manifest.Routes {
-		if item.ID != "" || item.ContractVersion != "" || item.Action != "" || item.TargetID != "" || item.Guard != "" || item.Mode != "" || item.Handler != "" || item.RequestSchema != "" || item.ResponseSchema != "" {
+		if item.ID != "" || item.ContractVersion != "" || item.Action != "" || item.TargetID != "" ||
+			item.Guard != "" || item.Mode != "" || item.Handler != "" || item.RequestSchema != "" ||
+			item.ResponseSchema != "" || len(item.MutableRequestFields) > 0 || len(item.MutableResponseFields) > 0 {
 			return true
 		}
 	}
@@ -438,6 +443,59 @@ func validRouteAction(value string) bool {
 	default:
 		return false
 	}
+}
+
+func validRouteMutableFields(route ManifestRoute) bool {
+	if len(route.MutableRequestFields) > 0 {
+		switch route.Action {
+		case RouteActionGlobalMiddleware, RouteActionBefore, RouteActionFilter, RouteActionWrap:
+		default:
+			return false
+		}
+	}
+	if len(route.MutableResponseFields) > 0 {
+		switch route.Action {
+		case RouteActionFilter, RouteActionWrap, RouteActionAfter:
+		default:
+			return false
+		}
+	}
+	return validRFC6901PointerList(route.MutableRequestFields) && validRFC6901PointerList(route.MutableResponseFields)
+}
+
+func validRFC6901PointerList(values []string) bool {
+	if len(values) > RouteMutableFieldsMaximumCount {
+		return false
+	}
+	seen := make(map[string]struct{}, len(values))
+	for _, value := range values {
+		if !validRFC6901Pointer(value) {
+			return false
+		}
+		if _, duplicate := seen[value]; duplicate {
+			return false
+		}
+		seen[value] = struct{}{}
+	}
+	return true
+}
+
+func validRFC6901Pointer(value string) bool {
+	// RFC 6901 的空字符串表示整个文档。字段级最小权限不允许授予该 root pointer。
+	if value == "" || len(value) > RouteMutableFieldMaximumBytes || value[0] != '/' ||
+		strings.Count(value, "/") > RouteMutableFieldMaximumTokens {
+		return false
+	}
+	for index := 1; index < len(value); index++ {
+		if value[index] != '~' {
+			continue
+		}
+		index++
+		if index >= len(value) || value[index] != '0' && value[index] != '1' {
+			return false
+		}
+	}
+	return true
 }
 
 func validRouteMode(value string) bool {

@@ -160,6 +160,19 @@
       "items": { "type": "string" },
       "uniqueItems": true
     },
+    "jsonPointerArray": {
+      "type": ["array", "null"],
+      "description": "Field-level least-privilege allowlist of non-root RFC 6901 JSON Pointers. The empty document-root pointer is deliberately forbidden. Each list allows at most 64 pointers; each pointer allows at most 256 bytes and 32 reference tokens.",
+      "maxItems": 64,
+      "items": {
+        "type": "string",
+        "format": "sforum-route-mutable-pointer",
+        "minLength": 1,
+        "maxLength": 256,
+        "pattern": "^/([^~/]|~[01])*(/([^~/]|~[01])*){0,31}$"
+      },
+      "uniqueItems": true
+    },
     "author": {
       "type": "object",
       "additionalProperties": false,
@@ -268,6 +281,8 @@
           "handler": { "$ref": "#/$defs/optionalHandler" },
           "requestSchema": { "$ref": "#/$defs/optionalSchemaRef" },
           "responseSchema": { "$ref": "#/$defs/optionalSchemaRef" },
+          "mutableRequestFields": { "$ref": "#/$defs/jsonPointerArray" },
+          "mutableResponseFields": { "$ref": "#/$defs/jsonPointerArray" },
           "timeoutMs": { "type": "integer", "minimum": 0 }
         },
         "allOf": [
@@ -283,6 +298,32 @@
                 { "required": ["guard"] },
                 { "required": ["access"] }
               ]
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "action": { "enum": ["global_middleware", "before", "filter", "wrap"] }
+              },
+              "required": ["action"]
+            },
+            "else": {
+              "properties": {
+                "mutableRequestFields": { "maxItems": 0 }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "action": { "enum": ["filter", "wrap", "after"] }
+              },
+              "required": ["action"]
+            },
+            "else": {
+              "properties": {
+                "mutableResponseFields": { "maxItems": 0 }
+              }
             }
           }
         ]

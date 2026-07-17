@@ -48,6 +48,11 @@ const (
 	HandlerReferenceMaximumLength = 256
 	SchemaReferenceMaximumLength  = 256
 	ContentDeclarationsMaximum    = 512
+
+	// 路由字段变更是最小权限 allowlist：禁止授权整个文档，并限制每次请求需要复制、比较的声明规模。
+	RouteMutableFieldsMaximumCount = 64
+	RouteMutableFieldMaximumBytes  = 256
+	RouteMutableFieldMaximumTokens = 32
 )
 
 var (
@@ -187,23 +192,25 @@ type ManifestAdminPage struct {
 }
 
 type ManifestRoute struct {
-	ID              string   `json:"id,omitempty"`
-	ContractVersion string   `json:"contractVersion,omitempty"`
-	Action          string   `json:"action,omitempty"`
-	TargetID        string   `json:"targetId,omitempty"`
-	Path            string   `json:"path"`
-	Methods         []string `json:"methods"`
-	Access          string   `json:"access,omitempty"`
-	Permission      string   `json:"permission,omitempty"`
-	Guard           string   `json:"guard,omitempty"`
-	Priority        int      `json:"priority,omitempty"`
-	Fallback        string   `json:"fallback,omitempty"`
-	Mode            string   `json:"mode,omitempty"`
-	Destination     string   `json:"destination,omitempty"`
-	Handler         string   `json:"handler,omitempty"`
-	RequestSchema   string   `json:"requestSchema,omitempty"`
-	ResponseSchema  string   `json:"responseSchema,omitempty"`
-	TimeoutMS       int      `json:"timeoutMs,omitempty"`
+	ID                    string   `json:"id,omitempty"`
+	ContractVersion       string   `json:"contractVersion,omitempty"`
+	Action                string   `json:"action,omitempty"`
+	TargetID              string   `json:"targetId,omitempty"`
+	Path                  string   `json:"path"`
+	Methods               []string `json:"methods"`
+	Access                string   `json:"access,omitempty"`
+	Permission            string   `json:"permission,omitempty"`
+	Guard                 string   `json:"guard,omitempty"`
+	Priority              int      `json:"priority,omitempty"`
+	Fallback              string   `json:"fallback,omitempty"`
+	Mode                  string   `json:"mode,omitempty"`
+	Destination           string   `json:"destination,omitempty"`
+	Handler               string   `json:"handler,omitempty"`
+	RequestSchema         string   `json:"requestSchema,omitempty"`
+	ResponseSchema        string   `json:"responseSchema,omitempty"`
+	MutableRequestFields  []string `json:"mutableRequestFields,omitempty"`
+	MutableResponseFields []string `json:"mutableResponseFields,omitempty"`
+	TimeoutMS             int      `json:"timeoutMs,omitempty"`
 }
 
 type ManifestHook struct {

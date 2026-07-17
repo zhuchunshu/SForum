@@ -42,6 +42,12 @@ func normalizeV3Manifest(manifest *Manifest) {
 		item.Handler = strings.TrimSpace(item.Handler)
 		item.RequestSchema = strings.TrimSpace(item.RequestSchema)
 		item.ResponseSchema = strings.TrimSpace(item.ResponseSchema)
+		for fieldIndex := range item.MutableRequestFields {
+			item.MutableRequestFields[fieldIndex] = strings.TrimSpace(item.MutableRequestFields[fieldIndex])
+		}
+		for fieldIndex := range item.MutableResponseFields {
+			item.MutableResponseFields[fieldIndex] = strings.TrimSpace(item.MutableResponseFields[fieldIndex])
+		}
 	}
 	for index := range manifest.Hooks {
 		item := &manifest.Hooks[index]

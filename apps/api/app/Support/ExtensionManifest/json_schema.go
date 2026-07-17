@@ -11,7 +11,10 @@ import (
 	jsonschema "github.com/santhosh-tekuri/jsonschema/v6"
 )
 
-const manifestV3SchemaURL = "https://sforum.dev/schemas/extensions/manifest-v3.schema.json"
+const (
+	manifestV3SchemaURL             = "https://sforum.dev/schemas/extensions/manifest-v3.schema.json"
+	routeMutablePointerSchemaFormat = "sforum-route-mutable-pointer"
+)
 
 //go:embed schemas/manifest-v3.schema.json
 var manifestV3SchemaBody []byte
@@ -54,6 +57,16 @@ func compiledManifestSchema(fragment string) (*jsonschema.Schema, error) {
 	manifestSchemaOnce.Do(func() {
 		compiler := jsonschema.NewCompiler()
 		compiler.DefaultDraft(jsonschema.Draft2020)
+		compiler.RegisterFormat(&jsonschema.Format{
+			Name: routeMutablePointerSchemaFormat,
+			Validate: func(value any) error {
+				pointer, ok := value.(string)
+				if !ok || validRFC6901Pointer(pointer) {
+					return nil
+				}
+				return jsonschema.LocalizableError("must be a non-root RFC 6901 pointer within the route mutation budget")
+			},
+		})
 		compiler.AssertFormat()
 		var resource any
 		if err := json.Unmarshal(manifestV3SchemaBody, &resource); err != nil {
