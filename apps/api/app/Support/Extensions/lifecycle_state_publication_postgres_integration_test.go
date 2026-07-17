@@ -2,6 +2,7 @@ package extensionsruntime
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"os"
@@ -13,8 +14,11 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/jackc/pgx/v5/stdlib"
+	"github.com/pressly/goose/v3"
 
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
+	"github.com/zhuchunshu/sforum/apps/api/database/migrations"
 )
 
 func TestPostgresLifecycleBoundaryStatePublishesAndRestoresEveryOperation(t *testing.T) {
@@ -331,15 +335,8 @@ func newLifecycleStatePublicationIntegration(
 	mode LifecycleBoundaryPublicationMode,
 ) lifecycleStatePublicationIntegration {
 	t.Helper()
-	databaseURL := strings.TrimSpace(os.Getenv("SFORUM_TEST_DATABASE_URL"))
-	if databaseURL == "" {
-		t.Skip("SFORUM_TEST_DATABASE_URL is not set")
-	}
 	ctx := context.Background()
-	pool, err := pgxpool.New(ctx, databaseURL)
-	if err != nil {
-		t.Fatal(err)
-	}
+	pool := newLifecycleStatePublicationTestPool(t)
 	store := extensions.NewPostgresStore(pool)
 	extensionID := fmt.Sprintf("state.publication.%s.%d", operation, time.Now().UnixNano())
 	root := t.TempDir()
@@ -349,7 +346,6 @@ func newLifecycleStatePublicationIntegration(
 		AdminFrontendDigest: strings.Repeat("1", 64),
 	})
 	if err != nil {
-		pool.Close()
 		t.Fatal(err)
 	}
 	var source *extensions.Extension
@@ -449,19 +445,12 @@ func newLifecycleStatePublicationIntegration(
 		target.Manifest.Lifecycle.ContractVersion, "state-publication:"+extensionID,
 		strings.Repeat("c", 64), removalMode).Scan(&request.OperationID)
 	if err != nil {
-		pool.Close()
 		t.Fatal(err)
 	}
 	journal := NewPostgresLifecycleBoundaryPublicationJournal(pool)
 	if err := journal.PrepareLifecyclePublication(ctx, request, mode); err != nil {
-		pool.Close()
 		t.Fatal(err)
 	}
-	t.Cleanup(func() {
-		_, _ = pool.Exec(context.Background(), `DELETE FROM extension_lifecycle_operations WHERE id = $1`, request.OperationID)
-		_, _ = pool.Exec(context.Background(), `DELETE FROM extensions WHERE id = $1`, extensionID)
-		pool.Close()
-	})
 	current, err := store.Get(ctx, extensionID)
 	if err != nil {
 		t.Fatal(err)
@@ -482,6 +471,129 @@ func newLifecycleStatePublicationIntegration(
 		extensionID: extensionID, request: request, mode: mode,
 		sourceState: sourceState, targetState: targetState,
 	}
+}
+
+func newLifecycleStatePublicationTestPool(t *testing.T) *pgxpool.Pool {
+	t.Helper()
+	databaseURL := strings.TrimSpace(os.Getenv("SFORUM_TEST_DATABASE_URL"))
+	if databaseURL == "" {
+		t.Skip("SFORUM_TEST_DATABASE_URL is not set")
+	}
+	ctx := context.Background()
+	admin, err := pgxpool.New(ctx, databaseURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	schema := fmt.Sprintf("lsp_%d", time.Now().UnixNano())
+	quotedSchema := pgx.Identifier{schema}.Sanitize()
+	if _, err := admin.Exec(ctx, "CREATE SCHEMA "+quotedSchema); err != nil {
+		admin.Close()
+		t.Fatal(err)
+	}
+	var pool *pgxpool.Pool
+	var db *sql.DB
+	t.Cleanup(func() {
+		if pool != nil {
+			pool.Close()
+		}
+		if db != nil {
+			if err := db.Close(); err != nil {
+				t.Errorf("close lifecycle state migration db: %v", err)
+			}
+		}
+		if _, err := admin.Exec(context.Background(), "DROP SCHEMA IF EXISTS "+quotedSchema+" CASCADE"); err != nil {
+			t.Errorf("drop lifecycle state schema %s: %v", schema, err)
+		}
+		admin.Close()
+	})
+
+	config, err := pgx.ParseConfig(databaseURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	config.RuntimeParams["search_path"] = schema
+	db = stdlib.OpenDB(*config)
+	db.SetMaxOpenConns(1)
+	db.SetMaxIdleConns(1)
+	if _, err := db.ExecContext(ctx, `
+		CREATE TABLE users (id BIGSERIAL PRIMARY KEY);
+		CREATE TABLE extension_trust_grants (id BIGSERIAL PRIMARY KEY);
+		CREATE TABLE extensions (
+			id TEXT PRIMARY KEY,
+			type TEXT NOT NULL CHECK (type IN ('plugin', 'theme')),
+			name TEXT NOT NULL,
+			status TEXT NOT NULL DEFAULT 'installed'
+				CHECK (status IN ('installed', 'enabled', 'disabled')),
+			active_version_id BIGINT,
+			source TEXT NOT NULL DEFAULT 'uploaded'
+				CHECK (source IN ('builtin', 'uploaded')),
+			is_system BOOLEAN NOT NULL DEFAULT FALSE,
+			is_deletable BOOLEAN NOT NULL DEFAULT TRUE,
+			installed_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+			updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+		);
+		CREATE TABLE extension_versions (
+			id BIGSERIAL PRIMARY KEY,
+			extension_id TEXT NOT NULL REFERENCES extensions(id) ON DELETE CASCADE,
+			version TEXT NOT NULL,
+			manifest JSONB NOT NULL,
+			package_path TEXT NOT NULL,
+			package_digest TEXT NOT NULL DEFAULT '',
+			admin_frontend_digest TEXT NOT NULL DEFAULT '',
+			installed_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+			UNIQUE (extension_id, version, package_digest)
+		);
+		ALTER TABLE extensions
+			ADD CONSTRAINT extensions_active_version_fk
+			FOREIGN KEY (active_version_id) REFERENCES extension_versions(id) ON DELETE SET NULL;
+		CREATE TABLE mail_provider_selection (
+			slot TEXT PRIMARY KEY,
+			extension_id TEXT NOT NULL REFERENCES extensions(id) ON DELETE CASCADE,
+			updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+		);
+	`); err != nil {
+		t.Fatal(err)
+	}
+	provider, err := goose.NewProvider(
+		goose.DialectPostgres, db, migrations.Files(), goose.WithDisableGlobalRegistry(true),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, version := range []int64{
+		202607140001,
+		202607140004,
+		202607140005,
+		202607140007,
+		202607140009,
+		202607160027,
+		202607160030,
+		202607160031,
+	} {
+		if _, err := provider.ApplyVersion(ctx, version, true); err != nil {
+			t.Fatalf("apply lifecycle state migration %d: %v", version, err)
+		}
+	}
+	if err := db.Close(); err != nil {
+		t.Fatal(err)
+	}
+	db = nil
+
+	poolConfig, err := pgxpool.ParseConfig(databaseURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	poolConfig.ConnConfig.RuntimeParams["search_path"] = schema
+	poolConfig.ConnConfig.RuntimeParams["application_name"] = schema
+	pool, err = pgxpool.NewWithConfig(ctx, poolConfig)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var currentSchema string
+	if err := pool.QueryRow(ctx, `SELECT current_schema()`).Scan(&currentSchema); err != nil || currentSchema != schema {
+		t.Fatalf("lifecycle state schema=%q err=%v", currentSchema, err)
+	}
+	return pool
 }
 
 func lifecycleStateBoundaryRequest(
