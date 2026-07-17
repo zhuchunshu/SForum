@@ -142,10 +142,14 @@ This is the entry point for project memory.
     immutable planning removed full-catalog per-request copies, while the report
     retains the selected-route latency/bytes/allocation regression and requires
     P13 remeasurement
-  - P7 is 14/22 (64%). Versioned namespaced action/filter hooks now publish one
+  - P7 is 15/22 (68%). Versioned namespaced action/filter hooks now publish one
     immutable exact-runtime graph with deterministic priority, typed contracts,
     dependency SemVer, optional fallback, Host revalidation, River delivery,
     lifecycle rollback, and exact Protocol V2 invocation
+  - Host-owned extension permission role review is now available on the admin
+    roles screen. Exact-CAS approve/reject/apply decisions preserve the rule that
+    install and enable never grant permissions, retain unrelated unsaved role
+    edits, and fail closed on stale, conflicting, denied, or incomplete evidence.
   - Typed versioned Provider Slots now add immutable exact-runtime discovery,
     dependency/SemVer fallback, Host request/response revalidation, bounded
     Protocol V2 calls, lifecycle restore, and the real Plugin B -> Host broker

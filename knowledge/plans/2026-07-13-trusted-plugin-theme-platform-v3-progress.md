@@ -1,7 +1,7 @@
 # Trusted Plugin And Theme Platform V3 Progress Ledger
 
 Date: 2026-07-18
-Overall progress: **64.3%**
+Overall progress: **64.7%**
 Active phase: **P6/P7/P9 accepted work plus P10-P12 production closure slices**
 
 This ledger is the durable percentage and context-compaction checkpoint for the
@@ -23,7 +23,7 @@ scaffolding, or demo-only code cannot satisfy a runtime exit criterion.
 | P4 Lifecycle/dependencies | 7% | 100% | 7% |
 | P5 Database/commands | 8% | 100% | 8% |
 | P6 Routes/middleware | 10% | 83% | 8.33% |
-| P7 Workflow/admin/query/identity | 10% | 64% | 6.36% |
+| P7 Workflow/admin/query/identity | 10% | 68% | 6.82% |
 | P8 Theme compiler/runtime | 8% | 100% | 8% |
 | P9 Components/assets/L2 | 8% | 25% | 2.00% |
 | P10 Content/media/data | 8% | 0% | 0% |
@@ -124,6 +124,36 @@ or treated as expired only after the complete V3 goal is achieved.
   failing plugin exactly once (`failed`, then `skipped`).
 
 ## Last Durable Checkpoint
+
+### 2026-07-18 P7 Host-Owned Role Suggestion Review
+
+- Exact weighted progress is `64.7992%`; displayed progress is **64.7%**. P7
+  advances from **14/22** to **15/22** after closing the Host-owned permission
+  assignment row.
+- `4adcba492 feat(identity): add host-owned role suggestion review` connects the
+  existing exact-artifact Identity Registry approval/audit path to the admin
+  roles screen. Install and enable remain preview-only; only an authenticated
+  Host decision with the exact expected revision can approve/reject and apply
+  the one declared permission-to-role mapping.
+- Contradictory or incomplete response evidence never produces a success state.
+  Stale artifact, revision conflict, missing target, denied access, concurrent
+  decisions, list-generation races, and unmapped protocol reasons are handled
+  without retrying an obsolete decision or exposing raw internal reasons.
+  Approving a mapping refreshes Host data while preserving unrelated unsaved
+  role edits and merges the exact approved permission into a dirty draft so a
+  later save cannot revoke it accidentally.
+- Both role-review and existing template selects use non-empty UI sentinels,
+  avoiding the Reka UI runtime 500 while preserving the API's omitted all-filter
+  and empty template semantics. Focused Bun tests passed **14/14** with 69
+  assertions, Nuxt typecheck passed, Identity controller/model/registry normal
+  tests and focused race passed, and isolated clean-HEAD plus staged-only Web
+  tests/typecheck passed.
+- Authenticated Chrome evidence covered the real roles page, five roles, one
+  pending suggestion, the all-state filter, no-template selection, an eight-
+  second stability window, no error overlay, and zero new console warnings or
+  errors. Browser mutation was deliberately not performed against operator data;
+  exact CAS allowed/denied/conflict/evidence behavior is covered at the API and
+  composable boundaries.
 
 ### 2026-07-18 Required Replay Final-Response Closure
 

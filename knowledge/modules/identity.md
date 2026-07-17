@@ -116,6 +116,11 @@ Initial identity foundation is implemented.
   default displayed user groups, supports search and explicit comparison
   selection, and can show only permissions that differ inside the current
   comparison scope.
+- The admin roles screen now lists exact-artifact extension permission role
+  suggestions and supports Host-owned approve/reject/apply decisions with
+  optimistic revision checks. Installation and enable never grant a mapping.
+  Decision refresh preserves unrelated unsaved role fields and merges only the
+  exact newly approved permission into a dirty draft before a later save.
 - Protected Nuxt routes preserve `to.fullPath` in the login `redirect` query.
   Auth return navigation accepts only validated local absolute paths, rejects
   external, protocol-relative, malformed, and login/register destinations, and

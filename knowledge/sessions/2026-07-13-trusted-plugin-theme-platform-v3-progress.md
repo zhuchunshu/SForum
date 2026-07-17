@@ -4,8 +4,8 @@ Last updated: 2026-07-18
 
 ## Progress
 
-- Verified weighted progress: **64.3447%** (display **64.3%**).
-- Phase counts: P0-P5 and P8 complete; P6 **15/18**, P7 **14/22**,
+- Verified weighted progress: **64.7992%** (display **64.7%**).
+- Phase counts: P0-P5 and P8 complete; P6 **15/18**, P7 **15/22**,
   P8 **18/18**, P9 **4/16**, P11 **1/16**, and P12 **1/22**. P10 and P13
   have no credited authoritative row yet.
 - Completion remains unproven until all 99 target rows, 14 accepted boundaries,
@@ -13,6 +13,24 @@ Last updated: 2026-07-18
   gates pass.
 
 ## Current Subtask
+
+### 2026-07-18 P7 Role Suggestion UI Checkpoint
+
+- Verified weighted progress advances to **64.7992%** (display **64.7%**); P7
+  is now **15/22** after the Host-owned role-assignment row closed.
+- `4adcba492` adds exact-CAS approve/reject/apply review to the existing roles
+  administration screen. Install/enable cannot grant permissions; incomplete
+  evidence, denial, stale artifacts, revision conflicts, and missing targets
+  cannot emit success or silently retry. Refresh preserves unrelated dirty role
+  fields and prevents a later draft save from removing the newly approved key.
+- Focused Web tests passed **14/14** with 69 assertions, Nuxt typecheck passed,
+  Identity normal/race gates passed, and an isolated clean-HEAD plus staged-only
+  Web gate passed. Authenticated Chrome covered the real filter/template
+  interactions, eight-second stability, overlay absence, and zero fresh console
+  warning/error output after replacing empty select values with UI-only sentinels.
+- Exact resume point: close P6 Core execution/cancellation and stream lifetime
+  blockers, then continue the remaining P7 Query/Identity/Auth surfaces and P9
+  public component policy without crediting partial drafts.
 
 ### 2026-07-18 Required Replay Response Checkpoint
 
