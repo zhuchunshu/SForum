@@ -241,6 +241,32 @@ func TestControllerListsAndEnablesExtensionsForManager(t *testing.T) {
 		t.Fatalf("unexpected extension list: %#v", listBody.Data)
 	}
 
+	filteredResponse := performExtensionRequest(t, app, http.MethodGet, "/api/v1/admin/extensions?id=demo.plugin", cookie)
+	if filteredResponse.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200 filtered list, got %d", filteredResponse.StatusCode)
+	}
+	defer filteredResponse.Body.Close()
+	var filteredBody testEnvelope[[]extensions.Extension]
+	if err := json.NewDecoder(filteredResponse.Body).Decode(&filteredBody); err != nil {
+		t.Fatalf("decode filtered list response: %v", err)
+	}
+	if len(filteredBody.Data) != 1 || filteredBody.Data[0].ID != "demo.plugin" {
+		t.Fatalf("unexpected filtered extension list: %#v", filteredBody.Data)
+	}
+
+	missingResponse := performExtensionRequest(t, app, http.MethodGet, "/api/v1/admin/extensions?id=missing.plugin", cookie)
+	if missingResponse.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200 missing filtered list, got %d", missingResponse.StatusCode)
+	}
+	defer missingResponse.Body.Close()
+	var missingBody testEnvelope[[]extensions.Extension]
+	if err := json.NewDecoder(missingResponse.Body).Decode(&missingBody); err != nil {
+		t.Fatalf("decode missing filtered list response: %v", err)
+	}
+	if len(missingBody.Data) != 0 {
+		t.Fatalf("expected empty missing filtered list, got %#v", missingBody.Data)
+	}
+
 	resp = performExtensionRequest(t, app, http.MethodPost, "/api/v1/admin/extensions/demo.plugin/enable", cookie)
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("expected 200 enable, got %d", resp.StatusCode)

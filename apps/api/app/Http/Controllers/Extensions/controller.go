@@ -160,6 +160,16 @@ func (h *Controller) list(c fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
+	if extensionID := strings.TrimSpace(c.Query("id")); extensionID != "" {
+		item, err := h.service.Detail(c.Context(), actor, extensionID)
+		if errors.Is(err, extensions.ErrExtensionNotFound) {
+			return apphttp.OK(c, []extensions.Extension{})
+		}
+		if err != nil {
+			return mapExtensionError(err)
+		}
+		return apphttp.OK(c, []extensions.Extension{item})
+	}
 	items, err := h.service.List(c.Context(), actor)
 	if err != nil {
 		return mapExtensionError(err)

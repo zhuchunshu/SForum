@@ -429,6 +429,18 @@ func (s *Service) List(ctx context.Context, actor identity.Actor) ([]Extension, 
 	return items, nil
 }
 
+// Detail 只读取并装饰一个扩展，避免详情页把完整扩展目录写入 SSR payload。
+func (s *Service) Detail(ctx context.Context, actor identity.Actor, extensionID string) (Extension, error) {
+	if !canViewExtensions(actor) {
+		return Extension{}, identity.ErrPermissionDenied
+	}
+	item, err := s.store.Get(ctx, normalizeID(extensionID))
+	if err != nil {
+		return Extension{}, err
+	}
+	return s.decorateRuntime(ctx, item), nil
+}
+
 func (s *Service) SyncBuiltins(ctx context.Context) ([]Extension, error) {
 	if strings.TrimSpace(s.builtinRoot) == "" {
 		return nil, nil

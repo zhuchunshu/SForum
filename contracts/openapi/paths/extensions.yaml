@@ -306,6 +306,19 @@ adminExtensions:
   get:
     summary: List installed extensions and themes
     operationId: listAdminExtensions
+    description: >-
+      Returns the installed extension catalog. When id is provided, the Host
+      performs an exact lookup and returns zero or one item without loading and
+      decorating the full catalog; the authorization policy is unchanged.
+    parameters:
+    - name: id
+      in: query
+      required: false
+      description: Exact stable extension id used by detail and settings pages.
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 128
     responses:
       '200':
         description: Installed extension list.

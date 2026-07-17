@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -1225,6 +1226,36 @@ func TestServiceDisableStopsRuntimeAndListDecoratesRuntimeStatus(t *testing.T) {
 	}
 }
 
+func TestServiceDetailLoadsOnlyExactExtensionAndDecoratesRuntimeStatus(t *testing.T) {
+	store := &fakeExtensionStore{items: map[string]Extension{
+		"demo.plugin": extensionWithStatus(
+			installedExtension("demo.plugin", TypePlugin, ManifestBackend{Entry: "backend/plugin"}),
+			StatusEnabled,
+		),
+		"other.plugin": installedExtension("other.plugin", TypePlugin, ManifestBackend{Entry: "backend/plugin"}),
+	}}
+	runtime := &fakeRuntimeManager{statuses: map[string]RuntimeStatus{
+		"demo.plugin": {State: RuntimeRunning, RouteCount: 2},
+	}}
+	service := NewServiceWithRuntime(store, t.TempDir(), runtime)
+
+	item, err := service.Detail(context.Background(), extensionManager(), " DEMO.PLUGIN ")
+	if err != nil {
+		t.Fatalf("Detail returned error: %v", err)
+	}
+	if item.ID != "demo.plugin" || item.Runtime == nil || item.Runtime.State != RuntimeRunning || item.Runtime.RouteCount != 2 {
+		t.Fatalf("unexpected exact extension detail: %#v", item)
+	}
+	if store.listCalls.Load() != 0 || store.getCalls.Load() != 1 {
+		t.Fatalf("detail materialized the catalog: list=%d get=%d", store.listCalls.Load(), store.getCalls.Load())
+	}
+
+	_, err = service.Detail(context.Background(), identity.Actor{ID: 9, Status: identity.UserStatusActive}, "demo.plugin")
+	if !errors.Is(err, identity.ErrPermissionDenied) {
+		t.Fatalf("expected permission denied, got %v", err)
+	}
+}
+
 func TestServiceEmitsPluginLifecycleHooks(t *testing.T) {
 	store := &fakeExtensionStore{items: map[string]Extension{
 		"demo.plugin": withInstalledPackage(t, installedExtension("demo.plugin", TypePlugin, ManifestBackend{Entry: "backend/plugin"})),
@@ -1950,6 +1981,8 @@ func (r *fakeRuntimeManager) EmitHook(_ context.Context, name string, _ map[stri
 
 type fakeExtensionStore struct {
 	items                    map[string]Extension
+	listCalls                atomic.Int64
+	getCalls                 atomic.Int64
 	saved                    Extension
 	nextVersionID            int64
 	enabledID                string
@@ -1977,6 +2010,7 @@ func newFakeExtensionStore(items map[string]Extension) *fakeExtensionStore {
 }
 
 func (s *fakeExtensionStore) List(context.Context) ([]Extension, error) {
+	s.listCalls.Add(1)
 	items := make([]Extension, 0, len(s.items))
 	for _, item := range s.items {
 		items = append(items, item)
@@ -1985,6 +2019,7 @@ func (s *fakeExtensionStore) List(context.Context) ([]Extension, error) {
 }
 
 func (s *fakeExtensionStore) Get(_ context.Context, id string) (Extension, error) {
+	s.getCalls.Add(1)
 	if item, ok := s.items[id]; ok {
 		return item, nil
 	}
