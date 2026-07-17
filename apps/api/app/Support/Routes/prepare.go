@@ -180,7 +180,7 @@ func validatePluginRouteContract(artifact PluginArtifact, route extensionmanifes
 			return fmt.Errorf("%w: invalid redirect status", ErrInvalidRoute)
 		}
 	} else if route.Destination != "" || route.StatusCode != 0 {
-		return fmt.Errorf("%w: action %q cannot declare a destination", ErrInvalidRoute, route.Action)
+		return fmt.Errorf("%w: action %q cannot declare redirect output", ErrInvalidRoute, route.Action)
 	}
 	return nil
 }

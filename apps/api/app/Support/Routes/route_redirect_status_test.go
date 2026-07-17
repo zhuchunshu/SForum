@@ -37,6 +37,14 @@ func TestRedirectStatusPropagatesThroughRegistryPlanDispatcherAndInspector(t *te
 			if terminal.StatusCode != test.want {
 				t.Fatalf("plan status = %d, want %d", terminal.StatusCode, test.want)
 			}
+			forged := terminal
+			forged.StatusCode = http.StatusMovedPermanently
+			if test.want == http.StatusMovedPermanently {
+				forged.StatusCode = http.StatusPermanentRedirect
+			}
+			if equalCoreGuardExecutionStep(terminal, forged) {
+				t.Fatal("redirect status must be part of the exact authorized step")
+			}
 			inspected := inspectorExecutionStep(0, terminal, routeStepPathSignature(terminal))
 			if inspected.StatusCode != test.want {
 				t.Fatalf("inspector status = %d, want %d", inspected.StatusCode, test.want)
