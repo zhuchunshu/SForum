@@ -125,7 +125,7 @@ func routeConnectionHeaderTokens(values [][]byte) map[string]struct{} {
 
 func routeResponseHeaderAllowed(name string) bool {
 	switch strings.ToLower(strings.TrimSpace(name)) {
-	case "", "content-length", "connection", "keep-alive", "proxy-authenticate", "proxy-authorization", "te", "trailer", "transfer-encoding", "upgrade":
+	case "", "content-length", "connection", "keep-alive", "link", "proxy-authenticate", "proxy-authorization", "te", "trailer", "transfer-encoding", "upgrade":
 		return false
 	default:
 		return true

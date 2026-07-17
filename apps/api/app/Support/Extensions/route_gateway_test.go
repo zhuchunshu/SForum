@@ -93,6 +93,46 @@ func TestRouteGatewayProxiesRequestAndTrustedHeaders(t *testing.T) {
 	}
 }
 
+func TestRouteGatewayStripsPluginLinkResponseHeaders(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
+		writer.Header().Set("X-Plugin-Metadata", "kept")
+		for _, value := range []string{
+			`<https://evil.example/>; rel="canonical"`,
+			`</asset.js>; rel="preload canonical"`,
+			`</page/2?value=a,b>; REL=Canonical; title="quoted, comma"`,
+			`</next>; rel="next"`,
+		} {
+			writer.Header().Add("Link", value)
+		}
+		writer.WriteHeader(http.StatusOK)
+		_, _ = writer.Write([]byte("plugin-ok"))
+	}))
+	defer server.Close()
+
+	request := fasthttp.AcquireRequest()
+	response := fasthttp.AcquireResponse()
+	defer fasthttp.ReleaseRequest(request)
+	defer fasthttp.ReleaseResponse(response)
+	request.Header.SetMethod(fasthttp.MethodGet)
+	request.SetRequestURI("/api/v1/extensions/demo.plugin/links")
+
+	if err := NewRouteGateway().Proxy(&ProxyInput{
+		Request: request, Response: response, ExtensionID: "demo.plugin",
+		TargetBase: server.URL, TargetPath: "/links", Timeout: time.Second,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if response.StatusCode() != http.StatusOK || string(response.Body()) != "plugin-ok" ||
+		len(response.Header.PeekAll("Link")) != 0 || string(response.Header.Peek("X-Plugin-Metadata")) != "kept" {
+		t.Fatalf("status=%d headers=%v body=%q", response.StatusCode(), &response.Header, response.Body())
+	}
+	for _, name := range []string{"Link", "link", "lInK"} {
+		if routeResponseHeaderAllowed(name) {
+			t.Fatalf("reserved response header %q accepted", name)
+		}
+	}
+}
+
 func TestRouteGatewayDoesNotFollowRedirects(t *testing.T) {
 	var destinationCalls atomic.Int32
 	destination := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
