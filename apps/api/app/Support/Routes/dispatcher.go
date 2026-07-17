@@ -619,6 +619,7 @@ dispatchSequence:
 			return DispatchResult{}, locationErr
 		}
 		response.Status = terminal.StatusCode
+		response.CanonicalPath = location
 		if response.Headers == nil {
 			response.Headers = make(http.Header)
 		}

@@ -176,7 +176,8 @@ func TestRedirectOutputRemainsHostOwnedAfterModifier(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if result.Response.Status != http.StatusPermanentRedirect || result.Response.Headers.Get("Location") != "/canonical" {
+	if result.Response.Status != http.StatusPermanentRedirect || result.Response.Headers.Get("Location") != "/canonical" ||
+		result.Response.Headers.Get("Link") != "" || result.Response.CanonicalPath != "/canonical" {
 		t.Fatalf("redirect authority = %#v", result.Response)
 	}
 }
