@@ -50,6 +50,7 @@ import (
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Postgres"
 	redisplatform "github.com/zhuchunshu/sforum/apps/api/app/Support/Redis"
 	routes "github.com/zhuchunshu/sforum/apps/api/app/Support/Routes"
+	seoregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/SEORegistry"
 	search "github.com/zhuchunshu/sforum/apps/api/app/Support/Search"
 	"github.com/zhuchunshu/sforum/apps/api/config"
 )
@@ -57,6 +58,7 @@ import (
 type API struct {
 	App  *fiber.App
 	Addr string
+	SEO  *seoregistry.ExecutionRuntime
 
 	closeOnce sync.Once
 	close     func()
@@ -196,6 +198,36 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		}
 		pool.Close()
 		return nil, fmt.Errorf("refresh forum read policy failed: %w", err)
+	}
+	seoSettings, err := optionsService.RuntimeSettings(ctx)
+	if err != nil {
+		sharedRedisClient.Close()
+		if closeErr := redisStorage.Close(); closeErr != nil {
+			logger.Warn("redis session storage close failed", "error", closeErr)
+		}
+		pool.Close()
+		return nil, fmt.Errorf("load SEO Host policy settings: %w", err)
+	}
+	seoValues, err := optionsService.InternalValues(ctx)
+	if err != nil {
+		sharedRedisClient.Close()
+		if closeErr := redisStorage.Close(); closeErr != nil {
+			logger.Warn("redis session storage close failed", "error", closeErr)
+		}
+		pool.Close()
+		return nil, fmt.Errorf("load SEO Host policy options: %w", err)
+	}
+	if strings.TrimSpace(seoSettings.SiteURL) == "" {
+		seoSettings.SiteURL = cfg.AppURL
+	}
+	if len(seoSettings.SupportedLocales) == 0 {
+		seoSettings.SupportedLocales = append([]string(nil), cfg.SupportedLocales...)
+	}
+	seoHostPolicy := seoregistry.HostFinalPolicyConfig{
+		SiteURL: seoSettings.SiteURL, SupportedLocales: seoSettings.SupportedLocales,
+		AllowIndexing:         productionSEOEnabled(seoValues[options.NameSEOAllowIndexing], true),
+		SitemapEnabled:        productionSEOEnabled(seoValues[options.NameSEOSitemapEnabled], true),
+		StructuredDataEnabled: productionSEOEnabled(seoValues[options.NameSEOSchemaOrgEnabled], true),
 	}
 	humanVerifier := humanverify.NewRuntimeService(optionsService, humanVerifyStore, humanVerifyConfigFromConfig(cfg))
 
@@ -456,6 +488,24 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		}
 		pool.Close()
 		return nil, fmt.Errorf("Query Registry production setup failed: %w", err)
+	}
+	productionSEO, err := bindProductionSEORegistry(
+		lifecycleStack.SEORegistry,
+		lifecycleRuntime,
+		seoHostPolicy,
+	)
+	if err != nil {
+		if stopErr := supportjobs.Stop(ctx, jobClient); stopErr != nil {
+			logger.Warn("job dispatcher stop failed", "error", stopErr)
+		}
+		extensionRuntime.Close(ctx)
+		_ = hostAPIGateway.Close()
+		sharedRedisClient.Close()
+		if closeErr := redisStorage.Close(); closeErr != nil {
+			logger.Warn("redis session storage close failed", "error", closeErr)
+		}
+		pool.Close()
+		return nil, fmt.Errorf("SEO Registry production setup failed: %w", err)
 	}
 	// 把已构造的 extensionService 接到 Host API 能力/权限解析（避免循环构造）。
 	hostAPIService.BindCapabilitySource(extensionService)
@@ -930,6 +980,7 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 	api := &API{
 		App:      app,
 		Addr:     apiAddress(cfg),
+		SEO:      productionSEO.Execution,
 		failures: apiRuntimeFailures,
 		close: func() {
 			closeRouteFailureRecorder()
