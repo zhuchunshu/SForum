@@ -241,6 +241,7 @@ func (d *Dispatcher) Dispatch(ctx context.Context, request DispatchRequest, core
 				validationResponse.Headers.Del(routeIdempotencyReplayedHeader)
 				if err := d.authorizeReplay(
 					ctx, plan, request, &validationResponse, replay.Authorization, replayBinding,
+					replay.ResponseContractKnown, replay.ResponseContract,
 				); err != nil {
 					return DispatchResult{}, err
 				}
@@ -611,7 +612,14 @@ dispatchSequence:
 		// Complete 失败时保留 pending；客户端只能得到 fail-closed unavailable，
 		// 不能在未知持久化结果后再次执行插件副作用。
 		preservePending = true
-		completion := RouteIdempotencyCompletion{Response: cloneDispatchResponse(*response)}
+		completion := RouteIdempotencyCompletion{
+			Response: cloneDispatchResponse(*response), ResponseContractKnown: true,
+		}
+		if hasFinalResponseContract {
+			completion.ResponseContract = newRouteReplayResponseContract(
+				finalResponseContract, chain[finalResponseContract.index],
+			)
+		}
 		if mutableReplay {
 			completion.Authorization, err = newRouteReplayAuthorization(replayBinding, replayMutations)
 			if err != nil || completion.Authorization == nil ||
@@ -671,6 +679,8 @@ func (d *Dispatcher) authorizeReplay(
 	response *DispatchResponse,
 	authorization *RouteReplayAuthorization,
 	binding RouteReplayBinding,
+	responseContractKnown bool,
+	responseContract *RouteReplayResponseContract,
 ) error {
 	terminal := plan.Terminal()
 	if response == nil || response.Status < http.StatusOK || response.Status >= http.StatusMultipleChoices ||
@@ -685,7 +695,12 @@ func (d *Dispatcher) authorizeReplay(
 	if authorization != nil && !routeReplayAuthorizationMatchesPlan(authorization, binding, sequence) {
 		return ErrDispatchIdempotencyUnavailable
 	}
-	finalResponseContract, hasFinalResponseContract := lastRouteResponseContract(sequence, chain)
+	finalResponseContract, hasFinalResponseContract, contractErr := resolveRouteReplayResponseContract(
+		sequence, chain, responseContractKnown, responseContract,
+	)
+	if contractErr != nil {
+		return ErrDispatchIdempotencyUnavailable
+	}
 	mutationIndex := 0
 	for _, execution := range sequence {
 		index, stage := execution.index, execution.stage
@@ -772,6 +787,54 @@ func lastRouteResponseContract(
 		}
 	}
 	return routeInvocationExecution{}, false
+}
+
+func newRouteReplayResponseContract(
+	execution routeInvocationExecution,
+	step RouteExecutionStep,
+) *RouteReplayResponseContract {
+	return &RouteReplayResponseContract{
+		StepIndex: execution.index, InvocationStage: execution.stage,
+		RouteID: step.RouteID, ContractVersion: step.ContractVersion,
+		ResponseSchema: step.ResponseSchema,
+	}
+}
+
+func resolveRouteReplayResponseContract(
+	sequence []routeInvocationExecution,
+	chain []RouteExecutionStep,
+	known bool,
+	contract *RouteReplayResponseContract,
+) (routeInvocationExecution, bool, error) {
+	if !known {
+		if contract != nil {
+			return routeInvocationExecution{}, false, ErrDispatchIdempotencyUnavailable
+		}
+		execution, ok := lastRouteResponseContract(sequence, chain)
+		return execution, ok, nil
+	}
+	if contract == nil {
+		return routeInvocationExecution{}, false, nil
+	}
+	if contract.StepIndex < 0 || contract.StepIndex >= len(chain) ||
+		(contract.InvocationStage != InvocationStageHandler && contract.InvocationStage != InvocationStageResponse) {
+		return routeInvocationExecution{}, false, ErrDispatchIdempotencyUnavailable
+	}
+	execution := routeInvocationExecution{index: contract.StepIndex, stage: contract.InvocationStage}
+	found := false
+	for _, candidate := range sequence {
+		if candidate == execution {
+			found = true
+			break
+		}
+	}
+	step := chain[contract.StepIndex]
+	if !found || strings.TrimSpace(contract.ResponseSchema) == "" ||
+		contract.RouteID != step.RouteID || contract.ContractVersion != step.ContractVersion ||
+		contract.ResponseSchema != step.ResponseSchema {
+		return routeInvocationExecution{}, false, ErrDispatchIdempotencyUnavailable
+	}
+	return execution, true, nil
 }
 
 func classifyRouteGuardFailure(err error) (RouteTraceOutcome, RouteFailureCode, bool) {

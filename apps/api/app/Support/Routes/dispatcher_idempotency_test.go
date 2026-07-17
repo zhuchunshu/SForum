@@ -288,8 +288,10 @@ type dispatchIdempotencyLease struct {
 func (l *dispatchIdempotencyLease) Complete(_ context.Context, completion RouteIdempotencyCompletion) error {
 	l.completeCalls++
 	l.completed = RouteIdempotencyCompletion{
-		Response:      cloneDispatchResponse(completion.Response),
-		Authorization: cloneRouteReplayAuthorization(completion.Authorization),
+		Response:              cloneDispatchResponse(completion.Response),
+		Authorization:         cloneRouteReplayAuthorization(completion.Authorization),
+		ResponseContractKnown: completion.ResponseContractKnown,
+		ResponseContract:      cloneRouteReplayResponseContract(completion.ResponseContract),
 	}
 	return l.completeErr
 }

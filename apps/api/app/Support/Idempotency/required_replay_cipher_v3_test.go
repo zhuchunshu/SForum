@@ -49,6 +49,18 @@ func TestRequiredReplayCipherV3BindsCompleteContextAndUsesUniqueNonces(t *testin
 	if err != nil || !bytes.Equal(decrypted, plaintext) {
 		t.Fatalf("V3 round trip = %q, %v", decrypted, err)
 	}
+	legacyNonce := make([]byte, cipherA.payloadAEAD.NonceSize())
+	legacyRaw := cipherA.payloadAEAD.Seal(
+		legacyNonce, legacyNonce, plaintext,
+		requiredReplayPayloadCipherAAD(
+			requiredReplayPayloadSchemaV1, storageKey, fingerprint, planDigest,
+		),
+	)
+	legacyPayload := base64.RawURLEncoding.EncodeToString(legacyRaw)
+	decrypted, err = cipherA.DecryptReplay(storageKey, fingerprint, planDigest, legacyPayload)
+	if err != nil || !bytes.Equal(decrypted, plaintext) {
+		t.Fatalf("V1 payload AAD compatibility = %q, %v", decrypted, err)
+	}
 
 	tamperedRaw := append([]byte(nil), firstRaw...)
 	tamperedRaw[len(tamperedRaw)-1] ^= 0x01
