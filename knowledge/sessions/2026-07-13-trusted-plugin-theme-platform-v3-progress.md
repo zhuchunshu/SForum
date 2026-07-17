@@ -1,6 +1,6 @@
 # Trusted Plugin And Theme Platform V3 Progress Ledger
 
-Last updated: 2026-07-17
+Last updated: 2026-07-18
 
 ## Progress
 
@@ -13,6 +13,26 @@ Last updated: 2026-07-17
   gates pass.
 
 ## Current Subtask
+
+### 2026-07-18 Required Replay Response Checkpoint
+
+- Verified weighted progress remains **64.3447%** (display **64.3%**); P6 stays
+  **15/18** because this hardens an already-credited required-idempotency path.
+- `036cfc4c8` applies current response-header policy and final response Schema
+  validation before a stored response can leave the Host. `60d16ae88` records
+  the effective response contract rather than guessing the last declaration in
+  the plan, including the case where a later modifier rejects its input before
+  runtime invocation.
+- New encrypted replay payloads use a versioned AAD domain and carry bounded,
+  exact step/stage/route/contract/schema provenance. Existing payloads remain
+  readable. Drifted or forged provenance, Host replay metadata in validation,
+  schema-less invalid mutation, and legacy header injection all fail closed.
+- Full Idempotency/Routes/Http tests, focused race, three-package vet, 50
+  repetitions for the initial response-policy slice, and isolated clean-HEAD
+  staged-patch normal/race/vet gates passed. Exact resume point: close unsafe
+  Core execution observation and post-response cancellation, then the Stream V2
+  total deadline, automatic lease release, non-HTTP schema boundary, durable
+  incident source, and real subprocess correlation evidence.
 
 ### 2026-07-17 P6 Stream Evidence Commit
 

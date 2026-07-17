@@ -1,6 +1,6 @@
 # Trusted Plugin And Theme Platform V3 Progress Ledger
 
-Date: 2026-07-17
+Date: 2026-07-18
 Overall progress: **64.3%**
 Active phase: **P6/P7/P9 accepted work plus P10-P12 production closure slices**
 
@@ -124,6 +124,34 @@ or treated as expired only after the complete V3 goal is achieved.
   failing plugin exactly once (`failed`, then `skipped`).
 
 ## Last Durable Checkpoint
+
+### 2026-07-18 Required Replay Final-Response Closure
+
+- Exact weighted progress remains `64.3447%`; displayed progress remains
+  **64.3%**. This closes replay correctness defects inside already-credited
+  required idempotency behavior and does not independently close one of the
+  three remaining P6 rows.
+- `036cfc4c8 fix(routes): revalidate required replay responses` reapplies the
+  current plugin-response header policy to historical records, removes Host
+  replay evidence from guard/Schema inputs, rejects invalid stored terminal
+  status, and runs first execution plus replay through a final response-contract
+  boundary before finalization or persistence.
+- `60d16ae88 fix(routes): persist effective replay response contract` stores the
+  exact handler/response contract that actually governed the completed payload.
+  A later modifier whose input Schema rejected the prior response is no longer
+  mistaken for the effective contract on replay. New encrypted payloads use a
+  versioned AAD domain; existing V1 payloads remain readable, while older
+  binaries fail closed on the new payload version.
+- A schema-less unsafe `after` mutation that violates the effective contract
+  preserves the latest contract-valid response and records the exact committed
+  failure. Safe Core fallback is not validated against a plugin handler contract
+  that never produced it. Forged, drifted, malformed, or unknown provenance
+  fails before output or a second plugin invocation.
+- Full Idempotency, Routes, and Http tests passed with focused replay race and
+  three-package vet. Both commits also passed isolated clean-HEAD plus exact
+  staged-patch normal/race/vet gates. Unsafe Core execution observation,
+  post-response caller cancellation, and the stream lifetime/lease/schema matrix
+  remain separate P6 work.
 
 ### 2026-07-17 P6 Exact Stream Execution Evidence
 
