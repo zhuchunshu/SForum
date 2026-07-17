@@ -101,6 +101,69 @@ describe('route inspector lookup validation', () => {
 })
 
 describe('route inspector snapshot parser', () => {
+  test('accepts omitted, empty, and bounded mutable field allowlists', () => {
+    const maxTokens = `/${Array.from({ length: 32 }, () => 'a').join('/')}`
+    const maxBytes = `/${'界'.repeat(85)}`
+    const requestFields = [
+      '/',
+      '/body/title',
+      '/meta/a~1b',
+      '/~0private',
+      maxTokens,
+      maxBytes,
+      ...Array.from({ length: 58 }, (_, index) => `/extra-${index}`)
+    ]
+    expect(requestFields).toHaveLength(64)
+    expect(new TextEncoder().encode(maxBytes)).toHaveLength(256)
+
+    const omitted = parseRouteInspectorSnapshot(validSnapshot())
+    expect(omitted?.chain[0]?.mutableRequestFields).toBeUndefined()
+    expect(omitted?.chain[0]?.mutableResponseFields).toBeUndefined()
+
+    const empty = parseRouteInspectorSnapshot(validSnapshot({
+      chain: [coreStep({ mutableRequestFields: [], mutableResponseFields: [] })]
+    }))
+    expect(empty?.chain[0]?.mutableRequestFields).toEqual([])
+    expect(empty?.chain[0]?.mutableResponseFields).toEqual([])
+
+    const parsed = parseRouteInspectorSnapshot(validSnapshot({
+      chain: [coreStep({
+        phase: 'filter',
+        action: 'filter',
+        mutableRequestFields: requestFields,
+        mutableResponseFields: ['/status/code', '/payload/items/0']
+      })]
+    }))
+    expect(parsed?.chain[0]?.mutableRequestFields).toEqual(requestFields)
+    expect(parsed?.chain[0]?.mutableResponseFields).toEqual(['/status/code', '/payload/items/0'])
+    requestFields[0] = '/changed-after-parse'
+    expect(parsed?.chain[0]?.mutableRequestFields?.[0]).toBe('/')
+  })
+
+  test('rejects malformed or over-limit mutable field allowlists', () => {
+    const invalidLists: Array<[string, unknown]> = [
+      ['non-array', '/body/title'],
+      ['null', null],
+      ['root pointer', ['']],
+      ['relative pointer', ['body/title']],
+      ['invalid escape', ['/body/~2title']],
+      ['trailing escape', ['/body/title~']],
+      ['duplicate', ['/body/title', '/body/title']],
+      ['non-string member', ['/body/title', 7]],
+      ['too many fields', Array.from({ length: 65 }, (_, index) => `/field-${index}`)],
+      ['too many tokens', [`/${Array.from({ length: 33 }, () => 'field').join('/')}`]],
+      ['too many UTF-8 bytes', [`/${'界'.repeat(86)}`]]
+    ]
+
+    for (const [name, value] of invalidLists) {
+      for (const field of ['mutableRequestFields', 'mutableResponseFields']) {
+        expect(parseRouteInspectorSnapshot(validSnapshot({
+          chain: [coreStep({ [field]: value })]
+        })), `${name}: ${field}`).toBeNull()
+      }
+    }
+  })
+
   test('parses a resolved snapshot with chain, provider, conflict, and redacted traces', () => {
     const pluginStep = coreStep({
       index: 1,
@@ -435,6 +498,12 @@ describe('route inspector page, nav, and i18n contracts', () => {
     expect(page).toContain('syncQuery')
     expect(page).toContain('routeInspectorQueryParams')
     expect(page).toContain("data-testid=\"route-inspector-submit\"")
+    expect(page).toContain('route-inspector-matched-request-fields')
+    expect(page).toContain('route-inspector-matched-response-fields')
+    expect(page).toContain('route-inspector-step-${step.index}-request-fields')
+    expect(page).toContain('route-inspector-step-${step.index}-response-fields')
+    expect(page).toContain('matched.mutableRequestFields?.length')
+    expect(page).toContain('step.mutableResponseFields?.length')
     expect(page).toContain('admin.extensions.routeInspector.readOnlyHint')
     expect(page).not.toContain('selectProvider')
     expect(page).not.toContain('resetProvider')
@@ -493,6 +562,8 @@ describe('route inspector page, nav, and i18n contracts', () => {
       expect(locale).toContain('"side_effect_started"')
       expect(locale).toContain('"packageDigest"')
       expect(locale).toContain('"declaredPath"')
+      expect(locale).toContain('"mutableRequestFields"')
+      expect(locale).toContain('"mutableResponseFields"')
     }
     expect(en).toContain('never selects, resets, or mutates route providers')
     expect(zh).toContain('不会选择、重置或变更路由提供者')

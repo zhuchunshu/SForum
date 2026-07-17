@@ -384,6 +384,34 @@ hydrateFromQuery()
             <dt class="text-slate-500">{{ t('admin.extensions.routeInspector.fields.action') }}</dt>
             <dd class="break-all font-mono">{{ matched.action }}</dd>
           </div>
+          <div
+            v-if="matched.mutableRequestFields?.length"
+            class="min-w-0 sm:col-span-2 lg:col-span-3"
+            data-testid="route-inspector-matched-request-fields"
+          >
+            <dt class="text-slate-500">{{ t('admin.extensions.routeInspector.fields.mutableRequestFields') }}</dt>
+            <dd class="mt-1 flex min-w-0 flex-wrap gap-1">
+              <code
+                v-for="field in matched.mutableRequestFields"
+                :key="field"
+                class="max-w-full break-all rounded bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-700 dark:bg-zinc-800 dark:text-zinc-200"
+              >{{ field }}</code>
+            </dd>
+          </div>
+          <div
+            v-if="matched.mutableResponseFields?.length"
+            class="min-w-0 sm:col-span-2 lg:col-span-3"
+            data-testid="route-inspector-matched-response-fields"
+          >
+            <dt class="text-slate-500">{{ t('admin.extensions.routeInspector.fields.mutableResponseFields') }}</dt>
+            <dd class="mt-1 flex min-w-0 flex-wrap gap-1">
+              <code
+                v-for="field in matched.mutableResponseFields"
+                :key="field"
+                class="max-w-full break-all rounded bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-700 dark:bg-zinc-800 dark:text-zinc-200"
+              >{{ field }}</code>
+            </dd>
+          </div>
         </dl>
       </section>
 
@@ -525,6 +553,34 @@ hydrateFromQuery()
               <div v-if="step.requestSchema || step.responseSchema" class="min-w-0 sm:col-span-2 lg:col-span-4">
                 <dt class="text-slate-500">{{ t('admin.extensions.routeInspector.fields.contracts') }}</dt>
                 <dd class="break-all font-mono">{{ step.requestSchema || '—' }} → {{ step.responseSchema || '—' }}</dd>
+              </div>
+              <div
+                v-if="step.mutableRequestFields?.length"
+                class="min-w-0 sm:col-span-2 lg:col-span-4"
+                :data-testid="`route-inspector-step-${step.index}-request-fields`"
+              >
+                <dt class="text-slate-500">{{ t('admin.extensions.routeInspector.fields.mutableRequestFields') }}</dt>
+                <dd class="mt-1 flex min-w-0 flex-wrap gap-1">
+                  <code
+                    v-for="field in step.mutableRequestFields"
+                    :key="field"
+                    class="max-w-full break-all rounded bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-700 dark:bg-zinc-800 dark:text-zinc-200"
+                  >{{ field }}</code>
+                </dd>
+              </div>
+              <div
+                v-if="step.mutableResponseFields?.length"
+                class="min-w-0 sm:col-span-2 lg:col-span-4"
+                :data-testid="`route-inspector-step-${step.index}-response-fields`"
+              >
+                <dt class="text-slate-500">{{ t('admin.extensions.routeInspector.fields.mutableResponseFields') }}</dt>
+                <dd class="mt-1 flex min-w-0 flex-wrap gap-1">
+                  <code
+                    v-for="field in step.mutableResponseFields"
+                    :key="field"
+                    class="max-w-full break-all rounded bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-700 dark:bg-zinc-800 dark:text-zinc-200"
+                  >{{ field }}</code>
+                </dd>
               </div>
             </dl>
           </li>

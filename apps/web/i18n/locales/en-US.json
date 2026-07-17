@@ -1184,6 +1184,8 @@
           "priority": "Priority",
           "handler": "Handler / destination",
           "contracts": "Request → response",
+          "mutableRequestFields": "Request field allowlist",
+          "mutableResponseFields": "Response field allowlist",
           "seq": "Seq",
           "observedAt": "Observed",
           "phase": "Phase",

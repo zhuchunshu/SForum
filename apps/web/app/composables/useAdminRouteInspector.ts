@@ -72,6 +72,8 @@ export type RouteInspectorStep = {
   destination?: string
   requestSchema?: string
   responseSchema?: string
+  mutableRequestFields?: string[]
+  mutableResponseFields?: string[]
   mode: string
   fallback: string
   timeoutMs: number
@@ -153,6 +155,10 @@ const COMMIT_STATES = new Set<string>(['pristine', 'response_started', 'side_eff
 const PROVIDER_KINDS = new Set<string>(['core', 'plugin'])
 const GUARD_KINDS = new Set<string>(['custom', 'raw_request'])
 const METHOD_SET = new Set<string>(ROUTE_INSPECTOR_METHODS)
+const MUTABLE_FIELD_MAX_COUNT = 64
+const MUTABLE_FIELD_MAX_BYTES = 256
+const MUTABLE_FIELD_MAX_TOKENS = 32
+const UTF8_ENCODER = new TextEncoder()
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
@@ -179,6 +185,39 @@ function asPositiveInt(value: unknown): number | undefined {
 
 function asBoolean(value: unknown): boolean | undefined {
   return typeof value === 'boolean' ? value : undefined
+}
+
+function validMutableFieldPointer(value: string): boolean {
+  if (!value.startsWith('/') || UTF8_ENCODER.encode(value).byteLength > MUTABLE_FIELD_MAX_BYTES) {
+    return false
+  }
+  let tokens = 1
+  for (let index = 1; index < value.length; index++) {
+    const character = value[index]
+    if (character === '/') {
+      tokens++
+      if (tokens > MUTABLE_FIELD_MAX_TOKENS) return false
+      continue
+    }
+    if (character !== '~') continue
+    index++
+    if (index >= value.length || value[index] !== '0' && value[index] !== '1') return false
+  }
+  return true
+}
+
+// undefined means omitted by the backend; null means a present but invalid value.
+function parseMutableFieldList(value: unknown): string[] | null | undefined {
+  if (value === undefined) return undefined
+  if (!Array.isArray(value) || value.length > MUTABLE_FIELD_MAX_COUNT) return null
+  const fields: string[] = []
+  const seen = new Set<string>()
+  for (const item of value) {
+    if (typeof item !== 'string' || !validMutableFieldPointer(item) || seen.has(item)) return null
+    seen.add(item)
+    fields.push(item)
+  }
+  return fields
 }
 
 function parseArtifact(value: unknown): RouteProviderArtifact | undefined {
@@ -328,6 +367,9 @@ function parseStep(value: unknown): RouteInspectorStep | undefined {
   const destination = asString(value.destination)
   const requestSchema = asString(value.requestSchema)
   const responseSchema = asString(value.responseSchema)
+  const mutableRequestFields = parseMutableFieldList(value.mutableRequestFields)
+  const mutableResponseFields = parseMutableFieldList(value.mutableResponseFields)
+  if (mutableRequestFields === null || mutableResponseFields === null) return undefined
   let pluginGuard: RouteInspectorPluginGuard | undefined
   if (value.pluginGuard !== undefined) {
     pluginGuard = parsePluginGuard(value.pluginGuard)
@@ -353,6 +395,8 @@ function parseStep(value: unknown): RouteInspectorStep | undefined {
     destination,
     requestSchema,
     responseSchema,
+    mutableRequestFields,
+    mutableResponseFields,
     mode,
     fallback,
     timeoutMs,

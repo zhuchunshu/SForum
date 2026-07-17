@@ -1184,6 +1184,8 @@
           "priority": "优先级",
           "handler": "处理器 / 目标",
           "contracts": "请求 → 响应",
+          "mutableRequestFields": "请求字段允许列表",
+          "mutableResponseFields": "响应字段允许列表",
           "seq": "序号",
           "observedAt": "观察时间",
           "phase": "阶段",
