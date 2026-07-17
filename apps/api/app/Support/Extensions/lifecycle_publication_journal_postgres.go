@@ -213,6 +213,9 @@ func (j *PostgresLifecycleBoundaryPublicationJournal) CommitLifecyclePublication
 	if err := requireLifecycleMigrationPublicationProof(ctx, tx, request, mode); err != nil {
 		return err
 	}
+	if err := requireLifecyclePublicationLiveTrust(ctx, tx, fence); err != nil {
+		return err
+	}
 	transition, err := lifecyclePluginRuntimePublicationTransition(request, mode)
 	if err != nil {
 		return err
@@ -247,6 +250,45 @@ func (j *PostgresLifecycleBoundaryPublicationJournal) CommitLifecyclePublication
 		return fmt.Errorf("commit lifecycle publication marker: %w", err)
 	}
 	return nil
+}
+
+func requireLifecyclePublicationLiveTrust(
+	ctx context.Context,
+	tx pgx.Tx,
+	fence lifecyclePublicationFence,
+) error {
+	if fence.Mode != LifecycleBoundaryActivate {
+		return nil
+	}
+	var authorityType string
+	var trustGrantID int64
+	if err := tx.QueryRow(ctx, `
+		SELECT authority_type, COALESCE(trust_grant_id, 0)
+		FROM extension_lifecycle_operations
+		WHERE id = $1 AND extension_id = $2 AND extension_version = $3
+		  AND package_digest = $4
+		FOR KEY SHARE
+	`, fence.OperationID, fence.Target.ExtensionID, fence.Target.ExtensionVersion, fence.Target.PackageDigest).Scan(
+		&authorityType, &trustGrantID,
+	); errors.Is(err, pgx.ErrNoRows) {
+		return ErrLifecyclePublicationJournalConflict
+	} else if err != nil {
+		return fmt.Errorf("load lifecycle publication trust authority: %w", err)
+	}
+	switch authorityType {
+	case extensions.LifecycleAuthorityBuiltin:
+		return nil
+	case extensions.LifecycleAuthorityTrustGrant:
+		if err := extensions.RequireLiveExecutableTrustGrantTx(
+			ctx, tx, trustGrantID,
+			fence.Target.ExtensionID, fence.Target.ExtensionVersion, fence.Target.PackageDigest,
+		); err != nil {
+			return fmt.Errorf("%w: live executable trust: %v", ErrLifecyclePublicationJournalConflict, err)
+		}
+		return nil
+	default:
+		return ErrLifecyclePublicationJournalConflict
+	}
 }
 
 func requireLifecycleMigrationPublicationProof(

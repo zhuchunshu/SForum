@@ -159,6 +159,143 @@ func TestPostgresLifecyclePublicationJournalConcurrentCommitBindsOneRevision(t *
 	}
 }
 
+func TestPostgresLifecyclePublicationCommitRejectsGrantRevokedAfterStaging(t *testing.T) {
+	fixture := newLifecyclePublicationIntegrationFixture(t)
+	request := fixture.request
+	var grantID int64
+	if err := fixture.pool.QueryRow(fixture.ctx, `
+		INSERT INTO extension_trust_grants (
+			extension_id, extension_version, package_digest, action
+		) VALUES ($1, $2, $3, $4)
+		RETURNING id
+	`, request.TargetExtension.ID, request.TargetExtension.Version,
+		request.TargetExtension.PackageDigest, extensions.TrustActionEnable).Scan(&grantID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := fixture.pool.Exec(fixture.ctx, `
+		UPDATE extension_lifecycle_operations
+		SET authority_type = $2, trust_grant_id = $3,
+			authority_snapshot = $4::jsonb
+		WHERE id = $1
+	`, request.OperationID, extensions.LifecycleAuthorityTrustGrant, grantID,
+		`{"schemaVersion":"sforum.lifecycle.authority@1"}`); err != nil {
+		t.Fatal(err)
+	}
+	if err := fixture.journal.PrepareLifecyclePublication(
+		fixture.ctx, request, LifecycleBoundaryActivate,
+	); err != nil {
+		t.Fatal(err)
+	}
+
+	revokeTx, err := fixture.pool.Begin(fixture.ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer revokeTx.Rollback(context.Background())
+	if err := extensions.LockExecutableTrustExtensionTx(
+		fixture.ctx, revokeTx, request.TargetExtension.ID,
+	); err != nil {
+		t.Fatal(err)
+	}
+	var revokePID int32
+	if err := revokeTx.QueryRow(fixture.ctx, `SELECT pg_backend_pid()`).Scan(&revokePID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := revokeTx.Exec(fixture.ctx, `
+		UPDATE extension_trust_grants SET revoked_at = statement_timestamp() WHERE id = $1
+	`, grantID); err != nil {
+		t.Fatal(err)
+	}
+
+	waiterApplicationName := "lpj_trust_waiter_" + fixture.schema
+	waiterConfig := fixture.pool.Config().Copy()
+	waiterConfig.ConnConfig.RuntimeParams["application_name"] = waiterApplicationName
+	waiterConfig.MaxConns = 1
+	waiterPool, err := pgxpool.NewWithConfig(fixture.ctx, waiterConfig)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer waiterPool.Close()
+	waiterJournal := NewPostgresLifecycleBoundaryPublicationJournal(waiterPool)
+	result := make(chan error, 1)
+	go func() {
+		result <- waiterJournal.CommitLifecyclePublication(
+			fixture.ctx, request, LifecycleBoundaryActivate,
+		)
+	}()
+	waitForLifecyclePublicationTrustAdvisoryLockWaiter(
+		t, fixture.ctx, fixture.pool, revokePID, waiterApplicationName, result,
+	)
+	if err := revokeTx.Commit(fixture.ctx); err != nil {
+		t.Fatal(err)
+	}
+	if err := <-result; !errors.Is(err, ErrLifecyclePublicationJournalConflict) {
+		t.Fatalf("revoked activation commit error=%v", err)
+	}
+	assertLifecycleRuntimePublicationCount(t, fixture, 0)
+	var committed bool
+	if err := fixture.pool.QueryRow(fixture.ctx, `
+		SELECT commit_marker
+		FROM extension_lifecycle_publications
+		WHERE operation_id = $1 AND step_id = $2 AND publication_mode = 'activate'
+	`, request.OperationID, request.StepID).Scan(&committed); err != nil {
+		t.Fatal(err)
+	}
+	if committed {
+		t.Fatal("revoked activation retained a durable commit marker")
+	}
+}
+
+func waitForLifecyclePublicationTrustAdvisoryLockWaiter(
+	t *testing.T,
+	ctx context.Context,
+	observer *pgxpool.Pool,
+	blockerPID int32,
+	applicationName string,
+	result <-chan error,
+) {
+	t.Helper()
+	waitCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+	ticker := time.NewTicker(10 * time.Millisecond)
+	defer ticker.Stop()
+
+	for {
+		var waiting bool
+		if err := observer.QueryRow(waitCtx, `
+			SELECT EXISTS (
+				SELECT 1
+				FROM pg_locks AS held
+				JOIN pg_locks AS waiter
+				  ON waiter.locktype = held.locktype
+				 AND waiter.database IS NOT DISTINCT FROM held.database
+				 AND waiter.classid IS NOT DISTINCT FROM held.classid
+				 AND waiter.objid IS NOT DISTINCT FROM held.objid
+				 AND waiter.objsubid IS NOT DISTINCT FROM held.objsubid
+				JOIN pg_stat_activity AS activity ON activity.pid = waiter.pid
+				WHERE held.pid = $1
+				  AND held.locktype = 'advisory'
+				  AND held.granted
+				  AND NOT waiter.granted
+				  AND activity.application_name = $2
+				  AND $1 = ANY(pg_blocking_pids(waiter.pid))
+			)
+		`, blockerPID, applicationName).Scan(&waiting); err != nil {
+			t.Fatalf("inspect lifecycle publication trust-lock waiter: %v", err)
+		}
+		if waiting {
+			return
+		}
+		select {
+		case err := <-result:
+			t.Fatalf("lifecycle publication returned before reaching the trust lock: %v", err)
+		case <-waitCtx.Done():
+			t.Fatalf("lifecycle publication did not reach the trust lock: %v", waitCtx.Err())
+		case <-ticker.C:
+		}
+	}
+}
+
 func TestPostgresLifecyclePublicationJournalMarkerCASRollbackDropsRevision(t *testing.T) {
 	fixture := newLifecyclePublicationIntegrationFixture(t)
 	if err := fixture.journal.PrepareLifecyclePublication(
@@ -326,7 +463,12 @@ func newLifecyclePublicationIntegrationFixture(t *testing.T) *lifecyclePublicati
 			display_name TEXT NOT NULL
 		);
 		CREATE TABLE extension_trust_grants (
-			id BIGSERIAL PRIMARY KEY
+			id BIGSERIAL PRIMARY KEY,
+			extension_id TEXT NOT NULL DEFAULT '',
+			extension_version TEXT NOT NULL DEFAULT '',
+			package_digest TEXT NOT NULL DEFAULT repeat('0', 64),
+			action TEXT NOT NULL DEFAULT 'enable',
+			revoked_at TIMESTAMPTZ
 		);
 		CREATE TABLE extensions (
 			id TEXT PRIMARY KEY,

@@ -457,6 +457,41 @@ func LockExecutableTrustExtensionTx(ctx context.Context, tx pgx.Tx, extensionID 
 	return nil
 }
 
+// RequireLiveExecutableTrustGrantTx proves that an already staged exact
+// artifact still owns a live enable grant at the publication linearization
+// point. The same transaction must publish the desired full-set afterwards.
+func RequireLiveExecutableTrustGrantTx(
+	ctx context.Context,
+	tx pgx.Tx,
+	grantID int64,
+	extensionID string,
+	extensionVersion string,
+	packageDigest string,
+) error {
+	if grantID <= 0 || extensionVersion == "" || extensionVersion != strings.TrimSpace(extensionVersion) ||
+		!validPackageDigest(packageDigest) {
+		return ErrTrustGrantNotFound
+	}
+	if err := LockExecutableTrustExtensionTx(ctx, tx, extensionID); err != nil {
+		return err
+	}
+	var live bool
+	if err := tx.QueryRow(ctx, `
+		SELECT EXISTS (
+			SELECT 1
+			FROM extension_trust_grants
+			WHERE id = $1 AND extension_id = $2 AND extension_version = $3
+			  AND package_digest = $4 AND action = $5 AND revoked_at IS NULL
+		)
+	`, grantID, extensionID, extensionVersion, packageDigest, TrustActionEnable).Scan(&live); err != nil {
+		return fmt.Errorf("validate live executable trust grant: %w", err)
+	}
+	if !live {
+		return ErrTrustGrantNotFound
+	}
+	return nil
+}
+
 func invalidateTrustChallenge(ctx context.Context, tx pgx.Tx, id int64, reason string, result error) error {
 	if _, err := tx.Exec(ctx, `
 		UPDATE extension_trust_challenges
