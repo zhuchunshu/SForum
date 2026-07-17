@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -54,8 +55,57 @@ func TestProtocolV2RouteAcrossRealSubprocessAndManagerAdmission(t *testing.T) {
 		response.Body["actor"] != float64(42) || response.Body["title"] != "hello" {
 		t.Fatalf("response = %#v", response)
 	}
+	if !reflect.DeepEqual(response.Body["queryKeyOrder"], []any{"page"}) ||
+		!reflect.DeepEqual(response.Body["queryValues"], map[string]any{"page": []any{"2"}}) ||
+		!reflect.DeepEqual(response.Body["legacyQuery"], map[string]any{"page": "2"}) {
+		t.Fatalf("legacy query response = %#v", response.Body)
+	}
 	if after, err := manager.InspectRuntimeInstance(snapshot.Identity); err != nil || after.Admission.ActiveTotal != 0 {
 		t.Fatalf("admission after call = %#v, %v", after, err)
+	}
+}
+
+func TestProtocolV2RouteRepeatedQueryAcrossRealSubprocess(t *testing.T) {
+	extension := protocolV2RouteExtension(t)
+	starter := extensionsruntime.NewProtocolStarter(extensionsruntime.ProtocolStarterConfig{
+		Trust: staticRuntimeTrust{identity: extensions.RuntimeTrustIdentity{TrustGrantID: "41", ImpactDigest: "impact-41"}},
+	})
+	manager := extensionsruntime.NewManager(extensionsruntime.ManagerConfig{Starter: starter})
+	if err := manager.Start(context.Background(), extension); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = manager.Stop(context.Background(), extension) })
+	snapshot, lease, err := manager.AcquireActiveRuntimeCall(context.Background(), extension.ID, extensionsruntime.RuntimeCallRoute)
+	if err != nil {
+		t.Fatal(err)
+	}
+	request := protocolV2RouteE2ERequest()
+	request.QueryParameters["tag"] = "first"
+	request.QueryParameterValues = map[string][]string{
+		"zeta":  {"last", "second"},
+		"alpha": {""},
+		"tag":   {"first", "a+b", "slash/value", ""},
+	}
+	response, err := manager.InvokeRouteInstance(lease.Context, snapshot.Identity, request)
+	lease.Release()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(response.Body["queryKeyOrder"], []any{"alpha", "page", "tag", "zeta"}) {
+		t.Fatalf("query key order = %#v", response.Body["queryKeyOrder"])
+	}
+	wantValues := map[string]any{
+		"alpha": []any{""},
+		"page":  []any{"2"},
+		"tag":   []any{"first", "a+b", "slash/value", ""},
+		"zeta":  []any{"last", "second"},
+	}
+	if !reflect.DeepEqual(response.Body["queryValues"], wantValues) {
+		t.Fatalf("query values = %#v", response.Body["queryValues"])
+	}
+	wantLegacy := map[string]any{"alpha": "", "page": "2", "tag": "first", "zeta": "last"}
+	if !reflect.DeepEqual(response.Body["legacyQuery"], wantLegacy) {
+		t.Fatalf("legacy query = %#v", response.Body["legacyQuery"])
 	}
 }
 
@@ -212,6 +262,9 @@ func (s *protocolV2RouteE2EServer) InvokeRoute(callCtx context.Context, request 
 		return &pluginwire.RouteResponse{Context: protocolV2RouteResponseContext(ctx), StatusCode: uint32(status)}, nil
 	}
 	if request.GetRouteId() != "runtime.v2.route.echo" || request.GetContractVersion() != "runtime.v2.route.echo@1" ||
+		request.GetRouteAction() != extensionmanifest.RouteActionAdd ||
+		request.GetInvocationStage() != pluginwire.RouteInvocationStage_ROUTE_INVOCATION_STAGE_HANDLER ||
+		len(request.GetMutableRequestFields()) != 0 || len(request.GetMutableResponseFields()) != 0 || request.GetPriorResponse() != nil ||
 		request.GetMethod() != http.MethodPost || request.GetPath() != "/runtime/41" ||
 		request.GetPathParameters()["id"] != "41" || request.GetQueryParameters()["page"] != "2" ||
 		request.GetBody().GetSchemaId() != "runtime.v2.route.request" || request.GetBody().GetSchemaVersion() != "1" ||
@@ -252,9 +305,11 @@ func (s *protocolV2RouteE2EServer) InvokeRoute(callCtx context.Context, request 
 		}
 		delegatedPlan = true
 	}
+	queryKeyOrder, queryValues, legacyQuery := protocolV2RouteObservedQuery(request)
 	value, err := structpb.NewStruct(map[string]any{
 		"instance": ctx.GetExtension().GetInstanceId(), "actor": ctx.GetActor().GetUserId(), "title": input["title"],
 		"delegatedPlan": delegatedPlan, "delegationCount": len(ctx.GetHostCommandDelegations()),
+		"queryKeyOrder": queryKeyOrder, "queryValues": queryValues, "legacyQuery": legacyQuery,
 	})
 	if err != nil {
 		return nil, err
@@ -264,6 +319,24 @@ func (s *protocolV2RouteE2EServer) InvokeRoute(callCtx context.Context, request 
 		Headers: []*protocolwire.Header{{Name: "X-Route-E2E", Values: []string{"ok"}}},
 		Body:    &protocolwire.TypedDocument{SchemaId: "runtime.v2.route.response", SchemaVersion: "1", Value: value},
 	}, nil
+}
+
+func protocolV2RouteObservedQuery(request *pluginwire.RouteRequest) ([]any, map[string]any, map[string]any) {
+	keyOrder := make([]any, 0, len(request.GetQueryParameterValues()))
+	values := make(map[string]any, len(request.GetQueryParameterValues()))
+	for _, parameter := range request.GetQueryParameterValues() {
+		keyOrder = append(keyOrder, parameter.GetKey())
+		items := make([]any, len(parameter.GetValues()))
+		for index, value := range parameter.GetValues() {
+			items[index] = value
+		}
+		values[parameter.GetKey()] = items
+	}
+	legacy := make(map[string]any, len(request.GetQueryParameters()))
+	for key, value := range request.GetQueryParameters() {
+		legacy[key] = value
+	}
+	return keyOrder, values, legacy
 }
 
 type protocolV2RouteAttachmentMutator struct{}
@@ -316,6 +389,7 @@ func protocolV2RouteExtension(t *testing.T) extensions.Extension {
 func protocolV2RouteE2ERequest() extensionsruntime.ProtocolV2RouteRequest {
 	return extensionsruntime.ProtocolV2RouteRequest{
 		RouteID: "runtime.v2.route.echo", ContractVersion: "runtime.v2.route.echo@1",
+		RouteAction: extensionmanifest.RouteActionAdd, InvocationStage: extensionsruntime.ProtocolV2RouteInvocationStageHandler,
 		Method: http.MethodPost, Path: "/runtime/41", PathParameters: map[string]string{"id": "41"},
 		QueryParameters: map[string]string{"page": "2"}, RequestSchema: "runtime.v2.route.request@1",
 		ResponseSchema: "runtime.v2.route.response@1", Body: map[string]any{"title": "hello"}, BodyPresent: true,

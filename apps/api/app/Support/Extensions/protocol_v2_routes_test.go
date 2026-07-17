@@ -2,6 +2,7 @@ package extensionsruntime
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net"
 	"net/http"
@@ -29,7 +30,8 @@ func TestProtocolV2RouteCarriesExactTypedRequestAndHostActor(t *testing.T) {
 		return protocolV2RouteTestResponse(request, map[string]any{"ok": true}), nil
 	})
 	response, err := client.InvokeRouteContext(context.Background(), ProtocolV2RouteRequest{
-		RouteID: "demo.route", ContractVersion: "demo.route@1", Method: http.MethodPost, Path: "/demo/41",
+		RouteID: "demo.route", ContractVersion: "demo.route@1", RouteAction: extensionmanifest.RouteActionAdd,
+		InvocationStage: ProtocolV2RouteInvocationStageHandler, Method: http.MethodPost, Path: "/demo/41",
 		Authority: protocolV2FilteredHostRequestAuthority(),
 		Headers:   http.Header{"X-Test": {"one", "two"}}, PathParameters: map[string]string{"id": "41"},
 		QueryParameters: map[string]string{"page": "2"}, RequestSchema: "demo.request@1", ResponseSchema: "demo.response@1",
@@ -41,6 +43,8 @@ func TestProtocolV2RouteCarriesExactTypedRequestAndHostActor(t *testing.T) {
 		t.Fatal(err)
 	}
 	if received.GetRouteId() != "demo.route" || received.GetContractVersion() != "demo.route@1" ||
+		received.GetRouteAction() != extensionmanifest.RouteActionAdd ||
+		received.GetInvocationStage() != pluginwire.RouteInvocationStage_ROUTE_INVOCATION_STAGE_HANDLER ||
 		received.GetMethod() != http.MethodPost || received.GetPath() != "/demo/41" ||
 		received.GetRequestAuthorityMode() != pluginwire.RouteRequestAuthorityMode_ROUTE_REQUEST_AUTHORITY_MODE_FILTERED ||
 		received.GetGuardKind() != pluginwire.RouteGuardKind_ROUTE_GUARD_KIND_HOST ||
@@ -48,6 +52,10 @@ func TestProtocolV2RouteCarriesExactTypedRequestAndHostActor(t *testing.T) {
 		received.GetBody().GetSchemaId() != "demo.request" || received.GetBody().GetSchemaVersion() != "1" ||
 		received.GetBody().GetValue().AsMap()["title"] != "hello" {
 		t.Fatalf("request = %#v", received)
+	}
+	if query := received.GetQueryParameterValues(); len(query) != 1 || query[0].GetKey() != "page" ||
+		!reflect.DeepEqual(query[0].GetValues(), []string{"2"}) {
+		t.Fatalf("lossless query = %#v", query)
 	}
 	if actor := received.GetContext().GetActor(); actor.GetUserId() != 42 ||
 		!reflect.DeepEqual(actor.GetPermissionKeys(), []string{"*", "topics.write"}) {
@@ -60,6 +68,65 @@ func TestProtocolV2RouteCarriesExactTypedRequestAndHostActor(t *testing.T) {
 	if client.requestContext(context.Background(), "ordinary").GetActor() != nil ||
 		NewProtocolV2RouteActor(42, false, map[string]bool{"*": true}) != nil {
 		t.Fatal("ordinary or anonymous context acquired actor authority")
+	}
+}
+
+func TestProtocolV2RouteCarriesRepeatedQueryValuesLosslessly(t *testing.T) {
+	var received *pluginwire.RouteRequest
+	client := newProtocolV2RouteTestClient(t, "runtime-1", func(_ context.Context, request *pluginwire.RouteRequest) (*pluginwire.RouteResponse, error) {
+		received = request
+		return protocolV2RouteTestResponse(request, map[string]any{"ok": true}), nil
+	})
+	legacy := map[string]string{"legacy": "only", "tag": "first"}
+	all := map[string][]string{
+		"empty": {""},
+		"page":  {"2"},
+		"tag":   {"first", "a+b", "slash/value", ""},
+	}
+	request := protocolV2RouteTestRequest()
+	request.QueryParameters = legacy
+	request.QueryParameterValues = all
+	if _, err := client.InvokeRouteContext(context.Background(), request); err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(received.GetQueryParameters(), map[string]string{
+		"empty": "", "legacy": "only", "page": "2", "tag": "first",
+	}) {
+		t.Fatalf("legacy query map = %#v", received.GetQueryParameters())
+	}
+	query := received.GetQueryParameterValues()
+	if len(query) != 4 || query[0].GetKey() != "empty" || query[1].GetKey() != "legacy" ||
+		query[2].GetKey() != "page" || query[3].GetKey() != "tag" ||
+		!reflect.DeepEqual(query[0].GetValues(), []string{""}) ||
+		!reflect.DeepEqual(query[1].GetValues(), []string{"only"}) ||
+		!reflect.DeepEqual(query[2].GetValues(), []string{"2"}) ||
+		!reflect.DeepEqual(query[3].GetValues(), []string{"first", "a+b", "slash/value", ""}) {
+		t.Fatalf("lossless query entries = %#v", query)
+	}
+
+	legacy["legacy"] = "caller-mutated"
+	all["tag"][0] = "caller-mutated"
+	if received.GetQueryParameters()["legacy"] != "only" || received.GetQueryParameterValues()[3].GetValues()[0] != "first" {
+		t.Fatalf("wire query leaked caller maps: %#v / %#v", received.GetQueryParameters(), received.GetQueryParameterValues())
+	}
+}
+
+func TestProtocolV2RouteRejectsAmbiguousRepeatedQueryValues(t *testing.T) {
+	tests := []struct {
+		name   string
+		legacy map[string]string
+		all    map[string][]string
+	}{
+		{name: "conflicting first value", legacy: map[string]string{"tag": "legacy"}, all: map[string][]string{"tag": {"new", "second"}}},
+		{name: "missing values", all: map[string][]string{"tag": nil}},
+		{name: "empty values", all: map[string][]string{"tag": {}}},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if _, _, err := protocolV2RouteQueryParameters(test.legacy, test.all); !errors.Is(err, ErrProtocolV2RouteInvalid) {
+				t.Fatalf("error = %v", err)
+			}
+		})
 	}
 }
 
@@ -168,6 +235,11 @@ func TestProtocolV2RouteFailsClosedOnResponseDrift(t *testing.T) {
 		{"stream with body", func(response *pluginwire.RouteResponse) { response.StreamFollows = true }, ErrProtocolV2RouteInvalid},
 		{"invalid header name", func(response *pluginwire.RouteResponse) { response.Headers[0].Name = "Bad\r\nName" }, ErrProtocolV2RouteInvalid},
 		{"invalid header value", func(response *pluginwire.RouteResponse) { response.Headers[0].Values[0] = "bad\r\nvalue" }, ErrProtocolV2RouteInvalid},
+		{"handler patch", func(response *pluginwire.RouteResponse) {
+			response.RequestPatch = []*pluginwire.RoutePatchOperation{{
+				Kind: pluginwire.RoutePatchOperationKind_ROUTE_PATCH_OPERATION_KIND_REMOVE, Path: "/body/title",
+			}}
+		}, ErrProtocolV2RouteInvalid},
 		{"typed error", func(response *pluginwire.RouteResponse) {
 			response.Error = &protocolwire.ErrorDetail{Code: protocolwire.ErrorCode_ERROR_CODE_PERMISSION_DENIED, Reason: "route.denied"}
 		}, nil},
@@ -242,29 +314,384 @@ func TestProtocolV2RouteCreatesUniqueTraceWithoutCallerCorrelation(t *testing.T)
 
 func TestProtocolV2FrozenRouteMatchesHeadAndGlobalMiddleware(t *testing.T) {
 	client := &protocolV2Client{routes: []extensions.ManifestRoute{
-		{ID: "demo.get", ContractVersion: "demo.get@1", Methods: []string{http.MethodGet}, Mode: extensionmanifest.RouteModeHTTP, Guard: extensionmanifest.GuardCorePublic},
-		{ID: "demo.sse", ContractVersion: "demo.sse@1", Methods: []string{http.MethodGet}, Mode: extensionmanifest.RouteModeSSE, Guard: extensionmanifest.GuardCorePublic},
+		{ID: "demo.get", ContractVersion: "demo.get@1", Action: extensionmanifest.RouteActionAdd, Methods: []string{http.MethodGet}, Mode: extensionmanifest.RouteModeHTTP, Guard: extensionmanifest.GuardCorePublic},
+		{ID: "demo.sse", ContractVersion: "demo.sse@1", Action: extensionmanifest.RouteActionAdd, Methods: []string{http.MethodGet}, Mode: extensionmanifest.RouteModeSSE, Guard: extensionmanifest.GuardCorePublic},
 		{ID: "demo.global", ContractVersion: "demo.global@1", Action: extensionmanifest.RouteActionGlobalMiddleware, Guard: extensionmanifest.GuardCorePublic},
 	}}
 	for _, request := range []ProtocolV2RouteRequest{
-		{RouteID: "demo.get", ContractVersion: "demo.get@1", Method: http.MethodHead, Authority: protocolV2FilteredHostRequestAuthority()},
-		{RouteID: "demo.global", ContractVersion: "demo.global@1", Method: http.MethodDelete, Authority: protocolV2FilteredHostRequestAuthority()},
+		{RouteID: "demo.get", ContractVersion: "demo.get@1", RouteAction: extensionmanifest.RouteActionAdd, InvocationStage: ProtocolV2RouteInvocationStageHandler, Method: http.MethodHead, Authority: protocolV2FilteredHostRequestAuthority()},
+		{RouteID: "demo.global", ContractVersion: "demo.global@1", RouteAction: extensionmanifest.RouteActionGlobalMiddleware, InvocationStage: ProtocolV2RouteInvocationStageRequest, Method: http.MethodDelete, Authority: protocolV2FilteredHostRequestAuthority()},
 	} {
 		if err := client.validateFrozenRoute(request); err != nil {
 			t.Fatalf("request %#v: %v", request, err)
 		}
 	}
 	if err := client.validateFrozenRoute(ProtocolV2RouteRequest{
-		RouteID: "demo.get", ContractVersion: "demo.get@1", Method: http.MethodPost,
+		RouteID: "demo.get", ContractVersion: "demo.get@1", RouteAction: extensionmanifest.RouteActionAdd,
+		InvocationStage: ProtocolV2RouteInvocationStageHandler, Method: http.MethodPost,
 		Authority: protocolV2FilteredHostRequestAuthority(),
 	}); !errors.Is(err, ErrProtocolV2RouteInvalid) {
 		t.Fatalf("POST error = %v", err)
 	}
 	if err := client.validateFrozenRoute(ProtocolV2RouteRequest{
-		RouteID: "demo.sse", ContractVersion: "demo.sse@1", Method: http.MethodHead,
+		RouteID: "demo.sse", ContractVersion: "demo.sse@1", RouteAction: extensionmanifest.RouteActionAdd,
+		InvocationStage: ProtocolV2RouteInvocationStageHandler, Method: http.MethodHead,
 		Authority: protocolV2FilteredHostRequestAuthority(),
 	}); !errors.Is(err, ErrProtocolV2RouteInvalid) {
 		t.Fatalf("SSE HEAD error = %v", err)
+	}
+}
+
+func TestProtocolV2RouteMapsRequestMutationStage(t *testing.T) {
+	requestFields := []string{"/body/title", "/headers/x~1trace", "/query/page"}
+	responseFields := []string{"/body/summary"}
+	addValue := []byte(`"updated"`)
+	replaceValue := []byte(`9007199254740993`)
+	var received *pluginwire.RouteRequest
+	client := newProtocolV2RouteTestClient(t, "runtime-1", func(_ context.Context, request *pluginwire.RouteRequest) (*pluginwire.RouteResponse, error) {
+		received = request
+		response := protocolV2RouteMutationTestResponse(request)
+		response.RequestPatch = []*pluginwire.RoutePatchOperation{
+			{Kind: pluginwire.RoutePatchOperationKind_ROUTE_PATCH_OPERATION_KIND_ADD, Path: "/body/title", ValueJson: addValue},
+			{Kind: pluginwire.RoutePatchOperationKind_ROUTE_PATCH_OPERATION_KIND_REPLACE, Path: "/query/page", ValueJson: replaceValue},
+			{Kind: pluginwire.RoutePatchOperationKind_ROUTE_PATCH_OPERATION_KIND_REMOVE, Path: "/headers/x~1trace"},
+		}
+		return response, nil
+	})
+	client.routes = []extensions.ManifestRoute{{
+		ID: "demo.route", ContractVersion: "demo.route@1", Action: extensionmanifest.RouteActionFilter,
+		Methods: []string{http.MethodPost}, Guard: extensionmanifest.GuardCorePublic,
+		RequestSchema: "demo.request@1", ResponseSchema: "demo.response@1",
+		MutableRequestFields: requestFields, MutableResponseFields: responseFields,
+	}}
+	request := protocolV2RouteTestRequest()
+	request.Method = http.MethodPost
+	request.RouteAction = extensionmanifest.RouteActionFilter
+	request.InvocationStage = ProtocolV2RouteInvocationStageRequest
+	request.MutableRequestFields = requestFields
+	request.MutableResponseFields = responseFields
+	request.Body = map[string]any{"title": "original"}
+	request.BodyPresent = true
+	response, err := client.InvokeRouteContext(context.Background(), request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if received.GetRouteAction() != extensionmanifest.RouteActionFilter ||
+		received.GetInvocationStage() != pluginwire.RouteInvocationStage_ROUTE_INVOCATION_STAGE_REQUEST ||
+		received.GetPriorResponse() != nil ||
+		!reflect.DeepEqual(received.GetMutableRequestFields(), requestFields) ||
+		!reflect.DeepEqual(received.GetMutableResponseFields(), responseFields) {
+		t.Fatalf("wire request = %#v", received)
+	}
+	if response.StatusCode != 0 || response.BodyPresent || response.StreamFollows || len(response.ResponsePatch) != 0 ||
+		len(response.RequestPatch) != 3 || response.RequestPatch[0].Kind != ProtocolV2RoutePatchAdd ||
+		response.RequestPatch[1].Kind != ProtocolV2RoutePatchReplace || response.RequestPatch[2].Kind != ProtocolV2RoutePatchRemove ||
+		response.RequestPatch[2].Value != nil {
+		t.Fatalf("mutation response = %#v", response)
+	}
+	assertProtocolV2RawJSON(t, response.RequestPatch[0].Value, "updated")
+	if string(response.RequestPatch[1].Value) != string(replaceValue) {
+		t.Fatalf("large integer JSON = %q, want exact %q", response.RequestPatch[1].Value, replaceValue)
+	}
+
+	requestFields[0] = "/caller-mutated"
+	responseFields[0] = "/caller-mutated"
+	if received.GetMutableRequestFields()[0] != "/body/title" || received.GetMutableResponseFields()[0] != "/body/summary" {
+		t.Fatalf("wire allowlists leaked caller slices: %#v / %#v", received.GetMutableRequestFields(), received.GetMutableResponseFields())
+	}
+}
+
+func TestProtocolV2RouteMapsResponseMutationStageAndPriorResponse(t *testing.T) {
+	requestFields := []string{"/body/title"}
+	responseFields := []string{"/status", "/headers/cache-control", "/body/summary"}
+	value := []byte(`"filtered"`)
+	var received *pluginwire.RouteRequest
+	client := newProtocolV2RouteTestClient(t, "runtime-1", func(_ context.Context, request *pluginwire.RouteRequest) (*pluginwire.RouteResponse, error) {
+		received = request
+		response := protocolV2RouteMutationTestResponse(request)
+		response.ResponsePatch = []*pluginwire.RoutePatchOperation{{
+			Kind: pluginwire.RoutePatchOperationKind_ROUTE_PATCH_OPERATION_KIND_REPLACE,
+			Path: "/body/summary", ValueJson: value,
+		}}
+		return response, nil
+	})
+	client.routes = []extensions.ManifestRoute{{
+		ID: "demo.route", ContractVersion: "demo.route@1", Action: extensionmanifest.RouteActionFilter,
+		Methods: []string{http.MethodGet}, Guard: extensionmanifest.GuardCorePublic,
+		RequestSchema: "demo.request@1", ResponseSchema: "demo.response@1",
+		MutableRequestFields: requestFields, MutableResponseFields: responseFields,
+	}}
+	prior := &ProtocolV2RouteResponseDocument{
+		StatusCode: http.StatusAccepted, Headers: http.Header{
+			"X-Prior": {"one", "two"}, "Location": {"/canonical"},
+			"Set-Cookie": {"session=secret"}, "Authorization": {"Bearer secret"},
+			"X-SForum-Internal": {"secret"}, "Connection": {"X-Dynamic-Hop"}, "X-Dynamic-Hop": {"secret"},
+		},
+		Body: map[string]any{"summary": "original"}, BodyPresent: true,
+	}
+	request := protocolV2RouteTestRequest()
+	request.RouteAction = extensionmanifest.RouteActionFilter
+	request.InvocationStage = ProtocolV2RouteInvocationStageResponse
+	request.MutableRequestFields = requestFields
+	request.MutableResponseFields = responseFields
+	request.PriorResponse = prior
+	response, err := client.InvokeRouteContext(context.Background(), request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wirePrior := received.GetPriorResponse()
+	if received.GetInvocationStage() != pluginwire.RouteInvocationStage_ROUTE_INVOCATION_STAGE_RESPONSE ||
+		wirePrior.GetStatusCode() != http.StatusAccepted ||
+		wirePrior.GetBody().GetSchemaId() != "demo.response" || wirePrior.GetBody().GetSchemaVersion() != "1" ||
+		wirePrior.GetBody().GetValue().AsMap()["summary"] != "original" {
+		t.Fatalf("wire prior response = %#v", wirePrior)
+	}
+	wirePriorHeaders, err := protocolV2RouteHTTPHeaders(wirePrior.GetHeaders())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if wirePriorHeaders.Get("X-Prior") != "one" || wirePriorHeaders.Get("Location") != "/canonical" ||
+		wirePriorHeaders.Get("Set-Cookie") != "" || wirePriorHeaders.Get("Authorization") != "" ||
+		wirePriorHeaders.Get("X-SForum-Internal") != "" || wirePriorHeaders.Get("X-Dynamic-Hop") != "" ||
+		wirePriorHeaders.Get("Connection") != "" {
+		t.Fatalf("filtered prior response headers = %#v", wirePriorHeaders)
+	}
+	if len(response.RequestPatch) != 0 || len(response.ResponsePatch) != 1 ||
+		response.ResponsePatch[0].Kind != ProtocolV2RoutePatchReplace || response.ResponsePatch[0].Path != "/body/summary" {
+		t.Fatalf("mutation response = %#v", response)
+	}
+	assertProtocolV2RawJSON(t, response.ResponsePatch[0].Value, "filtered")
+
+	prior.Headers.Set("X-Prior", "caller-mutated")
+	prior.Body["summary"] = "caller-mutated"
+	if wirePriorHeaders.Get("X-Prior") != "one" || wirePrior.GetBody().GetValue().AsMap()["summary"] != "original" {
+		t.Fatalf("wire prior response leaked caller state: %#v", wirePrior)
+	}
+}
+
+func TestProtocolV2RouteRawAuthorityCanReadPriorResponseCredentials(t *testing.T) {
+	var received *pluginwire.RouteRequest
+	client := newProtocolV2RouteTestClient(t, "runtime-1", func(_ context.Context, request *pluginwire.RouteRequest) (*pluginwire.RouteResponse, error) {
+		received = request
+		return protocolV2RouteMutationTestResponse(request), nil
+	})
+	client.routes = []extensions.ManifestRoute{{
+		ID: "demo.route", ContractVersion: "demo.route@1", Action: extensionmanifest.RouteActionAfter,
+		Methods: []string{http.MethodPost}, Guard: extensionmanifest.GuardCoreRaw,
+		RequestSchema: "demo.request@1", ResponseSchema: "demo.response@1",
+	}}
+	request := protocolV2RouteTestRequest()
+	request.RouteAction = extensionmanifest.RouteActionAfter
+	request.InvocationStage = ProtocolV2RouteInvocationStageResponse
+	request.Method = http.MethodPost
+	request.Authority = ProtocolV2RequestAuthority{
+		Mode: ProtocolV2RequestAuthorityRaw, GuardKind: ProtocolV2RequestGuardRawRequest,
+	}
+	request.PriorResponse = &ProtocolV2RouteResponseDocument{
+		StatusCode: http.StatusOK,
+		Headers: http.Header{
+			"Set-Cookie": {"session=secret"}, "Authorization": {"Bearer secret"},
+			"Cookie": {"session=request-style"}, "X-CSRF-Token": {"host-secret"},
+			"X-SForum-Internal": {"secret"}, "Connection": {"X-Dynamic-Hop"}, "X-Dynamic-Hop": {"secret"},
+		},
+	}
+	if _, err := client.InvokeRouteContext(context.Background(), request); err != nil {
+		t.Fatal(err)
+	}
+	headers, err := protocolV2RouteHTTPHeaders(received.GetPriorResponse().GetHeaders())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if headers.Get("Set-Cookie") != "session=secret" || headers.Get("Authorization") != "Bearer secret" ||
+		headers.Get("Cookie") != "session=request-style" || headers.Get("X-CSRF-Token") != "" ||
+		headers.Get("X-SForum-Internal") != "" || headers.Get("Connection") != "" || headers.Get("X-Dynamic-Hop") != "" {
+		t.Fatalf("raw prior response headers = %#v", headers)
+	}
+}
+
+func TestProtocolV2RouteValidatesActionStageMatrix(t *testing.T) {
+	prior := &ProtocolV2RouteResponseDocument{StatusCode: http.StatusOK}
+	valid := []ProtocolV2RouteRequest{
+		protocolV2RouteRequestForStage(extensionmanifest.RouteActionAdd, ProtocolV2RouteInvocationStageHandler, nil),
+		protocolV2RouteRequestForStage(extensionmanifest.RouteActionReplace, ProtocolV2RouteInvocationStageHandler, nil),
+		protocolV2RouteRequestForStage(extensionmanifest.RouteActionGlobalMiddleware, ProtocolV2RouteInvocationStageRequest, nil),
+		protocolV2RouteRequestForStage(extensionmanifest.RouteActionBefore, ProtocolV2RouteInvocationStageRequest, nil),
+		protocolV2RouteRequestForStage(extensionmanifest.RouteActionFilter, ProtocolV2RouteInvocationStageRequest, nil),
+		protocolV2RouteRequestForStage(extensionmanifest.RouteActionWrap, ProtocolV2RouteInvocationStageRequest, nil),
+		protocolV2RouteRequestForStage(extensionmanifest.RouteActionFilter, ProtocolV2RouteInvocationStageResponse, prior),
+		protocolV2RouteRequestForStage(extensionmanifest.RouteActionWrap, ProtocolV2RouteInvocationStageResponse, prior),
+		protocolV2RouteRequestForStage(extensionmanifest.RouteActionAfter, ProtocolV2RouteInvocationStageResponse, prior),
+	}
+	for _, request := range valid {
+		if err := validateProtocolV2RouteRequest(request); err != nil {
+			t.Errorf("valid %s/%s rejected: %v", request.RouteAction, request.InvocationStage, err)
+		}
+	}
+
+	invalid := []ProtocolV2RouteRequest{
+		protocolV2RouteRequestForStage(extensionmanifest.RouteActionAdd, "", nil),
+		protocolV2RouteRequestForStage(extensionmanifest.RouteActionBefore, ProtocolV2RouteInvocationStageHandler, nil),
+		protocolV2RouteRequestForStage(extensionmanifest.RouteActionAdd, ProtocolV2RouteInvocationStageHandler, prior),
+		protocolV2RouteRequestForStage(extensionmanifest.RouteActionAdd, ProtocolV2RouteInvocationStageRequest, nil),
+		protocolV2RouteRequestForStage(extensionmanifest.RouteActionFilter, ProtocolV2RouteInvocationStageRequest, prior),
+		protocolV2RouteRequestForStage(extensionmanifest.RouteActionBefore, ProtocolV2RouteInvocationStageResponse, prior),
+		protocolV2RouteRequestForStage(extensionmanifest.RouteActionAfter, ProtocolV2RouteInvocationStageResponse, nil),
+		protocolV2RouteRequestForStage(extensionmanifest.RouteActionAfter, ProtocolV2RouteInvocationStageResponse, &ProtocolV2RouteResponseDocument{}),
+	}
+	handlerFields := protocolV2RouteRequestForStage(extensionmanifest.RouteActionAdd, ProtocolV2RouteInvocationStageHandler, nil)
+	handlerFields.MutableRequestFields = []string{"/body"}
+	invalid = append(invalid, handlerFields)
+	priorWithoutSchema := protocolV2RouteRequestForStage(extensionmanifest.RouteActionAfter, ProtocolV2RouteInvocationStageResponse, &ProtocolV2RouteResponseDocument{
+		StatusCode: http.StatusOK, BodyPresent: true, Body: map[string]any{"ok": true},
+	})
+	priorWithoutSchema.ResponseSchema = ""
+	invalid = append(invalid, priorWithoutSchema)
+	for _, request := range invalid {
+		if err := validateProtocolV2RouteRequest(request); !errors.Is(err, ErrProtocolV2RouteInvalid) {
+			t.Errorf("invalid %s/%s error = %v", request.RouteAction, request.InvocationStage, err)
+		}
+	}
+}
+
+func TestProtocolV2RouteRejectsMaliciousMutationResponses(t *testing.T) {
+	value := []byte(`"value"`)
+	validPatch := func() *pluginwire.RoutePatchOperation {
+		return &pluginwire.RoutePatchOperation{
+			Kind: pluginwire.RoutePatchOperationKind_ROUTE_PATCH_OPERATION_KIND_ADD, Path: "/allowed", ValueJson: value,
+		}
+	}
+	tests := []struct {
+		name   string
+		stage  ProtocolV2RouteInvocationStage
+		mutate func(*pluginwire.RouteResponse)
+	}{
+		{"request terminal", ProtocolV2RouteInvocationStageRequest, func(response *pluginwire.RouteResponse) { response.StatusCode = http.StatusOK }},
+		{"request wrong direction", ProtocolV2RouteInvocationStageRequest, func(response *pluginwire.RouteResponse) {
+			response.ResponsePatch = []*pluginwire.RoutePatchOperation{validPatch()}
+		}},
+		{"response terminal", ProtocolV2RouteInvocationStageResponse, func(response *pluginwire.RouteResponse) { response.Body = &protocolwire.TypedDocument{} }},
+		{"response wrong direction", ProtocolV2RouteInvocationStageResponse, func(response *pluginwire.RouteResponse) {
+			response.RequestPatch = []*pluginwire.RoutePatchOperation{validPatch()}
+		}},
+		{"too many", ProtocolV2RouteInvocationStageRequest, func(response *pluginwire.RouteResponse) {
+			response.RequestPatch = make([]*pluginwire.RoutePatchOperation, extensionmanifest.RouteMutableFieldsMaximumCount+1)
+			for index := range response.RequestPatch {
+				response.RequestPatch[index] = validPatch()
+			}
+		}},
+		{"nil operation", ProtocolV2RouteInvocationStageRequest, func(response *pluginwire.RouteResponse) {
+			response.RequestPatch = []*pluginwire.RoutePatchOperation{nil}
+		}},
+		{"unknown kind", ProtocolV2RouteInvocationStageRequest, func(response *pluginwire.RouteResponse) {
+			response.RequestPatch = []*pluginwire.RoutePatchOperation{{Kind: 99, Path: "/allowed", ValueJson: value}}
+		}},
+		{"legacy value", ProtocolV2RouteInvocationStageRequest, func(response *pluginwire.RouteResponse) {
+			response.RequestPatch = []*pluginwire.RoutePatchOperation{{
+				Kind: pluginwire.RoutePatchOperationKind_ROUTE_PATCH_OPERATION_KIND_ADD,
+				Path: "/allowed", Value: structpb.NewStringValue("legacy"),
+			}}
+		}},
+		{"add missing value", ProtocolV2RouteInvocationStageRequest, func(response *pluginwire.RouteResponse) {
+			response.RequestPatch = []*pluginwire.RoutePatchOperation{{Kind: pluginwire.RoutePatchOperationKind_ROUTE_PATCH_OPERATION_KIND_ADD, Path: "/allowed"}}
+		}},
+		{"replace invalid JSON", ProtocolV2RouteInvocationStageRequest, func(response *pluginwire.RouteResponse) {
+			response.RequestPatch = []*pluginwire.RoutePatchOperation{{Kind: pluginwire.RoutePatchOperationKind_ROUTE_PATCH_OPERATION_KIND_REPLACE, Path: "/allowed", ValueJson: []byte("{")}}
+		}},
+		{"remove with value", ProtocolV2RouteInvocationStageRequest, func(response *pluginwire.RouteResponse) {
+			response.RequestPatch = []*pluginwire.RoutePatchOperation{{Kind: pluginwire.RoutePatchOperationKind_ROUTE_PATCH_OPERATION_KIND_REMOVE, Path: "/allowed", ValueJson: value}}
+		}},
+		{"path outside allowlist", ProtocolV2RouteInvocationStageRequest, func(response *pluginwire.RouteResponse) {
+			response.RequestPatch = []*pluginwire.RoutePatchOperation{{Kind: pluginwire.RoutePatchOperationKind_ROUTE_PATCH_OPERATION_KIND_REMOVE, Path: "/other"}}
+		}},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			client := newProtocolV2RouteTestClient(t, "runtime-1", func(_ context.Context, request *pluginwire.RouteRequest) (*pluginwire.RouteResponse, error) {
+				response := protocolV2RouteMutationTestResponse(request)
+				test.mutate(response)
+				return response, nil
+			})
+			client.routes = []extensions.ManifestRoute{{
+				ID: "demo.route", ContractVersion: "demo.route@1", Action: extensionmanifest.RouteActionFilter,
+				Methods: []string{http.MethodGet}, Guard: extensionmanifest.GuardCorePublic,
+				RequestSchema: "demo.request@1", ResponseSchema: "demo.response@1",
+				MutableRequestFields: []string{"/allowed"}, MutableResponseFields: []string{"/allowed"},
+			}}
+			request := protocolV2RouteTestRequest()
+			request.RouteAction = extensionmanifest.RouteActionFilter
+			request.InvocationStage = test.stage
+			request.MutableRequestFields = []string{"/allowed"}
+			request.MutableResponseFields = []string{"/allowed"}
+			if test.stage == ProtocolV2RouteInvocationStageResponse {
+				request.PriorResponse = &ProtocolV2RouteResponseDocument{StatusCode: http.StatusOK}
+			}
+			if _, err := client.InvokeRouteContext(context.Background(), request); !errors.Is(err, ErrProtocolV2RouteInvalid) {
+				t.Fatalf("error = %v", err)
+			}
+		})
+	}
+}
+
+func TestProtocolV2FrozenRouteRejectsMutationAuthorityDrift(t *testing.T) {
+	client := &protocolV2Client{routes: []extensions.ManifestRoute{{
+		ID: "demo.filter", ContractVersion: "demo.filter@1", Action: extensionmanifest.RouteActionFilter,
+		Methods: []string{http.MethodPost}, Guard: extensionmanifest.GuardCorePublic,
+		RequestSchema: "demo.request@1", ResponseSchema: "demo.response@1",
+		MutableRequestFields: []string{"/body/title", "/query/page"}, MutableResponseFields: []string{"/body/summary"},
+	}}}
+	exact := ProtocolV2RouteRequest{
+		RouteID: "demo.filter", ContractVersion: "demo.filter@1", RouteAction: extensionmanifest.RouteActionFilter,
+		InvocationStage: ProtocolV2RouteInvocationStageRequest, Method: http.MethodPost,
+		RequestSchema: "demo.request@1", ResponseSchema: "demo.response@1",
+		MutableRequestFields: []string{"/body/title", "/query/page"}, MutableResponseFields: []string{"/body/summary"},
+		Authority: protocolV2FilteredHostRequestAuthority(),
+	}
+	if err := client.validateFrozenRoute(exact); err != nil {
+		t.Fatalf("exact frozen route rejected: %v", err)
+	}
+	tests := []struct {
+		name   string
+		mutate func(*ProtocolV2RouteRequest)
+	}{
+		{"action", func(request *ProtocolV2RouteRequest) { request.RouteAction = extensionmanifest.RouteActionWrap }},
+		{"request allowlist", func(request *ProtocolV2RouteRequest) { request.MutableRequestFields[0] = "/body/other" }},
+		{"request allowlist order", func(request *ProtocolV2RouteRequest) {
+			request.MutableRequestFields[0], request.MutableRequestFields[1] = request.MutableRequestFields[1], request.MutableRequestFields[0]
+		}},
+		{"response allowlist", func(request *ProtocolV2RouteRequest) { request.MutableResponseFields[0] = "/body/other" }},
+		{"request schema", func(request *ProtocolV2RouteRequest) { request.RequestSchema = "demo.request@2" }},
+		{"response schema", func(request *ProtocolV2RouteRequest) { request.ResponseSchema = "demo.response@2" }},
+		{"method", func(request *ProtocolV2RouteRequest) { request.Method = http.MethodGet }},
+		{"authority", func(request *ProtocolV2RouteRequest) {
+			request.Authority = ProtocolV2RequestAuthority{Mode: ProtocolV2RequestAuthorityRaw, GuardKind: ProtocolV2RequestGuardRawRequest}
+		}},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			request := exact
+			request.MutableRequestFields = append([]string(nil), exact.MutableRequestFields...)
+			request.MutableResponseFields = append([]string(nil), exact.MutableResponseFields...)
+			test.mutate(&request)
+			if err := client.validateFrozenRoute(request); !errors.Is(err, ErrProtocolV2RouteInvalid) {
+				t.Fatalf("error = %v", err)
+			}
+		})
+	}
+}
+
+func TestProtocolV2RoutePatchJSONIsDetached(t *testing.T) {
+	value := []byte(` {"nested":{"value":9007199254740993}} `)
+	operations := []*pluginwire.RoutePatchOperation{{
+		Kind: pluginwire.RoutePatchOperationKind_ROUTE_PATCH_OPERATION_KIND_ADD, Path: "/allowed", ValueJson: value,
+	}}
+	result, err := protocolV2RoutePatchOperations(operations, []string{"/allowed"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := string(value)
+	value[1] = '['
+	if string(result[0].Value) != want {
+		t.Fatalf("detached JSON = %q, want exact %q", result[0].Value, want)
 	}
 }
 
@@ -272,7 +699,7 @@ func TestProtocolV2RouteDeclarationSnapshotClonesMutableFields(t *testing.T) {
 	routes := []extensions.ManifestRoute{{
 		ID: "demo.filter", ContractVersion: "demo.filter@1", Action: extensionmanifest.RouteActionFilter,
 		Methods: []string{http.MethodGet}, MutableRequestFields: []string{"/query"},
-		MutableResponseFields: []string{"/headers/cache~1control"},
+		MutableResponseFields: []string{"/headers/cache-control"},
 	}}
 	snapshot := cloneProtocolV2Routes(routes)
 	client := newProtocolV2Client(nil, protocolV2ClientConfig{routes: routes})
@@ -292,7 +719,7 @@ func assertProtocolV2RouteMutableFields(t *testing.T, route extensions.ManifestR
 	t.Helper()
 	if !reflect.DeepEqual(route.Methods, []string{http.MethodGet}) ||
 		!reflect.DeepEqual(route.MutableRequestFields, []string{"/query"}) ||
-		!reflect.DeepEqual(route.MutableResponseFields, []string{"/headers/cache~1control"}) {
+		!reflect.DeepEqual(route.MutableResponseFields, []string{"/headers/cache-control"}) {
 		t.Fatalf("frozen route declaration = %#v", route)
 	}
 }
@@ -348,15 +775,47 @@ func newProtocolV2RouteTestClient(
 	return newProtocolV2Client(pluginwire.NewPluginRuntimeServiceClient(connection), protocolV2ClientConfig{
 		identity: identity, instance: instanceID,
 		routes: []extensions.ManifestRoute{{
-			ID: "demo.route", ContractVersion: "demo.route@1", Methods: []string{http.MethodGet, http.MethodPost},
-			Guard: extensionmanifest.GuardCorePublic, RequestSchema: "demo.request@1", ResponseSchema: "demo.response@1",
+			ID: "demo.route", ContractVersion: "demo.route@1", Action: extensionmanifest.RouteActionAdd,
+			Methods: []string{http.MethodGet, http.MethodPost},
+			Guard:   extensionmanifest.GuardCorePublic, RequestSchema: "demo.request@1", ResponseSchema: "demo.response@1",
 		}},
 	})
 }
 
+func protocolV2RouteRequestForStage(
+	action string,
+	stage ProtocolV2RouteInvocationStage,
+	prior *ProtocolV2RouteResponseDocument,
+) ProtocolV2RouteRequest {
+	request := protocolV2RouteTestRequest()
+	request.RouteAction = action
+	request.InvocationStage = stage
+	request.PriorResponse = prior
+	return request
+}
+
+func protocolV2RouteMutationTestResponse(request *pluginwire.RouteRequest) *pluginwire.RouteResponse {
+	return &pluginwire.RouteResponse{Context: &protocolwire.ResponseContext{
+		RequestId: request.GetContext().GetRequestId(), Trace: proto.Clone(request.GetContext().GetTrace()).(*protocolwire.TraceContext),
+		Extension: proto.Clone(request.GetContext().GetExtension()).(*protocolwire.ExtensionIdentity), ServerTime: timestamppb.Now(),
+	}}
+}
+
+func assertProtocolV2RawJSON(t *testing.T, raw json.RawMessage, want any) {
+	t.Helper()
+	var got any
+	if err := json.Unmarshal(raw, &got); err != nil {
+		t.Fatalf("decode patch JSON %q: %v", raw, err)
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("patch JSON = %#v, want %#v", got, want)
+	}
+}
+
 func protocolV2RouteTestRequest() ProtocolV2RouteRequest {
 	return ProtocolV2RouteRequest{
-		RouteID: "demo.route", ContractVersion: "demo.route@1", Method: http.MethodGet, Path: "/demo",
+		RouteID: "demo.route", ContractVersion: "demo.route@1", RouteAction: extensionmanifest.RouteActionAdd,
+		InvocationStage: ProtocolV2RouteInvocationStageHandler, Method: http.MethodGet, Path: "/demo",
 		Authority:     protocolV2FilteredHostRequestAuthority(),
 		RequestSchema: "demo.request@1", ResponseSchema: "demo.response@1", Timeout: time.Second,
 	}
