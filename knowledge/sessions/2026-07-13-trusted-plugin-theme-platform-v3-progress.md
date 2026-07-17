@@ -14,6 +14,37 @@ Last updated: 2026-07-17
 
 ## Current Subtask
 
+### 2026-07-17 P6 Bounded Route Mutation Engine Checkpoint
+
+- Verified weighted progress remains **63.2336%** (display **63.2%**); P6
+  remains **13/18** until production Dispatcher application, immediate schema
+  revalidation, true wrap ordering, and the complete action/failure matrix pass.
+- `f9749a12d feat(extensions): constrain route mutation paths` freezes the
+  direction-specific synthetic request/response documents, exact RFC 6901
+  allowlists, raw-request credential rule, impossible-shape rejection, and
+  Host-owned/hop-by-hop header policy in Manifest V3 and OpenAPI.
+- `d2a3107db feat(routes): add bounded field mutation engine` adds the
+  Host-authoritative RFC 6902 `add`/`replace`/`remove` subset using the mature
+  `evanphx/json-patch/v5` library. It rejects undeclared or duplicate paths,
+  preserves JSON number precision and null/remove distinction, keeps untouched
+  multipart/binary/HTML fields opaque, preserves repeated query values, blocks
+  credential and dynamic `Connection` headers without exact raw authority, and
+  applies 4 MiB patch, 8 MiB body, 8 MiB + 256 KiB document, and 1 MiB metadata
+  budgets before accepting a result.
+- Host mutation focused tests passed twenty repetitions; focused race passed
+  five repetitions; full Routes and ExtensionManifest normal/race plus both-
+  package vet and staged diff checks passed before the commit.
+- Active uncommitted slices are intentionally separate: Registry publication
+  must reuse the Manifest validator after freezing the exact guard binding;
+  Protocol V2 request/response patch mapping and repeated-query wire support
+  remain agent-owned; Dispatcher application and schema revalidation remain
+  the main-thread next step; P7 role suggestions are a separate identity slice.
+- Never stage the user-owned `apps/api/app/Models/PageViewModels/source_test.go`
+  or `extensions/builtin/plugins/sforum-content-policy/sforum.extension.json`.
+  Protocol V1 compatibility, Safe Mode, prior snapshots, and CLI recovery stay
+  intact; no migration, destructive rollback, push, tag, branch, or worktree
+  operation belongs to this checkpoint.
+
 ### 2026-07-17 P6 Trust Revocation And Guard Closure Checkpoint
 
 - Verified weighted progress remains **63.2336%** (display **63.2%**); P6
