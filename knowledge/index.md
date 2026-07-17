@@ -4,16 +4,17 @@ This is the entry point for project memory.
 
 ## Latest Handoff
 
-- **2026-07-18 Trusted Plugin And Theme Platform V3 P6/P7/P9/P10/P11/P12 active (overall 63.8%)**
+- **2026-07-18 Trusted Plugin And Theme Platform V3 P6/P7/P9/P10/P11/P12 active (overall 64.3%)**
   - Decision: `knowledge/decisions/2026-07-13-trusted-plugin-theme-platform-v3.md`
   - Task book: `knowledge/plans/2026-07-13-trusted-plugin-theme-platform-v3.md`
   - Current durable checkpoint:
     `knowledge/sessions/2026-07-13-trusted-plugin-theme-platform-v3-progress.md`
-  - 2026-07-18 strict credit audit and recovery: P6 is **14/18**, P7 is
-    **14/22**, and verified weighted progress is **63.7892%**. Response-stage caller
+  - 2026-07-18 strict credit audit and recovery: P6 is **15/18**, P7 is
+    **14/22**, and verified weighted progress is **64.3447%**. Response-stage caller
     cancellation now preserves and completes the last valid replay response;
-    Host-owned `Link` authority is closed again. Stream lifetime, P7 exact
-    evidence, guard/SEO, and the complete P6 behavior matrix remain open.
+    Host-owned `Link` authority and redirect canonical integration are closed.
+    Stream lifetime, P7 exact evidence, custom/raw guards, and the complete P6
+    behavior matrix remain open.
   - Active checkpoint: `knowledge/sessions/2026-07-16-trusted-plugin-theme-platform-v3-runtime-ownership-checkpoint.md`
   - Prior Query/P12/SEO checkpoint:
     `knowledge/sessions/2026-07-16-trusted-plugin-theme-platform-v3-query-p12-seo-checkpoint.md`
@@ -113,7 +114,7 @@ This is the entry point for project memory.
     complete accepted action family now runs through deterministic request,
     handler, and response stages; declaration-bound request/response patches
     are Host-applied and immediately schema-revalidated. Custom/raw guard
-    revoke-WebSocket, route SEO, and the complete behavior matrix remain open.
+    revoke-WebSocket and the complete behavior matrix remain open.
   - Exact OpenAPI operations now derive Host-owned permission/security,
     `host.ip_write@1` rate-limit, and `required.24h@1` replay metadata. Required
     replay is production-wired through a 24-hour CAS-fenced Redis ledger,
@@ -141,7 +142,7 @@ This is the entry point for project memory.
     stale authorization cache. Identity self-resource guards use the same
     authoritative ownership rule while keeping PAT management cookie-bound.
     Nine resource-dependent routes plus
-    custom/raw authority, complete actions, streaming, SEO, and the failure
+    custom/raw authority, complete actions, streaming, and the failure
     matrix remain active P6 work
   - The reproducible same-run v1/V3 route benchmark row is accepted. Internal
     immutable planning removed full-catalog per-request copies, while the report

@@ -122,11 +122,13 @@ The 2026-07-18 response-cancellation hardening preserves and persists the last
 valid response after a caller disconnects during response-stage processing.
 Final Schema validation, committed-failure audit, and required-replay completion
 run on a bounded context detached from that caller; runtime-owned failures still
-remain inspectable. P6 is conservatively **14/18** after production review.
+remain inspectable. P6 is conservatively **15/18** after production review.
 Plugin terminal responses and response modifiers cannot author `Link`; Core and
-Host canonical policy retain that metadata authority, so the mutable-field row
-is credited again. Stream lifetime/lease authority and non-HTTP evidence remain
-incomplete, keeping the streamed-transport row open.
+Host canonical policy retain that metadata authority. Alias, rewrite, and
+301/308 redirect output now carries one structured Host-owned canonical path,
+from which the Fiber response writer generates the canonical `Link`. Stream
+lifetime/lease authority and non-HTTP evidence remain incomplete, keeping the
+streamed-transport row open.
 
 ## Purpose
 

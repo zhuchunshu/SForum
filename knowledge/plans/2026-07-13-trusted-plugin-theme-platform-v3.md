@@ -496,7 +496,7 @@ blocking implement the authoritative row without retaining a second alias.
 - [x] Add explicit provider selection and conflict UI for replace providers.
 - [x] Define safe GET fallback and fail-closed unsafe method behavior.
 - [x] Prevent fallback after headers/body/plugin side effects begin.
-- [ ] Add route aliases/redirect SEO status/canonical integration.
+- [x] Add route aliases/redirect SEO status/canonical integration.
 - [x] Add modular plugin OpenAPI fragments, validation, aggregation, permissions,
       rate-limit, idempotency, and generated-client metadata.
 - [x] Add Route Inspector with chain, provider, guard, timing, fallback, and

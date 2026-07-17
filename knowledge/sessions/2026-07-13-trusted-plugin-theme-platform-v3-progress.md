@@ -4,8 +4,8 @@ Last updated: 2026-07-18
 
 ## Progress
 
-- Verified weighted progress: **63.7892%** (display **63.8%**).
-- Phase counts: P0-P5 and P8 complete; P6 **14/18**, P7 **14/22**,
+- Verified weighted progress: **64.3447%** (display **64.3%**).
+- Phase counts: P0-P5 and P8 complete; P6 **15/18**, P7 **14/22**,
   P8 **18/18**, P9 **4/16**, P11 **1/16**, and P12 **1/22**. P10 and P13
   have no credited authoritative row yet.
 - Completion remains unproven until all 99 target rows, 14 accepted boundaries,
@@ -13,6 +13,28 @@ Last updated: 2026-07-18
   gates pass.
 
 ## Current Subtask
+
+### 2026-07-18 Route Redirect Canonical Checkpoint
+
+- Verified weighted progress advances to **64.3447%** (display **64.3%**);
+  P6 is **15/18** after the route alias/redirect SEO row closed.
+- `a4cdb6764 feat(routes): bind redirects to host canonical` binds redirects
+  to the exact materialized Host path in structured `CanonicalPath`. The Fiber
+  writer remains the single canonical `Link` generator, so plugin headers and
+  replay payloads cannot become a second authority source. Alias uses its Core
+  target while rewrite retains the public source path.
+- `07f5311b7 test(routes): cover redirect canonical lifecycle` joins stable-ID
+  and literal destinations, 301/308, Unicode escaping, GET/HEAD, source-query
+  exclusion, Host-only output, and Safe Mode removal. The existing Nuxt proxy
+  test proves 301/308 `Location` and canonical `Link` survive same-origin proxying.
+- Focused coverage passed **100** normal and **20** race repetitions. A standalone
+  clone containing only the staged evidence patch passed complete Routes/Http
+  normal and race suites, two-package vet, `go build ./...`, and diff checks.
+  Sitemap/SEO Registry consumers remain P11 work and are not claimed here.
+- Exact resume point: repair Stream V2 total budget and lifecycle-owned session
+  release without breaking the 24-hour compatibility default, ForceCancel, or
+  WebSocket detach. Then close custom/raw guard production evidence and the
+  complete P6 behavior matrix.
 
 ### 2026-07-18 Host-Owned Link Response Authority Checkpoint
 
