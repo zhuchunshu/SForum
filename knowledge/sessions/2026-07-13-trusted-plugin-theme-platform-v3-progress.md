@@ -42,6 +42,12 @@ Last updated: 2026-07-17
   fail before the immutable snapshot advances.
 - The Registry/Manifest policy slice passed full normal tests, twenty focused
   repetitions, five focused race repetitions, vet, and staged diff checks.
+- `a03f1f33e fix(routes): preserve route mutation atomicity` fail-closes
+  malformed source header names instead of silently deleting an undeclared
+  field, freezes root `remove` as clearing request query/params/body while
+  rejecting response status removal, and proves source plus patch numbers above
+  `2^53` remain byte-exact. Focused normal tests passed twenty repetitions,
+  focused race passed five repetitions, and the full Routes/vet gates passed.
 - Active uncommitted slices are intentionally separate: Registry publication
   must reuse the Manifest validator after freezing the exact guard binding;
   Protocol V2 request/response patch mapping and repeated-query wire support
