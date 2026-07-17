@@ -46,12 +46,17 @@ func (i *BufferedRouteStepInvoker) invokeProtocolV2(
 	if err != nil {
 		return routes.RouteInvocationResult{}, err
 	}
+	stage, err := exactProtocolV2RouteInvocationStage(input.Stage)
+	if err != nil {
+		return routes.RouteInvocationResult{}, err
+	}
 	evidence := &routeTransportEvidence{commit: input.Commit}
 	// A unary gRPC error cannot prove that the plugin did not receive the call.
 	// Fence fallback before dispatch so a crash cannot create a second writer.
 	evidence.markRequestStarted()
 	response, err := runtime.InvokeRouteInstance(ctx, identity, extensionsruntime.ProtocolV2RouteRequest{
 		RouteID: input.Step.RouteID, ContractVersion: input.Step.ContractVersion,
+		RouteAction: input.Step.Action, InvocationStage: stage,
 		Method: input.Request.Method, Path: input.Request.Path, Headers: headers,
 		PathParameters: input.Request.Params, QueryParameters: query,
 		RequestSchema: input.Step.RequestSchema, ResponseSchema: input.Step.ResponseSchema,
@@ -89,6 +94,19 @@ func (i *BufferedRouteStepInvoker) invokeProtocolV2(
 	result := evidence.result()
 	result.Response = &value
 	return result, nil
+}
+
+func exactProtocolV2RouteInvocationStage(stage routes.InvocationStage) (extensionsruntime.ProtocolV2RouteInvocationStage, error) {
+	switch stage {
+	case routes.InvocationStageRequest:
+		return extensionsruntime.ProtocolV2RouteInvocationStageRequest, nil
+	case routes.InvocationStageHandler:
+		return extensionsruntime.ProtocolV2RouteInvocationStageHandler, nil
+	case routes.InvocationStageResponse:
+		return extensionsruntime.ProtocolV2RouteInvocationStageResponse, nil
+	default:
+		return "", ErrRouteRuntimeTarget
+	}
 }
 
 func exactProtocolV2RouteIdempotencyKey(headers stdhttp.Header) (string, error) {

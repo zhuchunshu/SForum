@@ -74,6 +74,7 @@ func (i *BufferedRouteStepInvoker) OpenStream(
 	)
 	preflight, err := runtime.InvokeRouteInstance(lease.Context, identity, extensionsruntime.ProtocolV2RouteRequest{
 		RouteID: input.Step.RouteID, ContractVersion: input.Step.ContractVersion,
+		RouteAction: input.Step.Action, InvocationStage: extensionsruntime.ProtocolV2RouteInvocationStageHandler,
 		Method: input.Request.Method, Path: input.Request.Path, Headers: headers,
 		PathParameters: input.Request.Params, QueryParameters: query,
 		RequestSchema: input.Step.RequestSchema, ResponseSchema: input.Step.ResponseSchema,
