@@ -80,11 +80,12 @@ func TestRequiredEnvelopeAndCommandFields(t *testing.T) {
 	assertFields(t, "sforum.plugin.v2.RouteRequest",
 		"context", "route_id", "contract_version", "method", "path", "headers", "path_parameters",
 		"query_parameters", "body", "request_authority_mode", "guard_kind", "route_action", "invocation_stage",
-		"mutable_request_fields", "mutable_response_fields", "prior_response")
+		"mutable_request_fields", "mutable_response_fields", "prior_response", "query_parameter_values")
 	assertFields(t, "sforum.plugin.v2.RouteResponse",
 		"context", "status_code", "headers", "body", "stream_follows", "error", "request_patch", "response_patch")
 	assertFields(t, "sforum.plugin.v2.RoutePatchOperation", "kind", "path", "value", "value_json")
 	assertFields(t, "sforum.plugin.v2.RouteResponseDocument", "status_code", "headers", "body")
+	assertFields(t, "sforum.plugin.v2.RouteQueryParameter", "key", "values")
 	assertFields(t, "sforum.plugin.v2.RouteStreamOpen",
 		"context", "route_id", "contract_version", "method", "path", "headers", "request_authority_mode", "guard_kind")
 	assertEnumValues(t, "sforum.plugin.v2.RouteRequestAuthorityMode",
@@ -96,8 +97,9 @@ func TestRequiredEnvelopeAndCommandFields(t *testing.T) {
 	assertEnumValues(t, "sforum.plugin.v2.RoutePatchOperationKind",
 		"ROUTE_PATCH_OPERATION_KIND_UNSPECIFIED", "ROUTE_PATCH_OPERATION_KIND_ADD", "ROUTE_PATCH_OPERATION_KIND_REPLACE", "ROUTE_PATCH_OPERATION_KIND_REMOVE")
 	assertFieldNumbers(t, "sforum.plugin.v2.RouteRequest", map[protoreflect.Name]protoreflect.FieldNumber{
+		"query_parameters": 8,
 		"route_action": 12, "invocation_stage": 13, "mutable_request_fields": 14,
-		"mutable_response_fields": 15, "prior_response": 16,
+		"mutable_response_fields": 15, "prior_response": 16, "query_parameter_values": 17,
 	})
 	assertFieldNumbers(t, "sforum.plugin.v2.RouteResponse", map[protoreflect.Name]protoreflect.FieldNumber{
 		"request_patch": 7, "response_patch": 8,
@@ -107,6 +109,9 @@ func TestRequiredEnvelopeAndCommandFields(t *testing.T) {
 	})
 	assertFieldNumbers(t, "sforum.plugin.v2.RouteResponseDocument", map[protoreflect.Name]protoreflect.FieldNumber{
 		"status_code": 1, "headers": 2, "body": 3,
+	})
+	assertFieldNumbers(t, "sforum.plugin.v2.RouteQueryParameter", map[protoreflect.Name]protoreflect.FieldNumber{
+		"key": 1, "values": 2,
 	})
 }
 

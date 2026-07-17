@@ -61,6 +61,10 @@ message RouteRequest {
   repeated string mutable_request_fields = 14;
   repeated string mutable_response_fields = 15;
   RouteResponseDocument prior_response = 16;
+  // Additive lossless query representation. The Host orders entries by key and
+  // preserves each key's value order. Legacy query_parameters remains field 8
+  // and carries the first value for peers that do not understand this field.
+  repeated RouteQueryParameter query_parameter_values = 17;
 }
 
 // RouteResponse is contract-bound and may opt into a separate stream.
@@ -269,4 +273,10 @@ message RouteResponseDocument {
   uint32 status_code = 1;
   repeated sforum.protocol.v2.Header headers = 2;
   sforum.protocol.v2.TypedDocument body = 3;
+}
+
+// RouteQueryParameter preserves all decoded values for one query key.
+message RouteQueryParameter {
+  string key = 1;
+  repeated string values = 2;
 }
