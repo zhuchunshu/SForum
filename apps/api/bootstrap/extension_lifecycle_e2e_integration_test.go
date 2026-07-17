@@ -196,7 +196,9 @@ func newProductionLifecycleE2EFixture(
 		t.Fatal(err)
 	}
 
-	starter := extensionsruntime.NewProtocolStarter(extensionsruntime.ProtocolStarterConfig{Trust: trust})
+	starter := extensionsruntime.NewProtocolStarter(extensionsruntime.ProtocolStarterConfig{
+		Trust: trust, DatabaseLeases: registry,
+	})
 	manager := extensionsruntime.NewManager(extensionsruntime.ManagerConfig{Starter: starter})
 	pageRegistry := pages.NewRegistry(nil)
 	stack, err := newProductionLifecycleStack(productionLifecycleStackConfig{
