@@ -61,7 +61,14 @@ type DispatchResult struct {
 type InvocationStage string
 
 const (
-	InvocationStageExecute InvocationStage = "execute"
+	InvocationStageRequest  InvocationStage = "request"
+	InvocationStageHandler  InvocationStage = "handler"
+	InvocationStageResponse InvocationStage = "response"
+
+	// InvocationStageExecute is retained until every v1 Host adapter has moved
+	// to the explicit handler stage.
+	// Deprecated: use InvocationStageHandler.
+	InvocationStageExecute InvocationStage = InvocationStageHandler
 )
 
 // RouteInvocation is transport-neutral. Buffered HTTP is the first adapter;
