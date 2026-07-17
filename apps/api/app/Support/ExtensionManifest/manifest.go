@@ -205,6 +205,7 @@ type ManifestRoute struct {
 	Fallback              string   `json:"fallback,omitempty"`
 	Mode                  string   `json:"mode,omitempty"`
 	Destination           string   `json:"destination,omitempty"`
+	StatusCode            int      `json:"statusCode,omitempty"`
 	Handler               string   `json:"handler,omitempty"`
 	RequestSchema         string   `json:"requestSchema,omitempty"`
 	ResponseSchema        string   `json:"responseSchema,omitempty"`

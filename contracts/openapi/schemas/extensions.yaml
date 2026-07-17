@@ -1099,6 +1099,11 @@ ExtensionManifestRoute:
       enum: [http, sse, websocket, stream, multipart]
     destination:
       type: string
+    statusCode:
+      type: integer
+      enum: [301, 308]
+      default: 308
+      description: Redirect status. Omitted redirect declarations normalize to 308; non-redirect actions must not set this field.
     handler:
       type: string
     requestSchema:

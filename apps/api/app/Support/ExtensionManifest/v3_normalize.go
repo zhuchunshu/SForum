@@ -39,6 +39,9 @@ func normalizeV3Manifest(manifest *Manifest) {
 			item.Fallback = "closed"
 		}
 		item.Destination = strings.TrimSpace(item.Destination)
+		if item.Action == RouteActionRedirect && item.StatusCode == 0 {
+			item.StatusCode = RouteRedirectStatusDefault
+		}
 		item.Handler = strings.TrimSpace(item.Handler)
 		item.RequestSchema = strings.TrimSpace(item.RequestSchema)
 		item.ResponseSchema = strings.TrimSpace(item.ResponseSchema)

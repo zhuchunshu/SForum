@@ -11,6 +11,7 @@ const (
 	RouteActionWrap             = "wrap"
 	RouteActionReplace          = "replace"
 	RouteActionGlobalMiddleware = "global_middleware"
+	RouteRedirectStatusDefault  = 308
 
 	RouteModeHTTP      = "http"
 	RouteModeSSE       = "sse"

@@ -174,10 +174,10 @@ func (v *v3Validator) validateGuardsAndRoutes() error {
 			return ErrInvalidManifest
 		}
 		if route.Action == RouteActionRedirect {
-			if !validRouteDestination(route.Destination) {
+			if !validRouteDestination(route.Destination) || !validRedirectStatusCode(route.StatusCode) {
 				return ErrInvalidManifest
 			}
-		} else if route.Destination != "" {
+		} else if route.Destination != "" || route.StatusCode != 0 {
 			return ErrInvalidManifest
 		}
 		if routeNeedsHandler(route.Action) && !validHandler(route.Handler) {
@@ -345,7 +345,7 @@ func hasV3Declarations(manifest Manifest) bool {
 	for _, item := range manifest.Routes {
 		if item.ID != "" || item.ContractVersion != "" || item.Action != "" || item.TargetID != "" ||
 			item.Guard != "" || item.Mode != "" || item.Handler != "" || item.RequestSchema != "" ||
-			item.ResponseSchema != "" || len(item.MutableRequestFields) > 0 || len(item.MutableResponseFields) > 0 {
+			item.ResponseSchema != "" || item.StatusCode != 0 || len(item.MutableRequestFields) > 0 || len(item.MutableResponseFields) > 0 {
 			return true
 		}
 	}
@@ -505,6 +505,10 @@ func validRouteMode(value string) bool {
 	default:
 		return false
 	}
+}
+
+func validRedirectStatusCode(value int) bool {
+	return value == 301 || value == RouteRedirectStatusDefault
 }
 
 func validRouteModeMethod(mode string, method string) bool {

@@ -278,6 +278,7 @@
           "fallback": { "enum": ["closed", "not_found", "readonly_core"] },
           "mode": { "enum": ["http", "sse", "websocket", "stream", "multipart"] },
           "destination": { "type": "string" },
+          "statusCode": { "enum": [301, 308], "default": 308 },
           "handler": { "$ref": "#/$defs/optionalHandler" },
           "requestSchema": { "$ref": "#/$defs/optionalSchemaRef" },
           "responseSchema": { "$ref": "#/$defs/optionalSchemaRef" },
@@ -286,6 +287,17 @@
           "timeoutMs": { "type": "integer", "minimum": 0 }
         },
         "allOf": [
+          {
+            "if": {
+              "properties": {
+                "action": { "const": "redirect" }
+              },
+              "required": ["action"]
+            },
+            "else": {
+              "not": { "required": ["statusCode"] }
+            }
+          },
           {
             "if": {
               "properties": {
