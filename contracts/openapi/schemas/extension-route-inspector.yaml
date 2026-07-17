@@ -6,6 +6,16 @@ RouteInspectorProvider:
     kind: { type: string, enum: [core, plugin] }
     artifact:
       "$ref": "./extension-route-providers.yaml#/RouteProviderArtifact"
+RouteInspectorMutableFieldList:
+  type: array
+  description: Field-level least-privilege allowlist of non-root RFC 6901 JSON Pointers. The empty document-root pointer is deliberately forbidden.
+  maxItems: 64
+  uniqueItems: true
+  items:
+    type: string
+    minLength: 1
+    maxLength: 256
+    pattern: '^/([^~/]|~[01])*(/([^~/]|~[01])*){0,31}$'
 RouteInspectorStep:
   type: object
   additionalProperties: false
@@ -47,6 +57,10 @@ RouteInspectorStep:
     destination: { type: string }
     requestSchema: { type: string }
     responseSchema: { type: string }
+    mutableRequestFields:
+      "$ref": "#/RouteInspectorMutableFieldList"
+    mutableResponseFields:
+      "$ref": "#/RouteInspectorMutableFieldList"
     mode: { type: string }
     fallback: { type: string }
     timeoutMs: { type: integer, minimum: 0 }
