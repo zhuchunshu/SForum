@@ -31,11 +31,22 @@ Last updated: 2026-07-18
   and generic audit retention.
 - Focused normal and race tests, real migrations 001 through 036, migration
   package tests, three-package vet, and staged diff checks passed.
-- Exact resume point: make `RouteFailureRecorder` a synchronous bounded
-  `RouteStreamFailureSink`, persist before exact local quarantine, resolve the
-  local result, inject the Store in bootstrap, and classify every HTTP/SSE/
-  WebSocket producer without attributing caller/Host/ForceDrain failures to a
-  plugin.
+- `67493214c fix(routes): require explicit stream incident sink` removes the
+  implicit `Failures` type assertion. A recorder can implement both interfaces
+  without silently activating stream quarantine before every adapter producer
+  is classified.
+- `03f1303ab feat(routes): record durable runtime incidents` makes observed
+  committed-after and stream incidents use synchronous Create -> exact local
+  quarantine -> Resolve. Create/Resolve share one Host-owned deadline; Close
+  uses a registered in-flight WaitGroup and honors its caller context. Ordinary
+  and unobserved failures remain on the bounded legacy audit queue. Store
+  failure still closes exact local admission and increments a diagnostic count.
+- Bootstrap now injects the PostgreSQL Store for already-classified buffered
+  incidents, but deliberately does not set `StreamFailures` yet. Focused normal/
+  race, complete Http/bootstrap, vet, build, and shutdown-deadline tests pass.
+- Exact resume point: classify every HTTP/SSE/WebSocket producer, preserve exact
+  Protocol V2 ForceDrain/budget/caller causes, prove caller/Host failures create
+  zero incidents, and only then explicitly enable the production stream sink.
 
 ### 2026-07-18 P6 Closure Credit Correction (16/18)
 
