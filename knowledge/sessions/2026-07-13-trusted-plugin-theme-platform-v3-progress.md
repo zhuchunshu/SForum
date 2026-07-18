@@ -14,6 +14,20 @@ Last updated: 2026-07-18
 
 ## Current Subtask
 
+### 2026-07-18 Stream Disposition Inspection Checkpoint
+
+- Verified weighted progress remains **64.9003%** (display **64.9%**); P6 stays
+  **16/18**.
+- `5cceff198 feat(routes): expose stream disposition inspection` gives Host
+  transport adapters a read-only way to preserve an existing incident/abort
+  decision before applying protocol sentinels such as EOF. Only the private
+  Host wrapper is recognized; arbitrary errors cannot forge a disposition.
+- Focused tests passed **50** repetitions and race passed **20**; complete
+  Routes, vet, full build, staged diff, and whitespace gates passed.
+- Exact resume point: use the inspector to fix WebSocket typed EOF precedence,
+  typed detach preservation, queued abort/runtime arbitration, grace deadline
+  priority, handshake extension ownership, and multi-line subprotocol matching.
+
 ### 2026-07-18 Host Stream Winner Checkpoint
 
 - Verified weighted progress remains **64.9003%** (display **64.9%**); P6 stays
