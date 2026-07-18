@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -44,7 +45,8 @@ func TestLoadProtocolV2DatabaseCatalogMapsExactPackageStatements(t *testing.T) {
 	execute := catalog.executes[0]
 	if execute.SQL != "INSERT INTO items (name) VALUES ($1) RETURNING id, name" ||
 		execute.ResultSchemaID != "demo.catalog.database.item" || execute.ResultSchemaVersion != "3" ||
-		execute.MaxAffectedRows != 1 || len(execute.ReturningColumns) != 2 {
+		execute.MaxAffectedRows != 1 || len(execute.ReturningColumns) != 2 ||
+		!slices.Equal(execute.QueryInvalidationTags, []string{"demo.catalog.items"}) {
 		t.Fatalf("execute definition = %#v", execute)
 	}
 	binder := &recordingDatabaseCatalogBinder{}
@@ -267,7 +269,7 @@ func databaseCatalogFixture(t *testing.T) extensions.Extension {
 					Path: "database/items-insert.sql", Digest: executeHex,
 					Parameters:   []extensionmanifest.ManifestDatabaseParameter{{Schema: "demo.catalog.database.item-name@1", Field: "name", Kind: "string", MaxBytes: 1024}},
 					ResultSchema: "demo.catalog.database.item@3", Columns: []extensionmanifest.ManifestDatabaseColumn{{Name: "id"}, {Name: "name"}},
-					MaxAffectedRows: 1, TimeoutMS: 2000,
+					MaxAffectedRows: 1, QueryInvalidationTags: []string{"demo.catalog.items"}, TimeoutMS: 2000,
 				},
 			},
 		},

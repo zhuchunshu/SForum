@@ -10,10 +10,12 @@ import (
 	"fmt"
 	"math"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
 
+	queryregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/QueryRegistry"
 	hostv2 "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/host/v2"
 	protocolv2 "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/protocol/v2"
 	"google.golang.org/grpc"
@@ -88,18 +90,19 @@ type ProtocolV2DatabaseQueryDefinition struct {
 // ProtocolV2DatabaseExecuteDefinition always runs under the plugin runtime
 // role. ReturningColumns may describe at most one RETURNING row.
 type ProtocolV2DatabaseExecuteDefinition struct {
-	ExtensionID         string
-	ExtensionVersion    string
-	PackageDigest       string
-	OperationID         string
-	StatementVersion    string
-	SQL                 string
-	Parameters          []ProtocolV2DatabaseParameter
-	ResultSchemaID      string
-	ResultSchemaVersion string
-	ReturningColumns    []ProtocolV2DatabaseColumn
-	MaxAffectedRows     uint64
-	Timeout             time.Duration
+	ExtensionID           string
+	ExtensionVersion      string
+	PackageDigest         string
+	OperationID           string
+	StatementVersion      string
+	SQL                   string
+	Parameters            []ProtocolV2DatabaseParameter
+	ResultSchemaID        string
+	ResultSchemaVersion   string
+	ReturningColumns      []ProtocolV2DatabaseColumn
+	MaxAffectedRows       uint64
+	QueryInvalidationTags []string
+	Timeout               time.Duration
 }
 
 type protocolV2DatabaseKey struct {
@@ -137,6 +140,7 @@ type protocolV2DatabaseTx interface {
 	Execute(context.Context, protocolV2DatabaseScope, string, []any, bool) (uint64, []map[string]any, error)
 	LockReceipt(context.Context, protocolV2DatabaseScope, string) (*protocolV2DatabaseReceipt, error)
 	SaveReceipt(context.Context, protocolV2DatabaseScope, string, protocolV2DatabaseReceipt) error
+	EnqueueQueryInvalidation(context.Context, string, []string) error
 	Commit(context.Context) error
 	Rollback(context.Context) error
 }
@@ -235,12 +239,7 @@ func newProtocolV2DatabaseEngine(
 		seen[key] = struct{}{}
 		executeCatalog[key] = definition
 	}
-	runtimeOptions := protocolV2DatabaseRuntimeOptions{}
-	for _, option := range options {
-		if option != nil {
-			option.applyProtocolV2DatabaseRuntime(&runtimeOptions)
-		}
-	}
+	runtimeOptions := resolveProtocolV2DatabaseRuntimeOptions(options)
 	return &protocolV2DatabaseEngine{
 		backend: backend, queries: queryCatalog, executes: executeCatalog,
 		traceSink: runtimeOptions.traceSink, slowThreshold: ProtocolV2DatabaseDefaultSlowThreshold,
@@ -502,6 +501,10 @@ func (e *protocolV2DatabaseEngine) execute(
 	receipt = &protocolV2DatabaseReceipt{Fingerprint: fingerprint, AffectedRows: affected, Result: cloneProtocolV2Document(resultDocument)}
 	if err := tx.SaveReceipt(operationCtx, scope, fingerprint, *receipt); err != nil {
 		response.Error = databaseExecutionError(err, operationCtx, "host.database_receipt_failed")
+		return response, nil
+	}
+	if err := tx.EnqueueQueryInvalidation(operationCtx, scope.ExtensionID, definition.QueryInvalidationTags); err != nil {
+		response.Error = databaseExecutionError(err, operationCtx, "host.database_query_invalidation_unavailable")
 		return response, nil
 	}
 	if err := tx.Commit(operationCtx); err != nil {
@@ -781,6 +784,10 @@ func validateProtocolV2DatabaseExecuteDefinition(definition ProtocolV2DatabaseEx
 	if len(definition.ReturningColumns) > 0 && (definition.ResultSchemaID == "" || definition.ResultSchemaVersion == "") || len(definition.ReturningColumns) == 0 && (definition.ResultSchemaID != "" || definition.ResultSchemaVersion != "") {
 		return errors.New("hostapi: database execute result schema and returning columns must be declared together")
 	}
+	canonicalTags, err := queryregistry.CanonicalSemanticCacheTags(definition.ExtensionID, definition.QueryInvalidationTags)
+	if len(definition.QueryInvalidationTags) > 0 && (err != nil || !slices.Equal(canonicalTags, definition.QueryInvalidationTags)) {
+		return errors.New("hostapi: database execute Query invalidation tags must be canonical and owner-scoped")
+	}
 	return nil
 }
 
@@ -852,6 +859,7 @@ func cloneProtocolV2DatabaseQueryDefinition(source ProtocolV2DatabaseQueryDefini
 func cloneProtocolV2DatabaseExecuteDefinition(source ProtocolV2DatabaseExecuteDefinition) ProtocolV2DatabaseExecuteDefinition {
 	source.Parameters = append([]ProtocolV2DatabaseParameter(nil), source.Parameters...)
 	source.ReturningColumns = append([]ProtocolV2DatabaseColumn(nil), source.ReturningColumns...)
+	source.QueryInvalidationTags = append([]string(nil), source.QueryInvalidationTags...)
 	return source
 }
 

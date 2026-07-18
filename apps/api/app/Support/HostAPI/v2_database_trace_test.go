@@ -273,6 +273,16 @@ func TestProtocolV2DatabaseTraceShapeDoesNotDependOnRequestValues(t *testing.T) 
 	}
 }
 
+func TestProtocolV2DatabaseExecuteTraceShapeBindsQueryInvalidationTags(t *testing.T) {
+	_, executes := testProtocolV2DatabaseDefinitions()
+	withoutTags := protocolV2DatabaseExecuteTraceShapeDigest(executes[0])
+	executes[0].QueryInvalidationTags = []string{"fixture.database.items"}
+	withTags := protocolV2DatabaseExecuteTraceShapeDigest(executes[0])
+	if withoutTags == "" || withTags == "" || withoutTags == withTags {
+		t.Fatalf("execute trace shape did not bind Query invalidation tags: without=%q with=%q", withoutTags, withTags)
+	}
+}
+
 func databaseTraceTestEngine(t *testing.T, backend *fakeProtocolV2DatabaseBackend, sink DatabaseTraceSink) *protocolV2DatabaseEngine {
 	t.Helper()
 	queries, executes := testProtocolV2DatabaseDefinitions()

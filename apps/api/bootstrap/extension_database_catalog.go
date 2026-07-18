@@ -236,7 +236,8 @@ func appendProtocolV2DatabaseArtifact(catalog *protocolV2DatabaseCatalog, extens
 				OperationID: operation.ID, StatementVersion: operation.StatementVersion,
 				SQL: sql, Parameters: parameters,
 				ResultSchemaID: resultSchemaID, ResultSchemaVersion: resultSchemaVersion,
-				ReturningColumns: columns, MaxAffectedRows: operation.MaxAffectedRows, Timeout: timeout,
+				ReturningColumns: columns, MaxAffectedRows: operation.MaxAffectedRows,
+				QueryInvalidationTags: append([]string(nil), operation.QueryInvalidationTags...), Timeout: timeout,
 			})
 		default:
 			return fmt.Errorf("database catalog %s operation %s kind is invalid", extension.ID, operation.ID)

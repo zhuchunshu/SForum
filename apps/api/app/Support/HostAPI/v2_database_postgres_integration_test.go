@@ -6,13 +6,18 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/riverqueue/river"
+	"github.com/riverqueue/river/rivertype"
+	queryregistryjobs "github.com/zhuchunshu/sforum/apps/api/app/Jobs/QueryRegistry"
 	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
 	hostapi "github.com/zhuchunshu/sforum/apps/api/app/Support/HostAPI"
+	supportjobs "github.com/zhuchunshu/sforum/apps/api/app/Support/Jobs"
 	"github.com/zhuchunshu/sforum/apps/api/database/migrator"
 	hostv2 "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/host/v2"
 	protocolv2 "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/protocol/v2"
@@ -34,7 +39,7 @@ func TestPostgresProtocolV2DatabaseRuntimeExactTransactionsAndRevocation(t *test
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer pool.Close()
+	t.Cleanup(pool.Close)
 
 	extensionID := fmt.Sprintf("p5.database-service.%d", time.Now().UnixNano())
 	version := "1.0.0"
@@ -67,25 +72,34 @@ func TestPostgresProtocolV2DatabaseRuntimeExactTransactionsAndRevocation(t *test
 	parameterSchema := extensionID + ".parameter"
 	resultSchema := extensionID + ".result"
 	columns := []hostapi.ProtocolV2DatabaseColumn{{Name: "id"}, {Name: "name"}}
+	queryDefinitions := []hostapi.ProtocolV2DatabaseQueryDefinition{{
+		ExtensionID: extensionID, ExtensionVersion: version, PackageDigest: digest,
+		OperationID: queryID, StatementVersion: "1", Scope: hostapi.ProtocolV2DatabaseOwnSchema,
+		SQL: "SELECT id, name FROM items ORDER BY id", ResultSchemaID: resultSchema,
+		ResultSchemaVersion: "1", Columns: columns, MaxRows: 10,
+	}}
+	executeDefinitions := []hostapi.ProtocolV2DatabaseExecuteDefinition{{
+		ExtensionID: extensionID, ExtensionVersion: version, PackageDigest: digest,
+		OperationID: executeID, StatementVersion: "1",
+		SQL: "INSERT INTO items (name) VALUES ($1) RETURNING id, name",
+		Parameters: []hostapi.ProtocolV2DatabaseParameter{{
+			SchemaID: parameterSchema, SchemaVersion: "1", Field: "value",
+			Kind: hostapi.ProtocolV2DatabaseString, MaxBytes: 100,
+		}},
+		ResultSchemaID: resultSchema, ResultSchemaVersion: "1",
+		ReturningColumns: columns, MaxAffectedRows: 1,
+		QueryInvalidationTags: []string{extensionID + ".items"},
+	}}
+	jobClient, err := supportjobs.NewInsertOnlyClient(pool, supportjobs.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	jobDispatcher := supportjobs.NewDispatcher(jobClient)
 	runtime, err := hostapi.NewPostgresProtocolV2DatabaseRuntime(
 		pool,
-		[]hostapi.ProtocolV2DatabaseQueryDefinition{{
-			ExtensionID: extensionID, ExtensionVersion: version, PackageDigest: digest,
-			OperationID: queryID, StatementVersion: "1", Scope: hostapi.ProtocolV2DatabaseOwnSchema,
-			SQL: "SELECT id, name FROM items ORDER BY id", ResultSchemaID: resultSchema,
-			ResultSchemaVersion: "1", Columns: columns, MaxRows: 10,
-		}},
-		[]hostapi.ProtocolV2DatabaseExecuteDefinition{{
-			ExtensionID: extensionID, ExtensionVersion: version, PackageDigest: digest,
-			OperationID: executeID, StatementVersion: "1",
-			SQL: "INSERT INTO items (name) VALUES ($1) RETURNING id, name",
-			Parameters: []hostapi.ProtocolV2DatabaseParameter{{
-				SchemaID: parameterSchema, SchemaVersion: "1", Field: "value",
-				Kind: hostapi.ProtocolV2DatabaseString, MaxBytes: 100,
-			}},
-			ResultSchemaID: resultSchema, ResultSchemaVersion: "1",
-			ReturningColumns: columns, MaxAffectedRows: 1,
-		}},
+		queryDefinitions,
+		executeDefinitions,
+		hostapi.WithProtocolV2DatabaseQueryInvalidationJobs(jobDispatcher),
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -97,10 +111,21 @@ func TestPostgresProtocolV2DatabaseRuntimeExactTransactionsAndRevocation(t *test
 		OperationId: executeID, StatementVersion: "1", IdempotencyKey: "database-e2e-1",
 		Parameters: []*protocolv2.TypedDocument{databaseServiceParameter(t, parameterSchema, "created")},
 	}
+	auditsBeforeExecute := countDatabaseServiceAudits(t, ctx, pool, extensionID)
 	executeResponse, err := service.Execute(hostapi.ContextWithProtocolV2RuntimeIdentity(ctx, identity), execute)
 	if err != nil || executeResponse.GetError() != nil || executeResponse.GetAffectedRows() != 1 ||
 		executeResponse.GetResult().GetValue().AsMap()["name"] != "created" {
 		t.Fatalf("execute exact operation: response=%#v err=%v", executeResponse, err)
+	}
+	if jobs := countDatabaseInvalidationJobs(t, ctx, pool, extensionID); jobs != 1 {
+		t.Fatalf("committed invalidation jobs = %d, want 1", jobs)
+	}
+	if receipts := countDatabaseServiceReceipts(t, ctx, pool, extensionID, execute.GetIdempotencyKey()); receipts != 1 {
+		t.Fatalf("committed receipts = %d, want 1", receipts)
+	}
+	auditsAfterFirst := countDatabaseServiceAudits(t, ctx, pool, extensionID)
+	if auditsAfterFirst != auditsBeforeExecute+1 {
+		t.Fatalf("committed audit count changed from %d to %d", auditsBeforeExecute, auditsAfterFirst)
 	}
 
 	restarted := proto.Clone(identity).(*protocolv2.ExtensionIdentity)
@@ -112,9 +137,71 @@ func TestPostgresProtocolV2DatabaseRuntimeExactTransactionsAndRevocation(t *test
 	if err != nil || replayed.GetError() != nil || replayed.GetAffectedRows() != 1 {
 		t.Fatalf("replay after runtime restart: response=%#v err=%v", replayed, err)
 	}
+	if jobs := countDatabaseInvalidationJobs(t, ctx, pool, extensionID); jobs != 1 {
+		t.Fatalf("replay invalidation jobs = %d, want 1", jobs)
+	}
+	if receipts := countDatabaseServiceReceipts(t, ctx, pool, extensionID, execute.GetIdempotencyKey()); receipts != 1 {
+		t.Fatalf("replay receipts = %d, want 1", receipts)
+	}
+	if audits := countDatabaseServiceAudits(t, ctx, pool, extensionID); audits != auditsAfterFirst {
+		t.Fatalf("replay changed audit count from %d to %d", auditsAfterFirst, audits)
+	}
 	var itemCount int
 	if err := pool.QueryRow(ctx, `SELECT count(*) FROM `+pgx.Identifier{identifiers.Schema, "items"}.Sanitize()).Scan(&itemCount); err != nil || itemCount != 1 {
 		t.Fatalf("idempotent replay wrote %d rows: %v", itemCount, err)
+	}
+
+	failureRequest := proto.Clone(execute).(*hostv2.DatabaseExecuteRequest)
+	failureRequest.Context = databaseServiceContext(t, restarted, "database-e2e-invalidation-failure")
+	failureRequest.IdempotencyKey = "database-e2e-invalidation-failure"
+	failureRequest.Parameters = []*protocolv2.TypedDocument{databaseServiceParameter(t, parameterSchema, "rolled-back")}
+	failingClient := &databaseInvalidationFailingClient{delegate: jobClient}
+	failingRuntime, err := hostapi.NewPostgresProtocolV2DatabaseRuntime(
+		pool, queryDefinitions, executeDefinitions,
+		hostapi.WithProtocolV2DatabaseQueryInvalidationJobs(supportjobs.NewDispatcher(failingClient)),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	failed, err := failingRuntime.DatabaseService().Execute(
+		hostapi.ContextWithProtocolV2RuntimeIdentity(ctx, restarted), failureRequest,
+	)
+	if err != nil || failed.GetError().GetReason() != "host.database_query_invalidation_unavailable" {
+		t.Fatalf("invalidation failure response=%#v err=%v", failed, err)
+	}
+	insertCalls, insertTxCalls, successfulInsertTxCalls, insertManyCalls := failingClient.snapshot()
+	if insertCalls != 0 || insertTxCalls != 1 || successfulInsertTxCalls != 1 || insertManyCalls != 0 {
+		t.Fatalf("invalidation inserts nonTx=%d tx=%d successfulTx=%d many=%d",
+			insertCalls, insertTxCalls, successfulInsertTxCalls, insertManyCalls)
+	}
+	if err := pool.QueryRow(ctx, `SELECT count(*) FROM `+pgx.Identifier{identifiers.Schema, "items"}.Sanitize()).Scan(&itemCount); err != nil || itemCount != 1 {
+		t.Fatalf("failed invalidation leaked business row count=%d err=%v", itemCount, err)
+	}
+	if receipts := countDatabaseServiceReceipts(t, ctx, pool, extensionID, failureRequest.GetIdempotencyKey()); receipts != 0 {
+		t.Fatalf("failed invalidation leaked %d receipts", receipts)
+	}
+	if audits := countDatabaseServiceAudits(t, ctx, pool, extensionID); audits != auditsAfterFirst {
+		t.Fatalf("failed invalidation changed audit count from %d to %d", auditsAfterFirst, audits)
+	}
+	if jobs := countDatabaseInvalidationJobs(t, ctx, pool, extensionID); jobs != 1 {
+		t.Fatalf("failed invalidation changed job count to %d", jobs)
+	}
+
+	retried, err := service.Execute(hostapi.ContextWithProtocolV2RuntimeIdentity(ctx, restarted), failureRequest)
+	if err != nil || retried.GetError() != nil || retried.GetAffectedRows() != 1 {
+		t.Fatalf("retry after invalidation rollback: response=%#v err=%v", retried, err)
+	}
+	if err := pool.QueryRow(ctx, `SELECT count(*) FROM `+pgx.Identifier{identifiers.Schema, "items"}.Sanitize()).Scan(&itemCount); err != nil || itemCount != 2 {
+		t.Fatalf("retry business row count=%d err=%v", itemCount, err)
+	}
+	if receipts := countDatabaseServiceReceipts(t, ctx, pool, extensionID, failureRequest.GetIdempotencyKey()); receipts != 1 {
+		t.Fatalf("retry receipts = %d, want 1", receipts)
+	}
+	if audits := countDatabaseServiceAudits(t, ctx, pool, extensionID); audits != auditsAfterFirst+1 {
+		t.Fatalf("retry audit count = %d, want %d", audits, auditsAfterFirst+1)
+	}
+	if jobs := countDatabaseInvalidationJobs(t, ctx, pool, extensionID); jobs != 2 {
+		t.Fatalf("retry invalidation jobs = %d, want 2", jobs)
 	}
 
 	query := &hostv2.DatabaseQueryRequest{
@@ -122,7 +209,7 @@ func TestPostgresProtocolV2DatabaseRuntimeExactTransactionsAndRevocation(t *test
 		OperationId: queryID, StatementVersion: "1", Page: &protocolv2.PageRequest{Limit: 10},
 	}
 	queryResponse, err := service.Query(hostapi.ContextWithProtocolV2RuntimeIdentity(ctx, restarted), query)
-	if err != nil || queryResponse.GetError() != nil || len(queryResponse.GetRows()) != 1 ||
+	if err != nil || queryResponse.GetError() != nil || len(queryResponse.GetRows()) != 2 ||
 		queryResponse.GetRows()[0].GetValue().AsMap()["name"] != "created" {
 		t.Fatalf("query exact operation: response=%#v err=%v", queryResponse, err)
 	}
@@ -157,6 +244,103 @@ func TestPostgresProtocolV2DatabaseRuntimeExactTransactionsAndRevocation(t *test
 	if err != nil || revoked.GetError().GetReason() != "host.database_runtime_stale" {
 		t.Fatalf("revoked database grant remained callable: response=%#v err=%v", revoked, err)
 	}
+}
+
+type databaseInvalidationFailingClient struct {
+	mu                      sync.Mutex
+	delegate                supportjobs.RiverClient
+	insertCalls             int
+	insertTxCalls           int
+	successfulInsertTxCalls int
+	insertManyCalls         int
+}
+
+func (c *databaseInvalidationFailingClient) Insert(
+	context.Context, river.JobArgs, *river.InsertOpts,
+) (*rivertype.JobInsertResult, error) {
+	c.mu.Lock()
+	c.insertCalls++
+	c.mu.Unlock()
+	return nil, fmt.Errorf("injected invalidation insert failure")
+}
+
+func (c *databaseInvalidationFailingClient) InsertTx(
+	ctx context.Context, tx pgx.Tx, args river.JobArgs, opts *river.InsertOpts,
+) (*rivertype.JobInsertResult, error) {
+	c.mu.Lock()
+	c.insertTxCalls++
+	c.mu.Unlock()
+	if c.delegate == nil {
+		return nil, fmt.Errorf("missing invalidation insert delegate")
+	}
+	result, err := c.delegate.InsertTx(ctx, tx, args, opts)
+	if err != nil {
+		return nil, err
+	}
+	c.mu.Lock()
+	c.successfulInsertTxCalls++
+	c.mu.Unlock()
+	return result, fmt.Errorf("injected invalidation insert failure after River insert")
+}
+
+func (c *databaseInvalidationFailingClient) InsertMany(
+	context.Context, []river.InsertManyParams,
+) ([]*rivertype.JobInsertResult, error) {
+	c.mu.Lock()
+	c.insertManyCalls++
+	c.mu.Unlock()
+	return nil, fmt.Errorf("injected invalidation insert failure")
+}
+
+func (c *databaseInvalidationFailingClient) snapshot() (int, int, int, int) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.insertCalls, c.insertTxCalls, c.successfulInsertTxCalls, c.insertManyCalls
+}
+
+func countDatabaseInvalidationJobs(t *testing.T, ctx context.Context, pool *pgxpool.Pool, extensionID string) int {
+	t.Helper()
+	var count int
+	if err := pool.QueryRow(ctx, `
+		SELECT count(*)
+		FROM river_job
+		WHERE kind = $1 AND args ->> 'owner_extension_id' = $2
+	`, queryregistryjobs.InvalidateResultCacheKind, extensionID).Scan(&count); err != nil {
+		t.Fatal(err)
+	}
+	return count
+}
+
+func countDatabaseServiceReceipts(
+	t *testing.T,
+	ctx context.Context,
+	pool *pgxpool.Pool,
+	extensionID string,
+	idempotencyKey string,
+) int {
+	t.Helper()
+	var count int
+	if err := pool.QueryRow(ctx, `
+		SELECT count(*)
+		FROM extension_host_command_receipts
+		WHERE extension_id = $1 AND idempotency_key = $2
+	`, extensionID, idempotencyKey).Scan(&count); err != nil {
+		t.Fatal(err)
+	}
+	return count
+}
+
+func countDatabaseServiceAudits(t *testing.T, ctx context.Context, pool *pgxpool.Pool, extensionID string) int {
+	t.Helper()
+	var count int
+	if err := pool.QueryRow(ctx, `
+		SELECT count(*)
+		FROM audit_events
+		WHERE metadata #>> '{extensionId}' = $1
+	`, extensionID).Scan(&count); err != nil {
+		t.Fatal(err)
+	}
+	return count
 }
 
 func insertDatabaseServiceArtifact(
@@ -225,6 +409,8 @@ func cleanupDatabaseServiceArtifact(t *testing.T, pool *pgxpool.Pool, artifact e
 			t.Errorf("cleanup DatabaseService fixture %s: %v", label, err)
 		}
 	}
+	exec("Query invalidations", `DELETE FROM river_job WHERE kind = $1 AND args ->> 'owner_extension_id' = $2`,
+		queryregistryjobs.InvalidateResultCacheKind, artifact.ExtensionID)
 	exec("command actor delegations", `DELETE FROM extension_host_command_actor_delegation_consumptions WHERE extension_id = $1`, artifact.ExtensionID)
 	exec("command receipts", `DELETE FROM extension_host_command_receipts WHERE extension_id = $1`, artifact.ExtensionID)
 	exec("runtime leases", `DELETE FROM extension_database_runtime_leases WHERE extension_id = $1`, artifact.ExtensionID)

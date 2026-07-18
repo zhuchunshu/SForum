@@ -8,19 +8,23 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	queryregistryjobs "github.com/zhuchunshu/sforum/apps/api/app/Jobs/QueryRegistry"
+	supportjobs "github.com/zhuchunshu/sforum/apps/api/app/Support/Jobs"
 	hostv2 "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/host/v2"
 	protocolv2 "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/protocol/v2"
 )
 
 type postgresProtocolV2DatabaseBackend struct {
-	pool     *pgxpool.Pool
-	commands *PostgresProtocolV2CommandBackend
+	pool               *pgxpool.Pool
+	commands           *PostgresProtocolV2CommandBackend
+	queryInvalidations *supportjobs.Dispatcher
 }
 
 type postgresProtocolV2DatabaseTx struct {
-	tx       pgx.Tx
-	commands *PostgresProtocolV2CommandBackend
-	readOnly bool
+	tx                 pgx.Tx
+	commands           *PostgresProtocolV2CommandBackend
+	queryInvalidations *supportjobs.Dispatcher
+	readOnly           bool
 }
 
 // NewPostgresProtocolV2DatabaseRuntime freezes the Host-owned operation
@@ -34,8 +38,10 @@ func NewPostgresProtocolV2DatabaseRuntime(
 	if pool == nil {
 		return nil, errors.New("hostapi: PostgreSQL database pool is required")
 	}
+	runtimeOptions := resolveProtocolV2DatabaseRuntimeOptions(options)
 	backend := &postgresProtocolV2DatabaseBackend{
 		pool: pool, commands: NewPostgresProtocolV2CommandBackend(pool),
+		queryInvalidations: runtimeOptions.queryInvalidations,
 	}
 	return newProtocolV2DatabaseRuntime(backend, queries, executes, options...)
 }
@@ -52,7 +58,9 @@ func (b *postgresProtocolV2DatabaseBackend) Begin(ctx context.Context, readOnly 
 	if err != nil {
 		return nil, err
 	}
-	return &postgresProtocolV2DatabaseTx{tx: tx, commands: b.commands, readOnly: readOnly}, nil
+	return &postgresProtocolV2DatabaseTx{
+		tx: tx, commands: b.commands, queryInvalidations: b.queryInvalidations, readOnly: readOnly,
+	}, nil
 }
 
 func (t *postgresProtocolV2DatabaseTx) ResolveScope(
@@ -310,6 +318,21 @@ func (t *postgresProtocolV2DatabaseTx) SaveReceipt(
 	return t.commands.SaveResult(ctx, t.tx, commandScope, protocolV2CommandReceipt{
 		Fingerprint: fingerprint, Result: result,
 	})
+}
+
+func (t *postgresProtocolV2DatabaseTx) EnqueueQueryInvalidation(
+	ctx context.Context,
+	owner string,
+	tags []string,
+) error {
+	if len(tags) == 0 {
+		return nil
+	}
+	if t == nil || t.tx == nil || t.queryInvalidations == nil {
+		return errors.New("hostapi: Query invalidation dispatcher is unavailable")
+	}
+	_, err := queryregistryjobs.EnqueueInvalidationTx(ctx, t.queryInvalidations, t.tx, owner, tags)
+	return err
 }
 
 func (t *postgresProtocolV2DatabaseTx) Commit(ctx context.Context) error {

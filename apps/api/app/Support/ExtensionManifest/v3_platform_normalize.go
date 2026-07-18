@@ -1,6 +1,9 @@
 package extensionmanifest
 
-import "strings"
+import (
+	"sort"
+	"strings"
+)
 
 func normalizeV3Platform(manifest *Manifest) {
 	if manifest.Database != nil {
@@ -23,6 +26,7 @@ func normalizeV3Platform(manifest *Manifest) {
 			for tagIndex := range operation.QueryInvalidationTags {
 				operation.QueryInvalidationTags[tagIndex] = NormalizeID(operation.QueryInvalidationTags[tagIndex])
 			}
+			sort.Strings(operation.QueryInvalidationTags)
 			for parameterIndex := range operation.Parameters {
 				parameter := &operation.Parameters[parameterIndex]
 				parameter.Schema = strings.TrimSpace(parameter.Schema)

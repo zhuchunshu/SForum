@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	supportjobs "github.com/zhuchunshu/sforum/apps/api/app/Support/Jobs"
 	protocolv2 "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/protocol/v2"
 )
 
@@ -53,7 +54,8 @@ type DatabaseTraceSink interface {
 }
 
 type protocolV2DatabaseRuntimeOptions struct {
-	traceSink DatabaseTraceSink
+	traceSink          DatabaseTraceSink
+	queryInvalidations *supportjobs.Dispatcher
 }
 
 type ProtocolV2DatabaseRuntimeOption interface {
@@ -70,6 +72,22 @@ func WithProtocolV2DatabaseTraceSink(sink DatabaseTraceSink) ProtocolV2DatabaseR
 	return protocolV2DatabaseRuntimeOptionFunc(func(options *protocolV2DatabaseRuntimeOptions) {
 		options.traceSink = sink
 	})
+}
+
+func WithProtocolV2DatabaseQueryInvalidationJobs(dispatcher *supportjobs.Dispatcher) ProtocolV2DatabaseRuntimeOption {
+	return protocolV2DatabaseRuntimeOptionFunc(func(options *protocolV2DatabaseRuntimeOptions) {
+		options.queryInvalidations = dispatcher
+	})
+}
+
+func resolveProtocolV2DatabaseRuntimeOptions(options []ProtocolV2DatabaseRuntimeOption) protocolV2DatabaseRuntimeOptions {
+	resolved := protocolV2DatabaseRuntimeOptions{}
+	for _, option := range options {
+		if option != nil {
+			option.applyProtocolV2DatabaseRuntime(&resolved)
+		}
+	}
+	return resolved
 }
 
 type slogDatabaseTraceSink struct {
@@ -196,7 +214,7 @@ func protocolV2DatabaseQueryTraceShapeDigest(definition ProtocolV2DatabaseQueryD
 	return protocolV2DatabaseTraceShapeDigest(
 		"query", definition.OperationID, definition.StatementVersion, definition.SQL,
 		definition.Parameters, definition.ResultSchemaID, definition.ResultSchemaVersion,
-		definition.Columns, definition.MaxRows, 0, definition.Timeout,
+		definition.Columns, definition.MaxRows, 0, nil, definition.Timeout,
 	)
 }
 
@@ -204,7 +222,7 @@ func protocolV2DatabaseExecuteTraceShapeDigest(definition ProtocolV2DatabaseExec
 	return protocolV2DatabaseTraceShapeDigest(
 		"execute", definition.OperationID, definition.StatementVersion, definition.SQL,
 		definition.Parameters, definition.ResultSchemaID, definition.ResultSchemaVersion,
-		definition.ReturningColumns, 0, definition.MaxAffectedRows, definition.Timeout,
+		definition.ReturningColumns, 0, definition.MaxAffectedRows, definition.QueryInvalidationTags, definition.Timeout,
 	)
 }
 
@@ -215,27 +233,30 @@ func protocolV2DatabaseTraceShapeDigest(
 	columns []ProtocolV2DatabaseColumn,
 	maxRows int,
 	maxAffectedRows uint64,
+	queryInvalidationTags []string,
 	timeout time.Duration,
 ) string {
 	statementDigest := sha256.Sum256([]byte(sql))
 	document := struct {
-		Kind                string
-		OperationID         string
-		StatementVersion    string
-		StatementDigest     string
-		Parameters          []ProtocolV2DatabaseParameter
-		ResultSchemaID      string
-		ResultSchemaVersion string
-		Columns             []ProtocolV2DatabaseColumn
-		MaxRows             int
-		MaxAffectedRows     uint64
-		TimeoutMS           int64
+		Kind                  string
+		OperationID           string
+		StatementVersion      string
+		StatementDigest       string
+		Parameters            []ProtocolV2DatabaseParameter
+		ResultSchemaID        string
+		ResultSchemaVersion   string
+		Columns               []ProtocolV2DatabaseColumn
+		MaxRows               int
+		MaxAffectedRows       uint64
+		QueryInvalidationTags []string
+		TimeoutMS             int64
 	}{
 		Kind: kind, OperationID: operationID, StatementVersion: statementVersion,
 		StatementDigest: hex.EncodeToString(statementDigest[:]), Parameters: parameters,
 		ResultSchemaID: resultSchemaID, ResultSchemaVersion: resultSchemaVersion,
 		Columns: columns, MaxRows: maxRows, MaxAffectedRows: maxAffectedRows,
-		TimeoutMS: timeout.Milliseconds(),
+		QueryInvalidationTags: queryInvalidationTags,
+		TimeoutMS:             timeout.Milliseconds(),
 	}
 	encoded, _ := json.Marshal(document)
 	digest := sha256.Sum256(encoded)

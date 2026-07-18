@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -30,6 +31,7 @@ const (
 func TestProtocolV2DatabaseCatalogIsImmutableAndRejectsUnsafeDefinitions(t *testing.T) {
 	backend := newFakeProtocolV2DatabaseBackend()
 	queries, executes := testProtocolV2DatabaseDefinitions()
+	executes[0].QueryInvalidationTags = []string{"fixture.database.items"}
 	engine, err := newProtocolV2DatabaseEngine(backend, queries, executes)
 	if err != nil {
 		t.Fatalf("new database engine: %v", err)
@@ -37,10 +39,13 @@ func TestProtocolV2DatabaseCatalogIsImmutableAndRejectsUnsafeDefinitions(t *test
 	queries[0].SQL = "SELECT secret FROM public.users"
 	queries[0].Parameters[0].Field = "mutated"
 	executes[0].SQL = "DROP SCHEMA public CASCADE"
+	executes[0].QueryInvalidationTags[0] = "fixture.database.changed"
 	identity := testProtocolV2DatabaseIdentity()
 	query := engine.queries[testProtocolV2DatabaseKey(identity, testDatabaseQueryOperation)]
 	execute := engine.executes[testProtocolV2DatabaseKey(identity, testDatabaseExecuteOperation)]
-	if query.SQL != "SELECT id, name FROM items WHERE owner_id = $1" || query.Parameters[0].Field != "value" || execute.SQL != "INSERT INTO items (name) VALUES ($1) RETURNING id, name" {
+	if query.SQL != "SELECT id, name FROM items WHERE owner_id = $1" || query.Parameters[0].Field != "value" ||
+		execute.SQL != "INSERT INTO items (name) VALUES ($1) RETURNING id, name" ||
+		!slices.Equal(execute.QueryInvalidationTags, []string{"fixture.database.items"}) {
 		t.Fatal("caller mutation changed the immutable database catalog")
 	}
 
@@ -75,6 +80,16 @@ func TestProtocolV2DatabaseCatalogIsImmutableAndRejectsUnsafeDefinitions(t *test
 			ExtensionID: testDatabaseExtensionID, ExtensionVersion: testDatabaseExtensionVersion, PackageDigest: strings.Repeat("a", 64),
 			OperationID: "fixture.invalid.execute", StatementVersion: "1", SQL: "DELETE FROM items",
 		}}},
+		{name: "foreign invalidation tag", executes: func() []ProtocolV2DatabaseExecuteDefinition {
+			_, definitions := testProtocolV2DatabaseDefinitions()
+			definitions[0].QueryInvalidationTags = []string{"other.plugin.items"}
+			return definitions
+		}()},
+		{name: "noncanonical invalidation tags", executes: func() []ProtocolV2DatabaseExecuteDefinition {
+			_, definitions := testProtocolV2DatabaseDefinitions()
+			definitions[0].QueryInvalidationTags = []string{"fixture.database.z", "fixture.database.a"}
+			return definitions
+		}()},
 		{name: "bad parameter kind", queries: []ProtocolV2DatabaseQueryDefinition{{
 			ExtensionID: testDatabaseExtensionID, ExtensionVersion: testDatabaseExtensionVersion, PackageDigest: strings.Repeat("a", 64),
 			OperationID: "fixture.invalid.parameter", StatementVersion: "1", Scope: ProtocolV2DatabaseOwnSchema,
@@ -273,6 +288,46 @@ func TestProtocolV2DatabaseExecuteIsAtomicIdempotentAndConflictSafe(t *testing.T
 	conflicted, err := engine.execute(ctx, conflict)
 	if err != nil || conflicted.GetError().GetReason() != "host.database_idempotency_conflict" || backend.tx.executeCount != 1 || backend.tx.rollbackCount != 1 {
 		t.Fatalf("idempotency conflict escaped: response=%#v tx=%#v err=%v", conflicted, backend.tx, err)
+	}
+}
+
+func TestProtocolV2DatabaseExecuteInvalidationIsTransactionalAndReplaySafe(t *testing.T) {
+	backend := newFakeProtocolV2DatabaseBackend()
+	backend.tx.executeAffected = 1
+	backend.tx.executeRows = []map[string]any{{"id": int64(7), "name": "created"}}
+	queries, executes := testProtocolV2DatabaseDefinitions()
+	executes[0].QueryInvalidationTags = []string{"fixture.database.items", "fixture.database.members"}
+	engine, err := newProtocolV2DatabaseEngine(backend, queries, executes)
+	if err != nil {
+		t.Fatal(err)
+	}
+	identity := testProtocolV2DatabaseIdentity()
+	ctx := ContextWithProtocolV2RuntimeIdentity(context.Background(), identity)
+	request := testProtocolV2DatabaseExecuteRequest(t, identity, "invalidate-once", "created")
+
+	response, err := engine.execute(ctx, request)
+	if err != nil || response.GetError() != nil || backend.tx.invalidationCount != 1 ||
+		backend.tx.invalidationOwner != testDatabaseExtensionID ||
+		!slices.Equal(backend.tx.invalidationTags, executes[0].QueryInvalidationTags) {
+		t.Fatalf("transactional invalidation failed: response=%#v tx=%#v err=%v", response, backend.tx, err)
+	}
+	replayed, err := engine.execute(ctx, proto.Clone(request).(*hostv2.DatabaseExecuteRequest))
+	if err != nil || replayed.GetError() != nil || backend.tx.invalidationCount != 1 || backend.tx.executeCount != 1 {
+		t.Fatalf("replay enqueued a second invalidation: response=%#v tx=%#v err=%v", replayed, backend.tx, err)
+	}
+
+	failing := newFakeProtocolV2DatabaseBackend()
+	failing.tx.executeAffected = 1
+	failing.tx.executeRows = []map[string]any{{"id": int64(8), "name": "created"}}
+	failing.tx.invalidationErr = errors.New("queue unavailable")
+	failingEngine, err := newProtocolV2DatabaseEngine(failing, queries, executes)
+	if err != nil {
+		t.Fatal(err)
+	}
+	failed, err := failingEngine.execute(ctx, testProtocolV2DatabaseExecuteRequest(t, identity, "invalidate-fails", "created"))
+	if err != nil || failed.GetError().GetReason() != "host.database_query_invalidation_unavailable" ||
+		failing.tx.commitCount != 0 || failing.tx.rollbackCount != 1 {
+		t.Fatalf("invalidation failure did not roll back: response=%#v tx=%#v err=%v", failed, failing.tx, err)
 	}
 }
 
@@ -487,30 +542,34 @@ func (b *fakeProtocolV2DatabaseBackend) beginReadOnlyCount() int {
 type fakeProtocolV2DatabaseTx struct {
 	mu sync.Mutex
 
-	resolveScope     string
-	resolveErr       error
-	queryStatement   string
-	queryArguments   []any
-	queryLimit       int
-	queryOffset      int
-	queryRows        []map[string]any
-	queryErr         error
-	queryWait        bool
-	executeStatement string
-	executeArguments []any
-	executeReturns   bool
-	executeAffected  uint64
-	executeRows      []map[string]any
-	executeErr       error
-	executeCount     int
-	lockErr          error
-	saveErr          error
-	saveCount        int
-	commitErr        error
-	commitCount      int
-	rollbackCount    int
-	rollbackErr      error
-	receipts         map[string]protocolV2DatabaseReceipt
+	resolveScope      string
+	resolveErr        error
+	queryStatement    string
+	queryArguments    []any
+	queryLimit        int
+	queryOffset       int
+	queryRows         []map[string]any
+	queryErr          error
+	queryWait         bool
+	executeStatement  string
+	executeArguments  []any
+	executeReturns    bool
+	executeAffected   uint64
+	executeRows       []map[string]any
+	executeErr        error
+	executeCount      int
+	lockErr           error
+	saveErr           error
+	saveCount         int
+	invalidationOwner string
+	invalidationTags  []string
+	invalidationErr   error
+	invalidationCount int
+	commitErr         error
+	commitCount       int
+	rollbackCount     int
+	rollbackErr       error
+	receipts          map[string]protocolV2DatabaseReceipt
 }
 
 func (t *fakeProtocolV2DatabaseTx) ResolveScope(_ context.Context, identity *protocolv2.ExtensionIdentity, scope, operationID, version string) (protocolV2DatabaseScope, error) {
@@ -582,6 +641,18 @@ func (t *fakeProtocolV2DatabaseTx) SaveReceipt(_ context.Context, scope protocol
 	receipt.Result = cloneProtocolV2Document(receipt.Result)
 	t.receipts[scope.IdempotencyKey] = receipt
 	return nil
+}
+
+func (t *fakeProtocolV2DatabaseTx) EnqueueQueryInvalidation(_ context.Context, owner string, tags []string) error {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if len(tags) == 0 {
+		return nil
+	}
+	t.invalidationCount++
+	t.invalidationOwner = owner
+	t.invalidationTags = append([]string(nil), tags...)
+	return t.invalidationErr
 }
 
 func (t *fakeProtocolV2DatabaseTx) Commit(context.Context) error {

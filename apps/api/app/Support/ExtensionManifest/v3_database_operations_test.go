@@ -132,7 +132,7 @@ func TestManifestV3DatabaseOperationsNormalizeEveryString(t *testing.T) {
 	operation.Parameters[0].Field = " ITEM_ID "
 	operation.Parameters[0].Kind = " INT64 "
 	operation.Columns[0].Name = " ITEM_ID "
-	manifest.Database.Operations[1].QueryInvalidationTags = []string{" DEMO.V3.ITEMS ", "demo.v3.members"}
+	manifest.Database.Operations[1].QueryInvalidationTags = []string{" demo.v3.members ", "DEMO.V3.ITEMS"}
 
 	normalized := Normalize(manifest).Database.Operations[0]
 	if normalized.ID != "demo.v3.database.items.query" || normalized.StatementVersion != "2" || normalized.Kind != "query" ||
