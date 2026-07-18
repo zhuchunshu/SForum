@@ -1,6 +1,6 @@
 # Trusted Plugin And Theme Platform V3 Progress Ledger
 
-Last updated: 2026-07-18
+Last updated: 2026-07-19
 
 ## Progress
 
@@ -13,6 +13,44 @@ Last updated: 2026-07-18
   gates pass.
 
 ## Current Subtask
+
+### 2026-07-19 Query Settings Exact-Runtime Transaction Checkpoint (no P7 credit)
+
+- Verified weighted progress remains **66.9205%** (display **66.0%**); P7 stays
+  **16/22**. This closes a production prerequisite, not either authoritative
+  Query row.
+- `a8ae51d03` makes Models retain the previous encrypted settings document and
+  prepare an exact Query restart before mutation. `d87d97dee`/`80bdaa9b5` add
+  context-bounded Manager transition and per-extension lifecycle locks.
+  `681bb783a` implements the pure legacy Protocol V2 Query/filter-only staged
+  restart transaction; Lifecycle V2 and mixed Registry/page/database surfaces
+  remain fail-closed until the aggregate settings lifecycle exists.
+- `45747975e` preserves detached trust-revocation compensation after the lock
+  signature migration. `83ef8c9ef` binds target publication to the captured
+  exact source before and after Protocol publication, rolls Protocol back with
+  a detached bounded context, quarantines the source if rollback still fails,
+  and makes exact-artifact trust revocation quarantine every retained process
+  for that version and digest. `f65c607a0` uses source/no-active CAS for settings
+  replacement and rollback. `5a4ebf52d` resolves database mutation transport
+  errors by detached readback: exact desired state continues, exact previous
+  state restores the source, and unreadable/third-party state returns
+  `ErrSettingsCommitUnknown` while keeping runtime admission closed.
+- Focused Models and Support normal `count=10`, focused race `count=5`, complete
+  `Models/Extensions`, complete `Support/Extensions`, and both package vet gates
+  pass. Independent read-only review found no remaining P0/P1 blocker in this
+  single-node transaction after the final Protocol rollback compensation fix.
+- Multi-node settings convergence is deliberately **not** claimed here.
+  `extension_settings` still lacks an immutable document generation/CAS,
+  durable desired publication, missed-notification replay, and per-node applied
+  acknowledgement. P11 owns the versioned settings generation; P12 owns watcher
+  and node convergence; P13 must run the multi-node end-to-end gate.
+- Exact next Query step: review and commit contextual ForceDrain propagation,
+  then implement bounded generation-fenced Redis caching, owner-scoped semantic
+  invalidation, production bootstrap wiring, and the lifecycle/upgrade joined
+  reference gate. Do not credit P7 before those exits all pass.
+- Current blocked/unowned WIP remains `redis_cache*.go` plus the separately
+  isolated Query execution/bootstrap changes and unrelated frontend/route/P9
+  files. Do not stage them with this checkpoint.
 
 ### 2026-07-18 Reference Query Plugin Joined Gates (no P7 credit)
 
