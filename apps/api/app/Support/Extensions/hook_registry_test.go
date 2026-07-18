@@ -320,7 +320,67 @@ func TestVersionedHookCompositionIsolatesNestedMutationAndRejectsForbiddenPatch(
 	}
 }
 
-func TestVersionedHookCompositionFailOpenAndAsyncExactBinding(t *testing.T) {
+func TestVersionedHookCompositionFailOpenContinuesWithoutPollution(t *testing.T) {
+	calls := []string{}
+	bus := NewHookBus(HookBusConfig{Invoker: HookInvokerFunc(func(_ context.Context, _ extensions.Extension, input HookInput) HookResult {
+		calls = append(calls, input.DeclarationID)
+		if input.DeclarationID == "hooks.consumer.transform" {
+			input.Payload["title"] = "failed-listener-mutation"
+			return HookResult{
+				OK: false, Reason: "consumer.failed",
+				Patch:  map[string]any{"title": "failed-listener-patch"},
+				Result: map[string]any{"status": "failed-listener-result"},
+			}
+		}
+		if input.Payload["title"] != "original" {
+			return HookResult{OK: false, Reason: "provider.received_polluted_payload"}
+		}
+		return HookResult{
+			OK: true, Patch: map[string]any{"title": "provider"},
+			Result: map[string]any{"status": "provider-result"},
+		}
+	})})
+	manager := NewManager(ManagerConfig{Starter: newManagerStagedStarter(), HookBus: bus})
+	provider := versionedHookExtension("hooks.provider", strings.Repeat("a", 64), versionedHookDefinition())
+	provider.Manifest.Hooks[0].FailurePolicy = appevents.FailurePolicyFailOpen
+	consumer := versionedHookExtension("hooks.consumer", strings.Repeat("b", 64), versionedHookConsumer(50))
+	consumer.Manifest.Hooks[0].FailurePolicy = appevents.FailurePolicyFailOpen
+	consumer.Manifest.Dependencies = []extensions.ManifestDependency{{ID: provider.ID, Version: "^1.0.0", Kind: "required"}}
+	if err := manager.Start(context.Background(), provider); err != nil {
+		t.Fatal(err)
+	}
+	if err := manager.Start(context.Background(), consumer); err != nil {
+		t.Fatal(err)
+	}
+	callerPayload := map[string]any{"title": "original"}
+	revalidations := []string{}
+	result := manager.InvokeVersionedHook(context.Background(), VersionedHookInvocation{
+		HookID: provider.Manifest.Hooks[0].ID, ContractVersion: provider.Manifest.Hooks[0].ContractVersion,
+		Payload: callerPayload,
+		Revalidate: func(_ context.Context, schema string, document map[string]any) error {
+			switch schema {
+			case provider.Manifest.Hooks[0].InputSchema:
+				revalidations = append(revalidations, "input:"+document["title"].(string))
+			case provider.Manifest.Hooks[0].ResultSchema:
+				revalidations = append(revalidations, "result:"+document["status"].(string))
+			}
+			return nil
+		},
+	})
+	if !result.OK || result.Payload["title"] != "provider" || callerPayload["title"] != "original" ||
+		len(result.Results) != 1 || result.Results[0]["status"] != "provider-result" {
+		t.Fatalf("fail-open result=%#v caller=%#v", result, callerPayload)
+	}
+	if !reflect.DeepEqual(calls, []string{"hooks.consumer.transform", "hooks.provider.transform"}) {
+		t.Fatalf("calls=%#v", calls)
+	}
+	wantRevalidations := []string{"input:original", "result:provider-result", "input:provider"}
+	if !reflect.DeepEqual(revalidations, wantRevalidations) {
+		t.Fatalf("revalidations=%#v", revalidations)
+	}
+}
+
+func TestVersionedHookAsyncExactBinding(t *testing.T) {
 	bus := NewHookBus(HookBusConfig{Invoker: HookInvokerFunc(func(_ context.Context, extension extensions.Extension, _ HookInput) HookResult {
 		if extension.ID == "hooks.consumer" {
 			return HookResult{OK: false, Reason: "consumer.failed"}
