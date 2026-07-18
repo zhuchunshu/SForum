@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
 	appevents "github.com/zhuchunshu/sforum/apps/api/app/Support/Events"
@@ -377,6 +378,103 @@ func TestVersionedHookCompositionFailOpenContinuesWithoutPollution(t *testing.T)
 	wantRevalidations := []string{"input:original", "result:provider-result", "input:provider"}
 	if !reflect.DeepEqual(revalidations, wantRevalidations) {
 		t.Fatalf("revalidations=%#v", revalidations)
+	}
+}
+
+func TestVersionedHookCompositionAppliesContractTimeoutFailurePolicy(t *testing.T) {
+	for _, test := range []struct {
+		name          string
+		failurePolicy string
+		wantOK        bool
+		wantCalls     []string
+	}{
+		{name: "fail_closed", failurePolicy: appevents.FailurePolicyFailClosed, wantCalls: []string{"hooks.consumer.transform"}},
+		{name: "fail_open", failurePolicy: appevents.FailurePolicyFailOpen, wantOK: true, wantCalls: []string{"hooks.consumer.transform", "hooks.provider.transform"}},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			calls := []string{}
+			timeouts := []time.Duration{}
+			consumerDeadlinePresent := false
+			var consumerDeadlineBudget time.Duration
+			var consumerCause error
+			bus := NewHookBus(HookBusConfig{Invoker: HookInvokerFunc(func(ctx context.Context, _ extensions.Extension, input HookInput) HookResult {
+				calls = append(calls, input.DeclarationID)
+				timeouts = append(timeouts, input.Timeout)
+				if input.DeclarationID == "hooks.consumer.transform" {
+					deadline, present := ctx.Deadline()
+					consumerDeadlinePresent = present
+					if present {
+						consumerDeadlineBudget = time.Until(deadline)
+					}
+					<-ctx.Done()
+					consumerCause = context.Cause(ctx)
+					input.Payload["title"] = "timed-listener-mutation"
+					return HookResult{
+						OK:     true,
+						Patch:  map[string]any{"title": "timed-listener-patch"},
+						Result: map[string]any{"status": "timed-listener-result"},
+					}
+				}
+				if input.Payload["title"] != "original" {
+					return HookResult{OK: false, Reason: "provider.received_polluted_payload"}
+				}
+				return HookResult{
+					OK:     true,
+					Patch:  map[string]any{"title": "provider"},
+					Result: map[string]any{"status": "provider-result"},
+				}
+			})})
+			manager := NewManager(ManagerConfig{Starter: newManagerStagedStarter(), HookBus: bus})
+			provider := versionedHookExtension("hooks.provider", strings.Repeat("a", 64), versionedHookDefinition())
+			provider.Manifest.Hooks[0].FailurePolicy = test.failurePolicy
+			provider.Manifest.Hooks[0].TimeoutMS = 20
+			consumer := versionedHookExtension("hooks.consumer", strings.Repeat("b", 64), versionedHookConsumer(50))
+			consumer.Manifest.Hooks[0].FailurePolicy = test.failurePolicy
+			consumer.Manifest.Hooks[0].TimeoutMS = 20
+			consumer.Manifest.Dependencies = []extensions.ManifestDependency{{ID: provider.ID, Version: "^1.0.0", Kind: "required"}}
+			if err := manager.Start(context.Background(), provider); err != nil {
+				t.Fatal(err)
+			}
+			if err := manager.Start(context.Background(), consumer); err != nil {
+				t.Fatal(err)
+			}
+
+			callerPayload := map[string]any{"title": "original"}
+			result := manager.InvokeVersionedHook(context.Background(), VersionedHookInvocation{
+				HookID: provider.Manifest.Hooks[0].ID, ContractVersion: provider.Manifest.Hooks[0].ContractVersion,
+				Payload:    callerPayload,
+				Revalidate: func(context.Context, string, map[string]any) error { return nil },
+			})
+			if !consumerDeadlinePresent || !errors.Is(consumerCause, context.DeadlineExceeded) {
+				t.Fatalf("consumer deadline present=%t cause=%v", consumerDeadlinePresent, consumerCause)
+			}
+			if consumerDeadlineBudget > 250*time.Millisecond {
+				t.Fatalf("Manifest timeout was not applied to listener context: budget=%v", consumerDeadlineBudget)
+			}
+			if !reflect.DeepEqual(calls, test.wantCalls) {
+				t.Fatalf("calls=%#v", calls)
+			}
+			for _, timeout := range timeouts {
+				if timeout != 20*time.Millisecond {
+					t.Fatalf("listener timeout=%v", timeout)
+				}
+			}
+			if callerPayload["title"] != "original" {
+				t.Fatalf("caller payload was polluted: %#v", callerPayload)
+			}
+			if resilience := manager.resilience.snapshot(consumer.ID); resilience.LastFailureReason != "extension.hook_timeout" {
+				t.Fatalf("consumer timeout reason=%#v", resilience)
+			}
+			if test.wantOK {
+				if !result.OK || result.Payload["title"] != "provider" || len(result.Results) != 1 ||
+					result.Results[0]["status"] != "provider-result" {
+					t.Fatalf("fail-open timeout result=%#v", result)
+				}
+			} else if result.OK || result.Reason != "extension.hook_timeout" ||
+				result.Payload["title"] != "original" || len(result.Results) != 0 {
+				t.Fatalf("fail-closed timeout result=%#v", result)
+			}
+		})
 	}
 }
 
