@@ -454,6 +454,9 @@ func splitProtocolV2QuerySchemaRef(reference string) (string, string, bool) {
 
 func queryRegistryProtocolV2Error(err error) *protocolv2.ErrorDetail {
 	switch {
+	case errors.Is(err, ErrProtocolV2QueryCallerStale), errors.Is(err, queryregistry.ErrArtifactUnavailable),
+		errors.Is(err, queryregistry.ErrArtifactConflict), errors.Is(err, queryregistry.ErrRevisionConflict):
+		return queryError(protocolv2.ErrorCode_ERROR_CODE_STALE_RUNTIME, "host.query_runtime_stale", "The exact runtime, query artifact, or registry revision is no longer active.", false)
 	case errors.Is(err, context.Canceled):
 		return queryError(protocolv2.ErrorCode_ERROR_CODE_CANCELLED, "host.query_cancelled", "The Query Registry execution was cancelled.", true)
 	case errors.Is(err, context.DeadlineExceeded):
@@ -468,9 +471,6 @@ func queryRegistryProtocolV2Error(err error) *protocolv2.ErrorDetail {
 		return queryError(protocolv2.ErrorCode_ERROR_CODE_UNAUTHENTICATED, "host.query_actor_delegation_invalid", "The Host-signed query delegation is invalid or stale.", false)
 	case errors.Is(err, ErrProtocolV2QueryActorDenied), errors.Is(err, queryregistry.ErrDenied):
 		return queryError(protocolv2.ErrorCode_ERROR_CODE_PERMISSION_DENIED, "host.query_actor_permission_denied", "The delegated actor is not allowed to execute this query.", false)
-	case errors.Is(err, ErrProtocolV2QueryCallerStale), errors.Is(err, queryregistry.ErrArtifactUnavailable),
-		errors.Is(err, queryregistry.ErrArtifactConflict), errors.Is(err, queryregistry.ErrRevisionConflict):
-		return queryError(protocolv2.ErrorCode_ERROR_CODE_STALE_RUNTIME, "host.query_runtime_stale", "The exact runtime, query artifact, or registry revision is no longer active.", false)
 	case errors.Is(err, queryregistry.ErrCostExceeded):
 		return queryError(protocolv2.ErrorCode_ERROR_CODE_RATE_LIMITED, "host.query_cost_exceeded", "The query exceeds the Host cost limit.", false)
 	case errors.Is(err, queryregistry.ErrResultTooLarge):

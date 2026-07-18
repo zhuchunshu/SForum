@@ -438,6 +438,13 @@ func TestProtocolV2QueryRegistryOutletCancellationAndCallerQuarantine(t *testing
 	})
 }
 
+func TestProtocolV2QueryRegistryErrorPrefersExactRuntimeStaleOverCancellationShape(t *testing.T) {
+	detail := queryRegistryProtocolV2Error(errors.Join(queryregistry.ErrArtifactUnavailable, context.Canceled))
+	if detail.GetReason() != "host.query_runtime_stale" || detail.GetRetryable() {
+		t.Fatalf("ForceDrain error detail=%#v", detail)
+	}
+}
+
 func TestProtocolV2QueryRegistryOutletStreamsUnderSameDelegation(t *testing.T) {
 	h := newProtocolV2QueryRegistryHarness(t, func(context.Context, queryregistry.ProviderExecutionRequest) (queryregistry.ProviderExecutionResult, error) {
 		return queryregistry.ProviderExecutionResult{Rows: []queryregistry.QueryRow{
