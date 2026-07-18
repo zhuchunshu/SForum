@@ -67,15 +67,23 @@ Last updated: 2026-07-19
   tag sets without mutating the request on failure.
 - HostAPI and SDK tests passed normal `count=10`, focused race `count=3`, vet,
   and diff checks. Independent Grok and sub-agent reviews found no blocker.
-- Exact next step: finish and review the Manifest own-schema execute producer.
-  Its current WIP has the correct same-transaction enqueue/replay structure,
-  but Manifest normalization must sort `queryInvalidationTags` so a declaration
-  accepted at install cannot fail later while freezing the runtime catalog.
-  Then finish the recovering Host worker and production Redis runtime in API,
-  embedded worker, standalone worker, and Safe Mode before joined gates.
-- Rollback is additive: revert `df2e8a17e`, `b166ca70f`, `f47680d56`, then
-  `fc35843f1`. No migration, feature flag, branch, worktree, push, tag,
-  bootstrap file, or unrelated dirty file changed.
+- `7341ceda7` implements the Manifest own-schema execute producer. Manifest
+  normalization freezes sorted tags; the exact catalog and execution trace bind
+  an immutable clone; PostgreSQL saves audit/receipt and enqueues River through
+  the same transaction after write/result validation and before commit. Replay
+  remains once-only and a post-insert injected failure rolls back the business
+  row, audit, receipt, and real River row before the same idempotency key retries.
+- Manifest/HostAPI/catalog tests passed normal `count=10`, focused race
+  `count=3`, vet, and diff checks. The destructive PostgreSQL + real River gate
+  passed `count=3` and left zero fixture extensions.
+- Exact next step: commit the narrow API/standalone dispatcher injection, then
+  replace the current eager/shared Query Redis worker WIP with independent,
+  lazily recovering invalidator ownership. Safe Mode must pass true nil, cache
+  activation failure must not block boot, and terminal failure must construct
+  and activate a fresh cache before the joined gates.
+- Rollback is additive: revert `7341ceda7`, `df2e8a17e`, `b166ca70f`,
+  `f47680d56`, then `fc35843f1`. No migration, feature flag, branch, worktree,
+  push, tag, bootstrap file, or unrelated dirty file changed.
 
 ### 2026-07-19 Query Redis Backend Checkpoint (no P7 credit)
 
