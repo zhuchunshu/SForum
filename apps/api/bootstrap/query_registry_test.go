@@ -216,10 +216,13 @@ func TestProductionQueryExecutionAdmissionHoldsAndReleasesExactPluginLease(t *te
 		t.Fatalf("wrong VersionID leaked lease: %#v", stub.gate.Snapshot())
 	}
 
-	cancelled, cancel := context.WithCancel(context.Background())
-	cancel()
+	cancelled, cancel := context.WithCancelCause(context.Background())
+	callerCause := errors.New("caller cancelled exact admission")
+	cancel(callerCause)
 	artifact.VersionID = 9
-	if _, err := admission.AcquireQueryExecution(cancelled, artifact); !errors.Is(err, context.Canceled) {
+	if _, err := admission.AcquireQueryExecution(cancelled, artifact); !errors.Is(err, context.Canceled) ||
+		!errors.Is(err, callerCause) ||
+		errors.Is(err, errProductionQueryRegistryRuntimeStale) {
 		t.Fatalf("cancelled execution error = %v", err)
 	}
 }

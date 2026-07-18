@@ -170,8 +170,8 @@ func (a *productionQueryRuntimeAdmission) AuthorizeProtocolV2QueryCaller(
 	}
 	snapshot, lease, err := a.acquire(ctx, identity.GetExtensionId(), extensionsruntime.RuntimeCallHost)
 	if err != nil {
-		if cause := context.Cause(ctx); cause != nil && errors.Is(err, cause) && errors.Is(cause, err) {
-			return cause
+		if productionQueryErrorMatchesContext(ctx, err) {
+			return productionQueryContextError(ctx)
 		}
 		return errors.Join(errProductionQueryRegistryRuntimeStale, err)
 	}
@@ -213,8 +213,8 @@ func (a *productionQueryRuntimeAdmission) AcquireQueryExecutionLease(
 	}
 	snapshot, lease, err := a.acquire(ctx, artifact.ExtensionID, extensionsruntime.RuntimeCallProvider)
 	if err != nil {
-		if cause := context.Cause(ctx); cause != nil && errors.Is(err, cause) && errors.Is(cause, err) {
-			return queryregistry.ExecutionAdmissionLease{}, cause
+		if productionQueryErrorMatchesContext(ctx, err) {
+			return queryregistry.ExecutionAdmissionLease{}, productionQueryContextError(ctx)
 		}
 		return queryregistry.ExecutionAdmissionLease{}, errors.Join(errProductionQueryRegistryRuntimeStale, err)
 	}
@@ -265,7 +265,7 @@ func productionQueryRuntimeSnapshotMatches(
 		return errors.Join(errProductionQueryRegistryRuntimeStale, leaseCause)
 	}
 	if parentCause != nil {
-		return parentCause
+		return productionQueryContextError(ctx)
 	}
 	if leaseCause != nil {
 		return errors.Join(errProductionQueryRegistryRuntimeStale, leaseCause)
@@ -277,6 +277,35 @@ func productionQueryRuntimeSnapshotMatches(
 		return errProductionQueryRegistryRuntimeStale
 	}
 	return nil
+}
+
+func productionQueryErrorMatchesContext(ctx context.Context, err error) bool {
+	if ctx == nil || err == nil {
+		return false
+	}
+	cause := context.Cause(ctx)
+	if cause == nil {
+		return false
+	}
+	if errors.Is(err, cause) && errors.Is(cause, err) {
+		return true
+	}
+	return ctx.Err() != nil && errors.Is(err, cause) && errors.Is(err, ctx.Err())
+}
+
+func productionQueryContextError(ctx context.Context) error {
+	if ctx == nil {
+		return errProductionQueryRegistryRuntimeStale
+	}
+	cause := context.Cause(ctx)
+	state := ctx.Err()
+	if cause == nil {
+		return state
+	}
+	if state != nil && !errors.Is(cause, state) {
+		return errors.Join(state, cause)
+	}
+	return cause
 }
 
 func bindProductionQueryRegistry(
