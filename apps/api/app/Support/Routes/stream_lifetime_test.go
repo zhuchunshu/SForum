@@ -233,6 +233,40 @@ func TestStreamLifetimePropagatesExactHostCauseToInner(t *testing.T) {
 	}
 }
 
+func TestStreamLifetimeCustomCallerCauseCarriesAbortDisposition(t *testing.T) {
+	caller, cancelCaller := context.WithCancelCause(context.Background())
+	lifetime := newRouteStreamOpenLifetime(caller, time.Hour)
+	inner := &lifetimeInnerSession{recv: make(chan recvResult)}
+	session := bindRouteStreamLifetime(inner, lifetime)
+	source := session.(RouteStreamLifetimeSource)
+	callerCause := errors.New("caller disconnected with custom cause")
+
+	cancelCaller(callerCause)
+	select {
+	case <-inner.Done():
+	case <-time.After(time.Second):
+		t.Fatal("caller cancellation did not finish inner session")
+	}
+	for name, cause := range map[string]error{
+		"inner":   inner.Cause(),
+		"context": context.Cause(lifetime.Context()),
+	} {
+		class, record, classified := routeStreamFailureDisposition(cause)
+		if !classified || record || class != "" || !errors.Is(cause, callerCause) {
+			t.Fatalf("%s cause=%v class=%q record=%t classified=%t", name, cause, class, record, classified)
+		}
+	}
+	select {
+	case <-source.Done():
+		t.Fatal("caller cancellation published public Done before adapter Cancel")
+	default:
+	}
+	session.Cancel()
+	if cause := source.Cause(); !errors.Is(cause, callerCause) {
+		t.Fatalf("outer cause=%v", cause)
+	}
+}
+
 func TestStreamLifetimeCallerCancelBeforeOpenHasNoInvoker(t *testing.T) {
 	// Covered by TestStreamDispatcherCallerCancellationHasNoFailureEvidence; this
 	// unit check proves the open lifetime itself refuses a pre-canceled caller.

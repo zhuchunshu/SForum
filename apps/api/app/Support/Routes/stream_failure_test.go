@@ -235,6 +235,70 @@ func TestRouteStreamOpenDispositionDoesNotHideConcurrentRuntimeCrash(t *testing.
 	}
 }
 
+func TestRouteStreamOpenCustomCallerCauseDoesNotBecomeIncident(t *testing.T) {
+	for _, test := range []struct {
+		name      string
+		open      func(context.Context, RouteInvocation, error) error
+		wantCount int
+		wantClass RouteStreamFailureClass
+		wantCause error
+	}{
+		{name: "caller cancellation", open: func(ctx context.Context, input RouteInvocation, _ error) error {
+			input.Commit.SideEffectStarted()
+			<-ctx.Done()
+			return context.Cause(ctx)
+		}},
+		{name: "independent runtime crash", open: func(_ context.Context, input RouteInvocation, runtimeErr error) error {
+			input.Commit.SideEffectStarted()
+			return runtimeErr
+		}, wantCount: 1, wantClass: RouteStreamFailureRuntimeTransport},
+		{name: "Host budget", open: func(_ context.Context, input RouteInvocation, _ error) error {
+			input.Commit.SideEffectStarted()
+			return WithRouteStreamIncident(ErrRouteStreamBudgetExceeded, RouteStreamFailureHostBudget)
+		}, wantCount: 1, wantClass: RouteStreamFailureHostBudget, wantCause: ErrRouteStreamBudgetExceeded},
+		{name: "Host abort", open: func(_ context.Context, input RouteInvocation, _ error) error {
+			input.Commit.SideEffectStarted()
+			return WithRouteStreamAbort(errStreamTestHostAbort)
+		}, wantCause: errStreamTestHostAbort},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			caller, cancelCaller := context.WithCancelCause(context.Background())
+			callerCause := errors.New("caller disconnected")
+			runtimeErr := errors.New("runtime crashed independently")
+			invoker := &streamOpenFailureInvoker{
+				before: func() { cancelCaller(callerCause) },
+				open: func(ctx context.Context, input RouteInvocation) error {
+					return test.open(ctx, input, runtimeErr)
+				},
+			}
+			sink := &recordingRouteStreamFailureSink{}
+			dispatcher := streamIncidentDispatcher(streamIncidentStep("stream.custom_caller."+strings.ReplaceAll(test.name, " ", "_")), invoker, sink)
+			prepared, err := dispatcher.PrepareStream(caller, DispatchRequest{Method: http.MethodGet, Path: "/incident"})
+			if err != nil || prepared.Dispatch == nil {
+				t.Fatalf("prepared=%#v err=%v", prepared, err)
+			}
+			_, err = prepared.Dispatch.Open(caller)
+			wantCause := test.wantCause
+			if wantCause == nil && test.wantCount == 0 {
+				wantCause = callerCause
+			}
+			if test.name == "independent runtime crash" {
+				wantCause = runtimeErr
+			}
+			if wantCause != nil && (!errors.Is(err, wantCause) || !errors.Is(err, ErrDispatchTransport)) {
+				t.Fatalf("error=%v want cause=%v", err, wantCause)
+			}
+			events := sink.snapshot()
+			if len(events) != test.wantCount {
+				t.Fatalf("events=%#v error=%v", events, err)
+			}
+			if test.wantCount == 1 && events[0].CauseClass != test.wantClass {
+				t.Fatalf("event=%#v", events[0])
+			}
+		})
+	}
+}
+
 func TestRouteStreamFailureSinkExcludesHostAndCallerAbortions(t *testing.T) {
 	for _, test := range []struct {
 		name string

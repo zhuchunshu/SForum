@@ -92,6 +92,7 @@ func (l *routeStreamOpenLifetime) cancelFromCaller() {
 	if cause == nil {
 		cause = context.Canceled
 	}
+	cause = WithRouteStreamAbort(cause)
 	// Cancel while holding mu so Open cannot observe "caller claimed" with a
 	// still-live open context between unlock and cancelOpen.
 	l.cancelOpen(cause)
@@ -113,7 +114,7 @@ func (l *routeStreamOpenLifetime) detachCaller() error {
 		if cause == nil {
 			cause = context.Canceled
 		}
-		return cause
+		return WithRouteStreamAbort(cause)
 	}
 	if l.callerDetached {
 		l.mu.Unlock()
@@ -126,6 +127,7 @@ func (l *routeStreamOpenLifetime) detachCaller() error {
 	if cause := context.Cause(l.caller); cause != nil {
 		l.callerLinked = false
 		l.callerWon = true
+		cause = WithRouteStreamAbort(cause)
 		l.cancelOpen(cause)
 		l.mu.Unlock()
 		return cause
@@ -147,6 +149,7 @@ func (l *routeStreamOpenLifetime) detachCaller() error {
 		l.callerLinked = false
 		l.callerWon = true
 		l.stopCaller = nil
+		cause = WithRouteStreamAbort(cause)
 		l.cancelOpen(cause)
 		l.mu.Unlock()
 		return cause

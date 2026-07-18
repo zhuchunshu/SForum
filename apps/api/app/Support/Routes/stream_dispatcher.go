@@ -248,13 +248,6 @@ func (d *RouteStreamDispatch) finishStreamOpenErrorAs(
 	}
 	cause := context.Cause(lifetime.Context())
 	callerErr := caller.Err()
-	if class, incident, classified := routeStreamFailureDisposition(err); classified {
-		d.failStream(class, incident)
-		if !errors.Is(err, ErrDispatchTransport) {
-			err = fmt.Errorf("%w: %w", ErrDispatchTransport, err)
-		}
-		return RouteStreamStart{}, err
-	}
 	if errors.Is(err, ErrRouteStreamBudgetExceeded) ||
 		errors.Is(cause, ErrRouteStreamBudgetExceeded) && routeStreamCancellationLike(err) {
 		d.failStream(RouteStreamFailureHostBudget, true)
@@ -271,6 +264,13 @@ func (d *RouteStreamDispatch) finishStreamOpenErrorAs(
 			return RouteStreamStart{}, callerErr
 		}
 		d.failStream("", false)
+		if !errors.Is(err, ErrDispatchTransport) {
+			err = fmt.Errorf("%w: %w", ErrDispatchTransport, err)
+		}
+		return RouteStreamStart{}, err
+	}
+	if class, incident, classified := routeStreamFailureDisposition(err); classified {
+		d.failStream(class, incident)
 		if !errors.Is(err, ErrDispatchTransport) {
 			err = fmt.Errorf("%w: %w", ErrDispatchTransport, err)
 		}
