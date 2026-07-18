@@ -31,7 +31,7 @@ func buildLifecycleQueryPublication(
 	extension extensions.Extension,
 	binding extensions.LifecycleRuntimeBinding,
 ) (*queryregistry.Publication, error) {
-	if len(extension.Manifest.Queries) == 0 {
+	if !hasQueryRegistryPublication(extension.Manifest) {
 		return nil, nil
 	}
 	if extension.Type != extensions.TypePlugin ||
@@ -143,7 +143,8 @@ func (b *PostgresLifecycleBoundaryRegistries) restoreQueryPublications(
 		if err := ctx.Err(); err != nil {
 			return err
 		}
-		if item.Type != extensions.TypePlugin || item.Status != extensions.StatusEnabled || len(item.Manifest.Queries) == 0 {
+		if item.Type != extensions.TypePlugin || item.Status != extensions.StatusEnabled ||
+			!hasQueryRegistryPublication(item.Manifest) {
 			continue
 		}
 		runtime, err := b.manager.ActiveRuntimeInstance(item.ID)
@@ -170,6 +171,10 @@ func (b *PostgresLifecycleBoundaryRegistries) restoreQueryPublications(
 		return fmt.Errorf("restore query registry publication: %w", err)
 	}
 	return nil
+}
+
+func hasQueryRegistryPublication(manifest extensions.Manifest) bool {
+	return len(manifest.Queries) > 0 || len(manifest.QueryResultFilters) > 0
 }
 
 func coreLifecycleQueryPublications(input []queryregistry.Publication) []queryregistry.Publication {

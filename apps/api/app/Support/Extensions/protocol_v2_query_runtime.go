@@ -119,12 +119,16 @@ func (c *protocolV2Client) FilterQueryResult(
 	if timeout <= 0 || timeout > DefaultProtocolV2RequestTimeout {
 		timeout = DefaultProtocolV2RequestTimeout
 	}
-	plan, err := protocolV2QueryRuntimePlan(input.Plan, input.Plan.Pagination.Limit+1)
+	filterFetchLimit := input.Plan.Pagination.Limit
+	if input.Plan.Pagination.Mode != queryregistry.PaginationNone {
+		filterFetchLimit++
+	}
+	plan, err := protocolV2QueryRuntimePlan(input.Plan, filterFetchLimit)
 	if err != nil {
 		return nil, err
 	}
-	// Filter 可能收到 provider 的短尾页；FetchLimit 仍是 Host 原始的
-	// limit+1 合同，而不是本次实际行数。SDK 允许 rows <= FetchLimit。
+	// Filter 可能收到 provider 的短尾页；分页查询仍保留 Host 原始的
+	// limit+1 合同，而不是本次实际行数。none 查询固定为 1。
 	encoded, err := encodeProtocolV2QueryRows(input.Rows)
 	if err != nil {
 		return nil, err

@@ -109,6 +109,64 @@ func TestLifecycleQueryStartupRestoreSafeModeInspectionAndClosedPlanning(t *test
 	}
 }
 
+func TestLifecycleFilterOnlyQueryPublicationBuildRestoreAndSafeMode(t *testing.T) {
+	ctx := context.Background()
+	extension := legacyRuntimeFilterOnlyExtension("1.0.0", 'c', 43)
+	binding := lifecycleRegistryBinding(extension, "filter-build-runtime")
+	publication, err := buildLifecycleQueryPublication(extension, binding)
+	if err != nil || publication == nil {
+		t.Fatalf("build filter-only publication = %#v, %v", publication, err)
+	}
+	expected := queryregistry.Artifact{
+		ExtensionID: extension.ID, ExtensionVersion: extension.Version,
+		PackageDigest: extension.PackageDigest, VersionID: extension.ActiveVersionID,
+		RuntimeInstanceID: binding.RuntimeInstanceID,
+	}
+	if publication.Artifact != expected || len(publication.Queries) != 0 ||
+		len(publication.ResultFilters) != 1 || publication.ResultFilters[0].ID != extension.ID+".items.mask" {
+		t.Fatalf("filter-only publication = %#v, expected artifact=%#v", publication, expected)
+	}
+	empty := extension
+	empty.Manifest.QueryResultFilters = nil
+	if publication, err := buildLifecycleQueryPublication(empty, binding); err != nil || publication != nil {
+		t.Fatalf("empty Query surface publication = %#v, %v", publication, err)
+	}
+
+	manager := NewManager(ManagerConfig{Starter: newManagerStagedStarter()})
+	if err := manager.Start(ctx, extension); err != nil {
+		t.Fatal(err)
+	}
+	queries := queryregistry.New()
+	boundary := NewPostgresLifecycleBoundaryRegistries(LifecycleRegistryBoundaryConfig{
+		Manager: manager, Routes: routes.NewRegistry(), RouteSchemas: lifecycleRouteSchemaPublication(t),
+		Queries: queries,
+	})
+	if err := boundary.RestoreRoutePublications(ctx, []extensions.Extension{extension}, false); err != nil {
+		t.Fatalf("restore filter-only publication: %v", err)
+	}
+	runtime, err := manager.ActiveRuntimeInstance(extension.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	restored, found := queries.SnapshotPublication(extension.ID)
+	if !found || restored.Artifact.RuntimeInstanceID != runtime.Identity.InstanceID ||
+		len(restored.Queries) != 0 || len(restored.ResultFilters) != 1 {
+		t.Fatalf("restored filter-only publication = %#v, found=%t", restored, found)
+	}
+	snapshot := queries.Snapshot()
+	if snapshot.SafeMode || len(snapshot.Publications) != 1 || len(snapshot.Queries) != 0 {
+		t.Fatalf("restored filter-only graph = %#v", snapshot)
+	}
+
+	if err := boundary.RestoreRoutePublications(ctx, []extensions.Extension{extension}, true); err != nil {
+		t.Fatalf("restore filter-only Safe Mode: %v", err)
+	}
+	safe := queries.Snapshot()
+	if !safe.SafeMode || len(safe.Publications) != 0 || len(safe.Queries) != 0 {
+		t.Fatalf("filter-only Safe Mode graph = %#v", safe)
+	}
+}
+
 func TestLifecycleQueryMaterialDigestFreezesFamilyAndLegacyAliases(t *testing.T) {
 	extension := lifecycleQueryTestExtension(t, "1.0.0", strings.Repeat("e", 64), 95)
 	material := lifecycleQueryTestMaterial(t, extension, "query-digest-runtime")

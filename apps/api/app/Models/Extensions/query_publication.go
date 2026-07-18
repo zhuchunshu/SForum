@@ -18,8 +18,9 @@ type RuntimeQueryPublicationMutation interface {
 }
 
 // RuntimeQueryPublicationBoundary keeps Models independent from QueryRegistry
-// and the process-owning Manager. Query-bearing plugins without Lifecycle V2
-// use this boundary after runtime start and before legacy disable side effects.
+// and the process-owning Manager. Query/filter-bearing plugins without
+// Lifecycle V2 use this boundary after runtime start and before legacy disable
+// side effects.
 type RuntimeQueryPublicationBoundary interface {
 	PublishRuntimeQueries(context.Context, Extension) (RuntimeQueryPublicationMutation, error)
 	QuarantineRuntimeQueries(context.Context, Extension) (RuntimeQueryPublicationMutation, error)
@@ -33,6 +34,10 @@ func (s *Service) BindRuntimeQueryPublications(boundary RuntimeQueryPublicationB
 	}
 	s.queryPublications = boundary
 	return s
+}
+
+func hasRuntimeQueryPublication(manifest Manifest) bool {
+	return len(manifest.Queries) > 0 || len(manifest.QueryResultFilters) > 0
 }
 
 func (s *Service) compensateLegacyQueryEnable(

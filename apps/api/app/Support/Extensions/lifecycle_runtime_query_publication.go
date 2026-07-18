@@ -76,13 +76,14 @@ func (m *runtimeQueryQuarantineMutation) Rollback() error {
 	return nil
 }
 
-// PublishRuntimeQueries production-binds a query-bearing plugin that uses the
+// PublishRuntimeQueries production-binds a Query Registry plugin that uses the
 // legacy Service Enable path because it declares no Lifecycle V2 hook contract.
 func (b *PostgresLifecycleBoundaryRegistries) PublishRuntimeQueries(
 	ctx context.Context,
 	extension extensions.Extension,
 ) (extensions.RuntimeQueryPublicationMutation, error) {
-	if b == nil || b.manager == nil || b.queries == nil || ctx == nil || len(extension.Manifest.Queries) == 0 {
+	if b == nil || b.manager == nil || b.queries == nil || ctx == nil ||
+		!hasQueryRegistryPublication(extension.Manifest) {
 		return nil, extensions.ErrRuntimeQueryPublicationUnavailable
 	}
 	if err := ctx.Err(); err != nil {
@@ -144,7 +145,8 @@ func (b *PostgresLifecycleBoundaryRegistries) QuarantineRuntimeQueries(
 	ctx context.Context,
 	extension extensions.Extension,
 ) (extensions.RuntimeQueryPublicationMutation, error) {
-	if b == nil || b.manager == nil || b.queries == nil || ctx == nil || len(extension.Manifest.Queries) == 0 {
+	if b == nil || b.manager == nil || b.queries == nil || ctx == nil ||
+		!hasQueryRegistryPublication(extension.Manifest) {
 		return nil, extensions.ErrRuntimeQueryPublicationUnavailable
 	}
 	if err := ctx.Err(); err != nil {

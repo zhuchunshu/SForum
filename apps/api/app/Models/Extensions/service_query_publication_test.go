@@ -8,98 +8,114 @@ import (
 )
 
 func TestLegacyQueryEnableAndDisableUseHostPublicationBoundary(t *testing.T) {
-	item := legacyQueryServiceExtension(t, StatusInstalled)
-	events := []string{}
-	store := &orderedQueryStore{
-		fakeExtensionStore: newFakeExtensionStore(map[string]Extension{item.ID: item}),
-		events:             &events,
-	}
-	runtime := &orderedQueryRuntime{events: &events}
-	boundary := &recordingQueryPublicationBoundary{events: &events}
-	service := NewServiceWithRuntime(store, t.TempDir(), runtime).BindRuntimeQueryPublications(boundary)
+	for _, test := range legacyQuerySurfaceCases() {
+		t.Run(test.name, func(t *testing.T) {
+			item := test.build(t, StatusInstalled)
+			events := []string{}
+			store := &orderedQueryStore{
+				fakeExtensionStore: newFakeExtensionStore(map[string]Extension{item.ID: item}),
+				events:             &events,
+			}
+			runtime := &orderedQueryRuntime{events: &events}
+			boundary := &recordingQueryPublicationBoundary{events: &events}
+			service := NewServiceWithRuntime(store, t.TempDir(), runtime).BindRuntimeQueryPublications(boundary)
 
-	enabled, err := service.Enable(t.Context(), extensionManager(), item.ID, EnableInput{ConfirmCapabilities: true})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if enabled.Status != StatusEnabled || !slices.Equal(events, []string{
-		"store.enable", "runtime.start", "query.publish",
-	}) {
-		t.Fatalf("legacy query enable order = %v, enabled=%#v", events, enabled)
-	}
+			enabled, err := service.Enable(t.Context(), extensionManager(), item.ID, EnableInput{ConfirmCapabilities: true})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if enabled.Status != StatusEnabled || !slices.Equal(events, []string{
+				"store.enable", "runtime.start", "query.publish",
+			}) {
+				t.Fatalf("legacy Query surface enable order = %v, enabled=%#v", events, enabled)
+			}
 
-	events = events[:0]
-	disabled, err := service.Disable(t.Context(), extensionManager(), item.ID)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if disabled.Status != StatusDisabled || !slices.Equal(events, []string{
-		"query.quarantine", "store.disable", "runtime.stop",
-	}) {
-		t.Fatalf("legacy query disable order = %v, disabled=%#v", events, disabled)
-	}
-	if boundary.publishCalls != 1 || boundary.quarantineCalls != 1 || boundary.rollbackCalls != 0 {
-		t.Fatalf("query boundary calls = %#v", boundary)
+			events = events[:0]
+			disabled, err := service.Disable(t.Context(), extensionManager(), item.ID)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if disabled.Status != StatusDisabled || !slices.Equal(events, []string{
+				"query.quarantine", "store.disable", "runtime.stop",
+			}) {
+				t.Fatalf("legacy Query surface disable order = %v, disabled=%#v", events, disabled)
+			}
+			if boundary.publishCalls != 1 || boundary.quarantineCalls != 1 || boundary.rollbackCalls != 0 {
+				t.Fatalf("Query boundary calls = %#v", boundary)
+			}
+		})
 	}
 }
 
 func TestLegacyQueryEnablePublicationFailureStopsAndDisables(t *testing.T) {
-	item := legacyQueryServiceExtension(t, StatusInstalled)
-	events := []string{}
-	store := &orderedQueryStore{
-		fakeExtensionStore: newFakeExtensionStore(map[string]Extension{item.ID: item}),
-		events:             &events,
-	}
-	runtime := &orderedQueryRuntime{events: &events}
-	boundary := &recordingQueryPublicationBoundary{events: &events, publishErr: errors.New("publish failed")}
-	service := NewServiceWithRuntime(store, t.TempDir(), runtime).BindRuntimeQueryPublications(boundary)
+	for _, test := range legacyQuerySurfaceCases() {
+		t.Run(test.name, func(t *testing.T) {
+			item := test.build(t, StatusInstalled)
+			events := []string{}
+			store := &orderedQueryStore{
+				fakeExtensionStore: newFakeExtensionStore(map[string]Extension{item.ID: item}),
+				events:             &events,
+			}
+			runtime := &orderedQueryRuntime{events: &events}
+			boundary := &recordingQueryPublicationBoundary{events: &events, publishErr: errors.New("publish failed")}
+			service := NewServiceWithRuntime(store, t.TempDir(), runtime).BindRuntimeQueryPublications(boundary)
 
-	_, err := service.Enable(t.Context(), extensionManager(), item.ID, EnableInput{ConfirmCapabilities: true})
-	if !errors.Is(err, ErrRuntimeFailed) || !slices.Equal(events, []string{
-		"store.enable", "runtime.start", "query.publish", "runtime.stop", "store.disable",
-	}) {
-		t.Fatalf("publication failure = %v, order=%v", err, events)
-	}
-	if got := store.items[item.ID].Status; got != StatusDisabled {
-		t.Fatalf("publication failure left store status %q", got)
+			_, err := service.Enable(t.Context(), extensionManager(), item.ID, EnableInput{ConfirmCapabilities: true})
+			if !errors.Is(err, ErrRuntimeFailed) || !slices.Equal(events, []string{
+				"store.enable", "runtime.start", "query.publish", "runtime.stop", "store.disable",
+			}) {
+				t.Fatalf("publication failure = %v, order=%v", err, events)
+			}
+			if got := store.items[item.ID].Status; got != StatusDisabled {
+				t.Fatalf("publication failure left store status %q", got)
+			}
+		})
 	}
 }
 
 func TestLegacyQueryDisableStoreFailureRestoresExactPublicationBeforeAdmission(t *testing.T) {
-	item := legacyQueryServiceExtension(t, StatusEnabled)
-	events := []string{}
-	storeErr := errors.New("disable failed")
-	store := &orderedQueryStore{
-		fakeExtensionStore: newFakeExtensionStore(map[string]Extension{item.ID: item}),
-		events:             &events,
-		disableErr:         storeErr,
-	}
-	runtime := &orderedQueryRuntime{events: &events}
-	boundary := &recordingQueryPublicationBoundary{events: &events}
-	service := NewServiceWithRuntime(store, t.TempDir(), runtime).BindRuntimeQueryPublications(boundary)
+	for _, test := range legacyQuerySurfaceCases() {
+		t.Run(test.name, func(t *testing.T) {
+			item := test.build(t, StatusEnabled)
+			events := []string{}
+			storeErr := errors.New("disable failed")
+			store := &orderedQueryStore{
+				fakeExtensionStore: newFakeExtensionStore(map[string]Extension{item.ID: item}),
+				events:             &events,
+				disableErr:         storeErr,
+			}
+			runtime := &orderedQueryRuntime{events: &events}
+			boundary := &recordingQueryPublicationBoundary{events: &events}
+			service := NewServiceWithRuntime(store, t.TempDir(), runtime).BindRuntimeQueryPublications(boundary)
 
-	_, err := service.Disable(t.Context(), extensionManager(), item.ID)
-	if !errors.Is(err, storeErr) || !slices.Equal(events, []string{
-		"query.quarantine", "store.disable", "query.rollback",
-	}) {
-		t.Fatalf("disable compensation = %v, order=%v", err, events)
-	}
-	if len(runtime.stopped) != 0 || store.items[item.ID].Status != StatusEnabled || boundary.rollbackCalls != 1 {
-		t.Fatalf("disable compensation state: runtime=%#v store=%#v boundary=%#v", runtime, store.items[item.ID], boundary)
+			_, err := service.Disable(t.Context(), extensionManager(), item.ID)
+			if !errors.Is(err, storeErr) || !slices.Equal(events, []string{
+				"query.quarantine", "store.disable", "query.rollback",
+			}) {
+				t.Fatalf("disable compensation = %v, order=%v", err, events)
+			}
+			if len(runtime.stopped) != 0 || store.items[item.ID].Status != StatusEnabled || boundary.rollbackCalls != 1 {
+				t.Fatalf("disable compensation state: runtime=%#v store=%#v boundary=%#v", runtime, store.items[item.ID], boundary)
+			}
+		})
 	}
 }
 
 func TestLegacyQueryBoundaryIsClosedOrSkippedForOtherPaths(t *testing.T) {
 	t.Run("missing boundary", func(t *testing.T) {
-		item := legacyQueryServiceExtension(t, StatusInstalled)
-		store := newFakeExtensionStore(map[string]Extension{item.ID: item})
-		runtime := &fakeRuntimeManager{}
-		service := NewServiceWithRuntime(store, t.TempDir(), runtime)
-		if _, err := service.Enable(t.Context(), extensionManager(), item.ID, EnableInput{ConfirmCapabilities: true}); !errors.Is(err, ErrRuntimeQueryPublicationUnavailable) {
-			t.Fatalf("missing query publication boundary = %v", err)
-		}
-		if store.enabledID != "" || len(runtime.started) != 0 {
-			t.Fatalf("missing boundary reached side effects: store=%q runtime=%v", store.enabledID, runtime.started)
+		for _, test := range legacyQuerySurfaceCases() {
+			t.Run(test.name, func(t *testing.T) {
+				item := test.build(t, StatusInstalled)
+				store := newFakeExtensionStore(map[string]Extension{item.ID: item})
+				runtime := &fakeRuntimeManager{}
+				service := NewServiceWithRuntime(store, t.TempDir(), runtime)
+				if _, err := service.Enable(t.Context(), extensionManager(), item.ID, EnableInput{ConfirmCapabilities: true}); !errors.Is(err, ErrRuntimeQueryPublicationUnavailable) {
+					t.Fatalf("missing query publication boundary = %v", err)
+				}
+				if store.enabledID != "" || len(runtime.started) != 0 {
+					t.Fatalf("missing boundary reached side effects: store=%q runtime=%v", store.enabledID, runtime.started)
+				}
+			})
 		}
 	})
 
@@ -121,6 +137,7 @@ func TestLegacyQueryBoundaryIsClosedOrSkippedForOtherPaths(t *testing.T) {
 	t.Run("queryless", func(t *testing.T) {
 		item := legacyQueryServiceExtension(t, StatusInstalled)
 		item.Manifest.Queries = nil
+		item.Manifest.QueryResultFilters = nil
 		refreshTrustPackageIdentity(t, &item)
 		boundary := &recordingQueryPublicationBoundary{}
 		service := NewServiceWithRuntime(
@@ -163,6 +180,39 @@ func legacyQueryServiceExtension(t *testing.T, status string) Extension {
 	item.Manifest.Dependencies = nil
 	refreshTrustPackageIdentity(t, &item)
 	return item
+}
+
+func legacyFilterOnlyQueryServiceExtension(t *testing.T, status string) Extension {
+	t.Helper()
+	item := legacyQueryServiceExtension(t, status)
+	item.Manifest.Queries = nil
+	item.Manifest.QueryResultFilters = []ManifestQueryResultFilter{{
+		ID: item.ID + ".query.items.decorate", ContractVersion: item.ID + ".query.items.decorate@1",
+		QueryID: "demo.owner.query.items", QueryContractVersion: "demo.owner.query.items@1",
+		QueryPlanVersion: "demo.owner.query.items.plan@1", Handler: item.ID + ".query.items.decorate",
+		FailurePolicy: "fail_open", TimeoutMS: 500,
+		Dependency: &ManifestQueryResultFilterDependency{
+			ExtensionID: "demo.owner", VersionConstraint: "^1.0.0",
+		},
+	}}
+	item.Manifest.Dependencies = []ManifestDependency{{
+		ID: "demo.owner", Version: "^1.0.0", Kind: "optional",
+	}}
+	refreshTrustPackageIdentity(t, &item)
+	return item
+}
+
+func legacyQuerySurfaceCases() []struct {
+	name  string
+	build func(*testing.T, string) Extension
+} {
+	return []struct {
+		name  string
+		build func(*testing.T, string) Extension
+	}{
+		{name: "query owner", build: legacyQueryServiceExtension},
+		{name: "filter only", build: legacyFilterOnlyQueryServiceExtension},
+	}
 }
 
 type recordingQueryPublicationMutation struct {

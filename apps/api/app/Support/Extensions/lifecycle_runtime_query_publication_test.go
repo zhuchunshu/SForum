@@ -55,11 +55,62 @@ func TestLegacyRuntimeQueriesPublishWithoutLifecycleAndRollbackQuarantine(t *tes
 	}
 }
 
-func TestLegacyRuntimeQueriesRequireExactProtocolInstance(t *testing.T) {
-	extension := legacyRuntimeQueryExtension("1.0.0", 'a', 41)
-	manager := NewManager(ManagerConfig{Starter: fakeStarter{}})
-	if err := manager.Start(t.Context(), extension); !errors.Is(err, ErrVersionedRuntimeContractInvalid) {
-		t.Fatalf("query-only runtime accepted empty instance identity = %v", err)
+func TestLegacyRuntimeFilterOnlyPublishesQuarantinesAndRollsBack(t *testing.T) {
+	extension := legacyRuntimeFilterOnlyExtension("1.0.0", 'c', 43)
+	manager := NewManager(ManagerConfig{Starter: newManagerStagedStarter()})
+	if err := manager.Start(t.Context(), extension); err != nil {
+		t.Fatal(err)
+	}
+	queries := queryregistry.New()
+	boundary := NewPostgresLifecycleBoundaryRegistries(LifecycleRegistryBoundaryConfig{
+		Manager: manager, Queries: queries,
+	})
+	published, err := boundary.PublishRuntimeQueries(t.Context(), extension)
+	if err != nil || published == nil {
+		t.Fatalf("publish filter-only runtime = %#v, %v", published, err)
+	}
+	runtime, err := manager.ActiveRuntimeInstance(extension.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	publication, found := queries.SnapshotPublication(extension.ID)
+	if !found || publication.Artifact.VersionID != extension.ActiveVersionID ||
+		publication.Artifact.RuntimeInstanceID != runtime.Identity.InstanceID ||
+		len(publication.Queries) != 0 || len(publication.ResultFilters) != 1 {
+		t.Fatalf("published exact filter-only runtime = %#v", publication)
+	}
+
+	quarantined, err := boundary.QuarantineRuntimeQueries(t.Context(), extension)
+	if err != nil || quarantined == nil {
+		t.Fatalf("quarantine filter-only runtime = %#v, %v", quarantined, err)
+	}
+	if _, found := queries.SnapshotPublication(extension.ID); found || manager.RuntimeInstanceAvailable(runtime.Identity) {
+		t.Fatal("quarantine left filter-only publication or runtime admission open")
+	}
+	if err := quarantined.Rollback(); err != nil {
+		t.Fatalf("rollback filter-only quarantine: %v", err)
+	}
+	publication, found = queries.SnapshotPublication(extension.ID)
+	if !found || publication.Artifact.RuntimeInstanceID != runtime.Identity.InstanceID ||
+		len(publication.ResultFilters) != 1 || !manager.RuntimeInstanceAvailable(runtime.Identity) {
+		t.Fatalf("filter-only rollback did not restore publication-before-admission: %#v", publication)
+	}
+}
+
+func TestRuntimeQuerySurfacesRequireExactProtocolInstance(t *testing.T) {
+	for _, test := range []struct {
+		name      string
+		extension extensions.Extension
+	}{
+		{name: "query owner", extension: legacyRuntimeQueryExtension("1.0.0", 'a', 41)},
+		{name: "filter only", extension: legacyRuntimeFilterOnlyExtension("1.0.0", 'c', 43)},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			manager := NewManager(ManagerConfig{Starter: fakeStarter{}})
+			if err := manager.Start(t.Context(), test.extension); !errors.Is(err, ErrVersionedRuntimeContractInvalid) {
+				t.Fatalf("Query Registry runtime accepted empty instance identity = %v", err)
+			}
+		})
 	}
 }
 
@@ -273,6 +324,24 @@ func legacyRuntimeQueryExtension(version string, digest byte, versionID int64) e
 			}},
 		},
 	}
+}
+
+func legacyRuntimeFilterOnlyExtension(version string, digest byte, versionID int64) extensions.Extension {
+	extension := legacyRuntimeQueryExtension(version, digest, versionID)
+	extension.Manifest.Queries = nil
+	extension.Manifest.QueryResultFilters = []extensions.ManifestQueryResultFilter{{
+		ID: extension.ID + ".items.mask", ContractVersion: extension.ID + ".items.mask@1",
+		QueryID: "owner.query.items", QueryContractVersion: "owner.query.items@1",
+		QueryPlanVersion: "owner.query.items.plan@1", Handler: extension.ID + ".items.mask",
+		FailurePolicy: "fail_open", TimeoutMS: 500,
+		Dependency: &extensions.ManifestQueryResultFilterDependency{
+			ExtensionID: "owner.query", VersionConstraint: "^1.0.0",
+		},
+	}}
+	extension.Manifest.Dependencies = []extensions.ManifestDependency{{
+		ID: "owner.query", Version: "^1.0.0", Kind: "optional",
+	}}
+	return extension
 }
 
 func runtimeQueryTestPublication(

@@ -206,6 +206,46 @@ func TestProtocolV2QueryRuntimeFilterKeepsFetchLimitForShortPage(t *testing.T) {
 	}
 }
 
+func TestProtocolV2QueryRuntimeFilterUsesSingleFetchForNonePagination(t *testing.T) {
+	declaration := extensions.ManifestQuery{
+		ID: "plugin.query.demo.item", ContractVersion: "plugin.query.demo.item@1",
+		Entity: "item", PlanVersion: "plugin.query.demo.item.plan@1",
+		Fields: []string{"id"}, Pagination: "none", ResultSchema: "plugin.query.demo.item.result@1",
+		PermissionPolicy: "public", Handler: "plugin.query.demo.item", IdentityFields: []string{"id"},
+		DefaultSort: []extensions.ManifestQuerySort{{Field: "id"}},
+	}
+	filter := extensions.ManifestQueryResultFilter{
+		ID: "plugin.query.demo.item.mask", ContractVersion: "plugin.query.demo.item.mask@1",
+		QueryID: declaration.ID, QueryContractVersion: declaration.ContractVersion,
+		QueryPlanVersion: declaration.PlanVersion, Handler: "plugin.query.demo.item.mask",
+		FailurePolicy: "fail_closed", TimeoutMS: 500,
+	}
+	client := newProtocolV2QueryTestClient(t, declaration, filter, nil, func(
+		_ context.Context, request *pluginwire.QueryResultFilterRequest,
+	) (*pluginwire.QueryResultFilterResponse, error) {
+		if request.GetPlan().GetPagination().GetMode() != queryregistry.PaginationNone ||
+			request.GetPlan().GetPagination().GetLimit() != 1 || request.GetPlan().GetFetchLimit() != 1 {
+			t.Fatalf("none filter plan drifted: %#v", request.GetPlan())
+		}
+		return &pluginwire.QueryResultFilterResponse{
+			Context: protocolV2QueryTestResponseContext(request.GetContext()),
+			Binding: request.GetBinding(), ShapeDigest: request.GetPlan().GetShapeDigest(),
+			Outcome: &pluginwire.QueryResultFilterResponse_Success{Success: request.GetInput()},
+		}, nil
+	})
+	plan := protocolV2QueryTestPlan(declaration)
+	plan.Pagination.Limit = 1
+	rows, err := client.FilterQueryResult(t.Context(), VersionedQueryResultFilterRequest{
+		FilterID: filter.ID, FilterContractVersion: filter.ContractVersion,
+		QueryID: declaration.ID, QueryContractVersion: declaration.ContractVersion,
+		QueryPlanVersion: declaration.PlanVersion, ResultSchema: declaration.ResultSchema,
+		Handler: filter.Handler, Plan: plan, Rows: []queryregistry.QueryRow{{"id": "only"}},
+	})
+	if err != nil || len(rows) != 1 || rows[0]["id"] != "only" {
+		t.Fatalf("none filter rows=%#v err=%v", rows, err)
+	}
+}
+
 func TestProtocolV2QueryRuntimeHandshakeRequiresExactFeature(t *testing.T) {
 	executable := extensions.ManifestQuery{Handler: "plugin.query.demo.items"}
 	filter := extensions.ManifestQueryResultFilter{ID: "plugin.query.demo.items.mask"}

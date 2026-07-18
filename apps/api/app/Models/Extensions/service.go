@@ -908,9 +908,9 @@ func (s *Service) Enable(ctx context.Context, actor identity.Actor, id string, i
 		return s.enableLifecycleV2(ctx, actor, extension, input)
 	}
 	defer s.assetPublicationMu.Unlock()
-	hasRuntimeQueries := len(extension.Manifest.Queries) > 0
+	hasRuntimeQuerySurfaces := hasRuntimeQueryPublication(extension.Manifest)
 	hasRuntimeCaches := len(extension.Manifest.Cache) > 0 && s.cachePublications != nil
-	if hasRuntimeQueries && s.queryPublications == nil {
+	if hasRuntimeQuerySurfaces && s.queryPublications == nil {
 		return Extension{}, ErrRuntimeQueryPublicationUnavailable
 	}
 	assetBefore := s.captureAssetPublicationSnapshot()
@@ -989,7 +989,7 @@ func (s *Service) Enable(ctx context.Context, actor identity.Actor, id string, i
 		}
 	}
 	var queryMutation RuntimeQueryPublicationMutation
-	if hasRuntimeQueries {
+	if hasRuntimeQuerySurfaces {
 		queryMutation, err = s.queryPublications.PublishRuntimeQueries(ctx, enabled)
 		if err != nil || queryMutation == nil {
 			if err == nil {
@@ -1022,7 +1022,7 @@ func (s *Service) Enable(ctx context.Context, actor identity.Actor, id string, i
 				err = s.compensateLegacyCacheEnable(
 					ctx, enabled, assetMutation, queryMutation, cacheMutation, actor.ID, err,
 				)
-			} else if hasRuntimeQueries {
+			} else if hasRuntimeQuerySurfaces {
 				err = s.compensateLegacyQueryEnable(ctx, enabled, assetMutation, queryMutation, actor.ID, err)
 			} else {
 				if s.runtime != nil {
@@ -1086,9 +1086,9 @@ func (s *Service) DisableWithInput(ctx context.Context, actor identity.Actor, id
 		return s.disableLifecycleV2(ctx, actor, extension, input)
 	}
 	defer s.assetPublicationMu.Unlock()
-	hasRuntimeQueries := len(extension.Manifest.Queries) > 0
+	hasRuntimeQuerySurfaces := hasRuntimeQueryPublication(extension.Manifest)
 	hasRuntimeCaches := len(extension.Manifest.Cache) > 0 && s.cachePublications != nil
-	if hasRuntimeQueries && s.queryPublications == nil {
+	if hasRuntimeQuerySurfaces && s.queryPublications == nil {
 		return Extension{}, ErrRuntimeQueryPublicationUnavailable
 	}
 	assetBefore := s.captureAssetPublicationSnapshot()
@@ -1098,7 +1098,7 @@ func (s *Service) DisableWithInput(ctx context.Context, actor identity.Actor, id
 	}
 	var disabled Extension
 	var queryMutation RuntimeQueryPublicationMutation
-	if hasRuntimeQueries {
+	if hasRuntimeQuerySurfaces {
 		var quarantineErr error
 		queryMutation, quarantineErr = s.queryPublications.QuarantineRuntimeQueries(ctx, extension)
 		if quarantineErr != nil || queryMutation == nil {
@@ -1131,7 +1131,7 @@ func (s *Service) DisableWithInput(ctx context.Context, actor identity.Actor, id
 		if err != nil {
 			return Extension{}, err
 		}
-	} else if hasRuntimeQueries {
+	} else if hasRuntimeQuerySurfaces {
 		disabled, err = s.disableLegacyQueryPlugin(ctx, extension, assetMutation, queryMutation, actor.ID)
 		if err != nil {
 			return Extension{}, err
