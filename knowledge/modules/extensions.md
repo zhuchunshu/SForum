@@ -856,6 +856,9 @@ template while retaining Schema fallback fields.
   `ForceDrain` into an in-flight provider/filter transport. Exact admission also
   compares the Manager-frozen database `VersionID`; a wrong id is rejected
   before cache load even when extension version, digest, and instance match.
+  Manager publishes `forced=true` only after every retained lease context has
+  received the ForceDrain cause. Caller-owned custom cancellation causes retain
+  both the standard cancellation class and their original domain cause.
 
 ## V3 P8 theme runtime checkpoint
 

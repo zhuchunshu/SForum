@@ -115,6 +115,14 @@ hold lifecycle admission until the final permission and Schema release fences
 finish. Cancellation and ForceDrain propagate through that lease and the gRPC
 context; an invocation is never detached while its admission is released.
 
+`ForceCancel` cancels every existing lease context before the gate publishes its
+forced state to `Snapshot` or a new `Acquire`. This is the linearization point:
+a later caller cancellation cannot occupy a context whose Host ForceDrain is
+already visible. A caller-owned custom `CancelCause` is returned with the stable
+`context.Canceled`/deadline shape plus the original cause; it is not relabeled
+as runtime stale. Independent runtime cancellation still retains the stable
+exact-artifact-unavailable classification and the original ForceDrain cause.
+
 ### Host-owned execution semantics
 
 The existing Query Registry remains authoritative for:

@@ -41,6 +41,15 @@ Last updated: 2026-07-19
   `249a4e168` maps a forced Query drain to non-retryable
   `host.query_runtime_stale` instead of INTERNAL/CANCELLED. `afae06401` records
   the intentional contextual-admission compatibility migration.
+- Follow-up review closed three cross-layer gaps without changing P7 credit.
+  `0b16ffe21` makes the Manager gate return custom parent causes and cancel all
+  existing leases before forced state is observable. `63de7a9a2` extends the
+  shared lifecycle runtime match to the frozen VersionID, including lifecycle
+  V2/startup and non-Query registry gates. `e17f96bc2` preserves the stable
+  cancellation class plus custom caller cause through Query execution, and
+  `09c448145` does the same in production bootstrap. A lifecycle coordinator
+  test double was updated to model the production frozen VersionID rather than
+  weakening the exact comparison.
 - Normal gates passed: QueryRegistry `TestExecution*` up to `count=50`,
   bootstrap/HostAPI Query up to `count=50`, Extensions Manager/Query lifecycle
   up to `count=20`, and the VersionID-only negative gate `count=50`. Race gates
@@ -50,6 +59,9 @@ Last updated: 2026-07-19
   pass. One whole-Execution race run launched beside three other race packages
   starved the cumulative deadline test; the exact test passed isolated
   `count=20` and later isolated QueryRegistry race matrices passed.
+  After the follow-up fixes, complete `Support/Extensions` normal passed; Gate,
+  lifecycle coordinator, Query cancellation, and bootstrap custom-cause race
+  gates passed up to `count=100`.
 - Exact next Query step: add a true production joined gate using a real Manager
   and Protocol V2 subprocess for query owner plus cross-plugin fail-open filter,
   ForceDrain each exact runtime during an in-flight call, cover cache-hit and
