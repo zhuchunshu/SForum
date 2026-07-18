@@ -445,6 +445,14 @@ func TestProtocolV2QueryRegistryErrorPrefersExactRuntimeStaleOverCancellationSha
 	}
 }
 
+func TestProtocolV2QueryRegistryErrorPreservesCustomCancellationClass(t *testing.T) {
+	cause := errors.New("caller closed the query view")
+	detail := queryRegistryProtocolV2Error(errors.Join(context.Canceled, cause))
+	if detail.GetReason() != "host.query_cancelled" || !detail.GetRetryable() {
+		t.Fatalf("custom cancellation detail=%#v", detail)
+	}
+}
+
 func TestProtocolV2QueryRegistryOutletStreamsUnderSameDelegation(t *testing.T) {
 	h := newProtocolV2QueryRegistryHarness(t, func(context.Context, queryregistry.ProviderExecutionRequest) (queryregistry.ProviderExecutionResult, error) {
 		return queryregistry.ProviderExecutionResult{Rows: []queryregistry.QueryRow{

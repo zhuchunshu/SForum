@@ -44,7 +44,10 @@ func (s *executionAdmissionSet) add(lease ExecutionAdmissionLease) error {
 	}
 	s.leases = append(s.leases, lease)
 	s.stops = append(s.stops, context.AfterFunc(lease.Context, func() {
-		cause := executionContextError(lease.Context)
+		cause := context.Cause(lease.Context)
+		if cause == nil {
+			cause = lease.Context.Err()
+		}
 		if cause == nil {
 			cause = context.Canceled
 		}
@@ -87,11 +90,11 @@ func (s *executionAdmissionSet) executionError() error {
 		if cause == nil {
 			cause = lease.Context.Err()
 		}
-		if cause != nil && (parentCause == nil || !sameCancellationCause(cause, parentCause)) {
+		if cause != nil && (parentCause == nil || !errorMatchesContextCancellation(s.parent, cause)) {
 			independent = append(independent, cause)
 		}
 	}
-	if groupCause != nil && (parentCause == nil || !sameCancellationCause(groupCause, parentCause)) {
+	if groupCause != nil && (parentCause == nil || !errorMatchesContextCancellation(s.parent, groupCause)) {
 		return errors.Join(ErrArtifactUnavailable, groupCause)
 	}
 	if len(independent) > 0 {

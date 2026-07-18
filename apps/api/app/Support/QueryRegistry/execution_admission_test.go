@@ -242,6 +242,67 @@ func TestExecutionPropagatesOwnerLeaseCancellationToProvider(t *testing.T) {
 	}
 }
 
+func TestExecutionPreservesInflightCustomCallerCancellation(t *testing.T) {
+	plugin := publication("plugin.custom-cancel", false, 'a')
+	declaration := query("plugin.custom-cancel.items", "plugin.custom-cancel.item", PaginationNone, PermissionPolicyPublic)
+	declaration.Relations = nil
+	plugin.Queries = []QueryDeclaration{declaration}
+	registry := newPlanningRegistry().WithPluginAdmission(func(artifact Artifact) bool { return artifact == plugin.Artifact })
+	if _, err := registry.Publish(plugin); err != nil {
+		t.Fatal(err)
+	}
+	providerStarted := make(chan struct{})
+	provider := ExecutableProviderFunc(func(ctx context.Context, _ ProviderExecutionRequest) (ProviderExecutionResult, error) {
+		close(providerStarted)
+		<-ctx.Done()
+		return ProviderExecutionResult{}, ctx.Err()
+	})
+	providers, err := NewStaticProviderResolver([]ExecutableProviderBinding{executionProviderBinding(declaration, plugin.Artifact, provider)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var released atomic.Int32
+	runtime, err := NewExecutionRuntime(ExecutionConfig{
+		Registry: registry, Providers: providers, Schemas: allowExecutionSchema(),
+		Admission: ContextualExecutionAdmissionFunc(func(ctx context.Context, artifact Artifact) (ExecutionAdmissionLease, error) {
+			if artifact != plugin.Artifact {
+				return ExecutionAdmissionLease{}, ErrArtifactUnavailable
+			}
+			leaseCtx, cancel := context.WithCancelCause(ctx)
+			return ExecutionAdmissionLease{Context: leaseCtx, Release: func() {
+				cancel(nil)
+				released.Add(1)
+			}}, nil
+		}),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancelCaller := context.WithCancelCause(t.Context())
+	result := make(chan error, 1)
+	go func() {
+		_, executeErr := runtime.Execute(ctx, PlanRequest{QueryID: declaration.ID})
+		result <- executeErr
+	}()
+	select {
+	case <-providerStarted:
+	case <-time.After(time.Second):
+		t.Fatal("provider did not start")
+	}
+	callerCause := errors.New("caller navigation closed query")
+	cancelCaller(callerCause)
+	select {
+	case executeErr := <-result:
+		if !errors.Is(executeErr, context.Canceled) || !errors.Is(executeErr, callerCause) ||
+			errors.Is(executeErr, ErrArtifactUnavailable) || released.Load() != 1 ||
+			executionTraceOutcome(executeErr) != TraceOutcomeCancelled {
+			t.Fatalf("custom in-flight cancellation error=%v released=%d", executeErr, released.Load())
+		}
+	case <-time.After(time.Second):
+		t.Fatal("custom caller cancellation did not stop provider")
+	}
+}
+
 func TestExecutionPropagatesFailOpenFilterLeaseCancellationToCallback(t *testing.T) {
 	filterArtifact := publication("plugin.cancelled-filter", false, 'f').Artifact
 	filterStarted := make(chan struct{})
