@@ -1,0 +1,81 @@
+{
+  "manifestVersion": 3,
+  "id": "sforum.query-reference",
+  "name": "SForum Query Reference",
+  "description": "Protocol V2 reference plugin for Host-owned Query Registry execution and result filters.",
+  "url": "https://github.com/zhuchunshu/sforum",
+  "author": {
+    "name": "SForum",
+    "url": "https://github.com/zhuchunshu/sforum"
+  },
+  "version": "1.0.0",
+  "type": "plugin",
+  "sforumVersion": ">=0.1.0",
+  "capabilities": ["host.api"],
+  "backend": {
+    "entry": "backend/plugin",
+    "rpc": "hashicorp-go-plugin",
+    "protocolVersion": 2,
+    "hostApiVersion": "sforum.host@2",
+    "digest": "__BACKEND_DIGEST__"
+  },
+  "queries": [
+    {
+      "id": "sforum.query-reference.items",
+      "contractVersion": "sforum.query-reference.items@1",
+      "entity": "item",
+      "planVersion": "sforum.query-reference.items.plan@1",
+      "fields": ["id", "title", "score"],
+      "filters": ["state"],
+      "sort": ["id"],
+      "pagination": "offset",
+      "resultSchema": "schemas/items.json",
+      "permissionPolicy": "public",
+      "cacheTags": ["query-reference-items"],
+      "handler": "sforum.query-reference.items",
+      "identityFields": ["id"],
+      "defaultSort": [{ "field": "id", "descending": true }]
+    },
+    {
+      "id": "sforum.query-reference.private",
+      "contractVersion": "sforum.query-reference.private@1",
+      "entity": "item",
+      "planVersion": "sforum.query-reference.private.plan@1",
+      "fields": ["id", "title", "score"],
+      "sort": ["id"],
+      "pagination": "none",
+      "resultSchema": "schemas/items.json",
+      "permissionPolicy": "login",
+      "handler": "sforum.query-reference.items",
+      "identityFields": ["id"],
+      "defaultSort": [{ "field": "id", "descending": true }]
+    }
+  ],
+  "queryResultFilters": [
+    {
+      "id": "sforum.query-reference.items.mask",
+      "contractVersion": "sforum.query-reference.items.mask@1",
+      "queryId": "sforum.query-reference.items",
+      "queryContractVersion": "sforum.query-reference.items@1",
+      "queryPlanVersion": "sforum.query-reference.items.plan@1",
+      "handler": "sforum.query-reference.items.mask",
+      "failurePolicy": "fail_closed",
+      "timeoutMs": 500
+    }
+  ],
+  "packageFiles": [
+    {
+      "id": "sforum.query-reference.file.backend",
+      "kind": "executable",
+      "path": "backend/plugin",
+      "digest": "__BACKEND_DIGEST__"
+    },
+    {
+      "id": "sforum.query-reference.items.result",
+      "kind": "schema",
+      "path": "schemas/items.json",
+      "version": "1",
+      "digest": "__SCHEMA_DIGEST__"
+    }
+  ]
+}
