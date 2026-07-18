@@ -203,12 +203,14 @@ func (b *PostgresLifecycleBoundaryRegistries) runtimeQueryArtifactAvailable(arti
 	identity := RuntimeInstanceIdentity{ExtensionID: artifact.ExtensionID, InstanceID: artifact.RuntimeInstanceID}
 	runtime, err := b.manager.InspectRuntimeInstance(identity)
 	return err == nil && runtime.ExtensionVersion == artifact.ExtensionVersion &&
-		runtime.ArtifactDigest == artifact.PackageDigest && b.manager.RuntimeInstanceAvailable(identity)
+		runtime.ArtifactDigest == artifact.PackageDigest && runtime.VersionID == artifact.VersionID &&
+		b.manager.RuntimeInstanceAvailable(identity)
 }
 
 func runtimeQueryInstanceMatches(runtime RuntimeInstanceSnapshot, extension extensions.Extension) bool {
 	return runtime.Active && runtime.Identity.ExtensionID == extension.ID &&
-		runtime.ExtensionVersion == extension.Version && runtime.ArtifactDigest == extension.PackageDigest
+		runtime.ExtensionVersion == extension.Version && runtime.ArtifactDigest == extension.PackageDigest &&
+		runtime.VersionID == extension.ActiveVersionID
 }
 
 func runtimeQueryArtifactMatchesInstance(
@@ -218,7 +220,8 @@ func runtimeQueryArtifactMatchesInstance(
 ) bool {
 	return !artifact.Core && artifact.ExtensionID == extension.ID &&
 		artifact.ExtensionVersion == extension.Version && artifact.PackageDigest == extension.PackageDigest &&
-		artifact.VersionID == extension.ActiveVersionID && artifact.RuntimeInstanceID == runtime.Identity.InstanceID
+		artifact.VersionID == extension.ActiveVersionID && artifact.VersionID == runtime.VersionID &&
+		artifact.RuntimeInstanceID == runtime.Identity.InstanceID
 }
 
 func runtimeQueryArtifactCanMoveForward(current, desired queryregistry.Artifact) bool {

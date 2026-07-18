@@ -34,6 +34,7 @@ type RuntimeInstanceSnapshot struct {
 	Identity         RuntimeInstanceIdentity
 	ExtensionVersion string
 	ArtifactDigest   string
+	VersionID        int64
 	Target           RouteTarget
 	Active           bool
 	Admission        RuntimeAdmissionSnapshot
@@ -463,6 +464,7 @@ func (m *Manager) runtimeInstanceSnapshotLocked(identity RuntimeInstanceIdentity
 		Identity:         identity,
 		ExtensionVersion: instance.extensionVersion,
 		ArtifactDigest:   instance.artifactDigest,
+		VersionID:        instance.extension.ActiveVersionID,
 		Target:           instance.target,
 		Active:           m.activeInstances[identity.ExtensionID] == identity.InstanceID,
 		Admission:        instance.gate.Snapshot(),

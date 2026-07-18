@@ -17,6 +17,7 @@ func TestManagerRuntimeInstanceRestartRetainsDrainingGate(t *testing.T) {
 	}}
 	manager := NewManager(ManagerConfig{Starter: starter})
 	first := managerRuntimeExtension("retained.plugin", "1.0.0", "digest-1")
+	first.ActiveVersionID = 11
 	if err := manager.Start(context.Background(), first); err != nil {
 		t.Fatal(err)
 	}
@@ -24,6 +25,7 @@ func TestManagerRuntimeInstanceRestartRetainsDrainingGate(t *testing.T) {
 	firstRoute := acquireManagerRuntimeCall(t, manager, firstIdentity, RuntimeCallRoute)
 
 	second := managerRuntimeExtension(first.ID, "2.0.0", "digest-2")
+	second.ActiveVersionID = 22
 	if err := manager.Start(context.Background(), second); err != nil {
 		t.Fatal(err)
 	}
@@ -35,7 +37,7 @@ func TestManagerRuntimeInstanceRestartRetainsDrainingGate(t *testing.T) {
 	}
 	if oldSnapshot.Active || !oldSnapshot.Admission.Draining || oldSnapshot.Admission.Forced ||
 		oldSnapshot.Admission.ActiveTotal != 1 || oldSnapshot.ExtensionVersion != "1.0.0" ||
-		oldSnapshot.ArtifactDigest != "digest-1" || oldSnapshot.Target.InstanceID != "instance-1" {
+		oldSnapshot.ArtifactDigest != "digest-1" || oldSnapshot.VersionID != 11 || oldSnapshot.Target.InstanceID != "instance-1" {
 		t.Fatalf("retained instance = %#v", oldSnapshot)
 	}
 	active, err := manager.ActiveRuntimeInstance(first.ID)
@@ -43,7 +45,7 @@ func TestManagerRuntimeInstanceRestartRetainsDrainingGate(t *testing.T) {
 		t.Fatal(err)
 	}
 	if !active.Active || active.Identity != secondIdentity || active.ExtensionVersion != "2.0.0" ||
-		active.ArtifactDigest != "digest-2" || active.Admission.Draining {
+		active.ArtifactDigest != "digest-2" || active.VersionID != 22 || active.Admission.Draining {
 		t.Fatalf("active replacement = %#v", active)
 	}
 	if _, err := manager.AcquireRuntimeCall(context.Background(), firstIdentity, RuntimeCallRoute); !errors.Is(err, ErrRuntimeInstanceNotActive) {

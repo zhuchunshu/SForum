@@ -250,7 +250,7 @@ func exactQueryRuntime(snapshot RuntimeInstanceSnapshot, artifact queryregistry.
 		snapshot.Identity.ExtensionID == artifact.ExtensionID &&
 		snapshot.Identity.InstanceID == artifact.RuntimeInstanceID &&
 		snapshot.ExtensionVersion == artifact.ExtensionVersion &&
-		snapshot.ArtifactDigest == artifact.PackageDigest
+		snapshot.ArtifactDigest == artifact.PackageDigest && snapshot.VersionID == artifact.VersionID
 }
 
 func protocolV2QueryProviderDigest(contribution queryregistry.QueryContribution) string {

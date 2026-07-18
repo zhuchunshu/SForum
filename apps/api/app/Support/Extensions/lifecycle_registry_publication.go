@@ -175,7 +175,8 @@ func NewPostgresLifecycleBoundaryRegistries(config LifecycleRegistryBoundaryConf
 			identity := RuntimeInstanceIdentity{ExtensionID: artifact.ExtensionID, InstanceID: artifact.RuntimeInstanceID}
 			snapshot, err := boundary.manager.InspectRuntimeInstance(identity)
 			return err == nil && snapshot.ExtensionVersion == artifact.ExtensionVersion &&
-				snapshot.ArtifactDigest == artifact.PackageDigest && boundary.manager.RuntimeInstanceAvailable(identity)
+				snapshot.ArtifactDigest == artifact.PackageDigest && snapshot.VersionID == artifact.VersionID &&
+				boundary.manager.RuntimeInstanceAvailable(identity)
 		})
 	}
 	if boundary.caches != nil && boundary.manager != nil {

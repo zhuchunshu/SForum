@@ -55,6 +55,38 @@ func TestLegacyRuntimeQueriesPublishWithoutLifecycleAndRollbackQuarantine(t *tes
 	}
 }
 
+func TestRuntimeQueryAdmissionRejectsVersionIDDrift(t *testing.T) {
+	extension := legacyRuntimeQueryExtension("1.0.0", 'a', 41)
+	manager := NewManager(ManagerConfig{Starter: newManagerStagedStarter()})
+	if err := manager.Start(t.Context(), extension); err != nil {
+		t.Fatal(err)
+	}
+	runtime, err := manager.ActiveRuntimeInstance(extension.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	queries := queryregistry.New()
+	boundary := NewPostgresLifecycleBoundaryRegistries(LifecycleRegistryBoundaryConfig{
+		Manager: manager, Queries: queries,
+	})
+	publication := runtimeQueryTestPublication(t, extension, runtime.Identity.InstanceID)
+	publication.Artifact.VersionID++
+	if _, err := queries.Publish(publication); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := queries.Plan(t.Context(), queryregistry.PlanRequest{QueryID: publication.Queries[0].ID}); !errors.Is(err, queryregistry.ErrArtifactUnavailable) {
+		t.Fatalf("VersionID-drifted plan error=%v", err)
+	}
+	if boundary.runtimeQueryArtifactAvailable(publication.Artifact) {
+		t.Fatal("VersionID-drifted runtime artifact was admitted")
+	}
+	drifted := extension
+	drifted.ActiveVersionID++
+	if _, err := boundary.PublishRuntimeQueries(t.Context(), drifted); !errors.Is(err, extensions.ErrRuntimeQueryPublicationUnavailable) {
+		t.Fatalf("VersionID-drifted runtime publication error=%v", err)
+	}
+}
+
 func TestLegacyRuntimeFilterOnlyPublishesQuarantinesAndRollsBack(t *testing.T) {
 	extension := legacyRuntimeFilterOnlyExtension("1.0.0", 'c', 43)
 	manager := NewManager(ManagerConfig{Starter: newManagerStagedStarter()})
