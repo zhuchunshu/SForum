@@ -76,14 +76,17 @@ Last updated: 2026-07-19
 - Manifest/HostAPI/catalog tests passed normal `count=10`, focused race
   `count=3`, vet, and diff checks. The destructive PostgreSQL + real River gate
   passed `count=3` and left zero fixture extensions.
-- Exact next step: commit the narrow API/standalone dispatcher injection, then
-  replace the current eager/shared Query Redis worker WIP with independent,
-  lazily recovering invalidator ownership. Safe Mode must pass true nil, cache
-  activation failure must not block boot, and terminal failure must construct
-  and activate a fresh cache before the joined gates.
-- Rollback is additive: revert `7341ceda7`, `df2e8a17e`, `b166ca70f`,
-  `f47680d56`, then `fc35843f1`. No migration, feature flag, branch, worktree,
-  push, tag, bootstrap file, or unrelated dirty file changed.
+- `d728dfe9e` injects the existing API job dispatcher into the production
+  Database catalog and reuses the standalone worker's single Command dispatcher
+  for both Host Command and own-schema execute invalidation. The focused
+  bootstrap catalog/worker test slice and staged diff checks pass.
+- Exact next step: replace the current eager/shared Query Redis worker WIP with
+  independent, lazily recovering invalidator ownership. Safe Mode must pass
+  true nil, cache activation failure must not block boot, and terminal failure
+  must construct and activate a fresh cache before the joined gates.
+- Rollback is additive: revert `d728dfe9e`, `7341ceda7`, `df2e8a17e`,
+  `b166ca70f`, `f47680d56`, then `fc35843f1`. No migration, feature flag,
+  branch, worktree, push, tag, or unrelated dirty file changed.
 
 ### 2026-07-19 Query Redis Backend Checkpoint (no P7 credit)
 
