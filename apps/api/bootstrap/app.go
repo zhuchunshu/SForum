@@ -867,7 +867,8 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		Trace:       routeTraceRing,
 		Policies:    lifecycleStack.RouteSchemas,
 		Idempotency: httpserver.NewRequiredRouteIdempotency(idempotencyStore),
-		Failures:    routeFailureRecorder,
+		Failures:       routeFailureRecorder,
+		StreamFailures: routeFailureRecorder,
 	})
 
 	app := httpserver.NewApp(cfg, logger, httpserver.Dependencies{
