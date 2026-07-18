@@ -28,14 +28,19 @@ Last updated: 2026-07-18
   missing real `mode=stream` route. NUL and non-UTF-8 binary bytes cross Fiber,
   Manager, and the exact Protocol V2 subprocess in multiple opaque DataChunks
   without invented JSON framing; focused normal and race gates pass.
+- `69076ac2c test(routes): prove bounded stream backpressure` restricts both
+  TCP windows and pauses a raw client after response headers while the real
+  subprocess synchronously sends 16 MiB. Its completion marker remains absent
+  and exact admission stays active until consumption resumes; the exact binary
+  body, completion marker, and zero active admission then converge. Independent
+  review plus normal/race repetition found no blocker or leaked helper process.
 - Bootstrap, focused recorder, real PostgreSQL incident-store, and staged
   whitespace gates passed before commit. The opaque `DataChunk` decision and
   Host preflight Schema correction remain accepted evidence, not framing that
   the Host does not implement.
-- Exact resume point: prove bounded backpressure with a TCP slow consumer, then
-  join normal/disconnect/ForceDrain zero-incident paths and all four durable
-  incident classes into the named P6 normal/race/PostgreSQL gates. Only that
-  evidence may raise P6 to **18/18**.
+- Exact resume point: join normal/disconnect/ForceDrain zero-incident paths and
+  all four durable incident classes into the named P6 normal/race/PostgreSQL
+  gates. Only that evidence may raise P6 to **18/18**.
 
 ### 2026-07-18 WebSocket Stream Classification Checkpoint
 
