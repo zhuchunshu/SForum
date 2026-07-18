@@ -45,7 +45,11 @@ func buildLifecycleQueryPublication(
 			PermissionPolicy: query.PermissionPolicy, CacheTags: append([]string(nil), query.CacheTags...),
 		})
 	}
-	return publication, nil
+	bound, err := bindLifecycleQuerySchemas(extension, *publication)
+	if err != nil {
+		return nil, err
+	}
+	return &bound, nil
 }
 
 // Query declarations require an exact Protocol V2 runtime, but the Manifest
