@@ -35,9 +35,15 @@ Last updated: 2026-07-18
   race count 5, complete non-Redis QueryRegistry normal/race, complete
   Extensions normal, focused Extensions race, vet, and independent staged
   review pass.
-- Remaining review blockers before production credit: Manager ForceDrain must
-  cancel provider/filter gRPC through a context-bearing execution lease, and
-  filter-only packages must participate in enable/restore/disable/Safe Mode.
+- `e148db096` fixes the executable filter adapter to retain the complete
+  graph-frozen identity instead of copying identity from the active owner after
+  resolution. SemVer-incompatible filters therefore stay dormant with empty
+  identity. Focused normal count 20, race count 5, Extensions vet, diff check,
+  Codex CLI review, and independent subagent review pass.
+- Remaining review blockers before production credit: settings update/reset
+  must stage, health, drain, publish, and compensate the exact runtime plus
+  Query publication instead of raw `Stop -> Start`; Manager ForceDrain must
+  cancel provider/filter gRPC through a context-bearing execution lease.
 - `2156a1c91` preserves the Host `limit+1` filter transport contract on short
   offset/cursor tail pages instead of rewriting it to the returned row count.
   `59d9dcbb1` makes the real reference subprocess execute the declared default
@@ -64,12 +70,13 @@ Last updated: 2026-07-18
 - The uncommitted Redis cache candidate remains **BLOCKED AND MUST NOT BE
   COMMITTED**. One-shot Lua invalidation still has the 10k×64 BUSY/time-limit
   and unbounded-memory production blockers.
-- Exact next step before any P7 Query credit: make filter-only packages cross
-  every lifecycle publication/restore/quarantine boundary, then propagate
-  Manager ForceDrain through context-bearing owner/filter execution leases.
-  After those blockers, add the production lifecycle/bootstrap joined path,
-  resumable Redis cache invalidation, and upgrade/replace artifact gate. Do not
-  advance the progress score for these prerequisite fixes alone.
+- Exact next step before any P7 Query credit: replace settings update/reset raw
+  `Stop -> Start` with an exact staged runtime and Query publication transaction
+  plus failure compensation, then propagate Manager ForceDrain through
+  context-bearing owner/filter execution leases. After those blockers, add the
+  production lifecycle/bootstrap joined path, resumable Redis cache
+  invalidation, and upgrade/replace artifact gate. Do not advance the progress
+  score for these prerequisite fixes alone.
 - Current owned WIP that must not be committed yet: new `redis_cache*.go`.
   All other dirty files shown by `git status --short` remain unowned and must
   not be staged, overwritten, reformatted, or reverted. Stay on `main`; no
