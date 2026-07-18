@@ -10,11 +10,11 @@ This is the entry point for project memory.
   - Task book: `knowledge/plans/2026-07-13-trusted-plugin-theme-platform-v3.md`
   - Current durable checkpoint:
     `knowledge/sessions/2026-07-13-trusted-plugin-theme-platform-v3-progress.md`
-  - P6 is complete at **18/18**. Weighted progress is **66.0114%** (display
+  - P6 is complete at **18/18**. Weighted progress is **66.4659%** (display
     **66.0%**). The accepted opaque non-HTTP boundary now has real generic
     binary subprocess evidence, bounded TCP backpressure, classified durable
     incidents, zero-incident caller/Host paths, and complete named Routes/HTTP/
-    PostgreSQL production gates. P7 remains **14/22**.
+    PostgreSQL production gates. P7 is **15/22**.
   - Active checkpoint: `knowledge/sessions/2026-07-16-trusted-plugin-theme-platform-v3-runtime-ownership-checkpoint.md`
   - Prior Query/P12/SEO checkpoint:
     `knowledge/sessions/2026-07-16-trusted-plugin-theme-platform-v3-query-p12-seo-checkpoint.md`
@@ -37,7 +37,7 @@ This is the entry point for project memory.
   - P0 catalogs and governance: `docs/extensions/v3/`
   - Decision contains the authoritative 27-row template comparison, 72-row
     plugin comparison, detailed architecture mind map, and boundary checklist
-  - P0 governance now tracks 99-row traceability, 230 routes, 121 UI surfaces,
+  - P0 governance now tracks 99-row traceability, 234 routes, 123 UI surfaces,
     33 admin surfaces, 19-module Extension Surface Matrix, stable identities,
     governance, migration gates, and performance baseline; CI rejects catalog drift
   - P1 completed exact-artifact one-use trust, delegated inert preview,
@@ -106,7 +106,7 @@ This is the entry point for project memory.
     composition, and concurrent idempotent replay. The production entitlement
     Host Command now proves eight-way replay, payload/revision conflict,
     revoke/replay, and actorless delegation rejection through real PostgreSQL
-  - P6 is complete at 18/18 (100%). All 230 core routes have stable generated
+  - P6 is complete at 18/18 (100%). All 234 core routes have stable generated
     identities; immutable exact route snapshots, explicit replace-provider
     selection/conflict UI, Safe Mode filtering, and strict OpenAPI
     collision/reference rejection are accepted. Arbitrary public/admin/API
@@ -148,10 +148,16 @@ This is the entry point for project memory.
     immutable planning removed full-catalog per-request copies, while the report
     retains the selected-route latency/bytes/allocation regression and requires
     P13 remeasurement
-  - P7 is 14/22 (64%). Versioned namespaced action/filter hooks now publish one
+  - P7 is 15/22 (68%). Versioned namespaced action/filter hooks now publish one
     immutable exact-runtime graph with deterministic priority, typed contracts,
     dependency SemVer, optional fallback, Host revalidation, River delivery,
     lifecycle rollback, and exact Protocol V2 invocation
+  - The joined P7 execution-policy gates now cover priority, exact Manifest
+    timeouts, synchronous fail-open/fail-closed isolation, version mismatch,
+    dependency disable, package cycles, provider fallback, caller attestation,
+    and real Protocol V2 plugin-to-plugin service/provider transport. A timed-
+    out non-cooperative provider cannot release exact admission, overlap a
+    fallback, stop, or publish a staged replacement before it really exits.
   - Host-owned extension permission role review is now available on the admin
     roles screen. Exact-CAS approve/reject/apply decisions preserve the rule that
     install and enable never grant permissions, retain unrelated unsaved role
@@ -226,7 +232,7 @@ This is the entry point for project memory.
     exposes process-local revisions. Migration 020 persists desired/node/ack
     convergence evidence. LISTEN reconnect, missed-notification polling, node
     acknowledgement, and two-node exact-artifact convergence are verified
-  - P9 is 4/16 (25%). The generated neutral `ComponentCatalog` contains 121
+  - P9 is 4/16 (25%). The generated neutral `ComponentCatalog` contains 123
     active public/admin Core component identities, with explicit
     page/component kind, ownership, contract, exact lookup, immutable copies,
     and collision/drift tests

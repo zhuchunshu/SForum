@@ -4,8 +4,8 @@ Last updated: 2026-07-18
 
 ## Progress
 
-- Verified weighted progress: **66.0114%** (display **66.0%**).
-- Phase counts: P0-P6 and P8 complete; P6 **18/18**, P7 **14/22**,
+- Verified weighted progress: **66.4659%** (display **66.0%**).
+- Phase counts: P0-P6 and P8 complete; P6 **18/18**, P7 **15/22**,
   P8 **18/18**, P9 **4/16**, P11 **1/16**, and P12 **1/22**. P10 and P13
   have no credited authoritative row yet.
 - Completion remains unproven until all 99 target rows, 14 accepted boundaries,
@@ -13,6 +13,29 @@ Last updated: 2026-07-18
   gates pass.
 
 ## Current Subtask
+
+### 2026-07-18 P7 Execution Policy Matrix Closure
+
+- Verified weighted progress is **66.4659%** (display **66.0%**); P7 advances
+  from **14/22** to **15/22** after the complete priority/timeout/failure-
+  policy/version/dependency/provider-fallback test row passed.
+- `e29394694`, `ec6698136`, and `68baa6bcd` add direct primary evidence for
+  synchronous `fail_open`, exact provider disable/staged-upgrade fencing after
+  timeout, and Manifest-bound versioned hook deadlines. Failed/timed-out
+  listeners cannot pollute later listeners, caller payloads, patches, or results.
+- `1f74bdbe1` adds named ExtensionManifest, Extensions, real Protocol V2, and
+  HostAPI gates. They join priority, fail-open/fail-closed, exact timeout,
+  version mismatch, optional/required dependency disable, package cycles,
+  provider fallback, caller attestation, and Plugin B -> Host -> Plugin A
+  service/provider transport without treating wrappers as primary evidence.
+- Focused hook/provider normal **50** and race **20**, joined normal **5** and race **3**,
+  complete ExtensionManifest/Extensions/HostAPI normal and race, vet, P6 named
+  Routes/HTTP/PostgreSQL normal and race, formatting, diff checks, and two
+  independent credit reviews passed.
+- Exact next step: close the Host-owned role-mapping task with one real joined
+  lifecycle publication -> durable pending suggestion -> restart restore ->
+  cookie-only HTTP approval/apply -> PostgreSQL role grant proof. The earlier
+  UI/backend checkpoint remains useful but is not credited without this join.
 
 ### 2026-07-18 P7 Provider Timeout Ownership Checkpoint
 
@@ -1331,16 +1354,13 @@ the accepted product contract.
 
 ## Exact Next Steps
 
-1. Add direct synchronous hook `fail_open` continuation evidence; the existing
-   async exact-binding test does not execute a failing listener.
-2. Prove timed-out provider disable and staged upgrade retain the old exact
-   lease and cannot publish a replacement until the invocation exits.
-3. Close P7's priority/timeout/failure-policy/version/dependency/provider-
-   fallback row with joined ExtensionManifest/Extensions/HostAPI normal/race
-   gates.
-4. Keep implementation/tests/docs in separate commits; never stage unowned dirty
+1. Add the P7 Host-owned role-mapping joined PostgreSQL/Fiber proof without
+   modifying the dirty Admin Surface reference test or silently granting roles.
+2. Continue Query Registry production plugin transport and composition only
+   after its Manifest/Schema/Protocol contract is explicitly frozen.
+3. Keep implementation/tests/docs in separate commits; never stage unowned dirty
    files listed under Dirty Worktree Ownership.
-5. Add full-set/staged-publication quarantine concurrency coverage. Current
+4. Add full-set/staged-publication quarantine concurrency coverage. Current
    quarantine is intentionally node/process-local; cross-node or restart
    persistence requires an explicit durable incident/clear contract rather
    than overloading lifecycle publication reasons.
@@ -1355,10 +1375,9 @@ the accepted product contract.
 - Protocol v1 compatibility remains present until P13 removal gates pass.
 - Safe Mode remains Host-owned and filters third-party Registry publications.
 - No database migration, feature-flag default, legacy deletion, push, tag, PR,
-  branch, or worktree change belongs to the current P6 subtask.
+  branch, or worktree change belongs to the current P7 test closure.
 
 ## Open Questions
 
-- None for the current P6 boundary. The user accepted all recommended P6
-  choices, including exact-artifact raw authority and continued filtering for
-  every non-raw route.
+- None for the current P7 execution-policy boundary. Host-owned role mapping
+  remains an implementation/test task, not an unresolved product decision.

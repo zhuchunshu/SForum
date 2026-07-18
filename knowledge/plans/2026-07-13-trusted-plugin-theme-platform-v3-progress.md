@@ -1,8 +1,8 @@
 # Trusted Plugin And Theme Platform V3 Progress Ledger
 
 Date: 2026-07-18
-Overall progress: **64.9%**
-Active phase: **P6/P7/P9 accepted work plus P10-P12 production closure slices**
+Overall progress: **66.0%**
+Active phase: **P7/P9 accepted work plus P10-P12 production closure slices**
 
 This ledger is the durable percentage and context-compaction checkpoint for the
 V3 program. Update it before context compression, at every phase boundary, and
@@ -22,7 +22,7 @@ scaffolding, or demo-only code cannot satisfy a runtime exit criterion.
 | P3 Host API v2 | 8% | 100% | 8% |
 | P4 Lifecycle/dependencies | 7% | 100% | 7% |
 | P5 Database/commands | 8% | 100% | 8% |
-| P6 Routes/middleware | 10% | 89% | 8.89% |
+| P6 Routes/middleware | 10% | 100% | 10.00% |
 | P7 Workflow/admin/query/identity | 10% | 68% | 6.82% |
 | P8 Theme compiler/runtime | 8% | 100% | 8% |
 | P9 Components/assets/L2 | 8% | 25% | 2.00% |
@@ -124,6 +124,23 @@ or treated as expired only after the complete V3 goal is achieved.
   failing plugin exactly once (`failed`, then `skipped`).
 
 ## Last Durable Checkpoint
+
+### 2026-07-18 P7 Execution Policy Matrix Closure
+
+- Exact weighted progress is `66.4659%`; floored display progress remains
+  **66.0%**. P7 advances from **14/22** to **15/22** after its complete
+  priority/timeout/failure-policy/version/dependency/provider-fallback test row
+  passed production-path evidence and named joined gates.
+- `e29394694`, `ec6698136`, and `68baa6bcd` freeze synchronous fail-open
+  isolation, exact provider timeout lifecycle ownership, and the real Manifest
+  timeout applied to versioned listener contexts. `1f74bdbe1` adds stable
+  ExtensionManifest/Extensions/Protocol V2/HostAPI joined gates.
+- Focused normal/race, joined normal/race, full related-package normal/race,
+  vet, formatting, staged-diff review, and independent credit reviews pass.
+- The Host-owned role-suggestion UI/backend checkpoint below was provisional.
+  Strict audit in `1c9f7bbf8` withdrew that row's credit because it lacks a
+  lifecycle-publication-to-HTTP-apply joined proof; it remains the next P7 task
+  and must not be counted a second time.
 
 ### 2026-07-18 P7 Host-Owned Role Suggestion Review
 
