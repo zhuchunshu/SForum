@@ -1,9 +1,12 @@
 package queryregistryjobs
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"log/slog"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -94,6 +97,7 @@ func TestInvalidateResultCacheWorkerCancelsMalformedAndSnoozesAuthorityFailures(
 	if err != nil {
 		t.Fatalf("new args: %v", err)
 	}
+	var typedNil *queryregistry.RedisQueryResultCache
 	tests := []struct {
 		name        string
 		args        InvalidateResultCacheArgs
@@ -102,11 +106,15 @@ func TestInvalidateResultCacheWorkerCancelsMalformedAndSnoozesAuthorityFailures(
 	}{
 		{name: "malformed", args: InvalidateResultCacheArgs{}, invalidator: &recordingInvalidator{}, cancel: true},
 		{name: "nil invalidator", args: valid},
+		{name: "typed nil invalidator", args: valid, invalidator: typedNil},
 		{name: "invalid at authority", args: valid, invalidator: &recordingInvalidator{err: queryregistry.ErrInvalid}, cancel: true},
+		{name: "runtime invalid", args: valid, invalidator: &recordingInvalidator{err: queryregistry.ErrExecutionInvalid}},
 		{name: "capability", args: valid, invalidator: &recordingInvalidator{err: queryregistry.ErrCacheCapability}},
 		{name: "poison", args: valid, invalidator: &recordingInvalidator{err: queryregistry.ErrCachePoisoned}},
 		{name: "durability", args: valid, invalidator: &recordingInvalidator{err: queryregistry.ErrCacheDurability}},
 		{name: "transport", args: valid, invalidator: &recordingInvalidator{err: errors.New("redis unavailable")}},
+		{name: "canceled", args: valid, invalidator: &recordingInvalidator{err: context.Canceled}},
+		{name: "deadline", args: valid, invalidator: &recordingInvalidator{err: context.DeadlineExceeded}},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -124,6 +132,40 @@ func TestInvalidateResultCacheWorkerCancelsMalformedAndSnoozesAuthorityFailures(
 				t.Fatalf("err=%v", err)
 			}
 		})
+	}
+}
+
+func TestInvalidateResultCacheWorkerSnoozesNilContextWithoutCallingInvalidator(t *testing.T) {
+	args, err := NewInvalidateResultCacheArgs("owner.plugin", []string{"owner.plugin.topics"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	invalidator := &recordingInvalidator{}
+	err = (&InvalidateResultCacheWorker{Invalidator: invalidator}).Work(nil, &river.Job[InvalidateResultCacheArgs]{Args: args})
+	var snoozeErr *river.JobSnoozeError
+	if !errors.As(err, &snoozeErr) || invalidator.calls != 0 {
+		t.Fatalf("err=%v invalidator=%#v", err, invalidator)
+	}
+}
+
+func TestInvalidateResultCacheWorkerLogsOnlyStableFailureClass(t *testing.T) {
+	args, err := NewInvalidateResultCacheArgs("owner.plugin", []string{"owner.plugin.topics"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var output bytes.Buffer
+	logger := slog.New(slog.NewTextHandler(&output, nil))
+	secret := "redis://credential@sforum:query-result:value owner.plugin.topics"
+	worker := &InvalidateResultCacheWorker{
+		Invalidator: &recordingInvalidator{err: errors.New(secret)}, Logger: logger,
+	}
+	if err := worker.Work(context.Background(), &river.Job[InvalidateResultCacheArgs]{Args: args}); err == nil {
+		t.Fatal("transport failure must be deferred")
+	}
+	logged := output.String()
+	if strings.Contains(logged, secret) || strings.Contains(logged, "owner.plugin.topics") ||
+		!strings.Contains(logged, "error_class=transport") || !strings.Contains(logged, "tags=1") {
+		t.Fatalf("unsafe invalidation log: %q", logged)
 	}
 }
 
@@ -211,6 +253,15 @@ func TestRegisterInvalidateResultCacheWorker(t *testing.T) {
 	workers, err := registry.Build()
 	if err != nil || workers == nil || registry.IsEmpty() {
 		t.Fatalf("workers=%#v err=%v empty=%t", workers, err, registry.IsEmpty())
+	}
+}
+
+func TestRegisterInvalidateResultCacheWorkerRejectsDuplicateKind(t *testing.T) {
+	registry := supportjobs.NewRegistry()
+	Register(registry, nil, nil)
+	Register(registry, nil, nil)
+	if _, err := registry.Build(); err == nil || !strings.Contains(err.Error(), InvalidateResultCacheKind) {
+		t.Fatalf("duplicate registration err=%v", err)
 	}
 }
 

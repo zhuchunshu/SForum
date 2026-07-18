@@ -49,6 +49,9 @@ func NewInvalidateResultCacheArgs(owner string, tags []string) (InvalidateResult
 func (InvalidateResultCacheArgs) QueueOpts() supportjobs.EnqueueOptions {
 	// Do not add River uniqueness here. A second mutation while an identical job
 	// is running still requires a later epoch rotation of its own.
+	// MaxAttempts bounds accidental ordinary errors only. River v0.40 snoozes
+	// deliberately restore the attempt count so Safe Mode/outages never discard
+	// an already committed invalidation.
 	return supportjobs.EnqueueOptions{Queue: supportjobs.QueueCritical, MaxAttempts: 10}
 }
 
@@ -74,20 +77,40 @@ func (w *InvalidateResultCacheWorker) Work(
 	if job == nil || !job.Args.valid() {
 		return river.JobCancel(errors.New("invalid Query result cache invalidation envelope"))
 	}
-	if w == nil || w.Invalidator == nil {
+	if ctx == nil || w == nil || w.Invalidator == nil {
 		return river.JobSnooze(queryInvalidationSnooze)
 	}
 	if _, err := w.Invalidator.InvalidateOwnerTags(ctx, job.Args.OwnerExtensionID, slices.Clone(job.Args.Tags)); err != nil {
-		if errors.Is(err, queryregistry.ErrInvalid) || errors.Is(err, queryregistry.ErrExecutionInvalid) {
+		if errors.Is(err, queryregistry.ErrInvalid) {
 			return river.JobCancel(fmt.Errorf("invalid Query result cache invalidation: %w", err))
 		}
 		if w.Logger != nil {
 			w.Logger.Warn("Query result cache invalidation deferred",
-				"owner", job.Args.OwnerExtensionID, "tags", len(job.Args.Tags), "error", err)
+				"owner", job.Args.OwnerExtensionID, "tags", len(job.Args.Tags),
+				"error_class", queryInvalidationErrorClass(err))
 		}
 		return river.JobSnooze(queryInvalidationSnooze)
 	}
 	return nil
+}
+
+func queryInvalidationErrorClass(err error) string {
+	switch {
+	case errors.Is(err, context.Canceled):
+		return "canceled"
+	case errors.Is(err, context.DeadlineExceeded):
+		return "deadline"
+	case errors.Is(err, queryregistry.ErrExecutionInvalid):
+		return "runtime_invalid"
+	case errors.Is(err, queryregistry.ErrCacheCapability):
+		return "capability"
+	case errors.Is(err, queryregistry.ErrCachePoisoned):
+		return "poisoned"
+	case errors.Is(err, queryregistry.ErrCacheDurability):
+		return "durability"
+	default:
+		return "transport"
+	}
 }
 
 func EnqueueInvalidationTx(
