@@ -59,7 +59,7 @@ func (f *ExecutableTrustRevocationFence) RevokeExecutableTrust(
 			ArtifactDigest:          active.ArtifactDigest,
 		}
 		if !active.Admission.Draining && !active.Admission.Quarantined && !active.Admission.Forced {
-			if _, err := f.runtime.beginDrainRuntimeSetLocked(active.Identity); err != nil {
+			if _, err := f.runtime.beginDrainRuntimeSetLocked(ctx, active.Identity); err != nil {
 				return err
 			}
 			drainedByFence = true
@@ -85,7 +85,9 @@ func (f *ExecutableTrustRevocationFence) RevokeExecutableTrust(
 			policyErr = fmt.Errorf("%w: release exact guard policy capture", ErrRuntimeAdmissionInvalid)
 		}
 		if drainedByFence {
-			_, resumeErr := f.runtime.resumeRuntimeInstanceRuntimeSetLocked(exact.RuntimeInstanceIdentity)
+			compensationCtx, cancel := lifecycleBoundaryCompensationContext(ctx)
+			_, resumeErr := f.runtime.resumeRuntimeInstanceRuntimeSetLocked(compensationCtx, exact.RuntimeInstanceIdentity)
+			cancel()
 			return errors.Join(durableErr, policyErr, resumeErr)
 		}
 		return errors.Join(durableErr, policyErr)

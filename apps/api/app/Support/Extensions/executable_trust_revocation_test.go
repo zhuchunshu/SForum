@@ -74,6 +74,28 @@ func TestExecutableTrustRevocationFenceKeepsLocalStateWhenDurableFails(t *testin
 	lease.Release()
 }
 
+func TestExecutableTrustRevocationFenceResumesAfterRequestCancellation(t *testing.T) {
+	manager := newTwoInstanceRuntimeManager(t, "trust.cancelled")
+	active, err := manager.ActiveRuntimeInstance("trust.cancelled")
+	if err != nil {
+		t.Fatal(err)
+	}
+	policy := newRecordingExecutableTrustPolicy(active)
+	fence := NewExecutableTrustRevocationFence(manager, policy)
+	ctx, cancel := context.WithCancel(t.Context())
+	err = fence.RevokeExecutableTrust(ctx, "trust.cancelled", "operator_revoked", func(context.Context) error {
+		cancel()
+		return context.Canceled
+	})
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("cancelled durable error=%v", err)
+	}
+	if !manager.RuntimeInstanceAvailable(active.Identity) || policy.invalidateCalls() != 0 || policy.releaseCalls() != 1 {
+		t.Fatalf("cancelled durable revoke changed local state: available=%t invalidations=%d releases=%d",
+			manager.RuntimeInstanceAvailable(active.Identity), policy.invalidateCalls(), policy.releaseCalls())
+	}
+}
+
 func TestExecutableTrustRevocationFenceFailsClosedOnUnknownCommit(t *testing.T) {
 	manager := newTwoInstanceRuntimeManager(t, "trust.unknown")
 	active, err := manager.ActiveRuntimeInstance("trust.unknown")

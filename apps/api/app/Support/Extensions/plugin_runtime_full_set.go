@@ -727,7 +727,7 @@ func (a *ManagerPluginRuntimeFullSetApplier) drainPluginRuntimeFullSet(
 		if err := drainCtx.Err(); err != nil {
 			return err
 		}
-		if _, err := a.manager.beginDrainRuntimeSetLocked(item.old); err != nil {
+		if _, err := a.manager.beginDrainRuntimeSetLocked(drainCtx, item.old); err != nil {
 			return fmt.Errorf("drain old %s/%s: %w", item.old.ExtensionID, item.old.InstanceID, err)
 		}
 		item.drainStarted = true
@@ -741,7 +741,7 @@ func (a *ManagerPluginRuntimeFullSetApplier) drainPluginRuntimeFullSet(
 		if err := drainCtx.Err(); err != nil {
 			return err
 		}
-		if _, err := a.manager.beginDrainRuntimeSetLocked(removal.identity); err != nil {
+		if _, err := a.manager.beginDrainRuntimeSetLocked(drainCtx, removal.identity); err != nil {
 			return fmt.Errorf("drain removed %s/%s: %w", removal.identity.ExtensionID, removal.identity.InstanceID, err)
 		}
 		removal.drainStarted = true
@@ -988,7 +988,7 @@ func (a *ManagerPluginRuntimeFullSetApplier) stopRetainedRuntimeInstance(
 	} else if err != nil {
 		return err
 	}
-	if _, err := a.manager.beginDrainRuntimeSetLocked(identity); err != nil && !errors.Is(err, ErrRuntimeInstanceNotFound) {
+	if _, err := a.manager.beginDrainRuntimeSetLocked(ctx, identity); err != nil && !errors.Is(err, ErrRuntimeInstanceNotFound) {
 		// 已 draining 时 BeginDrain 仍成功；其它错误保留实例。
 		snapshot, inspectErr := a.manager.InspectRuntimeInstance(identity)
 		if inspectErr != nil {
