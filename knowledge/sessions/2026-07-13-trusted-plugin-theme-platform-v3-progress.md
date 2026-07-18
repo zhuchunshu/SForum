@@ -18,6 +18,18 @@ Last updated: 2026-07-18
 
 - Verified weighted progress remains **66.9205%** (display **66.0%**); P7 stays
   **16/22**. The Query task and joined Query test row remain uncredited.
+- Independent review found four protocol blockers in the first reference path.
+  `501187973` closes the handshake/response half: executable query/filter
+  packages must uniquely select the required exact `query.runtime@1` feature;
+  plugins cannot select an unoffered, duplicate, or wrong-version feature; both
+  Query RPCs validate exact response context before outcome handling and compare
+  the complete echoed binding plus shape. Focused normal count 10, race count 3,
+  the complete Extensions package, and Extensions vet pass.
+- Remaining review blockers before production credit: Manager ForceDrain must
+  cancel the provider/filter gRPC through a context-bearing execution lease;
+  filter-only packages must participate in enable/restore/disable; cross-plugin
+  filters must derive identity from the target owner across the immutable graph;
+  and filtered offset/cursor tail pages must retain the Host fetch-limit contract.
 - `9b94a088a` Host handshake offers `query.runtime@1` only when the frozen
   Manifest declares an executable query handler or any result filter.
 - `3763aaf70` reduces query.runtime request context: no actor/authority/
