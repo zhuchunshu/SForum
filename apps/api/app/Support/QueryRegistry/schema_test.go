@@ -88,6 +88,54 @@ func TestJSONResultSchemaCatalogRejectsDigestExternalRefsAndDuplicates(t *testin
 	}
 }
 
+func TestJSONResultSchemaCatalogPinsDraftAndDeniesExternalLoading(t *testing.T) {
+	artifact := publication("core.schema-dialect", true, 'a').Artifact
+	binding := JSONResultSchemaBinding{
+		QueryID: "core.schema-dialect.items", ContractVersion: "core.schema-dialect.items@1",
+		PlanVersion: "core.schema-dialect.items.plan@1", ResultSchema: "core.schema-dialect.items.result@1",
+		Artifact: artifact,
+	}
+	tests := []struct {
+		name    string
+		schema  string
+		wantErr bool
+	}{
+		{name: "default draft", schema: `{"type":"object"}`},
+		{name: "canonical draft and local fragment", schema: `{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$defs":{"id":{"type":"string"}},
+  "type":"object","required":["id"],"properties":{"id":{"$ref":"#/$defs/id"}}
+}`},
+		{name: "draft seven", schema: `{"$schema":"http://json-schema.org/draft-07/schema","type":"object"}`, wantErr: true},
+		{name: "nested draft downgrade", schema: `{"$defs":{"legacy":{"$schema":"http://json-schema.org/draft-07/schema","type":"string"}},"type":"object"}`, wantErr: true},
+		{name: "file metaschema", schema: `{"$schema":"file:///etc/passwd","type":"object"}`, wantErr: true},
+		{name: "custom metaschema", schema: `{"$schema":"https://example.test/meta.json","type":"object"}`, wantErr: true},
+		{name: "non string dialect", schema: `{"$schema":202012,"type":"object"}`, wantErr: true},
+		{name: "trailing document", schema: `{"type":"object"}{"type":"null"}`, wantErr: true},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			value := binding
+			value.Schema = []byte(test.schema)
+			digest := sha256.Sum256(value.Schema)
+			value.SchemaDigest = hex.EncodeToString(digest[:])
+			catalog, err := NewJSONResultSchemaCatalog([]JSONResultSchemaBinding{value})
+			if test.wantErr {
+				if !errors.Is(err, ErrExecutionInvalid) {
+					t.Fatalf("schema accepted or wrong error: catalog=%#v err=%v", catalog, err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("compile schema: %v", err)
+			}
+			if err := catalog.ValidateQueryResult(context.Background(), resultSchemaClaim(value), QueryRow{"id": "1"}); err != nil {
+				t.Fatalf("validate local row: %v", err)
+			}
+		})
+	}
+}
+
 func TestBindResultSchemasPublishesPrivateMaterialThroughRegistry(t *testing.T) {
 	publication := publication("plugin.bound-schema", false, 'a')
 	declaration := query("plugin.bound-schema.items", "plugin.bound-schema.item", PaginationNone, "public")

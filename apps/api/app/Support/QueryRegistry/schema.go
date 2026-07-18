@@ -17,6 +17,7 @@ import (
 const (
 	maximumResultSchemaBytes = 1 << 20
 	maximumSchemaDepth       = 64
+	resultSchemaDraft2020URI = "https://json-schema.org/draft/2020-12/schema"
 )
 
 type JSONResultSchemaBinding struct {
@@ -200,13 +201,14 @@ func compileJSONResultSchema(raw JSONResultSchemaBinding) (compiledResultSchema,
 	if err := decoder.Decode(&trailing); !errors.Is(err, io.EOF) {
 		return compiledResultSchema{}, fmt.Errorf("%w: result schema contains trailing JSON", ErrExecutionInvalid)
 	}
-	if err := rejectExternalResultSchemaRefs(document, 0); err != nil {
+	if err := validateResultSchemaDocument(document, 0); err != nil {
 		return compiledResultSchema{}, err
 	}
 	resource := "https://sforum.invalid/query-result-schema/" + raw.SchemaDigest + ".json"
 	compiler := jsonschema.NewCompiler()
 	compiler.DefaultDraft(jsonschema.Draft2020)
 	compiler.AssertFormat()
+	compiler.UseLoader(jsonschema.SchemeURLLoader{})
 	if err := compiler.AddResource(resource, document); err != nil {
 		return compiledResultSchema{}, fmt.Errorf("%w: add result schema", ErrExecutionInvalid)
 	}
@@ -218,26 +220,32 @@ func compileJSONResultSchema(raw JSONResultSchemaBinding) (compiledResultSchema,
 	return compiledResultSchema{binding: raw, validator: validator}, nil
 }
 
-func rejectExternalResultSchemaRefs(value any, depth int) error {
+func validateResultSchemaDocument(value any, depth int) error {
 	if depth > maximumSchemaDepth {
 		return fmt.Errorf("%w: result schema nesting exceeds Host bounds", ErrExecutionInvalid)
 	}
 	switch typed := value.(type) {
 	case map[string]any:
 		for key, child := range typed {
-			if key == "$ref" || key == "$dynamicRef" || key == "$recursiveRef" {
+			switch key {
+			case "$schema":
+				dialect, ok := child.(string)
+				if !ok || dialect != resultSchemaDraft2020URI {
+					return fmt.Errorf("%w: result schema must use Draft 2020-12", ErrExecutionInvalid)
+				}
+			case "$ref", "$dynamicRef", "$recursiveRef":
 				reference, ok := child.(string)
 				if !ok || !strings.HasPrefix(reference, "#") {
 					return fmt.Errorf("%w: external result schema references are not allowed", ErrExecutionInvalid)
 				}
 			}
-			if err := rejectExternalResultSchemaRefs(child, depth+1); err != nil {
+			if err := validateResultSchemaDocument(child, depth+1); err != nil {
 				return err
 			}
 		}
 	case []any:
 		for _, child := range typed {
-			if err := rejectExternalResultSchemaRefs(child, depth+1); err != nil {
+			if err := validateResultSchemaDocument(child, depth+1); err != nil {
 				return err
 			}
 		}
