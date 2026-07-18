@@ -122,13 +122,13 @@ The 2026-07-18 response-cancellation hardening preserves and persists the last
 valid response after a caller disconnects during response-stage processing.
 Final Schema validation, committed-failure audit, and required-replay completion
 run on a bounded context detached from that caller; runtime-owned failures still
-remain inspectable. P6 is conservatively **15/18** after production review.
+remain inspectable. P6 is complete at **18/18** after production review.
 Plugin terminal responses and response modifiers cannot author `Link`; Core and
 Host canonical policy retain that metadata authority. Alias, rewrite, and
 301/308 redirect output now carries one structured Host-owned canonical path,
 from which the Fiber response writer generates the canonical `Link`. Stream
-lifetime/lease authority and non-HTTP evidence remain incomplete, keeping the
-streamed-transport row open.
+lifetime/lease authority, opaque binary transport, bounded backpressure, and
+durable payload-free failure evidence pass the joined production gates.
 
 ## Purpose
 
@@ -788,8 +788,11 @@ template while retaining Schema fallback fields.
   upgrade drain, timeout, and cancellation terminate the stream.
 - Real subprocess coverage crosses Fiber, immutable Route Registry, Dispatcher,
   Manager admission, gRPC, and the plugin SDK. It verifies intact multipart
-  bytes, SSE media type/events, WebSocket subprotocol/echo, and admission release
-  after client disconnect. Composed non-buffered before/after/filter/wrap chains
+  bytes, SSE media type/events, opaque generic binary chunks, WebSocket
+  subprotocol/echo, bounded TCP slow-consumer backpressure, and admission release
+  after client disconnect and ForceDrain. The production recorder persists four
+  stable incident classes while normal, caller, Host writer, and drain paths
+  remain incident-free. Composed non-buffered before/after/filter/wrap chains
   remain fail closed until their product semantics are frozen.
 - Production Caddy sends only real WebSocket Upgrade requests directly to the
   loopback Host API ingress because Nitro's HTTP proxy does not bridge Upgrade.
@@ -809,7 +812,7 @@ template while retaining Schema fallback fields.
 
 ## V3 P7 Admin Surface checkpoint
 
-- P7 is 13/22. The immutable Admin Surface Registry publishes declarations
+- P7 is 14/22. The immutable Admin Surface Registry publishes declarations
   for all twelve V3 kinds to exact active runtime instances, restores/removes
   them through lifecycle snapshots, and invokes typed Protocol V2 handlers under
   exact admission with one frozen validator for both input and output.

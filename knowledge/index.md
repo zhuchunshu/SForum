@@ -4,18 +4,17 @@ This is the entry point for project memory.
 
 ## Latest Handoff
 
-- **2026-07-18 Trusted Plugin And Theme Platform V3 P6/P7/P9/P10–P12 active (overall 64.9%)**
+- **2026-07-18 Trusted Plugin And Theme Platform V3 P7/P9/P10–P12 active (overall 66.0%)**
   - Decision: `knowledge/decisions/2026-07-13-trusted-plugin-theme-platform-v3.md`
   - Stream Schema freeze: `knowledge/decisions/2026-07-18-route-stream-opaque-bytes.md`
   - Task book: `knowledge/plans/2026-07-13-trusted-plugin-theme-platform-v3.md`
   - Current durable checkpoint:
     `knowledge/sessions/2026-07-13-trusted-plugin-theme-platform-v3-progress.md`
-  - P6 is **16/18** (weighted progress **64.9003%**, display **64.9%**).
-    Custom/raw production-chain evidence (`1fc9226a1`) is accepted. The opaque
-    non-HTTP Schema boundary and exact lifetime causes are committed, but the
-    streamed-transport and joined behavior-matrix rows remain open for durable
-    incident, generic-stream/backpressure, and complete production-path gates.
-    P7 remains **14/22** pending an independent credit audit.
+  - P6 is complete at **18/18**. Weighted progress is **66.0114%** (display
+    **66.0%**). The accepted opaque non-HTTP boundary now has real generic
+    binary subprocess evidence, bounded TCP backpressure, classified durable
+    incidents, zero-incident caller/Host paths, and complete named Routes/HTTP/
+    PostgreSQL production gates. P7 remains **14/22**.
   - Active checkpoint: `knowledge/sessions/2026-07-16-trusted-plugin-theme-platform-v3-runtime-ownership-checkpoint.md`
   - Prior Query/P12/SEO checkpoint:
     `knowledge/sessions/2026-07-16-trusted-plugin-theme-platform-v3-query-p12-seo-checkpoint.md`
@@ -107,15 +106,15 @@ This is the entry point for project memory.
     composition, and concurrent idempotent replay. The production entitlement
     Host Command now proves eight-way replay, payload/revision conflict,
     revoke/replay, and actorless delegation rejection through real PostgreSQL
-  - P6 is active at 16/18 (89%). All 230 core routes have stable generated
+  - P6 is complete at 18/18 (100%). All 230 core routes have stable generated
     identities; immutable exact route snapshots, explicit replace-provider
     selection/conflict UI, Safe Mode filtering, and strict OpenAPI
     collision/reference rejection are accepted. Arbitrary public/admin/API
     paths and WebSocket Upgrade reach the production Host dispatcher. Exact
     stream lifetime causes, custom/raw production-chain evidence, and the
-    opaque non-HTTP Schema freeze are committed. Durable stream incidents,
-    generic-stream/backpressure evidence, and the complete joined production
-    behavior matrix remain open.
+    opaque non-HTTP Schema freeze are committed. Real generic binary streaming,
+    bounded slow-consumer backpressure, durable incident persistence, and the
+    complete joined production behavior matrix are accepted.
   - Exact OpenAPI operations now derive Host-owned permission/security,
     `host.ip_write@1` rate-limit, and `required.24h@1` replay metadata. Required
     replay is production-wired through a 24-hour CAS-fenced Redis ledger,
@@ -142,14 +141,14 @@ This is the entry point for project memory.
     permission passes so another API node's super-admin change cannot leave a
     stale authorization cache. Identity self-resource guards use the same
     authoritative ownership rule while keeping PAT management cookie-bound.
-    Nine resource-dependent routes plus
-    custom/raw authority, complete actions, streaming, and the failure
-    matrix remain active P6 work
+    Nine resource-dependent routes retain their documented authoritative
+    lookups. Custom/raw authority, complete actions, streaming, and the failure
+    matrix now pass the joined P6 gates
   - The reproducible same-run v1/V3 route benchmark row is accepted. Internal
     immutable planning removed full-catalog per-request copies, while the report
     retains the selected-route latency/bytes/allocation regression and requires
     P13 remeasurement
-  - P7 is 15/22 (68%). Versioned namespaced action/filter hooks now publish one
+  - P7 is 14/22 (64%). Versioned namespaced action/filter hooks now publish one
     immutable exact-runtime graph with deterministic priority, typed contracts,
     dependency SemVer, optional fallback, Host revalidation, River delivery,
     lifecycle rollback, and exact Protocol V2 invocation

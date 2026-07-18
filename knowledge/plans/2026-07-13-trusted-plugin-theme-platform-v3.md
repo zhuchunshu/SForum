@@ -1,6 +1,6 @@
 # Trusted Plugin And Theme Platform V3 - Implementation Task Book
 
-Status: **active implementation; P0-P5 and P8 complete; P6, P7, and P9 active**
+Status: **active implementation; P0-P6 and P8 complete; P7 and P9 active**
 Date: 2026-07-13  
 Decision: `knowledge/decisions/2026-07-13-trusted-plugin-theme-platform-v3.md`
 
@@ -488,7 +488,7 @@ blocking implement the authoritative row without retaining a second alias.
       public, admin, or API path and HTTP method by stable route id.
 - [x] Implement `add`, `alias`, `redirect`, `rewrite`, `before`, `after`,
       `filter`, `wrap`, `replace`, and global middleware.
-- [ ] Support HTTP request/response, multipart upload, streaming, SSE, WebSocket,
+- [x] Support HTTP request/response, multipart upload, streaming, SSE, WebSocket,
       cancellation, and backpressure through the proxy/runtime.
 - [x] Default to inherited core guards; implement separately confirmed custom
       guard/raw request authority.
@@ -504,7 +504,7 @@ blocking implement the authoritative row without retaining a second alias.
 
 ### Tests
 
-- [ ] Every route action, priority order, conflict, locale path, query/body,
+- [x] Every route action, priority order, conflict, locale path, query/body,
       permission, CSRF, custom guard, stream, disconnect, timeout, and crash.
 - [x] Unsafe replacement failure never executes core as a second writer.
 - [x] Safe mode bypasses all third-party route snapshots.
@@ -515,6 +515,13 @@ blocking implement the authoritative row without retaining a second alias.
 
 - Atomic route snapshot returns to the previous revision. Existing namespaced
   plugin proxy remains available until P13.
+
+P6 closed at **18/18** on 2026-07-18. Non-HTTP route bodies retain the accepted
+opaque `DataChunk` contract rather than an invented JSON framing layer. The
+named Routes/HTTP/PostgreSQL gates join real generic binary streaming, bounded
+TCP slow-consumer backpressure, exact cancellation and terminal ownership,
+zero-incident caller/Host paths, four durable incident classes, custom/raw
+authority, every route action, and the complete behavior matrix.
 
 ## P7 - Hooks, Services, Work, Admin Surfaces, Queries, And Identity
 

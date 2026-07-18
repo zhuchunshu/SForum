@@ -4,8 +4,8 @@ Last updated: 2026-07-18
 
 ## Progress
 
-- Verified weighted progress: **64.9003%** (display **64.9%**).
-- Phase counts: P0-P5 and P8 complete; P6 **16/18**, P7 **14/22**,
+- Verified weighted progress: **66.0114%** (display **66.0%**).
+- Phase counts: P0-P6 and P8 complete; P6 **18/18**, P7 **14/22**,
   P8 **18/18**, P9 **4/16**, P11 **1/16**, and P12 **1/22**. P10 and P13
   have no credited authoritative row yet.
 - Completion remains unproven until all 99 target rows, 14 accepted boundaries,
@@ -13,6 +13,27 @@ Last updated: 2026-07-18
   gates pass.
 
 ## Current Subtask
+
+### 2026-07-18 P6 Closure Checkpoint (18/18)
+
+- P6 is verified complete at **18/18**. Weighted progress is **66.0114%**
+  (display **66.0%**); the earlier Grok claim is restored only after the missing
+  production evidence was implemented and independently reviewed.
+- `0073f008a test(routes): complete joined P6 behavior gates` joins action,
+  priority/conflict, locale/query/body, permission/CSRF, custom/raw authority,
+  multipart/SSE/WebSocket/generic stream, disconnect, timeout/crash, terminal/
+  ForceCancel, adapter provenance, incident races, and recorder behavior.
+- Production sink `99fe22b59`, opaque generic fixture `b609d77a1`, bounded TCP
+  backpressure `69076ac2c`, PostgreSQL four-class join `d1207cc0f`, real
+  zero-incident paths `d8a10cfb7`, and producer-to-recorder join `b6bd99d24`
+  close the two rows that the original wrapper omitted.
+- Final gates passed complete Routes/HTTP/bootstrap normal, complete Routes and
+  HTTP race, joined normal **5** / race **3**, explicit PostgreSQL normal and
+  race **3** with no Skip, vet, full Go build, formatting, and diff checks.
+  Independent closure review reported no blocker or leaked helper process.
+- Exact next step: P7 remains **14/22**. Fix provider timeout so exact runtime
+  admission cannot release or fall back while an invocation still runs, then
+  close the priority/timeout/failure-policy/dependency/provider-fallback row.
 
 ### 2026-07-18 Production Stream Incident Sink Checkpoint
 
@@ -1244,24 +1265,16 @@ Already present (unit/integration, not full credit alone):
 
 Production-chain evidence now committed in `1fc9226a1` (see Current Subtask).
 The four previously open requirements are covered by
-`route_guard_production_chain_integration_test.go`. The custom/raw **row** is
-still not credited until the joined full P6 behavior matrix and non-HTTP Schema
-freeze close with it; do not raise P6 on this evidence alone.
-
-Remaining before any P6 score increase:
-
-1. Full joined behavior matrix across actions/priority/locale/CSRF/guard/stream/
-   disconnect/timeout/crash/multipart/unsafe committed response.
-2. Non-HTTP Schema product freeze (opaque / mode envelopes / JSON stream) with
-   Manifest + Protocol V2 + Host + docs + tests, or an explicit accepted opaque
-   boundary decision.
+`route_guard_production_chain_integration_test.go`. The custom/raw row is now
+credited together with the closed joined behavior matrix and accepted opaque
+non-HTTP Schema boundary.
 
 
 ## P6 Behavior Matrix Evidence Inventory (2026-07-18)
 
-Honest inventory only. **Do not credit the matrix row or raise P6** until every
-cell below has production-path evidence in one joined regression suite and the
-non-HTTP Schema product freeze is decided.
+Closure inventory. Every cell below is now included in the named Routes/HTTP
+gate or its explicit PostgreSQL sibling; the opaque non-HTTP boundary remains
+the accepted product contract.
 
 | Cell | Status | Primary evidence |
 | --- | --- | --- |
@@ -1274,7 +1287,7 @@ non-HTTP Schema product freeze is decided.
 | Custom/raw production chain (real Protocol V2) | present (Fiber+subprocess) | `route_guard_production_chain_integration_test.go` (`1fc9226a1`) |
 | Raw credential + trust revoke | present | production-chain + authority matrix |
 | Legacy authorizer cannot mint raw | present (Fiber) | production-chain HostRouteGuardAuthorizer test |
-| Stream multipart/SSE/WebSocket/disconnect | present (real subprocess) | `route_dispatcher_stream_integration_test.go` |
+| Stream multipart/SSE/WebSocket/generic/disconnect/backpressure | accepted (real subprocess) | `route_dispatcher_stream_integration_test.go` |
 | Stream lifetime budget/cancel/ForceCancel | present | `stream_lifetime_test.go` + Http stream tests |
 | WebSocket Open-only custom guard | present | production-chain WS test |
 | Protocol V2 crash/timeout (Fiber) | present | `route_failure_matrix_test.go` |
@@ -1282,38 +1295,28 @@ non-HTTP Schema product freeze is decided.
 | Unsafe no-second-writer | present | `route_matrix_test.go` |
 | Safe mode bypass | present | `route_matrix_test.go` + stream safe-mode tests |
 | Non-HTTP Schema framing/validation | **frozen opaque** | decision `2026-07-18-route-stream-opaque-bytes.md` |
-| Joined single-suite matrix across all cells | **open** | named wrappers exist but omit durable incident, generic stream/backpressure, and production terminal paths |
-| Durable incident source for all stream failures | partial | failure sink matrices; not fully joined to stream |
+| Joined single-suite matrix across all cells | **accepted** | named Routes/HTTP wrappers plus explicit PostgreSQL sibling |
+| Durable incident source for all stream failures | **accepted** | producer-to-recorder join plus four-class PostgreSQL gate |
 
-### Exact matrix exit criteria still open
+### Exact matrix exit criteria closed
 
-1. Persist payload-free incidents for runtime crash, Host budget, and invalid
-   preflight while excluding caller disconnect, normal close, and ForceDrain.
-2. Add a real generic `mode=stream` fixture and bounded backpressure evidence.
-3. Join those paths plus production ForceCancel/terminal behavior into the
-   named normal/race gates. Then check the streamed-transport and tests-matrix
-   rows, raise P6 from **16/18**, and recompute weighted progress.
+1. [x] Persist all four payload-free stream incident classes while excluding
+   caller disconnect, normal close, Host writer failures, and ForceDrain.
+2. [x] Add a real generic `mode=stream` fixture and bounded TCP backpressure.
+3. [x] Join those paths plus production ForceCancel/terminal behavior into the
+   named normal/race/PostgreSQL gates.
 
 
 ## Exact Next Steps
 
-1. Join and close the full P6 behavior matrix across every action, priority/
-   conflict, locale/query/body, permission/CSRF, custom guard, stream,
-   disconnect, timeout, crash, multipart, and unsafe committed response. Prefer
-   extending existing `route_matrix_test.go`,
-   `route_request_authority_matrix_test.go`, and
-   `route_failure_matrix_test.go` rather than inventing a parallel harness.
-2. Resolve non-HTTP Schema product option (opaque / mode envelopes / JSON
-   stream) before any framing implementation; record the freeze in
-   `knowledge/decisions/` and contracts. Do not claim Schema complete with only
-   raw `DataChunk` bytes.
-3. Only after matrix + Schema product freeze are production-proven together with
-   the committed custom/raw production-chain and stream lifetime evidence, credit
-   P6 from **15/18** toward **18/18** and recompute weighted progress. Do not
-   raise progress on partial evidence.
-4. Keep implementation/tests/docs in separate commits; never stage unowned dirty
+1. Fix P7 provider timeout ownership so exact admission is retained until the
+   invocation actually returns and fallback cannot overlap an old provider.
+2. Close P7's priority/timeout/failure-policy/version/dependency/provider-
+   fallback row with joined ExtensionManifest/Extensions/HostAPI normal/race
+   gates.
+3. Keep implementation/tests/docs in separate commits; never stage unowned dirty
    files listed under Dirty Worktree Ownership.
-5. Add full-set/staged-publication quarantine concurrency coverage. Current
+4. Add full-set/staged-publication quarantine concurrency coverage. Current
    quarantine is intentionally node/process-local; cross-node or restart
    persistence requires an explicit durable incident/clear contract rather
    than overloading lifecycle publication reasons.
