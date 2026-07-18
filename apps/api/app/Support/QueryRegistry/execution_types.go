@@ -36,6 +36,7 @@ var (
 	ErrResultInvalid       = errors.New("query registry result failed its release schema")
 	ErrResultTooLarge      = errors.New("query registry result exceeds Host bounds")
 	ErrCachePoisoned       = errors.New("query registry cached result failed its release fence")
+	ErrCacheFenceConflict  = errors.New("query registry cache generation fence changed")
 )
 
 // QueryRow is the JSON-compatible typed record exchanged at the provider and
@@ -379,9 +380,16 @@ type CachedQueryResult struct {
 	CacheTags        []string
 }
 
+// QueryResultCacheFence is an in-process, Host-opaque snapshot returned on a
+// cache miss. A backend owns the concrete token and must reject a Store whose
+// token no longer matches after semantic invalidation.
+type QueryResultCacheFence interface {
+	QueryResultCacheFenceToken()
+}
+
 type QueryResultCache interface {
-	LoadQueryResult(context.Context, string) (CachedQueryResult, bool, error)
-	StoreQueryResult(context.Context, string, CachedQueryResult, []string) error
+	LoadQueryResult(context.Context, string, []string) (CachedQueryResult, QueryResultCacheFence, bool, error)
+	StoreQueryResult(context.Context, string, CachedQueryResult, []string, QueryResultCacheFence) error
 }
 
 type ExecutionConfig struct {

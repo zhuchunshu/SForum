@@ -96,17 +96,22 @@ func (r *ExecutionRuntime) Execute(ctx context.Context, request PlanRequest) (re
 	// state with no authoritative invalidation path. Keep such executions
 	// uncached until that contract exists.
 	cacheEligible := r.cache != nil && len(cacheTags) > 0 && len(filters) == 0
+	cacheStoreEligible := false
+	var cacheFence QueryResultCacheFence
 
 	if cacheEligible {
 		trace.Stage = "cache_load"
 		if err := executionContextError(ctx); err != nil {
 			return QueryResult{}, err
 		}
-		cached, found, cacheErr := r.cache.LoadQueryResult(ctx, cacheKey)
+		cached, fence, found, cacheErr := r.cache.LoadQueryResult(ctx, cacheKey, slices.Clone(cacheTags))
 		if contextErr := executionContextError(ctx); contextErr != nil {
 			return QueryResult{}, contextErr
 		}
 		switch {
+		case errors.Is(cacheErr, ErrCachePoisoned):
+			trace.CacheStatus = "poisoned"
+			return QueryResult{}, cacheErr
 		case cacheErr != nil:
 			trace.CacheStatus = "load_error"
 		case found:
@@ -155,8 +160,15 @@ func (r *ExecutionRuntime) Execute(ctx context.Context, request PlanRequest) (re
 				return QueryResult{}, err
 			}
 			return releasedResult, nil
+		case fence == nil:
+			// A miss without a backend-owned fence cannot safely authorize a
+			// later store. Treat it like an unavailable cache and keep the
+			// validated provider result authoritative for this caller only.
+			trace.CacheStatus = "load_error"
 		default:
 			trace.CacheStatus = "miss"
+			cacheFence = fence
+			cacheStoreEligible = true
 		}
 	} else if r.cache == nil {
 		trace.CacheStatus = "disabled"
@@ -273,18 +285,22 @@ func (r *ExecutionRuntime) Execute(ctx context.Context, request PlanRequest) (re
 		ProviderDigest: binding.ProviderDigest,
 	}
 
-	if cacheEligible {
+	if cacheStoreEligible {
 		trace.Stage = "cache_store"
 		if err := executionContextError(ctx); err != nil {
 			return QueryResult{}, err
 		}
 		entry := cachedResultFromRelease(plan, filterPlan, binding.ProviderDigest, cacheKey, cacheTags, result)
 		entry.Rows, _, _ = cloneRowsBounded(entry.Rows, r.maxResultBytes)
-		cacheErr := r.cache.StoreQueryResult(ctx, cacheKey, entry, slices.Clone(cacheTags))
+		cacheErr := r.cache.StoreQueryResult(ctx, cacheKey, entry, slices.Clone(cacheTags), cacheFence)
 		if contextErr := executionContextError(ctx); contextErr != nil {
 			return QueryResult{}, contextErr
 		}
-		if cacheErr != nil {
+		if errors.Is(cacheErr, ErrCachePoisoned) {
+			trace.CacheStatus = "store_poisoned"
+		} else if errors.Is(cacheErr, ErrCacheFenceConflict) {
+			trace.CacheStatus = "store_conflict"
+		} else if cacheErr != nil {
 			trace.CacheStatus = "store_error"
 		} else {
 			trace.CacheStatus = "stored"

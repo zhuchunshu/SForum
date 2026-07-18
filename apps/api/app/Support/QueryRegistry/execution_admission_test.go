@@ -470,18 +470,18 @@ func TestExecutionPrefersExactForceDrainFromHostCallbacks(t *testing.T) {
 			switch test.callback {
 			case "cache_load":
 				cache = executionCallbackCache{
-					load: func(context.Context, string) (CachedQueryResult, bool, error) {
+					load: func(context.Context, string, []string) (CachedQueryResult, QueryResultCacheFence, bool, error) {
 						cancel := <-cancelReady
 						cancel(forceCause)
-						return CachedQueryResult{}, false, context.Canceled
+						return CachedQueryResult{}, nil, false, context.Canceled
 					},
 				}
 			case "cache_store":
 				cache = executionCallbackCache{
-					load: func(context.Context, string) (CachedQueryResult, bool, error) {
-						return CachedQueryResult{}, false, nil
+					load: func(context.Context, string, []string) (CachedQueryResult, QueryResultCacheFence, bool, error) {
+						return CachedQueryResult{}, executionCallbackCacheFence("cache-store"), false, nil
 					},
-					store: func(context.Context, string, CachedQueryResult, []string) error {
+					store: func(context.Context, string, CachedQueryResult, []string, QueryResultCacheFence) error {
 						cancel := <-cancelReady
 						cancel(forceCause)
 						return context.Canceled
@@ -758,22 +758,36 @@ func contextualTestAdmission(
 }
 
 type executionCallbackCache struct {
-	load  func(context.Context, string) (CachedQueryResult, bool, error)
-	store func(context.Context, string, CachedQueryResult, []string) error
+	load  func(context.Context, string, []string) (CachedQueryResult, QueryResultCacheFence, bool, error)
+	store func(context.Context, string, CachedQueryResult, []string, QueryResultCacheFence) error
 }
 
-func (c executionCallbackCache) LoadQueryResult(ctx context.Context, key string) (CachedQueryResult, bool, error) {
+type executionCallbackCacheFence string
+
+func (executionCallbackCacheFence) QueryResultCacheFenceToken() {}
+
+func (c executionCallbackCache) LoadQueryResult(
+	ctx context.Context,
+	key string,
+	tags []string,
+) (CachedQueryResult, QueryResultCacheFence, bool, error) {
 	if c.load == nil {
-		return CachedQueryResult{}, false, nil
+		return CachedQueryResult{}, executionCallbackCacheFence("callback"), false, nil
 	}
-	return c.load(ctx, key)
+	return c.load(ctx, key, tags)
 }
 
-func (c executionCallbackCache) StoreQueryResult(ctx context.Context, key string, value CachedQueryResult, tags []string) error {
+func (c executionCallbackCache) StoreQueryResult(
+	ctx context.Context,
+	key string,
+	value CachedQueryResult,
+	tags []string,
+	fence QueryResultCacheFence,
+) error {
 	if c.store == nil {
 		return nil
 	}
-	return c.store(ctx, key, value, tags)
+	return c.store(ctx, key, value, tags, fence)
 }
 
 func TestExecutionHoldsResultFilterLeaseAcrossFinalPermissionAndBypassesUnsafeCache(t *testing.T) {

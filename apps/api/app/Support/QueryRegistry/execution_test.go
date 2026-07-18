@@ -12,32 +12,73 @@ import (
 )
 
 type memoryQueryResultCache struct {
-	mu      sync.Mutex
-	entries map[string]CachedQueryResult
-	tags    map[string][]string
-	loads   int
-	stores  int
+	mu               sync.Mutex
+	entries          map[string]CachedQueryResult
+	entryGenerations map[string]uint64
+	tags             map[string][]string
+	generation       uint64
+	loads            int
+	stores           int
 }
 
 func newMemoryQueryResultCache() *memoryQueryResultCache {
-	return &memoryQueryResultCache{entries: map[string]CachedQueryResult{}, tags: map[string][]string{}}
+	return &memoryQueryResultCache{
+		entries: map[string]CachedQueryResult{}, entryGenerations: map[string]uint64{},
+		tags: map[string][]string{}, generation: 1,
+	}
 }
 
-func (c *memoryQueryResultCache) LoadQueryResult(_ context.Context, key string) (CachedQueryResult, bool, error) {
+type memoryQueryResultCacheFence struct {
+	cache      *memoryQueryResultCache
+	key        string
+	generation uint64
+}
+
+func (memoryQueryResultCacheFence) QueryResultCacheFenceToken() {}
+
+func (c *memoryQueryResultCache) LoadQueryResult(
+	_ context.Context,
+	key string,
+	_ []string,
+) (CachedQueryResult, QueryResultCacheFence, bool, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.loads++
 	value, ok := c.entries[key]
-	return value, ok, nil
+	if ok && c.entryGenerations[key] != c.generation {
+		ok = false
+	}
+	fence := memoryQueryResultCacheFence{cache: c, key: key, generation: c.generation}
+	return value, fence, ok, nil
 }
 
-func (c *memoryQueryResultCache) StoreQueryResult(_ context.Context, key string, value CachedQueryResult, tags []string) error {
+func (c *memoryQueryResultCache) StoreQueryResult(
+	_ context.Context,
+	key string,
+	value CachedQueryResult,
+	tags []string,
+	fence QueryResultCacheFence,
+) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.stores++
+	material, ok := fence.(memoryQueryResultCacheFence)
+	if !ok || material.cache != c || material.key != key {
+		return ErrExecutionInvalid
+	}
+	if material.generation != c.generation {
+		return ErrCacheFenceConflict
+	}
 	c.entries[key] = value
+	c.entryGenerations[key] = c.generation
 	c.tags[key] = slices.Clone(tags)
 	return nil
+}
+
+func (c *memoryQueryResultCache) invalidate() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.generation++
 }
 
 func TestExecutionRechecksPermissionBeforeProviderAndRelease(t *testing.T) {

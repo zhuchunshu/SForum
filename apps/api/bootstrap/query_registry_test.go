@@ -443,12 +443,22 @@ type productionQueryCacheHitStub struct {
 	loads atomic.Int32
 }
 
-func (c *productionQueryCacheHitStub) LoadQueryResult(context.Context, string) (queryregistry.CachedQueryResult, bool, error) {
+func (c *productionQueryCacheHitStub) LoadQueryResult(
+	context.Context,
+	string,
+	[]string,
+) (queryregistry.CachedQueryResult, queryregistry.QueryResultCacheFence, bool, error) {
 	c.loads.Add(1)
-	return queryregistry.CachedQueryResult{}, true, nil
+	return queryregistry.CachedQueryResult{}, nil, true, nil
 }
 
-func (*productionQueryCacheHitStub) StoreQueryResult(context.Context, string, queryregistry.CachedQueryResult, []string) error {
+func (*productionQueryCacheHitStub) StoreQueryResult(
+	context.Context,
+	string,
+	queryregistry.CachedQueryResult,
+	[]string,
+	queryregistry.QueryResultCacheFence,
+) error {
 	return nil
 }
 

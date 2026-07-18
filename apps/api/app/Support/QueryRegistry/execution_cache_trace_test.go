@@ -158,6 +158,157 @@ func TestExecutionCacheIsolationHitAndPoisonFence(t *testing.T) {
 	}
 }
 
+func TestExecutionCacheFencePreventsStaleProviderRevival(t *testing.T) {
+	cache := newMemoryQueryResultCache()
+	providerStarted := make(chan struct{})
+	providerRelease := make(chan struct{})
+	var providerCalls atomic.Int32
+	provider := ExecutableProviderFunc(func(ctx context.Context, _ ProviderExecutionRequest) (ProviderExecutionResult, error) {
+		call := providerCalls.Add(1)
+		if call == 1 {
+			close(providerStarted)
+			select {
+			case <-providerRelease:
+			case <-ctx.Done():
+				return ProviderExecutionResult{}, context.Cause(ctx)
+			}
+		}
+		title := "fresh"
+		if call == 1 {
+			title = "pre-invalidation"
+		}
+		return ProviderExecutionResult{Rows: []QueryRow{{"id": "1", "title": title}}}, nil
+	})
+	runtime, _ := executionTestRuntime(t, PaginationOffset, PermissionPolicyPublic, provider, nil, func(config *ExecutionConfig) {
+		config.Cache = cache
+	})
+	request := PlanRequest{QueryID: "core.execute.items", Pagination: PaginationRequest{Limit: 10}}
+	type executionOutcome struct {
+		result QueryResult
+		err    error
+	}
+	firstDone := make(chan executionOutcome, 1)
+	go func() {
+		result, err := runtime.Execute(t.Context(), request)
+		firstDone <- executionOutcome{result: result, err: err}
+	}()
+	select {
+	case <-providerStarted:
+	case <-t.Context().Done():
+		t.Fatal("provider did not start before test context ended")
+	}
+	cache.invalidate()
+	close(providerRelease)
+	first := <-firstDone
+	if first.err != nil || first.result.CacheHit || first.result.Rows[0]["title"] != "pre-invalidation" {
+		t.Fatalf("in-flight result=%#v err=%v", first.result, first.err)
+	}
+	second, err := runtime.Execute(t.Context(), request)
+	if err != nil || second.CacheHit || second.Rows[0]["title"] != "fresh" || providerCalls.Load() != 2 {
+		t.Fatalf("stale provider result revived: result=%#v err=%v calls=%d", second, err, providerCalls.Load())
+	}
+}
+
+func TestExecutionCacheFailurePolicyAndTrace(t *testing.T) {
+	backendErr := errors.New("cache backend unavailable")
+	tests := []struct {
+		name          string
+		loadErr       error
+		storeErr      error
+		missingFence  bool
+		wantErr       error
+		wantStatus    string
+		wantProviders int32
+		wantStores    int32
+	}{
+		{name: "load poison", loadErr: ErrCachePoisoned, wantErr: ErrCachePoisoned, wantStatus: "poisoned"},
+		{name: "load io error", loadErr: backendErr, wantStatus: "load_error", wantProviders: 1},
+		{name: "missing miss fence", missingFence: true, wantStatus: "load_error", wantProviders: 1},
+		{name: "store conflict", storeErr: ErrCacheFenceConflict, wantStatus: "store_conflict", wantProviders: 1, wantStores: 1},
+		{name: "store poison", storeErr: ErrCachePoisoned, wantStatus: "store_poisoned", wantProviders: 1, wantStores: 1},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			var providerCalls, storeCalls atomic.Int32
+			cache := executionCallbackCache{
+				load: func(context.Context, string, []string) (CachedQueryResult, QueryResultCacheFence, bool, error) {
+					if test.loadErr != nil {
+						return CachedQueryResult{}, nil, false, test.loadErr
+					}
+					if test.missingFence {
+						return CachedQueryResult{}, nil, false, nil
+					}
+					return CachedQueryResult{}, executionCallbackCacheFence(test.name), false, nil
+				},
+				store: func(context.Context, string, CachedQueryResult, []string, QueryResultCacheFence) error {
+					storeCalls.Add(1)
+					return test.storeErr
+				},
+			}
+			ring := NewExecutionTraceRing(1)
+			provider := ExecutableProviderFunc(func(context.Context, ProviderExecutionRequest) (ProviderExecutionResult, error) {
+				providerCalls.Add(1)
+				return ProviderExecutionResult{Rows: []QueryRow{{"id": "1", "title": "visible"}}}, nil
+			})
+			runtime, _ := executionTestRuntime(t, PaginationOffset, PermissionPolicyPublic, provider, nil, func(config *ExecutionConfig) {
+				config.Cache = cache
+				config.Trace = ring
+			})
+			result, err := runtime.Execute(t.Context(), PlanRequest{
+				QueryID: "core.execute.items", Pagination: PaginationRequest{Limit: 10},
+			})
+			if test.wantErr != nil {
+				if !errors.Is(err, test.wantErr) || len(result.Rows) != 0 {
+					t.Fatalf("result=%#v err=%v", result, err)
+				}
+			} else if err != nil || len(result.Rows) != 1 {
+				t.Fatalf("result=%#v err=%v", result, err)
+			}
+			traces := ring.ExecutionTraces(1)
+			if providerCalls.Load() != test.wantProviders || storeCalls.Load() != test.wantStores ||
+				len(traces) != 1 || traces[0].CacheStatus != test.wantStatus {
+				t.Fatalf("provider=%d store=%d traces=%#v", providerCalls.Load(), storeCalls.Load(), traces)
+			}
+		})
+	}
+}
+
+func TestExecutionCachePassesExactFenceAndClonesTags(t *testing.T) {
+	token := executionCallbackCacheFence("exact-token")
+	var loadedTags, storedTags []string
+	cache := executionCallbackCache{
+		load: func(_ context.Context, _ string, tags []string) (CachedQueryResult, QueryResultCacheFence, bool, error) {
+			loadedTags = slices.Clone(tags)
+			tags[0] = "load-caller-mutation"
+			return CachedQueryResult{}, &token, false, nil
+		},
+		store: func(_ context.Context, _ string, value CachedQueryResult, tags []string, fence QueryResultCacheFence) error {
+			if fence != &token {
+				t.Fatalf("store fence=%#v, want exact load token=%p", fence, &token)
+			}
+			if !slices.Equal(tags, value.CacheTags) || slices.Contains(tags, "load-caller-mutation") {
+				t.Fatalf("store tags=%#v cached tags=%#v", tags, value.CacheTags)
+			}
+			storedTags = slices.Clone(tags)
+			tags[0] = "store-caller-mutation"
+			return nil
+		},
+	}
+	provider := ExecutableProviderFunc(func(context.Context, ProviderExecutionRequest) (ProviderExecutionResult, error) {
+		return ProviderExecutionResult{Rows: []QueryRow{{"id": "1", "title": "visible"}}}, nil
+	})
+	runtime, _ := executionTestRuntime(t, PaginationOffset, PermissionPolicyPublic, provider, nil, func(config *ExecutionConfig) {
+		config.Cache = cache
+	})
+	result, err := runtime.Execute(t.Context(), PlanRequest{
+		QueryID: "core.execute.items", Pagination: PaginationRequest{Limit: 10},
+	})
+	if err != nil || !slices.Equal(loadedTags, storedTags) || !slices.Equal(result.CacheTags, storedTags) ||
+		slices.Contains(result.CacheTags, "store-caller-mutation") {
+		t.Fatalf("result=%#v err=%v loaded=%#v stored=%#v", result, err, loadedTags, storedTags)
+	}
+}
+
 func splitExecutionCacheTags(t *testing.T, tags []string) (shared, isolated string) {
 	t.Helper()
 	if len(tags) != 2 {
