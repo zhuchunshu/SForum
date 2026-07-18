@@ -497,18 +497,28 @@ func TestBindProductionQueryRegistryUsesLifecycleSnapshotAndFreezesGateway(t *te
 	runtimeManager := extensionsruntime.NewManager(extensionsruntime.ManagerConfig{})
 	gateway := hostapi.NewGateway(nil)
 	t.Cleanup(func() { _ = gateway.Close() })
+	cache := &productionQueryCacheHitStub{}
 
-	bound, err := bindProductionQueryRegistry(
-		registry, catalog, stableRuntime, actors, runtimeManager, gateway, productionQueryTraceSinkStub{},
+	bound, err := bindProductionQueryRegistryWithCache(
+		registry, catalog, stableRuntime, actors, runtimeManager, gateway, productionQueryTraceSinkStub{}, cache,
 	)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if bound == nil || bound.Execution == nil || bound.Service == nil || !bound.Execution.BoundToRegistry(registry) {
+	if bound == nil || bound.Execution == nil || bound.Service == nil || bound.cache != cache ||
+		!bound.Execution.BoundToRegistry(registry) {
 		t.Fatalf("bound Query Registry = %#v", bound)
 	}
-	if _, err := bindProductionQueryRegistry(
-		registry, catalog, stableRuntime, actors, runtimeManager, gateway, productionQueryTraceSinkStub{},
+	compatibilityGateway := hostapi.NewGateway(nil)
+	t.Cleanup(func() { _ = compatibilityGateway.Close() })
+	compatibility, err := bindProductionQueryRegistry(
+		registry, catalog, stableRuntime, actors, runtimeManager, compatibilityGateway, productionQueryTraceSinkStub{},
+	)
+	if err != nil || compatibility == nil || compatibility.cache != nil || compatibility.Execution == nil {
+		t.Fatalf("cacheless compatibility binding=%#v err=%v", compatibility, err)
+	}
+	if _, err := bindProductionQueryRegistryWithCache(
+		registry, catalog, stableRuntime, actors, runtimeManager, gateway, productionQueryTraceSinkStub{}, nil,
 	); err == nil {
 		t.Fatal("Gateway accepted a second production Query Registry binding")
 	}

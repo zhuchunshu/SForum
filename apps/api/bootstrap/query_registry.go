@@ -22,6 +22,7 @@ var errProductionQueryRegistryRuntimeStale = errors.New("bootstrap: Query Regist
 type productionQueryRegistry struct {
 	Execution *queryregistry.ExecutionRuntime
 	Service   *hostapi.ProtocolV2QueryRegistryService
+	cache     queryregistry.QueryResultCache
 }
 
 // productionQueryActorAuthority never trusts a delegation's cached actor
@@ -317,6 +318,21 @@ func bindProductionQueryRegistry(
 	gateway *hostapi.Gateway,
 	trace hostapi.QueryTraceSink,
 ) (*productionQueryRegistry, error) {
+	return bindProductionQueryRegistryWithCache(
+		registry, catalog, stableRuntime, actors, runtime, gateway, trace, nil,
+	)
+}
+
+func bindProductionQueryRegistryWithCache(
+	registry *queryregistry.Registry,
+	catalog *hostapi.QueryRegistryCoreCatalog,
+	stableRuntime hostapi.ProtocolV2QueryRuntime,
+	actors identity.ActorStore,
+	runtime *extensionsruntime.Manager,
+	gateway *hostapi.Gateway,
+	trace hostapi.QueryTraceSink,
+	cache queryregistry.QueryResultCache,
+) (*productionQueryRegistry, error) {
 	if registry == nil || catalog == nil || stableRuntime == nil || actors == nil || runtime == nil || gateway == nil || trace == nil {
 		return nil, fmt.Errorf("bootstrap: production Query Registry dependency unavailable")
 	}
@@ -346,7 +362,7 @@ func bindProductionQueryRegistry(
 	admission := newProductionQueryRuntimeAdmission(runtime)
 	execution, err := queryregistry.NewExecutionRuntime(queryregistry.ExecutionConfig{
 		Registry: registry, Providers: providers, Admission: admission, Schemas: schemas,
-		ResultFilterSource: filterSource, Trace: hostapi.NewQueryRegistryTraceAdapter(trace),
+		ResultFilterSource: filterSource, Trace: hostapi.NewQueryRegistryTraceAdapter(trace), Cache: cache,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("create Query Registry execution runtime: %w", err)
@@ -360,5 +376,5 @@ func bindProductionQueryRegistry(
 	if err := gateway.BindProtocolV2QueryRegistryService(service); err != nil {
 		return nil, fmt.Errorf("bind Query Registry Protocol V2 service: %w", err)
 	}
-	return &productionQueryRegistry{Execution: execution, Service: service}, nil
+	return &productionQueryRegistry{Execution: execution, Service: service, cache: cache}, nil
 }
