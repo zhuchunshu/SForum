@@ -571,5 +571,6 @@ func runtimeInstanceMatchesExtension(instance RuntimeInstanceSnapshot, extension
 	}
 	return instance.Identity.ExtensionID == extension.ID &&
 		instance.ExtensionVersion == version &&
-		instance.ArtifactDigest == extension.PackageDigest
+		instance.ArtifactDigest == extension.PackageDigest &&
+		instance.VersionID == extension.ActiveVersionID
 }

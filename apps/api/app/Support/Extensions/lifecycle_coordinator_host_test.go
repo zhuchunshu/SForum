@@ -822,6 +822,7 @@ func lifecycleHostRuntimeSnapshot(extension extensions.Extension, instanceID str
 	return RuntimeInstanceSnapshot{
 		Identity:         RuntimeInstanceIdentity{ExtensionID: extension.ID, InstanceID: instanceID},
 		ExtensionVersion: extension.Version, ArtifactDigest: extension.PackageDigest,
+		VersionID: extension.ActiveVersionID,
 	}
 }
 
