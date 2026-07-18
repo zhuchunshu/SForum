@@ -16,6 +16,7 @@ const (
 	ManifestSEOMaximumTimeoutMS               = 5000
 	ManifestSEOMaximumPriority                = 1_000_000
 	ManifestQueryMaximumDeclarations          = 512
+	ManifestQueryMaximumCacheTags             = 32
 	ManifestQueryMaximumIdentityFields        = 8
 	ManifestQueryMaximumSorts                 = 16
 	ManifestQueryResultFilterMaximum          = 64
@@ -290,6 +291,9 @@ func (v *v3Validator) validateServicesCommandsAdminAndQueries() error {
 		if query.Entity == "" || !validContractVersion(query.PlanVersion) || len(query.Fields) == 0 || !validSchemaRef(query.ResultSchema) || query.PermissionPolicy == "" {
 			return ErrInvalidManifest
 		}
+		if !validManifestQueryCacheTags(v.manifest.ID, query.CacheTags) {
+			return ErrInvalidManifest
+		}
 		switch query.Pagination {
 		case "none", "offset", "cursor":
 		default:
@@ -393,6 +397,23 @@ func validExecutableQueryShape(query ManifestQuery) bool {
 		if query.DefaultSort[offset+index].Field != identity {
 			return false
 		}
+	}
+	return true
+}
+
+func validManifestQueryCacheTags(owner string, tags []string) bool {
+	if len(tags) > ManifestQueryMaximumCacheTags {
+		return false
+	}
+	seen := make(map[string]struct{}, len(tags))
+	for _, tag := range tags {
+		if !manifestIDPattern.MatchString(tag) || !strings.HasPrefix(tag, owner+".") {
+			return false
+		}
+		if _, duplicate := seen[tag]; duplicate {
+			return false
+		}
+		seen[tag] = struct{}{}
 	}
 	return true
 }

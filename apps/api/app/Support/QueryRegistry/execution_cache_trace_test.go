@@ -158,6 +158,35 @@ func TestExecutionCacheIsolationHitAndPoisonFence(t *testing.T) {
 	}
 }
 
+func TestExecutionCacheSharedTagsAreOwnerScopedAcrossVersions(t *testing.T) {
+	plan := QueryPlan{
+		Revision: 1, Digest: strings.Repeat("1", 64), CacheKey: strings.Repeat("2", 64),
+		CacheTags: []string{"owner.plugin.items"},
+		Query: QueryContribution{Artifact: Artifact{
+			ExtensionID: "owner.plugin", ExtensionVersion: "1.0.0", PackageDigest: strings.Repeat("a", 64),
+			VersionID: 1, RuntimeInstanceID: "runtime-v1",
+		}},
+	}
+	v1Shared, v1Isolated := splitExecutionCacheTags(t, executionCacheTags(plan, "", strings.Repeat("b", 64)))
+
+	v2 := plan
+	v2.Query.Artifact.ExtensionVersion = "2.0.0"
+	v2.Query.Artifact.PackageDigest = strings.Repeat("c", 64)
+	v2.Query.Artifact.VersionID = 2
+	v2.Query.Artifact.RuntimeInstanceID = "runtime-v2"
+	v2Shared, v2Isolated := splitExecutionCacheTags(t, executionCacheTags(v2, "", strings.Repeat("b", 64)))
+	if v1Shared != v2Shared || v1Isolated == v2Isolated {
+		t.Fatalf("same-owner version tags v1=(%q,%q) v2=(%q,%q)", v1Shared, v1Isolated, v2Shared, v2Isolated)
+	}
+
+	otherOwner := plan
+	otherOwner.Query.Artifact.ExtensionID = "other.plugin"
+	otherShared, _ := splitExecutionCacheTags(t, executionCacheTags(otherOwner, "", strings.Repeat("b", 64)))
+	if otherShared == v1Shared {
+		t.Fatalf("different owners shared one semantic tag: %q", otherShared)
+	}
+}
+
 func TestExecutionCacheFencePreventsStaleProviderRevival(t *testing.T) {
 	cache := newMemoryQueryResultCache()
 	providerStarted := make(chan struct{})

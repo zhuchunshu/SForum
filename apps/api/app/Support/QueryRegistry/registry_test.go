@@ -189,7 +189,7 @@ func TestRegistryRejectsDuplicateQueryID(t *testing.T) {
 func TestRegistrySnapshotDeepCopyIsolation(t *testing.T) {
 	core := publication("core.query", true, 'a')
 	core.Queries = []QueryDeclaration{query("core.query.items", "core.item", PaginationOffset, "public")}
-	core.Queries[0].CacheTags = []string{"core.items"}
+	core.Queries[0].CacheTags = []string{"core.query.items"}
 	registry := New()
 	if _, err := registry.Publish(core); err != nil {
 		t.Fatal(err)
@@ -198,7 +198,7 @@ func TestRegistrySnapshotDeepCopyIsolation(t *testing.T) {
 	snapshot.Queries[0].Fields[0] = "mutated"
 	snapshot.Publications[0].Queries[0].CacheTags[0] = "mutated"
 	again := registry.Snapshot()
-	if again.Queries[0].Fields[0] != "id" || again.Publications[0].Queries[0].CacheTags[0] != "core.items" {
+	if again.Queries[0].Fields[0] != "id" || again.Publications[0].Queries[0].CacheTags[0] != "core.query.items" {
 		t.Fatalf("mutation leaked into registry: %#v", again)
 	}
 }

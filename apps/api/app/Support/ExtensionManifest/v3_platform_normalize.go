@@ -113,6 +113,9 @@ func normalizeV3Platform(manifest *Manifest) {
 		item.ResultSchema = strings.TrimSpace(item.ResultSchema)
 		item.PermissionPolicy = NormalizeID(item.PermissionPolicy)
 		item.Handler = strings.TrimSpace(item.Handler)
+		for tagIndex := range item.CacheTags {
+			item.CacheTags[tagIndex] = NormalizeID(item.CacheTags[tagIndex])
+		}
 		for fieldIndex := range item.IdentityFields {
 			item.IdentityFields[fieldIndex] = strings.TrimSpace(item.IdentityFields[fieldIndex])
 		}

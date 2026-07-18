@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -67,6 +68,40 @@ func TestRegistryEnforcesFieldFilterSortAndCacheTagLimits(t *testing.T) {
 	dupFields.Queries[0].Fields = []string{"id", "id"}
 	if _, err := New().ReplaceAll([]Publication{dupFields}, false); !errors.Is(err, ErrInvalid) {
 		t.Fatalf("duplicate field names=%v", err)
+	}
+}
+
+func TestRegistryRequiresOwnerScopedCacheTags(t *testing.T) {
+	tests := []struct {
+		name string
+		tags []string
+	}{
+		{name: "ownerless", tags: []string{"items"}},
+		{name: "foreign owner", tags: []string{"other.plugin.items"}},
+		{name: "invalid stable id", tags: []string{"cache.owner/items"}},
+		{name: "duplicate after normalization", tags: []string{"cache.owner.items", " CACHE.OWNER.ITEMS "}},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			candidate := publication("cache.owner", false, 'c')
+			candidate.Queries = []QueryDeclaration{query("cache.owner.items", "cache.owner.item", PaginationNone, PermissionPolicyPublic)}
+			candidate.Queries[0].CacheTags = test.tags
+			if _, err := New().Publish(candidate); !errors.Is(err, ErrInvalid) {
+				t.Fatalf("cache tags %#v err=%v", test.tags, err)
+			}
+		})
+	}
+
+	candidate := publication("cache.owner", false, 'd')
+	candidate.Queries = []QueryDeclaration{query("cache.owner.items", "cache.owner.item", PaginationNone, PermissionPolicyPublic)}
+	candidate.Queries[0].CacheTags = []string{" CACHE.OWNER.ITEMS "}
+	registry := New()
+	if _, err := registry.Publish(candidate); err != nil {
+		t.Fatalf("canonical owner tag: %v", err)
+	}
+	published, ok := registry.SnapshotPublication("cache.owner")
+	if !ok || len(published.Queries) != 1 || !slices.Equal(published.Queries[0].CacheTags, []string{"cache.owner.items"}) {
+		t.Fatalf("normalized cache tags=%#v", published.Queries)
 	}
 }
 

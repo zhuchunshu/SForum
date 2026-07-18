@@ -20,6 +20,7 @@ func TestManifestV3QueryRuntimeKeepsLegacyDeclarationsInspectOnly(t *testing.T) 
 
 func TestManifestV3QueryRuntimeNormalizesExecutableProviderAndFilter(t *testing.T) {
 	manifest := completeExecutableQueryManifest()
+	manifest.Queries[0].CacheTags = []string{" DEMO.V3.ITEMS "}
 	manifest.QueryResultFilters[0].FailurePolicy = ""
 	manifest.QueryResultFilters[0].TimeoutMS = 0
 	normalized := Normalize(manifest)
@@ -27,6 +28,9 @@ func TestManifestV3QueryRuntimeNormalizesExecutableProviderAndFilter(t *testing.
 	if filter.FailurePolicy != QueryResultFilterFailureFailClosed ||
 		filter.TimeoutMS != ManifestQueryResultFilterDefaultTimeoutMS {
 		t.Fatalf("result filter defaults = %#v", filter)
+	}
+	if len(normalized.Queries[0].CacheTags) != 1 || normalized.Queries[0].CacheTags[0] != "demo.v3.items" {
+		t.Fatalf("query cache tags=%#v", normalized.Queries[0].CacheTags)
 	}
 	if err := Validate(manifest); err != nil {
 		t.Fatalf("executable query contract: %v", err)
@@ -86,6 +90,11 @@ func TestManifestV3QueryRuntimeRejectsUnsafeShapes(t *testing.T) {
 		}},
 		{name: "duplicate default sort", change: func(value *Manifest) {
 			value.Queries[0].DefaultSort = append(value.Queries[0].DefaultSort, ManifestQuerySort{Field: "id"})
+		}},
+		{name: "ownerless cache tag", change: func(value *Manifest) { value.Queries[0].CacheTags = []string{"items"} }},
+		{name: "foreign cache tag", change: func(value *Manifest) { value.Queries[0].CacheTags = []string{"other.plugin.items"} }},
+		{name: "duplicate cache tag", change: func(value *Manifest) {
+			value.Queries[0].CacheTags = []string{"demo.v3.items", " DEMO.V3.ITEMS "}
 		}},
 		{name: "executable query without protocol v2", change: func(value *Manifest) { value.Backend.ProtocolVersion = 1 }},
 		{name: "executable query without schema file", change: func(value *Manifest) {

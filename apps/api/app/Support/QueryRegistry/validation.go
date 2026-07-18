@@ -217,7 +217,7 @@ func normalizeQueryDeclaration(artifact Artifact, input QueryDeclaration) (Query
 	if err != nil {
 		return QueryDeclaration{}, err
 	}
-	cacheTags, err := normalizeNameList(input.CacheTags, maxCacheTagsPerQuery, false)
+	cacheTags, err := normalizeOwnedCacheTags(artifact.ExtensionID, input.CacheTags)
 	if err != nil {
 		return QueryDeclaration{}, err
 	}
@@ -400,6 +400,26 @@ func normalizeNameList(input []string, limit int, required bool) ([]string, erro
 	}
 	// Stable declaration order is declaration order after lowercasing; do not
 	// re-sort names so plan selection can preserve request order later.
+	return result, nil
+}
+
+func normalizeOwnedCacheTags(owner string, input []string) ([]string, error) {
+	if len(input) > maxCacheTagsPerQuery {
+		return nil, ErrInvalid
+	}
+	result := make([]string, 0, len(input))
+	seen := make(map[string]struct{}, len(input))
+	for _, raw := range input {
+		tag := strings.ToLower(strings.TrimSpace(raw))
+		if !idPattern.MatchString(tag) || !strings.HasPrefix(tag, owner+".") {
+			return nil, ErrInvalid
+		}
+		if _, duplicate := seen[tag]; duplicate {
+			return nil, ErrInvalid
+		}
+		seen[tag] = struct{}{}
+		result = append(result, tag)
+	}
 	return result, nil
 }
 
