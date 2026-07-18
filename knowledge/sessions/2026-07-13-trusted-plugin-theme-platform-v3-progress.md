@@ -28,8 +28,12 @@ Last updated: 2026-07-18
 - Remaining review blockers before production credit: Manager ForceDrain must
   cancel the provider/filter gRPC through a context-bearing execution lease;
   filter-only packages must participate in enable/restore/disable; cross-plugin
-  filters must derive identity from the target owner across the immutable graph;
-  and filtered offset/cursor tail pages must retain the Host fetch-limit contract.
+  filters must derive identity from the target owner across the immutable graph.
+- `2156a1c91` preserves the Host `limit+1` filter transport contract on short
+  offset/cursor tail pages instead of rewriting it to the returned row count.
+  `59d9dcbb1` makes the real reference subprocess execute the declared default
+  descending sort, an explicit ascending caller sort, middle pagination, and a
+  one-row filtered tail page. Focused normal/race count 3 and fixture build pass.
 - `9b94a088a` Host handshake offers `query.runtime@1` only when the frozen
   Manifest declares an executable query handler or any result filter.
 - `3763aaf70` reduces query.runtime request context: no actor/authority/
