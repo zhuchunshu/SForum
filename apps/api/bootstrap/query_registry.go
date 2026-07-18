@@ -266,9 +266,19 @@ func bindProductionQueryRegistry(
 	if registry == nil || catalog == nil || stableRuntime == nil || actors == nil || runtime == nil || gateway == nil || trace == nil {
 		return nil, fmt.Errorf("bootstrap: production Query Registry dependency unavailable")
 	}
-	providers, err := hostapi.NewProtocolV2QueryRegistryProviderResolver(stableRuntime, catalog.Bindings())
+	coreProviders, err := hostapi.NewProtocolV2QueryRegistryProviderResolver(stableRuntime, catalog.Bindings())
 	if err != nil {
 		return nil, fmt.Errorf("create Query Registry provider resolver: %w", err)
+	}
+	// Core HostAPI bindings remain primary; third-party Handler 声明走 Protocol V2
+	// query.runtime@1，在调用时按 exact active runtime 解析，不捕获启动瞬间。
+	providers, err := extensionsruntime.NewCompositeQueryProviderResolver(coreProviders, runtime, registry)
+	if err != nil {
+		return nil, fmt.Errorf("create composite Query Registry provider resolver: %w", err)
+	}
+	filterSource, err := extensionsruntime.NewProtocolV2QueryResultFilterSource(runtime, registry)
+	if err != nil {
+		return nil, fmt.Errorf("create Query Registry result filter source: %w", err)
 	}
 	schemas, err := queryregistry.NewJSONResultSchemaCatalog(catalog.Schemas())
 	if err != nil {
@@ -277,7 +287,7 @@ func bindProductionQueryRegistry(
 	admission := newProductionQueryRuntimeAdmission(runtime)
 	execution, err := queryregistry.NewExecutionRuntime(queryregistry.ExecutionConfig{
 		Registry: registry, Providers: providers, Admission: admission, Schemas: schemas,
-		Trace: hostapi.NewQueryRegistryTraceAdapter(trace),
+		ResultFilterSource: filterSource, Trace: hostapi.NewQueryRegistryTraceAdapter(trace),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("create Query Registry execution runtime: %w", err)
