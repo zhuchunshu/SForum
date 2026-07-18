@@ -45,14 +45,19 @@ Last updated: 2026-07-18
   produce no incidents. ForceDrain now uses the Host abort path rather than
   misclassifying its raw cause as a runtime failure; normal **10** and race
   **3** repetitions pass.
+- `b6bd99d24 test(routes): join stream producer to incident recorder` closes
+  the producer-to-store seam: a real HTTP stream adapter runtime failure enters
+  `RouteFailureRecorder` and produces exactly one runtime incident, exact local
+  quarantine, and resolution while the ordinary audit queue remains empty.
+  Independent normal **100** / race **50** plus main-thread repetition pass.
 - Bootstrap, focused recorder, real PostgreSQL incident-store, and staged
   whitespace gates passed before commit. The opaque `DataChunk` decision and
   Host preflight Schema correction remain accepted evidence, not framing that
   the Host does not implement.
-- Exact resume point: join adapter classifications, production ForceCancel/
-  terminal behavior, producer-to-recorder evidence, and the PostgreSQL gate
-  into the named P6 normal/race suites. Only that evidence may raise P6 to
-  **18/18**.
+- Exact resume point: add the adapter classifications, production ForceCancel/
+  terminal behavior, producer-to-recorder evidence, and PostgreSQL gate to the
+  named P6 suites; run normal/race/PostgreSQL gates and independent closure
+  review. Only that evidence may raise P6 to **18/18**.
 
 ### 2026-07-18 WebSocket Stream Classification Checkpoint
 
