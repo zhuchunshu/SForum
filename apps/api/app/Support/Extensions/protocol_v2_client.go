@@ -33,11 +33,13 @@ import (
 )
 
 const (
-	protocolV2Name       = "sforum.plugin"
-	hostAPIV2Version     = "sforum.host/v2"
-	hostAPIV2Contract    = "sforum.host@2"
-	hostAPIV2Legacy      = "sforum.host-api@2"
-	protocolV2LocaleNone = "und"
+	protocolV2Name                       = "sforum.plugin"
+	hostAPIV2Version                     = "sforum.host/v2"
+	hostAPIV2Contract                    = "sforum.host@2"
+	hostAPIV2Legacy                      = "sforum.host-api@2"
+	protocolV2LocaleNone                 = "und"
+	protocolV2QueryRuntimeFeatureName    = "query.runtime"
+	protocolV2QueryRuntimeFeatureVersion = "1"
 )
 
 // RuntimeTrustSource resolves the live exact-artifact grant before process
@@ -271,12 +273,13 @@ func newProtocolV2RuntimeInstanceID() (string, error) {
 func (c *protocolV2Client) Handshake(ctx context.Context) error {
 	ctx, cancel := protocolV2Deadline(ctx, DefaultProtocolV2HandshakeTimeout)
 	defer cancel()
+	hostFeatures := protocolV2HostFeatures(c.queries, c.queryResultFilters)
 	response, err := c.client.Handshake(ctx, &protocolv2.HandshakeRequest{
 		Context: c.requestContext(ctx, "handshake"),
 		HostProtocols: []*protocolv2.ProtocolRange{{
 			Protocol: protocolV2Name, Major: 2, MinMinor: 0, MaxMinor: 0,
 		}},
-		HostFeatures: protocolV2HostFeatures(c.queries, c.queryResultFilters),
+		HostFeatures: hostFeatures,
 		Limits: &protocolv2.RuntimeLimits{
 			MaxReceiveBytes:         uint64(DefaultProtocolV2MaxMessageBytes),
 			MaxSendBytes:            uint64(DefaultProtocolV2MaxMessageBytes),
@@ -297,8 +300,23 @@ func (c *protocolV2Client) Handshake(ctx context.Context) error {
 		return err
 	}
 	selected := response.GetSelectedProtocol()
-	if selected.GetProtocol() != protocolV2Name || selected.GetMajor() != 2 || selected.GetMinMinor() > 0 {
+	if selected.GetProtocol() != protocolV2Name || selected.GetMajor() != 2 ||
+		selected.GetMinMinor() != 0 || selected.GetMaxMinor() != 0 {
 		return &ProtocolV2Error{Code: protocolv2.ErrorCode_ERROR_CODE_PROTOCOL_MISMATCH, Reason: "protocol.version_mismatch", Message: "Plugin selected an incompatible protocol version."}
+	}
+	if err := validateProtocolV2SelectedFeatures(hostFeatures, response.GetSelectedFeatures()); err != nil {
+		return err
+	}
+	if protocolV2RequiresQueryRuntime(c.queries, c.queryResultFilters) &&
+		!protocolV2SelectedFeature(
+			response.GetSelectedFeatures(),
+			protocolV2QueryRuntimeFeatureName,
+			protocolV2QueryRuntimeFeatureVersion,
+		) {
+		return &ProtocolV2Error{
+			Code: protocolv2.ErrorCode_ERROR_CODE_PROTOCOL_MISMATCH, Reason: "query_runtime.feature_required",
+			Message: "Plugin did not select the required query.runtime@1 feature.",
+		}
 	}
 	c.serviceMu.Lock()
 	c.services = cloneV2Services(response.GetServices())
@@ -320,9 +338,59 @@ func protocolV2HostFeatures(
 		{Name: "service.discovery", Version: "1"},
 	}
 	if protocolV2RequiresQueryRuntime(queries, filters) {
-		features = append(features, &protocolv2.ProtocolFeature{Name: "query.runtime", Version: "1"})
+		features = append(features, &protocolv2.ProtocolFeature{
+			Name: protocolV2QueryRuntimeFeatureName, Version: protocolV2QueryRuntimeFeatureVersion, Required: true,
+		})
 	}
 	return features
+}
+
+// validateProtocolV2SelectedFeatures rejects capabilities the plugin claims
+// without an exact Host offer. Selected feature names are unique so a response
+// cannot make version choice ambiguous.
+func validateProtocolV2SelectedFeatures(
+	offered []*protocolv2.ProtocolFeature,
+	selected []*protocolv2.ProtocolFeature,
+) error {
+	offeredVersions := make(map[string]string, len(offered))
+	for _, feature := range offered {
+		if feature != nil {
+			offeredVersions[feature.GetName()] = feature.GetVersion()
+		}
+	}
+	seen := make(map[string]struct{}, len(selected))
+	for _, feature := range selected {
+		if feature == nil || feature.GetName() == "" || feature.GetVersion() == "" ||
+			strings.TrimSpace(feature.GetName()) != feature.GetName() ||
+			strings.TrimSpace(feature.GetVersion()) != feature.GetVersion() {
+			return protocolV2FeatureMismatch("protocol.feature_invalid", "Plugin selected an invalid protocol feature.")
+		}
+		if _, duplicate := seen[feature.GetName()]; duplicate {
+			return protocolV2FeatureMismatch("protocol.feature_duplicate", "Plugin selected a protocol feature more than once.")
+		}
+		seen[feature.GetName()] = struct{}{}
+		version, offeredByHost := offeredVersions[feature.GetName()]
+		if !offeredByHost || version != feature.GetVersion() {
+			return protocolV2FeatureMismatch("protocol.feature_mismatch", "Plugin selected a feature the Host did not offer.")
+		}
+	}
+	return nil
+}
+
+func protocolV2SelectedFeature(features []*protocolv2.ProtocolFeature, name, version string) bool {
+	for _, feature := range features {
+		if feature != nil && feature.GetName() == name && feature.GetVersion() == version {
+			return true
+		}
+	}
+	return false
+}
+
+func protocolV2FeatureMismatch(reason, message string) error {
+	return &ProtocolV2Error{
+		Code:   protocolv2.ErrorCode_ERROR_CODE_PROTOCOL_MISMATCH,
+		Reason: reason, Message: message,
+	}
 }
 
 func protocolV2RequiresQueryRuntime(

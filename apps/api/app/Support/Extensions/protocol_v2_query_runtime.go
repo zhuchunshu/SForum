@@ -17,6 +17,7 @@ import (
 	protocolv2 "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/protocol/v2"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/proto"
 )
 
 // Host-side query.runtime@1 行 JSON 预算与 SDK 保持一致；不得 import sdk/plugin/v2
@@ -77,16 +78,19 @@ func (c *protocolV2Client) InvokeQuery(
 	defer cancel()
 	// 查询 runtime 禁止 actor/authority，并使用 reduced context（无自由 form TraceId）。
 	requestContext := c.queryRuntimeRequestContext(ctx, input.Plan.Locale)
+	binding := &pluginv2.QueryRuntimeBinding{
+		QueryId: query.ID, ContractVersion: query.ContractVersion,
+		PlanVersion: query.PlanVersion, ResultSchema: query.ResultSchema, Handler: query.Handler,
+	}
 	response, err := c.client.InvokeQuery(ctx, &pluginv2.QueryInvocationRequest{
 		Context: requestContext,
-		Binding: &pluginv2.QueryRuntimeBinding{
-			QueryId: query.ID, ContractVersion: query.ContractVersion,
-			PlanVersion: query.PlanVersion, ResultSchema: query.ResultSchema, Handler: query.Handler,
-		},
-		Plan: plan,
+		Binding: binding, Plan: plan,
 	})
 	if err != nil {
 		return nil, mapProtocolV2QueryCallError(ctx, err)
+	}
+	if err := validateProtocolV2QueryResponseContext(response.GetContext(), requestContext); err != nil {
+		return nil, fmt.Errorf("protocol v2 query %q response context: %w", input.QueryID, err)
 	}
 	if err := protocolV2Error(response.GetError()); err != nil {
 		return nil, err
@@ -94,12 +98,7 @@ func (c *protocolV2Client) InvokeQuery(
 	if response.GetSuccess() == nil {
 		return nil, fmt.Errorf("protocol v2 query %q returned no rows outcome", input.QueryID)
 	}
-	if response.GetShapeDigest() != input.Plan.ShapeDigest ||
-		response.GetBinding().GetQueryId() != query.ID ||
-		response.GetBinding().GetContractVersion() != query.ContractVersion ||
-		response.GetBinding().GetPlanVersion() != query.PlanVersion ||
-		response.GetBinding().GetResultSchema() != query.ResultSchema ||
-		response.GetBinding().GetHandler() != query.Handler {
+	if response.GetShapeDigest() != input.Plan.ShapeDigest || !proto.Equal(response.GetBinding(), binding) {
 		return nil, fmt.Errorf("protocol v2 query %q binding or shape drifted", input.QueryID)
 	}
 	return decodeProtocolV2QueryRows(response.GetSuccess(), input.FetchLimit)
@@ -138,19 +137,21 @@ func (c *protocolV2Client) FilterQueryResult(
 	ctx, cancel := protocolV2Deadline(parent, timeout)
 	defer cancel()
 	requestContext := c.queryRuntimeRequestContext(ctx, input.Plan.Locale)
+	binding := &pluginv2.QueryResultFilterRuntimeBinding{
+		FilterId: filter.ID, FilterContractVersion: filter.ContractVersion,
+		QueryId: filter.QueryID, QueryContractVersion: filter.QueryContractVersion,
+		QueryPlanVersion: filter.QueryPlanVersion, ResultSchema: input.ResultSchema,
+		Handler: filter.Handler,
+	}
 	response, err := c.client.FilterQueryResult(ctx, &pluginv2.QueryResultFilterRequest{
 		Context: requestContext,
-		Binding: &pluginv2.QueryResultFilterRuntimeBinding{
-			FilterId: filter.ID, FilterContractVersion: filter.ContractVersion,
-			QueryId: filter.QueryID, QueryContractVersion: filter.QueryContractVersion,
-			QueryPlanVersion: filter.QueryPlanVersion, ResultSchema: input.ResultSchema,
-			Handler: filter.Handler,
-		},
-		Plan:  plan,
-		Input: encoded,
+		Binding: binding, Plan: plan, Input: encoded,
 	})
 	if err != nil {
 		return nil, mapProtocolV2QueryCallError(ctx, err)
+	}
+	if err := validateProtocolV2QueryResponseContext(response.GetContext(), requestContext); err != nil {
+		return nil, fmt.Errorf("protocol v2 query filter %q response context: %w", input.FilterID, err)
 	}
 	if err := protocolV2Error(response.GetError()); err != nil {
 		return nil, err
@@ -158,9 +159,7 @@ func (c *protocolV2Client) FilterQueryResult(
 	if response.GetSuccess() == nil {
 		return nil, fmt.Errorf("protocol v2 query filter %q returned no rows outcome", input.FilterID)
 	}
-	if response.GetShapeDigest() != input.Plan.ShapeDigest ||
-		response.GetBinding().GetFilterId() != filter.ID ||
-		response.GetBinding().GetHandler() != filter.Handler {
+	if response.GetShapeDigest() != input.Plan.ShapeDigest || !proto.Equal(response.GetBinding(), binding) {
 		return nil, fmt.Errorf("protocol v2 query filter %q binding or shape drifted", input.FilterID)
 	}
 	return decodeProtocolV2QueryRows(response.GetSuccess(), len(input.Rows))
@@ -394,6 +393,21 @@ func (c *protocolV2Client) queryRuntimeRequestContext(ctx context.Context, local
 	request.Trace = nil
 	request.Locale = locale
 	return request
+}
+
+func validateProtocolV2QueryResponseContext(
+	response *protocolv2.ResponseContext,
+	request *protocolv2.RequestContext,
+) error {
+	if response == nil || request == nil || response.GetRequestId() != request.GetRequestId() ||
+		!proto.Equal(response.GetTrace(), request.GetTrace()) ||
+		!proto.Equal(response.GetExtension(), request.GetExtension()) {
+		return errors.New("response context does not match the exact runtime request")
+	}
+	if response.GetServerTime() == nil || !response.GetServerTime().IsValid() {
+		return errors.New("response server time is invalid")
+	}
+	return nil
 }
 
 func mapProtocolV2QueryCallError(ctx context.Context, err error) error {
