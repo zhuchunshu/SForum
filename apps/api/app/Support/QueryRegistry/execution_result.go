@@ -360,15 +360,13 @@ func executionCacheTags(plan QueryPlan, filterPlan, providerDigest string) []str
 	prefix := "query:" + hex.EncodeToString(isolation[:16]) + ":"
 	result := make([]string, 0, len(plan.CacheTags)*2)
 	for _, tag := range plan.CacheTags {
-		digest := sha256.Sum256([]byte(
-			resultCacheSchemaVersion + "\x00invalidation\x00" + plan.Query.Artifact.ExtensionID + "\x00" + tag,
-		))
-		opaqueTag := hex.EncodeToString(digest[:16])
+		sharedTag := sharedSemanticCacheTag(plan.Query.Artifact.ExtensionID, tag)
+		opaqueTag := strings.TrimPrefix(sharedTag, "query:shared:")
 		// The shared tag deliberately excludes actor, locale, request shape, page,
 		// provider, and exact artifact identity. Stable owner identity prevents
 		// cross-plugin collisions while one semantic mutation still evicts every
 		// isolated variant across versions of the same owner.
-		result = append(result, "query:shared:"+opaqueTag, prefix+opaqueTag)
+		result = append(result, sharedTag, prefix+opaqueTag)
 	}
 	return result
 }
