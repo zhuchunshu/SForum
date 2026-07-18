@@ -276,12 +276,7 @@ func (c *protocolV2Client) Handshake(ctx context.Context) error {
 		HostProtocols: []*protocolv2.ProtocolRange{{
 			Protocol: protocolV2Name, Major: 2, MinMinor: 0, MaxMinor: 0,
 		}},
-		HostFeatures: []*protocolv2.ProtocolFeature{
-			{Name: "stream.routes", Version: "1"},
-			{Name: "stream.files", Version: "1"},
-			{Name: "stream.jobs", Version: "1"},
-			{Name: "service.discovery", Version: "1"},
-		},
+		HostFeatures: protocolV2HostFeatures(c.queries, c.queryResultFilters),
 		Limits: &protocolv2.RuntimeLimits{
 			MaxReceiveBytes:         uint64(DefaultProtocolV2MaxMessageBytes),
 			MaxSendBytes:            uint64(DefaultProtocolV2MaxMessageBytes),
@@ -309,6 +304,40 @@ func (c *protocolV2Client) Handshake(ctx context.Context) error {
 	c.services = cloneV2Services(response.GetServices())
 	c.serviceMu.Unlock()
 	return nil
+}
+
+// protocolV2HostFeatures lists Host-offered features. query.runtime@1 is only
+// offered when the frozen Manifest declares an executable query handler or any
+// result filter, matching the transport decision.
+func protocolV2HostFeatures(
+	queries []extensions.ManifestQuery,
+	filters []extensions.ManifestQueryResultFilter,
+) []*protocolv2.ProtocolFeature {
+	features := []*protocolv2.ProtocolFeature{
+		{Name: "stream.routes", Version: "1"},
+		{Name: "stream.files", Version: "1"},
+		{Name: "stream.jobs", Version: "1"},
+		{Name: "service.discovery", Version: "1"},
+	}
+	if protocolV2RequiresQueryRuntime(queries, filters) {
+		features = append(features, &protocolv2.ProtocolFeature{Name: "query.runtime", Version: "1"})
+	}
+	return features
+}
+
+func protocolV2RequiresQueryRuntime(
+	queries []extensions.ManifestQuery,
+	filters []extensions.ManifestQueryResultFilter,
+) bool {
+	if len(filters) > 0 {
+		return true
+	}
+	for _, query := range queries {
+		if strings.TrimSpace(query.Handler) != "" {
+			return true
+		}
+	}
+	return false
 }
 
 func protocolV2HostRegistrarFor(registrar HostAPIRegistrar) ProtocolV2HostRegistrar {
