@@ -151,6 +151,18 @@ cancellation, and other Host failures are always fail-closed.
   unchanged. The new methods are Host-to-plugin execution methods.
 - Existing Protocol V2 plugins without executable queries do not need the new
   feature or methods.
+- The release-only `ExecutionAdmission` interface remains source-compatible so
+  existing implementations still compile, but it cannot propagate an
+  independent Manager `ForceDrain`. Third-party execution therefore fails
+  closed with `ErrArtifactUnavailable` unless the Host supplies
+  `ContextualExecutionAdmission` and carries its exact lease context through
+  provider/filter transport. Sealed Core execution is unchanged. This is an
+  intentional security migration, not runtime behavior compatibility.
+- Host-only runtime snapshots freeze the database `VersionID` alongside
+  extension version, package digest, and process instance. Query planning,
+  cache-hit admission, providers, and filters reject a tuple whose `VersionID`
+  differs even when all other visible artifact fields match. The database id is
+  not added to the Protocol V2 wire identity.
 - Registry/cursor/cache Schema identities advance when the new material enters
   their digests; old in-memory plans and cursors fail closed rather than being
   translated across an execution mapping change.

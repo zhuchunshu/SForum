@@ -850,6 +850,12 @@ template while retaining Schema fallback fields.
   cost, Schema, provider failure, disable, and Safe Mode. Production Redis
   cache, lifecycle coordinator bootstrap proof, and upgrade gates remain open;
   P7 Query rows stay **uncredited** at 16/22.
+- Third-party Query execution now requires `ContextualExecutionAdmission`.
+  The older release-only `ExecutionAdmission` remains source-compatible but is
+  deliberately rejected at runtime because it cannot deliver Manager
+  `ForceDrain` into an in-flight provider/filter transport. Exact admission also
+  compares the Manager-frozen database `VersionID`; a wrong id is rejected
+  before cache load even when extension version, digest, and instance match.
 
 ## V3 P8 theme runtime checkpoint
 
