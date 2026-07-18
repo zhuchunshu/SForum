@@ -49,6 +49,7 @@ const (
 	ActionRouteProviderSelect        = "routes.provider_select"
 	ActionRouteProviderReset         = "routes.provider_reset"
 	ActionRouteCommittedAfterFailure = "routes.committed_after_failure"
+	ActionRouteRuntimeIncident       = "routes.runtime_incident"
 	ActionProviderSlotSelect         = "providers.slot_select"
 	ActionProviderSlotReset          = "providers.slot_reset"
 	ActionProviderSlotProbe          = "providers.slot_probe"
