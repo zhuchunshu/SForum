@@ -280,9 +280,14 @@ func bindProductionQueryRegistry(
 	if err != nil {
 		return nil, fmt.Errorf("create Query Registry result filter source: %w", err)
 	}
-	schemas, err := queryregistry.NewJSONResultSchemaCatalog(catalog.Schemas())
+	coreSchemas, err := queryregistry.NewJSONResultSchemaCatalog(catalog.Schemas())
 	if err != nil {
 		return nil, fmt.Errorf("create Query Registry result schema catalog: %w", err)
+	}
+	// Core 走 Host 目录；第三方 Schema 来自 lifecycle 发布到同一 Registry revision。
+	schemas, err := queryregistry.NewCompositeResultSchemaValidator(registry, coreSchemas)
+	if err != nil {
+		return nil, fmt.Errorf("create composite Query Registry result schema validator: %w", err)
 	}
 	admission := newProductionQueryRuntimeAdmission(runtime)
 	execution, err := queryregistry.NewExecutionRuntime(queryregistry.ExecutionConfig{

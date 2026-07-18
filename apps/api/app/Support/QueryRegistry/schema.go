@@ -131,6 +131,40 @@ func (r *Registry) ValidateQueryResult(_ context.Context, claim ResultSchemaClai
 	return validateCompiledResultSchema(compiled, claim, row)
 }
 
+// compositeResultSchemaValidator uses Registry-bound publication Schemas for
+// third-party artifacts and the Host Core catalog for sealed Core plans.
+type compositeResultSchemaValidator struct {
+	registry *Registry
+	core     ResultSchemaValidator
+}
+
+// NewCompositeResultSchemaValidator keeps Core catalog bindings authoritative
+// for sealed Core queries while routing third-party claims to the same
+// immutable Registry revision that published the declaration and Schema.
+func NewCompositeResultSchemaValidator(
+	registry *Registry,
+	core ResultSchemaValidator,
+) (ResultSchemaValidator, error) {
+	if registry == nil || core == nil {
+		return nil, ErrExecutionInvalid
+	}
+	return &compositeResultSchemaValidator{registry: registry, core: core}, nil
+}
+
+func (v *compositeResultSchemaValidator) ValidateQueryResult(
+	ctx context.Context,
+	claim ResultSchemaClaim,
+	row QueryRow,
+) error {
+	if v == nil || v.registry == nil || v.core == nil {
+		return ErrResultInvalid
+	}
+	if validCoreArtifactSeal(claim.Artifact) {
+		return v.core.ValidateQueryResult(ctx, claim, row)
+	}
+	return v.registry.ValidateQueryResult(ctx, claim, row)
+}
+
 func validateCompiledResultSchema(compiled compiledResultSchema, claim ResultSchemaClaim, row QueryRow) error {
 	if compiled.binding.QueryID != claim.QueryID || compiled.binding.ContractVersion != claim.ContractVersion ||
 		compiled.binding.PlanVersion != claim.PlanVersion || compiled.binding.ResultSchema != claim.ResultSchema ||
