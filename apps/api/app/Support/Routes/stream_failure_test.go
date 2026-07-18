@@ -76,6 +76,18 @@ func TestRouteStreamFailureSinkRecordsExactPayloadFreeIncidentOnce(t *testing.T)
 	}
 }
 
+func TestDispatcherRequiresExplicitStreamFailureSink(t *testing.T) {
+	sink := &combinedRouteFailureSink{}
+	legacyOnly := NewDispatcher(DispatcherConfig{Failures: sink})
+	if legacyOnly.streamFailures != nil {
+		t.Fatal("legacy failure sink was implicitly granted stream incident authority")
+	}
+	explicit := NewDispatcher(DispatcherConfig{Failures: sink, StreamFailures: sink})
+	if explicit.streamFailures != sink {
+		t.Fatal("explicit stream failure sink was not installed")
+	}
+}
+
 func TestRouteStreamFailureSinkExcludesHostAndCallerAbortions(t *testing.T) {
 	for _, test := range []struct {
 		name string
@@ -222,3 +234,12 @@ func (s *recordingRouteStreamFailureSink) snapshot() []RouteStreamFailure {
 }
 
 var _ RouteStreamFailureSink = (*recordingRouteStreamFailureSink)(nil)
+
+type combinedRouteFailureSink struct{}
+
+func (*combinedRouteFailureSink) RecordCommittedAfterFailure(context.Context, RouteCommittedAfterFailure) {
+}
+func (*combinedRouteFailureSink) RecordStreamFailure(context.Context, RouteStreamFailure) {}
+
+var _ RouteFailureSink = (*combinedRouteFailureSink)(nil)
+var _ RouteStreamFailureSink = (*combinedRouteFailureSink)(nil)
