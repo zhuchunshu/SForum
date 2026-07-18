@@ -14,6 +14,40 @@ Last updated: 2026-07-19
 
 ## Current Subtask
 
+### 2026-07-19 Query Redis Backend Checkpoint (no P7 credit)
+
+- Verified weighted progress remains **66.9205%**; P7 stays **16/22** until
+  durable semantic invalidation, production bootstrap injection, lifecycle
+  upgrade/replace, and the joined Query gates all pass.
+- `09df4f3bc` adds the production `QueryResultCache` Redis backend around one
+  permanent installation allocator, a permanent activation marker, TTL-bounded
+  owner-scoped tag epochs, opaque in-process Store fences, and strict bounded
+  envelopes. Large values are staged outside Lua; a small preflight-first Lua
+  finalize atomically pins tags and renames the value. Reconstructible Store
+  does not synchronously fsync; authoritative Activate and Invalidate use one
+  sticky connection plus Redis 7.2 `WAITAOF`.
+- Construction rejects retrying or unbounded clients. Activation requires Redis
+  >=7.2, healthy AOF, `appendfsync=always|everysec`, `noeviction`, finite socket
+  deadlines, and context deadlines. A process-local latch prevents use before
+  activation and makes capability, poison, or ambiguous invalidation failure
+  terminal for that cache object; recovery constructs and activates a fresh
+  object. Marker/allocator loss cannot be mistaken for an ordinary restart.
+- QueryRegistry normal and race tests and vet pass. A dedicated isolated Redis
+  7 AOF/noeviction instance passed miss/store/hit, selective invalidation,
+  deterministic Store-vs-Invalidate interleaving, 64-tag bounds, TTL ordering,
+  poison zero-write/temp cleanup, installation isolation, activation rotation,
+  `-race -count=3`, and a two-process Docker restart gate proving a valid hit
+  survives while an invalidated value does not revive. Independent sub-agent
+  and Codex CLI reviews reported no blocker after the latch tests were fixed.
+- Exact next step: add a narrow Host-owned semantic invalidator and a versioned
+  River job enqueued through `EnqueueTx`; register the worker for embedded and
+  standalone modes, then create and activate dedicated no-retry Query Redis
+  clients and inject the cache through `bindProductionQueryRegistry`. Joined
+  mutation/cache-hit/restart and lifecycle upgrade/replace gates remain open.
+- Rollback is additive: revert `09df4f3bc`. No database migration, feature flag,
+  branch, worktree, push, tag, shared Redis poison, or unrelated dirty file was
+  changed.
+
 ### 2026-07-19 Query Cache Fence And Owner-Scoped Tag Checkpoint (no P7 credit)
 
 - Verified weighted progress remains **66.9205%**; P7 stays **16/22**. These
