@@ -414,18 +414,18 @@ func serveRouteStream(c fiber.Ctx, dispatch *routes.RouteStreamDispatch, hostHea
 	}
 	if err := validateRouteStreamPreflight(dispatch.Step().Mode, start.Response); err != nil {
 		// Fail before Cancel so the transport trace lands before lifetime Done.
-		dispatch.Fail()
+		failure := dispatch.StreamFailedAs(routes.RouteStreamFailureInvalidPreflight, err)
 		start.Session.Cancel()
-		return mapRouteDispatchError(err)
+		return mapRouteDispatchError(failure)
 	}
 	requestBody := c.Request().BodyStream()
 	if requestBody == nil {
 		requestBody = bytes.NewReader(c.Body())
 	}
 	if err := pumpRouteStreamRequest(requestBody, start.Session); err != nil {
-		dispatch.Fail()
+		failure := dispatch.StreamFailed(err)
 		start.Session.Cancel()
-		return mapRouteDispatchError(fmt.Errorf("%w: %w", routes.ErrDispatchTransport, err))
+		return mapRouteDispatchError(failure)
 	}
 	c.Response().Reset()
 	c.Status(start.Response.Status)
@@ -453,7 +453,10 @@ func validateRouteStreamPreflight(mode string, response routes.DispatchResponse)
 }
 
 func pumpRouteStreamRequest(reader io.Reader, session routes.RouteStreamSession) error {
-	if reader == nil || session == nil {
+	if reader == nil {
+		return routes.WithRouteStreamAbort(routes.ErrDispatchTransport)
+	}
+	if session == nil {
 		return routes.ErrDispatchTransport
 	}
 	buffer := make([]byte, extensionsruntime.MaxProtocolV2RouteChunkSize)
@@ -468,10 +471,10 @@ func pumpRouteStreamRequest(reader io.Reader, session routes.RouteStreamSession)
 			return session.CloseRequest()
 		}
 		if err != nil {
-			return err
+			return routes.WithRouteStreamAbort(err)
 		}
 		if read == 0 {
-			return io.ErrNoProgress
+			return routes.WithRouteStreamAbort(io.ErrNoProgress)
 		}
 	}
 }
@@ -490,7 +493,7 @@ func streamRouteResponse(writer *bufio.Writer, session routes.RouteStreamSession
 		chunk, err := session.Recv()
 		if errors.Is(err, io.EOF) {
 			if _, ok := session.Response(); !ok {
-				dispatch.Fail()
+				_ = dispatch.StreamFailedAs(routes.RouteStreamFailureMissingTerminal, routes.ErrDispatchTransport)
 				return
 			}
 			_ = dispatch.Complete()
@@ -504,11 +507,11 @@ func streamRouteResponse(writer *bufio.Writer, session routes.RouteStreamSession
 			continue
 		}
 		if _, err := writer.Write(chunk.Data); err != nil {
-			_ = dispatch.StreamFailed(err)
+			_ = dispatch.StreamAborted(err)
 			return
 		}
 		if err := writer.Flush(); err != nil {
-			_ = dispatch.StreamFailed(err)
+			_ = dispatch.StreamAborted(err)
 			return
 		}
 	}

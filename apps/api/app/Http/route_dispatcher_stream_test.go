@@ -71,6 +71,46 @@ func TestRouteDispatcherStreamsSSEThroughFiberAndCommitsTrace(t *testing.T) {
 	}
 }
 
+func TestRouteDispatcherClassifiesInvalidSSEPreflight(t *testing.T) {
+	registry := routes.NewRegistry()
+	artifact := routeDispatcherArtifact("stream.sse.invalid", 'e')
+	declaration := routeDispatcherManifestRoute(
+		"stream.sse.invalid.events", extensionmanifest.RouteActionAdd, "/api/v1/invalid-events", stdhttp.MethodGet,
+	)
+	declaration.Mode = extensionmanifest.RouteModeSSE
+	if _, err := registry.Publish(routes.Publication{Plugins: []routes.PluginRouteSet{{
+		Artifact: artifact, Routes: []extensionmanifest.ManifestRoute{declaration},
+	}}}); err != nil {
+		t.Fatal(err)
+	}
+	session := &streamHTTPTestSession{}
+	sink := &routeV2RecordingStreamFailureSink{}
+	dispatcher := routes.NewDispatcher(routes.DispatcherConfig{
+		Plans: routeRegistryPlanResolver{registry: registry},
+		Steps: &streamHTTPTestInvoker{observe: true, start: routes.RouteStreamStart{
+			Response: routes.DispatchResponse{
+				Status: stdhttp.StatusOK, Headers: stdhttp.Header{"Content-Type": {"application/json"}},
+			},
+			Session: session,
+		}},
+		Guard: HostRouteGuardAuthorizer{}, StreamFailures: sink,
+	})
+	app := fiber.New(fiber.Config{StreamRequestBody: true})
+	app.Use(routeDispatcherMiddleware(dispatcher, nil))
+	response, err := app.Test(httptest.NewRequest(stdhttp.MethodGet, "/api/v1/invalid-events", nil))
+	if err != nil {
+		t.Fatal(err)
+	}
+	response.Body.Close()
+	if response.StatusCode != fiber.StatusBadGateway || !session.cancelled {
+		t.Fatalf("status=%d cancelled=%t", response.StatusCode, session.cancelled)
+	}
+	events := sink.snapshot()
+	if len(events) != 1 || events[0].CauseClass != routes.RouteStreamFailureInvalidPreflight {
+		t.Fatalf("events=%#v", events)
+	}
+}
+
 func TestPumpRouteStreamRequestUsesBoundedChunks(t *testing.T) {
 	body := bytes.Repeat([]byte("x"), extensionsruntime.MaxProtocolV2RouteChunkSize+17)
 	session := &streamHTTPTestSession{}
@@ -79,6 +119,37 @@ func TestPumpRouteStreamRequestUsesBoundedChunks(t *testing.T) {
 	}
 	if !session.requestClosed || session.maxRequestChunk != extensionsruntime.MaxProtocolV2RouteChunkSize || session.requestBytes != len(body) || len(session.requestChunks) != 2 {
 		t.Fatalf("closed=%t max=%d bytes=%d chunks=%v", session.requestClosed, session.maxRequestChunk, session.requestBytes, session.requestChunks)
+	}
+}
+
+func TestPumpRouteStreamRequestClassifiesCallerAndRuntimeFailures(t *testing.T) {
+	callerErr := errors.New("caller request body failed")
+	runtimeErr := errors.New("runtime request stream failed")
+	for _, test := range []struct {
+		name      string
+		reader    io.Reader
+		session   *streamHTTPTestSession
+		wantCount int
+	}{
+		{name: "caller reader", reader: routeStreamErrorReader{err: callerErr}, session: &streamHTTPTestSession{}},
+		{name: "runtime send", reader: bytes.NewReader([]byte("body")), session: &streamHTTPTestSession{sendErr: runtimeErr}, wantCount: 1},
+		{name: "runtime close", reader: bytes.NewReader(nil), session: &streamHTTPTestSession{closeRequestErr: runtimeErr}, wantCount: 1},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			dispatch, session, sink := prepareHTTPStreamAdapterTest(t, test.session)
+			err := pumpRouteStreamRequest(test.reader, session)
+			if err == nil {
+				t.Fatal("pump unexpectedly succeeded")
+			}
+			_ = dispatch.StreamFailed(err)
+			events := sink.snapshot()
+			if len(events) != test.wantCount {
+				t.Fatalf("events=%#v", events)
+			}
+			if test.wantCount == 1 && events[0].CauseClass != routes.RouteStreamFailureRuntimeTransport {
+				t.Fatalf("class=%q", events[0].CauseClass)
+			}
+		})
 	}
 }
 
@@ -92,10 +163,11 @@ func TestStreamRouteResponseCancelsOnRuntimeFailure(t *testing.T) {
 	}
 	session := &streamHTTPTestSession{recvErr: errors.New("runtime crashed")}
 	traces := routes.NewRouteTraceRing(8)
+	sink := &routeV2RecordingStreamFailureSink{}
 	dispatcher := routes.NewDispatcher(routes.DispatcherConfig{
 		Plans: routeRegistryPlanResolver{registry: registry}, Steps: &streamHTTPTestInvoker{start: routes.RouteStreamStart{
 			Response: routes.DispatchResponse{Status: stdhttp.StatusOK}, Session: session,
-		}}, Guard: HostRouteGuardAuthorizer{}, Trace: traces,
+		}}, Guard: HostRouteGuardAuthorizer{}, Trace: traces, StreamFailures: sink,
 	})
 	prepared, err := dispatcher.PrepareStream(context.Background(), routes.DispatchRequest{Method: "GET", Path: "/failure"})
 	if err != nil {
@@ -113,6 +185,42 @@ func TestStreamRouteResponseCancelsOnRuntimeFailure(t *testing.T) {
 	records := traces.RouteTraces(8)
 	if len(records) != 2 || records[1].Outcome != routes.RouteTraceTransportFailed {
 		t.Fatalf("traces=%#v", records)
+	}
+	events := sink.snapshot()
+	if len(events) != 1 || events[0].CauseClass != routes.RouteStreamFailureRuntimeTransport {
+		t.Fatalf("events=%#v", events)
+	}
+}
+
+func TestStreamRouteResponseClassifiesMissingTerminal(t *testing.T) {
+	session := &streamHTTPTestSession{recvErr: io.EOF}
+	dispatch, bound, sink := prepareHTTPStreamAdapterTest(t, session)
+	dispatch.ResponseStarted()
+	streamRouteResponse(bufio.NewWriter(io.Discard), bound, dispatch)
+	events := sink.snapshot()
+	if len(events) != 1 || events[0].CauseClass != routes.RouteStreamFailureMissingTerminal {
+		t.Fatalf("events=%#v", events)
+	}
+}
+
+func TestStreamRouteResponseHostWriterFailuresDoNotRecordIncidents(t *testing.T) {
+	for _, test := range []struct {
+		name       string
+		bufferSize int
+		payload    []byte
+	}{
+		{name: "write", bufferSize: 1, payload: []byte("xx")},
+		{name: "flush", bufferSize: 4096, payload: []byte("x")},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			session := &streamHTTPTestSession{chunks: []routes.RouteStreamChunk{{Data: test.payload}}}
+			dispatch, bound, sink := prepareHTTPStreamAdapterTest(t, session)
+			dispatch.ResponseStarted()
+			streamRouteResponse(bufio.NewWriterSize(routeStreamErrorWriter{err: io.ErrClosedPipe}, test.bufferSize), bound, dispatch)
+			if events := sink.snapshot(); len(events) != 0 {
+				t.Fatalf("events=%#v", events)
+			}
+		})
 	}
 }
 
@@ -755,6 +863,7 @@ func (g *countingRouteGuard) AuthorizeRoute(
 
 type streamHTTPTestInvoker struct {
 	start     routes.RouteStreamStart
+	observe   bool
 	openCalls atomic.Int64
 }
 
@@ -764,8 +873,11 @@ func (*streamHTTPTestInvoker) Invoke(context.Context, routes.RouteInvocation) (r
 	return routes.RouteInvocationResult{}, errors.New("buffered invocation is not expected")
 }
 
-func (i *streamHTTPTestInvoker) OpenStream(context.Context, routes.RouteInvocation) (routes.RouteStreamStart, error) {
+func (i *streamHTTPTestInvoker) OpenStream(_ context.Context, invocation routes.RouteInvocation) (routes.RouteStreamStart, error) {
 	i.openCalls.Add(1)
+	if i.observe && invocation.Commit != nil {
+		invocation.Commit.SideEffectStarted()
+	}
 	return i.start, nil
 }
 
@@ -773,6 +885,8 @@ type streamHTTPTestSession struct {
 	chunks          []routes.RouteStreamChunk
 	response        routes.DispatchResponse
 	recvErr         error
+	sendErr         error
+	closeRequestErr error
 	requestChunks   []int
 	requestBytes    int
 	maxRequestChunk int
@@ -787,12 +901,12 @@ func (s *streamHTTPTestSession) Send(data []byte, _ bool) error {
 	if len(data) > s.maxRequestChunk {
 		s.maxRequestChunk = len(data)
 	}
-	return nil
+	return s.sendErr
 }
 
 func (s *streamHTTPTestSession) CloseRequest() error {
 	s.requestClosed = true
-	return nil
+	return s.closeRequestErr
 }
 
 func (s *streamHTTPTestSession) Recv() (routes.RouteStreamChunk, error) {
@@ -813,6 +927,54 @@ func (s *streamHTTPTestSession) Response() (routes.DispatchResponse, bool) {
 }
 
 func (s *streamHTTPTestSession) Cancel() { s.cancelled = true }
+
+type routeStreamErrorReader struct{ err error }
+
+func (r routeStreamErrorReader) Read([]byte) (int, error) { return 0, r.err }
+
+type routeStreamErrorWriter struct{ err error }
+
+func (w routeStreamErrorWriter) Write([]byte) (int, error) { return 0, w.err }
+
+func prepareHTTPStreamAdapterTest(
+	t *testing.T,
+	session routes.RouteStreamSession,
+) (*routes.RouteStreamDispatch, routes.RouteStreamSession, *routeV2RecordingStreamFailureSink) {
+	t.Helper()
+	registry := routes.NewRegistry()
+	artifact := routeDispatcherArtifact("stream.http.adapter", 'a')
+	declaration := routeDispatcherManifestRoute(
+		"stream.http.adapter.handler", extensionmanifest.RouteActionAdd, "/stream-http-adapter", stdhttp.MethodGet,
+	)
+	declaration.Mode = extensionmanifest.RouteModeStream
+	if _, err := registry.Publish(routes.Publication{Plugins: []routes.PluginRouteSet{{
+		Artifact: artifact, Routes: []extensionmanifest.ManifestRoute{declaration},
+	}}}); err != nil {
+		t.Fatal(err)
+	}
+	sink := &routeV2RecordingStreamFailureSink{}
+	dispatcher := routes.NewDispatcher(routes.DispatcherConfig{
+		Plans: routeRegistryPlanResolver{registry: registry},
+		Steps: &streamHTTPTestInvoker{start: routes.RouteStreamStart{
+			Response: routes.DispatchResponse{Status: stdhttp.StatusOK}, Session: session,
+		}},
+		Guard: HostRouteGuardAuthorizer{}, StreamFailures: sink,
+	})
+	prepared, err := dispatcher.PrepareStream(
+		context.Background(), routes.DispatchRequest{Method: stdhttp.MethodGet, Path: "/stream-http-adapter"},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	start, err := prepared.Dispatch.Open(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The fake invoker has no runtime call; mark the production-equivalent point
+	// before exercising adapter-side provenance.
+	prepared.Dispatch.RequestStarted()
+	return prepared.Dispatch, start.Session, sink
+}
 
 // webSocketPreflightOrderSession records Cancel so the real serveRouteWebSocket
 // path can prove Fail publishes the transport-fail trace first.
