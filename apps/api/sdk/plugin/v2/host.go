@@ -3,6 +3,7 @@ package pluginv2
 import (
 	"context"
 	"errors"
+	"sort"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -22,14 +23,16 @@ var (
 	ErrHostUnavailable                = errors.New("protocol v2 host broker is unavailable")
 	ErrHostActorDelegationUnavailable = errors.New("protocol v2 actor delegation is unavailable")
 	ErrHostQueryDelegationUnavailable = errors.New("protocol v2 query delegation is unavailable")
+	ErrHostCommandInvalidationInvalid = errors.New("protocol v2 Host Command query invalidation tags are invalid")
 )
 
 const (
-	HostQueryOwnSettingsID        = "sforum.extensions.settings.own"
-	HostQueryOwnSettingsVersion   = "1"
-	HostQueryOwnSettingsSchemaID  = "sforum.extensions.settings.own.result"
-	HostQueryOwnSettingsSchemaV1  = "1"
-	HostQueryFilterValueSchemaRef = "sforum.query.filter.value@1"
+	HostQueryOwnSettingsID         = "sforum.extensions.settings.own"
+	HostQueryOwnSettingsVersion    = "1"
+	HostQueryOwnSettingsSchemaID   = "sforum.extensions.settings.own.result"
+	HostQueryOwnSettingsSchemaV1   = "1"
+	HostQueryFilterValueSchemaRef  = "sforum.query.filter.value@1"
+	hostCommandInvalidationMaxTags = 32
 )
 
 // Host exposes the generated Host API v2 clients on the runtime-scoped broker.
@@ -216,6 +219,34 @@ func (h *Host) DelegatedCommandRequest(
 		request.Input = proto.Clone(input).(*protocolwire.TypedDocument)
 	}
 	return request, nil
+}
+
+// BindCommandQueryInvalidationTags attaches a canonical owner-scoped semantic
+// tag set to a Host Command request. The Host enqueues it atomically with the
+// command write; callers must not send physical cache keys.
+func (h *Host) BindCommandQueryInvalidationTags(request *hostwire.CommandRequest, tags ...string) error {
+	if h == nil || h.identity == nil || request == nil || request.GetContext() == nil ||
+		!proto.Equal(request.GetContext().GetExtension(), h.identity) ||
+		len(tags) == 0 || len(tags) > hostCommandInvalidationMaxTags {
+		return ErrHostCommandInvalidationInvalid
+	}
+	owner := strings.ToLower(strings.TrimSpace(h.identity.GetExtensionId()))
+	canonical := make([]string, 0, len(tags))
+	seen := make(map[string]struct{}, len(tags))
+	for _, raw := range tags {
+		tag := strings.ToLower(strings.TrimSpace(raw))
+		if !queryRuntimeIDPattern.MatchString(tag) || !strings.HasPrefix(tag, owner+".") {
+			return ErrHostCommandInvalidationInvalid
+		}
+		if _, duplicate := seen[tag]; duplicate {
+			return ErrHostCommandInvalidationInvalid
+		}
+		seen[tag] = struct{}{}
+		canonical = append(canonical, tag)
+	}
+	sort.Strings(canonical)
+	request.QueryInvalidationTags = canonical
+	return nil
 }
 
 func hostUnaryClientInterceptor(token []byte) grpc.UnaryClientInterceptor {

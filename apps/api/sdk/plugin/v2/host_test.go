@@ -3,7 +3,9 @@ package pluginv2
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
+	"slices"
 	"testing"
 	"time"
 
@@ -119,6 +121,30 @@ func TestHostDelegatedCommandRequestSelectsOneTokenWithoutMutatingParent(t *test
 	request.Input.SchemaId = "changed"
 	if input.GetSchemaId() != "demo.input" || len(parent.GetHostCommandDelegations()) != 2 {
 		t.Fatal("delegated command request mutated caller-owned values")
+	}
+	if err := host.BindCommandQueryInvalidationTags(request, " DEMO.V2.TOPICS ", "demo.v2.members"); err != nil {
+		t.Fatalf("bind invalidation tags: %v", err)
+	}
+	if !slices.Equal(request.GetQueryInvalidationTags(), []string{"demo.v2.members", "demo.v2.topics"}) {
+		t.Fatalf("query invalidation tags=%#v", request.GetQueryInvalidationTags())
+	}
+	overLimit := make([]string, hostCommandInvalidationMaxTags+1)
+	for index := range overLimit {
+		overLimit[index] = fmt.Sprintf("demo.v2.tag.%02d", index)
+	}
+	for _, tags := range [][]string{
+		nil,
+		{"other.plugin.topics"},
+		{"demo.v2.topics", " DEMO.V2.TOPICS "},
+		overLimit,
+	} {
+		before := slices.Clone(request.GetQueryInvalidationTags())
+		if err := host.BindCommandQueryInvalidationTags(request, tags...); !errors.Is(err, ErrHostCommandInvalidationInvalid) {
+			t.Fatalf("tags %#v error=%v", tags, err)
+		}
+		if !slices.Equal(before, request.GetQueryInvalidationTags()) {
+			t.Fatalf("invalid tags mutated request: before=%#v after=%#v", before, request.GetQueryInvalidationTags())
+		}
 	}
 	for _, command := range []string{"", "sforum.missing"} {
 		if _, err := host.DelegatedCommandRequest(parent, command, "1", nil); !errors.Is(err, ErrHostActorDelegationUnavailable) {

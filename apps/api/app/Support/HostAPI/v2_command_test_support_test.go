@@ -20,6 +20,7 @@ type fakeProtocolV2CommandBackend struct {
 	begins           int
 	commits          int
 	rollbacks        int
+	commitErr        error
 	auditErr         error
 	saveErr          error
 	actorErr         error
@@ -155,6 +156,10 @@ func (tx *fakeProtocolV2CommandTx) Commit(context.Context) error {
 	}
 	tx.backend.mu.Lock()
 	defer tx.backend.mu.Unlock()
+	if tx.backend.commitErr != nil {
+		tx.closed = true
+		return tx.backend.commitErr
+	}
 	for key, value := range tx.values {
 		tx.backend.values[key] = value
 	}

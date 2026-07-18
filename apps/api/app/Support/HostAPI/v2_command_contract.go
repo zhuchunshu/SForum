@@ -6,6 +6,8 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
+	"slices"
+	"sort"
 	"strings"
 
 	hostv2 "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/host/v2"
@@ -119,11 +121,14 @@ func protocolV2CommandFingerprintWithBinding(
 	if actorUserID > 0 {
 		contextBinding.Actor = &protocolv2.Actor{UserId: actorUserID}
 	}
+	queryInvalidationTags := slices.Clone(request.GetQueryInvalidationTags())
+	sort.Strings(queryInvalidationTags)
 	bound := &hostv2.CommandRequest{
 		Context: contextBinding, CommandId: strings.TrimSpace(request.GetCommandId()),
-		CommandVersion:   strings.TrimSpace(request.GetCommandVersion()),
-		ExpectedRevision: strings.TrimSpace(request.GetExpectedRevision()),
-		Input:            cloneProtocolV2Document(request.GetInput()),
+		CommandVersion:        strings.TrimSpace(request.GetCommandVersion()),
+		ExpectedRevision:      strings.TrimSpace(request.GetExpectedRevision()),
+		Input:                 cloneProtocolV2Document(request.GetInput()),
+		QueryInvalidationTags: queryInvalidationTags,
 	}
 	encoded, err := (proto.MarshalOptions{Deterministic: true}).Marshal(bound)
 	if err != nil {

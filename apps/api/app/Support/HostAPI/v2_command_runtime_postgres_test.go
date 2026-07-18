@@ -50,6 +50,9 @@ func TestPostgresProtocolV2CommandRuntimePublishesSixDomainCommands(t *testing.T
 		t.Fatal(err)
 	}
 	engine := runtime.commandEngine()
+	if engine.queryInvalidationJobs == nil {
+		t.Fatal("production command runtime omitted Query invalidation dispatcher")
+	}
 	if len(engine.definitions) != 6 {
 		t.Fatalf("command count = %d", len(engine.definitions))
 	}

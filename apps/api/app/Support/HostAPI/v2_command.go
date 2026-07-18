@@ -4,11 +4,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	queryregistryjobs "github.com/zhuchunshu/sforum/apps/api/app/Jobs/QueryRegistry"
+	supportjobs "github.com/zhuchunshu/sforum/apps/api/app/Support/Jobs"
+	queryregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/QueryRegistry"
 	hostv2 "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/host/v2"
 	protocolv2 "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/protocol/v2"
 	"google.golang.org/grpc/codes"
@@ -126,9 +130,10 @@ type protocolV2CommandKey struct {
 // protocolV2CommandEngine is immutable after construction, so planning and
 // execution can run concurrently without a mutable registration surface.
 type protocolV2CommandEngine struct {
-	backend     protocolV2CommandBackend
-	delegations *ProtocolV2ActorDelegationAuthority
-	definitions map[protocolV2CommandKey]protocolV2CommandDefinition
+	backend               protocolV2CommandBackend
+	delegations           *ProtocolV2ActorDelegationAuthority
+	queryInvalidationJobs *supportjobs.Dispatcher
+	definitions           map[protocolV2CommandKey]protocolV2CommandDefinition
 }
 
 // ProtocolV2CommandRuntime is a sealed Host-owned command catalog. P5's
@@ -159,6 +164,15 @@ func newProtocolV2CommandEngine(backend protocolV2CommandBackend, definitions ..
 func newProtocolV2CommandEngineWithActorDelegation(
 	backend protocolV2CommandBackend,
 	delegations *ProtocolV2ActorDelegationAuthority,
+	definitions ...protocolV2CommandDefinition,
+) (*protocolV2CommandEngine, error) {
+	return newProtocolV2CommandEngineWithInvalidationJobs(backend, delegations, nil, definitions...)
+}
+
+func newProtocolV2CommandEngineWithInvalidationJobs(
+	backend protocolV2CommandBackend,
+	delegations *ProtocolV2ActorDelegationAuthority,
+	queryInvalidationJobs *supportjobs.Dispatcher,
 	definitions ...protocolV2CommandDefinition,
 ) (*protocolV2CommandEngine, error) {
 	registered := make(map[protocolV2CommandKey]protocolV2CommandDefinition, len(definitions))
@@ -205,7 +219,10 @@ func newProtocolV2CommandEngineWithActorDelegation(
 		}
 		registered[key] = definition
 	}
-	return &protocolV2CommandEngine{backend: backend, delegations: delegations, definitions: registered}, nil
+	return &protocolV2CommandEngine{
+		backend: backend, delegations: delegations, queryInvalidationJobs: queryInvalidationJobs,
+		definitions: registered,
+	}, nil
 }
 
 func (e *protocolV2CommandEngine) plan(ctx context.Context, request *hostv2.CommandRequest) (*hostv2.CommandPlan, error) {
@@ -239,6 +256,19 @@ func (e *protocolV2CommandEngine) definition(ctx context.Context, request *hostv
 	if strings.TrimSpace(request.GetContext().GetExtension().GetExtensionId()) == "" {
 		plan.Error = commandError(protocolv2.ErrorCode_ERROR_CODE_INVALID_ARGUMENT, "host.command_extension_required", "The authenticated extension identity is required.", false)
 		return definition, nil, plan
+	}
+	if tags := request.GetQueryInvalidationTags(); len(tags) > 0 {
+		if e.queryInvalidationJobs == nil {
+			plan.Error = commandError(protocolv2.ErrorCode_ERROR_CODE_UNAVAILABLE, "host.command_query_invalidation_unavailable", "Query cache invalidation is unavailable.", true)
+			return definition, nil, plan
+		}
+		canonical, err := queryregistry.CanonicalSemanticCacheTags(
+			request.GetContext().GetExtension().GetExtensionId(), tags,
+		)
+		if err != nil || !slices.Equal(canonical, tags) {
+			plan.Error = commandError(protocolv2.ErrorCode_ERROR_CODE_INVALID_ARGUMENT, "host.command_query_invalidation_invalid", "Query cache invalidation tags must be canonical and owned by the caller.", false)
+			return definition, nil, plan
+		}
 	}
 	if request.GetContext().GetActor() != nil {
 		plan.Error = commandError(protocolv2.ErrorCode_ERROR_CODE_PERMISSION_DENIED, "host.command_actor_unattested", "Plugin-initiated Host Commands cannot supply an actor.", false)
@@ -453,6 +483,13 @@ func (e *protocolV2CommandEngine) executeInTransaction(
 	}
 	if detail := validateProtocolV2CommandDocument(execution.Output, definition.OutputSchemaID, definition.OutputSchemaVersion, "output"); detail != nil {
 		return nil, &protocolV2CommandError{detail: detail}
+	}
+	if len(request.GetQueryInvalidationTags()) > 0 {
+		if _, err := queryregistryjobs.EnqueueInvalidationTx(
+			ctx, e.queryInvalidationJobs, tx, scope.ExtensionID, request.GetQueryInvalidationTags(),
+		); err != nil {
+			return nil, fmt.Errorf("enqueue Query cache invalidation: %w", err)
+		}
 	}
 	transactionID, err := newProtocolV2CommandID("txn")
 	if err != nil {
