@@ -14,51 +14,42 @@ Last updated: 2026-07-18
 
 ## Current Subtask
 
-### 2026-07-18 Overnight Executable Query Publication Checkpoint
+### 2026-07-18 Protocol V2 Query Execution Wiring Checkpoint
 
 - Verified weighted progress remains **66.9205%** (display **66.0%**); P7 stays
   **16/22**. The Query task and joined Query test row remain uncredited.
-- `7d1d7092a` exports `Models/Extensions.ReadExactExtensionDigestFile` as an
-  additive wrapper over the existing OpenRoot/SameFile/O_NONBLOCK/LimitReader
-  exact-digest reader. Existing path-swap, symlink, oversize, directory, and
-  FIFO tests passed.
-- `f311a42a1` binds lifecycle executable Query result Schemas through that
-  stable reader, keeps handlerless legacy queries Schema-free, and covers
-  oversize, directory, FIFO, digest, symlink, path/ID@version, duplicate,
-  restore, disable, and Safe Mode fail-closed paths. Focused Extensions
-  normal/race/vet passed.
-- `0c135a58a` adds immutable Query executable publication material:
-  `QueryDeclaration` Handler/IdentityFields/DefaultSort/ProviderDigest plus
-  private provider material; independent `ResultFilters` declarations with
-  private filter material; `BindExecutableRuntime` rejecting missing,
-  duplicate, unowned, and contract mismatches; digest/equality on public
-  metadata only; memory Snapshot restore keeps private material while JSON
-  roundtrip loses execution rights and fails closed; Safe Mode filters
-  third-party material before validation; planning forces identity fields and
-  DefaultSort for executable pagination, appends identity tie-breakers, keeps
-  third-party relations `ErrContractInsufficient`, and preserves handlerless
-  inspect/plan. QueryRegistry focused normal/race/vet and Extensions lifecycle
-  recheck passed. Dirty `execution.go` and Redis candidates were not touched.
+- `b77271613` lifecycle Query publication copies Manifest Handler,
+  IdentityFields, DefaultSort, and independent `queryResultFilters`, Host-copies
+  filter identity from the target query owner, and keeps handlerless legacy
+  queries inspect/plan only without private provider material.
+- `92f30c76f` adds Host Protocol V2 `InvokeQuery` / `FilterQueryResult` clients:
+  exact Manifest freeze, authority projection stripped, deadline/cancel mapping,
+  canonical row JSON encode/decode without importing `sdk/plugin/v2` (import
+  cycle). `ProtocolStarter` exposes the versioned invoker.
+- `225313dc1` exports `NewProviderResolverFunc` + `NewFallbackProviderResolver`
+  and optional `ResultFilterSource` on ExecutionRuntime so Core static bindings
+  stay package-private while dynamic third-party filters merge at match time.
+- `c98128925` wires composite Core-then-Protocol-V2 provider resolution and
+  Registry-snapshot result filters into production bootstrap. Callables resolve
+  against the exact active runtime at execution time, not process start.
+  Focused Extensions/QueryRegistry/bootstrap normal + race + vet passed.
 - The uncommitted Redis cache candidate remains **BLOCKED AND MUST NOT BE
   COMMITTED**. One-shot Lua invalidation still has the 10k×64 BUSY/time-limit
   and unbounded-memory production blockers; replace with bounded resumable
   batches and CAS/progress semantics before any production wiring.
-- Exact next step: wire lifecycle publication to copy executable
-  Handler/IdentityFields/DefaultSort and `queryResultFilters`, call
-  `BindExecutableRuntime` with real Protocol V2 provider/filter adapters,
-  connect ExecutionRuntime to publication private material without committing
-  the blocked Redis candidate, then prove a reference plugin through joined
-  permission/cost/Schema/pagination/cache/disable/upgrade/Safe Mode gates.
+- Exact next step: prove a reference plugin through joined permission/cost/
+  Schema/pagination/cache/disable/upgrade/Safe Mode gates over the real
+  subprocess transport; optionally bind lifecycle private material via
+  `BindExecutableRuntime` when callables are available without digest drift.
   Do not credit either open P7 Query row before those joined proofs.
-- Current owned WIP that must not be committed yet:
-  `QueryRegistry/execution.go` and new `redis_cache*.go`. All other dirty files
-  shown by `git status --short` remain unowned and must not be staged,
-  overwritten, reformatted, or reverted. Stay on `main`; no worktree/branch/
-  push/tag.
-- Rollback remains additive: revert `0c135a58a` to drop executable publication
-  material, `f311a42a1` to drop lifecycle Schema binding, and `7d1d7092a` to
-  unexport the exact-digest reader. No committed production bridge yet invokes
-  the Query runtime RPCs with a real third-party provider.
+- Current owned WIP that must not be committed yet: new `redis_cache*.go`.
+  All other dirty files shown by `git status --short` remain unowned and must
+  not be staged, overwritten, reformatted, or reverted. Stay on `main`; no
+  worktree/branch/push/tag.
+- Rollback remains additive: revert `c98128925`/`225313dc1`/`92f30c76f` to drop
+  execution wiring, `b77271613` for lifecycle metadata, and earlier publication
+  commits for Schema/executable material. Production now has the Protocol V2
+  path for third-party providers/filters but no credited joined reference proof.
 
 ### 2026-07-18 Overnight External Query Handoff
 

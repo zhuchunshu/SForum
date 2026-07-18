@@ -125,6 +125,19 @@ or treated as expired only after the complete V3 goal is achieved.
 
 ## Last Durable Checkpoint
 
+### 2026-07-18 Protocol V2 Query Execution Wiring (no P7 credit)
+
+- Exact weighted progress remains `66.9205%`; floored display progress remains
+  **66.0%**. P7 stays **16/22**. Query task and joined Query test row uncredited.
+- `92f30c76f` Host Protocol V2 InvokeQuery/FilterQueryResult client; `225313dc1`
+  composable provider resolvers + ResultFilterSource; `c98128925` Core-then-V2
+  composite provider + Registry filter source wired in production bootstrap.
+  Lifecycle metadata (`b77271613`) already publishes Handler/Identity/DefaultSort
+  and queryResultFilters. Redis cache candidate still blocked and uncommitted.
+- Focused Extensions/QueryRegistry/bootstrap normal+race+vet passed.
+- Next: reference plugin joined permission/cost/Schema/pagination/cache/disable/
+  upgrade/Safe Mode gates over real subprocess transport before any P7 credit.
+
 ### 2026-07-18 P7 Host-Owned Role Mapping Joined Closure
 
 - Exact weighted progress is `66.9205%`; floored display progress remains

@@ -11,10 +11,10 @@ This is the entry point for project memory.
   - Current durable checkpoint:
     `knowledge/sessions/2026-07-13-trusted-plugin-theme-platform-v3-progress.md`
   - P6 is complete at **18/18**. Weighted progress is **66.9205%** (display
-    **66.0%**). The accepted opaque non-HTTP boundary now has real generic
-    binary subprocess evidence, bounded TCP backpressure, classified durable
-    incidents, zero-incident caller/Host paths, and complete named Routes/HTTP/
-    PostgreSQL production gates. P7 is **16/22**.
+    **66.0%**). Protocol V2 Query client + Core-then-V2 provider/filter execution
+    wiring is committed (`92f30c76f`/`225313dc1`/`c98128925`); P7 Query rows stay
+    uncredited until joined reference-plugin gates. Redis cache still blocked.
+    P7 is **16/22**.
   - Active checkpoint: `knowledge/sessions/2026-07-16-trusted-plugin-theme-platform-v3-runtime-ownership-checkpoint.md`
   - Prior Query/P12/SEO checkpoint:
     `knowledge/sessions/2026-07-16-trusted-plugin-theme-platform-v3-query-p12-seo-checkpoint.md`
