@@ -263,25 +263,84 @@ func TestRouteV2StreamSessionCapturesForceCancelCauseBeforeLeaseRelease(t *testi
 }
 
 func TestRouteV2StreamSessionKeepsRuntimeCrashAcrossCancelRace(t *testing.T) {
-	for iteration := range 100 {
-		runtimeErr := errors.New("runtime crashed")
-		started := make(chan struct{})
-		release := make(chan struct{})
-		wire := &fakeRouteV2WireStream{recvErr: runtimeErr, recvStarted: started, recvRelease: release}
-		session := newRouteV2StreamSession(wire, nil, stdhttp.StatusOK)
-		ctx, cancel := context.WithCancelCause(context.Background())
-		session.arm(ctx)
-		result := make(chan error, 1)
-		go func() {
-			_, err := session.Recv()
-			result <- err
-		}()
-		<-started
-		cancel(errors.New("caller left"))
-		close(release)
-		if err := <-result; !errors.Is(err, runtimeErr) {
-			t.Fatalf("iteration=%d error=%v", iteration, err)
+	for _, operation := range []string{"send", "close", "recv"} {
+		t.Run(operation, func(t *testing.T) {
+			for iteration := range 100 {
+				runtimeErr := errors.New("runtime crashed")
+				started := make(chan struct{})
+				release := make(chan struct{})
+				wire := routeV2BlockingFailureWire(operation, runtimeErr, started, release)
+				session := newRouteV2StreamSession(wire, nil, stdhttp.StatusOK)
+				ctx, cancel := context.WithCancelCause(context.Background())
+				session.arm(ctx)
+				result := make(chan error, 1)
+				go func() { result <- invokeRouteV2StreamOperation(session, operation) }()
+				<-started
+				cancel(errors.New("caller left"))
+				close(release)
+				if err := <-result; !errors.Is(err, runtimeErr) {
+					t.Fatalf("iteration=%d error=%v", iteration, err)
+				}
+			}
+		})
+	}
+}
+
+func TestRouteV2StreamSessionHostWinnerOverridesWireTeardownFailure(t *testing.T) {
+	forceCause := errors.New("trust revoked")
+	for _, winner := range []struct {
+		name  string
+		cause error
+		want  error
+	}{
+		{name: "ForceDrain", cause: errors.Join(extensionsruntime.ErrRuntimeAdmissionForced, forceCause), want: extensionsruntime.ErrRuntimeAdmissionForced},
+		{name: "Host budget", cause: routes.ErrRouteStreamBudgetExceeded, want: routes.ErrRouteStreamBudgetExceeded},
+	} {
+		for _, operation := range []string{"send", "close", "recv"} {
+			t.Run(winner.name+"/"+operation, func(t *testing.T) {
+				wireErr := errors.New("wire teardown returned unavailable")
+				started := make(chan struct{})
+				release := make(chan struct{})
+				wire := routeV2BlockingFailureWire(operation, wireErr, started, release)
+				session := newRouteV2StreamSession(wire, nil, stdhttp.StatusOK)
+				result := make(chan error, 1)
+				go func() { result <- invokeRouteV2StreamOperation(session, operation) }()
+				<-started
+				session.CancelWithCause(winner.cause)
+				close(release)
+				err := <-result
+				if !errors.Is(err, winner.want) || errors.Is(err, wireErr) {
+					t.Fatalf("error=%v winner=%v", err, winner.cause)
+				}
+			})
 		}
+	}
+}
+
+func routeV2BlockingFailureWire(operation string, failure error, started, release chan struct{}) *fakeRouteV2WireStream {
+	wire := &fakeRouteV2WireStream{}
+	switch operation {
+	case "send":
+		wire.sendErr, wire.sendStarted, wire.sendRelease = failure, started, release
+	case "close":
+		wire.closeErr, wire.closeStarted, wire.closeRelease = failure, started, release
+	case "recv":
+		wire.recvErr, wire.recvStarted, wire.recvRelease = failure, started, release
+	}
+	return wire
+}
+
+func invokeRouteV2StreamOperation(session *routeV2StreamSession, operation string) error {
+	switch operation {
+	case "send":
+		return session.Send([]byte("request"), false)
+	case "close":
+		return session.CloseRequest()
+	case "recv":
+		_, err := session.Recv()
+		return err
+	default:
+		return errors.New("unknown test operation")
 	}
 }
 
@@ -386,19 +445,35 @@ type fakeRouteV2WireStream struct {
 	requestClosed bool
 	cancelled     bool
 	closeErr      error
+	closeStarted  chan struct{}
+	closeRelease  chan struct{}
 	blockRecv     chan struct{}
 	recvStarted   chan struct{}
 	recvRelease   chan struct{}
 	sendErr       error
+	sendStarted   chan struct{}
+	sendRelease   chan struct{}
 }
 
 func (s *fakeRouteV2WireStream) Send(data []byte, _ bool) error {
 	s.sent = append([]byte(nil), data...)
+	if s.sendStarted != nil {
+		close(s.sendStarted)
+	}
+	if s.sendRelease != nil {
+		<-s.sendRelease
+	}
 	return s.sendErr
 }
 
 func (s *fakeRouteV2WireStream) CloseRequest() error {
 	s.requestClosed = true
+	if s.closeStarted != nil {
+		close(s.closeStarted)
+	}
+	if s.closeRelease != nil {
+		<-s.closeRelease
+	}
 	return s.closeErr
 }
 

@@ -278,9 +278,7 @@ func (s *routeV2StreamSession) Send(data []byte, final bool) error {
 		return classifyRouteV2StreamError(cause)
 	}
 	if err := s.stream.Send(data, final); err != nil {
-		err = classifyRouteV2StreamError(err)
-		s.completeCancel(err)
-		return err
+		return s.completeOperationFailure(err)
 	}
 	return nil
 }
@@ -296,15 +294,16 @@ func (s *routeV2StreamSession) CloseRequest() error {
 	if err == nil {
 		return nil
 	}
+	if cause, canceled := s.canceledCause(); canceled && routeV2HostOwnedStreamWinner(cause) {
+		return classifyRouteV2StreamError(cause)
+	}
 	// The peer terminal cancels the underlying gRPC context. A request-side
 	// cleanup error after that exact terminal cannot rewrite a committed stream.
 	terminal, ok := s.stream.Response()
 	if ok && terminal.StatusCode == s.expectedStatus {
 		return nil
 	}
-	err = classifyRouteV2StreamError(err)
-	s.completeCancel(err)
-	return err
+	return s.completeOperationFailure(err)
 }
 
 func (s *routeV2StreamSession) Recv() (routes.RouteStreamChunk, error) {
@@ -322,11 +321,10 @@ func (s *routeV2StreamSession) Recv() (routes.RouteStreamChunk, error) {
 		}, nil
 	}
 	if !errors.Is(err, io.EOF) {
-		failure := classifyRouteV2StreamError(err)
 		// Cleanup ownership and operation provenance are separate: a concurrent
-		// caller cancel cannot rewrite a distinguishable runtime crash.
-		s.completeCancel(failure)
-		return routes.RouteStreamChunk{}, failure
+		// caller cancel cannot rewrite a distinguishable runtime crash, while an
+		// already-published ForceDrain/Host-budget winner remains authoritative.
+		return routes.RouteStreamChunk{}, s.completeOperationFailure(err)
 	}
 	terminal, ok := s.stream.Response()
 	if !ok {
@@ -412,6 +410,20 @@ func (s *routeV2StreamSession) canceledCause() (error, bool) {
 		cause = context.Canceled
 	}
 	return cause, true
+}
+
+func (s *routeV2StreamSession) completeOperationFailure(err error) error {
+	failure := classifyRouteV2StreamError(err)
+	s.completeCancel(failure)
+	if winner := s.Cause(); routeV2HostOwnedStreamWinner(winner) {
+		return classifyRouteV2StreamError(winner)
+	}
+	return failure
+}
+
+func routeV2HostOwnedStreamWinner(err error) bool {
+	return errors.Is(err, extensionsruntime.ErrRuntimeAdmissionForced) ||
+		errors.Is(err, routes.ErrRouteStreamBudgetExceeded)
 }
 
 // publishDone closes Done only after state/cause and cleanup are published.
