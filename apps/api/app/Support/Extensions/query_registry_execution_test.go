@@ -277,4 +277,24 @@ func TestProtocolV2QueryResultFilterSourceUsesActiveOwnerIdentity(t *testing.T) 
 	if _, err := source.ResultFiltersFor(stale); !errors.Is(err, queryregistry.ErrArtifactConflict) {
 		t.Fatalf("stale owner result-filter source error=%v", err)
 	}
+
+	incompatibleOwner := ownerArtifact
+	incompatibleOwner.ExtensionVersion = "0.9.0"
+	incompatibleOwner.PackageDigest = strings.Repeat("c", 64)
+	incompatibleOwner.VersionID = 3
+	incompatibleOwner.RuntimeInstanceID = "owner-runtime-incompatible"
+	if _, err := registry.ReplaceAll([]queryregistry.Publication{
+		{Artifact: filterArtifact, ResultFilters: []queryregistry.ResultFilterDeclaration{filter}},
+		{Artifact: incompatibleOwner, Queries: []queryregistry.QueryDeclaration{query}},
+	}, false); err != nil {
+		t.Fatal(err)
+	}
+	incompatible, err := registry.Resolve(query.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	registrations, err = source.ResultFiltersFor(incompatible)
+	if err != nil || len(registrations) != 1 || len(registrations[0].IdentityFields) != 0 {
+		t.Fatalf("incompatible owner filter registrations=%#v err=%v", registrations, err)
+	}
 }

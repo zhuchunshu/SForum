@@ -188,7 +188,7 @@ func (s *protocolV2QueryResultFilterSource) ResultFiltersFor(
 				ID: filter.ID, ContractVersion: filter.ContractVersion,
 				QueryID: filter.QueryID, QueryContractVersion: filter.QueryContractVersion,
 				QueryPlanVersion: filter.QueryPlanVersion, Priority: filter.Priority,
-				Artifact: publication.Artifact, IdentityFields: append([]string(nil), active.IdentityFields...),
+				Artifact: publication.Artifact, IdentityFields: append([]string(nil), filter.IdentityFields...),
 				FailurePolicy: filter.FailurePolicy, Timeout: timeout,
 				Filter: &protocolV2QueryResultFilter{
 					manager: s.manager, artifact: publication.Artifact, declaration: filter,
