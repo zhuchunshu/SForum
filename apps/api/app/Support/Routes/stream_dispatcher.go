@@ -248,11 +248,23 @@ func (d *RouteStreamDispatch) finishStreamOpenErrorAs(
 	}
 	cause := context.Cause(lifetime.Context())
 	callerErr := caller.Err()
-	if errors.Is(cause, ErrRouteStreamBudgetExceeded) || errors.Is(err, ErrRouteStreamBudgetExceeded) {
+	if class, incident, classified := routeStreamFailureDisposition(err); classified {
+		d.failStream(class, incident)
+		if !errors.Is(err, ErrDispatchTransport) {
+			err = fmt.Errorf("%w: %w", ErrDispatchTransport, err)
+		}
+		return RouteStreamStart{}, err
+	}
+	if errors.Is(err, ErrRouteStreamBudgetExceeded) ||
+		errors.Is(cause, ErrRouteStreamBudgetExceeded) && routeStreamCancellationLike(err) {
 		d.failStream(RouteStreamFailureHostBudget, true)
 		return RouteStreamStart{}, fmt.Errorf("%w: %w", ErrDispatchTransport, ErrRouteStreamBudgetExceeded)
 	}
-	callerCaused := callerErr != nil && routeStreamCallerCausedFailure(err, cause, callerErr)
+	callerCause := context.Cause(caller)
+	if callerCause == nil {
+		callerCause = callerErr
+	}
+	callerCaused := callerErr != nil && routeStreamCallerCausedFailure(err, callerErr, callerCause)
 	if callerCaused {
 		if !d.commit.ExecutionObserved() {
 			d.finishWithoutTrace()
@@ -286,8 +298,12 @@ func (d *RouteStreamDispatch) setResponseStatus(status int) {
 	d.mu.Unlock()
 }
 
-func routeStreamCallerCausedFailure(err, cause, callerErr error) bool {
-	return callerErr != nil && (errors.Is(err, callerErr) || errors.Is(cause, callerErr))
+func routeStreamCallerCausedFailure(err, callerErr, callerCause error) bool {
+	return callerErr != nil && (errors.Is(err, callerErr) || callerCause != nil && errors.Is(err, callerCause))
+}
+
+func routeStreamCancellationLike(err error) bool {
+	return errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded)
 }
 
 func (d *RouteStreamDispatch) finishWithoutTrace() {
@@ -327,10 +343,18 @@ func (d *RouteStreamDispatch) ResponseStarted() {
 }
 
 func (d *RouteStreamDispatch) StreamFailed(err error) error {
-	if err == nil || errors.Is(err, io.EOF) {
+	if err == nil {
 		return nil
 	}
-	if errors.Is(err, context.Canceled) && !errors.Is(err, ErrRouteStreamBudgetExceeded) {
+	if class, incident, classified := routeStreamFailureDisposition(err); classified {
+		d.failStream(class, incident)
+		return fmt.Errorf("%w: %w", ErrDispatchTransport, err)
+	}
+	if errors.Is(err, io.EOF) {
+		return nil
+	}
+	if (errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded)) &&
+		!errors.Is(err, ErrRouteStreamBudgetExceeded) {
 		d.failStream("", false)
 		return fmt.Errorf("%w: %w", ErrDispatchTransport, err)
 	}
@@ -343,15 +367,10 @@ func (d *RouteStreamDispatch) StreamFailed(err error) error {
 }
 
 func (d *RouteStreamDispatch) StreamFailedAs(class RouteStreamFailureClass, err error) error {
-	if err == nil || errors.Is(err, io.EOF) {
+	if err == nil {
 		return nil
 	}
-	if !ValidRouteStreamFailureClass(class) {
-		d.failStream("", false)
-		return fmt.Errorf("%w: invalid stream failure class", ErrDispatchInvalid)
-	}
-	d.failStream(class, true)
-	return fmt.Errorf("%w: %w", ErrDispatchTransport, err)
+	return d.StreamFailed(WithRouteStreamIncident(err, class))
 }
 
 // StreamAborted publishes the transport trace without attributing a plugin
@@ -361,8 +380,7 @@ func (d *RouteStreamDispatch) StreamAborted(err error) error {
 	if err == nil || errors.Is(err, io.EOF) {
 		return nil
 	}
-	d.failStream("", false)
-	return fmt.Errorf("%w: %w", ErrDispatchTransport, err)
+	return d.StreamFailed(WithRouteStreamAbort(err))
 }
 
 func (d *RouteStreamDispatch) Fail() {

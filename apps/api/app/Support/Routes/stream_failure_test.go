@@ -88,6 +88,153 @@ func TestDispatcherRequiresExplicitStreamFailureSink(t *testing.T) {
 	}
 }
 
+func TestRouteStreamDispositionPreservesCauseAndFailsClosed(t *testing.T) {
+	cause := errors.New("exact cause")
+	incident := WithRouteStreamIncident(cause, RouteStreamFailureMissingTerminal)
+	class, record, classified := routeStreamFailureDisposition(incident)
+	if !classified || !record || class != RouteStreamFailureMissingTerminal || !errors.Is(incident, cause) {
+		t.Fatalf("incident class=%q record=%t classified=%t error=%v", class, record, classified, incident)
+	}
+	abort := WithRouteStreamAbort(cause)
+	class, record, classified = routeStreamFailureDisposition(abort)
+	if !classified || record || class != "" || !errors.Is(abort, cause) {
+		t.Fatalf("abort class=%q record=%t classified=%t error=%v", class, record, classified, abort)
+	}
+	class, record, classified = routeStreamFailureDisposition(WithRouteStreamIncident(cause, "forged"))
+	if !classified || !record || class != RouteStreamFailureRuntimeTransport {
+		t.Fatalf("invalid class suppressed incident: class=%q record=%t classified=%t", class, record, classified)
+	}
+}
+
+func TestRouteStreamMissingTerminalRecordsWrappedEOF(t *testing.T) {
+	sink := &recordingRouteStreamFailureSink{}
+	step := streamIncidentStep("stream.missing_terminal.eof")
+	dispatcher := streamIncidentDispatcher(step, &streamIncidentInvoker{}, sink)
+	prepared, err := dispatcher.PrepareStream(context.Background(), DispatchRequest{
+		Method: http.MethodGet, Path: "/incident",
+	})
+	if err != nil || prepared.Dispatch == nil {
+		t.Fatalf("prepared=%#v err=%v", prepared, err)
+	}
+	start, err := prepared.Dispatch.Open(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	prepared.Dispatch.ResponseStarted()
+	if err := prepared.Dispatch.StreamFailedAs(RouteStreamFailureMissingTerminal, io.EOF); !errors.Is(err, io.EOF) {
+		t.Fatalf("missing terminal error=%v", err)
+	}
+	start.Session.Cancel()
+	events := sink.snapshot()
+	if len(events) != 1 || events[0].CauseClass != RouteStreamFailureMissingTerminal {
+		t.Fatalf("events=%#v", events)
+	}
+}
+
+func TestRouteStreamCompleteAndFailureRacePublishesAtMostOneIncident(t *testing.T) {
+	for iteration := range 100 {
+		sink := &recordingRouteStreamFailureSink{}
+		step := streamIncidentStep("stream.terminal.race")
+		dispatcher := streamIncidentDispatcher(step, &streamIncidentInvoker{}, sink)
+		prepared, err := dispatcher.PrepareStream(context.Background(), DispatchRequest{
+			Method: http.MethodGet, Path: "/incident",
+		})
+		if err != nil || prepared.Dispatch == nil {
+			t.Fatalf("iteration=%d prepared=%#v err=%v", iteration, prepared, err)
+		}
+		start, err := prepared.Dispatch.Open(context.Background())
+		if err != nil {
+			t.Fatal(err)
+		}
+		prepared.Dispatch.ResponseStarted()
+		ready := make(chan struct{})
+		var wait sync.WaitGroup
+		for worker := range 64 {
+			wait.Add(1)
+			go func() {
+				defer wait.Done()
+				<-ready
+				if worker%2 == 0 {
+					_ = prepared.Dispatch.Complete()
+					return
+				}
+				_ = prepared.Dispatch.StreamFailed(errors.New("runtime failed"))
+			}()
+		}
+		close(ready)
+		wait.Wait()
+		start.Session.Cancel()
+		events := sink.snapshot()
+		if len(events) > 1 {
+			t.Fatalf("iteration=%d events=%#v", iteration, events)
+		}
+		if len(events) == 1 && events[0].CauseClass != RouteStreamFailureRuntimeTransport {
+			t.Fatalf("iteration=%d event=%#v", iteration, events[0])
+		}
+	}
+}
+
+func TestRouteStreamOpenDispositionDoesNotHideConcurrentRuntimeCrash(t *testing.T) {
+	tests := []struct {
+		name      string
+		open      func(context.Context, RouteInvocation) error
+		wantClass RouteStreamFailureClass
+		wantCount int
+		wantCause error
+	}{
+		{name: "caller cancellation", open: func(ctx context.Context, input RouteInvocation) error {
+			input.Commit.SideEffectStarted()
+			<-ctx.Done()
+			return ctx.Err()
+		}, wantCount: 0},
+		{name: "runtime crash wins over caller race", open: func(_ context.Context, input RouteInvocation) error {
+			input.Commit.SideEffectStarted()
+			return errors.New("runtime crashed")
+		}, wantClass: RouteStreamFailureRuntimeTransport, wantCount: 1},
+		{name: "Host abort", open: func(_ context.Context, input RouteInvocation) error {
+			input.Commit.SideEffectStarted()
+			return WithRouteStreamAbort(errStreamTestHostAbort)
+		}, wantCount: 0, wantCause: errStreamTestHostAbort},
+		{name: "Host budget", open: func(_ context.Context, input RouteInvocation) error {
+			input.Commit.SideEffectStarted()
+			return WithRouteStreamIncident(ErrRouteStreamBudgetExceeded, RouteStreamFailureHostBudget)
+		}, wantClass: RouteStreamFailureHostBudget, wantCount: 1, wantCause: ErrRouteStreamBudgetExceeded},
+		{name: "invalid preflight", open: func(_ context.Context, input RouteInvocation) error {
+			input.Commit.SideEffectStarted()
+			return WithRouteStreamIncident(errors.New("invalid preflight"), RouteStreamFailureInvalidPreflight)
+		}, wantClass: RouteStreamFailureInvalidPreflight, wantCount: 1},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			sink := &recordingRouteStreamFailureSink{}
+			step := streamIncidentStep("stream.open." + strings.ReplaceAll(test.name, " ", "_"))
+			ctx, cancel := context.WithCancel(context.Background())
+			invoker := &streamOpenFailureInvoker{open: test.open}
+			if test.name == "caller cancellation" || test.name == "runtime crash wins over caller race" {
+				invoker.before = cancel
+			} else {
+				defer cancel()
+			}
+			dispatcher := streamIncidentDispatcher(step, invoker, sink)
+			prepared, err := dispatcher.PrepareStream(ctx, DispatchRequest{Method: http.MethodGet, Path: "/incident"})
+			if err != nil || prepared.Dispatch == nil {
+				t.Fatalf("prepared=%#v err=%v", prepared, err)
+			}
+			_, err = prepared.Dispatch.Open(ctx)
+			if test.wantCause != nil && !errors.Is(err, test.wantCause) {
+				t.Fatalf("open error=%v", err)
+			}
+			events := sink.snapshot()
+			if len(events) != test.wantCount {
+				t.Fatalf("events=%#v error=%v", events, err)
+			}
+			if test.wantCount == 1 && events[0].CauseClass != test.wantClass {
+				t.Fatalf("event=%#v", events[0])
+			}
+		})
+	}
+}
+
 func TestRouteStreamFailureSinkExcludesHostAndCallerAbortions(t *testing.T) {
 	for _, test := range []struct {
 		name string
@@ -214,6 +361,20 @@ func (*streamBudgetIncidentInvoker) OpenStream(ctx context.Context, input RouteI
 	input.Commit.SideEffectStarted()
 	<-ctx.Done()
 	return RouteStreamStart{}, context.Cause(ctx)
+}
+
+var errStreamTestHostAbort = errors.New("Host aborted stream")
+
+type streamOpenFailureInvoker struct {
+	before func()
+	open   func(context.Context, RouteInvocation) error
+}
+
+func (i *streamOpenFailureInvoker) OpenStream(ctx context.Context, input RouteInvocation) (RouteStreamStart, error) {
+	if i.before != nil {
+		i.before()
+	}
+	return RouteStreamStart{}, i.open(ctx, input)
 }
 
 type recordingRouteStreamFailureSink struct {

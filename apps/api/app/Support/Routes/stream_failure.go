@@ -2,9 +2,53 @@ package routes
 
 import (
 	"context"
+	"errors"
 
 	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
 )
+
+type routeStreamDispositionError struct {
+	cause    error
+	class    RouteStreamFailureClass
+	incident bool
+}
+
+func (e *routeStreamDispositionError) Error() string { return "routes: classified stream failure" }
+func (e *routeStreamDispositionError) Unwrap() error { return e.cause }
+
+// WithRouteStreamIncident carries a Host-classified runtime failure across an
+// internal adapter boundary without putting raw error text into durable evidence.
+func WithRouteStreamIncident(err error, class RouteStreamFailureClass) error {
+	if err == nil {
+		err = ErrDispatchTransport
+	}
+	if !ValidRouteStreamFailureClass(class) {
+		class = RouteStreamFailureRuntimeTransport
+	}
+	return &routeStreamDispositionError{cause: err, class: class, incident: true}
+}
+
+// WithRouteStreamAbort marks caller/Host/lifecycle termination as non-incident.
+func WithRouteStreamAbort(err error) error {
+	if err == nil {
+		err = context.Canceled
+	}
+	return &routeStreamDispositionError{cause: err}
+}
+
+func routeStreamFailureDisposition(err error) (RouteStreamFailureClass, bool, bool) {
+	var classified *routeStreamDispositionError
+	if !errors.As(err, &classified) {
+		return "", false, false
+	}
+	if !classified.incident {
+		return "", false, true
+	}
+	if !ValidRouteStreamFailureClass(classified.class) {
+		return RouteStreamFailureRuntimeTransport, true, true
+	}
+	return classified.class, true, true
+}
 
 // RouteStreamFailureClass is Host-observed provenance only. Raw transport
 // errors, request metadata, and payload bytes must never enter durable evidence.
