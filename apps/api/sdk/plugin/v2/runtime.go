@@ -31,6 +31,7 @@ type Server struct {
 	identity         *protocolwire.ExtensionIdentity
 	tokenHash        [sha256.Size]byte
 	features         []*protocolwire.ProtocolFeature
+	selectedFeatures []*protocolwire.ProtocolFeature
 	services         []*protocolwire.ServiceDescriptor
 	serviceRegistry  *ServiceRegistry
 	hookRegistry     *HookRegistry
@@ -38,6 +39,7 @@ type Server struct {
 	seoRegistry      *SEORegistry
 	commandRegistry  *CommandRegistry
 	jobRegistry      *JobRegistry
+	queryHandlers    QueryRuntimeHandlers
 	streams          RuntimeStreams
 	broker           *plugin.GRPCBroker
 	host             *Host
@@ -152,6 +154,18 @@ func (s *Server) WithJobRegistry(registry *JobRegistry) *Server {
 	return s
 }
 
+// WithQueryRuntimeHandlers enables the dedicated query.runtime@1 unary
+// dispatchers. Either handler may be omitted; that RPC remains Unimplemented
+// for compatibility with plugins that do not declare the corresponding family.
+func (s *Server) WithQueryRuntimeHandlers(handlers QueryRuntimeHandlers) *Server {
+	s.mu.Lock()
+	if !s.started {
+		s.queryHandlers = handlers
+	}
+	s.mu.Unlock()
+	return s
+}
+
 // WithRuntimeStreams installs route, file, lifecycle, and job stream handlers.
 // The complete handler snapshot freezes at the first successful handshake.
 func (s *Server) WithRuntimeStreams(streams RuntimeStreams) *Server {
@@ -206,9 +220,10 @@ func (s *Server) Handshake(_ context.Context, request *protocolwire.HandshakeReq
 		s.tokenHash = tokenHash
 		s.identity = proto.Clone(identity).(*protocolwire.ExtensionIdentity)
 		s.brokerID = request.GetHostBrokerId()
+		s.selectedFeatures = selectFeatures(request.GetHostFeatures(), s.features)
 	}
 	response.SelectedProtocol = &protocolwire.ProtocolRange{Protocol: protocolName, Major: ProtocolMajor, MinMinor: 0, MaxMinor: 0}
-	response.SelectedFeatures = selectFeatures(request.GetHostFeatures(), s.features)
+	response.SelectedFeatures = cloneFeatures(s.selectedFeatures)
 	response.Services = serviceHandshakeDescriptors(s.services, s.serviceRegistry)
 	response.TokenExpiresAt = timestamppb.New(now.Add(10 * time.Minute))
 	return response, nil

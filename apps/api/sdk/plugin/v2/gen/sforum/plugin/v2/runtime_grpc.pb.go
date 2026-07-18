@@ -20,19 +20,21 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	PluginRuntimeService_Handshake_FullMethodName     = "/sforum.plugin.v2.PluginRuntimeService/Handshake"
-	PluginRuntimeService_Health_FullMethodName        = "/sforum.plugin.v2.PluginRuntimeService/Health"
-	PluginRuntimeService_Readiness_FullMethodName     = "/sforum.plugin.v2.PluginRuntimeService/Readiness"
-	PluginRuntimeService_RunLifecycle_FullMethodName  = "/sforum.plugin.v2.PluginRuntimeService/RunLifecycle"
-	PluginRuntimeService_InvokeRoute_FullMethodName   = "/sforum.plugin.v2.PluginRuntimeService/InvokeRoute"
-	PluginRuntimeService_StreamRoute_FullMethodName   = "/sforum.plugin.v2.PluginRuntimeService/StreamRoute"
-	PluginRuntimeService_InvokeHook_FullMethodName    = "/sforum.plugin.v2.PluginRuntimeService/InvokeHook"
-	PluginRuntimeService_ExecuteJob_FullMethodName    = "/sforum.plugin.v2.PluginRuntimeService/ExecuteJob"
-	PluginRuntimeService_InvokeCommand_FullMethodName = "/sforum.plugin.v2.PluginRuntimeService/InvokeCommand"
-	PluginRuntimeService_ProviderCall_FullMethodName  = "/sforum.plugin.v2.PluginRuntimeService/ProviderCall"
-	PluginRuntimeService_TransferFile_FullMethodName  = "/sforum.plugin.v2.PluginRuntimeService/TransferFile"
-	PluginRuntimeService_InvokeService_FullMethodName = "/sforum.plugin.v2.PluginRuntimeService/InvokeService"
-	PluginRuntimeService_StreamService_FullMethodName = "/sforum.plugin.v2.PluginRuntimeService/StreamService"
+	PluginRuntimeService_Handshake_FullMethodName         = "/sforum.plugin.v2.PluginRuntimeService/Handshake"
+	PluginRuntimeService_Health_FullMethodName            = "/sforum.plugin.v2.PluginRuntimeService/Health"
+	PluginRuntimeService_Readiness_FullMethodName         = "/sforum.plugin.v2.PluginRuntimeService/Readiness"
+	PluginRuntimeService_RunLifecycle_FullMethodName      = "/sforum.plugin.v2.PluginRuntimeService/RunLifecycle"
+	PluginRuntimeService_InvokeRoute_FullMethodName       = "/sforum.plugin.v2.PluginRuntimeService/InvokeRoute"
+	PluginRuntimeService_StreamRoute_FullMethodName       = "/sforum.plugin.v2.PluginRuntimeService/StreamRoute"
+	PluginRuntimeService_InvokeHook_FullMethodName        = "/sforum.plugin.v2.PluginRuntimeService/InvokeHook"
+	PluginRuntimeService_ExecuteJob_FullMethodName        = "/sforum.plugin.v2.PluginRuntimeService/ExecuteJob"
+	PluginRuntimeService_InvokeCommand_FullMethodName     = "/sforum.plugin.v2.PluginRuntimeService/InvokeCommand"
+	PluginRuntimeService_InvokeQuery_FullMethodName       = "/sforum.plugin.v2.PluginRuntimeService/InvokeQuery"
+	PluginRuntimeService_FilterQueryResult_FullMethodName = "/sforum.plugin.v2.PluginRuntimeService/FilterQueryResult"
+	PluginRuntimeService_ProviderCall_FullMethodName      = "/sforum.plugin.v2.PluginRuntimeService/ProviderCall"
+	PluginRuntimeService_TransferFile_FullMethodName      = "/sforum.plugin.v2.PluginRuntimeService/TransferFile"
+	PluginRuntimeService_InvokeService_FullMethodName     = "/sforum.plugin.v2.PluginRuntimeService/InvokeService"
+	PluginRuntimeService_StreamService_FullMethodName     = "/sforum.plugin.v2.PluginRuntimeService/StreamService"
 )
 
 // PluginRuntimeServiceClient is the client API for PluginRuntimeService service.
@@ -50,6 +52,8 @@ type PluginRuntimeServiceClient interface {
 	InvokeHook(ctx context.Context, in *HookRequest, opts ...grpc.CallOption) (*HookResponse, error)
 	ExecuteJob(ctx context.Context, in *JobRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[v2.ProgressUpdate], error)
 	InvokeCommand(ctx context.Context, in *CommandInvocationRequest, opts ...grpc.CallOption) (*CommandInvocationResponse, error)
+	InvokeQuery(ctx context.Context, in *QueryInvocationRequest, opts ...grpc.CallOption) (*QueryInvocationResponse, error)
+	FilterQueryResult(ctx context.Context, in *QueryResultFilterRequest, opts ...grpc.CallOption) (*QueryResultFilterResponse, error)
 	ProviderCall(ctx context.Context, in *ProviderCallRequest, opts ...grpc.CallOption) (*ProviderCallResponse, error)
 	TransferFile(ctx context.Context, opts ...grpc.CallOption) (grpc.BidiStreamingClient[FileFrame, FileFrame], error)
 	InvokeService(ctx context.Context, in *ServiceRequest, opts ...grpc.CallOption) (*ServiceResponse, error)
@@ -175,6 +179,26 @@ func (c *pluginRuntimeServiceClient) InvokeCommand(ctx context.Context, in *Comm
 	return out, nil
 }
 
+func (c *pluginRuntimeServiceClient) InvokeQuery(ctx context.Context, in *QueryInvocationRequest, opts ...grpc.CallOption) (*QueryInvocationResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(QueryInvocationResponse)
+	err := c.cc.Invoke(ctx, PluginRuntimeService_InvokeQuery_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *pluginRuntimeServiceClient) FilterQueryResult(ctx context.Context, in *QueryResultFilterRequest, opts ...grpc.CallOption) (*QueryResultFilterResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(QueryResultFilterResponse)
+	err := c.cc.Invoke(ctx, PluginRuntimeService_FilterQueryResult_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *pluginRuntimeServiceClient) ProviderCall(ctx context.Context, in *ProviderCallRequest, opts ...grpc.CallOption) (*ProviderCallResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(ProviderCallResponse)
@@ -236,6 +260,8 @@ type PluginRuntimeServiceServer interface {
 	InvokeHook(context.Context, *HookRequest) (*HookResponse, error)
 	ExecuteJob(*JobRequest, grpc.ServerStreamingServer[v2.ProgressUpdate]) error
 	InvokeCommand(context.Context, *CommandInvocationRequest) (*CommandInvocationResponse, error)
+	InvokeQuery(context.Context, *QueryInvocationRequest) (*QueryInvocationResponse, error)
+	FilterQueryResult(context.Context, *QueryResultFilterRequest) (*QueryResultFilterResponse, error)
 	ProviderCall(context.Context, *ProviderCallRequest) (*ProviderCallResponse, error)
 	TransferFile(grpc.BidiStreamingServer[FileFrame, FileFrame]) error
 	InvokeService(context.Context, *ServiceRequest) (*ServiceResponse, error)
@@ -276,6 +302,12 @@ func (UnimplementedPluginRuntimeServiceServer) ExecuteJob(*JobRequest, grpc.Serv
 }
 func (UnimplementedPluginRuntimeServiceServer) InvokeCommand(context.Context, *CommandInvocationRequest) (*CommandInvocationResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method InvokeCommand not implemented")
+}
+func (UnimplementedPluginRuntimeServiceServer) InvokeQuery(context.Context, *QueryInvocationRequest) (*QueryInvocationResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method InvokeQuery not implemented")
+}
+func (UnimplementedPluginRuntimeServiceServer) FilterQueryResult(context.Context, *QueryResultFilterRequest) (*QueryResultFilterResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method FilterQueryResult not implemented")
 }
 func (UnimplementedPluginRuntimeServiceServer) ProviderCall(context.Context, *ProviderCallRequest) (*ProviderCallResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ProviderCall not implemented")
@@ -447,6 +479,42 @@ func _PluginRuntimeService_InvokeCommand_Handler(srv interface{}, ctx context.Co
 	return interceptor(ctx, in, info, handler)
 }
 
+func _PluginRuntimeService_InvokeQuery_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(QueryInvocationRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PluginRuntimeServiceServer).InvokeQuery(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PluginRuntimeService_InvokeQuery_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PluginRuntimeServiceServer).InvokeQuery(ctx, req.(*QueryInvocationRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _PluginRuntimeService_FilterQueryResult_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(QueryResultFilterRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PluginRuntimeServiceServer).FilterQueryResult(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PluginRuntimeService_FilterQueryResult_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PluginRuntimeServiceServer).FilterQueryResult(ctx, req.(*QueryResultFilterRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _PluginRuntimeService_ProviderCall_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(ProviderCallRequest)
 	if err := dec(in); err != nil {
@@ -527,6 +595,14 @@ var PluginRuntimeService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "InvokeCommand",
 			Handler:    _PluginRuntimeService_InvokeCommand_Handler,
+		},
+		{
+			MethodName: "InvokeQuery",
+			Handler:    _PluginRuntimeService_InvokeQuery_Handler,
+		},
+		{
+			MethodName: "FilterQueryResult",
+			Handler:    _PluginRuntimeService_FilterQueryResult_Handler,
 		},
 		{
 			MethodName: "ProviderCall",

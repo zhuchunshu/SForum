@@ -20,6 +20,8 @@ service PluginRuntimeService {
   rpc InvokeHook(HookRequest) returns (HookResponse);
   rpc ExecuteJob(JobRequest) returns (stream sforum.protocol.v2.ProgressUpdate);
   rpc InvokeCommand(CommandInvocationRequest) returns (CommandInvocationResponse);
+  rpc InvokeQuery(QueryInvocationRequest) returns (QueryInvocationResponse);
+  rpc FilterQueryResult(QueryResultFilterRequest) returns (QueryResultFilterResponse);
   rpc ProviderCall(ProviderCallRequest) returns (ProviderCallResponse);
   rpc TransferFile(stream FileFrame) returns (stream FileFrame);
   rpc InvokeService(ServiceRequest) returns (ServiceResponse);
@@ -285,4 +287,108 @@ message RouteResponseDocument {
 message RouteQueryParameter {
   string key = 1;
   repeated string values = 2;
+}
+
+// QueryRuntimeBinding is one exact executable query declaration. Exact runtime
+// artifact identity remains in RequestContext.extension.
+message QueryRuntimeBinding {
+  string query_id = 1;
+  string contract_version = 2;
+  string plan_version = 3;
+  string result_schema = 4;
+  string handler = 5;
+}
+
+// QueryResultFilterRuntimeBinding is one exact result-filter declaration plus
+// the exact query-owner contract whose rows it may transform.
+message QueryResultFilterRuntimeBinding {
+  string filter_id = 1;
+  string filter_contract_version = 2;
+  string query_id = 3;
+  string query_contract_version = 4;
+  string query_plan_version = 5;
+  string result_schema = 6;
+  string handler = 7;
+}
+
+// QueryRuntimeFilter is one Host-normalized filter value.
+message QueryRuntimeFilter {
+  string field = 1;
+  string value = 2;
+}
+
+// QueryRuntimeSort is one Host-normalized ordered sort entry.
+message QueryRuntimeSort {
+  string field = 1;
+  bool descending = 2;
+}
+
+// QueryRuntimePagination carries the resolved offset and limit only. Cursor
+// tokens remain Host-owned and are never disclosed to plugin runtimes.
+message QueryRuntimePagination {
+  string mode = 1;
+  uint64 offset = 2;
+  uint32 limit = 3;
+}
+
+// QueryRuntimePlan is the bounded execution projection visible to a plugin.
+// It deliberately excludes permissions, actor/policy fingerprints, cost,
+// registry revisions, cache keys/tags, cursor tokens, and database authority.
+message QueryRuntimePlan {
+  string shape_digest = 1;
+  repeated string fields = 2;
+  repeated string relations = 3;
+  repeated QueryRuntimeFilter filters = 4;
+  repeated QueryRuntimeSort sorts = 5;
+  QueryRuntimePagination pagination = 6;
+  string locale = 7;
+  string scope = 8;
+  uint32 fetch_limit = 9;
+}
+
+// QueryRuntimeRow carries one lossless canonical JSON object. bytes are used
+// instead of google.protobuf.Struct so integer lexemes never become doubles.
+message QueryRuntimeRow {
+  bytes canonical_json = 1;
+}
+
+message QueryRuntimeRows {
+  repeated QueryRuntimeRow rows = 1;
+}
+
+message QueryInvocationRequest {
+  // Only request_id, trace, locale, deadline, and extension may be populated.
+  // Actor, authority, delegation, idempotency, cookie, and credential material
+  // are outside the query.runtime@1 projection.
+  sforum.protocol.v2.RequestContext context = 1;
+  QueryRuntimeBinding binding = 2;
+  QueryRuntimePlan plan = 3;
+}
+
+message QueryInvocationResponse {
+  sforum.protocol.v2.ResponseContext context = 1;
+  QueryRuntimeBinding binding = 2;
+  string shape_digest = 3;
+  oneof outcome {
+    QueryRuntimeRows success = 4;
+    sforum.protocol.v2.ErrorDetail error = 5;
+  }
+}
+
+message QueryResultFilterRequest {
+  // The same reduced RequestContext projection as QueryInvocationRequest.
+  sforum.protocol.v2.RequestContext context = 1;
+  QueryResultFilterRuntimeBinding binding = 2;
+  QueryRuntimePlan plan = 3;
+  QueryRuntimeRows input = 4;
+}
+
+message QueryResultFilterResponse {
+  sforum.protocol.v2.ResponseContext context = 1;
+  QueryResultFilterRuntimeBinding binding = 2;
+  string shape_digest = 3;
+  oneof outcome {
+    QueryRuntimeRows success = 4;
+    sforum.protocol.v2.ErrorDetail error = 5;
+  }
 }

@@ -2105,6 +2105,891 @@ func (x *RouteQueryParameter) GetValues() []string {
 	return nil
 }
 
+// QueryRuntimeBinding is one exact executable query declaration. Exact runtime
+// artifact identity remains in RequestContext.extension.
+type QueryRuntimeBinding struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	QueryId         string                 `protobuf:"bytes,1,opt,name=query_id,json=queryId,proto3" json:"query_id,omitempty"`
+	ContractVersion string                 `protobuf:"bytes,2,opt,name=contract_version,json=contractVersion,proto3" json:"contract_version,omitempty"`
+	PlanVersion     string                 `protobuf:"bytes,3,opt,name=plan_version,json=planVersion,proto3" json:"plan_version,omitempty"`
+	ResultSchema    string                 `protobuf:"bytes,4,opt,name=result_schema,json=resultSchema,proto3" json:"result_schema,omitempty"`
+	Handler         string                 `protobuf:"bytes,5,opt,name=handler,proto3" json:"handler,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *QueryRuntimeBinding) Reset() {
+	*x = QueryRuntimeBinding{}
+	mi := &file_sforum_plugin_v2_runtime_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *QueryRuntimeBinding) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*QueryRuntimeBinding) ProtoMessage() {}
+
+func (x *QueryRuntimeBinding) ProtoReflect() protoreflect.Message {
+	mi := &file_sforum_plugin_v2_runtime_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use QueryRuntimeBinding.ProtoReflect.Descriptor instead.
+func (*QueryRuntimeBinding) Descriptor() ([]byte, []int) {
+	return file_sforum_plugin_v2_runtime_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *QueryRuntimeBinding) GetQueryId() string {
+	if x != nil {
+		return x.QueryId
+	}
+	return ""
+}
+
+func (x *QueryRuntimeBinding) GetContractVersion() string {
+	if x != nil {
+		return x.ContractVersion
+	}
+	return ""
+}
+
+func (x *QueryRuntimeBinding) GetPlanVersion() string {
+	if x != nil {
+		return x.PlanVersion
+	}
+	return ""
+}
+
+func (x *QueryRuntimeBinding) GetResultSchema() string {
+	if x != nil {
+		return x.ResultSchema
+	}
+	return ""
+}
+
+func (x *QueryRuntimeBinding) GetHandler() string {
+	if x != nil {
+		return x.Handler
+	}
+	return ""
+}
+
+// QueryResultFilterRuntimeBinding is one exact result-filter declaration plus
+// the exact query-owner contract whose rows it may transform.
+type QueryResultFilterRuntimeBinding struct {
+	state                 protoimpl.MessageState `protogen:"open.v1"`
+	FilterId              string                 `protobuf:"bytes,1,opt,name=filter_id,json=filterId,proto3" json:"filter_id,omitempty"`
+	FilterContractVersion string                 `protobuf:"bytes,2,opt,name=filter_contract_version,json=filterContractVersion,proto3" json:"filter_contract_version,omitempty"`
+	QueryId               string                 `protobuf:"bytes,3,opt,name=query_id,json=queryId,proto3" json:"query_id,omitempty"`
+	QueryContractVersion  string                 `protobuf:"bytes,4,opt,name=query_contract_version,json=queryContractVersion,proto3" json:"query_contract_version,omitempty"`
+	QueryPlanVersion      string                 `protobuf:"bytes,5,opt,name=query_plan_version,json=queryPlanVersion,proto3" json:"query_plan_version,omitempty"`
+	ResultSchema          string                 `protobuf:"bytes,6,opt,name=result_schema,json=resultSchema,proto3" json:"result_schema,omitempty"`
+	Handler               string                 `protobuf:"bytes,7,opt,name=handler,proto3" json:"handler,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
+}
+
+func (x *QueryResultFilterRuntimeBinding) Reset() {
+	*x = QueryResultFilterRuntimeBinding{}
+	mi := &file_sforum_plugin_v2_runtime_proto_msgTypes[23]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *QueryResultFilterRuntimeBinding) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*QueryResultFilterRuntimeBinding) ProtoMessage() {}
+
+func (x *QueryResultFilterRuntimeBinding) ProtoReflect() protoreflect.Message {
+	mi := &file_sforum_plugin_v2_runtime_proto_msgTypes[23]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use QueryResultFilterRuntimeBinding.ProtoReflect.Descriptor instead.
+func (*QueryResultFilterRuntimeBinding) Descriptor() ([]byte, []int) {
+	return file_sforum_plugin_v2_runtime_proto_rawDescGZIP(), []int{23}
+}
+
+func (x *QueryResultFilterRuntimeBinding) GetFilterId() string {
+	if x != nil {
+		return x.FilterId
+	}
+	return ""
+}
+
+func (x *QueryResultFilterRuntimeBinding) GetFilterContractVersion() string {
+	if x != nil {
+		return x.FilterContractVersion
+	}
+	return ""
+}
+
+func (x *QueryResultFilterRuntimeBinding) GetQueryId() string {
+	if x != nil {
+		return x.QueryId
+	}
+	return ""
+}
+
+func (x *QueryResultFilterRuntimeBinding) GetQueryContractVersion() string {
+	if x != nil {
+		return x.QueryContractVersion
+	}
+	return ""
+}
+
+func (x *QueryResultFilterRuntimeBinding) GetQueryPlanVersion() string {
+	if x != nil {
+		return x.QueryPlanVersion
+	}
+	return ""
+}
+
+func (x *QueryResultFilterRuntimeBinding) GetResultSchema() string {
+	if x != nil {
+		return x.ResultSchema
+	}
+	return ""
+}
+
+func (x *QueryResultFilterRuntimeBinding) GetHandler() string {
+	if x != nil {
+		return x.Handler
+	}
+	return ""
+}
+
+// QueryRuntimeFilter is one Host-normalized filter value.
+type QueryRuntimeFilter struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Field         string                 `protobuf:"bytes,1,opt,name=field,proto3" json:"field,omitempty"`
+	Value         string                 `protobuf:"bytes,2,opt,name=value,proto3" json:"value,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *QueryRuntimeFilter) Reset() {
+	*x = QueryRuntimeFilter{}
+	mi := &file_sforum_plugin_v2_runtime_proto_msgTypes[24]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *QueryRuntimeFilter) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*QueryRuntimeFilter) ProtoMessage() {}
+
+func (x *QueryRuntimeFilter) ProtoReflect() protoreflect.Message {
+	mi := &file_sforum_plugin_v2_runtime_proto_msgTypes[24]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use QueryRuntimeFilter.ProtoReflect.Descriptor instead.
+func (*QueryRuntimeFilter) Descriptor() ([]byte, []int) {
+	return file_sforum_plugin_v2_runtime_proto_rawDescGZIP(), []int{24}
+}
+
+func (x *QueryRuntimeFilter) GetField() string {
+	if x != nil {
+		return x.Field
+	}
+	return ""
+}
+
+func (x *QueryRuntimeFilter) GetValue() string {
+	if x != nil {
+		return x.Value
+	}
+	return ""
+}
+
+// QueryRuntimeSort is one Host-normalized ordered sort entry.
+type QueryRuntimeSort struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Field         string                 `protobuf:"bytes,1,opt,name=field,proto3" json:"field,omitempty"`
+	Descending    bool                   `protobuf:"varint,2,opt,name=descending,proto3" json:"descending,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *QueryRuntimeSort) Reset() {
+	*x = QueryRuntimeSort{}
+	mi := &file_sforum_plugin_v2_runtime_proto_msgTypes[25]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *QueryRuntimeSort) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*QueryRuntimeSort) ProtoMessage() {}
+
+func (x *QueryRuntimeSort) ProtoReflect() protoreflect.Message {
+	mi := &file_sforum_plugin_v2_runtime_proto_msgTypes[25]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use QueryRuntimeSort.ProtoReflect.Descriptor instead.
+func (*QueryRuntimeSort) Descriptor() ([]byte, []int) {
+	return file_sforum_plugin_v2_runtime_proto_rawDescGZIP(), []int{25}
+}
+
+func (x *QueryRuntimeSort) GetField() string {
+	if x != nil {
+		return x.Field
+	}
+	return ""
+}
+
+func (x *QueryRuntimeSort) GetDescending() bool {
+	if x != nil {
+		return x.Descending
+	}
+	return false
+}
+
+// QueryRuntimePagination carries the resolved offset and limit only. Cursor
+// tokens remain Host-owned and are never disclosed to plugin runtimes.
+type QueryRuntimePagination struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Mode          string                 `protobuf:"bytes,1,opt,name=mode,proto3" json:"mode,omitempty"`
+	Offset        uint64                 `protobuf:"varint,2,opt,name=offset,proto3" json:"offset,omitempty"`
+	Limit         uint32                 `protobuf:"varint,3,opt,name=limit,proto3" json:"limit,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *QueryRuntimePagination) Reset() {
+	*x = QueryRuntimePagination{}
+	mi := &file_sforum_plugin_v2_runtime_proto_msgTypes[26]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *QueryRuntimePagination) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*QueryRuntimePagination) ProtoMessage() {}
+
+func (x *QueryRuntimePagination) ProtoReflect() protoreflect.Message {
+	mi := &file_sforum_plugin_v2_runtime_proto_msgTypes[26]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use QueryRuntimePagination.ProtoReflect.Descriptor instead.
+func (*QueryRuntimePagination) Descriptor() ([]byte, []int) {
+	return file_sforum_plugin_v2_runtime_proto_rawDescGZIP(), []int{26}
+}
+
+func (x *QueryRuntimePagination) GetMode() string {
+	if x != nil {
+		return x.Mode
+	}
+	return ""
+}
+
+func (x *QueryRuntimePagination) GetOffset() uint64 {
+	if x != nil {
+		return x.Offset
+	}
+	return 0
+}
+
+func (x *QueryRuntimePagination) GetLimit() uint32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+// QueryRuntimePlan is the bounded execution projection visible to a plugin.
+// It deliberately excludes permissions, actor/policy fingerprints, cost,
+// registry revisions, cache keys/tags, cursor tokens, and database authority.
+type QueryRuntimePlan struct {
+	state         protoimpl.MessageState  `protogen:"open.v1"`
+	ShapeDigest   string                  `protobuf:"bytes,1,opt,name=shape_digest,json=shapeDigest,proto3" json:"shape_digest,omitempty"`
+	Fields        []string                `protobuf:"bytes,2,rep,name=fields,proto3" json:"fields,omitempty"`
+	Relations     []string                `protobuf:"bytes,3,rep,name=relations,proto3" json:"relations,omitempty"`
+	Filters       []*QueryRuntimeFilter   `protobuf:"bytes,4,rep,name=filters,proto3" json:"filters,omitempty"`
+	Sorts         []*QueryRuntimeSort     `protobuf:"bytes,5,rep,name=sorts,proto3" json:"sorts,omitempty"`
+	Pagination    *QueryRuntimePagination `protobuf:"bytes,6,opt,name=pagination,proto3" json:"pagination,omitempty"`
+	Locale        string                  `protobuf:"bytes,7,opt,name=locale,proto3" json:"locale,omitempty"`
+	Scope         string                  `protobuf:"bytes,8,opt,name=scope,proto3" json:"scope,omitempty"`
+	FetchLimit    uint32                  `protobuf:"varint,9,opt,name=fetch_limit,json=fetchLimit,proto3" json:"fetch_limit,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *QueryRuntimePlan) Reset() {
+	*x = QueryRuntimePlan{}
+	mi := &file_sforum_plugin_v2_runtime_proto_msgTypes[27]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *QueryRuntimePlan) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*QueryRuntimePlan) ProtoMessage() {}
+
+func (x *QueryRuntimePlan) ProtoReflect() protoreflect.Message {
+	mi := &file_sforum_plugin_v2_runtime_proto_msgTypes[27]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use QueryRuntimePlan.ProtoReflect.Descriptor instead.
+func (*QueryRuntimePlan) Descriptor() ([]byte, []int) {
+	return file_sforum_plugin_v2_runtime_proto_rawDescGZIP(), []int{27}
+}
+
+func (x *QueryRuntimePlan) GetShapeDigest() string {
+	if x != nil {
+		return x.ShapeDigest
+	}
+	return ""
+}
+
+func (x *QueryRuntimePlan) GetFields() []string {
+	if x != nil {
+		return x.Fields
+	}
+	return nil
+}
+
+func (x *QueryRuntimePlan) GetRelations() []string {
+	if x != nil {
+		return x.Relations
+	}
+	return nil
+}
+
+func (x *QueryRuntimePlan) GetFilters() []*QueryRuntimeFilter {
+	if x != nil {
+		return x.Filters
+	}
+	return nil
+}
+
+func (x *QueryRuntimePlan) GetSorts() []*QueryRuntimeSort {
+	if x != nil {
+		return x.Sorts
+	}
+	return nil
+}
+
+func (x *QueryRuntimePlan) GetPagination() *QueryRuntimePagination {
+	if x != nil {
+		return x.Pagination
+	}
+	return nil
+}
+
+func (x *QueryRuntimePlan) GetLocale() string {
+	if x != nil {
+		return x.Locale
+	}
+	return ""
+}
+
+func (x *QueryRuntimePlan) GetScope() string {
+	if x != nil {
+		return x.Scope
+	}
+	return ""
+}
+
+func (x *QueryRuntimePlan) GetFetchLimit() uint32 {
+	if x != nil {
+		return x.FetchLimit
+	}
+	return 0
+}
+
+// QueryRuntimeRow carries one lossless canonical JSON object. bytes are used
+// instead of google.protobuf.Struct so integer lexemes never become doubles.
+type QueryRuntimeRow struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	CanonicalJson []byte                 `protobuf:"bytes,1,opt,name=canonical_json,json=canonicalJson,proto3" json:"canonical_json,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *QueryRuntimeRow) Reset() {
+	*x = QueryRuntimeRow{}
+	mi := &file_sforum_plugin_v2_runtime_proto_msgTypes[28]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *QueryRuntimeRow) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*QueryRuntimeRow) ProtoMessage() {}
+
+func (x *QueryRuntimeRow) ProtoReflect() protoreflect.Message {
+	mi := &file_sforum_plugin_v2_runtime_proto_msgTypes[28]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use QueryRuntimeRow.ProtoReflect.Descriptor instead.
+func (*QueryRuntimeRow) Descriptor() ([]byte, []int) {
+	return file_sforum_plugin_v2_runtime_proto_rawDescGZIP(), []int{28}
+}
+
+func (x *QueryRuntimeRow) GetCanonicalJson() []byte {
+	if x != nil {
+		return x.CanonicalJson
+	}
+	return nil
+}
+
+type QueryRuntimeRows struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Rows          []*QueryRuntimeRow     `protobuf:"bytes,1,rep,name=rows,proto3" json:"rows,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *QueryRuntimeRows) Reset() {
+	*x = QueryRuntimeRows{}
+	mi := &file_sforum_plugin_v2_runtime_proto_msgTypes[29]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *QueryRuntimeRows) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*QueryRuntimeRows) ProtoMessage() {}
+
+func (x *QueryRuntimeRows) ProtoReflect() protoreflect.Message {
+	mi := &file_sforum_plugin_v2_runtime_proto_msgTypes[29]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use QueryRuntimeRows.ProtoReflect.Descriptor instead.
+func (*QueryRuntimeRows) Descriptor() ([]byte, []int) {
+	return file_sforum_plugin_v2_runtime_proto_rawDescGZIP(), []int{29}
+}
+
+func (x *QueryRuntimeRows) GetRows() []*QueryRuntimeRow {
+	if x != nil {
+		return x.Rows
+	}
+	return nil
+}
+
+type QueryInvocationRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Only request_id, trace, locale, deadline, and extension may be populated.
+	// Actor, authority, delegation, idempotency, cookie, and credential material
+	// are outside the query.runtime@1 projection.
+	Context       *v2.RequestContext   `protobuf:"bytes,1,opt,name=context,proto3" json:"context,omitempty"`
+	Binding       *QueryRuntimeBinding `protobuf:"bytes,2,opt,name=binding,proto3" json:"binding,omitempty"`
+	Plan          *QueryRuntimePlan    `protobuf:"bytes,3,opt,name=plan,proto3" json:"plan,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *QueryInvocationRequest) Reset() {
+	*x = QueryInvocationRequest{}
+	mi := &file_sforum_plugin_v2_runtime_proto_msgTypes[30]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *QueryInvocationRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*QueryInvocationRequest) ProtoMessage() {}
+
+func (x *QueryInvocationRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_sforum_plugin_v2_runtime_proto_msgTypes[30]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use QueryInvocationRequest.ProtoReflect.Descriptor instead.
+func (*QueryInvocationRequest) Descriptor() ([]byte, []int) {
+	return file_sforum_plugin_v2_runtime_proto_rawDescGZIP(), []int{30}
+}
+
+func (x *QueryInvocationRequest) GetContext() *v2.RequestContext {
+	if x != nil {
+		return x.Context
+	}
+	return nil
+}
+
+func (x *QueryInvocationRequest) GetBinding() *QueryRuntimeBinding {
+	if x != nil {
+		return x.Binding
+	}
+	return nil
+}
+
+func (x *QueryInvocationRequest) GetPlan() *QueryRuntimePlan {
+	if x != nil {
+		return x.Plan
+	}
+	return nil
+}
+
+type QueryInvocationResponse struct {
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	Context     *v2.ResponseContext    `protobuf:"bytes,1,opt,name=context,proto3" json:"context,omitempty"`
+	Binding     *QueryRuntimeBinding   `protobuf:"bytes,2,opt,name=binding,proto3" json:"binding,omitempty"`
+	ShapeDigest string                 `protobuf:"bytes,3,opt,name=shape_digest,json=shapeDigest,proto3" json:"shape_digest,omitempty"`
+	// Types that are valid to be assigned to Outcome:
+	//
+	//	*QueryInvocationResponse_Success
+	//	*QueryInvocationResponse_Error
+	Outcome       isQueryInvocationResponse_Outcome `protobuf_oneof:"outcome"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *QueryInvocationResponse) Reset() {
+	*x = QueryInvocationResponse{}
+	mi := &file_sforum_plugin_v2_runtime_proto_msgTypes[31]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *QueryInvocationResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*QueryInvocationResponse) ProtoMessage() {}
+
+func (x *QueryInvocationResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_sforum_plugin_v2_runtime_proto_msgTypes[31]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use QueryInvocationResponse.ProtoReflect.Descriptor instead.
+func (*QueryInvocationResponse) Descriptor() ([]byte, []int) {
+	return file_sforum_plugin_v2_runtime_proto_rawDescGZIP(), []int{31}
+}
+
+func (x *QueryInvocationResponse) GetContext() *v2.ResponseContext {
+	if x != nil {
+		return x.Context
+	}
+	return nil
+}
+
+func (x *QueryInvocationResponse) GetBinding() *QueryRuntimeBinding {
+	if x != nil {
+		return x.Binding
+	}
+	return nil
+}
+
+func (x *QueryInvocationResponse) GetShapeDigest() string {
+	if x != nil {
+		return x.ShapeDigest
+	}
+	return ""
+}
+
+func (x *QueryInvocationResponse) GetOutcome() isQueryInvocationResponse_Outcome {
+	if x != nil {
+		return x.Outcome
+	}
+	return nil
+}
+
+func (x *QueryInvocationResponse) GetSuccess() *QueryRuntimeRows {
+	if x != nil {
+		if x, ok := x.Outcome.(*QueryInvocationResponse_Success); ok {
+			return x.Success
+		}
+	}
+	return nil
+}
+
+func (x *QueryInvocationResponse) GetError() *v2.ErrorDetail {
+	if x != nil {
+		if x, ok := x.Outcome.(*QueryInvocationResponse_Error); ok {
+			return x.Error
+		}
+	}
+	return nil
+}
+
+type isQueryInvocationResponse_Outcome interface {
+	isQueryInvocationResponse_Outcome()
+}
+
+type QueryInvocationResponse_Success struct {
+	Success *QueryRuntimeRows `protobuf:"bytes,4,opt,name=success,proto3,oneof"`
+}
+
+type QueryInvocationResponse_Error struct {
+	Error *v2.ErrorDetail `protobuf:"bytes,5,opt,name=error,proto3,oneof"`
+}
+
+func (*QueryInvocationResponse_Success) isQueryInvocationResponse_Outcome() {}
+
+func (*QueryInvocationResponse_Error) isQueryInvocationResponse_Outcome() {}
+
+type QueryResultFilterRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The same reduced RequestContext projection as QueryInvocationRequest.
+	Context       *v2.RequestContext               `protobuf:"bytes,1,opt,name=context,proto3" json:"context,omitempty"`
+	Binding       *QueryResultFilterRuntimeBinding `protobuf:"bytes,2,opt,name=binding,proto3" json:"binding,omitempty"`
+	Plan          *QueryRuntimePlan                `protobuf:"bytes,3,opt,name=plan,proto3" json:"plan,omitempty"`
+	Input         *QueryRuntimeRows                `protobuf:"bytes,4,opt,name=input,proto3" json:"input,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *QueryResultFilterRequest) Reset() {
+	*x = QueryResultFilterRequest{}
+	mi := &file_sforum_plugin_v2_runtime_proto_msgTypes[32]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *QueryResultFilterRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*QueryResultFilterRequest) ProtoMessage() {}
+
+func (x *QueryResultFilterRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_sforum_plugin_v2_runtime_proto_msgTypes[32]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use QueryResultFilterRequest.ProtoReflect.Descriptor instead.
+func (*QueryResultFilterRequest) Descriptor() ([]byte, []int) {
+	return file_sforum_plugin_v2_runtime_proto_rawDescGZIP(), []int{32}
+}
+
+func (x *QueryResultFilterRequest) GetContext() *v2.RequestContext {
+	if x != nil {
+		return x.Context
+	}
+	return nil
+}
+
+func (x *QueryResultFilterRequest) GetBinding() *QueryResultFilterRuntimeBinding {
+	if x != nil {
+		return x.Binding
+	}
+	return nil
+}
+
+func (x *QueryResultFilterRequest) GetPlan() *QueryRuntimePlan {
+	if x != nil {
+		return x.Plan
+	}
+	return nil
+}
+
+func (x *QueryResultFilterRequest) GetInput() *QueryRuntimeRows {
+	if x != nil {
+		return x.Input
+	}
+	return nil
+}
+
+type QueryResultFilterResponse struct {
+	state       protoimpl.MessageState           `protogen:"open.v1"`
+	Context     *v2.ResponseContext              `protobuf:"bytes,1,opt,name=context,proto3" json:"context,omitempty"`
+	Binding     *QueryResultFilterRuntimeBinding `protobuf:"bytes,2,opt,name=binding,proto3" json:"binding,omitempty"`
+	ShapeDigest string                           `protobuf:"bytes,3,opt,name=shape_digest,json=shapeDigest,proto3" json:"shape_digest,omitempty"`
+	// Types that are valid to be assigned to Outcome:
+	//
+	//	*QueryResultFilterResponse_Success
+	//	*QueryResultFilterResponse_Error
+	Outcome       isQueryResultFilterResponse_Outcome `protobuf_oneof:"outcome"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *QueryResultFilterResponse) Reset() {
+	*x = QueryResultFilterResponse{}
+	mi := &file_sforum_plugin_v2_runtime_proto_msgTypes[33]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *QueryResultFilterResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*QueryResultFilterResponse) ProtoMessage() {}
+
+func (x *QueryResultFilterResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_sforum_plugin_v2_runtime_proto_msgTypes[33]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use QueryResultFilterResponse.ProtoReflect.Descriptor instead.
+func (*QueryResultFilterResponse) Descriptor() ([]byte, []int) {
+	return file_sforum_plugin_v2_runtime_proto_rawDescGZIP(), []int{33}
+}
+
+func (x *QueryResultFilterResponse) GetContext() *v2.ResponseContext {
+	if x != nil {
+		return x.Context
+	}
+	return nil
+}
+
+func (x *QueryResultFilterResponse) GetBinding() *QueryResultFilterRuntimeBinding {
+	if x != nil {
+		return x.Binding
+	}
+	return nil
+}
+
+func (x *QueryResultFilterResponse) GetShapeDigest() string {
+	if x != nil {
+		return x.ShapeDigest
+	}
+	return ""
+}
+
+func (x *QueryResultFilterResponse) GetOutcome() isQueryResultFilterResponse_Outcome {
+	if x != nil {
+		return x.Outcome
+	}
+	return nil
+}
+
+func (x *QueryResultFilterResponse) GetSuccess() *QueryRuntimeRows {
+	if x != nil {
+		if x, ok := x.Outcome.(*QueryResultFilterResponse_Success); ok {
+			return x.Success
+		}
+	}
+	return nil
+}
+
+func (x *QueryResultFilterResponse) GetError() *v2.ErrorDetail {
+	if x != nil {
+		if x, ok := x.Outcome.(*QueryResultFilterResponse_Error); ok {
+			return x.Error
+		}
+	}
+	return nil
+}
+
+type isQueryResultFilterResponse_Outcome interface {
+	isQueryResultFilterResponse_Outcome()
+}
+
+type QueryResultFilterResponse_Success struct {
+	Success *QueryRuntimeRows `protobuf:"bytes,4,opt,name=success,proto3,oneof"`
+}
+
+type QueryResultFilterResponse_Error struct {
+	Error *v2.ErrorDetail `protobuf:"bytes,5,opt,name=error,proto3,oneof"`
+}
+
+func (*QueryResultFilterResponse_Success) isQueryResultFilterResponse_Outcome() {}
+
+func (*QueryResultFilterResponse_Error) isQueryResultFilterResponse_Outcome() {}
+
 var File_sforum_plugin_v2_runtime_proto protoreflect.FileDescriptor
 
 const file_sforum_plugin_v2_runtime_proto_rawDesc = "" +
@@ -2270,7 +3155,73 @@ const file_sforum_plugin_v2_runtime_proto_rawDesc = "" +
 	"\x04body\x18\x03 \x01(\v2!.sforum.protocol.v2.TypedDocumentR\x04body\"?\n" +
 	"\x13RouteQueryParameter\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x16\n" +
-	"\x06values\x18\x02 \x03(\tR\x06values*\x9a\x01\n" +
+	"\x06values\x18\x02 \x03(\tR\x06values\"\xbd\x01\n" +
+	"\x13QueryRuntimeBinding\x12\x19\n" +
+	"\bquery_id\x18\x01 \x01(\tR\aqueryId\x12)\n" +
+	"\x10contract_version\x18\x02 \x01(\tR\x0fcontractVersion\x12!\n" +
+	"\fplan_version\x18\x03 \x01(\tR\vplanVersion\x12#\n" +
+	"\rresult_schema\x18\x04 \x01(\tR\fresultSchema\x12\x18\n" +
+	"\ahandler\x18\x05 \x01(\tR\ahandler\"\xb4\x02\n" +
+	"\x1fQueryResultFilterRuntimeBinding\x12\x1b\n" +
+	"\tfilter_id\x18\x01 \x01(\tR\bfilterId\x126\n" +
+	"\x17filter_contract_version\x18\x02 \x01(\tR\x15filterContractVersion\x12\x19\n" +
+	"\bquery_id\x18\x03 \x01(\tR\aqueryId\x124\n" +
+	"\x16query_contract_version\x18\x04 \x01(\tR\x14queryContractVersion\x12,\n" +
+	"\x12query_plan_version\x18\x05 \x01(\tR\x10queryPlanVersion\x12#\n" +
+	"\rresult_schema\x18\x06 \x01(\tR\fresultSchema\x12\x18\n" +
+	"\ahandler\x18\a \x01(\tR\ahandler\"@\n" +
+	"\x12QueryRuntimeFilter\x12\x14\n" +
+	"\x05field\x18\x01 \x01(\tR\x05field\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value\"H\n" +
+	"\x10QueryRuntimeSort\x12\x14\n" +
+	"\x05field\x18\x01 \x01(\tR\x05field\x12\x1e\n" +
+	"\n" +
+	"descending\x18\x02 \x01(\bR\n" +
+	"descending\"Z\n" +
+	"\x16QueryRuntimePagination\x12\x12\n" +
+	"\x04mode\x18\x01 \x01(\tR\x04mode\x12\x16\n" +
+	"\x06offset\x18\x02 \x01(\x04R\x06offset\x12\x14\n" +
+	"\x05limit\x18\x03 \x01(\rR\x05limit\"\xfe\x02\n" +
+	"\x10QueryRuntimePlan\x12!\n" +
+	"\fshape_digest\x18\x01 \x01(\tR\vshapeDigest\x12\x16\n" +
+	"\x06fields\x18\x02 \x03(\tR\x06fields\x12\x1c\n" +
+	"\trelations\x18\x03 \x03(\tR\trelations\x12>\n" +
+	"\afilters\x18\x04 \x03(\v2$.sforum.plugin.v2.QueryRuntimeFilterR\afilters\x128\n" +
+	"\x05sorts\x18\x05 \x03(\v2\".sforum.plugin.v2.QueryRuntimeSortR\x05sorts\x12H\n" +
+	"\n" +
+	"pagination\x18\x06 \x01(\v2(.sforum.plugin.v2.QueryRuntimePaginationR\n" +
+	"pagination\x12\x16\n" +
+	"\x06locale\x18\a \x01(\tR\x06locale\x12\x14\n" +
+	"\x05scope\x18\b \x01(\tR\x05scope\x12\x1f\n" +
+	"\vfetch_limit\x18\t \x01(\rR\n" +
+	"fetchLimit\"8\n" +
+	"\x0fQueryRuntimeRow\x12%\n" +
+	"\x0ecanonical_json\x18\x01 \x01(\fR\rcanonicalJson\"I\n" +
+	"\x10QueryRuntimeRows\x125\n" +
+	"\x04rows\x18\x01 \x03(\v2!.sforum.plugin.v2.QueryRuntimeRowR\x04rows\"\xcf\x01\n" +
+	"\x16QueryInvocationRequest\x12<\n" +
+	"\acontext\x18\x01 \x01(\v2\".sforum.protocol.v2.RequestContextR\acontext\x12?\n" +
+	"\abinding\x18\x02 \x01(\v2%.sforum.plugin.v2.QueryRuntimeBindingR\abinding\x126\n" +
+	"\x04plan\x18\x03 \x01(\v2\".sforum.plugin.v2.QueryRuntimePlanR\x04plan\"\xc0\x02\n" +
+	"\x17QueryInvocationResponse\x12=\n" +
+	"\acontext\x18\x01 \x01(\v2#.sforum.protocol.v2.ResponseContextR\acontext\x12?\n" +
+	"\abinding\x18\x02 \x01(\v2%.sforum.plugin.v2.QueryRuntimeBindingR\abinding\x12!\n" +
+	"\fshape_digest\x18\x03 \x01(\tR\vshapeDigest\x12>\n" +
+	"\asuccess\x18\x04 \x01(\v2\".sforum.plugin.v2.QueryRuntimeRowsH\x00R\asuccess\x127\n" +
+	"\x05error\x18\x05 \x01(\v2\x1f.sforum.protocol.v2.ErrorDetailH\x00R\x05errorB\t\n" +
+	"\aoutcome\"\x97\x02\n" +
+	"\x18QueryResultFilterRequest\x12<\n" +
+	"\acontext\x18\x01 \x01(\v2\".sforum.protocol.v2.RequestContextR\acontext\x12K\n" +
+	"\abinding\x18\x02 \x01(\v21.sforum.plugin.v2.QueryResultFilterRuntimeBindingR\abinding\x126\n" +
+	"\x04plan\x18\x03 \x01(\v2\".sforum.plugin.v2.QueryRuntimePlanR\x04plan\x128\n" +
+	"\x05input\x18\x04 \x01(\v2\".sforum.plugin.v2.QueryRuntimeRowsR\x05input\"\xce\x02\n" +
+	"\x19QueryResultFilterResponse\x12=\n" +
+	"\acontext\x18\x01 \x01(\v2#.sforum.protocol.v2.ResponseContextR\acontext\x12K\n" +
+	"\abinding\x18\x02 \x01(\v21.sforum.plugin.v2.QueryResultFilterRuntimeBindingR\abinding\x12!\n" +
+	"\fshape_digest\x18\x03 \x01(\tR\vshapeDigest\x12>\n" +
+	"\asuccess\x18\x04 \x01(\v2\".sforum.plugin.v2.QueryRuntimeRowsH\x00R\asuccess\x127\n" +
+	"\x05error\x18\x05 \x01(\v2\x1f.sforum.protocol.v2.ErrorDetailH\x00R\x05errorB\t\n" +
+	"\aoutcome*\x9a\x01\n" +
 	"\x19RouteRequestAuthorityMode\x12,\n" +
 	"(ROUTE_REQUEST_AUTHORITY_MODE_UNSPECIFIED\x10\x00\x12)\n" +
 	"%ROUTE_REQUEST_AUTHORITY_MODE_FILTERED\x10\x01\x12$\n" +
@@ -2289,7 +3240,8 @@ const file_sforum_plugin_v2_runtime_proto_rawDesc = "" +
 	"&ROUTE_PATCH_OPERATION_KIND_UNSPECIFIED\x10\x00\x12\"\n" +
 	"\x1eROUTE_PATCH_OPERATION_KIND_ADD\x10\x01\x12&\n" +
 	"\"ROUTE_PATCH_OPERATION_KIND_REPLACE\x10\x02\x12%\n" +
-	"!ROUTE_PATCH_OPERATION_KIND_REMOVE\x10\x032\x8f\t\n" +
+	"!ROUTE_PATCH_OPERATION_KIND_REMOVE\x10\x032\xe1\n" +
+	"\n" +
 	"\x14PluginRuntimeService\x12X\n" +
 	"\tHandshake\x12$.sforum.protocol.v2.HandshakeRequest\x1a%.sforum.protocol.v2.HandshakeResponse\x12O\n" +
 	"\x06Health\x12!.sforum.protocol.v2.HealthRequest\x1a\".sforum.protocol.v2.HealthResponse\x12X\n" +
@@ -2301,7 +3253,9 @@ const file_sforum_plugin_v2_runtime_proto_rawDesc = "" +
 	"InvokeHook\x12\x1d.sforum.plugin.v2.HookRequest\x1a\x1e.sforum.plugin.v2.HookResponse\x12P\n" +
 	"\n" +
 	"ExecuteJob\x12\x1c.sforum.plugin.v2.JobRequest\x1a\".sforum.protocol.v2.ProgressUpdate0\x01\x12h\n" +
-	"\rInvokeCommand\x12*.sforum.plugin.v2.CommandInvocationRequest\x1a+.sforum.plugin.v2.CommandInvocationResponse\x12]\n" +
+	"\rInvokeCommand\x12*.sforum.plugin.v2.CommandInvocationRequest\x1a+.sforum.plugin.v2.CommandInvocationResponse\x12b\n" +
+	"\vInvokeQuery\x12(.sforum.plugin.v2.QueryInvocationRequest\x1a).sforum.plugin.v2.QueryInvocationResponse\x12l\n" +
+	"\x11FilterQueryResult\x12*.sforum.plugin.v2.QueryResultFilterRequest\x1a+.sforum.plugin.v2.QueryResultFilterResponse\x12]\n" +
 	"\fProviderCall\x12%.sforum.plugin.v2.ProviderCallRequest\x1a&.sforum.plugin.v2.ProviderCallResponse\x12L\n" +
 	"\fTransferFile\x12\x1b.sforum.plugin.v2.FileFrame\x1a\x1b.sforum.plugin.v2.FileFrame(\x010\x01\x12T\n" +
 	"\rInvokeService\x12 .sforum.plugin.v2.ServiceRequest\x1a!.sforum.plugin.v2.ServiceResponse\x12_\n" +
@@ -2320,147 +3274,182 @@ func file_sforum_plugin_v2_runtime_proto_rawDescGZIP() []byte {
 }
 
 var file_sforum_plugin_v2_runtime_proto_enumTypes = make([]protoimpl.EnumInfo, 4)
-var file_sforum_plugin_v2_runtime_proto_msgTypes = make([]protoimpl.MessageInfo, 24)
+var file_sforum_plugin_v2_runtime_proto_msgTypes = make([]protoimpl.MessageInfo, 36)
 var file_sforum_plugin_v2_runtime_proto_goTypes = []any{
-	(RouteRequestAuthorityMode)(0),    // 0: sforum.plugin.v2.RouteRequestAuthorityMode
-	(RouteGuardKind)(0),               // 1: sforum.plugin.v2.RouteGuardKind
-	(RouteInvocationStage)(0),         // 2: sforum.plugin.v2.RouteInvocationStage
-	(RoutePatchOperationKind)(0),      // 3: sforum.plugin.v2.RoutePatchOperationKind
-	(*RouteRequest)(nil),              // 4: sforum.plugin.v2.RouteRequest
-	(*RouteResponse)(nil),             // 5: sforum.plugin.v2.RouteResponse
-	(*RouteStreamOpen)(nil),           // 6: sforum.plugin.v2.RouteStreamOpen
-	(*RouteStreamClose)(nil),          // 7: sforum.plugin.v2.RouteStreamClose
-	(*RouteStreamFrame)(nil),          // 8: sforum.plugin.v2.RouteStreamFrame
-	(*HookRequest)(nil),               // 9: sforum.plugin.v2.HookRequest
-	(*HookResponse)(nil),              // 10: sforum.plugin.v2.HookResponse
-	(*JobRequest)(nil),                // 11: sforum.plugin.v2.JobRequest
-	(*CommandInvocationRequest)(nil),  // 12: sforum.plugin.v2.CommandInvocationRequest
-	(*CommandInvocationResponse)(nil), // 13: sforum.plugin.v2.CommandInvocationResponse
-	(*ProviderCallRequest)(nil),       // 14: sforum.plugin.v2.ProviderCallRequest
-	(*ProviderCallResponse)(nil),      // 15: sforum.plugin.v2.ProviderCallResponse
-	(*FileOpen)(nil),                  // 16: sforum.plugin.v2.FileOpen
-	(*FileClose)(nil),                 // 17: sforum.plugin.v2.FileClose
-	(*FileFrame)(nil),                 // 18: sforum.plugin.v2.FileFrame
-	(*ServiceRequest)(nil),            // 19: sforum.plugin.v2.ServiceRequest
-	(*ServiceResponse)(nil),           // 20: sforum.plugin.v2.ServiceResponse
-	(*ServiceStreamOpen)(nil),         // 21: sforum.plugin.v2.ServiceStreamOpen
-	(*ServiceStreamFrame)(nil),        // 22: sforum.plugin.v2.ServiceStreamFrame
-	(*RoutePatchOperation)(nil),       // 23: sforum.plugin.v2.RoutePatchOperation
-	(*RouteResponseDocument)(nil),     // 24: sforum.plugin.v2.RouteResponseDocument
-	(*RouteQueryParameter)(nil),       // 25: sforum.plugin.v2.RouteQueryParameter
-	nil,                               // 26: sforum.plugin.v2.RouteRequest.PathParametersEntry
-	nil,                               // 27: sforum.plugin.v2.RouteRequest.QueryParametersEntry
-	(*v2.RequestContext)(nil),         // 28: sforum.protocol.v2.RequestContext
-	(*v2.Header)(nil),                 // 29: sforum.protocol.v2.Header
-	(*v2.TypedDocument)(nil),          // 30: sforum.protocol.v2.TypedDocument
-	(*v2.ResponseContext)(nil),        // 31: sforum.protocol.v2.ResponseContext
-	(*v2.ErrorDetail)(nil),            // 32: sforum.protocol.v2.ErrorDetail
-	(*v2.DataChunk)(nil),              // 33: sforum.protocol.v2.DataChunk
-	(*durationpb.Duration)(nil),       // 34: google.protobuf.Duration
-	(*structpb.Value)(nil),            // 35: google.protobuf.Value
-	(*v2.HandshakeRequest)(nil),       // 36: sforum.protocol.v2.HandshakeRequest
-	(*v2.HealthRequest)(nil),          // 37: sforum.protocol.v2.HealthRequest
-	(*v2.ReadinessRequest)(nil),       // 38: sforum.protocol.v2.ReadinessRequest
-	(*v2.LifecycleRequest)(nil),       // 39: sforum.protocol.v2.LifecycleRequest
-	(*v2.HandshakeResponse)(nil),      // 40: sforum.protocol.v2.HandshakeResponse
-	(*v2.HealthResponse)(nil),         // 41: sforum.protocol.v2.HealthResponse
-	(*v2.ReadinessResponse)(nil),      // 42: sforum.protocol.v2.ReadinessResponse
-	(*v2.ProgressUpdate)(nil),         // 43: sforum.protocol.v2.ProgressUpdate
+	(RouteRequestAuthorityMode)(0),          // 0: sforum.plugin.v2.RouteRequestAuthorityMode
+	(RouteGuardKind)(0),                     // 1: sforum.plugin.v2.RouteGuardKind
+	(RouteInvocationStage)(0),               // 2: sforum.plugin.v2.RouteInvocationStage
+	(RoutePatchOperationKind)(0),            // 3: sforum.plugin.v2.RoutePatchOperationKind
+	(*RouteRequest)(nil),                    // 4: sforum.plugin.v2.RouteRequest
+	(*RouteResponse)(nil),                   // 5: sforum.plugin.v2.RouteResponse
+	(*RouteStreamOpen)(nil),                 // 6: sforum.plugin.v2.RouteStreamOpen
+	(*RouteStreamClose)(nil),                // 7: sforum.plugin.v2.RouteStreamClose
+	(*RouteStreamFrame)(nil),                // 8: sforum.plugin.v2.RouteStreamFrame
+	(*HookRequest)(nil),                     // 9: sforum.plugin.v2.HookRequest
+	(*HookResponse)(nil),                    // 10: sforum.plugin.v2.HookResponse
+	(*JobRequest)(nil),                      // 11: sforum.plugin.v2.JobRequest
+	(*CommandInvocationRequest)(nil),        // 12: sforum.plugin.v2.CommandInvocationRequest
+	(*CommandInvocationResponse)(nil),       // 13: sforum.plugin.v2.CommandInvocationResponse
+	(*ProviderCallRequest)(nil),             // 14: sforum.plugin.v2.ProviderCallRequest
+	(*ProviderCallResponse)(nil),            // 15: sforum.plugin.v2.ProviderCallResponse
+	(*FileOpen)(nil),                        // 16: sforum.plugin.v2.FileOpen
+	(*FileClose)(nil),                       // 17: sforum.plugin.v2.FileClose
+	(*FileFrame)(nil),                       // 18: sforum.plugin.v2.FileFrame
+	(*ServiceRequest)(nil),                  // 19: sforum.plugin.v2.ServiceRequest
+	(*ServiceResponse)(nil),                 // 20: sforum.plugin.v2.ServiceResponse
+	(*ServiceStreamOpen)(nil),               // 21: sforum.plugin.v2.ServiceStreamOpen
+	(*ServiceStreamFrame)(nil),              // 22: sforum.plugin.v2.ServiceStreamFrame
+	(*RoutePatchOperation)(nil),             // 23: sforum.plugin.v2.RoutePatchOperation
+	(*RouteResponseDocument)(nil),           // 24: sforum.plugin.v2.RouteResponseDocument
+	(*RouteQueryParameter)(nil),             // 25: sforum.plugin.v2.RouteQueryParameter
+	(*QueryRuntimeBinding)(nil),             // 26: sforum.plugin.v2.QueryRuntimeBinding
+	(*QueryResultFilterRuntimeBinding)(nil), // 27: sforum.plugin.v2.QueryResultFilterRuntimeBinding
+	(*QueryRuntimeFilter)(nil),              // 28: sforum.plugin.v2.QueryRuntimeFilter
+	(*QueryRuntimeSort)(nil),                // 29: sforum.plugin.v2.QueryRuntimeSort
+	(*QueryRuntimePagination)(nil),          // 30: sforum.plugin.v2.QueryRuntimePagination
+	(*QueryRuntimePlan)(nil),                // 31: sforum.plugin.v2.QueryRuntimePlan
+	(*QueryRuntimeRow)(nil),                 // 32: sforum.plugin.v2.QueryRuntimeRow
+	(*QueryRuntimeRows)(nil),                // 33: sforum.plugin.v2.QueryRuntimeRows
+	(*QueryInvocationRequest)(nil),          // 34: sforum.plugin.v2.QueryInvocationRequest
+	(*QueryInvocationResponse)(nil),         // 35: sforum.plugin.v2.QueryInvocationResponse
+	(*QueryResultFilterRequest)(nil),        // 36: sforum.plugin.v2.QueryResultFilterRequest
+	(*QueryResultFilterResponse)(nil),       // 37: sforum.plugin.v2.QueryResultFilterResponse
+	nil,                                     // 38: sforum.plugin.v2.RouteRequest.PathParametersEntry
+	nil,                                     // 39: sforum.plugin.v2.RouteRequest.QueryParametersEntry
+	(*v2.RequestContext)(nil),               // 40: sforum.protocol.v2.RequestContext
+	(*v2.Header)(nil),                       // 41: sforum.protocol.v2.Header
+	(*v2.TypedDocument)(nil),                // 42: sforum.protocol.v2.TypedDocument
+	(*v2.ResponseContext)(nil),              // 43: sforum.protocol.v2.ResponseContext
+	(*v2.ErrorDetail)(nil),                  // 44: sforum.protocol.v2.ErrorDetail
+	(*v2.DataChunk)(nil),                    // 45: sforum.protocol.v2.DataChunk
+	(*durationpb.Duration)(nil),             // 46: google.protobuf.Duration
+	(*structpb.Value)(nil),                  // 47: google.protobuf.Value
+	(*v2.HandshakeRequest)(nil),             // 48: sforum.protocol.v2.HandshakeRequest
+	(*v2.HealthRequest)(nil),                // 49: sforum.protocol.v2.HealthRequest
+	(*v2.ReadinessRequest)(nil),             // 50: sforum.protocol.v2.ReadinessRequest
+	(*v2.LifecycleRequest)(nil),             // 51: sforum.protocol.v2.LifecycleRequest
+	(*v2.HandshakeResponse)(nil),            // 52: sforum.protocol.v2.HandshakeResponse
+	(*v2.HealthResponse)(nil),               // 53: sforum.protocol.v2.HealthResponse
+	(*v2.ReadinessResponse)(nil),            // 54: sforum.protocol.v2.ReadinessResponse
+	(*v2.ProgressUpdate)(nil),               // 55: sforum.protocol.v2.ProgressUpdate
 }
 var file_sforum_plugin_v2_runtime_proto_depIdxs = []int32{
-	28, // 0: sforum.plugin.v2.RouteRequest.context:type_name -> sforum.protocol.v2.RequestContext
-	29, // 1: sforum.plugin.v2.RouteRequest.headers:type_name -> sforum.protocol.v2.Header
-	26, // 2: sforum.plugin.v2.RouteRequest.path_parameters:type_name -> sforum.plugin.v2.RouteRequest.PathParametersEntry
-	27, // 3: sforum.plugin.v2.RouteRequest.query_parameters:type_name -> sforum.plugin.v2.RouteRequest.QueryParametersEntry
-	30, // 4: sforum.plugin.v2.RouteRequest.body:type_name -> sforum.protocol.v2.TypedDocument
+	40, // 0: sforum.plugin.v2.RouteRequest.context:type_name -> sforum.protocol.v2.RequestContext
+	41, // 1: sforum.plugin.v2.RouteRequest.headers:type_name -> sforum.protocol.v2.Header
+	38, // 2: sforum.plugin.v2.RouteRequest.path_parameters:type_name -> sforum.plugin.v2.RouteRequest.PathParametersEntry
+	39, // 3: sforum.plugin.v2.RouteRequest.query_parameters:type_name -> sforum.plugin.v2.RouteRequest.QueryParametersEntry
+	42, // 4: sforum.plugin.v2.RouteRequest.body:type_name -> sforum.protocol.v2.TypedDocument
 	0,  // 5: sforum.plugin.v2.RouteRequest.request_authority_mode:type_name -> sforum.plugin.v2.RouteRequestAuthorityMode
 	1,  // 6: sforum.plugin.v2.RouteRequest.guard_kind:type_name -> sforum.plugin.v2.RouteGuardKind
 	2,  // 7: sforum.plugin.v2.RouteRequest.invocation_stage:type_name -> sforum.plugin.v2.RouteInvocationStage
 	24, // 8: sforum.plugin.v2.RouteRequest.prior_response:type_name -> sforum.plugin.v2.RouteResponseDocument
 	25, // 9: sforum.plugin.v2.RouteRequest.query_parameter_values:type_name -> sforum.plugin.v2.RouteQueryParameter
-	31, // 10: sforum.plugin.v2.RouteResponse.context:type_name -> sforum.protocol.v2.ResponseContext
-	29, // 11: sforum.plugin.v2.RouteResponse.headers:type_name -> sforum.protocol.v2.Header
-	30, // 12: sforum.plugin.v2.RouteResponse.body:type_name -> sforum.protocol.v2.TypedDocument
-	32, // 13: sforum.plugin.v2.RouteResponse.error:type_name -> sforum.protocol.v2.ErrorDetail
+	43, // 10: sforum.plugin.v2.RouteResponse.context:type_name -> sforum.protocol.v2.ResponseContext
+	41, // 11: sforum.plugin.v2.RouteResponse.headers:type_name -> sforum.protocol.v2.Header
+	42, // 12: sforum.plugin.v2.RouteResponse.body:type_name -> sforum.protocol.v2.TypedDocument
+	44, // 13: sforum.plugin.v2.RouteResponse.error:type_name -> sforum.protocol.v2.ErrorDetail
 	23, // 14: sforum.plugin.v2.RouteResponse.request_patch:type_name -> sforum.plugin.v2.RoutePatchOperation
 	23, // 15: sforum.plugin.v2.RouteResponse.response_patch:type_name -> sforum.plugin.v2.RoutePatchOperation
-	28, // 16: sforum.plugin.v2.RouteStreamOpen.context:type_name -> sforum.protocol.v2.RequestContext
-	29, // 17: sforum.plugin.v2.RouteStreamOpen.headers:type_name -> sforum.protocol.v2.Header
+	40, // 16: sforum.plugin.v2.RouteStreamOpen.context:type_name -> sforum.protocol.v2.RequestContext
+	41, // 17: sforum.plugin.v2.RouteStreamOpen.headers:type_name -> sforum.protocol.v2.Header
 	0,  // 18: sforum.plugin.v2.RouteStreamOpen.request_authority_mode:type_name -> sforum.plugin.v2.RouteRequestAuthorityMode
 	1,  // 19: sforum.plugin.v2.RouteStreamOpen.guard_kind:type_name -> sforum.plugin.v2.RouteGuardKind
-	29, // 20: sforum.plugin.v2.RouteStreamClose.headers:type_name -> sforum.protocol.v2.Header
-	32, // 21: sforum.plugin.v2.RouteStreamClose.error:type_name -> sforum.protocol.v2.ErrorDetail
+	41, // 20: sforum.plugin.v2.RouteStreamClose.headers:type_name -> sforum.protocol.v2.Header
+	44, // 21: sforum.plugin.v2.RouteStreamClose.error:type_name -> sforum.protocol.v2.ErrorDetail
 	6,  // 22: sforum.plugin.v2.RouteStreamFrame.open:type_name -> sforum.plugin.v2.RouteStreamOpen
-	33, // 23: sforum.plugin.v2.RouteStreamFrame.chunk:type_name -> sforum.protocol.v2.DataChunk
+	45, // 23: sforum.plugin.v2.RouteStreamFrame.chunk:type_name -> sforum.protocol.v2.DataChunk
 	7,  // 24: sforum.plugin.v2.RouteStreamFrame.close:type_name -> sforum.plugin.v2.RouteStreamClose
-	28, // 25: sforum.plugin.v2.HookRequest.context:type_name -> sforum.protocol.v2.RequestContext
-	30, // 26: sforum.plugin.v2.HookRequest.payload:type_name -> sforum.protocol.v2.TypedDocument
-	31, // 27: sforum.plugin.v2.HookResponse.context:type_name -> sforum.protocol.v2.ResponseContext
-	30, // 28: sforum.plugin.v2.HookResponse.result:type_name -> sforum.protocol.v2.TypedDocument
-	30, // 29: sforum.plugin.v2.HookResponse.patch:type_name -> sforum.protocol.v2.TypedDocument
-	32, // 30: sforum.plugin.v2.HookResponse.error:type_name -> sforum.protocol.v2.ErrorDetail
-	28, // 31: sforum.plugin.v2.JobRequest.context:type_name -> sforum.protocol.v2.RequestContext
-	30, // 32: sforum.plugin.v2.JobRequest.payload:type_name -> sforum.protocol.v2.TypedDocument
-	28, // 33: sforum.plugin.v2.CommandInvocationRequest.context:type_name -> sforum.protocol.v2.RequestContext
-	30, // 34: sforum.plugin.v2.CommandInvocationRequest.input:type_name -> sforum.protocol.v2.TypedDocument
-	31, // 35: sforum.plugin.v2.CommandInvocationResponse.context:type_name -> sforum.protocol.v2.ResponseContext
-	30, // 36: sforum.plugin.v2.CommandInvocationResponse.result:type_name -> sforum.protocol.v2.TypedDocument
-	32, // 37: sforum.plugin.v2.CommandInvocationResponse.error:type_name -> sforum.protocol.v2.ErrorDetail
-	28, // 38: sforum.plugin.v2.ProviderCallRequest.context:type_name -> sforum.protocol.v2.RequestContext
-	30, // 39: sforum.plugin.v2.ProviderCallRequest.input:type_name -> sforum.protocol.v2.TypedDocument
-	31, // 40: sforum.plugin.v2.ProviderCallResponse.context:type_name -> sforum.protocol.v2.ResponseContext
-	30, // 41: sforum.plugin.v2.ProviderCallResponse.output:type_name -> sforum.protocol.v2.TypedDocument
-	32, // 42: sforum.plugin.v2.ProviderCallResponse.error:type_name -> sforum.protocol.v2.ErrorDetail
-	28, // 43: sforum.plugin.v2.FileOpen.context:type_name -> sforum.protocol.v2.RequestContext
-	32, // 44: sforum.plugin.v2.FileClose.error:type_name -> sforum.protocol.v2.ErrorDetail
+	40, // 25: sforum.plugin.v2.HookRequest.context:type_name -> sforum.protocol.v2.RequestContext
+	42, // 26: sforum.plugin.v2.HookRequest.payload:type_name -> sforum.protocol.v2.TypedDocument
+	43, // 27: sforum.plugin.v2.HookResponse.context:type_name -> sforum.protocol.v2.ResponseContext
+	42, // 28: sforum.plugin.v2.HookResponse.result:type_name -> sforum.protocol.v2.TypedDocument
+	42, // 29: sforum.plugin.v2.HookResponse.patch:type_name -> sforum.protocol.v2.TypedDocument
+	44, // 30: sforum.plugin.v2.HookResponse.error:type_name -> sforum.protocol.v2.ErrorDetail
+	40, // 31: sforum.plugin.v2.JobRequest.context:type_name -> sforum.protocol.v2.RequestContext
+	42, // 32: sforum.plugin.v2.JobRequest.payload:type_name -> sforum.protocol.v2.TypedDocument
+	40, // 33: sforum.plugin.v2.CommandInvocationRequest.context:type_name -> sforum.protocol.v2.RequestContext
+	42, // 34: sforum.plugin.v2.CommandInvocationRequest.input:type_name -> sforum.protocol.v2.TypedDocument
+	43, // 35: sforum.plugin.v2.CommandInvocationResponse.context:type_name -> sforum.protocol.v2.ResponseContext
+	42, // 36: sforum.plugin.v2.CommandInvocationResponse.result:type_name -> sforum.protocol.v2.TypedDocument
+	44, // 37: sforum.plugin.v2.CommandInvocationResponse.error:type_name -> sforum.protocol.v2.ErrorDetail
+	40, // 38: sforum.plugin.v2.ProviderCallRequest.context:type_name -> sforum.protocol.v2.RequestContext
+	42, // 39: sforum.plugin.v2.ProviderCallRequest.input:type_name -> sforum.protocol.v2.TypedDocument
+	43, // 40: sforum.plugin.v2.ProviderCallResponse.context:type_name -> sforum.protocol.v2.ResponseContext
+	42, // 41: sforum.plugin.v2.ProviderCallResponse.output:type_name -> sforum.protocol.v2.TypedDocument
+	44, // 42: sforum.plugin.v2.ProviderCallResponse.error:type_name -> sforum.protocol.v2.ErrorDetail
+	40, // 43: sforum.plugin.v2.FileOpen.context:type_name -> sforum.protocol.v2.RequestContext
+	44, // 44: sforum.plugin.v2.FileClose.error:type_name -> sforum.protocol.v2.ErrorDetail
 	16, // 45: sforum.plugin.v2.FileFrame.open:type_name -> sforum.plugin.v2.FileOpen
-	33, // 46: sforum.plugin.v2.FileFrame.chunk:type_name -> sforum.protocol.v2.DataChunk
+	45, // 46: sforum.plugin.v2.FileFrame.chunk:type_name -> sforum.protocol.v2.DataChunk
 	17, // 47: sforum.plugin.v2.FileFrame.close:type_name -> sforum.plugin.v2.FileClose
-	28, // 48: sforum.plugin.v2.ServiceRequest.context:type_name -> sforum.protocol.v2.RequestContext
-	30, // 49: sforum.plugin.v2.ServiceRequest.input:type_name -> sforum.protocol.v2.TypedDocument
-	31, // 50: sforum.plugin.v2.ServiceResponse.context:type_name -> sforum.protocol.v2.ResponseContext
-	30, // 51: sforum.plugin.v2.ServiceResponse.output:type_name -> sforum.protocol.v2.TypedDocument
-	32, // 52: sforum.plugin.v2.ServiceResponse.error:type_name -> sforum.protocol.v2.ErrorDetail
-	28, // 53: sforum.plugin.v2.ServiceStreamOpen.context:type_name -> sforum.protocol.v2.RequestContext
-	34, // 54: sforum.plugin.v2.ServiceStreamOpen.idle_timeout:type_name -> google.protobuf.Duration
+	40, // 48: sforum.plugin.v2.ServiceRequest.context:type_name -> sforum.protocol.v2.RequestContext
+	42, // 49: sforum.plugin.v2.ServiceRequest.input:type_name -> sforum.protocol.v2.TypedDocument
+	43, // 50: sforum.plugin.v2.ServiceResponse.context:type_name -> sforum.protocol.v2.ResponseContext
+	42, // 51: sforum.plugin.v2.ServiceResponse.output:type_name -> sforum.protocol.v2.TypedDocument
+	44, // 52: sforum.plugin.v2.ServiceResponse.error:type_name -> sforum.protocol.v2.ErrorDetail
+	40, // 53: sforum.plugin.v2.ServiceStreamOpen.context:type_name -> sforum.protocol.v2.RequestContext
+	46, // 54: sforum.plugin.v2.ServiceStreamOpen.idle_timeout:type_name -> google.protobuf.Duration
 	21, // 55: sforum.plugin.v2.ServiceStreamFrame.open:type_name -> sforum.plugin.v2.ServiceStreamOpen
-	30, // 56: sforum.plugin.v2.ServiceStreamFrame.message:type_name -> sforum.protocol.v2.TypedDocument
-	32, // 57: sforum.plugin.v2.ServiceStreamFrame.error:type_name -> sforum.protocol.v2.ErrorDetail
+	42, // 56: sforum.plugin.v2.ServiceStreamFrame.message:type_name -> sforum.protocol.v2.TypedDocument
+	44, // 57: sforum.plugin.v2.ServiceStreamFrame.error:type_name -> sforum.protocol.v2.ErrorDetail
 	3,  // 58: sforum.plugin.v2.RoutePatchOperation.kind:type_name -> sforum.plugin.v2.RoutePatchOperationKind
-	35, // 59: sforum.plugin.v2.RoutePatchOperation.value:type_name -> google.protobuf.Value
-	29, // 60: sforum.plugin.v2.RouteResponseDocument.headers:type_name -> sforum.protocol.v2.Header
-	30, // 61: sforum.plugin.v2.RouteResponseDocument.body:type_name -> sforum.protocol.v2.TypedDocument
-	36, // 62: sforum.plugin.v2.PluginRuntimeService.Handshake:input_type -> sforum.protocol.v2.HandshakeRequest
-	37, // 63: sforum.plugin.v2.PluginRuntimeService.Health:input_type -> sforum.protocol.v2.HealthRequest
-	38, // 64: sforum.plugin.v2.PluginRuntimeService.Readiness:input_type -> sforum.protocol.v2.ReadinessRequest
-	39, // 65: sforum.plugin.v2.PluginRuntimeService.RunLifecycle:input_type -> sforum.protocol.v2.LifecycleRequest
-	4,  // 66: sforum.plugin.v2.PluginRuntimeService.InvokeRoute:input_type -> sforum.plugin.v2.RouteRequest
-	8,  // 67: sforum.plugin.v2.PluginRuntimeService.StreamRoute:input_type -> sforum.plugin.v2.RouteStreamFrame
-	9,  // 68: sforum.plugin.v2.PluginRuntimeService.InvokeHook:input_type -> sforum.plugin.v2.HookRequest
-	11, // 69: sforum.plugin.v2.PluginRuntimeService.ExecuteJob:input_type -> sforum.plugin.v2.JobRequest
-	12, // 70: sforum.plugin.v2.PluginRuntimeService.InvokeCommand:input_type -> sforum.plugin.v2.CommandInvocationRequest
-	14, // 71: sforum.plugin.v2.PluginRuntimeService.ProviderCall:input_type -> sforum.plugin.v2.ProviderCallRequest
-	18, // 72: sforum.plugin.v2.PluginRuntimeService.TransferFile:input_type -> sforum.plugin.v2.FileFrame
-	19, // 73: sforum.plugin.v2.PluginRuntimeService.InvokeService:input_type -> sforum.plugin.v2.ServiceRequest
-	22, // 74: sforum.plugin.v2.PluginRuntimeService.StreamService:input_type -> sforum.plugin.v2.ServiceStreamFrame
-	40, // 75: sforum.plugin.v2.PluginRuntimeService.Handshake:output_type -> sforum.protocol.v2.HandshakeResponse
-	41, // 76: sforum.plugin.v2.PluginRuntimeService.Health:output_type -> sforum.protocol.v2.HealthResponse
-	42, // 77: sforum.plugin.v2.PluginRuntimeService.Readiness:output_type -> sforum.protocol.v2.ReadinessResponse
-	43, // 78: sforum.plugin.v2.PluginRuntimeService.RunLifecycle:output_type -> sforum.protocol.v2.ProgressUpdate
-	5,  // 79: sforum.plugin.v2.PluginRuntimeService.InvokeRoute:output_type -> sforum.plugin.v2.RouteResponse
-	8,  // 80: sforum.plugin.v2.PluginRuntimeService.StreamRoute:output_type -> sforum.plugin.v2.RouteStreamFrame
-	10, // 81: sforum.plugin.v2.PluginRuntimeService.InvokeHook:output_type -> sforum.plugin.v2.HookResponse
-	43, // 82: sforum.plugin.v2.PluginRuntimeService.ExecuteJob:output_type -> sforum.protocol.v2.ProgressUpdate
-	13, // 83: sforum.plugin.v2.PluginRuntimeService.InvokeCommand:output_type -> sforum.plugin.v2.CommandInvocationResponse
-	15, // 84: sforum.plugin.v2.PluginRuntimeService.ProviderCall:output_type -> sforum.plugin.v2.ProviderCallResponse
-	18, // 85: sforum.plugin.v2.PluginRuntimeService.TransferFile:output_type -> sforum.plugin.v2.FileFrame
-	20, // 86: sforum.plugin.v2.PluginRuntimeService.InvokeService:output_type -> sforum.plugin.v2.ServiceResponse
-	22, // 87: sforum.plugin.v2.PluginRuntimeService.StreamService:output_type -> sforum.plugin.v2.ServiceStreamFrame
-	75, // [75:88] is the sub-list for method output_type
-	62, // [62:75] is the sub-list for method input_type
-	62, // [62:62] is the sub-list for extension type_name
-	62, // [62:62] is the sub-list for extension extendee
-	0,  // [0:62] is the sub-list for field type_name
+	47, // 59: sforum.plugin.v2.RoutePatchOperation.value:type_name -> google.protobuf.Value
+	41, // 60: sforum.plugin.v2.RouteResponseDocument.headers:type_name -> sforum.protocol.v2.Header
+	42, // 61: sforum.plugin.v2.RouteResponseDocument.body:type_name -> sforum.protocol.v2.TypedDocument
+	28, // 62: sforum.plugin.v2.QueryRuntimePlan.filters:type_name -> sforum.plugin.v2.QueryRuntimeFilter
+	29, // 63: sforum.plugin.v2.QueryRuntimePlan.sorts:type_name -> sforum.plugin.v2.QueryRuntimeSort
+	30, // 64: sforum.plugin.v2.QueryRuntimePlan.pagination:type_name -> sforum.plugin.v2.QueryRuntimePagination
+	32, // 65: sforum.plugin.v2.QueryRuntimeRows.rows:type_name -> sforum.plugin.v2.QueryRuntimeRow
+	40, // 66: sforum.plugin.v2.QueryInvocationRequest.context:type_name -> sforum.protocol.v2.RequestContext
+	26, // 67: sforum.plugin.v2.QueryInvocationRequest.binding:type_name -> sforum.plugin.v2.QueryRuntimeBinding
+	31, // 68: sforum.plugin.v2.QueryInvocationRequest.plan:type_name -> sforum.plugin.v2.QueryRuntimePlan
+	43, // 69: sforum.plugin.v2.QueryInvocationResponse.context:type_name -> sforum.protocol.v2.ResponseContext
+	26, // 70: sforum.plugin.v2.QueryInvocationResponse.binding:type_name -> sforum.plugin.v2.QueryRuntimeBinding
+	33, // 71: sforum.plugin.v2.QueryInvocationResponse.success:type_name -> sforum.plugin.v2.QueryRuntimeRows
+	44, // 72: sforum.plugin.v2.QueryInvocationResponse.error:type_name -> sforum.protocol.v2.ErrorDetail
+	40, // 73: sforum.plugin.v2.QueryResultFilterRequest.context:type_name -> sforum.protocol.v2.RequestContext
+	27, // 74: sforum.plugin.v2.QueryResultFilterRequest.binding:type_name -> sforum.plugin.v2.QueryResultFilterRuntimeBinding
+	31, // 75: sforum.plugin.v2.QueryResultFilterRequest.plan:type_name -> sforum.plugin.v2.QueryRuntimePlan
+	33, // 76: sforum.plugin.v2.QueryResultFilterRequest.input:type_name -> sforum.plugin.v2.QueryRuntimeRows
+	43, // 77: sforum.plugin.v2.QueryResultFilterResponse.context:type_name -> sforum.protocol.v2.ResponseContext
+	27, // 78: sforum.plugin.v2.QueryResultFilterResponse.binding:type_name -> sforum.plugin.v2.QueryResultFilterRuntimeBinding
+	33, // 79: sforum.plugin.v2.QueryResultFilterResponse.success:type_name -> sforum.plugin.v2.QueryRuntimeRows
+	44, // 80: sforum.plugin.v2.QueryResultFilterResponse.error:type_name -> sforum.protocol.v2.ErrorDetail
+	48, // 81: sforum.plugin.v2.PluginRuntimeService.Handshake:input_type -> sforum.protocol.v2.HandshakeRequest
+	49, // 82: sforum.plugin.v2.PluginRuntimeService.Health:input_type -> sforum.protocol.v2.HealthRequest
+	50, // 83: sforum.plugin.v2.PluginRuntimeService.Readiness:input_type -> sforum.protocol.v2.ReadinessRequest
+	51, // 84: sforum.plugin.v2.PluginRuntimeService.RunLifecycle:input_type -> sforum.protocol.v2.LifecycleRequest
+	4,  // 85: sforum.plugin.v2.PluginRuntimeService.InvokeRoute:input_type -> sforum.plugin.v2.RouteRequest
+	8,  // 86: sforum.plugin.v2.PluginRuntimeService.StreamRoute:input_type -> sforum.plugin.v2.RouteStreamFrame
+	9,  // 87: sforum.plugin.v2.PluginRuntimeService.InvokeHook:input_type -> sforum.plugin.v2.HookRequest
+	11, // 88: sforum.plugin.v2.PluginRuntimeService.ExecuteJob:input_type -> sforum.plugin.v2.JobRequest
+	12, // 89: sforum.plugin.v2.PluginRuntimeService.InvokeCommand:input_type -> sforum.plugin.v2.CommandInvocationRequest
+	34, // 90: sforum.plugin.v2.PluginRuntimeService.InvokeQuery:input_type -> sforum.plugin.v2.QueryInvocationRequest
+	36, // 91: sforum.plugin.v2.PluginRuntimeService.FilterQueryResult:input_type -> sforum.plugin.v2.QueryResultFilterRequest
+	14, // 92: sforum.plugin.v2.PluginRuntimeService.ProviderCall:input_type -> sforum.plugin.v2.ProviderCallRequest
+	18, // 93: sforum.plugin.v2.PluginRuntimeService.TransferFile:input_type -> sforum.plugin.v2.FileFrame
+	19, // 94: sforum.plugin.v2.PluginRuntimeService.InvokeService:input_type -> sforum.plugin.v2.ServiceRequest
+	22, // 95: sforum.plugin.v2.PluginRuntimeService.StreamService:input_type -> sforum.plugin.v2.ServiceStreamFrame
+	52, // 96: sforum.plugin.v2.PluginRuntimeService.Handshake:output_type -> sforum.protocol.v2.HandshakeResponse
+	53, // 97: sforum.plugin.v2.PluginRuntimeService.Health:output_type -> sforum.protocol.v2.HealthResponse
+	54, // 98: sforum.plugin.v2.PluginRuntimeService.Readiness:output_type -> sforum.protocol.v2.ReadinessResponse
+	55, // 99: sforum.plugin.v2.PluginRuntimeService.RunLifecycle:output_type -> sforum.protocol.v2.ProgressUpdate
+	5,  // 100: sforum.plugin.v2.PluginRuntimeService.InvokeRoute:output_type -> sforum.plugin.v2.RouteResponse
+	8,  // 101: sforum.plugin.v2.PluginRuntimeService.StreamRoute:output_type -> sforum.plugin.v2.RouteStreamFrame
+	10, // 102: sforum.plugin.v2.PluginRuntimeService.InvokeHook:output_type -> sforum.plugin.v2.HookResponse
+	55, // 103: sforum.plugin.v2.PluginRuntimeService.ExecuteJob:output_type -> sforum.protocol.v2.ProgressUpdate
+	13, // 104: sforum.plugin.v2.PluginRuntimeService.InvokeCommand:output_type -> sforum.plugin.v2.CommandInvocationResponse
+	35, // 105: sforum.plugin.v2.PluginRuntimeService.InvokeQuery:output_type -> sforum.plugin.v2.QueryInvocationResponse
+	37, // 106: sforum.plugin.v2.PluginRuntimeService.FilterQueryResult:output_type -> sforum.plugin.v2.QueryResultFilterResponse
+	15, // 107: sforum.plugin.v2.PluginRuntimeService.ProviderCall:output_type -> sforum.plugin.v2.ProviderCallResponse
+	18, // 108: sforum.plugin.v2.PluginRuntimeService.TransferFile:output_type -> sforum.plugin.v2.FileFrame
+	20, // 109: sforum.plugin.v2.PluginRuntimeService.InvokeService:output_type -> sforum.plugin.v2.ServiceResponse
+	22, // 110: sforum.plugin.v2.PluginRuntimeService.StreamService:output_type -> sforum.plugin.v2.ServiceStreamFrame
+	96, // [96:111] is the sub-list for method output_type
+	81, // [81:96] is the sub-list for method input_type
+	81, // [81:81] is the sub-list for extension type_name
+	81, // [81:81] is the sub-list for extension extendee
+	0,  // [0:81] is the sub-list for field type_name
 }
 
 func init() { file_sforum_plugin_v2_runtime_proto_init() }
@@ -2483,13 +3472,21 @@ func file_sforum_plugin_v2_runtime_proto_init() {
 		(*ServiceStreamFrame_Message)(nil),
 		(*ServiceStreamFrame_Error)(nil),
 	}
+	file_sforum_plugin_v2_runtime_proto_msgTypes[31].OneofWrappers = []any{
+		(*QueryInvocationResponse_Success)(nil),
+		(*QueryInvocationResponse_Error)(nil),
+	}
+	file_sforum_plugin_v2_runtime_proto_msgTypes[33].OneofWrappers = []any{
+		(*QueryResultFilterResponse_Success)(nil),
+		(*QueryResultFilterResponse_Error)(nil),
+	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_sforum_plugin_v2_runtime_proto_rawDesc), len(file_sforum_plugin_v2_runtime_proto_rawDesc)),
 			NumEnums:      4,
-			NumMessages:   24,
+			NumMessages:   36,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

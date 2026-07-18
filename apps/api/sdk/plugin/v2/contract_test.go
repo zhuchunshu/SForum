@@ -77,6 +77,25 @@ func TestRequiredEnvelopeAndCommandFields(t *testing.T) {
 	assertFields(t, "sforum.plugin.v2.CommandInvocationRequest",
 		"context", "command_id", "contract_version", "handler", "input")
 	assertFields(t, "sforum.plugin.v2.CommandInvocationResponse", "context", "result", "error")
+	assertExactFields(t, "sforum.plugin.v2.QueryRuntimeBinding",
+		"query_id", "contract_version", "plan_version", "result_schema", "handler")
+	assertExactFields(t, "sforum.plugin.v2.QueryResultFilterRuntimeBinding",
+		"filter_id", "filter_contract_version", "query_id", "query_contract_version",
+		"query_plan_version", "result_schema", "handler")
+	assertExactFields(t, "sforum.plugin.v2.QueryRuntimePlan",
+		"shape_digest", "fields", "relations", "filters", "sorts", "pagination", "locale", "scope", "fetch_limit")
+	assertExactFields(t, "sforum.plugin.v2.QueryRuntimePagination", "mode", "offset", "limit")
+	assertExactFields(t, "sforum.plugin.v2.QueryRuntimeFilter", "field", "value")
+	assertExactFields(t, "sforum.plugin.v2.QueryRuntimeSort", "field", "descending")
+	assertExactFields(t, "sforum.plugin.v2.QueryRuntimeRow", "canonical_json")
+	assertExactFields(t, "sforum.plugin.v2.QueryRuntimeRows", "rows")
+	assertExactFields(t, "sforum.plugin.v2.QueryInvocationRequest", "context", "binding", "plan")
+	assertExactFields(t, "sforum.plugin.v2.QueryInvocationResponse", "context", "binding", "shape_digest", "success", "error")
+	assertExactFields(t, "sforum.plugin.v2.QueryResultFilterRequest", "context", "binding", "plan", "input")
+	assertExactFields(t, "sforum.plugin.v2.QueryResultFilterResponse", "context", "binding", "shape_digest", "success", "error")
+	assertOneofFields(t, "sforum.plugin.v2.QueryInvocationResponse", "outcome", "success", "error")
+	assertOneofFields(t, "sforum.plugin.v2.QueryResultFilterResponse", "outcome", "success", "error")
+	assertFieldKind(t, "sforum.plugin.v2.QueryRuntimeRow", "canonical_json", protoreflect.BytesKind)
 	assertFields(t, "sforum.plugin.v2.RouteRequest",
 		"context", "route_id", "contract_version", "method", "path", "headers", "path_parameters",
 		"query_parameters", "body", "request_authority_mode", "guard_kind", "route_action", "invocation_stage",
@@ -98,7 +117,7 @@ func TestRequiredEnvelopeAndCommandFields(t *testing.T) {
 		"ROUTE_PATCH_OPERATION_KIND_UNSPECIFIED", "ROUTE_PATCH_OPERATION_KIND_ADD", "ROUTE_PATCH_OPERATION_KIND_REPLACE", "ROUTE_PATCH_OPERATION_KIND_REMOVE")
 	assertFieldNumbers(t, "sforum.plugin.v2.RouteRequest", map[protoreflect.Name]protoreflect.FieldNumber{
 		"query_parameters": 8,
-		"route_action": 12, "invocation_stage": 13, "mutable_request_fields": 14,
+		"route_action":     12, "invocation_stage": 13, "mutable_request_fields": 14,
 		"mutable_response_fields": 15, "prior_response": 16, "query_parameter_values": 17,
 	})
 	assertFieldNumbers(t, "sforum.plugin.v2.RouteResponse", map[protoreflect.Name]protoreflect.FieldNumber{
@@ -124,6 +143,8 @@ func TestStreamingModesRemainExplicit(t *testing.T) {
 		{"sforum.plugin.v2.PluginRuntimeService.RunLifecycle", false, true},
 		{"sforum.plugin.v2.PluginRuntimeService.StreamRoute", true, true},
 		{"sforum.plugin.v2.PluginRuntimeService.ExecuteJob", false, true},
+		{"sforum.plugin.v2.PluginRuntimeService.InvokeQuery", false, false},
+		{"sforum.plugin.v2.PluginRuntimeService.FilterQueryResult", false, false},
 		{"sforum.plugin.v2.PluginRuntimeService.TransferFile", true, true},
 		{"sforum.plugin.v2.PluginRuntimeService.StreamService", true, true},
 		{"sforum.host.v2.HostQueryService.Stream", false, true},
@@ -157,6 +178,57 @@ func assertFields(t *testing.T, messageName string, names ...protoreflect.Name) 
 		if message.Fields().ByName(name) == nil {
 			t.Errorf("%s missing field %s", messageName, name)
 		}
+	}
+}
+
+func assertExactFields(t *testing.T, messageName string, names ...protoreflect.Name) {
+	t.Helper()
+	descriptor, err := protoregistry.GlobalFiles.FindDescriptorByName(protoreflect.FullName(messageName))
+	if err != nil {
+		t.Fatalf("find message %s: %v", messageName, err)
+	}
+	message, ok := descriptor.(protoreflect.MessageDescriptor)
+	if !ok {
+		t.Fatalf("%s is %T, want message", messageName, descriptor)
+	}
+	if message.Fields().Len() != len(names) {
+		t.Fatalf("%s has %d fields, want exactly %d", messageName, message.Fields().Len(), len(names))
+	}
+	assertFields(t, messageName, names...)
+}
+
+func assertOneofFields(t *testing.T, messageName, oneofName string, names ...protoreflect.Name) {
+	t.Helper()
+	descriptor, err := protoregistry.GlobalFiles.FindDescriptorByName(protoreflect.FullName(messageName))
+	if err != nil {
+		t.Fatalf("find message %s: %v", messageName, err)
+	}
+	message := descriptor.(protoreflect.MessageDescriptor)
+	oneof := message.Oneofs().ByName(protoreflect.Name(oneofName))
+	if oneof == nil || oneof.Fields().Len() != len(names) {
+		t.Fatalf("%s.%s oneof does not contain the exact expected fields", messageName, oneofName)
+	}
+	for _, name := range names {
+		field := message.Fields().ByName(name)
+		if field == nil || field.ContainingOneof() != oneof {
+			t.Errorf("%s.%s is not in oneof %s", messageName, name, oneofName)
+		}
+	}
+}
+
+func assertFieldKind(t *testing.T, messageName, fieldName string, want protoreflect.Kind) {
+	t.Helper()
+	descriptor, err := protoregistry.GlobalFiles.FindDescriptorByName(protoreflect.FullName(messageName))
+	if err != nil {
+		t.Fatalf("find message %s: %v", messageName, err)
+	}
+	message := descriptor.(protoreflect.MessageDescriptor)
+	field := message.Fields().ByName(protoreflect.Name(fieldName))
+	if field == nil {
+		t.Fatalf("%s missing field %s", messageName, fieldName)
+	}
+	if field.Kind() != want {
+		t.Fatalf("%s.%s kind = %v, want %v", messageName, fieldName, field.Kind(), want)
 	}
 }
 
