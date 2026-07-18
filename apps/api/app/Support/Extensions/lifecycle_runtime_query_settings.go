@@ -94,7 +94,11 @@ func (t *runtimeQuerySettingsRestartTransaction) RestartRuntimeQueriesForSetting
 		cleanupErr := t.closeFailedTarget(ctx)
 		return errors.Join(fmt.Errorf("health settings runtime: %w", err), cleanupErr)
 	}
-	if _, err := t.boundary.manager.PublishRuntimeInstance(ctx, target.Identity); err != nil {
+	if _, err := t.boundary.manager.PublishRuntimeInstanceFrom(ctx, target.Identity, RuntimeInstanceArtifactIdentity{
+		RuntimeInstanceIdentity: t.source.Identity,
+		ExtensionVersion:        t.source.ExtensionVersion,
+		ArtifactDigest:          t.source.ArtifactDigest,
+	}); err != nil {
 		cleanupErr := t.closeFailedTarget(ctx)
 		return errors.Join(fmt.Errorf("publish settings runtime: %w", err), cleanupErr)
 	}
@@ -148,7 +152,7 @@ func (t *runtimeQuerySettingsRestartTransaction) RestoreRuntimeQueriesAfterSetti
 	if source.Active {
 		_, err = t.boundary.manager.ResumeRuntimeInstanceContext(ctx, t.source.Identity)
 	} else {
-		_, err = t.boundary.manager.PublishRuntimeInstance(ctx, t.source.Identity)
+		_, err = t.boundary.manager.PublishRuntimeInstanceIfNoActive(ctx, t.source.Identity)
 	}
 	if err != nil {
 		return t.failClosedLocked(fmt.Errorf("restore source settings runtime: %w", err))

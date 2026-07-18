@@ -190,6 +190,57 @@ func TestRuntimeQuerySettingsRestartSourceStopFailureRollsBackBeforeAdmission(t 
 	}
 }
 
+func TestRuntimeQuerySettingsRestartCannotBypassSourceQuarantine(t *testing.T) {
+	extension := legacyRuntimeQueryExtension("1.0.0", 'a', 41)
+	extension.PackagePath = t.TempDir()
+	manager := NewManager(ManagerConfig{Starter: newManagerStagedStarter()})
+	if err := manager.Start(t.Context(), extension); err != nil {
+		t.Fatal(err)
+	}
+	queries := queryregistry.New()
+	boundary := NewPostgresLifecycleBoundaryRegistries(LifecycleRegistryBoundaryConfig{
+		Manager: manager, Queries: queries,
+	})
+	if _, err := boundary.PublishRuntimeQueries(t.Context(), extension); err != nil {
+		t.Fatal(err)
+	}
+	source, err := manager.ActiveRuntimeInstance(extension.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sourcePublication, _ := queries.SnapshotPublication(extension.ID)
+	restart, err := boundary.PrepareRuntimeQueriesForSettings(t.Context(), extension)
+	if err != nil {
+		t.Fatal(err)
+	}
+	revoked := errors.New("trust revoked during settings restart")
+	if _, err := manager.QuarantineRuntimeInstance(RuntimeInstanceArtifactIdentity{
+		RuntimeInstanceIdentity: source.Identity,
+		ExtensionVersion:        source.ExtensionVersion,
+		ArtifactDigest:          source.ArtifactDigest,
+	}, revoked); err != nil {
+		t.Fatal(err)
+	}
+	if err := restart.RestartRuntimeQueriesForSettings(t.Context(), extension); !errors.Is(err, ErrRuntimeInstanceConflict) {
+		t.Fatalf("restart after source quarantine = %v", err)
+	}
+	if err := restart.RestoreRuntimeQueriesAfterSettingsRollback(t.Context()); !errors.Is(err, ErrRuntimeAdmissionQuarantined) || !errors.Is(err, revoked) {
+		t.Fatalf("restore after source quarantine = %v", err)
+	}
+	active, err := manager.ActiveRuntimeInstance(extension.ID)
+	if err != nil || active.Identity != source.Identity || !active.Admission.Quarantined {
+		t.Fatalf("quarantined source changed = %#v, %v", active, err)
+	}
+	publication, found := queries.SnapshotPublication(extension.ID)
+	if !found || publication.Artifact != sourcePublication.Artifact {
+		t.Fatalf("source Query publication changed = %#v", publication)
+	}
+	if _, err := manager.InspectRuntimeInstance(RuntimeInstanceIdentity{ExtensionID: extension.ID, InstanceID: "instance-2"}); !errors.Is(err, ErrRuntimeInstanceNotFound) {
+		t.Fatalf("failed settings target survived source quarantine: %v", err)
+	}
+	assertRuntimeQuerySettingsPublicationLockReleased(t, boundary)
+}
+
 func TestRuntimeQuerySettingsRestoreRetriesTargetCleanupBeforeSourceAdmission(t *testing.T) {
 	extension := legacyRuntimeQueryExtension("1.0.0", 'a', 41)
 	extension.PackagePath = t.TempDir()
