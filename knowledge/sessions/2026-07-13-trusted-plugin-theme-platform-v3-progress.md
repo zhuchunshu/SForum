@@ -14,6 +14,24 @@ Last updated: 2026-07-18
 
 ## Current Subtask
 
+### 2026-07-18 Host Stream Winner Checkpoint
+
+- Verified weighted progress remains **64.9003%** (display **64.9%**); P6 stays
+  **16/18**.
+- `86b72c13d fix(routes): preserve Host stream cancellation winners` keeps an
+  already-published ForceDrain or Host-budget winner authoritative when a
+  concurrent Send, CloseRequest, or Recv teardown returns a raw wire error.
+  Ordinary caller cancellation still cannot erase a distinguishable independent
+  runtime crash.
+- The matrix covers all three operations against ForceDrain and Host budget, and
+  all three operations against the caller/runtime-crash counterexample. Focused
+  tests passed **50** repetitions and race passed **20**; Http vet, full build,
+  staged diff, and whitespace gates passed.
+- Exact resume point: take ownership of the pending WebSocket adapter provenance
+  diff, mark the production-equivalent fake preflight execution point, add sink
+  assertions for runtime/abort/missing-terminal paths, and run complete Http
+  normal/race before committing it.
+
 ### 2026-07-18 Custom Caller Stream Provenance Checkpoint
 
 - Verified weighted progress remains **64.9003%** (display **64.9%**); P6 stays
