@@ -14,6 +14,28 @@ Last updated: 2026-07-18
 
 ## Current Subtask
 
+### 2026-07-18 Protocol V2 Stream Operation Classification Checkpoint
+
+- Verified weighted progress remains **64.9003%** (display **64.9%**); P6 stays
+  **16/18** until every production adapter producer, the generic-stream bounded
+  backpressure fixture, and the joined durable-incident matrix pass.
+- `435f01156 fix(routes): classify protocol v2 stream operations` maps Open,
+  Send, CloseRequest, and Recv through the typed stream disposition contract.
+  ForceDrain/caller cancellation is an abort, Host budget is `host_budget`,
+  malformed preflight is `invalid_preflight`, and raw EOF without a terminal is
+  `missing_terminal`. A terminal status drift remains a runtime failure.
+- Operation provenance is kept separate from cleanup ownership: a concurrent
+  caller cancellation cannot rewrite a distinguishable runtime crash. A live
+  context no longer fabricates `DeadlineExceeded`; cancel fallback remains
+  `context.Canceled` and exhausted budget has its explicit stable sentinel.
+- Focused Http tests passed **50** repetitions, focused race tests passed **20**
+  repetitions, and complete `app/Http`, `go vet ./app/Http`, `go build ./...`,
+  staged diff, and whitespace checks passed.
+- Exact resume point: classify HTTP/SSE and WebSocket adapter-originated errors
+  by caller/runtime/Host provenance, prove every abort creates zero incidents,
+  then explicitly inject `StreamFailures` in bootstrap. Do not stage the two
+  unrelated `hostAPIGateway.Close()` hunks already present in `bootstrap/app.go`.
+
 ### 2026-07-18 Durable Route Runtime Incident Store Checkpoint
 
 - Verified weighted progress remains **64.9003%** (display **64.9%**); P6 stays
