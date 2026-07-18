@@ -16,6 +16,7 @@ const (
 	filterID       = "sforum.query-reference.items.mask"
 	handler        = "sforum.query-reference.items"
 	filter         = "sforum.query-reference.items.mask"
+	totalItems     = 5
 )
 
 func main() {
@@ -55,14 +56,32 @@ func invokeReferenceItems(ctx context.Context, call *pluginv2.QueryRuntimeCall) 
 			}
 		}
 	}
+	if queryID == privateQueryID {
+		return referenceRows([]int{1})
+	}
+	sorts := call.Plan.GetSorts()
+	if len(sorts) != 1 || sorts[0].GetField() != "id" {
+		return nil, errors.New("reference query sort contract drifted")
+	}
 	offset := int(call.Plan.GetPagination().GetOffset())
 	limit := int(call.Plan.GetFetchLimit())
 	if limit < 1 {
 		limit = 1
 	}
-	rows := make([]json.RawMessage, 0, limit)
-	for index := 0; index < limit; index++ {
+	ids := make([]int, 0, limit)
+	for index := 0; index < limit && offset+index < totalItems; index++ {
 		id := offset + index + 1
+		if sorts[0].GetDescending() {
+			id = totalItems - offset - index
+		}
+		ids = append(ids, id)
+	}
+	return referenceRows(ids)
+}
+
+func referenceRows(ids []int) ([]json.RawMessage, error) {
+	rows := make([]json.RawMessage, 0, len(ids))
+	for _, id := range ids {
 		title := "item-" + strconv.Itoa(id)
 		// 保留大整数词素，证明 Host 解码路径无损。
 		body, err := json.Marshal(map[string]any{

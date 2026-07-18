@@ -111,9 +111,10 @@ func TestReferenceQueryPluginJoinedGates(t *testing.T) {
 		Fields:     []string{"id", "title", "score"},
 		Pagination: queryregistry.PaginationRequest{Limit: 2},
 	})
-	// offset 分页 FetchLimit=limit+1：插件返回 3 行时 HasMore=true，页面只释放 2 行。
+	// defaultSort=id desc；FetchLimit=limit+1 时插件返回 3 行，Host 只释放 2 行。
 	if err != nil || len(result.Rows) != 2 || !result.Page.HasMore || result.Page.NextOffset != 2 ||
-		result.Rows[0]["title"] != "item-1 | masked" ||
+		result.Rows[0]["id"] != "5" || result.Rows[1]["id"] != "4" ||
+		result.Rows[0]["title"] != "item-5 | masked" ||
 		result.Rows[0]["score"] != json.Number("9007199254740993") {
 		t.Fatalf("happy path result=%#v err=%v", result, err)
 	}
@@ -123,9 +124,27 @@ func TestReferenceQueryPluginJoinedGates(t *testing.T) {
 		Fields:     []string{"id", "title", "score"},
 		Pagination: queryregistry.PaginationRequest{Offset: 2, Limit: 2},
 	})
-	if err != nil || len(page.Rows) != 2 || page.Rows[0]["id"] != "3" ||
-		page.Rows[0]["title"] != "item-3 | masked" {
+	if err != nil || len(page.Rows) != 2 || page.Rows[0]["id"] != "3" || page.Rows[1]["id"] != "2" ||
+		page.Rows[0]["title"] != "item-3 | masked" || !page.Page.HasMore {
 		t.Fatalf("pagination result=%#v err=%v", page, err)
+	}
+
+	tail, err := runtime.Execute(t.Context(), queryregistry.PlanRequest{
+		QueryID:    "sforum.query-reference.items",
+		Fields:     []string{"id", "title", "score"},
+		Pagination: queryregistry.PaginationRequest{Offset: 4, Limit: 2},
+	})
+	if err != nil || len(tail.Rows) != 1 || tail.Rows[0]["id"] != "1" || tail.Page.HasMore ||
+		tail.Rows[0]["title"] != "item-1 | masked" {
+		t.Fatalf("tail pagination result=%#v err=%v", tail, err)
+	}
+
+	ascending, err := runtime.Execute(t.Context(), queryregistry.PlanRequest{
+		QueryID: "sforum.query-reference.items", Fields: []string{"id", "title", "score"},
+		Sorts: []queryregistry.SortValue{{Field: "id"}}, Pagination: queryregistry.PaginationRequest{Limit: 2},
+	})
+	if err != nil || len(ascending.Rows) != 2 || ascending.Rows[0]["id"] != "1" || ascending.Rows[1]["id"] != "2" {
+		t.Fatalf("caller sort result=%#v err=%v", ascending, err)
 	}
 
 	if _, err := runtime.Execute(t.Context(), queryregistry.PlanRequest{
