@@ -170,13 +170,15 @@ func (*queryExecutionStarter) Start(context.Context, extensions.Extension) (Rout
 
 func (*queryExecutionStarter) Stop(context.Context, extensions.Extension) error { return nil }
 
-func (s *queryExecutionStarter) InvokeQuery(
+func (s *queryExecutionStarter) InvokeQueryInstance(
 	_ context.Context,
-	_ extensions.Extension,
+	identity RuntimeInstanceIdentity,
+	extension extensions.Extension,
 	request VersionedQueryRequest,
 ) ([]queryregistry.QueryRow, error) {
 	s.calls.Add(1)
-	if request.Handler == "" || request.FetchLimit < 1 {
+	if identity.ExtensionID != extension.ID || identity.InstanceID != "query-reference-runtime" ||
+		request.Handler == "" || request.FetchLimit < 1 {
 		return nil, errors.New("invalid query invocation")
 	}
 	return []queryregistry.QueryRow{{
@@ -184,13 +186,15 @@ func (s *queryExecutionStarter) InvokeQuery(
 	}}, nil
 }
 
-func (s *queryExecutionStarter) FilterQueryResult(
+func (s *queryExecutionStarter) FilterQueryResultInstance(
 	_ context.Context,
-	_ extensions.Extension,
+	identity RuntimeInstanceIdentity,
+	extension extensions.Extension,
 	request VersionedQueryResultFilterRequest,
 ) ([]queryregistry.QueryRow, error) {
 	s.calls.Add(1)
-	if request.Handler == "" || len(request.Rows) == 0 {
+	if identity.ExtensionID != extension.ID || identity.InstanceID != "query-reference-runtime" ||
+		request.Handler == "" || len(request.Rows) == 0 {
 		return nil, errors.New("invalid filter invocation")
 	}
 	result := make([]queryregistry.QueryRow, 0, len(request.Rows))

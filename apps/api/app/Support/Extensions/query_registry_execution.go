@@ -13,11 +13,6 @@ import (
 	queryregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/QueryRegistry"
 )
 
-type versionedQueryInvoker interface {
-	InvokeQuery(context.Context, extensions.Extension, VersionedQueryRequest) ([]queryregistry.QueryRow, error)
-	FilterQueryResult(context.Context, extensions.Extension, VersionedQueryResultFilterRequest) ([]queryregistry.QueryRow, error)
-}
-
 // NewCompositeQueryProviderResolver keeps Core HostAPI providers authoritative
 // and resolves third-party executable handlers through Protocol V2 at call time.
 // Composition uses the Query Registry package-private resolve surface via
@@ -106,11 +101,7 @@ func (p *protocolV2QueryProvider) ExecuteQuery(
 	if err != nil || !exactQueryRuntime(active, p.contribution.Artifact) {
 		return queryregistry.ProviderExecutionResult{}, errors.Join(queryregistry.ErrArtifactUnavailable, err)
 	}
-	invoker, ok := p.manager.starter.(versionedQueryInvoker)
-	if !ok {
-		return queryregistry.ProviderExecutionResult{}, queryregistry.ErrProviderUnavailable
-	}
-	rows, err := invoker.InvokeQuery(ctx, extension, VersionedQueryRequest{
+	rows, err := p.manager.InvokeQueryInstance(ctx, active.Identity, extension, VersionedQueryRequest{
 		QueryID: p.contribution.ID, ContractVersion: p.contribution.ContractVersion,
 		PlanVersion: p.contribution.PlanVersion, ResultSchema: p.contribution.ResultSchema,
 		Handler: p.contribution.Handler, Plan: request.Plan, FetchLimit: request.FetchLimit,
@@ -233,15 +224,11 @@ func (f *protocolV2QueryResultFilter) FilterQueryResult(
 	if err != nil || !exactQueryRuntime(active, f.artifact) {
 		return queryregistry.ResultFilterResult{}, errors.Join(queryregistry.ErrArtifactUnavailable, err)
 	}
-	invoker, ok := f.manager.starter.(versionedQueryInvoker)
-	if !ok {
-		return queryregistry.ResultFilterResult{}, queryregistry.ErrProviderUnavailable
-	}
 	timeout := time.Duration(f.declaration.TimeoutMS) * time.Millisecond
 	if timeout <= 0 {
 		timeout = time.Second
 	}
-	rows, err := invoker.FilterQueryResult(ctx, extension, VersionedQueryResultFilterRequest{
+	rows, err := f.manager.FilterQueryResultInstance(ctx, active.Identity, extension, VersionedQueryResultFilterRequest{
 		FilterID: f.declaration.ID, FilterContractVersion: f.declaration.ContractVersion,
 		QueryID: f.declaration.QueryID, QueryContractVersion: f.declaration.QueryContractVersion,
 		QueryPlanVersion: f.declaration.QueryPlanVersion, ResultSchema: f.resultSchema,
