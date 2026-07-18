@@ -49,6 +49,22 @@
       "handler": "sforum.query-reference.items",
       "identityFields": ["id"],
       "defaultSort": [{ "field": "id", "descending": true }]
+    },
+    {
+      "id": "sforum.query-reference.cacheable",
+      "contractVersion": "sforum.query-reference.cacheable@1",
+      "entity": "item",
+      "planVersion": "sforum.query-reference.cacheable.plan@1",
+      "fields": ["id", "title", "score"],
+      "filters": ["state"],
+      "sort": ["id"],
+      "pagination": "offset",
+      "resultSchema": "schemas/items.json",
+      "permissionPolicy": "public",
+      "cacheTags": ["query-reference-cacheable"],
+      "handler": "sforum.query-reference.items",
+      "identityFields": ["id"],
+      "defaultSort": [{ "field": "id", "descending": true }]
     }
   ],
   "queryResultFilters": [
