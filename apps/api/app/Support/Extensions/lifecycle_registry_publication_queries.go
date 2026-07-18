@@ -17,6 +17,16 @@ func (b *PostgresLifecycleBoundaryRegistries) QueryRegistry() *queryregistry.Reg
 	return b.queries
 }
 
+// BuildLifecycleQueryPublication constructs the exact lifecycle Query Registry
+// publication used by enable/restore paths. Integration tests call this to prove
+// the same Schema/filter metadata path without driving the full coordinator.
+func BuildLifecycleQueryPublication(
+	extension extensions.Extension,
+	binding extensions.LifecycleRuntimeBinding,
+) (*queryregistry.Publication, error) {
+	return buildLifecycleQueryPublication(extension, binding)
+}
+
 func buildLifecycleQueryPublication(
 	extension extensions.Extension,
 	binding extensions.LifecycleRuntimeBinding,
