@@ -14,6 +14,55 @@ Last updated: 2026-07-19
 
 ## Current Subtask
 
+### 2026-07-19 Query Production Cache Wiring And Lifecycle Gate (no P7 credit)
+
+- Verified weighted progress remains **66.9205%**; P7 stays **16/22** until the
+  real PostgreSQL/Redis/River mutation-cache-restart join closes together with
+  the already committed Query lifecycle gate.
+- `2c8563c50` preserves committed invalidation jobs across Safe Mode and Redis
+  outages by snoozing instead of exhausting attempts, rejects only malformed
+  or invalid-authority input, handles typed-nil invalidators, and logs stable
+  failure classes without raw Redis material.
+- `719c91a77` adds distinct API execution-cache and worker invalidation
+  ownership. API startup fails open only for Redis-local capability, poison,
+  durability, transport, cancel, or deadline failures; cancellation of the
+  actual bootstrap context and `ErrExecutionInvalid` remain fatal. Worker
+  invalidation is lazy, serialized, constructs a fresh activated authority
+  after terminal failure, preserves `ErrInvalid` on the current authority, and
+  joins terminal cleanup with shutdown. Safe Mode creates no Query Redis client.
+- `27282bbee` keeps the previous cacheless production binder as a compatibility
+  entry and adds explicit cache injection into `ExecutionConfig`. `5c497d44f`
+  creates and activates an independent no-retry API client, injects it before
+  plugin broker registration, and owns it through every startup failure and API
+  shutdown path.
+- `491b74713` registers `query.invalidate_result_cache` in both embedded and
+  standalone workers, including Safe Mode where a true-nil invalidator snoozes
+  committed rows. Each worker owns a Redis client distinct from the API cache;
+  failed construction closes it, and normal worker shutdown closes it before
+  the owned or shared plugin runtime boundary.
+- `4d10aed2e` adds the real Protocol V2 v1-to-v2 Query lifecycle gate. It drives
+  Manager Stage/Health, source Drain/WaitDrain, target PublishDrained, production
+  Registry publication, resume-before-use fail-closed, exact version/digest/
+  VersionID/instance selection, source retirement, and per-version cache-key
+  miss/store/hit isolation. It deliberately uses an in-memory cache and manual
+  lifecycle primitives, so it does not overclaim full coordinator or Redis
+  mutation/restart evidence.
+- Focused cache/bootstrap tests passed normal `count=20`, race `count=5`, and
+  vet. API/worker wiring tests, Query invalidation jobs, and `go build ./...`
+  pass. The lifecycle gate passed normal and race `count=3`; independent
+  sub-agent review found no lifecycle blocker. Grok's startup review exposed a
+  Redis-local deadline misclassification, which was independently verified,
+  fixed, and regression-tested before commit.
+- Exact next step: add one joined real-infrastructure gate proving cache
+  miss/store/hit, a committed Host mutation plus same-transaction River row,
+  worker semantic invalidation, fresh query data, and Redis restart without
+  stale resurrection. Join explicit embedded/standalone ownership and Safe Mode
+  worker-kind assertions without turning the data gate into a full API boot.
+- Rollback is additive: revert `4d10aed2e`, `491b74713`, `5c497d44f`,
+  `27282bbee`, and `719c91a77`. The cacheless binder remains available; no
+  migration, feature-flag default, branch, worktree, push, tag, or unrelated
+  dirty file changed.
+
 ### 2026-07-19 Query Semantic Invalidation Boundary (no P7 credit)
 
 - Verified weighted progress remains **66.9205%**; P7 stays **16/22** until
