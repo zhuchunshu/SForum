@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"os"
 	"path/filepath"
 	"sort"
@@ -748,8 +749,10 @@ func (s *Service) UpdateSettings(ctx context.Context, actor identity.Actor, exte
 	if err != nil {
 		return ExtensionSettings{}, err
 	}
-	if err := s.store.ReplaceSettings(ctx, extension.ID, stored); err != nil {
-		return ExtensionSettings{}, s.restorePreparedSettingsRestart(ctx, restart, err)
+	if mutationErr := s.store.ReplaceSettings(ctx, extension.ID, stored); mutationErr != nil {
+		if err := s.resolvePreparedSettingsMutation(ctx, extension.ID, previousRaw, stored, restart, mutationErr); err != nil {
+			return ExtensionSettings{}, err
+		}
 	}
 	if err := s.restartPluginForSettings(ctx, extension, restart); err != nil {
 		return ExtensionSettings{}, s.restoreSettingsAfterRestartFailure(ctx, extension.ID, previousRaw, restart, err)
@@ -777,8 +780,10 @@ func (s *Service) ResetSettings(ctx context.Context, actor identity.Actor, exten
 	if err != nil {
 		return ExtensionSettings{}, err
 	}
-	if err := s.store.ResetSettings(ctx, extension.ID); err != nil {
-		return ExtensionSettings{}, s.restorePreparedSettingsRestart(ctx, restart, err)
+	if mutationErr := s.store.ResetSettings(ctx, extension.ID); mutationErr != nil {
+		if err := s.resolvePreparedSettingsMutation(ctx, extension.ID, previousRaw, map[string]string{}, restart, mutationErr); err != nil {
+			return ExtensionSettings{}, err
+		}
 	}
 	if err := s.restartPluginForSettings(ctx, extension, restart); err != nil {
 		return ExtensionSettings{}, s.restoreSettingsAfterRestartFailure(ctx, extension.ID, previousRaw, restart, err)
@@ -820,25 +825,51 @@ func (s *Service) restoreSettingsAfterRestartFailure(
 	return fmt.Errorf("restart extension after settings change: %w", restartErr)
 }
 
-func (s *Service) restorePreparedSettingsRestart(
+func (s *Service) resolvePreparedSettingsMutation(
 	ctx context.Context,
+	extensionID string,
+	previous map[string]string,
+	desired map[string]string,
 	restart RuntimeQuerySettingsRestartTransaction,
-	cause error,
+	mutationErr error,
 ) error {
 	if restart == nil {
-		return cause
+		return mutationErr
 	}
 	compensationCtx, cancel := settingsCompensationContext(ctx)
 	defer cancel()
-	if err := restart.RestoreRuntimeQueriesAfterSettingsRollback(compensationCtx); err != nil {
+	current, readErr := s.store.ListSettings(compensationCtx, extensionID)
+	if readErr != nil {
 		return errors.Join(
 			ErrSettingsRollbackFailed,
-			cause,
-			fmt.Errorf("restore runtime after settings store failure: %w", err),
+			ErrSettingsCommitUnknown,
+			mutationErr,
+			fmt.Errorf("read extension settings after uncertain mutation: %w", readErr),
 			restart.KeepRuntimeQueriesClosed(),
 		)
 	}
-	return cause
+	// A transport error after commit is safe to continue only when the durable
+	// document exactly matches the encrypted values prepared for this request.
+	if maps.Equal(current, desired) {
+		return nil
+	}
+	if !maps.Equal(current, previous) {
+		return errors.Join(
+			ErrSettingsRollbackFailed,
+			ErrSettingsCommitUnknown,
+			mutationErr,
+			restart.KeepRuntimeQueriesClosed(),
+		)
+	}
+	if restoreErr := restart.RestoreRuntimeQueriesAfterSettingsRollback(compensationCtx); restoreErr != nil {
+		return errors.Join(
+			ErrSettingsRollbackFailed,
+			mutationErr,
+			fmt.Errorf("restore runtime after uncommitted settings mutation: %w", restoreErr),
+			restart.KeepRuntimeQueriesClosed(),
+		)
+	}
+	return mutationErr
 }
 
 func settingsCompensationContext(ctx context.Context) (context.Context, context.CancelFunc) {

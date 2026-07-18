@@ -108,6 +108,7 @@ var (
 	ErrExtensionNotFound         = errors.New("extensions: not found")
 	ErrExtensionDisabled         = errors.New("extensions: disabled")
 	ErrSettingsRollbackFailed    = errors.New("extensions: settings rollback failed")
+	ErrSettingsCommitUnknown     = errors.New("extensions: settings commit outcome is unknown")
 	ErrSettingsActionInvalid     = errors.New("extensions: settings action invalid")
 	ErrSettingsActionUnavailable = errors.New("extensions: settings action unavailable")
 	ErrPreflightFailed           = errors.New("extensions: preflight failed")

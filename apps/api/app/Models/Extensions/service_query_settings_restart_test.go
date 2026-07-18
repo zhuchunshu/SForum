@@ -175,6 +175,91 @@ func TestLegacyQuerySettingsStoreFailureRestoresPreparedRuntime(t *testing.T) {
 	}
 }
 
+func TestLegacyQuerySettingsVerifiesCommittedMutationAfterTransportError(t *testing.T) {
+	for _, operation := range []string{"update", "reset"} {
+		t.Run(operation, func(t *testing.T) {
+			item := querySettingsRestartExtension(t, legacyQueryServiceExtension)
+			events := []string{}
+			store := &querySettingsRestartStore{
+				fakeExtensionStore: newFakeExtensionStore(map[string]Extension{item.ID: item}),
+				events:             &events,
+			}
+			store.settings = map[string]map[string]string{item.ID: {"name": "before"}}
+			transportErr := errors.New("commit response lost")
+			if operation == "update" {
+				store.replaceAppliedErr = transportErr
+			} else {
+				store.resetAppliedErr = transportErr
+			}
+			boundary := newRecordingQuerySettingsRestartBoundary(&events)
+			service := NewServiceWithRuntime(store, t.TempDir(), &fakeRuntimeManager{}).BindRuntimeQueryPublications(boundary)
+
+			var err error
+			if operation == "update" {
+				_, err = service.UpdateSettings(t.Context(), extensionManager(), item.ID, UpdateSettingsInput{
+					Values: map[string]string{"name": "after"},
+				}, "zh-CN")
+			} else {
+				_, err = service.ResetSettings(t.Context(), extensionManager(), item.ID, "zh-CN")
+			}
+			if err != nil || boundary.restartCalls != 1 || boundary.restoreCalls != 0 || boundary.keepClosedCalls != 0 {
+				t.Fatalf("verified committed %s: err=%v boundary=%#v", operation, err, boundary)
+			}
+			if operation == "update" && store.settings[item.ID]["name"] != "after" {
+				t.Fatalf("verified committed update settings=%v", store.settings)
+			}
+			if operation == "reset" && len(store.settings[item.ID]) != 0 {
+				t.Fatalf("verified committed reset settings=%v", store.settings)
+			}
+		})
+	}
+}
+
+func TestLegacyQuerySettingsUnknownCommitKeepsRuntimeClosed(t *testing.T) {
+	item := querySettingsRestartExtension(t, legacyQueryServiceExtension)
+	store := &querySettingsRestartStore{
+		fakeExtensionStore: newFakeExtensionStore(map[string]Extension{item.ID: item}),
+	}
+	store.settings = map[string]map[string]string{item.ID: {"name": "before"}}
+	store.replaceAppliedErr = errors.New("commit response lost")
+	store.afterReplace = func() {
+		store.settings[item.ID] = map[string]string{"name": "concurrent"}
+	}
+	boundary := newRecordingQuerySettingsRestartBoundary(nil)
+	service := NewServiceWithRuntime(store, t.TempDir(), &fakeRuntimeManager{}).BindRuntimeQueryPublications(boundary)
+
+	_, err := service.UpdateSettings(t.Context(), extensionManager(), item.ID, UpdateSettingsInput{
+		Values: map[string]string{"name": "after"},
+	}, "zh-CN")
+	if !errors.Is(err, ErrSettingsCommitUnknown) || !errors.Is(err, ErrSettingsRollbackFailed) ||
+		boundary.restartCalls != 0 || boundary.restoreCalls != 0 || boundary.keepClosedCalls != 1 ||
+		store.settings[item.ID]["name"] != "concurrent" {
+		t.Fatalf("unknown settings commit: err=%v boundary=%#v settings=%v", err, boundary, store.settings)
+	}
+}
+
+func TestLegacyQuerySettingsUnknownCommitReadFailureKeepsRuntimeClosed(t *testing.T) {
+	item := querySettingsRestartExtension(t, legacyQueryServiceExtension)
+	store := &querySettingsRestartStore{
+		fakeExtensionStore: newFakeExtensionStore(map[string]Extension{item.ID: item}),
+		listErrAt:          3,
+		listErr:            errors.New("readback unavailable"),
+	}
+	store.settings = map[string]map[string]string{item.ID: {"name": "before"}}
+	store.replaceAppliedErr = errors.New("commit response lost")
+	boundary := newRecordingQuerySettingsRestartBoundary(nil)
+	service := NewServiceWithRuntime(store, t.TempDir(), &fakeRuntimeManager{}).BindRuntimeQueryPublications(boundary)
+
+	_, err := service.UpdateSettings(t.Context(), extensionManager(), item.ID, UpdateSettingsInput{
+		Values: map[string]string{"name": "after"},
+	}, "zh-CN")
+	if !errors.Is(err, ErrSettingsCommitUnknown) || !errors.Is(err, ErrSettingsRollbackFailed) ||
+		!errors.Is(err, store.listErr) || boundary.restartCalls != 0 || boundary.restoreCalls != 0 ||
+		boundary.keepClosedCalls != 1 {
+		t.Fatalf("unknown settings readback: err=%v boundary=%#v", err, boundary)
+	}
+}
+
 func TestLegacyQuerySettingsRollbackFailureKeepsRuntimeClosed(t *testing.T) {
 	item := querySettingsRestartExtension(t, legacyQueryServiceExtension)
 	store := newFakeExtensionStore(map[string]Extension{item.ID: item})
@@ -290,21 +375,44 @@ func querySettingsRestartExtension(
 
 type querySettingsRestartStore struct {
 	*fakeExtensionStore
-	events *[]string
+	events            *[]string
+	replaceAppliedErr error
+	resetAppliedErr   error
+	afterReplace      func()
+	listCalls         int
+	listErrAt         int
+	listErr           error
+}
+
+func (s *querySettingsRestartStore) ListSettings(ctx context.Context, extensionID string) (map[string]string, error) {
+	s.listCalls++
+	if s.listCalls == s.listErrAt {
+		return nil, s.listErr
+	}
+	return s.fakeExtensionStore.ListSettings(ctx, extensionID)
 }
 
 func (s *querySettingsRestartStore) ReplaceSettings(ctx context.Context, extensionID string, values map[string]string) error {
 	if s.events != nil {
 		*s.events = append(*s.events, "store.update")
 	}
-	return s.fakeExtensionStore.ReplaceSettings(ctx, extensionID, values)
+	if err := s.fakeExtensionStore.ReplaceSettings(ctx, extensionID, values); err != nil {
+		return err
+	}
+	if s.afterReplace != nil {
+		s.afterReplace()
+	}
+	return s.replaceAppliedErr
 }
 
 func (s *querySettingsRestartStore) ResetSettings(ctx context.Context, extensionID string) error {
 	if s.events != nil {
 		*s.events = append(*s.events, "store.reset")
 	}
-	return s.fakeExtensionStore.ResetSettings(ctx, extensionID)
+	if err := s.fakeExtensionStore.ResetSettings(ctx, extensionID); err != nil {
+		return err
+	}
+	return s.resetAppliedErr
 }
 
 type recordingQuerySettingsRestartBoundary struct {
