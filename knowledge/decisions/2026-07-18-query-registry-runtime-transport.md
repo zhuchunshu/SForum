@@ -163,14 +163,20 @@ cancellation, and other Host failures are always fail-closed.
   material after restart without executing package code during static install.
 - A custom-content reference plugin can prove a real subprocess provider and
   independent filter without Core changes or raw database access.
-- P7 Query credit still requires production wiring, the reference plugin, and
-  joined normal/race tests. This decision alone does not close either task row.
+- P7 Query credit still requires production lifecycle/bootstrap wiring, Redis
+  cache production path, upgrade/replace artifact gates, and full joined
+  normal/race review. The reference plugin subprocess proof
+  (`TestReferenceQueryPluginJoinedGates`) is necessary but not sufficient.
+  This decision alone does not close either task row.
 
 ## Evidence Anchors
 
 - `apps/api/app/Support/QueryRegistry/`
 - `apps/api/app/Support/Extensions/lifecycle_registry_publication_queries.go`
 - `apps/api/app/Support/Extensions/lifecycle_runtime_query_publication.go`
+- `apps/api/app/Support/Extensions/protocol_v2_query_runtime.go`
+- `apps/api/app/Support/Extensions/query_reference_plugin_integration_test.go`
+- `extensions/fixtures/plugins/sforum-query-reference/`
 - `apps/api/app/Support/HostAPI/query_registry_provider.go`
 - `apps/api/bootstrap/query_registry.go`
 - `contracts/proto/sforum/plugin/v2/runtime.proto`

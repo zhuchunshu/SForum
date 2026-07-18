@@ -14,6 +14,43 @@ Last updated: 2026-07-18
 
 ## Current Subtask
 
+### 2026-07-18 Reference Query Plugin Joined Gates (no P7 credit)
+
+- Verified weighted progress remains **66.9205%** (display **66.0%**); P7 stays
+  **16/22**. The Query task and joined Query test row remain uncredited.
+- `9b94a088a` Host handshake offers `query.runtime@1` only when the frozen
+  Manifest declares an executable query handler or any result filter.
+- `3763aaf70` reduces query.runtime request context: no actor/authority/
+  idempotency/delegations and no free-form TraceId (SDK requires empty or
+  32-hex).
+- `7427b35b5` composite result Schema validator routes third-party claims to
+  the immutable Registry revision and sealed Core plans to the Host catalog;
+  production bootstrap wires it.
+- `620daf681` exports `BuildLifecycleQueryPublication` so integration tests
+  reuse the enable/restore Schema/filter metadata path.
+- `ee4cd412b` reference fixture `extensions/fixtures/plugins/sforum-query-reference`
+  plus `TestReferenceQueryPluginJoinedGates` over a real Protocol V2 subprocess:
+  public offset pagination + title mask filter + lossless large integer lexeme,
+  login denied/allowed, cost fence, Schema fence (`additionalProperties`),
+  provider failure, disable after Stop, and Safe Mode `ReplaceAll(nil, true)`.
+  Cache production path remains open (Redis blocked); upgrade gate not yet a
+  separate subprocess proof. Focused Extensions package and QueryRegistry
+  (excluding blocked redis_cache tests) passed.
+- The uncommitted Redis cache candidate remains **BLOCKED AND MUST NOT BE
+  COMMITTED**. One-shot Lua invalidation still has the 10k×64 BUSY/time-limit
+  and unbounded-memory production blockers.
+- Exact next step before any P7 Query credit: production lifecycle/bootstrap
+  joined path that starts an executable query plugin, publishes through the
+  real coordinator, exercises Host HTTP/API consumers if any, plus resumable
+  Redis cache invalidation and an upgrade/replace artifact gate. Do not
+  advance the progress score for this reference-only proof.
+- Current owned WIP that must not be committed yet: new `redis_cache*.go`.
+  All other dirty files shown by `git status --short` remain unowned and must
+  not be staged, overwritten, reformatted, or reverted. Stay on `main`; no
+  worktree/branch/push/tag.
+- Rollback remains additive: revert `ee4cd412b`…`9b94a088a` for this slice,
+  then `c98128925`/`225313dc1`/`92f30c76f`/`b77271613` for earlier wiring.
+
 ### 2026-07-18 Protocol V2 Query Execution Wiring Checkpoint
 
 - Verified weighted progress remains **66.9205%** (display **66.0%**); P7 stays
@@ -33,23 +70,8 @@ Last updated: 2026-07-18
   Registry-snapshot result filters into production bootstrap. Callables resolve
   against the exact active runtime at execution time, not process start.
   Focused Extensions/QueryRegistry/bootstrap normal + race + vet passed.
-- The uncommitted Redis cache candidate remains **BLOCKED AND MUST NOT BE
-  COMMITTED**. One-shot Lua invalidation still has the 10k×64 BUSY/time-limit
-  and unbounded-memory production blockers; replace with bounded resumable
-  batches and CAS/progress semantics before any production wiring.
-- Exact next step: prove a reference plugin through joined permission/cost/
-  Schema/pagination/cache/disable/upgrade/Safe Mode gates over the real
-  subprocess transport; optionally bind lifecycle private material via
-  `BindExecutableRuntime` when callables are available without digest drift.
-  Do not credit either open P7 Query row before those joined proofs.
-- Current owned WIP that must not be committed yet: new `redis_cache*.go`.
-  All other dirty files shown by `git status --short` remain unowned and must
-  not be staged, overwritten, reformatted, or reverted. Stay on `main`; no
-  worktree/branch/push/tag.
-- Rollback remains additive: revert `c98128925`/`225313dc1`/`92f30c76f` to drop
-  execution wiring, `b77271613` for lifecycle metadata, and earlier publication
-  commits for Schema/executable material. Production now has the Protocol V2
-  path for third-party providers/filters but no credited joined reference proof.
+- Superseded for next-step detail by the Reference Query Plugin Joined Gates
+  checkpoint above.
 
 ### 2026-07-18 Overnight External Query Handoff
 

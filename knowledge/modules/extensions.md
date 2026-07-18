@@ -843,6 +843,13 @@ template while retaining Schema fallback fields.
   cookie approval, additive PostgreSQL mapping/grant/audit evidence, and replay
   all pass without replacing unrelated role permissions. Query,
   Identity/Auth/Profile, and automation authority remain open.
+- Query Registry has Host Protocol V2 `InvokeQuery`/`FilterQueryResult`,
+  composite Core+Registry Schema validation, and a real-subprocess reference
+  plugin fixture (`sforum-query-reference` /
+  `TestReferenceQueryPluginJoinedGates`) covering pagination, filter, login,
+  cost, Schema, provider failure, disable, and Safe Mode. Production Redis
+  cache, lifecycle coordinator bootstrap proof, and upgrade gates remain open;
+  P7 Query rows stay **uncredited** at 16/22.
 
 ## V3 P8 theme runtime checkpoint
 

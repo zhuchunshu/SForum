@@ -125,6 +125,21 @@ or treated as expired only after the complete V3 goal is achieved.
 
 ## Last Durable Checkpoint
 
+### 2026-07-18 Reference Query Plugin Joined Gates (no P7 credit)
+
+- Exact weighted progress remains `66.9205%`; floored display progress remains
+  **66.0%**. P7 stays **16/22**. Query task and joined Query test row uncredited.
+- `9b94a088a` HostFeatures offer `query.runtime@1` for executable queries/filters;
+  `3763aaf70` reduced query.runtime context; `7427b35b5` composite Registry+Core
+  Schema validator in bootstrap; `620daf681` export
+  `BuildLifecycleQueryPublication`; `ee4cd412b` real-subprocess reference plugin
+  gates (pagination/filter/login/cost/Schema/provider-fail/disable/Safe Mode).
+  Redis cache still blocked; production lifecycle coordinator + upgrade gate
+  still required before P7 credit.
+- Focused Extensions package + QueryRegistry (skip blocked redis tests) passed.
+- Next: production lifecycle/bootstrap joined path, resumable Redis invalidation,
+  upgrade/replace artifact proof; do not advance score for this reference slice.
+
 ### 2026-07-18 Protocol V2 Query Execution Wiring (no P7 credit)
 
 - Exact weighted progress remains `66.9205%`; floored display progress remains
@@ -135,8 +150,8 @@ or treated as expired only after the complete V3 goal is achieved.
   Lifecycle metadata (`b77271613`) already publishes Handler/Identity/DefaultSort
   and queryResultFilters. Redis cache candidate still blocked and uncommitted.
 - Focused Extensions/QueryRegistry/bootstrap normal+race+vet passed.
-- Next: reference plugin joined permission/cost/Schema/pagination/cache/disable/
-  upgrade/Safe Mode gates over real subprocess transport before any P7 credit.
+- Superseded for next-step detail by the Reference Query Plugin Joined Gates
+  checkpoint above.
 
 ### 2026-07-18 P7 Host-Owned Role Mapping Joined Closure
 
