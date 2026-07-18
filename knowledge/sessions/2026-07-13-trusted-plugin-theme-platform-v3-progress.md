@@ -39,14 +39,20 @@ Last updated: 2026-07-18
   Store. Exact artifact quarantine, complete immutable evidence, version/audit
   correlation, payload-free metadata, and pending-to-quarantined resolution
   match under normal and race **3** gates with no ordinary audit-queue escape.
+- `d8a10cfb7 test(routes): join zero-incident stream paths` attaches an explicit
+  sink to the real subprocess suite and proves multipart, SSE, generic binary,
+  TCP backpressure, WebSocket, caller disconnect, and lifecycle ForceDrain
+  produce no incidents. ForceDrain now uses the Host abort path rather than
+  misclassifying its raw cause as a runtime failure; normal **10** and race
+  **3** repetitions pass.
 - Bootstrap, focused recorder, real PostgreSQL incident-store, and staged
   whitespace gates passed before commit. The opaque `DataChunk` decision and
   Host preflight Schema correction remain accepted evidence, not framing that
   the Host does not implement.
-- Exact resume point: join normal/disconnect/ForceDrain zero-incident paths,
-  adapter classifications, production ForceCancel/terminal behavior, and the
-  PostgreSQL gate into the named P6 normal/race suites. Only that evidence may
-  raise P6 to **18/18**.
+- Exact resume point: join adapter classifications, production ForceCancel/
+  terminal behavior, producer-to-recorder evidence, and the PostgreSQL gate
+  into the named P6 normal/race suites. Only that evidence may raise P6 to
+  **18/18**.
 
 ### 2026-07-18 WebSocket Stream Classification Checkpoint
 
