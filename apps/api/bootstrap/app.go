@@ -148,6 +148,11 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		pool.Close()
 		return nil, fmt.Errorf("ensure Host installation identity: %w", err)
 	}
+	queryCursorSecret, err := deriveQueryRegistryCursorSecret(cfg.SessionHashSecret, hostInstallationID)
+	if err != nil {
+		pool.Close()
+		return nil, fmt.Errorf("derive Query Registry cursor secret: %w", err)
+	}
 
 	redisStorage, err := redisplatform.NewStorage(cfg.RedisAddr, cfg.RedisPassword)
 	if err != nil {
@@ -443,7 +448,7 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		Trust: executableTrustService, Runtime: lifecycleRuntime, Pages: pageRegistry,
 		ThemeRuntime: themeRuntime, PageSiteName: themeSiteName, PageLocales: cfg.SupportedLocales,
 		Services: hostAPIGateway.ProtocolV2ServiceRegistry(), Caches: hostCacheRuntime.Registry, River: jobClient,
-		ExtensionRoot: cfg.ExtensionRoot, MigrationEngine: lifecycleMigrationEngine,
+		ExtensionRoot: cfg.ExtensionRoot, QueryCursorSecret: queryCursorSecret, MigrationEngine: lifecycleMigrationEngine,
 		Database: lifecycleDatabaseDisposition, SafeMode: cfg.SafeMode,
 	})
 	if err != nil {

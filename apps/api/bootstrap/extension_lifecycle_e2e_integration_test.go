@@ -205,7 +205,7 @@ func newProductionLifecycleE2EFixture(
 		Pool: pool, Store: store, Features: lifecycleFeatureFacts{}, Trust: trust,
 		Runtime: manager, Pages: pageRegistry, Services: hostapi.NewServiceRegistry(),
 		Caches: cacheregistry.New(),
-		River:  lifecycleRiverClient{}, ExtensionRoot: extensionRoot,
+		River:  lifecycleRiverClient{}, ExtensionRoot: extensionRoot, QueryCursorSecret: bootstrapQueryCursorSecret(),
 		MigrationEngine: extensionsruntime.NewPostgresLifecycleMigrationEngine(pool, nil),
 		Database:        extensionsruntime.NewPostgresExtensionDatabaseDisposition(pool),
 	})

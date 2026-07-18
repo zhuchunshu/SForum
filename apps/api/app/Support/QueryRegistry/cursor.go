@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	cursorSchemaVersion  = "sforum.query-cursor@1"
+	cursorSchemaVersion  = "sforum.query-cursor@2"
 	maximumCursorLength  = 2048
 	minimumCursorKeySize = 32
 )
@@ -84,11 +84,11 @@ func (c *HMACCursorCodec) DecodeQueryCursor(value string) (CursorClaims, error) 
 		return CursorClaims{}, ErrCursorInvalid
 	}
 	payload, err := base64.RawURLEncoding.DecodeString(parts[0])
-	if err != nil {
+	if err != nil || base64.RawURLEncoding.EncodeToString(payload) != parts[0] {
 		return CursorClaims{}, ErrCursorInvalid
 	}
 	signature, err := base64.RawURLEncoding.DecodeString(parts[1])
-	if err != nil || len(signature) != sha256.Size {
+	if err != nil || len(signature) != sha256.Size || base64.RawURLEncoding.EncodeToString(signature) != parts[1] {
 		return CursorClaims{}, ErrCursorInvalid
 	}
 	mac := hmac.New(sha256.New, c.key)
@@ -126,7 +126,10 @@ func (r *Registry) decodeCursorForPlan(
 	claims, err := r.cursorCodec.DecodeQueryCursor(pagination.Cursor)
 	if err != nil || !validCursorClaims(claims) || claims.QueryID != query.ID || claims.ContractVersion != query.ContractVersion ||
 		claims.PlanVersion != query.PlanVersion || claims.ResultSchema != query.ResultSchema ||
-		claims.RegistryRevision != state.revision || claims.RegistryDigest != state.digest ||
+		// Revision is local ABA evidence and may differ across nodes that converged
+		// on the same immutable graph. Portable cursor authority is the graph digest
+		// plus exact artifact, isolation, shape, and execution digests below.
+		claims.RegistryDigest != state.digest ||
 		claims.ArtifactDigest != cursorArtifactDigest(query.Artifact) ||
 		claims.IsolationDigest != cursorIsolationDigest(query.Artifact, actorFingerprint, policyFingerprint, locale, scope) ||
 		(pagination.Limit != 0 && pagination.Limit != claims.Limit) {

@@ -39,12 +39,13 @@ type productionLifecycleStackConfig struct {
 	// IdentityStore is a test seam. Production leaves it nil and constructs a
 	// PostgreSQL store with extensions.ValidateStoredTrustImpact so legacy
 	// adoption has an explicit instance-scoped integrity dependency.
-	IdentityStore   identityregistry.PublicationStore
-	River           hostapi.PluginJobLifecycleRiverClient
-	ExtensionRoot   string
-	MigrationEngine extensionsruntime.LifecycleMigrationEngine
-	Database        extensionsruntime.ExtensionDatabaseDisposition
-	SafeMode        bool
+	IdentityStore     identityregistry.PublicationStore
+	River             hostapi.PluginJobLifecycleRiverClient
+	ExtensionRoot     string
+	QueryCursorSecret []byte
+	MigrationEngine   extensionsruntime.LifecycleMigrationEngine
+	Database          extensionsruntime.ExtensionDatabaseDisposition
+	SafeMode          bool
 }
 
 // productionLifecycleStack 保留组装后的具体实例，避免 lifecycle 的不同边界
@@ -99,7 +100,8 @@ func requireProductionExtensionRuntime(runtime extensionRuntime) (*extensionsrun
 func newProductionLifecycleStack(config productionLifecycleStackConfig) (*productionLifecycleStack, error) {
 	if config.Pool == nil || config.Store == nil || config.Features == nil || config.Trust == nil ||
 		config.Runtime == nil || config.Pages == nil || config.Services == nil || config.Caches == nil || config.River == nil ||
-		strings.TrimSpace(config.ExtensionRoot) == "" || config.MigrationEngine == nil || config.Database == nil {
+		strings.TrimSpace(config.ExtensionRoot) == "" || len(config.QueryCursorSecret) != 32 ||
+		config.MigrationEngine == nil || config.Database == nil {
 		return nil, errProductionLifecycleDependency
 	}
 
@@ -172,9 +174,11 @@ func newProductionLifecycleStack(config productionLifecycleStackConfig) (*produc
 		}
 	}
 	// Query Core catalog/cost policy 在进程启动首个 snapshot 密封发布：推荐
-	// cost max 500、hard max 2000；空 Options 不发明 cursor secret，offset 语义保持。
+	// cost max 500、hard max 2000；cursor key 来自安装级 Host secret 派生，不由插件声明。
 	// 生命周期 restore/Safe Mode 通过 coreLifecycleQueryPublications 保留这份 Core。
-	queryRegistry, queryCoreCatalog, err := hostapi.NewQueryRegistryCoreRegistry(hostapi.QueryRegistryCoreOptions{})
+	queryRegistry, queryCoreCatalog, err := hostapi.NewQueryRegistryCoreRegistry(hostapi.QueryRegistryCoreOptions{
+		CursorSecret: append([]byte(nil), config.QueryCursorSecret...),
+	})
 	if err != nil {
 		return nil, fmt.Errorf("%w: create core query registry: %v", errProductionLifecycleDependency, err)
 	}

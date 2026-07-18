@@ -1,6 +1,7 @@
 package bootstrap
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"reflect"
@@ -99,7 +100,7 @@ func TestProductionLifecycleStackDefaultIdentityStoreBindsTrustImpactValidator(t
 		Pool: pool, Store: store, Features: lifecycleFeatureFacts{}, Trust: trust,
 		Runtime: manager, Pages: pages.NewRegistry(nil), Services: hostapi.NewServiceRegistry(),
 		Caches: cacheregistry.New(), River: lifecycleRiverClient{},
-		MigrationEngine: lifecycleMigrationEngine{}, ExtensionRoot: t.TempDir(),
+		MigrationEngine: lifecycleMigrationEngine{}, ExtensionRoot: t.TempDir(), QueryCursorSecret: bootstrapQueryCursorSecret(),
 		Database: lifecycleDatabaseDisposition{},
 	})
 	if err != nil {
@@ -122,7 +123,7 @@ func TestProductionLifecycleStackDefaultIdentityStoreBindsTrustImpactValidator(t
 		Pool: pool, Store: store, Features: lifecycleFeatureFacts{}, Trust: trust,
 		Runtime: manager, Pages: pages.NewRegistry(nil), Services: hostapi.NewServiceRegistry(),
 		Caches: cacheregistry.New(), IdentityStore: seam, River: lifecycleRiverClient{},
-		MigrationEngine: lifecycleMigrationEngine{}, ExtensionRoot: t.TempDir(),
+		MigrationEngine: lifecycleMigrationEngine{}, ExtensionRoot: t.TempDir(), QueryCursorSecret: bootstrapQueryCursorSecret(),
 		Database: lifecycleDatabaseDisposition{},
 	})
 	if err != nil {
@@ -149,7 +150,7 @@ func newBootstrapLifecycleStackWithSafeMode(
 		Runtime: manager, Pages: pages.NewRegistry(nil), Services: hostapi.NewServiceRegistry(),
 		Caches: cacheregistry.New(), IdentityStore: bootstrapIdentityPublicationStore{},
 		River: lifecycleRiverClient{}, MigrationEngine: lifecycleMigrationEngine{},
-		ExtensionRoot: t.TempDir(), Database: lifecycleDatabaseDisposition{}, SafeMode: safeMode,
+		ExtensionRoot: t.TempDir(), QueryCursorSecret: bootstrapQueryCursorSecret(), Database: lifecycleDatabaseDisposition{}, SafeMode: safeMode,
 	})
 	if err != nil {
 		t.Fatalf("new production lifecycle stack: %v", err)
@@ -513,11 +514,15 @@ func TestProductionLifecycleStackFailsClosedWithoutExactManager(t *testing.T) {
 		Runtime: manager, Pages: pages.NewRegistry(nil), Services: hostapi.NewServiceRegistry(),
 		Caches: cacheregistry.New(),
 		River:  lifecycleRiverClient{}, MigrationEngine: lifecycleMigrationEngine{},
-		ExtensionRoot: t.TempDir(), Database: lifecycleDatabaseDisposition{},
+		ExtensionRoot: t.TempDir(), QueryCursorSecret: bootstrapQueryCursorSecret(), Database: lifecycleDatabaseDisposition{},
 	})
 	if !errors.Is(err, errProductionLifecycleDependency) {
 		t.Fatalf("Manager without protocol-v2 exact runner error = %v", err)
 	}
+}
+
+func bootstrapQueryCursorSecret() []byte {
+	return bytes.Repeat([]byte{0x42}, 32)
 }
 
 func TestProductionLifecycleStackBindsV2AndInspectionOptions(t *testing.T) {
