@@ -35,4 +35,10 @@ func TestP6JoinedRouteMatrix(t *testing.T) {
 	t.Run("stream_raw_request_stamp", TestStreamDispatcherPreservesAuthorizedRawRequestStamp)
 	t.Run("stream_caller_cancel_no_failure_evidence", TestStreamDispatcherCallerCancellationHasNoFailureEvidence)
 	t.Run("stream_observed_cancel_fails_closed", TestStreamDispatcherCallerCancellationAfterObservedExecutionFailsClosed)
+	t.Run("stream_incident_classes_payload_free_once", TestRouteStreamFailureSinkRecordsExactPayloadFreeIncidentOnce)
+	t.Run("stream_open_runtime_caller_winner", TestRouteStreamOpenDispositionDoesNotHideConcurrentRuntimeCrash)
+	t.Run("stream_open_custom_caller_provenance", TestRouteStreamOpenCustomCallerCauseDoesNotBecomeIncident)
+	t.Run("stream_abort_zero_incidents", TestRouteStreamFailureSinkExcludesHostAndCallerAbortions)
+	t.Run("stream_invalid_preflight_budget_after_execution", TestRouteStreamOpenRecordsInvalidPreflightAndBudgetAfterExecution)
+	t.Run("stream_terminal_incident_single_winner", TestRouteStreamCompleteAndFailureRacePublishesAtMostOneIncident)
 }
