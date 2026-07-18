@@ -151,7 +151,10 @@ This is the entry point for project memory.
   - P7 is 16/22 (73%). Versioned namespaced action/filter hooks now publish one
     immutable exact-runtime graph with deterministic priority, typed contracts,
     dependency SemVer, optional fallback, Host revalidation, River delivery,
-    lifecycle rollback, and exact Protocol V2 invocation
+    lifecycle rollback, and exact Protocol V2 invocation. Query now also has
+    lifecycle exact-package Schema binding and immutable executable
+    publication provider/result-filter private material; real subprocess
+    provider/filter wiring and joined production gates remain open.
   - The joined P7 execution-policy gates now cover priority, exact Manifest
     timeouts, synchronous fail-open/fail-closed isolation, version mismatch,
     dependency disable, package cycles, provider fallback, caller attestation,

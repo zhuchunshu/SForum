@@ -14,6 +14,52 @@ Last updated: 2026-07-18
 
 ## Current Subtask
 
+### 2026-07-18 Overnight Executable Query Publication Checkpoint
+
+- Verified weighted progress remains **66.9205%** (display **66.0%**); P7 stays
+  **16/22**. The Query task and joined Query test row remain uncredited.
+- `7d1d7092a` exports `Models/Extensions.ReadExactExtensionDigestFile` as an
+  additive wrapper over the existing OpenRoot/SameFile/O_NONBLOCK/LimitReader
+  exact-digest reader. Existing path-swap, symlink, oversize, directory, and
+  FIFO tests passed.
+- `f311a42a1` binds lifecycle executable Query result Schemas through that
+  stable reader, keeps handlerless legacy queries Schema-free, and covers
+  oversize, directory, FIFO, digest, symlink, path/ID@version, duplicate,
+  restore, disable, and Safe Mode fail-closed paths. Focused Extensions
+  normal/race/vet passed.
+- `0c135a58a` adds immutable Query executable publication material:
+  `QueryDeclaration` Handler/IdentityFields/DefaultSort/ProviderDigest plus
+  private provider material; independent `ResultFilters` declarations with
+  private filter material; `BindExecutableRuntime` rejecting missing,
+  duplicate, unowned, and contract mismatches; digest/equality on public
+  metadata only; memory Snapshot restore keeps private material while JSON
+  roundtrip loses execution rights and fails closed; Safe Mode filters
+  third-party material before validation; planning forces identity fields and
+  DefaultSort for executable pagination, appends identity tie-breakers, keeps
+  third-party relations `ErrContractInsufficient`, and preserves handlerless
+  inspect/plan. QueryRegistry focused normal/race/vet and Extensions lifecycle
+  recheck passed. Dirty `execution.go` and Redis candidates were not touched.
+- The uncommitted Redis cache candidate remains **BLOCKED AND MUST NOT BE
+  COMMITTED**. One-shot Lua invalidation still has the 10k×64 BUSY/time-limit
+  and unbounded-memory production blockers; replace with bounded resumable
+  batches and CAS/progress semantics before any production wiring.
+- Exact next step: wire lifecycle publication to copy executable
+  Handler/IdentityFields/DefaultSort and `queryResultFilters`, call
+  `BindExecutableRuntime` with real Protocol V2 provider/filter adapters,
+  connect ExecutionRuntime to publication private material without committing
+  the blocked Redis candidate, then prove a reference plugin through joined
+  permission/cost/Schema/pagination/cache/disable/upgrade/Safe Mode gates.
+  Do not credit either open P7 Query row before those joined proofs.
+- Current owned WIP that must not be committed yet:
+  `QueryRegistry/execution.go` and new `redis_cache*.go`. All other dirty files
+  shown by `git status --short` remain unowned and must not be staged,
+  overwritten, reformatted, or reverted. Stay on `main`; no worktree/branch/
+  push/tag.
+- Rollback remains additive: revert `0c135a58a` to drop executable publication
+  material, `f311a42a1` to drop lifecycle Schema binding, and `7d1d7092a` to
+  unexport the exact-digest reader. No committed production bridge yet invokes
+  the Query runtime RPCs with a real third-party provider.
+
 ### 2026-07-18 Overnight External Query Handoff
 
 - Verified weighted progress remains **66.9205%** (display **66.0%**); P7 stays
@@ -34,13 +80,9 @@ Last updated: 2026-07-18
   closed. QueryRegistry focused/full normal, full race, vet, and Grok review
   passed. One concurrent-load race timing failure did not reproduce in 20
   focused race, 100 focused normal, or a later isolated full race run.
-- The uncommitted lifecycle Schema candidate is **not ready to commit**.
-  `lifecycle_query_schemas.go` still uses `EvalSymlinks` followed by unbounded
-  `os.ReadFile`, so a large file/FIFO/path swap can bypass the intended 1 MiB
-  boundary. First expose the existing stable exact-digest reader from
-  `Models/Extensions` as an additive compatibility commit; then switch the
-  lifecycle candidate and add oversized, directory, FIFO, handlerless, and
-  lifecycle restore/rollback/Safe Mode tests in a separate commit.
+- Superseded by the 2026-07-18 Overnight Executable Query Publication
+  Checkpoint above for the exact-digest reader, lifecycle Schema binding, and
+  immutable executable publication work.
 - The uncommitted Redis cache candidate is **BLOCKED AND MUST NOT BE
   COMMITTED**. Independent real-Redis reviews proved that its one-shot Lua
   invalidation takes about **10.6-15 seconds** for a legal 10,000 x 64 graph,
@@ -51,25 +93,6 @@ Last updated: 2026-07-18
   ambiguous; and Store can mutate expired edges before a later no-op. Replace
   the giant script with bounded, resumable batches and exact progress/CAS
   semantics before reconsidering production cache wiring.
-- Exact next step for an external overnight agent: preserve every dirty file,
-  do not commit the Redis candidate, finish and commit the stable exact-package
-  reader compatibility layer, finish the lifecycle Schema binding, then add
-  immutable Query publication provider/result-filter private material without
-  touching dirty `QueryRegistry/execution.go`. After each isolated commit run
-  focused normal/race/vet and update this ledger. Do not credit P7 before a real
-  subprocess provider and independent filter pass lifecycle, permission, cost,
-  Schema, pagination, cache, disable/upgrade/Safe Mode, normal/race, and
-  PostgreSQL joined gates.
-- Current owned WIP is limited to
-  `lifecycle_registry_publication_queries.go`, new `lifecycle_query_schemas*.go`,
-  `QueryRegistry/execution.go`, and new `redis_cache*.go`. All other dirty files
-  shown by `git status --short` are unowned and must not be staged, overwritten,
-  reformatted, or reverted. No worktree/branch/push/tag is allowed; remain on
-  `main` and inspect staged diffs file by file.
-- Rollback remains additive: revert `a8bd12060` to remove the unused Query
-  runtime RPC/SDK surface, revert `3c33d2751` only if intentionally restoring
-  unsafe dialect/file loading, and revert `63ae07fc4` to hide the new trust
-  category. No committed production bridge invokes the new RPCs yet.
 
 ### 2026-07-18 P7 Executable Query Contract Checkpoint
 
