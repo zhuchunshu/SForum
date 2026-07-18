@@ -86,12 +86,12 @@ func (i *BufferedRouteStepInvoker) OpenStream(
 	}
 	if err := lease.Context.Err(); err != nil {
 		lease.Release()
-		return routes.RouteStreamStart{}, err
+		return routes.RouteStreamStart{}, classifyRouteV2StreamError(routeV2ContextCause(lease.Context))
 	}
 	preflightTimeout, err := routeStreamRemainingBudget(lease.Context)
 	if err != nil {
 		lease.Release()
-		return routes.RouteStreamStart{}, err
+		return routes.RouteStreamStart{}, classifyRouteV2StreamError(err)
 	}
 	// Admission and all local validation completed. From this point a failed
 	// unary preflight cannot prove that the plugin handler did not execute.
@@ -107,16 +107,19 @@ func (i *BufferedRouteStepInvoker) OpenStream(
 	})
 	if err != nil {
 		lease.Release()
-		return routes.RouteStreamStart{}, err
+		return routes.RouteStreamStart{}, classifyRouteV2StreamError(err)
 	}
 	if !routes.ValidTerminalResponseStatus(input.Step.Mode, preflight.StatusCode) ||
 		!preflight.StreamFollows || preflight.BodyPresent {
 		lease.Release()
-		return routes.RouteStreamStart{}, fmt.Errorf("%w: runtime did not accept a streamed response", ErrRouteRuntimeTarget)
+		return routes.RouteStreamStart{}, routes.WithRouteStreamIncident(
+			fmt.Errorf("%w: runtime did not accept a streamed response", ErrRouteRuntimeTarget),
+			routes.RouteStreamFailureInvalidPreflight,
+		)
 	}
 	if err := lease.Context.Err(); err != nil {
 		lease.Release()
-		return routes.RouteStreamStart{}, err
+		return routes.RouteStreamStart{}, classifyRouteV2StreamError(routeV2ContextCause(lease.Context))
 	}
 	requestTarget := input.Request.Path
 	if input.Request.Query != "" {
@@ -125,7 +128,7 @@ func (i *BufferedRouteStepInvoker) OpenStream(
 	streamTimeout, err := routeStreamRemainingBudget(lease.Context)
 	if err != nil {
 		lease.Release()
-		return routes.RouteStreamStart{}, err
+		return routes.RouteStreamStart{}, classifyRouteV2StreamError(err)
 	}
 	stream, err := runtime.OpenRouteStreamInstance(lease.Context, identity, extensionsruntime.ProtocolV2RouteStreamRequest{
 		RouteID: input.Step.RouteID, ContractVersion: input.Step.ContractVersion,
@@ -136,14 +139,14 @@ func (i *BufferedRouteStepInvoker) OpenStream(
 	})
 	if err != nil {
 		lease.Release()
-		return routes.RouteStreamStart{}, err
+		return routes.RouteStreamStart{}, classifyRouteV2StreamError(err)
 	}
 	session := newRouteV2StreamSession(stream, lease, preflight.StatusCode)
 	// ForceCancel and parent cancel land on the lease context; arm owns that path.
 	session.arm(lease.Context)
 	if err := lease.Context.Err(); err != nil {
 		session.Cancel()
-		return routes.RouteStreamStart{}, err
+		return routes.RouteStreamStart{}, classifyRouteV2StreamError(routeV2ContextCause(lease.Context))
 	}
 	return routes.RouteStreamStart{
 		Response: routes.DispatchResponse{
@@ -168,7 +171,7 @@ func routeStreamRemainingBudget(ctx context.Context) (time.Duration, error) {
 		return 0, context.Canceled
 	}
 	if err := ctx.Err(); err != nil {
-		return 0, err
+		return 0, routeV2ContextCause(ctx)
 	}
 	deadline, ok := ctx.Deadline()
 	if !ok {
@@ -176,9 +179,45 @@ func routeStreamRemainingBudget(ctx context.Context) (time.Duration, error) {
 	}
 	remaining := time.Until(deadline)
 	if remaining <= 0 {
-		return 0, context.DeadlineExceeded
+		if cause := context.Cause(ctx); cause != nil {
+			return 0, cause
+		}
+		return 0, routes.ErrRouteStreamBudgetExceeded
 	}
 	return remaining, nil
+}
+
+func routeV2ContextCause(ctx context.Context) error {
+	if ctx == nil {
+		return context.Canceled
+	}
+	if cause := context.Cause(ctx); cause != nil {
+		return cause
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func classifyRouteV2StreamError(err error) error {
+	if err == nil {
+		return nil
+	}
+	switch {
+	case errors.Is(err, extensionsruntime.ErrRuntimeAdmissionForced):
+		return routes.WithRouteStreamAbort(err)
+	case errors.Is(err, routes.ErrRouteStreamBudgetExceeded):
+		return routes.WithRouteStreamIncident(err, routes.RouteStreamFailureHostBudget)
+	case errors.Is(err, extensionsruntime.ErrProtocolV2RouteResponseInvalid):
+		return routes.WithRouteStreamIncident(err, routes.RouteStreamFailureInvalidPreflight)
+	case errors.Is(err, extensionsruntime.ErrProtocolV2RouteStreamMissingTerminal):
+		return routes.WithRouteStreamIncident(err, routes.RouteStreamFailureMissingTerminal)
+	case errors.Is(err, context.Canceled), errors.Is(err, context.DeadlineExceeded):
+		return routes.WithRouteStreamAbort(err)
+	default:
+		return err
+	}
 }
 
 type routeV2WireStream interface {
@@ -227,7 +266,7 @@ func (s *routeV2StreamSession) arm(ctx context.Context) {
 	}
 	// AfterFunc may run on a different goroutine; completeCancel is Once-safe.
 	context.AfterFunc(ctx, func() {
-		s.completeCancel(context.Cause(ctx))
+		s.completeCancel(classifyRouteV2StreamError(routeV2ContextCause(ctx)))
 	})
 }
 
@@ -235,12 +274,23 @@ func (s *routeV2StreamSession) Send(data []byte, final bool) error {
 	if s == nil || s.stream == nil {
 		return routes.ErrDispatchTransport
 	}
-	return s.stream.Send(data, final)
+	if cause, canceled := s.canceledCause(); canceled {
+		return classifyRouteV2StreamError(cause)
+	}
+	if err := s.stream.Send(data, final); err != nil {
+		err = classifyRouteV2StreamError(err)
+		s.completeCancel(err)
+		return err
+	}
+	return nil
 }
 
 func (s *routeV2StreamSession) CloseRequest() error {
 	if s == nil || s.stream == nil {
 		return routes.ErrDispatchTransport
+	}
+	if cause, canceled := s.canceledCause(); canceled {
+		return classifyRouteV2StreamError(cause)
 	}
 	err := s.stream.CloseRequest()
 	if err == nil {
@@ -252,6 +302,8 @@ func (s *routeV2StreamSession) CloseRequest() error {
 	if ok && terminal.StatusCode == s.expectedStatus {
 		return nil
 	}
+	err = classifyRouteV2StreamError(err)
+	s.completeCancel(err)
 	return err
 }
 
@@ -261,7 +313,7 @@ func (s *routeV2StreamSession) Recv() (routes.RouteStreamChunk, error) {
 	}
 	// If cancel already won, surface the captured cause without touching the wire.
 	if cause, canceled := s.canceledCause(); canceled {
-		return routes.RouteStreamChunk{}, cause
+		return routes.RouteStreamChunk{}, classifyRouteV2StreamError(cause)
 	}
 	chunk, err := s.stream.Recv()
 	if err == nil {
@@ -270,21 +322,29 @@ func (s *routeV2StreamSession) Recv() (routes.RouteStreamChunk, error) {
 		}, nil
 	}
 	if !errors.Is(err, io.EOF) {
-		// Ordinary transport error: capture exact cause, cancel wire, release lease.
-		s.completeCancel(err)
-		return routes.RouteStreamChunk{}, s.Cause()
+		failure := classifyRouteV2StreamError(err)
+		// Cleanup ownership and operation provenance are separate: a concurrent
+		// caller cancel cannot rewrite a distinguishable runtime crash.
+		s.completeCancel(failure)
+		return routes.RouteStreamChunk{}, failure
 	}
 	terminal, ok := s.stream.Response()
-	if !ok || terminal.StatusCode != s.expectedStatus {
-		s.completeCancel(ErrRouteRuntimeTarget)
-		return routes.RouteStreamChunk{}, s.Cause()
+	if !ok {
+		failure := routes.WithRouteStreamIncident(ErrRouteRuntimeTarget, routes.RouteStreamFailureMissingTerminal)
+		s.completeCancel(failure)
+		return routes.RouteStreamChunk{}, failure
+	}
+	if terminal.StatusCode != s.expectedStatus {
+		failure := fmt.Errorf("%w: route stream terminal status drift", ErrRouteRuntimeTarget)
+		s.completeCancel(failure)
+		return routes.RouteStreamChunk{}, failure
 	}
 	resp := &routes.DispatchResponse{
 		Status: terminal.StatusCode, Headers: filteredRouteResponseHeaders(terminal.Headers),
 	}
 	if !s.completeTerminal(resp) {
 		// Cancel/ForceCancel/budget won the atomic race; Response must stay unpublished.
-		return routes.RouteStreamChunk{}, s.Cause()
+		return routes.RouteStreamChunk{}, classifyRouteV2StreamError(s.Cause())
 	}
 	return routes.RouteStreamChunk{}, io.EOF
 }
@@ -310,7 +370,7 @@ func (s *routeV2StreamSession) Cancel() {
 
 func (s *routeV2StreamSession) CancelWithCause(cause error) {
 	if s != nil {
-		s.completeCancel(cause)
+		s.completeCancel(classifyRouteV2StreamError(cause))
 	}
 }
 
@@ -400,11 +460,12 @@ func (s *routeV2StreamSession) completeCancel(cause error) {
 	s.close.Do(func() {
 		// Capture before Release: Release itself cancels the lease context.
 		if cause == nil && s.lease != nil && s.lease.Context != nil {
-			cause = context.Cause(s.lease.Context)
+			cause = routeV2ContextCause(s.lease.Context)
 		}
 		if cause == nil {
 			cause = context.Canceled
 		}
+		cause = classifyRouteV2StreamError(cause)
 		s.mu.Lock()
 		s.state = routeV2StreamStateCanceled
 		s.cause = cause

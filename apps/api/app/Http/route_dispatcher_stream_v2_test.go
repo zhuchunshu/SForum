@@ -39,7 +39,8 @@ func TestRouteV2StreamPreAdmissionCancellationStaysPristine(t *testing.T) {
 }
 
 func TestRouteV2StreamPreflightFailureRecordsObservedExecution(t *testing.T) {
-	dispatcher, runtime, traces := routeV2StreamTestDispatcher(t)
+	sink := &routeV2RecordingStreamFailureSink{}
+	dispatcher, runtime, traces := routeV2StreamTestDispatcherWithSink(t, sink)
 	runtime.err = errors.New("runtime crashed after preflight dispatch")
 	prepared, err := dispatcher.PrepareStream(
 		context.Background(), routes.DispatchRequest{Method: stdhttp.MethodGet, Path: "/stream-v2"},
@@ -52,7 +53,8 @@ func TestRouteV2StreamPreflightFailureRecordsObservedExecution(t *testing.T) {
 	records := traces.RouteTraces(0)
 	if !errors.Is(err, routes.ErrDispatchTransport) || runtime.calls != 1 || runtime.streamOpenCalls != 0 ||
 		len(records) != 1 || records[0].Outcome != routes.RouteTraceTransportFailed ||
-		records[0].CommitState != routes.RouteCommitSideEffectStarted {
+		records[0].CommitState != routes.RouteCommitSideEffectStarted ||
+		len(sink.snapshot()) != 1 || sink.snapshot()[0].CauseClass != routes.RouteStreamFailureRuntimeTransport {
 		t.Fatalf("error=%v routeCalls=%d streamCalls=%d traces=%#v", err, runtime.calls, runtime.streamOpenCalls, records)
 	}
 }
@@ -90,7 +92,8 @@ func TestRouteV2StreamSharesCorrelationAndPreservesExactQuery(t *testing.T) {
 func TestRouteV2StreamRejectsNonUpgradeInformationalPreflight(t *testing.T) {
 	for _, status := range []int{stdhttp.StatusContinue, stdhttp.StatusEarlyHints, stdhttp.StatusOK} {
 		t.Run(stdhttp.StatusText(status), func(t *testing.T) {
-			dispatcher, runtime, _ := routeV2StreamTestDispatcher(t)
+			sink := &routeV2RecordingStreamFailureSink{}
+			dispatcher, runtime, _ := routeV2StreamTestDispatcherWithSink(t, sink)
 			runtime.response = extensionsruntime.ProtocolV2RouteResponse{StatusCode: status, StreamFollows: true}
 			prepared, err := dispatcher.PrepareStream(context.Background(), routes.DispatchRequest{
 				Method: stdhttp.MethodGet, Path: "/stream-v2",
@@ -104,12 +107,23 @@ func TestRouteV2StreamRejectsNonUpgradeInformationalPreflight(t *testing.T) {
 			if runtime.calls != 1 || runtime.streamOpenCalls != 0 {
 				t.Fatalf("status=%d routeCalls=%d streamCalls=%d", status, runtime.calls, runtime.streamOpenCalls)
 			}
+			events := sink.snapshot()
+			if len(events) != 1 || events[0].CauseClass != routes.RouteStreamFailureInvalidPreflight {
+				t.Fatalf("status=%d events=%#v", status, events)
+			}
 		})
 	}
 }
 
 func routeV2StreamTestDispatcher(
 	t *testing.T,
+) (*routes.Dispatcher, *routeDispatcherV2StreamRuntime, *routes.RouteTraceRing) {
+	return routeV2StreamTestDispatcherWithSink(t, nil)
+}
+
+func routeV2StreamTestDispatcherWithSink(
+	t *testing.T,
+	sink routes.RouteStreamFailureSink,
 ) (*routes.Dispatcher, *routeDispatcherV2StreamRuntime, *routes.RouteTraceRing) {
 	t.Helper()
 	artifact := routeDispatcherArtifact("stream-v2", 'a')
@@ -130,7 +144,7 @@ func routeV2StreamTestDispatcher(
 	traces := routes.NewRouteTraceRing(8)
 	return routes.NewDispatcher(routes.DispatcherConfig{
 		Plans: routeRegistryPlanResolver{registry: registry}, Steps: NewBufferedRouteStepInvoker(runtime),
-		Guard: HostRouteGuardAuthorizer{}, Trace: traces,
+		Guard: HostRouteGuardAuthorizer{}, Trace: traces, StreamFailures: sink,
 	}), runtime, traces
 }
 
@@ -223,7 +237,7 @@ func TestRouteV2StreamSessionCapturesForceCancelCauseBeforeLeaseRelease(t *testi
 	case <-time.After(time.Second):
 		t.Fatal("ForceCancel did not finish the stream session")
 	}
-	if !errors.Is(session.Cause(), forceCause) {
+	if !errors.Is(session.Cause(), extensionsruntime.ErrRuntimeAdmissionForced) || !errors.Is(session.Cause(), forceCause) {
 		t.Fatalf("cause=%v want force cause", session.Cause())
 	}
 	if !wire.cancelled {
@@ -234,8 +248,67 @@ func TestRouteV2StreamSessionCapturesForceCancelCauseBeforeLeaseRelease(t *testi
 	}
 	// Lease release is single-flight; a second ForceCancel path must not panic.
 	session.Cancel()
-	if !errors.Is(session.Cause(), forceCause) {
+	if !errors.Is(session.Cause(), extensionsruntime.ErrRuntimeAdmissionForced) || !errors.Is(session.Cause(), forceCause) {
 		t.Fatalf("second cancel overwrote cause=%v", session.Cause())
+	}
+	for operation, err := range map[string]error{
+		"send":  session.Send([]byte("late"), false),
+		"close": session.CloseRequest(),
+		"recv":  func() error { _, err := session.Recv(); return err }(),
+	} {
+		if !errors.Is(err, extensionsruntime.ErrRuntimeAdmissionForced) || !errors.Is(err, forceCause) {
+			t.Fatalf("%s error=%v", operation, err)
+		}
+	}
+}
+
+func TestRouteV2StreamSessionKeepsRuntimeCrashAcrossCancelRace(t *testing.T) {
+	for iteration := range 100 {
+		runtimeErr := errors.New("runtime crashed")
+		started := make(chan struct{})
+		release := make(chan struct{})
+		wire := &fakeRouteV2WireStream{recvErr: runtimeErr, recvStarted: started, recvRelease: release}
+		session := newRouteV2StreamSession(wire, nil, stdhttp.StatusOK)
+		ctx, cancel := context.WithCancelCause(context.Background())
+		session.arm(ctx)
+		result := make(chan error, 1)
+		go func() {
+			_, err := session.Recv()
+			result <- err
+		}()
+		<-started
+		cancel(errors.New("caller left"))
+		close(release)
+		if err := <-result; !errors.Is(err, runtimeErr) {
+			t.Fatalf("iteration=%d error=%v", iteration, err)
+		}
+	}
+}
+
+func TestClassifyRouteV2StreamErrorPreservesStableCauses(t *testing.T) {
+	forceCause := errors.New("trust revoked")
+	force := errors.Join(extensionsruntime.ErrRuntimeAdmissionForced, forceCause)
+	for _, test := range []struct {
+		name string
+		err  error
+		want error
+	}{
+		{name: "ForceDrain", err: force, want: forceCause},
+		{name: "budget", err: routes.ErrRouteStreamBudgetExceeded, want: routes.ErrRouteStreamBudgetExceeded},
+		{name: "invalid preflight", err: extensionsruntime.ErrProtocolV2RouteResponseInvalid, want: extensionsruntime.ErrProtocolV2RouteResponseInvalid},
+		{name: "missing terminal", err: extensionsruntime.ErrProtocolV2RouteStreamMissingTerminal, want: extensionsruntime.ErrProtocolV2RouteStreamMissingTerminal},
+		{name: "caller", err: context.Canceled, want: context.Canceled},
+		{name: "runtime", err: ErrRouteRuntimeTarget, want: ErrRouteRuntimeTarget},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			classified := classifyRouteV2StreamError(test.err)
+			if !errors.Is(classified, test.want) {
+				t.Fatalf("classified=%v", classified)
+			}
+		})
+	}
+	if classified := classifyRouteV2StreamError(force); !errors.Is(classified, extensionsruntime.ErrRuntimeAdmissionForced) {
+		t.Fatalf("ForceDrain marker lost: %v", classified)
 	}
 }
 
@@ -314,11 +387,14 @@ type fakeRouteV2WireStream struct {
 	cancelled     bool
 	closeErr      error
 	blockRecv     chan struct{}
+	recvStarted   chan struct{}
+	recvRelease   chan struct{}
+	sendErr       error
 }
 
 func (s *fakeRouteV2WireStream) Send(data []byte, _ bool) error {
 	s.sent = append([]byte(nil), data...)
-	return nil
+	return s.sendErr
 }
 
 func (s *fakeRouteV2WireStream) CloseRequest() error {
@@ -327,6 +403,12 @@ func (s *fakeRouteV2WireStream) CloseRequest() error {
 }
 
 func (s *fakeRouteV2WireStream) Recv() (extensionsruntime.ProtocolV2RouteStreamChunk, error) {
+	if s.recvStarted != nil {
+		close(s.recvStarted)
+	}
+	if s.recvRelease != nil {
+		<-s.recvRelease
+	}
 	if s.blockRecv != nil {
 		<-s.blockRecv
 	}
@@ -348,3 +430,22 @@ func (s *fakeRouteV2WireStream) Response() (extensionsruntime.ProtocolV2RouteStr
 func (s *fakeRouteV2WireStream) Cancel() { s.cancelled = true }
 
 var _ routeV2WireStream = (*fakeRouteV2WireStream)(nil)
+
+type routeV2RecordingStreamFailureSink struct {
+	mu     sync.Mutex
+	events []routes.RouteStreamFailure
+}
+
+func (s *routeV2RecordingStreamFailureSink) RecordStreamFailure(_ context.Context, event routes.RouteStreamFailure) {
+	s.mu.Lock()
+	s.events = append(s.events, event)
+	s.mu.Unlock()
+}
+
+func (s *routeV2RecordingStreamFailureSink) snapshot() []routes.RouteStreamFailure {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return append([]routes.RouteStreamFailure(nil), s.events...)
+}
+
+var _ routes.RouteStreamFailureSink = (*routeV2RecordingStreamFailureSink)(nil)
