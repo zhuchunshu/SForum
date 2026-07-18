@@ -531,8 +531,11 @@ type CommandRequest struct {
 	// actor_delegation is a short-lived Host-signed capability. RequestContext.actor
 	// remains untrusted and must be absent on plugin-to-Host command calls.
 	ActorDelegation string `protobuf:"bytes,8,opt,name=actor_delegation,json=actorDelegation,proto3" json:"actor_delegation,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// query_invalidation_tags are canonical logical tags owned by the caller.
+	// The Host enqueues their invalidation in the command's PostgreSQL transaction.
+	QueryInvalidationTags []string `protobuf:"bytes,9,rep,name=query_invalidation_tags,json=queryInvalidationTags,proto3" json:"query_invalidation_tags,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
 }
 
 func (x *CommandRequest) Reset() {
@@ -619,6 +622,13 @@ func (x *CommandRequest) GetActorDelegation() string {
 		return x.ActorDelegation
 	}
 	return ""
+}
+
+func (x *CommandRequest) GetQueryInvalidationTags() []string {
+	if x != nil {
+		return x.QueryInvalidationTags
+	}
+	return nil
 }
 
 // PolicyDecision records one authoritative policy result in an impact plan.
@@ -1014,7 +1024,7 @@ const file_sforum_host_v2_query_command_proto_rawDesc = "" +
 	"\x04page\x18\x03 \x01(\v2\x1c.sforum.protocol.v2.PageInfoR\x04page\x125\n" +
 	"\x05error\x18\x04 \x01(\v2\x1f.sforum.protocol.v2.ErrorDetailR\x05error\x12\x1f\n" +
 	"\vnext_offset\x18\x05 \x01(\x04R\n" +
-	"nextOffset\"\xe9\x02\n" +
+	"nextOffset\"\xa1\x03\n" +
 	"\x0eCommandRequest\x12<\n" +
 	"\acontext\x18\x01 \x01(\v2\".sforum.protocol.v2.RequestContextR\acontext\x12\x1d\n" +
 	"\n" +
@@ -1024,7 +1034,8 @@ const file_sforum_host_v2_query_command_proto_rawDesc = "" +
 	"\adry_run\x18\x05 \x01(\bR\x06dryRun\x12+\n" +
 	"\x11expected_revision\x18\x06 \x01(\tR\x10expectedRevision\x127\n" +
 	"\x05input\x18\a \x01(\v2!.sforum.protocol.v2.TypedDocumentR\x05input\x12)\n" +
-	"\x10actor_delegation\x18\b \x01(\tR\x0factorDelegation\"\x80\x01\n" +
+	"\x10actor_delegation\x18\b \x01(\tR\x0factorDelegation\x126\n" +
+	"\x17query_invalidation_tags\x18\t \x03(\tR\x15queryInvalidationTags\"\x80\x01\n" +
 	"\x0ePolicyDecision\x12\x1b\n" +
 	"\tpolicy_id\x18\x01 \x01(\tR\bpolicyId\x12\x1f\n" +
 	"\vresource_id\x18\x02 \x01(\tR\n" +

@@ -88,6 +88,9 @@ message CommandRequest {
   // actor_delegation is a short-lived Host-signed capability. RequestContext.actor
   // remains untrusted and must be absent on plugin-to-Host command calls.
   string actor_delegation = 8;
+  // query_invalidation_tags are canonical logical tags owned by the caller.
+  // The Host enqueues their invalidation in the command's PostgreSQL transaction.
+  repeated string query_invalidation_tags = 9;
 }
 
 // PolicyDecision records one authoritative policy result in an impact plan.

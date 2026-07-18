@@ -644,6 +644,9 @@ func TestManifestV3DatabaseOperationFieldsInvalidateCanonicalTrustImpact(t *test
 		{name: "result nullable", change: func(value *extensionmanifest.ManifestDatabaseOperation) { value.Columns[0].Nullable = true }},
 		{name: "row limit", change: func(value *extensionmanifest.ManifestDatabaseOperation) { value.MaxRows++ }},
 		{name: "affected limit", change: func(value *extensionmanifest.ManifestDatabaseOperation) { value.MaxAffectedRows = 1 }},
+		{name: "query invalidation tags", change: func(value *extensionmanifest.ManifestDatabaseOperation) {
+			value.QueryInvalidationTags = []string{"demo.database-operation-digest.items"}
+		}},
 		{name: "timeout", change: func(value *extensionmanifest.ManifestDatabaseOperation) { value.TimeoutMS++ }},
 	}
 	for _, test := range tests {

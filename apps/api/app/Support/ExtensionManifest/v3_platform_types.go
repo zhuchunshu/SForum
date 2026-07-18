@@ -27,7 +27,10 @@ type ManifestDatabaseOperation struct {
 	Columns          []ManifestDatabaseColumn    `json:"columns"`
 	MaxRows          int                         `json:"maxRows,omitempty"`
 	MaxAffectedRows  uint64                      `json:"maxAffectedRows,omitempty"`
-	TimeoutMS        int                         `json:"timeoutMs"`
+	// QueryInvalidationTags are fixed semantic cache tags rotated only after a
+	// successful execute commits. Query operations cannot declare them.
+	QueryInvalidationTags []string `json:"queryInvalidationTags,omitempty"`
+	TimeoutMS             int      `json:"timeoutMs"`
 }
 
 type ManifestDatabaseParameter struct {

@@ -737,6 +737,12 @@
         },
         "maxRows": { "type": "integer", "minimum": 1, "maximum": 1000 },
         "maxAffectedRows": { "type": "integer", "minimum": 1, "maximum": 10000 },
+        "queryInvalidationTags": {
+          "type": "array",
+          "maxItems": 32,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/id" }
+        },
         "timeoutMs": { "type": "integer", "minimum": 0, "maximum": 5000 }
       },
       "allOf": [
@@ -744,7 +750,12 @@
           "if": { "properties": { "kind": { "const": "query" } }, "required": ["kind"] },
           "then": {
             "required": ["resultSchema", "maxRows"],
-            "not": { "required": ["maxAffectedRows"] },
+            "not": {
+              "anyOf": [
+                { "required": ["maxAffectedRows"] },
+                { "required": ["queryInvalidationTags"] }
+              ]
+            },
             "properties": { "columns": { "minItems": 1 } }
           },
           "else": {

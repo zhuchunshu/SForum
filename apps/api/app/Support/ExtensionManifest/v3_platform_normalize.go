@@ -20,6 +20,9 @@ func normalizeV3Platform(manifest *Manifest) {
 			operation.Path = strings.TrimSpace(operation.Path)
 			operation.Digest = normalizeDigest(operation.Digest)
 			operation.ResultSchema = strings.TrimSpace(operation.ResultSchema)
+			for tagIndex := range operation.QueryInvalidationTags {
+				operation.QueryInvalidationTags[tagIndex] = NormalizeID(operation.QueryInvalidationTags[tagIndex])
+			}
 			for parameterIndex := range operation.Parameters {
 				parameter := &operation.Parameters[parameterIndex]
 				parameter.Schema = strings.TrimSpace(parameter.Schema)

@@ -2,6 +2,8 @@ package extensionmanifest
 
 import (
 	"encoding/json"
+	"fmt"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -13,6 +15,10 @@ func TestManifestV3DatabaseOperationsValidateExactCatalog(t *testing.T) {
 	}
 	if got := len(manifest.Database.Operations); got != 2 {
 		t.Fatalf("operation count = %d, want 2", got)
+	}
+	manifest.Database.Operations[1].QueryInvalidationTags = []string{"demo.v3.items"}
+	if err := Validate(manifest); err != nil {
+		t.Fatalf("execute invalidation tags should validate: %v", err)
 	}
 	manifest.Database.Operations[1].Parameters = []ManifestDatabaseParameter{}
 	manifest.Database.Operations[1].ResultSchema = ""
@@ -70,7 +76,22 @@ func TestManifestV3DatabaseOperationsRejectInvalidDeclarations(t *testing.T) {
 		{name: "query without row limit", change: func(manifest *Manifest) { manifest.Database.Operations[0].MaxRows = 0 }},
 		{name: "query row limit over maximum", change: func(manifest *Manifest) { manifest.Database.Operations[0].MaxRows = manifestDatabaseMaximumRows + 1 }},
 		{name: "query with execute limit", change: func(manifest *Manifest) { manifest.Database.Operations[0].MaxAffectedRows = 1 }},
+		{name: "query with invalidation tags", change: func(manifest *Manifest) {
+			manifest.Database.Operations[0].QueryInvalidationTags = []string{"demo.v3.items"}
+		}},
 		{name: "execute with query limit", change: func(manifest *Manifest) { manifest.Database.Operations[1].MaxRows = 1 }},
+		{name: "execute with foreign invalidation tag", change: func(manifest *Manifest) {
+			manifest.Database.Operations[1].QueryInvalidationTags = []string{"other.plugin.items"}
+		}},
+		{name: "execute with duplicate invalidation tags", change: func(manifest *Manifest) {
+			manifest.Database.Operations[1].QueryInvalidationTags = []string{"demo.v3.items", " DEMO.V3.ITEMS "}
+		}},
+		{name: "execute with too many invalidation tags", change: func(manifest *Manifest) {
+			manifest.Database.Operations[1].QueryInvalidationTags = make([]string, ManifestQueryMaximumCacheTags+1)
+			for index := range manifest.Database.Operations[1].QueryInvalidationTags {
+				manifest.Database.Operations[1].QueryInvalidationTags[index] = fmt.Sprintf("demo.v3.items.%02d", index)
+			}
+		}},
 		{name: "execute without affected limit", change: func(manifest *Manifest) { manifest.Database.Operations[1].MaxAffectedRows = 0 }},
 		{name: "execute affected limit over maximum", change: func(manifest *Manifest) {
 			manifest.Database.Operations[1].MaxAffectedRows = manifestDatabaseMaximumAffectedRows + 1
@@ -111,13 +132,15 @@ func TestManifestV3DatabaseOperationsNormalizeEveryString(t *testing.T) {
 	operation.Parameters[0].Field = " ITEM_ID "
 	operation.Parameters[0].Kind = " INT64 "
 	operation.Columns[0].Name = " ITEM_ID "
+	manifest.Database.Operations[1].QueryInvalidationTags = []string{" DEMO.V3.ITEMS ", "demo.v3.members"}
 
 	normalized := Normalize(manifest).Database.Operations[0]
 	if normalized.ID != "demo.v3.database.items.query" || normalized.StatementVersion != "2" || normalized.Kind != "query" ||
 		normalized.Path != "database/items-query.sql" || normalized.Digest != v3FixtureDigest() ||
 		normalized.ResultSchema != "demo.v3.database.items.result@1" ||
 		normalized.Parameters[0].Schema != "demo.v3.database.item-id@1" || normalized.Parameters[0].Field != "item_id" ||
-		normalized.Parameters[0].Kind != "int64" || normalized.Columns[0].Name != "item_id" {
+		normalized.Parameters[0].Kind != "int64" || normalized.Columns[0].Name != "item_id" ||
+		!slices.Equal(Normalize(manifest).Database.Operations[1].QueryInvalidationTags, []string{"demo.v3.items", "demo.v3.members"}) {
 		t.Fatalf("database operation strings were not normalized: %#v", normalized)
 	}
 }
@@ -135,6 +158,13 @@ func TestManifestV3DatabaseOperationJSONSchemaRejectsInlineSQLAndDrift(t *testin
 	database := root["database"].(map[string]any)
 	operations := database["operations"].([]any)
 	query := operations[0].(map[string]any)
+	execute := operations[1].(map[string]any)
+	execute["queryInvalidationTags"] = []any{"demo.v3.items"}
+	executeInvalidator, _ := json.Marshal(root)
+	if err := ValidateV3JSONSchema(executeInvalidator); err != nil {
+		t.Fatalf("execute invalidation tags should satisfy raw schema: %v", err)
+	}
+	delete(execute, "queryInvalidationTags")
 
 	query["sql"] = "SELECT * FROM secrets"
 	inlineSQL, _ := json.Marshal(root)
@@ -155,5 +185,11 @@ func TestManifestV3DatabaseOperationJSONSchemaRejectsInlineSQLAndDrift(t *testin
 	queryOnlyField, _ := json.Marshal(root)
 	if err := ValidateV3JSONSchema(queryOnlyField); err == nil {
 		t.Fatal("query and execute limits must be mutually exclusive")
+	}
+	delete(query, "maxAffectedRows")
+	query["queryInvalidationTags"] = []any{"demo.v3.items"}
+	queryInvalidator, _ := json.Marshal(root)
+	if err := ValidateV3JSONSchema(queryInvalidator); err == nil {
+		t.Fatal("query operations must not declare invalidation tags")
 	}
 }

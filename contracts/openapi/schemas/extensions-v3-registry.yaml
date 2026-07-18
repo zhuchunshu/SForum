@@ -167,6 +167,68 @@ ExtensionManifestDatabase:
         onDisable: { type: string, enum: [retain] }
         onUninstall: { type: string, enum: [retain, delete, export] }
         days: { type: integer, minimum: 0 }
+    operations:
+      type: array
+      items: { "$ref": "#/ExtensionManifestDatabaseOperation" }
+ExtensionManifestDatabaseOperation:
+  type: object
+  additionalProperties: false
+  required: [id, statementVersion, kind, path, digest, parameters, columns, timeoutMs]
+  properties:
+    id: { type: string }
+    statementVersion: { type: string, pattern: '^[1-9][0-9]*$' }
+    kind: { type: string, enum: [query, execute] }
+    path: { type: string }
+    digest: { type: string, pattern: '^[0-9a-f]{64}$' }
+    parameters:
+      type: array
+      maxItems: 32
+      items: { "$ref": "#/ExtensionManifestDatabaseParameter" }
+    resultSchema: { type: string }
+    columns:
+      type: array
+      maxItems: 64
+      items: { "$ref": "#/ExtensionManifestDatabaseColumn" }
+    maxRows: { type: integer, minimum: 1, maximum: 1000 }
+    maxAffectedRows: { type: integer, minimum: 1, maximum: 10000 }
+    queryInvalidationTags:
+      type: array
+      maxItems: 32
+      uniqueItems: true
+      description: Owner-scoped logical Query Registry tags invalidated transactionally after execute operations.
+      items: { type: string }
+    timeoutMs: { type: integer, minimum: 0, maximum: 5000 }
+  allOf:
+  - if:
+      properties: { kind: { const: query } }
+      required: [kind]
+    then:
+      required: [resultSchema, maxRows]
+      not:
+        anyOf:
+        - required: [maxAffectedRows]
+        - required: [queryInvalidationTags]
+      properties: { columns: { minItems: 1 } }
+    else:
+      required: [maxAffectedRows]
+      not: { required: [maxRows] }
+ExtensionManifestDatabaseParameter:
+  type: object
+  additionalProperties: false
+  required: [schema, field, kind, nullable, maxBytes]
+  properties:
+    schema: { type: string }
+    field: { type: string }
+    kind: { type: string, enum: [string, int64, number, bool] }
+    nullable: { type: boolean }
+    maxBytes: { type: integer, minimum: 0, maximum: 65536 }
+ExtensionManifestDatabaseColumn:
+  type: object
+  additionalProperties: false
+  required: [name, nullable]
+  properties:
+    name: { type: string }
+    nullable: { type: boolean }
 ExtensionManifestCache:
   type: object
   required: [id, contractVersion, namespace, policy]

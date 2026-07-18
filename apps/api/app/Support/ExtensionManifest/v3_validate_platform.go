@@ -178,6 +178,7 @@ func (v *v3Validator) validateDatabaseOperation(operation ManifestDatabaseOperat
 		operation.Parameters == nil || operation.Columns == nil ||
 		len(operation.Parameters) > manifestDatabaseMaximumParameters ||
 		len(operation.Columns) > manifestDatabaseMaximumColumns ||
+		!validManifestQueryCacheTags(v.manifest.ID, operation.QueryInvalidationTags) ||
 		operation.TimeoutMS < 0 || operation.TimeoutMS > manifestDatabaseMaximumTimeoutMS {
 		return ErrInvalidManifest
 	}
@@ -212,7 +213,7 @@ func (v *v3Validator) validateDatabaseOperation(operation ManifestDatabaseOperat
 	case "query":
 		if !validSchemaRef(operation.ResultSchema) || len(operation.Columns) == 0 ||
 			operation.MaxRows <= 0 || operation.MaxRows > manifestDatabaseMaximumRows ||
-			operation.MaxAffectedRows != 0 {
+			operation.MaxAffectedRows != 0 || len(operation.QueryInvalidationTags) != 0 {
 			return ErrInvalidManifest
 		}
 	case "execute":
