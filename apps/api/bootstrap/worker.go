@@ -541,14 +541,17 @@ func newWorkerWithPool(cfg config.Config, pool *pgxpool.Pool, logger *slog.Logge
 		if commandErr != nil {
 			return nil, nil, nil, fmt.Errorf("worker Host Command dispatcher setup failed: %w", commandErr)
 		}
+		commandDispatcher := supportjobs.NewDispatcher(commandJobClient)
 		return buildStandaloneWorkerExtensionRuntime(
 			bootstrapCtx, cfg,
 			postgresProtocolV2DatabaseCatalogBinderFactory(
-				pool, hostapi.WithProtocolV2DatabaseTraceSink(hostapi.NewSlogDatabaseTraceSink(logger)),
+				pool,
+				hostapi.WithProtocolV2DatabaseTraceSink(hostapi.NewSlogDatabaseTraceSink(logger)),
+				hostapi.WithProtocolV2DatabaseQueryInvalidationJobs(commandDispatcher),
 			),
 			postgresProtocolV2CommandRuntimeBinder(
 				pool,
-				supportjobs.NewDispatcher(commandJobClient),
+				commandDispatcher,
 				moderation.NewPostgresStore(pool),
 				attachments.NewPostgresStore(pool),
 			),

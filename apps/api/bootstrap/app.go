@@ -354,6 +354,7 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		pool: pool, gateway: hostAPIGateway,
 		options: []hostapi.ProtocolV2DatabaseRuntimeOption{
 			hostapi.WithProtocolV2DatabaseTraceSink(hostapi.NewSlogDatabaseTraceSink(logger)),
+			hostapi.WithProtocolV2DatabaseQueryInvalidationJobs(jobDispatcher),
 		},
 	}
 	queryTraceSink := hostapi.NewSlogQueryTraceSink(logger)
