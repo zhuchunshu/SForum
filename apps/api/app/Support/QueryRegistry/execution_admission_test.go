@@ -148,6 +148,70 @@ func TestExecutionFailOpenFilterCannotOverrideHostPermissionDenial(t *testing.T)
 	}
 }
 
+func TestExecutionFailOpenFilterCannotOverrideHostResultValidation(t *testing.T) {
+	filterArtifact := publication("plugin.fail-open-schema", false, 'f').Artifact
+	filter := executionTestFilter(
+		filterArtifact,
+		"plugin.fail-open-schema.decorate",
+		10,
+		ResultFilterFailOpen,
+		func(rows []QueryRow) []QueryRow {
+			rows[0]["secret"] = "undeclared"
+			return rows
+		},
+	)
+	provider := ExecutableProviderFunc(func(context.Context, ProviderExecutionRequest) (ProviderExecutionResult, error) {
+		return ProviderExecutionResult{Rows: []QueryRow{{"id": "1", "title": "base"}}}, nil
+	})
+	runtime, _ := executionTestRuntime(
+		t,
+		PaginationNone,
+		PermissionPolicyPublic,
+		provider,
+		[]ResultFilterRegistration{filter},
+		func(config *ExecutionConfig) {
+			config.Registry.WithPluginAdmission(func(artifact Artifact) bool { return artifact == filterArtifact })
+		},
+	)
+
+	if _, err := runtime.Execute(t.Context(), PlanRequest{QueryID: "core.execute.items"}); !errors.Is(err, ErrResultInvalid) {
+		t.Fatalf("fail-open Host result validation error=%v", err)
+	}
+}
+
+func TestExecutionFailOpenFilterCannotOverrideHostAdmissionFailure(t *testing.T) {
+	filterArtifact := publication("plugin.fail-open-admission", false, 'f').Artifact
+	filter := executionTestFilter(
+		filterArtifact,
+		"plugin.fail-open-admission.decorate",
+		10,
+		ResultFilterFailOpen,
+		func(rows []QueryRow) []QueryRow { return rows },
+	)
+	var providerCalls atomic.Int32
+	provider := ExecutableProviderFunc(func(context.Context, ProviderExecutionRequest) (ProviderExecutionResult, error) {
+		providerCalls.Add(1)
+		return ProviderExecutionResult{Rows: []QueryRow{{"id": "1", "title": "base"}}}, nil
+	})
+	runtime, _ := executionTestRuntime(
+		t,
+		PaginationNone,
+		PermissionPolicyPublic,
+		provider,
+		[]ResultFilterRegistration{filter},
+		func(config *ExecutionConfig) {
+			config.Registry.WithPluginAdmission(func(artifact Artifact) bool { return artifact == filterArtifact })
+			config.Admission = ExecutionAdmissionFunc(func(context.Context, Artifact) (func(), error) {
+				return nil, ErrArtifactUnavailable
+			})
+		},
+	)
+
+	if _, err := runtime.Execute(t.Context(), PlanRequest{QueryID: "core.execute.items"}); !errors.Is(err, ErrDependencyDenied) || providerCalls.Load() != 0 {
+		t.Fatalf("fail-open Host admission error=%v provider calls=%d", err, providerCalls.Load())
+	}
+}
+
 func TestExecutionSafeModeBypassesStaleThirdPartyResultFilters(t *testing.T) {
 	filterArtifact := publication("plugin.safe-filter", false, 'e').Artifact
 	var filterCalls, admissionCalls atomic.Int32

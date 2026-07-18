@@ -9,7 +9,6 @@ import (
 type executionAdmissionRequirement struct {
 	artifact   Artifact
 	queryOwner bool
-	failClosed bool
 }
 
 // acquireExecutionSet holds every exact artifact that contributes executable
@@ -22,15 +21,12 @@ func (r *ExecutionRuntime) acquireExecutionSet(
 	filters []preparedResultFilter,
 ) ([]preparedResultFilter, []ResultFilterExecutionTrace, func(), error) {
 	requirements := map[Artifact]executionAdmissionRequirement{
-		plan.Query.Artifact: {artifact: plan.Query.Artifact, queryOwner: true, failClosed: true},
+		plan.Query.Artifact: {artifact: plan.Query.Artifact, queryOwner: true},
 	}
 	for _, filter := range filters {
 		artifact := filter.registration.Artifact
 		requirement := requirements[artifact]
 		requirement.artifact = artifact
-		if filter.registration.FailurePolicy == ResultFilterFailClosed {
-			requirement.failClosed = true
-		}
 		requirements[artifact] = requirement
 	}
 
@@ -48,7 +44,6 @@ func (r *ExecutionRuntime) acquireExecutionSet(
 			releases[index]()
 		}
 	}
-	excluded := make(map[Artifact]struct{})
 	evidence := make([]ResultFilterExecutionTrace, 0)
 	for _, requirement := range ordered {
 		release, err := r.acquireExactExecution(ctx, requirement.artifact)
@@ -60,27 +55,18 @@ func (r *ExecutionRuntime) acquireExecutionSet(
 					))
 				}
 			}
-			if requirement.queryOwner || requirement.failClosed {
-				releaseAll()
-				if requirement.queryOwner {
-					return nil, evidence, func() {}, errors.Join(ErrArtifactUnavailable, err)
-				}
-				return nil, evidence, func() {}, errors.Join(ErrDependencyDenied, err)
+			releaseAll()
+			if requirement.queryOwner {
+				return nil, evidence, func() {}, errors.Join(ErrArtifactUnavailable, err)
 			}
-			excluded[requirement.artifact] = struct{}{}
-			continue
+			// fail_open only controls ordinary plugin callback failures. A selected
+			// filter whose exact runtime admission cannot be held is a Host fence and
+			// must fail closed before provider code executes.
+			return nil, evidence, func() {}, errors.Join(ErrDependencyDenied, err)
 		}
 		releases = append(releases, release)
 	}
-
-	active := make([]preparedResultFilter, 0, len(filters))
-	for _, filter := range filters {
-		if _, omitted := excluded[filter.registration.Artifact]; omitted {
-			continue
-		}
-		active = append(active, filter)
-	}
-	return active, evidence, releaseAll, nil
+	return filters, evidence, releaseAll, nil
 }
 
 func (r *ExecutionRuntime) acquireExactExecution(ctx context.Context, artifact Artifact) (func(), error) {

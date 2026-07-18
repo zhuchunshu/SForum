@@ -259,7 +259,7 @@ func (r *ExecutionRuntime) applyResultFilters(
 			hostFailure := ctx.Err() != nil || errors.Is(filterErr, ErrDenied) ||
 				errors.Is(filterErr, ErrArtifactConflict) || errors.Is(filterErr, ErrRevisionConflict) ||
 				errors.Is(filterErr, ErrArtifactUnavailable) || errors.Is(filterErr, ErrContractInsufficient) ||
-				errors.Is(filterErr, ErrResultTooLarge) || errors.Is(filterErr, ErrCostExceeded) ||
+				errors.Is(filterErr, ErrResultInvalid) || errors.Is(filterErr, ErrResultTooLarge) || errors.Is(filterErr, ErrCostExceeded) ||
 				errors.Is(filterErr, ErrInvalid) || errors.Is(filterErr, ErrExecutionInvalid)
 			outcome := ResultFilterTraceFailed
 			if registration.FailurePolicy == ResultFilterFailOpen && !hostFailure {
