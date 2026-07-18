@@ -58,14 +58,24 @@ Last updated: 2026-07-19
   compatible when the optional fields are absent.
 - Complete Manifest, SDK, and Extensions model tests and vet pass; focused race
   `count=3`, proto lint/generation/drift, and all 1,940 OpenAPI references pass.
-- Exact next step: implement both producers, enqueue only after a successful
-  write/result validation and before transaction commit, bind command tags into
-  the deterministic idempotency fingerprint, and prove rollback/replay behavior.
-  Then register the Host worker and production Redis runtime in API, embedded
-  worker, standalone worker, and Safe Mode.
-- Rollback is additive: revert `b166ca70f`, `f47680d56`, then `fc35843f1`. No
-  migration, feature flag, branch, worktree, push, tag, bootstrap file, or
-  unrelated dirty file changed.
+- `df2e8a17e` implements the Host Command producer. Caller-owned canonical tags
+  are bound into the deterministic idempotency fingerprint; the Host enqueues
+  through the same `pgx.Tx` only after the domain write and output Schema pass.
+  Receipt replay does not enqueue again, changed tags conflict, and River,
+  audit, receipt, or commit failure cannot leak a mutation or job. The SDK
+  helper normalizes, sorts, and rejects foreign, duplicate, empty, or over-limit
+  tag sets without mutating the request on failure.
+- HostAPI and SDK tests passed normal `count=10`, focused race `count=3`, vet,
+  and diff checks. Independent Grok and sub-agent reviews found no blocker.
+- Exact next step: finish and review the Manifest own-schema execute producer.
+  Its current WIP has the correct same-transaction enqueue/replay structure,
+  but Manifest normalization must sort `queryInvalidationTags` so a declaration
+  accepted at install cannot fail later while freezing the runtime catalog.
+  Then finish the recovering Host worker and production Redis runtime in API,
+  embedded worker, standalone worker, and Safe Mode before joined gates.
+- Rollback is additive: revert `df2e8a17e`, `b166ca70f`, `f47680d56`, then
+  `fc35843f1`. No migration, feature flag, branch, worktree, push, tag,
+  bootstrap file, or unrelated dirty file changed.
 
 ### 2026-07-19 Query Redis Backend Checkpoint (no P7 credit)
 
@@ -1711,6 +1721,13 @@ Last updated: 2026-07-19
   - `contracts/openapi/schemas/extension-route-inspector.yaml`
   - `docs/extensions/host-api-v2.md`
   - `knowledge/decisions/2026-07-13-trusted-plugin-theme-platform-v3.md`
+- P7 Query WIP pending main-agent review and focused commits:
+  - `apps/api/app/Support/HostAPI/v2_database*.go`
+  - `apps/api/app/Jobs/QueryRegistry/invalidate_result_cache*.go`
+  - `apps/api/bootstrap/extension_database_catalog*.go`
+  - `apps/api/bootstrap/query_registry*.go`
+  - `apps/api/bootstrap/worker.go`
+  - only the exact Query invalidation hunk in `apps/api/bootstrap/app.go`
 - The uncommitted SEO family is separate from Cache and includes
   `Support/SEORegistry`, SEO Protocol/SDK/runtime/bootstrap files, the
   `sforum-seo-reference` fixture, and its fixture index entry.
