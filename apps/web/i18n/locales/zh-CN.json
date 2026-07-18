@@ -710,6 +710,7 @@
           "commands": "Host 命令",
           "adminSurfaces": "管理端界面扩展点",
           "queries": "查询计划",
+          "queryResultFilters": "查询结果过滤器",
           "identity": "身份契约",
           "permissionDefinitions": "权限定义",
           "media": "媒体管线",

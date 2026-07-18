@@ -710,6 +710,7 @@
           "commands": "Host commands",
           "adminSurfaces": "Admin surfaces",
           "queries": "Query plans",
+          "queryResultFilters": "Query result filters",
           "identity": "Identity contract",
           "permissionDefinitions": "Permission definitions",
           "media": "Media pipelines",

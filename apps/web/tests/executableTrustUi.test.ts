@@ -35,7 +35,7 @@ describe('V3 exact-artifact trust operator flow', () => {
       'artifactDigests', 'requestedAuthority', 'contracts', 'binaries', 'backend', 'routes', 'guards',
       'guardDeclarations', 'hooks', 'events', 'migrations', 'migrationDeclarations', 'providers', 'jobs',
       'schedules', 'components', 'registryComponents', 'templates', 'assets', 'content', 'database', 'cache',
-      'services', 'commands', 'adminSurfaces', 'queries', 'identity', 'permissionDefinitions', 'media',
+      'services', 'commands', 'adminSurfaces', 'queries', 'queryResultFilters', 'identity', 'permissionDefinitions', 'media',
       'navigation', 'regions', 'contributions', 'capabilities', 'permissions', 'requiredFeatures',
       'dependencies', 'lifecycle', 'openapi', 'packageFiles'
     ]) {

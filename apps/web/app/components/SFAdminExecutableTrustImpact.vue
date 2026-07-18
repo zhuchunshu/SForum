@@ -78,6 +78,7 @@ const sections = computed(() => [
   { key: 'commands', value: props.impact.commands },
   { key: 'adminSurfaces', value: props.impact.adminSurfaces },
   { key: 'queries', value: props.impact.queries },
+  { key: 'queryResultFilters', value: props.impact.queryResultFilters },
   { key: 'identity', value: props.impact.identity },
   { key: 'permissionDefinitions', value: props.impact.permissionDefinitions },
   { key: 'media', value: props.impact.media },

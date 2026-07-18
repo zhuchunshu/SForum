@@ -88,6 +88,7 @@ export type ExecutableTrustImpact = {
   commands: Array<Record<string, unknown>>
   adminSurfaces: Array<Record<string, unknown>>
   queries: Array<Record<string, unknown>>
+  queryResultFilters: Array<Record<string, unknown>>
   identity: Record<string, unknown> | null
   permissionDefinitions: Array<Record<string, unknown>>
   media: Array<Record<string, unknown>>
