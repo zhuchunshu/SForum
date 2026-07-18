@@ -14,6 +14,26 @@ Last updated: 2026-07-18
 
 ## Current Subtask
 
+### 2026-07-18 Production Stream Incident Sink Checkpoint
+
+- Verified weighted progress remains **64.9003%** (display **64.9%**); P6 stays
+  **16/18**. The earlier Grok wrapper/Schema claim does not close either open
+  row because it omits real generic-stream backpressure and the joined durable
+  incident production matrix.
+- `99fe22b59 feat(routes): enable durable stream incident recording` explicitly
+  binds the already-classified stream producer to the PostgreSQL-backed route
+  failure recorder. The staged hunk contained only the `StreamFailures` field;
+  both unrelated `hostAPIGateway.Close()` working-tree hunks remain unstaged.
+- Bootstrap, focused recorder, real PostgreSQL incident-store, and staged
+  whitespace gates passed before commit. The opaque `DataChunk` decision and
+  Host preflight Schema correction remain accepted evidence, not framing that
+  the Host does not implement.
+- Exact resume point: add a real generic `mode=stream` Protocol V2 subprocess
+  fixture carrying opaque binary chunks, prove bounded backpressure with a TCP
+  slow consumer, then join normal/disconnect/ForceDrain zero-incident paths and
+  all four durable incident classes into the named P6 normal/race/PostgreSQL
+  gates. Only that evidence may raise P6 to **18/18**.
+
 ### 2026-07-18 WebSocket Stream Classification Checkpoint
 
 - Verified weighted progress remains **64.9003%** (display **64.9%**); P6 stays
