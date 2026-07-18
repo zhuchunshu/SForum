@@ -14,6 +14,46 @@ Last updated: 2026-07-19
 
 ## Current Subtask
 
+### 2026-07-19 Query Production ForceDrain Joined Checkpoint (no P7 credit)
+
+- Verified weighted progress remains **66.9205%** (display **66.0%**); P7 stays
+  **16/22**. This closes the real-subprocess exact-runtime drain prerequisite,
+  not the authoritative Query implementation or joined-test row.
+- `27f66ff66` extends the committed Query Protocol V2 fixture with a public
+  cacheable owner query that has no local result filter, exact owner/filter
+  blocking triggers, and a separately identifiable cross-plugin filter result.
+  The cross-filter trigger is handler-bound and cannot alter the original
+  self-filter fixture behavior.
+- `822643a12` builds an independent exact filter-only package and joins a real
+  Manager, lifecycle Query publication, production artifact admission,
+  composite provider/Schema/filter resolution, and Protocol V2 subprocesses.
+  It proves normal cross-plugin filtering, concurrent owner+filter leases,
+  owner and filter ForceDrain cause propagation, exact lease release, and that
+  `fail_open` cannot hide a Host-owned runtime drain. Draining either artifact
+  leaves the other exact runtime available.
+- `TestProductionQueryProtocolV2ForceDrainJoined` passed normal and
+  `-race -count=3`; the existing `TestReferenceQueryPluginJoinedGates` also
+  passed normal and `-race -count=3`. `git diff --check` passed. Independent
+  read-only review found no remaining gate blocker after the trigger/output and
+  formatting corrections.
+- The uncommitted `redis_cache*.go` remains blocked and must not be staged in
+  its current form: it does not implement the production `QueryResultCache`
+  interface, its poisoned-generation script can partially mutate before an
+  error, permanent per-tag keys grow without bound, and it lacks a durable
+  mutation-to-semantic-invalidation path plus Redis 7.2/AOF/`WAITAOF`
+  capability proof.
+- Exact next Query step: implement the production cache contract around an
+  installation-scoped permanent monotonic epoch plus TTL-bounded tag epochs,
+  perform every poison/limit preflight before writes, add durable owner-scoped
+  semantic invalidation and production capability probing, then wire it through
+  `bindProductionQueryRegistry`. After cache-hit/invalidation gates pass, add
+  the exact lifecycle upgrade/replace joined gate. Do not credit either P7
+  Query row until cache and upgrade/replace exits both pass.
+- Rollback is additive: revert `822643a12` to remove only the joined gate and
+  `27f66ff66` to remove the fixture extension. No migration, feature flag,
+  production path, Protocol v1 compatibility, Safe Mode, branch, worktree,
+  push, tag, or unrelated dirty file changed.
+
 ### 2026-07-19 Query ForceDrain Exact-Lease Checkpoint (no P7 credit)
 
 - Verified weighted progress remains **66.9205%** (display **66.0%**); P7 stays

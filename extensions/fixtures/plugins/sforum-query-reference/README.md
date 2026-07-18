@@ -9,5 +9,7 @@ Protocol V2 fixture for Host-owned Query Registry execution.
 - Package Schema is Draft 2020-12 with `additionalProperties: false`.
 - Filter rewrites `title` only; it never adds undeclared fields.
 
-Built and exercised by
-`apps/api/app/Support/Extensions/query_reference_plugin_integration_test.go`.
+Built and exercised by:
+
+- `apps/api/app/Support/Extensions/query_reference_plugin_integration_test.go`;
+- `apps/api/bootstrap/query_registry_force_drain_integration_test.go`.
