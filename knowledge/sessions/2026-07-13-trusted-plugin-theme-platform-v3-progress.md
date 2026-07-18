@@ -52,6 +52,13 @@ Last updated: 2026-07-18
   a stable missing-terminal sentinel, and malformed preflight responses have a
   separate response-invalid sentinel. Focused 50x, race 10x, full Extensions,
   vet, and build gates pass.
+- `4e53e8a20 feat(routes): carry typed stream failure disposition` adds redacted
+  in-process incident/abort wrappers while preserving `errors.Is` causes. Invalid
+  classes fail closed to `runtime_transport`; classified EOF can prove
+  `missing_terminal`; bare EOF remains a no-op. Open no longer lets a concurrent
+  caller/budget cancellation overwrite a distinguishable runtime crash. A
+  64-way Complete/failure race publishes at most one terminal and one incident.
+  Focused normal/race, full Routes, vet, and build gates pass.
 - Exact resume point: classify every HTTP/SSE/WebSocket producer, preserve exact
   Protocol V2 ForceDrain/budget/caller causes, prove caller/Host failures create
   zero incidents, and only then explicitly enable the production stream sink.
