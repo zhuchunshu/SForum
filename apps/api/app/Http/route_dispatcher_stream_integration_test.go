@@ -135,6 +135,24 @@ func TestRouteStreamAcrossFiberManagerAndRealProtocolV2Process(t *testing.T) {
 		}
 	})
 
+	t.Run("opaque binary stream", func(t *testing.T) {
+		minimumTraces += 2
+		response, err := (&stdhttp.Client{Timeout: 10 * time.Second}).Get(baseHTTP + "/binary")
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer response.Body.Close()
+		payload, err := io.ReadAll(response.Body)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if response.StatusCode != stdhttp.StatusOK ||
+			response.Header.Get("Content-Type") != "application/octet-stream" ||
+			!bytes.Equal(payload, routeStreamE2EOpaquePayload()) {
+			t.Fatalf("status=%d headers=%v body=%x", response.StatusCode, response.Header, payload)
+		}
+	})
+
 	t.Run("WebSocket", func(t *testing.T) {
 		minimumTraces += 2
 		dialer := websocket.Dialer{HandshakeTimeout: 5 * time.Second, Subprotocols: []string{"sforum.stream.v1"}}
@@ -266,6 +284,8 @@ func (s *routeStreamE2EServer) InvokeRoute(_ context.Context, request *pluginwir
 		status = stdhttp.StatusCreated
 	case "runtime.stream.events", "runtime.stream.disconnect":
 		headers = append(headers, &protocolwire.Header{Name: "Content-Type", Values: []string{"text/event-stream"}})
+	case "runtime.stream.binary":
+		headers = append(headers, &protocolwire.Header{Name: "Content-Type", Values: []string{"application/octet-stream"}})
 	case "runtime.stream.websocket":
 		if header := routeStreamE2EForwardedCredential(request.GetHeaders()); header != "" {
 			return nil, fmt.Errorf("filtered WebSocket preflight forwarded credential %s", header)
@@ -320,6 +340,18 @@ func routeStreamE2EHandler(stream *pluginv2sdk.RouteStream) error {
 			if err := stream.Send(&protocolwire.DataChunk{Sequence: uint64(index + 1), Data: payload, Final: index == 1}); err != nil {
 				return err
 			}
+		}
+		return stream.Close(&pluginwire.RouteStreamClose{StatusCode: stdhttp.StatusOK})
+	case "runtime.stream.binary":
+		if _, err := stream.Recv(); err != io.EOF {
+			return err
+		}
+		payload := routeStreamE2EOpaquePayload()
+		if err := stream.Send(&protocolwire.DataChunk{Sequence: 1, Data: payload[:3]}); err != nil {
+			return err
+		}
+		if err := stream.Send(&protocolwire.DataChunk{Sequence: 2, Data: payload[3:], Final: true}); err != nil {
+			return err
 		}
 		return stream.Close(&pluginwire.RouteStreamClose{StatusCode: stdhttp.StatusOK})
 	case "runtime.stream.websocket":
@@ -400,11 +432,16 @@ func routeStreamE2EExtension(t *testing.T) extensions.Extension {
 			Routes: []extensions.ManifestRoute{
 				route("runtime.stream.upload", "/upload", stdhttp.MethodPost, extensionmanifest.RouteModeMultipart),
 				route("runtime.stream.events", "/events", stdhttp.MethodGet, extensionmanifest.RouteModeSSE),
+				route("runtime.stream.binary", "/binary", stdhttp.MethodGet, extensionmanifest.RouteModeStream),
 				route("runtime.stream.websocket", "/socket", stdhttp.MethodGet, extensionmanifest.RouteModeWebSocket),
 				route("runtime.stream.disconnect", "/disconnect", stdhttp.MethodGet, extensionmanifest.RouteModeSSE),
 			},
 		},
 	}
+}
+
+func routeStreamE2EOpaquePayload() []byte {
+	return []byte{0x00, 0xff, 0x53, 0x46, 0x80, 0x0a, 0x00, 0xfe}
 }
 
 func routeStreamShellQuote(value string) string {
