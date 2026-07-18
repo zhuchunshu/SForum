@@ -44,6 +44,14 @@ Last updated: 2026-07-18
 - Bootstrap now injects the PostgreSQL Store for already-classified buffered
   incidents, but deliberately does not set `StreamFailures` yet. Focused normal/
   race, complete Http/bootstrap, vet, build, and shutdown-deadline tests pass.
+- `fd67a33b5 fix(protocol): preserve exact stream failure causes` normalizes only
+  cancellation-shaped gRPC errors against the separate Host context. Exact
+  ForceDrain/budget/caller causes survive Open/Send/Close/Recv, while a remote
+  `Canceled` or distinguishable crash remains runtime-owned. Earlier parent
+  deadlines no longer race a duplicate child timer; raw EOF without a Close has
+  a stable missing-terminal sentinel, and malformed preflight responses have a
+  separate response-invalid sentinel. Focused 50x, race 10x, full Extensions,
+  vet, and build gates pass.
 - Exact resume point: classify every HTTP/SSE/WebSocket producer, preserve exact
   Protocol V2 ForceDrain/budget/caller causes, prove caller/Host failures create
   zero incidents, and only then explicitly enable the production stream sink.
