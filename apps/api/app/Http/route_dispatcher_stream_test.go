@@ -334,7 +334,7 @@ func TestRouteDispatcherBridgesWebSocketMessagesAndDisconnect(t *testing.T) {
 	}
 	session := newWebSocketEchoSession()
 	traces := routes.NewRouteTraceRing(8)
-	invoker := &streamHTTPTestInvoker{start: routes.RouteStreamStart{
+	invoker := &streamHTTPTestInvoker{observe: true, start: routes.RouteStreamStart{
 		Response: routes.DispatchResponse{
 			Status:  fiber.StatusSwitchingProtocols,
 			Headers: stdhttp.Header{"Sec-WebSocket-Protocol": {"sforum.echo.v1"}},
@@ -406,7 +406,8 @@ func TestRouteDispatcherWaitsForWebSocketResponseTerminalAfterClientClose(t *tes
 	session := newWebSocketTerminalBarrierSession()
 	t.Cleanup(session.cleanup)
 	traces := routes.NewRouteTraceRing(8)
-	connection := dialRouteWebSocketTerminalTest(t, session, traces)
+	sink := &routeV2RecordingStreamFailureSink{}
+	connection := dialRouteWebSocketTerminalTest(t, session, traces, sink)
 
 	if err := connection.WriteControl(
 		websocket.CloseMessage,
@@ -431,6 +432,10 @@ func TestRouteDispatcherWaitsForWebSocketResponseTerminalAfterClientClose(t *tes
 	if !hasRouteTraceOutcome(records, routes.RouteTraceTransportFailed) {
 		t.Fatalf("response failure was not recorded: %#v", records)
 	}
+	events := sink.snapshot()
+	if len(events) != 1 || events[0].CauseClass != routes.RouteStreamFailureRuntimeTransport {
+		t.Fatalf("events=%#v", events)
+	}
 }
 
 func TestRouteDispatcherFailsWebSocketWhenClosingPluginRequestFails(t *testing.T) {
@@ -438,7 +443,8 @@ func TestRouteDispatcherFailsWebSocketWhenClosingPluginRequestFails(t *testing.T
 	t.Cleanup(session.cleanup)
 	session.closeRequestErr = errors.New("plugin request close failed")
 	traces := routes.NewRouteTraceRing(8)
-	connection := dialRouteWebSocketTerminalTest(t, session, traces)
+	sink := &routeV2RecordingStreamFailureSink{}
+	connection := dialRouteWebSocketTerminalTest(t, session, traces, sink)
 
 	if err := connection.WriteControl(
 		websocket.CloseMessage,
@@ -455,6 +461,10 @@ func TestRouteDispatcherFailsWebSocketWhenClosingPluginRequestFails(t *testing.T
 	if !hasRouteTraceOutcome(records, routes.RouteTraceTransportFailed) {
 		t.Fatalf("request close failure was not recorded: %#v", records)
 	}
+	events := sink.snapshot()
+	if len(events) != 1 || events[0].CauseClass != routes.RouteStreamFailureRuntimeTransport {
+		t.Fatalf("events=%#v", events)
+	}
 }
 
 func TestRouteDispatcherCommitsWebSocketAfterRequestCloseAndResponseTerminal(t *testing.T) {
@@ -463,7 +473,8 @@ func TestRouteDispatcherCommitsWebSocketAfterRequestCloseAndResponseTerminal(t *
 	session.recvErr = io.EOF
 	session.response = routes.DispatchResponse{Status: fiber.StatusSwitchingProtocols}
 	traces := routes.NewRouteTraceRing(8)
-	connection := dialRouteWebSocketTerminalTest(t, session, traces)
+	sink := &routeV2RecordingStreamFailureSink{}
+	connection := dialRouteWebSocketTerminalTest(t, session, traces, sink)
 
 	if err := connection.WriteControl(
 		websocket.CloseMessage,
@@ -486,6 +497,9 @@ func TestRouteDispatcherCommitsWebSocketAfterRequestCloseAndResponseTerminal(t *
 	if !hasRouteTraceOutcome(records, routes.RouteTraceCommitted) ||
 		hasRouteTraceOutcome(records, routes.RouteTraceTransportFailed) {
 		t.Fatalf("terminal traces=%#v", records)
+	}
+	if events := sink.snapshot(); len(events) != 0 {
+		t.Fatalf("events=%#v", events)
 	}
 }
 
@@ -586,6 +600,7 @@ func dialRouteWebSocketTerminalTest(
 	t *testing.T,
 	session routes.RouteStreamSession,
 	traces *routes.RouteTraceRing,
+	streamFailures ...routes.RouteStreamFailureSink,
 ) *websocket.Conn {
 	t.Helper()
 	registry := routes.NewRegistry()
@@ -599,7 +614,7 @@ func dialRouteWebSocketTerminalTest(
 	}}}); err != nil {
 		t.Fatal(err)
 	}
-	dispatcher := routes.NewDispatcher(routes.DispatcherConfig{
+	config := routes.DispatcherConfig{
 		Plans: routeRegistryPlanResolver{registry: registry},
 		Steps: &streamHTTPTestInvoker{start: routes.RouteStreamStart{
 			Response: routes.DispatchResponse{Status: fiber.StatusSwitchingProtocols},
@@ -607,7 +622,11 @@ func dialRouteWebSocketTerminalTest(
 		}},
 		Guard: HostRouteGuardAuthorizer{},
 		Trace: traces,
-	})
+	}
+	if len(streamFailures) > 0 {
+		config.StreamFailures = streamFailures[0]
+	}
+	dispatcher := routes.NewDispatcher(config)
 	app := fiber.New()
 	app.Use(routeDispatcherMiddleware(dispatcher, nil))
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
@@ -674,12 +693,13 @@ func TestRouteDispatcherInvalidWebSocketPreflightFailsBeforeLifetimeDone(t *test
 	}
 	session := &webSocketPreflightOrderSession{}
 	traces := routes.NewRouteTraceRing(8)
+	sink := &routeV2RecordingStreamFailureSink{}
 	probe := &webSocketPreflightOrderProbe{inner: traces, session: session}
 	// Use Header.Set so keys are canonical; map literals break Header.Get and would
 	// skip subprotocol validation (selected == "" is treated as no selection).
 	preflightHeaders := make(stdhttp.Header)
 	preflightHeaders.Set("Sec-WebSocket-Protocol", "unsolicited.v1")
-	invoker := &streamHTTPTestInvoker{start: routes.RouteStreamStart{
+	invoker := &streamHTTPTestInvoker{observe: true, start: routes.RouteStreamStart{
 		Response: routes.DispatchResponse{
 			Status:  fiber.StatusSwitchingProtocols,
 			Headers: preflightHeaders,
@@ -688,7 +708,7 @@ func TestRouteDispatcherInvalidWebSocketPreflightFailsBeforeLifetimeDone(t *test
 	}}
 	dispatcher := routes.NewDispatcher(routes.DispatcherConfig{
 		Plans: routeRegistryPlanResolver{registry: registry}, Steps: invoker,
-		Guard: HostRouteGuardAuthorizer{}, Trace: probe,
+		Guard: HostRouteGuardAuthorizer{}, Trace: probe, StreamFailures: sink,
 	})
 	app := fiber.New()
 	app.Use(routeDispatcherMiddleware(dispatcher, nil))
@@ -730,6 +750,10 @@ func TestRouteDispatcherInvalidWebSocketPreflightFailsBeforeLifetimeDone(t *test
 	}
 	if !hasRouteTraceOutcome(traces.RouteTraces(0), routes.RouteTraceTransportFailed) {
 		t.Fatalf("missing fail trace: %#v", traces.RouteTraces(0))
+	}
+	events := sink.snapshot()
+	if len(events) != 1 || events[0].CauseClass != routes.RouteStreamFailureInvalidPreflight {
+		t.Fatalf("events=%#v", events)
 	}
 }
 
@@ -970,6 +994,7 @@ func prepareHTTPStreamAdapterTest(
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Cleanup(start.Session.Cancel)
 	// The fake invoker has no runtime call; mark the production-equivalent point
 	// before exercising adapter-side provenance.
 	prepared.Dispatch.RequestStarted()
@@ -1111,9 +1136,12 @@ type webSocketTerminalBarrierSession struct {
 	recvOnce        sync.Once
 	doneOnce        sync.Once
 	closeRequestErr error
+	sendErr         error
 	recvErr         error
 	response        routes.DispatchResponse
+	missingResponse bool
 	terminal        atomic.Bool
+	sendCalls       atomic.Int64
 }
 
 func newWebSocketTerminalBarrierSession() *webSocketTerminalBarrierSession {
@@ -1126,7 +1154,10 @@ func newWebSocketTerminalBarrierSession() *webSocketTerminalBarrierSession {
 	}
 }
 
-func (*webSocketTerminalBarrierSession) Send([]byte, bool) error { return nil }
+func (s *webSocketTerminalBarrierSession) Send([]byte, bool) error {
+	s.sendCalls.Add(1)
+	return s.sendErr
+}
 
 func (s *webSocketTerminalBarrierSession) CloseRequest() error {
 	s.requestOnce.Do(func() { close(s.requestClosed) })
@@ -1147,6 +1178,9 @@ func (s *webSocketTerminalBarrierSession) Recv() (routes.RouteStreamChunk, error
 }
 
 func (s *webSocketTerminalBarrierSession) Response() (routes.DispatchResponse, bool) {
+	if s.missingResponse {
+		return routes.DispatchResponse{}, false
+	}
 	return s.response, s.terminal.Load()
 }
 
