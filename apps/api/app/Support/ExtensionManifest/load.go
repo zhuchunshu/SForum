@@ -38,6 +38,7 @@ type ManifestIncludes struct {
 	Commands              json.RawMessage `json:"commands,omitempty"`
 	AdminSurfaces         json.RawMessage `json:"adminSurfaces,omitempty"`
 	Queries               json.RawMessage `json:"queries,omitempty"`
+	QueryResultFilters    json.RawMessage `json:"queryResultFilters,omitempty"`
 	Identity              json.RawMessage `json:"identity,omitempty"`
 	PermissionDefinitions json.RawMessage `json:"permissionDefinitions,omitempty"`
 	Media                 json.RawMessage `json:"media,omitempty"`

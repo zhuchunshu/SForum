@@ -112,6 +112,33 @@ func normalizeV3Platform(manifest *Manifest) {
 		item.Pagination = strings.ToLower(strings.TrimSpace(item.Pagination))
 		item.ResultSchema = strings.TrimSpace(item.ResultSchema)
 		item.PermissionPolicy = NormalizeID(item.PermissionPolicy)
+		item.Handler = strings.TrimSpace(item.Handler)
+		for fieldIndex := range item.IdentityFields {
+			item.IdentityFields[fieldIndex] = strings.TrimSpace(item.IdentityFields[fieldIndex])
+		}
+		for sortIndex := range item.DefaultSort {
+			item.DefaultSort[sortIndex].Field = strings.TrimSpace(item.DefaultSort[sortIndex].Field)
+		}
+	}
+	for index := range manifest.QueryResultFilters {
+		item := &manifest.QueryResultFilters[index]
+		item.ID = NormalizeID(item.ID)
+		item.ContractVersion = strings.TrimSpace(item.ContractVersion)
+		item.QueryID = NormalizeID(item.QueryID)
+		item.QueryContractVersion = strings.TrimSpace(item.QueryContractVersion)
+		item.QueryPlanVersion = strings.TrimSpace(item.QueryPlanVersion)
+		item.Handler = strings.TrimSpace(item.Handler)
+		item.FailurePolicy = strings.ToLower(strings.TrimSpace(item.FailurePolicy))
+		if item.FailurePolicy == "" {
+			item.FailurePolicy = QueryResultFilterFailureFailClosed
+		}
+		if item.TimeoutMS == 0 {
+			item.TimeoutMS = ManifestQueryResultFilterDefaultTimeoutMS
+		}
+		if item.Dependency != nil {
+			item.Dependency.ExtensionID = NormalizeID(item.Dependency.ExtensionID)
+			item.Dependency.VersionConstraint = strings.TrimSpace(item.Dependency.VersionConstraint)
+		}
 	}
 	if manifest.Identity != nil {
 		manifest.Identity.ContractVersion = strings.TrimSpace(manifest.Identity.ContractVersion)

@@ -54,6 +54,7 @@ cd apps/api && go run ./cmd/sforum extension docs generate --check
 | `permissions` | array \| null | no | yes |
 | `providers` | array \| null | no | yes |
 | `queries` | array \| null | no | yes |
+| `queryResultFilters` | array \| null | no | yes |
 | `regions` | array \| null | no | yes |
 | `requiresFeatures` | array \| null | no | no |
 | `routes` | array \| null | no | yes |
@@ -71,7 +72,7 @@ cd apps/api && go run ./cmd/sforum extension docs generate --check
 
 - Runtime and registries: `backend`, `routes`, `guards`, `hooks`, `events`, `jobs`, `schedules`, `providers`, `services`, and `commands`.
 - Presentation and content: `components`, `templates`, `assets`, `content`, `adminSurfaces`, `navigation`, and `regions`.
-- Data and identity: `migrations`, `database`, `cache`, `queries`, `identity`, `permissionDefinitions`, and `media`.
+- Data and identity: `migrations`, `database`, `cache`, `queries`, `queryResultFilters`, `identity`, `permissionDefinitions`, and `media`.
 - Package composition: `dependencies`, `lifecycle`, `openapi`, `packageFiles`, and `includes`.
 
 Themes remain presentation-only. Plugin permission definitions use `assignmentPolicy: host`; install or enable code never grants roles. Raw request guards, raw/kernel database authority, lifecycle execution, backend binaries, migrations, and L2 files enter exact-artifact trust review before first execution.

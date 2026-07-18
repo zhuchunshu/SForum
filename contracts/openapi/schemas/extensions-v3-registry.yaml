@@ -303,6 +303,7 @@ ExtensionManifestIncludes:
     commands: { "$ref": "#/ExtensionManifestInclude" }
     adminSurfaces: { "$ref": "#/ExtensionManifestInclude" }
     queries: { "$ref": "#/ExtensionManifestInclude" }
+    queryResultFilters: { "$ref": "#/ExtensionManifestInclude" }
     identity: { "$ref": "#/ExtensionManifestInclude" }
     permissionDefinitions: { "$ref": "#/ExtensionManifestInclude" }
     media: { "$ref": "#/ExtensionManifestInclude" }

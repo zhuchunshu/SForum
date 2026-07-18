@@ -454,6 +454,7 @@ func TestCanonicalTrustImpactDigestBindsAuthorityContractsAndDependencies(t *tes
 
 func TestManifestV3TrustImpactIncludesEveryDeclarationAndExecutableDigest(t *testing.T) {
 	extension := completeV3TrustExtension(t, "demo.v3-trust")
+	addTrustQueryRuntimeContract(t, &extension)
 	impact, err := buildTrustImpact(extension, TrustActionEnable)
 	if err != nil {
 		t.Fatal(err)
@@ -479,9 +480,9 @@ func TestManifestV3TrustImpactIncludesEveryDeclarationAndExecutableDigest(t *tes
 	if len(impact.GuardDeclarations) != 1 || len(impact.MigrationDeclarations) != 1 || len(impact.Schedules) != 1 ||
 		len(impact.RegistryComponents) != 1 || len(impact.Templates) != 1 || len(impact.Assets) != 1 || len(impact.Content) != 1 ||
 		impact.Database == nil || len(impact.Cache) != 1 || len(impact.SEO) != 1 || len(impact.Services) != 1 || len(impact.Commands) != 1 ||
-		len(impact.AdminSurfaces) != 1 || len(impact.Queries) != 1 || impact.Identity == nil || len(impact.PermissionDefinitions) != 1 ||
+		len(impact.AdminSurfaces) != 1 || len(impact.Queries) != 1 || len(impact.QueryResultFilters) != 1 || impact.Identity == nil || len(impact.PermissionDefinitions) != 1 ||
 		len(impact.Media) != 1 || len(impact.Navigation) != 1 || len(impact.Regions) != 1 || len(impact.Dependencies) != 1 ||
-		impact.Lifecycle == nil || len(impact.OpenAPI) != 1 || len(impact.PackageFiles) != 7 {
+		impact.Lifecycle == nil || len(impact.OpenAPI) != 1 || len(impact.PackageFiles) != 8 {
 		t.Fatalf("incomplete V3 trust impact: %#v", impact)
 	}
 }
@@ -528,7 +529,9 @@ func TestTrustImpactDatabaseGrantSetIsCanonicalAndDigestBound(t *testing.T) {
 }
 
 func TestManifestV3EveryDeclarationInvalidatesCanonicalTrustImpact(t *testing.T) {
-	base, err := buildTrustImpact(completeV3TrustExtension(t, "demo.v3-digest"), TrustActionEnable)
+	extension := completeV3TrustExtension(t, "demo.v3-digest")
+	addTrustQueryRuntimeContract(t, &extension)
+	base, err := buildTrustImpact(extension, TrustActionEnable)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -552,6 +555,7 @@ func TestManifestV3EveryDeclarationInvalidatesCanonicalTrustImpact(t *testing.T)
 		{name: "command", change: func(impact *TrustImpact) { impact.Commands = nil }},
 		{name: "admin surface", change: func(impact *TrustImpact) { impact.AdminSurfaces = nil }},
 		{name: "query", change: func(impact *TrustImpact) { impact.Queries = nil }},
+		{name: "query result filter", change: func(impact *TrustImpact) { impact.QueryResultFilters = nil }},
 		{name: "identity", change: func(impact *TrustImpact) { impact.Identity = nil }},
 		{name: "permission definition", change: func(impact *TrustImpact) { impact.PermissionDefinitions = nil }},
 		{name: "media", change: func(impact *TrustImpact) { impact.Media = nil }},
@@ -745,6 +749,34 @@ func TestV3StaticInstallByDelegatedManagerDoesNotExecutePackage(t *testing.T) {
 	if runtime.checks != 0 || runtime.starts != 0 {
 		t.Fatalf("impact preview executed package code: checks=%d starts=%d", runtime.checks, runtime.starts)
 	}
+}
+
+func addTrustQueryRuntimeContract(t *testing.T, extension *Extension) {
+	t.Helper()
+	const schemaPath = "schemas/query-items-result.json"
+	writeTrustFile(t, extension, schemaPath,
+		`{"type":"object","required":["id"],"properties":{"id":{"type":"integer"}},"additionalProperties":false}`,
+		0o600,
+	)
+	digest, err := digestInstalledFile(*extension, schemaPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	query := &extension.Manifest.Queries[0]
+	query.Sort = []string{"id"}
+	query.Handler = extension.ID + ".query.items.execute"
+	query.IdentityFields = []string{"id"}
+	query.DefaultSort = []ManifestQuerySort{{Field: "id"}}
+	extension.Manifest.QueryResultFilters = []ManifestQueryResultFilter{{
+		ID: extension.ID + ".query.items.decorate", ContractVersion: extension.ID + ".query.items.decorate@1",
+		QueryID: query.ID, QueryContractVersion: query.ContractVersion, QueryPlanVersion: query.PlanVersion,
+		Handler: extension.ID + ".query.items.decorate", FailurePolicy: extensionmanifest.QueryResultFilterFailureFailClosed,
+		TimeoutMS: extensionmanifest.ManifestQueryResultFilterDefaultTimeoutMS,
+	}}
+	extension.Manifest.PackageFiles = append(extension.Manifest.PackageFiles, ManifestPackageFile{
+		ID: extension.ID + ".query.items.result", Kind: "schema", Path: schemaPath, Digest: digest, Version: "1",
+	})
+	refreshTrustPackageIdentity(t, extension)
 }
 
 func completeV3TrustExtension(t *testing.T, id string) Extension {

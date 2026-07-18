@@ -111,6 +111,7 @@ type Manifest struct {
 	Commands              []ManifestCommand              `json:"commands,omitempty"`
 	AdminSurfaces         []ManifestAdminSurface         `json:"adminSurfaces,omitempty"`
 	Queries               []ManifestQuery                `json:"queries,omitempty"`
+	QueryResultFilters    []ManifestQueryResultFilter    `json:"queryResultFilters,omitempty"`
 	Identity              *ManifestIdentity              `json:"identity,omitempty"`
 	PermissionDefinitions []ManifestPermissionDefinition `json:"permissionDefinitions,omitempty"`
 	Media                 []ManifestMediaPipeline        `json:"media,omitempty"`
@@ -940,7 +941,7 @@ func isThemeManifestSupported(manifest Manifest) bool {
 		if len(manifest.Guards) != 0 || len(manifest.Schedules) != 0 ||
 			len(manifest.Content) != 0 || manifest.Database != nil || len(manifest.Cache) != 0 || len(manifest.SEO) != 0 ||
 			len(manifest.Services) != 0 || len(manifest.Commands) != 0 ||
-			len(manifest.AdminSurfaces) != 0 || len(manifest.Queries) != 0 ||
+			len(manifest.AdminSurfaces) != 0 || len(manifest.Queries) != 0 || len(manifest.QueryResultFilters) != 0 ||
 			manifest.Identity != nil || len(manifest.PermissionDefinitions) != 0 ||
 			len(manifest.Media) != 0 || manifest.Lifecycle != nil || len(manifest.OpenAPI) != 0 {
 			return false

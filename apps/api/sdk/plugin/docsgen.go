@@ -666,7 +666,7 @@ func renderManifestV3() string {
 	b.WriteString("\n## Declaration families\n\n")
 	b.WriteString("- Runtime and registries: `backend`, `routes`, `guards`, `hooks`, `events`, `jobs`, `schedules`, `providers`, `services`, and `commands`.\n")
 	b.WriteString("- Presentation and content: `components`, `templates`, `assets`, `content`, `adminSurfaces`, `navigation`, and `regions`.\n")
-	b.WriteString("- Data and identity: `migrations`, `database`, `cache`, `queries`, `identity`, `permissionDefinitions`, and `media`.\n")
+	b.WriteString("- Data and identity: `migrations`, `database`, `cache`, `queries`, `queryResultFilters`, `identity`, `permissionDefinitions`, and `media`.\n")
 	b.WriteString("- Package composition: `dependencies`, `lifecycle`, `openapi`, `packageFiles`, and `includes`.\n")
 	b.WriteString("\nThemes remain presentation-only. Plugin permission definitions use `assignmentPolicy: host`; install or enable code never grants roles. Raw request guards, raw/kernel database authority, lifecycle execution, backend binaries, migrations, and L2 files enter exact-artifact trust review before first execution.\n")
 	b.WriteString("\n## Exact-artifact workflow\n\n")

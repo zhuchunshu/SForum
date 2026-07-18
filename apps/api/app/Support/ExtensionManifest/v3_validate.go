@@ -343,7 +343,7 @@ func (v *v3Validator) validateHooksEventsJobsAndProviders() error {
 }
 
 func hasV3Declarations(manifest Manifest) bool {
-	if len(manifest.Guards)+len(manifest.Schedules)+len(manifest.Components)+len(manifest.Templates)+len(manifest.Assets)+len(manifest.Content)+len(manifest.Cache)+len(manifest.SEO)+len(manifest.Services)+len(manifest.Commands)+len(manifest.AdminSurfaces)+len(manifest.Queries)+len(manifest.PermissionDefinitions)+len(manifest.Media)+len(manifest.Navigation)+len(manifest.Regions)+len(manifest.Dependencies)+len(manifest.OpenAPI)+len(manifest.PackageFiles) > 0 || manifest.Database != nil || manifest.Identity != nil || manifest.Lifecycle != nil {
+	if len(manifest.Guards)+len(manifest.Schedules)+len(manifest.Components)+len(manifest.Templates)+len(manifest.Assets)+len(manifest.Content)+len(manifest.Cache)+len(manifest.SEO)+len(manifest.Services)+len(manifest.Commands)+len(manifest.AdminSurfaces)+len(manifest.Queries)+len(manifest.QueryResultFilters)+len(manifest.PermissionDefinitions)+len(manifest.Media)+len(manifest.Navigation)+len(manifest.Regions)+len(manifest.Dependencies)+len(manifest.OpenAPI)+len(manifest.PackageFiles) > 0 || manifest.Database != nil || manifest.Identity != nil || manifest.Lifecycle != nil {
 		return true
 	}
 	if manifest.Backend.Digest != "" || manifest.Backend.HostAPIVersion != "" {

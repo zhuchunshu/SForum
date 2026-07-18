@@ -45,6 +45,9 @@ func applyV3Includes(manifest *Manifest, includes ManifestIncludes, pkg PackageF
 	if err := applyListInclude(includes.Queries, pkg, "queries", &manifest.Queries); err != nil {
 		return err
 	}
+	if err := applyListInclude(includes.QueryResultFilters, pkg, "queryResultFilters", &manifest.QueryResultFilters); err != nil {
+		return err
+	}
 	if err := applyObjectInclude(includes.Identity, pkg, "identity", manifest.Identity != nil, &manifest.Identity); err != nil {
 		return err
 	}

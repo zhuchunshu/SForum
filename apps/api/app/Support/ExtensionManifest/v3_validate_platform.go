@@ -3,18 +3,30 @@ package extensionmanifest
 import "strings"
 
 const (
-	manifestDatabaseMaximumParameters      = 32
-	manifestDatabaseMaximumColumns         = 64
-	manifestDatabaseMaximumParameterSize   = 64 << 10
-	manifestDatabaseMaximumRows            = 1000
-	manifestDatabaseMaximumAffectedRows    = 10_000
-	manifestDatabaseMaximumTimeoutMS       = 5000
-	manifestIdentityMaximumRoleSuggestions = 64
-	manifestIdentityMaximumRiskHooks       = 128
-	ManifestSEOMaximumDeclarations         = 512
-	ManifestSEODefaultTimeoutMS            = 500
-	ManifestSEOMaximumTimeoutMS            = 5000
-	ManifestSEOMaximumPriority             = 1_000_000
+	manifestDatabaseMaximumParameters         = 32
+	manifestDatabaseMaximumColumns            = 64
+	manifestDatabaseMaximumParameterSize      = 64 << 10
+	manifestDatabaseMaximumRows               = 1000
+	manifestDatabaseMaximumAffectedRows       = 10_000
+	manifestDatabaseMaximumTimeoutMS          = 5000
+	manifestIdentityMaximumRoleSuggestions    = 64
+	manifestIdentityMaximumRiskHooks          = 128
+	ManifestSEOMaximumDeclarations            = 512
+	ManifestSEODefaultTimeoutMS               = 500
+	ManifestSEOMaximumTimeoutMS               = 5000
+	ManifestSEOMaximumPriority                = 1_000_000
+	ManifestQueryMaximumDeclarations          = 512
+	ManifestQueryMaximumIdentityFields        = 8
+	ManifestQueryMaximumSorts                 = 16
+	ManifestQueryResultFilterMaximum          = 64
+	ManifestQueryResultFilterDefaultTimeoutMS = 1000
+	ManifestQueryResultFilterMaximumTimeoutMS = 5000
+	ManifestQueryResultFilterMaximumPriority  = 1_000_000
+)
+
+const (
+	QueryResultFilterFailureFailClosed = "fail_closed"
+	QueryResultFilterFailureFailOpen   = "fail_open"
 )
 
 func (v *v3Validator) validatePlatform() error {
@@ -265,6 +277,12 @@ func (v *v3Validator) validateServicesCommandsAdminAndQueries() error {
 			return ErrInvalidManifest
 		}
 	}
+	if len(v.manifest.Queries) > ManifestQueryMaximumDeclarations ||
+		len(v.manifest.QueryResultFilters) > ManifestQueryResultFilterMaximum {
+		return ErrInvalidManifest
+	}
+	hasExecutableQuery := false
+	queries := make(map[string]ManifestQuery, len(v.manifest.Queries))
 	for _, query := range v.manifest.Queries {
 		if err := v.versionedID(query.ID, query.ContractVersion, "query"); err != nil {
 			return err
@@ -280,8 +298,115 @@ func (v *v3Validator) validateServicesCommandsAdminAndQueries() error {
 		if query.PermissionPolicy != "public" && query.PermissionPolicy != "login" && !manifestHasPermission(v.manifest, query.PermissionPolicy) {
 			return ErrInvalidManifest
 		}
+		if len(query.IdentityFields) > ManifestQueryMaximumIdentityFields || len(query.DefaultSort) > ManifestQueryMaximumSorts {
+			return ErrInvalidManifest
+		}
+		if query.Handler == "" {
+			if len(query.IdentityFields) != 0 || len(query.DefaultSort) != 0 {
+				return ErrInvalidManifest
+			}
+		} else {
+			hasExecutableQuery = true
+			if !validHandler(query.Handler) || !strings.HasPrefix(query.Handler, v.manifest.ID+".") ||
+				!validExecutableQueryShape(query) {
+				return ErrInvalidManifest
+			}
+		}
+		queries[query.ID] = query
+	}
+	if (hasExecutableQuery || len(v.manifest.QueryResultFilters) > 0) &&
+		(v.manifest.Type != TypePlugin || strings.TrimSpace(v.manifest.Backend.Entry) == "" || v.manifest.Backend.ProtocolVersion != 2) {
+		return ErrInvalidManifest
+	}
+	for _, filter := range v.manifest.QueryResultFilters {
+		if err := v.versionedID(filter.ID, filter.ContractVersion, "query_result_filter"); err != nil {
+			return err
+		}
+		if !manifestIDPattern.MatchString(filter.QueryID) || !validContractVersion(filter.QueryContractVersion) ||
+			!strings.HasPrefix(filter.QueryContractVersion, filter.QueryID+"@") ||
+			!validContractVersion(filter.QueryPlanVersion) || !validHandler(filter.Handler) ||
+			!strings.HasPrefix(filter.Handler, v.manifest.ID+".") ||
+			filter.Priority < -ManifestQueryResultFilterMaximumPriority || filter.Priority > ManifestQueryResultFilterMaximumPriority ||
+			filter.TimeoutMS <= 0 || filter.TimeoutMS > ManifestQueryResultFilterMaximumTimeoutMS ||
+			(filter.FailurePolicy != QueryResultFilterFailureFailClosed && filter.FailurePolicy != QueryResultFilterFailureFailOpen) {
+			return ErrInvalidManifest
+		}
+		target, self := queries[filter.QueryID]
+		if self {
+			if filter.Dependency != nil || target.Handler == "" || target.ContractVersion != filter.QueryContractVersion ||
+				target.PlanVersion != filter.QueryPlanVersion || len(target.IdentityFields) == 0 {
+				return ErrInvalidManifest
+			}
+			continue
+		}
+		if filter.Dependency == nil || filter.Dependency.ExtensionID == v.manifest.ID ||
+			!manifestIDPattern.MatchString(filter.Dependency.ExtensionID) ||
+			!strings.HasPrefix(filter.QueryID, filter.Dependency.ExtensionID+".") ||
+			!validSemverConstraint(filter.Dependency.VersionConstraint) ||
+			!manifestHasQueryResultFilterDependency(v.manifest, filter) {
+			return ErrInvalidManifest
+		}
 	}
 	return nil
+}
+
+func validExecutableQueryShape(query ManifestQuery) bool {
+	fields := make(map[string]struct{}, len(query.Fields))
+	for _, field := range query.Fields {
+		fields[field] = struct{}{}
+	}
+	sorts := make(map[string]struct{}, len(query.Sort))
+	for _, field := range query.Sort {
+		sorts[field] = struct{}{}
+	}
+	identities := make(map[string]struct{}, len(query.IdentityFields))
+	for _, field := range query.IdentityFields {
+		if _, duplicate := identities[field]; field == "" || duplicate {
+			return false
+		}
+		if _, ok := fields[field]; !ok {
+			return false
+		}
+		if _, ok := sorts[field]; !ok {
+			return false
+		}
+		identities[field] = struct{}{}
+	}
+	seenSorts := make(map[string]struct{}, len(query.DefaultSort))
+	for _, item := range query.DefaultSort {
+		if _, duplicate := seenSorts[item.Field]; item.Field == "" || duplicate {
+			return false
+		}
+		if _, ok := sorts[item.Field]; !ok {
+			return false
+		}
+		seenSorts[item.Field] = struct{}{}
+	}
+	if query.Pagination == "none" {
+		return true
+	}
+	if len(query.IdentityFields) == 0 || len(query.DefaultSort) < len(query.IdentityFields) {
+		return false
+	}
+	offset := len(query.DefaultSort) - len(query.IdentityFields)
+	for index, identity := range query.IdentityFields {
+		if query.DefaultSort[offset+index].Field != identity {
+			return false
+		}
+	}
+	return true
+}
+
+func manifestHasQueryResultFilterDependency(manifest Manifest, filter ManifestQueryResultFilter) bool {
+	for _, dependency := range manifest.Dependencies {
+		if dependency.ID != filter.Dependency.ExtensionID || dependency.Version != filter.Dependency.VersionConstraint {
+			continue
+		}
+		if dependency.Kind == "required" || dependency.Kind == "optional" && filter.FailurePolicy == QueryResultFilterFailureFailOpen {
+			return true
+		}
+	}
+	return false
 }
 
 func (v *v3Validator) validateIdentityAndPermissions() error {

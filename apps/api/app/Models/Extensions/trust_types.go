@@ -124,6 +124,7 @@ type TrustImpact struct {
 	Commands              []ManifestCommand              `json:"commands"`
 	AdminSurfaces         []ManifestAdminSurface         `json:"adminSurfaces"`
 	Queries               []ManifestQuery                `json:"queries"`
+	QueryResultFilters    []ManifestQueryResultFilter    `json:"queryResultFilters,omitempty"`
 	Identity              *ManifestIdentity              `json:"identity"`
 	PermissionDefinitions []ManifestPermissionDefinition `json:"permissionDefinitions"`
 	Media                 []ManifestMediaPipeline        `json:"media"`

@@ -249,7 +249,7 @@ func TestLegacyManifestRejectsV3Declarations(t *testing.T) {
 }
 
 func TestManifestV3LoadsEveryShardedDeclaration(t *testing.T) {
-	manifest := completeV3Manifest()
+	manifest := completeExecutableQueryManifest()
 	body, err := json.Marshal(manifest)
 	if err != nil {
 		t.Fatal(err)
@@ -260,7 +260,7 @@ func TestManifestV3LoadsEveryShardedDeclaration(t *testing.T) {
 	}
 	fields := []string{
 		"guards", "schedules", "components", "templates", "assets", "content",
-		"database", "cache", "seo", "services", "commands", "adminSurfaces", "queries",
+		"database", "cache", "seo", "services", "commands", "adminSurfaces", "queries", "queryResultFilters",
 		"identity", "permissionDefinitions", "media", "navigation", "regions",
 		"dependencies", "lifecycle", "openapi", "packageFiles",
 	}

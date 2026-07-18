@@ -89,7 +89,7 @@ func compiledManifestSchema(fragment string) (*jsonschema.Schema, error) {
 			return
 		}
 		manifestSchemas = map[string]*jsonschema.Schema{}
-		fragments := []string{"", "guards", "schedules", "components", "templates", "assets", "content", "database", "cache", "seo", "services", "commands", "adminSurfaces", "queries", "identity", "permissionDefinitions", "media", "navigation", "regions", "dependencies", "lifecycle", "openapi", "packageFiles"}
+		fragments := []string{"", "guards", "schedules", "components", "templates", "assets", "content", "database", "cache", "seo", "services", "commands", "adminSurfaces", "queries", "queryResultFilters", "identity", "permissionDefinitions", "media", "navigation", "regions", "dependencies", "lifecycle", "openapi", "packageFiles"}
 		for _, name := range fragments {
 			location := manifestV3SchemaURL
 			if name != "" {

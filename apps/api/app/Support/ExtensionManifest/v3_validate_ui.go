@@ -60,6 +60,11 @@ func (v *v3Validator) validateUIAndPackage() error {
 			return ErrInvalidManifest
 		}
 	}
+	for _, query := range v.manifest.Queries {
+		if query.Handler != "" && validContractVersion(query.ResultSchema) && !matchingVersionedSchemaFile(packageFiles, query.ResultSchema) {
+			return ErrInvalidManifest
+		}
+	}
 	for _, migration := range v.manifest.Migrations {
 		if !matchingPackageFile(packagePaths, migration.Path, "migration", migration.Digest) {
 			return ErrInvalidManifest

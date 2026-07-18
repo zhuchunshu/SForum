@@ -26,6 +26,7 @@ ExtensionManifestAdminSurface:
     priority: { type: integer }
 ExtensionManifestQuery:
   type: object
+  additionalProperties: false
   required: [id, contractVersion, entity, planVersion, fields, pagination, resultSchema, permissionPolicy]
   properties:
     id: { type: string }
@@ -50,6 +51,47 @@ ExtensionManifestQuery:
     cacheTags:
       type: array
       items: { type: string }
+    handler:
+      type: string
+      description: Explicit Protocol V2 execution binding; omission keeps the query declaration-only.
+    identityFields:
+      type: array
+      maxItems: 8
+      uniqueItems: true
+      items: { type: string }
+    defaultSort:
+      type: array
+      maxItems: 16
+      items: { "$ref": "#/ExtensionManifestQuerySort" }
+ExtensionManifestQuerySort:
+  type: object
+  additionalProperties: false
+  required: [field]
+  properties:
+    field: { type: string }
+    descending: { type: boolean, default: false }
+ExtensionManifestQueryResultFilterDependency:
+  type: object
+  additionalProperties: false
+  required: [extensionId, versionConstraint]
+  properties:
+    extensionId: { type: string }
+    versionConstraint: { type: string }
+ExtensionManifestQueryResultFilter:
+  type: object
+  additionalProperties: false
+  required: [id, contractVersion, queryId, queryContractVersion, queryPlanVersion, handler]
+  properties:
+    id: { type: string }
+    contractVersion: { type: string }
+    queryId: { type: string }
+    queryContractVersion: { type: string }
+    queryPlanVersion: { type: string }
+    handler: { type: string }
+    priority: { type: integer, minimum: -1000000, maximum: 1000000 }
+    failurePolicy: { type: string, enum: [fail_closed, fail_open], default: fail_closed }
+    timeoutMs: { type: integer, minimum: 1, maximum: 5000, default: 1000 }
+    dependency: { "$ref": "#/ExtensionManifestQueryResultFilterDependency" }
 ExtensionManifestIdentity:
   type: object
   required: [contractVersion]

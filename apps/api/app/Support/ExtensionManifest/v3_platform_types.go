@@ -117,6 +117,34 @@ type ManifestQuery struct {
 	ResultSchema     string   `json:"resultSchema"`
 	PermissionPolicy string   `json:"permissionPolicy"`
 	CacheTags        []string `json:"cacheTags,omitempty"`
+	// Handler explicitly opts this declaration into Host-to-plugin execution.
+	// Empty remains the compatible inspect/plan-only contract.
+	Handler        string              `json:"handler,omitempty"`
+	IdentityFields []string            `json:"identityFields,omitempty"`
+	DefaultSort    []ManifestQuerySort `json:"defaultSort,omitempty"`
+}
+
+type ManifestQuerySort struct {
+	Field      string `json:"field"`
+	Descending bool   `json:"descending,omitempty"`
+}
+
+type ManifestQueryResultFilter struct {
+	ID                   string                               `json:"id"`
+	ContractVersion      string                               `json:"contractVersion"`
+	QueryID              string                               `json:"queryId"`
+	QueryContractVersion string                               `json:"queryContractVersion"`
+	QueryPlanVersion     string                               `json:"queryPlanVersion"`
+	Handler              string                               `json:"handler"`
+	Priority             int                                  `json:"priority,omitempty"`
+	FailurePolicy        string                               `json:"failurePolicy,omitempty"`
+	TimeoutMS            int                                  `json:"timeoutMs,omitempty"`
+	Dependency           *ManifestQueryResultFilterDependency `json:"dependency,omitempty"`
+}
+
+type ManifestQueryResultFilterDependency struct {
+	ExtensionID       string `json:"extensionId"`
+	VersionConstraint string `json:"versionConstraint"`
 }
 
 type ManifestIdentity struct {

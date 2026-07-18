@@ -781,8 +781,14 @@ ExtensionManifest:
         "$ref": "./extensions-v3-platform.yaml#/ExtensionManifestAdminSurface"
     queries:
       type: array
+      maxItems: 512
       items:
         "$ref": "./extensions-v3-platform.yaml#/ExtensionManifestQuery"
+    queryResultFilters:
+      type: array
+      maxItems: 64
+      items:
+        "$ref": "./extensions-v3-platform.yaml#/ExtensionManifestQueryResultFilter"
     identity:
       "$ref": "./extensions-v3-platform.yaml#/ExtensionManifestIdentity"
     permissionDefinitions:
@@ -2245,6 +2251,11 @@ ExecutableTrustImpact:
       type: array
       items:
         "$ref": "./extensions-v3-platform.yaml#/ExtensionManifestQuery"
+    queryResultFilters:
+      type: array
+      maxItems: 64
+      items:
+        "$ref": "./extensions-v3-platform.yaml#/ExtensionManifestQueryResultFilter"
     identity:
       oneOf:
       - "$ref": "./extensions-v3-platform.yaml#/ExtensionManifestIdentity"

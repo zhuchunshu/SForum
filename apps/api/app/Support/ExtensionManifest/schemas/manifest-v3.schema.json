@@ -46,6 +46,7 @@
     "commands": { "$ref": "#/$defs/commands" },
     "adminSurfaces": { "$ref": "#/$defs/adminSurfaces" },
     "queries": { "$ref": "#/$defs/queries" },
+    "queryResultFilters": { "$ref": "#/$defs/queryResultFilters" },
     "identity": { "$ref": "#/$defs/identity" },
     "permissionDefinitions": { "$ref": "#/$defs/permissionDefinitions" },
     "media": { "$ref": "#/$defs/media" },
@@ -869,6 +870,7 @@
     },
     "queries": {
       "type": ["array", "null"],
+      "maxItems": 512,
       "items": {
         "type": "object",
         "additionalProperties": false,
@@ -885,8 +887,83 @@
           "pagination": { "enum": ["none", "offset", "cursor"] },
           "resultSchema": { "$ref": "#/$defs/schemaRef" },
           "permissionPolicy": { "$ref": "#/$defs/nonEmpty" },
-          "cacheTags": { "$ref": "#/$defs/stringArray" }
+          "cacheTags": { "$ref": "#/$defs/stringArray" },
+          "handler": { "$ref": "#/$defs/handler" },
+          "identityFields": {
+            "type": ["array", "null"],
+            "maxItems": 8,
+            "uniqueItems": true,
+            "items": { "$ref": "#/$defs/nonEmpty" }
+          },
+          "defaultSort": {
+            "type": ["array", "null"],
+            "maxItems": 16,
+            "items": { "$ref": "#/$defs/querySort" }
+          }
+        },
+        "allOf": [
+          {
+            "if": { "not": { "required": ["handler"] } },
+            "then": {
+              "properties": {
+                "identityFields": { "maxItems": 0 },
+                "defaultSort": { "maxItems": 0 }
+              }
+            }
+          },
+          {
+            "if": {
+              "required": ["handler"],
+              "properties": { "pagination": { "enum": ["offset", "cursor"] } }
+            },
+            "then": {
+              "required": ["identityFields", "defaultSort"],
+              "properties": {
+                "identityFields": { "minItems": 1 },
+                "defaultSort": { "minItems": 1 }
+              }
+            }
+          }
+        ]
+      }
+    },
+    "querySort": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["field"],
+      "properties": {
+        "field": { "$ref": "#/$defs/nonEmpty" },
+        "descending": { "type": "boolean", "default": false }
+      }
+    },
+    "queryResultFilters": {
+      "type": ["array", "null"],
+      "maxItems": 64,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "contractVersion", "queryId", "queryContractVersion", "queryPlanVersion", "handler"],
+        "properties": {
+          "id": { "$ref": "#/$defs/id" },
+          "contractVersion": { "$ref": "#/$defs/contract" },
+          "queryId": { "$ref": "#/$defs/id" },
+          "queryContractVersion": { "$ref": "#/$defs/contract" },
+          "queryPlanVersion": { "$ref": "#/$defs/contract" },
+          "handler": { "$ref": "#/$defs/handler" },
+          "priority": { "type": "integer", "minimum": -1000000, "maximum": 1000000 },
+          "failurePolicy": { "enum": ["fail_closed", "fail_open"] },
+          "timeoutMs": { "type": "integer", "minimum": 1, "maximum": 5000, "default": 1000 },
+          "dependency": { "$ref": "#/$defs/queryResultFilterDependency" }
         }
+      }
+    },
+    "queryResultFilterDependency": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["extensionId", "versionConstraint"],
+      "properties": {
+        "extensionId": { "$ref": "#/$defs/id" },
+        "versionConstraint": { "$ref": "#/$defs/nonEmpty" }
       }
     },
     "permissionDefinitions": {
@@ -1120,6 +1197,7 @@
         "commands": { "$ref": "#/$defs/include" },
         "adminSurfaces": { "$ref": "#/$defs/include" },
         "queries": { "$ref": "#/$defs/include" },
+        "queryResultFilters": { "$ref": "#/$defs/include" },
         "identity": { "$ref": "#/$defs/include" },
         "permissionDefinitions": { "$ref": "#/$defs/include" },
         "media": { "$ref": "#/$defs/include" },
