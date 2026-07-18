@@ -70,9 +70,10 @@ func TestRouteStreamAcrossFiberManagerAndRealProtocolV2Process(t *testing.T) {
 		t.Fatal(err)
 	}
 	traces := routes.NewRouteTraceRing(32)
+	streamFailures := &routeV2RecordingStreamFailureSink{}
 	dispatcher := routes.NewDispatcher(routes.DispatcherConfig{
 		Plans: routeRegistryPlanResolver{registry: registry}, Steps: NewBufferedRouteStepInvoker(manager),
-		Guard: HostRouteGuardAuthorizer{}, Trace: traces,
+		Guard: HostRouteGuardAuthorizer{}, Trace: traces, StreamFailures: streamFailures,
 	})
 	app := fiber.New(fiber.Config{StreamRequestBody: true, DisablePreParseMultipartForm: true})
 	app.Use(routeDispatcherMiddleware(dispatcher, nil))
@@ -367,7 +368,9 @@ func TestRouteStreamAcrossFiberManagerAndRealProtocolV2Process(t *testing.T) {
 			t.Fatal("inner ForceDrain published outer Done before adapter trace")
 		default:
 		}
-		_ = prepared.Dispatch.StreamFailed(forceCause)
+		if err := prepared.Dispatch.StreamAborted(forceCause); !errors.Is(err, forceCause) {
+			t.Fatalf("forced stream abort=%v want %v", err, forceCause)
+		}
 		start.Session.Cancel()
 		select {
 		case <-source.Done():
@@ -381,6 +384,9 @@ func TestRouteStreamAcrossFiberManagerAndRealProtocolV2Process(t *testing.T) {
 
 	if records := traces.RouteTraces(32); len(records) < minimumTraces {
 		t.Fatalf("real stream traces=%#v", records)
+	}
+	if events := streamFailures.snapshot(); len(events) != 0 {
+		t.Fatalf("normal, disconnect, and ForceDrain paths recorded incidents: %#v", events)
 	}
 }
 
