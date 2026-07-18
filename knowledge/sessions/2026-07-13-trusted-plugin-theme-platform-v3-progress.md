@@ -14,6 +14,53 @@ Last updated: 2026-07-19
 
 ## Current Subtask
 
+### 2026-07-19 Query ForceDrain Exact-Lease Checkpoint (no P7 credit)
+
+- Verified weighted progress remains **66.9205%** (display **66.0%**); P7 stays
+  **16/22**. This closes the exact in-flight cancellation prerequisite, not the
+  authoritative Query task or joined-test row.
+- `50ce3f7d2` adds context-bearing exact execution leases for query owners and
+  every selected result-filter artifact. Provider, filter, permission, Schema,
+  resolver, cache-load, cache-store, cache-hit, and final release fences scan
+  the frozen lease set before interpreting callback errors. Independent
+  Manager cancellation retains both `ErrArtifactUnavailable` and its original
+  ForceDrain cause; ordinary caller cancellation stays cancellation; a later
+  caller cancel cannot overwrite an earlier independent runtime failure.
+- Plugin-shaped `context.Canceled` remains an ordinary callback failure eligible
+  for declared `fail_open`; a real Host filter timeout remains fail-closed.
+  Release-only `ExecutionAdmission` stays source-compatible but third-party
+  execution deliberately fails closed because it cannot carry ForceDrain.
+- `3ed94ac86` freezes `ActiveVersionID` in the Host-only Manager runtime
+  snapshot and compares it in lifecycle Query admission, planning, publication,
+  provider/filter execution, and retained runtime checks. A tuple with matching
+  extension version, package digest, and instance but a different database
+  VersionID is rejected.
+- `6a05fe215` wires the contextual lease into production bootstrap, preserves
+  ForceDrain-vs-caller first-wins semantics, rejects a wrong VersionID before a
+  candidate cache hit, and migrates the reference/resolver test admissions.
+  `249a4e168` maps a forced Query drain to non-retryable
+  `host.query_runtime_stale` instead of INTERNAL/CANCELLED. `afae06401` records
+  the intentional contextual-admission compatibility migration.
+- Normal gates passed: QueryRegistry `TestExecution*` up to `count=50`,
+  bootstrap/HostAPI Query up to `count=50`, Extensions Manager/Query lifecycle
+  up to `count=20`, and the VersionID-only negative gate `count=50`. Race gates
+  passed: QueryRegistry up to `count=20`, bootstrap/HostAPI up to `count=20`,
+  Extensions up to `count=10`, and VersionID-only negative `count=20`.
+  `go vet` for QueryRegistry/Extensions/HostAPI/bootstrap and `git diff --check`
+  pass. One whole-Execution race run launched beside three other race packages
+  starved the cumulative deadline test; the exact test passed isolated
+  `count=20` and later isolated QueryRegistry race matrices passed.
+- Exact next Query step: add a true production joined gate using a real Manager
+  and Protocol V2 subprocess for query owner plus cross-plugin fail-open filter,
+  ForceDrain each exact runtime during an in-flight call, cover cache-hit and
+  multi-artifact release/cause behavior, and prove upgrade/replace isolation.
+  Then repair and wire the bounded generation-fenced Redis cache with semantic
+  invalidation. Do not credit either P7 Query row before both joined exits pass.
+- Unowned/blocked dirty work remains `redis_cache*.go`, route/WebSocket tests,
+  PageViewModels, public/admin frontend policy and Inspector files,
+  `bootstrap/app.go`, `go.mod`, the content-policy manifest, and V3 task-book
+  edits. Preserve and exclude them from Query commits.
+
 ### 2026-07-19 Query Settings Exact-Runtime Transaction Checkpoint (no P7 credit)
 
 - Verified weighted progress remains **66.9205%** (display **66.0%**); P7 stays
