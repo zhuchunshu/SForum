@@ -19,6 +19,7 @@ import (
 	forumjobs "github.com/zhuchunshu/sforum/apps/api/app/Jobs/Forum"
 	identityjobs "github.com/zhuchunshu/sforum/apps/api/app/Jobs/Identity"
 	notificationjobs "github.com/zhuchunshu/sforum/apps/api/app/Jobs/Notifications"
+	queryregistryjobs "github.com/zhuchunshu/sforum/apps/api/app/Jobs/QueryRegistry"
 	webhookjobs "github.com/zhuchunshu/sforum/apps/api/app/Jobs/Webhooks"
 	attachments "github.com/zhuchunshu/sforum/apps/api/app/Models/Attachments"
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
@@ -79,6 +80,9 @@ type workerRuntimeDeps struct {
 	// Embed mode leaves it nil because the API-owned Gateway is already bound.
 	HostCacheRedis          *redis.Client
 	HostCacheInstallationID string
+	// QueryInvalidation is worker-owned in both standalone and embedded modes.
+	// It must never reuse the API execution-cache client.
+	QueryInvalidation *productionQueryInvalidationRuntime
 	// OwnsRuntime 为 true 时 Worker.Close 关闭 runtime（及自建的 Host API gateway）。
 	// 注入共享 runtime 时必须为 false，由 API shutdown 负责 Close。
 	OwnsRuntime bool
@@ -455,10 +459,12 @@ func NewWorker(ctx context.Context, cfg config.Config, logger *slog.Logger) (*Wo
 		ConnMaxIdleTime: cfg.RedisConnMaxIdleTime,
 		ConnMaxLifetime: cfg.RedisConnMaxLifetime,
 	})
+	queryInvalidation := newProductionQueryInvalidationRuntime(cfg, hostInstallationID, logger)
 	// 独立 worker：自建 runtime，OwnsRuntime 由 newWorkerWithPool 在 nil inject 时设为 true。
 	worker, err := newWorkerWithPool(cfg, pool, logger, workerRuntimeDeps{
 		BootstrapContext: ctx,
 		HostCacheRedis:   redisClient, HostCacheInstallationID: hostInstallationID,
+		QueryInvalidation: queryInvalidation,
 	})
 	if err != nil {
 		_ = redisClient.Close()
@@ -511,7 +517,17 @@ func resolveWorkerExtensionRuntime(
 }
 
 func newWorkerWithPool(cfg config.Config, pool *pgxpool.Pool, logger *slog.Logger, deps workerRuntimeDeps) (*Worker, error) {
+	queryInvalidation := deps.QueryInvalidation
+	queryInvalidationHandedOff := false
+	defer func() {
+		if !queryInvalidationHandedOff {
+			queryInvalidation.Close()
+		}
+	}()
 	registry := supportjobs.NewRegistry()
+	// Safe Mode 也注册 kind；nil invalidator 会让已提交任务 snooze，避免被
+	// River 当作 unknown kind 消耗重试或永久丢弃。
+	queryregistryjobs.Register(registry, queryInvalidation.Invalidator(), logger)
 	pluginSchedules := deps.PluginSchedules
 	if pluginSchedules == nil {
 		pluginSchedules = supportjobs.NewPluginScheduleAdmissionRegistry()
@@ -692,9 +708,13 @@ func newWorkerWithPool(cfg config.Config, pool *pgxpool.Pool, logger *slog.Logge
 			return nil, err
 		}
 		runtimeOwnershipTransferred = true
+		queryInvalidationHandedOff = true
 		return &Worker{
 			Schedules: scheduleRegistry, PluginSchedules: pluginSchedules,
-			failures: runtimeOwner.Failures(), close: runtimeOwner.Close,
+			failures: runtimeOwner.Failures(), close: func() {
+				queryInvalidation.Close()
+				runtimeOwner.Close()
+			},
 		}, nil
 	}
 
@@ -724,12 +744,16 @@ func newWorkerWithPool(cfg config.Config, pool *pgxpool.Pool, logger *slog.Logge
 
 	// 仅 worker 拥有 runtime 时关闭；embed 注入路径由 API 在 River stop 之后关闭。
 	runtimeOwnershipTransferred = true
+	queryInvalidationHandedOff = true
 	return &Worker{
 		Client:          client,
 		Schedules:       scheduleRegistry,
 		PluginSchedules: pluginSchedules,
 		failures:        runtimeOwner.Failures(),
-		close:           runtimeOwner.Close,
+		close: func() {
+			queryInvalidation.Close()
+			runtimeOwner.Close()
+		},
 	}, nil
 }
 
