@@ -14,6 +14,44 @@ Last updated: 2026-07-19
 
 ## Current Subtask
 
+### 2026-07-19 Query Cache Fence And Owner-Scoped Tag Checkpoint (no P7 credit)
+
+- Verified weighted progress remains **66.9205%**; P7 stays **16/22**. These
+  commits close cache correctness prerequisites, not the production Redis,
+  durable invalidation, bootstrap wiring, or lifecycle joined rows.
+- `fd058aaa7` changes `QueryResultCache` misses to return a backend-owned opaque
+  fence that must be passed unchanged to Store. Semantic invalidation during a
+  provider call rejects the stale Store; load poison fails closed; ordinary
+  load errors and missing fences bypass Store; Store conflict/poison/error stay
+  non-authoritative but trace-visible. Exact token and tag clone ownership are
+  covered explicitly.
+- `ff78dd92f` binds shared semantic tags to the stable owner ExtensionID while
+  deliberately excluding version, digest, VersionID, and runtime instance.
+  Manifest and Registry declarations now canonicalize lowercase owner-prefixed
+  tags, reject foreign/ownerless/duplicate/invalid/over-limit tags, and the
+  reference Query package uses the frozen contract. `71fde54f3` removes limit
+  test false positives and proves 32 accepted / 33 rejected plus both reachable
+  cross-owner isolation and lower-level defense in depth.
+- Complete QueryRegistry and ExtensionManifest normal/race gates pass. The real
+  reference Query subprocess and production ForceDrain joined gates pass normal
+  and `-race -count=3`; QueryRegistry/ExtensionManifest/Extensions/bootstrap vet
+  passes. Codex CLI read-only review found no production blocker after its test
+  findings were corrected.
+- The untracked `redis_cache*.go` remains blocked and must not be staged as-is.
+  Its Lua helper returns `redis.error_reply` tables without aborting, so poison
+  can be mistaken for a fence conflict and invalidation can partially mutate
+  before WRONGTYPE. It also sends an approximately 8 MiB envelope through Lua
+  ARGV and retains permanent per-tag generation keys.
+- Exact next step: replace Redis generation storage with one permanent
+  installation epoch plus TTL tag epochs; stage envelopes with ordinary SET and
+  finalize through a small preflight-first Lua script on one connection; add
+  Redis >=7.2/AOF/WAITAOF/noeviction startup probing and real Redis poison,
+  restart, TTL, and durability gates. Then add Host-owned River invalidation and
+  production bootstrap wiring before claiming either P7 Query row.
+- Rollback is additive: revert `71fde54f3`, `ff78dd92f`, then `fd058aaa7`. No
+  migration, branch, worktree, push, tag, production cache wiring, or unrelated
+  dirty file changed.
+
 ### 2026-07-19 Query Production ForceDrain Joined Checkpoint (no P7 credit)
 
 - Verified weighted progress remains **66.9205%** (display **66.0%**); P7 stays
