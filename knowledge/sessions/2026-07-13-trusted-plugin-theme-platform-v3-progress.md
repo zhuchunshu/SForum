@@ -4,8 +4,8 @@ Last updated: 2026-07-18
 
 ## Progress
 
-- Verified weighted progress: **66.4659%** (display **66.0%**).
-- Phase counts: P0-P6 and P8 complete; P6 **18/18**, P7 **15/22**,
+- Verified weighted progress: **66.9205%** (display **66.0%**).
+- Phase counts: P0-P6 and P8 complete; P6 **18/18**, P7 **16/22**,
   P8 **18/18**, P9 **4/16**, P11 **1/16**, and P12 **1/22**. P10 and P13
   have no credited authoritative row yet.
 - Completion remains unproven until all 99 target rows, 14 accepted boundaries,
@@ -13,6 +13,27 @@ Last updated: 2026-07-18
   gates pass.
 
 ## Current Subtask
+
+### 2026-07-18 P7 Host-Owned Role Mapping Joined Closure
+
+- Verified weighted progress is **66.9205%** (display **66.0%**); P7 advances
+  from **15/22** to **16/22** after the Host-owned permission-assignment task
+  passed its missing joined proof.
+- `d07129dd5` uses an exact Manifest V3 lifecycle plugin, the production
+  lifecycle Registry boundary, and the PostgreSQL Identity store to publish one
+  pending `operator` recommendation with exact owner/declaration/catalog/root
+  evidence. No role mapping or grant exists after enable or restart restoration.
+- The existing real Fiber controller rejects an operator cookie, bearer-only,
+  and mixed bearer + administrator-cookie authority. A cookie-authenticated
+  `super_admin` approval adds exactly one additive mapping, grant, and audit,
+  preserves the operator's existing permission, and replays without new evidence.
+- Focused current-version normal **5** and race **3**, complete Identity
+  controller/model/registry normal and race, complete Extensions normal, build,
+  vet, formatting, staged review, and an independent `NO BLOCKER` review passed.
+- Exact next step: freeze the executable Query provider/result-filter contract
+  before implementing its real Protocol V2 transport. Current Query lifecycle,
+  cost, permission, pagination, and cache primitives remain disconnected
+  foundation and are not credited as the Query task or joined test rows.
 
 ### 2026-07-18 P7 Execution Policy Matrix Closure
 
@@ -1354,13 +1375,15 @@ the accepted product contract.
 
 ## Exact Next Steps
 
-1. Add the P7 Host-owned role-mapping joined PostgreSQL/Fiber proof without
-   modifying the dirty Admin Surface reference test or silently granting roles.
-2. Continue Query Registry production plugin transport and composition only
-   after its Manifest/Schema/Protocol contract is explicitly frozen.
-3. Keep implementation/tests/docs in separate commits; never stage unowned dirty
+1. Freeze the Query provider/result-filter Manifest, Schema, Protocol V2, and
+   SDK contract before adding production transport or claiming Query credit.
+2. Implement the real Query subprocess, RBAC/cost/pagination/cache composition
+   gates only after that contract commit.
+3. Freeze executable Identity provider operations separately; do not treat its
+   durable descriptor catalog as execution evidence.
+4. Keep implementation/tests/docs in separate commits; never stage unowned dirty
    files listed under Dirty Worktree Ownership.
-4. Add full-set/staged-publication quarantine concurrency coverage. Current
+5. Add full-set/staged-publication quarantine concurrency coverage. Current
    quarantine is intentionally node/process-local; cross-node or restart
    persistence requires an explicit durable incident/clear contract rather
    than overloading lifecycle publication reasons.
@@ -1372,6 +1395,9 @@ the accepted product contract.
   directly.
 - Reverting `fea430020` removes the publication proof fence and its tests but
   does not roll back migration tables, proofs, or runtime publication history.
+- Reverting `d07129dd5` removes only the joined Host-owned role-mapping proof;
+  the additive production review, Identity Registry, and migration contracts
+  remain unchanged.
 - Protocol v1 compatibility remains present until P13 removal gates pass.
 - Safe Mode remains Host-owned and filters third-party Registry publications.
 - No database migration, feature-flag default, legacy deletion, push, tag, PR,
@@ -1379,5 +1405,6 @@ the accepted product contract.
 
 ## Open Questions
 
-- None for the current P7 execution-policy boundary. Host-owned role mapping
-  remains an implementation/test task, not an unresolved product decision.
+- None for the closed P7 execution-policy and Host-owned role-mapping boundaries.
+  Query and executable Identity/Auth/Profile contracts remain implementation
+  work under the accepted P7 safety rules, not unresolved product decisions.

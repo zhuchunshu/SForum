@@ -554,7 +554,7 @@ query, and identity workflows without replacing whole routes.
 - [ ] Implement Auth/Profile Provider surfaces for registration, login, account
       recovery, profile sections, account management, and external identity
       linking without exposing raw session cookies as authority by default.
-- [ ] Keep permission assignment Host-owned: install/enable previews declared
+- [x] Keep permission assignment Host-owned: install/enable previews declared
       capabilities but never grants them silently; admins approve role mappings.
 - [ ] Add extension read/call/manage authority for trusted automation plugins.
 - [x] Generate hook/service/provider/job/schedule/command docs and SDK clients.

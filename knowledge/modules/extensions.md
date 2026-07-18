@@ -812,7 +812,7 @@ template while retaining Schema fallback fields.
 
 ## V3 P7 Admin Surface checkpoint
 
-- P7 is 15/22. The immutable Admin Surface Registry publishes declarations
+- P7 is 16/22. The immutable Admin Surface Registry publishes declarations
   for all twelve V3 kinds to exact active runtime instances, restores/removes
   them through lifecycle snapshots, and invokes typed Protocol V2 handlers under
   exact admission with one frozen validator for both input and output.
@@ -836,8 +836,13 @@ template while retaining Schema fallback fields.
   Manager, real Protocol V2, and HostAPI gates join priority, exact hook/provider
   deadlines, fail-open/fail-closed isolation, version mismatch, optional and
   required dependency disable, package cycles, provider fallback, and exact
-  staged-upgrade ownership. Role mapping, Query, Identity/Auth/Profile, and
-  automation authority remain open.
+  staged-upgrade ownership.
+- Host-owned role mapping is now closed by `TestP7HostOwnedRoleMappingJoined`.
+  A real lifecycle Registry publication creates only a durable pending
+  recommendation; restart restoration, denied operator/bearer requests, explicit
+  cookie approval, additive PostgreSQL mapping/grant/audit evidence, and replay
+  all pass without replacing unrelated role permissions. Query,
+  Identity/Auth/Profile, and automation authority remain open.
 
 ## V3 P8 theme runtime checkpoint
 

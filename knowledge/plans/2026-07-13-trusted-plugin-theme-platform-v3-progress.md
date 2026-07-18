@@ -23,7 +23,7 @@ scaffolding, or demo-only code cannot satisfy a runtime exit criterion.
 | P4 Lifecycle/dependencies | 7% | 100% | 7% |
 | P5 Database/commands | 8% | 100% | 8% |
 | P6 Routes/middleware | 10% | 100% | 10.00% |
-| P7 Workflow/admin/query/identity | 10% | 68% | 6.82% |
+| P7 Workflow/admin/query/identity | 10% | 73% | 7.27% |
 | P8 Theme compiler/runtime | 8% | 100% | 8% |
 | P9 Components/assets/L2 | 8% | 25% | 2.00% |
 | P10 Content/media/data | 8% | 0% | 0% |
@@ -124,6 +124,25 @@ or treated as expired only after the complete V3 goal is achieved.
   failing plugin exactly once (`failed`, then `skipped`).
 
 ## Last Durable Checkpoint
+
+### 2026-07-18 P7 Host-Owned Role Mapping Joined Closure
+
+- Exact weighted progress is `66.9205%`; floored display progress remains
+  **66.0%**. P7 advances from **15/22** to **16/22** after the Host-owned
+  permission-assignment task passed one joined production-path proof.
+- `d07129dd5` drives an exact Manifest V3 lifecycle plugin through the real
+  lifecycle Registry boundary and PostgreSQL Identity store. Publication creates
+  only one pending `operator` recommendation, persists exact owner/declaration/
+  catalog/root evidence, and restores the same graph after a fresh Host restart
+  without adding a role mapping or grant.
+- The real Fiber boundary rejects the operator, bearer-only, and mixed bearer +
+  cookie attempts. A cookie-authenticated `super_admin` decision then adds one
+  mapping, immutable grant, exact audit event, and no duplicate evidence on
+  replay while preserving the operator's existing permission.
+- Focused PostgreSQL normal/race, complete Identity controller/model/registry
+  normal/race, complete Extensions normal, build, vet, formatting, diff review,
+  and an independent `NO BLOCKER` review pass. Query and executable Identity/
+  Auth/Profile production chains remain open and receive no credit here.
 
 ### 2026-07-18 P7 Execution Policy Matrix Closure
 

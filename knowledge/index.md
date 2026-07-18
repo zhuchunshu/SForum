@@ -10,11 +10,11 @@ This is the entry point for project memory.
   - Task book: `knowledge/plans/2026-07-13-trusted-plugin-theme-platform-v3.md`
   - Current durable checkpoint:
     `knowledge/sessions/2026-07-13-trusted-plugin-theme-platform-v3-progress.md`
-  - P6 is complete at **18/18**. Weighted progress is **66.4659%** (display
+  - P6 is complete at **18/18**. Weighted progress is **66.9205%** (display
     **66.0%**). The accepted opaque non-HTTP boundary now has real generic
     binary subprocess evidence, bounded TCP backpressure, classified durable
     incidents, zero-incident caller/Host paths, and complete named Routes/HTTP/
-    PostgreSQL production gates. P7 is **15/22**.
+    PostgreSQL production gates. P7 is **16/22**.
   - Active checkpoint: `knowledge/sessions/2026-07-16-trusted-plugin-theme-platform-v3-runtime-ownership-checkpoint.md`
   - Prior Query/P12/SEO checkpoint:
     `knowledge/sessions/2026-07-16-trusted-plugin-theme-platform-v3-query-p12-seo-checkpoint.md`
@@ -148,7 +148,7 @@ This is the entry point for project memory.
     immutable planning removed full-catalog per-request copies, while the report
     retains the selected-route latency/bytes/allocation regression and requires
     P13 remeasurement
-  - P7 is 15/22 (68%). Versioned namespaced action/filter hooks now publish one
+  - P7 is 16/22 (73%). Versioned namespaced action/filter hooks now publish one
     immutable exact-runtime graph with deterministic priority, typed contracts,
     dependency SemVer, optional fallback, Host revalidation, River delivery,
     lifecycle rollback, and exact Protocol V2 invocation
@@ -162,6 +162,9 @@ This is the entry point for project memory.
     roles screen. Exact-CAS approve/reject/apply decisions preserve the rule that
     install and enable never grant permissions, retain unrelated unsaved role
     edits, and fail closed on stale, conflicting, denied, or incomplete evidence.
+    The joined lifecycle/PostgreSQL/Fiber gate proves pending-only publication,
+    restart restoration, operator and bearer denial, explicit cookie approval,
+    additive mapping/grant/audit evidence, and idempotent replay.
   - Typed versioned Provider Slots now add immutable exact-runtime discovery,
     dependency/SemVer fallback, Host request/response revalidation, bounded
     Protocol V2 calls, lifecycle restore, and the real Plugin B -> Host broker
