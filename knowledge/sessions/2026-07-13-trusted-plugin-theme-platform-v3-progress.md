@@ -14,6 +14,24 @@ Last updated: 2026-07-18
 
 ## Current Subtask
 
+### 2026-07-18 Custom Caller Stream Provenance Checkpoint
+
+- Verified weighted progress remains **64.9003%** (display **64.9%**); P6 stays
+  **16/18**.
+- `718e0c827 fix(routes): preserve custom caller stream provenance` carries an
+  arbitrary `context.WithCancelCause` caller reason as an explicit non-incident
+  abort across the Host lifetime and exact runtime context. Open classification
+  now resolves Host budget first, caller ownership second, and typed disposition
+  third, so a late caller cannot downgrade a budget incident.
+- Regression matrices prove observed custom caller cancellation records zero
+  incidents, while an independent runtime crash and Host budget still record
+  their exact classes and an explicit Host abort remains non-incident. Focused
+  tests passed **50** repetitions and race passed **20**; complete Routes,
+  Routes/Http vet, full build, staged diff, and whitespace gates passed.
+- Exact resume point: prevent ForceDrain/Host-budget terminal winners from being
+  overwritten by raw wire teardown errors in Send/CloseRequest/Recv, then finish
+  and independently verify the WebSocket adapter provenance diff.
+
 ### 2026-07-18 HTTP/SSE Stream Adapter Classification Checkpoint
 
 - Verified weighted progress remains **64.9003%** (display **64.9%**); P6 stays
