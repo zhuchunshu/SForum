@@ -20,11 +20,16 @@ func cloneQueryDeclaration(value QueryDeclaration) QueryDeclaration {
 	value.Filters = slices.Clone(value.Filters)
 	value.Sort = slices.Clone(value.Sort)
 	value.CacheTags = slices.Clone(value.CacheTags)
+	if value.boundResultSchema != nil {
+		material := cloneCompiledResultSchema(*value.boundResultSchema)
+		value.boundResultSchema = &material
+	}
 	return value
 }
 
 func cloneContribution(value QueryContribution) QueryContribution {
 	value.QueryDeclaration = cloneQueryDeclaration(value.QueryDeclaration)
+	value.boundResultSchema = nil
 	return value
 }
 

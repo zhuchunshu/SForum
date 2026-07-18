@@ -168,8 +168,10 @@ func newQueryRegistryCoreCatalog(requestedCostMaximum int) (*QueryRegistryCoreCa
 		schemas = append(schemas, entry.Schema)
 	}
 
-	// 预编译 schema，确保目录在 Publish 前已与 JSONResultSchemaCatalog 契约一致。
-	if _, err := queryregistry.NewJSONResultSchemaCatalog(schemas); err != nil {
+	// Core Schema 与声明进入同一密封 publication；生产 Registry 后续可直接
+	// 作为 ResultSchemaValidator，而无需维护一个会与 lifecycle 分裂的 sidecar。
+	publication, err = queryregistry.BindResultSchemas(publication, schemas)
+	if err != nil {
 		return nil, fmt.Errorf("%w: compile core result schemas: %v", ErrQueryRegistryCoreInvalid, err)
 	}
 

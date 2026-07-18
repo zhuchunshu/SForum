@@ -228,11 +228,28 @@ func (r *Registry) Remove(artifact Artifact) (uint64, bool, error) {
 }
 
 func equalPublicationMaps(left, right map[string]Publication) bool {
-	return reflect.DeepEqual(left, right)
+	if len(left) != len(right) {
+		return false
+	}
+	for extensionID, publication := range left {
+		candidate, found := right[extensionID]
+		if !found || !equalPublications(publication, candidate) {
+			return false
+		}
+	}
+	return true
 }
 
 func equalPublications(left, right Publication) bool {
-	return reflect.DeepEqual(left, right)
+	return reflect.DeepEqual(publicationContract(left), publicationContract(right))
+}
+
+func publicationContract(value Publication) Publication {
+	value = clonePublication(value)
+	for index := range value.Queries {
+		value.Queries[index].boundResultSchema = nil
+	}
+	return value
 }
 
 func validateExactPublicationReplay(current, next map[string]Publication) error {

@@ -66,18 +66,24 @@ type Artifact struct {
 // QueryDeclaration is the frozen ManifestQuery surface. Do not add action,
 // target, priority, handler, cost, or resultFilters fields here.
 type QueryDeclaration struct {
-	ID               string   `json:"id"`
-	ContractVersion  string   `json:"contractVersion"`
-	Entity           string   `json:"entity"`
-	PlanVersion      string   `json:"planVersion"`
-	Fields           []string `json:"fields"`
-	Relations        []string `json:"relations,omitempty"`
-	Filters          []string `json:"filters,omitempty"`
-	Sort             []string `json:"sort,omitempty"`
-	Pagination       string   `json:"pagination"`
-	ResultSchema     string   `json:"resultSchema"`
-	PermissionPolicy string   `json:"permissionPolicy"`
-	CacheTags        []string `json:"cacheTags,omitempty"`
+	ID              string   `json:"id"`
+	ContractVersion string   `json:"contractVersion"`
+	Entity          string   `json:"entity"`
+	PlanVersion     string   `json:"planVersion"`
+	Fields          []string `json:"fields"`
+	Relations       []string `json:"relations,omitempty"`
+	Filters         []string `json:"filters,omitempty"`
+	Sort            []string `json:"sort,omitempty"`
+	Pagination      string   `json:"pagination"`
+	ResultSchema    string   `json:"resultSchema"`
+	// ResultSchemaDigest is Host-derived publication metadata. Manifest authors
+	// cannot set it directly: a non-empty value is accepted only when the private
+	// compiled material was produced by BindResultSchemas.
+	ResultSchemaDigest string   `json:"resultSchemaDigest,omitempty"`
+	PermissionPolicy   string   `json:"permissionPolicy"`
+	CacheTags          []string `json:"cacheTags,omitempty"`
+
+	boundResultSchema *compiledResultSchema
 }
 
 // Publication is one exact-artifact owner. Empty query lists remain valid for

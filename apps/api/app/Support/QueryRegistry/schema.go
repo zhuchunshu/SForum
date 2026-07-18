@@ -34,6 +34,54 @@ type compiledResultSchema struct {
 	validator *jsonschema.Schema
 }
 
+// BindResultSchemas compiles exact result Schemas and attaches them to their
+// declarations as private publication material. Package-external callers can
+// inspect the derived digest but cannot construct the validator or raw-byte
+// binding that Registry requires before publication.
+func BindResultSchemas(publication Publication, bindings []JSONResultSchemaBinding) (Publication, error) {
+	artifact, err := normalizeArtifact(publication.Artifact)
+	if err != nil || len(bindings) > len(publication.Queries) {
+		return Publication{}, ErrExecutionInvalid
+	}
+	result := clonePublication(publication)
+	result.Artifact = artifact
+	queries := make(map[string]int, len(result.Queries))
+	for index, raw := range result.Queries {
+		declaration, declarationErr := normalizeQueryDeclaration(artifact, raw)
+		if declarationErr != nil {
+			return Publication{}, errors.Join(ErrExecutionInvalid, declarationErr)
+		}
+		if _, duplicate := queries[declaration.ID]; duplicate {
+			return Publication{}, fmt.Errorf("%w: duplicate query %s", ErrExecutionInvalid, declaration.ID)
+		}
+		declaration.ResultSchemaDigest = ""
+		declaration.boundResultSchema = nil
+		result.Queries[index] = declaration
+		queries[declaration.ID] = index
+	}
+	for _, raw := range bindings {
+		compiled, compileErr := compileJSONResultSchema(raw)
+		if compileErr != nil {
+			return Publication{}, compileErr
+		}
+		index, found := queries[compiled.binding.QueryID]
+		if !found || compiled.binding.Artifact != artifact {
+			return Publication{}, fmt.Errorf("%w: result schema has no exact query declaration", ErrExecutionInvalid)
+		}
+		declaration := &result.Queries[index]
+		if declaration.boundResultSchema != nil ||
+			declaration.ContractVersion != compiled.binding.ContractVersion ||
+			declaration.PlanVersion != compiled.binding.PlanVersion ||
+			declaration.ResultSchema != compiled.binding.ResultSchema {
+			return Publication{}, fmt.Errorf("%w: result schema does not match query %s", ErrExecutionInvalid, declaration.ID)
+		}
+		material := cloneCompiledResultSchema(compiled)
+		declaration.ResultSchemaDigest = material.binding.SchemaDigest
+		declaration.boundResultSchema = &material
+	}
+	return result, nil
+}
+
 // JSONResultSchemaCatalog compiles a complete exact-artifact schema snapshot
 // once. It uses the project's established Draft 2020-12 validator and rejects
 // external references so result validation never performs network or package
@@ -62,7 +110,28 @@ func (c *JSONResultSchemaCatalog) ValidateQueryResult(_ context.Context, claim R
 		return ErrResultInvalid
 	}
 	compiled, ok := c.bindings[claim.QueryID]
-	if !ok || compiled.binding.ContractVersion != claim.ContractVersion ||
+	if !ok {
+		return ErrResultInvalid
+	}
+	return validateCompiledResultSchema(compiled, claim, row)
+}
+
+// ValidateQueryResult resolves a validator from the same immutable Registry
+// state that owns the query declaration. Lifecycle publication therefore cannot
+// expose a new declaration with an old Schema sidecar.
+func (r *Registry) ValidateQueryResult(_ context.Context, claim ResultSchemaClaim, row QueryRow) error {
+	if r == nil {
+		return ErrResultInvalid
+	}
+	compiled, ok := r.load().schemas[claim.QueryID]
+	if !ok {
+		return ErrResultInvalid
+	}
+	return validateCompiledResultSchema(compiled, claim, row)
+}
+
+func validateCompiledResultSchema(compiled compiledResultSchema, claim ResultSchemaClaim, row QueryRow) error {
+	if compiled.binding.QueryID != claim.QueryID || compiled.binding.ContractVersion != claim.ContractVersion ||
 		compiled.binding.PlanVersion != claim.PlanVersion || compiled.binding.ResultSchema != claim.ResultSchema ||
 		compiled.binding.Artifact != claim.Artifact || compiled.validator == nil {
 		return ErrResultInvalid
@@ -71,6 +140,37 @@ func (c *JSONResultSchemaCatalog) ValidateQueryResult(_ context.Context, claim R
 		return fmt.Errorf("%w: %v", ErrResultInvalid, err)
 	}
 	return nil
+}
+
+func publicationResultSchema(
+	artifact Artifact,
+	declaration QueryDeclaration,
+) (compiledResultSchema, bool, error) {
+	if declaration.ResultSchemaDigest == "" && declaration.boundResultSchema == nil {
+		return compiledResultSchema{}, false, nil
+	}
+	if !digestPattern.MatchString(declaration.ResultSchemaDigest) || declaration.boundResultSchema == nil {
+		return compiledResultSchema{}, false, ErrInvalid
+	}
+	compiled := *declaration.boundResultSchema
+	binding := compiled.binding
+	if compiled.validator == nil || binding.QueryID != declaration.ID ||
+		binding.ContractVersion != declaration.ContractVersion || binding.PlanVersion != declaration.PlanVersion ||
+		binding.ResultSchema != declaration.ResultSchema || binding.Artifact != artifact ||
+		binding.SchemaDigest != declaration.ResultSchemaDigest || len(binding.Schema) == 0 ||
+		len(binding.Schema) > maximumResultSchemaBytes {
+		return compiledResultSchema{}, false, ErrInvalid
+	}
+	digest := sha256.Sum256(binding.Schema)
+	if hex.EncodeToString(digest[:]) != binding.SchemaDigest {
+		return compiledResultSchema{}, false, ErrInvalid
+	}
+	return cloneCompiledResultSchema(compiled), true, nil
+}
+
+func cloneCompiledResultSchema(value compiledResultSchema) compiledResultSchema {
+	value.binding.Schema = append([]byte(nil), value.binding.Schema...)
+	return value
 }
 
 func compileJSONResultSchema(raw JSONResultSchemaBinding) (compiledResultSchema, error) {
@@ -144,3 +244,5 @@ func rejectExternalResultSchemaRefs(value any, depth int) error {
 	}
 	return nil
 }
+
+var _ ResultSchemaValidator = (*Registry)(nil)

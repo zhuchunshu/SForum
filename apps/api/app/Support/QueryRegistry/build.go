@@ -11,6 +11,7 @@ type registryState struct {
 	safeMode     bool
 	publications map[string]Publication
 	queries      map[string]QueryContribution
+	schemas      map[string]compiledResultSchema
 }
 
 func emptyState() *registryState {
@@ -18,6 +19,7 @@ func emptyState() *registryState {
 		digest:       computeGraphDigest(nil, false),
 		publications: map[string]Publication{},
 		queries:      map[string]QueryContribution{},
+		schemas:      map[string]compiledResultSchema{},
 	}
 }
 
@@ -53,6 +55,16 @@ func buildState(revision uint64, input []Publication, safeMode bool) (*registryS
 			if err := detectSlotProviderConflicts(contribution); err != nil {
 				return nil, err
 			}
+			compiled, bound, err := publicationResultSchema(publication.Artifact, declaration)
+			if err != nil {
+				return nil, fmt.Errorf("%w: result schema for %s", ErrInvalid, declaration.ID)
+			}
+			if bound {
+				state.schemas[declaration.ID] = compiled
+			}
+			// Plans and inspection carry only the digest. Raw Schema bytes and the
+			// validator stay in the publication/state sidecar.
+			contribution.boundResultSchema = nil
 			state.queries[contribution.ID] = contribution
 		}
 	}

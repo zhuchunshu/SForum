@@ -46,6 +46,15 @@ func TestQueryRegistryCoreCatalogSealsPublicationsBindingsAndSchemas(t *testing.
 	if err != nil {
 		t.Fatalf("schema catalog: %v", err)
 	}
+	schemaDigestByQuery := make(map[string]string, len(schemas))
+	for _, schema := range schemas {
+		schemaDigestByQuery[schema.QueryID] = schema.SchemaDigest
+	}
+	for _, query := range publication.Queries {
+		if query.ResultSchemaDigest == "" || query.ResultSchemaDigest != schemaDigestByQuery[query.ID] {
+			t.Fatalf("core publication omitted bound Schema digest: %#v", query)
+		}
+	}
 
 	byHost := make(map[string]protocolV2QueryDefinition, len(definitions))
 	for _, definition := range definitions {
@@ -150,6 +159,9 @@ func TestQueryRegistryCoreCatalogSealsPublicationsBindingsAndSchemas(t *testing.
 		if err := schemaCatalog.ValidateQueryResult(context.Background(), claim, row); err != nil {
 			t.Fatalf("valid host row for %s: %v row=%#v", definition.ID, err, row)
 		}
+		if err := registry.ValidateQueryResult(context.Background(), claim, row); err != nil {
+			t.Fatalf("Registry-bound host row for %s: %v row=%#v", definition.ID, err, row)
+		}
 	}
 }
 
@@ -164,11 +176,15 @@ func TestQueryRegistryCoreAccessorsCloneAgainstMutation(t *testing.T) {
 	}
 	publication.Queries[0].ID = "mutated.query"
 	publication.Queries[0].Fields[0] = "mutated_field"
+	publication.Queries[0].ResultSchemaDigest = strings.Repeat("f", 64)
 	if catalog.Publication().Queries[0].ID == "mutated.query" {
 		t.Fatal("publication accessor leaked mutable queries")
 	}
 	if catalog.Publication().Queries[0].Fields[0] == "mutated_field" {
 		t.Fatal("publication accessor leaked mutable fields")
+	}
+	if catalog.Publication().Queries[0].ResultSchemaDigest == strings.Repeat("f", 64) {
+		t.Fatal("publication accessor leaked mutable Schema metadata")
 	}
 
 	bindings := catalog.Bindings()
