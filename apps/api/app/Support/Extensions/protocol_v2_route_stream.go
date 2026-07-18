@@ -17,7 +17,10 @@ import (
 	protocolwire "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/protocol/v2"
 )
 
-var ErrProtocolV2RouteStreamInvalid = errors.New("protocol v2 route stream is invalid")
+var (
+	ErrProtocolV2RouteStreamInvalid         = errors.New("protocol v2 route stream is invalid")
+	ErrProtocolV2RouteStreamMissingTerminal = errors.New("protocol v2 route stream terminal is missing")
+)
 
 const MaxProtocolV2RouteChunkSize = 1 << 20
 
@@ -57,6 +60,7 @@ type ProtocolV2RouteStreamResponse struct {
 // terminal frame or the Host explicitly cancels the stream.
 type ProtocolV2RouteStream struct {
 	raw    pluginwire.PluginRuntimeService_StreamRouteClient
+	ctx    context.Context
 	cancel context.CancelFunc
 
 	sendMu    sync.Mutex
@@ -110,16 +114,14 @@ func (c *protocolV2Client) OpenRouteStreamContext(
 		}}})
 	}
 	if err != nil {
+		err = protocolV2OperationCause(ctx, err)
 		if raw != nil {
 			_ = raw.CloseSend()
 		}
 		cancel()
-		if ctx.Err() != nil {
-			return nil, ctx.Err()
-		}
 		return nil, err
 	}
-	return &ProtocolV2RouteStream{raw: raw, cancel: cancel}, nil
+	return &ProtocolV2RouteStream{raw: raw, ctx: ctx, cancel: cancel}, nil
 }
 
 func validateProtocolV2RouteStreamRequest(input ProtocolV2RouteStreamRequest) error {
@@ -171,7 +173,15 @@ func (c *protocolV2Client) validateFrozenRouteStream(input ProtocolV2RouteStream
 }
 
 func (s *ProtocolV2RouteStream) Context() context.Context {
-	if s == nil || s.raw == nil {
+	if s == nil {
+		return context.Background()
+	}
+	// Keep Host cancellation separate from gRPC's stream context, which may be
+	// canceled by a remote terminal error and cannot prove caller/Host origin.
+	if s.ctx != nil {
+		return s.ctx
+	}
+	if s.raw == nil {
 		return context.Background()
 	}
 	return s.raw.Context()
@@ -193,7 +203,7 @@ func (s *ProtocolV2RouteStream) Send(data []byte, final bool) error {
 	if err := s.raw.Send(&pluginwire.RouteStreamFrame{Frame: &pluginwire.RouteStreamFrame_Chunk{Chunk: &protocolwire.DataChunk{
 		Sequence: s.sendSeq, Data: append([]byte(nil), data...), Checksum: digest[:], Final: final,
 	}}}); err != nil {
-		return err
+		return protocolV2OperationCause(s.Context(), err)
 	}
 	s.sendFinal = final
 	return nil
@@ -211,10 +221,10 @@ func (s *ProtocolV2RouteStream) CloseRequest() error {
 		return fmt.Errorf("%w: request stream is already closed", ErrProtocolV2RouteStreamInvalid)
 	}
 	if err := s.raw.Send(&pluginwire.RouteStreamFrame{Frame: &pluginwire.RouteStreamFrame_Close{Close: &pluginwire.RouteStreamClose{}}}); err != nil {
-		return err
+		return protocolV2OperationCause(s.Context(), err)
 	}
 	if err := s.raw.CloseSend(); err != nil {
-		return err
+		return protocolV2OperationCause(s.Context(), err)
 	}
 	s.sendClose = true
 	return nil
@@ -231,14 +241,12 @@ func (s *ProtocolV2RouteStream) Recv() (ProtocolV2RouteStreamChunk, error) {
 	}
 	frame, err := s.raw.Recv()
 	if err != nil {
-		if contextErr := s.Context().Err(); contextErr != nil {
-			s.finish()
-			return ProtocolV2RouteStreamChunk{}, contextErr
-		}
+		err = protocolV2OperationCause(s.Context(), err)
 		if errors.Is(err, io.EOF) {
 			s.finish()
-			return ProtocolV2RouteStreamChunk{}, ErrProtocolV2RouteStreamInvalid
+			return ProtocolV2RouteStreamChunk{}, ErrProtocolV2RouteStreamMissingTerminal
 		}
+		s.finish()
 		return ProtocolV2RouteStreamChunk{}, err
 	}
 	if closeFrame := frame.GetClose(); closeFrame != nil {

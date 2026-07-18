@@ -968,6 +968,11 @@ func protocolV2Error(detail *protocolv2.ErrorDetail) error {
 }
 
 func protocolV2Deadline(ctx context.Context, timeout time.Duration) (context.Context, context.CancelFunc) {
+	if parentDeadline, ok := ctx.Deadline(); ok && time.Until(parentDeadline) <= timeout {
+		// Do not race a second timer against an earlier Host-owned deadline. The
+		// parent cause may carry ForceDrain or a domain-specific budget sentinel.
+		return context.WithCancel(ctx)
+	}
 	return context.WithTimeout(ctx, timeout)
 }
 

@@ -264,6 +264,9 @@ func TestProtocolV2RouteFailsClosedOnResponseDrift(t *testing.T) {
 			if !errors.Is(err, test.want) {
 				t.Fatalf("error = %v, want %v", err, test.want)
 			}
+			if !errors.Is(err, ErrProtocolV2RouteResponseInvalid) {
+				t.Fatalf("response drift lacks stable classification: %v", err)
+			}
 		})
 	}
 }
@@ -330,9 +333,10 @@ func TestProtocolV2RoutePropagatesCallerCancellation(t *testing.T) {
 		<-ctx.Done()
 		return nil, ctx.Err()
 	})
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
-	if _, err := client.InvokeRouteContext(ctx, protocolV2RouteTestRequest()); !errors.Is(err, context.Canceled) {
+	ctx, cancel := context.WithCancelCause(context.Background())
+	want := errors.New("exact caller cancellation")
+	cancel(want)
+	if _, err := client.InvokeRouteContext(ctx, protocolV2RouteTestRequest()); !errors.Is(err, want) {
 		t.Fatalf("error = %v", err)
 	}
 }

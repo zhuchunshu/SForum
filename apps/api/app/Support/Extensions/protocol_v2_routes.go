@@ -20,9 +20,10 @@ import (
 )
 
 var (
-	ErrProtocolV2RouteInvalid     = errors.New("protocol v2 route invocation is invalid")
-	ErrProtocolV2RouteUnsupported = errors.New("protocol v2 unary route is unsupported")
-	ErrProtocolV2RouteStream      = errors.New("protocol v2 route requires the streaming transport")
+	ErrProtocolV2RouteInvalid         = errors.New("protocol v2 route invocation is invalid")
+	ErrProtocolV2RouteResponseInvalid = errors.New("protocol v2 route response is invalid")
+	ErrProtocolV2RouteUnsupported     = errors.New("protocol v2 unary route is unsupported")
+	ErrProtocolV2RouteStream          = errors.New("protocol v2 route requires the streaming transport")
 )
 
 // ProtocolV2InvocationActor is Host-authored request authority shared by route
@@ -193,20 +194,21 @@ func (c *protocolV2Client) InvokeRouteContext(parent context.Context, input Prot
 		QueryParameters:       queryParameters, QueryParameterValues: queryParameterValues, Body: body,
 	})
 	if err != nil {
-		if ctx.Err() != nil {
-			return ProtocolV2RouteResponse{}, ctx.Err()
-		}
-		return ProtocolV2RouteResponse{}, err
+		return ProtocolV2RouteResponse{}, protocolV2OperationCause(ctx, err)
 	}
 	if err := validateProtocolV2RouteResponseContext(response.GetContext(), requestContext); err != nil {
-		return ProtocolV2RouteResponse{}, err
+		return ProtocolV2RouteResponse{}, errors.Join(ErrProtocolV2RouteResponseInvalid, err)
 	}
 	if err := protocolV2Error(response.GetError()); err != nil {
 		return ProtocolV2RouteResponse{}, err
 	}
 	switch input.InvocationStage {
 	case ProtocolV2RouteInvocationStageHandler:
-		return protocolV2RouteTerminalResponse(response, input.ResponseSchema)
+		result, err := protocolV2RouteTerminalResponse(response, input.ResponseSchema)
+		if err != nil {
+			return ProtocolV2RouteResponse{}, errors.Join(ErrProtocolV2RouteResponseInvalid, err)
+		}
+		return result, nil
 	case ProtocolV2RouteInvocationStageRequest:
 		if protocolV2RouteResponseHasTerminal(response) || len(response.GetResponsePatch()) > 0 {
 			return ProtocolV2RouteResponse{}, fmt.Errorf("%w: request-stage response contains terminal or response patch data", ErrProtocolV2RouteInvalid)

@@ -17,7 +17,9 @@ import (
 	pluginwire "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/plugin/v2"
 	protocolwire "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/protocol/v2"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/status"
 	"google.golang.org/grpc/test/bufconn"
 )
 
@@ -166,7 +168,7 @@ func TestProtocolV2RouteStreamPropagatesCancellationAndBoundsRequests(t *testing
 		<-stream.Context().Done()
 		return stream.Context().Err()
 	})
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancelCause(context.Background())
 	stream, err := client.OpenRouteStreamContext(ctx, ProtocolV2RouteStreamRequest{
 		RouteID: "demo.stream", ContractVersion: "demo.stream@1", Method: http.MethodPost,
 		Path: "/stream", Mode: extensionmanifest.RouteModeStream,
@@ -179,9 +181,93 @@ func TestProtocolV2RouteStreamPropagatesCancellationAndBoundsRequests(t *testing
 		t.Fatalf("oversized request error=%v", err)
 	}
 	<-accepted
-	cancel()
-	if _, err := stream.Recv(); !errors.Is(err, context.Canceled) {
+	forceCause := errors.New("planned route stream drain")
+	cancel(errors.Join(ErrRuntimeAdmissionForced, forceCause))
+	if _, err := stream.Recv(); !errors.Is(err, ErrRuntimeAdmissionForced) || !errors.Is(err, forceCause) {
 		t.Fatalf("cancel error=%v", err)
+	}
+	if cause := context.Cause(stream.Context()); !errors.Is(cause, ErrRuntimeAdmissionForced) || !errors.Is(cause, forceCause) {
+		t.Fatalf("stream context cause=%v", cause)
+	}
+}
+
+func TestProtocolV2OperationCausePreservesHostCauseAndRuntimeFailures(t *testing.T) {
+	forceCause := errors.New("planned drain")
+	ctx, cancel := context.WithCancelCause(context.Background())
+	cancel(errors.Join(ErrRuntimeAdmissionForced, forceCause))
+	for _, wireErr := range []error{
+		context.Canceled,
+		context.DeadlineExceeded,
+		status.Error(codes.Canceled, "redacted"),
+		status.Error(codes.DeadlineExceeded, "redacted"),
+	} {
+		normalized := protocolV2OperationCause(ctx, wireErr)
+		if !errors.Is(normalized, ErrRuntimeAdmissionForced) || !errors.Is(normalized, forceCause) {
+			t.Fatalf("wire=%v normalized=%v", wireErr, normalized)
+		}
+	}
+	runtimeErr := status.Error(codes.Unavailable, "runtime stopped")
+	if normalized := protocolV2OperationCause(ctx, runtimeErr); normalized != runtimeErr {
+		t.Fatalf("distinguishable runtime error changed: %v", normalized)
+	}
+	if normalized := protocolV2OperationCause(context.Background(), status.Error(codes.Canceled, "peer canceled")); status.Code(normalized) != codes.Canceled {
+		t.Fatalf("live context manufactured a Host cancellation: %v", normalized)
+	}
+}
+
+func TestProtocolV2DeadlineKeepsEarlierParentCause(t *testing.T) {
+	deadlineParent, cancelDeadline := context.WithTimeout(context.Background(), time.Hour)
+	defer cancelDeadline()
+	parent, cancelParent := context.WithCancelCause(deadlineParent)
+	child, cancelChild := protocolV2Deadline(parent, 2*time.Hour)
+	defer cancelChild()
+	want := errors.New("exact parent cause")
+	cancelParent(want)
+	<-child.Done()
+	if !errors.Is(context.Cause(child), want) {
+		t.Fatalf("child cause=%v", context.Cause(child))
+	}
+}
+
+func TestProtocolV2RouteStreamClassifiesMissingTerminal(t *testing.T) {
+	client := newProtocolV2RouteStreamTestClient(t, func(stream grpc.BidiStreamingServer[pluginwire.RouteStreamFrame, pluginwire.RouteStreamFrame]) error {
+		if _, err := stream.Recv(); err != nil {
+			return err
+		}
+		return nil
+	})
+	stream, err := client.OpenRouteStreamContext(context.Background(), ProtocolV2RouteStreamRequest{
+		RouteID: "demo.stream", ContractVersion: "demo.stream@1", Method: http.MethodPost,
+		Path: "/stream", Mode: extensionmanifest.RouteModeStream,
+		Authority: protocolV2FilteredHostRequestAuthority(), Timeout: time.Second,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer stream.Cancel()
+	if _, err := stream.Recv(); !errors.Is(err, ErrProtocolV2RouteStreamMissingTerminal) {
+		t.Fatalf("missing terminal error=%v", err)
+	}
+}
+
+func TestProtocolV2RouteStreamDoesNotReclassifyRemoteCancellation(t *testing.T) {
+	client := newProtocolV2RouteStreamTestClient(t, func(stream grpc.BidiStreamingServer[pluginwire.RouteStreamFrame, pluginwire.RouteStreamFrame]) error {
+		if _, err := stream.Recv(); err != nil {
+			return err
+		}
+		return status.Error(codes.Canceled, "plugin canceled its stream")
+	})
+	stream, err := client.OpenRouteStreamContext(context.Background(), ProtocolV2RouteStreamRequest{
+		RouteID: "demo.stream", ContractVersion: "demo.stream@1", Method: http.MethodPost,
+		Path: "/stream", Mode: extensionmanifest.RouteModeStream,
+		Authority: protocolV2FilteredHostRequestAuthority(), Timeout: time.Second,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer stream.Cancel()
+	if _, err := stream.Recv(); status.Code(err) != codes.Canceled {
+		t.Fatalf("remote cancellation was reclassified: %v", err)
 	}
 }
 
