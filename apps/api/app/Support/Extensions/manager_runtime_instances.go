@@ -116,7 +116,13 @@ func (m *Manager) AcquireRuntimeCall(ctx context.Context, identity RuntimeInstan
 }
 
 func (m *Manager) BeginDrain(identity RuntimeInstanceIdentity) (RuntimeAdmissionSnapshot, error) {
-	unlock, err := m.lockRuntimeSetTransition(context.Background())
+	return m.BeginDrainContext(context.Background(), identity)
+}
+
+// BeginDrainContext preserves the legacy BeginDrain surface while allowing
+// multi-step transactions to bound runtime-set barrier contention.
+func (m *Manager) BeginDrainContext(ctx context.Context, identity RuntimeInstanceIdentity) (RuntimeAdmissionSnapshot, error) {
+	unlock, err := m.lockRuntimeSetTransition(ctx)
 	if err != nil {
 		return RuntimeAdmissionSnapshot{}, err
 	}
@@ -173,7 +179,13 @@ func (m *Manager) beginDrainRuntimeSetLocked(identity RuntimeInstanceIdentity) (
 
 // ResumeRuntimeInstance 只重开仍为活动指针的 exact instance，候选发布失败时可恢复旧版本。
 func (m *Manager) ResumeRuntimeInstance(identity RuntimeInstanceIdentity) (RuntimeAdmissionSnapshot, error) {
-	unlock, err := m.lockRuntimeSetTransition(context.Background())
+	return m.ResumeRuntimeInstanceContext(context.Background(), identity)
+}
+
+// ResumeRuntimeInstanceContext bounds compensation waits on the Manager-wide
+// transition barrier. It retains the exact-active-only resume fence.
+func (m *Manager) ResumeRuntimeInstanceContext(ctx context.Context, identity RuntimeInstanceIdentity) (RuntimeAdmissionSnapshot, error) {
+	unlock, err := m.lockRuntimeSetTransition(ctx)
 	if err != nil {
 		return RuntimeAdmissionSnapshot{}, err
 	}
