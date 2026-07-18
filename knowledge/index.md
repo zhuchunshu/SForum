@@ -191,11 +191,14 @@ This is the entry point for project memory.
     and an independent uploaded reference admin plugin are committed and
     accepted. Query, Identity/Permission, Auth/Profile, and automation
     authority remain open.
-  - Query now has one-use actor/runtime/query/revision-bound Protocol V2
-    delegation, a typed Host outlet, and Go SDK helpers. It remains uncredited
-    until production bootstrap binds live identity permission rechecks and exact
-    active-runtime admission; plugin handler/result-filter transport is still
-    absent from the frozen Manifest contract.
+  - Query now has portable graph-bound HMAC cursors, immutable snapshot-bound
+    Draft 2020-12 result Schemas, and additive executable Manifest declarations
+    for exact handlers, identity/default sort, and independent result filters.
+    Legacy handlerless queries and trust summaries remain compatible. Dedicated
+    `InvokeQuery` / `FilterQueryResult` Protocol V2 transport, exact lifecycle
+    publication, package Schema loading, reference-plugin execution, and joined
+    production gates remain open, so these prerequisites receive no P7 row
+    credit yet.
   - P11 is **1/16**. `ba4ebc50c` closes the first Cache task with typed SDK
     get/set/delete/increment/tag operations, opaque CAS revisions, bounded
     cross-RPC leases, and distributed `remember`. Exact lease expiry cancels

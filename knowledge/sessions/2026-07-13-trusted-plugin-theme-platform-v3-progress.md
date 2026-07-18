@@ -14,6 +14,42 @@ Last updated: 2026-07-18
 
 ## Current Subtask
 
+### 2026-07-18 P7 Executable Query Contract Checkpoint
+
+- Verified weighted progress remains **66.9205%** (display **66.0%**); P7 stays
+  **16/22**. The Query task and joined Query test row remain open until a real
+  plugin provider and result filter cross the production lifecycle and Protocol
+  V2 paths under the Host permission, cost, Schema, pagination, and cache fences.
+- `3a25fb744` freezes the dedicated `InvokeQuery` / `FilterQueryResult`
+  transport, lossless canonical JSON rows, `query.runtime@1`, Host-owned
+  relations, and one immutable declaration/provider/filter/Schema revision.
+  The generic provider-slot RPC is not reused.
+- `bb8b32204` plus `189939725` make cursor continuation portable across nodes
+  that converged on the same Registry graph while retaining exact artifact,
+  actor/policy, locale/scope, shape, provider, and filter-plan binding.
+- `056d29af1` binds compiled Draft 2020-12 result Schemas into the immutable
+  Registry snapshot. Public plans expose only the digest; private bytes and
+  validators are deep-cloned, exact replay is pointer-independent, digest-only
+  forgery fails closed, and JSON snapshots cannot rehydrate private material.
+- `e51230898` adds the compatible Manifest/OpenAPI/trust contract: optional
+  executable query handler, identity fields, deterministic default sort, and a
+  separate bounded result-filter family with exact owner dependency. Legacy
+  handlerless queries remain inspectable/plannable and keep their old trust JSON.
+- Manifest/Models/SDK normal tests, Manifest/Models race, QueryRegistry/HostAPI
+  focused normal/race/vet, 1,937 OpenAPI refs, generated catalogs, formatting,
+  whitespace checks, Grok review, and independent Schema review pass. The
+  Registry package must be rerun after the separate Redis cache candidate is
+  complete because that uncommitted file set was temporarily mid-rewrite.
+- Compatibility/rollback: removing the new optional Manifest fields restores
+  declaration-only behavior; Registry publication removal atomically drops its
+  private Schema. Existing Protocol V2 plugins do not negotiate Query runtime.
+- Exact next step: add the two dedicated Proto methods/messages and generated
+  SDK handlers, require exact `query.runtime@1` negotiation only for executable
+  Query/filter manifests, then connect exact lifecycle publication, package
+  Schema loading, runtime admission, reference plugin, and joined normal/race
+  gates. Review and commit the Redis cache candidate separately before enabling
+  production caching. Do not credit either open P7 row before the joined gates.
+
 ### 2026-07-18 P7 Host-Owned Role Mapping Joined Closure
 
 - Verified weighted progress is **66.9205%** (display **66.0%**); P7 advances
