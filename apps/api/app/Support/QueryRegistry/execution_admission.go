@@ -4,11 +4,112 @@ import (
 	"context"
 	"errors"
 	"sort"
+	"sync"
 )
 
 type executionAdmissionRequirement struct {
 	artifact   Artifact
 	queryOwner bool
+}
+
+type executionAdmissionSet struct {
+	parent  context.Context
+	ctx     context.Context
+	cancel  context.CancelCauseFunc
+	leases  []ExecutionAdmissionLease
+	stops   []func() bool
+	release sync.Once
+}
+
+type executionAdmissionContextKey struct{}
+
+func newExecutionAdmissionSet(parent context.Context, capacity int) *executionAdmissionSet {
+	base, cancel := context.WithCancelCause(parent)
+	set := &executionAdmissionSet{
+		parent: parent,
+		cancel: cancel,
+		leases: make([]ExecutionAdmissionLease, 0, capacity),
+		stops:  make([]func() bool, 0, capacity),
+	}
+	set.ctx = context.WithValue(base, executionAdmissionContextKey{}, set)
+	return set
+}
+
+func (s *executionAdmissionSet) add(lease ExecutionAdmissionLease) error {
+	if s == nil || lease.Context == nil || lease.Release == nil {
+		if lease.Release != nil {
+			lease.Release()
+		}
+		return ErrArtifactUnavailable
+	}
+	s.leases = append(s.leases, lease)
+	s.stops = append(s.stops, context.AfterFunc(lease.Context, func() {
+		cause := executionContextError(lease.Context)
+		if cause == nil {
+			cause = context.Canceled
+		}
+		s.cancel(cause)
+	}))
+	if err := executionContextError(lease.Context); err != nil {
+		s.cancel(err)
+		return err
+	}
+	return nil
+}
+
+func (s *executionAdmissionSet) Release() {
+	if s == nil {
+		return
+	}
+	s.release.Do(func() {
+		for index := len(s.stops) - 1; index >= 0; index-- {
+			s.stops[index]()
+		}
+		for index := len(s.leases) - 1; index >= 0; index-- {
+			s.leases[index].Release()
+		}
+		s.cancel(nil)
+	})
+}
+
+func (s *executionAdmissionSet) executionError() error {
+	if s == nil {
+		return ErrExecutionInvalid
+	}
+	parentCause := context.Cause(s.parent)
+	groupCause := context.Cause(s.ctx)
+	independent := make([]error, 0, len(s.leases))
+	for _, lease := range s.leases {
+		if lease.Context == nil {
+			return ErrArtifactUnavailable
+		}
+		cause := context.Cause(lease.Context)
+		if cause == nil {
+			cause = lease.Context.Err()
+		}
+		if cause != nil && (parentCause == nil || !sameCancellationCause(cause, parentCause)) {
+			independent = append(independent, cause)
+		}
+	}
+	if groupCause != nil && (parentCause == nil || !sameCancellationCause(groupCause, parentCause)) {
+		return errors.Join(ErrArtifactUnavailable, groupCause)
+	}
+	if len(independent) > 0 {
+		cause := errors.Join(independent...)
+		s.cancel(cause)
+		return errors.Join(ErrArtifactUnavailable, cause)
+	}
+	if groupCause != nil {
+		return groupCause
+	}
+	if parentCause != nil {
+		return parentCause
+	}
+	return nil
+}
+
+func sameCancellationCause(left, right error) bool {
+	return left != nil && right != nil && errors.Is(left, right) && errors.Is(right, left)
 }
 
 // acquireExecutionSet holds every exact artifact that contributes executable
@@ -19,7 +120,7 @@ func (r *ExecutionRuntime) acquireExecutionSet(
 	ctx context.Context,
 	plan QueryPlan,
 	filters []preparedResultFilter,
-) ([]preparedResultFilter, []ResultFilterExecutionTrace, func(), error) {
+) ([]preparedResultFilter, []ResultFilterExecutionTrace, context.Context, func(), error) {
 	requirements := map[Artifact]executionAdmissionRequirement{
 		plan.Query.Artifact: {artifact: plan.Query.Artifact, queryOwner: true},
 	}
@@ -38,15 +139,10 @@ func (r *ExecutionRuntime) acquireExecutionSet(
 		return artifactBefore(ordered[i].artifact, ordered[j].artifact)
 	})
 
-	releases := make([]func(), 0, len(ordered))
-	releaseAll := func() {
-		for index := len(releases) - 1; index >= 0; index-- {
-			releases[index]()
-		}
-	}
+	admissions := newExecutionAdmissionSet(ctx, len(ordered))
 	evidence := make([]ResultFilterExecutionTrace, 0)
 	for _, requirement := range ordered {
-		release, err := r.acquireExactExecution(ctx, requirement.artifact)
+		lease, err := r.acquireExactExecution(ctx, requirement.artifact)
 		if err != nil {
 			for _, filter := range filters {
 				if filter.registration.Artifact == requirement.artifact {
@@ -55,35 +151,55 @@ func (r *ExecutionRuntime) acquireExecutionSet(
 					))
 				}
 			}
-			releaseAll()
+			admissions.Release()
+			if contextErr := executionContextError(ctx); contextErr != nil && sameCancellationCause(err, contextErr) {
+				return nil, evidence, ctx, func() {}, contextErr
+			}
 			if requirement.queryOwner {
-				return nil, evidence, func() {}, errors.Join(ErrArtifactUnavailable, err)
+				return nil, evidence, ctx, func() {}, errors.Join(ErrArtifactUnavailable, err)
 			}
 			// fail_open only controls ordinary plugin callback failures. A selected
 			// filter whose exact runtime admission cannot be held is a Host fence and
 			// must fail closed before provider code executes.
-			return nil, evidence, func() {}, errors.Join(ErrDependencyDenied, err)
+			return nil, evidence, ctx, func() {}, errors.Join(ErrDependencyDenied, err)
 		}
-		releases = append(releases, release)
+		if err := admissions.add(lease); err != nil {
+			admissions.Release()
+			if contextErr := executionContextError(ctx); contextErr != nil && sameCancellationCause(err, contextErr) {
+				return nil, evidence, ctx, func() {}, contextErr
+			}
+			if requirement.queryOwner {
+				return nil, evidence, ctx, func() {}, errors.Join(ErrArtifactUnavailable, err)
+			}
+			return nil, evidence, ctx, func() {}, errors.Join(ErrDependencyDenied, err)
+		}
 	}
-	return filters, evidence, releaseAll, nil
+	if err := executionContextError(admissions.ctx); err != nil {
+		admissions.Release()
+		return nil, evidence, ctx, func() {}, err
+	}
+	return filters, evidence, admissions.ctx, admissions.Release, nil
 }
 
-func (r *ExecutionRuntime) acquireExactExecution(ctx context.Context, artifact Artifact) (func(), error) {
+func (r *ExecutionRuntime) acquireExactExecution(ctx context.Context, artifact Artifact) (ExecutionAdmissionLease, error) {
 	if err := r.registry.requireArtifactAdmitted(artifact); err != nil {
-		return nil, err
+		return ExecutionAdmissionLease{}, err
 	}
-	release, err := r.acquireExecutionAdmission(ctx, artifact)
+	lease, err := r.acquireExecutionAdmission(ctx, artifact)
 	if err != nil {
-		return nil, err
+		return ExecutionAdmissionLease{}, err
+	}
+	if err := executionContextError(lease.Context); err != nil {
+		lease.Release()
+		return ExecutionAdmissionLease{}, err
 	}
 	// Admission can close while a lease is being acquired. Do not execute or
 	// release cached material unless both Host gates agree on the exact tuple.
 	if err := r.registry.requireArtifactAdmitted(artifact); err != nil {
-		release()
-		return nil, err
+		lease.Release()
+		return ExecutionAdmissionLease{}, err
 	}
-	return release, nil
+	return lease, nil
 }
 
 func (r *ExecutionRuntime) requireFilterArtifactsAdmitted(filters []preparedResultFilter) error {

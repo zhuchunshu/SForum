@@ -8,6 +8,8 @@ import (
 	"time"
 )
 
+var errResultFilterHostContext = errors.New("query result filter Host context closed")
+
 func (r *ExecutionRuntime) Execute(ctx context.Context, request PlanRequest) (result QueryResult, err error) {
 	started := time.Now()
 	traceQueryID := unplannedExecutionTraceQueryID(request.QueryID)
@@ -44,12 +46,16 @@ func (r *ExecutionRuntime) Execute(ctx context.Context, request PlanRequest) (re
 		return QueryResult{}, err
 	}
 	trace.Stage = "admission"
-	filters, admissionEvidence, releaseExecutionSet, err := r.acquireExecutionSet(ctx, plan, filters)
+	filters, admissionEvidence, executionCtx, releaseExecutionSet, err := r.acquireExecutionSet(ctx, plan, filters)
 	trace.ResultFilters = append(trace.ResultFilters, admissionEvidence...)
 	if err != nil {
 		return QueryResult{}, err
 	}
 	defer releaseExecutionSet()
+	ctx = executionCtx
+	if err := executionContextError(ctx); err != nil {
+		return QueryResult{}, err
+	}
 	filterPlan := resultFilterPlanDigest(filters)
 	if plan.Pagination.Mode != PaginationNone {
 		for _, filter := range filters {
@@ -62,9 +68,15 @@ func (r *ExecutionRuntime) Execute(ctx context.Context, request PlanRequest) (re
 		}
 	}
 	trace.Stage = "provider_resolve"
-	binding, err := r.providers.resolveQueryProvider(ctx, cloneQueryPlan(plan))
-	if err != nil {
-		return QueryResult{}, errors.Join(ErrProviderUnavailable, err)
+	if err := executionContextError(ctx); err != nil {
+		return QueryResult{}, err
+	}
+	binding, resolveErr := r.providers.resolveQueryProvider(ctx, cloneQueryPlan(plan))
+	if contextErr := executionContextError(ctx); contextErr != nil {
+		return QueryResult{}, contextErr
+	}
+	if resolveErr != nil {
+		return QueryResult{}, errors.Join(ErrProviderUnavailable, resolveErr)
 	}
 	binding, err = normalizeProviderBinding(binding)
 	if err != nil || !providerBindingMatchesPlan(binding, plan) {
@@ -87,35 +99,59 @@ func (r *ExecutionRuntime) Execute(ctx context.Context, request PlanRequest) (re
 
 	if cacheEligible {
 		trace.Stage = "cache_load"
+		if err := executionContextError(ctx); err != nil {
+			return QueryResult{}, err
+		}
 		cached, found, cacheErr := r.cache.LoadQueryResult(ctx, cacheKey)
+		if contextErr := executionContextError(ctx); contextErr != nil {
+			return QueryResult{}, contextErr
+		}
 		switch {
 		case cacheErr != nil:
 			trace.CacheStatus = "load_error"
 		case found:
 			trace.CacheStatus = "hit"
 			trace.Stage = "cache_permission"
-			if err := r.registry.RecheckBeforeRelease(ctx, plan, request.Permission); err != nil {
-				return QueryResult{}, err
+			permissionErr := r.registry.RecheckBeforeRelease(ctx, plan, request.Permission)
+			if contextErr := executionContextError(ctx); contextErr != nil {
+				return QueryResult{}, contextErr
+			}
+			if permissionErr != nil {
+				return QueryResult{}, permissionErr
 			}
 			trace.Stage = "cache_validate"
-			cachedResult, err := r.validateCachedResult(
+			cachedResult, validateErr := r.validateCachedResult(
 				ctx, plan, filterPlan, binding.ProviderDigest, cacheKey, cacheTags, cached,
 			)
-			if err != nil {
-				return QueryResult{}, err
+			if contextErr := executionContextError(ctx); contextErr != nil {
+				return QueryResult{}, contextErr
+			}
+			if validateErr != nil {
+				return QueryResult{}, validateErr
 			}
 			if err := validatePaginatedFilterIdentities(plan, cachedResult.Rows, filters); err != nil {
 				return QueryResult{}, ErrCachePoisoned
 			}
 			releasedResult := cloneQueryResult(cachedResult)
 			trace.Stage = "release"
-			if err := ctx.Err(); err != nil {
+			if err := executionContextError(ctx); err != nil {
 				return QueryResult{}, err
 			}
-			if err := r.requireFilterArtifactsAdmitted(filters); err != nil {
-				return QueryResult{}, err
+			filterAdmissionErr := r.requireFilterArtifactsAdmitted(filters)
+			if contextErr := executionContextError(ctx); contextErr != nil {
+				return QueryResult{}, contextErr
 			}
-			if err := r.registry.RecheckBeforeRelease(ctx, plan, request.Permission); err != nil {
+			if filterAdmissionErr != nil {
+				return QueryResult{}, filterAdmissionErr
+			}
+			permissionErr = r.registry.RecheckBeforeRelease(ctx, plan, request.Permission)
+			if contextErr := executionContextError(ctx); contextErr != nil {
+				return QueryResult{}, contextErr
+			}
+			if permissionErr != nil {
+				return QueryResult{}, permissionErr
+			}
+			if err := executionContextError(ctx); err != nil {
 				return QueryResult{}, err
 			}
 			return releasedResult, nil
@@ -143,13 +179,22 @@ func (r *ExecutionRuntime) Execute(ctx context.Context, request PlanRequest) (re
 	// observe the already-detached plan. The process admission lease remains held
 	// through the final result release.
 	trace.Stage = "provider_permission"
-	if err := r.registry.RecheckBeforeRelease(ctx, plan, request.Permission); err != nil {
+	permissionErr := r.registry.RecheckBeforeRelease(ctx, plan, request.Permission)
+	if contextErr := executionContextError(ctx); contextErr != nil {
+		cancel()
+		return QueryResult{}, contextErr
+	}
+	if permissionErr != nil {
+		cancel()
+		return QueryResult{}, permissionErr
+	}
+	if err := executionContextError(ctx); err != nil {
 		cancel()
 		return QueryResult{}, err
 	}
 	trace.Stage = "provider_execute"
 	providerResult, callErr := binding.Provider.ExecuteQuery(callCtx, providerRequest)
-	callContextErr := callCtx.Err()
+	callContextErr := executionContextError(callCtx)
 	cancel()
 	if callErr != nil {
 		if callContextErr != nil {
@@ -163,8 +208,12 @@ func (r *ExecutionRuntime) Execute(ctx context.Context, request PlanRequest) (re
 	if len(providerResult.Rows) > fetchLimit {
 		return QueryResult{}, ErrResultTooLarge
 	}
-	if err := r.registry.requireArtifactAdmitted(plan.Query.Artifact); err != nil {
-		return QueryResult{}, err
+	artifactAdmissionErr := r.registry.requireArtifactAdmitted(plan.Query.Artifact)
+	if contextErr := executionContextError(ctx); contextErr != nil {
+		return QueryResult{}, contextErr
+	}
+	if artifactAdmissionErr != nil {
+		return QueryResult{}, artifactAdmissionErr
 	}
 
 	trace.Stage = "provider_schema"
@@ -172,15 +221,22 @@ func (r *ExecutionRuntime) Execute(ctx context.Context, request PlanRequest) (re
 	if err != nil {
 		return QueryResult{}, err
 	}
-	if err := r.validateRows(ctx, plan, rows); err != nil {
-		return QueryResult{}, err
+	validationErr := r.validateRows(ctx, plan, rows)
+	if contextErr := executionContextError(ctx); contextErr != nil {
+		return QueryResult{}, contextErr
+	}
+	if validationErr != nil {
+		return QueryResult{}, validationErr
 	}
 	if err := validatePaginatedFilterIdentities(plan, rows, filters); err != nil {
 		return QueryResult{}, err
 	}
-	rows, err = r.applyResultFilters(ctx, plan, request.Permission, rows, filters, &trace)
-	if err != nil {
-		return QueryResult{}, err
+	rows, filterErr := r.applyResultFilters(ctx, plan, request.Permission, rows, filters, &trace)
+	if contextErr := executionContextError(ctx); contextErr != nil {
+		return QueryResult{}, contextErr
+	}
+	if filterErr != nil {
+		return QueryResult{}, filterErr
 	}
 
 	hasMore := plan.Pagination.Mode != PaginationNone && len(rows) > plan.Pagination.Limit
@@ -192,16 +248,24 @@ func (r *ExecutionRuntime) Execute(ctx context.Context, request PlanRequest) (re
 		return QueryResult{}, err
 	}
 	trace.Stage = "release_schema"
-	if err := r.validateRows(ctx, plan, rows); err != nil {
-		return QueryResult{}, err
+	validationErr = r.validateRows(ctx, plan, rows)
+	if contextErr := executionContextError(ctx); contextErr != nil {
+		return QueryResult{}, contextErr
+	}
+	if validationErr != nil {
+		return QueryResult{}, validationErr
 	}
 	page, err := r.buildResultPage(plan, hasMore, binding.ProviderDigest, filterPlan)
 	if err != nil {
 		return QueryResult{}, err
 	}
 	trace.Stage = "release_permission"
-	if err := r.registry.RecheckBeforeRelease(ctx, plan, request.Permission); err != nil {
-		return QueryResult{}, err
+	permissionErr = r.registry.RecheckBeforeRelease(ctx, plan, request.Permission)
+	if contextErr := executionContextError(ctx); contextErr != nil {
+		return QueryResult{}, contextErr
+	}
+	if permissionErr != nil {
+		return QueryResult{}, permissionErr
 	}
 	result = QueryResult{
 		Rows: rows, Page: page, CacheKey: cacheKey, CacheTags: slices.Clone(cacheTags),
@@ -211,9 +275,16 @@ func (r *ExecutionRuntime) Execute(ctx context.Context, request PlanRequest) (re
 
 	if cacheEligible {
 		trace.Stage = "cache_store"
+		if err := executionContextError(ctx); err != nil {
+			return QueryResult{}, err
+		}
 		entry := cachedResultFromRelease(plan, filterPlan, binding.ProviderDigest, cacheKey, cacheTags, result)
 		entry.Rows, _, _ = cloneRowsBounded(entry.Rows, r.maxResultBytes)
-		if cacheErr := r.cache.StoreQueryResult(ctx, cacheKey, entry, slices.Clone(cacheTags)); cacheErr != nil {
+		cacheErr := r.cache.StoreQueryResult(ctx, cacheKey, entry, slices.Clone(cacheTags))
+		if contextErr := executionContextError(ctx); contextErr != nil {
+			return QueryResult{}, contextErr
+		}
+		if cacheErr != nil {
 			trace.CacheStatus = "store_error"
 		} else {
 			trace.CacheStatus = "stored"
@@ -223,13 +294,24 @@ func (r *ExecutionRuntime) Execute(ctx context.Context, request PlanRequest) (re
 	// Cache writes are not release authority. Recheck again so a permission or
 	// snapshot change during storage cannot release stale material.
 	trace.Stage = "release"
-	if err := ctx.Err(); err != nil {
+	if err := executionContextError(ctx); err != nil {
 		return QueryResult{}, err
 	}
-	if err := r.requireFilterArtifactsAdmitted(filters); err != nil {
-		return QueryResult{}, err
+	filterAdmissionErr := r.requireFilterArtifactsAdmitted(filters)
+	if contextErr := executionContextError(ctx); contextErr != nil {
+		return QueryResult{}, contextErr
 	}
-	if err := r.registry.RecheckBeforeRelease(ctx, plan, request.Permission); err != nil {
+	if filterAdmissionErr != nil {
+		return QueryResult{}, filterAdmissionErr
+	}
+	permissionErr = r.registry.RecheckBeforeRelease(ctx, plan, request.Permission)
+	if contextErr := executionContextError(ctx); contextErr != nil {
+		return QueryResult{}, contextErr
+	}
+	if permissionErr != nil {
+		return QueryResult{}, permissionErr
+	}
+	if err := executionContextError(ctx); err != nil {
 		return QueryResult{}, err
 	}
 	return releasedResult, nil
@@ -256,7 +338,8 @@ func (r *ExecutionRuntime) applyResultFilters(
 		started := time.Now()
 		candidate, filterErr := r.invokeResultFilter(ctx, plan, permission, current, registration, budget, trace)
 		if filterErr != nil {
-			hostFailure := ctx.Err() != nil || errors.Is(filterErr, ErrDenied) ||
+			hostFailure := executionContextError(ctx) != nil || errors.Is(filterErr, errResultFilterHostContext) ||
+				errors.Is(filterErr, ErrDenied) ||
 				errors.Is(filterErr, ErrArtifactConflict) || errors.Is(filterErr, ErrRevisionConflict) ||
 				errors.Is(filterErr, ErrArtifactUnavailable) || errors.Is(filterErr, ErrContractInsufficient) ||
 				errors.Is(filterErr, ErrResultInvalid) || errors.Is(filterErr, ErrResultTooLarge) || errors.Is(filterErr, ErrCostExceeded) ||
@@ -268,7 +351,7 @@ func (r *ExecutionRuntime) applyResultFilters(
 			trace.ResultFilters = append(trace.ResultFilters, resultFilterExecutionTrace(
 				registration, outcome, time.Since(started),
 			))
-			if ctxErr := ctx.Err(); ctxErr != nil {
+			if ctxErr := executionContextError(ctx); ctxErr != nil {
 				return nil, ctxErr
 			}
 			// Host permission, snapshot, and exact-runtime failures are never a
@@ -304,12 +387,16 @@ func (r *ExecutionRuntime) invokeResultFilter(
 	budget *resultJSONBudget,
 	trace *ExecutionTrace,
 ) ([]QueryRow, error) {
-	if err := ctx.Err(); err != nil {
+	if err := executionContextError(ctx); err != nil {
 		return nil, err
 	}
 	trace.Stage = "filter_admission"
-	if err := r.registry.requireArtifactAdmitted(registration.Artifact); err != nil {
-		return nil, errors.Join(ErrDependencyDenied, err)
+	artifactAdmissionErr := r.registry.requireArtifactAdmitted(registration.Artifact)
+	if contextErr := executionContextError(ctx); contextErr != nil {
+		return nil, contextErr
+	}
+	if artifactAdmissionErr != nil {
+		return nil, errors.Join(ErrDependencyDenied, artifactAdmissionErr)
 	}
 	inputRows, _, err := cloneRowsBoundedWithBudget(current, r.maxResultBytes, budget)
 	if err != nil {
@@ -320,21 +407,35 @@ func (r *ExecutionRuntime) invokeResultFilter(
 	// Filters receive result data, so Host authority is refreshed after preparing
 	// detached input and immediately before invocation. The exact filter lease
 	// was acquired before cache lookup and remains held.
-	if err := r.registry.RecheckBeforeRelease(ctx, plan, permission); err != nil {
+	permissionErr := r.registry.RecheckBeforeRelease(ctx, plan, permission)
+	if contextErr := executionContextError(ctx); contextErr != nil {
+		cancel()
+		return nil, contextErr
+	}
+	if permissionErr != nil {
+		cancel()
+		return nil, permissionErr
+	}
+	artifactAdmissionErr = r.registry.requireArtifactAdmitted(registration.Artifact)
+	if contextErr := executionContextError(ctx); contextErr != nil {
+		cancel()
+		return nil, contextErr
+	}
+	if artifactAdmissionErr != nil {
+		cancel()
+		return nil, errors.Join(ErrDependencyDenied, artifactAdmissionErr)
+	}
+	if err := executionContextError(ctx); err != nil {
 		cancel()
 		return nil, err
-	}
-	if err := r.registry.requireArtifactAdmitted(registration.Artifact); err != nil {
-		cancel()
-		return nil, errors.Join(ErrDependencyDenied, err)
 	}
 	candidateResult, filterErr := registration.Filter.FilterQueryResult(filterCtx, ResultFilterRequest{
 		Plan: cloneQueryPlan(plan), Rows: inputRows,
 	})
-	filterContextErr := filterCtx.Err()
+	filterContextErr := executionContextError(filterCtx)
 	cancel()
-	if filterErr == nil && filterContextErr != nil {
-		filterErr = filterContextErr
+	if filterContextErr != nil {
+		filterErr = errors.Join(errResultFilterHostContext, filterContextErr)
 	}
 	// Callback failure policy never controls Host authority. Recheck the exact
 	// filter artifact, immutable plan/cost, and live permission even when the
@@ -367,20 +468,32 @@ func (r *ExecutionRuntime) recheckAfterResultFilterCallback(
 	permission PermissionInput,
 	artifact Artifact,
 ) error {
-	if err := ctx.Err(); err != nil {
+	if err := executionContextError(ctx); err != nil {
 		return err
 	}
-	if err := r.registry.requireArtifactAdmitted(artifact); err != nil {
-		return errors.Join(ErrDependencyDenied, err)
+	artifactAdmissionErr := r.registry.requireArtifactAdmitted(artifact)
+	if contextErr := executionContextError(ctx); contextErr != nil {
+		return contextErr
 	}
-	if err := r.registry.RecheckBeforeRelease(ctx, plan, permission); err != nil {
-		return err
+	if artifactAdmissionErr != nil {
+		return errors.Join(ErrDependencyDenied, artifactAdmissionErr)
+	}
+	permissionErr := r.registry.RecheckBeforeRelease(ctx, plan, permission)
+	if contextErr := executionContextError(ctx); contextErr != nil {
+		return contextErr
+	}
+	if permissionErr != nil {
+		return permissionErr
 	}
 	// The permission/cost callback above may itself race a filter drain.
-	if err := r.registry.requireArtifactAdmitted(artifact); err != nil {
-		return errors.Join(ErrDependencyDenied, err)
+	artifactAdmissionErr = r.registry.requireArtifactAdmitted(artifact)
+	if contextErr := executionContextError(ctx); contextErr != nil {
+		return contextErr
 	}
-	return ctx.Err()
+	if artifactAdmissionErr != nil {
+		return errors.Join(ErrDependencyDenied, artifactAdmissionErr)
+	}
+	return executionContextError(ctx)
 }
 
 func selectedIdentityFields(fields, identities []string) bool {
@@ -396,21 +509,52 @@ func selectedIdentityFields(fields, identities []string) bool {
 	return true
 }
 
-func (r *ExecutionRuntime) acquireExecutionAdmission(ctx context.Context, artifact Artifact) (func(), error) {
+func (r *ExecutionRuntime) acquireExecutionAdmission(ctx context.Context, artifact Artifact) (ExecutionAdmissionLease, error) {
 	if validCoreArtifactSeal(artifact) {
-		return func() {}, nil
+		return ExecutionAdmissionLease{Context: ctx, Release: func() {}}, nil
 	}
 	if r == nil || r.admission == nil {
-		return nil, ErrArtifactUnavailable
+		return ExecutionAdmissionLease{}, ErrArtifactUnavailable
 	}
-	release, err := r.admission.AcquireQueryExecution(ctx, artifact)
-	if err != nil || release == nil {
-		if err == nil {
-			err = ErrArtifactUnavailable
+	if contextual, ok := r.admission.(ContextualExecutionAdmission); ok {
+		lease, err := contextual.AcquireQueryExecutionLease(ctx, artifact)
+		if err != nil || lease.Context == nil || lease.Release == nil {
+			if contextErr := executionContextError(ctx); err != nil && contextErr != nil &&
+				sameCancellationCause(err, contextErr) {
+				if lease.Release != nil {
+					lease.Release()
+				}
+				return ExecutionAdmissionLease{}, contextErr
+			}
+			if err == nil {
+				err = ErrArtifactUnavailable
+			}
+			if lease.Release != nil {
+				lease.Release()
+			}
+			return ExecutionAdmissionLease{}, errors.Join(ErrArtifactUnavailable, err)
 		}
-		return nil, errors.Join(ErrArtifactUnavailable, err)
+		return lease, nil
 	}
-	return release, nil
+	// A release-only lease cannot propagate ForceDrain into provider/filter
+	// transport. Keep the legacy interface for source compatibility, but never
+	// admit third-party execution through it.
+	return ExecutionAdmissionLease{}, ErrArtifactUnavailable
+}
+
+func executionContextError(ctx context.Context) error {
+	if ctx == nil {
+		return ErrExecutionInvalid
+	}
+	if admissions, ok := ctx.Value(executionAdmissionContextKey{}).(*executionAdmissionSet); ok {
+		if err := admissions.executionError(); err != nil {
+			return err
+		}
+	}
+	if cause := context.Cause(ctx); cause != nil {
+		return cause
+	}
+	return ctx.Err()
 }
 
 func cloneQueryResult(input QueryResult) QueryResult {
@@ -440,6 +584,8 @@ func executionTraceOutcome(err error) string {
 	switch {
 	case err == nil:
 		return TraceOutcomeAllowed
+	case errors.Is(err, ErrArtifactUnavailable):
+		return TraceOutcomeRuntimeStale
 	case errors.Is(err, context.DeadlineExceeded):
 		return TraceOutcomeDeadline
 	case errors.Is(err, context.Canceled):
@@ -460,8 +606,6 @@ func executionTraceOutcome(err error) string {
 		return TraceOutcomeResultTooLarge
 	case errors.Is(err, ErrResultInvalid):
 		return TraceOutcomeSchemaInvalid
-	case errors.Is(err, ErrArtifactUnavailable):
-		return TraceOutcomeRuntimeStale
 	case errors.Is(err, ErrArtifactConflict), errors.Is(err, ErrRevisionConflict):
 		return TraceOutcomeSnapshotStale
 	case errors.Is(err, ErrInvalid), errors.Is(err, ErrExecutionInvalid), errors.Is(err, ErrCursorInvalid),

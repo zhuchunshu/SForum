@@ -277,7 +277,7 @@ func TestExecutionHoldsExactPluginAdmissionLeaseAcrossProviderCall(t *testing.T)
 	var acquired, released atomic.Int32
 	withLease, err := NewExecutionRuntime(ExecutionConfig{
 		Registry: registry, Providers: providers, Schemas: allowExecutionSchema(),
-		Admission: ExecutionAdmissionFunc(func(_ context.Context, artifact Artifact) (func(), error) {
+		Admission: contextualTestAdmission(func(_ context.Context, artifact Artifact) (func(), error) {
 			if artifact != plugin.Artifact {
 				return nil, ErrArtifactUnavailable
 			}
@@ -390,6 +390,17 @@ func TestExecutionFilterFailureDependencyAndAdmissionPolicies(t *testing.T) {
 	if _, err := runtime.Execute(t.Context(), PlanRequest{QueryID: "core.execute.items"}); !errors.Is(err, ErrProviderFailed) {
 		t.Fatalf("fail-closed filter=%v", err)
 	}
+	shapedCancellation := executionTestFilter(artifact, "plugin.filter.shaped-cancellation", 10, ResultFilterFailOpen, func(rows []QueryRow) []QueryRow { return rows })
+	shapedCancellation.Filter = ResultFilterFunc(func(context.Context, ResultFilterRequest) (ResultFilterResult, error) {
+		return ResultFilterResult{}, context.Canceled
+	})
+	runtime, _ = executionTestRuntime(t, PaginationNone, PermissionPolicyPublic, provider, []ResultFilterRegistration{shapedCancellation}, func(config *ExecutionConfig) {
+		config.Registry.WithPluginAdmission(func(candidate Artifact) bool { return candidate == artifact })
+	})
+	result, err = runtime.Execute(t.Context(), PlanRequest{QueryID: "core.execute.items"})
+	if err != nil || result.Rows[0]["title"] != "base" {
+		t.Fatalf("fail-open plugin-shaped cancellation: result=%#v err=%v", result, err)
+	}
 
 	missingDependency := executionTestFilter(artifact, "plugin.filter.dependency", 10, ResultFilterFailClosed, func(rows []QueryRow) []QueryRow { return rows })
 	missingDependency.Dependency = ResultFilterDependency{}
@@ -423,8 +434,8 @@ func TestExecutionFilterFailureDependencyAndAdmissionPolicies(t *testing.T) {
 	runtime, _ = executionTestRuntime(t, PaginationNone, PermissionPolicyPublic, provider, []ResultFilterRegistration{timed}, func(config *ExecutionConfig) {
 		config.Registry.WithPluginAdmission(func(candidate Artifact) bool { return candidate == artifact })
 	})
-	if result, err := runtime.Execute(t.Context(), PlanRequest{QueryID: "core.execute.items"}); err != nil || result.Rows[0]["title"] != "base" {
-		t.Fatalf("fail-open filter timeout: result=%#v err=%v", result, err)
+	if _, err := runtime.Execute(t.Context(), PlanRequest{QueryID: "core.execute.items"}); !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("fail-open filter Host timeout=%v", err)
 	}
 	timed.FailurePolicy = ResultFilterFailClosed
 	runtime, _ = executionTestRuntime(t, PaginationNone, PermissionPolicyPublic, provider, []ResultFilterRegistration{timed}, func(config *ExecutionConfig) {
@@ -486,7 +497,7 @@ func executionTestRuntimeError(
 	}
 	config := ExecutionConfig{
 		Registry: registry, Providers: providers, Schemas: allowExecutionSchema(), ResultFilters: filters,
-		Admission: ExecutionAdmissionFunc(func(context.Context, Artifact) (func(), error) {
+		Admission: contextualTestAdmission(func(context.Context, Artifact) (func(), error) {
 			return func() {}, nil
 		}),
 	}

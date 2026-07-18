@@ -114,7 +114,13 @@ func (r *ExecutionRuntime) validateRowsWithBudget(
 			return err
 		}
 		if err := r.schemas.ValidateQueryResult(ctx, claim, validatorRows[0]); err != nil {
+			if contextErr := executionContextError(ctx); contextErr != nil {
+				return contextErr
+			}
 			return fmt.Errorf("%w: %v", ErrResultInvalid, err)
+		}
+		if contextErr := executionContextError(ctx); contextErr != nil {
+			return contextErr
 		}
 	}
 	return nil
@@ -401,8 +407,17 @@ func (r *ExecutionRuntime) validateCachedResult(
 		return QueryResult{}, ErrCachePoisoned
 	}
 	rows, _, err := cloneRowsBounded(cached.Rows, r.maxResultBytes)
-	if err != nil || len(rows) > plan.Pagination.Limit || r.validateRows(ctx, plan, rows) != nil {
+	if err != nil || len(rows) > plan.Pagination.Limit {
 		return QueryResult{}, ErrCachePoisoned
+	}
+	if err := r.validateRows(ctx, plan, rows); err != nil {
+		if contextErr := executionContextError(ctx); contextErr != nil {
+			return QueryResult{}, contextErr
+		}
+		return QueryResult{}, ErrCachePoisoned
+	}
+	if contextErr := executionContextError(ctx); contextErr != nil {
+		return QueryResult{}, contextErr
 	}
 	return QueryResult{
 		Rows: rows, Page: cached.Page, CacheKey: cacheKey, CacheTags: slices.Clone(tags), CacheHit: true,

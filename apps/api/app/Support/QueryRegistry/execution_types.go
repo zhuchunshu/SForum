@@ -141,6 +141,22 @@ type ExecutionAdmission interface {
 	AcquireQueryExecution(context.Context, Artifact) (release func(), err error)
 }
 
+// ExecutionAdmissionLease carries the exact runtime cancellation boundary.
+// Release closes only the lease; callers must use Context for provider/filter
+// work so ForceDrain reaches the transport before the process is stopped.
+type ExecutionAdmissionLease struct {
+	Context context.Context
+	Release func()
+}
+
+// ContextualExecutionAdmission is required for third-party executable
+// artifacts. Keeping it separate from ExecutionAdmission preserves source
+// compatibility, but a release-only admission fails closed at runtime because
+// it cannot propagate ForceDrain into provider/filter transport.
+type ContextualExecutionAdmission interface {
+	AcquireQueryExecutionLease(context.Context, Artifact) (ExecutionAdmissionLease, error)
+}
+
 type ExecutionAdmissionFunc func(context.Context, Artifact) (func(), error)
 
 func (f ExecutionAdmissionFunc) AcquireQueryExecution(ctx context.Context, artifact Artifact) (func(), error) {
@@ -148,6 +164,35 @@ func (f ExecutionAdmissionFunc) AcquireQueryExecution(ctx context.Context, artif
 		return nil, ErrArtifactUnavailable
 	}
 	return f(ctx, artifact)
+}
+
+type ContextualExecutionAdmissionFunc func(context.Context, Artifact) (ExecutionAdmissionLease, error)
+
+func (f ContextualExecutionAdmissionFunc) AcquireQueryExecutionLease(
+	ctx context.Context,
+	artifact Artifact,
+) (ExecutionAdmissionLease, error) {
+	if f == nil {
+		return ExecutionAdmissionLease{}, ErrArtifactUnavailable
+	}
+	return f(ctx, artifact)
+}
+
+func (f ContextualExecutionAdmissionFunc) AcquireQueryExecution(
+	ctx context.Context,
+	artifact Artifact,
+) (func(), error) {
+	lease, err := f.AcquireQueryExecutionLease(ctx, artifact)
+	if err != nil {
+		return nil, err
+	}
+	if lease.Context == nil || lease.Release == nil {
+		if lease.Release != nil {
+			lease.Release()
+		}
+		return nil, ErrArtifactUnavailable
+	}
+	return lease.Release, nil
 }
 
 type staticProviderResolver struct {
