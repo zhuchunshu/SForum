@@ -14,6 +14,41 @@ Last updated: 2026-07-19
 
 ## Current Subtask
 
+### 2026-07-19 Query Semantic Invalidation Boundary (no P7 credit)
+
+- Verified weighted progress remains **66.9205%**; P7 stays **16/22** until
+  durable invalidation, production bootstrap, lifecycle upgrade/replace, and
+  the joined Query gates all pass.
+- `fc35843f1` adds the narrow Host-owned `SemanticCacheInvalidator`, canonical
+  sorted owner-prefixed logical tags, and the single owner/logical-to-shared-tag
+  mapping used by both execution and invalidation. Durable payloads cannot carry
+  physical Redis keys, actor/locale/request identity, version/digest/VersionID,
+  or runtime instance identity. Cross-owner, ownerless, duplicate, malformed,
+  and over-limit sets fail closed.
+- Focused tests passed `count=20`; the complete QueryRegistry package, focused
+  race `count=5`, QueryRegistry vet, and diff check pass.
+- River `Unique ByArgs` is rejected for invalidation jobs. River v0.40 includes
+  running and completed jobs in its default unique states, so a second mutation
+  with the same tags can be coalesced behind the first and lose its required
+  post-mutation invalidation. Every committed mutation must retain its own
+  idempotent Host job.
+- The accepted River transaction boundary provides durable eventual
+  invalidation: the job and mutation commit or roll back together, while the
+  critical worker applies the authoritative Redis invalidation with `WAITAOF`.
+  P7 does not invent a synchronous Redis dependency or linearizable
+  read-after-write contract on the mutation path. Existing Store fences prevent
+  a provider that began before invalidation from reviving stale data.
+- Safe Mode does not enable Query result caching, but the Host invalidation
+  worker must remain registered so committed jobs can drain without starting a
+  plugin runtime. Malformed envelopes cancel; capability/unavailable recovery
+  snoozes without exhausting attempts and constructs a fresh activated cache
+  because a terminally latched object cannot recover in place.
+- Exact next step: add the versioned owner/logical-tag River args and worker on
+  `critical` without uniqueness, with cancel/snooze/error tests; then add the
+  transaction-bound enqueue path before production API/worker Redis wiring.
+- Rollback is additive: revert `fc35843f1`. No migration, feature flag, branch,
+  worktree, push, tag, bootstrap file, or unrelated dirty file changed.
+
 ### 2026-07-19 Query Redis Backend Checkpoint (no P7 credit)
 
 - Verified weighted progress remains **66.9205%**; P7 stays **16/22** until
