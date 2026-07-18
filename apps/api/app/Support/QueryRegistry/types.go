@@ -63,8 +63,8 @@ type Artifact struct {
 	coreSeal [32]byte
 }
 
-// QueryDeclaration is the frozen ManifestQuery surface. Do not add action,
-// target, priority, handler, cost, or resultFilters fields here.
+// QueryDeclaration is the frozen ManifestQuery surface plus optional executable
+// opt-in metadata. Handler never invents a provider by naming convention.
 type QueryDeclaration struct {
 	ID              string   `json:"id"`
 	ContractVersion string   `json:"contractVersion"`
@@ -82,15 +82,52 @@ type QueryDeclaration struct {
 	ResultSchemaDigest string   `json:"resultSchemaDigest,omitempty"`
 	PermissionPolicy   string   `json:"permissionPolicy"`
 	CacheTags          []string `json:"cacheTags,omitempty"`
+	// Handler explicitly opts this declaration into Host-to-plugin execution.
+	// Empty remains the compatible inspect/plan-only contract.
+	Handler        string      `json:"handler,omitempty"`
+	IdentityFields []string    `json:"identityFields,omitempty"`
+	DefaultSort    []SortValue `json:"defaultSort,omitempty"`
+	// ProviderDigest is Host-derived executable mapping identity. A non-empty
+	// value is accepted only with private material from BindExecutableRuntime.
+	ProviderDigest string `json:"providerDigest,omitempty"`
 
 	boundResultSchema *compiledResultSchema
+	// boundProvider holds non-serializable executable material. JSON encode
+	// drops it so round-trips fail closed without re-binding.
+	boundProvider *boundExecutableProvider
+}
+
+// ResultFilterDeclaration is one independent post-provider filter owned by the
+// same exact publication revision as its target query metadata.
+type ResultFilterDeclaration struct {
+	ID                   string                  `json:"id"`
+	ContractVersion      string                  `json:"contractVersion"`
+	QueryID              string                  `json:"queryId"`
+	QueryContractVersion string                  `json:"queryContractVersion"`
+	QueryPlanVersion     string                  `json:"queryPlanVersion"`
+	Handler              string                  `json:"handler"`
+	Priority             int                     `json:"priority,omitempty"`
+	FailurePolicy        string                  `json:"failurePolicy,omitempty"`
+	TimeoutMS            int                     `json:"timeoutMs,omitempty"`
+	Dependency           *ResultFilterDependency `json:"dependency,omitempty"`
+	// IdentityFields are Host-copied from the target query owner. Filter authors
+	// cannot self-select decorative identity.
+	IdentityFields []string `json:"identityFields,omitempty"`
+	// FilterDigest is Host-derived executable mapping identity. A non-empty
+	// value is accepted only with private material from BindExecutableRuntime.
+	FilterDigest string `json:"filterDigest,omitempty"`
+
+	boundFilter *boundExecutableFilter
 }
 
 // Publication is one exact-artifact owner. Empty query lists remain valid for
 // Host-owned catalogs even though lifecycle publication omits queryless plugins.
+// Executable providers, independent result filters, and result Schemas join the
+// same immutable Registry revision when bound.
 type Publication struct {
-	Artifact Artifact           `json:"artifact"`
-	Queries  []QueryDeclaration `json:"queries,omitempty"`
+	Artifact      Artifact                  `json:"artifact"`
+	Queries       []QueryDeclaration        `json:"queries,omitempty"`
+	ResultFilters []ResultFilterDeclaration `json:"resultFilters,omitempty"`
 }
 
 // QueryContribution is a frozen declaration plus its exact owning artifact.

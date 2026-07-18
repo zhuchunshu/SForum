@@ -11,6 +11,10 @@ func clonePublication(value Publication) Publication {
 	for index := range value.Queries {
 		value.Queries[index] = cloneQueryDeclaration(value.Queries[index])
 	}
+	value.ResultFilters = slices.Clone(value.ResultFilters)
+	for index := range value.ResultFilters {
+		value.ResultFilters[index] = cloneResultFilterDeclaration(value.ResultFilters[index])
+	}
 	return value
 }
 
@@ -20,16 +24,37 @@ func cloneQueryDeclaration(value QueryDeclaration) QueryDeclaration {
 	value.Filters = slices.Clone(value.Filters)
 	value.Sort = slices.Clone(value.Sort)
 	value.CacheTags = slices.Clone(value.CacheTags)
+	value.IdentityFields = slices.Clone(value.IdentityFields)
+	value.DefaultSort = slices.Clone(value.DefaultSort)
 	if value.boundResultSchema != nil {
 		material := cloneCompiledResultSchema(*value.boundResultSchema)
 		value.boundResultSchema = &material
+	}
+	if value.boundProvider != nil {
+		material := *value.boundProvider
+		value.boundProvider = &material
+	}
+	return value
+}
+
+func cloneResultFilterDeclaration(value ResultFilterDeclaration) ResultFilterDeclaration {
+	value.IdentityFields = slices.Clone(value.IdentityFields)
+	if value.Dependency != nil {
+		dependency := *value.Dependency
+		value.Dependency = &dependency
+	}
+	if value.boundFilter != nil {
+		material := *value.boundFilter
+		value.boundFilter = &material
 	}
 	return value
 }
 
 func cloneContribution(value QueryContribution) QueryContribution {
 	value.QueryDeclaration = cloneQueryDeclaration(value.QueryDeclaration)
+	// 计划与 Resolve 仅暴露公开 metadata；callable 留在 publication private material。
 	value.boundResultSchema = nil
+	value.boundProvider = nil
 	return value
 }
 

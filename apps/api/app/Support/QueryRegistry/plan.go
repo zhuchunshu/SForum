@@ -55,17 +55,28 @@ func (r *Registry) Plan(ctx context.Context, request PlanRequest) (QueryPlan, er
 	if err != nil {
 		return QueryPlan{}, err
 	}
+	// 第三方 executable relation 仍不是本切片 join/SQL 面；Host-only relations 保持。
+	if contribution.Handler != "" && len(relations) > 0 && !validCoreArtifactSeal(contribution.Artifact) {
+		return QueryPlan{}, fmt.Errorf("%w: third-party executable queries cannot select relations", ErrContractInsufficient)
+	}
 	filters, err := selectFilters(contribution.Filters, request.Filters)
 	if err != nil {
 		return QueryPlan{}, err
 	}
-	sorts, err := selectSorts(contribution.Sort, request.Sorts)
+	sorts, err := selectExecutableSorts(contribution, request.Sorts)
 	if err != nil {
 		return QueryPlan{}, err
 	}
 	pagination, err := selectPagination(contribution.Pagination, request.Pagination)
 	if err != nil {
 		return QueryPlan{}, err
+	}
+	if contribution.Handler != "" && pagination.Mode != PaginationNone {
+		// offset/cursor 续页依赖稳定行身份；强制把 identity fields 纳入选择集。
+		fields, err = ensureIdentityFieldsSelected(fields, contribution.IdentityFields)
+		if err != nil {
+			return QueryPlan{}, err
+		}
 	}
 	locale, err := normalizeLocale(request.Locale)
 	if err != nil {
@@ -335,6 +346,74 @@ func selectSorts(allowlist []string, requested []SortValue) ([]SortValue, error)
 	return result, nil
 }
 
+func selectExecutableSorts(contribution QueryContribution, requested []SortValue) ([]SortValue, error) {
+	if contribution.Handler == "" {
+		return selectSorts(contribution.Sort, requested)
+	}
+	if len(requested) == 0 {
+		// 空 sort 使用声明 DefaultSort，保证 executable 分页顺序确定性。
+		return append([]SortValue(nil), contribution.DefaultSort...), nil
+	}
+	sorts, err := selectSorts(contribution.Sort, requested)
+	if err != nil {
+		return nil, err
+	}
+	return appendIdentitySortTieBreakers(sorts, contribution.DefaultSort, contribution.IdentityFields)
+}
+
+func appendIdentitySortTieBreakers(
+	sorts []SortValue,
+	defaultSort []SortValue,
+	identityFields []string,
+) ([]SortValue, error) {
+	selected := map[string]bool{}
+	for _, item := range sorts {
+		selected[item.Field] = true
+	}
+	defaultByField := map[string]SortValue{}
+	for _, item := range defaultSort {
+		defaultByField[item.Field] = item
+	}
+	result := append([]SortValue(nil), sorts...)
+	for _, identity := range identityFields {
+		if selected[identity] {
+			continue
+		}
+		if len(result) >= maxPlanSorts {
+			return nil, ErrInvalid
+		}
+		if item, ok := defaultByField[identity]; ok {
+			result = append(result, item)
+		} else {
+			result = append(result, SortValue{Field: identity})
+		}
+		selected[identity] = true
+	}
+	return result, nil
+}
+
+func ensureIdentityFieldsSelected(fields, identityFields []string) ([]string, error) {
+	if len(identityFields) == 0 {
+		return nil, ErrInvalid
+	}
+	selected := map[string]bool{}
+	for _, field := range fields {
+		selected[field] = true
+	}
+	result := append([]string(nil), fields...)
+	for _, identity := range identityFields {
+		if selected[identity] {
+			continue
+		}
+		if len(result) >= maxPlanFields {
+			return nil, ErrInvalid
+		}
+		result = append(result, identity)
+		selected[identity] = true
+	}
+	return result, nil
+}
+
 func selectPagination(mode string, request PaginationRequest) (PaginationPlan, error) {
 	limit := request.Limit
 	offset := request.Offset
@@ -418,21 +497,53 @@ func (r *Registry) validatePlanForRelease(
 		!reflect.DeepEqual(plan.Query, contribution) || plan.ShapeDigest == "" || plan.CacheKey == "" {
 		return ErrArtifactConflict
 	}
-	fields, err := selectNames(contribution.Fields, plan.Fields, maxPlanFields, true)
-	if err != nil || !slices.Equal(fields, plan.Fields) {
+	// plan.Fields 已含 Host 强制补齐的 identity；不能用默认 selectNames 回放。
+	fields, err := selectNames(contribution.Fields, plan.Fields, maxPlanFields, false)
+	if err != nil || len(fields) == 0 || !slices.Equal(fields, plan.Fields) {
 		return ErrArtifactConflict
+	}
+	if contribution.Handler != "" && plan.Pagination.Mode != PaginationNone {
+		forced, forceErr := ensureIdentityFieldsSelected(fields, contribution.IdentityFields)
+		if forceErr != nil || !slices.Equal(forced, plan.Fields) {
+			return ErrArtifactConflict
+		}
 	}
 	relations, err := selectNames(contribution.Relations, plan.Relations, maxPlanRelations, false)
 	if err != nil || !slices.Equal(relations, plan.Relations) {
+		return ErrArtifactConflict
+	}
+	if contribution.Handler != "" && len(relations) > 0 && !validCoreArtifactSeal(contribution.Artifact) {
 		return ErrArtifactConflict
 	}
 	filters, err := selectFilters(contribution.Filters, plan.Filters)
 	if err != nil || !slices.Equal(filters, plan.Filters) {
 		return ErrArtifactConflict
 	}
+	// 回放时 plan.Sorts 已是 DefaultSort 或 caller+identity；按 allowlist 校验即可。
 	sorts, err := selectSorts(contribution.Sort, plan.Sorts)
 	if err != nil || !slices.Equal(sorts, plan.Sorts) {
 		return ErrArtifactConflict
+	}
+	if contribution.Handler != "" {
+		expectedSorts, sortErr := selectExecutableSorts(contribution, plan.Sorts)
+		// plan.Sorts 可能已含 tie-breaker；与从空/caller 重建的结果不一定相同。
+		// 这里只要求每个 identity 字段都出现在最终 sort 中。
+		if sortErr != nil {
+			return ErrArtifactConflict
+		}
+		_ = expectedSorts
+		for _, identity := range contribution.IdentityFields {
+			found := false
+			for _, item := range plan.Sorts {
+				if item.Field == identity {
+					found = true
+					break
+				}
+			}
+			if !found {
+				return ErrArtifactConflict
+			}
+		}
 	}
 	if plan.Pagination.Mode != contribution.Pagination {
 		return ErrArtifactConflict

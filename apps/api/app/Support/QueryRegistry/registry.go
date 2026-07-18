@@ -247,7 +247,12 @@ func equalPublications(left, right Publication) bool {
 func publicationContract(value Publication) Publication {
 	value = clonePublication(value)
 	for index := range value.Queries {
+		// equality/digest 只比较稳定公开 metadata 与 digests，禁止 callable 指针入合同。
 		value.Queries[index].boundResultSchema = nil
+		value.Queries[index].boundProvider = nil
+	}
+	for index := range value.ResultFilters {
+		value.ResultFilters[index].boundFilter = nil
 	}
 	return value
 }

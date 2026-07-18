@@ -42,6 +42,8 @@ func buildState(revision uint64, input []Publication, safeMode bool) (*registryS
 	// 1) unique query IDs
 	// 2) unique provider slots within each declaration (validated at normalize)
 	// Multi-plugin field/relation/filter/sort merge requires later contract fields.
+	// Executable providers, result filters, and Schemas must join this same
+	// immutable revision; private material is retained only in publications.
 	for _, publication := range sortedPublications(state.publications) {
 		for _, declaration := range publication.Queries {
 			if existing, duplicate := state.queries[declaration.ID]; duplicate {
@@ -62,10 +64,19 @@ func buildState(revision uint64, input []Publication, safeMode bool) (*registryS
 			if bound {
 				state.schemas[declaration.ID] = compiled
 			}
-			// Plans and inspection carry only the digest. Raw Schema bytes and the
-			// validator stay in the publication/state sidecar.
+			if _, _, err := publicationExecutableProvider(publication.Artifact, declaration); err != nil {
+				return nil, fmt.Errorf("%w: executable provider for %s", ErrInvalid, declaration.ID)
+			}
+			// Plans and inspection carry only public digests. Raw Schema bytes,
+			// validators, and callables stay in the publication private material.
 			contribution.boundResultSchema = nil
+			contribution.boundProvider = nil
 			state.queries[contribution.ID] = contribution
+		}
+		for _, filter := range publication.ResultFilters {
+			if _, _, err := publicationExecutableFilter(publication.Artifact, filter); err != nil {
+				return nil, fmt.Errorf("%w: executable result filter for %s", ErrInvalid, filter.ID)
+			}
 		}
 	}
 	return state, nil

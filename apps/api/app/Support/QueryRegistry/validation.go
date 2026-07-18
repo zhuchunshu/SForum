@@ -6,8 +6,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
+	"time"
 
 	semver "github.com/Masterminds/semver/v3"
 	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
@@ -16,23 +18,28 @@ import (
 // Bounds keep publication graphs and plan inputs finite. Individually valid
 // declarations can otherwise explode startup work or plan cost.
 const (
-	maxPublications            = 512
-	maxQueriesTotal            = 4096
-	maxQueriesPerPublication   = 512
-	maxFieldsPerQuery          = 128
-	maxRelationsPerQuery       = 32
-	maxFiltersPerQuery         = 64
-	maxSortsPerQuery           = 16
-	maxCacheTagsPerQuery       = 32
-	maxIDLength                = 121
-	maxSchemaRefLength         = 256
-	maxOpaqueNameLength        = 256
-	maxFilterValueLength       = 512
-	maxLocaleLength            = 32
-	maxScopeLength             = 128
-	maxFingerprintLength       = 128
-	maxExtensionVersionLength  = 128
-	maxRuntimeInstanceIDLength = 512
+	maxPublications                = 512
+	maxQueriesTotal                = 4096
+	maxQueriesPerPublication       = 512
+	maxResultFiltersPerPublication = 64
+	maxResultFiltersTotal          = 1024
+	maxFieldsPerQuery              = 128
+	maxRelationsPerQuery           = 32
+	maxFiltersPerQuery             = 64
+	maxSortsPerQuery               = 16
+	maxIdentityFieldsPerQuery      = 8
+	maxCacheTagsPerQuery           = 32
+	maxIDLength                    = 121
+	maxSchemaRefLength             = 256
+	maxOpaqueNameLength            = 256
+	maxFilterValueLength           = 512
+	maxLocaleLength                = 32
+	maxScopeLength                 = 128
+	maxFingerprintLength           = 128
+	maxExtensionVersionLength      = 128
+	maxRuntimeInstanceIDLength     = 512
+	maxHandlerLength               = 256
+	maxResultFilterPriority        = 1_000_000
 	// Cost values cross JSON/protocol boundaries. This representational bound is
 	// not the still-open product cost model; it prevents architecture-dependent
 	// int ranges and pathological policy output from entering a durable plan.
@@ -62,6 +69,7 @@ func normalizePublications(input []Publication) ([]Publication, error) {
 	result := make([]Publication, 0, len(input))
 	seen := map[string]bool{}
 	queryCount := 0
+	filterCount := 0
 	for _, publication := range input {
 		normalized, err := normalizePublication(publication)
 		if err != nil {
@@ -72,7 +80,8 @@ func normalizePublications(input []Publication) ([]Publication, error) {
 		}
 		seen[normalized.Artifact.ExtensionID] = true
 		queryCount += len(normalized.Queries)
-		if queryCount > maxQueriesTotal {
+		filterCount += len(normalized.ResultFilters)
+		if queryCount > maxQueriesTotal || filterCount > maxResultFiltersTotal {
 			return nil, ErrInvalid
 		}
 		result = append(result, normalized)
@@ -88,7 +97,8 @@ func normalizePublication(input Publication) (Publication, error) {
 	if err != nil {
 		return Publication{}, ErrInvalid
 	}
-	if len(input.Queries) > maxQueriesPerPublication {
+	if len(input.Queries) > maxQueriesPerPublication ||
+		len(input.ResultFilters) > maxResultFiltersPerPublication {
 		return Publication{}, ErrInvalid
 	}
 	result := Publication{Artifact: artifact}
@@ -106,6 +116,24 @@ func normalizePublication(input Publication) (Publication, error) {
 	}
 	sort.Slice(result.Queries, func(i, j int) bool {
 		return result.Queries[i].ID < result.Queries[j].ID
+	})
+	for _, raw := range input.ResultFilters {
+		declaration, filterErr := normalizeResultFilterDeclaration(artifact, raw, result.Queries)
+		if filterErr != nil {
+			return Publication{}, filterErr
+		}
+		if seen["filter\x00"+declaration.ID] {
+			return Publication{}, fmt.Errorf("%w: duplicate result filter %s in publication", ErrConflict, declaration.ID)
+		}
+		seen["filter\x00"+declaration.ID] = true
+		result.ResultFilters = append(result.ResultFilters, declaration)
+	}
+	sort.Slice(result.ResultFilters, func(i, j int) bool {
+		left, right := result.ResultFilters[i], result.ResultFilters[j]
+		if left.Priority != right.Priority {
+			return left.Priority > right.Priority
+		}
+		return left.ID < right.ID
 	})
 	return result, nil
 }
@@ -169,6 +197,9 @@ func normalizeQueryDeclaration(artifact Artifact, input QueryDeclaration) (Query
 	input.Pagination = strings.ToLower(strings.TrimSpace(input.Pagination))
 	input.ResultSchema = strings.TrimSpace(input.ResultSchema)
 	input.PermissionPolicy = strings.ToLower(strings.TrimSpace(input.PermissionPolicy))
+	input.Handler = strings.TrimSpace(input.Handler)
+	input.ProviderDigest = normalizeDigest(input.ProviderDigest)
+	input.ResultSchemaDigest = normalizeDigest(input.ResultSchemaDigest)
 
 	fields, err := normalizeNameList(input.Fields, maxFieldsPerQuery, true)
 	if err != nil {
@@ -190,6 +221,14 @@ func normalizeQueryDeclaration(artifact Artifact, input QueryDeclaration) (Query
 	if err != nil {
 		return QueryDeclaration{}, err
 	}
+	identityFields, err := normalizeNameList(input.IdentityFields, maxIdentityFieldsPerQuery, false)
+	if err != nil {
+		return QueryDeclaration{}, err
+	}
+	defaultSort, err := normalizeDefaultSort(input.DefaultSort, maxSortsPerQuery)
+	if err != nil {
+		return QueryDeclaration{}, err
+	}
 	if !validContributionIdentity(artifact, input.ID, input.ContractVersion) ||
 		!idPattern.MatchString(input.Entity) || !contractPattern.MatchString(input.PlanVersion) ||
 		len(input.PlanVersion) > maxSchemaRefLength ||
@@ -202,7 +241,143 @@ func normalizeQueryDeclaration(artifact Artifact, input QueryDeclaration) (Query
 	input.Filters = filters
 	input.Sort = sorts
 	input.CacheTags = cacheTags
+	input.IdentityFields = identityFields
+	input.DefaultSort = defaultSort
+	if err := validateExecutableQueryMetadata(artifact, input); err != nil {
+		return QueryDeclaration{}, err
+	}
+	if _, _, err := publicationExecutableProvider(artifact, input); err != nil {
+		return QueryDeclaration{}, err
+	}
 	return input, nil
+}
+
+func normalizeResultFilterDeclaration(
+	artifact Artifact,
+	input ResultFilterDeclaration,
+	queries []QueryDeclaration,
+) (ResultFilterDeclaration, error) {
+	input.ID = strings.ToLower(strings.TrimSpace(input.ID))
+	input.ContractVersion = strings.TrimSpace(input.ContractVersion)
+	input.QueryID = strings.ToLower(strings.TrimSpace(input.QueryID))
+	input.QueryContractVersion = strings.TrimSpace(input.QueryContractVersion)
+	input.QueryPlanVersion = strings.TrimSpace(input.QueryPlanVersion)
+	input.Handler = strings.TrimSpace(input.Handler)
+	input.FailurePolicy = strings.ToLower(strings.TrimSpace(input.FailurePolicy))
+	input.FilterDigest = normalizeDigest(input.FilterDigest)
+	if input.FailurePolicy == "" {
+		input.FailurePolicy = ResultFilterFailClosed
+	}
+	if input.TimeoutMS == 0 {
+		input.TimeoutMS = int(defaultFilterTimeout / time.Millisecond)
+	}
+	if input.Dependency != nil {
+		dependency := *input.Dependency
+		dependency.ExtensionID = strings.ToLower(strings.TrimSpace(dependency.ExtensionID))
+		dependency.VersionConstraint = strings.TrimSpace(dependency.VersionConstraint)
+		input.Dependency = &dependency
+	}
+	identityFields, err := normalizeNameList(input.IdentityFields, maxIdentityFieldsPerQuery, false)
+	if err != nil {
+		return ResultFilterDeclaration{}, err
+	}
+	input.IdentityFields = identityFields
+	if !validContributionIdentity(artifact, input.ID, input.ContractVersion) ||
+		!idPattern.MatchString(input.QueryID) || !contractPattern.MatchString(input.QueryContractVersion) ||
+		!contractPattern.MatchString(input.QueryPlanVersion) ||
+		!validExecutableHandler(artifact.ExtensionID, input.Handler) ||
+		(input.FailurePolicy != ResultFilterFailClosed && input.FailurePolicy != ResultFilterFailOpen) ||
+		input.TimeoutMS < 1 || input.TimeoutMS > int(maximumFilterTimeout/time.Millisecond) ||
+		input.Priority < -maxResultFilterPriority || input.Priority > maxResultFilterPriority {
+		return ResultFilterDeclaration{}, ErrInvalid
+	}
+	if input.Dependency != nil {
+		if !idPattern.MatchString(input.Dependency.ExtensionID) ||
+			input.Dependency.ExtensionID == artifact.ExtensionID ||
+			input.Dependency.VersionConstraint == "" {
+			return ResultFilterDeclaration{}, ErrInvalid
+		}
+	}
+	// 同 publication 内的目标 query：Host 复制 identity，并拒绝 self-dependency。
+	for _, query := range queries {
+		if query.ID != input.QueryID {
+			continue
+		}
+		if input.Dependency != nil || query.Handler == "" ||
+			query.ContractVersion != input.QueryContractVersion ||
+			query.PlanVersion != input.QueryPlanVersion ||
+			len(query.IdentityFields) == 0 {
+			return ResultFilterDeclaration{}, ErrInvalid
+		}
+		input.IdentityFields = slices.Clone(query.IdentityFields)
+		break
+	}
+	if _, _, err := publicationExecutableFilter(artifact, input); err != nil {
+		return ResultFilterDeclaration{}, err
+	}
+	return input, nil
+}
+
+func normalizeDefaultSort(input []SortValue, limit int) ([]SortValue, error) {
+	if len(input) > limit {
+		return nil, ErrInvalid
+	}
+	result := make([]SortValue, 0, len(input))
+	seen := map[string]bool{}
+	for _, item := range input {
+		field := strings.TrimSpace(item.Field)
+		if !validOpaqueName(field) || seen[field] {
+			return nil, ErrInvalid
+		}
+		seen[field] = true
+		result = append(result, SortValue{Field: field, Descending: item.Descending})
+	}
+	return result, nil
+}
+
+func validateExecutableQueryMetadata(artifact Artifact, input QueryDeclaration) error {
+	if input.Handler == "" {
+		if len(input.IdentityFields) != 0 || len(input.DefaultSort) != 0 ||
+			input.ProviderDigest != "" || input.boundProvider != nil {
+			return ErrInvalid
+		}
+		return nil
+	}
+	if !validExecutableHandler(artifact.ExtensionID, input.Handler) ||
+		len(input.IdentityFields) == 0 || len(input.DefaultSort) == 0 {
+		return ErrInvalid
+	}
+	fields := map[string]struct{}{}
+	for _, field := range input.Fields {
+		fields[field] = struct{}{}
+	}
+	sorts := map[string]struct{}{}
+	for _, field := range input.Sort {
+		sorts[field] = struct{}{}
+	}
+	for _, identity := range input.IdentityFields {
+		if _, ok := fields[identity]; !ok {
+			return ErrInvalid
+		}
+		if _, ok := sorts[identity]; !ok {
+			return ErrInvalid
+		}
+	}
+	for _, item := range input.DefaultSort {
+		if _, ok := sorts[item.Field]; !ok {
+			return ErrInvalid
+		}
+	}
+	if len(input.DefaultSort) < len(input.IdentityFields) {
+		return ErrInvalid
+	}
+	offset := len(input.DefaultSort) - len(input.IdentityFields)
+	for index, identity := range input.IdentityFields {
+		if input.DefaultSort[offset+index].Field != identity {
+			return ErrInvalid
+		}
+	}
+	return nil
 }
 
 func normalizeNameList(input []string, limit int, required bool) ([]string, error) {
