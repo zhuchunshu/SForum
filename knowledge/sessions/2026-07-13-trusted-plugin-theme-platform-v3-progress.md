@@ -14,6 +14,28 @@ Last updated: 2026-07-18
 
 ## Current Subtask
 
+### 2026-07-18 P7 Provider Timeout Ownership Checkpoint
+
+- Verified weighted progress remains **66.0114%** (display **66.0%**); P7 stays
+  **14/22** until the complete priority/timeout/failure-policy/version/
+  dependency/provider-fallback row passes its joined gates.
+- `d34c4074c fix(extensions): retain provider timeout admission` removes the
+  unsafe detached timeout winner. A non-cooperative invoker retains its exact
+  admission and resilience slot until it really exits; only then may fallback
+  begin, and late success remains a Host timeout. Production Protocol V2 gRPC
+  still returns through its bounded context.
+- Request and response clone/schema/revalidation boundaries now give
+  `context.Cause` priority, preventing invocation after an expired request
+  validation and preventing late success after response validation. Tests use
+  the real revalidator error shape and prove provider-class admission, drain,
+  resilience capacity, first-exit-before-fallback, and both deadline fences.
+- Focused normal **50** / race **20**, complete Extensions normal and race,
+  vet, full Go build, formatting, diff checks, and independent review pass.
+- Exact next step: add direct synchronous hook `fail_open` continuation evidence,
+  then prove a timed-out provider blocks exact disable/staged upgrade publication
+  until the old invocation exits. P7 remains uncredited until the named joined
+  gates cover the entire authoritative row.
+
 ### 2026-07-18 P6 Closure Checkpoint (18/18)
 
 - P6 is verified complete at **18/18**. Weighted progress is **66.0114%**
@@ -1309,14 +1331,16 @@ the accepted product contract.
 
 ## Exact Next Steps
 
-1. Fix P7 provider timeout ownership so exact admission is retained until the
-   invocation actually returns and fallback cannot overlap an old provider.
-2. Close P7's priority/timeout/failure-policy/version/dependency/provider-
+1. Add direct synchronous hook `fail_open` continuation evidence; the existing
+   async exact-binding test does not execute a failing listener.
+2. Prove timed-out provider disable and staged upgrade retain the old exact
+   lease and cannot publish a replacement until the invocation exits.
+3. Close P7's priority/timeout/failure-policy/version/dependency/provider-
    fallback row with joined ExtensionManifest/Extensions/HostAPI normal/race
    gates.
-3. Keep implementation/tests/docs in separate commits; never stage unowned dirty
+4. Keep implementation/tests/docs in separate commits; never stage unowned dirty
    files listed under Dirty Worktree Ownership.
-4. Add full-set/staged-publication quarantine concurrency coverage. Current
+5. Add full-set/staged-publication quarantine concurrency coverage. Current
    quarantine is intentionally node/process-local; cross-node or restart
    persistence requires an explicit durable incident/clear contract rather
    than overloading lifecycle publication reasons.
