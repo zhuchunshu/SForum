@@ -29,6 +29,7 @@ const (
 	maxArchiveBytes               = 50 * 1024 * 1024
 	maxArchiveEntries             = 4096
 	themeTrustCompensationTimeout = 5 * time.Second
+	settingsCompensationTimeout   = 5 * time.Second
 )
 
 type Service struct {
@@ -716,6 +717,9 @@ func (s *Service) AdminPageBootstrap(ctx context.Context, actor identity.Actor, 
 }
 
 func (s *Service) UpdateSettings(ctx context.Context, actor identity.Actor, extensionID string, input UpdateSettingsInput, locale string) (ExtensionSettings, error) {
+	s.assetPublicationMu.Lock()
+	defer s.assetPublicationMu.Unlock()
+
 	extension, err := s.store.Get(ctx, normalizeID(extensionID))
 	if err != nil {
 		return ExtensionSettings{}, err
@@ -740,17 +744,24 @@ func (s *Service) UpdateSettings(ctx context.Context, actor identity.Actor, exte
 	if err != nil {
 		return ExtensionSettings{}, err
 	}
-	if err := s.store.ReplaceSettings(ctx, extension.ID, stored); err != nil {
+	restart, err := s.preparePluginSettingsRestart(ctx, extension)
+	if err != nil {
 		return ExtensionSettings{}, err
 	}
-	if err := s.restartPluginForSettings(ctx, extension); err != nil {
-		return ExtensionSettings{}, s.restoreSettingsAfterRestartFailure(ctx, extension.ID, previousRaw, err)
+	if err := s.store.ReplaceSettings(ctx, extension.ID, stored); err != nil {
+		return ExtensionSettings{}, s.restorePreparedSettingsRestart(ctx, restart, err)
+	}
+	if err := s.restartPluginForSettings(ctx, extension, restart); err != nil {
+		return ExtensionSettings{}, s.restoreSettingsAfterRestartFailure(ctx, extension.ID, previousRaw, restart, err)
 	}
 	// 返回解密后的视图（secret 仍在 resolve 中掩码）。
 	return resolveExtensionSettings(extension, values, locale), nil
 }
 
 func (s *Service) ResetSettings(ctx context.Context, actor identity.Actor, extensionID string, locale string) (ExtensionSettings, error) {
+	s.assetPublicationMu.Lock()
+	defer s.assetPublicationMu.Unlock()
+
 	extension, err := s.store.Get(ctx, normalizeID(extensionID))
 	if err != nil {
 		return ExtensionSettings{}, err
@@ -762,24 +773,80 @@ func (s *Service) ResetSettings(ctx context.Context, actor identity.Actor, exten
 	if err != nil {
 		return ExtensionSettings{}, err
 	}
-	if err := s.store.ResetSettings(ctx, extension.ID); err != nil {
+	restart, err := s.preparePluginSettingsRestart(ctx, extension)
+	if err != nil {
 		return ExtensionSettings{}, err
 	}
-	if err := s.restartPluginForSettings(ctx, extension); err != nil {
-		return ExtensionSettings{}, s.restoreSettingsAfterRestartFailure(ctx, extension.ID, previousRaw, err)
+	if err := s.store.ResetSettings(ctx, extension.ID); err != nil {
+		return ExtensionSettings{}, s.restorePreparedSettingsRestart(ctx, restart, err)
+	}
+	if err := s.restartPluginForSettings(ctx, extension, restart); err != nil {
+		return ExtensionSettings{}, s.restoreSettingsAfterRestartFailure(ctx, extension.ID, previousRaw, restart, err)
 	}
 	return resolveExtensionSettings(extension, map[string]string{}, locale), nil
 }
 
-func (s *Service) restoreSettingsAfterRestartFailure(ctx context.Context, extensionID string, previous map[string]string, restartErr error) error {
-	if restoreErr := s.store.ReplaceSettings(ctx, extensionID, previous); restoreErr != nil {
+func (s *Service) restoreSettingsAfterRestartFailure(
+	ctx context.Context,
+	extensionID string,
+	previous map[string]string,
+	restart RuntimeQuerySettingsRestartTransaction,
+	restartErr error,
+) error {
+	compensationCtx, cancel := settingsCompensationContext(ctx)
+	defer cancel()
+	if restoreErr := s.store.ReplaceSettings(compensationCtx, extensionID, previous); restoreErr != nil {
+		var closeErr error
+		if restart != nil {
+			closeErr = restart.KeepRuntimeQueriesClosed()
+		}
 		return errors.Join(
 			ErrSettingsRollbackFailed,
 			fmt.Errorf("restart extension after settings change: %w", restartErr),
 			fmt.Errorf("restore previous extension settings: %w", restoreErr),
+			closeErr,
 		)
 	}
+	if restart != nil {
+		if restoreErr := restart.RestoreRuntimeQueriesAfterSettingsRollback(compensationCtx); restoreErr != nil {
+			return errors.Join(
+				ErrSettingsRollbackFailed,
+				fmt.Errorf("restart extension after settings change: %w", restartErr),
+				fmt.Errorf("restore previous runtime after settings rollback: %w", restoreErr),
+				restart.KeepRuntimeQueriesClosed(),
+			)
+		}
+	}
 	return fmt.Errorf("restart extension after settings change: %w", restartErr)
+}
+
+func (s *Service) restorePreparedSettingsRestart(
+	ctx context.Context,
+	restart RuntimeQuerySettingsRestartTransaction,
+	cause error,
+) error {
+	if restart == nil {
+		return cause
+	}
+	compensationCtx, cancel := settingsCompensationContext(ctx)
+	defer cancel()
+	if err := restart.RestoreRuntimeQueriesAfterSettingsRollback(compensationCtx); err != nil {
+		return errors.Join(
+			ErrSettingsRollbackFailed,
+			cause,
+			fmt.Errorf("restore runtime after settings store failure: %w", err),
+			restart.KeepRuntimeQueriesClosed(),
+		)
+	}
+	return cause
+}
+
+func settingsCompensationContext(ctx context.Context) (context.Context, context.CancelFunc) {
+	base := context.Background()
+	if ctx != nil {
+		base = context.WithoutCancel(ctx)
+	}
+	return context.WithTimeout(base, settingsCompensationTimeout)
 }
 
 func canManageExtensionSettings(actor identity.Actor, extension Extension) bool {
@@ -843,17 +910,54 @@ func (s *Service) PublicActiveThemeSettings(ctx context.Context) (PublicActiveTh
 	}, nil
 }
 
-func (s *Service) restartPluginForSettings(ctx context.Context, extension Extension) error {
+func (s *Service) restartPluginForSettings(
+	ctx context.Context,
+	extension Extension,
+	restart RuntimeQuerySettingsRestartTransaction,
+) error {
 	if s.safeMode {
 		return nil
 	}
 	if extension.Type != TypePlugin || extension.Status != StatusEnabled || extension.Manifest.Backend.Entry == "" || s.runtime == nil {
 		return nil
 	}
+	if hasRuntimeQueryPublication(extension.Manifest) {
+		if restart == nil {
+			return ErrRuntimeQuerySettingsRestartUnavailable
+		}
+		return restart.RestartRuntimeQueriesForSettings(ctx, extension)
+	}
 	if err := s.runtime.Stop(ctx, extension); err != nil {
 		return err
 	}
 	return s.runtime.Start(ctx, extension)
+}
+
+func (s *Service) preparePluginSettingsRestart(
+	ctx context.Context,
+	extension Extension,
+) (RuntimeQuerySettingsRestartTransaction, error) {
+	if s.safeMode || extension.Type != TypePlugin || extension.Status != StatusEnabled ||
+		extension.Manifest.Backend.Entry == "" {
+		return nil, nil
+	}
+	if usesLifecycleV2(extension) {
+		if hasRuntimeQueryPublication(extension.Manifest) {
+			return nil, errors.Join(ErrRuntimeSettingsRestartUnavailable, ErrRuntimeQuerySettingsRestartUnavailable)
+		}
+		return nil, ErrRuntimeSettingsRestartUnavailable
+	}
+	if !hasRuntimeQueryPublication(extension.Manifest) {
+		return nil, nil
+	}
+	if s.runtime == nil || extension.Manifest.Backend.ProtocolVersion != 2 {
+		return nil, ErrRuntimeQuerySettingsRestartUnavailable
+	}
+	restarter, ok := s.queryPublications.(RuntimeQuerySettingsRestarter)
+	if !ok || restarter == nil {
+		return nil, ErrRuntimeQuerySettingsRestartUnavailable
+	}
+	return restarter.PrepareRuntimeQueriesForSettings(ctx, extension)
 }
 
 func (s *Service) MatchRoute(ctx context.Context, extensionID string, method string, routePath string) (MatchedRoute, error) {

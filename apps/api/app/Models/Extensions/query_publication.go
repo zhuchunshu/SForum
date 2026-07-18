@@ -8,7 +8,11 @@ import (
 	appevents "github.com/zhuchunshu/sforum/apps/api/app/Support/Events"
 )
 
-var ErrRuntimeQueryPublicationUnavailable = errors.New("extensions: runtime query publication boundary is unavailable")
+var (
+	ErrRuntimeQueryPublicationUnavailable     = errors.New("extensions: runtime query publication boundary is unavailable")
+	ErrRuntimeQuerySettingsRestartUnavailable = errors.New("extensions: exact runtime query settings restart is unavailable")
+	ErrRuntimeSettingsRestartUnavailable      = errors.New("extensions: aggregate runtime settings restart is unavailable")
+)
 
 // RuntimeQueryPublicationMutation is an exact Host-owned Registry mutation.
 // Rollback must use artifact CAS and must never overwrite or remove a newer
@@ -24,6 +28,23 @@ type RuntimeQueryPublicationMutation interface {
 type RuntimeQueryPublicationBoundary interface {
 	PublishRuntimeQueries(context.Context, Extension) (RuntimeQueryPublicationMutation, error)
 	QuarantineRuntimeQueries(context.Context, Extension) (RuntimeQueryPublicationMutation, error)
+}
+
+// RuntimeQuerySettingsRestartTransaction keeps source admission closed across
+// the setting-store mutation. Restore may reopen it only after the old setting
+// document is durable again; KeepClosed finishes a failed rollback without
+// reopening runtime admission.
+type RuntimeQuerySettingsRestartTransaction interface {
+	RestartRuntimeQueriesForSettings(context.Context, Extension) error
+	RestoreRuntimeQueriesAfterSettingsRollback(context.Context) error
+	KeepRuntimeQueriesClosed() error
+}
+
+// RuntimeQuerySettingsRestarter is a compatibility-safe secondary boundary.
+// Prepare must retain and drain the old exact runtime before Service mutates
+// the setting document.
+type RuntimeQuerySettingsRestarter interface {
+	PrepareRuntimeQueriesForSettings(context.Context, Extension) (RuntimeQuerySettingsRestartTransaction, error)
 }
 
 // BindRuntimeQueryPublications is late-bound by production bootstrap after the
