@@ -25,10 +25,19 @@ Last updated: 2026-07-18
   Query RPCs validate exact response context before outcome handling and compare
   the complete echoed binding plus shape. Focused normal count 10, race count 3,
   the complete Extensions package, and Extensions vet pass.
+- `a727ada86` closes the cross-plugin filter graph blocker. Filter identity is
+  now derived only from the exact target owner after the complete immutable
+  graph is known; caller-forged identity is discarded, owner upgrade/remove/
+  restore and optional version drift rebind atomically, exact replay ignores
+  only this Host-derived field, and execution rejects identityless fail-closed
+  filters or skips identityless fail-open filters before provider code. Dynamic
+  plus static execution is bounded to 64 filters. Focused normal count 20,
+  race count 5, complete non-Redis QueryRegistry normal/race, complete
+  Extensions normal, focused Extensions race, vet, and independent staged
+  review pass.
 - Remaining review blockers before production credit: Manager ForceDrain must
-  cancel the provider/filter gRPC through a context-bearing execution lease;
-  filter-only packages must participate in enable/restore/disable; cross-plugin
-  filters must derive identity from the target owner across the immutable graph.
+  cancel provider/filter gRPC through a context-bearing execution lease, and
+  filter-only packages must participate in enable/restore/disable/Safe Mode.
 - `2156a1c91` preserves the Host `limit+1` filter transport contract on short
   offset/cursor tail pages instead of rewriting it to the returned row count.
   `59d9dcbb1` makes the real reference subprocess execute the declared default
@@ -55,11 +64,12 @@ Last updated: 2026-07-18
 - The uncommitted Redis cache candidate remains **BLOCKED AND MUST NOT BE
   COMMITTED**. One-shot Lua invalidation still has the 10k×64 BUSY/time-limit
   and unbounded-memory production blockers.
-- Exact next step before any P7 Query credit: production lifecycle/bootstrap
-  joined path that starts an executable query plugin, publishes through the
-  real coordinator, exercises Host HTTP/API consumers if any, plus resumable
-  Redis cache invalidation and an upgrade/replace artifact gate. Do not
-  advance the progress score for this reference-only proof.
+- Exact next step before any P7 Query credit: make filter-only packages cross
+  every lifecycle publication/restore/quarantine boundary, then propagate
+  Manager ForceDrain through context-bearing owner/filter execution leases.
+  After those blockers, add the production lifecycle/bootstrap joined path,
+  resumable Redis cache invalidation, and upgrade/replace artifact gate. Do not
+  advance the progress score for these prerequisite fixes alone.
 - Current owned WIP that must not be committed yet: new `redis_cache*.go`.
   All other dirty files shown by `git status --short` remain unowned and must
   not be staged, overwritten, reformatted, or reverted. Stay on `main`; no
