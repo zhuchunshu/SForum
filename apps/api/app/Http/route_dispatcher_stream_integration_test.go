@@ -1,6 +1,7 @@
 package http
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"errors"
@@ -32,6 +33,15 @@ import (
 )
 
 const routeStreamE2EHelperEnv = "route-stream-http-e2e"
+
+const (
+	routeStreamBackpressureChunkSize     = 1 << 20
+	routeStreamBackpressureChunks        = 16
+	routeStreamBackpressureStartedEnv    = "SFORUM_ROUTE_STREAM_BACKPRESSURE_STARTED"
+	routeStreamBackpressureCompletedEnv  = "SFORUM_ROUTE_STREAM_BACKPRESSURE_COMPLETED"
+	routeStreamBackpressureStartedFile   = ".backpressure-started"
+	routeStreamBackpressureCompletedFile = ".backpressure-completed"
+)
 
 var routeStreamE2ECorrelations sync.Map
 
@@ -70,6 +80,7 @@ func TestRouteStreamAcrossFiberManagerAndRealProtocolV2Process(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	listener = routeStreamE2ESmallBufferListener{Listener: listener}
 	serverDone := make(chan error, 1)
 	go func() { serverDone <- app.Listener(listener) }()
 	t.Cleanup(func() {
@@ -150,6 +161,121 @@ func TestRouteStreamAcrossFiberManagerAndRealProtocolV2Process(t *testing.T) {
 			response.Header.Get("Content-Type") != "application/octet-stream" ||
 			!bytes.Equal(payload, routeStreamE2EOpaquePayload()) {
 			t.Fatalf("status=%d headers=%v body=%x", response.StatusCode, response.Header, payload)
+		}
+	})
+
+	t.Run("TCP slow consumer applies bounded backpressure", func(t *testing.T) {
+		minimumTraces += 2
+		connection, err := net.DialTimeout("tcp", listener.Addr().String(), 2*time.Second)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer connection.Close()
+		tcpConnection, ok := connection.(*net.TCPConn)
+		if !ok {
+			t.Fatalf("connection type %T is not TCP", connection)
+		}
+		if err := tcpConnection.SetReadBuffer(4 << 10); err != nil {
+			t.Fatal(err)
+		}
+		if err := connection.SetDeadline(time.Now().Add(30 * time.Second)); err != nil {
+			t.Fatal(err)
+		}
+		request, err := stdhttp.NewRequest(stdhttp.MethodGet, baseHTTP+"/backpressure", nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		request.Close = true
+		if err := request.Write(connection); err != nil {
+			t.Fatal(err)
+		}
+		response, err := stdhttp.ReadResponse(bufio.NewReaderSize(connection, 1<<10), request)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer response.Body.Close()
+		if response.StatusCode != stdhttp.StatusOK || response.Header.Get("Content-Type") != "application/octet-stream" {
+			t.Fatalf("status=%d headers=%v", response.StatusCode, response.Header)
+		}
+
+		startedPath := filepath.Join(extension.PackagePath, routeStreamBackpressureStartedFile)
+		completedPath := filepath.Join(extension.PackagePath, routeStreamBackpressureCompletedFile)
+		poll := time.NewTicker(5 * time.Millisecond)
+		defer poll.Stop()
+		startedDeadline := time.NewTimer(5 * time.Second)
+		defer startedDeadline.Stop()
+		for {
+			_, statErr := os.Stat(startedPath)
+			if statErr == nil {
+				break
+			}
+			if !errors.Is(statErr, os.ErrNotExist) {
+				t.Fatal(statErr)
+			}
+			select {
+			case <-startedDeadline.C:
+				t.Fatal("subprocess did not start the backpressure stream")
+			case <-poll.C:
+			}
+		}
+
+		// The child writes completed only after every synchronous gRPC Send. With
+		// both TCP windows restricted, its absence proves the producer is blocked
+		// instead of placing the entire response in an unbounded Host queue.
+		hold := time.NewTimer(200 * time.Millisecond)
+		defer hold.Stop()
+		holding := true
+		for holding {
+			if _, statErr := os.Stat(completedPath); statErr == nil {
+				t.Fatal("subprocess completed while the TCP consumer was paused")
+			} else if !errors.Is(statErr, os.ErrNotExist) {
+				t.Fatal(statErr)
+			}
+			snapshot, inspectErr := manager.InspectRuntimeInstance(runtime.Identity)
+			if inspectErr != nil {
+				t.Fatal(inspectErr)
+			}
+			if snapshot.Admission.ActiveTotal != 1 {
+				t.Fatalf("slow consumer did not retain one active stream: %#v", snapshot.Admission)
+			}
+			select {
+			case <-hold.C:
+				holding = false
+			case <-poll.C:
+			}
+		}
+
+		if err := tcpConnection.SetReadBuffer(1 << 20); err != nil {
+			t.Fatal(err)
+		}
+		payload, err := io.ReadAll(response.Body)
+		if err != nil {
+			t.Fatal(err)
+		}
+		wantSize := routeStreamBackpressureChunkSize * routeStreamBackpressureChunks
+		if len(payload) != wantSize || bytes.Count(payload, []byte{0xa5}) != wantSize {
+			t.Fatalf("backpressure payload size=%d want=%d", len(payload), wantSize)
+		}
+		deadline := time.NewTimer(5 * time.Second)
+		defer deadline.Stop()
+		for {
+			_, completedErr := os.Stat(completedPath)
+			completed := completedErr == nil
+			if completedErr != nil && !errors.Is(completedErr, os.ErrNotExist) {
+				t.Fatal(completedErr)
+			}
+			snapshot, inspectErr := manager.InspectRuntimeInstance(runtime.Identity)
+			if inspectErr != nil {
+				t.Fatal(inspectErr)
+			}
+			if completed && snapshot.Admission.ActiveTotal == 0 {
+				break
+			}
+			select {
+			case <-deadline.C:
+				t.Fatalf("consumed stream admission did not drain: %#v", snapshot.Admission)
+			case <-poll.C:
+			}
 		}
 	})
 
@@ -284,7 +410,7 @@ func (s *routeStreamE2EServer) InvokeRoute(_ context.Context, request *pluginwir
 		status = stdhttp.StatusCreated
 	case "runtime.stream.events", "runtime.stream.disconnect":
 		headers = append(headers, &protocolwire.Header{Name: "Content-Type", Values: []string{"text/event-stream"}})
-	case "runtime.stream.binary":
+	case "runtime.stream.binary", "runtime.stream.backpressure":
 		headers = append(headers, &protocolwire.Header{Name: "Content-Type", Values: []string{"application/octet-stream"}})
 	case "runtime.stream.websocket":
 		if header := routeStreamE2EForwardedCredential(request.GetHeaders()); header != "" {
@@ -354,6 +480,30 @@ func routeStreamE2EHandler(stream *pluginv2sdk.RouteStream) error {
 			return err
 		}
 		return stream.Close(&pluginwire.RouteStreamClose{StatusCode: stdhttp.StatusOK})
+	case "runtime.stream.backpressure":
+		if _, err := stream.Recv(); err != io.EOF {
+			return err
+		}
+		startedPath := strings.TrimSpace(os.Getenv(routeStreamBackpressureStartedEnv))
+		completedPath := strings.TrimSpace(os.Getenv(routeStreamBackpressureCompletedEnv))
+		if startedPath == "" || completedPath == "" {
+			return fmt.Errorf("backpressure marker paths are empty")
+		}
+		if err := os.WriteFile(startedPath, []byte("started\n"), 0o600); err != nil {
+			return err
+		}
+		payload := bytes.Repeat([]byte{0xa5}, routeStreamBackpressureChunkSize)
+		for index := 0; index < routeStreamBackpressureChunks; index++ {
+			if err := stream.Send(&protocolwire.DataChunk{
+				Sequence: uint64(index + 1), Data: payload, Final: index == routeStreamBackpressureChunks-1,
+			}); err != nil {
+				return err
+			}
+		}
+		if err := os.WriteFile(completedPath, []byte("completed\n"), 0o600); err != nil {
+			return err
+		}
+		return stream.Close(&pluginwire.RouteStreamClose{StatusCode: stdhttp.StatusOK})
 	case "runtime.stream.websocket":
 		if header := routeStreamE2EForwardedCredential(stream.Open().GetHeaders()); header != "" {
 			return fmt.Errorf("filtered WebSocket open forwarded credential %s", header)
@@ -404,8 +554,10 @@ func routeStreamE2EExtension(t *testing.T) extensions.Extension {
 	if err := os.MkdirAll(filepath.Join(packageRoot, "backend"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	launcher := "#!/bin/sh\nSFORUM_PLUGIN_HELPER=" + routeStreamE2EHelperEnv + " exec " +
-		routeStreamShellQuote(os.Args[0]) + " -test.run=TestRouteStreamHTTPHelperProcess -- \"$@\"\n"
+	launcher := "#!/bin/sh\nSFORUM_PLUGIN_HELPER=" + routeStreamShellQuote(routeStreamE2EHelperEnv) + " " +
+		routeStreamBackpressureStartedEnv + "=" + routeStreamShellQuote(filepath.Join(packageRoot, routeStreamBackpressureStartedFile)) + " " +
+		routeStreamBackpressureCompletedEnv + "=" + routeStreamShellQuote(filepath.Join(packageRoot, routeStreamBackpressureCompletedFile)) + " " +
+		"exec " + routeStreamShellQuote(os.Args[0]) + " -test.run=TestRouteStreamHTTPHelperProcess -- \"$@\"\n"
 	if err := os.WriteFile(filepath.Join(packageRoot, "backend", "plugin"), []byte(launcher), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -433,6 +585,7 @@ func routeStreamE2EExtension(t *testing.T) extensions.Extension {
 				route("runtime.stream.upload", "/upload", stdhttp.MethodPost, extensionmanifest.RouteModeMultipart),
 				route("runtime.stream.events", "/events", stdhttp.MethodGet, extensionmanifest.RouteModeSSE),
 				route("runtime.stream.binary", "/binary", stdhttp.MethodGet, extensionmanifest.RouteModeStream),
+				route("runtime.stream.backpressure", "/backpressure", stdhttp.MethodGet, extensionmanifest.RouteModeStream),
 				route("runtime.stream.websocket", "/socket", stdhttp.MethodGet, extensionmanifest.RouteModeWebSocket),
 				route("runtime.stream.disconnect", "/disconnect", stdhttp.MethodGet, extensionmanifest.RouteModeSSE),
 			},
@@ -442,6 +595,27 @@ func routeStreamE2EExtension(t *testing.T) extensions.Extension {
 
 func routeStreamE2EOpaquePayload() []byte {
 	return []byte{0x00, 0xff, 0x53, 0x46, 0x80, 0x0a, 0x00, 0xfe}
+}
+
+type routeStreamE2ESmallBufferListener struct {
+	net.Listener
+}
+
+func (l routeStreamE2ESmallBufferListener) Accept() (net.Conn, error) {
+	connection, err := l.Listener.Accept()
+	if err != nil {
+		return nil, err
+	}
+	tcpConnection, ok := connection.(*net.TCPConn)
+	if !ok {
+		_ = connection.Close()
+		return nil, fmt.Errorf("route stream listener accepted %T, want TCP", connection)
+	}
+	if err := tcpConnection.SetWriteBuffer(4 << 10); err != nil {
+		_ = connection.Close()
+		return nil, err
+	}
+	return connection, nil
 }
 
 func routeStreamShellQuote(value string) string {
