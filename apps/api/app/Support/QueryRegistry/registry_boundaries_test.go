@@ -54,13 +54,17 @@ func TestRegistryEnforcesFieldFilterSortAndCacheTagLimits(t *testing.T) {
 
 	tags := make([]string, maxCacheTagsPerQuery+1)
 	for index := range tags {
-		tags[index] = fmt.Sprintf("tag.%03d", index)
+		tags[index] = fmt.Sprintf("limit.tags.tag.%03d", index)
 	}
 	overTags := publication("limit.tags", false, 'b')
 	overTags.Queries = []QueryDeclaration{query("limit.tags.items", "limit.tags.item", PaginationNone, "public")}
 	overTags.Queries[0].CacheTags = tags
 	if _, err := New().ReplaceAll([]Publication{overTags}, false); !errors.Is(err, ErrInvalid) {
 		t.Fatalf("cache tag overflow=%v", err)
+	}
+	overTags.Queries[0].CacheTags = tags[:maxCacheTagsPerQuery]
+	if _, err := New().ReplaceAll([]Publication{overTags}, false); err != nil {
+		t.Fatalf("maximum legal owner-scoped cache tags rejected=%v", err)
 	}
 
 	dupFields := publication("limit.dup", false, 'c')

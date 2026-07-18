@@ -181,9 +181,19 @@ func TestExecutionCacheSharedTagsAreOwnerScopedAcrossVersions(t *testing.T) {
 
 	otherOwner := plan
 	otherOwner.Query.Artifact.ExtensionID = "other.plugin"
+	otherOwner.CacheTags = []string{"other.plugin.items"}
 	otherShared, _ := splitExecutionCacheTags(t, executionCacheTags(otherOwner, "", strings.Repeat("b", 64)))
 	if otherShared == v1Shared {
-		t.Fatalf("different owners shared one semantic tag: %q", otherShared)
+		t.Fatalf("valid different owners shared one semantic tag: %q", otherShared)
+	}
+
+	// Registry validation prevents this raw-tag collision, but hashing the owner
+	// as well keeps the lower-level derivation safe if a future internal caller
+	// constructs a plan without going through publication normalization.
+	otherOwner.CacheTags = slices.Clone(plan.CacheTags)
+	defenseShared, _ := splitExecutionCacheTags(t, executionCacheTags(otherOwner, "", strings.Repeat("b", 64)))
+	if defenseShared == v1Shared {
+		t.Fatalf("owner was absent from shared tag material: %q", defenseShared)
 	}
 }
 

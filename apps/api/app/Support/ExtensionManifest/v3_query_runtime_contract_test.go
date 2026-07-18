@@ -2,6 +2,7 @@ package extensionmanifest
 
 import (
 	"encoding/json"
+	"fmt"
 	"testing"
 )
 
@@ -95,6 +96,12 @@ func TestManifestV3QueryRuntimeRejectsUnsafeShapes(t *testing.T) {
 		{name: "foreign cache tag", change: func(value *Manifest) { value.Queries[0].CacheTags = []string{"other.plugin.items"} }},
 		{name: "duplicate cache tag", change: func(value *Manifest) {
 			value.Queries[0].CacheTags = []string{"demo.v3.items", " DEMO.V3.ITEMS "}
+		}},
+		{name: "cache tag overflow", change: func(value *Manifest) {
+			value.Queries[0].CacheTags = make([]string, ManifestQueryMaximumCacheTags+1)
+			for index := range value.Queries[0].CacheTags {
+				value.Queries[0].CacheTags[index] = fmt.Sprintf("demo.v3.items.%02d", index)
+			}
 		}},
 		{name: "executable query without protocol v2", change: func(value *Manifest) { value.Backend.ProtocolVersion = 1 }},
 		{name: "executable query without schema file", change: func(value *Manifest) {
