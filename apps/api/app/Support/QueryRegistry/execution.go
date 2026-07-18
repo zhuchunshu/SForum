@@ -520,7 +520,7 @@ func (r *ExecutionRuntime) acquireExecutionAdmission(ctx context.Context, artifa
 		lease, err := contextual.AcquireQueryExecutionLease(ctx, artifact)
 		if err != nil || lease.Context == nil || lease.Release == nil {
 			if contextErr := executionContextError(ctx); err != nil && contextErr != nil &&
-				sameCancellationCause(err, contextErr) {
+				errorMatchesContextCancellation(ctx, err) {
 				if lease.Release != nil {
 					lease.Release()
 				}
@@ -551,10 +551,7 @@ func executionContextError(ctx context.Context) error {
 			return err
 		}
 	}
-	if cause := context.Cause(ctx); cause != nil {
-		return cause
-	}
-	return ctx.Err()
+	return contextCancellationError(ctx)
 }
 
 func cloneQueryResult(input QueryResult) QueryResult {

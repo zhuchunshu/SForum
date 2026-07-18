@@ -121,18 +121,21 @@ func TestExecutionPreservesCallerCancellationDuringPluginAdmission(t *testing.T)
 	if err != nil {
 		t.Fatal(err)
 	}
-	ctx, cancel := context.WithCancel(t.Context())
+	ctx, cancel := context.WithCancelCause(t.Context())
+	callerCause := errors.New("caller stopped admission")
 	runtime, err := NewExecutionRuntime(ExecutionConfig{
 		Registry: registry, Providers: providers, Schemas: allowExecutionSchema(),
 		Admission: ContextualExecutionAdmissionFunc(func(context.Context, Artifact) (ExecutionAdmissionLease, error) {
-			cancel()
-			return ExecutionAdmissionLease{}, context.Canceled
+			cancel(callerCause)
+			return ExecutionAdmissionLease{}, callerCause
 		}),
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := runtime.Execute(ctx, PlanRequest{QueryID: declaration.ID}); !errors.Is(err, context.Canceled) || errors.Is(err, ErrArtifactUnavailable) || providerCalls.Load() != 0 {
+	if _, err := runtime.Execute(ctx, PlanRequest{QueryID: declaration.ID}); !errors.Is(err, context.Canceled) ||
+		!errors.Is(err, callerCause) ||
+		errors.Is(err, ErrArtifactUnavailable) || providerCalls.Load() != 0 {
 		t.Fatalf("caller cancellation error=%v provider=%d", err, providerCalls.Load())
 	}
 }

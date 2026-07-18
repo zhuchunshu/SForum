@@ -100,16 +100,46 @@ func (s *executionAdmissionSet) executionError() error {
 		return errors.Join(ErrArtifactUnavailable, cause)
 	}
 	if groupCause != nil {
-		return groupCause
+		return contextCancellationError(s.parent)
 	}
 	if parentCause != nil {
-		return parentCause
+		return contextCancellationError(s.parent)
 	}
 	return nil
 }
 
 func sameCancellationCause(left, right error) bool {
 	return left != nil && right != nil && errors.Is(left, right) && errors.Is(right, left)
+}
+
+func errorMatchesContextCancellation(ctx context.Context, err error) bool {
+	if ctx == nil || err == nil {
+		return false
+	}
+	cause := context.Cause(ctx)
+	if cause == nil {
+		return false
+	}
+	if sameCancellationCause(err, cause) {
+		return true
+	}
+	return ctx.Err() != nil && !errors.Is(err, ErrArtifactUnavailable) &&
+		errors.Is(err, cause) && errors.Is(err, ctx.Err())
+}
+
+func contextCancellationError(ctx context.Context) error {
+	if ctx == nil {
+		return ErrExecutionInvalid
+	}
+	cause := context.Cause(ctx)
+	state := ctx.Err()
+	if cause == nil {
+		return state
+	}
+	if state != nil && !errors.Is(cause, state) {
+		return errors.Join(state, cause)
+	}
+	return cause
 }
 
 // acquireExecutionSet holds every exact artifact that contributes executable
@@ -152,7 +182,7 @@ func (r *ExecutionRuntime) acquireExecutionSet(
 				}
 			}
 			admissions.Release()
-			if contextErr := executionContextError(ctx); contextErr != nil && sameCancellationCause(err, contextErr) {
+			if contextErr := executionContextError(ctx); contextErr != nil && errorMatchesContextCancellation(ctx, err) {
 				return nil, evidence, ctx, func() {}, contextErr
 			}
 			if requirement.queryOwner {
@@ -165,7 +195,7 @@ func (r *ExecutionRuntime) acquireExecutionSet(
 		}
 		if err := admissions.add(lease); err != nil {
 			admissions.Release()
-			if contextErr := executionContextError(ctx); contextErr != nil && sameCancellationCause(err, contextErr) {
+			if contextErr := executionContextError(ctx); contextErr != nil && errorMatchesContextCancellation(ctx, err) {
 				return nil, evidence, ctx, func() {}, contextErr
 			}
 			if requirement.queryOwner {
