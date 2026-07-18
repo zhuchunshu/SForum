@@ -433,6 +433,9 @@ func defaultExecutableProviderDigest(binding ExecutableProviderBinding) string {
 }
 
 func prepareResultFilters(input []ResultFilterRegistration) ([]preparedResultFilter, error) {
+	if len(input) > maximumResultFilters {
+		return nil, ErrExecutionInvalid
+	}
 	result := make([]preparedResultFilter, 0, len(input))
 	seen := make(map[string]struct{}, len(input))
 	for _, raw := range input {

@@ -253,6 +253,9 @@ func publicationContract(value Publication) Publication {
 	}
 	for index := range value.ResultFilters {
 		value.ResultFilters[index].boundFilter = nil
+		// Identity is derived from the target query in each complete graph. It can
+		// change when that owner upgrades without changing the filter artifact.
+		value.ResultFilters[index].IdentityFields = nil
 	}
 	return value
 }

@@ -2,7 +2,10 @@ package queryregistry
 
 import (
 	"fmt"
+	"slices"
 	"sort"
+
+	semver "github.com/Masterminds/semver/v3"
 )
 
 type registryState struct {
@@ -32,10 +35,6 @@ func buildState(revision uint64, input []Publication, safeMode bool) (*registryS
 	state := emptyState()
 	state.revision = revision
 	state.safeMode = safeMode
-	state.digest = computeGraphDigest(publications, safeMode)
-	for _, publication := range publications {
-		state.publications[publication.Artifact.ExtensionID] = clonePublication(publication)
-	}
 
 	// ManifestQuery is a complete plan declaration, not a field-level action
 	// contribution. Composition is therefore:
@@ -44,7 +43,7 @@ func buildState(revision uint64, input []Publication, safeMode bool) (*registryS
 	// Multi-plugin field/relation/filter/sort merge requires later contract fields.
 	// Executable providers, result filters, and Schemas must join this same
 	// immutable revision; private material is retained only in publications.
-	for _, publication := range sortedPublications(state.publications) {
+	for _, publication := range publications {
 		for _, declaration := range publication.Queries {
 			if existing, duplicate := state.queries[declaration.ID]; duplicate {
 				return nil, fmt.Errorf("%w: duplicate query id %s owned by %s and %s",
@@ -79,7 +78,54 @@ func buildState(revision uint64, input []Publication, safeMode bool) (*registryS
 			}
 		}
 	}
+	publications = bindGraphResultFilterIdentities(publications, state.queries)
+	state.digest = computeGraphDigest(publications, safeMode)
+	for _, publication := range publications {
+		state.publications[publication.Artifact.ExtensionID] = clonePublication(publication)
+	}
 	return state, nil
+}
+
+// bindGraphResultFilterIdentities derives filter identity only after every
+// query owner is known. Missing or drifted optional dependencies stay dormant;
+// matchingFiltersWithEvidence applies their fail-open/fail-closed policy.
+func bindGraphResultFilterIdentities(
+	input []Publication,
+	queries map[string]QueryContribution,
+) []Publication {
+	result := make([]Publication, len(input))
+	for publicationIndex, publication := range input {
+		publication = clonePublication(publication)
+		for filterIndex := range publication.ResultFilters {
+			filter := &publication.ResultFilters[filterIndex]
+			filter.IdentityFields = nil
+			target, found := queries[filter.QueryID]
+			if !found || target.Handler == "" || len(target.IdentityFields) == 0 ||
+				target.ContractVersion != filter.QueryContractVersion ||
+				target.PlanVersion != filter.QueryPlanVersion ||
+				!resultFilterOwnerMatches(publication.Artifact, *filter, target.Artifact) {
+				continue
+			}
+			filter.IdentityFields = slices.Clone(target.IdentityFields)
+		}
+		result[publicationIndex] = publication
+	}
+	return result
+}
+
+func resultFilterOwnerMatches(filterOwner Artifact, filter ResultFilterDeclaration, queryOwner Artifact) bool {
+	if filterOwner.ExtensionID == queryOwner.ExtensionID {
+		return filter.Dependency == nil
+	}
+	if filter.Dependency == nil || filter.Dependency.ExtensionID != queryOwner.ExtensionID {
+		return false
+	}
+	constraint, err := semver.NewConstraint(filter.Dependency.VersionConstraint)
+	if err != nil {
+		return false
+	}
+	version, err := semver.StrictNewVersion(queryOwner.ExtensionVersion)
+	return err == nil && constraint.Check(version)
 }
 
 func detectSlotProviderConflicts(contribution QueryContribution) error {

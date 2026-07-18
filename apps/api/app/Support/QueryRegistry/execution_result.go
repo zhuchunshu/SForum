@@ -234,6 +234,16 @@ func (r *ExecutionRuntime) matchingFiltersWithEvidence(
 			}
 			return nil, evidence, fmt.Errorf("%w: result filter %s self dependency is incompatible", ErrDependencyDenied, registration.ID)
 		}
+		if len(registration.IdentityFields) == 0 {
+			evidence = append(evidence, resultFilterExecutionTrace(
+				registration, ResultFilterTraceContractMismatch, 0,
+			))
+			if registration.FailurePolicy == ResultFilterFailOpen {
+				continue
+			}
+			return nil, evidence, fmt.Errorf("%w: result filter %s has no Host-derived row identity",
+				ErrContractInsufficient, registration.ID)
+		}
 		result = append(result, filter)
 	}
 	return result, evidence, nil
@@ -252,6 +262,9 @@ func (r *ExecutionRuntime) resultFilterCandidates(query QueryContribution) ([]pr
 	if err != nil {
 		return nil, errors.Join(ErrExecutionInvalid, err)
 	}
+	if len(registrations) > maximumResultFilters {
+		return nil, ErrExecutionInvalid
+	}
 	if len(registrations) == 0 {
 		return r.filters, nil
 	}
@@ -261,6 +274,9 @@ func (r *ExecutionRuntime) resultFilterCandidates(query QueryContribution) ([]pr
 	}
 	if len(r.filters) == 0 {
 		return dynamic, nil
+	}
+	if len(r.filters)+len(dynamic) > maximumResultFilters {
+		return nil, ErrExecutionInvalid
 	}
 	seen := make(map[string]struct{}, len(r.filters)+len(dynamic))
 	merged := make([]preparedResultFilter, 0, len(r.filters)+len(dynamic))

@@ -277,11 +277,9 @@ func normalizeResultFilterDeclaration(
 		dependency.VersionConstraint = strings.TrimSpace(dependency.VersionConstraint)
 		input.Dependency = &dependency
 	}
-	identityFields, err := normalizeNameList(input.IdentityFields, maxIdentityFieldsPerQuery, false)
-	if err != nil {
-		return ResultFilterDeclaration{}, err
-	}
-	input.IdentityFields = identityFields
+	// IdentityFields are always Host-derived from the target query in the
+	// complete graph. Never retain a caller-supplied decorative identity.
+	input.IdentityFields = nil
 	if !validContributionIdentity(artifact, input.ID, input.ContractVersion) ||
 		!idPattern.MatchString(input.QueryID) || !contractPattern.MatchString(input.QueryContractVersion) ||
 		!contractPattern.MatchString(input.QueryPlanVersion) ||
@@ -295,6 +293,9 @@ func normalizeResultFilterDeclaration(
 		if !idPattern.MatchString(input.Dependency.ExtensionID) ||
 			input.Dependency.ExtensionID == artifact.ExtensionID ||
 			input.Dependency.VersionConstraint == "" {
+			return ResultFilterDeclaration{}, ErrInvalid
+		}
+		if _, err := semver.NewConstraint(input.Dependency.VersionConstraint); err != nil {
 			return ResultFilterDeclaration{}, ErrInvalid
 		}
 	}

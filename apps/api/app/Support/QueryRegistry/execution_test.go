@@ -408,10 +408,9 @@ func TestExecutionFilterFailureDependencyAndAdmissionPolicies(t *testing.T) {
 
 	missingIdentity := executionTestFilter(artifact, "plugin.filter.identity", 10, ResultFilterFailClosed, func(rows []QueryRow) []QueryRow { return rows })
 	missingIdentity.IdentityFields = nil
-	runtime, _ = executionTestRuntime(t, PaginationOffset, PermissionPolicyPublic, provider, []ResultFilterRegistration{missingIdentity}, func(config *ExecutionConfig) {
+	if _, _, err := executionTestRuntimeError(t, PaginationOffset, PermissionPolicyPublic, provider, []ResultFilterRegistration{missingIdentity}, func(config *ExecutionConfig) {
 		config.Registry.WithPluginAdmission(func(candidate Artifact) bool { return candidate == artifact })
-	})
-	if _, err := runtime.Execute(t.Context(), PlanRequest{QueryID: "core.execute.items"}); !errors.Is(err, ErrContractInsufficient) {
+	}); !errors.Is(err, ErrContractInsufficient) {
 		t.Fatalf("paginated filter without identity=%v", err)
 	}
 

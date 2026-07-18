@@ -149,6 +149,31 @@ func (s *protocolV2QueryResultFilterSource) ResultFiltersFor(
 		return nil, queryregistry.ErrExecutionInvalid
 	}
 	snapshot := s.registry.Snapshot()
+	hasFilters := false
+	for _, publication := range snapshot.Publications {
+		if len(publication.ResultFilters) > 0 {
+			hasFilters = true
+			break
+		}
+	}
+	if !hasFilters {
+		return nil, nil
+	}
+	var active queryregistry.QueryContribution
+	foundQuery := false
+	for _, candidate := range snapshot.Queries {
+		if candidate.ID != query.ID {
+			continue
+		}
+		active = candidate
+		foundQuery = true
+		break
+	}
+	if !foundQuery || active.Artifact != query.Artifact || active.ContractVersion != query.ContractVersion ||
+		active.PlanVersion != query.PlanVersion || active.ResultSchema != query.ResultSchema ||
+		active.Handler != query.Handler {
+		return nil, queryregistry.ErrArtifactConflict
+	}
 	result := make([]queryregistry.ResultFilterRegistration, 0)
 	for _, publication := range snapshot.Publications {
 		for _, filter := range publication.ResultFilters {
@@ -163,7 +188,7 @@ func (s *protocolV2QueryResultFilterSource) ResultFiltersFor(
 				ID: filter.ID, ContractVersion: filter.ContractVersion,
 				QueryID: filter.QueryID, QueryContractVersion: filter.QueryContractVersion,
 				QueryPlanVersion: filter.QueryPlanVersion, Priority: filter.Priority,
-				Artifact: publication.Artifact, IdentityFields: append([]string(nil), filter.IdentityFields...),
+				Artifact: publication.Artifact, IdentityFields: append([]string(nil), active.IdentityFields...),
 				FailurePolicy: filter.FailurePolicy, Timeout: timeout,
 				Filter: &protocolV2QueryResultFilter{
 					manager: s.manager, artifact: publication.Artifact, declaration: filter,

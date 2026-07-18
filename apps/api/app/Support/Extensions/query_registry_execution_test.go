@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"slices"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -220,5 +221,60 @@ func TestProtocolV2QueryResultFilterSourceEmptyWithoutDeclarations(t *testing.T)
 	}
 	if _, err := NewProtocolV2QueryResultFilterSource(nil, registry); !errors.Is(err, queryregistry.ErrExecutionInvalid) {
 		t.Fatalf("nil manager err=%v", err)
+	}
+}
+
+func TestProtocolV2QueryResultFilterSourceUsesActiveOwnerIdentity(t *testing.T) {
+	ownerArtifact := queryregistry.Artifact{
+		ExtensionID: "plugin.query-owner", ExtensionVersion: "1.0.0",
+		PackageDigest: strings.Repeat("a", 64), VersionID: 1, RuntimeInstanceID: "owner-runtime",
+	}
+	query := queryregistry.QueryDeclaration{
+		ID: "plugin.query-owner.items", ContractVersion: "plugin.query-owner.items@1",
+		Entity: "item", PlanVersion: "plugin.query-owner.items.plan@1",
+		Fields: []string{"tenant_id", "id", "title"}, Sort: []string{"tenant_id", "id"},
+		Pagination: queryregistry.PaginationOffset, ResultSchema: "plugin.query-owner.items.result@1",
+		PermissionPolicy: queryregistry.PermissionPolicyPublic, Handler: "plugin.query-owner.items",
+		IdentityFields: []string{"tenant_id", "id"},
+		DefaultSort:    []queryregistry.SortValue{{Field: "tenant_id"}, {Field: "id"}},
+	}
+	filterArtifact := queryregistry.Artifact{
+		ExtensionID: "plugin.query-filter", ExtensionVersion: "1.0.0",
+		PackageDigest: strings.Repeat("b", 64), VersionID: 2, RuntimeInstanceID: "filter-runtime",
+	}
+	filter := queryregistry.ResultFilterDeclaration{
+		ID: "plugin.query-filter.items.mask", ContractVersion: "plugin.query-filter.items.mask@1",
+		QueryID: query.ID, QueryContractVersion: query.ContractVersion, QueryPlanVersion: query.PlanVersion,
+		Handler: "plugin.query-filter.items.mask", FailurePolicy: queryregistry.ResultFilterFailClosed,
+		TimeoutMS: 500, IdentityFields: []string{"title"},
+		Dependency: &queryregistry.ResultFilterDependency{
+			ExtensionID: ownerArtifact.ExtensionID, VersionConstraint: ">=1.0.0",
+		},
+	}
+	registry := queryregistry.New()
+	if _, err := registry.ReplaceAll([]queryregistry.Publication{
+		{Artifact: filterArtifact, ResultFilters: []queryregistry.ResultFilterDeclaration{filter}},
+		{Artifact: ownerArtifact, Queries: []queryregistry.QueryDeclaration{query}},
+	}, false); err != nil {
+		t.Fatal(err)
+	}
+	active, err := registry.Resolve(query.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	source, err := NewProtocolV2QueryResultFilterSource(NewManager(ManagerConfig{}), registry)
+	if err != nil {
+		t.Fatal(err)
+	}
+	registrations, err := source.ResultFiltersFor(active)
+	if err != nil || len(registrations) != 1 ||
+		!slices.Equal(registrations[0].IdentityFields, []string{"tenant_id", "id"}) {
+		t.Fatalf("active owner filter registrations=%#v err=%v", registrations, err)
+	}
+
+	stale := active
+	stale.Artifact.RuntimeInstanceID = "stale-owner"
+	if _, err := source.ResultFiltersFor(stale); !errors.Is(err, queryregistry.ErrArtifactConflict) {
+		t.Fatalf("stale owner result-filter source error=%v", err)
 	}
 }
