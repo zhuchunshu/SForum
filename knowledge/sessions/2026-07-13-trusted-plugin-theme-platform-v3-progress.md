@@ -34,13 +34,19 @@ Last updated: 2026-07-18
   and exact admission stays active until consumption resumes; the exact binary
   body, completion marker, and zero active admission then converge. Independent
   review plus normal/race repetition found no blocker or leaked helper process.
+- `d1207cc0f test(routes): join durable stream incident storage` drives all
+  four recordable classes through the production recorder and real PostgreSQL
+  Store. Exact artifact quarantine, complete immutable evidence, version/audit
+  correlation, payload-free metadata, and pending-to-quarantined resolution
+  match under normal and race **3** gates with no ordinary audit-queue escape.
 - Bootstrap, focused recorder, real PostgreSQL incident-store, and staged
   whitespace gates passed before commit. The opaque `DataChunk` decision and
   Host preflight Schema correction remain accepted evidence, not framing that
   the Host does not implement.
-- Exact resume point: join normal/disconnect/ForceDrain zero-incident paths and
-  all four durable incident classes into the named P6 normal/race/PostgreSQL
-  gates. Only that evidence may raise P6 to **18/18**.
+- Exact resume point: join normal/disconnect/ForceDrain zero-incident paths,
+  adapter classifications, production ForceCancel/terminal behavior, and the
+  PostgreSQL gate into the named P6 normal/race suites. Only that evidence may
+  raise P6 to **18/18**.
 
 ### 2026-07-18 WebSocket Stream Classification Checkpoint
 
