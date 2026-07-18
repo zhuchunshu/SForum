@@ -170,6 +170,9 @@ func (a *productionQueryRuntimeAdmission) AuthorizeProtocolV2QueryCaller(
 	}
 	snapshot, lease, err := a.acquire(ctx, identity.GetExtensionId(), extensionsruntime.RuntimeCallHost)
 	if err != nil {
+		if cause := context.Cause(ctx); cause != nil && errors.Is(err, cause) && errors.Is(cause, err) {
+			return cause
+		}
 		return errors.Join(errProductionQueryRegistryRuntimeStale, err)
 	}
 	if lease == nil {
@@ -178,7 +181,7 @@ func (a *productionQueryRuntimeAdmission) AuthorizeProtocolV2QueryCaller(
 	defer lease.Release()
 	if err := productionQueryRuntimeSnapshotMatches(
 		ctx, lease, snapshot, identity.GetExtensionId(), identity.GetExtensionVersion(),
-		identity.GetArtifactDigest(), identity.GetInstanceId(),
+		identity.GetArtifactDigest(), 0, identity.GetInstanceId(),
 	); err != nil {
 		return err
 	}
@@ -189,29 +192,43 @@ func (a *productionQueryRuntimeAdmission) AcquireQueryExecution(
 	ctx context.Context,
 	artifact queryregistry.Artifact,
 ) (func(), error) {
+	lease, err := a.AcquireQueryExecutionLease(ctx, artifact)
+	if err != nil {
+		return nil, err
+	}
+	return lease.Release, nil
+}
+
+func (a *productionQueryRuntimeAdmission) AcquireQueryExecutionLease(
+	ctx context.Context,
+	artifact queryregistry.Artifact,
+) (queryregistry.ExecutionAdmissionLease, error) {
 	// ExecutionRuntime itself recognizes the unforgeable Core seal and bypasses
 	// this adapter. Never trust the public Core boolean at this outer boundary.
 	if a == nil || a.acquire == nil || ctx == nil || artifact.Core ||
 		strings.TrimSpace(artifact.ExtensionID) == "" || strings.TrimSpace(artifact.ExtensionVersion) == "" ||
 		strings.TrimSpace(artifact.PackageDigest) == "" || artifact.VersionID <= 0 ||
 		strings.TrimSpace(artifact.RuntimeInstanceID) == "" {
-		return nil, errProductionQueryRegistryRuntimeStale
+		return queryregistry.ExecutionAdmissionLease{}, errProductionQueryRegistryRuntimeStale
 	}
 	snapshot, lease, err := a.acquire(ctx, artifact.ExtensionID, extensionsruntime.RuntimeCallProvider)
 	if err != nil {
-		return nil, errors.Join(errProductionQueryRegistryRuntimeStale, err)
+		if cause := context.Cause(ctx); cause != nil && errors.Is(err, cause) && errors.Is(cause, err) {
+			return queryregistry.ExecutionAdmissionLease{}, cause
+		}
+		return queryregistry.ExecutionAdmissionLease{}, errors.Join(errProductionQueryRegistryRuntimeStale, err)
 	}
 	if lease == nil {
-		return nil, errProductionQueryRegistryRuntimeStale
+		return queryregistry.ExecutionAdmissionLease{}, errProductionQueryRegistryRuntimeStale
 	}
 	if err := productionQueryRuntimeSnapshotMatches(
 		ctx, lease, snapshot, artifact.ExtensionID, artifact.ExtensionVersion,
-		artifact.PackageDigest, artifact.RuntimeInstanceID,
+		artifact.PackageDigest, artifact.VersionID, artifact.RuntimeInstanceID,
 	); err != nil {
 		lease.Release()
-		return nil, err
+		return queryregistry.ExecutionAdmissionLease{}, err
 	}
-	return lease.Release, nil
+	return queryregistry.ExecutionAdmissionLease{Context: lease.Context, Release: lease.Release}, nil
 }
 
 func productionQueryCallerIdentityValid(identity *protocolv2.ExtensionIdentity) bool {
@@ -235,20 +252,28 @@ func productionQueryRuntimeSnapshotMatches(
 	extensionID string,
 	extensionVersion string,
 	artifactDigest string,
+	versionID int64,
 	instanceID string,
 ) error {
 	if ctx == nil || lease == nil || lease.Context == nil {
 		return errProductionQueryRegistryRuntimeStale
 	}
-	if err := ctx.Err(); err != nil {
-		return err
+	parentCause := context.Cause(ctx)
+	leaseCause := context.Cause(lease.Context)
+	if leaseCause != nil && (parentCause == nil ||
+		!errors.Is(leaseCause, parentCause) || !errors.Is(parentCause, leaseCause)) {
+		return errors.Join(errProductionQueryRegistryRuntimeStale, leaseCause)
 	}
-	if err := lease.Context.Err(); err != nil {
-		return errors.Join(errProductionQueryRegistryRuntimeStale, err)
+	if parentCause != nil {
+		return parentCause
+	}
+	if leaseCause != nil {
+		return errors.Join(errProductionQueryRegistryRuntimeStale, leaseCause)
 	}
 	if !snapshot.Active || snapshot.Admission.Draining || snapshot.Admission.Forced ||
 		snapshot.Identity.ExtensionID != extensionID || snapshot.Identity.InstanceID != instanceID ||
-		snapshot.ExtensionVersion != extensionVersion || snapshot.ArtifactDigest != artifactDigest {
+		snapshot.ExtensionVersion != extensionVersion || snapshot.ArtifactDigest != artifactDigest ||
+		(versionID > 0 && snapshot.VersionID != versionID) {
 		return errProductionQueryRegistryRuntimeStale
 	}
 	return nil

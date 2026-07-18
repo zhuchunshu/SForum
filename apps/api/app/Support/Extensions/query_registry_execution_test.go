@@ -110,8 +110,8 @@ func TestCompositeQueryProviderResolverPrefersCoreThenProtocolV2(t *testing.T) {
 	runtime, err := queryregistry.NewExecutionRuntime(queryregistry.ExecutionConfig{
 		Registry: registry, Providers: providers, Schemas: schemas, ResultFilterSource: filterSource,
 		// 测试用 admission：仅证明 resolver/filter 接线，不模拟 Manager 租约。
-		Admission: queryregistry.ExecutionAdmissionFunc(func(context.Context, queryregistry.Artifact) (func(), error) {
-			return func() {}, nil
+		Admission: queryregistry.ContextualExecutionAdmissionFunc(func(ctx context.Context, _ queryregistry.Artifact) (queryregistry.ExecutionAdmissionLease, error) {
+			return queryregistry.ExecutionAdmissionLease{Context: ctx, Release: func() {}}, nil
 		}),
 	})
 	if err != nil {

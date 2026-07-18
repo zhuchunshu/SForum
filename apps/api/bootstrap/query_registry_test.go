@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -141,7 +142,7 @@ func newProductionQueryAdmissionHarness(t *testing.T) (*productionQueryRuntimeAd
 	stub := &productionQueryAdmissionStub{
 		gate: gate,
 		snapshot: extensionsruntime.RuntimeInstanceSnapshot{
-			Identity: identity, ExtensionVersion: "1.2.3", ArtifactDigest: strings.Repeat("a", 64), Active: true,
+			Identity: identity, ExtensionVersion: "1.2.3", ArtifactDigest: strings.Repeat("a", 64), VersionID: 9, Active: true,
 		},
 	}
 	return &productionQueryRuntimeAdmission{acquire: stub.acquire}, stub
@@ -206,12 +207,246 @@ func TestProductionQueryExecutionAdmissionHoldsAndReleasesExactPluginLease(t *te
 		t.Fatalf("stale artifact leaked lease: %#v", stub.gate.Snapshot())
 	}
 
+	artifact.RuntimeInstanceID = "runtime-7"
+	artifact.VersionID = 8
+	if _, err := admission.AcquireQueryExecution(context.Background(), artifact); !errors.Is(err, errProductionQueryRegistryRuntimeStale) {
+		t.Fatalf("wrong VersionID error = %v", err)
+	}
+	if stub.gate.Snapshot().ActiveTotal != 0 {
+		t.Fatalf("wrong VersionID leaked lease: %#v", stub.gate.Snapshot())
+	}
+
 	cancelled, cancel := context.WithCancel(context.Background())
 	cancel()
-	artifact.RuntimeInstanceID = "runtime-7"
+	artifact.VersionID = 9
 	if _, err := admission.AcquireQueryExecution(cancelled, artifact); !errors.Is(err, context.Canceled) {
 		t.Fatalf("cancelled execution error = %v", err)
 	}
+}
+
+func TestProductionQueryExecutionAdmissionPropagatesForceDrainContext(t *testing.T) {
+	admission, stub := newProductionQueryAdmissionHarness(t)
+	artifact := queryregistry.Artifact{
+		ExtensionID: "query.plugin", ExtensionVersion: "1.2.3", PackageDigest: strings.Repeat("a", 64),
+		VersionID: 9, RuntimeInstanceID: "runtime-7",
+	}
+	lease, err := admission.AcquireQueryExecutionLease(t.Context(), artifact)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if lease.Context == nil || lease.Release == nil || stub.gate.Snapshot().ActiveTotal != 1 {
+		t.Fatalf("contextual execution lease=%#v gate=%#v", lease, stub.gate.Snapshot())
+	}
+	forceCause := errors.New("force drain query runtime")
+	forced := stub.gate.ForceCancel(forceCause)
+	if !forced.Forced || forced.ActiveTotal != 1 {
+		t.Fatalf("forced admission snapshot=%#v", forced)
+	}
+	select {
+	case <-lease.Context.Done():
+	case <-time.After(time.Second):
+		t.Fatal("ForceDrain did not cancel the Query execution lease")
+	}
+	if cause := context.Cause(lease.Context); !errors.Is(cause, extensionsruntime.ErrRuntimeAdmissionForced) ||
+		!errors.Is(cause, forceCause) {
+		t.Fatalf("ForceDrain execution cause=%v", cause)
+	}
+	lease.Release()
+	if stub.gate.Snapshot().ActiveTotal != 0 {
+		t.Fatalf("forced Query execution lease leaked: %#v", stub.gate.Snapshot())
+	}
+}
+
+func TestProductionQueryExecutionAdmissionPrefersForcedAcquireOverLaterCallerCancel(t *testing.T) {
+	ctx, cancelCaller := context.WithCancelCause(t.Context())
+	forceCause := errors.New("runtime forced before acquire returned")
+	callerCause := errors.New("later caller cancellation")
+	admission := &productionQueryRuntimeAdmission{acquire: func(
+		context.Context,
+		string,
+		extensionsruntime.RuntimeCallClass,
+	) (extensionsruntime.RuntimeInstanceSnapshot, *extensionsruntime.RuntimeAdmissionLease, error) {
+		forced := errors.Join(extensionsruntime.ErrRuntimeAdmissionForced, forceCause)
+		cancelCaller(callerCause)
+		return extensionsruntime.RuntimeInstanceSnapshot{}, nil, forced
+	}}
+	artifact := queryregistry.Artifact{
+		ExtensionID: "query.plugin", ExtensionVersion: "1.2.3", PackageDigest: strings.Repeat("a", 64),
+		VersionID: 9, RuntimeInstanceID: "runtime-7",
+	}
+	_, err := admission.AcquireQueryExecutionLease(ctx, artifact)
+	if !errors.Is(err, errProductionQueryRegistryRuntimeStale) ||
+		!errors.Is(err, extensionsruntime.ErrRuntimeAdmissionForced) || !errors.Is(err, forceCause) ||
+		errors.Is(err, callerCause) {
+		t.Fatalf("forced acquisition winner error=%v", err)
+	}
+}
+
+func TestProductionQuerySnapshotMatchPreservesForceDrainCause(t *testing.T) {
+	_, stub := newProductionQueryAdmissionHarness(t)
+	snapshot, lease, err := stub.acquire(t.Context(), "query.plugin", extensionsruntime.RuntimeCallProvider)
+	if err != nil {
+		t.Fatal(err)
+	}
+	forceCause := errors.New("force drain during snapshot match")
+	stub.gate.ForceCancel(forceCause)
+	err = productionQueryRuntimeSnapshotMatches(
+		t.Context(), lease, snapshot, "query.plugin", "1.2.3", strings.Repeat("a", 64), 9, "runtime-7",
+	)
+	if !errors.Is(err, errProductionQueryRegistryRuntimeStale) ||
+		!errors.Is(err, extensionsruntime.ErrRuntimeAdmissionForced) || !errors.Is(err, forceCause) {
+		t.Fatalf("snapshot ForceDrain error=%v", err)
+	}
+	lease.Release()
+}
+
+func TestProductionQuerySnapshotMatchPrefersForceDrainOverLaterCallerCancel(t *testing.T) {
+	_, stub := newProductionQueryAdmissionHarness(t)
+	ctx, cancelCaller := context.WithCancelCause(t.Context())
+	snapshot, lease, err := stub.acquire(ctx, "query.plugin", extensionsruntime.RuntimeCallProvider)
+	if err != nil {
+		t.Fatal(err)
+	}
+	forceCause := errors.New("ForceDrain won before caller cancel")
+	stub.gate.ForceCancel(forceCause)
+	cancelCaller(errors.New("later caller cancellation"))
+	err = productionQueryRuntimeSnapshotMatches(
+		ctx, lease, snapshot, "query.plugin", "1.2.3", strings.Repeat("a", 64), 9, "runtime-7",
+	)
+	if !errors.Is(err, errProductionQueryRegistryRuntimeStale) ||
+		!errors.Is(err, extensionsruntime.ErrRuntimeAdmissionForced) || !errors.Is(err, forceCause) {
+		t.Fatalf("snapshot cancellation winner error=%v", err)
+	}
+	lease.Release()
+}
+
+func TestProductionQueryExecutionForceDrainCancelsProvider(t *testing.T) {
+	admission, stub := newProductionQueryAdmissionHarness(t)
+	artifact := queryregistry.Artifact{
+		ExtensionID: "query.plugin", ExtensionVersion: "1.2.3", PackageDigest: strings.Repeat("a", 64),
+		VersionID: 9, RuntimeInstanceID: "runtime-7",
+	}
+	declaration := queryregistry.QueryDeclaration{
+		ID: "query.plugin.items", ContractVersion: "query.plugin.items@1", Entity: "query.plugin.item",
+		PlanVersion: "query.plugin.items.plan@1", Fields: []string{"id"}, Pagination: queryregistry.PaginationNone,
+		ResultSchema: "query.plugin.item@1", PermissionPolicy: queryregistry.PermissionPolicyPublic,
+	}
+	registry := queryregistry.New(queryregistry.WithCostPolicy(queryregistry.CostPolicyFunc(func(queryregistry.QueryCostInput) (queryregistry.QueryCost, error) {
+		return queryregistry.QueryCost{Units: 1, Maximum: 100}, nil
+	}))).WithPluginAdmission(func(candidate queryregistry.Artifact) bool {
+		return candidate == artifact
+	})
+	if _, err := registry.Publish(queryregistry.Publication{Artifact: artifact, Queries: []queryregistry.QueryDeclaration{declaration}}); err != nil {
+		t.Fatal(err)
+	}
+	providerStarted := make(chan struct{})
+	provider := queryregistry.ExecutableProviderFunc(func(ctx context.Context, _ queryregistry.ProviderExecutionRequest) (queryregistry.ProviderExecutionResult, error) {
+		close(providerStarted)
+		<-ctx.Done()
+		return queryregistry.ProviderExecutionResult{}, ctx.Err()
+	})
+	providers, err := queryregistry.NewStaticProviderResolver([]queryregistry.ExecutableProviderBinding{{
+		QueryID: declaration.ID, ContractVersion: declaration.ContractVersion,
+		PlanVersion: declaration.PlanVersion, ResultSchema: declaration.ResultSchema,
+		Artifact: artifact, Provider: provider,
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	runtime, err := queryregistry.NewExecutionRuntime(queryregistry.ExecutionConfig{
+		Registry: registry, Providers: providers,
+		Schemas:   queryregistry.ResultSchemaValidatorFunc(func(context.Context, queryregistry.ResultSchemaClaim, queryregistry.QueryRow) error { return nil }),
+		Admission: admission,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	done := make(chan error, 1)
+	go func() {
+		_, executeErr := runtime.Execute(t.Context(), queryregistry.PlanRequest{QueryID: declaration.ID})
+		done <- executeErr
+	}()
+	select {
+	case <-providerStarted:
+	case err := <-done:
+		t.Fatalf("production Query execution stopped before provider: %v", err)
+	case <-time.After(time.Second):
+		t.Fatal("production Query provider did not start")
+	}
+	forceCause := errors.New("production Query ForceDrain")
+	stub.gate.ForceCancel(forceCause)
+	select {
+	case err := <-done:
+		if !errors.Is(err, extensionsruntime.ErrRuntimeAdmissionForced) || !errors.Is(err, forceCause) {
+			t.Fatalf("production Execute ForceDrain error=%v", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("production Execute did not stop after ForceDrain")
+	}
+	if stub.gate.Snapshot().ActiveTotal != 0 {
+		t.Fatalf("production Execute leaked admission: %#v", stub.gate.Snapshot())
+	}
+}
+
+func TestProductionQueryExecutionWrongVersionIDCannotReachCacheHit(t *testing.T) {
+	admission, stub := newProductionQueryAdmissionHarness(t)
+	artifact := queryregistry.Artifact{
+		ExtensionID: "query.plugin", ExtensionVersion: "1.2.3", PackageDigest: strings.Repeat("a", 64),
+		VersionID: 8, RuntimeInstanceID: "runtime-7",
+	}
+	declaration := queryregistry.QueryDeclaration{
+		ID: "query.plugin.cached", ContractVersion: "query.plugin.cached@1", Entity: "query.plugin.item",
+		PlanVersion: "query.plugin.cached.plan@1", Fields: []string{"id"}, Pagination: queryregistry.PaginationOffset,
+		ResultSchema: "query.plugin.item@1", PermissionPolicy: queryregistry.PermissionPolicyPublic,
+		CacheTags: []string{"query.plugin.items"},
+	}
+	registry := queryregistry.New(queryregistry.WithCostPolicy(queryregistry.CostPolicyFunc(func(queryregistry.QueryCostInput) (queryregistry.QueryCost, error) {
+		return queryregistry.QueryCost{Units: 1, Maximum: 100}, nil
+	}))).WithPluginAdmission(func(candidate queryregistry.Artifact) bool { return candidate == artifact })
+	if _, err := registry.Publish(queryregistry.Publication{Artifact: artifact, Queries: []queryregistry.QueryDeclaration{declaration}}); err != nil {
+		t.Fatal(err)
+	}
+	var providerCalls atomic.Int32
+	providers, err := queryregistry.NewStaticProviderResolver([]queryregistry.ExecutableProviderBinding{{
+		QueryID: declaration.ID, ContractVersion: declaration.ContractVersion,
+		PlanVersion: declaration.PlanVersion, ResultSchema: declaration.ResultSchema, Artifact: artifact,
+		Provider: queryregistry.ExecutableProviderFunc(func(context.Context, queryregistry.ProviderExecutionRequest) (queryregistry.ProviderExecutionResult, error) {
+			providerCalls.Add(1)
+			return queryregistry.ProviderExecutionResult{Rows: []queryregistry.QueryRow{{"id": "1"}}}, nil
+		}),
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cache := &productionQueryCacheHitStub{}
+	runtime, err := queryregistry.NewExecutionRuntime(queryregistry.ExecutionConfig{
+		Registry: registry, Providers: providers, Cache: cache, Admission: admission,
+		Schemas: queryregistry.ResultSchemaValidatorFunc(func(context.Context, queryregistry.ResultSchemaClaim, queryregistry.QueryRow) error { return nil }),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = runtime.Execute(t.Context(), queryregistry.PlanRequest{
+		QueryID: declaration.ID, Pagination: queryregistry.PaginationRequest{Limit: 10},
+	})
+	if !errors.Is(err, queryregistry.ErrArtifactUnavailable) || !errors.Is(err, errProductionQueryRegistryRuntimeStale) ||
+		cache.loads.Load() != 0 || providerCalls.Load() != 0 || stub.gate.Snapshot().ActiveTotal != 0 {
+		t.Fatalf("wrong VersionID cache execution err=%v loads=%d provider=%d gate=%#v",
+			err, cache.loads.Load(), providerCalls.Load(), stub.gate.Snapshot())
+	}
+}
+
+type productionQueryCacheHitStub struct {
+	loads atomic.Int32
+}
+
+func (c *productionQueryCacheHitStub) LoadQueryResult(context.Context, string) (queryregistry.CachedQueryResult, bool, error) {
+	c.loads.Add(1)
+	return queryregistry.CachedQueryResult{}, true, nil
+}
+
+func (*productionQueryCacheHitStub) StoreQueryResult(context.Context, string, queryregistry.CachedQueryResult, []string) error {
+	return nil
 }
 
 type productionQueryAuthorityResolverStub struct{}

@@ -98,8 +98,8 @@ func TestReferenceQueryPluginJoinedGates(t *testing.T) {
 	}
 	runtime, err := queryregistry.NewExecutionRuntime(queryregistry.ExecutionConfig{
 		Registry: registry, Providers: providers, Schemas: schemas, ResultFilterSource: filterSource,
-		Admission: queryregistry.ExecutionAdmissionFunc(func(context.Context, queryregistry.Artifact) (func(), error) {
-			return func() {}, nil
+		Admission: queryregistry.ContextualExecutionAdmissionFunc(func(ctx context.Context, _ queryregistry.Artifact) (queryregistry.ExecutionAdmissionLease, error) {
+			return queryregistry.ExecutionAdmissionLease{Context: ctx, Release: func() {}}, nil
 		}),
 	})
 	if err != nil {
