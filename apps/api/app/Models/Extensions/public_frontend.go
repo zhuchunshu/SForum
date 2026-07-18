@@ -560,6 +560,17 @@ func readExactExtensionDigestFile(
 	return body, actualDigest, nil
 }
 
+// ReadExactExtensionDigestFile 暴露既有 exact-package 读取边界给 Host 子系统复用。
+// 实现保持 OpenRoot、SameFile、O_NONBLOCK、LimitReader 与 digest 校验，不重写安全逻辑。
+func ReadExactExtensionDigestFile(
+	extension Extension,
+	manifestPath, expectedDigest string,
+	limit int64,
+	requireNonEmpty bool,
+) ([]byte, string, error) {
+	return readExactExtensionDigestFile(extension, manifestPath, expectedDigest, limit, requireNonEmpty)
+}
+
 // readStableRegularFile 在打开前拒绝非常规文件，并用非阻塞 flag
 // 关闭 Lstat/Open 之间被替换为 FIFO 的竞态。
 func readStableRegularFile(target string, limit int64, requireNonEmpty bool) ([]byte, error) {
