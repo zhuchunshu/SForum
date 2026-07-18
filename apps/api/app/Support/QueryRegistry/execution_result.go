@@ -11,6 +11,7 @@ import (
 	"io"
 	"reflect"
 	"slices"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -183,7 +184,11 @@ func (r *ExecutionRuntime) matchingFiltersWithEvidence(
 	if err != nil {
 		return nil, evidence, ErrDependencyDenied
 	}
-	for _, filter := range r.filters {
+	candidates, err := r.resultFilterCandidates(query)
+	if err != nil {
+		return nil, evidence, err
+	}
+	for _, filter := range candidates {
 		registration := filter.registration
 		if registration.QueryID != query.ID {
 			continue
@@ -232,6 +237,56 @@ func (r *ExecutionRuntime) matchingFiltersWithEvidence(
 		result = append(result, filter)
 	}
 	return result, evidence, nil
+}
+
+// resultFilterCandidates merges static bootstrap registrations with optional
+// snapshot-backed sources. Dynamic filters resolve callables at match time.
+func (r *ExecutionRuntime) resultFilterCandidates(query QueryContribution) ([]preparedResultFilter, error) {
+	if r == nil {
+		return nil, ErrExecutionInvalid
+	}
+	if r.filterSource == nil {
+		return r.filters, nil
+	}
+	registrations, err := r.filterSource.ResultFiltersFor(query)
+	if err != nil {
+		return nil, errors.Join(ErrExecutionInvalid, err)
+	}
+	if len(registrations) == 0 {
+		return r.filters, nil
+	}
+	dynamic, err := prepareResultFilters(registrations)
+	if err != nil {
+		return nil, err
+	}
+	if len(r.filters) == 0 {
+		return dynamic, nil
+	}
+	seen := make(map[string]struct{}, len(r.filters)+len(dynamic))
+	merged := make([]preparedResultFilter, 0, len(r.filters)+len(dynamic))
+	for _, filter := range r.filters {
+		seen[filter.registration.ID] = struct{}{}
+		merged = append(merged, filter)
+	}
+	for _, filter := range dynamic {
+		if _, exists := seen[filter.registration.ID]; exists {
+			return nil, fmt.Errorf("%w: duplicate result filter %s", ErrExecutionInvalid, filter.registration.ID)
+		}
+		seen[filter.registration.ID] = struct{}{}
+		merged = append(merged, filter)
+	}
+	// 保持与 prepareResultFilters 相同的优先级/artifact/ID 排序。
+	sort.Slice(merged, func(i, j int) bool {
+		left, right := merged[i].registration, merged[j].registration
+		if left.Priority != right.Priority {
+			return left.Priority > right.Priority
+		}
+		if left.Artifact != right.Artifact {
+			return artifactBefore(left.Artifact, right.Artifact)
+		}
+		return left.ID < right.ID
+	})
+	return merged, nil
 }
 
 func resultFilterPlanDigest(filters []preparedResultFilter) string {

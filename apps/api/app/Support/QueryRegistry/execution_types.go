@@ -101,6 +101,39 @@ func (f executableProviderResolverFunc) resolveQueryProvider(ctx context.Context
 	return f(ctx, cloneQueryPlan(plan))
 }
 
+// NewProviderResolverFunc wraps an external resolve callback as an
+// ExecutableProviderResolver. The package-private resolve method stays
+// unexportable; adapters outside this package must use this factory.
+func NewProviderResolverFunc(
+	resolve func(context.Context, QueryPlan) (ExecutableProviderBinding, error),
+) ExecutableProviderResolver {
+	if resolve == nil {
+		return executableProviderResolverFunc(nil)
+	}
+	return executableProviderResolverFunc(resolve)
+}
+
+// NewFallbackProviderResolver tries primary first. On ErrProviderUnavailable it
+// falls back for non-Core plans only; Core seals never leave the primary path.
+func NewFallbackProviderResolver(
+	primary ExecutableProviderResolver,
+	fallback ExecutableProviderResolver,
+) (ExecutableProviderResolver, error) {
+	if primary == nil || fallback == nil {
+		return nil, ErrExecutionInvalid
+	}
+	return executableProviderResolverFunc(func(ctx context.Context, plan QueryPlan) (ExecutableProviderBinding, error) {
+		binding, err := primary.resolveQueryProvider(ctx, plan)
+		if err == nil {
+			return binding, nil
+		}
+		if plan.Query.Artifact.Core || !errors.Is(err, ErrProviderUnavailable) {
+			return ExecutableProviderBinding{}, err
+		}
+		return fallback.resolveQueryProvider(ctx, plan)
+	}), nil
+}
+
 // ExecutionAdmission holds the Host runtime's exact-artifact admission lease
 // across provider or filter code. Core artifacts bypass this process lease but
 // remain snapshot-fenced by Registry.
@@ -240,6 +273,23 @@ type ResultFilterRegistration struct {
 	Filter               ResultFilter
 }
 
+// ResultFilterSource materializes independent result-filter registrations from
+// an immutable Registry snapshot or other Host-owned catalog at match time.
+// Callables may resolve live exact runtimes; the source itself must not capture
+// process-start-only instances.
+type ResultFilterSource interface {
+	ResultFiltersFor(QueryContribution) ([]ResultFilterRegistration, error)
+}
+
+type ResultFilterSourceFunc func(QueryContribution) ([]ResultFilterRegistration, error)
+
+func (f ResultFilterSourceFunc) ResultFiltersFor(query QueryContribution) ([]ResultFilterRegistration, error) {
+	if f == nil {
+		return nil, ErrExecutionInvalid
+	}
+	return f(query)
+}
+
 type preparedResultFilter struct {
 	registration ResultFilterRegistration
 	constraint   *semver.Constraints
@@ -290,15 +340,16 @@ type QueryResultCache interface {
 }
 
 type ExecutionConfig struct {
-	Registry       *Registry
-	Providers      ExecutableProviderResolver
-	Admission      ExecutionAdmission
-	Schemas        ResultSchemaValidator
-	Cache          QueryResultCache
-	ResultFilters  []ResultFilterRegistration
-	Trace          ExecutionTraceSink
-	Timeout        time.Duration
-	MaxResultBytes int
+	Registry           *Registry
+	Providers          ExecutableProviderResolver
+	Admission          ExecutionAdmission
+	Schemas            ResultSchemaValidator
+	Cache              QueryResultCache
+	ResultFilters      []ResultFilterRegistration
+	ResultFilterSource ResultFilterSource
+	Trace              ExecutionTraceSink
+	Timeout            time.Duration
+	MaxResultBytes     int
 }
 
 type ExecutionRuntime struct {
@@ -308,6 +359,7 @@ type ExecutionRuntime struct {
 	schemas        ResultSchemaValidator
 	cache          QueryResultCache
 	filters        []preparedResultFilter
+	filterSource   ResultFilterSource
 	trace          ExecutionTraceSink
 	timeout        time.Duration
 	maxResultBytes int
@@ -335,7 +387,7 @@ func NewExecutionRuntime(config ExecutionConfig) (*ExecutionRuntime, error) {
 	}
 	return &ExecutionRuntime{
 		registry: config.Registry, providers: config.Providers, admission: config.Admission, schemas: config.Schemas,
-		cache: config.Cache, filters: filters, trace: config.Trace,
+		cache: config.Cache, filters: filters, filterSource: config.ResultFilterSource, trace: config.Trace,
 		timeout: timeout, maxResultBytes: maximumBytes,
 	}, nil
 }
