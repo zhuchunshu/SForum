@@ -1,0 +1,29 @@
+package extensionsruntime
+
+import "testing"
+
+// TestP7JoinedHookProviderRuntimeMatrix aggregates the production Registry,
+// Manager, admission, fallback, and lifecycle behavior for the P7 execution row.
+func TestP7JoinedHookProviderRuntimeMatrix(t *testing.T) {
+	t.Run("hook_priority_and_immutable_registration", TestVersionedHookRegistryPublishesPluginDefinitionAndDeterministicConsumers)
+	t.Run("hook_version_mismatch", TestVersionedHookRegistryEnforcesProviderVersionConstraint)
+	t.Run("hook_optional_dependency_disable", TestVersionedHookRegistryOptionalConsumerFallsBackAcrossProviderDisable)
+	t.Run("hook_required_dependency_disable", TestVersionedHookRegistryRequiredConsumerBlocksProviderDisable)
+	t.Run("hook_required_dependency_stop_lifecycle", TestManagerStopDoesNotStopRequiredHookProvider)
+	t.Run("hook_priority_and_revalidation", TestVersionedHookCompositionRevalidatesEveryPatchAndHonorsPriority)
+	t.Run("hook_fail_closed_isolation", TestVersionedHookCompositionIsolatesNestedMutationAndRejectsForbiddenPatch)
+	t.Run("hook_fail_open_isolation", TestVersionedHookCompositionFailOpenContinuesWithoutPollution)
+	t.Run("hook_contract_timeout_failure_policy", TestVersionedHookCompositionAppliesContractTimeoutFailurePolicy)
+	t.Run("hook_async_exact_binding", TestVersionedHookAsyncExactBinding)
+	t.Run("legacy_hook_timeout_compatibility", TestManagerEnforcesSyncFilterTimeout)
+	t.Run("provider_priority_and_exact_registration", TestProviderSlotRegistryPublishesExactDeterministicCandidates)
+	t.Run("provider_version_and_dependency_disable", TestProviderSlotRegistryDependenciesDisableAndContractDrift)
+	t.Run("provider_fallback_input_isolation", TestManagerVersionedProviderFallsBackWithIsolatedInputAndHostRevalidation)
+	t.Run("provider_closed_and_invalid_output_policy", TestManagerVersionedProviderClosedAndInvalidOutputStopOrFallback)
+	t.Run("provider_timeout_retains_admission", TestManagerVersionedProviderRetainsAdmissionWhenInvokerIgnoresTimeout)
+	t.Run("provider_timeout_waits_before_fallback", TestManagerVersionedProviderWaitsForTimedOutCandidateBeforeFallback)
+	t.Run("provider_request_validation_deadline", TestManagerVersionedProviderDoesNotInvokeAfterRequestValidationDeadline)
+	t.Run("provider_response_validation_deadline", TestManagerVersionedProviderDoesNotPublishAfterResponseValidationDeadline)
+	t.Run("provider_timeout_blocks_disable", TestManagerVersionedProviderTimedOutCallBlocksExactDisableUntilExit)
+	t.Run("provider_timeout_blocks_staged_upgrade", TestManagerVersionedProviderTimedOutCallBlocksStagedUpgradeUntilExit)
+}
