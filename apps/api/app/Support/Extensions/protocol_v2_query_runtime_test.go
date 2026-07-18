@@ -166,6 +166,46 @@ func TestProtocolV2QueryRuntimeRejectsResponseIdentityDrift(t *testing.T) {
 	})
 }
 
+func TestProtocolV2QueryRuntimeFilterKeepsFetchLimitForShortPage(t *testing.T) {
+	declaration := extensions.ManifestQuery{
+		ID: "plugin.query.demo.items", ContractVersion: "plugin.query.demo.items@1",
+		Entity: "item", PlanVersion: "plugin.query.demo.items.plan@1",
+		Fields: []string{"id"}, Pagination: "offset", ResultSchema: "plugin.query.demo.items.result@1",
+		PermissionPolicy: "public", Handler: "plugin.query.demo.items", IdentityFields: []string{"id"},
+		DefaultSort: []extensions.ManifestQuerySort{{Field: "id"}},
+	}
+	filter := extensions.ManifestQueryResultFilter{
+		ID: "plugin.query.demo.items.mask", ContractVersion: "plugin.query.demo.items.mask@1",
+		QueryID: declaration.ID, QueryContractVersion: declaration.ContractVersion,
+		QueryPlanVersion: declaration.PlanVersion, Handler: "plugin.query.demo.items.mask",
+		FailurePolicy: "fail_closed", TimeoutMS: 500,
+	}
+	client := newProtocolV2QueryTestClient(t, declaration, filter, nil, func(
+		_ context.Context, request *pluginwire.QueryResultFilterRequest,
+	) (*pluginwire.QueryResultFilterResponse, error) {
+		if request.GetPlan().GetPagination().GetLimit() != 2 || request.GetPlan().GetFetchLimit() != 3 ||
+			len(request.GetInput().GetRows()) != 1 {
+			t.Fatalf("short-page filter plan drifted: %#v", request.GetPlan())
+		}
+		return &pluginwire.QueryResultFilterResponse{
+			Context: protocolV2QueryTestResponseContext(request.GetContext()),
+			Binding: request.GetBinding(), ShapeDigest: request.GetPlan().GetShapeDigest(),
+			Outcome: &pluginwire.QueryResultFilterResponse_Success{Success: request.GetInput()},
+		}, nil
+	})
+	plan := protocolV2QueryTestPlan(declaration)
+	plan.Pagination.Limit = 2
+	rows, err := client.FilterQueryResult(t.Context(), VersionedQueryResultFilterRequest{
+		FilterID: filter.ID, FilterContractVersion: filter.ContractVersion,
+		QueryID: declaration.ID, QueryContractVersion: declaration.ContractVersion,
+		QueryPlanVersion: declaration.PlanVersion, ResultSchema: declaration.ResultSchema,
+		Handler: filter.Handler, Plan: plan, Rows: []queryregistry.QueryRow{{"id": "tail"}},
+	})
+	if err != nil || len(rows) != 1 || rows[0]["id"] != "tail" {
+		t.Fatalf("short-page filter rows=%#v err=%v", rows, err)
+	}
+}
+
 func TestProtocolV2QueryRuntimeHandshakeRequiresExactFeature(t *testing.T) {
 	executable := extensions.ManifestQuery{Handler: "plugin.query.demo.items"}
 	filter := extensions.ManifestQueryResultFilter{ID: "plugin.query.demo.items.mask"}

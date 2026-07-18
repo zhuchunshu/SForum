@@ -123,13 +123,8 @@ func (c *protocolV2Client) FilterQueryResult(
 	if err != nil {
 		return nil, err
 	}
-	// filter 输入行使用 FetchLimit=页面行数语义：Host 已截断后的页面行集。
-	if plan.Pagination != nil {
-		plan.FetchLimit = uint32(len(input.Rows))
-		if plan.FetchLimit == 0 {
-			plan.FetchLimit = 1
-		}
-	}
+	// Filter 可能收到 provider 的短尾页；FetchLimit 仍是 Host 原始的
+	// limit+1 合同，而不是本次实际行数。SDK 允许 rows <= FetchLimit。
 	encoded, err := encodeProtocolV2QueryRows(input.Rows)
 	if err != nil {
 		return nil, err
