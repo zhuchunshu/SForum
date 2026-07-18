@@ -816,7 +816,12 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		pool.Close()
 		return nil, fmt.Errorf("refresh extension guard policy failed: %w", err)
 	}
-	routeFailureRecorder, err := httpserver.NewRouteFailureRecorder(lifecycleStack.RuntimeManager, auditWriter, logger)
+	routeFailureRecorder, err := httpserver.NewRouteFailureRecorder(
+		lifecycleStack.RuntimeManager,
+		httpserver.NewPostgresRouteRuntimeIncidentStore(pool),
+		auditWriter,
+		logger,
+	)
 	if err != nil {
 		stopPluginRuntimeCoordinator()
 		if stopErr := supportjobs.Stop(ctx, jobClient); stopErr != nil {

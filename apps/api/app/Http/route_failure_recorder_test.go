@@ -17,8 +17,9 @@ import (
 
 func TestRouteFailureRecorderQuarantinesOnlyRuntimeIncidentsAndAuditsDetachedMetadata(t *testing.T) {
 	runtime := &recordingRouteIncidentRuntime{}
+	incidents := &recordingRouteRuntimeIncidentStore{}
 	auditor := &recordingRouteFailureAuditor{}
-	recorder, err := newRouteFailureRecorder(runtime, auditor, discardRouteFailureLogger(), 8, time.Second)
+	recorder, err := newRouteFailureRecorder(runtime, incidents, auditor, discardRouteFailureLogger(), 8, time.Second)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -63,15 +64,17 @@ func TestRouteFailureRecorderQuarantinesOnlyRuntimeIncidentsAndAuditsDetachedMet
 	auditor.mu.Lock()
 	audits := append([]audit.Event(nil), auditor.events...)
 	auditor.mu.Unlock()
-	if len(audits) != len(events) {
+	if len(audits) != 4 {
 		t.Fatalf("audits=%#v", audits)
 	}
+	wantEventIndexes := []int{0, 1, 2, 4}
 	wantQuarantine := []string{
-		"not_required", "not_required", "execution_not_observed", "quarantined", "not_required", "quarantined",
+		"not_required", "not_required", "execution_not_observed", "not_required",
 	}
 	for index, recorded := range audits {
+		event := events[wantEventIndexes[index]]
 		if recorded.Action != audit.ActionRouteCommittedAfterFailure || recorded.ActorUserID != 42 ||
-			recorded.Metadata["failureCode"] != events[index].FailureCode ||
+			recorded.Metadata["failureCode"] != event.FailureCode ||
 			recorded.Metadata["invocationStage"] != routes.InvocationStageResponse ||
 			recorded.Metadata["quarantineResult"] != wantQuarantine[index] ||
 			recorded.Metadata["packageDigest"] != strings.Repeat("a", 64) {
@@ -83,12 +86,30 @@ func TestRouteFailureRecorderQuarantinesOnlyRuntimeIncidentsAndAuditsDetachedMet
 			}
 		}
 	}
+	incidents.mu.Lock()
+	created := append([]RouteRuntimeIncidentEvidence(nil), incidents.created...)
+	resolved := append([]recordedRouteRuntimeIncidentResolution(nil), incidents.resolved...)
+	incidents.mu.Unlock()
+	if len(created) != 2 || len(resolved) != 2 {
+		t.Fatalf("created=%#v resolved=%#v", created, resolved)
+	}
+	for index, evidence := range created {
+		wantCause := "runtime_transport"
+		if index == 1 {
+			wantCause = "response_schema"
+		}
+		if evidence.Mode != "http" || evidence.CauseClass != wantCause ||
+			resolved[index].key != evidence.IncidentKey || resolved[index].result != RouteRuntimeIncidentQuarantined {
+			t.Fatalf("evidence[%d]=%#v resolution=%#v", index, evidence, resolved[index])
+		}
+	}
 }
 
 func TestRouteFailureRecorderRejectsMissingInvalidOrMismatchedInvocationStage(t *testing.T) {
 	runtime := &recordingRouteIncidentRuntime{}
+	incidents := &recordingRouteRuntimeIncidentStore{}
 	auditor := &recordingRouteFailureAuditor{}
-	recorder, err := newRouteFailureRecorder(runtime, auditor, discardRouteFailureLogger(), 2, time.Second)
+	recorder, err := newRouteFailureRecorder(runtime, incidents, auditor, discardRouteFailureLogger(), 2, time.Second)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -116,19 +137,23 @@ func TestRouteFailureRecorderRejectsMissingInvalidOrMismatchedInvocationStage(t 
 	auditor.mu.Lock()
 	auditCalls := len(auditor.events)
 	auditor.mu.Unlock()
-	if quarantineCalls != 0 || auditCalls != 0 || recorder.Dropped() != 0 {
+	incidents.mu.Lock()
+	incidentCalls := len(incidents.created)
+	incidents.mu.Unlock()
+	if quarantineCalls != 0 || auditCalls != 0 || incidentCalls != 0 || recorder.Dropped() != 0 {
 		t.Fatalf("invalid stage reached recorder: quarantines=%d audits=%d dropped=%d", quarantineCalls, auditCalls, recorder.Dropped())
 	}
 }
 
-func TestRouteFailureRecorderBoundsAuditBackpressureWithoutSkippingQuarantine(t *testing.T) {
+func TestRouteFailureRecorderBoundsOrdinaryAuditBackpressure(t *testing.T) {
 	runtime := &recordingRouteIncidentRuntime{}
+	incidents := &recordingRouteRuntimeIncidentStore{}
 	auditor := &recordingRouteFailureAuditor{started: make(chan struct{}), release: make(chan struct{})}
-	recorder, err := newRouteFailureRecorder(runtime, auditor, discardRouteFailureLogger(), 1, time.Second)
+	recorder, err := newRouteFailureRecorder(runtime, incidents, auditor, discardRouteFailureLogger(), 1, time.Second)
 	if err != nil {
 		t.Fatal(err)
 	}
-	event := routeFailureRecorderEvent(routes.RouteFailureTransportFailed, true)
+	event := routeFailureRecorderEvent(routes.RouteFailureGuardDenied, false)
 	recorder.RecordCommittedAfterFailure(context.Background(), event)
 	select {
 	case <-auditor.started:
@@ -147,8 +172,8 @@ func TestRouteFailureRecorderBoundsAuditBackpressureWithoutSkippingQuarantine(t 
 	runtime.mu.Lock()
 	quarantineCalls := len(runtime.calls)
 	runtime.mu.Unlock()
-	if quarantineCalls != 3 {
-		t.Fatalf("queue pressure skipped quarantine: calls=%d", quarantineCalls)
+	if quarantineCalls != 0 {
+		t.Fatalf("ordinary audit quarantined a runtime: calls=%d", quarantineCalls)
 	}
 	close(auditor.release)
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
@@ -158,10 +183,11 @@ func TestRouteFailureRecorderBoundsAuditBackpressureWithoutSkippingQuarantine(t 
 	}
 }
 
-func TestRouteFailureRecorderAuditsStaleArtifactWithoutQuarantiningReplacement(t *testing.T) {
+func TestRouteFailureRecorderResolvesStaleArtifactWithoutQuarantiningReplacement(t *testing.T) {
 	runtime := &recordingRouteIncidentRuntime{err: extensionsruntime.ErrRuntimeInstanceConflict}
+	incidents := &recordingRouteRuntimeIncidentStore{}
 	auditor := &recordingRouteFailureAuditor{}
-	recorder, err := newRouteFailureRecorder(runtime, auditor, discardRouteFailureLogger(), 2, time.Second)
+	recorder, err := newRouteFailureRecorder(runtime, incidents, auditor, discardRouteFailureLogger(), 2, time.Second)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -174,9 +200,14 @@ func TestRouteFailureRecorderAuditsStaleArtifactWithoutQuarantiningReplacement(t
 		t.Fatal(err)
 	}
 	auditor.mu.Lock()
-	defer auditor.mu.Unlock()
-	if len(auditor.events) != 1 || auditor.events[0].Metadata["quarantineResult"] != "stale_artifact" {
+	if len(auditor.events) != 0 {
 		t.Fatalf("audits=%#v", auditor.events)
+	}
+	auditor.mu.Unlock()
+	incidents.mu.Lock()
+	defer incidents.mu.Unlock()
+	if len(incidents.resolved) != 1 || incidents.resolved[0].result != RouteRuntimeIncidentStaleArtifact {
+		t.Fatalf("resolutions=%#v", incidents.resolved)
 	}
 }
 
@@ -207,6 +238,7 @@ type recordingRouteIncidentRuntime struct {
 	mu    sync.Mutex
 	calls []recordedRouteIncident
 	err   error
+	order *recordingRouteIncidentOrder
 }
 
 func (r *recordingRouteIncidentRuntime) QuarantineRuntimeInstance(
@@ -215,6 +247,9 @@ func (r *recordingRouteIncidentRuntime) QuarantineRuntimeInstance(
 ) (extensionsruntime.RuntimeAdmissionSnapshot, error) {
 	r.mu.Lock()
 	r.calls = append(r.calls, recordedRouteIncident{exact: exact, cause: cause})
+	if r.order != nil {
+		r.order.append("quarantine")
+	}
 	err := r.err
 	r.mu.Unlock()
 	return extensionsruntime.RuntimeAdmissionSnapshot{}, err

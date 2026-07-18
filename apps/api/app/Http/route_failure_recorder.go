@@ -10,6 +10,7 @@ import (
 	"time"
 
 	audit "github.com/zhuchunshu/sforum/apps/api/app/Support/Audit"
+	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
 	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
 	routes "github.com/zhuchunshu/sforum/apps/api/app/Support/Routes"
 )
@@ -27,17 +28,20 @@ type ExactRuntimeIncidentQuarantiner interface {
 }
 
 type RouteFailureRecorder struct {
-	runtime   ExactRuntimeIncidentQuarantiner
-	auditor   audit.Writer
-	logger    *slog.Logger
-	timeout   time.Duration
-	queue     chan recordedRouteFailure
-	stop      chan struct{}
-	done      chan struct{}
-	enqueueMu sync.RWMutex
-	stopOnce  sync.Once
-	closed    bool
-	dropped   atomic.Uint64
+	runtime                     ExactRuntimeIncidentQuarantiner
+	incidents                   RouteRuntimeIncidentStore
+	auditor                     audit.Writer
+	logger                      *slog.Logger
+	timeout                     time.Duration
+	queue                       chan recordedRouteFailure
+	stop                        chan struct{}
+	done                        chan struct{}
+	enqueueMu                   sync.RWMutex
+	incidentWG                  sync.WaitGroup
+	stopOnce                    sync.Once
+	closed                      bool
+	dropped                     atomic.Uint64
+	incidentPersistenceFailures atomic.Uint64
 }
 
 type recordedRouteFailure struct {
@@ -47,27 +51,29 @@ type recordedRouteFailure struct {
 
 func NewRouteFailureRecorder(
 	runtime ExactRuntimeIncidentQuarantiner,
+	incidents RouteRuntimeIncidentStore,
 	auditor audit.Writer,
 	logger *slog.Logger,
 ) (*RouteFailureRecorder, error) {
-	return newRouteFailureRecorder(runtime, auditor, logger, defaultRouteFailureQueueSize, defaultRouteFailureAuditTimeout)
+	return newRouteFailureRecorder(runtime, incidents, auditor, logger, defaultRouteFailureQueueSize, defaultRouteFailureAuditTimeout)
 }
 
 func newRouteFailureRecorder(
 	runtime ExactRuntimeIncidentQuarantiner,
+	incidents RouteRuntimeIncidentStore,
 	auditor audit.Writer,
 	logger *slog.Logger,
 	queueSize int,
 	timeout time.Duration,
 ) (*RouteFailureRecorder, error) {
-	if runtime == nil || auditor == nil || queueSize <= 0 || timeout <= 0 {
+	if runtime == nil || incidents == nil || auditor == nil || queueSize <= 0 || timeout <= 0 {
 		return nil, fmt.Errorf("route failure recorder is not configured")
 	}
 	if logger == nil {
 		logger = slog.Default()
 	}
 	recorder := &RouteFailureRecorder{
-		runtime: runtime, auditor: auditor, logger: logger, timeout: timeout,
+		runtime: runtime, incidents: incidents, auditor: auditor, logger: logger, timeout: timeout,
 		queue: make(chan recordedRouteFailure, queueSize), stop: make(chan struct{}), done: make(chan struct{}),
 	}
 	go recorder.run()
@@ -85,39 +91,21 @@ func (r *RouteFailureRecorder) RecordCommittedAfterFailure(
 		!routes.ValidInvocationStageForStep(event.Phase, event.Action, event.InvocationStage) {
 		return
 	}
+	if routeFailureRequiresQuarantine(event) {
+		if !r.beginRuntimeIncident() {
+			return
+		}
+		defer r.incidentWG.Done()
+		r.recordRuntimeIncident(routeCommittedFailureIncidentEvidence(event))
+		return
+	}
 	r.enqueueMu.RLock()
 	defer r.enqueueMu.RUnlock()
 	if r.closed {
 		return
 	}
 	item := recordedRouteFailure{event: event, quarantine: "not_required"}
-	if routeFailureRequiresQuarantine(event) {
-		exact := extensionsruntime.RuntimeInstanceArtifactIdentity{
-			RuntimeInstanceIdentity: extensionsruntime.RuntimeInstanceIdentity{
-				ExtensionID: event.Artifact.ExtensionID, InstanceID: event.Artifact.RuntimeInstanceID,
-			},
-			ExtensionVersion: event.Artifact.ExtensionVersion,
-			ArtifactDigest:   event.Artifact.PackageDigest,
-		}
-		cause := fmt.Errorf("%w: %s", extensionsruntime.ErrRuntimeRouteIncident, event.FailureCode)
-		_, err := r.runtime.QuarantineRuntimeInstance(exact, cause)
-		switch {
-		case err == nil:
-			item.quarantine = "quarantined"
-		case errors.Is(err, extensionsruntime.ErrRuntimeInstanceNotFound):
-			item.quarantine = "stale_missing"
-		case errors.Is(err, extensionsruntime.ErrRuntimeInstanceConflict):
-			item.quarantine = "stale_artifact"
-		default:
-			item.quarantine = "failed"
-			r.logger.Error("route failure runtime quarantine failed",
-				"extension_id", event.Artifact.ExtensionID,
-				"runtime_instance_id", event.Artifact.RuntimeInstanceID,
-				"failure_code", event.FailureCode,
-				"error", err,
-			)
-		}
-	} else if event.FailureCode == routes.RouteFailureTransportFailed {
+	if event.FailureCode == routes.RouteFailureTransportFailed {
 		item.quarantine = "execution_not_observed"
 	}
 	select {
@@ -133,11 +121,145 @@ func (r *RouteFailureRecorder) RecordCommittedAfterFailure(
 	}
 }
 
+func (r *RouteFailureRecorder) RecordStreamFailure(_ context.Context, event routes.RouteStreamFailure) {
+	if r == nil || !routes.ValidRouteStreamFailure(event) {
+		return
+	}
+	if !r.beginRuntimeIncident() {
+		return
+	}
+	defer r.incidentWG.Done()
+	r.recordRuntimeIncident(routeStreamFailureIncidentEvidence(event))
+}
+
+func (r *RouteFailureRecorder) beginRuntimeIncident() bool {
+	r.enqueueMu.Lock()
+	defer r.enqueueMu.Unlock()
+	if r.closed {
+		return false
+	}
+	r.incidentWG.Add(1)
+	return true
+}
+
+func (r *RouteFailureRecorder) recordRuntimeIncident(evidence RouteRuntimeIncidentEvidence) {
+	deadline := time.Now().Add(r.timeout)
+	key, err := NewRouteRuntimeIncidentKey()
+	if err == nil {
+		evidence.IncidentKey = key
+		ctx, cancel := context.WithDeadline(context.Background(), deadline)
+		_, _, err = r.incidents.CreatePending(ctx, evidence)
+		cancel()
+	}
+	if err != nil {
+		r.incidentPersistenceFailures.Add(1)
+		r.logger.Error("persist route runtime incident failed",
+			"extension_id", evidence.Artifact.ExtensionID,
+			"runtime_instance_id", evidence.Artifact.RuntimeInstanceID,
+			"failure_code", evidence.FailureCode,
+			"cause_class", evidence.CauseClass,
+			"error", err,
+		)
+	}
+
+	result := r.quarantineRuntimeIncident(evidence)
+	if evidence.IncidentKey == "" || err != nil {
+		return
+	}
+	ctx, cancel := context.WithDeadline(context.Background(), deadline)
+	_, resolveErr := r.incidents.Resolve(ctx, evidence.IncidentKey, result)
+	cancel()
+	if resolveErr != nil {
+		r.incidentPersistenceFailures.Add(1)
+		r.logger.Error("resolve route runtime incident failed",
+			"extension_id", evidence.Artifact.ExtensionID,
+			"runtime_instance_id", evidence.Artifact.RuntimeInstanceID,
+			"failure_code", evidence.FailureCode,
+			"cause_class", evidence.CauseClass,
+			"local_quarantine_result", result,
+			"error", resolveErr,
+		)
+	}
+}
+
+func (r *RouteFailureRecorder) quarantineRuntimeIncident(evidence RouteRuntimeIncidentEvidence) RouteRuntimeIncidentLocalResult {
+	exact := extensionsruntime.RuntimeInstanceArtifactIdentity{
+		RuntimeInstanceIdentity: extensionsruntime.RuntimeInstanceIdentity{
+			ExtensionID: evidence.Artifact.ExtensionID, InstanceID: evidence.Artifact.RuntimeInstanceID,
+		},
+		ExtensionVersion: evidence.Artifact.ExtensionVersion,
+		ArtifactDigest:   evidence.Artifact.PackageDigest,
+	}
+	cause := fmt.Errorf("%w: %s", extensionsruntime.ErrRuntimeRouteIncident, evidence.CauseClass)
+	_, err := r.runtime.QuarantineRuntimeInstance(exact, cause)
+	switch {
+	case err == nil:
+		return RouteRuntimeIncidentQuarantined
+	case errors.Is(err, extensionsruntime.ErrRuntimeInstanceNotFound):
+		return RouteRuntimeIncidentStaleMissing
+	case errors.Is(err, extensionsruntime.ErrRuntimeInstanceConflict):
+		return RouteRuntimeIncidentStaleArtifact
+	default:
+		r.logger.Error("route failure runtime quarantine failed",
+			"extension_id", evidence.Artifact.ExtensionID,
+			"runtime_instance_id", evidence.Artifact.RuntimeInstanceID,
+			"failure_code", evidence.FailureCode,
+			"cause_class", evidence.CauseClass,
+			"error", err,
+		)
+		return RouteRuntimeIncidentFailed
+	}
+}
+
+func routeCommittedFailureIncidentEvidence(event routes.RouteCommittedAfterFailure) RouteRuntimeIncidentEvidence {
+	causeClass := "runtime_transport"
+	if event.FailureCode == routes.RouteFailureResponseSchemaRejected {
+		causeClass = "response_schema"
+	}
+	return RouteRuntimeIncidentEvidence{
+		RouteRevision: event.Revision, StepIndex: event.StepIndex, Phase: event.Phase,
+		InvocationStage: event.InvocationStage, Action: event.Action, Mode: extensionmanifest.RouteModeHTTP,
+		RouteID: event.RouteID, ContractVersion: event.ContractVersion,
+		Method: event.Method, PathSignature: event.PathSignature,
+		FailureCode: event.FailureCode, CauseClass: causeClass,
+		RuntimeExecutionObserved: event.RuntimeExecutionObserved, ActorID: event.ActorID,
+		ResponseStatus: normalizedRouteRuntimeIncidentStatus(event.ResponseStatus),
+		CommitState:    event.CommitState, Artifact: event.Artifact,
+	}
+}
+
+func routeStreamFailureIncidentEvidence(event routes.RouteStreamFailure) RouteRuntimeIncidentEvidence {
+	return RouteRuntimeIncidentEvidence{
+		RouteRevision: event.Revision, StepIndex: event.StepIndex, Phase: event.Phase,
+		InvocationStage: event.InvocationStage, Action: event.Action, Mode: event.Mode,
+		RouteID: event.RouteID, ContractVersion: event.ContractVersion,
+		Method: event.Method, PathSignature: event.PathSignature,
+		FailureCode: event.FailureCode, CauseClass: string(event.CauseClass),
+		RuntimeExecutionObserved: event.RuntimeExecutionObserved, ActorID: event.ActorID,
+		ResponseStatus: normalizedRouteRuntimeIncidentStatus(event.ResponseStatus),
+		CommitState:    event.CommitState, Artifact: event.Artifact,
+	}
+}
+
+func normalizedRouteRuntimeIncidentStatus(status int) int {
+	if status < 100 || status > 599 {
+		return 0
+	}
+	return status
+}
+
 func (r *RouteFailureRecorder) Dropped() uint64 {
 	if r == nil {
 		return 0
 	}
 	return r.dropped.Load()
+}
+
+func (r *RouteFailureRecorder) IncidentPersistenceFailures() uint64 {
+	if r == nil {
+		return 0
+	}
+	return r.incidentPersistenceFailures.Load()
 }
 
 func (r *RouteFailureRecorder) Close(ctx context.Context) error {
@@ -153,8 +275,14 @@ func (r *RouteFailureRecorder) Close(ctx context.Context) error {
 		r.stopOnce.Do(func() { close(r.stop) })
 	}
 	r.enqueueMu.Unlock()
+	finished := make(chan struct{})
+	go func() {
+		r.incidentWG.Wait()
+		<-r.done
+		close(finished)
+	}()
 	select {
-	case <-r.done:
+	case <-finished:
 		return nil
 	case <-ctx.Done():
 		return ctx.Err()
@@ -216,3 +344,4 @@ func routeFailureRequiresQuarantine(event routes.RouteCommittedAfterFailure) boo
 }
 
 var _ routes.RouteFailureSink = (*RouteFailureRecorder)(nil)
+var _ routes.RouteStreamFailureSink = (*RouteFailureRecorder)(nil)
