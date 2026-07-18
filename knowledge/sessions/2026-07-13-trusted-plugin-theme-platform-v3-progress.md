@@ -24,15 +24,18 @@ Last updated: 2026-07-18
   binds the already-classified stream producer to the PostgreSQL-backed route
   failure recorder. The staged hunk contained only the `StreamFailures` field;
   both unrelated `hostAPIGateway.Close()` working-tree hunks remain unstaged.
+- `b609d77a1 test(routes): cover opaque generic subprocess stream` adds the
+  missing real `mode=stream` route. NUL and non-UTF-8 binary bytes cross Fiber,
+  Manager, and the exact Protocol V2 subprocess in multiple opaque DataChunks
+  without invented JSON framing; focused normal and race gates pass.
 - Bootstrap, focused recorder, real PostgreSQL incident-store, and staged
   whitespace gates passed before commit. The opaque `DataChunk` decision and
   Host preflight Schema correction remain accepted evidence, not framing that
   the Host does not implement.
-- Exact resume point: add a real generic `mode=stream` Protocol V2 subprocess
-  fixture carrying opaque binary chunks, prove bounded backpressure with a TCP
-  slow consumer, then join normal/disconnect/ForceDrain zero-incident paths and
-  all four durable incident classes into the named P6 normal/race/PostgreSQL
-  gates. Only that evidence may raise P6 to **18/18**.
+- Exact resume point: prove bounded backpressure with a TCP slow consumer, then
+  join normal/disconnect/ForceDrain zero-incident paths and all four durable
+  incident classes into the named P6 normal/race/PostgreSQL gates. Only that
+  evidence may raise P6 to **18/18**.
 
 ### 2026-07-18 WebSocket Stream Classification Checkpoint
 
