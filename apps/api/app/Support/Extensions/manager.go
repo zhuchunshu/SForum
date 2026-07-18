@@ -48,7 +48,7 @@ type Manager struct {
 	runtimeInstances     map[string]map[string]*managedRuntimeInstance
 	activeInstances      map[string]string
 	runtimeLifecycleMu   sync.Mutex
-	runtimeLifecycle     map[string]*sync.Mutex
+	runtimeLifecycle     map[string]chan struct{}
 	hooks                *HookBus
 	deliveryStore        DeliveryStore
 	dispatcher           EventDispatcher
@@ -139,7 +139,7 @@ func NewManager(config ManagerConfig) *Manager {
 		running:              map[string]extensions.Extension{},
 		runtimeInstances:     map[string]map[string]*managedRuntimeInstance{},
 		activeInstances:      map[string]string{},
-		runtimeLifecycle:     map[string]*sync.Mutex{},
+		runtimeLifecycle:     map[string]chan struct{}{},
 		hooks:                hooks,
 		deliveryStore:        config.DeliveryStore,
 		dispatcher:           config.Dispatcher,
@@ -185,7 +185,10 @@ func (m *Manager) Start(ctx context.Context, extension extensions.Extension) err
 // startRuntimeSetLocked requires the Manager-wide runtime-set transition lock.
 // Aggregate lifecycle operations use it instead of re-entering the outer lock.
 func (m *Manager) startRuntimeSetLocked(ctx context.Context, extension extensions.Extension) error {
-	unlock := m.lockRuntimeLifecycle(extension.ID)
+	unlock, err := m.lockRuntimeLifecycleContext(ctx, extension.ID)
+	if err != nil {
+		return err
+	}
 	defer unlock()
 
 	hookCount, eventCount := runtimeManifestCounts(extension.Manifest)
@@ -266,7 +269,10 @@ func (m *Manager) Stop(ctx context.Context, extension extensions.Extension) erro
 
 // stopRuntimeSetLocked requires the Manager-wide runtime-set transition lock.
 func (m *Manager) stopRuntimeSetLocked(ctx context.Context, extension extensions.Extension) error {
-	unlock := m.lockRuntimeLifecycle(extension.ID)
+	unlock, err := m.lockRuntimeLifecycleContext(ctx, extension.ID)
+	if err != nil {
+		return err
+	}
 	defer unlock()
 
 	m.mu.RLock()
@@ -275,7 +281,7 @@ func (m *Manager) stopRuntimeSetLocked(ctx context.Context, extension extensions
 	if err := m.hooks.validateUnregisterRuntime(extension, instanceID); err != nil {
 		return err
 	}
-	err := m.starter.Stop(ctx, extension)
+	err = m.starter.Stop(ctx, extension)
 	m.mu.Lock()
 	if m.deactivateRuntimeInstanceLocked(RuntimeInstanceIdentity{ExtensionID: extension.ID, InstanceID: instanceID}) {
 		delete(m.targets, extension.ID)

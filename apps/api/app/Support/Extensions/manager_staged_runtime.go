@@ -41,7 +41,10 @@ func (m *Manager) stageRuntimeInstanceRuntimeSetLocked(ctx context.Context, exte
 		return RuntimeInstanceSnapshot{}, ErrProtocolInstanceUnsupported
 	}
 
-	unlock := m.lockRuntimeLifecycle(frozen.ID)
+	unlock, err := m.lockRuntimeLifecycleContext(ctx, frozen.ID)
+	if err != nil {
+		return RuntimeInstanceSnapshot{}, err
+	}
 	defer unlock()
 	if err := m.prepareRuntimeStart(ctx, frozen); err != nil {
 		return RuntimeInstanceSnapshot{}, err
@@ -109,7 +112,10 @@ func (m *Manager) HealthRuntimeInstance(ctx context.Context, identity RuntimeIns
 	if !ok {
 		return ProtocolRuntimeInstanceSnapshot{}, ErrProtocolInstanceUnsupported
 	}
-	unlock := m.lockRuntimeLifecycle(identity.ExtensionID)
+	unlock, err := m.lockRuntimeLifecycleContext(ctx, identity.ExtensionID)
+	if err != nil {
+		return ProtocolRuntimeInstanceSnapshot{}, err
+	}
 	defer unlock()
 	extension, err := m.managedRuntimeExtension(identity)
 	if err != nil {
@@ -176,7 +182,10 @@ func (m *Manager) publishRuntimeInstanceRuntimeSetLocked(
 	if !ok {
 		return RuntimeInstanceSnapshot{}, ErrProtocolInstanceUnsupported
 	}
-	unlock := m.lockRuntimeLifecycle(identity.ExtensionID)
+	unlock, err := m.lockRuntimeLifecycleContext(ctx, identity.ExtensionID)
+	if err != nil {
+		return RuntimeInstanceSnapshot{}, err
+	}
 	defer unlock()
 
 	m.mu.Lock()
@@ -381,7 +390,10 @@ func (m *Manager) removeManagedProtocolRuntimeSetLocked(ctx context.Context, ide
 	if !ok {
 		return ErrProtocolInstanceUnsupported
 	}
-	unlock := m.lockRuntimeLifecycle(identity.ExtensionID)
+	unlock, err := m.lockRuntimeLifecycleContext(ctx, identity.ExtensionID)
+	if err != nil {
+		return err
+	}
 	defer unlock()
 
 	m.mu.Lock()

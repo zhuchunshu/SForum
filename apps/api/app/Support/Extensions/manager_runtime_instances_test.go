@@ -94,6 +94,35 @@ func TestManagerForceDrainOldInstanceDoesNotCancelReplacement(t *testing.T) {
 	newRoute.Release()
 }
 
+func TestManagerContextTransitionsBoundPerExtensionLifecycleWait(t *testing.T) {
+	manager := newTwoInstanceRuntimeManager(t, "context-lock.plugin")
+	identity := RuntimeInstanceIdentity{ExtensionID: "context-lock.plugin", InstanceID: "instance-2"}
+
+	unlock := manager.lockRuntimeLifecycle(identity.ExtensionID)
+	ctx, cancel := context.WithTimeout(t.Context(), 20*time.Millisecond)
+	_, err := manager.BeginDrainContext(ctx, identity)
+	cancel()
+	unlock()
+	if !errors.Is(err, context.DeadlineExceeded) || !manager.RuntimeInstanceAvailable(identity) {
+		t.Fatalf("bounded begin drain = %v, available=%t", err, manager.RuntimeInstanceAvailable(identity))
+	}
+
+	if _, err := manager.BeginDrain(identity); err != nil {
+		t.Fatal(err)
+	}
+	unlock = manager.lockRuntimeLifecycle(identity.ExtensionID)
+	ctx, cancel = context.WithTimeout(t.Context(), 20*time.Millisecond)
+	_, err = manager.ResumeRuntimeInstanceContext(ctx, identity)
+	cancel()
+	unlock()
+	if !errors.Is(err, context.DeadlineExceeded) || manager.RuntimeInstanceAvailable(identity) {
+		t.Fatalf("bounded resume = %v, available=%t", err, manager.RuntimeInstanceAvailable(identity))
+	}
+	if _, err := manager.ResumeRuntimeInstance(identity); err != nil || !manager.RuntimeInstanceAvailable(identity) {
+		t.Fatalf("resume after lifecycle release = %v, available=%t", err, manager.RuntimeInstanceAvailable(identity))
+	}
+}
+
 func TestManagerWaitAndRemoveExactRetainedInstance(t *testing.T) {
 	manager := newTwoInstanceRuntimeManager(t, "remove.plugin")
 	oldIdentity := RuntimeInstanceIdentity{ExtensionID: "remove.plugin", InstanceID: "instance-1"}

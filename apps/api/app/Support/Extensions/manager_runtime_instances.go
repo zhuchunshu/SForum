@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"sync"
 
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
 	appevents "github.com/zhuchunshu/sforum/apps/api/app/Support/Events"
@@ -127,7 +126,7 @@ func (m *Manager) BeginDrainContext(ctx context.Context, identity RuntimeInstanc
 		return RuntimeAdmissionSnapshot{}, err
 	}
 	defer unlock()
-	return m.beginDrainRuntimeSetLocked(identity)
+	return m.beginDrainRuntimeSetLocked(ctx, identity)
 }
 
 // QuarantineRuntimeInstance deliberately bypasses runtime-set and lifecycle
@@ -161,12 +160,15 @@ func (m *Manager) QuarantineRuntimeInstance(
 	return instance.gate.Quarantine(cause), nil
 }
 
-func (m *Manager) beginDrainRuntimeSetLocked(identity RuntimeInstanceIdentity) (RuntimeAdmissionSnapshot, error) {
+func (m *Manager) beginDrainRuntimeSetLocked(ctx context.Context, identity RuntimeInstanceIdentity) (RuntimeAdmissionSnapshot, error) {
 	identity, err := normalizeRuntimeInstanceIdentity(identity)
 	if err != nil {
 		return RuntimeAdmissionSnapshot{}, err
 	}
-	unlock := m.lockRuntimeLifecycle(identity.ExtensionID)
+	unlock, err := m.lockRuntimeLifecycleContext(ctx, identity.ExtensionID)
+	if err != nil {
+		return RuntimeAdmissionSnapshot{}, err
+	}
 	defer unlock()
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -190,15 +192,18 @@ func (m *Manager) ResumeRuntimeInstanceContext(ctx context.Context, identity Run
 		return RuntimeAdmissionSnapshot{}, err
 	}
 	defer unlock()
-	return m.resumeRuntimeInstanceRuntimeSetLocked(identity)
+	return m.resumeRuntimeInstanceRuntimeSetLocked(ctx, identity)
 }
 
-func (m *Manager) resumeRuntimeInstanceRuntimeSetLocked(identity RuntimeInstanceIdentity) (RuntimeAdmissionSnapshot, error) {
+func (m *Manager) resumeRuntimeInstanceRuntimeSetLocked(ctx context.Context, identity RuntimeInstanceIdentity) (RuntimeAdmissionSnapshot, error) {
 	identity, err := normalizeRuntimeInstanceIdentity(identity)
 	if err != nil {
 		return RuntimeAdmissionSnapshot{}, err
 	}
-	unlock := m.lockRuntimeLifecycle(identity.ExtensionID)
+	unlock, err := m.lockRuntimeLifecycleContext(ctx, identity.ExtensionID)
+	if err != nil {
+		return RuntimeAdmissionSnapshot{}, err
+	}
 	defer unlock()
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -460,15 +465,35 @@ func (m *Manager) recordRuntimeStartFailure(
 }
 
 func (m *Manager) lockRuntimeLifecycle(extensionID string) func() {
+	unlock, _ := m.lockRuntimeLifecycleContext(context.Background(), extensionID)
+	return unlock
+}
+
+func (m *Manager) lockRuntimeLifecycleContext(ctx context.Context, extensionID string) (func(), error) {
+	if m == nil || ctx == nil {
+		return nil, ErrRuntimeAdmissionInvalid
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	m.runtimeLifecycleMu.Lock()
 	lock := m.runtimeLifecycle[extensionID]
 	if lock == nil {
-		lock = &sync.Mutex{}
+		lock = make(chan struct{}, 1)
+		lock <- struct{}{}
 		m.runtimeLifecycle[extensionID] = lock
 	}
 	m.runtimeLifecycleMu.Unlock()
-	lock.Lock()
-	return lock.Unlock
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	case <-lock:
+		if err := ctx.Err(); err != nil {
+			lock <- struct{}{}
+			return nil, err
+		}
+		return func() { lock <- struct{}{} }, nil
+	}
 }
 
 func (m *Manager) lockRuntimeSetTransition(ctx context.Context) (func(), error) {
