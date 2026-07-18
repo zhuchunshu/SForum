@@ -85,9 +85,53 @@ func TestLifecycleHandlerlessQueryDoesNotRequirePackageSchema(t *testing.T) {
 	if err != nil || publication == nil || publication.Queries[0].ResultSchemaDigest != "" {
 		t.Fatalf("handlerless publication = %#v, %v", publication, err)
 	}
+	if publication.Queries[0].Handler != "" || len(publication.Queries[0].IdentityFields) != 0 ||
+		len(publication.Queries[0].DefaultSort) != 0 || len(publication.ResultFilters) != 0 {
+		t.Fatalf("handlerless gained executable metadata: %#v", publication)
+	}
 	registry := queryregistry.New()
 	if _, err := registry.Publish(*publication); err != nil {
 		t.Fatalf("handlerless publish: %v", err)
+	}
+}
+
+func TestLifecycleExecutableQueryPublishesHandlerIdentityDefaultSortAndResultFilters(t *testing.T) {
+	extension := lifecycleExecutableQuerySchemaExtension(t, "schemas/query-items.json", `{"type":"object"}`)
+	// executable fixture 默认无 relations 会阻塞第三方 plan，但 publication 仍应保留声明。
+	query := extension.Manifest.Queries[0]
+	extension.Manifest.QueryResultFilters = []extensions.ManifestQueryResultFilter{{
+		ID: extension.ID + ".items.redact", ContractVersion: extension.ID + ".items.redact@1",
+		QueryID: query.ID, QueryContractVersion: query.ContractVersion,
+		QueryPlanVersion: query.PlanVersion, Handler: extension.ID + ".query.items.redact",
+		Priority: 10, FailurePolicy: "fail_closed", TimeoutMS: 1000,
+	}}
+	publication, err := buildLifecycleQueryPublication(extension, lifecycleRegistryBinding(extension, "query-exec-meta"))
+	if err != nil || publication == nil {
+		t.Fatalf("executable metadata publication: %#v %v", publication, err)
+	}
+	got := publication.Queries[0]
+	if got.Handler != query.Handler || len(got.IdentityFields) != 1 || got.IdentityFields[0] != "ID" ||
+		len(got.DefaultSort) != 2 || got.DefaultSort[0].Field != "created_at" || !got.DefaultSort[0].Descending ||
+		got.DefaultSort[1].Field != "ID" || got.ProviderDigest != "" {
+		t.Fatalf("executable query metadata = %#v", got)
+	}
+	if len(publication.ResultFilters) != 1 ||
+		publication.ResultFilters[0].ID != extension.ID+".items.redact" ||
+		publication.ResultFilters[0].Handler != extension.ID+".query.items.redact" ||
+		publication.ResultFilters[0].FilterDigest != "" ||
+		len(publication.ResultFilters[0].IdentityFields) != 1 ||
+		publication.ResultFilters[0].IdentityFields[0] != "ID" {
+		t.Fatalf("result filter metadata = %#v", publication.ResultFilters)
+	}
+	// 无私有 callable 时仍可发布：inspect/plan 路径保持开放。
+	registry := queryregistry.New()
+	if _, err := registry.Publish(*publication); err != nil {
+		t.Fatalf("publish executable metadata without private material: %v", err)
+	}
+	resolved, err := registry.Resolve(got.ID)
+	if err != nil || resolved.Handler != got.Handler || resolved.ProviderDigest != "" ||
+		resolved.ResultSchemaDigest == "" {
+		t.Fatalf("resolved executable metadata = %#v err=%v", resolved, err)
 	}
 }
 

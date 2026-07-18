@@ -36,14 +36,53 @@ func buildLifecycleQueryPublication(
 	}}
 	publication.Queries = make([]queryregistry.QueryDeclaration, 0, len(extension.Manifest.Queries))
 	for _, query := range extension.Manifest.Queries {
-		publication.Queries = append(publication.Queries, queryregistry.QueryDeclaration{
+		declaration := queryregistry.QueryDeclaration{
 			ID: query.ID, ContractVersion: query.ContractVersion, Entity: query.Entity,
 			PlanVersion: query.PlanVersion, Fields: append([]string(nil), query.Fields...),
 			Relations: append([]string(nil), query.Relations...),
 			Filters:   append([]string(nil), query.Filters...), Sort: append([]string(nil), query.Sort...),
 			Pagination: query.Pagination, ResultSchema: query.ResultSchema,
 			PermissionPolicy: query.PermissionPolicy, CacheTags: append([]string(nil), query.CacheTags...),
-		})
+			// Handler/Identity/DefaultSort 是 Manifest 可选 executable 元数据；
+			// 无私有 provider material 时仍可 inspect/plan，执行由后续 runtime 绑定。
+			Handler:        strings.TrimSpace(query.Handler),
+			IdentityFields: append([]string(nil), query.IdentityFields...),
+		}
+		if len(query.DefaultSort) > 0 {
+			declaration.DefaultSort = make([]queryregistry.SortValue, 0, len(query.DefaultSort))
+			for _, item := range query.DefaultSort {
+				declaration.DefaultSort = append(declaration.DefaultSort, queryregistry.SortValue{
+					Field: item.Field, Descending: item.Descending,
+				})
+			}
+		}
+		publication.Queries = append(publication.Queries, declaration)
+	}
+	if len(extension.Manifest.QueryResultFilters) > 0 {
+		// Host 从目标 query owner 复制 identity，防止 filter 自选装饰字段。
+		queryByID := make(map[string]queryregistry.QueryDeclaration, len(publication.Queries))
+		for _, declaration := range publication.Queries {
+			queryByID[declaration.ID] = declaration
+		}
+		publication.ResultFilters = make([]queryregistry.ResultFilterDeclaration, 0, len(extension.Manifest.QueryResultFilters))
+		for _, filter := range extension.Manifest.QueryResultFilters {
+			item := queryregistry.ResultFilterDeclaration{
+				ID: filter.ID, ContractVersion: filter.ContractVersion,
+				QueryID: filter.QueryID, QueryContractVersion: filter.QueryContractVersion,
+				QueryPlanVersion: filter.QueryPlanVersion, Handler: strings.TrimSpace(filter.Handler),
+				Priority: filter.Priority, FailurePolicy: filter.FailurePolicy, TimeoutMS: filter.TimeoutMS,
+			}
+			if filter.Dependency != nil {
+				item.Dependency = &queryregistry.ResultFilterDependency{
+					ExtensionID:       filter.Dependency.ExtensionID,
+					VersionConstraint: filter.Dependency.VersionConstraint,
+				}
+			}
+			if target, ok := queryByID[filter.QueryID]; ok {
+				item.IdentityFields = append([]string(nil), target.IdentityFields...)
+			}
+			publication.ResultFilters = append(publication.ResultFilters, item)
+		}
 	}
 	bound, err := bindLifecycleQuerySchemas(extension, *publication)
 	if err != nil {
