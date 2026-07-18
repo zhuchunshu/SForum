@@ -1,6 +1,8 @@
 package http
 
 import (
+	"bufio"
+	"bytes"
 	"context"
 	"errors"
 	"net/http"
@@ -13,6 +15,74 @@ import (
 	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
 	routes "github.com/zhuchunshu/sforum/apps/api/app/Support/Routes"
 )
+
+func TestRouteStreamRuntimeIncidentReachesRecorder(t *testing.T) {
+	registry := routes.NewRegistry()
+	artifact := routeDispatcherArtifact("stream.recorder.join", 'd')
+	declaration := routeDispatcherManifestRoute(
+		"stream.recorder.join.handler", extensionmanifest.RouteActionAdd,
+		"/stream-recorder-join", http.MethodGet,
+	)
+	declaration.Mode = extensionmanifest.RouteModeStream
+	if _, err := registry.Publish(routes.Publication{Plugins: []routes.PluginRouteSet{{
+		Artifact: artifact, Routes: []extensionmanifest.ManifestRoute{declaration},
+	}}}); err != nil {
+		t.Fatal(err)
+	}
+	runtime := &recordingRouteIncidentRuntime{}
+	incidents := &recordingRouteRuntimeIncidentStore{}
+	auditor := &recordingRouteFailureAuditor{}
+	recorder, err := newRouteFailureRecorder(
+		runtime, incidents, auditor, discardRouteFailureLogger(), 4, time.Second,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { closeRouteFailureRecorderForTest(t, recorder) })
+	session := &streamHTTPTestSession{recvErr: errors.New("runtime crashed")}
+	dispatcher := routes.NewDispatcher(routes.DispatcherConfig{
+		Plans: routeRegistryPlanResolver{registry: registry},
+		Steps: &streamHTTPTestInvoker{start: routes.RouteStreamStart{
+			Response: routes.DispatchResponse{Status: http.StatusOK}, Session: session,
+		}},
+		Guard: HostRouteGuardAuthorizer{}, StreamFailures: recorder,
+	})
+	prepared, err := dispatcher.PrepareStream(
+		context.Background(), routes.DispatchRequest{Method: http.MethodGet, Path: "/stream-recorder-join"},
+	)
+	if err != nil || prepared.Dispatch == nil {
+		t.Fatalf("prepared=%#v err=%v", prepared, err)
+	}
+	start, err := prepared.Dispatch.Open(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	prepared.Dispatch.ResponseStarted()
+	streamRouteResponse(bufio.NewWriter(bytes.NewBuffer(nil)), start.Session, prepared.Dispatch)
+
+	incidents.mu.Lock()
+	created := append([]RouteRuntimeIncidentEvidence(nil), incidents.created...)
+	resolved := append([]recordedRouteRuntimeIncidentResolution(nil), incidents.resolved...)
+	incidents.mu.Unlock()
+	if len(created) != 1 || len(resolved) != 1 ||
+		created[0].CauseClass != string(routes.RouteStreamFailureRuntimeTransport) ||
+		created[0].Artifact != artifact || created[0].IncidentKey == "" ||
+		resolved[0].key != created[0].IncidentKey || resolved[0].result != RouteRuntimeIncidentQuarantined {
+		t.Fatalf("created=%#v resolved=%#v", created, resolved)
+	}
+	runtime.mu.Lock()
+	quarantines := append([]recordedRouteIncident(nil), runtime.calls...)
+	runtime.mu.Unlock()
+	if len(quarantines) != 1 || !errors.Is(quarantines[0].cause, extensionsruntime.ErrRuntimeRouteIncident) {
+		t.Fatalf("quarantines=%#v", quarantines)
+	}
+	auditor.mu.Lock()
+	ordinaryAudits := len(auditor.events)
+	auditor.mu.Unlock()
+	if ordinaryAudits != 0 || recorder.IncidentPersistenceFailures() != 0 {
+		t.Fatalf("ordinary audits=%d persistence failures=%d", ordinaryAudits, recorder.IncidentPersistenceFailures())
+	}
+}
 
 func TestRouteFailureRecorderPersistsStreamIncidentBeforeQuarantineAndResolution(t *testing.T) {
 	order := &recordingRouteIncidentOrder{}
