@@ -150,6 +150,39 @@ func (m *Manager) PublishRuntimeInstance(ctx context.Context, identity RuntimeIn
 	return m.publishRuntimeInstanceRuntimeSetLocked(ctx, identity, false)
 }
 
+// PublishRuntimeInstanceFrom atomically proves the exact drained source is
+// still authoritative before a staged replacement can become active.
+func (m *Manager) PublishRuntimeInstanceFrom(
+	ctx context.Context,
+	identity RuntimeInstanceIdentity,
+	source RuntimeInstanceArtifactIdentity,
+) (RuntimeInstanceSnapshot, error) {
+	unlock, err := m.lockRuntimeSetTransition(ctx)
+	if err != nil {
+		return RuntimeInstanceSnapshot{}, err
+	}
+	defer unlock()
+	return m.publishRuntimeInstanceRuntimeSetLockedWithExpectation(ctx, identity, false, runtimePublicationExpectation{
+		source: &source,
+	})
+}
+
+// PublishRuntimeInstanceIfNoActive restores a retained runtime only while no
+// concurrent replacement owns the active pointer.
+func (m *Manager) PublishRuntimeInstanceIfNoActive(
+	ctx context.Context,
+	identity RuntimeInstanceIdentity,
+) (RuntimeInstanceSnapshot, error) {
+	unlock, err := m.lockRuntimeSetTransition(ctx)
+	if err != nil {
+		return RuntimeInstanceSnapshot{}, err
+	}
+	defer unlock()
+	return m.publishRuntimeInstanceRuntimeSetLockedWithExpectation(ctx, identity, false, runtimePublicationExpectation{
+		requireNoActive: true,
+	})
+}
+
 // PublishDrainedRuntimeInstance selects the exact process in ProtocolStarter
 // and Manager while keeping its ordinary admission gate closed. Composed
 // lifecycle publication opens it only after durable state and every registry
@@ -167,6 +200,20 @@ func (m *Manager) publishRuntimeInstanceRuntimeSetLocked(
 	ctx context.Context,
 	identity RuntimeInstanceIdentity,
 	keepDraining bool,
+) (RuntimeInstanceSnapshot, error) {
+	return m.publishRuntimeInstanceRuntimeSetLockedWithExpectation(ctx, identity, keepDraining, runtimePublicationExpectation{})
+}
+
+type runtimePublicationExpectation struct {
+	source          *RuntimeInstanceArtifactIdentity
+	requireNoActive bool
+}
+
+func (m *Manager) publishRuntimeInstanceRuntimeSetLockedWithExpectation(
+	ctx context.Context,
+	identity RuntimeInstanceIdentity,
+	keepDraining bool,
+	expectation runtimePublicationExpectation,
 ) (RuntimeInstanceSnapshot, error) {
 	if m == nil || ctx == nil {
 		return RuntimeInstanceSnapshot{}, ErrRuntimeAdmissionInvalid
@@ -199,6 +246,10 @@ func (m *Manager) publishRuntimeInstanceRuntimeSetLocked(
 		return RuntimeInstanceSnapshot{}, fmt.Errorf("%w: %s/%s", ErrRuntimeInstanceBusy, identity.ExtensionID, identity.InstanceID)
 	}
 	activeID := m.activeInstances[identity.ExtensionID]
+	if err := m.validateRuntimePublicationExpectationLocked(identity.ExtensionID, activeID, expectation, false); err != nil {
+		m.mu.Unlock()
+		return RuntimeInstanceSnapshot{}, err
+	}
 	var activeInstance *managedRuntimeInstance
 	if activeID == identity.InstanceID {
 		admission := instance.gate.Snapshot()
@@ -253,7 +304,7 @@ func (m *Manager) publishRuntimeInstanceRuntimeSetLocked(
 	}
 	candidateAdmission := instance.gate.Snapshot()
 	candidateWasDraining := candidateAdmission.Draining
-	if candidateAdmission.ActiveTotal != 0 {
+	if candidateAdmission.ActiveTotal != 0 || candidateAdmission.Quarantined || candidateAdmission.Forced {
 		m.mu.Unlock()
 		return RuntimeInstanceSnapshot{}, fmt.Errorf("%w: %s/%s", ErrRuntimeInstanceBusy, identity.ExtensionID, identity.InstanceID)
 	}
@@ -296,7 +347,10 @@ func (m *Manager) publishRuntimeInstanceRuntimeSetLocked(
 	now := time.Now().UTC()
 	m.mu.Lock()
 	current, currentErr := m.runtimeInstanceLocked(identity)
-	if currentErr != nil || current != instance || m.activeInstances[identity.ExtensionID] != activeID {
+	expectationErr := m.validateRuntimePublicationExpectationLocked(identity.ExtensionID, activeID, expectation, true)
+	currentAdmissionInvalid := currentErr == nil && (current.gate.Snapshot().Quarantined || current.gate.Snapshot().Forced)
+	if currentErr != nil || current != instance || m.activeInstances[identity.ExtensionID] != activeID ||
+		expectationErr != nil || currentAdmissionInvalid {
 		if current == instance {
 			current.transitioning = false
 		}
@@ -309,11 +363,21 @@ func (m *Manager) publishRuntimeInstanceRuntimeSetLocked(
 			rollbackErr = m.hooks.restoreRuntime(identity.ExtensionID, identity.InstanceID, previousHooks, hadPreviousHooks)
 		}
 		if activeID != "" {
-			_, protocolErr := starter.PublishInstance(ctx, RuntimeInstanceIdentity{ExtensionID: identity.ExtensionID, InstanceID: activeID})
-			rollbackErr = errors.Join(rollbackErr, protocolErr)
+			compensationCtx, cancel := lifecycleBoundaryCompensationContext(ctx)
+			_, protocolErr := starter.PublishInstance(compensationCtx, RuntimeInstanceIdentity{ExtensionID: identity.ExtensionID, InstanceID: activeID})
+			cancel()
+			var quarantineErr error
+			if protocolErr != nil && activeInstance != nil {
+				_, quarantineErr = m.QuarantineRuntimeInstance(RuntimeInstanceArtifactIdentity{
+					RuntimeInstanceIdentity: RuntimeInstanceIdentity{ExtensionID: identity.ExtensionID, InstanceID: activeID},
+					ExtensionVersion:        activeInstance.extensionVersion,
+					ArtifactDigest:          activeInstance.artifactDigest,
+				}, errors.Join(ErrRuntimeInstanceConflict, fmt.Errorf("restore protocol source: %w", protocolErr)))
+			}
+			rollbackErr = errors.Join(rollbackErr, protocolErr, quarantineErr)
 		}
-		if currentErr != nil {
-			return RuntimeInstanceSnapshot{}, errors.Join(currentErr, rollbackErr)
+		if currentErr != nil || expectationErr != nil {
+			return RuntimeInstanceSnapshot{}, errors.Join(currentErr, expectationErr, rollbackErr)
 		}
 		return RuntimeInstanceSnapshot{}, errors.Join(
 			fmt.Errorf("%w: runtime publication changed concurrently", ErrRuntimeInstanceConflict), rollbackErr,
@@ -335,6 +399,39 @@ func (m *Manager) publishRuntimeInstanceRuntimeSetLocked(
 		}
 	}
 	return snapshot, nil
+}
+
+func (m *Manager) validateRuntimePublicationExpectationLocked(
+	extensionID string,
+	activeID string,
+	expectation runtimePublicationExpectation,
+	allowTransitioning bool,
+) error {
+	if expectation.requireNoActive {
+		if expectation.source != nil || activeID != "" {
+			return fmt.Errorf("%w: active runtime changed before publication", ErrRuntimeInstanceConflict)
+		}
+		return nil
+	}
+	if expectation.source == nil {
+		return nil
+	}
+	source := *expectation.source
+	identity, err := normalizeRuntimeInstanceIdentity(source.RuntimeInstanceIdentity)
+	if err != nil || identity.ExtensionID != extensionID || activeID != identity.InstanceID ||
+		strings.TrimSpace(source.ExtensionVersion) == "" || strings.TrimSpace(source.ArtifactDigest) == "" {
+		return fmt.Errorf("%w: expected source runtime changed", ErrRuntimeInstanceConflict)
+	}
+	instance, err := m.runtimeInstanceLocked(identity)
+	if err != nil || instance.extensionVersion != source.ExtensionVersion || instance.artifactDigest != source.ArtifactDigest {
+		return fmt.Errorf("%w: expected source artifact changed", ErrRuntimeInstanceConflict)
+	}
+	admission := instance.gate.Snapshot()
+	if (!allowTransitioning && instance.transitioning) || !admission.Draining || admission.ActiveTotal != 0 ||
+		admission.Quarantined || admission.Forced {
+		return fmt.Errorf("%w: expected source runtime is not safely drained", ErrRuntimeInstanceConflict)
+	}
+	return nil
 }
 
 func (m *Manager) resetRuntimePublicationTransition(

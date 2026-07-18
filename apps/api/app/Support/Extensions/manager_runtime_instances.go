@@ -160,6 +160,44 @@ func (m *Manager) QuarantineRuntimeInstance(
 	return instance.gate.Quarantine(cause), nil
 }
 
+// QuarantineRuntimeArtifact closes every retained process for one exact
+// package. Trust is artifact-scoped, so a staged settings replacement and its
+// source must not be able to reopen each other after revocation.
+func (m *Manager) QuarantineRuntimeArtifact(
+	exact RuntimeInstanceArtifactIdentity,
+	cause error,
+) ([]RuntimeAdmissionSnapshot, error) {
+	if m == nil {
+		return nil, ErrRuntimeAdmissionInvalid
+	}
+	identity, err := normalizeRuntimeInstanceIdentity(exact.RuntimeInstanceIdentity)
+	if err != nil {
+		return nil, err
+	}
+	version := strings.TrimSpace(exact.ExtensionVersion)
+	digest := strings.TrimSpace(exact.ArtifactDigest)
+	if version == "" || digest == "" {
+		return nil, ErrRuntimeAdmissionInvalid
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	anchor, err := m.runtimeInstanceLocked(identity)
+	if err != nil {
+		return nil, err
+	}
+	if anchor.extensionVersion != version || anchor.artifactDigest != digest {
+		return nil, fmt.Errorf("%w: %s/%s artifact drifted", ErrRuntimeInstanceConflict, identity.ExtensionID, identity.InstanceID)
+	}
+	instances := m.runtimeInstances[identity.ExtensionID]
+	snapshots := make([]RuntimeAdmissionSnapshot, 0, len(instances))
+	for _, instance := range instances {
+		if instance.extensionVersion == version && instance.artifactDigest == digest {
+			snapshots = append(snapshots, instance.gate.Quarantine(cause))
+		}
+	}
+	return snapshots, nil
+}
+
 func (m *Manager) beginDrainRuntimeSetLocked(ctx context.Context, identity RuntimeInstanceIdentity) (RuntimeAdmissionSnapshot, error) {
 	identity, err := normalizeRuntimeInstanceIdentity(identity)
 	if err != nil {

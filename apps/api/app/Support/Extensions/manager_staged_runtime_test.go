@@ -78,6 +78,190 @@ func TestManagerStagesPublishesAndRollsBackExactRuntimeInstances(t *testing.T) {
 	}
 }
 
+func TestManagerPublishFromRejectsQuarantinedExactSource(t *testing.T) {
+	starter := newManagerStagedStarter()
+	manager := NewManager(ManagerConfig{Starter: starter})
+	sourceExtension := managerStagedExtension("source-cas.manager", "1.0.0", "digest-1")
+	if err := manager.Start(t.Context(), sourceExtension); err != nil {
+		t.Fatal(err)
+	}
+	source, err := manager.ActiveRuntimeInstance(sourceExtension.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	target, err := manager.StageRuntimeInstance(t.Context(), managerStagedExtension(sourceExtension.ID, "2.0.0", "digest-2"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := manager.HealthRuntimeInstance(t.Context(), target.Identity); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := manager.BeginDrain(source.Identity); err != nil {
+		t.Fatal(err)
+	}
+	revoked := errors.New("exact trust revoked")
+	if _, err := manager.QuarantineRuntimeInstance(RuntimeInstanceArtifactIdentity{
+		RuntimeInstanceIdentity: source.Identity,
+		ExtensionVersion:        source.ExtensionVersion,
+		ArtifactDigest:          source.ArtifactDigest,
+	}, revoked); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := manager.PublishRuntimeInstanceFrom(t.Context(), target.Identity, RuntimeInstanceArtifactIdentity{
+		RuntimeInstanceIdentity: source.Identity,
+		ExtensionVersion:        source.ExtensionVersion,
+		ArtifactDigest:          source.ArtifactDigest,
+	}); !errors.Is(err, ErrRuntimeInstanceConflict) {
+		t.Fatalf("publish from quarantined source = %v", err)
+	}
+	active, err := manager.ActiveRuntimeInstance(sourceExtension.ID)
+	if err != nil || active.Identity != source.Identity || !active.Admission.Quarantined {
+		t.Fatalf("quarantined source changed = %#v, %v", active, err)
+	}
+	if got := starter.activeIdentity(sourceExtension.ID); got != source.Identity {
+		t.Fatalf("protocol target bypassed source CAS: %#v", got)
+	}
+}
+
+func TestManagerPublishFromRollsProtocolBackWhenSourceIsQuarantinedDuringPublish(t *testing.T) {
+	starter := newManagerStagedStarter()
+	manager := NewManager(ManagerConfig{Starter: starter})
+	sourceExtension := managerStagedExtension("source-post-cas.manager", "1.0.0", "digest-1")
+	if err := manager.Start(t.Context(), sourceExtension); err != nil {
+		t.Fatal(err)
+	}
+	source, _ := manager.ActiveRuntimeInstance(sourceExtension.ID)
+	target, err := manager.StageRuntimeInstance(t.Context(), managerStagedExtension(sourceExtension.ID, "2.0.0", "digest-2"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := manager.HealthRuntimeInstance(t.Context(), target.Identity); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := manager.BeginDrain(source.Identity); err != nil {
+		t.Fatal(err)
+	}
+	starter.publishStarted = make(chan struct{}, 2)
+	starter.publishContinue = make(chan struct{})
+	result := make(chan error, 1)
+	go func() {
+		_, publishErr := manager.PublishRuntimeInstanceFrom(t.Context(), target.Identity, RuntimeInstanceArtifactIdentity{
+			RuntimeInstanceIdentity: source.Identity,
+			ExtensionVersion:        source.ExtensionVersion,
+			ArtifactDigest:          source.ArtifactDigest,
+		})
+		result <- publishErr
+	}()
+	<-starter.publishStarted
+	revoked := errors.New("trust revoked during protocol publish")
+	if _, err := manager.QuarantineRuntimeInstance(RuntimeInstanceArtifactIdentity{
+		RuntimeInstanceIdentity: source.Identity,
+		ExtensionVersion:        source.ExtensionVersion,
+		ArtifactDigest:          source.ArtifactDigest,
+	}, revoked); err != nil {
+		t.Fatal(err)
+	}
+	close(starter.publishContinue)
+	if err := <-result; !errors.Is(err, ErrRuntimeInstanceConflict) {
+		t.Fatalf("post-publish source CAS = %v", err)
+	}
+	active, err := manager.ActiveRuntimeInstance(sourceExtension.ID)
+	if err != nil || active.Identity != source.Identity || !active.Admission.Quarantined {
+		t.Fatalf("post-publish source changed = %#v, %v", active, err)
+	}
+	if got := starter.activeIdentity(sourceExtension.ID); got != source.Identity {
+		t.Fatalf("protocol rollback identity = %#v", got)
+	}
+}
+
+func TestManagerPublishFromQuarantinesSourceWhenProtocolRollbackFails(t *testing.T) {
+	starter := newManagerStagedStarter()
+	manager := NewManager(ManagerConfig{Starter: starter})
+	sourceExtension := managerStagedExtension("source-rollback-failure.manager", "1.0.0", "digest-1")
+	if err := manager.Start(t.Context(), sourceExtension); err != nil {
+		t.Fatal(err)
+	}
+	source, _ := manager.ActiveRuntimeInstance(sourceExtension.ID)
+	target, err := manager.StageRuntimeInstance(t.Context(), managerStagedExtension(sourceExtension.ID, "2.0.0", "digest-2"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := manager.HealthRuntimeInstance(t.Context(), target.Identity); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := manager.BeginDrain(source.Identity); err != nil {
+		t.Fatal(err)
+	}
+	starter.publishStarted = make(chan struct{}, 2)
+	starter.publishContinue = make(chan struct{})
+	result := make(chan error, 1)
+	go func() {
+		_, publishErr := manager.PublishRuntimeInstanceFrom(t.Context(), target.Identity, RuntimeInstanceArtifactIdentity{
+			RuntimeInstanceIdentity: source.Identity,
+			ExtensionVersion:        source.ExtensionVersion,
+			ArtifactDigest:          source.ArtifactDigest,
+		})
+		result <- publishErr
+	}()
+	<-starter.publishStarted
+	targetFailure := errors.New("target quarantined during publish")
+	if _, err := manager.QuarantineRuntimeInstance(RuntimeInstanceArtifactIdentity{
+		RuntimeInstanceIdentity: target.Identity,
+		ExtensionVersion:        target.ExtensionVersion,
+		ArtifactDigest:          target.ArtifactDigest,
+	}, targetFailure); err != nil {
+		t.Fatal(err)
+	}
+	rollbackFailure := errors.New("source protocol rollback failed")
+	starter.failPublish(source.Identity, rollbackFailure)
+	close(starter.publishContinue)
+	if err := <-result; !errors.Is(err, ErrRuntimeInstanceConflict) || !errors.Is(err, rollbackFailure) {
+		t.Fatalf("failed protocol rollback = %v", err)
+	}
+	active, err := manager.ActiveRuntimeInstance(sourceExtension.ID)
+	if err != nil || active.Identity != source.Identity || !active.Admission.Quarantined ||
+		!errors.Is(active.Admission.QuarantineCause, rollbackFailure) {
+		t.Fatalf("source after failed protocol rollback = %#v, %v", active, err)
+	}
+	if got := starter.activeIdentity(sourceExtension.ID); got != target.Identity {
+		t.Fatalf("failed rollback unexpectedly changed protocol identity = %#v", got)
+	}
+}
+
+func TestManagerPublishIfNoActiveNeverOverwritesReplacement(t *testing.T) {
+	starter := newManagerStagedStarter()
+	manager := NewManager(ManagerConfig{Starter: starter})
+	sourceExtension := managerStagedExtension("restore-cas.manager", "1.0.0", "digest-1")
+	if err := manager.Start(t.Context(), sourceExtension); err != nil {
+		t.Fatal(err)
+	}
+	source, _ := manager.ActiveRuntimeInstance(sourceExtension.ID)
+	replacement, err := manager.StageRuntimeInstance(t.Context(), managerStagedExtension(sourceExtension.ID, "2.0.0", "digest-2"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := manager.HealthRuntimeInstance(t.Context(), replacement.Identity); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := manager.BeginDrain(source.Identity); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := manager.PublishRuntimeInstanceFrom(t.Context(), replacement.Identity, RuntimeInstanceArtifactIdentity{
+		RuntimeInstanceIdentity: source.Identity,
+		ExtensionVersion:        source.ExtensionVersion,
+		ArtifactDigest:          source.ArtifactDigest,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := manager.PublishRuntimeInstanceIfNoActive(t.Context(), source.Identity); !errors.Is(err, ErrRuntimeInstanceConflict) {
+		t.Fatalf("restore over active replacement = %v", err)
+	}
+	active, err := manager.ActiveRuntimeInstance(sourceExtension.ID)
+	if err != nil || active.Identity != replacement.Identity {
+		t.Fatalf("active replacement changed = %#v, %v", active, err)
+	}
+}
+
 func TestManagerPreparesDatabaseCatalogBeforeActiveAndStagedStarts(t *testing.T) {
 	starter := newManagerStagedStarter()
 	manager := NewManager(ManagerConfig{Starter: starter})

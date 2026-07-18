@@ -42,6 +42,50 @@ func TestExecutableTrustRevocationFenceClosesExactRuntimeAndPolicy(t *testing.T)
 	}
 }
 
+func TestExecutableTrustRevocationFenceClosesEveryRetainedExactArtifactInstance(t *testing.T) {
+	starter := newManagerStagedStarter()
+	manager := NewManager(ManagerConfig{Starter: starter})
+	extension := managerStagedExtension("trust.retained-artifact", "1.0.0", "digest-1")
+	if err := manager.Start(t.Context(), extension); err != nil {
+		t.Fatal(err)
+	}
+	source, _ := manager.ActiveRuntimeInstance(extension.ID)
+	target, err := manager.StageRuntimeInstance(t.Context(), extension)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := manager.HealthRuntimeInstance(t.Context(), target.Identity); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := manager.BeginDrain(source.Identity); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := manager.PublishRuntimeInstanceFrom(t.Context(), target.Identity, RuntimeInstanceArtifactIdentity{
+		RuntimeInstanceIdentity: source.Identity,
+		ExtensionVersion:        source.ExtensionVersion,
+		ArtifactDigest:          source.ArtifactDigest,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	active, err := manager.ActiveRuntimeInstance(extension.ID)
+	if err != nil || active.Identity != target.Identity {
+		t.Fatalf("active exact target = %#v, %v", active, err)
+	}
+	policy := newRecordingExecutableTrustPolicy(active)
+	fence := NewExecutableTrustRevocationFence(manager, policy)
+	if err := fence.RevokeExecutableTrust(t.Context(), extension.ID, "operator_revoked", func(context.Context) error {
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	for _, identity := range []RuntimeInstanceIdentity{source.Identity, target.Identity} {
+		snapshot, err := manager.InspectRuntimeInstance(identity)
+		if err != nil || !snapshot.Admission.Quarantined || !errors.Is(snapshot.Admission.QuarantineCause, ErrRuntimeTrustRevoked) {
+			t.Fatalf("retained exact instance %s = %#v, %v", identity.InstanceID, snapshot, err)
+		}
+	}
+}
+
 func TestExecutableTrustRevocationFenceKeepsLocalStateWhenDurableFails(t *testing.T) {
 	manager := newTwoInstanceRuntimeManager(t, "trust.failed")
 	active, err := manager.ActiveRuntimeInstance("trust.failed")

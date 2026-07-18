@@ -98,7 +98,7 @@ func (f *ExecutableTrustRevocationFence) RevokeExecutableTrust(
 	}
 	runtimeErr = nil
 	if exact.InstanceID != "" {
-		_, runtimeErr = f.runtime.QuarantineRuntimeInstance(exact, cause)
+		_, runtimeErr = f.runtime.QuarantineRuntimeArtifact(exact, cause)
 	}
 	f.policies.InvalidateExecutableTrustExact(extensionID, policy)
 	return errors.Join(durableErr, runtimeErr)
