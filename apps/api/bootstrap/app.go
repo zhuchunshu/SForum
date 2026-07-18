@@ -170,6 +170,21 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		ConnMaxIdleTime: cfg.RedisConnMaxIdleTime,
 		ConnMaxLifetime: cfg.RedisConnMaxLifetime,
 	})
+	queryResultCache, err := loadOptionalProductionQueryResultCache(ctx, cfg, hostInstallationID, logger)
+	if err != nil {
+		_ = sharedRedisClient.Close()
+		if closeErr := redisStorage.Close(); closeErr != nil {
+			logger.Warn("redis session storage close failed", "error", closeErr)
+		}
+		pool.Close()
+		return nil, fmt.Errorf("Query result cache setup failed: %w", err)
+	}
+	queryResultCacheHandedOff := false
+	defer func() {
+		if !queryResultCacheHandedOff {
+			queryResultCache.Close(logger)
+		}
+	}()
 	humanVerifyStore := humanverify.NewRedisStore(sharedRedisClient)
 	optionStore := options.NewPostgresStore(pool)
 	// H2a：构造敏感值加密器；未配置 APP_OPTION_ENC_KEY 时为透明模式（开发环境），生产由 C2 强制要求。
@@ -493,7 +508,7 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 	}
 	// Query Registry 必须在首个插件 broker 注册前绑定。它复用 lifecycle
 	// stack 的不可变 Core snapshot，并让 caller/provider 都经过 exact-runtime gate。
-	if _, err := bindProductionQueryRegistry(
+	if _, err := bindProductionQueryRegistryWithCache(
 		lifecycleStack.QueryRegistry,
 		lifecycleStack.QueryCoreCatalog,
 		queryRuntime,
@@ -501,6 +516,7 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		lifecycleRuntime,
 		hostAPIGateway,
 		queryTraceSink,
+		queryResultCache.Cache(),
 	); err != nil {
 		if stopErr := supportjobs.Stop(ctx, jobClient); stopErr != nil {
 			logger.Warn("job dispatcher stop failed", "error", stopErr)
@@ -1050,6 +1066,7 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 			}
 			closePluginRuntime()
 			_ = hostAPIGateway.Close()
+			queryResultCache.Close(logger)
 			if err := redisStorage.Close(); err != nil {
 				logger.Warn("redis session storage close failed", "error", err)
 			}
@@ -1060,6 +1077,7 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 			pool.Close()
 		},
 	}
+	queryResultCacheHandedOff = true
 	select {
 	case runtimeErr, ok := <-apiRuntimeFailures:
 		if ok && runtimeErr != nil {
