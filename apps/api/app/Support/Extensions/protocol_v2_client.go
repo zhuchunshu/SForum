@@ -47,49 +47,53 @@ type RuntimeTrustSource interface {
 }
 
 type protocolV2ClientConfig struct {
-	identity      *protocolv2.ExtensionIdentity
-	authority     []*protocolv2.AuthorityGrant
-	events        []extensions.ManifestEvent
-	hooks         []extensions.ManifestHook
-	providers     []extensions.ManifestProvider
-	seo           []extensions.ManifestSEO
-	jobs          []extensions.ManifestJob
-	commands      []extensions.ManifestCommand
-	adminSurfaces []extensions.ManifestAdminSurface
-	routes        []extensions.ManifestRoute
-	guards        []extensions.ManifestGuard
-	lifecycle     *extensions.ManifestLifecycle
-	token         []byte
-	instance      string
-	hostAPI       ProtocolV2HostRegistrar
-	delegations   hostapi.ProtocolV2ActorDelegationBundleIssuer
-	hostCommands  bool
-	hostBrokerID  uint32
+	identity           *protocolv2.ExtensionIdentity
+	authority          []*protocolv2.AuthorityGrant
+	events             []extensions.ManifestEvent
+	hooks              []extensions.ManifestHook
+	providers          []extensions.ManifestProvider
+	seo                []extensions.ManifestSEO
+	jobs               []extensions.ManifestJob
+	commands           []extensions.ManifestCommand
+	adminSurfaces      []extensions.ManifestAdminSurface
+	routes             []extensions.ManifestRoute
+	guards             []extensions.ManifestGuard
+	queries            []extensions.ManifestQuery
+	queryResultFilters []extensions.ManifestQueryResultFilter
+	lifecycle          *extensions.ManifestLifecycle
+	token              []byte
+	instance           string
+	hostAPI            ProtocolV2HostRegistrar
+	delegations        hostapi.ProtocolV2ActorDelegationBundleIssuer
+	hostCommands       bool
+	hostBrokerID       uint32
 }
 
 type protocolV2Client struct {
 	ProtocolNoop
-	client        pluginv2.PluginRuntimeServiceClient
-	identity      *protocolv2.ExtensionIdentity
-	authority     []*protocolv2.AuthorityGrant
-	events        []extensions.ManifestEvent
-	hooks         []extensions.ManifestHook
-	providers     []extensions.ManifestProvider
-	seo           []extensions.ManifestSEO
-	jobs          []extensions.ManifestJob
-	commands      []extensions.ManifestCommand
-	adminSurfaces []extensions.ManifestAdminSurface
-	routes        []extensions.ManifestRoute
-	guards        []extensions.ManifestGuard
-	lifecycle     *extensions.ManifestLifecycle
-	token         []byte
-	instance      string
-	hostBrokerID  uint32
-	delegations   hostapi.ProtocolV2ActorDelegationBundleIssuer
-	hostCommands  bool
-	serviceMu     sync.RWMutex
-	services      []*protocolv2.ServiceDescriptor
-	sequence      atomic.Uint64
+	client             pluginv2.PluginRuntimeServiceClient
+	identity           *protocolv2.ExtensionIdentity
+	authority          []*protocolv2.AuthorityGrant
+	events             []extensions.ManifestEvent
+	hooks              []extensions.ManifestHook
+	providers          []extensions.ManifestProvider
+	seo                []extensions.ManifestSEO
+	jobs               []extensions.ManifestJob
+	commands           []extensions.ManifestCommand
+	adminSurfaces      []extensions.ManifestAdminSurface
+	routes             []extensions.ManifestRoute
+	guards             []extensions.ManifestGuard
+	queries            []extensions.ManifestQuery
+	queryResultFilters []extensions.ManifestQueryResultFilter
+	lifecycle          *extensions.ManifestLifecycle
+	token              []byte
+	instance           string
+	hostBrokerID       uint32
+	delegations        hostapi.ProtocolV2ActorDelegationBundleIssuer
+	hostCommands       bool
+	serviceMu          sync.RWMutex
+	services           []*protocolv2.ServiceDescriptor
+	sequence           atomic.Uint64
 }
 
 // ProtocolV2Error preserves the stable typed error returned by a plugin.
@@ -114,15 +118,17 @@ func newProtocolV2Client(client pluginv2.PluginRuntimeServiceClient, config prot
 	return &protocolV2Client{
 		client: client, identity: cloneV2Identity(config.identity), authority: cloneV2Authority(config.authority),
 		events: append([]extensions.ManifestEvent(nil), config.events...), hooks: cloneManifestHooks(config.hooks),
-		providers:     append([]extensions.ManifestProvider(nil), config.providers...),
-		seo:           append([]extensions.ManifestSEO(nil), config.seo...),
-		jobs:          append([]extensions.ManifestJob(nil), config.jobs...),
-		commands:      append([]extensions.ManifestCommand(nil), config.commands...),
-		adminSurfaces: append([]extensions.ManifestAdminSurface(nil), config.adminSurfaces...),
-		routes:        cloneProtocolV2Routes(config.routes),
-		guards:        cloneProtocolV2Guards(config.guards),
-		lifecycle:     cloneManifestLifecycle(config.lifecycle),
-		token:         append([]byte(nil), config.token...), instance: config.instance, hostBrokerID: config.hostBrokerID,
+		providers:          append([]extensions.ManifestProvider(nil), config.providers...),
+		seo:                append([]extensions.ManifestSEO(nil), config.seo...),
+		jobs:               append([]extensions.ManifestJob(nil), config.jobs...),
+		commands:           append([]extensions.ManifestCommand(nil), config.commands...),
+		adminSurfaces:      append([]extensions.ManifestAdminSurface(nil), config.adminSurfaces...),
+		routes:             cloneProtocolV2Routes(config.routes),
+		guards:             cloneProtocolV2Guards(config.guards),
+		queries:            append([]extensions.ManifestQuery(nil), config.queries...),
+		queryResultFilters: append([]extensions.ManifestQueryResultFilter(nil), config.queryResultFilters...),
+		lifecycle:          cloneManifestLifecycle(config.lifecycle),
+		token:              append([]byte(nil), config.token...), instance: config.instance, hostBrokerID: config.hostBrokerID,
 		delegations: config.delegations, hostCommands: config.hostCommands,
 	}
 }
@@ -233,22 +239,24 @@ func (s *ProtocolStarter) protocolV2ClientConfig(
 			ArtifactDigest: extension.PackageDigest, TrustGrantId: trustIdentity.TrustGrantID,
 			RuntimeEpoch: epoch, InstanceId: instanceID,
 		},
-		authority:     protocolV2Authority(extension.CapabilityGrants),
-		events:        append([]extensions.ManifestEvent(nil), extension.Manifest.Events...),
-		hooks:         cloneManifestHooks(extension.Manifest.Hooks),
-		providers:     append([]extensions.ManifestProvider(nil), extension.Manifest.Providers...),
-		seo:           append([]extensions.ManifestSEO(nil), extension.Manifest.SEO...),
-		jobs:          append([]extensions.ManifestJob(nil), extension.Manifest.Jobs...),
-		commands:      append([]extensions.ManifestCommand(nil), extension.Manifest.Commands...),
-		adminSurfaces: append([]extensions.ManifestAdminSurface(nil), extension.Manifest.AdminSurfaces...),
-		routes:        cloneProtocolV2Routes(extension.Manifest.Routes),
-		guards:        cloneProtocolV2Guards(extension.Manifest.Guards),
-		lifecycle:     cloneManifestLifecycle(extension.Manifest.Lifecycle),
-		token:         token,
-		instance:      instanceID,
-		hostAPI:       protocolV2HostRegistrarFor(s.hostAPI),
-		delegations:   protocolV2ActorDelegationBundleIssuerFor(s.hostAPI),
-		hostCommands:  extensionmanifest.HasDatabaseGrant(extension.Manifest.Database, extensionmanifest.DatabaseGrantHostCommands),
+		authority:          protocolV2Authority(extension.CapabilityGrants),
+		events:             append([]extensions.ManifestEvent(nil), extension.Manifest.Events...),
+		hooks:              cloneManifestHooks(extension.Manifest.Hooks),
+		providers:          append([]extensions.ManifestProvider(nil), extension.Manifest.Providers...),
+		seo:                append([]extensions.ManifestSEO(nil), extension.Manifest.SEO...),
+		jobs:               append([]extensions.ManifestJob(nil), extension.Manifest.Jobs...),
+		commands:           append([]extensions.ManifestCommand(nil), extension.Manifest.Commands...),
+		adminSurfaces:      append([]extensions.ManifestAdminSurface(nil), extension.Manifest.AdminSurfaces...),
+		routes:             cloneProtocolV2Routes(extension.Manifest.Routes),
+		guards:             cloneProtocolV2Guards(extension.Manifest.Guards),
+		queries:            append([]extensions.ManifestQuery(nil), extension.Manifest.Queries...),
+		queryResultFilters: append([]extensions.ManifestQueryResultFilter(nil), extension.Manifest.QueryResultFilters...),
+		lifecycle:          cloneManifestLifecycle(extension.Manifest.Lifecycle),
+		token:              token,
+		instance:           instanceID,
+		hostAPI:            protocolV2HostRegistrarFor(s.hostAPI),
+		delegations:        protocolV2ActorDelegationBundleIssuerFor(s.hostAPI),
+		hostCommands:       extensionmanifest.HasDatabaseGrant(extension.Manifest.Database, extensionmanifest.DatabaseGrantHostCommands),
 	}, nil
 }
 

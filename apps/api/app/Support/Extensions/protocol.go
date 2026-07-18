@@ -19,6 +19,7 @@ import (
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
 	hostapi "github.com/zhuchunshu/sforum/apps/api/app/Support/HostAPI"
 	supportjobs "github.com/zhuchunshu/sforum/apps/api/app/Support/Jobs"
+	queryregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/QueryRegistry"
 )
 
 const (
@@ -773,6 +774,38 @@ func (s *ProtocolStarter) InvokeVersionedSEO(
 		return VersionedSEOResponse{}, fmt.Errorf("versioned SEO provider requires Protocol V2")
 	}
 	return client.InvokeVersionedSEO(ctx, input)
+}
+
+func (s *ProtocolStarter) InvokeQuery(
+	ctx context.Context,
+	extension extensions.Extension,
+	input VersionedQueryRequest,
+) ([]queryregistry.QueryRow, error) {
+	s.mu.Lock()
+	protocol := s.protocols[extension.ID]
+	s.recordProtocolCallLocked(extension.ID)
+	s.mu.Unlock()
+	client, ok := protocol.(*protocolV2Client)
+	if !ok {
+		return nil, fmt.Errorf("executable query requires Protocol V2")
+	}
+	return client.InvokeQuery(ctx, input)
+}
+
+func (s *ProtocolStarter) FilterQueryResult(
+	ctx context.Context,
+	extension extensions.Extension,
+	input VersionedQueryResultFilterRequest,
+) ([]queryregistry.QueryRow, error) {
+	s.mu.Lock()
+	protocol := s.protocols[extension.ID]
+	s.recordProtocolCallLocked(extension.ID)
+	s.mu.Unlock()
+	client, ok := protocol.(*protocolV2Client)
+	if !ok {
+		return nil, fmt.Errorf("query result filter requires Protocol V2")
+	}
+	return client.FilterQueryResult(ctx, input)
 }
 
 func protocolHookResult(ctx context.Context, response PluginHookResponse, err error) HookResult {
