@@ -14,6 +14,7 @@ import (
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
 	queryregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/QueryRegistry"
 	pluginv2 "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/plugin/v2"
+	protocolv2 "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/protocol/v2"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -74,10 +75,8 @@ func (c *protocolV2Client) InvokeQuery(
 	}
 	ctx, cancel := protocolV2Deadline(parent, timeout)
 	defer cancel()
-	// 查询 runtime 禁止把 actor/authority 投影带入插件；仅 request_id/trace/locale/deadline/extension。
-	requestContext := c.requestContext(ctx, input.QueryID)
-	requestContext.GrantedAuthority = nil
-	requestContext.Locale = input.Plan.Locale
+	// 查询 runtime 禁止 actor/authority，并使用 reduced context（无自由 form TraceId）。
+	requestContext := c.queryRuntimeRequestContext(ctx, input.Plan.Locale)
 	response, err := c.client.InvokeQuery(ctx, &pluginv2.QueryInvocationRequest{
 		Context: requestContext,
 		Binding: &pluginv2.QueryRuntimeBinding{
@@ -138,9 +137,7 @@ func (c *protocolV2Client) FilterQueryResult(
 	}
 	ctx, cancel := protocolV2Deadline(parent, timeout)
 	defer cancel()
-	requestContext := c.requestContext(ctx, input.FilterID)
-	requestContext.GrantedAuthority = nil
-	requestContext.Locale = input.Plan.Locale
+	requestContext := c.queryRuntimeRequestContext(ctx, input.Plan.Locale)
 	response, err := c.client.FilterQueryResult(ctx, &pluginv2.QueryResultFilterRequest{
 		Context: requestContext,
 		Binding: &pluginv2.QueryResultFilterRuntimeBinding{
@@ -381,6 +378,22 @@ func readProtocolV2QueryRuntimeJSONValue(decoder *json.Decoder, depth int, nodes
 	default:
 		return nil, queryregistry.ErrResultInvalid
 	}
+}
+
+// queryRuntimeRequestContext builds the reduced Host→plugin projection required
+// by query.runtime@1: no actor/authority/idempotency/delegations, no free-form
+// TraceId, and locale exactly matching the Host plan.
+func (c *protocolV2Client) queryRuntimeRequestContext(ctx context.Context, locale string) *protocolv2.RequestContext {
+	request := c.requestContext(ctx, "query.runtime")
+	request.GrantedAuthority = nil
+	request.Actor = nil
+	request.IdempotencyKey = ""
+	request.HostCommandDelegations = nil
+	request.HostQueryDelegations = nil
+	// SDK 要求 TraceId 要么为空要么 32 位 hex；通用 requestContext 的 correlation 不满足。
+	request.Trace = nil
+	request.Locale = locale
+	return request
 }
 
 func mapProtocolV2QueryCallError(ctx context.Context, err error) error {
