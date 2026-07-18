@@ -14,6 +14,63 @@ Last updated: 2026-07-18
 
 ## Current Subtask
 
+### 2026-07-18 Overnight External Query Handoff
+
+- Verified weighted progress remains **66.9205%** (display **66.0%**); P7 stays
+  **16/22**. The Query task and joined Query test row remain uncredited.
+- `63ae07fc4` adds the missing operator-visible `queryResultFilters` exact-trust
+  disclosure. The focused Web test, Nuxt typecheck, staged review, and Grok
+  `NO BLOCKER` review passed.
+- `a8bd12060` adds the dedicated Protocol V2 `InvokeQuery` and
+  `FilterQueryResult` unary transport, generated Go SDK, optional author
+  handlers, lossless canonical JSON bytes, exact binding/shape echoes, reduced
+  authority projection, bounded validation, and exact `query.runtime@1`
+  negotiation. Proto breaking, SDK normal/race/vet, Extensions, HostAPI,
+  bootstrap, deterministic generation, Grok, and independent review passed.
+- `3c33d2751` pins every result Schema resource to the canonical Draft 2020-12
+  dialect and installs a deny-all external URL loader. Missing/canonical
+  dialects and local fragments pass; Draft-07, nested downgrade, `file://`,
+  custom metaschema, non-string dialect, trailing JSON, and external refs fail
+  closed. QueryRegistry focused/full normal, full race, vet, and Grok review
+  passed. One concurrent-load race timing failure did not reproduce in 20
+  focused race, 100 focused normal, or a later isolated full race run.
+- The uncommitted lifecycle Schema candidate is **not ready to commit**.
+  `lifecycle_query_schemas.go` still uses `EvalSymlinks` followed by unbounded
+  `os.ReadFile`, so a large file/FIFO/path swap can bypass the intended 1 MiB
+  boundary. First expose the existing stable exact-digest reader from
+  `Models/Extensions` as an additive compatibility commit; then switch the
+  lifecycle candidate and add oversized, directory, FIFO, handlerless, and
+  lifecycle restore/rollback/Safe Mode tests in a separate commit.
+- The uncommitted Redis cache candidate is **BLOCKED AND MUST NOT BE
+  COMMITTED**. Independent real-Redis reviews proved that its one-shot Lua
+  invalidation takes about **10.6-15 seconds** for a legal 10,000 x 64 graph,
+  exceeds `lua-time-limit`, returns `BUSY`, and can peak near 819 MiB. Its
+  10,000-member union limit rejects legal disjoint multi-tag graphs; ZRANGE,
+  HGETALL/HGET metadata, and JSON node allocation remain byte-unbounded; forged
+  expired scores skip complete validation; timeout leaves completion state
+  ambiguous; and Store can mutate expired edges before a later no-op. Replace
+  the giant script with bounded, resumable batches and exact progress/CAS
+  semantics before reconsidering production cache wiring.
+- Exact next step for an external overnight agent: preserve every dirty file,
+  do not commit the Redis candidate, finish and commit the stable exact-package
+  reader compatibility layer, finish the lifecycle Schema binding, then add
+  immutable Query publication provider/result-filter private material without
+  touching dirty `QueryRegistry/execution.go`. After each isolated commit run
+  focused normal/race/vet and update this ledger. Do not credit P7 before a real
+  subprocess provider and independent filter pass lifecycle, permission, cost,
+  Schema, pagination, cache, disable/upgrade/Safe Mode, normal/race, and
+  PostgreSQL joined gates.
+- Current owned WIP is limited to
+  `lifecycle_registry_publication_queries.go`, new `lifecycle_query_schemas*.go`,
+  `QueryRegistry/execution.go`, and new `redis_cache*.go`. All other dirty files
+  shown by `git status --short` are unowned and must not be staged, overwritten,
+  reformatted, or reverted. No worktree/branch/push/tag is allowed; remain on
+  `main` and inspect staged diffs file by file.
+- Rollback remains additive: revert `a8bd12060` to remove the unused Query
+  runtime RPC/SDK surface, revert `3c33d2751` only if intentionally restoring
+  unsafe dialect/file loading, and revert `63ae07fc4` to hide the new trust
+  category. No committed production bridge invokes the new RPCs yet.
+
 ### 2026-07-18 P7 Executable Query Contract Checkpoint
 
 - Verified weighted progress remains **66.9205%** (display **66.0%**); P7 stays
