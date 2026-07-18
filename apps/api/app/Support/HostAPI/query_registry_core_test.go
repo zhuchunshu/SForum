@@ -279,7 +279,7 @@ func TestQueryRegistryCoreCursorRequiresCallerSecretAndUsesHMACCodec(t *testing.
 		t.Fatal(err)
 	}
 	claims := queryregistry.CursorClaims{
-		SchemaVersion: "sforum.query-cursor@1",
+		SchemaVersion: "sforum.query-cursor@2",
 		QueryID:       "core.query.public_topics.list", ContractVersion: "core.query.public_topics.list@1",
 		PlanVersion: "core.query.public_topics.list.plan@1", ResultSchema: QueryPublicTopicResultSchemaID + "@1",
 		ShapeDigest: strings.Repeat("a", 64), RegistryRevision: 1, RegistryDigest: strings.Repeat("b", 64),
