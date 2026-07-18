@@ -14,6 +14,29 @@ Last updated: 2026-07-18
 
 ## Current Subtask
 
+### 2026-07-18 Durable Route Runtime Incident Store Checkpoint
+
+- Verified weighted progress remains **64.9003%** (display **64.9%**); P6 stays
+  **16/18** until production stream classification, generic-stream bounded
+  backpressure, and the joined matrix all pass.
+- `62e16ad92 feat(routes): persist exact runtime incidents` adds the PostgreSQL
+  Store over migrations 035/036. A random incident key serializes idempotent
+  creation; the exact immutable plugin version is resolved without requiring it
+  to remain active; one transaction creates the payload-free audit row and
+  pending incident; resolution is a one-way pending CAS.
+- Store validation mirrors PostgreSQL integer, status, text, method, contract,
+  artifact, phase/action/mode, and commit-state constraints. The isolated test
+  database proves concurrent create/replay, conflicting evidence, concurrent
+  resolution, audit correlation, append-only UPDATE/DELETE/TRUNCATE protection,
+  and generic audit retention.
+- Focused normal and race tests, real migrations 001 through 036, migration
+  package tests, three-package vet, and staged diff checks passed.
+- Exact resume point: make `RouteFailureRecorder` a synchronous bounded
+  `RouteStreamFailureSink`, persist before exact local quarantine, resolve the
+  local result, inject the Store in bootstrap, and classify every HTTP/SSE/
+  WebSocket producer without attributing caller/Host/ForceDrain failures to a
+  plugin.
+
 ### 2026-07-18 P6 Closure Credit Correction (16/18)
 
 - Review rejects the earlier **18/18** claim and records verified weighted
