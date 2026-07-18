@@ -106,6 +106,28 @@ func TestRouteStreamDispositionPreservesCauseAndFailsClosed(t *testing.T) {
 	}
 }
 
+func TestInspectRouteStreamFailureDispositionPreservesHostDecision(t *testing.T) {
+	cause := errors.New("stream ended")
+	for _, test := range []struct {
+		name       string
+		err        error
+		wantClass  RouteStreamFailureClass
+		wantRecord bool
+		wantKnown  bool
+	}{
+		{name: "plain", err: cause},
+		{name: "abort", err: WithRouteStreamAbort(cause), wantKnown: true},
+		{name: "incident", err: WithRouteStreamIncident(cause, RouteStreamFailureMissingTerminal), wantClass: RouteStreamFailureMissingTerminal, wantRecord: true, wantKnown: true},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			class, record, known := InspectRouteStreamFailureDisposition(test.err)
+			if class != test.wantClass || record != test.wantRecord || known != test.wantKnown || !errors.Is(test.err, cause) {
+				t.Fatalf("class=%q record=%t known=%t error=%v", class, record, known, test.err)
+			}
+		})
+	}
+}
+
 func TestRouteStreamMissingTerminalRecordsWrappedEOF(t *testing.T) {
 	sink := &recordingRouteStreamFailureSink{}
 	step := streamIncidentStep("stream.missing_terminal.eof")

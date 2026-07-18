@@ -50,6 +50,13 @@ func routeStreamFailureDisposition(err error) (RouteStreamFailureClass, bool, bo
 	return classified.class, true, true
 }
 
+// InspectRouteStreamFailureDisposition lets Host transport adapters preserve a
+// previously assigned incident/abort decision before applying protocol-specific
+// sentinels such as EOF. Only the private Host wrapper is recognized.
+func InspectRouteStreamFailureDisposition(err error) (RouteStreamFailureClass, bool, bool) {
+	return routeStreamFailureDisposition(err)
+}
+
 // RouteStreamFailureClass is Host-observed provenance only. Raw transport
 // errors, request metadata, and payload bytes must never enter durable evidence.
 type RouteStreamFailureClass string
