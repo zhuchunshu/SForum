@@ -43,11 +43,20 @@ Last updated: 2026-07-19
   plugin runtime. Malformed envelopes cancel; capability/unavailable recovery
   snoozes without exhausting attempts and constructs a fresh activated cache
   because a terminally latched object cannot recover in place.
-- Exact next step: add the versioned owner/logical-tag River args and worker on
-  `critical` without uniqueness, with cancel/snooze/error tests; then add the
-  transaction-bound enqueue path before production API/worker Redis wiring.
-- Rollback is additive: revert `fc35843f1`. No migration, feature flag, branch,
-  worktree, push, tag, bootstrap file, or unrelated dirty file changed.
+- `f47680d56` adds the versioned `query.invalidate_result_cache` River envelope,
+  `critical` queue registration, explicit no-uniqueness options, malformed and
+  invalid-authority cancellation, capability/poison/durability/transport
+  snoozing, cloned logical-tag ownership, and the narrow transactional enqueue
+  helper. Job tests passed normal `count=20`, race `count=5`, all `app/Jobs/...`
+  packages, complete QueryRegistry, vet, and diff check.
+- Exact next step: freeze and implement the mutation-to-tag contract for
+  Host Commands and declared own-schema database executes, enqueue after a
+  successful write/validation and before transaction commit, and prove replay
+  does not enqueue twice. Then register the Host worker and production Redis
+  runtime in API, embedded worker, standalone worker, and Safe Mode.
+- Rollback is additive: revert `f47680d56` then `fc35843f1`. No migration,
+  feature flag, branch, worktree, push, tag, bootstrap file, or unrelated dirty
+  file changed.
 
 ### 2026-07-19 Query Redis Backend Checkpoint (no P7 credit)
 
