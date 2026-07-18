@@ -63,6 +63,16 @@ func TestRuntimeAdmissionGateWaitHonorsContextWithoutDroppingInflight(t *testing
 	}
 }
 
+func TestRuntimeAdmissionGateAcquirePreservesCustomParentCause(t *testing.T) {
+	gate := newRuntimeAdmissionTestGate(t)
+	ctx, cancel := context.WithCancelCause(context.Background())
+	cause := errors.New("caller cancelled with domain cause")
+	cancel(cause)
+	if _, err := gate.Acquire(ctx, RuntimeCallProvider); !errors.Is(err, cause) || errors.Is(err, context.Canceled) {
+		t.Fatalf("custom parent cancellation error=%v", err)
+	}
+}
+
 func TestRuntimeAdmissionGateForceCancelsInflightAndClosesCleanup(t *testing.T) {
 	gate := newRuntimeAdmissionTestGate(t)
 	route := acquireRuntimeAdmission(t, gate, RuntimeCallRoute)
@@ -105,6 +115,43 @@ func TestRuntimeAdmissionGateForceCancelsInflightAndClosesCleanup(t *testing.T) 
 	if !errors.Is(second.ForceCause, cause) {
 		t.Fatalf("repeated force replaced first cause: %v", second.ForceCause)
 	}
+}
+
+func TestRuntimeAdmissionGateDoesNotPublishForceBeforeLeaseCancellation(t *testing.T) {
+	gate := newRuntimeAdmissionTestGate(t)
+	lease := acquireRuntimeAdmission(t, gate, RuntimeCallProvider)
+
+	entered := make(chan struct{})
+	resume := make(chan struct{})
+	gate.mu.Lock()
+	call := gate.active[lease.id]
+	originalCancel := call.cancel
+	call.cancel = func(cause error) {
+		close(entered)
+		<-resume
+		originalCancel(cause)
+	}
+	gate.active[lease.id] = call
+	gate.mu.Unlock()
+
+	forceCause := errors.New("linearized ForceDrain")
+	forced := make(chan RuntimeAdmissionSnapshot, 1)
+	go func() { forced <- gate.ForceCancel(forceCause) }()
+	<-entered
+	forceVisibleBeforeCancel := gate.mu.TryLock()
+	if forceVisibleBeforeCancel {
+		gate.mu.Unlock()
+	}
+	close(resume)
+	snapshot := <-forced
+	if forceVisibleBeforeCancel {
+		t.Fatal("forced state became visible before the existing lease was cancelled")
+	}
+	if !snapshot.Forced || !errors.Is(context.Cause(lease.Context), ErrRuntimeAdmissionForced) ||
+		!errors.Is(context.Cause(lease.Context), forceCause) {
+		t.Fatalf("forced snapshot=%#v cause=%v", snapshot, context.Cause(lease.Context))
+	}
+	lease.Release()
 }
 
 func TestRuntimeAdmissionGateConcurrentAcquireAndDrainHasExactBoundary(t *testing.T) {

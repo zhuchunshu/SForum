@@ -110,8 +110,8 @@ func (g *RuntimeAdmissionGate) Acquire(parent context.Context, class RuntimeCall
 	if g == nil || parent == nil || strings.TrimSpace(string(class)) == "" {
 		return nil, ErrRuntimeAdmissionInvalid
 	}
-	if err := parent.Err(); err != nil {
-		return nil, err
+	if cause := context.Cause(parent); cause != nil {
+		return nil, cause
 	}
 
 	g.mu.Lock()
@@ -235,21 +235,17 @@ func (g *RuntimeAdmissionGate) ForceCancel(cause error) RuntimeAdmissionSnapshot
 	g.mu.Lock()
 	if !g.forced {
 		g.draining = true
-		g.forced = true
 		g.forceCause = cause
-	}
-	cancels := make([]context.CancelCauseFunc, 0, len(g.active))
-	for _, call := range g.active {
-		cancels = append(cancels, call.cancel)
+		forcedErr := runtimeAdmissionForcedError(g.forceCause)
+		for _, call := range g.active {
+			// 先取消既有 lease，再发布 forced 状态。Snapshot/Acquire 不会观察到
+			// 一个尚未把 ForceDrain 传播到 transport 的 gate。
+			call.cancel(forcedErr)
+		}
+		g.forced = true
 	}
 	snapshot := g.snapshotLocked()
 	g.mu.Unlock()
-
-	for _, cancel := range cancels {
-		// 在保留原始 cause 的同时携带稳定 Host 分类，调用方才能把生命周期
-		// ForceDrain 与插件 transport crash 区分开，避免错误 quarantine。
-		cancel(runtimeAdmissionForcedError(g.forceCause))
-	}
 	return snapshot
 }
 
