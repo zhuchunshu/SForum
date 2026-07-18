@@ -14,6 +14,27 @@ Last updated: 2026-07-18
 
 ## Current Subtask
 
+### 2026-07-18 HTTP/SSE Stream Adapter Classification Checkpoint
+
+- Verified weighted progress remains **64.9003%** (display **64.9%**); P6 stays
+  **16/18** until WebSocket classification, production sink wiring, generic
+  bounded backpressure, and the joined durable-incident matrix pass.
+- `d279b068a fix(routes): classify HTTP stream adapter failures` marks request
+  reader/no-progress and Host writer Write/Flush failures as non-incident
+  aborts. Runtime Send, CloseRequest, and Recv errors preserve their typed
+  disposition or fail closed to `runtime_transport`.
+- Invalid SSE media preflight is `invalid_preflight`; EOF without a terminal
+  response is `missing_terminal`. Each adapter publishes failure before Cancel,
+  preserving the established trace-before-lifetime-Done invariant.
+- Production-shaped sink tests prove caller/Host paths record zero incidents,
+  runtime request/response paths record exactly one incident, and stable classes
+  survive the Fiber SSE and bound-session paths. Focused tests passed **50**
+  repetitions, focused race passed **20**, and complete Http, vet, build, staged
+  diff, and whitespace gates passed.
+- Exact resume point: finish WebSocket pump provenance and stable terminal
+  classes, then explicitly wire the production stream sink. Bootstrap's two
+  unrelated `hostAPIGateway.Close()` hunks remain unowned and must not be staged.
+
 ### 2026-07-18 Protocol V2 Stream Operation Classification Checkpoint
 
 - Verified weighted progress remains **64.9003%** (display **64.9%**); P6 stays
