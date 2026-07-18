@@ -155,10 +155,19 @@ func TestManagerVersionedProviderFailsClosedForStaleDurableChoice(t *testing.T) 
 	}
 }
 
-func TestManagerVersionedProviderEnforcesTimeoutWhenInvokerIgnoresContext(t *testing.T) {
+func TestManagerVersionedProviderRetainsAdmissionWhenInvokerIgnoresTimeout(t *testing.T) {
+	started := make(chan struct{})
+	deadlineObserved := make(chan struct{})
+	releaseInvocation := make(chan struct{})
+	var releaseOnce sync.Once
+	release := func() { releaseOnce.Do(func() { close(releaseInvocation) }) }
+	t.Cleanup(release)
 	starter := newProviderInvocationStarter()
-	starter.invoke = func(context.Context, extensions.Extension, VersionedProviderRequest) (VersionedProviderResponse, error) {
-		time.Sleep(150 * time.Millisecond)
+	starter.invoke = func(ctx context.Context, _ extensions.Extension, _ VersionedProviderRequest) (VersionedProviderResponse, error) {
+		close(started)
+		<-ctx.Done()
+		close(deadlineObserved)
+		<-releaseInvocation
 		return VersionedProviderResponse{Output: map[string]any{"status": "late"}}, nil
 	}
 	manager := NewManager(ManagerConfig{Starter: starter})
@@ -168,17 +177,229 @@ func TestManagerVersionedProviderEnforcesTimeoutWhenInvokerIgnoresContext(t *tes
 	if err := manager.Start(context.Background(), owner); err != nil {
 		t.Fatal(err)
 	}
-	started := time.Now()
-	result, err := manager.InvokeVersionedProvider(context.Background(), VersionedProviderInvocation{
-		SlotID: providerSlotID, ContractVersion: providerContractVersion, Operation: VersionedProviderOperationInvoke,
-		InputSchema: providerRequestSchema, Input: map[string]any{},
-		Revalidate: func(context.Context, string, map[string]any) error { return nil },
-	})
-	if elapsed := time.Since(started); elapsed >= 100*time.Millisecond {
-		t.Fatalf("Host deadline was not enforced: %v", elapsed)
+	active, err := manager.ActiveRuntimeInstance(owner.ID)
+	if err != nil {
+		t.Fatal(err)
 	}
-	if !errors.Is(err, context.DeadlineExceeded) || result.Attempts != 1 {
-		t.Fatalf("timeout result = %#v, %v", result, err)
+	type providerResult struct {
+		result VersionedProviderInvocationResult
+		err    error
+	}
+	finished := make(chan providerResult, 1)
+	go func() {
+		result, invokeErr := manager.InvokeVersionedProvider(context.Background(), VersionedProviderInvocation{
+			SlotID: providerSlotID, ContractVersion: providerContractVersion, Operation: VersionedProviderOperationInvoke,
+			InputSchema: providerRequestSchema, Input: map[string]any{},
+			Revalidate: func(context.Context, string, map[string]any) error { return nil },
+		})
+		finished <- providerResult{result: result, err: invokeErr}
+	}()
+	waitProviderExecutionSignal(t, started, "provider invocation start")
+	waitProviderExecutionSignal(t, deadlineObserved, "provider deadline")
+	select {
+	case outcome := <-finished:
+		t.Fatalf("non-cooperative invocation returned before it exited: %#v", outcome)
+	default:
+	}
+	snapshot, err := manager.InspectRuntimeInstance(active.Identity)
+	if err != nil || snapshot.Admission.ActiveTotal != 1 ||
+		snapshot.Admission.ActiveByClass[RuntimeCallProvider] != 1 {
+		t.Fatalf("snapshot=%#v err=%v", snapshot, err)
+	}
+	if resilience := manager.resilience.snapshot(owner.ID); resilience.ActiveCalls != 1 {
+		t.Fatalf("resilience while blocked=%#v", resilience)
+	}
+	if _, err := manager.BeginDrain(active.Identity); err != nil {
+		t.Fatal(err)
+	}
+	waitCtx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
+	defer cancel()
+	if err := manager.WaitDrain(waitCtx, active.Identity); !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("drain completed before invocation exit: %v", err)
+	}
+	release()
+	select {
+	case outcome := <-finished:
+		if !errors.Is(outcome.err, context.DeadlineExceeded) || outcome.result.Attempts != 1 {
+			t.Fatalf("timeout result=%#v err=%v", outcome.result, outcome.err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("provider invocation did not finish after release")
+	}
+	finalDrainCtx, finalDrainCancel := context.WithTimeout(context.Background(), time.Second)
+	defer finalDrainCancel()
+	if err := manager.WaitDrain(finalDrainCtx, active.Identity); err != nil {
+		t.Fatal(err)
+	}
+	if resilience := manager.resilience.snapshot(owner.ID); resilience.ActiveCalls != 0 {
+		t.Fatalf("resilience after exit=%#v", resilience)
+	}
+}
+
+func TestManagerVersionedProviderWaitsForTimedOutCandidateBeforeFallback(t *testing.T) {
+	firstStarted := make(chan struct{})
+	firstDeadline := make(chan struct{})
+	releaseFirst := make(chan struct{})
+	firstExited := make(chan struct{})
+	fallbackStarted := make(chan struct{})
+	var releaseOnce sync.Once
+	release := func() { releaseOnce.Do(func() { close(releaseFirst) }) }
+	t.Cleanup(release)
+	starter := newProviderInvocationStarter()
+	starter.invoke = func(ctx context.Context, extension extensions.Extension, _ VersionedProviderRequest) (VersionedProviderResponse, error) {
+		starter.record(extension.ID)
+		if extension.ID == "providers.consumer" {
+			close(firstStarted)
+			<-ctx.Done()
+			close(firstDeadline)
+			<-releaseFirst
+			close(firstExited)
+			return VersionedProviderResponse{Output: map[string]any{"status": "late"}}, nil
+		}
+		select {
+		case <-firstExited:
+		default:
+			return VersionedProviderResponse{}, errors.New("fallback overlapped first provider")
+		}
+		close(fallbackStarted)
+		return VersionedProviderResponse{Output: map[string]any{"status": "fallback"}}, nil
+	}
+	manager := NewManager(ManagerConfig{Starter: starter})
+	owner := versionedProviderExtension("providers.owner", strings.Repeat("a", 64), providerSlotDefinition(10))
+	owner.Manifest.Providers[0].Fallback = "next"
+	owner.Manifest.Providers[0].TimeoutMS = 20
+	consumer := versionedProviderExtension("providers.consumer", strings.Repeat("b", 64), providerSlotConsumer("providers.consumer.delivery", 50))
+	consumer.Manifest.Providers[0].Fallback = "next"
+	consumer.Manifest.Providers[0].TimeoutMS = 20
+	consumer.Manifest.Dependencies = []extensions.ManifestDependency{{ID: owner.ID, Version: "^1.0.0", Kind: "required"}}
+	if err := manager.Start(context.Background(), owner); err != nil {
+		t.Fatal(err)
+	}
+	if err := manager.Start(context.Background(), consumer); err != nil {
+		t.Fatal(err)
+	}
+	consumerRuntime, err := manager.ActiveRuntimeInstance(consumer.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	caller := providerCaller(t, manager, consumer)
+	type providerResult struct {
+		result VersionedProviderInvocationResult
+		err    error
+	}
+	finished := make(chan providerResult, 1)
+	go func() {
+		result, invokeErr := manager.InvokeVersionedProvider(context.Background(), VersionedProviderInvocation{
+			Caller: caller, SlotID: providerSlotID,
+			ContractVersion: providerContractVersion, Operation: VersionedProviderOperationInvoke,
+			InputSchema: providerRequestSchema, Input: map[string]any{},
+			Revalidate: func(context.Context, string, map[string]any) error { return nil },
+		})
+		finished <- providerResult{result: result, err: invokeErr}
+	}()
+	waitProviderExecutionSignal(t, firstStarted, "first provider start")
+	waitProviderExecutionSignal(t, firstDeadline, "first provider deadline")
+	select {
+	case <-fallbackStarted:
+		t.Fatal("fallback overlapped a timed-out provider that was still running")
+	case <-time.After(30 * time.Millisecond):
+	}
+	snapshot, err := manager.InspectRuntimeInstance(consumerRuntime.Identity)
+	if err != nil || snapshot.Admission.ActiveTotal != 1 ||
+		snapshot.Admission.ActiveByClass[RuntimeCallProvider] != 1 {
+		t.Fatalf("consumer snapshot=%#v err=%v", snapshot, err)
+	}
+	if resilience := manager.resilience.snapshot(consumer.ID); resilience.ActiveCalls != 1 {
+		t.Fatalf("consumer resilience while blocked=%#v", resilience)
+	}
+	release()
+	select {
+	case outcome := <-finished:
+		if outcome.err != nil || outcome.result.ExtensionID != owner.ID ||
+			outcome.result.Attempts != 2 || outcome.result.Output["status"] != "fallback" {
+			t.Fatalf("fallback result=%#v err=%v", outcome.result, outcome.err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("provider fallback did not finish")
+	}
+	waitProviderExecutionSignal(t, fallbackStarted, "fallback start")
+	if got := starter.calls(); !reflect.DeepEqual(got, []string{consumer.ID, owner.ID}) {
+		t.Fatalf("provider calls=%#v", got)
+	}
+	snapshot, err = manager.InspectRuntimeInstance(consumerRuntime.Identity)
+	if err != nil || snapshot.Admission.ActiveTotal != 0 {
+		t.Fatalf("final consumer snapshot=%#v err=%v", snapshot, err)
+	}
+	if resilience := manager.resilience.snapshot(consumer.ID); resilience.ActiveCalls != 0 {
+		t.Fatalf("final consumer resilience=%#v", resilience)
+	}
+}
+
+func waitProviderExecutionSignal(t *testing.T, signal <-chan struct{}, name string) {
+	t.Helper()
+	select {
+	case <-signal:
+	case <-time.After(time.Second):
+		t.Fatalf("timed out waiting for %s", name)
+	}
+}
+
+func TestManagerVersionedProviderDoesNotInvokeAfterRequestValidationDeadline(t *testing.T) {
+	starter := newProviderInvocationStarter()
+	starter.invoke = func(_ context.Context, extension extensions.Extension, _ VersionedProviderRequest) (VersionedProviderResponse, error) {
+		starter.record(extension.ID)
+		return VersionedProviderResponse{Output: map[string]any{"status": "unexpected"}}, nil
+	}
+	manager := NewManager(ManagerConfig{Starter: starter})
+	owner := versionedProviderExtension("providers.owner", strings.Repeat("a", 64), providerSlotDefinition(10))
+	owner.Manifest.Providers[0].Fallback = "closed"
+	owner.Manifest.Providers[0].TimeoutMS = 20
+	if err := manager.Start(context.Background(), owner); err != nil {
+		t.Fatal(err)
+	}
+	result, err := manager.InvokeVersionedProvider(context.Background(), VersionedProviderInvocation{
+		SlotID: providerSlotID, ContractVersion: providerContractVersion,
+		Operation: VersionedProviderOperationInvoke, InputSchema: providerRequestSchema,
+		Input: map[string]any{}, Revalidate: func(ctx context.Context, schema string, _ map[string]any) error {
+			if schema == providerRequestSchema {
+				<-ctx.Done()
+				return context.Cause(ctx)
+			}
+			return nil
+		},
+	})
+	if !errors.Is(err, context.DeadlineExceeded) || result.Attempts != 1 || len(starter.calls()) != 0 {
+		t.Fatalf("result=%#v calls=%#v err=%v", result, starter.calls(), err)
+	}
+}
+
+func TestManagerVersionedProviderDoesNotPublishAfterResponseValidationDeadline(t *testing.T) {
+	starter := newProviderInvocationStarter()
+	starter.invoke = func(_ context.Context, extension extensions.Extension, _ VersionedProviderRequest) (VersionedProviderResponse, error) {
+		starter.record(extension.ID)
+		return VersionedProviderResponse{Output: map[string]any{"status": "late"}}, nil
+	}
+	manager := NewManager(ManagerConfig{Starter: starter})
+	owner := versionedProviderExtension("providers.owner", strings.Repeat("a", 64), providerSlotDefinition(10))
+	owner.Manifest.Providers[0].Fallback = "closed"
+	owner.Manifest.Providers[0].TimeoutMS = 20
+	if err := manager.Start(context.Background(), owner); err != nil {
+		t.Fatal(err)
+	}
+	result, err := manager.InvokeVersionedProvider(context.Background(), VersionedProviderInvocation{
+		SlotID: providerSlotID, ContractVersion: providerContractVersion,
+		Operation: VersionedProviderOperationInvoke, InputSchema: providerRequestSchema,
+		Input: map[string]any{}, Revalidate: func(ctx context.Context, schema string, _ map[string]any) error {
+			if schema == providerResponseSchema {
+				<-ctx.Done()
+				return context.Cause(ctx)
+			}
+			return nil
+		},
+	})
+	if !errors.Is(err, context.DeadlineExceeded) || result.Attempts != 1 ||
+		!reflect.DeepEqual(starter.calls(), []string{owner.ID}) {
+		t.Fatalf("result=%#v calls=%#v err=%v", result, starter.calls(), err)
 	}
 }
 

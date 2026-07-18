@@ -92,62 +92,83 @@ func (m *Manager) InvokeVersionedProvider(
 			}
 			continue
 		}
+		failProviderCall := func(callErr error) bool {
+			cancel()
+			release(false, providerFailureReason(callErr))
+			admission.Release()
+			failures = append(failures, fmt.Errorf("%s: %w", candidate.ID, callErr))
+			return resolution.Contract.Fallback == "closed" || ctx.Err() != nil
+		}
 		candidateInput, cloneErr := cloneHookDocument(requestPayload)
 		if cloneErr != nil {
+			if cause := context.Cause(callCtx); cause != nil {
+				if failProviderCall(cause) {
+					break
+				}
+				continue
+			}
 			cancel()
 			release(false, "extension.provider_input_invalid")
 			admission.Release()
 			return VersionedProviderInvocationResult{}, cloneErr
 		}
 		if validateErr := input.Revalidate(callCtx, resolution.Contract.RequestSchema, candidateInput); validateErr != nil {
+			if cause := context.Cause(callCtx); cause != nil {
+				if failProviderCall(cause) {
+					break
+				}
+				continue
+			}
 			cancel()
 			release(false, "extension.provider_input_invalid")
 			admission.Release()
 			return VersionedProviderInvocationResult{}, fmt.Errorf("%w: %v", ErrProviderSlotInputInvalid, validateErr)
 		}
 		if validateErr := m.hooks.providerSlots.ValidateDocument(resolution.Contract.ID, resolution.Contract.RequestSchema, candidateInput); validateErr != nil {
+			if cause := context.Cause(callCtx); cause != nil {
+				if failProviderCall(cause) {
+					break
+				}
+				continue
+			}
 			cancel()
 			release(false, "extension.provider_input_invalid")
 			admission.Release()
 			return VersionedProviderInvocationResult{}, fmt.Errorf("%w: %v", ErrProviderSlotInputInvalid, validateErr)
 		}
-		type providerCallOutcome struct {
-			response VersionedProviderResponse
-			err      error
-		}
-		outcomes := make(chan providerCallOutcome, 1)
-		go func() {
-			response, invokeErr := invoker.InvokeVersionedProvider(callCtx, extension, VersionedProviderRequest{
-				DeclarationID: candidate.ID, Slot: resolution.Contract.Slot,
-				ContractVersion: resolution.Contract.ContractVersion, Operation: input.Operation,
-				RequestSchema: resolution.Contract.RequestSchema, ResponseSchema: resolution.Contract.ResponseSchema,
-				Timeout: time.Duration(resolution.Contract.TimeoutMS) * time.Millisecond, Input: candidateInput,
-			})
-			outcomes <- providerCallOutcome{response: response, err: invokeErr}
-		}()
-
-		var outcome providerCallOutcome
-		select {
-		case outcome = <-outcomes:
-			if callCtx.Err() != nil {
-				outcome.err = context.Cause(callCtx)
-			}
-		case <-callCtx.Done():
-			outcome.err = context.Cause(callCtx)
-		}
-		callErr := outcome.err
-		if callErr != nil {
-			cancel()
-			release(false, providerFailureReason(callErr))
-			admission.Release()
-			failures = append(failures, fmt.Errorf("%s: %w", candidate.ID, callErr))
-			if resolution.Contract.Fallback == "closed" || ctx.Err() != nil {
+		if callErr := context.Cause(callCtx); callErr != nil {
+			if failProviderCall(callErr) {
 				break
 			}
 			continue
 		}
-		output, cloneErr := cloneHookDocument(outcome.response.Output)
+		response, callErr := invoker.InvokeVersionedProvider(callCtx, extension, VersionedProviderRequest{
+			DeclarationID: candidate.ID, Slot: resolution.Contract.Slot,
+			ContractVersion: resolution.Contract.ContractVersion, Operation: input.Operation,
+			RequestSchema: resolution.Contract.RequestSchema, ResponseSchema: resolution.Contract.ResponseSchema,
+			Timeout: time.Duration(resolution.Contract.TimeoutMS) * time.Millisecond, Input: candidateInput,
+		})
+		// Go cannot safely preempt an arbitrary in-process invoker. Production gRPC
+		// returns on callCtx, while a non-cooperative adapter must retain its exact
+		// admission and resilience slot until it really exits. Only then may a
+		// fallback start; a late success still resolves to the Host timeout cause.
+		if cause := context.Cause(callCtx); cause != nil {
+			callErr = cause
+		}
+		if callErr != nil {
+			if failProviderCall(callErr) {
+				break
+			}
+			continue
+		}
+		output, cloneErr := cloneHookDocument(response.Output)
 		if cloneErr != nil {
+			if cause := context.Cause(callCtx); cause != nil {
+				if failProviderCall(cause) {
+					break
+				}
+				continue
+			}
 			cancel()
 			release(false, "extension.provider_output_invalid")
 			admission.Release()
@@ -158,6 +179,12 @@ func (m *Manager) InvokeVersionedProvider(
 			continue
 		}
 		if validateErr := input.Revalidate(callCtx, resolution.Contract.ResponseSchema, output); validateErr != nil {
+			if cause := context.Cause(callCtx); cause != nil {
+				if failProviderCall(cause) {
+					break
+				}
+				continue
+			}
 			cancel()
 			release(false, "extension.provider_output_invalid")
 			admission.Release()
@@ -168,11 +195,23 @@ func (m *Manager) InvokeVersionedProvider(
 			continue
 		}
 		if validateErr := m.hooks.providerSlots.ValidateDocument(resolution.Contract.ID, resolution.Contract.ResponseSchema, output); validateErr != nil {
+			if cause := context.Cause(callCtx); cause != nil {
+				if failProviderCall(cause) {
+					break
+				}
+				continue
+			}
 			cancel()
 			release(false, "extension.provider_output_invalid")
 			admission.Release()
 			failures = append(failures, fmt.Errorf("%w: %s: provider exact output schema: %v", ErrProviderSlotOutputInvalid, candidate.ID, validateErr))
 			if resolution.Contract.Fallback == "closed" {
+				break
+			}
+			continue
+		}
+		if callErr := context.Cause(callCtx); callErr != nil {
+			if failProviderCall(callErr) {
 				break
 			}
 			continue
