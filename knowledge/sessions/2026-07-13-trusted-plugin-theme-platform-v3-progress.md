@@ -14,6 +14,31 @@ Last updated: 2026-07-18
 
 ## Current Subtask
 
+### 2026-07-18 WebSocket Stream Classification Checkpoint
+
+- Verified weighted progress remains **64.9003%** (display **64.9%**); P6 stays
+  **16/18** until the production sink, generic bounded backpressure, and joined
+  durable-incident matrix pass.
+- `165c8e9cd fix(routes): classify WebSocket stream failures` maps caller read,
+  abnormal close, oversized input, Upgrade, and socket write/control failures to
+  non-incident aborts. Runtime Send/CloseRequest/Recv and oversized output remain
+  runtime incidents; budget, invalid preflight, and missing terminal retain their
+  stable classes.
+- Typed dispositions now precede EOF. Queued runtime failures or valid response
+  terminals outrank an abort, zero/expired grace rechecks queued results, terminal
+  status drift is distinct from missing terminal, and double-pump arbitration
+  publishes at most one terminal decision.
+- Host owns all handshake `Sec-WebSocket-*` fields except one declared protocol.
+  Plugin extensions/accept/key/version fail before Upgrade as
+  `invalid_preflight`; request protocol matching reads every header line.
+- Main gates passed focused **20** repetitions, race **10**, complete Http, vet,
+  full build, format, staged diff, and whitespace checks. Independent reviewers
+  reported no blockers after focused **50/100** and race **50** runs.
+- Exact resume point: add only `StreamFailures: routeFailureRecorder` beside the
+  existing bootstrap `Failures` field, leaving the two unrelated
+  `hostAPIGateway.Close()` hunks unstaged; then run bootstrap/Http/durable-store
+  normal and race gates before enabling credit.
+
 ### 2026-07-18 Stream Disposition Inspection Checkpoint
 
 - Verified weighted progress remains **64.9003%** (display **64.9%**); P6 stays
