@@ -49,14 +49,23 @@ Last updated: 2026-07-19
   snoozing, cloned logical-tag ownership, and the narrow transactional enqueue
   helper. Job tests passed normal `count=20`, race `count=5`, all `app/Jobs/...`
   packages, complete QueryRegistry, vet, and diff check.
-- Exact next step: freeze and implement the mutation-to-tag contract for
-  Host Commands and declared own-schema database executes, enqueue after a
-  successful write/validation and before transaction commit, and prove replay
-  does not enqueue twice. Then register the Host worker and production Redis
-  runtime in API, embedded worker, standalone worker, and Safe Mode.
-- Rollback is additive: revert `f47680d56` then `fc35843f1`. No migration,
-  feature flag, branch, worktree, push, tag, bootstrap file, or unrelated dirty
-  file changed.
+- `b166ca70f` freezes the additive producer contract. Protocol V2 Host Commands
+  may carry bounded caller-owner `query_invalidation_tags`; exact Manifest V3
+  own-schema execute operations may freeze `queryInvalidationTags`, while read
+  operations cannot declare them. Tags are owner-prefixed, canonical, unique,
+  bounded to 32, included in exact-artifact trust, described by OpenAPI, and
+  generated into the Go SDK contract. Existing packages remain source/wire
+  compatible when the optional fields are absent.
+- Complete Manifest, SDK, and Extensions model tests and vet pass; focused race
+  `count=3`, proto lint/generation/drift, and all 1,940 OpenAPI references pass.
+- Exact next step: implement both producers, enqueue only after a successful
+  write/result validation and before transaction commit, bind command tags into
+  the deterministic idempotency fingerprint, and prove rollback/replay behavior.
+  Then register the Host worker and production Redis runtime in API, embedded
+  worker, standalone worker, and Safe Mode.
+- Rollback is additive: revert `b166ca70f`, `f47680d56`, then `fc35843f1`. No
+  migration, feature flag, branch, worktree, push, tag, bootstrap file, or
+  unrelated dirty file changed.
 
 ### 2026-07-19 Query Redis Backend Checkpoint (no P7 credit)
 
