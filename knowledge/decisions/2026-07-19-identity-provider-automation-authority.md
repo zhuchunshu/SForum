@@ -41,22 +41,35 @@ The first operation catalog is:
 | `auth` | `registration.start`, `registration.complete`, `login.start`, `login.complete`, `link.start`, `link.complete` |
 | `profile` | `sections.list`, `section.read`, `section.update`, `account.read`, `account.update` |
 | `recovery` | `recovery.start`, `recovery.complete` |
-| `session` | `session.evaluate`, `session.revoke` |
+| `session` | `session.evaluate` |
 | `risk` | `risk.evaluate` |
 
 The Host owns each operation's audience and final effect. A plugin cannot make
 a Host-internal operation public, turn a login-only operation into an anonymous
-one, or select the permission that authorizes a call. Authentication, recovery,
-session, risk, and every write operation fail closed. A presentation-only
-profile read may declare fail-open, in which case only that extension section is
-omitted.
+one, or select the permission that authorizes a call. Failure behavior is fixed
+by operation rather than chosen freely by a package: authentication, recovery,
+`account.read`, session, risk, and every write operation are `fail_closed`;
+`sections.list` and `section.read` are `omit`, which removes only the failed
+extension section. A Manifest-supplied policy, when present for explicitness,
+must equal the operation's fixed policy.
+
+The first catalog deliberately has no third-party password verifier. Core
+password registration, login, and recovery remain independent recommended
+flows, and password material never crosses the plugin transport. External or
+passwordless authentication starts with an explicitly selected exact `auth` or
+`recovery` provider id. Multiple providers may coexist, but failure of one
+attempt never turns the same attempt into an automatic successful Core or other-
+provider fallback. External unlink and privacy export/erase are Host-local
+effects over retained Host data and cannot be vetoed by a provider.
 
 Protocol V2 reuses the existing typed `ProviderCall` transport instead of
 adding a parallel identity RPC. The Host publishes and requires the
 `identity.runtime@1` feature, sends the frozen provider id, contract version,
 operation, and typed document, and validates the response against the exact
 package bytes before applying it. A dedicated SDK wrapper provides the identity
-API over that transport.
+API over that transport. This Host-to-plugin call is distinct from
+`IdentityService.InvokeProvider`, which is the plugin-to-Host broker entry and
+must independently enforce caller authority.
 
 Identity uses a reserved provider slot and an independent SDK registry. It does
 not widen the generic Provider Registry, whose public operation remains
@@ -121,14 +134,32 @@ Core or the Identity Registry. Query keeps its existing final permission
 recheck. Component resolution gains an optional Host-evaluated permission and
 never relies on frontend hiding as authorization.
 
+User-field reads reuse `IdentityService.GetUser`, but the Host resolves every
+requested field against the active exact Registry declaration and performs the
+live per-field `readPermission` check; the current unrestricted
+`declared_fields` projection is not authority. Writes use a versioned Host
+Command with `expectedRevision`, idempotency, audit, exact active declaration,
+Schema validation, and a live `writePermission` check. They do not add a broad
+Identity RPC and do not reuse Entity Meta. Component Manifest/Registry material
+adds an optional permission key that must resolve to an active Core or Identity
+permission and is finally checked by the Host; Query retains its existing
+permission-policy path.
+
 ### Session and risk composition
 
-`core.session.default` remains the recommended session policy. A plugin session
-policy must name one exact active `session` provider. Risk hooks resolve to exact
-active `risk` providers and execute in deterministic priority/id order. Their
-outputs are bounded Host dispositions such as allow, deny, or step-up; they do
-not create sessions or grant permissions. Missing, stale, malformed, timed-out,
-or failed security providers fail closed. Safe Mode executes only Core policy.
+`core.session.default` remains the recommended session policy. Authentication
+and recovery flows invoke the exact provider id selected by the Host/user;
+priority never silently replaces that choice. Profile sections compose all
+active providers in deterministic priority/id order, omitting only a provider
+whose fixed presentation policy is `omit`. A plugin session policy must name one
+exact active `session` provider, and `session.evaluate` runs only before issue or
+renew. Risk hooks resolve to all exact active `risk` providers and execute in
+deterministic priority/id order; deny and step-up dispositions dominate allow.
+Their outputs are bounded Host dispositions and do not create sessions or grant
+permissions. Missing, stale, malformed, timed-out, or failed security providers
+fail closed. Browser session revocation is always committed by the Host without
+calling a provider, so plugin failure can never delay, veto, or roll it back.
+Safe Mode executes only Core policy.
 
 ### Trusted automation capabilities
 
@@ -154,6 +185,16 @@ uninstall, and system-tier changes. Actorless background manage is denied in
 this version. All read/call/manage operations are exact-artifact capability
 checked, bounded, redacted, and audited; Safe Mode denies every third-party
 automation call.
+
+Automation adds no wide RPC. `extensions.read` uses a stable redacted Core Host
+Query; `extensions.call` uses the existing Service Discovery/provider brokers
+and adds an exact `extensions.call` capability check in addition to dependency
+and dual-admission checks; `extensions.manage` uses versioned Host Commands and
+the existing command-bound, short-lived actor delegation. The caller cannot
+mint a delegation, and the Host rechecks the actor, RBAC, target, artifact, and
+revision when executing the transaction. The capability catalog controls Host
+API shaping, admission, disclosure, and audit for this full-trust subprocess;
+it is not described as an operating-system sandbox.
 
 PAT remains an HTTP machine identity whose effective permissions are the live
 user permission intersection with token scopes. It is neither a plugin
