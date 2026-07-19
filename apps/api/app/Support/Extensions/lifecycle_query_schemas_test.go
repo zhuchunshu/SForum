@@ -197,7 +197,7 @@ func TestLifecycleExecutableQueryRejectsOversizedDirectoryAndFIFOSchema(t *testi
 		extension := lifecycleExecutableQuerySchemaExtension(t, "schemas/query-items.json", `{"type":"object"}`)
 		path := filepath.Join(extension.PackagePath, "schemas", "query-items.json")
 		// 超过 1 MiB 边界；digest 故意保持旧值以先触发 size 拒绝。
-		if err := os.WriteFile(path, []byte(strings.Repeat("x", lifecycleQuerySchemaMaximumBytes+1)), 0o600); err != nil {
+		if err := os.WriteFile(path, []byte(strings.Repeat("x", int(lifecyclePackageSchemaMaximumBytes)+1)), 0o600); err != nil {
 			t.Fatal(err)
 		}
 		if _, err := buildLifecycleQueryPublication(extension, lifecycleRegistryBinding(extension, "query-oversize-schema")); !errors.Is(err, ErrLifecycleRegistryPublicationInvalid) {
