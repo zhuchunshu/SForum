@@ -178,6 +178,60 @@ func (r *Registry) ResolveProvider(id string) (ProviderContribution, error) {
 	return cloneProviderContribution(value, true), nil
 }
 
+// ResolveProviderSnapshot resolves one provider from a single immutable state
+// load. Safe Mode never returns a third-party executable claim.
+func (r *Registry) ResolveProviderSnapshot(id string) (ProviderResolution, error) {
+	if r == nil {
+		return ProviderResolution{}, ErrInvalid
+	}
+	id = strings.ToLower(strings.TrimSpace(id))
+	if id == "" {
+		return ProviderResolution{}, ErrInvalid
+	}
+	state := r.load()
+	resolution := ProviderResolution{
+		Revision: state.revision,
+		Digest:   state.digest,
+		SafeMode: state.safeMode,
+	}
+	if state.safeMode {
+		return resolution, ErrSafeMode
+	}
+	provider, ok := state.providers[id]
+	if !ok {
+		return resolution, ErrNotFound
+	}
+	resolution.Provider = cloneProviderContribution(provider, true)
+	return resolution, nil
+}
+
+// ValidateProviderResolution verifies that an earlier exact provider claim is
+// still executable. Global revision/digest drift alone is not authority drift:
+// only Safe Mode or a changed/missing exact provider invalidates the claim.
+func (r *Registry) ValidateProviderResolution(resolution ProviderResolution) error {
+	if r == nil || resolution.SafeMode || resolution.Revision == 0 ||
+		strings.TrimSpace(resolution.Digest) == "" ||
+		strings.TrimSpace(resolution.Provider.ID) == "" {
+		return ErrInvalid
+	}
+	state := r.load()
+	if state.safeMode {
+		return ErrSafeMode
+	}
+	providerID := strings.ToLower(strings.TrimSpace(resolution.Provider.ID))
+	current, ok := state.providers[providerID]
+	if !ok {
+		return ErrNotFound
+	}
+	// ProviderResolution intentionally exposes only public contract material.
+	// Private compiled validators remain Registry-owned and are resolved later
+	// through exact artifact-bound Schema claims.
+	if !reflect.DeepEqual(cloneProviderContribution(current, true), resolution.Provider) {
+		return ErrArtifactConflict
+	}
+	return nil
+}
+
 func (r *Registry) Providers(kind string) []ProviderContribution {
 	kind = strings.ToLower(strings.TrimSpace(kind))
 	result := make([]ProviderContribution, 0)

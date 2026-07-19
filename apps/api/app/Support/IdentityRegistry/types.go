@@ -130,6 +130,17 @@ type ProviderContribution struct {
 	Artifact Artifact `json:"artifact"`
 }
 
+// ProviderResolution is one atomic process-local provider claim. Revision and
+// digest are inspection evidence; validation is scoped to Safe Mode and the
+// exact provider/artifact so unrelated Registry publications do not interrupt
+// an admitted call.
+type ProviderResolution struct {
+	Revision uint64               `json:"revision"`
+	Digest   string               `json:"digest"`
+	SafeMode bool                 `json:"safeMode,omitempty"`
+	Provider ProviderContribution `json:"provider"`
+}
+
 // Tombstone permanently reserves a stable declaration identity for its first
 // owner. Durable storage must restore this list after restart before publishing
 // third-party declarations; otherwise old role grants could be reinterpreted by
