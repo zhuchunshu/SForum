@@ -129,7 +129,15 @@ func TestIdentityEventLedgerHardeningPostgres(t *testing.T) {
 			action, previous_selection, selected_selection, actor_user_id,
 			audit_event_id, selection_revision
 		) VALUES (
-			'select', NULL, '{"policyId":"fixture.session"}'::jsonb, $1,
+			'select', NULL, jsonb_build_object(
+			  'policyId', 'fixture.session',
+			  'providerContractVersion', 'fixture.session@1',
+			  'ownerExtensionId', 'fixture.owner',
+			  'ownerExtensionVersionId', 1,
+			  'ownerExtensionVersion', '1.0.0',
+			  'ownerPackageDigest', repeat('a', 64),
+			  'declarationRevision', 1
+			), $1,
 			1003, 1
 		)
 	`, actorID); err != nil {
@@ -161,7 +169,15 @@ func TestIdentityEventLedgerHardeningPostgres(t *testing.T) {
 			action, previous_selection, selected_selection, audit_event_id,
 			selection_revision
 		) VALUES (
-			'select', NULL, '{"policyId":"fixture.other"}'::jsonb, 2003, 1
+			'select', NULL, jsonb_build_object(
+			  'policyId', 'fixture.other',
+			  'providerContractVersion', 'fixture.other@1',
+			  'ownerExtensionId', 'fixture.owner',
+			  'ownerExtensionVersionId', 1,
+			  'ownerExtensionVersion', '1.0.0',
+			  'ownerPackageDigest', repeat('b', 64),
+			  'declarationRevision', 1
+			), 2003, 1
 		)`,
 	}
 	for _, query := range duplicateInserts {
