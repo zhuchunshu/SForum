@@ -97,6 +97,10 @@ or treated as expired only after the complete V3 goal is achieved.
   fixed; user fields use Registry-aware Identity reads and versioned Host
   Commands; automation uses bounded existing Host Query, broker, and delegated
   Host Command transports.
+- Follow-up review freezes `sessionPolicy` as a Host-owned durable CAS/audited
+  selection that defaults and safely resets to Core; a Manifest only declares
+  a candidate and lifecycle actions never select it implicitly. Extension field
+  reads also require live `users.read` capability plus a live authorized actor.
 - Exact current task: add optional executable Identity provider operations to
   Manifest V3, including normalization, semantic validation, embedded JSON
   Schema, modular OpenAPI, package-bound input/output Schema declarations, and

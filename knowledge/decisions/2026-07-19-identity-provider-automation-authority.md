@@ -137,24 +137,34 @@ never relies on frontend hiding as authorization.
 User-field reads reuse `IdentityService.GetUser`, but the Host resolves every
 requested field against the active exact Registry declaration and performs the
 live per-field `readPermission` check; the current unrestricted
-`declared_fields` projection is not authority. Writes use a versioned Host
-Command with `expectedRevision`, idempotency, audit, exact active declaration,
-Schema validation, and a live `writePermission` check. They do not add a broad
-Identity RPC and do not reuse Entity Meta. Component Manifest/Registry material
-adds an optional permission key that must resolve to an active Core or Identity
-permission and is finally checked by the Host; Query retains its existing
-permission-policy path.
+`declared_fields` projection is not authority. A plugin caller additionally
+needs its live exact `users.read` subprocess capability, and actorless field
+reads are denied. Writes use a versioned Host Command with `expectedRevision`,
+idempotency, audit, exact active declaration, Schema validation, a live actor,
+and a live `writePermission` check. They do not add a broad Identity RPC and do
+not reuse Entity Meta. Component Manifest/Registry material adds an optional
+permission key that must resolve to an active Core or Identity permission and is
+finally checked by the Host; Query retains its existing permission-policy path.
 
 ### Session and risk composition
 
-`core.session.default` remains the recommended session policy. Authentication
-and recovery flows invoke the exact provider id selected by the Host/user;
-priority never silently replaces that choice. Profile sections compose all
-active providers in deterministic priority/id order, omitting only a provider
-whose fixed presentation policy is `omit`. A plugin session policy must name one
-exact active `session` provider, and `session.evaluate` runs only before issue or
-renew. Risk hooks resolve to all exact active `risk` providers and execute in
-deterministic priority/id order; deny and step-up dispositions dominate allow.
+`core.session.default` remains the recommended session policy. A Manifest
+`sessionPolicy` is only a candidate association; install, enable, and upgrade
+never make it effective implicitly. The Host owns one durable revisioned
+selection with CAS and audit, defaulting to `core.session.default`. Disabling or
+uninstalling the selected provider atomically resets the selection to Core
+before unpublication. An incompatible upgrade keeps the old exact runtime or
+resets to Core before switching; it never leaves a stale selection. Safe Mode
+always ignores third-party selection and uses Core policy.
+
+Authentication and recovery flows invoke the exact provider id selected by the
+Host/user; priority never silently replaces that choice. Profile sections
+compose all active providers in deterministic priority/id order, omitting only
+a provider whose fixed presentation policy is `omit`. A plugin session policy
+must name one exact active `session` provider, and `session.evaluate` runs only
+before issue or renew. Risk hooks resolve to all exact active `risk` providers
+and execute in deterministic priority/id order; deny and step-up dispositions
+dominate allow.
 Their outputs are bounded Host dispositions and do not create sessions or grant
 permissions. Missing, stale, malformed, timed-out, or failed security providers
 fail closed. Browser session revocation is always committed by the Host without

@@ -26,6 +26,12 @@ Last updated: 2026-07-19
   fixed per operation; user-field reads/writes reuse Registry-aware Identity
   and versioned Host Command paths; automation reuses redacted Host Query,
   existing brokers, and command-bound actor delegation rather than a broad RPC.
+- Follow-up review also freezes `sessionPolicy` as a Host-owned durable
+  CAS/audited selection. A Manifest declares only a candidate, Core is the
+  default/Safe Mode policy, lifecycle never selects implicitly, and selected
+  provider removal or incompatible replacement cannot leave stale authority.
+  Extension user-field reads require both live `users.read` capability and a
+  live actor that passes the field permission.
 - Independent Codex and Grok read-only audits agree that the first compatible
   code slice belongs in `Support/ExtensionManifest`: add optional typed provider
   operations, normalization/validation, embedded JSON Schema, modular OpenAPI,
