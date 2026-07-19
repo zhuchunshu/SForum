@@ -4,7 +4,7 @@ Last updated: 2026-07-19
 
 ## Progress
 
-- Verified weighted progress: **67.8295%** (display **67.8%**).
+- Verified weighted progress: **67.8295%** (display **67.0%**).
 - Phase counts: P0-P6 and P8 complete; P6 **18/18**, P7 **18/22**,
   P8 **18/18**, P9 **4/16**, P11 **1/16**, and P12 **1/22**. P10 and P13
   have no credited authoritative row yet.
@@ -34,7 +34,7 @@ Last updated: 2026-07-19
 
 ### 2026-07-19 P7 External Identity Link Store Checkpoint
 
-- Verified weighted progress remains **67.8295%** (display **67.8%**) and P7
+- Verified weighted progress remains **67.8295%** (display **67.0%**) and P7
   remains **18/22**. Registry/runtime/persistence infrastructure is necessary
   evidence for the four open rows but does not receive fractional row credit.
 - The executable Identity chain is now committed through immutable Schema
@@ -80,7 +80,7 @@ Last updated: 2026-07-19
 
 ### 2026-07-19 P7 Identity Provider And Automation Contract Checkpoint
 
-- Verified weighted progress remains **67.8295%** (display **67.8%**) and P7
+- Verified weighted progress remains **67.8295%** (display **67.0%**) and P7
   remains **18/22**. This contract checkpoint receives no task-row credit.
 - `e378d4eb0` records the recommended Identity provider, Host-owned identity
   effect, retained user-field/link data, and trusted automation boundaries.
@@ -135,7 +135,7 @@ Last updated: 2026-07-19
 ### 2026-07-19 P7 Query Registry And Joined Gates Closure
 
 - Verified weighted progress advances from **66.9205%** to **67.8295%**
-  (display **67.8%**); P7 advances from **16/22** to **18/22**. The Query
+  (display **67.0%**); P7 advances from **16/22** to **18/22**. The Query
   implementation task and Query composition test row are now closed. This
   checkpoint supersedes the no-credit Query checkpoints below without changing
   their historical evidence.
