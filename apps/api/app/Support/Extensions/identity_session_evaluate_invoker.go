@@ -41,8 +41,9 @@ func (i *IdentitySessionEvaluateInvoker) InvokeExact(
 	if provider.ID == "" || operation == "" {
 		return ErrIdentityProviderInvocationInvalid
 	}
-	_, err := i.runtime.Invoke(
+	_, err := i.runtime.InvokeExact(
 		ctx,
+		provider,
 		IdentityProviderInvocation{
 			ProviderID:  provider.ID,
 			Operation:   operation,
@@ -52,7 +53,7 @@ func (i *IdentitySessionEvaluateInvoker) InvokeExact(
 		func(callCtx context.Context, proposal IdentityProviderInvocationResult, fence IdentityProviderCommitFence) error {
 			// Defense in depth: refuse a different exact artifact than the
 			// resolution claim even if Registry ids collide across revisions.
-			if !identitySessionProviderMatches(proposal.Provider, provider) ||
+			if !sameIdentityProviderContract(proposal.Provider, provider) ||
 				proposal.Operation.Name != operation {
 				return errors.Join(ErrIdentityProviderStale, ErrIdentityProviderAcceptFailed)
 			}
@@ -65,39 +66,6 @@ func (i *IdentitySessionEvaluateInvoker) InvokeExact(
 		},
 	)
 	return err
-}
-
-func identitySessionProviderMatches(
-	left identityregistry.ProviderContribution,
-	right identityregistry.ProviderContribution,
-) bool {
-	if left.Artifact != right.Artifact ||
-		left.ID != right.ID ||
-		left.ContractVersion != right.ContractVersion ||
-		left.Kind != right.Kind ||
-		left.Handler != right.Handler ||
-		left.Priority != right.Priority ||
-		len(left.Operations) != len(right.Operations) {
-		return false
-	}
-	for index := range left.Operations {
-		leftOp := left.Operations[index]
-		rightOp := right.Operations[index]
-		// Compare only public contract fields; bound Schema pointers are
-		// Host-private and may differ across deep clones of the same claim.
-		if leftOp.Name != rightOp.Name ||
-			leftOp.InputSchema != rightOp.InputSchema ||
-			leftOp.InputSchemaWireReference != rightOp.InputSchemaWireReference ||
-			leftOp.InputSchemaDigest != rightOp.InputSchemaDigest ||
-			leftOp.OutputSchema != rightOp.OutputSchema ||
-			leftOp.OutputSchemaWireReference != rightOp.OutputSchemaWireReference ||
-			leftOp.OutputSchemaDigest != rightOp.OutputSchemaDigest ||
-			leftOp.TimeoutMS != rightOp.TimeoutMS ||
-			leftOp.FailurePolicy != rightOp.FailurePolicy {
-			return false
-		}
-	}
-	return true
 }
 
 var _ identity.SessionPolicyEvaluateInvoker = (*IdentitySessionEvaluateInvoker)(nil)

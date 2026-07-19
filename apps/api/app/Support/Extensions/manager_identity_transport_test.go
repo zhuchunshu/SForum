@@ -195,10 +195,10 @@ func TestManagerIdentityProviderRejectsArtifactAndRegistryDrift(t *testing.T) {
 		}
 	})
 
-	t.Run("registry revision before accept", func(t *testing.T) {
+	t.Run("unrelated registry revision before accept", func(t *testing.T) {
 		fixture := newManagerIdentityTransportFixture(t, strings.Repeat("a", 64))
 		committed := false
-		_, err := fixture.runtime.Invoke(
+		result, err := fixture.runtime.Invoke(
 			t.Context(), fixture.invocation(),
 			func(_ context.Context, _ IdentityProviderInvocationResult, fence IdentityProviderCommitFence) error {
 				artifact, artifactErr := identityregistry.NewCoreArtifact(
@@ -217,8 +217,9 @@ func TestManagerIdentityProviderRejectsArtifactAndRegistryDrift(t *testing.T) {
 				return nil
 			},
 		)
-		if !errors.Is(err, ErrIdentityProviderStale) || committed || fixture.starter.calls.Load() != 1 {
-			t.Fatalf("revision drift calls=%d committed=%t err=%v", fixture.starter.calls.Load(), committed, err)
+		if err != nil || !committed || fixture.starter.calls.Load() != 1 ||
+			result.Provider.ID != fixture.provider.ID {
+			t.Fatalf("unrelated drift result=%#v calls=%d committed=%t err=%v", result, fixture.starter.calls.Load(), committed, err)
 		}
 	})
 }
@@ -301,6 +302,33 @@ func TestManagerIdentityProviderNeverFallsBackToActiveReplacement(t *testing.T) 
 	active, activeErr := fixture.manager.ActiveRuntimeInstance(fixture.extension.ID)
 	if activeErr != nil || active.Identity.InstanceID != "identity-runtime-replacement" {
 		t.Fatalf("active replacement=%#v err=%v", active, activeErr)
+	}
+}
+
+func TestManagerIdentityProviderInvokeExactRejectsSameIDArtifactReplacementBeforeTransport(t *testing.T) {
+	fixture := newManagerIdentityTransportFixture(t, strings.Repeat("a", 64))
+	expected := fixture.provider
+	replacement := fixture.publication
+	replacement.Artifact.ExtensionVersion = "2.0.0"
+	replacement.Artifact.PackageDigest = strings.Repeat("d", 64)
+	replacement.Artifact.VersionID++
+	replacement.Artifact.RuntimeInstanceID = "identity-runtime-replacement"
+	if _, removed, err := fixture.registry.Remove(fixture.publication.Artifact); err != nil || !removed {
+		t.Fatalf("remove source publication removed=%t err=%v", removed, err)
+	}
+	if _, err := fixture.registry.Publish(replacement); err != nil {
+		t.Fatalf("publish replacement: %v", err)
+	}
+
+	_, err := fixture.runtime.InvokeExact(
+		t.Context(), expected, fixture.invocation(),
+		func(context.Context, IdentityProviderInvocationResult, IdentityProviderCommitFence) error {
+			t.Fatal("accept must not run for a stale exact claim")
+			return nil
+		},
+	)
+	if !errors.Is(err, ErrIdentityProviderStale) || fixture.starter.calls.Load() != 0 {
+		t.Fatalf("same-id replacement transport calls=%d err=%v", fixture.starter.calls.Load(), err)
 	}
 }
 

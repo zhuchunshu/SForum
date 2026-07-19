@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"reflect"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -85,11 +84,35 @@ type exactIdentityProviderInvoker interface {
 	) (VersionedIdentityProviderResponse, error)
 }
 
-// Invoke resolves and invokes one exact active Identity
-// provider. It deliberately has no Core or generic-provider fallback.
+// Invoke resolves and invokes one currently active Identity provider. It
+// deliberately has no Core or generic-provider fallback. Callers that already
+// hold an immutable Registry claim must use InvokeExact so a same-id artifact
+// replacement is rejected before any subprocess call.
 func (r *IdentityProviderRuntime) Invoke(
 	ctx context.Context,
 	input IdentityProviderInvocation,
+	accept IdentityProviderAccept,
+) (IdentityProviderInvocationResult, error) {
+	return r.invoke(ctx, input, nil, accept)
+}
+
+// InvokeExact invokes only the supplied immutable provider claim. The current
+// Registry must still contain that exact artifact and contract before Schema
+// validation, runtime admission, or subprocess transport begins.
+func (r *IdentityProviderRuntime) InvokeExact(
+	ctx context.Context,
+	expected identityregistry.ProviderContribution,
+	input IdentityProviderInvocation,
+	accept IdentityProviderAccept,
+) (IdentityProviderInvocationResult, error) {
+	frozen := cloneIdentityProviderContribution(expected)
+	return r.invoke(ctx, input, &frozen, accept)
+}
+
+func (r *IdentityProviderRuntime) invoke(
+	ctx context.Context,
+	input IdentityProviderInvocation,
+	expected *identityregistry.ProviderContribution,
 	accept IdentityProviderAccept,
 ) (IdentityProviderInvocationResult, error) {
 	if r == nil || r.manager == nil || r.registry == nil || ctx == nil || accept == nil || input.ActorUserID < 0 {
@@ -104,26 +127,32 @@ func (r *IdentityProviderRuntime) Invoke(
 		return IdentityProviderInvocationResult{}, ErrIdentityProviderInvocationInvalid
 	}
 
-	registrySnapshot := r.registry.Snapshot()
-	if registrySnapshot.SafeMode {
-		return IdentityProviderInvocationResult{}, errors.Join(ErrIdentityProviderUnavailable, identityregistry.ErrSafeMode)
-	}
-	provider, err := r.registry.ResolveProvider(input.ProviderID)
+	resolution, err := r.registry.ResolveProviderSnapshot(input.ProviderID)
 	if err != nil {
-		return IdentityProviderInvocationResult{}, errors.Join(ErrIdentityProviderUnavailable, err)
+		return IdentityProviderInvocationResult{}, mapIdentityProviderResolutionError(err)
 	}
+	if expected != nil {
+		if strings.ToLower(strings.TrimSpace(expected.ID)) != input.ProviderID {
+			return IdentityProviderInvocationResult{}, ErrIdentityProviderInvocationInvalid
+		}
+		if !sameIdentityProviderContract(resolution.Provider, *expected) {
+			return IdentityProviderInvocationResult{}, ErrIdentityProviderStale
+		}
+	}
+	provider := resolution.Provider
 	operation, found := exactIdentityProviderOperation(provider, input.Operation)
 	if provider.Artifact.Core || strings.TrimSpace(provider.Artifact.RuntimeInstanceID) == "" || !found {
 		return IdentityProviderInvocationResult{}, ErrIdentityProviderUnavailable
 	}
-	if err := validateIdentityRegistryState(
-		r.registry, registrySnapshot.Revision, registrySnapshot.Digest, provider,
-	); err != nil {
+	if err := validateIdentityProviderResolution(r.registry, resolution); err != nil {
 		return IdentityProviderInvocationResult{}, err
 	}
 
 	requestInput, err := cloneIdentityProviderDocument(input.Input)
 	if err != nil {
+		if staleErr := validateIdentityProviderResolution(r.registry, resolution); staleErr != nil {
+			return IdentityProviderInvocationResult{}, staleErr
+		}
 		return IdentityProviderInvocationResult{}, fmt.Errorf("%w: clone input: %v", ErrIdentityProviderInvocationInvalid, err)
 	}
 	claim := identityregistry.ProviderOperationSchemaClaim{
@@ -131,6 +160,9 @@ func (r *IdentityProviderRuntime) Invoke(
 		Operation: operation.Name, Artifact: provider.Artifact,
 	}
 	if err := r.registry.ValidateProviderOperationInput(claim, requestInput); err != nil {
+		if staleErr := validateIdentityProviderResolution(r.registry, resolution); staleErr != nil {
+			return IdentityProviderInvocationResult{}, staleErr
+		}
 		return IdentityProviderInvocationResult{}, fmt.Errorf("%w: input Schema: %w", ErrIdentityProviderInvocationInvalid, err)
 	}
 
@@ -144,13 +176,14 @@ func (r *IdentityProviderRuntime) Invoke(
 	}
 	defer lease.Release()
 
+	if cause := context.Cause(lease.Context); cause != nil {
+		return IdentityProviderInvocationResult{}, cause
+	}
 	extension, err := r.manager.exactIdentityManagedRuntime(identity, provider.Artifact)
 	if err != nil {
 		return IdentityProviderInvocationResult{}, err
 	}
-	if err := validateIdentityRegistryState(
-		r.registry, registrySnapshot.Revision, registrySnapshot.Digest, provider,
-	); err != nil {
+	if err := validateIdentityProviderResolution(r.registry, resolution); err != nil {
 		return IdentityProviderInvocationResult{}, err
 	}
 	if cause := context.Cause(lease.Context); cause != nil {
@@ -190,28 +223,38 @@ func (r *IdentityProviderRuntime) Invoke(
 	}
 	output, err := cloneIdentityProviderDocument(response.Output)
 	if err != nil {
+		if cause := context.Cause(lease.Context); cause != nil {
+			return IdentityProviderInvocationResult{}, cause
+		}
+		if staleErr := validateIdentityProviderResolution(r.registry, resolution); staleErr != nil {
+			return IdentityProviderInvocationResult{}, staleErr
+		}
 		return IdentityProviderInvocationResult{}, fmt.Errorf("%w: clone output: %v", ErrIdentityProviderInvocationInvalid, err)
 	}
 	if err := r.registry.ValidateProviderOperationOutput(claim, output); err != nil {
+		if cause := context.Cause(lease.Context); cause != nil {
+			return IdentityProviderInvocationResult{}, cause
+		}
+		if staleErr := validateIdentityProviderResolution(r.registry, resolution); staleErr != nil {
+			return IdentityProviderInvocationResult{}, staleErr
+		}
 		return IdentityProviderInvocationResult{}, fmt.Errorf("%w: output Schema: %w", ErrIdentityProviderInvocationInvalid, err)
 	}
 
 	// Recheck all mutable Host-owned authority immediately before the effect and
 	// audit callback. The lease keeps the exact process alive through Accept.
-	if err := validateIdentityRegistryState(
-		r.registry, registrySnapshot.Revision, registrySnapshot.Digest, provider,
-	); err != nil {
+	if cause := context.Cause(lease.Context); cause != nil {
+		return IdentityProviderInvocationResult{}, cause
+	}
+	if err := validateIdentityProviderResolution(r.registry, resolution); err != nil {
 		return IdentityProviderInvocationResult{}, err
 	}
 	if _, err := r.manager.exactIdentityManagedRuntime(identity, provider.Artifact); err != nil {
 		return IdentityProviderInvocationResult{}, err
 	}
-	if cause := context.Cause(lease.Context); cause != nil {
-		return IdentityProviderInvocationResult{}, cause
-	}
 	result := IdentityProviderInvocationResult{
-		RegistryRevision: registrySnapshot.Revision,
-		RegistryDigest:   registrySnapshot.Digest,
+		RegistryRevision: resolution.Revision,
+		RegistryDigest:   resolution.Digest,
 		Provider:         provider,
 		Operation:        operation,
 		Output:           output,
@@ -227,9 +270,7 @@ func (r *IdentityProviderRuntime) Invoke(
 		if cause := context.Cause(lease.Context); cause != nil {
 			return cause
 		}
-		if err := validateIdentityRegistryState(
-			r.registry, registrySnapshot.Revision, registrySnapshot.Digest, provider,
-		); err != nil {
+		if err := validateIdentityProviderResolution(r.registry, resolution); err != nil {
 			return err
 		}
 		_, err := r.manager.exactIdentityManagedRuntime(identity, provider.Artifact)
@@ -288,26 +329,55 @@ func exactIdentityProviderOperation(
 	return identityregistry.ProviderOperation{}, false
 }
 
-func validateIdentityRegistryState(
+func validateIdentityProviderResolution(
 	registry *identityregistry.Registry,
-	revision uint64,
-	digest string,
-	expected identityregistry.ProviderContribution,
+	resolution identityregistry.ProviderResolution,
 ) error {
 	if registry == nil {
 		return ErrIdentityProviderInvocationInvalid
 	}
-	snapshot := registry.Snapshot()
-	if snapshot.SafeMode {
-		return errors.Join(ErrIdentityProviderStale, identityregistry.ErrSafeMode)
-	}
-	current, err := registry.ResolveProvider(expected.ID)
-	if err != nil || snapshot.Revision != revision || snapshot.Digest != digest ||
-		registry.Revision() != revision ||
-		!reflect.DeepEqual(current, expected) {
+	if err := registry.ValidateProviderResolution(resolution); err != nil {
 		return errors.Join(ErrIdentityProviderStale, err)
 	}
 	return nil
+}
+
+func mapIdentityProviderResolutionError(err error) error {
+	if errors.Is(err, identityregistry.ErrSafeMode) {
+		return errors.Join(ErrIdentityProviderUnavailable, identityregistry.ErrSafeMode)
+	}
+	if errors.Is(err, identityregistry.ErrNotFound) {
+		return errors.Join(ErrIdentityProviderUnavailable, err)
+	}
+	return errors.Join(ErrIdentityProviderStale, err)
+}
+
+func sameIdentityProviderContract(
+	left identityregistry.ProviderContribution,
+	right identityregistry.ProviderContribution,
+) bool {
+	if left.Artifact != right.Artifact || left.ID != right.ID ||
+		left.ContractVersion != right.ContractVersion || left.Kind != right.Kind ||
+		left.Handler != right.Handler || left.Priority != right.Priority ||
+		len(left.Operations) != len(right.Operations) {
+		return false
+	}
+	for index := range left.Operations {
+		leftOperation := left.Operations[index]
+		rightOperation := right.Operations[index]
+		if leftOperation.Name != rightOperation.Name ||
+			leftOperation.InputSchema != rightOperation.InputSchema ||
+			leftOperation.InputSchemaWireReference != rightOperation.InputSchemaWireReference ||
+			leftOperation.InputSchemaDigest != rightOperation.InputSchemaDigest ||
+			leftOperation.OutputSchema != rightOperation.OutputSchema ||
+			leftOperation.OutputSchemaWireReference != rightOperation.OutputSchemaWireReference ||
+			leftOperation.OutputSchemaDigest != rightOperation.OutputSchemaDigest ||
+			leftOperation.TimeoutMS != rightOperation.TimeoutMS ||
+			leftOperation.FailurePolicy != rightOperation.FailurePolicy {
+			return false
+		}
+	}
+	return true
 }
 
 func cloneIdentityProviderDocument(input map[string]any) (map[string]any, error) {
@@ -334,8 +404,16 @@ func cloneIdentityProviderDocument(input map[string]any) (map[string]any, error)
 
 func cloneIdentityProviderResult(input IdentityProviderInvocationResult) IdentityProviderInvocationResult {
 	result := input
-	result.Provider.Operations = append([]identityregistry.ProviderOperation(nil), input.Provider.Operations...)
+	result.Provider = cloneIdentityProviderContribution(input.Provider)
 	result.Output, _ = cloneIdentityProviderDocument(input.Output)
+	return result
+}
+
+func cloneIdentityProviderContribution(
+	input identityregistry.ProviderContribution,
+) identityregistry.ProviderContribution {
+	result := input
+	result.Operations = append([]identityregistry.ProviderOperation(nil), input.Operations...)
 	return result
 }
 

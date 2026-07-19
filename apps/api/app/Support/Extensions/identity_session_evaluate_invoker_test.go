@@ -75,3 +75,34 @@ func TestIdentitySessionEvaluateInvokerPropagatesTransportFailure(t *testing.T) 
 		t.Fatal("expected transport failure")
 	}
 }
+
+func TestIdentitySessionEvaluateInvokerRejectsSameIDReplacementBeforeRuntimeCall(t *testing.T) {
+	fixture := newManagerIdentityTransportFixture(t, strings.Repeat("a", 64))
+	invoker, err := NewIdentitySessionEvaluateInvoker(fixture.runtime)
+	if err != nil {
+		t.Fatal(err)
+	}
+	replacement := fixture.publication
+	replacement.Artifact.ExtensionVersion = "2.0.0"
+	replacement.Artifact.PackageDigest = strings.Repeat("d", 64)
+	replacement.Artifact.VersionID++
+	replacement.Artifact.RuntimeInstanceID = "identity-runtime-replacement"
+	if _, removed, err := fixture.registry.Remove(fixture.publication.Artifact); err != nil || !removed {
+		t.Fatalf("remove source publication removed=%t err=%v", removed, err)
+	}
+	if _, err := fixture.registry.Publish(replacement); err != nil {
+		t.Fatalf("publish replacement: %v", err)
+	}
+
+	err = invoker.InvokeExact(
+		t.Context(), fixture.provider, fixture.operation.Name, 1,
+		map[string]any{"risk": "not-a-boolean"},
+		func(context.Context, map[string]any, func() error) error {
+			t.Fatal("accept must not run for stale exact claim")
+			return nil
+		},
+	)
+	if !errors.Is(err, ErrIdentityProviderStale) || fixture.starter.calls.Load() != 0 {
+		t.Fatalf("same-id replacement calls=%d err=%v", fixture.starter.calls.Load(), err)
+	}
+}
