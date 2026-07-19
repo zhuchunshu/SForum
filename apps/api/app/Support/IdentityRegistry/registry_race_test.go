@@ -3,8 +3,10 @@ package identityregistry
 import (
 	"errors"
 	"fmt"
+	"runtime"
 	"sync"
 	"testing"
+	"time"
 )
 
 func TestRegistrySnapshotsRemainAtomicDuringExactUpgrades(t *testing.T) {
@@ -88,5 +90,129 @@ func TestRegistryConcurrentExactWritersHaveOneWinner(t *testing.T) {
 	}
 	if succeeded != 1 || conflicted != 1 || registry.Revision() != 2 {
 		t.Fatalf("succeeded=%d conflicted=%d revision=%d", succeeded, conflicted, registry.Revision())
+	}
+}
+
+func TestRegistrySessionPolicyLeaseSerializesAuthorityWriters(t *testing.T) {
+	registry := New()
+	publication := testPublication(1)
+	if _, err := registry.Publish(publication); err != nil {
+		t.Fatal(err)
+	}
+
+	entered := make(chan struct{})
+	release := make(chan struct{})
+	var releaseOnce sync.Once
+	releaseLease := func() { releaseOnce.Do(func() { close(release) }) }
+	t.Cleanup(releaseLease)
+	leaseResult := make(chan error, 1)
+	go func() {
+		leaseResult <- registry.RunWithSessionPolicyLease("core.session.default", func(claim SessionPolicyLeaseClaim) error {
+			if claim.Revision != 1 || claim.SafeMode || claim.Provider != nil {
+				return fmt.Errorf("unexpected lease claim: %#v", claim)
+			}
+			close(entered)
+			<-release
+			return nil
+		})
+	}()
+	awaitRegistryLeaseSignal(t, entered, "session policy lease")
+
+	writerStarted := make(chan struct{})
+	writerResult := make(chan error, 1)
+	go func() {
+		close(writerStarted)
+		_, err := registry.ReplaceAllIfRevision(
+			1,
+			[]Publication{publication},
+			registry.Snapshot().Tombstones,
+			true,
+		)
+		writerResult <- err
+	}()
+	awaitRegistryLeaseSignal(t, writerStarted, "Registry writer")
+	deadline := time.Now().Add(5 * time.Second)
+	for registry.mu.TryRLock() {
+		registry.mu.RUnlock()
+		if time.Now().After(deadline) {
+			t.Fatal("Registry writer did not queue before deadline")
+		}
+		runtime.Gosched()
+	}
+	select {
+	case err := <-writerResult:
+		t.Fatalf("Registry writer crossed active read lease: %v", err)
+	default:
+	}
+
+	releaseLease()
+	if err := awaitRegistryLeaseResult(t, leaseResult, "session policy lease"); err != nil {
+		t.Fatal(err)
+	}
+	if err := awaitRegistryLeaseResult(t, writerResult, "Registry writer"); err != nil {
+		t.Fatal(err)
+	}
+	if !registry.Snapshot().SafeMode {
+		t.Fatal("Safe Mode writer did not publish after read lease returned")
+	}
+}
+
+func TestRegistrySessionPolicyLeaseReleasesAfterErrorAndPanic(t *testing.T) {
+	registry := New()
+	publication := testPublication(1)
+	if _, err := registry.Publish(publication); err != nil {
+		t.Fatal(err)
+	}
+	wantErr := errors.New("Host effect failed")
+	if err := registry.RunWithSessionPolicyLease("core.session.default", func(SessionPolicyLeaseClaim) error { return wantErr }); !errors.Is(err, wantErr) {
+		t.Fatalf("lease error = %v", err)
+	}
+	if !registry.mu.TryLock() {
+		t.Fatal("lease read lock remained held after callback error")
+	}
+	registry.mu.Unlock()
+
+	panicValue := "Host effect panic"
+	func() {
+		defer func() {
+			if recovered := recover(); recovered != panicValue {
+				t.Fatalf("recovered panic = %#v", recovered)
+			}
+		}()
+		_ = registry.RunWithSessionPolicyLease("core.session.default", func(SessionPolicyLeaseClaim) error { panic(panicValue) })
+	}()
+	if !registry.mu.TryLock() {
+		t.Fatal("lease read lock remained held after callback panic")
+	}
+	registry.mu.Unlock()
+
+	if _, removed, err := registry.Remove(publication.Artifact); err != nil || !removed {
+		t.Fatalf("writer after lease exits removed=%t err=%v", removed, err)
+	}
+	if err := (*Registry)(nil).RunWithSessionPolicyLease("core.session.default", func(SessionPolicyLeaseClaim) error { return nil }); !errors.Is(err, ErrInvalid) {
+		t.Fatalf("nil Registry error = %v", err)
+	}
+	if err := registry.RunWithSessionPolicyLease("core.session.default", nil); !errors.Is(err, ErrInvalid) {
+		t.Fatalf("nil callback error = %v", err)
+	}
+}
+
+func awaitRegistryLeaseSignal(t *testing.T, signal <-chan struct{}, label string) {
+	t.Helper()
+	select {
+	case <-signal:
+	case <-time.After(5 * time.Second):
+		t.Fatalf("timed out waiting for %s", label)
+	}
+}
+
+func awaitRegistryLeaseResult(t *testing.T, result <-chan error, label string) error {
+	t.Helper()
+	select {
+	case err := <-result:
+		return err
+	case <-time.After(5 * time.Second):
+		t.Fatalf("timed out waiting for %s result", label)
+		return nil
 	}
 }

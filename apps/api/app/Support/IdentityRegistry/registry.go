@@ -21,8 +21,18 @@ type registryState struct {
 }
 
 type Registry struct {
-	mu    sync.Mutex
+	mu    sync.RWMutex
 	state atomic.Pointer[registryState]
+}
+
+// SessionPolicyLeaseClaim is the narrow Registry authority visible to one
+// Host-owned session effect. Provider is nil for Core, Safe Mode, and stale or
+// unbound plugin policy IDs.
+type SessionPolicyLeaseClaim struct {
+	Revision uint64
+	Digest   string
+	SafeMode bool
+	Provider *ProviderContribution
 }
 
 func New() *Registry {
@@ -257,6 +267,41 @@ func (r *Registry) Providers(kind string) []ProviderContribution {
 
 func (r *Registry) Snapshot() Snapshot {
 	return snapshotFromState(r.load())
+}
+
+// RunWithSessionPolicyLease applies one synchronous Host effect while the
+// current session-policy binding cannot be replaced. It deliberately avoids a
+// full replay Snapshot because those publications retain private compiled
+// Schema material. The callback must not mutate this Registry or escape work to
+// another goroutine.
+func (r *Registry) RunWithSessionPolicyLease(
+	policyID string,
+	run func(SessionPolicyLeaseClaim) error,
+) error {
+	policyID = strings.ToLower(strings.TrimSpace(policyID))
+	if r == nil || run == nil || !idPattern.MatchString(policyID) {
+		return ErrInvalid
+	}
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	state := r.load()
+	claim := SessionPolicyLeaseClaim{
+		Revision: state.revision,
+		Digest:   state.digest,
+		SafeMode: state.safeMode,
+	}
+	if !state.safeMode {
+		if provider, ok := state.providers[policyID]; ok {
+			publication, publicationOK := state.publications[provider.Artifact.ExtensionID]
+			if publicationOK && publication.Artifact == provider.Artifact && publication.Identity != nil &&
+				publication.Identity.SessionPolicy == policyID {
+				public := cloneProviderContribution(provider, true)
+				claim.Provider = &public
+			}
+		}
+	}
+	return run(claim)
 }
 
 func (r *Registry) SnapshotPublication(extensionID string) (Publication, bool) {
