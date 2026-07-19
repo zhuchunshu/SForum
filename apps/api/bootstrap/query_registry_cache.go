@@ -164,6 +164,25 @@ func newProductionQueryInvalidationRuntime(
 	}, logger)
 }
 
+// Keep embedded and standalone construction as named ownership boundaries even
+// while both use the same Redis policy. Their clients must never be handed off
+// from the API execution cache or shared with each other.
+func newEmbeddedWorkerQueryInvalidationRuntime(
+	cfg config.Config,
+	installationID string,
+	logger *slog.Logger,
+) *productionQueryInvalidationRuntime {
+	return newProductionQueryInvalidationRuntime(cfg, installationID, logger)
+}
+
+func newStandaloneWorkerQueryInvalidationRuntime(
+	cfg config.Config,
+	installationID string,
+	logger *slog.Logger,
+) *productionQueryInvalidationRuntime {
+	return newProductionQueryInvalidationRuntime(cfg, installationID, logger)
+}
+
 func newProductionQueryInvalidationRuntimeWithFactory(
 	factory productionQueryInvalidatorFactory,
 	logger *slog.Logger,

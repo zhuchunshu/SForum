@@ -459,7 +459,7 @@ func NewWorker(ctx context.Context, cfg config.Config, logger *slog.Logger) (*Wo
 		ConnMaxIdleTime: cfg.RedisConnMaxIdleTime,
 		ConnMaxLifetime: cfg.RedisConnMaxLifetime,
 	})
-	queryInvalidation := newProductionQueryInvalidationRuntime(cfg, hostInstallationID, logger)
+	queryInvalidation := newStandaloneWorkerQueryInvalidationRuntime(cfg, hostInstallationID, logger)
 	// 独立 worker：自建 runtime，OwnsRuntime 由 newWorkerWithPool 在 nil inject 时设为 true。
 	worker, err := newWorkerWithPool(cfg, pool, logger, workerRuntimeDeps{
 		BootstrapContext: ctx,

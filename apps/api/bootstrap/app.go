@@ -951,7 +951,7 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 
 	var embeddedWorker *Worker
 	if shouldEmbedWorkerInAPI(cfg) {
-		workerQueryInvalidation := newProductionQueryInvalidationRuntime(cfg, hostInstallationID, logger)
+		workerQueryInvalidation := newEmbeddedWorkerQueryInvalidationRuntime(cfg, hostInstallationID, logger)
 		// Embed 时复用 API 已 Reconcile 的 extensionRuntime，避免每个后端插件双起子进程。
 		// 插件 runtime 复用，但 Query invalidator 独占 Redis client，避免 worker
 		// 的 terminal latch 污染 API execution cache。
