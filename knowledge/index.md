@@ -20,10 +20,11 @@ This is the entry point for project memory.
     remaining rows are Identity/Permission, Auth/Profile, trusted automation
     authority, and the joined identity denial/no-implicit-grant test.
   - Identity P7 infrastructure now includes immutable executable provider
-    Schemas, exact runtime admission, the Host-owned external-link Store, and
-    strict same-publication `sessionPolicy` binding with recovery-only legacy
-    durable decoding. User-field/session-selection stores and Core consumers
-    remain open and receive no partial row credit.
+    Schemas, exact runtime admission, strict same-publication `sessionPolicy`
+    binding, and Host-owned external-link, user-field, and session-policy
+    selection Stores. Lifecycle reset wiring, Core consumers, Auth/Profile
+    surfaces, trusted automation, and the joined identity no-implicit-grant
+    gate remain open and receive no partial row credit.
   - Active checkpoint:
     `knowledge/sessions/2026-07-19-trusted-plugin-theme-platform-v3-identity-runtime-checkpoint.md`
   - Prior runtime-ownership checkpoint:

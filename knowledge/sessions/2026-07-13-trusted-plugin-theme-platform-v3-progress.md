@@ -32,6 +32,37 @@ Last updated: 2026-07-19
 
 ## Current Subtask
 
+### 2026-07-19 P7 Session Policy Selection Store Checkpoint
+
+- Verified weighted progress remains **67.8295%** (display **67.0%**) and P7
+  remains **18/22**. Selection persistence is required infrastructure; it does
+  not close an authoritative row before lifecycle, production consumers, and
+  the real membership-plugin gates pass.
+- `7dec20a32` freezes exact Session Policy event evidence in additive migration
+  041. Core permits only its exact policy key; plugin evidence requires the
+  complete seven-field provenance tuple. Unknown, incomplete, wrong-type, and
+  secret-bearing keys fail closed, as does migrating ambiguous retained data.
+- `3b52ef041` adds the Host-owned exact PostgreSQL selection Store. Empty state
+  is implicit Core revision 0. Select and Reset use Serializable advisory-lock
+  CAS, transaction-local active `super_admin`, exact durable declaration tips,
+  atomic singleton/event/audit writes, monotonically increasing revisions,
+  Safe Mode effective-Core resolution without durable mutation, and immutable
+  event-based ambiguous-commit proof.
+- `88a674da5` covers real PostgreSQL normal and race paths, restart/rebind, Safe
+  Mode recovery, stale provider failure, authority denial, transaction rollback,
+  and one-winner CAS. Focused normal/race tests, complete Identity tests,
+  migration static/real-PostgreSQL gates, event-ledger gates, and vet passed.
+- Exact next step is transaction-local lifecycle invalidation from
+  `IdentityRegistry.PostgresStore.Reconcile`, after authority locks and before
+  retirement. Preserve exact replay only; disable, uninstall, association
+  removal, rollback, and incompatible replacement reset to explicit Core before
+  unpublication. Then add atomic `ProviderResolution`/`InvokeExact` and wire
+  selected evaluation immediately before Host session issue/renew. Revocation
+  remains Host-local.
+- Rollback is additive: revert `88a674da5`, then `3b52ef041`, then
+  `7dec20a32`. Migration 041 Down remains fail-closed after retained evidence.
+  No feature flag, branch, worktree, push, tag, or unowned dirty file changed.
+
 ### 2026-07-19 P7 Host-owned User-field Store Checkpoint
 
 - Verified weighted progress remains **67.8295%** (display **67.0%**) and P7

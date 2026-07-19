@@ -86,6 +86,40 @@ commit, and the primary agent must inspect their diffs and tests before acceptin
 work. This policy remains active across context compression and should be removed
 or treated as expired only after the complete V3 goal is achieved.
 
+## P7 Session Policy Selection Store Checkpoint
+
+- Progress remains **67.8295%** (display **67.0%**); P7 remains **18/22**.
+  This checkpoint completes persistence infrastructure only and does not close
+  an authoritative P7 row before lifecycle, Core consumers, and the joined
+  membership-plugin gates pass.
+- `7dec20a32` adds migration 041 and freezes exact append-only event evidence:
+  Core accepts only `{"policyId":"core.session.default"}`, while a plugin
+  requires the complete seven-field provenance tuple. Unknown, incomplete,
+  wrong-type, and secret-bearing evidence is rejected, ambiguous existing data
+  fails migration closed, and Down is allowed only while the ledger is empty.
+- `3b52ef041` adds the Host-owned PostgreSQL selection Store. Empty state is
+  implicit Core revision 0; Select and Reset use Serializable advisory-lock/CAS
+  mutations, transaction-local active `super_admin` authority, exact durable
+  declaration-tip checks, atomic singleton/event/audit writes, monotonically
+  increasing revisions, Safe Mode effective-Core resolution without rewriting
+  desired state, and exact immutable-event ambiguous-commit proof.
+- `88a674da5` proves real PostgreSQL normal and race behavior, restart/rebind,
+  Safe Mode recovery, stale-provider failure, authority denial, rollback, and
+  one-winner CAS semantics. Focused normal/race tests, complete Identity tests,
+  migration static/real-PostgreSQL gates, event-ledger gates, and dual-package
+  vet passed.
+- Exact next step is same-transaction lifecycle invalidation inside
+  `IdentityRegistry.PostgresStore.Reconcile`, after Registry authority locks and
+  before publication retirement. Preserve only a true exact publication replay;
+  disable, uninstall, association removal, rollback, or incompatible artifact
+  replacement must update the selection to explicit Core and append exact audit
+  evidence before unpublication. Then add atomic `ProviderResolution` plus
+  `InvokeExact`, and wire selected evaluation into Host issue/renew immediately
+  before the session effect. Revocation remains Host-local.
+- Preserve all unrelated dirty files, especially route/PageViewModels tests,
+  `bootstrap/app.go`, `go.mod`, Web inspector/public-runtime work, content-policy,
+  OpenAPI, ADR/taskbook, and P9 public frontend policy work.
+
 ## P7 Identity Provider And Automation Contract Checkpoint
 
 - Progress remains **67.8295%** (display **67.0%**); P7 remains **18/22**.
