@@ -20,8 +20,17 @@ import (
 // Store/PublicationStore paths ignore it. NewPostgresStore leaves it nil so
 // legacy adoption fails closed unless production or tests inject a verifier.
 type PostgresStore struct {
-	pool                 *pgxpool.Pool
-	trustImpactValidator StoredTrustImpactValidator
+	pool                     *pgxpool.Pool
+	trustImpactValidator     StoredTrustImpactValidator
+	sessionPolicyInvalidator SessionPolicyLifecycleInvalidator
+}
+
+// PostgresStoreDependencies are instance-scoped production dependencies. Test
+// seams may omit the lifecycle invalidator only when they do not exercise the
+// selected Session Policy retirement boundary.
+type PostgresStoreDependencies struct {
+	StoredTrustImpactValidator StoredTrustImpactValidator
+	SessionPolicyInvalidator   SessionPolicyLifecycleInvalidator
 }
 
 const (
@@ -36,6 +45,19 @@ func NewPostgresStore(pool *pgxpool.Pool) *PostgresStore {
 	return &PostgresStore{pool: pool}
 }
 
+// NewPostgresStoreWithDependencies constructs the production repository with
+// every cross-module transaction hook made explicit and instance-scoped.
+func NewPostgresStoreWithDependencies(
+	pool *pgxpool.Pool,
+	dependencies PostgresStoreDependencies,
+) *PostgresStore {
+	return &PostgresStore{
+		pool:                     pool,
+		trustImpactValidator:     dependencies.StoredTrustImpactValidator,
+		sessionPolicyInvalidator: dependencies.SessionPolicyInvalidator,
+	}
+}
+
 // NewPostgresStoreWithStoredTrustImpactValidator constructs a repository that
 // may adopt pre-feature enabled plugins. validator must be the production
 // Models/Extensions.ValidateStoredTrustImpact (or an equivalent test double);
@@ -44,7 +66,9 @@ func NewPostgresStoreWithStoredTrustImpactValidator(
 	pool *pgxpool.Pool,
 	validator StoredTrustImpactValidator,
 ) *PostgresStore {
-	return &PostgresStore{pool: pool, trustImpactValidator: validator}
+	return NewPostgresStoreWithDependencies(pool, PostgresStoreDependencies{
+		StoredTrustImpactValidator: validator,
+	})
 }
 
 // HasStoredTrustImpactValidator reports whether this instance can perform

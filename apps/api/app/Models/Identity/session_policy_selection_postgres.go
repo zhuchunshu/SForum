@@ -208,11 +208,13 @@ func (s *PostgresIdentitySessionPolicyStore) selectOnce(
 	}
 	defer func() { _ = tx.Rollback(context.Background()) }()
 
-	if err := authorizeIdentitySessionPolicyActor(ctx, tx, input.actorUserID); err != nil {
-		return IdentitySessionPolicyMutation{}, mapIdentitySessionPolicyStoreError(err)
-	}
 	tip, err := lockExactIdentitySessionPolicyProvider(ctx, tx, claim.provider)
 	if err != nil {
+		return IdentitySessionPolicyMutation{}, mapIdentitySessionPolicyStoreError(err)
+	}
+	// Registry authority always precedes actor and selection locks. Lifecycle
+	// invalidation follows the same order, preventing upgrade/select deadlocks.
+	if err := authorizeIdentitySessionPolicyActor(ctx, tx, input.actorUserID); err != nil {
 		return IdentitySessionPolicyMutation{}, mapIdentitySessionPolicyStoreError(err)
 	}
 	liveEvidence := identitySessionPolicyEvidenceForProvider(claim.provider, tip.revision)

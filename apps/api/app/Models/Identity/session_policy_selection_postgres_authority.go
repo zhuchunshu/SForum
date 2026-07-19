@@ -10,8 +10,6 @@ import (
 	identityregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/IdentityRegistry"
 )
 
-const identitySessionPolicySelectionLock = "sforum:identity-session-policy:selection@1"
-
 type identitySessionPolicyRegistryClaim struct {
 	revision uint64
 	digest   string
@@ -218,7 +216,11 @@ func authorizeIdentitySessionPolicyActor(ctx context.Context, tx pgx.Tx, actorUs
 }
 
 func lockIdentitySessionPolicySelection(ctx context.Context, tx pgx.Tx) error {
-	_, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1, 0))`, identitySessionPolicySelectionLock)
+	_, err := tx.Exec(
+		ctx,
+		`SELECT pg_advisory_xact_lock(hashtextextended($1, 0))`,
+		identityregistry.IdentitySessionPolicySelectionLockKey,
+	)
 	return err
 }
 

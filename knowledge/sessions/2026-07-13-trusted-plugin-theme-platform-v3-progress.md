@@ -38,6 +38,11 @@ Last updated: 2026-07-19
   remains **18/22**. Selection persistence is required infrastructure; it does
   not close an authoritative row before lifecycle, production consumers, and
   the real membership-plugin gates pass.
+- The lifecycle compatibility slice now exposes one explicit transaction-bound
+  invalidator dependency, shares the advisory selection lock key across modules,
+  and orders Select as Registry authority -> actor -> singleton. This removes
+  the upgrade/Select deadlock cycle without yet changing lifecycle behavior or
+  receiving progress credit.
 - `7dec20a32` freezes exact Session Policy event evidence in additive migration
   041. Core permits only its exact policy key; plugin evidence requires the
   complete seven-field provenance tuple. Unknown, incomplete, wrong-type, and
