@@ -556,7 +556,20 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 	// 把已构造的 extensionService 接到 Host API 能力/权限解析（避免循环构造）。
 	hostAPIService.BindCapabilitySource(extensionService)
 	hostAPIService.BindPermissions(identityPermissionAdapter{store: identityStore})
-	hostAPIService.BindUsers(identityUserAdapter{store: identityStore})
+	// Identity user-field digests are installation-bound. GetUserSafe resolves
+	// extension declared_fields through the Host-owned store with live actor
+	// permission checks; core safe fields remain available without the store.
+	userFieldDigestKey, err := deriveIdentityUserFieldDigestKey(cfg.SessionHashSecret, hostInstallationID)
+	if err != nil {
+		return nil, fmt.Errorf("derive identity user-field digest key: %w", err)
+	}
+	userFieldValueStore, err := identity.NewPostgresIdentityUserFieldValueStore(
+		pool, lifecycleStack.IdentityRegistry, userFieldDigestKey,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("create identity user-field value store: %w", err)
+	}
+	hostAPIService.BindUsers(identityUserAdapter{store: identityStore, fields: userFieldValueStore})
 	if _, err := extensionService.SyncBuiltins(ctx); err != nil {
 		if stopErr := supportjobs.Stop(ctx, jobClient); stopErr != nil {
 			logger.Warn("job dispatcher stop failed", "error", stopErr)
@@ -1158,11 +1171,18 @@ func (a identityPermissionAdapter) HasPermission(ctx context.Context, userID int
 }
 
 // identityUserAdapter 提供安全用户字段给 Host API。
+// 扩展用户字段走 Host-owned value store 的实时权限与 Schema 校验。
 type identityUserAdapter struct {
-	store *identity.PostgresStore
+	store  *identity.PostgresStore
+	fields identity.SafeUserFieldReader
 }
 
-func (a identityUserAdapter) GetUserSafe(ctx context.Context, userID int64) (map[string]any, error) {
+func (a identityUserAdapter) GetUserSafe(
+	ctx context.Context,
+	userID int64,
+	actorUserID int64,
+	declaredFields []string,
+) (map[string]any, error) {
 	if a.store == nil {
 		return nil, fmt.Errorf("identity store unavailable")
 	}
@@ -1170,12 +1190,11 @@ func (a identityUserAdapter) GetUserSafe(ctx context.Context, userID int64) (map
 	if err != nil {
 		return nil, hostapi.ErrNotFound
 	}
-	return map[string]any{
-		"id":          user.ID,
-		"username":    user.Username,
-		"displayName": user.DisplayName,
-		"status":      user.Status,
-	}, nil
+	projected, err := identity.ProjectSafeUser(ctx, user, actorUserID, declaredFields, a.fields)
+	if err != nil {
+		return nil, err
+	}
+	return projected, nil
 }
 
 func apiAddress(cfg config.Config) string {
