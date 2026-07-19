@@ -106,6 +106,40 @@
           }
         }
       }
+    },
+    {
+      "if": {
+        "required": ["identity"],
+        "properties": {
+          "identity": {
+            "type": "object",
+            "required": ["providers"],
+            "properties": {
+              "providers": {
+                "type": "array",
+                "contains": {
+                  "required": ["operations"],
+                  "properties": { "operations": { "type": "array", "minItems": 1 } }
+                }
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "required": ["backend"],
+        "properties": {
+          "type": { "const": "plugin" },
+          "backend": {
+            "type": "object",
+            "required": ["entry", "protocolVersion"],
+            "properties": {
+              "entry": { "type": "string", "minLength": 1 },
+              "protocolVersion": { "const": 2 }
+            }
+          }
+        }
+      }
     }
   ],
   "$defs": {
@@ -1095,8 +1129,69 @@
               "contractVersion": { "$ref": "#/$defs/contract" },
               "kind": { "enum": ["auth", "profile", "recovery", "session", "risk"] },
               "handler": { "$ref": "#/$defs/handler" },
-              "priority": { "type": "integer" }
-            }
+              "priority": { "type": "integer" },
+              "operations": {
+                "type": ["array", "null"],
+                "maxItems": 16,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["name", "inputSchema", "outputSchema"],
+                  "properties": {
+                    "name": {
+                      "enum": [
+                        "registration.start", "registration.complete", "login.start", "login.complete",
+                        "link.start", "link.complete", "sections.list", "section.read", "section.update",
+                        "account.read", "account.update", "recovery.start", "recovery.complete",
+                        "session.evaluate", "risk.evaluate"
+                      ]
+                    },
+                    "inputSchema": { "$ref": "#/$defs/schemaRef" },
+                    "outputSchema": { "$ref": "#/$defs/schemaRef" },
+                    "timeoutMs": { "type": "integer", "minimum": 1, "maximum": 5000, "default": 1000 },
+                    "failurePolicy": { "enum": ["fail_closed", "omit"] }
+                  },
+                  "allOf": [
+                    {
+                      "if": {
+                        "required": ["name"],
+                        "properties": { "name": { "enum": ["sections.list", "section.read"] } }
+                      },
+                      "then": { "properties": { "failurePolicy": { "const": "omit" } } }
+                    },
+                    {
+                      "if": {
+                        "required": ["name"],
+                        "properties": { "name": { "not": { "enum": ["sections.list", "section.read"] } } }
+                      },
+                      "then": { "properties": { "failurePolicy": { "const": "fail_closed" } } }
+                    }
+                  ]
+                }
+              }
+            },
+            "allOf": [
+              {
+                "if": { "properties": { "kind": { "const": "auth" } }, "required": ["kind"] },
+                "then": { "properties": { "operations": { "items": { "properties": { "name": { "enum": ["registration.start", "registration.complete", "login.start", "login.complete", "link.start", "link.complete"] } } } } } }
+              },
+              {
+                "if": { "properties": { "kind": { "const": "profile" } }, "required": ["kind"] },
+                "then": { "properties": { "operations": { "items": { "properties": { "name": { "enum": ["sections.list", "section.read", "section.update", "account.read", "account.update"] } } } } } }
+              },
+              {
+                "if": { "properties": { "kind": { "const": "recovery" } }, "required": ["kind"] },
+                "then": { "properties": { "operations": { "items": { "properties": { "name": { "enum": ["recovery.start", "recovery.complete"] } } } } } }
+              },
+              {
+                "if": { "properties": { "kind": { "const": "session" } }, "required": ["kind"] },
+                "then": { "properties": { "operations": { "items": { "properties": { "name": { "const": "session.evaluate" } } } } } }
+              },
+              {
+                "if": { "properties": { "kind": { "const": "risk" } }, "required": ["kind"] },
+                "then": { "properties": { "operations": { "items": { "properties": { "name": { "const": "risk.evaluate" } } } } } }
+              }
+            ]
           }
         },
         "sessionPolicy": { "type": "string" },

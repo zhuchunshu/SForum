@@ -86,6 +86,17 @@ func (v *v3Validator) validateUIAndPackage() error {
 			return ErrInvalidManifest
 		}
 	}
+	if identity := v.manifest.Identity; identity != nil {
+		for _, provider := range identity.Providers {
+			for _, operation := range provider.Operations {
+				for _, reference := range []string{operation.InputSchema, operation.OutputSchema} {
+					if validContractVersion(reference) && !matchingVersionedSchemaFile(packageFiles, reference) {
+						return ErrInvalidManifest
+					}
+				}
+			}
+		}
+	}
 
 	// 模板按规范化 ID 唯一登记；后续组件 SSR 与 content renderer 都只解析同包声明。
 	templates := map[string]ManifestTemplate{}
@@ -363,6 +374,11 @@ func (v *v3Validator) allLocalSchemasDeclared(files map[string]ManifestPackageFi
 	if v.manifest.Identity != nil {
 		for _, field := range v.manifest.Identity.UserFields {
 			refs = append(refs, field.Schema)
+		}
+		for _, provider := range v.manifest.Identity.Providers {
+			for _, operation := range provider.Operations {
+				refs = append(refs, operation.InputSchema, operation.OutputSchema)
+			}
 		}
 	}
 	if v.manifest.Lifecycle != nil {

@@ -120,12 +120,79 @@ ExtensionManifestIdentityUserField:
 ExtensionManifestIdentityProvider:
   type: object
   required: [id, contractVersion, kind, handler]
+  description: A provider without operations remains inspect-only for Manifest V3 compatibility.
   properties:
     id: { type: string }
     contractVersion: { type: string }
     kind: { type: string, enum: [auth, profile, recovery, session, risk] }
     handler: { type: string }
     priority: { type: integer }
+    operations:
+      type: array
+      maxItems: 16
+      items: { "$ref": "#/ExtensionManifestIdentityProviderOperation" }
+  allOf:
+  - if: { properties: { kind: { const: auth } }, required: [kind] }
+    then:
+      properties:
+        operations:
+          items:
+            properties:
+              name: { enum: [registration.start, registration.complete, login.start, login.complete, link.start, link.complete] }
+  - if: { properties: { kind: { const: profile } }, required: [kind] }
+    then:
+      properties:
+        operations:
+          items:
+            properties:
+              name: { enum: [sections.list, section.read, section.update, account.read, account.update] }
+  - if: { properties: { kind: { const: recovery } }, required: [kind] }
+    then:
+      properties:
+        operations:
+          items:
+            properties:
+              name: { enum: [recovery.start, recovery.complete] }
+  - if: { properties: { kind: { const: session } }, required: [kind] }
+    then:
+      properties:
+        operations:
+          items:
+            properties:
+              name: { const: session.evaluate }
+  - if: { properties: { kind: { const: risk } }, required: [kind] }
+    then:
+      properties:
+        operations:
+          items:
+            properties:
+              name: { const: risk.evaluate }
+ExtensionManifestIdentityProviderOperation:
+  type: object
+  required: [name, inputSchema, outputSchema]
+  properties:
+    name:
+      type: string
+      enum: [registration.start, registration.complete, login.start, login.complete, link.start, link.complete, sections.list, section.read, section.update, account.read, account.update, recovery.start, recovery.complete, session.evaluate, risk.evaluate]
+    inputSchema: { type: string }
+    outputSchema: { type: string }
+    timeoutMs: { type: integer, minimum: 1, maximum: 5000, default: 1000 }
+    failurePolicy: { type: string, enum: [fail_closed, omit] }
+  allOf:
+  - if:
+      required: [name]
+      properties:
+        name: { enum: [sections.list, section.read] }
+    then:
+      properties:
+        failurePolicy: { const: omit }
+  - if:
+      required: [name]
+      properties:
+        name: { not: { enum: [sections.list, section.read] } }
+    then:
+      properties:
+        failurePolicy: { const: fail_closed }
 ExtensionManifestPermissionDefinition:
   type: object
   description: Recommended role mappings are advisory. assignmentPolicy=host prevents install or enable code from granting permissions.

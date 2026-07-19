@@ -11,6 +11,9 @@ const (
 	manifestDatabaseMaximumTimeoutMS          = 5000
 	manifestIdentityMaximumRoleSuggestions    = 64
 	manifestIdentityMaximumRiskHooks          = 128
+	ManifestIdentityProviderMaximumOperations = 16
+	ManifestIdentityProviderDefaultTimeoutMS  = 1000
+	ManifestIdentityProviderMaximumTimeoutMS  = 5000
 	ManifestSEOMaximumDeclarations            = 512
 	ManifestSEODefaultTimeoutMS               = 500
 	ManifestSEOMaximumTimeoutMS               = 5000
@@ -28,6 +31,8 @@ const (
 const (
 	QueryResultFilterFailureFailClosed = "fail_closed"
 	QueryResultFilterFailureFailOpen   = "fail_open"
+	IdentityProviderFailureFailClosed  = "fail_closed"
+	IdentityProviderFailureOmit        = "omit"
 )
 
 func (v *v3Validator) validatePlatform() error {
@@ -492,6 +497,7 @@ func (v *v3Validator) validateIdentityAndPermissions() error {
 			}
 		}
 	}
+	hasExecutableProvider := false
 	for _, provider := range identity.Providers {
 		if err := v.versionedID(provider.ID, provider.ContractVersion, "identity_provider"); err != nil {
 			return err
@@ -504,8 +510,42 @@ func (v *v3Validator) validateIdentityAndPermissions() error {
 		default:
 			return ErrInvalidManifest
 		}
+		if len(provider.Operations) > ManifestIdentityProviderMaximumOperations {
+			return ErrInvalidManifest
+		}
+		seenOperations := make(map[string]struct{}, len(provider.Operations))
+		for _, operation := range provider.Operations {
+			expectedPolicy, known := identityProviderOperationPolicy(provider.Kind, operation.Name)
+			if _, duplicate := seenOperations[operation.Name]; !known || duplicate ||
+				!validSchemaRef(operation.InputSchema) || !validSchemaRef(operation.OutputSchema) ||
+				operation.TimeoutMS <= 0 || operation.TimeoutMS > ManifestIdentityProviderMaximumTimeoutMS ||
+				operation.FailurePolicy != expectedPolicy {
+				return ErrInvalidManifest
+			}
+			seenOperations[operation.Name] = struct{}{}
+			hasExecutableProvider = true
+		}
+	}
+	if hasExecutableProvider && (v.manifest.Type != TypePlugin ||
+		strings.TrimSpace(v.manifest.Backend.Entry) == "" || v.manifest.Backend.ProtocolVersion != 2) {
+		return ErrInvalidManifest
 	}
 	return nil
+}
+
+func identityProviderOperationPolicy(kind, name string) (string, bool) {
+	switch kind + ":" + name {
+	case "profile:sections.list", "profile:section.read":
+		return IdentityProviderFailureOmit, true
+	case "auth:registration.start", "auth:registration.complete",
+		"auth:login.start", "auth:login.complete", "auth:link.start", "auth:link.complete",
+		"profile:section.update", "profile:account.read", "profile:account.update",
+		"recovery:recovery.start", "recovery:recovery.complete",
+		"session:session.evaluate", "risk:risk.evaluate":
+		return IdentityProviderFailureFailClosed, true
+	default:
+		return "", false
+	}
 }
 
 func (v *v3Validator) validateMediaNavigationAndRegions() error {

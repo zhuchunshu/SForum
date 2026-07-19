@@ -823,6 +823,30 @@ ExtensionManifest:
         "$ref": "./extensions-v3-registry.yaml#/ExtensionManifestPackageFile"
     includes:
       "$ref": "./extensions-v3-registry.yaml#/ExtensionManifestIncludes"
+  allOf:
+  - if:
+      required: [identity]
+      properties:
+        identity:
+          type: object
+          required: [providers]
+          properties:
+            providers:
+              type: array
+              contains:
+                required: [operations]
+                properties:
+                  operations: { type: array, minItems: 1 }
+    then:
+      required: [backend]
+      properties:
+        type: { const: plugin }
+        backend:
+          type: object
+          required: [entry, protocolVersion]
+          properties:
+            entry: { type: string, minLength: 1 }
+            protocolVersion: { const: 2 }
 ExtensionManifestAuthor:
   type: object
   required:

@@ -171,6 +171,22 @@ func normalizeV3Platform(manifest *Manifest) {
 			item.ContractVersion = strings.TrimSpace(item.ContractVersion)
 			item.Kind = strings.ToLower(strings.TrimSpace(item.Kind))
 			item.Handler = strings.TrimSpace(item.Handler)
+			for operationIndex := range item.Operations {
+				operation := &item.Operations[operationIndex]
+				operation.Name = strings.ToLower(strings.TrimSpace(operation.Name))
+				operation.InputSchema = strings.TrimSpace(operation.InputSchema)
+				operation.OutputSchema = strings.TrimSpace(operation.OutputSchema)
+				operation.FailurePolicy = strings.ToLower(strings.TrimSpace(operation.FailurePolicy))
+				if operation.FailurePolicy == "" {
+					operation.FailurePolicy, _ = identityProviderOperationPolicy(item.Kind, operation.Name)
+					if operation.FailurePolicy == "" {
+						operation.FailurePolicy = IdentityProviderFailureFailClosed
+					}
+				}
+				if operation.TimeoutMS == 0 {
+					operation.TimeoutMS = ManifestIdentityProviderDefaultTimeoutMS
+				}
+			}
 		}
 	}
 	for index := range manifest.PermissionDefinitions {

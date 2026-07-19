@@ -173,6 +173,16 @@ type ManifestIdentityProvider struct {
 	Kind            string `json:"kind"`
 	Handler         string `json:"handler"`
 	Priority        int    `json:"priority,omitempty"`
+	// Operations 为空时保持既有只读目录语义；非空才允许 Host 调用。
+	Operations []ManifestIdentityProviderOperation `json:"operations,omitempty"`
+}
+
+type ManifestIdentityProviderOperation struct {
+	Name          string `json:"name"`
+	InputSchema   string `json:"inputSchema"`
+	OutputSchema  string `json:"outputSchema"`
+	TimeoutMS     int    `json:"timeoutMs,omitempty"`
+	FailurePolicy string `json:"failurePolicy,omitempty"`
 }
 
 type ManifestPermissionDefinition struct {
