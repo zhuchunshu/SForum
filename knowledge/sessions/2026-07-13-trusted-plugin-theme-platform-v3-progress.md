@@ -32,6 +32,66 @@ Last updated: 2026-07-19
 
 ## Current Subtask
 
+### 2026-07-19 P7 Host-owned User-field Store Checkpoint
+
+- Verified weighted progress remains **67.8295%** (display **67.0%**) and P7
+  remains **18/22**. The Store is required infrastructure; no Identity task or
+  joined-test row is credited before production consumers and the real
+  membership plugin close the complete row.
+- `d50111588` independently hardens the external-link, user-field, and
+  session-policy transition ledgers. Aggregate revisions are unique, direct
+  event UPDATE/DELETE/TRUNCATE is rejected, only FK-driven actor deletion may
+  clear `actor_user_id`, and Down fails closed while evidence exists. Static
+  migration tests and real PostgreSQL behavior passed.
+- `233dd75ab` adds an exact Identity Registry Schema-claim availability check.
+  It distinguishes a live compiled private Schema from inspectable digest-only
+  metadata without inventing a placeholder value, so ordinary erase receipt
+  replay can fail closed before returning retained evidence.
+- `f56cb264b` adds the Host-owned user-field JSONB Store over migration 038.
+  Callers cannot supply owner, contract, Schema digest, or declaration
+  revision. Set/erase/get lock the exact enabled artifact, durable root,
+  owner/declaration tip, users, and transaction-local RBAC; empty permissions
+  deny. Values use PostgreSQL JSONB canonicalization and a 32-byte
+  installation-key HMAC domain-separated by user and field. `(scope, raw
+  idempotency key)` is length-framed and hashed to an opaque global receipt key.
+- Standalone writes are Serializable with bounded retry, revision CAS, atomic
+  redacted domain audit/event evidence, exact Registry commit fences, and
+  ambiguous-commit readback. Caller-owned Tx writes reject non-Serializable
+  transactions and return a one-shot fence that must run immediately before
+  commit. Ordinary replay rechecks the live declaration, compiled Schema,
+  actor, target, and permission; only the separate Host privacy interface may
+  replay retired evidence or survive user deletion. Storage-conflict readback
+  is restricted to raw PostgreSQL serialization/deadlock/unique outcomes, so a
+  missing target or other domain error cannot be converted into a replay.
+- Review removed the event-row `FOR UPDATE` option entirely. Mutation lock
+  order is now Registry -> user/RBAC -> value -> nonlocking immutable receipt,
+  while user deletion is user -> FK rows; normal and privacy actor/target
+  deletion tests prove migration 040's permitted actor-null transition without
+  restoring the old cycle. Retained upgraded/retired values remain inert; no
+  implementation silently adopts them to a new declaration revision.
+- Verification passed: User Field real-PostgreSQL normal `count=3`, `-race
+  count=3`, complete Identity package with PostgreSQL, complete HostAPI package,
+  dual-package vet, Registry focused/full package tests and vet, migration
+  static/real-PostgreSQL tests, and staged diff checks. Independent built-in and
+  Codex CLI reviews found and drove fixes for replay/delete deadlock,
+  domain-error readback bypass, missing event-only set proof, cross-field digest
+  correlation, global client-key collision, privacy capability exposure,
+  compiled-Schema replay, and caller Tx isolation. Grok did not return within a
+  useful window and was removed from this authority-sensitive critical path.
+- Exact next step: implement the Host-owned session-policy selection Store over
+  migration 039, including implicit Core default, exact select/reset CAS,
+  atomic lifecycle invalidation before declaration retirement, Safe Mode Core
+  override without durable mutation, restart, race, and exact invocation
+  fencing. Then wire the shared Identity Registry, installation-derived
+  user-field key, Host Command finalizer/Serializable transaction, and
+  actor-attested `IdentityService.GetUser` field reads in API and worker.
+- Rollback is additive: revert `f56cb264b`, then `233dd75ab`, then `d50111588`.
+  Migrations 038/040 and retained evidence remain; migration 040 Down is allowed
+  only before any of its three ledgers contain evidence. No branch, worktree,
+  push, tag, feature flag, or unowned dirty file changed. Preserve the existing
+  route, PageViewModels, bootstrap, Web inspector/public-runtime, content-policy,
+  OpenAPI, ADR, taskbook, and P9 policy worktree edits.
+
 ### 2026-07-19 P7 External Identity Link Store Checkpoint
 
 - Verified weighted progress remains **67.8295%** (display **67.0%**) and P7
