@@ -36,6 +36,7 @@ type Server struct {
 	serviceRegistry  *ServiceRegistry
 	hookRegistry     *HookRegistry
 	providerRegistry *ProviderRegistry
+	identityRegistry *IdentityProviderRegistry
 	seoRegistry      *SEORegistry
 	commandRegistry  *CommandRegistry
 	jobRegistry      *JobRegistry
@@ -117,6 +118,17 @@ func (s *Server) WithProviderRegistry(registry *ProviderRegistry) *Server {
 	s.mu.Lock()
 	if !s.started {
 		s.providerRegistry = registry
+	}
+	s.mu.Unlock()
+	return s
+}
+
+// WithIdentityProviderRegistry enables the reserved sforum.identity dispatcher.
+// Calls remain unavailable until identity.runtime@1 is negotiated exactly.
+func (s *Server) WithIdentityProviderRegistry(registry *IdentityProviderRegistry) *Server {
+	s.mu.Lock()
+	if !s.started {
+		s.identityRegistry = registry
 	}
 	s.mu.Unlock()
 	return s
@@ -296,8 +308,23 @@ func (s *Server) InvokeHook(ctx context.Context, request *pluginwire.HookRequest
 func (s *Server) ProviderCall(ctx context.Context, request *pluginwire.ProviderCallRequest) (*pluginwire.ProviderCallResponse, error) {
 	s.mu.RLock()
 	providerRegistry := s.providerRegistry
+	identityRegistry := s.identityRegistry
 	seoRegistry := s.seoRegistry
+	identityNegotiated := hasExactIdentityRuntimeFeature(s.selectedFeatures)
 	s.mu.RUnlock()
+	// Reserved families are resolved before the public provider namespace. A
+	// missing or unnegotiated identity registry must never fall through generic.
+	if request.GetSlotId() == IdentityRuntimeProviderSlot {
+		if identityRegistry == nil || !identityNegotiated {
+			return s.UnimplementedPluginRuntimeServiceServer.ProviderCall(ctx, request)
+		}
+		if detail := s.validateRuntimeContext(request.GetContext()); detail != nil {
+			return &pluginwire.ProviderCallResponse{
+				Context: responseContext(request.GetContext(), s.nowTime()), Error: detail,
+			}, nil
+		}
+		return identityRegistry.ProviderCall(ctx, request)
+	}
 	if detail := s.validateRuntimeContext(request.GetContext()); detail != nil {
 		return &pluginwire.ProviderCallResponse{
 			Context: responseContext(request.GetContext(), s.nowTime()), Error: detail,

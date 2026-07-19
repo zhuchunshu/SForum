@@ -158,6 +158,9 @@ func prepareProviderDefinition(definition ProviderDefinition) (ProviderDefinitio
 	if !providerSlotPattern.MatchString(definition.Slot) {
 		return ProviderDefinition{}, fmt.Errorf("%w: invalid provider slot %q", ErrInvalidProviderDefinition, definition.Slot)
 	}
+	if definition.Slot == IdentityRuntimeProviderSlot {
+		return ProviderDefinition{}, fmt.Errorf("%w: provider slot %q is reserved", ErrInvalidProviderDefinition, definition.Slot)
+	}
 	if !validContractVersion(definition.ContractVersion) {
 		return ProviderDefinition{}, fmt.Errorf("%w: provider %q contract version must be id@positiveVersion", ErrInvalidProviderDefinition, definition.ID)
 	}
