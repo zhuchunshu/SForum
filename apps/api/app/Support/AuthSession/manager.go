@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -15,6 +16,10 @@ import (
 
 	clientip "github.com/zhuchunshu/sforum/apps/api/app/Support/ClientIP"
 )
+
+// ErrRenewalRejected means a Host renewal gate denied the cookie rotation.
+// CurrentUserID maps it to an unauthenticated session rather than a 500.
+var ErrRenewalRejected = errors.New("authsession: renewal rejected by host gate")
 
 const (
 	sessionUserIDKey          = "user_id"
@@ -66,11 +71,19 @@ type SessionRecordInput struct {
 	IPPrefix string
 }
 
+// RenewalGate is an optional Host policy check that runs immediately before a
+// cookie session id is regenerated. A non-nil error treats the session as
+// invalid for this request; revocation remains Host-local and never uses this
+// path. Nil keeps legacy renewal behavior for tests and Safe Mode Core default.
+type RenewalGate func(ctx context.Context, userID int64) error
+
 type Config struct {
 	RenewalInterval time.Duration
 	HashSecret      string
 	TokenVersion    TokenVersionSource
 	SessionStore    SessionStore
+	// RenewalGate is consulted only when a renewal interval actually fires.
+	RenewalGate RenewalGate
 }
 
 type Manager struct {
@@ -79,6 +92,7 @@ type Manager struct {
 	hashSecret      []byte
 	tokenVersion    TokenVersionSource
 	sessions        SessionStore
+	renewalGate     RenewalGate
 	now             func() time.Time
 }
 
@@ -111,6 +125,7 @@ func NewManager(store *session.Store, cfg Config) *Manager {
 		hashSecret:      []byte(cfg.HashSecret),
 		tokenVersion:    cfg.TokenVersion,
 		sessions:        cfg.SessionStore,
+		renewalGate:     cfg.RenewalGate,
 		now:             func() time.Time { return time.Now().UTC() },
 	}
 }
@@ -199,6 +214,11 @@ func (m *Manager) CurrentUserID(c fiber.Ctx) (int64, bool, error) {
 	}
 
 	if err := m.refresh(sess, userID); err != nil {
+		// Host session policy (or another renewal gate) failed closed: treat the
+		// browser session as unauthenticated without elevating to a transport error.
+		if errors.Is(err, ErrRenewalRejected) {
+			return 0, false, nil
+		}
 		return 0, false, err
 	}
 	return userID, true, nil
@@ -291,6 +311,14 @@ func (m *Manager) refresh(sess *session.Session, userID int64) error {
 	// 定期换 session id，降低长期复用同一个 id 带来的泄露影响。
 	// sid 不随 cookie session id 轮换而变（保留在 payload），设备列表稳定。
 	if m.renewalInterval > 0 && !renewedAt.After(now) && now.Sub(renewedAt) >= m.renewalInterval {
+		// Host session policy evaluation (or another Host gate) runs only for a
+		// real renew effect. Fail closed: treat the session as invalid rather
+		// than rotating the cookie under a denied or unavailable policy.
+		if m.renewalGate != nil {
+			if err := m.renewalGate(context.Background(), userID); err != nil {
+				return fmt.Errorf("%w: %v", ErrRenewalRejected, err)
+			}
+		}
 		if err := sess.Regenerate(); err != nil {
 			return err
 		}

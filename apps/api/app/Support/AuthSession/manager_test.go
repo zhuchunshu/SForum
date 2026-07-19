@@ -93,6 +93,62 @@ func TestCurrentUserIDRefreshesAndRenewsSession(t *testing.T) {
 	}
 }
 
+func TestCurrentUserIDRenewalGateDenyFailsClosed(t *testing.T) {
+	baseTime := time.Date(2026, 7, 5, 10, 0, 0, 0, time.UTC)
+	gateCalls := 0
+	manager := NewManager(session.NewStore(session.Config{IdleTimeout: time.Hour}), Config{
+		RenewalInterval: time.Minute,
+		HashSecret:      "test-secret",
+		RenewalGate: func(_ context.Context, userID int64) error {
+			gateCalls++
+			if userID != 42 {
+				t.Fatalf("renewal gate user=%d", userID)
+			}
+			return errors.New("session policy denied")
+		},
+	})
+	manager.now = func() time.Time { return baseTime }
+
+	app := fiber.New()
+	app.Post("/login", func(c fiber.Ctx) error {
+		_, err := manager.Start(c, 42)
+		return err
+	})
+	app.Get("/session", func(c fiber.Ctx) error {
+		userID, ok, err := manager.CurrentUserID(c)
+		if err != nil {
+			return err
+		}
+		if ok || userID != 0 {
+			t.Fatalf("denied renew must unauthenticate, got user=%d ok=%v", userID, ok)
+		}
+		return c.SendStatus(fiber.StatusOK)
+	})
+
+	loginReq := httptest.NewRequest(fiber.MethodPost, "/login", nil)
+	loginResp, err := app.Test(loginReq)
+	if err != nil {
+		t.Fatalf("login: %v", err)
+	}
+	defer loginResp.Body.Close()
+	cookie := loginResp.Cookies()[0]
+
+	manager.now = func() time.Time { return baseTime.Add(2 * time.Minute) }
+	sessionReq := httptest.NewRequest(fiber.MethodGet, "/session", nil)
+	sessionReq.AddCookie(cookie)
+	sessionResp, err := app.Test(sessionReq)
+	if err != nil {
+		t.Fatalf("session: %v", err)
+	}
+	defer sessionResp.Body.Close()
+	if sessionResp.StatusCode != fiber.StatusOK {
+		t.Fatalf("status=%d", sessionResp.StatusCode)
+	}
+	if gateCalls != 1 {
+		t.Fatalf("gateCalls=%d", gateCalls)
+	}
+}
+
 // TestTokenVersionInvalidationAfterIncrement 验证 M8：当用户令牌版本号递增后（如密码重置），
 // 旧 session 的 CurrentUserID 返回 ok=false，会话立即失效。
 func TestTokenVersionInvalidationAfterIncrement(t *testing.T) {
