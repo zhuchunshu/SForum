@@ -21,23 +21,26 @@ import (
 )
 
 type identityPersistencePGFixture struct {
-	t             *testing.T
-	ctx           context.Context
-	admin         *pgxpool.Pool
-	pool          *pgxpool.Pool
-	schema        string
-	actorUserID   int64
-	targetUserID  int64
-	otherUserID   int64
-	extensionID   string
-	versionID     int64
-	publication   identityregistry.Publication
-	field         identityregistry.UserFieldContribution
-	provider      identityregistry.ProviderContribution
-	registry      *identityregistry.Registry
-	registryStore *identityregistry.PostgresStore
-	externalLinks *PostgresExternalIdentityLinkStore
-	userFields    *PostgresIdentityUserFieldValueStore
+	t               *testing.T
+	ctx             context.Context
+	admin           *pgxpool.Pool
+	pool            *pgxpool.Pool
+	schema          string
+	adminUserID     int64
+	actorUserID     int64
+	targetUserID    int64
+	otherUserID     int64
+	extensionID     string
+	versionID       int64
+	publication     identityregistry.Publication
+	field           identityregistry.UserFieldContribution
+	provider        identityregistry.ProviderContribution
+	sessionProvider identityregistry.ProviderContribution
+	registry        *identityregistry.Registry
+	registryStore   *identityregistry.PostgresStore
+	externalLinks   *PostgresExternalIdentityLinkStore
+	userFields      *PostgresIdentityUserFieldValueStore
+	sessionPolicy   *PostgresIdentitySessionPolicyStore
 }
 
 const (
@@ -115,6 +118,13 @@ func newIdentityPersistencePGFixture(t *testing.T) *identityPersistencePGFixture
 		admin.Close()
 		t.Fatal(err)
 	}
+	fixture.sessionPolicy, err = NewPostgresIdentitySessionPolicyStore(pool, fixture.registry)
+	if err != nil {
+		pool.Close()
+		removeSchema()
+		admin.Close()
+		t.Fatal(err)
+	}
 	t.Cleanup(func() {
 		pool.Close()
 		removeSchema()
@@ -151,6 +161,7 @@ func applyIdentityPersistenceTestMigrations(
 		202607190038,
 		202607190039,
 		202607190040,
+		202607190041,
 	} {
 		if _, err := provider.ApplyVersion(ctx, version, true); err != nil {
 			removeSchema()
@@ -240,6 +251,7 @@ func (f *identityPersistencePGFixture) seed() error {
 		name     string
 		id       *int64
 	}{
+		{username: "identity_admin_" + f.schema, name: "Identity Admin", id: &f.adminUserID},
 		{username: "identity_actor_" + f.schema, name: "Identity Actor", id: &f.actorUserID},
 		{username: "identity_target_" + f.schema, name: "Identity Target", id: &f.targetUserID},
 		{username: "identity_other_" + f.schema, name: "Identity Other", id: &f.otherUserID},
@@ -252,6 +264,12 @@ func (f *identityPersistencePGFixture) seed() error {
 		`, target.username, target.username+"@example.test", target.name).Scan(target.id); err != nil {
 			return err
 		}
+	}
+	if _, err := f.pool.Exec(f.ctx, `
+		INSERT INTO user_roles (user_id, role_id)
+		SELECT $1, id FROM roles WHERE key = 'super_admin'
+	`, f.adminUserID); err != nil {
+		return err
 	}
 	if _, err := f.pool.Exec(f.ctx, `
 		INSERT INTO extensions (
@@ -327,9 +345,14 @@ func (f *identityPersistencePGFixture) seed() error {
 	if err != nil {
 		return err
 	}
+	sessionProvider, err := registry.ResolveProvider(publication.Identity.SessionPolicy)
+	if err != nil {
+		return err
+	}
 	f.publication = publication
 	f.field = field
 	f.provider = provider
+	f.sessionProvider = sessionProvider
 	f.registry = registry
 	return nil
 }
@@ -386,6 +409,7 @@ func identityPersistenceProviderPublication(
 		VersionID: versionID, RuntimeInstanceID: runtimeInstanceID,
 	}
 	providerID := extensionID + ".auth"
+	sessionProviderID := extensionID + ".session"
 	publication := identityregistry.Publication{
 		Artifact: artifact,
 		Permissions: []identityregistry.PermissionDefinition{{
@@ -395,27 +419,39 @@ func identityPersistenceProviderPublication(
 		}},
 		Identity: &identityregistry.IdentityDeclaration{
 			ContractVersion: extensionID + "@1",
+			SessionPolicy:   sessionProviderID,
 			UserFields: []identityregistry.UserField{{
 				ID: identityPersistenceFieldID, ContractVersion: identityPersistenceFieldID + "@1",
 				Type: "string", Schema: "schemas/member-code.json",
 				ReadPermission: identityPersistencePermissionKey, WritePermission: identityPersistencePermissionKey,
 			}},
-			Providers: []identityregistry.Provider{{
-				ID: providerID, ContractVersion: providerID + "@1",
-				Kind: identityregistry.ProviderKindAuth, Handler: "identity.auth", Priority: 10,
-				Operations: []identityregistry.ProviderOperation{
-					{
-						Name: "registration.complete", InputSchema: "schemas/registration-input.json",
-						OutputSchema: "schemas/registration-output.json", TimeoutMS: 500,
-						FailurePolicy: identityregistry.ProviderFailureFailClosed,
-					},
-					{
-						Name: "link.complete", InputSchema: "schemas/link-input.json",
-						OutputSchema: "schemas/link-output.json", TimeoutMS: 500,
-						FailurePolicy: identityregistry.ProviderFailureFailClosed,
+			Providers: []identityregistry.Provider{
+				{
+					ID: providerID, ContractVersion: providerID + "@1",
+					Kind: identityregistry.ProviderKindAuth, Handler: "identity.auth", Priority: 10,
+					Operations: []identityregistry.ProviderOperation{
+						{
+							Name: "registration.complete", InputSchema: "schemas/registration-input.json",
+							OutputSchema: "schemas/registration-output.json", TimeoutMS: 500,
+							FailurePolicy: identityregistry.ProviderFailureFailClosed,
+						},
+						{
+							Name: "link.complete", InputSchema: "schemas/link-input.json",
+							OutputSchema: "schemas/link-output.json", TimeoutMS: 500,
+							FailurePolicy: identityregistry.ProviderFailureFailClosed,
+						},
 					},
 				},
-			}},
+				{
+					ID: sessionProviderID, ContractVersion: sessionProviderID + "@1",
+					Kind: identityregistry.ProviderKindSession, Handler: "identity.session",
+					Operations: []identityregistry.ProviderOperation{{
+						Name: "session.evaluate", InputSchema: "schemas/session-input.json",
+						OutputSchema: "schemas/session-output.json", TimeoutMS: 500,
+						FailurePolicy: identityregistry.ProviderFailureFailClosed,
+					}},
+				},
+			},
 		},
 	}
 	fieldSchema := []byte(`{"type":"string","minLength":3,"maxLength":32}`)
@@ -426,18 +462,20 @@ func identityPersistenceProviderPublication(
 			"schemas/member-code.json", identityPersistenceFieldID+".value@1", fieldSchema,
 		),
 	}
-	bindings := make([]identityregistry.ProviderOperationSchemaBinding, 0, 2)
-	for _, operation := range publication.Identity.Providers[0].Operations {
-		bindings = append(bindings, identityregistry.ProviderOperationSchemaBinding{
-			ProviderID: providerID, ContractVersion: providerID + "@1",
-			Operation: operation.Name, Artifact: artifact,
-			Input: identityPersistenceSchemaMaterial(
-				operation.InputSchema, providerID+"."+strings.ReplaceAll(operation.Name, ".", "_")+".input@1",
-			),
-			Output: identityPersistenceSchemaMaterial(
-				operation.OutputSchema, providerID+"."+strings.ReplaceAll(operation.Name, ".", "_")+".output@1",
-			),
-		})
+	bindings := make([]identityregistry.ProviderOperationSchemaBinding, 0, 3)
+	for _, provider := range publication.Identity.Providers {
+		for _, operation := range provider.Operations {
+			bindings = append(bindings, identityregistry.ProviderOperationSchemaBinding{
+				ProviderID: provider.ID, ContractVersion: provider.ContractVersion,
+				Operation: operation.Name, Artifact: artifact,
+				Input: identityPersistenceSchemaMaterial(
+					operation.InputSchema, provider.ID+"."+strings.ReplaceAll(operation.Name, ".", "_")+".input@1",
+				),
+				Output: identityPersistenceSchemaMaterial(
+					operation.OutputSchema, provider.ID+"."+strings.ReplaceAll(operation.Name, ".", "_")+".output@1",
+				),
+			})
+		}
 	}
 	return identityregistry.BindJSONSchemas(
 		publication, []identityregistry.UserFieldSchemaBinding{fieldBinding}, bindings,
