@@ -358,13 +358,26 @@ func buildLifecycleIdentityPublication(
 			})
 		}
 		for _, provider := range declared.Providers {
-			identity.Providers = append(identity.Providers, identityregistry.Provider{
+			mapped := identityregistry.Provider{
 				ID: provider.ID, ContractVersion: provider.ContractVersion,
 				Kind: provider.Kind, Handler: provider.Handler, Priority: provider.Priority,
-			})
+			}
+			for _, operation := range provider.Operations {
+				mapped.Operations = append(mapped.Operations, identityregistry.ProviderOperation{
+					Name: operation.Name, InputSchema: operation.InputSchema,
+					OutputSchema: operation.OutputSchema, TimeoutMS: operation.TimeoutMS,
+					FailurePolicy: operation.FailurePolicy,
+				})
+			}
+			identity.Providers = append(identity.Providers, mapped)
 		}
 		publication.Identity = &identity
 	}
+	bound, err := bindLifecycleIdentitySchemas(extension, publication)
+	if err != nil {
+		return nil, err
+	}
+	publication = bound
 
 	// Freeze canonical Registry ordering into lifecycle material and its digest.
 	probe := identityregistry.New()

@@ -9,6 +9,8 @@ import (
 
 const lifecyclePackageSchemaMaximumBytes int64 = 1 << 20
 
+var errLifecyclePackageSchemaNotDeclared = errors.New("exact package Schema entry is not declared")
+
 type exactLifecyclePackageSchema struct {
 	File              extensions.ManifestPackageFile
 	ManifestReference string
@@ -97,8 +99,11 @@ func exactLifecyclePackageSchemaFile(
 		value := file
 		match = &value
 	}
-	if match == nil || strings.TrimSpace(match.Path) == "" ||
-		strings.TrimSpace(match.ID) == "" || strings.TrimSpace(match.Digest) == "" {
+	if match == nil {
+		return extensions.ManifestPackageFile{}, errLifecyclePackageSchemaNotDeclared
+	}
+	if strings.TrimSpace(match.Path) == "" || strings.TrimSpace(match.ID) == "" ||
+		strings.TrimSpace(match.Digest) == "" {
 		return extensions.ManifestPackageFile{}, errors.New("exact package Schema entry is missing")
 	}
 	return *match, nil

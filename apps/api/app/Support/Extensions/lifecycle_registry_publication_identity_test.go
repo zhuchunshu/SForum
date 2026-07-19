@@ -7,6 +7,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"sync"
@@ -64,8 +66,16 @@ func TestBuildLifecycleIdentityPublicationRequiresRuntimeOnlyForExecutableIdenti
 		PackageDigest: executableProvider.PackageDigest, VersionID: executableProvider.ActiveVersionID,
 		RuntimeInstanceID: "identity-provider-runtime",
 	}
+	if _, err := buildLifecycleIdentityPublication(executableProvider, providerBinding); !errors.Is(err, ErrLifecycleRegistryPublicationInvalid) {
+		t.Fatalf("operation provider without exact Schemas error = %v", err)
+	}
+	writeLifecycleIdentitySchema(t, &executableProvider, executableProvider.ID+".risk.input", "schemas/risk-input.json", "1", `{"type":"object"}`)
+	writeLifecycleIdentitySchema(t, &executableProvider, executableProvider.ID+".risk.output", "schemas/risk-output.json", "1", `{"type":"object"}`)
 	if publication, err := buildLifecycleIdentityPublication(executableProvider, providerBinding); err != nil ||
-		publication == nil || publication.Artifact.RuntimeInstanceID != providerBinding.RuntimeInstanceID {
+		publication == nil || publication.Artifact.RuntimeInstanceID != providerBinding.RuntimeInstanceID ||
+		len(publication.Identity.Providers[0].Operations) != 1 ||
+		publication.Identity.Providers[0].Operations[0].InputSchemaDigest == "" ||
+		publication.Identity.Providers[0].Operations[0].OutputSchemaDigest == "" {
 		t.Fatalf("operation provider publication = %#v, %v", publication, err)
 	}
 
@@ -818,4 +828,27 @@ func lifecycleIdentityExtension(version string, versionID int64, executable stri
 		extension.Manifest.Identity.RiskHooks = []string{id + ".risk.login"}
 	}
 	return extension
+}
+
+func writeLifecycleIdentitySchema(
+	t *testing.T,
+	extension *extensions.Extension,
+	id, path, version, schema string,
+) {
+	t.Helper()
+	if extension.PackagePath == "" {
+		extension.PackagePath = t.TempDir()
+	}
+	target := filepath.Join(extension.PackagePath, filepath.FromSlash(path))
+	if err := os.MkdirAll(filepath.Dir(target), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	body := []byte(schema)
+	if err := os.WriteFile(target, body, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	digest := sha256.Sum256(body)
+	extension.Manifest.PackageFiles = append(extension.Manifest.PackageFiles, extensions.ManifestPackageFile{
+		ID: id, Kind: "schema", Path: path, Digest: hex.EncodeToString(digest[:]), Version: version,
+	})
 }
