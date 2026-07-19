@@ -33,13 +33,15 @@ import (
 )
 
 const (
-	protocolV2Name                       = "sforum.plugin"
-	hostAPIV2Version                     = "sforum.host/v2"
-	hostAPIV2Contract                    = "sforum.host@2"
-	hostAPIV2Legacy                      = "sforum.host-api@2"
-	protocolV2LocaleNone                 = "und"
-	protocolV2QueryRuntimeFeatureName    = "query.runtime"
-	protocolV2QueryRuntimeFeatureVersion = "1"
+	protocolV2Name                          = "sforum.plugin"
+	hostAPIV2Version                        = "sforum.host/v2"
+	hostAPIV2Contract                       = "sforum.host@2"
+	hostAPIV2Legacy                         = "sforum.host-api@2"
+	protocolV2LocaleNone                    = "und"
+	protocolV2QueryRuntimeFeatureName       = "query.runtime"
+	protocolV2QueryRuntimeFeatureVersion    = "1"
+	protocolV2IdentityRuntimeFeatureName    = "identity.runtime"
+	protocolV2IdentityRuntimeFeatureVersion = "1"
 )
 
 // RuntimeTrustSource resolves the live exact-artifact grant before process
@@ -62,6 +64,7 @@ type protocolV2ClientConfig struct {
 	guards             []extensions.ManifestGuard
 	queries            []extensions.ManifestQuery
 	queryResultFilters []extensions.ManifestQueryResultFilter
+	manifestIdentity   *extensions.ManifestIdentity
 	lifecycle          *extensions.ManifestLifecycle
 	token              []byte
 	instance           string
@@ -87,6 +90,7 @@ type protocolV2Client struct {
 	guards             []extensions.ManifestGuard
 	queries            []extensions.ManifestQuery
 	queryResultFilters []extensions.ManifestQueryResultFilter
+	manifestIdentity   *extensions.ManifestIdentity
 	lifecycle          *extensions.ManifestLifecycle
 	token              []byte
 	instance           string
@@ -129,6 +133,7 @@ func newProtocolV2Client(client pluginv2.PluginRuntimeServiceClient, config prot
 		guards:             cloneProtocolV2Guards(config.guards),
 		queries:            append([]extensions.ManifestQuery(nil), config.queries...),
 		queryResultFilters: append([]extensions.ManifestQueryResultFilter(nil), config.queryResultFilters...),
+		manifestIdentity:   cloneManifestIdentity(config.manifestIdentity),
 		lifecycle:          cloneManifestLifecycle(config.lifecycle),
 		token:              append([]byte(nil), config.token...), instance: config.instance, hostBrokerID: config.hostBrokerID,
 		delegations: config.delegations, hostCommands: config.hostCommands,
@@ -253,6 +258,7 @@ func (s *ProtocolStarter) protocolV2ClientConfig(
 		guards:             cloneProtocolV2Guards(extension.Manifest.Guards),
 		queries:            append([]extensions.ManifestQuery(nil), extension.Manifest.Queries...),
 		queryResultFilters: append([]extensions.ManifestQueryResultFilter(nil), extension.Manifest.QueryResultFilters...),
+		manifestIdentity:   cloneManifestIdentity(extension.Manifest.Identity),
 		lifecycle:          cloneManifestLifecycle(extension.Manifest.Lifecycle),
 		token:              token,
 		instance:           instanceID,
@@ -273,7 +279,7 @@ func newProtocolV2RuntimeInstanceID() (string, error) {
 func (c *protocolV2Client) Handshake(ctx context.Context) error {
 	ctx, cancel := protocolV2Deadline(ctx, DefaultProtocolV2HandshakeTimeout)
 	defer cancel()
-	hostFeatures := protocolV2HostFeatures(c.queries, c.queryResultFilters)
+	hostFeatures := protocolV2HostFeatures(c.queries, c.queryResultFilters, c.manifestIdentity)
 	response, err := c.client.Handshake(ctx, &protocolv2.HandshakeRequest{
 		Context: c.requestContext(ctx, "handshake"),
 		HostProtocols: []*protocolv2.ProtocolRange{{
@@ -318,18 +324,29 @@ func (c *protocolV2Client) Handshake(ctx context.Context) error {
 			Message: "Plugin did not select the required query.runtime@1 feature.",
 		}
 	}
+	if protocolV2RequiresIdentityRuntime(c.manifestIdentity) &&
+		!protocolV2SelectedFeature(
+			response.GetSelectedFeatures(),
+			protocolV2IdentityRuntimeFeatureName,
+			protocolV2IdentityRuntimeFeatureVersion,
+		) {
+		return &ProtocolV2Error{
+			Code: protocolv2.ErrorCode_ERROR_CODE_PROTOCOL_MISMATCH, Reason: "identity_runtime.feature_required",
+			Message: "Plugin did not select the required identity.runtime@1 feature.",
+		}
+	}
 	c.serviceMu.Lock()
 	c.services = cloneV2Services(response.GetServices())
 	c.serviceMu.Unlock()
 	return nil
 }
 
-// protocolV2HostFeatures lists Host-offered features. query.runtime@1 is only
-// offered when the frozen Manifest declares an executable query handler or any
-// result filter, matching the transport decision.
+// protocolV2HostFeatures only offers runtime families required by the frozen
+// Manifest declarations.
 func protocolV2HostFeatures(
 	queries []extensions.ManifestQuery,
 	filters []extensions.ManifestQueryResultFilter,
+	identity *extensions.ManifestIdentity,
 ) []*protocolv2.ProtocolFeature {
 	features := []*protocolv2.ProtocolFeature{
 		{Name: "stream.routes", Version: "1"},
@@ -340,6 +357,11 @@ func protocolV2HostFeatures(
 	if protocolV2RequiresQueryRuntime(queries, filters) {
 		features = append(features, &protocolv2.ProtocolFeature{
 			Name: protocolV2QueryRuntimeFeatureName, Version: protocolV2QueryRuntimeFeatureVersion, Required: true,
+		})
+	}
+	if protocolV2RequiresIdentityRuntime(identity) {
+		features = append(features, &protocolv2.ProtocolFeature{
+			Name: protocolV2IdentityRuntimeFeatureName, Version: protocolV2IdentityRuntimeFeatureVersion, Required: true,
 		})
 	}
 	return features
@@ -402,6 +424,18 @@ func protocolV2RequiresQueryRuntime(
 	}
 	for _, query := range queries {
 		if strings.TrimSpace(query.Handler) != "" {
+			return true
+		}
+	}
+	return false
+}
+
+func protocolV2RequiresIdentityRuntime(identity *extensions.ManifestIdentity) bool {
+	if identity == nil {
+		return false
+	}
+	for _, provider := range identity.Providers {
+		if len(provider.Operations) > 0 {
 			return true
 		}
 	}
@@ -1094,6 +1128,22 @@ func cloneV2Identity(value *protocolv2.ExtensionIdentity) *protocolv2.ExtensionI
 		return nil
 	}
 	return proto.Clone(value).(*protocolv2.ExtensionIdentity)
+}
+
+func cloneManifestIdentity(value *extensions.ManifestIdentity) *extensions.ManifestIdentity {
+	if value == nil {
+		return nil
+	}
+	result := *value
+	result.UserFields = append([]extensionmanifest.ManifestIdentityUserField(nil), value.UserFields...)
+	result.Providers = append([]extensions.ManifestIdentityProvider(nil), value.Providers...)
+	for index := range result.Providers {
+		result.Providers[index].Operations = append(
+			[]extensions.ManifestIdentityProviderOperation(nil), value.Providers[index].Operations...,
+		)
+	}
+	result.RiskHooks = append([]string(nil), value.RiskHooks...)
+	return &result
 }
 
 func cloneV2Authority(values []*protocolv2.AuthorityGrant) []*protocolv2.AuthorityGrant {
