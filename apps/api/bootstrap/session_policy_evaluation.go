@@ -1,0 +1,66 @@
+package bootstrap
+
+import (
+	"context"
+	"sync"
+
+	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
+	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
+	identityregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/IdentityRegistry"
+)
+
+// sessionPolicyRenewalGate is installed on AuthSession before the lifecycle
+// stack exists, then bound to the Host evaluator once registries are ready.
+// Unbound evaluation is Core-allow equivalent (no-op) so early requests during
+// boot never call a plugin. After bind, renew fails closed on deny/unavailable.
+type sessionPolicyRenewalGate struct {
+	mu        sync.RWMutex
+	evaluator *identity.SessionPolicyEvaluator
+}
+
+func (g *sessionPolicyRenewalGate) Set(evaluator *identity.SessionPolicyEvaluator) {
+	if g == nil {
+		return
+	}
+	g.mu.Lock()
+	g.evaluator = evaluator
+	g.mu.Unlock()
+}
+
+func (g *sessionPolicyRenewalGate) Evaluate(ctx context.Context, userID int64) error {
+	if g == nil {
+		return nil
+	}
+	g.mu.RLock()
+	evaluator := g.evaluator
+	g.mu.RUnlock()
+	if evaluator == nil {
+		return nil
+	}
+	_, err := evaluator.RequireAllow(ctx, identity.SessionEvaluationInput{
+		UserID:  userID,
+		Purpose: identity.SessionEvaluationPurposeRenew,
+	})
+	return err
+}
+
+// newSessionPolicyEvaluator builds the Host evaluator from the production
+// Identity Registry, Session Policy Store, and exact Manager runtime.
+func newSessionPolicyEvaluator(
+	manager *extensionsruntime.Manager,
+	registry *identityregistry.Registry,
+	store identity.IdentitySessionPolicyStore,
+) (*identity.SessionPolicyEvaluator, error) {
+	if manager == nil || registry == nil || store == nil {
+		return nil, identity.ErrIdentitySessionPolicyStoreUnavailable
+	}
+	runtime, err := extensionsruntime.NewIdentityProviderRuntime(manager, registry)
+	if err != nil {
+		return nil, err
+	}
+	invoker, err := extensionsruntime.NewIdentitySessionEvaluateInvoker(runtime)
+	if err != nil {
+		return nil, err
+	}
+	return identity.NewSessionPolicyEvaluator(store, invoker)
+}

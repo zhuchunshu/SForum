@@ -271,6 +271,10 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 	})
 	avatarOptions := avatarOptionsAdapter{options: optionsService}
 	identityStore := identity.NewPostgresStoreWithAvatar(pool, avatarOptions)
+	// Session policy renewal gate is bound after the lifecycle stack publishes
+	// the Identity Registry and Session Policy Store. Until then renew is a
+	// Core-equivalent no-op; revocation never uses this gate.
+	sessionPolicyRenewal := &sessionPolicyRenewalGate{}
 	authSessions := authsession.NewManager(sessionStore, authsession.Config{
 		RenewalInterval: cfg.SessionRenewalInterval,
 		HashSecret:      cfg.SessionHashSecret,
@@ -281,6 +285,7 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		// 会话目录：登录时登记设备、CurrentUserID 校验是否被下线、logout 时标记。
 		// identityStore 满足 authsession.SessionStore 接口（结构化匹配）。
 		SessionStore: identityStore,
+		RenewalGate:  sessionPolicyRenewal.Evaluate,
 	})
 	adminOverviewStore := adminoverview.NewPostgresStore(pool)
 	forumStore := forum.NewPostgresStoreWithAvatar(pool, avatarOptions)
@@ -695,8 +700,18 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 	apiTokenStore := apitokens.NewPostgresStore(pool)
 	apiTokenService := apitokens.NewService(apiTokenStore, identityStore).WithAuditor(auditWriter)
 
+	sessionPolicyEvaluator, err := newSessionPolicyEvaluator(
+		lifecycleStack.RuntimeManager,
+		lifecycleStack.IdentityRegistry,
+		lifecycleStack.SessionPolicyStore,
+	)
+	if err != nil {
+		return nil, err
+	}
+	sessionPolicyRenewal.Set(sessionPolicyEvaluator)
 	identityProvider := providers.NewIdentityProviderWithPasswordResetAndLockout(identityStore, authSessions, humanVerifier, eventPublisher, passwordResetService, mailOutbox, optionsService, loginLockout).
 		WithIdentityRegistryStore(identityReviewStore).
+		WithSessionPolicyEvaluator(sessionPolicyEvaluator).
 		WithAPITokens(apiTokenService)
 	notificationsProvider := providers.NewNotificationsProvider(notificationStore, identityStore, authSessions)
 	mailProvider := providers.NewMailProvider(extensionStore, notificationStore, extensionsruntime.NewMailProviderRegistry(extensionStore), identityStore, authSessions, optionsService)
