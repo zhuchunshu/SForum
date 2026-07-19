@@ -278,6 +278,69 @@ func TestPlanCacheKeyIsolatesActorProvidersAndLocale(t *testing.T) {
 	}
 }
 
+func TestPlanCacheKeyIsolatesEverySemanticRequestInput(t *testing.T) {
+	registry := newPlanningRegistry()
+	core := publication("core.query-key", true, 'a')
+	core.Queries = []QueryDeclaration{
+		query("core.query-key.items", "core.query-key.item", PaginationOffset, "core.query-key.read"),
+	}
+	if _, err := registry.Publish(core); err != nil {
+		t.Fatal(err)
+	}
+	base := PlanRequest{
+		QueryID:    "core.query-key.items",
+		Fields:     []string{"id"},
+		Filters:    []FilterValue{{Field: "status", Value: "open"}},
+		Sorts:      []SortValue{{Field: "created_at"}},
+		Locale:     "en-US",
+		Scope:      "forum.main",
+		Pagination: PaginationRequest{Limit: 10},
+		Permission: PermissionInput{
+			Authenticated: true, ActorFingerprint: "user-a", PolicyFingerprint: "role:reader", Recheck: allowAll(),
+		},
+	}
+	baseline, err := registry.Plan(t.Context(), base)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cases := []struct {
+		name            string
+		mutate          func(*PlanRequest)
+		wantShapeChange bool
+	}{
+		{name: "scope", mutate: func(request *PlanRequest) { request.Scope = "forum.archive" }},
+		{name: "fields", mutate: func(request *PlanRequest) { request.Fields = []string{"title"} }, wantShapeChange: true},
+		{name: "relations", mutate: func(request *PlanRequest) { request.Relations = []string{"owner"} }, wantShapeChange: true},
+		{name: "filter value", mutate: func(request *PlanRequest) {
+			request.Filters = []FilterValue{{Field: "status", Value: "closed"}}
+		}, wantShapeChange: true},
+		{name: "sort direction", mutate: func(request *PlanRequest) {
+			request.Sorts = []SortValue{{Field: "created_at", Descending: true}}
+		}, wantShapeChange: true},
+		{name: "pagination limit", mutate: func(request *PlanRequest) {
+			request.Pagination = PaginationRequest{Limit: 11}
+		}, wantShapeChange: true},
+	}
+	seen := map[string]string{baseline.CacheKey: "baseline"}
+	for _, test := range cases {
+		t.Run(test.name, func(t *testing.T) {
+			request := base
+			test.mutate(&request)
+			plan, err := registry.Plan(t.Context(), request)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if previous, exists := seen[plan.CacheKey]; exists {
+				t.Fatalf("semantic request %q shared cache key with %q", test.name, previous)
+			}
+			if changed := plan.ShapeDigest != baseline.ShapeDigest; changed != test.wantShapeChange {
+				t.Fatalf("semantic request %q shape change=%t, want %t", test.name, changed, test.wantShapeChange)
+			}
+			seen[plan.CacheKey] = test.name
+		})
+	}
+}
+
 func TestPlanRejectsResultFiltersAndSchemaMismatch(t *testing.T) {
 	registry := newPlanningRegistry()
 	core := publication("core.query", true, 'a')
