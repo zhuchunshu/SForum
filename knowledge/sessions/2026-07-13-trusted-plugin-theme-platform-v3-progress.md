@@ -1,6 +1,6 @@
 # Trusted Plugin And Theme Platform V3 Progress Ledger
 
-Last updated: 2026-07-19
+Last updated: 2026-07-20
 
 ## Progress
 
@@ -11,6 +11,42 @@ Last updated: 2026-07-19
 - Completion remains unproven until all 99 target rows, 14 accepted boundaries,
   five reference-plugin classes, 24 Program Definition of Done rows, and final
   gates pass.
+
+## Current Subtask
+
+### 2026-07-20 P7 Session Policy ProviderResolution/InvokeExact Checkpoint
+
+- Verified weighted progress remains **67.8295%** (display **67.0%**) and P7
+  remains **18/22**. Session evaluation wiring is required production path
+  infrastructure; it does not close any of the four open Identity rows before
+  Auth/Profile consumers, trusted automation, and the membership joined gate.
+- `ff194388e` adds Host-owned `ProviderResolution`, `InvokeExact`, `Evaluate`,
+  and `RequireAllow` over the Session Policy Store. Core and Safe Mode allow
+  without a plugin call; plugin sources require exact `session.evaluate`,
+  fail closed on missing/malformed/unavailable output, and recheck selection
+  revision immediately before the Host effect. Revocation never enters this path.
+- `38387f3ab` adapts `IdentityProviderRuntime` so evaluation holds exact runtime
+  admission and Schema validation through Accept/fence.
+- `31c12989e` gates AuthSession cookie renew with an optional Host renewal gate;
+  deny/unavailable maps to unauthenticated rather than a 500.
+- `11f105a0f` runs selected evaluation immediately before register/login session
+  issue; deny/step-up/unavailable map to stable HTTP errors without creating a
+  cookie session when the evaluator is bound.
+- `ce1499c38` binds the production evaluator after the lifecycle stack publishes
+  the Identity Registry and Session Policy Store, and installs the renew gate
+  holder before the stack exists so early boot remains Core-equivalent.
+- Focused gates passed: Identity evaluation unit tests, AuthSession renew-gate
+  fail-closed, Extensions invoker exact-runtime, bootstrap renew-gate bind.
+- Exact next step: wire Registry-aware `GetUser` user-field reads, Auth/Profile
+  /recovery/link/risk Core consumers, trusted `extensions.read/call/manage`
+  automation authority, then the real membership Protocol V2 plugin with
+  allowed/denied/no-implicit-grant joined normal/race/restart/Safe Mode gates.
+  P7 stays **18/22** until those four authoritative rows close together.
+- Rollback is additive: revert `ce1499c38`, `11f105a0f`, `31c12989e`,
+  `38387f3ab`, then `ff194388e`. No migration, feature flag, branch, worktree,
+  push, tag, or unowned dirty file was staged. Preserve pre-existing dirty
+  route/Web/PageViewModels/bootstrap hostAPIGateway/content-policy/OpenAPI/
+  ADR/taskbook/P9 policy work.
 
 ## Execution Acceleration Policy
 
@@ -30,47 +66,11 @@ Last updated: 2026-07-19
   staged only owned files or hunks. Never put credentials or unrelated private
   data in an agent prompt or commit them to the repository.
 
-## Current Subtask
-
 ### 2026-07-19 P7 Session Policy Selection Store Checkpoint
 
-- Verified weighted progress remains **67.8295%** (display **67.0%**) and P7
-  remains **18/22**. Selection persistence is required infrastructure; it does
-  not close an authoritative row before lifecycle, production consumers, and
-  the real membership-plugin gates pass.
-- The lifecycle compatibility slice now exposes one explicit transaction-bound
-  invalidator dependency, shares the advisory selection lock key across modules,
-  and orders Select as Registry authority -> actor -> singleton. This removes
-  the upgrade/Select deadlock cycle without yet changing lifecycle behavior or
-  receiving progress credit.
-- `7dec20a32` freezes exact Session Policy event evidence in additive migration
-  041. Core permits only its exact policy key; plugin evidence requires the
-  complete seven-field provenance tuple. Unknown, incomplete, wrong-type, and
-  secret-bearing keys fail closed, as does migrating ambiguous retained data.
-- `3b52ef041` adds the Host-owned exact PostgreSQL selection Store. Empty state
-  is implicit Core revision 0. Select and Reset use Serializable advisory-lock
-  CAS, transaction-local active `super_admin`, exact durable declaration tips,
-  atomic singleton/event/audit writes, monotonically increasing revisions,
-  Safe Mode effective-Core resolution without durable mutation, and immutable
-  event-based ambiguous-commit proof.
-- `88a674da5` covers real PostgreSQL normal and race paths, restart/rebind, Safe
-  Mode recovery, stale provider failure, authority denial, transaction rollback,
-  and one-winner CAS. Focused normal/race tests, complete Identity tests,
-  migration static/real-PostgreSQL gates, event-ledger gates, and vet passed.
-- Lifecycle invalidation is now transaction-local to
-  `IdentityRegistry.PostgresStore.Reconcile`: Registry authority -> lifecycle
-  actor -> shared advisory/singleton -> explicit Core audit/event -> root/leaf
-  publication. Only the complete exact active replay preserves selection.
-  PostgreSQL guards prove reset-before-root/provider writes; exact target/source
-  validation proves upgrade, association removal, rollback, and replay; forced
-  audit/event/root failures roll back both domains. Deterministic blocker chains
-  cover lifecycle-first and Select-first outcomes under normal and race gates.
-- Exact next step is atomic `ProviderResolution`/`InvokeExact`, then selected
-  evaluation immediately before Host session issue/renew. Revocation remains
-  Host-local. P7 stays **18/22** and weighted progress **67.8295%**.
-- Rollback is additive: revert `88a674da5`, then `3b52ef041`, then
-  `7dec20a32`. Migration 041 Down remains fail-closed after retained evidence.
-  No feature flag, branch, worktree, push, tag, or unowned dirty file changed.
+- Completed and superseded by the 2026-07-20 ProviderResolution/InvokeExact
+  checkpoint above. Store and lifecycle invalidation commits remain:
+  `7dec20a32`, `3b52ef041`, `88a674da5`, `e9ae9a9d8`, `ccc26e7ae`.
 
 ### 2026-07-19 P7 Host-owned User-field Store Checkpoint
 
