@@ -32,10 +32,20 @@ type identityPersistencePGFixture struct {
 	extensionID   string
 	versionID     int64
 	publication   identityregistry.Publication
+	field         identityregistry.UserFieldContribution
 	provider      identityregistry.ProviderContribution
+	registry      *identityregistry.Registry
 	registryStore *identityregistry.PostgresStore
 	externalLinks *PostgresExternalIdentityLinkStore
+	userFields    *PostgresIdentityUserFieldValueStore
 }
+
+const (
+	identityPersistencePermissionKey = "fixture.identity.membership.profile"
+	identityPersistenceFieldID       = "fixture.identity.membership.member_code"
+	identityPersistenceFieldScope    = "fixture.identity.membership.user-field@1"
+	identityPersistencePrivacyScope  = "host.identity.user-field.privacy@1"
+)
 
 func newIdentityPersistencePGFixture(t *testing.T) *identityPersistencePGFixture {
 	t.Helper()
@@ -96,6 +106,15 @@ func newIdentityPersistencePGFixture(t *testing.T) *identityPersistencePGFixture
 		admin.Close()
 		t.Fatal(err)
 	}
+	fixture.userFields, err = NewPostgresIdentityUserFieldValueStore(
+		pool, fixture.registry, []byte(strings.Repeat("k", 32)),
+	)
+	if err != nil {
+		pool.Close()
+		removeSchema()
+		admin.Close()
+		t.Fatal(err)
+	}
 	t.Cleanup(func() {
 		pool.Close()
 		removeSchema()
@@ -129,6 +148,9 @@ func applyIdentityPersistenceTestMigrations(
 		202607160033,
 		202607170034,
 		202607190037,
+		202607190038,
+		202607190039,
+		202607190040,
 	} {
 		if _, err := provider.ApplyVersion(ctx, version, true); err != nil {
 			removeSchema()
@@ -252,7 +274,6 @@ func (f *identityPersistencePGFixture) seed() error {
 	`, f.extensionID, f.versionID); err != nil {
 		return err
 	}
-
 	publication, err := identityPersistenceProviderPublication(
 		f.extensionID, f.versionID, digest, "identity-runtime",
 	)
@@ -273,8 +294,33 @@ func (f *identityPersistencePGFixture) seed() error {
 	}); err != nil {
 		return err
 	}
+	var implicitGrants int
+	if err := f.pool.QueryRow(f.ctx, `
+		SELECT count(*) FROM role_permissions WHERE permission_key = $1
+	`, identityPersistencePermissionKey).Scan(&implicitGrants); err != nil {
+		return err
+	}
+	if implicitGrants != 0 {
+		return fmt.Errorf("identity publication created %d implicit role grants", implicitGrants)
+	}
+	if _, err := f.pool.Exec(f.ctx, `
+		INSERT INTO user_roles (user_id, role_id)
+		SELECT $1, id FROM roles WHERE key = 'identity_reviewer'
+	`, f.actorUserID); err != nil {
+		return err
+	}
+	if _, err := f.pool.Exec(f.ctx, `
+		INSERT INTO role_permissions (role_id, permission_key)
+		SELECT id, $1 FROM roles WHERE key = 'identity_reviewer'
+	`, identityPersistencePermissionKey); err != nil {
+		return err
+	}
 	registry := identityregistry.New()
 	if _, err := registry.Publish(publication); err != nil {
+		return err
+	}
+	field, err := registry.ResolveUserField(identityPersistenceFieldID)
+	if err != nil {
 		return err
 	}
 	provider, err := registry.ResolveProvider(f.extensionID + ".auth")
@@ -282,7 +328,9 @@ func (f *identityPersistencePGFixture) seed() error {
 		return err
 	}
 	f.publication = publication
+	f.field = field
 	f.provider = provider
+	f.registry = registry
 	return nil
 }
 
@@ -340,8 +388,18 @@ func identityPersistenceProviderPublication(
 	providerID := extensionID + ".auth"
 	publication := identityregistry.Publication{
 		Artifact: artifact,
+		Permissions: []identityregistry.PermissionDefinition{{
+			Key: identityPersistencePermissionKey, ContractVersion: identityPersistencePermissionKey + "@1",
+			Label: "Membership profile", Description: "Manage membership profile fields",
+			RecommendedRoles: []string{"identity_reviewer"}, AssignmentPolicy: "host",
+		}},
 		Identity: &identityregistry.IdentityDeclaration{
 			ContractVersion: extensionID + "@1",
+			UserFields: []identityregistry.UserField{{
+				ID: identityPersistenceFieldID, ContractVersion: identityPersistenceFieldID + "@1",
+				Type: "string", Schema: "schemas/member-code.json",
+				ReadPermission: identityPersistencePermissionKey, WritePermission: identityPersistencePermissionKey,
+			}},
 			Providers: []identityregistry.Provider{{
 				ID: providerID, ContractVersion: providerID + "@1",
 				Kind: identityregistry.ProviderKindAuth, Handler: "identity.auth", Priority: 10,
@@ -360,6 +418,14 @@ func identityPersistenceProviderPublication(
 			}},
 		},
 	}
+	fieldSchema := []byte(`{"type":"string","minLength":3,"maxLength":32}`)
+	fieldBinding := identityregistry.UserFieldSchemaBinding{
+		FieldID: identityPersistenceFieldID, ContractVersion: identityPersistenceFieldID + "@1",
+		Artifact: artifact,
+		Schema: identityPersistenceSchemaMaterialWithBody(
+			"schemas/member-code.json", identityPersistenceFieldID+".value@1", fieldSchema,
+		),
+	}
 	bindings := make([]identityregistry.ProviderOperationSchemaBinding, 0, 2)
 	for _, operation := range publication.Identity.Providers[0].Operations {
 		bindings = append(bindings, identityregistry.ProviderOperationSchemaBinding{
@@ -373,11 +439,21 @@ func identityPersistenceProviderPublication(
 			),
 		})
 	}
-	return identityregistry.BindJSONSchemas(publication, nil, bindings)
+	return identityregistry.BindJSONSchemas(
+		publication, []identityregistry.UserFieldSchemaBinding{fieldBinding}, bindings,
+	)
 }
 
 func identityPersistenceSchemaMaterial(reference string, wireReference string) identityregistry.JSONSchemaMaterial {
 	body := []byte(`{"type":"object","additionalProperties":true}`)
+	return identityPersistenceSchemaMaterialWithBody(reference, wireReference, body)
+}
+
+func identityPersistenceSchemaMaterialWithBody(
+	reference string,
+	wireReference string,
+	body []byte,
+) identityregistry.JSONSchemaMaterial {
 	digest := sha256.Sum256(body)
 	return identityregistry.JSONSchemaMaterial{
 		Reference: reference, WireReference: wireReference,
