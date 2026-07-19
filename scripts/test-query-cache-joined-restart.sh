@@ -5,6 +5,10 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 API_DIR="$ROOT_DIR/apps/api"
 TEST_NAME='^TestP7QueryRegistryMutationCacheRestartJoined$'
 WORKER_TEST_NAME='^TestProductionQueryWorkerOwnershipAndSafeModeKindJoined$'
+QUERY_MATRIX_TEST_NAME='^(TestPlanValidatesShapePaginationCostAndProviders|TestPlanPermissionRecheckIsHostOwned|TestPlanCacheKeyIsolatesActorProvidersAndLocale|TestPlanCacheKeyIsolatesEverySemanticRequestInput|TestExecutionRechecksPermissionBeforeProviderAndRelease|TestExecutionCostAndProviderFailuresFailBeforeRelease|TestExecutionOffsetAndAuthenticatedCursorPagination|TestExecutionCacheIsolationHitAndPoisonFence|TestExecutionCacheHitRechecksPermissionBeforeFinalRelease|TestExecutionCacheFencePreventsStaleProviderRevival|TestExecutionSchemaValidatorRunsAtProviderFilterCacheAndReleaseFences|TestExecutionCacheIsFencedByResolvedProviderMapping)$'
+REFERENCE_TEST_NAME='^TestReferenceQueryPluginJoinedGates$'
+TRANSACTION_TEST_NAME='^TestPostgresProtocolV2DatabaseRuntimeExactTransactionsAndRevocation$'
+LIFECYCLE_TEST_NAME='^(TestProductionQueryProtocolV2ForceDrainJoined|TestProductionQueryLifecycleUpgradeJoined)$'
 
 : "${SFORUM_TEST_DATABASE_URL:?SFORUM_TEST_DATABASE_URL is required}"
 command -v docker >/dev/null
@@ -20,6 +24,8 @@ container="sforum-query-cache-joined-$$-${ownership_token:0:12}"
 tmp_dir=""
 binary=""
 worker_binary=""
+query_binary=""
+reference_binary=""
 cidfile=""
 container_id=""
 
@@ -153,6 +159,8 @@ trap 'exit 129' HUP
 tmp_dir="$(mktemp -d "${TMPDIR:-/tmp}/sforum-query-cache-joined.XXXXXX")"
 binary="$tmp_dir/query-cache-joined.test"
 worker_binary="$tmp_dir/query-worker-ownership.test"
+query_binary="$tmp_dir/query-contract-matrix.test"
+reference_binary="$tmp_dir/query-reference-matrix.test"
 cidfile="$tmp_dir/redis.cid"
 gocache="${SFORUM_QUERY_CACHE_JOINED_GOCACHE:-$tmp_dir/go-build}"
 
@@ -161,11 +169,36 @@ gocache="${SFORUM_QUERY_CACHE_JOINED_GOCACHE:-$tmp_dir/go-build}"
   if [[ "${SFORUM_QUERY_CACHE_JOINED_RACE:-0}" == "1" ]]; then
     TMPDIR="$tmp_dir" GOCACHE="$gocache" go test -race -c -o "$binary" ./app/Support/HostAPI
     TMPDIR="$tmp_dir" GOCACHE="$gocache" go test -race -c -o "$worker_binary" ./bootstrap
+    TMPDIR="$tmp_dir" GOCACHE="$gocache" go test -race -c -o "$query_binary" ./app/Support/QueryRegistry
+    TMPDIR="$tmp_dir" GOCACHE="$gocache" go test -race -c -o "$reference_binary" ./app/Support/Extensions
   else
     TMPDIR="$tmp_dir" GOCACHE="$gocache" go test -c -o "$binary" ./app/Support/HostAPI
     TMPDIR="$tmp_dir" GOCACHE="$gocache" go test -c -o "$worker_binary" ./bootstrap
+    TMPDIR="$tmp_dir" GOCACHE="$gocache" go test -c -o "$query_binary" ./app/Support/QueryRegistry
+    TMPDIR="$tmp_dir" GOCACHE="$gocache" go test -c -o "$reference_binary" ./app/Support/Extensions
   fi
 )
+
+require_test_count() {
+  local test_binary="$1"
+  local pattern="$2"
+  local expected="$3"
+  local label="$4"
+  local count=""
+  count="$(TMPDIR="$tmp_dir" GOCACHE="$gocache" "$test_binary" -test.list "$pattern" \
+    | awk '/^Test/ { count++ } END { print count + 0 }')"
+  if [[ "$count" != "$expected" ]]; then
+    echo "P7 Query $label gate discovered $count tests, want $expected" >&2
+    exit 1
+  fi
+}
+
+require_test_count "$binary" "$TEST_NAME" 1 "restart"
+require_test_count "$worker_binary" "$WORKER_TEST_NAME" 1 "worker ownership"
+require_test_count "$query_binary" "$QUERY_MATRIX_TEST_NAME" 12 "contract matrix"
+require_test_count "$reference_binary" "$REFERENCE_TEST_NAME" 1 "reference plugin"
+require_test_count "$binary" "$TRANSACTION_TEST_NAME" 1 "same-transaction rollback"
+require_test_count "$worker_binary" "$LIFECYCLE_TEST_NAME" 2 "lifecycle"
 
 docker run --detach \
   --cidfile "$cidfile" \
@@ -240,6 +273,7 @@ run_phase() {
   SFORUM_QUERY_CACHE_TEST_REDIS_ADDR="$endpoint" \
   SFORUM_QUERY_CACHE_TEST_REDIS_PASSWORD= \
   TMPDIR="$tmp_dir" \
+  GOCACHE="$gocache" \
     "$binary" -test.run "$TEST_NAME" -test.count=1 -test.timeout=3m -test.v
 }
 
@@ -251,7 +285,20 @@ run_worker_ownership() {
   SFORUM_QUERY_CACHE_TEST_REDIS_ADDR="$endpoint" \
   SFORUM_QUERY_CACHE_TEST_REDIS_PASSWORD= \
   TMPDIR="$tmp_dir" \
+  GOCACHE="$gocache" \
     "$worker_binary" -test.run "$WORKER_TEST_NAME" -test.count=1 -test.timeout=4m -test.v
+}
+
+run_query_contract_matrix() {
+  echo "running P7 Query contract matrix"
+  TMPDIR="$tmp_dir" GOCACHE="$gocache" \
+    "$query_binary" -test.run "$QUERY_MATRIX_TEST_NAME" -test.count=1 -test.timeout=3m -test.v
+  TMPDIR="$tmp_dir" GOCACHE="$gocache" \
+    "$reference_binary" -test.run "$REFERENCE_TEST_NAME" -test.count=1 -test.timeout=5m -test.v
+  TMPDIR="$tmp_dir" GOCACHE="$gocache" \
+    "$binary" -test.run "$TRANSACTION_TEST_NAME" -test.count=1 -test.timeout=4m -test.v
+  TMPDIR="$tmp_dir" GOCACHE="$gocache" \
+    "$worker_binary" -test.run "$LIFECYCLE_TEST_NAME" -test.count=1 -test.timeout=5m -test.v
 }
 
 refresh_endpoint
@@ -261,6 +308,7 @@ if [[ -z "$seed_run_id" ]]; then
   echo "joined Query Redis seed run_id is empty" >&2
   exit 1
 fi
+run_query_contract_matrix
 run_phase seed "$seed_run_id"
 run_worker_ownership "$seed_run_id"
 
