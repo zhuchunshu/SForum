@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"reflect"
 	"sort"
 	"strings"
 
@@ -407,7 +406,8 @@ func lifecycleIdentityGraph(
 		if publication == nil {
 			continue
 		}
-		if existing, found := allowedPublications[publication.Artifact]; found && !reflect.DeepEqual(existing, *publication) {
+		if existing, found := allowedPublications[publication.Artifact]; found &&
+			!identityregistry.EqualPublicContract(existing, *publication) {
 			return nil, ErrLifecycleRegistryPublicationConflict
 		}
 		allowedPublications[publication.Artifact] = *publication
@@ -420,7 +420,7 @@ func lifecycleIdentityGraph(
 			continue
 		}
 		frozen, ok := allowedPublications[publication.Artifact]
-		if !ok || !reflect.DeepEqual(frozen, publication) {
+		if !ok || !identityregistry.EqualPublicContract(frozen, publication) {
 			return nil, ErrLifecycleRegistryPublicationConflict
 		}
 	}

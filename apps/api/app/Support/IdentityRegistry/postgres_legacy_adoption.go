@@ -78,6 +78,9 @@ func prepareLegacyAdoptionBatch(publications []Publication) ([]legacyAdoptionIte
 		if err != nil || normalized.Artifact.Core {
 			return nil, ErrInvalid
 		}
+		if err := validateExecutableBindings(normalized); err != nil {
+			return nil, ErrInvalid
+		}
 		if _, duplicate := seenOwners[normalized.Artifact.ExtensionID]; duplicate {
 			return nil, ErrConflict
 		}

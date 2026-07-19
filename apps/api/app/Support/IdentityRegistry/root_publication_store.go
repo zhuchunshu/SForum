@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
-	"reflect"
 	"strings"
 )
 
@@ -50,6 +49,10 @@ func canonicalDurableRootPublication(publication Publication) (Publication, []by
 	if err != nil {
 		return Publication{}, nil, "", err
 	}
+	if err := validateExecutableBindings(normalized); err != nil {
+		return Publication{}, nil, "", err
+	}
+	normalized = publicationContract(normalized)
 	normalized.Artifact.RuntimeInstanceID = ""
 	raw, err := json.Marshal(normalized)
 	if err != nil {
@@ -83,7 +86,11 @@ func decodeDurableRootPublication(raw json.RawMessage) (Publication, []byte, str
 	if err != nil {
 		return Publication{}, nil, "", err
 	}
+	normalized = publicationContract(normalized)
 	normalized.Artifact.RuntimeInstanceID = ""
+	if err := validatePublicSchemaMetadata(normalized); err != nil {
+		return Publication{}, nil, "", err
+	}
 	canonical, err := json.Marshal(normalized)
 	if err != nil {
 		return Publication{}, nil, "", ErrInvalid
@@ -100,8 +107,16 @@ func identityDeclarationRequiresRuntime(identity *IdentityDeclaration) bool {
 	if identity == nil {
 		return false
 	}
-	return len(identity.RiskHooks) > 0 ||
-		identity.SessionPolicy != "" && identity.SessionPolicy != "core.session.default"
+	if len(identity.RiskHooks) > 0 ||
+		identity.SessionPolicy != "" && identity.SessionPolicy != "core.session.default" {
+		return true
+	}
+	for _, provider := range identity.Providers {
+		if len(provider.Operations) > 0 {
+			return true
+		}
+	}
+	return false
 }
 
 func durableRootPublications(state DurableState) (map[string]durableRootPublication, error) {
@@ -165,7 +180,7 @@ func validateDurableRootPublication(
 		return Publication{}, ErrStale
 	}
 	if durableRootTipArtifactIdentity(root.tip) != durableArtifactIdentityOf(normalized.Artifact) ||
-		root.tip.PublicationDigest != digest || !reflect.DeepEqual(root.publication, normalized) {
+		root.tip.PublicationDigest != digest || !EqualPublicContract(root.publication, normalized) {
 		return Publication{}, ErrArtifactConflict
 	}
 	return normalized, nil

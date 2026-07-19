@@ -147,6 +147,9 @@ func normalizeReconcilePublicationInput(input ReconcilePublicationInput) (normal
 			target == nil || publication.Artifact != *target {
 			return normalizedReconcilePublicationInput{}, ErrInvalid
 		}
+		if err := validateExecutableBindings(publication); err != nil {
+			return normalizedReconcilePublicationInput{}, ErrInvalid
+		}
 		result.desired = &publication
 	}
 	return result, nil
@@ -171,7 +174,7 @@ func desiredDurableDeclarations(publication *Publication) ([]durableDesiredDecla
 	}
 	if publication.Identity != nil {
 		for _, field := range publication.Identity.UserFields {
-			digest, err := durableDeclarationDigest(TombstoneKindUserField, field)
+			digest, err := durableDeclarationDigest(TombstoneKindUserField, publicUserField(field))
 			if err != nil {
 				return nil, err
 			}
@@ -182,7 +185,7 @@ func desiredDurableDeclarations(publication *Publication) ([]durableDesiredDecla
 			})
 		}
 		for _, provider := range publication.Identity.Providers {
-			digest, err := durableDeclarationDigest(TombstoneKindProvider, provider)
+			digest, err := durableDeclarationDigest(TombstoneKindProvider, publicProvider(provider))
 			if err != nil {
 				return nil, err
 			}

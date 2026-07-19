@@ -19,12 +19,14 @@ const (
 )
 
 var (
-	ErrInvalid          = errors.New("identity registry declaration is invalid")
-	ErrConflict         = errors.New("identity registry conflicts with the active graph")
-	ErrArtifactConflict = errors.New("identity registry artifact does not own the active publication")
-	ErrRevisionConflict = errors.New("identity registry revision changed during replacement")
-	ErrSafeMode         = errors.New("identity registry rejects third-party publication in safe mode")
-	ErrNotFound         = errors.New("identity registry declaration is not found")
+	ErrInvalid            = errors.New("identity registry declaration is invalid")
+	ErrConflict           = errors.New("identity registry conflicts with the active graph")
+	ErrArtifactConflict   = errors.New("identity registry artifact does not own the active publication")
+	ErrRevisionConflict   = errors.New("identity registry revision changed during replacement")
+	ErrSafeMode           = errors.New("identity registry rejects third-party publication in safe mode")
+	ErrNotFound           = errors.New("identity registry declaration is not found")
+	ErrSchemaUnavailable  = errors.New("identity registry schema is unavailable")
+	ErrSchemaValueInvalid = errors.New("identity registry schema rejected the value")
 )
 
 // Artifact binds declarations to one immutable extension version. Third-party
@@ -54,25 +56,49 @@ type PermissionDefinition struct {
 }
 
 type UserField struct {
-	ID              string `json:"id"`
-	ContractVersion string `json:"contractVersion"`
-	Type            string `json:"type"`
-	Schema          string `json:"schema"`
+	ID                  string `json:"id"`
+	ContractVersion     string `json:"contractVersion"`
+	Type                string `json:"type"`
+	Schema              string `json:"schema"`
+	SchemaWireReference string `json:"schemaWireReference,omitempty"`
+	SchemaDigest        string `json:"schemaDigest,omitempty"`
 	// Empty permission fields defer to a future Host-owned field policy and
 	// must be consumed as default-deny, never as implicit public read/write.
 	ReadPermission  string `json:"readPermission,omitempty"`
 	WritePermission string `json:"writePermission,omitempty"`
+
+	boundSchema *compiledIdentitySchema
 }
 
-// Provider is an inspectable provider declaration. The frozen Manifest V3
-// shape does not carry request/result schemas or operation contracts, so this
-// registry deliberately does not expose an invocation method yet.
+const (
+	ProviderFailureFailClosed = "fail_closed"
+	ProviderFailureOmit       = "omit"
+)
+
+type ProviderOperation struct {
+	Name                      string `json:"name"`
+	InputSchema               string `json:"inputSchema"`
+	InputSchemaWireReference  string `json:"inputSchemaWireReference,omitempty"`
+	InputSchemaDigest         string `json:"inputSchemaDigest,omitempty"`
+	OutputSchema              string `json:"outputSchema"`
+	OutputSchemaWireReference string `json:"outputSchemaWireReference,omitempty"`
+	OutputSchemaDigest        string `json:"outputSchemaDigest,omitempty"`
+	TimeoutMS                 int    `json:"timeoutMs"`
+	FailurePolicy             string `json:"failurePolicy"`
+
+	boundInputSchema  *compiledIdentitySchema
+	boundOutputSchema *compiledIdentitySchema
+}
+
+// Provider stays inspectable when Operations is empty. Non-empty operations
+// require exact package Schema material and one live exact runtime.
 type Provider struct {
-	ID              string `json:"id"`
-	ContractVersion string `json:"contractVersion"`
-	Kind            string `json:"kind"`
-	Handler         string `json:"handler"`
-	Priority        int    `json:"priority,omitempty"`
+	ID              string              `json:"id"`
+	ContractVersion string              `json:"contractVersion"`
+	Kind            string              `json:"kind"`
+	Handler         string              `json:"handler"`
+	Priority        int                 `json:"priority,omitempty"`
+	Operations      []ProviderOperation `json:"operations,omitempty"`
 }
 
 type IdentityDeclaration struct {

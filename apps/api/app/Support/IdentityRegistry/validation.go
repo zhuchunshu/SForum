@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	semver "github.com/Masterminds/semver/v3"
+	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
 )
 
 const (
@@ -24,6 +25,8 @@ const (
 	maxRecommendedRoles        = 64
 	maxRiskHooks               = 128
 	maxRuntimeInstanceIDLength = 512
+	maxSchemaReferenceLength   = extensionmanifest.SchemaReferenceMaximumLength
+	maxProviderOperations      = extensionmanifest.ManifestIdentityProviderMaximumOperations
 )
 
 var (
@@ -73,6 +76,12 @@ func strictSemVer(value string) bool {
 
 func coreArtifactSeal(artifact Artifact) [32]byte {
 	return sha256.Sum256([]byte("sforum.identity-registry.core\x00" + artifact.ExtensionID + "\x00" + artifact.ExtensionVersion + "\x00" + artifact.PackageDigest))
+}
+
+func validCoreArtifactSeal(artifact Artifact) bool {
+	return artifact.Core && strings.HasPrefix(artifact.ExtensionID, "core.") &&
+		artifact.VersionID == 0 && artifact.RuntimeInstanceID == "" &&
+		artifact.coreSeal == coreArtifactSeal(artifact)
 }
 
 func normalizePublication(input Publication) (Publication, error) {
@@ -152,10 +161,12 @@ func normalizeIdentity(artifact Artifact, input IdentityDeclaration, permissions
 		field.ContractVersion = strings.TrimSpace(field.ContractVersion)
 		field.Type = strings.ToLower(strings.TrimSpace(field.Type))
 		field.Schema = strings.TrimSpace(field.Schema)
+		field.SchemaWireReference = strings.TrimSpace(field.SchemaWireReference)
+		field.SchemaDigest = strings.ToLower(strings.TrimSpace(field.SchemaDigest))
 		field.ReadPermission = strings.ToLower(strings.TrimSpace(field.ReadPermission))
 		field.WritePermission = strings.ToLower(strings.TrimSpace(field.WritePermission))
 		if !ownedID(artifact, field.ID) || !contractPattern.MatchString(field.ContractVersion) ||
-			!contractPattern.MatchString(field.Schema) || !validFieldType(field.Type) ||
+			!validSchemaReference(field.Schema) || !validFieldType(field.Type) ||
 			!declaredPermission(field.ReadPermission, permissions) || !declaredPermission(field.WritePermission, permissions) {
 			return IdentityDeclaration{}, ErrInvalid
 		}
@@ -163,7 +174,7 @@ func normalizeIdentity(artifact Artifact, input IdentityDeclaration, permissions
 			return IdentityDeclaration{}, ErrConflict
 		}
 		fieldIDs[field.ID] = struct{}{}
-		result.UserFields = append(result.UserFields, field)
+		result.UserFields = append(result.UserFields, cloneUserField(field))
 	}
 	providerIDs := map[string]struct{}{}
 	for _, provider := range input.Providers {
@@ -172,14 +183,33 @@ func normalizeIdentity(artifact Artifact, input IdentityDeclaration, permissions
 		provider.Kind = strings.ToLower(strings.TrimSpace(provider.Kind))
 		provider.Handler = strings.TrimSpace(provider.Handler)
 		if !ownedID(artifact, provider.ID) || !contractPattern.MatchString(provider.ContractVersion) ||
-			!validProviderKind(provider.Kind) || !validHandler(provider.Handler) {
+			!validProviderKind(provider.Kind) || !validHandler(provider.Handler) ||
+			len(provider.Operations) > maxProviderOperations {
 			return IdentityDeclaration{}, ErrInvalid
 		}
 		if _, duplicate := providerIDs[provider.ID]; duplicate {
 			return IdentityDeclaration{}, ErrConflict
 		}
 		providerIDs[provider.ID] = struct{}{}
-		result.Providers = append(result.Providers, provider)
+		var operations []ProviderOperation
+		if len(provider.Operations) > 0 {
+			operations = make([]ProviderOperation, 0, len(provider.Operations))
+		}
+		seenOperations := make(map[string]struct{}, len(provider.Operations))
+		for _, operation := range provider.Operations {
+			normalized, operationErr := normalizeProviderOperation(provider.Kind, operation)
+			if operationErr != nil {
+				return IdentityDeclaration{}, operationErr
+			}
+			if _, duplicate := seenOperations[normalized.Name]; duplicate {
+				return IdentityDeclaration{}, ErrConflict
+			}
+			seenOperations[normalized.Name] = struct{}{}
+			operations = append(operations, normalized)
+		}
+		sort.Slice(operations, func(i, j int) bool { return operations[i].Name < operations[j].Name })
+		provider.Operations = operations
+		result.Providers = append(result.Providers, cloneProvider(provider))
 	}
 	riskHooks := make([]string, 0, len(input.RiskHooks))
 	seenHooks := map[string]struct{}{}
@@ -210,10 +240,53 @@ func normalizeIdentity(artifact Artifact, input IdentityDeclaration, permissions
 	// executable operation contract. Legacy providers must not require a process.
 	requiresRuntime := len(result.RiskHooks) > 0 ||
 		result.SessionPolicy != "" && result.SessionPolicy != "core.session.default"
+	if !requiresRuntime {
+		for _, provider := range result.Providers {
+			if len(provider.Operations) > 0 {
+				requiresRuntime = true
+				break
+			}
+		}
+	}
 	if !artifact.Core && requiresRuntime && artifact.RuntimeInstanceID == "" {
 		return IdentityDeclaration{}, ErrInvalid
 	}
 	return result, nil
+}
+
+func normalizeProviderOperation(kind string, input ProviderOperation) (ProviderOperation, error) {
+	input.Name = strings.ToLower(strings.TrimSpace(input.Name))
+	input.InputSchema = strings.TrimSpace(input.InputSchema)
+	input.InputSchemaWireReference = strings.TrimSpace(input.InputSchemaWireReference)
+	input.InputSchemaDigest = strings.ToLower(strings.TrimSpace(input.InputSchemaDigest))
+	input.OutputSchema = strings.TrimSpace(input.OutputSchema)
+	input.OutputSchemaWireReference = strings.TrimSpace(input.OutputSchemaWireReference)
+	input.OutputSchemaDigest = strings.ToLower(strings.TrimSpace(input.OutputSchemaDigest))
+	input.FailurePolicy = strings.ToLower(strings.TrimSpace(input.FailurePolicy))
+	expectedPolicy, known := providerOperationPolicy(kind, input.Name)
+	if !known || !validSchemaReference(input.InputSchema) || !validSchemaReference(input.OutputSchema) ||
+		input.TimeoutMS <= 0 || input.TimeoutMS > extensionmanifest.ManifestIdentityProviderMaximumTimeoutMS ||
+		input.FailurePolicy != expectedPolicy {
+		return ProviderOperation{}, ErrInvalid
+	}
+	return cloneProviderOperation(input), nil
+}
+
+func providerOperationPolicy(kind, name string) (string, bool) {
+	switch kind + ":" + name {
+	case ProviderKindProfile + ":sections.list", ProviderKindProfile + ":section.read":
+		return ProviderFailureOmit, true
+	case ProviderKindAuth + ":registration.start", ProviderKindAuth + ":registration.complete",
+		ProviderKindAuth + ":login.start", ProviderKindAuth + ":login.complete",
+		ProviderKindAuth + ":link.start", ProviderKindAuth + ":link.complete",
+		ProviderKindProfile + ":section.update", ProviderKindProfile + ":account.read",
+		ProviderKindProfile + ":account.update",
+		ProviderKindRecovery + ":recovery.start", ProviderKindRecovery + ":recovery.complete",
+		ProviderKindSession + ":session.evaluate", ProviderKindRisk + ":risk.evaluate":
+		return ProviderFailureFailClosed, true
+	default:
+		return "", false
+	}
 }
 
 func normalizeTombstone(input Tombstone) (Tombstone, error) {
@@ -246,6 +319,17 @@ func declaredPermission(permission string, permissions map[string]struct{}) bool
 
 func validFieldType(value string) bool {
 	return slices.Contains([]string{"string", "number", "boolean", "object", "array"}, value)
+}
+
+func validSchemaReference(value string) bool {
+	if value == "" || len(value) > maxSchemaReferenceLength {
+		return false
+	}
+	if contractPattern.MatchString(value) {
+		return true
+	}
+	clean, ok := extensionmanifest.SafeArchivePath(value)
+	return ok && clean == value && strings.HasSuffix(value, ".json")
 }
 
 func validProviderKind(value string) bool {

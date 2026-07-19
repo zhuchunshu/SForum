@@ -35,15 +35,52 @@ type StoredTrustImpactValidator func(document []byte, expectedDigest string) err
 // full canonical digest integrity succeeds. Top-level authority fields must
 // still match the selected grant/desired artifact before identity comparison.
 type legacyTrustImpactAdoptionSurface struct {
-	SchemaVersion         string                 `json:"schemaVersion"`
-	Action                string                 `json:"action"`
-	ExtensionID           string                 `json:"extensionId"`
-	ExtensionVersion      string                 `json:"extensionVersion"`
-	ExtensionType         string                 `json:"extensionType"`
-	PackageDigest         string                 `json:"packageDigest"`
-	Digest                string                 `json:"digest"`
-	Identity              *IdentityDeclaration   `json:"identity"`
-	PermissionDefinitions []PermissionDefinition `json:"permissionDefinitions"`
+	SchemaVersion         string                  `json:"schemaVersion"`
+	Action                string                  `json:"action"`
+	ExtensionID           string                  `json:"extensionId"`
+	ExtensionVersion      string                  `json:"extensionVersion"`
+	ExtensionType         string                  `json:"extensionType"`
+	PackageDigest         string                  `json:"packageDigest"`
+	Digest                string                  `json:"digest"`
+	Identity              *legacyManifestIdentity `json:"identity"`
+	PermissionDefinitions []PermissionDefinition  `json:"permissionDefinitions"`
+}
+
+// legacyManifestIdentity mirrors only the Manifest-owned Identity fields.
+// Host-derived Registry wire refs/digests and private validators must never be
+// inserted into a stored TrustImpact document.
+type legacyManifestIdentity struct {
+	ContractVersion string                            `json:"contractVersion"`
+	UserFields      []legacyManifestIdentityUserField `json:"userFields,omitempty"`
+	Providers       []legacyManifestIdentityProvider  `json:"providers,omitempty"`
+	SessionPolicy   string                            `json:"sessionPolicy,omitempty"`
+	RiskHooks       []string                          `json:"riskHooks,omitempty"`
+}
+
+type legacyManifestIdentityUserField struct {
+	ID              string `json:"id"`
+	ContractVersion string `json:"contractVersion"`
+	Type            string `json:"type"`
+	Schema          string `json:"schema"`
+	ReadPermission  string `json:"readPermission,omitempty"`
+	WritePermission string `json:"writePermission,omitempty"`
+}
+
+type legacyManifestIdentityProvider struct {
+	ID              string                            `json:"id"`
+	ContractVersion string                            `json:"contractVersion"`
+	Kind            string                            `json:"kind"`
+	Handler         string                            `json:"handler"`
+	Priority        int                               `json:"priority,omitempty"`
+	Operations      []legacyManifestProviderOperation `json:"operations,omitempty"`
+}
+
+type legacyManifestProviderOperation struct {
+	Name          string `json:"name"`
+	InputSchema   string `json:"inputSchema"`
+	OutputSchema  string `json:"outputSchema"`
+	TimeoutMS     int    `json:"timeoutMs,omitempty"`
+	FailurePolicy string `json:"failurePolicy,omitempty"`
 }
 
 // trustImpactAuthorizesDesiredPublication proves:
@@ -85,7 +122,7 @@ func trustImpactAuthorizesDesiredPublication(
 	// applies the same ownership / role / runtime rules as live reconcile.
 	candidate := Publication{
 		Artifact:    desired.Artifact,
-		Identity:    surface.Identity,
+		Identity:    identityDeclarationFromLegacyManifest(surface.Identity),
 		Permissions: append([]PermissionDefinition(nil), surface.PermissionDefinitions...),
 	}
 	normalizedCandidate, err := normalizePublication(candidate)
@@ -96,13 +133,85 @@ func trustImpactAuthorizesDesiredPublication(
 	if err != nil {
 		return ErrInvalid
 	}
+	if err := validateExecutableBindings(normalizedDesired); err != nil {
+		return ErrInvalid
+	}
 	if !reflect.DeepEqual(normalizedCandidate.Permissions, normalizedDesired.Permissions) {
 		return ErrInvalid
 	}
-	if !reflect.DeepEqual(normalizedCandidate.Identity, normalizedDesired.Identity) {
+	if !reflect.DeepEqual(
+		legacyManifestIdentityFromDeclaration(normalizedCandidate.Identity),
+		legacyManifestIdentityFromDeclaration(normalizedDesired.Identity),
+	) {
 		return ErrInvalid
 	}
 	return nil
+}
+
+func legacyManifestIdentityFromDeclaration(input *IdentityDeclaration) *legacyManifestIdentity {
+	if input == nil {
+		return nil
+	}
+	result := &legacyManifestIdentity{
+		ContractVersion: input.ContractVersion,
+		SessionPolicy:   input.SessionPolicy,
+		RiskHooks:       append([]string(nil), input.RiskHooks...),
+	}
+	for _, field := range input.UserFields {
+		result.UserFields = append(result.UserFields, legacyManifestIdentityUserField{
+			ID: field.ID, ContractVersion: field.ContractVersion, Type: field.Type,
+			Schema: field.Schema, ReadPermission: field.ReadPermission,
+			WritePermission: field.WritePermission,
+		})
+	}
+	for _, provider := range input.Providers {
+		item := legacyManifestIdentityProvider{
+			ID: provider.ID, ContractVersion: provider.ContractVersion,
+			Kind: provider.Kind, Handler: provider.Handler, Priority: provider.Priority,
+		}
+		for _, operation := range provider.Operations {
+			item.Operations = append(item.Operations, legacyManifestProviderOperation{
+				Name: operation.Name, InputSchema: operation.InputSchema,
+				OutputSchema: operation.OutputSchema, TimeoutMS: operation.TimeoutMS,
+				FailurePolicy: operation.FailurePolicy,
+			})
+		}
+		result.Providers = append(result.Providers, item)
+	}
+	return result
+}
+
+func identityDeclarationFromLegacyManifest(input *legacyManifestIdentity) *IdentityDeclaration {
+	if input == nil {
+		return nil
+	}
+	result := &IdentityDeclaration{
+		ContractVersion: input.ContractVersion,
+		SessionPolicy:   input.SessionPolicy,
+		RiskHooks:       append([]string(nil), input.RiskHooks...),
+	}
+	for _, field := range input.UserFields {
+		result.UserFields = append(result.UserFields, UserField{
+			ID: field.ID, ContractVersion: field.ContractVersion, Type: field.Type,
+			Schema: field.Schema, ReadPermission: field.ReadPermission,
+			WritePermission: field.WritePermission,
+		})
+	}
+	for _, provider := range input.Providers {
+		item := Provider{
+			ID: provider.ID, ContractVersion: provider.ContractVersion,
+			Kind: provider.Kind, Handler: provider.Handler, Priority: provider.Priority,
+		}
+		for _, operation := range provider.Operations {
+			item.Operations = append(item.Operations, ProviderOperation{
+				Name: operation.Name, InputSchema: operation.InputSchema,
+				OutputSchema: operation.OutputSchema, TimeoutMS: operation.TimeoutMS,
+				FailurePolicy: operation.FailurePolicy,
+			})
+		}
+		result.Providers = append(result.Providers, item)
+	}
+	return result
 }
 
 func auditMetadataString(metadata map[string]any, key string) string {

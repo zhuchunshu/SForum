@@ -1,6 +1,7 @@
 package identityregistry
 
 import (
+	"bytes"
 	"errors"
 	"strings"
 	"testing"
@@ -78,6 +79,44 @@ func TestDurableRootPublicationKeepsInspectOnlyProviderRuntimeFree(t *testing.T)
 	}
 	if len(state.RootTips) != 1 || strings.Contains(string(state.RootTips[0].PublicationJSON), "runtimeInstanceId") {
 		t.Fatalf("durable inspect-only root leaked runtime: %#v", state.RootTips)
+	}
+	wantJSON := `{"artifact":{"extensionId":"fixture.identity","extensionVersion":"1.0.0","packageDigest":"` +
+		strings.Repeat("a", 64) +
+		`","versionId":101},"identity":{"contractVersion":"fixture.identity.contract@1","providers":[{"id":"fixture.identity.provider","contractVersion":"fixture.identity.provider@1","kind":"auth","handler":"legacy.auth"}],"sessionPolicy":"core.session.default"}}`
+	if !bytes.Equal(state.RootTips[0].PublicationJSON, []byte(wantJSON)) ||
+		state.RootTips[0].PublicationDigest != "da1b6bc527b617d9a0fd82ad96a21c47e7aa3bc918d2e4630e05ea2ca2321ac5" {
+		t.Fatalf("legacy inspect-only root contract drifted: digest=%s json=%s",
+			state.RootTips[0].PublicationDigest, state.RootTips[0].PublicationJSON)
+	}
+	desired, err := desiredDurableDeclarations(&publication)
+	if err != nil || len(desired) != 1 ||
+		desired[0].digest != "6f892ac3c79eee399d58e0231ab54e4369c294759bb2e7364ea0e4e036d66b0d" {
+		t.Fatalf("legacy inspect-only provider leaf drifted: %#v, %v", desired, err)
+	}
+}
+
+func TestDurableRootPublicationKeepsFullLegacyIdentityDigestsStable(t *testing.T) {
+	publication := publicationStoreFixture(
+		publicationStoreArtifact(101, "1.0.0", "a", "runtime-v1"), 1, nil,
+	)
+	state := durableStateForPublication(t, publication, 41, 81)
+	if len(state.RootTips) != 1 ||
+		state.RootTips[0].PublicationDigest != "d187b6237e0693d41296c5b4da5333e400d48a7750f6f180010e33a126aed115" {
+		t.Fatalf("full legacy root digest drifted: %#v", state.RootTips)
+	}
+	wantLeaves := map[string]string{
+		TombstoneKindPermission: "b956fa3979d2c47510ac38ba97df4a0ad62e08887d4b1e7a9d11b96a9798d850",
+		TombstoneKindUserField:  "a7a32bd6499bcc50c7b07545bca7ff774a762f095a41a8f28fe61e1132fd0a4e",
+		TombstoneKindProvider:   "240fe774d1ee9063ed2d2186491e2963f9e8d1a0256f542d2f7ead6605ebb4b4",
+	}
+	desired, err := desiredDurableDeclarations(&publication)
+	if err != nil || len(desired) != len(wantLeaves) {
+		t.Fatalf("full legacy leaves = %#v, %v", desired, err)
+	}
+	for _, declaration := range desired {
+		if declaration.digest != wantLeaves[declaration.kind] {
+			t.Fatalf("legacy %s leaf digest=%s", declaration.kind, declaration.digest)
+		}
 	}
 }
 

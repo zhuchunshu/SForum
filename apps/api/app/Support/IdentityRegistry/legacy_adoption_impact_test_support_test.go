@@ -1,10 +1,13 @@
 package identityregistry
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"strings"
 	"testing"
 )
@@ -17,55 +20,55 @@ import (
 // key-order normalization still round-trips to the production digest. Production
 // runtime injects extensions.ValidateStoredTrustImpact per PostgresStore instance.
 type testTrustImpactWire struct {
-	SchemaVersion         string                 `json:"schemaVersion"`
-	Action                string                 `json:"action"`
-	ExtensionID           string                 `json:"extensionId"`
-	ExtensionVersion      string                 `json:"extensionVersion"`
-	ExtensionType         string                 `json:"extensionType"`
-	Source                string                 `json:"source"`
-	PackageDigest         string                 `json:"packageDigest"`
-	ManifestContract      string                 `json:"manifestContract"`
-	ArtifactDigests       map[string]string      `json:"artifactDigests"`
-	Binaries              []testTrustArtifact    `json:"binaries"`
-	Backend               testTrustBackend       `json:"backend"`
-	Routes                []json.RawMessage      `json:"routes"`
-	Guards                []testTrustGuard       `json:"guards"`
-	GuardDeclarations     []json.RawMessage      `json:"guardDeclarations"`
-	Hooks                 []json.RawMessage      `json:"hooks"`
-	Events                []json.RawMessage      `json:"events"`
-	Migrations            []testTrustMigration   `json:"migrations"`
-	MigrationDeclarations []json.RawMessage      `json:"migrationDeclarations"`
-	Providers             []json.RawMessage      `json:"providers"`
-	Jobs                  []json.RawMessage      `json:"jobs"`
-	Schedules             []json.RawMessage      `json:"schedules"`
-	Components            []json.RawMessage      `json:"components"`
-	RegistryComponents    []json.RawMessage      `json:"registryComponents"`
-	Templates             []json.RawMessage      `json:"templates"`
-	Assets                []json.RawMessage      `json:"assets"`
-	Content               []json.RawMessage      `json:"content"`
-	Database              json.RawMessage        `json:"database"`
-	Cache                 []json.RawMessage      `json:"cache"`
-	SEO                   []json.RawMessage      `json:"seo,omitempty"`
-	Services              []json.RawMessage      `json:"services"`
-	Commands              []json.RawMessage      `json:"commands"`
-	AdminSurfaces         []json.RawMessage      `json:"adminSurfaces"`
-	Queries               []json.RawMessage      `json:"queries"`
-	Identity              *IdentityDeclaration   `json:"identity"`
-	PermissionDefinitions []PermissionDefinition `json:"permissionDefinitions"`
-	Media                 []json.RawMessage      `json:"media"`
-	Navigation            []json.RawMessage      `json:"navigation"`
-	Regions               []json.RawMessage      `json:"regions"`
-	Contributions         []json.RawMessage      `json:"contributions"`
-	Capabilities          []json.RawMessage      `json:"capabilities"`
-	Permissions           []string               `json:"permissions"`
-	RequiredFeatures      []string               `json:"requiredFeatures"`
-	Dependencies          []json.RawMessage      `json:"dependencies"`
-	Lifecycle             json.RawMessage        `json:"lifecycle"`
-	OpenAPI               []json.RawMessage      `json:"openapi"`
-	PackageFiles          []json.RawMessage      `json:"packageFiles"`
-	RequestedAuthority    testTrustAuthority     `json:"requestedAuthority"`
-	Contracts             testTrustContracts     `json:"contracts"`
-	Digest                string                 `json:"digest"`
+	SchemaVersion         string                  `json:"schemaVersion"`
+	Action                string                  `json:"action"`
+	ExtensionID           string                  `json:"extensionId"`
+	ExtensionVersion      string                  `json:"extensionVersion"`
+	ExtensionType         string                  `json:"extensionType"`
+	Source                string                  `json:"source"`
+	PackageDigest         string                  `json:"packageDigest"`
+	ManifestContract      string                  `json:"manifestContract"`
+	ArtifactDigests       map[string]string       `json:"artifactDigests"`
+	Binaries              []testTrustArtifact     `json:"binaries"`
+	Backend               testTrustBackend        `json:"backend"`
+	Routes                []json.RawMessage       `json:"routes"`
+	Guards                []testTrustGuard        `json:"guards"`
+	GuardDeclarations     []json.RawMessage       `json:"guardDeclarations"`
+	Hooks                 []json.RawMessage       `json:"hooks"`
+	Events                []json.RawMessage       `json:"events"`
+	Migrations            []testTrustMigration    `json:"migrations"`
+	MigrationDeclarations []json.RawMessage       `json:"migrationDeclarations"`
+	Providers             []json.RawMessage       `json:"providers"`
+	Jobs                  []json.RawMessage       `json:"jobs"`
+	Schedules             []json.RawMessage       `json:"schedules"`
+	Components            []json.RawMessage       `json:"components"`
+	RegistryComponents    []json.RawMessage       `json:"registryComponents"`
+	Templates             []json.RawMessage       `json:"templates"`
+	Assets                []json.RawMessage       `json:"assets"`
+	Content               []json.RawMessage       `json:"content"`
+	Database              json.RawMessage         `json:"database"`
+	Cache                 []json.RawMessage       `json:"cache"`
+	SEO                   []json.RawMessage       `json:"seo,omitempty"`
+	Services              []json.RawMessage       `json:"services"`
+	Commands              []json.RawMessage       `json:"commands"`
+	AdminSurfaces         []json.RawMessage       `json:"adminSurfaces"`
+	Queries               []json.RawMessage       `json:"queries"`
+	Identity              *legacyManifestIdentity `json:"identity"`
+	PermissionDefinitions []PermissionDefinition  `json:"permissionDefinitions"`
+	Media                 []json.RawMessage       `json:"media"`
+	Navigation            []json.RawMessage       `json:"navigation"`
+	Regions               []json.RawMessage       `json:"regions"`
+	Contributions         []json.RawMessage       `json:"contributions"`
+	Capabilities          []json.RawMessage       `json:"capabilities"`
+	Permissions           []string                `json:"permissions"`
+	RequiredFeatures      []string                `json:"requiredFeatures"`
+	Dependencies          []json.RawMessage       `json:"dependencies"`
+	Lifecycle             json.RawMessage         `json:"lifecycle"`
+	OpenAPI               []json.RawMessage       `json:"openapi"`
+	PackageFiles          []json.RawMessage       `json:"packageFiles"`
+	RequestedAuthority    testTrustAuthority      `json:"requestedAuthority"`
+	Contracts             testTrustContracts      `json:"contracts"`
+	Digest                string                  `json:"digest"`
 }
 
 type testTrustArtifact struct {
@@ -121,9 +124,14 @@ func testValidateStoredTrustImpact(document []byte, expectedDigest string) error
 	if len(document) == 0 || !digestPattern.MatchString(expectedDigest) {
 		return fmt.Errorf("invalid stored trust impact")
 	}
+	decoder := json.NewDecoder(bytes.NewReader(document))
+	decoder.DisallowUnknownFields()
 	var wire testTrustImpactWire
-	if err := json.Unmarshal(document, &wire); err != nil {
+	if err := decoder.Decode(&wire); err != nil {
 		return err
+	}
+	if err := decoder.Decode(&struct{}{}); !errors.Is(err, io.EOF) {
+		return fmt.Errorf("trailing stored trust impact")
 	}
 	if wire.Digest != expectedDigest {
 		return fmt.Errorf("document digest mismatch")
@@ -151,7 +159,7 @@ func mustCanonicalTrustImpactDocument(
 		ExtensionVersion:      publication.Artifact.ExtensionVersion,
 		ExtensionType:         trustImpactExtensionTypePlugin,
 		PackageDigest:         publication.Artifact.PackageDigest,
-		Identity:              publication.Identity,
+		Identity:              legacyManifestIdentityFromDeclaration(publication.Identity),
 		PermissionDefinitions: append([]PermissionDefinition(nil), publication.Permissions...),
 	}
 	if mutate != nil {
