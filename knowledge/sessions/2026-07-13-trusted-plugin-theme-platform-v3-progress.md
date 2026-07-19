@@ -4,7 +4,7 @@ Last updated: 2026-07-19
 
 ## Progress
 
-- Verified weighted progress: **67.8295%** (display **67.0%**).
+- Verified weighted progress: **67.8295%** (display **67.8%**).
 - Phase counts: P0-P6 and P8 complete; P6 **18/18**, P7 **18/22**,
   P8 **18/18**, P9 **4/16**, P11 **1/16**, and P12 **1/22**. P10 and P13
   have no credited authoritative row yet.
@@ -12,11 +12,75 @@ Last updated: 2026-07-19
   five reference-plugin classes, 24 Program Definition of Done rows, and final
   gates pass.
 
+## Execution Acceleration Policy
+
+- Keep this policy across context compaction and automatic continuation until
+  V3 is complete. Use all available in-product sub-agent slots for bounded
+  read-only research, independent review, test analysis, and non-overlapping
+  work that shortens the critical path.
+- Use external CLI agents only when they produce a net speedup. Prefer Codex CLI
+  for complex contract review (`gpt-5.6-sol` with high or stronger reasoning)
+  and use `gpt-5.5` at an appropriate reasoning level for smaller bounded work.
+  Grok is useful for focused audits, test-gap analysis, and small isolated tasks;
+  do not delegate authority-sensitive design wholesale when re-review would cost
+  more than direct implementation.
+- External agents do not own Git state. Give them exact scope and acceptance
+  checks, prevent overlapping writes, and treat every report as advisory until
+  the primary agent has inspected the source/diff, run the relevant gates, and
+  staged only owned files or hunks. Never put credentials or unrelated private
+  data in an agent prompt or commit them to the repository.
+
 ## Current Subtask
+
+### 2026-07-19 P7 External Identity Link Store Checkpoint
+
+- Verified weighted progress remains **67.8295%** (display **67.8%**) and P7
+  remains **18/22**. Registry/runtime/persistence infrastructure is necessary
+  evidence for the four open rows but does not receive fractional row credit.
+- The executable Identity chain is now committed through immutable Schema
+  binding, exact lifecycle publication, the reserved SDK registry, feature
+  negotiation, typed provider transport, exact Manager admission, and the
+  additive external-link/user-field/session-selection migrations. The relevant
+  commits are `13480967b`, `f169d8bdd`, `6310d6b7f`, `667de601a`, `97fe90d12`,
+  `449c1653b`, `be692be7b`, `d02c51f03`, `098bc21d7`, and `8f411ed0a`.
+- `96fab20ee` adds the Host-owned external identity link store over migration
+  037: exact durable provider-tip checks, active-user locking, digest-only
+  persistence input, serializable CAS, global idempotency, atomic audit/event
+  writes, registration `LinkTx`, Host-local unlink/privacy erase, ambiguous
+  commit verification, and a one-shot runtime commit fence. Standalone Link
+  cannot commit provider-backed registration separately from user creation. The
+  future Core consumer still owns keyed subject-digest derivation before it
+  calls this low-level store.
+- Review fixed two authority bugs before commit. Existing-account linking now
+  requires the live actor to equal the target user while registration is
+  actorless; a committed idempotency receipt is resolved before provider
+  liveness so disable/uninstall cannot make a retained effect indeterminate.
+  Replay returns the current link state plus the original event receipt rather
+  than presenting an old active state after unlink or erase.
+- The isolated PostgreSQL fixture applies production migrations 028, 029, 033,
+  034, and 037 and removes its schema on completion. Focused real-PostgreSQL
+  tests passed normal and race `count=3`; the complete Identity model package,
+  `go vet ./app/Models/Identity`, and diff checks passed. The 827-line store was
+  split by transaction flow, exact authority, and row/audit/replay ownership
+  into files of 416, 144, and 287 lines.
+- Independent built-in, Grok, and Codex reviews remain advisory. They confirmed
+  the next hard gaps: user-field migration 038 and session-policy migration 039
+  have no production stores/consumers; `sessionPolicy` validation does not yet
+  bind a same-publication executable session provider; and trusted automation
+  has no `extensions.read/call/manage` production authority or caller-side
+  admission lease.
+- Exact next step: close the small `sessionPolicy` publication association
+  contract, then implement the Host-owned user-field value store with live
+  permission, exact Schema, CAS/idempotency/audit, and PostgreSQL race evidence.
+  Do not credit a P7 row until Core consumers and the real membership joined
+  gate close the complete authoritative task/test row.
+- Rollback is additive: revert `96fab20ee`; migration 037 and retained data stay
+  in place. No branch, worktree, push, tag, feature flag, or unrelated dirty file
+  changed in this checkpoint.
 
 ### 2026-07-19 P7 Identity Provider And Automation Contract Checkpoint
 
-- Verified weighted progress remains **67.8295%** (display **67.0%**) and P7
+- Verified weighted progress remains **67.8295%** (display **67.8%**) and P7
   remains **18/22**. This contract checkpoint receives no task-row credit.
 - `e378d4eb0` records the recommended Identity provider, Host-owned identity
   effect, retained user-field/link data, and trusted automation boundaries.
@@ -71,7 +135,7 @@ Last updated: 2026-07-19
 ### 2026-07-19 P7 Query Registry And Joined Gates Closure
 
 - Verified weighted progress advances from **66.9205%** to **67.8295%**
-  (display **67.0%**); P7 advances from **16/22** to **18/22**. The Query
+  (display **67.8%**); P7 advances from **16/22** to **18/22**. The Query
   implementation task and Query composition test row are now closed. This
   checkpoint supersedes the no-credit Query checkpoints below without changing
   their historical evidence.
