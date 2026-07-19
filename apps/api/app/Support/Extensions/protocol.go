@@ -176,6 +176,32 @@ type VersionedProviderResponse struct {
 	Output map[string]any
 }
 
+const ProtocolV2IdentityProviderSlot = "sforum.identity"
+
+// VersionedIdentityProviderRequest keeps the package declaration reference and
+// the Registry-derived wire reference separate. Package-path Schemas are valid
+// Manifest material but TypedDocument always carries the canonical id@version.
+type VersionedIdentityProviderRequest struct {
+	ProviderID                string
+	ContractVersion           string
+	Kind                      string
+	Handler                   string
+	Priority                  int
+	Operation                 string
+	InputSchema               string
+	InputSchemaWireReference  string
+	OutputSchema              string
+	OutputSchemaWireReference string
+	Timeout                   time.Duration
+	FailurePolicy             string
+	ActorUserID               int64
+	Input                     map[string]any
+}
+
+type VersionedIdentityProviderResponse struct {
+	Output map[string]any
+}
+
 const (
 	ProtocolV2SEOProviderSlot      = "sforum.seo"
 	ProtocolV2SEOProviderOperation = "apply"
