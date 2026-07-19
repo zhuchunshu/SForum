@@ -48,6 +48,27 @@ func TestBuildLifecycleIdentityPublicationRequiresRuntimeOnlyForExecutableIdenti
 		t.Fatalf("inert publication = %#v, %v", publication, err)
 	}
 
+	executableProvider := lifecycleIdentityExtension("1.0.0", 47, "")
+	executableProvider.Manifest.Identity.Providers = []extensionmanifest.ManifestIdentityProvider{{
+		ID: executableProvider.ID + ".provider", ContractVersion: executableProvider.ID + ".provider@1",
+		Kind: "risk", Handler: "identity.risk", Operations: []extensionmanifest.ManifestIdentityProviderOperation{{
+			Name: "risk.evaluate", InputSchema: executableProvider.ID + ".risk.input@1",
+			OutputSchema: executableProvider.ID + ".risk.output@1", TimeoutMS: 1000, FailurePolicy: "fail_closed",
+		}},
+	}}
+	if _, err := buildLifecycleIdentityPublication(executableProvider, extensions.LifecycleRuntimeBinding{}); !errors.Is(err, ErrLifecycleRegistryPublicationInvalid) {
+		t.Fatalf("operation provider without exact runtime error = %v", err)
+	}
+	providerBinding := extensions.LifecycleRuntimeBinding{
+		ExtensionID: executableProvider.ID, ExtensionVersion: executableProvider.Version,
+		PackageDigest: executableProvider.PackageDigest, VersionID: executableProvider.ActiveVersionID,
+		RuntimeInstanceID: "identity-provider-runtime",
+	}
+	if publication, err := buildLifecycleIdentityPublication(executableProvider, providerBinding); err != nil ||
+		publication == nil || publication.Artifact.RuntimeInstanceID != providerBinding.RuntimeInstanceID {
+		t.Fatalf("operation provider publication = %#v, %v", publication, err)
+	}
+
 	executable := lifecycleIdentityExtension("1.0.0", 43, "risk")
 	if _, err := buildLifecycleIdentityPublication(executable, extensions.LifecycleRuntimeBinding{}); !errors.Is(err, ErrLifecycleRegistryPublicationInvalid) {
 		t.Fatalf("missing runtime error = %v", err)
