@@ -14,6 +14,39 @@ Last updated: 2026-07-19
 
 ## Current Subtask
 
+### 2026-07-19 P7 Identity Provider And Automation Contract Checkpoint
+
+- Verified weighted progress remains **67.8295%** (display **67.0%**) and P7
+  remains **18/22**. This contract checkpoint receives no task-row credit.
+- `e378d4eb0` records the recommended Identity provider, Host-owned identity
+  effect, retained user-field/link data, and trusted automation boundaries.
+  `51a7e4680` closes review blockers before implementation: session revocation
+  is unconditionally Host-owned; auth/recovery use an explicitly selected exact
+  provider; profile and risk composition are deterministic; failure policy is
+  fixed per operation; user-field reads/writes reuse Registry-aware Identity
+  and versioned Host Command paths; automation reuses redacted Host Query,
+  existing brokers, and command-bound actor delegation rather than a broad RPC.
+- Independent Codex and Grok read-only audits agree that the first compatible
+  code slice belongs in `Support/ExtensionManifest`: add optional typed provider
+  operations, normalization/validation, embedded JSON Schema, modular OpenAPI,
+  exact package-Schema declaration checks, and legacy inspect-only tests. Their
+  output is advisory; the main agent owns every edit, test, staged diff, and
+  commit.
+- Disk pressure was remediated without touching source or active processes:
+  `~/Library/Caches/go-build` is about **16 KiB**, `/private/tmp/sforum*` is
+  empty, and the Data volume has about **167 GiB** available. Heavy gates must
+  use private disposable `TMPDIR` and `GOCACHE` directories and remove them on
+  exit.
+- Exact next step: implement and independently commit the backward-compatible
+  Manifest Identity operation contract. Providers with no `operations` remain
+  inspect-only. Do not credit an Identity row until exact Registry/runtime,
+  persistence, Core consumers, automation, a real membership subprocess, and
+  joined normal/race/restart/Safe Mode/upgrade evidence all close.
+- Preserve every unowned dirty file, especially PageViewModels, route/public-
+  frontend inspector work, `bootstrap/app.go`, the content-policy Manifest, and
+  the Post-V3 taskbook memory additions. No branch, worktree, push, tag, reset,
+  checkout, clean, migration, or feature flag changed in this checkpoint.
+
 ### 2026-07-19 P7 Query Registry And Joined Gates Closure
 
 - Verified weighted progress advances from **66.9205%** to **67.8295%**

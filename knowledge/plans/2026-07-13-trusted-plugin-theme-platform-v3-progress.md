@@ -86,6 +86,33 @@ commit, and the primary agent must inspect their diffs and tests before acceptin
 work. This policy remains active across context compression and should be removed
 or treated as expired only after the complete V3 goal is achieved.
 
+## P7 Identity Provider And Automation Contract Checkpoint
+
+- Progress remains **67.8295%** (display **67.0%**); P7 remains **18/22**.
+  Contract design and review do not receive implementation credit.
+- `e378d4eb0` freezes the recommended Identity provider and trusted automation
+  authority. `51a7e4680` resolves the pre-implementation conflicts: the Host
+  always owns session revocation; auth/recovery select one exact provider;
+  profile and risk composition are deterministic; operation failure behavior is
+  fixed; user fields use Registry-aware Identity reads and versioned Host
+  Commands; automation uses bounded existing Host Query, broker, and delegated
+  Host Command transports.
+- Exact current task: add optional executable Identity provider operations to
+  Manifest V3, including normalization, semantic validation, embedded JSON
+  Schema, modular OpenAPI, package-bound input/output Schema declarations, and
+  tests proving providers without operations remain inspect-only. Runtime,
+  Registry publication, persistence, Core consumers, automation execution, and
+  joined reference-plugin evidence are separate later commits.
+- Independent Codex sub-agent, Codex CLI, and Grok Build reviews are read-only
+  evidence. The primary agent remains the single writer and must inspect every
+  diff and test before staging only owned files.
+- Disk checkpoint: Go build cache about **16 KiB**,
+  `/private/tmp/sforum*` **0**, Data volume about **167 GiB** available. Use and
+  remove private disposable `TMPDIR/GOCACHE` for heavy tests.
+- Preserve all unrelated dirty files recorded by `git status`, including
+  PageViewModels, route/public-frontend inspector work, `bootstrap/app.go`, the
+  content-policy Manifest, and unowned V3 taskbook additions.
+
 ## Completed P1 Evidence
 
 - Added additive trust-recovery persistence, including one-use challenge

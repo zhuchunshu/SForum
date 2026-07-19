@@ -6,6 +6,8 @@ This is the entry point for project memory.
 
 - **2026-07-19 Trusted Plugin And Theme Platform V3 P7/P9/P10–P12 active (overall 67.0%)**
   - Decision: `knowledge/decisions/2026-07-13-trusted-plugin-theme-platform-v3.md`
+  - Identity/automation authority:
+    `knowledge/decisions/2026-07-19-identity-provider-automation-authority.md`
   - Stream Schema freeze: `knowledge/decisions/2026-07-18-route-stream-opaque-bytes.md`
   - Task book: `knowledge/plans/2026-07-13-trusted-plugin-theme-platform-v3.md`
   - Current durable checkpoint:
