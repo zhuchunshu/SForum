@@ -158,6 +158,49 @@ func TestExecutionCacheIsolationHitAndPoisonFence(t *testing.T) {
 	}
 }
 
+func TestExecutionCacheHitRechecksPermissionBeforeFinalRelease(t *testing.T) {
+	cache := newMemoryQueryResultCache()
+	trace := NewExecutionTraceRing(2)
+	var providerCalls atomic.Int32
+	provider := ExecutableProviderFunc(func(context.Context, ProviderExecutionRequest) (ProviderExecutionResult, error) {
+		providerCalls.Add(1)
+		return ProviderExecutionResult{Rows: []QueryRow{{"id": "1", "title": "private"}}}, nil
+	})
+	runtime, _ := executionTestRuntime(t, PaginationOffset, "core.execute.read", provider, nil, func(config *ExecutionConfig) {
+		config.Cache = cache
+		config.Trace = trace
+	})
+	permission := PermissionInput{
+		Authenticated: true, ActorFingerprint: "user-a", PolicyFingerprint: "role:reader", Recheck: allowAll(),
+	}
+	request := PlanRequest{
+		QueryID: "core.execute.items", Fields: []string{"id", "title"},
+		Pagination: PaginationRequest{Limit: 10}, Permission: permission, Locale: "en-US", Scope: "forum.main",
+	}
+	first, err := runtime.Execute(t.Context(), request)
+	if err != nil || first.CacheHit || len(first.Rows) != 1 || providerCalls.Load() != 1 {
+		t.Fatalf("populate private Query cache: result=%#v err=%v provider=%d", first, err, providerCalls.Load())
+	}
+
+	providerCalls.Store(0)
+	var permissionChecks atomic.Int32
+	request.Permission.Recheck = PermissionRecheckFunc(func(context.Context, PermissionClaim) error {
+		if permissionChecks.Add(1) == 3 {
+			return ErrDenied
+		}
+		return nil
+	})
+	denied, err := runtime.Execute(t.Context(), request)
+	if !errors.Is(err, ErrDenied) || len(denied.Rows) != 0 || providerCalls.Load() != 0 || permissionChecks.Load() != 3 {
+		t.Fatalf("revoked cached release: result=%#v err=%v provider=%d checks=%d",
+			denied, err, providerCalls.Load(), permissionChecks.Load())
+	}
+	traces := trace.ExecutionTraces(1)
+	if len(traces) != 1 || traces[0].CacheStatus != "hit" || traces[0].Outcome != TraceOutcomeDenied {
+		t.Fatalf("revoked cached release trace=%#v", traces)
+	}
+}
+
 func TestExecutionCacheSharedTagsAreOwnerScopedAcrossVersions(t *testing.T) {
 	plan := QueryPlan{
 		Revision: 1, Digest: strings.Repeat("1", 64), CacheKey: strings.Repeat("2", 64),
