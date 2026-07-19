@@ -387,7 +387,7 @@ func manifestIdentityRequiresRuntime(identity *extensions.ManifestIdentity) bool
 	if identity == nil {
 		return false
 	}
-	return len(identity.Providers) > 0 || len(identity.RiskHooks) > 0 ||
+	return len(identity.RiskHooks) > 0 ||
 		identity.SessionPolicy != "" && identity.SessionPolicy != "core.session.default"
 }
 

@@ -39,7 +39,12 @@ func TestBuildLifecycleIdentityPublicationMapsCanonicalManifest(t *testing.T) {
 
 func TestBuildLifecycleIdentityPublicationRequiresRuntimeOnlyForExecutableIdentity(t *testing.T) {
 	inert := lifecycleIdentityExtension("1.0.0", 42, "")
-	if publication, err := buildLifecycleIdentityPublication(inert, extensions.LifecycleRuntimeBinding{}); err != nil || publication == nil {
+	inert.Manifest.Identity.Providers = []extensionmanifest.ManifestIdentityProvider{{
+		ID: inert.ID + ".provider", ContractVersion: inert.ID + ".provider@1",
+		Kind: "auth", Handler: "legacy.auth",
+	}}
+	if publication, err := buildLifecycleIdentityPublication(inert, extensions.LifecycleRuntimeBinding{}); err != nil ||
+		publication == nil || publication.Artifact.RuntimeInstanceID != "" || len(publication.Identity.Providers) != 1 {
 		t.Fatalf("inert publication = %#v, %v", publication, err)
 	}
 

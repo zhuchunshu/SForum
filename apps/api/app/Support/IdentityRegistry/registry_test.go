@@ -88,7 +88,7 @@ func TestRegistryNeverTurnsRoleSuggestionsIntoAuthority(t *testing.T) {
 		{name: "plugin assignment", mutate: func(value *Publication) { value.Permissions[0].AssignmentPolicy = "plugin" }},
 		{name: "super admin recommendation", mutate: func(value *Publication) { value.Permissions[0].RecommendedRoles = []string{"super_admin"} }},
 		{name: "undeclared field read", mutate: func(value *Publication) { value.Identity.UserFields[0].ReadPermission = "fixture.identity.undeclared" }},
-		{name: "provider without runtime", mutate: func(value *Publication) { value.Artifact.RuntimeInstanceID = "" }},
+		{name: "risk hook without runtime", mutate: func(value *Publication) { value.Artifact.RuntimeInstanceID = "" }},
 		{name: "unsafe provider handler", mutate: func(value *Publication) { value.Identity.Providers[0].Handler = "https://foreign.invalid" }},
 	}
 	for _, test := range tests {
@@ -99,6 +99,37 @@ func TestRegistryNeverTurnsRoleSuggestionsIntoAuthority(t *testing.T) {
 				t.Fatalf("Publish() error = %v", err)
 			}
 		})
+	}
+}
+
+func TestRegistryKeepsInspectOnlyProviderRuntimeFree(t *testing.T) {
+	publication := testPublication(1)
+	publication.Artifact.RuntimeInstanceID = ""
+	publication.Identity.RiskHooks = nil
+	publication.Identity.SessionPolicy = "core.session.default"
+	registry := New()
+	if _, err := registry.Publish(publication); err != nil {
+		t.Fatalf("publish inspect-only provider without runtime: %v", err)
+	}
+	providers := registry.Providers(ProviderKindRisk)
+	if len(providers) != 1 || providers[0].Artifact.RuntimeInstanceID != "" {
+		t.Fatalf("inspect-only providers = %#v", providers)
+	}
+
+	withRisk := publication
+	withRiskIdentity := *publication.Identity
+	withRisk.Identity = &withRiskIdentity
+	withRisk.Identity.RiskHooks = []string{"fixture.identity.risk.login"}
+	if _, err := New().Publish(withRisk); !errors.Is(err, ErrInvalid) {
+		t.Fatalf("runtime-free risk hook error = %v", err)
+	}
+
+	withSession := publication
+	withSessionIdentity := *publication.Identity
+	withSession.Identity = &withSessionIdentity
+	withSession.Identity.SessionPolicy = "fixture.identity.session"
+	if _, err := New().Publish(withSession); !errors.Is(err, ErrInvalid) {
+		t.Fatalf("runtime-free session policy error = %v", err)
 	}
 }
 

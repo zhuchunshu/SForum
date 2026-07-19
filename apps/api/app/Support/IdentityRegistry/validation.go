@@ -206,7 +206,9 @@ func normalizeIdentity(artifact Artifact, input IdentityDeclaration, permissions
 	})
 	sort.Strings(riskHooks)
 	result.RiskHooks = riskHooks
-	requiresRuntime := len(result.Providers) > 0 || len(result.RiskHooks) > 0 ||
+	// Provider declarations are an inspect-only catalog until they carry an
+	// executable operation contract. Legacy providers must not require a process.
+	requiresRuntime := len(result.RiskHooks) > 0 ||
 		result.SessionPolicy != "" && result.SessionPolicy != "core.session.default"
 	if !artifact.Core && requiresRuntime && artifact.RuntimeInstanceID == "" {
 		return IdentityDeclaration{}, ErrInvalid

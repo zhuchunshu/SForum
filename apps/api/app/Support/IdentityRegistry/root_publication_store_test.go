@@ -57,6 +57,30 @@ func TestDurableRootPublicationRejectsTamperAndProvesRetirement(t *testing.T) {
 	}
 }
 
+func TestDurableRootPublicationKeepsInspectOnlyProviderRuntimeFree(t *testing.T) {
+	publication := Publication{
+		Artifact: Artifact{
+			ExtensionID: fixtureExtensionID, ExtensionVersion: "1.0.0",
+			PackageDigest: strings.Repeat("a", 64), VersionID: 101,
+		},
+		Identity: &IdentityDeclaration{
+			ContractVersion: "fixture.identity.contract@1",
+			SessionPolicy:   "core.session.default",
+			Providers: []Provider{{
+				ID: fixtureExtensionID + ".provider", ContractVersion: fixtureExtensionID + ".provider@1",
+				Kind: ProviderKindAuth, Handler: "legacy.auth",
+			}},
+		},
+	}
+	state := durableStateForPublication(t, publication, 41, 81)
+	if err := ValidateDurablePublication(state, publication); err != nil {
+		t.Fatalf("validate runtime-free provider publication: %v", err)
+	}
+	if len(state.RootTips) != 1 || strings.Contains(string(state.RootTips[0].PublicationJSON), "runtimeInstanceId") {
+		t.Fatalf("durable inspect-only root leaked runtime: %#v", state.RootTips)
+	}
+}
+
 func TestDurablePublicationSetRejectsOrphanActiveLeafWithoutRoot(t *testing.T) {
 	publication := publicationStoreFixture(
 		Artifact{
