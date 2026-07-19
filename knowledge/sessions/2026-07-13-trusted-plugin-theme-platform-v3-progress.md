@@ -43,11 +43,26 @@ Last updated: 2026-07-19
   empty, and the Data volume has about **167 GiB** available. Heavy gates must
   use private disposable `TMPDIR` and `GOCACHE` directories and remove them on
   exit.
-- Exact next step: implement and independently commit the backward-compatible
-  Manifest Identity operation contract. Providers with no `operations` remain
-  inspect-only. Do not credit an Identity row until exact Registry/runtime,
-  persistence, Core consumers, automation, a real membership subprocess, and
-  joined normal/race/restart/Safe Mode/upgrade evidence all close.
+- The backward-compatible Manifest operation contract is complete in the
+  commits below. Providers with no `operations` remain inspect-only. Do not
+  credit an Identity row until exact Registry/runtime, persistence, Core
+  consumers, automation, a real membership subprocess, and joined normal/race/
+  restart/Safe Mode/upgrade evidence all close.
+- `5e241065e` closes production compatibility for inspect-only providers across
+  Registry, durable root, and lifecycle publication. `d0ecef760` freezes the
+  additive operation catalog, fixed operation failure matrix, package-bound
+  input/output Schemas, Go/embedded JSON Schema/OpenAPI parity, raw loader
+  rejection, and legacy handler compatibility. `b066315ce` makes any non-empty
+  operation set require an exact coordinator runtime binding.
+- Verification passed: complete ExtensionManifest; focused IdentityRegistry and
+  lifecycle publication; Models compile; vet; generated extension-doc drift;
+  and **1,941** OpenAPI references. Disposable `TMPDIR/GOCACHE` roots were
+  removed after process completion; global Go cache is about **16 KiB** and the
+  Identity test temp count is zero.
+- Exact next step: implement Identity Registry executable operation and Schema
+  material with immutable/durable
+  public digests plus private compiled validators, then bind exact package bytes
+  during lifecycle publication. Do not credit a P7 row yet.
 - Preserve every unowned dirty file, especially PageViewModels, route/public-
   frontend inspector work, `bootstrap/app.go`, the content-policy Manifest, and
   the Post-V3 taskbook memory additions. No branch, worktree, push, tag, reset,

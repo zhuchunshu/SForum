@@ -101,12 +101,27 @@ or treated as expired only after the complete V3 goal is achieved.
   selection that defaults and safely resets to Core; a Manifest only declares
   a candidate and lifecycle actions never select it implicitly. Extension field
   reads also require live `users.read` capability plus a live authorized actor.
-- Exact current task: add optional executable Identity provider operations to
-  Manifest V3, including normalization, semantic validation, embedded JSON
-  Schema, modular OpenAPI, package-bound input/output Schema declarations, and
-  tests proving providers without operations remain inspect-only. Runtime,
-  Registry publication, persistence, Core consumers, automation execution, and
-  joined reference-plugin evidence are separate later commits.
+- The optional executable Identity Manifest operation contract and legacy
+  inspect-only compatibility layer are complete in the commits below. Registry
+  material, runtime execution, persistence, Core consumers, automation, and
+  joined reference-plugin evidence remain separate work.
+- `5e241065e` makes the existing inspect-only provider contract true across the
+  in-memory Registry, durable root evidence, and lifecycle publication without
+  weakening risk hooks or third-party session policies. `d0ecef760` adds the
+  optional frozen operation catalog, fixed failure policies, package-bound
+  input/output Schema declarations, embedded Draft 2020-12 conditions, modular
+  OpenAPI 3.1, and raw package-loader compatibility tests. `b066315ce` requires
+  an exact coordinator binding whenever any provider has operations while
+  preserving runtime-free legacy providers.
+- Focused and full ExtensionManifest, IdentityRegistry, lifecycle publication,
+  Models compilation, vet, generated-doc drift, and **1,941** OpenAPI reference
+  checks passed. All heavy Go runs used disposable private caches that were
+  removed; global Go cache returned to about **16 KiB** and no
+  `/private/tmp/sforum-identity-*` directory remains.
+- Exact current task is Identity Registry executable material: deep-cloned
+  operations, Host-derived operation/Schema digests, compiled private Schema
+  validators, lifecycle package-byte binding, durable public projection, and
+  immutable resolve/validation claims. This checkpoint still earns no P7 row.
 - Independent Codex sub-agent, Codex CLI, and Grok Build reviews are read-only
   evidence. The primary agent remains the single writer and must inspect every
   diff and test before staging only owned files.
