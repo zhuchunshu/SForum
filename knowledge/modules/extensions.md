@@ -810,9 +810,9 @@ template while retaining Schema fallback fields.
   builtin-plugin module gates still need Goldmark and go-redis `go.sum` entries;
   they are not considered green until those sums are repaired and tests rerun.
 
-## V3 P7 Admin Surface checkpoint
+## V3 P7 Admin Surface And Query checkpoint
 
-- P7 is 16/22. The immutable Admin Surface Registry publishes declarations
+- P7 is 18/22. The immutable Admin Surface Registry publishes declarations
   for all twelve V3 kinds to exact active runtime instances, restores/removes
   them through lifecycle snapshots, and invokes typed Protocol V2 handlers under
   exact admission with one frozen validator for both input and output.
@@ -841,15 +841,19 @@ template while retaining Schema fallback fields.
   A real lifecycle Registry publication creates only a durable pending
   recommendation; restart restoration, denied operator/bearer requests, explicit
   cookie approval, additive PostgreSQL mapping/grant/audit evidence, and replay
-  all pass without replacing unrelated role permissions. Query,
-  Identity/Auth/Profile, and automation authority remain open.
+  all pass without replacing unrelated role permissions. Identity/Auth/Profile
+  and automation authority remain open.
 - Query Registry has Host Protocol V2 `InvokeQuery`/`FilterQueryResult`,
   composite Core+Registry Schema validation, and a real-subprocess reference
   plugin fixture (`sforum-query-reference` /
   `TestReferenceQueryPluginJoinedGates`) covering pagination, filter, login,
   cost, Schema, provider failure, disable, and Safe Mode. Production Redis
-  cache, lifecycle coordinator bootstrap proof, and upgrade gates remain open;
-  P7 Query rows stay **uncredited** at 16/22.
+  caching uses distinct API/embedded/standalone clients, transactional River
+  invalidation, owner-scoped semantic tags, final permission rechecks, complete
+  semantic cache-key isolation, and stale-write fences. The authoritative
+  normal/race matrix joins PostgreSQL rollback, Redis process restart,
+  ForceDrain, lifecycle upgrade, worker close ownership, and exact test
+  discovery; both P7 Query rows are closed.
 - Third-party Query execution now requires `ContextualExecutionAdmission`.
   The older release-only `ExecutionAdmission` remains source-compatible but is
   deliberately rejected at runtime because it cannot deliver Manager

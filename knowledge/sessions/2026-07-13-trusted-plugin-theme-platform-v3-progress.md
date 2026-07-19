@@ -4,8 +4,8 @@ Last updated: 2026-07-19
 
 ## Progress
 
-- Verified weighted progress: **66.9205%** (display **66.0%**).
-- Phase counts: P0-P6 and P8 complete; P6 **18/18**, P7 **16/22**,
+- Verified weighted progress: **67.8295%** (display **67.0%**).
+- Phase counts: P0-P6 and P8 complete; P6 **18/18**, P7 **18/22**,
   P8 **18/18**, P9 **4/16**, P11 **1/16**, and P12 **1/22**. P10 and P13
   have no credited authoritative row yet.
 - Completion remains unproven until all 99 target rows, 14 accepted boundaries,
@@ -13,6 +13,55 @@ Last updated: 2026-07-19
   gates pass.
 
 ## Current Subtask
+
+### 2026-07-19 P7 Query Registry And Joined Gates Closure
+
+- Verified weighted progress advances from **66.9205%** to **67.8295%**
+  (display **67.0%**); P7 advances from **16/22** to **18/22**. The Query
+  implementation task and Query composition test row are now closed. This
+  checkpoint supersedes the no-credit Query checkpoints below without changing
+  their historical evidence.
+- `5832bd68e` names the embedded and standalone worker Redis authority
+  constructors and wires each production process path without sharing the API
+  execution cache client. `e9f51532e` proves API, embedded worker, and standalone
+  worker clients and authorities are distinct, normal River rows complete,
+  Safe Mode rows remain scheduled without attempt exhaustion, worker close owns
+  only its Redis client/runtime, and the API cache remains live afterward.
+- `11428d0ca` adds the real PostgreSQL/Redis/River data gate: miss/store/hit,
+  a committed Protocol V2 database mutation plus its durable invalidation row,
+  real worker semantic invalidation, stale physical bytes retained but logically
+  fenced, fresh data, exact key/SHA-256 persistence, and live-hit/stale-miss
+  behavior across a Redis process restart with a changed `run_id`. Cleanup now
+  removes the token-bound database, extension roles, and database-scoped Core
+  owner role. `d13a30c91` adds the CID/label/token-owned restart runner and keeps
+  its binaries, `TMPDIR`, and default `GOCACHE` disposable.
+- Independent review found two missing regression anchors before credit.
+  `24c694b9b` binds scope, fields, relations, filter values, sort direction, and
+  page limit into pairwise-distinct cache identities with the expected shape
+  boundary. `38ea1cb39` proves a private cache hit denied at the final Host
+  permission recheck releases zero rows and executes no provider.
+  `87265558a` joins those gates with the reference Protocol V2 subprocess,
+  permission/cost/pagination/Schema/cache fences, PostgreSQL same-transaction
+  rollback, ForceDrain, lifecycle upgrade, Redis restart, and worker ownership.
+  Six discovery assertions require exact test counts `1/1/12/1/1/2`, so renamed
+  or removed tests cannot produce a zero-match false green.
+- The complete aggregate runner passed normal and race. The two narrow tests
+  separately passed normal `count=20` and race `count=5`; QueryRegistry,
+  HostAPI, bootstrap, and Query invalidation vet passed; shell syntax,
+  `shellcheck`, and diff checks passed. Independent data, credit, ownership, and
+  cleanup reviews report no blocker.
+- Runner cleanup left zero joined databases, extension/Core roles, Redis
+  containers, plugin/test processes, and `sforum*` temporary directories. The
+  global Go cache remains about **1.5 GiB**, and the data volume has about
+  **167 GiB** available. The runner's heavy compile cache is private and removed
+  on exit unless a caller explicitly supplies an externally owned cache.
+- Exact next step: continue P7 with Identity/Permission Registry,
+  Auth/Profile Provider surfaces, trusted automation extension authority, and
+  the joined denied/no-implicit-grant identity test. P7 has four open rows.
+- Rollback is additive: revert `87265558a`, `38ea1cb39`, `24c694b9b`,
+  `d13a30c91`, `11428d0ca`, `e9f51532e`, then `5832bd68e`; the cacheless binder
+  and prior Query contracts remain. No migration, feature flag, branch,
+  worktree, push, tag, or unrelated dirty file changed in this closure.
 
 ### 2026-07-19 Query Production Cache Wiring And Lifecycle Gate (no P7 credit)
 

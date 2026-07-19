@@ -4,18 +4,19 @@ This is the entry point for project memory.
 
 ## Latest Handoff
 
-- **2026-07-18 Trusted Plugin And Theme Platform V3 P7/P9/P10–P12 active (overall 66.0%)**
+- **2026-07-19 Trusted Plugin And Theme Platform V3 P7/P9/P10–P12 active (overall 67.0%)**
   - Decision: `knowledge/decisions/2026-07-13-trusted-plugin-theme-platform-v3.md`
   - Stream Schema freeze: `knowledge/decisions/2026-07-18-route-stream-opaque-bytes.md`
   - Task book: `knowledge/plans/2026-07-13-trusted-plugin-theme-platform-v3.md`
   - Current durable checkpoint:
     `knowledge/sessions/2026-07-13-trusted-plugin-theme-platform-v3-progress.md`
-  - P6 is complete at **18/18**. Weighted progress is **66.9205%** (display
-    **66.0%**). Protocol V2 Query client + composite Schema + reference plugin
-    joined gates are committed (`9b94a088a`…`ee4cd412b` after
-    `92f30c76f`/`225313dc1`/`c98128925`); P7 Query rows stay uncredited until
-    production lifecycle/bootstrap + Redis cache + upgrade proofs. Redis cache
-    still blocked. P7 is **16/22**.
+  - P6 is complete at **18/18**. Weighted progress is **67.8295%** (display
+    **67.0%**). P7 Query is closed with production Redis execution caching,
+    transactional River invalidation, embedded/standalone worker ownership,
+    Safe Mode deferral, lifecycle upgrade/ForceDrain, a real Protocol V2
+    reference plugin, and normal/race restart gates. P7 is **18/22**; its four
+    remaining rows are Identity/Permission, Auth/Profile, trusted automation
+    authority, and the joined identity denial/no-implicit-grant test.
   - Active checkpoint: `knowledge/sessions/2026-07-16-trusted-plugin-theme-platform-v3-runtime-ownership-checkpoint.md`
   - Prior Query/P12/SEO checkpoint:
     `knowledge/sessions/2026-07-16-trusted-plugin-theme-platform-v3-query-p12-seo-checkpoint.md`
@@ -149,13 +150,15 @@ This is the entry point for project memory.
     immutable planning removed full-catalog per-request copies, while the report
     retains the selected-route latency/bytes/allocation regression and requires
     P13 remeasurement
-  - P7 is 16/22 (73%). Versioned namespaced action/filter hooks now publish one
+  - P7 is 18/22 (82%). Versioned namespaced action/filter hooks now publish one
     immutable exact-runtime graph with deterministic priority, typed contracts,
     dependency SemVer, optional fallback, Host revalidation, River delivery,
     lifecycle rollback, and exact Protocol V2 invocation. Query now also has
-    lifecycle exact-package Schema binding and immutable executable
-    publication provider/result-filter private material; real subprocess
-    provider/filter wiring and joined production gates remain open.
+    lifecycle exact-package Schema binding, immutable executable publication,
+    real subprocess provider/result-filter wiring, production Redis caching,
+    durable semantic invalidation, and joined lifecycle/restart gates. The
+    remaining P7 work is Identity/Permission/Auth/Profile and automation
+    authority.
   - The joined P7 execution-policy gates now cover priority, exact Manifest
     timeouts, synchronous fail-open/fail-closed isolation, version mismatch,
     dependency disable, package cycles, provider fallback, caller attestation,
@@ -193,16 +196,16 @@ This is the entry point for project memory.
     invocation. Frozen exact placements, distinct props/result schemas, typed
     frontend clients, sidebar navigation, specialized list/action consumers,
     and an independent uploaded reference admin plugin are committed and
-    accepted. Query, Identity/Permission, Auth/Profile, and automation
-    authority remain open.
+    accepted. Identity/Permission, Auth/Profile, and automation authority remain
+    open.
   - Query now has portable graph-bound HMAC cursors, immutable snapshot-bound
     Draft 2020-12 result Schemas, and additive executable Manifest declarations
     for exact handlers, identity/default sort, and independent result filters.
     Legacy handlerless queries and trust summaries remain compatible. Dedicated
     `InvokeQuery` / `FilterQueryResult` Protocol V2 transport, exact lifecycle
-    publication, package Schema loading, reference-plugin execution, and joined
-    production gates remain open, so these prerequisites receive no P7 row
-    credit yet.
+    publication, package Schema loading, reference-plugin execution, production
+    Redis caching, durable River invalidation, and joined normal/race restart
+    gates are closed and credited as both authoritative Query rows.
   - P11 is **1/16**. `ba4ebc50c` closes the first Cache task with typed SDK
     get/set/delete/increment/tag operations, opaque CAS revisions, bounded
     cross-RPC leases, and distributed `remember`. Exact lease expiry cancels

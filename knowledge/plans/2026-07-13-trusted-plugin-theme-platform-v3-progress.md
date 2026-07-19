@@ -1,7 +1,7 @@
 # Trusted Plugin And Theme Platform V3 Progress Ledger
 
-Date: 2026-07-18
-Overall progress: **66.0%**
+Date: 2026-07-19
+Overall progress: **67.0%**
 Active phase: **P7/P9 accepted work plus P10-P12 production closure slices**
 
 This ledger is the durable percentage and context-compaction checkpoint for the
@@ -23,7 +23,7 @@ scaffolding, or demo-only code cannot satisfy a runtime exit criterion.
 | P4 Lifecycle/dependencies | 7% | 100% | 7% |
 | P5 Database/commands | 8% | 100% | 8% |
 | P6 Routes/middleware | 10% | 100% | 10.00% |
-| P7 Workflow/admin/query/identity | 10% | 73% | 7.27% |
+| P7 Workflow/admin/query/identity | 10% | 82% | 8.18% |
 | P8 Theme compiler/runtime | 8% | 100% | 8% |
 | P9 Components/assets/L2 | 8% | 25% | 2.00% |
 | P10 Content/media/data | 8% | 0% | 0% |
@@ -124,6 +124,29 @@ or treated as expired only after the complete V3 goal is achieved.
   failing plugin exactly once (`failed`, then `skipped`).
 
 ## Last Durable Checkpoint
+
+### 2026-07-19 P7 Query Registry And Joined Gates Closure
+
+- Exact weighted progress is `67.8295%`; floored display progress is **67.0%**.
+  P7 advances from **16/22** to **18/22** after closing the Query Registry task
+  and its authoritative composition-test row.
+- `5832bd68e` and `e9f51532e` separate production API, embedded-worker, and
+  standalone-worker Redis authority and prove process-local close ownership.
+  `11428d0ca` and `d13a30c91` join a real PostgreSQL mutation, River worker,
+  semantic invalidation, stale/live key evidence, and Redis process restart.
+- `24c694b9b` binds every semantic request input to cache identity;
+  `38ea1cb39` denies a revoked private cache hit before release; `87265558a`
+  joins these with Protocol V2 subprocess, permission/cost/pagination/Schema,
+  same-transaction rollback, ForceDrain, lifecycle upgrade, restart, ownership,
+  and exact test-discovery assertions. Aggregate normal/race, narrow repeated
+  normal/race, vet, shell syntax, `shellcheck`, and diff checks passed.
+- Cleanup left no joined databases, extension/Core roles, Redis containers, or
+  `/private/tmp/sforum*` directories. Heavy runner compilation uses a private
+  disposable `TMPDIR/GOCACHE`; the global Go cache is about 1.5 GiB and the
+  data volume has about 167 GiB available.
+- Next: implement the four remaining P7 rows: Identity/Permission Registry,
+  Auth/Profile Provider surfaces, trusted automation authority, and the joined
+  denied/no-implicit-grant identity test. Preserve all unrelated dirty files.
 
 ### 2026-07-18 Reference Query Plugin Joined Gates (no P7 credit)
 

@@ -545,7 +545,7 @@ query, and identity workflows without replacing whole routes.
 - [x] Implement Admin Surface Registry for navigation, dashboards, lists,
       columns, filters, row/bulk actions, forms, notices, editor panels, detail
       regions, importers, and exporters with typed props/results.
-- [ ] Implement Query Registry with typed query plans, fields, relations,
+- [x] Implement Query Registry with typed query plans, fields, relations,
       filters, sorting, pagination, result filters, permission rechecks, cache
       tags, query cost limits, and deterministic composition.
 - [ ] Implement Identity/Permission Registry for capability declarations, role
@@ -564,7 +564,7 @@ query, and identity workflows without replacing whole routes.
 - [x] Plugin A defines a hook/service/provider; Plugin B consumes it.
 - [x] Reference admin plugin contributes navigation, dashboard, list column,
       filter, row/bulk action, editor panel, notice, importer, and exporter.
-- [ ] Query plugins compose filters/sorts without bypassing permission checks,
+- [x] Query plugins compose filters/sorts without bypassing permission checks,
       exceeding cost limits, corrupting pagination, or poisoning cache keys.
 - [ ] Identity plugin adds auth/profile/user fields and permissions while denied
       actors remain denied and no role receives an implicit grant.
