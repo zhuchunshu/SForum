@@ -144,6 +144,13 @@ func TestBindJSONSchemasPublishesPrivateExactMaterial(t *testing.T) {
 	}
 }
 
+func TestPublicProviderPreservesNilOperations(t *testing.T) {
+	provider := publicProvider(Provider{ID: "identity.inspect-only", Operations: nil})
+	if provider.Operations != nil {
+		t.Fatalf("nil operations became observable empty slice: %#v", provider.Operations)
+	}
+}
+
 func TestIdentitySchemaLegacyFieldStaysCatalogOnly(t *testing.T) {
 	legacy := testPublication(1)
 	registry := New()

@@ -611,7 +611,8 @@ func cloneProvider(input Provider) Provider {
 }
 
 func publicProvider(input Provider) Provider {
-	result := cloneProvider(input)
+	result := input
+	result.Operations = append([]ProviderOperation(nil), input.Operations...)
 	for index := range result.Operations {
 		result.Operations[index].boundInputSchema = nil
 		result.Operations[index].boundOutputSchema = nil
@@ -643,9 +644,10 @@ func cloneUserFieldContribution(input UserFieldContribution, public bool) UserFi
 
 func cloneProviderContribution(input ProviderContribution, public bool) ProviderContribution {
 	result := input
-	result.Provider = cloneProvider(input.Provider)
 	if public {
-		result.Provider = publicProvider(result.Provider)
+		result.Provider = publicProvider(input.Provider)
+	} else {
+		result.Provider = cloneProvider(input.Provider)
 	}
 	return result
 }
