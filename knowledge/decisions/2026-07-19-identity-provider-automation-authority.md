@@ -122,6 +122,15 @@ Host-owned JSONB store with optimistic revision, owner identity, audit, and
 privacy lifecycle. The existing Entity Meta EAV is not reused because it has a
 different type system and `entity_meta.manage` policy.
 
+For source compatibility, a valid `id@version` user-field Schema reference with
+no same-ID package Schema may remain visible as a digestless, inspect-only
+catalog declaration. It has no Host value path and every value validation
+returns Schema-unavailable. A package path or any same-ID package file is an
+exact-material opt-in: missing, wrong-kind, wrong-version, invalid, or
+digest-drifted bytes fail closed and never downgrade to catalog-only. This is a
+Manifest-shape compatibility rule, not the startup-only legacy durable-history
+adoption path.
+
 An empty `readPermission` or `writePermission` is default-deny. Every read and
 write performs a final live actor permission check and Schema validation; cached
 or previously resolved data cannot bypass a later revocation. Disable removes
