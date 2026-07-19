@@ -16,11 +16,12 @@ const (
 )
 
 const (
-	CodeRegisterInvalid    = "auth.register_invalid"
-	CodeRegisterDisabled   = "auth.register_disabled"
-	CodeSessionUnavailable = "auth.session_unavailable"
-	AuditActionLogin       = "auth.login.success"
-	AuditActionRegister    = "auth.register.success"
+	CodeRegisterInvalid     = "auth.register_invalid"
+	CodeRegisterDisabled    = "auth.register_disabled"
+	CodeSessionUnavailable  = "auth.session_unavailable"
+	CodeSessionPolicyDenied = "auth.session_policy_denied"
+	AuditActionLogin        = "auth.login.success"
+	AuditActionRegister     = "auth.register.success"
 
 	FieldUsername          = "username"
 	FieldEmail             = "email"
