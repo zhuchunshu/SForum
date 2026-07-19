@@ -19,7 +19,10 @@ This is the entry point for project memory.
     reference plugin, and normal/race restart gates. P7 is **18/22**; its four
     remaining rows are Identity/Permission, Auth/Profile, trusted automation
     authority, and the joined identity denial/no-implicit-grant test.
-  - Active checkpoint: `knowledge/sessions/2026-07-16-trusted-plugin-theme-platform-v3-runtime-ownership-checkpoint.md`
+  - Active checkpoint:
+    `knowledge/sessions/2026-07-19-trusted-plugin-theme-platform-v3-identity-runtime-checkpoint.md`
+  - Prior runtime-ownership checkpoint:
+    `knowledge/sessions/2026-07-16-trusted-plugin-theme-platform-v3-runtime-ownership-checkpoint.md`
   - Prior Query/P12/SEO checkpoint:
     `knowledge/sessions/2026-07-16-trusted-plugin-theme-platform-v3-query-p12-seo-checkpoint.md`
   - Prior P6 WebSocket checkpoint:
