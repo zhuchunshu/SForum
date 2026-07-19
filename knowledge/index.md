@@ -19,6 +19,11 @@ This is the entry point for project memory.
     reference plugin, and normal/race restart gates. P7 is **18/22**; its four
     remaining rows are Identity/Permission, Auth/Profile, trusted automation
     authority, and the joined identity denial/no-implicit-grant test.
+  - Identity P7 infrastructure now includes immutable executable provider
+    Schemas, exact runtime admission, the Host-owned external-link Store, and
+    strict same-publication `sessionPolicy` binding with recovery-only legacy
+    durable decoding. User-field/session-selection stores and Core consumers
+    remain open and receive no partial row credit.
   - Active checkpoint:
     `knowledge/sessions/2026-07-19-trusted-plugin-theme-platform-v3-identity-runtime-checkpoint.md`
   - Prior runtime-ownership checkpoint:

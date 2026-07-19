@@ -166,6 +166,15 @@ before unpublication. An incompatible upgrade keeps the old exact runtime or
 resets to Core before switching; it never leaves a stale selection. Safe Mode
 always ignores third-party selection and uses Core policy.
 
+Every new or live non-Core `sessionPolicy` association must name a provider in
+the same exact Manifest/Registry publication whose kind is `session` and whose
+operation set includes `session.evaluate`; another provider of the same kind is
+not an implicit fallback. Historical durable roots created before this rule may
+be decoded only to verify their exact digest and preserve Safe Mode/CLI recovery.
+They cannot be republished, selected, or executed until an explicit compatible
+artifact declares the exact provider. The Host never rewrites that historical
+root into `core.session.default` silently.
+
 Authentication and recovery flows invoke the exact provider id selected by the
 Host/user; priority never silently replaces that choice. Profile sections
 compose all active providers in deterministic priority/id order, omitting only

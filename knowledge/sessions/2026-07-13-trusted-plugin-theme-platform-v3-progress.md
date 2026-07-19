@@ -65,18 +65,28 @@ Last updated: 2026-07-19
   into files of 416, 144, and 287 lines.
 - Independent built-in, Grok, and Codex reviews remain advisory. They confirmed
   the next hard gaps: user-field migration 038 and session-policy migration 039
-  have no production stores/consumers; `sessionPolicy` validation does not yet
-  bind a same-publication executable session provider; and trusted automation
-  has no `extensions.read/call/manage` production authority or caller-side
-  admission lease.
-- Exact next step: close the small `sessionPolicy` publication association
-  contract, then implement the Host-owned user-field value store with live
+  have no production stores/consumers, and trusted automation has no
+  `extensions.read/call/manage` production authority or caller-side admission
+  lease.
+- `a9def4e64` closes the `sessionPolicy` publication association contract at
+  static Manifest and live Registry boundaries. A non-Core policy must name the
+  same publication's exact executable `session.evaluate` provider; matching by
+  kind or priority cannot fall back. Existing empty/Core policy and inspect-only
+  provider compatibility remain. Exact historical roots with an unbound policy
+  remain digest-verifiable only for Safe Mode/CLI recovery and cannot be
+  republished, selected, or executed implicitly.
+- Manifest focused tests passed `count=20`; the complete Manifest package,
+  complete IdentityRegistry with real PostgreSQL, focused Registry race
+  `count=5`, root-only lifecycle/CAS, lifecycle Identity tests, dual-package
+  vet, and diff checks passed. The current development database contains zero
+  active historical roots with an unbound non-Core policy.
+- Exact next step: implement the Host-owned user-field value store with live
   permission, exact Schema, CAS/idempotency/audit, and PostgreSQL race evidence.
   Do not credit a P7 row until Core consumers and the real membership joined
   gate close the complete authoritative task/test row.
-- Rollback is additive: revert `96fab20ee`; migration 037 and retained data stay
-  in place. No branch, worktree, push, tag, feature flag, or unrelated dirty file
-  changed in this checkpoint.
+- Rollback is additive: revert `a9def4e64`, then `96fab20ee`; migration 037 and
+  retained data stay in place. No branch, worktree, push, tag, feature flag, or
+  unrelated dirty file changed in this checkpoint.
 
 ### 2026-07-19 P7 Identity Provider And Automation Contract Checkpoint
 
