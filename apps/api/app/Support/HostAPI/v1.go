@@ -79,7 +79,9 @@ type JobEnqueuer interface {
 // UserReader 读取安全用户字段。
 type UserReader interface {
 	// GetUserSafe 返回非密钥用户字段；不存在时 ErrNotFound。
-	GetUserSafe(ctx context.Context, userID int64) (map[string]any, error)
+	// actorUserID 与 declaredFields 用于扩展用户字段的实时权限与 Schema 校验；
+	// 核心字段不依赖 actor。无 actor 的扩展字段读取必须失败关闭。
+	GetUserSafe(ctx context.Context, userID int64, actorUserID int64, declaredFields []string) (map[string]any, error)
 }
 
 // CapabilitySource 解析扩展当前授予的能力。
@@ -337,7 +339,19 @@ func (s *Service) getUserSafe(ctx context.Context, payload map[string]any) Respo
 	if !found || userID <= 0 {
 		return fail("host.invalid_payload", "userId is required.")
 	}
-	user, err := s.users.GetUserSafe(ctx, userID)
+	actorUserID, _ := int64From(payload, "actorUserId")
+	var declaredFields []string
+	if raw, ok := payload["declaredFields"].([]string); ok {
+		declaredFields = raw
+	} else if raw, ok := payload["declaredFields"].([]any); ok {
+		declaredFields = make([]string, 0, len(raw))
+		for _, item := range raw {
+			if value, ok := item.(string); ok {
+				declaredFields = append(declaredFields, value)
+			}
+		}
+	}
+	user, err := s.users.GetUserSafe(ctx, userID, actorUserID, declaredFields)
 	if err != nil {
 		if errors.Is(err, ErrNotFound) {
 			return fail("host.user_not_found", "user not found")

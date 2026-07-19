@@ -90,8 +90,18 @@ func (protocolV2HostPermissions) HasPermission(context.Context, int64, string) (
 
 type protocolV2HostUsers struct{}
 
-func (protocolV2HostUsers) GetUserSafe(context.Context, int64) (map[string]any, error) {
-	return map[string]any{"id": int64(42), "username": "broker-user", "email": "private@example.com"}, nil
+func (protocolV2HostUsers) GetUserSafe(_ context.Context, _ int64, _ int64, declaredFields []string) (map[string]any, error) {
+	user := map[string]any{"id": int64(42), "username": "broker-user", "email": "private@example.com"}
+	if len(declaredFields) == 0 {
+		return user, nil
+	}
+	filtered := make(map[string]any, len(declaredFields))
+	for _, field := range declaredFields {
+		if value, ok := user[field]; ok {
+			filtered[field] = value
+		}
+	}
+	return filtered, nil
 }
 
 // 本夹具只验证已认证 broker 的 Host API 回调；production 的 exact-runtime

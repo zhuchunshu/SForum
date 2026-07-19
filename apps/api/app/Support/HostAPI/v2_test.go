@@ -18,8 +18,20 @@ type fakeUsers struct {
 	err   error
 }
 
-func (f fakeUsers) GetUserSafe(context.Context, int64) (map[string]any, error) {
-	return f.value, f.err
+func (f fakeUsers) GetUserSafe(_ context.Context, _ int64, _ int64, declaredFields []string) (map[string]any, error) {
+	if f.err != nil {
+		return nil, f.err
+	}
+	if len(declaredFields) == 0 {
+		return f.value, nil
+	}
+	filtered := make(map[string]any, len(declaredFields))
+	for _, field := range declaredFields {
+		if value, ok := f.value[field]; ok {
+			filtered[field] = value
+		}
+	}
+	return filtered, nil
 }
 
 func TestRegisterProtocolV2RegistersCompatibilityServices(t *testing.T) {

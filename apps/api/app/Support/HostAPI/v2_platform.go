@@ -49,21 +49,20 @@ type protocolV2IdentityServer struct {
 
 func (s *protocolV2IdentityServer) GetUser(ctx context.Context, request *hostv2.IdentityUserRequest) (*hostv2.IdentityUserResponse, error) {
 	response := &hostv2.IdentityUserResponse{Context: protocolV2ResponseContext(request.GetContext())}
-	result := s.core.call(ctx, request.GetContext(), MethodGetUserSafe, map[string]any{"userId": request.GetUserId()})
+	// declared_fields is a projection request, not authority. The Host resolves
+	// every extension field against the live Registry declaration and a live
+	// actor permission check inside GetUserSafe.
+	payload := map[string]any{
+		"userId":         request.GetUserId(),
+		"actorUserId":    request.GetContext().GetActor().GetUserId(),
+		"declaredFields": append([]string(nil), request.GetDeclaredFields()...),
+	}
+	result := s.core.call(ctx, request.GetContext(), MethodGetUserSafe, payload)
 	if !result.OK {
 		response.Error = protocolV2Failure(result.Reason, result.Message)
 		return response, nil
 	}
 	user, _ := result.Data["user"].(map[string]any)
-	if len(request.GetDeclaredFields()) > 0 {
-		filtered := make(map[string]any, len(request.GetDeclaredFields()))
-		for _, field := range request.GetDeclaredFields() {
-			if value, ok := user[field]; ok {
-				filtered[field] = value
-			}
-		}
-		user = filtered
-	}
 	document, err := protocolV2Document(IdentitySafeUserSchemaID, IdentitySafeUserSchemaV1, user)
 	if err != nil {
 		response.Error = protocolV2Failure("host.identity_encode_failed", err.Error())
