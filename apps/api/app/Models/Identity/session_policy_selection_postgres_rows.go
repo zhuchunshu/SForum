@@ -122,10 +122,11 @@ func validIdentitySessionPolicyEvidence(evidence IdentitySessionPolicyEvidence) 
 }
 
 type identitySessionPolicyAuditMetadata struct {
-	PreviousSelection *IdentitySessionPolicyEvidence `json:"previousSelection"`
-	SelectedSelection *IdentitySessionPolicyEvidence `json:"selectedSelection"`
-	SelectionRevision int64                          `json:"selectionRevision"`
-	ReasonCode        string                         `json:"reasonCode,omitempty"`
+	PreviousSelection     *IdentitySessionPolicyEvidence `json:"previousSelection"`
+	SelectedSelection     *IdentitySessionPolicyEvidence `json:"selectedSelection"`
+	SelectionRevision     int64                          `json:"selectionRevision"`
+	ReasonCode            string                         `json:"reasonCode,omitempty"`
+	LifecycleAuditEventID int64                          `json:"lifecycleAuditEventId,omitempty"`
 }
 
 func insertIdentitySessionPolicyAudit(
@@ -137,12 +138,14 @@ func insertIdentitySessionPolicyAudit(
 	selectionRevision int64,
 	actorUserID int64,
 	reasonCode string,
+	lifecycleAuditEventID int64,
 ) (int64, error) {
 	metadata, err := json.Marshal(identitySessionPolicyAuditMetadata{
-		PreviousSelection: previous,
-		SelectedSelection: selected,
-		SelectionRevision: selectionRevision,
-		ReasonCode:        reasonCode,
+		PreviousSelection:     previous,
+		SelectedSelection:     selected,
+		SelectionRevision:     selectionRevision,
+		ReasonCode:            reasonCode,
+		LifecycleAuditEventID: lifecycleAuditEventID,
 	})
 	if err != nil {
 		return 0, fmt.Errorf("encode identity session policy audit: %w", err)

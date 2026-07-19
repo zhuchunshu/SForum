@@ -57,13 +57,17 @@ Last updated: 2026-07-19
   Mode recovery, stale provider failure, authority denial, transaction rollback,
   and one-winner CAS. Focused normal/race tests, complete Identity tests,
   migration static/real-PostgreSQL gates, event-ledger gates, and vet passed.
-- Exact next step is transaction-local lifecycle invalidation from
-  `IdentityRegistry.PostgresStore.Reconcile`, after authority locks and before
-  retirement. Preserve exact replay only; disable, uninstall, association
-  removal, rollback, and incompatible replacement reset to explicit Core before
-  unpublication. Then add atomic `ProviderResolution`/`InvokeExact` and wire
-  selected evaluation immediately before Host session issue/renew. Revocation
-  remains Host-local.
+- Lifecycle invalidation is now transaction-local to
+  `IdentityRegistry.PostgresStore.Reconcile`: Registry authority -> lifecycle
+  actor -> shared advisory/singleton -> explicit Core audit/event -> root/leaf
+  publication. Only the complete exact active replay preserves selection.
+  PostgreSQL guards prove reset-before-root/provider writes; exact target/source
+  validation proves upgrade, association removal, rollback, and replay; forced
+  audit/event/root failures roll back both domains. Deterministic blocker chains
+  cover lifecycle-first and Select-first outcomes under normal and race gates.
+- Exact next step is atomic `ProviderResolution`/`InvokeExact`, then selected
+  evaluation immediately before Host session issue/renew. Revocation remains
+  Host-local. P7 stays **18/22** and weighted progress **67.8295%**.
 - Rollback is additive: revert `88a674da5`, then `3b52ef041`, then
   `7dec20a32`. Migration 041 Down remains fail-closed after retained evidence.
   No feature flag, branch, worktree, push, tag, or unowned dirty file changed.

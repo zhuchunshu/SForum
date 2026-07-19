@@ -1,6 +1,7 @@
 package identityregistry
 
 import (
+	"bytes"
 	"context"
 
 	"github.com/jackc/pgx/v5"
@@ -29,4 +30,47 @@ type SessionPolicyLifecycleInvalidator interface {
 		pgx.Tx,
 		SessionPolicyLifecycleTransition,
 	) error
+}
+
+func exactReplaySessionPolicyProvider(
+	currentRoot *DurableRootPublicationTip,
+	desiredRoot *durableDesiredRootPublication,
+	current map[string]DurableDeclarationTip,
+	desiredByKey map[string]durableDesiredDeclaration,
+	desired *Publication,
+) *DurableDeclarationTip {
+	if currentRoot == nil || desiredRoot == nil || desired == nil ||
+		currentRoot.RegistryState != RegistryStateActive ||
+		durableRootTipArtifactIdentity(*currentRoot) != durableRootTipArtifactIdentity(desiredRoot.tip) ||
+		currentRoot.SchemaVersion != desiredRoot.tip.SchemaVersion ||
+		currentRoot.PublicationDigest != desiredRoot.tip.PublicationDigest ||
+		!bytes.Equal(currentRoot.PublicationJSON, desiredRoot.tip.PublicationJSON) ||
+		desired.Identity == nil || desired.Identity.SessionPolicy == "" ||
+		desired.Identity.SessionPolicy == "core.session.default" {
+		return nil
+	}
+
+	activeCount := 0
+	for key, tip := range current {
+		if tip.RegistryState != RegistryStateActive {
+			continue
+		}
+		activeCount++
+		declaration, found := desiredByKey[key]
+		if !found || durableTipArtifactIdentity(tip) != durableArtifactIdentityOf(declaration.artifact) ||
+			tip.ContractVersion != declaration.contractVersion || tip.DeclarationDigest != declaration.digest {
+			return nil
+		}
+	}
+	if activeCount != len(desiredByKey) {
+		return nil
+	}
+
+	key := ownershipKey(TombstoneKindProvider, desired.Identity.SessionPolicy)
+	tip, found := current[key]
+	if !found || tip.RegistryState != RegistryStateActive {
+		return nil
+	}
+	copy := tip
+	return &copy
 }

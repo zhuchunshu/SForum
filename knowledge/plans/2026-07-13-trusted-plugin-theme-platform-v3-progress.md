@@ -108,14 +108,18 @@ or treated as expired only after the complete V3 goal is achieved.
   one-winner CAS semantics. Focused normal/race tests, complete Identity tests,
   migration static/real-PostgreSQL gates, event-ledger gates, and dual-package
   vet passed.
-- Exact next step is same-transaction lifecycle invalidation inside
-  `IdentityRegistry.PostgresStore.Reconcile`, after Registry authority locks and
-  before publication retirement. Preserve only a true exact publication replay;
-  disable, uninstall, association removal, rollback, or incompatible artifact
-  replacement must update the selection to explicit Core and append exact audit
-  evidence before unpublication. Then add atomic `ProviderResolution` plus
-  `InvokeExact`, and wire selected evaluation into Host issue/renew immediately
-  before the session effect. Revocation remains Host-local.
+- Lifecycle invalidation now runs inside `IdentityRegistry.PostgresStore.Reconcile`
+  after exact Registry authority locks and before root/leaf publication writes.
+  Only a byte- and declaration-exact active replay preserves the selected tuple;
+  disable, uninstall-shaped retirement, association removal, rollback, and
+  artifact replacement first CAS-update explicit Core plus exact audit/event
+  evidence in the same Serializable transaction. Production binds the exact
+  Registry and Session Policy Store instance. Real PostgreSQL normal/race gates
+  cover both lifecycle-first and Select-first blocker chains, deleted actors,
+  exact replay, upgrade/removal/rollback, and audit/event/root failure rollback.
+- Exact next step is atomic `ProviderResolution` plus `InvokeExact`, followed by
+  selected evaluation in Host issue/renew immediately before the session effect.
+  Revocation remains Host-local. No P7 row or weighted progress is credited yet.
 - Preserve all unrelated dirty files, especially route/PageViewModels tests,
   `bootstrap/app.go`, `go.mod`, Web inspector/public-runtime work, content-policy,
   OpenAPI, ADR/taskbook, and P9 public frontend policy work.

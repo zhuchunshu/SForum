@@ -223,7 +223,16 @@ func TestIdentitySessionPolicyPostgresStaleDesiredFailsClosed(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	if err := fixture.retireProvider(); err != nil {
+	// This intentionally bypasses the configured lifecycle transaction hook.
+	// Retained historical callers still fail closed instead of invoking a stale
+	// provider; the production Reconcile path is covered separately below.
+	if _, err := identityregistry.NewPostgresStore(fixture.pool).Reconcile(
+		fixture.ctx,
+		identityregistry.ReconcilePublicationInput{
+			ExtensionID: fixture.extensionID, AllowedSource: &fixture.publication.Artifact,
+			ActorUserID: fixture.actorUserID, AuditEventID: 99,
+		},
+	); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := fixture.sessionPolicy.Resolve(fixture.ctx); !errors.Is(err, ErrIdentitySessionPolicyDeclarationStale) {
@@ -234,6 +243,259 @@ func TestIdentitySessionPolicyPostgresStaleDesiredFailsClosed(t *testing.T) {
 		t.Fatalf("stale desired selection = %#v, %v", desired, err)
 	}
 	fixture.assertSessionPolicyCounts(1, 1, 1)
+}
+
+func TestIdentitySessionPolicyPostgresLifecycleReplayAndInvalidation(t *testing.T) {
+	fixture := newIdentityPersistencePGFixture(t)
+	candidate, err := fixture.sessionPolicy.Candidate(fixture.ctx, fixture.sessionProvider.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	selected, err := fixture.sessionPolicy.Select(fixture.ctx, SelectIdentitySessionPolicyInput{
+		Candidate: candidate, ExpectedRevision: 0, ActorUserID: fixture.adminUserID,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	beforeReplay, err := fixture.registryStore.LoadDurableState(fixture.ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	replayedDurable, err := fixture.registryStore.Reconcile(fixture.ctx, identityregistry.ReconcilePublicationInput{
+		ExtensionID:   fixture.extensionID,
+		AllowedSource: &fixture.publication.Artifact,
+		AllowedTarget: &fixture.publication.Artifact,
+		Desired:       &fixture.publication,
+		ActorUserID:   fixture.actorUserID,
+		AuditEventID:  1001,
+	})
+	if err != nil {
+		t.Fatalf("exact lifecycle replay: %v", err)
+	}
+	if !reflect.DeepEqual(replayedDurable, beforeReplay) {
+		t.Fatalf("exact lifecycle replay changed durable state\nbefore=%#v\nafter=%#v", beforeReplay, replayedDurable)
+	}
+	unchanged, err := fixture.sessionPolicy.Current(fixture.ctx)
+	if err != nil || !reflect.DeepEqual(unchanged, selected.Selection) {
+		t.Fatalf("exact replay selection = %#v, want %#v, err=%v", unchanged, selected.Selection, err)
+	}
+	fixture.assertSessionPolicyCounts(1, 1, 1)
+
+	fixture.installSessionPolicyCoreBeforeRegistryWriteGuard()
+	if err := fixture.retireProvider(); err != nil {
+		t.Fatalf("lifecycle retirement: %v", err)
+	}
+	current, err := fixture.sessionPolicy.Current(fixture.ctx)
+	if err != nil || current.PolicyID != IdentitySessionPolicyCoreDefault ||
+		current.Revision != 2 || current.Implicit {
+		t.Fatalf("invalidated selection = %#v, err=%v", current, err)
+	}
+	events, err := fixture.sessionPolicy.ListEvents(fixture.ctx, 10)
+	if err != nil || len(events) != 2 || events[0].Action != IdentitySessionPolicyActionInvalidate ||
+		events[0].SelectionRevision != 2 || events[0].PreviousSelection == nil ||
+		*events[0].PreviousSelection != candidate || events[0].SelectedSelection != nil ||
+		events[0].ReasonCode != identitySessionPolicyLifecycleInvalidationReason {
+		t.Fatalf("invalidation events = %#v, err=%v", events, err)
+	}
+	fixture.assertSessionPolicyCounts(1, 2, 2)
+	fixture.assertSessionPolicyAuditMetadata(
+		events[0].AuditEventID,
+		identitySessionPolicyAuditMetadata{
+			PreviousSelection:     &candidate,
+			SelectionRevision:     2,
+			ReasonCode:            identitySessionPolicyLifecycleInvalidationReason,
+			LifecycleAuditEventID: 99,
+		},
+	)
+	assertIdentitySessionPolicyRegistryTipState(t, fixture, identityregistry.RegistryStateTombstone)
+	retired, err := fixture.registryStore.LoadDurableState(fixture.ctx)
+	if err != nil || identityregistry.ValidateDurableRetirement(retired, fixture.extensionID) != nil {
+		t.Fatalf("durable retirement = %#v, err=%v", retired, err)
+	}
+}
+
+func TestIdentitySessionPolicyPostgresLifecycleAllowsDeletedActorProvenance(t *testing.T) {
+	fixture := newIdentityPersistencePGFixture(t)
+	candidate, err := fixture.sessionPolicy.Candidate(fixture.ctx, fixture.sessionProvider.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := fixture.sessionPolicy.Select(fixture.ctx, SelectIdentitySessionPolicyInput{
+		Candidate: candidate, ExpectedRevision: 0, ActorUserID: fixture.adminUserID,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := fixture.pool.Exec(fixture.ctx, `DELETE FROM users WHERE id=$1`, fixture.actorUserID); err != nil {
+		t.Fatal(err)
+	}
+	if err := fixture.retireProvider(); err != nil {
+		t.Fatalf("retire with deleted lifecycle actor: %v", err)
+	}
+	var selectedBy, eventActor, auditActor *int64
+	if err := fixture.pool.QueryRow(fixture.ctx, `
+		SELECT selection.selected_by_user_id, event.actor_user_id, audit.actor_user_id
+		FROM identity_session_policy_selection AS selection
+		JOIN identity_session_policy_selection_events AS event
+		  ON event.selection_revision = selection.revision
+		JOIN audit_events AS audit ON audit.id = event.audit_event_id
+		WHERE selection.singleton = TRUE
+	`).Scan(&selectedBy, &eventActor, &auditActor); err != nil {
+		t.Fatal(err)
+	}
+	if selectedBy != nil || eventActor != nil || auditActor != nil {
+		t.Fatalf("deleted lifecycle actor provenance selection=%v event=%v audit=%v", selectedBy, eventActor, auditActor)
+	}
+	current, err := fixture.sessionPolicy.Current(fixture.ctx)
+	if err != nil || current.PolicyID != IdentitySessionPolicyCoreDefault || current.Revision != 2 {
+		t.Fatalf("deleted actor invalidation = %#v, err=%v", current, err)
+	}
+}
+
+func TestIdentitySessionPolicyPostgresLifecycleUpgradeAssociationAndRollback(t *testing.T) {
+	tests := []struct {
+		name              string
+		removeAssociation bool
+	}{
+		{name: "artifact replacement"},
+		{name: "session association removal", removeAssociation: true},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			fixture := newIdentityPersistencePGFixture(t)
+			candidate, err := fixture.sessionPolicy.Candidate(fixture.ctx, fixture.sessionProvider.ID)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err := fixture.sessionPolicy.Select(fixture.ctx, SelectIdentitySessionPolicyInput{
+				Candidate: candidate, ExpectedRevision: 0, ActorUserID: fixture.adminUserID,
+			}); err != nil {
+				t.Fatal(err)
+			}
+
+			target := fixture.insertSessionPolicyPublicationVersion("2.0.0", "b", "identity-runtime-v2")
+			if test.removeAssociation {
+				target.Identity.SessionPolicy = IdentitySessionPolicyCoreDefault
+			}
+			targetDurable, err := fixture.registryStore.Reconcile(fixture.ctx, identityregistry.ReconcilePublicationInput{
+				ExtensionID:   fixture.extensionID,
+				AllowedSource: &fixture.publication.Artifact,
+				AllowedTarget: &target.Artifact,
+				Desired:       &target,
+				ActorUserID:   fixture.actorUserID,
+				AuditEventID:  1101,
+			})
+			if err != nil {
+				t.Fatalf("reconcile target: %v", err)
+			}
+			if err := identityregistry.ValidateDurablePublication(targetDurable, target); err != nil {
+				t.Fatalf("validate durable target: %v", err)
+			}
+			current, err := fixture.sessionPolicy.Current(fixture.ctx)
+			if err != nil || current.PolicyID != IdentitySessionPolicyCoreDefault || current.Revision != 2 {
+				t.Fatalf("target invalidation = %#v, err=%v", current, err)
+			}
+			fixture.assertSessionPolicyCounts(1, 2, 2)
+
+			if test.removeAssociation {
+				return
+			}
+			if _, err := fixture.pool.Exec(fixture.ctx, `
+				UPDATE extensions SET active_version_id = $2 WHERE id = $1
+			`, fixture.extensionID, target.Artifact.VersionID); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := fixture.registry.ReplaceAll([]identityregistry.Publication{target}, false); err != nil {
+				t.Fatal(err)
+			}
+			targetCandidate, err := fixture.sessionPolicy.Candidate(fixture.ctx, target.Identity.SessionPolicy)
+			if err != nil {
+				t.Fatal(err)
+			}
+			selectedTarget, err := fixture.sessionPolicy.Select(fixture.ctx, SelectIdentitySessionPolicyInput{
+				Candidate: targetCandidate, ExpectedRevision: 2, ActorUserID: fixture.adminUserID,
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			replayedTarget, err := fixture.registryStore.Reconcile(fixture.ctx, identityregistry.ReconcilePublicationInput{
+				ExtensionID:   fixture.extensionID,
+				AllowedSource: &target.Artifact,
+				AllowedTarget: &target.Artifact,
+				Desired:       &target,
+				ActorUserID:   fixture.actorUserID,
+				AuditEventID:  1102,
+			})
+			if err != nil {
+				t.Fatalf("exact target replay: %v", err)
+			}
+			if !reflect.DeepEqual(replayedTarget, targetDurable) {
+				t.Fatalf("target replay changed durable state\nbefore=%#v\nafter=%#v", targetDurable, replayedTarget)
+			}
+			replayed, err := fixture.sessionPolicy.Current(fixture.ctx)
+			if err != nil || !reflect.DeepEqual(replayed, selectedTarget.Selection) {
+				t.Fatalf("target replay = %#v, want %#v, err=%v", replayed, selectedTarget.Selection, err)
+			}
+
+			// Lifecycle compensation republishes the source but never implicitly
+			// reselects it; the explicit target selection is invalidated first.
+			rolledBackDurable, err := fixture.registryStore.Reconcile(fixture.ctx, identityregistry.ReconcilePublicationInput{
+				ExtensionID:   fixture.extensionID,
+				AllowedSource: &target.Artifact,
+				AllowedTarget: &fixture.publication.Artifact,
+				Desired:       &fixture.publication,
+				ActorUserID:   fixture.actorUserID,
+				AuditEventID:  1103,
+			})
+			if err != nil {
+				t.Fatalf("rollback publication: %v", err)
+			}
+			if err := identityregistry.ValidateDurablePublication(rolledBackDurable, fixture.publication); err != nil {
+				t.Fatalf("validate rollback publication: %v", err)
+			}
+			rolledBack, err := fixture.sessionPolicy.Current(fixture.ctx)
+			if err != nil || rolledBack.PolicyID != IdentitySessionPolicyCoreDefault || rolledBack.Revision != 4 {
+				t.Fatalf("rollback selection = %#v, err=%v", rolledBack, err)
+			}
+			fixture.assertSessionPolicyCounts(1, 4, 4)
+		})
+	}
+}
+
+func TestIdentitySessionPolicyPostgresLifecycleFailureRollsBackRegistryAndSelection(t *testing.T) {
+	for _, failure := range []string{"audit", "event", "root"} {
+		t.Run(failure, func(t *testing.T) {
+			fixture := newIdentityPersistencePGFixture(t)
+			candidate, err := fixture.sessionPolicy.Candidate(fixture.ctx, fixture.sessionProvider.ID)
+			if err != nil {
+				t.Fatal(err)
+			}
+			selected, err := fixture.sessionPolicy.Select(fixture.ctx, SelectIdentitySessionPolicyInput{
+				Candidate: candidate, ExpectedRevision: 0, ActorUserID: fixture.adminUserID,
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			beforeDurable, err := fixture.registryStore.LoadDurableState(fixture.ctx)
+			if err != nil {
+				t.Fatal(err)
+			}
+			fixture.installSessionPolicyLifecycleFailure(failure)
+			if err := fixture.retireProvider(); err == nil {
+				t.Fatal("forced lifecycle failure unexpectedly succeeded")
+			}
+			current, err := fixture.sessionPolicy.Current(fixture.ctx)
+			if err != nil || !reflect.DeepEqual(current, selected.Selection) {
+				t.Fatalf("rolled-back selection = %#v, want %#v, err=%v", current, selected.Selection, err)
+			}
+			fixture.assertSessionPolicyCounts(1, 1, 1)
+			assertIdentitySessionPolicyRegistryTipState(t, fixture, identityregistry.RegistryStateActive)
+			afterDurable, err := fixture.registryStore.LoadDurableState(fixture.ctx)
+			if err != nil || !reflect.DeepEqual(afterDurable, beforeDurable) {
+				t.Fatalf("failure changed durable Registry\nbefore=%#v\nafter=%#v\nerr=%v", beforeDurable, afterDurable, err)
+			}
+		})
+	}
 }
 
 func TestIdentitySessionPolicyPostgresRejectsAuthorityAndRollsBack(t *testing.T) {
@@ -356,14 +618,49 @@ func (f *identityPersistencePGFixture) assertSessionPolicyAuditMetadata(
 		wantKeys = append(wantKeys, "reasonCode")
 		sort.Strings(wantKeys)
 	}
+	if want.LifecycleAuditEventID > 0 {
+		wantKeys = append(wantKeys, "lifecycleAuditEventId")
+		sort.Strings(wantKeys)
+	}
 	if !reflect.DeepEqual(gotKeys, wantKeys) {
 		f.t.Fatalf("audit metadata keys = %v, want %v", gotKeys, wantKeys)
 	}
 }
 
 func identitySessionPolicyActionForAudit(metadata identitySessionPolicyAuditMetadata) string {
+	if metadata.LifecycleAuditEventID > 0 {
+		return IdentitySessionPolicyActionInvalidate
+	}
 	if metadata.SelectedSelection == nil {
 		return IdentitySessionPolicyActionReset
 	}
 	return IdentitySessionPolicyActionSelect
+}
+
+func assertIdentitySessionPolicyRegistryTipState(
+	t *testing.T,
+	fixture *identityPersistencePGFixture,
+	want string,
+) {
+	t.Helper()
+	var rootState, providerState string
+	if err := fixture.pool.QueryRow(fixture.ctx, `
+		SELECT registry_state
+		FROM extension_identity_registry_publications
+		WHERE owner_extension_id = $1
+		ORDER BY revision DESC LIMIT 1
+	`, fixture.extensionID).Scan(&rootState); err != nil {
+		t.Fatal(err)
+	}
+	if err := fixture.pool.QueryRow(fixture.ctx, `
+		SELECT registry_state
+		FROM extension_identity_registry_declarations
+		WHERE identity_kind = 'provider' AND stable_id = $1
+		ORDER BY revision DESC LIMIT 1
+	`, fixture.sessionProvider.ID).Scan(&providerState); err != nil {
+		t.Fatal(err)
+	}
+	if rootState != want || providerState != want {
+		t.Fatalf("registry states root=%q provider=%q want=%q", rootState, providerState, want)
+	}
 }

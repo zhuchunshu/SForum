@@ -25,6 +25,7 @@ type identityPersistencePGFixture struct {
 	ctx             context.Context
 	admin           *pgxpool.Pool
 	pool            *pgxpool.Pool
+	databaseURL     string
 	schema          string
 	adminUserID     int64
 	actorUserID     int64
@@ -99,6 +100,7 @@ func newIdentityPersistencePGFixture(t *testing.T) *identityPersistencePGFixture
 	}
 	fixture := &identityPersistencePGFixture{
 		t: t, ctx: ctx, admin: admin, pool: pool, schema: schema,
+		databaseURL:   databaseURL,
 		extensionID:   "fixture.identity.membership",
 		registryStore: identityregistry.NewPostgresStore(pool),
 		externalLinks: NewPostgresExternalIdentityLinkStore(pool),
@@ -125,12 +127,35 @@ func newIdentityPersistencePGFixture(t *testing.T) *identityPersistencePGFixture
 		admin.Close()
 		t.Fatal(err)
 	}
+	fixture.registryStore = identityregistry.NewPostgresStoreWithDependencies(
+		pool,
+		identityregistry.PostgresStoreDependencies{
+			SessionPolicyInvalidator: fixture.sessionPolicy,
+		},
+	)
 	t.Cleanup(func() {
 		pool.Close()
 		removeSchema()
 		admin.Close()
 	})
 	return fixture
+}
+
+func (f *identityPersistencePGFixture) newPool(name string) *pgxpool.Pool {
+	f.t.Helper()
+	config, err := pgxpool.ParseConfig(f.databaseURL)
+	if err != nil {
+		f.t.Fatal(err)
+	}
+	config.ConnConfig.RuntimeParams["search_path"] = f.schema + ",public"
+	config.ConnConfig.RuntimeParams["application_name"] = name
+	config.MaxConns = 1
+	pool, err := pgxpool.NewWithConfig(f.ctx, config)
+	if err != nil {
+		f.t.Fatal(err)
+	}
+	f.t.Cleanup(pool.Close)
+	return pool
 }
 
 func applyIdentityPersistenceTestMigrations(
@@ -376,6 +401,119 @@ func (f *identityPersistencePGFixture) retireProvider() error {
 	return err
 }
 
+func (f *identityPersistencePGFixture) insertSessionPolicyPublicationVersion(
+	version string,
+	digestByte string,
+	runtimeInstanceID string,
+) identityregistry.Publication {
+	f.t.Helper()
+	digest := strings.Repeat(digestByte, 64)
+	var versionID int64
+	if err := f.pool.QueryRow(f.ctx, `
+		INSERT INTO extension_versions (
+			extension_id, version, manifest, package_path, package_digest
+		) VALUES ($1, $2, '{}'::jsonb, $3, $4)
+		RETURNING id
+	`, f.extensionID, version, "/tmp/identity-membership-fixture-"+version, digest).Scan(&versionID); err != nil {
+		f.t.Fatal(err)
+	}
+	publication, err := identityPersistenceProviderPublicationVersion(
+		f.extensionID,
+		versionID,
+		version,
+		digest,
+		runtimeInstanceID,
+	)
+	if err != nil {
+		f.t.Fatal(err)
+	}
+	return publication
+}
+
+func (f *identityPersistencePGFixture) installSessionPolicyLifecycleFailure(target string) {
+	f.t.Helper()
+	var statement string
+	switch target {
+	case "audit":
+		statement = `
+			CREATE FUNCTION reject_session_policy_lifecycle_audit() RETURNS trigger LANGUAGE plpgsql AS $$
+			BEGIN
+				IF NEW.action = 'identity.session_policy.invalidate' THEN
+					RAISE EXCEPTION 'forced session-policy lifecycle audit failure';
+				END IF;
+				RETURN NEW;
+			END;
+			$$;
+			CREATE TRIGGER reject_session_policy_lifecycle_audit
+			BEFORE INSERT ON audit_events
+			FOR EACH ROW EXECUTE FUNCTION reject_session_policy_lifecycle_audit();
+		`
+	case "event":
+		statement = `
+			CREATE FUNCTION reject_session_policy_lifecycle_event() RETURNS trigger LANGUAGE plpgsql AS $$
+			BEGIN
+				IF NEW.action = 'invalidate' THEN
+					RAISE EXCEPTION 'forced session-policy lifecycle event failure';
+				END IF;
+				RETURN NEW;
+			END;
+			$$;
+			CREATE TRIGGER reject_session_policy_lifecycle_event
+			BEFORE INSERT ON identity_session_policy_selection_events
+			FOR EACH ROW EXECUTE FUNCTION reject_session_policy_lifecycle_event();
+		`
+	case "root":
+		statement = `
+			CREATE FUNCTION reject_session_policy_lifecycle_root() RETURNS trigger LANGUAGE plpgsql AS $$
+			BEGIN
+				IF NEW.registry_state = 'tombstone' THEN
+					RAISE EXCEPTION 'forced identity root retirement failure';
+				END IF;
+				RETURN NEW;
+			END;
+			$$;
+			CREATE TRIGGER reject_session_policy_lifecycle_root
+			BEFORE INSERT ON extension_identity_registry_publications
+			FOR EACH ROW EXECUTE FUNCTION reject_session_policy_lifecycle_root();
+		`
+	default:
+		f.t.Fatalf("unknown lifecycle failure target %q", target)
+	}
+	if _, err := f.pool.Exec(f.ctx, statement); err != nil {
+		f.t.Fatal(err)
+	}
+}
+
+func (f *identityPersistencePGFixture) installSessionPolicyCoreBeforeRegistryWriteGuard() {
+	f.t.Helper()
+	if _, err := f.pool.Exec(f.ctx, `
+		CREATE FUNCTION require_core_before_identity_registry_write() RETURNS trigger LANGUAGE plpgsql AS $$
+		BEGIN
+			IF EXISTS (
+				SELECT 1
+				FROM identity_session_policy_selection
+				WHERE singleton = TRUE AND owner_extension_id = NEW.owner_extension_id
+			) THEN
+				RAISE EXCEPTION 'session policy was not reset before identity registry write';
+			END IF;
+			RETURN NEW;
+		END;
+		$$;
+		CREATE TRIGGER require_core_before_identity_registry_write
+		BEFORE INSERT ON extension_identity_registry_publications
+		FOR EACH ROW
+		WHEN (NEW.revision > 1)
+		EXECUTE FUNCTION require_core_before_identity_registry_write();
+		CREATE TRIGGER require_core_before_identity_registry_declaration_write
+		BEFORE INSERT ON extension_identity_registry_declarations
+		FOR EACH ROW
+		WHEN (NEW.identity_kind = 'provider' AND NEW.revision > 1)
+		EXECUTE FUNCTION require_core_before_identity_registry_write();
+	`); err != nil {
+		f.t.Fatal(err)
+	}
+}
+
 func (f *identityPersistencePGFixture) assertExternalLinkCounts(links, events, audits int) {
 	f.t.Helper()
 	var gotLinks, gotEvents, gotAudits int
@@ -404,8 +542,24 @@ func identityPersistenceProviderPublication(
 	packageDigest string,
 	runtimeInstanceID string,
 ) (identityregistry.Publication, error) {
+	return identityPersistenceProviderPublicationVersion(
+		extensionID,
+		versionID,
+		"1.0.0",
+		packageDigest,
+		runtimeInstanceID,
+	)
+}
+
+func identityPersistenceProviderPublicationVersion(
+	extensionID string,
+	versionID int64,
+	extensionVersion string,
+	packageDigest string,
+	runtimeInstanceID string,
+) (identityregistry.Publication, error) {
 	artifact := identityregistry.Artifact{
-		ExtensionID: extensionID, ExtensionVersion: "1.0.0", PackageDigest: packageDigest,
+		ExtensionID: extensionID, ExtensionVersion: extensionVersion, PackageDigest: packageDigest,
 		VersionID: versionID, RuntimeInstanceID: runtimeInstanceID,
 	}
 	providerID := extensionID + ".auth"

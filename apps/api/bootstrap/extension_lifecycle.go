@@ -9,6 +9,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
+	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
 	assetregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/AssetRegistry"
 	cacheregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/CacheRegistry"
 	extensionopenapi "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionOpenAPI"
@@ -51,24 +52,25 @@ type productionLifecycleStackConfig struct {
 // productionLifecycleStack 保留组装后的具体实例，避免 lifecycle 的不同边界
 // 意外各自创建 Manager、journal 或 schedule admission registry。
 type productionLifecycleStack struct {
-	Repository        *extensions.PostgresLifecycleRepository
-	RuntimeManager    *extensionsruntime.Manager
-	Runtime           *extensionsruntime.ExactLifecycleCoordinatorRuntimeAdapter
-	Preflight         *extensionsruntime.ProductionLifecycleBoundaryPreflight
-	StaticPreflight   extensions.LifecycleStaticPreflight
-	MigrationEngine   extensionsruntime.LifecycleMigrationEngine
-	Migrations        *extensionsruntime.ProductionLifecycleBoundaryMigrations
-	Schedules         *supportjobs.PluginScheduleAdmissionRegistry
-	JobStore          *hostapi.PostgresPluginJobLifecycleStore
-	JobCoordinator    *hostapi.PluginJobLifecycleCoordinator
-	Jobs              *extensionsruntime.PostgresLifecycleBoundaryJobs
-	RouteRegistry     *routes.Registry
-	RouteSchemas      *extensionopenapi.RouteSchemaPublication
-	ComponentRegistry *extensionsruntime.ComponentRegistry
-	AssetRegistry     *assetregistry.Registry
-	CacheRegistry     *cacheregistry.Registry
-	IdentityRegistry  *identityregistry.Registry
-	IdentityStore     identityregistry.PublicationStore
+	Repository         *extensions.PostgresLifecycleRepository
+	RuntimeManager     *extensionsruntime.Manager
+	Runtime            *extensionsruntime.ExactLifecycleCoordinatorRuntimeAdapter
+	Preflight          *extensionsruntime.ProductionLifecycleBoundaryPreflight
+	StaticPreflight    extensions.LifecycleStaticPreflight
+	MigrationEngine    extensionsruntime.LifecycleMigrationEngine
+	Migrations         *extensionsruntime.ProductionLifecycleBoundaryMigrations
+	Schedules          *supportjobs.PluginScheduleAdmissionRegistry
+	JobStore           *hostapi.PostgresPluginJobLifecycleStore
+	JobCoordinator     *hostapi.PluginJobLifecycleCoordinator
+	Jobs               *extensionsruntime.PostgresLifecycleBoundaryJobs
+	RouteRegistry      *routes.Registry
+	RouteSchemas       *extensionopenapi.RouteSchemaPublication
+	ComponentRegistry  *extensionsruntime.ComponentRegistry
+	AssetRegistry      *assetregistry.Registry
+	CacheRegistry      *cacheregistry.Registry
+	IdentityRegistry   *identityregistry.Registry
+	IdentityStore      identityregistry.PublicationStore
+	SessionPolicyStore *identity.PostgresIdentitySessionPolicyStore
 	// QueryRegistry 与 QueryCoreCatalog 在进程启动时一次性构造；不得每请求重建，
 	// 也不得从 mutable Store 再生成 Core publication。
 	QueryRegistry      *queryregistry.Registry
@@ -203,9 +205,18 @@ func newProductionLifecycleStack(config productionLifecycleStackConfig) (*produc
 	// Test seams that supply IdentityStore keep their injected double unchanged.
 	identityRegistry := identityregistry.New()
 	identityStore := config.IdentityStore
+	var sessionPolicyStore *identity.PostgresIdentitySessionPolicyStore
 	if identityStore == nil {
-		identityStore = identityregistry.NewPostgresStoreWithStoredTrustImpactValidator(
-			config.Pool, extensions.ValidateStoredTrustImpact,
+		sessionPolicyStore, err = identity.NewPostgresIdentitySessionPolicyStore(config.Pool, identityRegistry)
+		if err != nil {
+			return nil, fmt.Errorf("%w: create session policy store: %v", errProductionLifecycleDependency, err)
+		}
+		identityStore = identityregistry.NewPostgresStoreWithDependencies(
+			config.Pool,
+			identityregistry.PostgresStoreDependencies{
+				StoredTrustImpactValidator: extensions.ValidateStoredTrustImpact,
+				SessionPolicyInvalidator:   sessionPolicyStore,
+			},
 		)
 	}
 	routeProviders := routes.NewProviderSelectionAPI(
@@ -253,7 +264,8 @@ func newProductionLifecycleStack(config productionLifecycleStackConfig) (*produc
 		RouteRegistry: routeRegistry, RouteSchemas: routeSchemas, ComponentRegistry: componentRegistry,
 		AssetRegistry: assetRegistry, CacheRegistry: cacheRegistry,
 		IdentityRegistry: identityRegistry, IdentityStore: identityStore,
-		QueryRegistry: queryRegistry, QueryCoreCatalog: queryCoreCatalog,
+		SessionPolicyStore: sessionPolicyStore,
+		QueryRegistry:      queryRegistry, QueryCoreCatalog: queryCoreCatalog,
 		SEORegistry:        seoRegistry,
 		RouteProviders:     routeProviders,
 		ProviderSlots:      providerSlots,

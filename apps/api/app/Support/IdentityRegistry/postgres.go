@@ -78,6 +78,12 @@ func (s *PostgresStore) HasStoredTrustImpactValidator() bool {
 	return s != nil && s.trustImpactValidator != nil
 }
 
+// HasSessionPolicyLifecycleInvalidator reports whether Registry retirement can
+// atomically reset a selected third-party Session Policy before unpublication.
+func (s *PostgresStore) HasSessionPolicyLifecycleInvalidator() bool {
+	return s != nil && s.sessionPolicyInvalidator != nil
+}
+
 func (s *PostgresStore) LoadDurableState(ctx context.Context) (DurableState, error) {
 	if s == nil || s.pool == nil || ctx == nil {
 		return DurableState{}, ErrInvalid

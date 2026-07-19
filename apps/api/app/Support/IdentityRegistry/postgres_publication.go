@@ -82,14 +82,38 @@ func (s *PostgresStore) reconcilePublicationOnce(
 			return DurableState{}, ErrArtifactConflict
 		}
 	}
-	if _, err := reconcileDurableRootPublication(ctx, tx, currentRoot, desiredRoot, input); err != nil {
-		return DurableState{}, err
-	}
 
 	desiredByKey := make(map[string]durableDesiredDeclaration, len(desired))
 	for _, declaration := range desired {
 		key := ownershipKey(declaration.kind, declaration.stableID)
 		desiredByKey[key] = declaration
+	}
+	if s.sessionPolicyInvalidator != nil {
+		preserved := exactReplaySessionPolicyProvider(
+			currentRoot,
+			desiredRoot,
+			current,
+			desiredByKey,
+			input.desired,
+		)
+		if err := s.sessionPolicyInvalidator.InvalidateSessionPolicySelectionTx(
+			ctx,
+			tx,
+			SessionPolicyLifecycleTransition{
+				OwnerExtensionID:      input.extensionID,
+				ActorUserID:           input.actorUserID,
+				LifecycleAuditEventID: input.auditEventID,
+				PreservedProvider:     preserved,
+			},
+		); err != nil {
+			return DurableState{}, mapStoreError(err)
+		}
+	}
+	if _, err := reconcileDurableRootPublication(ctx, tx, currentRoot, desiredRoot, input); err != nil {
+		return DurableState{}, err
+	}
+
+	for _, declaration := range desired {
 		if err := ensureDurableOwner(ctx, tx, declaration, input.extensionID); err != nil {
 			return DurableState{}, err
 		}

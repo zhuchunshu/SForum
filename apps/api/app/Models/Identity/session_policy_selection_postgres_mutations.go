@@ -168,7 +168,7 @@ func resetIdentitySessionPolicySelection(
 		WHERE singleton = TRUE AND revision = $4
 		RETURNING `+identitySessionPolicySelectionColumns,
 		IdentitySessionPolicyCoreDefault,
-		actorUserID,
+		nullableIdentitySessionPolicyActor(actorUserID),
 		auditID,
 		expectedRevision,
 	))

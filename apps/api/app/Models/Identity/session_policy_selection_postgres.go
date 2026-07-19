@@ -257,6 +257,7 @@ func (s *PostgresIdentitySessionPolicyStore) selectOnce(
 		nextRevision,
 		input.actorUserID,
 		"",
+		0,
 	)
 	if err != nil {
 		return IdentitySessionPolicyMutation{}, mapIdentitySessionPolicyStoreError(err)
@@ -358,6 +359,7 @@ func (s *PostgresIdentitySessionPolicyStore) resetOnce(
 		nextRevision,
 		input.actorUserID,
 		input.reasonCode,
+		0,
 	)
 	if err != nil {
 		return IdentitySessionPolicyMutation{}, mapIdentitySessionPolicyStoreError(err)

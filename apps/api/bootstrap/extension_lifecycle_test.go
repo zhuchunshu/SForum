@@ -113,6 +113,12 @@ func TestProductionLifecycleStackDefaultIdentityStoreBindsTrustImpactValidator(t
 	if !postgresStore.HasStoredTrustImpactValidator() {
 		t.Fatal("production default IdentityStore must bind ValidateStoredTrustImpact")
 	}
+	if !postgresStore.HasSessionPolicyLifecycleInvalidator() || stack.SessionPolicyStore == nil {
+		t.Fatal("production default IdentityStore must bind the shared Session Policy lifecycle invalidator")
+	}
+	if seam := identityregistry.NewPostgresStore(pool); seam.HasSessionPolicyLifecycleInvalidator() {
+		t.Fatal("ordinary NewPostgresStore must not invent a cross-module lifecycle dependency")
+	}
 	if identityregistry.NewPostgresStore(pool).HasStoredTrustImpactValidator() {
 		t.Fatal("ordinary NewPostgresStore must remain adoption-fail-closed")
 	}
@@ -131,6 +137,9 @@ func TestProductionLifecycleStackDefaultIdentityStoreBindsTrustImpactValidator(t
 	}
 	if _, ok := seamStack.IdentityStore.(bootstrapIdentityPublicationStore); !ok {
 		t.Fatalf("injected IdentityStore replaced: %T", seamStack.IdentityStore)
+	}
+	if seamStack.SessionPolicyStore != nil {
+		t.Fatal("injected IdentityStore must not be paired with an unrelated Session Policy store")
 	}
 }
 
