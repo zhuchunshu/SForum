@@ -196,18 +196,33 @@ func BindJSONSchemas(
 }
 
 func (r *Registry) ValidateUserFieldValue(claim UserFieldSchemaClaim, value any) error {
+	schema, err := r.resolveUserFieldSchema(claim)
+	if err != nil {
+		return err
+	}
+	return validateIdentitySchemaValue(schema, value)
+}
+
+// ValidateUserFieldSchemaClaim verifies exact private Schema availability
+// without inventing a placeholder value that may itself violate the Schema.
+func (r *Registry) ValidateUserFieldSchemaClaim(claim UserFieldSchemaClaim) error {
+	_, err := r.resolveUserFieldSchema(claim)
+	return err
+}
+
+func (r *Registry) resolveUserFieldSchema(claim UserFieldSchemaClaim) (compiledIdentitySchema, error) {
 	claim.FieldID = strings.ToLower(strings.TrimSpace(claim.FieldID))
 	claim.ContractVersion = strings.TrimSpace(claim.ContractVersion)
 	artifact, err := normalizeArtifact(claim.Artifact)
 	if r == nil || err != nil {
-		return ErrSchemaUnavailable
+		return compiledIdentitySchema{}, ErrSchemaUnavailable
 	}
 	field, found := r.load().userFields[claim.FieldID]
 	if !found || field.Artifact != artifact || field.ContractVersion != claim.ContractVersion ||
 		field.boundSchema == nil {
-		return ErrSchemaUnavailable
+		return compiledIdentitySchema{}, ErrSchemaUnavailable
 	}
-	return validateIdentitySchemaValue(*field.boundSchema, value)
+	return *field.boundSchema, nil
 }
 
 func (r *Registry) ValidateProviderOperationInput(claim ProviderOperationSchemaClaim, value any) error {

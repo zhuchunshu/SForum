@@ -43,6 +43,18 @@ func TestBindJSONSchemasPublishesPrivateExactMaterial(t *testing.T) {
 	fieldClaim := UserFieldSchemaClaim{
 		FieldID: field.ID, ContractVersion: field.ContractVersion, Artifact: bound.Artifact,
 	}
+	if err := registry.ValidateUserFieldSchemaClaim(fieldClaim); err != nil {
+		t.Fatalf("available user-field Schema claim = %v", err)
+	}
+	staleFieldClaim := fieldClaim
+	staleFieldClaim.Artifact.PackageDigest = strings.Repeat("f", 64)
+	if err := registry.ValidateUserFieldSchemaClaim(staleFieldClaim); !errors.Is(err, ErrSchemaUnavailable) {
+		t.Fatalf("stale user-field Schema claim = %v", err)
+	}
+	var nilRegistry *Registry
+	if err := nilRegistry.ValidateUserFieldSchemaClaim(fieldClaim); !errors.Is(err, ErrSchemaUnavailable) {
+		t.Fatalf("nil Registry user-field Schema claim = %v", err)
+	}
 	if err := registry.ValidateUserFieldValue(fieldClaim, "member-code"); err != nil {
 		t.Fatalf("valid user field = %v", err)
 	}
