@@ -93,6 +93,15 @@ func (p *IdentityProvider) WithIdentityRegistryStore(store identityregistry.Stor
 	return p
 }
 
+// WithSessionPolicyEvaluator wires selected session.evaluate before browser
+// session issue. Renewal is configured on the AuthSession manager separately.
+func (p *IdentityProvider) WithSessionPolicyEvaluator(evaluator *identity.SessionPolicyEvaluator) *IdentityProvider {
+	if p != nil && p.controller != nil {
+		p.controller.WithSessionPolicyEvaluator(evaluator)
+	}
+	return p
+}
+
 func (p *IdentityProvider) RegisterRoutes(api fiber.Router) {
 	p.controller.RegisterRoutes(api)
 }

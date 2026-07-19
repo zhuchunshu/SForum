@@ -39,6 +39,9 @@ type Controller struct {
 	// apiTokens 可选：个人访问令牌（F3.4）。
 	apiTokens *apitokens.Service
 	auditor   audit.Writer
+	// sessionPolicy 在签发浏览器会话前做 selected session.evaluate。
+	// 为 nil 时保持历史 Core 默认（测试与未接线启动路径）。
+	sessionPolicy *identity.SessionPolicyEvaluator
 }
 
 // optionsResolver 只暴露密码策略、mail-test 需要的站点名/管理员邮箱，避免全量依赖 options.Service。
@@ -91,6 +94,15 @@ func (h *Controller) WithAPITokens(tokens *apitokens.Service) *Controller {
 func (h *Controller) WithAuditor(w audit.Writer) *Controller {
 	if h != nil {
 		h.auditor = w
+	}
+	return h
+}
+
+// WithSessionPolicyEvaluator injects Host-owned selected session policy
+// evaluation before browser session issue. Renewal is wired on AuthSession.
+func (h *Controller) WithSessionPolicyEvaluator(evaluator *identity.SessionPolicyEvaluator) *Controller {
+	if h != nil {
+		h.sessionPolicy = evaluator
 	}
 	return h
 }
@@ -178,6 +190,10 @@ func (h *Controller) register(c fiber.Ctx) error {
 		return mapIdentityError(err)
 	}
 
+	if err := h.evaluateSessionIssue(c.Context(), current.ID); err != nil {
+		return mapIdentityError(err)
+	}
+
 	pendingSession, err := h.authSessions.Begin(c, current.ID)
 	if err != nil {
 		return fiber.NewError(fiber.StatusServiceUnavailable, identity.CodeSessionUnavailable)
@@ -229,6 +245,10 @@ func (h *Controller) login(c fiber.Ctx) error {
 		current, err = h.service.Login(c.Context(), loginInput)
 	}
 	if err != nil {
+		return mapIdentityError(err)
+	}
+
+	if err := h.evaluateSessionIssue(c.Context(), current.ID); err != nil {
 		return mapIdentityError(err)
 	}
 
@@ -645,6 +665,20 @@ func (h *Controller) sessionUserID(c fiber.Ctx) (int64, bool, error) {
 	return h.authSessions.CurrentUserID(c)
 }
 
+// evaluateSessionIssue runs selected session.evaluate immediately before the
+// Host creates a browser session. Nil evaluator preserves Core default allow.
+// Revocation never enters this path.
+func (h *Controller) evaluateSessionIssue(ctx context.Context, userID int64) error {
+	if h == nil || h.sessionPolicy == nil {
+		return nil
+	}
+	_, err := h.sessionPolicy.RequireAllow(ctx, identity.SessionEvaluationInput{
+		UserID:  userID,
+		Purpose: identity.SessionEvaluationPurposeIssue,
+	})
+	return err
+}
+
 func (h *Controller) actor(c fiber.Ctx) (identity.Actor, error) {
 	userID, ok, err := h.sessionUserID(c)
 	if err != nil {
@@ -830,6 +864,17 @@ func mapIdentityError(err error) error {
 		return fiber.NewError(fiber.StatusTooManyRequests, identity.CodeLoginLocked)
 	case errors.Is(err, identity.ErrLoginVerificationRequired):
 		return fiber.NewError(fiber.StatusUnprocessableEntity, "human_verification.required")
+	case errors.Is(err, identity.ErrSessionPolicyEvaluationStepUp):
+		// Session policy step-up reuses the login-risk human verification surface.
+		return fiber.NewError(fiber.StatusUnprocessableEntity, "human_verification.required")
+	case errors.Is(err, identity.ErrSessionPolicyEvaluationDenied):
+		return fiber.NewError(fiber.StatusForbidden, identity.CodeSessionPolicyDenied)
+	case errors.Is(err, identity.ErrSessionPolicyEvaluationUnavailable),
+		errors.Is(err, identity.ErrSessionPolicyEvaluationStale),
+		errors.Is(err, identity.ErrSessionPolicyEvaluationInvalid),
+		errors.Is(err, identity.ErrIdentitySessionPolicyDeclarationStale),
+		errors.Is(err, identity.ErrIdentitySessionPolicyStoreUnavailable):
+		return fiber.NewError(fiber.StatusServiceUnavailable, identity.CodeSessionUnavailable)
 	case errors.Is(err, identity.ErrRegistrationDisabled):
 		// 关闭开放注册：403 + 稳定错误码，便于前端展示“注册已关闭”。
 		return fiber.NewError(fiber.StatusForbidden, identity.CodeRegisterDisabled)
