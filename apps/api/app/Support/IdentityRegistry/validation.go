@@ -85,6 +85,16 @@ func validCoreArtifactSeal(artifact Artifact) bool {
 }
 
 func normalizePublication(input Publication) (Publication, error) {
+	return normalizePublicationMode(input, false)
+}
+
+// normalizeHistoricalDurablePublication only decodes exact root evidence that
+// predates executable session providers. Live publication never uses this mode.
+func normalizeHistoricalDurablePublication(input Publication) (Publication, error) {
+	return normalizePublicationMode(input, true)
+}
+
+func normalizePublicationMode(input Publication, allowLegacyUnboundSessionPolicy bool) (Publication, error) {
 	artifact, err := normalizeArtifact(input.Artifact)
 	if err != nil || len(input.Permissions) > maxPermissions {
 		return Publication{}, ErrInvalid
@@ -104,7 +114,9 @@ func normalizePublication(input Publication) (Publication, error) {
 	}
 	sort.Slice(result.Permissions, func(i, j int) bool { return result.Permissions[i].Key < result.Permissions[j].Key })
 	if input.Identity != nil {
-		identity, normalizeErr := normalizeIdentity(artifact, *input.Identity, permissionKeys)
+		identity, normalizeErr := normalizeIdentity(
+			artifact, *input.Identity, permissionKeys, allowLegacyUnboundSessionPolicy,
+		)
 		if normalizeErr != nil {
 			return Publication{}, normalizeErr
 		}
@@ -144,7 +156,12 @@ func normalizePermission(artifact Artifact, input PermissionDefinition) (Permiss
 	return input, nil
 }
 
-func normalizeIdentity(artifact Artifact, input IdentityDeclaration, permissions map[string]struct{}) (IdentityDeclaration, error) {
+func normalizeIdentity(
+	artifact Artifact,
+	input IdentityDeclaration,
+	permissions map[string]struct{},
+	allowLegacyUnboundSessionPolicy bool,
+) (IdentityDeclaration, error) {
 	input.ContractVersion = strings.TrimSpace(input.ContractVersion)
 	input.SessionPolicy = strings.ToLower(strings.TrimSpace(input.SessionPolicy))
 	if !contractPattern.MatchString(input.ContractVersion) || len(input.UserFields) > maxUserFields ||
@@ -211,6 +228,9 @@ func normalizeIdentity(artifact Artifact, input IdentityDeclaration, permissions
 		provider.Operations = operations
 		result.Providers = append(result.Providers, cloneProvider(provider))
 	}
+	if !allowLegacyUnboundSessionPolicy && !validIdentitySessionPolicy(result) {
+		return IdentityDeclaration{}, ErrInvalid
+	}
 	riskHooks := make([]string, 0, len(input.RiskHooks))
 	seenHooks := map[string]struct{}{}
 	for _, hook := range input.RiskHooks {
@@ -252,6 +272,24 @@ func normalizeIdentity(artifact Artifact, input IdentityDeclaration, permissions
 		return IdentityDeclaration{}, ErrInvalid
 	}
 	return result, nil
+}
+
+func validIdentitySessionPolicy(identity IdentityDeclaration) bool {
+	if identity.SessionPolicy == "" || identity.SessionPolicy == "core.session.default" {
+		return true
+	}
+	for _, provider := range identity.Providers {
+		if provider.ID != identity.SessionPolicy || provider.Kind != ProviderKindSession {
+			continue
+		}
+		for _, operation := range provider.Operations {
+			if operation.Name == "session.evaluate" {
+				return true
+			}
+		}
+		return false
+	}
+	return false
 }
 
 func normalizeProviderOperation(kind string, input ProviderOperation) (ProviderOperation, error) {

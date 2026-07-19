@@ -128,6 +128,15 @@ func TestRegistryKeepsInspectOnlyProviderRuntimeFree(t *testing.T) {
 	withSessionIdentity := *publication.Identity
 	withSession.Identity = &withSessionIdentity
 	withSession.Identity.SessionPolicy = "fixture.identity.session"
+	withSession.Identity.Providers = []Provider{{
+		ID: "fixture.identity.session", ContractVersion: "fixture.identity.session@1",
+		Kind: ProviderKindSession, Handler: "identity.session",
+		Operations: []ProviderOperation{{
+			Name: "session.evaluate", InputSchema: "fixture.identity.session.input@1",
+			OutputSchema: "fixture.identity.session.output@1", TimeoutMS: 500,
+			FailurePolicy: ProviderFailureFailClosed,
+		}},
+	}}
 	if _, err := New().Publish(withSession); !errors.Is(err, ErrInvalid) {
 		t.Fatalf("runtime-free session policy error = %v", err)
 	}

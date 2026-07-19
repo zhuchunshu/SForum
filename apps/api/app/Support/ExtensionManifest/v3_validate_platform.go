@@ -526,11 +526,32 @@ func (v *v3Validator) validateIdentityAndPermissions() error {
 			hasExecutableProvider = true
 		}
 	}
+	if !validManifestIdentitySessionPolicy(*identity) {
+		return ErrInvalidManifest
+	}
 	if hasExecutableProvider && (v.manifest.Type != TypePlugin ||
 		strings.TrimSpace(v.manifest.Backend.Entry) == "" || v.manifest.Backend.ProtocolVersion != 2) {
 		return ErrInvalidManifest
 	}
 	return nil
+}
+
+func validManifestIdentitySessionPolicy(identity ManifestIdentity) bool {
+	if identity.SessionPolicy == "" || identity.SessionPolicy == "core.session.default" {
+		return true
+	}
+	for _, provider := range identity.Providers {
+		if provider.ID != identity.SessionPolicy || provider.Kind != "session" {
+			continue
+		}
+		for _, operation := range provider.Operations {
+			if operation.Name == "session.evaluate" {
+				return true
+			}
+		}
+		return false
+	}
+	return false
 }
 
 func identityProviderOperationPolicy(kind, name string) (string, bool) {

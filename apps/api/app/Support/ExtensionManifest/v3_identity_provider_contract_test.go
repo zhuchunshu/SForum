@@ -103,6 +103,63 @@ func TestManifestV3IdentityProviderAcceptsPackagePathSchemas(t *testing.T) {
 	}
 }
 
+func TestManifestV3SessionPolicyRequiresExecutableSameManifestProvider(t *testing.T) {
+	valid := completeExecutableIdentityManifest("session", "session.evaluate")
+	valid.Identity.SessionPolicy = valid.Identity.Providers[0].ID
+	if err := Validate(valid); err != nil {
+		t.Fatalf("valid session policy provider: %v", err)
+	}
+
+	tests := []struct {
+		name  string
+		build func() Manifest
+	}{
+		{
+			name: "missing provider",
+			build: func() Manifest {
+				manifest := completeV3Manifest()
+				manifest.Identity.SessionPolicy = "demo.v3.identity.session"
+				return manifest
+			},
+		},
+		{
+			name: "wrong provider kind",
+			build: func() Manifest {
+				manifest := completeExecutableIdentityManifest("risk", "risk.evaluate")
+				manifest.Identity.SessionPolicy = manifest.Identity.Providers[0].ID
+				return manifest
+			},
+		},
+		{
+			name: "inspect-only session provider",
+			build: func() Manifest {
+				manifest := completeV3Manifest()
+				manifest.Identity.Providers = []ManifestIdentityProvider{{
+					ID: "demo.v3.identity.session", ContractVersion: "demo.v3.identity.session@1",
+					Kind: "session", Handler: "identity.session",
+				}}
+				manifest.Identity.SessionPolicy = manifest.Identity.Providers[0].ID
+				return manifest
+			},
+		},
+		{
+			name: "different executable session provider",
+			build: func() Manifest {
+				manifest := completeExecutableIdentityManifest("session", "session.evaluate")
+				manifest.Identity.SessionPolicy = "demo.v3.identity.missing"
+				return manifest
+			},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if err := Validate(test.build()); err == nil {
+				t.Fatal("unbound session policy was accepted")
+			}
+		})
+	}
+}
+
 func TestManifestV3IdentityProviderRejectsUnsafeExecutableContracts(t *testing.T) {
 	tests := []struct {
 		name   string

@@ -82,7 +82,7 @@ func decodeDurableRootPublication(raw json.RawMessage) (Publication, []byte, str
 	if identityDeclarationRequiresRuntime(validation.Identity) {
 		validation.Artifact.RuntimeInstanceID = "durable-publication-validation"
 	}
-	normalized, err := normalizePublication(validation)
+	normalized, err := normalizeHistoricalDurablePublication(validation)
 	if err != nil {
 		return Publication{}, nil, "", err
 	}

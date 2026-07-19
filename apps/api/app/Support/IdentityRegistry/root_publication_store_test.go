@@ -2,6 +2,7 @@ package identityregistry
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"strings"
 	"testing"
@@ -55,6 +56,53 @@ func TestDurableRootPublicationRejectsTamperAndProvesRetirement(t *testing.T) {
 	}
 	if err := ValidateDurablePublication(retired, publication); !errors.Is(err, ErrStale) {
 		t.Fatalf("retired publication validation error=%v", err)
+	}
+}
+
+func TestDurableRootPublicationRejectsUnboundSessionPolicy(t *testing.T) {
+	publication := durableRootTestPublication("runtime-one")
+	publication.Identity.SessionPolicy = "fixture.identity.session"
+	if _, err := desiredDurableRootPublication(&publication); !errors.Is(err, ErrInvalid) {
+		t.Fatalf("unbound session policy durable root error=%v", err)
+	}
+}
+
+func TestDurableRootPublicationKeepsLegacyUnboundSessionPolicyRecoveryReadable(t *testing.T) {
+	publication := durableRootTestPublication("runtime-one")
+	publication.Identity.SessionPolicy = "fixture.identity.session"
+	validation := publication
+	validation.Artifact.RuntimeInstanceID = "durable-publication-validation"
+	normalized, err := normalizeHistoricalDurablePublication(validation)
+	if err != nil {
+		t.Fatal(err)
+	}
+	normalized = publicationContract(normalized)
+	normalized.Artifact.RuntimeInstanceID = ""
+	raw, err := json.Marshal(normalized)
+	if err != nil {
+		t.Fatal(err)
+	}
+	state := DurableState{RootTips: []DurableRootPublicationTip{{
+		OwnerExtensionID: normalized.Artifact.ExtensionID,
+		Revision:         1, RegistryState: RegistryStateActive,
+		ExtensionVersionID: normalized.Artifact.VersionID,
+		ExtensionVersion:   normalized.Artifact.ExtensionVersion,
+		PackageDigest:      normalized.Artifact.PackageDigest,
+		SchemaVersion:      SchemaVersion,
+		PublicationDigest:  durableRootPublicationDigest(raw),
+		PublicationJSON:    raw,
+		ActorUserID:        41,
+		AuditEventID:       81,
+	}}}
+	if tombstones, err := DurableStateToTombstones(state); err != nil || len(tombstones) != 0 {
+		t.Fatalf("legacy recovery tombstones=%#v error=%v", tombstones, err)
+	}
+	decoded, _, _, err := decodeDurableRootPublication(raw)
+	if err != nil || decoded.Identity == nil || decoded.Identity.SessionPolicy != publication.Identity.SessionPolicy {
+		t.Fatalf("legacy durable root decode=%#v error=%v", decoded, err)
+	}
+	if _, _, _, err := canonicalDurableRootPublication(publication); !errors.Is(err, ErrInvalid) {
+		t.Fatalf("legacy session policy became live publication error=%v", err)
 	}
 }
 
@@ -254,7 +302,7 @@ func durableRootTestPublication(runtimeID string) Publication {
 		},
 		Identity: &IdentityDeclaration{
 			ContractVersion: "fixture.identity.contract@1",
-			SessionPolicy:   "fixture.identity.session",
+			SessionPolicy:   "core.session.default",
 			RiskHooks:       []string{"fixture.identity.risk.login"},
 		},
 	}

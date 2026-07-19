@@ -533,7 +533,7 @@ func publicationStoreRootOnlyFixture(artifact Artifact, contract int) Publicatio
 		Artifact: artifact,
 		Identity: &IdentityDeclaration{
 			ContractVersion: fmt.Sprintf("fixture.identity.contract@%d", contract),
-			SessionPolicy:   "fixture.identity.session",
+			SessionPolicy:   "core.session.default",
 			RiskHooks:       []string{"fixture.identity.risk.login"},
 		},
 	}
