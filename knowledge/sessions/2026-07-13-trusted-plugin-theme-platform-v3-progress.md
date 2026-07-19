@@ -14,39 +14,30 @@ Last updated: 2026-07-20
 
 ## Current Subtask
 
-### 2026-07-20 P7 Session Policy ProviderResolution/InvokeExact Checkpoint
+### 2026-07-20 P7 GetUser Field Projection And Session Evaluation Checkpoint
 
 - Verified weighted progress remains **67.8295%** (display **67.0%**) and P7
-  remains **18/22**. Session evaluation wiring is required production path
-  infrastructure; it does not close any of the four open Identity rows before
-  Auth/Profile consumers, trusted automation, and the membership joined gate.
-- `ff194388e` adds Host-owned `ProviderResolution`, `InvokeExact`, `Evaluate`,
-  and `RequireAllow` over the Session Policy Store. Core and Safe Mode allow
-  without a plugin call; plugin sources require exact `session.evaluate`,
-  fail closed on missing/malformed/unavailable output, and recheck selection
-  revision immediately before the Host effect. Revocation never enters this path.
-- `38387f3ab` adapts `IdentityProviderRuntime` so evaluation holds exact runtime
-  admission and Schema validation through Accept/fence.
-- `31c12989e` gates AuthSession cookie renew with an optional Host renewal gate;
-  deny/unavailable maps to unauthenticated rather than a 500.
-- `11f105a0f` runs selected evaluation immediately before register/login session
-  issue; deny/step-up/unavailable map to stable HTTP errors without creating a
-  cookie session when the evaluator is bound.
-- `ce1499c38` binds the production evaluator after the lifecycle stack publishes
-  the Identity Registry and Session Policy Store, and installs the renew gate
-  holder before the stack exists so early boot remains Core-equivalent.
-- Focused gates passed: Identity evaluation unit tests, AuthSession renew-gate
-  fail-closed, Extensions invoker exact-runtime, bootstrap renew-gate bind.
-- Exact next step: wire Registry-aware `GetUser` user-field reads, Auth/Profile
-  /recovery/link/risk Core consumers, trusted `extensions.read/call/manage`
-  automation authority, then the real membership Protocol V2 plugin with
-  allowed/denied/no-implicit-grant joined normal/race/restart/Safe Mode gates.
-  P7 stays **18/22** until those four authoritative rows close together.
-- Rollback is additive: revert `ce1499c38`, `11f105a0f`, `31c12989e`,
-  `38387f3ab`, then `ff194388e`. No migration, feature flag, branch, worktree,
-  push, tag, or unowned dirty file was staged. Preserve pre-existing dirty
-  route/Web/PageViewModels/bootstrap hostAPIGateway/content-policy/OpenAPI/
-  ADR/taskbook/P9 policy work.
+  remains **18/22**. Session evaluation and GetUser field projection are
+  production infrastructure; none of the four open Identity rows close until
+  Auth/Profile consumers, trusted automation, and the membership joined gate
+  pass together.
+- Session evaluation: `ff194388e` ProviderResolution/InvokeExact/Evaluate;
+  `38387f3ab` runtime adapter; `31c12989e` renew gate; `11f105a0f` issue path;
+  `ce1499c38` production bind.
+- GetUser fields: `16d43b095` ProjectSafeUser with actorless fail-closed and
+  live store permission; `3bf9a85fa` HostAPI passes actor+declared_fields;
+  `428abc0e5` installation-bound digest key and production user-field store.
+- Focused gates: session evaluation units, renew-gate fail-closed, invoker
+  exact-runtime, ProjectSafeUser units, HostAPI compatibility adapters,
+  digest-key derivation, bootstrap package build.
+- Exact next step: Auth/Profile/recovery/link/risk Core consumers over
+  IdentityProviderRuntime, trusted `extensions.read/call/manage` automation
+  authority with caller admission lease, then real membership Protocol V2
+  plugin and joined allowed/denied/no-implicit-grant normal+race+restart+Safe
+  Mode gates. P7 stays **18/22**.
+- Rollback is additive for this slice: revert `428abc0e5`, `3bf9a85fa`,
+  `16d43b095`, then the session-evaluation chain ending at `ff194388e`. No
+  migration/feature-flag/branch/worktree/push/tag; preserve unowned dirty files.
 
 ## Execution Acceleration Policy
 
