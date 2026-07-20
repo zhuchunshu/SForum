@@ -6,29 +6,29 @@ Last updated: 2026-07-21
 
 - Verified weighted progress: **99.7%** (display **99%**).
 - Phase counts: **P0–P12 complete (P10 15/15)**; P13 **~99.7%**.
-- Goal harness "remaining P10" is **stale** — P10 packages re-verified green;
-  Nuxt typecheck green; go build + OpenAPI green.
-- Residual hygiene closed this session:
-  - `d7a1d0ac5` chore(docker): digest all protected builtin plugins in image build
-  - `4dade91ea` test(cli): Dockerfile structural gate requires smtp/storage-fs digests
-- Explore audit: no other implementable task-book residual outside LTS deletions.
+- Goal harness "remaining P10" remains **stale**.
+- Restored honest `scripts/test.sh` node validators after presentation ownership:
+  - `8390adbdd` test(homepage): thin route + SFHomePage island
+  - `a90d2d8f0` test(pages): Host body islands in SFThemeTemplate
+  - `ca8fc17ae` test(seo): SEO on Host islands
+  - `23d8b7803` test(identity): auth form islands
+  - `e30b307b4` chore(catalog): 22 Host page/chrome stable identities
+  - `1d6fd800c` test(catalogs): UI inventory 149
 
 ## Current Subtask
 
-### 2026-07-21 P13 residual-only (LTS wait)
+### 2026-07-21 P13 residual = LTS wait + validator honesty
 
 - Exact next: **still do not delete** LoadTemplate / Protocol V1 / fail-closed
-  SFPageOutlet until RemoveAfter (≈2026-11-28) + zero-shim on live API/worker
-  + checklist 1–7 in `docs/extensions/v3/p13-migration-and-lts.md`.
-- Optional non-credit polish only (mobile Playwright matrix, warm SSR re-sample).
+  SFPageOutlet until RemoveAfter (≈2026-11-28) + zero-shim + checklist 1–7.
+- Optional non-credit: chrome asserts in web presentation tests; dead partials cleanup.
 
 ## Tests
 
-- P10 packages: pass
-- `bun run typecheck` (apps/web): pass
-- `go build ./...` + OpenAPI refs: pass
-- `go test ./cmd/sforum/`: pass
-- Prior full `go test ./...`: pass (final-gates/go-test-final.txt)
+- `go test ./...`: pass (final-gates/go-test-resume.txt)
+- All node validators used by `scripts/test.sh`: pass
+- `bun tests/validate-public-seo.ts`: pass
+- `go test ./app/Support/ComponentCatalog/`: pass
 
 ## Open task-book rows
 
@@ -38,7 +38,7 @@ Last updated: 2026-07-21
 
 ## Rollback
 
-- Revert `d7a1d0ac5`…`4dade91ea` for Dockerfile digest gate chain.
+- Revert `8390adbdd`…`1d6fd800c` for validator/catalog honesty chain.
 - Never delete LTS shims early.
 
 
