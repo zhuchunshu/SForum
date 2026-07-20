@@ -1,8 +1,8 @@
 # Trusted Plugin And Theme Platform V3 Progress Ledger
 
 Date: 2026-07-20
-Overall progress: **73.0%**
-Active phase: **P9 active (12/16); P10-P12 production closure slices remain open**
+Overall progress: **74.0%**
+Active phase: **P9 active (14/16); P10-P12 production closure slices remain open**
 
 This ledger is the durable percentage and context-compaction checkpoint for the
 V3 program. Update it before context compression, at every phase boundary, and
@@ -25,7 +25,7 @@ scaffolding, or demo-only code cannot satisfy a runtime exit criterion.
 | P6 Routes/middleware | 10% | 100% | 10.00% |
 | P7 Workflow/admin/query/identity | 10% | 100% | 10.00% |
 | P8 Theme compiler/runtime | 8% | 100% | 8% |
-| P9 Components/assets/L2 | 8% | 75% | 6.00% |
+| P9 Components/assets/L2 | 8% | 88% | 7.00% |
 | P10 Content/media/data | 8% | 0% | 0% |
 | P11 Platform services | 6% | 6% | 0.38% |
 | P12 Operations/ecosystem | 6% | 5% | 0.27% |
@@ -33,6 +33,18 @@ scaffolding, or demo-only code cannot satisfy a runtime exit criterion.
 
 Displayed overall progress is the floor of earned weighted progress until the
 program reaches 100% and every final gate passes.
+
+## 2026-07-20 P9 Primary SEO Fence Production Proof
+
+- Overall advances to **74.0%** after flooring. Exact earned weight is
+  `67 + 8*(14/16) + 0.38 + 0.27 = 74.65` → display **74%**. P9 is **14/16 (88%)**.
+- Closed primary SEO L1 retention and L2/composition failure primary-content
+  rows with package-local production proof: plugin fragments never claim
+  `PrimaryContent`, theme merge always retains indexable L1 HTML, composition
+  crash fail-open keeps primary, SEO fence still fail-closed.
+- Still open on P9: full joined action matrix test row (hydration/CSS/revoke
+  already partially covered elsewhere), desktop/mobile visual gates, and
+  CSP→Nuxt aggregation (public L2 remains production-default off).
 
 ## 2026-07-20 P9 Public L2 Honesty UI
 

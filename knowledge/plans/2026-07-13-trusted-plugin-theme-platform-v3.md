@@ -1,6 +1,6 @@
 # Trusted Plugin And Theme Platform V3 - Implementation Task Book
 
-Status: **active implementation; P0-P8 complete; P9 active (12/16)**
+Status: **active implementation; P0-P8 complete; P9 active (14/16)**
 Date: 2026-07-13  
 Decision: `knowledge/decisions/2026-07-13-trusted-plugin-theme-platform-v3.md`
 
@@ -668,7 +668,7 @@ falls back without changing plugin business or numeric semantics.
       cleanup, quarantine, and SSR/L1 fallback principles from admin components.
 - [x] Allow trusted component code to run with current browser authority and
       state that honestly in UI/docs.
-- [ ] Keep primary SEO content in L1/SSR fragments or SSR host islands.
+- [x] Keep primary SEO content in L1/SSR fragments or SSR host islands.
 - [x] Add Component/Template/Asset inspectors and conflict UI.
 
 ### Tests
@@ -680,7 +680,7 @@ falls back without changing plugin business or numeric semantics.
       SSR-complete, cache-correct, and usable when a provider is disabled.
 - [ ] Desktop/mobile visual and interaction checks for replaced high-traffic
       components.
-- [ ] L2 failure never removes primary content or breaks unrelated navigation.
+- [x] L2 failure never removes primary content or breaks unrelated navigation.
 
 The Asset Registry and exact frontend-safety rows closed through
 `d8d6d5205`, `55063b1a3`, `cf5636927`, `44cfb67dc`, and `f5ed19d2c`, with the
