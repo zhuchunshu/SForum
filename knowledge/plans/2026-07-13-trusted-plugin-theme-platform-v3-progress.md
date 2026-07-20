@@ -2,7 +2,7 @@
 
 Date: 2026-07-20
 Overall progress: **73.0%**
-Active phase: **P9 active; P10-P12 production closure slices remain open**
+Active phase: **P9 active (12/16); P10-P12 production closure slices remain open**
 
 This ledger is the durable percentage and context-compaction checkpoint for the
 V3 program. Update it before context compression, at every phase boundary, and
@@ -25,7 +25,7 @@ scaffolding, or demo-only code cannot satisfy a runtime exit criterion.
 | P6 Routes/middleware | 10% | 100% | 10.00% |
 | P7 Workflow/admin/query/identity | 10% | 100% | 10.00% |
 | P8 Theme compiler/runtime | 8% | 100% | 8% |
-| P9 Components/assets/L2 | 8% | 69% | 5.50% |
+| P9 Components/assets/L2 | 8% | 75% | 6.00% |
 | P10 Content/media/data | 8% | 0% | 0% |
 | P11 Platform services | 6% | 6% | 0.38% |
 | P12 Operations/ecosystem | 6% | 5% | 0.27% |
@@ -33,6 +33,16 @@ scaffolding, or demo-only code cannot satisfy a runtime exit criterion.
 
 Displayed overall progress is the floor of earned weighted progress until the
 program reaches 100% and every final gate passes.
+
+## 2026-07-20 P9 Public L2 Honesty UI
+
+- Overall remains **73.0%** after flooring. Exact earned weight is
+  `67 + 8*(12/16) + 0.38 + 0.27 = 73.65` → display **73%**. P9 is **12/16 (75%)**.
+- Closed trusted-browser honesty UI/docs: mounted `SFExtensionWidget` shows a
+  dismissible bilingual note, stamps `data-l2-trust=fully_trusted_browser_code`,
+  and authoring-guide documents public L2 as non-sandbox full browser trust.
+- Still open on P9: primary SEO credit, CSP→Nuxt aggregation, browser visual
+  gates, L2 failure primary-content proof.
 
 ## 2026-07-20 P9 Package-Local Filter Transforms
 

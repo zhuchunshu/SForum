@@ -1,6 +1,6 @@
 # Trusted Plugin And Theme Platform V3 - Implementation Task Book
 
-Status: **active implementation; P0-P8 complete; P9 active (11/16)**
+Status: **active implementation; P0-P8 complete; P9 active (12/16)**
 Date: 2026-07-13  
 Decision: `knowledge/decisions/2026-07-13-trusted-plugin-theme-platform-v3.md`
 
@@ -666,7 +666,7 @@ falls back without changing plugin business or numeric semantics.
 - [x] Implement package-local prebuilt public L2 ESM/CSS mount/unmount contract.
 - [x] Reuse exact-digest confirmation, immutable asset delivery, error boundary,
       cleanup, quarantine, and SSR/L1 fallback principles from admin components.
-- [ ] Allow trusted component code to run with current browser authority and
+- [x] Allow trusted component code to run with current browser authority and
       state that honestly in UI/docs.
 - [ ] Keep primary SEO content in L1/SSR fragments or SSR host islands.
 - [x] Add Component/Template/Asset inspectors and conflict UI.

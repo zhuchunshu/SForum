@@ -12,10 +12,11 @@ This is the entry point for project memory.
   - Task book: `knowledge/plans/2026-07-13-trusted-plugin-theme-platform-v3.md`
   - Current durable checkpoint:
     `knowledge/plans/2026-07-13-trusted-plugin-theme-platform-v3-progress.md`
-  - P0-P8 are complete. Weighted progress is **73.15%** (display **73.0%**).
-    P7 remains **22/22**. P9 advances to **11/16** after Template inspector,
-    Navigation Runtime production admission, and package-local
-    filter_props/filter_result transforms. P10-P13 remain open.
+  - P0-P8 are complete. Weighted progress is **73.65%** (display **73.0%**).
+    P7 remains **22/22**. P9 advances to **12/16** after Template inspector,
+    Navigation Runtime, package-local filter transforms, and public L2 honesty
+    UI/docs. Remaining P9: primary SEO credit, CSP→Nuxt, browser visual gates.
+    P10-P13 remain open.
   - Active P9 handoff:
     `knowledge/sessions/2026-07-20-trusted-plugin-theme-platform-v3-p9-template-nav.md`
   - Prior P9 inspectors/SSR handoff:
