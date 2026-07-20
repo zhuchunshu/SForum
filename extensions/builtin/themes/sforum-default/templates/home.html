@@ -1,9 +1,13 @@
 <!-- sforum.page.home@1 — 默认主题拥有壳层；body 岛挂载宿主 SFHomePage -->
 <div class="sf-page sf-page--home sf-theme--default" data-page="forum.home" data-theme-owned="presentation">
-  <div class="sf-theme-home-shell" data-theme-region="home-shell">
-    <header class="sf-theme-home-shell__intro" aria-hidden="true"></header>
-    <div class="sf-theme-home-shell__body">
-      <sf-home-page></sf-home-page>
+  <sf-navbar></sf-navbar>
+  <div class="sf-theme-chrome-body" data-theme-region="body">
+    <div class="sf-theme-home-shell" data-theme-region="home-shell">
+      <header class="sf-theme-home-shell__intro" aria-hidden="true"></header>
+      <div class="sf-theme-home-shell__body">
+        <sf-home-page></sf-home-page>
+      </div>
     </div>
   </div>
+  <sf-footer></sf-footer>
 </div>
