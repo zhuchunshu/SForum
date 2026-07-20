@@ -614,6 +614,48 @@ func TestManagerIdentityProviderRequiresExactlyOneCommitFence(t *testing.T) {
 	}
 }
 
+func TestManagerIdentityProviderCannotIgnoreCommitFenceFailure(t *testing.T) {
+	fixture := newManagerIdentityTransportFixture(t, strings.Repeat("a", 64))
+	_, err := fixture.runtime.Invoke(
+		t.Context(), fixture.invocation(),
+		func(_ context.Context, _ IdentityProviderInvocationResult, fence IdentityProviderCommitFence) error {
+			if _, replaceErr := fixture.registry.ReplaceAllIfRevision(
+				fixture.registry.Revision(), []identityregistry.Publication{fixture.publication},
+				fixture.registry.Snapshot().Tombstones, true,
+			); replaceErr != nil {
+				return replaceErr
+			}
+			_ = fence()
+			return nil
+		},
+	)
+	if !errors.Is(err, ErrIdentityProviderAcceptFailed) || !errors.Is(err, identityregistry.ErrSafeMode) {
+		t.Fatalf("ignored fence failure err=%v", err)
+	}
+}
+
+func TestManagerIdentityProviderPreservesFenceAndAcceptFailures(t *testing.T) {
+	fixture := newManagerIdentityTransportFixture(t, strings.Repeat("a", 64))
+	acceptFailure := errors.New("Host audit failed")
+	_, err := fixture.runtime.Invoke(
+		t.Context(), fixture.invocation(),
+		func(_ context.Context, _ IdentityProviderInvocationResult, fence IdentityProviderCommitFence) error {
+			if _, replaceErr := fixture.registry.ReplaceAllIfRevision(
+				fixture.registry.Revision(), []identityregistry.Publication{fixture.publication},
+				fixture.registry.Snapshot().Tombstones, true,
+			); replaceErr != nil {
+				return replaceErr
+			}
+			_ = fence()
+			return acceptFailure
+		},
+	)
+	if !errors.Is(err, ErrIdentityProviderAcceptFailed) ||
+		!errors.Is(err, identityregistry.ErrSafeMode) || !errors.Is(err, acceptFailure) {
+		t.Fatalf("combined fence/accept failure err=%v", err)
+	}
+}
+
 func TestManagerIdentityProviderRejectsSafeModeAndCatalogOnlyProvider(t *testing.T) {
 	t.Run("safe mode", func(t *testing.T) {
 		fixture := newManagerIdentityTransportFixture(t, strings.Repeat("a", 64))
