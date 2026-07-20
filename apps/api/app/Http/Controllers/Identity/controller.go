@@ -42,6 +42,9 @@ type Controller struct {
 	// sessionPolicy 在签发浏览器会话前做 selected session.evaluate。
 	// 为 nil 时保持历史 Core 默认（测试与未接线启动路径）。
 	sessionPolicy *identity.SessionPolicyEvaluator
+	// riskPolicy 在密码校验成功后、会话签发前组合全部活跃 risk 提供方。
+	// 为 nil 时跳过（无插件 risk 面时的 Core 默认）。
+	riskPolicy *identity.RiskEvaluator
 }
 
 // optionsResolver 只暴露密码策略、mail-test 需要的站点名/管理员邮箱，避免全量依赖 options.Service。
@@ -103,6 +106,14 @@ func (h *Controller) WithAuditor(w audit.Writer) *Controller {
 func (h *Controller) WithSessionPolicyEvaluator(evaluator *identity.SessionPolicyEvaluator) *Controller {
 	if h != nil {
 		h.sessionPolicy = evaluator
+	}
+	return h
+}
+
+// WithRiskEvaluator injects Host-owned risk composition before session issue.
+func (h *Controller) WithRiskEvaluator(evaluator *identity.RiskEvaluator) *Controller {
+	if h != nil {
+		h.riskPolicy = evaluator
 	}
 	return h
 }
@@ -252,6 +263,10 @@ func (h *Controller) login(c fiber.Ctx) error {
 		current, err = h.service.Login(c.Context(), loginInput)
 	}
 	if err != nil {
+		return mapIdentityError(err)
+	}
+
+	if err := h.runRiskEvaluation(c.Context(), current.ID, "login"); err != nil {
 		return mapIdentityError(err)
 	}
 
@@ -679,6 +694,17 @@ func (h *Controller) sessionUserIDWithoutRenewal(c fiber.Ctx) (int64, bool, erro
 	return h.authSessions.CurrentUserIDWithoutRenewal(c)
 }
 
+// runRiskEvaluation 组合活跃 risk 提供方；无接线时保持 Core 默认放行。
+func (h *Controller) runRiskEvaluation(ctx context.Context, userID int64, purpose string) error {
+	if h == nil || h.riskPolicy == nil {
+		return nil
+	}
+	_, err := h.riskPolicy.RequireAllow(ctx, identity.RiskEvaluationInput{
+		UserID: userID, Purpose: purpose,
+	})
+	return err
+}
+
 // runSessionIssue keeps the Host issue mutation inside exact policy admission.
 // Nil evaluator preserves the Core default and executes the effect directly.
 func (h *Controller) runSessionIssue(
@@ -939,8 +965,14 @@ func mapIdentityError(err error) error {
 		errors.Is(err, identity.ErrSessionPolicyStepUpReplayed),
 		errors.Is(err, identity.ErrSessionPolicyStepUpStale):
 		return fiber.NewError(fiber.StatusUnprocessableEntity, "auth.session_policy_step_up_invalid")
-	case errors.Is(err, identity.ErrSessionPolicyEvaluationDenied):
+	case errors.Is(err, identity.ErrSessionPolicyEvaluationDenied),
+		errors.Is(err, identity.ErrRiskEvaluationDenied):
 		return fiber.NewError(fiber.StatusForbidden, identity.CodeSessionPolicyDenied)
+	case errors.Is(err, identity.ErrRiskEvaluationStepUp):
+		return fiber.NewError(fiber.StatusUnprocessableEntity, "human_verification.required")
+	case errors.Is(err, identity.ErrRiskEvaluationUnavailable),
+		errors.Is(err, identity.ErrRiskEvaluationInvalid):
+		return fiber.NewError(fiber.StatusServiceUnavailable, identity.CodeSessionUnavailable)
 	case errors.Is(err, identity.ErrSessionPolicyEvaluationUnavailable),
 		errors.Is(err, identity.ErrSessionPolicyEvaluationStale),
 		errors.Is(err, identity.ErrSessionPolicyEvaluationInvalid),

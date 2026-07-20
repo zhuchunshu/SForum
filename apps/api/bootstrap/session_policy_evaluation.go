@@ -85,3 +85,23 @@ func newSessionPolicyEvaluator(
 	}
 	return evaluator, nil
 }
+
+// newRiskEvaluator builds Host risk composition over the same exact identity
+// runtime used by session.evaluate.
+func newRiskEvaluator(
+	manager *extensionsruntime.Manager,
+	registry *identityregistry.Registry,
+) (*identity.RiskEvaluator, error) {
+	if manager == nil || registry == nil {
+		return nil, identity.ErrRiskEvaluationUnavailable
+	}
+	runtime, err := extensionsruntime.NewIdentityProviderRuntime(manager, registry)
+	if err != nil {
+		return nil, err
+	}
+	invoker, err := extensionsruntime.NewIdentitySessionEvaluateInvoker(runtime)
+	if err != nil {
+		return nil, err
+	}
+	return identity.NewRiskEvaluator(identity.RegistryRiskProviderSource{Registry: registry}, invoker)
+}

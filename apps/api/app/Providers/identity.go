@@ -102,6 +102,14 @@ func (p *IdentityProvider) WithSessionPolicyEvaluator(evaluator *identity.Sessio
 	return p
 }
 
+// WithRiskEvaluator wires composed risk.evaluate before browser session issue.
+func (p *IdentityProvider) WithRiskEvaluator(evaluator *identity.RiskEvaluator) *IdentityProvider {
+	if p != nil && p.controller != nil {
+		p.controller.WithRiskEvaluator(evaluator)
+	}
+	return p
+}
+
 func (p *IdentityProvider) RegisterRoutes(api fiber.Router) {
 	p.controller.RegisterRoutes(api)
 }

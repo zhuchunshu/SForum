@@ -732,12 +732,17 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 	if err != nil {
 		return nil, err
 	}
+	riskEvaluator, err := newRiskEvaluator(lifecycleStack.RuntimeManager, lifecycleStack.IdentityRegistry)
+	if err != nil {
+		return nil, err
+	}
 	identityStore.WithAuthorityMutationGate(lifecycleStack.SessionPolicyStore)
 	identityAuthorityGate.Set(lifecycleStack.SessionPolicyStore)
 	sessionPolicyRenewal.Set(sessionPolicyEvaluator)
 	identityProvider := providers.NewIdentityProviderWithPasswordResetAndLockout(identityStore, authSessions, humanVerifier, eventPublisher, passwordResetService, mailOutbox, optionsService, loginLockout).
 		WithIdentityRegistryStore(identityReviewStore).
 		WithSessionPolicyEvaluator(sessionPolicyEvaluator).
+		WithRiskEvaluator(riskEvaluator).
 		WithAPITokens(apiTokenService)
 	notificationsProvider := providers.NewNotificationsProvider(notificationStore, identityStore, authSessions)
 	mailProvider := providers.NewMailProvider(extensionStore, notificationStore, extensionsruntime.NewMailProviderRegistry(extensionStore), identityStore, authSessions, optionsService)
