@@ -264,6 +264,81 @@ func TestEntityRegistryRejectsCoreFlagWithoutSeal(t *testing.T) {
 	}
 }
 
+func TestEntityRegistryAllowsCrossPackageFieldExtension(t *testing.T) {
+	t.Parallel()
+	registry := New()
+	owner := Publication{
+		Artifact: Artifact{
+			ExtensionID: "demo.catalog", ExtensionVersion: "1.0.0",
+			PackageDigest: strings.Repeat("a1", 32), VersionID: 1,
+		},
+		Entities: []Declaration{{
+			ID: "demo.catalog.entity.product", ContractVersion: "demo.catalog.entity.product@1",
+			Kind: KindEntity, Label: "Product", StorageKey: "demo.catalog.product",
+			PermissionCreate: "demo.catalog.product.create",
+			PermissionRead:   "demo.catalog.product.read",
+			PermissionUpdate: "demo.catalog.product.update",
+			PermissionDelete: "demo.catalog.product.delete",
+			ImportExportPolicy: ImportExportDeny,
+			DeletionPolicy:     DeletionSoft,
+		}},
+	}
+	if _, err := registry.Publish(owner); err != nil {
+		t.Fatalf("owner: %v", err)
+	}
+	// Extender package adds a field onto the owner entity (plugin-extend-plugin).
+	extender := Publication{
+		Artifact: Artifact{
+			ExtensionID: "demo.pricing", ExtensionVersion: "1.0.0",
+			PackageDigest: strings.Repeat("b1", 32), VersionID: 2,
+		},
+		Entities: []Declaration{{
+			ID: "demo.pricing.field.sale-price", ContractVersion: "demo.pricing.field.sale-price@1",
+			Kind: KindField, Label: "Sale price",
+			EntityID: "demo.catalog.entity.product",
+			Schema:   "demo.pricing.sale@1",
+			UIComponent: "CurrencyInput",
+			Indexed: true, IndexKind: IndexNumeric,
+			PermissionFieldRead:  "demo.pricing.field.sale-price.read",
+			PermissionFieldWrite: "demo.pricing.field.sale-price.write",
+		}},
+	}
+	if _, err := registry.Publish(extender); err != nil {
+		t.Fatalf("extender: %v", err)
+	}
+	fields := registry.ListFieldsForEntity("demo.catalog.entity.product")
+	if len(fields) != 1 || fields[0].Artifact.ExtensionID != "demo.pricing" {
+		t.Fatalf("cross-package fields = %#v", fields)
+	}
+	plan, err := registry.IndexPlanForEntity("demo.catalog.entity.product")
+	if err != nil || len(plan.Fields) != 1 || plan.Fields[0].FieldID != "demo.pricing.field.sale-price" {
+		t.Fatalf("index plan = %#v err=%v", plan, err)
+	}
+}
+
+func TestEntityRegistryRejectsOrphanCrossPackageField(t *testing.T) {
+	t.Parallel()
+	registry := New()
+	_, err := registry.Publish(Publication{
+		Artifact: Artifact{
+			ExtensionID: "demo.pricing", ExtensionVersion: "1.0.0",
+			PackageDigest: strings.Repeat("c1", 32), VersionID: 3,
+		},
+		Entities: []Declaration{{
+			ID: "demo.pricing.field.orphan", ContractVersion: "demo.pricing.field.orphan@1",
+			Kind: KindField, Label: "Orphan",
+			EntityID: "demo.catalog.entity.missing",
+			Schema:   "demo.pricing.orphan@1",
+			UIComponent: "TextInput",
+			PermissionFieldRead:  "demo.pricing.field.orphan.read",
+			PermissionFieldWrite: "demo.pricing.field.orphan.write",
+		}},
+	})
+	if err == nil {
+		t.Fatal("expected orphan cross-package field rejection")
+	}
+}
+
 func TestEntityRegistryRejectsStorageKeyCollision(t *testing.T) {
 	t.Parallel()
 	registry := New()

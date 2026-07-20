@@ -46,8 +46,43 @@ func buildState(revision uint64, input []Publication, safeMode bool) (*registryS
 			}
 		}
 	}
+	// Graph-level cross-package refs: fields/taxonomies may bind entities owned
+	// by another enabled package (plugin-extend-plugin). Missing targets fail closed.
+	if err := validateGraphEntityReferences(state.entities); err != nil {
+		return nil, err
+	}
 	state.digest = computeGraphDigest(sortedPublications(state.publications), safeMode)
 	return state, nil
+}
+
+func validateGraphEntityReferences(entities map[string]Contribution) error {
+	for _, contribution := range entities {
+		switch contribution.Kind {
+		case KindField:
+			target, ok := entities[contribution.EntityID]
+			if !ok || target.Kind != KindEntity {
+				return fmt.Errorf("%w: field %s references missing entity %s",
+					ErrInvalid, contribution.ID, contribution.EntityID)
+			}
+		case KindTaxonomy:
+			for _, entityID := range contribution.EntityIDs {
+				target, ok := entities[entityID]
+				if !ok || target.Kind != KindEntity {
+					return fmt.Errorf("%w: taxonomy %s references missing entity %s",
+						ErrInvalid, contribution.ID, entityID)
+				}
+			}
+		case KindEntity:
+			for _, taxonomyID := range contribution.TaxonomyIDs {
+				target, ok := entities[taxonomyID]
+				if !ok || target.Kind != KindTaxonomy {
+					return fmt.Errorf("%w: entity %s references missing taxonomy %s",
+						ErrInvalid, contribution.ID, taxonomyID)
+				}
+			}
+		}
+	}
+	return nil
 }
 
 func sortedPublications(publications map[string]Publication) []Publication {

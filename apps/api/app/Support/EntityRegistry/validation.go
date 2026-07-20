@@ -89,8 +89,8 @@ func normalizePublication(input Publication) (Publication, error) {
 	}
 	result := Publication{Artifact: artifact}
 	seen := map[string]bool{}
-	entities := map[string]bool{}
-	taxonomies := map[string]bool{}
+	localEntities := map[string]bool{}
+	localTaxonomies := map[string]bool{}
 	for _, raw := range input.Entities {
 		declaration, declErr := normalizeDeclaration(artifact, raw)
 		if declErr != nil {
@@ -102,31 +102,33 @@ func normalizePublication(input Publication) (Publication, error) {
 		seen[declaration.ID] = true
 		switch declaration.Kind {
 		case KindEntity:
-			entities[declaration.ID] = true
+			localEntities[declaration.ID] = true
 		case KindTaxonomy:
-			taxonomies[declaration.ID] = true
+			localTaxonomies[declaration.ID] = true
 		}
 		result.Entities = append(result.Entities, declaration)
 	}
-	// Cross-refs stay package-local in @1: fields/taxonomies must bind entities
-	// declared in the same publication; entity.taxonomyIds must also be local.
+	// Same-package refs are checked here. Cross-package field/taxonomy bindings
+	// (plugin-extend-plugin) are validated at graph build once all publications
+	// are visible; entity.taxonomyIds remain package-local owner declarations.
 	for _, declaration := range result.Entities {
 		switch declaration.Kind {
 		case KindField:
-			if !entities[declaration.EntityID] {
-				return Publication{}, fmt.Errorf("%w: field %s references missing entity %s",
+			if strings.HasPrefix(declaration.EntityID, artifact.ExtensionID+".") &&
+				!localEntities[declaration.EntityID] {
+				return Publication{}, fmt.Errorf("%w: field %s references missing local entity %s",
 					ErrInvalid, declaration.ID, declaration.EntityID)
 			}
 		case KindTaxonomy:
 			for _, entityID := range declaration.EntityIDs {
-				if !entities[entityID] {
-					return Publication{}, fmt.Errorf("%w: taxonomy %s references missing entity %s",
+				if strings.HasPrefix(entityID, artifact.ExtensionID+".") && !localEntities[entityID] {
+					return Publication{}, fmt.Errorf("%w: taxonomy %s references missing local entity %s",
 						ErrInvalid, declaration.ID, entityID)
 				}
 			}
 		case KindEntity:
 			for _, taxonomyID := range declaration.TaxonomyIDs {
-				if !taxonomies[taxonomyID] {
+				if !localTaxonomies[taxonomyID] {
 					return Publication{}, fmt.Errorf("%w: entity %s references missing taxonomy %s",
 						ErrInvalid, declaration.ID, taxonomyID)
 				}
@@ -315,8 +317,9 @@ func validateTaxonomyDeclaration(artifact Artifact, input *Declaration) error {
 		len(input.EntityIDs) == 0 || len(input.EntityIDs) > maxRefsPerDeclaration {
 		return ErrInvalid
 	}
+	// EntityIDs may be local or foreign (plugin-extend-plugin via required dep).
 	for _, entityID := range input.EntityIDs {
-		if !idPattern.MatchString(entityID) || !strings.HasPrefix(entityID, artifact.ExtensionID+".") {
+		if !idPattern.MatchString(entityID) {
 			return ErrInvalid
 		}
 	}
@@ -336,8 +339,9 @@ func validateTaxonomyDeclaration(artifact Artifact, input *Declaration) error {
 }
 
 func validateFieldDeclaration(artifact Artifact, input *Declaration) error {
+	// EntityID may be package-local or a foreign entity owned by a required
+	// dependency (plugin-extend-plugin). Foreign IDs must still be stable ids.
 	if input.EntityID == "" || !idPattern.MatchString(input.EntityID) ||
-		!strings.HasPrefix(input.EntityID, artifact.ExtensionID+".") ||
 		!validSchemaRef(input.Schema) ||
 		input.UIComponent == "" || !uiComponentPattern.MatchString(input.UIComponent) ||
 		len(input.UIComponent) > maxUIComponentLength ||
