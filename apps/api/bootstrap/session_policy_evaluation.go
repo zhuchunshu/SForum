@@ -5,14 +5,16 @@ import (
 	"sync"
 
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
+	authsession "github.com/zhuchunshu/sforum/apps/api/app/Support/AuthSession"
 	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
 	identityregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/IdentityRegistry"
 )
 
 // sessionPolicyRenewalGate is installed on AuthSession before the lifecycle
 // stack exists, then bound to the Host evaluator once registries are ready.
-// Unbound evaluation is Core-allow equivalent (no-op) so early requests during
-// boot never call a plugin. After bind, renew fails closed on deny/unavailable.
+// Unbound evaluation is Core-allow equivalent and runs the Host effect directly,
+// so early requests during boot never call a plugin. After bind, renew fails
+// closed on deny/unavailable.
 type sessionPolicyRenewalGate struct {
 	mu        sync.RWMutex
 	evaluator *identity.SessionPolicyEvaluator
@@ -27,20 +29,31 @@ func (g *sessionPolicyRenewalGate) Set(evaluator *identity.SessionPolicyEvaluato
 	g.mu.Unlock()
 }
 
-func (g *sessionPolicyRenewalGate) Evaluate(ctx context.Context, userID int64) error {
+func (g *sessionPolicyRenewalGate) Evaluate(
+	ctx context.Context,
+	userID int64,
+	tokenVersion int64,
+	effect authsession.RenewalEffect,
+) error {
+	if effect == nil {
+		return identity.ErrSessionPolicyEvaluationInvalid
+	}
 	if g == nil {
-		return nil
+		return effect(ctx)
 	}
 	g.mu.RLock()
 	evaluator := g.evaluator
 	g.mu.RUnlock()
 	if evaluator == nil {
-		return nil
+		return effect(ctx)
 	}
-	_, err := evaluator.RequireAllow(ctx, identity.SessionEvaluationInput{
-		UserID:  userID,
-		Purpose: identity.SessionEvaluationPurposeRenew,
-	})
+	_, err := evaluator.RequireAllowAndRun(
+		ctx,
+		identity.SessionEvaluationInput{
+			UserID: userID, TokenVersion: tokenVersion, Purpose: identity.SessionEvaluationPurposeRenew,
+		},
+		identity.SessionPolicyHostEffect(effect),
+	)
 	return err
 }
 

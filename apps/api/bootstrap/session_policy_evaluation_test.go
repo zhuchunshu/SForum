@@ -8,10 +8,14 @@ import (
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
 )
 
-func TestSessionPolicyRenewalGateUnboundIsNoop(t *testing.T) {
+func TestSessionPolicyRenewalGateUnboundRunsHostEffect(t *testing.T) {
 	gate := &sessionPolicyRenewalGate{}
-	if err := gate.Evaluate(context.Background(), 42); err != nil {
-		t.Fatalf("unbound gate err=%v", err)
+	effects := 0
+	if err := gate.Evaluate(context.Background(), 42, 0, func(context.Context) error {
+		effects++
+		return nil
+	}); err != nil || effects != 1 {
+		t.Fatalf("unbound gate err=%v effects=%d", err, effects)
 	}
 }
 
@@ -35,7 +39,11 @@ func TestSessionPolicyRenewalGateUsesBoundEvaluator(t *testing.T) {
 	}
 	gate := &sessionPolicyRenewalGate{}
 	gate.Set(evaluator)
-	if err := gate.Evaluate(context.Background(), 7); err != nil {
+	effects := 0
+	if err := gate.Evaluate(context.Background(), 7, 0, func(context.Context) error {
+		effects++
+		return nil
+	}); err != nil || effects != 1 {
 		t.Fatalf("core renew err=%v", err)
 	}
 
@@ -43,7 +51,10 @@ func TestSessionPolicyRenewalGateUsesBoundEvaluator(t *testing.T) {
 		PolicyID: "plugin.session.policy",
 		Source:   identity.IdentitySessionPolicySourcePlugin,
 	}
-	if err := gate.Evaluate(context.Background(), 7); !errors.Is(err, identity.ErrSessionPolicyEvaluationUnavailable) {
+	if err := gate.Evaluate(context.Background(), 7, 0, func(context.Context) error {
+		effects++
+		return nil
+	}); !errors.Is(err, identity.ErrSessionPolicyEvaluationUnavailable) || effects != 1 {
 		t.Fatalf("plugin without provider err=%v", err)
 	}
 }
@@ -75,4 +86,12 @@ func (s *renewalGateTestStore) Reset(context.Context, identity.ResetIdentitySess
 }
 func (s *renewalGateTestStore) ListEvents(context.Context, int) ([]identity.IdentitySessionPolicyEvent, error) {
 	return nil, errors.New("unused")
+}
+func (s *renewalGateTestStore) RunIfCurrent(
+	ctx context.Context,
+	_ identity.IdentitySessionPolicyResolution,
+	_ identity.IdentitySessionAuthority,
+	effect func(context.Context) error,
+) error {
+	return effect(ctx)
 }

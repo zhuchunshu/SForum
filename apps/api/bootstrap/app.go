@@ -284,8 +284,8 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		},
 		// 会话目录：登录时登记设备、CurrentUserID 校验是否被下线、logout 时标记。
 		// identityStore 满足 authsession.SessionStore 接口（结构化匹配）。
-		SessionStore: identityStore,
-		RenewalGate:  sessionPolicyRenewal.Evaluate,
+		SessionStore:      identityStore,
+		RenewalEffectGate: sessionPolicyRenewal.Evaluate,
 	})
 	adminOverviewStore := adminoverview.NewPostgresStore(pool)
 	forumStore := forum.NewPostgresStoreWithAvatar(pool, avatarOptions)
