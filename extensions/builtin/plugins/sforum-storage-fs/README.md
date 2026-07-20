@@ -2,14 +2,22 @@
 
 Protected built-in **storage provider** reference plugin (Wave E6.4).
 
-Implements `attachment.storage.provider` over go-plugin chunked Storage* RPCs
-(E6.2). Use it to prove the operator loop without cloud credentials:
+Implements `attachment.storage.provider` over Protocol V2 known-slot
+`ProviderCall` (chunked Storage* host API; binary chunks base64). Use it to
+prove the operator loop without cloud credentials:
 
 enable → select `plugin:sforum.storage-fs` in Attachment settings → configure
 root path → test connection → upload/download via host APIs.
 
 Core `local` remains the zero-config default. This plugin is a **second**
 filesystem backend under the plugin process, not a replacement for core local.
+
+## Protocol
+
+| Artifact | Protocol | Notes |
+| --- | --- | --- |
+| Default `sforum.extension.json` | **V2** (gRPC) | `protocolVersion: 2`, digests + `hostApiVersion` |
+| Rollback `sforum.extension.v1.json` | V1 (net/rpc) | Build with `-tags protocol_v1` until LTS zero-shim |
 
 ## Settings (env injection)
 
@@ -25,6 +33,8 @@ filesystem backend under the plugin process, not a replacement for core local.
 cd extensions/builtin/plugins/sforum-storage-fs/backend
 go test ./...
 go build -o plugin .
+# LTS rollback binary:
+go build -tags protocol_v1 -o plugin .
 ```
 
 ## Contract test
@@ -45,7 +55,9 @@ go run ./cmd/sforum extension test --skip-backend-binary \
 
 ## Author notes
 
-- Implements Storage* RPCs only; embeds SDK `Noop` for mail/hooks.
+- Default binary overrides Protocol V2 `ProviderCall` for known-slot storage ops;
+  shared filesystem logic remains in `plugin.go` for V1 rollback.
 - Object keys are host-generated; plugin must not invent alternate namespaces.
 - Fail closed on missing root, path escape, or I/O errors.
+
 - Prefer a dedicated root; do not share core `attachment.local.root`.

@@ -2,7 +2,7 @@
 
 Date: 2026-07-21
 Overall progress: **99.0%**
-Active phase: **P13 residual = LTS-blocked legacy deletion**
+Active phase: **P13 residual = LTS-blocked legacy deletion only (SMTP+storage V2 done)**
 
 This ledger is the durable percentage and context-compaction checkpoint for the
 V3 program. Update it before context compression, at every phase boundary, and
@@ -29,7 +29,7 @@ scaffolding, or demo-only code cannot satisfy a runtime exit criterion.
 | P10 Content/media/data | 8% | 100% | 8.00% |
 | P11 Platform services | 6% | 100% | 6.00% |
 | P12 Operations/ecosystem | 6% | 100% | 6.00% |
-| P13 References/removal/final gates | 5% | 98% | 4.90% |
+| P13 References/removal/final gates | 5% | 99% | 4.95% |
 
 Displayed overall progress is the floor of earned weighted progress until the
 program reaches 100% and every final gate passes.

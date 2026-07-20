@@ -5,6 +5,34 @@ Last updated: 2026-07-21
 ## Progress
 
 - Verified weighted progress: **99.0%** (display **99.0%**).
+- Phase counts: P0-P12 complete; P13 **~99%** — SMTP and storage-fs defaults
+  are Protocol V2; three LTS deletion rows still open by policy.
+
+## Current Subtask
+
+### 2026-07-21 P13 Storage V2 Migration Complete
+
+- Host `protocolV2Client` Storage* via known-slot ProviderCall + base64 chunks
+  (`b310e68eb`).
+- Default `sforum.storage-fs` Protocol V2 (`f3eba05cc`); V1 rollback fixture +
+  integration tests (`12b2feb62`).
+- Exact next: **still do not** delete core Nuxt presentation / request-time
+  loader / v1 paths until LTS zero-shim telemetry. Page Outlet fail-closed forever.
+- Optional: broader `go test ./...` / `./scripts/test.sh` re-evidence if env free.
+- Unowned dirty WIP still present — do not stage.
+
+---
+
+
+## Prior Ledger Archive
+
+# Trusted Plugin And Theme Platform V3 Progress Ledger
+
+Last updated: 2026-07-21
+
+## Progress
+
+- Verified weighted progress: **99.0%** (display **99.0%**).
 - Phase counts: P0-P12 complete; P13 **~99%** — SMTP default is Protocol V2;
   storage-fs remains V1 (Host lacks V2 storage transport); three LTS deletion
   rows still open by policy.
