@@ -4,7 +4,7 @@ This is the entry point for project memory.
 
 ## Latest Handoff
 
-- **2026-07-20 Trusted Plugin And Theme Platform V3 P9 active (overall 72.0%)**
+- **2026-07-20 Trusted Plugin And Theme Platform V3 P9 active (overall 73.0%)**
   - Decision: `knowledge/decisions/2026-07-13-trusted-plugin-theme-platform-v3.md`
   - Identity/automation authority:
     `knowledge/decisions/2026-07-19-identity-provider-automation-authority.md`
@@ -12,10 +12,10 @@ This is the entry point for project memory.
   - Task book: `knowledge/plans/2026-07-13-trusted-plugin-theme-platform-v3.md`
   - Current durable checkpoint:
     `knowledge/plans/2026-07-13-trusted-plugin-theme-platform-v3-progress.md`
-  - P0-P8 are complete. Weighted progress is **72.65%** (display **72.0%**).
-    P7 remains **22/22**. P9 advances to **10/16** after Template inspector
-    closure, full Component/Template/Asset inspectors row credit, and production
-    Navigation Runtime admission. P10-P13 remain open.
+  - P0-P8 are complete. Weighted progress is **73.15%** (display **73.0%**).
+    P7 remains **22/22**. P9 advances to **11/16** after Template inspector,
+    Navigation Runtime production admission, and package-local
+    filter_props/filter_result transforms. P10-P13 remain open.
   - Active P9 handoff:
     `knowledge/sessions/2026-07-20-trusted-plugin-theme-platform-v3-p9-template-nav.md`
   - Prior P9 inspectors/SSR handoff:

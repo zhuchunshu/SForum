@@ -1,6 +1,6 @@
 # Trusted Plugin And Theme Platform V3 - Implementation Task Book
 
-Status: **active implementation; P0-P8 complete; P9 active (10/16)**
+Status: **active implementation; P0-P8 complete; P9 active (11/16)**
 Date: 2026-07-13  
 Decision: `knowledge/decisions/2026-07-13-trusted-plugin-theme-platform-v3.md`
 
@@ -654,7 +654,7 @@ falls back without changing plugin business or numeric semantics.
 - [x] Implement Navigation/Region Registry for menus, breadcrumbs, headers,
       footers, sidebars, theme-defined widget regions, ordering, visibility,
       permission filtering, fallback, and cache invalidation.
-- [ ] Implement component `add`, `before`, `after`, `wrap`, `replace`, `hide`,
+- [x] Implement component `add`, `before`, `after`, `wrap`, `replace`, `hide`,
       prop filters, and result filters with deterministic priority/providers.
 - [x] Implement plugin SSR template fragments and typed render segments.
 - [x] Implement theme overrides under `templates/plugins/{pluginId}` with
