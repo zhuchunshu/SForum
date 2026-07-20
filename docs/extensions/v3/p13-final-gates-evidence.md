@@ -42,8 +42,8 @@ It does **not** authorize legacy deletion (see `p13-migration-and-lts.md`).
 
 | Gap | Status | Notes |
 | --- | --- | --- |
-| Live compose stack (API+worker+Redis+PG+Meili+Mailpit) | partial | Individual integration tests use Postgres/Redis where tagged; full multi-service operator matrix is environment-dependent |
-| Browser desktop/mobile + JS-disabled + Baiduspider | historical | P8 session evidence in `knowledge/sessions/2026-07-15-trusted-plugin-theme-platform-v3-p8-crawler-hotpath.md`; SEO JS-disabled unit: `SEORegistry/product_js_disabled_test.go` |
+| Live compose stack (API+worker+Redis+PG+Meili+Mailpit) | partial | Docker deps healthy: `sforum-postgres-1` (:15432), `sforum-redis-1` (:16379), `sforum-meilisearch-1` (:17700), `sforum-mailpit-1`. 2026-07-21 API cold-start on `:8081` failed closed: missing `storage` root + Protocol V1 `sforum.smtp` backend entry not built for this workspace. Automated Postgres lifecycle / Protocol V2 subprocess gates remain green without that cold-start. |
+| Browser desktop/mobile + JS-disabled + Baiduspider | partial | Live Nuxt `:3000` Baiduspider homepage returned 200 with `<title>`, meta description, and `application/ld+json` when SSR stable; multi-route probes 502 when API proxy is down. Unit: `SEORegistry/product_js_disabled_test.go` green. Historical Playwright: `knowledge/sessions/2026-07-15-trusted-plugin-theme-platform-v3-p8-crawler-hotpath.md`. Desktop/mobile viewport matrix and L2 failure/theme switch UI still need operator re-run. |
 | Legacy deletion | blocked | Requires APILTS zero telemetry for full LTS window (`p13-migration-and-lts.md` checklist items 1–7) |
 
 ## Security and performance
