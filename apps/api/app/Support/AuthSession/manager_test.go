@@ -3,6 +3,7 @@ package authsession
 import (
 	"context"
 	"errors"
+	"net/http"
 	"net/http/httptest"
 	"sync"
 	"testing"
@@ -64,6 +65,16 @@ func TestCurrentUserIDRefreshesAndRenewsSession(t *testing.T) {
 		}
 		return c.SendStatus(fiber.StatusOK)
 	})
+	app.Get("/auth-state", func(c fiber.Ctx) error {
+		userID, ok, err := manager.CurrentUserIDWithoutRenewal(c)
+		if err != nil {
+			return err
+		}
+		if !ok || userID != 42 {
+			return c.SendStatus(fiber.StatusUnauthorized)
+		}
+		return c.SendStatus(fiber.StatusNoContent)
+	})
 
 	loginReq := httptest.NewRequest(fiber.MethodPost, "/login", nil)
 	loginResp, err := app.Test(loginReq)
@@ -88,8 +99,28 @@ func TestCurrentUserIDRefreshesAndRenewsSession(t *testing.T) {
 	if len(sessionResp.Cookies()) == 0 {
 		t.Fatal("expected refreshed session cookie")
 	}
-	if sessionResp.Cookies()[0].Value == oldCookie.Value {
+	newCookie := sessionResp.Cookies()[0]
+	if newCookie.Value == oldCookie.Value {
 		t.Fatal("expected renewed session id after renewal interval")
+	}
+	for _, credential := range []struct {
+		name       string
+		cookie     *http.Cookie
+		wantStatus int
+	}{
+		{name: "old", cookie: oldCookie, wantStatus: fiber.StatusUnauthorized},
+		{name: "new", cookie: newCookie, wantStatus: fiber.StatusNoContent},
+	} {
+		request := httptest.NewRequest(fiber.MethodGet, "/auth-state", nil)
+		request.AddCookie(credential.cookie)
+		response, err := app.Test(request)
+		if err != nil {
+			t.Fatalf("%s credential replay: %v", credential.name, err)
+		}
+		response.Body.Close()
+		if response.StatusCode != credential.wantStatus {
+			t.Fatalf("%s credential status=%d want=%d", credential.name, response.StatusCode, credential.wantStatus)
+		}
 	}
 }
 
@@ -99,7 +130,7 @@ func TestCurrentUserIDRenewalGateDenyFailsClosed(t *testing.T) {
 	manager := NewManager(session.NewStore(session.Config{IdleTimeout: time.Hour}), Config{
 		RenewalInterval: time.Minute,
 		HashSecret:      "test-secret",
-		RenewalGate: func(_ context.Context, userID int64) error {
+		RenewalEffectGate: func(_ context.Context, userID int64, _ int64, _ RenewalEffect) error {
 			gateCalls++
 			if userID != 42 {
 				t.Fatalf("renewal gate user=%d", userID)
@@ -115,12 +146,11 @@ func TestCurrentUserIDRenewalGateDenyFailsClosed(t *testing.T) {
 		return err
 	})
 	app.Get("/session", func(c fiber.Ctx) error {
-		userID, ok, err := manager.CurrentUserID(c)
-		if err != nil {
-			return err
-		}
-		if ok || userID != 0 {
-			t.Fatalf("denied renew must unauthenticate, got user=%d ok=%v", userID, ok)
+		for lookup := 0; lookup < 2; lookup++ {
+			userID, ok, err := manager.CurrentUserID(c)
+			if err != nil || ok || userID != 0 {
+				t.Fatalf("denied renew lookup %d user=%d ok=%v err=%v", lookup, userID, ok, err)
+			}
 		}
 		return c.SendStatus(fiber.StatusOK)
 	})
@@ -146,6 +176,287 @@ func TestCurrentUserIDRenewalGateDenyFailsClosed(t *testing.T) {
 	}
 	if gateCalls != 1 {
 		t.Fatalf("gateCalls=%d", gateCalls)
+	}
+	if len(sessionResp.Cookies()) != 0 {
+		t.Fatalf("denied renew emitted cookies=%#v", sessionResp.Cookies())
+	}
+}
+
+func TestCurrentUserIDWithoutRenewalNeverCallsGate(t *testing.T) {
+	baseTime := time.Date(2026, 7, 5, 10, 0, 0, 0, time.UTC)
+	manager := NewManager(session.NewStore(session.Config{IdleTimeout: time.Hour}), Config{
+		RenewalInterval: time.Minute,
+		HashSecret:      "test-secret",
+		RenewalEffectGate: func(context.Context, int64, int64, RenewalEffect) error {
+			t.Fatal("Host-local authentication must not call renewal gate")
+			return nil
+		},
+	})
+	manager.now = func() time.Time { return baseTime }
+
+	app := fiber.New()
+	app.Post("/login", func(c fiber.Ctx) error {
+		_, err := manager.Start(c, 42)
+		return err
+	})
+	app.Get("/revoke", func(c fiber.Ctx) error {
+		userID, ok, err := manager.CurrentUserIDWithoutRenewal(c)
+		if err != nil || !ok || userID != 42 {
+			t.Fatalf("Host-local auth user=%d ok=%t err=%v", userID, ok, err)
+		}
+		return c.SendStatus(fiber.StatusOK)
+	})
+
+	loginResp, err := app.Test(httptest.NewRequest(fiber.MethodPost, "/login", nil))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer loginResp.Body.Close()
+	manager.now = func() time.Time { return baseTime.Add(2 * time.Minute) }
+	revokeRequest := httptest.NewRequest(fiber.MethodGet, "/revoke", nil)
+	revokeRequest.AddCookie(loginResp.Cookies()[0])
+	revokeResponse, err := app.Test(revokeRequest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer revokeResponse.Body.Close()
+	if revokeResponse.StatusCode != fiber.StatusOK || len(revokeResponse.Cookies()) != 0 {
+		t.Fatalf("Host-local response status=%d cookies=%#v", revokeResponse.StatusCode, revokeResponse.Cookies())
+	}
+}
+
+func TestCurrentUserIDRepeatedLookupAfterDueRenewalRemainsAuthenticated(t *testing.T) {
+	baseTime := time.Date(2026, 7, 5, 10, 0, 0, 0, time.UTC)
+	gateCalls := 0
+	effectCalls := 0
+	manager := NewManager(session.NewStore(session.Config{IdleTimeout: time.Hour}), Config{
+		RenewalInterval: time.Minute,
+		HashSecret:      "test-secret",
+		RenewalEffectGate: func(ctx context.Context, userID int64, _ int64, effect RenewalEffect) error {
+			gateCalls++
+			if userID != 42 {
+				t.Fatalf("renewal user=%d", userID)
+			}
+			effectCalls++
+			return effect(ctx)
+		},
+	})
+	manager.now = func() time.Time { return baseTime }
+
+	app := fiber.New()
+	app.Post("/login", func(c fiber.Ctx) error {
+		_, err := manager.Start(c, 42)
+		return err
+	})
+	app.Get("/double-read", func(c fiber.Ctx) error {
+		for index := 0; index < 2; index++ {
+			userID, ok, err := manager.CurrentUserID(c)
+			if err != nil || !ok || userID != 42 {
+				t.Fatalf("lookup %d user=%d ok=%t err=%v", index, userID, ok, err)
+			}
+		}
+		if sid, err := manager.CurrentSID(c); err != nil || sid == "" {
+			t.Fatalf("sid=%q err=%v", sid, err)
+		}
+		return c.SendStatus(fiber.StatusOK)
+	})
+
+	loginResponse, err := app.Test(httptest.NewRequest(fiber.MethodPost, "/login", nil))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer loginResponse.Body.Close()
+	oldCookie := loginResponse.Cookies()[0]
+	manager.now = func() time.Time { return baseTime.Add(2 * time.Minute) }
+	request := httptest.NewRequest(fiber.MethodGet, "/double-read", nil)
+	request.AddCookie(oldCookie)
+	response, err := app.Test(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer response.Body.Close()
+	if response.StatusCode != fiber.StatusOK || gateCalls != 1 || effectCalls != 1 {
+		t.Fatalf("status=%d gate=%d effect=%d", response.StatusCode, gateCalls, effectCalls)
+	}
+	if len(response.Cookies()) != 1 || response.Cookies()[0].Value == oldCookie.Value {
+		t.Fatalf("renewed cookies=%#v old=%q", response.Cookies(), oldCookie.Value)
+	}
+}
+
+func TestCurrentUserIDRejectsEscapedRenewalEffect(t *testing.T) {
+	baseTime := time.Date(2026, 7, 5, 10, 0, 0, 0, time.UTC)
+	escaped := make(chan RenewalEffect, 1)
+	manager := NewManager(session.NewStore(session.Config{IdleTimeout: time.Hour}), Config{
+		RenewalInterval: time.Minute,
+		HashSecret:      "test-secret",
+		RenewalEffectGate: func(_ context.Context, _ int64, _ int64, effect RenewalEffect) error {
+			escaped <- effect
+			return nil
+		},
+	})
+	manager.now = func() time.Time { return baseTime }
+	app := fiber.New()
+	app.Post("/login", func(c fiber.Ctx) error {
+		_, err := manager.Start(c, 42)
+		return err
+	})
+	app.Get("/session", func(c fiber.Ctx) error {
+		userID, ok, err := manager.CurrentUserID(c)
+		if err != nil || ok || userID != 0 {
+			t.Fatalf("escaped effect user=%d ok=%t err=%v", userID, ok, err)
+		}
+		return c.SendStatus(fiber.StatusOK)
+	})
+
+	loginResponse, err := app.Test(httptest.NewRequest(fiber.MethodPost, "/login", nil))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer loginResponse.Body.Close()
+	manager.now = func() time.Time { return baseTime.Add(2 * time.Minute) }
+	request := httptest.NewRequest(fiber.MethodGet, "/session", nil)
+	request.AddCookie(loginResponse.Cookies()[0])
+	response, err := app.Test(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer response.Body.Close()
+	if response.StatusCode != fiber.StatusOK || len(response.Cookies()) != 0 {
+		t.Fatalf("status=%d cookies=%#v", response.StatusCode, response.Cookies())
+	}
+	if err := (<-escaped)(context.Background()); !errors.Is(err, ErrRenewalRejected) {
+		t.Fatalf("escaped callback err=%v", err)
+	}
+}
+
+func TestCurrentUserIDLegacyRenewalGateRemainsCompatible(t *testing.T) {
+	baseTime := time.Date(2026, 7, 5, 10, 0, 0, 0, time.UTC)
+	gateCalls := 0
+	manager := NewManager(session.NewStore(session.Config{IdleTimeout: time.Hour}), Config{
+		RenewalInterval: time.Minute,
+		HashSecret:      "test-secret",
+		RenewalGate: func(context.Context, int64) error {
+			gateCalls++
+			return nil
+		},
+	})
+	manager.now = func() time.Time { return baseTime }
+	app := fiber.New()
+	app.Post("/login", func(c fiber.Ctx) error {
+		_, err := manager.Start(c, 42)
+		return err
+	})
+	app.Get("/session", func(c fiber.Ctx) error {
+		_, _, err := manager.CurrentUserID(c)
+		return err
+	})
+	loginResponse, err := app.Test(httptest.NewRequest(fiber.MethodPost, "/login", nil))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer loginResponse.Body.Close()
+	manager.now = func() time.Time { return baseTime.Add(2 * time.Minute) }
+	request := httptest.NewRequest(fiber.MethodGet, "/session", nil)
+	request.AddCookie(loginResponse.Cookies()[0])
+	response, err := app.Test(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer response.Body.Close()
+	if response.StatusCode != fiber.StatusOK || gateCalls != 1 || len(response.Cookies()) != 1 {
+		t.Fatalf("status=%d gate=%d cookies=%#v", response.StatusCode, gateCalls, response.Cookies())
+	}
+}
+
+func TestCurrentUserIDLegacyRenewalGateDenyFailsClosed(t *testing.T) {
+	baseTime := time.Date(2026, 7, 5, 10, 0, 0, 0, time.UTC)
+	gateCalls := 0
+	manager := NewManager(session.NewStore(session.Config{IdleTimeout: time.Hour}), Config{
+		RenewalInterval: time.Minute,
+		HashSecret:      "test-secret",
+		RenewalGate: func(context.Context, int64) error {
+			gateCalls++
+			return errors.New("legacy renewal denied")
+		},
+	})
+	manager.now = func() time.Time { return baseTime }
+	app := fiber.New()
+	app.Post("/login", func(c fiber.Ctx) error {
+		_, err := manager.Start(c, 42)
+		return err
+	})
+	app.Get("/session", func(c fiber.Ctx) error {
+		for lookup := 0; lookup < 2; lookup++ {
+			userID, ok, err := manager.CurrentUserID(c)
+			if err != nil || ok || userID != 0 {
+				t.Fatalf("legacy deny lookup %d user=%d ok=%t err=%v", lookup, userID, ok, err)
+			}
+		}
+		return c.SendStatus(fiber.StatusOK)
+	})
+	loginResponse, err := app.Test(httptest.NewRequest(fiber.MethodPost, "/login", nil))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer loginResponse.Body.Close()
+	manager.now = func() time.Time { return baseTime.Add(2 * time.Minute) }
+	request := httptest.NewRequest(fiber.MethodGet, "/session", nil)
+	request.AddCookie(loginResponse.Cookies()[0])
+	response, err := app.Test(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer response.Body.Close()
+	if response.StatusCode != fiber.StatusOK || gateCalls != 1 || len(response.Cookies()) != 0 {
+		t.Fatalf("status=%d gate=%d cookies=%#v", response.StatusCode, gateCalls, response.Cookies())
+	}
+}
+
+func TestCurrentUserIDRenewalEffectGateTakesPrecedence(t *testing.T) {
+	baseTime := time.Date(2026, 7, 5, 10, 0, 0, 0, time.UTC)
+	effectCalls := 0
+	manager := NewManager(session.NewStore(session.Config{IdleTimeout: time.Hour}), Config{
+		RenewalInterval: time.Minute,
+		HashSecret:      "test-secret",
+		RenewalGate: func(context.Context, int64) error {
+			t.Fatal("legacy gate ran despite exact effect gate")
+			return nil
+		},
+		RenewalEffectGate: func(ctx context.Context, _ int64, _ int64, effect RenewalEffect) error {
+			effectCalls++
+			return effect(ctx)
+		},
+	})
+	manager.now = func() time.Time { return baseTime }
+	app := fiber.New()
+	app.Post("/login", func(c fiber.Ctx) error {
+		_, err := manager.Start(c, 42)
+		return err
+	})
+	app.Get("/session", func(c fiber.Ctx) error {
+		userID, ok, err := manager.CurrentUserID(c)
+		if err != nil || !ok || userID != 42 {
+			t.Fatalf("renewed user=%d ok=%t err=%v", userID, ok, err)
+		}
+		return c.SendStatus(fiber.StatusOK)
+	})
+	loginResponse, err := app.Test(httptest.NewRequest(fiber.MethodPost, "/login", nil))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer loginResponse.Body.Close()
+	oldCookie := loginResponse.Cookies()[0]
+	manager.now = func() time.Time { return baseTime.Add(2 * time.Minute) }
+	request := httptest.NewRequest(fiber.MethodGet, "/session", nil)
+	request.AddCookie(oldCookie)
+	response, err := app.Test(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer response.Body.Close()
+	if response.StatusCode != fiber.StatusOK || effectCalls != 1 || len(response.Cookies()) != 1 ||
+		response.Cookies()[0].Value == oldCookie.Value {
+		t.Fatalf("status=%d effects=%d cookies=%#v", response.StatusCode, effectCalls, response.Cookies())
 	}
 }
 
