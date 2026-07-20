@@ -148,6 +148,14 @@ function routePolicy(route) {
   if (/^\/api\/v1\/(permissions|roles|users)(\/|$)/.test(path)) return ['permission', 'identity service route-specific user.view/user.manage/role.manage/user.ban policy']
   if (path.startsWith('/api/v1/auth/sessions') || path.startsWith('/api/v1/auth/tokens')) return ['login', 'current active actor; token/session ownership']
   if (path === '/api/v1/auth/logout' || path === '/api/v1/auth/session') return ['login', 'current browser session']
+  // 外部 Identity 提供方：列表公开；link 需要登录；其余 start/complete 走 bootstrap 策略。
+  if (path === '/api/v1/auth/providers') return ['public', 'identity bootstrap, risk, rate-limit, and human-verification policy']
+  if (/^\/api\/v1\/auth\/providers\/:providerId\/link\/(start|complete)$/.test(path)) {
+    return ['login', 'current active actor; token/session ownership']
+  }
+  if (/^\/api\/v1\/auth\/providers\/:providerId\/[^/]+\/(start|complete)$/.test(path)) {
+    return ['public', 'identity bootstrap, risk, rate-limit, and human-verification policy']
+  }
   if (/^\/api\/v1\/auth\/(registration-status|register|login|password-reset)/.test(path)) return ['public', 'identity bootstrap, risk, rate-limit, and human-verification policy']
   if (path === '/api/v1/human-verification/challenge') return ['public', 'purpose allowlist and Redis rate/replay policy']
   if (path.startsWith('/api/v1/profile') && !path.startsWith('/api/v1/profiles')) return ['login', 'current active actor; attachment.upload for avatar upload']

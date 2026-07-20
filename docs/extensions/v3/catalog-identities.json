@@ -2,6 +2,18 @@
   "schemaVersion": 2,
   "routes": [
     {
+      "id": "core.route.extensions.list_admin_surfaces",
+      "contractVersion": "sforum.route.extensions.list_admin_surfaces@1",
+      "method": "GET",
+      "path": "/api/v1/admin/admin-surfaces"
+    },
+    {
+      "id": "core.route.extensions.invoke_admin_surface",
+      "contractVersion": "sforum.route.extensions.invoke_admin_surface@1",
+      "method": "POST",
+      "path": "/api/v1/admin/admin-surfaces/:surfaceId/invoke"
+    },
+    {
       "id": "core.route.attachments.settings",
       "contractVersion": "sforum.route.attachments.settings@1",
       "method": "GET",
@@ -104,18 +116,6 @@
       "path": "/api/v1/admin/entity-meta/definitions/:fieldKey"
     },
     {
-      "id": "core.route.extensions.list_admin_surfaces",
-      "contractVersion": "sforum.route.extensions.list_admin_surfaces@1",
-      "method": "GET",
-      "path": "/api/v1/admin/admin-surfaces"
-    },
-    {
-      "id": "core.route.extensions.invoke_admin_surface",
-      "contractVersion": "sforum.route.extensions.invoke_admin_surface@1",
-      "method": "POST",
-      "path": "/api/v1/admin/admin-surfaces/:surfaceId/invoke"
-    },
-    {
       "id": "core.route.extensions.list",
       "contractVersion": "sforum.route.extensions.list@1",
       "method": "GET",
@@ -150,36 +150,6 @@
       "contractVersion": "sforum.route.extensions.enable@1",
       "method": "POST",
       "path": "/api/v1/admin/extensions/:id/enable"
-    },
-    {
-      "id": "core.route.extensions.rollback",
-      "contractVersion": "sforum.route.extensions.rollback@1",
-      "method": "POST",
-      "path": "/api/v1/admin/extensions/:id/rollback"
-    },
-    {
-      "id": "core.route.extensions.upgrade",
-      "contractVersion": "sforum.route.extensions.upgrade@1",
-      "method": "POST",
-      "path": "/api/v1/admin/extensions/:id/upgrade"
-    },
-    {
-      "id": "core.route.extensions.executable_trust_status",
-      "contractVersion": "sforum.route.extensions.executable_trust_status@1",
-      "method": "GET",
-      "path": "/api/v1/admin/extensions/:id/trust"
-    },
-    {
-      "id": "core.route.extensions.issue_executable_trust_challenge",
-      "contractVersion": "sforum.route.extensions.issue_executable_trust_challenge@1",
-      "method": "POST",
-      "path": "/api/v1/admin/extensions/:id/trust/challenge"
-    },
-    {
-      "id": "core.route.extensions.revoke_executable_trust",
-      "contractVersion": "sforum.route.extensions.revoke_executable_trust@1",
-      "method": "DELETE",
-      "path": "/api/v1/admin/extensions/:id/trust"
     },
     {
       "id": "core.route.extensions.events",
@@ -254,6 +224,12 @@
       "path": "/api/v1/admin/extensions/:id/page-bootstrap"
     },
     {
+      "id": "core.route.extensions.rollback",
+      "contractVersion": "sforum.route.extensions.rollback@1",
+      "method": "POST",
+      "path": "/api/v1/admin/extensions/:id/rollback"
+    },
+    {
       "id": "core.route.extensions.settings",
       "contractVersion": "sforum.route.extensions.settings@1",
       "method": "GET",
@@ -278,10 +254,40 @@
       "path": "/api/v1/admin/extensions/:id/settings/reset"
     },
     {
+      "id": "core.route.extensions.revoke_executable_trust",
+      "contractVersion": "sforum.route.extensions.revoke_executable_trust@1",
+      "method": "DELETE",
+      "path": "/api/v1/admin/extensions/:id/trust"
+    },
+    {
+      "id": "core.route.extensions.executable_trust_status",
+      "contractVersion": "sforum.route.extensions.executable_trust_status@1",
+      "method": "GET",
+      "path": "/api/v1/admin/extensions/:id/trust"
+    },
+    {
+      "id": "core.route.extensions.issue_executable_trust_challenge",
+      "contractVersion": "sforum.route.extensions.issue_executable_trust_challenge@1",
+      "method": "POST",
+      "path": "/api/v1/admin/extensions/:id/trust/challenge"
+    },
+    {
+      "id": "core.route.extensions.upgrade",
+      "contractVersion": "sforum.route.extensions.upgrade@1",
+      "method": "POST",
+      "path": "/api/v1/admin/extensions/:id/upgrade"
+    },
+    {
       "id": "core.route.extensions.verify",
       "contractVersion": "sforum.route.extensions.verify@1",
       "method": "POST",
       "path": "/api/v1/admin/extensions/:id/verify"
+    },
+    {
+      "id": "core.route.extensions.inspect_cache",
+      "contractVersion": "sforum.route.extensions.inspect_cache@1",
+      "method": "GET",
+      "path": "/api/v1/admin/extensions/cache-inspector"
     },
     {
       "id": "core.route.extensions.contribution_points",
@@ -294,6 +300,72 @@
       "contractVersion": "sforum.route.extensions.contributions@1",
       "method": "GET",
       "path": "/api/v1/admin/extensions/contributions"
+    },
+    {
+      "id": "core.route.extensions.event_definitions",
+      "contractVersion": "sforum.route.extensions.event_definitions@1",
+      "method": "GET",
+      "path": "/api/v1/admin/extensions/event-definitions"
+    },
+    {
+      "id": "core.route.extensions.event_deliveries",
+      "contractVersion": "sforum.route.extensions.event_deliveries@1",
+      "method": "GET",
+      "path": "/api/v1/admin/extensions/event-deliveries"
+    },
+    {
+      "id": "core.route.extensions.navigation",
+      "contractVersion": "sforum.route.extensions.navigation@1",
+      "method": "GET",
+      "path": "/api/v1/admin/extensions/navigation"
+    },
+    {
+      "id": "core.route.extensions.openapi_aggregate",
+      "contractVersion": "sforum.route.extensions.openapi_aggregate@1",
+      "method": "GET",
+      "path": "/api/v1/admin/extensions/openapi/aggregate"
+    },
+    {
+      "id": "core.route.extensions.generated_client_metadata",
+      "contractVersion": "sforum.route.extensions.generated_client_metadata@1",
+      "method": "GET",
+      "path": "/api/v1/admin/extensions/openapi/generated-client"
+    },
+    {
+      "id": "core.route.extensions.inspect_provider_slots",
+      "contractVersion": "sforum.route.extensions.inspect_provider_slots@1",
+      "method": "GET",
+      "path": "/api/v1/admin/extensions/provider-slots"
+    },
+    {
+      "id": "core.route.extensions.provider_slot_events",
+      "contractVersion": "sforum.route.extensions.provider_slot_events@1",
+      "method": "GET",
+      "path": "/api/v1/admin/extensions/provider-slots/events"
+    },
+    {
+      "id": "core.route.extensions.probe_provider_slot",
+      "contractVersion": "sforum.route.extensions.probe_provider_slot@1",
+      "method": "POST",
+      "path": "/api/v1/admin/extensions/provider-slots/probe"
+    },
+    {
+      "id": "core.route.extensions.select_provider_slot",
+      "contractVersion": "sforum.route.extensions.select_provider_slot@1",
+      "method": "POST",
+      "path": "/api/v1/admin/extensions/provider-slots/selection"
+    },
+    {
+      "id": "core.route.extensions.reset_provider_slot",
+      "contractVersion": "sforum.route.extensions.reset_provider_slot@1",
+      "method": "POST",
+      "path": "/api/v1/admin/extensions/provider-slots/selection/reset"
+    },
+    {
+      "id": "core.route.extensions.inspect_route",
+      "contractVersion": "sforum.route.extensions.inspect_route@1",
+      "method": "GET",
+      "path": "/api/v1/admin/extensions/route-inspector"
     },
     {
       "id": "core.route.extensions.route_provider_conflicts",
@@ -324,78 +396,6 @@
       "contractVersion": "sforum.route.extensions.reset_route_provider@1",
       "method": "POST",
       "path": "/api/v1/admin/extensions/route-providers/selection/reset"
-    },
-    {
-      "id": "core.route.extensions.inspect_route",
-      "contractVersion": "sforum.route.extensions.inspect_route@1",
-      "method": "GET",
-      "path": "/api/v1/admin/extensions/route-inspector"
-    },
-    {
-      "id": "core.route.extensions.inspect_cache",
-      "contractVersion": "sforum.route.extensions.inspect_cache@1",
-      "method": "GET",
-      "path": "/api/v1/admin/extensions/cache-inspector"
-    },
-    {
-      "id": "core.route.extensions.openapi_aggregate",
-      "contractVersion": "sforum.route.extensions.openapi_aggregate@1",
-      "method": "GET",
-      "path": "/api/v1/admin/extensions/openapi/aggregate"
-    },
-    {
-      "id": "core.route.extensions.generated_client_metadata",
-      "contractVersion": "sforum.route.extensions.generated_client_metadata@1",
-      "method": "GET",
-      "path": "/api/v1/admin/extensions/openapi/generated-client"
-    },
-    {
-      "id": "core.route.extensions.inspect_provider_slots",
-      "contractVersion": "sforum.route.extensions.inspect_provider_slots@1",
-      "method": "GET",
-      "path": "/api/v1/admin/extensions/provider-slots"
-    },
-    {
-      "id": "core.route.extensions.provider_slot_events",
-      "contractVersion": "sforum.route.extensions.provider_slot_events@1",
-      "method": "GET",
-      "path": "/api/v1/admin/extensions/provider-slots/events"
-    },
-    {
-      "id": "core.route.extensions.select_provider_slot",
-      "contractVersion": "sforum.route.extensions.select_provider_slot@1",
-      "method": "POST",
-      "path": "/api/v1/admin/extensions/provider-slots/selection"
-    },
-    {
-      "id": "core.route.extensions.reset_provider_slot",
-      "contractVersion": "sforum.route.extensions.reset_provider_slot@1",
-      "method": "POST",
-      "path": "/api/v1/admin/extensions/provider-slots/selection/reset"
-    },
-    {
-      "id": "core.route.extensions.probe_provider_slot",
-      "contractVersion": "sforum.route.extensions.probe_provider_slot@1",
-      "method": "POST",
-      "path": "/api/v1/admin/extensions/provider-slots/probe"
-    },
-    {
-      "id": "core.route.extensions.event_definitions",
-      "contractVersion": "sforum.route.extensions.event_definitions@1",
-      "method": "GET",
-      "path": "/api/v1/admin/extensions/event-definitions"
-    },
-    {
-      "id": "core.route.extensions.event_deliveries",
-      "contractVersion": "sforum.route.extensions.event_deliveries@1",
-      "method": "GET",
-      "path": "/api/v1/admin/extensions/event-deliveries"
-    },
-    {
-      "id": "core.route.extensions.navigation",
-      "contractVersion": "sforum.route.extensions.navigation@1",
-      "method": "GET",
-      "path": "/api/v1/admin/extensions/navigation"
     },
     {
       "id": "core.route.options.list_features",
@@ -872,6 +872,24 @@
       "path": "/api/v1/auth/password-reset/request"
     },
     {
+      "id": "core.route.identity.list_auth_providers",
+      "contractVersion": "sforum.route.identity.list_auth_providers@1",
+      "method": "GET",
+      "path": "/api/v1/auth/providers"
+    },
+    {
+      "id": "core.route.identity.auth_provider_complete",
+      "contractVersion": "sforum.route.identity.auth_provider_complete@1",
+      "method": "POST",
+      "path": "/api/v1/auth/providers/:providerId/:operation/complete"
+    },
+    {
+      "id": "core.route.identity.auth_provider_start",
+      "contractVersion": "sforum.route.identity.auth_provider_start@1",
+      "method": "POST",
+      "path": "/api/v1/auth/providers/:providerId/:operation/start"
+    },
+    {
       "id": "core.route.identity.register",
       "contractVersion": "sforum.route.identity.register@1",
       "method": "POST",
@@ -1148,6 +1166,18 @@
       "path": "/api/v1/profile/avatar"
     },
     {
+      "id": "core.route.profile.list_sections",
+      "contractVersion": "sforum.route.profile.list_sections@1",
+      "method": "GET",
+      "path": "/api/v1/profile/sections"
+    },
+    {
+      "id": "core.route.profile.update_section",
+      "contractVersion": "sforum.route.profile.update_section@1",
+      "method": "PUT",
+      "path": "/api/v1/profile/sections/:sectionId"
+    },
+    {
       "id": "core.route.profile.public_profile",
       "contractVersion": "sforum.route.profile.public_profile@1",
       "method": "GET",
@@ -1172,18 +1202,6 @@
       "path": "/api/v1/roles"
     },
     {
-      "id": "core.route.identity.list_role_suggestions",
-      "contractVersion": "sforum.route.identity.list_role_suggestions@1",
-      "method": "GET",
-      "path": "/api/v1/roles/suggestions"
-    },
-    {
-      "id": "core.route.identity.decide_role_suggestion",
-      "contractVersion": "sforum.route.identity.decide_role_suggestion@1",
-      "method": "POST",
-      "path": "/api/v1/roles/suggestions/:suggestionID/decision"
-    },
-    {
       "id": "core.route.identity.delete_role",
       "contractVersion": "sforum.route.identity.delete_role@1",
       "method": "DELETE",
@@ -1200,6 +1218,18 @@
       "contractVersion": "sforum.route.identity.replace_role_permissions@1",
       "method": "PUT",
       "path": "/api/v1/roles/:roleKey/permissions"
+    },
+    {
+      "id": "core.route.identity.list_role_suggestions",
+      "contractVersion": "sforum.route.identity.list_role_suggestions@1",
+      "method": "GET",
+      "path": "/api/v1/roles/suggestions"
+    },
+    {
+      "id": "core.route.identity.decide_role_suggestion",
+      "contractVersion": "sforum.route.identity.decide_role_suggestion@1",
+      "method": "POST",
+      "path": "/api/v1/roles/suggestions/:suggestionID/decision"
     },
     {
       "id": "core.route.forum.search",

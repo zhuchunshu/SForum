@@ -825,3 +825,141 @@ authAPITokenRotate:
         "$ref": "../components/responses.yaml#/Forbidden"
       '404':
         "$ref": "../components/responses.yaml#/NotFound"
+
+authProviders:
+  get:
+    summary: List executable auth and recovery providers
+    operationId: listAuthProviders
+    responses:
+      '200':
+        description: Redacted executable provider catalog.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/identity.yaml#/ApiResponseAuthProviderList"
+
+authProviderStart:
+  post:
+    summary: Start an external auth, link, or recovery provider flow
+    operationId: startAuthProvider
+    parameters:
+    - name: providerId
+      in: path
+      required: true
+      schema:
+        type: string
+    - name: operation
+      in: path
+      required: true
+      schema:
+        type: string
+        enum: [registration, login, link, recovery]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            "$ref": "../schemas/identity.yaml#/AuthProviderStartRequest"
+    responses:
+      '200':
+        description: Provider start challenge or redirect.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/identity.yaml#/ApiResponseAuthProviderStart"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '404':
+        "$ref": "../components/responses.yaml#/NotFound"
+      '422':
+        "$ref": "../components/responses.yaml#/UnprocessableEntity"
+      '503':
+        "$ref": "../components/responses.yaml#/ServiceUnavailable"
+
+authProviderComplete:
+  post:
+    summary: Complete an external auth, link, or recovery provider flow
+    operationId: completeAuthProvider
+    parameters:
+    - name: providerId
+      in: path
+      required: true
+      schema:
+        type: string
+    - name: operation
+      in: path
+      required: true
+      schema:
+        type: string
+        enum: [registration, login, link, recovery]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            "$ref": "../schemas/identity.yaml#/AuthProviderCompleteRequest"
+    responses:
+      '200':
+        description: Provider complete assertion.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/identity.yaml#/ApiResponseAuthProviderComplete"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '404':
+        "$ref": "../components/responses.yaml#/NotFound"
+      '409':
+        "$ref": "../components/responses.yaml#/Conflict"
+      '422':
+        "$ref": "../components/responses.yaml#/UnprocessableEntity"
+      '503':
+        "$ref": "../components/responses.yaml#/ServiceUnavailable"
+
+profileSectionsList:
+  get:
+    summary: List composed extension profile sections for the current user
+    operationId: listProfileSections
+    responses:
+      '200':
+        description: Composed profile sections.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/identity.yaml#/ApiResponseProfileSectionList"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '503':
+        "$ref": "../components/responses.yaml#/ServiceUnavailable"
+
+profileSectionByID:
+  put:
+    summary: Update one extension profile section for the current user
+    operationId: updateProfileSection
+    parameters:
+    - name: sectionId
+      in: path
+      required: true
+      schema:
+        type: string
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            "$ref": "../schemas/identity.yaml#/ProfileSectionUpdateRequest"
+    responses:
+      '200':
+        description: Updated profile section.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/identity.yaml#/ApiResponseProfileSection"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '404':
+        "$ref": "../components/responses.yaml#/NotFound"
+      '422':
+        "$ref": "../components/responses.yaml#/UnprocessableEntity"
+      '503':
+        "$ref": "../components/responses.yaml#/ServiceUnavailable"

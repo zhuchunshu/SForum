@@ -897,3 +897,125 @@ ApiResponseClearUserClientIPs:
     code: {type: integer}
     message: {type: string}
     data: {$ref: "#/ClearUserClientIPsResult"}
+
+AuthProviderListItem:
+  type: object
+  required: [id, kind, contractVersion, operations]
+  properties:
+    id: {type: string}
+    kind: {type: string, enum: [auth, recovery]}
+    contractVersion: {type: string}
+    priority: {type: integer}
+    operations:
+      type: array
+      items: {type: string}
+
+ApiResponseAuthProviderList:
+  type: object
+  required: [code, message, data]
+  properties:
+    code: {type: integer}
+    message: {type: string}
+    data:
+      type: array
+      items: {$ref: "#/AuthProviderListItem"}
+
+AuthProviderStartRequest:
+  type: object
+  required: [correlationId]
+  properties:
+    correlationId: {type: string, maxLength: 200}
+    deviceFingerprint: {type: string}
+    clientClass: {type: string}
+    redirectHint: {type: string}
+    accountHint: {type: string}
+
+AuthProviderStartResult:
+  type: object
+  required: [providerId, operation, status, correlationId]
+  properties:
+    providerId: {type: string}
+    operation: {type: string}
+    status: {type: string, enum: [continue, redirect, challenge]}
+    correlationId: {type: string}
+    continueToken: {type: string}
+    redirectUrl: {type: string}
+    challengeKind: {type: string}
+
+ApiResponseAuthProviderStart:
+  type: object
+  required: [code, message, data]
+  properties:
+    code: {type: integer}
+    message: {type: string}
+    data: {$ref: "#/AuthProviderStartResult"}
+
+AuthProviderCompleteRequest:
+  type: object
+  required: [correlationId, completionToken]
+  properties:
+    correlationId: {type: string, maxLength: 200}
+    completionToken: {type: string, maxLength: 4000}
+    deviceFingerprint: {type: string}
+    clientClass: {type: string}
+    idempotencyKey: {type: string}
+
+AuthProviderCompleteResult:
+  type: object
+  required: [providerId, operation]
+  properties:
+    providerId: {type: string}
+    operation: {type: string}
+    providerSubjectDigest: {type: string}
+    displayName: {type: string}
+    emailHint: {type: string}
+    userHintId: {type: integer, format: int64}
+    linkId: {type: integer, format: int64}
+    linkStatus: {type: string}
+
+ApiResponseAuthProviderComplete:
+  type: object
+  required: [code, message, data]
+  properties:
+    code: {type: integer}
+    message: {type: string}
+    data: {$ref: "#/AuthProviderCompleteResult"}
+
+ProfileSection:
+  type: object
+  required: [providerId, sectionId]
+  properties:
+    providerId: {type: string}
+    sectionId: {type: string}
+    title: {type: string}
+    priority: {type: integer}
+    fields:
+      type: object
+      additionalProperties: true
+
+ProfileSectionUpdateRequest:
+  type: object
+  required: [providerId, fields]
+  properties:
+    providerId: {type: string}
+    fields:
+      type: object
+      additionalProperties: true
+
+ApiResponseProfileSectionList:
+  type: object
+  required: [code, message, data]
+  properties:
+    code: {type: integer}
+    message: {type: string}
+    data:
+      type: array
+      items: {$ref: "#/ProfileSection"}
+
+ApiResponseProfileSection:
+  type: object
+  required: [code, message, data]
+  properties:
+    code: {type: integer}
+    message: {type: string}
+    data: {$ref: "#/ProfileSection"}

@@ -23,6 +23,7 @@ import (
 	clientip "github.com/zhuchunshu/sforum/apps/api/app/Support/ClientIP"
 	appevents "github.com/zhuchunshu/sforum/apps/api/app/Support/Events"
 	humanverify "github.com/zhuchunshu/sforum/apps/api/app/Support/HumanVerify"
+	identityregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/IdentityRegistry"
 	useragent "github.com/zhuchunshu/sforum/apps/api/app/Support/UserAgent"
 )
 
@@ -47,9 +48,11 @@ type Controller struct {
 	riskPolicy *identity.RiskEvaluator
 	// authFlow / profileComposer / recoveryFlow 是 Host 拥有的 Identity 提供方消费者。
 	// 为 nil 时外部 auth/profile/recovery 路径保持不可用。
-	authFlow         *identity.AuthProviderFlow
-	profileComposer  *identity.ProfileProviderComposer
-	recoveryFlow     *identity.RecoveryProviderFlow
+	authFlow        *identity.AuthProviderFlow
+	profileComposer *identity.ProfileProviderComposer
+	recoveryFlow    *identity.RecoveryProviderFlow
+	// providerCatalog 仅用于红acted 可执行提供方列表。
+	providerCatalog *identityregistry.Registry
 }
 
 // optionsResolver 只暴露密码策略、mail-test 需要的站点名/管理员邮箱，避免全量依赖 options.Service。
@@ -143,6 +146,14 @@ func (h *Controller) WithProfileProviderComposer(composer *identity.ProfileProvi
 func (h *Controller) WithRecoveryProviderFlow(flow *identity.RecoveryProviderFlow) *Controller {
 	if h != nil {
 		h.recoveryFlow = flow
+	}
+	return h
+}
+
+// WithIdentityProviderCatalog injects the live Identity Registry for provider listing.
+func (h *Controller) WithIdentityProviderCatalog(registry *identityregistry.Registry) *Controller {
+	if h != nil {
+		h.providerCatalog = registry
 	}
 	return h
 }

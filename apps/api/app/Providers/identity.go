@@ -134,6 +134,14 @@ func (p *IdentityProvider) WithRecoveryProviderFlow(flow *identity.RecoveryProvi
 	return p
 }
 
+// WithIdentityProviderCatalog wires the live Identity Registry for provider listing.
+func (p *IdentityProvider) WithIdentityProviderCatalog(registry *identityregistry.Registry) *IdentityProvider {
+	if p != nil && p.controller != nil {
+		p.controller.WithIdentityProviderCatalog(registry)
+	}
+	return p
+}
+
 func (p *IdentityProvider) RegisterRoutes(api fiber.Router) {
 	p.controller.RegisterRoutes(api)
 }

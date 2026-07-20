@@ -765,6 +765,7 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		WithAuthProviderFlow(authProviderFlow).
 		WithProfileProviderComposer(profileProviderComposer).
 		WithRecoveryProviderFlow(recoveryProviderFlow).
+		WithIdentityProviderCatalog(lifecycleStack.IdentityRegistry).
 		WithAPITokens(apiTokenService)
 	notificationsProvider := providers.NewNotificationsProvider(notificationStore, identityStore, authSessions)
 	mailProvider := providers.NewMailProvider(extensionStore, notificationStore, extensionsruntime.NewMailProviderRegistry(extensionStore), identityStore, authSessions, optionsService)

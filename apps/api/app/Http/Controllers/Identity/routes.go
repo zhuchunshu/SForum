@@ -13,6 +13,14 @@ func (h *Controller) RegisterRoutes(api fiber.Router) {
 	auth.Get("/session", h.session)
 	auth.Post("/password-reset/request", h.passwordResetRequest)
 	auth.Post("/password-reset/confirm", h.passwordResetConfirm)
+	// 外部 Identity 提供方：列表公开；start/complete 按操作决定是否要求登录。
+	auth.Get("/providers", h.listAuthProviders)
+	auth.Post("/providers/:providerId/:operation/start", h.authProviderStart)
+	auth.Post("/providers/:providerId/:operation/complete", h.authProviderComplete)
+
+	// 扩展资料分区：仅已登录自服务。
+	api.Get("/profile/sections", h.listProfileSections)
+	api.Put("/profile/sections/:sectionId", h.updateProfileSection)
 
 	// 账号安全 / 登录设备管理：自服务，仅需已登录（auth.required），
 	// 越权由 store 层 user_id 过滤保证。

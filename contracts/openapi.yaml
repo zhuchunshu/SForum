@@ -137,6 +137,16 @@ paths:
     "$ref": "./openapi/paths/identity.yaml#/passwordResetRequest"
   "/auth/password-reset/confirm":
     "$ref": "./openapi/paths/identity.yaml#/passwordResetConfirm"
+  "/auth/providers":
+    "$ref": "./openapi/paths/identity.yaml#/authProviders"
+  "/auth/providers/{providerId}/{operation}/start":
+    "$ref": "./openapi/paths/identity.yaml#/authProviderStart"
+  "/auth/providers/{providerId}/{operation}/complete":
+    "$ref": "./openapi/paths/identity.yaml#/authProviderComplete"
+  "/profile/sections":
+    "$ref": "./openapi/paths/identity.yaml#/profileSectionsList"
+  "/profile/sections/{sectionId}":
+    "$ref": "./openapi/paths/identity.yaml#/profileSectionByID"
   "/admin/mail/test":
     "$ref": "./openapi/paths/mail.yaml#/adminMailTest"
   "/admin/mail/providers":
