@@ -28,7 +28,7 @@ const HostPageIsland = defineComponent({
 })
 
 // 该映射与 ThemeRuntimeSnapshot 的 reviewed Component Registry 对齐。
-// 内容页 body 岛使用 HostPageIsland，把宿主 Nuxt 页 slot 嵌回主题壳层。
+// 系统 not_found 等仍可 HostPageIsland；公开 body 岛均为自包含 Host 组件。
 const islandComponents: Record<string, Component> = {
   // 首页 body 岛由 SFHomePage 自包含数据+UI；主题 L1 拥有壳层结构。
   // 不再经 HostPageIsland 嵌回 pages/index slot（slot 仅 fail-closed 紧急回退）。
@@ -52,10 +52,10 @@ const islandComponents: Record<string, Component> = {
   'forum.component.topic_composer': resolveComponent('SFTopicComposerPage') as Component,
   'profile.component.settings_form': resolveComponent('SFProfileSettingsPage') as Component,
   'identity.component.security_settings': resolveComponent('SFSecuritySettingsPage') as Component,
-  'identity.component.login_form': HostPageIsland,
-  'identity.component.register_form': HostPageIsland,
-  'identity.component.recovery_request_form': HostPageIsland,
-  'identity.component.recovery_confirm_form': HostPageIsland,
+  'identity.component.login_form': resolveComponent('SFLoginFormPage') as Component,
+  'identity.component.register_form': resolveComponent('SFRegisterFormPage') as Component,
+  'identity.component.recovery_request_form': resolveComponent('SFRecoveryRequestPage') as Component,
+  'identity.component.recovery_confirm_form': resolveComponent('SFRecoveryConfirmPage') as Component,
   'core.component.shared.sfextension_widget': resolveComponent('SFExtensionWidget') as Component
 }
 const legacyIslandBindings = {
