@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"regexp"
 	"strings"
@@ -14,6 +15,8 @@ import (
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/extension"
 	"golang.org/x/net/html"
+
+	editordocument "github.com/zhuchunshu/sforum/apps/api/app/Support/EditorDocument"
 )
 
 const defaultExcerptRuneLimit = RecommendedExcerptRuneLimit
@@ -40,6 +43,36 @@ func RenderContentWithExcerptLimit(input ContentInput, excerptLimit int) (Render
 	editorType := strings.TrimSpace(input.EditorType)
 	if editorType == "" {
 		editorType = sourceFormat
+	}
+
+	// EditorDocument 路径：native Tiptap JSON 经 Host Accept 管线，客户端 HTML 永不信任。
+	if sourceFormat == SourceFormatEditorDocument {
+		accepted, err := editordocument.Accept(editordocument.Input{
+			NativeJSON:   []byte(raw),
+			ExcerptLimit: excerptLimit,
+		})
+		if err != nil {
+			return RenderedContent{}, ErrInvalidContent
+		}
+		if accepted.PlainText == "" {
+			return RenderedContent{}, ErrInvalidContent
+		}
+		// 持久化规范化后的 native JSON，保证再编辑与 content hash 稳定。
+		storedRaw, err := jsonMarshalDocument(accepted)
+		if err != nil {
+			return RenderedContent{}, err
+		}
+		return RenderedContent{
+			RawContent:    storedRaw,
+			HTMLContent:   accepted.HTMLSanitized,
+			PlainText:     accepted.PlainText,
+			Excerpt:       ExcerptFromPlain(accepted.PlainText, excerptLimit),
+			SourceFormat:  SourceFormatEditorDocument,
+			EditorType:    firstNonEmpty(editorType, EditorTypeTiptap),
+			EditorVersion: strings.TrimSpace(input.EditorVersion),
+			RenderVersion: RenderVersionEditorDocument,
+			ContentHash:   accepted.ContentHash,
+		}, nil
 	}
 
 	var renderedHTML string
@@ -79,6 +112,24 @@ func RenderContentWithExcerptLimit(input ContentInput, excerptLimit int) (Render
 		RenderVersion: RenderVersion,
 		ContentHash:   hex.EncodeToString(hash[:]),
 	}, nil
+}
+
+func jsonMarshalDocument(accepted editordocument.Accepted) (string, error) {
+	// 持久化 Accept 规范化后的 Document；encoding/json 对 map 键排序保证稳定。
+	body, err := json.Marshal(accepted.Native)
+	if err != nil {
+		return "", err
+	}
+	return string(body), nil
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return value
+		}
+	}
+	return ""
 }
 
 // ExcerptFromPlain 按运营配置的 rune 上限从纯文本派生列表/引用摘要。

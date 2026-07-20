@@ -10,15 +10,20 @@ import (
 )
 
 const (
-	SourceFormatMarkdown = "markdown"
-	SourceFormatHTML     = "html"
-	SourceFormatJSON     = "json"
+	SourceFormatMarkdown        = "markdown"
+	SourceFormatHTML            = "html"
+	SourceFormatJSON            = "json"
+	// SourceFormatEditorDocument 走 Host EditorDocument Accept 管线（native Tiptap JSON）。
+	SourceFormatEditorDocument = "editor-document"
 
 	EditorTypeMarkdown = "markdown"
+	EditorTypeTiptap   = "tiptap"
 
 	// v2 启用 goldmark GFM 扩展（表格/删除线/自动链接/任务列表）并放开对应 sanitizer 规则。
 	// 存量帖子保留 v1 HTML，下次编辑时自然升级到 v2（不做批量重渲染）。
 	RenderVersion = "goldmark-bluemonday-v2"
+	// RenderVersionEditorDocument 标记正文经 sforum.editor-document@1 管线验收。
+	RenderVersionEditorDocument = "sforum.editor-document@1"
 
 	TopicStatusActive   = "active"
 	TopicStatusLocked   = "locked"

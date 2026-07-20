@@ -177,3 +177,51 @@ func TestRenderSanitizerIsConservative(t *testing.T) {
 		t.Fatalf("expected a clean checkbox input to remain, got %q", html)
 	}
 }
+
+func TestRenderEditorDocumentAcceptsNativeJSONAndStripsXSS(t *testing.T) {
+	native := `{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Hello ","marks":[{"type":"bold"}]},{"type":"text","text":"bad","marks":[{"type":"link","attrs":{"href":"javascript:alert(1)"}}]},{"type":"text","text":" ok","marks":[{"type":"link","attrs":{"href":"https://example.com"}}]}]}]}`
+	rendered, err := RenderContent(ContentInput{
+		RawContent:   native,
+		SourceFormat: SourceFormatEditorDocument,
+		EditorType:   EditorTypeTiptap,
+	})
+	if err != nil {
+		t.Fatalf("RenderContent: %v", err)
+	}
+	if rendered.RenderVersion != RenderVersionEditorDocument {
+		t.Fatalf("render version = %q", rendered.RenderVersion)
+	}
+	if rendered.SourceFormat != SourceFormatEditorDocument {
+		t.Fatalf("source format = %q", rendered.SourceFormat)
+	}
+	if !strings.Contains(rendered.HTMLContent, "<strong>Hello </strong>") {
+		t.Fatalf("html = %q", rendered.HTMLContent)
+	}
+	if strings.Contains(rendered.HTMLContent, "javascript:") {
+		t.Fatalf("expected javascript: stripped, got %q", rendered.HTMLContent)
+	}
+	if !strings.Contains(rendered.PlainText, "Hello") {
+		t.Fatalf("plain = %q", rendered.PlainText)
+	}
+	if rendered.ContentHash == "" {
+		t.Fatal("expected content hash")
+	}
+	// 再渲染同一 raw 应得到相同 hash（规范化存储）。
+	again, err := RenderContent(ContentInput{RawContent: rendered.RawContent, SourceFormat: SourceFormatEditorDocument})
+	if err != nil {
+		t.Fatalf("re-render: %v", err)
+	}
+	if again.ContentHash != rendered.ContentHash {
+		t.Fatalf("hash drift: %q vs %q", rendered.ContentHash, again.ContentHash)
+	}
+}
+
+func TestRenderEditorDocumentRejectsEmptyDoc(t *testing.T) {
+	_, err := RenderContent(ContentInput{
+		RawContent:   `{"type":"doc","content":[]}`,
+		SourceFormat: SourceFormatEditorDocument,
+	})
+	if err != ErrInvalidContent {
+		t.Fatalf("expected ErrInvalidContent, got %v", err)
+	}
+}
