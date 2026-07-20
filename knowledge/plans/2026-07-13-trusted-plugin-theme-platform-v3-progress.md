@@ -1,8 +1,8 @@
 # Trusted Plugin And Theme Platform V3 Progress Ledger
 
 Date: 2026-07-21
-Overall progress: **99.0%**
-Active phase: **P13 residual = LTS-blocked legacy deletion only (SMTP+storage V2 done)**
+Overall progress: **99.2%**
+Active phase: **P13 residual = Host layout/CSS chrome honesty + LTS-blocked deletions**
 
 This ledger is the durable percentage and context-compaction checkpoint for the
 V3 program. Update it before context compression, at every phase boundary, and
@@ -29,12 +29,22 @@ scaffolding, or demo-only code cannot satisfy a runtime exit criterion.
 | P10 Content/media/data | 8% | 100% | 8.00% |
 | P11 Platform services | 6% | 100% | 6.00% |
 | P12 Operations/ecosystem | 6% | 100% | 6.00% |
-| P13 References/removal/final gates | 5% | 99% | 4.95% |
+| P13 References/removal/final gates | 5% | 99.5% | 4.975% |
 
 Displayed overall progress is the floor of earned weighted progress until the
 program reaches 100% and every final gate passes.
 
 
+
+## 2026-07-21 P13 Presentation Page Ownership (~99.2%)
+
+- All replaceable public pages: thin Nuxt shell + Host body island + theme L1
+  `data-theme-owned=presentation` (auth forms + not-found included).
+- Completeness gate requires the theme-owned marker.
+- Residual presentation row: Host `layouts/default.vue` chrome + Host island CSS
+  (theme Nuxt `layer/` is not wired; Page Registry L0/L1 is authoritative).
+- Residual program close: LTS-blocked loader/v1/compatibility deletions.
+- Commits: `db29579bc`…`a6e42d76f`.
 
 ## 2026-07-21 P13 Live Stack And Browser Evidence (~98%)
 
