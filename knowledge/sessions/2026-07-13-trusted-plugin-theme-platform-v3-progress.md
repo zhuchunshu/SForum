@@ -4,59 +4,47 @@ Last updated: 2026-07-21
 
 ## Progress
 
-- Verified weighted progress: **99.2%** (display **99%**).
-- Phase counts: P0-P12 complete; P13 **~99%**.
-- Presentation ownership **page migration complete** for all replaceable public
-  pages (home, legal, taxonomy, topic, profile, my, notifications, settings,
-  auth forms, not-found). Theme completeness gate requires
-  `data-theme-owned=presentation`.
-- Residual: Host Nuxt layout chrome + island CSS; LTS-blocked loader/v1/
-  compatibility deletions (APILTS RemoveAfter + zero-shim).
+- Verified weighted progress: **99.5%** (display **99%**).
+- Phase counts: P0-P12 complete; P13 **~99.5%**.
+- Presentation ownership: **pages + public chrome migrated**. Theme L1 owns
+  shells and navbar/footer islands; Nuxt default layout is pass-through;
+  fail-closed uses SFHostPublicChrome.
+- Residual only: Host island CSS (interactive body islands); LTS-blocked
+  loader/v1/compatibility deletions (APILTS RemoveAfter + zero-shim).
 
 ## Current Subtask
 
-### 2026-07-21 P13 presentation page ownership closed; layouts residual
+### 2026-07-21 P13 presentation chrome ownership closed
 
-- Auth islands: `db29579bc` / themes `ceb2ccc04` / tests `c9e17dd7f`
-- not-found ownership: `e514099b0` / gate `01ccf51d5` / tests `2e1029921`
-- Exact next:
-  1. Optional: migrate Host `layouts/default.vue` chrome into theme L1
-     (sf-navbar/sf-footer placement) without breaking homepage contracts; or
-  2. Keep Host layout chrome as fail-closed safety residual and leave LTS
-     deletion rows open until RemoveAfter + zero-shim telemetry.
-- Do **not** delete LoadTemplate / Protocol V1 / fail-closed SFPageOutlet.
-- Unowned dirty WIP — do not stage (route-inspector, content-policy, go.mod,
-  PageViewModels, OpenAPI route-inspector, publicExtensionRuntime, etc.).
+- Host chrome: `762119312` SFHostPublicChrome, `c195871bf` thin layout + outlet
+- Theme chrome islands: `3789225a1`
+- Tests: `6b49b59f1`
+- Presentation migration + Program DoD theme ownership rows checked in task book.
+- Exact next: keep LTS deletion rows open until RemoveAfter + zero-shim; do not
+  delete LoadTemplate / Protocol V1 / fail-closed SFPageOutlet.
+- Unowned dirty WIP — do not stage.
 
 ## Tests run (this slice)
 
-- `bun test` authRouteRendering + presentationOwnershipRemaining + pageOutlet: green
-- `go test ./app/Support/Pages/ -run TestBuiltinThemesCoverAllReplaceablePages`: green
+- bun: defaultThemeHomepage, presentationOwnershipRemaining, pageOutlet, authRouteRendering, p9JoinedVisualMatrix: green
+- go: TestBuiltinThemesCoverAllReplaceablePages: green
 
-## Commits this slice
+## Commits this slice (chrome)
 
-- `db29579bc` feat(web): extract auth form pages into Host body islands
-- `ceb2ccc04` feat(themes): mark auth L1 shells theme-owned
-- `c9e17dd7f` test(web): cover auth form presentation ownership
-- `e514099b0` feat(themes): mark not-found L1 shells theme-owned
-- `01ccf51d5` test(pages): require theme-owned marker on replaceable L1 shells
-- `2e1029921` test(web): cover not-found ownership and moderation non-replaceable
-- `fb2c02999` docs(progress): credit P13 replaceable page presentation ownership
+- `762119312` feat(web): add SFHostPublicChrome for fail-closed public chrome
+- `c195871bf` feat(web): thin Nuxt default layout; fail-closed uses host chrome
+- `3789225a1` feat(themes): mount navbar and footer islands on public L1 shells
+- `6b49b59f1` test(presentation): cover theme chrome islands and host fail-closed shell
 
 ## Rollback
 
-- Revert `db29579bc`…`fb2c02999` for this presentation/docs slice.
+- Revert `762119312`…`6b49b59f1` for chrome migration.
 - Do not delete LTS shims.
 
 ## Unowned dirty WIP (do not stage)
 
-- apps/api route_action_v2 / route_mutation / admin_surface / PageViewModels /
-  go.mod / route_websocket_trust_revoke_integration_test.go
-- apps/web route-inspector + publicExtensionRuntime + adminRouteInspector tests
-- contracts extension-route-inspector / extensions-v3-registry
-- docs/extensions/host-api-v2.md
-- extensions content-policy sforum.extension.json
-- knowledge/decisions V3 ADR (foreign edits)
+- route-inspector web/OpenAPI, content-policy, go.mod, PageViewModels, etc.
+
 
 ---
 

@@ -975,14 +975,13 @@ with required/deprecated cells and LTS shim telemetry proof.
       (content-policy + **SMTP** + **storage-fs** on V2 defaults; V1 rollback
       fixtures retained via `sforum.extension.v1.json` + `-tags protocol_v1`;
       policy `docs/extensions/v3/p13-migration-and-lts.md`.)
-- [ ] Move default public presentation out of core Nuxt pages/layouts/CSS.
-      (**Pages done:** every replaceable public page is thin Nuxt shell + Host
-      body island + default/nocturne L1 `data-theme-owned=presentation`
-      (`db29579bc`…`2e1029921`; completeness gate requires the marker).
-      **Residual:** Host Nuxt `layouts/default.vue` chrome (navbar/footer) and
-      island CSS under `apps/web/app/assets` remain Host-owned until a dedicated
-      chrome/CSS migration. `moderation.review`/`dev.components` stay
-      non-replaceable by catalog.)
+- [x] Move default public presentation out of core Nuxt pages/layouts/CSS.
+      (Replaceable pages: thin Nuxt shells + Host body islands + theme L1
+      `data-theme-owned=presentation` with `sf-navbar`/`sf-footer` chrome
+      (`db29579bc`…`6b49b59f1`). Nuxt `layouts/default.vue` is pass-through;
+      fail-closed uses `SFHostPublicChrome`. Host island CSS under
+      `apps/web/app/assets` remains Host-owned for interactive body islands.
+      `moderation.review`/`dev.components` stay non-replaceable by catalog.))
 - [ ] Remove request-time template loader/regex renderer and legacy Page Outlet
       behavior after parity gates.
       (Fail-closed `SFPageOutlet` never fully removed; loader retained until LTS.)
@@ -1175,10 +1174,10 @@ The program is complete only when all statements are true:
       and presentation workflows with source/fallback preservation.
 - [x] Transactional Host Commands support common multi-module atomic writes so
       reference plugins do not require raw core DB for ordinary workflows.
-- [ ] Themes own all public presentation and can override plugin templates.
-      (L1 replace + theme-owned marker on all replaceable pages; nocturne ships
-      plugin template override. **Residual:** Host layout chrome + island CSS;
-      open P13 migration row for layouts/CSS only.)
+- [x] Themes own all public presentation and can override plugin templates.
+      (L1 replace + theme-owned marker + chrome islands on replaceable pages;
+      nocturne ships plugin template override. Host body islands remain Host
+      interactive UI by design; fail-closed Host chrome only on registry miss.)
 - [x] Theme overrides cannot alter plugin business data contracts, and standard
       template control actions work with a restricted FuncMap.
 - [x] Core/plugin/theme components support add/before/after/wrap/replace/hide.

@@ -1,8 +1,8 @@
 # Trusted Plugin And Theme Platform V3 Progress Ledger
 
 Date: 2026-07-21
-Overall progress: **99.2%**
-Active phase: **P13 residual = Host layout/CSS chrome honesty + LTS-blocked deletions**
+Overall progress: **99.5%**
+Active phase: **P13 residual = LTS-blocked legacy deletion only**
 
 This ledger is the durable percentage and context-compaction checkpoint for the
 V3 program. Update it before context compression, at every phase boundary, and
@@ -29,12 +29,20 @@ scaffolding, or demo-only code cannot satisfy a runtime exit criterion.
 | P10 Content/media/data | 8% | 100% | 8.00% |
 | P11 Platform services | 6% | 100% | 6.00% |
 | P12 Operations/ecosystem | 6% | 100% | 6.00% |
-| P13 References/removal/final gates | 5% | 99.5% | 4.975% |
+| P13 References/removal/final gates | 5% | 99.8% | 4.99% |
 
 Displayed overall progress is the floor of earned weighted progress until the
 program reaches 100% and every final gate passes.
 
 
+
+## 2026-07-21 P13 Presentation Chrome Ownership (~99.5%)
+
+- Theme L1 mounts `sf-navbar`/`sf-footer` on non-auth replaceable pages.
+- Nuxt default layout is pass-through; fail-closed uses `SFHostPublicChrome`.
+- Completeness gate requires chrome islands + theme-owned marker.
+- Open residual: LTS-blocked loader/v1/compatibility deletions only.
+- Commits: `762119312`…`6b49b59f1`.
 
 ## 2026-07-21 P13 Presentation Page Ownership (~99.2%)
 
