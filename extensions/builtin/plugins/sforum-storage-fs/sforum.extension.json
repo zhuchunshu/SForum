@@ -4,22 +4,34 @@
   "description": "Protected built-in filesystem storage provider for attachment.storage.provider (E6 reference).",
   "url": "https://github.com/zhuchunshu/sforum",
   "author": { "name": "SForum", "url": "https://github.com/zhuchunshu/sforum" },
-  "version": "1.0.0",
+  "version": "1.1.0",
   "type": "plugin",
   "sforumVersion": ">=0.1.0",
+  "manifestVersion": 3,
   "capabilities": ["settings.own"],
   "backend": {
     "entry": "backend/plugin",
+    "digest": "2117bbae31c81d13d3a69843592496be39d11c6a8984895477bc49812581bbe9",
     "rpc": "hashicorp-go-plugin",
-    "protocolVersion": 1
+    "protocolVersion": 2,
+    "hostApiVersion": "sforum.host@2"
   },
-  "providers": [
+  "packageFiles": [
     {
-      "slot": "attachment.storage.provider",
-      "label": "Filesystem (plugin)",
-      "timeoutMs": 120000
+      "id": "sforum.storage-fs.file.backend",
+      "kind": "executable",
+      "path": "backend/plugin",
+      "digest": "2117bbae31c81d13d3a69843592496be39d11c6a8984895477bc49812581bbe9"
     }
   ],
+  "providers": [{
+    "id": "sforum.storage-fs.provider.storage",
+    "contractVersion": "sforum.storage-fs.provider.storage@1",
+    "slot": "attachment.storage.provider",
+    "label": "Filesystem (plugin)",
+    "handler": "storage.fs",
+    "timeoutMs": 120000
+  }],
   "includes": {
     "langs": "manifest/langs",
     "admin": "manifest/admin.json",

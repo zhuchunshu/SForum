@@ -1,0 +1,28 @@
+{
+  "id": "sforum.storage-fs",
+  "name": "SForum Filesystem Storage",
+  "description": "Protected built-in filesystem storage provider (Protocol V1 rollback fixture).",
+  "url": "https://github.com/zhuchunshu/sforum",
+  "author": { "name": "SForum", "url": "https://github.com/zhuchunshu/sforum" },
+  "version": "1.0.0",
+  "type": "plugin",
+  "sforumVersion": ">=0.1.0",
+  "capabilities": ["settings.own"],
+  "backend": {
+    "entry": "backend/plugin",
+    "rpc": "hashicorp-go-plugin",
+    "protocolVersion": 1
+  },
+  "providers": [
+    {
+      "slot": "attachment.storage.provider",
+      "label": "Filesystem (plugin)",
+      "timeoutMs": 120000
+    }
+  ],
+  "includes": {
+    "langs": "manifest/langs",
+    "admin": "manifest/admin.json",
+    "settings": "manifest/settings.json"
+  }
+}

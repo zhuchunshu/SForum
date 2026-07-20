@@ -1,7 +1,9 @@
+//go:build !protocol_v1
+
 package main
 
-import pluginsdk "github.com/zhuchunshu/sforum/apps/api/sdk/plugin"
+import pluginv2 "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2"
 
 func main() {
-	pluginsdk.Serve(newFSStoragePlugin())
+	pluginv2.Serve(newFSStoragePluginV2())
 }

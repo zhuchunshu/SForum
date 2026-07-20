@@ -1,4 +1,5 @@
 {
   "name": "SForum 文件系统存储",
-  "description": "内置参考存储插件：将附件对象写入可配置的本地目录（attachment.storage.provider）。"
+  "description": "内置参考存储插件：将附件对象写入可配置的本地目录（attachment.storage.provider）。",
+  "author": { "name": "SForum" }
 }
