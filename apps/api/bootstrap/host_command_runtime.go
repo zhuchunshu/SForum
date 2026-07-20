@@ -4,14 +4,54 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	attachments "github.com/zhuchunshu/sforum/apps/api/app/Models/Attachments"
+	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
 	moderation "github.com/zhuchunshu/sforum/apps/api/app/Models/Moderation"
 	hostapi "github.com/zhuchunshu/sforum/apps/api/app/Support/HostAPI"
 	supportjobs "github.com/zhuchunshu/sforum/apps/api/app/Support/Jobs"
 )
+
+// deferredIdentityAuthorityMutationGate freezes the Host Command catalog before
+// the lifecycle stack publishes the Session Policy store, then adopts that store
+// so identity status commands share the same writer fence as session effects.
+type deferredIdentityAuthorityMutationGate struct {
+	mu   sync.RWMutex
+	gate identity.IdentityAuthorityMutationGate
+}
+
+func (g *deferredIdentityAuthorityMutationGate) Set(gate identity.IdentityAuthorityMutationGate) {
+	if g == nil {
+		return
+	}
+	g.mu.Lock()
+	g.gate = gate
+	g.mu.Unlock()
+}
+
+func (g *deferredIdentityAuthorityMutationGate) RunSessionPolicyMutation(
+	ctx context.Context,
+	mutation func() error,
+) error {
+	if mutation == nil {
+		return errors.New("identity: authority mutation is required")
+	}
+	if g == nil {
+		return mutation()
+	}
+	g.mu.RLock()
+	gate := g.gate
+	g.mu.RUnlock()
+	if gate == nil {
+		// 启动早期 Session Policy 尚未发布：命令目录已冻结，但共享 fence 尚未可用。
+		// 直接执行 mutation，与 Identity Store 未绑 gate 时的路径一致。
+		return mutation()
+	}
+	return gate.RunSessionPolicyMutation(ctx, mutation)
+}
 
 type protocolV2AttachmentStatusMutator struct {
 	store *attachments.PostgresStore
@@ -47,6 +87,7 @@ func bindPostgresProtocolV2CommandRuntime(
 	jobs *supportjobs.Dispatcher,
 	moderationStore *moderation.PostgresStore,
 	attachmentStore *attachments.PostgresStore,
+	identityAuthority identity.IdentityAuthorityMutationGate,
 ) error {
 	if gateway == nil {
 		return fmt.Errorf("Host Command gateway is required")
@@ -58,6 +99,7 @@ func bindPostgresProtocolV2CommandRuntime(
 	runtime, err := hostapi.NewPostgresProtocolV2CommandRuntime(hostapi.PostgresProtocolV2CommandRuntimeConfig{
 		Pool: pool, ActorDelegations: delegations, Jobs: jobs, Moderation: moderationStore,
 		AttachmentStatuses: protocolV2AttachmentStatusMutator{store: attachmentStore},
+		IdentityAuthority:  identityAuthority,
 	})
 	if err != nil {
 		return fmt.Errorf("create Host Command runtime: %w", err)
@@ -75,7 +117,7 @@ func postgresProtocolV2CommandRuntimeBinder(
 	attachmentStore *attachments.PostgresStore,
 ) protocolV2CommandRuntimeBinder {
 	return func(gateway *hostapi.Gateway) error {
-		return bindPostgresProtocolV2CommandRuntime(gateway, pool, jobs, moderationStore, attachmentStore)
+		return bindPostgresProtocolV2CommandRuntime(gateway, pool, jobs, moderationStore, attachmentStore, nil)
 	}
 }
 

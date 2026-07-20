@@ -113,10 +113,12 @@ func TestProductionLifecycleStackDefaultIdentityStoreBindsTrustImpactValidator(t
 	if !postgresStore.HasStoredTrustImpactValidator() {
 		t.Fatal("production default IdentityStore must bind ValidateStoredTrustImpact")
 	}
-	if !postgresStore.HasSessionPolicyLifecycleInvalidator() || stack.SessionPolicyStore == nil {
+	if !postgresStore.HasSessionPolicyLifecycleInvalidator() ||
+		!postgresStore.HasSessionPolicyLifecycleMutationGate() || stack.SessionPolicyStore == nil {
 		t.Fatal("production default IdentityStore must bind the shared Session Policy lifecycle invalidator")
 	}
-	if seam := identityregistry.NewPostgresStore(pool); seam.HasSessionPolicyLifecycleInvalidator() {
+	if seam := identityregistry.NewPostgresStore(pool); seam.HasSessionPolicyLifecycleInvalidator() ||
+		seam.HasSessionPolicyLifecycleMutationGate() {
 		t.Fatal("ordinary NewPostgresStore must not invent a cross-module lifecycle dependency")
 	}
 	if identityregistry.NewPostgresStore(pool).HasStoredTrustImpactValidator() {

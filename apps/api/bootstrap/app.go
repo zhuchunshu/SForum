@@ -275,6 +275,10 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 	// the Identity Registry and Session Policy Store. Until then renew is a
 	// Core-equivalent no-op; revocation never uses this gate.
 	sessionPolicyRenewal := &sessionPolicyRenewalGate{}
+	// Host Command catalog freezes before lifecycle; adopt the Session Policy
+	// writer fence once the store is published so status commands cannot race
+	// accepted session effects.
+	identityAuthorityGate := &deferredIdentityAuthorityMutationGate{}
 	authSessions := authsession.NewManager(sessionStore, authsession.Config{
 		RenewalInterval: cfg.SessionRenewalInterval,
 		HashSecret:      cfg.SessionHashSecret,
@@ -400,7 +404,7 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 	// 六域 Host Command 必须在首个插件 broker 注册前冻结；否则同一启动中
 	// 已运行插件会看到缺失目录，而后启动插件看到另一份能力集合。
 	if err := bindPostgresProtocolV2CommandRuntime(
-		hostAPIGateway, pool, jobDispatcher, moderationStore, attachmentStore,
+		hostAPIGateway, pool, jobDispatcher, moderationStore, attachmentStore, identityAuthorityGate,
 	); err != nil {
 		if stopErr := supportjobs.Stop(ctx, jobClient); stopErr != nil {
 			logger.Warn("job dispatcher stop failed", "error", stopErr)
@@ -722,6 +726,7 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		return nil, err
 	}
 	identityStore.WithAuthorityMutationGate(lifecycleStack.SessionPolicyStore)
+	identityAuthorityGate.Set(lifecycleStack.SessionPolicyStore)
 	sessionPolicyRenewal.Set(sessionPolicyEvaluator)
 	identityProvider := providers.NewIdentityProviderWithPasswordResetAndLockout(identityStore, authSessions, humanVerifier, eventPublisher, passwordResetService, mailOutbox, optionsService, loginLockout).
 		WithIdentityRegistryStore(identityReviewStore).
