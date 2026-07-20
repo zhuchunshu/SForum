@@ -266,7 +266,7 @@ defineExpose({ reload: load })
           class="shrink-0"
           data-testid="public-l2-honesty-dismiss"
           :aria-label="t('public.extensions.l2Honesty.dismiss')"
-          @click="honestyDismissed = true"
+          @click="() => { honestyDismissed = true }"
         />
       </div>
     </div>

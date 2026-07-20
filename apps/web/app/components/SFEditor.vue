@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Editor, EditorContent } from '@tiptap/vue-3'
+import type { AnyExtension } from '@tiptap/core'
 import {
   createSFEditorExtensions,
   escapeHtml,
@@ -109,7 +110,7 @@ onMounted(() => {
       placeholder: props.placeholder,
       maxCharacters: props.maxCharacters,
       trustedExtensions: props.trustedExtensions
-    }),
+    }) as AnyExtension[],
     onCreate: ({ editor: createdEditor }) => {
       syncFromEditor(createdEditor)
     },
