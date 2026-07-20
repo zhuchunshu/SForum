@@ -721,6 +721,7 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 	if err != nil {
 		return nil, err
 	}
+	identityStore.WithAuthorityMutationGate(lifecycleStack.SessionPolicyStore)
 	sessionPolicyRenewal.Set(sessionPolicyEvaluator)
 	identityProvider := providers.NewIdentityProviderWithPasswordResetAndLockout(identityStore, authSessions, humanVerifier, eventPublisher, passwordResetService, mailOutbox, optionsService, loginLockout).
 		WithIdentityRegistryStore(identityReviewStore).
