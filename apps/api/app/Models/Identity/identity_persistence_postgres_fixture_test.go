@@ -206,7 +206,8 @@ func seedIdentityPersistenceTestBaseTables(ctx context.Context, db *sql.DB) erro
 			display_name TEXT NOT NULL,
 			locale TEXT NOT NULL DEFAULT 'zh-CN',
 			status TEXT NOT NULL DEFAULT 'active'
-			  CHECK (status IN ('active', 'disabled', 'banned'))
+			  CHECK (status IN ('active', 'disabled', 'banned')),
+			current_token_version BIGINT NOT NULL DEFAULT 0
 		);
 		CREATE TABLE roles (
 			id BIGSERIAL PRIMARY KEY,
