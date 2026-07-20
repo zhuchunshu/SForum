@@ -4,28 +4,22 @@ This is the entry point for project memory.
 
 ## Latest Handoff
 
-- **2026-07-19 Trusted Plugin And Theme Platform V3 P7/P9/P10–P12 active (overall 67.0%)**
+- **2026-07-20 Trusted Plugin And Theme Platform V3 P9 active (overall 69.0%)**
   - Decision: `knowledge/decisions/2026-07-13-trusted-plugin-theme-platform-v3.md`
   - Identity/automation authority:
     `knowledge/decisions/2026-07-19-identity-provider-automation-authority.md`
   - Stream Schema freeze: `knowledge/decisions/2026-07-18-route-stream-opaque-bytes.md`
   - Task book: `knowledge/plans/2026-07-13-trusted-plugin-theme-platform-v3.md`
   - Current durable checkpoint:
-    `knowledge/sessions/2026-07-13-trusted-plugin-theme-platform-v3-progress.md`
-  - P6 is complete at **18/18**. Weighted progress is **67.8295%** (display
-    **67.0%**). P7 Query is closed with production Redis execution caching,
-    transactional River invalidation, embedded/standalone worker ownership,
-    Safe Mode deferral, lifecycle upgrade/ForceDrain, a real Protocol V2
-    reference plugin, and normal/race restart gates. P7 is **18/22**; its four
-    remaining rows are Identity/Permission, Auth/Profile, trusted automation
-    authority, and the joined identity denial/no-implicit-grant test.
-  - Identity P7 infrastructure now includes immutable executable provider
-    Schemas, exact runtime admission, strict same-publication `sessionPolicy`
-    binding, and Host-owned external-link, user-field, and session-policy
-    selection Stores. Lifecycle reset wiring, Core consumers, Auth/Profile
-    surfaces, trusted automation, and the joined identity no-implicit-grant
-    gate remain open and receive no partial row credit.
-  - Active checkpoint:
+    `knowledge/plans/2026-07-13-trusted-plugin-theme-platform-v3-progress.md`
+  - P0-P8 are complete. Weighted progress is **69.6477%** (display **69.0%**).
+    P7 is complete at **22/22** after Identity/Permission Registry, Auth/Profile
+    HTTP+consumers, trusted automation Host Commands, and the membership
+    Protocol V2 joined no-implicit-grant gate. P9 remains **4/16**; P10-P13
+    remain open.
+  - Active P7 closure handoff:
+    `knowledge/sessions/2026-07-20-trusted-plugin-theme-platform-v3-p7-closure.md`
+  - Prior identity runtime checkpoint:
     `knowledge/sessions/2026-07-19-trusted-plugin-theme-platform-v3-identity-runtime-checkpoint.md`
   - Prior runtime-ownership checkpoint:
     `knowledge/sessions/2026-07-16-trusted-plugin-theme-platform-v3-runtime-ownership-checkpoint.md`

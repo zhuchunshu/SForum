@@ -812,10 +812,11 @@ template while retaining Schema fallback fields.
 
 ## V3 P7 Admin Surface And Query checkpoint
 
-- P7 is 18/22. The immutable Admin Surface Registry publishes declarations
-  for all twelve V3 kinds to exact active runtime instances, restores/removes
-  them through lifecycle snapshots, and invokes typed Protocol V2 handlers under
-  exact admission with one frozen validator for both input and output.
+- P7 is complete at 22/22. The immutable Admin Surface Registry publishes
+  declarations for all twelve V3 kinds to exact active runtime instances,
+  restores/removes them through lifecycle snapshots, and invokes typed Protocol
+  V2 handlers under exact admission with one frozen validator for both input and
+  output.
 - `GET /api/v1/admin/admin-surfaces` requires `admin.access`, filters each
   declaration by its Host-owned permission, removes modifiers whose targets are
   hidden, and redacts artifact, runtime, handler, and permission internals.
@@ -842,7 +843,8 @@ template while retaining Schema fallback fields.
   recommendation; restart restoration, denied operator/bearer requests, explicit
   cookie approval, additive PostgreSQL mapping/grant/audit evidence, and replay
   all pass without replacing unrelated role permissions. Identity/Auth/Profile
-  and automation authority remain open.
+  surfaces, trusted automation authority, and the membership joined
+  no-implicit-grant gate are closed.
 - Query Registry has Host Protocol V2 `InvokeQuery`/`FilterQueryResult`,
   composite Core+Registry Schema validation, and a real-subprocess reference
   plugin fixture (`sforum-query-reference` /

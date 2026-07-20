@@ -21,8 +21,9 @@ import (
 
 // TestReferenceMembershipPluginJoinedGates exercises the real Protocol V2
 // subprocess path for Identity auth/profile/recovery/session/risk consumers.
-// P7 identity rows stay uncredited until the full product gate set is reviewed
-// against production lifecycle/bootstrap wiring and PostgreSQL joined evidence.
+// Combined with Host-owned role mapping, automation Host Commands, production
+// bootstrap consumer wiring, and the auth/profile HTTP surfaces, this gate
+// closes the four remaining P7 identity rows.
 func TestReferenceMembershipPluginJoinedGates(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping reference membership plugin subprocess build in short mode")

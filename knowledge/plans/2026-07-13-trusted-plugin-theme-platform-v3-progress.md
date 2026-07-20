@@ -1,8 +1,8 @@
 # Trusted Plugin And Theme Platform V3 Progress Ledger
 
-Date: 2026-07-19
-Overall progress: **67.0%**
-Active phase: **P7/P9 accepted work plus P10-P12 production closure slices**
+Date: 2026-07-20
+Overall progress: **69.0%**
+Active phase: **P9 active; P10-P12 production closure slices remain open**
 
 This ledger is the durable percentage and context-compaction checkpoint for the
 V3 program. Update it before context compression, at every phase boundary, and
@@ -23,7 +23,7 @@ scaffolding, or demo-only code cannot satisfy a runtime exit criterion.
 | P4 Lifecycle/dependencies | 7% | 100% | 7% |
 | P5 Database/commands | 8% | 100% | 8% |
 | P6 Routes/middleware | 10% | 100% | 10.00% |
-| P7 Workflow/admin/query/identity | 10% | 82% | 8.18% |
+| P7 Workflow/admin/query/identity | 10% | 100% | 10.00% |
 | P8 Theme compiler/runtime | 8% | 100% | 8% |
 | P9 Components/assets/L2 | 8% | 25% | 2.00% |
 | P10 Content/media/data | 8% | 0% | 0% |
@@ -85,6 +85,37 @@ file scope, constraints, and verification commands; delegates must not stage or
 commit, and the primary agent must inspect their diffs and tests before accepting
 work. This policy remains active across context compression and should be removed
 or treated as expired only after the complete V3 goal is achieved.
+
+## 2026-07-20 P7 Identity/Auth/Automation Closure
+
+- P7 is complete at **22/22 (100%)**. Exact earned weight is
+  `39 + 10*(18/18) + 10*(22/22) + 8 + 8*(4/16) + 0.38 + 0.27 = 69.6477%`
+  (display **69.0%**). Active phase is now P9 (still **4/16**).
+- Closing evidence for the four remaining rows:
+  1. **Identity/Permission Registry** — immutable executable provider Schemas,
+     lifecycle publication, Host-owned role suggestions, user-field/session-
+     policy/external-link stores, risk composition, permission-aware component
+     contribution gates, and Host session issue/renew policy evaluation.
+  2. **Auth/Profile Provider surfaces** — production Core consumers for auth,
+     profile, and recovery (`d3f2f878f`, bootstrap `31324c232`) plus redacted
+     HTTP listing/start/complete and profile section routes with OpenAPI and
+     the reviewed 239-route catalog (`a8333f50e`).
+  3. **Trusted automation authority** — process capabilities
+     `extensions.read/call/manage` with Host Query inventory, Service Discovery
+     `extensions.call` gate, and `extensions.manage` disable/settings
+     reset/update/action Host Commands (actor-delegated, Safe Mode fail-closed).
+  4. **Joined identity denial/no-implicit-grant** —
+     `TestReferenceMembershipPluginJoinedGates` (real Protocol V2 membership
+     fixture) plus `TestP7HostOwnedRoleMappingJoined` prove catalog
+     recommendations never grant roles, Safe Mode/stop fail closed, and denied
+     actors remain denied.
+- Focused gates: Identity controller, Routes catalog parity (239), HostAPI
+  manage/inventory, membership joined subprocess, OpenAPI refs (1974), V3 P0
+  catalog validation.
+- Next: P9 Navigation/Region production mapping, component composition credit,
+  SSR fragments/theme overrides, CSP aggregation, inspectors, and remaining
+  browser exits. Preserve unrelated dirty files (route inspector, public
+  frontend policy, content-policy, PageViewModels, go.mod, ADR Link note).
 
 ## 2026-07-20 Trusted Automation And Risk Composition Checkpoint
 

@@ -1,6 +1,6 @@
 # Trusted Plugin And Theme Platform V3 - Implementation Task Book
 
-Status: **active implementation; P0-P6 and P8 complete; P7 and P9 active**
+Status: **active implementation; P0-P8 complete; P9 active**
 Date: 2026-07-13  
 Decision: `knowledge/decisions/2026-07-13-trusted-plugin-theme-platform-v3.md`
 
@@ -548,15 +548,15 @@ query, and identity workflows without replacing whole routes.
 - [x] Implement Query Registry with typed query plans, fields, relations,
       filters, sorting, pagination, result filters, permission rechecks, cache
       tags, query cost limits, and deterministic composition.
-- [ ] Implement Identity/Permission Registry for capability declarations, role
+- [x] Implement Identity/Permission Registry for capability declarations, role
       suggestions, user fields, session/risk hooks, audit, and permission-aware
       component/query contracts.
-- [ ] Implement Auth/Profile Provider surfaces for registration, login, account
+- [x] Implement Auth/Profile Provider surfaces for registration, login, account
       recovery, profile sections, account management, and external identity
       linking without exposing raw session cookies as authority by default.
 - [x] Keep permission assignment Host-owned: install/enable previews declared
       capabilities but never grants them silently; admins approve role mappings.
-- [ ] Add extension read/call/manage authority for trusted automation plugins.
+- [x] Add extension read/call/manage authority for trusted automation plugins.
 - [x] Generate hook/service/provider/job/schedule/command docs and SDK clients.
 
 ### Tests
@@ -566,7 +566,7 @@ query, and identity workflows without replacing whole routes.
       filter, row/bulk action, editor panel, notice, importer, and exporter.
 - [x] Query plugins compose filters/sorts without bypassing permission checks,
       exceeding cost limits, corrupting pagination, or poisoning cache keys.
-- [ ] Identity plugin adds auth/profile/user fields and permissions while denied
+- [x] Identity plugin adds auth/profile/user fields and permissions while denied
       actors remain denied and no role receives an implicit grant.
 - [x] Priority, timeout, failure policy, version mismatch, dependency disable,
       cycle, and provider fallback.
@@ -915,6 +915,82 @@ Cache task and test rows rather than being counted twice here.
 - [ ] Security review for custom guards, raw DB, route replacement, L2, files,
       secrets, HTTP, OpenAPI, and plugin-to-plugin authority.
 
+## Post-V3 Deferred Follow-up - API Memory And Runtime Hygiene
+
+This is a **non-blocking post-program backlog**, not a V3 phase. It has no P
+number, task-row credit, or phase weight and must not change the fixed progress
+calculation, the 99-row target, P13 Final Gates, or Program Definition of Done.
+Do not start implementation while any V3 phase or final gate remains incomplete.
+
+### Evidence recorded on 2026-07-18
+
+- The admin overview's primary `memoryBytes` value is Go `runtime.MemStats.Sys`,
+  not process RSS, private physical footprint, container working set, or live
+  heap. The UI already carries `heapAllocBytes` separately, so the primary label
+  can overstate actionable memory use.
+- The running development API fluctuated around 156-181 MiB RSS. macOS `vmmap`
+  reported about 92-112 MiB private physical footprint and a 164 MiB peak. This
+  short observation is insufficient to establish a heap leak.
+- The API owned four active backend plugin children using about 58 MiB combined
+  RSS. Separately, 169 reparented plugin processes (`PPID=1`), mostly old
+  `sforum.storage-fs` artifacts, used about 1.18 GiB combined RSS. These were
+  observed only and were not terminated during the investigation.
+- Development embeds River in the API by default. The six configured queue
+  defaults total 30 worker slots, while production defaults to a standalone
+  worker.
+- The current loopback API returned 404 for `/debug/pprof/heap`; there is no
+  enabled heap profile with which to attribute retained allocations.
+- The development binary was about 75 MiB without stripped debug metadata. The
+  production Docker build also omits `-trimpath -ldflags="-s -w"`; stripping is
+  build/image hygiene and must not be presented as a material runtime-memory fix.
+- Core still links provider-specific OSS, COS, FTP, and SFTP implementations.
+  Moving vendor behavior behind existing plugin/provider contracts remains the
+  architecture-aligned way to remove those dependencies from the Host.
+
+### Deferred execution order
+
+1. Correct observability semantics: distinguish Go `Sys`, `HeapAlloc`,
+   `HeapSys`, process RSS/private working set, container/cgroup memory, and the
+   aggregate API-plus-plugin process family. Establish an idle and representative
+   load baseline before setting a numeric target.
+2. Add default-off, loopback-only profiling with explicit production security
+   controls. Capture heap, allocation, goroutine, and representative load
+   profiles before claiming a leak or selecting optimizations.
+3. Close plugin child-process containment: cover graceful stop, Host crash,
+   forced test termination, startup reconciliation, exact-artifact ownership,
+   and Linux parent-death/process-group behavior. Add a bounded orphan detector
+   and normal/race/integration evidence without killing unrelated processes.
+4. Define explicit development and small-VPS River concurrency profiles. Compare
+   embedded and standalone workers using both API-process and whole-family
+   memory, rather than moving memory to another process and calling it saved.
+5. Load-test a deployment-aware `GOMEMLIMIT` policy with latency, GC CPU, queue
+   throughput, and OOM evidence. Do not choose a limit from `MemStats.Sys` alone.
+6. Move remaining vendor storage implementations out of Core through the
+   existing provider/plugin contracts, preserving safe defaults, migrations,
+   operator reset behavior, and compatibility policy.
+7. Repeat the P0/P13 performance and memory regression report after each accepted
+   change. Keep binary stripping results separate from runtime working-set gains.
+
+### Rust decision gate
+
+- Do not rewrite or split the main Go API solely to reduce the current memory
+  number. A second runtime can duplicate pools, telemetry, deployment, contracts,
+  and authorization while leaving the measured Go Host baseline in place.
+- Consider Rust first for an independently bounded CPU/memory-heavy worker, or
+  for plugin subprocesses where replacing several resident Go processes produces
+  a measured whole-family saving.
+- A Rust plugin experiment must first prove compatibility with the exact Protocol
+  V2 handshake, gRPC/AutoMTLS, Host broker, trust/admission, lifecycle drain, and
+  generated contract tests. Protobuf generation alone is not compatibility.
+- Adopt a Rust component only after a same-workload comparison covers RSS/private
+  working set, peak memory, throughput, latency, build/release complexity,
+  observability, failure isolation, and maintenance ownership.
+
+Detailed historical context remains in
+`knowledge/plans/2026-07-12-api-memory-runtime-hygiene.md`. This post-V3 backlog
+supersedes that document's cancelled P1/P2 only after the V3 completion gate
+above opens; it does not silently reactivate them during V3.
+
 ## Permission Matrix Target
 
 | Operation | Minimum authority |
@@ -981,7 +1057,7 @@ The program is complete only when all statements are true:
       row/bulk actions, forms, notices, editor/detail regions, import, and export.
 - [ ] Query Registry composes typed plans while preserving permission, cost,
       pagination, result-schema, and cache correctness.
-- [ ] Identity/Permission/Auth/Profile surfaces support real membership plugins;
+- [x] Identity/Permission/Auth/Profile surfaces support real membership plugins;
       declarations and role suggestions never grant authority silently.
 - [ ] Media Pipeline and Navigation/Region registries support complete processing
       and presentation workflows with source/fallback preservation.
