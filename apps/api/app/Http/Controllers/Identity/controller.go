@@ -190,20 +190,23 @@ func (h *Controller) register(c fiber.Ctx) error {
 		return mapIdentityError(err)
 	}
 
-	if err := h.evaluateSessionIssue(c.Context(), current.ID); err != nil {
+	var pendingSession *authsession.Pending
+	if err := h.runSessionIssue(c.Context(), current.ID, current.CurrentTokenVersion, func(effectCtx context.Context) error {
+		var beginErr error
+		pendingSession, beginErr = h.beginSessionIssue(c, effectCtx, current.ID, current.CurrentTokenVersion)
+		if beginErr != nil {
+			return fiber.NewError(fiber.StatusServiceUnavailable, identity.CodeSessionUnavailable)
+		}
+		h.applySessionDeviceInfo(c, current.ID, pendingSession)
+		if err := h.auditLogin(effectCtx, c, current.ID, identity.AuditActionRegister, pendingSession.Info().Hash); err != nil {
+			return fiber.NewError(fiber.StatusServiceUnavailable, identity.CodeSessionUnavailable)
+		}
+		if err := pendingSession.SaveContext(effectCtx); err != nil {
+			return fiber.NewError(fiber.StatusServiceUnavailable, identity.CodeSessionUnavailable)
+		}
+		return nil
+	}); err != nil {
 		return mapIdentityError(err)
-	}
-
-	pendingSession, err := h.authSessions.Begin(c, current.ID)
-	if err != nil {
-		return fiber.NewError(fiber.StatusServiceUnavailable, identity.CodeSessionUnavailable)
-	}
-	h.applySessionDeviceInfo(c, current.ID, pendingSession)
-	if err := h.auditLogin(c, current.ID, identity.AuditActionRegister, pendingSession.Info().Hash); err != nil {
-		return fiber.NewError(fiber.StatusServiceUnavailable, identity.CodeSessionUnavailable)
-	}
-	if err := pendingSession.Save(); err != nil {
-		return fiber.NewError(fiber.StatusServiceUnavailable, identity.CodeSessionUnavailable)
 	}
 	// 登录成功后强制最大活跃设备数，best-effort 踢出最旧设备（失败不阻塞登录）。
 	// 传入本次登录的 sid，确保当前设备永不被踢。
@@ -248,20 +251,20 @@ func (h *Controller) login(c fiber.Ctx) error {
 		return mapIdentityError(err)
 	}
 
-	if err := h.evaluateSessionIssue(c.Context(), current.ID); err != nil {
+	var pendingSession *authsession.Pending
+	if err := h.runSessionIssue(c.Context(), current.ID, current.CurrentTokenVersion, func(effectCtx context.Context) error {
+		var beginErr error
+		pendingSession, beginErr = h.beginSessionIssue(c, effectCtx, current.ID, current.CurrentTokenVersion)
+		if beginErr != nil {
+			return fiber.NewError(fiber.StatusServiceUnavailable, identity.CodeSessionUnavailable)
+		}
+		h.applySessionDeviceInfo(c, current.ID, pendingSession)
+		if err := h.auditLogin(effectCtx, c, current.ID, identity.AuditActionLogin, pendingSession.Info().Hash); err != nil {
+			return err
+		}
+		return pendingSession.SaveContext(effectCtx)
+	}); err != nil {
 		return mapIdentityError(err)
-	}
-
-	pendingSession, err := h.authSessions.Begin(c, current.ID)
-	if err != nil {
-		return err
-	}
-	h.applySessionDeviceInfo(c, current.ID, pendingSession)
-	if err := h.auditLogin(c, current.ID, identity.AuditActionLogin, pendingSession.Info().Hash); err != nil {
-		return err
-	}
-	if err := pendingSession.Save(); err != nil {
-		return err
 	}
 	// 登录成功后强制最大活跃设备数，best-effort 踢出最旧设备（失败不阻塞登录）。
 	// 传入本次登录的 sid，确保当前设备永不被踢。
@@ -665,18 +668,40 @@ func (h *Controller) sessionUserID(c fiber.Ctx) (int64, bool, error) {
 	return h.authSessions.CurrentUserID(c)
 }
 
-// evaluateSessionIssue runs selected session.evaluate immediately before the
-// Host creates a browser session. Nil evaluator preserves Core default allow.
-// Revocation never enters this path.
-func (h *Controller) evaluateSessionIssue(ctx context.Context, userID int64) error {
-	if h == nil || h.sessionPolicy == nil {
-		return nil
+// runSessionIssue keeps the Host issue mutation inside exact policy admission.
+// Nil evaluator preserves the Core default and executes the effect directly.
+func (h *Controller) runSessionIssue(
+	ctx context.Context,
+	userID int64,
+	tokenVersion int64,
+	effect identity.SessionPolicyHostEffect,
+) error {
+	if effect == nil {
+		return identity.ErrSessionPolicyEvaluationInvalid
 	}
-	_, err := h.sessionPolicy.RequireAllow(ctx, identity.SessionEvaluationInput{
-		UserID:  userID,
-		Purpose: identity.SessionEvaluationPurposeIssue,
-	})
+	if h == nil || h.sessionPolicy == nil {
+		return effect(ctx)
+	}
+	_, err := h.sessionPolicy.RequireAllowAndRun(
+		ctx,
+		identity.SessionEvaluationInput{
+			UserID: userID, TokenVersion: tokenVersion, Purpose: identity.SessionEvaluationPurposeIssue,
+		},
+		effect,
+	)
 	return err
+}
+
+func (h *Controller) beginSessionIssue(
+	c fiber.Ctx,
+	ctx context.Context,
+	userID int64,
+	tokenVersion int64,
+) (*authsession.Pending, error) {
+	if h.sessionPolicy == nil {
+		return h.authSessions.BeginWithContext(c, ctx, userID)
+	}
+	return h.authSessions.BeginWithAuthorityVersion(c, ctx, userID, tokenVersion)
 }
 
 func (h *Controller) actor(c fiber.Ctx) (identity.Actor, error) {
@@ -699,8 +724,14 @@ func (h *Controller) actor(c fiber.Ctx) (identity.Actor, error) {
 	return actor, nil
 }
 
-func (h *Controller) auditLogin(c fiber.Ctx, userID int64, action string, sessionHash string) error {
-	return h.service.RecordLoginAudit(c.Context(), identity.LoginAudit{
+func (h *Controller) auditLogin(
+	ctx context.Context,
+	c fiber.Ctx,
+	userID int64,
+	action string,
+	sessionHash string,
+) error {
+	return h.service.RecordLoginAudit(ctx, identity.LoginAudit{
 		UserID:      userID,
 		Action:      action,
 		IPAddress:   clientip.FromCtx(c),

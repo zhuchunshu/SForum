@@ -337,7 +337,11 @@ func newSessionTestApp(t *testing.T) (*fiber.App, *sessionTestStore) {
 	// 真实 Manager（内存 session store），注入测试 store 作为会话目录。
 	manager := authsession.NewManager(
 		session.NewStore(session.Config{IdleTimeout: time.Hour}),
-		authsession.Config{HashSecret: "test-secret", SessionStore: store},
+		authsession.Config{
+			HashSecret:   "test-secret",
+			SessionStore: store,
+			TokenVersion: store.GetUserTokenVersion,
+		},
 	)
 	controller := NewControllerWithAuthSessions(service, manager, nil)
 	app := apphttp.NewApp(config.Config{CSRFEnabled: false}, nil, apphttp.Dependencies{
@@ -381,7 +385,11 @@ func newLoginRiskTestApp(t *testing.T) (*fiber.App, *identity.Service, *loginRis
 	service.WithLoginLockout(lockout, loginRiskTestPolicy{})
 	manager := authsession.NewManager(
 		session.NewStore(session.Config{IdleTimeout: time.Hour}),
-		authsession.Config{HashSecret: "test-secret", SessionStore: store},
+		authsession.Config{
+			HashSecret:   "test-secret",
+			SessionStore: store,
+			TokenVersion: store.GetUserTokenVersion,
+		},
 	)
 	verifier := humanverify.NewService(
 		humanverify.ServiceConfig{
