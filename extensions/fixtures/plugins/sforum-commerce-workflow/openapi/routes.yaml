@@ -1,0 +1,19 @@
+openapi: 3.1.0
+info:
+  title: SForum Commerce Workflow Reference
+  version: 1.0.0
+paths:
+  /api/commerce-workflow/orders:
+    get:
+      operationId: sforumCommerceWorkflowListOrders
+      summary: List reference commerce orders
+      responses:
+        "200":
+          description: Order list
+  /api/commerce-workflow/events:
+    get:
+      operationId: sforumCommerceWorkflowOrderEvents
+      summary: Stream order events (SSE)
+      responses:
+        "200":
+          description: Server-sent events

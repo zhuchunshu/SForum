@@ -1,0 +1,193 @@
+{
+  "manifestVersion": 3,
+  "id": "sforum.commerce-workflow",
+  "name": "SForum Commerce Workflow Reference",
+  "description": "Protocol V2 reference plugin proving routes, own-schema database, hooks, jobs, cache, OpenAPI, components, and services for a trusted commerce/workflow vertical.",
+  "url": "https://github.com/zhuchunshu/sforum",
+  "author": {
+    "name": "SForum",
+    "url": "https://github.com/zhuchunshu/sforum"
+  },
+  "version": "1.0.0",
+  "type": "plugin",
+  "sforumVersion": ">=0.1.0",
+  "capabilities": ["host.api"],
+  "backend": {
+    "entry": "backend/plugin",
+    "rpc": "hashicorp-go-plugin",
+    "protocolVersion": 2,
+    "hostApiVersion": "sforum.host@2",
+    "digest": "__BACKEND_DIGEST__"
+  },
+  "permissionDefinitions": [
+    {
+      "key": "sforum.commerce-workflow.manage",
+      "contractVersion": "sforum.commerce-workflow.manage@1",
+      "label": "Manage commerce workflow",
+      "description": "Operate the reference commerce workflow vertical.",
+      "recommendedRoles": ["administrator"],
+      "assignmentPolicy": "host"
+    }
+  ],
+  "database": {
+    "contractVersion": "sforum.commerce-workflow.database@1",
+    "grants": ["own_schema"],
+    "schema": "sforum_commerce_workflow",
+    "role": "sforum_commerce_workflow",
+    "backup": {
+      "required": true,
+      "strategy": "pg_dump"
+    },
+    "retention": {
+      "onDisable": "retain",
+      "onUninstall": "export",
+      "days": 30
+    }
+  },
+  "routes": [
+    {
+      "id": "sforum.commerce-workflow.route.orders",
+      "contractVersion": "sforum.commerce-workflow.route.orders@1",
+      "action": "add",
+      "path": "/api/commerce-workflow/orders",
+      "methods": ["GET"],
+      "guard": "core.guard.public",
+      "fallback": "closed",
+      "mode": "http",
+      "handler": "sforum.commerce-workflow.route.orders",
+      "responseSchema": "sforum.commerce-workflow.route.orders.response@1"
+    },
+    {
+      "id": "sforum.commerce-workflow.route.orders-alias",
+      "contractVersion": "sforum.commerce-workflow.route.orders-alias@1",
+      "action": "alias",
+      "targetId": "sforum.commerce-workflow.route.orders",
+      "path": "/api/commerce-workflow/v1/orders",
+      "methods": ["GET"],
+      "fallback": "closed",
+      "mode": "http"
+    },
+    {
+      "id": "sforum.commerce-workflow.route.legacy-redirect",
+      "contractVersion": "sforum.commerce-workflow.route.legacy-redirect@1",
+      "action": "redirect",
+      "path": "/commerce-workflow/old-orders",
+      "methods": ["GET"],
+      "guard": "core.guard.public",
+      "fallback": "closed",
+      "mode": "http",
+      "destination": "/commerce-workflow/orders"
+    },
+    {
+      "id": "sforum.commerce-workflow.route.events",
+      "contractVersion": "sforum.commerce-workflow.route.events@1",
+      "action": "add",
+      "path": "/api/commerce-workflow/events",
+      "methods": ["GET"],
+      "guard": "core.guard.login",
+      "fallback": "closed",
+      "mode": "sse",
+      "handler": "sforum.commerce-workflow.route.events",
+      "responseSchema": "sforum.commerce-workflow.route.events.response@1"
+    }
+  ],
+  "hooks": [
+    {
+      "id": "sforum.commerce-workflow.hook.order-evaluate",
+      "contractVersion": "sforum.commerce-workflow.hook.order-evaluate@1",
+      "name": "sforum.commerce-workflow.order.evaluate",
+      "kind": "filter",
+      "handler": "sforum.commerce-workflow.hook.order-evaluate",
+      "inputSchema": "sforum.commerce-workflow.hook.order-evaluate.input@1",
+      "resultSchema": "sforum.commerce-workflow.hook.order-evaluate.result@1",
+      "execution": "sync",
+      "failurePolicy": "fail_closed",
+      "timeoutMs": 1000,
+      "mutableFields": ["status"]
+    },
+    {
+      "id": "sforum.commerce-workflow.hook.order-created",
+      "contractVersion": "sforum.commerce-workflow.hook.order-created@1",
+      "name": "sforum.commerce-workflow.order.created",
+      "kind": "observe",
+      "handler": "sforum.commerce-workflow.hook.order-created",
+      "inputSchema": "sforum.commerce-workflow.hook.order-created.input@1",
+      "execution": "async",
+      "failurePolicy": "fail_open",
+      "timeoutMs": 2000
+    }
+  ],
+  "jobs": [
+    {
+      "id": "sforum.commerce-workflow.job.settle",
+      "contractVersion": "sforum.commerce-workflow.job.settle@1",
+      "name": "sforum.commerce-workflow.settle",
+      "handler": "sforum.commerce-workflow.job.settle",
+      "payloadSchema": "sforum.commerce-workflow.job.settle.payload@1",
+      "retryPolicy": "exponential",
+      "maxAttempts": 5,
+      "concurrencyLimit": 1
+    }
+  ],
+  "cache": [
+    {
+      "id": "sforum.commerce-workflow.cache.orders",
+      "contractVersion": "sforum.commerce-workflow.cache.orders@1",
+      "namespace": "sforum.commerce-workflow.orders",
+      "policy": "permission",
+      "tags": ["sforum.commerce-workflow.orders"],
+      "invalidators": ["sforum.commerce-workflow.order.changed"]
+    }
+  ],
+  "services": [
+    {
+      "id": "sforum.commerce-workflow.service.orders",
+      "contractVersion": "sforum.commerce-workflow.service.orders@1",
+      "action": "add",
+      "handler": "sforum.commerce-workflow.service.orders",
+      "requestSchema": "sforum.commerce-workflow.service.orders.request@1",
+      "responseSchema": "sforum.commerce-workflow.service.orders.response@1"
+    }
+  ],
+  "components": [
+    {
+      "id": "sforum.commerce-workflow.component.order-card",
+      "contractVersion": "sforum.commerce-workflow.component.order-card@1",
+      "action": "add",
+      "l2Component": "sforum.commerce-workflow.file.frontend.card",
+      "propsSchema": "sforum.commerce-workflow.component.order-card.props@1",
+      "resultSchema": "sforum.commerce-workflow.component.order-card.result@1",
+      "themeOverrideKey": "sforum.commerce-workflow.order-card"
+    }
+  ],
+  "openapi": [
+    {
+      "id": "sforum.commerce-workflow.openapi.routes",
+      "contractVersion": "sforum.commerce-workflow.openapi.routes@1",
+      "path": "openapi/routes.yaml",
+      "digest": "__OPENAPI_DIGEST__",
+      "namespace": "sforum.commerce-workflow"
+    }
+  ],
+  "packageFiles": [
+    {
+      "id": "sforum.commerce-workflow.file.backend",
+      "kind": "executable",
+      "path": "backend/plugin",
+      "digest": "__BACKEND_DIGEST__"
+    },
+    {
+      "id": "sforum.commerce-workflow.file.frontend.card",
+      "kind": "frontend",
+      "path": "frontend/order-card.mjs",
+      "digest": "__FRONTEND_DIGEST__",
+      "version": "1"
+    },
+    {
+      "id": "sforum.commerce-workflow.file.openapi",
+      "kind": "openapi",
+      "path": "openapi/routes.yaml",
+      "digest": "__OPENAPI_DIGEST__"
+    }
+  ]
+}

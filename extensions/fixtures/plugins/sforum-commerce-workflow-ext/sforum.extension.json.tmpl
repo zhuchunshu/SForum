@@ -1,0 +1,63 @@
+{
+  "manifestVersion": 3,
+  "id": "sforum.commerce-workflow-ext",
+  "name": "SForum Commerce Workflow Extender",
+  "description": "Protocol V2 extender that depends on sforum.commerce-workflow and extends its hooks and services.",
+  "url": "https://github.com/zhuchunshu/sforum",
+  "author": {
+    "name": "SForum",
+    "url": "https://github.com/zhuchunshu/sforum"
+  },
+  "version": "1.0.0",
+  "type": "plugin",
+  "sforumVersion": ">=0.1.0",
+  "capabilities": ["host.api"],
+  "backend": {
+    "entry": "backend/plugin",
+    "rpc": "hashicorp-go-plugin",
+    "protocolVersion": 2,
+    "hostApiVersion": "sforum.host@2",
+    "digest": "__BACKEND_DIGEST__"
+  },
+  "dependencies": [
+    {
+      "id": "sforum.commerce-workflow",
+      "version": "^1.0.0",
+      "kind": "required"
+    }
+  ],
+  "hooks": [
+    {
+      "id": "sforum.commerce-workflow-ext.hook.order-enrich",
+      "contractVersion": "sforum.commerce-workflow.hook.order-evaluate@1",
+      "name": "sforum.commerce-workflow.order.evaluate",
+      "targetId": "sforum.commerce-workflow.hook.order-evaluate",
+      "kind": "filter",
+      "handler": "sforum.commerce-workflow-ext.hook.order-enrich",
+      "inputSchema": "sforum.commerce-workflow.hook.order-evaluate.input@1",
+      "resultSchema": "sforum.commerce-workflow.hook.order-evaluate.result@1",
+      "execution": "sync",
+      "failurePolicy": "fail_closed",
+      "timeoutMs": 1000,
+      "mutableFields": ["status"]
+    }
+  ],
+  "services": [
+    {
+      "id": "sforum.commerce-workflow-ext.service.audit",
+      "contractVersion": "sforum.commerce-workflow-ext.service.audit@1",
+      "action": "add",
+      "handler": "sforum.commerce-workflow-ext.service.audit",
+      "requestSchema": "sforum.commerce-workflow-ext.service.audit.request@1",
+      "responseSchema": "sforum.commerce-workflow-ext.service.audit.response@1"
+    }
+  ],
+  "packageFiles": [
+    {
+      "id": "sforum.commerce-workflow-ext.file.backend",
+      "kind": "executable",
+      "path": "backend/plugin",
+      "digest": "__BACKEND_DIGEST__"
+    }
+  ]
+}
