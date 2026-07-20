@@ -4,7 +4,7 @@ This is the entry point for project memory.
 
 ## Latest Handoff
 
-- **2026-07-21 Trusted Plugin And Theme Platform V3 P13 residual (overall 99.6%)**
+- **2026-07-21 Trusted Plugin And Theme Platform V3 P13 residual (overall 99.7%)**
   - Decision: `knowledge/decisions/2026-07-13-trusted-plugin-theme-platform-v3.md`
   - Identity/automation authority:
     `knowledge/decisions/2026-07-19-identity-provider-automation-authority.md`
@@ -14,6 +14,8 @@ This is the entry point for project memory.
     `knowledge/plans/2026-07-13-trusted-plugin-theme-platform-v3-progress.md`
   - Session progress:
     `knowledge/sessions/2026-07-13-trusted-plugin-theme-platform-v3-progress.md`
+  - P13 digest hygiene handoff:
+    `knowledge/sessions/2026-07-21-trusted-plugin-theme-platform-v3-p13-digest-hygiene-handoff.md`
   - P13 LTS residual handoff:
     `knowledge/sessions/2026-07-21-trusted-plugin-theme-platform-v3-p13-lts-residual-handoff.md`
   - P13 presentation chrome handoff:
@@ -24,10 +26,11 @@ This is the entry point for project memory.
     `knowledge/sessions/2026-07-21-trusted-plugin-theme-platform-v3-p13-apilts-handoff.md`
   - Prior P13 residual handoff:
     `knowledge/sessions/2026-07-21-trusted-plugin-theme-platform-v3-p13-handoff.md`
-  - P0-P12 complete. P13 **~99%**: command gates, reference packages, live
+  - P0-P12 complete. P13 **~99.7%**: command gates, reference packages, live
     API/ready, Baiduspider SSR green; production APILTS wiring; **SMTP** and
     **storage-fs** Protocol V2; **pages + public chrome** owned by theme L1 (navbar/footer islands) with
-    Host fail-closed chrome (`5b26b80fe`…`6b49b59f1`). Weighted **99.6%**.
+    Host fail-closed chrome (`5b26b80fe`…`6b49b59f1`); builtin digests aligned
+    (`d9e9a1aa1`…`a3284bcba`). Weighted **99.7%**.
     Open: LTS-blocked loader/v1/compatibility deletions only (RemoveAfter≈2026-11-28 + zero-shim). Evidence:
     `docs/extensions/v3/p13-final-gates-evidence.md`.
   - Prior P11 closure handoff:
