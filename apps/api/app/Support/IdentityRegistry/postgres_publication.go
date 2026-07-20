@@ -31,19 +31,22 @@ func (s *PostgresStore) Reconcile(
 		return DurableState{}, err
 	}
 
-	for attempt := 0; attempt < maxPublicationReconcileAttempts; attempt++ {
-		state, reconcileErr := s.reconcilePublicationOnce(ctx, normalized, desiredRoot, desired)
-		if reconcileErr == nil {
-			return state, nil
+	run := func() (DurableState, error) {
+		for attempt := 0; attempt < maxPublicationReconcileAttempts; attempt++ {
+			state, reconcileErr := s.reconcilePublicationOnce(ctx, normalized, desiredRoot, desired)
+			if reconcileErr == nil {
+				return state, nil
+			}
+			if !errors.Is(reconcileErr, errRetryableIdentityRegistryTransaction) {
+				return DurableState{}, reconcileErr
+			}
+			if err := ctx.Err(); err != nil {
+				return DurableState{}, mapStoreError(err)
+			}
 		}
-		if !errors.Is(reconcileErr, errRetryableIdentityRegistryTransaction) {
-			return DurableState{}, reconcileErr
-		}
-		if err := ctx.Err(); err != nil {
-			return DurableState{}, mapStoreError(err)
-		}
+		return DurableState{}, ErrRevisionConflict
 	}
-	return DurableState{}, ErrRevisionConflict
+	return runSessionPolicyMutationGate(ctx, s.sessionPolicyMutationGate, run)
 }
 
 func (s *PostgresStore) reconcilePublicationOnce(

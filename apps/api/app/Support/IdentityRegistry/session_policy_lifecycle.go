@@ -32,6 +32,16 @@ type SessionPolicyLifecycleInvalidator interface {
 	) error
 }
 
+// SessionPolicyLifecycleMutationGate is an additive process-local coordination
+// boundary. PostgreSQL remains authoritative across processes; this gate keeps
+// same-process lifecycle waiters from borrowing the Host effect's main pool
+// before they block on the durable selection lock. An allow path must invoke
+// the callback synchronously and exactly once, must propagate its error, and
+// must not retain the callback after returning.
+type SessionPolicyLifecycleMutationGate interface {
+	RunSessionPolicyMutation(context.Context, func() error) error
+}
+
 func exactReplaySessionPolicyProvider(
 	currentRoot *DurableRootPublicationTip,
 	desiredRoot *durableDesiredRootPublication,

@@ -20,9 +20,10 @@ import (
 // Store/PublicationStore paths ignore it. NewPostgresStore leaves it nil so
 // legacy adoption fails closed unless production or tests inject a verifier.
 type PostgresStore struct {
-	pool                     *pgxpool.Pool
-	trustImpactValidator     StoredTrustImpactValidator
-	sessionPolicyInvalidator SessionPolicyLifecycleInvalidator
+	pool                      *pgxpool.Pool
+	trustImpactValidator      StoredTrustImpactValidator
+	sessionPolicyInvalidator  SessionPolicyLifecycleInvalidator
+	sessionPolicyMutationGate SessionPolicyLifecycleMutationGate
 }
 
 // PostgresStoreDependencies are instance-scoped production dependencies. Test
@@ -51,10 +52,12 @@ func NewPostgresStoreWithDependencies(
 	pool *pgxpool.Pool,
 	dependencies PostgresStoreDependencies,
 ) *PostgresStore {
+	mutationGate, _ := dependencies.SessionPolicyInvalidator.(SessionPolicyLifecycleMutationGate)
 	return &PostgresStore{
-		pool:                     pool,
-		trustImpactValidator:     dependencies.StoredTrustImpactValidator,
-		sessionPolicyInvalidator: dependencies.SessionPolicyInvalidator,
+		pool:                      pool,
+		trustImpactValidator:      dependencies.StoredTrustImpactValidator,
+		sessionPolicyInvalidator:  dependencies.SessionPolicyInvalidator,
+		sessionPolicyMutationGate: mutationGate,
 	}
 }
 
@@ -82,6 +85,12 @@ func (s *PostgresStore) HasStoredTrustImpactValidator() bool {
 // atomically reset a selected third-party Session Policy before unpublication.
 func (s *PostgresStore) HasSessionPolicyLifecycleInvalidator() bool {
 	return s != nil && s.sessionPolicyInvalidator != nil
+}
+
+// HasSessionPolicyLifecycleMutationGate reports whether lifecycle writers wait
+// outside the main pool while accepted session effects are in flight.
+func (s *PostgresStore) HasSessionPolicyLifecycleMutationGate() bool {
+	return s != nil && s.sessionPolicyMutationGate != nil
 }
 
 func (s *PostgresStore) LoadDurableState(ctx context.Context) (DurableState, error) {
