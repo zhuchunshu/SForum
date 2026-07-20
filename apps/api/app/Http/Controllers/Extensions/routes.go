@@ -5,6 +5,8 @@ import "github.com/gofiber/fiber/v3"
 func (h *Controller) RegisterRoutes(api fiber.Router) {
 	// 前台：当前激活主题的非 secret 设置（主题 layer 消费）。
 	api.Get("/site/active-theme/settings", h.publicActiveThemeSettings)
+	// page-policy 必须在带 :extensionId 的 runtime 路由之前注册，避免被 path 参数吞掉。
+	api.Get("/extensions/runtime/page-policy", h.publicFrontendPagePolicy)
 	api.Get("/extensions/runtime/:extensionId/components/:componentId", h.publicFrontendComponent)
 	api.Get("/extensions/runtime/:extensionId/assets/:packageDigest/:digest/:handle", h.publicFrontendAsset)
 	api.Get("/extensions/runtime/:extensionId/packages/:packageDigest/*", h.publicFrontendPackageAsset)

@@ -749,3 +749,48 @@ func publicPagePolicyError(
 		Code: code, ExtensionID: tuple.ExtensionID, ComponentID: tuple.ComponentID, Cause: cause,
 	}
 }
+
+// PublicFrontendComponentRef is a soft page-local L2 reference. Host expands it
+// through the live PublicComponent admission path before CSP aggregation.
+type PublicFrontendComponentRef struct {
+	ExtensionID string `json:"extensionId"`
+	ComponentID string `json:"componentId"`
+}
+
+// PublicPagePolicyForComponents expands soft component refs into exact tuples and
+// aggregates the Host-owned document CSP for one page response.
+func (s *FrontendService) PublicPagePolicyForComponents(
+	ctx context.Context,
+	refs []PublicFrontendComponentRef,
+) (PublicFrontendPolicy, error) {
+	if err := s.publicPagePolicyGates(ctx); err != nil {
+		return PublicFrontendPolicy{}, err
+	}
+	if len(refs) > maxPublicPagePolicyComponents {
+		return PublicFrontendPolicy{}, &PublicPagePolicyError{Code: PublicPagePolicyBoundsExceeded}
+	}
+	tuples := make([]PublicFrontendComponentTuple, 0, len(refs))
+	for _, ref := range refs {
+		extensionID := normalizeID(ref.ExtensionID)
+		componentID := normalizeID(ref.ComponentID)
+		if extensionID == "" || componentID == "" {
+			return PublicFrontendPolicy{}, &PublicPagePolicyError{Code: PublicPagePolicyInvalidInput}
+		}
+		descriptor, err := s.PublicComponent(ctx, extensionID, componentID)
+		if err != nil {
+			return PublicFrontendPolicy{}, publicPagePolicyError(
+				PublicPagePolicyComponentUnavailable,
+				PublicFrontendComponentTuple{ExtensionID: extensionID, ComponentID: componentID},
+				err,
+			)
+		}
+		tuples = append(tuples, PublicFrontendComponentTuple{
+			ExtensionID:      descriptor.ExtensionID,
+			ExtensionVersion: descriptor.ExtensionVersion,
+			PackageDigest:    descriptor.PackageDigest,
+			ComponentID:      descriptor.ComponentID,
+			ContractVersion:  descriptor.ContractVersion,
+		})
+	}
+	return s.PublicPagePolicy(ctx, tuples)
+}

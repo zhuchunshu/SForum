@@ -1052,6 +1052,12 @@
       "path": "/api/v1/extensions/runtime/:extensionId/packages/:packageDigest/*"
     },
     {
+      "id": "core.route.extensions.public_frontend_page_policy",
+      "contractVersion": "sforum.route.extensions.public_frontend_page_policy@1",
+      "method": "GET",
+      "path": "/api/v1/extensions/runtime/page-policy"
+    },
+    {
       "id": "core.route.system.health",
       "contractVersion": "sforum.route.system.health@1",
       "method": "GET",

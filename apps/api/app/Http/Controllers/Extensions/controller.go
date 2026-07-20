@@ -84,6 +84,10 @@ type PublicFrontendRuntimeService interface {
 	PublicComponent(context.Context, string, string) (extensions.PublicFrontendComponent, error)
 	PublicAsset(context.Context, string, string, string, string) (extensions.FrontendAsset, error)
 	PublicPackageAsset(context.Context, string, string, string) (extensions.FrontendAsset, error)
+	// PublicPagePolicyForComponents aggregates Host-owned document CSP for exact
+	// page-local L2 soft refs. Empty refs return the Host baseline when public L2
+	// gates pass.
+	PublicPagePolicyForComponents(context.Context, []extensions.PublicFrontendComponentRef) (extensions.PublicFrontendPolicy, error)
 }
 
 type ProxyInput struct {

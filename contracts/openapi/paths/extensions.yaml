@@ -16,6 +16,56 @@ siteActiveThemeSettings:
             schema:
               "$ref": "../schemas/extensions.yaml#/ApiResponsePublicActiveThemeSettings"
 
+publicExtensionPagePolicy:
+  get:
+    summary: Aggregate Host document CSP for public L2 components on one page
+    operationId: getPublicExtensionPagePolicy
+    tags: [Extensions]
+    description: >-
+      Resolves page-local public L2 soft refs (`extensionId/componentId`) against
+      the live exact-artifact Asset Registry, then returns the Host-owned
+      restrictive document Content-Security-Policy. Empty `component` lists are
+      valid and return the Host baseline when public L2 gates pass. Nuxt SSR must
+      apply `documentPolicy.headerValue` as the `Content-Security-Policy`
+      response header before mounting any public L2 module. Missing, revoked,
+      stale, Safe Mode, or disabled public L2 all collapse to the same 404 so
+      callers fail closed without distinguishing trust state.
+    parameters:
+    - name: component
+      in: query
+      required: false
+      description: >-
+        Repeatable soft ref `extensionId/componentId`. Duplicates are ignored.
+        At most 256 unique refs.
+      schema:
+        type: array
+        maxItems: 256
+        items:
+          type: string
+          pattern: '^[a-z0-9][a-z0-9._-]{1,120}/[a-z0-9][a-z0-9._-]{1,120}$'
+      style: form
+      explode: true
+    responses:
+      '200':
+        description: Host-owned public page CSP policy. Cache-Control is no-store.
+        headers:
+          Cache-Control:
+            schema: { type: string, enum: [no-store] }
+          X-Content-Type-Options:
+            schema: { type: string, enum: [nosniff] }
+          X-SForum-Document-Policy-Digest:
+            schema: { type: string, pattern: '^[0-9a-f]{64}$' }
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/extensions.yaml#/ApiResponsePublicFrontendPolicy"
+      '404':
+        "$ref": "../components/responses.yaml#/NotFound"
+      '422':
+        "$ref": "../components/responses.yaml#/UnprocessableEntity"
+      '503':
+        "$ref": "../components/responses.yaml#/ServiceUnavailable"
+
 publicExtensionComponent:
   get:
     summary: Resolve one trusted prebuilt public component

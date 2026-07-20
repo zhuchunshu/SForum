@@ -2520,6 +2520,73 @@ ApiResponsePublicFrontendComponent:
     message: { type: string }
     data:
       "$ref": "#/PublicFrontendComponent"
+PublicFrontendPolicyDirective:
+  type: object
+  additionalProperties: false
+  required: [name, sources]
+  properties:
+    name:
+      type: string
+      enum: [base-uri, connect-src, default-src, font-src, form-action, frame-ancestors, img-src, media-src, object-src, script-src, style-src, worker-src]
+    sources:
+      type: array
+      minItems: 1
+      maxItems: 128
+      items: { type: string, maxLength: 512 }
+PublicFrontendPolicyComponent:
+  type: object
+  additionalProperties: false
+  required: [extensionId, extensionVersion, packageDigest, impactDigest, componentId, contractVersion]
+  properties:
+    extensionId: { type: string }
+    extensionVersion: { type: string }
+    packageDigest: { type: string, pattern: '^[0-9a-f]{64}$' }
+    impactDigest: { type: string, pattern: '^[0-9a-f]{64}$' }
+    componentId: { type: string }
+    contractVersion: { type: string }
+PublicFrontendDocumentPolicy:
+  type: object
+  additionalProperties: false
+  required: [schemaVersion, digest, directives, headerValue]
+  properties:
+    schemaVersion: { type: string, const: sforum.public-frontend-document-policy@1 }
+    digest: { type: string, pattern: '^[0-9a-f]{64}$' }
+    directives:
+      type: array
+      items:
+        "$ref": "#/PublicFrontendPolicyDirective"
+    headerValue:
+      type: string
+      minLength: 1
+      maxLength: 8192
+      description: Exact Content-Security-Policy header value without the header name.
+PublicFrontendPolicy:
+  type: object
+  additionalProperties: false
+  required: [schemaVersion, graphDigest, extensionPolicyDigest, directives, admittedComponents, documentPolicy]
+  properties:
+    schemaVersion: { type: string, const: sforum.public-frontend-policy@1 }
+    graphDigest: { type: string, pattern: '^[0-9a-f]{64}$' }
+    extensionPolicyDigest: { type: string, pattern: '^[0-9a-f]{64}$' }
+    directives:
+      type: array
+      items:
+        "$ref": "#/PublicFrontendPolicyDirective"
+    admittedComponents:
+      type: array
+      maxItems: 256
+      items:
+        "$ref": "#/PublicFrontendPolicyComponent"
+    documentPolicy:
+      "$ref": "#/PublicFrontendDocumentPolicy"
+ApiResponsePublicFrontendPolicy:
+  type: object
+  required: [code, message, data]
+  properties:
+    code: { type: integer }
+    message: { type: string }
+    data:
+      "$ref": "#/PublicFrontendPolicy"
 PrebuiltSettingsComponent:
   type: object
   required: [id, apiVersion, entry]

@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import type { Component } from 'vue'
 import type { ThemeRenderOutput } from '~/composables/useThemeRenderOutput'
+import {
+  collectPublicL2ComponentRefsFromRenderNodes
+} from '~/runtime/public-extensions/pagePolicy'
 
 const props = defineProps<{
   html?: string
@@ -67,6 +70,21 @@ const renderState = computed(() => {
   }
 })
 
+// SSR：按页面实际 L2 岛聚合 Host document CSP。
+// 策略不可用（public L2 默认关 / 信任撤销）时不写 header；widget 自身回退 L1。
+const publicL2Refs = computed(() => {
+  if (renderState.value.error) return []
+  try {
+    return collectPublicL2ComponentRefsFromRenderNodes(renderState.value.nodes)
+  } catch {
+    return []
+  }
+})
+// 仅在页面声明了 L2 岛时聚合 CSP，避免每个公开页多一次 404。
+const publicPagePolicy = import.meta.server && publicL2Refs.value.length > 0
+  ? await applyPublicPageDocumentPolicy(publicL2Refs.value)
+  : null
+
 const ThemeRenderTree = defineComponent({
   name: 'SFThemeRenderTree',
   setup() {
@@ -85,6 +103,7 @@ const pluginDataError = computed(() => Boolean(props.loaderError))
   <div
     class="sf-theme-template"
     :data-extension-id="extensionId || ''"
+    :data-document-policy-digest="publicPagePolicy?.documentPolicy.digest || undefined"
   >
     <SFAlert
       v-if="pluginDataError || renderState.error"

@@ -184,6 +184,49 @@ func TestPublicPagePolicySafeModeFailsClosed(t *testing.T) {
 	}
 }
 
+func TestPublicPagePolicyForComponentsExpandsSoftRefsAndBaseline(t *testing.T) {
+	extension := publicFrontendFixture(t)
+	reader := &fakeFrontendExtensionReader{item: extension}
+	trust := NewExecutableTrustService(reader, &memoryExecutableTrustStore{})
+	service := newAdmittedPublicFrontendService(reader, trust)
+	grantPublicFrontend(t, trust, extension)
+	publishTrustedPublicAssets(t, service, extension)
+
+	// 空 soft refs → 仅 Host 基线，供无 L2 挂载的页面在 public L2 开启时仍可下发 CSP。
+	baseline, err := service.PublicPagePolicyForComponents(t.Context(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if baseline.DocumentPolicy.HeaderValue == "" ||
+		!strings.Contains(baseline.DocumentPolicy.HeaderValue, "default-src 'none'") ||
+		!strings.Contains(baseline.DocumentPolicy.HeaderValue, "script-src 'self'") ||
+		len(baseline.AdmittedComponents) != 0 {
+		t.Fatalf("unexpected baseline policy: %#v", baseline)
+	}
+
+	component := extension.Manifest.Components[0]
+	expanded, err := service.PublicPagePolicyForComponents(t.Context(), []PublicFrontendComponentRef{{
+		ExtensionID: extension.ID, ComponentID: component.ID,
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	exact, err := service.PublicPagePolicy(t.Context(), []PublicFrontendComponentTuple{publicPagePolicyTuple(extension)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if expanded.DocumentPolicy.HeaderValue != exact.DocumentPolicy.HeaderValue ||
+		expanded.DocumentPolicy.Digest != exact.DocumentPolicy.Digest ||
+		len(expanded.AdmittedComponents) != 1 {
+		t.Fatalf("soft-ref expansion drifted from exact tuples:\nsoft=%#v\nexact=%#v", expanded, exact)
+	}
+
+	_, err = service.PublicPagePolicyForComponents(t.Context(), []PublicFrontendComponentRef{{
+		ExtensionID: extension.ID, ComponentID: "missing.component",
+	}})
+	requirePublicPagePolicyError(t, err, PublicPagePolicyComponentUnavailable)
+}
+
 func TestPublicPagePolicyIsDeterministicAcrossOrderAndRestart(t *testing.T) {
 	owner := publicFrontendFixtureFor(t, "a.policy", nil)
 	owner.Manifest.Assets[0].CSP = []string{"img-src https://images.example.com", "connect-src 'self'"}

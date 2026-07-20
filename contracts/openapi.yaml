@@ -433,6 +433,8 @@ paths:
     "$ref": "./openapi/paths/extensions.yaml#/adminExtensionEventDefinitions"
   "/admin/extensions/event-deliveries":
     "$ref": "./openapi/paths/extensions.yaml#/adminExtensionEventDeliveries"
+  "/extensions/runtime/page-policy":
+    "$ref": "./openapi/paths/extensions.yaml#/publicExtensionPagePolicy"
   "/extensions/runtime/{extensionID}/components/{componentID}":
     "$ref": "./openapi/paths/extensions.yaml#/publicExtensionComponent"
   "/extensions/runtime/{extensionID}/assets/{packageDigest}/{digest}/{handle}":
@@ -597,6 +599,12 @@ components:
       "$ref": "./openapi/schemas/extensions.yaml#/ApiResponseFrontendStatus"
     ApiResponsePublicFrontendComponent:
       "$ref": "./openapi/schemas/extensions.yaml#/ApiResponsePublicFrontendComponent"
+    ApiResponsePublicFrontendPolicy:
+      "$ref": "./openapi/schemas/extensions.yaml#/ApiResponsePublicFrontendPolicy"
+    PublicFrontendPolicy:
+      "$ref": "./openapi/schemas/extensions.yaml#/PublicFrontendPolicy"
+    PublicFrontendDocumentPolicy:
+      "$ref": "./openapi/schemas/extensions.yaml#/PublicFrontendDocumentPolicy"
     ApiResponseDatabaseTableList:
       "$ref": "./openapi/schemas/database.yaml#/ApiResponseDatabaseTableList"
     ApiResponseDatabaseTableDetail:

@@ -152,12 +152,69 @@ func TestTrustedRuntimeControllerHidesInvalidOrRevokedPublicL2(t *testing.T) {
 		"/api/v1/extensions/runtime/demo.plugin/components/demo.plugin.component.card",
 		"/api/v1/extensions/runtime/demo.plugin/assets/not-a-digest/" + digest + "/demo.plugin.asset",
 		"/api/v1/extensions/runtime/demo.plugin/assets/" + digest + "/" + digest + "/demo.plugin.asset",
+		"/api/v1/extensions/runtime/page-policy",
+		"/api/v1/extensions/runtime/page-policy?component=demo.plugin/demo.plugin.component.card",
 	}
 	for _, path := range paths {
 		resp := performExtensionRequest(t, app, http.MethodGet, path, nil)
 		resp.Body.Close()
 		if resp.StatusCode != http.StatusNotFound {
 			t.Fatalf("%s: expected hidden 404, got %d", path, resp.StatusCode)
+		}
+	}
+}
+
+func TestTrustedRuntimeControllerServesPublicPagePolicyWithoutSession(t *testing.T) {
+	headerValue := "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' https://cdn.example"
+	frontend := &fakeTrustedFrontendHTTPService{
+		publicPolicy: extensions.PublicFrontendPolicy{
+			SchemaVersion: extensions.PublicFrontendPolicySchemaV1,
+			GraphDigest:   "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+			DocumentPolicy: extensions.PublicFrontendDocumentPolicy{
+				SchemaVersion: extensions.PublicFrontendDocumentPolicySchemaV1,
+				Digest:        "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+				HeaderValue:   headerValue,
+				Directives: []extensions.PublicFrontendPolicyDirective{
+					{Name: "default-src", Sources: []string{"'none'"}},
+					{Name: "script-src", Sources: []string{"'self'"}},
+				},
+			},
+		},
+	}
+	app, _ := newTrustedRuntimeTestApp(t, frontend)
+	path := "/api/v1/extensions/runtime/page-policy?component=demo.plugin%2Fdemo.plugin.component.card&component=demo.plugin%2Fdemo.plugin.component.card"
+	resp := performExtensionRequest(t, app, http.MethodGet, path, nil)
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK ||
+		resp.Header.Get("Cache-Control") != "no-store" ||
+		resp.Header.Get("X-Content-Type-Options") != "nosniff" ||
+		resp.Header.Get("X-SForum-Document-Policy-Digest") != frontend.publicPolicy.DocumentPolicy.Digest {
+		t.Fatalf("public page policy headers: status=%d headers=%v", resp.StatusCode, resp.Header)
+	}
+	var envelope struct {
+		Data extensions.PublicFrontendPolicy `json:"data"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&envelope); err != nil {
+		t.Fatal(err)
+	}
+	if envelope.Data.SchemaVersion != extensions.PublicFrontendPolicySchemaV1 ||
+		envelope.Data.DocumentPolicy.HeaderValue != headerValue ||
+		envelope.Data.DocumentPolicy.Digest != frontend.publicPolicy.DocumentPolicy.Digest {
+		t.Fatalf("policy payload=%#v", envelope.Data)
+	}
+}
+
+func TestTrustedRuntimeControllerRejectsInvalidPublicPagePolicyQuery(t *testing.T) {
+	app, _ := newTrustedRuntimeTestApp(t, &fakeTrustedFrontendHTTPService{})
+	for _, path := range []string{
+		"/api/v1/extensions/runtime/page-policy?component=only-extension",
+		"/api/v1/extensions/runtime/page-policy?component=a/b/c",
+		"/api/v1/extensions/runtime/page-policy?component=",
+	} {
+		resp := performExtensionRequest(t, app, http.MethodGet, path, nil)
+		resp.Body.Close()
+		if resp.StatusCode != http.StatusUnprocessableEntity {
+			t.Fatalf("%s: expected 422, got %d", path, resp.StatusCode)
 		}
 	}
 }
@@ -196,6 +253,7 @@ type fakeTrustedFrontendHTTPService struct {
 	challenge       extensions.FrontendTrustChallenge
 	publicComponent extensions.PublicFrontendComponent
 	publicAsset     extensions.FrontendAsset
+	publicPolicy    extensions.PublicFrontendPolicy
 	publicErr       error
 }
 
@@ -238,4 +296,24 @@ func (s *fakeTrustedFrontendHTTPService) PublicAsset(context.Context, string, st
 
 func (s *fakeTrustedFrontendHTTPService) PublicPackageAsset(context.Context, string, string, string) (extensions.FrontendAsset, error) {
 	return s.publicAsset, s.publicErr
+}
+
+func (s *fakeTrustedFrontendHTTPService) PublicPagePolicyForComponents(
+	_ context.Context,
+	_ []extensions.PublicFrontendComponentRef,
+) (extensions.PublicFrontendPolicy, error) {
+	if s.publicErr != nil {
+		return extensions.PublicFrontendPolicy{}, s.publicErr
+	}
+	if s.publicPolicy.SchemaVersion == "" {
+		return extensions.PublicFrontendPolicy{
+			SchemaVersion: extensions.PublicFrontendPolicySchemaV1,
+			DocumentPolicy: extensions.PublicFrontendDocumentPolicy{
+				SchemaVersion: extensions.PublicFrontendDocumentPolicySchemaV1,
+				Digest:        "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+				HeaderValue:   "default-src 'none'; script-src 'self'; style-src 'self'",
+			},
+		}, nil
+	}
+	return s.publicPolicy, nil
 }
