@@ -12,6 +12,7 @@ export const adminSurfacePlacements = [
   { id: "core.component.page.admin.database", contractVersion: "sforum.component.page.admin.database@1", route: "/admin/database" },
   { id: "core.component.page.admin.entity.meta", contractVersion: "sforum.component.page.admin.entity.meta@1", route: "/admin/entity-meta" },
   { id: "core.component.page.admin.extensions", contractVersion: "sforum.component.page.admin.extensions@1", route: "/admin/extensions" },
+  { id: "core.component.page.admin.extensions.asset.inspector", contractVersion: "sforum.component.page.admin.extensions.asset.inspector@1", route: "/admin/extensions/asset-inspector" },
   { id: "core.component.page.admin.extensions.cache.inspector", contractVersion: "sforum.component.page.admin.extensions.cache.inspector@1", route: "/admin/extensions/cache-inspector" },
   { id: "core.component.page.admin.extensions.component.inspector", contractVersion: "sforum.component.page.admin.extensions.component.inspector@1", route: "/admin/extensions/component-inspector" },
   { id: "core.component.page.admin.extensions.contributions", contractVersion: "sforum.component.page.admin.extensions.contributions@1", route: "/admin/extensions/contributions" },

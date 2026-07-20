@@ -255,6 +255,17 @@
     "targetRegistry": "P7 Admin Surface Registry"
   },
   {
+    "id": "core.component.page.admin.extensions.asset.inspector",
+    "contractVersion": "sforum.component.page.admin.extensions.asset.inspector@1",
+    "kind": "page",
+    "route": "/admin/extensions/asset-inspector",
+    "source": "apps/web/app/pages/admin/extensions/asset-inspector.vue",
+    "owners": [
+      "admin"
+    ],
+    "targetRegistry": "P7 Admin Surface Registry"
+  },
+  {
     "id": "core.component.page.admin.extensions.cache.inspector",
     "contractVersion": "sforum.component.page.admin.extensions.cache.inspector@1",
     "kind": "page",

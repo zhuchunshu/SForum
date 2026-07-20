@@ -315,6 +315,7 @@
       "extensionRouteProviders": "路由提供者",
       "extensionRouteInspector": "路由检查器",
       "extensionCacheInspector": "缓存检查器",
+      "extensionAssetInspector": "资源检查器",
       "extensionProviderSlots": "服务提供者",
       "forumHome": "论坛首页",
       "forum": "论坛管理",
@@ -1288,6 +1289,27 @@
           "lock_expire": "锁到期",
           "lock_cancel": "取消锁"
         }
+      },
+      "assetInspector": {
+        "metaTitle": "资源检查器",
+        "title": "资源检查器",
+        "intro": "检查当前不可变 Asset Registry、已发布包以及脱敏后的 script/style 句柄。",
+        "refresh": "刷新",
+        "refreshed": "资源注册表快照已刷新",
+        "loading": "正在加载资源注册表快照…",
+        "revision": "Registry revision",
+        "publications": "发布数",
+        "assets": "资源数",
+        "digest": "图摘要",
+        "redactionHint": "仅展示包摘要与包内相对路径；绝对文件系统路径与信任影响摘要永不披露。",
+        "publicationsTitle": "已发布包",
+        "noPublications": "当前没有可显示的资源发布。",
+        "packageDigest": "包摘要",
+        "handle": "句柄",
+        "type": "类型",
+        "path": "路径",
+        "loadingMode": "加载方式",
+        "scope": "作用域"
       },
       "componentInspector": {
         "metaTitle": "组件检查器",

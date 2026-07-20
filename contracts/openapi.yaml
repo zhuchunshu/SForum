@@ -361,6 +361,8 @@ paths:
     "$ref": "./openapi/paths/extension-route-inspector.yaml#/adminExtensionRouteInspector"
   "/admin/extensions/cache-inspector":
     "$ref": "./openapi/paths/extension-cache-inspector.yaml#/adminExtensionCacheInspector"
+  "/admin/extensions/asset-inspector":
+    "$ref": "./openapi/paths/extension-asset-inspector.yaml#/adminExtensionAssetInspector"
   "/admin/extensions/component-inspector":
     "$ref": "./openapi/paths/extension-composition-inspector.yaml#/adminExtensionComponentInspector"
   "/admin/extensions/navigation-inspector":

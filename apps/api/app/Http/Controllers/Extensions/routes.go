@@ -19,6 +19,7 @@ func (h *Controller) RegisterRoutes(api fiber.Router) {
 	api.Get("/admin/extensions/route-providers/selection", h.routeProviderCurrent)
 	api.Get("/admin/extensions/route-providers/events", h.routeProviderEvents)
 	api.Get("/admin/extensions/cache-inspector", h.inspectCache)
+	api.Get("/admin/extensions/asset-inspector", h.inspectAsset)
 	api.Get("/admin/extensions/component-inspector", h.inspectComponentComposition)
 	api.Get("/admin/extensions/navigation-inspector", h.inspectNavigation)
 	api.Get("/admin/extensions/route-inspector", h.inspectRoute)

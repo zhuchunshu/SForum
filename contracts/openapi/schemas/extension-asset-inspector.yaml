@@ -1,0 +1,55 @@
+AssetInspectorHandle:
+  type: object
+  additionalProperties: false
+  description: >-
+    Redacted asset handle metadata. Path is omitted unless it is a package-relative
+    path; absolute filesystem paths are never disclosed.
+  required: [handle, type]
+  properties:
+    handle: { type: string }
+    type: { type: string, enum: [script, style] }
+    path: { type: string, description: Package-relative path only; absolute paths are omitted. }
+    module: { type: boolean }
+    loading: { type: string }
+    integrity: { type: string }
+    csp:
+      type: array
+      items: { type: string }
+    scope:
+      type: array
+      items: { type: string }
+
+AssetInspectorPublication:
+  type: object
+  additionalProperties: false
+  description: Redacted publication identity and owned asset handles. Impact digests are omitted.
+  required: [extensionId, extensionVersion, packageDigest, ownerKind, assets]
+  properties:
+    extensionId: { type: string }
+    extensionVersion: { type: string }
+    packageDigest: { type: string }
+    ownerKind: { type: string, enum: [core, plugin, theme] }
+    assets:
+      type: array
+      items: { "$ref": "#/AssetInspectorHandle" }
+
+AssetInspectorSnapshot:
+  type: object
+  additionalProperties: false
+  required: [schemaVersion, revision, digest, publicationCount, assetCount, publications]
+  properties:
+    schemaVersion: { type: string, enum: [sforum.asset-inspector@1] }
+    revision: { type: integer, format: int64, minimum: 0 }
+    digest: { type: string }
+    publicationCount: { type: integer, minimum: 0 }
+    assetCount: { type: integer, minimum: 0 }
+    publications:
+      type: array
+      items: { "$ref": "#/AssetInspectorPublication" }
+
+ApiResponseAssetInspectorSnapshot:
+  type: object
+  additionalProperties: false
+  required: [data]
+  properties:
+    data: { "$ref": "#/AssetInspectorSnapshot" }

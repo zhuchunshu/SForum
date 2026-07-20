@@ -1,0 +1,30 @@
+adminExtensionAssetInspector:
+  get:
+    summary: Inspect Host Asset Registry publications and handles
+    operationId: inspectAdminExtensionAssets
+    description: >-
+      Requires extension.view or the legacy extension.manage permission. Returns
+      a redacted Asset Registry snapshot with publication and handle metadata.
+      Absolute filesystem paths and trust-impact digests are never disclosed;
+      package-relative paths may be included when already relative.
+    parameters:
+    - name: limit
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 200
+        default: 50
+      description: Maximum publications to return after extensionId sort order.
+    responses:
+      '200':
+        description: Detached, redacted Asset Registry inspector snapshot.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/extension-asset-inspector.yaml#/ApiResponseAssetInspectorSnapshot"
+      '401': { "$ref": "../components/responses.yaml#/Unauthorized" }
+      '403': { "$ref": "../components/responses.yaml#/Forbidden" }
+      '422': { "$ref": "../components/responses.yaml#/UnprocessableEntity" }
+      '503': { "$ref": "../components/responses.yaml#/ServiceUnavailable" }

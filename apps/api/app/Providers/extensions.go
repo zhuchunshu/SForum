@@ -11,6 +11,7 @@ import (
 	extensionscontroller "github.com/zhuchunshu/sforum/apps/api/app/Http/Controllers/Extensions"
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
+	assetregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/AssetRegistry"
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Audit"
 	authsession "github.com/zhuchunshu/sforum/apps/api/app/Support/AuthSession"
 	cacheregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/CacheRegistry"
@@ -122,6 +123,16 @@ func (p *ExtensionsProvider) WithNavigationInspector(
 ) *ExtensionsProvider {
 	if p != nil && p.controller != nil {
 		p.controller.WithNavigationInspector(inspector)
+	}
+	return p
+}
+
+// WithAssetInspector wires P9 Asset Registry redacted admin inspection.
+func (p *ExtensionsProvider) WithAssetInspector(
+	registry *assetregistry.Registry,
+) *ExtensionsProvider {
+	if p != nil && p.controller != nil {
+		p.controller.WithAssetInspector(registry)
 	}
 	return p
 }

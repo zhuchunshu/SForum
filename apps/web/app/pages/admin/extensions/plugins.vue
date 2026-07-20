@@ -136,6 +136,14 @@ useSeoMeta({
         {{ t('admin.nav.extensionCacheInspector') }}
       </UButton>
       <UButton
+        icon="i-lucide-package"
+        color="neutral"
+        variant="subtle"
+        :to="adminRoutes.path('/extensions/asset-inspector')"
+      >
+        {{ t('admin.nav.extensionAssetInspector') }}
+      </UButton>
+      <UButton
         icon="i-lucide-boxes"
         color="neutral"
         variant="subtle"

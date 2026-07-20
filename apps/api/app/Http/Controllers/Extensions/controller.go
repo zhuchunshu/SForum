@@ -12,6 +12,7 @@ import (
 	apphttp "github.com/zhuchunshu/sforum/apps/api/app/Http"
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
+	assetregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/AssetRegistry"
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Audit"
 	authsession "github.com/zhuchunshu/sforum/apps/api/app/Support/AuthSession"
 	cacheregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/CacheRegistry"
@@ -35,20 +36,21 @@ const (
 var ErrPublicFrontendBridgeStale = errors.New("extensions: public frontend bridge identity is stale")
 
 type Controller struct {
-	service         *extensions.Service
-	frontend        TrustedFrontendService
-	users           identity.ActorStore
-	sessions        *authsession.Manager
-	gateway         RouteGateway
-	routeProviders  *routes.ProviderSelectionAPI
-	routeInspector  *routes.Inspector
-	cacheRegistry   *cacheregistry.Registry
-	cacheInspect    func(*cacheregistry.Registry, int) (hostapi.HostCacheInspectionSnapshot, error)
-	// componentComposition / componentRegistry / navigationInspector 仅服务
-	// admin 检查器；为 nil 时对应路由 fail closed 为 503。
+	service        *extensions.Service
+	frontend       TrustedFrontendService
+	users          identity.ActorStore
+	sessions       *authsession.Manager
+	gateway        RouteGateway
+	routeProviders *routes.ProviderSelectionAPI
+	routeInspector *routes.Inspector
+	cacheRegistry  *cacheregistry.Registry
+	cacheInspect   func(*cacheregistry.Registry, int) (hostapi.HostCacheInspectionSnapshot, error)
+	// componentComposition / componentRegistry / navigationInspector /
+	// assetRegistry 仅服务 admin 检查器；为 nil 时对应路由 fail closed 为 503。
 	componentComposition *extensionsruntime.ProductionComponentComposition
 	componentRegistry    *extensionsruntime.ComponentRegistry
 	navigationInspector  *navigationregistry.Inspector
+	assetRegistry        *assetregistry.Registry
 	routeContracts       RouteContractCatalog
 	routeAuditor         audit.IDWriter
 	providerSlots        *extensionsruntime.ProviderSlotSelectionAPI
@@ -167,6 +169,15 @@ func (h *Controller) WithComponentCompositionInspector(
 func (h *Controller) WithNavigationInspector(inspector *navigationregistry.Inspector) *Controller {
 	if h != nil {
 		h.navigationInspector = inspector
+	}
+	return h
+}
+
+// WithAssetInspector wires the shared Host Asset Registry for the admin
+// asset inspector. Nil registry keeps the route fail-closed as 503.
+func (h *Controller) WithAssetInspector(registry *assetregistry.Registry) *Controller {
+	if h != nil {
+		h.assetRegistry = registry
 	}
 	return h
 }

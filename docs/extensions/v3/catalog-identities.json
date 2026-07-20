@@ -290,6 +290,12 @@
       "path": "/api/v1/admin/extensions/cache-inspector"
     },
     {
+      "id": "core.route.extensions.inspect_asset",
+      "contractVersion": "sforum.route.extensions.inspect_asset@1",
+      "method": "GET",
+      "path": "/api/v1/admin/extensions/asset-inspector"
+    },
+    {
       "id": "core.route.extensions.component_inspector",
       "contractVersion": "sforum.route.extensions.component_inspector@1",
       "method": "GET",
@@ -1778,6 +1784,16 @@
       ],
       "state": "active",
       "source": "apps/web/app/pages/admin/extensions/cache-inspector.vue"
+    },
+    {
+      "id": "core.component.page.admin.extensions.asset.inspector",
+      "contractVersion": "sforum.component.page.admin.extensions.asset.inspector@1",
+      "kind": "page",
+      "owners": [
+        "admin"
+      ],
+      "state": "active",
+      "source": "apps/web/app/pages/admin/extensions/asset-inspector.vue"
     },
     {
       "id": "core.component.page.admin.extensions.component.inspector",

@@ -311,6 +311,7 @@
       "extensionRouteProviders": "Route providers",
       "extensionRouteInspector": "Route inspector",
       "extensionCacheInspector": "Cache inspector",
+      "extensionAssetInspector": "Asset inspector",
       "extensionProviderSlots": "Service providers",
       "forumHome": "Forum home",
       "forum": "Forum",
@@ -1288,6 +1289,27 @@
           "lock_expire": "Lock expired",
           "lock_cancel": "Cancel lock"
         }
+      },
+      "assetInspector": {
+        "metaTitle": "Asset inspector",
+        "title": "Asset inspector",
+        "intro": "Inspect the live immutable Asset Registry, published packages, and redacted script/style handles.",
+        "refresh": "Refresh",
+        "refreshed": "Asset registry snapshot refreshed",
+        "loading": "Loading asset registry snapshot…",
+        "revision": "Registry revision",
+        "publications": "Publications",
+        "assets": "Assets",
+        "digest": "Graph digest",
+        "redactionHint": "Only package digests and package-relative paths are shown; absolute filesystem paths and trust-impact digests are never disclosed.",
+        "publicationsTitle": "Published packages",
+        "noPublications": "No asset publications to display.",
+        "packageDigest": "Package digest",
+        "handle": "Handle",
+        "type": "Type",
+        "path": "Path",
+        "loadingMode": "Loading mode",
+        "scope": "Scope"
       },
       "componentInspector": {
         "metaTitle": "Component inspector",
