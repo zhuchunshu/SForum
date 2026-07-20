@@ -18,7 +18,8 @@ import (
 	hostapi "github.com/zhuchunshu/sforum/apps/api/app/Support/HostAPI"
 	identityregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/IdentityRegistry"
 	supportjobs "github.com/zhuchunshu/sforum/apps/api/app/Support/Jobs"
-	mediaregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/MediaRegistry"
+	editorregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/EditorRegistry"
+mediaregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/MediaRegistry"
 	navigationregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/NavigationRegistry"
 	pages "github.com/zhuchunshu/sforum/apps/api/app/Support/Pages"
 	queryregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/QueryRegistry"
@@ -84,7 +85,9 @@ type productionLifecycleStack struct {
 	// ContentRegistry is the P10 block/shortcode/embed/node/mark graph.
 	ContentRegistry *contentregistry.Registry
 	// MediaRegistry is the P10 MIME/processor/variant pipeline graph.
-	MediaRegistry  *mediaregistry.Registry
+	MediaRegistry *mediaregistry.Registry
+	// EditorRegistry is the P10 Tiptap node/mark/command/toolbar graph.
+	EditorRegistry *editorregistry.Registry
 	RouteProviders *routes.ProviderSelectionAPI
 	ProviderSlots      *extensionsruntime.ProviderSlotSelectionAPI
 	RegistryRepository *extensionsruntime.PostgresLifecycleRegistryPublicationRepository
@@ -249,6 +252,14 @@ func newProductionLifecycleStack(config productionLifecycleStackConfig) (*produc
 			return nil, fmt.Errorf("%w: enter media registry safe mode: %v", errProductionLifecycleDependency, err)
 		}
 	}
+	// Editor Registry：P10 Tiptap trusted L2；Safe Mode 从首个 snapshot 起拒绝第三方。
+	editorRegistry := editorregistry.New()
+	if config.SafeMode {
+		snapshot := editorRegistry.Snapshot()
+		if _, err := editorRegistry.ReplaceAllIfRevision(snapshot.Revision, snapshot.Publications, true); err != nil {
+			return nil, fmt.Errorf("%w: enter editor registry safe mode: %v", errProductionLifecycleDependency, err)
+		}
+	}
 	// Identity root policy and permanent leaf ownership must converge from the
 	// durable PostgreSQL ledger before the process-local graph becomes visible.
 	// Default PostgreSQL store binds the production TrustImpact digest verifier
@@ -290,7 +301,7 @@ func newProductionLifecycleStack(config productionLifecycleStackConfig) (*produc
 			Components: componentRegistry, ComponentComposition: componentComposition,
 			Assets: assetRegistry, Caches: cacheRegistry, Queries: queryRegistry,
 			SEO: seoRegistry, Identity: identityRegistry, IdentityStore: identityStore,
-			Navigation: navigationRegistry, Content: contentRegistry, Media: mediaRegistry,
+			Navigation: navigationRegistry, Content: contentRegistry, Media: mediaRegistry, Editor: editorRegistry,
 			AssetAuthority: assetAuthority, AssetAdmission: config.Trust,
 		},
 	)
@@ -321,7 +332,7 @@ func newProductionLifecycleStack(config productionLifecycleStackConfig) (*produc
 		SessionPolicyStore: sessionPolicyStore,
 		QueryRegistry:      queryRegistry, QueryCoreCatalog: queryCoreCatalog,
 		SEORegistry: seoRegistry, NavigationRegistry: navigationRegistry,
-		ContentRegistry: contentRegistry, MediaRegistry: mediaRegistry,
+		ContentRegistry: contentRegistry, MediaRegistry: mediaRegistry, EditorRegistry: editorRegistry,
 		RouteProviders: routeProviders,
 		ProviderSlots:      providerSlots,
 		RegistryRepository: registryRepository, Registries: registries,
@@ -337,7 +348,7 @@ func (s *productionLifecycleStack) bindService(service *extensions.Service) erro
 		s.Repository == nil || s.CleanupFinalizer == nil || s.RouteProviders == nil || s.ProviderSlots == nil ||
 		s.ComponentRegistry == nil || s.AssetRegistry == nil || s.CacheRegistry == nil || s.QueryRegistry == nil ||
 		s.QueryCoreCatalog == nil || s.SEORegistry == nil || s.NavigationRegistry == nil ||
-		s.ContentRegistry == nil || s.MediaRegistry == nil || s.IdentityRegistry == nil || s.IdentityStore == nil || s.Registries == nil {
+		s.ContentRegistry == nil || s.MediaRegistry == nil || s.EditorRegistry == nil || s.IdentityRegistry == nil || s.IdentityStore == nil || s.Registries == nil {
 		return errProductionLifecycleDependency
 	}
 	extensions.WithLifecycleCoordinator(s.Coordinator, s.StaticPreflight, s.Repository)(service)
