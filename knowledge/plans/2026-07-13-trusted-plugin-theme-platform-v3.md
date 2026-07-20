@@ -798,36 +798,36 @@ disable retention). P10 exits complete.
 ### Tasks
 
 - [x] Implement namespaced cache get/set/delete/increment/remember/tags/locks.
-- [ ] Implement cache provider selection plus route/page key, TTL, bypass,
+- [x] Implement cache provider selection plus route/page key, TTL, bypass,
       no-store, invalidation, and entity-event filters.
-- [ ] Add cache inspector, hit/miss/latency metrics, tag invalidation audit, and
+- [x] Add cache inspector, hit/miss/latency metrics, tag invalidation audit, and
       theme/plugin revision awareness.
-- [ ] Add SEO Registry for controlled title/meta/canonical/robots/hreflang/
+- [x] Add SEO Registry for controlled title/meta/canonical/robots/hreflang/
       sitemap/JSON-LD contributions and filters.
-- [ ] Implement namespaced Secret Store with encryption, masking, preserve-on-
+- [x] Implement namespaced Secret Store with encryption, masking, preserve-on-
       empty, rotation, references, and audit.
-- [ ] Implement plugin private files, temporary files, static assets, user-owned
+- [x] Implement plugin private files, temporary files, static assets, user-owned
       files, quotas, cleanup, and optional storage-provider routing.
-- [ ] Implement Host HTTP client with proxy, timeout, retry, SSRF policy,
+- [x] Implement Host HTTP client with proxy, timeout, retry, SSRF policy,
       credential references, response limits, and tracing; preserve explicit raw
       network authority for fully trusted processes.
-- [ ] Add runtime translation domains, pluralization, locale fallback, plugin
+- [x] Add runtime translation domains, pluralization, locale fallback, plugin
       language packs, and controlled overrides.
-- [ ] Add versioned Settings lifecycle: schema migrations, default/reset policy,
+- [x] Add versioned Settings lifecycle: schema migrations, default/reset policy,
       import/export, conditional fields, validation previews, and Secret Store
       references without exposing plaintext secrets.
-- [ ] Complete plugin OpenAPI route policies for rate limits, idempotency,
+- [x] Complete plugin OpenAPI route policies for rate limits, idempotency,
       permissions, request size, CORS, and generated clients.
 
 ### Tests
 
-- [ ] Cache stampede/lock/tag/provider failure, stale theme revision, actor-safe
+- [x] Cache stampede/lock/tag/provider failure, stale theme revision, actor-safe
       output, and invalidation.
-- [ ] SEO source checks with JS disabled and plugin disabled/failing.
-- [ ] Secret disclosure, rotation, logs, backups, and uninstall behavior.
-- [ ] File traversal/symlink/quota/read policy and HTTP SSRF/redirect/DNS rebinding.
-- [ ] Locale fallback and catalog collision.
-- [ ] Settings upgrade/downgrade, failed migration rollback, reset defaults,
+- [x] SEO source checks with JS disabled and plugin disabled/failing.
+- [x] Secret disclosure, rotation, logs, backups, and uninstall behavior.
+- [x] File traversal/symlink/quota/read policy and HTTP SSRF/redirect/DNS rebinding.
+- [x] Locale fallback and catalog collision.
+- [x] Settings upgrade/downgrade, failed migration rollback, reset defaults,
       import validation, export masking, conditional fields, and secret rotation.
 
 ### Rollback
@@ -839,9 +839,16 @@ The first Cache task closed in `ba4ebc50c`. The production Host service and
 Protocol V2 broker already own exact-runtime namespaces, providers, tags,
 distributed leases, inspection, and failure fencing; the Go SDK now exposes
 typed CRUD, CAS revisions, bounded cross-process `remember`, lease renewal, and
-atomic set-and-release without leaking opaque lease capabilities. Provider
-policy, inspector, and failure-matrix work remains tracked by the following
-Cache task and test rows rather than being counted twice here.
+atomic set-and-release without leaking opaque lease capabilities.
+
+P11 Host platform services closed 2026-07-21 on `main` (display progress advances
+with the progress ledger): `CachePolicy` (`50cd242fc`), `SecretStore` + migration
+`202607210043` (`293f385d7`, `3e3957a31`), `HostHTTP` (`8c60cda3c`),
+`PluginFiles` (`09a74a861`), Localization domains/packs (`7c0c7e168`),
+`SettingsLifecycle` (`4b94f707c`), SEO Document↔PageSEOView bridge
+(`af2400ffc`), OpenAPI CORS/request-size policies (`5f3409d87`), SEO
+JS-disabled/plugin-failure product gate (`product_js_disabled_test.go`).
+All P11 Tasks and Tests rows are checked.
 
 ## P12 - Multi-Node, Compatibility, Marketplace, Observability, And DX
 

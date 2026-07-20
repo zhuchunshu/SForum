@@ -4,6 +4,59 @@ Last updated: 2026-07-21
 
 ## Progress
 
+- Verified weighted progress: **89.30%** (display **89.0%**).
+- Phase counts: P0-P11 complete; P12 ~5%, P13 open.
+
+## Current Subtask
+
+### 2026-07-21 P11 Closed 16/16 — Next P12 Operations/Ecosystem
+
+- P11 fully closed: CachePolicy, SecretStore, HostHTTP, PluginFiles,
+  Localization domains/packs, SettingsLifecycle, SEO bridge + product gate,
+  OpenAPI CORS/request-size.
+- Exact next step: P12 multi-node activation, marketplace, LTS, inspectors, DX.
+- Handoff: `knowledge/sessions/2026-07-21-trusted-plugin-theme-platform-v3-p11-closure.md`
+- Unowned dirty WIP must not be staged.
+
+---
+
+
+## Prior Ledger Archive
+
+# Trusted Plugin And Theme Platform V3 Progress Ledger
+
+Last updated: 2026-07-21
+
+## Progress
+
+- Verified weighted progress: **88.94%** (display **88.0%**).
+- Phase counts: P0-P10 complete; P11 **15/16** (Tasks 10/10, Tests 5/6);
+  P12 ~5%, P13 open.
+
+## Current Subtask
+
+### 2026-07-21 P11 Nearly Closed — Next SEO Product Evidence Then P12
+
+- Commits: CachePolicy `50cd242fc`, SecretStore `293f385d7` + migration
+  `3e3957a31`, HostHTTP `8c60cda3c`, PluginFiles `09a74a861`, i18n
+  `7c0c7e168`, SettingsLifecycle `4b94f707c`, SEO bridge `af2400ffc`,
+  OpenAPI CORS/size `5f3409d87`.
+- Exact next step: close remaining P11 SEO JS-disabled / plugin-disabled
+  product test row, then enter P12 multi-node/marketplace/DX.
+- Unowned dirty WIP must not be staged.
+- Handoff: `knowledge/sessions/2026-07-21-trusted-plugin-theme-platform-v3-p11-progress.md`
+
+---
+
+
+## Prior Ledger Archive
+
+# Trusted Plugin And Theme Platform V3 Progress Ledger
+
+Last updated: 2026-07-21
+
+## Progress
+
 - Verified weighted progress: **83.65%** (display **83.0%**).
 - Phase counts: P0-P10 complete; P11 ~6%, P12 ~5%, P13 open.
 

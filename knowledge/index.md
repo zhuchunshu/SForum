@@ -4,7 +4,7 @@ This is the entry point for project memory.
 
 ## Latest Handoff
 
-- **2026-07-21 Trusted Plugin And Theme Platform V3 P10 complete (overall 83.0%)**
+- **2026-07-21 Trusted Plugin And Theme Platform V3 P11 complete (overall 89.0%)**
   - Decision: `knowledge/decisions/2026-07-13-trusted-plugin-theme-platform-v3.md`
   - Identity/automation authority:
     `knowledge/decisions/2026-07-19-identity-provider-automation-authority.md`
@@ -12,11 +12,13 @@ This is the entry point for project memory.
   - Task book: `knowledge/plans/2026-07-13-trusted-plugin-theme-platform-v3.md`
   - Current durable checkpoint:
     `knowledge/plans/2026-07-13-trusted-plugin-theme-platform-v3-progress.md`
-  - P0-P10 are complete. Weighted progress is **~83.65%** (display **83.0%**).
-    P10 closed at **15/15** (entity registry, plugin-extend, XSS/attachment,
-    reference blocks/media, attack matrix). Next: P11 platform services.
-    P11-P13 remain open.
+  - P0-P11 complete. Weighted progress **~89.30%** (display **89.0%**). Next:
+    P12 multi-node/marketplace/DX, then P13 references/legacy removal/final gates.
   - Active handoff:
+    `knowledge/sessions/2026-07-21-trusted-plugin-theme-platform-v3-p11-closure.md`
+  - Prior P11 progress handoff:
+    `knowledge/sessions/2026-07-21-trusted-plugin-theme-platform-v3-p11-progress.md`
+  - Prior P10 closure handoff:
     `knowledge/sessions/2026-07-21-trusted-plugin-theme-platform-v3-p10-closure.md`
   - Prior entity registry handoff:
     `knowledge/sessions/2026-07-21-trusted-plugin-theme-platform-v3-p10-entity-registry.md`
