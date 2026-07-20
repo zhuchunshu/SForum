@@ -58,9 +58,24 @@ func TestThemeRuntimeSnapshotCompilesOnceAndRendersExactProvider(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(output.HTMLSegments) == 0 || len(output.Islands) != 1 ||
-		output.Islands[0].ComponentID != "forum.component.home_page" || !strings.Contains(snapshot.LegacyHTML(output), "<sf-home-page>") {
-		t.Fatalf("output=%#v legacy=%q", output, snapshot.LegacyHTML(output))
+	// 默认主题 home L1 挂载 navbar + body 岛 + footer；body 岛仍为 forum.component.home_page。
+	legacy := snapshot.LegacyHTML(output)
+	if len(output.HTMLSegments) == 0 || !strings.Contains(legacy, "<sf-home-page>") {
+		t.Fatalf("output=%#v legacy=%q", output, legacy)
+	}
+	var hasHome, hasNavbar, hasFooter bool
+	for _, island := range output.Islands {
+		switch island.ComponentID {
+		case "forum.component.home_page":
+			hasHome = true
+		case "navigation.component.navbar":
+			hasNavbar = true
+		case "navigation.component.footer":
+			hasFooter = true
+		}
+	}
+	if !hasHome || !hasNavbar || !hasFooter {
+		t.Fatalf("missing chrome/body islands home=%v navbar=%v footer=%v islands=%#v", hasHome, hasNavbar, hasFooter, output.Islands)
 	}
 
 	registry := NewThemeRuntimeRegistry()
