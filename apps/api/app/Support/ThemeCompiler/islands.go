@@ -25,6 +25,9 @@ const (
 	maxIslandFallbackOutputBytes = DefaultMaxOutputBytes
 )
 
+// requiredPageComponents 仅强制 mutation / 身份相关页必须嵌入宿主岛。
+// 其余可替换页的 body 岛由参考主题产品门禁（P13）校验，避免把编译器
+// 通用夹具绑死在完整公开页矩阵上。
 var requiredPageComponents = map[string]string{
 	"forum.topic.create":      "forum.component.topic_composer",
 	"forum.settings.profile":  "profile.component.settings_form",

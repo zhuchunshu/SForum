@@ -28,8 +28,22 @@ const HostPageIsland = defineComponent({
 })
 
 // 该映射与 ThemeRuntimeSnapshot 的 reviewed Component Registry 对齐。
+// 内容页 body 岛使用 HostPageIsland，把宿主 Nuxt 页 slot 嵌回主题壳层。
 const islandComponents: Record<string, Component> = {
   'forum.component.home_page': resolveComponent('SFHomePage') as Component,
+  'forum.component.category_index': HostPageIsland,
+  'forum.component.category_show': HostPageIsland,
+  'forum.component.tag_index': HostPageIsland,
+  'forum.component.tag_show': HostPageIsland,
+  'forum.component.topic_show': HostPageIsland,
+  'forum.component.profile_show': HostPageIsland,
+  'forum.component.my_home': HostPageIsland,
+  'forum.component.my_content_review': HostPageIsland,
+  'forum.component.notifications': HostPageIsland,
+  'site.component.terms': HostPageIsland,
+  'site.component.privacy': HostPageIsland,
+  'site.component.guidelines': HostPageIsland,
+  'system.component.not_found': HostPageIsland,
   'navigation.component.navbar': resolveComponent('SFNavbar') as Component,
   'navigation.component.footer': resolveComponent('SFFooter') as Component,
   'navigation.component.home': resolveComponent('SFHomeNavigation') as Component,
@@ -44,6 +58,19 @@ const islandComponents: Record<string, Component> = {
 }
 const legacyIslandBindings = {
   'sf-home-page': { componentId: 'forum.component.home_page' },
+  'sf-category-index-page': { componentId: 'forum.component.category_index' },
+  'sf-category-show-page': { componentId: 'forum.component.category_show' },
+  'sf-tag-index-page': { componentId: 'forum.component.tag_index' },
+  'sf-tag-show-page': { componentId: 'forum.component.tag_show' },
+  'sf-topic-show-page': { componentId: 'forum.component.topic_show' },
+  'sf-profile-page': { componentId: 'forum.component.profile_show' },
+  'sf-my-home-page': { componentId: 'forum.component.my_home' },
+  'sf-my-content-review-page': { componentId: 'forum.component.my_content_review' },
+  'sf-notifications-page': { componentId: 'forum.component.notifications' },
+  'sf-terms-page': { componentId: 'site.component.terms' },
+  'sf-privacy-page': { componentId: 'site.component.privacy' },
+  'sf-guidelines-page': { componentId: 'site.component.guidelines' },
+  'sf-not-found-page': { componentId: 'system.component.not_found' },
   'sf-navbar': { componentId: 'navigation.component.navbar' },
   'sf-footer': { componentId: 'navigation.component.footer' },
   'sf-home-navigation': { componentId: 'navigation.component.home' },

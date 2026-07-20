@@ -14,22 +14,13 @@ import (
 
 func TestAllCatalogThemeRendersPerformNoFilesystemIOAfterCompilation(t *testing.T) {
 	const digest = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-	requiredTags := map[string]string{
-		"forum.topic.create":      "sf-topic-composer",
-		"forum.settings.profile":  "sf-profile-settings",
-		"forum.settings.security": "sf-security-settings",
-		"auth.login":              "sf-login-form",
-		"auth.register":           "sf-register-form",
-		"auth.forgot_password":    "sf-recovery-request",
-		"auth.reset_password":     "sf-recovery-confirm",
-	}
 	islands := productionThemeIslandBindings()
 	files := fstest.MapFS{}
 	bindings := make(map[string]themecompiler.PageTemplateBinding, len(Catalog()))
 	for _, page := range Catalog() {
 		name := "templates/" + page.ID + ".html"
 		body := `<main><h1>{{.Base.SEO.Title}}</h1>`
-		if tag := requiredTags[page.ID]; tag != "" {
+		if tag := RequiredThemeBodyIslandTag(page.ID); tag != "" {
 			body += "<" + tag + "></" + tag + ">"
 		}
 		body += `</main>`

@@ -28,11 +28,31 @@ const (
 // 允许的宿主岛标签仅映射到已注册的 SF 组件。sf-extension-widget
 // 本身不执行包代码；后续 ThemeCompiler 仍会强制 exact 组件身份。
 var allowedHostIslands = map[string]struct{}{
-	"sf-home-page":        {},
-	"sf-navbar":           {},
-	"sf-footer":           {},
-	"sf-home-navigation":  {},
-	"sf-extension-widget": {},
+	"sf-home-page":              {},
+	"sf-category-index-page":    {},
+	"sf-category-show-page":     {},
+	"sf-tag-index-page":         {},
+	"sf-tag-show-page":          {},
+	"sf-topic-show-page":        {},
+	"sf-profile-page":           {},
+	"sf-my-home-page":           {},
+	"sf-my-content-review-page": {},
+	"sf-notifications-page":     {},
+	"sf-terms-page":             {},
+	"sf-privacy-page":           {},
+	"sf-guidelines-page":        {},
+	"sf-not-found-page":         {},
+	"sf-navbar":                 {},
+	"sf-footer":                 {},
+	"sf-home-navigation":        {},
+	"sf-topic-composer":         {},
+	"sf-profile-settings":       {},
+	"sf-security-settings":      {},
+	"sf-login-form":             {},
+	"sf-register-form":          {},
+	"sf-recovery-request":       {},
+	"sf-recovery-confirm":       {},
+	"sf-extension-widget":       {},
 }
 
 // 允许的普通 HTML 标签（无 script/style/svg/math/iframe/form/object/embed）。

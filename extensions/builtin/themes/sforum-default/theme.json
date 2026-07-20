@@ -6,10 +6,152 @@
       "target": "forum.home",
       "template": "templates/home.html",
       "contract": "sforum.page.home@1"
+    },
+    {
+      "id": "sforum.default-theme.category_index",
+      "action": "replace",
+      "target": "forum.category.index",
+      "template": "templates/category-index.html",
+      "contract": "sforum.page.category_index@1"
+    },
+    {
+      "id": "sforum.default-theme.category_show",
+      "action": "replace",
+      "target": "forum.category.show",
+      "template": "templates/category-show.html",
+      "contract": "sforum.page.category_show@1"
+    },
+    {
+      "id": "sforum.default-theme.tag_index",
+      "action": "replace",
+      "target": "forum.tag.index",
+      "template": "templates/tag-index.html",
+      "contract": "sforum.page.tag_index@1"
+    },
+    {
+      "id": "sforum.default-theme.tag_show",
+      "action": "replace",
+      "target": "forum.tag.show",
+      "template": "templates/tag-show.html",
+      "contract": "sforum.page.tag_show@1"
+    },
+    {
+      "id": "sforum.default-theme.topic_show",
+      "action": "replace",
+      "target": "forum.topic.show",
+      "template": "templates/topic-show.html",
+      "contract": "sforum.page.topic_show@1"
+    },
+    {
+      "id": "sforum.default-theme.topic_create",
+      "action": "replace",
+      "target": "forum.topic.create",
+      "template": "templates/topic-create.html",
+      "contract": "sforum.page.topic_create@1"
+    },
+    {
+      "id": "sforum.default-theme.profile_show",
+      "action": "replace",
+      "target": "forum.profile.show",
+      "template": "templates/profile-show.html",
+      "contract": "sforum.page.profile_show@1"
+    },
+    {
+      "id": "sforum.default-theme.my_home",
+      "action": "replace",
+      "target": "forum.my.home",
+      "template": "templates/my-home.html",
+      "contract": "sforum.page.my_home@1"
+    },
+    {
+      "id": "sforum.default-theme.my_content_review",
+      "action": "replace",
+      "target": "forum.my.content_review",
+      "template": "templates/my-content-review.html",
+      "contract": "sforum.page.my_content_review@1"
+    },
+    {
+      "id": "sforum.default-theme.settings_profile",
+      "action": "replace",
+      "target": "forum.settings.profile",
+      "template": "templates/settings-profile.html",
+      "contract": "sforum.page.settings_profile@1"
+    },
+    {
+      "id": "sforum.default-theme.settings_security",
+      "action": "replace",
+      "target": "forum.settings.security",
+      "template": "templates/settings-security.html",
+      "contract": "sforum.page.settings_security@1"
+    },
+    {
+      "id": "sforum.default-theme.notifications",
+      "action": "replace",
+      "target": "forum.notifications",
+      "template": "templates/notifications.html",
+      "contract": "sforum.page.notifications@1"
+    },
+    {
+      "id": "sforum.default-theme.login",
+      "action": "replace",
+      "target": "auth.login",
+      "template": "templates/login.html",
+      "contract": "sforum.page.login@1"
+    },
+    {
+      "id": "sforum.default-theme.register",
+      "action": "replace",
+      "target": "auth.register",
+      "template": "templates/register.html",
+      "contract": "sforum.page.register@1"
+    },
+    {
+      "id": "sforum.default-theme.forgot_password",
+      "action": "replace",
+      "target": "auth.forgot_password",
+      "template": "templates/forgot-password.html",
+      "contract": "sforum.page.forgot_password@1"
+    },
+    {
+      "id": "sforum.default-theme.reset_password",
+      "action": "replace",
+      "target": "auth.reset_password",
+      "template": "templates/reset-password.html",
+      "contract": "sforum.page.reset_password@1"
+    },
+    {
+      "id": "sforum.default-theme.terms",
+      "action": "replace",
+      "target": "site.terms",
+      "template": "templates/terms.html",
+      "contract": "sforum.page.terms@1"
+    },
+    {
+      "id": "sforum.default-theme.privacy",
+      "action": "replace",
+      "target": "site.privacy",
+      "template": "templates/privacy.html",
+      "contract": "sforum.page.privacy@1"
+    },
+    {
+      "id": "sforum.default-theme.guidelines",
+      "action": "replace",
+      "target": "site.guidelines",
+      "template": "templates/guidelines.html",
+      "contract": "sforum.page.guidelines@1"
+    },
+    {
+      "id": "sforum.default-theme.not_found",
+      "action": "replace",
+      "target": "system.not_found",
+      "template": "templates/not-found.html",
+      "contract": "sforum.page.not_found@1"
     }
   ],
   "skin": {
-    "css": ["assets/theme.css"],
+    "css": [
+      "assets/theme.css"
+    ],
     "tokens": "assets/tokens.css"
   }
 }

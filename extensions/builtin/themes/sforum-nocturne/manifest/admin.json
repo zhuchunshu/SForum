@@ -1,0 +1,10 @@
+{
+  "pages": [
+    {
+      "id": "sforum.nocturne-theme.admin.settings",
+      "title": "Nocturne settings",
+      "path": "settings",
+      "settingsDocument": "sforum.nocturne-theme.settings"
+    }
+  ]
+}

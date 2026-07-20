@@ -3,6 +3,7 @@ package themecompiler
 import (
 	"context"
 	"errors"
+	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -248,10 +249,43 @@ func TestBundledThemeTemplatesCompileAndPreserveNestedHomeIsland(t *testing.T) {
 		t.Fatal("resolve test source path")
 	}
 	repositoryRoot := filepath.Clean(filepath.Join(filepath.Dir(currentFile), "../../../../../"))
+	// 完整公开页 L1 包会引用全部宿主 body 岛；编译夹具必须提供同一映射。
+	bundledIslands := map[string]IslandBinding{
+		"sf-home-page":              {ComponentID: "forum.component.home_page"},
+		"sf-category-index-page":    {ComponentID: "forum.component.category_index"},
+		"sf-category-show-page":     {ComponentID: "forum.component.category_show"},
+		"sf-tag-index-page":         {ComponentID: "forum.component.tag_index"},
+		"sf-tag-show-page":          {ComponentID: "forum.component.tag_show"},
+		"sf-topic-show-page":        {ComponentID: "forum.component.topic_show"},
+		"sf-profile-page":           {ComponentID: "forum.component.profile_show"},
+		"sf-my-home-page":           {ComponentID: "forum.component.my_home"},
+		"sf-my-content-review-page": {ComponentID: "forum.component.my_content_review"},
+		"sf-notifications-page":     {ComponentID: "forum.component.notifications"},
+		"sf-terms-page":             {ComponentID: "site.component.terms"},
+		"sf-privacy-page":           {ComponentID: "site.component.privacy"},
+		"sf-guidelines-page":        {ComponentID: "site.component.guidelines"},
+		"sf-not-found-page":         {ComponentID: "system.component.not_found"},
+		"sf-topic-composer":         {ComponentID: "forum.component.topic_composer"},
+		"sf-profile-settings":       {ComponentID: "profile.component.settings_form"},
+		"sf-security-settings":      {ComponentID: "identity.component.security_settings"},
+		"sf-login-form":             {ComponentID: "identity.component.login_form"},
+		"sf-register-form":          {ComponentID: "identity.component.register_form"},
+		"sf-recovery-request":       {ComponentID: "identity.component.recovery_request_form"},
+		"sf-recovery-confirm":       {ComponentID: "identity.component.recovery_confirm_form"},
+	}
 	for _, themeID := range []string{"sforum-default", "sforum-nocturne"} {
 		t.Run(themeID, func(t *testing.T) {
-			snapshot, err := NewCompiler(Limits{}).CompileDir(
-				filepath.Join(repositoryRoot, "extensions/builtin/themes", themeID),
+			// 仅选取 home 模板，避免完整页矩阵要求全部 PageViewModel 绑定。
+			themeRoot := filepath.Join(repositoryRoot, "extensions/builtin/themes", themeID)
+			homeBody, err := os.ReadFile(filepath.Join(themeRoot, "templates", "home.html"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			files := fstest.MapFS{
+				"templates/home.html": &fstest.MapFile{Data: homeBody, Mode: 0o600},
+			}
+			snapshot, err := NewCompiler(Limits{}).CompileFS(
+				files,
 				viewModelThemeDigest,
 				Bindings{
 					BindingRevision: viewModelBindingRevision,
@@ -259,9 +293,7 @@ func TestBundledThemeTemplatesCompileAndPreserveNestedHomeIsland(t *testing.T) {
 					PageViewModels: map[string]PageTemplateBinding{
 						"templates/home.html": {PageID: "forum.home", SchemaVersion: "sforum.page.home@1"},
 					},
-					Islands: map[string]IslandBinding{
-						"sf-home-page": {ComponentID: "forum.component.home_page"},
-					},
+					Islands: bundledIslands,
 				},
 			)
 			if err != nil {

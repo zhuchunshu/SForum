@@ -18,5 +18,9 @@
         "name": "SForum 团队"
       }
     }
+  },
+  "includes": {
+    "settings": "manifest/settings.json",
+    "admin": "manifest/admin.json"
   }
 }

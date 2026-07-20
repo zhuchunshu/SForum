@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "document": {
+    "id": "sforum.nocturne-theme.settings",
+    "title": "Nocturne Harbor",
+    "description": "Contrast theme shell: navy surfaces and cyan accents.",
+    "recommendedDefaults": true,
+    "groups": [
+      {
+        "id": "appearance",
+        "title": "Appearance",
+        "fields": [
+          {
+            "id": "hero_enabled",
+            "type": "boolean",
+            "label": "Show home hero chrome",
+            "default": true,
+            "recommended": true,
+            "help": "Recommended: keep the harbor hero on the home page."
+          },
+          {
+            "id": "accent_label",
+            "type": "string",
+            "label": "Accent label",
+            "default": "Nocturne Harbor",
+            "recommended": true,
+            "help": "Display label used in theme chrome."
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -793,19 +793,34 @@ func themeAssetBindings(skin ActiveSkinPublic) map[string]string {
 	return result
 }
 
+// productionThemeIslandBindings 是宿主公开主题岛的权威映射。
+// 内容页 body 岛映射到 HostPageIsland（Nuxt 默认 slot），主题只控制壳层。
 func productionThemeIslandBindings() map[string]themecompiler.IslandBinding {
 	return map[string]themecompiler.IslandBinding{
-		"sf-home-page":         {ComponentID: "forum.component.home_page"},
-		"sf-navbar":            {ComponentID: "navigation.component.navbar"},
-		"sf-footer":            {ComponentID: "navigation.component.footer"},
-		"sf-home-navigation":   {ComponentID: "navigation.component.home"},
-		"sf-topic-composer":    {ComponentID: "forum.component.topic_composer"},
-		"sf-profile-settings":  {ComponentID: "profile.component.settings_form"},
-		"sf-security-settings": {ComponentID: "identity.component.security_settings"},
-		"sf-login-form":        {ComponentID: "identity.component.login_form"},
-		"sf-register-form":     {ComponentID: "identity.component.register_form"},
-		"sf-recovery-request":  {ComponentID: "identity.component.recovery_request_form"},
-		"sf-recovery-confirm":  {ComponentID: "identity.component.recovery_confirm_form"},
+		"sf-home-page":              {ComponentID: "forum.component.home_page"},
+		"sf-category-index-page":    {ComponentID: "forum.component.category_index"},
+		"sf-category-show-page":     {ComponentID: "forum.component.category_show"},
+		"sf-tag-index-page":         {ComponentID: "forum.component.tag_index"},
+		"sf-tag-show-page":          {ComponentID: "forum.component.tag_show"},
+		"sf-topic-show-page":        {ComponentID: "forum.component.topic_show"},
+		"sf-profile-page":           {ComponentID: "forum.component.profile_show"},
+		"sf-my-home-page":           {ComponentID: "forum.component.my_home"},
+		"sf-my-content-review-page": {ComponentID: "forum.component.my_content_review"},
+		"sf-notifications-page":     {ComponentID: "forum.component.notifications"},
+		"sf-terms-page":             {ComponentID: "site.component.terms"},
+		"sf-privacy-page":           {ComponentID: "site.component.privacy"},
+		"sf-guidelines-page":        {ComponentID: "site.component.guidelines"},
+		"sf-not-found-page":         {ComponentID: "system.component.not_found"},
+		"sf-navbar":                 {ComponentID: "navigation.component.navbar"},
+		"sf-footer":                 {ComponentID: "navigation.component.footer"},
+		"sf-home-navigation":        {ComponentID: "navigation.component.home"},
+		"sf-topic-composer":         {ComponentID: "forum.component.topic_composer"},
+		"sf-profile-settings":       {ComponentID: "profile.component.settings_form"},
+		"sf-security-settings":      {ComponentID: "identity.component.security_settings"},
+		"sf-login-form":             {ComponentID: "identity.component.login_form"},
+		"sf-register-form":          {ComponentID: "identity.component.register_form"},
+		"sf-recovery-request":       {ComponentID: "identity.component.recovery_request_form"},
+		"sf-recovery-confirm":       {ComponentID: "identity.component.recovery_confirm_form"},
 		"sf-extension-widget": {
 			ComponentID:   "core.component.shared.sfextension_widget",
 			AllowFallback: true,
@@ -814,6 +829,57 @@ func productionThemeIslandBindings() map[string]themecompiler.IslandBinding {
 				{Name: "component-id", Type: themecompiler.IslandPropString, Required: true},
 			},
 		},
+	}
+}
+
+// RequiredThemeBodyIslandTag 返回可替换公开页在 L1 模板中应嵌入的宿主 body 岛标签。
+// 不可替换页返回空串。
+func RequiredThemeBodyIslandTag(pageID string) string {
+	switch strings.TrimSpace(pageID) {
+	case "forum.home":
+		return "sf-home-page"
+	case "forum.category.index":
+		return "sf-category-index-page"
+	case "forum.category.show":
+		return "sf-category-show-page"
+	case "forum.tag.index":
+		return "sf-tag-index-page"
+	case "forum.tag.show":
+		return "sf-tag-show-page"
+	case "forum.topic.show":
+		return "sf-topic-show-page"
+	case "forum.topic.create":
+		return "sf-topic-composer"
+	case "forum.profile.show":
+		return "sf-profile-page"
+	case "forum.my.home":
+		return "sf-my-home-page"
+	case "forum.my.content_review":
+		return "sf-my-content-review-page"
+	case "forum.settings.profile":
+		return "sf-profile-settings"
+	case "forum.settings.security":
+		return "sf-security-settings"
+	case "forum.notifications":
+		return "sf-notifications-page"
+	case "auth.login":
+		return "sf-login-form"
+	case "auth.register":
+		return "sf-register-form"
+	case "auth.forgot_password":
+		return "sf-recovery-request"
+	case "auth.reset_password":
+		return "sf-recovery-confirm"
+	case "site.terms":
+		return "sf-terms-page"
+	case "site.privacy":
+		return "sf-privacy-page"
+	case "site.guidelines":
+		return "sf-guidelines-page"
+	case "system.not_found":
+		return "sf-not-found-page"
+	default:
+		return ""
 	}
 }
 
