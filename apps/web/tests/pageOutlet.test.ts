@@ -49,12 +49,11 @@ describe('SFPageOutlet catalog wiring', () => {
     expect(outlet).not.toContain('CONSTRAINED_PAGES')
     expect(outlet).not.toContain('isConstrained')
     expect(outlet).toContain('<slot />')
-    // Auth recovery forms remain HostPageIsland (credential isolation).
-    expect(template).toContain("'identity.component.login_form': HostPageIsland")
-    expect(template).toContain("'identity.component.register_form': HostPageIsland")
-    // Content body islands are self-contained components.
+    // Auth forms are Host body islands (Host code, not theme-executable).
+    expect(template).toContain("'identity.component.login_form': resolveComponent('SFLoginFormPage')")
     expect(template).toContain("'forum.component.topic_composer': resolveComponent('SFTopicComposerPage')")
     expect(template).toContain("'forum.component.home_page': resolveComponent('SFHomePage')")
+    expect(template).toContain("'system.component.not_found': HostPageIsland")
     expect(template).toContain('slots.default?.()')
   })
 

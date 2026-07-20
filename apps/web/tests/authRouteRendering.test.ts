@@ -3,13 +3,21 @@ import { readFileSync } from 'node:fs'
 
 describe('auth route rendering', () => {
   test('guards default auth pages before setup and returns users after authentication', () => {
-    const authPages = [
-      readFileSync(new URL('../../../apps/web/app/pages/login.vue', import.meta.url), 'utf8'),
-      readFileSync(new URL('../../../apps/web/app/pages/register.vue', import.meta.url), 'utf8')
+    // guest middleware 属于 Nuxt 路由壳；凭证表单逻辑在 Host body 岛上。
+    const authRouteShells = [
+      readFileSync(new URL('../app/pages/login.vue', import.meta.url), 'utf8'),
+      readFileSync(new URL('../app/pages/register.vue', import.meta.url), 'utf8')
     ]
-
-    for (const source of authPages) {
+    for (const source of authRouteShells) {
       expect(source).toMatch(/definePageMeta\s*\(\s*\{[^}]*middleware\s*:\s*['"]guest['"][^}]*\}\s*\)/)
+      expect(source).toContain('SFPageOutlet')
+    }
+
+    const authFormIslands = [
+      readFileSync(new URL('../app/components/SFLoginFormPage.vue', import.meta.url), 'utf8'),
+      readFileSync(new URL('../app/components/SFRegisterFormPage.vue', import.meta.url), 'utf8')
+    ]
+    for (const source of authFormIslands) {
       expect(source).toContain('useAuthReturnNavigation()')
       expect(source).toMatch(/const\s*\{\s*setUser\s*\}\s*=\s*useAuthSession\s*\(\s*\)/)
       expect(source).toMatch(/setUser\s*\(\s*currentUser\s*\)/)
@@ -27,8 +35,8 @@ describe('auth route rendering', () => {
   })
 
   test('preserves default theme authentication success toasts', () => {
-    const loginPage = readFileSync(new URL('../../../apps/web/app/pages/login.vue', import.meta.url), 'utf8')
-    const registerPage = readFileSync(new URL('../../../apps/web/app/pages/register.vue', import.meta.url), 'utf8')
+    const loginPage = readFileSync(new URL('../../../apps/web/app/components/SFLoginFormPage.vue', import.meta.url), 'utf8')
+    const registerPage = readFileSync(new URL('../../../apps/web/app/components/SFRegisterFormPage.vue', import.meta.url), 'utf8')
 
     for (const source of [loginPage, registerPage]) {
       expect(source).toContain('toast.add({')
@@ -38,7 +46,7 @@ describe('auth route rendering', () => {
   })
 
   test('offers a login-risk verification recovery flow after account-level failures', () => {
-    const loginPage = readFileSync(new URL('../../../apps/web/app/pages/login.vue', import.meta.url), 'utf8')
+    const loginPage = readFileSync(new URL('../../../apps/web/app/components/SFLoginFormPage.vue', import.meta.url), 'utf8')
 
     expect(loginPage).toContain("purpose=login_risk")
     expect(loginPage).toContain("reason === 'human_verification.required'")
@@ -47,8 +55,8 @@ describe('auth route rendering', () => {
   })
 
   test('preserves explicit return targets when switching between auth forms', () => {
-    const loginPage = readFileSync(new URL('../../../apps/web/app/pages/login.vue', import.meta.url), 'utf8')
-    const registerPage = readFileSync(new URL('../../../apps/web/app/pages/register.vue', import.meta.url), 'utf8')
+    const loginPage = readFileSync(new URL('../../../apps/web/app/components/SFLoginFormPage.vue', import.meta.url), 'utf8')
+    const registerPage = readFileSync(new URL('../../../apps/web/app/components/SFRegisterFormPage.vue', import.meta.url), 'utf8')
 
     expect(loginPage).toContain('const { returnFromAuth, authPageLink } = useAuthReturnNavigation()')
     expect(loginPage.match(/:to="authPageLink\('\/register'\)"/g)).toHaveLength(2)
@@ -78,8 +86,8 @@ describe('auth route rendering', () => {
   })
 
   test('wires password policy feedback into registration and reset forms', () => {
-    const registerPage = readFileSync(new URL('../../../apps/web/app/pages/register.vue', import.meta.url), 'utf8')
-    const resetPage = readFileSync(new URL('../../../apps/web/app/pages/reset-password.vue', import.meta.url), 'utf8')
+    const registerPage = readFileSync(new URL('../../../apps/web/app/components/SFRegisterFormPage.vue', import.meta.url), 'utf8')
+    const resetPage = readFileSync(new URL('../../../apps/web/app/components/SFRecoveryConfirmPage.vue', import.meta.url), 'utf8')
     const zhCN = readFileSync(new URL('../i18n/locales/zh-CN.json', import.meta.url), 'utf8')
     const enUS = readFileSync(new URL('../i18n/locales/en-US.json', import.meta.url), 'utf8')
 

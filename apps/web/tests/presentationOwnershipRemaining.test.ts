@@ -15,6 +15,10 @@ describe('remaining public presentation ownership', () => {
     ['app/pages/notifications.vue', 'forum.notifications', 'SFNotificationsPage', 'forum.component.notifications', 'notifications.html'],
     ['app/pages/settings/profile.vue', 'forum.settings.profile', 'SFProfileSettingsPage', 'profile.component.settings_form', 'settings-profile.html'],
     ['app/pages/settings/security.vue', 'forum.settings.security', 'SFSecuritySettingsPage', 'identity.component.security_settings', 'settings-security.html'],
+    ['app/pages/login.vue', 'auth.login', 'SFLoginFormPage', 'identity.component.login_form', 'login.html'],
+    ['app/pages/register.vue', 'auth.register', 'SFRegisterFormPage', 'identity.component.register_form', 'register.html'],
+    ['app/pages/forgot-password.vue', 'auth.forgot_password', 'SFRecoveryRequestPage', 'identity.component.recovery_request_form', 'forgot-password.html'],
+    ['app/pages/reset-password.vue', 'auth.reset_password', 'SFRecoveryConfirmPage', 'identity.component.recovery_confirm_form', 'reset-password.html'],
   ] as const
 
   for (const [route, pageId, island, componentId, template] of surfaces) {
@@ -41,15 +45,13 @@ describe('remaining public presentation ownership', () => {
     })
   }
 
-  test('auth credential forms remain HostPageIsland', () => {
+  test('auth credential forms are Host body islands (not theme-executable)', () => {
     const template = read('app/components/SFThemeTemplate.vue')
-    for (const id of [
-      'identity.component.login_form',
-      'identity.component.register_form',
-      'identity.component.recovery_request_form',
-      'identity.component.recovery_confirm_form',
-    ]) {
-      expect(template).toContain(`'${id}': HostPageIsland`)
-    }
+    expect(template).toContain("'identity.component.login_form': resolveComponent('SFLoginFormPage')")
+    expect(template).toContain("'identity.component.register_form': resolveComponent('SFRegisterFormPage')")
+    expect(template).toContain("'identity.component.recovery_request_form': resolveComponent('SFRecoveryRequestPage')")
+    expect(template).toContain("'identity.component.recovery_confirm_form': resolveComponent('SFRecoveryConfirmPage')")
+    // system not_found may remain HostPageIsland for emergency
+    expect(template).toContain("'system.component.not_found': HostPageIsland")
   })
 })
