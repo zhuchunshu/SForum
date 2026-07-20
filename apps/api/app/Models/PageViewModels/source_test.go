@@ -100,6 +100,7 @@ type sourceOptions struct {
 	guestRead string
 	ready     bool
 	values    map[string]string
+	features  map[string]bool
 }
 
 func (s sourceOptions) WebOption(_ context.Context, name string) (string, error) {
@@ -110,7 +111,12 @@ func (s sourceOptions) WebOption(_ context.Context, name string) (string, error)
 	return value, nil
 }
 
-func (sourceOptions) IsFeatureEnabled(context.Context, string) (bool, error) { return true, nil }
+func (s sourceOptions) IsFeatureEnabled(_ context.Context, name string) (bool, error) {
+	if s.features == nil {
+		return true, nil
+	}
+	return s.features[name], nil
+}
 
 func (s sourceOptions) ForumReadPolicySnapshot() (string, string, uint64, bool) {
 	return s.guestRead, "author_and_staff", 1, s.ready
@@ -266,6 +272,23 @@ func TestCorePageViewModelSourceEnforcesGuestReadBeforeForumQueries(t *testing.T
 	}
 	if forumReader.lastTopicInput.Page != 0 {
 		t.Fatal("forum data was queried before guest read authorization")
+	}
+}
+
+func TestCorePageViewModelSourceDoesNotBypassDisabledSearch(t *testing.T) {
+	forumReader := &sourceForum{}
+	configured := defaultSourceOptions("public")
+	configured.features = map[string]bool{options.NameFeatureSearch: false}
+	source := newTestSource(forumReader, configured)
+	_, err := source.Populate(t.Context(), CorePageViewModelInput{
+		Request: pages.CorePageViewModelRequest{PageID: "forum.home", Locale: "en-US", Path: "/", SEO: themecompiler.PageSEOView{Title: "forum.home"}},
+		Query:   url.Values{"q": {"must-not-run"}},
+	})
+	if !errors.Is(err, ErrCorePageDataUnavailable) {
+		t.Fatalf("disabled search must fail to core fallback, got %v", err)
+	}
+	if forumReader.lastTopicInput.Page != 0 {
+		t.Fatal("disabled search fell through to an alternate topic query")
 	}
 }
 
