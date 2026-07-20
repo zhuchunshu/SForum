@@ -4,6 +4,71 @@ Last updated: 2026-07-21
 
 ## Progress
 
+- Verified weighted progress: **99.2%** (display **99%**).
+- Phase counts: P0-P12 complete; P13 **~99%**.
+- Presentation ownership **page migration complete** for all replaceable public
+  pages (home, legal, taxonomy, topic, profile, my, notifications, settings,
+  auth forms, not-found). Theme completeness gate requires
+  `data-theme-owned=presentation`.
+- Residual: Host Nuxt layout chrome + island CSS; LTS-blocked loader/v1/
+  compatibility deletions (APILTS RemoveAfter + zero-shim).
+
+## Current Subtask
+
+### 2026-07-21 P13 presentation page ownership closed; layouts residual
+
+- Auth islands: `db29579bc` / themes `ceb2ccc04` / tests `c9e17dd7f`
+- not-found ownership: `e514099b0` / gate `01ccf51d5` / tests `2e1029921`
+- Exact next:
+  1. Optional: migrate Host `layouts/default.vue` chrome into theme L1
+     (sf-navbar/sf-footer placement) without breaking homepage contracts; or
+  2. Keep Host layout chrome as fail-closed safety residual and leave LTS
+     deletion rows open until RemoveAfter + zero-shim telemetry.
+- Do **not** delete LoadTemplate / Protocol V1 / fail-closed SFPageOutlet.
+- Unowned dirty WIP — do not stage (route-inspector, content-policy, go.mod,
+  PageViewModels, OpenAPI route-inspector, publicExtensionRuntime, etc.).
+
+## Tests run (this slice)
+
+- `bun test` authRouteRendering + presentationOwnershipRemaining + pageOutlet: green
+- `go test ./app/Support/Pages/ -run TestBuiltinThemesCoverAllReplaceablePages`: green
+
+## Commits this slice
+
+- `db29579bc` feat(web): extract auth form pages into Host body islands
+- `ceb2ccc04` feat(themes): mark auth L1 shells theme-owned
+- `c9e17dd7f` test(web): cover auth form presentation ownership
+- `e514099b0` feat(themes): mark not-found L1 shells theme-owned
+- `01ccf51d5` test(pages): require theme-owned marker on replaceable L1 shells
+- `2e1029921` test(web): cover not-found ownership and moderation non-replaceable
+- `fb2c02999` docs(progress): credit P13 replaceable page presentation ownership
+
+## Rollback
+
+- Revert `db29579bc`…`fb2c02999` for this presentation/docs slice.
+- Do not delete LTS shims.
+
+## Unowned dirty WIP (do not stage)
+
+- apps/api route_action_v2 / route_mutation / admin_surface / PageViewModels /
+  go.mod / route_websocket_trust_revoke_integration_test.go
+- apps/web route-inspector + publicExtensionRuntime + adminRouteInspector tests
+- contracts extension-route-inspector / extensions-v3-registry
+- docs/extensions/host-api-v2.md
+- extensions content-policy sforum.extension.json
+- knowledge/decisions V3 ADR (foreign edits)
+
+---
+
+
+## Prior Ledger Archive
+
+# Trusted Plugin And Theme Platform V3 Progress Ledger
+
+Last updated: 2026-07-21
+
+## Progress
+
 - Verified weighted progress: **99.0%** (display **99.0%**).
 - Phase counts: P0-P12 complete; P13 **~99%**.
 - Presentation ownership thinned: forum.home, legal (3), taxonomy (4).

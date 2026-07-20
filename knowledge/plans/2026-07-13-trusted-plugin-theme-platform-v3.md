@@ -976,9 +976,13 @@ with required/deprecated cells and LTS shim telemetry proof.
       fixtures retained via `sforum.extension.v1.json` + `-tags protocol_v1`;
       policy `docs/extensions/v3/p13-migration-and-lts.md`.)
 - [ ] Move default public presentation out of core Nuxt pages/layouts/CSS.
-      (**Partial:** `forum.home` body lives in `SFHomePage` island; route shell
-      is thin SEO+outlet; default/nocturne L1 shells mark theme-owned.
-      Remaining public pages still fat Host Vue.)
+      (**Pages done:** every replaceable public page is thin Nuxt shell + Host
+      body island + default/nocturne L1 `data-theme-owned=presentation`
+      (`db29579bc`…`2e1029921`; completeness gate requires the marker).
+      **Residual:** Host Nuxt `layouts/default.vue` chrome (navbar/footer) and
+      island CSS under `apps/web/app/assets` remain Host-owned until a dedicated
+      chrome/CSS migration. `moderation.review`/`dev.components` stay
+      non-replaceable by catalog.)
 - [ ] Remove request-time template loader/regex renderer and legacy Page Outlet
       behavior after parity gates.
       (Fail-closed `SFPageOutlet` never fully removed; loader retained until LTS.)
@@ -1172,8 +1176,9 @@ The program is complete only when all statements are true:
 - [x] Transactional Host Commands support common multi-module atomic writes so
       reference plugins do not require raw core DB for ordinary workflows.
 - [ ] Themes own all public presentation and can override plugin templates.
-      (L1 replace covers all replaceable pages; **core Nuxt still effective
-      default presentation** — open P13 migration row.)
+      (L1 replace + theme-owned marker on all replaceable pages; nocturne ships
+      plugin template override. **Residual:** Host layout chrome + island CSS;
+      open P13 migration row for layouts/CSS only.)
 - [x] Theme overrides cannot alter plugin business data contracts, and standard
       template control actions work with a restricted FuncMap.
 - [x] Core/plugin/theme components support add/before/after/wrap/replace/hide.

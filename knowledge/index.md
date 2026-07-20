@@ -4,7 +4,7 @@ This is the entry point for project memory.
 
 ## Latest Handoff
 
-- **2026-07-21 Trusted Plugin And Theme Platform V3 P13 residual (overall 99.0%)**
+- **2026-07-21 Trusted Plugin And Theme Platform V3 P13 residual (overall 99.2%)**
   - Decision: `knowledge/decisions/2026-07-13-trusted-plugin-theme-platform-v3.md`
   - Identity/automation authority:
     `knowledge/decisions/2026-07-19-identity-provider-automation-authority.md`
@@ -14,15 +14,18 @@ This is the entry point for project memory.
     `knowledge/plans/2026-07-13-trusted-plugin-theme-platform-v3-progress.md`
   - Session progress:
     `knowledge/sessions/2026-07-13-trusted-plugin-theme-platform-v3-progress.md`
+  - P13 presentation pages handoff:
+    `knowledge/sessions/2026-07-21-trusted-plugin-theme-platform-v3-p13-presentation-pages-handoff.md`
   - P13 APILTS wiring handoff:
     `knowledge/sessions/2026-07-21-trusted-plugin-theme-platform-v3-p13-apilts-handoff.md`
   - Prior P13 residual handoff:
     `knowledge/sessions/2026-07-21-trusted-plugin-theme-platform-v3-p13-handoff.md`
   - P0-P12 complete. P13 **~99%**: command gates, reference packages, live
     API/ready, Baiduspider SSR green; production APILTS wiring; **SMTP** and
-    **storage-fs** Protocol V2; presentation ownership: **forum.home** + **legal** pages thinned to body
-    islands (`5b26b80fe`…`0e748598a`). Weighted **99.0%**. Open: remaining fat
-    public pages; LTS-blocked loader/v1 deletions. Evidence:
+    **storage-fs** Protocol V2; **all replaceable public pages** thinned to Host
+    body islands + theme-owned L1 shells (`5b26b80fe`…`2e1029921`). Weighted
+    **99.2%**. Open: Host layout chrome + island CSS residual; LTS-blocked
+    loader/v1 deletions. Evidence:
     `docs/extensions/v3/p13-final-gates-evidence.md`.
   - Prior P11 closure handoff:
     `knowledge/sessions/2026-07-21-trusted-plugin-theme-platform-v3-p11-closure.md`
