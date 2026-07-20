@@ -2177,3 +2177,36 @@ the accepted product contract.
 - None for the closed P7 execution-policy and Host-owned role-mapping boundaries.
   Query and executable Identity/Auth/Profile contracts remain implementation
   work under the accepted P7 safety rules, not unresolved product decisions.
+
+## 2026-07-20 P7 Session Authority Continuation
+
+- Authoritative progress remains **67.8295%** (display **67.0%**), with P7 at
+  **18/22**. No partial credit is recorded for the current Identity session
+  authority work.
+- `55ee5779f` reserves one bounded direct PostgreSQL connection for lifecycle
+  Registry publication moves. This prevents `MaxConns=1` self-starvation while
+  callbacks synchronously borrow the Host pool. PostgreSQL normal/race tests
+  passed three repetitions, and `go vet ./app/Support/Extensions` passed.
+- The active uncommitted subtask is exact issue/renew authority closure. Current
+  WIP freezes `(user_id, active, current_token_version)`, serializes Host
+  authority writers with accepted effects, preserves renewal failure memos,
+  rejects escaped/duplicate callbacks, and invalidates commit-unknown browser
+  credentials. It is not yet safe to stage as one unit.
+- AuthSession focused tests currently pass 20 normal and 10 race repetitions
+  for renewal deny/error memoization, legacy/effect-gate precedence, Pending
+  one-shot/cancellation cleanup, regenerate/save failure cleanup, and old/new
+  cookie replay. The targeted Identity PostgreSQL effect tests pass three
+  normal and three race repetitions after adding the fixture token revision.
+- Exact next steps:
+  1. Add the real password-reset/status/revoke-all versus issue/renew
+     PostgreSQL order matrix and close its fixture schema without weakening
+     production locks.
+  2. Finish direct controller evidence for exact register/login issue and
+     Host-local no-renew revocation paths.
+  3. Freeze and implement the Host-owned one-use `step_up` evidence boundary;
+     current plugin `step_up` retries are not a complete workflow.
+  4. Run joined normal/race/vet gates, partition mixed `controller.go` and
+     `bootstrap/app.go` hunks, then commit each contract independently.
+- Continue excluding Route/WebSocket drafts, PageViewModels, P9/public
+  frontend, Capabilities/risk drafts, `go.mod`, Web/i18n/OpenAPI/route
+  inspector, content-policy Manifest, and existing ADR/taskbook edits.
