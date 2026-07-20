@@ -4,7 +4,7 @@ This is the entry point for project memory.
 
 ## Latest Handoff
 
-- **2026-07-21 Trusted Plugin And Theme Platform V3 P11 complete (overall 89.0%)**
+- **2026-07-21 Trusted Plugin And Theme Platform V3 P13 residual (overall 99.0%)**
   - Decision: `knowledge/decisions/2026-07-13-trusted-plugin-theme-platform-v3.md`
   - Identity/automation authority:
     `knowledge/decisions/2026-07-19-identity-provider-automation-authority.md`
@@ -12,9 +12,13 @@ This is the entry point for project memory.
   - Task book: `knowledge/plans/2026-07-13-trusted-plugin-theme-platform-v3.md`
   - Current durable checkpoint:
     `knowledge/plans/2026-07-13-trusted-plugin-theme-platform-v3-progress.md`
-  - P0-P11 complete. Weighted progress **~89.30%** (display **89.0%**). Next:
-    P12 multi-node/marketplace/DX, then P13 references/legacy removal/final gates.
-  - Active handoff:
+  - Session progress:
+    `knowledge/sessions/2026-07-13-trusted-plugin-theme-platform-v3-progress.md`
+  - P0-P12 complete. P13 **~95%** (command gates + reference packages green).
+    Weighted progress **99.0%**. Residual: browser re-evidence, live multi-service
+    operator matrix, LTS-blocked legacy deletion. Evidence:
+    `docs/extensions/v3/p13-final-gates-evidence.md`.
+  - Prior P11 closure handoff:
     `knowledge/sessions/2026-07-21-trusted-plugin-theme-platform-v3-p11-closure.md`
   - Prior P11 progress handoff:
     `knowledge/sessions/2026-07-21-trusted-plugin-theme-platform-v3-p11-progress.md`

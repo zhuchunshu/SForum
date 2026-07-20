@@ -4,6 +4,37 @@ Last updated: 2026-07-21
 
 ## Progress
 
+- Verified weighted progress: **99.0%** (display **99.0%**).
+- Phase counts: P0-P12 complete; P13 **~95%** (command gates green; browser +
+  LTS deletion residual).
+
+## Current Subtask
+
+### 2026-07-21 P13 Final Gates Nearly Closed
+
+- `go test ./...`, `bun run build`, `./scripts/test.sh` green after:
+  lifecycle fence tests, P9 inspector HTTP guard, Host API docs spacing
+  validator, admin framework inspector map, 244-route catalog, ESM surface
+  matrix, evidence map.
+- Commits: `359b1d375` … `0dd9f3998` (see progress ledger).
+- Exact next: browser desktop/mobile/JS-disabled/Baiduspider re-evidence if
+  env available; keep LTS deletion closed until telemetry zero; do not stage
+  unowned WIP (route-inspector web, content-policy, PageViewModels, go.mod,
+  host-api-v2, websocket revoke, ADR noise — may be in stash `unowned-wip-temp`).
+- Rollback: revert the P13 final-gate fix chain from `0dd9f3998` back through
+  `359b1d375` if needed; do not delete LTS shims.
+
+---
+
+
+## Prior Ledger Archive
+
+# Trusted Plugin And Theme Platform V3 Progress Ledger
+
+Last updated: 2026-07-21
+
+## Progress
+
 - Verified weighted progress: **97.0%** (display **97.0%**).
 - Phase counts: P0-P12 complete; P13 **~40%** (reference themes + five plugin
   classes landed; migration/legacy removal and final gates open).

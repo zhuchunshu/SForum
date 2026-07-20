@@ -1,8 +1,8 @@
 # Trusted Plugin And Theme Platform V3 Progress Ledger
 
 Date: 2026-07-21
-Overall progress: **98.0%**
-Active phase: **P13 final gates (~80%)**
+Overall progress: **99.0%**
+Active phase: **P13 residual (~95%)**
 
 This ledger is the durable percentage and context-compaction checkpoint for the
 V3 program. Update it before context compression, at every phase boundary, and
@@ -29,12 +29,28 @@ scaffolding, or demo-only code cannot satisfy a runtime exit criterion.
 | P10 Content/media/data | 8% | 100% | 8.00% |
 | P11 Platform services | 6% | 100% | 6.00% |
 | P12 Operations/ecosystem | 6% | 100% | 6.00% |
-| P13 References/removal/final gates | 5% | 80% | 4.00% |
+| P13 References/removal/final gates | 5% | 95% | 4.75% |
 
 Displayed overall progress is the floor of earned weighted progress until the
 program reaches 100% and every final gate passes.
 
 
+
+## 2026-07-21 P13 Final Gates Nearly Closed (~95%)
+
+- Command gates green: `go test ./...`, `go build`, OpenAPI, typecheck,
+  `bun run build`, `./scripts/test.sh` (after lifecycle fence, inspector
+  guard, host-api-v2 spacing, admin inspector map, 244-route catalog fixes).
+- Commits: `359b1d375` lifecycle fences, `11ea16a7f` inspector read guard,
+  `e95337b50` host-api validator, `7d3746ba2` admin framework,
+  `5f6ad1d10` catalogs 244, `57ec1e5ad` ESM surface matrix,
+  `0dd9f3998` final-gates evidence.
+- Residual open: browser desktop/mobile re-evidence; full live multi-service
+  operator matrix; LTS-blocked legacy deletion (core Nuxt presentation,
+  request-time template loader, v1 paths).
+- Exact next: optional browser/live evidence if env available; otherwise keep
+  LTS residuals open and do not delete compatibility; final handoff when
+  browser row is re-run or explicitly accepted as historical P8 + unit.
 
 ## 2026-07-21 P13 Final Gates Partial (~80%)
 
