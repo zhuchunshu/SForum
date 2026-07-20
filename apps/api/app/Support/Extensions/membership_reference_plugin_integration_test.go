@@ -17,6 +17,7 @@ import (
 	extensionpackage "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionPackage"
 	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
 	identityregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/IdentityRegistry"
+	privacy "github.com/zhuchunshu/sforum/apps/api/app/Support/Privacy"
 )
 
 // TestReferenceMembershipPluginJoinedGates exercises the real Protocol V2
@@ -238,6 +239,34 @@ func TestReferenceMembershipPluginJoinedGates(t *testing.T) {
 		if !capSet.Has(key) {
 			t.Fatalf("missing capability grant %s", key)
 		}
+	}
+
+	// --- Privacy export/erase hooks (Host Privacy registry; no implicit grant) ---
+	privacyReg := privacy.New()
+	if err := privacyReg.Register(privacy.Contribution{
+		ExtensionID: extension.ID, PackageDigest: extension.PackageDigest,
+		Inventory: []privacy.InventoryItem{{
+			ID: "sforum.membership-reference.profile", Kind: privacy.KindPersonalData,
+			Description: "Membership reference profile tier and section data",
+		}},
+		SupportsExport: true, SupportsErase: true,
+	}, func(ctx context.Context, userID string) (privacy.ExportArtifact, error) {
+		return privacy.ExportArtifact{
+			ExtensionID: extension.ID, MediaType: "application/json",
+			Body: []byte(`{"userId":"` + userID + `","tier":"reference"}`),
+		}, nil
+	}, func(ctx context.Context, userID string) (privacy.EraseResult, error) {
+		return privacy.EraseResult{ExtensionID: extension.ID, Erased: true}, nil
+	}); err != nil {
+		t.Fatalf("privacy register: %v", err)
+	}
+	bundle, err := privacyReg.ExportUser(t.Context(), "super_admin", "member-1")
+	if err != nil || len(bundle.Artifacts) == 0 {
+		t.Fatalf("privacy export: %#v err=%v", bundle, err)
+	}
+	erase, err := privacyReg.EraseUser(t.Context(), "super_admin", "member-1")
+	if err != nil || len(erase.Results) == 0 || !erase.Results[0].Erased {
+		t.Fatalf("privacy erase: %#v err=%v", erase, err)
 	}
 
 	// --- Safe Mode: third-party identity execution denied ---
