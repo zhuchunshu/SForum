@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync"
 
+	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
 	componentcatalog "github.com/zhuchunshu/sforum/apps/api/app/Support/ComponentCatalog"
 	pages "github.com/zhuchunshu/sforum/apps/api/app/Support/Pages"
 )
@@ -24,9 +25,10 @@ type ProductionComponentCompositionConfig struct {
 // ProductionComponentComposition is the production-bound ComponentCompositionExecutor
 // service. Bootstrap owns one instance on the lifecycle stack.
 type ProductionComponentComposition struct {
-	executor *ComponentCompositionExecutor
-	registry *ComponentRegistry
-	renderer *ComponentSSRRendererProduction
+	executor   *ComponentCompositionExecutor
+	registry   *ComponentRegistry
+	renderer   *ComponentSSRRendererProduction
+	packageSSR *PackageLocalComponentSSRRenderer
 }
 
 // ComponentSSRRendererProduction is the Host Core-safe renderer. Core artifacts
@@ -61,7 +63,13 @@ func NewProductionComponentComposition(
 	if config.Registry == nil {
 		return nil, fmt.Errorf("%w: component registry is required", ErrComponentCompositionInvalid)
 	}
-	renderer := &ComponentSSRRendererProduction{PluginRenderer: config.PluginRenderer}
+	// 未显式注入 PluginRenderer 时，使用 Host 包本地 SSR（digest-fenced 编译缓存）。
+	packageSSR := NewPackageLocalComponentSSRRenderer()
+	pluginRenderer := config.PluginRenderer
+	if pluginRenderer == nil {
+		pluginRenderer = packageSSR
+	}
+	renderer := &ComponentSSRRendererProduction{PluginRenderer: pluginRenderer}
 	admission := &ComponentRuntimeAdmissionProduction{Manager: config.Manager}
 	permissions := config.PermissionAuthorizer
 	if permissions == nil {
@@ -70,7 +78,9 @@ func NewProductionComponentComposition(
 			return true, nil
 		})
 	}
-	service := &ProductionComponentComposition{registry: config.Registry, renderer: renderer}
+	service := &ProductionComponentComposition{
+		registry: config.Registry, renderer: renderer, packageSSR: packageSSR,
+	}
 	executor, err := NewComponentCompositionExecutor(ComponentCompositionExecutorConfig{
 		Registry:             config.Registry,
 		Renderer:             renderer,
@@ -84,6 +94,31 @@ func NewProductionComponentComposition(
 	}
 	service.executor = executor
 	return service, nil
+}
+
+// PublishPackageSSR 在组件生命周期发布成功后编译包本地 SSR 模板。
+// 外部自定义 PluginRenderer 时仍会更新内部缓存，以便后续切回默认渲染器。
+func (s *ProductionComponentComposition) PublishPackageSSR(extension extensions.Extension) error {
+	if s == nil || s.packageSSR == nil {
+		return nil
+	}
+	if len(extension.Manifest.Components) == 0 {
+		s.packageSSR.RemoveExtension(extension.ID)
+		return nil
+	}
+	return s.packageSSR.Publish(extension)
+}
+
+// RemovePackageSSR 在组件禁用/卸载时丢弃包本地 SSR 缓存。
+func (s *ProductionComponentComposition) RemovePackageSSR(extensionID, packageDigest string) {
+	if s == nil || s.packageSSR == nil {
+		return
+	}
+	if packageDigest != "" {
+		s.packageSSR.RemovePackage(packageDigest)
+		return
+	}
+	s.packageSSR.RemoveExtension(extensionID)
 }
 
 // Compose is the stable production entrypoint for Host composition.
@@ -252,8 +287,8 @@ func (a *ComponentRuntimeAdmissionProduction) AcquireComponentRuntime(
 	if isHostCoreComponentArtifact(request.Artifact) {
 		return &coreComponentAdmissionLease{ctx: ctx}, nil
 	}
-	if a == nil || a.Manager == nil {
-		return nil, fmt.Errorf("%w: component runtime manager unavailable", ErrComponentCompositionUnauthorized)
+	if a == nil {
+		return nil, fmt.Errorf("%w: component runtime admission is unavailable", ErrComponentCompositionUnauthorized)
 	}
 	identity := RuntimeInstanceIdentity{
 		ExtensionID: strings.TrimSpace(request.Artifact.ExtensionID),
@@ -263,9 +298,9 @@ func (a *ComponentRuntimeAdmissionProduction) AcquireComponentRuntime(
 		return nil, fmt.Errorf("%w: plugin artifact identity is incomplete", ErrComponentCompositionUnauthorized)
 	}
 	// Component Registry 使用 host-component-package:* 作为声明式包身份，不绑定插件进程。
-	// 若 Manager 上恰好存在同名 process instance 则走精确 lease；否则仅校验 Manager 存在。
+	// 包本地 SSR 可在无 Manager 时准入；若 Manager 上恰好有同名 process 则走精确 lease。
 	if strings.HasPrefix(identity.InstanceID, "host-component-package:") {
-		if a.Manager.RuntimeInstanceAvailable(identity) {
+		if a.Manager != nil && a.Manager.RuntimeInstanceAvailable(identity) {
 			lease, err := a.Manager.AcquireRuntimeCall(ctx, identity, RuntimeCallPage)
 			if err != nil {
 				return nil, err
@@ -275,8 +310,11 @@ func (a *ComponentRuntimeAdmissionProduction) AcquireComponentRuntime(
 			}
 			return &managerComponentAdmissionLease{lease: lease, caller: ctx}, nil
 		}
-		// 声明式组件包：Manager 在场即表示 Host 已加载扩展运行时子系统。
+		// 声明式组件包：Host 包本地 SSR / 无进程绑定。
 		return &coreComponentAdmissionLease{ctx: ctx}, nil
+	}
+	if a.Manager == nil {
+		return nil, fmt.Errorf("%w: component runtime manager unavailable", ErrComponentCompositionUnauthorized)
 	}
 	lease, err := a.Manager.AcquireRuntimeCall(ctx, identity, RuntimeCallPage)
 	if err != nil {

@@ -55,10 +55,23 @@ func (b *PostgresLifecycleBoundaryRegistries) reconcileComponents(
 				return componentRuntimeRegistrationAllowed(registration, source, target)
 			},
 		)
-		return wrapLifecycleComponentError("publish component registry", err)
+		if err != nil {
+			return wrapLifecycleComponentError("publish component registry", err)
+		}
+		// 组件注册表发布成功后同步编译包本地 SSR；失败回滚组件注册不在此层处理，
+		// 由下一次 reconcile 重试。自定义 PluginRenderer 时 PublishPackageSSR 仍更新缓存。
+		if b.componentSSR != nil {
+			if ssrErr := b.componentSSR.PublishPackageSSR(desired.extension); ssrErr != nil {
+				return wrapLifecycleComponentError("publish package-local component SSR", ssrErr)
+			}
+		}
+		return nil
 	}
 	current, exists := b.components.RuntimeSnapshot(extensionID)
 	if !exists {
+		if b.componentSSR != nil {
+			b.componentSSR.RemovePackageSSR(extensionID, "")
+		}
 		return nil
 	}
 	if !componentRuntimeSnapshotAllowed(current, source, target) {
@@ -74,6 +87,9 @@ func (b *PostgresLifecycleBoundaryRegistries) reconcileComponents(
 		return fmt.Errorf(
 			"%w: component runtime disappeared", ErrLifecycleRegistryPublicationConflict,
 		)
+	}
+	if b.componentSSR != nil {
+		b.componentSSR.RemovePackageSSR(extensionID, current.Extension.PackageDigest)
 	}
 	return nil
 }

@@ -78,15 +78,17 @@ type LifecycleRegistryBoundaryConfig struct {
 	RouteSchemas   *extensionopenapi.RouteSchemaPublication
 	Services       *hostapi.ServiceRegistry
 	Components     *ComponentRegistry
-	Assets         *assetregistry.Registry
-	Caches         *cacheregistry.Registry
-	Queries        *queryregistry.Registry
-	SEO            *seoregistry.Registry
-	Identity       *identityregistry.Registry
-	IdentityStore  identityregistry.PublicationStore
-	Navigation     *navigationregistry.Registry
-	AssetAuthority LifecycleAssetAuthority
-	AssetAdmission LifecycleAssetAdmission
+	// ComponentComposition 可选：组件发布成功后同步编译包本地 SSR。
+	ComponentComposition *ProductionComponentComposition
+	Assets               *assetregistry.Registry
+	Caches               *cacheregistry.Registry
+	Queries              *queryregistry.Registry
+	SEO                  *seoregistry.Registry
+	Identity             *identityregistry.Registry
+	IdentityStore        identityregistry.PublicationStore
+	Navigation           *navigationregistry.Registry
+	AssetAuthority       LifecycleAssetAuthority
+	AssetAdmission       LifecycleAssetAdmission
 }
 
 // PostgresLifecycleBoundaryRegistries composes the production HookBus,
@@ -106,6 +108,7 @@ type PostgresLifecycleBoundaryRegistries struct {
 	routeSchemas   *extensionopenapi.RouteSchemaPublication
 	services       *hostapi.ServiceRegistry
 	components     *ComponentRegistry
+	componentSSR   *ProductionComponentComposition
 	assets         *assetregistry.Registry
 	caches         *cacheregistry.Registry
 	queries        *queryregistry.Registry
@@ -135,6 +138,7 @@ func NewPostgresLifecycleBoundaryRegistries(config LifecycleRegistryBoundaryConf
 		routeSchemas:   config.RouteSchemas,
 		services:       config.Services,
 		components:     components,
+		componentSSR:   config.ComponentComposition,
 		assets:         config.Assets,
 		caches:         config.Caches,
 		queries:        config.Queries,
