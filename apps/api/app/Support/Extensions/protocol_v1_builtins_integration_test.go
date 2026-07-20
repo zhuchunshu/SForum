@@ -44,7 +44,9 @@ func TestProtocolV1BuiltInCompatibilityPackages(t *testing.T) {
 			setup: protocolV1SMTPFixture,
 		},
 		{
-			name: "storage-fs", packageName: "sforum-storage-fs", manifestName: extensions.ManifestFileName,
+			// 默认制品已迁 Protocol V2；本行验证 LTS 回滚二进制仍可构建并提供存储槽。
+			name: "storage-fs rollback", packageName: "sforum-storage-fs",
+			manifestName: "sforum.extension.v1.json", buildTags: "protocol_v1",
 			setup: protocolV1StorageFixture,
 		},
 		{
