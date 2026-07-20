@@ -8,20 +8,37 @@ import (
 func TestLTSDeprecationAndShimTelemetry(t *testing.T) {
 	reg := New()
 	snap := reg.Snapshot()
-	if len(snap.Contracts) < 4 {
+	if len(snap.Contracts) < 5 {
 		t.Fatalf("seed contracts = %#v", snap.Contracts)
+	}
+	var hasThemeLoader bool
+	for _, c := range snap.Contracts {
+		if c.ID == ThemeRequestTimeLoaderContractID && c.Status == "deprecated" && c.ShimEnabled {
+			hasThemeLoader = true
+		}
+	}
+	if !hasThemeLoader {
+		t.Fatalf("missing seeded theme request-time loader contract: %#v", snap.Contracts)
 	}
 	reg.RecordShimCall(ProtocolV1ContractID)
 	reg.RecordShimCall(ProtocolV1ContractID)
+	reg.RecordShimCall(ThemeRequestTimeLoaderContractID)
 	snap = reg.Snapshot()
 	var calls uint64
+	var themeCalls uint64
 	for _, row := range snap.ShimUsage {
 		if row.ContractID == ProtocolV1ContractID {
 			calls = row.Calls
 		}
+		if row.ContractID == ThemeRequestTimeLoaderContractID {
+			themeCalls = row.Calls
+		}
 	}
 	if calls != 2 {
 		t.Fatalf("shim calls = %d", calls)
+	}
+	if themeCalls != 1 {
+		t.Fatalf("theme loader shim calls = %d", themeCalls)
 	}
 	// Removal before RemoveAfter denied.
 	if err := reg.Register(Contract{

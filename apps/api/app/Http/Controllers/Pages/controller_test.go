@@ -22,6 +22,7 @@ import (
 	apphttp "github.com/zhuchunshu/sforum/apps/api/app/Http"
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
+	apilts "github.com/zhuchunshu/sforum/apps/api/app/Support/APILTS"
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Audit"
 	authsession "github.com/zhuchunshu/sforum/apps/api/app/Support/AuthSession"
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Pages"
@@ -741,6 +742,100 @@ func TestResolveAddedStaticAndParams(t *testing.T) {
 	params, _ := body.Data["routeParams"].(map[string]any)
 	if params["slug"] != "hello" {
 		t.Fatalf("params %#v", params)
+	}
+}
+
+func TestResolveLegacyL1RecordsRequestTimeLoaderTelemetry(t *testing.T) {
+	// 无 ThemeRuntimeSnapshot 覆盖的 add 路径会走 LoadTemplate；须记 LTS 遥测。
+	apilts.ResetProcessForTest(apilts.New())
+	t.Cleanup(func() { apilts.ResetProcessForTest(nil) })
+	before := apilts.Process().ShimCalls(apilts.ThemeRequestTimeLoaderContractID)
+
+	app, _, themes, _ := newPagesTestApp(t)
+	resp := performPages(t, app, nethttp.MethodGet, "/api/v1/pages/resolve-path?path=/demo-docs/hello", nil, nil)
+	if resp.StatusCode != 200 {
+		t.Fatalf("status %d", resp.StatusCode)
+	}
+	if themes.gets == 0 {
+		t.Fatal("expected package store Get for legacy request-time L1 load")
+	}
+	after := apilts.Process().ShimCalls(apilts.ThemeRequestTimeLoaderContractID)
+	if after <= before {
+		t.Fatalf("expected theme request-time loader shim call, before=%d after=%d", before, after)
+	}
+}
+
+func TestResolveCompiledThemeDoesNotRecordRequestTimeLoaderTelemetry(t *testing.T) {
+	// 精确 snapshot 热路径禁止请求时读盘，也不应记 request-time loader 遥测。
+	apilts.ResetProcessForTest(apilts.New())
+	t.Cleanup(func() { apilts.ResetProcessForTest(nil) })
+
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "theme.json"), []byte(`{"pages":[]}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(root, "templates"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "templates/home.html"), []byte(`<main>compiled home</main><sf-home-page></sf-home-page>`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	digest := strings.Repeat("a", 64)
+	artifact := pages.RuntimeArtifact{
+		ExtensionID: "compiled.theme", ExtensionVersion: "1.0.0", PackageDigest: digest,
+	}
+	contribution := pages.PageContribution{
+		ID: "compiled.home", Action: pages.ActionReplace, Target: "forum.home",
+		Template: "templates/home.html", Contract: "sforum.page.home@1",
+		ExtensionID: artifact.ExtensionID, Version: artifact.ExtensionVersion, PackageDigest: artifact.PackageDigest,
+	}
+	snapshot, err := pages.BuildThemeRuntimeSnapshot(pages.ThemeRuntimeBuildInput{
+		Artifact: artifact, PackageRoot: root, Contributions: []pages.PageContribution{contribution},
+		SiteName: "SForum", Locales: []string{"zh-CN"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	runtimeRegistry := pages.NewThemeRuntimeRegistry()
+	runtimeRegistry.Publish(snapshot)
+
+	registry := pages.NewRegistry(pages.NewMemoryStore())
+	if err := registry.RegisterContributions(artifact.ExtensionID, []pages.PageContribution{contribution}); err != nil {
+		t.Fatal(err)
+	}
+	if err := registry.ApproveReplace(context.Background(), pages.ProviderBinding{
+		PageID: "forum.home", ExtensionID: artifact.ExtensionID, ContributionID: contribution.ID,
+		Version: contribution.Version, PackageDigest: contribution.PackageDigest,
+		ContractVersion: contribution.Contract, ApprovedBy: 1,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	manager := authsession.NewManager(session.NewStore(), authsession.Config{HashSecret: "test-secret"})
+	// PackagePath 故意指向不存在目录：热路径若误触 LoadTemplate 会失败；我们断言不读盘。
+	themeStore := &pagesThemeStore{items: map[string]extensions.Extension{
+		artifact.ExtensionID: {
+			ID: artifact.ExtensionID, Version: artifact.ExtensionVersion, PackageDigest: digest,
+			PackagePath: filepath.Join(root, "missing"),
+		},
+	}}
+	controller := NewControllerWithThemes(registry, pagesActors{actors: map[int64]identity.Actor{}}, manager, themeStore).
+		WithThemeRuntime(runtimeRegistry)
+	cfg := config.Config{AppName: "SForum", AppEnv: "test", CSRFEnabled: false, AppLocale: "zh-CN", SupportedLocales: []string{"zh-CN"}}
+	app := apphttp.NewApp(cfg, slog.Default(), apphttp.Dependencies{RouteProviders: []apphttp.RouteProvider{
+		pagesRouteProvider(func(api fiber.Router) { controller.RegisterRoutes(api) }),
+	}})
+
+	before := apilts.Process().ShimCalls(apilts.ThemeRequestTimeLoaderContractID)
+	resp := performPages(t, app, nethttp.MethodGet, "/api/v1/pages/resolve?id=forum.home", nil, nil)
+	if resp.StatusCode != nethttp.StatusOK {
+		t.Fatalf("status %d", resp.StatusCode)
+	}
+	if themeStore.gets != 0 {
+		t.Fatalf("compiled snapshot must not hit package store, gets=%d", themeStore.gets)
+	}
+	after := apilts.Process().ShimCalls(apilts.ThemeRequestTimeLoaderContractID)
+	if after != before {
+		t.Fatalf("compiled snapshot must not record request-time loader telemetry, before=%d after=%d", before, after)
 	}
 }
 

@@ -32,6 +32,9 @@ func TestExtensionAPILTSCommandJSON(t *testing.T) {
 	if payload["protocolV1Calls"] != float64(0) {
 		t.Fatalf("protocolV1Calls = %#v", payload["protocolV1Calls"])
 	}
+	if payload["themeRequestTimeLoaderCalls"] != float64(0) {
+		t.Fatalf("themeRequestTimeLoaderCalls = %#v", payload["themeRequestTimeLoaderCalls"])
+	}
 }
 
 func TestExtensionAPILTSCommandText(t *testing.T) {
@@ -54,7 +57,9 @@ func TestExtensionAPILTSCommandText(t *testing.T) {
 	for _, want := range []string{
 		"schema: " + apilts.SchemaVersion,
 		apilts.ProtocolV1ContractID,
+		apilts.ThemeRequestTimeLoaderContractID,
 		"protocolV1Calls: 0",
+		"themeRequestTimeLoaderCalls: 0",
 	} {
 		if !strings.Contains(out, want) {
 			t.Fatalf("missing %q in:\n%s", want, out)
