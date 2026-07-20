@@ -118,6 +118,8 @@ type protocolV2CommandDefinition struct {
 	OutputSchemaVersion string
 	ActorMode           protocolV2CommandActorMode
 	RequiredPermissions []string
+	// RequiredCapability 是可选的进程能力（非人类 RBAC）。空表示不额外要求。
+	RequiredCapability string
 	// RunAuthorityMutation is set only for commands that mutate identity
 	// authority shared with an accepted session effect. It must run before the
 	// command borrows a transaction from the main pool.
@@ -140,6 +142,7 @@ type protocolV2CommandEngine struct {
 	backend               protocolV2CommandBackend
 	delegations           *ProtocolV2ActorDelegationAuthority
 	queryInvalidationJobs *supportjobs.Dispatcher
+	capabilities          CapabilitySource
 	definitions           map[protocolV2CommandKey]protocolV2CommandDefinition
 }
 
@@ -232,6 +235,20 @@ func newProtocolV2CommandEngineWithInvalidationJobs(
 	}, nil
 }
 
+// BindCapabilitySource 在 bootstrap 二阶段注入进程能力源（扩展 manage 等门禁）。
+func (e *protocolV2CommandEngine) BindCapabilitySource(source CapabilitySource) {
+	if e != nil {
+		e.capabilities = source
+	}
+}
+
+// BindCapabilitySource 将能力源转发到已绑定的 Command 引擎。
+func (r *protocolV2CommandRuntime) BindCapabilitySource(source CapabilitySource) {
+	if r != nil && r.engine != nil {
+		r.engine.BindCapabilitySource(source)
+	}
+}
+
 func (e *protocolV2CommandEngine) plan(ctx context.Context, request *hostv2.CommandRequest) (*hostv2.CommandPlan, error) {
 	definition, _, plan := e.definition(ctx, request)
 	if plan.GetError() != nil {
@@ -284,6 +301,28 @@ func (e *protocolV2CommandEngine) definition(ctx context.Context, request *hostv
 	if detail := validateProtocolV2CommandDocument(request.GetInput(), definition.InputSchemaID, definition.InputSchemaVersion, "input"); detail != nil {
 		plan.Error = detail
 		return definition, nil, plan
+	}
+	if capability := strings.TrimSpace(definition.RequiredCapability); capability != "" {
+		extensionID := strings.TrimSpace(request.GetContext().GetExtension().GetExtensionId())
+		if e.capabilities == nil || extensionID == "" {
+			plan.Error = commandError(
+				protocolv2.ErrorCode_ERROR_CODE_PERMISSION_DENIED,
+				"host.command_capability_denied",
+				"The caller does not hold the required process capability.",
+				false,
+			)
+			return definition, nil, plan
+		}
+		caps, err := e.capabilities.CapabilitiesFor(ctx, extensionID)
+		if err != nil || caps.Require(capability) != nil {
+			plan.Error = commandError(
+				protocolv2.ErrorCode_ERROR_CODE_PERMISSION_DENIED,
+				"host.command_capability_denied",
+				"The caller does not hold the required process capability.",
+				false,
+			)
+			return definition, nil, plan
+		}
 	}
 	switch definition.ActorMode {
 	case protocolV2CommandActorService:

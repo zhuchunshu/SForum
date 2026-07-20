@@ -560,6 +560,7 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 	// 把已构造的 extensionService 接到 Host API 能力/权限解析（避免循环构造）。
 	hostAPIService.BindCapabilitySource(extensionService)
 	hostAPIService.BindExtensionInventory(extensions.HostInventoryAdapter{Service: extensionService})
+	hostAPIGateway.BindCommandCapabilitySource(extensionService)
 	hostAPIService.BindPermissions(identityPermissionAdapter{store: identityStore})
 	// Identity user-field digests are installation-bound. GetUserSafe resolves
 	// extension declared_fields through the Host-owned store with live actor

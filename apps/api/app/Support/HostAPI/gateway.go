@@ -223,6 +223,19 @@ func (g *Gateway) BindProtocolV2CommandRuntime(runtime ProtocolV2CommandRuntime)
 	return nil
 }
 
+// BindCommandCapabilitySource 注入进程能力源，供 extensions.manage 等命令门禁使用。
+// 可在 catalog 冻结后调用，仅替换能力解析依赖，不改命令集合。
+func (g *Gateway) BindCommandCapabilitySource(source CapabilitySource) {
+	if g == nil {
+		return
+	}
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	if g.commands != nil {
+		g.commands.BindCapabilitySource(source)
+	}
+}
+
 // ProtocolV2ActorDelegationIssuer exposes only the boot-scoped issuer used by
 // Host-owned route/admin adapters. It is nil until a delegated command catalog
 // is bound and never crosses the plugin transport boundary.

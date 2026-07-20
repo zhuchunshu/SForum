@@ -44,6 +44,7 @@ func NewPostgresProtocolV2CommandRuntime(config PostgresProtocolV2CommandRuntime
 		newProtocolV2ModerationCommandDefinition(config.Moderation, config.Jobs),
 		newProtocolV2EntitlementCommandDefinition(config.Pool),
 		newProtocolV2AttachmentStatusCommandDefinition(config.AttachmentStatuses),
+		newProtocolV2ExtensionPluginDisableCommandDefinition(),
 	)
 	if err != nil {
 		return nil, err

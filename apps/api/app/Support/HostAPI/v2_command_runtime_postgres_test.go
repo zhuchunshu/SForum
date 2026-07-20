@@ -36,7 +36,7 @@ func TestPostgresProtocolV2CommandRuntimeRequiresCompleteDependencies(t *testing
 	}
 }
 
-func TestPostgresProtocolV2CommandRuntimePublishesSixDomainCommands(t *testing.T) {
+func TestPostgresProtocolV2CommandRuntimePublishesDomainCommands(t *testing.T) {
 	authority, err := NewProtocolV2ActorDelegationAuthority()
 	if err != nil {
 		t.Fatal(err)
@@ -53,17 +53,22 @@ func TestPostgresProtocolV2CommandRuntimePublishesSixDomainCommands(t *testing.T
 	if engine.queryInvalidationJobs == nil {
 		t.Fatal("production command runtime omitted Query invalidation dispatcher")
 	}
-	if len(engine.definitions) != 6 {
+	if len(engine.definitions) != 7 {
 		t.Fatalf("command count = %d", len(engine.definitions))
 	}
 	for _, command := range []string{
 		CommandIdentityUserStatusSetID, CommandTopicVisibilitySetID,
 		CommandEntityMetaValuesUpsertID, CommandModerationDecisionSubmitID,
 		CommandEntitlementsMutateID, CommandAttachmentStatusSetID,
+		CommandExtensionPluginDisableID,
 	} {
 		if _, ok := engine.definitions[protocolV2CommandKey{id: command, version: "1"}]; !ok {
 			t.Fatalf("missing command %s", command)
 		}
+	}
+	disable := engine.definitions[protocolV2CommandKey{id: CommandExtensionPluginDisableID, version: "1"}]
+	if disable.RequiredCapability != "extensions.manage" || disable.ActorMode != protocolV2CommandActorDelegated {
+		t.Fatalf("disable command contract = %#v", disable)
 	}
 	gateway := NewGateway(New(Config{}))
 	if gateway.ProtocolV2ActorDelegationIssuer() != nil {
