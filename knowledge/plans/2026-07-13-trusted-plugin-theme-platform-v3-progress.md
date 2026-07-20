@@ -34,6 +34,15 @@ scaffolding, or demo-only code cannot satisfy a runtime exit criterion.
 Displayed overall progress is the floor of earned weighted progress until the
 program reaches 100% and every final gate passes.
 
+## 2026-07-20 P9 Public Page CSP Service (not yet Nuxt-wired)
+
+- Overall remains **74.0%** (display). P9 remains **14/16** — CSP→Nuxt row not
+  credited until Nuxt SSR applies Host `DocumentPolicy.HeaderValue`.
+- Committed Host `FrontendService.PublicPagePolicy` (`e518d73cf`) with full unit
+  matrix: strict directives, dependency-owner trust, Safe Mode fail-closed,
+  determinism, unsafe-source rejection, bounds. Public L2 still production-
+  default off pending Nuxt header aggregation.
+
 ## 2026-07-20 P9 Primary SEO Fence Production Proof
 
 - Overall advances to **74.0%** after flooring. Exact earned weight is
