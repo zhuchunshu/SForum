@@ -12,7 +12,7 @@ export const PUBLIC_FRONTEND_EXACT_HEADERS = Object.freeze({
 
 const ID_PATTERN = /^[a-z0-9][a-z0-9._-]{1,120}$/
 const DIGEST_PATTERN = /^[0-9a-f]{64}$/
-const CONTRACT_PATTERN = /^[a-z0-9][a-z0-9._-]*@[a-zA-Z0-9][a-zA-Z0-9._+-]*$/
+const CONTRACT_PATTERN = /^[a-z0-9][a-z0-9._-]*@[1-9][0-9]*$/
 const MAX_ASSETS = 256
 
 export type PublicFrontendAssetReference = {
@@ -102,6 +102,8 @@ export function parsePublicFrontendDescriptor(
     || input.extensionId !== expectedExtensionId
     || input.componentId !== expectedComponentId
     || typeof input.extensionVersion !== 'string'
+    || !input.extensionVersion
+    || input.extensionVersion !== input.extensionVersion.trim()
     || !DIGEST_PATTERN.test(String(input.packageDigest))
     || !DIGEST_PATTERN.test(String(input.impactDigest))
     || !CONTRACT_PATTERN.test(String(input.contractVersion))
@@ -222,15 +224,21 @@ export function assertPublicNavigationPath(path: string) {
 
 function parseAssetReference(input: unknown): PublicFrontendAssetReference {
   if (!isRecord(input)
-    || !ID_PATTERN.test(String(input.handle))
-    || !CONTRACT_PATTERN.test(String(input.contractVersion))
-    || !ID_PATTERN.test(String(input.extensionId))
-    || !DIGEST_PATTERN.test(String(input.packageDigest))
-    || !DIGEST_PATTERN.test(String(input.impactDigest))
-    || !DIGEST_PATTERN.test(String(input.digest))
+    || typeof input.handle !== 'string'
+    || !ID_PATTERN.test(input.handle)
+    || typeof input.contractVersion !== 'string'
+    || !CONTRACT_PATTERN.test(input.contractVersion)
+    || typeof input.extensionId !== 'string'
+    || !ID_PATTERN.test(input.extensionId)
+    || typeof input.packageDigest !== 'string'
+    || !DIGEST_PATTERN.test(input.packageDigest)
+    || typeof input.impactDigest !== 'string'
+    || !DIGEST_PATTERN.test(input.impactDigest)
+    || typeof input.digest !== 'string'
+    || !DIGEST_PATTERN.test(input.digest)
     || (input.type !== 'script' && input.type !== 'style')
     || typeof input.integrity !== 'string'
-    || input.integrity !== digestIntegrity(String(input.digest))
+    || input.integrity !== digestIntegrity(input.digest)
     || typeof input.module !== 'boolean'
     || typeof input.loading !== 'string'
     || !['', 'blocking', 'defer', 'async', 'preload', 'lazy'].includes(input.loading)
@@ -239,6 +247,9 @@ function parseAssetReference(input: unknown): PublicFrontendAssetReference {
     || !Array.isArray(input.csp ?? [])
     || typeof input.assetPath !== 'string') {
     throw new PublicFrontendContractError('invalid public asset reference')
+  }
+  if (!validPublicAssetIdentity(input.extensionId, input.handle, input.contractVersion)) {
+    throw new PublicFrontendContractError('public asset identity does not match its owner')
   }
   if (input.type === 'style' && input.module) {
     throw new PublicFrontendContractError('stylesheet cannot be an ESM module')
@@ -301,13 +312,22 @@ function validatePublicFrontendAssetGraph(descriptor: PublicFrontendComponentDes
   const byHandle = new Map(assets.map(asset => [asset.handle, asset]))
   const resolved = new Set<string>()
   const reachable = new Set<string>()
+  const ownerArtifacts = new Map<string, { packageDigest: string, impactDigest: string }>([[
+    descriptor.extensionId,
+    { packageDigest: descriptor.packageDigest, impactDigest: descriptor.impactDigest }
+  ]])
 
   for (const asset of assets) {
-    if (asset.extensionId !== descriptor.extensionId
-      || asset.packageDigest !== descriptor.packageDigest
-      || asset.impactDigest !== descriptor.impactDigest) {
-      throw new PublicFrontendContractError('public asset escaped exact component artifact')
+    // 依赖节点不携带 extensionVersion；Host 在签发 descriptor 前校验每个 owner 的 live 版本与信任状态。
+    const ownerArtifact = ownerArtifacts.get(asset.extensionId)
+    if (ownerArtifact
+      && (ownerArtifact.packageDigest !== asset.packageDigest || ownerArtifact.impactDigest !== asset.impactDigest)) {
+      throw new PublicFrontendContractError('public asset owner has inconsistent exact artifacts')
     }
+    ownerArtifacts.set(asset.extensionId, {
+      packageDigest: asset.packageDigest,
+      impactDigest: asset.impactDigest
+    })
     if (asset.type === 'script' && !asset.module) {
       throw new PublicFrontendContractError('public component scripts must be ESM')
     }
@@ -320,8 +340,9 @@ function validatePublicFrontendAssetGraph(descriptor: PublicFrontendComponentDes
       if (dependency === asset.handle) {
         throw new PublicFrontendContractError('public asset depends on itself')
       }
-      if (dependency.startsWith('core.asset.')) continue
-      if (!byHandle.has(dependency)) {
+      const dependencyAsset = byHandle.get(dependency)
+      if (!dependencyAsset && dependency.startsWith('core.asset.')) continue
+      if (!dependencyAsset) {
         throw new PublicFrontendContractError('public asset dependency is missing')
       }
       if (!resolved.has(dependency)) {
@@ -332,9 +353,12 @@ function validatePublicFrontendAssetGraph(descriptor: PublicFrontendComponentDes
   }
 
   const visit = (handle: string) => {
-    if (reachable.has(handle) || handle.startsWith('core.asset.')) return
+    if (reachable.has(handle)) return
     const asset = byHandle.get(handle)
-    if (!asset) throw new PublicFrontendContractError('public asset dependency is missing')
+    if (!asset) {
+      if (handle.startsWith('core.asset.')) return
+      throw new PublicFrontendContractError('public asset dependency is missing')
+    }
     reachable.add(handle)
     for (const dependency of asset.dependencies) visit(dependency)
   }
@@ -348,6 +372,17 @@ function validatePublicFrontendAssetGraph(descriptor: PublicFrontendComponentDes
   if (declaredCSP.length !== graphCSP.length || declaredCSP.some((value, index) => value !== graphCSP[index])) {
     throw new PublicFrontendContractError('public descriptor CSP does not match its asset graph')
   }
+}
+
+function validPublicAssetIdentity(extensionId: string, handle: string, contractVersion: string) {
+  const contractID = contractVersion.slice(0, contractVersion.lastIndexOf('@'))
+  const coreOwner = extensionId.startsWith('core.')
+  if (coreOwner || handle.startsWith('core.')) {
+    return coreOwner
+      && handle.startsWith('core.asset.')
+      && contractID === `sforum.${handle.slice('core.'.length)}`
+  }
+  return handle.startsWith(`${extensionId}.`) && contractID === handle
 }
 
 function parseIDs(input: unknown[]) {
