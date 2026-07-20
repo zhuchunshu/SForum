@@ -25,6 +25,21 @@ var (
 	ErrSessionPolicyStepUpStore    = errors.New("identity: session policy step-up store is unavailable")
 )
 
+// SessionPolicyStepUpRequiredError carries Host-minted one-use evidence when a
+// provider disposition requires step-up before the session effect may run.
+type SessionPolicyStepUpRequiredError struct {
+	Token     string
+	ExpiresAt time.Time
+}
+
+func (e *SessionPolicyStepUpRequiredError) Error() string {
+	return ErrSessionPolicyEvaluationStepUp.Error()
+}
+
+func (e *SessionPolicyStepUpRequiredError) Unwrap() error {
+	return ErrSessionPolicyEvaluationStepUp
+}
+
 // SessionPolicyStepUpClaim binds one-use evidence to an exact evaluation tip.
 // Plaintext tokens are never durable.
 type SessionPolicyStepUpClaim struct {
