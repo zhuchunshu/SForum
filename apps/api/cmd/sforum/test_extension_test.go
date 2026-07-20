@@ -38,17 +38,13 @@ func TestExtensionTestCommandEventsFixture(t *testing.T) {
 	}
 }
 
-func TestExtensionTestCommandSMTPWithSkipBinary(t *testing.T) {
-	// SMTP 包 backend/plugin 可能是构建产物或缺失；用 skip 做 CLI 冒烟。
-	_, file, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("runtime.Caller failed")
-	}
-	repoRoot := filepath.Clean(filepath.Join(filepath.Dir(file), "../../../.."))
-	smtpRoot := filepath.Join(repoRoot, "extensions/builtin/plugins/sforum-smtp")
+func TestExtensionTestCommandSMTPPackage(t *testing.T) {
+	// V3 packageFiles 绑定真实二进制摘要；在临时目录构建并刷新 digest，
+	// 避免依赖 gitignored 工作树产物或平台摘要漂移。
+	smtpRoot := prepareBuiltinPluginPackage(t, "sforum-smtp")
 
 	cmd := newRootCommand()
-	cmd.SetArgs([]string{"extension", "test", "--skip-backend-binary", smtpRoot})
+	cmd.SetArgs([]string{"extension", "test", smtpRoot})
 	var out strings.Builder
 	cmd.SetOut(&out)
 	cmd.SetErr(&out)
@@ -58,34 +54,64 @@ func TestExtensionTestCommandSMTPWithSkipBinary(t *testing.T) {
 	if !strings.Contains(out.String(), "sforum.smtp") {
 		t.Fatalf("expected smtp id:\n%s", out.String())
 	}
+	if !strings.Contains(out.String(), "provider.slot_ok") {
+		t.Fatalf("expected provider.slot_ok check:\n%s", out.String())
+	}
 }
 
-func TestExtensionTestCommandContentPolicyV2Package(t *testing.T) {
-	// V3 packageFiles 必须校验真实字节；临时构建避免测试依赖 gitignored 本地产物。
+// prepareBuiltinPluginPackage 复制受保护内置插件到临时目录，构建 Linux 后端并刷新 V3 digest。
+func prepareBuiltinPluginPackage(t *testing.T, pluginDirName string) string {
+	t.Helper()
 	_, file, _, ok := runtime.Caller(0)
 	if !ok {
 		t.Fatal("runtime.Caller failed")
 	}
 	repoRoot := filepath.Clean(filepath.Join(filepath.Dir(file), "../../../.."))
-	sourceRoot := filepath.Join(repoRoot, "extensions/builtin/plugins/sforum-content-policy")
-	pkgRoot := filepath.Join(t.TempDir(), "sforum-content-policy")
+	sourceRoot := filepath.Join(repoRoot, "extensions/builtin/plugins", pluginDirName)
+	pkgRoot := filepath.Join(t.TempDir(), pluginDirName)
 	if err := os.CopyFS(pkgRoot, os.DirFS(sourceRoot)); err != nil {
-		t.Fatalf("copy content-policy package: %v", err)
+		t.Fatalf("copy %s package: %v", pluginDirName, err)
 	}
 	backendRoot := filepath.Join(sourceRoot, "backend")
 	binary := filepath.Join(pkgRoot, "backend", "plugin")
-	secondBinary := filepath.Join(t.TempDir(), "plugin")
-	for _, outputPath := range []string{binary, secondBinary} {
-		build := exec.Command("go", "build", "-trimpath", "-buildvcs=false", "-o", outputPath, ".")
-		build.Dir = backendRoot
-		build.Env = append(os.Environ(), "CGO_ENABLED=0", "GOOS=linux")
-		if output, err := build.CombinedOutput(); err != nil {
-			t.Fatalf("build reproducible Linux content-policy v2: %v\n%s", err, output)
-		}
+	// 删除可能从源树拷入的本地产物，强制使用本次确定性构建。
+	_ = os.Remove(binary)
+	build := exec.Command("go", "build", "-trimpath", "-buildvcs=false", "-o", binary, ".")
+	build.Dir = backendRoot
+	build.Env = append(os.Environ(), "CGO_ENABLED=0", "GOOS=linux")
+	if output, err := build.CombinedOutput(); err != nil {
+		t.Fatalf("build %s backend: %v\n%s", pluginDirName, err, output)
 	}
-	firstBody, err := os.ReadFile(binary)
+	digestCmd := newRootCommand()
+	digestCmd.SetArgs([]string{"extension", "digest", "--write", pkgRoot})
+	var digestOut strings.Builder
+	digestCmd.SetOut(&digestOut)
+	digestCmd.SetErr(&digestOut)
+	if err := digestCmd.Execute(); err != nil {
+		t.Fatalf("refresh %s digest: %v\n%s", pluginDirName, err, digestOut.String())
+	}
+	return pkgRoot
+}
+
+func TestExtensionTestCommandContentPolicyV2Package(t *testing.T) {
+	// 额外证明 Linux 后端构建可复现，再走 extension test 契约门禁。
+	pkgRoot := prepareBuiltinPluginPackage(t, "sforum-content-policy")
+	_, file, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("runtime.Caller failed")
+	}
+	repoRoot := filepath.Clean(filepath.Join(filepath.Dir(file), "../../../.."))
+	sourceBackend := filepath.Join(repoRoot, "extensions/builtin/plugins/sforum-content-policy/backend")
+	firstBody, err := os.ReadFile(filepath.Join(pkgRoot, "backend", "plugin"))
 	if err != nil {
 		t.Fatal(err)
+	}
+	secondBinary := filepath.Join(t.TempDir(), "plugin")
+	build := exec.Command("go", "build", "-trimpath", "-buildvcs=false", "-o", secondBinary, ".")
+	build.Dir = sourceBackend
+	build.Env = append(os.Environ(), "CGO_ENABLED=0", "GOOS=linux")
+	if output, err := build.CombinedOutput(); err != nil {
+		t.Fatalf("build reproducible Linux content-policy v2: %v\n%s", err, output)
 	}
 	secondBody, err := os.ReadFile(secondBinary)
 	if err != nil {
@@ -93,15 +119,6 @@ func TestExtensionTestCommandContentPolicyV2Package(t *testing.T) {
 	}
 	if !bytes.Equal(firstBody, secondBody) {
 		t.Fatalf("content-policy Linux build is not reproducible: %x != %x", sha256.Sum256(firstBody), sha256.Sum256(secondBody))
-	}
-
-	digestCmd := newRootCommand()
-	digestCmd.SetArgs([]string{"extension", "digest", "--write", pkgRoot})
-	var digestOut strings.Builder
-	digestCmd.SetOut(&digestOut)
-	digestCmd.SetErr(&digestOut)
-	if err := digestCmd.Execute(); err != nil {
-		t.Fatalf("refresh content-policy digest: %v\n%s", err, digestOut.String())
 	}
 
 	cmd := newRootCommand()

@@ -3,7 +3,6 @@ package main
 import (
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 
@@ -207,14 +206,8 @@ func readGeneratedManifest(t *testing.T, dir string) extensionmanifest.Manifest 
 }
 
 func TestExtensionValidateCommand(t *testing.T) {
-	// 使用真实 SMTP 多文件包做 CLI 冒烟。
-	_, file, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("runtime.Caller failed")
-	}
-	// apps/api/cmd/sforum -> repo root
-	repoRoot := filepath.Clean(filepath.Join(filepath.Dir(file), "../../../.."))
-	smtpRoot := filepath.Join(repoRoot, "extensions/builtin/plugins/sforum-smtp")
+	// 使用临时构建的 SMTP 包，避免 gitignored backend/plugin 摘要漂移。
+	smtpRoot := prepareBuiltinPluginPackage(t, "sforum-smtp")
 
 	cmd := newRootCommand()
 	cmd.SetArgs([]string{"extension", "validate", smtpRoot})
