@@ -6,29 +6,29 @@ Last updated: 2026-07-21
 
 - Verified weighted progress: **99.7%** (display **99%**).
 - Phase counts: **P0–P12 complete (P10 15/15)**; P13 **~99.7%**.
-- Goal harness "remaining P10" is **stale** — P10 re-verified green.
-- Final-gate re-run found and fixed real residual defects (not LTS deletions):
-  - `a9f023f6a` test(themes): chrome islands in ThemeCompiler bundled fixture
-  - `f58884dea` test(cli): temp-build builtin plugins for digest-safe gates
-  - `1534e61b1` test(extensions): rewrite smtp digests without hard-coded hashes
-  - `c8af2708e` test(extensions): Protocol V2 builtins build only in temp packages
+- Goal harness "remaining P10" is **stale** — P10 packages re-verified green;
+  Nuxt typecheck green; go build + OpenAPI green.
+- Residual hygiene closed this session:
+  - `d7a1d0ac5` chore(docker): digest all protected builtin plugins in image build
+  - `4dade91ea` test(cli): Dockerfile structural gate requires smtp/storage-fs digests
+- Explore audit: no other implementable task-book residual outside LTS deletions.
 
 ## Current Subtask
 
-### 2026-07-21 P13 residual defect fixes from final-gate re-audit
+### 2026-07-21 P13 residual-only (LTS wait)
 
 - Exact next: **still do not delete** LoadTemplate / Protocol V1 / fail-closed
-  SFPageOutlet until RemoveAfter (≈2026-11-28) + zero-shim + checklist 1–7.
-- No further implementable task-book rows remain (explore + task-book audit).
+  SFPageOutlet until RemoveAfter (≈2026-11-28) + zero-shim on live API/worker
+  + checklist 1–7 in `docs/extensions/v3/p13-migration-and-lts.md`.
+- Optional non-credit polish only (mobile Playwright matrix, warm SSR re-sample).
 
 ## Tests
 
-- P10 packages (Editor/Content/Media/Entity/ContentSecurity): pass
-- `go test ./app/Support/ThemeCompiler/`: pass
-- `go test ./cmd/sforum/ ./app/Support/Extensions/ ./app/Support/ExtensionManifest/`: pass
-- **`cd apps/api && go test ./...`**: **PASS** (captured final-gates/go-test-final.txt)
-- `go build ./...`: pass
-- OpenAPI refs: pass
+- P10 packages: pass
+- `bun run typecheck` (apps/web): pass
+- `go build ./...` + OpenAPI refs: pass
+- `go test ./cmd/sforum/`: pass
+- Prior full `go test ./...`: pass (final-gates/go-test-final.txt)
 
 ## Open task-book rows
 
@@ -38,7 +38,7 @@ Last updated: 2026-07-21
 
 ## Rollback
 
-- Revert `a9f023f6a`…`c8af2708e` for this residual defect chain.
+- Revert `d7a1d0ac5`…`4dade91ea` for Dockerfile digest gate chain.
 - Never delete LTS shims early.
 
 
