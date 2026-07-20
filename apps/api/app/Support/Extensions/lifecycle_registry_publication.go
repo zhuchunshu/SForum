@@ -13,6 +13,7 @@ import (
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
 	assetregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/AssetRegistry"
 	cacheregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/CacheRegistry"
+	contentregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/ContentRegistry"
 	extensionopenapi "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionOpenAPI"
 	hostapi "github.com/zhuchunshu/sforum/apps/api/app/Support/HostAPI"
 	identityregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/IdentityRegistry"
@@ -87,8 +88,10 @@ type LifecycleRegistryBoundaryConfig struct {
 	Identity             *identityregistry.Registry
 	IdentityStore        identityregistry.PublicationStore
 	Navigation           *navigationregistry.Registry
-	AssetAuthority       LifecycleAssetAuthority
-	AssetAdmission       LifecycleAssetAdmission
+	// Content is the P10 Content Registry (block/shortcode/embed/node/mark/…).
+	Content        *contentregistry.Registry
+	AssetAuthority LifecycleAssetAuthority
+	AssetAdmission LifecycleAssetAdmission
 }
 
 // PostgresLifecycleBoundaryRegistries composes the production HookBus,
@@ -117,6 +120,7 @@ type PostgresLifecycleBoundaryRegistries struct {
 	identityStore  identityregistry.PublicationStore
 	identitySet    bool
 	navigation     *navigationregistry.Registry
+	content        *contentregistry.Registry
 	assetAuthority LifecycleAssetAuthority
 	assetAdmission LifecycleAssetAdmission
 }
@@ -147,6 +151,7 @@ func NewPostgresLifecycleBoundaryRegistries(config LifecycleRegistryBoundaryConf
 		identityStore:  config.IdentityStore,
 		identitySet:    config.Identity != nil || config.IdentityStore != nil,
 		navigation:     config.Navigation,
+		content:        config.Content,
 		assetAuthority: config.AssetAuthority,
 		assetAdmission: config.AssetAdmission,
 	}
@@ -251,6 +256,9 @@ func (b *PostgresLifecycleBoundaryRegistries) RestoreRoutePublications(
 		return err
 	}
 	if err := b.restoreNavigationPublications(ctx, items, safeMode); err != nil {
+		return err
+	}
+	if err := b.restoreContentPublications(ctx, items, safeMode); err != nil {
 		return err
 	}
 	if err := b.restoreAssetPublications(ctx, items, safeMode); err != nil {
@@ -435,6 +443,9 @@ func (b *PostgresLifecycleBoundaryRegistries) validatePreparedLifecycleRegistrie
 	if err := b.validateNavigationTransition(source, target); err != nil {
 		return err
 	}
+	if err := b.validateContentTransition(source, target); err != nil {
+		return err
+	}
 	if err := b.validateIdentityTransition(source, target); err != nil {
 		return err
 	}
@@ -533,6 +544,7 @@ type lifecycleRegistryMaterial struct {
 	seoPublication        *seoregistry.Publication
 	identityPublication   *identityregistry.Publication
 	navigationPublication *navigationregistry.Publication
+	contentPublication    *contentregistry.Publication
 	assetAdmitted         bool
 	digest                string
 	legacyDigest          string
@@ -578,6 +590,9 @@ func (b *PostgresLifecycleBoundaryRegistries) prepareMaterial(
 	}
 	// Identity 已在 buildLifecycleRegistryMaterial 中冻结；Navigation 随后冻结。
 	if err := b.freezeNavigationMaterials(ctx, request, source, target); err != nil {
+		return lifecyclePublicationFence{}, nil, nil, err
+	}
+	if err := b.freezeContentMaterials(ctx, request, source, target); err != nil {
 		return lifecyclePublicationFence{}, nil, nil, err
 	}
 	return fence, source, target, nil
@@ -759,6 +774,9 @@ func (b *PostgresLifecycleBoundaryRegistries) reconcileLocalRegistries(
 		return err
 	}
 	if err := b.reconcileNavigation(ctx, request.TargetExtension.ID, source, target, desired); err != nil {
+		return err
+	}
+	if err := b.reconcileContent(ctx, request.TargetExtension.ID, source, target, desired); err != nil {
 		return err
 	}
 	if err := b.applyAssetPlan(ctx, assetPlan, phase); err != nil {

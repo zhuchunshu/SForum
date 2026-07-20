@@ -190,6 +190,7 @@ func TestProductionLifecycleStackConstructsEveryRequiredDependency(t *testing.T)
 		"query core catalog":  stack.QueryCoreCatalog != nil,
 		"seo registry":        stack.SEORegistry != nil,
 		"navigation registry": stack.NavigationRegistry != nil,
+		"content registry":    stack.ContentRegistry != nil,
 		"route providers":     stack.RouteProviders != nil,
 		"registry repository": stack.RegistryRepository != nil, "registries": stack.Registries != nil,
 		"state": stack.State != nil, "journal": stack.PublicationJournal != nil,
@@ -224,10 +225,17 @@ func TestProductionLifecycleStackConstructsEveryRequiredDependency(t *testing.T)
 	if stack.Registries.NavigationRegistry() != stack.NavigationRegistry {
 		t.Fatal("lifecycle boundary and production stack use different Navigation Registry instances")
 	}
+	if stack.Registries.ContentRegistry() != stack.ContentRegistry {
+		t.Fatal("lifecycle boundary and production stack use different Content Registry instances")
+	}
 	navigationSnapshot := stack.NavigationRegistry.Snapshot()
 	if navigationSnapshot.SafeMode || len(navigationSnapshot.Publications) != 1 ||
 		!navigationSnapshot.Publications[0].Artifact.Core {
 		t.Fatalf("production core navigation snapshot = %#v", navigationSnapshot)
+	}
+	contentSnapshot := stack.ContentRegistry.Snapshot()
+	if contentSnapshot.SafeMode || len(contentSnapshot.Publications) != 0 {
+		t.Fatalf("production content registry snapshot = %#v", contentSnapshot)
 	}
 	snapshot := stack.RouteRegistry.Snapshot()
 	if snapshot.Revision != 1 || snapshot.SafeMode || len(snapshot.Routes) != len(routes.CoreRouteCatalog()) ||

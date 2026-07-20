@@ -16,6 +16,7 @@ import (
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
 	assetregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/AssetRegistry"
 	cacheregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/CacheRegistry"
+	contentregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/ContentRegistry"
 	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
 	identityregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/IdentityRegistry"
 	navigationregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/NavigationRegistry"
@@ -45,6 +46,7 @@ type lifecycleRegistryDigestDocument struct {
 	SEO                *seoregistry.Publication        `json:"seo,omitempty"`
 	Identity           *identityregistry.Publication   `json:"identity,omitempty"`
 	Navigation         *navigationregistry.Publication `json:"navigation,omitempty"`
+	Content            *contentregistry.Publication    `json:"content,omitempty"`
 	ProductionFamilies []string                        `json:"productionFamilies"`
 	FoundationFamilies []string                        `json:"foundationFamilies"`
 }
@@ -144,6 +146,19 @@ func refreshLifecycleRegistryMaterialDigest(material *lifecycleRegistryMaterial)
 		material.legacyDigest = legacyDigest
 		material.compatibleDigests = appendLifecycleCompatibleDigest(priorAliases, priorDigest, navigationDigest)
 	}
+	if material.contentPublication != nil {
+		// Content Registry is additive @8 (P10). Only content-bearing materials
+		// advance the primary digest; prior family digests remain recovery aliases.
+		priorDigest := material.digest
+		priorAliases := append([]string(nil), material.compatibleDigests...)
+		contentDigest, contentErr := encodeLifecycleRegistryMaterialDigestV8(material)
+		if contentErr != nil {
+			return contentErr
+		}
+		material.digest = contentDigest
+		material.legacyDigest = legacyDigest
+		material.compatibleDigests = appendLifecycleCompatibleDigest(priorAliases, priorDigest, contentDigest)
+	}
 	return nil
 }
 
@@ -164,23 +179,27 @@ func encodeLifecycleRegistryMaterialDigest(
 	includeAsset bool,
 	includeQuery bool,
 ) (string, error) {
-	return encodeLifecycleRegistryMaterialDigestVersion(material, includeAsset, includeQuery, false, false, false, false)
+	return encodeLifecycleRegistryMaterialDigestVersion(material, includeAsset, includeQuery, false, false, false, false, false)
 }
 
 func encodeLifecycleRegistryMaterialDigestV4(material *lifecycleRegistryMaterial) (string, error) {
-	return encodeLifecycleRegistryMaterialDigestVersion(material, true, true, true, false, false, false)
+	return encodeLifecycleRegistryMaterialDigestVersion(material, true, true, true, false, false, false, false)
 }
 
 func encodeLifecycleRegistryMaterialDigestV5(material *lifecycleRegistryMaterial) (string, error) {
-	return encodeLifecycleRegistryMaterialDigestVersion(material, true, true, true, true, false, false)
+	return encodeLifecycleRegistryMaterialDigestVersion(material, true, true, true, true, false, false, false)
 }
 
 func encodeLifecycleRegistryMaterialDigestV6(material *lifecycleRegistryMaterial) (string, error) {
-	return encodeLifecycleRegistryMaterialDigestVersion(material, true, true, true, true, true, false)
+	return encodeLifecycleRegistryMaterialDigestVersion(material, true, true, true, true, true, false, false)
 }
 
 func encodeLifecycleRegistryMaterialDigestV7(material *lifecycleRegistryMaterial) (string, error) {
-	return encodeLifecycleRegistryMaterialDigestVersion(material, true, true, true, true, true, true)
+	return encodeLifecycleRegistryMaterialDigestVersion(material, true, true, true, true, true, true, false)
+}
+
+func encodeLifecycleRegistryMaterialDigestV8(material *lifecycleRegistryMaterial) (string, error) {
+	return encodeLifecycleRegistryMaterialDigestVersion(material, true, true, true, true, true, true, true)
 }
 
 func encodeLifecycleRegistryMaterialDigestVersion(
@@ -191,6 +210,7 @@ func encodeLifecycleRegistryMaterialDigestVersion(
 	includeSEO bool,
 	includeIdentity bool,
 	includeNavigation bool,
+	includeContent bool,
 ) (string, error) {
 	extension := material.extension
 	binding := material.binding
@@ -252,12 +272,20 @@ func encodeLifecycleRegistryMaterialDigestVersion(
 			productionFamilies = append(productionFamilies, "navigation.v1")
 		}
 	}
+	var content *contentregistry.Publication
+	if includeContent {
+		schema = "sforum.lifecycle.registry-plan@8"
+		content = material.contentPublication
+		if content != nil {
+			productionFamilies = append(productionFamilies, "content.v1")
+		}
+	}
 	// @1 remains byte-for-byte compatible with pre-P9 in-flight rows. New
 	// asset-bearing operations persist @2. Query-bearing operations persist @3;
 	// cache-bearing operations persist @4 and SEO-bearing operations persist @5.
-	// Identity-bearing operations persist @6; navigation-bearing operations persist @7.
-	// Earlier versions are accepted only as explicit recovery aliases computed
-	// from the same exact material.
+	// Identity-bearing operations persist @6; navigation-bearing operations persist @7;
+	// content-bearing operations persist @8. Earlier versions are accepted only as
+	// explicit recovery aliases computed from the same exact material.
 	document := lifecycleRegistryDigestDocument{
 		Schema: schema, ExtensionID: extension.ID,
 		ExtensionVersion: extension.Version, PackageDigest: extension.PackageDigest,
@@ -273,6 +301,7 @@ func encodeLifecycleRegistryMaterialDigestVersion(
 		SEO:                seo,
 		Identity:           identity,
 		Navigation:         navigation,
+		Content:            content,
 		ProductionFamilies: productionFamilies,
 		FoundationFamilies: []string{"routes.v1-foundation"},
 	}

@@ -257,9 +257,9 @@ func validLifecycleRegistryPrepareInput(input PrepareLifecycleRegistryPublicatio
 }
 
 func validLifecycleRegistryCompatibleDigests(values []string, primary string) bool {
-	// Navigation Registry plan @7 may resume any exact @1..@6 material digest.
-	// Identity @6 could resume @1..@5; earlier families keep the same bound.
-	if len(values) > 6 {
+	// Content Registry plan @8 may resume any exact @1..@7 material digest.
+	// Navigation @7 could resume @1..@6; earlier families keep the same bound.
+	if len(values) > 7 {
 		return false
 	}
 	seen := make(map[string]struct{}, len(values))
