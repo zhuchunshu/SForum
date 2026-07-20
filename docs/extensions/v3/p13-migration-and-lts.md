@@ -15,6 +15,27 @@ may delete compatibility paths. It does **not** delete legacy code.
 
 Authoritative LTS telemetry lives in `apps/api/app/Support/APILTS`.
 
+### Production wiring (P13 residual honesty)
+
+- Stable shim contract id: `sforum.protocol.v1` (`apilts.ProtocolV1ContractID`).
+- API and worker bootstrap inject `apilts.Process()` into
+  `ProtocolStarterConfig.ShimTelemetry`.
+- Every Protocol V1 **start** and **RPC call** increments process-local
+  `RecordShimCall("sforum.protocol.v1")`. Protocol V2 gRPC does not.
+- Deletion gate helper: `Registry.CanRemoveWithZeroShim(contractID, now)` —
+  requires both the published `RemoveAfter` window and **zero** process-local
+  shim calls.
+- Operator inspect (offline policy + this-process counters):
+
+  ```bash
+  cd apps/api && go run ./cmd/sforum extension api-lts
+  cd apps/api && go run ./cmd/sforum extension api-lts --json
+  ```
+
+  Live V1 traffic counters accumulate in the **API/worker process**, not in a
+  one-shot CLI process (CLI usage is usually zero and still prints the seeded
+  contract policy).
+
 ## Built-in plugin migration status
 
 | Package | Protocol | Status |
