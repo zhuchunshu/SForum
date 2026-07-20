@@ -1042,6 +1042,26 @@
     "targetRegistry": "P7/P9 Admin and Component Registries"
   },
   {
+    "id": "core.component.shared.sfcategory_index_page",
+    "contractVersion": "sforum.component.shared.sfcategory_index_page@1",
+    "kind": "component",
+    "source": "apps/web/app/components/SFCategoryIndexPage.vue",
+    "owners": [
+      "public"
+    ],
+    "targetRegistry": "P9 Component Registry"
+  },
+  {
+    "id": "core.component.shared.sfcategory_show_page",
+    "contractVersion": "sforum.component.shared.sfcategory_show_page@1",
+    "kind": "component",
+    "source": "apps/web/app/components/SFCategoryShowPage.vue",
+    "owners": [
+      "public"
+    ],
+    "targetRegistry": "P9 Component Registry"
+  },
+  {
     "id": "core.component.shared.sfcomment",
     "contractVersion": "sforum.component.shared.sfcomment@1",
     "kind": "component",
@@ -1123,6 +1143,16 @@
     "targetRegistry": "P9 Component Registry"
   },
   {
+    "id": "core.component.shared.sfguidelines_page",
+    "contractVersion": "sforum.component.shared.sfguidelines_page@1",
+    "kind": "component",
+    "source": "apps/web/app/components/SFGuidelinesPage.vue",
+    "owners": [
+      "public"
+    ],
+    "targetRegistry": "P9 Component Registry"
+  },
+  {
     "id": "core.component.shared.sfhome_navigation",
     "contractVersion": "sforum.component.shared.sfhome_navigation@1",
     "kind": "component",
@@ -1163,6 +1193,16 @@
     "targetRegistry": "P9 Component Registry"
   },
   {
+    "id": "core.component.shared.sfhost_public_chrome",
+    "contractVersion": "sforum.component.shared.sfhost_public_chrome@1",
+    "kind": "component",
+    "source": "apps/web/app/components/SFHostPublicChrome.vue",
+    "owners": [
+      "public"
+    ],
+    "targetRegistry": "P9 Component Registry"
+  },
+  {
     "id": "core.component.shared.sficon_picker",
     "contractVersion": "sforum.component.shared.sficon_picker@1",
     "kind": "component",
@@ -1184,10 +1224,70 @@
     "targetRegistry": "P7/P9 Admin and Component Registries"
   },
   {
+    "id": "core.component.shared.sflegal_document_page",
+    "contractVersion": "sforum.component.shared.sflegal_document_page@1",
+    "kind": "component",
+    "source": "apps/web/app/components/SFLegalDocumentPage.vue",
+    "owners": [
+      "public"
+    ],
+    "targetRegistry": "P9 Component Registry"
+  },
+  {
+    "id": "core.component.shared.sflogin_form_page",
+    "contractVersion": "sforum.component.shared.sflogin_form_page@1",
+    "kind": "component",
+    "source": "apps/web/app/components/SFLoginFormPage.vue",
+    "owners": [
+      "public"
+    ],
+    "targetRegistry": "P9 Component Registry"
+  },
+  {
+    "id": "core.component.shared.sfmoderation_review_page",
+    "contractVersion": "sforum.component.shared.sfmoderation_review_page@1",
+    "kind": "component",
+    "source": "apps/web/app/components/SFModerationReviewPage.vue",
+    "owners": [
+      "public"
+    ],
+    "targetRegistry": "P9 Component Registry"
+  },
+  {
+    "id": "core.component.shared.sfmy_content_review_page",
+    "contractVersion": "sforum.component.shared.sfmy_content_review_page@1",
+    "kind": "component",
+    "source": "apps/web/app/components/SFMyContentReviewPage.vue",
+    "owners": [
+      "public"
+    ],
+    "targetRegistry": "P9 Component Registry"
+  },
+  {
+    "id": "core.component.shared.sfmy_home_page",
+    "contractVersion": "sforum.component.shared.sfmy_home_page@1",
+    "kind": "component",
+    "source": "apps/web/app/components/SFMyHomePage.vue",
+    "owners": [
+      "public"
+    ],
+    "targetRegistry": "P9 Component Registry"
+  },
+  {
     "id": "core.component.shared.sfnavbar",
     "contractVersion": "sforum.component.shared.sfnavbar@1",
     "kind": "component",
     "source": "apps/web/app/components/SFNavbar.vue",
+    "owners": [
+      "public"
+    ],
+    "targetRegistry": "P9 Component Registry"
+  },
+  {
+    "id": "core.component.shared.sfnotifications_page",
+    "contractVersion": "sforum.component.shared.sfnotifications_page@1",
+    "kind": "component",
+    "source": "apps/web/app/components/SFNotificationsPage.vue",
     "owners": [
       "public"
     ],
@@ -1215,6 +1315,36 @@
     "targetRegistry": "P7/P9 Admin and Component Registries"
   },
   {
+    "id": "core.component.shared.sfprivacy_page",
+    "contractVersion": "sforum.component.shared.sfprivacy_page@1",
+    "kind": "component",
+    "source": "apps/web/app/components/SFPrivacyPage.vue",
+    "owners": [
+      "public"
+    ],
+    "targetRegistry": "P9 Component Registry"
+  },
+  {
+    "id": "core.component.shared.sfprofile_settings_page",
+    "contractVersion": "sforum.component.shared.sfprofile_settings_page@1",
+    "kind": "component",
+    "source": "apps/web/app/components/SFProfileSettingsPage.vue",
+    "owners": [
+      "public"
+    ],
+    "targetRegistry": "P9 Component Registry"
+  },
+  {
+    "id": "core.component.shared.sfprofile_show_page",
+    "contractVersion": "sforum.component.shared.sfprofile_show_page@1",
+    "kind": "component",
+    "source": "apps/web/app/components/SFProfileShowPage.vue",
+    "owners": [
+      "public"
+    ],
+    "targetRegistry": "P9 Component Registry"
+  },
+  {
     "id": "core.component.shared.sfprogress",
     "contractVersion": "sforum.component.shared.sfprogress@1",
     "kind": "component",
@@ -1224,6 +1354,36 @@
       "admin"
     ],
     "targetRegistry": "P7/P9 Admin and Component Registries"
+  },
+  {
+    "id": "core.component.shared.sfrecovery_confirm_page",
+    "contractVersion": "sforum.component.shared.sfrecovery_confirm_page@1",
+    "kind": "component",
+    "source": "apps/web/app/components/SFRecoveryConfirmPage.vue",
+    "owners": [
+      "public"
+    ],
+    "targetRegistry": "P9 Component Registry"
+  },
+  {
+    "id": "core.component.shared.sfrecovery_request_page",
+    "contractVersion": "sforum.component.shared.sfrecovery_request_page@1",
+    "kind": "component",
+    "source": "apps/web/app/components/SFRecoveryRequestPage.vue",
+    "owners": [
+      "public"
+    ],
+    "targetRegistry": "P9 Component Registry"
+  },
+  {
+    "id": "core.component.shared.sfregister_form_page",
+    "contractVersion": "sforum.component.shared.sfregister_form_page@1",
+    "kind": "component",
+    "source": "apps/web/app/components/SFRegisterFormPage.vue",
+    "owners": [
+      "public"
+    ],
+    "targetRegistry": "P9 Component Registry"
   },
   {
     "id": "core.component.shared.sfreport_dialog",
@@ -1240,6 +1400,16 @@
     "contractVersion": "sforum.component.shared.sfsearch@1",
     "kind": "component",
     "source": "apps/web/app/components/SFSearch.vue",
+    "owners": [
+      "public"
+    ],
+    "targetRegistry": "P9 Component Registry"
+  },
+  {
+    "id": "core.component.shared.sfsecurity_settings_page",
+    "contractVersion": "sforum.component.shared.sfsecurity_settings_page@1",
+    "kind": "component",
+    "source": "apps/web/app/components/SFSecuritySettingsPage.vue",
     "owners": [
       "public"
     ],
@@ -1266,6 +1436,36 @@
       "admin"
     ],
     "targetRegistry": "P7/P9 Admin and Component Registries"
+  },
+  {
+    "id": "core.component.shared.sftag_index_page",
+    "contractVersion": "sforum.component.shared.sftag_index_page@1",
+    "kind": "component",
+    "source": "apps/web/app/components/SFTagIndexPage.vue",
+    "owners": [
+      "public"
+    ],
+    "targetRegistry": "P9 Component Registry"
+  },
+  {
+    "id": "core.component.shared.sftag_show_page",
+    "contractVersion": "sforum.component.shared.sftag_show_page@1",
+    "kind": "component",
+    "source": "apps/web/app/components/SFTagShowPage.vue",
+    "owners": [
+      "public"
+    ],
+    "targetRegistry": "P9 Component Registry"
+  },
+  {
+    "id": "core.component.shared.sfterms_page",
+    "contractVersion": "sforum.component.shared.sfterms_page@1",
+    "kind": "component",
+    "source": "apps/web/app/components/SFTermsPage.vue",
+    "owners": [
+      "public"
+    ],
+    "targetRegistry": "P9 Component Registry"
   },
   {
     "id": "core.component.shared.sftheme_template",
@@ -1310,6 +1510,16 @@
     "targetRegistry": "P9 Component Registry"
   },
   {
+    "id": "core.component.shared.sftopic_composer_page",
+    "contractVersion": "sforum.component.shared.sftopic_composer_page@1",
+    "kind": "component",
+    "source": "apps/web/app/components/SFTopicComposerPage.vue",
+    "owners": [
+      "public"
+    ],
+    "targetRegistry": "P9 Component Registry"
+  },
+  {
     "id": "core.component.shared.sftopic_editor",
     "contractVersion": "sforum.component.shared.sftopic_editor@1",
     "kind": "component",
@@ -1334,6 +1544,16 @@
     "contractVersion": "sforum.component.shared.sftopic_progress_rail@1",
     "kind": "component",
     "source": "apps/web/app/components/SFTopicProgressRail.vue",
+    "owners": [
+      "public"
+    ],
+    "targetRegistry": "P9 Component Registry"
+  },
+  {
+    "id": "core.component.shared.sftopic_show_page",
+    "contractVersion": "sforum.component.shared.sftopic_show_page@1",
+    "kind": "component",
+    "source": "apps/web/app/components/SFTopicShowPage.vue",
     "owners": [
       "public"
     ],

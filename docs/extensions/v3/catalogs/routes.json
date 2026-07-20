@@ -1992,7 +1992,7 @@
     "handler": "adminList",
     "method": "GET",
     "path": "/api/v1/admin/pages",
-    "source": "apps/api/app/Http/Controllers/Pages/controller.go:94",
+    "source": "apps/api/app/Http/Controllers/Pages/controller.go:95",
     "access": "permission",
     "policy": "extension.view for inspection; theme/plugin manage and super_admin approval where required",
     "guard": {
@@ -2008,7 +2008,7 @@
     "handler": "adminGet",
     "method": "GET",
     "path": "/api/v1/admin/pages/:pageId",
-    "source": "apps/api/app/Http/Controllers/Pages/controller.go:97",
+    "source": "apps/api/app/Http/Controllers/Pages/controller.go:98",
     "access": "permission",
     "policy": "extension.view for inspection; theme/plugin manage and super_admin approval where required",
     "guard": {
@@ -2024,7 +2024,7 @@
     "handler": "adminApprove",
     "method": "POST",
     "path": "/api/v1/admin/pages/:pageId/approve",
-    "source": "apps/api/app/Http/Controllers/Pages/controller.go:98",
+    "source": "apps/api/app/Http/Controllers/Pages/controller.go:99",
     "access": "permission",
     "policy": "extension.view for inspection; theme/plugin manage and super_admin approval where required",
     "guard": {
@@ -2040,7 +2040,7 @@
     "handler": "adminRestore",
     "method": "POST",
     "path": "/api/v1/admin/pages/:pageId/restore-core",
-    "source": "apps/api/app/Http/Controllers/Pages/controller.go:99",
+    "source": "apps/api/app/Http/Controllers/Pages/controller.go:100",
     "access": "permission",
     "policy": "extension.view for inspection; theme/plugin manage and super_admin approval where required",
     "guard": {
@@ -2056,7 +2056,7 @@
     "handler": "activatePreview",
     "method": "GET",
     "path": "/api/v1/admin/pages/activate-preview/:extensionId",
-    "source": "apps/api/app/Http/Controllers/Pages/controller.go:96",
+    "source": "apps/api/app/Http/Controllers/Pages/controller.go:97",
     "access": "permission",
     "policy": "extension.view for inspection; theme/plugin manage and super_admin approval where required",
     "guard": {
@@ -2072,7 +2072,7 @@
     "handler": "adminAdded",
     "method": "GET",
     "path": "/api/v1/admin/pages/added",
-    "source": "apps/api/app/Http/Controllers/Pages/controller.go:95",
+    "source": "apps/api/app/Http/Controllers/Pages/controller.go:96",
     "access": "permission",
     "policy": "extension.view for inspection; theme/plugin manage and super_admin approval where required",
     "guard": {
@@ -3260,7 +3260,7 @@
     "handler": "publicCatalog",
     "method": "GET",
     "path": "/api/v1/pages/catalog",
-    "source": "apps/api/app/Http/Controllers/Pages/controller.go:89",
+    "source": "apps/api/app/Http/Controllers/Pages/controller.go:90",
     "access": "public",
     "policy": "pages public read policy; visibility rechecked by service",
     "guard": {
@@ -3276,7 +3276,7 @@
     "handler": "resolve",
     "method": "GET",
     "path": "/api/v1/pages/resolve",
-    "source": "apps/api/app/Http/Controllers/Pages/controller.go:87",
+    "source": "apps/api/app/Http/Controllers/Pages/controller.go:88",
     "access": "contextual",
     "policy": "resolved Page Registry access enum; loader receives no raw session authority",
     "guard": {
@@ -3292,7 +3292,7 @@
     "handler": "resolvePath",
     "method": "GET",
     "path": "/api/v1/pages/resolve-path",
-    "source": "apps/api/app/Http/Controllers/Pages/controller.go:88",
+    "source": "apps/api/app/Http/Controllers/Pages/controller.go:89",
     "access": "contextual",
     "policy": "resolved Page Registry access enum; loader receives no raw session authority",
     "guard": {
@@ -3628,7 +3628,7 @@
     "handler": "activeSkin",
     "method": "GET",
     "path": "/api/v1/site/active-theme/skin",
-    "source": "apps/api/app/Http/Controllers/Pages/controller.go:90",
+    "source": "apps/api/app/Http/Controllers/Pages/controller.go:91",
     "access": "public",
     "policy": "public read contract",
     "guard": {
@@ -3692,7 +3692,7 @@
     "handler": "themeAsset",
     "method": "GET",
     "path": "/api/v1/site/theme-assets/:extensionId/*",
-    "source": "apps/api/app/Http/Controllers/Pages/controller.go:91",
+    "source": "apps/api/app/Http/Controllers/Pages/controller.go:92",
     "access": "public",
     "policy": "active package containment, digest, MIME, and path policy",
     "guard": {
