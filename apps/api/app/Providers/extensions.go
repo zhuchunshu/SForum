@@ -18,6 +18,7 @@ import (
 	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
 	hostapi "github.com/zhuchunshu/sforum/apps/api/app/Support/HostAPI"
 	navigationregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/NavigationRegistry"
+	pages "github.com/zhuchunshu/sforum/apps/api/app/Support/Pages"
 	routes "github.com/zhuchunshu/sforum/apps/api/app/Support/Routes"
 )
 
@@ -133,6 +134,16 @@ func (p *ExtensionsProvider) WithAssetInspector(
 ) *ExtensionsProvider {
 	if p != nil && p.controller != nil {
 		p.controller.WithAssetInspector(registry)
+	}
+	return p
+}
+
+// WithThemeRuntimeInspector wires P9 Theme Runtime redacted admin inspection.
+func (p *ExtensionsProvider) WithThemeRuntimeInspector(
+	registry *pages.ThemeRuntimeRegistry,
+) *ExtensionsProvider {
+	if p != nil && p.controller != nil {
+		p.controller.WithThemeRuntimeInspector(registry)
 	}
 	return p
 }

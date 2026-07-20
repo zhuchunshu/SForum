@@ -89,6 +89,8 @@ func TestMessageLocalizesSiteChromeAndRecentAdminCodes(t *testing.T) {
 		"extensions.composition_inspector_unavailable": {"组件组合检查服务暂时不可用，请稍后重试。", "Component composition inspection is temporarily unavailable. Please try again later."},
 		"extensions.navigation_inspector_invalid": {"导航检查请求不正确，limit 必须是 1 到 200 之间的整数。", "The navigation inspection request is invalid. Limit must be an integer from 1 to 200."},
 		"extensions.navigation_inspector_unavailable": {"导航检查服务暂时不可用，请稍后重试。", "Navigation inspection is temporarily unavailable. Please try again later."},
+		"extensions.template_inspector_invalid":  {"模板检查请求不正确，limit 必须是 1 到 200 之间的整数。", "The template inspection request is invalid. Limit must be an integer from 1 to 200."},
+		"extensions.template_inspector_unavailable": {"模板检查服务暂时不可用，请稍后重试。", "Template inspection is temporarily unavailable. Please try again later."},
 		"extensions.asset_inspector_invalid":     {"资源检查请求不正确，limit 必须是 1 到 200 之间的整数。", "The asset inspection request is invalid. Limit must be an integer from 1 to 200."},
 		"extensions.asset_inspector_unavailable": {"资源检查服务暂时不可用，请稍后重试。", "Asset inspection is temporarily unavailable. Please try again later."},
 	}

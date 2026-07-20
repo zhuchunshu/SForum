@@ -19,6 +19,7 @@ import (
 	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
 	hostapi "github.com/zhuchunshu/sforum/apps/api/app/Support/HostAPI"
 	navigationregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/NavigationRegistry"
+	pages "github.com/zhuchunshu/sforum/apps/api/app/Support/Pages"
 	routes "github.com/zhuchunshu/sforum/apps/api/app/Support/Routes"
 )
 
@@ -46,11 +47,12 @@ type Controller struct {
 	cacheRegistry  *cacheregistry.Registry
 	cacheInspect   func(*cacheregistry.Registry, int) (hostapi.HostCacheInspectionSnapshot, error)
 	// componentComposition / componentRegistry / navigationInspector /
-	// assetRegistry 仅服务 admin 检查器；为 nil 时对应路由 fail closed 为 503。
+	// assetRegistry / themeRuntime 仅服务 admin 检查器；为 nil 时对应路由 fail closed 为 503。
 	componentComposition *extensionsruntime.ProductionComponentComposition
 	componentRegistry    *extensionsruntime.ComponentRegistry
 	navigationInspector  *navigationregistry.Inspector
 	assetRegistry        *assetregistry.Registry
+	themeRuntime         *pages.ThemeRuntimeRegistry
 	routeContracts       RouteContractCatalog
 	routeAuditor         audit.IDWriter
 	providerSlots        *extensionsruntime.ProviderSlotSelectionAPI
@@ -178,6 +180,15 @@ func (h *Controller) WithNavigationInspector(inspector *navigationregistry.Inspe
 func (h *Controller) WithAssetInspector(registry *assetregistry.Registry) *Controller {
 	if h != nil {
 		h.assetRegistry = registry
+	}
+	return h
+}
+
+// WithThemeRuntimeInspector wires the Host Theme Runtime Registry for the
+// admin template/override inspector.
+func (h *Controller) WithThemeRuntimeInspector(registry *pages.ThemeRuntimeRegistry) *Controller {
+	if h != nil {
+		h.themeRuntime = registry
 	}
 	return h
 }

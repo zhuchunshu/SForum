@@ -284,6 +284,13 @@ export const adminPageDefinitions = [
     requiredPermissions: ['extension.view']
   },
   {
+    id: '/extensions/template-inspector',
+    labelKey: 'admin.nav.extensionTemplateInspector',
+    icon: 'i-lucide-layout-template',
+    componentName: 'AdminExtensionTemplateInspector',
+    requiredPermissions: ['extension.view']
+  },
+  {
     id: '/extensions/component-inspector',
     labelKey: 'admin.nav.extensionComponentInspector',
     icon: 'i-lucide-boxes',
@@ -387,6 +394,7 @@ export const adminSidebarNavigation = [
         { type: 'page', pageId: '/extensions/route-inspector' },
         { type: 'page', pageId: '/extensions/cache-inspector' },
         { type: 'page', pageId: '/extensions/asset-inspector' },
+        { type: 'page', pageId: '/extensions/template-inspector' },
         { type: 'page', pageId: '/extensions/component-inspector' },
         { type: 'page', pageId: '/extensions/navigation-inspector' },
         { type: 'page', pageId: '/extensions/provider-slots' },

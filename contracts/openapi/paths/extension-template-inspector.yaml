@@ -1,0 +1,31 @@
+adminExtensionTemplateInspector:
+  get:
+    summary: Inspect Host Theme Runtime template and override snapshots
+    operationId: inspectAdminExtensionTemplates
+    description: >-
+      Requires extension.view or the legacy extension.manage permission. Returns
+      a redacted Theme Runtime Registry snapshot with staged theme/plugin
+      packages, active/default selection, contribution IDs, and override target
+      keys. Package filesystem roots, compiled template bodies, and view-model
+      payloads are never disclosed.
+    parameters:
+    - name: limit
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 200
+        default: 50
+      description: Maximum staged snapshots to return after extensionId sort order.
+    responses:
+      '200':
+        description: Detached, redacted Theme Runtime inspector snapshot.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/extension-template-inspector.yaml#/ApiResponseTemplateInspectorSnapshot"
+      '401': { "$ref": "../components/responses.yaml#/Unauthorized" }
+      '403': { "$ref": "../components/responses.yaml#/Forbidden" }
+      '422': { "$ref": "../components/responses.yaml#/UnprocessableEntity" }
+      '503': { "$ref": "../components/responses.yaml#/ServiceUnavailable" }

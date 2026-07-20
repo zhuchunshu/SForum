@@ -28,6 +28,7 @@ export const adminSurfacePlacements = [
   { id: "core.component.page.admin.extensions.store", contractVersion: "sforum.component.page.admin.extensions.store@1", route: "/admin/extensions/store" },
   { id: "core.component.page.admin.extensions.store.plugins", contractVersion: "sforum.component.page.admin.extensions.store.plugins@1", route: "/admin/extensions/store/plugins" },
   { id: "core.component.page.admin.extensions.store.themes", contractVersion: "sforum.component.page.admin.extensions.store.themes@1", route: "/admin/extensions/store/themes" },
+  { id: "core.component.page.admin.extensions.template.inspector", contractVersion: "sforum.component.page.admin.extensions.template.inspector@1", route: "/admin/extensions/template-inspector" },
   { id: "core.component.page.admin.extensions.themes", contractVersion: "sforum.component.page.admin.extensions.themes@1", route: "/admin/extensions/themes" },
   { id: "core.component.page.admin.forum.categories", contractVersion: "sforum.component.page.admin.forum.categories@1", route: "/admin/forum/categories" },
   { id: "core.component.page.admin.forum.settings", contractVersion: "sforum.component.page.admin.forum.settings@1", route: "/admin/forum/settings" },

@@ -144,6 +144,14 @@ useSeoMeta({
         {{ t('admin.nav.extensionAssetInspector') }}
       </UButton>
       <UButton
+        icon="i-lucide-layout-template"
+        color="neutral"
+        variant="subtle"
+        :to="adminRoutes.path('/extensions/template-inspector')"
+      >
+        {{ t('admin.nav.extensionTemplateInspector') }}
+      </UButton>
+      <UButton
         icon="i-lucide-boxes"
         color="neutral"
         variant="subtle"

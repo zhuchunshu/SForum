@@ -431,6 +431,17 @@
     "targetRegistry": "P7 Admin Surface Registry"
   },
   {
+    "id": "core.component.page.admin.extensions.template.inspector",
+    "contractVersion": "sforum.component.page.admin.extensions.template.inspector@1",
+    "kind": "page",
+    "route": "/admin/extensions/template-inspector",
+    "source": "apps/web/app/pages/admin/extensions/template-inspector.vue",
+    "owners": [
+      "admin"
+    ],
+    "targetRegistry": "P7 Admin Surface Registry"
+  },
+  {
     "id": "core.component.page.admin.extensions.themes",
     "contractVersion": "sforum.component.page.admin.extensions.themes@1",
     "kind": "page",

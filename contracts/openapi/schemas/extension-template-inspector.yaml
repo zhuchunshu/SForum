@@ -1,0 +1,48 @@
+TemplateInspectorSnapshotItem:
+  type: object
+  additionalProperties: false
+  required: [extensionId, extensionVersion, packageDigest, kind]
+  properties:
+    extensionId: { type: string, minLength: 1 }
+    extensionVersion: { type: string, minLength: 1 }
+    packageDigest:
+      type: string
+      pattern: '^[a-f0-9]{64}$'
+    kind:
+      type: string
+      enum: [theme, plugin]
+    contributionIds:
+      type: array
+      items: { type: string, minLength: 1 }
+    overrideTargets:
+      type: array
+      items: { type: string, minLength: 1 }
+    active: { type: boolean }
+    default: { type: boolean }
+
+TemplateInspectorSnapshot:
+  type: object
+  additionalProperties: false
+  required:
+    - schemaVersion
+    - revision
+    - snapshotCount
+    - overrideCount
+    - snapshots
+  properties:
+    schemaVersion: { type: string, enum: [sforum.template-inspector@1] }
+    revision: { type: integer, format: int64, minimum: 0 }
+    activeTheme: { type: string }
+    defaultTheme: { type: string }
+    snapshotCount: { type: integer, minimum: 0 }
+    overrideCount: { type: integer, minimum: 0 }
+    snapshots:
+      type: array
+      items: { "$ref": "#/TemplateInspectorSnapshotItem" }
+
+ApiResponseTemplateInspectorSnapshot:
+  type: object
+  additionalProperties: false
+  required: [data]
+  properties:
+    data: { "$ref": "#/TemplateInspectorSnapshot" }
