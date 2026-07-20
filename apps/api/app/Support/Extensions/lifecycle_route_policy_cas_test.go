@@ -233,8 +233,15 @@ func TestLifecycleRoutePolicyReconcileRetriesConflictAndRebindsLiveSchema(t *tes
 	if err := boundary.reconcileRoutes(ctx, target.extension.ID, &source, &target, &target); err != nil {
 		t.Fatal(err)
 	}
+	// First CAS attempt runs before target OpenAPI is published (beforeFirst),
+	// so BindRouteExecutionPolicies synthesizes bare disabled (0 size / empty
+	// CORS = platform default). Second attempt resolves required policy with
+	// Host request-size + CORS defaults from the published operation.
+	synthesizedDisabled := routes.RouteExecutionPolicy{
+		RateLimit: "disabled", Idempotency: "disabled",
+	}
 	if writer.calls != 2 || len(writer.policies) != 2 ||
-		writer.policies[0] != lifecycleDisabledRoutePolicy ||
+		writer.policies[0] != synthesizedDisabled ||
 		writer.policies[1] != lifecycleRequiredRoutePolicy {
 		t.Fatalf("route CAS attempts=%d policies=%#v", writer.calls, writer.policies)
 	}

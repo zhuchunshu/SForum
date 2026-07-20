@@ -567,26 +567,26 @@ func TestLifecycleRegistryDigestCompatibilityIsExplicitAndBounded(t *testing.T) 
 		t.Fatal("stored legacy target matched without its explicit alias")
 	}
 	secondLegacyTarget := strings.Repeat("e", 64)
+	// Host allows up to nine compatible digests so Editor @10 (and earlier
+	// Media @9 families) can resume any exact prior material generation.
 	input.CompatibleTargetDigests = []string{legacyTarget, secondLegacyTarget}
 	if !validLifecycleRegistryPrepareInput(input) {
 		t.Fatal("two bounded schema-generation aliases were rejected")
 	}
-	thirdLegacyTarget := strings.Repeat("f", 64)
-	input.CompatibleTargetDigests = []string{legacyTarget, secondLegacyTarget, thirdLegacyTarget}
-	if !validLifecycleRegistryPrepareInput(input) {
-		t.Fatal("three bounded @1/@2/@3 schema aliases were rejected")
+	for n, seed := range []string{"f", "0", "1", "2", "3", "4", "5"} {
+		input.CompatibleTargetDigests = append(
+			input.CompatibleTargetDigests, strings.Repeat(seed, 64),
+		)
+		if !validLifecycleRegistryPrepareInput(input) {
+			t.Fatalf("%d bounded schema aliases were rejected", n+3)
+		}
 	}
-	input.CompatibleTargetDigests = append(input.CompatibleTargetDigests, strings.Repeat("0", 64))
-	if !validLifecycleRegistryPrepareInput(input) {
-		t.Fatal("four bounded @1/@2/@3/@4 schema aliases were rejected")
+	if len(input.CompatibleTargetDigests) != 9 {
+		t.Fatalf("expected nine aliases before fence, got %d", len(input.CompatibleTargetDigests))
 	}
-	input.CompatibleTargetDigests = append(input.CompatibleTargetDigests, strings.Repeat("1", 64))
-	if !validLifecycleRegistryPrepareInput(input) {
-		t.Fatal("five bounded @1/@2/@3/@4/@5 schema aliases were rejected")
-	}
-	input.CompatibleTargetDigests = append(input.CompatibleTargetDigests, strings.Repeat("2", 64))
+	input.CompatibleTargetDigests = append(input.CompatibleTargetDigests, strings.Repeat("6", 64))
 	if validLifecycleRegistryPrepareInput(input) {
-		t.Fatal("more than five compatibility aliases widened the durable fence")
+		t.Fatal("more than nine compatibility aliases widened the durable fence")
 	}
 	input.CompatibleTargetDigests = []string{legacyTarget, legacyTarget}
 	if validLifecycleRegistryPrepareInput(input) {
