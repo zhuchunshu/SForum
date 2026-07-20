@@ -259,7 +259,7 @@ func TestManifestV3LoadsEveryShardedDeclaration(t *testing.T) {
 		t.Fatal(err)
 	}
 	fields := []string{
-		"guards", "schedules", "components", "templates", "assets", "content", "editor",
+		"guards", "schedules", "components", "templates", "assets", "content", "editor", "entities",
 		"database", "cache", "seo", "services", "commands", "adminSurfaces", "queries", "queryResultFilters",
 		"identity", "permissionDefinitions", "media", "navigation", "regions",
 		"dependencies", "lifecycle", "openapi", "packageFiles",
@@ -267,8 +267,14 @@ func TestManifestV3LoadsEveryShardedDeclaration(t *testing.T) {
 	files := FileMapFS{}
 	includes := map[string]string{}
 	for _, field := range fields {
+		// omitempty leaves optional empty slices/objects out of the root JSON;
+		// only shard fields that are actually present.
+		body, ok := root[field]
+		if !ok || len(body) == 0 {
+			continue
+		}
 		shard := "manifest/" + field + ".json"
-		files[shard] = root[field]
+		files[shard] = body
 		delete(root, field)
 		includes[field] = shard
 	}

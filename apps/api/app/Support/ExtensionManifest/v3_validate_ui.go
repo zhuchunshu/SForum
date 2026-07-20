@@ -292,6 +292,154 @@ func (v *v3Validator) validateUIAndPackage() error {
 		}
 	}
 
+	// Entity/Taxonomy/Field Schema Registry：同包交叉引用；字段/分类必须绑定本包实体。
+	if len(v.manifest.Entities) > 256 {
+		return ErrInvalidManifest
+	}
+	entityIDs := map[string]struct{}{}
+	taxonomyIDs := map[string]struct{}{}
+	for _, entity := range v.manifest.Entities {
+		if err := v.versionedID(entity.ID, entity.ContractVersion, "entity"); err != nil {
+			return err
+		}
+		switch entity.Kind {
+		case "entity":
+			if entity.Label == "" || entity.StorageKey == "" ||
+				!strings.HasPrefix(entity.StorageKey, v.manifest.ID+".") ||
+				!manifestIDPattern.MatchString(entity.PermissionCreate) ||
+				!manifestIDPattern.MatchString(entity.PermissionRead) ||
+				!manifestIDPattern.MatchString(entity.PermissionUpdate) ||
+				!manifestIDPattern.MatchString(entity.PermissionDelete) {
+				return ErrInvalidManifest
+			}
+			switch entity.ImportExportPolicy {
+			case "allow", "deny", "export_only", "import_only":
+			default:
+				return ErrInvalidManifest
+			}
+			switch entity.DeletionPolicy {
+			case "soft", "hard", "retain":
+			default:
+				return ErrInvalidManifest
+			}
+			if entity.ImportExportPolicy == "allow" || entity.ImportExportPolicy == "import_only" {
+				if !manifestIDPattern.MatchString(entity.PermissionImport) {
+					return ErrInvalidManifest
+				}
+			} else if entity.PermissionImport != "" {
+				return ErrInvalidManifest
+			}
+			if entity.ImportExportPolicy == "allow" || entity.ImportExportPolicy == "export_only" {
+				if !manifestIDPattern.MatchString(entity.PermissionExport) {
+					return ErrInvalidManifest
+				}
+			} else if entity.PermissionExport != "" {
+				return ErrInvalidManifest
+			}
+			if entity.EntityID != "" || entity.Schema != "" || entity.UIComponent != "" ||
+				entity.UIModule != "" || entity.UIDigest != "" || entity.Validation != "" ||
+				entity.PermissionManage != "" || entity.PermissionAssign != "" ||
+				entity.PermissionFieldRead != "" || entity.PermissionFieldWrite != "" ||
+				entity.IndexKind != "" || entity.Indexed || entity.Required || entity.Hierarchical ||
+				len(entity.EntityIDs) > 0 {
+				return ErrInvalidManifest
+			}
+			entityIDs[entity.ID] = struct{}{}
+		case "taxonomy":
+			if entity.Label == "" || entity.StorageKey == "" ||
+				!strings.HasPrefix(entity.StorageKey, v.manifest.ID+".") ||
+				!manifestIDPattern.MatchString(entity.PermissionManage) ||
+				!manifestIDPattern.MatchString(entity.PermissionAssign) ||
+				len(entity.EntityIDs) == 0 {
+				return ErrInvalidManifest
+			}
+			for _, entityID := range entity.EntityIDs {
+				if !strings.HasPrefix(entityID, v.manifest.ID+".") {
+					return ErrInvalidManifest
+				}
+			}
+			if entity.PermissionCreate != "" || entity.PermissionRead != "" ||
+				entity.PermissionUpdate != "" || entity.PermissionDelete != "" ||
+				entity.PermissionImport != "" || entity.PermissionExport != "" ||
+				entity.ImportExportPolicy != "" || entity.DeletionPolicy != "" ||
+				entity.EntityID != "" || entity.Schema != "" || entity.UIComponent != "" ||
+				entity.UIModule != "" || entity.UIDigest != "" || entity.Validation != "" ||
+				entity.PermissionFieldRead != "" || entity.PermissionFieldWrite != "" ||
+				entity.IndexKind != "" || entity.Indexed || entity.Required ||
+				len(entity.TaxonomyIDs) > 0 {
+				return ErrInvalidManifest
+			}
+			taxonomyIDs[entity.ID] = struct{}{}
+		case "field":
+			if entity.EntityID == "" || !strings.HasPrefix(entity.EntityID, v.manifest.ID+".") ||
+				!validSchemaRef(entity.Schema) || entity.UIComponent == "" ||
+				!manifestIDPattern.MatchString(entity.PermissionFieldRead) ||
+				!manifestIDPattern.MatchString(entity.PermissionFieldWrite) {
+				return ErrInvalidManifest
+			}
+			indexKind := entity.IndexKind
+			if indexKind == "" {
+				if entity.Indexed {
+					return ErrInvalidManifest
+				}
+				indexKind = "none"
+			}
+			switch indexKind {
+			case "none", "keyword", "text", "numeric", "boolean":
+			default:
+				return ErrInvalidManifest
+			}
+			if entity.Indexed && indexKind == "none" {
+				return ErrInvalidManifest
+			}
+			if !entity.Indexed && indexKind != "none" {
+				return ErrInvalidManifest
+			}
+			if entity.UIModule != "" || entity.UIDigest != "" {
+				if !validPackagePath(entity.UIModule) || !validDigest(entity.UIDigest) {
+					return ErrInvalidManifest
+				}
+				file, declared := packagePaths[entity.UIModule]
+				if !declared || file.Kind != "frontend" || file.Digest != entity.UIDigest {
+					return ErrInvalidManifest
+				}
+			}
+			if entity.Validation != "" && !validSchemaRef(entity.Validation) {
+				return ErrInvalidManifest
+			}
+			if entity.StorageKey != "" || entity.PermissionCreate != "" || entity.PermissionRead != "" ||
+				entity.PermissionUpdate != "" || entity.PermissionDelete != "" ||
+				entity.PermissionImport != "" || entity.PermissionExport != "" ||
+				entity.ImportExportPolicy != "" || entity.DeletionPolicy != "" ||
+				entity.PermissionManage != "" || entity.PermissionAssign != "" ||
+				entity.Hierarchical || len(entity.EntityIDs) > 0 || len(entity.TaxonomyIDs) > 0 {
+				return ErrInvalidManifest
+			}
+		default:
+			return ErrInvalidManifest
+		}
+	}
+	for _, entity := range v.manifest.Entities {
+		switch entity.Kind {
+		case "field":
+			if _, ok := entityIDs[entity.EntityID]; !ok {
+				return ErrInvalidManifest
+			}
+		case "taxonomy":
+			for _, entityID := range entity.EntityIDs {
+				if _, ok := entityIDs[entityID]; !ok {
+					return ErrInvalidManifest
+				}
+			}
+		case "entity":
+			for _, taxonomyID := range entity.TaxonomyIDs {
+				if _, ok := taxonomyIDs[taxonomyID]; !ok {
+					return ErrInvalidManifest
+				}
+			}
+		}
+	}
+
 	for _, fragment := range v.manifest.OpenAPI {
 		if err := v.versionedID(fragment.ID, fragment.ContractVersion, "openapi"); err != nil {
 			return err

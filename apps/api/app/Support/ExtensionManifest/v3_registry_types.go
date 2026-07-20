@@ -124,6 +124,47 @@ type ManifestEditor struct {
 	Permission      string `json:"permission,omitempty"`
 }
 
+// ManifestEntity declares an Entity Type, Taxonomy, or Field Schema contribution.
+// Cross-refs (field→entity, taxonomy→entity, entity→taxonomy) stay package-local.
+// Durable rows remain Host-owned; disable cannot rewrite user entity data.
+type ManifestEntity struct {
+	ID              string `json:"id"`
+	ContractVersion string `json:"contractVersion"`
+	Kind            string `json:"kind"`
+	Label           string `json:"label,omitempty"`
+	StorageKey      string `json:"storageKey,omitempty"`
+
+	PermissionCreate string `json:"permissionCreate,omitempty"`
+	PermissionRead   string `json:"permissionRead,omitempty"`
+	PermissionUpdate string `json:"permissionUpdate,omitempty"`
+	PermissionDelete string `json:"permissionDelete,omitempty"`
+	PermissionImport string `json:"permissionImport,omitempty"`
+	PermissionExport string `json:"permissionExport,omitempty"`
+
+	ImportExportPolicy string   `json:"importExportPolicy,omitempty"`
+	DeletionPolicy     string   `json:"deletionPolicy,omitempty"`
+	TaxonomyIDs        []string `json:"taxonomyIds,omitempty"`
+
+	Hierarchical     bool     `json:"hierarchical,omitempty"`
+	EntityIDs        []string `json:"entityIds,omitempty"`
+	PermissionManage string   `json:"permissionManage,omitempty"`
+	PermissionAssign string   `json:"permissionAssign,omitempty"`
+
+	EntityID             string `json:"entityId,omitempty"`
+	Schema               string `json:"schema,omitempty"`
+	UIComponent          string `json:"uiComponent,omitempty"`
+	UIModule             string `json:"uiModule,omitempty"`
+	UIDigest             string `json:"uiDigest,omitempty"`
+	Required             bool   `json:"required,omitempty"`
+	Indexed              bool   `json:"indexed,omitempty"`
+	IndexKind            string `json:"indexKind,omitempty"`
+	PermissionFieldRead  string `json:"permissionFieldRead,omitempty"`
+	PermissionFieldWrite string `json:"permissionFieldWrite,omitempty"`
+	Validation           string `json:"validation,omitempty"`
+	Order                int    `json:"order,omitempty"`
+	Priority             int    `json:"priority,omitempty"`
+}
+
 type ManifestService struct {
 	ID              string `json:"id"`
 	ContractVersion string `json:"contractVersion"`

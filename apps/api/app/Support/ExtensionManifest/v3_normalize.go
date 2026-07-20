@@ -220,6 +220,39 @@ func normalizeV3Manifest(manifest *Manifest) {
 		item.Group = NormalizeID(item.Group)
 		item.Permission = strings.TrimSpace(item.Permission)
 	}
+	for index := range manifest.Entities {
+		item := &manifest.Entities[index]
+		item.ID = NormalizeID(item.ID)
+		item.ContractVersion = strings.TrimSpace(item.ContractVersion)
+		item.Kind = strings.ToLower(strings.TrimSpace(item.Kind))
+		item.Label = strings.TrimSpace(item.Label)
+		item.StorageKey = strings.ToLower(strings.TrimSpace(item.StorageKey))
+		item.PermissionCreate = strings.TrimSpace(item.PermissionCreate)
+		item.PermissionRead = strings.TrimSpace(item.PermissionRead)
+		item.PermissionUpdate = strings.TrimSpace(item.PermissionUpdate)
+		item.PermissionDelete = strings.TrimSpace(item.PermissionDelete)
+		item.PermissionImport = strings.TrimSpace(item.PermissionImport)
+		item.PermissionExport = strings.TrimSpace(item.PermissionExport)
+		item.ImportExportPolicy = strings.ToLower(strings.TrimSpace(item.ImportExportPolicy))
+		item.DeletionPolicy = strings.ToLower(strings.TrimSpace(item.DeletionPolicy))
+		item.PermissionManage = strings.TrimSpace(item.PermissionManage)
+		item.PermissionAssign = strings.TrimSpace(item.PermissionAssign)
+		item.EntityID = NormalizeID(item.EntityID)
+		item.Schema = strings.TrimSpace(item.Schema)
+		item.UIComponent = strings.TrimSpace(item.UIComponent)
+		item.UIModule = strings.TrimSpace(item.UIModule)
+		item.UIDigest = normalizeDigest(item.UIDigest)
+		item.IndexKind = strings.ToLower(strings.TrimSpace(item.IndexKind))
+		item.PermissionFieldRead = strings.TrimSpace(item.PermissionFieldRead)
+		item.PermissionFieldWrite = strings.TrimSpace(item.PermissionFieldWrite)
+		item.Validation = strings.TrimSpace(item.Validation)
+		for i := range item.TaxonomyIDs {
+			item.TaxonomyIDs[i] = NormalizeID(item.TaxonomyIDs[i])
+		}
+		for i := range item.EntityIDs {
+			item.EntityIDs[i] = NormalizeID(item.EntityIDs[i])
+		}
+	}
 	normalizeV3Platform(manifest)
 }
 

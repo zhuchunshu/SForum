@@ -171,6 +171,9 @@
     },
     "editor": {
       "$ref": "#/$defs/editor"
+    },
+    "entities": {
+      "$ref": "#/$defs/entities"
     }
   },
   "allOf": [
@@ -3323,6 +3326,151 @@
         },
         "editor": {
           "$ref": "#/$defs/include"
+        },
+        "entities": {
+          "$ref": "#/$defs/include"
+        }
+      }
+    },
+    "entities": {
+      "type": [
+        "array",
+        "null"
+      ],
+      "maxItems": 256,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "contractVersion",
+          "kind"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/$defs/id"
+          },
+          "contractVersion": {
+            "$ref": "#/$defs/contract"
+          },
+          "kind": {
+            "enum": [
+              "entity",
+              "taxonomy",
+              "field"
+            ]
+          },
+          "label": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "storageKey": {
+            "$ref": "#/$defs/id"
+          },
+          "permissionCreate": {
+            "$ref": "#/$defs/id"
+          },
+          "permissionRead": {
+            "$ref": "#/$defs/id"
+          },
+          "permissionUpdate": {
+            "$ref": "#/$defs/id"
+          },
+          "permissionDelete": {
+            "$ref": "#/$defs/id"
+          },
+          "permissionImport": {
+            "$ref": "#/$defs/id"
+          },
+          "permissionExport": {
+            "$ref": "#/$defs/id"
+          },
+          "importExportPolicy": {
+            "enum": [
+              "allow",
+              "deny",
+              "export_only",
+              "import_only"
+            ]
+          },
+          "deletionPolicy": {
+            "enum": [
+              "soft",
+              "hard",
+              "retain"
+            ]
+          },
+          "taxonomyIds": {
+            "type": "array",
+            "maxItems": 64,
+            "items": {
+              "$ref": "#/$defs/id"
+            }
+          },
+          "hierarchical": {
+            "type": "boolean"
+          },
+          "entityIds": {
+            "type": "array",
+            "maxItems": 64,
+            "items": {
+              "$ref": "#/$defs/id"
+            }
+          },
+          "permissionManage": {
+            "$ref": "#/$defs/id"
+          },
+          "permissionAssign": {
+            "$ref": "#/$defs/id"
+          },
+          "entityId": {
+            "$ref": "#/$defs/id"
+          },
+          "schema": {
+            "$ref": "#/$defs/optionalSchemaRef"
+          },
+          "uiComponent": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "uiModule": {
+            "$ref": "#/$defs/path"
+          },
+          "uiDigest": {
+            "$ref": "#/$defs/digest"
+          },
+          "required": {
+            "type": "boolean"
+          },
+          "indexed": {
+            "type": "boolean"
+          },
+          "indexKind": {
+            "enum": [
+              "none",
+              "keyword",
+              "text",
+              "numeric",
+              "boolean"
+            ]
+          },
+          "permissionFieldRead": {
+            "$ref": "#/$defs/id"
+          },
+          "permissionFieldWrite": {
+            "$ref": "#/$defs/id"
+          },
+          "validation": {
+            "$ref": "#/$defs/optionalSchemaRef"
+          },
+          "order": {
+            "type": "integer"
+          },
+          "priority": {
+            "type": "integer"
+          }
         }
       }
     },

@@ -105,7 +105,9 @@ type Manifest struct {
 	Assets                []ManifestAsset                `json:"assets,omitempty"`
 	Content               []ManifestContent              `json:"content,omitempty"`
 	// Editor is the P10 Tiptap node/mark/command/toolbar surface (trusted L2).
-	Editor                []ManifestEditor               `json:"editor,omitempty"`
+	Editor []ManifestEditor `json:"editor,omitempty"`
+	// Entities is the P10 Entity Type / Taxonomy / Field Schema surface.
+	Entities              []ManifestEntity               `json:"entities,omitempty"`
 	Database              *ManifestDatabase              `json:"database,omitempty"`
 	Cache                 []ManifestCache                `json:"cache,omitempty"`
 	SEO                   []ManifestSEO                  `json:"seo,omitempty"`
@@ -941,7 +943,8 @@ func isThemeManifestSupported(manifest Manifest) bool {
 	}
 	if EffectiveManifestVersion(manifest) == ManifestVersionV3 {
 		if len(manifest.Guards) != 0 || len(manifest.Schedules) != 0 ||
-			len(manifest.Content) != 0 || len(manifest.Editor) != 0 || manifest.Database != nil || len(manifest.Cache) != 0 || len(manifest.SEO) != 0 ||
+			len(manifest.Content) != 0 || len(manifest.Editor) != 0 || len(manifest.Entities) != 0 ||
+			manifest.Database != nil || len(manifest.Cache) != 0 || len(manifest.SEO) != 0 ||
 			len(manifest.Services) != 0 || len(manifest.Commands) != 0 ||
 			len(manifest.AdminSurfaces) != 0 || len(manifest.Queries) != 0 || len(manifest.QueryResultFilters) != 0 ||
 			manifest.Identity != nil || len(manifest.PermissionDefinitions) != 0 ||
