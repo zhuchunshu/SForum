@@ -443,6 +443,19 @@ func (s *ThemeRuntimeSnapshot) Render(
 	return result, nil
 }
 
+// ApplyComposition prefaces optional Host composition HTML after a successful
+// theme render. Fail-open for ordinary composition errors; SEO fence fail-closed.
+func (r *ThemeRuntimeRegistry) ApplyComposition(
+	ctx context.Context,
+	page ThemeRenderedPage,
+	pageID string,
+) (ThemeRenderedPage, error) {
+	if r == nil {
+		return page, nil
+	}
+	return ApplyPageComposition(ctx, page, r.pageComposition(), pageID, map[string]any{"pageId": pageID})
+}
+
 func (s *ThemeRuntimeSnapshot) RenderPluginData(
 	ctx context.Context,
 	payload json.RawMessage,
@@ -479,6 +492,8 @@ type ThemeRuntimeRegistry struct {
 	snapshots       map[RuntimeArtifact]*ThemeRuntimeSnapshot
 	renderers       map[string]*ThemeRuntimeSnapshot
 	activationCheck func(RuntimeArtifact) error
+	// composition 可选：主题 L1 渲染成功后 preface 插件组件 HTML，失败默认 fail-open。
+	composition PageCompositionRenderer
 }
 
 func (r *ThemeRuntimeRegistry) WithActivationCheck(check func(RuntimeArtifact) error) *ThemeRuntimeRegistry {
@@ -488,6 +503,25 @@ func (r *ThemeRuntimeRegistry) WithActivationCheck(check func(RuntimeArtifact) e
 		r.mu.Unlock()
 	}
 	return r
+}
+
+// WithPageComposition attaches optional Host component composition. Nil clears it.
+func (r *ThemeRuntimeRegistry) WithPageComposition(composition PageCompositionRenderer) *ThemeRuntimeRegistry {
+	if r != nil {
+		r.mu.Lock()
+		r.composition = composition
+		r.mu.Unlock()
+	}
+	return r
+}
+
+func (r *ThemeRuntimeRegistry) pageComposition() PageCompositionRenderer {
+	if r == nil {
+		return nil
+	}
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	return r.composition
 }
 
 func NewThemeRuntimeRegistry() *ThemeRuntimeRegistry {

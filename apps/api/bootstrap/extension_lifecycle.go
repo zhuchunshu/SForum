@@ -66,8 +66,9 @@ type productionLifecycleStack struct {
 	Jobs               *extensionsruntime.PostgresLifecycleBoundaryJobs
 	RouteRegistry      *routes.Registry
 	RouteSchemas       *extensionopenapi.RouteSchemaPublication
-	ComponentRegistry  *extensionsruntime.ComponentRegistry
-	AssetRegistry      *assetregistry.Registry
+	ComponentRegistry     *extensionsruntime.ComponentRegistry
+	ComponentComposition  *extensionsruntime.ProductionComponentComposition
+	AssetRegistry         *assetregistry.Registry
 	CacheRegistry      *cacheregistry.Registry
 	IdentityRegistry   *identityregistry.Registry
 	IdentityStore      identityregistry.PublicationStore
@@ -168,6 +169,20 @@ func newProductionLifecycleStack(config productionLifecycleStackConfig) (*produc
 		return nil, fmt.Errorf("%w: create route schema publication: %v", errProductionLifecycleDependency, err)
 	}
 	componentRegistry := extensionsruntime.NewComponentRegistry()
+	// 生产 Component Composition：Core fallback + Manager admission，挂在 lifecycle stack 上。
+	componentComposition, err := extensionsruntime.NewProductionComponentComposition(
+		extensionsruntime.ProductionComponentCompositionConfig{
+			Registry: componentRegistry,
+			Manager:  config.Runtime,
+		},
+	)
+	if err != nil {
+		return nil, fmt.Errorf("%w: create component composition: %v", errProductionLifecycleDependency, err)
+	}
+	if config.ThemeRuntime != nil {
+		// Theme L1 渲染后 preface 插件组件 HTML；无贡献时 ComposePageHTML 返回空切片。
+		config.ThemeRuntime.WithPageComposition(componentComposition)
+	}
 	// 全进程唯一 Asset Registry：生命周期恢复/发布与 FrontendService 请求读取共享。
 	assetRegistry := assetregistry.New()
 	cacheRegistry := config.Caches
@@ -276,7 +291,8 @@ func newProductionLifecycleStack(config productionLifecycleStackConfig) (*produc
 		MigrationEngine: config.MigrationEngine, Migrations: migrations,
 		Schedules: schedules, JobStore: jobStore, JobCoordinator: jobCoordinator, Jobs: jobs,
 		RouteRegistry: routeRegistry, RouteSchemas: routeSchemas, ComponentRegistry: componentRegistry,
-		AssetRegistry: assetRegistry, CacheRegistry: cacheRegistry,
+		ComponentComposition: componentComposition,
+		AssetRegistry:        assetRegistry, CacheRegistry: cacheRegistry,
 		IdentityRegistry: identityRegistry, IdentityStore: identityStore,
 		SessionPolicyStore: sessionPolicyStore,
 		QueryRegistry:      queryRegistry, QueryCoreCatalog: queryCoreCatalog,

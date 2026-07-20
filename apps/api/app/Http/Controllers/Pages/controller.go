@@ -241,6 +241,17 @@ func (h *Controller) resolve(c fiber.Ctx) error {
 				if renderErr == nil {
 					output, renderErr = snapshot.Render(c.Context(), viewRequest, resolved.ContributionID)
 				}
+				// 可选组件 composition：普通错误 fail-open，SEO 围栏 fail closed。
+				if renderErr == nil && h.runtime != nil {
+					composed, composeErr := h.runtime.ApplyComposition(c.Context(), output, resolved.Page.ID)
+					if composeErr != nil {
+						if errors.Is(composeErr, pages.ErrPageCompositionSEO) {
+							renderErr = composeErr
+						}
+					} else {
+						output = composed
+					}
+				}
 				if renderErr == nil {
 					resolved.TemplateHTML = snapshot.LegacyHTML(output)
 					if resolved.TemplateHTML != "" {
