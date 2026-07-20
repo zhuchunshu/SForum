@@ -17,6 +17,7 @@ import (
 	cacheregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/CacheRegistry"
 	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
 	hostapi "github.com/zhuchunshu/sforum/apps/api/app/Support/HostAPI"
+	navigationregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/NavigationRegistry"
 	routes "github.com/zhuchunshu/sforum/apps/api/app/Support/Routes"
 )
 
@@ -43,13 +44,18 @@ type Controller struct {
 	routeInspector  *routes.Inspector
 	cacheRegistry   *cacheregistry.Registry
 	cacheInspect    func(*cacheregistry.Registry, int) (hostapi.HostCacheInspectionSnapshot, error)
-	routeContracts  RouteContractCatalog
-	routeAuditor    audit.IDWriter
-	providerSlots   *extensionsruntime.ProviderSlotSelectionAPI
-	providerProber  ProviderSlotProber
-	providerAuditor audit.IDWriter
-	adminSurfaces   AdminSurfaceRuntime
-	adminAuditor    audit.Writer
+	// componentComposition / componentRegistry / navigationInspector 仅服务
+	// admin 检查器；为 nil 时对应路由 fail closed 为 503。
+	componentComposition *extensionsruntime.ProductionComponentComposition
+	componentRegistry    *extensionsruntime.ComponentRegistry
+	navigationInspector  *navigationregistry.Inspector
+	routeContracts       RouteContractCatalog
+	routeAuditor         audit.IDWriter
+	providerSlots        *extensionsruntime.ProviderSlotSelectionAPI
+	providerProber       ProviderSlotProber
+	providerAuditor      audit.IDWriter
+	adminSurfaces        AdminSurfaceRuntime
+	adminAuditor         audit.Writer
 }
 
 type ProviderSlotProber interface {
@@ -140,6 +146,27 @@ func (h *Controller) WithCacheInspector(
 	h.cacheInspect = nil
 	if inspector != nil {
 		h.cacheInspect = inspector.Inspect
+	}
+	return h
+}
+
+// WithComponentCompositionInspector wires the production composition service
+// and its immutable registry for the admin composition inspector.
+func (h *Controller) WithComponentCompositionInspector(
+	registry *extensionsruntime.ComponentRegistry,
+	composition *extensionsruntime.ProductionComponentComposition,
+) *Controller {
+	if h != nil {
+		h.componentRegistry = registry
+		h.componentComposition = composition
+	}
+	return h
+}
+
+// WithNavigationInspector wires the Host navigation/region inspector.
+func (h *Controller) WithNavigationInspector(inspector *navigationregistry.Inspector) *Controller {
+	if h != nil {
+		h.navigationInspector = inspector
 	}
 	return h
 }

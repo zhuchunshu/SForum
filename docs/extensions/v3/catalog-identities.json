@@ -290,6 +290,12 @@
       "path": "/api/v1/admin/extensions/cache-inspector"
     },
     {
+      "id": "core.route.extensions.component_inspector",
+      "contractVersion": "sforum.route.extensions.component_inspector@1",
+      "method": "GET",
+      "path": "/api/v1/admin/extensions/component-inspector"
+    },
+    {
       "id": "core.route.extensions.contribution_points",
       "contractVersion": "sforum.route.extensions.contribution_points@1",
       "method": "GET",
@@ -318,6 +324,12 @@
       "contractVersion": "sforum.route.extensions.navigation@1",
       "method": "GET",
       "path": "/api/v1/admin/extensions/navigation"
+    },
+    {
+      "id": "core.route.extensions.navigation_inspector",
+      "contractVersion": "sforum.route.extensions.navigation_inspector@1",
+      "method": "GET",
+      "path": "/api/v1/admin/extensions/navigation-inspector"
     },
     {
       "id": "core.route.extensions.openapi_aggregate",

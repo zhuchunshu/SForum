@@ -840,6 +840,7 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		WithProviderSlotSelection(lifecycleStack.ProviderSlots, lifecycleRuntime, auditWriter).
 		WithRouteInspector(routes.NewProviderSelectionInspector(lifecycleStack.RouteProviders, routeTraceRing)).
 		WithCacheInspector(hostCacheRuntime.Registry, hostCacheRuntime.Inspector).
+		WithComponentCompositionInspector(lifecycleStack.ComponentRegistry, lifecycleStack.ComponentComposition).
 		WithAdminSurfaces(extensionRuntime, auditWriter)
 	webhooksProvider := providers.NewWebhooksProvider(webhookService, identityStore, authSessions)
 	// PageDataLoader 网关：仅从运行中插件 RouteTarget 拉数据（严格 loopback）。
@@ -864,6 +865,8 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 	pageSiteChromeService := sitechrome.NewService(siteChromeStore).
 		WithExtensionNavItems(providers.NewExtensionNavItemProvider(extensionService)).
 		WithNavigationRegistry(pageNavigationRegistry)
+	// 导航检查器复用 SiteChrome 内部 trace ring，保证合成与审计同源。
+	extensionsProvider.WithNavigationInspector(pageSiteChromeService.NavigationInspector())
 	corePageViews := pageviewmodels.NewCorePageViewModelSource(pageviewmodels.CorePageViewModelDependencies{
 		Forum: pageForumService, Profiles: pageProfileService, Notifications: notificationStore,
 		Moderation: pageModerationService, Options: optionsService, Registration: pageIdentityService,

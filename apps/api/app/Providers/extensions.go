@@ -16,6 +16,7 @@ import (
 	cacheregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/CacheRegistry"
 	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
 	hostapi "github.com/zhuchunshu/sforum/apps/api/app/Support/HostAPI"
+	navigationregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/NavigationRegistry"
 	routes "github.com/zhuchunshu/sforum/apps/api/app/Support/Routes"
 )
 
@@ -100,6 +101,27 @@ func (p *ExtensionsProvider) WithCacheInspector(
 ) *ExtensionsProvider {
 	if p != nil && p.controller != nil {
 		p.controller.WithCacheInspector(registry, inspector)
+	}
+	return p
+}
+
+// WithComponentCompositionInspector wires P9 composition registry traces.
+func (p *ExtensionsProvider) WithComponentCompositionInspector(
+	registry *extensionsruntime.ComponentRegistry,
+	composition *extensionsruntime.ProductionComponentComposition,
+) *ExtensionsProvider {
+	if p != nil && p.controller != nil {
+		p.controller.WithComponentCompositionInspector(registry, composition)
+	}
+	return p
+}
+
+// WithNavigationInspector wires P9 navigation/region inspector traces.
+func (p *ExtensionsProvider) WithNavigationInspector(
+	inspector *navigationregistry.Inspector,
+) *ExtensionsProvider {
+	if p != nil && p.controller != nil {
+		p.controller.WithNavigationInspector(inspector)
 	}
 	return p
 }

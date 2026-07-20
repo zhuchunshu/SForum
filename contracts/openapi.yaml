@@ -361,6 +361,10 @@ paths:
     "$ref": "./openapi/paths/extension-route-inspector.yaml#/adminExtensionRouteInspector"
   "/admin/extensions/cache-inspector":
     "$ref": "./openapi/paths/extension-cache-inspector.yaml#/adminExtensionCacheInspector"
+  "/admin/extensions/component-inspector":
+    "$ref": "./openapi/paths/extension-composition-inspector.yaml#/adminExtensionComponentInspector"
+  "/admin/extensions/navigation-inspector":
+    "$ref": "./openapi/paths/extension-composition-inspector.yaml#/adminExtensionNavigationInspector"
   "/admin/extensions/openapi/aggregate":
     "$ref": "./openapi/paths/extension-route-contracts.yaml#/adminExtensionOpenAPIAggregate"
   "/admin/extensions/openapi/generated-client":

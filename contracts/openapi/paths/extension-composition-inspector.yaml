@@ -1,0 +1,84 @@
+adminExtensionComponentInspector:
+  get:
+    summary: Inspect component composition registry and Host traces
+    operationId: inspectAdminExtensionComponentComposition
+    description: >-
+      Requires extension.view or the legacy extension.manage permission. Returns
+      a redacted Component Registry summary plus recent composition traces.
+      Package paths, raw props, and raw results are never disclosed.
+    parameters:
+    - name: limit
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 200
+        default: 50
+      description: Maximum newest-first composition traces to return.
+    responses:
+      '200':
+        description: Detached component composition inspector snapshot.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data]
+              properties:
+                data:
+                  type: object
+                  required: [revision, safeMode, targetCount, contributionCount, conflicts, traces]
+                  properties:
+                    revision: { type: integer, format: int64 }
+                    safeMode: { type: boolean }
+                    targetCount: { type: integer }
+                    contributionCount: { type: integer }
+                    conflicts: { type: array, items: { type: object, additionalProperties: true } }
+                    traces: { type: array, items: { type: object, additionalProperties: true } }
+      '401': { "$ref": "../components/responses.yaml#/Unauthorized" }
+      '403': { "$ref": "../components/responses.yaml#/Forbidden" }
+      '422': { "$ref": "../components/responses.yaml#/UnprocessableEntity" }
+      '503': { "$ref": "../components/responses.yaml#/ServiceUnavailable" }
+
+adminExtensionNavigationInspector:
+  get:
+    summary: Inspect navigation/region registry and Host traces
+    operationId: inspectAdminExtensionNavigation
+    description: >-
+      Requires extension.view or the legacy extension.manage permission. Returns
+      navigation/region counts, provider conflict counts, and recent traces
+      without package paths or raw request data.
+    parameters:
+    - name: limit
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 200
+        default: 50
+      description: Maximum newest-first navigation traces to return.
+    responses:
+      '200':
+        description: Detached navigation inspector snapshot.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data]
+              properties:
+                data:
+                  type: object
+                  required: [revision, digest, safeMode, navigationCount, regionCount, providerConflicts, traces]
+                  properties:
+                    revision: { type: integer, format: int64 }
+                    digest: { type: string }
+                    safeMode: { type: boolean }
+                    navigationCount: { type: integer }
+                    regionCount: { type: integer }
+                    providerConflicts: { type: integer }
+                    traces: { type: array, items: { type: object, additionalProperties: true } }
+      '401': { "$ref": "../components/responses.yaml#/Unauthorized" }
+      '403': { "$ref": "../components/responses.yaml#/Forbidden" }
+      '422': { "$ref": "../components/responses.yaml#/UnprocessableEntity" }
+      '503': { "$ref": "../components/responses.yaml#/ServiceUnavailable" }
