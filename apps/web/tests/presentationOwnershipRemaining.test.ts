@@ -51,7 +51,28 @@ describe('remaining public presentation ownership', () => {
     expect(template).toContain("'identity.component.register_form': resolveComponent('SFRegisterFormPage')")
     expect(template).toContain("'identity.component.recovery_request_form': resolveComponent('SFRecoveryRequestPage')")
     expect(template).toContain("'identity.component.recovery_confirm_form': resolveComponent('SFRecoveryConfirmPage')")
-    // system not_found may remain HostPageIsland for emergency
+    // system.not_found 仍走 HostPageIsland：error.vue 需把 NuxtError 注入 SFErrorPageContent。
     expect(template).toContain("'system.component.not_found': HostPageIsland")
+  })
+
+  test('system.not_found theme shells mark presentation ownership', () => {
+    for (const theme of ['sforum-default', 'sforum-nocturne']) {
+      const tpl = read(`../../extensions/builtin/themes/${theme}/templates/not-found.html`)
+      expect(tpl).toContain('data-theme-owned="presentation"')
+      expect(tpl).toContain('data-page="system.not_found"')
+      expect(tpl).toContain('<sf-not-found-page')
+    }
+  })
+
+  test('moderation.review stays Host-owned (non-replaceable workbench)', () => {
+    const route = read('app/pages/moderation/index.vue')
+    expect(route).toContain('SFPageOutlet')
+    expect(route).toContain('page="moderation.review"')
+    expect(route).toContain('<SFModerationReviewPage')
+    // 不可主题替换：theme.json 不应声明 moderation.review replace。
+    for (const theme of ['sforum-default', 'sforum-nocturne']) {
+      const themeJson = read(`../../extensions/builtin/themes/${theme}/theme.json`)
+      expect(themeJson).not.toContain('"target": "moderation.review"')
+    }
   })
 })
