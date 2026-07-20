@@ -606,6 +606,7 @@
           "targetId": { "$ref": "#/$defs/id" },
           "targetContractVersion": { "$ref": "#/$defs/contract" },
           "priority": { "type": "integer" },
+          "permission": { "$ref": "#/$defs/id" },
           "ssrTemplate": { "type": "string" },
           "l2Component": { "type": "string" },
           "propsSchema": { "$ref": "#/$defs/optionalSchemaRef" },

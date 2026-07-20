@@ -179,6 +179,9 @@ func (v *v3Validator) validateUIAndPackage() error {
 		if !validComponentTarget(component.TargetID, component.TargetContractVersion, v.manifest.Type) {
 			return ErrInvalidManifest
 		}
+		if component.Permission != "" && !manifestIDPattern.MatchString(component.Permission) {
+			return ErrInvalidManifest
+		}
 		if component.Action != ComponentActionHide && !validSchemaRef(component.PropsSchema) {
 			return ErrInvalidManifest
 		}
