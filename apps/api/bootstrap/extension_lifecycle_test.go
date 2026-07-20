@@ -191,6 +191,7 @@ func TestProductionLifecycleStackConstructsEveryRequiredDependency(t *testing.T)
 		"seo registry":        stack.SEORegistry != nil,
 		"navigation registry": stack.NavigationRegistry != nil,
 		"content registry":    stack.ContentRegistry != nil,
+		"media registry":      stack.MediaRegistry != nil,
 		"route providers":     stack.RouteProviders != nil,
 		"registry repository": stack.RegistryRepository != nil, "registries": stack.Registries != nil,
 		"state": stack.State != nil, "journal": stack.PublicationJournal != nil,
@@ -228,6 +229,9 @@ func TestProductionLifecycleStackConstructsEveryRequiredDependency(t *testing.T)
 	if stack.Registries.ContentRegistry() != stack.ContentRegistry {
 		t.Fatal("lifecycle boundary and production stack use different Content Registry instances")
 	}
+	if stack.Registries.MediaRegistry() != stack.MediaRegistry {
+		t.Fatal("lifecycle boundary and production stack use different Media Registry instances")
+	}
 	navigationSnapshot := stack.NavigationRegistry.Snapshot()
 	if navigationSnapshot.SafeMode || len(navigationSnapshot.Publications) != 1 ||
 		!navigationSnapshot.Publications[0].Artifact.Core {
@@ -236,6 +240,10 @@ func TestProductionLifecycleStackConstructsEveryRequiredDependency(t *testing.T)
 	contentSnapshot := stack.ContentRegistry.Snapshot()
 	if contentSnapshot.SafeMode || len(contentSnapshot.Publications) != 0 {
 		t.Fatalf("production content registry snapshot = %#v", contentSnapshot)
+	}
+	mediaSnapshot := stack.MediaRegistry.Snapshot()
+	if mediaSnapshot.SafeMode || len(mediaSnapshot.Publications) != 0 {
+		t.Fatalf("production media registry snapshot = %#v", mediaSnapshot)
 	}
 	snapshot := stack.RouteRegistry.Snapshot()
 	if snapshot.Revision != 1 || snapshot.SafeMode || len(snapshot.Routes) != len(routes.CoreRouteCatalog()) ||

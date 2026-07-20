@@ -18,6 +18,7 @@ import (
 	hostapi "github.com/zhuchunshu/sforum/apps/api/app/Support/HostAPI"
 	identityregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/IdentityRegistry"
 	supportjobs "github.com/zhuchunshu/sforum/apps/api/app/Support/Jobs"
+	mediaregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/MediaRegistry"
 	navigationregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/NavigationRegistry"
 	pages "github.com/zhuchunshu/sforum/apps/api/app/Support/Pages"
 	queryregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/QueryRegistry"
@@ -82,7 +83,9 @@ type productionLifecycleStack struct {
 	NavigationRegistry *navigationregistry.Registry
 	// ContentRegistry is the P10 block/shortcode/embed/node/mark graph.
 	ContentRegistry *contentregistry.Registry
-	RouteProviders  *routes.ProviderSelectionAPI
+	// MediaRegistry is the P10 MIME/processor/variant pipeline graph.
+	MediaRegistry  *mediaregistry.Registry
+	RouteProviders *routes.ProviderSelectionAPI
 	ProviderSlots      *extensionsruntime.ProviderSlotSelectionAPI
 	RegistryRepository *extensionsruntime.PostgresLifecycleRegistryPublicationRepository
 	Registries         *extensionsruntime.PostgresLifecycleBoundaryRegistries
@@ -238,6 +241,14 @@ func newProductionLifecycleStack(config productionLifecycleStackConfig) (*produc
 			return nil, fmt.Errorf("%w: enter content registry safe mode: %v", errProductionLifecycleDependency, err)
 		}
 	}
+	// Media Pipeline Registry：P10 声明图；Safe Mode 从首个 snapshot 起拒绝第三方。
+	mediaRegistry := mediaregistry.New()
+	if config.SafeMode {
+		snapshot := mediaRegistry.Snapshot()
+		if _, err := mediaRegistry.ReplaceAllIfRevision(snapshot.Revision, snapshot.Publications, true); err != nil {
+			return nil, fmt.Errorf("%w: enter media registry safe mode: %v", errProductionLifecycleDependency, err)
+		}
+	}
 	// Identity root policy and permanent leaf ownership must converge from the
 	// durable PostgreSQL ledger before the process-local graph becomes visible.
 	// Default PostgreSQL store binds the production TrustImpact digest verifier
@@ -279,7 +290,7 @@ func newProductionLifecycleStack(config productionLifecycleStackConfig) (*produc
 			Components: componentRegistry, ComponentComposition: componentComposition,
 			Assets: assetRegistry, Caches: cacheRegistry, Queries: queryRegistry,
 			SEO: seoRegistry, Identity: identityRegistry, IdentityStore: identityStore,
-			Navigation: navigationRegistry, Content: contentRegistry,
+			Navigation: navigationRegistry, Content: contentRegistry, Media: mediaRegistry,
 			AssetAuthority: assetAuthority, AssetAdmission: config.Trust,
 		},
 	)
@@ -310,8 +321,8 @@ func newProductionLifecycleStack(config productionLifecycleStackConfig) (*produc
 		SessionPolicyStore: sessionPolicyStore,
 		QueryRegistry:      queryRegistry, QueryCoreCatalog: queryCoreCatalog,
 		SEORegistry: seoRegistry, NavigationRegistry: navigationRegistry,
-		ContentRegistry: contentRegistry,
-		RouteProviders:  routeProviders,
+		ContentRegistry: contentRegistry, MediaRegistry: mediaRegistry,
+		RouteProviders: routeProviders,
 		ProviderSlots:      providerSlots,
 		RegistryRepository: registryRepository, Registries: registries,
 		State: state, PublicationJournal: journal, Cleanup: cleanup,
@@ -326,7 +337,7 @@ func (s *productionLifecycleStack) bindService(service *extensions.Service) erro
 		s.Repository == nil || s.CleanupFinalizer == nil || s.RouteProviders == nil || s.ProviderSlots == nil ||
 		s.ComponentRegistry == nil || s.AssetRegistry == nil || s.CacheRegistry == nil || s.QueryRegistry == nil ||
 		s.QueryCoreCatalog == nil || s.SEORegistry == nil || s.NavigationRegistry == nil ||
-		s.ContentRegistry == nil || s.IdentityRegistry == nil || s.IdentityStore == nil || s.Registries == nil {
+		s.ContentRegistry == nil || s.MediaRegistry == nil || s.IdentityRegistry == nil || s.IdentityStore == nil || s.Registries == nil {
 		return errProductionLifecycleDependency
 	}
 	extensions.WithLifecycleCoordinator(s.Coordinator, s.StaticPreflight, s.Repository)(service)

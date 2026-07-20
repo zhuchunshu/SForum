@@ -17,6 +17,7 @@ import (
 	extensionopenapi "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionOpenAPI"
 	hostapi "github.com/zhuchunshu/sforum/apps/api/app/Support/HostAPI"
 	identityregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/IdentityRegistry"
+	mediaregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/MediaRegistry"
 	navigationregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/NavigationRegistry"
 	pages "github.com/zhuchunshu/sforum/apps/api/app/Support/Pages"
 	queryregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/QueryRegistry"
@@ -89,7 +90,9 @@ type LifecycleRegistryBoundaryConfig struct {
 	IdentityStore        identityregistry.PublicationStore
 	Navigation           *navigationregistry.Registry
 	// Content is the P10 Content Registry (block/shortcode/embed/node/mark/…).
-	Content        *contentregistry.Registry
+	Content *contentregistry.Registry
+	// Media is the P10 Media Pipeline Registry (MIME policy/processors/variants).
+	Media          *mediaregistry.Registry
 	AssetAuthority LifecycleAssetAuthority
 	AssetAdmission LifecycleAssetAdmission
 }
@@ -121,6 +124,7 @@ type PostgresLifecycleBoundaryRegistries struct {
 	identitySet    bool
 	navigation     *navigationregistry.Registry
 	content        *contentregistry.Registry
+	media          *mediaregistry.Registry
 	assetAuthority LifecycleAssetAuthority
 	assetAdmission LifecycleAssetAdmission
 }
@@ -152,6 +156,7 @@ func NewPostgresLifecycleBoundaryRegistries(config LifecycleRegistryBoundaryConf
 		identitySet:    config.Identity != nil || config.IdentityStore != nil,
 		navigation:     config.Navigation,
 		content:        config.Content,
+		media:          config.Media,
 		assetAuthority: config.AssetAuthority,
 		assetAdmission: config.AssetAdmission,
 	}
@@ -259,6 +264,9 @@ func (b *PostgresLifecycleBoundaryRegistries) RestoreRoutePublications(
 		return err
 	}
 	if err := b.restoreContentPublications(ctx, items, safeMode); err != nil {
+		return err
+	}
+	if err := b.restoreMediaPublications(ctx, items, safeMode); err != nil {
 		return err
 	}
 	if err := b.restoreAssetPublications(ctx, items, safeMode); err != nil {
@@ -446,6 +454,9 @@ func (b *PostgresLifecycleBoundaryRegistries) validatePreparedLifecycleRegistrie
 	if err := b.validateContentTransition(source, target); err != nil {
 		return err
 	}
+	if err := b.validateMediaTransition(source, target); err != nil {
+		return err
+	}
 	if err := b.validateIdentityTransition(source, target); err != nil {
 		return err
 	}
@@ -545,6 +556,7 @@ type lifecycleRegistryMaterial struct {
 	identityPublication   *identityregistry.Publication
 	navigationPublication *navigationregistry.Publication
 	contentPublication    *contentregistry.Publication
+	mediaPublication      *mediaregistry.Publication
 	assetAdmitted         bool
 	digest                string
 	legacyDigest          string
@@ -593,6 +605,9 @@ func (b *PostgresLifecycleBoundaryRegistries) prepareMaterial(
 		return lifecyclePublicationFence{}, nil, nil, err
 	}
 	if err := b.freezeContentMaterials(ctx, request, source, target); err != nil {
+		return lifecyclePublicationFence{}, nil, nil, err
+	}
+	if err := b.freezeMediaMaterials(ctx, request, source, target); err != nil {
 		return lifecyclePublicationFence{}, nil, nil, err
 	}
 	return fence, source, target, nil
@@ -777,6 +792,9 @@ func (b *PostgresLifecycleBoundaryRegistries) reconcileLocalRegistries(
 		return err
 	}
 	if err := b.reconcileContent(ctx, request.TargetExtension.ID, source, target, desired); err != nil {
+		return err
+	}
+	if err := b.reconcileMedia(ctx, request.TargetExtension.ID, source, target, desired); err != nil {
 		return err
 	}
 	if err := b.applyAssetPlan(ctx, assetPlan, phase); err != nil {
