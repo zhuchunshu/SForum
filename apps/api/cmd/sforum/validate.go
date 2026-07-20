@@ -22,6 +22,7 @@ func newExtensionCommand() *cobra.Command {
 	cmd.AddCommand(newExtensionValidateCommand())
 	cmd.AddCommand(newExtensionDigestCommand())
 	cmd.AddCommand(newExtensionTestCommand())
+	cmd.AddCommand(newExtensionPackageCommand())
 	cmd.AddCommand(newExtensionDocsCommand())
 	cmd.AddCommand(newExtensionRecoveryListCommand())
 	cmd.AddCommand(newExtensionRecoveryDisableCommand())
