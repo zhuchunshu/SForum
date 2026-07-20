@@ -864,9 +864,14 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 	if pageNavigationRegistry == nil {
 		return nil, fmt.Errorf("extension lifecycle navigation registry is unavailable")
 	}
+	// 生产 Navigation Runtime：精确 runtime instance admission；声明式贡献可合成，
+	// Handler 渲染未接入前 fail closed（optional replace 回退 / selected replace 关闭）。
+	// 使用 lifecycleRuntime（*Manager），保证 Inspect/Available 与发布制品同源。
+	pageNavigationRuntime := newProductionNavigationRuntime(lifecycleRuntime)
 	pageSiteChromeService := sitechrome.NewService(siteChromeStore).
 		WithExtensionNavItems(providers.NewExtensionNavItemProvider(extensionService)).
-		WithNavigationRegistry(pageNavigationRegistry)
+		WithNavigationRegistry(pageNavigationRegistry).
+		WithNavigationRuntime(pageNavigationRuntime, pageNavigationRuntime)
 	// 导航检查器复用 SiteChrome 内部 trace ring，保证合成与审计同源。
 	extensionsProvider.WithNavigationInspector(pageSiteChromeService.NavigationInspector())
 	corePageViews := pageviewmodels.NewCorePageViewModelSource(pageviewmodels.CorePageViewModelDependencies{
