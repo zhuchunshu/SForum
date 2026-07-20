@@ -1,15 +1,7 @@
-<script setup lang="ts">
-// 页脚 / 公告条由主题 extension settings 控制
-const { layoutShowFooter, layoutShowAnnouncements } = useActiveThemeSettings()
-</script>
-
 <template>
-  <div class="flex flex-col min-h-screen">
-    <SFNavbar />
-    <SFAnnouncementBanner v-if="layoutShowAnnouncements" />
-    <div class="flex-1">
-      <slot />
-    </div>
-    <SFFooter v-if="layoutShowFooter" />
-  </div>
+  <!--
+    公开 chrome 由主题 L1（sf-navbar/sf-footer）或 SFPageOutlet fail-closed 宿主壳拥有。
+    Nuxt default layout 仅透传，避免与主题双层导航。
+  -->
+  <slot />
 </template>

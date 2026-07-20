@@ -92,6 +92,15 @@ const useTemplate = computed(() =>
   && !resolved.value?.fallback
 )
 const showFallbackNotice = computed(() => Boolean(resolved.value?.fallback || resolveError.value))
+
+// auth / system.not_found 自带 chrome 或使用 auth layout；其余 fail-closed 走宿主公开 chrome。
+const useHostPublicChrome = computed(() => {
+  if (useTemplate.value) {
+    return false
+  }
+  const id = props.page
+  return !id.startsWith('auth.') && id !== 'system.not_found' && id !== 'dev.components'
+})
 </script>
 
 <template>
@@ -100,6 +109,7 @@ const showFallbackNotice = computed(() => Boolean(resolved.value?.fallback || re
     :data-page="page"
     :data-provider="provider"
     :data-template="useTemplate ? '1' : '0'"
+    :data-host-chrome="useHostPublicChrome ? '1' : '0'"
   >
     <SFThemeTemplate
       v-if="useTemplate"
@@ -113,6 +123,9 @@ const showFallbackNotice = computed(() => Boolean(resolved.value?.fallback || re
     >
       <slot />
     </SFThemeTemplate>
+    <SFHostPublicChrome v-else-if="useHostPublicChrome">
+      <slot />
+    </SFHostPublicChrome>
     <slot v-else />
     <p
       v-if="showFallbackNotice"

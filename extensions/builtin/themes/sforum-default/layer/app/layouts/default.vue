@@ -1,15 +1,4 @@
-<script setup lang="ts">
-// 页脚 / 公告条由主题 extension settings 控制
-const { layoutShowFooter, layoutShowAnnouncements } = useActiveThemeSettings()
-</script>
-
 <template>
-  <div class="flex flex-col min-h-screen">
-    <SFNavbar />
-    <SFAnnouncementBanner v-if="layoutShowAnnouncements" />
-    <div class="flex-1">
-      <slot />
-    </div>
-    <SFFooter v-if="layoutShowFooter" />
-  </div>
+  <!-- 主题 layer 副本：公开 chrome 由 L1 模板岛或 Host fail-closed 壳拥有。 -->
+  <slot />
 </template>
