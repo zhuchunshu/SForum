@@ -86,6 +86,27 @@ commit, and the primary agent must inspect their diffs and tests before acceptin
 work. This policy remains active across context compression and should be removed
 or treated as expired only after the complete V3 goal is achieved.
 
+## 2026-07-20 Trusted Automation And Risk Composition Checkpoint
+
+- Progress remains **67.8295%** (display **67.0%**); P7 remains **18/22**.
+  Infrastructure for automation and risk is production-bound but does not yet
+  close an authoritative P7 row without the membership joined gate.
+- `ba4fe1454` requires live `extensions.call` for Service Discovery List/Resolve/
+  Invoke/Stream; wire GrantedAuthority stays disclosure-only.
+- `ccf3c35a1` adds redacted Host Query `sforum.core.extensions.inventory.list`
+  gated by `extensions.read` (Safe Mode fail-closed; no package paths/secrets).
+- `2b9f5c20c` / follow-up add `extensions.manage` Host Commands:
+  `sforum.extensions.plugin.disable` and `sforum.extensions.settings.reset`
+  with delegated actor + `extension.plugin.manage`, non-self/non-system/
+  already-trusted target policy, and process capability `extensions.manage`.
+- `c52442d03` composes active `risk.evaluate` providers on password login
+  (deny > step_up > allow, fail-closed) before session issue.
+- Session issue/renew step-up evidence remains wired from earlier commits.
+- Next: Auth/Profile provider consumers, remaining manage settings update/
+  action, membership Protocol V2 reference plugin + joined P7 identity gate.
+- Preserve unrelated dirty files (route inspector, content-policy, PageViewModels,
+  public frontend policy, OpenAPI/ADR taskbook additions).
+
 ## P7 Session Policy Selection Store Checkpoint
 
 - Progress remains **67.8295%** (display **67.0%**); P7 remains **18/22**.
