@@ -2,9 +2,12 @@ package identity
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
+	"time"
 
 	identityregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/IdentityRegistry"
 )
@@ -20,6 +23,11 @@ const (
 	SessionPolicyDispositionStepUp = "step_up"
 
 	sessionEvaluateOperation = "session.evaluate"
+
+	// The provider timeout bounds remote evaluation. This separate Host budget
+	// bounds only the accepted session mutation after final authority admission,
+	// even when the caller disconnects.
+	sessionPolicyHostEffectTimeout = 10 * time.Second
 )
 
 var (
@@ -33,8 +41,9 @@ var (
 // SessionEvaluationInput is the Host-owned workflow claim for issue/renew.
 // Plugins never receive passwords, raw cookies, session ids, or CSRF tokens.
 type SessionEvaluationInput struct {
-	UserID  int64
-	Purpose string
+	UserID       int64
+	TokenVersion int64
+	Purpose      string
 	// CorrelationID is an opaque Host correlation token, never a session secret.
 	CorrelationID string
 	// DeviceFingerprint is a Host-derived opaque device class, never a raw UA.
@@ -80,11 +89,17 @@ type SessionPolicyEvaluateInvoker interface {
 	) error
 }
 
+// SessionPolicyHostEffect is the Host-owned issue/renew mutation. For a plugin
+// policy it runs inside the exact runtime admission callback after both the
+// runtime fence and durable selection recheck.
+type SessionPolicyHostEffect func(context.Context) error
+
 // SessionPolicyEvaluator resolves the selected policy and, when required,
 // invokes the exact session.evaluate provider before Host issue/renew.
 type SessionPolicyEvaluator struct {
-	store   IdentitySessionPolicyStore
-	invoker SessionPolicyEvaluateInvoker
+	store       IdentitySessionPolicyStore
+	effectStore IdentitySessionPolicyEffectStore
+	invoker     SessionPolicyEvaluateInvoker
 }
 
 func NewSessionPolicyEvaluator(
@@ -94,7 +109,8 @@ func NewSessionPolicyEvaluator(
 	if store == nil {
 		return nil, ErrIdentitySessionPolicyStoreUnavailable
 	}
-	return &SessionPolicyEvaluator{store: store, invoker: invoker}, nil
+	effectStore, _ := store.(IdentitySessionPolicyEffectStore)
+	return &SessionPolicyEvaluator{store: store, effectStore: effectStore, invoker: invoker}, nil
 }
 
 // ProviderResolution freezes the effective selected session policy and its
@@ -123,6 +139,15 @@ func (e *SessionPolicyEvaluator) InvokeExact(
 	resolution SessionPolicyProviderResolution,
 	input SessionEvaluationInput,
 ) (SessionEvaluationResult, error) {
+	return e.invokeExactWithEffect(ctx, resolution, input, nil)
+}
+
+func (e *SessionPolicyEvaluator) invokeExactWithEffect(
+	ctx context.Context,
+	resolution SessionPolicyProviderResolution,
+	input SessionEvaluationInput,
+	effect SessionPolicyHostEffect,
+) (SessionEvaluationResult, error) {
 	if e == nil || e.store == nil || ctx == nil {
 		return SessionEvaluationResult{}, ErrSessionPolicyEvaluationInvalid
 	}
@@ -139,18 +164,34 @@ func (e *SessionPolicyEvaluator) InvokeExact(
 
 	switch resolution.Source {
 	case IdentitySessionPolicySourceCore, IdentitySessionPolicySourceSafeMode:
-		return coreSessionEvaluationResult(resolution, prepared), nil
+		result := coreSessionEvaluationResult(resolution, prepared)
+		if effect != nil {
+			if err := e.runEffectIfCurrent(
+				ctx,
+				resolution.IdentitySessionPolicyResolution,
+				IdentitySessionAuthority{UserID: prepared.UserID, TokenVersion: prepared.TokenVersion},
+				func(admittedCtx context.Context) error {
+					effectCtx, cancelEffect := sessionPolicyEffectContext(admittedCtx)
+					defer cancelEffect()
+					return effect(effectCtx)
+				},
+			); err != nil {
+				return result, err
+			}
+		} else if err := e.recheckSelectionBeforeEffect(ctx, result); err != nil {
+			return SessionEvaluationResult{}, err
+		}
+		return result, nil
 	case IdentitySessionPolicySourcePlugin:
-		return e.invokePluginSessionEvaluate(ctx, resolution, prepared)
+		return e.invokePluginSessionEvaluate(ctx, resolution, prepared, effect)
 	default:
 		return SessionEvaluationResult{}, ErrSessionPolicyEvaluationUnavailable
 	}
 }
 
-// Evaluate is the atomic production path: ProviderResolution, InvokeExact, and
-// a selection-revision recheck immediately before the Host effect boundary.
-// Callers must still keep session issue/renew Host-local and never route
-// revocation through this path.
+// Evaluate returns one fenced proposal without applying a Host mutation. The
+// production issue/renew path uses RequireAllowAndRun so the effect remains in
+// the exact admission callback. Revocation never calls either policy path.
 func (e *SessionPolicyEvaluator) Evaluate(
 	ctx context.Context,
 	input SessionEvaluationInput,
@@ -159,18 +200,11 @@ func (e *SessionPolicyEvaluator) Evaluate(
 	if err != nil {
 		return SessionEvaluationResult{}, err
 	}
-	result, err := e.InvokeExact(ctx, resolution, input)
-	if err != nil {
-		return SessionEvaluationResult{}, err
-	}
-	if err := e.recheckSelectionBeforeEffect(ctx, result); err != nil {
-		return SessionEvaluationResult{}, err
-	}
-	return result, nil
+	return e.InvokeExact(ctx, resolution, input)
 }
 
-// RequireAllow evaluates and returns only when the disposition is allow.
-// Deny and step-up map to stable typed errors for Host issue/renew mapping.
+// RequireAllow evaluates without applying a Host mutation. It is retained for
+// inspection and compatibility; production issue/renew uses RequireAllowAndRun.
 func (e *SessionPolicyEvaluator) RequireAllow(
 	ctx context.Context,
 	input SessionEvaluationInput,
@@ -179,15 +213,41 @@ func (e *SessionPolicyEvaluator) RequireAllow(
 	if err != nil {
 		return SessionEvaluationResult{}, err
 	}
-	switch result.Disposition {
+	return result, requireSessionPolicyAllow(result.Disposition)
+}
+
+// RequireAllowAndRun is the production issue/renew boundary. The effect runs
+// exactly once only for an allowed, still-current policy. Revocation must not
+// call this method.
+func (e *SessionPolicyEvaluator) RequireAllowAndRun(
+	ctx context.Context,
+	input SessionEvaluationInput,
+	effect SessionPolicyHostEffect,
+) (SessionEvaluationResult, error) {
+	if effect == nil {
+		return SessionEvaluationResult{}, ErrSessionPolicyEvaluationInvalid
+	}
+	resolution, err := e.ProviderResolution(ctx)
+	if err != nil {
+		return SessionEvaluationResult{}, err
+	}
+	result, err := e.invokeExactWithEffect(ctx, resolution, input, effect)
+	if err != nil {
+		return result, err
+	}
+	return result, requireSessionPolicyAllow(result.Disposition)
+}
+
+func requireSessionPolicyAllow(disposition string) error {
+	switch disposition {
 	case SessionPolicyDispositionAllow:
-		return result, nil
+		return nil
 	case SessionPolicyDispositionDeny:
-		return result, ErrSessionPolicyEvaluationDenied
+		return ErrSessionPolicyEvaluationDenied
 	case SessionPolicyDispositionStepUp:
-		return result, ErrSessionPolicyEvaluationStepUp
+		return ErrSessionPolicyEvaluationStepUp
 	default:
-		return SessionEvaluationResult{}, ErrSessionPolicyEvaluationUnavailable
+		return ErrSessionPolicyEvaluationUnavailable
 	}
 }
 
@@ -195,6 +255,7 @@ func (e *SessionPolicyEvaluator) invokePluginSessionEvaluate(
 	ctx context.Context,
 	resolution SessionPolicyProviderResolution,
 	input preparedSessionEvaluationInput,
+	effect SessionPolicyHostEffect,
 ) (SessionEvaluationResult, error) {
 	if e.invoker == nil || resolution.Provider == nil {
 		return SessionEvaluationResult{}, ErrSessionPolicyEvaluationUnavailable
@@ -215,48 +276,255 @@ func (e *SessionPolicyEvaluator) invokePluginSessionEvaluate(
 		requestInput["deviceFingerprint"] = input.DeviceFingerprint
 	}
 
-	var output map[string]any
-	err := e.invoker.InvokeExact(
-		ctx,
-		provider,
-		sessionEvaluateOperation,
-		input.UserID,
-		requestInput,
-		func(_ context.Context, proposal map[string]any, fence func() error) error {
-			if fence == nil {
-				return ErrSessionPolicyEvaluationInvalid
+	var mu sync.Mutex
+	open := true
+	started := false
+	var acceptedResult SessionEvaluationResult
+	var callbackErr error
+	var callbackPanic any
+	done := make(chan struct{})
+
+	accept := func(callCtx context.Context, proposal map[string]any, fence func() error) (resultErr error) {
+		mu.Lock()
+		if !open || started || ctx.Err() != nil {
+			mu.Unlock()
+			return ErrSessionPolicyEvaluationInvalid
+		}
+		started = true
+		if callCtx == nil {
+			callCtx = ctx
+		}
+		mu.Unlock()
+		admissionCtx, cancelAdmission := joinSessionPolicyAdmissionContexts(ctx, callCtx)
+		defer cancelAdmission()
+
+		var result SessionEvaluationResult
+		defer func() {
+			panicValue := recover()
+			if panicValue != nil {
+				resultErr = ErrSessionPolicyEvaluationInvalid
 			}
-			// Fence proves exact runtime admission is still held; the Host
-			// session effect rechecks selection revision separately.
-			if err := fence(); err != nil {
-				return err
+			mu.Lock()
+			acceptedResult = result
+			callbackErr = resultErr
+			callbackPanic = panicValue
+			close(done)
+			mu.Unlock()
+		}()
+		if cause := sessionPolicyAdmissionCause(ctx, callCtx, admissionCtx); cause != nil {
+			return cause
+		}
+		if fence == nil {
+			return ErrSessionPolicyEvaluationInvalid
+		}
+		cloned, err := cloneSessionEvaluationDocument(proposal)
+		if err != nil {
+			return err
+		}
+		disposition, err := parseSessionPolicyDisposition(cloned)
+		if err != nil {
+			return err
+		}
+		result = SessionEvaluationResult{
+			Disposition:       disposition,
+			PolicyID:          resolution.PolicyID,
+			Source:            resolution.Source,
+			Selection:         cloneSessionPolicySelection(resolution.Selection),
+			Provider:          cloneSessionPolicyProvider(resolution.Provider),
+			RegistryRevision:  resolution.RegistryRevision,
+			RegistryDigest:    resolution.RegistryDigest,
+			SelectionRevision: selectionRevision(resolution.Selection),
+			Output:            cloned,
+		}
+		// The Manager fence is the acceptance linearization point. ForceDrain
+		// before it rejects; ForceDrain after it is ordered after this accepted
+		// effect while the lease remains counted until callback return.
+		if err := fence(); err != nil {
+			return err
+		}
+		if cause := sessionPolicyAdmissionCause(ctx, callCtx, admissionCtx); cause != nil {
+			return cause
+		}
+		if effect != nil {
+			if decisionErr := requireSessionPolicyAllow(disposition); decisionErr != nil {
+				if err := e.recheckSelectionBeforeEffect(admissionCtx, result); err != nil {
+					return err
+				}
+				return nil
 			}
-			cloned, err := cloneSessionEvaluationDocument(proposal)
-			if err != nil {
-				return err
+			if err := e.runEffectIfCurrent(
+				admissionCtx,
+				resolution.IdentitySessionPolicyResolution,
+				IdentitySessionAuthority{UserID: input.UserID, TokenVersion: input.TokenVersion},
+				func(admittedCtx context.Context) error {
+					effectCtx, cancelEffect := sessionPolicyEffectContext(admittedCtx)
+					defer cancelEffect()
+					return effect(effectCtx)
+				},
+			); err != nil {
+				return &sessionPolicyEffectError{cause: err}
 			}
-			output = cloned
-			return nil
-		},
-	)
-	if err != nil {
-		return SessionEvaluationResult{}, errors.Join(ErrSessionPolicyEvaluationUnavailable, err)
+		} else if err := e.recheckSelectionBeforeEffect(admissionCtx, result); err != nil {
+			return err
+		}
+		return nil
 	}
-	disposition, err := parseSessionPolicyDisposition(output)
-	if err != nil {
-		return SessionEvaluationResult{}, err
+
+	var invokeErr error
+	var invokePanic any
+	func() {
+		defer func() { invokePanic = recover() }()
+		invokeErr = e.invoker.InvokeExact(
+			ctx,
+			provider,
+			sessionEvaluateOperation,
+			input.UserID,
+			requestInput,
+			accept,
+		)
+	}()
+	mu.Lock()
+	open = false
+	wasStarted := started
+	mu.Unlock()
+	if wasStarted {
+		<-done
 	}
-	return SessionEvaluationResult{
-		Disposition:       disposition,
-		PolicyID:          resolution.PolicyID,
-		Source:            resolution.Source,
-		Selection:         cloneSessionPolicySelection(resolution.Selection),
-		Provider:          cloneSessionPolicyProvider(resolution.Provider),
-		RegistryRevision:  resolution.RegistryRevision,
-		RegistryDigest:    resolution.RegistryDigest,
-		SelectionRevision: selectionRevision(resolution.Selection),
-		Output:            output,
-	}, nil
+	mu.Lock()
+	result := acceptedResult
+	resultErr := callbackErr
+	panicValue := callbackPanic
+	mu.Unlock()
+	if panicValue != nil {
+		panic(panicValue)
+	}
+	if invokePanic != nil {
+		panic(invokePanic)
+	}
+	if !wasStarted {
+		return SessionEvaluationResult{}, errors.Join(
+			ErrSessionPolicyEvaluationUnavailable,
+			ErrSessionPolicyEvaluationInvalid,
+			invokeErr,
+			ctx.Err(),
+		)
+	}
+	if resultErr != nil {
+		var effectErr *sessionPolicyEffectError
+		if errors.As(resultErr, &effectErr) {
+			return result, effectErr.cause
+		}
+		return SessionEvaluationResult{}, errors.Join(ErrSessionPolicyEvaluationUnavailable, resultErr)
+	}
+	// Once the accepted Host callback succeeds, its result is terminal. An
+	// invoker cannot turn a committed issue/renew effect into a retryable error.
+	return result, nil
+}
+
+func joinSessionPolicyAdmissionContexts(root context.Context, call context.Context) (context.Context, context.CancelFunc) {
+	if call == nil {
+		call = root
+	}
+	joined, cancelJoined := context.WithCancelCause(call)
+	stopRoot := context.AfterFunc(root, func() {
+		cancelJoined(context.Cause(root))
+	})
+	// AfterFunc may not have run yet when root was already canceled.
+	if cause := context.Cause(root); cause != nil {
+		cancelJoined(cause)
+	}
+	return &sessionPolicyAdmissionContext{Context: joined, root: root, call: call}, func() {
+		stopRoot()
+		cancelJoined(nil)
+	}
+}
+
+// sessionPolicyAdmissionContext keeps callCtx values while making Err and
+// Deadline synchronously reflect either cancellation source. AfterFunc closes
+// Done for root cancellation; the synchronous methods close its scheduling gap.
+type sessionPolicyAdmissionContext struct {
+	context.Context
+	root context.Context
+	call context.Context
+}
+
+func (c *sessionPolicyAdmissionContext) Deadline() (time.Time, bool) {
+	rootDeadline, rootOK := c.root.Deadline()
+	callDeadline, callOK := c.call.Deadline()
+	if !rootOK {
+		return callDeadline, callOK
+	}
+	if !callOK || rootDeadline.Before(callDeadline) {
+		return rootDeadline, true
+	}
+	return callDeadline, true
+}
+
+func (c *sessionPolicyAdmissionContext) Err() error {
+	if err := c.root.Err(); err != nil {
+		return err
+	}
+	if err := c.call.Err(); err != nil {
+		return err
+	}
+	return c.Context.Err()
+}
+
+func sessionPolicyAdmissionCause(root context.Context, call context.Context, joined context.Context) error {
+	if cause := context.Cause(root); cause != nil {
+		return cause
+	}
+	if cause := context.Cause(call); cause != nil {
+		return cause
+	}
+	return context.Cause(joined)
+}
+
+func sessionPolicyEffectContext(parent context.Context) (context.Context, context.CancelFunc) {
+	return context.WithTimeout(context.WithoutCancel(parent), sessionPolicyHostEffectTimeout)
+}
+
+func (e *SessionPolicyEvaluator) runEffectIfCurrent(
+	ctx context.Context,
+	resolution IdentitySessionPolicyResolution,
+	authority IdentitySessionAuthority,
+	effect SessionPolicyHostEffect,
+) error {
+	if e == nil || e.effectStore == nil || effect == nil {
+		return ErrSessionPolicyEvaluationUnavailable
+	}
+	err := e.effectStore.RunIfCurrent(ctx, resolution, authority, func(effectCtx context.Context) error {
+		if err := effect(effectCtx); err != nil {
+			return &sessionPolicyEffectError{cause: err}
+		}
+		return nil
+	})
+	var effectErr *sessionPolicyEffectError
+	if errors.As(err, &effectErr) {
+		return effectErr.cause
+	}
+	if err != nil {
+		return errors.Join(ErrSessionPolicyEvaluationStale, err)
+	}
+	return nil
+}
+
+type sessionPolicyEffectError struct {
+	cause error
+}
+
+func (e *sessionPolicyEffectError) Error() string {
+	if e == nil || e.cause == nil {
+		return "identity: session policy Host effect failed"
+	}
+	return e.cause.Error()
+}
+
+func (e *sessionPolicyEffectError) Unwrap() error {
+	if e == nil {
+		return nil
+	}
+	return e.cause
 }
 
 func (e *SessionPolicyEvaluator) recheckSelectionBeforeEffect(
@@ -270,9 +538,7 @@ func (e *SessionPolicyEvaluator) recheckSelectionBeforeEffect(
 	if err != nil {
 		return errors.Join(ErrSessionPolicyEvaluationStale, err)
 	}
-	if current.PolicyID != result.PolicyID || current.Source != result.Source ||
-		current.RegistryRevision != result.RegistryRevision ||
-		current.RegistryDigest != result.RegistryDigest {
+	if current.PolicyID != result.PolicyID || current.Source != result.Source {
 		return ErrSessionPolicyEvaluationStale
 	}
 	switch result.Source {
@@ -304,6 +570,7 @@ func (e *SessionPolicyEvaluator) recheckSelectionBeforeEffect(
 
 type preparedSessionEvaluationInput struct {
 	UserID            int64
+	TokenVersion      int64
 	Purpose           string
 	CorrelationID     string
 	DeviceFingerprint string
@@ -314,11 +581,12 @@ func prepareSessionEvaluationInput(
 ) (preparedSessionEvaluationInput, error) {
 	prepared := preparedSessionEvaluationInput{
 		UserID:            input.UserID,
+		TokenVersion:      input.TokenVersion,
 		Purpose:           strings.ToLower(strings.TrimSpace(input.Purpose)),
 		CorrelationID:     strings.TrimSpace(input.CorrelationID),
 		DeviceFingerprint: strings.TrimSpace(input.DeviceFingerprint),
 	}
-	if prepared.UserID <= 0 {
+	if prepared.UserID <= 0 || prepared.TokenVersion < 0 {
 		return preparedSessionEvaluationInput{}, ErrSessionPolicyEvaluationInvalid
 	}
 	switch prepared.Purpose {
@@ -335,6 +603,8 @@ func prepareSessionEvaluationInput(
 func freezeSessionPolicyProviderResolution(
 	resolved IdentitySessionPolicyResolution,
 ) (SessionPolicyProviderResolution, error) {
+	resolved.Selection = cloneSessionPolicySelection(resolved.Selection)
+	resolved.Provider = cloneSessionPolicyProvider(resolved.Provider)
 	switch resolved.Source {
 	case IdentitySessionPolicySourceCore, IdentitySessionPolicySourceSafeMode:
 		if resolved.PolicyID != IdentitySessionPolicyCoreDefault || resolved.Provider != nil {
@@ -449,11 +719,13 @@ func cloneSessionEvaluationDocument(input map[string]any) (map[string]any, error
 	if input == nil {
 		return map[string]any{}, nil
 	}
-	// Shallow-safe copy of the Host-validated provider proposal. Nested maps are
-	// not authority; only the disposition string is interpreted.
-	result := make(map[string]any, len(input))
-	for key, value := range input {
-		result[key] = value
+	raw, err := json.Marshal(input)
+	if err != nil || len(raw) > 1<<20 {
+		return nil, ErrSessionPolicyEvaluationUnavailable
+	}
+	result := map[string]any{}
+	if err := json.Unmarshal(raw, &result); err != nil {
+		return nil, ErrSessionPolicyEvaluationUnavailable
 	}
 	return result, nil
 }

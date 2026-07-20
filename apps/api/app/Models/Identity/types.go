@@ -87,11 +87,12 @@ var (
 
 // 会话下线原因（写入 user_sessions.revoke_reason）。
 const (
-	RevokeReasonLogout        = "logout"
-	RevokeReasonDevice        = "revoke_device"
-	RevokeReasonOthers        = "revoke_others"
-	RevokeReasonMaxExceeded   = "max_exceeded"
-	RevokeReasonPasswordReset = "password_reset"
+	RevokeReasonLogout          = "logout"
+	RevokeReasonDevice          = "revoke_device"
+	RevokeReasonOthers          = "revoke_others"
+	RevokeReasonMaxExceeded     = "max_exceeded"
+	RevokeReasonPasswordReset   = "password_reset"
+	RevokeReasonSessionReplaced = "session_replaced"
 )
 
 // SessionRecord 是 user_sessions 一行的领域视图，用于设备列表/历史展示。

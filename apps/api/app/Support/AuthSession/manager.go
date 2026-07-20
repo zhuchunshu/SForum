@@ -17,9 +17,13 @@ import (
 	clientip "github.com/zhuchunshu/sforum/apps/api/app/Support/ClientIP"
 )
 
-// ErrRenewalRejected means a Host renewal gate denied the cookie rotation.
-// CurrentUserID maps it to an unauthenticated session rather than a 500.
-var ErrRenewalRejected = errors.New("authsession: renewal rejected by host gate")
+var (
+	// ErrRenewalRejected means a Host renewal gate denied the cookie rotation.
+	// CurrentUserID maps it to an unauthenticated session rather than a 500.
+	ErrRenewalRejected         = errors.New("authsession: renewal rejected by host gate")
+	ErrPendingConsumed         = errors.New("authsession: pending session has already been consumed")
+	ErrSessionAuthorityChanged = errors.New("authsession: session authority changed")
+)
 
 const (
 	sessionUserIDKey          = "user_id"
@@ -34,6 +38,11 @@ const (
 
 // lastSeenInterval 限制刷新 user_sessions.last_seen_at 的写频率，避免每个请求都写。
 const lastSeenInterval = time.Hour
+
+const (
+	sessionIssueCleanupTimeout = 5 * time.Second
+	sessionReplacedReason      = "session_replaced"
+)
 
 // TokenVersionSource 返回用户当前的令牌版本号。
 // 用于会话失效校验（M8）：session 存储创建时的版本号，校验时与用户当前版本比对，
@@ -71,29 +80,42 @@ type SessionRecordInput struct {
 	IPPrefix string
 }
 
-// RenewalGate is an optional Host policy check that runs immediately before a
-// cookie session id is regenerated. A non-nil error treats the session as
-// invalid for this request; revocation remains Host-local and never uses this
-// path. Nil keeps legacy renewal behavior for tests and Safe Mode Core default.
+// RenewalEffect is the Host-owned cookie rotation plus persistence mutation.
+type RenewalEffect func(context.Context) error
+
+// RenewalGate is the compatibility policy check that runs before renewal.
+// New exact-admission consumers use RenewalEffectGate so the mutation remains
+// inside their admission lease.
 type RenewalGate func(ctx context.Context, userID int64) error
+
+// RenewalEffectGate is an optional Host policy boundary. An allow path must invoke
+// effect exactly once while its exact admission remains held. A policy error
+// treats the session as invalid; effect/storage errors retain their original
+// transport behavior. Revocation uses CurrentUserIDWithoutRenewal instead.
+type RenewalEffectGate func(ctx context.Context, userID int64, tokenVersion int64, effect RenewalEffect) error
 
 type Config struct {
 	RenewalInterval time.Duration
 	HashSecret      string
 	TokenVersion    TokenVersionSource
 	SessionStore    SessionStore
-	// RenewalGate is consulted only when a renewal interval actually fires.
+	// RenewalGate is retained for source compatibility and runs before the effect.
 	RenewalGate RenewalGate
+	// RenewalEffectGate owns the effect when configured and takes precedence over
+	// RenewalGate. It is consulted only when a renewal interval actually fires.
+	RenewalEffectGate RenewalEffectGate
 }
 
 type Manager struct {
-	store           *session.Store
-	renewalInterval time.Duration
-	hashSecret      []byte
-	tokenVersion    TokenVersionSource
-	sessions        SessionStore
-	renewalGate     RenewalGate
-	now             func() time.Time
+	store             *session.Store
+	renewalInterval   time.Duration
+	cleanupTimeout    time.Duration
+	hashSecret        []byte
+	tokenVersion      TokenVersionSource
+	sessions          SessionStore
+	renewalGate       RenewalGate
+	renewalEffectGate RenewalEffectGate
+	now               func() time.Time
 }
 
 type Info struct {
@@ -104,15 +126,6 @@ type Info struct {
 	RenewedAt time.Time
 }
 
-// Pending 是 Begin 后尚未持久化的会话；调用方可设置设备展示信息后再 Save。
-type Pending struct {
-	manager *Manager
-	session *session.Session
-	info    Info
-	// deviceInfo 由调用方在 Save 前设置；非空时 Save 会写入会话目录。
-	deviceInfo *SessionRecordInput
-}
-
 func NewManager(store *session.Store, cfg Config) *Manager {
 	if store == nil {
 		store = session.NewStore()
@@ -120,13 +133,15 @@ func NewManager(store *session.Store, cfg Config) *Manager {
 	store.RegisterType(time.Time{})
 
 	return &Manager{
-		store:           store,
-		renewalInterval: cfg.RenewalInterval,
-		hashSecret:      []byte(cfg.HashSecret),
-		tokenVersion:    cfg.TokenVersion,
-		sessions:        cfg.SessionStore,
-		renewalGate:     cfg.RenewalGate,
-		now:             func() time.Time { return time.Now().UTC() },
+		store:             store,
+		renewalInterval:   cfg.RenewalInterval,
+		cleanupTimeout:    sessionIssueCleanupTimeout,
+		hashSecret:        []byte(cfg.HashSecret),
+		tokenVersion:      cfg.TokenVersion,
+		sessions:          cfg.SessionStore,
+		renewalGate:       cfg.RenewalGate,
+		renewalEffectGate: cfg.RenewalEffectGate,
+		now:               func() time.Time { return time.Now().UTC() },
 	}
 }
 
@@ -142,20 +157,100 @@ func (m *Manager) Start(c fiber.Ctx, userID int64) (Info, error) {
 }
 
 func (m *Manager) Begin(c fiber.Ctx, userID int64) (*Pending, error) {
-	sess, err := m.store.Get(c)
+	return m.BeginWithContext(c, c.Context(), userID)
+}
+
+// BeginWithContext prepares a new browser session while using the accepted
+// Host effect context for authority reads. The Fiber session transport itself
+// remains bound to the current request context.
+func (m *Manager) BeginWithContext(c fiber.Ctx, ctx context.Context, userID int64) (*Pending, error) {
+	return m.beginWithContext(c, ctx, userID, nil)
+}
+
+// BeginWithAuthorityVersion rejects an issue effect when the credential proof's
+// user token revision is no longer current.
+func (m *Manager) BeginWithAuthorityVersion(
+	c fiber.Ctx,
+	ctx context.Context,
+	userID int64,
+	expectedTokenVersion int64,
+) (*Pending, error) {
+	return m.beginWithContext(c, ctx, userID, &expectedTokenVersion)
+}
+
+func (m *Manager) beginWithContext(
+	c fiber.Ctx,
+	ctx context.Context,
+	userID int64,
+	expectedTokenVersion *int64,
+) (*Pending, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	state, err := m.requestSessionState(c)
 	if err != nil {
 		return nil, err
 	}
-
-	if err := sess.Reset(); err != nil {
-		return nil, err
-	}
-
 	now := m.currentTime()
 	sid, err := generateSID()
 	if err != nil {
 		return nil, err
 	}
+	var tokenVersion *int64
+	if expectedTokenVersion != nil && m.tokenVersion == nil {
+		return nil, ErrSessionAuthorityChanged
+	}
+	if m.tokenVersion != nil {
+		version, versionErr := m.tokenVersion(ctx, userID)
+		if versionErr != nil {
+			return nil, versionErr
+		}
+		if expectedTokenVersion != nil && version != *expectedTokenVersion {
+			return nil, ErrSessionAuthorityChanged
+		}
+		tokenVersion = &version
+	}
+
+	state.lifecycleMu.Lock()
+	defer state.lifecycleMu.Unlock()
+	if state.pendingActive {
+		return nil, ErrSessionAuthorityChanged
+	}
+	state.generation++
+	if state.generation == 0 {
+		state.generation++
+	}
+	generation := state.generation
+	state.pendingActive = true
+	state.pending.Store(true)
+	sess := state.session
+	previousUserID, _ := sessionUserID(sess.Get(sessionUserIDKey))
+	previousSID, _ := sess.Get(sessionSIDKey).(string)
+	claimComplete := false
+	defer func() {
+		if panicValue := recover(); panicValue != nil {
+			if !claimComplete {
+				state.invalidateLocked()
+				func() {
+					defer func() { _ = recover() }()
+					m.abortSessionCredential(
+						ctx, c, state, sess, sess.ID(), previousUserID, previousSID, "issue_failed",
+					)
+				}()
+			}
+			panic(panicValue)
+		}
+	}()
+	if err := state.run(ctx, sess.Reset); err != nil {
+		state.invalidateLocked()
+		m.abortSessionCredential(
+			ctx, c, state, sess, sess.ID(), previousUserID, previousSID, "issue_failed",
+		)
+		claimComplete = true
+		return nil, err
+	}
+	m.revokeSessionDirectory(ctx, previousUserID, previousSID, sessionReplacedReason)
+	m.resetRequestRenewal(c)
 	sess.Set(sessionUserIDKey, userID)
 	sess.Set(sessionCreatedAtKey, now)
 	sess.Set(sessionRenewedAtKey, now)
@@ -164,34 +259,79 @@ func (m *Manager) Begin(c fiber.Ctx, userID int64) (*Pending, error) {
 	sess.Set(sessionLoginAgentKey, truncate(c.Get(fiber.HeaderUserAgent), 512))
 	sess.Set(sessionSIDKey, sid)
 	// 记录创建会话时的令牌版本号，供后续 CurrentUserID 比对以实现会话失效（M8）。
-	if m.tokenVersion != nil {
-		if version, err := m.tokenVersion(c.Context(), userID); err == nil {
-			sess.Set(sessionTokenVersionKey, version)
-		}
+	if tokenVersion != nil {
+		sess.Set(sessionTokenVersionKey, *tokenVersion)
 	}
+	claimComplete = true
 
-	return &Pending{
-		manager: m,
-		session: sess,
-		info:    m.info(sess, now, now, sid),
-	}, nil
+	pending := &Pending{
+		manager:    m,
+		session:    sess,
+		state:      state,
+		request:    c,
+		context:    ctx,
+		info:       m.info(sess, now, now, sid),
+		userID:     userID,
+		generation: generation,
+	}
+	if m.sessions != nil {
+		pending.SetDeviceInfo(SessionRecordInput{
+			UserID:       userID,
+			UserAgentRaw: truncate(c.Get(fiber.HeaderUserAgent), 512),
+			IPAddress:    truncate(clientip.FromCtx(c), 128),
+		})
+	}
+	return pending, nil
 }
 
 func (m *Manager) CurrentUserID(c fiber.Ctx) (int64, bool, error) {
-	sess, err := m.store.Get(c)
+	return m.currentUserID(c, true)
+}
+
+// CurrentUserIDWithoutRenewal authenticates the existing Host session without
+// rotating or refreshing it. Security revocation paths use this entry so a
+// third-party renew policy can never delay or veto Host-local revocation.
+func (m *Manager) CurrentUserIDWithoutRenewal(c fiber.Ctx) (int64, bool, error) {
+	return m.currentUserID(c, false)
+}
+
+func (m *Manager) currentUserID(c fiber.Ctx, refresh bool) (int64, bool, error) {
+	state, err := m.requestSessionState(c)
 	if err != nil {
 		return 0, false, err
 	}
-
-	userID, ok := sessionUserID(sess.Get(sessionUserIDKey))
-	if !ok {
+	sess := state.session
+	var renewal *requestRenewalResult
+	if refresh {
+		renewal = m.requestRenewal(c)
+		// A failed rotation clears the in-memory payload. Preserve its memoized
+		// result before parsing that payload so repeated lookups cannot silently
+		// turn a storage failure into an unauthenticated success.
+		if renewal.attempted && renewal.err != nil {
+			if errors.Is(renewal.err, ErrRenewalRejected) {
+				return 0, false, nil
+			}
+			return 0, false, renewal.err
+		}
+	}
+	state.lifecycleMu.Lock()
+	if state.pending.Load() || state.pendingActive {
+		state.lifecycleMu.Unlock()
 		return 0, false, nil
 	}
+	generation := state.generation
+	userID, ok := sessionUserID(sess.Get(sessionUserIDKey))
+	if !ok {
+		state.lifecycleMu.Unlock()
+		return 0, false, nil
+	}
+	sessionVersion, _ := sess.Get(sessionTokenVersionKey).(int64)
+	sid, _ := sess.Get(sessionSIDKey).(string)
+	state.lifecycleMu.Unlock()
 
 	// 令牌版本号校验（M8）：session 版本与用户当前版本不一致则视为会话失效，
 	// 用于密码重置/封禁后使旧会话立即失效。版本号缺失（旧 session 或未配置 source）时跳过。
 	if m.tokenVersion != nil {
-		sessionVersion, _ := sess.Get(sessionTokenVersionKey).(int64)
 		currentVersion, err := m.tokenVersion(c.Context(), userID)
 		if err != nil {
 			return 0, false, nil
@@ -203,17 +343,24 @@ func (m *Manager) CurrentUserID(c fiber.Ctx) (int64, bool, error) {
 
 	// 设备目录撤销校验：若 sid 已被下线（revoke_device/revoke_others/max_exceeded），
 	// 视为未登录，实现「被下线设备在下次请求即失效」。
-	if m.sessions != nil {
-		sid, _ := sess.Get(sessionSIDKey).(string)
-		if sid != "" {
-			revoked, err := m.sessions.IsSessionRevoked(c.Context(), userID, sid)
-			if err != nil || revoked {
-				return 0, false, nil
-			}
+	if m.sessions != nil && sid != "" {
+		revoked, err := m.sessions.IsSessionRevoked(c.Context(), userID, sid)
+		if err != nil || revoked {
+			return 0, false, nil
 		}
 	}
 
-	if err := m.refresh(sess, userID); err != nil {
+	if !refresh {
+		if !state.isStableGeneration(generation) {
+			return 0, false, nil
+		}
+		return userID, true, nil
+	}
+	if !renewal.attempted {
+		renewal.err = m.refresh(c, c.Context(), state, sess, generation, userID, sessionVersion)
+		renewal.attempted = true
+	}
+	if err := renewal.err; err != nil {
 		// Host session policy (or another renewal gate) failed closed: treat the
 		// browser session as unauthenticated without elevating to a transport error.
 		if errors.Is(err, ErrRenewalRejected) {
@@ -228,127 +375,62 @@ func (m *Manager) CurrentUserID(c fiber.Ctx) (int64, bool, error) {
 // 用于设备列表标记 isCurrent 与「下线其他设备」时排除当前会话。
 // 未配置会话目录或无有效会话时返回空串。
 func (m *Manager) CurrentSID(c fiber.Ctx) (string, error) {
-	sess, err := m.store.Get(c)
+	state, err := m.requestSessionState(c)
 	if err != nil {
 		return "", err
 	}
+	if state.pending.Load() {
+		return "", nil
+	}
+	sess := state.session
 	sid, _ := sess.Get(sessionSIDKey).(string)
 	return sid, nil
 }
 
 func (m *Manager) Destroy(c fiber.Ctx) error {
-	sess, err := m.store.Get(c)
+	state, err := m.requestSessionState(c)
 	if err != nil {
 		return err
 	}
-	// 登出时在目录标记本会话已下线（保留为历史记录），best-effort，不阻塞登出。
-	if m.sessions != nil {
-		userID, ok := sessionUserID(sess.Get(sessionUserIDKey))
-		if ok && userID != 0 {
-			sid, _ := sess.Get(sessionSIDKey).(string)
-			if sid != "" {
-				_ = m.sessions.RevokeSession(c.Context(), userID, sid, "logout")
+	var (
+		userID     int64
+		sid        string
+		destroyErr error
+	)
+	func() {
+		state.lifecycleMu.Lock()
+		defer state.lifecycleMu.Unlock()
+		state.invalidateLocked()
+		sess := state.session
+		userID, _ = sessionUserID(sess.Get(sessionUserIDKey))
+		sid, _ = sess.Get(sessionSIDKey).(string)
+		sessionID := sess.ID()
+		defer func() {
+			if panicValue := recover(); panicValue != nil {
+				func() {
+					defer func() { _ = recover() }()
+					m.abortSessionCredential(
+						c.Context(), c, state, sess, sessionID, userID, sid, "logout",
+					)
+				}()
+				panic(panicValue)
 			}
+		}()
+		destroyErr = state.run(c.Context(), sess.Destroy)
+		if destroyErr != nil {
+			m.scrubSessionCredential(c.Context(), c, state, sess, sessionID)
 		}
-	}
-	return sess.Destroy()
+	}()
+
+	// 登出时在目录标记本会话已下线（保留为历史记录），best-effort，不阻塞登出。
+	m.revokeSessionDirectory(c.Context(), userID, sid, "logout")
+	return destroyErr
 }
 
 func (m *Manager) Hash(sessionID string) string {
 	mac := hmac.New(sha256.New, m.hashSecret)
 	_, _ = mac.Write([]byte(sessionID))
 	return hex.EncodeToString(mac.Sum(nil))
-}
-
-func (p *Pending) Info() Info {
-	if p == nil {
-		return Info{}
-	}
-	return p.info
-}
-
-// SetDeviceInfo 设置设备展示信息（device_name/browser/os/ip_prefix 等，由调用方解析 UA/IP 得到）。
-// 必须在 Save 前调用；Save 时会据此写入会话目录。
-func (p *Pending) SetDeviceInfo(info SessionRecordInput) {
-	if p == nil {
-		return
-	}
-	// 用 pending 已有的 sid/hash 补齐，确保一致。
-	info.SID = p.info.SID
-	info.SessionHash = p.info.Hash
-	p.deviceInfo = &info
-}
-
-func (p *Pending) Save() error {
-	if p == nil || p.session == nil {
-		return nil
-	}
-	if err := p.session.Save(); err != nil {
-		return err
-	}
-	// 目录写入失败不能静默成功：后续鉴权依赖目录判断远程下线状态。
-	if p.manager.sessions != nil && p.deviceInfo != nil {
-		if err := p.manager.sessions.CreateSession(context.Background(), *p.deviceInfo); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (m *Manager) refresh(sess *session.Session, userID int64) error {
-	now := m.currentTime()
-	createdAt := sessionTime(sess.Get(sessionCreatedAtKey))
-	if createdAt.IsZero() {
-		createdAt = now
-		sess.Set(sessionCreatedAtKey, createdAt)
-	}
-
-	renewedAt := sessionTime(sess.Get(sessionRenewedAtKey))
-	if renewedAt.IsZero() {
-		renewedAt = createdAt
-	}
-
-	// 定期换 session id，降低长期复用同一个 id 带来的泄露影响。
-	// sid 不随 cookie session id 轮换而变（保留在 payload），设备列表稳定。
-	if m.renewalInterval > 0 && !renewedAt.After(now) && now.Sub(renewedAt) >= m.renewalInterval {
-		// Host session policy evaluation (or another Host gate) runs only for a
-		// real renew effect. Fail closed: treat the session as invalid rather
-		// than rotating the cookie under a denied or unavailable policy.
-		if m.renewalGate != nil {
-			if err := m.renewalGate(context.Background(), userID); err != nil {
-				return fmt.Errorf("%w: %v", ErrRenewalRejected, err)
-			}
-		}
-		if err := sess.Regenerate(); err != nil {
-			return err
-		}
-		renewedAt = now
-		sess.Set(sessionRenewedAtKey, renewedAt)
-	}
-
-	// 节流刷新 last_seen：距上次刷新超过 lastSeenInterval 时才写库，避免每请求都写。
-	// 与 session 续期解耦：续期是安全相关（轮换 id），last_seen 是展示相关（最后活跃）。
-	shouldTouchLastSeen := false
-	touchSID := ""
-	if m.sessions != nil {
-		lastSeenTouched := sessionTime(sess.Get(sessionLastSeenTouchedKey))
-		if lastSeenTouched.IsZero() || now.Sub(lastSeenTouched) >= lastSeenInterval {
-			sid, _ := sess.Get(sessionSIDKey).(string)
-			if sid != "" {
-				shouldTouchLastSeen = true
-				touchSID = sid
-				sess.Set(sessionLastSeenTouchedKey, now)
-			}
-		}
-	}
-
-	if err := sess.Save(); err != nil {
-		return err
-	}
-	if shouldTouchLastSeen {
-		_ = m.sessions.TouchSessionLastSeen(context.Background(), userID, touchSID)
-	}
-	return nil
 }
 
 func (m *Manager) info(sess *session.Session, createdAt time.Time, renewedAt time.Time, sid string) Info {

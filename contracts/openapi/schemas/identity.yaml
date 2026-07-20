@@ -781,7 +781,7 @@ LoginSession:
       description: Present (in history view) when the session has been revoked.
     revokeReason:
       type: string
-      description: Why the session was revoked (logout / revoke_device / revoke_others / max_exceeded / password_reset).
+      description: Why the session was revoked (logout / revoke_device / revoke_others / max_exceeded / password_reset / session_replaced).
 LoginSessionList:
   type: object
   required:
