@@ -2,7 +2,7 @@
 
 Date: 2026-07-21
 Overall progress: **76.0%**
-Active phase: **P10 active (1/15); P9 complete; P11-P13 remain open**
+Active phase: **P10 active (3/15); P9 complete; P11-P13 remain open**
 
 This ledger is the durable percentage and context-compaction checkpoint for the
 V3 program. Update it before context compression, at every phase boundary, and
@@ -26,13 +26,31 @@ scaffolding, or demo-only code cannot satisfy a runtime exit criterion.
 | P7 Workflow/admin/query/identity | 10% | 100% | 10.00% |
 | P8 Theme compiler/runtime | 8% | 100% | 8% |
 | P9 Components/assets/L2 | 8% | 100% | 8.00% |
-| P10 Content/media/data | 8% | 7% | 0.53% |
+| P10 Content/media/data | 8% | 20% | 1.60% |
 | P11 Platform services | 6% | 6% | 0.38% |
 | P12 Operations/ecosystem | 6% | 5% | 0.27% |
 | P13 References/removal/final gates | 5% | 0% | 0% |
 
 Displayed overall progress is the floor of earned weighted progress until the
 program reaches 100% and every final gate passes.
+
+## 2026-07-21 P10 Media Pipeline Lifecycle Publication (3/15)
+
+- Overall remains **76.0%** after flooring (exact ≈ `67 + 8 + 8*(3/15) + 0.38 +
+  0.27 = 76.25`). P10 is **3/15 (20%)** after Content + Media lifecycle +
+  source-of-truth variant binding credit.
+- Commit: `2de24571c` feat(media): wire Media Registry into lifecycle plan @9.
+- Closed Media Pipeline production lifecycle: plan schema
+  `sforum.lifecycle.registry-plan@9` / family `media.v1` freezes Manifest
+  `media` into MIME policy + transform processor + package-digest-bound
+  variants; Safe Mode core-only; bootstrap process-local registry;
+  upgrade/rollback/disable CAS. Variant declarations bind
+  `ProcessorOwnerExtensionID` + `ProcessorPackageDigest` so disabling a
+  transform plugin cannot rewrite immutable originals (kernel already treats
+  source as original/source_of_truth only).
+- Still open on P10: Tiptap trusted L2 editor surface, editor JSON
+  storage/render pipeline, entity/taxonomy/field contracts, reference blocks and
+  media plugins, sanitizer/XSS corpus, schema upgrade/disabled-plugin render.
 
 ## 2026-07-21 P10 Content Registry Lifecycle Publication (1/15)
 

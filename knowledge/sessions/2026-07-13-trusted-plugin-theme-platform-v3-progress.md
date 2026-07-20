@@ -1,5 +1,38 @@
 # Trusted Plugin And Theme Platform V3 Progress Ledger
 
+Last updated: 2026-07-21
+
+## Progress
+
+- Verified weighted progress: **76.25%** (display **76.0%**).
+- Phase counts: P0-P9 complete; P10 **3/15** after Content `@8` + Media `@9`
+  lifecycle. P11 ~6%, P12 ~5%, P13 open. Completion unproven until all 99
+  rows, 14 boundaries, five reference plugins, and final gates pass.
+- Authoritative percentage table:
+  `knowledge/plans/2026-07-13-trusted-plugin-theme-platform-v3-progress.md`
+
+## Current Subtask
+
+### 2026-07-21 P10 Media Pipeline Lifecycle Closed — Next Tiptap L2
+
+- Media lifecycle committed as `2de24571c` (plan `@9` / `media.v1`).
+- Docs credit: P10 **3/15**, overall display **76.0%**.
+- Focused gates green: LifecycleMedia/LifecycleContent, bootstrap
+  ProductionLifecycle/LifecycleStack, `go build ./...`.
+- Exact next step: Tiptap node/mark/command/toolbar declaration + prebuilt
+  editor extension loading under trusted L2 (Editor Registry + SFEditor load).
+- Unowned dirty WIP (do not stage): route-inspector web, content-policy,
+  PageViewModels, go.mod, host-api-v2, websocket revoke test, ADR noise.
+- Rollback Media: revert `2de24571c` (and docs commit). Compatible digests
+  max 8; no migration; Safe Mode core-only unchanged for other registries.
+
+---
+
+
+## Prior Ledger Archive
+
+# Trusted Plugin And Theme Platform V3 Progress Ledger
+
 Last updated: 2026-07-20
 
 ## Progress
