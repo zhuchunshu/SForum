@@ -388,7 +388,7 @@ func validateProtocolV2QueryRegistryContract(
 }
 
 func protocolV2QueryRegistryReservedID(queryID string) bool {
-	return queryID == QueryOwnSettingsID || isStableProtocolV2QueryID(queryID)
+	return queryID == QueryOwnSettingsID || queryID == QueryExtensionInventoryID || isStableProtocolV2QueryID(queryID)
 }
 
 func protocolV2QueryRegistryPlanRequest(request *hostv2.QueryRequest) (queryregistry.PlanRequest, error) {

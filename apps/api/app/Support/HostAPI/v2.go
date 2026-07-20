@@ -19,11 +19,16 @@ const (
 	QueryOwnSettingsVersion    = "1"
 	QueryOwnSettingsSchemaID   = "sforum.extensions.settings.own.result"
 	QueryOwnSettingsSchemaV1   = "1"
-	IdentitySafeUserSchemaID   = "sforum.identity.user.safe"
-	IdentitySafeUserSchemaV1   = "1"
-	PermissionPolicyID         = "sforum.identity.rbac@1"
-	JobPayloadSchemaVersionV1  = "1"
-	AuditMetadataSchemaVersion = "1"
+	// QueryExtensionInventoryID 是 extensions.read 对应的稳定去敏清单查询。
+	QueryExtensionInventoryID       = "sforum.core.extensions.inventory.list"
+	QueryExtensionInventoryVersion  = "1"
+	QueryExtensionInventorySchemaID = "sforum.core.extensions.inventory"
+	QueryExtensionInventorySchemaV1 = "1"
+	IdentitySafeUserSchemaID        = "sforum.identity.user.safe"
+	IdentitySafeUserSchemaV1        = "1"
+	PermissionPolicyID              = "sforum.identity.rbac@1"
+	JobPayloadSchemaVersionV1       = "1"
+	AuditMetadataSchemaVersion      = "1"
 )
 
 type protocolV2Core struct {

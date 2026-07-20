@@ -34,12 +34,13 @@ var (
 
 // Method 名常量，与 RPC 路径对齐。
 const (
-	MethodPing            = "Ping"
-	MethodCheckPermission = "CheckPermission"
-	MethodGetSettings     = "GetSettings"
-	MethodEnqueueOwnJob   = "EnqueueOwnJob"
-	MethodAppendAudit     = "AppendAudit"
-	MethodGetUserSafe     = "GetUserSafe"
+	MethodPing                   = "Ping"
+	MethodCheckPermission        = "CheckPermission"
+	MethodGetSettings            = "GetSettings"
+	MethodEnqueueOwnJob          = "EnqueueOwnJob"
+	MethodAppendAudit            = "AppendAudit"
+	MethodGetUserSafe            = "GetUserSafe"
+	MethodListExtensionInventory = "ListExtensionInventory"
 )
 
 // Request 是插件 → 宿主的统一信封。
@@ -84,6 +85,12 @@ type UserReader interface {
 	GetUserSafe(ctx context.Context, userID int64, actorUserID int64, declaredFields []string) (map[string]any, error)
 }
 
+// ExtensionInventoryReader 提供去敏扩展清单（extensions.read）。
+type ExtensionInventoryReader interface {
+	// ListRedactedInventory 返回不含 packagePath/settings/trust/凭证的清单行。
+	ListRedactedInventory(ctx context.Context) ([]map[string]any, error)
+}
+
 // CapabilitySource 解析扩展当前授予的能力。
 type CapabilitySource interface {
 	// CapabilitiesFor 返回启用插件的有效能力集合。
@@ -101,6 +108,7 @@ type Service struct {
 	jobAdmission     PluginJobEnqueueAdmission
 	serviceAdmission ServiceProviderAdmission
 	users            UserReader
+	inventory        ExtensionInventoryReader
 	auditor          audit.Writer
 }
 
@@ -113,6 +121,7 @@ type Config struct {
 	JobAdmission     PluginJobEnqueueAdmission
 	ServiceAdmission ServiceProviderAdmission
 	Users            UserReader
+	Inventory        ExtensionInventoryReader
 	Auditor          audit.Writer
 }
 
@@ -125,6 +134,7 @@ func New(config Config) *Service {
 		jobAdmission:     config.JobAdmission,
 		serviceAdmission: config.ServiceAdmission,
 		users:            config.Users,
+		inventory:        config.Inventory,
 		auditor:          config.Auditor,
 	}
 }
@@ -147,6 +157,13 @@ func (s *Service) BindPluginJobAdmission(admission PluginJobEnqueueAdmission) {
 func (s *Service) BindCapabilitySource(source CapabilitySource) {
 	if s != nil {
 		s.capabilities = source
+	}
+}
+
+// BindExtensionInventory 在 bootstrap 二阶段注入去敏清单源。
+func (s *Service) BindExtensionInventory(source ExtensionInventoryReader) {
+	if s != nil {
+		s.inventory = source
 	}
 }
 
@@ -227,6 +244,11 @@ func (s *Service) call(ctx context.Context, req Request, protocolVersion string)
 			return denied(capabilities.UsersRead)
 		}
 		return s.getUserSafe(callCtx, req.Payload)
+	case MethodListExtensionInventory:
+		if err := caps.Require(capabilities.ExtensionsRead); err != nil {
+			return denied(capabilities.ExtensionsRead)
+		}
+		return s.listExtensionInventory(callCtx)
 	default:
 		return fail("host.unknown_method", fmt.Sprintf("unknown method %q", method))
 	}
@@ -272,6 +294,20 @@ func (s *Service) getSettings(ctx context.Context, extensionID string) Response 
 		data[key] = value
 	}
 	return success(map[string]any{"settings": data})
+}
+
+func (s *Service) listExtensionInventory(ctx context.Context) Response {
+	if s.inventory == nil {
+		return fail("host.unavailable", "Extension inventory is not configured.")
+	}
+	items, err := s.inventory.ListRedactedInventory(ctx)
+	if err != nil {
+		return fail("host.inventory_failed", err.Error())
+	}
+	if items == nil {
+		items = []map[string]any{}
+	}
+	return success(map[string]any{"extensions": items})
 }
 
 func (s *Service) enqueueOwnJob(ctx context.Context, extensionID string, payload map[string]any) Response {
