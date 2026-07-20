@@ -2,13 +2,18 @@ const fs = require('fs');
 const path = require('path');
 
 const root = process.cwd();
-const registerPagePath = 'apps/web/app/pages/register.vue';
-const loginPagePath = 'apps/web/app/pages/login.vue';
+// V3 presentation ownership：auth 路由壳 + Host body 岛（表单/ALTCHA 在岛上）。
+const registerRoutePath = 'apps/web/app/pages/register.vue';
+const loginRoutePath = 'apps/web/app/pages/login.vue';
+const registerFormPath = 'apps/web/app/components/SFRegisterFormPage.vue';
+const loginFormPath = 'apps/web/app/components/SFLoginFormPage.vue';
 const requiredFiles = [
   'apps/web/app/composables/useAuthSession.ts',
   'apps/web/app/middleware/admin.ts',
-  registerPagePath,
-  loginPagePath,
+  registerRoutePath,
+  loginRoutePath,
+  registerFormPath,
+  loginFormPath,
   'apps/web/app/pages/admin/index.vue',
   'apps/web/app/pages/admin/roles.vue',
   'apps/web/app/pages/admin/users.vue',
@@ -23,9 +28,10 @@ for (const file of requiredFiles) {
 
 const zh = JSON.parse(fs.readFileSync(path.resolve(root, 'apps/web/i18n/locales/zh-CN.json'), 'utf8'));
 const en = JSON.parse(fs.readFileSync(path.resolve(root, 'apps/web/i18n/locales/en-US.json'), 'utf8'));
-const registerPage = fs.readFileSync(path.resolve(root, registerPagePath), 'utf8');
-const loginPage = fs.readFileSync(path.resolve(root, loginPagePath), 'utf8');
-
+const registerRoute = fs.readFileSync(path.resolve(root, registerRoutePath), 'utf8');
+const loginRoute = fs.readFileSync(path.resolve(root, loginRoutePath), 'utf8');
+const registerPage = fs.readFileSync(path.resolve(root, registerFormPath), 'utf8');
+const loginPage = fs.readFileSync(path.resolve(root, loginFormPath), 'utf8');
 const requiredKeys = [
   ['auth', 'registerTitle'],
   ['auth', 'loginTitle'],
@@ -271,6 +277,22 @@ for (const locale of [
   }
 }
 
+// 路由壳：auth layout + guest middleware + Page Outlet + form island fail-closed。
+for (const [name, route, pageId, island] of [
+  ['login', loginRoute, 'auth.login', '<SFLoginFormPage'],
+  ['register', registerRoute, 'auth.register', '<SFRegisterFormPage']
+]) {
+  if (!route.includes("layout: 'auth'") || !route.includes("middleware: 'guest'")) {
+    throw new Error(`${name} route shell must use auth layout and guest middleware`);
+  }
+  if (!route.includes('SFPageOutlet') || !route.includes(pageId)) {
+    throw new Error(`${name} route shell must mount SFPageOutlet for ${pageId}`);
+  }
+  if (!route.includes(island)) {
+    throw new Error(`${name} route shell must fail-closed to Host form island ${island}`);
+  }
+}
+
 if (!registerPage.includes(':configuration=')) {
   throw new Error('Registration ALTCHA widget should pass a configuration object');
 }
@@ -319,9 +341,10 @@ if (altchaWidgetTag.includes(':key=') || altchaWidgetTag.includes('v-if=')) {
   throw new Error('Registration ALTCHA widget should reset in place instead of remounting');
 }
 
+// Autofill 覆盖在 Host 表单岛上（非薄路由壳）。
 for (const [name, content] of [
-  ['login.vue', loginPage],
-  ['register.vue', registerPage]
+  ['SFLoginFormPage.vue', loginPage],
+  ['SFRegisterFormPage.vue', registerPage]
 ]) {
   if (!content.includes('.auth-input:-webkit-autofill')) {
     throw new Error(`${name} should override browser autofill input background`);
