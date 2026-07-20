@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -11,6 +12,7 @@ import (
 
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
 	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
+	pages "github.com/zhuchunshu/sforum/apps/api/app/Support/Pages"
 )
 
 func TestPackageLocalComponentSSRPublishAndRender(t *testing.T) {
@@ -293,6 +295,154 @@ func TestProductionComponentCompositionAppliesPackageLocalFilterMatrix(t *testin
 	if !strings.Contains(joined, "plugin-before") || !strings.Contains(joined, "home-filtered") {
 		t.Fatalf("composed HTML=%q", joined)
 	}
+}
+
+func TestPackageLocalPluginFragmentsNeverClaimPrimarySEOContent(t *testing.T) {
+	// P9 SEO 围栏：包本地插件片段默认非 PrimaryContent，主题 L1 保留索引主体。
+	root := t.TempDir()
+	body := `<section data-plugin="seo">{{index .Props "scope"}}</section>`
+	writePackageLocalTestFile(t, root, "templates/card.html", body)
+	digest := sha256.Sum256([]byte(body))
+	packageDigest := strings.Repeat("9", 64)
+	extension := extensions.Extension{
+		ID: "demo.seo.ssr", Version: "1.0.0", Type: extensions.TypePlugin,
+		PackageDigest: packageDigest, PackagePath: root,
+		Manifest: extensions.Manifest{
+			ManifestVersion: 3, ID: "demo.seo.ssr", Version: "1.0.0", Type: extensions.TypePlugin,
+			Components: []extensions.ManifestComponent{{
+				ID: "demo.seo.ssr.component.replace", ContractVersion: "demo.seo.ssr.component.replace@1",
+				Action: extensionmanifest.ComponentActionReplace, TargetID: componentTestCoreTarget,
+				TargetContractVersion: componentTestCoreContract, Priority: 10,
+				SSRTemplate: "demo.seo.ssr.template.card", ResultSchema: "demo.seo.ssr.schema.result@1",
+			}},
+			Templates: []extensions.ManifestTemplate{{
+				ID: "demo.seo.ssr.template.card", ContractVersion: "demo.seo.ssr.template.card@1",
+				Action: "add", Path: "templates/card.html", Digest: hex.EncodeToString(digest[:]),
+			}},
+		},
+	}
+	renderer := NewPackageLocalComponentSSRRenderer()
+	if err := renderer.Publish(extension); err != nil {
+		t.Fatal(err)
+	}
+	artifact := HookArtifact{
+		ExtensionID: "demo.seo.ssr", ExtensionVersion: "1.0.0",
+		PackageDigest: packageDigest, RuntimeInstanceID: "host-component-package:demo.seo.ssr",
+	}
+	response, err := renderer.RenderComponent(context.Background(), ComponentRenderCall{
+		TargetID: componentTestCoreTarget, Artifact: artifact,
+		Contribution: ComponentContribution{
+			ID: "demo.seo.ssr.component.replace", Action: extensionmanifest.ComponentActionReplace,
+			SSRTemplate: "demo.seo.ssr.template.card", Artifact: artifact,
+		},
+		Props: map[string]any{"scope": "topic"}, Result: map[string]any{"html": "core"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(response.Fragments) != 1 || response.Fragments[0].PrimaryContent {
+		t.Fatalf("plugin fragment claimed primary SEO content: %#v", response.Fragments)
+	}
+}
+
+func TestProductionPageCompositionKeepsPrimaryThemeHTMLOnPluginReplaceAndFailure(t *testing.T) {
+	id := "production.seo.primary"
+	packageDigest := strings.Repeat("8", 64)
+	replace := componentTestContribution(
+		id, "replace", extensionmanifest.ComponentActionReplace, 50,
+		componentTestCoreTarget, componentTestCoreContract,
+	)
+	replace.SSRTemplate = id + ".template.replace"
+	extension := componentTestExtension(t, id, extensions.TypePlugin, replace)
+	extension.PackageDigest = packageDigest
+	body := `<aside class="plugin-replace">{{index .Props "scope"}}</aside>`
+	writePackageLocalTestFile(t, extension.PackagePath, "templates/replace.html", body)
+	digest := sha256.Sum256([]byte(body))
+	extension.Manifest.Templates = []extensions.ManifestTemplate{{
+		ID: id + ".template.replace", ContractVersion: id + ".template.replace@1",
+		Action: "add", Path: "templates/replace.html", Digest: hex.EncodeToString(digest[:]),
+		ViewModelSchema: id + ".schema.props@1",
+	}}
+
+	registry := NewComponentRegistry()
+	if err := registry.ReplaceRuntime(extension, componentPackageRuntimeInstanceID(extension)); err != nil {
+		t.Fatal(err)
+	}
+	service, err := NewProductionComponentComposition(ProductionComponentCompositionConfig{
+		Registry: registry,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := service.PublishPackageSSR(extension); err != nil {
+		t.Fatal(err)
+	}
+
+	// 生产 Compose：插件 replace 不得声明 PrimaryContent；主题 L1 由 Merge 保留。
+	composed, err := service.Compose(context.Background(), ComponentCompositionRequest{
+		TargetID: componentTestCoreTarget, TargetContractVersion: componentTestCoreContract,
+		Props: map[string]any{"scope": "home"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !segmentsHavePrimaryContent(composed.Segments) {
+		t.Fatalf("core primary missing after replace: %#v", composed.Segments)
+	}
+	pluginHTML := componentNonCoreHTMLSegments(composed.Segments)
+	if len(pluginHTML) == 0 {
+		// replace 成功时 winner 可能是插件，主内容来自 fallback Core 段。
+		// 再走 ComposePageHTML 映射 forum.home → core target。
+		pluginHTML, err = service.ComposePageHTML(context.Background(), "forum.home", map[string]any{"scope": "home"})
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	// 主题 L1 主段始终保留，即使插件 replace 了 component target。
+	primary := []string{`<main data-theme="l1"><h1>Home</h1><a href="/t/1">Topic</a></main>`}
+	// 若插件 HTML 为空，仍验证 Merge 保留 primary（composition 失败 fail-open 路径）。
+	merged := pages.MergeCompositionHTMLSegments(primary, pluginHTML)
+	if merged[len(merged)-1] != primary[0] && (len(pluginHTML) == 0 && len(merged) != 1) {
+		t.Fatalf("primary theme stripped: %#v", merged)
+	}
+	joined := strings.Join(merged, "")
+	if !strings.Contains(joined, "Home") || !strings.Contains(joined, "/t/1") {
+		t.Fatalf("indexable primary missing: %#v", merged)
+	}
+	// 插件片段若出现，也不得单独成为唯一主内容。
+	for _, segment := range composed.Segments {
+		if segment.OwnerID != "" && segment.OwnerID != "core" && segment.PrimaryContent {
+			t.Fatalf("plugin segment claimed primary: %#v", segment)
+		}
+	}
+
+	// 插件失败 fail-open：ApplyPageComposition 保留主题输出。
+	page := pages.ThemeRenderedPage{HTMLSegments: append([]string(nil), primary...)}
+	applied, err := pages.ApplyPageComposition(
+		context.Background(), page,
+		stubPageCompositionFail{err: errors.New("plugin crash")},
+		"forum.home", map[string]any{"scope": "home"},
+	)
+	if err != nil || len(applied.HTMLSegments) != 1 || applied.HTMLSegments[0] != primary[0] {
+		t.Fatalf("fail-open primary lost: %#v err=%v", applied, err)
+	}
+	// SEO 围栏错误仍 fail closed。
+	if _, err := pages.ApplyPageComposition(
+		context.Background(), page,
+		stubPageCompositionFail{err: pages.ErrPageCompositionSEO},
+		"forum.home", nil,
+	); !errors.Is(err, pages.ErrPageCompositionSEO) {
+		t.Fatalf("SEO fence: %v", err)
+	}
+}
+
+// stubPageCompositionFail 仅用于 SEO fail-open/fail-closed 矩阵。
+type stubPageCompositionFail struct {
+	err error
+}
+
+func (s stubPageCompositionFail) ComposePageHTML(context.Context, string, map[string]any) ([]string, error) {
+	return nil, s.err
 }
 
 func TestProductionComponentCompositionUsesPackageLocalSSRByDefault(t *testing.T) {
