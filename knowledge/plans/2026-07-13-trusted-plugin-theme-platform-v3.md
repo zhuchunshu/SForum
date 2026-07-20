@@ -1,6 +1,6 @@
 # Trusted Plugin And Theme Platform V3 - Implementation Task Book
 
-Status: **active implementation; P0-P9 complete; P10 next**
+Status: **active implementation; P0-P9 complete; P10 active (1/15)**
 Date: 2026-07-13  
 Decision: `knowledge/decisions/2026-07-13-trusted-plugin-theme-platform-v3.md`
 
@@ -705,7 +705,7 @@ production-wired via `GET /api/v1/extensions/runtime/page-policy` and
 
 ### Tasks
 
-- [ ] Implement Block, Shortcode, Embed Provider, and Content Type registries.
+- [x] Implement Block, Shortcode, Embed Provider, and Content Type registries.
 - [ ] Implement Tiptap node/mark/command/toolbar declaration and prebuilt editor
       extension loading under trusted L2.
 - [ ] Implement Media Pipeline Registry for MIME policy, upload validation,
@@ -741,6 +741,13 @@ production-wired via `GET /api/v1/extensions/runtime/page-policy` and
 - Unknown/disabled content renders stable fallback preserving source data. Media
   falls back to its original/source-of-truth asset. Never delete or rewrite user
   content merely because a plugin is disabled.
+
+The Content Registry production lifecycle row closed by wiring immutable
+`Support/ContentRegistry` into Host lifecycle publication plan `@8`
+(`content.v1`): freeze/validate/reconcile/restore, Safe Mode core-only,
+bootstrap process-local registry, and upgrade/rollback/disable CAS tests.
+Manifest kinds remain `block`/`shortcode`/`embed`/`node`/`mark`/
+`render_filter`/`sanitizer`. Editor/media/entity pipeline rows remain open.
 
 ## P11 - Cache, SEO, Secrets, Files, HTTP, Localization, And API Policies
 

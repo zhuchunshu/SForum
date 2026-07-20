@@ -1,8 +1,8 @@
 # Trusted Plugin And Theme Platform V3 Progress Ledger
 
 Date: 2026-07-21
-Overall progress: **75.0%**
-Active phase: **P9 complete (16/16); P10 next; P11-P13 remain open**
+Overall progress: **76.0%**
+Active phase: **P10 active (1/15); P9 complete; P11-P13 remain open**
 
 This ledger is the durable percentage and context-compaction checkpoint for the
 V3 program. Update it before context compression, at every phase boundary, and
@@ -26,13 +26,28 @@ scaffolding, or demo-only code cannot satisfy a runtime exit criterion.
 | P7 Workflow/admin/query/identity | 10% | 100% | 10.00% |
 | P8 Theme compiler/runtime | 8% | 100% | 8% |
 | P9 Components/assets/L2 | 8% | 100% | 8.00% |
-| P10 Content/media/data | 8% | 0% | 0% |
+| P10 Content/media/data | 8% | 7% | 0.53% |
 | P11 Platform services | 6% | 6% | 0.38% |
 | P12 Operations/ecosystem | 6% | 5% | 0.27% |
 | P13 References/removal/final gates | 5% | 0% | 0% |
 
 Displayed overall progress is the floor of earned weighted progress until the
 program reaches 100% and every final gate passes.
+
+## 2026-07-21 P10 Content Registry Lifecycle Publication (1/15)
+
+- Overall advances to **76.0%** after flooring. Exact earned weight is
+  `67 + 8 + 8*(1/15) + 0.38 + 0.27 ≈ 76.18` → display **76%**. P10 is
+  **1/15 (~7%)**.
+- Closed the Content Registry production lifecycle row: plan schema
+  `sforum.lifecycle.registry-plan@8` / family `content.v1` freezes Manifest
+  content into the immutable Content Registry on enable/upgrade/disable/restore
+  with Safe Mode core-only, CAS graph replace, and bootstrap process-local
+  registry. Prior @1–@7 digests remain recovery aliases (max 7).
+- Still open on P10: Tiptap trusted L2 editor surface, Media Pipeline lifecycle
+  production wiring, immutable original retention product path, editor JSON
+  storage/render pipeline, entity/taxonomy/field contracts, reference blocks and
+  media plugins, sanitizer/XSS corpus, schema upgrade/disabled-plugin render.
 
 ## 2026-07-21 P9 Closed (16/16) — Joined Matrix + Visual + CSP→Nuxt
 

@@ -4,7 +4,7 @@ This is the entry point for project memory.
 
 ## Latest Handoff
 
-- **2026-07-21 Trusted Plugin And Theme Platform V3 P9 complete (overall 75.0%)**
+- **2026-07-21 Trusted Plugin And Theme Platform V3 P10 active (overall 76.0%)**
   - Decision: `knowledge/decisions/2026-07-13-trusted-plugin-theme-platform-v3.md`
   - Identity/automation authority:
     `knowledge/decisions/2026-07-19-identity-provider-automation-authority.md`
@@ -12,11 +12,13 @@ This is the entry point for project memory.
   - Task book: `knowledge/plans/2026-07-13-trusted-plugin-theme-platform-v3.md`
   - Current durable checkpoint:
     `knowledge/plans/2026-07-13-trusted-plugin-theme-platform-v3-progress.md`
-  - P0-P9 are complete. Weighted progress is **75.65%** (display **75.0%**).
-    P7 remains **22/22**. P9 is **16/16** after CSP→Nuxt, joined component/L2
-    matrices, and desktop/mobile visual gates. Next: **P10** content/media
-    pipelines. P11-P13 remain open.
-  - Active P9 close handoff:
+  - P0-P9 are complete. Weighted progress is **~76.18%** (display **76.0%**).
+    P9 remains **16/16**. P10 advances to **1/15** after Content Registry
+    lifecycle plan `@8` / `content.v1` production publication. Next: Media
+    Pipeline lifecycle, editor/Tiptap L2, entity/taxonomy. P11-P13 remain open.
+  - Active P10 handoff:
+    `knowledge/sessions/2026-07-21-trusted-plugin-theme-platform-v3-p10-content-registry.md`
+  - Prior P9 close handoff:
     `knowledge/sessions/2026-07-21-trusted-plugin-theme-platform-v3-p9-closure.md`
   - Prior CSP continuity handoff:
     `knowledge/sessions/2026-07-21-trusted-plugin-theme-platform-v3-p9-csp-handoff.md`
