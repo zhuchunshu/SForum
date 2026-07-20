@@ -1,0 +1,47 @@
+{
+  "manifestVersion": 3,
+  "id": "sforum.plugin-page-business-e2e",
+  "name": "SForum Plugin Page Business E2E",
+  "description": "Fixture plugin with sealed page data contract and themeOverrideKey for presentation-only theme overrides.",
+  "url": "https://sforum.local/plugins/plugin-page-business-e2e",
+  "author": {
+    "name": "SForum Team",
+    "url": "https://sforum.local"
+  },
+  "version": "1.0.0",
+  "type": "plugin",
+  "sforumVersion": ">=0.1.0",
+  "templates": [
+    {
+      "id": "sforum.plugin-page-business-e2e.template.article",
+      "contractVersion": "sforum.plugin-page-business-e2e.template.article@1",
+      "action": "add",
+      "path": "templates/article.html",
+      "digest": "0dffe0f3481f195aaad046f5750ec301e131de24de0ae5c7f1d825648f0de138",
+      "viewModelSchema": "sforum.plugin-page-business-e2e.article.data@1",
+      "themeOverrideKey": "sforum.plugin-page-business-e2e.article"
+    }
+  ],
+  "dataSchemas": [
+    {
+      "id": "sforum.plugin-page-business-e2e.article.data",
+      "version": "1",
+      "path": "schemas/article.json",
+      "digest": "c07d9f76041f62828da9f97efb092972962c6b638e9f4fa0a0a8eb76671ab4f0"
+    }
+  ],
+  "packageFiles": [
+    {
+      "id": "sforum.plugin-page-business-e2e.file.article-template",
+      "kind": "template",
+      "path": "templates/article.html",
+      "digest": "0dffe0f3481f195aaad046f5750ec301e131de24de0ae5c7f1d825648f0de138"
+    },
+    {
+      "id": "sforum.plugin-page-business-e2e.file.article-schema",
+      "kind": "schema",
+      "path": "schemas/article.json",
+      "digest": "c07d9f76041f62828da9f97efb092972962c6b638e9f4fa0a0a8eb76671ab4f0"
+    }
+  ]
+}

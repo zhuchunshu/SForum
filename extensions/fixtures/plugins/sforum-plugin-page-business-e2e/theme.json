@@ -1,0 +1,15 @@
+{
+  "pages": [
+    {
+      "id": "sforum.plugin-page-business-e2e.article",
+      "action": "add",
+      "path": "/e2e-articles/:slug",
+      "template": "templates/article.html",
+      "access": "public",
+      "contract": "sforum.plugin-page-business-e2e.page.article@1",
+      "dataSource": "plugin",
+      "dataRoute": "/page-data/article",
+      "dataSchema": "schemas/article.json"
+    }
+  ]
+}

@@ -1,0 +1,49 @@
+{
+  "manifestVersion": 3,
+  "id": "sforum.plugin-override-e2e-theme",
+  "name": "SForum Plugin Override E2E Theme",
+  "description": "Theme fixture that presentation-overrides the plugin-page-business-e2e article template.",
+  "url": "https://sforum.local/themes/plugin-override-e2e",
+  "author": {
+    "name": "SForum Team",
+    "url": "https://sforum.local"
+  },
+  "version": "1.0.0",
+  "type": "theme",
+  "sforumVersion": ">=0.1.0",
+  "templates": [
+    {
+      "id": "sforum.plugin-override-e2e-theme.template.home",
+      "contractVersion": "sforum.plugin-override-e2e-theme.template.home@1",
+      "action": "add",
+      "path": "templates/home.html",
+      "digest": "a8ec93d2f8912dac42a01cf02c3deb215c03dc2263786a8a68d0285bc8c00051",
+      "viewModelSchema": "sforum.page.home@1",
+      "themeOverrideKey": "sforum.plugin-override-e2e-theme.home"
+    },
+    {
+      "id": "sforum.plugin-override-e2e-theme.template.article",
+      "contractVersion": "sforum.plugin-override-e2e-theme.template.article@1",
+      "action": "replace",
+      "targetId": "sforum.plugin-page-business-e2e.template.article",
+      "path": "templates/plugins/sforum.plugin-page-business-e2e/article.html",
+      "digest": "2a0204a8ec9bd19659e28ba0cb8bd5729f4d95d13d685054139ec8fdbc3fe3ac",
+      "viewModelSchema": "sforum.plugin-page-business-e2e.article.data@1",
+      "themeOverrideKey": "sforum.plugin-page-business-e2e.article"
+    }
+  ],
+  "packageFiles": [
+    {
+      "id": "sforum.plugin-override-e2e-theme.file.home-template",
+      "kind": "template",
+      "path": "templates/home.html",
+      "digest": "a8ec93d2f8912dac42a01cf02c3deb215c03dc2263786a8a68d0285bc8c00051"
+    },
+    {
+      "id": "sforum.plugin-override-e2e-theme.file.article-override",
+      "kind": "template",
+      "path": "templates/plugins/sforum.plugin-page-business-e2e/article.html",
+      "digest": "2a0204a8ec9bd19659e28ba0cb8bd5729f4d95d13d685054139ec8fdbc3fe3ac"
+    }
+  ]
+}

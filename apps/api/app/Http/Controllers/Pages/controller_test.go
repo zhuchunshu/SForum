@@ -490,6 +490,221 @@ func TestResolvePathValidatesExactPluginDataBeforeCompiledRender(t *testing.T) {
 	}
 }
 
+// TestResolvePathUsesActiveThemeOverrideForPluginBusinessPage 证明：
+// 1) 激活主题的 templates/plugins/{pluginId} 覆盖优先于插件模板；
+// 2) 业务数据经 schema 密封后原样进入 loaderData；
+// 3) 错误 themeOverrideKey 时 soft-skip 回落到插件模板；
+// 4) 额外字段破坏契约时 fail closed 到 host_emergency，不暴露 loaderData。
+func TestResolvePathUsesActiveThemeOverrideForPluginBusinessPage(t *testing.T) {
+	pluginRoot := t.TempDir()
+	themeRoot := t.TempDir()
+	pluginTemplate := `plugin: {{.title}} / {{.state}}`
+	overrideTemplate := `theme: {{.title}} / {{.state}}`
+	schemaBody := `{"type":"object","required":["title","state"],"additionalProperties":false,"properties":{"title":{"type":"string"},"state":{"const":"published"}}}`
+	writeControllerFixtureFile(t, pluginRoot, "theme.json", `{"pages":[]}`)
+	writeControllerFixtureFile(t, pluginRoot, "templates/article.html", pluginTemplate)
+	writeControllerFixtureFile(t, pluginRoot, "schemas/article.json", schemaBody)
+	writeControllerFixtureFile(t, themeRoot, "theme.json", `{"pages":[]}`)
+	writeControllerFixtureFile(t, themeRoot, "templates/home.html", `<main>theme home</main><sf-home-page></sf-home-page>`)
+	writeControllerFixtureFile(t, themeRoot, "templates/plugins/plugin.exact-page/article.html", overrideTemplate)
+
+	pluginTemplateDigest := sha256.Sum256([]byte(pluginTemplate))
+	schemaDigest := sha256.Sum256([]byte(schemaBody))
+	homeBody := `<main>theme home</main><sf-home-page></sf-home-page>`
+	homeDigest := sha256.Sum256([]byte(homeBody))
+	overrideDigest := sha256.Sum256([]byte(overrideTemplate))
+
+	pluginArtifact := pages.RuntimeArtifact{
+		ExtensionID: "plugin.exact-page", ExtensionVersion: "2.0.0", PackageDigest: strings.Repeat("e", 64),
+		RuntimeInstanceID: "runtime-exact-page",
+	}
+	themeArtifact := pages.RuntimeArtifact{
+		ExtensionID: "theme.presentation", ExtensionVersion: "1.0.0", PackageDigest: strings.Repeat("f", 64),
+	}
+	contribution := pages.PageContribution{
+		ID: "plugin.exact-page.article", Action: pages.ActionAdd, Path: "/exact-articles/:slug",
+		Template: "templates/article.html", Contract: "plugin.exact-page.page.article@1", Access: pages.AccessPublic,
+		DataSource: "plugin", DataRoute: "/page-data/article", DataSchema: "schemas/article.json",
+		ExtensionID: pluginArtifact.ExtensionID, Version: pluginArtifact.ExtensionVersion,
+		PackageDigest: pluginArtifact.PackageDigest, RuntimeInstanceID: pluginArtifact.RuntimeInstanceID,
+	}
+	pluginSnapshot, err := pages.BuildThemeRuntimeSnapshot(pages.ThemeRuntimeBuildInput{
+		Artifact: pluginArtifact, PackageRoot: pluginRoot, Contributions: []pages.PageContribution{contribution},
+		Templates: []pages.RuntimeTemplateDeclaration{{
+			ID: "plugin.exact-page.template.article", ContractVersion: "plugin.exact-page.template.article@1",
+			Action: "add", Path: "templates/article.html", Digest: hex.EncodeToString(pluginTemplateDigest[:]),
+			ViewModelSchema: "plugin.exact-page.article.data@1", ThemeOverrideKey: "plugin.exact-page.article",
+		}},
+		DataSchemas: []pages.RuntimeDataSchemaDeclaration{{
+			ID: "plugin.exact-page.article.data", Version: "1", Path: "schemas/article.json",
+			Digest: hex.EncodeToString(schemaDigest[:]),
+		}},
+		PackageKind: pages.RuntimeTemplatePlugin, RequireDeclaredTemplates: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	themeSnapshot, err := pages.BuildThemeRuntimeSnapshot(pages.ThemeRuntimeBuildInput{
+		Artifact: themeArtifact, PackageRoot: themeRoot, Contributions: []pages.PageContribution{{
+			ID: "theme.presentation.home", Action: pages.ActionReplace, Target: "forum.home",
+			Template: "templates/home.html", Contract: "sforum.page.home@1",
+			ExtensionID: themeArtifact.ExtensionID, Version: themeArtifact.ExtensionVersion,
+			PackageDigest: themeArtifact.PackageDigest,
+		}},
+		Templates: []pages.RuntimeTemplateDeclaration{
+			{
+				ID: "theme.presentation.template.home", ContractVersion: "theme.presentation.template.home@1",
+				Action: "add", Path: "templates/home.html", Digest: hex.EncodeToString(homeDigest[:]),
+				ViewModelSchema: "sforum.page.home@1",
+			},
+			{
+				ID: "theme.presentation.template.article", ContractVersion: "theme.presentation.template.article@1",
+				Action: "replace", TargetID: "plugin.exact-page.template.article",
+				Path: "templates/plugins/plugin.exact-page/article.html", Digest: hex.EncodeToString(overrideDigest[:]),
+				ViewModelSchema: "plugin.exact-page.article.data@1", ThemeOverrideKey: "plugin.exact-page.article",
+			},
+		},
+		PackageKind: pages.RuntimeTemplateTheme, RequireDeclaredTemplates: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	runtimeRegistry := pages.NewThemeRuntimeRegistry()
+	if _, _, err := runtimeRegistry.Stage(themeSnapshot); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := runtimeRegistry.ActivateExact(themeArtifact); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := runtimeRegistry.Stage(pluginSnapshot); err != nil {
+		t.Fatal(err)
+	}
+
+	registry := pages.NewRegistry(pages.NewMemoryStore())
+	if _, err := registry.PublishExtensionIfRevision(pluginArtifact, []pages.PageContribution{contribution}, 0); err != nil {
+		t.Fatal(err)
+	}
+	targets := &exactRouteTargets{want: pluginArtifact, base: "http://127.0.0.1:19999"}
+	payload := `{"title":"Business truth","state":"published"}`
+	loader := pages.NewPageDataLoader(roundTripFunc(func(*nethttp.Request) (*nethttp.Response, error) {
+		return &nethttp.Response{
+			StatusCode: 200, Header: nethttp.Header{"Content-Type": []string{"application/json"}},
+			Body: io.NopCloser(strings.NewReader(payload)),
+		}, nil
+	}))
+	manager := authsession.NewManager(session.NewStore(), authsession.Config{HashSecret: "test-secret"})
+	themeStore := &pagesThemeStore{items: map[string]extensions.Extension{}}
+	controller := NewControllerWithThemes(registry, pagesActors{actors: map[int64]identity.Actor{}}, manager, themeStore).
+		WithThemeRuntime(runtimeRegistry).
+		WithLoader(pages.NewLoaderGateway(loader, targets))
+	cfg := config.Config{AppName: "SForum", AppEnv: "test", CSRFEnabled: false, AppLocale: "zh-CN", SupportedLocales: []string{"zh-CN"}}
+	app := apphttp.NewApp(cfg, slog.Default(), apphttp.Dependencies{RouteProviders: []apphttp.RouteProvider{
+		pagesRouteProvider(func(api fiber.Router) { controller.RegisterRoutes(api) }),
+	}})
+
+	// 兼容覆盖：active_theme_override 胜出，业务字段不变。
+	response := performPages(t, app, nethttp.MethodGet, "/api/v1/pages/resolve-path?path=/exact-articles/one", nil, nil)
+	if response.StatusCode != nethttp.StatusOK {
+		t.Fatalf("status=%d", response.StatusCode)
+	}
+	var envelope pagesEnvelope[resolveResponse]
+	if err := json.NewDecoder(response.Body).Decode(&envelope); err != nil {
+		t.Fatal(err)
+	}
+	html := ""
+	if envelope.Data.RenderOutput != nil {
+		html = strings.Join(envelope.Data.RenderOutput.HTMLSegments, "")
+	}
+	if envelope.Data.Provider != pluginArtifact.ExtensionID || envelope.Data.Fallback || envelope.Data.RenderOutput == nil ||
+		envelope.Data.RenderOutput.Source != pages.ThemeRenderSourceActiveOverride ||
+		!strings.Contains(html, "theme: Business truth / published") ||
+		strings.Contains(html, "plugin: Business truth") ||
+		targets.called != 1 || themeStore.gets != 0 {
+		t.Fatalf("override response=%#v html=%q targets=%d packageGets=%d", envelope.Data, html, targets.called, themeStore.gets)
+	}
+	loaded, ok := envelope.Data.LoaderData.(map[string]any)
+	if !ok || loaded["title"] != "Business truth" || loaded["state"] != "published" {
+		t.Fatalf("loader data=%#v", envelope.Data.LoaderData)
+	}
+
+	// 错误 override key：soft-skip 回插件模板，业务语义不变。
+	wrongOverrideBody := `mismatched theme: {{.title}}`
+	wrongOverrideDigest := sha256.Sum256([]byte(wrongOverrideBody))
+	writeControllerFixtureFile(t, themeRoot, "templates/plugins/plugin.exact-page/article.html", wrongOverrideBody)
+	wrongTheme, err := pages.BuildThemeRuntimeSnapshot(pages.ThemeRuntimeBuildInput{
+		Artifact: pages.RuntimeArtifact{
+			ExtensionID: "theme.wrong-key", ExtensionVersion: "1.0.0", PackageDigest: strings.Repeat("a", 64),
+		},
+		PackageRoot: themeRoot, Contributions: []pages.PageContribution{{
+			ID: "theme.wrong-key.home", Action: pages.ActionReplace, Target: "forum.home",
+			Template: "templates/home.html", Contract: "sforum.page.home@1",
+			ExtensionID: "theme.wrong-key", Version: "1.0.0", PackageDigest: strings.Repeat("a", 64),
+		}},
+		Templates: []pages.RuntimeTemplateDeclaration{
+			{
+				ID: "theme.wrong-key.template.home", ContractVersion: "theme.wrong-key.template.home@1",
+				Action: "add", Path: "templates/home.html", Digest: hex.EncodeToString(homeDigest[:]),
+				ViewModelSchema: "sforum.page.home@1",
+			},
+			{
+				ID: "theme.wrong-key.template.article", ContractVersion: "theme.wrong-key.template.article@1",
+				Action: "replace", TargetID: "plugin.exact-page.template.article",
+				Path: "templates/plugins/plugin.exact-page/article.html", Digest: hex.EncodeToString(wrongOverrideDigest[:]),
+				ViewModelSchema: "plugin.exact-page.article.data@1", ThemeOverrideKey: "plugin.exact-page.other",
+			},
+		},
+		PackageKind: pages.RuntimeTemplateTheme, RequireDeclaredTemplates: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := runtimeRegistry.Stage(wrongTheme); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := runtimeRegistry.ActivateExact(wrongTheme.Artifact()); err != nil {
+		t.Fatal(err)
+	}
+	skipped := performPages(t, app, nethttp.MethodGet, "/api/v1/pages/resolve-path?path=/exact-articles/two", nil, nil)
+	if skipped.StatusCode != nethttp.StatusOK {
+		t.Fatalf("skipped status=%d", skipped.StatusCode)
+	}
+	var skippedEnvelope pagesEnvelope[resolveResponse]
+	if err := json.NewDecoder(skipped.Body).Decode(&skippedEnvelope); err != nil {
+		t.Fatal(err)
+	}
+	skippedHTML := ""
+	if skippedEnvelope.Data.RenderOutput != nil {
+		skippedHTML = strings.Join(skippedEnvelope.Data.RenderOutput.HTMLSegments, "")
+	}
+	if skippedEnvelope.Data.Fallback || skippedEnvelope.Data.RenderOutput == nil ||
+		skippedEnvelope.Data.RenderOutput.Source != pages.ThemeRenderSourcePlugin ||
+		!strings.Contains(skippedHTML, "plugin: Business truth / published") ||
+		strings.Contains(skippedHTML, "mismatched theme") {
+		t.Fatalf("key-drift response=%#v html=%q", skippedEnvelope.Data, skippedHTML)
+	}
+
+	// 契约破坏载荷：emergency，无 loaderData。
+	payload = `{"title":"Business truth","state":"published","themeMutation":true}`
+	// 重新激活兼容主题，确保 emergency 不是因 key drift。
+	if _, err := runtimeRegistry.ActivateExact(themeArtifact); err != nil {
+		t.Fatal(err)
+	}
+	// 恢复覆盖模板文件内容（路径校验已编译进 snapshot，文件内容不再被热读）。
+	rejected := performPages(t, app, nethttp.MethodGet, "/api/v1/pages/resolve-path?path=/exact-articles/three", nil, nil)
+	if rejected.StatusCode != nethttp.StatusOK {
+		t.Fatalf("rejected status=%d", rejected.StatusCode)
+	}
+	var rejectedEnvelope pagesEnvelope[resolveResponse]
+	if err := json.NewDecoder(rejected.Body).Decode(&rejectedEnvelope); err != nil {
+		t.Fatal(err)
+	}
+	if !rejectedEnvelope.Data.Fallback || rejectedEnvelope.Data.LoaderData != nil || rejectedEnvelope.Data.RenderOutput == nil ||
+		rejectedEnvelope.Data.RenderOutput.Source != pages.ThemeRenderSourceEmergency {
+		t.Fatalf("rejected response=%#v", rejectedEnvelope.Data)
+	}
+}
+
 func writeControllerFixtureFile(t *testing.T, root, name, body string) {
 	t.Helper()
 	path := filepath.Join(root, filepath.FromSlash(name))
