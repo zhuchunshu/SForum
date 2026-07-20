@@ -13,6 +13,10 @@ import (
 // SchemaVersion is the LTS registry contract.
 const SchemaVersion = "sforum.api-lts@1"
 
+// ProtocolV1ContractID is the stable LTS id for net/rpc protocol shims.
+// Production ProtocolStarter records shim calls against this id.
+const ProtocolV1ContractID = "sforum.protocol.v1"
+
 // DefaultMinDeprecation is the minimum deprecation period before removal.
 const DefaultMinDeprecation = 180 * 24 * time.Hour // 180 days
 
@@ -70,7 +74,7 @@ func New() *Registry {
 		{ID: "sforum.protocol.v2", Kind: "protocol", Status: "current", Introduced: now},
 		{ID: "sforum.manifest.v3", Kind: "manifest", Status: "current", Introduced: now},
 		{
-			ID: "sforum.protocol.v1", Kind: "protocol", Status: "deprecated",
+			ID: ProtocolV1ContractID, Kind: "protocol", Status: "deprecated",
 			Introduced: now.Add(-365 * 24 * time.Hour),
 			DeprecatedAt: now.Add(-30 * 24 * time.Hour),
 			RemoveAfter:  now.Add(-30*24*time.Hour + DefaultMinDeprecation),
@@ -169,6 +173,30 @@ func (r *Registry) CanRemove(contractID string, now time.Time) bool {
 		return false
 	}
 	return !c.RemoveAfter.IsZero() && !now.Before(c.RemoveAfter)
+}
+
+// ShimCalls returns process-local deprecation call count for contractID.
+func (r *Registry) ShimCalls(contractID string) uint64 {
+	if r == nil {
+		return 0
+	}
+	contractID = strings.TrimSpace(contractID)
+	r.mu.Lock()
+	counter, ok := r.shimCalls[contractID]
+	r.mu.Unlock()
+	if !ok || counter == nil {
+		return 0
+	}
+	return counter.Load()
+}
+
+// CanRemoveWithZeroShim is the P13 deletion gate: deprecation window elapsed
+// and process-local shim telemetry is zero for the contract.
+func (r *Registry) CanRemoveWithZeroShim(contractID string, now time.Time) bool {
+	if !r.CanRemove(contractID, now) {
+		return false
+	}
+	return r.ShimCalls(contractID) == 0
 }
 
 var (

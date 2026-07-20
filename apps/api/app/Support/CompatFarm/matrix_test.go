@@ -31,13 +31,13 @@ func TestLoadMatrixAndDeprecatedShimTelemetry(t *testing.T) {
 	lts := apilts.New()
 	for _, cell := range deprecated {
 		if cell.ExpectsShimTelemetry {
-			lts.RecordShimCall("sforum.protocol.v1")
+			lts.RecordShimCall(apilts.ProtocolV1ContractID)
 		}
 	}
 	snap := lts.Snapshot()
 	found := false
 	for _, row := range snap.ShimUsage {
-		if row.ContractID == "sforum.protocol.v1" && row.Calls > 0 {
+		if row.ContractID == apilts.ProtocolV1ContractID && row.Calls > 0 {
 			found = true
 		}
 	}
