@@ -4,12 +4,12 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strconv"
-	"strings"
 	"testing"
 	"time"
 
@@ -123,9 +123,35 @@ func buildProtocolV2SMTPBuiltin(t *testing.T, repositoryRoot string) extensions.
 }
 
 func replaceSMTPDigests(raw []byte, digest string) []byte {
-	// 测试辅助：把已提交 digest 替换为本次构建值（package 仅含 backend digest）。
-	const committed = "fc20b752646e0ca76e1cfde53cf8163166cda6767a37d64132e3a9828cc1ecba"
-	return []byte(strings.ReplaceAll(string(raw), committed, digest))
+	// 测试辅助：把 backend / packageFiles 可执行摘要改写为本次构建值。
+	// 不得硬编码历史 digest；本地与 CI 的二进制字节会随工具链漂移。
+	var root map[string]any
+	if err := json.Unmarshal(raw, &root); err != nil {
+		return raw
+	}
+	if backend, ok := root["backend"].(map[string]any); ok {
+		backend["digest"] = digest
+		root["backend"] = backend
+	}
+	if files, ok := root["packageFiles"].([]any); ok {
+		for _, item := range files {
+			file, ok := item.(map[string]any)
+			if !ok {
+				continue
+			}
+			path, _ := file["path"].(string)
+			kind, _ := file["kind"].(string)
+			if path == "backend/plugin" || kind == "executable" {
+				file["digest"] = digest
+			}
+		}
+		root["packageFiles"] = files
+	}
+	encoded, err := json.MarshalIndent(root, "", "  ")
+	if err != nil {
+		return raw
+	}
+	return append(encoded, '\n')
 }
 
 func copyTree(src, dst string) error {
