@@ -14,6 +14,8 @@ This is the entry point for project memory.
     `knowledge/plans/2026-07-13-trusted-plugin-theme-platform-v3-progress.md`
   - Session progress:
     `knowledge/sessions/2026-07-13-trusted-plugin-theme-platform-v3-progress.md`
+  - P13 gate honesty / dead-code hygiene handoff:
+    `knowledge/sessions/2026-07-21-trusted-plugin-theme-platform-v3-p13-gate-honesty-handoff.md`
   - P13 digest hygiene handoff:
     `knowledge/sessions/2026-07-21-trusted-plugin-theme-platform-v3-p13-digest-hygiene-handoff.md`
   - P13 LTS residual handoff:
@@ -26,11 +28,10 @@ This is the entry point for project memory.
     `knowledge/sessions/2026-07-21-trusted-plugin-theme-platform-v3-p13-apilts-handoff.md`
   - Prior P13 residual handoff:
     `knowledge/sessions/2026-07-21-trusted-plugin-theme-platform-v3-p13-handoff.md`
-  - P0-P12 complete. P13 **~99.7%**: command gates, reference packages, live
-    API/ready, Baiduspider SSR green; production APILTS wiring; **SMTP** and
-    **storage-fs** Protocol V2; **pages + public chrome** owned by theme L1 (navbar/footer islands) with
-    Host fail-closed chrome (`5b26b80fe`…`6b49b59f1`); builtin digests aligned
-    (`d9e9a1aa1`…`a3284bcba`). Weighted **99.7%**.
+  - P0-P12 complete. P13 **~99.7%**: command gates green; presentation ownership +
+    Protocol V2 defaults + digest hygiene + **gate honesty** (moderation/SEO
+    validators wired; dead chrome partials + Nuxt layer removed)
+    (`7ca7353e1`…`ffbec31e6`). Weighted **99.7%**.
     Open: LTS-blocked loader/v1/compatibility deletions only (RemoveAfter≈2026-11-28 + zero-shim). Evidence:
     `docs/extensions/v3/p13-final-gates-evidence.md`.
   - Prior P11 closure handoff:

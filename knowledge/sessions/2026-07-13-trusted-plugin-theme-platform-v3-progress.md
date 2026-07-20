@@ -6,6 +6,54 @@ Last updated: 2026-07-21
 
 - Verified weighted progress: **99.7%** (display **99%**).
 - Phase counts: **P0–P12 complete (P10 15/15)**; P13 **~99.7%**.
+- Goal harness "remaining P10" remains **stale** — do not re-implement P10.
+- Non-LTS residual hygiene closed (`7ca7353e1`…`ffbec31e6`):
+  - retargeted moderation workbench validator to Host body islands
+  - wired public SEO + SEO workbench + moderation into `scripts/test.sh`
+  - dropped false chrome partial completeness; deleted dead layouts/partials
+  - deleted inert default theme Nuxt `layer/` tree (12k+ lines)
+  - web presentation tests assert `<sf-navbar>` / `<sf-footer>` on non-auth shells
+
+## Current Subtask
+
+### 2026-07-21 P13 residual = LTS wait only
+
+- Exact next: **still do not delete** LoadTemplate / Protocol V1 / fail-closed
+  SFPageOutlet until RemoveAfter (≈2026-11-28) + zero-shim + checklist 1–7.
+- Implementable non-LTS hygiene from explore audit is **done**.
+
+## Tests
+
+- `bun tests/validate-moderation-workbenches.ts`: pass
+- `bun tests/validate-public-seo.ts`: pass
+- `bun tests/validate-seo-workbench.ts`: pass
+- `go test ./app/Support/Pages/ ./app/Support/ThemeCompiler/`: pass
+- `bun test` presentationOwnershipRemaining + legal + publicTaxonomyPages: 55 pass
+- `node tests/validate-theme-runtime.js` + homepage + page-registry offline: pass
+
+## Open task-book rows
+
+1. Remove request-time template loader residual (instrumented; not deleted)
+2. Remove Protocol V1 paths
+3. Compatibility path removal after LTS checklist
+
+## Rollback
+
+- Revert `7ca7353e1`…`ffbec31e6` for residual hygiene chain.
+- Never delete LTS shims early.
+
+
+---
+
+
+# Trusted Plugin And Theme Platform V3 Progress Ledger
+
+Last updated: 2026-07-21
+
+## Progress
+
+- Verified weighted progress: **99.7%** (display **99%**).
+- Phase counts: **P0–P12 complete (P10 15/15)**; P13 **~99.7%**.
 - Goal harness "remaining P10" remains **stale**.
 - Restored honest `scripts/test.sh` node validators after presentation ownership:
   - `8390adbdd` test(homepage): thin route + SFHomePage island

@@ -93,7 +93,8 @@ Build, typecheck, lint, test:
   `NUXT_BUILD_DIR=.nuxt-typecheck`).
 - `cd apps/api && go build ./...` / `go test ./...` — Go build and tests.
 - `./scripts/test.sh` — full repo test gate: `go test ./...`, OpenAPI ref
-  validation, Nuxt typecheck, and all `tests/validate-*.js|.ts` scripts.
+  validation, Nuxt typecheck, and the product `tests/validate-*` scripts wired in
+  `scripts/test.sh` (demos remain optional offline checks).
 - `ruby scripts/validate-openapi-refs.rb` — validate OpenAPI `$ref`s after
   editing any contract file.
 
