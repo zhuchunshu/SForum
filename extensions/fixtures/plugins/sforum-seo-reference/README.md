@@ -1,19 +1,35 @@
 # SForum SEO Reference
 
-This Protocol V2 fixture filters one controlled SEO title through the shared
-`ProviderCall` RPC. It receives no actor, session, raw request, HTML, or
-arbitrary head access. The Host still validates mutation scope, robots policy,
-canonical/hreflang origin, sitemap policy, and the final typed document.
+Independently installable Protocol V2 reference plugin for the SEO Registry.
 
-Build from the repository checkout, replace the manifest digest placeholders
-with the resulting SHA-256, then package/upload it through the normal inert
-installer. Production activation never compiles this source and still requires
-the exact-artifact executable trust flow.
+## Surfaces proved
 
-```bash
-cd extensions/fixtures/plugins/sforum-seo-reference/backend
-CGO_ENABLED=0 go build -mod=mod -trimpath -buildvcs=false -o plugin .
+| Kind | Action | Behavior |
+| --- | --- | --- |
+| `title` | filter | Appends ` \| SEO Reference` |
+| `meta` | add | Adds `description` name meta |
+| `canonical` | filter | Ensures trailing slash (same-origin only) |
+| `robots` | filter | Sets `noArchive` (tightens only) |
+| `jsonld` | add | Adds `DiscussionForumPosting` node |
+| `sitemap` | add | Adds daily sitemap entry for canonical URL |
+
+Failure policy is `fallback` for every contribution. Titles `reference:fail`
+and `reference:timeout` exercise Host recovery without core product edits.
+
+## Layout
+
+```text
+sforum-seo-reference/
+├── sforum.extension.json.tmpl
+├── backend/
+│   └── main.go
+└── README.md
 ```
 
-The integration test also exercises provider failure and disable fallback so a
-broken or stopped plugin never removes the Core SEO baseline.
+Exact package digests are filled at build/test time (`__BACKEND_DIGEST__`).
+
+## Product gate
+
+`apps/api/app/Support/Extensions/seo_reference_plugin_integration_test.go`
+builds this package as a real subprocess, publishes all SEO declarations, and
+asserts multi-kind success, provider failure fallback, and disable fallback.

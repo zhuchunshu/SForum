@@ -2,13 +2,13 @@
   "manifestVersion": 3,
   "id": "sforum.seo-reference",
   "name": "SForum SEO Reference",
-  "description": "Protocol V2 reference plugin for controlled server-rendered SEO title filtering.",
+  "description": "Protocol V2 reference plugin proving multi-kind SEO Registry contributions (title/meta/canonical/robots/jsonld/sitemap) with Host-final policy and fallback on failure.",
   "url": "https://github.com/zhuchunshu/sforum",
   "author": {
     "name": "SForum",
     "url": "https://github.com/zhuchunshu/sforum"
   },
-  "version": "1.0.0",
+  "version": "1.1.0",
   "type": "plugin",
   "sforumVersion": ">=0.1.0",
   "capabilities": ["host.api"],
@@ -27,6 +27,56 @@
       "kind": "title",
       "action": "filter",
       "handler": "sforum.seo-reference.title",
+      "failurePolicy": "fallback",
+      "timeoutMs": 500
+    },
+    {
+      "id": "sforum.seo-reference.meta",
+      "contractVersion": "sforum.seo-reference.meta@1",
+      "scope": "core.page.topic",
+      "kind": "meta",
+      "action": "add",
+      "handler": "sforum.seo-reference.meta",
+      "failurePolicy": "fallback",
+      "timeoutMs": 500
+    },
+    {
+      "id": "sforum.seo-reference.canonical",
+      "contractVersion": "sforum.seo-reference.canonical@1",
+      "scope": "core.page.topic",
+      "kind": "canonical",
+      "action": "filter",
+      "handler": "sforum.seo-reference.canonical",
+      "failurePolicy": "fallback",
+      "timeoutMs": 500
+    },
+    {
+      "id": "sforum.seo-reference.robots",
+      "contractVersion": "sforum.seo-reference.robots@1",
+      "scope": "core.page.topic",
+      "kind": "robots",
+      "action": "filter",
+      "handler": "sforum.seo-reference.robots",
+      "failurePolicy": "fallback",
+      "timeoutMs": 500
+    },
+    {
+      "id": "sforum.seo-reference.jsonld",
+      "contractVersion": "sforum.seo-reference.jsonld@1",
+      "scope": "core.page.topic",
+      "kind": "jsonld",
+      "action": "add",
+      "handler": "sforum.seo-reference.jsonld",
+      "failurePolicy": "fallback",
+      "timeoutMs": 500
+    },
+    {
+      "id": "sforum.seo-reference.sitemap",
+      "contractVersion": "sforum.seo-reference.sitemap@1",
+      "scope": "core.page.topic",
+      "kind": "sitemap",
+      "action": "add",
+      "handler": "sforum.seo-reference.sitemap",
       "failurePolicy": "fallback",
       "timeoutMs": 500
     }

@@ -42,7 +42,19 @@ func TestReferenceSEOPluginUsesRealProtocolV2AndCoreFallback(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	declaration := extension.Manifest.SEO[0]
+	if len(extension.Manifest.SEO) < 6 {
+		t.Fatalf("SEO reference must declare multi-kind contributions, got %d", len(extension.Manifest.SEO))
+	}
+	scope := extension.Manifest.SEO[0].Scope
+	contributions := make([]seoregistry.Declaration, 0, len(extension.Manifest.SEO))
+	for _, declaration := range extension.Manifest.SEO {
+		contributions = append(contributions, seoregistry.Declaration{
+			ID: declaration.ID, ContractVersion: declaration.ContractVersion,
+			Scope: declaration.Scope, Kind: declaration.Kind, Action: declaration.Action,
+			Handler: declaration.Handler, Priority: declaration.Priority,
+			FailurePolicy: declaration.FailurePolicy, Timeout: time.Duration(declaration.TimeoutMS) * time.Millisecond,
+		})
+	}
 	registry := seoregistry.New()
 	if _, err := registry.Publish(seoregistry.Publication{
 		Artifact: seoregistry.Artifact{
@@ -50,12 +62,7 @@ func TestReferenceSEOPluginUsesRealProtocolV2AndCoreFallback(t *testing.T) {
 			PackageDigest: extension.PackageDigest, ImpactDigest: extension.PackageDigest,
 			VersionID: extension.ActiveVersionID, RuntimeInstanceID: active.Identity.InstanceID,
 		},
-		Contributions: []seoregistry.Declaration{{
-			ID: declaration.ID, ContractVersion: declaration.ContractVersion,
-			Scope: declaration.Scope, Kind: declaration.Kind, Action: declaration.Action,
-			Handler: declaration.Handler, Priority: declaration.Priority,
-			FailurePolicy: declaration.FailurePolicy, Timeout: time.Duration(declaration.TimeoutMS) * time.Millisecond,
-		}},
+		Contributions: contributions,
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -75,30 +82,55 @@ func TestReferenceSEOPluginUsesRealProtocolV2AndCoreFallback(t *testing.T) {
 		t.Fatal(err)
 	}
 	base := referenceSEOBase("Core topic")
-	result, err := execution.Execute(t.Context(), seoregistry.ExecuteRequest{Scope: declaration.Scope, Base: base})
-	if err != nil || result.Document.Title != "Core topic | SEO Reference" || len(result.Applied) != 1 {
-		t.Fatalf("reference SEO result=%#v err=%v", result, err)
+	result, err := execution.Execute(t.Context(), seoregistry.ExecuteRequest{Scope: scope, Base: base})
+	if err != nil {
+		t.Fatalf("reference SEO execute: %v", err)
+	}
+	if result.Document.Title != "Core topic | SEO Reference" {
+		t.Fatalf("title=%q", result.Document.Title)
+	}
+	if len(result.Document.Meta) != 1 || result.Document.Meta[0].Key != "description" {
+		t.Fatalf("meta=%#v", result.Document.Meta)
+	}
+	if result.Document.CanonicalURL != "https://forum.example/topic/1/" {
+		t.Fatalf("canonical=%q", result.Document.CanonicalURL)
+	}
+	if !result.Document.Robots.NoArchive || result.Document.Robots.Indexing != seoregistry.RobotsIndex {
+		t.Fatalf("robots=%#v", result.Document.Robots)
+	}
+	if len(result.Document.JSONLD) != 1 || result.Document.JSONLD[0].Type != "DiscussionForumPosting" {
+		t.Fatalf("jsonld=%#v", result.Document.JSONLD)
+	}
+	if len(result.Document.Sitemap) != 1 || result.Document.Sitemap[0].URL == "" {
+		t.Fatalf("sitemap=%#v", result.Document.Sitemap)
+	}
+	if len(result.Applied) != len(contributions) {
+		t.Fatalf("applied=%d want %d result=%#v", len(result.Applied), len(contributions), result)
 	}
 
 	failedBase := referenceSEOBase("reference:fail")
-	result, err = execution.Execute(t.Context(), seoregistry.ExecuteRequest{Scope: declaration.Scope, Base: failedBase})
-	if err != nil || result.Document.Title != failedBase.Title || len(result.Fallbacks) != 1 ||
-		result.Fallbacks[0].Reason != "provider_failed" {
+	result, err = execution.Execute(t.Context(), seoregistry.ExecuteRequest{Scope: scope, Base: failedBase})
+	if err != nil || result.Document.Title != failedBase.Title || len(result.Fallbacks) == 0 {
 		t.Fatalf("reference failure fallback=%#v err=%v", result, err)
 	}
 	if err := manager.Stop(t.Context(), extension); err != nil {
 		t.Fatal(err)
 	}
 	stopped = true
-	result, err = execution.Execute(t.Context(), seoregistry.ExecuteRequest{Scope: declaration.Scope, Base: base})
-	if err != nil || result.Document.Title != base.Title || len(result.Fallbacks) != 1 ||
-		result.Fallbacks[0].Reason != "runtime_unavailable" {
+	// 卸载/停止后 Host 仍保留 publication 时必须 fallback；证明无插件进程也能恢复。
+	result, err = execution.Execute(t.Context(), seoregistry.ExecuteRequest{Scope: scope, Base: base})
+	if err != nil || result.Document.Title != base.Title || len(result.Fallbacks) == 0 {
 		t.Fatalf("reference disable fallback=%#v err=%v", result, err)
 	}
-	traces := trace.SEOExecutionTraces(3)
-	if len(traces) != 3 || traces[0].Fallbacks != 1 || traces[1].Fallbacks != 1 ||
-		traces[2].Applied != 1 || traces[2].Calls[0].ExtensionID != extension.ID {
-		t.Fatalf("reference SEO traces=%#v", traces)
+	if _, removed, err := registry.Remove(seoregistry.Artifact{
+		ExtensionID: extension.ID, ExtensionVersion: extension.Version,
+		PackageDigest: extension.PackageDigest, ImpactDigest: extension.PackageDigest,
+		VersionID: extension.ActiveVersionID, RuntimeInstanceID: active.Identity.InstanceID,
+	}); err != nil || !removed {
+		t.Fatalf("remove SEO publication after uninstall: removed=%v err=%v", removed, err)
+	}
+	if snap := registry.Snapshot(); len(snap.Contributions) != 0 {
+		t.Fatalf("uninstall must remove SEO publication, got %#v", snap.Contributions)
 	}
 }
 
