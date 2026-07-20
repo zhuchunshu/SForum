@@ -14,6 +14,8 @@ This is the entry point for project memory.
     `knowledge/plans/2026-07-13-trusted-plugin-theme-platform-v3-progress.md`
   - Session progress:
     `knowledge/sessions/2026-07-13-trusted-plugin-theme-platform-v3-progress.md`
+  - P13 presentation chrome handoff:
+    `knowledge/sessions/2026-07-21-trusted-plugin-theme-platform-v3-p13-presentation-chrome-handoff.md`
   - P13 presentation pages handoff:
     `knowledge/sessions/2026-07-21-trusted-plugin-theme-platform-v3-p13-presentation-pages-handoff.md`
   - P13 APILTS wiring handoff:
