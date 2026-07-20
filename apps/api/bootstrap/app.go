@@ -856,8 +856,14 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		moderationStore, moderation.NewForumTargetValidator(forumStore), moderationStore, moderationStore,
 	)
 	pageIdentityService := identity.NewServiceWithPolicies(identityStore, eventPublisher, optionsService, optionsService)
+	// V3 Navigation Registry：与 lifecycle stack 共享同一实例；Core 已在进程启动时发布。
+	pageNavigationRegistry := lifecycleStack.NavigationRegistry
+	if pageNavigationRegistry == nil {
+		return nil, fmt.Errorf("extension lifecycle navigation registry is unavailable")
+	}
 	pageSiteChromeService := sitechrome.NewService(siteChromeStore).
-		WithExtensionNavItems(providers.NewExtensionNavItemProvider(extensionService))
+		WithExtensionNavItems(providers.NewExtensionNavItemProvider(extensionService)).
+		WithNavigationRegistry(pageNavigationRegistry)
 	corePageViews := pageviewmodels.NewCorePageViewModelSource(pageviewmodels.CorePageViewModelDependencies{
 		Forum: pageForumService, Profiles: pageProfileService, Notifications: notificationStore,
 		Moderation: pageModerationService, Options: optionsService, Registration: pageIdentityService,
@@ -954,10 +960,10 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 			ForumResources:    forumStore,
 			PluginGuards:      httpserver.NewRuntimePluginRouteGuardEvaluator(lifecycleStack.RuntimeManager, extensionGuardPolicy),
 		}),
-		Schemas:     httpserver.CatalogRouteSchemaValidator{Catalog: lifecycleStack.RouteSchemas},
-		Trace:       routeTraceRing,
-		Policies:    lifecycleStack.RouteSchemas,
-		Idempotency: httpserver.NewRequiredRouteIdempotency(idempotencyStore),
+		Schemas:        httpserver.CatalogRouteSchemaValidator{Catalog: lifecycleStack.RouteSchemas},
+		Trace:          routeTraceRing,
+		Policies:       lifecycleStack.RouteSchemas,
+		Idempotency:    httpserver.NewRequiredRouteIdempotency(idempotencyStore),
 		Failures:       routeFailureRecorder,
 		StreamFailures: routeFailureRecorder,
 	})

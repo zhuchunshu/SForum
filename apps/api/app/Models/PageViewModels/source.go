@@ -70,6 +70,12 @@ type CoreSiteChromeViewReader interface {
 	ListPublicAnnouncements(context.Context) ([]sitechrome.Announcement, error)
 }
 
+// CoreNavigationComposer 是可选的 V3 导航合成路径。实现时优先于扁平 nav 列表，
+// 以便权限/区域/Provider 选择在 Host 边界完成后再进入主题。
+type CoreNavigationComposer interface {
+	ComposePublicNavigation(ctx context.Context, actor identity.Actor, locale string) (sitechrome.NavigationRegionViewModel, error)
+}
+
 type CoreSearchViewReader interface {
 	Search(context.Context, search.SearchInput) (search.SearchResult, error)
 }
@@ -112,7 +118,7 @@ func (s *CorePageViewModelSource) Populate(ctx context.Context, input CorePageVi
 	if err := s.requirePageFeatures(ctx, request.PageID); err != nil {
 		return pages.CorePageViewModelRequest{}, err
 	}
-	if err := s.populateCommon(ctx, &request); err != nil {
+	if err := s.populateCommon(ctx, &request, input.Actor); err != nil {
 		return pages.CorePageViewModelRequest{}, err
 	}
 
@@ -170,7 +176,7 @@ func (s *CorePageViewModelSource) Populate(ctx context.Context, input CorePageVi
 	return request, nil
 }
 
-func (s *CorePageViewModelSource) populateCommon(ctx context.Context, request *pages.CorePageViewModelRequest) error {
+func (s *CorePageViewModelSource) populateCommon(ctx context.Context, request *pages.CorePageViewModelRequest, actor identity.Actor) error {
 	siteName, err := s.deps.Options.WebOption(ctx, options.NameSiteName)
 	if err != nil {
 		return fmt.Errorf("%w: site name: %v", ErrCorePageDataUnavailable, err)
@@ -187,11 +193,21 @@ func (s *CorePageViewModelSource) populateCommon(ctx context.Context, request *p
 		request.SEO.Robots = "index,follow"
 	}
 	if s.deps.SiteChrome != nil {
-		items, navErr := s.deps.SiteChrome.ListPublicNavItems(ctx)
-		if navErr != nil {
-			return fmt.Errorf("%w: navigation: %v", ErrCorePageDataUnavailable, navErr)
+		extensionItems := s.deps.SiteChrome.ListPublicExtensionNavItems(ctx)
+		// 优先走 Navigation Registry 合成：Core 菜单 + SiteChrome 运营项 + 插件声明。
+		if composer, ok := s.deps.SiteChrome.(CoreNavigationComposer); ok {
+			composed, navErr := composer.ComposePublicNavigation(ctx, actor, request.Locale)
+			if navErr != nil {
+				return fmt.Errorf("%w: navigation: %v", ErrCorePageDataUnavailable, navErr)
+			}
+			request.Navigation = mapComposedNavigation(request.Locale, request.Path, composed, extensionItems)
+		} else {
+			items, navErr := s.deps.SiteChrome.ListPublicNavItems(ctx)
+			if navErr != nil {
+				return fmt.Errorf("%w: navigation: %v", ErrCorePageDataUnavailable, navErr)
+			}
+			request.Navigation = mapNavigation(request.Locale, request.Path, items, extensionItems)
 		}
-		request.Navigation = mapNavigation(request.Locale, request.Path, items, s.deps.SiteChrome.ListPublicExtensionNavItems(ctx))
 	} else {
 		request.Navigation = mapNavigation(request.Locale, request.Path, nil, nil)
 	}

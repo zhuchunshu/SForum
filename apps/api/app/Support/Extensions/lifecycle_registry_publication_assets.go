@@ -18,6 +18,7 @@ import (
 	cacheregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/CacheRegistry"
 	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
 	identityregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/IdentityRegistry"
+	navigationregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/NavigationRegistry"
 	pages "github.com/zhuchunshu/sforum/apps/api/app/Support/Pages"
 	queryregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/QueryRegistry"
 	routes "github.com/zhuchunshu/sforum/apps/api/app/Support/Routes"
@@ -25,26 +26,27 @@ import (
 )
 
 type lifecycleRegistryDigestDocument struct {
-	Schema             string                        `json:"schema"`
-	ExtensionID        string                        `json:"extensionId"`
-	ExtensionVersion   string                        `json:"extensionVersion"`
-	PackageDigest      string                        `json:"packageDigest"`
-	VersionID          int64                         `json:"versionId"`
-	RuntimeInstanceID  string                        `json:"runtimeInstanceId"`
-	Hooks              []extensions.ManifestEvent    `json:"hooks"`
-	VersionedHooks     []extensions.ManifestHook     `json:"versionedHooks,omitempty"`
-	VersionedProviders []extensions.ManifestProvider `json:"versionedProviders,omitempty"`
-	Services           []extensions.ManifestService  `json:"services"`
-	Pages              []pages.PageContribution      `json:"pages"`
-	Routes             routes.PluginRouteSet         `json:"routes"`
-	Asset              *assetregistry.Publication    `json:"asset,omitempty"`
-	AssetAdmitted      bool                          `json:"assetAdmitted,omitempty"`
-	Query              *queryregistry.Publication    `json:"query,omitempty"`
-	Cache              *cacheregistry.Publication    `json:"cache,omitempty"`
-	SEO                *seoregistry.Publication      `json:"seo,omitempty"`
-	Identity           *identityregistry.Publication `json:"identity,omitempty"`
-	ProductionFamilies []string                      `json:"productionFamilies"`
-	FoundationFamilies []string                      `json:"foundationFamilies"`
+	Schema             string                          `json:"schema"`
+	ExtensionID        string                          `json:"extensionId"`
+	ExtensionVersion   string                          `json:"extensionVersion"`
+	PackageDigest      string                          `json:"packageDigest"`
+	VersionID          int64                           `json:"versionId"`
+	RuntimeInstanceID  string                          `json:"runtimeInstanceId"`
+	Hooks              []extensions.ManifestEvent      `json:"hooks"`
+	VersionedHooks     []extensions.ManifestHook       `json:"versionedHooks,omitempty"`
+	VersionedProviders []extensions.ManifestProvider   `json:"versionedProviders,omitempty"`
+	Services           []extensions.ManifestService    `json:"services"`
+	Pages              []pages.PageContribution        `json:"pages"`
+	Routes             routes.PluginRouteSet           `json:"routes"`
+	Asset              *assetregistry.Publication      `json:"asset,omitempty"`
+	AssetAdmitted      bool                            `json:"assetAdmitted,omitempty"`
+	Query              *queryregistry.Publication      `json:"query,omitempty"`
+	Cache              *cacheregistry.Publication      `json:"cache,omitempty"`
+	SEO                *seoregistry.Publication        `json:"seo,omitempty"`
+	Identity           *identityregistry.Publication   `json:"identity,omitempty"`
+	Navigation         *navigationregistry.Publication `json:"navigation,omitempty"`
+	ProductionFamilies []string                        `json:"productionFamilies"`
+	FoundationFamilies []string                        `json:"foundationFamilies"`
 }
 
 func refreshLifecycleRegistryMaterialDigest(material *lifecycleRegistryMaterial) error {
@@ -129,6 +131,19 @@ func refreshLifecycleRegistryMaterialDigest(material *lifecycleRegistryMaterial)
 		material.legacyDigest = legacyDigest
 		material.compatibleDigests = appendLifecycleCompatibleDigest(priorAliases, priorDigest, identityDigest)
 	}
+	if material.navigationPublication != nil {
+		// Navigation/Region is additive @7. Only materials that freeze navigation
+		// advance the primary digest; prior family digests remain recovery aliases.
+		priorDigest := material.digest
+		priorAliases := append([]string(nil), material.compatibleDigests...)
+		navigationDigest, navigationErr := encodeLifecycleRegistryMaterialDigestV7(material)
+		if navigationErr != nil {
+			return navigationErr
+		}
+		material.digest = navigationDigest
+		material.legacyDigest = legacyDigest
+		material.compatibleDigests = appendLifecycleCompatibleDigest(priorAliases, priorDigest, navigationDigest)
+	}
 	return nil
 }
 
@@ -149,19 +164,23 @@ func encodeLifecycleRegistryMaterialDigest(
 	includeAsset bool,
 	includeQuery bool,
 ) (string, error) {
-	return encodeLifecycleRegistryMaterialDigestVersion(material, includeAsset, includeQuery, false, false, false)
+	return encodeLifecycleRegistryMaterialDigestVersion(material, includeAsset, includeQuery, false, false, false, false)
 }
 
 func encodeLifecycleRegistryMaterialDigestV4(material *lifecycleRegistryMaterial) (string, error) {
-	return encodeLifecycleRegistryMaterialDigestVersion(material, true, true, true, false, false)
+	return encodeLifecycleRegistryMaterialDigestVersion(material, true, true, true, false, false, false)
 }
 
 func encodeLifecycleRegistryMaterialDigestV5(material *lifecycleRegistryMaterial) (string, error) {
-	return encodeLifecycleRegistryMaterialDigestVersion(material, true, true, true, true, false)
+	return encodeLifecycleRegistryMaterialDigestVersion(material, true, true, true, true, false, false)
 }
 
 func encodeLifecycleRegistryMaterialDigestV6(material *lifecycleRegistryMaterial) (string, error) {
-	return encodeLifecycleRegistryMaterialDigestVersion(material, true, true, true, true, true)
+	return encodeLifecycleRegistryMaterialDigestVersion(material, true, true, true, true, true, false)
+}
+
+func encodeLifecycleRegistryMaterialDigestV7(material *lifecycleRegistryMaterial) (string, error) {
+	return encodeLifecycleRegistryMaterialDigestVersion(material, true, true, true, true, true, true)
 }
 
 func encodeLifecycleRegistryMaterialDigestVersion(
@@ -171,6 +190,7 @@ func encodeLifecycleRegistryMaterialDigestVersion(
 	includeCache bool,
 	includeSEO bool,
 	includeIdentity bool,
+	includeNavigation bool,
 ) (string, error) {
 	extension := material.extension
 	binding := material.binding
@@ -224,9 +244,18 @@ func encodeLifecycleRegistryMaterialDigestVersion(
 			productionFamilies = append(productionFamilies, "identity.v1")
 		}
 	}
+	var navigation *navigationregistry.Publication
+	if includeNavigation {
+		schema = "sforum.lifecycle.registry-plan@7"
+		navigation = material.navigationPublication
+		if navigation != nil {
+			productionFamilies = append(productionFamilies, "navigation.v1")
+		}
+	}
 	// @1 remains byte-for-byte compatible with pre-P9 in-flight rows. New
 	// asset-bearing operations persist @2. Query-bearing operations persist @3;
 	// cache-bearing operations persist @4 and SEO-bearing operations persist @5.
+	// Identity-bearing operations persist @6; navigation-bearing operations persist @7.
 	// Earlier versions are accepted only as explicit recovery aliases computed
 	// from the same exact material.
 	document := lifecycleRegistryDigestDocument{
@@ -243,6 +272,7 @@ func encodeLifecycleRegistryMaterialDigestVersion(
 		Cache:              cache,
 		SEO:                seo,
 		Identity:           identity,
+		Navigation:         navigation,
 		ProductionFamilies: productionFamilies,
 		FoundationFamilies: []string{"routes.v1-foundation"},
 	}

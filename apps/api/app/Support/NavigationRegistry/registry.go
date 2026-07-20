@@ -3,6 +3,7 @@ package navigationregistry
 import (
 	"fmt"
 	"reflect"
+	"strings"
 	"sync"
 	"sync/atomic"
 )
@@ -229,6 +230,20 @@ func (r *Registry) CacheInvalidated(previous CacheState) bool {
 func (r *Registry) Snapshot() Snapshot {
 	state := r.load()
 	return cloneSnapshot(snapshotFromState(state))
+}
+
+// SnapshotPublication returns one exact-artifact owner publication. Lifecycle
+// freeze uses this to capture the Registry-normalized declaration order into
+// the durable plan digest without re-reading Manifest bytes later.
+func (r *Registry) SnapshotPublication(extensionID string) (Publication, bool) {
+	if r == nil {
+		return Publication{}, false
+	}
+	publication, found := r.load().publications[strings.ToLower(strings.TrimSpace(extensionID))]
+	if !found {
+		return Publication{}, false
+	}
+	return clonePublication(publication), true
 }
 
 func (r *Registry) load() *registryState {

@@ -17,6 +17,7 @@ import (
 	hostapi "github.com/zhuchunshu/sforum/apps/api/app/Support/HostAPI"
 	identityregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/IdentityRegistry"
 	supportjobs "github.com/zhuchunshu/sforum/apps/api/app/Support/Jobs"
+	navigationregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/NavigationRegistry"
 	pages "github.com/zhuchunshu/sforum/apps/api/app/Support/Pages"
 	queryregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/QueryRegistry"
 	routes "github.com/zhuchunshu/sforum/apps/api/app/Support/Routes"
@@ -76,6 +77,7 @@ type productionLifecycleStack struct {
 	QueryRegistry      *queryregistry.Registry
 	QueryCoreCatalog   *hostapi.QueryRegistryCoreCatalog
 	SEORegistry        *seoregistry.Registry
+	NavigationRegistry *navigationregistry.Registry
 	RouteProviders     *routes.ProviderSelectionAPI
 	ProviderSlots      *extensionsruntime.ProviderSlotSelectionAPI
 	RegistryRepository *extensionsruntime.PostgresLifecycleRegistryPublicationRepository
@@ -198,6 +200,18 @@ func newProductionLifecycleStack(config productionLifecycleStackConfig) (*produc
 			return nil, fmt.Errorf("%w: enter SEO registry safe mode: %v", errProductionLifecycleDependency, err)
 		}
 	}
+	// Navigation/Region：进程启动先发布 Host Core 目标；Safe Mode 从首个 snapshot 起
+	// 过滤第三方，但不得删除 Core 结构身份。
+	navigationRegistry := navigationregistry.New()
+	if _, err := navigationRegistry.Publish(navigationregistry.CorePublication()); err != nil {
+		return nil, fmt.Errorf("%w: publish core navigation catalog: %v", errProductionLifecycleDependency, err)
+	}
+	if config.SafeMode {
+		snapshot := navigationRegistry.Snapshot()
+		if _, err := navigationRegistry.ReplaceAllWithSafeModeIfRevision(snapshot.Revision, snapshot.Publications, true); err != nil {
+			return nil, fmt.Errorf("%w: enter navigation registry safe mode: %v", errProductionLifecycleDependency, err)
+		}
+	}
 	// Identity root policy and permanent leaf ownership must converge from the
 	// durable PostgreSQL ledger before the process-local graph becomes visible.
 	// Default PostgreSQL store binds the production TrustImpact digest verifier
@@ -238,7 +252,7 @@ func newProductionLifecycleStack(config productionLifecycleStackConfig) (*produc
 			Routes: routeRegistry, RouteSchemas: routeSchemas, Services: config.Services,
 			Components: componentRegistry, Assets: assetRegistry, Caches: cacheRegistry, Queries: queryRegistry,
 			SEO: seoRegistry, Identity: identityRegistry, IdentityStore: identityStore,
-			AssetAuthority: assetAuthority, AssetAdmission: config.Trust,
+			Navigation: navigationRegistry, AssetAuthority: assetAuthority, AssetAdmission: config.Trust,
 		},
 	)
 	state := extensionsruntime.NewPostgresLifecycleBoundaryState(config.Store)
@@ -266,7 +280,7 @@ func newProductionLifecycleStack(config productionLifecycleStackConfig) (*produc
 		IdentityRegistry: identityRegistry, IdentityStore: identityStore,
 		SessionPolicyStore: sessionPolicyStore,
 		QueryRegistry:      queryRegistry, QueryCoreCatalog: queryCoreCatalog,
-		SEORegistry:        seoRegistry,
+		SEORegistry: seoRegistry, NavigationRegistry: navigationRegistry,
 		RouteProviders:     routeProviders,
 		ProviderSlots:      providerSlots,
 		RegistryRepository: registryRepository, Registries: registries,
@@ -281,8 +295,8 @@ func (s *productionLifecycleStack) bindService(service *extensions.Service) erro
 	if s == nil || service == nil || s.Coordinator == nil || s.StaticPreflight == nil ||
 		s.Repository == nil || s.CleanupFinalizer == nil || s.RouteProviders == nil || s.ProviderSlots == nil ||
 		s.ComponentRegistry == nil || s.AssetRegistry == nil || s.CacheRegistry == nil || s.QueryRegistry == nil ||
-		s.QueryCoreCatalog == nil || s.SEORegistry == nil || s.IdentityRegistry == nil || s.IdentityStore == nil ||
-		s.Registries == nil {
+		s.QueryCoreCatalog == nil || s.SEORegistry == nil || s.NavigationRegistry == nil ||
+		s.IdentityRegistry == nil || s.IdentityStore == nil || s.Registries == nil {
 		return errProductionLifecycleDependency
 	}
 	extensions.WithLifecycleCoordinator(s.Coordinator, s.StaticPreflight, s.Repository)(service)
