@@ -53,7 +53,7 @@ func TestPostgresProtocolV2CommandRuntimePublishesDomainCommands(t *testing.T) {
 	if engine.queryInvalidationJobs == nil {
 		t.Fatal("production command runtime omitted Query invalidation dispatcher")
 	}
-	if len(engine.definitions) != 8 {
+	if len(engine.definitions) != 10 {
 		t.Fatalf("command count = %d", len(engine.definitions))
 	}
 	for _, command := range []string{
@@ -61,6 +61,7 @@ func TestPostgresProtocolV2CommandRuntimePublishesDomainCommands(t *testing.T) {
 		CommandEntityMetaValuesUpsertID, CommandModerationDecisionSubmitID,
 		CommandEntitlementsMutateID, CommandAttachmentStatusSetID,
 		CommandExtensionPluginDisableID, CommandExtensionSettingsResetID,
+		CommandExtensionSettingsUpdateID, CommandExtensionSettingsActionID,
 	} {
 		if _, ok := engine.definitions[protocolV2CommandKey{id: command, version: "1"}]; !ok {
 			t.Fatalf("missing command %s", command)
@@ -73,6 +74,14 @@ func TestPostgresProtocolV2CommandRuntimePublishesDomainCommands(t *testing.T) {
 	reset := engine.definitions[protocolV2CommandKey{id: CommandExtensionSettingsResetID, version: "1"}]
 	if reset.RequiredCapability != "extensions.manage" || reset.ActorMode != protocolV2CommandActorDelegated {
 		t.Fatalf("settings reset command contract = %#v", reset)
+	}
+	update := engine.definitions[protocolV2CommandKey{id: CommandExtensionSettingsUpdateID, version: "1"}]
+	if update.RequiredCapability != "extensions.manage" || update.ActorMode != protocolV2CommandActorDelegated {
+		t.Fatalf("settings update command contract = %#v", update)
+	}
+	action := engine.definitions[protocolV2CommandKey{id: CommandExtensionSettingsActionID, version: "1"}]
+	if action.RequiredCapability != "extensions.manage" || action.ActorMode != protocolV2CommandActorDelegated {
+		t.Fatalf("settings action command contract = %#v", action)
 	}
 	gateway := NewGateway(New(Config{}))
 	if gateway.ProtocolV2ActorDelegationIssuer() != nil {

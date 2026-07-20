@@ -59,6 +59,96 @@ func TestExtensionPluginDisableRejectsSelfTarget(t *testing.T) {
 	}
 }
 
+func TestExtensionSettingsUpdateMutationBoundsAndSecrets(t *testing.T) {
+	request := testProtocolV2ExtensionsManageSettingsUpdateRequest(t, "target.plugin", map[string]any{
+		"title": "Hello",
+		"flag":  "true",
+	})
+	mutation, err := protocolV2ExtensionSettingsUpdateMutationFromRequest(request)
+	if err != nil || mutation.targetExtensionID != "target.plugin" || len(mutation.values) != 2 {
+		t.Fatalf("mutation=%#v err=%v", mutation, err)
+	}
+	// 密文前缀写入失败关闭。
+	if _, err := protocolV2ExtensionSettingsUpdateMutationFromRequest(
+		testProtocolV2ExtensionsManageSettingsUpdateRequest(t, "target.plugin", map[string]any{
+			"token": extensionsManageSecretCipherPrefix + "blob",
+		}),
+	); err == nil {
+		t.Fatal("cipher prefix write accepted")
+	}
+	// 空 values 失败关闭。
+	if _, err := protocolV2ExtensionSettingsUpdateMutationFromRequest(
+		testProtocolV2ExtensionsManageSettingsUpdateRequest(t, "target.plugin", map[string]any{}),
+	); err == nil {
+		t.Fatal("empty values accepted")
+	}
+}
+
+func TestExtensionSettingsActionMutationValidation(t *testing.T) {
+	mutation, err := protocolV2ExtensionSettingsActionMutationFromRequest(
+		testProtocolV2ExtensionsManageSettingsActionRequest(t, "target.plugin", "probe"),
+	)
+	if err != nil || mutation.targetExtensionID != "target.plugin" || mutation.actionID != "probe" {
+		t.Fatalf("mutation=%#v err=%v", mutation, err)
+	}
+	if _, err := protocolV2ExtensionSettingsActionMutationFromRequest(
+		testProtocolV2ExtensionsManageSettingsActionRequest(t, "target.plugin", "bad action"),
+	); err == nil {
+		t.Fatal("invalid action id accepted")
+	}
+	if _, err := protocolV2ExtensionSettingsActionMutationFromRequest(
+		testProtocolV2ExtensionsManageSettingsActionRequest(t, "", "probe"),
+	); err == nil {
+		t.Fatal("empty target accepted")
+	}
+}
+
+func TestExtensionSettingsUpdateRequiresExtensionsManageCapability(t *testing.T) {
+	authority, err := NewProtocolV2ActorDelegationAuthority()
+	if err != nil {
+		t.Fatal(err)
+	}
+	definition := newProtocolV2ExtensionSettingsUpdateCommandDefinition()
+	backend := newFakeProtocolV2CommandBackend()
+	engine, err := newProtocolV2CommandEngineWithActorDelegation(backend, authority, definition)
+	if err != nil {
+		t.Fatal(err)
+	}
+	request := testProtocolV2ExtensionsManageSettingsUpdateRequest(t, "target.plugin", map[string]any{"title": "x"})
+	plan, err := engine.plan(context.Background(), request)
+	if err != nil || plan.GetError().GetReason() != "host.command_capability_denied" {
+		t.Fatalf("plan without capability source = %#v err=%v", plan.GetError(), err)
+	}
+	engine.BindCapabilitySource(fakeCaps{set: capabilities.NewSet([]string{capabilities.ExtensionsManage})})
+	plan, err = engine.plan(context.Background(), request)
+	if err != nil || plan.GetError().GetReason() != "host.command_actor_delegation_required" {
+		t.Fatalf("plan after capability grant = %#v err=%v", plan.GetError(), err)
+	}
+}
+
+func TestExtensionSettingsActionRequiresExtensionsManageCapability(t *testing.T) {
+	authority, err := NewProtocolV2ActorDelegationAuthority()
+	if err != nil {
+		t.Fatal(err)
+	}
+	definition := newProtocolV2ExtensionSettingsActionCommandDefinition()
+	backend := newFakeProtocolV2CommandBackend()
+	engine, err := newProtocolV2CommandEngineWithActorDelegation(backend, authority, definition)
+	if err != nil {
+		t.Fatal(err)
+	}
+	request := testProtocolV2ExtensionsManageSettingsActionRequest(t, "target.plugin", "probe")
+	plan, err := engine.plan(context.Background(), request)
+	if err != nil || plan.GetError().GetReason() != "host.command_capability_denied" {
+		t.Fatalf("plan without capability source = %#v err=%v", plan.GetError(), err)
+	}
+	engine.BindCapabilitySource(fakeCaps{set: capabilities.NewSet([]string{capabilities.ExtensionsManage})})
+	plan, err = engine.plan(context.Background(), request)
+	if err != nil || plan.GetError().GetReason() != "host.command_actor_delegation_required" {
+		t.Fatalf("plan after capability grant = %#v err=%v", plan.GetError(), err)
+	}
+}
+
 func testProtocolV2ExtensionsManageDisableRequest(t *testing.T, target string) *hostv2.CommandRequest {
 	t.Helper()
 	value, err := structpb.NewStruct(map[string]any{"targetExtensionId": target})
@@ -76,6 +166,54 @@ func testProtocolV2ExtensionsManageDisableRequest(t *testing.T, target string) *
 		IdempotencyKey: "extensions-manage-disable-1",
 		Input: &protocolv2.TypedDocument{
 			SchemaId: CommandExtensionPluginDisableInputSchema, SchemaVersion: CommandExtensionPluginDisableSchemaV1,
+			Value: value,
+		},
+	}
+}
+
+func testProtocolV2ExtensionsManageSettingsUpdateRequest(t *testing.T, target string, values map[string]any) *hostv2.CommandRequest {
+	t.Helper()
+	value, err := structpb.NewStruct(map[string]any{
+		"targetExtensionId": target,
+		"values":            values,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	requestContext := testProtocolV2RequestContext()
+	requestContext.Actor = nil
+	requestContext.IdempotencyKey = "extensions-manage-settings-update-1"
+	return &hostv2.CommandRequest{
+		Context:        requestContext,
+		CommandId:      CommandExtensionSettingsUpdateID,
+		CommandVersion: CommandExtensionSettingsUpdateVersion,
+		IdempotencyKey: "extensions-manage-settings-update-1",
+		Input: &protocolv2.TypedDocument{
+			SchemaId: CommandExtensionSettingsUpdateInputSchema, SchemaVersion: CommandExtensionSettingsUpdateSchemaV1,
+			Value: value,
+		},
+	}
+}
+
+func testProtocolV2ExtensionsManageSettingsActionRequest(t *testing.T, target, actionID string) *hostv2.CommandRequest {
+	t.Helper()
+	value, err := structpb.NewStruct(map[string]any{
+		"targetExtensionId": target,
+		"actionId":          actionID,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	requestContext := testProtocolV2RequestContext()
+	requestContext.Actor = nil
+	requestContext.IdempotencyKey = "extensions-manage-settings-action-1"
+	return &hostv2.CommandRequest{
+		Context:        requestContext,
+		CommandId:      CommandExtensionSettingsActionID,
+		CommandVersion: CommandExtensionSettingsActionVersion,
+		IdempotencyKey: "extensions-manage-settings-action-1",
+		Input: &protocolv2.TypedDocument{
+			SchemaId: CommandExtensionSettingsActionInputSchema, SchemaVersion: CommandExtensionSettingsActionSchemaV1,
 			Value: value,
 		},
 	}
