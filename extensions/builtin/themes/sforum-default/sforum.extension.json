@@ -1,7 +1,7 @@
 {
   "id": "sforum.default-theme",
   "name": "SForum Default Theme",
-  "description": "The protected default SForum public theme with complete Page Registry L1 coverage, layouts/partials, and Schema settings (runtime L0/L1 + host islands).",
+  "description": "The protected default SForum public theme with complete Page Registry L1 coverage, inline sf-navbar/sf-footer chrome islands, and Schema settings (runtime L0/L1 + host islands).",
   "url": "https://sforum.local/themes/sforum-default",
   "author": {
     "name": "SForum Team",
