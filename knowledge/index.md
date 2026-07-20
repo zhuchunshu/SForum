@@ -14,12 +14,16 @@ This is the entry point for project memory.
     `knowledge/plans/2026-07-13-trusted-plugin-theme-platform-v3-progress.md`
   - Session progress:
     `knowledge/sessions/2026-07-13-trusted-plugin-theme-platform-v3-progress.md`
-  - P13 handoff:
+  - P13 APILTS wiring handoff:
+    `knowledge/sessions/2026-07-21-trusted-plugin-theme-platform-v3-p13-apilts-handoff.md`
+  - Prior P13 residual handoff:
     `knowledge/sessions/2026-07-21-trusted-plugin-theme-platform-v3-p13-handoff.md`
-  - P0-P12 complete. P13 **~98%**: command gates, reference packages, live
-    API/ready, Baiduspider SSR green. Weighted progress **99.0%**. Only
-    LTS-blocked legacy deletion remains open by policy (`p13-migration-and-lts.md`).
-    Evidence: `docs/extensions/v3/p13-final-gates-evidence.md`.
+  - P0-P12 complete. P13 **~98.5%**: command gates, reference packages, live
+    API/ready, Baiduspider SSR green; **production APILTS Protocol V1 shim
+    telemetry wired** (`e10eeae15`…`9bf9d93fb`). Weighted progress **99.0%**.
+    Only LTS-blocked legacy **deletion** remains open by policy
+    (`p13-migration-and-lts.md`). Evidence:
+    `docs/extensions/v3/p13-final-gates-evidence.md`.
   - Prior P11 closure handoff:
     `knowledge/sessions/2026-07-21-trusted-plugin-theme-platform-v3-p11-closure.md`
   - Prior P11 progress handoff:

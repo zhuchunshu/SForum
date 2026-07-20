@@ -5,20 +5,24 @@ Last updated: 2026-07-21
 ## Progress
 
 - Verified weighted progress: **99.0%** (display **99.0%**).
-- Phase counts: P0-P12 complete; P13 **~98%** — only LTS-blocked legacy
-  deletion remains open by policy.
+- Phase counts: P0-P12 complete; P13 **~98.5%** — production APILTS wiring
+  landed; only LTS-blocked legacy **deletion** remains open by policy.
 
 ## Current Subtask
 
-### 2026-07-21 P13 Live Gates Closed — LTS Residual Only
+### 2026-07-21 P13 APILTS Production Wiring Landed
 
-- Live API `:8081` `/api/v1/health` + `/api/v1/ready` (postgres/redis/meili ok),
-  embedded worker; Baiduspider SSR multi-route 200; nocturne settings fixed
-  (`129d3e4ce`); builtin plugins built for cold-start.
-- Command gates still green: `go test ./...`, `bun run build`, `./scripts/test.sh`.
-- Exact next: **do not** delete LTS shims / core Nuxt pages / template loader /
-  Page Outlet fallback until APILTS zero telemetry for full LTS window.
-- Unowned dirty WIP still present — do not stage.
+- Commits: `e10eeae15` process registry + zero-shim gate; `6b6bbf947` Protocol
+  Starter V1 RecordShimCall; `8e2afe21e` API/worker inject; `21f29f61e` CLI
+  `sforum extension api-lts`; `9bf9d93fb` LTS docs.
+- Tests green: APILTS, CompatFarm, Extensions shim unit tests, cmd/sforum
+  api-lts; `go build ./bootstrap ./cmd/sforum`.
+- Exact next: **still do not** delete core Nuxt presentation, request-time
+  template loader, or v1 paths — `CanRemoveWithZeroShim` requires full LTS
+  window + zero process telemetry (SMTP/storage-fs remain V1). Page Outlet
+  fail-closed stays forever.
+- Unowned dirty WIP still present — do not stage (route-inspector web/OpenAPI,
+  content-policy, PageViewModels, go.mod, host-api-v2, websocket revoke, ADR).
 
 ---
 
