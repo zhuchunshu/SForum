@@ -186,6 +186,12 @@ const adminPagePathsById: Record<string, string> = {
   '/extensions/releases': 'apps/web/app/pages/admin/extensions/releases.vue',
   '/extensions/pages': 'apps/web/app/pages/admin/extensions/pages.vue',
   '/extensions/route-providers': 'apps/web/app/pages/admin/extensions/route-providers.vue',
+  '/extensions/route-inspector': 'apps/web/app/pages/admin/extensions/route-inspector.vue',
+  '/extensions/cache-inspector': 'apps/web/app/pages/admin/extensions/cache-inspector.vue',
+  '/extensions/asset-inspector': 'apps/web/app/pages/admin/extensions/asset-inspector.vue',
+  '/extensions/template-inspector': 'apps/web/app/pages/admin/extensions/template-inspector.vue',
+  '/extensions/component-inspector': 'apps/web/app/pages/admin/extensions/component-inspector.vue',
+  '/extensions/navigation-inspector': 'apps/web/app/pages/admin/extensions/navigation-inspector.vue',
   '/extensions/provider-slots': 'apps/web/app/pages/admin/extensions/provider-slots.vue',
   '/jobs': 'apps/web/app/pages/admin/jobs.vue',
   '/schedules': 'apps/web/app/pages/admin/schedules.vue',
@@ -313,7 +319,7 @@ const extensionFolder = firstSidebarGroup.find(entry => entry.type === 'folder' 
 assert(extensionFolder, 'Admin sidebar should expose extensions as an independent folder')
 assert(
   extensionFolder.children?.map(entry => entry.pageId).join(',') ===
-    '/extensions,/extensions/plugins,/extensions/themes,/extensions/pages,/extensions/route-providers,/extensions/provider-slots,/extensions/settings,/extensions/events,/extensions/contributions',
+    '/extensions,/extensions/plugins,/extensions/themes,/extensions/pages,/extensions/route-providers,/extensions/route-inspector,/extensions/cache-inspector,/extensions/asset-inspector,/extensions/template-inspector,/extensions/component-inspector,/extensions/navigation-inspector,/extensions/provider-slots,/extensions/settings,/extensions/events,/extensions/contributions',
   'Extension folder should keep the approved submenu order without the app store'
 )
 assert(!extensionFolder.children?.some(entry => entry.pageId === '/extensions/store'), 'App store should not live under the extensions folder')
