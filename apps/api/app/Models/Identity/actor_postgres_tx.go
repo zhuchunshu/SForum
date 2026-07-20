@@ -10,6 +10,102 @@ import (
 
 var ErrActorInactive = errors.New("identity: actor is missing or inactive")
 
+type UserAuthorityPairLock struct {
+	ActorExists  bool
+	TargetExists bool
+}
+
+// LockUserAuthorityPairTx serializes actor and target authority changes in a
+// stable order. Missing rows are reported only after the caller has rechecked
+// the actor, so a stale or revoked actor cannot probe target existence.
+func LockUserAuthorityPairTx(
+	ctx context.Context,
+	tx pgx.Tx,
+	actorUserID int64,
+	targetUserID int64,
+) (UserAuthorityPairLock, error) {
+	if ctx == nil || tx == nil || actorUserID <= 0 || targetUserID <= 0 {
+		return UserAuthorityPairLock{}, ErrInvalidUserUpdate
+	}
+	rows, err := tx.Query(ctx, `
+		SELECT id
+		FROM users
+		WHERE id = $1 OR id = $2
+		ORDER BY id
+		FOR UPDATE
+	`, actorUserID, targetUserID)
+	if err != nil {
+		return UserAuthorityPairLock{}, fmt.Errorf("lock user authority pair: %w", err)
+	}
+	defer rows.Close()
+
+	result := UserAuthorityPairLock{}
+	for rows.Next() {
+		var userID int64
+		if err := rows.Scan(&userID); err != nil {
+			return UserAuthorityPairLock{}, fmt.Errorf("scan user authority pair: %w", err)
+		}
+		if userID == actorUserID {
+			result.ActorExists = true
+		}
+		if userID == targetUserID {
+			result.TargetExists = true
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return UserAuthorityPairLock{}, fmt.Errorf("iterate user authority pair: %w", err)
+	}
+	return result, nil
+}
+
+func loadAuthorizedAdminActorTx(
+	ctx context.Context,
+	tx pgx.Tx,
+	pair UserAuthorityPairLock,
+	actorUserID int64,
+	permission string,
+) (Actor, error) {
+	if !pair.ActorExists {
+		return Actor{}, ErrPermissionDenied
+	}
+	actor, err := LoadEffectiveActorTx(ctx, tx, actorUserID)
+	if errors.Is(err, ErrActorInactive) {
+		return Actor{}, ErrPermissionDenied
+	}
+	if err != nil {
+		return Actor{}, err
+	}
+	if !actor.Can(permission) {
+		return Actor{}, ErrPermissionDenied
+	}
+	return actor, nil
+}
+
+func userHasAssignedRoleTx(ctx context.Context, tx pgx.Tx, userID int64, roleKey string) (bool, error) {
+	rows, err := tx.Query(ctx, `
+		SELECT roles.key
+		FROM user_roles
+		JOIN roles ON roles.id = user_roles.role_id
+		WHERE user_roles.user_id = $1 AND roles.key = $2
+		FOR SHARE OF user_roles, roles
+	`, userID, roleKey)
+	if err != nil {
+		return false, fmt.Errorf("load assigned user role: %w", err)
+	}
+	defer rows.Close()
+	if !rows.Next() {
+		if err := rows.Err(); err != nil {
+			return false, fmt.Errorf("iterate assigned user role: %w", err)
+		}
+		return false, nil
+	}
+	var found string
+	if err := rows.Scan(&found); err != nil {
+		return false, fmt.Errorf("scan assigned user role: %w", err)
+	}
+	return found == roleKey, nil
+}
+
 // LoadEffectiveActorTx resolves current Host RBAC inside the caller's
 // transaction. Consumers must not authorize from a session or preflight copy
 // when the protected effect is committed later in this transaction.

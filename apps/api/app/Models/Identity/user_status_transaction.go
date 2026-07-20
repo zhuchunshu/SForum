@@ -48,6 +48,9 @@ func PrepareUserStatusTx(ctx context.Context, tx pgx.Tx, input UserStatusMutatio
 		}
 		return UserStatusMutationPlan{}, ErrInvalidUserUpdate
 	}
+	if _, err := LockUserAuthorityPairTx(ctx, tx, input.ActorUserID, input.TargetUserID); err != nil {
+		return UserStatusMutationPlan{}, err
+	}
 	plan := UserStatusMutationPlan{UserID: input.TargetUserID, Status: input.Status}
 	if err := tx.QueryRow(ctx, `
 		SELECT status, current_token_version, is_initial_super_admin
