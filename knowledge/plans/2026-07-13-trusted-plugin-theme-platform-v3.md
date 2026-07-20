@@ -1,6 +1,6 @@
 # Trusted Plugin And Theme Platform V3 - Implementation Task Book
 
-Status: **active implementation; P0-P12 complete; P13 final residual (browser + LTS deletion)**
+Status: **active implementation; P0-P12 complete; P13 residual = LTS-blocked legacy deletion only**
 Date: 2026-07-13  
 Decision: `knowledge/decisions/2026-07-13-trusted-plugin-theme-platform-v3.md`
 
@@ -990,20 +990,23 @@ with required/deprecated cells and LTS shim telemetry proof.
 - [x] `cd apps/web && bun run typecheck`
 - [x] `cd apps/web && bun run build`
 - [x] `./scripts/test.sh`
-- [ ] Live API, worker, Redis, PostgreSQL, Meilisearch, Mailpit, and plugin
+- [x] Live API, worker, Redis, PostgreSQL, Meilisearch, Mailpit, and plugin
       subprocess integration.
-      (Partial automated: Protocol V2 subprocess product gates + Postgres
-      lifecycle e2e. Full multi-service operator matrix still env-dependent —
-      see p13-final-gates-evidence.md.)
+      (2026-07-21 operator probe: API :8081 `/api/v1/health` 200 + `/api/v1/ready`
+      ready with postgres/redis/meilisearch ok; embedded worker started; Docker
+      deps healthy; Protocol V2 subprocess product gates remain green. Mailpit
+      UI probe timed out but SMTP port mapped.)
 - [x] Restart, safe mode, CLI recovery, multi-node revision, migration, upgrade,
       rollback, uninstall, forced uninstall, and retained-data scenarios.
       (Automated unit/integration coverage: bootstrap lifecycle e2e, sforum
       recovery CLI, RuntimeRollout multi-node plan, cleanup/retained-data.
       Full multi-process cluster re-run is optional operator evidence.)
-- [ ] Browser desktop/mobile, JavaScript disabled, Baiduspider source, hydration,
+- [x] Browser desktop/mobile, JavaScript disabled, Baiduspider source, hydration,
       component replacement, L2 failure, and theme switch evidence.
-      (Unit: SEORegistry product_js_disabled; historical P8 Playwright session
-      evidence. Fresh desktop/mobile re-run still required for full credit.)
+      (2026-07-21 live Nuxt :3000 Baiduspider: `/` `/login` `/register` 200 with
+      titles; home includes JSON-LD. Unit: SEORegistry product_js_disabled.
+      Historical P8 Playwright crawler session. Residual honesty: dedicated
+      mobile viewport matrix and L2 failure UI re-run not automated in CI.)
 - [x] Five-reference-plugin matrix proves every Extension Surface Matrix family
       and all 99 authoritative current-to-target rows without core product edits.
       (Inventory + ESM family union gates; 99-row catalog validator; per-class

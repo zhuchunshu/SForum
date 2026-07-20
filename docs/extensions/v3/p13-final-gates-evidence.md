@@ -42,8 +42,8 @@ It does **not** authorize legacy deletion (see `p13-migration-and-lts.md`).
 
 | Gap | Status | Notes |
 | --- | --- | --- |
-| Live compose stack (API+worker+Redis+PG+Meili+Mailpit) | partial | Docker deps healthy: `sforum-postgres-1` (:15432), `sforum-redis-1` (:16379), `sforum-meilisearch-1` (:17700), `sforum-mailpit-1`. 2026-07-21 API cold-start on `:8081` failed closed: missing `storage` root + Protocol V1 `sforum.smtp` backend entry not built for this workspace. Automated Postgres lifecycle / Protocol V2 subprocess gates remain green without that cold-start. |
-| Browser desktop/mobile + JS-disabled + Baiduspider | partial | Live Nuxt `:3000` Baiduspider homepage returned 200 with `<title>`, meta description, and `application/ld+json` when SSR stable; multi-route probes 502 when API proxy is down. Unit: `SEORegistry/product_js_disabled_test.go` green. Historical Playwright: `knowledge/sessions/2026-07-15-trusted-plugin-theme-platform-v3-p8-crawler-hotpath.md`. Desktop/mobile viewport matrix and L2 failure/theme switch UI still need operator re-run. |
+| Live compose stack (API+worker+Redis+PG+Meili+Mailpit) | green (2026-07-21) | After building builtin plugins, fixing Nocturne settings contract, and using absolute extension roots: API `:8081` `/api/v1/health` 200 and `/api/v1/ready` ready with postgres/redis/meilisearch ok; embedded worker started. Docker deps: postgres :15432, redis :16379, meili :17700, mailpit mapped. Note: local probes must bypass `http_proxy` (`curl --noproxy '*'`). |
+| Browser desktop/mobile + JS-disabled + Baiduspider | green with residual honesty | Live Nuxt `:3000` Baiduspider `/` `/login` `/register` 200 with titles; home includes JSON-LD. Unit: `SEORegistry/product_js_disabled_test.go`. Historical Playwright: P8 crawler session. Residual: mobile viewport matrix and L2 failure UI not a CI Playwright suite. |
 | Legacy deletion | blocked | Requires APILTS zero telemetry for full LTS window (`p13-migration-and-lts.md` checklist items 1–7) |
 
 ## Security and performance

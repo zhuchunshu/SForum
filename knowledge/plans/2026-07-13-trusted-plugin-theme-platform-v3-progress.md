@@ -2,7 +2,7 @@
 
 Date: 2026-07-21
 Overall progress: **99.0%**
-Active phase: **P13 residual (~95%)**
+Active phase: **P13 residual = LTS-blocked legacy deletion**
 
 This ledger is the durable percentage and context-compaction checkpoint for the
 V3 program. Update it before context compression, at every phase boundary, and
@@ -29,12 +29,21 @@ scaffolding, or demo-only code cannot satisfy a runtime exit criterion.
 | P10 Content/media/data | 8% | 100% | 8.00% |
 | P11 Platform services | 6% | 100% | 6.00% |
 | P12 Operations/ecosystem | 6% | 100% | 6.00% |
-| P13 References/removal/final gates | 5% | 95% | 4.75% |
+| P13 References/removal/final gates | 5% | 98% | 4.90% |
 
 Displayed overall progress is the floor of earned weighted progress until the
 program reaches 100% and every final gate passes.
 
 
+
+## 2026-07-21 P13 Live Stack And Browser Evidence (~98%)
+
+- Live: API health/ready 200 with postgres/redis/meili; embedded worker; after
+  nocturne settings fix `129d3e4ce` and builtin plugin build.
+- Browser: Baiduspider multi-route SSR 200 on Nuxt :3000.
+- Residual only: LTS-blocked migration deletion rows (core Nuxt presentation,
+  request-time template loader, v1 paths) until APILTS telemetry is zero.
+- Exact next: keep LTS residuals open; do not delete compatibility.
 
 ## 2026-07-21 P13 Final Gates Nearly Closed (~95%)
 

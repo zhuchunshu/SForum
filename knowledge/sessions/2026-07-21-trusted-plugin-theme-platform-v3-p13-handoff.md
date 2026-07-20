@@ -34,12 +34,12 @@
 
 ## Next
 
-1. Operator env: create storage root, build builtin plugin backends (or safe
-   mode), re-run API+worker live matrix and multi-route Baiduspider/desktop
-   browser evidence.
+1. Live + Baiduspider evidence recorded 2026-07-21 (after nocturne fix + builtin
+   plugin build + `--noproxy` local probes).
 2. Only after APILTS telemetry is zero for a full LTS window: execute migration
-   deletion rows (still not in this session).
-3. When residual browser/live rows close, set P13 to 100% and program complete.
+   deletion rows (core Nuxt presentation move-out, request-time template loader
+   removal, v1 path removal) — **still blocked by published LTS policy**.
+3. Program reaches 100% only when those deletion checklist items are true.
 
 ## Open Questions
 

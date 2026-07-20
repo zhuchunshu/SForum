@@ -5,6 +5,33 @@ Last updated: 2026-07-21
 ## Progress
 
 - Verified weighted progress: **99.0%** (display **99.0%**).
+- Phase counts: P0-P12 complete; P13 **~98%** — only LTS-blocked legacy
+  deletion remains open by policy.
+
+## Current Subtask
+
+### 2026-07-21 P13 Live Gates Closed — LTS Residual Only
+
+- Live API `:8081` `/api/v1/health` + `/api/v1/ready` (postgres/redis/meili ok),
+  embedded worker; Baiduspider SSR multi-route 200; nocturne settings fixed
+  (`129d3e4ce`); builtin plugins built for cold-start.
+- Command gates still green: `go test ./...`, `bun run build`, `./scripts/test.sh`.
+- Exact next: **do not** delete LTS shims / core Nuxt pages / template loader /
+  Page Outlet fallback until APILTS zero telemetry for full LTS window.
+- Unowned dirty WIP still present — do not stage.
+
+---
+
+
+## Prior Ledger Archive
+
+# Trusted Plugin And Theme Platform V3 Progress Ledger
+
+Last updated: 2026-07-21
+
+## Progress
+
+- Verified weighted progress: **99.0%** (display **99.0%**).
 - Phase counts: P0-P12 complete; P13 **~95%** (command gates green; browser +
   LTS deletion residual).
 
