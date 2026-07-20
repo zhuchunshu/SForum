@@ -19,11 +19,18 @@ refresh_v3_plugin_digest() {
     go run ./cmd/sforum extension test "$package_dir")
 }
 
+# 三个受保护内置插件均构建后刷新 V3 packageFiles digest，避免本地产物与 manifest 漂移。
 build_builtin_plugin "sforum.smtp" \
   "$ROOT_DIR/extensions/builtin/plugins/sforum-smtp/backend"
+refresh_v3_plugin_digest \
+  "$ROOT_DIR/extensions/builtin/plugins/sforum-smtp"
+
 build_builtin_plugin "sforum.content-policy" \
   "$ROOT_DIR/extensions/builtin/plugins/sforum-content-policy/backend"
 refresh_v3_plugin_digest \
   "$ROOT_DIR/extensions/builtin/plugins/sforum-content-policy"
+
 build_builtin_plugin "sforum.storage-fs" \
   "$ROOT_DIR/extensions/builtin/plugins/sforum-storage-fs/backend"
+refresh_v3_plugin_digest \
+  "$ROOT_DIR/extensions/builtin/plugins/sforum-storage-fs"
