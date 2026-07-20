@@ -1148,6 +1148,11 @@
           "handler": "Handler",
           "after": "After"
         },
+        "invocationStage": {
+          "request": "Request",
+          "handler": "Handler",
+          "response": "Response"
+        },
         "outcome": {
           "succeeded": "Succeeded",
           "denied": "Denied",
@@ -1194,6 +1199,7 @@
           "seq": "Seq",
           "observedAt": "Observed",
           "phase": "Phase",
+          "invocationStage": "Invocation stage",
           "outcome": "Outcome",
           "duration": "Duration",
           "commitState": "Commit state"

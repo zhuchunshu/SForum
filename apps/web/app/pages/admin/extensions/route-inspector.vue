@@ -80,6 +80,10 @@ function labelPhase(value: string) {
   return i18nOrRaw(`admin.extensions.routeInspector.phase.${value}`, value)
 }
 
+function labelInvocationStage(value: string) {
+  return i18nOrRaw(`admin.extensions.routeInspector.invocationStage.${value}`, value)
+}
+
 function labelOutcome(value: string) {
   return i18nOrRaw(`admin.extensions.routeInspector.outcome.${value}`, value)
 }
@@ -678,6 +682,7 @@ hydrateFromQuery()
                 <th class="px-3 py-2 font-medium">{{ t('admin.extensions.routeInspector.fields.seq') }}</th>
                 <th class="px-3 py-2 font-medium">{{ t('admin.extensions.routeInspector.fields.observedAt') }}</th>
                 <th class="px-3 py-2 font-medium">{{ t('admin.extensions.routeInspector.fields.phase') }}</th>
+                <th class="px-3 py-2 font-medium">{{ t('admin.extensions.routeInspector.fields.invocationStage') }}</th>
                 <th class="px-3 py-2 font-medium">{{ t('admin.extensions.routeInspector.fields.outcome') }}</th>
                 <th class="px-3 py-2 font-medium">{{ t('admin.extensions.routeInspector.fields.duration') }}</th>
                 <th class="px-3 py-2 font-medium">{{ t('admin.extensions.routeInspector.fields.commitState') }}</th>
@@ -696,6 +701,9 @@ hydrateFromQuery()
                 <td class="px-3 py-2">
                   <UBadge color="neutral" variant="subtle" size="xs">{{ labelPhase(trace.phase) }}</UBadge>
                   <span class="ml-1 font-mono text-slate-500">#{{ trace.stepIndex }}</span>
+                </td>
+                <td class="whitespace-nowrap px-3 py-2">
+                  <UBadge color="neutral" variant="outline" size="xs">{{ labelInvocationStage(trace.invocationStage) }}</UBadge>
                 </td>
                 <td class="px-3 py-2">
                   <UBadge :color="outcomeColor(trace.outcome)" variant="subtle" size="xs">{{ labelOutcome(trace.outcome) }}</UBadge>

@@ -16,6 +16,8 @@ export type RouteInspectorMethod = (typeof ROUTE_INSPECTOR_METHODS)[number]
 
 export type RouteInspectorPhase = 'global' | 'before' | 'filter' | 'wrap' | 'handler' | 'after'
 
+export type RouteInspectorInvocationStage = 'request' | 'handler' | 'response'
+
 export type RouteInspectorResolution = 'resolved' | 'not_found' | 'ambiguous' | 'stale'
 
 export type RouteInspectorProviderStatus = 'not_required' | 'selected' | 'unselected' | 'stale'
@@ -105,6 +107,7 @@ export type RouteInspectorTrace = {
   revision: number
   stepIndex: number
   phase: RouteInspectorPhase
+  invocationStage: RouteInspectorInvocationStage
   action: string
   routeId: string
   contractVersion: string
@@ -139,6 +142,7 @@ export type RouteInspectorLookupValidation =
   | { ok: false, reason: 'empty' | 'method' | 'path' }
 
 const PHASES = new Set<string>(['global', 'before', 'filter', 'wrap', 'handler', 'after'])
+const INVOCATION_STAGES = new Set<string>(['request', 'handler', 'response'])
 const RESOLUTIONS = new Set<string>(['resolved', 'not_found', 'ambiguous', 'stale'])
 const PROVIDER_STATUSES = new Set<string>(['not_required', 'selected', 'unselected', 'stale'])
 const CONFLICT_KINDS = new Set<string>(['path_method', 'route_identity', 'provider_selection'])
@@ -480,6 +484,7 @@ function parseTrace(value: unknown): RouteInspectorTrace | undefined {
   const revision = asPositiveInt(value.revision)
   const stepIndex = asNonNegativeInt(value.stepIndex)
   const phase = asString(value.phase)
+  const invocationStage = asString(value.invocationStage)
   const action = asString(value.action)
   const routeId = asString(value.routeId)
   const contractVersion = asString(value.contractVersion)
@@ -498,6 +503,8 @@ function parseTrace(value: unknown): RouteInspectorTrace | undefined {
     || stepIndex === undefined
     || !phase
     || !PHASES.has(phase)
+    || !invocationStage
+    || !INVOCATION_STAGES.has(invocationStage)
     || !action
     || !routeId
     || !contractVersion
@@ -520,6 +527,7 @@ function parseTrace(value: unknown): RouteInspectorTrace | undefined {
     revision,
     stepIndex,
     phase: phase as RouteInspectorPhase,
+    invocationStage: invocationStage as RouteInspectorInvocationStage,
     action,
     routeId,
     contractVersion,

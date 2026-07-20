@@ -1148,6 +1148,11 @@
           "handler": "Handler",
           "after": "After"
         },
+        "invocationStage": {
+          "request": "请求",
+          "handler": "Handler",
+          "response": "响应"
+        },
         "outcome": {
           "succeeded": "成功",
           "denied": "拒绝",
@@ -1194,6 +1199,7 @@
           "seq": "序号",
           "observedAt": "观察时间",
           "phase": "阶段",
+          "invocationStage": "调用阶段",
           "outcome": "结果",
           "duration": "耗时",
           "commitState": "提交状态"
