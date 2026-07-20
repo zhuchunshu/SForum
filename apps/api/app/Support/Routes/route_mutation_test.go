@@ -383,7 +383,7 @@ func TestRouteMutationRejectsInvalidCandidateTypes(t *testing.T) {
 		}
 	}
 	response := DispatchResponse{Status: http.StatusOK, Headers: http.Header{}, Body: []byte(`{}`)}
-	for _, value := range []any{99, 600, 200.5, "200"} {
+	for _, value := range []any{99, 100, 101, 103, 600, 200.5, "200"} {
 		operation := RoutePatchOperation{Kind: RoutePatchReplace, Path: "/status", Value: routePatchValue(t, value)}
 		if _, err := applyRouteResponsePatch(response, []RoutePatchOperation{operation}, []string{"/status"}); !errors.Is(err, ErrRouteMutation) {
 			t.Fatalf("invalid status %#v error = %v", value, err)
