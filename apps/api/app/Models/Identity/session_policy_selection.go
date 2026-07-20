@@ -109,6 +109,30 @@ type IdentitySessionPolicyStore interface {
 	ListEvents(context.Context, int) ([]IdentitySessionPolicyEvent, error)
 }
 
+// IdentitySessionPolicyEffectStore is the additive production acceptance
+// boundary. It keeps the exact durable provider/selection authority locked
+// until effect returns. Read-only/legacy Store implementations may still
+// support inspection through IdentitySessionPolicyStore, but issue/renew fail
+// closed unless this interface is available. The effect must not synchronously
+// call Select, Reset, Registry mutation, or lifecycle reconciliation because
+// those paths require the exclusive authority currently held by this call.
+type IdentitySessionPolicyEffectStore interface {
+	RunIfCurrent(
+		context.Context,
+		IdentitySessionPolicyResolution,
+		IdentitySessionAuthority,
+		func(context.Context) error,
+	) error
+}
+
+// IdentitySessionAuthority is the Host authority observed before authentication
+// or registration completed. The final effect must still see this exact token
+// revision while the active user row is locked.
+type IdentitySessionAuthority struct {
+	UserID       int64
+	TokenVersion int64
+}
+
 type IdentitySessionPolicyCommitUnknownError struct {
 	CommitError       error
 	VerificationError error

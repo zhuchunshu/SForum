@@ -224,6 +224,15 @@ func lockIdentitySessionPolicySelection(ctx context.Context, tx pgx.Tx) error {
 	return err
 }
 
+func lockIdentitySessionPolicyEffectSelection(ctx context.Context, tx pgx.Tx) error {
+	_, err := tx.Exec(
+		ctx,
+		`SELECT pg_advisory_xact_lock_shared(hashtextextended($1, 0))`,
+		identityregistry.IdentitySessionPolicySelectionLockKey,
+	)
+	return err
+}
+
 func identitySessionPolicyEvidenceForProvider(
 	provider identityregistry.ProviderContribution,
 	declarationRevision int64,

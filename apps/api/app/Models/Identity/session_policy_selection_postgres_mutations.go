@@ -72,7 +72,7 @@ func (s *PostgresIdentitySessionPolicyStore) readbackIdentitySessionPolicyMutati
 }
 
 func (s *PostgresIdentitySessionPolicyStore) configured() bool {
-	return s != nil && s.pool != nil && s.registry != nil
+	return s != nil && s.pool != nil && s.registry != nil && s.effectConnectionSlots != nil
 }
 
 func publicIdentitySessionPolicyStoreError(err error) error {

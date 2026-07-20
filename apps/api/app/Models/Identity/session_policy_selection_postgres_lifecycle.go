@@ -12,6 +12,37 @@ import (
 const identitySessionPolicyLifecycleInvalidationReason = "identity_registry_publication_changed"
 
 var _ identityregistry.SessionPolicyLifecycleInvalidator = (*PostgresIdentitySessionPolicyStore)(nil)
+var _ identityregistry.SessionPolicyLifecycleMutationGate = (*PostgresIdentitySessionPolicyStore)(nil)
+
+// RunSessionPolicyMutation keeps every same-process Select, Reset, and Registry
+// lifecycle transaction outside the main pool while an accepted effect is in
+// flight. Cross-process ordering remains authoritative in PostgreSQL.
+func (s *PostgresIdentitySessionPolicyStore) RunSessionPolicyMutation(
+	ctx context.Context,
+	mutation func() error,
+) error {
+	return s.runIdentitySessionPolicyMutation(ctx, mutation)
+}
+
+func (s *PostgresIdentitySessionPolicyStore) runIdentitySessionPolicyMutation(
+	ctx context.Context,
+	mutation func() error,
+) error {
+	if ctx == nil || mutation == nil {
+		return ErrIdentitySessionPolicyInvalid
+	}
+	if !s.configured() {
+		return ErrIdentitySessionPolicyStoreUnavailable
+	}
+	if isSessionPolicyEffectContext(ctx, s) {
+		return ErrIdentitySessionPolicyInvalid
+	}
+	if err := s.effectGate.lockWrite(ctx); err != nil {
+		return err
+	}
+	defer s.effectGate.unlockWrite()
+	return mutation()
+}
 
 func (s *PostgresIdentitySessionPolicyStore) InvalidateSessionPolicySelectionTx(
 	ctx context.Context,

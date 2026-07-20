@@ -15,11 +15,14 @@ import (
 const (
 	identitySessionPolicyTransactionAttempts = 3
 	identitySessionPolicyReadbackTimeout     = 2 * time.Second
+	identitySessionPolicyEffectConnections   = 4
 )
 
 type PostgresIdentitySessionPolicyStore struct {
-	pool     *pgxpool.Pool
-	registry *identityregistry.Registry
+	pool                  *pgxpool.Pool
+	registry              *identityregistry.Registry
+	effectGate            identitySessionPolicyEffectGate
+	effectConnectionSlots chan struct{}
 }
 
 var _ IdentitySessionPolicyStore = (*PostgresIdentitySessionPolicyStore)(nil)
@@ -31,7 +34,11 @@ func NewPostgresIdentitySessionPolicyStore(
 	if pool == nil || registry == nil {
 		return nil, ErrIdentitySessionPolicyStoreUnavailable
 	}
-	return &PostgresIdentitySessionPolicyStore{pool: pool, registry: registry}, nil
+	return &PostgresIdentitySessionPolicyStore{
+		pool:                  pool,
+		registry:              registry,
+		effectConnectionSlots: make(chan struct{}, identitySessionPolicyEffectConnections),
+	}, nil
 }
 
 func (s *PostgresIdentitySessionPolicyStore) Current(
@@ -184,12 +191,25 @@ func (s *PostgresIdentitySessionPolicyStore) Select(
 	if !s.configured() {
 		return IdentitySessionPolicyMutation{}, ErrIdentitySessionPolicyStoreUnavailable
 	}
+	var result IdentitySessionPolicyMutation
+	err = s.runIdentitySessionPolicyMutation(ctx, func() error {
+		var mutationErr error
+		result, mutationErr = s.selectMutation(ctx, prepared)
+		return mutationErr
+	})
+	return result, publicIdentitySessionPolicyStoreError(err)
+}
+
+func (s *PostgresIdentitySessionPolicyStore) selectMutation(
+	ctx context.Context,
+	prepared preparedIdentitySessionPolicySelect,
+) (IdentitySessionPolicyMutation, error) {
 	for attempt := 0; attempt < identitySessionPolicyTransactionAttempts; attempt++ {
 		result, commitErr := s.selectOnce(ctx, prepared)
 		if errors.Is(commitErr, errIdentitySessionPolicyRetry) && ctx.Err() == nil {
 			continue
 		}
-		return result, publicIdentitySessionPolicyStoreError(commitErr)
+		return result, commitErr
 	}
 	return IdentitySessionPolicyMutation{}, ErrIdentitySessionPolicyRevisionConflict
 }
@@ -309,12 +329,25 @@ func (s *PostgresIdentitySessionPolicyStore) Reset(
 	if !s.configured() {
 		return IdentitySessionPolicyMutation{}, ErrIdentitySessionPolicyStoreUnavailable
 	}
+	var result IdentitySessionPolicyMutation
+	err = s.runIdentitySessionPolicyMutation(ctx, func() error {
+		var mutationErr error
+		result, mutationErr = s.reset(ctx, prepared)
+		return mutationErr
+	})
+	return result, publicIdentitySessionPolicyStoreError(err)
+}
+
+func (s *PostgresIdentitySessionPolicyStore) reset(
+	ctx context.Context,
+	prepared preparedIdentitySessionPolicyReset,
+) (IdentitySessionPolicyMutation, error) {
 	for attempt := 0; attempt < identitySessionPolicyTransactionAttempts; attempt++ {
 		result, commitErr := s.resetOnce(ctx, prepared)
 		if errors.Is(commitErr, errIdentitySessionPolicyRetry) && ctx.Err() == nil {
 			continue
 		}
-		return result, publicIdentitySessionPolicyStoreError(commitErr)
+		return result, commitErr
 	}
 	return IdentitySessionPolicyMutation{}, ErrIdentitySessionPolicyRevisionConflict
 }
