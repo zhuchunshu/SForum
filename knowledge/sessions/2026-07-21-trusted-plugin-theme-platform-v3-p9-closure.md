@@ -42,15 +42,28 @@ Public L2 remains **production default off** (`SFORUM_V3_PUBLIC_L2=true` to enab
 
 ## Verification (this close)
 
+Re-verified after matrix/visual fixes. Implementer scratch artifacts (goal
+`{SCRATCH}` = implementer dir) must show **STATUS: ALL GREEN** with no `FAIL`:
+
+| Artifact | Contents |
+| --- | --- |
+| `p9-csp-verify.log` | Host PublicPage/PagePolicy + Routes catalog + web `publicPageDocumentPolicy` |
+| `p9-action-matrix.log` | `TestP9JoinedComponentActionMatrix` + `TestP9JoinedPublicL2TrustMatrix` |
+| `p9-visual.log` | `tests/p9JoinedVisualMatrix.test.ts` (desktop 1280 + mobile 390 + chrome contracts) |
+| `p9-close-verification.log` | Combined capture ending `STATUS: ALL GREEN` |
+
+Commands:
+
 ```text
-go test ./app/Support/Extensions/ -run TestP9JoinedComponentActionMatrix
-go test ./app/Models/Extensions/ -run TestP9JoinedPublicL2TrustMatrix
-go test ./app/Http/Controllers/Extensions/ ./app/Models/Extensions/ -run 'PublicPage|PagePolicy'
-go test ./app/Support/Routes/ -run TestCoreRouteCatalogHasExactReviewedGuardParity
-bun test tests/p9JoinedVisualMatrix.test.ts tests/publicPageDocumentPolicy.test.ts tests/publicL2Honesty.test.ts
+go test ./app/Support/Extensions/ -run 'TestP9Joined' -count=1
+go test ./app/Models/Extensions/ -run 'TestP9Joined' -count=1
+go test ./app/Http/Controllers/Extensions/ ./app/Models/Extensions/ ./app/Support/Routes/ -count=1 -run 'PublicPage|PagePolicy|TrustedRuntime|CoreRouteCatalog'
+bun test tests/publicPageDocumentPolicy.test.ts
+bun test tests/p9JoinedVisualMatrix.test.ts
 ```
 
-All green. Log under goal scratch: `p9-close-verification.log`.
+Catalogs: **244** routes (includes `core.route.extensions.public_frontend_page_policy`).
+Playwright browser optional; accepted visual row is happy-dom + structural chrome.
 
 ---
 
