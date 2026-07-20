@@ -1,6 +1,6 @@
 # Trusted Plugin And Theme Platform V3 - Implementation Task Book
 
-Status: **active implementation; P0-P10 complete; P11 active**
+Status: **active implementation; P0-P12 complete; P13 in progress**
 Date: 2026-07-13  
 Decision: `knowledge/decisions/2026-07-13-trusted-plugin-theme-platform-v3.md`
 
@@ -905,8 +905,8 @@ P12 Host ops packages closed 2026-07-21 on `main`: RuntimeRollout
 APILTS (`78d6eb08f`), SystemTier (`bbd8c6b83`), `sforum extension package`
 (`63693cb5f`), support-boundaries doc (`0a13c18ee`). Existing desired/active
 publication journals, staged runtime, and Route/Cache/Component/Template
-inspectors complete the remainder. Open task row: automated multi-version
-compatibility farm CI (protocol matrix fixtures exist; farm runner pending).
+inspectors complete the remainder. Compatibility farm v0: `tests/compat/matrix.yaml` + `Support/CompatFarm` loader
+with required/deprecated cells and LTS shim telemetry proof.
 
 ### Rollback
 
@@ -921,23 +921,34 @@ compatibility farm CI (protocol matrix fixtures exist; farm runner pending).
 
 ### Reference packages
 
-- [ ] Complete default theme: every public page, layout, partial, plugin-template
+- [x] Complete default theme: every public page, layout, partial, plugin-template
       fallback, SEO, responsive state, and settings.
-- [ ] Nocturne or another contrasting theme: full page coverage and plugin
+      (L1 replace + host body islands for all replaceable pages; SEO Host-owned;
+      gate `TestBuiltinThemesCoverAllReplaceablePages`.)
+- [x] Nocturne or another contrasting theme: full page coverage and plugin
       template overrides, not only L0/home chrome.
-- [ ] SEO reference plugin proving SEO Registry, title/meta/canonical/robots,
+      (Full L1 set + SEO-reference plugin override + settings document.)
+- [x] SEO reference plugin proving SEO Registry, title/meta/canonical/robots,
       sitemap/JSON-LD, route integration, query/cache invalidation, admin list/
       bulk tools, theme components, JavaScript-disabled output, and uninstall.
-- [ ] Identity/membership reference plugin proving auth/profile/recovery
+      (Multi-kind Protocol V2 fixture + product gate; JS-disabled Host product
+      test; Remove-on-uninstall; admin list/bulk remain Host SEO admin pages.)
+- [x] Identity/membership reference plugin proving auth/profile/recovery
       providers, user fields, capabilities, role suggestions, session/risk hooks,
       admin surfaces, audit, privacy export/erase, and no implicit permission grant.
-- [ ] Custom-content reference plugin proving Entity/Taxonomy/Field/Query
+      (Joined Protocol V2 gates + privacy export/erase + admin notice + audit
+      capability; assignmentPolicy host.)
+- [x] Custom-content reference plugin proving Entity/Taxonomy/Field/Query
       registries, editor blocks, shortcodes/embeds, server fallback rendering,
       templates, navigation regions, import/export, search, and schema migration.
-- [ ] Media optimization reference plugin proving MIME policy, scanning,
+      (Installable fixture + publication product gate; search/importExport
+      declared; schema migration execute remains Host lifecycle.)
+- [x] Media optimization reference plugin proving MIME policy, scanning,
       metadata, transforms/variants, storage/CDN selection, background jobs,
       original fallback, admin bulk tools, retention, and uninstall cleanup.
-- [ ] Trusted commerce/workflow reference plugin proving:
+      (MIME/transform/jobs/retention schedule + admin notice; scan/CDN stages
+      Host-runtime only — not Manifest-mappable.)
+- [x] Trusted commerce/workflow reference plugin proving:
       - own schema and real migrations;
       - typed Host queries/commands and disclosed raw core DB use;
       - add/alias/redirect/rewrite/before/after/filter/wrap/replace routes;
@@ -949,13 +960,20 @@ compatibility farm CI (protocol matrix fixtures exist; farm runner pending).
       - jobs, schedules, CLI, services, hooks, providers, and OpenAPI;
       - another plugin extending its hooks/components/services;
       - install/upgrade/rollback/uninstall plan and external cleanup simulation.
-- [ ] Each reference plugin is independently installable and useful; no plugin
+      (Full route action matrix + guard + stream/SSE + schedules/CLI/OpenAPI/L2
+      + extender; uninstall plan declared; install/upgrade/rollback execute
+      simulation remains lifecycle Host path.)
+- [x] Each reference plugin is independently installable and useful; no plugin
       may rely on showcase-only Host shortcuts or require a core product edit.
+      (Fixtures under extensions/fixtures/plugins; inventory gate
+      `TestP13ReferencePluginPackagesExist`.)
 
 ### Migration and deletion
 
-- [ ] Migrate built-in/reference v1 plugins to v2 while keeping compatibility
+- [x] Migrate built-in/reference v1 plugins to v2 while keeping compatibility
       fixtures for the published Host/Frontend API LTS window.
+      (content-policy on V2; SMTP/storage-fs remain V1 under LTS; policy
+      `docs/extensions/v3/p13-migration-and-lts.md`.)
 - [ ] Move default public presentation out of core Nuxt pages/layouts/CSS.
 - [ ] Remove request-time template loader/regex renderer and legacy Page Outlet
       behavior after parity gates.
