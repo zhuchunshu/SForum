@@ -58,6 +58,12 @@ type HostAPIRegistrar interface {
 	UnregisterExtension(extensionID string)
 }
 
+// ProtocolShimTelemetry records Host/Frontend API LTS deprecation usage.
+// Production injects APILTS process registry; nil disables process-wide counters.
+type ProtocolShimTelemetry interface {
+	RecordShimCall(contractID string)
+}
+
 type ProtocolStarterConfig struct {
 	Settings PluginSettings
 	// HostAPI 可选；注入后向子进程写入 SFORUM_HOST_API_* 环境变量。
@@ -66,6 +72,8 @@ type ProtocolStarterConfig struct {
 	Trust RuntimeTrustSource
 	// DatabaseLeases 为声明直接数据库权限的 exact runtime 签发独立短租约。
 	DatabaseLeases RuntimeDatabaseLeaseRegistry
+	// ShimTelemetry 可选；V1 net/rpc 调用时写入 APILTS 弃用遥测。
+	ShimTelemetry ProtocolShimTelemetry
 	// 测试可缩短心跳；生产零值使用推荐值。
 	DatabaseLeaseHeartbeatInterval time.Duration
 	DatabaseLeaseOperationTimeout  time.Duration
@@ -85,6 +93,7 @@ type ProtocolStarter struct {
 	hostAPI                HostAPIRegistrar
 	trust                  RuntimeTrustSource
 	databaseLeases         RuntimeDatabaseLeaseRegistry
+	shimTelemetry          ProtocolShimTelemetry
 	databaseLeaseHeartbeat time.Duration
 	databaseLeaseTimeout   time.Duration
 }
@@ -267,6 +276,7 @@ func NewProtocolStarter(config ProtocolStarterConfig) *ProtocolStarter {
 		hostAPI:                config.HostAPI,
 		trust:                  config.Trust,
 		databaseLeases:         config.DatabaseLeases,
+		shimTelemetry:          config.ShimTelemetry,
 		databaseLeaseHeartbeat: heartbeatInterval,
 		databaseLeaseTimeout:   operationTimeout,
 	}
