@@ -4,37 +4,41 @@ Last updated: 2026-07-21
 
 ## Progress
 
-- Verified weighted progress: **99.6%** (display **99%**).
-- Phase counts: **P0–P12 complete (including P10 15/15)**; P13 **~99.6%**.
-- Implementable residual closed: presentation pages+chrome; WIP absorption.
-- Residual **only** three LTS-gated deletion rows (task book still open).
+- Verified weighted progress: **99.7%** (display **99%**).
+- Phase counts: **P0–P12 complete (P10 15/15)**; P13 **~99.7%**.
+- LTS residual instrumentation advanced: request-time theme L1 loader now has
+  its own APILTS contract + CLI report + product tests.
+- Residual **only** three open deletion rows (policy-gated, not unimplemented).
 
 ## Current Subtask
 
-### 2026-07-21 P13 residual = LTS deletion gate only (no premature delete)
+### 2026-07-21 P13 LTS residual instrumentation
 
-- Live CLI evidence (`go run ./cmd/sforum extension api-lts --json`):
-  - `sforum.protocol.v1` status=deprecated, shimEnabled=true
-  - `removeAfter=2026-11-28T00:00:00Z`
-  - `protocolV1CanRemoveWindow=false`
-  - `protocolV1CanRemoveWithZeroShim=false`
-  - CLI process `protocolV1Calls=0` (live counters only in API/worker)
-- Exact next: **do not delete** LoadTemplate / Protocol V1 / fail-closed
-  SFPageOutlet until RemoveAfter + zero-shim on live process + checklist 1–7.
-- Goal harness “remaining P10 rows” is **stale** — P10 closed in
-  `2026-07-21-…-p10-closure.md` (all `[x]`).
-- Working tree clean after docs evidence commit.
+- Seeded `sforum.theme.l1.request-time-loader` (`c221e1972`)
+- Record on request-time LoadTemplate only (`c6322e7bd`)
+- CLI fields (`0fdcb7281`)
+- Tests: legacy records / snapshot exempt (`2c6ed6a33`)
+- Exact next: **still do not delete** LoadTemplate / Protocol V1 / fail-closed
+  SFPageOutlet until RemoveAfter (≈2026-11-28) + zero-shim on live API/worker
+  + checklist 1–7.
+- Goal harness “remaining P10 rows” remains **stale**.
+
+## Tests
+
+- `go test ./app/Support/APILTS/`: pass
+- `go test ./cmd/sforum/ -run TestExtensionAPILTS`: pass
+- `go test ./app/Http/Controllers/Pages/ -run RequestTimeLoader|CompiledThemeDoesNotRecord`: pass
 
 ## Open task-book rows
 
-1. Remove request-time template loader / legacy Page Outlet residual
-2. Remove v1 route/capability/migration-ledger-only paths
+1. Remove request-time template loader residual (instrumented; not deleted)
+2. Remove Protocol V1 paths
 3. Compatibility path removal after LTS checklist
 
 ## Rollback
 
-- Never delete LTS shims early. Presentation/WIP chains documented in prior
-  ledger archive and handoffs.
+- Revert `c221e1972`…`2c6ed6a33` for loader telemetry chain.
+- Never delete LTS shims early.
 
 
 ---

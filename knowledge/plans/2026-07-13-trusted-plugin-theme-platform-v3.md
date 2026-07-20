@@ -984,10 +984,13 @@ with required/deprecated cells and LTS shim telemetry proof.
       `moderation.review`/`dev.components` stay non-replaceable by catalog.)
 - [ ] Remove request-time template loader/regex renderer and legacy Page Outlet
       behavior after parity gates.
-      (Fail-closed `SFPageOutlet` never fully removed; loader retained until LTS.)
+      (Fail-closed `SFPageOutlet` never fully removed. Request-time loader still
+      present for unmigrated contributions; APILTS contract
+      `sforum.theme.l1.request-time-loader` records usage (`c221e1972`…`2c6ed6a33`).
+      Deletion still requires RemoveAfter + zero-shim.)
 - [ ] Remove v1 route/capability/migration-ledger-only paths only after published
       compatibility policy and migration tooling exist.
-      (APILTS RemoveAfter window not open; zero-shim gate required.)
+      (APILTS RemoveAfter ≈ 2026-11-28; zero-shim gate required on live process.)
 - [x] Regenerate all catalogs/docs/scaffolds and update examples.
       (Catalog regen + 244-route inventory gate; scaffolds via existing CLI.)
 

@@ -1,7 +1,7 @@
 # Trusted Plugin And Theme Platform V3 Progress Ledger
 
 Date: 2026-07-21
-Overall progress: **99.6%**
+Overall progress: **99.7%**
 Active phase: **P13 residual = LTS-blocked legacy deletion only**
 
 This ledger is the durable percentage and context-compaction checkpoint for the
@@ -35,6 +35,13 @@ Displayed overall progress is the floor of earned weighted progress until the
 program reaches 100% and every final gate passes.
 
 
+
+## 2026-07-21 P13 Request-Time Loader APILTS (~99.7%)
+
+- Contract `sforum.theme.l1.request-time-loader` seeded + CLI + resolve telemetry.
+- Snapshot hot path does not record; legacy add path does.
+- Deletion rows remain open until RemoveAfter + zero-shim.
+- Commits: `c221e1972`…`2c6ed6a33`.
 
 ## 2026-07-21 P13 LTS Residual Only (~99.6%)
 

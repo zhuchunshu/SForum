@@ -10,6 +10,7 @@ may delete compatibility paths. It does **not** delete legacy code.
 | Protocol V1 (net/rpc) built-ins (SMTP/storage) | Supported | Metrics + fixtures remain green | After published LTS window + zero shim telemetry |
 | Manifest V1 normalization | Supported for unambiguous packages | Reject ambiguous; prefer V3 | After all built-ins migrate to V3 + LTS window |
 | Theme.json synthetic template identity | Supported for legacy packages | `RequireDeclaredTemplates=false` path | After default presentation parity gates |
+| Request-time `LoadTemplate` / `{{var}}` render | Residual for unmigrated add/replace without snapshot | APILTS `sforum.theme.l1.request-time-loader` | After RemoveAfter + zero shim (snapshot-covered paths already free) |
 | Core Nuxt public pages | Thin shells + Host body islands | Theme L1 owns shells/chrome (`sf-navbar`/`sf-footer`); fail-closed `SFHostPublicChrome` | Host island CSS residual; fail-closed Page Outlet never removed |
 | Legacy Page Outlet fallback to core slot | Required safety | Emergency fallback remains | Never fully remove fail-closed fallback |
 
@@ -17,11 +18,16 @@ Authoritative LTS telemetry lives in `apps/api/app/Support/APILTS`.
 
 ### Production wiring (P13 residual honesty)
 
-- Stable shim contract id: `sforum.protocol.v1` (`apilts.ProtocolV1ContractID`).
+- Stable shim contract ids:
+  - `sforum.protocol.v1` (`apilts.ProtocolV1ContractID`)
+  - `sforum.theme.l1.request-time-loader` (`apilts.ThemeRequestTimeLoaderContractID`)
 - API and worker bootstrap inject `apilts.Process()` into
   `ProtocolStarterConfig.ShimTelemetry`.
 - Every Protocol V1 **start** and **RPC call** increments process-local
   `RecordShimCall("sforum.protocol.v1")`. Protocol V2 gRPC does not.
+- Page resolve increments `sforum.theme.l1.request-time-loader` only when the
+  request falls back to `LoadTemplate`/`RenderTemplate` outside an exact
+  `ThemeRuntimeSnapshot`. Snapshot-covered resolves do not record.
 - Deletion gate helper: `Registry.CanRemoveWithZeroShim(contractID, now)` —
   requires both the published `RemoveAfter` window and **zero** process-local
   shim calls.
