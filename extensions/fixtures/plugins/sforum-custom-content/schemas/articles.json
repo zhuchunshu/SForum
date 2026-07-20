@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "sforum.custom-content.articles@1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "title", "summary"],
+  "properties": {
+    "id": { "type": "string" },
+    "title": { "type": "string" },
+    "summary": { "type": "string" }
+  }
+}

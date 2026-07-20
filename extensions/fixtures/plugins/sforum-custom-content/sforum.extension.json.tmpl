@@ -1,0 +1,186 @@
+{
+  "manifestVersion": 3,
+  "id": "sforum.custom-content",
+  "name": "SForum Custom Content Reference",
+  "description": "Protocol V2 reference plugin proving Entity/Taxonomy/Field, Content blocks, Editor L2, and Navigation/Region registries without core product edits.",
+  "url": "https://github.com/zhuchunshu/sforum",
+  "author": {
+    "name": "SForum",
+    "url": "https://github.com/zhuchunshu/sforum"
+  },
+  "version": "1.0.0",
+  "type": "plugin",
+  "sforumVersion": ">=0.1.0",
+  "capabilities": ["host.api"],
+  "backend": {
+    "entry": "backend/plugin",
+    "rpc": "hashicorp-go-plugin",
+    "protocolVersion": 2,
+    "hostApiVersion": "sforum.host@2",
+    "digest": "__BACKEND_DIGEST__"
+  },
+  "entities": [
+    {
+      "id": "sforum.custom-content.entity.article",
+      "contractVersion": "sforum.custom-content.entity.article@1",
+      "kind": "entity",
+      "label": "Reference Article",
+      "storageKey": "sforum.custom-content.article",
+      "permissionCreate": "sforum.custom-content.article.create",
+      "permissionRead": "sforum.custom-content.article.read",
+      "permissionUpdate": "sforum.custom-content.article.update",
+      "permissionDelete": "sforum.custom-content.article.delete",
+      "permissionImport": "sforum.custom-content.article.import",
+      "permissionExport": "sforum.custom-content.article.export",
+      "importExportPolicy": "allow",
+      "deletionPolicy": "soft",
+      "taxonomyIds": ["sforum.custom-content.taxonomy.topic"]
+    },
+    {
+      "id": "sforum.custom-content.taxonomy.topic",
+      "contractVersion": "sforum.custom-content.taxonomy.topic@1",
+      "kind": "taxonomy",
+      "label": "Reference Topic",
+      "storageKey": "sforum.custom-content.topic",
+      "hierarchical": true,
+      "entityIds": ["sforum.custom-content.entity.article"],
+      "permissionManage": "sforum.custom-content.topic.manage",
+      "permissionAssign": "sforum.custom-content.topic.assign"
+    },
+    {
+      "id": "sforum.custom-content.field.summary",
+      "contractVersion": "sforum.custom-content.field.summary@1",
+      "kind": "field",
+      "label": "Summary",
+      "entityId": "sforum.custom-content.entity.article",
+      "schema": "sforum.custom-content.field.summary@1",
+      "uiComponent": "TextArea",
+      "required": true,
+      "indexed": true,
+      "indexKind": "text",
+      "permissionFieldRead": "sforum.custom-content.field.summary.read",
+      "permissionFieldWrite": "sforum.custom-content.field.summary.write",
+      "order": 10
+    }
+  ],
+  "content": [
+    {
+      "id": "sforum.custom-content.block.vote",
+      "contractVersion": "sforum.custom-content.block.vote@1",
+      "kind": "block",
+      "handler": "sforum.custom-content.block.vote",
+      "schema": "sforum.custom-content.block.vote.schema@1"
+    },
+    {
+      "id": "sforum.custom-content.block.product-card",
+      "contractVersion": "sforum.custom-content.block.product-card@1",
+      "kind": "block",
+      "handler": "sforum.custom-content.block.product-card",
+      "schema": "sforum.custom-content.block.product-card.schema@1"
+    },
+    {
+      "id": "sforum.custom-content.embed.media",
+      "contractVersion": "sforum.custom-content.embed.media@1",
+      "kind": "embed",
+      "handler": "sforum.custom-content.embed.media",
+      "schema": "sforum.custom-content.embed.media.schema@1"
+    },
+    {
+      "id": "sforum.custom-content.block.workflow-form",
+      "contractVersion": "sforum.custom-content.block.workflow-form@1",
+      "kind": "block",
+      "handler": "sforum.custom-content.block.workflow-form",
+      "schema": "sforum.custom-content.block.workflow-form.schema@1"
+    }
+  ],
+  "editor": [
+    {
+      "id": "sforum.custom-content.editor.node.vote",
+      "contractVersion": "sforum.custom-content.editor.node.vote@1",
+      "kind": "node",
+      "schema": "sforum.custom-content.editor.vote@1",
+      "extensionName": "customContentVote",
+      "l2Module": "frontend/editor/vote.mjs",
+      "l2Digest": "__EDITOR_VOTE_DIGEST__"
+    },
+    {
+      "id": "sforum.custom-content.editor.command.insert-vote",
+      "contractVersion": "sforum.custom-content.editor.command.insert-vote@1",
+      "kind": "command",
+      "commandKey": "insertCustomContentVote",
+      "l2Module": "frontend/editor/vote.mjs",
+      "l2Digest": "__EDITOR_VOTE_DIGEST__"
+    },
+    {
+      "id": "sforum.custom-content.editor.toolbar.vote",
+      "contractVersion": "sforum.custom-content.editor.toolbar.vote@1",
+      "kind": "toolbar",
+      "commandId": "sforum.custom-content.editor.command.insert-vote",
+      "label": "Vote",
+      "icon": "i-tabler-checkbox",
+      "group": "insert",
+      "order": 10
+    }
+  ],
+  "navigation": [
+    {
+      "id": "sforum.custom-content.nav.articles",
+      "contractVersion": "sforum.custom-content.nav.articles@1",
+      "kind": "item",
+      "action": "add",
+      "label": "Reference Articles",
+      "href": "/custom-content/articles",
+      "order": 100
+    }
+  ],
+  "regions": [
+    {
+      "id": "sforum.custom-content.region.sidebar",
+      "contractVersion": "sforum.custom-content.region.sidebar@1",
+      "action": "add",
+      "kind": "sidebar",
+      "label": "Custom content sidebar",
+      "multiple": true
+    }
+  ],
+  "queries": [
+    {
+      "id": "sforum.custom-content.articles",
+      "contractVersion": "sforum.custom-content.articles@1",
+      "entity": "article",
+      "planVersion": "sforum.custom-content.articles.plan@1",
+      "fields": ["id", "title", "summary"],
+      "filters": ["state"],
+      "sort": ["id"],
+      "pagination": "offset",
+      "resultSchema": "schemas/articles.json",
+      "permissionPolicy": "public",
+      "cacheTags": ["sforum.custom-content.articles"],
+      "handler": "sforum.custom-content.articles",
+      "identityFields": ["id"],
+      "defaultSort": [{ "field": "id", "descending": true }]
+    }
+  ],
+  "packageFiles": [
+    {
+      "id": "sforum.custom-content.file.backend",
+      "kind": "executable",
+      "path": "backend/plugin",
+      "digest": "__BACKEND_DIGEST__"
+    },
+    {
+      "id": "sforum.custom-content.file.editor.vote",
+      "kind": "frontend",
+      "path": "frontend/editor/vote.mjs",
+      "digest": "__EDITOR_VOTE_DIGEST__",
+      "version": "1"
+    },
+    {
+      "id": "sforum.custom-content.articles.result",
+      "kind": "schema",
+      "path": "schemas/articles.json",
+      "version": "1",
+      "digest": "__ARTICLES_SCHEMA_DIGEST__"
+    }
+  ]
+}
