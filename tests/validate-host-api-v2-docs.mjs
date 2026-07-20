@@ -58,16 +58,18 @@ for (const value of ['4194304', String(concurrency), `${timeout} seconds`]) {
   assert(doc.includes(value), `Host API v2 docs omit current safety value ${value}`)
 }
 
-for (const invariant of [
-  'base.AutoMTLS = true',
-  'plugin.ProtocolGRPC',
-  'hostAPIV2Version     = "sforum.host/v2"',
-  'hostAPIV2Contract    = "sforum.host@2"',
-  'hostAPIV2Legacy      = "sforum.host-api@2"',
-  'HostBrokerId:',
-  'RuntimeToken:'
+// Match constants by identity, not gofmt column alignment (alignment drifts
+// when nearby consts are renamed/added).
+for (const [label, pattern] of [
+  ['base.AutoMTLS = true', /base\.AutoMTLS\s*=\s*true/],
+  ['plugin.ProtocolGRPC', /plugin\.ProtocolGRPC/],
+  ['hostAPIV2Version = "sforum.host/v2"', /hostAPIV2Version\s*=\s*"sforum\.host\/v2"/],
+  ['hostAPIV2Contract = "sforum.host@2"', /hostAPIV2Contract\s*=\s*"sforum\.host@2"/],
+  ['hostAPIV2Legacy = "sforum.host-api@2"', /hostAPIV2Legacy\s*=\s*"sforum\.host-api@2"/],
+  ['HostBrokerId:', /HostBrokerId\s*:/],
+  ['RuntimeToken:', /RuntimeToken\s*:/]
 ]) {
-  assert(clientRuntime.includes(invariant), `runtime no longer contains documented invariant: ${invariant}`)
+  assert(pattern.test(clientRuntime), `runtime no longer contains documented invariant: ${label}`)
 }
 
 for (const phrase of [
