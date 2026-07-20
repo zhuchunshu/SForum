@@ -231,6 +231,67 @@ func (v *v3Validator) validateUIAndPackage() error {
 		}
 	}
 
+	// Tiptap Editor Registry 声明：node/mark 绑定 prebuilt L2；toolbar 仅引用同包 command。
+	if len(v.manifest.Editor) > 256 {
+		return ErrInvalidManifest
+	}
+	editorCommands := map[string]struct{}{}
+	for _, editor := range v.manifest.Editor {
+		if err := v.versionedID(editor.ID, editor.ContractVersion, "editor"); err != nil {
+			return err
+		}
+		if editor.Permission != "" && !manifestIDPattern.MatchString(editor.Permission) {
+			return ErrInvalidManifest
+		}
+		switch editor.Kind {
+		case "node", "mark":
+			if !validSchemaRef(editor.Schema) || editor.ExtensionName == "" ||
+				!validPackagePath(editor.L2Module) || !validDigest(editor.L2Digest) ||
+				!validPrebuiltAssetPath("script", editor.L2Module) ||
+				editor.CommandKey != "" || editor.CommandID != "" || editor.Label != "" {
+				return ErrInvalidManifest
+			}
+			file, declared := packagePaths[editor.L2Module]
+			if !declared || file.Kind != "frontend" || file.Digest != editor.L2Digest {
+				return ErrInvalidManifest
+			}
+		case "command":
+			if editor.CommandKey == "" || editor.Schema != "" || editor.CommandID != "" || editor.Label != "" {
+				return ErrInvalidManifest
+			}
+			if editor.L2Module != "" || editor.L2Digest != "" {
+				if !validPackagePath(editor.L2Module) || !validDigest(editor.L2Digest) ||
+					!validPrebuiltAssetPath("script", editor.L2Module) {
+					return ErrInvalidManifest
+				}
+				file, declared := packagePaths[editor.L2Module]
+				if !declared || file.Kind != "frontend" || file.Digest != editor.L2Digest {
+					return ErrInvalidManifest
+				}
+			}
+			editorCommands[editor.ID] = struct{}{}
+		case "toolbar":
+			if editor.CommandID == "" || editor.Label == "" ||
+				editor.Schema != "" || editor.ExtensionName != "" ||
+				editor.L2Module != "" || editor.L2Digest != "" || editor.CommandKey != "" {
+				return ErrInvalidManifest
+			}
+			if !strings.HasPrefix(editor.CommandID, v.manifest.ID+".") {
+				return ErrInvalidManifest
+			}
+		default:
+			return ErrInvalidManifest
+		}
+	}
+	for _, editor := range v.manifest.Editor {
+		if editor.Kind != "toolbar" {
+			continue
+		}
+		if _, ok := editorCommands[editor.CommandID]; !ok {
+			return ErrInvalidManifest
+		}
+	}
+
 	for _, fragment := range v.manifest.OpenAPI {
 		if err := v.versionedID(fragment.ID, fragment.ContractVersion, "openapi"); err != nil {
 			return err

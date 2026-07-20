@@ -204,6 +204,22 @@ func normalizeV3Manifest(manifest *Manifest) {
 		item.Renderer = NormalizeID(item.Renderer)
 		item.Migration = NormalizeID(item.Migration)
 	}
+	for index := range manifest.Editor {
+		item := &manifest.Editor[index]
+		item.ID = NormalizeID(item.ID)
+		item.ContractVersion = strings.TrimSpace(item.ContractVersion)
+		item.Kind = strings.ToLower(strings.TrimSpace(item.Kind))
+		item.Schema = strings.TrimSpace(item.Schema)
+		item.ExtensionName = strings.TrimSpace(item.ExtensionName)
+		item.L2Module = strings.TrimSpace(item.L2Module)
+		item.L2Digest = normalizeDigest(item.L2Digest)
+		item.CommandKey = strings.TrimSpace(item.CommandKey)
+		item.CommandID = NormalizeID(item.CommandID)
+		item.Label = strings.TrimSpace(item.Label)
+		item.Icon = strings.TrimSpace(item.Icon)
+		item.Group = NormalizeID(item.Group)
+		item.Permission = strings.TrimSpace(item.Permission)
+	}
 	normalizeV3Platform(manifest)
 }
 

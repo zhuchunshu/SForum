@@ -31,6 +31,7 @@ type ManifestIncludes struct {
 	Templates             json.RawMessage `json:"templates,omitempty"`
 	Assets                json.RawMessage `json:"assets,omitempty"`
 	Content               json.RawMessage `json:"content,omitempty"`
+	Editor                json.RawMessage `json:"editor,omitempty"`
 	Database              json.RawMessage `json:"database,omitempty"`
 	Cache                 json.RawMessage `json:"cache,omitempty"`
 	SEO                   json.RawMessage `json:"seo,omitempty"`

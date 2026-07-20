@@ -4,122 +4,191 @@
   "title": "SForum Extension Manifest V3",
   "type": "object",
   "additionalProperties": false,
-  "required": ["manifestVersion", "id", "name", "description", "url", "author", "version", "type", "sforumVersion"],
+  "required": [
+    "manifestVersion",
+    "id",
+    "name",
+    "description",
+    "url",
+    "author",
+    "version",
+    "type",
+    "sforumVersion"
+  ],
   "properties": {
-    "manifestVersion": { "const": 3 },
-    "id": { "$ref": "#/$defs/id" },
-    "name": { "$ref": "#/$defs/nonEmpty" },
-    "description": { "$ref": "#/$defs/nonEmpty" },
-    "url": { "type": "string", "format": "uri" },
-    "author": { "$ref": "#/$defs/author" },
-    "version": { "type": "string", "format": "semver" },
-    "type": { "enum": ["plugin", "theme"] },
-    "sforumVersion": { "$ref": "#/$defs/nonEmpty" },
-    "langs": {
-      "type": ["object", "null"],
-      "additionalProperties": { "$ref": "#/$defs/locale" }
+    "manifestVersion": {
+      "const": 3
     },
-    "permissions": { "$ref": "#/$defs/stringArray" },
-    "capabilities": { "$ref": "#/$defs/stringArray" },
-    "requiresFeatures": { "$ref": "#/$defs/stringArray" },
+    "id": {
+      "$ref": "#/$defs/id"
+    },
+    "name": {
+      "$ref": "#/$defs/nonEmpty"
+    },
+    "description": {
+      "$ref": "#/$defs/nonEmpty"
+    },
+    "url": {
+      "type": "string",
+      "format": "uri"
+    },
+    "author": {
+      "$ref": "#/$defs/author"
+    },
+    "version": {
+      "type": "string",
+      "format": "semver"
+    },
+    "type": {
+      "enum": [
+        "plugin",
+        "theme"
+      ]
+    },
+    "sforumVersion": {
+      "$ref": "#/$defs/nonEmpty"
+    },
+    "langs": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "$ref": "#/$defs/locale"
+      }
+    },
+    "permissions": {
+      "$ref": "#/$defs/stringArray"
+    },
+    "capabilities": {
+      "$ref": "#/$defs/stringArray"
+    },
+    "requiresFeatures": {
+      "$ref": "#/$defs/stringArray"
+    },
     "settings": {},
-    "migrations": { "$ref": "#/$defs/migrations" },
-    "backend": { "$ref": "#/$defs/backend" },
-    "admin": { "$ref": "#/$defs/admin" },
-    "adminPages": { "$ref": "#/$defs/adminPages" },
-    "routes": { "$ref": "#/$defs/routes" },
-    "hooks": { "$ref": "#/$defs/hooks" },
-    "events": { "$ref": "#/$defs/events" },
-    "jobs": { "$ref": "#/$defs/jobs" },
-    "providers": { "$ref": "#/$defs/providers" },
-    "contributions": { "$ref": "#/$defs/contributions" },
-    "guards": { "$ref": "#/$defs/guards" },
-    "schedules": { "$ref": "#/$defs/schedules" },
-    "components": { "$ref": "#/$defs/components" },
-    "templates": { "$ref": "#/$defs/templates" },
-    "assets": { "$ref": "#/$defs/assets" },
-    "content": { "$ref": "#/$defs/content" },
-    "database": { "$ref": "#/$defs/database" },
-    "cache": { "$ref": "#/$defs/cache" },
-    "seo": { "$ref": "#/$defs/seo" },
-    "services": { "$ref": "#/$defs/services" },
-    "commands": { "$ref": "#/$defs/commands" },
-    "adminSurfaces": { "$ref": "#/$defs/adminSurfaces" },
-    "queries": { "$ref": "#/$defs/queries" },
-    "queryResultFilters": { "$ref": "#/$defs/queryResultFilters" },
-    "identity": { "$ref": "#/$defs/identity" },
-    "permissionDefinitions": { "$ref": "#/$defs/permissionDefinitions" },
-    "media": { "$ref": "#/$defs/media" },
-    "navigation": { "$ref": "#/$defs/navigation" },
-    "regions": { "$ref": "#/$defs/regions" },
-    "dependencies": { "$ref": "#/$defs/dependencies" },
-    "lifecycle": { "$ref": "#/$defs/lifecycle" },
-    "openapi": { "$ref": "#/$defs/openapi" },
-    "packageFiles": { "$ref": "#/$defs/packageFiles" },
-    "includes": { "$ref": "#/$defs/includes" }
+    "migrations": {
+      "$ref": "#/$defs/migrations"
+    },
+    "backend": {
+      "$ref": "#/$defs/backend"
+    },
+    "admin": {
+      "$ref": "#/$defs/admin"
+    },
+    "adminPages": {
+      "$ref": "#/$defs/adminPages"
+    },
+    "routes": {
+      "$ref": "#/$defs/routes"
+    },
+    "hooks": {
+      "$ref": "#/$defs/hooks"
+    },
+    "events": {
+      "$ref": "#/$defs/events"
+    },
+    "jobs": {
+      "$ref": "#/$defs/jobs"
+    },
+    "providers": {
+      "$ref": "#/$defs/providers"
+    },
+    "contributions": {
+      "$ref": "#/$defs/contributions"
+    },
+    "guards": {
+      "$ref": "#/$defs/guards"
+    },
+    "schedules": {
+      "$ref": "#/$defs/schedules"
+    },
+    "components": {
+      "$ref": "#/$defs/components"
+    },
+    "templates": {
+      "$ref": "#/$defs/templates"
+    },
+    "assets": {
+      "$ref": "#/$defs/assets"
+    },
+    "content": {
+      "$ref": "#/$defs/content"
+    },
+    "database": {
+      "$ref": "#/$defs/database"
+    },
+    "cache": {
+      "$ref": "#/$defs/cache"
+    },
+    "seo": {
+      "$ref": "#/$defs/seo"
+    },
+    "services": {
+      "$ref": "#/$defs/services"
+    },
+    "commands": {
+      "$ref": "#/$defs/commands"
+    },
+    "adminSurfaces": {
+      "$ref": "#/$defs/adminSurfaces"
+    },
+    "queries": {
+      "$ref": "#/$defs/queries"
+    },
+    "queryResultFilters": {
+      "$ref": "#/$defs/queryResultFilters"
+    },
+    "identity": {
+      "$ref": "#/$defs/identity"
+    },
+    "permissionDefinitions": {
+      "$ref": "#/$defs/permissionDefinitions"
+    },
+    "media": {
+      "$ref": "#/$defs/media"
+    },
+    "navigation": {
+      "$ref": "#/$defs/navigation"
+    },
+    "regions": {
+      "$ref": "#/$defs/regions"
+    },
+    "dependencies": {
+      "$ref": "#/$defs/dependencies"
+    },
+    "lifecycle": {
+      "$ref": "#/$defs/lifecycle"
+    },
+    "openapi": {
+      "$ref": "#/$defs/openapi"
+    },
+    "packageFiles": {
+      "$ref": "#/$defs/packageFiles"
+    },
+    "includes": {
+      "$ref": "#/$defs/includes"
+    },
+    "editor": {
+      "$ref": "#/$defs/editor"
+    }
   },
   "allOf": [
     {
       "if": {
-        "required": ["content"],
+        "required": [
+          "content"
+        ],
         "properties": {
           "content": {
             "type": "array",
             "contains": {
-              "required": ["handler"],
+              "required": [
+                "handler"
+              ],
               "properties": {
-                "handler": { "$ref": "#/$defs/handler" }
-              }
-            }
-          }
-        }
-      },
-      "then": {
-        "required": ["backend"],
-        "properties": {
-          "backend": {
-            "type": "object",
-            "required": ["entry"],
-            "properties": {
-              "entry": { "type": "string", "minLength": 1 }
-            }
-          }
-        }
-      }
-    },
-    {
-      "if": {
-        "required": ["seo"],
-        "properties": {
-          "seo": { "type": "array", "minItems": 1 }
-        }
-      },
-      "then": {
-        "required": ["backend"],
-        "properties": {
-          "backend": {
-            "type": "object",
-            "required": ["entry"],
-            "properties": {
-              "entry": { "type": "string", "minLength": 1 }
-            }
-          }
-        }
-      }
-    },
-    {
-      "if": {
-        "required": ["identity"],
-        "properties": {
-          "identity": {
-            "type": "object",
-            "required": ["providers"],
-            "properties": {
-              "providers": {
-                "type": "array",
-                "contains": {
-                  "required": ["operations"],
-                  "properties": { "operations": { "type": "array", "minItems": 1 } }
+                "handler": {
+                  "$ref": "#/$defs/handler"
                 }
               }
             }
@@ -127,15 +196,109 @@
         }
       },
       "then": {
-        "required": ["backend"],
+        "required": [
+          "backend"
+        ],
         "properties": {
-          "type": { "const": "plugin" },
           "backend": {
             "type": "object",
-            "required": ["entry", "protocolVersion"],
+            "required": [
+              "entry"
+            ],
             "properties": {
-              "entry": { "type": "string", "minLength": 1 },
-              "protocolVersion": { "const": 2 }
+              "entry": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "required": [
+          "seo"
+        ],
+        "properties": {
+          "seo": {
+            "type": "array",
+            "minItems": 1
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "backend"
+        ],
+        "properties": {
+          "backend": {
+            "type": "object",
+            "required": [
+              "entry"
+            ],
+            "properties": {
+              "entry": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "required": [
+          "identity"
+        ],
+        "properties": {
+          "identity": {
+            "type": "object",
+            "required": [
+              "providers"
+            ],
+            "properties": {
+              "providers": {
+                "type": "array",
+                "contains": {
+                  "required": [
+                    "operations"
+                  ],
+                  "properties": {
+                    "operations": {
+                      "type": "array",
+                      "minItems": 1
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "backend"
+        ],
+        "properties": {
+          "type": {
+            "const": "plugin"
+          },
+          "backend": {
+            "type": "object",
+            "required": [
+              "entry",
+              "protocolVersion"
+            ],
+            "properties": {
+              "entry": {
+                "type": "string",
+                "minLength": 1
+              },
+              "protocolVersion": {
+                "const": 2
+              }
             }
           }
         }
@@ -143,27 +306,68 @@
     }
   ],
   "$defs": {
-    "nonEmpty": { "type": "string", "minLength": 1 },
-    "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]{1,80}$" },
-    "contract": { "type": "string", "maxLength": 256, "pattern": "^[a-z0-9][a-z0-9._-]*@[1-9][0-9]*$" },
-    "digest": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
-    "path": { "type": "string", "minLength": 1, "pattern": "^[^/].*$" },
+    "nonEmpty": {
+      "type": "string",
+      "minLength": 1
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._-]{1,80}$"
+    },
+    "contract": {
+      "type": "string",
+      "maxLength": 256,
+      "pattern": "^[a-z0-9][a-z0-9._-]*@[1-9][0-9]*$"
+    },
+    "digest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "path": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[^/].*$"
+    },
     "schemaRef": {
       "type": "string",
       "minLength": 1,
       "maxLength": 256,
       "allOf": [
-        { "not": { "pattern": "[\\x00]" } }
+        {
+          "not": {
+            "pattern": "[\\x00]"
+          }
+        }
       ],
       "anyOf": [
-        { "pattern": "^[a-z0-9][a-z0-9._-]*@[1-9][0-9]*$" },
+        {
+          "pattern": "^[a-z0-9][a-z0-9._-]*@[1-9][0-9]*$"
+        },
         {
           "allOf": [
-            { "pattern": "^[^/].*\\.json$" },
-            { "not": { "pattern": "(^|/)\\.\\.(/|$)" } },
-            { "not": { "pattern": "(^|/)\\.(/|$)" } },
-            { "not": { "pattern": "//" } },
-            { "not": { "pattern": "\\\\" } }
+            {
+              "pattern": "^[^/].*\\.json$"
+            },
+            {
+              "not": {
+                "pattern": "(^|/)\\.\\.(/|$)"
+              }
+            },
+            {
+              "not": {
+                "pattern": "(^|/)\\.(/|$)"
+              }
+            },
+            {
+              "not": {
+                "pattern": "//"
+              }
+            },
+            {
+              "not": {
+                "pattern": "\\\\"
+              }
+            }
           ]
         }
       ]
@@ -173,30 +377,58 @@
       "minLength": 1,
       "maxLength": 256,
       "allOf": [
-        { "not": { "pattern": "://" } },
-        { "not": { "pattern": "\\.\\." } },
-        { "not": { "pattern": "[\\x00-\\x1f\\x7f]" } }
+        {
+          "not": {
+            "pattern": "://"
+          }
+        },
+        {
+          "not": {
+            "pattern": "\\.\\."
+          }
+        },
+        {
+          "not": {
+            "pattern": "[\\x00-\\x1f\\x7f]"
+          }
+        }
       ]
     },
     "optionalHandler": {
       "anyOf": [
-        { "const": "" },
-        { "$ref": "#/$defs/handler" }
+        {
+          "const": ""
+        },
+        {
+          "$ref": "#/$defs/handler"
+        }
       ]
     },
     "optionalSchemaRef": {
       "anyOf": [
-        { "const": "" },
-        { "$ref": "#/$defs/schemaRef" }
+        {
+          "const": ""
+        },
+        {
+          "$ref": "#/$defs/schemaRef"
+        }
       ]
     },
     "stringArray": {
-      "type": ["array", "null"],
-      "items": { "type": "string" },
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "type": "string"
+      },
       "uniqueItems": true
     },
     "jsonRequestPointerArray": {
-      "type": ["array", "null"],
+      "type": [
+        "array",
+        "null"
+      ],
       "description": "Field-level least-privilege allowlist into the Host request document: query values are string arrays, params are strings, headers use lowercase canonical names, and body is typed JSON. The document root is forbidden.",
       "maxItems": 64,
       "items": {
@@ -209,7 +441,10 @@
       "uniqueItems": true
     },
     "jsonResponsePointerArray": {
-      "type": ["array", "null"],
+      "type": [
+        "array",
+        "null"
+      ],
       "description": "Field-level least-privilege allowlist into the Host response document: exact status, lowercase canonical headers, or typed JSON body. The document root is forbidden.",
       "maxItems": 64,
       "items": {
@@ -224,110 +459,275 @@
     "author": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["name"],
+      "required": [
+        "name"
+      ],
       "properties": {
-        "name": { "$ref": "#/$defs/nonEmpty" },
-        "url": { "type": "string", "format": "uri" },
-        "email": { "type": "string", "format": "email" }
+        "name": {
+          "$ref": "#/$defs/nonEmpty"
+        },
+        "url": {
+          "type": "string",
+          "format": "uri"
+        },
+        "email": {
+          "type": "string",
+          "format": "email"
+        }
       }
     },
     "locale": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "name": { "type": "string" },
-        "description": { "type": "string" },
-        "url": { "type": "string", "format": "uri" },
-        "author": { "$ref": "#/$defs/author" }
+        "name": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string",
+          "format": "uri"
+        },
+        "author": {
+          "$ref": "#/$defs/author"
+        }
       }
     },
     "versioned": {
       "type": "object",
-      "required": ["id", "contractVersion"],
+      "required": [
+        "id",
+        "contractVersion"
+      ],
       "properties": {
-        "id": { "$ref": "#/$defs/id" },
-        "contractVersion": { "$ref": "#/$defs/contract" }
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "contractVersion": {
+          "$ref": "#/$defs/contract"
+        }
       }
     },
     "backend": {
-      "type": ["object", "null"],
+      "type": [
+        "object",
+        "null"
+      ],
       "additionalProperties": false,
       "properties": {
-        "entry": { "type": "string" },
-        "rpc": { "type": "string" },
-        "protocolVersion": { "type": "integer", "minimum": 0, "maximum": 2 },
-        "digest": { "type": "string" },
-        "hostApiVersion": { "type": "string" }
+        "entry": {
+          "type": "string"
+        },
+        "rpc": {
+          "type": "string"
+        },
+        "protocolVersion": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2
+        },
+        "digest": {
+          "type": "string"
+        },
+        "hostApiVersion": {
+          "type": "string"
+        }
       }
     },
     "admin": {
-      "type": ["object", "null"],
+      "type": [
+        "object",
+        "null"
+      ],
       "additionalProperties": false,
       "properties": {
-        "entry": { "type": "string" },
-        "pages": { "$ref": "#/$defs/adminPages" }
+        "entry": {
+          "type": "string"
+        },
+        "pages": {
+          "$ref": "#/$defs/adminPages"
+        }
       }
     },
     "adminPages": {
-      "type": ["array", "null"],
+      "type": [
+        "array",
+        "null"
+      ],
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["path", "label"],
+        "required": [
+          "path",
+          "label"
+        ],
         "properties": {
-          "path": { "type": "string" },
-          "label": { "$ref": "#/$defs/nonEmpty" },
-          "description": { "type": "string" },
-          "icon": { "type": "string" },
-          "view": { "type": "string" },
-          "menu": { "type": "boolean" },
-          "order": { "type": "integer" },
-          "permission": { "type": "string" }
+          "path": {
+            "type": "string"
+          },
+          "label": {
+            "$ref": "#/$defs/nonEmpty"
+          },
+          "description": {
+            "type": "string"
+          },
+          "icon": {
+            "type": "string"
+          },
+          "view": {
+            "type": "string"
+          },
+          "menu": {
+            "type": "boolean"
+          },
+          "order": {
+            "type": "integer"
+          },
+          "permission": {
+            "type": "string"
+          }
         }
       }
     },
     "migrations": {
-      "type": ["array", "null"],
+      "type": [
+        "array",
+        "null"
+      ],
       "items": {
         "allOf": [
-          { "$ref": "#/$defs/versioned" },
+          {
+            "$ref": "#/$defs/versioned"
+          },
           {
             "type": "object",
             "additionalProperties": false,
-            "required": ["id", "contractVersion", "path", "digest", "transaction"],
+            "required": [
+              "id",
+              "contractVersion",
+              "path",
+              "digest",
+              "transaction"
+            ],
             "properties": {
-              "id": { "$ref": "#/$defs/id" },
-              "contractVersion": { "$ref": "#/$defs/contract" },
-              "path": { "$ref": "#/$defs/path" },
-              "digest": { "$ref": "#/$defs/digest" },
-              "transaction": { "enum": ["required", "forbidden", "auto"] }
+              "id": {
+                "$ref": "#/$defs/id"
+              },
+              "contractVersion": {
+                "$ref": "#/$defs/contract"
+              },
+              "path": {
+                "$ref": "#/$defs/path"
+              },
+              "digest": {
+                "$ref": "#/$defs/digest"
+              },
+              "transaction": {
+                "enum": [
+                  "required",
+                  "forbidden",
+                  "auto"
+                ]
+              }
             }
           }
         ]
       }
     },
     "routes": {
-      "type": ["array", "null"],
+      "type": [
+        "array",
+        "null"
+      ],
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["id", "contractVersion", "action", "path", "methods", "fallback", "mode"],
+        "required": [
+          "id",
+          "contractVersion",
+          "action",
+          "path",
+          "methods",
+          "fallback",
+          "mode"
+        ],
         "properties": {
-          "id": { "$ref": "#/$defs/id" },
-          "contractVersion": { "$ref": "#/$defs/contract" },
-          "action": { "enum": ["add", "alias", "redirect", "rewrite", "before", "after", "filter", "wrap", "replace", "global_middleware"] },
-          "targetId": { "$ref": "#/$defs/id" },
-          "path": { "type": "string" },
-          "methods": { "$ref": "#/$defs/stringArray" },
-          "access": { "enum": ["public", "login", "permission"] },
-          "permission": { "type": "string" },
-          "guard": { "$ref": "#/$defs/id" },
-          "priority": { "type": "integer" },
-          "fallback": { "enum": ["closed", "not_found", "readonly_core"] },
-          "mode": { "enum": ["http", "sse", "websocket", "stream", "multipart"] },
-          "destination": { "type": "string" },
-          "statusCode": { "enum": [301, 308], "default": 308 },
-          "handler": { "$ref": "#/$defs/optionalHandler" },
+          "id": {
+            "$ref": "#/$defs/id"
+          },
+          "contractVersion": {
+            "$ref": "#/$defs/contract"
+          },
+          "action": {
+            "enum": [
+              "add",
+              "alias",
+              "redirect",
+              "rewrite",
+              "before",
+              "after",
+              "filter",
+              "wrap",
+              "replace",
+              "global_middleware"
+            ]
+          },
+          "targetId": {
+            "$ref": "#/$defs/id"
+          },
+          "path": {
+            "type": "string"
+          },
+          "methods": {
+            "$ref": "#/$defs/stringArray"
+          },
+          "access": {
+            "enum": [
+              "public",
+              "login",
+              "permission"
+            ]
+          },
+          "permission": {
+            "type": "string"
+          },
+          "guard": {
+            "$ref": "#/$defs/id"
+          },
+          "priority": {
+            "type": "integer"
+          },
+          "fallback": {
+            "enum": [
+              "closed",
+              "not_found",
+              "readonly_core"
+            ]
+          },
+          "mode": {
+            "enum": [
+              "http",
+              "sse",
+              "websocket",
+              "stream",
+              "multipart"
+            ]
+          },
+          "destination": {
+            "type": "string"
+          },
+          "statusCode": {
+            "enum": [
+              301,
+              308
+            ],
+            "default": 308
+          },
+          "handler": {
+            "$ref": "#/$defs/optionalHandler"
+          },
           "requestSchema": {
             "$ref": "#/$defs/optionalSchemaRef",
             "description": "Required for unsafe HTTP request documents. Optional compatibility metadata for opaque non-HTTP payloads; the Host does not validate stream chunks against it."
@@ -336,59 +736,115 @@
             "$ref": "#/$defs/optionalSchemaRef",
             "description": "Required for structured HTTP responses. Optional compatibility metadata for opaque non-HTTP payloads; the Host does not validate stream chunks against it."
           },
-          "mutableRequestFields": { "$ref": "#/$defs/jsonRequestPointerArray" },
-          "mutableResponseFields": { "$ref": "#/$defs/jsonResponsePointerArray" },
-          "timeoutMs": { "type": "integer", "minimum": 0 }
+          "mutableRequestFields": {
+            "$ref": "#/$defs/jsonRequestPointerArray"
+          },
+          "mutableResponseFields": {
+            "$ref": "#/$defs/jsonResponsePointerArray"
+          },
+          "timeoutMs": {
+            "type": "integer",
+            "minimum": 0
+          }
         },
         "allOf": [
           {
             "if": {
               "properties": {
-                "action": { "const": "redirect" }
+                "action": {
+                  "const": "redirect"
+                }
               },
-              "required": ["action"]
-            },
-            "else": {
-              "not": { "required": ["statusCode"] }
-            }
-          },
-          {
-            "if": {
-              "properties": {
-                "action": { "enum": ["alias", "rewrite", "before", "after", "filter", "wrap", "replace"] }
-              },
-              "required": ["action"]
-            },
-            "else": {
-              "anyOf": [
-                { "required": ["guard"] },
-                { "required": ["access"] }
+              "required": [
+                "action"
               ]
-            }
-          },
-          {
-            "if": {
-              "properties": {
-                "action": { "enum": ["global_middleware", "before", "filter", "wrap"] }
-              },
-              "required": ["action"]
             },
             "else": {
-              "properties": {
-                "mutableRequestFields": { "maxItems": 0 }
+              "not": {
+                "required": [
+                  "statusCode"
+                ]
               }
             }
           },
           {
             "if": {
               "properties": {
-                "action": { "enum": ["filter", "wrap", "after"] }
+                "action": {
+                  "enum": [
+                    "alias",
+                    "rewrite",
+                    "before",
+                    "after",
+                    "filter",
+                    "wrap",
+                    "replace"
+                  ]
+                }
               },
-              "required": ["action"]
+              "required": [
+                "action"
+              ]
+            },
+            "else": {
+              "anyOf": [
+                {
+                  "required": [
+                    "guard"
+                  ]
+                },
+                {
+                  "required": [
+                    "access"
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "action": {
+                  "enum": [
+                    "global_middleware",
+                    "before",
+                    "filter",
+                    "wrap"
+                  ]
+                }
+              },
+              "required": [
+                "action"
+              ]
             },
             "else": {
               "properties": {
-                "mutableResponseFields": { "maxItems": 0 }
+                "mutableRequestFields": {
+                  "maxItems": 0
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "action": {
+                  "enum": [
+                    "filter",
+                    "wrap",
+                    "after"
+                  ]
+                }
+              },
+              "required": [
+                "action"
+              ]
+            },
+            "else": {
+              "properties": {
+                "mutableResponseFields": {
+                  "maxItems": 0
+                }
               }
             }
           },
@@ -397,16 +853,25 @@
               "properties": {
                 "mutableRequestFields": {
                   "type": "array",
-                  "contains": { "type": "string", "pattern": "^/body($|/)" }
+                  "contains": {
+                    "type": "string",
+                    "pattern": "^/body($|/)"
+                  }
                 }
               },
-              "required": ["mutableRequestFields"]
+              "required": [
+                "mutableRequestFields"
+              ]
             },
             "then": {
               "properties": {
-                "requestSchema": { "$ref": "#/$defs/schemaRef" }
+                "requestSchema": {
+                  "$ref": "#/$defs/schemaRef"
+                }
               },
-              "required": ["requestSchema"]
+              "required": [
+                "requestSchema"
+              ]
             }
           },
           {
@@ -414,28 +879,48 @@
               "properties": {
                 "mutableResponseFields": {
                   "type": "array",
-                  "contains": { "type": "string", "pattern": "^/body($|/)" }
+                  "contains": {
+                    "type": "string",
+                    "pattern": "^/body($|/)"
+                  }
                 }
               },
-              "required": ["mutableResponseFields"]
+              "required": [
+                "mutableResponseFields"
+              ]
             },
             "then": {
               "properties": {
-                "responseSchema": { "$ref": "#/$defs/schemaRef" }
+                "responseSchema": {
+                  "$ref": "#/$defs/schemaRef"
+                }
               },
-              "required": ["responseSchema"]
+              "required": [
+                "responseSchema"
+              ]
             }
           },
           {
             "if": {
               "properties": {
-                "action": { "not": { "enum": ["add", "replace"] } }
+                "action": {
+                  "not": {
+                    "enum": [
+                      "add",
+                      "replace"
+                    ]
+                  }
+                }
               },
-              "required": ["action"]
+              "required": [
+                "action"
+              ]
             },
             "then": {
               "properties": {
-                "mode": { "const": "http" }
+                "mode": {
+                  "const": "http"
+                }
               }
             }
           }
@@ -443,289 +928,789 @@
       }
     },
     "guards": {
-      "type": ["array", "null"],
+      "type": [
+        "array",
+        "null"
+      ],
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["id", "contractVersion", "kind", "entry", "digest"],
+        "required": [
+          "id",
+          "contractVersion",
+          "kind",
+          "entry",
+          "digest"
+        ],
         "properties": {
-          "id": { "$ref": "#/$defs/id" },
-          "contractVersion": { "$ref": "#/$defs/contract" },
-          "kind": { "enum": ["custom", "raw_request"] },
-          "entry": { "$ref": "#/$defs/path" },
-          "digest": { "$ref": "#/$defs/digest" },
-          "permissions": { "$ref": "#/$defs/stringArray" }
+          "id": {
+            "$ref": "#/$defs/id"
+          },
+          "contractVersion": {
+            "$ref": "#/$defs/contract"
+          },
+          "kind": {
+            "enum": [
+              "custom",
+              "raw_request"
+            ]
+          },
+          "entry": {
+            "$ref": "#/$defs/path"
+          },
+          "digest": {
+            "$ref": "#/$defs/digest"
+          },
+          "permissions": {
+            "$ref": "#/$defs/stringArray"
+          }
         }
       }
     },
     "hooks": {
-      "type": ["array", "null"],
+      "type": [
+        "array",
+        "null"
+      ],
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["id", "contractVersion", "name", "kind", "inputSchema"],
+        "required": [
+          "id",
+          "contractVersion",
+          "name",
+          "kind",
+          "inputSchema"
+        ],
         "properties": {
-          "id": { "$ref": "#/$defs/id" },
-          "contractVersion": { "$ref": "#/$defs/contract" },
-          "name": { "$ref": "#/$defs/id" },
-          "kind": { "enum": ["action", "filter", "observe"] },
-          "targetId": { "$ref": "#/$defs/id" },
-          "handler": { "$ref": "#/$defs/handler" },
-          "inputSchema": { "$ref": "#/$defs/schemaRef" },
-          "resultSchema": { "$ref": "#/$defs/optionalSchemaRef" },
-          "priority": { "type": "integer" },
-          "execution": { "enum": ["sync", "async"] },
-          "failurePolicy": { "enum": ["fail_closed", "fail_open"] },
-          "timeoutMs": { "type": "integer", "minimum": 1, "maximum": 5000 },
-          "mutableFields": { "$ref": "#/$defs/stringArray" }
+          "id": {
+            "$ref": "#/$defs/id"
+          },
+          "contractVersion": {
+            "$ref": "#/$defs/contract"
+          },
+          "name": {
+            "$ref": "#/$defs/id"
+          },
+          "kind": {
+            "enum": [
+              "action",
+              "filter",
+              "observe"
+            ]
+          },
+          "targetId": {
+            "$ref": "#/$defs/id"
+          },
+          "handler": {
+            "$ref": "#/$defs/handler"
+          },
+          "inputSchema": {
+            "$ref": "#/$defs/schemaRef"
+          },
+          "resultSchema": {
+            "$ref": "#/$defs/optionalSchemaRef"
+          },
+          "priority": {
+            "type": "integer"
+          },
+          "execution": {
+            "enum": [
+              "sync",
+              "async"
+            ]
+          },
+          "failurePolicy": {
+            "enum": [
+              "fail_closed",
+              "fail_open"
+            ]
+          },
+          "timeoutMs": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 5000
+          },
+          "mutableFields": {
+            "$ref": "#/$defs/stringArray"
+          }
         }
       }
     },
     "events": {
-      "type": ["array", "null"],
+      "type": [
+        "array",
+        "null"
+      ],
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["id", "contractVersion", "name", "kind", "handler", "inputSchema"],
+        "required": [
+          "id",
+          "contractVersion",
+          "name",
+          "kind",
+          "handler",
+          "inputSchema"
+        ],
         "properties": {
-          "id": { "$ref": "#/$defs/id" },
-          "contractVersion": { "$ref": "#/$defs/contract" },
-          "name": { "$ref": "#/$defs/id" },
-          "kind": { "enum": ["observe", "filter"] },
-          "handler": { "$ref": "#/$defs/handler" },
-          "inputSchema": { "$ref": "#/$defs/schemaRef" },
-          "resultSchema": { "$ref": "#/$defs/optionalSchemaRef" },
-          "priority": { "type": "integer" },
-          "timeoutMs": { "type": "integer", "minimum": 0 }
+          "id": {
+            "$ref": "#/$defs/id"
+          },
+          "contractVersion": {
+            "$ref": "#/$defs/contract"
+          },
+          "name": {
+            "$ref": "#/$defs/id"
+          },
+          "kind": {
+            "enum": [
+              "observe",
+              "filter"
+            ]
+          },
+          "handler": {
+            "$ref": "#/$defs/handler"
+          },
+          "inputSchema": {
+            "$ref": "#/$defs/schemaRef"
+          },
+          "resultSchema": {
+            "$ref": "#/$defs/optionalSchemaRef"
+          },
+          "priority": {
+            "type": "integer"
+          },
+          "timeoutMs": {
+            "type": "integer",
+            "minimum": 0
+          }
         }
       }
     },
     "jobs": {
-      "type": ["array", "null"],
+      "type": [
+        "array",
+        "null"
+      ],
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["id", "contractVersion", "name", "handler", "payloadSchema", "retryPolicy"],
+        "required": [
+          "id",
+          "contractVersion",
+          "name",
+          "handler",
+          "payloadSchema",
+          "retryPolicy"
+        ],
         "properties": {
-          "id": { "$ref": "#/$defs/id" },
-          "contractVersion": { "$ref": "#/$defs/contract" },
-          "name": { "$ref": "#/$defs/id" },
-          "handler": { "$ref": "#/$defs/handler" },
-          "payloadSchema": { "$ref": "#/$defs/schemaRef" },
-          "retryPolicy": { "enum": ["none", "bounded", "exponential"] },
-          "maxAttempts": { "type": "integer", "minimum": 1, "maximum": 25 },
-          "retryDelaySeconds": { "type": "integer", "minimum": 0, "maximum": 3600 },
-          "concurrencyLimit": { "type": "integer", "minimum": 1, "maximum": 16 }
+          "id": {
+            "$ref": "#/$defs/id"
+          },
+          "contractVersion": {
+            "$ref": "#/$defs/contract"
+          },
+          "name": {
+            "$ref": "#/$defs/id"
+          },
+          "handler": {
+            "$ref": "#/$defs/handler"
+          },
+          "payloadSchema": {
+            "$ref": "#/$defs/schemaRef"
+          },
+          "retryPolicy": {
+            "enum": [
+              "none",
+              "bounded",
+              "exponential"
+            ]
+          },
+          "maxAttempts": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 25
+          },
+          "retryDelaySeconds": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 3600
+          },
+          "concurrencyLimit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 16
+          }
         }
       }
     },
     "schedules": {
-      "type": ["array", "null"],
+      "type": [
+        "array",
+        "null"
+      ],
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["id", "contractVersion", "jobId", "cron"],
+        "required": [
+          "id",
+          "contractVersion",
+          "jobId",
+          "cron"
+        ],
         "properties": {
-          "id": { "$ref": "#/$defs/id" },
-          "contractVersion": { "$ref": "#/$defs/contract" },
-          "jobId": { "$ref": "#/$defs/id" },
-          "cron": { "$ref": "#/$defs/nonEmpty" },
-          "timezone": { "type": "string" }
+          "id": {
+            "$ref": "#/$defs/id"
+          },
+          "contractVersion": {
+            "$ref": "#/$defs/contract"
+          },
+          "jobId": {
+            "$ref": "#/$defs/id"
+          },
+          "cron": {
+            "$ref": "#/$defs/nonEmpty"
+          },
+          "timezone": {
+            "type": "string"
+          }
         }
       }
     },
     "providers": {
-      "type": ["array", "null"],
+      "type": [
+        "array",
+        "null"
+      ],
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["id", "contractVersion", "slot", "label"],
+        "required": [
+          "id",
+          "contractVersion",
+          "slot",
+          "label"
+        ],
         "properties": {
-          "id": { "$ref": "#/$defs/id" },
-          "contractVersion": { "$ref": "#/$defs/contract" },
-          "slot": { "$ref": "#/$defs/id" },
-          "targetId": { "$ref": "#/$defs/id" },
-          "label": { "$ref": "#/$defs/nonEmpty" },
-          "handler": { "$ref": "#/$defs/handler" },
-          "requestSchema": { "$ref": "#/$defs/optionalSchemaRef" },
-          "responseSchema": { "$ref": "#/$defs/optionalSchemaRef" },
-          "fallback": { "enum": ["next", "closed"] },
-          "priority": { "type": "integer" },
-          "timeoutMs": { "type": "integer", "minimum": 0 }
+          "id": {
+            "$ref": "#/$defs/id"
+          },
+          "contractVersion": {
+            "$ref": "#/$defs/contract"
+          },
+          "slot": {
+            "$ref": "#/$defs/id"
+          },
+          "targetId": {
+            "$ref": "#/$defs/id"
+          },
+          "label": {
+            "$ref": "#/$defs/nonEmpty"
+          },
+          "handler": {
+            "$ref": "#/$defs/handler"
+          },
+          "requestSchema": {
+            "$ref": "#/$defs/optionalSchemaRef"
+          },
+          "responseSchema": {
+            "$ref": "#/$defs/optionalSchemaRef"
+          },
+          "fallback": {
+            "enum": [
+              "next",
+              "closed"
+            ]
+          },
+          "priority": {
+            "type": "integer"
+          },
+          "timeoutMs": {
+            "type": "integer",
+            "minimum": 0
+          }
         },
         "allOf": [
           {
             "if": {
               "anyOf": [
-                { "required": ["targetId"] },
-                { "required": ["requestSchema"] },
-                { "required": ["responseSchema"] }
+                {
+                  "required": [
+                    "targetId"
+                  ]
+                },
+                {
+                  "required": [
+                    "requestSchema"
+                  ]
+                },
+                {
+                  "required": [
+                    "responseSchema"
+                  ]
+                }
               ]
             },
             "then": {
-              "required": ["requestSchema", "responseSchema"],
+              "required": [
+                "requestSchema",
+                "responseSchema"
+              ],
               "properties": {
-                "timeoutMs": { "type": "integer", "minimum": 1, "maximum": 5000 }
+                "timeoutMs": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 5000
+                }
               }
             },
-            "else": { "required": ["handler"] }
+            "else": {
+              "required": [
+                "handler"
+              ]
+            }
           },
           {
-            "if": { "required": ["targetId"] },
-            "then": { "required": ["handler"] }
+            "if": {
+              "required": [
+                "targetId"
+              ]
+            },
+            "then": {
+              "required": [
+                "handler"
+              ]
+            }
           }
         ]
       }
     },
     "contributions": {
-      "type": ["array", "null"],
+      "type": [
+        "array",
+        "null"
+      ],
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["point", "id"],
+        "required": [
+          "point",
+          "id"
+        ],
         "properties": {
-          "point": { "$ref": "#/$defs/id" },
-          "id": { "$ref": "#/$defs/id" },
-          "order": { "type": "integer" },
-          "label": { "type": "object", "additionalProperties": { "type": "string" } },
-          "icon": { "type": "string" },
+          "point": {
+            "$ref": "#/$defs/id"
+          },
+          "id": {
+            "$ref": "#/$defs/id"
+          },
+          "order": {
+            "type": "integer"
+          },
+          "label": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "icon": {
+            "type": "string"
+          },
           "payload": {}
         }
       }
     },
     "components": {
-      "type": ["array", "null"],
+      "type": [
+        "array",
+        "null"
+      ],
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["id", "contractVersion", "action"],
+        "required": [
+          "id",
+          "contractVersion",
+          "action"
+        ],
         "properties": {
-          "id": { "$ref": "#/$defs/id" },
-          "contractVersion": { "$ref": "#/$defs/contract" },
-          "action": { "enum": ["add", "before", "after", "wrap", "replace", "hide", "filter_props", "filter_result"] },
-          "targetId": { "$ref": "#/$defs/id" },
-          "targetContractVersion": { "$ref": "#/$defs/contract" },
-          "priority": { "type": "integer" },
-          "permission": { "$ref": "#/$defs/id" },
-          "ssrTemplate": { "type": "string" },
-          "l2Component": { "type": "string" },
-          "propsSchema": { "$ref": "#/$defs/optionalSchemaRef" },
-          "resultSchema": { "$ref": "#/$defs/optionalSchemaRef" },
-          "themeOverrideKey": { "type": "string" }
+          "id": {
+            "$ref": "#/$defs/id"
+          },
+          "contractVersion": {
+            "$ref": "#/$defs/contract"
+          },
+          "action": {
+            "enum": [
+              "add",
+              "before",
+              "after",
+              "wrap",
+              "replace",
+              "hide",
+              "filter_props",
+              "filter_result"
+            ]
+          },
+          "targetId": {
+            "$ref": "#/$defs/id"
+          },
+          "targetContractVersion": {
+            "$ref": "#/$defs/contract"
+          },
+          "priority": {
+            "type": "integer"
+          },
+          "permission": {
+            "$ref": "#/$defs/id"
+          },
+          "ssrTemplate": {
+            "type": "string"
+          },
+          "l2Component": {
+            "type": "string"
+          },
+          "propsSchema": {
+            "$ref": "#/$defs/optionalSchemaRef"
+          },
+          "resultSchema": {
+            "$ref": "#/$defs/optionalSchemaRef"
+          },
+          "themeOverrideKey": {
+            "type": "string"
+          }
         },
         "allOf": [
-          { "if": { "required": ["targetId"] }, "then": { "required": ["targetContractVersion"] } },
-          { "if": { "required": ["targetContractVersion"] }, "then": { "required": ["targetId"] } }
+          {
+            "if": {
+              "required": [
+                "targetId"
+              ]
+            },
+            "then": {
+              "required": [
+                "targetContractVersion"
+              ]
+            }
+          },
+          {
+            "if": {
+              "required": [
+                "targetContractVersion"
+              ]
+            },
+            "then": {
+              "required": [
+                "targetId"
+              ]
+            }
+          }
         ]
       }
     },
     "templates": {
-      "type": ["array", "null"],
+      "type": [
+        "array",
+        "null"
+      ],
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["id", "contractVersion", "action", "path", "digest", "viewModelSchema"],
+        "required": [
+          "id",
+          "contractVersion",
+          "action",
+          "path",
+          "digest",
+          "viewModelSchema"
+        ],
         "properties": {
-          "id": { "$ref": "#/$defs/id" },
-          "contractVersion": { "$ref": "#/$defs/contract" },
-          "action": { "enum": ["add", "replace"] },
-          "targetId": { "$ref": "#/$defs/id" },
-          "path": { "$ref": "#/$defs/path" },
-          "digest": { "$ref": "#/$defs/digest" },
-          "viewModelSchema": { "$ref": "#/$defs/schemaRef" },
-          "themeOverrideKey": { "type": "string" }
+          "id": {
+            "$ref": "#/$defs/id"
+          },
+          "contractVersion": {
+            "$ref": "#/$defs/contract"
+          },
+          "action": {
+            "enum": [
+              "add",
+              "replace"
+            ]
+          },
+          "targetId": {
+            "$ref": "#/$defs/id"
+          },
+          "path": {
+            "$ref": "#/$defs/path"
+          },
+          "digest": {
+            "$ref": "#/$defs/digest"
+          },
+          "viewModelSchema": {
+            "$ref": "#/$defs/schemaRef"
+          },
+          "themeOverrideKey": {
+            "type": "string"
+          }
         }
       }
     },
     "assets": {
-      "type": ["array", "null"],
+      "type": [
+        "array",
+        "null"
+      ],
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["handle", "contractVersion", "type", "path", "digest"],
+        "required": [
+          "handle",
+          "contractVersion",
+          "type",
+          "path",
+          "digest"
+        ],
         "properties": {
-          "handle": { "$ref": "#/$defs/id" },
-          "contractVersion": { "$ref": "#/$defs/contract" },
-          "type": { "enum": ["script", "style"] },
-          "path": { "$ref": "#/$defs/path" },
-          "digest": { "$ref": "#/$defs/digest" },
-          "dependencies": { "$ref": "#/$defs/stringArray" },
-          "scope": { "$ref": "#/$defs/stringArray" },
-          "module": { "type": "boolean" },
-          "loading": { "enum": ["", "blocking", "defer", "async", "preload", "lazy"] },
-          "integrity": { "type": "string" },
-          "csp": { "$ref": "#/$defs/stringArray" }
+          "handle": {
+            "$ref": "#/$defs/id"
+          },
+          "contractVersion": {
+            "$ref": "#/$defs/contract"
+          },
+          "type": {
+            "enum": [
+              "script",
+              "style"
+            ]
+          },
+          "path": {
+            "$ref": "#/$defs/path"
+          },
+          "digest": {
+            "$ref": "#/$defs/digest"
+          },
+          "dependencies": {
+            "$ref": "#/$defs/stringArray"
+          },
+          "scope": {
+            "$ref": "#/$defs/stringArray"
+          },
+          "module": {
+            "type": "boolean"
+          },
+          "loading": {
+            "enum": [
+              "",
+              "blocking",
+              "defer",
+              "async",
+              "preload",
+              "lazy"
+            ]
+          },
+          "integrity": {
+            "type": "string"
+          },
+          "csp": {
+            "$ref": "#/$defs/stringArray"
+          }
         }
       }
     },
     "content": {
-      "type": ["array", "null"],
+      "type": [
+        "array",
+        "null"
+      ],
       "maxItems": 512,
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["id", "contractVersion", "kind", "schema"],
+        "required": [
+          "id",
+          "contractVersion",
+          "kind",
+          "schema"
+        ],
         "properties": {
-          "id": { "$ref": "#/$defs/id" },
-          "contractVersion": { "$ref": "#/$defs/contract" },
-          "kind": { "enum": ["block", "shortcode", "embed", "node", "mark", "render_filter", "sanitizer"] },
-          "handler": { "$ref": "#/$defs/optionalHandler" },
-          "schema": { "$ref": "#/$defs/schemaRef" },
-          "renderer": { "$ref": "#/$defs/id" },
-          "migration": { "$ref": "#/$defs/id" }
+          "id": {
+            "$ref": "#/$defs/id"
+          },
+          "contractVersion": {
+            "$ref": "#/$defs/contract"
+          },
+          "kind": {
+            "enum": [
+              "block",
+              "shortcode",
+              "embed",
+              "node",
+              "mark",
+              "render_filter",
+              "sanitizer"
+            ]
+          },
+          "handler": {
+            "$ref": "#/$defs/optionalHandler"
+          },
+          "schema": {
+            "$ref": "#/$defs/schemaRef"
+          },
+          "renderer": {
+            "$ref": "#/$defs/id"
+          },
+          "migration": {
+            "$ref": "#/$defs/id"
+          }
         },
         "anyOf": [
           {
-            "required": ["handler"],
-            "properties": { "handler": { "$ref": "#/$defs/handler" } }
+            "required": [
+              "handler"
+            ],
+            "properties": {
+              "handler": {
+                "$ref": "#/$defs/handler"
+              }
+            }
           },
           {
-            "required": ["renderer"],
-            "properties": { "renderer": { "$ref": "#/$defs/id" } }
+            "required": [
+              "renderer"
+            ],
+            "properties": {
+              "renderer": {
+                "$ref": "#/$defs/id"
+              }
+            }
           }
         ]
       }
     },
     "database": {
-      "type": ["object", "null"],
+      "type": [
+        "object",
+        "null"
+      ],
       "additionalProperties": false,
-      "required": ["contractVersion", "backup", "retention"],
+      "required": [
+        "contractVersion",
+        "backup",
+        "retention"
+      ],
       "oneOf": [
-        { "type": "null" },
-        { "type": "object", "required": ["authority"], "not": { "required": ["grants"] } },
-        { "type": "object", "required": ["grants"], "not": { "required": ["authority"] } }
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "required": [
+            "authority"
+          ],
+          "not": {
+            "required": [
+              "grants"
+            ]
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "grants"
+          ],
+          "not": {
+            "required": [
+              "authority"
+            ]
+          }
+        }
       ],
       "properties": {
-        "contractVersion": { "$ref": "#/$defs/contract" },
-        "authority": { "enum": ["own_schema", "core_views", "host_commands", "raw_core", "kernel"] },
+        "contractVersion": {
+          "$ref": "#/$defs/contract"
+        },
+        "authority": {
+          "enum": [
+            "own_schema",
+            "core_views",
+            "host_commands",
+            "raw_core",
+            "kernel"
+          ]
+        },
         "grants": {
           "type": "array",
           "minItems": 1,
           "maxItems": 5,
           "uniqueItems": true,
-          "items": { "enum": ["own_schema", "core_views", "host_commands", "raw_core", "kernel"] }
+          "items": {
+            "enum": [
+              "own_schema",
+              "core_views",
+              "host_commands",
+              "raw_core",
+              "kernel"
+            ]
+          }
         },
-        "schema": { "type": "string" },
-        "role": { "type": "string" },
-        "coreCompatibility": { "type": "string" },
+        "schema": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "coreCompatibility": {
+          "type": "string"
+        },
         "operations": {
-          "type": ["array", "null"],
-          "items": { "$ref": "#/$defs/databaseOperation" }
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "$ref": "#/$defs/databaseOperation"
+          }
         },
         "backup": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["required"],
-          "properties": { "required": { "type": "boolean" }, "strategy": { "type": "string" } }
+          "required": [
+            "required"
+          ],
+          "properties": {
+            "required": {
+              "type": "boolean"
+            },
+            "strategy": {
+              "type": "string"
+            }
+          }
         },
         "retention": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["onDisable", "onUninstall"],
+          "required": [
+            "onDisable",
+            "onUninstall"
+          ],
           "properties": {
-            "onDisable": { "enum": ["retain"] },
-            "onUninstall": { "enum": ["retain", "delete", "export"] },
-            "days": { "type": "integer", "minimum": 0 }
+            "onDisable": {
+              "enum": [
+                "retain"
+              ]
+            },
+            "onUninstall": {
+              "enum": [
+                "retain",
+                "delete",
+                "export"
+              ]
+            },
+            "days": {
+              "type": "integer",
+              "minimum": 0
+            }
           }
         }
       }
@@ -733,77 +1718,192 @@
     "databaseOperation": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "statementVersion", "kind", "path", "digest", "parameters", "columns", "timeoutMs"],
+      "required": [
+        "id",
+        "statementVersion",
+        "kind",
+        "path",
+        "digest",
+        "parameters",
+        "columns",
+        "timeoutMs"
+      ],
       "properties": {
-        "id": { "$ref": "#/$defs/id" },
-        "statementVersion": { "type": "string", "pattern": "^[1-9][0-9]*$" },
-        "kind": { "enum": ["query", "execute"] },
-        "path": { "$ref": "#/$defs/path" },
-        "digest": { "$ref": "#/$defs/digest" },
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "statementVersion": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]*$"
+        },
+        "kind": {
+          "enum": [
+            "query",
+            "execute"
+          ]
+        },
+        "path": {
+          "$ref": "#/$defs/path"
+        },
+        "digest": {
+          "$ref": "#/$defs/digest"
+        },
         "parameters": {
           "type": "array",
           "maxItems": 32,
           "items": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["schema", "field", "kind", "nullable", "maxBytes"],
+            "required": [
+              "schema",
+              "field",
+              "kind",
+              "nullable",
+              "maxBytes"
+            ],
             "properties": {
-              "schema": { "$ref": "#/$defs/schemaRef" },
-              "field": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]{0,254}$" },
-              "kind": { "enum": ["string", "int64", "number", "bool"] },
-              "nullable": { "type": "boolean" },
-              "maxBytes": { "type": "integer", "minimum": 0, "maximum": 65536 }
+              "schema": {
+                "$ref": "#/$defs/schemaRef"
+              },
+              "field": {
+                "type": "string",
+                "pattern": "^[a-z0-9][a-z0-9._-]{0,254}$"
+              },
+              "kind": {
+                "enum": [
+                  "string",
+                  "int64",
+                  "number",
+                  "bool"
+                ]
+              },
+              "nullable": {
+                "type": "boolean"
+              },
+              "maxBytes": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 65536
+              }
             }
           }
         },
-        "resultSchema": { "$ref": "#/$defs/schemaRef" },
+        "resultSchema": {
+          "$ref": "#/$defs/schemaRef"
+        },
         "columns": {
           "type": "array",
           "maxItems": 64,
           "items": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["name", "nullable"],
+            "required": [
+              "name",
+              "nullable"
+            ],
             "properties": {
-              "name": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]{0,254}$" },
-              "nullable": { "type": "boolean" }
+              "name": {
+                "type": "string",
+                "pattern": "^[a-z0-9][a-z0-9._-]{0,254}$"
+              },
+              "nullable": {
+                "type": "boolean"
+              }
             }
           }
         },
-        "maxRows": { "type": "integer", "minimum": 1, "maximum": 1000 },
-        "maxAffectedRows": { "type": "integer", "minimum": 1, "maximum": 10000 },
+        "maxRows": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000
+        },
+        "maxAffectedRows": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 10000
+        },
         "queryInvalidationTags": {
           "type": "array",
           "maxItems": 32,
           "uniqueItems": true,
-          "items": { "$ref": "#/$defs/id" }
+          "items": {
+            "$ref": "#/$defs/id"
+          }
         },
-        "timeoutMs": { "type": "integer", "minimum": 0, "maximum": 5000 }
+        "timeoutMs": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 5000
+        }
       },
       "allOf": [
         {
-          "if": { "properties": { "kind": { "const": "query" } }, "required": ["kind"] },
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "query"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
           "then": {
-            "required": ["resultSchema", "maxRows"],
+            "required": [
+              "resultSchema",
+              "maxRows"
+            ],
             "not": {
               "anyOf": [
-                { "required": ["maxAffectedRows"] },
-                { "required": ["queryInvalidationTags"] }
+                {
+                  "required": [
+                    "maxAffectedRows"
+                  ]
+                },
+                {
+                  "required": [
+                    "queryInvalidationTags"
+                  ]
+                }
               ]
             },
-            "properties": { "columns": { "minItems": 1 } }
+            "properties": {
+              "columns": {
+                "minItems": 1
+              }
+            }
           },
           "else": {
-            "required": ["maxAffectedRows"],
-            "not": { "required": ["maxRows"] },
+            "required": [
+              "maxAffectedRows"
+            ],
+            "not": {
+              "required": [
+                "maxRows"
+              ]
+            },
             "oneOf": [
               {
-                "properties": { "columns": { "maxItems": 0 } },
-                "not": { "required": ["resultSchema"] }
+                "properties": {
+                  "columns": {
+                    "maxItems": 0
+                  }
+                },
+                "not": {
+                  "required": [
+                    "resultSchema"
+                  ]
+                }
               },
               {
-                "required": ["resultSchema"],
-                "properties": { "columns": { "minItems": 1 } }
+                "required": [
+                  "resultSchema"
+                ],
+                "properties": {
+                  "columns": {
+                    "minItems": 1
+                  }
+                }
               }
             ]
           }
@@ -811,162 +1911,442 @@
       ]
     },
     "cache": {
-      "type": ["array", "null"],
+      "type": [
+        "array",
+        "null"
+      ],
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["id", "contractVersion", "namespace", "policy"],
+        "required": [
+          "id",
+          "contractVersion",
+          "namespace",
+          "policy"
+        ],
         "properties": {
-          "id": { "$ref": "#/$defs/id" },
-          "contractVersion": { "$ref": "#/$defs/contract" },
-          "namespace": { "$ref": "#/$defs/id" },
-          "policy": { "enum": ["private", "actor", "permission", "public"] },
-          "tags": { "$ref": "#/$defs/stringArray" },
-          "provider": { "type": "string" },
-          "invalidators": { "$ref": "#/$defs/stringArray" }
+          "id": {
+            "$ref": "#/$defs/id"
+          },
+          "contractVersion": {
+            "$ref": "#/$defs/contract"
+          },
+          "namespace": {
+            "$ref": "#/$defs/id"
+          },
+          "policy": {
+            "enum": [
+              "private",
+              "actor",
+              "permission",
+              "public"
+            ]
+          },
+          "tags": {
+            "$ref": "#/$defs/stringArray"
+          },
+          "provider": {
+            "type": "string"
+          },
+          "invalidators": {
+            "$ref": "#/$defs/stringArray"
+          }
         }
       }
     },
     "seo": {
-      "type": ["array", "null"],
+      "type": [
+        "array",
+        "null"
+      ],
       "maxItems": 512,
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["id", "contractVersion", "scope", "kind", "action", "handler", "failurePolicy"],
+        "required": [
+          "id",
+          "contractVersion",
+          "scope",
+          "kind",
+          "action",
+          "handler",
+          "failurePolicy"
+        ],
         "properties": {
-          "id": { "$ref": "#/$defs/id" },
-          "contractVersion": { "$ref": "#/$defs/contract" },
+          "id": {
+            "$ref": "#/$defs/id"
+          },
+          "contractVersion": {
+            "$ref": "#/$defs/contract"
+          },
           "scope": {
             "anyOf": [
-              { "const": "global" },
-              { "$ref": "#/$defs/id" }
+              {
+                "const": "global"
+              },
+              {
+                "$ref": "#/$defs/id"
+              }
             ]
           },
-          "kind": { "enum": ["title", "meta", "canonical", "robots", "hreflang", "sitemap", "jsonld"] },
-          "action": { "enum": ["add", "filter", "replace"] },
-          "handler": { "$ref": "#/$defs/handler" },
-          "priority": { "type": "integer", "minimum": -1000000, "maximum": 1000000 },
-          "failurePolicy": { "enum": ["fail_closed", "fallback"] },
-          "timeoutMs": { "type": "integer", "minimum": 1, "maximum": 5000, "default": 500 }
+          "kind": {
+            "enum": [
+              "title",
+              "meta",
+              "canonical",
+              "robots",
+              "hreflang",
+              "sitemap",
+              "jsonld"
+            ]
+          },
+          "action": {
+            "enum": [
+              "add",
+              "filter",
+              "replace"
+            ]
+          },
+          "handler": {
+            "$ref": "#/$defs/handler"
+          },
+          "priority": {
+            "type": "integer",
+            "minimum": -1000000,
+            "maximum": 1000000
+          },
+          "failurePolicy": {
+            "enum": [
+              "fail_closed",
+              "fallback"
+            ]
+          },
+          "timeoutMs": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 5000,
+            "default": 500
+          }
         }
       }
     },
     "services": {
-      "type": ["array", "null"],
+      "type": [
+        "array",
+        "null"
+      ],
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["id", "contractVersion", "action", "handler", "requestSchema", "responseSchema"],
+        "required": [
+          "id",
+          "contractVersion",
+          "action",
+          "handler",
+          "requestSchema",
+          "responseSchema"
+        ],
         "properties": {
-          "id": { "$ref": "#/$defs/id" },
-          "contractVersion": { "$ref": "#/$defs/contract" },
-          "action": { "enum": ["add", "before", "after", "wrap", "replace"] },
-          "targetId": { "$ref": "#/$defs/id" },
-          "handler": { "$ref": "#/$defs/handler" },
-          "requestSchema": { "$ref": "#/$defs/schemaRef" },
-          "responseSchema": { "$ref": "#/$defs/schemaRef" },
-          "priority": { "type": "integer" }
+          "id": {
+            "$ref": "#/$defs/id"
+          },
+          "contractVersion": {
+            "$ref": "#/$defs/contract"
+          },
+          "action": {
+            "enum": [
+              "add",
+              "before",
+              "after",
+              "wrap",
+              "replace"
+            ]
+          },
+          "targetId": {
+            "$ref": "#/$defs/id"
+          },
+          "handler": {
+            "$ref": "#/$defs/handler"
+          },
+          "requestSchema": {
+            "$ref": "#/$defs/schemaRef"
+          },
+          "responseSchema": {
+            "$ref": "#/$defs/schemaRef"
+          },
+          "priority": {
+            "type": "integer"
+          }
         }
       }
     },
     "commands": {
-      "type": ["array", "null"],
+      "type": [
+        "array",
+        "null"
+      ],
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["id", "contractVersion", "handler", "inputSchema", "resultSchema"],
+        "required": [
+          "id",
+          "contractVersion",
+          "handler",
+          "inputSchema",
+          "resultSchema"
+        ],
         "properties": {
-          "id": { "$ref": "#/$defs/id" },
-          "contractVersion": { "$ref": "#/$defs/contract" },
-          "handler": { "$ref": "#/$defs/handler" },
-          "permission": { "type": "string" },
-          "inputSchema": { "$ref": "#/$defs/schemaRef" },
-          "resultSchema": { "$ref": "#/$defs/schemaRef" },
-          "description": { "type": "string" },
-          "recoverySafe": { "type": "boolean" },
-          "timeoutMs": { "type": "integer", "minimum": 1, "maximum": 5000 }
+          "id": {
+            "$ref": "#/$defs/id"
+          },
+          "contractVersion": {
+            "$ref": "#/$defs/contract"
+          },
+          "handler": {
+            "$ref": "#/$defs/handler"
+          },
+          "permission": {
+            "type": "string"
+          },
+          "inputSchema": {
+            "$ref": "#/$defs/schemaRef"
+          },
+          "resultSchema": {
+            "$ref": "#/$defs/schemaRef"
+          },
+          "description": {
+            "type": "string"
+          },
+          "recoverySafe": {
+            "type": "boolean"
+          },
+          "timeoutMs": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 5000
+          }
         }
       }
     },
     "adminSurfaces": {
-      "type": ["array", "null"],
+      "type": [
+        "array",
+        "null"
+      ],
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["id", "contractVersion", "kind", "action", "label"],
+        "required": [
+          "id",
+          "contractVersion",
+          "kind",
+          "action",
+          "label"
+        ],
         "properties": {
-          "id": { "$ref": "#/$defs/id" },
-          "contractVersion": { "$ref": "#/$defs/contract" },
-          "kind": { "enum": ["navigation", "dashboard", "list_column", "list_filter", "row_action", "bulk_action", "form", "notice", "editor_panel", "detail_region", "importer", "exporter"] },
-          "action": { "enum": ["add", "before", "after", "wrap", "replace", "hide", "filter"] },
-          "targetId": { "$ref": "#/$defs/id" },
-          "placementId": { "$ref": "#/$defs/id" },
-          "placementContractVersion": { "$ref": "#/$defs/contract" },
-          "label": { "$ref": "#/$defs/nonEmpty" },
-          "handler": { "$ref": "#/$defs/optionalHandler" },
-          "propsSchema": { "$ref": "#/$defs/schemaRef" },
-          "resultSchema": { "$ref": "#/$defs/schemaRef" },
-          "operation": { "enum": ["query", "command"] },
-          "schema": { "type": "string" },
-          "permission": { "type": "string" },
-          "priority": { "type": "integer" }
+          "id": {
+            "$ref": "#/$defs/id"
+          },
+          "contractVersion": {
+            "$ref": "#/$defs/contract"
+          },
+          "kind": {
+            "enum": [
+              "navigation",
+              "dashboard",
+              "list_column",
+              "list_filter",
+              "row_action",
+              "bulk_action",
+              "form",
+              "notice",
+              "editor_panel",
+              "detail_region",
+              "importer",
+              "exporter"
+            ]
+          },
+          "action": {
+            "enum": [
+              "add",
+              "before",
+              "after",
+              "wrap",
+              "replace",
+              "hide",
+              "filter"
+            ]
+          },
+          "targetId": {
+            "$ref": "#/$defs/id"
+          },
+          "placementId": {
+            "$ref": "#/$defs/id"
+          },
+          "placementContractVersion": {
+            "$ref": "#/$defs/contract"
+          },
+          "label": {
+            "$ref": "#/$defs/nonEmpty"
+          },
+          "handler": {
+            "$ref": "#/$defs/optionalHandler"
+          },
+          "propsSchema": {
+            "$ref": "#/$defs/schemaRef"
+          },
+          "resultSchema": {
+            "$ref": "#/$defs/schemaRef"
+          },
+          "operation": {
+            "enum": [
+              "query",
+              "command"
+            ]
+          },
+          "schema": {
+            "type": "string"
+          },
+          "permission": {
+            "type": "string"
+          },
+          "priority": {
+            "type": "integer"
+          }
         }
       }
     },
     "queries": {
-      "type": ["array", "null"],
+      "type": [
+        "array",
+        "null"
+      ],
       "maxItems": 512,
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["id", "contractVersion", "entity", "planVersion", "fields", "pagination", "resultSchema", "permissionPolicy"],
+        "required": [
+          "id",
+          "contractVersion",
+          "entity",
+          "planVersion",
+          "fields",
+          "pagination",
+          "resultSchema",
+          "permissionPolicy"
+        ],
         "properties": {
-          "id": { "$ref": "#/$defs/id" },
-          "contractVersion": { "$ref": "#/$defs/contract" },
-          "entity": { "$ref": "#/$defs/id" },
-          "planVersion": { "$ref": "#/$defs/contract" },
-          "fields": { "$ref": "#/$defs/stringArray" },
-          "relations": { "$ref": "#/$defs/stringArray" },
-          "filters": { "$ref": "#/$defs/stringArray" },
-          "sort": { "$ref": "#/$defs/stringArray" },
-          "pagination": { "enum": ["none", "offset", "cursor"] },
-          "resultSchema": { "$ref": "#/$defs/schemaRef" },
-          "permissionPolicy": { "$ref": "#/$defs/nonEmpty" },
-          "cacheTags": { "$ref": "#/$defs/stringArray" },
-          "handler": { "$ref": "#/$defs/handler" },
+          "id": {
+            "$ref": "#/$defs/id"
+          },
+          "contractVersion": {
+            "$ref": "#/$defs/contract"
+          },
+          "entity": {
+            "$ref": "#/$defs/id"
+          },
+          "planVersion": {
+            "$ref": "#/$defs/contract"
+          },
+          "fields": {
+            "$ref": "#/$defs/stringArray"
+          },
+          "relations": {
+            "$ref": "#/$defs/stringArray"
+          },
+          "filters": {
+            "$ref": "#/$defs/stringArray"
+          },
+          "sort": {
+            "$ref": "#/$defs/stringArray"
+          },
+          "pagination": {
+            "enum": [
+              "none",
+              "offset",
+              "cursor"
+            ]
+          },
+          "resultSchema": {
+            "$ref": "#/$defs/schemaRef"
+          },
+          "permissionPolicy": {
+            "$ref": "#/$defs/nonEmpty"
+          },
+          "cacheTags": {
+            "$ref": "#/$defs/stringArray"
+          },
+          "handler": {
+            "$ref": "#/$defs/handler"
+          },
           "identityFields": {
-            "type": ["array", "null"],
+            "type": [
+              "array",
+              "null"
+            ],
             "maxItems": 8,
             "uniqueItems": true,
-            "items": { "$ref": "#/$defs/nonEmpty" }
+            "items": {
+              "$ref": "#/$defs/nonEmpty"
+            }
           },
           "defaultSort": {
-            "type": ["array", "null"],
+            "type": [
+              "array",
+              "null"
+            ],
             "maxItems": 16,
-            "items": { "$ref": "#/$defs/querySort" }
+            "items": {
+              "$ref": "#/$defs/querySort"
+            }
           }
         },
         "allOf": [
           {
-            "if": { "not": { "required": ["handler"] } },
+            "if": {
+              "not": {
+                "required": [
+                  "handler"
+                ]
+              }
+            },
             "then": {
               "properties": {
-                "identityFields": { "maxItems": 0 },
-                "defaultSort": { "maxItems": 0 }
+                "identityFields": {
+                  "maxItems": 0
+                },
+                "defaultSort": {
+                  "maxItems": 0
+                }
               }
             }
           },
           {
             "if": {
-              "required": ["handler"],
-              "properties": { "pagination": { "enum": ["offset", "cursor"] } }
+              "required": [
+                "handler"
+              ],
+              "properties": {
+                "pagination": {
+                  "enum": [
+                    "offset",
+                    "cursor"
+                  ]
+                }
+              }
             },
             "then": {
-              "required": ["identityFields", "defaultSort"],
+              "required": [
+                "identityFields",
+                "defaultSort"
+              ],
               "properties": {
-                "identityFields": { "minItems": 1 },
-                "defaultSort": { "minItems": 1 }
+                "identityFields": {
+                  "minItems": 1
+                },
+                "defaultSort": {
+                  "minItems": 1
+                }
               }
             }
           }
@@ -976,196 +2356,520 @@
     "querySort": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["field"],
+      "required": [
+        "field"
+      ],
       "properties": {
-        "field": { "$ref": "#/$defs/nonEmpty" },
-        "descending": { "type": "boolean", "default": false }
+        "field": {
+          "$ref": "#/$defs/nonEmpty"
+        },
+        "descending": {
+          "type": "boolean",
+          "default": false
+        }
       }
     },
     "queryResultFilters": {
-      "type": ["array", "null"],
+      "type": [
+        "array",
+        "null"
+      ],
       "maxItems": 64,
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["id", "contractVersion", "queryId", "queryContractVersion", "queryPlanVersion", "handler"],
+        "required": [
+          "id",
+          "contractVersion",
+          "queryId",
+          "queryContractVersion",
+          "queryPlanVersion",
+          "handler"
+        ],
         "properties": {
-          "id": { "$ref": "#/$defs/id" },
-          "contractVersion": { "$ref": "#/$defs/contract" },
-          "queryId": { "$ref": "#/$defs/id" },
-          "queryContractVersion": { "$ref": "#/$defs/contract" },
-          "queryPlanVersion": { "$ref": "#/$defs/contract" },
-          "handler": { "$ref": "#/$defs/handler" },
-          "priority": { "type": "integer", "minimum": -1000000, "maximum": 1000000 },
-          "failurePolicy": { "enum": ["fail_closed", "fail_open"] },
-          "timeoutMs": { "type": "integer", "minimum": 1, "maximum": 5000, "default": 1000 },
-          "dependency": { "$ref": "#/$defs/queryResultFilterDependency" }
+          "id": {
+            "$ref": "#/$defs/id"
+          },
+          "contractVersion": {
+            "$ref": "#/$defs/contract"
+          },
+          "queryId": {
+            "$ref": "#/$defs/id"
+          },
+          "queryContractVersion": {
+            "$ref": "#/$defs/contract"
+          },
+          "queryPlanVersion": {
+            "$ref": "#/$defs/contract"
+          },
+          "handler": {
+            "$ref": "#/$defs/handler"
+          },
+          "priority": {
+            "type": "integer",
+            "minimum": -1000000,
+            "maximum": 1000000
+          },
+          "failurePolicy": {
+            "enum": [
+              "fail_closed",
+              "fail_open"
+            ]
+          },
+          "timeoutMs": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 5000,
+            "default": 1000
+          },
+          "dependency": {
+            "$ref": "#/$defs/queryResultFilterDependency"
+          }
         }
       }
     },
     "queryResultFilterDependency": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["extensionId", "versionConstraint"],
+      "required": [
+        "extensionId",
+        "versionConstraint"
+      ],
       "properties": {
-        "extensionId": { "$ref": "#/$defs/id" },
-        "versionConstraint": { "$ref": "#/$defs/nonEmpty" }
+        "extensionId": {
+          "$ref": "#/$defs/id"
+        },
+        "versionConstraint": {
+          "$ref": "#/$defs/nonEmpty"
+        }
       }
     },
     "permissionDefinitions": {
-      "type": ["array", "null"],
+      "type": [
+        "array",
+        "null"
+      ],
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["key", "contractVersion", "label", "description", "assignmentPolicy"],
+        "required": [
+          "key",
+          "contractVersion",
+          "label",
+          "description",
+          "assignmentPolicy"
+        ],
         "properties": {
-          "key": { "$ref": "#/$defs/id" },
-          "contractVersion": { "$ref": "#/$defs/contract" },
-          "label": { "$ref": "#/$defs/nonEmpty" },
-          "description": { "$ref": "#/$defs/nonEmpty" },
-          "recommendedRoles": { "$ref": "#/$defs/stringArray" },
-          "assignmentPolicy": { "const": "host" }
+          "key": {
+            "$ref": "#/$defs/id"
+          },
+          "contractVersion": {
+            "$ref": "#/$defs/contract"
+          },
+          "label": {
+            "$ref": "#/$defs/nonEmpty"
+          },
+          "description": {
+            "$ref": "#/$defs/nonEmpty"
+          },
+          "recommendedRoles": {
+            "$ref": "#/$defs/stringArray"
+          },
+          "assignmentPolicy": {
+            "const": "host"
+          }
         }
       }
     },
     "media": {
-      "type": ["array", "null"],
+      "type": [
+        "array",
+        "null"
+      ],
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["id", "contractVersion", "action", "mimes", "handler"],
+        "required": [
+          "id",
+          "contractVersion",
+          "action",
+          "mimes",
+          "handler"
+        ],
         "properties": {
-          "id": { "$ref": "#/$defs/id" },
-          "contractVersion": { "$ref": "#/$defs/contract" },
-          "action": { "enum": ["add", "before", "after", "wrap", "replace"] },
-          "targetId": { "$ref": "#/$defs/id" },
-          "mimes": { "$ref": "#/$defs/stringArray" },
+          "id": {
+            "$ref": "#/$defs/id"
+          },
+          "contractVersion": {
+            "$ref": "#/$defs/contract"
+          },
+          "action": {
+            "enum": [
+              "add",
+              "before",
+              "after",
+              "wrap",
+              "replace"
+            ]
+          },
+          "targetId": {
+            "$ref": "#/$defs/id"
+          },
+          "mimes": {
+            "$ref": "#/$defs/stringArray"
+          },
           "transforms": {
-            "type": ["array", "null"],
+            "type": [
+              "array",
+              "null"
+            ],
             "items": {
               "type": "object",
               "additionalProperties": false,
-              "required": ["id", "variant"],
+              "required": [
+                "id",
+                "variant"
+              ],
               "properties": {
-                "id": { "$ref": "#/$defs/id" },
-                "variant": { "$ref": "#/$defs/nonEmpty" },
-                "format": { "type": "string" },
-                "width": { "type": "integer", "minimum": 0 },
-                "height": { "type": "integer", "minimum": 0 }
+                "id": {
+                  "$ref": "#/$defs/id"
+                },
+                "variant": {
+                  "$ref": "#/$defs/nonEmpty"
+                },
+                "format": {
+                  "type": "string"
+                },
+                "width": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "height": {
+                  "type": "integer",
+                  "minimum": 0
+                }
               }
             }
           },
-          "handler": { "$ref": "#/$defs/handler" },
-          "permission": { "type": "string" },
-          "priority": { "type": "integer" }
+          "handler": {
+            "$ref": "#/$defs/handler"
+          },
+          "permission": {
+            "type": "string"
+          },
+          "priority": {
+            "type": "integer"
+          }
         }
       }
     },
     "navigation": {
-      "type": ["array", "null"],
+      "type": [
+        "array",
+        "null"
+      ],
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["id", "contractVersion", "kind", "action", "label"],
+        "required": [
+          "id",
+          "contractVersion",
+          "kind",
+          "action",
+          "label"
+        ],
         "properties": {
-          "id": { "$ref": "#/$defs/id" },
-          "contractVersion": { "$ref": "#/$defs/contract" },
-          "kind": { "enum": ["menu", "item", "breadcrumb", "header", "footer", "sidebar"] },
-          "action": { "enum": ["add", "before", "after", "wrap", "replace", "hide", "filter"] },
-          "targetId": { "$ref": "#/$defs/id" },
-          "label": { "$ref": "#/$defs/nonEmpty" },
-          "href": { "type": "string" },
-          "permission": { "type": "string" },
-          "order": { "type": "integer", "minimum": 0 }
+          "id": {
+            "$ref": "#/$defs/id"
+          },
+          "contractVersion": {
+            "$ref": "#/$defs/contract"
+          },
+          "kind": {
+            "enum": [
+              "menu",
+              "item",
+              "breadcrumb",
+              "header",
+              "footer",
+              "sidebar"
+            ]
+          },
+          "action": {
+            "enum": [
+              "add",
+              "before",
+              "after",
+              "wrap",
+              "replace",
+              "hide",
+              "filter"
+            ]
+          },
+          "targetId": {
+            "$ref": "#/$defs/id"
+          },
+          "label": {
+            "$ref": "#/$defs/nonEmpty"
+          },
+          "href": {
+            "type": "string"
+          },
+          "permission": {
+            "type": "string"
+          },
+          "order": {
+            "type": "integer",
+            "minimum": 0
+          }
         }
       }
     },
     "regions": {
-      "type": ["array", "null"],
+      "type": [
+        "array",
+        "null"
+      ],
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["id", "contractVersion", "action", "kind", "label"],
+        "required": [
+          "id",
+          "contractVersion",
+          "action",
+          "kind",
+          "label"
+        ],
         "properties": {
-          "id": { "$ref": "#/$defs/id" },
-          "contractVersion": { "$ref": "#/$defs/contract" },
-          "action": { "enum": ["add", "before", "after", "wrap", "replace", "hide", "filter"] },
-          "targetId": { "$ref": "#/$defs/id" },
-          "kind": { "enum": ["menu", "widget", "header", "footer", "sidebar", "content"] },
-          "label": { "$ref": "#/$defs/nonEmpty" },
-          "multiple": { "type": "boolean" }
+          "id": {
+            "$ref": "#/$defs/id"
+          },
+          "contractVersion": {
+            "$ref": "#/$defs/contract"
+          },
+          "action": {
+            "enum": [
+              "add",
+              "before",
+              "after",
+              "wrap",
+              "replace",
+              "hide",
+              "filter"
+            ]
+          },
+          "targetId": {
+            "$ref": "#/$defs/id"
+          },
+          "kind": {
+            "enum": [
+              "menu",
+              "widget",
+              "header",
+              "footer",
+              "sidebar",
+              "content"
+            ]
+          },
+          "label": {
+            "$ref": "#/$defs/nonEmpty"
+          },
+          "multiple": {
+            "type": "boolean"
+          }
         }
       }
     },
     "identity": {
-      "type": ["object", "null"],
+      "type": [
+        "object",
+        "null"
+      ],
       "additionalProperties": false,
-      "required": ["contractVersion"],
+      "required": [
+        "contractVersion"
+      ],
       "properties": {
-        "contractVersion": { "$ref": "#/$defs/contract" },
+        "contractVersion": {
+          "$ref": "#/$defs/contract"
+        },
         "userFields": {
-          "type": ["array", "null"],
+          "type": [
+            "array",
+            "null"
+          ],
           "items": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["id", "contractVersion", "type", "schema"],
+            "required": [
+              "id",
+              "contractVersion",
+              "type",
+              "schema"
+            ],
             "properties": {
-              "id": { "$ref": "#/$defs/id" },
-              "contractVersion": { "$ref": "#/$defs/contract" },
-              "type": { "enum": ["string", "number", "boolean", "object", "array"] },
-              "schema": { "$ref": "#/$defs/schemaRef" },
-              "readPermission": { "type": "string" },
-              "writePermission": { "type": "string" }
+              "id": {
+                "$ref": "#/$defs/id"
+              },
+              "contractVersion": {
+                "$ref": "#/$defs/contract"
+              },
+              "type": {
+                "enum": [
+                  "string",
+                  "number",
+                  "boolean",
+                  "object",
+                  "array"
+                ]
+              },
+              "schema": {
+                "$ref": "#/$defs/schemaRef"
+              },
+              "readPermission": {
+                "type": "string"
+              },
+              "writePermission": {
+                "type": "string"
+              }
             }
           }
         },
         "providers": {
-          "type": ["array", "null"],
+          "type": [
+            "array",
+            "null"
+          ],
           "items": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["id", "contractVersion", "kind", "handler"],
+            "required": [
+              "id",
+              "contractVersion",
+              "kind",
+              "handler"
+            ],
             "properties": {
-              "id": { "$ref": "#/$defs/id" },
-              "contractVersion": { "$ref": "#/$defs/contract" },
-              "kind": { "enum": ["auth", "profile", "recovery", "session", "risk"] },
-              "handler": { "$ref": "#/$defs/handler" },
-              "priority": { "type": "integer" },
+              "id": {
+                "$ref": "#/$defs/id"
+              },
+              "contractVersion": {
+                "$ref": "#/$defs/contract"
+              },
+              "kind": {
+                "enum": [
+                  "auth",
+                  "profile",
+                  "recovery",
+                  "session",
+                  "risk"
+                ]
+              },
+              "handler": {
+                "$ref": "#/$defs/handler"
+              },
+              "priority": {
+                "type": "integer"
+              },
               "operations": {
-                "type": ["array", "null"],
+                "type": [
+                  "array",
+                  "null"
+                ],
                 "maxItems": 16,
                 "items": {
                   "type": "object",
                   "additionalProperties": false,
-                  "required": ["name", "inputSchema", "outputSchema"],
+                  "required": [
+                    "name",
+                    "inputSchema",
+                    "outputSchema"
+                  ],
                   "properties": {
                     "name": {
                       "enum": [
-                        "registration.start", "registration.complete", "login.start", "login.complete",
-                        "link.start", "link.complete", "sections.list", "section.read", "section.update",
-                        "account.read", "account.update", "recovery.start", "recovery.complete",
-                        "session.evaluate", "risk.evaluate"
+                        "registration.start",
+                        "registration.complete",
+                        "login.start",
+                        "login.complete",
+                        "link.start",
+                        "link.complete",
+                        "sections.list",
+                        "section.read",
+                        "section.update",
+                        "account.read",
+                        "account.update",
+                        "recovery.start",
+                        "recovery.complete",
+                        "session.evaluate",
+                        "risk.evaluate"
                       ]
                     },
-                    "inputSchema": { "$ref": "#/$defs/schemaRef" },
-                    "outputSchema": { "$ref": "#/$defs/schemaRef" },
-                    "timeoutMs": { "type": "integer", "minimum": 1, "maximum": 5000, "default": 1000 },
-                    "failurePolicy": { "enum": ["fail_closed", "omit"] }
+                    "inputSchema": {
+                      "$ref": "#/$defs/schemaRef"
+                    },
+                    "outputSchema": {
+                      "$ref": "#/$defs/schemaRef"
+                    },
+                    "timeoutMs": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 5000,
+                      "default": 1000
+                    },
+                    "failurePolicy": {
+                      "enum": [
+                        "fail_closed",
+                        "omit"
+                      ]
+                    }
                   },
                   "allOf": [
                     {
                       "if": {
-                        "required": ["name"],
-                        "properties": { "name": { "enum": ["sections.list", "section.read"] } }
+                        "required": [
+                          "name"
+                        ],
+                        "properties": {
+                          "name": {
+                            "enum": [
+                              "sections.list",
+                              "section.read"
+                            ]
+                          }
+                        }
                       },
-                      "then": { "properties": { "failurePolicy": { "const": "omit" } } }
+                      "then": {
+                        "properties": {
+                          "failurePolicy": {
+                            "const": "omit"
+                          }
+                        }
+                      }
                     },
                     {
                       "if": {
-                        "required": ["name"],
-                        "properties": { "name": { "not": { "enum": ["sections.list", "section.read"] } } }
+                        "required": [
+                          "name"
+                        ],
+                        "properties": {
+                          "name": {
+                            "not": {
+                              "enum": [
+                                "sections.list",
+                                "section.read"
+                              ]
+                            }
+                          }
+                        }
                       },
-                      "then": { "properties": { "failurePolicy": { "const": "fail_closed" } } }
+                      "then": {
+                        "properties": {
+                          "failurePolicy": {
+                            "const": "fail_closed"
+                          }
+                        }
+                      }
                     }
                   ]
                 }
@@ -1173,147 +2877,605 @@
             },
             "allOf": [
               {
-                "if": { "properties": { "kind": { "const": "auth" } }, "required": ["kind"] },
-                "then": { "properties": { "operations": { "items": { "properties": { "name": { "enum": ["registration.start", "registration.complete", "login.start", "login.complete", "link.start", "link.complete"] } } } } } }
+                "if": {
+                  "properties": {
+                    "kind": {
+                      "const": "auth"
+                    }
+                  },
+                  "required": [
+                    "kind"
+                  ]
+                },
+                "then": {
+                  "properties": {
+                    "operations": {
+                      "items": {
+                        "properties": {
+                          "name": {
+                            "enum": [
+                              "registration.start",
+                              "registration.complete",
+                              "login.start",
+                              "login.complete",
+                              "link.start",
+                              "link.complete"
+                            ]
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
               },
               {
-                "if": { "properties": { "kind": { "const": "profile" } }, "required": ["kind"] },
-                "then": { "properties": { "operations": { "items": { "properties": { "name": { "enum": ["sections.list", "section.read", "section.update", "account.read", "account.update"] } } } } } }
+                "if": {
+                  "properties": {
+                    "kind": {
+                      "const": "profile"
+                    }
+                  },
+                  "required": [
+                    "kind"
+                  ]
+                },
+                "then": {
+                  "properties": {
+                    "operations": {
+                      "items": {
+                        "properties": {
+                          "name": {
+                            "enum": [
+                              "sections.list",
+                              "section.read",
+                              "section.update",
+                              "account.read",
+                              "account.update"
+                            ]
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
               },
               {
-                "if": { "properties": { "kind": { "const": "recovery" } }, "required": ["kind"] },
-                "then": { "properties": { "operations": { "items": { "properties": { "name": { "enum": ["recovery.start", "recovery.complete"] } } } } } }
+                "if": {
+                  "properties": {
+                    "kind": {
+                      "const": "recovery"
+                    }
+                  },
+                  "required": [
+                    "kind"
+                  ]
+                },
+                "then": {
+                  "properties": {
+                    "operations": {
+                      "items": {
+                        "properties": {
+                          "name": {
+                            "enum": [
+                              "recovery.start",
+                              "recovery.complete"
+                            ]
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
               },
               {
-                "if": { "properties": { "kind": { "const": "session" } }, "required": ["kind"] },
-                "then": { "properties": { "operations": { "items": { "properties": { "name": { "const": "session.evaluate" } } } } } }
+                "if": {
+                  "properties": {
+                    "kind": {
+                      "const": "session"
+                    }
+                  },
+                  "required": [
+                    "kind"
+                  ]
+                },
+                "then": {
+                  "properties": {
+                    "operations": {
+                      "items": {
+                        "properties": {
+                          "name": {
+                            "const": "session.evaluate"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
               },
               {
-                "if": { "properties": { "kind": { "const": "risk" } }, "required": ["kind"] },
-                "then": { "properties": { "operations": { "items": { "properties": { "name": { "const": "risk.evaluate" } } } } } }
+                "if": {
+                  "properties": {
+                    "kind": {
+                      "const": "risk"
+                    }
+                  },
+                  "required": [
+                    "kind"
+                  ]
+                },
+                "then": {
+                  "properties": {
+                    "operations": {
+                      "items": {
+                        "properties": {
+                          "name": {
+                            "const": "risk.evaluate"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
               }
             ]
           }
         },
-        "sessionPolicy": { "type": "string" },
-        "riskHooks": { "$ref": "#/$defs/stringArray" }
+        "sessionPolicy": {
+          "type": "string"
+        },
+        "riskHooks": {
+          "$ref": "#/$defs/stringArray"
+        }
       }
     },
     "dependencies": {
-      "type": ["array", "null"],
+      "type": [
+        "array",
+        "null"
+      ],
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["version", "kind"],
+        "required": [
+          "version",
+          "kind"
+        ],
         "properties": {
-          "id": { "$ref": "#/$defs/id" },
-          "capability": { "$ref": "#/$defs/id" },
-          "version": { "$ref": "#/$defs/nonEmpty" },
-          "kind": { "enum": ["required", "optional", "conflict", "provides"] }
+          "id": {
+            "$ref": "#/$defs/id"
+          },
+          "capability": {
+            "$ref": "#/$defs/id"
+          },
+          "version": {
+            "$ref": "#/$defs/nonEmpty"
+          },
+          "kind": {
+            "enum": [
+              "required",
+              "optional",
+              "conflict",
+              "provides"
+            ]
+          }
         }
       }
     },
     "lifecycle": {
-      "type": ["object", "null"],
+      "type": [
+        "object",
+        "null"
+      ],
       "additionalProperties": false,
-      "required": ["contractVersion"],
+      "required": [
+        "contractVersion"
+      ],
       "properties": {
-        "contractVersion": { "$ref": "#/$defs/contract" },
-        "install": { "$ref": "#/$defs/lifecycleOperation" },
-        "enable": { "$ref": "#/$defs/lifecycleOperation" },
-        "disable": { "$ref": "#/$defs/lifecycleOperation" },
-        "upgrade": { "$ref": "#/$defs/lifecycleOperation" },
-        "rollback": { "$ref": "#/$defs/lifecycleOperation" },
-        "uninstall": { "$ref": "#/$defs/lifecycleOperation" }
+        "contractVersion": {
+          "$ref": "#/$defs/contract"
+        },
+        "install": {
+          "$ref": "#/$defs/lifecycleOperation"
+        },
+        "enable": {
+          "$ref": "#/$defs/lifecycleOperation"
+        },
+        "disable": {
+          "$ref": "#/$defs/lifecycleOperation"
+        },
+        "upgrade": {
+          "$ref": "#/$defs/lifecycleOperation"
+        },
+        "rollback": {
+          "$ref": "#/$defs/lifecycleOperation"
+        },
+        "uninstall": {
+          "$ref": "#/$defs/lifecycleOperation"
+        }
       }
     },
     "lifecycleOperation": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["plan", "execute", "progressSchema", "checkpointSchema"],
+      "required": [
+        "plan",
+        "execute",
+        "progressSchema",
+        "checkpointSchema"
+      ],
       "properties": {
-        "plan": { "$ref": "#/$defs/handler" },
-        "execute": { "$ref": "#/$defs/handler" },
-        "progressSchema": { "$ref": "#/$defs/schemaRef" },
-        "checkpointSchema": { "$ref": "#/$defs/schemaRef" }
+        "plan": {
+          "$ref": "#/$defs/handler"
+        },
+        "execute": {
+          "$ref": "#/$defs/handler"
+        },
+        "progressSchema": {
+          "$ref": "#/$defs/schemaRef"
+        },
+        "checkpointSchema": {
+          "$ref": "#/$defs/schemaRef"
+        }
       }
     },
     "openapi": {
-      "type": ["array", "null"],
+      "type": [
+        "array",
+        "null"
+      ],
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["id", "contractVersion", "path", "digest", "namespace"],
+        "required": [
+          "id",
+          "contractVersion",
+          "path",
+          "digest",
+          "namespace"
+        ],
         "properties": {
-          "id": { "$ref": "#/$defs/id" },
-          "contractVersion": { "$ref": "#/$defs/contract" },
-          "path": { "$ref": "#/$defs/path" },
-          "digest": { "$ref": "#/$defs/digest" },
-          "namespace": { "$ref": "#/$defs/id" }
+          "id": {
+            "$ref": "#/$defs/id"
+          },
+          "contractVersion": {
+            "$ref": "#/$defs/contract"
+          },
+          "path": {
+            "$ref": "#/$defs/path"
+          },
+          "digest": {
+            "$ref": "#/$defs/digest"
+          },
+          "namespace": {
+            "$ref": "#/$defs/id"
+          }
         }
       }
     },
     "packageFiles": {
-      "type": ["array", "null"],
+      "type": [
+        "array",
+        "null"
+      ],
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["id", "kind", "path", "digest"],
+        "required": [
+          "id",
+          "kind",
+          "path",
+          "digest"
+        ],
         "properties": {
-          "id": { "$ref": "#/$defs/id" },
-          "kind": { "enum": ["executable", "frontend", "locale", "schema", "migration", "template", "asset", "openapi", "database_operation"] },
-          "path": { "$ref": "#/$defs/path" },
-          "digest": { "$ref": "#/$defs/digest" },
-          "locale": { "type": "string" },
-          "version": { "type": "string" }
+          "id": {
+            "$ref": "#/$defs/id"
+          },
+          "kind": {
+            "enum": [
+              "executable",
+              "frontend",
+              "locale",
+              "schema",
+              "migration",
+              "template",
+              "asset",
+              "openapi",
+              "database_operation"
+            ]
+          },
+          "path": {
+            "$ref": "#/$defs/path"
+          },
+          "digest": {
+            "$ref": "#/$defs/digest"
+          },
+          "locale": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          }
         }
       }
     },
     "include": {
       "oneOf": [
-        { "$ref": "#/$defs/path" },
-        { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/path" } }
+        {
+          "$ref": "#/$defs/path"
+        },
+        {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/path"
+          }
+        }
       ]
     },
     "includes": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "langs": { "$ref": "#/$defs/include" },
-        "settings": { "$ref": "#/$defs/include" },
-        "contributions": { "$ref": "#/$defs/include" },
-        "admin": { "$ref": "#/$defs/include" },
-        "events": { "$ref": "#/$defs/include" },
-        "routes": { "$ref": "#/$defs/include" },
-        "jobs": { "$ref": "#/$defs/include" },
-        "migrations": { "$ref": "#/$defs/include" },
-        "permissions": { "$ref": "#/$defs/include" },
-        "hooks": { "$ref": "#/$defs/include" },
-        "providers": { "$ref": "#/$defs/include" },
-        "adminPages": { "$ref": "#/$defs/include" },
-        "guards": { "$ref": "#/$defs/include" },
-        "schedules": { "$ref": "#/$defs/include" },
-        "components": { "$ref": "#/$defs/include" },
-        "templates": { "$ref": "#/$defs/include" },
-        "assets": { "$ref": "#/$defs/include" },
-        "content": { "$ref": "#/$defs/include" },
-        "database": { "$ref": "#/$defs/include" },
-        "cache": { "$ref": "#/$defs/include" },
-        "seo": { "$ref": "#/$defs/include" },
-        "services": { "$ref": "#/$defs/include" },
-        "commands": { "$ref": "#/$defs/include" },
-        "adminSurfaces": { "$ref": "#/$defs/include" },
-        "queries": { "$ref": "#/$defs/include" },
-        "queryResultFilters": { "$ref": "#/$defs/include" },
-        "identity": { "$ref": "#/$defs/include" },
-        "permissionDefinitions": { "$ref": "#/$defs/include" },
-        "media": { "$ref": "#/$defs/include" },
-        "navigation": { "$ref": "#/$defs/include" },
-        "regions": { "$ref": "#/$defs/include" },
-        "dependencies": { "$ref": "#/$defs/include" },
-        "lifecycle": { "$ref": "#/$defs/include" },
-        "openapi": { "$ref": "#/$defs/include" },
-        "packageFiles": { "$ref": "#/$defs/include" }
+        "langs": {
+          "$ref": "#/$defs/include"
+        },
+        "settings": {
+          "$ref": "#/$defs/include"
+        },
+        "contributions": {
+          "$ref": "#/$defs/include"
+        },
+        "admin": {
+          "$ref": "#/$defs/include"
+        },
+        "events": {
+          "$ref": "#/$defs/include"
+        },
+        "routes": {
+          "$ref": "#/$defs/include"
+        },
+        "jobs": {
+          "$ref": "#/$defs/include"
+        },
+        "migrations": {
+          "$ref": "#/$defs/include"
+        },
+        "permissions": {
+          "$ref": "#/$defs/include"
+        },
+        "hooks": {
+          "$ref": "#/$defs/include"
+        },
+        "providers": {
+          "$ref": "#/$defs/include"
+        },
+        "adminPages": {
+          "$ref": "#/$defs/include"
+        },
+        "guards": {
+          "$ref": "#/$defs/include"
+        },
+        "schedules": {
+          "$ref": "#/$defs/include"
+        },
+        "components": {
+          "$ref": "#/$defs/include"
+        },
+        "templates": {
+          "$ref": "#/$defs/include"
+        },
+        "assets": {
+          "$ref": "#/$defs/include"
+        },
+        "content": {
+          "$ref": "#/$defs/include"
+        },
+        "database": {
+          "$ref": "#/$defs/include"
+        },
+        "cache": {
+          "$ref": "#/$defs/include"
+        },
+        "seo": {
+          "$ref": "#/$defs/include"
+        },
+        "services": {
+          "$ref": "#/$defs/include"
+        },
+        "commands": {
+          "$ref": "#/$defs/include"
+        },
+        "adminSurfaces": {
+          "$ref": "#/$defs/include"
+        },
+        "queries": {
+          "$ref": "#/$defs/include"
+        },
+        "queryResultFilters": {
+          "$ref": "#/$defs/include"
+        },
+        "identity": {
+          "$ref": "#/$defs/include"
+        },
+        "permissionDefinitions": {
+          "$ref": "#/$defs/include"
+        },
+        "media": {
+          "$ref": "#/$defs/include"
+        },
+        "navigation": {
+          "$ref": "#/$defs/include"
+        },
+        "regions": {
+          "$ref": "#/$defs/include"
+        },
+        "dependencies": {
+          "$ref": "#/$defs/include"
+        },
+        "lifecycle": {
+          "$ref": "#/$defs/include"
+        },
+        "openapi": {
+          "$ref": "#/$defs/include"
+        },
+        "packageFiles": {
+          "$ref": "#/$defs/include"
+        },
+        "editor": {
+          "$ref": "#/$defs/include"
+        }
+      }
+    },
+    "editor": {
+      "type": [
+        "array",
+        "null"
+      ],
+      "maxItems": 256,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "contractVersion",
+          "kind"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/$defs/id"
+          },
+          "contractVersion": {
+            "$ref": "#/$defs/contract"
+          },
+          "kind": {
+            "enum": [
+              "node",
+              "mark",
+              "command",
+              "toolbar"
+            ]
+          },
+          "schema": {
+            "$ref": "#/$defs/optionalSchemaRef"
+          },
+          "extensionName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "l2Module": {
+            "$ref": "#/$defs/path"
+          },
+          "l2Digest": {
+            "$ref": "#/$defs/digest"
+          },
+          "commandKey": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "commandId": {
+            "$ref": "#/$defs/id"
+          },
+          "label": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "icon": {
+            "type": "string",
+            "maxLength": 128
+          },
+          "group": {
+            "$ref": "#/$defs/id"
+          },
+          "order": {
+            "type": "integer"
+          },
+          "priority": {
+            "type": "integer"
+          },
+          "permission": {
+            "$ref": "#/$defs/id"
+          }
+        },
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "kind": {
+                  "const": "node"
+                }
+              },
+              "required": [
+                "kind"
+              ]
+            },
+            "then": {
+              "required": [
+                "schema",
+                "extensionName",
+                "l2Module",
+                "l2Digest"
+              ]
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "kind": {
+                  "const": "mark"
+                }
+              },
+              "required": [
+                "kind"
+              ]
+            },
+            "then": {
+              "required": [
+                "schema",
+                "extensionName",
+                "l2Module",
+                "l2Digest"
+              ]
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "kind": {
+                  "const": "command"
+                }
+              },
+              "required": [
+                "kind"
+              ]
+            },
+            "then": {
+              "required": [
+                "commandKey"
+              ]
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "kind": {
+                  "const": "toolbar"
+                }
+              },
+              "required": [
+                "kind"
+              ]
+            },
+            "then": {
+              "required": [
+                "commandId",
+                "label"
+              ]
+            }
+          }
+        ]
       }
     }
   }

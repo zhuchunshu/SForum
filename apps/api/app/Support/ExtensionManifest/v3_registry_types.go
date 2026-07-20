@@ -103,6 +103,27 @@ type ManifestContent struct {
 	Migration       string `json:"migration,omitempty"`
 }
 
+// ManifestEditor declares a Tiptap trusted L2 editor surface (node/mark/command/toolbar).
+// Prebuilt modules bind through packageFiles (frontend) by path+digest; Content
+// Registry remains separate for block/shortcode/embed storage kinds.
+type ManifestEditor struct {
+	ID              string `json:"id"`
+	ContractVersion string `json:"contractVersion"`
+	Kind            string `json:"kind"`
+	Schema          string `json:"schema,omitempty"`
+	ExtensionName   string `json:"extensionName,omitempty"`
+	L2Module        string `json:"l2Module,omitempty"`
+	L2Digest        string `json:"l2Digest,omitempty"`
+	CommandKey      string `json:"commandKey,omitempty"`
+	CommandID       string `json:"commandId,omitempty"`
+	Label           string `json:"label,omitempty"`
+	Icon            string `json:"icon,omitempty"`
+	Group           string `json:"group,omitempty"`
+	Order           int    `json:"order,omitempty"`
+	Priority        int    `json:"priority,omitempty"`
+	Permission      string `json:"permission,omitempty"`
+}
+
 type ManifestService struct {
 	ID              string `json:"id"`
 	ContractVersion string `json:"contractVersion"`

@@ -259,7 +259,7 @@ func TestManifestV3LoadsEveryShardedDeclaration(t *testing.T) {
 		t.Fatal(err)
 	}
 	fields := []string{
-		"guards", "schedules", "components", "templates", "assets", "content",
+		"guards", "schedules", "components", "templates", "assets", "content", "editor",
 		"database", "cache", "seo", "services", "commands", "adminSurfaces", "queries", "queryResultFilters",
 		"identity", "permissionDefinitions", "media", "navigation", "regions",
 		"dependencies", "lifecycle", "openapi", "packageFiles",

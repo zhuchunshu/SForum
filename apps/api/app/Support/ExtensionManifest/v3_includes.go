@@ -24,6 +24,9 @@ func applyV3Includes(manifest *Manifest, includes ManifestIncludes, pkg PackageF
 	if err := applyListInclude(includes.Content, pkg, "content", &manifest.Content); err != nil {
 		return err
 	}
+	if err := applyListInclude(includes.Editor, pkg, "editor", &manifest.Editor); err != nil {
+		return err
+	}
 	if err := applyObjectInclude(includes.Database, pkg, "database", manifest.Database != nil, &manifest.Database); err != nil {
 		return err
 	}
