@@ -40,6 +40,15 @@ node tests/validate-identity-ui.js
 echo "Running homepage validation..."
 node tests/validate-homepage.js
 
+echo "Running public SEO validation..."
+bun tests/validate-public-seo.ts
+
+echo "Running SEO workbench validation..."
+bun tests/validate-seo-workbench.ts
+
+echo "Running moderation workbench validation..."
+bun tests/validate-moderation-workbenches.ts
+
 echo "Running theme runtime validation..."
 node tests/validate-theme-runtime.js
 
