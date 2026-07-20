@@ -18,6 +18,16 @@ func TestCatalogKeysAreStableAndKnown(t *testing.T) {
 			t.Fatalf("bad risk for %s: %s", item.Key, item.Risk)
 		}
 	}
+	for _, key := range []string{ExtensionsRead, ExtensionsCall, ExtensionsManage} {
+		if !Known(key) {
+			t.Fatalf("automation capability missing: %s", key)
+		}
+	}
+	for _, item := range items {
+		if item.Key == ExtensionsManage && item.Risk != RiskHigh {
+			t.Fatalf("extensions.manage must be high risk, got %s", item.Risk)
+		}
+	}
 }
 
 func TestValidateKeys(t *testing.T) {

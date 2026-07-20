@@ -20,6 +20,10 @@ const (
 	UsersRead        = "users.read"
 	AuditAppend      = "audit.append"
 	HostAPI          = "host.api"
+	// Trusted automation: process capabilities, never human RBAC or PAT scopes.
+	ExtensionsRead   = "extensions.read"
+	ExtensionsCall   = "extensions.call"
+	ExtensionsManage = "extensions.manage"
 )
 
 // Risk 等级：admin 启用审查 UI 按此排序与着色。
@@ -103,6 +107,27 @@ var catalog = []Definition{
 		LabelZH:     "读取用户信息",
 		LabelEN:     "Read user profiles",
 		Description: "Read safe, non-secret user fields through the Host API.",
+	},
+	{
+		Key:         ExtensionsRead,
+		Risk:        RiskMedium,
+		LabelZH:     "读取扩展清单",
+		LabelEN:     "Read extension inventory",
+		Description: "Read a redacted extension inventory and public runtime/contract state. Never exposes secrets, trust tokens, package paths, or credentials.",
+	},
+	{
+		Key:         ExtensionsCall,
+		Risk:        RiskMedium,
+		LabelZH:     "调用扩展服务",
+		LabelEN:     "Call extension services",
+		Description: "Invoke declared plugin services or providers through Host Service Discovery with live exact-artifact admission.",
+	},
+	{
+		Key:         ExtensionsManage,
+		Risk:        RiskHigh,
+		LabelZH:     "管理受信任扩展",
+		LabelEN:     "Manage trusted extensions",
+		Description: "Perform allowlisted settings update/reset/action and disable of already-trusted non-system non-self plugins via Host Commands. Never replaces super_admin trust confirmation.",
 	},
 }
 
