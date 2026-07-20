@@ -1,0 +1,79 @@
+{
+  "manifestVersion": 3,
+  "id": "sforum.media-optimize",
+  "name": "SForum Media Optimize Reference",
+  "description": "Protocol V2 reference plugin proving Media Pipeline MIME policy, transforms/variants, background jobs, and original fallback on failure/disable.",
+  "url": "https://github.com/zhuchunshu/sforum",
+  "author": {
+    "name": "SForum",
+    "url": "https://github.com/zhuchunshu/sforum"
+  },
+  "version": "1.0.0",
+  "type": "plugin",
+  "sforumVersion": ">=0.1.0",
+  "capabilities": ["host.api"],
+  "backend": {
+    "entry": "backend/plugin",
+    "rpc": "hashicorp-go-plugin",
+    "protocolVersion": 2,
+    "hostApiVersion": "sforum.host@2",
+    "digest": "__BACKEND_DIGEST__"
+  },
+  "permissionDefinitions": [
+    {
+      "key": "sforum.media-optimize.transform",
+      "contractVersion": "sforum.media-optimize.transform@1",
+      "label": "Optimize media",
+      "description": "Run reference media transforms and background optimize jobs.",
+      "recommendedRoles": ["administrator"],
+      "assignmentPolicy": "host"
+    }
+  ],
+  "media": [
+    {
+      "id": "sforum.media-optimize.pipeline.image",
+      "contractVersion": "sforum.media-optimize.pipeline.image@1",
+      "action": "add",
+      "mimes": ["image/png", "image/jpeg", "image/webp"],
+      "handler": "sforum.media-optimize.transform",
+      "permission": "sforum.media-optimize.transform",
+      "transforms": [
+        {
+          "id": "thumbnail",
+          "variant": "thumb",
+          "format": "webp",
+          "width": 320,
+          "height": 240
+        },
+        {
+          "id": "preview",
+          "variant": "preview",
+          "format": "webp",
+          "width": 960,
+          "height": 540
+        }
+      ]
+    }
+  ],
+  "jobs": [
+    {
+      "id": "sforum.media-optimize.job.variants",
+      "contractVersion": "sforum.media-optimize.job.variants@1",
+      "name": "sforum.media-optimize.variants",
+      "handler": "sforum.media-optimize.job.variants",
+      "payloadSchema": "sforum.media-optimize.job.variants.payload@1",
+      "retryPolicy": "bounded",
+      "maxAttempts": 3,
+      "retryDelaySeconds": 5,
+      "concurrencyLimit": 2
+    }
+  ],
+  "packageFiles": [
+    {
+      "id": "sforum.media-optimize.file.backend",
+      "kind": "executable",
+      "path": "backend/plugin",
+      "digest": "__BACKEND_DIGEST__"
+    }
+  ]
+}
