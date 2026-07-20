@@ -6,28 +6,33 @@ Last updated: 2026-07-21
 
 - Verified weighted progress: **99.7%** (display **99%**).
 - Phase counts: **P0–P12 complete (P10 15/15)**; P13 **~99.7%**.
-- LTS residual instrumentation advanced: request-time theme L1 loader now has
-  its own APILTS contract + CLI report + product tests.
-- Residual **only** three open deletion rows (policy-gated, not unimplemented).
+- Residual implementable hygiene closed this session:
+  - `d9e9a1aa1` chore(smtp): refresh backend package digest after rebuild
+  - `9ef32ae89` chore(scripts): refresh digests for all built-in plugins
+  - `a3284bcba` test(cli): expect Manifest V3 contract for builtin smtp validate
+- LTS residual still **only** three open deletion rows (policy-gated).
 
 ## Current Subtask
 
-### 2026-07-21 P13 LTS residual instrumentation
+### 2026-07-21 P13 residual hygiene + LTS wait
 
-- Seeded `sforum.theme.l1.request-time-loader` (`c221e1972`)
-- Record on request-time LoadTemplate only (`c6322e7bd`)
-- CLI fields (`0fdcb7281`)
-- Tests: legacy records / snapshot exempt (`2c6ed6a33`)
+- Builtin package digests aligned (smtp rebuilt; storage-fs matched after rebuild;
+  content-policy already aligned).
+- `scripts/build-builtin-plugins.sh` now digest+test all three protected plugins.
+- CLI validate smoke test expects `sforum.manifest@3` for smtp.
 - Exact next: **still do not delete** LoadTemplate / Protocol V1 / fail-closed
   SFPageOutlet until RemoveAfter (≈2026-11-28) + zero-shim on live API/worker
-  + checklist 1–7.
-- Goal harness “remaining P10 rows” remains **stale**.
+  + checklist 1–7 in `docs/extensions/v3/p13-migration-and-lts.md`.
+- Goal harness “remaining P10 rows” remains **stale** — do not re-implement P10.
+- Explore audit: no other implementable task-book/DoD rows remain.
 
 ## Tests
 
+- `go run ./cmd/sforum extension test` smtp / storage-fs / content-policy: PASS
+- `go test ./cmd/sforum/`: pass
 - `go test ./app/Support/APILTS/`: pass
-- `go test ./cmd/sforum/ -run TestExtensionAPILTS`: pass
-- `go test ./app/Http/Controllers/Pages/ -run RequestTimeLoader|CompiledThemeDoesNotRecord`: pass
+- Live `extension api-lts`: protocolV1CanRemoveWindow=false,
+  themeRequestTimeLoaderCanRemoveWindow=false (expected before RemoveAfter)
 
 ## Open task-book rows
 
@@ -37,7 +42,7 @@ Last updated: 2026-07-21
 
 ## Rollback
 
-- Revert `c221e1972`…`2c6ed6a33` for loader telemetry chain.
+- Revert `d9e9a1aa1`…`a3284bcba` for this residual hygiene chain.
 - Never delete LTS shims early.
 
 
