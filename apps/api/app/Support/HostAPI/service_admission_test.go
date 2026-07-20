@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/zhuchunshu/sforum/apps/api/app/Support/Capabilities"
 	hostv2 "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/host/v2"
 	protocolv2 "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/protocol/v2"
 	"google.golang.org/grpc/codes"
@@ -79,8 +80,22 @@ func newProtocolV2ServiceTestServer(registry *ServiceRegistry, admission Service
 	if admission == nil {
 		admission = &testServiceProviderAdmission{}
 	}
+	// 默认授予 extensions.call，模拟已启用且声明该进程能力的消费者插件。
+	return newProtocolV2ServiceTestServerWithCaps(registry, admission, fakeCaps{
+		set: capabilities.NewSet([]string{capabilities.ExtensionsCall}),
+	})
+}
+
+func newProtocolV2ServiceTestServerWithCaps(
+	registry *ServiceRegistry,
+	admission ServiceProviderAdmission,
+	caps CapabilitySource,
+) *protocolV2ServiceDiscoveryServer {
+	if admission == nil {
+		admission = &testServiceProviderAdmission{}
+	}
 	return &protocolV2ServiceDiscoveryServer{core: &protocolV2Core{
-		service: New(Config{ServiceAdmission: admission}), services: registry,
+		service: New(Config{ServiceAdmission: admission, Capabilities: caps}), services: registry,
 	}}
 }
 
@@ -158,7 +173,13 @@ func TestProtocolV2ServiceInvocationFailsClosedAndNeverFallsBack(t *testing.T) {
 		ServiceId: "demo.lookup", Version: "1.0.0", Operation: "find",
 		Input: v2ServiceDocument("demo.lookup.request", "1"),
 	}
-	withoutAdmission := &protocolV2ServiceDiscoveryServer{core: &protocolV2Core{services: registry}}
+	// 有 extensions.call 但无 ServiceAdmission：证明 admission 缺失仍 fail-closed。
+	withoutAdmission := &protocolV2ServiceDiscoveryServer{core: &protocolV2Core{
+		services: registry,
+		service: New(Config{Capabilities: fakeCaps{
+			set: capabilities.NewSet([]string{capabilities.ExtensionsCall}),
+		}}),
+	}}
 	response, err := withoutAdmission.Invoke(context.Background(), request)
 	if err != nil || response.GetError().GetReason() != "host.service_provider_admission_unavailable" {
 		t.Fatalf("fail closed = %#v, %v", response, err)

@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/zhuchunshu/sforum/apps/api/app/Support/Capabilities"
 	hostv2 "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/host/v2"
 	protocolv2 "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/protocol/v2"
 	"google.golang.org/grpc"
@@ -494,3 +495,52 @@ func (s *fakeV2HostServiceStream) RecvMsg(message any) error {
 }
 
 var _ grpc.BidiStreamingServer[hostv2.ServiceStreamFrame, hostv2.ServiceStreamFrame] = (*fakeV2HostServiceStream)(nil)
+
+func TestProtocolV2ServiceDiscoveryRequiresExtensionsCall(t *testing.T) {
+	registry := NewServiceRegistry()
+	provider := &v2ServiceProvider{output: v2ServiceDocument("demo.lookup.response", "1")}
+	if err := registry.ReplaceExtension("provider.plugin", []ServiceRegistration{
+		v2ServiceRegistration("provider.plugin", "instance-provider", "demo.lookup", "1.0.0", provider),
+	}); err != nil {
+		t.Fatal(err)
+	}
+	requestContext := v2ServiceRequestContext("consumer.plugin", "instance-consumer")
+
+	// 缺少进程能力：List / Resolve / Invoke 一律拒绝。
+	deniedServer := newProtocolV2ServiceTestServerWithCaps(registry, nil, fakeCaps{
+		set: capabilities.NewSet([]string{capabilities.HostAPI}),
+	})
+	listed, err := deniedServer.List(context.Background(), &hostv2.ServiceListRequest{Context: requestContext})
+	if err != nil || listed.GetError().GetReason() != "host.extensions_call_denied" {
+		t.Fatalf("list without extensions.call = %#v err=%v", listed.GetError(), err)
+	}
+	resolved, err := deniedServer.Resolve(context.Background(), &hostv2.ServiceResolveRequest{
+		Context: requestContext, ServiceId: "demo.lookup", VersionConstraint: "1.0.0",
+	})
+	if err != nil || resolved.GetError().GetReason() != "host.extensions_call_denied" {
+		t.Fatalf("resolve without extensions.call = %#v err=%v", resolved.GetError(), err)
+	}
+	invoked, err := deniedServer.Invoke(context.Background(), &hostv2.ServiceInvokeRequest{
+		Context: requestContext, ServiceId: "demo.lookup", Version: "1.0.0", Operation: "find",
+		Input: v2ServiceDocument("demo.lookup.request", "1"),
+	})
+	if err != nil || invoked.GetError().GetReason() != "host.extensions_call_denied" || provider.invokeCalls != 0 {
+		t.Fatalf("invoke without extensions.call = %#v err=%v calls=%d", invoked.GetError(), err, provider.invokeCalls)
+	}
+
+	// 无扩展身份同样拒绝。
+	anonymous := proto.Clone(requestContext).(*protocolv2.RequestContext)
+	anonymous.Extension = nil
+	anonServer := newProtocolV2ServiceTestServer(registry, nil)
+	anonList, _ := anonServer.List(context.Background(), &hostv2.ServiceListRequest{Context: anonymous})
+	if anonList.GetError().GetReason() != "host.extensions_call_denied" {
+		t.Fatalf("anonymous list = %#v", anonList.GetError())
+	}
+
+	// 能力源失败关闭（Safe Mode / 未启用）。
+	unavailable := newProtocolV2ServiceTestServerWithCaps(registry, nil, fakeCaps{err: errors.New("disabled")})
+	failClosed, _ := unavailable.List(context.Background(), &hostv2.ServiceListRequest{Context: requestContext})
+	if failClosed.GetError().GetReason() != "host.extensions_call_denied" {
+		t.Fatalf("capability source failure = %#v", failClosed.GetError())
+	}
+}

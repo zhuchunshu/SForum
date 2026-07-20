@@ -96,7 +96,7 @@ func TestProtocolV2InvokeRejectsStreamingDescriptor(t *testing.T) {
 	if err := registry.ReplaceExtension("provider.plugin", []ServiceRegistration{registration}); err != nil {
 		t.Fatal(err)
 	}
-	server := &protocolV2ServiceDiscoveryServer{core: &protocolV2Core{services: registry}}
+	server := newProtocolV2ServiceTestServer(registry, nil)
 	response, err := server.Invoke(context.Background(), &hostv2.ServiceInvokeRequest{
 		Context:   v2ServiceRequestContext("consumer.plugin", "instance-consumer"),
 		ServiceId: "demo.stream", Version: "1.0.0", Operation: "watch",

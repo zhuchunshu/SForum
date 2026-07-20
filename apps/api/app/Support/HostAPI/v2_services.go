@@ -10,6 +10,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/zhuchunshu/sforum/apps/api/app/Support/Capabilities"
 	hostv2 "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/host/v2"
 	protocolv2 "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/protocol/v2"
 	"google.golang.org/grpc"
@@ -48,6 +49,10 @@ func (s *protocolV2ServiceDiscoveryServer) List(ctx context.Context, request *ho
 	}
 
 	caller := serviceCallerFromContexts(ctx, request.GetContext())
+	if detail := s.requireExtensionsCall(ctx, caller); detail != nil {
+		response.Error = detail
+		return response, nil
+	}
 	authorized := services[:0]
 	for _, service := range services {
 		if service.Authorize(caller).Allowed && service.AuthorizeDependency(caller).Allowed {
@@ -323,6 +328,9 @@ func (s *protocolV2ServiceDiscoveryServer) resolve(ctx context.Context, requestC
 		return ResolvedService{}, serviceRegistryError(err)
 	}
 	caller := serviceCallerFromContexts(ctx, requestContext)
+	if detail := s.requireExtensionsCall(ctx, caller); detail != nil {
+		return ResolvedService{}, detail
+	}
 	decision := resolved.Authorize(caller)
 	if !decision.Allowed {
 		return ResolvedService{}, &protocolv2.ErrorDetail{
@@ -338,6 +346,49 @@ func (s *protocolV2ServiceDiscoveryServer) resolve(ctx context.Context, requestC
 		return ResolvedService{}, serviceDependencyError(dependency)
 	}
 	return resolved, nil
+}
+
+// requireExtensionsCall enforces the Host process capability for trusted
+// automation service discovery. Wire GrantedAuthority is disclosure only.
+func (s *protocolV2ServiceDiscoveryServer) requireExtensionsCall(
+	ctx context.Context,
+	caller ServiceCaller,
+) *protocolv2.ErrorDetail {
+	if s == nil || s.core == nil || s.core.service == nil {
+		return serviceDiscoveryError(
+			protocolv2.ErrorCode_ERROR_CODE_UNAVAILABLE,
+			"host.service_capability_unavailable",
+			"Service discovery capability admission is unavailable.",
+			true,
+		)
+	}
+	extensionID := strings.TrimSpace(caller.ExtensionID)
+	if extensionID == "" {
+		return serviceDiscoveryError(
+			protocolv2.ErrorCode_ERROR_CODE_PERMISSION_DENIED,
+			"host.extensions_call_denied",
+			"extensions.call requires an exact plugin runtime identity.",
+			false,
+		)
+	}
+	caps, err := s.core.service.loadCaps(ctx, extensionID)
+	if err != nil {
+		return serviceDiscoveryError(
+			protocolv2.ErrorCode_ERROR_CODE_PERMISSION_DENIED,
+			"host.extensions_call_denied",
+			"The caller does not hold extensions.call.",
+			false,
+		)
+	}
+	if err := caps.Require(capabilities.ExtensionsCall); err != nil {
+		return serviceDiscoveryError(
+			protocolv2.ErrorCode_ERROR_CODE_PERMISSION_DENIED,
+			"host.extensions_call_denied",
+			"The caller does not hold extensions.call.",
+			false,
+		)
+	}
+	return nil
 }
 
 type servicePageCursor struct {
