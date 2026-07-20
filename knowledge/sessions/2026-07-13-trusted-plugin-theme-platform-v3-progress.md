@@ -4,22 +4,20 @@ Last updated: 2026-07-21
 
 ## Progress
 
-- Verified weighted progress: **80.98%** (display **80.0%**).
-- Phase counts: P0-P9 complete; P10 **10/15**. P11 ~6%, P12 ~5%, P13 open.
+- Verified weighted progress: **82.05%** (display **82.0%**).
+- Phase counts: P0-P9 complete; P10 **12/15**. P11 ~6%, P12 ~5%, P13 open.
 
 ## Current Subtask
 
-### 2026-07-21 P10 Entity/Taxonomy/Field Closed — Next Plugin-Extend + XSS
+### 2026-07-21 P10 Tasks Closed — Next Reference Blocks/Media Proofs
 
-- Commits: `96384e489` EntityRegistry; `3203c6620` Manifest.entities;
-  `e6e0c1170` lifecycle `@11` / bootstrap.
-- Gates: `go test ./app/Support/EntityRegistry/`, ExtensionManifest entity
-  contracts, LifecycleEntity* + bootstrap Lifecycle, `go build ./...`.
-- Exact next step: plugin-extend-plugin content/entity versioned dependencies
-  and hooks; then attachment read/write + rich-content XSS product binding;
-  then reference blocks/media proofs and media attack matrix.
+- All P10 Tasks checkboxes closed (entity, plugin-extend, Host XSS/attachment).
+- Recent: `97aac1047` cross-package entity extension; `366bf5ef8` required dep
+  gate; ContentSecurity joined Host-final XSS/attachment tests.
+- Exact next step: reference blocks (vote/product-card/embed/workflow form);
+  reference media plugin proofs; media attack-surface matrix
+  (traversal/MIME/decompression/orphan/disable retention).
 - Unowned dirty WIP must not be staged.
-- Rollback: revert `e6e0c1170` then `3203c6620` then `96384e489`.
 
 ---
 

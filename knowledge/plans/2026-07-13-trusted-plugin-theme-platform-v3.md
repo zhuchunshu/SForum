@@ -1,6 +1,6 @@
 # Trusted Plugin And Theme Platform V3 - Implementation Task Book
 
-Status: **active implementation; P0-P9 complete; P10 active (10/15)**
+Status: **active implementation; P0-P9 complete; P10 active (12/15)**
 Date: 2026-07-13  
 Decision: `knowledge/decisions/2026-07-13-trusted-plugin-theme-platform-v3.md`
 
@@ -719,9 +719,9 @@ production-wired via `GET /api/v1/extensions/runtime/page-policy` and
       pipeline contracts.
 - [x] Add Entity Type, Taxonomy, Field Schema, field UI, validation, indexing,
       permission, import/export, and deletion contracts.
-- [ ] Allow plugins to extend plugin-defined content/entity types through
+- [x] Allow plugins to extend plugin-defined content/entity types through
       versioned dependencies and hooks.
-- [ ] Preserve authoritative attachment read/write policy and rich-content XSS
+- [x] Preserve authoritative attachment read/write policy and rich-content XSS
       boundaries.
 
 ### Tests
@@ -774,8 +774,18 @@ The Entity/Taxonomy/Field Schema Registry row closed with
 `entities`, lifecycle plan `@11` / `entity.v1`, Host-derived permission
 evaluation (allow/deny), index plans, import/export plans, and deletion
 policies. Package-local cross-refs, Safe Mode core-only, and disable-without-
-rewriting-rows are enforced. Plugin-extend-plugin content types and reference
-product proofs remain open.
+rewriting-rows are enforced.
+
+Plugin-extend-plugin is closed for entity data plane: fields/taxonomies may
+bind a foreign entity when Manifest declares a required versioned dependency
+on the owner extension; graph build fails closed on orphan refs. Content
+composition continues to use ContentRegistry execution actions
+(before/after/wrap/replace/filter) under package graph dependencies.
+
+Host-final attachment and rich-content XSS boundaries are proven by
+`Support/ContentSecurity` joined gates plus existing Attachment disposition,
+EditorDocument Accept sanitizer, and ContentRegistry execution sanitizer.
+Reference block/media product proofs and media attack matrix remain open.
 
 ## P11 - Cache, SEO, Secrets, Files, HTTP, Localization, And API Policies
 
