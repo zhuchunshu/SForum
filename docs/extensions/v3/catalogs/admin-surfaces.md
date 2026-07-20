@@ -9,9 +9,11 @@
 | `core.admin.page.entity_meta` | `apps/web/app/pages/admin/entity-meta.vue` | yes | no | yes | no | yes | no | no | yes | yes | no | no | yes | no |
 | `core.admin.page.extensions_extension_id_pages_page_path` | `apps/web/app/pages/admin/extensions/[extensionId]/pages/[...pagePath].vue` | yes | no | yes | no | no | yes | no | no | yes | no | no | yes | no |
 | `core.admin.page.extensions_cache_inspector` | `apps/web/app/pages/admin/extensions/cache-inspector.vue` | yes | no | yes | no | no | no | no | yes | yes | no | no | yes | no |
+| `core.admin.page.extensions_component_inspector` | `apps/web/app/pages/admin/extensions/component-inspector.vue` | yes | no | yes | no | no | no | no | yes | yes | no | no | yes | no |
 | `core.admin.page.extensions_contributions` | `apps/web/app/pages/admin/extensions/contributions.vue` | yes | no | yes | no | no | no | no | yes | yes | no | no | yes | no |
 | `core.admin.page.extensions_events` | `apps/web/app/pages/admin/extensions/events.vue` | yes | no | yes | no | yes | no | no | yes | yes | no | no | yes | no |
 | `core.admin.page.extensions` | `apps/web/app/pages/admin/extensions/index.vue` | yes | no | yes | no | no | yes | no | yes | yes | no | yes | yes | no |
+| `core.admin.page.extensions_navigation_inspector` | `apps/web/app/pages/admin/extensions/navigation-inspector.vue` | yes | no | yes | no | no | no | no | yes | yes | no | no | yes | no |
 | `core.admin.page.extensions_pages` | `apps/web/app/pages/admin/extensions/pages.vue` | yes | no | yes | no | no | yes | no | yes | yes | no | no | yes | no |
 | `core.admin.page.extensions_plugins` | `apps/web/app/pages/admin/extensions/plugins.vue` | yes | no | yes | no | yes | no | no | yes | yes | no | no | yes | no |
 | `core.admin.page.extensions_provider_slots` | `apps/web/app/pages/admin/extensions/provider-slots.vue` | yes | no | yes | no | yes | no | no | yes | yes | no | no | yes | no |

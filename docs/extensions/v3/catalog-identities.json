@@ -1780,6 +1780,26 @@
       "source": "apps/web/app/pages/admin/extensions/cache-inspector.vue"
     },
     {
+      "id": "core.component.page.admin.extensions.component.inspector",
+      "contractVersion": "sforum.component.page.admin.extensions.component.inspector@1",
+      "kind": "page",
+      "owners": [
+        "admin"
+      ],
+      "state": "active",
+      "source": "apps/web/app/pages/admin/extensions/component-inspector.vue"
+    },
+    {
+      "id": "core.component.page.admin.extensions.navigation.inspector",
+      "contractVersion": "sforum.component.page.admin.extensions.navigation.inspector@1",
+      "kind": "page",
+      "owners": [
+        "admin"
+      ],
+      "state": "active",
+      "source": "apps/web/app/pages/admin/extensions/navigation-inspector.vue"
+    },
+    {
       "id": "core.component.page.admin.extensions.provider.slots",
       "contractVersion": "sforum.component.page.admin.extensions.provider.slots@1",
       "kind": "page",

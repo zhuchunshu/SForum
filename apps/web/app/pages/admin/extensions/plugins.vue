@@ -136,6 +136,22 @@ useSeoMeta({
         {{ t('admin.nav.extensionCacheInspector') }}
       </UButton>
       <UButton
+        icon="i-lucide-boxes"
+        color="neutral"
+        variant="subtle"
+        :to="adminRoutes.path('/extensions/component-inspector')"
+      >
+        {{ t('admin.nav.extensionComponentInspector') }}
+      </UButton>
+      <UButton
+        icon="i-lucide-map"
+        color="neutral"
+        variant="subtle"
+        :to="adminRoutes.path('/extensions/navigation-inspector')"
+      >
+        {{ t('admin.nav.extensionNavigationInspector') }}
+      </UButton>
+      <UButton
         icon="i-lucide-waypoints"
         color="neutral"
         variant="subtle"

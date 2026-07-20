@@ -330,7 +330,9 @@
       "webhooks": "Webhooks",
       "featureFlags": "产品开关",
       "entityMeta": "自定义字段",
-      "extensionPages": "页面注册表"
+      "extensionPages": "页面注册表",
+      "extensionComponentInspector": "组件检查器",
+      "extensionNavigationInspector": "导航检查器"
     },
     "avatar": {
       "metaTitle": "头像设置",
@@ -1286,6 +1288,46 @@
           "lock_expire": "锁到期",
           "lock_cancel": "取消锁"
         }
+      },
+      "componentInspector": {
+        "metaTitle": "组件检查器",
+        "title": "组件检查器",
+        "intro": "检查当前不可变 Component Composition Registry、目标数、贡献数、冲突与最近组合轨迹。",
+        "refresh": "刷新",
+        "refreshed": "组件组合快照已刷新",
+        "loading": "正在加载组件组合快照…",
+        "revision": "Registry revision",
+        "targets": "目标数",
+        "contributions": "贡献数",
+        "safeMode": "安全模式",
+        "safeModeTitle": "组件注册表处于安全模式",
+        "safeModeDescription": "第三方组件贡献已被隔离；当前快照只反映安全模式下的实时图。",
+        "yes": "是",
+        "no": "否",
+        "conflicts": "提供者冲突",
+        "noConflicts": "当前没有可显示的提供者冲突。",
+        "traces": "最近组合轨迹",
+        "noTraces": "暂无组合轨迹。组件组合执行后会显示脱敏轨迹。"
+      },
+      "navigationInspector": {
+        "metaTitle": "导航检查器",
+        "title": "导航检查器",
+        "intro": "检查当前不可变 Navigation/Region Registry、菜单与区域数量、冲突与最近组合轨迹。",
+        "refresh": "刷新",
+        "refreshed": "导航注册表快照已刷新",
+        "loading": "正在加载导航注册表快照…",
+        "revision": "Registry revision",
+        "navigation": "导航目标",
+        "regions": "区域目标",
+        "conflicts": "提供者冲突",
+        "safeMode": "安全模式",
+        "safeModeTitle": "导航注册表处于安全模式",
+        "safeModeDescription": "第三方导航/区域声明已被隔离；当前快照只反映安全模式下的实时图。",
+        "yes": "是",
+        "no": "否",
+        "digest": "图摘要",
+        "traces": "最近组合轨迹",
+        "noTraces": "暂无导航组合轨迹。组合执行后会显示脱敏轨迹。"
       },
       "providerSlots": {
         "metaTitle": "服务提供者",

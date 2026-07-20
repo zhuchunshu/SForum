@@ -206,7 +206,7 @@ assert(exactFrontendConfirmationRoutes.length === 1 && exactFrontendConfirmation
 
 const ui = load('docs/extensions/v3/catalogs/ui-surfaces.json')
 const retiredUI = load('docs/extensions/v3/catalogs/ui-retired-identities.json')
-assert(ui.length === 123, `UI inventory must contain exactly 123 reviewed surfaces: ${ui.length}`)
+assert(ui.length === 125, `UI inventory must contain exactly 125 reviewed surfaces: ${ui.length}`)
 assert(JSON.stringify(retiredUI) === JSON.stringify(retiredIdentities), 'generated retired UI reservation catalog drifted from its reviewed ledger')
 const activeUIIdentities = identities.ui.filter(item => item.state === 'active')
 assert(activeUIIdentities.length === ui.length, 'active reviewed UI identity map must cover every current UI surface')

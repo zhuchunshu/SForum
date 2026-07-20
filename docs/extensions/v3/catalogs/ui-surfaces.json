@@ -266,6 +266,17 @@
     "targetRegistry": "P7 Admin Surface Registry"
   },
   {
+    "id": "core.component.page.admin.extensions.component.inspector",
+    "contractVersion": "sforum.component.page.admin.extensions.component.inspector@1",
+    "kind": "page",
+    "route": "/admin/extensions/component-inspector",
+    "source": "apps/web/app/pages/admin/extensions/component-inspector.vue",
+    "owners": [
+      "admin"
+    ],
+    "targetRegistry": "P7 Admin Surface Registry"
+  },
+  {
     "id": "core.component.page.admin.extensions.contributions",
     "contractVersion": "sforum.component.page.admin.extensions.contributions@1",
     "kind": "page",
@@ -293,6 +304,17 @@
     "kind": "page",
     "route": "/admin/extensions/:extensionId/pages/:pagePath*",
     "source": "apps/web/app/pages/admin/extensions/[extensionId]/pages/[...pagePath].vue",
+    "owners": [
+      "admin"
+    ],
+    "targetRegistry": "P7 Admin Surface Registry"
+  },
+  {
+    "id": "core.component.page.admin.extensions.navigation.inspector",
+    "contractVersion": "sforum.component.page.admin.extensions.navigation.inspector@1",
+    "kind": "page",
+    "route": "/admin/extensions/navigation-inspector",
+    "source": "apps/web/app/pages/admin/extensions/navigation-inspector.vue",
     "owners": [
       "admin"
     ],

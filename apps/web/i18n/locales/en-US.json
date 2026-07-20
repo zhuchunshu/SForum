@@ -330,7 +330,9 @@
       "webhooks": "Webhooks",
       "featureFlags": "Feature flags",
       "entityMeta": "Custom fields",
-      "extensionPages": "Page registry"
+      "extensionPages": "Page registry",
+      "extensionComponentInspector": "Component inspector",
+      "extensionNavigationInspector": "Navigation inspector"
     },
     "avatar": {
       "metaTitle": "Avatar settings",
@@ -1286,6 +1288,46 @@
           "lock_expire": "Lock expired",
           "lock_cancel": "Cancel lock"
         }
+      },
+      "componentInspector": {
+        "metaTitle": "Component inspector",
+        "title": "Component inspector",
+        "intro": "Inspect the live immutable Component Composition Registry, targets, contributions, conflicts, and recent composition traces.",
+        "refresh": "Refresh",
+        "refreshed": "Component composition snapshot refreshed",
+        "loading": "Loading component composition snapshot…",
+        "revision": "Registry revision",
+        "targets": "Targets",
+        "contributions": "Contributions",
+        "safeMode": "Safe mode",
+        "safeModeTitle": "Component registry is in safe mode",
+        "safeModeDescription": "Third-party component contributions are quarantined; this snapshot only reflects the safe-mode live graph.",
+        "yes": "Yes",
+        "no": "No",
+        "conflicts": "Provider conflicts",
+        "noConflicts": "No provider conflicts to display.",
+        "traces": "Recent composition traces",
+        "noTraces": "No composition traces yet. Redacted traces appear after composition runs."
+      },
+      "navigationInspector": {
+        "metaTitle": "Navigation inspector",
+        "title": "Navigation inspector",
+        "intro": "Inspect the live immutable Navigation/Region Registry, menu and region counts, conflicts, and recent composition traces.",
+        "refresh": "Refresh",
+        "refreshed": "Navigation registry snapshot refreshed",
+        "loading": "Loading navigation registry snapshot…",
+        "revision": "Registry revision",
+        "navigation": "Navigation targets",
+        "regions": "Region targets",
+        "conflicts": "Provider conflicts",
+        "safeMode": "Safe mode",
+        "safeModeTitle": "Navigation registry is in safe mode",
+        "safeModeDescription": "Third-party navigation/region declarations are quarantined; this snapshot only reflects the safe-mode live graph.",
+        "yes": "Yes",
+        "no": "No",
+        "digest": "Graph digest",
+        "traces": "Recent composition traces",
+        "noTraces": "No navigation composition traces yet. Redacted traces appear after composition runs."
       },
       "providerSlots": {
         "metaTitle": "Service providers",
