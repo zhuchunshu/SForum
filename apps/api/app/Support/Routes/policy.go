@@ -13,6 +13,10 @@ type RouteExecutionPolicy struct {
 	RateLimit           string
 	Idempotency         string
 	IdempotencyRequired bool
+	// RequestSizeBytes is the Host-enforced max request body (0 = platform default).
+	RequestSizeBytes int64
+	// CORSPolicy is a Host-named CORS profile; empty means platform default.
+	CORSPolicy string
 }
 
 type RoutePolicyResolver interface {

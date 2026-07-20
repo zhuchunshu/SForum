@@ -24,6 +24,12 @@ const (
 	PolicyDisabled               = "disabled"
 	PolicyRateLimitIPWrite       = "host.ip_write@1"
 	PolicyIdempotencyRequired24h = "required.24h@1"
+	// PolicyCORSSameOrigin is the Host default CORS profile for plugin routes.
+	PolicyCORSSameOrigin = "host.cors.same_origin@1"
+	// DefaultRequestSizeBytes is the Host default max request body (1 MiB).
+	DefaultRequestSizeBytes int64 = 1 << 20
+	// UploadRequestSizeBytes is the Host max body for multipart/upload routes.
+	UploadRequestSizeBytes int64 = 32 << 20
 	StreamContractOpaqueBytesV1  = "sforum.route.opaque_bytes@1"
 	PayloadValidationPluginOwned = "plugin_owned"
 )
@@ -47,6 +53,10 @@ type RoutePolicy struct {
 	RateLimit   string
 	Idempotency string
 	Security    string
+	// RequestSizeBytes is the Host-enforced max request body (0 = platform default).
+	RequestSizeBytes int64
+	// CORSPolicy is a Host-named CORS profile (e.g. host.cors.same_origin@1).
+	CORSPolicy string
 }
 
 // CoreOperation reserves a Host path/method and operation id during aggregation.
@@ -96,6 +106,10 @@ type GeneratedOperation struct {
 	IdempotencyKeyMaxLength int    `json:"idempotencyKeyMaxLength,omitempty"`
 	IdempotencyTTLSeconds   int    `json:"idempotencyTtlSeconds,omitempty"`
 	RateLimitScope          string `json:"rateLimitScope,omitempty"`
+	// RequestSizeBytes is Host-enforced max request body for this operation.
+	RequestSizeBytes int64  `json:"requestSizeBytes,omitempty"`
+	// CORSPolicy is the Host CORS profile name.
+	CORSPolicy              string `json:"corsPolicy,omitempty"`
 	Security                string `json:"security"`
 	ExtensionID             string `json:"extensionId"`
 	ExtensionVersion        string `json:"extensionVersion"`

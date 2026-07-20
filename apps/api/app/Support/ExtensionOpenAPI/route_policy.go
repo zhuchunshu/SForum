@@ -28,6 +28,7 @@ func HostRoutePolicies(manifest extensionmanifest.Manifest) []RoutePolicy {
 			result = append(result, RoutePolicy{
 				RouteID: route.ID, Method: method, RateLimit: PolicyDisabled,
 				Idempotency: PolicyDisabled, Security: securityForDeclaredGuard(route.Guard),
+				RequestSizeBytes: hostRequestSizeForRoute(route), CORSPolicy: PolicyCORSSameOrigin,
 			})
 		}
 	}
@@ -43,7 +44,9 @@ func hostPolicyForOperation(
 	policy := RoutePolicy{
 		RouteID: route.route.ID, Method: route.method,
 		RateLimit: PolicyDisabled, Idempotency: PolicyDisabled,
-		Security: securityForDeclaredGuard(route.route.Guard),
+		Security:         securityForDeclaredGuard(route.route.Guard),
+		RequestSizeBytes: hostRequestSizeForRoute(route.route),
+		CORSPolicy:       PolicyCORSSameOrigin,
 	}
 	if hostRateLimitedMethod(route.method) {
 		policy.RateLimit = PolicyRateLimitIPWrite
@@ -71,6 +74,14 @@ func hostRateLimitedMethod(method string) bool {
 	default:
 		return true
 	}
+}
+
+func hostRequestSizeForRoute(route extensionmanifest.ManifestRoute) int64 {
+	mode := strings.ToLower(strings.TrimSpace(route.Mode))
+	if strings.Contains(mode, "multipart") || strings.Contains(mode, "upload") {
+		return UploadRequestSizeBytes
+	}
+	return DefaultRequestSizeBytes
 }
 
 func operationRequiresIdempotency(operation map[string]any, artifact *loadedArtifact, sourcePath string) (bool, error) {

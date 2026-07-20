@@ -425,6 +425,8 @@ func routeOperationPolicyIndex(snapshot Snapshot) map[string]routes.RouteExecuti
 		)] = routes.RouteExecutionPolicy{
 			RateLimit: operation.RateLimit, Idempotency: operation.Idempotency,
 			IdempotencyRequired: operation.IdempotencyRequired,
+			RequestSizeBytes:    operation.RequestSizeBytes,
+			CORSPolicy:          operation.CORSPolicy,
 		}
 	}
 	return result

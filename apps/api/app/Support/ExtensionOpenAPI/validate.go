@@ -204,8 +204,15 @@ func validateOperation(
 		Guard: route.route.Guard, Permission: route.route.Permission,
 		RequestSchema: route.route.RequestSchema, ResponseSchema: route.route.ResponseSchema,
 		RateLimit: route.policy.RateLimit, Idempotency: route.policy.Idempotency, Security: route.policy.Security,
+		RequestSizeBytes: route.policy.RequestSizeBytes, CORSPolicy: route.policy.CORSPolicy,
 		ExtensionID: identity.ExtensionID, ExtensionVersion: identity.ExtensionVersion,
 		PackageDigest: identity.PackageDigest, FragmentID: identity.FragmentID, Namespace: identity.Namespace,
+	}
+	if generated.RequestSizeBytes <= 0 {
+		generated.RequestSizeBytes = DefaultRequestSizeBytes
+	}
+	if generated.CORSPolicy == "" {
+		generated.CORSPolicy = PolicyCORSSameOrigin
 	}
 	if route.route.Mode != extensionmanifest.RouteModeHTTP {
 		generated.StreamContract = StreamContractOpaqueBytesV1
