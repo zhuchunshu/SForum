@@ -7,14 +7,36 @@ import (
 	"time"
 
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
+	capabilities "github.com/zhuchunshu/sforum/apps/api/app/Support/Capabilities"
 	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
 	hostapi "github.com/zhuchunshu/sforum/apps/api/app/Support/HostAPI"
 )
 
+// serviceE2ECapabilitySource grants extensions.call to every test consumer so
+// Host service discovery admission can pass; service-level users.read is still
+// enforced separately by service authority checks.
+type serviceE2ECapabilitySource struct{}
+
+func (serviceE2ECapabilitySource) CapabilitiesFor(_ context.Context, extensionID string) (capabilities.Set, error) {
+	if extensionID == "" {
+		return nil, errors.New("missing extension id")
+	}
+	return capabilities.NewSet([]string{capabilities.HostAPI, capabilities.ExtensionsCall, capabilities.UsersRead}), nil
+}
+
+func (serviceE2ECapabilitySource) DeclaredJobKinds(context.Context, string) ([]string, error) {
+	return nil, nil
+}
+
 func TestProtocolV2ServiceDiscoveryAcrossRealPluginProcesses(t *testing.T) {
 	// 本夹具验证真实 broker/provider 组合；production 由 bootstrap 的 Manager
 	// adapter 对 Winner exact instance 执行 RuntimeCallService admission。
-	gateway := hostapi.NewGateway(hostapi.New(hostapi.Config{ServiceAdmission: serviceE2ETestAdmission{}}))
+	// Host service discovery requires a capability source that grants
+	// extensions.call to consumer plugins (process capability, not wire grant).
+	gateway := hostapi.NewGateway(hostapi.New(hostapi.Config{
+		ServiceAdmission: serviceE2ETestAdmission{},
+		Capabilities:     serviceE2ECapabilitySource{},
+	}))
 	t.Cleanup(func() { _ = gateway.Close() })
 	starter := extensionsruntime.NewProtocolStarter(extensionsruntime.ProtocolStarterConfig{
 		Trust: serviceE2ETrust{}, HostAPI: gateway,

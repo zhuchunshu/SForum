@@ -338,7 +338,12 @@ func serviceE2EExtension(
 		t.Fatal(err)
 	}
 	digest := sha256.Sum256([]byte(id + ":" + role + ":" + flavor))
-	grants := []extensions.CapabilityGrant{{Key: capabilities.HostAPI, Risk: capabilities.RiskLow}}
+	// Service discovery requires Host process capability extensions.call in
+	// addition to any service-declared authority (e.g. users.read).
+	grants := []extensions.CapabilityGrant{
+		{Key: capabilities.HostAPI, Risk: capabilities.RiskLow},
+		{Key: capabilities.ExtensionsCall, Risk: capabilities.RiskHigh},
+	}
 	if usersRead {
 		grants = append(grants, extensions.CapabilityGrant{Key: capabilities.UsersRead, Risk: capabilities.RiskMedium})
 	}

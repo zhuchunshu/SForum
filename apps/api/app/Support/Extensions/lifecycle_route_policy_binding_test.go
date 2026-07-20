@@ -503,11 +503,14 @@ func assertLifecycleRoutePolicyPublication(
 }
 
 var (
+	// Host OpenAPI route policies always attach default request-size + CORS.
 	lifecycleDisabledRoutePolicy = routes.RouteExecutionPolicy{
 		RateLimit: "disabled", Idempotency: "disabled",
+		RequestSizeBytes: 1 << 20, CORSPolicy: "host.cors.same_origin@1",
 	}
 	lifecycleRequiredRoutePolicy = routes.RouteExecutionPolicy{
 		RateLimit: "host.ip_write@1", Idempotency: "required.24h@1", IdempotencyRequired: true,
+		RequestSizeBytes: 1 << 20, CORSPolicy: "host.cors.same_origin@1",
 	}
 )
 

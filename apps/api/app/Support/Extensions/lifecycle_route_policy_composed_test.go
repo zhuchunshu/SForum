@@ -279,6 +279,7 @@ func assertLifecycleComposedRequiredPolicy(
 	publication := snapshot.Publication
 	wantPolicy := routes.RouteExecutionPolicy{
 		RateLimit: "host.ip_write@1", Idempotency: "required.24h@1", IdempotencyRequired: true,
+		RequestSizeBytes: 1 << 20, CORSPolicy: "host.cors.same_origin@1",
 	}
 	if publication.SafeMode || publication.Policies == nil || len(publication.Plugins) != 1 || len(publication.Policies) != 1 {
 		t.Fatalf("composed route policy publication = %#v", publication)
