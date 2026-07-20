@@ -33,10 +33,10 @@ const islandComponents: Record<string, Component> = {
   // 首页 body 岛由 SFHomePage 自包含数据+UI；主题 L1 拥有壳层结构。
   // 不再经 HostPageIsland 嵌回 pages/index slot（slot 仅 fail-closed 紧急回退）。
   'forum.component.home_page': resolveComponent('SFHomePage') as Component,
-  'forum.component.category_index': HostPageIsland,
-  'forum.component.category_show': HostPageIsland,
-  'forum.component.tag_index': HostPageIsland,
-  'forum.component.tag_show': HostPageIsland,
+  'forum.component.category_index': resolveComponent('SFCategoryIndexPage') as Component,
+  'forum.component.category_show': resolveComponent('SFCategoryShowPage') as Component,
+  'forum.component.tag_index': resolveComponent('SFTagIndexPage') as Component,
+  'forum.component.tag_show': resolveComponent('SFTagShowPage') as Component,
   'forum.component.topic_show': HostPageIsland,
   'forum.component.profile_show': HostPageIsland,
   'forum.component.my_home': HostPageIsland,

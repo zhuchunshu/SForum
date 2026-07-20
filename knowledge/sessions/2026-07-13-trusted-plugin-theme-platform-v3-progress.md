@@ -5,6 +5,33 @@ Last updated: 2026-07-21
 ## Progress
 
 - Verified weighted progress: **99.0%** (display **99.0%**).
+- Phase counts: P0-P12 complete; P13 **~99%**. Protocol residuals closed.
+  Presentation ownership: forum.home + legal pages thinned; other public pages
+  still fat Host Vue. LTS deletions still blocked by RemoveAfter window.
+
+## Current Subtask
+
+### 2026-07-21 P13 presentation ownership — home + legal done
+
+- forum.home: SFHomePage island + theme shells (`5b26b80fe`…`65181c354`).
+- legal: terms/privacy/guidelines islands (`bc2d1fe54`…`0e748598a`).
+- Exact next: continue thin-route + body-island for taxonomy/topic/auth
+  (auth forms stay HostPageIsland for credential isolation). Do **not** delete
+  LoadTemplate / Protocol V1 / fail-closed SFPageOutlet.
+- Unowned dirty WIP — do not stage.
+
+---
+
+
+## Prior Ledger Archive
+
+# Trusted Plugin And Theme Platform V3 Progress Ledger
+
+Last updated: 2026-07-21
+
+## Progress
+
+- Verified weighted progress: **99.0%** (display **99.0%**).
 - Phase counts: P0-P12 complete; P13 **~99%** — implementable protocol residuals
   closed; presentation ownership started at forum.home; LTS deletions still open.
 
