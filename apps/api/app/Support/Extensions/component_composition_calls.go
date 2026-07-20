@@ -2,6 +2,7 @@ package extensionsruntime
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"reflect"
 	"sync"
@@ -45,6 +46,10 @@ func (r *componentCompositionRun) invokeContribution(
 	if errorsIsComponentStale(callErr) {
 		r.addTraceStep(plan.Target.ID, contribution, policy, "rejected", componentFailureReason(callErr), duration)
 		return componentCallOutcome{}, ErrComponentCompositionStale
+	}
+	if errors.Is(callErr, ErrComponentCompositionPermissionDenied) {
+		r.addTraceStep(plan.Target.ID, contribution, policy, "denied", "permission_denied", duration)
+		return componentCallOutcome{permissionDenied: true}, nil
 	}
 	if policy.FailurePolicy == appevents.FailurePolicyFailClosed {
 		r.addTraceStep(plan.Target.ID, contribution, policy, "failed", componentFailureReason(callErr), duration)

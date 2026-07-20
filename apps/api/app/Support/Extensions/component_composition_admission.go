@@ -83,6 +83,13 @@ func (r *componentCompositionRun) acquireComponentAdmission(
 	plan ComponentResolvePlan,
 	contribution ComponentContribution,
 ) (componentHeldAdmission, error) {
+	allowed, err := r.authorizeComponentContribution(ctx, contribution)
+	if err != nil {
+		return componentHeldAdmission{}, err
+	}
+	if !allowed {
+		return componentHeldAdmission{}, ErrComponentCompositionPermissionDenied
+	}
 	if r == nil || r.executor == nil || r.executor.admission == nil ||
 		!r.executor.registry.admitComponentContribution(r.revision, plan.Target, contribution) {
 		return componentHeldAdmission{}, ErrComponentCompositionStale

@@ -155,26 +155,51 @@ type ComponentCallPolicy struct {
 
 type ComponentCallPolicyResolver func(ComponentContribution) ComponentCallPolicy
 
+type ComponentPermissionAuthorizer interface {
+	AuthorizeComponent(context.Context, int64, string) (bool, error)
+}
+
+type ComponentPermissionAuthorizerFunc func(context.Context, int64, string) (bool, error)
+
+func (f ComponentPermissionAuthorizerFunc) AuthorizeComponent(
+	ctx context.Context,
+	actorUserID int64,
+	permission string,
+) (bool, error) {
+	return f(ctx, actorUserID, permission)
+}
+
+// ComponentActorAuthority is the Host-authenticated credential ceiling for one
+// composition. The live authorizer intersects it with current RBAC; reloading a
+// user must never restore permissions removed by a scoped PAT or other caller.
+type ComponentActorAuthority struct {
+	UserID      int64
+	SuperAdmin  bool
+	Permissions map[string]bool
+}
+
 type ComponentCompositionExecutorConfig struct {
-	Registry           *ComponentRegistry
-	Renderer           ComponentSSRRenderer
-	ResolveTarget      ComponentTargetBindingResolver
-	Admission          ComponentRuntimeAdmission
-	Terminator         ComponentRendererTerminator
-	ResolvePolicy      ComponentCallPolicyResolver
-	DefaultTimeout     time.Duration
-	MaxTimeout         time.Duration
-	MaxDepth           int
-	MaxSegments        int
-	MaxOutputBytes     int
-	MaxConcurrentCalls int
-	TraceLimit         int
+	Registry             *ComponentRegistry
+	Renderer             ComponentSSRRenderer
+	ResolveTarget        ComponentTargetBindingResolver
+	Admission            ComponentRuntimeAdmission
+	PermissionAuthorizer ComponentPermissionAuthorizer
+	Terminator           ComponentRendererTerminator
+	ResolvePolicy        ComponentCallPolicyResolver
+	DefaultTimeout       time.Duration
+	MaxTimeout           time.Duration
+	MaxDepth             int
+	MaxSegments          int
+	MaxOutputBytes       int
+	MaxConcurrentCalls   int
+	TraceLimit           int
 }
 
 type ComponentCompositionRequest struct {
 	TargetID              string
 	TargetContractVersion string
 	ExpectedRevision      uint64
+	Actor                 ComponentActorAuthority
 	Props                 map[string]any
 	Binding               ComponentTargetBinding
 }
@@ -247,6 +272,7 @@ type ComponentCompositionExecutor struct {
 	renderer       ComponentSSRRenderer
 	resolveTarget  ComponentTargetBindingResolver
 	admission      ComponentRuntimeAdmission
+	permissions    ComponentPermissionAuthorizer
 	terminator     ComponentRendererTerminator
 	resolvePolicy  ComponentCallPolicyResolver
 	defaultTimeout time.Duration
@@ -280,7 +306,8 @@ func NewComponentCompositionExecutor(config ComponentCompositionExecutorConfig) 
 	}
 	return &ComponentCompositionExecutor{
 		registry: config.Registry, renderer: config.Renderer, resolveTarget: config.ResolveTarget,
-		admission: config.Admission, terminator: config.Terminator, resolvePolicy: config.ResolvePolicy,
+		admission: config.Admission, permissions: config.PermissionAuthorizer,
+		terminator: config.Terminator, resolvePolicy: config.ResolvePolicy,
 		defaultTimeout: config.DefaultTimeout, maxTimeout: config.MaxTimeout,
 		maxDepth: config.MaxDepth, maxSegments: config.MaxSegments,
 		maxOutputBytes: config.MaxOutputBytes, callSlots: make(chan struct{}, config.MaxConcurrentCalls),

@@ -428,7 +428,7 @@ func sameHookArtifact(left, right HookArtifact) bool {
 func sameComponentRuntimeContribution(left, right ComponentContribution) bool {
 	return left.ID == right.ID && left.ContractVersion == right.ContractVersion && left.Action == right.Action &&
 		left.TargetID == right.TargetID && left.TargetContractVersion == right.TargetContractVersion &&
-		left.Priority == right.Priority && left.SSRTemplate == right.SSRTemplate &&
+		left.Priority == right.Priority && left.Permission == right.Permission && left.SSRTemplate == right.SSRTemplate &&
 		left.L2Component == right.L2Component && left.PropsSchema == right.PropsSchema &&
 		left.PropsSchemaDigest == right.PropsSchemaDigest && left.ResultSchema == right.ResultSchema &&
 		left.ResultSchemaDigest == right.ResultSchemaDigest && left.ThemeOverrideKey == right.ThemeOverrideKey &&

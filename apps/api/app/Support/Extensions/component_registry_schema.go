@@ -32,6 +32,7 @@ func compileComponentContribution(
 		ID: declaration.ID, ContractVersion: declaration.ContractVersion,
 		Action: declaration.Action, TargetID: declaration.TargetID,
 		TargetContractVersion: declaration.TargetContractVersion, Priority: declaration.Priority,
+		Permission:  declaration.Permission,
 		SSRTemplate: declaration.SSRTemplate, L2Component: declaration.L2Component,
 		PropsSchema: declaration.PropsSchema, PropsSchemaDigest: propsDigest,
 		ResultSchema: declaration.ResultSchema, ResultSchemaDigest: resultDigest,

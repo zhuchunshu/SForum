@@ -2,6 +2,7 @@ package extensionsruntime
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"reflect"
 	"strings"
@@ -16,6 +17,7 @@ type componentCompositionRun struct {
 	revision   uint64
 	trace      *ComponentCompositionTrace
 	path       map[string]bool
+	actor      ComponentActorAuthority
 	admissions []componentHeldAdmission
 }
 
@@ -28,9 +30,10 @@ type composedComponentTarget struct {
 }
 
 type componentCallOutcome struct {
-	response ComponentRenderResponse
-	applied  bool
-	fallback *ComponentFallbackEvidence
+	response         ComponentRenderResponse
+	applied          bool
+	permissionDenied bool
+	fallback         *ComponentFallbackEvidence
 }
 
 func (e *ComponentCompositionExecutor) Compose(
@@ -61,12 +64,18 @@ func (e *ComponentCompositionExecutor) Compose(
 	if resolveErr != nil {
 		return ComponentCompositionResult{}, resolveErr
 	}
+	actor := cloneComponentActorAuthority(request.Actor)
+	plan, resolveErr = e.authorizeComponentPlan(ctx, actor, plan)
+	if resolveErr != nil {
+		return ComponentCompositionResult{}, resolveErr
+	}
 	trace.Revision = plan.Revision
 	if request.ExpectedRevision != 0 && request.ExpectedRevision != plan.Revision {
 		return ComponentCompositionResult{}, ErrComponentCompositionStale
 	}
 	run := &componentCompositionRun{
 		executor: e, revision: plan.Revision, trace: trace, path: make(map[string]bool),
+		actor: actor,
 	}
 	defer run.releaseComponentAdmissions()
 	composed, composeErr := run.composeTarget(ctx, plan, request.Props, request.Binding, 0)
@@ -96,6 +105,12 @@ func (e *ComponentCompositionExecutor) Compose(
 	resultDocument, cloneErr := cloneComponentDocument(composed.result, e.maxOutputBytes)
 	if cloneErr != nil {
 		return ComponentCompositionResult{}, fmt.Errorf("detached result: %w", cloneErr)
+	}
+	if err := run.validateComponentAdmissions(ctx); err != nil {
+		return ComponentCompositionResult{}, err
+	}
+	if err := run.validateComponentPermissions(ctx); err != nil {
+		return ComponentCompositionResult{}, err
 	}
 	if err := run.validateComponentAdmissions(ctx); err != nil {
 		return ComponentCompositionResult{}, err
@@ -158,22 +173,23 @@ func (r *componentCompositionRun) composeTarget(
 			return composedComponentTarget{}, policyErr
 		}
 		held, admissionErr := r.acquireComponentAdmission(ctx, plan, hide)
-		if admissionErr == nil {
+		if errors.Is(admissionErr, ErrComponentCompositionPermissionDenied) {
+			r.addTraceStep(plan.Target.ID, hide, policy, "denied", "permission_denied", 0)
+		} else if admissionErr == nil {
 			r.holdComponentAdmission(held)
 			return r.composeHiddenTarget(ctx, plan, props, binding, hide, policy, depth)
-		}
-		if errorsIsComponentStale(admissionErr) || ctx.Err() != nil {
+		} else if errorsIsComponentStale(admissionErr) || ctx.Err() != nil {
 			return composedComponentTarget{}, admissionErr
-		}
-		if policy.FailurePolicy == appevents.FailurePolicyFailClosed {
+		} else if policy.FailurePolicy == appevents.FailurePolicyFailClosed {
 			return composedComponentTarget{}, admissionErr
+		} else {
+			evidence := ComponentFallbackEvidence{
+				ContributionID: hide.ID, Action: hide.Action,
+				Reason: componentFailureReason(admissionErr), FailurePolicy: policy.FailurePolicy,
+			}
+			pendingFallback = append(pendingFallback, evidence)
+			r.addTraceStep(plan.Target.ID, hide, policy, "fallback", evidence.Reason, 0)
 		}
-		evidence := ComponentFallbackEvidence{
-			ContributionID: hide.ID, Action: hide.Action,
-			Reason: componentFailureReason(admissionErr), FailurePolicy: policy.FailurePolicy,
-		}
-		pendingFallback = append(pendingFallback, evidence)
-		r.addTraceStep(plan.Target.ID, hide, policy, "fallback", evidence.Reason, 0)
 	}
 
 	result := map[string]any{}
@@ -214,6 +230,9 @@ func (r *componentCompositionRun) composeTarget(
 			return composedComponentTarget{}, callErr
 		}
 		if !outcome.applied {
+			if outcome.permissionDenied {
+				return composedComponentTarget{}, ErrComponentCompositionPermissionDenied
+			}
 			pendingFallback = appendFallback(pendingFallback, outcome.fallback)
 		} else {
 			candidateResult, documentErr := componentResponseDocumentOrCurrent(
@@ -287,6 +306,13 @@ func (r *componentCompositionRun) composeTarget(
 		childPlan, childErr := r.executor.registry.resolveRuntimePlan(contribution.ID, contribution.ContractVersion)
 		if childErr != nil || childPlan.Revision != r.revision {
 			return composedComponentTarget{}, ErrComponentCompositionStale
+		}
+		childPlan, childErr = r.executor.authorizeComponentPlan(ctx, r.actor, childPlan)
+		if errors.Is(childErr, ErrComponentCompositionPermissionDenied) {
+			continue
+		}
+		if childErr != nil {
+			return composedComponentTarget{}, childErr
 		}
 		if r.executor.resolveTarget == nil {
 			return composedComponentTarget{}, fmt.Errorf("%w: added target %s has no Host binding", ErrComponentCompositionInvalid, contribution.ID)
