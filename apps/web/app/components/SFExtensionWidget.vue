@@ -39,19 +39,31 @@ const props = withDefaults(defineProps<{
 })
 
 const { apiBaseUrl, request } = useApiClient()
-const { locale } = useI18n()
+const { t, locale } = useI18n()
 const colorMode = useColorMode()
 const route = useRoute()
 const target = ref<HTMLElement>()
 const ssrRoot = ref<HTMLElement>()
 const state = ref<'idle' | 'loading' | 'mounted' | 'fallback' | 'quarantined'>('idle')
 const descriptor = shallowRef<PublicFrontendComponentDescriptor>()
+// 操作者可关闭当前页面上的披露；刷新后仍会再显示（不写 localStorage，避免隐藏安全提示）。
+const honestyDismissed = ref(false)
 let cleanup: PublicFrontendCleanup | undefined
 let releaseAssets: (() => Promise<void>) | undefined
 let loadQueue: Promise<void> = Promise.resolve()
 let destroyed = false
 
 const resolvedComponentId = computed(() => props.componentId || props.widgetId || props.name)
+const showHonesty = computed(() =>
+  state.value === 'mounted'
+  && !honestyDismissed.value
+  && Boolean(descriptor.value?.extensionId)
+)
+const honestyTitle = computed(() => t('public.extensions.l2Honesty.title'))
+const honestyBody = computed(() => t('public.extensions.l2Honesty.body', {
+  name: descriptor.value?.extensionId || resolvedComponentId.value,
+  version: descriptor.value?.extensionVersion || ''
+}))
 const failureKey = computed(() => descriptor.value
   ? publicContributionFailureKey(descriptor.value.impactDigest, descriptor.value.extensionId, descriptor.value.componentId)
   : '')
@@ -227,8 +239,37 @@ defineExpose({ reload: load })
     :data-extension-id="extensionId"
     :data-component-id="resolvedComponentId"
     :data-l2-state="state"
+    :data-l2-trust="descriptor ? PUBLIC_FRONTEND_TRUST_NOTICE : undefined"
     :aria-busy="state === 'loading' ? 'true' : undefined"
   >
+    <div
+      v-if="showHonesty"
+      class="sf-extension-widget__honesty mb-2 rounded-md border border-amber-200/80 bg-amber-50 px-3 py-2 text-xs text-amber-950 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-100"
+      data-testid="public-l2-honesty"
+      role="note"
+    >
+      <div class="flex items-start gap-2">
+        <UIcon name="i-tabler-shield-exclamation" class="mt-0.5 size-4 shrink-0" />
+        <div class="min-w-0 flex-1">
+          <div class="font-medium">
+            {{ honestyTitle }}
+          </div>
+          <p class="mt-0.5 break-all text-amber-900/90 dark:text-amber-100/90">
+            {{ honestyBody }}
+          </p>
+        </div>
+        <UButton
+          icon="i-tabler-x"
+          color="neutral"
+          variant="link"
+          size="xs"
+          class="shrink-0"
+          data-testid="public-l2-honesty-dismiss"
+          :aria-label="t('public.extensions.l2Honesty.dismiss')"
+          @click="honestyDismissed = true"
+        />
+      </div>
+    </div>
     <div
       v-show="state !== 'mounted'"
       ref="ssrRoot"

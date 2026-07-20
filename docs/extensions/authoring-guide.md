@@ -141,6 +141,16 @@ dependencies, and Host/Frontend contracts. Any relevant change invalidates the
 grant. Capability declarations describe and shape trusted code; they are not a
 sandbox.
 
+### Public L2 honesty
+
+Public L2 (package-local prebuilt ESM/CSS mounted by `SFExtensionWidget`) is
+**fully trusted browser code**, not a sandbox. When a contribution mounts, the
+Host bridge sets `trust: fully_trusted_browser_code` and the public widget shows
+an operator-facing honesty note: the component can use the current browser
+session and page authority for its namespaced API. Enable `SFORUM_V3_PUBLIC_L2`
+only for extensions you trust. SSR/L1 slot content remains the fallback when L2
+fails, is quarantined, or is disabled.
+
 Themes remain presentation-only. They may declare templates, assets,
 components, navigation/regions, settings, package files, and other presentation
 contracts, but cannot own plugin business/runtime declarations. A plugin's

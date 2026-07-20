@@ -3749,5 +3749,14 @@
       "emptyTitle": "暂无分类",
       "emptyDescription": "当前没有对你可见的公开分类。"
     }
+  },
+  "public": {
+    "extensions": {
+      "l2Honesty": {
+        "title": "此扩展在浏览器中以完全信任方式运行",
+        "body": "{name} v{version} 的公开组件可使用当前浏览器会话与页面权限调用其命名空间 API。这不是沙箱：仅在你信任该扩展时启用公开 L2。",
+        "dismiss": "关闭说明"
+      }
+    }
   }
 }
