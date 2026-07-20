@@ -1,7 +1,7 @@
 # Trusted Plugin And Theme Platform V3 Progress Ledger
 
 Date: 2026-07-20
-Overall progress: **70.0%**
+Overall progress: **72.0%**
 Active phase: **P9 active; P10-P12 production closure slices remain open**
 
 This ledger is the durable percentage and context-compaction checkpoint for the
@@ -25,7 +25,7 @@ scaffolding, or demo-only code cannot satisfy a runtime exit criterion.
 | P6 Routes/middleware | 10% | 100% | 10.00% |
 | P7 Workflow/admin/query/identity | 10% | 100% | 10.00% |
 | P8 Theme compiler/runtime | 8% | 100% | 8% |
-| P9 Components/assets/L2 | 8% | 44% | 3.50% |
+| P9 Components/assets/L2 | 8% | 63% | 5.00% |
 | P10 Content/media/data | 8% | 0% | 0% |
 | P11 Platform services | 6% | 6% | 0.38% |
 | P12 Operations/ecosystem | 6% | 5% | 0.27% |
@@ -33,6 +33,28 @@ scaffolding, or demo-only code cannot satisfy a runtime exit criterion.
 
 Displayed overall progress is the floor of earned weighted progress until the
 program reaches 100% and every final gate passes.
+
+## 2026-07-20 P9 Template Inspector And Navigation Production Runtime
+
+- Overall advances to **72.0%** after flooring. Exact earned weight is
+  `67 + 8*(10/16) + 0.38 + 0.27 = 72.65` → display **72%**. P9 is **10/16 (63%)**.
+- Closed three additional P9 rows with production evidence:
+  1. **Component/Template/Asset inspectors row** via Template inspector
+     (`46fee5f3c`): Theme Runtime redacted snapshot API + admin UI, OpenAPI,
+     catalogs **243 routes / 127 UI surfaces**, permission + redaction tests.
+  2. **Navigation/Region Registry production exit** (`61b7c9f68`):
+     `productionNavigationRuntime` binds Manager exact-instance
+     Available/Acquire into SiteChrome `WithNavigationRuntime`; declarative
+     plugin items compose; quarantine removes them; handler render fail-closed.
+  3. **Navigation disabled-provider test row**: compose + quarantine matrix in
+     `bootstrap/navigation_runtime_test.go` plus existing SiteChrome permission/
+     locale/selected-replace coverage.
+- Still open on P9: full component action production matrix (filter transforms),
+  trusted-browser honesty UI/docs, primary SEO credit, CSP→Nuxt aggregation,
+  browser visual gates, L2 failure primary-content browser proof.
+- Commits this slice: `46fee5f3c`, `61b7c9f68`.
+- Preserve unrelated dirty WIP: route inspector web, `public_frontend_policy*`,
+  content-policy extension, PageViewModels, go.mod, host-api-v2 ADR noise.
 
 ## 2026-07-20 P9 Inspectors, Theme Override Proof, Package-Local SSR
 
