@@ -30,7 +30,8 @@ const HostPageIsland = defineComponent({
 // 该映射与 ThemeRuntimeSnapshot 的 reviewed Component Registry 对齐。
 // 内容页 body 岛使用 HostPageIsland，把宿主 Nuxt 页 slot 嵌回主题壳层。
 const islandComponents: Record<string, Component> = {
-  'forum.component.home_page': resolveComponent('SFHomePage') as Component,
+  // home 与其他 body 岛一致：嵌回宿主 Nuxt 页 slot，避免 SFHomePage 空壳吞掉核心 UI。
+  'forum.component.home_page': HostPageIsland,
   'forum.component.category_index': HostPageIsland,
   'forum.component.category_show': HostPageIsland,
   'forum.component.tag_index': HostPageIsland,
