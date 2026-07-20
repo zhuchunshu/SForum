@@ -15,6 +15,7 @@ import (
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Audit"
 	authsession "github.com/zhuchunshu/sforum/apps/api/app/Support/AuthSession"
 	cacheregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/CacheRegistry"
+	editorregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/EditorRegistry"
 	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
 	hostapi "github.com/zhuchunshu/sforum/apps/api/app/Support/HostAPI"
 	navigationregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/NavigationRegistry"
@@ -144,6 +145,16 @@ func (p *ExtensionsProvider) WithThemeRuntimeInspector(
 ) *ExtensionsProvider {
 	if p != nil && p.controller != nil {
 		p.controller.WithThemeRuntimeInspector(registry)
+	}
+	return p
+}
+
+// WithEditorRegistry wires P10 Editor Registry for public editor catalog.
+func (p *ExtensionsProvider) WithEditorRegistry(
+	registry *editorregistry.Registry,
+) *ExtensionsProvider {
+	if p != nil && p.controller != nil {
+		p.controller.WithEditorRegistry(registry)
 	}
 	return p
 }

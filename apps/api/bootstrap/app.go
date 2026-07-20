@@ -846,6 +846,7 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		WithComponentCompositionInspector(lifecycleStack.ComponentRegistry, lifecycleStack.ComponentComposition).
 		WithAssetInspector(lifecycleStack.AssetRegistry).
 		WithThemeRuntimeInspector(themeRuntime).
+		WithEditorRegistry(lifecycleStack.EditorRegistry).
 		WithAdminSurfaces(extensionRuntime, auditWriter)
 	webhooksProvider := providers.NewWebhooksProvider(webhookService, identityStore, authSessions)
 	// PageDataLoader 网关：仅从运行中插件 RouteTarget 拉数据（严格 loopback）。

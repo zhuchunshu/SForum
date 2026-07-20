@@ -16,6 +16,59 @@ siteActiveThemeSettings:
             schema:
               "$ref": "../schemas/extensions.yaml#/ApiResponsePublicActiveThemeSettings"
 
+publicExtensionEditorCatalog:
+  get:
+    summary: Project the active Editor Registry into a trusted L2 load catalog
+    operationId: getPublicExtensionEditorCatalog
+    tags: [Extensions]
+    description: >-
+      Returns `sforum.editor-catalog@1` for SFEditor trusted L2 admission.
+      Modules are package-digest and L2-digest bound. Empty modules are valid
+      (no trusted editor plugins, or registry unavailable). Cache-Control is
+      no-store. Safe Mode returns core modules only.
+    responses:
+      '200':
+        description: Editor catalog projection. Cache-Control is no-store.
+        headers:
+          Cache-Control:
+            schema: { type: string, enum: [no-store] }
+          X-Content-Type-Options:
+            schema: { type: string, enum: [nosniff] }
+          X-SForum-Editor-Catalog-Digest:
+            schema: { type: string, pattern: '^[0-9a-f]{64}$' }
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data]
+              properties:
+                data:
+                  type: object
+                  required: [schemaVersion, revision, digest, modules, toolbars]
+                  properties:
+                    schemaVersion:
+                      type: string
+                      enum: [sforum.editor-catalog@1]
+                    revision:
+                      type: integer
+                      minimum: 0
+                    digest:
+                      type: string
+                    safeMode:
+                      type: boolean
+                    modules:
+                      type: array
+                      items:
+                        type: object
+                        additionalProperties: true
+                    toolbars:
+                      type: array
+                      items:
+                        type: object
+                        additionalProperties: true
+      '503':
+        "$ref": "../components/responses.yaml#/ServiceUnavailable"
+
 publicExtensionPagePolicy:
   get:
     summary: Aggregate Host document CSP for public L2 components on one page

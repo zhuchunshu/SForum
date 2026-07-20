@@ -16,6 +16,7 @@ import (
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Audit"
 	authsession "github.com/zhuchunshu/sforum/apps/api/app/Support/AuthSession"
 	cacheregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/CacheRegistry"
+	editorregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/EditorRegistry"
 	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
 	hostapi "github.com/zhuchunshu/sforum/apps/api/app/Support/HostAPI"
 	navigationregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/NavigationRegistry"
@@ -60,6 +61,8 @@ type Controller struct {
 	providerAuditor      audit.IDWriter
 	adminSurfaces        AdminSurfaceRuntime
 	adminAuditor         audit.Writer
+	// editorRegistry 为 nil 时公开 editor-catalog 返回空 modules（fail-closed）。
+	editorRegistry *editorregistry.Registry
 }
 
 type ProviderSlotProber interface {
@@ -206,6 +209,30 @@ func (h *Controller) WithProviderSlotSelection(
 	h.providerProber = prober
 	h.providerAuditor = auditor
 	return h
+}
+
+// WithEditorRegistry wires the process-local Editor Registry for the public
+// editor catalog used by SFEditor trusted L2 admission.
+func (h *Controller) WithEditorRegistry(registry *editorregistry.Registry) *Controller {
+	if h != nil {
+		h.editorRegistry = registry
+	}
+	return h
+}
+
+// publicEditorCatalog 公开：投影当前 Editor Registry 为 sforum.editor-catalog@1。
+// 无需登录；Safe Mode 下仅含 core modules。无 registry 时返回空 modules。
+func (h *Controller) publicEditorCatalog(c fiber.Ctx) error {
+	catalog := (*editorregistry.Registry)(nil).BuildCatalog()
+	if h != nil && h.editorRegistry != nil {
+		catalog = h.editorRegistry.BuildCatalog()
+	}
+	c.Set(fiber.HeaderCacheControl, "no-store")
+	c.Set("X-Content-Type-Options", "nosniff")
+	if catalog.Digest != "" {
+		c.Set("X-SForum-Editor-Catalog-Digest", catalog.Digest)
+	}
+	return apphttp.OK(c, catalog)
 }
 
 func (h *Controller) list(c fiber.Ctx) error {
