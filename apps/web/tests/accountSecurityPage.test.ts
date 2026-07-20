@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test'
 import { readFileSync } from 'node:fs'
 
 const accountSecurityPage = () => readFileSync(
-  new URL('../../../apps/web/app/pages/settings/security.vue', import.meta.url),
+  new URL('../../../apps/web/app/components/SFSecuritySettingsPage.vue', import.meta.url),
   'utf8'
 )
 

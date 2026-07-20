@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test'
 import { existsSync, readFileSync } from 'node:fs'
 
 const topicPage = () => readFileSync(
-  new URL('../../../apps/web/app/pages/t/[...path].vue', import.meta.url),
+  new URL('../../../apps/web/app/components/SFTopicShowPage.vue', import.meta.url),
   'utf8'
 )
 

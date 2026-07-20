@@ -49,9 +49,11 @@ describe('SFPageOutlet catalog wiring', () => {
     expect(outlet).not.toContain('CONSTRAINED_PAGES')
     expect(outlet).not.toContain('isConstrained')
     expect(outlet).toContain('<slot />')
+    // Auth recovery forms remain HostPageIsland (credential isolation).
     expect(template).toContain("'identity.component.login_form': HostPageIsland")
-    expect(template).toContain("'forum.component.topic_composer': HostPageIsland")
-    // 首页 body 岛自包含；其余受保护表单岛仍嵌回 Host page slot。
+    expect(template).toContain("'identity.component.register_form': HostPageIsland")
+    // Content body islands are self-contained components.
+    expect(template).toContain("'forum.component.topic_composer': resolveComponent('SFTopicComposerPage')")
     expect(template).toContain("'forum.component.home_page': resolveComponent('SFHomePage')")
     expect(template).toContain('slots.default?.()')
   })
