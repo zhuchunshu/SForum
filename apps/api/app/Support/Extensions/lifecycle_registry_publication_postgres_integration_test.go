@@ -6,6 +6,10 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
+	"time"
+
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 func TestPostgresLifecycleRegistryPublicationPrepareMoveRestartCASAndMarkerRefusal(t *testing.T) {
@@ -89,5 +93,83 @@ func TestPostgresLifecycleRegistryPublicationPrepareMoveRestartCASAndMarkerRefus
 		return nil
 	}); !errors.Is(err, ErrLifecycleRegistryPublicationCommitted) {
 		t.Fatalf("committed restore = %v", err)
+	}
+}
+
+func TestPostgresLifecycleRegistryPublicationMoveLeavesMaxConnsOnePoolAvailableToApply(t *testing.T) {
+	ctx, pool, journal, request, _ := newLifecyclePublicationIntegration(t)
+	if err := journal.PrepareLifecyclePublication(ctx, request, LifecycleBoundaryActivate); err != nil {
+		t.Fatal(err)
+	}
+	fence, err := lifecyclePublicationFenceFor(request, LifecycleBoundaryActivate)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	poolConfig := pool.Config().Copy()
+	poolConfig.MaxConns = 1
+	poolConfig.MinConns = 0
+	singlePool, err := pgxpool.NewWithConfig(ctx, poolConfig)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(singlePool.Close)
+	repository := NewPostgresLifecycleRegistryPublicationRepository(singlePool)
+	ref, err := repository.PrepareLifecycleRegistryPublication(ctx, PrepareLifecycleRegistryPublicationInput{
+		Fence: fence, SourceDigest: strings.Repeat("8", 64), TargetDigest: strings.Repeat("9", 64),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	applyErr := errors.New("local registry apply failed")
+	runApply := func(wantErr error) error {
+		moveCtx, cancelMove := context.WithTimeout(t.Context(), 5*time.Second)
+		defer cancelMove()
+		return repository.MoveLifecycleRegistryPublication(
+			moveCtx,
+			ref,
+			LifecycleRegistryPublicationTarget,
+			func() error {
+				tx, beginErr := singlePool.BeginTx(moveCtx, pgx.TxOptions{IsoLevel: pgx.Serializable})
+				if beginErr != nil {
+					return beginErr
+				}
+				defer func() { _ = tx.Rollback(context.Background()) }()
+				var value int
+				if queryErr := tx.QueryRow(moveCtx, `SELECT 1`).Scan(&value); queryErr != nil {
+					return queryErr
+				}
+				if value != 1 {
+					return errors.New("unexpected callback query result")
+				}
+				if commitErr := tx.Commit(moveCtx); commitErr != nil {
+					return commitErr
+				}
+				return wantErr
+			},
+		)
+	}
+
+	if err := runApply(applyErr); !errors.Is(err, applyErr) {
+		t.Fatalf("failed apply error=%v", err)
+	}
+	if slots := len(repository.moveConnectionSlots); slots != 0 {
+		t.Fatalf("failed apply retained %d move connection slots", slots)
+	}
+	if phase, err := repository.InspectLifecycleRegistryPublication(ctx, ref); err != nil || phase != LifecycleRegistryPublicationSource {
+		t.Fatalf("phase after failed apply=%q err=%v", phase, err)
+	}
+	if err := runApply(nil); err != nil {
+		t.Fatal(err)
+	}
+	if phase, err := repository.InspectLifecycleRegistryPublication(ctx, ref); err != nil || phase != LifecycleRegistryPublicationTarget {
+		t.Fatalf("phase after successful apply=%q err=%v", phase, err)
+	}
+	if acquired := singlePool.Stat().AcquiredConns(); acquired != 0 {
+		t.Fatalf("MaxConns=1 pool retained %d acquired connections", acquired)
+	}
+	if slots := len(repository.moveConnectionSlots); slots != 0 {
+		t.Fatalf("successful apply retained %d move connection slots", slots)
 	}
 }

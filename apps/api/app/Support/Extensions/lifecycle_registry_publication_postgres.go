@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -14,13 +15,19 @@ import (
 )
 
 type PostgresLifecycleRegistryPublicationRepository struct {
-	pool *pgxpool.Pool
+	pool                *pgxpool.Pool
+	moveConnectionSlots chan struct{}
 }
+
+const lifecycleRegistryPublicationMoveCleanupTimeout = 2 * time.Second
 
 func NewPostgresLifecycleRegistryPublicationRepository(
 	pool *pgxpool.Pool,
 ) *PostgresLifecycleRegistryPublicationRepository {
-	return &PostgresLifecycleRegistryPublicationRepository{pool: pool}
+	return &PostgresLifecycleRegistryPublicationRepository{
+		pool:                pool,
+		moveConnectionSlots: make(chan struct{}, 1),
+	}
 }
 
 type lifecycleRegistryPublicationAuthority struct {
@@ -135,15 +142,31 @@ func (r *PostgresLifecycleRegistryPublicationRepository) MoveLifecycleRegistryPu
 	destination LifecycleRegistryPublicationPhase,
 	apply func() error,
 ) error {
-	if r == nil || r.pool == nil || ctx == nil || !validLifecycleRegistryRef(ref) || apply == nil ||
+	if r == nil || r.pool == nil || r.moveConnectionSlots == nil || ctx == nil ||
+		!validLifecycleRegistryRef(ref) || apply == nil ||
 		(destination != LifecycleRegistryPublicationSource && destination != LifecycleRegistryPublicationTarget) {
 		return ErrLifecycleRegistryPublicationInvalid
 	}
-	tx, err := r.pool.Begin(ctx)
+	if err := r.acquireMoveConnection(ctx); err != nil {
+		return fmt.Errorf("acquire lifecycle registry publication move connection: %w", err)
+	}
+	defer r.releaseMoveConnection()
+
+	// The outer transaction invokes registry callbacks that may synchronously
+	// borrow the Host pool. A reserved direct connection prevents MaxConns=1
+	// self-starvation while retaining the existing durable row fences.
+	connection, err := pgx.ConnectConfig(ctx, r.pool.Config().ConnConfig)
+	if err != nil {
+		return fmt.Errorf("connect lifecycle registry publication move: %w", err)
+	}
+	var tx pgx.Tx
+	defer func() {
+		cleanupLifecycleRegistryPublicationMoveConnection(ctx, tx, connection)
+	}()
+	tx, err = connection.Begin(ctx)
 	if err != nil {
 		return fmt.Errorf("begin lifecycle registry publication move: %w", err)
 	}
-	defer tx.Rollback(ctx)
 	authority, record, err := lockLifecycleRegistryPublication(ctx, tx, ref)
 	if err != nil {
 		return err
@@ -182,6 +205,42 @@ func (r *PostgresLifecycleRegistryPublicationRepository) MoveLifecycleRegistryPu
 		return fmt.Errorf("commit lifecycle registry publication move: %w", err)
 	}
 	return nil
+}
+
+func (r *PostgresLifecycleRegistryPublicationRepository) acquireMoveConnection(ctx context.Context) error {
+	select {
+	case r.moveConnectionSlots <- struct{}{}:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
+func (r *PostgresLifecycleRegistryPublicationRepository) releaseMoveConnection() {
+	<-r.moveConnectionSlots
+}
+
+func cleanupLifecycleRegistryPublicationMoveConnection(
+	parent context.Context,
+	tx pgx.Tx,
+	connection *pgx.Conn,
+) {
+	if tx != nil {
+		rollbackCtx, cancelRollback := context.WithTimeout(
+			context.WithoutCancel(parent),
+			lifecycleRegistryPublicationMoveCleanupTimeout,
+		)
+		_ = tx.Rollback(rollbackCtx)
+		cancelRollback()
+	}
+	if connection != nil {
+		closeCtx, cancelClose := context.WithTimeout(
+			context.WithoutCancel(parent),
+			lifecycleRegistryPublicationMoveCleanupTimeout,
+		)
+		_ = connection.Close(closeCtx)
+		cancelClose()
+	}
 }
 
 func lifecycleRegistryRef(fence lifecyclePublicationFence) LifecycleRegistryPublicationRef {
