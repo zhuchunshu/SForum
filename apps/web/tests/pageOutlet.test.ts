@@ -55,6 +55,9 @@ describe('SFPageOutlet catalog wiring', () => {
     expect(template).toContain("'forum.component.home_page': resolveComponent('SFHomePage')")
     expect(template).toContain("'system.component.not_found': HostPageIsland")
     expect(template).toContain('slots.default?.()')
+    // fail-closed 公开页走宿主 chrome；主题成功路径不套 Host chrome。
+    expect(outlet).toContain('SFHostPublicChrome')
+    expect(outlet).toContain('useHostPublicChrome')
   })
 
   it('binds core theme resolution to the current path and query', () => {

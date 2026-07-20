@@ -78,12 +78,18 @@ describe('default theme V32 left-nav homepage contract', () => {
     expect(page).not.toContain('latestTopics')
     expect(page).not.toContain('loadedReplyTotal')
 
+    // Nuxt default layout 透传；chrome 在主题 L1 与 fail-closed 宿主壳上。
     const layout = defaultLayout()
-    expect(layout).toContain('<SFNavbar />')
-    expect(layout).toContain('layoutShowFooter')
-    expect(layout).toContain('layoutShowAnnouncements')
-    expect(layout).toContain('v-if="layoutShowFooter"')
-    expect(layout).toContain('v-if="layoutShowAnnouncements"')
+    expect(layout).toContain('<slot')
+    expect(layout).not.toContain('<SFNavbar')
+    expect(defaultHomeTemplate()).toContain('<sf-navbar>')
+    expect(defaultHomeTemplate()).toContain('<sf-footer>')
+    expect(nocturneHomeTemplate()).toContain('<sf-navbar>')
+    expect(nocturneHomeTemplate()).toContain('<sf-footer>')
+    const hostChrome = source('../app/components/SFHostPublicChrome.vue')
+    expect(hostChrome).toContain('<SFNavbar />')
+    expect(hostChrome).toContain('layoutShowFooter')
+    expect(hostChrome).toContain('layoutShowAnnouncements')
   })
 
   test('renders topic table rows using only API-backed summary data', () => {
@@ -233,7 +239,9 @@ describe('default theme V32 left-nav homepage contract', () => {
     }
   })
 
-  test('footer remains in the shared layout shell', () => {
+  test('footer remains available via theme L1 and fail-closed host chrome', () => {
     expect(footer()).toContain('sf-footer')
+    expect(defaultHomeTemplate()).toContain('<sf-footer>')
+    expect(source('../app/components/SFHostPublicChrome.vue')).toContain('<SFFooter')
   })
 })

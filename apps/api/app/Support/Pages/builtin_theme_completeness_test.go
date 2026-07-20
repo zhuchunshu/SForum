@@ -73,6 +73,15 @@ func TestBuiltinThemesCoverAllReplaceablePages(t *testing.T) {
 				if !strings.Contains(string(raw), `data-theme-owned="presentation"`) {
 					t.Fatalf("%s template %s missing data-theme-owned=presentation", page.ID, decl.Template)
 				}
+				// 非 auth / not_found 公开页应在 L1 挂载导航与页脚岛（auth 用 auth layout；not_found 自带 chrome）。
+				if !strings.HasPrefix(page.ID, "auth.") && page.ID != "system.not_found" {
+					if !strings.Contains(string(raw), "<sf-navbar") {
+						t.Fatalf("%s template %s missing <sf-navbar> chrome island", page.ID, decl.Template)
+					}
+					if !strings.Contains(string(raw), "<sf-footer") {
+						t.Fatalf("%s template %s missing <sf-footer> chrome island", page.ID, decl.Template)
+					}
+				}
 				bindings.PageViewModels[decl.Template] = themecompiler.PageTemplateBinding{
 					PageID: page.ID, SchemaVersion: page.ContractVersion,
 				}
