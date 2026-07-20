@@ -371,7 +371,8 @@ func (v *v3Validator) validateUIAndPackage() error {
 			}
 			taxonomyIDs[entity.ID] = struct{}{}
 		case "field":
-			if entity.EntityID == "" || !strings.HasPrefix(entity.EntityID, v.manifest.ID+".") ||
+			// EntityID 可为本包实体，或 required 依赖包拥有的实体（plugin-extend-plugin）。
+			if entity.EntityID == "" || !manifestIDPattern.MatchString(entity.EntityID) ||
 				!validSchemaRef(entity.Schema) || entity.UIComponent == "" ||
 				!manifestIDPattern.MatchString(entity.PermissionFieldRead) ||
 				!manifestIDPattern.MatchString(entity.PermissionFieldWrite) {
@@ -422,12 +423,21 @@ func (v *v3Validator) validateUIAndPackage() error {
 	for _, entity := range v.manifest.Entities {
 		switch entity.Kind {
 		case "field":
-			if _, ok := entityIDs[entity.EntityID]; !ok {
+			if strings.HasPrefix(entity.EntityID, v.manifest.ID+".") {
+				if _, ok := entityIDs[entity.EntityID]; !ok {
+					return ErrInvalidManifest
+				}
+			} else if !manifestHasRequiredEntityOwnerDependency(v.manifest, entity.EntityID) {
+				// 跨包字段扩展必须声明 required 依赖，版本约束由 Package Graph 校验。
 				return ErrInvalidManifest
 			}
 		case "taxonomy":
 			for _, entityID := range entity.EntityIDs {
-				if _, ok := entityIDs[entityID]; !ok {
+				if strings.HasPrefix(entityID, v.manifest.ID+".") {
+					if _, ok := entityIDs[entityID]; !ok {
+						return ErrInvalidManifest
+					}
+				} else if !manifestHasRequiredEntityOwnerDependency(v.manifest, entityID) {
 					return ErrInvalidManifest
 				}
 			}
@@ -475,6 +485,26 @@ func requiredExtensionOwnsAsset(dependencies []ManifestDependency, handle string
 	for _, dependency := range dependencies {
 		if dependency.Kind == "required" && dependency.ID != "" &&
 			strings.HasPrefix(handle, dependency.ID+".") {
+			return true
+		}
+	}
+	return false
+}
+
+// manifestHasRequiredEntityOwnerDependency 要求跨包 entity/field/taxonomy 绑定
+// 声明 required 依赖，且目标实体 ID 以依赖扩展 ID 为前缀（与 Query result filter 一致）。
+func manifestHasRequiredEntityOwnerDependency(manifest Manifest, entityID string) bool {
+	entityID = strings.ToLower(strings.TrimSpace(entityID))
+	if entityID == "" {
+		return false
+	}
+	for _, dependency := range manifest.Dependencies {
+		if dependency.Kind != "required" || dependency.ID == "" {
+			continue
+		}
+		owner := strings.ToLower(strings.TrimSpace(dependency.ID))
+		if owner != "" && strings.HasPrefix(entityID, owner+".") &&
+			validSemverConstraint(dependency.Version) {
 			return true
 		}
 	}

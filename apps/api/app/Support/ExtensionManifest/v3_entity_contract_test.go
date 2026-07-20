@@ -80,3 +80,30 @@ func TestV3EntityRejectsFieldWithoutEntityAndMissingPermissions(t *testing.T) {
 		t.Fatal("expected entity without permissions to fail")
 	}
 }
+
+func TestV3EntityCrossPackageFieldRequiresRequiredDependency(t *testing.T) {
+	t.Parallel()
+	manifest := completeV3Manifest()
+	manifest.Entities = []ManifestEntity{{
+		ID: "demo.v3.field.sale", ContractVersion: "demo.v3.field.sale@1",
+		Kind: "field", Label: "Sale",
+		EntityID: "owner.catalog.entity.product",
+		Schema:   "demo.v3.sale@1",
+		UIComponent: "CurrencyInput",
+		PermissionFieldRead:  "demo.v3.field.sale.read",
+		PermissionFieldWrite: "demo.v3.field.sale.write",
+	}}
+	if err := Validate(manifest); err == nil {
+		t.Fatal("expected foreign field without dependency to fail")
+	}
+	manifest.Dependencies = append(manifest.Dependencies, ManifestDependency{
+		ID: "owner.catalog", Version: "^1.0.0", Kind: "optional",
+	})
+	if err := Validate(manifest); err == nil {
+		t.Fatal("expected optional dependency to fail for cross-package field")
+	}
+	manifest.Dependencies[len(manifest.Dependencies)-1].Kind = "required"
+	if err := Validate(manifest); err != nil {
+		t.Fatalf("required dependency should allow cross-package field: %v", err)
+	}
+}
