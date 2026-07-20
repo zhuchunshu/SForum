@@ -230,7 +230,8 @@ func TestExtensionValidateCommand(t *testing.T) {
 	if !strings.Contains(out.String(), "zh-CN") {
 		t.Fatalf("expected langs in output:\n%s", out.String())
 	}
-	if !strings.Contains(out.String(), "contract: sforum.manifest@1") {
+	// 内置 SMTP 已迁到 Manifest V3；validate 输出应报告 sforum.manifest@3。
+	if !strings.Contains(out.String(), "contract: sforum.manifest@3") {
 		t.Fatalf("expected manifest contract in output:\n%s", out.String())
 	}
 }
