@@ -1,6 +1,6 @@
 # Trusted Plugin And Theme Platform V3 - Implementation Task Book
 
-Status: **active implementation; P0-P9 complete; P10 active (3/15)**
+Status: **active implementation; P0-P9 complete; P10 active (4/15)**
 Date: 2026-07-13  
 Decision: `knowledge/decisions/2026-07-13-trusted-plugin-theme-platform-v3.md`
 
@@ -706,7 +706,7 @@ production-wired via `GET /api/v1/extensions/runtime/page-policy` and
 ### Tasks
 
 - [x] Implement Block, Shortcode, Embed Provider, and Content Type registries.
-- [ ] Implement Tiptap node/mark/command/toolbar declaration and prebuilt editor
+- [x] Implement Tiptap node/mark/command/toolbar declaration and prebuilt editor
       extension loading under trusted L2.
 - [x] Implement Media Pipeline Registry for MIME policy, upload validation,
       malware/security scanning providers, metadata extraction, transforms,
@@ -754,8 +754,13 @@ The Media Pipeline Registry production lifecycle row closed by wiring immutable
 Manifest `media` freezes to MIME policy + transform processor + exact-package
 variants (processor owner/digest bound so disable cannot rewrite originals),
 Safe Mode core-only restore, bootstrap process-local registry, and
-upgrade/rollback/disable CAS tests. Editor JSON/Tiptap L2, entity/taxonomy,
-and reference media plugin product proofs remain open.
+upgrade/rollback/disable CAS tests.
+
+The Tiptap Editor Registry row closed with `Support/EditorRegistry` (node/mark/
+command/toolbar), Manifest `editor`, lifecycle plan `@10` / `editor.v1`, Host
+catalog projection, and Nuxt trusted L2 digest-verify import into SFEditor.
+Editor JSON storage/render pipeline, entity/taxonomy, and reference plugin
+product proofs remain open.
 
 ## P11 - Cache, SEO, Secrets, Files, HTTP, Localization, And API Policies
 

@@ -12,13 +12,12 @@ This is the entry point for project memory.
   - Task book: `knowledge/plans/2026-07-13-trusted-plugin-theme-platform-v3.md`
   - Current durable checkpoint:
     `knowledge/plans/2026-07-13-trusted-plugin-theme-platform-v3-progress.md`
-  - P0-P9 are complete. Weighted progress is **~76.25%** (display **76.0%**).
-    P9 remains **16/16**. P10 advances to **3/15** after Content `@8` and Media
-    Pipeline `@9` / `media.v1` lifecycle production publication (variant
-    source-of-truth binding included). Next: Tiptap L2 editor surface, editor
-    JSON pipeline, entity/taxonomy. P11-P13 remain open.
+  - P0-P9 are complete. Weighted progress is **~77.78%** (display **77.0%**).
+    P9 remains **16/16**. P10 advances to **4/15** after Content `@8`, Media
+    `@9`, and Tiptap Editor `@10` / trusted L2 load. Next: editor JSON pipeline,
+    entity/taxonomy, reference proofs. P11-P13 remain open.
   - Active P10 handoff:
-    `knowledge/sessions/2026-07-21-trusted-plugin-theme-platform-v3-p10-media-registry.md`
+    `knowledge/sessions/2026-07-21-trusted-plugin-theme-platform-v3-p10-tiptap-l2.md`
   - Prior Content Registry handoff:
     `knowledge/sessions/2026-07-21-trusted-plugin-theme-platform-v3-p10-content-registry.md`
   - Prior P9 close handoff:

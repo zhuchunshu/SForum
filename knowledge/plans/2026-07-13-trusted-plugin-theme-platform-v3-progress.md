@@ -1,8 +1,8 @@
 # Trusted Plugin And Theme Platform V3 Progress Ledger
 
 Date: 2026-07-21
-Overall progress: **76.0%**
-Active phase: **P10 active (3/15); P9 complete; P11-P13 remain open**
+Overall progress: **77.0%**
+Active phase: **P10 active (4/15); P9 complete; P11-P13 remain open**
 
 This ledger is the durable percentage and context-compaction checkpoint for the
 V3 program. Update it before context compression, at every phase boundary, and
@@ -26,13 +26,26 @@ scaffolding, or demo-only code cannot satisfy a runtime exit criterion.
 | P7 Workflow/admin/query/identity | 10% | 100% | 10.00% |
 | P8 Theme compiler/runtime | 8% | 100% | 8% |
 | P9 Components/assets/L2 | 8% | 100% | 8.00% |
-| P10 Content/media/data | 8% | 20% | 1.60% |
+| P10 Content/media/data | 8% | 27% | 2.13% |
 | P11 Platform services | 6% | 6% | 0.38% |
 | P12 Operations/ecosystem | 6% | 5% | 0.27% |
 | P13 References/removal/final gates | 5% | 0% | 0% |
 
 Displayed overall progress is the floor of earned weighted progress until the
 program reaches 100% and every final gate passes.
+
+## 2026-07-21 P10 Tiptap Editor Registry And Trusted L2 Load (4/15)
+
+- Overall advances to **77.0%** after flooring (exact ≈ `67 + 8 + 8*(4/15) + 0.38 +
+  0.27 = 77.78`). P10 is **4/15 (~27%)**.
+- Commits: `a5af10239` Editor Registry kernel; `afdae3bb6` Manifest.editor;
+  `5d160b234` lifecycle `@10` / `editor.v1`; `22a9cfcf5` catalog + Nuxt L2 load.
+- Closed Tiptap node/mark/command/toolbar declaration and prebuilt editor
+  extension loading under trusted L2: package-digest-bound ESM, digest verify
+  before import, SFEditor `trustedExtensions`, quarantine on module failure.
+- Still open on P10: editor JSON storage/render/sanitizer/search pipeline,
+  ordered parse…SEO contracts, entity/taxonomy/field, reference blocks/media,
+  XSS corpus, schema upgrade/disabled-plugin render.
 
 ## 2026-07-21 P10 Media Pipeline Lifecycle Publication (3/15)
 

@@ -4,6 +4,37 @@ Last updated: 2026-07-21
 
 ## Progress
 
+- Verified weighted progress: **77.78%** (display **77.0%**).
+- Phase counts: P0-P9 complete; P10 **4/15** after Content `@8` + Media `@9` +
+  Tiptap Editor `@10` / trusted L2. P11 ~6%, P12 ~5%, P13 open.
+- Authoritative percentage table:
+  `knowledge/plans/2026-07-13-trusted-plugin-theme-platform-v3-progress.md`
+
+## Current Subtask
+
+### 2026-07-21 P10 Tiptap L2 Closed — Next Editor JSON Pipeline
+
+- Commits: `a5af10239`, `afdae3bb6`, `5d160b234`, `22a9cfcf5` (+ Media earlier).
+- Gates: EditorRegistry package, LifecycleEditor, bootstrap stack, bun
+  `tests/editorL2Load.test.ts`, `go build ./...`.
+- Exact next step: paired editor JSON schema / storage version / server
+  renderer / plain text / sanitizer / search extraction / migration pipeline.
+- Unowned dirty WIP: route-inspector web, content-policy, PageViewModels,
+  go.mod, host-api-v2, websocket revoke test, ADR noise — do not stage.
+- Rollback: revert `22a9cfcf5` then `5d160b234` then `afdae3bb6` then
+  `a5af10239` for editor surface; Media remains `2de24571c`.
+
+---
+
+
+## Prior Ledger Archive
+
+# Trusted Plugin And Theme Platform V3 Progress Ledger
+
+Last updated: 2026-07-21
+
+## Progress
+
 - Verified weighted progress: **76.25%** (display **76.0%**).
 - Phase counts: P0-P9 complete; P10 **3/15** after Content `@8` + Media `@9`
   lifecycle. P11 ~6%, P12 ~5%, P13 open. Completion unproven until all 99
