@@ -6,6 +6,7 @@
 import {
   forumAuthorName,
   forumCategoryPath,
+  forumContentFromEditorPayload,
   forumTagPath,
   forumTopicExtensionActionLabel,
   forumTopicPath,
@@ -436,24 +437,24 @@ async function handleCommentAction(_value: string) {
 }
 
 // 提交顶级回复。
-async function submitReply(payload?: { markdown?: string }) {
+async function submitReply(payload?: { markdown?: string; native?: unknown; text?: string }) {
   if (!topic.value || replySubmitting.value) {
     return
   }
   const markdown = payload?.markdown ?? replyMarkdown.value
-  if (!markdown.trim()) {
+  if (!(payload?.text || markdown).trim()) {
     return
   }
+  const content = forumContentFromEditorPayload({
+    markdown,
+    native: payload?.native,
+    text: payload?.text
+  })
   replySubmitting.value = true
   replyError.value = ''
   showReplyError.value = false
   try {
-    const created = await forumApi.createTopicComment(topic.value.id, {
-      rawContent: markdown,
-      sourceFormat: 'markdown',
-      editorType: 'tiptap',
-      editorVersion: 'sf-editor-v1'
-    })
+    const created = await forumApi.createTopicComment(topic.value.id, content)
     replyMarkdown.value = ''
     if (created.status === 'pending') {
       toast.add({ color: 'primary', icon: 'i-lucide-clock-3', title: t('topicDetail.replySubmittedForReview'), duration: 10000 })
@@ -469,8 +470,8 @@ async function submitReply(payload?: { markdown?: string }) {
   }
 }
 
-function onReplyEditorSubmit(payload: { markdown: string }) {
-  submitReply({ markdown: payload.markdown })
+function onReplyEditorSubmit(payload: { markdown: string; native?: unknown; text?: string }) {
+  submitReply(payload)
 }
 
 // 评论编辑。
@@ -548,22 +549,22 @@ function cancelReply() {
   nestedReplyMarkdown.value = ''
 }
 
-async function submitNestedReply(comment: ForumComment, payload?: { markdown?: string }) {
+async function submitNestedReply(comment: ForumComment, payload?: { markdown?: string; native?: unknown; text?: string }) {
   if (!topic.value || nestedReplySubmitting.value) {
     return
   }
   const markdown = payload?.markdown ?? nestedReplyMarkdown.value
-  if (!markdown.trim()) {
+  if (!(payload?.text || markdown).trim()) {
     return
   }
+  const content = forumContentFromEditorPayload({
+    markdown,
+    native: payload?.native,
+    text: payload?.text
+  })
   nestedReplySubmitting.value = true
   try {
-    const created = await forumApi.createTopicComment(topic.value.id, {
-      rawContent: markdown,
-      sourceFormat: 'markdown',
-      editorType: 'tiptap',
-      editorVersion: 'sf-editor-v1'
-    }, comment.id)
+    const created = await forumApi.createTopicComment(topic.value.id, content, comment.id)
     cancelReply()
     if (created.status === 'pending') {
       toast.add({ color: 'primary', icon: 'i-lucide-clock-3', title: t('topicDetail.replySubmittedForReview'), duration: 10000 })

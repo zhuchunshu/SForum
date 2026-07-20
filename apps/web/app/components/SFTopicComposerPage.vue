@@ -4,6 +4,7 @@
  */
 
 import {
+  forumContentFromEditorPayload,
   forumTopicPath,
   isForumTagSlug,
   normalizeForumTagSlugInput,
@@ -159,11 +160,16 @@ function onTagEnter(event: KeyboardEvent) {
   addTag()
 }
 
-async function submit(payload?: { markdown?: string }) {
+async function submit(payload?: { markdown?: string; native?: unknown; text?: string }) {
   if (!canCreate.value || submitState.value === 'submitting') {
     return
   }
   const markdown = payload?.markdown ?? bodyMarkdown.value
+  const content = forumContentFromEditorPayload({
+    markdown,
+    native: payload?.native,
+    text: payload?.text
+  })
   const nextErrors: Record<string, string[]> = {}
   const titleError = validateTopicTitle(title.value)
   if (titleError === 'titleTooShort') {
@@ -171,7 +177,8 @@ async function submit(payload?: { markdown?: string }) {
   } else if (titleError === 'titleTooLong') {
     nextErrors.title = [t('composer.titleTooLong', { max: limits.value.topicTitleMaxRunes })]
   }
-  const bodyError = validateTopicBody(markdown)
+  // 字数校验仍按 markdown/text 预估；最终权威在 Host Accept/Render。
+  const bodyError = validateTopicBody(payload?.text || markdown)
   if (bodyError === 'contentTooShort') {
     nextErrors.content = [t('composer.contentTooShort', { min: limits.value.topicContentMinRunes })]
   } else if (bodyError === 'contentTooLong') {
@@ -198,10 +205,7 @@ async function submit(payload?: { markdown?: string }) {
       title: title.value.trim(),
       categorySlug: selectedCategorySlug.value || undefined,
       tagSlugs: tagDraft.value.length ? tagDraft.value : undefined,
-      rawContent: markdown,
-      sourceFormat: 'markdown',
-      editorType: 'tiptap',
-      editorVersion: 'sf-editor-v1'
+      ...content
     })
     submitState.value = 'success'
     if (created.status === 'pending') {
@@ -217,8 +221,8 @@ async function submit(payload?: { markdown?: string }) {
   }
 }
 
-function onEditorSubmit(payload: { markdown: string }) {
-  submit({ markdown: payload.markdown })
+function onEditorSubmit(payload: { markdown: string; native?: unknown; text?: string }) {
+  submit(payload)
 }
 
 // 侧栏:发帖要点与 Markdown 速查(走 i18n,中英文都支持)。

@@ -23,6 +23,8 @@ const props = withDefaults(defineProps<{
   submitLabel?: string
   // Host-admitted trusted L2 Tiptap extensions (digest-verified before pass-in).
   trustedExtensions?: unknown[]
+  // 默认从 Host editor-catalog 拉取并 digest-verify 准入 L2；失败 fail-closed。
+  loadTrustedCatalog?: boolean
 }>(), {
   modelValue: '',
   placeholder: '写下你的回复...',
@@ -32,7 +34,8 @@ const props = withDefaults(defineProps<{
   error: undefined,
   maxCharacters: 12000,
   submitLabel: '发布回复',
-  trustedExtensions: () => []
+  trustedExtensions: () => [],
+  loadTrustedCatalog: true
 })
 
 const emit = defineEmits<{
@@ -101,7 +104,23 @@ const footerText = computed(() => {
   return `${count}${suffix} 字`
 })
 
-onMounted(() => {
+const catalogReady = ref(!props.loadTrustedCatalog)
+const admittedExtensions = shallowRef<unknown[]>(props.trustedExtensions || [])
+
+onMounted(async () => {
+  let trusted = props.trustedExtensions || []
+  if (props.loadTrustedCatalog) {
+    try {
+      const { loadAdmittedExtensions } = useTrustedEditorCatalog()
+      const admitted = await loadAdmittedExtensions()
+      // 父组件显式传入的扩展优先于 catalog 准入结果。
+      trusted = [...admitted.extensions, ...trusted]
+    } catch {
+      // fail-closed：catalog 失败时仅核心扩展
+    }
+  }
+  admittedExtensions.value = trusted
+  catalogReady.value = true
   editor.value = new Editor({
     content: props.modelValue,
     contentType: 'markdown',
@@ -109,7 +128,7 @@ onMounted(() => {
     extensions: createSFEditorExtensions({
       placeholder: props.placeholder,
       maxCharacters: props.maxCharacters,
-      trustedExtensions: props.trustedExtensions
+      trustedExtensions: trusted
     }) as AnyExtension[],
     onCreate: ({ editor: createdEditor }) => {
       syncFromEditor(createdEditor)

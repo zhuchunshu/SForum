@@ -223,3 +223,28 @@ function parseEditorCatalogModuleWithBadPath(packageDigest: string, moduleDigest
     toolbars: []
   })
 }
+
+describe('forumContentFromEditorPayload', () => {
+  it('prefers editor-document when native JSON is present', async () => {
+    const { forumContentFromEditorPayload } = await import('../app/utils/forumTaxonomy')
+    const content = forumContentFromEditorPayload({
+      markdown: 'hello',
+      native: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'hello' }] }] },
+      text: 'hello'
+    })
+    expect(content.sourceFormat).toBe('editor-document')
+    expect(content.editorType).toBe('tiptap')
+    expect(JSON.parse(content.rawContent).type).toBe('doc')
+  })
+
+  it('falls back to markdown without native payload', async () => {
+    const { forumContentFromEditorPayload } = await import('../app/utils/forumTaxonomy')
+    const content = forumContentFromEditorPayload({ markdown: 'plain body' })
+    expect(content).toEqual({
+      rawContent: 'plain body',
+      sourceFormat: 'markdown',
+      editorType: 'tiptap',
+      editorVersion: 'sf-editor-v1'
+    })
+  })
+})

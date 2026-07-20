@@ -260,13 +260,36 @@ export type ForumTopicAction = {
   isPinned: boolean
 }
 
-// 编辑器提交给后端的正文输入。rawContent 为 markdown 源文本。
+// 编辑器提交给后端的正文输入。
+// markdown/html：经典路径；editor-document：native Tiptap JSON 经 Host Accept 管线。
 export type ForumContentInput = {
   rawContent: string
-  sourceFormat?: 'markdown' | 'html'
+  sourceFormat?: 'markdown' | 'html' | 'editor-document'
   editorType?: string
   editorVersion?: string
   attachmentIds?: number[]
+}
+
+/** 从 SFEditor payload 构造 Host 可验收的正文输入（优先 editor-document）。 */
+export function forumContentFromEditorPayload(payload: {
+  markdown?: string
+  native?: unknown
+  text?: string
+}): ForumContentInput {
+  if (payload.native && typeof payload.native === 'object') {
+    return {
+      rawContent: JSON.stringify(payload.native),
+      sourceFormat: 'editor-document',
+      editorType: 'tiptap',
+      editorVersion: 'sf-editor-v1'
+    }
+  }
+  return {
+    rawContent: payload.markdown || payload.text || '',
+    sourceFormat: 'markdown',
+    editorType: 'tiptap',
+    editorVersion: 'sf-editor-v1'
+  }
 }
 
 // 更新主题输入，所有字段可选；未提供即不修改。
