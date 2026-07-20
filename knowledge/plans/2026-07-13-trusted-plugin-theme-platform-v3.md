@@ -1,6 +1,6 @@
 # Trusted Plugin And Theme Platform V3 - Implementation Task Book
 
-Status: **active implementation; P0-P9 complete; P10 active (8/15)**
+Status: **active implementation; P0-P9 complete; P10 active (10/15)**
 Date: 2026-07-13  
 Decision: `knowledge/decisions/2026-07-13-trusted-plugin-theme-platform-v3.md`
 
@@ -717,7 +717,7 @@ production-wired via `GET /api/v1/extensions/runtime/page-policy` and
       text/excerpt extraction, sanitizer, search extraction, and migration.
 - [x] Implement ordered parse/validate/normalize/store/render/sanitize/embed/SEO
       pipeline contracts.
-- [ ] Add Entity Type, Taxonomy, Field Schema, field UI, validation, indexing,
+- [x] Add Entity Type, Taxonomy, Field Schema, field UI, validation, indexing,
       permission, import/export, and deletion contracts.
 - [ ] Allow plugins to extend plugin-defined content/entity types through
       versioned dependencies and hooks.
@@ -734,7 +734,7 @@ production-wired via `GET /api/v1/extensions/runtime/page-policy` and
 - [x] Round-trip editor/storage/server render/client render/plain text/search.
 - [x] Schema upgrade, unsupported block fallback, sanitizer attack corpus,
       disabled plugin content rendering, and theme override.
-- [ ] Entity/taxonomy/field permissions and index/query behavior.
+- [x] Entity/taxonomy/field permissions and index/query behavior.
 
 ### Rollback
 
@@ -768,6 +768,14 @@ embed/SEO extension points, XSS/URL sanitizer corpus tests, unsupported-node
 fallback, and storage migration. Client render consumes Host-sanitized HTML;
 theme override of editor chrome remains a presentation concern outside this
 storage contract.
+
+The Entity/Taxonomy/Field Schema Registry row closed with
+`Support/EntityRegistry` (kinds `entity`/`taxonomy`/`field`), Manifest
+`entities`, lifecycle plan `@11` / `entity.v1`, Host-derived permission
+evaluation (allow/deny), index plans, import/export plans, and deletion
+policies. Package-local cross-refs, Safe Mode core-only, and disable-without-
+rewriting-rows are enforced. Plugin-extend-plugin content types and reference
+product proofs remain open.
 
 ## P11 - Cache, SEO, Secrets, Files, HTTP, Localization, And API Policies
 

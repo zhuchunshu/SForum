@@ -1,8 +1,8 @@
 # Trusted Plugin And Theme Platform V3 Progress Ledger
 
 Date: 2026-07-21
-Overall progress: **79.0%**
-Active phase: **P10 active (8/15); P9 complete; P11-P13 remain open**
+Overall progress: **80.0%**
+Active phase: **P10 active (10/15); P9 complete; P11-P13 remain open**
 
 This ledger is the durable percentage and context-compaction checkpoint for the
 V3 program. Update it before context compression, at every phase boundary, and
@@ -26,13 +26,26 @@ scaffolding, or demo-only code cannot satisfy a runtime exit criterion.
 | P7 Workflow/admin/query/identity | 10% | 100% | 10.00% |
 | P8 Theme compiler/runtime | 8% | 100% | 8% |
 | P9 Components/assets/L2 | 8% | 100% | 8.00% |
-| P10 Content/media/data | 8% | 53% | 4.27% |
+| P10 Content/media/data | 8% | 67% | 5.33% |
 | P11 Platform services | 6% | 6% | 0.38% |
 | P12 Operations/ecosystem | 6% | 5% | 0.27% |
 | P13 References/removal/final gates | 5% | 0% | 0% |
 
 Displayed overall progress is the floor of earned weighted progress until the
 program reaches 100% and every final gate passes.
+
+## 2026-07-21 P10 Entity/Taxonomy/Field Schema Registry (10/15)
+
+- Overall advances to **80.0%** after flooring (exact ≈ `67 + 8 + 8*(10/15) + 0.38 +
+  0.27 = 80.98`). P10 is **10/15 (~67%)**.
+- Commits: `96384e489` EntityRegistry kernel + permission/index/import-export/
+  deletion contracts; `3203c6620` Manifest.entities; `e6e0c1170` lifecycle
+  `@11` / `entity.v1` + bootstrap.
+- Closed Entity Type / Taxonomy / Field Schema with package-local cross-refs,
+  Safe Mode, CAS replace, allow/deny permission tests, index plans, and
+  import/export/deletion policy evaluation. Disable removes declarations only.
+- Still open on P10: plugin-extend-plugin content/entity types, attachment/XSS
+  product binding, reference blocks/media proofs, media attack surface matrix.
 
 ## 2026-07-21 P10 Editor Document Pipeline And Ordered Stages (8/15)
 

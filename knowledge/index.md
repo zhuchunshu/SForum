@@ -4,7 +4,7 @@ This is the entry point for project memory.
 
 ## Latest Handoff
 
-- **2026-07-21 Trusted Plugin And Theme Platform V3 P10 active (overall 76.0%)**
+- **2026-07-21 Trusted Plugin And Theme Platform V3 P10 active (overall 80.0%)**
   - Decision: `knowledge/decisions/2026-07-13-trusted-plugin-theme-platform-v3.md`
   - Identity/automation authority:
     `knowledge/decisions/2026-07-19-identity-provider-automation-authority.md`
@@ -12,11 +12,14 @@ This is the entry point for project memory.
   - Task book: `knowledge/plans/2026-07-13-trusted-plugin-theme-platform-v3.md`
   - Current durable checkpoint:
     `knowledge/plans/2026-07-13-trusted-plugin-theme-platform-v3-progress.md`
-  - P0-P9 are complete. Weighted progress is **~79.92%** (display **79.0%**).
-    P9 remains **16/16**. P10 advances to **8/15** after editor document pipeline
-    and ordered stages. Next: entity/taxonomy/field, reference blocks/media.
+  - P0-P9 are complete. Weighted progress is **~80.98%** (display **80.0%**).
+    P9 remains **16/16**. P10 advances to **10/15** after Entity/Taxonomy/Field
+    Schema Registry (`entity.v1` / plan `@11`). Next: plugin-extend-plugin
+    content types, attachment/XSS binding, reference blocks/media.
     P11-P13 remain open.
   - Active P10 handoff:
+    `knowledge/sessions/2026-07-21-trusted-plugin-theme-platform-v3-p10-entity-registry.md`
+  - Prior editor document handoff:
     `knowledge/sessions/2026-07-21-trusted-plugin-theme-platform-v3-p10-editor-document.md`
   - Prior Content Registry handoff:
     `knowledge/sessions/2026-07-21-trusted-plugin-theme-platform-v3-p10-content-registry.md`

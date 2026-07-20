@@ -4,17 +4,22 @@ Last updated: 2026-07-21
 
 ## Progress
 
-- Verified weighted progress: **79.92%** (display **79.0%**).
-- Phase counts: P0-P9 complete; P10 **8/15**. P11 ~6%, P12 ~5%, P13 open.
+- Verified weighted progress: **80.98%** (display **80.0%**).
+- Phase counts: P0-P9 complete; P10 **10/15**. P11 ~6%, P12 ~5%, P13 open.
 
 ## Current Subtask
 
-### 2026-07-21 P10 Editor Document Pipeline Closed — Next Entity/Taxonomy
+### 2026-07-21 P10 Entity/Taxonomy/Field Closed — Next Plugin-Extend + XSS
 
-- Commit `2cc754041` EditorDocument Accept + ordered stages + corpus tests.
-- Exact next step: Entity Type / Taxonomy / Field Schema contracts (UI,
-  validation, indexing, permission, import/export, deletion).
+- Commits: `96384e489` EntityRegistry; `3203c6620` Manifest.entities;
+  `e6e0c1170` lifecycle `@11` / bootstrap.
+- Gates: `go test ./app/Support/EntityRegistry/`, ExtensionManifest entity
+  contracts, LifecycleEntity* + bootstrap Lifecycle, `go build ./...`.
+- Exact next step: plugin-extend-plugin content/entity versioned dependencies
+  and hooks; then attachment read/write + rich-content XSS product binding;
+  then reference blocks/media proofs and media attack matrix.
 - Unowned dirty WIP must not be staged.
+- Rollback: revert `e6e0c1170` then `3203c6620` then `96384e489`.
 
 ---
 
