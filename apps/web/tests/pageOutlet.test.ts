@@ -51,6 +51,8 @@ describe('SFPageOutlet catalog wiring', () => {
     expect(outlet).toContain('<slot />')
     expect(template).toContain("'identity.component.login_form': HostPageIsland")
     expect(template).toContain("'forum.component.topic_composer': HostPageIsland")
+    // 首页 body 岛自包含；其余受保护表单岛仍嵌回 Host page slot。
+    expect(template).toContain("'forum.component.home_page': resolveComponent('SFHomePage')")
     expect(template).toContain('slots.default?.()')
   })
 

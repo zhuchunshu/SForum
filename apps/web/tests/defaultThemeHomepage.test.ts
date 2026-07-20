@@ -3,7 +3,12 @@ import { readFileSync } from 'node:fs'
 import { compileScript, parse } from '@vue/compiler-sfc'
 
 const source = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf8')
-const homepage = () => source('../../../apps/web/app/pages/index.vue')
+// 首页呈现已迁到 SFHomePage 岛；pages/index 仅为 SEO + fail-closed 壳。
+const homepageIsland = () => source('../app/components/SFHomePage.vue')
+const homepageRoute = () => source('../app/pages/index.vue')
+const defaultHomeTemplate = () => source('../../../extensions/builtin/themes/sforum-default/templates/home.html')
+const nocturneHomeTemplate = () => source('../../../extensions/builtin/themes/sforum-nocturne/templates/home.html')
+const themeTemplate = () => source('../app/components/SFThemeTemplate.vue')
 const topicRow = () => source('../../../apps/web/app/components/SFHomeTopicRow.vue')
 const homeNav = () => source('../../../apps/web/app/components/SFHomeNavigation.vue')
 const defaultLayout = () => source('../../../apps/web/app/layouts/default.vue')
@@ -16,8 +21,33 @@ const homeQueryCacheMiddleware = () => source('../server/middleware/home-query-c
 const pluginDocsTemplate = () => source('../../../extensions/fixtures/plugins/page-registry-demo/templates/docs.html')
 
 describe('default theme V32 left-nav homepage contract', () => {
+  test('route shell is thin SEO + outlet; presentation lives on SFHomePage island', () => {
+    const route = homepageRoute()
+    expect(route).toContain('SFPageOutlet')
+    expect(route).toContain('page="forum.home"')
+    expect(route).toContain('<SFHomePage')
+    expect(route).toContain('useSForumSeo')
+    expect(route).not.toContain('class="sforum-home"')
+    expect(route).not.toContain('sforum-home__topic-table')
+    expect(route).not.toContain('loadMoreTopics')
+
+    const template = themeTemplate()
+    expect(template).toContain("'forum.component.home_page': resolveComponent('SFHomePage')")
+    expect(template).not.toContain("'forum.component.home_page': HostPageIsland")
+
+    const defaultTpl = defaultHomeTemplate()
+    expect(defaultTpl).toContain('data-theme-owned="presentation"')
+    expect(defaultTpl).toContain('<sf-home-page>')
+    expect(defaultTpl).toContain('sf-theme-home-shell')
+
+    const nocturneTpl = nocturneHomeTemplate()
+    expect(nocturneTpl).toContain('data-theme-owned="presentation"')
+    expect(nocturneTpl).toContain('<sf-home-page>')
+    expect(nocturneTpl).toContain('nh-hero')
+  })
+
   test('uses the shared public layout with left sidebar and topic table', () => {
-    const page = homepage()
+    const page = homepageIsland()
 
     expect(page).toContain('class="sforum-home"')
     expect(page).toContain('sforum-home__layout')
@@ -122,7 +152,7 @@ describe('default theme V32 left-nav homepage contract', () => {
   })
 
   test('commits filters through the URL with a debounced search draft', () => {
-    const page = homepage()
+    const page = homepageIsland()
 
     expect(page).toContain('parseForumHomeQuery')
     expect(page).toContain('buildForumHomeQuery')
@@ -141,7 +171,7 @@ describe('default theme V32 left-nav homepage contract', () => {
   })
 
   test('preserves SSR hydration, stale-response, deduplication, and infinite-loading guards', () => {
-    const page = homepage()
+    const page = homepageIsland()
     const feedReset = page.slice(
       page.indexOf('watch(activePageFeedKey'),
       page.indexOf('async function loadMoreTopics')

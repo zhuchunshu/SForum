@@ -12,7 +12,7 @@ const adminSettingsPage = () => readFileSync(
 )
 
 const homepage = () => readFileSync(
-  new URL('../../../apps/web/app/pages/index.vue', import.meta.url),
+  new URL('../../../apps/web/app/components/SFHomePage.vue', import.meta.url),
   'utf8'
 )
 
