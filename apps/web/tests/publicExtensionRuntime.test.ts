@@ -71,6 +71,103 @@ describe('public extension runtime contract', () => {
     })
   })
 
+  it('accepts same-owner and cross-owner dependency graphs', () => {
+    const styleBytes = new TextEncoder().encode('.same-owner { display: block }').buffer
+    const entryBytes = new TextEncoder().encode('export const apiVersion = 1').buffer
+    const style = assetReference('demo.public.asset.same-owner', 'style', styleBytes)
+    const entry = assetReference(
+      'demo.public.component.card.l2.entry', 'script', entryBytes, true, [style.handle]
+    )
+    const sameOwner = descriptorFixture(entry, [style])
+    expect(parsePublicFrontendDescriptor(sameOwner, sameOwner.extensionId, sameOwner.componentId)).toEqual(sameOwner)
+
+    const { descriptor: crossOwner } = crossOwnerDescriptorFixture()
+    expect(parsePublicFrontendDescriptor(crossOwner, crossOwner.extensionId, crossOwner.componentId)).toEqual(crossOwner)
+  })
+
+  it('rejects forged cross-owner identities and contract versions', () => {
+    const { descriptor, style } = crossOwnerDescriptorFixture()
+    const forgedOwner = 'forged.assets'
+    const forgedOwnerPath = style.assetPath.replace('/shared.assets/', `/${forgedOwner}/`)
+    const invalidReferences = [
+      { ...style, extensionId: forgedOwner, assetPath: forgedOwnerPath },
+      { ...style, extensionId: '' },
+      { ...style, packageDigest: '' },
+      { ...style, impactDigest: '' },
+      { ...style, contractVersion: '' },
+      { ...style, contractVersion: `${style.handle}@0` },
+      { ...style, contractVersion: 'forged.assets.asset.style@1' }
+    ]
+    for (const invalidReference of invalidReferences) {
+      expect(() => parsePublicFrontendDescriptor({
+        ...descriptor,
+        assets: [invalidReference, descriptor.assets[1]]
+      }, descriptor.extensionId, descriptor.componentId)).toThrow(PublicFrontendContractError)
+    }
+    expect(() => parsePublicFrontendDescriptor({
+      ...descriptor,
+      extensionVersion: ''
+    }, descriptor.extensionId, descriptor.componentId)).toThrow(PublicFrontendContractError)
+  })
+
+  it('rejects forged cross-owner artifact digests and immutable URLs', () => {
+    const { descriptor, style } = crossOwnerDescriptorFixture()
+    const forgedPackageDigest = 'e'.repeat(64)
+    const invalidReferences = [
+      {
+        ...style,
+        packageDigest: forgedPackageDigest,
+        assetPath: style.assetPath.replace(style.packageDigest, forgedPackageDigest)
+      },
+      { ...style, impactDigest: 'e'.repeat(64) },
+      { ...style, digest: 'e'.repeat(64) },
+      { ...style, assetPath: style.assetPath.replace('/shared.assets/', '/forged.assets/') }
+    ]
+    for (const invalidReference of invalidReferences) {
+      expect(() => parsePublicFrontendDescriptor({
+        ...descriptor,
+        assets: [invalidReference, descriptor.assets[1]]
+      }, descriptor.extensionId, descriptor.componentId)).toThrow(PublicFrontendContractError)
+    }
+  })
+
+  it('rejects undeclared, out-of-order, and cyclic dependency edges', () => {
+    const { descriptor, style, sharedModule } = crossOwnerDescriptorFixture()
+    expect(() => parsePublicFrontendDescriptor({
+      ...descriptor,
+      entry: { ...descriptor.entry, dependencies: [] }
+    }, descriptor.extensionId, descriptor.componentId)).toThrow(PublicFrontendContractError)
+    expect(() => parsePublicFrontendDescriptor({
+      ...descriptor,
+      assets: [sharedModule, style]
+    }, descriptor.extensionId, descriptor.componentId)).toThrow(PublicFrontendContractError)
+    expect(() => parsePublicFrontendDescriptor({
+      ...descriptor,
+      assets: [
+        { ...style, dependencies: [sharedModule.handle] },
+        sharedModule
+      ]
+    }, descriptor.extensionId, descriptor.componentId)).toThrow(PublicFrontendContractError)
+  })
+
+  it('keeps duplicate, asset-count, and CSP graph bounds fail-closed', () => {
+    const descriptor = descriptorFixture()
+    expect(() => parsePublicFrontendDescriptor({
+      ...descriptor,
+      assets: [descriptor.entry]
+    }, descriptor.extensionId, descriptor.componentId)).toThrow(PublicFrontendContractError)
+    expect(() => parsePublicFrontendDescriptor({
+      ...descriptor,
+      assets: Array.from({ length: 257 }, () => descriptor.entry)
+    }, descriptor.extensionId, descriptor.componentId)).toThrow(PublicFrontendContractError)
+
+    const { descriptor: crossOwner, style } = crossOwnerDescriptorFixture()
+    expect(() => parsePublicFrontendDescriptor({
+      ...crossOwner,
+      assets: [{ ...style, csp: ["style-src 'self'"] }, crossOwner.assets[1]]
+    }, crossOwner.extensionId, crossOwner.componentId)).toThrow(PublicFrontendContractError)
+  })
+
   it('rejects graph drift, classic scripts, wrong scope, and unreachable assets', () => {
     const styleBytes = new TextEncoder().encode('.graph { display: block }').buffer
     const entryBytes = new TextEncoder().encode('export const apiVersion = 1').buffer
@@ -393,23 +490,53 @@ function descriptorFixture(
   }
 }
 
+const SHARED_ASSET_ARTIFACT = {
+  extensionId: 'shared.assets',
+  packageDigest: 'c'.repeat(64),
+  impactDigest: 'd'.repeat(64)
+}
+
+function crossOwnerDescriptorFixture() {
+  const styleBytes = new TextEncoder().encode('.shared { display: block }').buffer
+  const moduleBytes = new TextEncoder().encode('export const shared = true').buffer
+  const entryBytes = new TextEncoder().encode('export const apiVersion = 1').buffer
+  const style = assetReference(
+    'shared.assets.asset.style', 'style', styleBytes, false, [], 'frontend/public/shared.css', SHARED_ASSET_ARTIFACT
+  )
+  const sharedModule = assetReference(
+    'shared.assets.asset.module', 'script', moduleBytes, true, [style.handle],
+    'frontend/public/shared.mjs', SHARED_ASSET_ARTIFACT
+  )
+  const entry = assetReference(
+    'demo.public.component.card.l2.entry', 'script', entryBytes, true, [sharedModule.handle]
+  )
+  return {
+    descriptor: descriptorFixture(entry, [style, sharedModule]),
+    style,
+    sharedModule
+  }
+}
+
 function assetReference(
   handle: string,
   type: 'script' | 'style',
   body: ArrayBuffer,
   module = false,
   dependencies: string[] = [],
-  packagePath = `frontend/public/${handle}.${type === 'style' ? 'css' : 'mjs'}`
+  packagePath = `frontend/public/${handle}.${type === 'style' ? 'css' : 'mjs'}`,
+  artifact = {
+    extensionId: 'demo.public',
+    packageDigest: 'a'.repeat(64),
+    impactDigest: 'b'.repeat(64)
+  }
 ): PublicFrontendAssetReference {
   const digest = createHash('sha256').update(Buffer.from(body)).digest('hex')
-  const packageDigest = 'a'.repeat(64)
-  const impactDigest = 'b'.repeat(64)
   return {
     handle,
     contractVersion: `${handle}@1`,
-    extensionId: 'demo.public',
-    packageDigest,
-    impactDigest,
+    extensionId: artifact.extensionId,
+    packageDigest: artifact.packageDigest,
+    impactDigest: artifact.impactDigest,
     type,
     digest,
     integrity: `sha256-${Buffer.from(digest, 'hex').toString('base64')}`,
@@ -418,6 +545,6 @@ function assetReference(
     module,
     loading: type === 'script' ? 'lazy' : 'blocking',
     csp: [],
-    assetPath: `/extensions/runtime/demo.public/packages/${packageDigest}/${packagePath.split('/').map(encodeURIComponent).join('/')}`
+    assetPath: `/extensions/runtime/${encodeURIComponent(artifact.extensionId)}/packages/${artifact.packageDigest}/${packagePath.split('/').map(encodeURIComponent).join('/')}`
   }
 }
