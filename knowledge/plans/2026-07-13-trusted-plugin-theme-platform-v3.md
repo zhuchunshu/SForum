@@ -983,10 +983,10 @@ with required/deprecated cells and LTS shim telemetry proof.
 
 ### Final gates
 
-- [ ] `cd apps/api && go test ./...`
+- [x] `cd apps/api && go test ./...`
 - [x] `cd apps/api && go build ./...`
 - [x] `ruby scripts/validate-openapi-refs.rb`
-- [ ] `cd apps/web && bun run typecheck`
+- [x] `cd apps/web && bun run typecheck`
 - [ ] `cd apps/web && bun run build`
 - [ ] `./scripts/test.sh`
 - [ ] Live API, worker, Redis, PostgreSQL, Meilisearch, Mailpit, and plugin

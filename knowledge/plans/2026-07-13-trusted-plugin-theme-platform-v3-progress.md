@@ -1,8 +1,8 @@
 # Trusted Plugin And Theme Platform V3 Progress Ledger
 
 Date: 2026-07-21
-Overall progress: **97.0%**
-Active phase: **P13 in progress (~40%)**
+Overall progress: **98.0%**
+Active phase: **P13 final gates (~80%)**
 
 This ledger is the durable percentage and context-compaction checkpoint for the
 V3 program. Update it before context compression, at every phase boundary, and
@@ -29,11 +29,21 @@ scaffolding, or demo-only code cannot satisfy a runtime exit criterion.
 | P10 Content/media/data | 8% | 100% | 8.00% |
 | P11 Platform services | 6% | 100% | 6.00% |
 | P12 Operations/ecosystem | 6% | 100% | 6.00% |
-| P13 References/removal/final gates | 5% | 40% | 2.00% |
+| P13 References/removal/final gates | 5% | 80% | 4.00% |
 
 Displayed overall progress is the floor of earned weighted progress until the
 program reaches 100% and every final gate passes.
 
+
+
+## 2026-07-21 P13 Final Gates Partial (~80%)
+
+- `go test ./...` green after catalog regen + route policy/service fixture fixes.
+- `go build ./...` green; OpenAPI refs OK; Nuxt typecheck green.
+- Remaining: `bun run build`, `./scripts/test.sh`, live multi-node/browser
+  evidence, and deliberate non-deletion of legacy until LTS telemetry is zero.
+- Exact next: web build + scripts/test.sh, then handoff without premature
+  legacy removal.
 
 ## 2026-07-21 P13 Reference Themes And Five Plugin Classes Landed (~40%)
 
