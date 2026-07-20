@@ -17,6 +17,11 @@ const SchemaVersion = "sforum.api-lts@1"
 // Production ProtocolStarter records shim calls against this id.
 const ProtocolV1ContractID = "sforum.protocol.v1"
 
+// ThemeRequestTimeLoaderContractID tracks request-time LoadTemplate/RenderTemplate
+// residual used only when ThemeRuntimeSnapshot does not cover a contribution.
+// Activation-time package validation must not record this id.
+const ThemeRequestTimeLoaderContractID = "sforum.theme.l1.request-time-loader"
+
 // DefaultMinDeprecation is the minimum deprecation period before removal.
 const DefaultMinDeprecation = 180 * 24 * time.Hour // 180 days
 
@@ -42,10 +47,10 @@ type Contract struct {
 
 // Snapshot is the operator/developer LTS view.
 type Snapshot struct {
-	SchemaVersion     string     `json:"schemaVersion"`
-	MinDeprecation    string     `json:"minDeprecation"`
-	Contracts         []Contract `json:"contracts"`
-	ShimUsage         []ShimStat `json:"shimUsage,omitempty"`
+	SchemaVersion  string     `json:"schemaVersion"`
+	MinDeprecation string     `json:"minDeprecation"`
+	Contracts      []Contract `json:"contracts"`
+	ShimUsage      []ShimStat `json:"shimUsage,omitempty"`
 }
 
 // ShimStat is deprecation telemetry for a shimmed contract.
@@ -75,10 +80,18 @@ func New() *Registry {
 		{ID: "sforum.manifest.v3", Kind: "manifest", Status: "current", Introduced: now},
 		{
 			ID: ProtocolV1ContractID, Kind: "protocol", Status: "deprecated",
-			Introduced: now.Add(-365 * 24 * time.Hour),
+			Introduced:   now.Add(-365 * 24 * time.Hour),
 			DeprecatedAt: now.Add(-30 * 24 * time.Hour),
 			RemoveAfter:  now.Add(-30*24*time.Hour + DefaultMinDeprecation),
 			Replacement:  "sforum.protocol.v2", ShimEnabled: true,
+		},
+		{
+			// 请求路径上的 LoadTemplate/{{var}} 正则渲染；ThemeRuntimeSnapshot 热路径不记数。
+			ID: ThemeRequestTimeLoaderContractID, Kind: "frontend", Status: "deprecated",
+			Introduced:   now.Add(-365 * 24 * time.Hour),
+			DeprecatedAt: now.Add(-30 * 24 * time.Hour),
+			RemoveAfter:  now.Add(-30*24*time.Hour + DefaultMinDeprecation),
+			Replacement:  "sforum.theme.runtime-snapshot", ShimEnabled: true,
 		},
 	} {
 		_ = r.Register(c)
