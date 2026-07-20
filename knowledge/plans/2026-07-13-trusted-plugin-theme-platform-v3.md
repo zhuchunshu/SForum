@@ -1,6 +1,6 @@
 # Trusted Plugin And Theme Platform V3 - Implementation Task Book
 
-Status: **active implementation; P0-P9 complete; P10 active (12/15)**
+Status: **active implementation; P0-P10 complete; P11 active**
 Date: 2026-07-13  
 Decision: `knowledge/decisions/2026-07-13-trusted-plugin-theme-platform-v3.md`
 
@@ -726,10 +726,10 @@ production-wired via `GET /api/v1/extensions/runtime/page-policy` and
 
 ### Tests
 
-- [ ] Reference blocks for vote, product/card, embed, and workflow form.
-- [ ] Reference media plugin proves custom MIME policy, metadata, image/video
+- [x] Reference blocks for vote, product/card, embed, and workflow form.
+- [x] Reference media plugin proves custom MIME policy, metadata, image/video
       variants, background processing, CDN URL selection, and cleanup.
-- [ ] Traversal, MIME confusion, decompression bomb, transform crash/retry,
+- [x] Traversal, MIME confusion, decompression bomb, transform crash/retry,
       duplicate jobs, orphan variants, provider disable, and uninstall retention.
 - [x] Round-trip editor/storage/server render/client render/plain text/search.
 - [x] Schema upgrade, unsupported block fallback, sanitizer attack corpus,
@@ -785,7 +785,11 @@ composition continues to use ContentRegistry execution actions
 Host-final attachment and rich-content XSS boundaries are proven by
 `Support/ContentSecurity` joined gates plus existing Attachment disposition,
 EditorDocument Accept sanitizer, and ContentRegistry execution sanitizer.
-Reference block/media product proofs and media attack matrix remain open.
+
+P10 product proofs are closed: reference blocks (vote/product-card/embed/
+workflow-form), reference media surface (MIME/metadata/variants/CDN/cleanup),
+and the media attack-surface matrix (traversal/MIME/bomb/crash/duplicate/
+disable retention). P10 exits complete.
 
 ## P11 - Cache, SEO, Secrets, Files, HTTP, Localization, And API Policies
 

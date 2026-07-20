@@ -1,8 +1,8 @@
 # Trusted Plugin And Theme Platform V3 Progress Ledger
 
 Date: 2026-07-21
-Overall progress: **82.0%**
-Active phase: **P10 active (12/15); P9 complete; P11-P13 remain open**
+Overall progress: **83.0%**
+Active phase: **P10 complete (15/15); P11 active; P12-P13 remain open**
 
 This ledger is the durable percentage and context-compaction checkpoint for the
 V3 program. Update it before context compression, at every phase boundary, and
@@ -26,13 +26,22 @@ scaffolding, or demo-only code cannot satisfy a runtime exit criterion.
 | P7 Workflow/admin/query/identity | 10% | 100% | 10.00% |
 | P8 Theme compiler/runtime | 8% | 100% | 8% |
 | P9 Components/assets/L2 | 8% | 100% | 8.00% |
-| P10 Content/media/data | 8% | 80% | 6.40% |
+| P10 Content/media/data | 8% | 100% | 8.00% |
 | P11 Platform services | 6% | 6% | 0.38% |
 | P12 Operations/ecosystem | 6% | 5% | 0.27% |
 | P13 References/removal/final gates | 5% | 0% | 0% |
 
 Displayed overall progress is the floor of earned weighted progress until the
 program reaches 100% and every final gate passes.
+
+## 2026-07-21 P10 Closed At 15/15 (Reference Proofs)
+
+- Overall advances to **83.0%** after flooring (exact ≈ `67 + 8 + 8 + 0.38 + 0.27
+  = 83.65`). P10 is **15/15 (100%)**.
+- Commit: `fe297d028` reference blocks/media/attack-surface product tests under
+  ContentRegistry + MediaRegistry.
+- All P10 Tasks and Tests rows are checked. Next phase is P11 (cache policy,
+  SEO remaining, secrets, files, HTTP, localization, API policies).
 
 ## 2026-07-21 P10 Plugin-Extend And Host XSS Boundaries (12/15)
 

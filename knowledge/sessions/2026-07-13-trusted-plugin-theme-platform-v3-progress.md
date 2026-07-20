@@ -4,19 +4,18 @@ Last updated: 2026-07-21
 
 ## Progress
 
-- Verified weighted progress: **82.05%** (display **82.0%**).
-- Phase counts: P0-P9 complete; P10 **12/15**. P11 ~6%, P12 ~5%, P13 open.
+- Verified weighted progress: **83.65%** (display **83.0%**).
+- Phase counts: P0-P10 complete; P11 ~6%, P12 ~5%, P13 open.
 
 ## Current Subtask
 
-### 2026-07-21 P10 Tasks Closed — Next Reference Blocks/Media Proofs
+### 2026-07-21 P10 Closed 15/15 — Next P11 Platform Services
 
-- All P10 Tasks checkboxes closed (entity, plugin-extend, Host XSS/attachment).
-- Recent: `97aac1047` cross-package entity extension; `366bf5ef8` required dep
-  gate; ContentSecurity joined Host-final XSS/attachment tests.
-- Exact next step: reference blocks (vote/product-card/embed/workflow form);
-  reference media plugin proofs; media attack-surface matrix
-  (traversal/MIME/decompression/orphan/disable retention).
+- P10 fully closed: Content/Media/Editor/Entity registries, EditorDocument,
+  plugin-extend-plugin, Host XSS/attachment, reference blocks/media, attack
+  surface matrix.
+- Exact next step: P11 — cache provider/policy/inspector, remaining SEO,
+  secrets, files, HTTP client, localization, API policies.
 - Unowned dirty WIP must not be staged.
 
 ---
