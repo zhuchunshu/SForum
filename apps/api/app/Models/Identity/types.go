@@ -165,6 +165,9 @@ type CurrentUser struct {
 	Permissions         []string    `json:"permissions"`
 	// CreatedAt 注册时间；不强制暴露给所有前端，但 Actor 构建需要。
 	CreatedAt time.Time `json:"-"`
+	// CurrentTokenVersion binds a successful credential proof to the authority
+	// revision that existed when the credential row was read.
+	CurrentTokenVersion int64 `json:"-"`
 }
 
 type RegistrationStatus struct {

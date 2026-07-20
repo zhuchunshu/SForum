@@ -18,9 +18,17 @@ import (
 )
 
 type PostgresStore struct {
-	pool          *pgxpool.Pool
-	queries       *store.Queries
-	avatarBuilder *avatar.ViewBuilder
+	pool                  *pgxpool.Pool
+	queries               *store.Queries
+	avatarBuilder         *avatar.ViewBuilder
+	authorityMutationGate IdentityAuthorityMutationGate
+}
+
+// IdentityAuthorityMutationGate keeps user-row authority writers outside the
+// main pool while an accepted session issue/renew effect holds compatible row
+// locks on a reserved connection.
+type IdentityAuthorityMutationGate interface {
+	RunSessionPolicyMutation(context.Context, func() error) error
 }
 
 type postgresTxStore struct {
@@ -38,6 +46,16 @@ func NewPostgresStoreWithAvatar(pool *pgxpool.Pool, avatarOptions avatar.OptionR
 		queries:       store.New(pool),
 		avatarBuilder: avatar.NewViewBuilder(avatarOptions),
 	}
+}
+
+// WithAuthorityMutationGate binds the production Session Policy mutation gate.
+// Bootstrap calls this before the HTTP server starts; tests and legacy seams may
+// leave it nil.
+func (s *PostgresStore) WithAuthorityMutationGate(gate IdentityAuthorityMutationGate) *PostgresStore {
+	if s != nil {
+		s.authorityMutationGate = gate
+	}
+	return s
 }
 
 func (s *PostgresStore) WithBootstrapTx(ctx context.Context, fn func(context.Context, TxStore) error) error {
@@ -81,7 +99,7 @@ func (s *PostgresStore) FindRegistrationConflicts(ctx context.Context, username 
 func (s *PostgresStore) GetCurrentUser(ctx context.Context, userID int64) (CurrentUser, error) {
 	current, err := scanCurrentUserWithAvatar(ctx, s.avatarBuilder, s.pool.QueryRow(ctx, `
 		SELECT users.id, users.username, users.display_name, users.email, users.locale,
-		       users.status, users.is_initial_super_admin,
+		       users.status, users.is_initial_super_admin, users.current_token_version,
 		       user_profiles.avatar_attachment_id,
 		       attachments.id, attachments.public_id, attachments.owner_user_id,
 		       attachments.content_type, attachments.status
@@ -102,7 +120,8 @@ func (s *PostgresStore) GetCurrentUser(ctx context.Context, userID int64) (Curre
 func (s *PostgresStore) GetCredentialByLogin(ctx context.Context, login string) (CredentialUser, error) {
 	current, passwordHash, err := scanCredentialUserWithAvatar(ctx, s.avatarBuilder, s.pool.QueryRow(ctx, `
 		SELECT users.id, users.username, users.display_name, users.email, users.locale,
-		       users.status, users.is_initial_super_admin, user_credentials.password_hash,
+		       users.status, users.is_initial_super_admin, users.current_token_version,
+		       user_credentials.password_hash,
 		       user_profiles.avatar_attachment_id,
 		       attachments.id, attachments.public_id, attachments.owner_user_id,
 		       attachments.content_type, attachments.status
@@ -146,6 +165,7 @@ func scanCurrentUserWithAvatar(ctx context.Context, builder *avatar.ViewBuilder,
 		&current.Locale,
 		&status,
 		&current.IsInitialSuperAdmin,
+		&current.CurrentTokenVersion,
 		&avatarAttachmentID,
 		&attachmentID,
 		&attachmentPublicID,
@@ -179,6 +199,7 @@ func scanCredentialUserWithAvatar(ctx context.Context, builder *avatar.ViewBuild
 		&current.Locale,
 		&status,
 		&current.IsInitialSuperAdmin,
+		&current.CurrentTokenVersion,
 		&passwordHash,
 		&avatarAttachmentID,
 		&attachmentID,
@@ -421,6 +442,29 @@ func (s *PostgresStore) loadAdminUserProfile(ctx context.Context, detail *AdminU
 
 // UpdateAdminUser 在事务中更新 users 账户字段与 user_profiles 资料字段。
 func (s *PostgresStore) UpdateAdminUser(ctx context.Context, actorUserID int64, targetUserID int64, input AdminUpdateUserInput) (AdminUserDetail, error) {
+	if s.authorityMutationGate == nil {
+		return s.updateAdminUser(ctx, actorUserID, targetUserID, input)
+	}
+	var result AdminUserDetail
+	err := s.runIdentityAuthorityMutation(ctx, func() error {
+		var updateErr error
+		result, updateErr = s.updateAdminUser(ctx, actorUserID, targetUserID, input)
+		return updateErr
+	})
+	return result, err
+}
+
+func (s *PostgresStore) runIdentityAuthorityMutation(ctx context.Context, mutation func() error) error {
+	if s == nil || mutation == nil {
+		return ErrInvalidUserUpdate
+	}
+	if s.authorityMutationGate == nil {
+		return mutation()
+	}
+	return s.authorityMutationGate.RunSessionPolicyMutation(ctx, mutation)
+}
+
+func (s *PostgresStore) updateAdminUser(ctx context.Context, actorUserID int64, targetUserID int64, input AdminUpdateUserInput) (AdminUserDetail, error) {
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return AdminUserDetail{}, fmt.Errorf("begin admin user update tx: %w", err)
@@ -468,6 +512,7 @@ func (s *PostgresStore) UpdateAdminUser(ctx context.Context, actorUserID int64, 
 	if input.Status != nil {
 		next.Status = *input.Status
 	}
+	statusChanged := next.Status != current.Status
 
 	// 用户名/邮箱变更时检查唯一性（排除自身）。
 	if next.Username != current.Username || next.Email != current.Email {
@@ -493,11 +538,21 @@ func (s *PostgresStore) UpdateAdminUser(ctx context.Context, actorUserID int64, 
 		    display_name = $4,
 		    locale = $5,
 		    status = $6,
+		    current_token_version = current_token_version + CASE WHEN $7 THEN 1 ELSE 0 END,
 		    updated_at = now()
 		WHERE id = $1
-	`, targetUserID, next.Username, next.Email, next.DisplayName, next.Locale, string(next.Status))
+	`, targetUserID, next.Username, next.Email, next.DisplayName, next.Locale, string(next.Status), statusChanged)
 	if err != nil {
 		return AdminUserDetail{}, fmt.Errorf("update admin user account: %w", err)
+	}
+	if statusChanged && next.Status != UserStatusActive {
+		if _, err := tx.Exec(ctx, `
+			UPDATE user_sessions
+			SET revoked_at = transaction_timestamp(), revoke_reason = 'admin_status_changed'
+			WHERE user_id = $1 AND revoked_at IS NULL
+		`, targetUserID); err != nil {
+			return AdminUserDetail{}, fmt.Errorf("revoke sessions after admin status update: %w", err)
+		}
 	}
 
 	// 资料：先读再合并，无行时 upsert 空行再写。

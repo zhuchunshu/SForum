@@ -149,13 +149,43 @@ func (s *PostgresStore) RevokeOtherSessions(ctx context.Context, userID int64, c
 // RevokeUserSessions 下线某用户的全部活跃会话（管理员强制下线），返回下线条数。
 // 与 RevokeOtherSessions 不同：不排除任何会话，用于安全事件后管理员清空目标用户所有设备。
 func (s *PostgresStore) RevokeUserSessions(ctx context.Context, userID int64, reason string) (int, error) {
-	tag, err := s.pool.Exec(ctx, `
+	var revoked int
+	err := s.runIdentityAuthorityMutation(ctx, func() error {
+		var revokeErr error
+		revoked, revokeErr = s.revokeUserSessions(ctx, userID, reason)
+		return revokeErr
+	})
+	return revoked, err
+}
+
+func (s *PostgresStore) revokeUserSessions(ctx context.Context, userID int64, reason string) (int, error) {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("begin revoke user sessions: %w", err)
+	}
+	defer func() { _ = tx.Rollback(context.Background()) }()
+	var revision int64
+	if err := tx.QueryRow(ctx, `
+		UPDATE users
+		SET current_token_version = current_token_version + 1, updated_at = transaction_timestamp()
+		WHERE id = $1
+		RETURNING current_token_version
+	`, userID).Scan(&revision); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return 0, nil
+		}
+		return 0, fmt.Errorf("advance user session authority: %w", err)
+	}
+	tag, err := tx.Exec(ctx, `
 		UPDATE user_sessions
-		SET revoked_at = now(), revoke_reason = $2
+		SET revoked_at = transaction_timestamp(), revoke_reason = $2
 		WHERE user_id = $1 AND revoked_at IS NULL
 	`, userID, reason)
 	if err != nil {
 		return 0, fmt.Errorf("revoke user sessions: %w", err)
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return 0, fmt.Errorf("commit revoke user sessions: %w", err)
 	}
 	return int(tag.RowsAffected()), nil
 }
