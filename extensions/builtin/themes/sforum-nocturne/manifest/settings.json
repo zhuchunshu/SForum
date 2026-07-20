@@ -1,33 +1,64 @@
 {
   "schemaVersion": 1,
-  "document": {
-    "id": "sforum.nocturne-theme.settings",
-    "title": "Nocturne Harbor",
-    "description": "Contrast theme shell: navy surfaces and cyan accents.",
-    "recommendedDefaults": true,
+  "ui": {
+    "mode": "schema",
+    "layout": "form",
     "groups": [
       {
         "id": "appearance",
-        "title": "Appearance",
-        "fields": [
-          {
-            "id": "hero_enabled",
-            "type": "boolean",
-            "label": "Show home hero chrome",
-            "default": true,
-            "recommended": true,
-            "help": "Recommended: keep the harbor hero on the home page."
-          },
-          {
-            "id": "accent_label",
-            "type": "string",
-            "label": "Accent label",
-            "default": "Nocturne Harbor",
-            "recommended": true,
-            "help": "Display label used in theme chrome."
-          }
-        ]
+        "label": {
+          "zh-CN": "外观",
+          "en-US": "Appearance"
+        },
+        "columns": 1
+      }
+    ],
+    "callouts": [
+      {
+        "id": "recommended",
+        "tone": "info",
+        "title": {
+          "zh-CN": "推荐默认",
+          "en-US": "Recommended defaults"
+        },
+        "body": {
+          "zh-CN": "保留首页港湾 hero 与默认强调标签，可随时在此恢复。",
+          "en-US": "Keep the harbor home hero and default accent label; restore anytime here."
+        }
       }
     ]
-  }
+  },
+  "fields": [
+    {
+      "key": "hero_enabled",
+      "type": "boolean",
+      "label": {
+        "zh-CN": "显示首页 hero 壳层",
+        "en-US": "Show home hero chrome"
+      },
+      "description": {
+        "zh-CN": "推荐：保留夜港首页 hero。",
+        "en-US": "Recommended: keep the harbor hero on the home page."
+      },
+      "default": "true",
+      "recommendedValue": "true",
+      "groupId": "appearance"
+    },
+    {
+      "key": "accent_label",
+      "type": "string",
+      "label": {
+        "zh-CN": "强调标签",
+        "en-US": "Accent label"
+      },
+      "description": {
+        "zh-CN": "主题壳层中展示的标签文案。",
+        "en-US": "Display label used in theme chrome."
+      },
+      "default": "Nocturne Harbor",
+      "recommendedValue": "Nocturne Harbor",
+      "groupId": "appearance"
+    }
+  ],
+  "actions": []
 }
