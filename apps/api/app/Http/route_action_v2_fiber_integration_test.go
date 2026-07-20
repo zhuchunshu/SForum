@@ -197,10 +197,10 @@ func (r *routeActionV2FiberRuntime) InvokeRouteInstance(
 		case extensionsruntime.ProtocolV2RouteInvocationStageRequest:
 			if request.Headers.Get("X-Trace") != "client" || request.Body["title"] != "patched" {
 				return extensionsruntime.ProtocolV2RouteResponse{}, extensionsruntime.ErrProtocolV2RouteInvalid
-			}
-			return extensionsruntime.ProtocolV2RouteResponse{RequestPatch: []extensionsruntime.ProtocolV2RoutePatchOperation{{
-				Kind: extensionsruntime.ProtocolV2RoutePatchReplace, Path: "/headers/x-trace", Value: []byte(`["filter"]`),
-			}}}, nil
+				}
+				return extensionsruntime.ProtocolV2RouteResponse{RequestPatch: []extensionsruntime.ProtocolV2RoutePatchOperation{{
+					Kind: extensionsruntime.ProtocolV2RoutePatchReplace, Path: "/headers/x-trace", Value: []byte(`["filter"]`),
+				}}}, nil
 		case extensionsruntime.ProtocolV2RouteInvocationStageResponse:
 			if request.PriorResponse == nil || request.PriorResponse.Headers.Get("X-Wrap") != "wrap-out" {
 				return extensionsruntime.ProtocolV2RouteResponse{}, extensionsruntime.ErrProtocolV2RouteInvalid
