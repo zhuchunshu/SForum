@@ -31,6 +31,7 @@ import (
 	sitechrome "github.com/zhuchunshu/sforum/apps/api/app/Models/SiteChrome"
 	webhooks "github.com/zhuchunshu/sforum/apps/api/app/Models/Webhooks"
 	"github.com/zhuchunshu/sforum/apps/api/app/Providers"
+	apilts "github.com/zhuchunshu/sforum/apps/api/app/Support/APILTS"
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Audit"
 	authsupport "github.com/zhuchunshu/sforum/apps/api/app/Support/Auth"
 	authsession "github.com/zhuchunshu/sforum/apps/api/app/Support/AuthSession"
@@ -100,6 +101,8 @@ var newExtensionRuntimeManager = func(
 			HostAPI:        hostAPI,
 			Trust:          trust,
 			DatabaseLeases: databaseLeases,
+			// 生产 V1 net/rpc 流量写入 process-local APILTS，供 LTS 删除门禁证明。
+			ShimTelemetry: apilts.Process(),
 		}),
 		DeliveryStore: store,
 	})
