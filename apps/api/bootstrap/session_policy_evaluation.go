@@ -63,6 +63,7 @@ func newSessionPolicyEvaluator(
 	manager *extensionsruntime.Manager,
 	registry *identityregistry.Registry,
 	store identity.IdentitySessionPolicyStore,
+	stepUp identity.SessionPolicyStepUpStore,
 ) (*identity.SessionPolicyEvaluator, error) {
 	if manager == nil || registry == nil || store == nil {
 		return nil, identity.ErrIdentitySessionPolicyStoreUnavailable
@@ -75,5 +76,12 @@ func newSessionPolicyEvaluator(
 	if err != nil {
 		return nil, err
 	}
-	return identity.NewSessionPolicyEvaluator(store, invoker)
+	evaluator, err := identity.NewSessionPolicyEvaluator(store, invoker)
+	if err != nil {
+		return nil, err
+	}
+	if stepUp != nil {
+		evaluator.WithStepUpStore(stepUp)
+	}
+	return evaluator, nil
 }

@@ -114,12 +114,16 @@ type registerRequest struct {
 	DisplayName       string                   `json:"displayName"`
 	Locale            string                   `json:"locale"`
 	HumanVerification humanVerificationRequest `json:"humanVerification"`
+	// StepUpEvidence is Host-minted one-use session policy evidence.
+	StepUpEvidence string `json:"stepUpEvidence"`
 }
 
 type loginRequest struct {
 	Login             string                   `json:"login"`
 	Password          string                   `json:"password"`
 	HumanVerification humanVerificationRequest `json:"humanVerification"`
+	// StepUpEvidence is Host-minted one-use session policy evidence.
+	StepUpEvidence string `json:"stepUpEvidence"`
 }
 
 type humanVerificationRequest struct {
@@ -191,7 +195,7 @@ func (h *Controller) register(c fiber.Ctx) error {
 	}
 
 	var pendingSession *authsession.Pending
-	if err := h.runSessionIssue(c.Context(), current.ID, current.CurrentTokenVersion, func(effectCtx context.Context) error {
+	if err := h.runSessionIssue(c.Context(), current.ID, current.CurrentTokenVersion, req.StepUpEvidence, func(effectCtx context.Context) error {
 		var beginErr error
 		pendingSession, beginErr = h.beginSessionIssue(c, effectCtx, current.ID, current.CurrentTokenVersion)
 		if beginErr != nil {
@@ -252,7 +256,7 @@ func (h *Controller) login(c fiber.Ctx) error {
 	}
 
 	var pendingSession *authsession.Pending
-	if err := h.runSessionIssue(c.Context(), current.ID, current.CurrentTokenVersion, func(effectCtx context.Context) error {
+	if err := h.runSessionIssue(c.Context(), current.ID, current.CurrentTokenVersion, req.StepUpEvidence, func(effectCtx context.Context) error {
 		var beginErr error
 		pendingSession, beginErr = h.beginSessionIssue(c, effectCtx, current.ID, current.CurrentTokenVersion)
 		if beginErr != nil {
@@ -681,6 +685,7 @@ func (h *Controller) runSessionIssue(
 	ctx context.Context,
 	userID int64,
 	tokenVersion int64,
+	stepUpEvidence string,
 	effect identity.SessionPolicyHostEffect,
 ) error {
 	if effect == nil {
@@ -689,13 +694,19 @@ func (h *Controller) runSessionIssue(
 	if h == nil || h.sessionPolicy == nil {
 		return effect(ctx)
 	}
-	_, err := h.sessionPolicy.RequireAllowAndRun(
+	result, err := h.sessionPolicy.RequireAllowAndRun(
 		ctx,
 		identity.SessionEvaluationInput{
 			UserID: userID, TokenVersion: tokenVersion, Purpose: identity.SessionEvaluationPurposeIssue,
+			StepUpEvidenceToken: stepUpEvidence,
 		},
 		effect,
 	)
+	if errors.Is(err, identity.ErrSessionPolicyEvaluationStepUp) && result.StepUpToken != "" {
+		return &identity.SessionPolicyStepUpRequiredError{
+			Token: result.StepUpToken, ExpiresAt: result.StepUpExpiresAt,
+		}
+	}
 	return err
 }
 
@@ -912,8 +923,22 @@ func mapIdentityError(err error) error {
 	case errors.Is(err, identity.ErrLoginVerificationRequired):
 		return fiber.NewError(fiber.StatusUnprocessableEntity, "human_verification.required")
 	case errors.Is(err, identity.ErrSessionPolicyEvaluationStepUp):
-		// Session policy step-up reuses the login-risk human verification surface.
+		// Session policy step-up reuses the login-risk human verification surface
+		// and returns Host-minted one-use evidence when available.
+		var stepUp *identity.SessionPolicyStepUpRequiredError
+		if errors.As(err, &stepUp) && stepUp.Token != "" {
+			return apphttp.NewErrorWithFields(
+				fiber.StatusUnprocessableEntity,
+				"human_verification.required",
+				map[string][]string{"stepUpEvidence": {stepUp.Token}},
+			)
+		}
 		return fiber.NewError(fiber.StatusUnprocessableEntity, "human_verification.required")
+	case errors.Is(err, identity.ErrSessionPolicyStepUpInvalid),
+		errors.Is(err, identity.ErrSessionPolicyStepUpExpired),
+		errors.Is(err, identity.ErrSessionPolicyStepUpReplayed),
+		errors.Is(err, identity.ErrSessionPolicyStepUpStale):
+		return fiber.NewError(fiber.StatusUnprocessableEntity, "auth.session_policy_step_up_invalid")
 	case errors.Is(err, identity.ErrSessionPolicyEvaluationDenied):
 		return fiber.NewError(fiber.StatusForbidden, identity.CodeSessionPolicyDenied)
 	case errors.Is(err, identity.ErrSessionPolicyEvaluationUnavailable),

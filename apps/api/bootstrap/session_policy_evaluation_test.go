@@ -60,7 +60,7 @@ func TestSessionPolicyRenewalGateUsesBoundEvaluator(t *testing.T) {
 }
 
 func TestNewSessionPolicyEvaluatorRejectsNilDeps(t *testing.T) {
-	if _, err := newSessionPolicyEvaluator(nil, nil, nil); !errors.Is(err, identity.ErrIdentitySessionPolicyStoreUnavailable) {
+	if _, err := newSessionPolicyEvaluator(nil, nil, nil, nil); !errors.Is(err, identity.ErrIdentitySessionPolicyStoreUnavailable) {
 		t.Fatalf("nil deps err=%v", err)
 	}
 }

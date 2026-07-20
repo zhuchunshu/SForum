@@ -717,10 +717,15 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 	apiTokenStore := apitokens.NewPostgresStore(pool)
 	apiTokenService := apitokens.NewService(apiTokenStore, identityStore).WithAuditor(auditWriter)
 
+	sessionPolicyStepUpStore, err := identity.NewPostgresSessionPolicyStepUpStore(pool)
+	if err != nil {
+		return nil, fmt.Errorf("create session policy step-up store: %w", err)
+	}
 	sessionPolicyEvaluator, err := newSessionPolicyEvaluator(
 		lifecycleStack.RuntimeManager,
 		lifecycleStack.IdentityRegistry,
 		lifecycleStack.SessionPolicyStore,
+		sessionPolicyStepUpStore,
 	)
 	if err != nil {
 		return nil, err
