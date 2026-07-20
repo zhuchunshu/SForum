@@ -260,8 +260,13 @@ func requireExtensionsReadAuthority(_ context.Context, evaluation routes.CoreGua
 		"core.route.extensions.navigation",
 		"core.route.extensions.inspect_provider_slots",
 		"core.route.extensions.provider_slot_events",
+		// P9 inspectors: same view/manage gate as cache/route inspectors.
+		"core.route.extensions.inspect_asset",
 		"core.route.extensions.inspect_cache",
 		"core.route.extensions.inspect_route",
+		"core.route.extensions.inspect_templates",
+		"core.route.extensions.component_inspector",
+		"core.route.extensions.navigation_inspector",
 		"core.route.extensions.openapi_aggregate",
 		"core.route.extensions.generated_client_metadata",
 		"core.route.extensions.route_provider_conflicts",
