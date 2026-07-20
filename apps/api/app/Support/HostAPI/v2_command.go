@@ -7,6 +7,7 @@ import (
 	"slices"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -21,6 +22,8 @@ import (
 )
 
 const protocolV2CommandRollbackTimeout = 5 * time.Second
+
+var errProtocolV2CommandAuthorityGateContract = errors.New("hostapi: identity authority gate callback contract violated")
 
 type protocolV2CommandServer struct {
 	hostv2.UnimplementedHostCommandServiceServer
@@ -115,6 +118,10 @@ type protocolV2CommandDefinition struct {
 	OutputSchemaVersion string
 	ActorMode           protocolV2CommandActorMode
 	RequiredPermissions []string
+	// RunAuthorityMutation is set only for commands that mutate identity
+	// authority shared with an accepted session effect. It must run before the
+	// command borrows a transaction from the main pool.
+	RunAuthorityMutation func(context.Context, func() error) error
 	// Preview is read-only guidance for Plan. Execute never trusts its result.
 	Preview func(context.Context, *hostv2.CommandRequest) (*protocolV2CommandPreparation, error)
 	// Prepare performs authoritative reads through tx immediately before writes.
@@ -390,6 +397,143 @@ func (e *protocolV2CommandEngine) execute(ctx context.Context, request *hostv2.C
 		scope.RuntimeEpoch = int64(runtime.GetRuntimeEpoch())
 		scope.RuntimeInstanceID = runtime.GetInstanceId()
 	}
+	if definition.RunAuthorityMutation == nil {
+		return e.executeTransaction(ctx, request, definition, delegation, fingerprint, scope, result)
+	}
+	commandResult, commandErr, gateErr := runProtocolV2CommandAuthorityMutation(
+		ctx,
+		definition.RunAuthorityMutation,
+		func() (*hostv2.CommandResult, error) {
+			return e.executeTransaction(
+				ctx, request, definition, delegation, fingerprint, scope, result,
+			)
+		},
+	)
+	if commandErr != nil {
+		return commandResult, commandErr
+	}
+	if commandResult != nil {
+		// A completed command result is terminal. A malformed gate cannot turn a
+		// committed or rolled-back transaction into a retryable response.
+		return commandResult, nil
+	}
+	result.State = hostv2.CommandState_COMMAND_STATE_REJECTED
+	result.Error = protocolV2CommandAuthorityErrorDetail(gateErr)
+	return result, nil
+}
+
+func runProtocolV2CommandAuthorityMutation(
+	ctx context.Context,
+	gate func(context.Context, func() error) error,
+	run func() (*hostv2.CommandResult, error),
+) (*hostv2.CommandResult, error, error) {
+	if gate == nil || run == nil {
+		return nil, nil, errProtocolV2CommandAuthorityGateContract
+	}
+
+	var mu sync.Mutex
+	open := true
+	started := false
+	var commandResult *hostv2.CommandResult
+	var commandErr error
+	var callbackPanic any
+	done := make(chan struct{})
+
+	callback := func() (result error) {
+		mu.Lock()
+		if !open || started {
+			mu.Unlock()
+			return errProtocolV2CommandAuthorityGateContract
+		}
+		if err := ctx.Err(); err != nil {
+			mu.Unlock()
+			return err
+		}
+		started = true
+		mu.Unlock()
+
+		defer func() {
+			panicValue := recover()
+			if panicValue != nil {
+				result = errProtocolV2CommandAuthorityGateContract
+			}
+			mu.Lock()
+			commandErr = result
+			callbackPanic = panicValue
+			close(done)
+			mu.Unlock()
+		}()
+		commandResult, result = run()
+		return result
+	}
+
+	var gateErr error
+	var gatePanic any
+	func() {
+		defer func() { gatePanic = recover() }()
+		gateErr = gate(ctx, callback)
+	}()
+
+	mu.Lock()
+	open = false
+	wasStarted := started
+	mu.Unlock()
+	if wasStarted {
+		<-done
+	}
+	mu.Lock()
+	result := commandResult
+	err := commandErr
+	panicValue := callbackPanic
+	mu.Unlock()
+	if panicValue != nil {
+		panic(panicValue)
+	}
+	if gatePanic != nil {
+		panic(gatePanic)
+	}
+	if wasStarted {
+		if err != nil || result != nil {
+			return result, err, nil
+		}
+		return nil, nil, errProtocolV2CommandAuthorityGateContract
+	}
+	if gateErr != nil {
+		return nil, nil, gateErr
+	}
+	return nil, nil, errProtocolV2CommandAuthorityGateContract
+}
+
+func protocolV2CommandAuthorityErrorDetail(err error) *protocolv2.ErrorDetail {
+	switch {
+	case errors.Is(err, context.Canceled), errors.Is(err, context.DeadlineExceeded):
+		return protocolV2CommandErrorDetail(err, "host.command_authority_unavailable")
+	case errors.Is(err, errProtocolV2CommandAuthorityGateContract):
+		return commandError(
+			protocolv2.ErrorCode_ERROR_CODE_INTERNAL,
+			"host.command_authority_contract_invalid",
+			"The Host identity authority gate violated its callback contract.",
+			false,
+		)
+	default:
+		return commandError(
+			protocolv2.ErrorCode_ERROR_CODE_UNAVAILABLE,
+			"host.command_authority_unavailable",
+			"The Host identity authority gate is unavailable.",
+			true,
+		)
+	}
+}
+
+func (e *protocolV2CommandEngine) executeTransaction(
+	ctx context.Context,
+	request *hostv2.CommandRequest,
+	definition protocolV2CommandDefinition,
+	delegation *protocolV2VerifiedActorDelegation,
+	fingerprint string,
+	scope protocolV2CommandScope,
+	result *hostv2.CommandResult,
+) (*hostv2.CommandResult, error) {
 	tx, err := e.backend.Begin(ctx)
 	if err != nil {
 		result.State = hostv2.CommandState_COMMAND_STATE_REJECTED

@@ -1,6 +1,7 @@
 package hostapi
 
 import (
+	"context"
 	"errors"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -8,12 +9,17 @@ import (
 	supportjobs "github.com/zhuchunshu/sforum/apps/api/app/Support/Jobs"
 )
 
+type ProtocolV2IdentityAuthorityMutationGate interface {
+	RunSessionPolicyMutation(context.Context, func() error) error
+}
+
 type PostgresProtocolV2CommandRuntimeConfig struct {
 	Pool               *pgxpool.Pool
 	ActorDelegations   *ProtocolV2ActorDelegationAuthority
 	Jobs               *supportjobs.Dispatcher
 	Moderation         *moderation.PostgresStore
 	AttachmentStatuses ProtocolV2AttachmentStatusMutator
+	IdentityAuthority  ProtocolV2IdentityAuthorityMutationGate
 }
 
 // NewPostgresProtocolV2CommandRuntime publishes the complete immutable domain
@@ -24,11 +30,15 @@ func NewPostgresProtocolV2CommandRuntime(config PostgresProtocolV2CommandRuntime
 		config.Moderation == nil || config.AttachmentStatuses == nil {
 		return nil, errors.New("hostapi: complete PostgreSQL Host Command runtime dependencies are required")
 	}
+	identityCommand := newProtocolV2IdentityUserStatusCommandDefinition()
+	if config.IdentityAuthority != nil {
+		identityCommand.RunAuthorityMutation = config.IdentityAuthority.RunSessionPolicyMutation
+	}
 	engine, err := newProtocolV2CommandEngineWithInvalidationJobs(
 		NewPostgresProtocolV2HostCommandBackend(config.Pool),
 		config.ActorDelegations,
 		config.Jobs,
-		newProtocolV2IdentityUserStatusCommandDefinition(),
+		identityCommand,
 		newProtocolV2TopicVisibilityCommandDefinition(config.Pool, config.Jobs),
 		newProtocolV2EntityMetaCommandDefinition(config.Pool),
 		newProtocolV2ModerationCommandDefinition(config.Moderation, config.Jobs),
