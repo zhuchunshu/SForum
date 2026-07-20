@@ -97,14 +97,8 @@ func TestBuiltinThemesCoverAllReplaceablePages(t *testing.T) {
 					t.Fatalf("nocturne missing settings document: %v", err)
 				}
 			}
-			// Default must ship shared layouts/partials for chrome reuse.
-			if strings.Contains(themeRel, "sforum-default") {
-				for _, rel := range []string{"layouts/base.html", "partials/chrome-start.html", "partials/chrome-end.html"} {
-					if _, err := os.Stat(filepath.Join(root, filepath.FromSlash(rel))); err != nil {
-						t.Fatalf("default missing %s: %v", rel, err)
-					}
-				}
-			}
+			// Chrome 复用由各模板内联的 <sf-navbar>/<sf-footer> 岛完成；
+			// 不再要求 dead layouts/base 与 chrome-start/end partials。
 			digest := strings.Repeat("a", 64)
 			snapshot, err := compiler.CompileFS(selectedThemeFS{FS: os.DirFS(root), selected: selected}, digest, bindings)
 			if err != nil {
