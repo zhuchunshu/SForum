@@ -714,9 +714,11 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		WithCipher(optionCipher)
 	eventPublisher := webhooks.BridgePublisher{Inner: extensionRuntime, Fanout: webhookService}
 	// 与 extensionService 共享同一 attachmentService 实例（禁用回落 + 候选目录 + 事件 + 存储 RPC）。
+	// MediaRegistry MIME 策略在已发布时叠加；无策略时 no-op。
 	_ = attachmentService.WithEvents(eventPublisher).
 		WithStorageProviderCatalog(extensionService).
-		WithStoragePluginRuntime(extensionRuntime)
+		WithStoragePluginRuntime(extensionRuntime).
+		WithMediaRegistry(lifecycleStack.MediaRegistry)
 
 	// F3.4：个人访问令牌；管理走 cookie，调用走 Bearer。
 	apiTokenStore := apitokens.NewPostgresStore(pool)

@@ -27,6 +27,7 @@ import (
 	options "github.com/zhuchunshu/sforum/apps/api/app/Models/Options"
 	appevents "github.com/zhuchunshu/sforum/apps/api/app/Support/Events"
 	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
+	mediaregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/MediaRegistry"
 	storage "github.com/zhuchunshu/sforum/apps/api/app/Support/Storage"
 )
 
@@ -52,6 +53,8 @@ type Service struct {
 	providers StorageProviderCatalog
 	// storageRuntime 可选：选中 plugin: 时构造 PluginStorageAdapter（E6.2）。
 	storageRuntime StoragePluginRuntime
+	// mediaRegistry 可选：已发布 MIME 策略时叠加拒绝；无策略时不介入。
+	mediaRegistry *mediaregistry.Registry
 }
 
 func NewService(store Store, optionsService *options.Service) *Service {
@@ -99,6 +102,14 @@ func (s *Service) WithEvents(publisher appevents.Publisher) *Service {
 	return s
 }
 
+// WithMediaRegistry 注入 Media Pipeline Registry，使上传路径可执行插件 MIME 策略。
+func (s *Service) WithMediaRegistry(registry *mediaregistry.Registry) *Service {
+	if s != nil {
+		s.mediaRegistry = registry
+	}
+	return s
+}
+
 func (s *Service) Upload(ctx context.Context, actor identity.Actor, input UploadInput) (Attachment, error) {
 	if !actor.Can(identity.PermissionAttachmentUpload) {
 		return Attachment{}, identity.ErrPermissionDenied
@@ -120,6 +131,9 @@ func (s *Service) Upload(ctx context.Context, actor identity.Actor, input Upload
 
 	metadata, err := inspectUpload(input, settings)
 	if err != nil {
+		return Attachment{}, err
+	}
+	if err := s.applyMediaRegistryMIME(metadata); err != nil {
 		return Attachment{}, err
 	}
 	return s.storePreparedUpload(ctx, actor, settings, preparedUpload{
@@ -698,6 +712,22 @@ type uploadMetadata struct {
 	Extension    string
 	ImageWidth   *int
 	ImageHeight  *int
+}
+
+// applyMediaRegistryMIME 在 Host allowlist 通过后叠加插件 MIME 策略。
+// 无已发布策略时为 no-op；拒绝映射为 ErrInvalidAttachment 保持对外错误面稳定。
+func (s *Service) applyMediaRegistryMIME(metadata uploadMetadata) error {
+	if s == nil || s.mediaRegistry == nil {
+		return nil
+	}
+	ext := strings.TrimPrefix(strings.ToLower(metadata.Extension), ".")
+	if err := s.mediaRegistry.CheckUploadMIME("general", metadata.ContentType, ext); err != nil {
+		if errors.Is(err, mediaregistry.ErrMediaRejected) || errors.Is(err, mediaregistry.ErrInvalid) {
+			return ErrInvalidAttachment
+		}
+		return err
+	}
+	return nil
 }
 
 func inspectUpload(input UploadInput, settings AttachmentSettings) (uploadMetadata, error) {
