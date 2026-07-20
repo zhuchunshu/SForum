@@ -61,6 +61,21 @@
       "permissionFieldRead": "sforum.custom-content.field.summary.read",
       "permissionFieldWrite": "sforum.custom-content.field.summary.write",
       "order": 10
+    },
+    {
+      "id": "sforum.custom-content.field.slug",
+      "contractVersion": "sforum.custom-content.field.slug@1",
+      "kind": "field",
+      "label": "Slug",
+      "entityId": "sforum.custom-content.entity.article",
+      "schema": "sforum.custom-content.field.slug@1",
+      "uiComponent": "TextInput",
+      "required": true,
+      "indexed": true,
+      "indexKind": "keyword",
+      "permissionFieldRead": "sforum.custom-content.field.slug.read",
+      "permissionFieldWrite": "sforum.custom-content.field.slug.write",
+      "order": 20
     }
   ],
   "content": [
@@ -84,6 +99,13 @@
       "kind": "embed",
       "handler": "sforum.custom-content.embed.media",
       "schema": "sforum.custom-content.embed.media.schema@1"
+    },
+    {
+      "id": "sforum.custom-content.shortcode.badge",
+      "contractVersion": "sforum.custom-content.shortcode.badge@1",
+      "kind": "shortcode",
+      "handler": "sforum.custom-content.shortcode.badge",
+      "schema": "sforum.custom-content.shortcode.badge.schema@1"
     },
     {
       "id": "sforum.custom-content.block.workflow-form",
@@ -149,13 +171,29 @@
       "contractVersion": "sforum.custom-content.articles@1",
       "entity": "article",
       "planVersion": "sforum.custom-content.articles.plan@1",
-      "fields": ["id", "title", "summary"],
+      "fields": ["id", "title", "summary", "slug"],
+      "filters": ["state", "slug"],
+      "sort": ["id", "slug"],
+      "pagination": "offset",
+      "resultSchema": "schemas/articles.json",
+      "permissionPolicy": "public",
+      "cacheTags": ["sforum.custom-content.articles"],
+      "handler": "sforum.custom-content.articles",
+      "identityFields": ["id"],
+      "defaultSort": [{ "field": "id", "descending": true }]
+    },
+    {
+      "id": "sforum.custom-content.articles.search",
+      "contractVersion": "sforum.custom-content.articles.search@1",
+      "entity": "article",
+      "planVersion": "sforum.custom-content.articles.search.plan@1",
+      "fields": ["id", "title", "summary", "slug"],
       "filters": ["state"],
       "sort": ["id"],
       "pagination": "offset",
       "resultSchema": "schemas/articles.json",
       "permissionPolicy": "public",
-      "cacheTags": ["sforum.custom-content.articles"],
+      "cacheTags": ["sforum.custom-content.articles", "sforum.custom-content.articles.search"],
       "handler": "sforum.custom-content.articles",
       "identityFields": ["id"],
       "defaultSort": [{ "field": "id", "descending": true }]

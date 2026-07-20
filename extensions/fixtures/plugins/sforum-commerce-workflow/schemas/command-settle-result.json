@@ -1,0 +1,10 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["accepted"],
+  "properties": {
+    "accepted": {"type": "boolean"},
+    "message": {"type": "string", "maxLength": 240}
+  },
+  "additionalProperties": false
+}

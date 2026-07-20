@@ -188,24 +188,51 @@ func assertCommerceManifestSurfaces(t *testing.T, extension extensions.Extension
 		extension.Manifest.Database.Schema != "sforum_commerce_workflow" {
 		t.Fatalf("database = %#v", extension.Manifest.Database)
 	}
-	if len(extension.Manifest.Routes) < 4 {
+	if len(extension.Manifest.Routes) < 10 {
 		t.Fatalf("routes = %d", len(extension.Manifest.Routes))
 	}
 	modes := map[string]bool{}
 	actions := map[string]bool{}
+	guards := map[string]bool{}
 	for _, route := range extension.Manifest.Routes {
 		modes[route.Mode] = true
 		actions[route.Action] = true
+		guards[route.Guard] = true
 	}
-	for _, want := range []string{"http", "sse"} {
+	for _, want := range []string{"http", "sse", "stream"} {
 		if !modes[want] {
 			t.Fatalf("missing route mode %s in %#v", want, modes)
 		}
 	}
-	for _, want := range []string{"add", "alias", "redirect"} {
+	// P13 commerce checklist: full Route Registry action matrix plus custom guard.
+	for _, want := range []string{
+		"add", "alias", "redirect", "rewrite", "before", "after", "filter", "wrap", "replace",
+	} {
 		if !actions[want] {
 			t.Fatalf("missing route action %s in %#v", want, actions)
 		}
+	}
+	if len(extension.Manifest.Guards) != 1 ||
+		extension.Manifest.Guards[0].ID != "sforum.commerce-workflow.guard.owner" ||
+		extension.Manifest.Guards[0].Kind != "custom" {
+		t.Fatalf("custom guard = %#v", extension.Manifest.Guards)
+	}
+	if !guards["sforum.commerce-workflow.guard.owner"] {
+		t.Fatalf("managed route must use custom guard, guards=%#v", guards)
+	}
+	if len(extension.Manifest.Schedules) != 1 ||
+		extension.Manifest.Schedules[0].JobID != "sforum.commerce-workflow.job.settle" {
+		t.Fatalf("schedules = %#v", extension.Manifest.Schedules)
+	}
+	if len(extension.Manifest.Commands) != 1 ||
+		extension.Manifest.Commands[0].ID != "sforum.commerce-workflow.command.settle-once" {
+		t.Fatalf("commands = %#v", extension.Manifest.Commands)
+	}
+	if extension.Manifest.Lifecycle == nil ||
+		extension.Manifest.Lifecycle.Uninstall == nil ||
+		extension.Manifest.Lifecycle.Uninstall.Plan == "" ||
+		extension.Manifest.Lifecycle.Uninstall.Execute == "" {
+		t.Fatalf("lifecycle uninstall = %#v", extension.Manifest.Lifecycle)
 	}
 	if len(extension.Manifest.Hooks) < 2 || len(extension.Manifest.Jobs) < 1 ||
 		len(extension.Manifest.Cache) < 1 || len(extension.Manifest.Services) < 1 ||
@@ -319,8 +346,10 @@ func (r *commerceDatabaseLeaseRegistry) InspectRuntimeLease(
 func buildReferenceCommerceExtension(t *testing.T) extensions.Extension {
 	t.Helper()
 	return buildReferenceFixtureExtension(t, "sforum-commerce-workflow", "sforum.commerce-workflow", 801, map[string]string{
-		"__FRONTEND_DIGEST__": "frontend/order-card.mjs",
-		"__OPENAPI_DIGEST__":  "openapi/routes.yaml",
+		"__FRONTEND_DIGEST__":       "frontend/order-card.mjs",
+		"__OPENAPI_DIGEST__":        "openapi/routes.yaml",
+		"__COMMAND_INPUT_DIGEST__":  "schemas/command-settle-input.json",
+		"__COMMAND_RESULT_DIGEST__": "schemas/command-settle-result.json",
 	})
 }
 

@@ -15,7 +15,8 @@
     "host.api",
     "extensions.read",
     "extensions.call",
-    "extensions.manage"
+    "extensions.manage",
+    "audit.append"
   ],
   "backend": {
     "entry": "backend/plugin",
@@ -201,12 +202,43 @@
       }
     ]
   },
+  "adminSurfaces": [
+    {
+      "id": "sforum.membership-reference.admin.notice",
+      "contractVersion": "sforum.membership-reference.admin.notice@1",
+      "kind": "notice",
+      "action": "add",
+      "placementId": "core.component.page.admin.users",
+      "placementContractVersion": "sforum.component.page.admin.users@1",
+      "label": "Membership reference",
+      "handler": "sforum.membership-reference.admin.notice",
+      "propsSchema": "sforum.membership-reference.admin.notice.props@1",
+      "resultSchema": "sforum.membership-reference.admin.notice.result@1",
+      "operation": "query",
+      "permission": "sforum.membership-reference.manage",
+      "priority": 20
+    }
+  ],
   "packageFiles": [
     {
       "id": "sforum.membership-reference.file.backend",
       "kind": "executable",
       "path": "backend/plugin",
       "digest": "__BACKEND_DIGEST__"
+    },
+    {
+      "id": "sforum.membership-reference.admin.notice.props",
+      "kind": "schema",
+      "path": "schemas/admin-notice-props.json",
+      "version": "1",
+      "digest": "__DIGEST_admin-notice-props__"
+    },
+    {
+      "id": "sforum.membership-reference.admin.notice.result",
+      "kind": "schema",
+      "path": "schemas/admin-notice-result.json",
+      "version": "1",
+      "digest": "__DIGEST_admin-notice-result__"
     },
     {
       "id": "sforum.membership-reference.schema.start.input",

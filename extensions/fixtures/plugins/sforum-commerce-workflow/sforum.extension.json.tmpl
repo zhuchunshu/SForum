@@ -2,7 +2,7 @@
   "manifestVersion": 3,
   "id": "sforum.commerce-workflow",
   "name": "SForum Commerce Workflow Reference",
-  "description": "Protocol V2 reference plugin proving routes, own-schema database, hooks, jobs, cache, OpenAPI, components, and services for a trusted commerce/workflow vertical.",
+  "description": "Protocol V2 reference plugin proving routes, own-schema database, hooks, jobs, schedules, CLI commands, custom guards, streaming, lifecycle uninstall, cache, OpenAPI, components, and services for a trusted commerce/workflow vertical.",
   "url": "https://github.com/zhuchunshu/sforum",
   "author": {
     "name": "SForum",
@@ -44,6 +44,16 @@
       "days": 30
     }
   },
+  "guards": [
+    {
+      "id": "sforum.commerce-workflow.guard.owner",
+      "contractVersion": "sforum.commerce-workflow.guard.owner@1",
+      "kind": "custom",
+      "entry": "backend/plugin",
+      "digest": "__BACKEND_DIGEST__",
+      "permissions": ["sforum.commerce-workflow.manage"]
+    }
+  ],
   "routes": [
     {
       "id": "sforum.commerce-workflow.route.orders",
@@ -79,6 +89,94 @@
       "destination": "/commerce-workflow/orders"
     },
     {
+      "id": "sforum.commerce-workflow.route.orders-rewrite",
+      "contractVersion": "sforum.commerce-workflow.route.orders-rewrite@1",
+      "action": "rewrite",
+      "targetId": "sforum.commerce-workflow.route.orders",
+      "path": "/api/commerce-workflow/rewrite/orders",
+      "methods": ["GET"],
+      "fallback": "closed",
+      "mode": "http"
+    },
+    {
+      "id": "sforum.commerce-workflow.route.topics-before",
+      "contractVersion": "sforum.commerce-workflow.route.topics-before@1",
+      "action": "before",
+      "targetId": "core.route.forum.topics",
+      "path": "/api/v1/topics",
+      "methods": ["GET"],
+      "fallback": "closed",
+      "mode": "http",
+      "handler": "sforum.commerce-workflow.route.topics-before",
+      "mutableRequestFields": ["/query/commerceTrace"]
+    },
+    {
+      "id": "sforum.commerce-workflow.route.topics-after",
+      "contractVersion": "sforum.commerce-workflow.route.topics-after@1",
+      "action": "after",
+      "targetId": "core.route.forum.topics",
+      "path": "/api/v1/topics",
+      "methods": ["GET"],
+      "fallback": "closed",
+      "mode": "http",
+      "handler": "sforum.commerce-workflow.route.topics-after",
+      "mutableResponseFields": ["/headers/x-commerce-trace"]
+    },
+    {
+      "id": "sforum.commerce-workflow.route.topics-filter",
+      "contractVersion": "sforum.commerce-workflow.route.topics-filter@1",
+      "action": "filter",
+      "targetId": "core.route.forum.topics",
+      "path": "/api/v1/topics",
+      "methods": ["GET"],
+      "fallback": "closed",
+      "mode": "http",
+      "handler": "sforum.commerce-workflow.route.topics-filter",
+      "responseSchema": "sforum.route.forum.topics.response@1",
+      "mutableResponseFields": ["/body"]
+    },
+    {
+      "id": "sforum.commerce-workflow.route.create-topic-wrap",
+      "contractVersion": "sforum.commerce-workflow.route.create-topic-wrap@1",
+      "action": "wrap",
+      "targetId": "core.route.forum.create_topic",
+      "path": "/api/v1/topics",
+      "methods": ["POST"],
+      "fallback": "closed",
+      "mode": "http",
+      "handler": "sforum.commerce-workflow.route.create-topic-wrap",
+      "requestSchema": "sforum.route.forum.create_topic.request@1",
+      "responseSchema": "sforum.route.forum.create_topic.response@1",
+      "mutableRequestFields": ["/body"],
+      "mutableResponseFields": ["/body"]
+    },
+    {
+      "id": "sforum.commerce-workflow.route.create-topic-replace",
+      "contractVersion": "sforum.commerce-workflow.route.create-topic-replace@1",
+      "action": "replace",
+      "targetId": "core.route.forum.create_topic",
+      "path": "/api/v1/topics",
+      "methods": ["POST"],
+      "guard": "core.guard.raw_request",
+      "fallback": "closed",
+      "mode": "http",
+      "handler": "sforum.commerce-workflow.route.create-topic-replace",
+      "requestSchema": "sforum.route.forum.create_topic.request@1",
+      "responseSchema": "sforum.route.forum.create_topic.response@1"
+    },
+    {
+      "id": "sforum.commerce-workflow.route.managed-orders",
+      "contractVersion": "sforum.commerce-workflow.route.managed-orders@1",
+      "action": "add",
+      "path": "/api/commerce-workflow/managed-orders",
+      "methods": ["GET"],
+      "guard": "sforum.commerce-workflow.guard.owner",
+      "fallback": "closed",
+      "mode": "http",
+      "handler": "sforum.commerce-workflow.route.managed-orders",
+      "responseSchema": "sforum.commerce-workflow.route.managed-orders.response@1"
+    },
+    {
       "id": "sforum.commerce-workflow.route.events",
       "contractVersion": "sforum.commerce-workflow.route.events@1",
       "action": "add",
@@ -89,6 +187,18 @@
       "mode": "sse",
       "handler": "sforum.commerce-workflow.route.events",
       "responseSchema": "sforum.commerce-workflow.route.events.response@1"
+    },
+    {
+      "id": "sforum.commerce-workflow.route.stream",
+      "contractVersion": "sforum.commerce-workflow.route.stream@1",
+      "action": "add",
+      "path": "/api/commerce-workflow/stream",
+      "methods": ["GET"],
+      "guard": "core.guard.login",
+      "fallback": "closed",
+      "mode": "stream",
+      "handler": "sforum.commerce-workflow.route.stream",
+      "responseSchema": "sforum.commerce-workflow.route.stream.response@1"
     }
   ],
   "hooks": [
@@ -129,6 +239,38 @@
       "concurrencyLimit": 1
     }
   ],
+  "schedules": [
+    {
+      "id": "sforum.commerce-workflow.schedule.settle",
+      "contractVersion": "sforum.commerce-workflow.schedule.settle@1",
+      "jobId": "sforum.commerce-workflow.job.settle",
+      "cron": "0 */6 * * *",
+      "timezone": "UTC"
+    }
+  ],
+  "commands": [
+    {
+      "id": "sforum.commerce-workflow.command.settle-once",
+      "contractVersion": "sforum.commerce-workflow.command.settle-once@1",
+      "handler": "sforum.commerce-workflow.command.settle-once",
+      "permission": "sforum.commerce-workflow.manage",
+      "inputSchema": "sforum.commerce-workflow.command.settle-once.input@1",
+      "resultSchema": "sforum.commerce-workflow.command.settle-once.result@1",
+      "description": "Run one commerce settlement cycle from the Host CLI/admin console.",
+      "recoverySafe": true,
+      "timeoutMs": 3000
+    }
+  ],
+
+  "lifecycle": {
+    "contractVersion": "sforum.commerce-workflow.lifecycle@1",
+    "uninstall": {
+      "plan": "sforum.commerce-workflow.lifecycle.uninstall.plan",
+      "execute": "sforum.commerce-workflow.lifecycle.uninstall.execute",
+      "progressSchema": "sforum.commerce-workflow.lifecycle.progress@1",
+      "checkpointSchema": "sforum.commerce-workflow.lifecycle.checkpoint@1"
+    }
+  },
   "cache": [
     {
       "id": "sforum.commerce-workflow.cache.orders",
@@ -188,6 +330,20 @@
       "kind": "openapi",
       "path": "openapi/routes.yaml",
       "digest": "__OPENAPI_DIGEST__"
+    },
+    {
+      "id": "sforum.commerce-workflow.command.settle-once.input",
+      "kind": "schema",
+      "path": "schemas/command-settle-input.json",
+      "digest": "__COMMAND_INPUT_DIGEST__",
+      "version": "1"
+    },
+    {
+      "id": "sforum.commerce-workflow.command.settle-once.result",
+      "kind": "schema",
+      "path": "schemas/command-settle-result.json",
+      "digest": "__COMMAND_RESULT_DIGEST__",
+      "version": "1"
     }
   ]
 }

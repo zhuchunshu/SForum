@@ -29,13 +29,32 @@ func TestReferenceMediaOptimizePluginPublishesMIMETransformAndFallsBack(t *testi
 	if extension.ID != "sforum.media-optimize" || len(extension.Manifest.Media) != 1 {
 		t.Fatalf("media-optimize package = id=%s media=%d", extension.ID, len(extension.Manifest.Media))
 	}
-	if len(extension.Manifest.Jobs) != 1 || extension.Manifest.Jobs[0].Name != "sforum.media-optimize.variants" {
+	if len(extension.Manifest.Jobs) != 2 {
 		t.Fatalf("media-optimize jobs = %#v", extension.Manifest.Jobs)
 	}
+	jobNames := map[string]bool{}
+	for _, job := range extension.Manifest.Jobs {
+		jobNames[job.Name] = true
+	}
+	if !jobNames["sforum.media-optimize.variants"] || !jobNames["sforum.media-optimize.retention"] {
+		t.Fatalf("media-optimize job names = %#v", jobNames)
+	}
+	if len(extension.Manifest.Schedules) != 1 ||
+		extension.Manifest.Schedules[0].JobID != "sforum.media-optimize.job.retention" {
+		t.Fatalf("media-optimize schedules = %#v", extension.Manifest.Schedules)
+	}
+	if len(extension.Manifest.AdminSurfaces) != 1 ||
+		extension.Manifest.AdminSurfaces[0].Kind != "notice" {
+		t.Fatalf("media-optimize admin surfaces = %#v", extension.Manifest.AdminSurfaces)
+	}
 	// Host-assigned permission recommendation is catalog-only.
-	if len(extension.Manifest.PermissionDefinitions) != 1 ||
-		extension.Manifest.PermissionDefinitions[0].AssignmentPolicy != "host" {
+	if len(extension.Manifest.PermissionDefinitions) != 2 {
 		t.Fatalf("permission definitions = %#v", extension.Manifest.PermissionDefinitions)
+	}
+	for _, permission := range extension.Manifest.PermissionDefinitions {
+		if permission.AssignmentPolicy != "host" {
+			t.Fatalf("permission must stay Host-assigned: %#v", permission)
+		}
 	}
 
 	starter := extensionsruntime.NewProtocolStarter(extensionsruntime.ProtocolStarterConfig{
@@ -234,7 +253,13 @@ func buildReferenceMediaOptimizeExtension(t *testing.T) extensions.Extension {
 	if err != nil {
 		t.Fatal(err)
 	}
-	manifestBody := strings.ReplaceAll(string(templateBody), "__BACKEND_DIGEST__", fileSHA256(t, binaryPath))
+	manifestBody := string(templateBody)
+	manifestBody = strings.ReplaceAll(manifestBody, "__BACKEND_DIGEST__", fileSHA256(t, binaryPath))
+	manifestBody = strings.ReplaceAll(manifestBody, "__BULK_PROPS_DIGEST__", fileSHA256(t, filepath.Join(packageRoot, "schemas/bulk-notice-props.json")))
+	manifestBody = strings.ReplaceAll(manifestBody, "__BULK_RESULT_DIGEST__", fileSHA256(t, filepath.Join(packageRoot, "schemas/bulk-notice-result.json")))
+	if strings.Contains(manifestBody, "__") {
+		t.Fatal("media-optimize manifest still contains digest tokens")
+	}
 	if err := os.WriteFile(filepath.Join(packageRoot, extensionmanifest.ManifestFileName), []byte(manifestBody), 0o600); err != nil {
 		t.Fatal(err)
 	}

@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["placementId", "placementContractVersion", "kind", "locale"],
+  "properties": {
+    "placementId": {"const": "core.component.page.admin.attachments"},
+    "placementContractVersion": {"const": "sforum.component.page.admin.attachments@1"},
+    "kind": {"const": "notice"},
+    "locale": {"type": "string", "minLength": 2, "maxLength": 32},
+    "route": {"type": "object"},
+    "context": {"type": "object"}
+  },
+  "additionalProperties": false
+}

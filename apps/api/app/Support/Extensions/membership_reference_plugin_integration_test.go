@@ -235,10 +235,26 @@ func TestReferenceMembershipPluginJoinedGates(t *testing.T) {
 	for _, key := range []string{
 		capabilities.HostAPI, capabilities.ExtensionsRead,
 		capabilities.ExtensionsCall, capabilities.ExtensionsManage,
+		capabilities.AuditAppend,
 	} {
 		if !capSet.Has(key) {
 			t.Fatalf("missing capability grant %s", key)
 		}
+	}
+	if len(extension.Manifest.AdminSurfaces) != 1 ||
+		extension.Manifest.AdminSurfaces[0].Kind != "notice" {
+		t.Fatalf("membership admin surfaces = %#v", extension.Manifest.AdminSurfaces)
+	}
+	// Manifest capability catalog must disclose audit.append for operator trust UI.
+	hasAuditCapability := false
+	for _, key := range extension.Manifest.Capabilities {
+		if key == capabilities.AuditAppend {
+			hasAuditCapability = true
+			break
+		}
+	}
+	if !hasAuditCapability {
+		t.Fatalf("membership capabilities missing audit.append: %#v", extension.Manifest.Capabilities)
 	}
 
 	// --- Privacy export/erase hooks (Host Privacy registry; no implicit grant) ---
@@ -335,6 +351,7 @@ func buildReferenceMembershipExtension(t *testing.T) extensions.Extension {
 		"profile.section.input", "profile.section.output", "profile.account.input",
 		"profile.account.output", "session.evaluate.input", "session.evaluate.output",
 		"risk.evaluate.input", "risk.evaluate.output", "user-field.tier",
+		"admin-notice-props", "admin-notice-result",
 	}
 	for _, name := range schemaNames {
 		path := filepath.Join(packageRoot, "schemas", name+".json")
@@ -360,6 +377,7 @@ func buildReferenceMembershipExtension(t *testing.T) extensions.Extension {
 			{Key: capabilities.ExtensionsRead, Risk: capabilities.RiskMedium},
 			{Key: capabilities.ExtensionsCall, Risk: capabilities.RiskHigh},
 			{Key: capabilities.ExtensionsManage, Risk: capabilities.RiskHigh},
+			{Key: capabilities.AuditAppend, Risk: capabilities.RiskMedium},
 		},
 	}
 }

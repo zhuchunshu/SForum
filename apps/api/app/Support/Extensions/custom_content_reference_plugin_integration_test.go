@@ -32,13 +32,39 @@ func TestReferenceCustomContentPluginPublishesEntityContentEditorNavigation(t *t
 		t.Fatalf("extension id = %q", extension.ID)
 	}
 	// 独立可安装：Manifest 必须自洽且不依赖 showcase Host 捷径。
-	if len(extension.Manifest.Entities) < 3 || len(extension.Manifest.Content) < 4 ||
+	if len(extension.Manifest.Entities) < 4 || len(extension.Manifest.Content) < 5 ||
 		len(extension.Manifest.Editor) < 3 || len(extension.Manifest.Navigation) < 1 ||
-		len(extension.Manifest.Regions) < 1 {
-		t.Fatalf("custom-content surfaces incomplete: entities=%d content=%d editor=%d nav=%d regions=%d",
+		len(extension.Manifest.Regions) < 1 || len(extension.Manifest.Queries) < 2 {
+		t.Fatalf("custom-content surfaces incomplete: entities=%d content=%d editor=%d nav=%d regions=%d queries=%d",
 			len(extension.Manifest.Entities), len(extension.Manifest.Content),
 			len(extension.Manifest.Editor), len(extension.Manifest.Navigation),
-			len(extension.Manifest.Regions))
+			len(extension.Manifest.Regions), len(extension.Manifest.Queries))
+	}
+	contentKinds := map[string]bool{}
+	for _, item := range extension.Manifest.Content {
+		contentKinds[item.Kind] = true
+	}
+	for _, want := range []string{"block", "embed", "shortcode"} {
+		if !contentKinds[want] {
+			t.Fatalf("missing content kind %s in %#v", want, contentKinds)
+		}
+	}
+	entityArticleFound := false
+	indexedFields := 0
+	for _, item := range extension.Manifest.Entities {
+		if item.Kind == "entity" && item.ImportExportPolicy == "allow" &&
+			item.PermissionImport != "" && item.PermissionExport != "" {
+			entityArticleFound = true
+		}
+		if item.Kind == "field" && item.Indexed {
+			indexedFields++
+		}
+	}
+	if !entityArticleFound {
+		t.Fatal("entity import/export policy missing")
+	}
+	if indexedFields < 2 {
+		t.Fatalf("expected indexed search fields, got %d", indexedFields)
 	}
 
 	starter := extensionsruntime.NewProtocolStarter(extensionsruntime.ProtocolStarterConfig{
@@ -113,6 +139,9 @@ func TestReferenceCustomContentPluginPublishesEntityContentEditorNavigation(t *t
 	if _, err := entityReg.Resolve("sforum.custom-content.field.summary"); err != nil {
 		t.Fatalf("resolve field: %v", err)
 	}
+	if _, err := entityReg.Resolve("sforum.custom-content.field.slug"); err != nil {
+		t.Fatalf("resolve slug field: %v", err)
+	}
 
 	// --- Content ---
 	contentReg := contentregistry.New()
@@ -130,6 +159,7 @@ func TestReferenceCustomContentPluginPublishesEntityContentEditorNavigation(t *t
 		"sforum.custom-content.block.vote",
 		"sforum.custom-content.block.product-card",
 		"sforum.custom-content.embed.media",
+		"sforum.custom-content.shortcode.badge",
 		"sforum.custom-content.block.workflow-form",
 	} {
 		if _, err := contentReg.Resolve(id); err != nil {

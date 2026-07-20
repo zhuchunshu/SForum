@@ -18,19 +18,53 @@ const (
 	jobKind    = "sforum.media-optimize.variants"
 	jobHandler = "sforum.media-optimize.job.variants"
 	jobPayload = "sforum.media-optimize.job.variants.payload@1"
+
+	retentionJobID      = "sforum.media-optimize.job.retention"
+	retentionJobKind    = "sforum.media-optimize.retention"
+	retentionJobHandler = "sforum.media-optimize.job.retention"
+	retentionJobPayload = "sforum.media-optimize.job.retention.payload@1"
 )
 
 func main() {
-	jobs, err := pluginv2.NewJobRegistry(pluginv2.JobDefinition{
-		ID: jobID, ContractVersion: jobID + "@1", Name: jobKind,
-		Handler: jobHandler, PayloadSchema: jobPayload,
-		RetryPolicy: "bounded", MaxAttempts: 3, RetryDelaySeconds: 5, ConcurrencyLimit: 2,
-		Execute: runOptimizeJob,
-	})
+	jobs, err := pluginv2.NewJobRegistry(
+		pluginv2.JobDefinition{
+			ID: jobID, ContractVersion: jobID + "@1", Name: jobKind,
+			Handler: jobHandler, PayloadSchema: jobPayload,
+			RetryPolicy: "bounded", MaxAttempts: 3, RetryDelaySeconds: 5, ConcurrencyLimit: 2,
+			Execute: runOptimizeJob,
+		},
+		pluginv2.JobDefinition{
+			ID: retentionJobID, ContractVersion: retentionJobID + "@1", Name: retentionJobKind,
+			Handler: retentionJobHandler, PayloadSchema: retentionJobPayload,
+			RetryPolicy: "bounded", MaxAttempts: 2, RetryDelaySeconds: 30, ConcurrencyLimit: 1,
+			Execute: runRetentionJob,
+		},
+	)
 	if err != nil {
 		log.Fatalf("configure media-optimize jobs: %v", err)
 	}
 	pluginv2.Serve(pluginv2.NewServer().WithJobRegistry(jobs))
+}
+
+func runRetentionJob(ctx context.Context, call *pluginv2.JobCall) error {
+	if call == nil || call.Progress == nil {
+		return errors.New("missing job progress stream")
+	}
+	if err := call.Progress.Send(&protocolwire.ProgressUpdate{
+		StepId: call.JobID, State: protocolwire.ProgressState_PROGRESS_STATE_RUNNING,
+		CompletedUnits: 1, TotalUnits: 1, Checkpoint: "retention",
+	}); err != nil {
+		return err
+	}
+	select {
+	case <-ctx.Done():
+		return context.Cause(ctx)
+	default:
+	}
+	return call.Progress.Send(&protocolwire.ProgressUpdate{
+		StepId: call.JobID, State: protocolwire.ProgressState_PROGRESS_STATE_SUCCEEDED,
+		CompletedUnits: 1, TotalUnits: 1, Checkpoint: "done",
+	})
 }
 
 func runOptimizeJob(ctx context.Context, call *pluginv2.JobCall) error {

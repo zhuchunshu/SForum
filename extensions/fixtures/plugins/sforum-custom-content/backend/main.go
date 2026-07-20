@@ -52,6 +52,7 @@ func invokeReferenceArticles(_ context.Context, call *pluginv2.QueryRuntimeCall)
 			"id":      strconv.Itoa(id),
 			"title":   "article-" + strconv.Itoa(id),
 			"summary": "summary-" + strconv.Itoa(id),
+			"slug":    "article-" + strconv.Itoa(id),
 		})
 		if err != nil {
 			return nil, err

@@ -3,10 +3,11 @@
   "$id": "sforum.custom-content.articles@1",
   "type": "object",
   "additionalProperties": false,
-  "required": ["id", "title", "summary"],
+  "required": ["id", "title", "summary", "slug"],
   "properties": {
     "id": { "type": "string" },
     "title": { "type": "string" },
-    "summary": { "type": "string" }
+    "summary": { "type": "string" },
+    "slug": { "type": "string" }
   }
 }

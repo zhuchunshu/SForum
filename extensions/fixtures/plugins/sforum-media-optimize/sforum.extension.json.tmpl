@@ -2,7 +2,7 @@
   "manifestVersion": 3,
   "id": "sforum.media-optimize",
   "name": "SForum Media Optimize Reference",
-  "description": "Protocol V2 reference plugin proving Media Pipeline MIME policy, transforms/variants, background jobs, and original fallback on failure/disable.",
+  "description": "Protocol V2 reference plugin proving Media Pipeline MIME policy, transforms/variants, background jobs, scheduled retention cleanup, and original fallback on failure/disable.",
   "url": "https://github.com/zhuchunshu/sforum",
   "author": {
     "name": "SForum",
@@ -25,6 +25,14 @@
       "contractVersion": "sforum.media-optimize.transform@1",
       "label": "Optimize media",
       "description": "Run reference media transforms and background optimize jobs.",
+      "recommendedRoles": ["administrator"],
+      "assignmentPolicy": "host"
+    },
+    {
+      "key": "sforum.media-optimize.bulk",
+      "contractVersion": "sforum.media-optimize.bulk@1",
+      "label": "Bulk media optimize",
+      "description": "Run admin bulk optimize and retention cleanup tools.",
       "recommendedRoles": ["administrator"],
       "assignmentPolicy": "host"
     }
@@ -66,6 +74,43 @@
       "maxAttempts": 3,
       "retryDelaySeconds": 5,
       "concurrencyLimit": 2
+    },
+    {
+      "id": "sforum.media-optimize.job.retention",
+      "contractVersion": "sforum.media-optimize.job.retention@1",
+      "name": "sforum.media-optimize.retention",
+      "handler": "sforum.media-optimize.job.retention",
+      "payloadSchema": "sforum.media-optimize.job.retention.payload@1",
+      "retryPolicy": "bounded",
+      "maxAttempts": 2,
+      "retryDelaySeconds": 30,
+      "concurrencyLimit": 1
+    }
+  ],
+  "schedules": [
+    {
+      "id": "sforum.media-optimize.schedule.retention",
+      "contractVersion": "sforum.media-optimize.schedule.retention@1",
+      "jobId": "sforum.media-optimize.job.retention",
+      "cron": "15 3 * * *",
+      "timezone": "UTC"
+    }
+  ],
+  "adminSurfaces": [
+    {
+      "id": "sforum.media-optimize.admin.bulk-notice",
+      "contractVersion": "sforum.media-optimize.admin.bulk-notice@1",
+      "kind": "notice",
+      "action": "add",
+      "placementId": "core.component.page.admin.attachments",
+      "placementContractVersion": "sforum.component.page.admin.attachments@1",
+      "label": "Media optimize bulk tools",
+      "handler": "sforum.media-optimize.admin.bulk-notice",
+      "propsSchema": "sforum.media-optimize.admin.bulk-notice.props@1",
+      "resultSchema": "sforum.media-optimize.admin.bulk-notice.result@1",
+      "operation": "query",
+      "permission": "sforum.media-optimize.bulk",
+      "priority": 20
     }
   ],
   "packageFiles": [
@@ -74,6 +119,20 @@
       "kind": "executable",
       "path": "backend/plugin",
       "digest": "__BACKEND_DIGEST__"
+    },
+    {
+      "id": "sforum.media-optimize.admin.bulk-notice.props",
+      "kind": "schema",
+      "path": "schemas/bulk-notice-props.json",
+      "digest": "__BULK_PROPS_DIGEST__",
+      "version": "1"
+    },
+    {
+      "id": "sforum.media-optimize.admin.bulk-notice.result",
+      "kind": "schema",
+      "path": "schemas/bulk-notice-result.json",
+      "digest": "__BULK_RESULT_DIGEST__",
+      "version": "1"
     }
   ]
 }

@@ -17,3 +17,17 @@ paths:
       responses:
         "200":
           description: Server-sent events
+  /api/commerce-workflow/stream:
+    get:
+      operationId: sforumCommerceWorkflowBinaryStream
+      summary: Opaque binary stream for order export chunks
+      responses:
+        "200":
+          description: Binary stream
+  /api/commerce-workflow/managed-orders:
+    get:
+      operationId: sforumCommerceWorkflowManagedOrders
+      summary: List orders behind the package custom guard
+      responses:
+        "200":
+          description: Managed order list

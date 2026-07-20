@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["title", "message"],
+  "properties": {
+    "title": {"type": "string", "minLength": 1, "maxLength": 160},
+    "message": {"type": "string", "minLength": 1, "maxLength": 1000},
+    "tone": {"enum": ["neutral", "primary", "success", "warning", "error"]},
+    "icon": {"type": "string", "pattern": "^i-(lucide|tabler)-[a-z0-9-]+$"}
+  },
+  "additionalProperties": false
+}
